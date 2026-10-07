@@ -158,6 +158,22 @@ func _run() -> void:
 	_check(rolled >= 10, "containers have loot (%d)" % rolled)
 	_check(ItemDB.money(1234567) == "$1,234,567", "money formatting")
 
+	# Imported crate model: right size, crisp pixel filtering.
+	var crate := (load("res://scenes/loot_crate.tscn") as PackedScene).instantiate() as Node3D
+	main.add_child(crate)
+	crate.global_position = Vector3(0, 0, 60)
+	await process_frame
+	var meshes := crate.find_children("*", "MeshInstance3D", true, false)
+	_check(meshes.size() > 0, "crate uses the imported model")
+	if meshes.size() > 0:
+		var crate_mesh := meshes[0] as MeshInstance3D
+		var box := crate_mesh.get_aabb().size
+		_check(box.distance_to(Vector3(1.0, 0.75, 0.7)) < 0.05, "crate model is 1.0 x 0.75 x 0.7 m (got %s)" % box)
+		var crate_material := crate_mesh.mesh.surface_get_material(0) as BaseMaterial3D
+		_check(crate_material != null and crate_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
+			and crate_material.albedo_texture != null, "crate texture is crisp (nearest filtering)")
+	crate.queue_free()
+
 	# Backpack slots.
 	var inv := player.inventory
 	inv.clear()

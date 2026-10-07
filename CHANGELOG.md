@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.3 (first real art)
+- Loot crates use the hand-made Blender crate model (16 px/m texture, Bloxov palette) instead of colored boxes
+- Pixel-art models get crisp "nearest" texture filtering and matte materials automatically (`scripts/pixel_model.gd`)
+
 ## 0.3.2 (movement: noise, crouch, stamina)
 - Footsteps: you hear your own steps, and scavs hear them too. Sprinting carries ~15 m, walking ~7 m, crouch-walking is silent. Landing is loud (~10 m)
 - Scavs have footsteps, so you can hear them coming

@@ -50,6 +50,9 @@ best made while doing the first test asset (a crate).
   or they'll look blurry. We'll set this up once in the import settings during the crate test.
 
 ## 5. Look and color
+- **Style: military / scavenged / post-collapse, not fantasy.** Think olive-drab paint, stenciled codes,
+  metal latches and corner caps, hazard stripes, worn edges. Avoid the "dungeon crate" look
+  (raw brown planks with dark bands). Blocky and a bit goofy is good; medieval is not.
 - **Palette: 24 colors in `art_source/palette.gpl`** (chosen for the crate test; confirm once it's seen in-game).
   Paint only with those. The `.gpl` loads in Aseprite, Krita and GIMP; `make_crate.py` has the same list as hex codes.
   Groups: neutrals/metal (black to bone), wood (dark to pale), accents (rust, red, hazard yellow), world/military
@@ -75,6 +78,9 @@ Voxel/blocky art is naturally cheap; these limits are generous on purpose.
 - Characters need the head and body as **separate meshes or bones** so the head can be the headshot zone.
 
 ## 8. Swapping a placeholder for a model
+Done so far: **crate** (0.3.3), see `scenes/loot_crate.tscn`: the `.glb` is instanced as a `Model` child with
+`scripts/pixel_model.gd` attached (forces nearest filtering + matte), and the collision box stays in the scene.
+
 1. Export the `.glb` to `assets/models/...` and push it (or tell Claude where it is).
 2. Claude replaces the placeholder box meshes in the matching scene (e.g. `scenes/loot_crate.tscn`) with the model,
    keeps the collision and scripts, and checks it in a CI build.
