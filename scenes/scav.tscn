@@ -1,0 +1,243 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/scav.gd" id="1_scav"]
+[ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
+
+[sub_resource type="BoxShape3D" id="BodyBox"]
+size = Vector3(0.8, 1.35, 0.6)
+
+[sub_resource type="BoxShape3D" id="HeadBox"]
+size = Vector3(0.62, 0.72, 0.62)
+
+[sub_resource type="StandardMaterial3D" id="Jacket"]
+albedo_color = Color(0.3, 0.36, 0.22, 1)
+
+[sub_resource type="StandardMaterial3D" id="Pants"]
+albedo_color = Color(0.45, 0.42, 0.3, 1)
+
+[sub_resource type="StandardMaterial3D" id="Boots"]
+albedo_color = Color(0.15, 0.12, 0.1, 1)
+
+[sub_resource type="StandardMaterial3D" id="Vest"]
+albedo_color = Color(0.2, 0.22, 0.16, 1)
+
+[sub_resource type="StandardMaterial3D" id="Pouch"]
+albedo_color = Color(0.36, 0.33, 0.22, 1)
+
+[sub_resource type="StandardMaterial3D" id="Balaclava"]
+albedo_color = Color(0.17, 0.17, 0.17, 1)
+
+[sub_resource type="StandardMaterial3D" id="Skin"]
+albedo_color = Color(0.86, 0.66, 0.5, 1)
+
+[sub_resource type="StandardMaterial3D" id="EyeDark"]
+shading_mode = 0
+albedo_color = Color(0.05, 0.05, 0.05, 1)
+
+[sub_resource type="StandardMaterial3D" id="Helmet"]
+albedo_color = Color(0.34, 0.39, 0.25, 1)
+
+[sub_resource type="StandardMaterial3D" id="Gloves"]
+albedo_color = Color(0.14, 0.14, 0.12, 1)
+
+[sub_resource type="StandardMaterial3D" id="GunMetal"]
+albedo_color = Color(0.1, 0.1, 0.11, 1)
+
+[sub_resource type="StandardMaterial3D" id="GunWood"]
+albedo_color = Color(0.45, 0.28, 0.14, 1)
+
+[sub_resource type="StandardMaterial3D" id="FlashMat"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="LegMesh"]
+material = SubResource("Pants")
+size = Vector3(0.32, 0.5, 0.36)
+
+[sub_resource type="BoxMesh" id="BootMesh"]
+material = SubResource("Boots")
+size = Vector3(0.34, 0.14, 0.42)
+
+[sub_resource type="BoxMesh" id="BodyMesh"]
+material = SubResource("Jacket")
+size = Vector3(0.8, 0.85, 0.5)
+
+[sub_resource type="BoxMesh" id="VestMesh"]
+material = SubResource("Vest")
+size = Vector3(0.84, 0.55, 0.56)
+
+[sub_resource type="BoxMesh" id="PouchMesh"]
+material = SubResource("Pouch")
+size = Vector3(0.18, 0.16, 0.08)
+
+[sub_resource type="BoxMesh" id="HeadMesh"]
+material = SubResource("Balaclava")
+size = Vector3(0.56, 0.56, 0.56)
+
+[sub_resource type="BoxMesh" id="EyeBandMesh"]
+material = SubResource("Skin")
+size = Vector3(0.42, 0.13, 0.02)
+
+[sub_resource type="BoxMesh" id="EyeMesh"]
+material = SubResource("EyeDark")
+size = Vector3(0.07, 0.07, 0.02)
+
+[sub_resource type="BoxMesh" id="HelmetMesh"]
+material = SubResource("Helmet")
+size = Vector3(0.66, 0.22, 0.66)
+
+[sub_resource type="BoxMesh" id="BrimMesh"]
+material = SubResource("Helmet")
+size = Vector3(0.66, 0.06, 0.12)
+
+[sub_resource type="BoxMesh" id="ArmMesh"]
+material = SubResource("Jacket")
+size = Vector3(0.2, 0.2, 0.6)
+
+[sub_resource type="BoxMesh" id="HandMesh"]
+material = SubResource("Gloves")
+size = Vector3(0.16, 0.16, 0.14)
+
+[sub_resource type="BoxMesh" id="GunBody"]
+material = SubResource("GunMetal")
+size = Vector3(0.1, 0.14, 0.62)
+
+[sub_resource type="BoxMesh" id="GunStock"]
+material = SubResource("GunWood")
+size = Vector3(0.08, 0.12, 0.22)
+
+[sub_resource type="BoxMesh" id="GunMag"]
+material = SubResource("GunMetal")
+size = Vector3(0.07, 0.18, 0.09)
+
+[sub_resource type="BoxMesh" id="FlashMesh"]
+material = SubResource("FlashMat")
+size = Vector3(0.16, 0.16, 0.02)
+
+[node name="Scav" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 7
+script = ExtResource("1_scav")
+
+[node name="BodyShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
+shape = SubResource("BodyBox")
+
+[node name="HeadShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.71, 0)
+shape = SubResource("HeadBox")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 60
+
+[node name="Model" type="Node3D" parent="."]
+
+[node name="LegL" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.19, 0.32, 0)
+mesh = SubResource("LegMesh")
+
+[node name="LegR" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.19, 0.32, 0)
+mesh = SubResource("LegMesh")
+
+[node name="BootL" type="MeshInstance3D" parent="Model/LegL"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, -0.03)
+mesh = SubResource("BootMesh")
+
+[node name="BootR" type="MeshInstance3D" parent="Model/LegR"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, -0.03)
+mesh = SubResource("BootMesh")
+
+[node name="Body" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.98, 0)
+mesh = SubResource("BodyMesh")
+
+[node name="Vest" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.08, 0)
+mesh = SubResource("VestMesh")
+
+[node name="PouchL" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.22, 0.98, -0.31)
+mesh = SubResource("PouchMesh")
+
+[node name="PouchM" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.98, -0.31)
+mesh = SubResource("PouchMesh")
+
+[node name="PouchR" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 0.98, -0.31)
+mesh = SubResource("PouchMesh")
+
+[node name="Head" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0)
+mesh = SubResource("HeadMesh")
+
+[node name="EyeBand" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.285)
+cast_shadow = 0
+mesh = SubResource("EyeBandMesh")
+
+[node name="EyeL" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, 1.7, -0.297)
+cast_shadow = 0
+mesh = SubResource("EyeMesh")
+
+[node name="EyeR" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 1.7, -0.297)
+cast_shadow = 0
+mesh = SubResource("EyeMesh")
+
+[node name="Helmet" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.97, 0)
+mesh = SubResource("HelmetMesh")
+
+[node name="Brim" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.89, -0.36)
+mesh = SubResource("BrimMesh")
+
+[node name="ArmL" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.42, 1.22, -0.28)
+mesh = SubResource("ArmMesh")
+
+[node name="ArmR" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 1.18, -0.1)
+mesh = SubResource("ArmMesh")
+
+[node name="HandL" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 1.22, -0.6)
+mesh = SubResource("HandMesh")
+
+[node name="HandR" type="MeshInstance3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 1.16, -0.38)
+mesh = SubResource("HandMesh")
+
+[node name="Gun" type="Node3D" parent="Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1, 1.25, -0.55)
+
+[node name="Body" type="MeshInstance3D" parent="Model/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("GunBody")
+
+[node name="Stock" type="MeshInstance3D" parent="Model/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0.38)
+mesh = SubResource("GunStock")
+
+[node name="Mag" type="MeshInstance3D" parent="Model/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.14, -0.08)
+mesh = SubResource("GunMag")
+
+[node name="Muzzle" type="Marker3D" parent="Model/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.34)
+
+[node name="Flash" type="Node3D" parent="Model/Gun/Muzzle"]
+
+[node name="FlashMesh" type="MeshInstance3D" parent="Model/Gun/Muzzle/Flash"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+cast_shadow = 0
+mesh = SubResource("FlashMesh")
+
+[node name="FlashLight" type="OmniLight3D" parent="Model/Gun/Muzzle/Flash"]
+light_color = Color(1, 0.8, 0.4, 1)
+light_energy = 1.5
+omni_range = 4.0

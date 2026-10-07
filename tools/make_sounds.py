@@ -84,15 +84,15 @@ def hurt():
     return out
 
 
-def growl():
-    n = length(0.4)
-    out, phase = [], 0.0
-    for i in range(n):
-        t = i / RATE
-        phase += 2 * math.pi * (85 + 60 * t / 0.4 + 8 * math.sin(t * 60)) / RATE
-        saw = (phase / math.pi % 2) - 1
-        env = min(1, t * 20) * math.exp(-max(0, t - 0.25) * 12)
-        out.append(saw * env)
+def alert():
+    """Radio chirp a scav makes when it spots you."""
+    out = []
+    for f, secs in ((1050, 0.07), (0, 0.03), (1400, 0.09)):
+        nz = noise(length(secs), 0.2)
+        for i in range(length(secs)):
+            t = i / RATE
+            square = 1.0 if math.sin(2 * math.pi * f * t) > 0 else -1.0
+            out.append((square * 0.5 + nz[i] * 0.25) if f else nz[i] * 0.15)
     return out
 
 
@@ -117,7 +117,7 @@ def main():
     write("mag_out.wav", click(0.08, 700, 50))
     write("mag_in.wav", mag_in())
     write("hurt.wav", hurt())
-    write("growl.wav", growl())
+    write("alert.wav", alert())
     write("pop.wav", pop())
 
 

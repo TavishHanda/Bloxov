@@ -3,7 +3,7 @@
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1_player"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
 [ext_resource type="PackedScene" path="res://scenes/target_dummy.tscn" id="3_dummy"]
-[ext_resource type="PackedScene" path="res://scenes/enemy_rusher.tscn" id="4_rusher"]
+[ext_resource type="PackedScene" path="res://scenes/scav.tscn" id="4_scav"]
 [ext_resource type="Script" path="res://scripts/enemy_spawner.gd" id="5_spawner"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
@@ -310,7 +310,9 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -17)
 
 [node name="EnemySpawner" type="Node3D" parent="."]
 script = ExtResource("5_spawner")
-enemy_scene = ExtResource("4_rusher")
+enemy_scene = ExtResource("4_scav")
+max_alive = 5
+initial_count = 3
 
 [node name="Spawn0" type="Marker3D" parent="EnemySpawner"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 0.1, -30)
@@ -337,6 +339,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0.1, -32)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, -32)
 
 [node name="HUD" type="CanvasLayer" parent="." node_paths=PackedStringArray("player")]
+process_mode = 3
 script = ExtResource("2_hud")
 player = NodePath("../Player")
 
@@ -354,23 +357,6 @@ text = "+"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Hint" type="Label" parent="HUD"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -260.0
-offset_top = -60.0
-offset_right = 260.0
-offset_bottom = 60.0
-theme_override_font_sizes/font_size = 22
-text = "BLOXOV
-Click to play
-WASD move · Mouse look · Click shoot · R reload · Shift sprint · Space jump · Esc release mouse"
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 3
 
 [node name="Debug" type="Label" parent="HUD"]
 visible = false
@@ -466,3 +452,122 @@ theme_override_font_sizes/font_size = 36
 text = "YOU DIED"
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="DamageIndicator" type="Control" parent="HUD"]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+mouse_filter = 2
+
+[node name="Arrow" type="ColorRect" parent="HUD/DamageIndicator"]
+layout_mode = 0
+offset_left = -45.0
+offset_top = -150.0
+offset_right = 45.0
+offset_bottom = -138.0
+mouse_filter = 2
+color = Color(1, 0.15, 0.1, 0.9)
+
+[node name="ArrowTip" type="ColorRect" parent="HUD/DamageIndicator"]
+layout_mode = 0
+offset_left = -12.0
+offset_top = -162.0
+offset_right = 12.0
+offset_bottom = -150.0
+mouse_filter = 2
+color = Color(1, 0.15, 0.1, 0.9)
+
+[node name="Menu" type="PanelContainer" parent="HUD"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -190.0
+offset_right = 280.0
+offset_bottom = 190.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="HUD/Menu"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 22
+
+[node name="VBox" type="VBoxContainer" parent="HUD/Menu/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="HUD/Menu/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 44
+text = "BLOXOV"
+horizontal_alignment = 1
+
+[node name="PlayButton" type="Button" parent="HUD/Menu/Margin/VBox"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "PLAY"
+
+[node name="VolumeRow" type="HBoxContainer" parent="HUD/Menu/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/Menu/Margin/VBox/VolumeRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Volume"
+
+[node name="Slider" type="HSlider" parent="HUD/Menu/Margin/VBox/VolumeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+step = 1.0
+value = 60.0
+
+[node name="Value" type="Label" parent="HUD/Menu/Margin/VBox/VolumeRow"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+text = "60%"
+horizontal_alignment = 2
+
+[node name="SensitivityRow" type="HBoxContainer" parent="HUD/Menu/Margin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="HUD/Menu/Margin/VBox/SensitivityRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+text = "Mouse sens."
+
+[node name="Slider" type="HSlider" parent="HUD/Menu/Margin/VBox/SensitivityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 10.0
+max_value = 300.0
+step = 5.0
+value = 100.0
+
+[node name="Value" type="Label" parent="HUD/Menu/Margin/VBox/SensitivityRow"]
+custom_minimum_size = Vector2(56, 0)
+layout_mode = 2
+text = "1.00x"
+horizontal_alignment = 2
+
+[node name="Controls" type="Label" parent="HUD/Menu/Margin/VBox"]
+modulate = Color(1, 1, 1, 0.7)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "WASD move · Mouse look · Click shoot · R reload · Shift sprint · Space jump
+Esc opens this menu · F3 debug"
+horizontal_alignment = 1
+autowrap_mode = 3

@@ -58,12 +58,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.pressed and dead_for > 1.0:
 			get_tree().reload_current_scene()
 		return
-	# Browsers only allow mouse capture after a click, so capture on click.
-	# Only request it when not already captured; re-locking mid-game can glitch in browsers.
-	if event is InputEventMouseButton and event.pressed:
-		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("ui_cancel"):
+	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
+	if event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var delta_len: float = event.screen_relative.length()
@@ -74,8 +70,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		if delta_len > max_mouse_delta:
 			debug_spikes_dropped += 1
 			return
-		rotate_y(-event.screen_relative.x * mouse_sensitivity)
-		head.rotate_x(-event.screen_relative.y * mouse_sensitivity)
+		var sens := mouse_sensitivity * GameSettings.sensitivity
+		rotate_y(-event.screen_relative.x * sens)
+		head.rotate_x(-event.screen_relative.y * sens)
 		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-89.0), deg_to_rad(89.0))
 
 

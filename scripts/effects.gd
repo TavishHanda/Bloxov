@@ -93,12 +93,12 @@ static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitt
 	player.play()
 
 
-static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08) -> void:
+static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0) -> void:
 	var player := AudioStreamPlayer3D.new()
 	player.stream = stream
 	player.volume_db = volume_db
 	player.unit_size = 6.0
-	player.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	player.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
 	world.add_child(player)
 	player.global_position = pos
 	player.finished.connect(player.queue_free)

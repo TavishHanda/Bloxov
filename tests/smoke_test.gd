@@ -1,6 +1,6 @@
 extends SceneTree
 ## Headless gameplay test, run by CI:  godot --headless -s tests/smoke_test.gd
-## Loads the main scene, fires the gun at the dummy, reloads, and lets an enemy attack the player.
+## Loads the main scene, fires the gun at the dummy, reloads, and lets a scav shoot the player.
 
 var _failures := 0
 
@@ -13,6 +13,10 @@ func _run() -> void:
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	current_scene = main
+	# The HUD pauses the game while the mouse isn't captured (always, in headless). Turn that off.
+	main.get_node("HUD").process_mode = Node.PROCESS_MODE_DISABLED
+	paused = false
+	seed(12345)
 	await _frames(5)
 
 	# Clear out spawned enemies so the test is predictable.
@@ -53,13 +57,13 @@ func _run() -> void:
 	await create_timer(gun.reload_time + 0.3).timeout
 	_check(gun.in_mag == gun.mag_size and not gun.is_reloading, "reload refills the magazine")
 
-	# An enemy right behind the player should chase and punch.
-	var enemy := (load("res://scenes/enemy_rusher.tscn") as PackedScene).instantiate() as Enemy
+	# A scav behind the player should spot them and shoot.
+	var enemy := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
 	main.add_child(enemy)
-	enemy.global_position = player.global_position + player.global_basis.z * 4.0
+	enemy.global_position = player.global_position + player.global_basis.z * 8.0
 	var hp := player.health.current
 	await create_timer(4.0).timeout
-	_check(player.health.current < hp, "enemy damages the player (hp %d -> %d)" % [hp, player.health.current])
+	_check(player.health.current < hp, "scav shoots the player (hp %d -> %d)" % [hp, player.health.current])
 
 	# Killing the enemy removes it.
 	enemy.health.take_damage(9999)
@@ -70,6 +74,12 @@ func _run() -> void:
 	player.health.take_damage(9999)
 	await _frames(3)
 	_check(player.is_dead, "player dies at 0 hp")
+
+	# Settings.
+	GameSettings.set_volume(0.0)
+	_check(AudioServer.is_bus_mute(0), "volume 0 mutes audio")
+	GameSettings.set_volume(0.5)
+	_check(not AudioServer.is_bus_mute(0) and AudioServer.get_bus_volume_db(0) < 0.0, "volume 50% lowers audio")
 
 	print("SMOKE TEST: %s" % ("PASSED" if _failures == 0 else "%d FAILED" % _failures))
 	quit(1 if _failures > 0 else 0)
