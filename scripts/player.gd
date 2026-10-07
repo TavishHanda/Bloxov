@@ -7,6 +7,9 @@ extends CharacterBody3D
 @export var mouse_sensitivity := 0.0025
 ## How quickly we reach target speed. Higher = snappier.
 @export var acceleration := 12.0
+## Mouse movements bigger than this (in pixels, in one event) are treated as glitches and ignored.
+## Works around a Chrome bug where captured-mouse input sometimes reports a huge bogus jump.
+@export var max_mouse_delta := 200.0
 ## Falling below this height respawns the player.
 @export var kill_height := -20.0
 
@@ -26,8 +29,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		head.rotate_x(-event.relative.y * mouse_sensitivity)
+		if event.screen_relative.length() > max_mouse_delta:
+			return
+		rotate_y(-event.screen_relative.x * mouse_sensitivity)
+		head.rotate_x(-event.screen_relative.y * mouse_sensitivity)
 		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-89.0), deg_to_rad(89.0))
 
 
