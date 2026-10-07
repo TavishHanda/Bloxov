@@ -38,7 +38,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for what changed in each version.
 ## One-time setup: playable web link
 
 In this repo on GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-After that, each push to `main` deploys to `https://tavishhanda.github.io/Bloxov/ (capital B: Pages URLs are case-sensitive)`.
+After that, each push to `main` deploys to https://tavishhanda.github.io/Bloxov/ (capital B: Pages URLs are case-sensitive).
 
 ## Coming from Unity
 
