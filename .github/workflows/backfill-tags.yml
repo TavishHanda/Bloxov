@@ -15,13 +15,15 @@ jobs:
           fetch-depth: 0
 
       - name: Tag versions from before CI tagging existed
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           while read -r tag commit; do
             if git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null; then
               echo "${tag} already exists"
             else
-              git tag "${tag}" "${commit}"
-              git push origin "refs/tags/${tag}"
+              sha=$(git rev-parse "${commit}")
+              gh api "repos/${GITHUB_REPOSITORY}/git/refs" -f ref="refs/tags/${tag}" -f sha="${sha}" > /dev/null
               echo "Tagged ${tag} at ${commit}"
             fi
           done <<'TAGS'
