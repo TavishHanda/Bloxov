@@ -75,6 +75,9 @@ Voxel/blocky art is naturally cheap; these limits are generous on purpose.
 - Characters need the head and body as **separate meshes or bones** so the head can be the headshot zone.
 
 ## 8. Swapping a placeholder for a model
+Done so far: **crate** (0.3.3), see `scenes/loot_crate.tscn`: the `.glb` is instanced as a `Model` child with
+`scripts/pixel_model.gd` attached (forces nearest filtering + matte), and the collision box stays in the scene.
+
 1. Export the `.glb` to `assets/models/...` and push it (or tell Claude where it is).
 2. Claude replaces the placeholder box meshes in the matching scene (e.g. `scenes/loot_crate.tscn`) with the model,
    keeps the collision and scripts, and checks it in a CI build.
