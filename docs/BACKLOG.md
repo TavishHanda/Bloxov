@@ -8,6 +8,7 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
   Later: vaulting, leaning, fall damage, stairs/ladders, real arms/sprint animation once there are models.
 - **Weight from loot:** on hold until the inventory redesign.
 - **Inventory:** owner wants to redesign the inventory system.
+- **Sound:** needs a full redesign (current sounds are generated placeholders from `tools/make_sounds.py`). Later.
 - **Scav spawns:** need control over where scavs spawn (currently random spawn points kept away from the player).
 
 ## Review order
