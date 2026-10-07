@@ -1,0 +1,28 @@
+GIMP Palette
+Name: Bloxov
+Columns: 8
+#
+ 27  28  31	black
+ 47  50  54	iron_dark
+ 75  80  87	iron
+111 118 125	steel
+154 161 166	steel_light
+184 180 170	concrete
+226 220 203	bone
+ 74  47  27	wood_dark
+110  70  40	wood_mid
+143  94  52	wood
+176 122  69	wood_light
+201 154  94	wood_pale
+138  63  31	rust
+176  58  46	red
+232 185  35	hazard_yellow
+168 128  26	yellow_dark
+168 154 106	sand
+ 61  66  40	olive_dark
+ 91  98  54	olive
+125 132  80	olive_light
+ 85 107  47	grass
+ 46 125  50	green_dark
+ 79 212  74	extract_green
+ 62 109 140	sky_blue

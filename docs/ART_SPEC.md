@@ -39,7 +39,7 @@ best made while doing the first test asset (a crate).
 - Name objects and materials clearly (`crate`, `crate_mat`); Godot keeps the names.
 
 ## 4. Textures
-- **DECIDE: texel density**, i.e. texture pixels per meter. It must be the same on every asset, or some things
+- **Texel density: 16 px/m** (chosen for the crate test; confirm once it's seen in-game), i.e. texture pixels per meter. It must be the same on every asset, or some things
   look crisp and others blurry. Options:
   - **16 px/m:** chunky and blocky (Minecraft/Unturned). A 1 m crate face = 16×16 pixels.
   - **32 px/m:** still pixel-art, more detail for small items and guns.
@@ -50,7 +50,10 @@ best made while doing the first test asset (a crate).
   or they'll look blurry. We'll set this up once in the import settings during the crate test.
 
 ## 5. Look and color
-- **DECIDE: palette.** A limited palette keeps everything consistent. Pick 16–32 colors and paint only with those.
+- **Palette: 24 colors in `art_source/palette.gpl`** (chosen for the crate test; confirm once it's seen in-game).
+  Paint only with those. The `.gpl` loads in Aseprite, Krita and GIMP; `make_crate.py` has the same list as hex codes.
+  Groups: neutrals/metal (black to bone), wood (dark to pale), accents (rust, red, hazard yellow), world/military
+  (sand, olives, grass), extract greens, sky blue. Add colors to the file, not ad hoc.
 - Readability first: loot and enemies should stand out from the world. Current placeholder rules:
   scavs are olive/dark (military), loot containers are warm (wood/metal), extracts are bright green.
 - Lighting is simple (one sun with shadows plus sky light, web renderer). Flat, matte materials work best.
