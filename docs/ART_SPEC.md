@@ -16,7 +16,7 @@ best made while doing the first test asset (a crate).
 | Doorway | 2.0 wide, full wall height | Gap in the front wall |
 | Walls | 0.5 thick | |
 | Buildings | 3.5–4.0 tall (bunker 2.5) | Gas station 10×8, grocery 12×10, police 10×10, bunker 8×8 |
-| Crate (loot) | 1.0 × 0.75 × 0.7 | Low cover: a crouched player (eyes 1.0) can peek over it |
+| Crate (loot) | 1.1 × 0.5 × 0.6 | Hard transport case, long and low. Too low to be cover (by choice) |
 | Locker | 0.75 × 1.9 × 0.55 | |
 | Safe | 0.8 × 0.85 × 0.7 | |
 | Bag / body loot | 0.6 × 0.35 × 0.45 | Lies on the ground |
@@ -81,7 +81,7 @@ Voxel/blocky art is naturally cheap; these limits are generous on purpose.
 
 ## First test asset: the crate
 Goal: prove the pipeline, not make a final crate.
-1. Model a 1.0 × 0.75 × 0.7 crate, origin bottom-center, front facing +Y, with a mark on the front.
+1. Model a 1.1 × 0.5 × 0.6 case (started as a 1.0 × 0.75 × 0.7 crate), origin bottom-center, front facing +Y, with a mark on the front.
 2. Texture it at your chosen texel density with your palette.
 3. Export `crate.glb` to `assets/models/props/`.
 4. We drop it in and check: right size next to the player, front faces the right way, texture crisp (not blurry),
