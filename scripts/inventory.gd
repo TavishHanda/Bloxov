@@ -125,7 +125,8 @@ func take(id: String, amount: int) -> int:
 	var order: Array[GridInventory] = []
 	if backpack != null:
 		order.append(backpack)
-	order.append_array([pockets, secure])
+	order.append(pockets)
+	order.append(secure)
 	for grid in order:
 		if taken < amount:
 			taken += grid.take(id, amount - taken)
