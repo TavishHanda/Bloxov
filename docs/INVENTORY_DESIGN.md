@@ -64,7 +64,7 @@ stacks anywhere on you (pockets, backpack, secure pocket).
 - **Free kit** if you can't afford gear: pistol + 30 pistol rounds.
 
 ## Build steps
-1. **Grid core (0.3.5):** grid inventory with drag & drop, rotation, stacking; containers become grids;
+1. **Grid core (0.3.6):** grid inventory with drag & drop, rotation, stacking; containers become grids;
    ammo as grid items and reload from inventory; placeholder icons. Weight stays on hold.
-2. **Equipment (0.3.6):** primary/secondary slots + pistol + weapon switching (1/2), armor, backpacks, secure pocket.
+2. **Equipment (0.3.7):** primary/secondary slots + pistol + weapon switching (1/2), armor, backpacks, secure pocket.
 3. **Stash & trader (0.4.0 = M1 done):** persistent stash grid (saved in the browser), sell/buy, loadout before a raid, free kit.
