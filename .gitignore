@@ -1,0 +1,9 @@
+# Godot
+.godot/
+/build/
+export_credentials.cfg
+*.translation
+
+# OS
+.DS_Store
+Thumbs.db
