@@ -511,6 +511,13 @@ theme_override_font_sizes/font_size = 44
 text = "BLOXOV"
 horizontal_alignment = 1
 
+[node name="Version" type="Label" parent="HUD/Menu/Margin/VBox"]
+modulate = Color(1, 1, 1, 0.6)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "v0.0.0"
+horizontal_alignment = 1
+
 [node name="PlayButton" type="Button" parent="HUD/Menu/Margin/VBox"]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
@@ -571,3 +578,17 @@ text = "WASD move · Mouse look · Click shoot · R reload · Shift sprint · Sp
 Esc opens this menu · F3 debug"
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="VersionCorner" type="Label" parent="HUD"]
+modulate = Color(1, 1, 1, 0.45)
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -160.0
+offset_top = 8.0
+offset_right = -12.0
+offset_bottom = 30.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 13
+text = "v0.0.0"
+horizontal_alignment = 2

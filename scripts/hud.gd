@@ -20,6 +20,8 @@ extends CanvasLayer
 @onready var volume_value: Label = $Menu/Margin/VBox/VolumeRow/Value
 @onready var sensitivity_slider: HSlider = $Menu/Margin/VBox/SensitivityRow/Slider
 @onready var sensitivity_value: Label = $Menu/Margin/VBox/SensitivityRow/Value
+@onready var menu_version: Label = $Menu/Margin/VBox/Version
+@onready var corner_version: Label = $VersionCorner
 
 var _hit_marker_time := 0.0
 var _indicator_time := 0.0
@@ -27,6 +29,9 @@ var _max_delta_timer := 0.0
 
 
 func _ready() -> void:
+	var version := "v%s" % ProjectSettings.get_setting("application/config/version", "?")
+	menu_version.text = version
+	corner_version.text = version
 	GameSettings.load_settings()
 	volume_slider.value = GameSettings.volume * 100.0
 	sensitivity_slider.value = GameSettings.sensitivity * 100.0

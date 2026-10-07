@@ -62,7 +62,9 @@ jobs:
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html
           test -f build/web/index.html
-          python3 tools/cache_bust.py build/web "${GITHUB_SHA::8}"
+          version=$(grep -oP 'config/version="\K[^"]+' project.godot)
+          echo "Building v${version}"
+          python3 tools/cache_bust.py build/web "${version}-${GITHUB_SHA::8}"
 
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main'
