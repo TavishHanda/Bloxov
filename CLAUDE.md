@@ -10,3 +10,5 @@
   Extend the smoke test when adding gameplay; it is the only way to verify changes without running Godot.
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
 - Collision layers: 1 world, 2 player, 3 enemies (bit value 4).
+- **Commits:** author as `TavishHanda <149899926+TavishHanda@users.noreply.github.com>` (the owner's GitHub no-reply email).
+  The owner asked not to have Claude listed as a contributor: no `Co-Authored-By: Claude` trailer in commit messages.
