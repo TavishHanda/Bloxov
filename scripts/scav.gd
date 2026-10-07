@@ -294,8 +294,9 @@ func _on_died() -> void:
 	var world := get_tree().current_scene
 	Effects.burst(world, global_position + Vector3(0, 0.9, 0), burst_color)
 	Effects.sound_at(world, POP_SOUND, global_position)
-	var drops: Array[String] = []
+	var drops: Array = []
 	for i in randi_range(min_drops, max_drops):
-		drops.append(ItemDB.roll(loot_table))
+		var id := ItemDB.roll(loot_table)
+		drops.append([id, ItemDB.roll_count(id)])
 	LootContainer.spawn_bag(world, global_position, body_name, drops, 1.0)
 	queue_free()

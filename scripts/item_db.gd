@@ -11,31 +11,33 @@ const RARITY_COLORS := {
 	"legendary": Color(1.0, 0.72, 0.15),
 }
 
-## kind: "valuable" (worth money), "heal" (press H or Use), "ammo" (goes straight into your gun, takes no space)
+## kind: "valuable" (worth money), "heal" (press H or Use), "ammo" (loaded into guns when you reload)
+## w/h: size in grid cells (before rotation). stack: how many fit in one cell stack. value: price of ONE.
 const ITEMS := {
-	"ammo": {"name": "Ammo Box", "kind": "ammo", "rarity": "common", "slots": 0, "value": 0, "amount": 60},
-	"bandage": {"name": "Bandage", "kind": "heal", "rarity": "common", "slots": 1, "value": 100, "heal": 25, "use_time": 2.0},
-	"medkit": {"name": "Medkit", "kind": "heal", "rarity": "uncommon", "slots": 2, "value": 400, "heal": 70, "use_time": 4.0},
-	"beans": {"name": "Canned Beans", "kind": "valuable", "rarity": "common", "slots": 1, "value": 150},
-	"duct_tape": {"name": "Duct Tape", "kind": "valuable", "rarity": "common", "slots": 1, "value": 300},
-	"scrap": {"name": "Scrap Metal", "kind": "valuable", "rarity": "common", "slots": 2, "value": 250},
-	"phone": {"name": "Old Phone", "kind": "valuable", "rarity": "uncommon", "slots": 1, "value": 800},
-	"battery": {"name": "Car Battery", "kind": "valuable", "rarity": "uncommon", "slots": 2, "value": 1200},
-	"gold_watch": {"name": "Gold Watch", "kind": "valuable", "rarity": "rare", "slots": 1, "value": 2500},
-	"laptop": {"name": "Laptop", "kind": "valuable", "rarity": "rare", "slots": 2, "value": 4000},
-	"mil_chip": {"name": "Military Chip", "kind": "valuable", "rarity": "epic", "slots": 1, "value": 7500},
-	"vase": {"name": "Antique Vase", "kind": "valuable", "rarity": "epic", "slots": 3, "value": 9000},
-	"crystal": {"name": "Rare Crystal", "kind": "valuable", "rarity": "legendary", "slots": 1, "value": 18000},
-	"golden_toilet": {"name": "Golden Toilet", "kind": "valuable", "rarity": "legendary", "slots": 4, "value": 50000},
+	"rifle_ammo": {"name": "Rifle Rounds", "short": "5.45", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 3},
+	"pistol_ammo": {"name": "Pistol Rounds", "short": "9mm", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 2},
+	"bandage": {"name": "Bandage", "kind": "heal", "rarity": "common", "w": 1, "h": 1, "stack": 5, "value": 100, "heal": 25, "use_time": 2.0},
+	"medkit": {"name": "Medkit", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 400, "heal": 70, "use_time": 4.0},
+	"beans": {"name": "Canned Beans", "short": "Beans", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 150},
+	"duct_tape": {"name": "Duct Tape", "short": "Tape", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 300},
+	"scrap": {"name": "Scrap Metal", "short": "Scrap", "kind": "valuable", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 250},
+	"phone": {"name": "Old Phone", "short": "Phone", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 800},
+	"battery": {"name": "Car Battery", "kind": "valuable", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 1200},
+	"gold_watch": {"name": "Gold Watch", "short": "Watch", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2500},
+	"laptop": {"name": "Laptop", "kind": "valuable", "rarity": "rare", "w": 2, "h": 1, "stack": 1, "value": 4000},
+	"mil_chip": {"name": "Military Chip", "short": "Chip", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7500},
+	"vase": {"name": "Antique Vase", "kind": "valuable", "rarity": "epic", "w": 2, "h": 2, "stack": 1, "value": 9000},
+	"crystal": {"name": "Rare Crystal", "short": "Crystal", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 18000},
+	"golden_toilet": {"name": "Golden Toilet", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 3, "stack": 1, "value": 50000},
 }
 
 ## Weights. A key is either an item id or a rarity (= a random valuable of that rarity).
 const LOOT_TABLES := {
-	"crate": {"ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
-	"locker": {"ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
+	"crate": {"rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
+	"locker": {"rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
-	"scav": {"ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"pmc": {"ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"scav": {"rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
+	"pmc": {"rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 
@@ -47,8 +49,30 @@ static func display_name(id: String) -> String:
 	return ITEMS[id]["name"]
 
 
-static func slots(id: String) -> int:
-	return ITEMS[id]["slots"]
+## Short label for small inventory tiles.
+static func short_name(id: String) -> String:
+	return ITEMS[id].get("short", ITEMS[id]["name"])
+
+
+## Size in grid cells, unrotated.
+static func size(id: String) -> Vector2i:
+	return Vector2i(ITEMS[id]["w"], ITEMS[id]["h"])
+
+
+static func max_stack(id: String) -> int:
+	return ITEMS[id]["stack"]
+
+
+## How many of an item a container/body rolls when it rolls that item.
+static func roll_count(id: String) -> int:
+	match id:
+		"rifle_ammo":
+			return randi_range(20, 60)
+		"pistol_ammo":
+			return randi_range(15, 40)
+		"bandage":
+			return randi_range(1, 2)
+	return 1
 
 
 static func value(id: String) -> int:

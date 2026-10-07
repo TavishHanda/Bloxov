@@ -59,7 +59,6 @@ max_health = 100
 
 [node name="Inventory" type="Node" parent="."]
 script = ExtResource("4_inventory")
-capacity = 10
 
 [node name="Interactor" type="Node" parent="."]
 script = ExtResource("5_interactor")

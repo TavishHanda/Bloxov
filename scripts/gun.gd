@@ -21,7 +21,8 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export_group("Ammo")
 @export var rounds_per_minute := 600.0
 @export var mag_size := 30
-@export var reserve_ammo := 90
+## Item id of the rounds this gun loads (taken from the player's inventory when reloading).
+@export var ammo_id := "rifle_ammo"
 @export var reload_time := 1.6
 
 @export_group("Accuracy")
@@ -47,7 +48,10 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var noise_radius := 35.0
 
 var in_mag: int
-var reserve: int
+## Matching rounds the player is carrying.
+var reserve: int:
+	get:
+		return player.inventory.count_of(ammo_id) if player != null else 0
 var kills := 0
 var is_reloading := false
 
@@ -72,7 +76,6 @@ var _raise_left := 0.0
 
 func _ready() -> void:
 	in_mag = mag_size
-	reserve = reserve_ammo
 	_model_rest = model.position
 	flash.visible = false
 
@@ -170,10 +173,7 @@ func _update_reload(delta: float) -> void:
 		_mag_in_played = true
 		Effects.sound(get_tree().current_scene, MAG_IN_SOUND)
 	if _reload_left <= 0.0:
-		var needed := mag_size - in_mag
-		var taken := mini(needed, reserve)
-		in_mag += taken
-		reserve -= taken
+		in_mag += player.inventory.take(ammo_id, mag_size - in_mag)
 		is_reloading = false
 
 

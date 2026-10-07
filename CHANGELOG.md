@@ -2,6 +2,18 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.6 (inventory redesign, step 1: grids)
+- Tarkov-style grid inventory: **pockets (4×1)** and a **backpack (5×4)**. Items have sizes (watch 1×1, laptop 2×1,
+  medkit 2×2, golden toilet 2×3) and you fit them like Tetris
+- Drag & drop between grids; **R rotates** while dragging; drop onto a matching stack to merge
+- **Shift+click** quick-moves between a container and your inventory; **right-click** for Use / Split / Drop
+- Stacking: rifle rounds ×120, pistol rounds ×50, bandages ×5
+- **Ammo is now an item.** Rounds sit in your grid; reloading pulls them from your inventory. HUD shows rounds carried
+- Loot containers are grids too (crate 4×3, locker 4×4, safe 3×3, bodies 4×3) and roll stacks (e.g. 20–60 rounds)
+- Placeholder item icons: blocks sized to the item, rarity-colored border, short name and count
+- You start each raid with 60 rifle rounds and a bandage (until the stash/loadout exists)
+- HUD shows the value you're carrying; the end screen lists stacks ("Rifle Rounds x84")
+
 ## 0.3.5 (scav redesign, PMCs)
 - Scavs use a new Blender model: ragtag scavengers in tracksuits, jeans, old jackets and hoodies, with balaclavas,
   beanies, caps, ushankas or old helmets, cheap chest rigs, and an old wood-stock AK

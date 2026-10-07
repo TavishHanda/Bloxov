@@ -35,10 +35,7 @@ func show_result(kills: int) -> void:
 			_title.add_theme_color_override("font_color", Color(1.0, 0.3, 0.25))
 			_subtitle.text = "Everything you carried is gone."
 
-	var names: PackedStringArray = []
-	for id in raid.loot_items:
-		names.append(ItemDB.display_name(id))
-	_loot.text = "Loot: " + (", ".join(names) if not names.is_empty() else "nothing")
+	_loot.text = "Loot: " + (", ".join(raid.loot_summary) if not raid.loot_summary.is_empty() else "nothing")
 	_value.text = ("Kept: %s" if extracted else "Lost: %s") % ItemDB.money(raid.loot_value)
 	_value.add_theme_color_override("font_color", Color(0.45, 1.0, 0.5) if extracted else Color(1.0, 0.4, 0.35))
 	_session.text = "Kills: %d\n\nThis session: %d raids · %d extracts · %s extracted\n(Stash coming in Phase 3)" % [

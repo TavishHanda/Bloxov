@@ -153,7 +153,7 @@ func _run() -> void:
 	var rolled := 0
 	for node in get_nodes_in_group("loot_containers"):
 		var container := node as LootContainer
-		if container.loot_table != "" and not container.items.is_empty():
+		if container.loot_table != "" and not container.grid.is_empty():
 			rolled += 1
 	_check(rolled >= 10, "containers have loot (%d)" % rolled)
 	_check(ItemDB.money(1234567) == "$1,234,567", "money formatting")
@@ -210,24 +210,72 @@ func _run() -> void:
 		_check(not is_instance_valid(character), "%s dies" % path.get_file())
 		_check(get_nodes_in_group("loot_containers").size() > bags_before, "%s drops a body bag" % path.get_file())
 
-	# Backpack slots.
+	# Grid inventory: sizes, rotation, stacking.
+	var grid := GridInventory.new("Test", 2, 2)
+	_check(grid.add("laptop") == 0 and grid.add("laptop") == 0 and grid.add("laptop") == 1, "two 2x1 laptops fill a 2x2 grid, a third doesn't fit")
+	var tall := GridInventory.new("Tall", 1, 2)
+	_check(tall.add("laptop") == 0 and tall.stacks[0].rotated, "a 2x1 laptop fits a 1x2 grid by rotating")
+	_check(not grid.fits("vase", 0, 0, false) and GridInventory.new("Big", 2, 2).fits("vase", 0, 0, false), "2x2 vase needs a free 2x2 area")
+
 	var inv := player.inventory
 	inv.clear()
-	_check(inv.add("golden_toilet") and inv.used_slots() == 4, "golden toilet takes 4 slots")
-	_check(inv.add("vase") and inv.add("laptop") and inv.used_slots() == 9, "bag fills up")
-	_check(not inv.add("laptop") and inv.add("gold_watch") and inv.free_slots() == 0, "full bag rejects big items")
-	var expected_value := 50000 + 9000 + 4000 + 2500
-	_check(inv.total_value() == expected_value, "bag value is %s" % ItemDB.money(inv.total_value()))
+	_check(inv.add("rifle_ammo", 200) == 0 and inv.count_of("rifle_ammo") == 200, "200 rifle rounds fit")
+	var ammo_stacks := 0
+	for stack in inv.all_stacks():
+		if stack.id == "rifle_ammo":
+			ammo_stacks += 1
+			_check(stack.count <= 120, "ammo stacks hold at most 120 (%d)" % stack.count)
+	_check(ammo_stacks == 2, "200 rounds = 2 stacks (%d)" % ammo_stacks)
+	gun.in_mag = 0
+	gun.start_reload()
+	await create_timer(gun.reload_time + 0.3).timeout
+	_check(gun.in_mag == gun.mag_size and inv.count_of("rifle_ammo") == 200 - gun.mag_size, "reloading takes rounds from the inventory (%d left)" % inv.count_of("rifle_ammo"))
+	_check(gun.reserve == inv.count_of("rifle_ammo"), "gun reserve = rounds carried")
 
-	# Healing (the scav hurt us earlier).
-	inv.remove_at(inv.items.find("gold_watch"))
-	inv.add("bandage")
+	inv.clear()
+	_check(inv.add("golden_toilet") == 0 and inv.backpack.count_of("golden_toilet") == 1, "golden toilet (2x3) goes in the backpack")
+	_check(inv.add("bandage", 7) == 0 and inv.count_of("bandage") == 7, "bandages stack (7 = 5 + 2)")
+	_check(inv.add("vase") == 0 and inv.add("laptop") == 0 and inv.add("gold_watch") == 0, "more loot fits")
+	var expected_value := 50000 + 7 * 100 + 9000 + 4000 + 2500
+	_check(inv.total_value() == expected_value, "carried value is %s" % ItemDB.money(inv.total_value()))
+
+	# Inventory screen: open a container, move items around (same code the mouse uses).
+	var loot_ui: LootUI = main.get_node("HUD").loot_ui
+	var box := LootContainer.spawn_bag(main, player.global_position, "Test Bag", [["crystal", 1], ["rifle_ammo", 30]])
+	loot_ui.open_for(box)
+	await process_frame
+	_check(loot_ui.visible, "loot screen opens")
+	var crystal: ItemStack = null
+	for stack in box.grid.stacks:
+		if stack.id == "crystal":
+			crystal = stack
+	loot_ui.quick_move(box.grid, crystal)
+	_check(inv.count_of("crystal") == 1 and box.grid.count_of("crystal") == 0, "shift+click moves an item into your inventory")
+	var watch: ItemStack = null
+	for stack in inv.all_stacks():
+		if stack.id == "gold_watch":
+			watch = stack
+	var watch_grid := inv.pockets if inv.pockets.stacks.has(watch) else inv.backpack
+	_check(loot_ui.move_stack(watch, watch_grid, box.grid, Vector2i(3, 2), false), "drag an item into the container")
+	_check(box.grid.count_of("gold_watch") == 1 and inv.count_of("gold_watch") == 0, "the item moved")
+	_check(not loot_ui.move_stack(box.grid.stacks[0], box.grid, box.grid, Vector2i(9, 9), false), "can't drop outside the grid")
+	var bandages: ItemStack = null
+	for stack in inv.all_stacks():
+		if stack.id == "bandage" and stack.count == 5:
+			bandages = stack
+	var bandage_grid := inv.pockets if inv.pockets.stacks.has(bandages) else inv.backpack
+	_check(loot_ui.split_stack(bandage_grid, bandages) and inv.count_of("bandage") == 7 and bandages.count == 3, "split a stack of 5 into 3 + 2")
+	loot_ui.close()
+	expected_value = inv.total_value()
+
+	# Healing (the scav hurt us earlier): H uses one bandage from a stack.
 	player.health.take_damage(30)
 	var hurt_hp := player.health.current
 	player.try_heal()
-	_check(player.is_healing() and not inv.items.has("bandage"), "H starts healing and uses the bandage")
+	_check(player.is_healing() and inv.count_of("bandage") == 6, "H starts healing and uses one bandage")
 	await create_timer(2.4).timeout
 	_check(player.health.current == mini(hurt_hp + 25, player.health.max_health), "bandage heals 25 (hp %d -> %d)" % [hurt_hp, player.health.current])
+	expected_value -= 100
 
 	# Extraction: walk into an open extract and wait.
 	var open_zone: ExtractZone = null
@@ -240,7 +288,8 @@ func _run() -> void:
 	player.teleport_to(open_zone.global_position + Vector3(0, 0.2, 0))
 	await create_timer(open_zone.extract_time + 1.0).timeout
 	_check(raid.result == "extracted" and raid.extract_used == open_zone.extract_name, "standing in an open extract extracts (%s)" % raid.result)
-	_check(raid.loot_value == expected_value - 2500 and Raid.session_value == raid.loot_value, "extracted loot is counted")
+	_check(raid.loot_value == expected_value and Raid.session_value == raid.loot_value, "extracted loot is counted (%s)" % ItemDB.money(raid.loot_value))
+	_check(not raid.loot_summary.is_empty(), "end screen lists the loot")
 	_check(player.controls_locked(), "controls lock after extracting")
 
 	# Player death.

@@ -111,7 +111,7 @@ func _process(delta: float) -> void:
 	stamina_bar.modulate = Color(1, 0.35, 0.3, 0.9) if player.is_exhausted else Color(1, 0.9, 0.35, 0.85)
 
 	var inv := player.inventory
-	bag_label.text = "Bag %s  (%d/%d)" % [ItemDB.money(inv.total_value()), inv.used_slots(), inv.capacity]
+	bag_label.text = "Carrying %s" % ItemDB.money(inv.total_value())
 
 	var seconds := ceili(raid.time_left)
 	timer_label.text = "%02d:%02d" % [seconds / 60, seconds % 60]

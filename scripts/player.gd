@@ -126,6 +126,9 @@ var debug_spikes_dropped := 0
 func _ready() -> void:
 	add_to_group("player")
 	_spawn_position = global_position
+	# Starting kit until the stash/loadout exists.
+	inventory.add("rifle_ammo", 60)
+	inventory.add("bandage", 1)
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 
@@ -189,20 +192,20 @@ func extract() -> void:
 
 ## H key: use the heal item that best fits how hurt you are.
 func try_heal() -> void:
-	var index := inventory.find_heal(health.max_health - health.current)
-	if index >= 0:
-		use_item(index)
+	var found := inventory.find_heal(health.max_health - health.current)
+	if not found.is_empty():
+		use_item(found[0], found[1])
 
 
-## Use a heal item from the backpack. Takes a few seconds; you can't shoot meanwhile.
-func use_item(index: int) -> void:
+## Use one heal item from a stack. Takes a few seconds; you can't shoot meanwhile.
+func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	if controls_locked() or is_healing() or health.current >= health.max_health:
 		return
-	var id := inventory.items[index]
-	if ItemDB.kind(id) != "heal":
+	if ItemDB.kind(stack.id) != "heal":
 		return
-	_heal_item = inventory.remove_at(index)
-	heal_duration = ItemDB.item(id)["use_time"]
+	_heal_item = stack.id
+	grid.take(stack.id, 1)
+	heal_duration = ItemDB.item(stack.id)["use_time"]
 	heal_time_left = heal_duration
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
 

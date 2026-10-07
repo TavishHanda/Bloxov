@@ -21,7 +21,8 @@ var time_left: float
 var result := ""
 var extract_used := ""
 var loot_value := 0
-var loot_items: Array[String] = []
+## "Name xN" lines describing what the player had when the raid ended.
+var loot_summary: PackedStringArray = []
 
 
 func _ready() -> void:
@@ -74,7 +75,9 @@ func _on_extracted(zone: ExtractZone) -> void:
 
 
 func _finish() -> void:
-	loot_items = player.inventory.items.duplicate()
+	loot_summary.clear()
+	for stack in player.inventory.all_stacks():
+		loot_summary.append(ItemDB.display_name(stack.id) + (" x%d" % stack.count if stack.count > 1 else ""))
 	loot_value = player.inventory.total_value()
 	session_raids += 1
 	if result == "extracted":

@@ -1,67 +1,93 @@
 class_name Inventory
 extends Node
-## The player's backpack: a list of item ids. Each item takes ItemDB.slots(id) of `capacity` slots.
+## Everything the player carries: pockets (always) and a backpack grid.
+## (Step 2 of the inventory redesign adds equipment slots, a backpack slot and the secure pocket.)
 
 signal changed
 
-@export var capacity := 10
+@export var pockets_size := Vector2i(4, 1)
+@export var backpack_size := Vector2i(5, 4)
 
-var items: Array[String] = []
-
-
-func used_slots() -> int:
-	var used := 0
-	for id in items:
-		used += ItemDB.slots(id)
-	return used
+var pockets: GridInventory
+var backpack: GridInventory
 
 
-func free_slots() -> int:
-	return capacity - used_slots()
+func _ready() -> void:
+	pockets = GridInventory.new("Pockets", pockets_size.x, pockets_size.y)
+	backpack = GridInventory.new("Backpack", backpack_size.x, backpack_size.y)
+	for grid in grids():
+		grid.changed.connect(changed.emit)
 
 
-func can_fit(id: String) -> bool:
-	return ItemDB.slots(id) <= free_slots()
+## Grids in the order items are added: pockets first, then backpack.
+func grids() -> Array[GridInventory]:
+	return [pockets, backpack]
 
 
-func add(id: String) -> bool:
-	if not can_fit(id):
-		return false
-	items.append(id)
+## Adds items, filling stacks and free space across all grids. Returns how many didn't fit.
+func add(id: String, count := 1) -> int:
+	var left := count
+	# Top up existing stacks anywhere first, then free space in order.
+	for grid in grids():
+		for stack in grid.stacks:
+			if left > 0 and stack.id == id and stack.space_left() > 0:
+				var moved := mini(left, stack.space_left())
+				stack.count += moved
+				left -= moved
+	for grid in grids():
+		if left > 0:
+			left = grid.add(id, left)
 	changed.emit()
-	return true
+	return left
 
 
-func remove_at(index: int) -> String:
-	var id := items[index]
-	items.remove_at(index)
-	changed.emit()
-	return id
+func count_of(id: String) -> int:
+	var total := 0
+	for grid in grids():
+		total += grid.count_of(id)
+	return total
 
 
-func clear() -> void:
-	items.clear()
-	changed.emit()
+## Removes up to `amount`, backpack first so pocket stacks stay handy. Returns how many were removed.
+func take(id: String, amount: int) -> int:
+	var taken := 0
+	for grid in [backpack, pockets]:
+		if taken < amount:
+			taken += grid.take(id, amount - taken)
+	return taken
 
 
 func total_value() -> int:
 	var total := 0
-	for id in items:
-		total += ItemDB.value(id)
+	for grid in grids():
+		total += grid.total_value()
 	return total
 
 
-## Index of the heal item that best fits how hurt you are, or -1.
-func find_heal(missing_health: int) -> int:
-	var best := -1
+func clear() -> void:
+	for grid in grids():
+		grid.clear()
+
+
+## Every stack the player carries, e.g. for the end-of-raid screen.
+func all_stacks() -> Array[ItemStack]:
+	var result: Array[ItemStack] = []
+	for grid in grids():
+		result.append_array(grid.stacks)
+	return result
+
+
+## [grid, stack] of the heal item that best fits how hurt you are, or [] if none.
+func find_heal(missing_health: int) -> Array:
+	var best: Array = []
 	var best_score := INF
-	for i in items.size():
-		var id := items[i]
-		if ItemDB.kind(id) != "heal":
-			continue
-		# Prefer the item whose heal amount is closest to what's missing (don't waste a medkit on a scratch).
-		var score := absf(float(ItemDB.item(id)["heal"]) - missing_health)
-		if score < best_score:
-			best_score = score
-			best = i
+	for grid in grids():
+		for stack in grid.stacks:
+			if ItemDB.kind(stack.id) != "heal":
+				continue
+			# Prefer the item whose heal amount is closest to what's missing (don't waste a medkit on a scratch).
+			var score := absf(float(ItemDB.item(stack.id)["heal"]) - missing_health)
+			if score < best_score:
+				best_score = score
+				best = [grid, stack]
 	return best
