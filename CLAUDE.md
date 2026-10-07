@@ -5,6 +5,7 @@
   A new roadmap phase bumps the middle number (0.2.x → 0.3.0); anything else bumps the last (0.2.3 → 0.2.4).
   Docs/CI-only changes don't bump. Start the commit message with the version (`v0.2.4: ...`).
   Git tags can't be created from the Claude sandbox or from CI (GitHub blocks it); the owner tags versions from their PC if wanted.
+- Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
   Extend the smoke test when adding gameplay; it is the only way to verify changes without running Godot.
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
