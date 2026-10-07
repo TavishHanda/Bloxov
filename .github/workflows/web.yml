@@ -40,6 +40,15 @@ jobs:
       - name: Import project
         run: godot --headless --import 2>&1 | tee import.log
 
+      - name: Gameplay test (shoot, reload, enemy attack, death)
+        run: |
+          godot --headless -s tests/smoke_test.gd 2>&1 | tee test.log
+          grep -q "SMOKE TEST: PASSED" test.log
+          if grep -E "SCRIPT ERROR|Parse Error" test.log; then
+            echo "::error::Godot reported script errors (see above)"
+            exit 1
+          fi
+
       - name: Smoke test (run the main scene for a few seconds)
         run: |
           godot --headless --quit-after 300 2>&1 | tee run.log

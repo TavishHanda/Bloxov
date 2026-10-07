@@ -1,21 +1,112 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
+[ext_resource type="Script" path="res://scripts/gun.gd" id="3_gun"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
 height = 1.8
 
+[sub_resource type="StandardMaterial3D" id="GunDark"]
+albedo_color = Color(0.16, 0.17, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="GunAccent"]
+albedo_color = Color(0.95, 0.55, 0.15, 1)
+
+[sub_resource type="StandardMaterial3D" id="FlashMat"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="Receiver"]
+material = SubResource("GunDark")
+size = Vector3(0.08, 0.1, 0.36)
+
+[sub_resource type="BoxMesh" id="Barrel"]
+material = SubResource("GunDark")
+size = Vector3(0.04, 0.04, 0.26)
+
+[sub_resource type="BoxMesh" id="Mag"]
+material = SubResource("GunAccent")
+size = Vector3(0.05, 0.15, 0.07)
+
+[sub_resource type="BoxMesh" id="Stock"]
+material = SubResource("GunAccent")
+size = Vector3(0.06, 0.09, 0.16)
+
+[sub_resource type="BoxMesh" id="Sight"]
+material = SubResource("GunAccent")
+size = Vector3(0.03, 0.04, 0.06)
+
+[sub_resource type="BoxMesh" id="FlashMesh"]
+material = SubResource("FlashMat")
+size = Vector3(0.13, 0.13, 0.02)
+
 [node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 5
 script = ExtResource("1_player")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_body")
 
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 100
+
 [node name="Head" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 
-[node name="Camera3D" type="Camera3D" parent="Head"]
+[node name="Recoil" type="Node3D" parent="Head"]
+
+[node name="Camera3D" type="Camera3D" parent="Head/Recoil"]
 current = true
 fov = 80.0
+near = 0.03
+
+[node name="Gun" type="Node3D" parent="Head/Recoil/Camera3D"]
+script = ExtResource("3_gun")
+
+[node name="Model" type="Node3D" parent="Head/Recoil/Camera3D/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, -0.2, -0.42)
+
+[node name="Receiver" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+cast_shadow = 0
+mesh = SubResource("Receiver")
+
+[node name="Barrel" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.3)
+cast_shadow = 0
+mesh = SubResource("Barrel")
+
+[node name="Mag" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11, -0.05)
+cast_shadow = 0
+mesh = SubResource("Mag")
+
+[node name="Stock" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0.25)
+cast_shadow = 0
+mesh = SubResource("Stock")
+
+[node name="Sight" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0.02)
+cast_shadow = 0
+mesh = SubResource("Sight")
+
+[node name="Muzzle" type="Marker3D" parent="Head/Recoil/Camera3D/Gun/Model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.45)
+
+[node name="Flash" type="Node3D" parent="Head/Recoil/Camera3D/Gun/Model/Muzzle"]
+
+[node name="FlashMesh" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model/Muzzle/Flash"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+cast_shadow = 0
+mesh = SubResource("FlashMesh")
+
+[node name="FlashLight" type="OmniLight3D" parent="Head/Recoil/Camera3D/Gun/Model/Muzzle/Flash"]
+light_color = Color(1, 0.8, 0.4, 1)
+light_energy = 2.0
+omni_range = 5.0
