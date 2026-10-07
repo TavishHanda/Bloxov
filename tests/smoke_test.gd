@@ -167,8 +167,10 @@ func _run() -> void:
 	_check(meshes.size() > 0, "crate uses the imported model")
 	if meshes.size() > 0:
 		var crate_mesh := meshes[0] as MeshInstance3D
+		# The model and its collision box must match, or bullets and players hit invisible walls.
 		var box := crate_mesh.get_aabb().size
-		_check(box.distance_to(Vector3(1.0, 0.75, 0.7)) < 0.05, "crate model is 1.0 x 0.75 x 0.7 m (got %s)" % box)
+		var collision_size := ((crate.get_node("CollisionShape3D") as CollisionShape3D).shape as BoxShape3D).size
+		_check(box.distance_to(collision_size) < 0.05, "crate model %s matches its collision %s" % [box, collision_size])
 		var crate_material := crate_mesh.mesh.surface_get_material(0) as BaseMaterial3D
 		_check(crate_material != null and crate_material.texture_filter == BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 			and crate_material.albedo_texture != null, "crate texture is crisp (nearest filtering)")

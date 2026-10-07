@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.4
+- Crate redesigned as a military hard transport case (1.1 × 0.5 × 0.6 m): olive paint, lid seam, latches, stencil
+- Crate collision resized to match. It's now too low to use as cover (by design)
+
 ## 0.3.3 (first real art)
 - Loot crates use the hand-made Blender crate model (16 px/m texture, Bloxov palette) instead of colored boxes
 - Pixel-art models get crisp "nearest" texture filtering and matte materials automatically (`scripts/pixel_model.gd`)
