@@ -50,6 +50,9 @@ best made while doing the first test asset (a crate).
   or they'll look blurry. We'll set this up once in the import settings during the crate test.
 
 ## 5. Look and color
+- **Style: military / scavenged / post-collapse, not fantasy.** Think olive-drab paint, stenciled codes,
+  metal latches and corner caps, hazard stripes, worn edges. Avoid the "dungeon crate" look
+  (raw brown planks with dark bands). Blocky and a bit goofy is good; medieval is not.
 - **Palette: 24 colors in `art_source/palette.gpl`** (chosen for the crate test; confirm once it's seen in-game).
   Paint only with those. The `.gpl` loads in Aseprite, Krita and GIMP; `make_crate.py` has the same list as hex codes.
   Groups: neutrals/metal (black to bone), wood (dark to pale), accents (rust, red, hazard yellow), world/military
