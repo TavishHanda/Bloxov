@@ -104,6 +104,38 @@ func _run() -> void:
 	Input.action_release("move_back")
 	Input.action_release("sprint")
 	await create_timer(0.8).timeout
+	# Crouch: slower, lower, silent. Walking makes noise.
+	var noises: Array[float] = []
+	player.noise_made.connect(func(_pos: Vector3, radius: float) -> void: noises.append(radius))
+	player.rotation.y = PI
+	Input.action_press("move_forward")
+	await create_timer(1.5).timeout
+	_check(not noises.is_empty() and noises.max() == player.walk_noise, "walking footsteps make noise (%d steps)" % noises.size())
+	noises.clear()
+	player.set_crouching(true)
+	await create_timer(1.5).timeout
+	var crouch_speed := player.horizontal_speed()
+	_check(player.is_crouching and absf(crouch_speed - player.crouch_speed) < 0.3, "crouch speed ~%.1f (got %.2f)" % [player.crouch_speed, crouch_speed])
+	_check(player.eye_height() < player.stand_eye_height - 0.4, "crouching lowers the camera (%.2f)" % player.eye_height())
+	_check(noises.is_empty(), "crouch-walking is silent")
+	# Sprinting stands you up, and drains stamina until you can't sprint.
+	Input.action_press("sprint")
+	await create_timer(0.5).timeout
+	_check(not player.is_crouching and player.is_sprinting(), "sprinting stands you up")
+	await create_timer(1.0).timeout
+	_check(noises.max() == player.sprint_noise, "sprinting is loud")
+	_check(player.stamina < player.max_stamina - 10.0, "sprinting drains stamina (%.0f)" % player.stamina)
+	player.stamina = 1.0
+	await create_timer(0.5).timeout
+	_check(player.is_exhausted and not player.is_sprinting(), "out of stamina = no sprint")
+	Input.action_release("sprint")
+	Input.action_release("move_forward")
+	await create_timer(player.stamina_regen_delay + 2.0).timeout
+	_check(player.stamina > 20.0, "stamina regenerates (%.0f)" % player.stamina)
+	player.stamina = player.max_stamina
+	player.is_exhausted = false
+	await create_timer(0.5).timeout
+
 	# Jump height.
 	var ground_y := player.global_position.y
 	var peak := ground_y

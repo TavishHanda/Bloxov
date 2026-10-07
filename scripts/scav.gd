@@ -10,6 +10,8 @@ const SHOT_SOUND := preload("res://audio/shot.wav")
 const ALERT_SOUND := preload("res://audio/alert.wav")
 const POP_SOUND := preload("res://audio/pop.wav")
 const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
+const STEP_SOUNDS: Array[AudioStream] = [
+	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 
 @export_group("Movement")
 @export var move_speed := 3.6
@@ -65,6 +67,7 @@ var _hit_flash_time := 0.0
 var _muzzle_flash_time := 0.0
 var _walk_time := 0.0
 var _side := 1.0
+var _stride_left := 0.0
 
 
 func _ready() -> void:
@@ -137,6 +140,18 @@ func _physics_process(delta: float) -> void:
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
 	move_and_slide()
+	_update_footsteps(delta)
+
+
+## Scav footsteps, so you can hear them coming.
+func _update_footsteps(delta: float) -> void:
+	var speed := Vector2(velocity.x, velocity.z).length()
+	if not is_on_floor() or speed < 0.5:
+		return
+	_stride_left -= speed * delta
+	if _stride_left <= 0.0:
+		_stride_left = 1.4
+		Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -6.0, 0.1, 0.9, 2.5)
 
 
 func _process(delta: float) -> void:
@@ -186,7 +201,7 @@ func _update_shooting(delta: float, dist: float) -> void:
 func _fire_at_target(dist: float) -> void:
 	var world := get_tree().current_scene
 	var from := muzzle.global_position
-	var chest := _target.global_position + Vector3(0, 1.2, 0)
+	var chest := _target.global_position + Vector3(0, _target.chest_height(), 0)
 
 	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / shoot_range, 0.0, 1.0))
 	if _target.is_sprinting():
@@ -251,7 +266,7 @@ func _has_line_of_sight() -> bool:
 	if _target == null:
 		return false
 	var eyes := global_position + Vector3(0, 1.65, 0)
-	var target_eyes := _target.global_position + Vector3(0, 1.5, 0)
+	var target_eyes := _target.global_position + Vector3(0, _target.eye_height(), 0)
 	var query := PhysicsRayQueryParameters3D.create(eyes, target_eyes, 1, [get_rid()])
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 

@@ -107,6 +107,22 @@ def pop():
     return out
 
 
+def footstep(variant):
+    """Short boot thud plus a gravelly crunch. Variants differ slightly so steps don't sound identical."""
+    random.seed(100 + variant)
+    n = length(0.14)
+    nz = noise(n, 0.55 + variant * 0.08)
+    out, phase = [], 0.0
+    base = 85 + variant * 18
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (base + 60 * math.exp(-t * 40)) / RATE
+        thud = math.sin(phase) * math.exp(-t * 45)
+        crunch = nz[i] * math.exp(-t * 28) * 0.7
+        out.append(thud + crunch)
+    return out
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     write("shot.wav", shot())
@@ -119,6 +135,8 @@ def main():
     write("hurt.wav", hurt())
     write("alert.wav", alert())
     write("pop.wav", pop())
+    for v in range(3):
+        write(f"step{v + 1}.wav", footstep(v))
 
 
 if __name__ == "__main__":

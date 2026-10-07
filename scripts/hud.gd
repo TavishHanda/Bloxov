@@ -11,6 +11,7 @@ extends CanvasLayer
 @onready var hit_marker: Label = $HitMarker
 @onready var health_label: Label = $HealthLabel
 @onready var bag_label: Label = $BagLabel
+@onready var stamina_bar: ProgressBar = $StaminaBar
 @onready var ammo_label: Label = $AmmoLabel
 @onready var timer_label: Label = $TimerLabel
 @onready var prompt_label: Label = $Prompt
@@ -104,6 +105,11 @@ func _process(delta: float) -> void:
 	var hp := player.health.current
 	health_label.text = "HP %d" % hp
 	health_label.modulate = Color(1, 0.35, 0.3) if hp <= 30 else Color.WHITE
+	stamina_bar.max_value = player.max_stamina
+	stamina_bar.value = player.stamina
+	stamina_bar.visible = player.stamina < player.max_stamina and not player.controls_locked()
+	stamina_bar.modulate = Color(1, 0.35, 0.3, 0.9) if player.is_exhausted else Color(1, 0.9, 0.35, 0.85)
+
 	var inv := player.inventory
 	bag_label.text = "Bag %s  (%d/%d)" % [ItemDB.money(inv.total_value()), inv.used_slots(), inv.capacity]
 

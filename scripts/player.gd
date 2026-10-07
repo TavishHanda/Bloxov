@@ -1,9 +1,14 @@
 class_name Player
 extends CharacterBody3D
-## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump.
+## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump, C to crouch.
+
+## Emitted for every sound the player makes that enemies can hear (footsteps, landing).
+signal noise_made(pos: Vector3, radius: float)
 
 const HURT_SOUND := preload("res://audio/hurt.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
+const STEP_SOUNDS: Array[AudioStream] = [
+	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 
 @export_group("Movement")
 ## Meters per second. For reference, a real jog is ~3, a run ~5.
@@ -24,6 +29,36 @@ const HEAL_SOUND := preload("res://audio/mag_out.wav")
 ## Landing from a jump or fall slows you briefly.
 @export var landing_slowdown_time := 0.3
 @export var landing_slowdown := 0.5
+
+@export_group("Crouch")
+## C toggles crouch. Slower, quieter, smaller, steadier aim.
+@export var crouch_speed := 1.8
+@export var stand_height := 1.8
+@export var crouch_height := 1.2
+@export var stand_eye_height := 1.6
+@export var crouch_eye_height := 1.0
+
+@export_group("Stamina")
+@export var max_stamina := 100.0
+## Per second while sprinting. 100 / 12 = about 8 seconds of sprint.
+@export var sprint_drain := 12.0
+@export var jump_cost := 12.0
+@export var stamina_regen := 16.0
+## Seconds after sprinting/jumping before stamina starts coming back.
+@export var stamina_regen_delay := 1.0
+## Run out completely and you can't sprint again until stamina is back to this.
+@export var exhausted_recover_at := 25.0
+
+@export_group("Footsteps")
+## Meters between footsteps.
+@export var walk_stride := 1.5
+@export var sprint_stride := 1.9
+@export var crouch_stride := 1.1
+## How far away enemies hear each step (meters). 0 = silent.
+@export var walk_noise := 7.0
+@export var sprint_noise := 15.0
+@export var crouch_noise := 0.0
+@export var landing_noise := 10.0
 
 @export_group("Camera")
 @export var mouse_sensitivity := 0.0025
@@ -46,6 +81,7 @@ const HEAL_SOUND := preload("res://audio/mag_out.wav")
 @export var kill_height := -20.0
 
 @onready var head: Node3D = $Head
+@onready var body_shape: CollisionShape3D = $CollisionShape3D
 @onready var recoil: Node3D = $Head/Recoil
 @onready var camera: Camera3D = $Head/Recoil/Camera3D
 @onready var gun: Gun = $Head/Recoil/Camera3D/Gun
@@ -74,6 +110,13 @@ var _landing_dip := 0.0
 var _move_input := Vector2.ZERO
 var _roll := 0.0
 
+var is_crouching := false
+var stamina := 100.0
+## True after running out of stamina, until it recovers to `exhausted_recover_at`.
+var is_exhausted := false
+var _stamina_delay_left := 0.0
+var _stride_left := 0.0
+
 # Mouse debug stats, shown by the HUD's F3 overlay.
 var debug_recent_dx: Array[int] = []
 var debug_max_delta := 0.0
@@ -98,6 +141,26 @@ func is_healing() -> bool:
 ## True while actually sprinting (holding Shift, moving forward, on the ground).
 func is_sprinting() -> bool:
 	return _sprinting
+
+
+## Height of the player's eyes / chest above their feet (lower when crouched). Used by enemies to aim.
+func eye_height() -> float:
+	return head.position.y
+
+
+func chest_height() -> float:
+	return (body_shape.shape as CapsuleShape3D).height * 0.65
+
+
+func set_crouching(crouch: bool) -> void:
+	if crouch == is_crouching:
+		return
+	if not crouch and _ceiling_blocked():
+		return
+	is_crouching = crouch
+	var capsule := body_shape.shape as CapsuleShape3D
+	capsule.height = crouch_height if crouch else stand_height
+	body_shape.position.y = capsule.height * 0.5
 
 
 func horizontal_speed() -> float:
@@ -160,6 +223,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
 	if event.is_action_pressed("heal"):
 		try_heal()
+	elif event.is_action_pressed("crouch"):
+		set_crouching(not is_crouching)
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -184,6 +249,10 @@ func _process(delta: float) -> void:
 	camera.h_offset = randf_range(-1.0, 1.0) * 0.06 * shake
 	camera.v_offset = randf_range(-1.0, 1.0) * 0.06 * shake
 	_update_camera_motion(delta, shake)
+	# Eyes move smoothly between standing and crouched height.
+	if not controls_locked():
+		var eye := crouch_eye_height if is_crouching else stand_eye_height
+		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
 	if heal_time_left > 0.0:
 		heal_time_left -= delta
 		if heal_time_left <= 0.0:
@@ -202,14 +271,22 @@ func _physics_process(delta: float) -> void:
 	var input_dir := Vector2.ZERO
 	if not controls_locked():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-		if Input.is_action_just_pressed("jump") and on_floor and _jump_cooldown_left <= 0.0:
-			velocity.y = jump_velocity
-			_jump_cooldown_left = jump_cooldown
+		if Input.is_action_just_pressed("jump") and on_floor:
+			if is_crouching:
+				set_crouching(false)
+			elif _jump_cooldown_left <= 0.0 and stamina >= jump_cost:
+				velocity.y = jump_velocity
+				_jump_cooldown_left = jump_cooldown
+				_use_stamina(jump_cost)
 	_move_input = input_dir
 
-	# Sprint: only forward-ish, on the ground, not while healing.
-	_sprinting = (not controls_locked() and on_floor and not is_healing()
+	# Sprint: only forward-ish, on the ground, not while healing, needs stamina. Sprinting stands you up.
+	var wants_sprint := (not controls_locked() and on_floor and not is_healing() and not is_exhausted
 		and Input.is_action_pressed("sprint") and input_dir.y < -0.5)
+	if wants_sprint and is_crouching:
+		set_crouching(false)
+	_sprinting = wants_sprint and not is_crouching
+	_update_stamina(delta)
 
 	var target := _target_velocity(input_dir)
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
@@ -228,9 +305,13 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and not _was_on_floor and _fall_speed > 2.0:
 		_landing_left = landing_slowdown_time
 		_landing_dip = clampf(_fall_speed * 0.02, 0.03, 0.15)
+	if is_on_floor() and not _was_on_floor and _fall_speed > 2.0:
+		_play_step(4.0)
+		_make_noise(landing_noise)
 	if is_on_floor():
 		_fall_speed = 0.0
 	_was_on_floor = is_on_floor()
+	_update_footsteps(delta)
 
 	if global_position.y < kill_height:
 		global_position = _spawn_position
@@ -241,6 +322,8 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 	if input_dir == Vector2.ZERO:
 		return Vector3.ZERO
 	var speed := sprint_speed if _sprinting else walk_speed
+	if is_crouching:
+		speed = crouch_speed
 	if is_healing():
 		speed = walk_speed * 0.5
 	if _landing_left > 0.0:
@@ -268,6 +351,64 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 
 	var target_fov := base_fov + (sprint_fov_boost if _sprinting and speed > walk_speed else 0.0)
 	camera.fov = lerpf(camera.fov, target_fov, minf(delta * 6.0, 1.0))
+
+
+func _use_stamina(amount: float) -> void:
+	stamina = maxf(stamina - amount, 0.0)
+	_stamina_delay_left = stamina_regen_delay
+	if stamina <= 0.0:
+		is_exhausted = true
+
+
+func _update_stamina(delta: float) -> void:
+	if _sprinting and horizontal_speed() > walk_speed:
+		_use_stamina(sprint_drain * delta)
+		return
+	_stamina_delay_left -= delta
+	if _stamina_delay_left <= 0.0:
+		stamina = minf(stamina + stamina_regen * delta, max_stamina)
+	if is_exhausted and stamina >= exhausted_recover_at:
+		is_exhausted = false
+
+
+func _update_footsteps(delta: float) -> void:
+	var speed := horizontal_speed()
+	if not is_on_floor() or speed < 0.5:
+		_stride_left = minf(_stride_left, 0.3)
+		return
+	_stride_left -= speed * delta
+	if _stride_left > 0.0:
+		return
+	if is_crouching:
+		_stride_left = crouch_stride
+		_play_step(-16.0)
+		_make_noise(crouch_noise)
+	elif _sprinting:
+		_stride_left = sprint_stride
+		_play_step(-4.0)
+		_make_noise(sprint_noise)
+	else:
+		_stride_left = walk_stride
+		_play_step(-9.0)
+		_make_noise(walk_noise)
+
+
+func _play_step(volume_db: float) -> void:
+	Effects.sound(get_tree().current_scene, STEP_SOUNDS.pick_random(), volume_db, 0.1)
+
+
+func _make_noise(radius: float) -> void:
+	if radius <= 0.0:
+		return
+	noise_made.emit(global_position, radius)
+	get_tree().call_group("enemies", "hear_noise", global_position, radius)
+
+
+func _ceiling_blocked() -> bool:
+	var from := global_position + Vector3(0, 0.2, 0)
+	var to := global_position + Vector3(0, stand_height + 0.05, 0)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _on_damaged(_amount: int, source_position: Vector3) -> void:

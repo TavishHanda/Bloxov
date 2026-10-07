@@ -32,6 +32,8 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var bloom_recovery_deg := 8.0
 @export var moving_spread_deg := 1.5
 @export var airborne_spread_deg := 4.0
+## Crouching tightens your spread.
+@export var crouch_spread_multiplier := 0.65
 
 @export_group("Handling")
 ## Time to bring the gun up after sprinting before you can fire.
@@ -122,6 +124,8 @@ func shoot_once() -> void:
 	var spread_deg := base_spread_deg + _bloom + (moving_spread_deg if moving else 0.0)
 	if not player.is_on_floor():
 		spread_deg += airborne_spread_deg
+	elif player.is_crouching:
+		spread_deg *= crouch_spread_multiplier
 	var spread := deg_to_rad(spread_deg)
 	var cam_basis := camera.global_basis
 	var dir := -cam_basis.z
