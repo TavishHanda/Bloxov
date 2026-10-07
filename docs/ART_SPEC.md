@@ -13,6 +13,7 @@ best made while doing the first test asset (a crate).
 |---|---|---|
 | Player | 0.8 wide, 1.8 tall | Eyes at 1.6 (1.0 crouched). Capsule radius 0.4 |
 | Scav | 0.8 × ~2.1 × 0.6 | Body to 1.35, head 1.4–1.95, helmet to ~2.1. Head hitbox is 0.6 × 0.7 × 0.6 at 1.71 |
+| PMC | same as Scav | Same hitboxes and rig as the scav (AI for now, will become other players) |
 | Doorway | 2.0 wide, full wall height | Gap in the front wall |
 | Walls | 0.5 thick | |
 | Buildings | 3.5–4.0 tall (bunker 2.5) | Gas station 10×8, grocery 12×10, police 10×10, bunker 8×8 |
@@ -67,7 +68,7 @@ best made while doing the first test asset (a crate).
 |---|---|---|
 | Small prop (crate, item) | < 300 | 16–64 px |
 | Large prop (locker, car) | < 1,000 | 64–128 px |
-| Character (scav) | < 2,500 | 128–256 px |
+| Character (one outfit showing) | < 2,500 | 128–256 px |
 | First-person gun | < 1,500 | 64–256 px |
 | Building | < 3,000 | atlas 256 px |
 Voxel/blocky art is naturally cheap; these limits are generous on purpose.
@@ -77,9 +78,21 @@ Voxel/blocky art is naturally cheap; these limits are generous on purpose.
   If a model's size changes a lot, tell Claude so the collision gets updated.
 - Characters need the head and body as **separate meshes or bones** so the head can be the headshot zone.
 
+### Characters and outfits
+Built by `art_source/scripts/make_character.py` (`CHARACTER = "scav"` or `"pmc"`, sources `art_source/scav.blend`
+and `pmc.blend`, exports `assets/models/characters/<name>.glb`). The game relies on these names:
+- `LegL` / `LegR`: empties at the hips (0.19 m out, 0.6 m up). The walk animation swings them; pants and boots are children.
+- `Gun` with a `Muzzle` empty at the barrel tip: shots and the muzzle flash come from there.
+- Outfit parts are named `Slot__option` (`Hat__ushanka`, `Top__tracksuit_blue`), with `__L`/`__R` on the two
+  legs' parts. Every option ships in the one `.glb`; `scripts/pixel_model.gd` shows one random option per slot
+  when a character spawns. An empty named `Slot__none` makes "nothing" a choice (no hat, no vest).
+  Adding an option = one line in the script, re-run, export. New slots work without code changes.
+
 ## 8. Swapping a placeholder for a model
 Done so far: **crate** (0.3.3), see `scenes/loot_crate.tscn`: the `.glb` is instanced as a `Model` child with
 `scripts/pixel_model.gd` attached (forces nearest filtering + matte), and the collision box stays in the scene.
+**Scav and PMC** (0.3.5), `scenes/scav.tscn` and `scenes/pmc.tscn`, same setup; the muzzle flash lives in the
+scene and is moved onto the model's `Muzzle` at runtime.
 
 1. Export the `.glb` to `assets/models/...` and push it (or tell Claude where it is).
 2. Claude replaces the placeholder box meshes in the matching scene (e.g. `scenes/loot_crate.tscn`) with the model,

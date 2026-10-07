@@ -176,6 +176,40 @@ func _run() -> void:
 			and crate_material.albedo_texture != null, "crate texture is crisp (nearest filtering)")
 	crate.queue_free()
 
+	# Character models (scav and PMC): imported .glb, one outfit option per slot, facing forward.
+	for path: String in ["res://scenes/scav.tscn", "res://scenes/pmc.tscn"]:
+		var character := (load(path) as PackedScene).instantiate() as Scav
+		main.add_child(character)
+		character.global_position = Vector3(10, 0.1, 60)
+		await process_frame
+		var model := character.model as PixelModel
+		_check(model != null, "%s uses an imported pixel model" % character.name)
+		if model == null:
+			continue
+		var slots := model.outfit_slots()
+		var one_each := slots.size() >= 6
+		for slot: String in slots:
+			var showing := 0
+			for option: String in slots[slot]:
+				if (slots[slot][option][0] as Node3D).visible:
+					showing += 1
+			one_each = one_each and showing == 1
+		_check(one_each, "%s shows one outfit option per slot (%d slots)" % [character.name, slots.size()])
+		var tops := {}
+		for i in 12:
+			model.pick_outfit()
+			tops[model.outfit["Top"]] = true
+		_check(tops.size() >= 2, "%s outfits vary (%d different tops in 12 spawns)" % [character.name, tops.size()])
+		var muzzle_local := character.to_local(character.muzzle.global_position)
+		_check(muzzle_local.z < -0.6 and absf(muzzle_local.y - 1.26) < 0.1,
+			"%s faces forward, gun at shoulder height (muzzle at %s)" % [character.name, muzzle_local])
+		_check(character.muzzle_flash.get_parent() == character.muzzle, "%s muzzle flash sits on the gun" % character.name)
+		var bags_before := get_nodes_in_group("loot_containers").size()
+		character.health.take_damage(9999)
+		await _frames(3)
+		_check(not is_instance_valid(character), "%s dies" % path.get_file())
+		_check(get_nodes_in_group("loot_containers").size() > bags_before, "%s drops a body bag" % path.get_file())
+
 	# Backpack slots.
 	var inv := player.inventory
 	inv.clear()

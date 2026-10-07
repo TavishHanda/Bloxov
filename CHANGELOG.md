@@ -2,6 +2,15 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.5 (scav redesign, PMCs)
+- Scavs use a new Blender model: ragtag scavengers in tracksuits, jeans, old jackets and hoodies, with balaclavas,
+  beanies, caps, ushankas or old helmets, cheap chest rigs, and an old wood-stock AK
+- New enemy: **PMC**. Modern operator look (helmet with headset, plate carrier, knee pads, gloves, black rifle with
+  an optic). Tougher than a scav: 90 HP, quicker to react, more accurate, longer bursts, better loot. AI for now;
+  they'll become other players later. About 1 in 4 spawns is a PMC
+- Every scav and PMC spawns with a random outfit (hat, head, top, vest, pants, boots, gloves...), so no two look alike
+- Legs now swing from the hips when walking
+
 ## 0.3.4
 - Crate redesigned as a military hard transport case (1.1 × 0.5 × 0.6 m): olive paint, lid seam, latches, stencil
 - Crate collision resized to match. It's now too low to use as cover (by design)

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/scav.gd" id="1_scav"]
 [ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
-[ext_resource type="PackedScene" path="res://assets/models/characters/scav.glb" id="3_model"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/pmc.glb" id="3_model"]
 [ext_resource type="Script" path="res://scripts/pixel_model.gd" id="4_pixel"]
 
 [sub_resource type="BoxShape3D" id="BodyBox"]
@@ -19,10 +19,26 @@ albedo_color = Color(1, 0.85, 0.35, 1)
 material = SubResource("FlashMat")
 size = Vector3(0.16, 0.16, 0.02)
 
-[node name="Scav" type="CharacterBody3D"]
+[node name="PMC" type="CharacterBody3D"]
 collision_layer = 4
 collision_mask = 7
 script = ExtResource("1_scav")
+move_speed = 3.9
+sight_range = 45.0
+give_up_time = 9.0
+reaction_time = 0.45
+aim_time = 0.35
+burst_size = 4
+burst_cooldown_min = 0.8
+burst_cooldown_max = 1.5
+shot_damage = 9
+accuracy_near = 0.9
+accuracy_far = 0.35
+min_drops = 2
+max_drops = 4
+loot_table = "pmc"
+body_name = "PMC Body"
+burst_color = Color(0.66, 0.6, 0.42, 1)
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
@@ -34,7 +50,7 @@ shape = SubResource("HeadBox")
 
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
-max_health = 60
+max_health = 90
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")

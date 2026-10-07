@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## Scav: armed scavenger. Wanders until it spots (or hears) the player, radios it in,
 ## then shoots in short bursts. Closes distance when it can't get a shot.
 ## Dumb on purpose: no cover or pathfinding yet (that's Phase 4).
+## PMCs use this script too (scenes/pmc.tscn) with tougher numbers, until they become real players.
 
 enum State { IDLE, ALERT, ENGAGE, DEAD }
 
@@ -38,6 +39,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export_group("Loot")
 @export var min_drops := 1
 @export var max_drops := 3
+## Loot table in ItemDB.LOOT_TABLES, and the name on the body bag.
+@export var loot_table := "scav"
+@export var body_name := "Scav Body"
 
 @export_group("Look")
 @export var burst_color := Color(0.33, 0.38, 0.24)
@@ -46,8 +50,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @onready var model: Node3D = $Model
 @onready var leg_l: Node3D = $Model/LegL
 @onready var leg_r: Node3D = $Model/LegR
-@onready var muzzle: Marker3D = $Model/Gun/Muzzle
-@onready var muzzle_flash: Node3D = $Model/Gun/Muzzle/Flash
+@onready var muzzle: Node3D = $Model/Gun/Muzzle
+@onready var muzzle_flash: Node3D = $MuzzleFlash
 
 var state := State.IDLE
 
@@ -68,12 +72,16 @@ var _muzzle_flash_time := 0.0
 var _walk_time := 0.0
 var _side := 1.0
 var _stride_left := 0.0
+var _meshes: Array[Node] = []
 
 
 func _ready() -> void:
 	add_to_group("enemies")
 	_side = 1.0 if randf() < 0.5 else -1.0
+	# The model is an imported .glb, so the flash lives in this scene and moves onto its muzzle here.
+	muzzle_flash.reparent(muzzle, false)
 	muzzle_flash.visible = false
+	_meshes = model.find_children("*", "GeometryInstance3D", true, false)
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 
@@ -168,9 +176,8 @@ func _process(delta: float) -> void:
 
 	_hit_flash_time -= delta
 	var overlay: Material = FLASH_MATERIAL if _hit_flash_time > 0.0 else null
-	for child in model.get_children():
-		if child is GeometryInstance3D:
-			(child as GeometryInstance3D).material_overlay = overlay
+	for mesh in _meshes:
+		(mesh as GeometryInstance3D).material_overlay = overlay
 
 
 func _alert() -> void:
@@ -289,6 +296,6 @@ func _on_died() -> void:
 	Effects.sound_at(world, POP_SOUND, global_position)
 	var drops: Array[String] = []
 	for i in randi_range(min_drops, max_drops):
-		drops.append(ItemDB.roll("scav"))
-	LootContainer.spawn_bag(world, global_position, "Scav Body", drops, 1.0)
+		drops.append(ItemDB.roll(loot_table))
+	LootContainer.spawn_bag(world, global_position, body_name, drops, 1.0)
 	queue_free()

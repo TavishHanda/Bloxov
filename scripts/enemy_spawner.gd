@@ -1,7 +1,11 @@
 extends Node3D
 ## Keeps a few enemies alive on the map, spawning them at child Marker3D points away from the player.
+## Mostly scavs (enemy_scene), sometimes a PMC (pmc_scene).
 
 @export var enemy_scene: PackedScene
+@export var pmc_scene: PackedScene
+## Chance each spawn is a PMC instead of a scav.
+@export_range(0.0, 1.0) var pmc_chance := 0.25
 @export var max_alive := 6
 @export var initial_count := 4
 @export var spawn_interval := 5.0
@@ -34,6 +38,7 @@ func _spawn_one() -> void:
 				points.append(marker)
 	if points.is_empty():
 		return
-	var enemy := enemy_scene.instantiate() as Node3D
+	var scene := pmc_scene if pmc_scene != null and randf() < pmc_chance else enemy_scene
+	var enemy := scene.instantiate() as Node3D
 	get_parent().add_child(enemy)
 	enemy.global_position = points.pick_random().global_position

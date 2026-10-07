@@ -35,6 +35,7 @@ const LOOT_TABLES := {
 	"locker": {"ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
+	"pmc": {"ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 
