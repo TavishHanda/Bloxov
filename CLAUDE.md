@@ -6,6 +6,8 @@
   Docs/CI-only changes don't bump. Start the commit message with the version (`v0.2.4: ...`).
   No git tags (GitHub blocks creating them from the sandbox/CI, and the owner doesn't want to do it by hand).
   Version history = CHANGELOG.md + version-prefixed commit messages. Don't ask the owner to tag.
+- Plan: `docs/ROADMAP.md` (milestones). Parked ideas/notes: `docs/BACKLOG.md`.
+  Keep new code co-op-friendly: don't add new single-player assumptions (see ROADMAP rules).
 - Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
   Extend the smoke test when adding gameplay; it is the only way to verify changes without running Godot.
