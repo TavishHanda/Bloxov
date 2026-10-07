@@ -189,7 +189,7 @@ func _fire_at_target(dist: float) -> void:
 	var chest := _target.global_position + Vector3(0, 1.2, 0)
 
 	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / shoot_range, 0.0, 1.0))
-	if Vector2(_target.velocity.x, _target.velocity.z).length() > _target.walk_speed + 0.5:
+	if _target.is_sprinting():
 		chance -= moving_target_penalty
 	var hit := randf() < chance
 

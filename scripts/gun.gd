@@ -31,6 +31,11 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var max_bloom_deg := 3.0
 @export var bloom_recovery_deg := 8.0
 @export var moving_spread_deg := 1.5
+@export var airborne_spread_deg := 4.0
+
+@export_group("Handling")
+## Time to bring the gun up after sprinting before you can fire.
+@export var raise_time := 0.3
 
 @export_group("Feel")
 @export var recoil_pitch_deg := 1.1
@@ -59,6 +64,8 @@ var _model_rest: Vector3
 var _kick := 0.0
 var _bob_time := 0.0
 var _needs_trigger_release := true
+## Counts down after sprinting; can't fire until it hits 0.
+var _raise_left := 0.0
 
 
 func _ready() -> void:
@@ -74,6 +81,11 @@ func _process(delta: float) -> void:
 	_update_reload(delta)
 	_update_model(delta)
 
+	if player.is_sprinting():
+		_raise_left = raise_time
+	else:
+		_raise_left = maxf(_raise_left - delta, 0.0)
+
 	if player.controls_locked() or player.is_healing():
 		_needs_trigger_release = true
 		return
@@ -88,7 +100,7 @@ func _process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("reload"):
 		start_reload()
-	if Input.is_action_pressed("shoot") and _cooldown <= 0.0 and not is_reloading:
+	if Input.is_action_pressed("shoot") and _cooldown <= 0.0 and not is_reloading and is_ready_to_fire():
 		if in_mag > 0:
 			shoot_once()
 		elif Input.is_action_just_pressed("shoot"):
@@ -96,13 +108,21 @@ func _process(delta: float) -> void:
 			start_reload()
 
 
+## False while sprinting and for `raise_time` after.
+func is_ready_to_fire() -> bool:
+	return _raise_left <= 0.0
+
+
 func shoot_once() -> void:
 	_cooldown = 60.0 / rounds_per_minute
 	in_mag -= 1
 	var world := get_tree().current_scene
 
-	var moving := Vector2(player.velocity.x, player.velocity.z).length() > 1.0
-	var spread := deg_to_rad(base_spread_deg + _bloom + (moving_spread_deg if moving else 0.0))
+	var moving := player.horizontal_speed() > 1.0
+	var spread_deg := base_spread_deg + _bloom + (moving_spread_deg if moving else 0.0)
+	if not player.is_on_floor():
+		spread_deg += airborne_spread_deg
+	var spread := deg_to_rad(spread_deg)
 	var cam_basis := camera.global_basis
 	var dir := -cam_basis.z
 	dir = dir.rotated(cam_basis.x, randf_range(-spread, spread)).rotated(cam_basis.y, randf_range(-spread, spread))
@@ -191,15 +211,22 @@ func _update_model(delta: float) -> void:
 		flash.visible = false
 	_kick = move_toward(_kick, 0.0, delta * 9.0)
 
-	var speed := Vector2(player.velocity.x, player.velocity.z).length()
-	_bob_time += delta * speed * 1.6
-	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * minf(speed / 5.0, 1.0)
+	var speed := player.horizontal_speed() if player.is_on_floor() else 0.0
+	var sprinting := player.is_sprinting()
+	_bob_time += delta * speed * (2.0 if sprinting else 2.6)
+	var bob_scale := minf(speed / player.walk_speed, 1.0) * (2.2 if sprinting else 1.0)
+	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale
 
 	var target_pos := _model_rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
-	if is_reloading:
+	if sprinting:
+		# Gun held low and across the body.
+		target_pos += Vector3(-0.08, -0.1, 0.06)
+		target_rot += Vector3(-0.35, 0.85, 0.35)
+	elif is_reloading:
 		target_pos += Vector3(0, -0.08, 0.04)
 		target_rot += Vector3(-0.5, 0.3, 0.4)
-	var weight := minf(delta * 18.0, 1.0)
+	# Raising the gun after a sprint is a bit slower than other moves.
+	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0), 1.0)
 	model.position = model.position.lerp(target_pos, weight)
 	model.rotation = model.rotation.lerp(target_rot, weight)

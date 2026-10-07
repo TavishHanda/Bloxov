@@ -2,6 +2,16 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.1 (movement pass)
+- Slower, heavier movement: walk 3.4 m/s (was 5), sprint 5.6 m/s (was 8.5); slower backwards and sideways
+- Sprint only works moving forward, lowers the gun across your body, and adds a small FOV boost
+- Gun takes 0.3 s to come up after sprinting before you can fire (no more instant stop-and-shoot)
+- Jumps are lower (~0.6 m) with very little air steering, a short cooldown, and a brief slowdown on landing
+- Shooting in the air is much less accurate
+- Head bob, strafe lean and landing dip on the camera; bigger gun bob while sprinting
+- Getting shot pushes you less
+- Scavs miss more when you're sprinting (same as before, now tied to actually sprinting)
+
 ## 0.3.0 (Phase 2: the loop)
 - Raids: 10-minute timer, random spawn point, 2 of 3 extracts open each raid (green beam + name)
 - Stand in an open extract for 7 seconds to get out; running out of time = Missing in Action

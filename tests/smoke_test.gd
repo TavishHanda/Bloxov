@@ -74,6 +74,49 @@ func _run() -> void:
 	await _frames(3)
 	_check(not is_instance_valid(enemy), "dead enemy is removed")
 
+	# Movement: hold keys and measure. Face down the open road (+Z).
+	player.teleport_to(Vector3(0, 0.1, -10))
+	player.rotation.y = PI
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	await create_timer(1.0).timeout
+	var walk := player.horizontal_speed()
+	_check(absf(walk - player.walk_speed) < 0.3, "walk speed ~%.1f (got %.2f)" % [player.walk_speed, walk])
+	Input.action_press("sprint")
+	await create_timer(1.0).timeout
+	var sprint := player.horizontal_speed()
+	_check(player.is_sprinting() and absf(sprint - player.sprint_speed) < 0.3, "sprint speed ~%.1f (got %.2f)" % [player.sprint_speed, sprint])
+	_check(not gun.is_ready_to_fire(), "can't fire while sprinting")
+	Input.action_release("sprint")
+	Input.action_release("move_forward")
+	await physics_frame
+	await physics_frame
+	_check(not gun.is_ready_to_fire(), "gun needs a moment to come up after sprinting")
+	await create_timer(gun.raise_time + 0.15).timeout
+	_check(gun.is_ready_to_fire(), "gun is ready %.2fs after sprinting" % gun.raise_time)
+	await create_timer(0.8).timeout
+	_check(player.horizontal_speed() < 0.1, "player comes to a stop")
+	# Sprint only works forwards.
+	Input.action_press("move_back")
+	Input.action_press("sprint")
+	await create_timer(0.8).timeout
+	_check(not player.is_sprinting() and player.horizontal_speed() < player.walk_speed, "can't sprint backwards (%.2f)" % player.horizontal_speed())
+	Input.action_release("move_back")
+	Input.action_release("sprint")
+	await create_timer(0.8).timeout
+	# Jump height.
+	var ground_y := player.global_position.y
+	var peak := ground_y
+	Input.action_press("jump")
+	await physics_frame
+	await physics_frame
+	Input.action_release("jump")
+	for i in 60:
+		await physics_frame
+		peak = maxf(peak, player.global_position.y)
+	var jump_height := peak - ground_y
+	_check(jump_height > 0.4 and jump_height < 0.9, "jump height %.2fm" % jump_height)
+
 	# Loot containers rolled their contents.
 	var rolled := 0
 	for node in get_nodes_in_group("loot_containers"):
