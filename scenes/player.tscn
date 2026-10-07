@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
 [ext_resource type="Script" path="res://scripts/gun.gd" id="3_gun"]
+[ext_resource type="Script" path="res://scripts/inventory.gd" id="4_inventory"]
+[ext_resource type="Script" path="res://scripts/interactor.gd" id="5_interactor"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -54,6 +56,13 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 100
+
+[node name="Inventory" type="Node" parent="."]
+script = ExtResource("4_inventory")
+capacity = 10
+
+[node name="Interactor" type="Node" parent="."]
+script = ExtResource("5_interactor")
 
 [node name="Head" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)

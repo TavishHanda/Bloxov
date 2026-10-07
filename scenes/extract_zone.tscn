@@ -1,0 +1,57 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/extract_zone.gd" id="1_extract"]
+
+[sub_resource type="BoxShape3D" id="Zone"]
+size = Vector3(4, 3, 4)
+
+[sub_resource type="StandardMaterial3D" id="PadMat"]
+albedo_color = Color(0.2, 0.9, 0.4, 1)
+
+[sub_resource type="StandardMaterial3D" id="BeamMat"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.3, 1, 0.45, 0.14)
+
+[sub_resource type="BoxMesh" id="PadMesh"]
+material = SubResource("PadMat")
+size = Vector3(4, 0.1, 4)
+
+[sub_resource type="CylinderMesh" id="BeamMesh"]
+material = SubResource("BeamMat")
+top_radius = 1.6
+bottom_radius = 1.6
+height = 40.0
+cap_top = false
+cap_bottom = false
+
+[node name="ExtractZone" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("1_extract")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("Zone")
+
+[node name="Pad" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+mesh = SubResource("PadMesh")
+
+[node name="Beam" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 20, 0)
+cast_shadow = 0
+mesh = SubResource("BeamMesh")
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.0015
+modulate = Color(0.5, 1, 0.6, 1)
+outline_size = 10
+font_size = 28
+text = "Extract"

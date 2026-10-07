@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/loot_container.gd" id="1_loot"]
+
+[sub_resource type="BoxShape3D" id="Box"]
+size = Vector3(1.0, 0.75, 0.7)
+
+[sub_resource type="StandardMaterial3D" id="Wood"]
+albedo_color = Color(0.62, 0.43, 0.22, 1)
+
+[sub_resource type="StandardMaterial3D" id="Band"]
+albedo_color = Color(0.38, 0.25, 0.12, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh"]
+material = SubResource("Wood")
+size = Vector3(1.0, 0.75, 0.7)
+
+[sub_resource type="BoxMesh" id="BandMesh"]
+material = SubResource("Band")
+size = Vector3(1.02, 0.1, 0.72)
+
+[sub_resource type="BoxMesh" id="SideBand"]
+material = SubResource("Band")
+size = Vector3(0.1, 0.77, 0.72)
+
+[node name="Crate" type="StaticBody3D"]
+collision_layer = 9
+collision_mask = 0
+script = ExtResource("1_loot")
+display_name = "Crate"
+loot_table = "crate"
+min_items = 1
+max_items = 3
+search_time = 1.5
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 0)
+shape = SubResource("Box")
+
+[node name="Box" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.375, 0)
+mesh = SubResource("BoxMesh")
+
+[node name="BandTop" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0)
+mesh = SubResource("BandMesh")
+
+[node name="BandBottom" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.13, 0)
+mesh = SubResource("BandMesh")
+
+[node name="SideL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.375, 0)
+mesh = SubResource("SideBand")
+
+[node name="SideR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.375, 0)
+mesh = SubResource("SideBand")

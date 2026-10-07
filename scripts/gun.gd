@@ -21,7 +21,7 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export_group("Ammo")
 @export var rounds_per_minute := 600.0
 @export var mag_size := 30
-@export var reserve_ammo := 180
+@export var reserve_ammo := 90
 @export var reload_time := 1.6
 
 @export_group("Accuracy")
@@ -74,7 +74,8 @@ func _process(delta: float) -> void:
 	_update_reload(delta)
 	_update_model(delta)
 
-	if player.is_dead:
+	if player.controls_locked() or player.is_healing():
+		_needs_trigger_release = true
 		return
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		# Don't fire on the click that captures the mouse.

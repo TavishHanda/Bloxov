@@ -3,6 +3,7 @@ extends CharacterBody3D
 ## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump.
 
 const HURT_SOUND := preload("res://audio/hurt.wav")
+const HEAL_SOUND := preload("res://audio/mag_out.wav")
 
 @export var walk_speed := 5.0
 @export var sprint_speed := 8.5
@@ -23,9 +24,17 @@ const HURT_SOUND := preload("res://audio/hurt.wav")
 @onready var camera: Camera3D = $Head/Recoil/Camera3D
 @onready var gun: Gun = $Head/Recoil/Camera3D/Gun
 @onready var health: Health = $Health
+@onready var inventory: Inventory = $Inventory
+@onready var interactor: Interactor = $Interactor
 
 var is_dead := false
-var dead_for := 0.0
+## True once the player has extracted (raid over, controls off).
+var extracted := false
+
+## Seconds left on the current heal, and the item being used.
+var heal_time_left := 0.0
+var heal_duration := 0.0
+var _heal_item := ""
 
 var _spawn_position: Vector3
 var _trauma := 0.0
@@ -43,6 +52,54 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 
 
+func controls_locked() -> bool:
+	return is_dead or extracted
+
+
+func is_healing() -> bool:
+	return heal_time_left > 0.0
+
+
+func teleport_to(pos: Vector3) -> void:
+	global_position = pos
+	_spawn_position = pos
+	velocity = Vector3.ZERO
+
+
+func face_towards(point: Vector3) -> void:
+	var dir := point - global_position
+	dir.y = 0.0
+	if dir.length_squared() > 0.01:
+		rotation.y = atan2(-dir.x, -dir.z)
+
+
+## Called by the Raid when you make it out.
+func extract() -> void:
+	extracted = true
+	heal_time_left = 0.0
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## H key: use the heal item that best fits how hurt you are.
+func try_heal() -> void:
+	var index := inventory.find_heal(health.max_health - health.current)
+	if index >= 0:
+		use_item(index)
+
+
+## Use a heal item from the backpack. Takes a few seconds; you can't shoot meanwhile.
+func use_item(index: int) -> void:
+	if controls_locked() or is_healing() or health.current >= health.max_health:
+		return
+	var id := inventory.items[index]
+	if ItemDB.kind(id) != "heal":
+		return
+	_heal_item = inventory.remove_at(index)
+	heal_duration = ItemDB.item(id)["use_time"]
+	heal_time_left = heal_duration
+	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
+
+
 func add_recoil(pitch_deg: float, yaw_deg: float) -> void:
 	recoil.rotation.x += deg_to_rad(pitch_deg)
 	recoil.rotation.y += deg_to_rad(yaw_deg)
@@ -54,12 +111,12 @@ func add_shake(amount: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if is_dead:
-		if event is InputEventMouseButton and event.pressed and dead_for > 1.0:
-			get_tree().reload_current_scene()
+	if controls_locked():
 		return
 	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
-	if event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("heal"):
+		try_heal()
+	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var delta_len: float = event.screen_relative.length()
@@ -83,8 +140,11 @@ func _process(delta: float) -> void:
 	camera.h_offset = randf_range(-1.0, 1.0) * 0.06 * shake
 	camera.v_offset = randf_range(-1.0, 1.0) * 0.06 * shake
 	camera.rotation.z = randf_range(-1.0, 1.0) * 0.05 * shake
-	if is_dead:
-		dead_for += delta
+	if heal_time_left > 0.0:
+		heal_time_left -= delta
+		if heal_time_left <= 0.0:
+			heal_time_left = 0.0
+			health.heal(ItemDB.item(_heal_item)["heal"])
 
 
 func _physics_process(delta: float) -> void:
@@ -93,11 +153,13 @@ func _physics_process(delta: float) -> void:
 
 	var input_dir := Vector2.ZERO
 	var speed := walk_speed
-	if not is_dead:
+	if not controls_locked():
 		if Input.is_action_just_pressed("jump") and is_on_floor():
 			velocity.y = jump_velocity
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-		if Input.is_action_pressed("sprint"):
+		if is_healing():
+			speed = walk_speed * 0.5
+		elif Input.is_action_pressed("sprint"):
 			speed = sprint_speed
 
 	var direction := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
@@ -124,6 +186,7 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 
 func _on_died() -> void:
 	is_dead = true
+	heal_time_left = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(head, "position:y", 0.35, 0.6).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)

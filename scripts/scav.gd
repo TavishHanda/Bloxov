@@ -33,6 +33,10 @@ const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
 
+@export_group("Loot")
+@export var min_drops := 1
+@export var max_drops := 3
+
 @export_group("Look")
 @export var burst_color := Color(0.33, 0.38, 0.24)
 
@@ -89,7 +93,7 @@ func _physics_process(delta: float) -> void:
 
 	var to_target := Vector3.ZERO
 	var dist := INF
-	if _target != null and not _target.is_dead:
+	if _target != null and not _target.controls_locked():
 		to_target = _target.global_position - global_position
 		to_target.y = 0.0
 		dist = to_target.length()
@@ -268,4 +272,8 @@ func _on_died() -> void:
 	var world := get_tree().current_scene
 	Effects.burst(world, global_position + Vector3(0, 0.9, 0), burst_color)
 	Effects.sound_at(world, POP_SOUND, global_position)
+	var drops: Array[String] = []
+	for i in randi_range(min_drops, max_drops):
+		drops.append(ItemDB.roll("scav"))
+	LootContainer.spawn_bag(world, global_position, "Scav Body", drops, 1.0)
 	queue_free()

@@ -1,0 +1,84 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/loot_container.gd" id="1_loot"]
+
+[sub_resource type="BoxShape3D" id="Box"]
+size = Vector3(0.75, 1.9, 0.55)
+
+[sub_resource type="StandardMaterial3D" id="Metal"]
+albedo_color = Color(0.42, 0.5, 0.58, 1)
+
+[sub_resource type="StandardMaterial3D" id="Dark"]
+albedo_color = Color(0.15, 0.17, 0.2, 1)
+
+[sub_resource type="StandardMaterial3D" id="Handle"]
+albedo_color = Color(0.85, 0.85, 0.85, 1)
+
+[sub_resource type="BoxMesh" id="Body"]
+material = SubResource("Metal")
+size = Vector3(0.75, 1.9, 0.55)
+
+[sub_resource type="BoxMesh" id="Seam"]
+material = SubResource("Dark")
+size = Vector3(0.02, 1.8, 0.02)
+
+[sub_resource type="BoxMesh" id="Vent"]
+material = SubResource("Dark")
+size = Vector3(0.25, 0.04, 0.02)
+
+[sub_resource type="BoxMesh" id="HandleMesh"]
+material = SubResource("Handle")
+size = Vector3(0.04, 0.16, 0.04)
+
+[node name="Locker" type="StaticBody3D"]
+collision_layer = 9
+collision_mask = 0
+script = ExtResource("1_loot")
+display_name = "Locker"
+loot_table = "locker"
+min_items = 2
+max_items = 4
+search_time = 2.0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("Box")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+mesh = SubResource("Body")
+
+[node name="Seam" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, -0.28)
+cast_shadow = 0
+mesh = SubResource("Seam")
+
+[node name="VentL1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.19, 1.65, -0.28)
+cast_shadow = 0
+mesh = SubResource("Vent")
+
+[node name="VentL2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.19, 1.57, -0.28)
+cast_shadow = 0
+mesh = SubResource("Vent")
+
+[node name="VentR1" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.19, 1.65, -0.28)
+cast_shadow = 0
+mesh = SubResource("Vent")
+
+[node name="VentR2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.19, 1.57, -0.28)
+cast_shadow = 0
+mesh = SubResource("Vent")
+
+[node name="HandleL" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.06, 1.0, -0.29)
+cast_shadow = 0
+mesh = SubResource("HandleMesh")
+
+[node name="HandleR" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 1.0, -0.29)
+cast_shadow = 0
+mesh = SubResource("HandleMesh")

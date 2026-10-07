@@ -26,6 +26,10 @@ func _run() -> void:
 	await _frames(5)
 
 	var player := main.get_node("Player") as Player
+	var raid := main.get_node("Raid") as Raid
+	# The raid puts the player at a random spawn; use the one facing the dummy.
+	player.teleport_to(Vector3(0, 0.1, -10))
+	await physics_frame
 	var gun := player.gun
 	var dummy := main.get_node("TargetDummy") as Node3D
 	var dummy_health := dummy.get_node("Health") as Health
@@ -69,6 +73,48 @@ func _run() -> void:
 	enemy.health.take_damage(9999)
 	await _frames(3)
 	_check(not is_instance_valid(enemy), "dead enemy is removed")
+
+	# Loot containers rolled their contents.
+	var rolled := 0
+	for node in get_nodes_in_group("loot_containers"):
+		var container := node as LootContainer
+		if container.loot_table != "" and not container.items.is_empty():
+			rolled += 1
+	_check(rolled >= 10, "containers have loot (%d)" % rolled)
+	_check(ItemDB.money(1234567) == "$1,234,567", "money formatting")
+
+	# Backpack slots.
+	var inv := player.inventory
+	inv.clear()
+	_check(inv.add("golden_toilet") and inv.used_slots() == 4, "golden toilet takes 4 slots")
+	_check(inv.add("vase") and inv.add("laptop") and inv.used_slots() == 9, "bag fills up")
+	_check(not inv.add("laptop") and inv.add("gold_watch") and inv.free_slots() == 0, "full bag rejects big items")
+	var expected_value := 50000 + 9000 + 4000 + 2500
+	_check(inv.total_value() == expected_value, "bag value is %s" % ItemDB.money(inv.total_value()))
+
+	# Healing (the scav hurt us earlier).
+	inv.remove_at(inv.items.find("gold_watch"))
+	inv.add("bandage")
+	player.health.take_damage(30)
+	var hurt_hp := player.health.current
+	player.try_heal()
+	_check(player.is_healing() and not inv.items.has("bandage"), "H starts healing and uses the bandage")
+	await create_timer(2.4).timeout
+	_check(player.health.current == mini(hurt_hp + 25, player.health.max_health), "bandage heals 25 (hp %d -> %d)" % [hurt_hp, player.health.current])
+
+	# Extraction: walk into an open extract and wait.
+	var open_zone: ExtractZone = null
+	var open_count := 0
+	for zone in raid.get_extracts():
+		if zone.is_open:
+			open_count += 1
+			open_zone = zone
+	_check(open_count == raid.open_extract_count, "%d of 3 extracts are open" % open_count)
+	player.teleport_to(open_zone.global_position + Vector3(0, 0.2, 0))
+	await create_timer(open_zone.extract_time + 1.0).timeout
+	_check(raid.result == "extracted" and raid.extract_used == open_zone.extract_name, "standing in an open extract extracts (%s)" % raid.result)
+	_check(raid.loot_value == expected_value - 2500 and Raid.session_value == raid.loot_value, "extracted loot is counted")
+	_check(player.controls_locked(), "controls lock after extracting")
 
 	# Player death.
 	player.health.take_damage(9999)

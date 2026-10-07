@@ -2,6 +2,18 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.0 (Phase 2: the loop)
+- Raids: 10-minute timer, random spawn point, 2 of 3 extracts open each raid (green beam + name)
+- Stand in an open extract for 7 seconds to get out; running out of time = Missing in Action
+- Loot containers: crates outside, lockers in buildings, safes in the bunker (loud to crack). Hold E to search
+- 14 items across 5 rarities (yes, including the Golden Toilet), ammo boxes, bandages and medkits
+- 10-slot backpack (Tab): items take 1-4 slots; take, drop, put back, use
+- Dead scavs drop a bag you can loot
+- H heals with the best-fitting bandage/medkit (takes time, can't shoot meanwhile)
+- End-of-raid screen with your loot, its value, and session totals
+- HUD: raid timer, bag value, search prompts and progress, extract list (O)
+- Starting reserve ammo lowered to 90, so ammo boxes matter
+
 ## 0.2.3
 - Version number shown in the menu and the top-right corner
 - This changelog; releases are tagged in git
