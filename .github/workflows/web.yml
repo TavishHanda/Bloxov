@@ -52,7 +52,8 @@ jobs:
       - name: Smoke test (run the main scene for a few seconds)
         run: |
           godot --headless --quit-after 300 2>&1 | tee run.log
-          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" import.log run.log; then
+          # "still in use at exit" is a harmless shutdown message from force-quitting mid-game.
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" import.log run.log | grep -v "still in use at exit"; then
             echo "::error::Godot reported errors (see above)"
             exit 1
           fi
