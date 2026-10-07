@@ -13,3 +13,4 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 
 ## Review order
 Going through every mechanic in 0.3.0 one by one to hone it. See the list in the chat / CHANGELOG.
+- **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "scripts" / "item_db.gd"
 OUT = ROOT / "docs" / "ITEMS.md"
 RARITIES = ["common", "uncommon", "rare", "epic", "legendary"]
-KIND_LABEL = {"ammo": "Ammo", "heal": "Healing", "valuable": "Valuable"}
+KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "valuable": "Valuable"}
 
 
 def read_dict(text, name):
@@ -48,8 +48,13 @@ def main():
             notes.append("heals %d over %.0f s" % (it["heal"], it["use_time"]))
         if it["kind"] == "ammo":
             notes.append("full stack %s" % money(it["value"] * it["stack"]))
-        if item_id == "pistol_ammo":
-            notes.append("no pistol yet (inventory step 2)")
+        if it["kind"] == "weapon":
+            notes.append("%s slot; %s; %d dmg, %d rpm, %d-round mag, %s" % (
+                it["slot"], "full-auto" if it["auto"] else "semi-auto", it["damage"], it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
+        if it["kind"] == "armor":
+            notes.append("-%d%% damage taken" % round(it["reduction"] * 100))
+        if it["kind"] == "backpack":
+            notes.append("%d×%d storage" % tuple(it["grid"]))
         lines.append("| %s (`%s`) | %s | %s | %d×%d | %d | %s | %s |" % (
             it["name"], item_id, KIND_LABEL[it["kind"]], it["rarity"].capitalize(), it["w"], it["h"],
             it["stack"], money(it["value"]), "; ".join(notes)))

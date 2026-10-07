@@ -2,6 +2,21 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.3.7 (inventory redesign, step 2: equipment + hotbar)
+- **Equipment slots** in the inventory screen: Primary, Secondary, Armor, Backpack. Drag items on to equip, drag off
+  to unequip (dropping onto a filled slot swaps), Shift+click to quick-equip/unequip, right-click Equip/Unequip/Drop
+- **Guns are items.** AK Rifle (primary, full-auto) and a new **Pistol** (secondary, semi-auto, 12 rounds, pistol ammo).
+  Each gun keeps its own loaded rounds. **1/2** switch weapons (short swap time); no gun = unarmed
+- **Armor:** light (−20% damage) and heavy (−40%)
+- **Backpacks:** small 4×3, medium 5×4, large 6×5. Your backpack grid is whatever you wear; no backpack = no grid.
+  A backpack has to be empty to take it off
+- **Secure pocket** (2×2), shown in the inventory. (Keeping it through death matters once the stash exists)
+- **Hotbar** at the bottom of the screen: 1/2 weapons with loaded/carried ammo, **3–6** quick-use items.
+  Heals bind themselves when picked up; right-click → Bind/Unbind
+- Inventory screen is now three columns: container · equipment + pockets + secure · backpack
+- Loot: pistols, pistol rounds, armor and backpacks show up in lockers, crates, safes and on scavs/PMCs
+- Start kit: AK (loaded), medium backpack, 60 rifle rounds, a bandage
+
 ## 0.3.6 (inventory redesign, step 1: grids)
 - Tarkov-style grid inventory: **pockets (4×1)** and a **backpack (5×4)**. Items have sizes (watch 1×1, laptop 2×1,
   medkit 2×2, golden toilet 2×3) and you fit them like Tetris

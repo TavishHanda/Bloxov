@@ -7,7 +7,14 @@ edit the item database, then re-run the script (don't edit this file by hand).
 
 | Item | Type | Rarity | Size | Stack | Value (each) | Notes |
 |---|---|---|---|---|---|---|
-| Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $2 | full stack $100; no pistol yet (inventory step 2) |
+| Pistol (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 18 dmg, 360 rpm, 12-round mag, pistol ammo |
+| AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 22 dmg, 600 rpm, 30-round mag, rifle ammo |
+| Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken |
+| Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken |
+| Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $400 | 4×3 storage |
+| Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $900 | 5×4 storage |
+| Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $2,000 | 6×5 storage |
+| Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $2 | full stack $100 |
 | Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $3 | full stack $360 |
 | Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $100 | heals 25 over 2 s |
 | Medkit (`medkit`) | Healing | Uncommon | 2×2 | 1 | $400 | heals 70 over 4 s |
@@ -33,53 +40,68 @@ Ammo rolls come as a stack of 20–60 rifle rounds (15–40 pistol), bandages as
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 31% |
-| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 31% |
-| Bandage | 19% |
-| Uncommon valuable (Old Phone, Car Battery) | 12% |
+| Rifle Rounds | 28% |
+| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 28% |
+| Bandage | 17% |
+| Uncommon valuable (Old Phone, Car Battery) | 11% |
+| Pistol Rounds | 7% |
 | Medkit | 4% |
 | Rare valuable (Gold Watch, Laptop) | 3% |
+| Small Backpack | 2% |
 
 ### Locker (2–4 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Uncommon valuable (Old Phone, Car Battery) | 25% |
-| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 18% |
-| Rifle Rounds | 15% |
-| Rare valuable (Gold Watch, Laptop) | 15% |
-| Medkit | 12% |
-| Bandage | 10% |
-| Epic valuable (Military Chip, Antique Vase) | 4% |
+| Uncommon valuable (Old Phone, Car Battery) | 21% |
+| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 15% |
+| Rifle Rounds | 13% |
+| Rare valuable (Gold Watch, Laptop) | 13% |
+| Medkit | 10% |
+| Bandage | 8% |
+| Pistol Rounds | 5% |
+| Pistol | 4% |
+| Light Armor | 3% |
+| Epic valuable (Military Chip, Antique Vase) | 3% |
+| Small Backpack | 3% |
+| Medium Backpack | 2% |
 
 ### Safe (1–2 rolls, loud to open)
 
 | Entry | Chance per roll |
 |---|---|
-| Rare valuable (Gold Watch, Laptop) | 40% |
-| Epic valuable (Military Chip, Antique Vase) | 30% |
-| Uncommon valuable (Old Phone, Car Battery) | 15% |
-| Legendary valuable (Rare Crystal, Golden Toilet) | 15% |
+| Rare valuable (Gold Watch, Laptop) | 36% |
+| Epic valuable (Military Chip, Antique Vase) | 27% |
+| Uncommon valuable (Old Phone, Car Battery) | 14% |
+| Legendary valuable (Rare Crystal, Golden Toilet) | 14% |
+| Heavy Armor | 5% |
+| Large Backpack | 4% |
 
 ### Scav (body bag, 1–3 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 40% |
-| Bandage | 20% |
-| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 20% |
-| Uncommon valuable (Old Phone, Car Battery) | 10% |
-| Medkit | 6% |
+| Rifle Rounds | 35% |
+| Bandage | 18% |
+| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 18% |
+| Pistol Rounds | 9% |
+| Uncommon valuable (Old Phone, Car Battery) | 9% |
+| Medkit | 5% |
+| Pistol | 4% |
 | Rare valuable (Gold Watch, Laptop) | 4% |
 
 ### PMC (body bag, 1–3 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 31% |
-| Uncommon valuable (Old Phone, Car Battery) | 20% |
-| Bandage | 12% |
-| Medkit | 12% |
-| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 12% |
-| Rare valuable (Gold Watch, Laptop) | 10% |
+| Rifle Rounds | 26% |
+| Uncommon valuable (Old Phone, Car Battery) | 17% |
+| Bandage | 10% |
+| Medkit | 10% |
+| Common valuable (Canned Beans, Duct Tape, Scrap Metal) | 10% |
+| Rare valuable (Gold Watch, Laptop) | 9% |
+| Pistol Rounds | 5% |
+| Pistol | 4% |
+| Light Armor | 4% |
+| Medium Backpack | 3% |
 | Epic valuable (Military Chip, Antique Vase) | 2% |

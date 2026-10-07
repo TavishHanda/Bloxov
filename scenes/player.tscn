@@ -40,6 +40,14 @@ size = Vector3(0.06, 0.09, 0.16)
 material = SubResource("GunAccent")
 size = Vector3(0.03, 0.04, 0.06)
 
+[sub_resource type="BoxMesh" id="PistolSlide"]
+material = SubResource("GunDark")
+size = Vector3(0.045, 0.06, 0.2)
+
+[sub_resource type="BoxMesh" id="PistolGrip"]
+material = SubResource("GunAccent")
+size = Vector3(0.04, 0.11, 0.055)
+
 [sub_resource type="BoxMesh" id="FlashMesh"]
 material = SubResource("FlashMat")
 size = Vector3(0.13, 0.13, 0.02)
@@ -118,3 +126,30 @@ mesh = SubResource("FlashMesh")
 light_color = Color(1, 0.8, 0.4, 1)
 light_energy = 2.0
 omni_range = 5.0
+
+[node name="PistolModel" type="Node3D" parent="Head/Recoil/Camera3D/Gun"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.17, -0.16, -0.36)
+visible = false
+
+[node name="Slide" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/PistolModel"]
+cast_shadow = 0
+mesh = SubResource("PistolSlide")
+
+[node name="Grip" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/PistolModel"]
+transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, -0.075, 0.06)
+cast_shadow = 0
+mesh = SubResource("PistolGrip")
+
+[node name="Muzzle" type="Marker3D" parent="Head/Recoil/Camera3D/Gun/PistolModel"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.12)
+
+[node name="Flash" type="Node3D" parent="Head/Recoil/Camera3D/Gun/PistolModel/Muzzle"]
+
+[node name="FlashMesh" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/PistolModel/Muzzle/Flash"]
+cast_shadow = 0
+mesh = SubResource("FlashMesh")
+
+[node name="FlashLight" type="OmniLight3D" parent="Head/Recoil/Camera3D/Gun/PistolModel/Muzzle/Flash"]
+light_color = Color(1, 0.8, 0.4, 1)
+light_energy = 1.5
+omni_range = 4.0

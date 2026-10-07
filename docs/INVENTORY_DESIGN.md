@@ -1,7 +1,7 @@
 # Inventory Design (M1)
 
 Tarkov / Arc Raiders / Marathon style: **equipment slots + grid ("Tetris") inventory**.
-Status: **approved** (placeholder version; will need an overhaul before full release). Step 1 shipped in 0.3.6.
+Status: **approved** (placeholder version; will need an overhaul before full release). Step 1 shipped in 0.3.6, step 2 (equipment + hotbar) in 0.3.7.
 
 ## Decisions (owner)
 - Grid inventory with **rotation** (R while dragging).
@@ -66,5 +66,6 @@ stacks anywhere on you (pockets, backpack, secure pocket).
 ## Build steps
 1. **Grid core (0.3.6):** grid inventory with drag & drop, rotation, stacking; containers become grids;
    ammo as grid items and reload from inventory; placeholder icons. Weight stays on hold.
-2. **Equipment (0.3.7):** primary/secondary slots + pistol + weapon switching (1/2), armor, backpacks, secure pocket.
+2. **Equipment (0.3.7):** primary/secondary slots + pistol + weapon switching (1/2), armor, backpacks, secure pocket,
+   plus a **hotbar** (1/2 weapons, 3–6 quick items; heals auto-bind).
 3. **Stash & trader (0.4.0 = M1 done):** persistent stash grid (saved in the browser), sell/buy, loadout before a raid, free kit.

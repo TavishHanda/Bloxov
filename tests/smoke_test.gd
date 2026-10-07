@@ -236,8 +236,28 @@ func _run() -> void:
 	_check(inv.add("golden_toilet") == 0 and inv.backpack.count_of("golden_toilet") == 1, "golden toilet (2x3) goes in the backpack")
 	_check(inv.add("bandage", 7) == 0 and inv.count_of("bandage") == 7, "bandages stack (7 = 5 + 2)")
 	_check(inv.add("vase") == 0 and inv.add("laptop") == 0 and inv.add("gold_watch") == 0, "more loot fits")
-	var expected_value := 50000 + 7 * 100 + 9000 + 4000 + 2500
+	var gear_value := inv.equipped("primary").value() + inv.equipped("backpack").value()
+	var expected_value := 50000 + 7 * 100 + 9000 + 4000 + 2500 + gear_value
 	_check(inv.total_value() == expected_value, "carried value is %s" % ItemDB.money(inv.total_value()))
+
+	# Equipment: starting kit, pistol + weapon switching, armor, backpack rules, secure pocket, hotbar.
+	_check(inv.equipped("primary") != null and inv.equipped("primary").id == "ak" and gun.weapon == inv.equipped("primary"), "start with an AK equipped")
+	_check(inv.secure.width == 2 and inv.secure.height == 2, "2x2 secure pocket")
+	var pistol := ItemStack.new("pistol")
+	pistol.loaded = 12
+	_check(inv.equip("secondary", pistol) and gun.weapon != pistol, "equip a pistol (rifle stays out)")
+	_check(not inv.equip("secondary", ItemStack.new("pistol")), "can't equip into a full slot")
+	_check(not inv.equip("armor", ItemStack.new("pistol")), "a pistol doesn't go in the armor slot")
+	await _press("weapon_2")
+	_check(gun.weapon == pistol and not gun.auto and gun.mag_size == 12 and gun.ammo_id == "pistol_ammo", "key 2 switches to the semi-auto pistol")
+	await _press("weapon_1")
+	_check(gun.weapon == inv.equipped("primary") and gun.auto and gun.mag_size == 30, "key 1 switches back to the AK")
+	inv.equip("armor", ItemStack.new("armor_heavy"))
+	var hp_before := player.health.current
+	player.health.take_damage(10)
+	_check(hp_before - player.health.current == 6, "heavy armor takes 40%% off (10 -> %d)" % (hp_before - player.health.current))
+	_check(not inv.can_unequip("backpack") and inv.unequip("backpack") == null, "can't take off a backpack with stuff in it")
+	_check(inv.hotbar[0] == "bandage", "picked-up bandages bind to hotbar key 3")
 
 	# Inventory screen: open a container, move items around (same code the mouse uses).
 	var loot_ui: LootUI = main.get_node("HUD").loot_ui
@@ -265,6 +285,17 @@ func _run() -> void:
 			bandages = stack
 	var bandage_grid := inv.pockets if inv.pockets.stacks.has(bandages) else inv.backpack
 	_check(loot_ui.split_stack(bandage_grid, bandages) and inv.count_of("bandage") == 7 and bandages.count == 3, "split a stack of 5 into 3 + 2")
+	# Equip from the container, swap, unequip.
+	box.grid.add("armor_light")
+	var light: ItemStack = null
+	for stack in box.grid.stacks:
+		if stack.id == "armor_light":
+			light = stack
+	_check(light != null and loot_ui.equip_from_grid(box.grid, light, "armor"), "drag light armor from the crate onto the armor slot")
+	_check(inv.equipped("armor") == light and box.grid.count_of("armor_heavy") == 1, "the heavy armor swapped into the crate")
+	loot_ui.unequip_to_inventory("secondary")
+	_check(inv.equipped("secondary") == null and inv.count_of("pistol") == 1, "unequip the pistol into the inventory")
+	_check(gun.weapon == inv.equipped("primary"), "still holding the AK")
 	loot_ui.close()
 	expected_value = inv.total_value()
 
@@ -320,6 +351,20 @@ func _check(ok: bool, what: String) -> void:
 	else:
 		_failures += 1
 		print("  FAIL ", what)
+
+
+## Sends a key action through the real input path (as if the key was pressed).
+func _press(action: String) -> void:
+	var event := InputEventAction.new()
+	event.action = action
+	event.pressed = true
+	Input.parse_input_event(event)
+	await process_frame
+	var release := InputEventAction.new()
+	release.action = action
+	release.pressed = false
+	Input.parse_input_event(release)
+	await process_frame
 
 
 func _frames(n: int) -> void:

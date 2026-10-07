@@ -1,6 +1,8 @@
 class_name Gun
 extends Node3D
-## Hitscan gun. Hold LMB to fire, R to reload. Lives under the player's camera.
+## Hitscan gun. LMB to fire, R to reload, 1/2 to switch weapons. Lives under the player's camera.
+## Fires whatever weapon is equipped in the active slot (primary/secondary); its stats come from ItemDB.
+## The exported Damage/Ammo/Accuracy/Feel values below are overwritten by the weapon's stats when it's equipped.
 
 signal hit_confirmed(killed: bool, headshot: bool)
 signal fired
@@ -39,6 +41,8 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export_group("Handling")
 ## Time to bring the gun up after sprinting before you can fire.
 @export var raise_time := 0.3
+## Time to swap between primary and secondary.
+@export var switch_time := 0.45
 
 @export_group("Feel")
 @export var recoil_pitch_deg := 1.1
@@ -47,7 +51,19 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 ## Gunshots alert enemies within this radius.
 @export var noise_radius := 35.0
 
-var in_mag: int
+## The equipped weapon stack firing right now (null = unarmed), and its slot.
+var weapon: ItemStack = null
+var active_slot := "primary"
+## Full-auto (hold) or semi-auto (one shot per click).
+var auto := true
+
+## Rounds loaded in the current weapon (stored on its ItemStack, so each gun keeps its own).
+var in_mag: int:
+	get:
+		return weapon.loaded if weapon != null else 0
+	set(value):
+		if weapon != null:
+			weapon.loaded = value
 ## Matching rounds the player is carrying.
 var reserve: int:
 	get:
@@ -57,16 +73,17 @@ var is_reloading := false
 
 @onready var player: Player = owner
 @onready var camera: Camera3D = get_parent()
-@onready var model: Node3D = $Model
-@onready var muzzle: Marker3D = $Model/Muzzle
-@onready var flash: Node3D = $Model/Muzzle/Flash
+@onready var _models := {"rifle": $Model, "pistol": $PistolModel}
+var model: Node3D
+var muzzle: Node3D
+var flash: Node3D
+var _model_rests := {}
 
 var _cooldown := 0.0
 var _bloom := 0.0
 var _reload_left := 0.0
 var _mag_in_played := false
 var _flash_left := 0.0
-var _model_rest: Vector3
 var _kick := 0.0
 var _bob_time := 0.0
 var _needs_trigger_release := true
@@ -75,9 +92,64 @@ var _raise_left := 0.0
 
 
 func _ready() -> void:
-	in_mag = mag_size
-	_model_rest = model.position
+	for key in _models:
+		var node: Node3D = _models[key]
+		_model_rests[key] = node.position
+		node.visible = false
+		(node.get_node("Muzzle/Flash") as Node3D).visible = false
+	# The player's own @onready vars aren't set yet (children are ready first), so look the inventory up directly.
+	(player.get_node("Inventory") as Inventory).equipment_changed.connect(_on_equipment_changed)
+
+
+## Switch to the weapon in a slot ("primary"/"secondary"), if there is one.
+func select_slot(slot: String) -> void:
+	var stack := player.inventory.equipped(slot)
+	if stack == null or (slot == active_slot and stack == weapon):
+		return
+	active_slot = slot
+	_apply_weapon(stack)
+
+
+func _on_equipment_changed() -> void:
+	var current := player.inventory.equipped(active_slot)
+	if current == null:
+		var other := "secondary" if active_slot == "primary" else "primary"
+		if player.inventory.equipped(other) != null:
+			active_slot = other
+			current = player.inventory.equipped(other)
+	if current != weapon:
+		_apply_weapon(current)
+
+
+func _apply_weapon(stack: ItemStack) -> void:
+	weapon = stack
+	is_reloading = false
+	_raise_left = switch_time
+	for key in _models:
+		(_models[key] as Node3D).visible = false
+	if stack == null:
+		model = null
+		return
+	var data := ItemDB.item(stack.id)
+	damage = data["damage"]
+	rounds_per_minute = data["rpm"]
+	mag_size = data["mag"]
+	reload_time = data["reload"]
+	ammo_id = data["ammo"]
+	auto = data["auto"]
+	base_spread_deg = data["spread"]
+	bloom_per_shot_deg = data["bloom"]
+	max_bloom_deg = data["max_bloom"]
+	recoil_pitch_deg = data["recoil"]
+	recoil_yaw_deg = data["recoil_yaw"]
+	noise_radius = data["noise"]
+	model = _models[data["model"]]
+	muzzle = model.get_node("Muzzle")
+	flash = muzzle.get_node("Flash")
 	flash.visible = false
+	model.visible = true
+	# Start low so the new gun visibly comes up.
+	model.position = (_model_rests[data["model"]] as Vector3) + Vector3(0, -0.25, 0.05)
 
 
 func _process(delta: float) -> void:
@@ -87,9 +159,12 @@ func _process(delta: float) -> void:
 	_update_model(delta)
 
 	if player.is_sprinting():
-		_raise_left = raise_time
+		_raise_left = maxf(_raise_left, raise_time)
 	else:
 		_raise_left = maxf(_raise_left - delta, 0.0)
+
+	if weapon == null:
+		return
 
 	if player.controls_locked() or player.is_healing():
 		_needs_trigger_release = true
@@ -105,7 +180,8 @@ func _process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("reload"):
 		start_reload()
-	if Input.is_action_pressed("shoot") and _cooldown <= 0.0 and not is_reloading and is_ready_to_fire():
+	var trigger := Input.is_action_pressed("shoot") if auto else Input.is_action_just_pressed("shoot")
+	if trigger and _cooldown <= 0.0 and not is_reloading and is_ready_to_fire():
 		if in_mag > 0:
 			shoot_once()
 		elif Input.is_action_just_pressed("shoot"):
@@ -119,6 +195,8 @@ func is_ready_to_fire() -> bool:
 
 
 func shoot_once() -> void:
+	if weapon == null:
+		return
 	_cooldown = 60.0 / rounds_per_minute
 	in_mag -= 1
 	var world := get_tree().current_scene
@@ -157,7 +235,7 @@ func shoot_once() -> void:
 
 
 func start_reload() -> void:
-	if is_reloading or in_mag >= mag_size or reserve <= 0:
+	if weapon == null or is_reloading or in_mag >= mag_size or reserve <= 0:
 		return
 	is_reloading = true
 	_reload_left = reload_time
@@ -210,6 +288,8 @@ func _handle_hit(result: Dictionary) -> void:
 
 
 func _update_model(delta: float) -> void:
+	if model == null:
+		return
 	_flash_left -= delta
 	if _flash_left <= 0.0:
 		flash.visible = false
@@ -221,7 +301,8 @@ func _update_model(delta: float) -> void:
 	var bob_scale := minf(speed / player.walk_speed, 1.0) * (2.2 if sprinting else 1.0)
 	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale
 
-	var target_pos := _model_rest + bob + Vector3(0, 0, 0.07 * _kick)
+	var rest: Vector3 = _model_rests[ItemDB.item(weapon.id)["model"]]
+	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
 	if sprinting:
 		# Gun held low and across the body.

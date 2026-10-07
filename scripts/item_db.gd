@@ -11,11 +11,23 @@ const RARITY_COLORS := {
 	"legendary": Color(1.0, 0.72, 0.15),
 }
 
-## kind: "valuable" (worth money), "heal" (press H or Use), "ammo" (loaded into guns when you reload)
+## kind: "valuable" (worth money), "heal" (press H or Use), "ammo" (loaded into guns when you reload),
+##       "weapon" (Primary/Secondary slot), "armor" (Armor slot), "backpack" (Backpack slot; "grid" = its inventory size)
 ## w/h: size in grid cells (before rotation). stack: how many fit in one cell stack. value: price of ONE.
 const ITEMS := {
 	"rifle_ammo": {"name": "Rifle Rounds", "short": "5.45", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 3},
 	"pistol_ammo": {"name": "Pistol Rounds", "short": "9mm", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 2},
+	"ak": {"name": "AK Rifle", "short": "AK", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 2500,
+		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 22, "rpm": 600, "mag": 30, "reload": 1.6,
+		"spread": 0.4, "bloom": 0.35, "max_bloom": 3.0, "recoil": 1.1, "recoil_yaw": 0.45, "noise": 35.0},
+	"pistol": {"name": "Pistol", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 600,
+		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 18, "rpm": 360, "mag": 12, "reload": 1.2,
+		"spread": 0.6, "bloom": 0.9, "max_bloom": 3.5, "recoil": 1.9, "recoil_yaw": 0.6, "noise": 25.0},
+	"armor_light": {"name": "Light Armor", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 1500, "reduction": 0.2},
+	"armor_heavy": {"name": "Heavy Armor", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 4000, "reduction": 0.4},
+	"backpack_small": {"name": "Small Backpack", "short": "Sm Pack", "kind": "backpack", "rarity": "common", "w": 3, "h": 3, "stack": 1, "value": 400, "grid": [4, 3]},
+	"backpack_medium": {"name": "Medium Backpack", "short": "Md Pack", "kind": "backpack", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 900, "grid": [5, 4]},
+	"backpack_large": {"name": "Large Backpack", "short": "Lg Pack", "kind": "backpack", "rarity": "rare", "w": 4, "h": 4, "stack": 1, "value": 2000, "grid": [6, 5]},
 	"bandage": {"name": "Bandage", "kind": "heal", "rarity": "common", "w": 1, "h": 1, "stack": 5, "value": 100, "heal": 25, "use_time": 2.0},
 	"medkit": {"name": "Medkit", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 400, "heal": 70, "use_time": 4.0},
 	"beans": {"name": "Canned Beans", "short": "Beans", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 150},
@@ -33,11 +45,11 @@ const ITEMS := {
 
 ## Weights. A key is either an item id or a rarity (= a random valuable of that rarity).
 const LOOT_TABLES := {
-	"crate": {"rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
-	"locker": {"rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
-	"safe": {"uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
-	"scav": {"rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"pmc": {"rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"crate": {"pistol_ammo": 8, "backpack_small": 2, "rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
+	"locker": {"pistol": 5, "armor_light": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
+	"safe": {"armor_heavy": 6, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
+	"scav": {"pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
+	"pmc": {"pistol": 5, "armor_light": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 
@@ -85,6 +97,18 @@ static func kind(id: String) -> String:
 
 static func color(id: String) -> Color:
 	return RARITY_COLORS[ITEMS[id]["rarity"]]
+
+
+## Which equipment slot an item goes in ("primary", "secondary", "armor", "backpack"), or "" if none.
+static func equip_slot(id: String) -> String:
+	match kind(id):
+		"weapon":
+			return ITEMS[id]["slot"]
+		"armor":
+			return "armor"
+		"backpack":
+			return "backpack"
+	return ""
 
 
 static func roll(table: String) -> String:

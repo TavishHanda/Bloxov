@@ -126,7 +126,12 @@ var debug_spikes_dropped := 0
 func _ready() -> void:
 	add_to_group("player")
 	_spawn_position = global_position
+	inventory.equipment_changed.connect(_on_equipment_changed)
 	# Starting kit until the stash/loadout exists.
+	var rifle := ItemStack.new("ak")
+	rifle.loaded = 30
+	inventory.equip("primary", rifle)
+	inventory.equip("backpack", ItemStack.new("backpack_medium"))
 	inventory.add("rifle_ammo", 60)
 	inventory.add("bandage", 1)
 	health.damaged.connect(_on_damaged)
@@ -197,6 +202,27 @@ func try_heal() -> void:
 		use_item(found[0], found[1])
 
 
+## Uses the item bound to a hotbar key (0 = key 3).
+func use_hotbar(index: int) -> void:
+	var id := inventory.hotbar[index]
+	if id == "":
+		return
+	var found := inventory.find(id)
+	if not found.is_empty():
+		use_item(found[0], found[1])
+
+
+func _hotbar_key(event: InputEvent) -> int:
+	for i in Inventory.HOTBAR_SIZE:
+		if event.is_action_pressed("hotbar_%d" % (i + 3)):
+			return i
+	return -1
+
+
+func _on_equipment_changed() -> void:
+	health.damage_multiplier = 1.0 - inventory.armor_reduction()
+
+
 ## Use one heal item from a stack. Takes a few seconds; you can't shoot meanwhile.
 func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	if controls_locked() or is_healing() or health.current >= health.max_health:
@@ -226,6 +252,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
 	if event.is_action_pressed("heal"):
 		try_heal()
+	elif event.is_action_pressed("weapon_1"):
+		gun.select_slot("primary")
+	elif event.is_action_pressed("weapon_2"):
+		gun.select_slot("secondary")
+	elif _hotbar_key(event) >= 0:
+		use_hotbar(_hotbar_key(event))
 	elif event.is_action_pressed("crouch"):
 		set_crouching(not is_crouching)
 	elif event.is_action_pressed("ui_cancel"):

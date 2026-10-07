@@ -1,12 +1,13 @@
 class_name LootUI
 extends Control
 ## Inventory screen (Tab), and the container + inventory screen when you open loot (E).
-## Drag & drop items between grids, R rotates while dragging, Shift+click quick-moves,
-## right-click for Use / Split / Drop. The raid keeps running while this is open, so loot fast.
+## Columns: [container] [equipment, pockets, secure pocket] [backpack].
+## Drag & drop items between grids and equipment slots, R rotates while dragging, Shift+click quick-moves,
+## right-click for Use / Equip / Bind to hotbar / Split / Drop. The raid keeps running while this is open.
 
 const CELL := GridView.CELL
 const PICKUP_SOUND := preload("res://audio/mag_in.wav")
-enum MenuAction { USE, SPLIT, DROP }
+enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND }
 
 var player: Player
 var container: LootContainer = null
@@ -14,20 +15,25 @@ var container: LootContainer = null
 ## The stack being dragged (stays in its grid until dropped), where it came from, and its rotation.
 var drag_stack: ItemStack = null
 var drag_from: GridInventory = null
+## Set instead of drag_from when dragging an item out of an equipment slot.
+var drag_slot := ""
 var drag_rotated := false
-## The GridView under the mouse while dragging.
-var hover_view: GridView = null
+## The GridView or EquipSlotView under the mouse while dragging.
+var hover_view: Control = null
 
 var _grab_cell := Vector2i.ZERO
 var _preview: ItemTile = null
-var _views: Array[GridView] = []
+var _views: Array[Control] = []
 var _menu: PopupMenu
 var _menu_grid: GridInventory
 var _menu_stack: ItemStack
+var _menu_slot := ""
 
 var _container_panel: Control
 var _container_box: VBoxContainer
 var _player_box: VBoxContainer
+var _backpack_panel: Control
+var _backpack_box: VBoxContainer
 var _value_label: Label
 var _info_label: Label
 
@@ -42,6 +48,12 @@ func _init(owner_player: Player) -> void:
 
 func _ready() -> void:
 	player.inventory.changed.connect(_update_labels)
+	player.inventory.equipment_changed.connect(_on_equipment_changed)
+
+
+func _on_equipment_changed() -> void:
+	if visible:
+		_rebuild_layout.call_deferred()
 
 
 func open_for(target: LootContainer) -> void:
@@ -109,18 +121,36 @@ func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: 
 		stack.y = cell.y
 		stack.rotated = rotated
 		to.place(stack)
+	if player.inventory.grids().has(to):
+		player.inventory.auto_bind(stack.id)
 	_after_move()
 	return true
 
 
 ## Shift+click: send a stack straight to the other side (container <-> your inventory).
 func quick_move(grid: GridInventory, stack: ItemStack) -> void:
+	if container == null or not is_instance_valid(container):
+		return
+	var to_player := grid == container.grid
 	var destinations: Array[GridInventory] = []
-	if container != null and grid == container.grid:
+	if to_player:
 		destinations = player.inventory.grids()
-	elif container != null:
-		destinations = [container.grid]
 	else:
+		destinations.append(container.grid)
+	# Gear goes straight into an empty equipment slot.
+	var slot := ItemDB.equip_slot(stack.id)
+	if to_player and slot != "" and player.inventory.equipped(slot) == null:
+		grid.remove(stack)
+		player.inventory.equip(slot, stack)
+		_after_move()
+		return
+	if ItemDB.max_stack(stack.id) == 1:
+		# Move the same object (keeps a gun's loaded rounds).
+		var target := _find_room(stack, destinations)
+		if target != null:
+			grid.remove(stack)
+			target.place(stack)
+			_after_move()
 		return
 	var left := stack.count
 	for destination in destinations:
@@ -133,7 +163,105 @@ func quick_move(grid: GridInventory, stack: ItemStack) -> void:
 	else:
 		stack.count = left
 		grid.changed.emit()
+	if to_player:
+		player.inventory.auto_bind(stack.id)
 	_after_move()
+
+
+## Finds the first grid with room for `stack` and sets the stack's x/y/rotation to that spot
+## (it isn't added yet). Returns the grid, or null.
+func _find_room(stack: ItemStack, grids: Array[GridInventory]) -> GridInventory:
+	for grid in grids:
+		var spot := grid.find_spot(stack.id)
+		if not spot.is_empty():
+			stack.x = spot[0]
+			stack.y = spot[1]
+			stack.rotated = spot[2]
+			return grid
+	return null
+
+
+# --- Equipment -------------------------------------------------------------------
+
+## Equip a stack from a grid into a slot. If the slot already has something, it swaps into the grid.
+func equip_from_grid(grid: GridInventory, stack: ItemStack, slot: String) -> bool:
+	var inventory := player.inventory
+	if not inventory.slot_accepts(slot, stack.id):
+		return false
+	var old := inventory.equipped(slot)
+	if old != null and not inventory.can_unequip(slot):
+		_info_label.text = "Empty your backpack before swapping it"
+		return false
+	var old_x := stack.x
+	var old_y := stack.y
+	grid.remove(stack)
+	if old != null:
+		inventory.unequip(slot)
+	inventory.equip(slot, stack)
+	if old != null:
+		_stow(old, grid, Vector2i(old_x, old_y))
+	_after_move()
+	return true
+
+
+## Unequip into a specific grid cell (dragging out of a slot).
+func unequip_to_grid(slot: String, grid: GridInventory, cell: Vector2i, rotated: bool) -> bool:
+	var inventory := player.inventory
+	var stack := inventory.equipped(slot)
+	if stack == null or not inventory.can_unequip(slot):
+		return false
+	if slot == "backpack" and grid == inventory.backpack:
+		return false
+	if not grid.fits(stack.id, cell.x, cell.y, rotated):
+		return false
+	inventory.unequip(slot)
+	stack.x = cell.x
+	stack.y = cell.y
+	stack.rotated = rotated
+	grid.place(stack)
+	if player.inventory.grids().has(to):
+		player.inventory.auto_bind(stack.id)
+	_after_move()
+	return true
+
+
+## Shift+click / menu: take an item off into the first free spot (or the container, or the ground).
+func unequip_to_inventory(slot: String) -> void:
+	var inventory := player.inventory
+	if not inventory.can_unequip(slot):
+		_info_label.text = "Empty your backpack before taking it off"
+		return
+	var stack := inventory.unequip(slot)
+	_stow(stack, null, Vector2i.ZERO)
+	_after_move()
+
+
+## Puts a loose stack somewhere sensible: `preferred` at `cell`, any of your grids, the open container, or the ground.
+func _stow(stack: ItemStack, preferred: GridInventory, cell: Vector2i) -> void:
+	if preferred != null:
+		for rotated in [false, true]:
+			if preferred.fits(stack.id, cell.x, cell.y, rotated):
+				stack.x = cell.x
+				stack.y = cell.y
+				stack.rotated = rotated
+				preferred.place(stack)
+				return
+	var candidates: Array[GridInventory] = player.inventory.grids()
+	if container != null and is_instance_valid(container):
+		candidates.append(container.grid)
+	var target := _find_room(stack, candidates)
+	if target != null:
+		target.place(stack)
+		return
+	var drop_pos := player.global_position - player.global_basis.z * 0.8
+	LootContainer.spawn_bag(player.get_tree().current_scene, drop_pos, "Dropped Items", [stack])
+
+
+func can_drop_on_slot(slot: String) -> bool:
+	if drag_stack == null or not player.inventory.slot_accepts(slot, drag_stack.id):
+		return false
+	var current := player.inventory.equipped(slot)
+	return current == null or current == drag_stack or (drag_slot == "" and player.inventory.can_unequip(slot))
 
 
 func _after_move() -> void:
@@ -147,13 +275,30 @@ func _after_move() -> void:
 
 # --- Dragging ------------------------------------------------------------------
 
+func start_drag_from_slot(slot: String, _grab_position: Vector2) -> void:
+	if not player.inventory.can_unequip(slot):
+		_info_label.text = "Empty your backpack before taking it off"
+		return
+	_cancel_drag()
+	var stack := player.inventory.equipped(slot)
+	drag_stack = stack
+	drag_slot = slot
+	drag_rotated = false
+	_grab_cell = Vector2i.ZERO
+	_start_preview(stack)
+
+
 func start_drag(grid: GridInventory, stack: ItemStack, grab_position: Vector2) -> void:
 	_cancel_drag()
 	drag_stack = stack
 	drag_from = grid
 	drag_rotated = stack.rotated
 	_grab_cell = Vector2i(floori(grab_position.x / CELL), floori(grab_position.y / CELL))
-	_preview = ItemTile.new(stack, grid, self, true)
+	_start_preview(stack)
+
+
+func _start_preview(stack: ItemStack) -> void:
+	_preview = ItemTile.new(stack, null, self, true)
 	_preview.top_level = true
 	_preview.modulate.a = 0.85
 	add_child(_preview)
@@ -172,6 +317,10 @@ func drop_cell(view: GridView) -> Vector2i:
 
 
 func can_drop_at(view: GridView, cell: Vector2i) -> bool:
+	if drag_slot != "":
+		if drag_slot == "backpack" and view.grid == player.inventory.backpack:
+			return false
+		return view.grid.fits(drag_stack.id, cell.x, cell.y, drag_rotated)
 	var target := view.grid.stack_at(cell + _grab_cell)
 	if target != null and target != drag_stack and target.id == drag_stack.id and target.space_left() > 0:
 		return true
@@ -209,19 +358,26 @@ func _update_drag() -> void:
 func _finish_drag() -> void:
 	var stack := drag_stack
 	var from := drag_from
+	var slot := drag_slot
 	var rotated := drag_rotated
 	var view := hover_view
-	var cell := drop_cell(view) if view != null else Vector2i.ZERO
-	var merge_cell := cell + _grab_cell
 	_cancel_drag()
-	if view != null:
-		move_stack(stack, from, view.grid, cell, rotated, merge_cell)
+	if view is GridView:
+		var grid_view := view as GridView
+		var cell := drop_cell(grid_view)
+		if slot != "":
+			unequip_to_grid(slot, grid_view.grid, cell, rotated)
+		else:
+			move_stack(stack, from, grid_view.grid, cell, rotated, cell + _grab_cell)
+	elif view is EquipSlotView and slot == "":
+		equip_from_grid(from, stack, (view as EquipSlotView).slot)
 	_refresh_views()
 
 
 func _cancel_drag() -> void:
 	drag_stack = null
 	drag_from = null
+	drag_slot = ""
 	hover_view = null
 	if _preview != null:
 		_preview.queue_free()
@@ -233,23 +389,53 @@ func _cancel_drag() -> void:
 func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 	_menu_grid = grid
 	_menu_stack = stack
+	_menu_slot = ""
 	_menu.clear()
 	if ItemDB.kind(stack.id) == "heal":
 		_menu.add_item("Use", MenuAction.USE)
+		if player.inventory.hotbar.has(stack.id):
+			_menu.add_item("Unbind (key %d)" % (player.inventory.hotbar.find(stack.id) + 3), MenuAction.UNBIND)
+		elif player.inventory.hotbar.has(""):
+			_menu.add_item("Bind to hotbar", MenuAction.BIND)
+	if ItemDB.equip_slot(stack.id) != "":
+		_menu.add_item("Equip", MenuAction.EQUIP)
 	if stack.count > 1:
 		_menu.add_item("Split", MenuAction.SPLIT)
 	_menu.add_item("Put in " + container.display_name if container != null and grid != container.grid else "Drop", MenuAction.DROP)
+	_popup_menu()
+
+
+func open_slot_menu(slot: String) -> void:
+	_menu_slot = slot
+	_menu_grid = null
+	_menu_stack = null
+	_menu.clear()
+	_menu.add_item("Unequip", MenuAction.UNEQUIP)
+	_menu.add_item("Put in " + container.display_name if container != null else "Drop", MenuAction.DROP)
+	_popup_menu()
+
+
+func _popup_menu() -> void:
 	_menu.position = Vector2i(get_global_mouse_position())
 	_menu.reset_size()
 	_menu.popup()
 
 
 func _on_menu(action: int) -> void:
+	if _menu_slot != "":
+		_on_slot_menu(action)
+		return
 	var grid := _menu_grid
 	var stack := _menu_stack
 	if grid == null or stack == null or not grid.stacks.has(stack):
 		return
 	match action:
+		MenuAction.EQUIP:
+			equip_from_grid(grid, stack, ItemDB.equip_slot(stack.id))
+		MenuAction.BIND:
+			player.inventory.bind_to_hotbar(stack.id)
+		MenuAction.UNBIND:
+			player.inventory.unbind(stack.id)
 		MenuAction.USE:
 			player.use_item(grid, stack)
 		MenuAction.SPLIT:
@@ -257,6 +443,32 @@ func _on_menu(action: int) -> void:
 		MenuAction.DROP:
 			drop_stack(grid, stack)
 	_update_labels()
+
+
+func _on_slot_menu(action: int) -> void:
+	var slot := _menu_slot
+	_menu_slot = ""
+	if player.inventory.equipped(slot) == null:
+		return
+	match action:
+		MenuAction.UNEQUIP:
+			unequip_to_inventory(slot)
+		MenuAction.DROP:
+			if not player.inventory.can_unequip(slot):
+				_info_label.text = "Empty your backpack first"
+				return
+			var stack := player.inventory.unequip(slot)
+			var into: Array[GridInventory] = []
+			if container != null and is_instance_valid(container):
+				into.append(container.grid)
+			var target := _find_room(stack, into)
+			if target != null:
+				target.place(stack)
+				_after_move()
+			else:
+				var drop_pos := player.global_position - player.global_basis.z * 0.8
+				LootContainer.spawn_bag(player.get_tree().current_scene, drop_pos, "Dropped Items", [stack])
+				_after_move()
 
 
 ## Moves half a stack into a free spot: the same grid if there's room, otherwise another of yours.
@@ -301,6 +513,12 @@ func show_info(stack: ItemStack) -> void:
 			parts.append("heals %d" % int(data["heal"]))
 		"ammo":
 			parts.append("ammo")
+		"weapon":
+			parts.append("%s · %d dmg · %d rpm · %s loaded" % [str(data["slot"]).capitalize(), int(data["damage"]), int(data["rpm"]), str(stack.loaded)])
+		"armor":
+			parts.append("-%d%% damage" % roundi(float(data["reduction"]) * 100.0))
+		"backpack":
+			parts.append("%d×%d storage" % [int(data["grid"][0]), int(data["grid"][1])])
 	if stack.count > 1:
 		parts.append("x%d (%s)" % [stack.count, ItemDB.money(stack.value())])
 	else:
@@ -318,7 +536,7 @@ func _update_labels() -> void:
 
 func _clear_views() -> void:
 	_views.clear()
-	for box in [_container_box, _player_box]:
+	for box in [_container_box, _player_box, _backpack_box]:
 		for child in box.get_children():
 			box.remove_child(child)
 			child.queue_free()
@@ -334,17 +552,37 @@ func _rebuild_layout() -> void:
 		_container_box.add_child(_title(container.display_name.to_upper(), 22))
 		_add_view(_container_box, container.grid)
 
-	_player_box.add_child(_title("INVENTORY", 22))
+	var inventory := player.inventory
+	_player_box.add_child(_title("EQUIPMENT", 22))
 	_value_label = _small("")
 	_player_box.add_child(_value_label)
-	var inventory := player.inventory
-	for grid in inventory.grids():
-		_player_box.add_child(_small(grid.title))
-		_add_view(_player_box, grid)
+	_add_slot(_player_box, "primary", Vector2i(4, 2))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 0)
+	_player_box.add_child(row)
+	_add_slot(row, "secondary", Vector2i(2, 2))
+	_add_slot(row, "armor", Vector2i(2, 2))
+	_add_slot(_player_box, "backpack", Vector2i(2, 2))
+	_player_box.add_child(_small(inventory.pockets.title))
+	_add_view(_player_box, inventory.pockets)
+	_player_box.add_child(_small(inventory.secure.title + " (kept if you die)"))
+	_add_view(_player_box, inventory.secure)
+
+	_backpack_panel.visible = inventory.backpack != null
+	if inventory.backpack != null:
+		_backpack_box.add_child(_title("BACKPACK", 22))
+		_backpack_box.add_child(_small(inventory.backpack.title))
+		_add_view(_backpack_box, inventory.backpack)
 	_update_labels()
 
 
-func _add_view(box: VBoxContainer, grid: GridInventory) -> void:
+func _add_slot(box: Container, slot: String, cells: Vector2i) -> void:
+	var view := EquipSlotView.new(slot, player.inventory, self, cells)
+	box.add_child(view)
+	_views.append(view)
+
+
+func _add_view(box: Container, grid: GridInventory) -> void:
 	var view := GridView.new(grid, self)
 	box.add_child(view)
 	_views.append(view)
@@ -352,7 +590,7 @@ func _add_view(box: VBoxContainer, grid: GridInventory) -> void:
 
 func _refresh_views() -> void:
 	for view in _views:
-		view.rebuild()
+		view.call("rebuild")
 
 
 func _build() -> void:
@@ -378,6 +616,8 @@ func _build() -> void:
 	_container_box = _container_panel.get_meta("box")
 	var player_panel := _panel(columns)
 	_player_box = player_panel.get_meta("box")
+	_backpack_panel = _panel(columns)
+	_backpack_box = _backpack_panel.get_meta("box")
 
 	_info_label = _small("Hover an item for details")
 	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -387,7 +627,7 @@ func _build() -> void:
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
 	footer.add_theme_constant_override("separation", 16)
 	root.add_child(footer)
-	footer.add_child(_small("Drag to move · R rotate · Shift+click quick-move · Right-click Use/Split/Drop · Tab/E close · the raid doesn't pause!"))
+	footer.add_child(_small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · Tab/E close · the raid doesn't pause!"))
 	var close_button := Button.new()
 	close_button.text = "Close"
 	close_button.focus_mode = Control.FOCUS_NONE

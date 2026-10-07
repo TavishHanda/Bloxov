@@ -8,6 +8,8 @@ var x: int
 var y: int
 ## Rotated 90 degrees: width and height swap.
 var rotated := false
+## Weapons only: rounds currently loaded in the gun.
+var loaded := 0
 
 
 func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated := false) -> void:

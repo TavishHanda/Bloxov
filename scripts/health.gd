@@ -7,6 +7,8 @@ signal damaged(amount: int, source_position: Vector3)
 signal died
 
 @export var max_health := 100
+## Incoming damage is multiplied by this (armor lowers it). Always deals at least 1.
+var damage_multiplier := 1.0
 
 var current: int
 var is_dead := false
@@ -19,6 +21,7 @@ func _ready() -> void:
 func take_damage(amount: int, source_position := Vector3.ZERO) -> void:
 	if is_dead or amount <= 0:
 		return
+	amount = maxi(roundi(amount * damage_multiplier), 1)
 	current = maxi(current - amount, 0)
 	damaged.emit(amount, source_position)
 	if current == 0:

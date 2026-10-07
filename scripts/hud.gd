@@ -32,6 +32,7 @@ extends CanvasLayer
 
 var loot_ui: LootUI
 var end_screen: RaidEndScreen
+var hotbar: HotbarHUD
 
 var _hit_marker_time := 0.0
 var _indicator_time := 0.0
@@ -52,6 +53,8 @@ func _ready() -> void:
 	sensitivity_slider.value_changed.connect(_on_sensitivity_changed)
 	play_button.pressed.connect(_capture_mouse)
 
+	hotbar = HotbarHUD.new(player)
+	add_child(hotbar)
 	loot_ui = LootUI.new(player)
 	add_child(loot_ui)
 	end_screen = RaidEndScreen.new(raid)
@@ -100,8 +103,11 @@ func _process(delta: float) -> void:
 	crosshair.visible = captured and not player.controls_locked()
 
 	var gun := player.gun
-	ammo_label.text = "RELOADING..." if gun.is_reloading else "%d / %d" % [gun.in_mag, gun.reserve]
-	ammo_label.modulate = Color(1, 0.4, 0.3) if gun.in_mag == 0 and not gun.is_reloading else Color.WHITE
+	if gun.weapon == null:
+		ammo_label.text = "UNARMED"
+	else:
+		ammo_label.text = "RELOADING..." if gun.is_reloading else "%d / %d" % [gun.in_mag, gun.reserve]
+	ammo_label.modulate = Color(1, 0.4, 0.3) if gun.weapon != null and gun.in_mag == 0 and not gun.is_reloading else Color.WHITE
 	var hp := player.health.current
 	health_label.text = "HP %d" % hp
 	health_label.modulate = Color(1, 0.35, 0.3) if hp <= 30 else Color.WHITE
