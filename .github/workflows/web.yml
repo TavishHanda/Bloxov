@@ -41,6 +41,7 @@ jobs:
         run: godot --headless --import 2>&1 | tee import.log
 
       - name: Gameplay test (shoot, reload, enemy attack, death)
+        timeout-minutes: 4
         run: |
           godot --headless -s tests/smoke_test.gd 2>&1 | tee test.log
           grep -q "SMOKE TEST: PASSED" test.log
@@ -50,6 +51,7 @@ jobs:
           fi
 
       - name: Smoke test (run the main scene for a few seconds)
+        timeout-minutes: 2
         run: |
           godot --headless --quit-after 300 2>&1 | tee run.log
           # "still in use at exit" is a harmless shutdown message from force-quitting mid-game.

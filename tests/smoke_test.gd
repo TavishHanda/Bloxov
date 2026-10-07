@@ -6,6 +6,10 @@ var _failures := 0
 
 
 func _initialize() -> void:
+	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI.
+	create_timer(150.0).timeout.connect(func() -> void:
+		print("SMOKE TEST: TIMED OUT (a script error probably stopped the test; see errors above)")
+		quit(1))
 	_run.call_deferred()
 
 
