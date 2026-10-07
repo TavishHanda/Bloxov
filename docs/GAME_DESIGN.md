@@ -162,6 +162,8 @@ Keep the button count small enough that it fits on a phone. That limit is a feat
 
 ## 11. Roadmap
 
+> **Superseded by [`ROADMAP.md`](ROADMAP.md)** (milestones M1–M6, including an early multiplayer spike). Phases 0–2 below are done; kept for history.
+
 Each phase ends with **a build someone else plays.** The web export runs from week 1, not "Phase 7."
 
 | Phase | Build | Done when… |

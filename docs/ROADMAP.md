@@ -1,0 +1,23 @@
+# Roadmap
+
+The plan from here, as milestones. Each one has a goal and a clear "done when".
+Every milestone ends with someone other than the owner playing the build.
+(Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
+
+**Where we are:** 0.3.x, a prototype. Raids, loot, extraction and movement work; loot doesn't carry over yet.
+
+| # | Milestone | Goal | Done when |
+|---|---|---|---|
+| **M1** | **Complete loop** (0.4) | Inventory redesign, persistent stash, simple trader (sell loot, buy gear), pick a loadout before a raid | The owner plays 5 raids in a row because they *want* to |
+| **M2** | **First playtest round** | 3–5 friends play the web link while the owner watches without explaining | A ranked list of the top problems |
+| **M3** | **Multiplayer spike** | Throwaway prototype: 2 players in one raid, moving, shooting scavs, seeing each other | We know: how browsers connect (hosted server vs. WebRTC + signaling), who runs the game state (host vs. server), and roughly how much work each system takes to sync. **Decide:** build real co-op before M5, or stay solo-only |
+| **M4** | **Vertical slice** | One small part of the game at near-final quality: Blender art pipeline, real sounds, polished gun feel and scav, clean UI | It looks and feels like the real game; good enough to show people |
+| **M5** | **Production** | More content: map areas, guns, enemy types, events (plus real co-op if M3 said go) | Content matches the MVP list in the design doc |
+| **M6** | **Release** | Public web release (itch.io), then iterate; mobile after | Strangers play it and come back |
+
+## Rules while we go
+- **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.
+  Existing ones to fix in the spike: scavs target the first node in the `player` group; HUD, loot screen and
+  Raid are each bound to one player; extracting ends the raid for everyone; `Raid.session_*` are static.
+- **One area at a time.** Owner-driven reviews of each mechanic (movement done in 0.3.1–0.3.2).
+- Notes and parked ideas live in `docs/BACKLOG.md`.
