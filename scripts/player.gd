@@ -17,6 +17,11 @@ extends CharacterBody3D
 
 var _spawn_position: Vector3
 
+# Mouse debug stats, shown by the HUD's F3 overlay.
+var debug_recent_dx: Array[int] = []
+var debug_max_delta := 0.0
+var debug_spikes_dropped := 0
+
 
 func _ready() -> void:
 	_spawn_position = global_position
@@ -24,12 +29,20 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Browsers only allow mouse capture after a click, so capture on click.
+	# Only request it when not already captured; re-locking mid-game can glitch in browsers.
 	if event is InputEventMouseButton and event.pressed:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		if event.screen_relative.length() > max_mouse_delta:
+		var delta_len: float = event.screen_relative.length()
+		debug_max_delta = maxf(debug_max_delta, delta_len)
+		debug_recent_dx.append(roundi(event.screen_relative.x))
+		if debug_recent_dx.size() > 12:
+			debug_recent_dx.pop_front()
+		if delta_len > max_mouse_delta:
+			debug_spikes_dropped += 1
 			return
 		rotate_y(-event.screen_relative.x * mouse_sensitivity)
 		head.rotate_x(-event.screen_relative.y * mouse_sensitivity)

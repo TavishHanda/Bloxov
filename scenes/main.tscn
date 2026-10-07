@@ -302,8 +302,9 @@ material = SubResource("Mat_road")
 [node name="Player" parent="." instance=ExtResource("1_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -10)
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." node_paths=PackedStringArray("player")]
 script = ExtResource("2_hud")
+player = NodePath("../Player")
 
 [node name="Crosshair" type="Label" parent="HUD"]
 anchors_preset = 8
@@ -336,3 +337,14 @@ WASD move · Mouse look · Shift sprint · Space jump · Esc release mouse"
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
+
+[node name="Debug" type="Label" parent="HUD"]
+visible = false
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 700.0
+offset_bottom = 160.0
+theme_override_colors/font_color = Color(1, 1, 0.4, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+text = "debug"
