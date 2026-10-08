@@ -732,7 +732,7 @@ horizontal_alignment = 2
 modulate = Color(1, 1, 1, 0.7)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
-text = "WASD move · Mouse look · Click shoot · R reload · Shift sprint · Space jump · C crouch
+text = "WASD move · Mouse look · Click shoot · Right-click aim · R reload · Shift sprint · Space jump · C crouch
 E search/loot · Tab backpack · H heal · O extracts · Esc menu · F3 debug
 Find loot, then get to an open extract (green beam) before the timer runs out."
 horizontal_alignment = 1

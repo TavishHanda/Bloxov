@@ -5,7 +5,8 @@ Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
 **Where we are:** 0.4.0. M1's build is complete: hideout, stash, trader, persistent loadout, death rules.
-M1 is "done" once the owner plays 5 raids in a row because they want to; then M2 (playtest).
+Friends have played it and liked it. Now honing core mechanics one at a time (movement done, looting OK for now):
+**guns update** in progress, see `docs/GUNS_PLAN.md` (0.5.x). Scav spawns wait for map/level design.
 
 | # | Milestone | Goal | Done when |
 |---|---|---|---|

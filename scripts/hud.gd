@@ -100,7 +100,8 @@ func _process(delta: float) -> void:
 	var other_screen_open := loot_ui.visible or end_screen.visible
 	menu.visible = not captured and not other_screen_open and not player.controls_locked()
 	get_tree().paused = menu.visible
-	crosshair.visible = captured and not player.controls_locked()
+	# Aiming down sights uses the gun's own sight instead of the crosshair.
+	crosshair.visible = captured and not player.controls_locked() and not player.gun.is_aiming()
 
 	var gun := player.gun
 	if gun.weapon == null:

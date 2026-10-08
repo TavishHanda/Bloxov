@@ -14,6 +14,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	# Start from a fresh profile, so a save left over from an earlier run can't change the starting kit.
+	Profile.reset()
+	Profile.save_profile()
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	current_scene = main
@@ -41,6 +44,7 @@ func _run() -> void:
 
 	# Aim straight at the dummy's chest and fire one perfectly accurate shot.
 	gun.base_spread_deg = 0.0
+	gun.hip_spread_deg = 0.0
 	gun.moving_spread_deg = 0.0
 	_aim(player, dummy.global_position + Vector3(0, 1.0, 0))
 	await physics_frame
@@ -64,6 +68,28 @@ func _run() -> void:
 	gun.start_reload()
 	await create_timer(gun.reload_time + 0.3).timeout
 	_check(gun.in_mag == gun.mag_size and not gun.is_reloading, "reload refills the magazine")
+
+	# Aim down sights: hold RMB -> zoom in, gun centered, crosshair off, tighter spread, slower walk, no sprint.
+	var hip_fov := player.camera.fov
+	Input.action_press("aim")
+	await create_timer(gun.ads_time + 0.2).timeout
+	_check(gun.aim == 1.0 and gun.is_aiming(), "holding aim fully aims in after %.2fs" % gun.ads_time)
+	_check(absf(player.camera.fov - gun.ads_fov) < 0.5 and player.camera.fov < hip_fov, "aiming zooms the camera (%.0f -> %.0f)" % [hip_fov, player.camera.fov])
+	player.rotation.y = PI
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	await create_timer(1.0).timeout
+	_check(not player.is_sprinting() and absf(player.horizontal_speed() - player.walk_speed * player.ads_move_multiplier) < 0.3,
+		"aiming blocks sprint and slows you (%.2f m/s)" % player.horizontal_speed())
+	Input.action_release("sprint")
+	Input.action_release("move_forward")
+	Input.action_release("aim")
+	await create_timer(gun.ads_time + 0.2).timeout
+	_check(gun.aim == 0.0 and absf(player.camera.fov - hip_fov) < 0.5, "releasing aim goes back to hip")
+	var ak_data := ItemDB.item("ak")
+	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
+	player.teleport_to(Vector3(0, 0.1, -10))
+	await create_timer(0.5).timeout
 
 	# A scav behind the player should spot them and shoot.
 	var enemy := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav

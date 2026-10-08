@@ -1,6 +1,7 @@
 class_name Player
 extends CharacterBody3D
 ## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump, C to crouch.
+## Aiming down sights (RMB, handled by the Gun) slows you down, zooms the camera and stops sprinting.
 
 ## Emitted for every sound the player makes that enemies can hear (footsteps, landing).
 signal noise_made(pos: Vector3, radius: float)
@@ -29,6 +30,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Landing from a jump or fall slows you briefly.
 @export var landing_slowdown_time := 0.3
 @export var landing_slowdown := 0.5
+## Speed multiplier while fully aimed down sights.
+@export var ads_move_multiplier := 0.7
 
 @export_group("Crouch")
 ## C toggles crouch. Slower, quieter, smaller, steadier aim.
@@ -101,6 +104,7 @@ var _heal_item := ""
 var _spawn_position: Vector3
 var _trauma := 0.0
 var _sprinting := false
+var _sprint_fov := 0.0
 var _jump_cooldown_left := 0.0
 var _landing_left := 0.0
 var _was_on_floor := true
@@ -270,7 +274,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if delta_len > max_mouse_delta:
 			debug_spikes_dropped += 1
 			return
-		var sens := mouse_sensitivity * GameSettings.sensitivity
+		# Zoomed in = slower look, so aiming feels the same at any zoom.
+		var sens := mouse_sensitivity * GameSettings.sensitivity * camera.fov / base_fov
 		rotate_y(-event.screen_relative.x * sens)
 		head.rotate_x(-event.screen_relative.y * sens)
 		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-89.0), deg_to_rad(89.0))
@@ -316,7 +321,7 @@ func _physics_process(delta: float) -> void:
 
 	# Sprint: only forward-ish, on the ground, not while healing, needs stamina. Sprinting stands you up.
 	var wants_sprint := (not controls_locked() and on_floor and not is_healing() and not is_exhausted
-		and Input.is_action_pressed("sprint") and input_dir.y < -0.5)
+		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim())
 	if wants_sprint and is_crouching:
 		set_crouching(false)
 	_sprinting = wants_sprint and not is_crouching
@@ -362,6 +367,7 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 		speed = walk_speed * 0.5
 	if _landing_left > 0.0:
 		speed *= landing_slowdown
+	speed *= lerpf(1.0, ads_move_multiplier, gun.aim)
 	# Slower backwards and sideways.
 	var scaled := Vector2(input_dir.x * strafe_multiplier, input_dir.y * (backward_multiplier if input_dir.y > 0.0 else 1.0))
 	var local := Vector3(scaled.x, 0.0, scaled.y) * speed
@@ -374,7 +380,7 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 func _update_camera_motion(delta: float, shake: float) -> void:
 	var speed := horizontal_speed() if is_on_floor() else 0.0
 	_bob_time += delta * speed * (1.9 if _sprinting else 2.2)
-	var bob_amount := (sprint_bob if _sprinting else walk_bob) * minf(speed / walk_speed, 1.0)
+	var bob_amount := (sprint_bob if _sprinting else walk_bob) * minf(speed / walk_speed, 1.0) * (1.0 - 0.7 * gun.aim)
 	_landing_dip = lerpf(_landing_dip, 0.0, minf(delta * 8.0, 1.0))
 	var bob := Vector3(cos(_bob_time * 0.5) * bob_amount * 0.6, -absf(sin(_bob_time * 0.5)) * bob_amount - _landing_dip, 0.0)
 	camera.position = camera.position.lerp(bob, minf(delta * 12.0, 1.0))
@@ -383,8 +389,10 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 	_roll = lerpf(_roll, tilt, minf(delta * 8.0, 1.0))
 	camera.rotation.z = _roll + randf_range(-1.0, 1.0) * 0.05 * shake
 
-	var target_fov := base_fov + (sprint_fov_boost if _sprinting and speed > walk_speed else 0.0)
-	camera.fov = lerpf(camera.fov, target_fov, minf(delta * 6.0, 1.0))
+	# Sprint FOV eases in and out; aim zoom follows the gun's aim amount (already smoothed).
+	var sprint_target := sprint_fov_boost if _sprinting and speed > walk_speed else 0.0
+	_sprint_fov = lerpf(_sprint_fov, sprint_target, minf(delta * 6.0, 1.0))
+	camera.fov = lerpf(base_fov + _sprint_fov, gun.ads_fov, gun.aim)
 
 
 func _use_stamina(amount: float) -> void:

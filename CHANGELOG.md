@@ -2,6 +2,15 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.0 (guns update, step 1: aim down sights)
+- **Hold right-click to aim down sights.** The gun comes to the center of the screen, the camera zooms in
+  (AK more than the pistol) and the crosshair goes away: aim with the gun's sight
+- Aimed shots are very accurate; **hip fire is much looser** now (AK more than the pistol), so aim for anything past close range
+- While aiming you move at 70% speed and can't sprint (aiming wins if you hold both). Mouse look slows down with the zoom
+- Aiming in takes a moment: AK 0.28 s, pistol 0.16 s. Reloading drops you out of aim
+- Plan for the whole guns update: `docs/GUNS_PLAN.md`
+- Test fix: the gameplay test starts from a fresh profile (a save left over from an earlier local run broke it)
+
 ## 0.4.0 (M1: stash & trader, the loop is complete)
 - **Hideout** between raids (the game now starts here): your **stash** (8×30, scrolls), your **loadout**
   (equipment, pockets, secure pocket, backpack) and the **trader**. Drag freely between stash and loadout, then START RAID

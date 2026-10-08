@@ -147,7 +147,7 @@ Idle/Patrol → (sees or hears player) → Alert/Investigate → Attack → Sear
 
 ## 10. Controls
 
-**PC:** WASD move · mouse look · LMB shoot · R reload · E interact · Tab inventory · Shift sprint
+**PC:** WASD move · mouse look · LMB shoot · RMB aim · R reload · E interact · Tab inventory · Shift sprint
 
 **Mobile (designed from day 1, built in Phase 6):**
 - Left side: virtual joystick to move

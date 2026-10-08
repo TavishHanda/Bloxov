@@ -1,6 +1,7 @@
 class_name Gun
 extends Node3D
-## Hitscan gun. LMB to fire, R to reload, 1/2 to switch weapons. Lives under the player's camera.
+## Hitscan gun. LMB to fire, hold RMB to aim down sights, R to reload, 1/2 to switch weapons.
+## Lives under the player's camera.
 ## Fires whatever weapon is equipped in the active slot (primary/secondary); its stats come from ItemDB.
 ## The exported Damage/Ammo/Accuracy/Feel values below are overwritten by the weapon's stats when it's equipped.
 
@@ -28,7 +29,10 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var reload_time := 1.6
 
 @export_group("Accuracy")
+## Spread when fully aimed down sights.
 @export var base_spread_deg := 0.4
+## Extra spread when firing from the hip (fades out as you aim in).
+@export var hip_spread_deg := 2.0
 ## Extra spread added per shot while spraying; recovers when you stop.
 @export var bloom_per_shot_deg := 0.35
 @export var max_bloom_deg := 3.0
@@ -37,6 +41,14 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var airborne_spread_deg := 4.0
 ## Crouching tightens your spread.
 @export var crouch_spread_multiplier := 0.65
+
+@export_group("Aiming")
+## Seconds to go from hip to fully aimed.
+@export var ads_time := 0.25
+## Camera field of view when fully aimed (the normal view is the player's base_fov).
+@export var ads_fov := 60.0
+## Aiming halves the moving-spread penalty.
+@export var ads_moving_spread_multiplier := 0.5
 
 @export_group("Handling")
 ## Time to bring the gun up after sprinting before you can fire.
@@ -70,10 +82,14 @@ var reserve: int:
 		return player.inventory.count_of(ammo_id) if player != null else 0
 var kills := 0
 var is_reloading := false
+## 0 = hip, 1 = fully aimed down sights. Moves smoothly between them.
+var aim := 0.0
 
 @onready var player: Player = owner
 @onready var camera: Camera3D = get_parent()
 @onready var _models := {"rifle": $Model, "pistol": $PistolModel}
+## Where each model sits when aimed: centered, with its sight just under the middle of the screen.
+const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0, -0.036, -0.28)}
 var model: Node3D
 var muzzle: Node3D
 var flash: Node3D
@@ -138,6 +154,9 @@ func _apply_weapon(stack: ItemStack) -> void:
 	ammo_id = data["ammo"]
 	auto = data["auto"]
 	base_spread_deg = data["spread"]
+	hip_spread_deg = data["hip_spread"]
+	ads_time = data["ads_time"]
+	ads_fov = data["ads_fov"]
 	bloom_per_shot_deg = data["bloom"]
 	max_bloom_deg = data["max_bloom"]
 	recoil_pitch_deg = data["recoil"]
@@ -155,6 +174,8 @@ func _apply_weapon(stack: ItemStack) -> void:
 func _process(delta: float) -> void:
 	_cooldown -= delta
 	_bloom = move_toward(_bloom, 0.0, bloom_recovery_deg * delta)
+	var aim_target := 1.0 if wants_aim() and not player.is_sprinting() and not is_reloading else 0.0
+	aim = move_toward(aim, aim_target, delta / maxf(ads_time, 0.01))
 	_update_reload(delta)
 	_update_model(delta)
 
@@ -189,6 +210,16 @@ func _process(delta: float) -> void:
 			start_reload()
 
 
+## Holding the aim button with a gun out (and able to use it). Aiming stops the player from sprinting.
+func wants_aim() -> bool:
+	return (weapon != null and Input.is_action_pressed("aim") and not player.controls_locked()
+		and not player.is_healing())
+
+
+func is_aiming() -> bool:
+	return aim > 0.5
+
+
 ## False while sprinting and for `raise_time` after.
 func is_ready_to_fire() -> bool:
 	return _raise_left <= 0.0
@@ -202,7 +233,8 @@ func shoot_once() -> void:
 	var world := get_tree().current_scene
 
 	var moving := player.horizontal_speed() > 1.0
-	var spread_deg := base_spread_deg + _bloom + (moving_spread_deg if moving else 0.0)
+	var moving_spread := moving_spread_deg * lerpf(1.0, ads_moving_spread_multiplier, aim) if moving else 0.0
+	var spread_deg := base_spread_deg + hip_spread_deg * (1.0 - aim) + _bloom + moving_spread
 	if not player.is_on_floor():
 		spread_deg += airborne_spread_deg
 	elif player.is_crouching:
@@ -299,9 +331,10 @@ func _update_model(delta: float) -> void:
 	var sprinting := player.is_sprinting()
 	_bob_time += delta * speed * (2.0 if sprinting else 2.6)
 	var bob_scale := minf(speed / player.walk_speed, 1.0) * (2.2 if sprinting else 1.0)
-	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale
+	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale * (1.0 - 0.85 * aim)
 
-	var rest: Vector3 = _model_rests[ItemDB.item(weapon.id)["model"]]
+	var model_key: String = ItemDB.item(weapon.id)["model"]
+	var rest: Vector3 = (_model_rests[model_key] as Vector3).lerp(ADS_POSITIONS[model_key], aim)
 	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
 	if sprinting:
@@ -312,6 +345,7 @@ func _update_model(delta: float) -> void:
 		target_pos += Vector3(0, -0.08, 0.04)
 		target_rot += Vector3(-0.5, 0.3, 0.4)
 	# Raising the gun after a sprint is a bit slower than other moves.
-	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0), 1.0)
+	# While aiming the gun follows the aim amount closely (that's already smoothed).
+	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0 + 30.0 * aim), 1.0)
 	model.position = model.position.lerp(target_pos, weight)
 	model.rotation = model.rotation.lerp(target_rot, weight)
