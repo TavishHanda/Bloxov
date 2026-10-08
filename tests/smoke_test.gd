@@ -127,16 +127,16 @@ func _run() -> void:
 	player.health.heal(100)
 	await create_timer(1.5).timeout
 
-	# Time to kill ("lethal-leaning middle"): scavs die in 3 AK body shots or 1 headshot; you die in ~7 scav hits.
+	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 2 headshots; you die in ~7 scav hits.
 	var ak_damage: int = ItemDB.item("ak")["damage"]
 	var scav_probe := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
 	var pmc_probe := (load("res://scenes/pmc.tscn") as PackedScene).instantiate() as Scav
 	var scav_hp: int = scav_probe.get_node("Health").max_health
 	var pmc_health := pmc_probe.get_node("Health") as Health
 	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
-	_check(hits_to_kill.call(scav_hp, ak_damage) == 3 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 1,
-		"scav: 3 AK body shots or 1 headshot")
-	_check(hits_to_kill.call(pmc_health.max_health, ak_damage * pmc_health.damage_multiplier) == 4, "armored PMC: 4 AK body shots")
+	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 2,
+		"scav: 4 AK body shots or 2 headshots")
+	_check(hits_to_kill.call(pmc_health.max_health, ak_damage * pmc_health.damage_multiplier) == 5, "armored PMC: 5 AK body shots")
 	var to_kill_player: int = hits_to_kill.call(player.health.max_health, scav_probe.shot_damage)
 	_check(to_kill_player >= 6 and to_kill_player <= 7, "you die in %d scav hits" % to_kill_player)
 	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,

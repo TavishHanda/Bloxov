@@ -18,8 +18,8 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 
 @export_group("Damage")
 @export var damage := 22
-## AK headshots kill an unarmored scav (100 HP) in one hit.
-@export var headshot_multiplier := 3.0
+## Two AK headshots kill an unarmored scav (100 HP).
+@export var headshot_multiplier := 2.0
 @export var max_range := 150.0
 
 @export_group("Ammo")

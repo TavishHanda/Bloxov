@@ -2,6 +2,11 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.5 (AK kills slower)
+- Headshots back to 2x (from 3x): the AK needs **2 headshots**, no more one-taps
+- AK damage 34 → 28: **4 body shots** on a scav (about 0.3 s of full auto instead of 0.2 s), 5 on an armored PMC
+- Pistol unchanged (4 body / 2 head). You still die in 7 scav hits
+
 ## 0.5.4 (hit feedback, kept subtle)
 - **Scavs flinch when you hit them:** they stop firing for a moment, aim worse for ~1 second, and visibly jolt.
   Whoever lands the first hit has the edge now (same as your flinch when you get shot)
