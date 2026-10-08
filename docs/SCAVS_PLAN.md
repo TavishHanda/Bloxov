@@ -14,7 +14,7 @@ Not in scope: spawns (with the map), new enemy types (content), bosses.
 - The map has no navigation data (39 boxes), so scavs can't path around buildings.
 
 ## Steps
-- [ ] **1. Senses (0.6.0).** Separate "alerted" from "knows where you are".
+- [x] **1. Senses (0.6.0).** Separate "alerted" from "knows where you are".
       Seeing you = knows your position. Hearing you = knows *roughly* where the sound came from: it walks over
       to investigate the spot instead of locking on. Lose sight of you = goes to where it last saw you, searches
       for a bit, then goes back to wandering. No more tracking you through walls.
@@ -32,7 +32,14 @@ Not in scope: spawns (with the map), new enemy types (content), bosses.
 - [ ] **8. Co-op prep (throughout).** Every step picks targets from all players (closest/last seen/last
       attacker), never "the first player", so the AI doesn't need a rewrite for co-op.
 
-## Owner decisions (before or during the steps)
+## Owner decisions (answered)
+- Difficulty: a lone scav is a **speed bump**; groups are dangerous.
+- Hearing: **short range** (shooting shouldn't pull the whole map to you). Gunshots heard at AK 25 m, pistol 18 m.
+- Scavs and PMCs **don't fight each other**.
+- Hurt scavs **can heal**.
+- View cone while unaware: **180°** (0.6.0).
+
+## Original questions
 1. **Difficulty target.** Should a lone scav be a speed bump (you usually win 1v1 if you're careful) or a real
    threat? Suggested: speed bump alone, dangerous in groups or when they catch you in the open.
 2. **Investigating.** When a scav hears a shot far away, should it come investigate (raids get busier the more

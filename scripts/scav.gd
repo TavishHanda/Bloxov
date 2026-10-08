@@ -1,11 +1,12 @@
 class_name Scav
 extends CharacterBody3D
-## Scav: armed scavenger. Wanders until it spots (or hears) the player, radios it in,
-## then shoots in short bursts. Closes distance when it can't get a shot.
-## Dumb on purpose: no cover or pathfinding yet (later).
+## Scav: armed scavenger. Wanders until it spots a player (radios it in, then shoots in short bursts).
+## Senses: seeing you = knows where you are. Hearing you = walks over to investigate roughly where the sound was.
+## Losing sight of you = goes to where it last saw you, searches for a bit, then goes back to wandering.
+## No cover or pathfinding yet (see docs/SCAVS_PLAN.md).
 ## PMCs use this script too (scenes/pmc.tscn) with tougher numbers, until they become real players.
 
-enum State { IDLE, ALERT, ENGAGE, DEAD }
+enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 
 const SHOT_SOUND := preload("res://audio/shot.wav")
 const ALERT_SOUND := preload("res://audio/alert.wav")
@@ -19,9 +20,17 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var sight_range := 40.0
 ## While unaware, a scav only spots you inside this field of view (degrees); it can still hear you.
 ## Once alerted it tracks you in any direction.
-@export var view_angle_deg := 120.0
-## Seconds without seeing the player before giving up.
+@export var view_angle_deg := 180.0
+## Chasing a player it can't see: gives up on the last-seen spot after this long and starts searching.
 @export var give_up_time := 6.0
+
+@export_group("Hearing")
+## How far off a heard sound's spot can be (meters): it investigates *roughly* where the sound came from.
+@export var noise_uncertainty := 3.0
+## Walks at this fraction of move_speed while investigating.
+@export var investigate_speed := 0.6
+## Seconds spent looking around at a spot (a sound it investigated, or where it lost you) before giving up.
+@export var search_time := 5.0
 
 @export_group("Shooting")
 @export var shoot_range := 28.0
@@ -67,6 +76,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 var state := State.IDLE
 
 var _target: Player
+## Where the target was last seen (or where a hit came from), and where a heard sound came from.
+var _last_seen := Vector3.ZERO
+var _goal := Vector3.ZERO
 var _state_time := 0.0
 var _lost_sight_time := 0.0
 var _can_see := false
@@ -101,9 +113,14 @@ func _ready() -> void:
 
 
 ## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
+## Unaware scavs walk over to investigate; scavs already fighting ignore it.
 func hear_noise(pos: Vector3, radius: float) -> void:
-	if state == State.IDLE and global_position.distance_to(pos) <= radius:
-		_alert()
+	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius:
+		return
+	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
+	_goal = pos + offset
+	if state != State.INVESTIGATE:
+		_set_state(State.INVESTIGATE)
 
 
 func _physics_process(delta: float) -> void:
@@ -113,8 +130,8 @@ func _physics_process(delta: float) -> void:
 		velocity += get_gravity() * delta
 	_state_time += delta
 
-	if _target == null or not is_instance_valid(_target):
-		_target = get_tree().get_first_node_in_group("player") as Player
+	if _target == null or not is_instance_valid(_target) or _target.controls_locked():
+		_target = _pick_target()
 
 	var to_target := Vector3.ZERO
 	var dist := INF
@@ -133,30 +150,52 @@ func _physics_process(delta: float) -> void:
 		State.IDLE:
 			desired = _wander(delta)
 			if _can_see and _in_view(to_target):
-				_alert()
+				_alert(_target.global_position)
+		State.INVESTIGATE:
+			# Walk over to where the sound was, looking that way.
+			var to_goal := _flat(_goal - global_position)
+			_face(to_goal, delta)
+			desired = _steer(to_goal.normalized() * move_speed * investigate_speed)
+			if _can_see and _in_view(to_target):
+				_alert(_target.global_position)
+			elif to_goal.length() < 1.2 or _state_time > 15.0:
+				_set_state(State.SEARCH)
+		State.SEARCH:
+			# Look around the spot, then go back to wandering.
+			rotation.y += delta * 1.2 * _side
+			if _can_see and _in_view(to_target):
+				_alert(_target.global_position)
+			elif _state_time > search_time:
+				_set_state(State.IDLE)
 		State.ALERT:
-			_face(to_target, delta)
+			# Turn toward you if it can see you, else toward where it knows you were.
+			_face(to_target if _can_see else _flat(_last_seen - global_position), delta)
 			if _state_time >= reaction_time:
 				_set_state(State.ENGAGE)
 				_fire_timer = aim_time
 		State.ENGAGE:
 			if dist == INF:
 				_set_state(State.IDLE)
-			else:
+			elif _can_see:
+				_last_seen = _target.global_position
+				_lost_sight_time = 0.0
 				_face(to_target, delta)
-				_lost_sight_time = 0.0 if _can_see else _lost_sight_time + delta
-				if _lost_sight_time > give_up_time:
-					_set_state(State.IDLE)
-				elif _can_see and dist <= shoot_range:
+				if dist <= shoot_range:
 					desired = _strafe(delta, to_target)
 					_update_shooting(delta, dist)
 				else:
-					# No shot: move in. Re-aim when we get one.
-					desired = to_target.normalized() * move_speed
-					if is_on_wall():
-						desired = desired.rotated(Vector3.UP, PI * 0.4 * _side)
-					_shots_left = 0
-					_fire_timer = maxf(_fire_timer, aim_time)
+					desired = _steer(to_target.normalized() * move_speed)
+					_hold_fire()
+			else:
+				# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
+				_lost_sight_time += delta
+				_hold_fire()
+				var to_last := _flat(_last_seen - global_position)
+				if to_last.length() < 1.2 or _lost_sight_time > give_up_time:
+					_set_state(State.SEARCH)
+				else:
+					_face(to_last, delta)
+					desired = _steer(to_last.normalized() * move_speed)
 
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
@@ -200,9 +239,43 @@ func _process(delta: float) -> void:
 			(mesh as GeometryInstance3D).material_overlay = overlay
 
 
-func _alert() -> void:
+## Spotted (or got shot by) someone at `known_pos`: radio it in and get ready to fight.
+func _alert(known_pos: Vector3) -> void:
+	_last_seen = known_pos
 	_set_state(State.ALERT)
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
+
+
+## The closest player who can still be fought (co-op ready: never assumes a single player).
+func _pick_target() -> Player:
+	var best: Player = null
+	var best_dist := INF
+	for node in get_tree().get_nodes_in_group("player"):
+		var player := node as Player
+		if player == null or player.controls_locked():
+			continue
+		var d := global_position.distance_to(player.global_position)
+		if d < best_dist:
+			best = player
+			best_dist = d
+	return best
+
+
+## No shot right now: drop the burst and re-aim when a shot comes back.
+func _hold_fire() -> void:
+	_shots_left = 0
+	_fire_timer = maxf(_fire_timer, aim_time)
+
+
+## Crude wall handling until pathfinding (step 3): slide off to one side when blocked.
+func _steer(desired: Vector3) -> Vector3:
+	if is_on_wall():
+		return desired.rotated(Vector3.UP, PI * 0.4 * _side)
+	return desired
+
+
+func _flat(v: Vector3) -> Vector3:
+	return Vector3(v.x, 0.0, v.z)
 
 
 func _set_state(new_state: State) -> void:
@@ -316,8 +389,9 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	push.y = 0.0
 	if push.length() > 0.01:
 		_knockback = push.normalized() * 3.0
-	if state == State.IDLE:
-		_alert()
+	# Getting shot while unaware: it knows roughly where that came from.
+	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		_alert(source_position)
 
 
 func _on_died() -> void:

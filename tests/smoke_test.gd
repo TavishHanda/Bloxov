@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -789,6 +789,44 @@ func _section_owner_rules() -> void:
 	_check(inv.count_of("gold_watch") == 1 and loot_ui._info_label.text.begins_with("No room"), "putting into a full bag says \"No room\" (%s)" % loot_ui._info_label.text)
 	loot_ui.close()
 	full.queue_free()  # (the medkit bag despawned by itself once emptied)
+
+
+func _section_senses() -> void:
+	# Hearing: an unaware scav walks over to investigate roughly where a sound was; it doesn't lock on to you.
+	var far_spot := player.global_position + Vector3(0, 0, 14)
+	var scav := _spawn(SCAV_SCENE, far_spot) as Scav
+	scav.look_at(far_spot + Vector3(0, 0, 10))  # facing away from the player
+	scav._wander_time = 99.0
+	scav._wander_dir = Vector3.ZERO
+	await physics_frame
+	scav.hear_noise(player.global_position, 20.0)
+	_check(scav.state == Scav.State.INVESTIGATE, "a scav that hears you comes to investigate (not instantly fighting)")
+	_check(scav._goal.distance_to(player.global_position) <= scav.noise_uncertainty + 0.01, "it heads roughly where the sound was")
+	scav.hear_noise(player.global_position + Vector3(0, 0, 200), 20.0)
+	_check(scav._goal.distance_to(player.global_position) <= scav.noise_uncertainty + 0.01, "sounds out of earshot are ignored")
+	scav.queue_free()
+
+	# Losing sight: a scav fighting you goes to where it last saw you and searches; it doesn't track you.
+	var hunter := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 10)) as Scav
+	_face_player(hunter)
+	await physics_frame
+	var seen_at := player.global_position
+	player.teleport_to(player.global_position + Vector3(80, 0, 0))  # far out of sight range
+	await create_timer(0.25).timeout  # let its sight check notice you're gone
+	hunter._alert(seen_at)
+	hunter._set_state(Scav.State.ENGAGE)
+	var reached := false
+	for i in 300:
+		await physics_frame
+		if hunter.state == Scav.State.SEARCH:
+			reached = true
+			break
+	_check(reached and hunter.global_position.distance_to(seen_at) < 3.0,
+		"lost sight: it goes to where it last saw you and searches (%.1f m away)" % hunter.global_position.distance_to(seen_at))
+	for i in int((hunter.search_time + 0.5) * 60):
+		await physics_frame
+	_check(hunter.state == Scav.State.IDLE, "after searching a while it goes back to wandering")
+	hunter.queue_free()
 
 
 # --- Helpers -------------------------------------------------------------------

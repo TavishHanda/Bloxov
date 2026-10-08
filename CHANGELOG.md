@@ -2,6 +2,17 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.0 (scavs update, step 1: senses)
+Start of the scav update (`docs/SCAVS_PLAN.md`).
+- **Hearing = investigating.** A scav that hears you (shots, footsteps, knife, searching a crate) walks over to
+  *roughly* where the sound came from and looks around. It no longer instantly knows where you are
+- **No more tracking through walls.** Lose its sight and it goes to where it **last saw** you, searches for a few
+  seconds, then goes back to wandering. Breaking line of sight and moving is now a real escape
+- Getting shot while unaware: it knows roughly where it came from and turns that way
+- **Shorter hearing for gunshots** (owner): AK 35 → 25 m, pistol 25 → 18 m
+- **Unaware scavs see 180°** in front of them (was 120°); only directly behind them is blind
+- Scavs pick the closest player (ready for co-op)
+
 ## 0.5.9 (version in the hideout)
 - The hideout's top bar shows the game version (next to "BLOXOV · HIDEOUT"), like the corner in a raid
 

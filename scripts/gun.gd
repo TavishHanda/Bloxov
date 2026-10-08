@@ -82,7 +82,7 @@ const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0,
 @export_group("Feel")
 @export var shake := 0.12
 ## Gunshots alert enemies within this radius.
-@export var noise_radius := 35.0
+@export var noise_radius := 25.0
 
 ## The equipped weapon stack firing right now (null = unarmed), and its slot.
 var weapon: ItemStack = null
