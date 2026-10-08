@@ -10,7 +10,11 @@
   Keep new code co-op-friendly: don't add new single-player assumptions (see ROADMAP rules).
 - Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
-  Extend the smoke test when adding gameplay; it is the only way to verify changes without running Godot.
+  Extend the smoke test when adding gameplay.
+- **Run the tests locally before every push** (the sandbox can download Godot):
+  `curl -L -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip`,
+  unzip, then from the repo root: `godot --headless --import` and `godot --headless -s tests/smoke_test.gd`
+  (must print `SMOKE TEST: PASSED` with no `SCRIPT ERROR`). Don't push untested code to find out from CI.
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
 - Flow: `scenes/hideout.tscn` (main scene: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
   Persistent data lives in `scripts/profile.gd` (static, saved to `user://profile.json`). The inventory screen

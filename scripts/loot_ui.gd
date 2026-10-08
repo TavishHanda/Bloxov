@@ -50,7 +50,7 @@ var _info_label: Label
 
 func _init(owner_player: Player, owner_inventory: Inventory = null) -> void:
 	player = owner_player
-	inventory = owner_inventory if owner_inventory != null else owner_inventory
+	inventory = owner_inventory if owner_inventory != null else owner_player.inventory
 	visible = false
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
