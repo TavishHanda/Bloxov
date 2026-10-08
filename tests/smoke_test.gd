@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -923,6 +923,67 @@ func _section_melee() -> void:
 	_check(pmc.melee_damage > scav.melee_damage and pmc.melee_cooldown < scav.melee_cooldown, "PMCs bash harder and faster")
 	pmc.queue_free()
 	player.health.heal(player.health.max_health)
+
+
+func _section_spawn_budget() -> void:
+	# A raid has a limited number of enemies, spread out: 3 scavs at the start, one every 40-60 s up to 12,
+	# PMCs at minutes 3, 5 and 8. Never more than 5 alive. Dead ones don't come back.
+	var spawner := EnemySpawner.new()
+	spawner.enemy_scene = load(SCAV_SCENE)
+	spawner.pmc_scene = load(PMC_SCENE)
+	spawner.set_physics_process(false)  # the test drives the raid clock itself
+	for i in 6:
+		var marker := Marker3D.new()
+		marker.position = player.global_position + Vector3(70, 0, 0).rotated(Vector3.UP, i * TAU / 6.0)
+		spawner.add_child(marker)
+	main.add_child(spawner)
+	await _frames(2)
+	_check(spawner.scavs_spawned == 3 and spawner.pmcs_spawned == 0, "raid starts with 3 scavs, no PMCs")
+	var alive_max := 0
+	var pmcs_at := {}
+	for second in 600:
+		spawner.tick(1.0)
+		alive_max = maxi(alive_max, get_nodes_in_group("enemies").size())
+		if second == 170:
+			pmcs_at[170] = spawner.pmcs_spawned
+		if second == 185:
+			pmcs_at[185] = spawner.pmcs_spawned
+		if second == 30:
+			pmcs_at["scavs_30"] = spawner.scavs_spawned
+		# Kill everything every 20 s so slots free up (like the player clearing areas).
+		if second % 20 == 0:
+			for enemy in get_nodes_in_group("enemies"):
+				enemy.remove_from_group("enemies")
+				enemy.queue_free()
+	_check(pmcs_at["scavs_30"] == 3, "no extra scavs in the first 30 s")
+	_check(pmcs_at[170] == 0 and pmcs_at[185] == 1, "the first PMC arrives around minute 3")
+	_check(spawner.scavs_spawned == spawner.scav_budget and spawner.pmcs_spawned == spawner.pmc_budget,
+		"over a whole raid: exactly %d scavs and %d PMCs (%d, %d)" % [spawner.scav_budget, spawner.pmc_budget, spawner.scavs_spawned, spawner.pmcs_spawned])
+	spawner.queue_free()
+	await _frames(2)
+	# The cap: with nobody dying and spawns due constantly, it stops at max_alive.
+	var crowded := EnemySpawner.new()
+	crowded.enemy_scene = load(SCAV_SCENE)
+	crowded.pmc_scene = load(PMC_SCENE)
+	crowded.set_physics_process(false)
+	crowded.initial_count = 0
+	crowded.scav_budget = 20
+	crowded.scav_interval_min = 1.0
+	crowded.scav_interval_max = 1.0
+	var marker := Marker3D.new()
+	marker.position = player.global_position + Vector3(70, 0, 0)
+	crowded.add_child(marker)
+	main.add_child(crowded)
+	for second in 60:
+		crowded.tick(1.0)
+		alive_max = maxi(alive_max, get_nodes_in_group("enemies").size())
+	_check(get_nodes_in_group("enemies").size() == crowded.max_alive and alive_max <= crowded.max_alive,
+		"never more than %d alive at once (max seen %d)" % [crowded.max_alive, alive_max])
+	for enemy in get_nodes_in_group("enemies"):
+		enemy.remove_from_group("enemies")
+		enemy.queue_free()
+	crowded.queue_free()
+	await _frames(2)
 
 
 # --- Helpers -------------------------------------------------------------------

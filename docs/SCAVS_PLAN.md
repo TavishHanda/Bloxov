@@ -27,6 +27,9 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       they back off while shooting instead of walking into you. Point-blank shots are accurate.
 - [x] **2b. Melee bash (0.6.3, owner idea).** Within 1.6 m a scav winds up (0.3 s, leans back) and rifle-butts you:
       20 damage, a hard shove, aim jolt, can't aim down sights for 0.6 s; 1.5 s cooldown. PMCs: 25 dmg, faster.
+- [x] **2c. Spawn budget (0.6.4, owner idea).** Per raid: 12 scavs (3 at the start, then one every 40-60 s) and
+      3 PMCs (minutes 3, 5, 8). Max 5 alive; spawns away from and out of sight of players; dead ones stay dead.
+      Owner will retune once the maps exist.
 - [ ] **3. Getting around.** Navigation mesh baked when the raid starts, so scavs path around buildings
       and crates instead of walking into walls. Needed for steps 1 and 4 to work on a real map.
 - [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves

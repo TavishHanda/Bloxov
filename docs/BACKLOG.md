@@ -13,7 +13,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
   Fix with the scav/AI pass (close-range behavior: back off or shoot point-blank, don't push into the player).
 - **Body bags should despawn when fully looted (owner, 0.5.7).** Moving the last item out already removes the bag
   (tested since 0.5.7). If one still stays in play, note how it was emptied (used an item from it? dropped?).
-- **Scav spawns:** need control over where scavs spawn (currently random spawn points kept away from the player).
+- **Scav spawns:** *how many and when* is done (0.6.4 spawn budget). Still to do with the maps: *where*
+  (hand-placed spawn points per area) and retuning the budget/timings for the real raid flow (owner).
 
 ## Owner's wishlist (after 0.5.9)
 Agreed order: core gameplay first (scavs next), then the co-op test (M3), then map, then content and art.

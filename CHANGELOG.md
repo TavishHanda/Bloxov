@@ -2,6 +2,14 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.4 (limited enemies per raid, owner idea)
+- **Each raid has a limited number of enemies**, spread over the 10 minutes. Clearing an area now actually
+  makes it safer (it used to refill every 5 seconds, forever)
+  - **12 scavs:** 3 at the start, then about one every 40-60 seconds
+  - **3 PMCs:** they arrive around minutes 3, 5 and 8 (late-raid pressure)
+  - Never more than 5 alive at once; new ones spawn away from you and out of your sight
+- Numbers are placeholders until the maps exist (owner will retune)
+
 ## 0.6.3 (scavs: melee bash, owner idea)
 - **Get within ~1.6 m of a scav and it bashes you with its rifle butt.** It leans back to wind up (0.3 s, you can
   see it coming), then hits: **20 damage, a hard shove, your aim jolts, and you can't aim down sights for 0.6 s**.
