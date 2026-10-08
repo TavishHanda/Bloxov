@@ -11,7 +11,7 @@ the timer runs out. Extract and you keep it all; sell loot to the trader and buy
 everything except your secure pocket. Progress is saved in your browser.
 Every push to `main` builds the web version and publishes it to GitHub Pages.
 
-**Controls:** click to play · WASD move · mouse look · click shoot · right-click aim · R reload · Shift sprint · Space jump · E search/loot · Tab backpack · H heal · O extracts · Esc menu (volume, mouse sensitivity) · F3 debug overlay
+**Controls:** click to play · WASD move · mouse look · click shoot · right-click aim · R reload · V knife · Shift sprint · Space jump · E search/loot · Tab backpack · H heal · O extracts · Esc menu (volume, mouse sensitivity) · F3 debug overlay
 
 **Adding items:** edit `ITEMS` and `LOOT_TABLES` in `scripts/item_db.gd`.
 

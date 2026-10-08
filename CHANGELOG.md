@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.6 (knife, weaker pistol)
+- **Knife on V.** Everyone always has one: it isn't an item, so you can't lose or sell it. Works with any gun out
+  (cancels aiming and reloading). 45 damage from the front, **one-hit kill from behind**. Quiet (only very close
+  enemies hear it). For point-blank fights and sneaking up on scavs
+- **Pistol: 17 body damage, 2.5x headshots** (6 body shots or 3 headshots on a scav). A weak sidearm that rewards
+  aiming for the head. Headshot multiplier is now per gun (AK stays 2x)
+
 ## 0.5.5 (AK kills slower)
 - Headshots back to 2x (from 3x): the AK needs **2 headshots**, no more one-taps
 - AK damage 34 → 28: **4 body shots** on a scav (about 0.3 s of full auto instead of 0.2 s), 5 on an armored PMC

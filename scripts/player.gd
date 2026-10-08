@@ -96,6 +96,7 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @onready var recoil: Node3D = $Head/Recoil
 @onready var camera: Camera3D = $Head/Recoil/Camera3D
 @onready var gun: Gun = $Head/Recoil/Camera3D/Gun
+@onready var knife: Knife = $Head/Recoil/Camera3D/Knife
 @onready var health: Health = $Health
 @onready var inventory: Inventory = $Inventory
 @onready var interactor: Interactor = $Interactor

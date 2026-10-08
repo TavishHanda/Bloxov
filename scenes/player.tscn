@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/gun.gd" id="3_gun"]
 [ext_resource type="Script" path="res://scripts/inventory.gd" id="4_inventory"]
 [ext_resource type="Script" path="res://scripts/interactor.gd" id="5_interactor"]
+[ext_resource type="Script" path="res://scripts/knife.gd" id="6_knife"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -80,6 +81,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
 current = true
 fov = 80.0
 near = 0.03
+
+[node name="Knife" type="Node3D" parent="Head/Recoil/Camera3D"]
+script = ExtResource("6_knife")
 
 [node name="Gun" type="Node3D" parent="Head/Recoil/Camera3D"]
 script = ExtResource("3_gun")

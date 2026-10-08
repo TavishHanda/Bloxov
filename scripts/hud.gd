@@ -67,6 +67,7 @@ func _ready() -> void:
 
 	player.health.damaged.connect(_on_player_damaged)
 	player.gun.hit_confirmed.connect(_on_hit_confirmed)
+	player.knife.hit_confirmed.connect(_on_hit_confirmed)
 	player.interactor.opened.connect(loot_ui.open_for)
 	raid.ended.connect(_on_raid_ended)
 	hit_marker.visible = false

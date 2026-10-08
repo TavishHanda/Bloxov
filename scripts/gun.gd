@@ -1,6 +1,6 @@
 class_name Gun
 extends Node3D
-## Hitscan gun. LMB to fire, hold RMB to aim down sights, R to reload, 1/2 to switch weapons.
+## Hitscan gun. LMB to fire, hold RMB to aim down sights, R to reload, 1/2 to switch weapons, V to knife.
 ## Lives under the player's camera.
 ## Fires whatever weapon is equipped in the active slot (primary/secondary); its stats come from ItemDB.
 ## The exported Damage/Ammo/Accuracy/Feel values below are overwritten by the weapon's stats when it's equipped.
@@ -18,7 +18,7 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 
 @export_group("Damage")
 @export var damage := 22
-## Two AK headshots kill an unarmored scav (100 HP).
+## Headshot damage multiplier (per gun: AK 2x, pistol 2.5x).
 @export var headshot_multiplier := 2.0
 @export var max_range := 150.0
 
@@ -173,6 +173,7 @@ func _apply_weapon(stack: ItemStack) -> void:
 	mag_size = data["mag"]
 	reload_time = data["reload"]
 	ammo_id = data["ammo"]
+	headshot_multiplier = data["head"]
 	auto = data["auto"]
 	base_spread_deg = data["spread"]
 	hip_spread_deg = data["hip_spread"]
@@ -198,7 +199,7 @@ func _process(delta: float) -> void:
 	_bloom = move_toward(_bloom, 0.0, bloom_recovery_deg * delta)
 	_flinch_spread = move_toward(_flinch_spread, 0.0, flinch_recovery_deg * delta)
 	_since_shot += delta
-	var aim_target := 1.0 if wants_aim() and not player.is_sprinting() and not is_reloading else 0.0
+	var aim_target := 1.0 if wants_aim() and not player.is_sprinting() and not is_reloading and not player.knife.is_swinging() else 0.0
 	aim = move_toward(aim, aim_target, delta / maxf(ads_time, 0.01))
 	_update_reload(delta)
 	_update_model(delta)
@@ -208,10 +209,15 @@ func _process(delta: float) -> void:
 	else:
 		_raise_left = maxf(_raise_left - delta, 0.0)
 
+	if player.controls_locked() or player.is_healing():
+		_needs_trigger_release = true
+		return
+	# Quick melee works with or without a gun; it cancels a reload (no rounds lost).
+	if Input.is_action_just_pressed("melee") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and player.knife.swing():
+		is_reloading = false
 	if weapon == null:
 		return
-
-	if player.controls_locked() or player.is_healing():
+	if player.knife.is_swinging():
 		_needs_trigger_release = true
 		return
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
@@ -402,6 +408,10 @@ func _update_model(delta: float) -> void:
 		# Gun held low and across the body.
 		target_pos += Vector3(-0.08, -0.1, 0.06)
 		target_rot += Vector3(-0.35, 0.85, 0.35)
+	elif player.knife.is_swinging():
+		# Gun drops out of the way while the knife swings.
+		target_pos += Vector3(0.05, -0.16, 0.05)
+		target_rot += Vector3(-0.4, -0.3, 0.0)
 	elif is_reloading:
 		target_pos += Vector3(0, -0.08, 0.04)
 		target_rot += Vector3(-0.5, 0.3, 0.4)

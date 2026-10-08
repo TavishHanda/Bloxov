@@ -137,6 +137,9 @@ func _run() -> void:
 	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 2,
 		"scav: 4 AK body shots or 2 headshots")
 	_check(hits_to_kill.call(pmc_health.max_health, ak_damage * pmc_health.damage_multiplier) == 5, "armored PMC: 5 AK body shots")
+	var pistol_data := ItemDB.item("pistol")
+	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 6 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 3,
+		"pistol: 6 body shots or 3 headshots")
 	var to_kill_player: int = hits_to_kill.call(player.health.max_health, scav_probe.shot_damage)
 	_check(to_kill_player >= 6 and to_kill_player <= 7, "you die in %d scav hits" % to_kill_player)
 	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,
@@ -155,6 +158,27 @@ func _run() -> void:
 		if player.health.current < hp:
 			break
 	_check(player.health.current < hp, "scav shoots the player (hp %d -> %d)" % [hp, player.health.current])
+
+	# Knife (V): 45 from the front, one-hit kill from behind.
+	var stab_target := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
+	main.add_child(stab_target)
+	stab_target.set_physics_process(false)
+	var player_front := player.global_position - player.global_basis.z * 1.5
+	stab_target.global_position = Vector3(player_front.x, player.global_position.y, player_front.z)
+	stab_target.look_at(Vector3(player.global_position.x, stab_target.global_position.y, player.global_position.z))
+	player.head.rotation.x = deg_to_rad(-10.0)
+	await physics_frame
+	_check(player.knife.swing() and player.knife.is_swinging(), "V swings the knife")
+	await create_timer(player.knife.swing_time + 0.1).timeout
+	_check(stab_target.health.current == 100 - player.knife.damage, "knife hit from the front: %d (hp %d)" % [player.knife.damage, stab_target.health.current])
+	stab_target.rotate_y(PI)
+	await physics_frame
+	player.knife.swing()
+	await create_timer(player.knife.swing_time + 0.1).timeout
+	_check(not is_instance_valid(stab_target) or stab_target.health.is_dead, "knife from behind kills in one hit")
+	if is_instance_valid(stab_target):
+		stab_target.queue_free()
+	player.head.rotation.x = 0.0
 
 	# Shooting a scav flinches it: it holds fire for a moment and aims worse.
 	enemy.health.take_damage(10, player.global_position)
