@@ -219,8 +219,6 @@ func unequip_to_grid(slot: String, grid: GridInventory, cell: Vector2i, rotated:
 	stack.y = cell.y
 	stack.rotated = rotated
 	grid.place(stack)
-	if player.inventory.grids().has(to):
-		player.inventory.auto_bind(stack.id)
 	_after_move()
 	return true
 

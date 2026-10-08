@@ -37,8 +37,13 @@ jobs:
           mv tpl/templates/* "$tpl_dir/"
           godot --version
 
-      - name: Import project
-        run: godot --headless --import 2>&1 | tee import.log
+      - name: Import project (fails on any script parse error)
+        run: |
+          godot --headless --import 2>&1 | tee import.log
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error" import.log; then
+            echo "::error::Script errors while importing (see above)"
+            exit 1
+          fi
 
       - name: Gameplay test (shoot, reload, enemy attack, death)
         timeout-minutes: 4
