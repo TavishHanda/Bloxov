@@ -926,8 +926,8 @@ func _section_melee() -> void:
 
 
 func _section_spawn_budget() -> void:
-	# A raid has a limited number of enemies, spread out: 3 scavs at the start, one every 40-60 s up to 12,
-	# PMCs at minutes 3, 5 and 8. Never more than 5 alive. Dead ones don't come back.
+	# A raid has a limited number of enemies, spread out: 3 scavs at the start, one every 25-35 s up to 20,
+	# PMCs at minutes 2, 3.5, 5, 6.5 and 8. Never more than 5 alive. Dead ones don't come back.
 	var spawner := EnemySpawner.new()
 	spawner.enemy_scene = load(SCAV_SCENE)
 	spawner.pmc_scene = load(PMC_SCENE)
@@ -944,19 +944,19 @@ func _section_spawn_budget() -> void:
 	for second in 600:
 		spawner.tick(1.0)
 		alive_max = maxi(alive_max, get_nodes_in_group("enemies").size())
-		if second == 170:
-			pmcs_at[170] = spawner.pmcs_spawned
-		if second == 185:
-			pmcs_at[185] = spawner.pmcs_spawned
-		if second == 30:
+		if second == 110:
+			pmcs_at[110] = spawner.pmcs_spawned
+		if second == 125:
+			pmcs_at[125] = spawner.pmcs_spawned
+		if second == 20:
 			pmcs_at["scavs_30"] = spawner.scavs_spawned
 		# Kill everything every 20 s so slots free up (like the player clearing areas).
 		if second % 20 == 0:
 			for enemy in get_nodes_in_group("enemies"):
 				enemy.remove_from_group("enemies")
 				enemy.queue_free()
-	_check(pmcs_at["scavs_30"] == 3, "no extra scavs in the first 30 s")
-	_check(pmcs_at[170] == 0 and pmcs_at[185] == 1, "the first PMC arrives around minute 3")
+	_check(pmcs_at["scavs_30"] == 3, "no extra scavs in the first 20 s")
+	_check(pmcs_at[110] == 0 and pmcs_at[125] == 1, "the first PMC arrives around minute 2")
 	_check(spawner.scavs_spawned == spawner.scav_budget and spawner.pmcs_spawned == spawner.pmc_budget,
 		"over a whole raid: exactly %d scavs and %d PMCs (%d, %d)" % [spawner.scav_budget, spawner.pmc_budget, spawner.scavs_spawned, spawner.pmcs_spawned])
 	spawner.queue_free()

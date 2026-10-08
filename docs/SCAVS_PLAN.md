@@ -29,7 +29,8 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       20 damage, a hard shove, aim jolt, can't aim down sights for 0.6 s; 1.5 s cooldown. PMCs: 25 dmg, faster.
 - [x] **2c. Spawn budget (0.6.4, owner idea).** Per raid: 12 scavs (3 at the start, then one every 40-60 s) and
       3 PMCs (minutes 3, 5, 8). Max 5 alive; spawns away from and out of sight of players; dead ones stay dead.
-      Owner will retune once the maps exist.
+      Owner will retune once the maps exist. **0.6.5 (owner): 20 scavs (one every 25-35 s) + 5 PMCs
+      (minutes 2, 3.5, 5, 6.5, 8).**
 - [ ] **3. Getting around.** Navigation mesh baked when the raid starts, so scavs path around buildings
       and crates instead of walking into walls. Needed for steps 1 and 4 to work on a real map.
 - [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves

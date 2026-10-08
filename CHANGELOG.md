@@ -2,6 +2,11 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.5 (more enemies per raid, owner)
+- **20 scavs** per raid (3 at the start, then one every 25-35 seconds so they're spread over the whole raid)
+- **5 PMCs**, arriving around minutes 2, 3½, 5, 6½ and 8
+- Still never more than 5 alive at once
+
 ## 0.6.4 (limited enemies per raid, owner idea)
 - **Each raid has a limited number of enemies**, spread over the 10 minutes. Clearing an area now actually
   makes it safer (it used to refill every 5 seconds, forever)

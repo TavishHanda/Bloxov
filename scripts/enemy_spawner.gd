@@ -7,18 +7,18 @@ extends Node3D
 
 @export var enemy_scene: PackedScene
 @export var pmc_scene: PackedScene
-## Total enemies for the whole raid (owner, 0.6.4: tune once the maps exist).
-@export var scav_budget := 12
-@export var pmc_budget := 3
+## Total enemies for the whole raid (owner, 0.6.5: 20 + 5 for now; tune once the maps exist).
+@export var scav_budget := 20
+@export var pmc_budget := 5
 ## Scavs at the start of the raid (part of scav_budget).
 @export var initial_count := 3
 ## Never more than this many alive at once (a spawn that's due waits for a slot).
 @export var max_alive := 5
 ## Seconds between scav spawns after the start (random in this range).
-@export var scav_interval_min := 40.0
-@export var scav_interval_max := 60.0
-## When each PMC arrives (seconds into the raid). A 10-minute raid: minutes 3, 5 and 8.
-@export var pmc_times: PackedFloat32Array = [180.0, 300.0, 480.0]
+@export var scav_interval_min := 25.0
+@export var scav_interval_max := 35.0
+## When each PMC arrives (seconds into the raid). A 10-minute raid: minutes 2, 3.5, 5, 6.5 and 8.
+@export var pmc_times: PackedFloat32Array = [120.0, 210.0, 300.0, 390.0, 480.0]
 @export var min_distance_from_player := 18.0
 
 ## Spawned so far this raid.
