@@ -18,6 +18,9 @@ Stats live in `scripts/item_db.gd` (weapon entries), so tuning is mostly editing
 - [ ] **5. Reloads.** Tactical vs. empty reload (empty is slower), maybe a round kept in the chamber.
 - [ ] **6. Gun identity.** Pistol plays differently from the AK (fast to aim, good hip fire, weak at range).
       Only after this: more guns.
+- [ ] **7. Code cleanup (no gameplay changes).** Once the gun code stops changing: a code review pass for real bugs,
+      then a simplify pass (gun.gd, player.gd, and loot_ui.gd, which grew a lot during the inventory work).
+      Tests must pass unchanged before and after, so nothing the owner likes gets broken.
 
 ## Mobile notes
 Every new action is an input action (`aim`, `shoot`, ...), so touch buttons can trigger them later.
