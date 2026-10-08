@@ -380,10 +380,10 @@ func _run() -> void:
 	# Lose every weapon and all your money.
 	for slot in ["primary", "secondary"]:
 		hideout_inv.unequip(slot)
-	for grid in hideout_inv.grids():
-		for stack in grid.stacks.duplicate():
+	for loadout_grid in hideout_inv.grids():
+		for stack in loadout_grid.stacks.duplicate():
 			if ItemDB.kind(stack.id) == "weapon":
-				grid.remove(stack)
+				loadout_grid.remove(stack)
 	for stack in Profile.stash.stacks.duplicate():
 		if ItemDB.kind(stack.id) == "weapon":
 			Profile.stash.remove(stack)
