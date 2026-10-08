@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -864,6 +864,40 @@ func _section_spotting() -> void:
 	_check(distant.state == Scav.State.ALERT, "a near miss alerts it even out of earshot")
 	distant.queue_free()
 	gun._apply_weapon(gun.weapon)
+
+
+func _section_close_range() -> void:
+	# Point blank (even standing right on its gun barrel), a scav's shots still hit.
+	var scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 0.9)) as Scav
+	_face_player(scav)
+	scav.set_physics_process(false)
+	scav._target = player
+	await physics_frame
+	var hp := player.health.current
+	var hits := 0
+	for i in 6:
+		var before := player.health.current
+		scav._fire_at_target(0.9)
+		if player.health.current < before:
+			hits += 1
+	_check(hits >= 4, "point-blank scav shots hit (%d of 6)" % hits)
+	player.health.heal(player.health.max_health)
+	scav.queue_free()
+	player.teleport_to(START_SPOT)  # the hits knocked the player back; start the next check still
+	await physics_frame
+
+	# Too close: it backs off instead of walking into you.
+	var pusher := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 1.8)) as Scav
+	_face_player(pusher)
+	pusher._alert(player.global_position)
+	pusher._set_state(Scav.State.ENGAGE)
+	pusher.shot_damage = 0  # just watching it move
+	for i in 90:
+		await physics_frame
+	var gap := pusher.global_position.distance_to(player.global_position)
+	_check(gap >= pusher.min_distance - 0.3 and gap < pusher.min_distance + 2.5, "a scav that's too close backs off to about %.0f m (%.1f m)" % [pusher.min_distance, gap])
+	pusher.queue_free()
+	player.health.heal(player.health.max_health)
 
 
 # --- Helpers -------------------------------------------------------------------

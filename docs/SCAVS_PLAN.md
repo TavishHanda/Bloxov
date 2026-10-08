@@ -23,7 +23,7 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       ~1.8 s at 40 m; slower if you crouch or stand still, faster if you sprint). Lose them for a moment and they
       must re-spot you (faster). A bullet passing within 2.5 m alerts a scav even out of earshot. Idle scavs
       wander calmly (small, slow turns) so you can sneak up behind them.
-- [ ] **2. Close range. Fixes the owner's bug.** Scavs keep a minimum distance (about 3 m): too close and
+- [x] **2. Close range (0.6.2). Fixes the owner's bug.** Shots are traced from the scav's chest, not the barrel tip. Scavs keep a minimum distance (about 3 m): too close and
       they back off while shooting instead of walking into you. Point-blank shots are accurate.
 - [ ] **3. Getting around.** Navigation mesh baked when the raid starts, so scavs path around buildings
       and crates instead of walking into walls. Needed for steps 1 and 4 to work on a real map.

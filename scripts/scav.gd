@@ -64,6 +64,11 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var accuracy_far := 0.2
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
+## Point blank (closer than this, meters): shots almost always hit.
+@export var point_blank_range := 4.0
+@export var point_blank_accuracy := 0.9
+## Keeps at least this far from its target: closer and it backs off while shooting.
+@export var min_distance := 3.0
 
 @export_group("Flinch")
 ## Getting shot throws a scav off: it stops firing for a moment and aims worse for a while.
@@ -201,7 +206,11 @@ func _physics_process(delta: float) -> void:
 				_lost_sight_time = 0.0
 				_spot = 0.0
 				_face(to_target, delta)
-				if dist <= shoot_range:
+				if dist < min_distance:
+					# Too close: back off (with a bit of sideways movement) while shooting.
+					desired = _steer(-to_target.normalized() * move_speed * 0.7 + _strafe(delta, to_target) * 0.5)
+					_update_shooting(delta, dist)
+				elif dist <= shoot_range:
 					desired = _strafe(delta, to_target)
 					_update_shooting(delta, dist)
 				else:
@@ -348,10 +357,15 @@ func _update_shooting(delta: float, dist: float) -> void:
 
 func _fire_at_target(dist: float) -> void:
 	var world := get_tree().current_scene
-	var from := muzzle.global_position
+	var muzzle_pos := muzzle.global_position
+	# The bullet's path starts at the scav's own chest (its body is excluded), not the gun barrel:
+	# with someone right in its face, a ray from the barrel tip would start past them and miss.
+	var from := global_position + Vector3(0, 1.3, 0)
 	var chest := _target.global_position + Vector3(0, _target.chest_height(), 0)
 
 	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / shoot_range, 0.0, 1.0))
+	if dist < point_blank_range:
+		chance = maxf(chance, point_blank_accuracy)
 	if _target.is_sprinting():
 		chance -= moving_target_penalty
 	if _flinch_left > 0.0:
@@ -369,6 +383,7 @@ func _fire_at_target(dist: float) -> void:
 	# Missed shots ignore the player's hitbox so a "miss" can't land by accident.
 	var mask := (1 | 2) if hit else 1
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask, [get_rid()])
+	query.hit_from_inside = true
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	var end := to
 	if not result.is_empty():
@@ -378,8 +393,9 @@ func _fire_at_target(dist: float) -> void:
 		else:
 			Effects.impact(world, end, result.normal, Color(0.85, 0.8, 0.6))
 
-	Effects.tracer(world, from, end)
-	Effects.sound_at(world, SHOT_SOUND, from, -3.0, 0.06, 0.8)
+	# The tracer and sound still come from the gun.
+	Effects.tracer(world, muzzle_pos, end)
+	Effects.sound_at(world, SHOT_SOUND, muzzle_pos, -3.0, 0.06, 0.8)
 	_muzzle_flash_time = 0.05
 
 

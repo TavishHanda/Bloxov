@@ -2,6 +2,14 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.2 (scavs: close range)
+- **Fixed: running into a scav made its shots miss you.** Its bullets started at the tip of its gun barrel, so
+  with you right in its face they started *past* you. They now start from its chest (the tracer and sound still
+  come from the gun)
+- **Point blank (under 4 m), scav shots almost always hit** (90%)
+- **Scavs keep about 3 m away:** get closer and they back off (with a little sideways movement) while shooting,
+  instead of walking into you
+
 ## 0.6.1 (scavs: spotting, near misses, calmer wandering)
 - **Gradual spotting:** a scav needs you in view for a moment before it notices you: about 0.25 s up close,
   up to ~1.8 s at 40 m. **Crouching or standing still** makes you slower to notice, **sprinting** faster.
