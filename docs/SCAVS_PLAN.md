@@ -1,0 +1,45 @@
+# Scavs update (0.6.x)
+
+Goal: scavs (and PMCs) are good fight partners for the guns we just tuned. They notice you believably, don't
+know things they shouldn't, use the map instead of standing in the open, and react to getting hurt.
+Same process as guns: one step at a time, the owner plays it, we tune, then the next step.
+Not in scope: spawns (with the map), new enemy types (content), bosses.
+
+## How scavs work today (0.5.9)
+- States: wander, alert (turns to you), engage (strafe + burst fire, or walk straight at you if no shot), give up.
+- **Sight:** 40 m, 120° cone while unaware (0.5.7), any direction once alerted. **Hearing** (shots, footsteps,
+  knife, searching) alerts them instantly.
+- **Problems:** once alerted they always know exactly where you are, even through walls; they walk straight at
+  you (into walls, into *you*: the owner's bug); no cover; they never retreat or call others for help.
+- The map has no navigation data (39 boxes), so scavs can't path around buildings.
+
+## Steps
+- [ ] **1. Senses (0.6.0).** Separate "alerted" from "knows where you are".
+      Seeing you = knows your position. Hearing you = knows *roughly* where the sound came from: it walks over
+      to investigate the spot instead of locking on. Lose sight of you = goes to where it last saw you, searches
+      for a bit, then goes back to wandering. No more tracking you through walls.
+- [ ] **2. Close range (0.6.1). Fixes the owner's bug.** Scavs keep a minimum distance (about 3 m): too close and
+      they back off while shooting instead of walking into you. Point-blank shots are accurate.
+- [ ] **3. Getting around (0.6.2).** Navigation mesh baked when the raid starts, so scavs path around buildings
+      and crates instead of walking into walls. Needed for steps 1 and 4 to work on a real map.
+- [ ] **4. Cover (0.6.3).** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
+      there, and peeks out to shoot. No more standing in the open trading shots.
+- [ ] **5. Getting hurt (0.6.4).** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
+- [ ] **6. Teamwork (0.6.5).** A scav that spots you alerts scavs near it (they come to investigate).
+      Maybe: one holds you in place while another moves to flank.
+- [ ] **7. PMCs vs scavs (0.6.6).** Give PMCs their own identity: faster reactions, better aim, more likely to
+      push and flank. Scavs stay sloppier.
+- [ ] **8. Co-op prep (throughout).** Every step picks targets from all players (closest/last seen/last
+      attacker), never "the first player", so the AI doesn't need a rewrite for co-op.
+
+## Owner decisions (before or during the steps)
+1. **Difficulty target.** Should a lone scav be a speed bump (you usually win 1v1 if you're careful) or a real
+   threat? Suggested: speed bump alone, dangerous in groups or when they catch you in the open.
+2. **Investigating.** When a scav hears a shot far away, should it come investigate (raids get busier the more
+   you shoot, which supports "fight or avoid") or only react to noise nearby?
+3. **Scavs vs PMCs.** Should scavs and PMCs fight each other (Tarkov-style: gunfire you didn't cause, a chance to
+   third-party)? Or are they all on the same side?
+4. **Healing.** Should hurt scavs heal (fights last longer, you can push a wounded one), or just retreat?
+
+## Mobile / co-op notes
+AI runs on whoever hosts the raid later, so keep it free of player-input or camera assumptions (it already is).

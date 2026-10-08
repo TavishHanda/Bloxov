@@ -18,7 +18,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 ## Owner's wishlist (after 0.5.9)
 Agreed order: core gameplay first (scavs next), then the co-op test (M3), then map, then content and art.
 - **Playable characters with their own perks (owner wants this; M5 content).** Plan discussed:
-  characters with **tradeoffs**, not pure buffs (e.g. Scout: faster/quieter, less HP; Heavy: tanky, slow).
+  **real named characters with lore and personality** (owner: not generic "scout/tank" classes), each with
+  traits the owner will design later. Traits should be **tradeoffs**, not pure buffs.
   Progression inside each character unlocks **options** (pick 1 of 2 perks per slot), not bigger numbers,
   plus unlocking more characters. A separate global permanent skill tree on top: **not planned** (stacks power
   on veterans, two progression systems to balance, makes characters feel the same). Revisit if the owner wants.
