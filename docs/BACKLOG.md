@@ -11,6 +11,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 - **Sound:** needs a full redesign (current sounds are generated placeholders from `tools/make_sounds.py`). Later.
 - **Scav/PMC pathing bug (owner, 0.5.0):** walk right up into an enemy and it can't shoot you; it just walks into you.
   Fix with the scav/AI pass (close-range behavior: back off or shoot point-blank, don't push into the player).
+- **Body bags should despawn when fully looted (owner, 0.5.7).** Moving the last item out already removes the bag
+  (tested since 0.5.7). If one still stays in play, note how it was emptied (used an item from it? dropped?).
 - **Scav spawns:** need control over where scavs spawn (currently random spawn points kept away from the player).
 
 ## Review order

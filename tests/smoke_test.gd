@@ -160,7 +160,8 @@ func _run() -> void:
 			break
 	_check(player.health.current < hp, "scav shoots the player (hp %d -> %d)" % [hp, player.health.current])
 
-	# Knife (V): 45 from the front, one-hit kill from behind.
+	# Knife (V): 45 from the front, one-hit kill from behind. Pause the shooting scav meanwhile.
+	enemy.process_mode = Node.PROCESS_MODE_DISABLED
 	var stab_target := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
 	main.add_child(stab_target)
 	stab_target.set_physics_process(false)
@@ -177,19 +178,29 @@ func _run() -> void:
 	# Backstabs with the AI running (the swing mustn't alert the victim before the blade lands),
 	# on a scav and on an armored PMC.
 	for scene in ["res://scenes/scav.tscn", "res://scenes/pmc.tscn"]:
+		# Stand still first: footsteps (e.g. sliding from a knockback) would alert the victim.
+		player.velocity = Vector3.ZERO
+		player.teleport_to(Vector3(0, 0.1, -10))
+		player_front = player.global_position - player.global_basis.z * 1.4
+		await create_timer(0.3).timeout
 		var victim := (load(scene) as PackedScene).instantiate() as Scav
 		main.add_child(victim)
 		victim.global_position = Vector3(player_front.x, player.global_position.y, player_front.z)
 		victim.look_at(Vector3(player.global_position.x, victim.global_position.y, player.global_position.z))
 		victim.rotate_y(PI)
+		# Hold still (no random wandering) so it stays facing away.
+		victim._wander_time = 99.0
+		victim._wander_dir = Vector3.ZERO
 		await create_timer(0.2).timeout
 		var was_idle := victim.state == Scav.State.IDLE
+		var diag := "state %d, behind %s" % [victim.state, player.knife._is_behind(victim)]
 		player.knife.swing()
 		await create_timer(player.knife.swing_time + 0.1).timeout
-		_check(was_idle and (not is_instance_valid(victim) or victim.health.is_dead), "backstab kills an unaware %s in one hit" % scene.get_file().get_basename())
+		_check(was_idle and (not is_instance_valid(victim) or victim.health.is_dead), "backstab kills an unaware %s in one hit (%s)" % [scene.get_file().get_basename(), diag])
 		if is_instance_valid(victim):
 			victim.queue_free()
 	player.head.rotation.x = 0.0
+	enemy.process_mode = Node.PROCESS_MODE_INHERIT
 
 	# Shooting a scav flinches it: it holds fire for a moment and aims worse.
 	enemy.health.take_damage(10, player.global_position)
@@ -388,6 +399,16 @@ func _run() -> void:
 
 	# Inventory screen: open a container, move items around (same code the mouse uses).
 	var loot_ui: LootUI = main.get_node("HUD").loot_ui
+	# A fully looted body bag disappears.
+	var one_item_bag := LootContainer.spawn_bag(main, player.global_position, "Body", [["phone", 1]])
+	loot_ui.open_for(one_item_bag)
+	await process_frame
+	loot_ui.quick_move(one_item_bag.grid, one_item_bag.grid.stacks[0])
+	await process_frame
+	await process_frame
+	_check(not is_instance_valid(one_item_bag), "an emptied body bag despawns")
+	loot_ui.close()
+	inv.take("phone", 1)
 	var box := LootContainer.spawn_bag(main, player.global_position, "Test Bag", [["crystal", 1], ["rifle_ammo", 30]])
 	loot_ui.open_for(box)
 	await process_frame
