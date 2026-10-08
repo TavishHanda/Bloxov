@@ -2,6 +2,12 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.3 (scavs: melee bash, owner idea)
+- **Get within ~1.6 m of a scav and it bashes you with its rifle butt.** It leans back to wind up (0.3 s, you can
+  see it coming), then hits: **20 damage, a hard shove, your aim jolts, and you can't aim down sights for 0.6 s**.
+  1.5 s cooldown. It still prefers backing off and shooting; the bash is for when you close the gap anyway
+- **PMCs bash harder and faster** (25 damage, quicker wind-up, 1.1 s cooldown)
+
 ## 0.6.2 (scavs: close range)
 - **Fixed: running into a scav made its shots miss you.** Its bullets started at the tip of its gun barrel, so
   with you right in its face they started *past* you. They now start from its chest (the tracer and sound still

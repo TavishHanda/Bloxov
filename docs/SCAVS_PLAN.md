@@ -25,6 +25,8 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       wander calmly (small, slow turns) so you can sneak up behind them.
 - [x] **2. Close range (0.6.2). Fixes the owner's bug.** Shots are traced from the scav's chest, not the barrel tip. Scavs keep a minimum distance (about 3 m): too close and
       they back off while shooting instead of walking into you. Point-blank shots are accurate.
+- [x] **2b. Melee bash (0.6.3, owner idea).** Within 1.6 m a scav winds up (0.3 s, leans back) and rifle-butts you:
+      20 damage, a hard shove, aim jolt, can't aim down sights for 0.6 s; 1.5 s cooldown. PMCs: 25 dmg, faster.
 - [ ] **3. Getting around.** Navigation mesh baked when the raid starts, so scavs path around buildings
       and crates instead of walking into walls. Needed for steps 1 and 4 to work on a real map.
 - [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves

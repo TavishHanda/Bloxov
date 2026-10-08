@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -897,6 +897,31 @@ func _section_close_range() -> void:
 	var gap := pusher.global_position.distance_to(player.global_position)
 	_check(gap >= pusher.min_distance - 0.3 and gap < pusher.min_distance + 2.5, "a scav that's too close backs off to about %.0f m (%.1f m)" % [pusher.min_distance, gap])
 	pusher.queue_free()
+	player.health.heal(player.health.max_health)
+
+
+func _section_melee() -> void:
+	# Get right up to a scav and it bashes you: damage, a shove, and a moment you can't aim.
+	var scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 1.2)) as Scav
+	_face_player(scav)
+	scav.shot_damage = 0  # only the bash hurts here
+	scav.min_distance = 0.0  # stand still and bash (don't back off out of reach)
+	scav._alert(player.global_position)
+	scav._set_state(Scav.State.ENGAGE)
+	var hp := player.health.current
+	var bashed := false
+	for i in 120:
+		await physics_frame
+		if player.health.current < hp:
+			bashed = true
+			break
+	_check(bashed and hp - player.health.current == scav.melee_damage, "a scav bashes you up close (-%d hp)" % (hp - player.health.current))
+	_check(gun._aim_block_left > 0.0 and not gun.wants_aim(), "the bash knocks you out of aiming for a moment")
+	_check(player.velocity.length() > 3.0, "the bash shoves you back (%.1f m/s)" % player.velocity.length())
+	scav.queue_free()
+	var pmc := _spawn(PMC_SCENE, player.global_position + Vector3(0, 0, 30)) as Scav
+	_check(pmc.melee_damage > scav.melee_damage and pmc.melee_cooldown < scav.melee_cooldown, "PMCs bash harder and faster")
+	pmc.queue_free()
 	player.health.heal(player.health.max_health)
 
 

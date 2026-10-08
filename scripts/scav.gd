@@ -11,6 +11,7 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 const SHOT_SOUND := preload("res://audio/shot.wav")
 const ALERT_SOUND := preload("res://audio/alert.wav")
 const POP_SOUND := preload("res://audio/pop.wav")
+const BASH_SOUND := preload("res://audio/swing.wav")
 const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
 const STEP_SOUNDS: Array[AudioStream] = [
 	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
@@ -70,6 +71,17 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Keeps at least this far from its target: closer and it backs off while shooting.
 @export var min_distance := 3.0
 
+@export_group("Melee")
+## Get this close (meters) and it bashes you with its rifle butt instead of shooting.
+@export var melee_range := 1.6
+@export var melee_damage := 20
+## Visible wind-up before the bash lands (you can react), then a cooldown before the next one.
+@export var melee_windup := 0.3
+@export var melee_cooldown := 1.5
+## How hard the bash shoves you (m/s), and how long you can't aim down sights after it.
+@export var melee_shove := 6.0
+@export var melee_aim_block := 0.6
+
 @export_group("Flinch")
 ## Getting shot throws a scav off: it stops firing for a moment and aims worse for a while.
 ## Mirrors the player's flinch, so whoever lands the first hit has the edge.
@@ -117,6 +129,10 @@ var _hit_flash_time := 0.0
 ## Whether the hit-flash overlay is on right now (so the meshes are only touched when it changes).
 var _flashing := false
 var _flinch_left := 0.0
+var _melee_cooldown_left := 0.0
+## > 0 while winding up a bash.
+var _windup_left := 0.0
+var _lunge_left := 0.0
 var _muzzle_flash_time := 0.0
 var _walk_time := 0.0
 var _side := 1.0
@@ -152,6 +168,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	_state_time += delta
+	_melee_cooldown_left -= delta
 
 	if _target == null or not is_instance_valid(_target) or _target.controls_locked():
 		_target = _pick_target()
@@ -206,7 +223,9 @@ func _physics_process(delta: float) -> void:
 				_lost_sight_time = 0.0
 				_spot = 0.0
 				_face(to_target, delta)
-				if dist < min_distance:
+				if _windup_left > 0.0 or (dist < melee_range and _melee_cooldown_left <= 0.0):
+					_update_melee(delta, dist)
+				elif dist < min_distance:
 					# Too close: back off (with a bit of sideways movement) while shooting.
 					desired = _steer(-to_target.normalized() * move_speed * 0.7 + _strafe(delta, to_target) * 0.5)
 					_update_shooting(delta, dist)
@@ -259,8 +278,14 @@ func _process(delta: float) -> void:
 
 	_hit_flash_time -= delta
 	_flinch_left -= delta
-	# Visible jolt: the body snaps back and settles.
-	model.rotation.x = -0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
+	_lunge_left -= delta
+	# Visible jolt when hit: the body snaps back and settles. Bash: leans back to wind up, then lunges.
+	var tilt := -0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
+	if _windup_left > 0.0:
+		tilt -= 0.35 * (1.0 - _windup_left / melee_windup)
+	elif _lunge_left > 0.0:
+		tilt += 0.4
+	model.rotation.x = tilt
 	var flashing := _hit_flash_time > 0.0
 	if flashing != _flashing:
 		_flashing = flashing
@@ -316,6 +341,22 @@ func _pick_target() -> Player:
 			best = player
 			best_dist = d
 	return best
+
+
+## Rifle-butt bash: wind up (visible), then hit if the target is still in reach.
+func _update_melee(delta: float, dist: float) -> void:
+	if _windup_left <= 0.0:
+		_windup_left = melee_windup
+		_hold_fire()
+		Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8)
+		return
+	_windup_left -= delta
+	if _windup_left > 0.0:
+		return
+	_melee_cooldown_left = melee_cooldown
+	_lunge_left = 0.15
+	if dist <= melee_range + 0.5:
+		_target.take_bash(melee_damage, global_position, melee_shove, melee_aim_block)
 
 
 ## No shot right now: drop the burst and re-aim when a shot comes back.

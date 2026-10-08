@@ -118,6 +118,7 @@ var _model_key := ""
 var _cooldown := 0.0
 var _bloom := 0.0
 var _flinch_spread := 0.0
+var _aim_block_left := 0.0
 ## Shots fired in the current burst (resets shortly after you stop), for the recoil pattern.
 var _burst_shots := 0
 var _since_shot := 99.0
@@ -202,6 +203,7 @@ func _process(delta: float) -> void:
 	_cooldown -= delta
 	_bloom = move_toward(_bloom, 0.0, bloom_recovery_deg * delta)
 	_flinch_spread = move_toward(_flinch_spread, 0.0, flinch_recovery_deg * delta)
+	_aim_block_left -= delta
 	_since_shot += delta
 	var aim_target := 1.0 if wants_aim() and not player.is_sprinting() and not is_reloading and not player.knife.is_swinging() else 0.0
 	aim = move_toward(aim, aim_target, delta / maxf(ads_time, 0.01))
@@ -281,7 +283,13 @@ func recoil_for_shot(n: int) -> Vector2:
 ## Holding the aim button with a gun out (and able to use it). Aiming stops the player from sprinting.
 func wants_aim() -> bool:
 	return (weapon != null and Input.is_action_pressed("aim") and not player.controls_locked()
-		and not player.is_healing())
+		and not player.is_healing() and _aim_block_left <= 0.0)
+
+
+## Knocked out of aiming for a moment (e.g. hit by a melee bash).
+func block_aim(seconds: float) -> void:
+	_aim_block_left = maxf(_aim_block_left, seconds)
+	aim = 0.0
 
 
 func is_aiming() -> bool:

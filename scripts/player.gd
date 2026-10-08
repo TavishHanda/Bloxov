@@ -527,6 +527,17 @@ func _on_damaged(amount: int, source_position: Vector3) -> void:
 		velocity += push.normalized() * 2.5
 
 
+## Hit by an enemy's melee bash: normal damage and flinch, plus a hard shove and a moment you can't aim.
+func take_bash(amount: int, from: Vector3, shove: float, aim_block: float) -> void:
+	health.take_damage(amount, from)
+	var push := global_position - from
+	push.y = 0.0
+	if push.length() > 0.01:
+		velocity += push.normalized() * shove
+	add_kick(3.0, randf_range(-2.0, 2.0))
+	gun.block_aim(aim_block)
+
+
 func _on_died() -> void:
 	is_dead = true
 	heal_time_left = 0.0
