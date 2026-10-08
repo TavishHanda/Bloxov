@@ -37,6 +37,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
 
+@export_group("Flinch")
+## Getting shot throws a scav off: it stops firing for a moment and aims worse for a while.
+## Mirrors the player's flinch, so whoever lands the first hit has the edge.
+@export var flinch_fire_delay := 0.35
+@export var flinch_time := 0.8
+@export var flinch_accuracy_penalty := 0.4
+
 @export_group("Loot")
 @export var min_drops := 1
 @export var max_drops := 3
@@ -69,6 +76,7 @@ var _wander_time := 0.0
 var _strafe_dir := 0.0
 var _strafe_time := 0.0
 var _hit_flash_time := 0.0
+var _flinch_left := 0.0
 var _muzzle_flash_time := 0.0
 var _walk_time := 0.0
 var _side := 1.0
@@ -176,6 +184,9 @@ func _process(delta: float) -> void:
 	muzzle_flash.visible = _muzzle_flash_time > 0.0
 
 	_hit_flash_time -= delta
+	_flinch_left -= delta
+	# Visible jolt: the body snaps back and settles.
+	model.rotation.x = -0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
 	var overlay: Material = FLASH_MATERIAL if _hit_flash_time > 0.0 else null
 	for mesh in _meshes:
 		(mesh as GeometryInstance3D).material_overlay = overlay
@@ -214,6 +225,8 @@ func _fire_at_target(dist: float) -> void:
 	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / shoot_range, 0.0, 1.0))
 	if _target.is_sprinting():
 		chance -= moving_target_penalty
+	if _flinch_left > 0.0:
+		chance -= flinch_accuracy_penalty
 	var hit := randf() < chance
 
 	var aim_point := chest
@@ -281,6 +294,8 @@ func _has_line_of_sight() -> bool:
 
 func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	_hit_flash_time = 0.08
+	_flinch_left = flinch_time
+	_fire_timer = maxf(_fire_timer, flinch_fire_delay)
 	var push := global_position - source_position
 	push.y = 0.0
 	if push.length() > 0.01:

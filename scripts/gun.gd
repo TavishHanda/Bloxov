@@ -369,7 +369,8 @@ func _handle_hit(result: Dictionary) -> void:
 
 	var amount := roundi(damage * (headshot_multiplier if headshot else 1.0))
 	health.take_damage(amount, player.global_position)
-	Effects.damage_number(world, hit_pos, amount, headshot)
+	if GameSettings.damage_numbers:
+		Effects.damage_number(world, hit_pos, amount, headshot)
 	Effects.impact(world, hit_pos, normal, Color(0.95, 0.25, 0.2), 12)
 	if health.is_dead:
 		kills += 1

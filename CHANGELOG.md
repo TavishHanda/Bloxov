@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.4 (hit feedback, kept subtle)
+- **Scavs flinch when you hit them:** they stop firing for a moment, aim worse for ~1 second, and visibly jolt.
+  Whoever lands the first hit has the edge now (same as your flinch when you get shot)
+- **No more kill marker.** A kill looks like any other hit on the crosshair; you find out by seeing them drop
+  (the kill sound stays)
+- **Damage numbers are off by default.** Turn them on with "Show damage numbers" in the Esc menu
+
 ## 0.5.3 (time to kill: lethal-leaning middle)
 - **You die in 7 scav hits** (was ~13). Light armor: 9 hits, heavy armor: 12. PMCs hit harder (6 hits)
 - **Scavs have 100 HP, like you.** AK: 3 body shots, **1 headshot kills**. Pistol: 4 body shots, 2 headshots

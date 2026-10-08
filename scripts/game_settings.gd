@@ -9,6 +9,8 @@ const PATH := "user://settings.cfg"
 static var volume := 0.6
 ## Multiplier on the player's base mouse sensitivity.
 static var sensitivity := 1.0
+## Floating damage numbers on hits (off by default: Bloxov keeps hit feedback subtle).
+static var damage_numbers := false
 
 static var _loaded := false
 
@@ -21,6 +23,7 @@ static func load_settings() -> void:
 	if cfg.load(PATH) == OK:
 		volume = cfg.get_value("audio", "volume", volume)
 		sensitivity = cfg.get_value("controls", "sensitivity", sensitivity)
+		damage_numbers = cfg.get_value("gameplay", "damage_numbers", damage_numbers)
 	apply()
 
 
@@ -35,6 +38,11 @@ static func set_sensitivity(value: float) -> void:
 	save()
 
 
+static func set_damage_numbers(on: bool) -> void:
+	damage_numbers = on
+	save()
+
+
 static func apply() -> void:
 	var bus := AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_mute(bus, volume <= 0.001)
@@ -46,4 +54,5 @@ static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("audio", "volume", volume)
 	cfg.set_value("controls", "sensitivity", sensitivity)
+	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	cfg.save(PATH)

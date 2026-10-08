@@ -15,8 +15,9 @@ Stats live in `scripts/item_db.gd` (weapon entries), so tuning is mostly editing
 - [x] **2. Recoil you can control (0.5.1, tune by playing).** A learnable pattern (mostly up, a little sideways drift) that you pull
       down against, instead of random kick. Recoil should stay where it lands while you hold fire and
       settle back when you stop.
-- [ ] **3. Hit feedback.** Scavs flinch when hit, clear hit/kill/headshot markers and sounds,
-      blood/impact readability.
+- [x] **3. Hit feedback (0.5.4), kept subtle on purpose (owner).** Scavs flinch when hit (hold fire 0.35 s,
+      aim worse for 0.8 s, visible jolt), mirroring the player's flinch. No kill marker (you see the body drop);
+      kill sound stays. Damage numbers off by default, toggle in the Esc menu.
 - [x] **4. Time to kill (0.5.3): "lethal-leaning middle", owner's pick.** Everyone has 100 HP.
       AK 34 dmg (scav: 3 body / 1 head), pistol 25 (4 body / 2 head), headshots x3. Scav hits 15 (you die in 7;
       9 with light armor, 12 heavy), PMC hits 18 (6) and wears armor (takes 80%: 4 AK body shots).

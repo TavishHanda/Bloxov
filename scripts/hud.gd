@@ -26,6 +26,7 @@ extends CanvasLayer
 @onready var volume_slider: HSlider = $Menu/Margin/VBox/VolumeRow/Slider
 @onready var volume_value: Label = $Menu/Margin/VBox/VolumeRow/Value
 @onready var sensitivity_slider: HSlider = $Menu/Margin/VBox/SensitivityRow/Slider
+@onready var damage_numbers_toggle: CheckBox = $Menu/Margin/VBox/DamageNumbers
 @onready var sensitivity_value: Label = $Menu/Margin/VBox/SensitivityRow/Value
 @onready var menu_version: Label = $Menu/Margin/VBox/Version
 @onready var corner_version: Label = $VersionCorner
@@ -51,6 +52,8 @@ func _ready() -> void:
 	_update_slider_labels()
 	volume_slider.value_changed.connect(_on_volume_changed)
 	sensitivity_slider.value_changed.connect(_on_sensitivity_changed)
+	damage_numbers_toggle.button_pressed = GameSettings.damage_numbers
+	damage_numbers_toggle.toggled.connect(GameSettings.set_damage_numbers)
 	play_button.pressed.connect(_capture_mouse)
 
 	hotbar = HotbarHUD.new(player)
@@ -196,12 +199,10 @@ func _update_slider_labels() -> void:
 	sensitivity_value.text = "%.2fx" % (sensitivity_slider.value / 100.0)
 
 
-func _on_hit_confirmed(killed: bool, headshot: bool) -> void:
-	_hit_marker_time = 0.25 if killed else 0.1
-	if killed:
-		hit_marker.modulate = Color(1, 0.25, 0.2)
-		hit_marker.scale = Vector2(1.6, 1.6)
-	elif headshot:
+## Kills get no special marker on purpose (like Tarkov): you see the body drop, or hear the kill sound.
+func _on_hit_confirmed(_killed: bool, headshot: bool) -> void:
+	_hit_marker_time = 0.1
+	if headshot:
 		hit_marker.modulate = Color(1, 0.85, 0.1)
 		hit_marker.scale = Vector2(1.25, 1.25)
 	else:

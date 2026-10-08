@@ -156,6 +156,10 @@ func _run() -> void:
 			break
 	_check(player.health.current < hp, "scav shoots the player (hp %d -> %d)" % [hp, player.health.current])
 
+	# Shooting a scav flinches it: it holds fire for a moment and aims worse.
+	enemy.health.take_damage(10, player.global_position)
+	_check(enemy._flinch_left > 0.0 and enemy._fire_timer >= enemy.flinch_fire_delay - 0.001, "hit scav flinches (holds fire, aims worse)")
+
 	# Killing the enemy removes it.
 	enemy.health.take_damage(9999)
 	await _frames(3)
