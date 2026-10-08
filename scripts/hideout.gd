@@ -27,6 +27,7 @@ func _ready() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	Profile.load_profile()
+	GameSettings.load_settings()
 
 	var background := ColorRect.new()
 	background.color = Color(0.1, 0.11, 0.1)
@@ -93,7 +94,7 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	grid.remove(stack)
 	Profile.money += price
 	Profile.stats["earned"] += price
-	_message("Sold %s for %s" % [ItemDB.display_name(stack.id) + (" x%d" % stack.count if stack.count > 1 else ""), ItemDB.money(price)])
+	_message("Sold %s for %s" % [ItemDB.label(stack.id, stack.count), ItemDB.money(price)])
 	_queue_save()
 
 
@@ -118,14 +119,12 @@ func take_free_kit() -> bool:
 		var spot := Profile.stash.find_spot("pistol")
 		if spot.is_empty():
 			return false
-		pistol.x = spot[0]
-		pistol.y = spot[1]
-		pistol.rotated = spot[2]
+		pistol.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 		Profile.stash.place(pistol)
-	if inventory.add("pistol_ammo", 30) > 0:
-		Profile.stash.add("pistol_ammo", 30)
-	if inventory.add("bandage", 1) > 0:
-		Profile.stash.add("bandage", 1)
+	for kit_item in [["pistol_ammo", 30], ["bandage", 1]]:
+		var left := inventory.add(kit_item[0], kit_item[1])
+		if left > 0:
+			Profile.stash.add(kit_item[0], left)
 	_message("Took the free kit. Good luck out there.")
 	_queue_save()
 	return true
@@ -225,7 +224,7 @@ func _build_trader() -> Control:
 	title.add_theme_font_size_override("font_size", 22)
 	box.add_child(title)
 	var hint := Label.new()
-	hint.text = "Buy: goes to your stash.\nSell: right-click any item.\nValuables sell for full value,\ngear for 60%."
+	hint.text = "Buy: goes to your stash.\nSell: right-click any item.\nValuables sell for full value,\ngear for %d%%." % roundi(GEAR_SELL_RATE * 100)
 	hint.modulate = Color(1, 1, 1, 0.65)
 	hint.add_theme_font_size_override("font_size", 12)
 	box.add_child(hint)
@@ -235,7 +234,7 @@ func _build_trader() -> Control:
 		var row := HBoxContainer.new()
 		box.add_child(row)
 		var item_name := Label.new()
-		item_name.text = ItemDB.display_name(id) + (" x%d" % amount if amount > 1 else "")
+		item_name.text = ItemDB.label(id, amount)
 		item_name.add_theme_color_override("font_color", ItemDB.color(id))
 		item_name.add_theme_font_size_override("font_size", 13)
 		item_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL

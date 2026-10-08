@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages-${{ github.ref }}
@@ -22,7 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Godot ${{ env.GODOT_VERSION }} + web export templates
         run: |
@@ -45,17 +43,19 @@ jobs:
             exit 1
           fi
 
-      - name: Gameplay test (shoot, reload, enemy attack, death)
+      - name: Gameplay test (tests/smoke_test.gd, every section)
         timeout-minutes: 4
         run: |
-          godot --headless -s tests/smoke_test.gd 2>&1 | tee test.log
+          # --fixed-fps 60: every frame is exactly 1/60 s of game time (deterministic, and faster than real time).
+          godot --headless --fixed-fps 60 -s tests/smoke_test.gd 2>&1 | tee test.log
           grep -q "SMOKE TEST: PASSED" test.log
-          if grep -E "SCRIPT ERROR|Parse Error" test.log; then
-            echo "::error::Godot reported script errors (see above)"
+          # "still in use at exit" is a harmless shutdown message.
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" test.log | grep -v "still in use at exit"; then
+            echo "::error::Godot reported errors (see above)"
             exit 1
           fi
 
-      - name: Smoke test (run the main scene for a few seconds)
+      - name: Smoke test (run the main scene, the hideout, for 300 frames)
         timeout-minutes: 2
         run: |
           godot --headless --quit-after 300 2>&1 | tee run.log
@@ -74,7 +74,7 @@ jobs:
           echo "Building v${version}"
           python3 tools/cache_bust.py build/web "${version}-${GITHUB_SHA::8}"
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main'
         with:
           path: build/web
@@ -83,9 +83,12 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

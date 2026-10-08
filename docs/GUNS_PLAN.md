@@ -27,7 +27,7 @@ Stats live in `scripts/item_db.gd` (weapon entries), so tuning is mostly editing
 - [x] **7. Knife / melee (0.5.6, owner idea).** 45 damage from the front, backstab kills in one hit. Everyone always has a knife (can't be lost or sold).
       Quick melee on a key (V) with any gun out, for point-blank fights and saving ammo.
       No separate "unarmed" mode for now: holstering has no gameplay reason yet.
-- [ ] **8. Code cleanup (no gameplay changes).** Once the gun code stops changing: a code review pass for real bugs,
+- [x] **8. Code cleanup (0.5.8).** Once the gun code stops changing: a code review pass for real bugs,
       then a simplify pass (gun.gd, player.gd, and loot_ui.gd, which grew a lot during the inventory work).
       Tests must pass unchanged before and after, so nothing the owner likes gets broken.
 

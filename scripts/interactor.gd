@@ -9,6 +9,8 @@ signal opened(container: LootContainer)
 @onready var player: Player = owner
 
 var target: LootContainer = null
+## The container `progress` belongs to (looking at another one starts over).
+var _progress_target: LootContainer = null
 ## 0..1 while holding E on an unsearched container.
 var progress := 0.0
 ## Set by the HUD while a loot/inventory screen is open.
@@ -25,6 +27,9 @@ func _physics_process(delta: float) -> void:
 		progress = 0.0
 		return
 
+	if target != _progress_target:
+		_progress_target = target
+		progress = 0.0
 	var hold_time := target.interact_time()
 	if hold_time <= 0.0:
 		if Input.is_action_just_pressed("interact"):

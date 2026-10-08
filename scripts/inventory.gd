@@ -98,11 +98,8 @@ func add(id: String, count := 1) -> int:
 	var left := count
 	# Top up existing stacks anywhere first, then free space in order.
 	for grid in grids():
-		for stack in grid.stacks:
-			if left > 0 and stack.id == id and stack.space_left() > 0:
-				var moved := mini(left, stack.space_left())
-				stack.count += moved
-				left -= moved
+		if left > 0:
+			left = grid.top_up(id, left)
 	for grid in grids():
 		if left > 0:
 			left = grid.add(id, left)

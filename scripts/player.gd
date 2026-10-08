@@ -8,6 +8,8 @@ signal noise_made(pos: Vector3, radius: float)
 
 const HURT_SOUND := preload("res://audio/hurt.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
+## Blood-red sparks where the player's gun or knife hits someone.
+const HIT_COLOR := Color(0.95, 0.25, 0.2)
 const STEP_SOUNDS: Array[AudioStream] = [
 	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 
@@ -102,6 +104,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @onready var interactor: Interactor = $Interactor
 
 var is_dead := false
+## Enemies killed this raid (gun or knife).
+var kills := 0
 ## True once the player has extracted (raid over, controls off).
 var extracted := false
 
@@ -142,6 +146,9 @@ var debug_spikes_dropped := 0
 
 func _ready() -> void:
 	add_to_group("player")
+	# The capsule comes from player.tscn and is shared by every instance; give each player its own,
+	# so one player crouching doesn't shrink the others.
+	body_shape.shape = body_shape.shape.duplicate()
 	_spawn_position = global_position
 	inventory.equipment_changed.connect(_on_equipment_changed)
 	# Bring in the loadout from the hideout (or the starter kit on a new profile).
@@ -228,6 +235,17 @@ func use_hotbar(index: int) -> void:
 		use_item(found[0], found[1])
 
 
+## Feedback for a hit the player's gun or knife landed (after the damage): damage number, sparks, kill count.
+## `critical` = headshot or backstab (bigger damage number). The caller plays its own sound.
+func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount: int, critical: bool) -> void:
+	var world := get_tree().current_scene
+	if GameSettings.damage_numbers:
+		Effects.damage_number(world, pos, amount, critical)
+	Effects.impact(world, pos, normal, HIT_COLOR, 12)
+	if target_health.is_dead:
+		kills += 1
+
+
 func _hotbar_key(event: InputEvent) -> int:
 	for i in Inventory.HOTBAR_SIZE:
 		if event.is_action_pressed("hotbar_%d" % (i + 3)):
@@ -245,8 +263,10 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 		return
 	if ItemDB.kind(stack.id) != "heal":
 		return
+	# Nothing taken = the stack is already gone (e.g. used mid-drag); don't heal for free.
+	if grid.take(stack.id, 1) == 0:
+		return
 	_heal_item = stack.id
-	grid.take(stack.id, 1)
 	heal_duration = ItemDB.item(stack.id)["use_time"]
 	heal_time_left = heal_duration
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
@@ -282,14 +302,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if controls_locked():
 		return
 	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
+	var hotbar_index := _hotbar_key(event)
 	if event.is_action_pressed("heal"):
 		try_heal()
 	elif event.is_action_pressed("weapon_1"):
 		gun.select_slot("primary")
 	elif event.is_action_pressed("weapon_2"):
 		gun.select_slot("secondary")
-	elif _hotbar_key(event) >= 0:
-		use_hotbar(_hotbar_key(event))
+	elif hotbar_index >= 0:
+		use_hotbar(hotbar_index)
 	elif event.is_action_pressed("crouch"):
 		set_crouching(not is_crouching)
 	elif event.is_action_pressed("ui_cancel"):
@@ -385,7 +406,6 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and not _was_on_floor and _fall_speed > 2.0:
 		_landing_left = landing_slowdown_time
 		_landing_dip = clampf(_fall_speed * 0.02, 0.03, 0.15)
-	if is_on_floor() and not _was_on_floor and _fall_speed > 2.0:
 		_play_step(4.0)
 		_make_noise(landing_noise)
 	if is_on_floor():

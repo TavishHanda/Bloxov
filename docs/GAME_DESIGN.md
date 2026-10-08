@@ -31,6 +31,10 @@ These change everything downstream. Pick once and stop debating.
 | **Ammo** | **One ammo type** to start | Ammo is still a resource you manage, without the spreadsheet. Split it later only if playtests show it would help. |
 | **PvP** | **No.** PvE only for a long time | Solo and co-op against AI. PvP needs servers, anti-cheat and matchmaking, which is a separate game's worth of work. |
 
+> **Changed since:** the inventory became a **grid ("Tetris") inventory** with rotation and stacking (see
+> [`INVENTORY_DESIGN.md`](INVENTORY_DESIGN.md)), and there are **two ammo types**, rifle and pistol rounds
+> (see [`ITEMS.md`](ITEMS.md)).
+
 > **3D scope rule:** 3D costs more than 2D in art, animation and performance. To pay for it, keep the map small, use asset packs, and keep the enemy count per raid low (~10–20).
 
 ---
@@ -64,6 +68,9 @@ Death has to hurt, but it can't trap a player at zero. Make it hurt without bein
 - **Free loadout:** you can always start a raid with a free junk kit (bad pistol, a few bullets, no armor). A broke player can always earn their way back, which also makes high-risk "nothing to lose" runs possible.
 - **Insurance (later, maybe):** pay to sometimes get your gun back.
 
+> **Changed since:** the secure pocket is a **2×2 grid**, and the free kit (pistol, 30 rounds, a bandage) is only
+> offered when you're **broke and own no weapon** (see [`INVENTORY_DESIGN.md`](INVENTORY_DESIGN.md)).
+
 Without the free kit, one bad streak means quitting. With it, a bad streak becomes a comeback story.
 
 ---
@@ -93,6 +100,9 @@ Deliberately small. Resist adding to this list.
 - Armor: light / heavy
 - Backpacks: small / medium / large (more slots)
 - Valuables: ~10 items across 5 rarities, e.g. watch, laptop, crystal, military chip, antique vase, and the **Golden Toilet** (legendary, 4 slots, worth absurd money, totally useless)
+
+> **Changed since:** two ammo types; items take grid space instead of slots (medkit 2×2, Golden Toilet 2×3).
+> The live list is [`ITEMS.md`](ITEMS.md).
 
 **Enemies — 3 types**
 - **Rusher:** melee, fast, comes at you
@@ -134,6 +144,10 @@ Fast, readable, punchy. Juice matters more than realism:
 - Recoil as a gameplay mechanic (spread grows while firing), not realistic camera kick
 - Each gun recognizable by sound with your eyes closed
 
+> **Changed since:** recoil is **real view recoil**: a burst climbs your view in a learnable pattern, you pull the
+> mouse down against it, and it settles back when you stop; spread/bloom and getting-shot flinch sit on top
+> (see [`GUNS_PLAN.md`](GUNS_PLAN.md) and CHANGELOG 0.5.1–0.5.2).
+
 ## 9. AI (simple state machine)
 
 ```
@@ -148,6 +162,9 @@ Idle/Patrol → (sees or hears player) → Alert/Investigate → Attack → Sear
 ## 10. Controls
 
 **PC:** WASD move · mouse look · LMB shoot · RMB aim · R reload · V knife · E interact · Tab inventory · Shift sprint
+
+> **Changed since:** also C crouch, Space jump, 1/2 weapons, 3–6 hotbar items, H heal, O extracts, Esc menu
+> (volume, sensitivity, damage numbers toggle), F3 debug. The full current list is in the [`README`](../README.md#status-057-guns-update).
 
 **Mobile (designed from day 1, built in Phase 6):**
 - Left side: virtual joystick to move
@@ -200,7 +217,7 @@ Roughly in priority order:
 
 ## 13. Not Building (until further notice)
 
-PvP · big maps · multiple maps · vehicles · attachments · crafting · quests · skill trees · hunger/thirst · multiple ammo types · clans · trading · battle pass · ranked · voice chat · weather · accounts
+PvP · big maps · multiple maps · vehicles · attachments · crafting · quests · skill trees · hunger/thirst · multiple ammo types (changed: rifle + pistol rounds) · clans · trading · battle pass · ranked · voice chat · weather · accounts
 
 ---
 

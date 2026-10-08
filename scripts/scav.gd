@@ -2,7 +2,7 @@ class_name Scav
 extends CharacterBody3D
 ## Scav: armed scavenger. Wanders until it spots (or hears) the player, radios it in,
 ## then shoots in short bursts. Closes distance when it can't get a shot.
-## Dumb on purpose: no cover or pathfinding yet (that's Phase 4).
+## Dumb on purpose: no cover or pathfinding yet (later).
 ## PMCs use this script too (scenes/pmc.tscn) with tougher numbers, until they become real players.
 
 enum State { IDLE, ALERT, ENGAGE, DEAD }
@@ -79,6 +79,8 @@ var _wander_time := 0.0
 var _strafe_dir := 0.0
 var _strafe_time := 0.0
 var _hit_flash_time := 0.0
+## Whether the hit-flash overlay is on right now (so the meshes are only touched when it changes).
+var _flashing := false
 var _flinch_left := 0.0
 var _muzzle_flash_time := 0.0
 var _walk_time := 0.0
@@ -98,7 +100,7 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 
 
-## Called by the player's gun (via the "enemies" group) on every shot.
+## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
 func hear_noise(pos: Vector3, radius: float) -> void:
 	if state == State.IDLE and global_position.distance_to(pos) <= radius:
 		_alert()
@@ -190,9 +192,12 @@ func _process(delta: float) -> void:
 	_flinch_left -= delta
 	# Visible jolt: the body snaps back and settles.
 	model.rotation.x = -0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
-	var overlay: Material = FLASH_MATERIAL if _hit_flash_time > 0.0 else null
-	for mesh in _meshes:
-		(mesh as GeometryInstance3D).material_overlay = overlay
+	var flashing := _hit_flash_time > 0.0
+	if flashing != _flashing:
+		_flashing = flashing
+		var overlay: Material = FLASH_MATERIAL if flashing else null
+		for mesh in _meshes:
+			(mesh as GeometryInstance3D).material_overlay = overlay
 
 
 func _alert() -> void:

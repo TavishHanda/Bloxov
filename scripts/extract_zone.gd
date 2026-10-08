@@ -17,14 +17,13 @@ var is_open := true
 var progress := 0.0
 var player_inside: Player = null
 
-var _closed_material: StandardMaterial3D
+## Shared by every closed pad (built once, on first use).
+static var _closed_material: StandardMaterial3D
 
 
 func _ready() -> void:
 	add_to_group("extracts")
 	name_label.text = extract_name
-	_closed_material = StandardMaterial3D.new()
-	_closed_material.albedo_color = Color(0.45, 0.12, 0.1)
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 
@@ -33,7 +32,14 @@ func set_open(open: bool) -> void:
 	is_open = open
 	beam.visible = open
 	name_label.visible = open
-	pad.material_override = null if open else _closed_material
+	pad.material_override = null if open else _closed_pad_material()
+
+
+static func _closed_pad_material() -> StandardMaterial3D:
+	if _closed_material == null:
+		_closed_material = StandardMaterial3D.new()
+		_closed_material.albedo_color = Color(0.45, 0.12, 0.1)
+	return _closed_material
 
 
 func _physics_process(delta: float) -> void:

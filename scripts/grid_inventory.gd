@@ -22,20 +22,19 @@ func is_empty() -> bool:
 
 ## True if an item of this id/rotation can sit with its top-left at (x, y). `ignore` is skipped (the stack being moved).
 func fits(id: String, x: int, y: int, rotated: bool, ignore: ItemStack = null) -> bool:
-	var base := ItemDB.size(id)
-	var size := Vector2i(base.y, base.x) if rotated else base
+	var size := ItemDB.rotated_size(id, rotated)
 	if x < 0 or y < 0 or x + size.x > width or y + size.y > height:
 		return false
 	var rect := Rect2i(x, y, size.x, size.y)
 	for stack in stacks:
-		if stack != ignore and rect.intersects(Rect2i(stack.x, stack.y, stack.size().x, stack.size().y)):
+		if stack != ignore and rect.intersects(stack.rect()):
 			return false
 	return true
 
 
 func stack_at(cell: Vector2i) -> ItemStack:
 	for stack in stacks:
-		if Rect2i(stack.x, stack.y, stack.size().x, stack.size().y).has_point(cell):
+		if stack.rect().has_point(cell):
 			return stack
 	return null
 
@@ -50,8 +49,8 @@ func find_spot(id: String) -> Array:
 	return []
 
 
-## Adds `count` of an item: tops up existing stacks first, then uses free space. Returns how many didn't fit.
-func add(id: String, count := 1) -> int:
+## Adds up to `count` of an item to existing stacks only (no new stacks). Returns how many didn't fit.
+func top_up(id: String, count: int) -> int:
 	var left := count
 	for stack in stacks:
 		if left <= 0:
@@ -60,6 +59,14 @@ func add(id: String, count := 1) -> int:
 			var moved := mini(left, stack.space_left())
 			stack.count += moved
 			left -= moved
+	if left < count:
+		changed.emit()
+	return left
+
+
+## Adds `count` of an item: tops up existing stacks first, then uses free space. Returns how many didn't fit.
+func add(id: String, count := 1) -> int:
+	var left := top_up(id, count)
 	while left > 0:
 		var spot := find_spot(id)
 		if spot.is_empty():

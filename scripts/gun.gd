@@ -3,10 +3,12 @@ extends Node3D
 ## Hitscan gun. LMB to fire, hold RMB to aim down sights, R to reload, 1/2 to switch weapons, V to knife.
 ## Lives under the player's camera.
 ## Fires whatever weapon is equipped in the active slot (primary/secondary); its stats come from ItemDB.
-## The exported Damage/Ammo/Accuracy/Feel values below are overwritten by the weapon's stats when it's equipped.
+## Equipping a weapon overwrites these exports with its ItemDB stats: damage, headshot_multiplier,
+## rounds_per_minute, mag_size, reload_time, ammo_id, auto (not exported), base/hip/moving spread,
+## bloom_per_shot_deg, max_bloom_deg, ads_time, ads_fov, recoil_pitch_deg, recoil_yaw_deg and noise_radius.
+## The defaults below match the AK. Everything else (range, flinch, handling, crouch modifiers...) is shared.
 
 signal hit_confirmed(killed: bool, headshot: bool)
-signal fired
 
 const SHOT_SOUND := preload("res://audio/shot.wav")
 const HIT_SOUND := preload("res://audio/hit.wav")
@@ -15,9 +17,11 @@ const KILL_SOUND := preload("res://audio/kill.wav")
 const EMPTY_SOUND := preload("res://audio/empty.wav")
 const MAG_OUT_SOUND := preload("res://audio/mag_out.wav")
 const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
+## Where each model sits when aimed: centered, with its sight just under the middle of the screen.
+const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0, -0.036, -0.28)}
 
 @export_group("Damage")
-@export var damage := 22
+@export var damage := 28
 ## Headshot damage multiplier (per gun: AK 2x, pistol 2.5x).
 @export var headshot_multiplier := 2.0
 @export var max_range := 150.0
@@ -53,9 +57,9 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 
 @export_group("Aiming")
 ## Seconds to go from hip to fully aimed.
-@export var ads_time := 0.25
+@export var ads_time := 0.28
 ## Camera field of view when fully aimed (the normal view is the player's base_fov).
-@export var ads_fov := 60.0
+@export var ads_fov := 55.0
 ## Aiming cuts the moving-spread penalty to this fraction.
 @export var ads_moving_spread_multiplier := 0.8
 
@@ -68,9 +72,9 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export_group("Recoil")
 ## Each shot moves your view up by about this much (degrees); you pull the mouse down against it.
 ## Full-auto follows a pattern you can learn: the first shots climb hardest, then it drifts side to side.
-@export var recoil_pitch_deg := 0.45
+@export var recoil_pitch_deg := 1.2
 ## How far the pattern drifts sideways per shot (degrees), plus a little randomness.
-@export var recoil_yaw_deg := 0.22
+@export var recoil_yaw_deg := 0.45
 @export var crouch_recoil_multiplier := 0.85
 ## Part of the recoil that's just a quick visual kick (settles by itself).
 @export var recoil_kick_fraction := 0.25
@@ -97,7 +101,6 @@ var in_mag: int:
 var reserve: int:
 	get:
 		return player.inventory.count_of(ammo_id) if player != null else 0
-var kills := 0
 var is_reloading := false
 ## 0 = hip, 1 = fully aimed down sights. Moves smoothly between them.
 var aim := 0.0
@@ -105,12 +108,12 @@ var aim := 0.0
 @onready var player: Player = owner
 @onready var camera: Camera3D = get_parent()
 @onready var _models := {"rifle": $Model, "pistol": $PistolModel}
-## Where each model sits when aimed: centered, with its sight just under the middle of the screen.
-const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0, -0.036, -0.28)}
 var model: Node3D
 var muzzle: Node3D
 var flash: Node3D
 var _model_rests := {}
+## Key into _models / ADS_POSITIONS for the equipped weapon ("rifle"/"pistol").
+var _model_key := ""
 
 var _cooldown := 0.0
 var _bloom := 0.0
@@ -185,13 +188,14 @@ func _apply_weapon(stack: ItemStack) -> void:
 	recoil_pitch_deg = data["recoil"]
 	recoil_yaw_deg = data["recoil_yaw"]
 	noise_radius = data["noise"]
-	model = _models[data["model"]]
+	_model_key = data["model"]
+	model = _models[_model_key]
 	muzzle = model.get_node("Muzzle")
 	flash = muzzle.get_node("Flash")
 	flash.visible = false
 	model.visible = true
 	# Start low so the new gun visibly comes up.
-	model.position = (_model_rests[data["model"]] as Vector3) + Vector3(0, -0.25, 0.05)
+	model.position = (_model_rests[_model_key] as Vector3) + Vector3(0, -0.25, 0.05)
 
 
 func _process(delta: float) -> void:
@@ -329,7 +333,6 @@ func shoot_once() -> void:
 	player.add_kick(kick.x * recoil_kick_fraction, 0.0)
 	player.add_shake(shake)
 	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
-	fired.emit()
 
 
 func start_reload() -> void:
@@ -358,9 +361,7 @@ func _handle_hit(result: Dictionary) -> void:
 	var collider: Object = result.collider
 	var hit_pos: Vector3 = result.position
 	var normal: Vector3 = result.normal
-	var health: Health = null
-	if collider is Node:
-		health = (collider as Node).get_node_or_null("Health") as Health
+	var health := Health.of(collider)
 
 	if health == null or health.is_dead:
 		Effects.impact(world, hit_pos, normal, Color(0.85, 0.8, 0.6))
@@ -374,12 +375,9 @@ func _handle_hit(result: Dictionary) -> void:
 		headshot = shape_node != null and shape_node.name == &"HeadShape"
 
 	var amount := roundi(damage * (headshot_multiplier if headshot else 1.0))
-	health.take_damage(amount, player.global_position)
-	if GameSettings.damage_numbers:
-		Effects.damage_number(world, hit_pos, amount, headshot)
-	Effects.impact(world, hit_pos, normal, Color(0.95, 0.25, 0.2), 12)
+	var dealt := health.take_damage(amount, player.global_position)
+	player.on_hit_landed(health, hit_pos, normal, dealt, headshot)
 	if health.is_dead:
-		kills += 1
 		Effects.sound(world, KILL_SOUND, -2.0, 0.0)
 	else:
 		Effects.sound(world, HEADSHOT_SOUND if headshot else HIT_SOUND, -3.0, 0.03)
@@ -400,8 +398,7 @@ func _update_model(delta: float) -> void:
 	var bob_scale := minf(speed / player.walk_speed, 1.0) * (2.2 if sprinting else 1.0)
 	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale * (1.0 - 0.85 * aim)
 
-	var model_key: String = ItemDB.item(weapon.id)["model"]
-	var rest: Vector3 = (_model_rests[model_key] as Vector3).lerp(ADS_POSITIONS[model_key], aim)
+	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(ADS_POSITIONS[_model_key], aim)
 	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
 	if sprinting:

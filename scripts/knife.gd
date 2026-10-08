@@ -78,15 +78,10 @@ func _strike() -> void:
 	var backstab := _is_behind(victim)
 	# A backstab always kills, armor or not (enough damage to get through the armor multiplier).
 	var amount := ceili(health.current / maxf(health.damage_multiplier, 0.01)) if backstab else damage
-	health.take_damage(amount, player.global_position)
+	var dealt := health.take_damage(amount, player.global_position)
 	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
-	var world := get_tree().current_scene
-	Effects.impact(world, target.position, target.normal, Color(0.95, 0.25, 0.2), 12)
-	if GameSettings.damage_numbers:
-		Effects.damage_number(world, target.position, amount, backstab)
-	Effects.sound(world, KILL_SOUND if health.is_dead else HIT_SOUND, -2.0, 0.03)
-	if health.is_dead:
-		player.gun.kills += 1
+	player.on_hit_landed(health, target.position, target.normal, dealt, backstab)
+	Effects.sound(get_tree().current_scene, KILL_SOUND if health.is_dead else HIT_SOUND, -2.0, 0.03)
 	hit_confirmed.emit(health.is_dead, false)
 
 
@@ -99,9 +94,9 @@ func _find_target() -> Dictionary:
 		var dir := forward.rotated(camera.global_basis.y, angle)
 		var query := PhysicsRayQueryParameters3D.create(from, from + dir * reach, 1 | 4, [player.get_rid()])
 		var result := space.intersect_ray(query)
-		if result.is_empty() or not result.collider is Node:
+		if result.is_empty():
 			continue
-		var health := (result.collider as Node).get_node_or_null("Health") as Health
+		var health := Health.of(result.collider)
 		if health != null and not health.is_dead:
 			return {"node": result.collider, "health": health, "position": result.position, "normal": result.normal}
 	return {}

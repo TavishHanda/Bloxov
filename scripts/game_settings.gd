@@ -1,6 +1,6 @@
 class_name GameSettings
 extends RefCounted
-## Player settings (volume, mouse sensitivity), saved to user://settings.cfg.
+## Player settings (volume, mouse sensitivity, damage numbers), saved to user://settings.cfg.
 ## On web, user:// is stored in the browser, so settings survive reloads.
 
 const PATH := "user://settings.cfg"

@@ -5,11 +5,6 @@ extends Node
 
 signal ended(result: String)
 
-## Totals for this play session (kept across raids until the page reloads; the stash comes in Phase 3).
-static var session_raids := 0
-static var session_extracts := 0
-static var session_value := 0
-
 @export var player: Player
 ## Parent of Marker3D spawn points. The player starts at a random one.
 @export var spawn_points: Node3D
@@ -77,12 +72,8 @@ func _on_extracted(zone: ExtractZone) -> void:
 func _finish() -> void:
 	loot_summary.clear()
 	for stack in player.inventory.all_stacks():
-		loot_summary.append(ItemDB.display_name(stack.id) + (" x%d" % stack.count if stack.count > 1 else ""))
+		loot_summary.append(ItemDB.label(stack.id, stack.count))
 	loot_value = player.inventory.total_value()
-	session_raids += 1
-	if result == "extracted":
-		session_extracts += 1
-		session_value += loot_value
 	_save_to_profile()
 	ended.emit(result)
 

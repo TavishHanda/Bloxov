@@ -22,8 +22,19 @@ func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated :=
 
 ## Size in cells, taking rotation into account.
 func size() -> Vector2i:
-	var base := ItemDB.size(id)
-	return Vector2i(base.y, base.x) if rotated else base
+	return ItemDB.rotated_size(id, rotated)
+
+
+## The cells it covers in its grid.
+func rect() -> Rect2i:
+	return Rect2i(Vector2i(x, y), size())
+
+
+## Moves it to top-left `cell` with the given rotation (doesn't touch any grid).
+func set_spot(cell: Vector2i, is_rotated: bool) -> void:
+	x = cell.x
+	y = cell.y
+	rotated = is_rotated
 
 
 func space_left() -> int:

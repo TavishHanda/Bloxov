@@ -4,9 +4,10 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are:** 0.4.0. M1's build is complete: hideout, stash, trader, persistent loadout, death rules.
+**Where we are:** 0.5.7. M1's build is complete: hideout, stash, trader, persistent loadout, death rules.
 Friends have played it and liked it. Now honing core mechanics one at a time (movement done, looting OK for now):
-**guns update** in progress, see `docs/GUNS_PLAN.md` (0.5.x). Scav spawns wait for map/level design.
+the **guns update** is done through the knife (0.5.x, see `docs/GUNS_PLAN.md`); a code cleanup is in progress.
+Next phase: **scavs** (0.6).
 
 | # | Milestone | Goal | Done when |
 |---|---|---|---|
@@ -20,6 +21,6 @@ Friends have played it and liked it. Now honing core mechanics one at a time (mo
 ## Rules while we go
 - **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.
   Existing ones to fix in the spike: scavs target the first node in the `player` group; HUD, loot screen and
-  Raid are each bound to one player; extracting ends the raid for everyone; `Raid.session_*` are static.
+  Raid are each bound to one player; extracting ends the raid for everyone.
 - **One area at a time.** Owner-driven reviews of each mechanic (movement done in 0.3.1–0.3.2).
 - Notes and parked ideas live in `docs/BACKLOG.md`.

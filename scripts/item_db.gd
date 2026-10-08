@@ -63,6 +63,11 @@ static func display_name(id: String) -> String:
 	return ITEMS[id]["name"]
 
 
+## Display name with a count suffix when there's more than one: "Bandage x3".
+static func label(id: String, count: int) -> String:
+	return display_name(id) + (" x%d" % count if count > 1 else "")
+
+
 ## Short label for small inventory tiles.
 static func short_name(id: String) -> String:
 	return ITEMS[id].get("short", ITEMS[id]["name"])
@@ -71,6 +76,12 @@ static func short_name(id: String) -> String:
 ## Size in grid cells, unrotated.
 static func size(id: String) -> Vector2i:
 	return Vector2i(ITEMS[id]["w"], ITEMS[id]["h"])
+
+
+## Size in grid cells, with width and height swapped if rotated.
+static func rotated_size(id: String, rotated: bool) -> Vector2i:
+	var base := size(id)
+	return Vector2i(base.y, base.x) if rotated else base
 
 
 static func max_stack(id: String) -> int:

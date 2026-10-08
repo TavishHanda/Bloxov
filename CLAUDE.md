@@ -17,8 +17,10 @@
   Extend the smoke test when adding gameplay.
 - **Run the tests locally before every push** (the sandbox can download Godot):
   `curl -L -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip`,
-  unzip, then from the repo root: `godot --headless --import` and `godot --headless -s tests/smoke_test.gd`
-  (must print `SMOKE TEST: PASSED` with no `SCRIPT ERROR`). Don't push untested code to find out from CI.
+  unzip, then from the repo root: `godot --headless --import` and `godot --headless --fixed-fps 60 -s tests/smoke_test.gd`
+  (~1 s; must print `SMOKE TEST: PASSED` with no `SCRIPT ERROR`). Don't push untested code to find out from CI.
+  One part only: add `-- section=knife,heal` (pulls in what it depends on). Only push if the tests passed
+  (chain the push after the test with `&&`, never after a command that ignores failures).
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
 - Flow: `scenes/hideout.tscn` (main scene: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
   Persistent data lives in `scripts/profile.gd` (static, saved to `user://profile.json`). The inventory screen

@@ -84,25 +84,25 @@ static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool
 
 
 static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08) -> void:
-	var player := AudioStreamPlayer.new()
-	player.stream = stream
-	player.volume_db = volume_db
-	player.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
-	world.add_child(player)
-	player.finished.connect(player.queue_free)
-	player.play()
+	var audio := AudioStreamPlayer.new()
+	audio.stream = stream
+	audio.volume_db = volume_db
+	audio.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	world.add_child(audio)
+	audio.finished.connect(audio.queue_free)
+	audio.play()
 
 
 static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0) -> void:
-	var player := AudioStreamPlayer3D.new()
-	player.stream = stream
-	player.volume_db = volume_db
-	player.unit_size = unit_size
-	player.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
-	world.add_child(player)
-	player.global_position = pos
-	player.finished.connect(player.queue_free)
-	player.play()
+	var audio := AudioStreamPlayer3D.new()
+	audio.stream = stream
+	audio.volume_db = volume_db
+	audio.unit_size = unit_size
+	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
+	world.add_child(audio)
+	audio.global_position = pos
+	audio.finished.connect(audio.queue_free)
+	audio.play()
 
 
 static func _cube_particles(color: Color, size: float, amount: int) -> CPUParticles3D:

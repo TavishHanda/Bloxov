@@ -26,8 +26,9 @@ Status: **approved** (placeholder version; will need an overhaul before full rel
 | Pockets (always) | 4 × 1 |
 | Secure pocket | 2 × 2 |
 | Backpack: small / medium / large | 4 × 3 / 5 × 4 / 6 × 5 |
-| Crate / locker / safe / body | 4 × 3 / 4 × 4 / 3 × 3 / 4 × 3 |
-| Stash (between raids) | 10 × 15 |
+| Crate / locker / safe | 4 × 3 / 4 × 4 / 3 × 3 |
+| Body / dropped-item bag | 4 × 4 (4 × 3, widened/heightened to fit its biggest item, plus one spare row) |
+| Stash (between raids) | 8 × 30 (scrolls) |
 
 - A backpack's contents belong to it. v1: a backpack can only be moved/unequipped when empty
   (dropping it on the ground in a raid drops it as a lootable bag with its contents).
@@ -61,7 +62,7 @@ stacks anywhere on you (pockets, backpack, secure pocket).
 ## Death and extraction
 - **Die:** lose all equipment and everything in pockets and backpack. Secure pocket survives.
 - **Extract:** everything comes back to the stash (from step 3 on).
-- **Free kit** if you can't afford gear: pistol + 30 pistol rounds.
+- **Free kit** only when you're broke (can't afford a pistol) and own no weapon: pistol (loaded) + 30 pistol rounds + a bandage.
 
 ## Build steps
 1. **Grid core (0.3.6):** grid inventory with drag & drop, rotation, stacking; containers become grids;

@@ -5,8 +5,6 @@ extends HBoxContainer
 const SLOT_SIZE := Vector2(92, 46)
 
 var player: Player
-var _panels: Array[PanelContainer] = []
-var _keys: Array[Label] = []
 var _names: Array[Label] = []
 var _counts: Array[Label] = []
 var _styles: Array[StyleBoxFlat] = []
@@ -47,8 +45,6 @@ func _init(owner_player: Player) -> void:
 		var item_name := _label(13, Color.WHITE)
 		item_name.clip_text = true
 		box.add_child(item_name)
-		_panels.append(panel)
-		_keys.append(key)
 		_names.append(item_name)
 		_counts.append(count)
 		_styles.append(style)
@@ -57,7 +53,7 @@ func _init(owner_player: Player) -> void:
 func _process(_delta: float) -> void:
 	var inventory := player.inventory
 	var gun := player.gun
-	for i in _panels.size():
+	for i in _names.size():
 		var text := ""
 		var count := ""
 		var color := Color(1, 1, 1, 0.15)

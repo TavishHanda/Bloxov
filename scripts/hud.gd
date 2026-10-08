@@ -108,11 +108,15 @@ func _process(delta: float) -> void:
 	crosshair.visible = captured and not player.controls_locked() and not player.gun.is_aiming()
 
 	var gun := player.gun
+	ammo_label.modulate = Color.WHITE
 	if gun.weapon == null:
 		ammo_label.text = "UNARMED"
+	elif gun.is_reloading:
+		ammo_label.text = "RELOADING..."
 	else:
-		ammo_label.text = "RELOADING..." if gun.is_reloading else "%d / %d" % [gun.in_mag, gun.reserve]
-	ammo_label.modulate = Color(1, 0.4, 0.3) if gun.weapon != null and gun.in_mag == 0 and not gun.is_reloading else Color.WHITE
+		ammo_label.text = "%d / %d" % [gun.in_mag, gun.reserve]
+		if gun.in_mag == 0:
+			ammo_label.modulate = Color(1, 0.4, 0.3)
 	var hp := player.health.current
 	health_label.text = "HP %d" % hp
 	health_label.modulate = Color(1, 0.35, 0.3) if hp <= 30 else Color.WHITE
@@ -221,7 +225,7 @@ func _on_player_damaged(_amount: int, source_position: Vector3) -> void:
 
 func _on_raid_ended(_result: String) -> void:
 	loot_ui.close()
-	end_screen.show_result(player.gun.kills)
+	end_screen.show_result(player.kills)
 
 
 func _update_debug(delta: float) -> void:

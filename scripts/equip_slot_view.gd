@@ -3,8 +3,6 @@ extends Control
 ## One equipment slot (Primary / Secondary / Armor / Backpack) in the inventory screen.
 ## Drag an item onto it to equip, drag it out to unequip, right-click for the menu.
 
-const LABELS := {"primary": "PRIMARY", "secondary": "SECONDARY", "armor": "ARMOR", "backpack": "BACKPACK"}
-
 var slot: String
 var inventory: Inventory
 var ui: LootUI
@@ -58,11 +56,11 @@ func shown_stack() -> ItemStack:
 func rebuild() -> void:
 	var stack := shown_stack()
 	if stack == null:
-		_label.text = LABELS[slot]
+		_label.text = slot.to_upper()
 		_label.modulate = Color(1, 1, 1, 0.35)
 		_detail.text = ""
 	else:
-		_label.text = LABELS[slot] + "\n" + ItemDB.display_name(stack.id)
+		_label.text = slot.to_upper() + "\n" + ItemDB.display_name(stack.id)
 		_label.modulate = Color.WHITE
 		match ItemDB.kind(stack.id):
 			"weapon":
@@ -77,7 +75,7 @@ func rebuild() -> void:
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
-	draw_rect(rect, Color(0.07, 0.08, 0.09, 0.92))
+	draw_rect(rect, GridView.BG_COLOR)
 	var stack := shown_stack()
 	if stack != null:
 		var color := ItemDB.color(stack.id)
@@ -86,8 +84,7 @@ func _draw() -> void:
 	else:
 		draw_rect(rect.grow(-1), Color(1, 1, 1, 0.12), false, 1.0)
 	if ui.drag_stack != null and ui.hover_view == self:
-		var ok := ui.can_drop_on_slot(slot)
-		draw_rect(rect, Color(0.3, 1.0, 0.4, 0.28) if ok else Color(1.0, 0.3, 0.25, 0.28))
+		draw_rect(rect, GridView.DROP_OK if ui.can_drop_on_slot(slot) else GridView.DROP_BAD)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -101,7 +98,7 @@ func _gui_input(event: InputEvent) -> void:
 		if button.shift_pressed:
 			ui.unequip_to_inventory(slot)
 		else:
-			ui.start_drag_from_slot(slot, button.position)
+			ui.start_drag_from_slot(slot)
 		accept_event()
 	elif button.button_index == MOUSE_BUTTON_RIGHT:
 		ui.open_slot_menu(slot)

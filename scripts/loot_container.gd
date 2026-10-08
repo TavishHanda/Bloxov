@@ -65,7 +65,14 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 	bag.grid = GridInventory.new(bag_name, cells.x, cells.y + 1)
 	for entry in contents:
 		if entry is ItemStack:
-			bag.grid.add(entry.id, entry.count)
+			# Keep the stack itself (a gun keeps its loaded rounds).
+			var stack := entry as ItemStack
+			var spot := bag.grid.find_spot(stack.id)
+			if spot.is_empty():
+				bag.grid.add(stack.id, stack.count)
+			else:
+				stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
+				bag.grid.place(stack)
 		else:
 			bag.grid.add(entry[0], entry[1])
 	world.add_child(bag)

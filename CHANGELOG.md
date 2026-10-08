@@ -2,6 +2,34 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.8 (code cleanup + fixes)
+Whole-codebase cleanup (no gameplay changes beyond the fixes below). Owner-approved changes:
+- **Damage numbers show the real damage** after armor (an AK body shot on a PMC shows 22, not 28)
+- **Raids start with 3 enemies** as intended (a timing quirk added a 4th right away)
+- **Searching:** looking at a different container while holding E starts the search over (no more finishing
+  crate B with crate A's progress)
+- **Hotbar:** moving a heal around inside your own inventory no longer re-binds one you unbound
+  (heals picked up from outside still bind; right-click > Bind to hotbar to add one yourself)
+- **"No room in ..."** message when moving something into a full container/inventory (it used to silently do
+  nothing, or drop gear on the ground)
+- One wording for "Empty your backpack first"
+
+Fixes:
+- **Infinite healing exploit:** using your last bandage while dragging it left a 0-count bandage that healed forever
+- Dropping a gun on the ground (or in a bag) no longer empties its magazine
+- Dropping items below the stash's scroll area no longer puts them in rows you can't see
+- Shift+clicking a medkit into your inventory binds it to the hotbar like bandages
+- The hideout uses your saved volume (it ignored it until your first raid)
+- Free kit no longer duplicates ammo when your pockets already hold some
+- Saves are safer: removed/renamed items can't wipe your loadout, a broken save is backed up
+  (`profile.bad.json`) instead of silently replaced, and a gun's loaded rounds survive a stash re-sort
+- Crouching only shrinks your own hitbox (co-op prep)
+
+Under the hood: gun and knife share their hit code and kills are counted per player; the inventory screen lost
+~15 duplicated blocks; dead code and stale comments removed; docs updated (README, design docs, item list).
+Tests: split into 28 named sections with a reset between them, run in ~1 s instead of ~40 s, can run one section,
+and no longer touch your local save. CI fails on engine errors too and uses current GitHub actions.
+
 ## 0.5.7 (fixes: impact effects, sneaking, knife)
 - **Fixed (since the start): bullet impacts, sparks and death bursts appeared in the middle of the map**
   instead of where they happened

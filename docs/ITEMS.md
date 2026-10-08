@@ -34,7 +34,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 
 Each container rolls a number of times; each roll picks from its table by weight.
 A rarity entry (e.g. *rare*) means a random **valuable** of that rarity.
-Ammo rolls come as a stack of 20–60 rifle rounds (15–40 pistol), bandages as 1–2.
+A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pistol Rounds 15–40, Bandage 1–2.
 
 ### Crate (1–3 rolls)
 
@@ -90,7 +90,7 @@ Ammo rolls come as a stack of 20–60 rifle rounds (15–40 pistol), bandages as
 | Pistol | 4% |
 | Rare valuable (Gold Watch, Laptop) | 4% |
 
-### PMC (body bag, 1–3 rolls)
+### PMC (body bag, 2–4 rolls)
 
 | Entry | Chance per roll |
 |---|---|
