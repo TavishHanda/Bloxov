@@ -4,10 +4,11 @@ A blocky voxel extraction shooter. Loot weird stuff, get attached to it, try to 
 
 Design doc: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)
 
-## Status: Phase 2 (the loop)
+## Status: 0.4 (the full loop)
 
-Drop into a raid, loot crates/lockers/safes and dead scavs, and get to an open extract before the timer runs out.
-Die and you lose everything you carried. (Keeping loot between raids comes in Phase 3.)
+Gear up in the hideout, drop into a raid, loot crates/lockers/safes and dead scavs, and get to an open extract before
+the timer runs out. Extract and you keep it all; sell loot to the trader and buy better gear. Die and you lose
+everything except your secure pocket. Progress is saved in your browser.
 Every push to `main` builds the web version and publishes it to GitHub Pages.
 
 **Controls:** click to play · WASD move · mouse look · click shoot · R reload · Shift sprint · Space jump · E search/loot · Tab backpack · H heal · O extracts · Esc menu (volume, mouse sensitivity) · F3 debug overlay

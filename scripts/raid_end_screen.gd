@@ -38,8 +38,9 @@ func show_result(kills: int) -> void:
 	_loot.text = "Loot: " + (", ".join(raid.loot_summary) if not raid.loot_summary.is_empty() else "nothing")
 	_value.text = ("Kept: %s" if extracted else "Lost: %s") % ItemDB.money(raid.loot_value)
 	_value.add_theme_color_override("font_color", Color(0.45, 1.0, 0.5) if extracted else Color(1.0, 0.4, 0.35))
-	_session.text = "Kills: %d\n\nThis session: %d raids · %d extracts · %s extracted\n(Stash coming in Phase 3)" % [
-		kills, Raid.session_raids, Raid.session_extracts, ItemDB.money(Raid.session_value)]
+	var kept := "Your gear is waiting in the hideout." if extracted else "Only your secure pocket made it back."
+	_session.text = "Kills: %d\n\n%s\nMoney: %s · Raids %d · Extracts %d · Deaths %d" % [
+		kills, kept, ItemDB.money(Profile.money), int(Profile.stats["raids"]), int(Profile.stats["extracts"]), int(Profile.stats["deaths"])]
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -75,11 +76,11 @@ func _build() -> void:
 	_session.modulate = Color(1, 1, 1, 0.7)
 
 	var button := Button.new()
-	button.text = "NEXT RAID"
+	button.text = "BACK TO HIDEOUT"
 	button.custom_minimum_size = Vector2(0, 50)
 	button.add_theme_font_size_override("font_size", 22)
 	button.focus_mode = Control.FOCUS_NONE
-	button.pressed.connect(func() -> void: get_tree().reload_current_scene())
+	button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/hideout.tscn"))
 	vbox.add_child(button)
 
 

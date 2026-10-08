@@ -127,13 +127,12 @@ func _ready() -> void:
 	add_to_group("player")
 	_spawn_position = global_position
 	inventory.equipment_changed.connect(_on_equipment_changed)
-	# Starting kit until the stash/loadout exists.
-	var rifle := ItemStack.new("ak")
-	rifle.loaded = 30
-	inventory.equip("primary", rifle)
-	inventory.equip("backpack", ItemStack.new("backpack_medium"))
-	inventory.add("rifle_ammo", 60)
-	inventory.add("bandage", 1)
+	# Bring in the loadout from the hideout (or the starter kit on a new profile).
+	Profile.load_profile()
+	Profile.apply_inventory(inventory, Profile.loadout)
+	# Until you extract, the saved profile counts you as dead (so closing the tab mid-raid loses your gear).
+	Profile.loadout = Profile.death_loadout(Profile.loadout)
+	Profile.save_profile()
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 

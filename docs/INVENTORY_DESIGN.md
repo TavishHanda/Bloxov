@@ -1,7 +1,7 @@
 # Inventory Design (M1)
 
 Tarkov / Arc Raiders / Marathon style: **equipment slots + grid ("Tetris") inventory**.
-Status: **approved** (placeholder version; will need an overhaul before full release). Step 1 shipped in 0.3.6, step 2 (equipment + hotbar) in 0.3.7.
+Status: **approved** (placeholder version; will need an overhaul before full release). Step 1 shipped in 0.3.6, step 2 (equipment + hotbar) in 0.3.7, step 3 (stash & trader) in 0.4.0 (see `STASH_TRADER_PLAN.md`).
 
 ## Decisions (owner)
 - Grid inventory with **rotation** (R while dragging).

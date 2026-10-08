@@ -4,7 +4,8 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are:** 0.3.x, a prototype. Raids, loot, extraction and movement work; loot doesn't carry over yet.
+**Where we are:** 0.4.0. M1's build is complete: hideout, stash, trader, persistent loadout, death rules.
+M1 is "done" once the owner plays 5 raids in a row because they want to; then M2 (playtest).
 
 | # | Milestone | Goal | Done when |
 |---|---|---|---|

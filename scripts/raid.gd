@@ -83,4 +83,18 @@ func _finish() -> void:
 	if result == "extracted":
 		session_extracts += 1
 		session_value += loot_value
+	_save_to_profile()
 	ended.emit(result)
+
+
+## Extracted: you keep everything you're carrying. Killed / MIA: only the secure pocket survives.
+func _save_to_profile() -> void:
+	var carried := Profile.capture_inventory(player.inventory)
+	Profile.stats["raids"] += 1
+	if result == "extracted":
+		Profile.loadout = carried
+		Profile.stats["extracts"] += 1
+	else:
+		Profile.loadout = Profile.death_loadout(carried)
+		Profile.stats["deaths"] += 1
+	Profile.save_profile()

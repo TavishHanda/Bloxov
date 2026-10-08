@@ -332,6 +332,70 @@ func _run() -> void:
 	await _frames(3)
 	_check(player.is_dead, "player dies at 0 hp")
 
+	# Profile: extracting saved what you carried; dying keeps only the secure pocket.
+	var saved_equipment: Dictionary = Profile.loadout.get("equipment", {})
+	_check(saved_equipment.has("primary"), "extracting keeps your equipment in the profile")
+	var dead := Profile.death_loadout({"equipment": {"primary": {"id": "ak"}}, "pockets": [{"id": "beans"}],
+		"secure": [{"id": "crystal", "count": 1, "x": 0, "y": 0}]})
+	_check((dead["equipment"] as Dictionary).is_empty() and (dead["pockets"] as Array).is_empty() and (dead["secure"] as Array).size() == 1,
+		"dying keeps only the secure pocket")
+
+	# Save / load round trip.
+	Profile.stash.add("gold_watch")
+	var money_before := Profile.money
+	Profile.save_profile()
+	Profile.money = 0
+	Profile.stash = GridInventory.new("Empty", 1, 1)
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.money == money_before and Profile.stash.count_of("gold_watch") == 1, "profile saves and loads (money + stash)")
+
+	# Hideout: loadout, buying, selling, free kit.
+	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
+	root.add_child(hideout)
+	await process_frame
+	var hideout_inv: Inventory = hideout.inventory
+	_check(hideout_inv.equipped("primary") != null and hideout.screen.visible, "hideout shows your loadout and stash")
+	var money := Profile.money
+	_check(hideout.buy("bandage", 1) and Profile.money == money - hideout.buy_price("bandage", 1) and Profile.stash.count_of("bandage") >= 1,
+		"buy a bandage into the stash")
+	money = Profile.money
+	var watch_stack: ItemStack = null
+	for stack in Profile.stash.stacks:
+		if stack.id == "gold_watch":
+			watch_stack = stack
+	hideout.sell(Profile.stash, watch_stack)
+	_check(Profile.money == money + 2500 and Profile.stash.count_of("gold_watch") == 0, "sell a gold watch for full value")
+	money = Profile.money
+	hideout.buy("pistol", 1)
+	var bought_pistol: ItemStack = null
+	for stack in Profile.stash.stacks:
+		if stack.id == "pistol":
+			bought_pistol = stack
+	_check(bought_pistol != null and Profile.money == money - hideout.buy_price("pistol", 1), "buy a pistol")
+	money = Profile.money
+	hideout.sell(Profile.stash, bought_pistol)
+	_check(Profile.money == money + roundi(ItemDB.value("pistol") * 0.6), "gear sells for 60%")
+	_check(not hideout.can_take_free_kit(), "no free kit while you own a weapon")
+	# Lose every weapon and all your money.
+	for slot in ["primary", "secondary"]:
+		hideout_inv.unequip(slot)
+	for grid in hideout_inv.grids():
+		for stack in grid.stacks.duplicate():
+			if ItemDB.kind(stack.id) == "weapon":
+				grid.remove(stack)
+	for stack in Profile.stash.stacks.duplicate():
+		if ItemDB.kind(stack.id) == "weapon":
+			Profile.stash.remove(stack)
+	Profile.money = 0
+	_check(hideout.can_take_free_kit() and hideout.take_free_kit() and hideout_inv.equipped("secondary") != null,
+		"broke and unarmed: the free kit gives you a pistol")
+	_check(not hideout.can_take_free_kit(), "free kit is gone once you have a weapon")
+	hideout.save_now()
+	var saved_loadout: Dictionary = Profile.loadout.get("equipment", {})
+	_check(saved_loadout.has("secondary"), "hideout changes are saved to the profile")
+	hideout.queue_free()
+
 	# Settings.
 	GameSettings.set_volume(0.0)
 	_check(AudioServer.is_bus_mute(0), "volume 0 mutes audio")

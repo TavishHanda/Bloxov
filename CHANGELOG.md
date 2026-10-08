@@ -2,6 +2,18 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.4.0 (M1: stash & trader, the loop is complete)
+- **Hideout** between raids (the game now starts here): your **stash** (8×30, scrolls), your **loadout**
+  (equipment, pockets, secure pocket, backpack) and the **trader**. Drag freely between stash and loadout, then START RAID
+- **Loot carries over.** Extract and you come back with everything you carried
+- **Death / MIA:** you lose your loadout, **except the secure pocket**. Closing the tab mid-raid counts as dying
+- **Trader:** buy AK, pistol, rifle rounds ×60, pistol rounds ×50, bandages, medkits, light armor, small/medium backpacks
+  (120% of value). **Sell** anything with right-click: valuables for full value, gear for 60%
+- **Free kit** (pistol, 30 rounds, bandage) when you own no weapon and can't afford one, so you can never get stuck
+- **Saving:** money, stash, loadout (incl. each gun's loaded rounds and your hotbar) and stats are saved in your browser
+- New profile: $3,000 and the usual starter kit
+- End-of-raid screen goes back to the hideout and shows your money and stats
+
 ## 0.3.7 (inventory redesign, step 2: equipment + hotbar)
 - **Equipment slots** in the inventory screen: Primary, Secondary, Armor, Backpack. Drag items on to equip, drag off
   to unequip (dropping onto a filled slot swaps), Shift+click to quick-equip/unequip, right-click Equip/Unequip/Drop
