@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -827,6 +827,43 @@ func _section_senses() -> void:
 		await physics_frame
 	_check(hunter.state == Scav.State.IDLE, "after searching a while it goes back to wandering")
 	hunter.queue_free()
+
+
+func _section_spotting() -> void:
+	# Far away it takes a while to notice you; up close almost instantly.
+	var far := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 32)) as Scav
+	_face_player(far)
+	far._wander_time = 99.0
+	far._wander_dir = Vector3.ZERO
+	await create_timer(0.4).timeout
+	_check(far.state == Scav.State.IDLE, "a scav 32 m away hasn't noticed you after 0.4 s")
+	await create_timer(2.5).timeout
+	_check(far.state != Scav.State.IDLE, "...but does after a couple of seconds in view")
+	far.queue_free()
+	var near := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 4)) as Scav
+	_face_player(near)
+	near._wander_time = 99.0
+	near._wander_dir = Vector3.ZERO
+	await create_timer(0.45).timeout
+	_check(near.state != Scav.State.IDLE, "a scav 4 m away notices you almost instantly")
+	near.queue_free()
+
+	# A bullet passing close to a scav that's too far to hear the shot still gets its attention.
+	var distant := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 45)) as Scav
+	distant.look_at(distant.global_position + Vector3(0, 0, 10))  # facing away
+	distant._wander_time = 99.0
+	distant._wander_dir = Vector3.ZERO
+	await physics_frame
+	_check(distant.global_position.distance_to(player.global_position) > gun.noise_radius, "the scav is out of earshot")
+	gun.base_spread_deg = 0.0
+	gun.hip_spread_deg = 0.0
+	_aim(distant.global_position + Vector3(1.2, 1.2, 0))  # just past its shoulder
+	await physics_frame
+	gun.in_mag = gun.mag_size
+	gun.shoot_once()
+	_check(distant.state == Scav.State.ALERT, "a near miss alerts it even out of earshot")
+	distant.queue_free()
+	gun._apply_weapon(gun.weapon)
 
 
 # --- Helpers -------------------------------------------------------------------

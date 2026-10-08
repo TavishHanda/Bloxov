@@ -317,6 +317,7 @@ func shoot_once() -> void:
 		end = result.position
 		_handle_hit(result)
 
+	_warn_near_misses(from, end, result.get("collider"))
 	Effects.tracer(world, muzzle.global_position, end)
 	Effects.sound(world, SHOT_SOUND, -4.0)
 	_flash_left = 0.045
@@ -333,6 +334,18 @@ func shoot_once() -> void:
 	player.add_kick(kick.x * recoil_kick_fraction, 0.0)
 	player.add_shake(shake)
 	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
+
+
+## Enemies a bullet passed close to notice it, even if they're too far away to hear the shot.
+func _warn_near_misses(from: Vector3, end: Vector3, hit: Variant) -> void:
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if enemy == hit or not (enemy is Scav):
+			continue
+		var scav := enemy as Scav
+		var chest := scav.global_position + Vector3(0, 1.2, 0)
+		var closest := Geometry3D.get_closest_point_to_segment(chest, from, end)
+		if closest.distance_to(chest) <= scav.near_miss_radius:
+			scav.notice_near_miss(player.global_position)
 
 
 func start_reload() -> void:

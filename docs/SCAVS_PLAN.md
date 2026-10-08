@@ -14,20 +14,25 @@ Not in scope: spawns (with the map), new enemy types (content), bosses.
 - The map has no navigation data (39 boxes), so scavs can't path around buildings.
 
 ## Steps
+Versions: every scav update is the next 0.6.x (tuning updates included), in order.
 - [x] **1. Senses (0.6.0).** Separate "alerted" from "knows where you are".
       Seeing you = knows your position. Hearing you = knows *roughly* where the sound came from: it walks over
       to investigate the spot instead of locking on. Lose sight of you = goes to where it last saw you, searches
       for a bit, then goes back to wandering. No more tracking you through walls.
-- [ ] **2. Close range (0.6.1). Fixes the owner's bug.** Scavs keep a minimum distance (about 3 m): too close and
+- [x] **1b. Spotting + near misses (0.6.1, owner feedback).** Scavs notice you gradually (about 0.25 s up close,
+      ~1.8 s at 40 m; slower if you crouch or stand still, faster if you sprint). Lose them for a moment and they
+      must re-spot you (faster). A bullet passing within 2.5 m alerts a scav even out of earshot. Idle scavs
+      wander calmly (small, slow turns) so you can sneak up behind them.
+- [ ] **2. Close range. Fixes the owner's bug.** Scavs keep a minimum distance (about 3 m): too close and
       they back off while shooting instead of walking into you. Point-blank shots are accurate.
-- [ ] **3. Getting around (0.6.2).** Navigation mesh baked when the raid starts, so scavs path around buildings
+- [ ] **3. Getting around.** Navigation mesh baked when the raid starts, so scavs path around buildings
       and crates instead of walking into walls. Needed for steps 1 and 4 to work on a real map.
-- [ ] **4. Cover (0.6.3).** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
+- [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
       there, and peeks out to shoot. No more standing in the open trading shots.
-- [ ] **5. Getting hurt (0.6.4).** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
-- [ ] **6. Teamwork (0.6.5).** A scav that spots you alerts scavs near it (they come to investigate).
+- [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
+- [ ] **6. Teamwork.** A scav that spots you alerts scavs near it (they come to investigate).
       Maybe: one holds you in place while another moves to flank.
-- [ ] **7. PMCs vs scavs (0.6.6).** Give PMCs their own identity: faster reactions, better aim, more likely to
+- [ ] **7. PMCs vs scavs.** Give PMCs their own identity: faster reactions, better aim, more likely to
       push and flank. Scavs stay sloppier.
 - [ ] **8. Co-op prep (throughout).** Every step picks targets from all players (closest/last seen/last
       attacker), never "the first player", so the AI doesn't need a rewrite for co-op.

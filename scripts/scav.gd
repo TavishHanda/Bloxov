@@ -24,6 +24,22 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Chasing a player it can't see: gives up on the last-seen spot after this long and starts searching.
 @export var give_up_time := 6.0
 
+@export_group("Spotting")
+## Seconds a scav needs you in view before it notices you: quick up close, slow far away.
+@export var spot_time_near := 0.25
+@export var spot_time_far := 1.8
+## Crouching or standing still makes you slower to notice; sprinting faster (multipliers on spot time).
+@export var spot_crouch_mult := 1.6
+@export var spot_still_mult := 1.4
+@export var spot_sprint_mult := 0.6
+## Already suspicious (investigating/searching) or re-finding someone it was fighting: notices faster.
+@export var spot_suspicious_mult := 0.6
+@export var spot_reacquire_mult := 0.4
+## After losing sight this briefly, it still keeps tracking you (it was just looking at you).
+@export var reacquire_grace := 0.3
+## A bullet passing this close (meters) gets its attention, even if it's too far to hear the shot.
+@export var near_miss_radius := 2.5
+
 @export_group("Hearing")
 ## How far off a heard sound's spot can be (meters): it investigates *roughly* where the sound came from.
 @export var noise_uncertainty := 3.0
@@ -79,6 +95,8 @@ var _target: Player
 ## Where the target was last seen (or where a hit came from), and where a heard sound came from.
 var _last_seen := Vector3.ZERO
 var _goal := Vector3.ZERO
+## 0..1: how close it is to noticing you (fills while you're in view, drains when you're not).
+var _spot := 0.0
 var _state_time := 0.0
 var _lost_sight_time := 0.0
 var _can_see := false
@@ -149,21 +167,21 @@ func _physics_process(delta: float) -> void:
 	match state:
 		State.IDLE:
 			desired = _wander(delta)
-			if _can_see and _in_view(to_target):
+			if _spotting(delta, to_target, dist, 1.0):
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
 			var to_goal := _flat(_goal - global_position)
 			_face(to_goal, delta)
 			desired = _steer(to_goal.normalized() * move_speed * investigate_speed)
-			if _can_see and _in_view(to_target):
+			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
 			elif to_goal.length() < 1.2 or _state_time > 15.0:
 				_set_state(State.SEARCH)
 		State.SEARCH:
 			# Look around the spot, then go back to wandering.
 			rotation.y += delta * 1.2 * _side
-			if _can_see and _in_view(to_target):
+			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
 			elif _state_time > search_time:
 				_set_state(State.IDLE)
@@ -174,11 +192,14 @@ func _physics_process(delta: float) -> void:
 				_set_state(State.ENGAGE)
 				_fire_timer = aim_time
 		State.ENGAGE:
+			# Keeps tracking you while it can see you; once it has lost you for a moment it has to re-spot you.
+			var sees := _can_see and (_lost_sight_time < reacquire_grace or _spotting(delta, to_target, dist, spot_reacquire_mult))
 			if dist == INF:
 				_set_state(State.IDLE)
-			elif _can_see:
+			elif sees:
 				_last_seen = _target.global_position
 				_lost_sight_time = 0.0
+				_spot = 0.0
 				_face(to_target, delta)
 				if dist <= shoot_range:
 					desired = _strafe(delta, to_target)
@@ -239,8 +260,35 @@ func _process(delta: float) -> void:
 			(mesh as GeometryInstance3D).material_overlay = overlay
 
 
+## Fills the spot meter while the target is in view (by distance, stance, movement); true once it's noticed.
+func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bool:
+	if not (_can_see and _in_view(to_target)):
+		_spot = maxf(_spot - delta * 0.5, 0.0)
+		return false
+	var t := lerpf(spot_time_near, spot_time_far, clampf((dist - 5.0) / maxf(sight_range - 5.0, 1.0), 0.0, 1.0))
+	if _target.is_crouching:
+		t *= spot_crouch_mult
+	if _target.is_sprinting():
+		t *= spot_sprint_mult
+	elif _target.horizontal_speed() < 0.5:
+		t *= spot_still_mult
+	_spot += delta / maxf(t * mult, 0.01)
+	return _spot >= 1.0
+
+
+## A bullet from `shooter_pos` passed close by: unaware scavs turn toward roughly where it came from.
+func notice_near_miss(shooter_pos: Vector3) -> void:
+	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		return
+	# The farther the shooter, the rougher its guess.
+	var spread := global_position.distance_to(shooter_pos) * 0.15
+	var guess := shooter_pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * spread
+	_alert(guess)
+
+
 ## Spotted (or got shot by) someone at `known_pos`: radio it in and get ready to fight.
 func _alert(known_pos: Vector3) -> void:
+	_spot = 0.0
 	_last_seen = known_pos
 	_set_state(State.ALERT)
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
@@ -345,23 +393,26 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 
 
 func _wander(delta: float) -> Vector3:
+	# Calm on purpose: changes its mind every few seconds, mostly small turns, and turns slowly
+	# (so sneaking up behind one is possible).
 	_wander_time -= delta
 	if _wander_time <= 0.0:
-		_wander_time = randf_range(1.5, 4.0)
-		if randf() < 0.4:
+		_wander_time = randf_range(3.5, 8.0)
+		if randf() < 0.5:
 			_wander_dir = Vector3.ZERO
 		else:
-			_wander_dir = Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
+			var facing := -global_basis.z
+			_wander_dir = _flat(facing).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2))
 	if _wander_dir != Vector3.ZERO:
-		_face(_wander_dir, delta)
+		_face(_wander_dir, delta, 2.0)
 	return _wander_dir * move_speed * 0.3
 
 
-func _face(dir: Vector3, delta: float) -> void:
+func _face(dir: Vector3, delta: float, turn_speed := 10.0) -> void:
 	if dir.length_squared() < 0.0001:
 		return
 	var yaw := atan2(-dir.x, -dir.z)
-	rotation.y = lerp_angle(rotation.y, yaw, minf(delta * 10.0, 1.0))
+	rotation.y = lerp_angle(rotation.y, yaw, minf(delta * turn_speed, 1.0))
 
 
 func _in_view(to_target: Vector3) -> bool:

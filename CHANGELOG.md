@@ -2,6 +2,17 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.1 (scavs: spotting, near misses, calmer wandering)
+- **Gradual spotting:** a scav needs you in view for a moment before it notices you: about 0.25 s up close,
+  up to ~1.8 s at 40 m. **Crouching or standing still** makes you slower to notice, **sprinting** faster.
+  Scavs that are already investigating or searching notice faster
+- **Breaking line of sight works:** a scav that loses you has to re-spot you (faster than the first time)
+  instead of tracking you anywhere it has a clear view
+- **Near misses:** a bullet passing within 2.5 m of a scav gets its attention even if it's too far away to hear
+  the shot. It turns toward roughly where the shot came from
+- **Calmer idle scavs:** they change direction every 3.5-8 s (was 1.5-4), mostly small turns, and turn slowly,
+  so sneaking up for a backstab is possible
+
 ## 0.6.0 (scavs update, step 1: senses)
 Start of the scav update (`docs/SCAVS_PLAN.md`).
 - **Hearing = investigating.** A scav that hears you (shots, footsteps, knife, searching a crate) walks over to
