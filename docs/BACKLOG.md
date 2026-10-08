@@ -15,6 +15,22 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
   (tested since 0.5.7). If one still stays in play, note how it was emptied (used an item from it? dropped?).
 - **Scav spawns:** need control over where scavs spawn (currently random spawn points kept away from the player).
 
+## Owner's wishlist (after 0.5.9)
+Agreed order: core gameplay first (scavs next), then the co-op test (M3), then map, then content and art.
+- **Playable characters with their own perks (owner wants this; M5 content).** Plan discussed:
+  characters with **tradeoffs**, not pure buffs (e.g. Scout: faster/quieter, less HP; Heavy: tanky, slow).
+  Progression inside each character unlocks **options** (pick 1 of 2 perks per slot), not bigger numbers,
+  plus unlocking more characters. A separate global permanent skill tree on top: **not planned** (stacks power
+  on veterans, two progression systems to balance, makes characters feel the same). Revisit if the owner wants.
+  Design-doc rule to keep in mind: progression = access, not power.
+- **More traders** (after the map, when there are more items/guns to sell; each trader with its own stock/rules).
+- **Walkable 3D hideout** (presentation feature, later polish; the menu hideout works until then).
+- **More loot and items** (content; best once combat and the map give them a purpose and a place).
+- **Food and water: MAYBE.** The design doc lists hunger/thirst as "not building" (chores in short raids).
+  If it comes back, keep it light pressure (Tarkov-style), not a survival sim. Owner's call later.
+- **Maps** (layout with risk zones like the bunker, plus scav spawns; after scavs and the co-op test) and
+  **models** (owner in Blender, at the vertical slice, M4).
+
 ## Review order
 Going through every mechanic in 0.3.0 one by one to hone it. See the list in the chat / CHANGELOG.
 - **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.
