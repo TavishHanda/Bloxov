@@ -7,6 +7,9 @@
   No git tags (GitHub blocks creating them from the sandbox/CI, and the owner doesn't want to do it by hand).
   Version history = CHANGELOG.md + version-prefixed commit messages. Don't ask the owner to tag.
   When telling the owner about an update, lead with its version and a short name (e.g. "**0.5.1: Recoil & accuracy**").
+- **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
+  (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended
+  behavior are fine; anything that changes how the game plays (AI, numbers, rules) gets proposed, not shipped.
 - Plan: `docs/ROADMAP.md` (milestones). Parked ideas/notes: `docs/BACKLOG.md`.
   Keep new code co-op-friendly: don't add new single-player assumptions (see ROADMAP rules).
 - Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
