@@ -7,8 +7,8 @@ edit the item database, then re-run the script (don't edit this file by hand).
 
 | Item | Type | Rarity | Size | Stack | Value (each) | Notes |
 |---|---|---|---|---|---|---|
-| Pistol (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 18 dmg, 360 rpm, 12-round mag, pistol ammo |
-| AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 22 dmg, 600 rpm, 30-round mag, rifle ammo |
+| Pistol (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 25 dmg, 360 rpm, 12-round mag, pistol ammo |
+| AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 34 dmg, 600 rpm, 30-round mag, rifle ammo |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken |
 | Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $400 | 4×3 storage |

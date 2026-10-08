@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.3 (time to kill: lethal-leaning middle)
+- **You die in 7 scav hits** (was ~13). Light armor: 9 hits, heavy armor: 12. PMCs hit harder (6 hits)
+- **Scavs have 100 HP, like you.** AK: 3 body shots, **1 headshot kills**. Pistol: 4 body shots, 2 headshots
+- **PMCs wear armor** (take 80% damage): 4 AK body shots
+- Headshots now do 3x damage (was 2x). AK damage 22 → 34, pistol 18 → 25
+- Scavs and PMCs aim a bit worse, so the danger is getting caught in the open, not random hits from far away
+
 ## 0.5.2 (AK recoil way up)
 - AK kicks about 3x harder: an 8-round burst climbs ~8°, a full 30-round spray ~20° if you don't pull down.
   Long sprays ease off a bit after ~12 rounds. More of the kick stays in your view (less is just visual)

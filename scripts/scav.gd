@@ -29,10 +29,11 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var burst_interval := 0.13
 @export var burst_cooldown_min := 1.0
 @export var burst_cooldown_max := 1.8
-@export var shot_damage := 8
+## Time to kill: 15 = an unarmored player (100 HP) dies in 7 hits (9 with light armor, 12 with heavy).
+@export var shot_damage := 15
 ## Chance each bullet hits, up close vs. at max range.
-@export var accuracy_near := 0.85
-@export var accuracy_far := 0.25
+@export var accuracy_near := 0.7
+@export var accuracy_far := 0.2
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
 

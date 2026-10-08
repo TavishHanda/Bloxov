@@ -8,7 +8,7 @@ signal died
 
 @export var max_health := 100
 ## Incoming damage is multiplied by this (armor lowers it). Always deals at least 1.
-var damage_multiplier := 1.0
+@export var damage_multiplier := 1.0
 
 var current: int
 var is_dead := false

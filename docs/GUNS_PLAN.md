@@ -17,11 +17,12 @@ Stats live in `scripts/item_db.gd` (weapon entries), so tuning is mostly editing
       settle back when you stop.
 - [ ] **3. Hit feedback.** Scavs flinch when hit, clear hit/kill/headshot markers and sounds,
       blood/impact readability.
-- [ ] **4. Time to kill (decision with the owner).** How many hits a scav takes and how many you take.
-      Sets the tone of the game (fast and deadly vs. arcade). Then tune damage/health to match.
-- [ ] **5. Reloads.** Tactical vs. empty reload (empty is slower), maybe a round kept in the chamber.
-- [ ] **6. Gun identity.** Pistol plays differently from the AK (fast to aim, good hip fire, weak at range).
-      Only after this: more guns.
+- [x] **4. Time to kill (0.5.3): "lethal-leaning middle", owner's pick.** Everyone has 100 HP.
+      AK 34 dmg (scav: 3 body / 1 head), pistol 25 (4 body / 2 head), headshots x3. Scav hits 15 (you die in 7;
+      9 with light armor, 12 heavy), PMC hits 18 (6) and wears armor (takes 80%: 4 AK body shots).
+      Scavs aim worse so danger = getting caught in the open. Checked in the smoke test.
+- **Parked (later, with more guns):** reload variations (tactical vs. empty, round in the chamber) and more
+      gun identity (pistol is already quicker to aim with better hip fire). They barely change fights yet.
 - [ ] **7. Knife / melee (owner idea).** Everyone always has a knife (can't be lost or sold).
       Quick melee on a key (V) with any gun out, for point-blank fights and saving ammo.
       No separate "unarmed" mode for now: holstering has no gameplay reason yet.

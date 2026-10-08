@@ -127,18 +127,40 @@ func _run() -> void:
 	player.health.heal(100)
 	await create_timer(1.5).timeout
 
+	# Time to kill ("lethal-leaning middle"): scavs die in 3 AK body shots or 1 headshot; you die in ~7 scav hits.
+	var ak_damage: int = ItemDB.item("ak")["damage"]
+	var scav_probe := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
+	var pmc_probe := (load("res://scenes/pmc.tscn") as PackedScene).instantiate() as Scav
+	var scav_hp: int = scav_probe.get_node("Health").max_health
+	var pmc_health := pmc_probe.get_node("Health") as Health
+	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
+	_check(hits_to_kill.call(scav_hp, ak_damage) == 3 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 1,
+		"scav: 3 AK body shots or 1 headshot")
+	_check(hits_to_kill.call(pmc_health.max_health, ak_damage * pmc_health.damage_multiplier) == 4, "armored PMC: 4 AK body shots")
+	var to_kill_player: int = hits_to_kill.call(player.health.max_health, scav_probe.shot_damage)
+	_check(to_kill_player >= 6 and to_kill_player <= 7, "you die in %d scav hits" % to_kill_player)
+	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,
+		"light armor makes you last longer")
+	scav_probe.free()
+	pmc_probe.free()
+
 	# A scav behind the player should spot them and shoot.
 	var enemy := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
 	main.add_child(enemy)
 	enemy.global_position = player.global_position + player.global_basis.z * 8.0
 	var hp := player.health.current
-	await create_timer(4.0).timeout
+	# Wait for the first hit (scavs are deadly now; waiting the full time could kill the player).
+	for i in 40:
+		await create_timer(0.1).timeout
+		if player.health.current < hp:
+			break
 	_check(player.health.current < hp, "scav shoots the player (hp %d -> %d)" % [hp, player.health.current])
 
 	# Killing the enemy removes it.
 	enemy.health.take_damage(9999)
 	await _frames(3)
 	_check(not is_instance_valid(enemy), "dead enemy is removed")
+	player.health.heal(100)
 
 	# Movement: hold keys and measure. Face down the open road (+Z).
 	player.teleport_to(Vector3(0, 0.1, -10))

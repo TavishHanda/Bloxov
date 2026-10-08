@@ -31,9 +31,9 @@ aim_time = 0.35
 burst_size = 4
 burst_cooldown_min = 0.8
 burst_cooldown_max = 1.5
-shot_damage = 9
-accuracy_near = 0.9
-accuracy_far = 0.35
+shot_damage = 18
+accuracy_near = 0.8
+accuracy_far = 0.3
 min_drops = 2
 max_drops = 4
 loot_table = "pmc"
@@ -50,7 +50,8 @@ shape = SubResource("HeadBox")
 
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
-max_health = 90
+max_health = 100
+damage_multiplier = 0.8
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")
