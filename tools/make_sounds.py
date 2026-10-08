@@ -123,6 +123,19 @@ def footstep(variant):
     return out
 
 
+def swing():
+    """Knife whoosh: smoothed noise that swells and fades, sweeping from low to higher."""
+    random.seed(200)
+    n = length(0.22)
+    out, low = [], 0.0
+    for i in range(n):
+        t = i / n
+        smooth = 0.92 - 0.25 * t
+        low = low * smooth + random.uniform(-1, 1) * (1 - smooth)
+        out.append(low * math.sin(math.pi * t) ** 1.5)
+    return out
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     write("shot.wav", shot())
@@ -137,6 +150,7 @@ def main():
     write("pop.wav", pop())
     for v in range(3):
         write(f"step{v + 1}.wav", footstep(v))
+    write("swing.wav", swing())
 
 
 if __name__ == "__main__":

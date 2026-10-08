@@ -151,6 +151,7 @@ func _run() -> void:
 	var enemy := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
 	main.add_child(enemy)
 	enemy.global_position = player.global_position + player.global_basis.z * 8.0
+	enemy.look_at(Vector3(player.global_position.x, enemy.global_position.y, player.global_position.z))
 	var hp := player.health.current
 	# Wait for the first hit (scavs are deadly now; waiting the full time could kill the player).
 	for i in 40:
@@ -171,13 +172,23 @@ func _run() -> void:
 	_check(player.knife.swing() and player.knife.is_swinging(), "V swings the knife")
 	await create_timer(player.knife.swing_time + 0.1).timeout
 	_check(stab_target.health.current == 100 - player.knife.damage, "knife hit from the front: %d (hp %d)" % [player.knife.damage, stab_target.health.current])
-	stab_target.rotate_y(PI)
-	await physics_frame
-	player.knife.swing()
-	await create_timer(player.knife.swing_time + 0.1).timeout
-	_check(not is_instance_valid(stab_target) or stab_target.health.is_dead, "knife from behind kills in one hit")
-	if is_instance_valid(stab_target):
-		stab_target.queue_free()
+	stab_target.queue_free()
+	await create_timer(player.knife.swing_time).timeout
+	# Backstabs with the AI running (the swing mustn't alert the victim before the blade lands),
+	# on a scav and on an armored PMC.
+	for scene in ["res://scenes/scav.tscn", "res://scenes/pmc.tscn"]:
+		var victim := (load(scene) as PackedScene).instantiate() as Scav
+		main.add_child(victim)
+		victim.global_position = Vector3(player_front.x, player.global_position.y, player_front.z)
+		victim.look_at(Vector3(player.global_position.x, victim.global_position.y, player.global_position.z))
+		victim.rotate_y(PI)
+		await create_timer(0.2).timeout
+		var was_idle := victim.state == Scav.State.IDLE
+		player.knife.swing()
+		await create_timer(player.knife.swing_time + 0.1).timeout
+		_check(was_idle and (not is_instance_valid(victim) or victim.health.is_dead), "backstab kills an unaware %s in one hit" % scene.get_file().get_basename())
+		if is_instance_valid(victim):
+			victim.queue_free()
 	player.head.rotation.x = 0.0
 
 	# Shooting a scav flinches it: it holds fire for a moment and aims worse.

@@ -17,6 +17,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export_group("Movement")
 @export var move_speed := 3.6
 @export var sight_range := 40.0
+## While unaware, a scav only spots you inside this field of view (degrees); it can still hear you.
+## Once alerted it tracks you in any direction.
+@export var view_angle_deg := 120.0
 ## Seconds without seeing the player before giving up.
 @export var give_up_time := 6.0
 
@@ -127,7 +130,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		State.IDLE:
 			desired = _wander(delta)
-			if _can_see:
+			if _can_see and _in_view(to_target):
 				_alert()
 		State.ALERT:
 			_face(to_target, delta)
@@ -281,6 +284,14 @@ func _face(dir: Vector3, delta: float) -> void:
 		return
 	var yaw := atan2(-dir.x, -dir.z)
 	rotation.y = lerp_angle(rotation.y, yaw, minf(delta * 10.0, 1.0))
+
+
+func _in_view(to_target: Vector3) -> bool:
+	if to_target.length_squared() < 0.0001:
+		return true
+	var facing := -global_basis.z
+	facing.y = 0.0
+	return facing.normalized().dot(to_target.normalized()) >= cos(deg_to_rad(view_angle_deg * 0.5))
 
 
 func _has_line_of_sight() -> bool:

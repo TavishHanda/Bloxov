@@ -115,13 +115,17 @@ static func _cube_particles(color: Color, size: float, amount: int) -> CPUPartic
 	particles.one_shot = true
 	particles.explosiveness = 1.0
 	particles.local_coords = false
+	# Not emitting until it's been moved into place (see _emit).
+	particles.emitting = false
 	return particles
 
 
+## World-space particles spawn wherever the node is when emission starts, so place it first, then start it.
+## (Starting before the move made every impact appear at the middle of the map.)
 static func _emit(world: Node, particles: CPUParticles3D, pos: Vector3, free_after: float) -> void:
 	world.add_child(particles)
 	particles.global_position = pos
-	particles.emitting = true
+	particles.restart()
 	_free_after(particles, free_after)
 
 

@@ -1,23 +1,21 @@
 class_name Knife
 extends Node3D
 ## Quick melee (V). Everyone always has a knife: it isn't an item, so it can't be lost, dropped or sold.
-## Works with any gun out; cancels aiming and reloading. Stabbing someone from behind kills them in one hit.
+## Works with any gun out; cancels aiming and reloading. Stabbing someone from behind always kills (even armored).
 ## Lives under the player's camera, next to the Gun.
 
 signal hit_confirmed(killed: bool, headshot: bool)
 
-const SWING_SOUND := preload("res://audio/mag_out.wav")
+const SWING_SOUND := preload("res://audio/swing.wav")
 const HIT_SOUND := preload("res://audio/hit.wav")
 const KILL_SOUND := preload("res://audio/kill.wav")
 
 @export var damage := 45
-## Damage from behind (one-hit kill on anything with 100 HP or less).
-@export var backstab_damage := 100
 @export var reach := 2.2
 ## Seconds from pressing V until the blade connects, and the whole swing (you can't shoot until it ends).
 @export var windup := 0.12
 @export var swing_time := 0.55
-## Enemies within this radius hear the swing.
+## Enemies within this radius hear the stab (after it lands, so it can't warn the victim).
 @export var noise_radius := 4.0
 
 @onready var player: Player = owner
@@ -44,9 +42,9 @@ func swing() -> bool:
 		return false
 	_swing_left = swing_time
 	_hit_pending = true
+	_pose_blade(0.0)
 	_blade.visible = true
 	Effects.sound(get_tree().current_scene, SWING_SOUND, -6.0, 0.1)
-	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
 	return true
 
 
@@ -56,14 +54,19 @@ func _process(delta: float) -> void:
 	_swing_left -= delta
 	if _hit_pending and _swing_left <= swing_time - windup:
 		_hit_pending = false
-		_strike()
-	# Placeholder animation: the blade sweeps from the right across the middle of the screen.
-	var t := 1.0 - _swing_left / swing_time
+		# Dying, extracting or starting to heal during the windup cancels the stab.
+		if not player.controls_locked() and not player.is_healing():
+			_strike()
+	_pose_blade(1.0 - _swing_left / swing_time)
+	if _swing_left <= 0.0:
+		_blade.visible = false
+
+
+## Placeholder animation: the blade sweeps from the right across the middle of the screen. t = 0..1 of the swing.
+func _pose_blade(t: float) -> void:
 	var sweep := clampf(t / 0.45, 0.0, 1.0)
 	_blade.position = Vector3(lerpf(0.25, -0.12, sweep), lerpf(-0.12, -0.2, sweep), -0.35)
 	_blade.rotation = Vector3(-0.3, lerpf(0.9, -0.6, sweep), lerpf(-0.5, 0.4, sweep))
-	if _swing_left <= 0.0:
-		_blade.visible = false
 
 
 func _strike() -> void:
@@ -72,14 +75,15 @@ func _strike() -> void:
 		return
 	var health: Health = target.health
 	var victim: Node3D = target.node
-	var amount := damage
-	if _is_behind(victim):
-		amount = backstab_damage
+	var backstab := _is_behind(victim)
+	# A backstab always kills, armor or not (enough damage to get through the armor multiplier).
+	var amount := ceili(health.current / maxf(health.damage_multiplier, 0.01)) if backstab else damage
 	health.take_damage(amount, player.global_position)
+	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
 	var world := get_tree().current_scene
 	Effects.impact(world, target.position, target.normal, Color(0.95, 0.25, 0.2), 12)
 	if GameSettings.damage_numbers:
-		Effects.damage_number(world, target.position, amount, amount == backstab_damage)
+		Effects.damage_number(world, target.position, amount, backstab)
 	Effects.sound(world, KILL_SOUND if health.is_dead else HIT_SOUND, -2.0, 0.03)
 	if health.is_dead:
 		player.gun.kills += 1

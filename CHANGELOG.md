@@ -2,6 +2,16 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.7 (fixes: impact effects, sneaking, knife)
+- **Fixed (since the start): bullet impacts, sparks and death bursts appeared in the middle of the map**
+  instead of where they happened
+- **Scavs can't see behind them anymore.** While unaware they only spot you inside a 120° view in front of them
+  (they used to see in every direction). They still hear you walking: **crouch-walk to sneak up** on them.
+  Once alerted they track you as before
+- Knife fixes: backstabs now actually work in a real raid (the swing used to warn the scav before the blade hit),
+  backstabs kill armored PMCs too, the stab is cancelled if you die or start healing mid-swing,
+  no more one-frame flicker of the knife, and the swing has its own whoosh (it was playing the reload sound)
+
 ## 0.5.6 (knife, weaker pistol)
 - **Knife on V.** Everyone always has one: it isn't an item, so you can't lose or sell it. Works with any gun out
   (cancels aiming and reloading). 45 damage from the front, **one-hit kill from behind**. Quiet (only very close
