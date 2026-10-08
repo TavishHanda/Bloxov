@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.2 (AK recoil way up)
+- AK kicks about 3x harder: an 8-round burst climbs ~8°, a full 30-round spray ~20° if you don't pull down.
+  Long sprays ease off a bit after ~12 rounds. More of the kick stays in your view (less is just visual)
+
 ## 0.5.1 (guns update: accuracy, recoil, flinch)
 - **Accuracy by stance** (AK, scav chest at 20 m): hip fire standing ~75% hits, crouched ~90%, walking ~20%.
   Aimed: 100% standing or crouched, ~90% walking. Shots now land evenly in a circle instead of a square

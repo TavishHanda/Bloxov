@@ -72,7 +72,7 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var recoil_yaw_deg := 0.22
 @export var crouch_recoil_multiplier := 0.85
 ## Part of the recoil that's just a quick visual kick (settles by itself).
-@export var recoil_kick_fraction := 0.35
+@export var recoil_kick_fraction := 0.25
 
 @export_group("Feel")
 @export var shake := 0.12
@@ -259,8 +259,8 @@ func add_flinch(amount: int) -> void:
 
 ## Recoil for the nth shot of a burst (0-based): x = up, y = sideways (degrees).
 func recoil_for_shot(n: int) -> Vector2:
-	# Climbs harder over the first shots, then eases off a bit once the burst is long.
-	var up := minf(0.7 + 0.15 * n, 1.15) if n < 12 else 0.8
+	# Climbs harder over the first shots, then eases off once the burst is long (still climbing).
+	var up := minf(0.7 + 0.15 * n, 1.15) if n < 12 else 0.55
 	# Slight pull left, then right, then back: a slow side-to-side drift.
 	var side := sin(n * 0.45 - 0.8) * 1.4 + randf_range(-0.3, 0.3)
 	var stance := crouch_recoil_multiplier if player.is_crouching else 1.0

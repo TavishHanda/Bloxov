@@ -20,7 +20,7 @@ const ITEMS := {
 	"ak": {"name": "AK Rifle", "short": "AK", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 2500,
 		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 22, "rpm": 600, "mag": 30, "reload": 1.6,
 		"spread": 0.15, "hip_spread": 0.68, "move_spread": 0.75, "ads_time": 0.28, "ads_fov": 55.0,
-		"bloom": 0.12, "max_bloom": 1.2, "recoil": 0.45, "recoil_yaw": 0.22, "noise": 35.0},
+		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.2, "recoil_yaw": 0.45, "noise": 35.0},
 	"pistol": {"name": "Pistol", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 600,
 		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 18, "rpm": 360, "mag": 12, "reload": 1.2,
 		"spread": 0.3, "hip_spread": 0.5, "move_spread": 0.5, "ads_time": 0.16, "ads_fov": 66.0,

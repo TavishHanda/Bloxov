@@ -116,7 +116,7 @@ func _run() -> void:
 		gun.shoot_once()
 		await create_timer(0.1).timeout
 	var climb := rad_to_deg(player.head.rotation.x - pitch_before)
-	_check(climb > 1.5, "an 8-round burst climbs the view (%.1f°)" % climb)
+	_check(climb > 5.0, "an 8-round burst climbs the view (%.1f°)" % climb)
 	await create_timer(1.2).timeout
 	var left := rad_to_deg(player.head.rotation.x - pitch_before)
 	_check(absf(left) < 0.2, "recoil settles back after the burst (%.2f° left)" % left)
