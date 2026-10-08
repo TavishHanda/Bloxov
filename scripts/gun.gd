@@ -29,26 +29,34 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 @export var reload_time := 1.6
 
 @export_group("Accuracy")
+## Spread is the radius (degrees) of the circle shots land in, spread evenly over it.
+## Design targets (scav chest at 20 m, see GUNS_PLAN.md): hip ~75% hits standing, ~90% crouched, ~20% walking;
+## aimed ~100% standing or crouched, ~90% walking.
 ## Spread when fully aimed down sights.
-@export var base_spread_deg := 0.4
+@export var base_spread_deg := 0.15
 ## Extra spread when firing from the hip (fades out as you aim in).
-@export var hip_spread_deg := 2.0
-## Extra spread added per shot while spraying; recovers when you stop.
-@export var bloom_per_shot_deg := 0.35
-@export var max_bloom_deg := 3.0
-@export var bloom_recovery_deg := 8.0
-@export var moving_spread_deg := 1.5
+@export var hip_spread_deg := 0.68
+## Extra spread while moving (reduced while aiming).
+@export var moving_spread_deg := 0.75
 @export var airborne_spread_deg := 4.0
 ## Crouching tightens your spread.
-@export var crouch_spread_multiplier := 0.65
+@export var crouch_spread_multiplier := 0.9
+## Extra spread added per shot while spraying; recovers when you stop. Much smaller while aiming.
+@export var bloom_per_shot_deg := 0.12
+@export var max_bloom_deg := 1.2
+@export var bloom_recovery_deg := 6.0
+@export var ads_bloom_multiplier := 0.4
+## Getting shot loosens your aim for a moment: extra spread per 25 damage, fading at flinch_recovery_deg/s.
+@export var flinch_spread_deg := 1.2
+@export var flinch_recovery_deg := 3.0
 
 @export_group("Aiming")
 ## Seconds to go from hip to fully aimed.
 @export var ads_time := 0.25
 ## Camera field of view when fully aimed (the normal view is the player's base_fov).
 @export var ads_fov := 60.0
-## Aiming halves the moving-spread penalty.
-@export var ads_moving_spread_multiplier := 0.5
+## Aiming cuts the moving-spread penalty to this fraction.
+@export var ads_moving_spread_multiplier := 0.8
 
 @export_group("Handling")
 ## Time to bring the gun up after sprinting before you can fire.
@@ -56,9 +64,17 @@ const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
 ## Time to swap between primary and secondary.
 @export var switch_time := 0.45
 
+@export_group("Recoil")
+## Each shot moves your view up by about this much (degrees); you pull the mouse down against it.
+## Full-auto follows a pattern you can learn: the first shots climb hardest, then it drifts side to side.
+@export var recoil_pitch_deg := 0.45
+## How far the pattern drifts sideways per shot (degrees), plus a little randomness.
+@export var recoil_yaw_deg := 0.22
+@export var crouch_recoil_multiplier := 0.85
+## Part of the recoil that's just a quick visual kick (settles by itself).
+@export var recoil_kick_fraction := 0.35
+
 @export_group("Feel")
-@export var recoil_pitch_deg := 1.1
-@export var recoil_yaw_deg := 0.45
 @export var shake := 0.12
 ## Gunshots alert enemies within this radius.
 @export var noise_radius := 35.0
@@ -97,6 +113,10 @@ var _model_rests := {}
 
 var _cooldown := 0.0
 var _bloom := 0.0
+var _flinch_spread := 0.0
+## Shots fired in the current burst (resets shortly after you stop), for the recoil pattern.
+var _burst_shots := 0
+var _since_shot := 99.0
 var _reload_left := 0.0
 var _mag_in_played := false
 var _flash_left := 0.0
@@ -155,6 +175,7 @@ func _apply_weapon(stack: ItemStack) -> void:
 	auto = data["auto"]
 	base_spread_deg = data["spread"]
 	hip_spread_deg = data["hip_spread"]
+	moving_spread_deg = data["move_spread"]
 	ads_time = data["ads_time"]
 	ads_fov = data["ads_fov"]
 	bloom_per_shot_deg = data["bloom"]
@@ -174,6 +195,8 @@ func _apply_weapon(stack: ItemStack) -> void:
 func _process(delta: float) -> void:
 	_cooldown -= delta
 	_bloom = move_toward(_bloom, 0.0, bloom_recovery_deg * delta)
+	_flinch_spread = move_toward(_flinch_spread, 0.0, flinch_recovery_deg * delta)
+	_since_shot += delta
 	var aim_target := 1.0 if wants_aim() and not player.is_sprinting() and not is_reloading else 0.0
 	aim = move_toward(aim, aim_target, delta / maxf(ads_time, 0.01))
 	_update_reload(delta)
@@ -210,6 +233,40 @@ func _process(delta: float) -> void:
 			start_reload()
 
 
+## Spread (degrees) for a situation, not counting bloom or flinch. `aim_amount`: 0 = hip, 1 = aimed.
+func spread_for(aim_amount: float, moving: bool, crouching: bool, airborne: bool) -> float:
+	var spread := base_spread_deg + hip_spread_deg * (1.0 - aim_amount)
+	if moving:
+		spread += moving_spread_deg * lerpf(1.0, ads_moving_spread_multiplier, aim_amount)
+	if airborne:
+		spread += airborne_spread_deg
+	elif crouching:
+		spread *= crouch_spread_multiplier
+	return spread
+
+
+## Spread right now, including bloom from spraying and flinch from getting shot.
+func current_spread() -> float:
+	var moving := player.horizontal_speed() > 1.0
+	var spread := spread_for(aim, moving, player.is_crouching, not player.is_on_floor())
+	return spread + _bloom * lerpf(1.0, ads_bloom_multiplier, aim) + _flinch_spread
+
+
+## Called when the player gets shot.
+func add_flinch(amount: int) -> void:
+	_flinch_spread = minf(_flinch_spread + flinch_spread_deg * amount / 25.0, 4.0)
+
+
+## Recoil for the nth shot of a burst (0-based): x = up, y = sideways (degrees).
+func recoil_for_shot(n: int) -> Vector2:
+	# Climbs harder over the first shots, then eases off a bit once the burst is long.
+	var up := minf(0.7 + 0.15 * n, 1.15) if n < 12 else 0.8
+	# Slight pull left, then right, then back: a slow side-to-side drift.
+	var side := sin(n * 0.45 - 0.8) * 1.4 + randf_range(-0.3, 0.3)
+	var stance := crouch_recoil_multiplier if player.is_crouching else 1.0
+	return Vector2(recoil_pitch_deg * up, recoil_yaw_deg * side) * stance
+
+
 ## Holding the aim button with a gun out (and able to use it). Aiming stops the player from sprinting.
 func wants_aim() -> bool:
 	return (weapon != null and Input.is_action_pressed("aim") and not player.controls_locked()
@@ -232,17 +289,13 @@ func shoot_once() -> void:
 	in_mag -= 1
 	var world := get_tree().current_scene
 
-	var moving := player.horizontal_speed() > 1.0
-	var moving_spread := moving_spread_deg * lerpf(1.0, ads_moving_spread_multiplier, aim) if moving else 0.0
-	var spread_deg := base_spread_deg + hip_spread_deg * (1.0 - aim) + _bloom + moving_spread
-	if not player.is_on_floor():
-		spread_deg += airborne_spread_deg
-	elif player.is_crouching:
-		spread_deg *= crouch_spread_multiplier
-	var spread := deg_to_rad(spread_deg)
+	# Pick a point evenly inside the spread circle.
+	var spread := deg_to_rad(current_spread())
+	var angle := randf() * TAU
+	var radius := spread * sqrt(randf())
 	var cam_basis := camera.global_basis
 	var dir := -cam_basis.z
-	dir = dir.rotated(cam_basis.x, randf_range(-spread, spread)).rotated(cam_basis.y, randf_range(-spread, spread))
+	dir = dir.rotated(cam_basis.x, radius * sin(angle)).rotated(cam_basis.y, radius * cos(angle))
 	var from := camera.global_position
 	var to := from + dir * max_range
 
@@ -260,7 +313,13 @@ func shoot_once() -> void:
 	flash.rotation.z = randf() * TAU
 	_kick = 1.0
 	_bloom = minf(_bloom + bloom_per_shot_deg, max_bloom_deg)
-	player.add_recoil(recoil_pitch_deg, randf_range(-recoil_yaw_deg, recoil_yaw_deg))
+	if _since_shot > 60.0 / rounds_per_minute + 0.15:
+		_burst_shots = 0
+	var kick := recoil_for_shot(_burst_shots)
+	_burst_shots += 1
+	_since_shot = 0.0
+	player.add_recoil(kick.x * (1.0 - recoil_kick_fraction), kick.y)
+	player.add_kick(kick.x * recoil_kick_fraction, 0.0)
 	player.add_shake(shake)
 	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
 	fired.emit()

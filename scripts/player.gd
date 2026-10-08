@@ -74,9 +74,17 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Camera lean when strafing (degrees).
 @export var strafe_tilt := 1.5
 
-@export_group("Other")
-## How quickly the camera settles back after recoil.
+@export_group("Recoil")
+## How quickly the quick visual kick (and flinch from getting shot) settles.
 @export var recoil_recovery := 9.0
+## After you stop firing, the recoil you didn't pull down against returns at this rate (per second, smoothed).
+@export var recoil_return_speed := 7.0
+## Seconds after the last shot before recoil starts returning.
+@export var recoil_return_delay := 0.12
+## Getting shot kicks your aim this far (degrees, at 25 damage; scales with damage).
+@export var flinch_deg := 2.2
+
+@export_group("Other")
 ## Mouse movements bigger than this (in pixels, in one event) are treated as glitches and ignored.
 ## Works around a Chrome bug where captured-mouse input sometimes reports a huge bogus jump.
 @export var max_mouse_delta := 200.0
@@ -104,6 +112,10 @@ var _heal_item := ""
 var _spawn_position: Vector3
 var _trauma := 0.0
 var _sprinting := false
+## Recoil that went into the view (x = pitch, y = yaw, radians) and hasn't been pulled down against yet.
+## It returns after a burst, so if you compensated with the mouse the view doesn't dip below the target.
+var _recoil_debt := Vector2.ZERO
+var _recoil_return_wait := 0.0
 var _sprint_fov := 0.0
 var _jump_cooldown_left := 0.0
 var _landing_left := 0.0
@@ -239,9 +251,25 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
 
 
+## Gun recoil: moves where you're looking (you pull the mouse down against it). Returns after the burst.
 func add_recoil(pitch_deg: float, yaw_deg: float) -> void:
+	var pitch := deg_to_rad(pitch_deg)
+	var yaw := deg_to_rad(yaw_deg)
+	_look(pitch, yaw)
+	_recoil_debt += Vector2(pitch, yaw)
+	_recoil_return_wait = recoil_return_delay
+
+
+## A quick visual kick of the camera that settles by itself (doesn't move where you're looking for long).
+## Shots go where the camera points, so this throws off shots while it lasts.
+func add_kick(pitch_deg: float, yaw_deg: float) -> void:
 	recoil.rotation.x += deg_to_rad(pitch_deg)
 	recoil.rotation.y += deg_to_rad(yaw_deg)
+
+
+func _look(pitch: float, yaw: float) -> void:
+	rotate_y(yaw)
+	head.rotation.x = clampf(head.rotation.x + pitch, deg_to_rad(-89.0), deg_to_rad(89.0))
 
 
 ## Screen shake. Amounts stack up to 1.0 and fade out.
@@ -276,13 +304,25 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		# Zoomed in = slower look, so aiming feels the same at any zoom.
 		var sens := mouse_sensitivity * GameSettings.sensitivity * camera.fov / base_fov
-		rotate_y(-event.screen_relative.x * sens)
-		head.rotate_x(-event.screen_relative.y * sens)
-		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-89.0), deg_to_rad(89.0))
+		var yaw: float = -event.screen_relative.x * sens
+		var pitch: float = -event.screen_relative.y * sens
+		_look(pitch, yaw)
+		# Pulling against recoil pays it off, so it won't also return on its own.
+		if pitch * _recoil_debt.x < 0.0:
+			_recoil_debt.x = 0.0 if absf(pitch) >= absf(_recoil_debt.x) else _recoil_debt.x + pitch
+		if yaw * _recoil_debt.y < 0.0:
+			_recoil_debt.y = 0.0 if absf(yaw) >= absf(_recoil_debt.y) else _recoil_debt.y + yaw
 
 
 func _process(delta: float) -> void:
 	recoil.rotation = recoil.rotation.lerp(Vector3.ZERO, minf(recoil_recovery * delta, 1.0))
+	_recoil_return_wait -= delta
+	if _recoil_return_wait <= 0.0 and _recoil_debt != Vector2.ZERO:
+		var step := _recoil_debt * minf(recoil_return_speed * delta, 1.0)
+		if _recoil_debt.length() < 0.0005:
+			step = _recoil_debt
+		_look(-step.x, -step.y)
+		_recoil_debt -= step
 	_trauma = maxf(_trauma - delta * 1.8, 0.0)
 	var shake := _trauma * _trauma
 	camera.h_offset = randf_range(-1.0, 1.0) * 0.06 * shake
@@ -453,8 +493,12 @@ func _ceiling_blocked() -> bool:
 	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
-func _on_damaged(_amount: int, source_position: Vector3) -> void:
+func _on_damaged(amount: int, source_position: Vector3) -> void:
 	add_shake(0.55)
+	# Flinch: getting shot throws your aim off and loosens your next shots.
+	var flinch := flinch_deg * clampf(amount / 25.0, 0.4, 2.0)
+	add_kick(flinch * randf_range(0.6, 1.0), flinch * randf_range(-0.7, 0.7))
+	gun.add_flinch(amount)
 	Effects.sound(get_tree().current_scene, HURT_SOUND, 0.0, 0.1)
 	var push := global_position - source_position
 	push.y = 0.0

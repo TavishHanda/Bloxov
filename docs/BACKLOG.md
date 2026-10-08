@@ -9,6 +9,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 - **Weight from loot:** on hold until the inventory redesign.
 - **Inventory:** redesign in progress, see `docs/INVENTORY_DESIGN.md`.
 - **Sound:** needs a full redesign (current sounds are generated placeholders from `tools/make_sounds.py`). Later.
+- **Scav/PMC pathing bug (owner, 0.5.0):** walk right up into an enemy and it can't shoot you; it just walks into you.
+  Fix with the scav/AI pass (close-range behavior: back off or shoot point-blank, don't push into the player).
 - **Scav spawns:** need control over where scavs spawn (currently random spawn points kept away from the player).
 
 ## Review order

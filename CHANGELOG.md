@@ -2,6 +2,16 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.1 (guns update: accuracy, recoil, flinch)
+- **Accuracy by stance** (AK, scav chest at 20 m): hip fire standing ~75% hits, crouched ~90%, walking ~20%.
+  Aimed: 100% standing or crouched, ~90% walking. Shots now land evenly in a circle instead of a square
+- **Real recoil.** Each shot pushes your view up and it stays there while you fire: pull the mouse down against it.
+  Full-auto has a learnable pattern (climbs hardest over the first shots, then drifts side to side).
+  When you stop firing, any recoil you didn't pull down settles back. Crouching cuts recoil by 15%
+- Pistol: stronger kick per shot that settles between taps, better hip fire than the AK
+- **Getting shot flinches you:** your aim gets knocked and your next shots are looser for a moment
+- Spraying blooms less while aimed
+
 ## 0.5.0 (guns update, step 1: aim down sights)
 - **Hold right-click to aim down sights.** The gun comes to the center of the screen, the camera zooms in
   (AK more than the pistol) and the crosshair goes away: aim with the gun's sight

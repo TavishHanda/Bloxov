@@ -91,6 +91,42 @@ func _run() -> void:
 	player.teleport_to(Vector3(0, 0.1, -10))
 	await create_timer(0.5).timeout
 
+	# Accuracy targets (AK, scav chest 0.5 m wide at 20 m; shots land evenly inside the spread circle).
+	gun._apply_weapon(gun.weapon)  # restore the real stats (the first shots above zeroed the spread)
+	var target_deg := rad_to_deg(atan(0.25 / 20.0))
+	var hit_rate := func(spread: float) -> float: return minf(1.0, pow(target_deg / spread, 2.0))
+	var rates := {
+		"hip standing": hit_rate.call(gun.spread_for(0.0, false, false, false)),
+		"hip crouched": hit_rate.call(gun.spread_for(0.0, false, true, false)),
+		"hip walking": hit_rate.call(gun.spread_for(0.0, true, false, false)),
+		"aimed standing": hit_rate.call(gun.spread_for(1.0, false, false, false)),
+		"aimed crouched": hit_rate.call(gun.spread_for(1.0, false, true, false)),
+		"aimed walking": hit_rate.call(gun.spread_for(1.0, true, false, false)),
+	}
+	_check(rates["hip standing"] > 0.7 and rates["hip standing"] < 0.8, "hip fire standing hits ~75%% at 20 m (%.0f%%)" % (rates["hip standing"] * 100))
+	_check(rates["hip crouched"] > 0.85 and rates["hip crouched"] < 0.95, "hip fire crouched hits ~90%% (%.0f%%)" % (rates["hip crouched"] * 100))
+	_check(rates["hip walking"] < 0.3, "hip fire while walking is hard (%.0f%%)" % (rates["hip walking"] * 100))
+	_check(rates["aimed standing"] > 0.99 and rates["aimed crouched"] > 0.99, "aimed shots standing/crouched hit 100%")
+	_check(rates["aimed walking"] > 0.85 and rates["aimed walking"] < 0.97, "aimed while walking hits ~90%% (%.0f%%)" % (rates["aimed walking"] * 100))
+
+	# Recoil: a burst climbs your view; it settles back after you stop. Getting shot flinches your aim.
+	var pitch_before := player.head.rotation.x
+	for i in 8:
+		gun.in_mag = gun.mag_size
+		gun.shoot_once()
+		await create_timer(0.1).timeout
+	var climb := rad_to_deg(player.head.rotation.x - pitch_before)
+	_check(climb > 1.5, "an 8-round burst climbs the view (%.1f°)" % climb)
+	await create_timer(1.2).timeout
+	var left := rad_to_deg(player.head.rotation.x - pitch_before)
+	_check(absf(left) < 0.2, "recoil settles back after the burst (%.2f° left)" % left)
+	var spread_before := gun.current_spread()
+	player.health.take_damage(25, player.global_position + Vector3(5, 0, 0))
+	await process_frame
+	_check(gun.current_spread() > spread_before + 0.5 and player.recoil.rotation.length() > 0.01, "getting shot flinches your aim")
+	player.health.heal(100)
+	await create_timer(1.5).timeout
+
 	# A scav behind the player should spot them and shoot.
 	var enemy := (load("res://scenes/scav.tscn") as PackedScene).instantiate() as Scav
 	main.add_child(enemy)
@@ -437,6 +473,7 @@ func _aim(player: Player, target: Vector3) -> void:
 	player.rotation.y = atan2(-dir.x, -dir.z)
 	player.head.rotation.x = asin(dir.y)
 	player.recoil.rotation = Vector3.ZERO
+	player._recoil_debt = Vector2.ZERO
 
 
 func _check(ok: bool, what: String) -> void:
