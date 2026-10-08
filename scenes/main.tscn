@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" path="res://scenes/scav.tscn" id="4_scav"]
 [ext_resource type="PackedScene" path="res://scenes/pmc.tscn" id="4_pmc"]
 [ext_resource type="Script" path="res://scripts/enemy_spawner.gd" id="5_spawner"]
+[ext_resource type="Script" path="res://scripts/nav_baker.gd" id="5_nav"]
 [ext_resource type="PackedScene" path="res://scenes/loot_crate.tscn" id="6_crate"]
 [ext_resource type="PackedScene" path="res://scenes/loot_locker.tscn" id="7_locker"]
 [ext_resource type="PackedScene" path="res://scenes/loot_safe.tscn" id="8_safe"]
@@ -56,7 +57,7 @@ environment = SubResource("Env")
 transform = Transform3D(0.866025, -0.353553, 0.353553, 0, 0.707107, 0.707107, -0.5, -0.612372, 0.612372, 0, 20, 0)
 shadow_enabled = true
 
-[node name="Level" type="Node3D" parent="."]
+[node name="Level" type="Node3D" parent="." groups=["nav_source"]]
 
 [node name="Ground" type="CSGBox3D" parent="Level"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
@@ -296,6 +297,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -10)
 [node name="TargetDummy" parent="." instance=ExtResource("3_dummy")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, -17)
 
+[node name="Navigation" type="NavigationRegion3D" parent="."]
+script = ExtResource("5_nav")
+
 [node name="EnemySpawner" type="Node3D" parent="."]
 script = ExtResource("5_spawner")
 enemy_scene = ExtResource("4_scav")
@@ -327,7 +331,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 0.1, -32)
 [node name="Spawn7" type="Marker3D" parent="EnemySpawner"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0.1, -32)
 
-[node name="Loot" type="Node3D" parent="."]
+[node name="Loot" type="Node3D" parent="." groups=["nav_source"]]
 
 [node name="Crate0" parent="Loot" instance=ExtResource("6_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 8)

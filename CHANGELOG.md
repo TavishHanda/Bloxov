@@ -2,6 +2,14 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.6 (scavs: getting around)
+- **Scavs find their way around buildings and crates** instead of walking into walls. The raid builds a map of
+  where they can walk when it starts, and they follow paths when investigating a noise, chasing you to where
+  they last saw you, closing in, or wandering
+- Idle scavs stroll to spots they can actually reach (still calm and slow-turning)
+- In a fight, strafing and backing off won't push them into a wall; they switch sides instead
+- If they can't reach a spot (e.g. you're on top of something), they go as close as they can and search there
+
 ## 0.6.5 (more enemies per raid, owner)
 - **20 scavs** per raid (3 at the start, then one every 25-35 seconds so they're spread over the whole raid)
 - **5 PMCs**, arriving around minutes 2, 3½, 5, 6½ and 8

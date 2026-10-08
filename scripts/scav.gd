@@ -3,7 +3,8 @@ extends CharacterBody3D
 ## Scav: armed scavenger. Wanders until it spots a player (radios it in, then shoots in short bursts).
 ## Senses: seeing you = knows where you are. Hearing you = walks over to investigate roughly where the sound was.
 ## Losing sight of you = goes to where it last saw you, searches for a bit, then goes back to wandering.
-## No cover or pathfinding yet (see docs/SCAVS_PLAN.md).
+## Moves along navigation paths (scripts/nav_baker.gd builds the map's walkable area at raid start), so it walks
+## around buildings and crates. No cover yet (see docs/SCAVS_PLAN.md).
 ## PMCs use this script too (scenes/pmc.tscn) with tougher numbers, until they become real players.
 
 enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
@@ -112,6 +113,13 @@ var _target: Player
 ## Where the target was last seen (or where a hit came from), and where a heard sound came from.
 var _last_seen := Vector3.ZERO
 var _goal := Vector3.ZERO
+## Current navigation path (to _path_goal) and the waypoint it's walking to.
+var _path := PackedVector3Array()
+var _path_index := 0
+var _path_goal := Vector3.INF
+var _repath_left := 0.0
+## Where an idle scav is strolling to (only used while _wander_dir isn't zero).
+var _wander_point := Vector3.ZERO
 ## 0..1: how close it is to noticing you (fills while you're in view, drains when you're not).
 var _spot := 0.0
 var _state_time := 0.0
@@ -193,12 +201,11 @@ func _physics_process(delta: float) -> void:
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
-			var to_goal := _flat(_goal - global_position)
-			_face(to_goal, delta)
-			desired = _steer(to_goal.normalized() * move_speed * investigate_speed)
+			desired = _path_velocity(_goal, move_speed * investigate_speed)
+			_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
-			elif to_goal.length() < 1.2 or _state_time > 15.0:
+			elif _arrived(_goal) or _state_time > 15.0:
 				_set_state(State.SEARCH)
 		State.SEARCH:
 			# Look around the spot, then go back to wandering.
@@ -227,24 +234,23 @@ func _physics_process(delta: float) -> void:
 					_update_melee(delta, dist)
 				elif dist < min_distance:
 					# Too close: back off (with a bit of sideways movement) while shooting.
-					desired = _steer(-to_target.normalized() * move_speed * 0.7 + _strafe(delta, to_target) * 0.5)
+					desired = _clear_of_walls(-to_target.normalized() * move_speed * 0.7 + _strafe(delta, to_target) * 0.5)
 					_update_shooting(delta, dist)
 				elif dist <= shoot_range:
-					desired = _strafe(delta, to_target)
+					desired = _clear_of_walls(_strafe(delta, to_target))
 					_update_shooting(delta, dist)
 				else:
-					desired = _steer(to_target.normalized() * move_speed)
+					desired = _path_velocity(_target.global_position, move_speed)
 					_hold_fire()
 			else:
 				# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
 				_lost_sight_time += delta
 				_hold_fire()
-				var to_last := _flat(_last_seen - global_position)
-				if to_last.length() < 1.2 or _lost_sight_time > give_up_time:
+				if _arrived(_last_seen) or _lost_sight_time > give_up_time:
 					_set_state(State.SEARCH)
 				else:
-					_face(to_last, delta)
-					desired = _steer(to_last.normalized() * move_speed)
+					desired = _path_velocity(_last_seen, move_speed)
+					_face(desired, delta)
 
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
@@ -365,11 +371,51 @@ func _hold_fire() -> void:
 	_fire_timer = maxf(_fire_timer, aim_time)
 
 
-## Crude wall handling until pathfinding (step 3): slide off to one side when blocked.
-func _steer(desired: Vector3) -> Vector3:
-	if is_on_wall():
-		return desired.rotated(Vector3.UP, PI * 0.4 * _side)
-	return desired
+## Velocity toward `goal` along a navigation path (around buildings and crates). Re-paths when the goal moves
+## more than a meter or every second. If the goal can't be reached, the path ends at the closest point it can.
+## Without a navigation map (e.g. before it's built) it walks straight, sliding off walls.
+func _path_velocity(goal: Vector3, speed: float) -> Vector3:
+	_repath_left -= get_physics_process_delta_time()
+	if _path.is_empty() or _flat(goal - _path_goal).length() > 1.0 or _repath_left <= 0.0:
+		_path_goal = goal
+		_repath_left = 1.0
+		_path = NavigationServer3D.map_get_path(get_world_3d().navigation_map, global_position, goal, true)
+		_path_index = 1
+	if _path.size() < 2:
+		var direct := _flat(goal - global_position)
+		if direct.length() < 0.1:
+			return Vector3.ZERO
+		var straight := direct.normalized() * speed
+		return straight.rotated(Vector3.UP, PI * 0.4 * _side) if is_on_wall() else straight
+	while _path_index < _path.size() - 1 and _flat(_path[_path_index] - global_position).length() < 0.6:
+		_path_index += 1
+	var to_next := _flat(_path[_path_index] - global_position)
+	if to_next.length() < 0.1:
+		return Vector3.ZERO
+	return to_next.normalized() * speed
+
+
+## Reached `goal` (or the closest reachable point to it, if the path ended short).
+func _arrived(goal: Vector3) -> bool:
+	if _flat(goal - global_position).length() < 1.2:
+		return true
+	return (not _path.is_empty() and _flat(goal - _path_goal).length() <= 1.0
+		and _flat(_path[_path.size() - 1] - global_position).length() < 1.2)
+
+
+## Short fight moves (strafing, backing off): don't push into a wall; try the other side instead.
+func _clear_of_walls(move: Vector3) -> Vector3:
+	if move.length() < 0.1 or not _blocked(move):
+		return move
+	_strafe_dir = -_strafe_dir
+	var flipped := Vector3(-move.x, 0.0, -move.z)
+	return Vector3.ZERO if _blocked(flipped) else flipped
+
+
+func _blocked(move: Vector3) -> bool:
+	var from := global_position + Vector3(0, 0.6, 0)
+	var query := PhysicsRayQueryParameters3D.create(from, from + move.normalized() * 1.0, 1, [get_rid()])
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _flat(v: Vector3) -> Vector3:
@@ -452,6 +498,7 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 func _wander(delta: float) -> Vector3:
 	# Calm on purpose: changes its mind every few seconds, mostly small turns, and turns slowly
 	# (so sneaking up behind one is possible).
+	# It strolls to a reachable spot a few meters ahead (navigation map), so it doesn't walk into walls.
 	_wander_time -= delta
 	if _wander_time <= 0.0:
 		_wander_time = randf_range(3.5, 8.0)
@@ -460,9 +507,16 @@ func _wander(delta: float) -> Vector3:
 		else:
 			var facing := -global_basis.z
 			_wander_dir = _flat(facing).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2))
-	if _wander_dir != Vector3.ZERO:
-		_face(_wander_dir, delta, 2.0)
-	return _wander_dir * move_speed * 0.3
+			var spot := global_position + _wander_dir * randf_range(4.0, 9.0)
+			_wander_point = NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, spot)
+			if _wander_point == Vector3.ZERO:
+				_wander_point = spot  # no navigation map yet
+	if _wander_dir == Vector3.ZERO or _arrived(_wander_point):
+		_wander_dir = Vector3.ZERO
+		return Vector3.ZERO
+	var move := _path_velocity(_wander_point, move_speed * 0.3)
+	_face(move, delta, 2.0)
+	return move
 
 
 func _face(dir: Vector3, delta: float, turn_speed := 10.0) -> void:

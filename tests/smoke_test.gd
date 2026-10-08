@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -984,6 +984,38 @@ func _section_spawn_budget() -> void:
 		enemy.queue_free()
 	crowded.queue_free()
 	await _frames(2)
+
+
+func _section_pathing() -> void:
+	# The raid builds a navigation map; a scav walks around a building instead of into its wall.
+	var nav := main.get_node("Navigation") as NavBaker
+	_check(nav.is_baked and nav.navigation_mesh.get_polygon_count() > 50, "the raid builds a navigation map (%d areas)" % nav.navigation_mesh.get_polygon_count())
+	player.teleport_to(Vector3(-30, 0.1, -30))  # out of the way (it shouldn't spot you)
+	# Behind the grocery's back wall (z 19.75); the goal is inside, so it has to go round to the front door.
+	var scav := _spawn(SCAV_SCENE, Vector3(15, 0.1, 23)) as Scav
+	scav.investigate_speed = 1.0
+	await physics_frame
+	var inside := Vector3(15, 0, 15)
+	scav._goal = inside
+	scav._set_state(Scav.State.INVESTIGATE)
+	var last := scav.global_position
+	var stuck_for := 0.0
+	var arrived := false
+	for i in 60 * 20:
+		await physics_frame
+		if scav.global_position.distance_to(last) < 0.005:
+			stuck_for += 1.0 / 60.0
+		else:
+			stuck_for = 0.0
+		last = scav.global_position
+		if Vector2(scav.global_position.x - inside.x, scav.global_position.z - inside.z).length() < 1.5:
+			arrived = true
+			break
+		if stuck_for > 2.0:
+			break
+	_check(scav._path.size() > 2, "its path goes around the building (%d points)" % scav._path.size())
+	_check(arrived, "it walks around the grocery to a spot inside (ended at %s)" % str(scav.global_position.snapped(Vector3.ONE * 0.1)))
+	scav.queue_free()
 
 
 # --- Helpers -------------------------------------------------------------------

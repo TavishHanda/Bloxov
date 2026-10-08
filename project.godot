@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Bloxov"
 config/description="Blocky voxel extraction shooter."
-config/version="0.6.5"
+config/version="0.6.6"
 run/main_scene="res://scenes/hideout.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 
@@ -141,3 +141,8 @@ hotbar_6={
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+
+[navigation]
+
+world/map_use_async_iterations=false
+world/region_use_async_iterations=false

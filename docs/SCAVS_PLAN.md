@@ -31,32 +31,14 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       3 PMCs (minutes 3, 5, 8). Max 5 alive; spawns away from and out of sight of players; dead ones stay dead.
       Owner will retune once the maps exist. **0.6.5 (owner): 20 scavs (one every 25-35 s) + 5 PMCs
       (minutes 2, 3.5, 5, 6.5, 8).**
-- [ ] **3. Getting around (next: 0.6.6). Owner confirmed it's needed (0.6.5 screenshot: scavs stuck on/against
-      boxes).** Detailed plan:
-      1. **Navigation mesh at raid start.** Add a `NavigationRegion3D` to `scenes/main.tscn` whose source geometry is
-         the world (the CSGBox3D buildings/walls + ground, collision layer 1; crates/containers are layer 8 but must
-         count as obstacles too). Bake at runtime in `Raid._ready()` (or the spawner) with
-         `NavigationServer3D`/`region.bake_navigation_mesh(false)` so hand-edited map changes never need a re-bake.
-         Agent settings: radius 0.4, height 1.8, max climb 0.3 (no climbing onto crates), max slope 40°.
-      2. **NavigationAgent3D on scavs** (`scenes/scav.tscn` and `scenes/pmc.tscn`): path_desired_distance 0.5,
-         target_desired_distance 1.0, radius 0.4, avoidance on (so scavs don't stack on each other).
-      3. **Use paths for every "go somewhere" move in `scripts/scav.gd`:** investigating a sound (`_goal`), going to
-         the last-seen spot, approaching when out of range/no line of sight. Replace `_steer()`'s wall-slide hack:
-         set `agent.target_position` (only when the goal moved > 1 m, to avoid re-pathing every frame), move toward
-         `agent.get_next_path_position()`. Strafing/backing off in a fight stays direct (short moves), but check the
-         direction isn't into a wall (raycast) and flip the strafe side if it is.
-      4. **Wandering picks reachable points** (a random point on the navmesh within ~10 m via
-         `NavigationServer3D.map_get_random_point` / closest point) instead of a raw direction, so idle scavs don't
-         walk into walls either. Keep it calm (slow turns, 0.6.1).
-      5. **Unreachable goals:** if `agent.is_target_reachable()` is false, go to the closest reachable point, then
-         search there.
-      6. **Tests** (`tests/smoke_test.gd`, new `pathing` section): put a scav on one side of a building and a goal on
-         the other; assert it arrives within N seconds without getting stuck (position keeps changing), and that its
-         path has more than 2 points (it went around). Run with `--fixed-fps 60`.
-      7. **Check visually** with the xvfb render trick (see CLAUDE.md-style command used in 0.5.7/0.5.8:
-         `xvfb-run ... godot --rendering-driver opengl3 -s <screenshot script>`), e.g. overhead camera with the path drawn.
-      Watch out: CSG boxes need their collision/mesh included in the bake (set the region's
-      `geometry_parsed_geometry_type` to both/static colliders); web export performance (bake once, small map ok).
+- [x] **3. Getting around (0.6.6).** `scripts/nav_baker.gd` (the `Navigation` node in `main.tscn`) builds the
+      walkable area at raid start from the boxes in the `nav_source` group (Level + Loot), from their sizes (no GPU
+      read-back). Paths keep 0.75 m from walls (the scav's box body snagged on corners at 0.5). Scavs follow paths
+      for investigating, chasing to the last-seen spot, closing in, and wandering (to reachable spots, still calm).
+      Strafing/backing off checks for walls and flips side. Unreachable goals: the path ends at the closest
+      reachable point and that counts as arriving. Async navigation iterations are off in `project.godot` (they
+      never finished under `--fixed-fps` tests; the map is small). Not done: avoidance between scavs (later, if
+      they bunch up). Test: `pathing` section (around the grocery to its door).
 - [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
       there, and peeks out to shoot. No more standing in the open trading shots.
 - [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
