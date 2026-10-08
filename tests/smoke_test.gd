@@ -669,6 +669,8 @@ func _section_hideout() -> void:
 	await process_frame
 	var hideout_inv: Inventory = hideout.inventory
 	_check(hideout_inv.equipped("primary") != null and hideout.screen.visible, "hideout shows your loadout and stash")
+	var version: String = ProjectSettings.get_setting("application/config/version")
+	_check(hideout._version_label.text == "v" + version, "hideout shows the version (%s)" % hideout._version_label.text)
 	var money := Profile.money
 	_check(hideout.buy("bandage", 1) and Profile.money == money - hideout.buy_price("bandage", 1) and Profile.stash.count_of("bandage") >= 1,
 		"buy a bandage into the stash")

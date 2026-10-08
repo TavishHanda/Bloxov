@@ -17,6 +17,7 @@ var inventory: Inventory
 var screen: LootUI
 
 var _money_label: Label
+var _version_label: Label
 var _stats_label: Label
 var _message_label: Label
 var _free_kit_button: Button
@@ -182,6 +183,12 @@ func _build_top_bar() -> void:
 	title.text = "BLOXOV  ·  HIDEOUT"
 	title.add_theme_font_size_override("font_size", 22)
 	row.add_child(title)
+	# Same dim style as the version in the corner during a raid.
+	_version_label = Label.new()
+	_version_label.text = "v%s" % ProjectSettings.get_setting("application/config/version", "?")
+	_version_label.modulate = Color(1, 1, 1, 0.45)
+	_version_label.add_theme_font_size_override("font_size", 14)
+	row.add_child(_version_label)
 	_money_label = Label.new()
 	_money_label.add_theme_font_size_override("font_size", 22)
 	_money_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.5))

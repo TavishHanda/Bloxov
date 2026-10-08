@@ -2,6 +2,9 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.5.9 (version in the hideout)
+- The hideout's top bar shows the game version (next to "BLOXOV · HIDEOUT"), like the corner in a raid
+
 ## 0.5.8 (code cleanup + fixes)
 Whole-codebase cleanup (no gameplay changes beyond the fixes below). Owner-approved changes:
 - **Damage numbers show the real damage** after armor (an AK body shot on a PMC shows 22, not 28)
