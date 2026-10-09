@@ -113,8 +113,8 @@ static func style_label(label: Label, size: int, color := INK, pixel := true) ->
 	if pixel:
 		label.add_theme_font_override("font", font())
 		label.add_theme_color_override("font_shadow_color", Color.BLACK)
-		label.add_theme_constant_override("shadow_offset_x", 2)
-		label.add_theme_constant_override("shadow_offset_y", 2)
+		label.add_theme_constant_override("shadow_offset_x", 0)
+		label.add_theme_constant_override("shadow_offset_y", 2 if size >= 20 else 1)
 		label.add_theme_constant_override("shadow_outline_size", 0)
 		label.add_theme_constant_override("outline_size", 0)
 	else:
@@ -225,13 +225,18 @@ static func icon_size(rows: Array, px: float) -> Vector2:
 	return Vector2(String(rows[0]).length(), rows.size()) * px
 
 
+## Where a text's hard shadow goes: straight down (0.8.12; a diagonal one filled the 1-pixel gaps between letters
+## and made them look squished together).
+static func text_shadow(size: int) -> Vector2:
+	return Vector2(0, 2) if size >= 20 else Vector2(0, 1)
+
+
 ## Text in the number font with a hard shadow, at baseline `pos` (align: 0 left, 1 center, 2 right within `width`).
 static func draw_text(ci: CanvasItem, text: String, pos: Vector2, size: int, color: Color, width := -1.0, align := 0, f: Font = null) -> void:
 	var h_align: HorizontalAlignment = [HORIZONTAL_ALIGNMENT_LEFT, HORIZONTAL_ALIGNMENT_CENTER, HORIZONTAL_ALIGNMENT_RIGHT][align]
 	if f == null:
 		f = font()
-	var shadow := Vector2(2, 2) if size >= 20 else Vector2(1, 1)
-	ci.draw_string(f, pos + shadow, text, h_align, width, size, Color(0, 0, 0, color.a * 0.9))
+	ci.draw_string(f, pos + text_shadow(size), text, h_align, width, size, Color(0, 0, 0, color.a * 0.9))
 	ci.draw_string(f, pos, text, h_align, width, size, color)
 
 
@@ -267,8 +272,7 @@ static func draw_centered(ci: CanvasItem, text: String, rect: Rect2, size: int, 
 	var cap := cap_height(f, size)
 	var pos := Vector2(roundf(rect.get_center().x - ink_w * 0.5), roundf(rect.get_center().y + cap * 0.5))
 	if shadow:
-		var drop := Vector2(2, 2) if size >= 20 else Vector2(1, 1)
-		ci.draw_string(f, pos + drop, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, color.a * 0.9))
+		ci.draw_string(f, pos + text_shadow(size), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, color.a * 0.9))
 	ci.draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 

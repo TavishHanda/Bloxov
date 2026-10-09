@@ -282,6 +282,7 @@ func _build_top_bar() -> void:
 	tape.content_margin_top = 3
 	tape.content_margin_bottom = 3
 	_message_label.add_theme_stylebox_override("normal", tape)
+	_message_label.modulate.a = 0.0  # (no message yet: hide the empty tape)
 	add_child(_message_label)
 	_free_kit_button = Button.new()
 	_free_kit_button.text = "Free kit"
