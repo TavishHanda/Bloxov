@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.8 (player-like scavs, owner idea)
+- **Scavs "loot" like players:** at a crate they stop, lean in and search it for 3-6 seconds before moving on.
+  They don't take anything (they only carry what they spawned with), but **while searching they're distracted**
+  and slower to notice you: a good moment to sneak up or take the first shot
+- **About 1 in 3 trips is a jog** instead of a walk
+- Fixed: a scav's hit jolt and melee wind-up leaned the wrong way (forward instead of back)
+
 ## 0.6.7 (scavs: patrols, owner feedback)
 - **Unaware scavs patrol the map** instead of hanging around where they spawned (the map edge): they walk to a
   destination (usually a loot spot, sometimes anywhere they can reach), pause there for 2-6 seconds, then move on

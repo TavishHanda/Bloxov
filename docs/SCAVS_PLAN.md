@@ -42,6 +42,9 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
 - [x] **3b. Patrols (0.6.7, owner feedback: idle scavs too slow, stuck near their spawn at the map edge).**
       Unaware scavs walk (~2 m/s) to destinations across the map (65% a loot spot, else any reachable point),
       pause 2-6 s, then pick the next. Patrol destinations will follow wherever the real maps put loot.
+- [x] **3c. Player-like scavs (0.6.8, owner idea).** At a loot spot a scav leans in and searches the container for
+      3-6 s, distracted (60% slower to notice you), but takes nothing (owner: AI keeps only what it spawned with).
+      About 1 in 3 patrol legs is a jog (~3 m/s). AI PMCs don't extract (owner: real PMCs will, with multiplayer).
 - [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
       there, and peeks out to shoot. No more standing in the open trading shots.
 - [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.

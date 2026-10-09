@@ -32,6 +32,14 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var patrol_speed := 0.55
 @export var patrol_pause_min := 2.0
 @export var patrol_pause_max := 6.0
+## Like a player: at a loot spot it stops and "searches" the container for a while (it doesn't take anything;
+## owner, 0.6.8). While searching it's distracted: slower to notice you.
+@export var loot_time_min := 3.0
+@export var loot_time_max := 6.0
+@export var spot_looting_mult := 1.6
+## Chance a patrol leg is a jog instead of a walk, and the jog speed (fraction of move_speed, ~3 m/s).
+@export var jog_chance := 0.33
+@export var jog_speed := 0.85
 
 @export_group("Spotting")
 ## Seconds a scav needs you in view before it notices you: quick up close, slow far away.
@@ -128,6 +136,11 @@ var _repath_left := 0.0
 ## Where an idle scav is patrolling to (only used while _wander_dir isn't zero), and for how long.
 var _wander_point := Vector3.ZERO
 var _patrol_time := 0.0
+## The loot container this patrol leg heads to (null = just a spot), whether it's jogging, and how long it
+## has left searching a container.
+var _patrol_container: Node3D = null
+var _patrol_jog := false
+var _looting_left := 0.0
 ## 0..1: how close it is to noticing you (fills while you're in view, drains when you're not).
 var _spot := 0.0
 var _state_time := 0.0
@@ -294,11 +307,14 @@ func _process(delta: float) -> void:
 	_flinch_left -= delta
 	_lunge_left -= delta
 	# Visible jolt when hit: the body snaps back and settles. Bash: leans back to wind up, then lunges.
-	var tilt := -0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
+	# (The model faces -Z, so a positive X rotation tips it backward and a negative one forward.)
+	var tilt := 0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
+	if _looting_left > 0.0 and state == State.IDLE:
+		tilt -= 0.35  # leaning in, searching a container
 	if _windup_left > 0.0:
-		tilt -= 0.35 * (1.0 - _windup_left / melee_windup)
+		tilt += 0.35 * (1.0 - _windup_left / melee_windup)
 	elif _lunge_left > 0.0:
-		tilt += 0.4
+		tilt -= 0.4
 	model.rotation.x = tilt
 	var flashing := _hit_flash_time > 0.0
 	if flashing != _flashing:
@@ -316,6 +332,8 @@ func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bo
 	var t := lerpf(spot_time_near, spot_time_far, clampf((dist - 5.0) / maxf(sight_range - 5.0, 1.0), 0.0, 1.0))
 	if _target.is_crouching:
 		t *= spot_crouch_mult
+	if _looting_left > 0.0:
+		t *= spot_looting_mult
 	if _target.is_sprinting():
 		t *= spot_sprint_mult
 	elif _target.horizontal_speed() < 0.5:
@@ -337,6 +355,7 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 ## Spotted (or got shot by) someone at `known_pos`: radio it in and get ready to fight.
 func _alert(known_pos: Vector3) -> void:
 	_spot = 0.0
+	_looting_left = 0.0
 	_last_seen = known_pos
 	_set_state(State.ALERT)
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
@@ -509,6 +528,9 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 func _wander(delta: float) -> Vector3:
 	if _wander_dir == Vector3.ZERO:
 		_wander_time -= delta
+		_looting_left -= delta
+		if _looting_left > 0.0 and is_instance_valid(_patrol_container):
+			_face(_flat(_patrol_container.global_position - global_position), delta, 4.0)
 		if _wander_time > 0.0:
 			return Vector3.ZERO
 		_wander_point = _pick_patrol_point()
@@ -520,9 +542,14 @@ func _wander(delta: float) -> Vector3:
 	_patrol_time += delta
 	if _arrived(_wander_point) or _patrol_time > 45.0:
 		_wander_dir = Vector3.ZERO
-		_wander_time = randf_range(patrol_pause_min, patrol_pause_max)
+		if is_instance_valid(_patrol_container) and _flat(_patrol_container.global_position - global_position).length() < 3.5:
+			# At a container: search it for a while, like a player would.
+			_looting_left = randf_range(loot_time_min, loot_time_max)
+			_wander_time = _looting_left + 0.5
+		else:
+			_wander_time = randf_range(patrol_pause_min, patrol_pause_max)
 		return Vector3.ZERO
-	var move := _path_velocity(_wander_point, move_speed * patrol_speed)
+	var move := _path_velocity(_wander_point, move_speed * (jog_speed if _patrol_jog else patrol_speed))
 	_face(move, delta, 4.0)
 	return move
 
@@ -530,12 +557,14 @@ func _wander(delta: float) -> Vector3:
 func _pick_patrol_point() -> Vector3:
 	var map := get_world_3d().navigation_map
 	var spots := get_tree().get_nodes_in_group("loot_containers")
+	_patrol_jog = randf() < jog_chance
 	for attempt in 6:
 		var spot: Vector3
+		_patrol_container = null
 		if not spots.is_empty() and randf() < 0.65:
-			var container := spots.pick_random() as Node3D
-			spot = container.global_position + Vector3(randf_range(-2.0, 2.0), 0.0, randf_range(-2.0, 2.0))
-			spot = NavigationServer3D.map_get_closest_point(map, spot)
+			_patrol_container = spots.pick_random() as Node3D
+			# Walk up next to it (the closest walkable point to the container).
+			spot = NavigationServer3D.map_get_closest_point(map, _patrol_container.global_position)
 		else:
 			spot = NavigationServer3D.map_get_random_point(map, 1, false)
 		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0:

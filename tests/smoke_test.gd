@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1036,6 +1036,45 @@ func _section_patrol() -> void:
 	_check(farthest > 15.0, "an unaware scav patrols away from its spawn (%.0f m in 20 s)" % farthest)
 	_check(top_speed > 1.7 and top_speed < scav.move_speed, "it patrols at a walking pace (%.1f m/s)" % top_speed)
 	scav.queue_free()
+
+
+func _section_scav_looting() -> void:
+	# Like a player, a patrolling scav stops at a loot container and searches it, but takes nothing (owner).
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var crate := main.get_node("Loot/Crate0") as LootContainer
+	var before: int = crate.grid.stacks.size()
+	var scav := _spawn(SCAV_SCENE, crate.global_position + Vector3(6, 0.1, 0)) as Scav
+	await physics_frame
+	scav._wander_dir = Vector3.ZERO
+	scav._wander_time = 0.0
+	scav.jog_chance = 0.0
+	# Force this patrol leg to the crate.
+	var map := scav.get_world_3d().navigation_map
+	var looted := false
+	for i in 60 * 15:
+		if scav._wander_dir == Vector3.ZERO and scav._wander_time <= 0.0 and not looted:
+			scav._wander_point = NavigationServer3D.map_get_closest_point(map, crate.global_position)
+			scav._patrol_container = crate
+			scav._wander_dir = Vector3.FORWARD
+			scav._patrol_time = 0.0
+		await physics_frame
+		if scav._looting_left > 0.0:
+			looted = true
+			break
+	_check(looted and scav.state == Scav.State.IDLE, "a patrolling scav stops to search a crate")
+	var after: int = crate.grid.stacks.size()
+	_check(after == before, "...but takes nothing from it (%d -> %d stacks)" % [before, after])
+	scav.queue_free()
+	# About a third of patrol legs are jogs.
+	var tester := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
+	await physics_frame
+	var jogs := 0
+	for i in 90:
+		tester._pick_patrol_point()
+		if tester._patrol_jog:
+			jogs += 1
+	_check(jogs > 15 and jogs < 45, "about 1 in 3 patrol legs is a jog (%d of 90)" % jogs)
+	tester.queue_free()
 
 
 # --- Helpers -------------------------------------------------------------------
