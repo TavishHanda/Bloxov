@@ -2,12 +2,20 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
-## 0.7.9 (Raider models)
+## 0.7.9 (raider models, multiplayer: shared loot)
 - **Raiders have their own look** instead of a red-tinted PMC: dark gear with a red armband, heavy armor with
   shoulder plates and a groin flap, skull masks, gas masks, balaclavas, visored heavy helmets, hoods or red bandanas,
   and an RPK with a drum mag. Easy to tell apart from scavs (ragtag) and players (PMC gear) at a glance
 - Random outfits like scavs (2,880 combinations), and the same outfit for everyone online
 - The PMC model is now only used for players
+- **Loot is shared online.** Crates, lockers and safes have the same contents for everyone (rolled by the
+  server): take something and it's gone for the others
+- **One player at a time** can have a container open; anyone else trying gets "Someone else is looting that"
+  (you each still search it yourself)
+- **Scav and Raider bodies** leave body bags everyone sees and can loot
+- **Dead players drop a body** ("Name's Body") with everything they carried (not the secure pocket): PvP loot
+- **Dropped items** become a bag everyone sees; emptied bags disappear for everyone
+- Solo raids work exactly as before
 
 ## 0.7.8 (multiplayer: everyone sees the same AI)
 - **Scavs and Raiders are back in online raids, and everyone sees the same ones.** They run on the server (each

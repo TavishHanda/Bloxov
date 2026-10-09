@@ -72,7 +72,7 @@ func _ready() -> void:
 	player.health.damaged.connect(_on_player_damaged)
 	player.gun.hit_confirmed.connect(_on_hit_confirmed)
 	player.knife.hit_confirmed.connect(_on_hit_confirmed)
-	player.interactor.opened.connect(loot_ui.open_for)
+	player.interactor.opened.connect(_on_container_opened)
 	raid.ended.connect(_on_raid_ended)
 	hit_marker.visible = false
 
@@ -217,6 +217,15 @@ func _on_hit_confirmed(_killed: bool, headshot: bool) -> void:
 	else:
 		hit_marker.modulate = Color.WHITE
 		hit_marker.scale = Vector2.ONE
+
+
+## Online, containers are shared: the raid asks the server first (NetRaid opens the screen when it says yes).
+func _on_container_opened(container: LootContainer) -> void:
+	var net_raid := get_node_or_null("../NetRaid") as NetRaid
+	if Network.main.in_online_raid() and net_raid != null:
+		net_raid.request_open(container)
+	else:
+		loot_ui.open_for(container)
 
 
 func _on_player_damaged(_amount: int, source_position: Vector3) -> void:

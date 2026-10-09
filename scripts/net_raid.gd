@@ -16,6 +16,14 @@ var remotes := {}
 ## Server enemy id -> puppet Scav.
 var enemy_puppets := {}
 var _last_enemies_msec := -1
+## Shared loot: the container we asked to open, the one we have open (and its grid, kept in case the bag is
+## freed when emptied), and whether its contents changed since we last told the server.
+var _asked: LootContainer = null
+var _open: LootContainer = null
+var _open_id := ""
+var _open_grid: GridInventory = null
+var _dirty := false
+var _message_left := 0.0
 var _send_left := 0.0
 var _last_states_msec := -1
 var _label: Label
@@ -35,6 +43,14 @@ func _ready() -> void:
 		if not player.controls_locked():
 			player.take_bash(amount, from, shove, block))
 	Network.main.enemy_event.connect(on_enemy_event)
+	Network.main.container_opened.connect(on_container_opened)
+	Network.main.container_busy.connect(func(_id: String) -> void: _show_message("Someone else is looting that."))
+	Network.main.bag_spawned.connect(on_bag_spawned)
+	Network.main.bag_removed.connect(on_bag_removed)
+	player.health.died.connect(_drop_body)
+	# Containers' contents come from the server when opened (the rolls made on this machine don't count).
+	for box in RaidScope.nodes(self, &"loot_containers"):
+		(box as LootContainer).grid.clear()
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_label = Label.new()
@@ -59,7 +75,11 @@ func _process(delta: float) -> void:
 	if Network.main.enemies_msec != _last_enemies_msec:
 		_last_enemies_msec = Network.main.enemies_msec
 		sync_enemies(Network.main.enemies)
-	if _lost:
+	_update_open_container()
+	_message_left -= delta
+	if _message_left > 0.0:
+		pass
+	elif _lost:
 		_label.text = "Disconnected from the server: you're on your own now."
 	else:
 		var count := Network.main.player_count()
@@ -84,6 +104,93 @@ func sync_remotes(states: Dictionary) -> void:
 			get_parent().add_child(remote)
 			remotes[peer] = remote
 		remote.push_state(states[peer])
+
+
+# --- Shared loot ---------------------------------------------------------------------
+
+## Asks the server to open a container (it's shared: only one player at a time has it open).
+func request_open(box: LootContainer) -> void:
+	_asked = box
+	Network.main.open_container(String(box.name))
+
+
+## A container by its id (its node name: "Crate3" under Loot, or a bag's "Bag12").
+func find_container(id: String) -> LootContainer:
+	var node := get_parent().get_node_or_null("Loot/" + id)
+	if node == null:
+		node = get_parent().get_node_or_null(id)
+	return node as LootContainer
+
+
+func on_container_opened(id: String, data: Array) -> void:
+	var box := find_container(id)
+	if box == null:
+		Network.main.close_container()
+		return
+	box.grid.load_data(data)
+	_open = box
+	_open_id = id
+	_open_grid = box.grid
+	_dirty = false
+	_open_grid.changed.connect(_mark_dirty)
+	var hud := get_parent().get_node_or_null("HUD")
+	if hud != null and _asked == box:
+		hud.loot_ui.open_for(box)
+	_asked = null
+
+
+func _mark_dirty() -> void:
+	_dirty = true
+
+
+## Sends our changes to the open container, and lets it go once the screen closes (or we walk off, or it's gone).
+func _update_open_container() -> void:
+	if _open_grid == null:
+		return
+	var hud := get_parent().get_node_or_null("HUD")
+	var still_open: bool = hud != null and is_instance_valid(_open) and hud.loot_ui.visible and hud.loot_ui.container == _open
+	if _dirty:
+		_dirty = false
+		Network.main.update_container(_open_id, _open_grid.to_data())
+	if not still_open:
+		_open_grid.changed.disconnect(_mark_dirty)
+		_open_grid = null
+		_open = null
+		Network.main.close_container()
+
+
+func on_bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float) -> void:
+	if find_container(id) != null:
+		return
+	var bag := LootContainer.spawn_bag(get_parent(), pos, title, [], search)
+	bag.name = id
+	bag.rotation.y = yaw
+
+
+func on_bag_removed(id: String) -> void:
+	var bag := find_container(id)
+	if bag != null:
+		bag.queue_free()
+
+
+## We died: everything we carried (except the secure pocket) becomes a body others can loot.
+func _drop_body() -> void:
+	var data := []
+	for slot in Inventory.SLOTS:
+		var stack := player.inventory.equipped(slot)
+		if stack != null:
+			data.append(GridInventory.stack_data(stack))
+	for grid in [player.inventory.pockets, player.inventory.backpack]:
+		if grid != null:
+			for stack in grid.stacks:
+				data.append(GridInventory.stack_data(stack))
+	Network.main.drop_items(data, true)
+
+
+func _show_message(text: String) -> void:
+	if _label != null:
+		_label.text = text
+		_message_left = 2.0
 
 
 ## Adds, moves and removes the scav/Raider puppets to match the server's list ([id, kind, net_capture()]).

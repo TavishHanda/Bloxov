@@ -60,7 +60,11 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       to proxies is forwarded (`_hit`, `_bashed`). Clients show puppets (`Scav.puppet`, `net_push`, seeded outfits)
       and events (fired/alerted/bash/died). Groups are per raid via `RaidScope`. Server knife checks too.
 - [ ] ~~4. AI on the server (0.7.3).** Scavs/Raiders run on the server and react to every player.
-- [ ] **5. Loot and bodies (0.7.4).** Shared containers (one person takes an item, it's gone for everyone),
+- [x] **5. Loot and bodies (0.7.9).** Contents live on the server (`RaidWorld.container`, ids = node names, bags
+      `BagN`); one player at a time holds a container open (lock), their changes are sent as the whole grid
+      (`GridInventory.to_data`), released on close/walk-away/leave. Bags from scav deaths, dropped items
+      (`_drop_items`) and dead players' bodies are announced to the raid. Items are checked against ItemDB.
+- [ ] ~~5. Loot and bodies (0.7.4).** Shared containers (one person takes an item, it's gone for everyone),
       player bodies you can loot (PvP).
 - [ ] **6. Raid flow (0.7.5).** Per-player extract and death, squads spawn together, raid ends when everyone is
       out. What a dead squadmate sees (spectate their squad or go back to the hideout).

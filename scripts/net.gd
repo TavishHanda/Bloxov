@@ -35,6 +35,11 @@ signal kill_confirmed
 ## A scav rifle-butted us; something a scav did that we should see/hear (RaidWorld.enemy_event kinds).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
 signal enemy_event(id: int, kind: String, pos: Vector3)
+## Loot: the server let us open a container (its contents), someone else has it open, a bag appeared or went.
+signal container_opened(id: String, data: Array)
+signal container_busy(id: String)
+signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
+signal bag_removed(id: String)
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -312,6 +317,53 @@ func _knife(from: Vector3, dir: Vector3) -> void:
 		return
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func _open_container(id: String) -> void:
+	var world := _world_of(multiplayer.get_remote_sender_id())
+	if world == null:
+		return
+	var peer := multiplayer.get_remote_sender_id()
+	var data: Variant = world.open_container(peer, id)
+	if data == null:
+		_container_busy.rpc_id(peer, id)
+	else:
+		_container_contents.rpc_id(peer, id, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _container_update(id: String, data: Array) -> void:
+	var world := _world_of(multiplayer.get_remote_sender_id())
+	if world != null:
+		world.update_container(multiplayer.get_remote_sender_id(), id, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _close_container() -> void:
+	var world := _world_of(multiplayer.get_remote_sender_id())
+	if world != null:
+		world.close_containers(multiplayer.get_remote_sender_id())
+
+
+## A player dropped items, or died (their body holds what they carried): a bag where they are.
+@rpc("any_peer", "call_remote", "reliable")
+func _drop_items(data: Array, is_body: bool) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	var world := _world_of(peer)
+	if world == null or not _player_states.has(peer) or data.size() > 200:
+		return
+	var me: Array = _player_states[peer]
+	var title: String = ("%s's Body" % matchmaker.players[peer]["name"]) if is_body else "Dropped Items"
+	var forward := Vector3(-sin(me[1]), 0, -cos(me[1]))
+	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data)
+
+
+## The raid world a player is in (null if they aren't in a raid).
+func _world_of(peer: int) -> RaidWorld:
+	if mode != Mode.SERVER or not matchmaker.players.has(peer):
+		return null
+	return _worlds.get(matchmaker.players[peer]["raid"])
+
+
 ## For knife hits: the knife is right in front, so players are checked where they are now.
 func client_view_time_of(_peer: int) -> float:
 	return _now()
@@ -370,6 +422,13 @@ func _flush() -> void:
 	matchmaker.changed_parties.clear()
 
 
+## Players in a raid who can be sent to right now.
+func _raid_peers(id: int) -> Array:
+	if not matchmaker.raids.has(id):
+		return []
+	return matchmaker.raids[id]["players"].filter(_peer_open)
+
+
 ## False for a player who is disconnecting (sending to them would only log errors until they're gone).
 func _peer_open(peer: int) -> bool:
 	var ws := multiplayer.multiplayer_peer as WebSocketMultiplayerPeer
@@ -392,10 +451,14 @@ func _send_raid_start(id: int) -> void:
 		if _peer_open(peer):
 			_bashed.rpc_id(peer, amount, from, shove, block))
 	world.enemy_event.connect(func(enemy: int, kind: String, pos: Vector3) -> void:
-		if matchmaker.raids.has(id):
-			for peer in matchmaker.raids[id]["players"]:
-				if _peer_open(peer):
-					_enemy_event.rpc_id(peer, enemy, kind, pos))
+		for peer in _raid_peers(id):
+			_enemy_event.rpc_id(peer, enemy, kind, pos))
+	world.bag_spawned.connect(func(bag: String, pos: Vector3, yaw: float, title: String, search: float) -> void:
+		for peer in _raid_peers(id):
+			_bag.rpc_id(peer, bag, pos, yaw, title, search))
+	world.bag_removed.connect(func(bag: String) -> void:
+		for peer in _raid_peers(id):
+			_bag_gone.rpc_id(peer, bag))
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
@@ -531,6 +594,27 @@ func send_shot(from: Vector3, dir: Vector3, weapon: String) -> void:
 		_shot.rpc_id(1, from, dir, weapon, client_view_time())
 
 
+func open_container(id: String) -> void:
+	if in_online_raid():
+		_open_container.rpc_id(1, id)
+
+
+func update_container(id: String, data: Array) -> void:
+	if in_online_raid():
+		_container_update.rpc_id(1, id, data)
+
+
+func close_container() -> void:
+	if in_online_raid():
+		_close_container.rpc_id(1)
+
+
+## Items we dropped (`body` = we died: everything we carried).
+func drop_items(data: Array, body := false) -> void:
+	if in_online_raid():
+		_drop_items.rpc_id(1, data, body)
+
+
 ## Tells the server we swung the knife (it decides what it hit).
 func send_knife(from: Vector3, dir: Vector3) -> void:
 	if in_online_raid():
@@ -630,6 +714,30 @@ func _kill_confirmed() -> void:
 func _bashed(amount: int, from: Vector3, shove: float, aim_block: float) -> void:
 	if in_online_raid():
 		bashed.emit(amount, from, shove, aim_block)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _container_contents(id: String, data: Array) -> void:
+	if in_online_raid():
+		container_opened.emit(id, data)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _container_busy(id: String) -> void:
+	if in_online_raid():
+		container_busy.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _bag(id: String, pos: Vector3, yaw: float, title: String, search: float) -> void:
+	if in_online_raid():
+		bag_spawned.emit(id, pos, yaw, title, search)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _bag_gone(id: String) -> void:
+	if in_online_raid():
+		bag_removed.emit(id)
 
 
 @rpc("authority", "call_remote", "reliable")
