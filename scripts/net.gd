@@ -75,6 +75,8 @@ var in_raid := false
 var raid_seed := 0
 ## Seconds left on the raid clock when it started for us (the raid counts down from there).
 var raid_time_left := RAID_TIME
+## Where we start: [slot, place] (Matchmaker.spawn_slots; squads spawn together). Empty = anywhere.
+var raid_spawn: Array = []
 ## Peer id -> name, for everyone in our raid; and which of them are in our party.
 var names := {}
 var teammates: Array[int] = []
@@ -532,7 +534,7 @@ func _send_raid_start(id: int) -> void:
 		for other in raid["players"]:
 			if other != peer and raid["teams"][other] == raid["teams"][peer]:
 				team.append(other)
-		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team)
+		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []))
 
 
 func _now() -> float:
@@ -757,8 +759,9 @@ func _queue_status(waiting: int, countdown: float) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team: Array[int]) -> void:
+func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team: Array[int], spawn: Array) -> void:
 	in_raid = true
+	raid_spawn = spawn
 	queued = false
 	raid_seed = seed_value
 	raid_time_left = time_left

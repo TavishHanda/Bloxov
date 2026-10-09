@@ -35,6 +35,7 @@ var prompt_hud: PromptHUD
 var extract_hud: ExtractHUD
 var world_labels: WorldLabelsHUD
 var downed_hud: DownedHUD
+var spectator: Spectator
 
 var _indicator_time := 0.0
 var _max_delta_timer := 0.0
@@ -79,8 +80,12 @@ func _ready() -> void:
 	add_child(world_labels)  # (after the extract tags: damage numbers go on top of them)
 	loot_ui = LootUI.new(player)
 	add_child(loot_ui)
+	spectator = Spectator.new()
+	add_child(spectator)
 	end_screen = RaidEndScreen.new(raid)
 	add_child(end_screen)
+	end_screen.spectate_pressed.connect(spectate)
+	spectator.finished.connect(func() -> void: end_screen.show_result(player.kills))
 	# Keep the pause menu on top of everything.
 	move_child(menu, -1)
 
@@ -129,7 +134,9 @@ func _process(delta: float) -> void:
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
 	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
 	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud]:
-		element.visible = not loot_ui.visible and not end_screen.visible
+		element.visible = not loot_ui.visible and not end_screen.visible and not spectator.visible
+	# Spectating a teammate: their name tag stays.
+	world_labels.visible = world_labels.visible or spectator.visible
 	timer_hud.visible = not end_screen.visible
 
 	if not get_tree().paused:
@@ -185,6 +192,12 @@ func _on_player_damaged(_amount: int, source_position: Vector3) -> void:
 	var local := player.global_basis.inverse() * (source_position - player.global_position)
 	damage_indicator.rotation = atan2(local.x, -local.z)
 	_indicator_time = 1.2
+
+
+## Dead: watch a teammate instead of the end screen (it comes back when they're out).
+func spectate(peer: int) -> void:
+	if spectator.start(peer):
+		end_screen.visible = false
 
 
 func _on_raid_ended(_result: String) -> void:

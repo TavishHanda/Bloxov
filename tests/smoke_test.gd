@@ -888,6 +888,17 @@ func _section_matchmaking() -> void:
 	# a countdown once 2 are waiting, parties never split, no late joining, "start now" for one party.
 	var mm := Matchmaker.new()
 	mm.queue_countdown = 30.0
+	# Squads spawn together (owner, 0.9.5): one spawn slot per squad, places side by side.
+	var slots := Matchmaker.spawn_slots([[11, 12], [13], [14, 15]], 42)
+	_check(slots[11][0] == slots[12][0] and slots[11][1] == 0 and slots[12][1] == 1 and slots[13][0] != slots[11][0]
+		and slots[14][0] != slots[11][0] and slots[14][0] != slots[13][0] and slots == Matchmaker.spawn_slots([[11, 12], [13], [14, 15]], 42),
+		"each squad gets its own spawn, squadmates side by side (%s)" % str(slots))
+	var points := main.get_node("PlayerSpawns").get_children()
+	var first := Raid.spawn_position(points, 1, 0)
+	var second := Raid.spawn_position(points, 1, 1)
+	var wrapped := Raid.spawn_position(points, points.size() + 1, 0)
+	_check(is_equal_approx(first.distance_to(second), Raid.SQUAD_SPACING) and first.distance_to(wrapped) > 3.0
+		and Raid.spawn_position(points.duplicate(), 1, 0) == first, "spawn slots: the same point on every machine, squadmates next to each other")
 	for peer in [1, 2, 3, 4, 5, 6, 7]:
 		mm.add_player(peer, "P%d" % peer)
 	_check(mm.parties.size() == 7 and mm.party_of(1)["members"] == [1], "everyone starts in a party of their own (with a code)")
@@ -978,6 +989,8 @@ func _section_net() -> void:
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()
 	_check(c1.teammates == [c2_id] and c3.teammates.is_empty() and c3.names.get(c1_id) == "Alpha", "Alpha and Bravo are teammates; Charlie knows their names")
+	_check(c1.raid_spawn.size() == 2 and c1.raid_spawn[0] == c2.raid_spawn[0] and c1.raid_spawn[1] != c2.raid_spawn[1]
+		and c3.raid_spawn[0] != c1.raid_spawn[0], "squads spawn together, other squads elsewhere (%s %s %s)" % [c1.raid_spawn, c2.raid_spawn, c3.raid_spawn])
 
 	# States are relayed within the raid: Charlie sees Alpha where Alpha is, and never sees himself.
 	var sent := [Vector3(4, 0.1, -6), 1.2, 0.3, 1.0, RemotePlayer.FLAG_CROUCH]
@@ -1076,6 +1089,23 @@ func _section_net() -> void:
 	_check(not it.is_reviving(), "a finished revive doesn't start over until F is let go")
 	mate.global_position += Vector3(6, 0, 0)
 	_check(it.find_revive_target() == null, "too far away: no revive")
+
+	# Dead with a teammate still in the raid (0.9.5): watch them over the shoulder until they're out.
+	var hud: Node = main.get_node("HUD")
+	var spectator: Spectator = hud.spectator
+	var ended := []
+	spectator.finished.connect(func() -> void: ended.append(true), CONNECT_ONE_SHOT)
+	mate.push_state([mate.global_position, 0.0, 0.0, 0.0, 0])
+	mate.update_view(Time.get_ticks_msec() / 1000.0, 0.016)
+	_check(spectator.start(78) and spectator.visible and spectator.camera.current, "spectating a teammate switches to a camera on them")
+	var behind := spectator.camera.global_position - mate.global_position
+	_check(behind.z > 1.5 and behind.y > 1.5 and absf(behind.x) < 0.5, "the camera is behind their head, looking where they look (%s)" % behind)
+	mate.shown = [mate.global_position, 0.0, 0.0, 0.0, RemotePlayer.FLAG_EXTRACTED]
+	spectator._process(0.016)
+	_check(not spectator.visible and ended == [true], "once they're out, back to the end-of-raid screen")
+	_check(not spectator.start(999), "nobody to watch: no spectating")
+	_check(hud.end_screen.summary().get("spectate", "x") == "" and Spectator.watchable_teammate() == 0, "offline there's nobody to spectate")
+	player.camera.make_current()
 	net_raid.sync_remotes({})
 	Network.main.teammates = []
 	await _frames(1)

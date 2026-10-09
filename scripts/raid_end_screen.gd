@@ -4,6 +4,10 @@ extends Control
 ## Look (0.8.10, "Ammo Can"): a gunmetal plate with the result as a big ink stamp (green EXTRACTED, amber MISSING IN
 ## ACTION, red KILLED IN ACTION), how you got there, the loot, what it was worth on a brass tag ("KEPT", or "LOST" on
 ## a red one), your kills and profile stats as stenciled chips, and a gunmetal BACK TO HIDEOUT button.
+## Dead online with a teammate still in the raid (0.9.5): a SPECTATE <NAME> button too (see Spectator).
+
+## The player chose to watch a teammate (peer id).
+signal spectate_pressed(peer: int)
 
 const WIDTH := 600.0
 const AMBER := Color("f0a03a")
@@ -18,6 +22,8 @@ var _loot: Label
 var _tag: Control
 var _kept: Label
 var _chips: HBoxContainer
+var _spectate: Button
+var _spectate_peer := 0
 
 var _stamp_text := ""
 var _stamp_color := HudStyle.EXTRACT
@@ -57,15 +63,18 @@ func show_result(kills: int) -> void:
 	for entry in [["KILLS", str(kills)], ["MONEY", ItemDB.money(Profile.money)], ["RAIDS", str(int(Profile.stats["raids"]))],
 			["EXTRACTS", str(int(Profile.stats["extracts"]))], ["DEATHS", str(int(Profile.stats["deaths"]))]]:
 		_chips.add_child(_chip(entry[0], entry[1]))
+	_spectate_peer = 0 if _extracted else Spectator.watchable_teammate()
+	_spectate.visible = _spectate_peer != 0
+	_spectate.text = "SPECTATE %s" % String(Network.main.names.get(_spectate_peer, "")).to_upper()
 	_stamp.queue_redraw()
 	_tag.queue_redraw()
 	visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
-## What the screen says, for the tests: {stamp, value}.
+## What the screen says, for the tests: {stamp, value, spectate (the button's text, "" when hidden)}.
 func summary() -> Dictionary:
-	return {"stamp": _stamp_text, "value": _tag_text}
+	return {"stamp": _stamp_text, "value": _tag_text, "spectate": _spectate.text if _spectate.visible else ""}
 
 
 func _build() -> void:
@@ -123,6 +132,13 @@ func _build() -> void:
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 6)
 	vbox.add_child(spacer)
+	_spectate = Button.new()
+	_spectate.custom_minimum_size = Vector2(0, 52)
+	_spectate.focus_mode = Control.FOCUS_NONE
+	_spectate.visible = false
+	LootUI.style_button(_spectate, 30)
+	_spectate.pressed.connect(func() -> void: spectate_pressed.emit(_spectate_peer))
+	vbox.add_child(_spectate)
 	var button := Button.new()
 	button.text = "BACK TO HIDEOUT"
 	button.custom_minimum_size = Vector2(0, 52)

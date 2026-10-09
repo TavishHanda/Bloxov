@@ -11,6 +11,9 @@ signal ended(result: String)
 @export var raid_time := 600.0
 @export var open_extract_count := 2
 
+## Meters between squadmates at the spawn.
+const SQUAD_SPACING := 1.4
+
 var time_left: float
 ## "" while the raid is running.
 var result := ""
@@ -26,8 +29,12 @@ func _ready() -> void:
 	player.health.died.connect(_on_player_died)
 
 	if spawn_points != null and spawn_points.get_child_count() > 0:
-		var spawn := spawn_points.get_children().pick_random() as Node3D
-		player.teleport_to(spawn.global_position)
+		var points := spawn_points.get_children()
+		if Network.main.in_online_raid() and Network.main.raid_spawn.size() == 2:
+			# Online the server picks: your squad together, other squads elsewhere (0.9.5).
+			player.teleport_to(spawn_position(points, Network.main.raid_spawn[0], Network.main.raid_spawn[1]))
+		else:
+			player.teleport_to((points.pick_random() as Node3D).global_position)
 		player.face_towards(Vector3.ZERO)
 
 	var extracts := get_extracts()
@@ -39,6 +46,18 @@ func _ready() -> void:
 	for i in extracts.size():
 		extracts[i].set_open(i < open_extract_count)
 		extracts[i].extracted.connect(_on_extracted)
+
+
+## Spawn point `slot` (Matchmaker.spawn_slots; the same on every machine: points sorted by name), and `place`
+## steps to the side of it (squadmates stand next to each other). More squads than points share one, further apart.
+static func spawn_position(points: Array, slot: int, place: int) -> Vector3:
+	var sorted := points.duplicate()
+	sorted.sort_custom(func(a: Node, b: Node) -> bool: return String(a.name) < String(b.name))
+	var point := sorted[slot % sorted.size()] as Node3D
+	var step := place + (slot / sorted.size()) * 3
+	# (toward the middle of the map, away from its edge walls)
+	var side := -1.0 if point.global_position.x > 0.0 else 1.0
+	return point.global_position + Vector3(SQUAD_SPACING * step * side, 0, 0)
 
 
 ## Shuffles the extracts the same way on every machine that uses the same seed.
@@ -61,9 +80,10 @@ func get_extracts() -> Array[ExtractZone]:
 
 
 func _process(delta: float) -> void:
+	# (the clock keeps running after you're out: a spectator still sees the raid's time)
+	time_left = maxf(time_left - delta, 0.0)
 	if result != "":
 		return
-	time_left -= delta
 	if time_left <= 0.0:
 		time_left = 0.0
 		result = "mia"

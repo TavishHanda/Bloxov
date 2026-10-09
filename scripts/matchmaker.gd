@@ -25,7 +25,8 @@ var raid_time := 600.0
 var players := {}
 ## code -> {members: Array[int] (first = leader), queued: bool, queued_at: float}
 var parties := {}
-## id -> {players: Array[int], started: float (seconds), seed: int, teams: {peer: party code}}
+## id -> {players: Array[int], started: float (seconds), seed: int, teams: {peer: party code},
+##        spawns: {peer: [slot, place]}} (squads spawn together, 0.9.5: see spawn_slots)
 var raids := {}
 ## Seconds until the queue's raid starts (-1 = no countdown running).
 var countdown_left := -1.0
@@ -173,15 +174,38 @@ func _start_raid(codes: Array) -> int:
 	var id := _next_raid_id
 	_next_raid_id += 1
 	var raid := {"players": [], "started": _clock, "seed": randi(), "teams": {}}
+	var teams := []
 	for code in codes:
 		parties[code]["queued"] = false
 		changed_parties[code] = true
+		teams.append(parties[code]["members"].duplicate())
 		for peer in parties[code]["members"]:
 			raid["players"].append(peer)
 			raid["teams"][peer] = code
 			players[peer]["raid"] = id
+	raid["spawns"] = spawn_slots(teams, raid["seed"])
 	raids[id] = raid
 	return id
+
+
+## Where everyone starts (owner, 0.9.5: squads spawn together): each squad gets its own spawn slot (shuffled by the
+## raid's seed), and its members a place next to each other there. peer -> [slot, place]. The raid turns a slot into
+## a spawn point (Raid.spawn_position).
+static func spawn_slots(teams: Array, seed_value: int) -> Dictionary:
+	var order := range(teams.size())
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	for i in range(order.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var swap: int = order[i]
+		order[i] = order[j]
+		order[j] = swap
+	var result := {}
+	for t in teams.size():
+		var members: Array = teams[t]
+		for place in members.size():
+			result[members[place]] = [order[t], place]
+	return result
 
 
 func _leader_problem(peer: int) -> String:

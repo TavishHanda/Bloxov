@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.9.5 (squads spawn together, spectate your teammate, owner)
+- **Squads spawn together** online: you and your duo start side by side, and every other squad gets a different spawn
+- **Dead with your teammate still in the raid?** The end screen has a **SPECTATE <NAME>** button: the camera follows
+  them over the shoulder (SPECTATING BRAVO at the top, with BACK TO HIDEOUT under it). When they extract or die, the
+  end screen comes back. Or just go back to the hideout like before
+- Everyone already extracts on their own (the raid keeps going for the others); the raid timer keeps running while
+  you spectate
+
 ## 0.9.4 (downed and revive, owner)
 - **In a squad, 0 HP knocks you down instead of killing you** (solo still dies). You drop to the ground and can only
   look around and **crawl at 1/4 speed**: no shooting, healing, looting or extracting

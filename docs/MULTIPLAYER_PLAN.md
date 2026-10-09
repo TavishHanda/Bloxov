@@ -62,15 +62,17 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       (`GridInventory.to_data`), released on close/walk-away/leave. Bags from scav deaths, dropped items
       (`_drop_items`) and dead players' bodies are announced to the raid. Items are checked against ItemDB.
 - [x] **Online test (owner, 0.7.5+).** Server on Heroku (owner's student credit), friends played over the internet.
-- [ ] **6. Raid flow (now 0.9.x).** Per-player extract and death, squads spawn together, raid ends when everyone is
-      out, what a dead squadmate sees (spectate or back to the hideout; owner: yes to both), squads spawn together.
+- [x] **6. Raid flow (0.9.4-0.9.5).** Per-player extract and death (each player's own Raid ends for them; the server
+      closes the raid when everyone has left), what a dead squadmate sees (0.9.5: SPECTATE their teammate over the
+      shoulder, `Spectator`, or back to the hideout), squads spawn together (0.9.5: `Matchmaker.spawn_slots` gives
+      each squad a slot, `Raid.spawn_position` turns it into a point, squadmates 1.4 m apart).
       **Downed/revive done (0.9.4, owner-approved):** with a teammate up, 0 HP = downed (solo still dies); a downed
       bar drains 100 -> 0 in 30 s and hits take from it, 0 = dead (owner's change); crawl at 1/4 walk speed, no
       shooting/healing/looting/extracting; a teammate holds F 5 s to revive (`Interactor.update_revive`, checked by
       the server: same squad, up, within 3.5 m, held long enough: `Network.can_revive`), back up at 30 HP; nobody
       left to revive you (both down, they died/extracted/left) = dead; scavs ignore downed players (`Player.
       out_of_fight`), real players can finish them (lying-down hitbox, `Hitbox.FLAG_DOWNED`). The bar keeps draining
-      while being revived. Next: per-player extract, spectate/back to hideout, squads spawn together.
+      while being revived.
 - **Public queue (owner wants it, before going public).** Press "Queue" alone or with your duo; a small
   matchmaker groups waiting players into raids of up to 6 and starts a fresh raid server for each match (Fly
   Machines, one process per raid), then sends everyone its address + a match code. Today's pieces carry over:
