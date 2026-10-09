@@ -906,8 +906,19 @@ func _nav_closest(point: Vector3) -> Vector3:
 	return NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, point) if _nav_ready() else Vector3.ZERO
 
 
+## No limit on how much of the map a path search may look at: the default (4096 pieces) is less than a real map
+## has (Old Bloxov, 0.10.0), so a path across it would stop short and lead somewhere odd.
 func _nav_path(from: Vector3, to: Vector3) -> PackedVector3Array:
-	return NavigationServer3D.map_get_path(get_world_3d().navigation_map, from, to, true) if _nav_ready() else PackedVector3Array()
+	if not _nav_ready():
+		return PackedVector3Array()
+	var query := NavigationPathQueryParameters3D.new()
+	query.map = get_world_3d().navigation_map
+	query.start_position = from
+	query.target_position = to
+	query.path_search_max_polygons = 0
+	var result := NavigationPathQueryResult3D.new()
+	NavigationServer3D.query_path(query, result)
+	return result.path
 
 
 func _nav_random() -> Vector3:

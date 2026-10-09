@@ -54,3 +54,27 @@ Spawns, extracts, loot spots and player spawns on the layout picture are **place
 - **Extracts:** preset spots; extracts close to where you spawned are closed for you. Special extracts: later.
   No train extract.
 - **Keys:** probably yes for the bunker and bank vault (see the thread). Locked doors only at special places.
+
+## Phases (owner, 2026-10-09)
+- **0.10 the map:** Old Bloxov as a walkable gray box (layout, buildings with rooms, cover, extracts, player spawns,
+  loot spots), then iterations with the owner.
+- **Scavs 2.0 (own update):** designated AI spawn spots per area, scavs roaming their area, Raiders at hotspots,
+  low-tier "scavenged" loot on scavs, new AI numbers.
+- **Items update (own update):** keys (bunker, bank vault), loot by place (the table above). The 0.10 gray box
+  gets placeholders for them now (owner): marked key-door spots at the bunker entrance and the bank vault (open
+  until the Items update makes them lock), and loot spots tagged with their place.
+
+## How it's built (0.10.0)
+- `tools/gen_old_bloxov.py` writes `scenes/maps/old_bloxov.tscn`. **The script is the source of truth:** edit it
+  and re-run `python3 tools/gen_old_bloxov.py`; never hand-edit the scene. Coordinates in the script are the
+  picture's map meters (x east, y south, origin top-left); Godot x = mx - 175, z = my - 175.
+- Walls, floors, ramps and cover are plain boxes in one `BoxMap` node (`scripts/box_map.gd`): one mesh, one
+  collision shape, and the nav baker reads its faces. Loot containers, extracts, spawns and the `KeyDoors`
+  markers are normal nodes (each container has `metadata/place`).
+- The raid scene (`main.tscn`) keeps its small test map; `RaidMap` (`scripts/raid_map.gd`, main.tscn's root script)
+  swaps the map in when the scene is made (players and the server alike). `RaidMap.scene_path = ""` keeps the test
+  map (the smoke test does). The map scene's `spawner` metadata sets the AI numbers.
+- Buildings: `Building(...)` = storeys of 3 m, rooms in a grid with doorways between all neighbours, windows,
+  ramps as stairs (2.2 m wide, 34 degrees, landing at the top) and optional walkable roofs. Doorways are 2+ m and
+  ramps 2.2 m because the AI's paths keep 0.75 m from walls; the `old_bloxov` test section checks that every loot
+  container can be walked to, so a change that blocks a room fails the test.

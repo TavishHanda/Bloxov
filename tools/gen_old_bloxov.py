@@ -1,0 +1,693 @@
+#!/usr/bin/env python3
+"""Builds the Old Bloxov gray-box map (0.10.0): writes scenes/maps/old_bloxov.tscn.
+
+The layout follows docs/MAP_PLAN.md and the agreed picture docs/maps/old_bloxov_layout.png (draft 5).
+Coordinates below are in "map meters" like the picture: x to the right (east), y down (south), origin at the
+top-left corner, map 350 x 350 m. Godot: x = mx - 175, z = my - 175 (north = -Z), y up.
+
+This script is the source of truth for the gray box: edit it and re-run it, don't hand-edit the .tscn.
+    python3 tools/gen_old_bloxov.py
+Everything solid is a box (see scripts/box_map.gd). Loot containers, extracts and spawn points are real nodes.
+Spawn points, extracts and loot spots are placeholders (owner: Scavs 2.0 and the Items update rework them).
+"""
+
+import math
+import os
+import random
+
+M = 350.0
+OUT = os.path.join(os.path.dirname(__file__), "..", "scenes", "maps", "old_bloxov.tscn")
+
+FLOOR_H = 3.0      # one storey
+WALL_T = 0.3       # wall thickness
+SLAB_T = 0.25      # floor slab thickness
+RAMP_W = 2.2       # stair ramp width (AI paths need 2 m: they keep 0.75 m from edges)
+RAMP_L = 4.4       # ramp length for one storey (34 degrees; AI paths allow 40)
+LANDING = 2.5      # flat floor at the top of a ramp (AI paths keep 0.75 m from the wall and the drop)
+# Doorways are wide for a gray box so the AI's paths fit through (they keep 0.75 m from walls).
+DOOR_W, DOOR_H = 2.2, 2.4
+INNER_DOOR_W = 2.0
+WIN_W, WIN_LO, WIN_HI = 1.4, 1.0, 2.2
+
+# ---------------------------------------------------------------------------------------------- colours
+COLOURS = [
+    ("grass", (0.47, 0.62, 0.36)),
+    ("road", (0.33, 0.33, 0.35)),
+    ("pavement", (0.62, 0.6, 0.56)),
+    ("slab", (0.55, 0.53, 0.5)),
+    ("roof", (0.42, 0.36, 0.33)),
+    ("wall", (0.78, 0.74, 0.66)),
+    ("wall_rich", (0.86, 0.78, 0.55)),
+    ("wall_police", (0.55, 0.64, 0.78)),
+    ("wall_hall", (0.74, 0.5, 0.42)),
+    ("wall_guns", (0.5, 0.5, 0.5)),
+    ("wall_med", (0.85, 0.62, 0.62)),
+    ("wall_food", (0.6, 0.75, 0.52)),
+    ("wall_school", (0.7, 0.62, 0.82)),
+    ("wall_fuel", (0.88, 0.66, 0.4)),
+    ("wall_farm", (0.66, 0.42, 0.32)),
+    ("wood", (0.52, 0.38, 0.25)),
+    ("trunk", (0.4, 0.3, 0.2)),
+    ("leaves", (0.3, 0.5, 0.26)),
+    ("water", (0.35, 0.55, 0.75)),
+    ("rail", (0.38, 0.3, 0.24)),
+    ("metal", (0.45, 0.47, 0.5)),
+    ("car_a", (0.55, 0.25, 0.22)),
+    ("car_b", (0.3, 0.38, 0.55)),
+    ("concrete", (0.66, 0.66, 0.64)),
+    ("bunker", (0.45, 0.46, 0.44)),
+    ("keydoor", (0.85, 0.2, 0.2)),
+    ("crop", (0.72, 0.68, 0.38)),
+    ("boundary", (0.5, 0.5, 0.5)),
+    ("hay", (0.85, 0.75, 0.4)),
+    ("boxcar", (0.55, 0.3, 0.2)),
+    ("dirt", (0.55, 0.46, 0.34)),
+]
+C = {name: i for i, (name, _) in enumerate(COLOURS)}
+
+boxes = []  # (cx, cy, cz, sx, sy, sz, yaw, pitch, colour, solid) in Godot space
+
+
+def gx(mx):
+    return mx - M / 2
+
+
+def gz(my):
+    return my - M / 2
+
+
+def box(x0, y0, z0, x1, y1, z1, colour, solid=True):
+    """Axis-aligned box from map-space corners (x/z in map meters, y = height)."""
+    if x1 - x0 < 0.01 or y1 - y0 < 0.01 or z1 - z0 < 0.01:
+        return
+    boxes.append(((x0 + x1) / 2 - M / 2, (y0 + y1) / 2, (z0 + z1) / 2 - M / 2,
+                  x1 - x0, y1 - y0, z1 - z0, 0.0, 0.0, C[colour], 1 if solid else 0))
+
+
+def obox(cx, cy, cz, sx, sy, sz, yaw, colour, solid=True, pitch=0.0):
+    """Rotated box: centre in map space, yaw in degrees (Godot convention, around +Y)."""
+    boxes.append((cx - M / 2, cy, cz - M / 2, sx, sy, sz, yaw, pitch, C[colour], 1 if solid else 0))
+
+
+# ---------------------------------------------------------------------------------------------- nodes
+loot = []        # (name, scene, x, y, z, yaw, table, place)
+extracts = []    # (node name, display name, x, z)
+player_spawns = []
+enemy_spawns = []
+markers = []     # (group node, name, x, y, z, metadata dict)
+
+
+def add_loot(place, kind, x, z, y=0.0, yaw=0.0):
+    """kind: crate / locker / safe (existing loot tables; the Items update gives each place its own)."""
+    n = sum(1 for l in loot if l[0].startswith(place + "_")) + 1
+    loot.append((f"{place}_{kind.capitalize()}{n}", kind, x, y, z, yaw, kind, place))
+
+
+# ---------------------------------------------------------------------------------------------- walls
+def wall_x(x0, x1, z, y0, h, colour, openings=(), t=WALL_T):
+    """A wall along x (from x0 to x1 at depth z). openings: (centre_x, width, bottom, top)."""
+    _wall(x0, x1, y0, h, colour, openings, lambda a, b, y_lo, y_hi: box(a, y_lo, z - t / 2, b, y_hi, z + t / 2, colour))
+
+
+def wall_z(z0, z1, x, y0, h, colour, openings=(), t=WALL_T):
+    _wall(z0, z1, y0, h, colour, openings, lambda a, b, y_lo, y_hi: box(x - t / 2, y_lo, a, x + t / 2, y_hi, b, colour))
+
+
+def _wall(a0, a1, y0, h, colour, openings, put):
+    cuts = sorted((c - w / 2, c + w / 2, lo, hi) for c, w, lo, hi in openings)
+    pos = a0
+    for lo_a, hi_a, lo, hi in cuts:
+        lo_a, hi_a = max(lo_a, a0), min(hi_a, a1)
+        if hi_a <= lo_a:
+            continue
+        put(pos, lo_a, y0, y0 + h)
+        put(lo_a, hi_a, y0, y0 + lo)          # sill
+        put(lo_a, hi_a, y0 + hi, y0 + h)      # lintel
+        pos = hi_a
+    put(pos, a1, y0, y0 + h)
+
+
+# ---------------------------------------------------------------------------------------------- buildings
+class Building:
+    """A rectangular building: `floors` storeys, rooms in an nx x nz grid with doorways between all neighbours,
+    windows in every outside room wall, ramps (stairs) between storeys, optional flat roof you can walk on."""
+
+    def __init__(self, name, x, y, w, d, floors=1, colour="wall", rooms=(2, 2), doors="S", roof=False,
+                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False):
+        self.name, self.x0, self.z0, self.x1, self.z1 = name, x, y, x + w, y + d
+        self.floors, self.colour, self.nx, self.nz = floors, colour, rooms[0], rooms[1]
+        self.doors, self.roof, self.h = doors, roof, height
+        self.solid_inner = set(solid_inner)   # interior wall segments with no doorway: ("v"|"h", i, j)
+        self.no_windows = set(no_windows)     # rooms (i, j) whose outside walls get no windows
+        self.big_doors = big_doors
+        self.holes = {}   # storey -> (x0, z0, x1, z1) slab hole above a ramp
+        self.cw = (self.x1 - self.x0) / self.nx
+        self.cd = (self.z1 - self.z0) / self.nz
+
+    def cell(self, i, j):
+        return (self.x0 + i * self.cw, self.z0 + j * self.cd, self.x0 + (i + 1) * self.cw, self.z0 + (j + 1) * self.cd)
+
+    def build(self):
+        storeys = self.floors + (1 if self.roof else 0)
+        # Stairs are ramps in a 2.2 m strip along an outside wall, with a landing at the top (the floor
+        # above) and room to walk onto them at the bottom: storey ramps along the north wall (landing at the west
+        # end), the roof ramp along the south wall (landing at the east end), so they never stack. Inner walls
+        # stop at the strip, so it's a little corridor downstairs.
+        self.ramps = []
+        for f in range(storeys - 1):
+            self.ramps.append((f, "S" if f == self.floors - 1 else "N"))
+        self.strips = []
+        for f, wall in self.ramps:
+            if wall == "N":
+                self.strips.append((self.x0, self.x0 + WALL_T / 2 + LANDING + self._ramp_len() + 1.8, self.z0, self.z0 + WALL_T / 2 + RAMP_W))
+            else:
+                self.strips.append((self.x1 - WALL_T / 2 - LANDING - self._ramp_len() - 1.8, self.x1, self.z1 - WALL_T / 2 - RAMP_W, self.z1))
+        box(self.x0, 0.0, self.z0, self.x1, 0.03, self.z1, "slab", solid=False)   # ground floor (looks only)
+        for f in range(self.floors):
+            y = f * self.h
+            self._outer_walls(f, y)
+            self._inner_walls(y)
+        for f, wall in self.ramps:
+            self._ramp(f, wall)
+        for f in range(1, self.floors + 1):
+            self._slab(f)
+        if self.roof:
+            ry = self.floors * self.h
+            for (a0, a1, z) in ((self.x0, self.x1, self.z0), (self.x0, self.x1, self.z1)):
+                box(a0, ry, z - 0.15, a1, ry + 1.0, z + 0.15, self.colour)
+            for x in (self.x0, self.x1):
+                box(x - 0.15, ry, self.z0, x + 0.15, ry + 1.0, self.z1, self.colour)
+
+    def _ramp_len(self):
+        return RAMP_L * self.h / FLOOR_H
+
+    def _outer_walls(self, f, y):
+        for side in "NSWE":
+            horizontal = side in "NS"
+            n = self.nx if horizontal else self.nz
+            openings = []
+            for k in range(n):
+                cell = (k, 0 if side == "N" else self.nz - 1) if horizontal else (0 if side == "W" else self.nx - 1, k)
+                a0, a1 = (self.x0 + k * self.cw, self.x0 + (k + 1) * self.cw) if horizontal else \
+                         (self.z0 + k * self.cd, self.z0 + (k + 1) * self.cd)
+                mid = (a0 + a1) / 2
+                if f == 0 and side in self.doors and k == n // 2:
+                    if self.big_doors:
+                        openings.append((mid, min(4.0, a1 - a0 - 1.0), 0.0, 4.0))
+                    else:
+                        openings.append((mid, DOOR_W, 0.0, DOOR_H))
+                elif cell not in self.no_windows and a1 - a0 >= 2.6 and not self._ramp_blocks(f, side, cell):
+                    openings.append((mid, WIN_W, WIN_LO, WIN_HI))
+            if horizontal:
+                wall_x(self.x0, self.x1, self.z0 if side == "N" else self.z1, y, self.h, self.colour, openings)
+            else:
+                wall_z(self.z0, self.z1, self.x0 if side == "W" else self.x1, y, self.h, self.colour, openings)
+
+    def _ramp_blocks(self, f, side, cell):
+        # No windows behind the ramps.
+        x0, _, x1, _ = self.cell(*cell)
+        for (rf, wall), (sx0, sx1, _, _) in zip(self.ramps, self.strips):
+            if side == wall and rf in (f, f - 1) and x0 < sx1 and x1 > sx0:
+                return True
+        return False
+
+    def _inner_walls(self, y):
+        h = self.h
+        for i in range(1, self.nx):          # walls along z at x = x0 + i*cw
+            x = self.x0 + i * self.cw
+            for j in range(self.nz):
+                a0, a1 = self.z0 + j * self.cd + WALL_T / 2, self.z0 + (j + 1) * self.cd - WALL_T / 2
+                for sx0, sx1, sz0, sz1 in self.strips:
+                    if sx0 < x < sx1:
+                        if sz0 <= a0 < sz1:
+                            a0 = sz1
+                        if sz0 < a1 <= sz1:
+                            a1 = sz0
+                if a1 - a0 < 0.5:
+                    continue
+                # (a short piece next to a stair strip has its doorway in the strip itself)
+                op = [] if ("v", i, j) in self.solid_inner or a1 - a0 < INNER_DOOR_W + 1.6 else \
+                    [((a0 + a1) / 2, INNER_DOOR_W, 0.0, DOOR_H)]
+                wall_z(a0, a1, x, y, h, self.colour, op, t=0.2)
+        for j in range(1, self.nz):          # walls along x at z = z0 + j*cd
+            z = self.z0 + j * self.cd
+            for i in range(self.nx):
+                a0, a1 = self.x0 + i * self.cw, self.x0 + (i + 1) * self.cw
+                op = [] if ("h", i, j) in self.solid_inner else [((a0 + a1) / 2, INNER_DOOR_W, 0.0, DOOR_H)]
+                wall_x(a0 + WALL_T / 2, a1 - WALL_T / 2, z, y, h, self.colour, op, t=0.2)
+
+    def _ramp(self, f, wall):
+        """A ramp up from storey f to f+1 in the strip along the `wall` (N: climbs west to a landing in the north-west
+        corner; S: climbs east to a landing in the south-east corner)."""
+        length = self._ramp_len()
+        if wall == "N":
+            rz0 = self.z0 + WALL_T / 2
+            hi_x = self.x0 + WALL_T / 2 + LANDING
+            lo_x = hi_x + length
+        else:
+            rz0 = self.z1 - WALL_T / 2 - RAMP_W
+            hi_x = self.x1 - WALL_T / 2 - LANDING
+            lo_x = hi_x - length
+        rz1 = rz0 + RAMP_W
+        y0, y1 = f * self.h, (f + 1) * self.h
+        slope = math.hypot(length, y1 - y0)
+        angle = math.degrees(math.atan2(y1 - y0, length))
+        cx, cy, cz = (lo_x + hi_x) / 2, (y0 + y1) / 2 - 0.1, (rz0 + rz1) / 2
+        # A thin plank between the two floors, pitched so its +z end is the low end, then turned so that end
+        # points at lo_x (yaw +90: local +z points east; -90: west).
+        yaw = 90.0 if lo_x > hi_x else -90.0
+        obox(cx, cy, cz, RAMP_W, 0.2, slope, yaw, "wood", pitch=angle)
+        # The hole upstairs is over the ramp only; the floor beyond its top end is the landing.
+        hx0, hx1 = min(lo_x, hi_x), max(lo_x, hi_x)
+        self.holes[f + 1] = (hx0, rz0, hx1, rz1)
+        # Rails round the hole upstairs (its open side and its low end), so nobody walks off the edge.
+        rail_z = rz1 + 0.05 if wall == "N" else rz0 - 0.05
+        box(hx0, y1, rail_z - 0.05, hx1, y1 + 1.0, rail_z + 0.05, "metal")
+        if wall == "N":
+            box(hx1, y1, rz0, hx1 + 0.1, y1 + 1.0, rz1, "metal")
+        else:
+            box(hx0 - 0.1, y1, rz0, hx0, y1 + 1.0, rz1, "metal")
+
+    def _slab(self, f):
+        y = f * self.h
+        x0, z0, x1, z1 = self.x0, self.z0, self.x1, self.z1
+        colour = "roof" if f == self.floors else "slab"
+        hole = self.holes.get(f)
+        if hole is None:
+            box(x0, y - SLAB_T, z0, x1, y, z1, colour)
+            return
+        hx0, hz0, hx1, hz1 = hole
+        box(x0, y - SLAB_T, z0, x1, y, hz0, colour)
+        box(x0, y - SLAB_T, hz1, x1, y, z1, colour)
+        box(x0, y - SLAB_T, hz0, hx0, y, hz1, colour)
+        box(hx1, y - SLAB_T, hz0, x1, y, hz1, colour)
+
+    def room_centre(self, i, j, floor=0):
+        cx0, cz0, cx1, cz1 = self.cell(i, j)
+        return (cx0 + cx1) / 2, floor * self.h, (cz0 + cz1) / 2
+
+    def against_wall(self, i, j, floor=0, side="E", offset=0.0):
+        """A spot for a container inside room (i, j), against its `side` wall."""
+        cx0, cz0, cx1, cz1 = self.cell(i, j)
+        y = floor * self.h
+        # Never in front of the outside door (it would block it): slide along the wall.
+        horizontal = side in "NS"
+        n = self.nx if horizontal else self.nz
+        k = i if horizontal else j
+        outer = (side == "N" and j == 0) or (side == "S" and j == self.nz - 1) or \
+                (side == "W" and i == 0) or (side == "E" and i == self.nx - 1)
+        if floor == 0 and outer and side in self.doors and k == n // 2 and abs(offset) < 2.0:
+            offset = 2.4 if offset >= 0 else -2.4
+        if side == "E":
+            return cx1 - 0.7, y, (cz0 + cz1) / 2 + offset, 90.0
+        if side == "W":
+            return cx0 + 0.7, y, (cz0 + cz1) / 2 + offset, -90.0
+        if side == "S":
+            return (cx0 + cx1) / 2 + offset, y, cz1 - 0.6, 0.0
+        return (cx0 + cx1) / 2 + offset, y, cz0 + 0.6, 180.0
+
+
+def build(b, loot_spots=()):
+    """loot_spots: (kind, room i, room j, floor, wall side, offset)."""
+    b.build()
+    for kind, i, j, floor, side, off in loot_spots:
+        x, y, z, yaw = b.against_wall(i, j, floor, side, off)
+        add_loot(b.name, kind, x, z, y=y, yaw=yaw)
+    return b
+
+
+# ---------------------------------------------------------------------------------------------- ground
+def ground(holes):
+    """Grass everywhere except the rectangles in `holes` (openings down to the bunker)."""
+    xs = sorted({0.0, M} | {h[0] for h in holes} | {h[2] for h in holes})
+    zs = sorted({0.0, M} | {h[1] for h in holes} | {h[3] for h in holes})
+    for a in range(len(xs) - 1):
+        for b in range(len(zs) - 1):
+            cx, cz = (xs[a] + xs[a + 1]) / 2, (zs[b] + zs[b + 1]) / 2
+            if any(h[0] <= cx <= h[2] and h[1] <= cz <= h[3] for h in holes):
+                continue
+            box(xs[a], -1.0, zs[b], xs[a + 1], 0.0, zs[b + 1], "grass")
+
+
+def strip(points, width, colour, y=0.02, h=0.04, solid=False):
+    """A flat band along a polyline (roads, paths, water)."""
+    for (ax, az), (bx, bz) in zip(points, points[1:]):
+        length = math.hypot(bx - ax, bz - az)
+        yaw = math.degrees(math.atan2(bx - ax, bz - az))
+        obox((ax + bx) / 2, y + h / 2, (az + bz) / 2, width, h, length + width * 0.02, yaw, colour, solid)
+    for (px, pz) in points[1:-1]:
+        obox(px, y + h / 2 + 0.001, pz, width, h, width, 0.0, colour, solid)
+
+
+def bezier(p0, p1, p2, p3, n=24):
+    out = []
+    for k in range(n + 1):
+        t = k / n
+        a = (1 - t) ** 3
+        b = 3 * (1 - t) ** 2 * t
+        c = 3 * (1 - t) * t * t
+        d = t ** 3
+        out.append((a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0], a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]))
+    return out
+
+
+# ---------------------------------------------------------------------------------------------- props (cover)
+def car(x, z, yaw, colour="car_a"):
+    obox(x, 0.55, z, 1.9, 1.1, 4.2, yaw, colour)
+    obox(x, 1.35, z, 1.7, 0.6, 2.2, yaw, colour)
+
+
+def dumpster(x, z, yaw=0.0):
+    obox(x, 0.7, z, 2.0, 1.4, 1.2, yaw, "metal")
+
+
+def barrier(x, z, yaw):
+    obox(x, 0.45, z, 0.6, 0.9, 3.0, yaw, "concrete")
+
+
+def planter(x, z):
+    box(x - 1.5, 0, z - 1.0, x + 1.5, 1.0, z + 1.0, "concrete")
+
+
+def stall(x, z, yaw=0.0):
+    obox(x, 0.55, z, 3.0, 1.1, 1.6, yaw, "wood")
+    obox(x, 2.4, z, 3.4, 0.15, 2.2, yaw, "car_b", solid=False)
+    for dx in (-1.5, 1.5):
+        ox = x + dx * math.cos(math.radians(yaw))
+        oz = z - dx * math.sin(math.radians(yaw))
+        obox(ox, 1.4, oz, 0.12, 2.0, 0.12, yaw, "wood")
+
+
+def hay(x, z):
+    box(x - 1.0, 0, z - 0.7, x + 1.0, 1.2, z + 0.7, "hay")
+
+
+def tree(x, z, rng):
+    h = rng.uniform(5.0, 7.5)
+    box(x - 0.35, 0, z - 0.35, x + 0.35, h, z + 0.35, "trunk")
+    s = rng.uniform(3.0, 4.6)
+    box(x - s / 2, h - 1.0, z - s / 2, x + s / 2, h + s * 0.7, z + s / 2, "leaves", solid=False)
+
+
+def bush(x, z, rng):
+    s = rng.uniform(1.4, 2.2)
+    box(x - s / 2, 0, z - s / 2, x + s / 2, rng.uniform(1.0, 1.5), z + s / 2, "leaves")
+
+
+def fence(points, h=1.1):
+    """A low wooden fence along a polyline, with a gap every so often (low cover, jumpable later)."""
+    strip(points, 0.15, "wood", y=0.0, h=h, solid=True)
+
+
+# ================================================================================================ the map
+def main():
+    rng = random.Random(1234)
+
+    # --- the bunker under the town hall: a ramp hole in the ground at the hall's west end
+    bunker_hole = (85.5, 148.0, 94.0, 150.4)
+    ground([bunker_hole])
+
+    # map edge: a wall all round (gray box; hills/fences later)
+    box(-1, 0, -1, M + 1, 6, 0.5, "boundary")
+    box(-1, 0, M - 0.5, M + 1, 6, M + 1, "boundary")
+    box(-1, 0, -1, 0.5, 6, M + 1, "boundary")
+    box(M - 0.5, 0, -1, M + 1, 6, M + 1, "boundary")
+
+    # --- roads (from the agreed layout picture)
+    strip([(0, 82), (30, 80), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9, "road")              # Main Street
+    strip([(200, 104), (235, 92), (265, 72), (292, 42), (318, 0)], 8, "road")                                   # county road
+    strip([(62, 86), (48, 58), (58, 30), (95, 18), (130, 22)], 6, "road")                                       # Hill Road
+    strip([(112, 100), (118, 70), (122, 40), (138, 8)], 6, "road")                                              # Mill Lane
+    strip([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300), (350, 306)], 8, "road")
+    strip([(186, 104), (194, 150), (214, 186)], 6, "road")                                                      # Station Road
+    strip([(236, 270), (290, 258), (350, 252)], 6, "road")                                                      # East Lane
+    strip([(196, 240), (180, 300), (160, 348)], 6, "road")                                                      # South Lane
+    # creek (shallow: walkable) and the rail bridge over it
+    creek = bezier((0, 212), (60, 250), (40, 300), (110, 350))
+    strip(creek, 5, "water", y=0.01, h=0.03)
+
+    # --- railway (west to east at y 210) with sidings to the depot
+    RY = 210.0
+    box(0, 0, RY - 1.6, M, 0.12, RY + 1.6, "rail", solid=False)
+    for x in range(2, int(M), 3):
+        box(x, 0.0, RY - 1.4, x + 0.4, 0.14, RY + 1.4, "wood", solid=False)
+    for siding in ([(232, RY), (248, 220), (290, 220)], [(238, RY), (254, 228), (290, 228)]):
+        strip(siding, 3.0, "rail", y=0.0, h=0.12)
+    box(36, 0.0, RY - 3, 48, 0.25, RY + 3, "wood")   # rail bridge deck over the creek
+
+    # ===================================================================== TOWN (top left)
+    # town square: paving + lots of cover (owner): fountain, planters, stalls, parked cars, statue, kiosk
+    box(88, 0.0, 108, 124, 0.06, 138, "pavement", solid=False)
+    box(103, 0, 120, 109, 0.8, 126, "concrete")           # fountain basin
+    box(105.4, 0.8, 122.4, 106.6, 2.6, 123.6, "concrete")  # fountain column
+    for px, pz in ((93, 112), (119, 112), (93, 134), (119, 134), (98, 123), (114, 123)):
+        planter(px, pz)
+    stall(99, 115, 0); stall(106, 115, 0); stall(113, 115, 0)
+    stall(100, 131, 0); stall(112, 131, 0)
+    car(91, 124, 0, "car_b"); car(121, 126, 10, "car_a")
+    box(104.5, 0, 133, 107.5, 1.2, 136, "concrete")        # statue plinth
+    box(105.5, 1.2, 134, 106.5, 4.0, 135, "metal")         # statue
+    box(118, 0, 118, 120.5, 2.6, 120.5, "car_b")           # newsstand kiosk
+
+    # downtown
+    hall = build(Building("TownHall", 82, 142, 50, 18, floors=2, colour="wall_hall", rooms=(4, 2), doors="NS",
+                          roof=True), [
+        ("locker", 1, 0, 1, "N", 0), ("crate", 2, 1, 1, "S", 0), ("locker", 3, 0, 1, "E", 0),
+        ("crate", 1, 1, 0, "S", 0)])
+    # the bunker (owner: best loot, behind a key door later): ramp down from the hall's west room
+    bunker_floor = -4.5
+    hx0, hz0, hx1, hz1 = bunker_hole
+    run = hx1 - hx0
+    obox((hx0 + hx1) / 2, bunker_floor / 2 - 0.1, (hz0 + hz1) / 2, hz1 - hz0 - 0.1, 0.2, math.hypot(run, bunker_floor),
+         90.0, "concrete", pitch=math.degrees(math.atan2(-bunker_floor, run)))   # top (y 0) west, bottom east
+    bx0, bz0, bx1, bz1 = 80.0, 143.0, 132.0, 159.0
+    box(bx0, bunker_floor - 0.3, bz0, bx1, bunker_floor, bz1, "bunker")                 # floor
+    box(bx0 - 0.3, bunker_floor, bz0 - 0.3, bx1 + 0.3, -1.0, bz0, "bunker")              # north wall
+    box(bx0 - 0.3, bunker_floor, bz1, bx1 + 0.3, -1.0, bz1 + 0.3, "bunker")              # south wall
+    box(bx0 - 0.3, bunker_floor, bz0, bx0, -1.0, bz1, "bunker")                          # west wall
+    box(bx1, bunker_floor, bz0, bx1 + 0.3, -1.0, bz1, "bunker")                          # east wall
+    # shaft wall north of the ramp; a rail round the hole upstairs (in the hall)
+    box(hx0, bunker_floor, hz0 - 0.3, hx1, -1.0, hz0, "bunker")
+    box(hx0, 0, hz0 - 0.1, hx1, 1.0, hz0, "metal")
+    box(hx1, 0, hz0 - 0.1, hx1 + 0.1, 1.0, hz1 + 0.1, "metal")
+    box(hx0, 0, hz1, hx1, 1.0, hz1 + 0.1, "metal")
+    # key door: the wall at x 99 between the ramp landing and the bunker rooms (doorway open until keys exist)
+    wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(151.0, DOOR_W, 0.0, DOOR_H)])
+    box(98.7, bunker_floor + 2.3, 150.0, 99.3, bunker_floor + 2.6, 152.0, "keydoor", solid=False)
+    markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 151.0, {"key": "bunker_key", "place": "Bunker"}))
+    # bunker rooms: corridor along the south, three vaults to the north
+    for x in (110.0, 121.0):
+        wall_z(bz0, bz1 - 5, x, bunker_floor, 3.5, "bunker", [((bz0 + bz1 - 5) / 2, INNER_DOOR_W, 0.0, DOOR_H)])
+    wall_x(99.0, bx1, bz1 - 5, bunker_floor, 3.5, "bunker",
+           [(104.5, INNER_DOOR_W, 0.0, DOOR_H), (115.5, INNER_DOOR_W, 0.0, DOOR_H), (126.5, INNER_DOOR_W, 0.0, DOOR_H)])
+    for x, z, yaw in ((102.0, 144.0, 180.0), (113.0, 144.0, 180.0), (124.0, 144.0, 180.0), (130.5, 149.0, 90.0)):
+        add_loot("Bunker", "safe", x, z, y=bunker_floor, yaw=yaw)
+    add_loot("Bunker", "locker", 107.0, 144.0, y=bunker_floor, yaw=180.0)
+    add_loot("Bunker", "crate", 101.0, 156.5, y=bunker_floor)
+
+    # bank (vault behind a key door placeholder: room (1, 0), only reachable from room (1, 1))
+    build(Building("Bank", 128, 110, 16, 16, colour="wall_rich", rooms=(2, 2), doors="W",
+                   solid_inner=[("v", 1, 0)], no_windows=[(1, 0)]), [
+        ("safe", 1, 0, 0, "E", -1.5), ("safe", 1, 0, 0, "N", 0), ("locker", 0, 1, 0, "W", 0)])
+    box(139.0, 2.3, 117.7, 141.0, 2.6, 118.3, "keydoor", solid=False)
+    markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 118.0, {"key": "bank_vault_key", "place": "Bank"}))
+    build(Building("OfficesEast", 128, 128, 16, 12, floors=2, rooms=(2, 2), doors="W"), [
+        ("crate", 1, 0, 0, "E", 0), ("crate", 0, 1, 1, "S", 0), ("locker", 1, 1, 1, "E", 0)])
+    build(Building("OfficesWest", 70, 128, 15, 13, floors=2, rooms=(2, 2), doors="E"), [
+        ("crate", 0, 1, 0, "W", 0), ("crate", 1, 0, 1, "N", 0)])
+    gun = build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [
+        ("locker", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0), ("crate", 1, 0, 0, "N", 0)])
+    for z in (73.0, 77.0):   # display counters
+        box(72.0, 0, z, 77.0, 1.0, z + 0.8, "wood")
+    build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S"), [
+        ("crate", 0, 0, 0, "W", 0), ("crate", 1, 0, 0, "E", 0)])
+    box(92.0, 0, 76.0, 96.5, 1.6, 76.8, "wood")
+    groc = build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True), [
+        ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 1, 0, "S", -2)])
+    for x in (132.0, 140.0, 148.0):  # aisles
+        box(x, 0, 63.0, x + 0.9, 1.7, 68.0, "wood")
+        box(x, 0, 72.0, x + 0.9, 1.7, 77.0, "wood")
+    box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
+    car(158, 66, 0); car(164, 74, 0, "car_b")
+    build(Building("ShopA", 36, 68, 12, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 1, 0, 0, "E", 0)])
+    build(Building("ShopB", 50, 70, 14, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 0, 0, 1, "W", 0)])
+    build(Building("TownHouse", 66, 108, 11, 9, floors=2, rooms=(2, 1), doors="E"), [("crate", 1, 0, 1, "E", 0)])
+    build(Building("Police", 150, 112, 26, 22, floors=2, colour="wall_police", rooms=(3, 3), doors="WS", roof=True), [
+        ("locker", 2, 0, 0, "E", 0), ("locker", 2, 0, 0, "N", 0), ("locker", 0, 2, 1, "W", 0),
+        ("locker", 2, 2, 1, "E", 0), ("crate", 1, 1, 0, "S", 0)])
+    for x, z, yaw in ((180, 118, 90), (180, 126, 90)):
+        car(x, z, yaw, "car_b")
+    barrier(178, 108, 90)
+    build(Building("School", 15, 120, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="E", roof=True), [
+        ("crate", 0, 0, 0, "W", 0), ("crate", 2, 2, 0, "E", 0), ("locker", 1, 2, 1, "S", 0),
+        ("crate", 0, 1, 1, "W", 0)])
+    box(15, 0.0, 148, 45, 0.04, 166, "crop", solid=False)       # sports field
+    for gx_ in (16.0, 43.0):
+        box(gx_, 0, 156.0, gx_ + 0.2, 2.4, 156.2, "metal")
+        box(gx_, 0, 158.8, gx_ + 0.2, 2.4, 159.0, "metal")
+
+    # hillside: big houses (owner: expensive loot)
+    for n, (x, y, w, d) in enumerate([(30, 22, 16, 13), (68, 36, 15, 12), (75, 6, 16, 11), (100, 32, 15, 12),
+                                      (28, 42, 13, 12)], start=1):
+        build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2),
+                       doors="S" if n != 3 else "W"), [
+            ("locker", 1, 1, 0, "E", 0), ("crate", 0, 1, 1, "W", 0), ("locker", 1, 0, 1, "E", 0)])
+    add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)
+
+    # street cover around town
+    for x, z, yaw, col in ((44, 87, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
+                           (57, 112, 10, "car_a"), (118, 52, 5, "car_b")):
+        car(x, z, yaw, col)
+    for x, z in ((48, 82), (88, 88), (124, 88), (146, 140), (66, 140), (126, 84)):
+        dumpster(x, z)
+
+    # houses between town and farm
+    for n, (x, y) in enumerate([(214, 30), (224, 54), (206, 72)], start=1):
+        build(Building(f"RoadHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="S"),
+              [("crate", 1, 1, 0, "E", 0)])
+
+    # ===================================================================== FARM (top right)
+    box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
+    build(Building("Barn", 256, 26, 24, 18, colour="wall_farm", rooms=(1, 1), doors="SN", height=6.0,
+                   big_doors=True), [("crate", 0, 0, 0, "E", 0), ("crate", 0, 0, 0, "W", 2)])
+    for hx, hz in ((262, 31), (262, 33.5), (274, 39), (270, 30)):
+        hay(hx, hz)
+    box(286, 0, 28, 294, 12, 36, "concrete")                          # silo
+    build(Building("Farmhouse", 306, 26, 16, 12, floors=2, rooms=(2, 2), doors="S"), [
+        ("locker", 1, 0, 0, "E", 0), ("crate", 0, 1, 1, "W", 0)])
+    build(Building("Shed", 256, 62, 18, 12, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
+                   big_doors=True), [("crate", 0, 0, 0, "W", 0)])
+    for k in range(5):   # crop rows (low cover)
+        z = 50 + k * 9
+        box(286, 0, z, 338, 1.0, z + 3, "crop")
+    fence([(245, 8), (245, 40)]); fence([(245, 52), (245, 100), (300, 100)]); fence([(312, 100), (343, 100)])
+    obox(282, 1.0, 56, 2.2, 2.0, 3.6, 20, "car_a")                     # tractor
+
+    # ===================================================================== MIDDLE: train station + depot
+    build(Building("TrainStation", 200, 190, 38, 14, colour="wall", rooms=(3, 1), doors="SN", roof=True,
+                   height=3.6), [("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("locker", 1, 0, 0, "N", 0)])
+    box(196, 0, 205, 246, 0.8, 207.6, "concrete")                       # platform
+    build(Building("Depot", 262, 232, 30, 18, colour="wall_farm", rooms=(1, 1), doors="WE", height=7.0,
+                   big_doors=True), [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
+    for x0, z0 in ((145, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
+        box(x0, 0, z0 - 1.5, x0 + 11, 3.6, z0 + 1.5, "boxcar")
+    add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
+
+    # ===================================================================== BOTTOM RIGHT: old houses, gas station
+    for n, (x, y) in enumerate([(206, 258), (248, 284), (316, 238), (330, 268), (304, 282), (176, 276),
+                                (166, 318), (214, 316)], start=1):
+        build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W"),
+              [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
+    build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S"), [
+        ("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0)])
+    for x in (296.5, 329.5):  # canopy over the pumps
+        for z in (336.0, 341.5):
+            box(x, 0, z, x + 0.5, 4.5, z + 0.5, "metal")
+    box(296, 4.5, 335.5, 330.5, 4.9, 342.5, "wall_fuel")
+    for x in (302, 310, 318):
+        box(x, 0, 338.2, x + 1.2, 1.6, 339.4, "metal")
+    build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W"), [("crate", 1, 0, 0, "E", 0)])
+    build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True),
+          [("crate", 0, 0, 0, "E", 0)])
+    car(286, 300, 70, "car_b"); car(244, 268, 40, "car_a"); barrier(260, 282, 55); barrier(264, 286, 55)
+
+    # ===================================================================== WOODS + cabins
+    for (cx, cz, r) in [(20, 240, 9), (42, 258, 11), (24, 288, 10), (58, 300, 12), (30, 322, 9), (85, 270, 10),
+                        (72, 332, 9), (102, 312, 8), (110, 250, 7), (124, 332, 8)]:
+        for _ in range(int(r * 0.9)):
+            a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
+            tree(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
+        for _ in range(2):
+            a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
+            bush(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
+    for (cx, cz, r) in [(280, 120, 9), (300, 130, 11), (322, 118, 9), (338, 140, 8), (288, 150, 10), (312, 158, 11),
+                        (334, 176, 9), (268, 142, 7), (300, 180, 8)]:
+        for _ in range(int(r * 0.9)):
+            a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
+            tree(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
+        bush(cx + rng.uniform(-r, r) / 2, cz + rng.uniform(-r, r) / 2, rng)
+    for n, (x, y) in enumerate([(90, 288), (36, 304), (306, 166)], start=1):
+        build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
+              [("crate", 1, 0, 0, "E", 0)])
+
+    # ===================================================================== extracts, spawns
+    extracts.extend([("FarmRoad", "Farm Road", 314, 8), ("Highway", "Highway", 342, 304),
+                     ("CreekTrail", "Creek Trail", 10, 338)])
+    for n, (x, z) in enumerate([(8, 40), (8, 180), (100, 340), (230, 340), (340, 120), (340, 70), (178, 8), (250, 152)]):
+        player_spawns.append((f"Spawn{n}", x, z))
+    # AI spawn spots: placeholders spread over every area (Scavs 2.0 replaces them with designated spots)
+    for n, (x, z) in enumerate([
+            (106, 104), (60, 100), (140, 90), (40, 60), (90, 25), (163, 145), (30, 172), (100, 168),
+            (220, 42), (270, 50), (320, 45), (300, 110), (220, 196), (190, 225), (280, 245), (230, 290),
+            (320, 260), (300, 312), (190, 330), (60, 250), (90, 300), (40, 330), (320, 190), (150, 250)]):
+        enemy_spawns.append((f"Spawn{n}", x, z))
+
+    write_scene()
+    print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
+
+
+# ---------------------------------------------------------------------------------------------- tscn
+def fmt(v):
+    s = f"{v:.3f}".rstrip("0").rstrip(".")
+    return "0" if s in ("-0", "") else s
+
+
+def xform(x, y, z, yaw=0.0):
+    c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    return (f"Transform3D({fmt(c)}, 0, {fmt(s)}, 0, 1, 0, {fmt(-s)}, 0, {fmt(c)}, "
+            f"{fmt(gx(x))}, {fmt(y)}, {fmt(gz(z))})")
+
+
+def write_scene():
+    scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
+              "safe": "res://scenes/loot_safe.tscn"}
+    out = ["[gd_scene format=3]", "",
+           '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
+           '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]']
+    ids = {}
+    for n, (kind, path) in enumerate(scenes.items(), start=3):
+        ids[kind] = f"{n}_{kind}"
+        out.append(f'[ext_resource type="PackedScene" path="{path}" id="{ids[kind]}"]')
+    out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
+            '[node name="OldBloxov" type="Node3D"]',
+            'metadata/map_name = "Old Bloxov"',
+            # AI numbers for this map (owner, 0.10.0: harder than seems right, for testing; Scavs 2.0 retunes)
+            'metadata/spawner = {"initial_count": 12, "max_alive": 15, "scav_budget": 32, "raider_budget": 8, '
+            '"raider_times": PackedFloat32Array(0, 0, 0, 120, 210, 300, 390, 480), "min_distance_from_player": 40.0}',
+            "",
+            '[node name="Level" type="Node3D" parent="."]', "",
+            '[node name="Blocks" type="StaticBody3D" parent="Level"]',
+            'script = ExtResource("1_boxmap")',
+            "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
+            "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b) + ")", "",
+            '[node name="Loot" type="Node3D" parent="."]', ""]
+    for name, kind, x, y, z, yaw, table, place in loot:
+        out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
+                f"transform = {xform(x, y, z, yaw)}",
+                f'metadata/place = "{place}"', ""]
+    out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
+    for name, title, x, z in extracts:
+        out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',
+                f"transform = {xform(x, 0, z)}", f'extract_name = "{title}"', ""]
+    out += ['[node name="PlayerSpawns" type="Node3D" parent="."]', ""]
+    for name, x, z in player_spawns:
+        out += [f'[node name="{name}" type="Marker3D" parent="PlayerSpawns"]', f"transform = {xform(x, 0.1, z)}", ""]
+    out += ['[node name="EnemySpawns" type="Node3D" parent="."]', ""]
+    for name, x, z in enemy_spawns:
+        out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, 0.1, z)}", ""]
+    groups = sorted({m[0] for m in markers})
+    for g in groups:
+        out += [f'[node name="{g}" type="Node3D" parent="."]', ""]
+        for grp, name, x, y, z, meta in markers:
+            if grp != g:
+                continue
+            out += [f'[node name="{name}" type="Marker3D" parent="{g}"]', f"transform = {xform(x, y, z)}"]
+            out += [f'metadata/{k} = "{v}"' for k, v in meta.items()]
+            out.append("")
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    with open(OUT, "w") as f:
+        f.write("\n".join(out))
+
+
+if __name__ == "__main__":
+    main()

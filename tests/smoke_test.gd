@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -118,6 +118,8 @@ func _setup() -> void:
 	Profile.save_profile()
 	# Seed before the scene exists, so the raid's spawn point and loot rolls are the same every run.
 	seed(12345)
+	# The checks below are built around the raid scene's small test map (real maps get their own section).
+	RaidMap.scene_path = ""
 	main = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	current_scene = main
@@ -1453,6 +1455,61 @@ func _section_online_loot() -> void:
 	server.multiplayer.multiplayer_peer.close()
 	for n in [server, c1, c2]:
 		n.get_parent().queue_free()
+	await _frames(2)
+
+
+func _section_old_bloxov() -> void:
+	# The first real map (0.10.0): Old Bloxov, a 350 m gray box built by tools/gen_old_bloxov.py. Its pieces
+	# replace the test map's when a raid scene is made. Checked on a server raid copy (its own world).
+	const MAP := "res://scenes/maps/old_bloxov.tscn"
+	var map := (load(MAP) as PackedScene).instantiate()
+	_check(map.get_node("Extracts").get_child_count() == 3 and map.get_node("PlayerSpawns").get_child_count() == 8,
+		"Old Bloxov: 3 extracts and 8 player spawns")
+	_check(map.has_node("KeyDoors/BunkerDoor") and map.has_node("KeyDoors/BankVaultDoor"),
+		"key door placeholders at the bunker and the bank vault (owner: keys come in the Items update)")
+	var spots: Array[Vector3] = []
+	for node in map.get_node("PlayerSpawns").get_children() + map.get_node("Extracts").get_children():
+		spots.append((node as Node3D).position)
+	map.free()
+
+	RaidMap.scene_path = MAP
+	var world := RaidWorld.new()
+	root.add_child(world)
+	RaidMap.scene_path = ""
+	var spawner := world.raid.get_node("EnemySpawner")
+	_check(spawner.initial_count == 12 and spawner.max_alive == 15 and spawner.get_child_count() == 24,
+		"the map sets its AI numbers (12 at the start, 15 alive at most) and brings 24 AI spawn points")
+	var loot := world.raid.get_node("Loot").get_children()
+	_check(loot.size() >= 80 and loot.all(func(c: Node) -> bool: return c is LootContainer and c.has_meta("place")),
+		"%d loot containers, each tagged with its place (police, bunker, ...)" % loot.size())
+	var nav := world.raid.get_node("Navigation") as NavBaker
+	await _until(func() -> bool: return nav.is_baked)
+	for i in 3:
+		await physics_frame
+	var nav_map := nav.get_navigation_map()
+	var start := spots[0]
+	var off_nav := spots.filter(func(p: Vector3) -> bool:
+		return NavigationServer3D.map_get_closest_point(nav_map, p).distance_to(p) > 1.5)
+	_check(off_nav.is_empty(), "every player spawn and extract is on walkable ground (%s)" % [off_nav])
+	# Every container (upstairs, in the bunker, in the bank vault) can be walked to from a spawn: the AI's paths
+	# go there too (ramps, doorways and stair landings wide enough for them).
+	var unreachable: Array[String] = []
+	var query := NavigationPathQueryParameters3D.new()
+	query.map = nav_map
+	query.start_position = start
+	query.path_search_max_polygons = 0  # (as the scavs do: a path across the whole map)
+	for c: Node3D in loot:
+		var front := c.global_position + c.global_basis.z * -1.3 + Vector3.UP * 0.4
+		query.target_position = front
+		var result := NavigationPathQueryResult3D.new()
+		NavigationServer3D.query_path(query, result)
+		var path := result.path
+		if path.is_empty() or path[path.size() - 1].distance_to(front) > 1.3:
+			unreachable.append(String(c.name))
+	_check(unreachable.is_empty(), "every loot container can be walked to (unreachable: %s)" % [unreachable])
+	for enemy_node in RaidScope.nodes(world.raid, &"enemies"):
+		enemy_node.queue_free()
+	world.queue_free()
 	await _frames(2)
 
 
