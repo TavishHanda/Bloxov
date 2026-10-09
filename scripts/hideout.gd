@@ -22,6 +22,7 @@ var _stats_label: Label
 ## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
 var _message_label: Label
 var _message_tween: Tween
+const MESSAGE_MAX_WIDTH := 800.0
 var _online_button: Button
 var _free_kit_button: Button
 var _online_panel: PanelContainer
@@ -198,6 +199,11 @@ func _message(text: String) -> void:
 	if _message_label == null:
 		return
 	_message_label.text = text
+	# Fit the tape to the text (up to 800 px; longer messages wrap), centered under the bar.
+	var width := minf(HudStyle.tape_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x + 30.0, MESSAGE_MAX_WIDTH)
+	_message_label.custom_minimum_size = Vector2(width, 0)
+	_message_label.offset_left = -width * 0.5
+	_message_label.offset_right = width * 0.5
 	_message_label.modulate.a = 1.0
 	if _message_tween != null:
 		_message_tween.kill()
@@ -207,9 +213,11 @@ func _message(text: String) -> void:
 
 
 func _build_top_bar() -> void:
+	# Look (0.8.11, "Ammo Can"): a gunmetal strip, the pixel font, money on a brass tag, a hazard-yellow START RAID.
 	var bar := PanelContainer.new()
 	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	bar.offset_bottom = 50
+	LootUI.skin_panel(bar, 3.0)
 	add_child(bar)
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)
@@ -220,48 +228,73 @@ func _build_top_bar() -> void:
 	margin.add_child(row)
 
 	var title := Label.new()
-	title.text = "BLOXOV  ·  HIDEOUT"
-	title.add_theme_font_size_override("font_size", 22)
+	title.text = "BLOXOV"
+	HudStyle.style_label(title, 30)
 	row.add_child(title)
+	var place := Label.new()
+	place.text = "HIDEOUT"
+	HudStyle.style_label(place, 20, HudStyle.INK_DIM)
+	row.add_child(place)
 	# Same dim style as the version in the corner during a raid.
 	_version_label = Label.new()
 	_version_label.text = "v%s" % ProjectSettings.get_setting("application/config/version", "?")
-	_version_label.modulate = Color(1, 1, 1, 0.45)
-	_version_label.add_theme_font_size_override("font_size", 14)
+	HudStyle.style_label(_version_label, 20, Color(HudStyle.INK, 0.4))
 	row.add_child(_version_label)
+	# Money on a brass tag.
 	_money_label = Label.new()
-	_money_label.add_theme_font_size_override("font_size", 22)
-	_money_label.add_theme_color_override("font_color", Color(0.55, 1.0, 0.5))
+	HudStyle.style_label(_money_label, 30, HudStyle.DEEP)
+	_money_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	var tag := StyleBoxFlat.new()
+	tag.bg_color = HudStyle.BRASS
+	tag.border_color = HudStyle.BRASS_DK
+	tag.set_border_width_all(2)
+	tag.border_width_bottom = 4
+	tag.content_margin_left = 10
+	tag.content_margin_right = 10
+	_money_label.add_theme_stylebox_override("normal", tag)
+	_money_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_money_label)
 	_stats_label = Label.new()
-	_stats_label.modulate = Color(1, 1, 1, 0.7)
+	HudStyle.style_label(_stats_label, 20, HudStyle.INK_DIM)
+	_stats_label.add_theme_font_override("font", HudStyle.spaced_font())
 	row.add_child(_stats_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
+	# Messages are written on a strip of masking tape stuck under the bar (sized to the text, centered; see _message).
 	_message_label = Label.new()
 	_message_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_message_label.position = Vector2(-400, 54)
-	_message_label.custom_minimum_size = Vector2(800, 0)
+	_message_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_message_label.offset_top = 46
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # (long ones wrap, never cut off)
 	_message_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_message_label.add_theme_font_size_override("font_size", 18)
-	_message_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
-	_message_label.add_theme_color_override("font_outline_color", Color.BLACK)
-	_message_label.add_theme_constant_override("outline_size", 6)
+	_message_label.add_theme_font_override("font", HudStyle.tape_font())
+	_message_label.add_theme_font_size_override("font_size", 16)
+	_message_label.add_theme_color_override("font_color", HudStyle.TAPE_INK)
+	var tape := StyleBoxFlat.new()
+	tape.bg_color = HudStyle.TAPE
+	tape.shadow_color = Color(0, 0, 0, 0.45)
+	tape.shadow_offset = Vector2(2, 3)
+	tape.shadow_size = 1
+	tape.content_margin_left = 14
+	tape.content_margin_right = 14
+	tape.content_margin_top = 3
+	tape.content_margin_bottom = 3
+	_message_label.add_theme_stylebox_override("normal", tape)
 	add_child(_message_label)
 	_free_kit_button = Button.new()
 	_free_kit_button.text = "Free kit"
 	_free_kit_button.tooltip_text = FREE_KIT_HINT
 	_free_kit_button.focus_mode = Control.FOCUS_NONE
 	_free_kit_button.pressed.connect(take_free_kit)
+	LootUI.style_button(_free_kit_button)
 	row.add_child(_free_kit_button)
 	var raid_button := Button.new()
 	raid_button.text = "START RAID"
 	raid_button.custom_minimum_size = Vector2(150, 0)
-	raid_button.add_theme_font_size_override("font_size", 20)
 	raid_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(raid_button, 30, HudStyle.HAZARD)
 	raid_button.pressed.connect(func() -> void:
 		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
 		start_raid())
@@ -270,6 +303,7 @@ func _build_top_bar() -> void:
 	_online_button.text = "ONLINE"
 	_online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
 	_online_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(_online_button)
 	_online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
 	row.add_child(_online_button)
 
@@ -450,6 +484,7 @@ func _build_online_panel() -> void:
 func _build_trader() -> Control:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(250, 0)
+	LootUI.skin_panel(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 14)
@@ -459,13 +494,16 @@ func _build_trader() -> Control:
 	margin.add_child(box)
 	var title := Label.new()
 	title.text = "TRADER"
-	title.add_theme_font_size_override("font_size", 22)
+	HudStyle.style_label(title, 30)
 	box.add_child(title)
 	var hint := Label.new()
 	hint.text = "Buy: goes to your stash.\nSell: right-click any item.\nValuables sell for full value,\ngear for %d%%." % roundi(GEAR_SELL_RATE * 100)
 	hint.modulate = Color(1, 1, 1, 0.65)
 	hint.add_theme_font_size_override("font_size", 12)
 	box.add_child(hint)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 4)
+	box.add_child(gap)
 	for entry in TRADER_STOCK:
 		var id: String = entry[0]
 		var amount: int = entry[1]
@@ -473,14 +511,15 @@ func _build_trader() -> Control:
 		box.add_child(row)
 		var item_name := Label.new()
 		item_name.text = ItemDB.label(id, amount)
-		item_name.add_theme_color_override("font_color", ItemDB.color(id))
-		item_name.add_theme_font_size_override("font_size", 13)
+		HudStyle.style_label(item_name, 20, ItemDB.color(id))
+		item_name.add_theme_font_override("font", HudStyle.spaced_font())
 		item_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(item_name)
 		var button := Button.new()
 		button.text = ItemDB.money(buy_price(id, amount))
 		button.focus_mode = Control.FOCUS_NONE
 		button.custom_minimum_size = Vector2(76, 0)
+		LootUI.style_button(button)
 		button.pressed.connect(buy.bind(id, amount))
 		row.add_child(button)
 	return panel

@@ -831,8 +831,7 @@ func _build_doll() -> SubViewportContainer:
 func _panel(parent: Control) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(260, 0)
-	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	panel.draw.connect(func() -> void: HudStyle.draw_plate(panel, Rect2(Vector2.ZERO, panel.size), HudStyle.OUTLINE, HudStyle.FACE, 4.0))
+	skin_panel(panel)
 	parent.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -843,6 +842,12 @@ func _panel(parent: Control) -> PanelContainer:
 	margin.add_child(box)
 	panel.set_meta("box", box)
 	return panel
+
+
+## Draws a PanelContainer as a gunmetal plate (also used by the hideout's trader column and top bar).
+static func skin_panel(panel: PanelContainer, bevel := 4.0) -> void:
+	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	panel.draw.connect(func() -> void: HudStyle.draw_plate(panel, Rect2(Vector2.ZERO, panel.size), HudStyle.OUTLINE, HudStyle.FACE, bevel))
 
 
 ## Headings and item names: the HUD's pixel number font (Jersey 10) with a hard shadow.
@@ -862,11 +867,15 @@ func _section(text: String) -> Label:
 
 
 ## Gives a Button the gunmetal look (lighter when hovered, darker when pressed) with the pixel font.
-static func style_button(button: Button, font_size := 20) -> void:
+## `face` paints it another color (START RAID is hazard yellow, with dark text).
+## The label is drawn by us, centered on its pixels in the face (the engine centers on font metrics, which left
+## the pixel font off-center), in the letter-spaced font.
+static func style_button(button: Button, font_size := 20, face := HudStyle.FACE) -> void:
+	var dark_text := face.get_luminance() > 0.5
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var box := StyleBoxFlat.new()
-		box.bg_color = {"normal": HudStyle.FACE, "hover": HudStyle.FACE_HI, "pressed": HudStyle.FACE_DK,
-			"disabled": HudStyle.DEEP, "focus": HudStyle.FACE}[state]
+		box.bg_color = {"normal": face, "hover": face.lightened(0.15), "pressed": face.darkened(0.3),
+			"disabled": HudStyle.DEEP, "focus": face}[state]
 		box.border_color = Color.BLACK
 		box.set_border_width_all(2)
 		box.border_width_bottom = 4 if state != "pressed" else 2
@@ -875,11 +884,17 @@ static func style_button(button: Button, font_size := 20) -> void:
 		box.content_margin_top = 4
 		box.content_margin_bottom = 4
 		button.add_theme_stylebox_override(state, box)
-	button.add_theme_font_override("font", HudStyle.font())
+	# Sized with the real font; drawn by hand (the built-in text is made invisible).
+	button.add_theme_font_override("font", HudStyle.spaced_font())
 	button.add_theme_font_size_override("font_size", font_size)
-	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		button.add_theme_color_override(color_name, HudStyle.INK)
-	button.add_theme_color_override("font_disabled_color", HudStyle.INK_DIM)
+	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(color_name, Color(0, 0, 0, 0))
+	button.draw.connect(func() -> void:
+		var pressed := button.get_draw_mode() == BaseButton.DRAW_PRESSED or button.get_draw_mode() == BaseButton.DRAW_HOVER_PRESSED
+		var bottom := 2.0 if pressed else 4.0
+		var face_rect := Rect2(2, 2, button.size.x - 4, button.size.y - 2 - bottom)
+		var color := (HudStyle.DEEP if dark_text else HudStyle.INK) if not button.disabled else HudStyle.INK_DIM
+		HudStyle.draw_centered(button, button.text, face_rect, font_size, color, HudStyle.spaced_font(), not dark_text))
 
 
 func _small(text: String) -> Label:

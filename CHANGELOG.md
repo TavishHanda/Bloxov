@@ -5,6 +5,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.11 (hideout in the "Ammo Can" look, owner)
+- **Top bar:** a gunmetal strip with BLOXOV in the pixel font, your money on a brass tag, the stats in the pixel font,
+  gunmetal buttons and a big hazard-yellow **START RAID**
+- **Messages** ("Sold ...", "Not enough money ...") are written on a strip of masking tape under the bar
+- **Trader:** a gunmetal column like the inventory's, item names in their rarity color in the pixel font, gunmetal
+  price buttons
+- **Button labels are centered to the pixel** (and letter-spaced) on every gunmetal button: START RAID, ONLINE, the
+  trader's prices, CLOSE, BACK TO HIDEOUT
+- (The ONLINE panel keeps its look for now)
+
 ## 0.8.10 (end-of-raid screen in the "Ammo Can" look, owner)
 - **The result is an ink stamp:** green EXTRACTED, amber MISSING IN ACTION or red KILLED IN ACTION, with a double,
   slightly worn border
