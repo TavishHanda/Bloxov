@@ -136,12 +136,18 @@ jobs:
       - name: Deploy the game server to Heroku
         if: env.HEROKU_API_KEY != '' && env.HEROKU_ON == 'true'
         run: |
-          api() { curl -fsS -H "Authorization: Bearer $HEROKU_API_KEY" -H "Accept: application/vnd.heroku+json; version=3" -H "Content-Type: application/json" "$@"; }
+          # A pasted secret can carry a stray space or newline, which breaks the login.
+          KEY=$(printf '%s' "$HEROKU_API_KEY" | tr -d '[:space:]')
+          api() { curl -fsS -H "Authorization: Bearer $KEY" -H "Accept: application/vnd.heroku+json; version=3" -H "Content-Type: application/json" "$@"; }
           # First deploy: create the app as a Docker ("container") app.
+          if ! api https://api.heroku.com/account > /dev/null; then
+            echo "::error::Heroku didn't accept HEROKU_API_KEY (401). Copy the API key again from Heroku > Account settings and update the secret."
+            exit 1
+          fi
           api "https://api.heroku.com/apps/$APP" > /dev/null 2>&1 || api -X POST https://api.heroku.com/apps -d "{\"name\":\"$APP\",\"stack\":\"container\"}"
           # An app made in the dashboard starts on the buildpack stack; this one builds from the Dockerfile.
           api -X PATCH "https://api.heroku.com/apps/$APP" -d '{"build_stack":"container"}' > /dev/null
-          git push --force "https://heroku:$HEROKU_API_KEY@git.heroku.com/$APP.git" HEAD:refs/heads/main
+          git push --force "https://heroku:$KEY@git.heroku.com/$APP.git" HEAD:refs/heads/main
           # One always-on server (Basic): the raid lives in that one process, so never more than one.
           api -X PATCH "https://api.heroku.com/apps/$APP/formation/web" -d '{"quantity":1,"size":"basic"}'
           echo "Server address: $(api https://api.heroku.com/apps/$APP | python3 -c 'import json,sys; print(json.load(sys.stdin)["web_url"])')"
