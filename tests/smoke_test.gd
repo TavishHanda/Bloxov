@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1015,6 +1015,26 @@ func _section_pathing() -> void:
 			break
 	_check(scav._path.size() > 2, "its path goes around the building (%d points)" % scav._path.size())
 	_check(arrived, "it walks around the grocery to a spot inside (ended at %s)" % str(scav.global_position.snapped(Vector3.ONE * 0.1)))
+	scav.queue_free()
+
+
+func _section_patrol() -> void:
+	# Unaware scavs patrol across the map at a walking pace instead of idling where they spawned.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav  # a corner spawn point
+	await physics_frame
+	var start := scav.global_position
+	var farthest := 0.0
+	var top_speed := 0.0
+	# Only while it's unaware (left long enough it may well wander into view of the player and react).
+	for i in 60 * 20:
+		await physics_frame
+		if scav.state != Scav.State.IDLE:
+			break
+		farthest = maxf(farthest, scav.global_position.distance_to(start))
+		top_speed = maxf(top_speed, Vector2(scav.velocity.x, scav.velocity.z).length())
+	_check(farthest > 15.0, "an unaware scav patrols away from its spawn (%.0f m in 20 s)" % farthest)
+	_check(top_speed > 1.7 and top_speed < scav.move_speed, "it patrols at a walking pace (%.1f m/s)" % top_speed)
 	scav.queue_free()
 
 

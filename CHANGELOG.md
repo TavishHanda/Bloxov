@@ -2,6 +2,11 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.7 (scavs: patrols, owner feedback)
+- **Unaware scavs patrol the map** instead of hanging around where they spawned (the map edge): they walk to a
+  destination (usually a loot spot, sometimes anywhere they can reach), pause there for 2-6 seconds, then move on
+- **They walk at a normal pace** (~2 m/s, you walk at 3.4) instead of a slow 1 m/s stroll, and stand around less
+
 ## 0.6.6 (scavs: getting around)
 - **Scavs find their way around buildings and crates** instead of walking into walls. The raid builds a map of
   where they can walk when it starts, and they follow paths when investigating a noise, chasing you to where

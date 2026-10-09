@@ -39,6 +39,9 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       reachable point and that counts as arriving. Async navigation iterations are off in `project.godot` (they
       never finished under `--fixed-fps` tests; the map is small). Not done: avoidance between scavs (later, if
       they bunch up). Test: `pathing` section (around the grocery to its door).
+- [x] **3b. Patrols (0.6.7, owner feedback: idle scavs too slow, stuck near their spawn at the map edge).**
+      Unaware scavs walk (~2 m/s) to destinations across the map (65% a loot spot, else any reachable point),
+      pause 2-6 s, then pick the next. Patrol destinations will follow wherever the real maps put loot.
 - [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
       there, and peeks out to shoot. No more standing in the open trading shots.
 - [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.

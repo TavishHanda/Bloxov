@@ -26,6 +26,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Chasing a player it can't see: gives up on the last-seen spot after this long and starts searching.
 @export var give_up_time := 6.0
 
+@export_group("Patrol")
+## Unaware scavs walk between destinations at this fraction of move_speed (0.55 x 3.6 = about 2 m/s),
+## pausing this long (seconds) at each one.
+@export var patrol_speed := 0.55
+@export var patrol_pause_min := 2.0
+@export var patrol_pause_max := 6.0
+
 @export_group("Spotting")
 ## Seconds a scav needs you in view before it notices you: quick up close, slow far away.
 @export var spot_time_near := 0.25
@@ -118,8 +125,9 @@ var _path := PackedVector3Array()
 var _path_index := 0
 var _path_goal := Vector3.INF
 var _repath_left := 0.0
-## Where an idle scav is strolling to (only used while _wander_dir isn't zero).
+## Where an idle scav is patrolling to (only used while _wander_dir isn't zero), and for how long.
 var _wander_point := Vector3.ZERO
+var _patrol_time := 0.0
 ## 0..1: how close it is to noticing you (fills while you're in view, drains when you're not).
 var _spot := 0.0
 var _state_time := 0.0
@@ -495,28 +503,45 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 	return side * move_speed * 0.5
 
 
+## Patrolling while unaware: walk to a destination across the map (mostly loot spots, which are in and around
+## buildings, sometimes anywhere reachable), pause there for a few seconds, then pick the next one.
+## `_wander_dir` is zero while pausing (`_wander_time` counts the pause down).
 func _wander(delta: float) -> Vector3:
-	# Calm on purpose: changes its mind every few seconds, mostly small turns, and turns slowly
-	# (so sneaking up behind one is possible).
-	# It strolls to a reachable spot a few meters ahead (navigation map), so it doesn't walk into walls.
-	_wander_time -= delta
-	if _wander_time <= 0.0:
-		_wander_time = randf_range(3.5, 8.0)
-		if randf() < 0.5:
-			_wander_dir = Vector3.ZERO
-		else:
-			var facing := -global_basis.z
-			_wander_dir = _flat(facing).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2))
-			var spot := global_position + _wander_dir * randf_range(4.0, 9.0)
-			_wander_point = NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, spot)
-			if _wander_point == Vector3.ZERO:
-				_wander_point = spot  # no navigation map yet
-	if _wander_dir == Vector3.ZERO or _arrived(_wander_point):
-		_wander_dir = Vector3.ZERO
+	if _wander_dir == Vector3.ZERO:
+		_wander_time -= delta
+		if _wander_time > 0.0:
+			return Vector3.ZERO
+		_wander_point = _pick_patrol_point()
+		_wander_dir = _flat(_wander_point - global_position).normalized()
+		_patrol_time = 0.0
+		if _wander_dir == Vector3.ZERO:
+			_wander_time = 1.0
 		return Vector3.ZERO
-	var move := _path_velocity(_wander_point, move_speed * 0.3)
-	_face(move, delta, 2.0)
+	_patrol_time += delta
+	if _arrived(_wander_point) or _patrol_time > 45.0:
+		_wander_dir = Vector3.ZERO
+		_wander_time = randf_range(patrol_pause_min, patrol_pause_max)
+		return Vector3.ZERO
+	var move := _path_velocity(_wander_point, move_speed * patrol_speed)
+	_face(move, delta, 4.0)
 	return move
+
+
+func _pick_patrol_point() -> Vector3:
+	var map := get_world_3d().navigation_map
+	var spots := get_tree().get_nodes_in_group("loot_containers")
+	for attempt in 6:
+		var spot: Vector3
+		if not spots.is_empty() and randf() < 0.65:
+			var container := spots.pick_random() as Node3D
+			spot = container.global_position + Vector3(randf_range(-2.0, 2.0), 0.0, randf_range(-2.0, 2.0))
+			spot = NavigationServer3D.map_get_closest_point(map, spot)
+		else:
+			spot = NavigationServer3D.map_get_random_point(map, 1, false)
+		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0:
+			return spot
+	# No navigation map yet: somewhere a few meters ahead.
+	return global_position + _flat(-global_basis.z).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2)) * 6.0
 
 
 func _face(dir: Vector3, delta: float, turn_speed := 10.0) -> void:
