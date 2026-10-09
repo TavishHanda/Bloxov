@@ -35,6 +35,7 @@ Agreed order: core gameplay first (scavs next), then the co-op test (M3), then m
   **models** (owner in Blender, at the vertical slice, M4).
 
 ## AI faction vs. real PMCs (owner, after 0.6.10)
+- **Owner wants co-op AND PvP** (after 0.6.15): real players are the PMCs, in raids with each other and the AI.
 - **PMCs are meant to be real players** (multiplayer). The AI "PMCs" became **Raiders** (owner's name, 0.6.15):
   same behavior, placeholder look = the PMC model with a red-brown tint. **Own Raider models: owner, at M4.**
 - **The PMC model (`assets/models/characters/pmc.glb`) stays untouched for actual players.**

@@ -29,7 +29,7 @@ These change everything downstream. Pick once and stop debating.
 | **Art** | Voxel/low-poly **asset packs** first (Kenney, Synty, MagicaVoxel) | 3D art is the biggest time sink. Placeholder cubes are fine until Phase 5. |
 | **Inventory** | Fixed **slots**, items take 1–4 slots | Tetris grids are fiddly on touch screens. Slots still force the key "what do I drop?" choice. |
 | **Ammo** | **One ammo type** to start | Ammo is still a resource you manage, without the spreadsheet. Split it later only if playtests show it would help. |
-| **PvP** | **No.** PvE only for a long time | Solo and co-op against AI. PvP needs servers, anti-cheat and matchmaking, which is a separate game's worth of work. |
+| **PvP** | ~~No. PvE only for a long time~~ **Changed (owner, after 0.6.15): co-op and PvP.** | Real players are the PMCs (Tarkov-style: squads and other players in the same raid as the AI). Costs more than co-op alone: a server that owns the game state (so cheaters can't edit their health/loot), and matchmaking. The M3 spike decides how. |
 
 > **Changed since:** the inventory became a **grid ("Tetris") inventory** with rotation and stacking (see
 > [`INVENTORY_DESIGN.md`](INVENTORY_DESIGN.md)), and there are **two ammo types**, rifle and pistol rounds
@@ -217,7 +217,7 @@ Roughly in priority order:
 
 ## 13. Not Building (until further notice)
 
-PvP · big maps · multiple maps · vehicles · attachments · crafting · quests · skill trees · hunger/thirst · multiple ammo types (changed: rifle + pistol rounds) · clans · trading · battle pass · ranked · voice chat · weather · accounts
+~~PvP~~ (now planned, see §2) · big maps · multiple maps · vehicles · attachments · crafting · quests · skill trees · hunger/thirst · multiple ammo types (changed: rifle + pistol rounds) · clans · trading · battle pass · ranked · voice chat · weather · accounts
 
 ---
 
