@@ -35,3 +35,10 @@ the script and re-run it to change the picture). Coordinates in the script are m
 ## Roles
 This project builds the layout (walls, cover, spawns, extracts, nav, scav spawns) as a gray box first. The designer
 session does the look; the Artist session makes props and models per `ART_SPEC.md`.
+
+## Still to decide (owner: "there will be a lot of changes")
+Spawns, extracts, loot spots and player spawns on the layout picture are **placeholders**.
+- **AI spawn spots (owner: super important):** designated spots for every AI on this map, per area. Today
+  `enemy_spawner.gd` picks any child marker out of sight of players (20 scavs + 5 Raiders per raid, max 5 alive),
+  tuned for the 80 m test map.
+- Spawning in general, extracts, loot placement, when players spawn. Questions for the owner are in the project thread.
