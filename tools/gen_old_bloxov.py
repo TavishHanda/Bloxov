@@ -446,8 +446,8 @@ def main():
     box(M - 0.5, 0, -1, M + 1, 6, M + 1, "boundary")
 
     # --- roads (from the agreed layout picture)
-    road([(0, 82), (30, 80), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9)              # Main Street
-    road([(200, 104), (235, 92), (265, 72), (292, 42), (318, 0)], 8)                                   # county road
+    road([(26, 81), (40, 81), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9)              # Main Street
+    road([(200, 104), (224, 98), (238, 80), (240, 44), (240, 0)], 8)                                   # county road (west of the farm)
     road([(62, 86), (48, 58), (58, 30), (95, 18), (130, 22)], 6)                                       # Hill Road
     road([(112, 100), (118, 70), (122, 40), (138, 8)], 6)                                              # Mill Lane
     road([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300), (350, 306)], 8)
@@ -517,16 +517,20 @@ def main():
     add_loot("Bunker", "locker", 107.0, 144.0, y=bunker_floor, yaw=180.0)
     add_loot("Bunker", "crate", 101.0, 156.5, y=bunker_floor)
 
-    # bank (vault behind a key door placeholder: room (1, 0), only reachable from room (1, 1))
-    build(Building("Bank", 128, 110, 16, 16, colour="wall_rich", rooms=(2, 2), doors="W",
-                   solid_inner=[("v", 1, 0)], no_windows=[(1, 0)]), [
-        ("safe", 1, 0, 0, "E", -1.5), ("safe", 1, 0, 0, "N", 0), ("locker", 0, 1, 0, "W", 0)])
-    box(139.0, 2.3, 117.7, 141.0, 2.6, 118.3, "keydoor", solid=False)
-    markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 118.0, {"key": "bank_vault_key", "place": "Bank"}))
-    build(Building("OfficesEast", 128, 128, 16, 12, floors=2, rooms=(2, 2), doors="W"), [
-        ("crate", 1, 0, 0, "E", 0), ("crate", 0, 1, 1, "S", 0), ("locker", 1, 1, 1, "E", 0)])
-    build(Building("OfficesWest", 70, 128, 15, 13, floors=2, rooms=(2, 2), doors="E"), [
-        ("crate", 0, 1, 0, "W", 0), ("crate", 1, 0, 1, "N", 0)])
+    # bank with offices upstairs, one building east of the square (owner). The vault is the south-east room (1, 2),
+    # only reachable from room (1, 1) through a key door placeholder (the stairs are along the north wall).
+    bank = build(Building("Bank", 128, 110, 16, 30, floors=2, colour="wall_rich", rooms=(2, 3), doors="W",
+                          solid_inner=[("v", 1, 2)], no_windows=[(1, 2)]), [
+        ("safe", 1, 2, 0, "E", 1.5), ("safe", 1, 2, 0, "S", 0), ("locker", 0, 1, 0, "W", 0),
+        ("crate", 1, 0, 0, "E", 0)])
+    for kind, i, j, side in (("crate", 1, 0, "E"), ("crate", 0, 2, "W"), ("locker", 1, 1, "E"), ("crate", 0, 1, "W")):
+        x, y, z, yaw = bank.against_wall(i, j, 1, side)
+        add_loot("Offices", kind, x, z, y=y, yaw=yaw)
+    box(139.0, 2.3, 129.7, 141.0, 2.6, 130.3, "keydoor", solid=False)
+    markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank"}))
+    build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E"), [
+        ("crate", 0, 1, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 0, 1, "N", 0),
+        ("locker", 2, 1, 1, "E", 0), ("crate", 0, 0, 1, "W", 0)])
     gun = build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [
         ("locker", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0), ("crate", 1, 0, 0, "N", 0)])
     for z in (73.0, 77.0):   # display counters
@@ -541,8 +545,8 @@ def main():
         box(x, 0, 72.0, x + 0.9, 1.7, 77.0, "wood")
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
-    build(Building("ShopA", 30, 62, 12, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 1, 0, 0, "E", 0)])
-    build(Building("ShopB", 16, 64, 12, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 0, 0, 1, "W", 0)])
+    build(Building("Shops", 13, 61, 29, 13, floors=2, rooms=(3, 1), doors="S"), [
+        ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
     build(Building("TownHouse", 66, 108, 11, 9, floors=2, rooms=(2, 1), doors="E"), [("crate", 1, 0, 1, "E", 0)])
     build(Building("Police", 150, 112, 26, 22, floors=2, colour="wall_police", rooms=(3, 3), doors="WS", roof=True), [
         ("locker", 2, 0, 0, "E", 0), ("locker", 2, 0, 0, "N", 0), ("locker", 0, 2, 1, "W", 0),
@@ -565,16 +569,19 @@ def main():
                        doors="S" if n != 3 else "W"), [
             ("locker", 1, 1, 0, "E", 0), ("crate", 0, 1, 1, "W", 0), ("locker", 1, 0, 1, "E", 0)])
     add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)
+    # the big house at the west end of Main Street (owner): the road ends at its front door
+    build(Building("BigHouse6", 2, 76, 17, 17, floors=2, colour="wall_rich", rooms=(2, 2), doors="E"), [
+        ("locker", 0, 0, 0, "W", 0), ("crate", 1, 1, 1, "S", 0), ("locker", 0, 1, 1, "W", 0)])
 
     # street cover around town
     for x, z, yaw, col in ((44, 87, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
                            (57, 112, 10, "car_a"), (118, 52, 5, "car_b")):
         car(x, z, yaw, col)
-    for x, z in ((48, 82), (88, 88), (124, 88), (146, 140), (66, 140), (126, 84)):
+    for x, z in ((48, 82), (88, 88), (124, 88), (147, 143), (78, 143), (126, 84)):
         dumpster(x, z)
 
     # houses between town and farm
-    for n, (x, y) in enumerate([(214, 30), (224, 54), (206, 72)], start=1):
+    for n, (x, y) in enumerate([(214, 30), (218, 54), (204, 72)], start=1):
         build(Building(f"RoadHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="S"),
               [("crate", 1, 1, 0, "E", 0)])
 
@@ -643,7 +650,7 @@ def main():
               [("crate", 1, 0, 0, "E", 0)])
 
     # ===================================================================== extracts, spawns
-    extracts.extend([("FarmRoad", "Farm Road", 314, 8), ("Highway", "Highway", 342, 304),
+    extracts.extend([("FarmRoad", "Farm Road", 240, 6), ("Highway", "Highway", 342, 304),
                      ("CreekTrail", "Creek Trail", 10, 338)])
     for n, (x, z) in enumerate([(8, 40), (8, 180), (100, 340), (230, 340), (340, 120), (340, 70), (178, 8), (250, 152)]):
         player_spawns.append((f"Spawn{n}", x, z))
@@ -680,8 +687,12 @@ def check_roads():
             for a, b in zip(points, points[1:]):
                 if _seg_rect_gap(a, b, (x0, z0, x1, z1)) < width / 2 + 1.0:
                     bad.append(f"{name} on the road through {a}-{b}")
+    for k, (name, x0, z0, x1, z1) in enumerate(footprints):   # and buildings need 1 m between them
+        for other, ox0, oz0, ox1, oz1 in footprints[k + 1:]:
+            if x0 < ox1 + 1 and ox0 < x1 + 1 and z0 < oz1 + 1 and oz0 < z1 + 1:
+                bad.append(f"{name} overlaps {other}")
     if bad:
-        raise SystemExit("Buildings on roads:\n  " + "\n  ".join(bad))
+        raise SystemExit("Buildings on roads or each other:\n  " + "\n  ".join(bad))
 
 
 # ---------------------------------------------------------------------------------------------- tscn
