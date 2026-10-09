@@ -1263,9 +1263,15 @@ func _section_owner_rules() -> void:
 	_check(inv.hotbar == ["", "", "", ""], "old saves with heals on the hotbar load with them on key 3 instead")
 	var bar := HotbarHUD.new(player)
 	root.add_child(bar)
-	bar._process(0.0)
-	_check(bar._names[2].text == "Meds" and bar._counts[2].text == "x3" and bar._names[5].text == "Knife",
-		"the hotbar shows Meds x3 on key 3 and the knife (V) on 6 (%s %s %s)" % [bar._names[2].text, bar._counts[2].text, bar._names[5].text])
+	var meds := bar.slot_info(2)
+	var knife := bar.slot_info(5)
+	_check(meds["icon"] == HudStyle.MED and meds["count"] == "x3" and knife["icon"] == HudStyle.KNIFE and bar.slot_info(3)["state"] == "empty",
+		"the hotbar shows meds x3 on key 3, the knife (V) on 6, and 4 empty (%s %s)" % [meds["count"], knife["state"]])
+	inv.take("bandage", 2)
+	inv.take("medkit", 1)
+	_check(bar.slot_info(2)["state"] == "out", "no heals left: the meds slot is crossed out")
+	inv.add("bandage", 2)
+	inv.add("medkit", 1)
 	bar.queue_free()
 	if not player.controls_locked():
 		player.health.take_damage(10)

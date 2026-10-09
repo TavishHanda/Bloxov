@@ -2,6 +2,20 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.15 (HUD redesign: "Stenciled Field Kit", owner)
+- **New HUD look:** dark gunmetal plates with notched corners and a chunky pixel font (Jersey 10) for numbers,
+  matching the inventory screen
+- **Health:** a red cross and 10 blocks (10 HP each, green / yellow / red). Getting hit **chips blocks off** (they
+  flash, fall and fade) and shakes the plate; at 30 or less the cross and number pulse. Stamina is a thin bar under
+  the blocks (hazard stripes when you're exhausted)
+- **Hotbar:** slots with stamped key tabs, pixel icons (rifle, pistol, med cross, knife), counts and a rarity stripe.
+  The gun in your hands rises and glows yellow, and its name shows for a moment when you switch. Empty slots are
+  dashed ghosts (a faint grenade on 4 and 5); no meds left = crossed out
+- **Ammo:** the magazine as a row of bullets (spent ones hollow) above a big count and the reserve; yellow when low,
+  red when empty; bullets refill during a reload; "UNARMED" with a knife when you have no gun
+- **Timer** on a plate (red and punching on every tick in the last minute), **extract list** and **[F] prompts** on
+  plates, a pixel crosshair and a pixel hit marker (yellow on headshots)
+
 ## 0.7.14 (inventory screen polish, owner)
 - **New layout:** gear on the left (with **your character**, the PMC model for now), everything you carry in the
   middle (pockets, secure pocket, backpack), and the container you're looting (or your stash) on the right
