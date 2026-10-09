@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.10.2 (the map: M, owner)
+- **Press M for the map**: Old Bloxov from above with the names of places (bank, police, junkyard, farm...), the
+  extracts open for you this raid (green flags), your teammates (green dots) and you (a yellow arrow pointing where
+  you look). It stays open while you move; M again closes it
+- **Extracts are no longer on your screen** (owner): the O list and the name tags over extracts are gone; the map is
+  where you find them. "EXTRACTING" still shows while you stand in one
+- The map's drawing comes from the map generator (buildings, roads, the creek, woods, yards, place names)
+
 ## 0.10.1 (Old Bloxov: junkyard, checkpoint, church, power lines, owner)
 - **Fewer buildings, more places** (owner: replace rather than add, so players spread out and meet at hot spots):
   - a **junkyard** north of the gas station (fenced maze of stacked wrecks, a crane, a crusher, the office) replaces two old houses
