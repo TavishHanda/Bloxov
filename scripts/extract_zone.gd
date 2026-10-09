@@ -40,7 +40,7 @@ static func _closed_pad_material() -> StandardMaterial3D:
 
 
 func _physics_process(delta: float) -> void:
-	if is_open and player_inside != null and not player_inside.controls_locked():
+	if is_open and player_inside != null and not player_inside.out_of_fight():
 		progress += delta
 		if progress >= extract_time:
 			progress = 0.0

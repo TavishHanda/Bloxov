@@ -215,7 +215,7 @@ func _process(delta: float) -> void:
 	else:
 		_raise_left = maxf(_raise_left - delta, 0.0)
 
-	if player.controls_locked() or player.is_healing():
+	if not player.hands_free():
 		_needs_trigger_release = true
 		return
 	# Quick melee works with or without a gun; it cancels a reload (no rounds lost).
@@ -282,8 +282,8 @@ func recoil_for_shot(n: int) -> Vector2:
 
 ## Holding the aim button with a gun out (and able to use it). Aiming stops the player from sprinting.
 func wants_aim() -> bool:
-	return (weapon != null and Input.is_action_pressed("aim") and not player.controls_locked()
-		and not player.is_healing() and _aim_block_left <= 0.0)
+	return (weapon != null and Input.is_action_pressed("aim") and player.hands_free()
+		and _aim_block_left <= 0.0)
 
 
 ## Knocked out of aiming for a moment (e.g. hit by a melee bash).

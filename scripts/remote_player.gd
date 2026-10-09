@@ -2,7 +2,7 @@ class_name RemotePlayer
 extends CharacterBody3D
 ## Another player in an online raid, as this machine sees them: a body moved by the states the server relays
 ## (no camera, no input). Shows where they are and look, crouching, leaning, aiming, sprinting, walking legs,
-## and lying down when dead. Drawn slightly in the past (INTERP_DELAY), smoothly between the last updates,
+## lying face down and crawling when downed, and lying on their back when dead. Drawn slightly in the past (INTERP_DELAY), smoothly between the last updates,
 ## so 20 updates a second look like continuous movement.
 
 ## A state is [position, yaw, pitch, lean, flags] (see capture()). Flags and hitbox sizes live in Hitbox.
@@ -12,11 +12,13 @@ const FLAG_SPRINT := Hitbox.FLAG_SPRINT
 const FLAG_DEAD := Hitbox.FLAG_DEAD
 const FLAG_EXTRACTED := Hitbox.FLAG_EXTRACTED
 const FLAG_ARMED := Hitbox.FLAG_ARMED
+const FLAG_DOWNED := Hitbox.FLAG_DOWNED
 ## How far in the past other players are drawn (two updates' worth, so there's always one to move toward).
 const INTERP_DELAY := 0.1
 ## The head tilts around the neck (just below the head box). Its parts are the model's Head/Hat/Eyes/Mask nodes.
 const NECK_HEIGHT := 1.38
 const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
+const GROUP := &"remote_players"
 
 @onready var model: Node3D = $Model
 @onready var gun_model: Node3D = $Model/Gun
@@ -37,6 +39,10 @@ var _walk_time := 0.0
 var _crouch := 0.0
 var _lean := 0.0
 var _down := 0.0
+## 0..1: how far they're lying face down (downed).
+var _prone := 0.0
+## Their name tag (teammates only), turned red while they're downed.
+var _tag: Node3D
 var _gun_rest: Vector3
 ## Pivot at the neck that the head parts are moved under, so looking up and down tilts the head.
 var head_pivot: Node3D
@@ -55,12 +61,15 @@ static func capture(player: Player) -> Array:
 		flags |= FLAG_DEAD
 	if player.extracted:
 		flags |= FLAG_EXTRACTED
+	if player.downed:
+		flags |= FLAG_DOWNED
 	if player.gun.weapon != null:
 		flags |= FLAG_ARMED
 	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
 
 
 func _ready() -> void:
+	add_to_group(GROUP)
 	_gun_rest = gun_model.position
 	head_pivot = Node3D.new()
 	head_pivot.name = "HeadPivot"
@@ -81,6 +90,15 @@ func _ready() -> void:
 		tag.add_to_group(Effects.WORLD_LABELS)
 		tag.position.y = 2.25
 		add_child(tag)
+		_tag = tag
+
+
+## Downed and a teammate: we can revive them.
+func can_be_revived() -> bool:
+	if not teammate or shown.is_empty():
+		return false
+	var flags: int = shown[4]
+	return flags & FLAG_DOWNED != 0 and flags & (FLAG_DEAD | FLAG_EXTRACTED) == 0
 
 
 ## Adds a state that arrived now (`at` = seconds, for the test).
@@ -122,6 +140,10 @@ func update_view(time: float, delta: float) -> void:
 	_crouch = lerpf(_crouch, 1.0 if flags & FLAG_CROUCH else 0.0, step)
 	_lean = lerpf(from[3], to[3], t)
 	_down = lerpf(_down, 1.0 if flags & FLAG_DEAD else 0.0, step)
+	_prone = lerpf(_prone, 1.0 if flags & FLAG_DOWNED and not flags & FLAG_DEAD else 0.0, step)
+	if _tag != null:
+		_tag.set_meta("label_downed", flags & FLAG_DOWNED != 0 and not flags & FLAG_DEAD)
+		_tag.position.y = lerpf(2.25, 0.9, _prone)
 	_pose(pitch, flags, (global_position - old_position).length() / maxf(delta, 0.001), delta)
 
 
@@ -130,8 +152,8 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	model.scale = Vector3(1.0, height, 1.0)
 	# Lean tips the whole body around the feet; the dead fall over backward. (The model faces -Z.)
 	model.rotation.z = -_lean * Hitbox.LEAN_ANGLE
-	# Negative X tips it forward (sprinting), positive backward (lying on its back when dead).
-	model.rotation.x = lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, 1.5, _down)
+	# Negative X tips it forward (sprinting; lying face down when downed), positive backward (on its back when dead).
+	model.rotation.x = lerpf(lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, -1.45, _prone), 1.5, _down)
 	# Looking up and down tilts the head (owner: the head, not the gun), limited so it stays on the shoulders.
 	head_pivot.rotation.x = clampf(pitch, -0.7, 0.7)
 	# The model's built-in rifle only shows while they hold a gun (until guns are separate models: BACKLOG).
@@ -142,9 +164,15 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	var swing := sin(_walk_time) * 0.6 * minf(speed / 2.0, 1.0)
 	leg_l.rotation.x = swing
 	leg_r.rotation.x = -swing
-	# Hitboxes follow the pose (crouched = shorter, leaning = head off to the side), same as the server's (Hitbox).
-	(body_shape.shape as BoxShape3D).size = Hitbox.body_size(_crouch)
-	body_shape.position = Hitbox.body_center(_crouch)
-	head_shape.position = Hitbox.head_center(_crouch, _lean)
+	# Hitboxes follow the pose (crouched = shorter, leaning = head off to the side, downed = lying in front), same as
+	# the server's (Hitbox).
+	if _prone > 0.5:
+		(body_shape.shape as BoxShape3D).size = Hitbox.DOWNED_BODY_SIZE
+		body_shape.position = Hitbox.DOWNED_BODY_CENTER
+		head_shape.position = Hitbox.DOWNED_HEAD_CENTER
+	else:
+		(body_shape.shape as BoxShape3D).size = Hitbox.body_size(_crouch)
+		body_shape.position = Hitbox.body_center(_crouch)
+		head_shape.position = Hitbox.head_center(_crouch, _lean)
 	body_shape.disabled = _down > 0.5
 	head_shape.disabled = _down > 0.5

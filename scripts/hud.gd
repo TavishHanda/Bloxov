@@ -34,6 +34,7 @@ var timer_hud: TimerHUD
 var prompt_hud: PromptHUD
 var extract_hud: ExtractHUD
 var world_labels: WorldLabelsHUD
+var downed_hud: DownedHUD
 
 var _indicator_time := 0.0
 var _max_delta_timer := 0.0
@@ -71,6 +72,8 @@ func _ready() -> void:
 	add_child(prompt_hud)
 	extract_hud = ExtractHUD.new(player, raid)
 	add_child(extract_hud)
+	downed_hud = DownedHUD.new(player)
+	add_child(downed_hud)
 	damage_indicator.add_child(DamageArrowHUD.new())
 	world_labels = WorldLabelsHUD.new()
 	add_child(world_labels)  # (after the extract tags: damage numbers go on top of them)
@@ -93,7 +96,7 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
 		if loot_ui.visible:
 			loot_ui.close()
-		elif Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not player.controls_locked():
+		elif Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not player.out_of_fight():
 			loot_ui.open_for(null)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") and loot_ui.visible:
@@ -120,18 +123,21 @@ func _process(delta: float) -> void:
 	menu.visible = not captured and not other_screen_open and not player.controls_locked()
 	get_tree().paused = menu.visible and not Network.main.in_online_raid()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
-	crosshair.show_crosshair = captured and not player.controls_locked() and not player.gun.is_aiming()
+	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
 	var hp := player.health.current
 
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
 	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
-	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels]:
+	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud]:
 		element.visible = not loot_ui.visible and not end_screen.visible
 	timer_hud.visible = not end_screen.visible
 
 	if not get_tree().paused:
 		# Red flash when hit; a faint red edge stays while health is low.
+		# Downed: a heavier red edge.
 		var low_health_alpha := 0.18 if hp <= 30 and not player.controls_locked() else 0.0
+		if player.downed:
+			low_health_alpha = 0.32
 		vignette.color.a = maxf(vignette.color.a - delta * 1.5, low_health_alpha)
 		_indicator_time -= delta
 	damage_indicator.modulate.a = clampf(_indicator_time, 0.0, 1.0)

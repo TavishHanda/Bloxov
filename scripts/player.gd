@@ -100,6 +100,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Getting shot kicks your aim this far (degrees, at 25 damage; scales with damage).
 @export var flinch_deg := 2.2
 
+@export_group("Downed")
+## In a squad, 0 HP knocks you down instead of killing you (owner, 0.9.4): you crawl at this fraction of walk speed
+## and can't shoot, heal, loot or extract until a teammate revives you (back up at `revive_health`).
+@export var crawl_multiplier := 0.25
+@export var downed_eye_height := 0.45
+@export var revive_health := 30
+
 @export_group("Other")
 ## Mouse movements bigger than this (in pixels, in one event) are treated as glitches and ignored.
 ## Works around a Chrome bug where captured-mouse input sometimes reports a huge bogus jump.
@@ -125,6 +132,14 @@ var proxy := false
 var kills := 0
 ## True once the player has extracted (raid over, controls off).
 var extracted := false
+## Knocked down at 0 HP with a teammate around (see Health). On a proxy, from the player's state flags.
+var downed := false
+## Downed: a teammate is holding F on us (shown as a bar; the server tells us when it starts and stops).
+var being_revived := false
+var revive_time_left := 0.0
+## Asked when health reaches 0: can a teammate still come and revive us? Online, a teammate who is up and in the
+## raid; offline, never (solo dies). Replaceable (the test stands in for a teammate).
+var squad_check := Callable()
 
 ## Seconds left on the current heal, and the item being used.
 var heal_time_left := 0.0
@@ -188,10 +203,46 @@ func _ready() -> void:
 	Profile.save_profile()
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	health.downed.connect(_on_downed)
+	health.revived.connect(_on_revived)
+	squad_check = teammate_can_revive
+	health.can_go_down = func() -> bool: return squad_check.call()
 
 
 func controls_locked() -> bool:
 	return is_dead or extracted
+
+
+## Dead, out, or downed: scavs leave you alone (owner, 0.9.4) and you can't extract.
+func out_of_fight() -> bool:
+	return controls_locked() or downed
+
+
+## Free to shoot, swing, heal or loot: not dead/out, downed, healing or reviving someone.
+func hands_free() -> bool:
+	return not out_of_fight() and not is_healing() and not interactor.is_reviving()
+
+
+## Online: is a teammate up (alive, not downed, still in the raid) who could revive us?
+func teammate_can_revive() -> bool:
+	if not Network.main.in_online_raid():
+		return false
+	for peer in Network.main.teammates:
+		var state: Array = Network.main.states.get(peer, [])
+		if not state.is_empty() and int(state[4]) & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED | Hitbox.FLAG_DOWNED) == 0:
+			return true
+	return false
+
+
+## A teammate started (or stopped) reviving us.
+func set_being_revived(on: bool) -> void:
+	being_revived = on and downed
+	revive_time_left = Network.REVIVE_TIME if being_revived else 0.0
+
+
+## Our teammate finished reviving us: back up with a little health.
+func revive() -> void:
+	health.revive(revive_health)
 
 
 func is_healing() -> bool:
@@ -268,7 +319,7 @@ func use_meds() -> void:
 
 ## Key 3 (or a touch on the meds slot) went down: a quick release uses the med, holding switches it.
 func meds_press() -> void:
-	if controls_locked():
+	if out_of_fight():
 		return
 	_meds_held = 0.0
 	_meds_next_switch = MEDS_HOLD_TIME
@@ -285,6 +336,8 @@ func meds_release() -> void:
 
 ## A hotbar slot (0 = key 3): 3 uses the picked med (Auto = best fit, like H), 4 uses what's bound there, the knife slot swings it.
 func use_hotbar(index: int) -> void:
+	if downed:
+		return
 	if index == Inventory.MEDS_KEY:
 		use_meds()
 		return
@@ -324,7 +377,7 @@ func _on_equipment_changed() -> void:
 
 ## Use one heal item from a stack. Takes a few seconds; you can't shoot meanwhile.
 func use_item(grid: GridInventory, stack: ItemStack) -> void:
-	if controls_locked() or is_healing() or health.current >= health.max_health:
+	if not hands_free() or health.current >= health.max_health:
 		return
 	if ItemDB.kind(stack.id) != "heal":
 		return
@@ -367,7 +420,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if controls_locked():
 		return
 	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
-	var hotbar_index := _hotbar_key(event)
+	var hotbar_index := -1 if downed else _hotbar_key(event)
+	if downed and not (event is InputEventMouseMotion or event.is_action_pressed("ui_cancel")):
+		return  # Downed: you can only look around (and crawl).
 	if event.is_action_pressed("heal"):
 		try_heal()
 	elif event.is_action_pressed("weapon_1"):
@@ -425,10 +480,12 @@ func _process(delta: float) -> void:
 	# Eyes move smoothly between standing and crouched height.
 	if not controls_locked():
 		var eye := crouch_eye_height if is_crouching else stand_eye_height
+		if downed:
+			eye = downed_eye_height
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
 	_update_lean(delta)
 	if _meds_held >= 0.0:
-		if controls_locked():
+		if out_of_fight():
 			_meds_held = -1.0
 		else:
 			_meds_held += delta
@@ -436,6 +493,15 @@ func _process(delta: float) -> void:
 				inventory.cycle_meds()
 				_meds_switched = true
 				_meds_next_switch += MEDS_REPEAT_TIME
+	if downed:
+		health.bleed(delta)
+		revive_time_left -= delta
+		# (never told it stopped, e.g. they lost connection: give up on it a moment after it should have finished)
+		if being_revived and revive_time_left < -1.0:
+			set_being_revived(false)
+		# Nobody left who could revive us (both down, they died, extracted or left): that's it.
+		if downed and not squad_check.call():
+			health.kill()
 	if heal_time_left > 0.0:
 		heal_time_left -= delta
 		if heal_time_left <= 0.0:
@@ -454,7 +520,7 @@ func _physics_process(delta: float) -> void:
 	var input_dir := Vector2.ZERO
 	if not controls_locked():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-		if Input.is_action_just_pressed("jump") and on_floor:
+		if Input.is_action_just_pressed("jump") and on_floor and not downed:
 			if is_crouching:
 				set_crouching(false)
 			elif _jump_cooldown_left <= 0.0 and stamina >= jump_cost:
@@ -464,7 +530,7 @@ func _physics_process(delta: float) -> void:
 	_move_input = input_dir
 
 	# Sprint: only forward-ish, on the ground, not while healing, needs stamina. Sprinting stands you up.
-	var wants_sprint := (not controls_locked() and on_floor and not is_healing() and not is_exhausted
+	var wants_sprint := (not out_of_fight() and on_floor and not is_healing() and not is_exhausted
 		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim() and not is_leaning())
 	if wants_sprint and is_crouching:
 		set_crouching(false)
@@ -508,6 +574,8 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 		speed = crouch_speed
 	if is_healing():
 		speed = walk_speed * 0.5
+	if downed:
+		speed = walk_speed * crawl_multiplier
 	if _landing_left > 0.0:
 		speed *= landing_slowdown
 	speed *= lerpf(1.0, ads_move_multiplier, gun.aim)
@@ -541,7 +609,7 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 
 ## Which way the player wants to lean right now (-1, 0, 1).
 func lean_input() -> int:
-	if controls_locked() or _sprinting:
+	if out_of_fight() or _sprinting:
 		return 0
 	if GameSettings.lean_toggle:
 		return _lean_toggled
@@ -664,12 +732,15 @@ func apply_net_state(state: Array) -> void:
 	_sprinting = flags & Hitbox.FLAG_SPRINT != 0
 	is_dead = flags & Hitbox.FLAG_DEAD != 0
 	extracted = flags & Hitbox.FLAG_EXTRACTED != 0
+	downed = flags & Hitbox.FLAG_DOWNED != 0
+	var low := is_crouching or downed
 	var capsule := body_shape.shape as CapsuleShape3D
-	capsule.height = crouch_height if is_crouching else stand_height
+	capsule.height = crouch_height if low else stand_height
 	body_shape.position.y = capsule.height * 0.5
-	head.position = Vector3(lean * lean_distance, crouch_eye_height if is_crouching else stand_eye_height, 0)
+	var eye := downed_eye_height if downed else (crouch_eye_height if is_crouching else stand_eye_height)
+	head.position = Vector3(lean * lean_distance, eye, 0)
 	velocity = Vector3(moved * Network.SEND_RATE, 0, 0)
-	if is_crouching or controls_locked():
+	if is_crouching or out_of_fight():
 		return
 	_stride_left -= moved
 	if _stride_left <= 0.0 and moved > 0.01:
@@ -677,8 +748,32 @@ func apply_net_state(state: Array) -> void:
 		_make_noise(sprint_noise if _sprinting else walk_noise)
 
 
+## 0 HP with a teammate up: down on the ground (crawl only), the gun put away, the downed bar draining.
+func _on_downed() -> void:
+	downed = true
+	heal_time_left = 0.0
+	being_revived = false
+	_sprinting = false
+	_lean_toggled = 0
+	# Low like crouching (the capsule), even under a low ceiling; standing back up waits for room (set_crouching).
+	is_crouching = true
+	var capsule := body_shape.shape as CapsuleShape3D
+	capsule.height = crouch_height
+	body_shape.position.y = capsule.height * 0.5
+	gun.visible = false
+
+
+func _on_revived() -> void:
+	downed = false
+	being_revived = false
+	revive_time_left = 0.0
+	gun.visible = true
+
+
 func _on_died() -> void:
 	is_dead = true
+	downed = false
+	being_revived = false
 	heal_time_left = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	var tween := create_tween().set_parallel(true)

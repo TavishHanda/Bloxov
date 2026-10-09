@@ -38,7 +38,7 @@ func is_swinging() -> bool:
 
 ## Starts a swing. Returns false if one is already going (or the player can't act).
 func swing() -> bool:
-	if is_swinging() or player.controls_locked() or player.is_healing():
+	if is_swinging() or not player.hands_free():
 		return false
 	_swing_left = swing_time
 	_hit_pending = true
@@ -54,8 +54,8 @@ func _process(delta: float) -> void:
 	_swing_left -= delta
 	if _hit_pending and _swing_left <= swing_time - windup:
 		_hit_pending = false
-		# Dying, extracting or starting to heal during the windup cancels the stab.
-		if not player.controls_locked() and not player.is_healing():
+		# Dying, getting downed, extracting or starting to heal during the windup cancels the stab.
+		if player.hands_free():
 			_strike()
 	_pose_blade(1.0 - _swing_left / swing_time)
 	if _swing_left <= 0.0:

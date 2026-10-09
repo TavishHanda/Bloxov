@@ -67,7 +67,7 @@ func _process(delta: float) -> void:
 	if time_left <= 0.0:
 		time_left = 0.0
 		result = "mia"
-		player.health.take_damage(999999)
+		player.health.kill()
 		_finish()
 
 

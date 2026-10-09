@@ -5,7 +5,7 @@ extends Control
 ## - damage numbers (owner toggle, off by default; meta label_kind "damage"): cream, popping up and floating away;
 ##   headshots/backstabs bigger, yellow, with "!".
 ## - teammate name tags ("name"): small and bright green with a 1-px black edge
-##   (no plate), visible through walls like before.
+##   (no plate), visible through walls like before; red while that teammate is downed (0.9.4, go revive them).
 
 const RISE := 42.0
 ## Teammates' names: a brighter green than the extract flag, so it pops over grass and sky.
@@ -37,7 +37,7 @@ func entries() -> Array:
 		if spot == null or not spot.is_inside_tree() or camera.is_position_behind(spot.global_position):
 			continue
 		result.append({"kind": spot.get_meta("label_kind", "name"), "text": String(spot.get_meta("label_text", "")),
-			"critical": spot.get_meta("label_critical", false), "age": now - float(spot.get_meta("label_born", now)),
+			"critical": spot.get_meta("label_critical", false), "downed": spot.get_meta("label_downed", false), "age": now - float(spot.get_meta("label_born", now)),
 			"at": camera.unproject_position(spot.global_position).round()})
 	return result
 
@@ -74,7 +74,7 @@ func _draw_name(entry: Dictionary) -> void:
 		HudStyle.draw_centered(self, text, Rect2(rect.position + offset, rect.size), 20, Color(0, 0, 0, 0.6), f, false)
 	for offset in [Vector2(-1, -1), Vector2(0, -1), Vector2(1, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1)]:
 		HudStyle.draw_centered(self, text, Rect2(rect.position + offset, rect.size), 20, Color.BLACK, f, false)
-	HudStyle.draw_centered(self, text, rect, 20, TEAMMATE, f, false)
+	HudStyle.draw_centered(self, text, rect, 20, HudStyle.BLOOD.lightened(0.15) if entry.get("downed", false) else TEAMMATE, f, false)
 
 
 ## Text with a hard 2-px dark edge on every side (pixel-crisp, no blur), so a number reads over sky and walls.

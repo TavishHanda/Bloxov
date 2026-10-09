@@ -266,12 +266,12 @@ func _physics_process(delta: float) -> void:
 	_cover_cooldown_left -= delta
 	_heal_retry_left -= delta
 
-	if _target == null or not is_instance_valid(_target) or _target.controls_locked():
+	if _target == null or not is_instance_valid(_target) or _target.out_of_fight():
 		_target = _pick_target()
 
 	var to_target := Vector3.ZERO
 	var dist := INF
-	if _target != null and not _target.controls_locked():
+	if _target != null and not _target.out_of_fight():
 		to_target = _target.global_position - global_position
 		to_target.y = 0.0
 		dist = to_target.length()
@@ -458,7 +458,7 @@ func _pick_target() -> Player:
 	var best_dist := INF
 	for node in RaidScope.nodes(self, &"player"):
 		var player := node as Player
-		if player == null or player.controls_locked():
+		if player == null or player.out_of_fight():
 			continue
 		var d := global_position.distance_to(player.global_position)
 		if d < best_dist:

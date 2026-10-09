@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "extract", "death", "profile", "hideout", "settings",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -661,6 +661,76 @@ func _section_meds() -> void:
 	player.health.current = hp
 
 
+func _section_downed() -> void:
+	# Downed (0.9.4, owner): in a squad 0 HP knocks you down; a bar drains 100 -> 0 over 30 s, hits take from it,
+	# and at 0 you die. Solo you just die.
+	var h := Health.new()
+	root.add_child(h)
+	h.can_go_down = func() -> bool: return true
+	h.take_damage(150)
+	_check(h.is_downed and not h.is_dead and h.current == 0 and h.down_hp == Health.DOWN_HP, "0 HP with a teammate up: downed (bar at 100), not dead")
+	h.bleed(15.0)
+	_check(is_equal_approx(h.down_hp, 50.0), "the downed bar drains 100 -> 0 in 30 s (50 after 15 s: %.1f)" % h.down_hp)
+	h.take_damage(20)
+	h.heal(50)
+	_check(is_equal_approx(h.down_hp, 30.0) and h.current == 0 and not h.is_dead, "hits take from the downed bar; healing doesn't work while down")
+	h.revive(30)
+	_check(not h.is_downed and h.current == 30, "revived: back up at 30 HP")
+	h.take_damage(30)
+	h.take_damage(100)
+	_check(h.is_dead and not h.is_downed, "shot to 0 on the downed bar: dead")
+	h.queue_free()
+	var bleeder := Health.new()
+	root.add_child(bleeder)
+	bleeder.can_go_down = func() -> bool: return true
+	bleeder.take_damage(100)
+	bleeder.bleed(29.0)
+	var alive_at_29 := not bleeder.is_dead
+	bleeder.bleed(1.1)
+	_check(alive_at_29 and bleeder.is_dead, "nobody comes: dead after 30 s")
+	bleeder.queue_free()
+	var solo := Health.new()
+	root.add_child(solo)
+	solo.take_damage(100)
+	_check(solo.is_dead and not solo.is_downed, "solo (nobody to revive you): 0 HP is dead, as before")
+	solo.queue_free()
+
+	# The player, with a stand-in teammate: down, crawling, hands off everything, scavs leave you alone, revive.
+	player.squad_check = func() -> bool: return true
+	var heals := inv.count_of("bandage")
+	player.health.take_damage(9999)
+	await physics_frame
+	_check(player.downed and not player.is_dead and not player.controls_locked() and player.out_of_fight(), "the player is downed, not dead")
+	player.try_heal()
+	_check(not player.hands_free() and not player.knife.swing() and not player.is_healing() and inv.count_of("bandage") == heals and not gun.visible,
+		"downed: no shooting (gun put away), knife or healing")
+	var scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 6)) as Scav
+	scav.shot_damage = 0
+	await physics_frame
+	_check(scav._pick_target() == null, "scavs ignore a downed player (owner)")
+	scav.queue_free()
+	Input.action_press("move_forward")
+	await create_timer(1.0).timeout
+	var crawl := player.horizontal_speed()
+	Input.action_release("move_forward")
+	_check(absf(crawl - player.walk_speed * 0.25) < 0.15, "downed players crawl at 1/4 walk speed (%.2f)" % crawl)
+	await create_timer(0.5).timeout
+	_check(player.head.position.y < 0.6, "the view drops to the ground (eyes at %.2f)" % player.head.position.y)
+	var hud: Node = main.get_node("HUD")
+	_check(hud.downed_hud.revive_fraction() < 0.0 and hud.prompt_hud.current().is_empty(), "the downed bar shows; no revive bar until someone revives you")
+	player.set_being_revived(true)
+	await create_timer(1.0).timeout
+	var shown: float = hud.downed_hud.revive_fraction()
+	_check(shown > 0.1 and shown < 0.4, "a teammate holding F: the REVIVING bar fills over 5 s (%.2f after 1 s)" % shown)
+	var bar_before := player.health.down_hp
+	player.revive()
+	await physics_frame
+	_check(not player.downed and player.health.current == player.revive_health and player.hands_free() and gun.visible and bar_before < 98.0,
+		"revived: back up at %d HP, gun out" % player.revive_health)
+	player.squad_check = player.teammate_can_revive
+	_check(not player.teammate_can_revive(), "offline there's no teammate (solo still dies at 0)")
+
+
 func _section_extract() -> void:
 	# Extraction: walk into an open extract and wait.
 	var open_zone: ExtractZone = null
@@ -683,9 +753,16 @@ func _section_extract() -> void:
 
 
 func _section_death() -> void:
+	# In a squad: downed first; once nobody is left who could revive you (they went down too), you die.
+	var teammate_up := [true]
+	player.squad_check = func() -> bool: return teammate_up[0]
 	player.health.take_damage(9999)
 	await _frames(3)
-	_check(player.is_dead, "player dies at 0 hp")
+	_check(player.downed and not player.is_dead, "player goes down at 0 hp with a teammate up")
+	teammate_up[0] = false
+	await _frames(3)
+	_check(player.is_dead and not player.downed, "player dies once nobody is left to revive them (both down)")
+	player.squad_check = player.teammate_can_revive
 
 
 func _section_profile() -> void:
@@ -912,6 +989,33 @@ func _section_net() -> void:
 	_check(not Network.is_valid_state([Vector3.ZERO, "hi"]) and Network.is_valid_state(RemotePlayer.capture(player)),
 		"the server only relays well-formed states")
 
+	# Reviving goes through the server: only your squad, only close by, only after holding F long enough.
+	server.revive_min_hold = 0.1
+	var revive_log := []
+	c2.revive_changed.connect(func(on: bool) -> void: revive_log.append(on))
+	c2.revived.connect(func() -> void: revive_log.append("up"))
+	await _until(func() -> bool:
+		c2.send_state([Vector3(4, 0.1, -7), 0.0, 0.0, 0.0, Hitbox.FLAG_DOWNED])
+		c1.send_state([Vector3(4, 0.1, -6), 0.0, 0.0, 0.0, 0])
+		return server.can_revive(c1_id, c2_id))
+	var c3_id: int = c3.multiplayer.get_unique_id()
+	_check(server.can_revive(c1_id, c2_id) and not server.can_revive(c3_id, c2_id) and not server.can_revive(c2_id, c1_id),
+		"only a teammate who is up can revive a downed player")
+	c3.send_reviving(c2_id, true)
+	c3.send_revive(c2_id)
+	c1.send_reviving(c2_id, true)
+	c1.send_revive(c2_id)
+	await _until(func() -> bool: return revive_log.size() >= 2)
+	_check(revive_log == [true, false], "a revive that wasn't held long enough doesn't count (%s)" % str(revive_log))
+	revive_log.clear()
+	c1.send_reviving(c2_id, true)
+	await _until(func() -> bool: return revive_log.size() >= 1)
+	OS.delay_msec(150)
+	c1.send_revive(c2_id)
+	await _until(func() -> bool: return revive_log.size() >= 2)
+	_check(revive_log == [true, "up"], "the downed player sees the revive start, then gets back up (%s)" % str(revive_log))
+	c1.send_state(sent)
+
 	# The raid shows other players as bodies, drawn smoothly between updates, and removes them when they leave.
 	var net_raid := main.get_node("NetRaid") as NetRaid
 	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, 0]})
@@ -939,9 +1043,42 @@ func _section_net() -> void:
 	for i in 60:
 		body.update_view(10.1, 0.016)
 	_check(body.model.rotation.x > 1.3 and body.body_shape.disabled, "a dead player lies down")
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DOWNED], 10.2)
+	for i in 60:
+		body.update_view(10.2, 0.016)
+	_check(body.model.rotation.x < -1.3 and not body.body_shape.disabled and body.head_shape.position.z < -1.5 and body.head_shape.position.y < 0.5,
+		"a downed player lies face down (hitboxes too) and can still be shot")
+	_check(not body.can_be_revived(), "only teammates can revive")
+	var lying := [Vector3(0, 0, 0), 0.0, 0.0, 0.0, Hitbox.FLAG_DOWNED]
+	_check(Hitbox.trace(lying, Vector3(-3, 1.5, -0.5), Vector3(3, 1.5, -0.5)).is_empty()
+		and Hitbox.trace(lying, Vector3(0, 3, -1.7), Vector3(0, -1, -1.7)).get("headshot") == true,
+		"the server's downed hitbox: low to the ground, head in front")
 	net_raid.sync_remotes({})
 	await _frames(1)
 	_check(net_raid.remotes.is_empty() and not is_instance_valid(body), "a player who leaves disappears")
+
+	# Reviving (0.9.4): stand next to a downed teammate and hold F for 5 s ([F] REVIVE), then let go before the next.
+	Network.main.teammates = [78]
+	net_raid.sync_remotes({78: [player.global_position + Vector3(0.5, 0, 0.5), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DOWNED]})
+	var mate: RemotePlayer = net_raid.remotes.get(78)
+	var it := player.interactor
+	it.revive_target = it.find_revive_target()
+	_check(mate != null and mate.can_be_revived() and it.revive_target == mate, "a downed teammate next to you can be revived")
+	var finished := []
+	it.revive_finished.connect(func(peer: int) -> void: finished.append(peer))
+	for i in 60 * 4:
+		it.update_revive(1.0 / 60.0, true)
+	var midway := it.is_reviving() and it.revive_progress > 0.75 and finished.is_empty()
+	for i in 70:
+		it.update_revive(1.0 / 60.0, true)
+	_check(midway and finished == [78], "holding F for 5 s revives them")
+	it.update_revive(1.0 / 60.0, true)
+	_check(not it.is_reviving(), "a finished revive doesn't start over until F is let go")
+	mate.global_position += Vector3(6, 0, 0)
+	_check(it.find_revive_target() == null, "too far away: no revive")
+	net_raid.sync_remotes({})
+	Network.main.teammates = []
+	await _frames(1)
 
 	# Same seed = same open extracts on every machine.
 	var a := raid.get_extracts()

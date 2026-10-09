@@ -5,13 +5,24 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.9.4 (downed and revive, owner)
+- **In a squad, 0 HP knocks you down instead of killing you** (solo still dies). You drop to the ground and can only
+  look around and **crawl at 1/4 speed**: no shooting, healing, looting or extracting
+- **Downed bar:** a red DOWNED plate under the crosshair with a bar that drains **100 to 0 over 30 seconds**. Getting
+  shot takes from it too, and **at 0 you die** (owner)
+- **Revive:** walk up to a downed teammate and **hold F for 5 seconds** ("[F] REVIVE" with a green bar). They get back
+  up with **30 HP**. They see a green REVIVING bar while you do it. Their name tag turns red while they're down
+- If **nobody is left who could revive you** (your teammate went down too, died, extracted or left), you die
+- **Scavs and Raiders ignore downed players**; other players can still finish you off
+- Kills on a player who bled out still go to whoever shot them
+
 ## 0.9.3 (pick your med: tap 3 to use, hold 3 to switch, owner)
 - **Hold 3 to switch meds:** each hold steps through **Auto -> Bandage -> Medkit -> Auto** (smallest heal first,
   only meds you carry); keep holding to keep stepping. The new pick is shown on tape over the slot ("MEDKIT x1")
 - **Tap 3 uses the med the slot shows.** Auto works like before (and like H): the best fit for how hurt you are, marked
   with a small **A** in the slot's corner. Run out of the picked med and it goes back to Auto. **H always heals on Auto**
 - **Touch screens:** tapping / holding the meds slot does the same (first piece of touch controls)
-- (0.9.2 is the downed/revive update, built alongside)
+- (the downed/revive update, built alongside, came out as 0.9.4; there is no 0.9.2)
 
 ## 0.9.1 (meds slot shows what it'll use, owner)
 - **Hotbar key 3 shows the heal it will use right now** (the best fit for how hurt you are, same as H): a

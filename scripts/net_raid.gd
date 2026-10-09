@@ -48,6 +48,8 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	player.health.died.connect(_drop_body)
+	Network.main.revive_changed.connect(player.set_being_revived)
+	Network.main.revived.connect(player.revive)
 	# Containers' contents come from the server when opened (the rolls made on this machine don't count).
 	for box in RaidScope.nodes(self, &"loot_containers"):
 		(box as LootContainer).grid.clear()

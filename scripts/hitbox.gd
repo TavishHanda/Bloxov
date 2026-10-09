@@ -11,6 +11,8 @@ const FLAG_DEAD := 8
 const FLAG_EXTRACTED := 16
 ## Holding a gun (other players only show the gun on their model when they are).
 const FLAG_ARMED := 32
+## Knocked down (0.9.4): lying face down, crawling. Still hittable (hits drain the downed bar).
+const FLAG_DOWNED := 64
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
 const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)
@@ -18,6 +20,10 @@ const HEAD_HEIGHT := 1.71
 const CROUCH_SCALE := 0.67
 ## Same as the local player (player.gd: lean_distance 0.35 m at head height): the angle the body tips by.
 const LEAN_ANGLE := 0.21
+## Downed, the body lies face down, head forward (-Z): one long low box for the body, the head box in front.
+const DOWNED_BODY_CENTER := Vector3(0, 0.3, -0.68)
+const DOWNED_BODY_SIZE := Vector3(0.8, 0.6, 1.36)
+const DOWNED_HEAD_CENTER := Vector3(0, 0.31, -1.71)
 
 
 ## Body box center (relative to the feet, before turning by yaw) for a crouch amount (0..1).
@@ -48,7 +54,10 @@ static func trace(state: Array, from: Vector3, to: Vector3) -> Dictionary:
 	var local_from := feet.affine_inverse() * from
 	var local_to := feet.affine_inverse() * to
 	var best := {}
-	for part in [[head_center(crouch, state[3]), HEAD_SIZE, true], [body_center(crouch), body_size(crouch), false]]:
+	var parts := [[head_center(crouch, state[3]), HEAD_SIZE, true], [body_center(crouch), body_size(crouch), false]]
+	if flags & FLAG_DOWNED:
+		parts = [[DOWNED_HEAD_CENTER, HEAD_SIZE, true], [DOWNED_BODY_CENTER, DOWNED_BODY_SIZE, false]]
+	for part in parts:
 		var box := AABB(part[0] - part[1] * 0.5, part[1])
 		var hit: Variant = box.intersects_segment(local_from, local_to)
 		if hit != null:

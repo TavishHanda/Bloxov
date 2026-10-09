@@ -40,6 +40,9 @@ signal container_opened(id: String, data: Array)
 signal container_busy(id: String)
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
 signal bag_removed(id: String)
+## Downed (0.9.4): a teammate started or stopped holding F on us; they finished (we're back up).
+signal revive_changed(on: bool)
+signal revived
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -51,6 +54,8 @@ const RAID_TIME := 600.0
 const SEND_RATE := 20.0
 ## Queue status updates per second (to players in the hideout).
 const QUEUE_RATE := 2.0
+## Seconds a teammate holds F to revive a downed player (owner, 0.9.4).
+const REVIVE_TIME := 5.0
 ## Players online at once (in the hideout or raids). Keeps a flood of fake players from swamping the server.
 const MAX_ONLINE := 40
 
@@ -97,6 +102,10 @@ var _worlds := {}
 var _last_attacker := {}
 ## peer -> server time of their last shot (to ignore impossible fire rates).
 var _last_shot := {}
+## Reviver peer -> [downed peer, server time they started holding F].
+var _reviving := {}
+## A revive only counts after holding this long (a little under REVIVE_TIME for lag; the test shortens it).
+var revive_min_hold := REVIVE_TIME - 0.5
 var _send_left := 0.0
 var _queue_send_left := 0.0
 
@@ -230,6 +239,7 @@ func _start_now() -> void:
 func _leave_raid() -> void:
 	_server_call(func(peer: int) -> String:
 		_player_states.erase(peer)
+		_reviving.erase(peer)
 		matchmaker.leave_raid(peer)
 		return "")
 
@@ -240,16 +250,18 @@ func _state(state: Array) -> void:
 	if not (mode == Mode.SERVER and matchmaker.players.has(peer) and matchmaker.players[peer]["raid"] != 0
 			and is_valid_state(state)):
 		return
-	var was_dead: bool = _player_states.has(peer) and _player_states[peer][4] & Hitbox.FLAG_DEAD
+	var old_flags: int = _player_states[peer][4] if _player_states.has(peer) else 0
+	var was_dead := old_flags & Hitbox.FLAG_DEAD != 0
 	_player_states[peer] = state
 	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
 	if world != null:
 		world.record(peer, state, _now())
 		world.update_proxy(peer, state)
-	# Just died: credit whoever hit them last (within 10 s).
+	# Just died: credit whoever hit them last (within 10 s, or 40 s if they bled out downed: down for up to 30 s).
 	if state[4] & Hitbox.FLAG_DEAD and not was_dead and _last_attacker.has(peer):
 		var attacker: Array = _last_attacker[peer]
-		if _now() - attacker[1] < 10.0 and _peer_open(attacker[0]):
+		var window := 40.0 if old_flags & Hitbox.FLAG_DOWNED else 10.0
+		if _now() - attacker[1] < window and _peer_open(attacker[0]):
 			_kill_confirmed.rpc_id(attacker[0])
 		_last_attacker.erase(peer)
 
@@ -357,6 +369,57 @@ func _drop_items(data: Array, is_body: bool) -> void:
 	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data)
 
 
+## A player started (on) or stopped holding F on a downed teammate: tell the downed one (their screen shows it).
+@rpc("any_peer", "call_remote", "reliable")
+func _set_reviving(target: int, on: bool) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER:
+		return
+	var started := on and can_revive(peer, target)
+	if started:
+		_reviving[peer] = [target, _now()]
+	elif _reviving.has(peer) and _reviving[peer][0] == target:
+		_reviving.erase(peer)
+	else:
+		return
+	if _peer_open(target):
+		_revive_state.rpc_id(target, started)
+
+
+## A player held F long enough on a downed teammate: stand them back up (if it all checks out).
+@rpc("any_peer", "call_remote", "reliable")
+func _revive(target: int) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER or not _reviving.has(peer):
+		return
+	var started: Array = _reviving[peer]
+	_reviving.erase(peer)
+	if started[0] != target or _now() - started[1] < revive_min_hold or not can_revive(peer, target):
+		if _peer_open(target):
+			_revive_state.rpc_id(target, false)
+		return
+	_log("%s revived %s" % [matchmaker.players[peer]["name"], matchmaker.players[target]["name"]])
+	if _peer_open(target):
+		_revived.rpc_id(target)
+
+
+## `peer` may revive `target`: same raid and squad, `peer` up and in the raid, `target` downed, and close.
+func can_revive(peer: int, target: int) -> bool:
+	if peer == target or not matchmaker.players.has(peer) or not matchmaker.players.has(target):
+		return false
+	var raid_id: int = matchmaker.players[peer]["raid"]
+	if raid_id == 0 or matchmaker.players[target]["raid"] != raid_id or not matchmaker.raids.has(raid_id):
+		return false
+	var teams: Dictionary = matchmaker.raids[raid_id]["teams"]
+	if teams.get(peer) != teams.get(target) or not _player_states.has(peer) or not _player_states.has(target):
+		return false
+	var me: Array = _player_states[peer]
+	var them: Array = _player_states[target]
+	return (me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED | Hitbox.FLAG_DOWNED) == 0
+		and them[4] & Hitbox.FLAG_DOWNED != 0 and them[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED) == 0
+		and (me[0] as Vector3).distance_to(them[0]) < 3.5)
+
+
 ## The raid world a player is in (null if they aren't in a raid).
 func _world_of(peer: int) -> RaidWorld:
 	if mode != Mode.SERVER or not matchmaker.players.has(peer):
@@ -403,6 +466,7 @@ func _on_peer_left(peer: int) -> void:
 		return
 	_log("%s (peer %d) went offline" % [matchmaker.players[peer]["name"], peer])
 	_player_states.erase(peer)
+	_reviving.erase(peer)
 	matchmaker.remove_player(peer)
 	_flush()
 
@@ -615,6 +679,18 @@ func drop_items(data: Array, body := false) -> void:
 		_drop_items.rpc_id(1, data, body)
 
 
+## We started/stopped holding F on a downed teammate (peer id).
+func send_reviving(target: int, on: bool) -> void:
+	if in_online_raid():
+		_set_reviving.rpc_id(1, target, on)
+
+
+## We held F long enough: the server checks it and stands them back up.
+func send_revive(target: int) -> void:
+	if in_online_raid():
+		_revive.rpc_id(1, target)
+
+
 ## Tells the server we swung the knife (it decides what it hit).
 func send_knife(from: Vector3, dir: Vector3) -> void:
 	if in_online_raid():
@@ -738,6 +814,18 @@ func _bag(id: String, pos: Vector3, yaw: float, title: String, search: float) ->
 func _bag_gone(id: String) -> void:
 	if in_online_raid():
 		bag_removed.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _revive_state(on: bool) -> void:
+	if in_online_raid():
+		revive_changed.emit(on)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _revived() -> void:
+	if in_online_raid():
+		revived.emit()
 
 
 @rpc("authority", "call_remote", "reliable")

@@ -126,7 +126,7 @@ func close() -> void:
 func _process(_delta: float) -> void:
 	if not visible or player == null:
 		return
-	if player.controls_locked():
+	if player.out_of_fight():
 		close()
 		return
 	# Walked away (or the bag was emptied): keep your inventory open, drop the container.
