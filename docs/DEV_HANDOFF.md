@@ -29,10 +29,9 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   duos, spawn budget), online play (parties, queue 2-6 players, several raids per server, server-checked shots with
   lag compensation, server-run AI with puppets, shared loot + lootable bodies), the "Ammo Can" HUD and inventory.
 - **Immediate next work (in order):**
-  1. **0.9.2 downed/revive.** Proposal written in `docs/MULTIPLAYER_PLAN.md` step 6. The owner hasn't approved
-     the numbers yet: ask first. Any new HUD for it (downed overlay, revive bar) must follow the UI rules.
-  2. **Per-player extract + what a dead player sees** (spectate teammate or back to hideout), squads spawn together.
-  3. Then ask the owner. The plan says map next (real map with risk zones; owner makes models), see
+  1. ~~Downed/revive~~ done in **0.9.4**; ~~per-player extract, spectate or back to hideout, squads spawn together~~
+     done in **0.9.5** (details: `docs/MULTIPLAYER_PLAN.md` step 6; `Health` downed bar, `DownedHUD`, `Spectator`).
+  2. Ask the owner what's next. The plan says map next (real map with risk zones; owner makes models), see
      `docs/ROADMAP.md` / `docs/BACKLOG.md`.
 - **Heads-up: the owner plans to change the meds slot** (hotbar key 3). Today it's a shortcut, not a real
   inventory slot: it uses `Inventory.find_heal()` (best fit for missing HP, same as H) and shows that item (bandage
