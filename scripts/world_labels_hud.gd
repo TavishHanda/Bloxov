@@ -4,9 +4,12 @@ extends Control
 ## Label3Ds, which blurred the pixel font). Finds them by group (Effects.WORLD_LABELS, this raid only):
 ## - damage numbers (owner toggle, off by default; meta label_kind "damage"): cream, popping up and floating away;
 ##   headshots/backstabs bigger, yellow, with "!".
-## - teammate name tags ("name"): small and green (no plate), visible through walls like before.
+## - teammate name tags ("name"): small and bright green with a 1-px black edge
+##   (no plate), visible through walls like before.
 
 const RISE := 42.0
+## Teammates' names: a brighter green than the extract flag, so it pops over grass and sky.
+const TEAMMATE := Color("8dff9f")
 const FADE_AFTER := 0.3
 
 
@@ -63,9 +66,15 @@ func _draw_damage(entry: Dictionary) -> void:
 func _draw_name(entry: Dictionary) -> void:
 	var text: String = entry["text"]
 	var at: Vector2 = entry["at"]
-	# Just the green name with the HUD's drop shadow (owner: no plate behind it).
+	# A bright green name with a crisp 1-pixel black edge all round plus a drop shadow (owner: no plate; it has to
+	# read over sky, grass and dark rooms alike).
 	var rect := Rect2(Vector2(at.x - 100.0, at.y - 22.0), Vector2(200, 20))
-	HudStyle.draw_centered(self, text, rect, 20, HudStyle.EXTRACT, HudStyle.spaced_font(20))
+	var f := HudStyle.spaced_font(20)
+	for offset in [Vector2(0, 2), Vector2(-1, 2), Vector2(1, 2)]:
+		HudStyle.draw_centered(self, text, Rect2(rect.position + offset, rect.size), 20, Color(0, 0, 0, 0.6), f, false)
+	for offset in [Vector2(-1, -1), Vector2(0, -1), Vector2(1, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1)]:
+		HudStyle.draw_centered(self, text, Rect2(rect.position + offset, rect.size), 20, Color.BLACK, f, false)
+	HudStyle.draw_centered(self, text, rect, 20, TEAMMATE, f, false)
 
 
 ## Text with a hard 2-px dark edge on every side (pixel-crisp, no blur), so a number reads over sky and walls.

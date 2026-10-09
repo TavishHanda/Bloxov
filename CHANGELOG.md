@@ -8,7 +8,8 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 ## 0.8.16 (damage numbers and teammate tags in the HUD style, owner)
 - **Damage numbers** (the optional setting) are drawn crisp in the pixel font with a hard dark edge, pop up and float
   away; headshots and backstabs are bigger and yellow with "!" (they used to be blurry 3D text)
-- **Teammate name tags** are small green names (no plate behind them), still visible through walls
+- **Teammate name tags** are small bright-green names with a crisp 1-pixel black edge (no plate behind them), so
+  they read over sky, grass and dark rooms; still visible through walls
 - **Extract tags** keep their plate, with the name in cream (like the extract list) and the green flag, so green
   text now only means a teammate
 
