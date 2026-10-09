@@ -41,7 +41,7 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       have no AI and per-player loot until steps 4-5. Tested: the `net` smoke test section runs a real WebSocket
       server and two clients in one process (separate multiplayer branches); also checked with three separate
       processes (server + two games joining through the hideout).
-- [ ] **2. See each other (0.7.1).** Other players move, turn, crouch, lean, aim, with smoothing so they don't
+- [x] **2. See each other (0.7.1).** Other players move, turn, crouch, lean, aim, with smoothing so they don't
       jitter. The PMC model is the player model (owner: kept for real players).
 - [ ] **3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound
       as now. Friendly fire per the owner's answer below.

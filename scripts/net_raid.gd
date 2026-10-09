@@ -1,6 +1,6 @@
 class_name NetRaid
 extends Node
-## The online side of a raid, on a player's machine (does nothing offline). Sends our position to the server,
+## The online side of a raid, on a player's machine (does nothing offline). Sends our state to the server,
 ## shows the other players (RemotePlayer bodies) and a small "online" line on screen.
 ## 0.7.0: no AI in online raids yet; scavs and Raiders move to the server in 0.7.3.
 
@@ -12,6 +12,7 @@ const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
 ## Peer id -> RemotePlayer.
 var remotes := {}
 var _send_left := 0.0
+var _last_states_msec := -1
 var _label: Label
 var _lost := false
 
@@ -39,15 +40,18 @@ func _process(delta: float) -> void:
 		_send_left -= delta
 		if _send_left <= 0.0:
 			_send_left = 1.0 / Network.SEND_RATE
-			Network.main.send_state(player.global_position, player.rotation.y)
-	sync_remotes(Network.main.states)
+			Network.main.send_state(RemotePlayer.capture(player))
+	if Network.main.states_msec != _last_states_msec:
+		_last_states_msec = Network.main.states_msec
+		sync_remotes(Network.main.states)
 	if _lost:
 		_label.text = "Disconnected from the server: you're on your own now."
 	else:
 		_label.text = "Online · room %s · %d players" % [Network.main.room_code, Network.main.player_count()]
 
 
-## Adds, moves and removes RemotePlayer bodies to match `states` (peer id -> [position, yaw]).
+## Adds and removes RemotePlayer bodies to match `states` (peer id -> RemotePlayer state) and hands each its
+## new state (call once per update from the server).
 func sync_remotes(states: Dictionary) -> void:
 	for peer in remotes.keys():
 		if not states.has(peer):
@@ -61,7 +65,7 @@ func sync_remotes(states: Dictionary) -> void:
 			remote.name = "Remote%d" % peer
 			get_parent().add_child(remote)
 			remotes[peer] = remote
-		remote.apply_state(states[peer][0], states[peer][1])
+		remote.push_state(states[peer])
 
 
 func _on_connection_lost() -> void:

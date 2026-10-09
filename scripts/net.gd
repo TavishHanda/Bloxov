@@ -35,8 +35,10 @@ var room_code := ""
 var raid_seed := 0
 ## Seconds left on the raid clock when we joined (the client counts down from there).
 var raid_time_left := RAID_TIME
-## Client: the other players' latest [position, yaw], by peer id (not including us).
+## Client: the other players' latest state (RemotePlayer.capture: position, yaw, pitch, lean, flags), by peer id
+## (not including us), and when it arrived (msec).
 var states := {}
+var states_msec := 0
 
 ## The game's own connection (the "Net" autoload). The test makes extra Network nodes; those aren't this.
 static var main: Network
@@ -127,16 +129,16 @@ func _hello(client_version: String, code: String) -> void:
 		room_code = code
 		_raid_started_msec = Time.get_ticks_msec()
 		_log("room %s opened" % code)
-	_welcomed[peer] = [Vector3.ZERO, 0.0]
+	_welcomed[peer] = []
 	_log("peer %d joined room %s (%d players)" % [peer, room_code, _welcomed.size()])
 	_welcome.rpc_id(peer, room_code, raid_seed, _server_time_left())
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
-func _state(pos: Vector3, yaw: float) -> void:
+func _state(state: Array) -> void:
 	var peer := multiplayer.get_remote_sender_id()
-	if mode == Mode.SERVER and _welcomed.has(peer):
-		_welcomed[peer] = [pos, yaw]
+	if mode == Mode.SERVER and _welcomed.has(peer) and RemotePlayer.is_valid_state(state):
+		_welcomed[peer] = state
 
 
 func _on_peer_left(peer: int) -> void:
@@ -155,8 +157,13 @@ func _process(delta: float) -> void:
 	if _send_left > 0.0:
 		return
 	_send_left = 1.0 / SEND_RATE
+	# Players who haven't sent a state yet (still loading the raid) aren't shown.
+	var shown := {}
 	for peer in _welcomed:
-		_states.rpc_id(peer, _welcomed)
+		if not _welcomed[peer].is_empty():
+			shown[peer] = _welcomed[peer]
+	for peer in _welcomed:
+		_states.rpc_id(peer, shown)
 
 
 ## Why a player can't join right now ("" = they can).
@@ -211,10 +218,10 @@ func leave() -> void:
 	states.clear()
 
 
-## Sends our position to the server (the raid calls this SEND_RATE times a second).
-func send_state(pos: Vector3, yaw: float) -> void:
+## Sends our state (RemotePlayer.capture) to the server (the raid calls this SEND_RATE times a second).
+func send_state(state: Array) -> void:
 	if mode == Mode.CLIENT:
-		_state.rpc_id(1, pos, yaw)
+		_state.rpc_id(1, state)
 
 
 func _on_connected(code: String) -> void:
@@ -259,6 +266,7 @@ func _states(all: Dictionary) -> void:
 	var me := multiplayer.get_unique_id()
 	states = all.duplicate()
 	states.erase(me)
+	states_msec = Time.get_ticks_msec()
 
 
 func _log(text: String) -> void:

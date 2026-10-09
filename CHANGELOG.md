@@ -2,6 +2,15 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.2 (multiplayer: see each other properly)
+- Other players now **crouch, lean, sprint and aim** where you can see it, their gun follows where they look,
+  their legs walk, and they **fall over when they die** (and vanish when they extract)
+- **Smooth movement:** other players are drawn a tenth of a second behind, gliding between updates instead of
+  jumping 20 times a second
+- Their hitboxes already follow their pose (crouched = smaller, leaning = head off to the side), ready for
+  shooting each other in the next update
+- The server ignores malformed updates (a broken or tampered game can't crash everyone else)
+
 ## 0.7.1 (online server)
 - **There's a real server now** (once the owner's Fly.io account is connected): JOIN ONLINE goes to
   `wss://bloxov-server.fly.dev` by default, so you and your friends can join the same room from the live link

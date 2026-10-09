@@ -783,19 +783,36 @@ func _section_net() -> void:
 	_check(results.get(c2) == "joined" and c2.raid_seed == c1.raid_seed, "second player joins the same raid (same extract seed)")
 	_check(server.player_count() == 2, "server counts 2 players (%d)" % server.player_count())
 
-	# Positions are relayed: player 2 sees player 1 where player 1 is, and never sees itself.
+	# States are relayed: player 2 sees player 1 where player 1 is, and never sees itself.
 	var c1_id: int = c1.multiplayer.get_unique_id()
+	var sent := [Vector3(4, 0.1, -6), 1.2, 0.3, 1.0, RemotePlayer.FLAG_CROUCH]
 	await _until(func() -> bool:
-		c1.send_state(Vector3(4, 0.1, -6), 1.2)
+		c1.send_state(sent)
 		return c2.states.has(c1_id) and c2.states[c1_id][0].is_equal_approx(Vector3(4, 0.1, -6)))
-	_check(c2.states.has(c1_id) and is_equal_approx(c2.states[c1_id][1], 1.2), "player 2 sees player 1's position and facing")
+	_check(c2.states.has(c1_id) and c2.states[c1_id] == sent, "player 2 sees player 1's position, facing, crouch and lean")
 	_check(not c2.states.has(c2.multiplayer.get_unique_id()) and c2.player_count() == 2, "you don't see yourself as another player")
+	_check(not RemotePlayer.is_valid_state([Vector3.ZERO, "hi"]) and RemotePlayer.is_valid_state(RemotePlayer.capture(player)),
+		"the server only relays well-formed states")
 
-	# The raid shows other players as bodies, and removes them when they leave.
+	# The raid shows other players as bodies, drawn smoothly between updates, and removes them when they leave.
 	var net_raid := main.get_node("NetRaid") as NetRaid
-	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0]})
+	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, 0]})
 	var body: RemotePlayer = net_raid.remotes.get(77)
 	_check(body != null and body.global_position.is_equal_approx(Vector3(2, 0.1, -12)) and body.collision_layer == 2, "another player appears as a body on the player layer")
+	body.set_process(false)
+	body._buffer.clear()
+	body.push_state([Vector3(0, 0.1, -12), 0.0, 0.0, 0.0, 0], 10.0)
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 1.0, RemotePlayer.FLAG_CROUCH], 10.05)
+	body.update_view(10.025, 0.016)
+	_check(is_equal_approx(body.global_position.x, 1.0), "between two updates the body is drawn halfway (x %.2f)" % body.global_position.x)
+	for i in 60:
+		body.update_view(10.05, 0.016)
+	_check(body.model.scale.y < 0.7 and body.head_shape.position.y < 1.2 and body.head_shape.position.x > 0.2,
+		"a crouching, leaning player looks it (and their head hitbox moves with it)")
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD], 10.1)
+	for i in 60:
+		body.update_view(10.1, 0.016)
+	_check(body.model.rotation.x > 1.3 and body.body_shape.disabled, "a dead player lies down")
 	net_raid.sync_remotes({})
 	await _frames(1)
 	_check(net_raid.remotes.is_empty() and not is_instance_valid(body), "a player who leaves disappears")
