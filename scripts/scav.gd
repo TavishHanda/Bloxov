@@ -13,6 +13,7 @@ const SHOT_SOUND := preload("res://audio/shot.wav")
 const ALERT_SOUND := preload("res://audio/alert.wav")
 const POP_SOUND := preload("res://audio/pop.wav")
 const BASH_SOUND := preload("res://audio/swing.wav")
+const HEAL_SOUND := preload("res://audio/mag_out.wav")
 const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
 const STEP_SOUNDS: Array[AudioStream] = [
 	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
@@ -96,6 +97,15 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## At most one move to cover per this many seconds.
 @export var cover_cooldown := 10.0
 
+@export_group("Healing")
+## Badly hurt (below this fraction of max health), it falls back to cover and patches up (owner: scavs can heal).
+## Getting hit while healing interrupts it (and wastes nothing: it can try again a few seconds later).
+@export var hurt_fraction := 0.4
+@export var heal_amount := 40
+@export var heal_time := 4.0
+## How many times per life it can heal.
+@export var heals := 1
+
 @export_group("Melee")
 ## Get this close (meters) and it bashes you with its rifle butt instead of shooting.
 @export var melee_range := 1.6
@@ -169,12 +179,18 @@ var _flashing := false
 var _flinch_left := 0.0
 var _melee_cooldown_left := 0.0
 ## Cover: seconds since the last threat, where it's heading/holding, and the cooldown.
-enum Cover { NONE, MOVING, HOLDING }
+enum Cover { NONE, MOVING, HOLDING, HEALING }
 var _since_threat := 0.0
 var _cover_phase := Cover.NONE
 var _cover_point := Vector3.ZERO
 var _cover_hold_left := 0.0
 var _cover_cooldown_left := 0.0
+## Heals left this life, whether it's hurt and wants to fall back, and time left on the current heal.
+var _heals_left := 0
+var _wants_heal := false
+var _heal_left := 0.0
+var _heal_retry_left := 0.0
+var _heal_after_move := false
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
 var _lunge_left := 0.0
@@ -194,6 +210,7 @@ func _ready() -> void:
 	_meshes = model.find_children("*", "GeometryInstance3D", true, false)
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	_heals_left = heals
 
 
 ## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
@@ -216,6 +233,7 @@ func _physics_process(delta: float) -> void:
 	_melee_cooldown_left -= delta
 	_since_threat += delta
 	_cover_cooldown_left -= delta
+	_heal_retry_left -= delta
 
 	if _target == null or not is_instance_valid(_target) or _target.controls_locked():
 		_target = _pick_target()
@@ -266,6 +284,8 @@ func _physics_process(delta: float) -> void:
 				_set_state(State.IDLE)
 			elif _cover_phase != Cover.NONE:
 				desired = _update_cover(delta, sees, to_target, dist)
+			elif _wants_heal and _heal_retry_left <= 0.0:
+				_fall_back_to_heal()
 			elif sees:
 				_last_seen = _target.global_position
 				_lost_sight_time = 0.0
@@ -332,8 +352,8 @@ func _process(delta: float) -> void:
 	# Visible jolt when hit: the body snaps back and settles. Bash: leans back to wind up, then lunges.
 	# (The model faces -Z, so a positive X rotation tips it backward and a negative one forward.)
 	var tilt := 0.3 * maxf(_flinch_left - (flinch_time - 0.25), 0.0) / 0.25
-	if _looting_left > 0.0 and state == State.IDLE:
-		tilt -= 0.35  # leaning in, searching a container
+	if (_looting_left > 0.0 and state == State.IDLE) or _cover_phase == Cover.HEALING:
+		tilt -= 0.35  # leaning in: searching a container, or patching itself up
 	if _windup_left > 0.0:
 		tilt += 0.35 * (1.0 - _windup_left / melee_windup)
 	elif _lunge_left > 0.0:
@@ -425,6 +445,35 @@ func notice_threat() -> void:
 ## Looks for a walkable spot nearby that the target can't see; starts moving there if it finds one.
 func _try_take_cover() -> void:
 	_cover_cooldown_left = cover_cooldown
+	var spot := _find_cover()
+	if spot != Vector3.INF:
+		_cover_point = spot
+		_cover_phase = Cover.MOVING
+	else:
+		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
+
+
+## Hurt: get to cover (or patch up where it stands if there's none) and heal.
+func _fall_back_to_heal() -> void:
+	_wants_heal = false
+	var spot := _find_cover()
+	if spot != Vector3.INF:
+		_cover_point = spot
+		_cover_phase = Cover.MOVING
+		_heal_after_move = true
+	else:
+		_start_heal()
+
+
+func _start_heal() -> void:
+	_cover_phase = Cover.HEALING
+	_heal_left = heal_time
+	_hold_fire()
+	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1)
+
+
+## The closest walkable spot within cover_search_radius (by walking distance) the target can't see; INF if none.
+func _find_cover() -> Vector3:
 	var map := get_world_3d().navigation_map
 	var eyes := _target.eye_position()
 	var space := get_world_3d().direct_space_state
@@ -446,11 +495,7 @@ func _try_take_cover() -> void:
 				best_walk = walk
 		if best != Vector3.INF:
 			break
-	if best != Vector3.INF:
-		_cover_point = best
-		_cover_phase = Cover.MOVING
-	else:
-		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
+	return best
 
 
 ## True if it's not getting anywhere (e.g. the last bit of the path is blocked by another scav).
@@ -478,9 +523,23 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 			_hold_fire()
 		# Get all the way in (normal arriving allows 1.2 m, which can leave it peeking past the corner).
 		if _flat(_cover_point - global_position).length() < 0.4 or _cover_stuck(move):
-			_cover_phase = Cover.HOLDING
-			_cover_hold_left = cover_hold_time
+			if _heal_after_move:
+				_heal_after_move = false
+				_start_heal()
+			else:
+				_cover_phase = Cover.HOLDING
+				_cover_hold_left = cover_hold_time
 		return move
+	if _cover_phase == Cover.HEALING:
+		_heal_left -= delta
+		_face(_flat(_last_seen - global_position), delta)
+		_hold_fire()
+		if _heal_left <= 0.0:
+			health.heal(heal_amount)
+			_heals_left -= 1
+			_cover_phase = Cover.NONE
+			_lost_sight_time = 0.0
+		return Vector3.ZERO
 	_cover_hold_left -= delta
 	_face(_flat(_last_seen - global_position), delta)
 	_hold_fire()
@@ -700,6 +759,13 @@ func _has_line_of_sight() -> bool:
 
 func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	_since_threat = 0.0
+	if _cover_phase == Cover.HEALING:
+		# Interrupted: back to fighting; it can try again in a few seconds.
+		_cover_phase = Cover.NONE
+		_wants_heal = true
+		_heal_retry_left = 4.0
+	elif not health.is_dead and _heals_left > 0 and health.current <= health.max_health * hurt_fraction:
+		_wants_heal = true
 	_hit_flash_time = 0.08
 	_flinch_left = flinch_time
 	_fire_timer = maxf(_fire_timer, flinch_fire_delay)

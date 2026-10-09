@@ -52,7 +52,8 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
 - [x] **4b. Losing interest: keep as is (owner, 0.6.10).** A scav that loses sight of you goes to where it last saw
       you (gives up on that after 6 s, PMCs 9 s), searches 5 s, then patrols again. No giving up just because
       you're far away (owner: distance-based giving up can be gamed).
-- [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
+- [x] **5. Getting hurt (0.6.11).** Below 40% health a scav falls back to the nearest cover (or heals where it stands if
+      there is none) and patches up: +40 HP over 4 s, once per life. Getting hit interrupts it (retry after 4 s).
 - [ ] **6. Teamwork.** A scav that spots you alerts scavs near it (they come to investigate).
       Maybe: one holds you in place while another moves to flank.
 - [ ] **7. PMCs are harder to fight (owner, after 0.6.10). Scav behavior stays exactly as it is.** PMCs:

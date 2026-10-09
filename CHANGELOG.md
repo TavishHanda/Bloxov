@@ -2,6 +2,11 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.11 (scavs: getting hurt)
+- **Badly hurt scavs fall back and heal:** below 40% health a scav retreats to nearby cover and patches itself up
+  (+40 HP over 4 seconds, once per life). You'll see it lean in while healing
+- **Shooting it interrupts the heal**: a wounded scav that ran for cover is worth pushing
+
 ## 0.6.10 (leaning, owner idea)
 - **Lean with Q / E** to peek around corners: your head shifts sideways and tilts. You walk slower and can't sprint
   while leaning, and you can't lean through a wall

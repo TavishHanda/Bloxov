@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1162,6 +1162,47 @@ func _section_lean() -> void:
 	Input.action_release("lean_left")
 	var head_x := player.head.global_position.x
 	_check(head_x < 9.25 - 0.1, "leaning into a wall stops short of it (head at x %.2f, wall at 9.25)" % head_x)
+
+
+func _section_hurt() -> void:
+	# A badly hurt scav falls back to cover and patches up (+40 HP over 4 s); shooting it interrupts the heal.
+	player.teleport_to(Vector3(-15, 0.1, 0))
+	var scav := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
+	_face_player(scav)
+	scav.shot_damage = 0
+	scav._strafe_time = 99.0
+	scav._strafe_dir = 0.0
+	await physics_frame
+	scav._alert(player.global_position)
+	scav._set_state(Scav.State.ENGAGE)
+	scav.health.take_damage(65, player.global_position)  # 35 HP left: below 40%
+	var hp_hurt := scav.health.current
+	var healed := false
+	var hid_to_heal := false
+	for i in 60 * 10:
+		await physics_frame
+		if scav._cover_phase == Scav.Cover.HEALING and not hid_to_heal:
+			var query := PhysicsRayQueryParameters3D.create(player.camera.global_position, scav.global_position + Vector3(0, 1.3, 0), 1)
+			hid_to_heal = not scav.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+		if scav.health.current > hp_hurt:
+			healed = true
+			break
+	_check(hid_to_heal, "a badly hurt scav falls back to cover to heal")
+	_check(healed and scav.health.current == hp_hurt + scav.heal_amount, "it patches up (+%d HP: %d -> %d)" % [scav.heal_amount, hp_hurt, scav.health.current])
+	scav.queue_free()
+	# Shooting it while it heals interrupts the heal.
+	var patient := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
+	patient.shot_damage = 0
+	await physics_frame
+	patient._alert(player.global_position)
+	patient._set_state(Scav.State.ENGAGE)
+	patient.health.take_damage(65)
+	patient._start_heal()
+	await create_timer(1.0).timeout
+	patient.health.take_damage(5, player.global_position)
+	await create_timer(3.5).timeout
+	_check(patient._cover_phase != Scav.Cover.HEALING and patient.health.current == 30, "getting shot interrupts its heal (hp %d)" % patient.health.current)
+	patient.queue_free()
 
 
 # --- Helpers -------------------------------------------------------------------
