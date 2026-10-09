@@ -40,7 +40,7 @@ signal container_opened(id: String, data: Array)
 signal container_busy(id: String)
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
 signal bag_removed(id: String)
-## Downed (0.9.4): a teammate started or stopped holding F on us; they finished (we're back up).
+## Downed (0.9.2): a teammate started or stopped holding F on us; they finished (we're back up).
 signal revive_changed(on: bool)
 signal revived
 
@@ -54,7 +54,7 @@ const RAID_TIME := 600.0
 const SEND_RATE := 20.0
 ## Queue status updates per second (to players in the hideout).
 const QUEUE_RATE := 2.0
-## Seconds a teammate holds F to revive a downed player (owner, 0.9.4).
+## Seconds a teammate holds F to revive a downed player (owner, 0.9.2).
 const REVIVE_TIME := 5.0
 ## Players online at once (in the hideout or raids). Keeps a flood of fake players from swamping the server.
 const MAX_ONLINE := 40

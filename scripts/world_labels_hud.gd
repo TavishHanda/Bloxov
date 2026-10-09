@@ -5,7 +5,7 @@ extends Control
 ## - damage numbers (owner toggle, off by default; meta label_kind "damage"): cream, popping up and floating away;
 ##   headshots/backstabs bigger, yellow, with "!".
 ## - teammate name tags ("name"): small and bright green with a 1-px black edge
-##   (no plate), visible through walls like before; red while that teammate is downed (0.9.4, go revive them).
+##   (no plate), visible through walls like before; red while that teammate is downed (0.9.2, go revive them).
 
 const RISE := 42.0
 ## Teammates' names: a brighter green than the extract flag, so it pops over grass and sky.

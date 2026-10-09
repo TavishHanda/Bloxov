@@ -11,7 +11,7 @@ const FLAG_DEAD := 8
 const FLAG_EXTRACTED := 16
 ## Holding a gun (other players only show the gun on their model when they are).
 const FLAG_ARMED := 32
-## Knocked down (0.9.4): lying face down, crawling. Still hittable (hits drain the downed bar).
+## Knocked down (0.9.2): lying face down, crawling. Still hittable (hits drain the downed bar).
 const FLAG_DOWNED := 64
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)

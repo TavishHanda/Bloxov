@@ -3,9 +3,9 @@ extends Node
 ## Health component. Add as a child named "Health" to anything that can be damaged
 ## (the gun and knife look for a child with that name via Health.of, like GetComponent in Unity).
 ##
-## Downed (0.9.4): when `can_go_down` says so (a player with a teammate who can revive them), reaching 0 HP knocks
+## Downed (0.9.2): when `can_go_down` says so (a player with a teammate who can revive them), reaching 0 HP knocks
 ## you down instead of killing you. Down, a second bar (`down_hp`, 100) drains to 0 over `bleed_out_time`, hits
-## take from it too, and at 0 you die (owner, 0.9.4). `revive()` stands you back up.
+## take from it too, and at 0 you die (owner, 0.9.2). `revive()` stands you back up.
 
 signal damaged(amount: int, source_position: Vector3)
 signal died

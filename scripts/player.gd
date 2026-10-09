@@ -101,7 +101,7 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var flinch_deg := 2.2
 
 @export_group("Downed")
-## In a squad, 0 HP knocks you down instead of killing you (owner, 0.9.4): you crawl at this fraction of walk speed
+## In a squad, 0 HP knocks you down instead of killing you (owner, 0.9.2): you crawl at this fraction of walk speed
 ## and can't shoot, heal, loot or extract until a teammate revives you (back up at `revive_health`).
 @export var crawl_multiplier := 0.25
 @export var downed_eye_height := 0.45
@@ -213,7 +213,7 @@ func controls_locked() -> bool:
 	return is_dead or extracted
 
 
-## Dead, out, or downed: scavs leave you alone (owner, 0.9.4) and you can't extract.
+## Dead, out, or downed: scavs leave you alone (owner, 0.9.2) and you can't extract.
 func out_of_fight() -> bool:
 	return controls_locked() or downed
 

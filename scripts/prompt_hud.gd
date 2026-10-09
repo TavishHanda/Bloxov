@@ -2,7 +2,7 @@ class_name PromptHUD
 extends Control
 ## Under the crosshair (0.8.7, "Ammo Can"): what F does on the thing you're looking at ("[F] SEARCH": a cream key cap
 ## and the action on a gunmetal plate), with a brass progress bar while it takes time. Healing shows a red cross,
-## "HEALING" and a green bar. Next to a downed teammate (0.9.4): "[F] REVIVE" with a green bar while you hold it.
+## "HEALING" and a green bar. Next to a downed teammate (0.9.2): "[F] REVIVE" with a green bar while you hold it.
 
 const PLATE_H := 32.0
 const BELOW_CENTER := 48.0

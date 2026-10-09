@@ -662,7 +662,7 @@ func _section_meds() -> void:
 
 
 func _section_downed() -> void:
-	# Downed (0.9.4, owner): in a squad 0 HP knocks you down; a bar drains 100 -> 0 over 30 s, hits take from it,
+	# Downed (0.9.2, owner): in a squad 0 HP knocks you down; a bar drains 100 -> 0 over 30 s, hits take from it,
 	# and at 0 you die. Solo you just die.
 	var h := Health.new()
 	root.add_child(h)
@@ -1070,7 +1070,7 @@ func _section_net() -> void:
 	await _frames(1)
 	_check(net_raid.remotes.is_empty() and not is_instance_valid(body), "a player who leaves disappears")
 
-	# Reviving (0.9.4): stand next to a downed teammate and hold F for 5 s ([F] REVIVE), then let go before the next.
+	# Reviving (0.9.2): stand next to a downed teammate and hold F for 5 s ([F] REVIVE), then let go before the next.
 	Network.main.teammates = [78]
 	net_raid.sync_remotes({78: [player.global_position + Vector3(0.5, 0, 0.5), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DOWNED]})
 	var mate: RemotePlayer = net_raid.remotes.get(78)

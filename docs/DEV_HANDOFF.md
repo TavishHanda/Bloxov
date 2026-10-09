@@ -29,7 +29,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   duos, spawn budget), online play (parties, queue 2-6 players, several raids per server, server-checked shots with
   lag compensation, server-run AI with puppets, shared loot + lootable bodies), the "Ammo Can" HUD and inventory.
 - **Immediate next work (in order):**
-  1. ~~Downed/revive~~ done in **0.9.4**; ~~per-player extract, spectate or back to hideout, squads spawn together~~
+  1. ~~Downed/revive~~ done in **0.9.2**; ~~per-player extract, spectate or back to hideout, squads spawn together~~
      done in **0.9.5** (details: `docs/MULTIPLAYER_PLAN.md` step 6; `Health` downed bar, `DownedHUD`, `Spectator`).
   2. Ask the owner what's next. The plan says map next (real map with risk zones; owner makes models), see
      `docs/ROADMAP.md` / `docs/BACKLOG.md`.

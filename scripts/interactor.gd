@@ -1,7 +1,7 @@
 class_name Interactor
 extends Node
 ## Finds the loot container the player is looking at and handles hold-F-to-search.
-## Online (0.9.4) it also handles hold-F-to-revive: a downed teammate close by (reviving comes before looting).
+## Online (0.9.2) it also handles hold-F-to-revive: a downed teammate close by (reviving comes before looting).
 
 signal opened(container: LootContainer)
 ## We held F long enough on a downed teammate (the server stands them back up).

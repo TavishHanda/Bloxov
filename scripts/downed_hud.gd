@@ -1,6 +1,6 @@
 class_name DownedHUD
 extends Control
-## Downed (0.9.4, "Ammo Can" look): under the crosshair, a gunmetal plate with a pulsing red cross, DOWNED, and the
+## Downed (0.9.2, "Ammo Can" look): under the crosshair, a gunmetal plate with a pulsing red cross, DOWNED, and the
 ## downed bar's number on a red tag; under it the bar itself, draining from 100 to 0 over 30 s (hits take from it
 ## too; at 0 you die, owner). While a teammate holds F on you, a second plate says REVIVING with a green bar.
 
