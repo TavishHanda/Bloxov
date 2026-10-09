@@ -3,11 +3,11 @@
 The owner runs a separate Claude session, **designer**, for visual/UI design. This file catches it up. The main
 session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (the project rules apply to both).
 
-## What Bloxov looks like today (0.7.15)
+## What Bloxov looks like today (0.8.3)
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
-- **Raid HUD (0.7.15, "Stenciled Field Kit"):** a first pass from a design brief, built in code. The owner wants the
+- **Raid HUD (0.8.3, "Stenciled Field Kit"):** a first pass from a design brief, built in code. The owner wants the
   designer to **redo it with more creativity and personality**. Current pieces:
   - `scripts/hud_style.gd` (`HudStyle`): palette consts, the Jersey 10 pixel font (`assets/fonts/`, OFL, loaded
     crisp in code since `.import` files aren't committed), `draw_plate()` (notched plates), `draw_icon()` (pixel
@@ -18,7 +18,7 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
   - `scripts/crosshair_hud.gd`: pixel crosshair + hit marker. `scripts/hud_plate.gd`: plate behind a label.
   - `scripts/hud.gd`: wires everything; timer, extract list, [F] prompt, extract status, damage vignette and
     direction indicator, pause menu (`scenes/main.tscn` HUD nodes).
-- **Inventory screen (0.7.14):** `scripts/loot_ui.gd` (+ `grid_view.gd`, `item_tile.gd`, `equip_slot_view.gd`).
+- **Inventory screen (0.8.2):** `scripts/loot_ui.gd` (+ `grid_view.gd`, `item_tile.gd`, `equip_slot_view.gd`).
   Owner likes it much more than the HUD: **change it only lightly.** Layout: gear (PMC character view + equipment
   slots) | carried (pockets, secure pocket, backpack) | container or stash (+ trader column in the hideout).
   Item details show on hover (no placeholder text: owner removed "Hover an item for details").
@@ -46,6 +46,8 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
 - Mobile: hold an item to see details; touch controls (later).
 
 ## How to work without breaking things
+- **Versions:** 0.8 is the HUD & inventory phase (yours). The game is on **0.8.3**; your next update is 0.8.4, then
+  0.8.5... (0.8.0-0.8.3 were first released as 0.7.12-0.7.15 and renumbered).
 - Same rules as `CLAUDE.md`: version bump + CHANGELOG entry per change, tests before every push (gate the push on
   the test log), commits as `TavishHanda <tavishhanda@hotmail.com>`, **no Claude co-author trailer**.
 - Look at it, don't guess: render real frames with `xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver

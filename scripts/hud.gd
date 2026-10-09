@@ -29,7 +29,7 @@ extends CanvasLayer
 
 var loot_ui: LootUI
 var end_screen: RaidEndScreen
-## The raid HUD's widgets (0.7.15 "Stenciled Field Kit" look, see HudStyle): health + stamina, ammo, hotbar, crosshair.
+## The raid HUD's widgets (0.8.3 "Stenciled Field Kit" look, see HudStyle): health + stamina, ammo, hotbar, crosshair.
 var hotbar: HotbarHUD
 var health_hud: HealthHUD
 var ammo_hud: AmmoHUD
@@ -133,7 +133,7 @@ func _process(delta: float) -> void:
 
 	_update_prompt()
 	_update_extract_info(delta)
-	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.7.14).
+	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
 	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair]:
 		element.visible = not loot_ui.visible
 	if loot_ui.visible:

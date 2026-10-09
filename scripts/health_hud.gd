@@ -1,6 +1,6 @@
 class_name HealthHUD
 extends Control
-## Bottom-left health (0.7.15): a plate with a red cross, 10 blocks of 10 HP each (green / yellow / red), and the
+## Bottom-left health (0.8.3): a plate with a red cross, 10 blocks of 10 HP each (green / yellow / red), and the
 ## number. Taking damage chips blocks off (they flash, drop and fade) and shakes the plate; at 30 or less the
 ## cross and number pulse. Stamina is a thin bar under the blocks, only while it isn't full; hazard-striped when
 ## exhausted.

@@ -554,7 +554,7 @@ func _section_equipment() -> void:
 	_check(hp_before - player.health.current == 6, "heavy armor takes 40%% off (10 -> %d)" % (hp_before - player.health.current))
 	_check(not inv.can_unequip("backpack") and inv.unequip("backpack") == null, "can't take off a backpack with stuff in it")
 	_check(inv.heal_count() == inv.count_of("bandage") + inv.count_of("medkit") and inv.heal_count() > 0 and not inv.hotbar.has("bandage"),
-		"picked-up heals count on hotbar key 3 (Meds) instead of binding one by one (owner, 0.7.13)")
+		"picked-up heals count on hotbar key 3 (Meds) instead of binding one by one (owner, 0.8.1)")
 
 
 func _section_loot_ui() -> void:
@@ -1251,7 +1251,7 @@ func _section_owner_rules() -> void:
 	_check(dealt == 22, "armored Raider takes (and shows) 22 from an AK body shot (%d)" % dealt)
 	raider.queue_free()
 
-	# Hotbar (owner, 0.7.13): 1-2 guns, 3 = all your meds (best fit, like H), 4-5 bindable (later: grenades), 6 = knife.
+	# Hotbar (owner, 0.8.1): 1-2 guns, 3 = all your meds (best fit, like H), 4-5 bindable (later: grenades), 6 = knife.
 	inv.clear()
 	inv.add("bandage", 2)
 	inv.add("medkit", 1)

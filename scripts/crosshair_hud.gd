@@ -1,6 +1,6 @@
 class_name CrosshairHUD
 extends Control
-## Screen-center crosshair (0.7.15): four small pixel ticks and a dot, outlined so they show on any background.
+## Screen-center crosshair (0.8.3): four small pixel ticks and a dot, outlined so they show on any background.
 ## Hit marker: four little pixel stair-steps for 0.12 s (yellow and a bit bigger on a headshot). Subtle on purpose.
 
 var show_crosshair := true

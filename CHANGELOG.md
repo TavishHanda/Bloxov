@@ -2,7 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
-## 0.7.15 (HUD redesign: "Stenciled Field Kit", owner)
+<!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
+updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
+
+## 0.8.3 (HUD redesign: "Stenciled Field Kit", owner; first released as 0.7.15)
 - **New HUD look:** dark gunmetal plates with notched corners and a chunky pixel font (Jersey 10) for numbers,
   matching the inventory screen
 - **Health:** a red cross and 10 blocks (10 HP each, green / yellow / red). Getting hit **chips blocks off** (they
@@ -16,7 +19,7 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 - **Timer** on a plate (red and punching on every tick in the last minute), **extract list** and **[F] prompts** on
   plates, a pixel crosshair and a pixel hit marker (yellow on headshots)
 
-## 0.7.14 (inventory screen polish, owner)
+## 0.8.2 (inventory screen polish, owner; first released as 0.7.14)
 - **New layout:** gear on the left (with **your character**, the PMC model for now), everything you carry in the
   middle (pockets, secure pocket, backpack), and the container you're looting (or your stash) on the right
 - **The HUD hides while the inventory is open** (only the raid timer stays: the raid doesn't pause)
@@ -25,7 +28,7 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
   fire rate, magazine, loaded; heals: HP; armor: %; backpacks: size), value, and the sell price in the hideout.
   No placeholder text when you're not pointing at anything
 
-## 0.7.13 (HUD polish, owner)
+## 0.8.1 (HUD polish, owner; first released as 0.7.13)
 - **Health is a bar** with the number on it (green, yellow as it drops, red at 30 or less)
 - **"Carrying $..." is gone from the raid screen** (it's still in the inventory)
 - **The extract list shows for a few seconds** at the start of the raid and when you press O (then hides)
@@ -35,7 +38,7 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 - The bottom of the screen is much less crowded
 - **ONLINE panel:** just your name, Go online and Close (no server address box; it always uses the game's server)
 
-## 0.7.12 (hideout fixes, owner)
+## 0.8.0 (hideout fixes, owner; first released as 0.7.12)
 - Hideout messages ("Sold Antique Vase for ...") show in full under the top bar and fade out (they were cut off)
 - The ONLINE button shows where you are with the panel closed: "ONLINE ●" (online), "IN QUEUE (1/2)",
   "RAID IN 21s"

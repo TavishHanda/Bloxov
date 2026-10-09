@@ -7,6 +7,9 @@
   No git tags (GitHub blocks creating them from the sandbox/CI, and the owner doesn't want to do it by hand).
   Version history = CHANGELOG.md + version-prefixed commit messages. Don't ask the owner to tag.
   When telling the owner about an update, lead with its version and a short name (e.g. "**0.5.1: Recoil & accuracy**").
+  Phases so far: 0.5 guns, 0.6 scavs, 0.7 multiplayer (to 0.7.11), **0.8 HUD & inventory** (designer session; 0.8.0-0.8.3
+  were first released as 0.7.12-0.7.15). Only one phase can be current: other work waits for the phase to close or is
+  built on a branch and released as the next phase.
 - **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
   (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended
   behavior are fine; anything that changes how the game plays (AI, numbers, rules) gets proposed, not shipped.

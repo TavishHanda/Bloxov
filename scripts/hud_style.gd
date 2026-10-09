@@ -1,6 +1,6 @@
 class_name HudStyle
 extends RefCounted
-## The raid HUD's look (0.7.15, "Stenciled Field Kit"): dark gunmetal plates with notched corners, a chunky
+## The raid HUD's look (0.8.3, "Stenciled Field Kit"): dark gunmetal plates with notched corners, a chunky
 ## stencil pixel font (Jersey 10, OFL) for numbers and short labels, and little pixel icons drawn on a grid.
 ## Matches the inventory screen's slate and slot colors. Used by the HUD widgets (health, ammo, hotbar...).
 

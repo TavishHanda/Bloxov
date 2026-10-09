@@ -1,6 +1,6 @@
 class_name AmmoHUD
 extends Control
-## Bottom-right ammo (0.7.15): a plate with the magazine as a row of bullets (spent ones hollow), the loaded count
+## Bottom-right ammo (0.8.3): a plate with the magazine as a row of bullets (spent ones hollow), the loaded count
 ## big and the reserve small. Low on rounds = yellow, empty = red. Reloading refills the bullets across the reload.
 ## Unarmed: a small plate with the knife and "UNARMED".
 

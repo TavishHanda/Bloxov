@@ -3,7 +3,7 @@ extends Control
 ## Inventory screen (Tab), and the container + inventory screen when you open loot (F).
 ## Also used in the hideout (no player): the "other side" is the stash instead of a container, items can be
 ## sold, and the hideout adds the trader as an extra column (add_column).
-## Columns (owner, 0.7.14): [gear: your character, equipment slots] [carried: pockets, secure pocket, backpack]
+## Columns (owner, 0.8.2): [gear: your character, equipment slots] [carried: pockets, secure pocket, backpack]
 ## [the container you're looting, or the stash in the hideout] (+ [trader] in the hideout).
 ## Drag & drop items between grids and equipment slots, R rotates while dragging, Shift+click quick-moves,
 ## right-click for Use / Bind / Unbind / Equip / Unequip / Split / Put in (container or stash) / Drop / Sell.

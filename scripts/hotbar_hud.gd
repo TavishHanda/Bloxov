@@ -1,6 +1,6 @@
 class_name HotbarHUD
 extends Control
-## Bottom-center hotbar (owner's layout, 0.7.13; look 0.7.15): 1 = primary, 2 = secondary, 3 = meds (all your heals;
+## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.3): 1 = primary, 2 = secondary, 3 = meds (all your heals;
 ## uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V).
 ## Each slot is a small plate with a stamped key tab, a pixel icon, a count, and a rarity stripe along the bottom.
 ## The gun in your hands rises and glows; switching shows its name for a moment. Empty slots are dashed ghosts;

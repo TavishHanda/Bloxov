@@ -3,7 +3,7 @@ extends Node
 ## Everything the player carries:
 ##  - equipment slots: primary, secondary, armor, backpack (each holds one ItemStack or nothing)
 ##  - grids: pockets (always), the equipped backpack's grid, and the secure pocket (survives death)
-##  - hotbar: keys 3-6. Owner (0.7.13): 3 = meds (best-fitting heal, like H), 4 and 5 = bound items (future
+##  - hotbar: keys 3-6. Owner (0.8.1): 3 = meds (best-fitting heal, like H), 4 and 5 = bound items (future
 ##    grenades etc.), 6 = the knife (V). Only keys 4 and 5 hold bindings.
 
 signal changed
@@ -220,6 +220,6 @@ func unbind(id: String) -> void:
 		changed.emit()
 
 
-## Picked-up items that go on the hotbar by themselves. None do yet: heals all live on key 3 (owner, 0.7.13).
+## Picked-up items that go on the hotbar by themselves. None do yet: heals all live on key 3 (owner, 0.8.1).
 func auto_bind(_id: String) -> void:
 	pass
