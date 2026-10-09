@@ -42,3 +42,15 @@ Spawns, extracts, loot spots and player spawns on the layout picture are **place
   `enemy_spawner.gd` picks any child marker out of sight of players (20 scavs + 5 Raiders per raid, max 5 alive),
   tuned for the 80 m test map.
 - Spawning in general, extracts, loot placement, when players spawn. Questions for the owner are in the project thread.
+
+## Owner answers (2026-10-09)
+- **Scavs:** don't wander the whole map (no random scav between hotspots: players learn where AI is). Each scav
+  roams its own area like a scavenger, "searching" spots (not real looting), and carries random low-tier loot to
+  simulate what it scavenged.
+- **Raiders:** mostly at the high-value places (town hall/bunker, bank, police, gun store); a few elsewhere.
+  Tough AI is most likely where the best loot is.
+- **AI count:** a set number at raid start, then more trickle in. Make it harder than seems right for testing.
+- **Players:** duos spawn together; everyone spawns at raid start (no late spawns).
+- **Extracts:** preset spots; extracts close to where you spawned are closed for you. Special extracts: later.
+  No train extract.
+- **Keys:** probably yes for the bunker and bank vault (see the thread). Locked doors only at special places.
