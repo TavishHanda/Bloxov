@@ -55,7 +55,9 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
 - [x] **5. Getting hurt (0.6.11).** Below 30% health (scavs, owner 0.6.14; PMCs 40%) a scav falls back to the nearest cover (or heals where it stands if
       there is none) and patches up: +40 HP over 4 s, once per life. Getting hit interrupts it (retry after 4 s).
 - [~] **6. Teamwork: scrapped (owner, 0.6.13).** 0.6.12's radio calls were removed in 0.6.13.
-- [x] **7. PMCs are harder to fight (0.6.13, owner). Scav behavior stays exactly as it is.** PMC-only settings
+- [x] **7b. PMC AI renamed to Raiders (0.6.15, owner).** `scenes/raider.tscn`, loot table "raider", spawner
+      `raider_*` settings; PMC model reused with a red-brown tint until the owner makes Raider models (M4).
+- [x] **7. PMCs (now Raiders) are harder to fight (0.6.13, owner). Scav behavior stays exactly as it is.** PMC-only settings
       (scav.gd exports, set in pmc.tscn): hear gunshots 2x farther (come toward fights), 50% of lulls they flank
       (circle to your side) instead of taking cover, move quietly/slower within 15 m of where they think you are,
       chase 15 s and search 10 s (scavs 6/5), take cover sooner/more often, heal twice. **Duos 15% of the time**

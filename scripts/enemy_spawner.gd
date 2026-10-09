@@ -3,13 +3,13 @@ extends Node3D
 ## Spawns a limited number of enemies per raid, spread over the raid, at child Marker3D points
 ## away from (and out of sight of) every player.
 ## Scavs: a few at the start, then one every scav_interval seconds until the budget runs out.
-## PMCs: arrive at set times (later in the raid = late-raid pressure). Dead enemies don't come back.
+## Raiders (the tougher AI faction): arrive at set times (later in the raid = late-raid pressure). Dead enemies don't come back.
 
 @export var enemy_scene: PackedScene
-@export var pmc_scene: PackedScene
+@export var raider_scene: PackedScene
 ## Total enemies for the whole raid (owner, 0.6.5: 20 + 5 for now; tune once the maps exist).
 @export var scav_budget := 20
-@export var pmc_budget := 5
+@export var raider_budget := 5
 ## Scavs at the start of the raid (part of scav_budget).
 @export var initial_count := 3
 ## Never more than this many alive at once (a spawn that's due waits for a slot).
@@ -17,15 +17,15 @@ extends Node3D
 ## Seconds between scav spawns after the start (random in this range).
 @export var scav_interval_min := 25.0
 @export var scav_interval_max := 35.0
-## When each PMC arrives (seconds into the raid). A 10-minute raid: minutes 2, 3.5, 5, 6.5 and 8.
-@export var pmc_times: PackedFloat32Array = [120.0, 210.0, 300.0, 390.0, 480.0]
+## When each Raider arrives (seconds into the raid). A 10-minute raid: minutes 2, 3.5, 5, 6.5 and 8.
+@export var raider_times: PackedFloat32Array = [120.0, 210.0, 300.0, 390.0, 480.0]
 @export var min_distance_from_player := 18.0
-## Chance a PMC arrives with a partner that sticks with it (both count toward pmc_budget).
-@export_range(0.0, 1.0) var pmc_duo_chance := 0.15
+## Chance a Raider arrives with a partner that sticks with it (both count toward raider_budget).
+@export_range(0.0, 1.0) var raider_duo_chance := 0.15
 
 ## Spawned so far this raid.
 var scavs_spawned := 0
-var pmcs_spawned := 0
+var raiders_spawned := 0
 var _elapsed := 0.0
 var _next_scav := 0.0
 
@@ -45,8 +45,8 @@ func tick(delta: float) -> void:
 	_elapsed += delta
 	if get_tree().get_nodes_in_group("enemies").size() >= max_alive:
 		return
-	if pmcs_spawned < mini(pmc_budget, pmc_times.size()) and _elapsed >= pmc_times[pmcs_spawned]:
-		_spawn(pmc_scene)
+	if raiders_spawned < mini(raider_budget, raider_times.size()) and _elapsed >= raider_times[raiders_spawned]:
+		_spawn(raider_scene)
 	elif scavs_spawned < scav_budget and _elapsed >= _next_scav:
 		if _spawn(enemy_scene):
 			_next_scav = _elapsed + randf_range(scav_interval_min, scav_interval_max)
@@ -70,15 +70,15 @@ func _spawn(scene: PackedScene) -> bool:
 	var enemy := scene.instantiate() as Node3D
 	get_parent().add_child(enemy)
 	enemy.global_position = points.pick_random().global_position
-	if scene == pmc_scene:
-		pmcs_spawned += 1
+	if scene == raider_scene:
+		raiders_spawned += 1
 		# Sometimes a duo: a partner right next to it that follows it around.
-		if pmcs_spawned < pmc_budget and randf() < pmc_duo_chance:
-			var partner := pmc_scene.instantiate() as Scav
+		if raiders_spawned < raider_budget and randf() < raider_duo_chance:
+			var partner := raider_scene.instantiate() as Scav
 			get_parent().add_child(partner)
 			partner.global_position = enemy.global_position + Vector3(1.5, 0, 1.0)
 			partner.leader = enemy as Scav
-			pmcs_spawned += 1
+			raiders_spawned += 1
 	else:
 		scavs_spawned += 1
 	return true

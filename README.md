@@ -6,7 +6,7 @@ Design doc: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)
 
 ## Status: 0.5.7 (guns update)
 
-Gear up in the hideout, drop into a raid, loot crates/lockers/safes and dead scavs and PMCs, and get to an open
+Gear up in the hideout, drop into a raid, loot crates/lockers/safes and dead scavs and Raiders, and get to an open
 extract before the timer runs out. Extract and you keep it all; sell loot to the trader and buy better gear. Die and
 you lose everything except your 2×2 secure pocket. Progress is saved in your browser.
 The 0.5 guns update added aiming down sights, real view recoil, spread/flinch, a knife (backstabs kill),
@@ -95,7 +95,7 @@ After that, each push to `main` deploys to https://tavishhanda.github.io/Bloxov/
 ## Layout
 
 ```
-scenes/     .tscn scenes (hideout = main scene, raid level, player, scav/PMC, containers, dummy)
+scenes/     .tscn scenes (hideout = main scene, raid level, player, scav/raider, containers, dummy)
 scripts/    GDScript (player, gun, knife, scav AI, inventory, profile, hideout, HUD...)
 assets/     imported models (.glb)
 art_source/ Blender sources (ignored by Godot)

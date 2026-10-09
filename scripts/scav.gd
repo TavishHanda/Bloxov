@@ -5,7 +5,8 @@ extends CharacterBody3D
 ## Losing sight of you = goes to where it last saw you, searches for a bit, then goes back to wandering.
 ## Moves along navigation paths (scripts/nav_baker.gd builds the map's walkable area at raid start), so it walks
 ## around buildings and crates. No cover yet (see docs/SCAVS_PLAN.md).
-## PMCs use this script too (scenes/pmc.tscn) with tougher numbers, until they become real players.
+## Raiders (the tougher AI faction, scenes/raider.tscn) use this script too, with tougher numbers and the
+## "Raider behavior" settings on. (Real PMCs will be players, with multiplayer.)
 
 enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 
@@ -97,8 +98,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## At most one move to cover per this many seconds.
 @export var cover_cooldown := 10.0
 
-@export_group("PMC behavior")
-## All off for scavs (their behavior stays as it is); pmc.tscn turns these on (owner, 0.6.13: PMCs harder to fight).
+@export_group("Raider behavior")
+## All off for scavs (their behavior stays as it is); raider.tscn turns these on (owner, 0.6.13: harder to fight).
 ## Hears gunshots from this many times farther away, so it comes toward fights.
 @export var hearing_mult := 1.0
 ## Chance (per lull in a fight) to flank: circle around to hit you from the side instead of trading shots.
@@ -200,7 +201,7 @@ var _wants_heal := false
 var _heal_left := 0.0
 var _heal_retry_left := 0.0
 var _heal_after_move := false
-## Duo partner: the PMC it follows around while patrolling (null = it leads itself).
+## Duo partner: the Raider it follows around while patrolling (null = it leads itself).
 var leader: Scav = null
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
@@ -471,7 +472,7 @@ func _try_take_cover() -> void:
 		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
 
 
-## PMCs closing in on where they think you are (investigating, or chasing without seeing you) move quietly.
+## Raiders closing in on where they think you are (investigating, or chasing without seeing you) move quietly.
 func _sneaking() -> bool:
 	if sneak_range <= 0.0:
 		return false
@@ -483,7 +484,7 @@ func _sneaking() -> bool:
 	return spot != Vector3.INF and _flat(spot - global_position).length() < sneak_range
 
 
-## Circle around the target: a reachable spot off to one side at about the same distance (PMCs only).
+## Circle around the target: a reachable spot off to one side at about the same distance (Raiders only).
 func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_cooldown_left = cover_cooldown
 	var side := to_target.normalized().cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)

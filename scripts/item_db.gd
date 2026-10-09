@@ -51,7 +51,7 @@ const LOOT_TABLES := {
 	"locker": {"pistol": 5, "armor_light": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"armor_heavy": 6, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"pmc": {"pistol": 5, "armor_light": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"raider": {"pistol": 5, "armor_light": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 

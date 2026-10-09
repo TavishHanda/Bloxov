@@ -13,7 +13,7 @@ best made while doing the first test asset (a crate).
 |---|---|---|
 | Player | 0.8 wide, 1.8 tall | Eyes at 1.6 (1.0 crouched). Capsule radius 0.4 |
 | Scav | 0.8 × ~2.1 × 0.6 | Body to 1.35, head 1.4–1.95, helmet to ~2.1. Head hitbox is 0.6 × 0.7 × 0.6 at 1.71 |
-| PMC | same as Scav | Same hitboxes and rig as the scav (AI for now, will become other players) |
+| PMC | same as Scav | Same hitboxes and rig as the scav. For real players (multiplayer). The AI **Raiders** reuse this model with a red-brown tint (`tint` on the model in `scenes/raider.tscn`) until they get their own |
 | Doorway | 2.0 wide, full wall height | Gap in the front wall |
 | Walls | 0.5 thick | |
 | Buildings | 3.5–4.0 tall (bunker 2.5) | Gas station 10×8, grocery 12×10, police 10×10, bunker 8×8 |
@@ -91,7 +91,7 @@ and `pmc.blend`, exports `assets/models/characters/<name>.glb`). The game relies
 ## 8. Swapping a placeholder for a model
 Done so far: **crate** (0.3.3), see `scenes/loot_crate.tscn`: the `.glb` is instanced as a `Model` child with
 `scripts/pixel_model.gd` attached (forces nearest filtering + matte), and the collision box stays in the scene.
-**Scav and PMC** (0.3.5), `scenes/scav.tscn` and `scenes/pmc.tscn`, same setup; the muzzle flash lives in the
+**Scav and Raider** (0.3.5; the AI PMC became the Raider in 0.6.15), `scenes/scav.tscn` and `scenes/raider.tscn`, same setup; the muzzle flash lives in the
 scene and is moved onto the model's `Muzzle` at runtime.
 
 1. Export the `.glb` to `assets/models/...` and push it (or tell Claude where it is).

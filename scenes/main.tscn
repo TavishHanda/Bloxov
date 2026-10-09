@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://scripts/hud.gd" id="2_hud"]
 [ext_resource type="PackedScene" path="res://scenes/target_dummy.tscn" id="3_dummy"]
 [ext_resource type="PackedScene" path="res://scenes/scav.tscn" id="4_scav"]
-[ext_resource type="PackedScene" path="res://scenes/pmc.tscn" id="4_pmc"]
+[ext_resource type="PackedScene" path="res://scenes/raider.tscn" id="4_raider"]
 [ext_resource type="Script" path="res://scripts/enemy_spawner.gd" id="5_spawner"]
 [ext_resource type="Script" path="res://scripts/nav_baker.gd" id="5_nav"]
 [ext_resource type="PackedScene" path="res://scenes/loot_crate.tscn" id="6_crate"]
@@ -303,7 +303,7 @@ script = ExtResource("5_nav")
 [node name="EnemySpawner" type="Node3D" parent="."]
 script = ExtResource("5_spawner")
 enemy_scene = ExtResource("4_scav")
-pmc_scene = ExtResource("4_pmc")
+raider_scene = ExtResource("4_raider")
 max_alive = 5
 initial_count = 3
 

@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "pmc",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -37,7 +37,7 @@ const PROFILE_PATH := "user://profile.json"
 ## Where the player stands for most tests: facing the dummy, open road behind.
 const START_SPOT := Vector3(0, 0.1, -10)
 const SCAV_SCENE := "res://scenes/scav.tscn"
-const PMC_SCENE := "res://scenes/pmc.tscn"
+const RAIDER_SCENE := "res://scenes/raider.tscn"
 
 var _failures := 0
 ## Contents of the profile save before the test ran (null = there wasn't one).
@@ -269,13 +269,13 @@ func _section_ttk() -> void:
 	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 2 headshots; you die in ~7 scav hits.
 	var ak_damage: int = ItemDB.item("ak")["damage"]
 	var scav_probe := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
-	var pmc_probe := (load(PMC_SCENE) as PackedScene).instantiate() as Scav
+	var raider_probe := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
 	var scav_hp: int = scav_probe.get_node("Health").max_health
-	var pmc_health := pmc_probe.get_node("Health") as Health
+	var raider_health := raider_probe.get_node("Health") as Health
 	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
 	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 2,
 		"scav: 4 AK body shots or 2 headshots")
-	_check(hits_to_kill.call(pmc_health.max_health, ak_damage * pmc_health.damage_multiplier) == 5, "armored PMC: 5 AK body shots")
+	_check(hits_to_kill.call(raider_health.max_health, ak_damage * raider_health.damage_multiplier) == 5, "armored Raider: 5 AK body shots")
 	var pistol_data := ItemDB.item("pistol")
 	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 6 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 3,
 		"pistol: 6 body shots or 3 headshots")
@@ -284,7 +284,7 @@ func _section_ttk() -> void:
 	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,
 		"light armor makes you last longer")
 	scav_probe.free()
-	pmc_probe.free()
+	raider_probe.free()
 
 
 func _section_scav_shoots() -> void:
@@ -318,8 +318,8 @@ func _section_knife() -> void:
 	stab_target.queue_free()
 	await create_timer(player.knife.swing_time).timeout
 	# Backstabs with the AI running (the swing mustn't alert the victim before the blade lands),
-	# on a scav and on an armored PMC.
-	for scene in [SCAV_SCENE, PMC_SCENE]:
+	# on a scav and on an armored Raider.
+	for scene in [SCAV_SCENE, RAIDER_SCENE]:
 		# Stand still first: footsteps (e.g. sliding from a knockback) would alert the victim.
 		player.velocity = Vector3.ZERO
 		player.teleport_to(START_SPOT)
@@ -468,8 +468,8 @@ func _section_crate_model() -> void:
 
 
 func _section_characters() -> void:
-	# Character models (scav and PMC): imported .glb, one outfit option per slot, facing forward.
-	for path: String in [SCAV_SCENE, PMC_SCENE]:
+	# Character models (scav and Raider): imported .glb, one outfit option per slot, facing forward.
+	for path: String in [SCAV_SCENE, RAIDER_SCENE]:
 		var character := _spawn(path, Vector3(10, 0.1, 60)) as Scav
 		await process_frame
 		var model := character.model as PixelModel
@@ -756,11 +756,11 @@ func _section_ghost_stack() -> void:
 
 
 func _section_owner_rules() -> void:
-	# Damage numbers use the damage actually dealt: an AK body shot on an armored PMC shows 22, not 28.
-	var pmc := _spawn(PMC_SCENE, player.global_position + Vector3(0, 0, 30))
-	var dealt: int = (pmc.get_node("Health") as Health).take_damage(ItemDB.item("ak")["damage"])
-	_check(dealt == 22, "armored PMC takes (and shows) 22 from an AK body shot (%d)" % dealt)
-	pmc.queue_free()
+	# Damage numbers use the damage actually dealt: an AK body shot on an armored Raider shows 22, not 28.
+	var raider := _spawn(RAIDER_SCENE, player.global_position + Vector3(0, 0, 30))
+	var dealt: int = (raider.get_node("Health") as Health).take_damage(ItemDB.item("ak")["damage"])
+	_check(dealt == 22, "armored Raider takes (and shows) 22 from an AK body shot (%d)" % dealt)
+	raider.queue_free()
 
 	# Heals only bind to the hotbar when they come from outside: rearranging your own inventory keeps an unbind.
 	inv.clear()
@@ -919,18 +919,18 @@ func _section_melee() -> void:
 	_check(gun._aim_block_left > 0.0 and not gun.wants_aim(), "the bash knocks you out of aiming for a moment")
 	_check(player.velocity.length() > 3.0, "the bash shoves you back (%.1f m/s)" % player.velocity.length())
 	scav.queue_free()
-	var pmc := _spawn(PMC_SCENE, player.global_position + Vector3(0, 0, 30)) as Scav
-	_check(pmc.melee_damage > scav.melee_damage and pmc.melee_cooldown < scav.melee_cooldown, "PMCs bash harder and faster")
-	pmc.queue_free()
+	var raider := _spawn(RAIDER_SCENE, player.global_position + Vector3(0, 0, 30)) as Scav
+	_check(raider.melee_damage > scav.melee_damage and raider.melee_cooldown < scav.melee_cooldown, "Raiders bash harder and faster")
+	raider.queue_free()
 	player.health.heal(player.health.max_health)
 
 
 func _section_spawn_budget() -> void:
 	# A raid has a limited number of enemies, spread out: 3 scavs at the start, one every 25-35 s up to 20,
-	# PMCs at minutes 2, 3.5, 5, 6.5 and 8. Never more than 5 alive. Dead ones don't come back.
+	# Raiders at minutes 2, 3.5, 5, 6.5 and 8. Never more than 5 alive. Dead ones don't come back.
 	var spawner := EnemySpawner.new()
 	spawner.enemy_scene = load(SCAV_SCENE)
-	spawner.pmc_scene = load(PMC_SCENE)
+	spawner.raider_scene = load(RAIDER_SCENE)
 	spawner.set_physics_process(false)  # the test drives the raid clock itself
 	for i in 6:
 		var marker := Marker3D.new()
@@ -938,33 +938,33 @@ func _section_spawn_budget() -> void:
 		spawner.add_child(marker)
 	main.add_child(spawner)
 	await _frames(2)
-	_check(spawner.scavs_spawned == 3 and spawner.pmcs_spawned == 0, "raid starts with 3 scavs, no PMCs")
+	_check(spawner.scavs_spawned == 3 and spawner.raiders_spawned == 0, "raid starts with 3 scavs, no Raiders")
 	var alive_max := 0
-	var pmcs_at := {}
+	var raiders_at := {}
 	for second in 600:
 		spawner.tick(1.0)
 		alive_max = maxi(alive_max, get_nodes_in_group("enemies").size())
 		if second == 110:
-			pmcs_at[110] = spawner.pmcs_spawned
+			raiders_at[110] = spawner.raiders_spawned
 		if second == 125:
-			pmcs_at[125] = spawner.pmcs_spawned
+			raiders_at[125] = spawner.raiders_spawned
 		if second == 20:
-			pmcs_at["scavs_30"] = spawner.scavs_spawned
+			raiders_at["scavs_30"] = spawner.scavs_spawned
 		# Kill everything every 20 s so slots free up (like the player clearing areas).
 		if second % 20 == 0:
 			for enemy in get_nodes_in_group("enemies"):
 				enemy.remove_from_group("enemies")
 				enemy.queue_free()
-	_check(pmcs_at["scavs_30"] == 3, "no extra scavs in the first 20 s")
-	_check(pmcs_at[110] == 0 and pmcs_at[125] == 1, "the first PMC arrives around minute 2")
-	_check(spawner.scavs_spawned == spawner.scav_budget and spawner.pmcs_spawned == spawner.pmc_budget,
-		"over a whole raid: exactly %d scavs and %d PMCs (%d, %d)" % [spawner.scav_budget, spawner.pmc_budget, spawner.scavs_spawned, spawner.pmcs_spawned])
+	_check(raiders_at["scavs_30"] == 3, "no extra scavs in the first 20 s")
+	_check(raiders_at[110] == 0 and raiders_at[125] == 1, "the first Raider arrives around minute 2")
+	_check(spawner.scavs_spawned == spawner.scav_budget and spawner.raiders_spawned == spawner.raider_budget,
+		"over a whole raid: exactly %d scavs and %d Raiders (%d, %d)" % [spawner.scav_budget, spawner.raider_budget, spawner.scavs_spawned, spawner.raiders_spawned])
 	spawner.queue_free()
 	await _frames(2)
 	# The cap: with nobody dying and spawns due constantly, it stops at max_alive.
 	var crowded := EnemySpawner.new()
 	crowded.enemy_scene = load(SCAV_SCENE)
-	crowded.pmc_scene = load(PMC_SCENE)
+	crowded.raider_scene = load(RAIDER_SCENE)
 	crowded.set_physics_process(false)
 	crowded.initial_count = 0
 	crowded.scav_budget = 20
@@ -1210,32 +1210,32 @@ func _section_hurt() -> void:
 	patient.queue_free()
 
 
-func _section_pmc() -> void:
-	# PMCs are harder (owner); scavs keep their behavior. PMCs: hear fights from farther, flank, sneak when close,
+func _section_raiders() -> void:
+	# Raiders are harder (owner); scavs keep their behavior. Raiders: hear fights from farther, flank, sneak when close,
 	# hunt longer, cover/heal better, and sometimes come as a duo.
 	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
-	var pmc := _spawn(PMC_SCENE, Vector3(-30, 0.1, 30)) as Scav
+	var raider := _spawn(RAIDER_SCENE, Vector3(-30, 0.1, 30)) as Scav
 	_check(scav.hearing_mult == 1.0 and scav.flank_chance == 0.0 and scav.sneak_range == 0.0 and scav.give_up_time == 6.0 and scav.heals == 1,
-		"scavs keep their behavior (no PMC tricks)")
-	_check(pmc.hearing_mult > 1.0 and pmc.flank_chance > 0.0 and pmc.sneak_range > 0.0 and pmc.give_up_time > scav.give_up_time
-		and pmc.search_time > scav.search_time and pmc.heals > scav.heals and pmc.cover_cooldown < scav.cover_cooldown, "PMCs get the harder behavior")
+		"scavs keep their behavior (no Raider tricks)")
+	_check(raider.hearing_mult > 1.0 and raider.flank_chance > 0.0 and raider.sneak_range > 0.0 and raider.give_up_time > scav.give_up_time
+		and raider.search_time > scav.search_time and raider.heals > scav.heals and raider.cover_cooldown < scav.cover_cooldown, "Raiders get the harder behavior")
 	# Hears a gunshot from farther than a scav would (comes toward fights).
-	for s in [scav, pmc]:
+	for s in [scav, raider]:
 		s._wander_time = 99.0
 		s._wander_dir = Vector3.ZERO
 	await physics_frame
-	var shot_from := pmc.global_position + Vector3(0, 0, -40)
-	pmc.hear_noise(shot_from, 25.0)
+	var shot_from := raider.global_position + Vector3(0, 0, -40)
+	raider.hear_noise(shot_from, 25.0)
 	scav.hear_noise(scav.global_position + Vector3(0, 0, -40), 25.0)
-	_check(pmc.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE, "a PMC hears a gunshot 40 m away (a scav doesn't)")
+	_check(raider.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE, "a Raider hears a gunshot 40 m away (a scav doesn't)")
 	# Sneaks (quiet, slower) when close to where it's going.
-	pmc._goal = pmc.global_position + Vector3(0, 0, -8)
-	_check(pmc._sneaking(), "a PMC closing in moves quietly")
-	pmc.queue_free()
+	raider._goal = raider.global_position + Vector3(0, 0, -8)
+	_check(raider._sneaking(), "a Raider closing in moves quietly")
+	raider.queue_free()
 	scav.queue_free()
-	# Flanking: in a lull, a PMC may circle around instead of trading shots.
+	# Flanking: in a lull, a Raider may circle around instead of trading shots.
 	player.teleport_to(Vector3(0, 0.1, -10))
-	var flanker := _spawn(PMC_SCENE, Vector3(0, 0.1, 5)) as Scav
+	var flanker := _spawn(RAIDER_SCENE, Vector3(0, 0.1, 5)) as Scav
 	_face_player(flanker)
 	flanker.shot_damage = 0
 	await physics_frame
@@ -1249,26 +1249,26 @@ func _section_pmc() -> void:
 		await physics_frame
 	var moved := flanker.global_position - start
 	var sideways := absf(moved.dot(to_player.cross(Vector3.UP)))
-	_check(sideways > 2.0, "a flanking PMC circles around to your side (%.1f m sideways)" % sideways)
+	_check(sideways > 2.0, "a flanking Raider circles around to your side (%.1f m sideways)" % sideways)
 	flanker.queue_free()
-	# Duos: a PMC can arrive with a partner that follows it.
+	# Duos: a Raider can arrive with a partner that follows it.
 	var spawner := EnemySpawner.new()
 	spawner.enemy_scene = load(SCAV_SCENE)
-	spawner.pmc_scene = load(PMC_SCENE)
+	spawner.raider_scene = load(RAIDER_SCENE)
 	spawner.set_physics_process(false)
 	spawner.initial_count = 0
-	spawner.pmc_duo_chance = 1.0
+	spawner.raider_duo_chance = 1.0
 	var marker := Marker3D.new()
 	marker.position = Vector3(30, 0.1, 30)
 	spawner.add_child(marker)
 	main.add_child(spawner)
 	await physics_frame
-	spawner._spawn(spawner.pmc_scene)
+	spawner._spawn(spawner.raider_scene)
 	var partners := 0
 	for e in get_nodes_in_group("enemies"):
 		if e is Scav and (e as Scav).leader != null:
 			partners += 1
-	_check(spawner.pmcs_spawned == 2 and partners == 1, "a PMC duo spawns (2 PMCs, one following the other)")
+	_check(spawner.raiders_spawned == 2 and partners == 1, "a Raider duo spawns (2 Raiders, one following the other)")
 	for e in get_nodes_in_group("enemies"):
 		e.remove_from_group("enemies")
 		e.queue_free()

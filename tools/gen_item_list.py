@@ -123,7 +123,7 @@ def main():
     rolls = {}
     for table, (lo, hi, body, loud) in roll_counts().items():
         rolls[table] = ("body bag, " if body else "") + "%s rolls" % span(lo, hi) + (", loud to open" if loud else "")
-    titles = {"pmc": "PMC"}
+    titles = {"raider": "Raider"}
     for table, weights in tables.items():
         total = sum(weights.values())
         lines.append("### %s (%s)" % (titles.get(table, table.capitalize()), rolls.get(table, "")))

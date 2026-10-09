@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.15 (Raiders)
+- **The AI "PMCs" are now called Raiders** (owner's name). Same behavior. Real PMCs will be other players once
+  multiplayer exists
+- **Raiders look different:** a red-brown recolor of the PMC model for now (own models later). The original PMC
+  look is untouched and saved for real players
+- Their bodies are "Raider Body" bags; their loot table is unchanged (just renamed)
+
 ## 0.6.14 (scavs fall back later)
 - Hurt scavs now fall back to heal **below 30% health** (was 40%), so they stay in the fight longer.
   PMCs still fall back at 40%

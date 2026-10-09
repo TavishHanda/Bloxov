@@ -90,7 +90,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 | Pistol | 4% |
 | Rare valuable (Gold Watch, Laptop) | 4% |
 
-### PMC (body bag, 2–4 rolls)
+### Raider (body bag, 2–4 rolls)
 
 | Entry | Chance per roll |
 |---|---|

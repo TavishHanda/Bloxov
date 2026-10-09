@@ -19,7 +19,7 @@ albedo_color = Color(1, 0.85, 0.35, 1)
 material = SubResource("FlashMat")
 size = Vector3(0.16, 0.16, 0.02)
 
-[node name="PMC" type="CharacterBody3D"]
+[node name="Raider" type="CharacterBody3D"]
 collision_layer = 4
 collision_mask = 7
 script = ExtResource("1_scav")
@@ -47,8 +47,8 @@ accuracy_near = 0.8
 accuracy_far = 0.3
 min_drops = 2
 max_drops = 4
-loot_table = "pmc"
-body_name = "PMC Body"
+loot_table = "raider"
+body_name = "Raider Body"
 burst_color = Color(0.66, 0.6, 0.42, 1)
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
@@ -66,6 +66,7 @@ damage_multiplier = 0.8
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")
+tint = Color(0.85, 0.5, 0.45, 1)
 
 [node name="MuzzleFlash" type="Node3D" parent="."]
 
