@@ -1438,7 +1438,8 @@ func _section_spawn_budget() -> void:
 				enemy.remove_from_group("enemies")
 				enemy.queue_free()
 	_check(raiders_at["scavs_30"] == 3, "no extra scavs in the first 20 s")
-	_check(raiders_at[110] == 0 and raiders_at[125] == 1, "the first Raider arrives around minute 2")
+	# (1, or 2 if it came as a duo: 15% of Raiders bring a partner.)
+	_check(raiders_at[110] == 0 and raiders_at[125] in [1, 2], "the first Raider arrives around minute 2 (%d)" % raiders_at[125])
 	_check(spawner.scavs_spawned == spawner.scav_budget and spawner.raiders_spawned == spawner.raider_budget,
 		"over a whole raid: exactly %d scavs and %d Raiders (%d, %d)" % [spawner.scav_budget, spawner.raider_budget, spawner.scavs_spawned, spawner.raiders_spawned])
 	spawner.queue_free()

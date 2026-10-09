@@ -14,7 +14,7 @@ best made while doing the first test asset (a crate).
 | Player | 0.8 wide, 1.8 tall | Eyes at 1.6 (1.0 crouched). Capsule radius 0.4 |
 | Scav | 0.8 × ~2.1 × 0.6 | Body to 1.35, head 1.4–1.95, helmet to ~2.1. Head hitbox is 0.6 × 0.7 × 0.6 at 1.71 |
 | PMC | same as Scav | Same hitboxes and rig as the scav. For real players (multiplayer) only |
-| Raider | same as Scav | The tougher AI faction (0.7.9 model): dark gear, red armband, heavy armor, masks |
+| Raider | same as Scav | The tougher AI faction (0.7.10 model): dark gear, red armband, heavy armor, masks |
 | Doorway | 2.0 wide, full wall height | Gap in the front wall |
 | Walls | 0.5 thick | |
 | Buildings | 3.5–4.0 tall (bunker 2.5) | Gas station 10×8, grocery 12×10, police 10×10, bunker 8×8 |

@@ -56,7 +56,7 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       there is none) and patches up: +40 HP over 4 s, once per life. Getting hit interrupts it (retry after 4 s).
 - [~] **6. Teamwork: scrapped (owner, 0.6.13).** 0.6.12's radio calls were removed in 0.6.13.
 - [x] **7b. PMC AI renamed to Raiders (0.6.15, owner).** `scenes/raider.tscn`, loot table "raider", spawner
-      `raider_*` settings; PMC model reused with a red-brown tint until their own model arrived in 0.7.9.
+      `raider_*` settings; PMC model reused with a red-brown tint until their own model arrived in 0.7.10.
 - [x] **7. PMCs (now Raiders) are harder to fight (0.6.13, owner). Scav behavior stays exactly as it is.** PMC-only settings
       (scav.gd exports, set in pmc.tscn): hear gunshots 2x farther (come toward fights), 50% of lulls they flank
       (circle to your side) instead of taking cover, move quietly/slower within 15 m of where they think you are,
