@@ -69,3 +69,6 @@ Going through every mechanic in 0.3.0 one by one to hone it. See the list in the
 - **First-person spectate (owner, 0.9.5):** a toggle (Space) between the over-the-shoulder view (`Spectator`, default)
   and the teammate's eyes, with their body hidden. Wait for separate gun models (`GunSocket`, above) so the view can
   show the gun they're actually holding; until then it would be a floating camera with a placeholder gun.
+- **0.9 leftovers (owner paused 0.9 after 0.9.5):** a real playtest of downed/revive/spectate with friends;
+  "teammate down" alert (sound, a line on screen, an edge-of-screen arrow to them); a squad line on the end screen
+  ("Bravo: extracted / killed"); rejoining a raid after a disconnect.
