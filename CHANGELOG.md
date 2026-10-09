@@ -5,6 +5,17 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.7 (HUD "Ammo Can" 3/4: timer, prompts, extracts, owner)
+- **Raid timer:** on a gunmetal plate with a hazard strip; the last minute turns it red and it punches every tick
+- **[F] prompts:** a cream key cap with F and the action ("SEARCH CRATE") on a plate under the crosshair, with a
+  brass bar while searching. Healing shows a red cross, HEALING and a green bar
+- **Extract list** (still a few seconds at the start and on O): slides in from the right, a green flag, the name and
+  the distance per open extract, and an O key cap
+- **Extracting:** "EXTRACTING 4.5" on a green-rimmed plate that fills up; "EXTRACT CLOSED" on a red one with red
+  caution stripes
+- **Hit direction:** a red pixel chevron instead of a plain bar
+- **Hotbar keys** are hand-drawn pixel digits (the old small font drew its "4" with an odd flag)
+
 ## 0.8.6 (HUD "Ammo Can" 2/4: hotbar, owner)
 - **New hotbar:** gunmetal lids with the key stenciled small in the corner (no more tabs on top), the icon, the
   count and the rarity stripe, with more room between slots

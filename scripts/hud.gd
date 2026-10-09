@@ -8,11 +8,6 @@ extends CanvasLayer
 @export var player: Player
 @export var raid: Raid
 
-@onready var timer_label: Label = $TimerLabel
-@onready var prompt_label: Label = $Prompt
-@onready var action_bar: ProgressBar = $ActionBar
-@onready var extract_status: Label = $ExtractStatus
-@onready var extract_list: Label = $ExtractList
 @onready var vignette: ColorRect = $Vignette
 @onready var damage_indicator: Control = $DamageIndicator
 @onready var debug_label: Label = $Debug
@@ -29,17 +24,17 @@ extends CanvasLayer
 
 var loot_ui: LootUI
 var end_screen: RaidEndScreen
-## The raid HUD's widgets (0.8.3 "Stenciled Field Kit" look, see HudStyle): health + stamina, ammo, hotbar, crosshair.
+## The raid HUD's widgets (0.8.4+ "Ammo Can" look, see HudStyle): health + stamina, ammo, hotbar, crosshair,
+## raid timer, the [F] prompt, extract list/status.
 var hotbar: HotbarHUD
 var health_hud: HealthHUD
 var ammo_hud: AmmoHUD
 var crosshair: CrosshairHUD
-var _timer_scale_left := 0.0
-var _last_second := -1
+var timer_hud: TimerHUD
+var prompt_hud: PromptHUD
+var extract_hud: ExtractHUD
 
 var _indicator_time := 0.0
-## Seconds the extract list stays up: a few at the start of the raid, and after pressing O.
-var _extract_list_time := 6.0
 var _max_delta_timer := 0.0
 
 
@@ -68,7 +63,13 @@ func _ready() -> void:
 	add_child(ammo_hud)
 	crosshair = CrosshairHUD.new()
 	add_child(crosshair)
-	_style_labels()
+	timer_hud = TimerHUD.new(raid)
+	add_child(timer_hud)
+	prompt_hud = PromptHUD.new(player)
+	add_child(prompt_hud)
+	extract_hud = ExtractHUD.new(player, raid)
+	add_child(extract_hud)
+	damage_indicator.add_child(DamageArrowHUD.new())
 	loot_ui = LootUI.new(player)
 	add_child(loot_ui)
 	end_screen = RaidEndScreen.new(raid)
@@ -95,7 +96,7 @@ func _input(event: InputEvent) -> void:
 		loot_ui.close()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("extracts"):
-		_extract_list_time = 0.0 if _extract_list_time > 0.0 else 6.0
+		extract_hud.toggle_list()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -118,27 +119,9 @@ func _process(delta: float) -> void:
 	crosshair.show_crosshair = captured and not player.controls_locked() and not player.gun.is_aiming()
 	var hp := player.health.current
 
-	var seconds := ceili(raid.time_left)
-	timer_label.text = "%02d:%02d" % [seconds / 60, seconds % 60]
-	var last_minute := seconds <= 60
-	timer_label.add_theme_color_override("font_color", HudStyle.WARN if last_minute else HudStyle.TEXT)
-	_timer_plate.border = HudStyle.WARN if last_minute else HudStyle.PLATE_EDGE
-	# The last minute: the clock punches on every tick.
-	if last_minute and seconds != _last_second and _last_second != -1:
-		_timer_scale_left = 0.15
-	_last_second = seconds
-	_timer_scale_left = maxf(_timer_scale_left - delta, 0.0)
-	timer_label.pivot_offset = timer_label.size * 0.5
-	timer_label.scale = Vector2.ONE * (1.0 + 0.12 * _timer_scale_left / 0.15)
-
-	_update_prompt()
-	_update_extract_info(delta)
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
-	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair]:
+	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud]:
 		element.visible = not loot_ui.visible
-	if loot_ui.visible:
-		for element: CanvasItem in [extract_list, extract_status, prompt_label, action_bar]:
-			element.visible = false
 
 	if not get_tree().paused:
 		# Red flash when hit; a faint red edge stays while health is low.
@@ -148,45 +131,6 @@ func _process(delta: float) -> void:
 	damage_indicator.modulate.a = clampf(_indicator_time, 0.0, 1.0)
 
 	_update_debug(delta)
-
-
-func _update_prompt() -> void:
-	var interactor := player.interactor
-	prompt_label.visible = false
-	action_bar.visible = false
-	if player.is_healing():
-		prompt_label.text = "HEALING..."
-		prompt_label.visible = true
-		action_bar.visible = true
-		action_bar.value = 1.0 - player.heal_time_left / player.heal_duration
-	elif interactor.target != null:
-		prompt_label.text = "[F]  " + interactor.target.prompt().to_upper()
-		prompt_label.visible = true
-		if interactor.progress > 0.0:
-			action_bar.visible = true
-			action_bar.value = interactor.progress
-
-
-func _update_extract_info(delta: float) -> void:
-	extract_status.visible = false
-	var open_lines: PackedStringArray = []
-	for zone in raid.get_extracts():
-		if zone.player_inside == player and raid.result == "":
-			extract_status.visible = true
-			if zone.is_open:
-				extract_status.text = "EXTRACTING  %.1f" % maxf(zone.extract_time - zone.progress, 0.0)
-				extract_status.modulate = Color.WHITE
-				extract_status.add_theme_color_override("font_color", HudStyle.EXTRACT)
-			else:
-				extract_status.text = "EXTRACT CLOSED"
-				extract_status.modulate = Color.WHITE
-				extract_status.add_theme_color_override("font_color", HudStyle.WARN)
-		if zone.is_open:
-			var dist := roundi(zone.global_position.distance_to(player.global_position))
-			open_lines.append("%s  %dm" % [zone.extract_name, dist])
-	_extract_list_time -= delta
-	extract_list.visible = _extract_list_time > 0.0
-	extract_list.text = "EXTRACTS  [O]\n" + "\n".join(open_lines)
 
 
 func _capture_mouse() -> void:
@@ -212,34 +156,6 @@ func _update_slider_labels() -> void:
 ## Kills get no special marker on purpose (like Tarkov): you see the body drop, or hear the kill sound.
 func _on_hit_confirmed(_killed: bool, headshot: bool) -> void:
 	crosshair.flash_hit(headshot)
-
-
-var _timer_plate: HudPlate
-
-
-## The labels that stay labels get the field-kit look: pixel font, hard shadows, plates behind them.
-func _style_labels() -> void:
-	HudStyle.style_label(timer_label, 40)
-	_timer_plate = HudPlate.new(timer_label, Vector2(12, 0))
-	add_child(_timer_plate)
-	move_child(_timer_plate, timer_label.get_index())
-	HudStyle.style_label(extract_status, 40, HudStyle.EXTRACT)
-	HudStyle.style_label(extract_list, 16, HudStyle.TEXT, false)
-	var list_plate := HudPlate.new(extract_list, Vector2(10, 6))
-	add_child(list_plate)
-	move_child(list_plate, extract_list.get_index())
-	HudStyle.style_label(prompt_label, 18, HudStyle.TEXT, false)
-	var prompt_plate := HudPlate.new(prompt_label, Vector2(6, 2))
-	add_child(prompt_plate)
-	move_child(prompt_plate, prompt_label.get_index())
-	var back := StyleBoxFlat.new()
-	back.bg_color = HudStyle.WELL
-	back.border_color = HudStyle.PLATE_EDGE
-	back.set_border_width_all(1)
-	action_bar.add_theme_stylebox_override("background", back)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = HudStyle.ACTIVE
-	action_bar.add_theme_stylebox_override("fill", fill)
 
 
 ## Online, containers are shared: the raid asks the server first (NetRaid opens the screen when it says yes).

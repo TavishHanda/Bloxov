@@ -2,7 +2,7 @@ class_name HotbarHUD
 extends Control
 ## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.6 "Ammo Can"): 1 = primary, 2 = secondary, 3 = meds (all
 ## your heals; uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V).
-## Each slot is a gunmetal lid with its key stenciled in the corner, a pixel icon, a count and a rarity stripe.
+## Each slot is a gunmetal lid with its key in the corner (hand-drawn pixel digits), a pixel icon, a count and a rarity stripe.
 ## The gun in your hands pops up: lighter lid, hazard-yellow rim and caution stripes, yellow key. Switching guns
 ## slaps its name on a strip of tape above it for a moment. Empty slots are sunk-in wells with a faint ghost of
 ## what goes there; no meds left = the cross is crossed out in red.
@@ -120,7 +120,7 @@ func _draw() -> void:
 				var px := 2.0 if String(ghost[0]).length() > 9 else 3.0
 				var size := HudStyle.icon_size(ghost, px)
 				HudStyle.draw_icon(self, ghost, (rect.get_center() - size * 0.5).round(), px, Color(HudStyle.INK, 0.14), Color(0, 0, 0, 0))
-			HudStyle.draw_label(self, key, rect.position + Vector2(5, 10), Color(HudStyle.INK, 0.35))
+			HudStyle.draw_key(self, key, rect.position + Vector2(5, 5), Color(HudStyle.INK, 0.5), 1.0, false)
 			continue
 		var face := HudStyle.FACE.lerp(HudStyle.FACE_HI, 0.45 * _rise[i])
 		HudStyle.draw_block(self, rect, face, face.lightened(0.25), HudStyle.FACE_DK, 3.0,
@@ -149,8 +149,7 @@ func _draw() -> void:
 		var stripe: Color = info["stripe"]
 		if stripe.a > 0.0:
 			draw_rect(Rect2(rect.position + Vector2(6, SLOT_SIZE.y - 5), Vector2(SLOT_SIZE.x - 12, 2)), Color(stripe, alpha))
-		HudStyle.draw_label(self, key, rect.position + Vector2(5, 13 if _rise[i] > 0.0 else 10),
-			HudStyle.HAZARD if active else HudStyle.INK_DIM)
+		HudStyle.draw_key(self, key, rect.position + Vector2(5, 8 if _rise[i] > 0.0 else 5), HudStyle.HAZARD if active else HudStyle.INK_DIM)
 	# Switching guns: its name on a strip of tape, slapped on above the slot (drops in, then fades).
 	if _switch_left > 0.0 and held >= 0:
 		var t := SWITCH_TIME - _switch_left

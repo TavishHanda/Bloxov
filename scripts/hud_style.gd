@@ -53,6 +53,20 @@ const KNIFE := [".....#............", "=====#############", "=====############."
 const GRENADE := [".##...", "####..", ".####.", "######", "######", "######", ".####."]
 const FLAG := ["#....", "####.", "#####", "####.", "#....", "#....", "#...."]
 
+## Hand-drawn 3x5 key glyphs (the small stencil font's "4" has an odd flag): hotbar keys and key caps.
+const KEY_GLYPHS := {
+	"1": [".#.", "##.", ".#.", ".#.", "###"],
+	"2": ["##.", "..#", ".#.", "#..", "###"],
+	"3": ["##.", "..#", ".#.", "..#", "##."],
+	"4": ["#.#", "#.#", "###", "..#", "..#"],
+	"5": ["###", "#..", "##.", "..#", "##."],
+	"6": [".##", "#..", "##.", "#.#", ".#."],
+	"V": ["#.#", "#.#", "#.#", "#.#", ".#."],
+	"F": ["###", "#..", "##.", "#..", "#.."],
+	"O": [".#.", "#.#", "#.#", "#.#", ".#."],
+	"H": ["#.#", "#.#", "###", "#.#", "#.#"],
+}
+
 static var _fonts := {}
 
 
@@ -210,6 +224,20 @@ static func draw_text(ci: CanvasItem, text: String, pos: Vector2, size: int, col
 	ci.draw_string(f, pos, text, h_align, width, size, color)
 
 
+## A key name ("1".."6", "V", "F", "O", "H") in the hand-drawn key glyphs, `px` per pixel, top-left at `pos`.
+static func draw_key(ci: CanvasItem, key: String, pos: Vector2, color: Color, px := 1.0, shadow := true) -> void:
+	var rows: Array = KEY_GLYPHS.get(key, KEY_GLYPHS["F"])
+	draw_icon(ci, rows, pos, px, color, Color(0, 0, 0, 0.8) if shadow else Color(0, 0, 0, 0))
+
+
+## A key cap: a small cream beveled block with the key's glyph centered on it (for "[F] Search"-style prompts).
+static func draw_keycap(ci: CanvasItem, rect: Rect2, key: String) -> void:
+	draw_block(ci, rect, INK, Color.WHITE, INK.darkened(0.45), 2.0)
+	var px := maxf(floorf((rect.size.y - 8.0) / 5.0), 1.0)
+	var glyph := Vector2(3, 5) * px
+	draw_key(ci, key, (rect.get_center() - glyph * 0.5 - Vector2(0, 1)).round(), DEEP, px, false)
+
+
 ## A tiny stenciled label (Silkscreen, 8 px), with a 1 px shadow.
 static func draw_label(ci: CanvasItem, text: String, pos: Vector2, color := INK_DIM, width := -1.0, align := 0) -> void:
 	draw_text(ci, text, pos, 8, color, width, align, label_font())
@@ -231,6 +259,11 @@ static func draw_centered(ci: CanvasItem, text: String, rect: Rect2, size: int, 
 		var drop := Vector2(2, 2) if size >= 20 else Vector2(1, 1)
 		ci.draw_string(f, pos + drop, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, color.a * 0.9))
 	ci.draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+
+
+## The baseline that vertically centers a line of capitals/digits on `center_y` (for left/right-aligned text).
+static func centered_baseline(center_y: float, size: int, f: Font = null) -> float:
+	return roundf(center_y + cap_height(font() if f == null else f, size) * 0.5)
 
 
 ## How tall capitals/digits are in a HUD font at `size` (measured from renders).

@@ -1275,6 +1275,18 @@ func _section_hud() -> void:
 	_check(bar.held_slot() == 0 and bar.slot_rect(0).position.y < bar.slot_rect(2).position.y, "the held rifle's slot pops up above the others")
 	_check(bar._ghost_icon(1) == HudStyle.PISTOL and bar._ghost_icon(3) == HudStyle.GRENADE and bar._ghost_icon(5).is_empty(), "empty slots ghost a pistol (2) and a grenade (4)")
 	bar.queue_free()
+	# Timer / extract list (0.8.7): the timer reads the raid clock; O hides the list and brings it back.
+	var hud_node := main.get_node("HUD")
+	var old_time := raid.time_left
+	raid.time_left = 75.2
+	_check(hud_node.timer_hud.text() == "01:16", "the raid timer shows 01:16 (%s)" % hud_node.timer_hud.text())
+	raid.time_left = old_time
+	var extracts: ExtractHUD = hud_node.extract_hud
+	var was_showing := extracts.is_list_showing()
+	extracts.toggle_list()
+	_check(extracts.is_list_showing() != was_showing, "O toggles the extract list")
+	extracts.toggle_list()
+	_check(extracts.open_extracts().size() >= 1, "the extract list has the open extracts (%d)" % extracts.open_extracts().size())
 
 
 func _section_owner_rules() -> void:
