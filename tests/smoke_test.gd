@@ -1165,7 +1165,12 @@ func _section_lean() -> void:
 
 
 func _section_hurt() -> void:
-	# A badly hurt scav falls back to cover and patches up (+40 HP over 4 s); shooting it interrupts the heal.
+	# A badly hurt scav (below 30%) falls back to cover and patches up (+40 HP over 4 s); shooting it interrupts the heal.
+	var checker := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
+	await physics_frame
+	checker.health.take_damage(65)  # 35 HP: hurt, but above 30%
+	_check(not checker._wants_heal, "a scav at 35% keeps fighting (falls back below 30%)")
+	checker.queue_free()
 	player.teleport_to(Vector3(-15, 0.1, 0))
 	var scav := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
 	_face_player(scav)
@@ -1175,7 +1180,7 @@ func _section_hurt() -> void:
 	await physics_frame
 	scav._alert(player.global_position)
 	scav._set_state(Scav.State.ENGAGE)
-	scav.health.take_damage(65, player.global_position)  # 35 HP left: below 40%
+	scav.health.take_damage(75, player.global_position)  # 25 HP left: below 30%
 	var hp_hurt := scav.health.current
 	var healed := false
 	var hid_to_heal := false

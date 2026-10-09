@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.14 (scavs fall back later)
+- Hurt scavs now fall back to heal **below 30% health** (was 40%), so they stay in the fight longer.
+  PMCs still fall back at 40%
+
 ## 0.6.13 (harder PMCs; scav teamwork removed)
 - **PMCs are harder to fight** (scavs behave exactly as before):
   - They **hear gunshots twice as far away** and come toward fights

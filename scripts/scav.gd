@@ -107,9 +107,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var sneak_range := 0.0
 
 @export_group("Healing")
-## Badly hurt (below this fraction of max health), it falls back to cover and patches up (owner: scavs can heal).
+## Badly hurt (below this fraction of max health; scavs 30%, owner 0.6.14), it falls back to cover and patches up (owner: scavs can heal).
 ## Getting hit while healing interrupts it (and wastes nothing: it can try again a few seconds later).
-@export var hurt_fraction := 0.4
+@export var hurt_fraction := 0.3
 @export var heal_amount := 40
 @export var heal_time := 4.0
 ## How many times per life it can heal.

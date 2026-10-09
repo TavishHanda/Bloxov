@@ -33,6 +33,7 @@ sneak_range = 15.0
 lull_time = 1.5
 cover_cooldown = 6.0
 heals = 2
+hurt_fraction = 0.4
 reaction_time = 0.45
 aim_time = 0.35
 burst_size = 4
