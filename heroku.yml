@@ -1,0 +1,7 @@
+# Heroku settings for the game server (same Dockerfile as Fly.io). Heroku gives the port in $PORT, which the
+# server reads when no --port is passed. Deployed by CI (.github/workflows/web.yml, job "heroku").
+build:
+  docker:
+    web: Dockerfile
+run:
+  web: godot --headless -- --server

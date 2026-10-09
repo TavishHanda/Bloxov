@@ -115,3 +115,29 @@ jobs:
           flyctl apps create bloxov-server --org personal || true
           # One machine only: the raid lives in that one server process.
           flyctl deploy --remote-only --ha=false
+
+  # Same game server on Heroku (GitHub Student Pack credit). Skipped until the HEROKU_API_KEY secret exists.
+  heroku:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      APP: bloxov-server
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: No Heroku key yet
+        if: env.HEROKU_API_KEY == ''
+        run: echo "::notice::HEROKU_API_KEY isn't set, so the Heroku game server wasn't deployed."
+      - name: Deploy the game server to Heroku
+        if: env.HEROKU_API_KEY != ''
+        run: |
+          api() { curl -fsS -H "Authorization: Bearer $HEROKU_API_KEY" -H "Accept: application/vnd.heroku+json; version=3" -H "Content-Type: application/json" "$@"; }
+          # First deploy: create the app as a Docker ("container") app.
+          api "https://api.heroku.com/apps/$APP" > /dev/null 2>&1 || api -X POST https://api.heroku.com/apps -d "{\"name\":\"$APP\",\"stack\":\"container\"}"
+          git push --force "https://heroku:$HEROKU_API_KEY@git.heroku.com/$APP.git" HEAD:refs/heads/main
+          # One always-on server (Basic): the raid lives in that one process, so never more than one.
+          api -X PATCH "https://api.heroku.com/apps/$APP/formation/web" -d '{"quantity":1,"size":"basic"}'
+          echo "Server address: $(api https://api.heroku.com/apps/$APP | python3 -c 'import json,sys; print(json.load(sys.stdin)["web_url"])')"
