@@ -251,8 +251,14 @@ func try_heal() -> void:
 		use_item(found[0], found[1])
 
 
-## Uses the item bound to a hotbar key (0 = key 3).
+## A hotbar key (0 = key 3): 3 heals (best fit, like H), 6 swings the knife, 4 and 5 use what's bound there.
 func use_hotbar(index: int) -> void:
+	if index == Inventory.MEDS_KEY:
+		try_heal()
+		return
+	if index == Inventory.KNIFE_KEY:
+		knife.swing()
+		return
 	var id := inventory.hotbar[index]
 	if id == "":
 		return

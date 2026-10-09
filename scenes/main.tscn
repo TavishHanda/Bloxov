@@ -483,19 +483,34 @@ text = "x"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="HealthBar" type="ProgressBar" parent="HUD"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -50.0
+offset_right = 264.0
+offset_bottom = -22.0
+grow_vertical = 0
+mouse_filter = 2
+value = 100.0
+show_percentage = false
+
 [node name="HealthLabel" type="Label" parent="HUD"]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -64.0
-offset_right = 260.0
-offset_bottom = -16.0
+offset_top = -50.0
+offset_right = 264.0
+offset_bottom = -22.0
 grow_vertical = 0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 6
-theme_override_font_sizes/font_size = 34
-text = "HP 100"
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "100"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="AmmoLabel" type="Label" parent="HUD"]
 anchors_preset = 3
@@ -542,20 +557,6 @@ offset_right = 12.0
 offset_bottom = -150.0
 mouse_filter = 2
 color = Color(1, 0.15, 0.1, 0.9)
-
-[node name="BagLabel" type="Label" parent="HUD"]
-anchors_preset = 2
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -100.0
-offset_right = 400.0
-offset_bottom = -68.0
-grow_vertical = 0
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 5
-theme_override_font_sizes/font_size = 20
-text = "Bag $0"
 
 [node name="TimerLabel" type="Label" parent="HUD"]
 anchors_preset = 5
@@ -640,9 +641,9 @@ anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
-offset_top = -16.0
-offset_right = 200.0
-offset_bottom = -8.0
+offset_top = -18.0
+offset_right = 264.0
+offset_bottom = -12.0
 grow_vertical = 0
 mouse_filter = 2
 step = 0.1

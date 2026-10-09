@@ -28,7 +28,6 @@ var _online_panel: PanelContainer
 var _offline_box: VBoxContainer
 var _online_box: VBoxContainer
 var _name_edit: LineEdit
-var _address_edit: LineEdit
 var _connect_button: Button
 var _party_label: Label
 var _party_members: Label
@@ -385,16 +384,10 @@ func _build_online_panel() -> void:
 	_name_edit.max_length = 16
 	_name_edit.text = GameSettings.player_name if GameSettings.player_name != "" else "Player %d" % randi_range(100, 999)
 	_offline_box.add_child(_name_edit)
-	_address_edit = LineEdit.new()
-	_address_edit.placeholder_text = "Server address"
-	# Old defaults (a local test server, the first hosted address) are replaced by the current one.
-	var saved := GameSettings.server_address
-	var old := ["ws://localhost:9080", "wss://bloxov-server.fly.dev"]
-	_address_edit.text = saved if saved != "" and not old.has(saved) else Network.DEFAULT_ADDRESS
-	_offline_box.add_child(_address_edit)
+	# Always the game's own server (owner: no address box).
 	_connect_button = Button.new()
 	_connect_button.text = "Go online"
-	_connect_button.pressed.connect(func() -> void: go_online(_address_edit.text, _name_edit.text))
+	_connect_button.pressed.connect(func() -> void: go_online(Network.DEFAULT_ADDRESS, _name_edit.text))
 	_offline_box.add_child(_connect_button)
 
 	# Connected: party, queue, start now.

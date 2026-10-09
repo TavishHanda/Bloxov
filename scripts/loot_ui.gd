@@ -477,7 +477,7 @@ func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 		_menu.add_item("Use", MenuAction.USE)
 		if inventory.hotbar.has(stack.id):
 			_menu.add_item("Unbind (key %d)" % (inventory.hotbar.find(stack.id) + 3), MenuAction.UNBIND)
-		elif inventory.hotbar.has(""):
+		elif inventory.can_bind(stack.id):
 			_menu.add_item("Bind to hotbar", MenuAction.BIND)
 	if ItemDB.equip_slot(stack.id) != "":
 		_menu.add_item("Equip", MenuAction.EQUIP)

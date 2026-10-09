@@ -10,8 +10,8 @@ extends CanvasLayer
 
 @onready var crosshair: Label = $Crosshair
 @onready var hit_marker: Label = $HitMarker
+@onready var health_bar: ProgressBar = $HealthBar
 @onready var health_label: Label = $HealthLabel
-@onready var bag_label: Label = $BagLabel
 @onready var stamina_bar: ProgressBar = $StaminaBar
 @onready var ammo_label: Label = $AmmoLabel
 @onready var timer_label: Label = $TimerLabel
@@ -39,7 +39,9 @@ var hotbar: HotbarHUD
 
 var _hit_marker_time := 0.0
 var _indicator_time := 0.0
-var _extract_list_time := 12.0
+## Seconds the extract list stays up: a few at the start of the raid, and after pressing O.
+var _extract_list_time := 6.0
+var _health_fill: StyleBoxFlat
 var _max_delta_timer := 0.0
 
 
@@ -60,6 +62,14 @@ func _ready() -> void:
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
 	play_button.pressed.connect(_capture_mouse)
 
+	# Health: a bar with the number on it (green, turning red when low).
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0.08, 0.08, 0.08, 0.75)
+	back.set_corner_radius_all(3)
+	health_bar.add_theme_stylebox_override("background", back)
+	_health_fill = StyleBoxFlat.new()
+	_health_fill.set_corner_radius_all(3)
+	health_bar.add_theme_stylebox_override("fill", _health_fill)
 	hotbar = HotbarHUD.new(player)
 	add_child(hotbar)
 	loot_ui = LootUI.new(player)
@@ -89,7 +99,7 @@ func _input(event: InputEvent) -> void:
 		loot_ui.close()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("extracts"):
-		_extract_list_time = 0.0 if _extract_list_time > 0.0 else 8.0
+		_extract_list_time = 0.0 if _extract_list_time > 0.0 else 6.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -122,15 +132,16 @@ func _process(delta: float) -> void:
 		if gun.in_mag == 0:
 			ammo_label.modulate = Color(1, 0.4, 0.3)
 	var hp := player.health.current
-	health_label.text = "HP %d" % hp
-	health_label.modulate = Color(1, 0.35, 0.3) if hp <= 30 else Color.WHITE
+	health_bar.max_value = player.health.max_health
+	health_bar.value = hp
+	health_label.text = str(hp)
+	var fraction := float(hp) / player.health.max_health
+	_health_fill.bg_color = Color(0.85, 0.2, 0.15, 0.9) if fraction <= 0.3 else Color(0.3, 0.75, 0.3, 0.85).lerp(Color(0.9, 0.7, 0.2, 0.85), clampf((0.7 - fraction) / 0.4, 0.0, 1.0))
 	stamina_bar.max_value = player.max_stamina
 	stamina_bar.value = player.stamina
 	stamina_bar.visible = player.stamina < player.max_stamina and not player.controls_locked()
 	stamina_bar.modulate = Color(1, 0.35, 0.3, 0.9) if player.is_exhausted else Color(1, 0.9, 0.35, 0.85)
 
-	var inv := player.inventory
-	bag_label.text = "Carrying %s" % ItemDB.money(inv.total_value())
 
 	var seconds := ceili(raid.time_left)
 	timer_label.text = "%02d:%02d" % [seconds / 60, seconds % 60]

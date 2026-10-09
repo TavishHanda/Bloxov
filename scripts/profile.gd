@@ -92,7 +92,7 @@ static func save_profile() -> void:
 		file.store_string(JSON.stringify(data))
 
 
-## The starter kit: AK (loaded), medium backpack, 60 rifle rounds, a bandage on hotbar key 3.
+## The starter kit: AK (loaded), medium backpack, 60 rifle rounds, a bandage (heals are on hotbar key 3).
 static func starting_loadout() -> Dictionary:
 	return {
 		"equipment": {
@@ -102,7 +102,7 @@ static func starting_loadout() -> Dictionary:
 		"pockets": [{"id": "rifle_ammo", "count": 60, "x": 0, "y": 0}, {"id": "bandage", "count": 1, "x": 1, "y": 0}],
 		"backpack": [],
 		"secure": [],
-		"hotbar": ["bandage", "", "", ""],
+		"hotbar": ["", "", "", ""],
 	}
 
 
@@ -151,7 +151,8 @@ static func apply_inventory(inventory: Inventory, data: Dictionary) -> void:
 	var hotbar := _array(data.get("hotbar"))
 	for i in mini(hotbar.size(), Inventory.HOTBAR_SIZE):
 		var id := str(hotbar[i])
-		inventory.hotbar[i] = id if ItemDB.ITEMS.has(id) else ""
+		# Only keys 4 and 5 hold bindings (older saves had heals on 3-6: those are on key 3 now).
+		inventory.hotbar[i] = id if ItemDB.ITEMS.has(id) and Inventory.BINDABLE_KEYS.has(i) and ItemDB.kind(id) != "heal" else ""
 	inventory.changed.emit()
 
 

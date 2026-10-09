@@ -2,6 +2,16 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.13 (HUD polish, owner)
+- **Health is a bar** with the number on it (green, yellow as it drops, red at 30 or less)
+- **"Carrying $..." is gone from the raid screen** (it's still in the inventory)
+- **The extract list shows for a few seconds** at the start of the raid and when you press O (then hides)
+- **Hotbar (owner's layout):** 1 and 2 = your guns, **3 = Meds** (all your heals; uses the one that fits how hurt
+  you are, same as H), 4 and 5 = free for later (grenades...), 6 = **Knife (V)** (6 swings it too). Heals no longer
+  bind to keys one by one. Smaller slots; empty ones are faint
+- The bottom of the screen is much less crowded
+- **ONLINE panel:** just your name, Go online and Close (no server address box; it always uses the game's server)
+
 ## 0.7.12 (hideout fixes, owner)
 - Hideout messages ("Sold Antique Vase for ...") show in full under the top bar and fade out (they were cut off)
 - The ONLINE button shows where you are with the panel closed: "ONLINE ●" (online), "IN QUEUE (1/2)",

@@ -3,7 +3,8 @@ extends Node
 ## Everything the player carries:
 ##  - equipment slots: primary, secondary, armor, backpack (each holds one ItemStack or nothing)
 ##  - grids: pockets (always), the equipped backpack's grid, and the secure pocket (survives death)
-##  - hotbar: item ids bound to keys 3-6
+##  - hotbar: keys 3-6. Owner (0.7.13): 3 = meds (best-fitting heal, like H), 4 and 5 = bound items (future
+##    grenades etc.), 6 = the knife (V). Only keys 4 and 5 hold bindings.
 
 signal changed
 ## Something was equipped or unequipped (the screen rebuilds, the gun/armor update).
@@ -11,6 +12,10 @@ signal equipment_changed
 
 const SLOTS: Array[String] = ["primary", "secondary", "armor", "backpack"]
 const HOTBAR_SIZE := 4
+## Hotbar indexes (0 = key 3): the meds key, the knife key, and the keys items can be bound to.
+const MEDS_KEY := 0
+const KNIFE_KEY := 3
+const BINDABLE_KEYS: Array[int] = [1, 2]
 
 @export var pockets_size := Vector2i(4, 1)
 @export var secure_size := Vector2i(2, 2)
@@ -20,7 +25,7 @@ var secure: GridInventory
 ## The equipped backpack's grid, or null with no backpack.
 var backpack: GridInventory = null
 var equipment := {"primary": null, "secondary": null, "armor": null, "backpack": null}
-## Item ids bound to hotbar keys 3, 4, 5, 6 ("" = empty).
+## Item ids bound to hotbar keys 3, 4, 5, 6 ("" = empty; only BINDABLE_KEYS are ever filled).
 var hotbar: Array[String] = ["", "", "", ""]
 
 
@@ -181,15 +186,31 @@ func find_heal(missing_health: int) -> Array:
 
 # --- Hotbar ----------------------------------------------------------------------
 
-## Binds an item to the first free hotbar key. Returns the index (0 = key 3) or -1.
+## Binds an item to the first free bindable key (4 or 5). Heals don't bind: they're all on key 3.
+## Returns the index (0 = key 3) or -1.
 func bind_to_hotbar(id: String) -> int:
-	if hotbar.has(id):
+	if not can_bind(id):
 		return hotbar.find(id)
-	var free := hotbar.find("")
-	if free >= 0:
-		hotbar[free] = id
-		changed.emit()
-	return free
+	for key in BINDABLE_KEYS:
+		if hotbar[key] == "":
+			hotbar[key] = id
+			changed.emit()
+			return key
+	return -1
+
+
+func can_bind(id: String) -> bool:
+	return ItemDB.kind(id) != "heal" and not hotbar.has(id) and BINDABLE_KEYS.any(func(k: int) -> bool: return hotbar[k] == "")
+
+
+## How many heals you carry (what key 3 shows).
+func heal_count() -> int:
+	var total := 0
+	for grid in grids():
+		for stack in grid.stacks:
+			if ItemDB.kind(stack.id) == "heal":
+				total += stack.count
+	return total
 
 
 func unbind(id: String) -> void:
@@ -199,7 +220,6 @@ func unbind(id: String) -> void:
 		changed.emit()
 
 
-## Heals bind themselves to the hotbar when you pick them up, if there's a free key.
-func auto_bind(id: String) -> void:
-	if ItemDB.kind(id) == "heal" and not hotbar.has(id):
-		bind_to_hotbar(id)
+## Picked-up items that go on the hotbar by themselves. None do yet: heals all live on key 3 (owner, 0.7.13).
+func auto_bind(_id: String) -> void:
+	pass

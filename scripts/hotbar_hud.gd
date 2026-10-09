@@ -1,13 +1,15 @@
 class_name HotbarHUD
 extends HBoxContainer
-## Bottom-center hotbar: 1 = primary, 2 = secondary (active one highlighted), 3-6 = bound items (heals etc).
+## Bottom-center hotbar (owner, 0.7.13): 1 = primary, 2 = secondary (active one highlighted), 3 = meds (all your
+## heals; uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V). Empty slots are faint.
 
-const SLOT_SIZE := Vector2(92, 46)
+const SLOT_SIZE := Vector2(76, 40)
 
 var player: Player
 var _names: Array[Label] = []
 var _counts: Array[Label] = []
 var _styles: Array[StyleBoxFlat] = []
+var _panels: Array[PanelContainer] = []
 
 
 func _init(owner_player: Player) -> void:
@@ -24,7 +26,7 @@ func _init(owner_player: Player) -> void:
 		panel.custom_minimum_size = SLOT_SIZE
 		panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0, 0, 0, 0.45)
+		style.bg_color = Color(0, 0, 0, 0.35)
 		style.set_border_width_all(2)
 		style.border_color = Color(1, 1, 1, 0.15)
 		style.set_content_margin_all(4)
@@ -36,18 +38,19 @@ func _init(owner_player: Player) -> void:
 		var top := HBoxContainer.new()
 		box.add_child(top)
 		var key := _label(11, Color(1, 1, 1, 0.55))
-		key.text = str(i + 1)
+		key.text = "V" if i == 2 + Inventory.KNIFE_KEY else str(i + 1)
 		top.add_child(key)
 		var count := _label(11, Color(1, 1, 1, 0.8))
 		count.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		top.add_child(count)
-		var item_name := _label(13, Color.WHITE)
+		var item_name := _label(12, Color.WHITE)
 		item_name.clip_text = true
 		box.add_child(item_name)
 		_names.append(item_name)
 		_counts.append(count)
 		_styles.append(style)
+		_panels.append(panel)
 
 
 func _process(_delta: float) -> void:
@@ -65,6 +68,14 @@ func _process(_delta: float) -> void:
 				var ammo_id: String = ItemDB.item(weapon.id)["ammo"]
 				count = "%d/%d" % [weapon.loaded, inventory.count_of(ammo_id)]
 				color = ItemDB.color(weapon.id) if gun.weapon == weapon else Color(1, 1, 1, 0.3)
+		elif i - 2 == Inventory.MEDS_KEY:
+			var heals := inventory.heal_count()
+			text = "Meds"
+			count = "x%d" % heals
+			color = Color(0.45, 0.9, 0.5) if heals > 0 else Color(1, 0.3, 0.25, 0.4)
+		elif i - 2 == Inventory.KNIFE_KEY:
+			text = "Knife"
+			color = Color(1, 1, 1, 0.3)
 		else:
 			var id := inventory.hotbar[i - 2]
 			if id != "":
@@ -75,6 +86,7 @@ func _process(_delta: float) -> void:
 		_names[i].text = text
 		_counts[i].text = count
 		_styles[i].border_color = color
+		_panels[i].modulate.a = 1.0 if text != "" else 0.45
 
 
 func _label(font_size: int, color: Color) -> Label:

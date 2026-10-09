@@ -25,7 +25,7 @@ const SECTIONS: Array[String] = [
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
 	"scav_hit": ["scav_shoots"],  # shoots and kills the scav spawned there
-	"equipment": ["inventory"],  # bandages picked up there bind to the hotbar
+	"equipment": ["inventory"],  # counts the bandages picked up there (hotbar key 3)
 	"loot_ui": ["equipment"],  # moves the watch/bandages from "inventory", swaps the heavy armor and pistol
 	"heal": ["loot_ui"],  # uses one of the 7 bandages; adjusts the expected loot value
 	"extract": ["heal"],  # checks the loot value carried out
@@ -553,7 +553,8 @@ func _section_equipment() -> void:
 	player.health.take_damage(10)
 	_check(hp_before - player.health.current == 6, "heavy armor takes 40%% off (10 -> %d)" % (hp_before - player.health.current))
 	_check(not inv.can_unequip("backpack") and inv.unequip("backpack") == null, "can't take off a backpack with stuff in it")
-	_check(inv.hotbar[0] == "bandage", "picked-up bandages bind to hotbar key 3")
+	_check(inv.heal_count() == inv.count_of("bandage") + inv.count_of("medkit") and inv.heal_count() > 0 and not inv.hotbar.has("bandage"),
+		"picked-up heals count on hotbar key 3 (Meds) instead of binding one by one (owner, 0.7.13)")
 
 
 func _section_loot_ui() -> void:
@@ -1250,20 +1251,27 @@ func _section_owner_rules() -> void:
 	_check(dealt == 22, "armored Raider takes (and shows) 22 from an AK body shot (%d)" % dealt)
 	raider.queue_free()
 
-	# Heals only bind to the hotbar when they come from outside: rearranging your own inventory keeps an unbind.
+	# Hotbar (owner, 0.7.13): 1-2 guns, 3 = all your meds (best fit, like H), 4-5 bindable (later: grenades), 6 = knife.
 	inv.clear()
 	inv.add("bandage", 2)
-	inv.unbind("bandage")
-	var found := inv.find("bandage")
-	var into := inv.backpack if found[0] != inv.backpack else inv.pockets
-	var spot := into.find_spot("bandage")
-	loot_ui.move_stack(found[1], found[0], into, Vector2i(spot[0], spot[1]), spot[2])
-	_check(inv.count_of("bandage") == 2 and not inv.hotbar.has("bandage"), "moving an unbound heal inside your inventory doesn't re-bind it")
-	var bag := LootContainer.spawn_bag(main, player.global_position + Vector3(3, 0, 0), "Bind Test", [["medkit", 1]])
-	loot_ui.open_for(bag)
-	await _frames(2)
-	loot_ui.quick_move(bag.grid, bag.grid.stacks[0])
-	_check(inv.hotbar.has("medkit"), "a medkit Shift+clicked in from a bag binds to the hotbar")
+	inv.add("medkit", 1)
+	_check(inv.heal_count() == 3 and not inv.can_bind("bandage") and inv.bind_to_hotbar("medkit") == -1 and not inv.hotbar.has("medkit"),
+		"heals don't bind to keys: key 3 holds all of them (3)")
+	var old_save := Profile.capture_inventory(inv)
+	old_save["hotbar"] = ["bandage", "medkit", "", ""]
+	Profile.apply_inventory(inv, old_save)
+	_check(inv.hotbar == ["", "", "", ""], "old saves with heals on the hotbar load with them on key 3 instead")
+	var bar := HotbarHUD.new(player)
+	root.add_child(bar)
+	bar._process(0.0)
+	_check(bar._names[2].text == "Meds" and bar._counts[2].text == "x3" and bar._names[5].text == "Knife",
+		"the hotbar shows Meds x3 on key 3 and the knife (V) on 6 (%s %s %s)" % [bar._names[2].text, bar._counts[2].text, bar._names[5].text])
+	bar.queue_free()
+	if not player.controls_locked():
+		player.health.take_damage(10)
+		player.use_hotbar(Inventory.MEDS_KEY)
+		_check(player.is_healing() and inv.count_of("bandage") == 1, "key 3 uses the best-fitting heal (a bandage for a scratch)")
+		player.heal_time_left = 0.0
 
 	# "Put in" a full container says so instead of doing nothing.
 	var full := LootContainer.spawn_bag(main, player.global_position + Vector3(3, 0, 0), "Full Bag", [["phone", 1]])
