@@ -2,6 +2,9 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.5 (Heroku server address)
+- ONLINE now connects to the game server on Heroku (`bloxov-server-0f9c9a343ceb.herokuapp.com`) by default
+
 ## 0.7.4 (build fix)
 - Fixes the web build, which stopped deploying at 0.7.2: on a fresh copy of the project (like the build
   server's), the online code loaded the player code before the game's sounds were imported. 0.7.2 and 0.7.3

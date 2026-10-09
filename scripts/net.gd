@@ -31,7 +31,7 @@ enum Mode { OFFLINE, SERVER, CLIENT }
 
 const DEFAULT_PORT := 9080
 ## The hosted server (see fly.toml / heroku.yml). A local test server is ws://localhost:9080.
-const DEFAULT_ADDRESS := "wss://bloxov-server.fly.dev"
+const DEFAULT_ADDRESS := "wss://bloxov-server-0f9c9a343ceb.herokuapp.com"
 const RAID_TIME := 600.0
 ## Player state updates per second, both ways.
 const SEND_RATE := 20.0

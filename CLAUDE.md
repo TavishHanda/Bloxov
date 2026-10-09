@@ -28,7 +28,9 @@
 - Multiplayer (0.7.x, `docs/MULTIPLAYER_PLAN.md`): `scripts/net.gd` is the `Net` autoload; scripts use it as
   `Network.main` (autoload names don't compile in the `-s` test). Offline by default. Server:
   `godot --headless -- --server [--port=9080]`. The `net` test section runs a server + two clients in one process.
-  Hosted on Fly.io (`Dockerfile`, `fly.toml`, CI job `server`, needs the `FLY_API_TOKEN` secret): wss://bloxov-server.fly.dev.
+  Hosted on Heroku (owner's student credit; `Dockerfile` + `heroku.yml`, CI job `heroku`, needs the `HEROKU_API_KEY`
+  secret; app `bloxov-server`, one Basic dyno): wss://bloxov-server-0f9c9a343ceb.herokuapp.com. A Fly.io setup also
+  exists (`fly.toml`, CI job `server`, skipped without `FLY_API_TOKEN`) for later (one server per raid).
   `net.gd` is an autoload: it must not reference player/gun scripts (directly or via class names), or a fresh
   import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
   Local Docker works here after starting `dockerd` (container apt has no network; copy the local Godot binary in to test).
