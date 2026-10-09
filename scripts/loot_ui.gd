@@ -674,7 +674,7 @@ func _build_other_column() -> void:
 		# The stash is tall: scroll it.
 		var scroll := ScrollContainer.new()
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		scroll.custom_minimum_size = Vector2(other.width * CELL + 14, 520)
+		scroll.custom_minimum_size = Vector2(other.width * CELL + 14, 480)  # (fits the hideout with its hint line under it)
 		_other_box.add_child(scroll)
 		_add_view(scroll, other)
 	else:
@@ -885,7 +885,7 @@ static func style_button(button: Button, font_size := 20, face := HudStyle.FACE)
 		box.content_margin_bottom = 4
 		button.add_theme_stylebox_override(state, box)
 	# Sized with the real font; drawn by hand (the built-in text is made invisible).
-	button.add_theme_font_override("font", HudStyle.spaced_font())
+	button.add_theme_font_override("font", HudStyle.spaced_font(font_size))
 	button.add_theme_font_size_override("font_size", font_size)
 	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color", "font_hover_pressed_color"]:
 		button.add_theme_color_override(color_name, Color(0, 0, 0, 0))
@@ -894,7 +894,7 @@ static func style_button(button: Button, font_size := 20, face := HudStyle.FACE)
 		var bottom := 2.0 if pressed else 4.0
 		var face_rect := Rect2(2, 2, button.size.x - 4, button.size.y - 2 - bottom)
 		var color := (HudStyle.DEEP if dark_text else HudStyle.INK) if not button.disabled else HudStyle.INK_DIM
-		HudStyle.draw_centered(button, button.text, face_rect, font_size, color, HudStyle.spaced_font(), not dark_text))
+		HudStyle.draw_centered(button, button.text, face_rect, font_size, color, HudStyle.spaced_font(font_size), not dark_text))
 
 
 func _small(text: String) -> Label:

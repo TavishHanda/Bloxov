@@ -5,6 +5,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.13 (crisp pixel text everywhere, owner)
+- **All text is pixel-perfect now:** the pixel font used to be drawn at sizes where its pixels landed between screen
+  pixels, so some strokes were thinner than others and some letter pairs looked off. Every size now uses the Jersey
+  design made for it, at exactly one screen pixel per font pixel: small text Jersey 10, titles/timer/tags Jersey
+  15, the ammo count and big tags Jersey 20, the end-of-raid stamp Jersey 25 (owner's pick from 7 font options)
+- The hideout's help line ("Drag to move/equip ...") fits on screen under the columns (it was pushed off the bottom)
+
 ## 0.8.12 (a nicer A, owner)
 - **The pixel font's capital A is redrawn:** a square top with clipped corners (the old one had a pointed, stepped
   top that looked odd next to the other blocky capitals), spaced like every other letter. It's everywhere the font

@@ -136,8 +136,8 @@ func _build() -> void:
 func _draw_stamp() -> void:
 	if _stamp_text == "":
 		return
-	var f := HudStyle.font()
 	var size := 50
+	var f := HudStyle.font(size)
 	var text_w := HudStyle.text_width(_stamp_text, size, f) - 1.0
 	var box := Rect2(Vector2(roundf((_stamp.size.x - text_w) * 0.5) - 22, 4), Vector2(text_w + 44, 68))
 	var ink := Color(_stamp_color, 0.95)
@@ -196,7 +196,7 @@ func _groove() -> Control:
 func _text(parent: Control, size: int, color: Color) -> Label:
 	var label := Label.new()
 	HudStyle.style_label(label, size, color)
-	label.add_theme_font_override("font", HudStyle.spaced_font())
+	label.add_theme_font_override("font", HudStyle.spaced_font(size))
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(label)

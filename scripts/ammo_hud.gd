@@ -45,7 +45,7 @@ func _draw() -> void:
 		# (mixed case, letter-spaced: the owner's pick, 0.8.9)
 		var label_left := rect.position.x + PAD + knife.x + 8
 		var label_box := Rect2(Vector2(label_left, rect.position.y), Vector2(rect.end.x - 10 - label_left, rect.size.y))
-		HudStyle.draw_centered(self, "Unarmed", label_box, 20, HudStyle.INK_DIM, HudStyle.spaced_font())
+		HudStyle.draw_centered(self, "Unarmed", label_box, 20, HudStyle.INK_DIM, HudStyle.spaced_font(20))
 		return
 	HudStyle.draw_plate(self, Rect2(Vector2.ZERO, PLATE_SIZE))
 	var mag := maxi(gun.mag_size, 1)

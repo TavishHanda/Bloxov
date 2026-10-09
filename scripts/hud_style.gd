@@ -2,9 +2,12 @@ class_name HudStyle
 extends RefCounted
 ## The raid HUD's look (0.8.4, "Ammo Can"): chunky beveled blocks of gunmetal-painted steel, built like the voxels
 ## of the world (lit top/left edge, dark bottom/right edge, hard black outline), with brass, hazard stripes and
-## masking-tape labels as the scavenged details. Fonts (all OFL, in assets/fonts/): Jersey 10 for numbers,
-## Silkscreen Bold for tiny stenciled labels, Pixelify Sans for writing on tape. The number font is "Bloxov Jersey 10":
-## Jersey 10 with a redrawn square-topped A (0.8.12; the original A had a pointed top, see assets/fonts/README.md).
+## masking-tape labels as the scavenged details. Fonts (all OFL, in assets/fonts/, see the README there):
+## - "Bloxov Jersey" for numbers and text (font(size)): the Jersey pixel family, one design per size, each drawn at
+##   exactly 1 screen pixel per font pixel (0.8.13): size 20 = Jersey 10, 30 = Jersey 15, 40 = Jersey 20,
+##   50 = Jersey 25. Only use those sizes: in between, pixels land between screen pixels and letters look uneven.
+##   (Jersey 10 also has a redrawn square-topped A, 0.8.12.)
+## - Silkscreen Bold for tiny stenciled labels (size 8), Pixelify Sans for writing on tape.
 ## Used by the HUD widgets (health, ammo, hotbar, crosshair...).
 
 # Painted steel.
@@ -42,7 +45,13 @@ const STAMINA := HAZARD
 const ACTIVE := HAZARD
 const NOTCH := 3.0
 
-const FONT_PATH := "res://assets/fonts/BloxovJersey10-Regular.ttf"
+## The Jersey design for each text size (each 1x at its size; built by tools/make_bloxov_font.py).
+const FONT_PATHS := {
+	20: "res://assets/fonts/BloxovJersey10-Regular.ttf",
+	30: "res://assets/fonts/BloxovJersey15-Regular.ttf",
+	40: "res://assets/fonts/BloxovJersey20-Regular.ttf",
+	50: "res://assets/fonts/BloxovJersey25-Regular.ttf",
+}
 const LABEL_FONT_PATH := "res://assets/fonts/Silkscreen-Bold.ttf"
 const TAPE_FONT_PATH := "res://assets/fonts/PixelifySans.ttf"
 
@@ -71,19 +80,25 @@ const KEY_GLYPHS := {
 static var _fonts := {}
 
 
-## The number font (Jersey 10), crisp. Use sizes in multiples of 10.
-static func font() -> FontFile:
-	return _crisp(FONT_PATH)
+## The pixel font for text drawn at `size` (20, 30, 40 or 50: the Jersey design made for it), crisp.
+static func font(size := 20) -> FontFile:
+	return _crisp(FONT_PATHS[design_size(size)])
 
 
-## The number font with 1 px between letters, for words in mixed case (the plain font squishes "na" together).
-static func spaced_font() -> FontVariation:
-	if not _fonts.has("spaced"):
+## The closest of the sizes the fonts are made for (20, 30, 40, 50).
+static func design_size(size: int) -> int:
+	return clampi(roundi(size / 10.0) * 10, 20, 50)
+
+
+## The pixel font at `size` with 1 px between letters, for words in mixed case ("Unarmed", item names).
+static func spaced_font(size := 20) -> FontVariation:
+	var key := "spaced%d" % design_size(size)
+	if not _fonts.has(key):
 		var f := FontVariation.new()
-		f.base_font = font()
+		f.base_font = font(size)
 		f.spacing_glyph = 1
-		_fonts["spaced"] = f
-	return _fonts["spaced"]
+		_fonts[key] = f
+	return _fonts[key]
 
 
 ## Tiny stenciled labels (Silkscreen Bold). Use sizes in multiples of 8.
@@ -111,7 +126,7 @@ static func _crisp(path: String) -> FontFile:
 ## Gives a Label the HUD look: the number font with a hard drop shadow (or the default font, outlined, for names).
 static func style_label(label: Label, size: int, color := INK, pixel := true) -> void:
 	if pixel:
-		label.add_theme_font_override("font", font())
+		label.add_theme_font_override("font", font(size))
 		label.add_theme_color_override("font_shadow_color", Color.BLACK)
 		label.add_theme_constant_override("shadow_offset_x", 0)
 		label.add_theme_constant_override("shadow_offset_y", 2 if size >= 20 else 1)
@@ -235,7 +250,7 @@ static func text_shadow(size: int) -> Vector2:
 static func draw_text(ci: CanvasItem, text: String, pos: Vector2, size: int, color: Color, width := -1.0, align := 0, f: Font = null) -> void:
 	var h_align: HorizontalAlignment = [HORIZONTAL_ALIGNMENT_LEFT, HORIZONTAL_ALIGNMENT_CENTER, HORIZONTAL_ALIGNMENT_RIGHT][align]
 	if f == null:
-		f = font()
+		f = font(size)
 	ci.draw_string(f, pos + text_shadow(size), text, h_align, width, size, Color(0, 0, 0, color.a * 0.9))
 	ci.draw_string(f, pos, text, h_align, width, size, color)
 
@@ -260,14 +275,14 @@ static func draw_label(ci: CanvasItem, text: String, pos: Vector2, color := INK_
 
 
 static func text_width(text: String, size: int, f: Font = null) -> float:
-	return (font() if f == null else f).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	return (font(size) if f == null else f).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
 
 ## Text centered on its ink inside `rect` (both ways, on whole pixels). The fonts' glyphs sit right on the
 ## baseline (ink rows baseline-cap .. baseline-1) with capitals/digits `cap_height` tall, and leave ~1 px of spacing after the last glyph (measured).
 static func draw_centered(ci: CanvasItem, text: String, rect: Rect2, size: int, color: Color, f: Font = null, shadow := true) -> void:
 	if f == null:
-		f = font()
+		f = font(size)
 	var ink_w := text_width(text, size, f) - 1.0
 	var cap := cap_height(f, size)
 	var pos := Vector2(roundf(rect.get_center().x - ink_w * 0.5), roundf(rect.get_center().y + cap * 0.5))
@@ -278,16 +293,16 @@ static func draw_centered(ci: CanvasItem, text: String, rect: Rect2, size: int, 
 
 ## The baseline that vertically centers a line of capitals/digits on `center_y` (for left/right-aligned text).
 static func centered_baseline(center_y: float, size: int, f: Font = null) -> float:
-	return roundf(center_y + cap_height(font() if f == null else f, size) * 0.5)
+	return roundf(center_y + cap_height(font(size) if f == null else f, size) * 0.5)
 
 
-## How tall capitals/digits are in a HUD font at `size` (measured from renders).
+## How tall capitals/digits are in a HUD font at `size` (the Jersey designs: half the size; others measured).
 static func cap_height(f: Font, size: int) -> float:
 	if f == label_font():
 		return roundf(size * 0.625)
 	if f == tape_font():
 		return roundf(size * 0.643)
-	return roundf(size * 0.53)
+	return design_size(size) * 0.5
 
 
 ## The health color for a fraction of max health.

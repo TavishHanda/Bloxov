@@ -256,7 +256,7 @@ func _build_top_bar() -> void:
 	row.add_child(_money_label)
 	_stats_label = Label.new()
 	HudStyle.style_label(_stats_label, 20, HudStyle.INK_DIM)
-	_stats_label.add_theme_font_override("font", HudStyle.spaced_font())
+	_stats_label.add_theme_font_override("font", HudStyle.spaced_font(20))
 	row.add_child(_stats_label)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -513,7 +513,7 @@ func _build_trader() -> Control:
 		var item_name := Label.new()
 		item_name.text = ItemDB.label(id, amount)
 		HudStyle.style_label(item_name, 20, ItemDB.color(id))
-		item_name.add_theme_font_override("font", HudStyle.spaced_font())
+		item_name.add_theme_font_override("font", HudStyle.spaced_font(20))
 		item_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(item_name)
 		var button := Button.new()

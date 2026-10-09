@@ -1251,6 +1251,9 @@ func _section_online_loot() -> void:
 func _section_hud() -> void:
 	# HUD look (0.8.4 "Ammo Can"): its fonts load, a hit knocks health cubes off, a reload shows the tape.
 	_check(HudStyle.font() != null and HudStyle.label_font() != null and HudStyle.tape_font() != null, "the HUD fonts load")
+	# Pixel-perfect text (0.8.13): sizes 20/30/40/50 use Jersey 10/15/20/25 at exactly 1 screen pixel per font pixel.
+	_check(String(HudStyle.FONT_PATHS[HudStyle.design_size(30)]).contains("Jersey15") and String(HudStyle.FONT_PATHS[HudStyle.design_size(50)]).contains("Jersey25")
+		and HudStyle.font(30) != HudStyle.font(20) and HudStyle.cap_height(HudStyle.font(40), 40) == 20.0, "each text size uses its own Jersey design")
 	var health_widget := HealthHUD.new(player)
 	var ammo_widget := AmmoHUD.new(player)
 	root.add_child(health_widget)
