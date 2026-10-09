@@ -33,6 +33,7 @@ var crosshair: CrosshairHUD
 var timer_hud: TimerHUD
 var prompt_hud: PromptHUD
 var extract_hud: ExtractHUD
+var world_labels: WorldLabelsHUD
 
 var _indicator_time := 0.0
 var _max_delta_timer := 0.0
@@ -71,6 +72,8 @@ func _ready() -> void:
 	extract_hud = ExtractHUD.new(player, raid)
 	add_child(extract_hud)
 	damage_indicator.add_child(DamageArrowHUD.new())
+	world_labels = WorldLabelsHUD.new()
+	add_child(world_labels)  # (after the extract tags: damage numbers go on top of them)
 	loot_ui = LootUI.new(player)
 	add_child(loot_ui)
 	end_screen = RaidEndScreen.new(raid)
@@ -122,7 +125,7 @@ func _process(delta: float) -> void:
 
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
 	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
-	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud]:
+	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels]:
 		element.visible = not loot_ui.visible and not end_screen.visible
 	timer_hud.visible = not end_screen.visible
 

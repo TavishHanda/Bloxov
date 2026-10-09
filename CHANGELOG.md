@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.16 (damage numbers and teammate tags in the HUD style, owner)
+- **Damage numbers** (the optional setting) are drawn crisp in the pixel font with a hard dark edge, pop up and float
+  away; headshots and backstabs are bigger and yellow with "!" (they used to be blurry 3D text)
+- **Teammate name tags** are small green names on a mini gunmetal plate, still visible through walls (same 2D
+  drawing as the extract tags)
+
 ## 0.8.15 (ONLINE panel in the "Ammo Can" look, owner)
 - **ONLINE panel** (hideout): a gunmetal plate, the pixel font, sunk-in text boxes (yellow edge while you type),
   gunmetal buttons, and big hazard-yellow GO ONLINE and QUEUE buttons. Works exactly as before

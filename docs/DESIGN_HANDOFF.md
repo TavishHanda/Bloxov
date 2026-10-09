@@ -3,7 +3,7 @@
 The owner runs a separate Claude session, **designer**, for visual/UI design. This file catches it up. The main
 session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (the project rules apply to both).
 
-## What Bloxov looks like today (0.8.15)
+## What Bloxov looks like today (0.8.16)
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
@@ -17,7 +17,10 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
   number font ("Bloxov Jersey 10", `tools/make_bloxov_font.py`). 0.8.13 = pixel-perfect text: the
   Jersey family, one design per size (20/30/40/50 only, `HudStyle.font(size)`; see `assets/fonts/README.md`). 0.8.14 =
   pause menu (`pause_menu_style.gd`). 0.8.15 = the
-  hideout's ONLINE panel. Every screen is now in the Ammo Can look. Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
+  hideout's ONLINE panel. Every screen is now in the Ammo Can look. 0.8.16 = damage numbers +
+  teammate tags drawn by `world_labels_hud.gd` (markers in group `Effects.WORLD_LABELS`; no Label3D for text).
+  Screen scaling: kept as is (canvas_items stretch from 1280x720; owner OK'd after a 1080p comparison). Idea for
+  later: a "UI scale" option (Auto / Sharp). Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
   tags, hazard stripes (`draw_hazard`), masking-tape labels (`draw_tape`); fonts Bloxov Jersey 10/15/20/25 (text at sizes 20/30/40/50 only), Silkscreen
   Bold (tiny labels, `draw_label`), Pixelify Sans (tape). Owner: "make sure it looks super nice", not cramped.
   Pieces (some still from the 0.8.3 "Stenciled Field Kit" pass):

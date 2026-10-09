@@ -1282,6 +1282,14 @@ func _section_hud() -> void:
 	_check(bar.held_slot() == 0 and bar.slot_rect(0).position.y < bar.slot_rect(2).position.y, "the held rifle's slot pops up above the others")
 	_check(bar._ghost_icon(1) == HudStyle.PISTOL and bar._ghost_icon(3) == HudStyle.GRENADE and bar._ghost_icon(5).is_empty(), "empty slots ghost a pistol (2) and a grenade (4)")
 	bar.queue_free()
+	# Damage numbers (0.8.16): a marker the HUD draws in the pixel font (no blurry Label3D), gone after a moment.
+	Effects.damage_number(main, player.global_position + Vector3(0, 1, -3), 28, true)
+	var numbers := get_nodes_in_group(Effects.WORLD_LABELS).filter(func(n: Node) -> bool: return n.get_meta("label_kind", "") == "damage")
+	_check(numbers.size() == 1 and numbers[0].get_meta("label_text") == "28!" and not numbers[0] is Label3D,
+		"a damage number is a HUD-drawn marker (28!)")
+	await create_timer(Effects.DAMAGE_NUMBER_LIFE + 0.2).timeout
+	_check(get_nodes_in_group(Effects.WORLD_LABELS).filter(func(n: Node) -> bool: return n.get_meta("label_kind", "") == "damage").is_empty(),
+		"damage numbers disappear on their own")
 	# Pause menu (0.8.14): the controls list is re-flowed to fit, with every control still in it.
 	var listed := "WASD move · Mouse look · Click shoot · Right-click aim · R reload\nQ/E lean · F search/loot\nFind loot, then extract."
 	var flowed := PauseMenuStyle.reflow(listed, HudStyle.font(20), 20, 200.0)

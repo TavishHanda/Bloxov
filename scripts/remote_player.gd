@@ -72,16 +72,13 @@ func _ready() -> void:
 	# Each body gets its own shapes so crouching one doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
 	if teammate:
-		var tag := Label3D.new()
+		# A small name tag over a teammate's head (owner: small; other players get none, PvP). Just a marker: the
+		# HUD draws it crisp in the pixel font (WorldLabelsHUD, 0.8.16).
+		var tag := Node3D.new()
 		tag.name = "NameTag"
-		tag.text = player_name
-		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		tag.no_depth_test = true
-		tag.fixed_size = true
-		tag.pixel_size = 0.0008
-		tag.font_size = 24
-		tag.modulate = Color(0.55, 1.0, 0.55)
-		tag.outline_size = 6
+		tag.set_meta("label_kind", "name")
+		tag.set_meta("label_text", player_name)
+		tag.add_to_group(Effects.WORLD_LABELS)
 		tag.position.y = 2.25
 		add_child(tag)
 

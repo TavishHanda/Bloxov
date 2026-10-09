@@ -2,6 +2,10 @@ class_name Effects
 extends RefCounted
 ## One-shot visual and sound effects: tracers, impact sparks, voxel bursts, damage numbers, sounds.
 
+## Nodes the HUD draws a label for (damage numbers, teammate name tags): see WorldLabelsHUD.
+const WORLD_LABELS := &"hud_world_labels"
+const DAMAGE_NUMBER_LIFE := 0.75
+
 static var _materials: Dictionary = {}
 
 
@@ -66,29 +70,21 @@ static func burst(world: Node, pos: Vector3, color: Color) -> void:
 	_emit(world, particles, pos, 1.5)
 
 
+## A floating damage number (owner toggle). Just a marker in the world: the HUD draws it, crisp in the pixel font
+## (WorldLabelsHUD, 0.8.16; it used to be a Label3D, which blurred). It lives for WORLD_LABEL_LIFE seconds.
 static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
-	var label := Label3D.new()
-	label.text = str(amount) + ("!" if critical else "")
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 10
-	label.font_size = 64 if critical else 48
-	label.outline_size = 14
-	label.pixel_size = 0.008
-	label.modulate = Color(1.0, 0.85, 0.1) if critical else Color.WHITE
-	label.outline_modulate = Color(0, 0, 0, 1)
-	world.add_child(label)
-	var start := pos + Vector3(randf_range(-0.25, 0.25), 0.2, randf_range(-0.25, 0.25))
-	label.global_position = start
-	var tween := label.create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(label, "global_position", start + Vector3(0, 0.9, 0), 0.7) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(label, "modulate:a", 0.0, 0.4).set_delay(0.3)
-	tween.tween_property(label, "outline_modulate:a", 0.0, 0.4).set_delay(0.3)
-	tween.chain().tween_callback(label.queue_free)
+	var marker := Node3D.new()
+	marker.name = "DamageNumber"
+	marker.set_meta("label_kind", "damage")
+	marker.set_meta("label_text", str(amount) + ("!" if critical else ""))
+	marker.set_meta("label_critical", critical)
+	marker.set_meta("label_born", Time.get_ticks_msec() / 1000.0)
+	marker.add_to_group(WORLD_LABELS)
+	world.add_child(marker)
+	marker.global_position = pos + Vector3(randf_range(-0.25, 0.25), 0.2, randf_range(-0.25, 0.25))
+	marker.get_tree().create_timer(DAMAGE_NUMBER_LIFE).timeout.connect(marker.queue_free)
 
 
 static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08) -> void:
