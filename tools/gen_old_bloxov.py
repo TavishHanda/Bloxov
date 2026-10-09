@@ -62,6 +62,12 @@ COLOURS = [
     ("hay", (0.85, 0.75, 0.4)),
     ("boxcar", (0.55, 0.3, 0.2)),
     ("dirt", (0.55, 0.46, 0.34)),
+    ("army", (0.36, 0.42, 0.28)),
+    ("sandbag", (0.62, 0.56, 0.4)),
+    ("stone", (0.6, 0.6, 0.62)),
+    ("rust", (0.5, 0.33, 0.22)),
+    ("wall_modern", (0.82, 0.84, 0.86)),
+    ("brand", (0.2, 0.55, 0.45)),
 ]
 C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
@@ -332,6 +338,7 @@ def ground(holes):
 
 roads = []        # (points, width) of every road, for the overlap check
 footprints = []   # (name, x0, z0, x1, z1) of every building
+areas = []        # (name, x0, z0, x1, z1) of yards (junkyard, graveyard): kept off roads, buildings may stand inside
 
 
 def smooth(points, step=5.0):
@@ -357,6 +364,7 @@ def road(points, width):
     curve = smooth(points)
     roads.append((curve, width))
     strip(curve, width, "road", y=0.02 + 0.004 * len(roads))
+    return curve
 
 
 def strip(points, width, colour, y=0.02, h=0.04, solid=False):
@@ -426,6 +434,56 @@ def bush(x, z, rng):
     box(x - s / 2, 0, z - s / 2, x + s / 2, rng.uniform(1.0, 1.5), z + s / 2, "leaves")
 
 
+def car_stack(x, z, yaw, n, rng):
+    """Wrecked cars stacked n high (junkyard walls)."""
+    for k in range(n):
+        obox(x, 0.55 + k * 1.1, z, 1.9, 1.1, 4.2, yaw + rng.uniform(-6, 6), ("car_a", "car_b", "rust")[rng.randrange(3)])
+
+
+def truck(x, z, yaw):
+    """An army truck (checkpoint)."""
+    obox(x, 1.4, z, 2.5, 2.8, 7.0, yaw, "army")
+    fx, fz = x + 4.3 * math.sin(math.radians(yaw)), z + 4.3 * math.cos(math.radians(yaw))
+    obox(fx, 1.1, fz, 2.4, 2.2, 1.8, yaw, "army")
+
+
+def sandbags(x, z, yaw, length=4.0):
+    obox(x, 0.55, z, 0.7, 1.1, length, yaw, "sandbag")
+
+
+def power_line(curve, side, width, every=34.0, skip_from=0.0):
+    """Wooden poles beside a road (on `side`: +1 right of travel, -1 left) with the wire between them. Poles skip
+    spots near buildings and other roads."""
+    poles = []
+    dist, next_at = 0.0, skip_from + every / 2
+    for (ax, az), (bx, bz) in zip(curve, curve[1:]):
+        seg = math.hypot(bx - ax, bz - az)
+        while seg > 0 and next_at <= dist + seg:
+            t = (next_at - dist) / seg
+            tx, tz = (bx - ax) / seg, (bz - az) / seg
+            px = ax + (bx - ax) * t - tz * side * (width / 2 + 2.0)
+            pz = az + (bz - az) * t + tx * side * (width / 2 + 2.0)
+            next_at += every
+            if not (2 < px < M - 2 and 2 < pz < M - 2):
+                continue
+            if any(x0 - 2 < px < x1 + 2 and z0 - 2 < pz < z1 + 2 for _, x0, z0, x1, z1 in footprints + areas):
+                continue
+            if math.hypot(px - 263.0, pz - 285.0) < 20:   # the checkpoint
+                continue
+            if any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 1.0 for pts, w in roads for a, b in zip(pts, pts[1:])):
+                continue
+            poles.append((px, pz))
+        dist += seg
+    for px, pz in poles:
+        box(px - 0.15, 0, pz - 0.15, px + 0.15, 8.0, pz + 0.15, "wood")
+        box(px - 0.9, 7.4, pz - 0.08, px + 0.9, 7.55, pz + 0.08, "wood", solid=False)
+    for (ax, az), (bx, bz) in zip(poles, poles[1:]):
+        length = math.hypot(bx - ax, bz - az)
+        if length < 60:   # (a long gap means poles were skipped round a junction: no wire across it)
+            obox((ax + bx) / 2, 7.3, (az + bz) / 2, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)),
+                 "metal", solid=False)
+
+
 def fence(points, h=1.1):
     """A low wooden fence along a polyline, with a gap every so often (low cover, jumpable later)."""
     strip(points, 0.15, "wood", y=0.0, h=h, solid=True)
@@ -446,11 +504,12 @@ def main():
     box(M - 0.5, 0, -1, M + 1, 6, M + 1, "boundary")
 
     # --- roads (from the agreed layout picture)
-    road([(26, 81), (40, 81), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9)              # Main Street
-    road([(200, 104), (224, 98), (238, 80), (240, 44), (240, 0)], 8)                                   # county road (west of the farm)
+    main_st = road([(0, 82), (30, 80), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9)              # Main Street
+    county = road([(200, 104), (224, 98), (238, 80), (240, 44), (240, 0)], 8)                                   # county road (west of the farm)
     road([(62, 86), (48, 58), (58, 30), (95, 18), (130, 22)], 6)                                       # Hill Road
     road([(112, 100), (118, 70), (122, 40), (138, 8)], 6)                                              # Mill Lane
-    road([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300), (350, 306)], 8)
+    old_road = road([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300),
+                     (350, 306)], 8)   # Old Road / the highway
     road([(186, 104), (194, 150), (214, 186)], 6)                                                      # Station Road
     road([(236, 270), (290, 258), (350, 252)], 6)                                                      # East Lane
     road([(196, 240), (180, 300), (160, 348)], 6)                                                      # South Lane
@@ -547,7 +606,16 @@ def main():
     car(158, 66, 0); car(164, 74, 0, "car_b")
     build(Building("Shops", 13, 61, 29, 13, floors=2, rooms=(3, 1), doors="S"), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
-    build(Building("TownHouse", 66, 108, 11, 9, floors=2, rooms=(2, 1), doors="E"), [("crate", 1, 0, 1, "E", 0)])
+    # modern gas station on the corner of Main Street and Old Road (owner, 0.10.1; the town house was here)
+    build(Building("GasStationTown", 74, 106, 13, 10, colour="wall_modern", rooms=(2, 1), doors="W"), [
+        ("crate", 1, 0, 0, "E", 0), ("locker", 0, 0, 0, "N", -2.5)])
+    for x in (63.0, 70.5):
+        for z in (100.0, 112.5):
+            box(x, 0, z, x + 0.5, 4.6, z + 0.5, "wall_modern")
+    box(62.5, 4.6, 99.5, 71.5, 5.0, 113.5, "brand")                            # canopy
+    box(61.5, 0.0, 98.5, 72.5, 0.05, 114.5, "pavement", solid=False)
+    for z in (103.0, 107.0, 111.0):
+        box(66.4, 0, z - 0.6, 67.6, 1.6, z + 0.6, "metal")                      # pumps
     build(Building("Police", 150, 112, 26, 22, floors=2, colour="wall_police", rooms=(3, 3), doors="WS", roof=True), [
         ("locker", 2, 0, 0, "E", 0), ("locker", 2, 0, 0, "N", 0), ("locker", 0, 2, 1, "W", 0),
         ("locker", 2, 2, 1, "E", 0), ("crate", 1, 1, 0, "S", 0)])
@@ -563,15 +631,11 @@ def main():
         box(gx_, 0, 158.8, gx_ + 0.2, 2.4, 159.0, "metal")
 
     # hillside: big houses (owner: expensive loot)
-    for n, (x, y, w, d) in enumerate([(30, 22, 16, 13), (68, 36, 15, 12), (75, 4, 16, 10), (100, 32, 15, 12),
-                                      (28, 42, 13, 12)], start=1):
-        build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2),
-                       doors="S" if n != 3 else "W"), [
+    # (0.10.1: down from 5 to 3, owner: fewer houses so the good loot isn't spread thin, and the hill has sightlines)
+    for n, (x, y, w, d) in enumerate([(30, 22, 16, 13), (68, 36, 15, 12), (100, 32, 15, 12)], start=1):
+        build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2), doors="S"), [
             ("locker", 1, 1, 0, "E", 0), ("crate", 0, 1, 1, "W", 0), ("locker", 1, 0, 1, "E", 0)])
     add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)
-    # the big house at the west end of Main Street (owner): the road ends at its front door
-    build(Building("BigHouse6", 2, 76, 17, 17, floors=2, colour="wall_rich", rooms=(2, 2), doors="E"), [
-        ("locker", 0, 0, 0, "W", 0), ("crate", 1, 1, 1, "S", 0), ("locker", 0, 1, 1, "W", 0)])
 
     # street cover around town
     for x, z, yaw, col in ((44, 87, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
@@ -581,9 +645,36 @@ def main():
         dumpster(x, z)
 
     # houses between town and farm
-    for n, (x, y) in enumerate([(214, 30), (218, 54), (204, 72)], start=1):
+    for n, (x, y) in enumerate([(214, 30), (218, 54)], start=1):
         build(Building(f"RoadHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="S"),
               [("crate", 1, 1, 0, "E", 0)])
+
+    # church and graveyard, top right of town (owner, 0.10.1): a bell tower you can climb (roof lookout), pews
+    # inside, headstones (low cover) and a crypt
+    build(Building("Church", 160, 28, 14, 24, colour="wall", rooms=(1, 1), doors="S", height=6.0), [
+        ("crate", 0, 0, 0, "N", -4.5), ("locker", 0, 0, 0, "N", 4.5)])
+    box(165, 0, 29.6, 169, 1.0, 31.0, "wood")                                   # altar
+    for z in range(34, 48, 3):                                                  # pews, an aisle down the middle
+        box(162.5, 0, z, 166.0, 0.9, z + 0.8, "wood")
+        box(168.0, 0, z, 171.5, 0.9, z + 0.8, "wood")
+    tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True),
+                  [("crate", 0, 0, 2, "W", 0)])
+    for px, pz in ((148.4, 28.4), (157.6, 28.4), (148.4, 37.6), (157.6, 37.6)):  # the bell frame on the roof
+        box(px - 0.2, 6.0, pz - 0.2, px + 0.2, 9.0, pz + 0.2, "wood")
+    box(148.2, 9.0, 28.2, 157.8, 9.4, 37.8, "roof")
+    box(152.4, 7.4, 32.4, 153.6, 8.9, 33.6, "metal", solid=False)              # the bell
+    areas.append(("Graveyard", 176, 30, 202, 56))
+    fence([(181, 56), (176, 56), (176, 45)]); fence([(176, 39), (176, 30), (202, 30), (202, 56), (186, 56)])
+    build(Building("Crypt", 192, 43, 8, 8, colour="stone", rooms=(1, 1), doors="W"), [("crate", 0, 0, 0, "E", 0)])
+    for z in range(33, 54, 3):
+        for x in (179.0, 181.6, 184.2, 186.8, 191.0, 193.6, 196.2, 198.8):     # (a path down the middle)
+            if 188 < x + 1 and x - 1 < 202 and 41 < z + 0.5 and z - 0.5 < 53.5 and x > 189:
+                continue   # the crypt and the ground round it
+            if rng.random() < 0.25:
+                continue
+            box(x - 0.45, 0, z - 0.12, x + 0.45, rng.uniform(0.8, 1.1), z + 0.12, "stone")
+    for tx, tz in ((178, 54), (200, 32), (178, 32)):
+        tree(tx, tz, rng)
 
     # ===================================================================== FARM (top right)
     box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
@@ -613,8 +704,7 @@ def main():
     add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
 
     # ===================================================================== BOTTOM RIGHT: old houses, gas station
-    for n, (x, y) in enumerate([(196, 264), (248, 292), (316, 238), (330, 268), (304, 282), (164, 276),
-                                (148, 312), (214, 316)], start=1):
+    for n, (x, y) in [(1, (196, 264)), (3, (316, 238)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
         build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W"),
               [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
     build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S"), [
@@ -628,14 +718,64 @@ def main():
     build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W"), [("crate", 1, 0, 0, "E", 0)])
     build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True),
           [("crate", 0, 0, 0, "E", 0)])
-    car(286, 300, 70, "car_b"); car(244, 268, 40, "car_a"); barrier(260, 282, 55); barrier(264, 286, 55)
+    car(286, 300, 70, "car_b"); car(244, 268, 40, "car_a")
+
+    # junkyard north of the gas station (owner, 0.10.1): a fenced yard of stacked wrecks that makes a maze, a crane,
+    # a crusher and the office
+    jx0, jz0, jx1, jz1 = 298.0, 262.0, 346.0, 294.0
+    areas.append(("Junkyard", jx0, jz0, jx1, jz1))
+    wall_x(jx0, jx1, jz0, 0.0, 2.4, "rust", [(320.0, 4.0, 0.0, 2.4)], t=0.2)
+    wall_x(jx0, jx1, jz1, 0.0, 2.4, "rust", [(330.5, 5.0, 0.0, 2.4)], t=0.2)
+    wall_z(jz0, jz1, jx0, 0.0, 2.4, "rust", [(278.5, 5.0, 0.0, 2.4)], t=0.2)
+    wall_z(jz0, jz1, jx1, 0.0, 2.4, "rust", t=0.2)
+    build(Building("JunkOffice", 300.5, 264.5, 10, 8, colour="wall", rooms=(1, 1), doors="S"),
+          [("crate", 0, 0, 0, "N", 0)])
+    for z, xs in ((270, (316, 321, 326, 336, 341)), (278, (310, 315, 330, 335, 340)), (286, (304, 309, 320, 325, 338))):
+        for x in xs:
+            car_stack(x, z, 90, rng.randint(1, 3), rng)
+    box(341.2, 0, 265.2, 342.8, 12.0, 266.8, "metal")                           # crane tower and its boom
+    box(326, 11.4, 265.6, 343, 12.0, 266.4, "metal", solid=False)
+    box(304, 0, 290, 312, 3.0, 293.5, "concrete")                               # crusher
+    add_loot("Junkyard", "crate", 328.0, 274.0, yaw=0.0)
+    add_loot("Junkyard", "crate", 312.0, 282.0, yaw=180.0)
+    add_loot("Junkyard", "crate", 343.0, 282.0, yaw=90.0)
+
+    # roadblock checkpoint across the highway west of the gas station (owner, 0.10.1): a barrier chicane, sandbag
+    # nests both sides, a guard booth and two army trucks
+    yaw_r = math.degrees(math.atan2(290 - 236, 300 - 270))
+    ux, uz = math.sin(math.radians(yaw_r)), math.cos(math.radians(yaw_r))
+    nx_, nz_ = uz, -ux
+
+    def at(s_, t_):
+        return 263.0 + ux * s_ + nx_ * t_, 285.0 + uz * s_ + nz_ * t_
+    for s_, t_ in ((-6, -2.0), (6, 2.0)):
+        barrier(*at(s_, t_), yaw_r + 90)
+    for t_ in (-7.5, 7.5):
+        sandbags(*at(0, t_), yaw_r)
+        sandbags(*at(-2.3, t_ * 0.85), yaw_r + 90, 2.4)
+        sandbags(*at(2.3, t_ * 0.85), yaw_r + 90, 2.4)
+    bx_, bz_ = at(-4, -10.5)
+    obox(bx_, 1.3, bz_, 2.6, 2.6, 2.6, yaw_r, "army")                           # guard booth
+    truck(*at(-15, 8.5), yaw_r)
+    truck(*at(13, -9.0), yaw_r + 180)
+    cx_, cz_ = at(2, 10.0)
+    add_loot("Checkpoint", "crate", cx_, cz_, yaw=yaw_r)
+    cx_, cz_ = at(-2, -12.5)
+    add_loot("Checkpoint", "locker", cx_, cz_, yaw=yaw_r + 180)
 
     # ===================================================================== WOODS + cabins
+    # clearings for the campsite and the hunting stands (0.10.1)
+    camp, stands = (66.0, 268.0), [(40.0, 324.0), (116.0, 266.0)]
+    clear = [(camp, 8.0)] + [(st, 6.0) for st in stands]
     for (cx, cz, r) in [(20, 240, 9), (42, 258, 11), (24, 288, 10), (58, 300, 12), (30, 322, 9), (85, 270, 10),
                         (72, 332, 9), (102, 312, 8), (110, 250, 7), (124, 332, 8)]:
         for _ in range(int(r * 0.9)):
             a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
-            tree(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
+            tx, tz = cx + math.cos(a) * d, cz + math.sin(a) * d
+            if any(math.hypot(tx - p[0], tz - p[1]) < rad for p, rad in clear):
+                rng.uniform(0, 1); rng.uniform(0, 1)   # (keep the rest of the woods where it was)
+                continue
+            tree(tx, tz, rng)
         for _ in range(2):
             a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
             bush(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
@@ -645,6 +785,26 @@ def main():
             a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
             tree(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
         bush(cx + rng.uniform(-r, r) / 2, cz + rng.uniform(-r, r) / 2, rng)
+    # campsite by the creek (owner, 0.10.1): two tents, a fire pit with log seats, a crate
+    x, z = camp
+    for tx, tz, yaw in ((x - 4.0, z - 2.0, 20.0), (x + 3.5, z - 3.0, -15.0)):
+        obox(tx, 0.6, tz, 2.4, 1.2, 2.8, yaw, "army")
+        obox(tx, 1.35, tz, 1.2, 0.3, 2.8, yaw, "army")
+    for dx, dz in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
+        box(x + dx - 0.3, 0, z + 2 + dz - 0.3, x + dx + 0.3, 0.3, z + 2 + dz + 0.3, "stone")
+    obox(x - 2.6, 0.2, z + 2.0, 0.5, 0.4, 2.2, 0, "trunk"); obox(x + 2.6, 0.2, z + 2.0, 0.5, 0.4, 2.2, 0, "trunk")
+    add_loot("Campsite", "crate", x + 0.5, z - 5.5, yaw=180.0)
+    # hunting stands (owner, 0.10.1): a platform 3.5 m up with a ramp, one watching the Creek Trail extract
+    for sx, sz in stands:
+        h, run = 3.5, 5.2
+        box(sx - 1.4, h - 0.2, sz - 1.4, sx + 1.4, h, sz + 1.4, "wood")
+        for px, pz in ((sx - 1.3, sz - 1.3), (sx + 1.3, sz - 1.3), (sx - 1.3, sz + 1.3), (sx + 1.3, sz + 1.3)):
+            box(px - 0.12, 0, pz - 0.12, px + 0.12, h - 0.2, pz + 0.12, "trunk")
+        box(sx - 1.4, h, sz - 1.4, sx + 1.4, h + 1.0, sz - 1.3, "wood")       # rails (open at the ramp)
+        box(sx - 1.4, h, sz - 1.4, sx - 1.3, h + 1.0, sz + 1.4, "wood")
+        box(sx + 1.3, h, sz - 1.4, sx + 1.4, h + 1.0, sz + 1.4, "wood")
+        obox(sx, h / 2 - 0.1, sz + 1.4 + run / 2, 2.2, 0.2, math.hypot(run, h), 0.0, "wood",
+             pitch=math.degrees(math.atan2(h, run)))
     for n, (x, y) in enumerate([(90, 288), (36, 304), (306, 166)], start=1):
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
               [("crate", 1, 0, 0, "E", 0)])
@@ -660,6 +820,11 @@ def main():
             (220, 42), (270, 50), (320, 45), (300, 110), (220, 196), (190, 225), (280, 245), (230, 290),
             (320, 260), (300, 312), (190, 330), (60, 250), (90, 300), (40, 330), (320, 190), (150, 250)]):
         enemy_spawns.append((f"Spawn{n}", x, z))
+
+    # power lines along Main Street, the county road and the highway (owner, 0.10.1)
+    power_line(main_st, -1, 9)
+    power_line(county, 1, 8)
+    power_line(old_road, 1, 8)
 
     check_roads()
     write_scene()
@@ -683,6 +848,11 @@ def check_roads():
     """Fails the build if a building stands on a road (owner, 0.10.1): keep 1 m of pavement between them."""
     bad = []
     for name, x0, z0, x1, z1 in footprints:
+        for points, width in roads:
+            for a, b in zip(points, points[1:]):
+                if _seg_rect_gap(a, b, (x0, z0, x1, z1)) < width / 2 + 1.0:
+                    bad.append(f"{name} on the road through {a}-{b}")
+    for name, x0, z0, x1, z1 in areas:
         for points, width in roads:
             for a, b in zip(points, points[1:]):
                 if _seg_rect_gap(a, b, (x0, z0, x1, z1)) < width / 2 + 1.0:
