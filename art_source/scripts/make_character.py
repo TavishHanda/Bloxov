@@ -1,7 +1,7 @@
-"""Bloxov characters: builds the Scav or the PMC model, with outfit variants, to match docs/ART_SPEC.md.
+"""Bloxov characters: builds the Scav, PMC or Raider model, with outfit variants, to match docs/ART_SPEC.md.
 
 How to use (Blender 4.x / 5.x):
-  1. Set CHARACTER below ("scav" or "pmc") and save the .blend as art_source/<character>.blend first.
+  1. Set CHARACTER below ("scav", "pmc" or "raider") and save the .blend as art_source/<character>.blend first.
   2. Scripting tab > Text > Open > art_source/scripts/make_character.py, then Run (Alt+P).
 Re-running rebuilds the character (it only touches objects in the "Bloxov" collection).
 
@@ -27,7 +27,7 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-CHARACTER = "scav"  # "scav" or "pmc"
+CHARACTER = "scav"  # "scav", "pmc" or "raider"
 EXPORT = False
 REGENERATE_TEXTURE = False
 PREVIEW_SEED = 1
@@ -126,6 +126,21 @@ SKINS = {
     "gaiter_tan": {"base": "sand", "noise": [("olive_light", 0.1)], "pattern": "knit", "knit": "olive_light"},
     "gaiter_black": {"base": "black", "noise": [("iron_dark", 0.2)], "pattern": "knit", "knit": "iron_dark"},
     "gaiter_green": {"base": "olive_dark", "noise": [("olive", 0.15)], "pattern": "knit", "knit": "olive"},
+    # raider clothes and gear (dark, with rust-red faction accents)
+    "raider_black": {"base": "iron_dark", "noise": [("black", 0.2), ("iron", 0.04)]},
+    "urban": {"base": "iron", "noise": [("iron_dark", 0.08)], "pattern": "camo",
+              "blobs": ["black", "steel", "iron_dark"]},
+    "rust_jacket": {"base": "rust", "noise": [("wood_dark", 0.15), ("red", 0.04)]},
+    "armband": {"base": "red", "noise": [("rust", 0.2)]},
+    "knit_rust": {"base": "rust", "noise": [("wood_dark", 0.2)], "pattern": "knit", "knit": "wood_dark"},
+    "skull_bone": {"base": "bone", "noise": [("concrete", 0.2)]},
+    "rubber": {"base": "black", "noise": [("iron_dark", 0.3)]},
+    "visor": {"base": "steel", "noise": [("steel_light", 0.12), ("iron", 0.1)]},
+    "helmet_heavy": {"base": "olive_dark", "noise": [("iron_dark", 0.15), ("rust", 0.04)]},
+    "helmet_heavy_black": {"base": "iron_dark", "noise": [("black", 0.15), ("rust", 0.04)]},
+    "heavy_black": {"base": "iron_dark", "noise": [("black", 0.15)], "pattern": "weave", "weave": "black"},
+    "heavy_olive": {"base": "olive_dark", "noise": [("olive", 0.1)], "pattern": "weave", "weave": "black"},
+    "canvas_black": {"base": "black", "noise": [("iron_dark", 0.2)], "pattern": "weave", "weave": "iron_dark"},
 }
 
 # ---------------------------------------------------------------- body layout (meters, Blender axes)
@@ -299,7 +314,7 @@ def legs(b, pants, boots):
 
 
 def tops(b, options):
-    """options: {option: (skin, extras)}. extras: 'hood', 'collar'."""
+    """options: {option: (skin, extras)}. extras: 'hood', 'collar', 'armband' (red band on the left arm)."""
     for option, (skin, extras) in options.items():
         p = b.part()
         p.box((-0.38, -0.22, 0.58), (0.38, 0.22, 1.36), skin)
@@ -312,6 +327,8 @@ def tops(b, options):
             p.box((-0.25, -0.31, 1.3), (0.25, -0.2, 1.52), skin)
         if "collar" in extras:
             p.box((-0.27, -0.22, 1.36), (0.27, 0.12, 1.48), skin)
+        if "armband" in extras:
+            p.box((-0.575, -0.105, 1.17), (-0.365, 0.105, 1.25), "armband")
         b.finish(p, "Top__" + option)
 
 
@@ -324,9 +341,27 @@ def gloves(b, options):
 
 
 def heads(b, options):
-    """options: {option: (skin, hair, extras)}. extras: 'beard', 'balaclava' (skin = knit, hair = eye band skin)."""
+    """options: {option: (skin, hair, extras)}. extras: 'beard', 'balaclava' (skin = knit, hair = eye band skin),
+    'skull' (painted skull mask, hair = mask skin), 'gasmask' (hair = filter canister skin)."""
     for option, (skin, hair, extras) in options.items():
         p = b.part().box((-0.26, -0.26, 1.40), (0.26, 0.26, 1.92), skin)
+        if "skull" in extras:
+            p.box((-0.22, 0.26, 1.44), (0.22, 0.28, 1.86), hair)
+            for sx in (-1, 1):
+                p.box((sx * 0.17, 0.28, 1.65), (sx * 0.05, 0.29, 1.76), "eye")  # eye sockets
+            p.box((-0.025, 0.28, 1.58), (0.025, 0.29, 1.63), "eye")  # nose
+            p.box((-0.14, 0.28, 1.5), (0.14, 0.29, 1.52), "eye")  # teeth
+            for tx in (-0.09, -0.03, 0.03, 0.09):
+                p.box((tx - 0.008, 0.28, 1.46), (tx + 0.008, 0.29, 1.56), "eye")
+            b.finish(p, "Head__" + option)
+            continue
+        if "gasmask" in extras:
+            p.box((-0.21, 0.26, 1.44), (0.21, 0.3, 1.82), "rubber")
+            for sx in (-1, 1):
+                p.box((sx * 0.17, 0.3, 1.65), (sx * 0.05, 0.312, 1.77), "lens")
+            p.box((-0.07, 0.3, 1.44), (0.07, 0.42, 1.57), hair)  # filter canister
+            b.finish(p, "Head__" + option)
+            continue
         if "balaclava" in extras:
             p.box((-0.19, 0.26, 1.64), (0.19, 0.272, 1.75), hair)  # eye opening
             front = 0.272
@@ -360,6 +395,16 @@ def gun(b, kind):
         p.box((x0 + 0.005, 0.14, 1.12), (x1 - 0.005, 0.30, 1.26), "gun_wood")  # stock
         p.box((GUN_X - 0.025, 0.40, 1.04), (GUN_X + 0.025, 0.46, 1.18), "gun_wood")  # grip
         p.beam((GUN_X, 0.55, 1.19), (GUN_X, 0.62, 0.99), 0.06, 0.08, "mag_rust")  # curved mag
+    elif kind == "rpk":
+        p.box((x0, 0.28, 1.18), (x1, 0.62, 1.30), "gun_black")  # receiver
+        p.box((x0 - 0.01, 0.62, 1.18), (x1 + 0.01, 0.80, 1.29), "gun_black")  # polymer handguard
+        p.box((GUN_X - 0.02, 0.80, 1.24), (GUN_X + 0.02, 1.0, 1.28), "gun_black")  # long barrel
+        p.box((GUN_X - 0.015, 0.94, 1.28), (GUN_X + 0.015, 0.97, 1.32), "gun_black")  # front sight
+        p.box((GUN_X - 0.03, 0.82, 1.19), (GUN_X + 0.03, 0.98, 1.22), "gun_black")  # folded bipod
+        p.box((x0 + 0.005, 0.12, 1.12), (x1 - 0.005, 0.30, 1.26), "gun_black")  # stock
+        p.box((GUN_X - 0.025, 0.40, 1.04), (GUN_X + 0.025, 0.46, 1.18), "gun_black")  # grip
+        p.box((GUN_X - 0.07, 0.48, 0.96), (GUN_X + 0.07, 0.66, 1.18), "gun_black")  # drum mag
+        p.box((GUN_X - 0.075, 0.53, 1.02), (GUN_X + 0.075, 0.61, 1.12), "mag_rust")  # drum face
     else:  # m4
         p.box((x0 + 0.005, 0.30, 1.18), (x1 - 0.005, 0.58, 1.30), "gun_black")  # receiver
         p.box((x0, 0.58, 1.19), (x1, 0.86, 1.29), "gun_rail")  # railed handguard
@@ -489,6 +534,61 @@ def build_pmc(b):
     gun(b, "m4")
 
 
+def build_raider(b):
+    """Raiders: the tougher AI faction. Dark gear, heavy armor, rust-red armband, masks; reads as neither scav nor PMC."""
+    pads = ("pads",)
+    legs(b, {
+        "black": ("raider_black", pads),
+        "urban": ("urban", pads + ("pockets",)),
+        "olive": ("shirt_green", pads),
+    }, {"black": "boot_black", "brown": "boot_brown"})
+    band = ("armband",)
+    tops(b, {
+        "black": ("raider_black", band + ("collar",)),
+        "urban": ("urban", band),
+        "rust": ("rust_jacket", band + ("collar",)),
+        "hoodie_black": ("raider_black", band + ("hood",)),
+    })
+    gloves(b, {"black": "black", "brown": "glove_brown"})
+    heads(b, {
+        "skull": ("knit_black", "skull_bone", ("skull",)),
+        "gasmask": ("knit_black", "helmet_heavy", ("gasmask",)),
+        "balaclava_black": ("knit_black", "skin_pale", ("balaclava",)),
+        "balaclava_rust": ("knit_rust", "skin_tan", ("balaclava",)),
+    })
+    for option, skin in (("altyn", "helmet_heavy"), ("altyn_black", "helmet_heavy_black")):
+        p = b.part().box((-0.31, -0.31, 1.82), (0.31, 0.31, 2.05), skin)  # heavy dome
+        p.box((-0.32, -0.32, 1.6), (0.32, 0.2, 1.84), skin)  # sides and back, down past the ears
+        p.box((-0.26, 0.3, 1.6), (0.26, 0.34, 1.84), "visor")  # armored visor
+        p.box((-0.2, 0.34, 1.7), (0.2, 0.345, 1.74), "eye")  # vision slit
+        b.finish(p, "Hat__" + option)
+    b.finish(b.part().box((-0.3, -0.32, 1.5), (0.3, 0.24, 2.0), "raider_black"), "Hat__hood")
+    p = b.part().box((-0.275, -0.28, 1.84), (0.275, 0.27, 1.97), "armband")
+    p.box((-0.06, -0.32, 1.82), (0.06, -0.28, 1.9), "armband")  # knot
+    b.finish(p, "Hat__bandana")
+    b.empty("Hat__none")
+    for option, skin in (("heavy_black", "heavy_black"), ("heavy_olive", "heavy_olive")):
+        p = b.part().box((-0.36, -0.28, 0.84), (0.36, 0.28, 1.36), skin)
+        for sx in (-1, 1):
+            p.box((sx * 0.355, -0.12, 1.22), (sx * 0.6, 0.12, 1.4), skin)  # shoulder armor
+        p.box((-0.3, -0.27, 1.34), (0.3, 0.18, 1.44), skin)  # neck guard
+        for cx in (-0.2, 0.0, 0.2):
+            p.box((cx - 0.08, 0.28, 0.86), (cx + 0.08, 0.35, 1.06), skin)  # mag pouches
+        p.box((-0.16, 0.22, 0.5), (0.16, 0.27, 0.72), skin)  # groin flap
+        p.box((-0.39, -0.23, 0.58), (0.39, 0.23, 0.68), skin)  # belt
+        b.finish(p, "Vest__" + option)
+    p = b.part().box((-0.32, 0.22, 0.92), (0.32, 0.27, 1.18), "canvas_black")
+    for cx in (-0.2, 0.0, 0.2):
+        p.box((cx - 0.08, 0.27, 0.94), (cx + 0.08, 0.34, 1.14), "canvas_black")
+    for sx in (-1, 1):
+        x0, x1 = sx * 0.135, sx * 0.225
+        p.box((x0, 0.22, 1.18), (x1, 0.25, 1.39), "canvas_black")
+        p.box((x0, -0.23, 1.36), (x1, 0.25, 1.39), "canvas_black")
+        p.box((x0, -0.25, 0.92), (x1, -0.22, 1.39), "canvas_black")
+    b.finish(p, "Vest__rig_black")
+    gun(b, "rpk")
+
+
 # ---------------------------------------------------------------- setup, preview, export
 
 def get_collection(name):
@@ -578,8 +678,9 @@ def show_outfit(coll, seed):
 
 
 def main():
-    if CHARACTER not in ("scav", "pmc"):
-        raise ValueError("CHARACTER must be 'scav' or 'pmc'")
+    builders = {"scav": build_scav, "pmc": build_pmc, "raider": build_raider}
+    if CHARACTER not in builders:
+        raise ValueError("CHARACTER must be one of %s" % ", ".join(builders))
     scene = bpy.context.scene
     scene.unit_settings.system = "METRIC"
     scene.unit_settings.scale_length = 1.0
@@ -589,7 +690,7 @@ def main():
     atlas = Atlas()
     image, paint = get_texture(atlas.paint)
     b = Builder(coll, make_material(CHARACTER + "_mat", image), atlas)
-    (build_scav if CHARACTER == "scav" else build_pmc)(b)
+    builders[CHARACTER](b)
     if paint is not None:
         paint()
 

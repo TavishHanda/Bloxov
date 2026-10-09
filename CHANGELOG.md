@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.9 (Raider models)
+- **Raiders have their own look** instead of a red-tinted PMC: dark gear with a red armband, heavy armor with
+  shoulder plates and a groin flap, skull masks, gas masks, balaclavas, visored heavy helmets, hoods or red bandanas,
+  and an RPK with a drum mag. Easy to tell apart from scavs (ragtag) and players (PMC gear) at a glance
+- Random outfits like scavs (2,880 combinations), and the same outfit for everyone online
+- The PMC model is now only used for players
+
 ## 0.7.8 (multiplayer: everyone sees the same AI)
 - **Scavs and Raiders are back in online raids, and everyone sees the same ones.** They run on the server (each
   raid has its own), with the same behavior as solo: patrols, spotting, hearing, cover, healing, Raider duos, spawn

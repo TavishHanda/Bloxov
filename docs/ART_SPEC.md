@@ -13,7 +13,8 @@ best made while doing the first test asset (a crate).
 |---|---|---|
 | Player | 0.8 wide, 1.8 tall | Eyes at 1.6 (1.0 crouched). Capsule radius 0.4 |
 | Scav | 0.8 × ~2.1 × 0.6 | Body to 1.35, head 1.4–1.95, helmet to ~2.1. Head hitbox is 0.6 × 0.7 × 0.6 at 1.71 |
-| PMC | same as Scav | Same hitboxes and rig as the scav. For real players (multiplayer). The AI **Raiders** reuse this model with a red-brown tint (`tint` on the model in `scenes/raider.tscn`) until they get their own |
+| PMC | same as Scav | Same hitboxes and rig as the scav. For real players (multiplayer) only |
+| Raider | same as Scav | The tougher AI faction (0.7.9 model): dark gear, red armband, heavy armor, masks |
 | Doorway | 2.0 wide, full wall height | Gap in the front wall |
 | Walls | 0.5 thick | |
 | Buildings | 3.5–4.0 tall (bunker 2.5) | Gas station 10×8, grocery 12×10, police 10×10, bunker 8×8 |
@@ -79,8 +80,8 @@ Voxel/blocky art is naturally cheap; these limits are generous on purpose.
 - Characters need the head and body as **separate meshes or bones** so the head can be the headshot zone.
 
 ### Characters and outfits
-Built by `art_source/scripts/make_character.py` (`CHARACTER = "scav"` or `"pmc"`, sources `art_source/scav.blend`
-and `pmc.blend`, exports `assets/models/characters/<name>.glb`). The game relies on these names:
+Built by `art_source/scripts/make_character.py` (`CHARACTER = "scav"`, `"pmc"` or `"raider"`, sources
+`art_source/<name>.blend`, exports `assets/models/characters/<name>.glb`). The game relies on these names:
 - `LegL` / `LegR`: empties at the hips (0.19 m out, 0.6 m up). The walk animation swings them; pants and boots are children.
 - `Gun` with a `Muzzle` empty at the barrel tip: shots and the muzzle flash come from there.
 - Outfit parts are named `Slot__option` (`Hat__ushanka`, `Top__tracksuit_blue`), with `__L`/`__R` on the two

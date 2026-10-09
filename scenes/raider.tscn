@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/scav.gd" id="1_scav"]
 [ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
-[ext_resource type="PackedScene" path="res://assets/models/characters/pmc.glb" id="3_model"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/raider.glb" id="3_model"]
 [ext_resource type="Script" path="res://scripts/pixel_model.gd" id="4_pixel"]
 
 [sub_resource type="BoxShape3D" id="BodyBox"]
@@ -66,7 +66,6 @@ damage_multiplier = 0.8
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")
-tint = Color(0.85, 0.5, 0.45, 1)
 
 [node name="MuzzleFlash" type="Node3D" parent="."]
 
