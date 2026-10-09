@@ -78,9 +78,10 @@ func _ready() -> void:
 		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		tag.no_depth_test = true
 		tag.fixed_size = true
-		tag.pixel_size = 0.0015
+		tag.pixel_size = 0.0008
+		tag.font_size = 24
 		tag.modulate = Color(0.55, 1.0, 0.55)
-		tag.outline_size = 8
+		tag.outline_size = 6
 		tag.position.y = 2.25
 		add_child(tag)
 

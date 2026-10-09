@@ -2,6 +2,12 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.12 (hideout fixes, owner)
+- Hideout messages ("Sold Antique Vase for ...") show in full under the top bar and fade out (they were cut off)
+- The ONLINE button shows where you are with the panel closed: "ONLINE ●" (online), "IN QUEUE (1/2)",
+  "RAID IN 21s"
+- Teammates' name tags are smaller
+
 ## 0.7.11 (no gun when unarmed)
 - Other players' models only show a gun while they're holding one (the character models have a rifle built in;
   separate gun models are planned, see BACKLOG)

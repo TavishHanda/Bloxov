@@ -673,7 +673,9 @@ func _section_hideout() -> void:
 	_check(hideout._version_label.text == "v" + version, "hideout shows the version (%s)" % hideout._version_label.text)
 	hideout.go_online("  ", "Tester")
 	_check(hideout._online_status.text.contains("address") and not Network.main.is_online(), "going online needs a server address")
-	_check(hideout._online_panel != null and not hideout._online_box.visible, "the online panel starts offline")
+	_check(hideout._online_panel != null and not hideout._online_box.visible and hideout.online_status() == "ONLINE", "the online panel starts offline")
+	hideout._message("Sold Antique Vase for $1,200,000 and some more words so the message is long")
+	_check(not hideout._message_label.clip_text and hideout._message_label.autowrap_mode != TextServer.AUTOWRAP_OFF, "long hideout messages aren't cut off")
 	var money := Profile.money
 	_check(hideout.buy("bandage", 1) and Profile.money == money - hideout.buy_price("bandage", 1) and Profile.stash.count_of("bandage") >= 1,
 		"buy a bandage into the stash")

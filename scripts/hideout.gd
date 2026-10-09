@@ -19,7 +19,10 @@ var screen: LootUI
 var _money_label: Label
 var _version_label: Label
 var _stats_label: Label
+## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
 var _message_label: Label
+var _message_tween: Tween
+var _online_button: Button
 var _free_kit_button: Button
 var _online_panel: PanelContainer
 var _offline_box: VBoxContainer
@@ -193,8 +196,15 @@ func _refresh() -> void:
 
 
 func _message(text: String) -> void:
-	if _message_label != null:
-		_message_label.text = text
+	if _message_label == null:
+		return
+	_message_label.text = text
+	_message_label.modulate.a = 1.0
+	if _message_tween != null:
+		_message_tween.kill()
+	_message_tween = create_tween()
+	_message_tween.tween_interval(3.5)
+	_message_tween.tween_property(_message_label, "modulate:a", 0.0, 0.6)
 
 
 func _build_top_bar() -> void:
@@ -227,11 +237,21 @@ func _build_top_bar() -> void:
 	_stats_label = Label.new()
 	_stats_label.modulate = Color(1, 1, 1, 0.7)
 	row.add_child(_stats_label)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
 	_message_label = Label.new()
-	_message_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_message_label.clip_text = true
+	_message_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_message_label.position = Vector2(-400, 54)
+	_message_label.custom_minimum_size = Vector2(800, 0)
+	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_message_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_message_label.add_theme_font_size_override("font_size", 18)
 	_message_label.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
-	row.add_child(_message_label)
+	_message_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_message_label.add_theme_constant_override("outline_size", 6)
+	add_child(_message_label)
 	_free_kit_button = Button.new()
 	_free_kit_button.text = "Free kit"
 	_free_kit_button.tooltip_text = FREE_KIT_HINT
@@ -247,12 +267,12 @@ func _build_top_bar() -> void:
 		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
 		start_raid())
 	row.add_child(raid_button)
-	var online_button := Button.new()
-	online_button.text = "ONLINE"
-	online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
-	online_button.focus_mode = Control.FOCUS_NONE
-	online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
-	row.add_child(online_button)
+	_online_button = Button.new()
+	_online_button.text = "ONLINE"
+	_online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
+	_online_button.focus_mode = Control.FOCUS_NONE
+	_online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
+	row.add_child(_online_button)
 
 
 # --- Online --------------------------------------------------------------------------
@@ -281,12 +301,25 @@ func _on_connection_lost() -> void:
 	_refresh_online()
 
 
+## The ONLINE button says where you are, so you know even with the panel closed.
+func online_status() -> String:
+	var net := Network.main
+	if not net.is_client():
+		return "ONLINE"
+	if net.queued and net.queue_countdown >= 0.0:
+		return "RAID IN %ds" % ceili(net.queue_countdown)
+	if net.queued:
+		return "IN QUEUE (%d/%d)" % [net.queue_waiting, Matchmaker.MIN_PLAYERS]
+	return "ONLINE ●"
+
+
 ## Redraws the online panel from what the server last told us.
 func _refresh_online() -> void:
 	if _online_panel == null:
 		return
 	var net := Network.main
 	var online := net.is_client()
+	_online_button.text = online_status()
 	_offline_box.visible = not online
 	_online_box.visible = online
 	_connect_button.disabled = net.is_online() and not online
