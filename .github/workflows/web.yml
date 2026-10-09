@@ -116,27 +116,31 @@ jobs:
           # One machine only: the raid lives in that one server process.
           flyctl deploy --remote-only --ha=false
 
-  # Same game server on Heroku (GitHub Student Pack credit). Skipped until the HEROKU_API_KEY secret exists.
+  # Same game server on Heroku (GitHub Student Pack credit). Skipped until the HEROKU_API_KEY secret exists
+  # AND HEROKU_ON is "true" (owner: switch on only once the student credit shows in Heroku billing).
   heroku:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      HEROKU_ON: "false"
       APP: bloxov-server
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: No Heroku key yet
-        if: env.HEROKU_API_KEY == ''
-        run: echo "::notice::HEROKU_API_KEY isn't set, so the Heroku game server wasn't deployed."
+      - name: Heroku deploy off
+        if: env.HEROKU_API_KEY == '' || env.HEROKU_ON != 'true'
+        run: echo "::notice::Heroku deploy is off (needs the HEROKU_API_KEY secret and HEROKU_ON=true)."
       - name: Deploy the game server to Heroku
-        if: env.HEROKU_API_KEY != ''
+        if: env.HEROKU_API_KEY != '' && env.HEROKU_ON == 'true'
         run: |
           api() { curl -fsS -H "Authorization: Bearer $HEROKU_API_KEY" -H "Accept: application/vnd.heroku+json; version=3" -H "Content-Type: application/json" "$@"; }
           # First deploy: create the app as a Docker ("container") app.
           api "https://api.heroku.com/apps/$APP" > /dev/null 2>&1 || api -X POST https://api.heroku.com/apps -d "{\"name\":\"$APP\",\"stack\":\"container\"}"
+          # An app made in the dashboard starts on the buildpack stack; this one builds from the Dockerfile.
+          api -X PATCH "https://api.heroku.com/apps/$APP" -d '{"build_stack":"container"}' > /dev/null
           git push --force "https://heroku:$HEROKU_API_KEY@git.heroku.com/$APP.git" HEAD:refs/heads/main
           # One always-on server (Basic): the raid lives in that one process, so never more than one.
           api -X PATCH "https://api.heroku.com/apps/$APP/formation/web" -d '{"quantity":1,"size":"basic"}'
