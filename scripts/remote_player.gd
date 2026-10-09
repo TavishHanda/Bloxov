@@ -18,6 +18,9 @@ const LEAN_ANGLE := 0.21
 const CROUCH_SCALE := 0.67
 const BODY_HEIGHT := 1.35
 const HEAD_HEIGHT := 1.71
+## The head tilts around the neck (just below the head box). Its parts are the model's Head/Hat/Eyes/Mask nodes.
+const NECK_HEIGHT := 1.38
+const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
 
 @onready var model: Node3D = $Model
 @onready var gun_model: Node3D = $Model/Gun
@@ -39,6 +42,8 @@ var _crouch := 0.0
 var _lean := 0.0
 var _down := 0.0
 var _gun_rest: Vector3
+## Pivot at the neck that the head parts are moved under, so looking up and down tilts the head.
+var head_pivot: Node3D
 
 
 ## What other players need to draw us.
@@ -59,6 +64,13 @@ static func capture(player: Player) -> Array:
 
 func _ready() -> void:
 	_gun_rest = gun_model.position
+	head_pivot = Node3D.new()
+	head_pivot.name = "HeadPivot"
+	head_pivot.position.y = NECK_HEIGHT
+	model.add_child(head_pivot)
+	for part in model.get_children():
+		if HEAD_PARTS.any(func(prefix: String) -> bool: return part.name.begins_with(prefix)):
+			part.reparent(head_pivot)
 	# Each body gets its own shapes so crouching one doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
 	if teammate:
@@ -124,7 +136,8 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	model.rotation.z = -_lean * LEAN_ANGLE
 	# Negative X tips it forward (sprinting), positive backward (lying on its back when dead).
 	model.rotation.x = lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, 1.5, _down)
-	gun_model.rotation.x = pitch
+	# Looking up and down tilts the head (owner: the head, not the gun), limited so it stays on the shoulders.
+	head_pivot.rotation.x = clampf(pitch, -0.7, 0.7)
 	gun_model.position = _gun_rest + (Vector3(0, 0.12, 0.08) if flags & FLAG_AIM else Vector3.ZERO)
 	if speed > 0.3 and _down < 0.5:
 		_walk_time += delta * speed * 2.5

@@ -878,6 +878,10 @@ func _section_net() -> void:
 		body.update_view(10.05, 0.016)
 	_check(body.model.scale.y < 0.7 and body.head_shape.position.y < 1.2 and body.head_shape.position.x > 0.2,
 		"a crouching, leaning player looks it (and their head hitbox moves with it)")
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.5, 0.0, 0], 10.06)
+	body.update_view(10.06, 0.016)
+	_check(is_equal_approx(body.head_pivot.rotation.x, 0.5) and body.head_pivot.get_child_count() >= 3 and body.gun_model.rotation.x == 0.0,
+		"looking up tilts their head, not their gun (owner)")
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD], 10.1)
 	for i in 60:
 		body.update_view(10.1, 0.016)

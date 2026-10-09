@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.6 (other players' heads look around)
+- Other players' **heads** now tilt up and down with where they look; their gun stays put (owner: it was the gun
+  that moved)
+
 ## 0.7.5 (Heroku server address)
 - ONLINE now connects to the game server on Heroku (`bloxov-server-0f9c9a343ceb.herokuapp.com`) by default
 
