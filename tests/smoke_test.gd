@@ -1467,6 +1467,11 @@ func _section_old_bloxov() -> void:
 		"Old Bloxov: 3 extracts and 8 player spawns")
 	_check(map.has_node("KeyDoors/BunkerDoor") and map.has_node("KeyDoors/BankVaultDoor"),
 		"key door placeholders at the bunker and the bank vault (owner: keys come in the Items update)")
+	var minimap: Dictionary = map.get_meta("minimap", {})
+	var names: Array = minimap.get("labels", []).map(func(l: Array) -> String: return l[0])
+	_check(minimap.get("size", 0.0) == 350.0 and minimap.get("buildings", PackedFloat32Array()).size() >= 4 * 30
+		and names.has("BANK") and names.has("TOWN HALL") and minimap.get("roads", []).size() >= 5,
+		"the map (M) has Old Bloxov's buildings, roads and place names (%d names)" % names.size())
 	var spots: Array[Vector3] = []
 	for node in map.get_node("PlayerSpawns").get_children() + map.get_node("Extracts").get_children():
 		spots.append((node as Node3D).position)
@@ -1562,19 +1567,23 @@ func _section_hud() -> void:
 	for item in ["WASD move", "Right-click aim", "R reload", "Q/E lean", "F search/loot", "Find loot, then extract."]:
 		kept = kept and flowed.contains(item)
 	_check(kept and flowed.count("\n") >= 3, "the pause menu's controls list re-flows without losing a control")
-	# Timer / extract list (0.8.7): the timer reads the raid clock; O hides the list and brings it back.
+	# Timer (0.8.7): the timer reads the raid clock. Map (0.10.2): M opens and closes it, it shows the open extracts.
 	var hud_node := main.get_node("HUD")
 	var old_time := raid.time_left
 	raid.time_left = 75.2
 	_check(hud_node.timer_hud.text() == "01:16", "the raid timer shows 01:16 (%s)" % hud_node.timer_hud.text())
 	raid.time_left = old_time
-	var extracts: ExtractHUD = hud_node.extract_hud
-	var was_showing := extracts.is_list_showing()
-	extracts.toggle_list()
-	_check(extracts.is_list_showing() != was_showing, "O toggles the extract list")
-	extracts.toggle_list()
-	_check(extracts.open_extracts().size() >= 1, "the extract list has the open extracts (%d)" % extracts.open_extracts().size())
-
+	var map_hud: MapHUD = hud_node.map_hud
+	var press := InputEventAction.new()
+	press.action = "map"
+	press.pressed = true
+	hud_node._input(press)
+	_check(map_hud.visible, "M opens the map (loot screen open: %s)" % hud_node.loot_ui.visible)
+	_check(map_hud.open_extracts().size() == raid.open_extract_count, "the map shows the open extracts (%d)" % map_hud.open_extracts().size())
+	_check(map_hud.get_viewport_rect().encloses(map_hud.map_rect()), "the map fits on screen")
+	await _frames(2)
+	hud_node._input(press)
+	_check(not map_hud.visible, "M closes the map")
 
 func _section_owner_rules() -> void:
 	# Damage numbers use the damage actually dealt: an AK body shot on an armored Raider shows 22, not 28.

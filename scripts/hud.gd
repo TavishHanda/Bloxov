@@ -1,5 +1,5 @@
 extends CanvasLayer
-## Everything on screen: crosshair, hit markers, health, ammo, raid timer, loot prompts, extract info,
+## Everything on screen: crosshair, hit markers, health, ammo, raid timer, loot prompts, extract status, the map (M),
 ## the pause menu, the backpack/loot screen and the end-of-raid screen.
 ## The game pauses only while the pause menu is open (solo only: an online raid keeps going, like any online game).
 ## This node keeps running while paused.
@@ -33,6 +33,7 @@ var crosshair: CrosshairHUD
 var timer_hud: TimerHUD
 var prompt_hud: PromptHUD
 var extract_hud: ExtractHUD
+var map_hud: MapHUD
 var world_labels: WorldLabelsHUD
 var downed_hud: DownedHUD
 var spectator: Spectator
@@ -77,7 +78,9 @@ func _ready() -> void:
 	add_child(downed_hud)
 	damage_indicator.add_child(DamageArrowHUD.new())
 	world_labels = WorldLabelsHUD.new()
-	add_child(world_labels)  # (after the extract tags: damage numbers go on top of them)
+	add_child(world_labels)
+	map_hud = MapHUD.new(player, raid)
+	add_child(map_hud)
 	loot_ui = LootUI.new(player)
 	add_child(loot_ui)
 	spectator = Spectator.new()
@@ -107,8 +110,8 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact") and loot_ui.visible:
 		loot_ui.close()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("extracts"):
-		extract_hud.toggle_list()
+	elif event.is_action_pressed("map") and not loot_ui.visible and not end_screen.visible:
+		map_hud.toggle()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -138,6 +141,8 @@ func _process(delta: float) -> void:
 	# Spectating a teammate: their name tag stays.
 	world_labels.visible = world_labels.visible or spectator.visible
 	timer_hud.visible = not end_screen.visible
+	if map_hud.visible and (loot_ui.visible or end_screen.visible or spectator.visible):
+		map_hud.visible = false
 
 	if not get_tree().paused:
 		# Red flash when hit; a faint red edge stays while health is low.

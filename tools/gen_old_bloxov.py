@@ -338,6 +338,10 @@ def ground(holes):
 
 roads = []        # (points, width) of every road, for the overlap check
 footprints = []   # (name, x0, z0, x1, z1) of every building
+labels = []       # (text, x, z, big) for the in-raid map (M)
+water = []        # (points, width) of water, for the map
+woods = []        # (x, z, radius) of tree clusters, for the map
+yards = []        # (x0, z0, x1, z1) of yards, fields and paving, for the map
 areas = []        # (name, x0, z0, x1, z1) of yards (junkyard, graveyard): kept off roads, buildings may stand inside
 
 
@@ -516,6 +520,7 @@ def main():
     # creek (shallow: walkable) and the rail bridge over it
     creek = bezier((0, 212), (60, 250), (40, 300), (110, 350), n=48)
     strip(creek, 5, "water", y=0.01, h=0.03)
+    water.append((creek, 5.0))
 
     # --- railway (west to east at y 210) with sidings to the depot
     RY = 210.0
@@ -769,6 +774,7 @@ def main():
     clear = [(camp, 8.0)] + [(st, 6.0) for st in stands]
     for (cx, cz, r) in [(20, 240, 9), (42, 258, 11), (24, 288, 10), (58, 300, 12), (30, 322, 9), (85, 270, 10),
                         (72, 332, 9), (102, 312, 8), (110, 250, 7), (124, 332, 8)]:
+        woods.append((cx, cz, r))
         for _ in range(int(r * 0.9)):
             a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
             tx, tz = cx + math.cos(a) * d, cz + math.sin(a) * d
@@ -781,6 +787,7 @@ def main():
             bush(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
     for (cx, cz, r) in [(280, 120, 9), (300, 130, 11), (322, 118, 9), (338, 140, 8), (288, 150, 10), (312, 158, 11),
                         (334, 176, 9), (268, 142, 7), (300, 180, 8)]:
+        woods.append((cx, cz, r))
         for _ in range(int(r * 0.9)):
             a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, r)
             tree(cx + math.cos(a) * d, cz + math.sin(a) * d, rng)
@@ -826,9 +833,36 @@ def main():
     power_line(county, 1, 8)
     power_line(old_road, 1, 8)
 
+    map_labels()
     check_roads()
     write_scene()
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
+
+
+# Names on the in-raid map (M): buildings by their footprint, plus spots and areas.
+MAP_NAMES = {"TownHall": "TOWN HALL", "Bank": "BANK", "Offices": "OFFICES", "GunStore": "GUN STORE",
+             "Pharmacy": "PHARMACY", "Grocery": "GROCERY", "Shops": "SHOPS", "GasStationTown": "GAS STATION",
+             "Police": "POLICE", "School": "SCHOOL", "Church": "CHURCH", "Barn": "BARN", "Farmhouse": "FARMHOUSE",
+             "TrainStation": "TRAIN STATION", "Depot": "DEPOT", "GasStation": "OLD GAS STATION", "Diner": "DINER",
+             "Garage": "GARAGE", "Cabin1": "CABIN", "Cabin2": "CABIN", "Cabin3": "CABIN"}
+
+
+# Where a name sits instead of its building's middle (so neighbours' names don't overlap): "above"/"below" it.
+MAP_NAME_SIDE = {"GunStore": "above", "Pharmacy": "below", "Diner": "above", "GasStation": "below", "Garage": "above"}
+
+
+def map_labels():
+    for name, x0, z0, x1, z1 in footprints:
+        if name in MAP_NAMES:
+            side = MAP_NAME_SIDE.get(name)
+            z = z0 - 3 if side == "above" else z1 + 3 if side == "below" else (z0 + z1) / 2
+            labels.append((MAP_NAMES[name], (x0 + x1) / 2, z, 0))
+    labels.extend([("JUNKYARD", 322, 278, 0), ("CHECKPOINT", 263, 276, 0), ("CAMPSITE", 66, 262, 0),
+                   ("HILL HOUSES", 66, 12, 0), ("GRAVEYARD", 189, 60, 0),
+                   ("OLD TOWN", 30, 104, 1), ("FARM", 312, 72, 1), ("WOODS", 72, 326, 1), ("WOODS", 300, 140, 1), ("RAILWAY", 120, 204, 1),
+                   ("OLD HOUSES", 220, 300, 1)])
+    yards.extend([(245, 8, 343, 100), (88, 108, 124, 138), (298, 262, 346, 294), (176, 30, 202, 56),
+                  (154, 62, 168, 80), (15, 148, 45, 166)])
 
 
 def _seg_rect_gap(a, b, rect):
@@ -877,6 +911,25 @@ def xform(x, y, z, yaw=0.0):
             f"{fmt(gx(x))}, {fmt(y)}, {fmt(gz(z))})")
 
 
+def minimap_meta():
+    """What the in-raid map (M) draws, in map metres (x east, z south from the top-left corner)."""
+    def floats(values):
+        return "PackedFloat32Array(" + ", ".join(fmt(v) for v in values) + ")"
+
+    def lines(items):
+        return "[" + ", ".join("PackedVector2Array(" + ", ".join(f"{fmt(x)}, {fmt(z)}" for x, z in pts) + ")"
+                               for pts, _ in items) + "]"
+    text = ", ".join(f'["{t}", {fmt(x)}, {fmt(z)}, {big}]' for t, x, z, big in labels)
+    return ("metadata/minimap = {" + f'"size": {fmt(M)}, "offset": {fmt(-M / 2)}, '
+            + f'"buildings": {floats([v for f in footprints for v in f[1:]])}, '
+            + f'"yards": {floats([v for y in yards for v in y])}, '
+            + f'"woods": {floats([v for w in woods for v in w])}, '
+            + f'"roads": {lines(roads)}, "road_widths": {floats([w for _, w in roads])}, '
+            + f'"water": {lines(water)}, "water_widths": {floats([w for _, w in water])}, '
+            + '"rail": PackedVector2Array(0, 210, 350, 210), '
+            + f'"labels": [{text}]' + "}")
+
+
 def write_scene():
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn"}
@@ -893,6 +946,7 @@ def write_scene():
             # AI numbers for this map (owner, 0.10.0: harder than seems right, for testing; Scavs 2.0 retunes)
             'metadata/spawner = {"initial_count": 12, "max_alive": 15, "scav_budget": 32, "raider_budget": 8, '
             '"raider_times": PackedFloat32Array(0, 0, 0, 120, 210, 300, 390, 480), "min_distance_from_player": 40.0}',
+            minimap_meta(),
             "",
             '[node name="Level" type="Node3D" parent="."]', "",
             '[node name="Blocks" type="StaticBody3D" parent="Level"]',

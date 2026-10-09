@@ -51,7 +51,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   `scav.gd` (the whole AI; `puppet` mode for online copies; Raiders are `scenes/raider.tscn` = same script,
   different exports).
 - **UI:** `hud.gd` + widgets (`health_hud`, `ammo_hud`, `hotbar_hud`, `crosshair_hud`, `timer_hud`, `prompt_hud`,
-  `extract_hud`, `damage_arrow_hud`, `world_labels_hud`), `hud_style.gd` (palette/fonts/plates/icons),
+  `extract_hud`, `map_hud` (M map, 0.10.2), `damage_arrow_hud`, `world_labels_hud`), `hud_style.gd` (palette/fonts/plates/icons),
   `loot_ui.gd` (inventory screen, also used by the hideout), `hideout.gd` (hideout + ONLINE panel),
   `raid_end_screen.gd`, `game_settings.gd`.
 - **Online:** `net.gd` (`Net` autoload, used as `Network.main`; client + server RPCs), `matchmaker.gd` (parties,
