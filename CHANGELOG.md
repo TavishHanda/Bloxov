@@ -2,6 +2,11 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.4 (build fix)
+- Fixes the web build, which stopped deploying at 0.7.2: on a fresh copy of the project (like the build
+  server's), the online code loaded the player code before the game's sounds were imported. 0.7.2 and 0.7.3
+  go live with this
+
 ## 0.7.3 (multiplayer: matchmaking)
 - **ONLINE** in the hideout (was JOIN ONLINE): pick a name and **Go online**. Room codes are gone
 - **Party up:** everyone gets a party code; a friend types it in to join you (duos max). Your party stays

@@ -29,6 +29,8 @@
   `Network.main` (autoload names don't compile in the `-s` test). Offline by default. Server:
   `godot --headless -- --server [--port=9080]`. The `net` test section runs a server + two clients in one process.
   Hosted on Fly.io (`Dockerfile`, `fly.toml`, CI job `server`, needs the `FLY_API_TOKEN` secret): wss://bloxov-server.fly.dev.
+  `net.gd` is an autoload: it must not reference player/gun scripts (directly or via class names), or a fresh
+  import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
   Local Docker works here after starting `dockerd` (container apt has no network; copy the local Godot binary in to test).
 - Collision layers: 1 world, 2 player, 3 enemies (bit value 4), 4 interactables (bit value 8).
 - Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`

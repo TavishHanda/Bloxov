@@ -57,12 +57,6 @@ static func capture(player: Player) -> Array:
 	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
 
 
-## The server only relays states that look like capture()'s (a broken or hostile client can't crash others).
-static func is_valid_state(state: Array) -> bool:
-	return (state.size() == 5 and state[0] is Vector3 and state[1] is float and state[2] is float
-		and state[3] is float and state[4] is int)
-
-
 func _ready() -> void:
 	_gun_rest = gun_model.position
 	# Each body gets its own shapes so crouching one doesn't shrink the others.

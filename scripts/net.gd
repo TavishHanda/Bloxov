@@ -137,6 +137,14 @@ func start_server(port: int) -> Error:
 	return OK
 
 
+## The server only relays states shaped like RemotePlayer.capture()'s: [position, yaw, pitch, lean, flags]
+## (a broken or tampered game can't crash the others). Kept here, not in RemotePlayer: this autoload must not
+## depend on the player scripts, or a fresh project import fails (they preload sounds not imported yet).
+static func is_valid_state(state: Array) -> bool:
+	return (state.size() == 5 and state[0] is Vector3 and state[1] is float and state[2] is float
+		and state[3] is float and state[4] is int)
+
+
 ## Why a player can't come online ("" = they can).
 func join_problem(client_version: String) -> String:
 	if client_version != version():
@@ -199,7 +207,7 @@ func _leave_raid() -> void:
 func _state(state: Array) -> void:
 	var peer := multiplayer.get_remote_sender_id()
 	if (mode == Mode.SERVER and matchmaker.players.has(peer) and matchmaker.players[peer]["raid"] != 0
-			and RemotePlayer.is_valid_state(state)):
+			and is_valid_state(state)):
 		_player_states[peer] = state
 
 

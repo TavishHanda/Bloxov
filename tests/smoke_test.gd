@@ -860,7 +860,7 @@ func _section_net() -> void:
 		return c3.states.has(c1_id) and c3.states[c1_id][0].is_equal_approx(Vector3(4, 0.1, -6)))
 	_check(c3.states.has(c1_id) and c3.states[c1_id] == sent, "Charlie sees Alpha's position, facing, crouch and lean")
 	_check(not c3.states.has(c3.multiplayer.get_unique_id()), "you don't see yourself as another player")
-	_check(not RemotePlayer.is_valid_state([Vector3.ZERO, "hi"]) and RemotePlayer.is_valid_state(RemotePlayer.capture(player)),
+	_check(not Network.is_valid_state([Vector3.ZERO, "hi"]) and Network.is_valid_state(RemotePlayer.capture(player)),
 		"the server only relays well-formed states")
 
 	# The raid shows other players as bodies, drawn smoothly between updates, and removes them when they leave.
