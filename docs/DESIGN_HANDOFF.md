@@ -3,12 +3,16 @@
 The owner runs a separate Claude session, **designer**, for visual/UI design. This file catches it up. The main
 session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (the project rules apply to both).
 
-## What Bloxov looks like today (0.8.3)
+## What Bloxov looks like today (0.8.4)
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
-- **Raid HUD (0.8.3, "Stenciled Field Kit"):** a first pass from a design brief, built in code. The owner wants the
-  designer to **redo it with more creativity and personality**. Current pieces:
+- **Raid HUD: being redone as "Ammo Can"** (owner picked it from 3 pitches, in the gunmetal color and the compact
+  size; 0.8.4 = style + health + ammo, next: hotbar, then timer/prompts/extract list/crosshair, then a light
+  inventory pass). Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
+  tags, hazard stripes (`draw_hazard`), masking-tape labels (`draw_tape`); fonts Jersey 10 (numbers), Silkscreen
+  Bold (tiny labels, `draw_label`), Pixelify Sans (tape). Owner: "make sure it looks super nice", not cramped.
+  Pieces (some still from the 0.8.3 "Stenciled Field Kit" pass):
   - `scripts/hud_style.gd` (`HudStyle`): palette consts, the Jersey 10 pixel font (`assets/fonts/`, OFL, loaded
     crisp in code since `.import` files aren't committed), `draw_plate()` (notched plates), `draw_icon()` (pixel
     icons from `#`/`.` rows: rifle, pistol, med cross, knife, grenade, flag), `draw_text()`, `style_label()`.

@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot",
@@ -1242,6 +1242,32 @@ func _section_online_loot() -> void:
 	for n in [server, c1, c2]:
 		n.get_parent().queue_free()
 	await _frames(2)
+
+
+func _section_hud() -> void:
+	# HUD look (0.8.4 "Ammo Can"): its fonts load, a hit knocks health cubes off, a reload shows the tape.
+	_check(HudStyle.font() != null and HudStyle.label_font() != null and HudStyle.tape_font() != null, "the HUD fonts load")
+	var health_widget := HealthHUD.new(player)
+	var ammo_widget := AmmoHUD.new(player)
+	root.add_child(health_widget)
+	root.add_child(ammo_widget)
+	await _frames(2)
+	player.health.heal(player.health.max_health)
+	await _frames(2)
+	var old_multiplier := player.health.damage_multiplier
+	player.health.damage_multiplier = 1.0
+	player.health.take_damage(25)
+	player.health.damage_multiplier = old_multiplier
+	await _frames(2)
+	_check(health_widget._chips.size() == 2, "100 -> 75 HP knocks 2 cubes off the health bar (%d)" % health_widget._chips.size())
+	player.health.heal(player.health.max_health)
+	gun.is_reloading = true  # (a fake long reload: no ammo or sound needed)
+	gun._reload_left = 99.0
+	await _frames(10)
+	_check(ammo_widget._reload_tape > 0.5, "reloading shows the RELOADING tape")
+	gun.is_reloading = false
+	health_widget.queue_free()
+	ammo_widget.queue_free()
 
 
 func _section_owner_rules() -> void:

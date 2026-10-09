@@ -5,6 +5,19 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.4 (HUD "Ammo Can" 1/4: health & ammo, owner)
+- **New HUD look, "Ammo Can":** chunky beveled blocks of gunmetal-painted steel, built like the voxels of the world,
+  with brass, hazard stripes and masking-tape labels as the scavenged details. Two new pixel fonts (Silkscreen for
+  tiny stenciled labels, Pixelify Sans for writing on tape; both OFL). The rest of the HUD already uses the new
+  colors; hotbar, timer and prompts get their full makeover in the next updates
+- **Health:** 10 voxel cubes (green / yellow / red) and the number stamped on a brass tag. A partly lost cube
+  shrinks; getting hit **knocks cubes off** (they flash, pop up and tumble away) and jolts the plate. At 30 or less
+  the tag turns red and pulses. Stamina is a thin bar under the cubes (only while it isn't full), hazard-striped
+  when you're exhausted
+- **Ammo:** the count big on the left; the magazine as a row of brass cartridges with the reserve under it.
+  Yellow when low, red when empty. Reloading refills the cartridges and shows a strip of tape saying RELOADING
+- **The knife looks like a knife** (V on the hotbar, and when unarmed): steel blade, guard and a wooden handle
+
 ## 0.8.3 (HUD redesign: "Stenciled Field Kit", owner; first released as 0.7.15)
 - **New HUD look:** dark gunmetal plates with notched corners and a chunky pixel font (Jersey 10) for numbers,
   matching the inventory screen
