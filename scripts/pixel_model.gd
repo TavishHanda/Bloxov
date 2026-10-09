@@ -6,8 +6,8 @@ extends Node3D
 ## One option per slot is shown at random, the rest are hidden (see art_source/scripts/make_character.py).
 
 @export var randomize_outfit := true
-## Recolors this one character (e.g. Raiders reuse the PMC model in darker gear). Applied as per-instance
-## material overrides, so the shared model file and other characters using it are untouched.
+## Recolors this one character. Currently unused (Raiders have had their own model since 0.7.10). Applied as
+## per-instance material overrides, so the shared model file and other characters using it are untouched.
 @export var tint := Color.WHITE
 
 ## slot -> the option that is showing, e.g. {"Hat": "ushanka", "Top": "tracksuit_blue"}.

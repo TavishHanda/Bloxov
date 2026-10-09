@@ -125,3 +125,49 @@ distance-based aggro loss; spawn budget 20 scavs + 5 Raiders, 15% Raider duos; R
 PMCs = real players (PMC model); **co-op AND PvP**; duos max, 2-6 per raid, 30 s queue countdown, no late joining,
 friendly fire on, downed on 0 HP in a squad (numbers pending), party codes + queue, solo stays (START RAID);
 stash in the browser until accounts; separate gun models later (`GunSocket`, see BACKLOG).
+
+## 8. Art & models (from the Artist session)
+The owner runs a separate **Artist** chat on their PC with Blender (cloud sessions can't read it). Full rules are in
+`docs/ART_SPEC.md`; this is the short version.
+
+**Pipeline (proven):** Blender → `.glb` → Godot. 1 Blender unit = 1 m, origin at bottom-center, front faces Blender
++Y (= Godot −Z). 16 px/m texel density everywhere; only the 24 colours in `art_source/palette.gpl`. Imported models
+get `scripts/pixel_model.gd` (`PixelModel`: nearest filtering, matte materials). Collision never comes from the
+model: each scene has its own boxes. **The Python build scripts are the source of truth**, not hand edits in
+Blender: edit the script, run it, export, push. With `REGENERATE_TEXTURE = False` (default) hand-painted textures
+are kept. Headless: `blender --background art_source/<name>.blend --python art_source/scripts/<script>.py`
+(uses the script's own settings, so set `EXPORT = True` in it first or nothing is exported).
+
+| Model | Game file | Source / script | Size | Notes |
+|---|---|---|---|---|
+| Loot crate | `assets/models/props/crate.glb` | `crate.blend`, `make_crate.py` | 1.1 × 0.5 × 0.6 m (W×H×D) | Military hard case, 288 tris, 64×64 texture. Too low to be cover (deliberate) |
+| Scav | `assets/models/characters/scav.glb` | `scav.blend`, `make_character.py` | ~0.8 wide, ~2.05 tall | Ragtag: tracksuits, jeans, balaclavas, ushankas; AK. 45,360 outfits |
+| PMC | `characters/pmc.glb` | `pmc.blend` | same | Real players only. Modern operator, tan/green; M4 with optic. 69,120 outfits |
+| Raider | `characters/raider.glb` | `raider.blend` | same | AI faction (own model since 0.7.10). Dark gear, red armband, skull/gas masks, visored helmets, RPK. 2,880 outfits |
+
+Sources are in `art_source/`, textures in `art_source/textures/<name>.png`. One `make_character.py` builds all three
+characters (`CHARACTER = "scav" | "pmc" | "raider"`); each `.glb` is 120–155 KB with every outfit option included,
+128×128 texture. Character hitboxes live in the scenes: body 0.8 × 1.35 × 0.6 centred at y 0.675, head
+0.62 × 0.72 × 0.62 at y 1.71.
+
+**Character rig contract (code depends on these names):**
+- `LegL` / `LegR`: empties at the hips (±0.19, 0.6). The walk animation swings them; pants and boots are children.
+- `Gun` at (0.10, 1.12, −0.43) in Godot, with a `Muzzle` empty child at (0.10, 1.26, −1.0); the muzzle flash is
+  moved onto it at runtime.
+- Outfits: parts named `Slot__option` (`__L`/`__R` added on leg parts). An empty `Slot__none` makes "nothing" valid.
+  `PixelModel` shows one random option per slot, or `pick_outfit_seeded()` online so every client sees the same
+  outfit. New options or slots need no code changes.
+
+**Decisions:** military / post-collapse style, not fantasy and not cartoony (the owner rejected the wooden crate,
+then a chunky toy-like one). Each faction reads at a glance: Scavs mismatched civilians, PMCs tan/green kit, Raiders
+dark with red. The crate lid emblem is a spray-painted skull in a 7×6 pixel space.
+
+**Open items:**
+- Guns as separate models (`docs/BACKLOG.md`): replace each character's built-in `Gun` with a `GunSocket` empty, then
+  make `assets/models/guns/ak.glb`, `pistol.glb`, `rpk.glb` (origin at the grip, barrel along −Z, `Muzzle` empty);
+  code attaches the right gun to the socket.
+- Character height vs player capsule: models are ~2.05 m (inherited from the old box Scav), `player.tscn`'s capsule
+  is 1.8 m. Scaling characters to ~1.8 m also changes hitboxes: a gameplay call for the owner.
+- Map and props are the next big art job (M4 vertical slice): buildings, cover, lockers, safes. Same pipeline and
+  reference sizes (`ART_SPEC.md` §1).
+- `art_source/raider.blend` has uncommitted local changes on the owner's PC: check them before rebuilding.
