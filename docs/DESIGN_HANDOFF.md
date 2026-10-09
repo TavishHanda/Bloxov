@@ -3,14 +3,16 @@
 The owner runs a separate Claude session, **designer**, for visual/UI design. This file catches it up. The main
 session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (the project rules apply to both).
 
-## What Bloxov looks like today (0.8.7)
+## What Bloxov looks like today (0.8.8)
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
 - **Raid HUD: being redone as "Ammo Can"** (owner picked it from 3 pitches, in the gunmetal color and the compact
   size). 0.8.4 = style + health + ammo, 0.8.5 = centering (`HudStyle.draw_centered`, measured), 0.8.6 = hotbar,
   0.8.7 = timer (`timer_hud.gd`), [F] prompt (`prompt_hud.gd`), extract list/status (`extract_hud.gd`), hit chevron
-  (`damage_arrow_hud.gd`), hand-drawn key glyphs (`HudStyle.draw_key/draw_keycap`). Next: a light inventory pass. Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
+  (`damage_arrow_hud.gd`), hand-drawn key glyphs (`HudStyle.draw_key/draw_keycap`), 0.8.8 = light inventory pass
+  (`LootUI._panel/_title/_section/style_button`) + extract name tags drawn in 2D by `extract_hud.gd` (Label3D
+  blurred the pixel font). Possible next: hideout top bar/trader, pause menu, end-of-raid screen. Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
   tags, hazard stripes (`draw_hazard`), masking-tape labels (`draw_tape`); fonts Jersey 10 (numbers), Silkscreen
   Bold (tiny labels, `draw_label`), Pixelify Sans (tape). Owner: "make sure it looks super nice", not cramped.
   Pieces (some still from the 0.8.3 "Stenciled Field Kit" pass):

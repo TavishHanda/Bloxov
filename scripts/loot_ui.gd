@@ -684,7 +684,8 @@ func _build_other_column() -> void:
 ## Left column: your character and the equipment slots.
 func _build_equipment_column() -> void:
 	_player_box.add_child(_title("EQUIPMENT"))
-	_value_label = _small("")
+	_value_label = _title("", 20)
+	_value_label.add_theme_color_override("font_color", HudStyle.BRASS)
 	_player_box.add_child(_value_label)
 	_player_box.add_child(_doll)
 	_add_slot(_player_box, "primary", Vector2i(4, 2))
@@ -699,15 +700,15 @@ func _build_equipment_column() -> void:
 ## Middle column: everything you carry: pockets, the secure pocket, and the backpack's grid.
 func _build_carried_column() -> void:
 	_carried_box.add_child(_title("INVENTORY"))
-	_carried_box.add_child(_small(inventory.pockets.title))
+	_carried_box.add_child(_section(inventory.pockets.title))
 	_add_view(_carried_box, inventory.pockets)
-	_carried_box.add_child(_small(inventory.secure.title + " (kept if you die)"))
+	_carried_box.add_child(_section(inventory.secure.title + " (kept if you die)"))
 	_add_view(_carried_box, inventory.secure)
 	if inventory.backpack != null:
-		_carried_box.add_child(_small(inventory.backpack.title))
+		_carried_box.add_child(_section(inventory.backpack.title))
 		_add_view(_carried_box, inventory.backpack)
 	else:
-		_carried_box.add_child(_small("No backpack"))
+		_carried_box.add_child(_section("No backpack"))
 
 
 func _add_slot(box: Container, slot: String, cells: Vector2i) -> void:
@@ -757,10 +758,10 @@ func _build() -> void:
 	# Details: the item under the mouse (name in its rarity color, then its stats), or messages.
 	# Empty until you point at something (owner: no placeholder text); keeps its height so nothing jumps.
 	var info_box := VBoxContainer.new()
-	info_box.custom_minimum_size = Vector2(0, 48)
+	info_box.custom_minimum_size = Vector2(0, 56)
 	info_box.add_theme_constant_override("separation", 0)
 	root.add_child(info_box)
-	_info_label = _title("", 17)
+	_info_label = _title("", 30)
 	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info_box.add_child(_info_label)
 	_info_detail = _small("")
@@ -774,8 +775,9 @@ func _build() -> void:
 	_footer_hint = _small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · Tab/F close · the raid doesn't pause!")
 	footer.add_child(_footer_hint)
 	_close_button = Button.new()
-	_close_button.text = "Close"
+	_close_button.text = "CLOSE"
 	_close_button.focus_mode = Control.FOCUS_NONE
+	style_button(_close_button)
 	_close_button.pressed.connect(close)
 	footer.add_child(_close_button)
 
@@ -825,9 +827,12 @@ func _build_doll() -> SubViewportContainer:
 	return holder
 
 
+## A column: a gunmetal plate (the raid HUD's "Ammo Can" look, 0.8.8) around a margin and a VBox (meta "box").
 func _panel(parent: Control) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(260, 0)
+	panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	panel.draw.connect(func() -> void: HudStyle.draw_plate(panel, Rect2(Vector2.ZERO, panel.size), HudStyle.OUTLINE, HudStyle.FACE, 4.0))
 	parent.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -840,11 +845,41 @@ func _panel(parent: Control) -> PanelContainer:
 	return panel
 
 
-func _title(text: String, font_size := 22) -> Label:
+## Headings and item names: the HUD's pixel number font (Jersey 10) with a hard shadow.
+func _title(text: String, font_size := 30) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", font_size)
+	HudStyle.style_label(label, font_size if font_size % 10 == 0 else 30)
 	return label
+
+
+## A section name over a grid (POCKETS, SECURE POCKET...): pixel caps, dimmed.
+func _section(text: String) -> Label:
+	var label := Label.new()
+	label.text = text.to_upper()
+	HudStyle.style_label(label, 20, HudStyle.INK_DIM)
+	return label
+
+
+## Gives a Button the gunmetal look (lighter when hovered, darker when pressed) with the pixel font.
+static func style_button(button: Button, font_size := 20) -> void:
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = {"normal": HudStyle.FACE, "hover": HudStyle.FACE_HI, "pressed": HudStyle.FACE_DK,
+			"disabled": HudStyle.DEEP, "focus": HudStyle.FACE}[state]
+		box.border_color = Color.BLACK
+		box.set_border_width_all(2)
+		box.border_width_bottom = 4 if state != "pressed" else 2
+		box.content_margin_left = 14
+		box.content_margin_right = 14
+		box.content_margin_top = 4
+		box.content_margin_bottom = 4
+		button.add_theme_stylebox_override(state, box)
+	button.add_theme_font_override("font", HudStyle.font())
+	button.add_theme_font_size_override("font_size", font_size)
+	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(color_name, HudStyle.INK)
+	button.add_theme_color_override("font_disabled_color", HudStyle.INK_DIM)
 
 
 func _small(text: String) -> Label:

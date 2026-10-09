@@ -3,6 +3,8 @@ extends Control
 ## Extract info (0.8.7, "Ammo Can").
 ## - Top-right list of open extracts (a green flag, the name, the distance), sliding in for a few seconds at the
 ##   start of the raid and when you press O (owner rule: not on screen all the time).
+## - A name tag over every open extract in the world (0.8.8): a green flag and the name, drawn crisp in 2D at the
+##   pad's spot, visible through walls (it used to be a Label3D, which blurred the pixel font).
 ## - Above the crosshair while you stand in an extract: "EXTRACTING 3.2" on a green-rimmed plate that fills up,
 ##   or "EXTRACT CLOSED" on a red one with red caution stripes.
 
@@ -65,9 +67,36 @@ func open_extracts() -> Array:
 
 
 func _draw() -> void:
+	_draw_world_tags()
 	if _slide > 0.0:
 		_draw_list()
 	_draw_status()
+
+
+## Height of the name tag above the pad (meters).
+const TAG_HEIGHT := 3.2
+
+
+func _draw_world_tags() -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var f := HudStyle.font()
+	for zone in raid.get_extracts():
+		if not zone.is_open:
+			continue
+		var spot: Vector3 = zone.global_position + Vector3(0, TAG_HEIGHT, 0)
+		if camera.is_position_behind(spot):
+			continue
+		var at := camera.unproject_position(spot).round()
+		var text: String = zone.extract_name
+		var flag := HudStyle.icon_size(HudStyle.FLAG, 2)
+		var width := flag.x + 6.0 + HudStyle.text_width(text, 20) - 1.0
+		var left := roundf(at.x - width * 0.5)
+		HudStyle.draw_icon(self, HudStyle.FLAG, Vector2(left, at.y - flag.y * 0.5).round(), 2, HudStyle.EXTRACT, Color(0, 0, 0, 0.9))
+		var pos := Vector2(left + flag.x + 6.0, HudStyle.centered_baseline(at.y, 20))
+		draw_string_outline(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 4, Color(0, 0, 0, 0.85))
+		draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, HudStyle.EXTRACT)
 
 
 func _draw_list() -> void:

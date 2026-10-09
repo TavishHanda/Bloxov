@@ -10,7 +10,6 @@ signal extracted(zone: ExtractZone)
 
 @onready var pad: MeshInstance3D = $Pad
 @onready var beam: Node3D = $Beam
-@onready var name_label: Label3D = $NameLabel
 
 var is_open := true
 ## Seconds the player has been standing in it.
@@ -23,7 +22,6 @@ static var _closed_material: StandardMaterial3D
 
 func _ready() -> void:
 	add_to_group("extracts")
-	name_label.text = extract_name
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 
@@ -31,7 +29,6 @@ func _ready() -> void:
 func set_open(open: bool) -> void:
 	is_open = open
 	beam.visible = open
-	name_label.visible = open
 	pad.material_override = null if open else _closed_pad_material()
 
 

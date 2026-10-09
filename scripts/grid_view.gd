@@ -4,7 +4,7 @@ extends Control
 
 const CELL := 44
 ## Shared with EquipSlotView: cell background, and the drop highlight when an item can / can't go there.
-const BG_COLOR := Color(0.07, 0.08, 0.09, 0.92)
+const BG_COLOR := Color(0.07, 0.078, 0.09, 0.95)  # HudStyle.DEEP, a touch see-through
 const DROP_OK := Color(0.3, 1.0, 0.4, 0.28)
 const DROP_BAD := Color(1.0, 0.3, 0.25, 0.28)
 
@@ -50,12 +50,16 @@ func cell_at_global(pos: Vector2) -> Vector2i:
 
 func _draw() -> void:
 	var area := Vector2(grid.width, grid.height) * CELL
+	draw_rect(Rect2(Vector2.ZERO, area).grow(2), HudStyle.OUTLINE)
 	draw_rect(Rect2(Vector2.ZERO, area), BG_COLOR)
-	var line := Color(1, 1, 1, 0.07)
+	var line := Color(1, 1, 1, 0.06)
 	for x in grid.width + 1:
 		draw_line(Vector2(x * CELL, 0), Vector2(x * CELL, area.y), line)
 	for y in grid.height + 1:
 		draw_line(Vector2(0, y * CELL), Vector2(area.x, y * CELL), line)
+	# Sunk in: a shadow along the top and left edges (like the HUD's empty slots).
+	draw_rect(Rect2(Vector2.ZERO, Vector2(area.x, 2)), Color(0, 0, 0, 0.5))
+	draw_rect(Rect2(Vector2.ZERO, Vector2(2, area.y)), Color(0, 0, 0, 0.5))
 	if ui.drag_stack != null and ui.hover_view == self:
 		var cell := ui.drop_cell(self)
 		var color := DROP_OK if ui.can_drop_at(self, cell) else DROP_BAD

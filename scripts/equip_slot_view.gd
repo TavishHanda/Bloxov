@@ -26,10 +26,10 @@ func _init(slot_name: String, owner_inventory: Inventory, owner_ui: LootUI, cell
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_label)
 	_detail = Label.new()
-	_detail.add_theme_font_size_override("font_size", 11)
+	HudStyle.style_label(_detail, 20)
 	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_detail.position = Vector2(4, size.y - 19)
-	_detail.size = Vector2(size.x - 9, 16)
+	_detail.position = Vector2(4, size.y - 22)
+	_detail.size = Vector2(size.x - 9, 18)
 	_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_detail)
 	mouse_entered.connect(_on_hover)
@@ -75,6 +75,7 @@ func rebuild() -> void:
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
+	draw_rect(rect.grow(2), HudStyle.OUTLINE)
 	draw_rect(rect, GridView.BG_COLOR)
 	var stack := shown_stack()
 	if stack != null:
@@ -82,7 +83,9 @@ func _draw() -> void:
 		draw_rect(rect.grow(-2), color.darkened(0.72))
 		draw_rect(rect.grow(-2), color, false, 2.0)
 	else:
-		draw_rect(rect.grow(-1), Color(1, 1, 1, 0.12), false, 1.0)
+		# Empty: sunk in (shadow along the top and left).
+		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 2)), Color(0, 0, 0, 0.5))
+		draw_rect(Rect2(Vector2.ZERO, Vector2(2, size.y)), Color(0, 0, 0, 0.5))
 	if ui.drag_stack != null and ui.hover_view == self:
 		draw_rect(rect, GridView.DROP_OK if ui.can_drop_on_slot(slot) else GridView.DROP_BAD)
 

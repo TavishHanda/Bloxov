@@ -5,6 +5,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.8 (inventory in the "Ammo Can" look, extract tags, owner)
+- **Inventory screen (light pass, same layout):** the columns are gunmetal plates like the HUD; headings, section
+  names (POCKETS, SECURE POCKET...), item names in the details and counts use the HUD's pixel font; "Carrying $..."
+  is brass; grids and empty equipment slots are sunk in; item tiles keep their rarity colors with a slight bevel;
+  a gunmetal CLOSE button. Also shows in the hideout's stash/loadout
+- **Extract name tags** over the pads are now drawn crisp in the HUD's pixel font with a green flag (they still show
+  through walls, open extracts only)
+- **UNARMED** uses clean stencil caps (the pixel font's "A" looked odd there)
+
 ## 0.8.7 (HUD "Ammo Can" 3/4: timer, prompts, extracts, owner)
 - **Raid timer:** on a gunmetal plate with a hazard strip; the last minute turns it red and it punches every tick
 - **[F] prompts:** a cream key cap with F and the action ("SEARCH CRATE") on a plate under the crosshair, with a

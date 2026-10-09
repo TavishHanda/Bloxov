@@ -44,14 +44,3 @@ mesh = SubResource("PadMesh")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 20, 0)
 cast_shadow = 0
 mesh = SubResource("BeamMesh")
-
-[node name="NameLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
-billboard = 1
-no_depth_test = true
-fixed_size = true
-pixel_size = 0.0015
-modulate = Color(0.5, 1, 0.6, 1)
-outline_size = 10
-font_size = 28
-text = "Extract"

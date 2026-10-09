@@ -42,7 +42,9 @@ func _draw() -> void:
 		HudStyle.draw_plate(self, rect)
 		var knife := HudStyle.icon_size(HudStyle.KNIFE, 2)
 		HudStyle.draw_icon(self, HudStyle.KNIFE, rect.position + Vector2(PAD, (rect.size.y - knife.y) * 0.5), 2, HudStyle.INK)
-		HudStyle.draw_text(self, "UNARMED", Vector2(rect.position.x + PAD + knife.x + 10, rect.position.y + 27), 20, HudStyle.INK_DIM)
+		# (stencil caps: the number font's "A" looks odd at this size)
+		var label_box := Rect2(Vector2(rect.position.x + PAD + knife.x + 10, rect.position.y), Vector2(rect.end.x - PAD - (rect.position.x + PAD + knife.x + 10), rect.size.y))
+		HudStyle.draw_centered(self, "UNARMED", label_box, 16, HudStyle.INK_DIM, HudStyle.label_font())
 		return
 	HudStyle.draw_plate(self, Rect2(Vector2.ZERO, PLATE_SIZE))
 	var mag := maxi(gun.mag_size, 1)

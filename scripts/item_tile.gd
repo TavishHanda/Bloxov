@@ -27,7 +27,7 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 	add_child(_name_label)
 
 	_count_label = Label.new()
-	_count_label.add_theme_font_size_override("font_size", 12)
+	HudStyle.style_label(_count_label, 20)
 	_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_count_label)
@@ -42,8 +42,8 @@ func set_tile_size(cells: Vector2i) -> void:
 	_name_label.size = Vector2(size.x - 10, size.y - 18)
 	_fit_name()
 	_count_label.text = "x%d" % stack.count if stack.count > 1 else ""
-	_count_label.position = Vector2(4, size.y - 19)
-	_count_label.size = Vector2(size.x - 9, 16)
+	_count_label.position = Vector2(4, size.y - 22)
+	_count_label.size = Vector2(size.x - 9, 18)
 	queue_redraw()
 
 
@@ -63,6 +63,11 @@ func _draw() -> void:
 	var color := ItemDB.color(stack.id)
 	var rect := Rect2(Vector2(2, 2), size - Vector2(4, 4))
 	draw_rect(rect, color.darkened(0.72))
+	# A slight bevel inside the rarity border (lit top/left, shaded bottom/right), like the HUD's blocks.
+	var inner := rect.grow(-2)
+	draw_rect(Rect2(inner.position, Vector2(inner.size.x, 2)), Color(color, 0.22))
+	draw_rect(Rect2(inner.position, Vector2(2, inner.size.y)), Color(color, 0.22))
+	draw_rect(Rect2(Vector2(inner.position.x, inner.end.y - 2), Vector2(inner.size.x, 2)), Color(0, 0, 0, 0.3))
 	draw_rect(rect, color, false, 2.0)
 
 
