@@ -1,0 +1,9 @@
+.git
+.github
+.godot
+build
+art_source
+docs
+tests
+tools
+*.md

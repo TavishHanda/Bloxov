@@ -92,3 +92,26 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # The online game server (Dockerfile + fly.toml), deployed with the same version as the web build so the
+  # versions match. Skipped until the FLY_API_TOKEN repository secret exists.
+  server:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: No Fly.io token yet
+        if: env.FLY_API_TOKEN == ''
+        run: echo "::notice::FLY_API_TOKEN isn't set, so the game server wasn't deployed."
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: env.FLY_API_TOKEN != ''
+      - name: Deploy the game server to Fly.io
+        if: env.FLY_API_TOKEN != ''
+        run: |
+          # First deploy: create the app (fails harmlessly once it exists).
+          flyctl apps create bloxov-server --org personal || true
+          # One machine only: the raid lives in that one server process.
+          flyctl deploy --remote-only --ha=false

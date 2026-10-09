@@ -21,7 +21,8 @@ signal connection_lost
 enum Mode { OFFLINE, SERVER, CLIENT }
 
 const DEFAULT_PORT := 9080
-const DEFAULT_ADDRESS := "ws://localhost:9080"
+## The hosted server (Fly.io, deployed by CI: see fly.toml). A local test server is ws://localhost:9080.
+const DEFAULT_ADDRESS := "wss://bloxov-server.fly.dev"
 ## Owner: duos, up to 6 players per raid.
 const MAX_PLAYERS := 6
 const RAID_TIME := 600.0
@@ -180,7 +181,9 @@ func join(address: String, code: String) -> void:
 	leave()
 	address = address.strip_edges()
 	if not address.contains("://"):
-		address = "ws://" + address
+		# Secure by default (the web page is https, so browsers refuse plain ws:// to other machines).
+		var local := address.begins_with("localhost") or address.begins_with("127.") or address.begins_with("192.168.")
+		address = ("ws://" if local else "wss://") + address
 	var peer := WebSocketMultiplayerPeer.new()
 	var err := peer.create_client(address)
 	if err != OK:

@@ -279,7 +279,9 @@ func _build_join_panel() -> void:
 	column.add_child(hint)
 	_join_address = LineEdit.new()
 	_join_address.placeholder_text = "Server address"
-	_join_address.text = GameSettings.server_address if GameSettings.server_address != "" else Network.DEFAULT_ADDRESS
+	# The old 0.7.0 default (a local test server) is replaced by the hosted one.
+	var saved := GameSettings.server_address
+	_join_address.text = saved if saved != "" and saved != "ws://localhost:9080" else Network.DEFAULT_ADDRESS
 	column.add_child(_join_address)
 	_join_code = LineEdit.new()
 	_join_code.placeholder_text = "Room code"

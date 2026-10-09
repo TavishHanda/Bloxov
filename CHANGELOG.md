@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.1 (online server)
+- **There's a real server now** (once the owner's Fly.io account is connected): JOIN ONLINE goes to
+  `wss://bloxov-server.fly.dev` by default, so you and your friends can join the same room from the live link
+- The server updates together with the game, so versions always match
+- It sleeps when nobody's online and wakes up when someone joins (the first join can take a few seconds)
+- Typing an address without `ws://`/`wss://` now uses a secure connection (needed from the https page)
+
 ## 0.7.0 (multiplayer step 1: connect)
 - **JOIN ONLINE** in the hideout: enter a server address and a room code, and everyone with the same code lands in
   the same raid (up to 6 players). START RAID is still solo and works exactly as before

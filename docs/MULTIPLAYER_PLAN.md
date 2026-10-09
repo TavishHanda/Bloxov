@@ -30,6 +30,10 @@ This is the roadmap's "multiplayer spike", but built so the parts that work are 
   screen are bound to one player today (see ROADMAP rules).
 
 ## Steps (each one playable/testable before the next)
+Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so later numbers shift by one).
+- [x] **Hosting (0.7.1, owner: set up now so every step can be played online).** `Dockerfile` + `fly.toml`;
+      CI's `server` job deploys to Fly.io (app `bloxov-server`, one machine, sleeps when empty) after the tests
+      pass, once the `FLY_API_TOKEN` repo secret exists. Clients default to `wss://bloxov-server.fly.dev`.
 - [x] **1. Connect (0.7.0).** Server mode (`--server`, `scripts/net.gd` = the `Net` autoload, used as
       `Network.main`), a "JOIN ONLINE" box in the hideout (server address + room code), players land in the same
       raid and see each other (`RemotePlayer`, moved by `NetRaid`). The server checks version, code and player
