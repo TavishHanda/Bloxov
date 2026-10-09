@@ -5,6 +5,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.9.1 (meds slot shows what it'll use, owner)
+- **Hotbar key 3 shows the heal it will use right now** (the best fit for how hurt you are, same as H): a
+  **bandage roll** for small damage, the **medkit cross** when you're badly hurt, with how many of that one you have.
+  Crossed out when you have no heals
+
 ## 0.9.0 (start of 0.9: hotbar 1-4 + V, secure pocket at the bottom, owner)
 - 0.8 (HUD & inventory) is closed; 0.9 is the rest of multiplayer (raid flow), starting with two owner tweaks:
 - **Hotbar is now 1, 2, 3, 4, V:** 1-2 guns, 3 meds, **4 = one free slot** (grenades later), V = knife. Keys 5 and 6

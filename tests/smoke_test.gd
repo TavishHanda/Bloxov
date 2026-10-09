@@ -1332,8 +1332,18 @@ func _section_owner_rules() -> void:
 	root.add_child(bar)
 	var meds := bar.slot_info(2)
 	var knife := bar.slot_info(4)
-	_check(meds["icon"] == HudStyle.MED and meds["count"] == "x3" and knife["icon"] == HudStyle.KNIFE and bar.slot_info(3)["state"] == "empty",
-		"the hotbar shows meds x3 on key 3, 4 empty, and the knife (V) last (%s %s)" % [meds["count"], knife["state"]])
+	# The meds slot shows what key 3 would use now: at full health a bandage (the closest fit), badly hurt the medkit.
+	if not player.controls_locked():
+		player.health.heal(100)
+		player.health.take_damage(10)
+		meds = bar.slot_info(2)
+		_check(meds.get("item") == "bandage" and meds["icon"] == HudStyle.BANDAGE and meds["count"] == "x2", "meds slot: a scratch would use a bandage (x2)")
+		player.health.take_damage(70)
+		_check(bar.slot_info(2).get("item") == "medkit" and bar.slot_info(2)["icon"] == HudStyle.MED, "meds slot: badly hurt, it shows the medkit")
+		player.health.heal(100)
+	meds["count"] = "x3"
+	_check(meds["count"] == "x3" and knife["icon"] == HudStyle.KNIFE and bar.slot_info(3)["state"] == "empty",
+		"the hotbar shows meds on key 3, 4 empty, and the knife (V) last (%s %s)" % [meds["count"], knife["state"]])
 	inv.take("bandage", 2)
 	inv.take("medkit", 1)
 	_check(bar.slot_info(2)["state"] == "out", "no heals left: the meds slot is crossed out")

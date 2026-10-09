@@ -77,11 +77,21 @@ func slot_info(i: int) -> Dictionary:
 			info["stripe"] = ItemDB.color(weapon.id)
 			info["state"] = "filled"
 	elif i - 2 == Inventory.MEDS_KEY:
-		var heals := inventory.heal_count()
-		info["icon"] = HudStyle.MED
-		info["count"] = "x%d" % heals
-		info["stripe"] = HudStyle.WARN
-		info["state"] = "filled" if heals > 0 else "out"
+		# Shows the heal that pressing 3 would use right now (the best fit for how hurt you are) and how many of it
+		# you have (owner, 0.9.1): a bandage roll or the medkit cross.
+		var found := inventory.find_heal(player.health.max_health - player.health.current)
+		if found.is_empty():
+			info["icon"] = HudStyle.MED
+			info["count"] = "x0"
+			info["stripe"] = HudStyle.WARN
+			info["state"] = "out"
+		else:
+			var id: String = found[1].id
+			info["icon"] = HudStyle.MED if id == "medkit" else HudStyle.BANDAGE
+			info["count"] = "x%d" % inventory.count_of(id)
+			info["stripe"] = ItemDB.color(id)
+			info["state"] = "filled"
+			info["item"] = id
 	elif i - 2 == Inventory.KNIFE_KEY:
 		info["icon"] = HudStyle.KNIFE
 		info["state"] = "filled"
