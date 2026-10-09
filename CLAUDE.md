@@ -1,5 +1,7 @@
 # Bloxov: notes for Claude
 
+**New dev session? Read `docs/DEV_HANDOFF.md` first** (owner, state, code map, workflow, gotchas, next work).
+
 - Godot 4.5, GDScript, Compatibility renderer (web is the main target). Design doc: `docs/GAME_DESIGN.md`.
 - **Versioning:** every change bumps `config/version` in `project.godot` and adds a `CHANGELOG.md` entry.
   A new roadmap phase bumps the middle number (0.2.x → 0.3.0); anything else bumps the last (0.2.3 → 0.2.4).

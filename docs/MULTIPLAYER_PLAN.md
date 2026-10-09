@@ -53,24 +53,20 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       `Hitbox` (shared box math), position history + rewind to the shooter's view time (max 0.5 s). Victims
       apply hits to their own health (armor), so health isn't server-owned yet (fine with friends; moves to the
       server with accounts). Scavs come with step 4.
-- [ ] ~~3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound
-      as now. Friendly fire per the owner's answer below.
 - [x] **4. AI on the server (0.7.8).** `RaidWorld` keeps Navigation + EnemySpawner; every player has a proxy body
       (`player.tscn` with `proxy = true`, moved by their states, makes footstep noise) the AI targets; what scavs do
       to proxies is forwarded (`_hit`, `_bashed`). Clients show puppets (`Scav.puppet`, `net_push`, seeded outfits)
       and events (fired/alerted/bash/died). Groups are per raid via `RaidScope`. Server knife checks too.
-- [ ] ~~4. AI on the server (0.7.3).** Scavs/Raiders run on the server and react to every player.
 - [x] **5. Loot and bodies (0.7.9).** Contents live on the server (`RaidWorld.container`, ids = node names, bags
       `BagN`); one player at a time holds a container open (lock), their changes are sent as the whole grid
       (`GridInventory.to_data`), released on close/walk-away/leave. Bags from scav deaths, dropped items
       (`_drop_items`) and dead players' bodies are announced to the raid. Items are checked against ItemDB.
-- [ ] ~~5. Loot and bodies (0.7.4).** Shared containers (one person takes an item, it's gone for everyone),
-      player bodies you can loot (PvP).
-- [ ] **6. Raid flow (0.7.5).** Per-player extract and death, squads spawn together, raid ends when everyone is
-      out. What a dead squadmate sees (spectate their squad or go back to the hideout).
-- [ ] **7. Online test (0.7.6).** Server deployed to a host, friends play over the internet.
-      Measure lag and bandwidth. **Decision point:** keep going (lag compensation for PvP hits,
-      matchmaking, accounts) or adjust the approach.
+- [x] **Online test (owner, 0.7.5+).** Server on Heroku (owner's student credit), friends played over the internet.
+- [ ] **6. Raid flow (now 0.9.x).** Per-player extract and death, squads spawn together, raid ends when everyone is
+      out, what a dead squadmate sees (spectate or back to the hideout). **Downed/revive proposal, waiting for the
+      owner's OK (0.9.1 handoff):** in a duo, 0 HP = downed (solo still dies); down 30 s, crawl at ~1/4 walk speed,
+      no shooting/healing/looting; teammate holds F 5 s to revive, back up at 30 HP; any hit while down or the timer
+      running out kills; both down = both dead; scavs ignore downed players, real players can finish them.
 - **Public queue (owner wants it, before going public).** Press "Queue" alone or with your duo; a small
   matchmaker groups waiting players into raids of up to 6 and starts a fresh raid server for each match (Fly
   Machines, one process per raid), then sends everyone its address + a match code. Today's pieces carry over:
