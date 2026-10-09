@@ -34,6 +34,12 @@ Agreed order: core gameplay first (scavs next), then the co-op test (M3), then m
 - **Maps** (layout with risk zones like the bunker, plus scav spawns; after scavs and the co-op test) and
   **models** (owner in Blender, at the vertical slice, M4).
 
+## AI faction vs. real PMCs (owner, after 0.6.10)
+- **PMCs are meant to be real players** (multiplayer). Today's AI "PMCs" will become their **own AI enemy type**:
+  same behavior as now (the harder, PMC-style AI), but a **different model/skins** and a name of their own.
+  Name ideas: Raiders, Rogues, Mercs, Hunters, Wardens, Reapers (owner to pick).
+- **The current PMC models/skins get reused for actual players.**
+
 ## Review order
 Going through every mechanic in 0.3.0 one by one to hone it. See the list in the chat / CHANGELOG.
 - **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.

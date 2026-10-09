@@ -55,8 +55,9 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
 - [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
 - [ ] **6. Teamwork.** A scav that spots you alerts scavs near it (they come to investigate).
       Maybe: one holds you in place while another moves to flank.
-- [ ] **7. PMCs vs scavs.** Give PMCs their own identity: faster reactions, better aim, more likely to
-      push and flank. Scavs stay sloppier.
+- [ ] **7. PMCs are harder to fight (owner, after 0.6.10). Scav behavior stays exactly as it is.** PMCs:
+      come toward fights they hear, sometimes flank instead of trading shots, crouch-walk (quieter) when close,
+      hunt longer after losing you, use cover and heal better, and sometimes spawn as a **duo** that moves together.
 - [ ] **8. Co-op prep (throughout).** Every step picks targets from all players (closest/last seen/last
       attacker), never "the first player", so the AI doesn't need a rewrite for co-op.
 
