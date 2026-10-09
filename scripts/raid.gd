@@ -21,7 +21,8 @@ var loot_summary: PackedStringArray = []
 
 
 func _ready() -> void:
-	time_left = raid_time
+	# Online, the server runs the clock (you may join a raid that's already going).
+	time_left = Network.main.raid_time_left if Network.main.is_client() else raid_time
 	player.health.died.connect(_on_player_died)
 
 	if spawn_points != null and spawn_points.get_child_count() > 0:
@@ -30,10 +31,26 @@ func _ready() -> void:
 		player.face_towards(Vector3.ZERO)
 
 	var extracts := get_extracts()
-	extracts.shuffle()
+	if Network.main.is_client():
+		# Everyone in an online raid gets the same open extracts (the server hands out the seed).
+		shuffle_seeded(extracts, Network.main.raid_seed)
+	else:
+		extracts.shuffle()
 	for i in extracts.size():
 		extracts[i].set_open(i < open_extract_count)
 		extracts[i].extracted.connect(_on_extracted)
+
+
+## Shuffles the extracts the same way on every machine that uses the same seed.
+static func shuffle_seeded(extracts: Array[ExtractZone], seed_value: int) -> void:
+	extracts.sort_custom(func(a: ExtractZone, b: ExtractZone) -> bool: return a.name < b.name)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	for i in range(extracts.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var swap := extracts[i]
+		extracts[i] = extracts[j]
+		extracts[j] = swap
 
 
 func get_extracts() -> Array[ExtractZone]:

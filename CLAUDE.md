@@ -25,6 +25,9 @@
 - Flow: `scenes/hideout.tscn` (main scene: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
   Persistent data lives in `scripts/profile.gd` (static, saved to `user://profile.json`). The inventory screen
   (`loot_ui.gd`) works with or without a player (hideout passes an `Inventory` and the stash).
+- Multiplayer (0.7.x, `docs/MULTIPLAYER_PLAN.md`): `scripts/net.gd` is the `Net` autoload; scripts use it as
+  `Network.main` (autoload names don't compile in the `-s` test). Offline by default. Server:
+  `godot --headless -- --server [--port=9080]`. The `net` test section runs a server + two clients in one process.
 - Collision layers: 1 world, 2 player, 3 enemies (bit value 4), 4 interactables (bit value 8).
 - Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`
   group (CSG boxes + world-layer box colliders). New solid map pieces must be under `Level`/`Loot` (or in that group).

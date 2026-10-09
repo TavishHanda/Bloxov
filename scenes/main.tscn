@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/loot_safe.tscn" id="8_safe"]
 [ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="9_extract"]
 [ext_resource type="Script" path="res://scripts/raid.gd" id="10_raid"]
+[ext_resource type="Script" path="res://scripts/net_raid.gd" id="13_netraid"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.35, 0.6, 0.95, 1)
@@ -419,6 +420,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 0.1, -12)
 script = ExtResource("10_raid")
 player = NodePath("../Player")
 spawn_points = NodePath("../PlayerSpawns")
+
+[node name="NetRaid" type="Node" parent="." node_paths=PackedStringArray("player", "enemy_spawner")]
+script = ExtResource("13_netraid")
+player = NodePath("../Player")
+enemy_spawner = NodePath("../EnemySpawner")
 
 [node name="HUD" type="CanvasLayer" parent="." node_paths=PackedStringArray("player", "raid")]
 process_mode = 3

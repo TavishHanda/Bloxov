@@ -30,9 +30,13 @@ This is the roadmap's "multiplayer spike", but built so the parts that work are 
   screen are bound to one player today (see ROADMAP rules).
 
 ## Steps (each one playable/testable before the next)
-- [ ] **1. Connect (0.7.0).** Server mode (`--server`), a "Join" box in the hideout (server address + room
-      code), players spawn in the same raid. Tested locally: the smoke test starts a server and two clients
-      in one process. No visible gameplay change for solo.
+- [x] **1. Connect (0.7.0).** Server mode (`--server`, `scripts/net.gd` = the `Net` autoload, used as
+      `Network.main`), a "JOIN ONLINE" box in the hideout (server address + room code), players land in the same
+      raid and see each other (`RemotePlayer`, moved by `NetRaid`). The server checks version, code and player
+      count, runs the raid clock and seeds the open extracts. One room per server process for now. Online raids
+      have no AI and per-player loot until steps 4-5. Tested: the `net` smoke test section runs a real WebSocket
+      server and two clients in one process (separate multiplayer branches); also checked with three separate
+      processes (server + two games joining through the hideout).
 - [ ] **2. See each other (0.7.1).** Other players move, turn, crouch, lean, aim, with smoothing so they don't
       jitter. The PMC model is the player model (owner: kept for real players).
 - [ ] **3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound

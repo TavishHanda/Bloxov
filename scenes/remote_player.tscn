@@ -1,0 +1,27 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/remote_player.gd" id="1_remote"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/pmc.glb" id="2_model"]
+[ext_resource type="Script" path="res://scripts/pixel_model.gd" id="3_pixel"]
+
+[sub_resource type="BoxShape3D" id="BodyBox"]
+size = Vector3(0.8, 1.35, 0.6)
+
+[sub_resource type="BoxShape3D" id="HeadBox"]
+size = Vector3(0.62, 0.72, 0.62)
+
+[node name="RemotePlayer" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 0
+script = ExtResource("1_remote")
+
+[node name="BodyShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
+shape = SubResource("BodyBox")
+
+[node name="HeadShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.71, 0)
+shape = SubResource("HeadBox")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+script = ExtResource("3_pixel")

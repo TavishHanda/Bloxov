@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules",
+	"ghost_stack", "owner_rules", "net",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -671,6 +671,8 @@ func _section_hideout() -> void:
 	_check(hideout_inv.equipped("primary") != null and hideout.screen.visible, "hideout shows your loadout and stash")
 	var version: String = ProjectSettings.get_setting("application/config/version")
 	_check(hideout._version_label.text == "v" + version, "hideout shows the version (%s)" % hideout._version_label.text)
+	hideout.join_online("localhost:9080", "  ")
+	_check(hideout._join_status.text.contains("room code") and not Network.main.is_online(), "joining online needs a room code")
 	var money := Profile.money
 	_check(hideout.buy("bandage", 1) and Profile.money == money - hideout.buy_price("bandage", 1) and Profile.stash.count_of("bandage") >= 1,
 		"buy a bandage into the stash")
@@ -753,6 +755,90 @@ func _section_ghost_stack() -> void:
 	_check(ghosts == 0, "no empty ghost stack is left in the inventory (%d)" % ghosts)
 	loot_ui.close()
 	bag.queue_free()
+
+
+func _section_net() -> void:
+	# Multiplayer step 1 (0.7.0): a real WebSocket server and two players in this one process. Each gets its own
+	# branch of the tree with its own multiplayer API, so they talk over localhost like separate machines.
+	var server := _net_peer("NetServer")
+	var c1 := _net_peer("NetClient1")
+	var c2 := _net_peer("NetClient2")
+	_check(server.start_server(19081) == OK and server.mode == server.Mode.SERVER, "server starts")
+	var results := {}
+	for c in [c1, c2]:
+		c.joined.connect(func() -> void: results[c] = "joined")
+		c.join_failed.connect(func(reason: String) -> void: results[c] = reason)
+	c1.join("localhost:19081", " abcd")
+	await _until(func() -> bool: return results.has(c1))
+	_check(results.get(c1) == "joined" and c1.is_client() and c1.room_code == "ABCD", "first player opens room ABCD (%s)" % results.get(c1))
+	_check(absf(c1.raid_time_left - c1.RAID_TIME) < 5.0, "the raid clock starts when the room opens (%.0f s)" % c1.raid_time_left)
+	c2.join("localhost:19081", "WRONG")
+	await _until(func() -> bool: return results.has(c2))
+	_check(str(results.get(c2)).contains("another room") and not c2.is_client(), "a different code is turned away (%s)" % results.get(c2))
+	_check(server.join_problem("0.0.1", "ABCD").contains("Reload"), "an outdated game is told to reload")
+	results.erase(c2)
+	await _frames(2)
+	c2.join("localhost:19081", "abcd")
+	await _until(func() -> bool: return results.has(c2))
+	_check(results.get(c2) == "joined" and c2.raid_seed == c1.raid_seed, "second player joins the same raid (same extract seed)")
+	_check(server.player_count() == 2, "server counts 2 players (%d)" % server.player_count())
+
+	# Positions are relayed: player 2 sees player 1 where player 1 is, and never sees itself.
+	var c1_id: int = c1.multiplayer.get_unique_id()
+	await _until(func() -> bool:
+		c1.send_state(Vector3(4, 0.1, -6), 1.2)
+		return c2.states.has(c1_id) and c2.states[c1_id][0].is_equal_approx(Vector3(4, 0.1, -6)))
+	_check(c2.states.has(c1_id) and is_equal_approx(c2.states[c1_id][1], 1.2), "player 2 sees player 1's position and facing")
+	_check(not c2.states.has(c2.multiplayer.get_unique_id()) and c2.player_count() == 2, "you don't see yourself as another player")
+
+	# The raid shows other players as bodies, and removes them when they leave.
+	var net_raid := main.get_node("NetRaid") as NetRaid
+	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0]})
+	var body: RemotePlayer = net_raid.remotes.get(77)
+	_check(body != null and body.global_position.is_equal_approx(Vector3(2, 0.1, -12)) and body.collision_layer == 2, "another player appears as a body on the player layer")
+	net_raid.sync_remotes({})
+	await _frames(1)
+	_check(net_raid.remotes.is_empty() and not is_instance_valid(body), "a player who leaves disappears")
+
+	# Same seed = same open extracts on every machine.
+	var a := raid.get_extracts()
+	var b := raid.get_extracts()
+	b.reverse()
+	Raid.shuffle_seeded(a, 99)
+	Raid.shuffle_seeded(b, 99)
+	_check(a == b, "everyone in a room gets the same open extracts")
+
+	# Leaving: the others stop seeing you; the room resets once everyone is gone.
+	c1.leave()
+	await _until(func() -> bool: return server.player_count() == 1 and not c2.states.has(c1_id))
+	_check(server.player_count() == 1 and not c2.states.has(c1_id), "a player leaving is gone for the others")
+	c2.leave()
+	await _until(func() -> bool: return server.player_count() == 0)
+	_check(server.room_code == "" and not c1.is_online(), "the room resets when everyone has left")
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1, c2]:
+		n.get_parent().queue_free()
+	_check(not Network.main.is_online(), "solo raids stay offline")
+
+
+## A Net node in its own branch of the tree, with its own multiplayer API (like a separate game).
+func _net_peer(branch_name: String) -> Network:
+	var branch := Node.new()
+	branch.name = branch_name
+	root.add_child(branch)
+	set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+	var net := Network.new()
+	net.name = "Net"
+	branch.add_child(net)
+	return net
+
+
+## Waits until `condition` is true (checked every frame, up to ~5 s).
+func _until(condition: Callable) -> void:
+	for i in 300:
+		if condition.call():
+			return
+		await process_frame
 
 
 func _section_owner_rules() -> void:

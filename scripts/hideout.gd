@@ -21,12 +21,19 @@ var _version_label: Label
 var _stats_label: Label
 var _message_label: Label
 var _free_kit_button: Button
+var _join_panel: PanelContainer
+var _join_address: LineEdit
+var _join_code: LineEdit
+var _join_status: Label
+var _join_button: Button
 var _save_queued := false
 
 
 func _ready() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	# Back from an online raid: disconnect (the next raid is solo unless you join again).
+	Network.main.leave()
 	Profile.load_profile()
 	GameSettings.load_settings()
 
@@ -49,6 +56,9 @@ func _ready() -> void:
 	screen.add_column(_build_trader())
 
 	_build_top_bar()
+	_build_join_panel()
+	Network.main.joined.connect(start_raid)
+	Network.main.join_failed.connect(_on_join_failed)
 	inventory.changed.connect(_queue_save)
 	Profile.stash.changed.connect(_queue_save)
 	_refresh()
@@ -212,8 +222,89 @@ func _build_top_bar() -> void:
 	raid_button.custom_minimum_size = Vector2(150, 0)
 	raid_button.add_theme_font_size_override("font_size", 20)
 	raid_button.focus_mode = Control.FOCUS_NONE
-	raid_button.pressed.connect(start_raid)
+	raid_button.pressed.connect(func() -> void:
+		Network.main.leave()  # START RAID is always solo, even if a join was still connecting.
+		start_raid())
 	row.add_child(raid_button)
+	var online_button := Button.new()
+	online_button.text = "JOIN ONLINE"
+	online_button.tooltip_text = "Join an online raid with a room code"
+	online_button.focus_mode = Control.FOCUS_NONE
+	online_button.pressed.connect(func() -> void: _join_panel.visible = not _join_panel.visible)
+	row.add_child(online_button)
+
+
+# --- Online --------------------------------------------------------------------------
+
+## Connects to the server in the Join box. The raid starts when the server lets us in (Network.main.joined).
+func join_online(address: String, code: String) -> void:
+	code = code.strip_edges().to_upper()
+	if address.strip_edges() == "" or code == "":
+		_join_status.text = "Enter the server address and a room code."
+		return
+	GameSettings.set_last_join(address.strip_edges(), code)
+	save_now()
+	_join_status.text = "Connecting..."
+	_join_button.disabled = true
+	Network.main.join(address, code)
+
+
+func _on_join_failed(reason: String) -> void:
+	_join_status.text = reason
+	_join_button.disabled = false
+
+
+func _build_join_panel() -> void:
+	_join_panel = PanelContainer.new()
+	_join_panel.visible = false
+	_join_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_join_panel.custom_minimum_size = Vector2(420, 0)
+	_join_panel.position = Vector2(-210, -120)
+	add_child(_join_panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 16)
+	_join_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	margin.add_child(column)
+	var title := Label.new()
+	title.text = "JOIN ONLINE RAID"
+	title.add_theme_font_size_override("font_size", 20)
+	column.add_child(title)
+	var hint := Label.new()
+	hint.text = "Everyone who enters the same room code ends up in the same raid (up to %d players)." % Network.MAX_PLAYERS
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.modulate = Color(1, 1, 1, 0.7)
+	column.add_child(hint)
+	_join_address = LineEdit.new()
+	_join_address.placeholder_text = "Server address"
+	_join_address.text = GameSettings.server_address if GameSettings.server_address != "" else Network.DEFAULT_ADDRESS
+	column.add_child(_join_address)
+	_join_code = LineEdit.new()
+	_join_code.placeholder_text = "Room code"
+	_join_code.max_length = 12
+	_join_code.text = GameSettings.room_code
+	column.add_child(_join_code)
+	var buttons := HBoxContainer.new()
+	column.add_child(buttons)
+	_join_button = Button.new()
+	_join_button.text = "Join"
+	_join_button.custom_minimum_size = Vector2(120, 0)
+	_join_button.pressed.connect(func() -> void: join_online(_join_address.text, _join_code.text))
+	buttons.add_child(_join_button)
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.pressed.connect(func() -> void:
+		Network.main.leave()
+		_join_button.disabled = false
+		_join_status.text = ""
+		_join_panel.visible = false)
+	buttons.add_child(cancel)
+	_join_status = Label.new()
+	_join_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_join_status.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	column.add_child(_join_status)
 
 
 func _build_trader() -> Control:

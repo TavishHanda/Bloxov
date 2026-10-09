@@ -13,6 +13,9 @@ static var sensitivity := 1.0
 static var damage_numbers := false
 ## Lean: hold Q/E (false) or tap to toggle (true; planned default for touch screens).
 static var lean_toggle := false
+## Last server and room code used in the hideout's Join box.
+static var server_address := ""
+static var room_code := ""
 
 static var _loaded := false
 
@@ -27,6 +30,8 @@ static func load_settings() -> void:
 		sensitivity = cfg.get_value("controls", "sensitivity", sensitivity)
 		damage_numbers = cfg.get_value("gameplay", "damage_numbers", damage_numbers)
 		lean_toggle = cfg.get_value("controls", "lean_toggle", lean_toggle)
+		server_address = cfg.get_value("online", "server_address", server_address)
+		room_code = cfg.get_value("online", "room_code", room_code)
 	apply()
 
 
@@ -51,6 +56,12 @@ static func set_damage_numbers(on: bool) -> void:
 	save()
 
 
+static func set_last_join(address: String, code: String) -> void:
+	server_address = address
+	room_code = code
+	save()
+
+
 static func apply() -> void:
 	var bus := AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_mute(bus, volume <= 0.001)
@@ -64,4 +75,6 @@ static func save() -> void:
 	cfg.set_value("controls", "sensitivity", sensitivity)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	cfg.set_value("controls", "lean_toggle", lean_toggle)
+	cfg.set_value("online", "server_address", server_address)
+	cfg.set_value("online", "room_code", room_code)
 	cfg.save(PATH)

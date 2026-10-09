@@ -2,6 +2,18 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.0 (multiplayer step 1: connect)
+- **JOIN ONLINE** in the hideout: enter a server address and a room code, and everyone with the same code lands in
+  the same raid (up to 6 players). START RAID is still solo and works exactly as before
+- **You can see the other players** walking around (PMC model). They can't shoot or be shot yet (0.7.2)
+- The server runs the raid clock (join late and you get the time that's left) and picks the open extracts, so
+  everyone in the room has the same ones
+- Online raids have **no scavs or Raiders yet** (they move to the server in 0.7.3), and loot is still separate
+  for each player (shared in 0.7.4)
+- The Esc menu doesn't pause an online raid
+- Wrong code, full raid or an outdated game: the Join box says why
+- Server: the same game, started with `godot --headless -- --server` (no server online yet: that's step 7)
+
 ## 0.6.15 (Raiders)
 - **The AI "PMCs" are now called Raiders** (owner's name). Same behavior. Real PMCs will be other players once
   multiplayer exists
