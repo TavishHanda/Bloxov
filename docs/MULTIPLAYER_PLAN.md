@@ -48,12 +48,13 @@ This is the roadmap's "multiplayer spike", but built so the parts that work are 
 - Later (after the test): lag compensation (the server checks hits against where the target *was* on your
   screen), matchmaking/server list, accounts and a server-side stash, anti-cheat basics.
 
-## Owner decisions (questions)
-1. **Hosting (needs you).** A server costs about $5/month (Hetzner, Fly.io, Railway). You'd make the account;
-   I set up everything else. Not needed until step 7: steps 1-6 are tested here.
-2. **Raid size.** Squad size (suggested up to 3) and players per raid (suggested 6 to start).
-3. **Friendly fire** on or off? (Suggested: on, like Tarkov; teammates show a name tag so you can tell.)
-4. **Death in a squad:** straight death (as now), or downed and revivable by a teammate for a few seconds?
-5. **Joining:** room code you share with friends (suggested for now), or quick match into any raid?
-6. **Stash trust:** OK to keep the stash in the browser until accounts exist (cheatable, but only by people
-   you give the link to)?
+## Owner decisions (answered)
+1. **Hosting:** OK, ~$5/month; owner makes the account at step 7.
+2. **Raid size:** squads of **up to 2 (duos)**, **up to 6 players** per raid.
+3. **Friendly fire: ON.** Teammates get a name tag.
+4. **Squad death: downed.** A downed player can be revived by their teammate for a few seconds (numbers proposed
+   to the owner at step 6), otherwise they die.
+5. **Joining: room code** for now.
+6. **Stash in the browser for now: OK.** Later (before strangers play PvP): accounts + the stash in a database the
+   game server reads and writes (players never write it directly). Suggested: Supabase (free tier, gives logins
+   like Google/Discord and a database), or SQLite on the game server itself. Decide at that point.
