@@ -46,7 +46,7 @@ func interact_time() -> float:
 func mark_searched() -> void:
 	searched = true
 	if noise_radius > 0.0:
-		get_tree().call_group("enemies", "hear_noise", global_position, noise_radius)
+		RaidScope.call_all(self, &"enemies", &"hear_noise", [global_position, noise_radius])
 
 
 ## Drops a bag in the world holding `contents` ([id, count] pairs, or ItemStacks). Bodies and dropped items.

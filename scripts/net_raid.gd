@@ -2,15 +2,20 @@ class_name NetRaid
 extends Node
 ## The online side of a raid, on a player's machine (does nothing offline). Sends our state to the server,
 ## shows the other players (RemotePlayer bodies) and a small "online" line on screen.
-## 0.7.0: no AI in online raids yet; scavs and Raiders move to the server in 0.7.3.
+## Scavs and Raiders run on the server (RaidWorld); here they're puppets that show what the server's do.
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
+## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider).
+const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn")]
 
 @export var player: Player
 @export var enemy_spawner: Node
 
 ## Peer id -> RemotePlayer.
 var remotes := {}
+## Server enemy id -> puppet Scav.
+var enemy_puppets := {}
+var _last_enemies_msec := -1
 var _send_left := 0.0
 var _last_states_msec := -1
 var _label: Label
@@ -26,6 +31,10 @@ func _ready() -> void:
 	Network.main.got_hit.connect(apply_hit)
 	Network.main.shot_confirmed.connect(_on_shot_confirmed)
 	Network.main.kill_confirmed.connect(_on_kill_confirmed)
+	Network.main.bashed.connect(func(amount: int, from: Vector3, shove: float, block: float) -> void:
+		if not player.controls_locked():
+			player.take_bash(amount, from, shove, block))
+	Network.main.enemy_event.connect(on_enemy_event)
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_label = Label.new()
@@ -47,10 +56,14 @@ func _process(delta: float) -> void:
 	if Network.main.states_msec != _last_states_msec:
 		_last_states_msec = Network.main.states_msec
 		sync_remotes(Network.main.states)
+	if Network.main.enemies_msec != _last_enemies_msec:
+		_last_enemies_msec = Network.main.enemies_msec
+		sync_enemies(Network.main.enemies)
 	if _lost:
 		_label.text = "Disconnected from the server: you're on your own now."
 	else:
-		_label.text = "Online · %d players in this raid" % Network.main.player_count()
+		var count := Network.main.player_count()
+		_label.text = "Online · %d %s in this raid" % [count, "player" if count == 1 else "players"]
 
 
 ## Adds and removes RemotePlayer bodies to match `states` (peer id -> RemotePlayer state) and hands each its
@@ -71,6 +84,47 @@ func sync_remotes(states: Dictionary) -> void:
 			get_parent().add_child(remote)
 			remotes[peer] = remote
 		remote.push_state(states[peer])
+
+
+## Adds, moves and removes the scav/Raider puppets to match the server's list ([id, kind, net_capture()]).
+func sync_enemies(list: Array) -> void:
+	var seen := {}
+	for entry in list:
+		var id: int = entry[0]
+		seen[id] = true
+		var puppet: Scav = enemy_puppets.get(id)
+		if puppet == null:
+			puppet = ENEMY_SCENES[clampi(entry[1], 0, 1)].instantiate()
+			puppet.puppet = true
+			puppet.name = "Enemy%d" % id
+			get_parent().add_child(puppet)
+			# Same outfit on every player's screen.
+			puppet.model.pick_outfit_seeded(id)
+			enemy_puppets[id] = puppet
+		puppet.net_push(entry[2])
+	for id in enemy_puppets.keys():
+		if not seen.has(id):
+			if is_instance_valid(enemy_puppets[id]):
+				enemy_puppets[id].queue_free()
+			enemy_puppets.erase(id)
+
+
+## Something a server scav did: show it on its puppet.
+func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
+	var puppet: Scav = enemy_puppets.get(id)
+	if puppet == null or not is_instance_valid(puppet):
+		return
+	match kind:
+		"fired":
+			puppet.net_fired(pos)
+		"alerted":
+			puppet.net_alerted()
+		"bash":
+			puppet.net_bash_started()
+		"died":
+			enemy_puppets.erase(id)
+			puppet.global_position = pos
+			puppet.net_died()
 
 
 ## Another player's shot hit us (the server checked it): our armor applies as for any other hit.

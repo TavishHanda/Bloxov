@@ -5,6 +5,8 @@ extends CharacterBody3D
 
 ## Emitted for every sound the player makes that enemies can hear (footsteps, landing).
 signal noise_made(pos: Vector3, radius: float)
+## Proxy only: a scav rifle-butted this player (the server passes it on to their game).
+signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
 
 const HURT_SOUND := preload("res://audio/hurt.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
@@ -112,6 +114,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @onready var interactor: Interactor = $Interactor
 
 var is_dead := false
+## On the game server, each player in a raid is a proxy: a body the AI can see, hear, shoot and bash, moved by the
+## states their game sends (apply_net_state). No input, camera, profile or physics of its own. Set before adding.
+var proxy := false
 ## Enemies killed this raid (gun or knife).
 var kills := 0
 ## True once the player has extracted (raid over, controls off).
@@ -160,6 +165,11 @@ func _ready() -> void:
 	# The capsule comes from player.tscn and is shared by every instance; give each player its own,
 	# so one player crouching doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
+	if proxy:
+		camera.current = false
+		for node: Node in [self, gun, knife, interactor]:
+			node.process_mode = Node.PROCESS_MODE_DISABLED
+		return
 	_spawn_position = global_position
 	inventory.equipment_changed.connect(_on_equipment_changed)
 	# Bring in the loadout from the hideout (or the starter kit on a new profile).
@@ -552,7 +562,7 @@ func _make_noise(radius: float) -> void:
 	if radius <= 0.0:
 		return
 	noise_made.emit(global_position, radius)
-	get_tree().call_group("enemies", "hear_noise", global_position, radius)
+	RaidScope.call_all(self, &"enemies", &"hear_noise", [global_position, radius])
 
 
 func _ceiling_blocked() -> bool:
@@ -577,6 +587,9 @@ func _on_damaged(amount: int, source_position: Vector3) -> void:
 
 ## Hit by an enemy's melee bash: normal damage and flinch, plus a hard shove and a moment you can't aim.
 func take_bash(amount: int, from: Vector3, shove: float, aim_block: float) -> void:
+	if proxy:
+		bashed.emit(amount, from, shove, aim_block)
+		return
 	health.take_damage(amount, from)
 	var push := global_position - from
 	push.y = 0.0
@@ -584,6 +597,32 @@ func take_bash(amount: int, from: Vector3, shove: float, aim_block: float) -> vo
 		velocity += push.normalized() * shove
 	add_kick(3.0, randf_range(-2.0, 2.0))
 	gun.block_aim(aim_block)
+
+
+## Proxy: moves this body to match a state from the player's game (RemotePlayer.capture), and makes the footstep
+## noise their movement would (scavs on the server hear it).
+func apply_net_state(state: Array) -> void:
+	var flags: int = state[4]
+	var moved := Vector2(state[0].x - global_position.x, state[0].z - global_position.z).length()
+	global_position = state[0]
+	rotation.y = state[1]
+	head.rotation.x = state[2]
+	lean = state[3]
+	is_crouching = flags & Hitbox.FLAG_CROUCH != 0
+	_sprinting = flags & Hitbox.FLAG_SPRINT != 0
+	is_dead = flags & Hitbox.FLAG_DEAD != 0
+	extracted = flags & Hitbox.FLAG_EXTRACTED != 0
+	var capsule := body_shape.shape as CapsuleShape3D
+	capsule.height = crouch_height if is_crouching else stand_height
+	body_shape.position.y = capsule.height * 0.5
+	head.position = Vector3(lean * lean_distance, crouch_eye_height if is_crouching else stand_eye_height, 0)
+	velocity = Vector3(moved * Network.SEND_RATE, 0, 0)
+	if is_crouching or controls_locked():
+		return
+	_stride_left -= moved
+	if _stride_left <= 0.0 and moved > 0.01:
+		_stride_left = sprint_stride if _sprinting else walk_stride
+		_make_noise(sprint_noise if _sprinting else walk_noise)
 
 
 func _on_died() -> void:

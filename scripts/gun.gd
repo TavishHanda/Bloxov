@@ -325,7 +325,7 @@ func shoot_once() -> void:
 	var end := to
 	if not result.is_empty():
 		end = result.position
-		if result.collider is RemotePlayer:
+		if result.collider is RemotePlayer or (result.collider is Scav and (result.collider as Scav).puppet):
 			# Just the puff here; damage, the hit marker and the sound come when the server confirms.
 			Effects.impact(world, result.position, result.normal, Player.HIT_COLOR, 12)
 		else:
@@ -349,13 +349,13 @@ func shoot_once() -> void:
 	player.add_recoil(kick.x * (1.0 - recoil_kick_fraction), kick.y)
 	player.add_kick(kick.x * recoil_kick_fraction, 0.0)
 	player.add_shake(shake)
-	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
-	get_tree().call_group("enemies", "notice_threat")
+	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
+	RaidScope.call_all(self, &"enemies", &"notice_threat")
 
 
 ## Enemies a bullet passed close to notice it, even if they're too far away to hear the shot.
 func _warn_near_misses(from: Vector3, end: Vector3, hit: Variant) -> void:
-	for enemy in get_tree().get_nodes_in_group("enemies"):
+	for enemy in RaidScope.nodes(self, &"enemies"):
 		if enemy == hit or not (enemy is Scav):
 			continue
 		var scav := enemy as Scav

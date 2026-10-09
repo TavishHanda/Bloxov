@@ -33,6 +33,8 @@
   exists (`fly.toml`, CI job `server`, skipped without `FLY_API_TOKEN`) for later (one server per raid).
   `net.gd` is an autoload: it must not reference player/gun scripts (directly or via class names), or a fresh
   import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
+  Server raids are SubViewports (`RaidWorld`) in one process: node groups are global, so AI/spawner/nav code looks
+  up groups with `RaidScope.nodes(self, group)` (only its own raid), never `get_tree().get_nodes_in_group`.
   Local Docker works here after starting `dockerd` (container apt has no network; copy the local Godot binary in to test).
 - Collision layers: 1 world, 2 player, 3 enemies (bit value 4), 4 interactables (bit value 8).
 - Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`

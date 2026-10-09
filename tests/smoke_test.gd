@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -1006,7 +1006,7 @@ func _section_pvp() -> void:
 	world.record(901, [Vector3(14, 0.1, 0), 0.0, 0.0, 0.0, 0], now)
 	var at_then := world.trace_shot(c1_id, Vector3(10, 1.0, 6), Vector3(0, 0, -1), 50.0, now - 0.3, now)
 	var at_now := world.trace_shot(c1_id, Vector3(10, 1.0, 6), Vector3(0, 0, -1), 50.0, now, now)
-	_check(at_then.get("peer") == 901 and at_now.is_empty(), "shots are checked against where the target was when you fired")
+	_check(at_then.get("peer") == 901 and not at_now.has("peer"), "shots are checked against where the target was when you fired")
 	world.forget(901)
 
 	# Dying credits the last attacker; the victim's own armor applies to hits.
@@ -1035,6 +1035,96 @@ func _section_pvp() -> void:
 	server.multiplayer.multiplayer_peer.close()
 	for n in [server, c1, c2]:
 		n.get_parent().queue_free()
+
+
+func _section_online_ai() -> void:
+	# Everyone sees the same AI (0.7.8): scavs and Raiders run on the server (one raid world each); players see
+	# puppets. Scavs see/hear/shoot/bash players through proxy bodies; players' shots and knives hit server scavs.
+	var server := _net_peer("AiServer")
+	var c1 := _net_peer("AiClient1")
+	var c2 := _net_peer("AiClient2")
+	server.start_server(19083)
+	var got := {"hits": [], "bashes": 0, "confirmed": 0, "kills": 0, "events": []}
+	c1.got_hit.connect(func(amount: int, _from: Vector3, _h: bool) -> void: got["hits"].append(amount))
+	c1.bashed.connect(func(_a: int, _f: Vector3, _s: float, _b: float) -> void: got["bashes"] += 1)
+	c1.shot_confirmed.connect(func(_h: bool) -> void: got["confirmed"] += 1)
+	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
+	c1.enemy_event.connect(func(id: int, kind: String, pos: Vector3) -> void: got["events"].append([id, kind, pos]))
+	for c in [c1, c2]:
+		c.go_online("localhost:19083", "AiTester")
+	await _until(func() -> bool: return c1.is_client() and c2.is_client() and c1.party_code != "" and c2.party_code != "")
+	c1.start_now()
+	c2.start_now()
+	await _until(func() -> bool: return c1.in_raid and c2.in_raid and server._worlds.size() == 2)
+	var c1_id: int = c1.multiplayer.get_unique_id()
+	var c2_id: int = c2.multiplayer.get_unique_id()
+	var w1: RaidWorld = server._worlds[server.matchmaker.players[c1_id]["raid"]]
+	var w2: RaidWorld = server._worlds[server.matchmaker.players[c2_id]["raid"]]
+	for i in 6:
+		c1.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, 0])
+		c2.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, 0])
+		await _frames(3)
+	var scavs1 := RaidScope.nodes(w1.raid, &"enemies")
+	_check(scavs1.size() == 3 and RaidScope.nodes(w2.raid, &"enemies").size() == 3, "each online raid spawns its own 3 scavs on the server")
+	_check(scavs1.all(func(e: Node) -> bool: return RaidScope.nodes(e, &"player") == [w1.proxies.get(c1_id)]),
+		"a raid's scavs only see that raid's players (one proxy each)")
+	await _until(func() -> bool: return c1.enemies.size() == 3)
+	_check(c1.enemies.size() == 3 and c1.enemies[0][2].size() == 4, "players get the raid's scavs (position, facing, pose, hits)")
+
+	# Puppets: copies that only follow the server.
+	var net_raid := main.get_node("NetRaid") as NetRaid
+	net_raid.sync_enemies(c1.enemies)
+	var puppet: Scav = net_raid.enemy_puppets.values()[0]
+	_check(net_raid.enemy_puppets.size() == 3 and puppet.puppet and puppet.is_in_group("enemies"), "the raid shows the 3 scavs as puppets")
+	var puppet_state := puppet.state
+	puppet.hear_noise(puppet.global_position, 50.0)
+	puppet.notice_near_miss(puppet.global_position)
+	_check(puppet.state == puppet_state, "puppets don't think for themselves (no reacting to noise)")
+
+	# Scavs hurt and bash players through their proxy: passed on to the player's game; the proxy stays alive.
+	var proxy: Node = w1.proxies[c1_id]
+	proxy.health.take_damage(15, Vector3(0, 0, -20))
+	proxy.take_bash(20, Vector3(0, 0, -29), 6.0, 0.6)
+	await _until(func() -> bool: return got["hits"].size() == 1 and got["bashes"] == 1)
+	_check(got["hits"] == [15] and got["bashes"] == 1 and proxy.health.current == proxy.health.max_health,
+		"a scav's shot and bash reach the player's game (the server's copy of them never dies)")
+
+	# Players' shots hit server scavs (and make noise they hear).
+	var target: Node3D = scavs1[0]
+	for i in 3:
+		c1.send_state([target.global_position + Vector3(0, 0, 6), 0.0, 0.0, 0.0, 0])
+		await _frames(2)
+	var before: int = target.health.current
+	OS.delay_msec(60)
+	var eye := target.global_position + Vector3(0, 1.5, 6)
+	c1.send_shot(eye, (target.global_position + Vector3(0, 0.8, 0) - eye).normalized(), "ak")
+	await _until(func() -> bool: return got["confirmed"] >= 1)
+	_check(got["confirmed"] == 1 and target.health.current < before, "a player's shot hits a server scav (%d -> %d)" % [before, target.health.current])
+	var listener: Node = scavs1[1]
+	listener.set("state", Scav.State.IDLE)
+	w1.shot_noise(listener.global_position, listener.global_position, 25.0, listener.global_position + Vector3(5, 0, 0))
+	_check(listener.state != Scav.State.IDLE, "server scavs hear online gunshots")
+
+	# A scav dying on the server: everyone sees it pop (its puppet goes).
+	var dead_id := target.get_instance_id()
+	target.health.take_damage(9999)
+	await _until(func() -> bool: return got["events"].any(func(e: Array) -> bool: return e[0] == dead_id and e[1] == "died"))
+	for e in got["events"]:
+		net_raid.on_enemy_event(e[0], e[1], e[2])
+	_check(not net_raid.enemy_puppets.has(dead_id), "a scav killed on the server disappears from players' screens")
+
+	net_raid.sync_enemies([])
+	await _frames(1)
+	_check(net_raid.enemy_puppets.is_empty(), "puppets go when the server's scavs do")
+	for c in [c1, c2]:
+		c.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	await _frames(2)
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1, c2]:
+		n.get_parent().queue_free()
+	await _frames(2)
+	_check(RaidScope.nodes(main, &"enemies").is_empty(), "nothing from online raids is left in the solo raid")
 
 
 func _section_owner_rules() -> void:

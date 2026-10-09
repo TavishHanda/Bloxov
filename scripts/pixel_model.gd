@@ -58,6 +58,21 @@ func pick_outfit(choices := {}) -> void:
 				node.visible = option == pick
 
 
+## Picks the outfit from a seed, so every machine that uses the same seed shows the same outfit (online enemies).
+func pick_outfit_seeded(seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var choices := {}
+	var slots := outfit_slots()
+	var names := slots.keys()
+	names.sort()
+	for slot: String in names:
+		var options: Array = slots[slot].keys()
+		options.sort()
+		choices[slot] = options[rng.randi_range(0, options.size() - 1)]
+	pick_outfit(choices)
+
+
 ## {slot: {option: [nodes]}} for every node named "Slot__option" or "Slot__option__side".
 func outfit_slots() -> Dictionary:
 	var slots := {}

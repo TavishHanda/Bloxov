@@ -32,6 +32,9 @@ signal raid_started
 signal got_hit(amount: int, from: Vector3, headshot: bool)
 signal shot_confirmed(headshot: bool)
 signal kill_confirmed
+## A scav rifle-butted us; something a scav did that we should see/hear (RaidWorld.enemy_event kinds).
+signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
+signal enemy_event(id: int, kind: String, pos: Vector3)
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -72,6 +75,9 @@ var states_msec := 0
 ## of the raid we were looking at when we fired (the server checks hits against that moment).
 var _server_time := 0.0
 var _server_time_at := 0.0
+## In a raid: every living scav/Raider as the server last sent them (RaidWorld.enemy_states), and when.
+var enemies: Array = []
+var enemies_msec := 0
 
 ## The game's own connection (the "Net" autoload). The test makes extra Network nodes; those aren't this.
 static var main: Network
@@ -234,6 +240,7 @@ func _state(state: Array) -> void:
 	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
 	if world != null:
 		world.record(peer, state, _now())
+		world.update_proxy(peer, state)
 	# Just died: credit whoever hit them last (within 10 s).
 	if state[4] & Hitbox.FLAG_DEAD and not was_dead and _last_attacker.has(peer):
 		var attacker: Array = _last_attacker[peer]
@@ -258,15 +265,74 @@ func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float) -> voi
 		return
 	_last_shot[peer] = _now()
 	var hit := world.trace_shot(peer, from, dir, 150.0, view_time, _now())
-	if hit.is_empty():
+	world.shot_noise(from, hit["end"], float(stats.get("noise", 25.0)), me[0])
+	if hit.has("peer") or hit.has("enemy"):
+		var amount := roundi(float(stats["damage"]) * (float(stats.get("head", 2.0)) if hit["headshot"] else 1.0))
+		_damage(peer, hit, amount, me[0])
+
+
+## Melee: the server checks what the knife reached (the same small fan of rays as on the player's screen).
+## 45 damage; from behind it always kills (armor or not).
+@rpc("any_peer", "call_remote", "reliable")
+func _knife(from: Vector3, dir: Vector3) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER or not matchmaker.players.has(peer) or not _player_states.has(peer):
 		return
-	var victim: int = hit["peer"]
-	var amount := roundi(float(stats["damage"]) * (float(stats.get("head", 2.0)) if hit["headshot"] else 1.0))
-	_last_attacker[victim] = [peer, _now()]
-	if _peer_open(victim):
-		_hit.rpc_id(victim, amount, me[0], hit["headshot"])
-	if _peer_open(peer):
-		_hit_confirmed.rpc_id(peer, hit["headshot"])
+	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
+	var me: Array = _player_states[peer]
+	if (world == null or me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED)
+			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or _now() - _last_shot.get(peer, -1.0) < 0.3):
+		return
+	_last_shot[peer] = _now()
+	world.shot_noise(from, from, 4.0, me[0])
+	for angle in [0.0, 0.25, -0.25]:
+		var hit := world.trace_shot(peer, from, dir.normalized().rotated(Vector3.UP, angle), 2.2, client_view_time_of(peer), _now())
+		if not (hit.has("peer") or hit.has("enemy")):
+			continue
+		var facing := Vector3.ZERO
+		var victim_pos := Vector3.ZERO
+		if hit.has("peer"):
+			var state: Array = _player_states.get(hit["peer"], [])
+			if not state.is_empty():
+				facing = Vector3(-sin(state[1]), 0, -cos(state[1]))
+				victim_pos = state[0]
+		else:
+			facing = -(hit["enemy"] as Node3D).global_basis.z
+			victim_pos = (hit["enemy"] as Node3D).global_position
+		var to_attacker: Vector3 = me[0] - victim_pos
+		to_attacker.y = 0.0
+		facing.y = 0.0
+		var backstab := facing.normalized().dot(to_attacker.normalized()) < -0.3
+		var amount := 45
+		if backstab:
+			# Enough to get through any armor (the victim's game applies theirs; a scav's is its damage multiplier).
+			amount = 1000 if hit.has("peer") else ceili(hit["enemy"].health.current / maxf(hit["enemy"].health.damage_multiplier, 0.01))
+		hit["headshot"] = backstab
+		_damage(peer, hit, amount, me[0])
+		return
+
+
+## For knife hits: the knife is right in front, so players are checked where they are now.
+func client_view_time_of(_peer: int) -> float:
+	return _now()
+
+
+## Applies a hit the server decided on: to a player (their game applies it, through their armor) or a scav.
+func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3) -> void:
+	var killed := false
+	if hit.has("peer"):
+		var victim: int = hit["peer"]
+		_last_attacker[victim] = [attacker, _now()]
+		if _peer_open(victim):
+			_hit.rpc_id(victim, amount, attacker_pos, hit["headshot"])
+	else:
+		var health: Node = hit["enemy"].health
+		health.take_damage(amount, attacker_pos)
+		killed = health.is_dead
+	if _peer_open(attacker):
+		_hit_confirmed.rpc_id(attacker, hit["headshot"])
+		if killed:
+			_kill_confirmed.rpc_id(attacker)
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
@@ -319,6 +385,17 @@ func _send_raid_start(id: int) -> void:
 	world.name = "Raid%d" % id
 	add_child(world)
 	_worlds[id] = world
+	world.player_hit.connect(func(peer: int, amount: int, from: Vector3) -> void:
+		if _peer_open(peer):
+			_hit.rpc_id(peer, amount, from, false))
+	world.player_bashed.connect(func(peer: int, amount: int, from: Vector3, shove: float, block: float) -> void:
+		if _peer_open(peer):
+			_bashed.rpc_id(peer, amount, from, shove, block))
+	world.enemy_event.connect(func(enemy: int, kind: String, pos: Vector3) -> void:
+		if matchmaker.raids.has(id):
+			for peer in matchmaker.raids[id]["players"]:
+				if _peer_open(peer):
+					_enemy_event.rpc_id(peer, enemy, kind, pos))
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
@@ -367,9 +444,10 @@ func _process(delta: float) -> void:
 		for peer in matchmaker.raids[id]["players"]:
 			if _player_states.has(peer):
 				shown[peer] = _player_states[peer]
+		var enemy_list: Array = _worlds[id].enemy_states() if _worlds.has(id) else []
 		for peer in matchmaker.raids[id]["players"]:
 			if _peer_open(peer):
-				_states.rpc_id(peer, shown, _now())
+				_states.rpc_id(peer, shown, _now(), enemy_list)
 
 
 # --- Client --------------------------------------------------------------------------
@@ -451,6 +529,12 @@ func send_state(state: Array) -> void:
 func send_shot(from: Vector3, dir: Vector3, weapon: String) -> void:
 	if in_online_raid():
 		_shot.rpc_id(1, from, dir, weapon, client_view_time())
+
+
+## Tells the server we swung the knife (it decides what it hit).
+func send_knife(from: Vector3, dir: Vector3) -> void:
+	if in_online_raid():
+		_knife.rpc_id(1, from, dir)
 
 
 ## The moment of the raid (server clock) we're seeing right now: other players are drawn RemotePlayer's
@@ -542,10 +626,24 @@ func _kill_confirmed() -> void:
 		kill_confirmed.emit()
 
 
+@rpc("authority", "call_remote", "reliable")
+func _bashed(amount: int, from: Vector3, shove: float, aim_block: float) -> void:
+	if in_online_raid():
+		bashed.emit(amount, from, shove, aim_block)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _enemy_event(id: int, kind: String, pos: Vector3) -> void:
+	if in_online_raid():
+		enemy_event.emit(id, kind, pos)
+
+
 @rpc("authority", "call_remote", "unreliable_ordered")
-func _states(all: Dictionary, server_time: float) -> void:
+func _states(all: Dictionary, server_time: float, enemy_list: Array) -> void:
 	if not in_online_raid():
 		return
+	enemies = enemy_list
+	enemies_msec = Time.get_ticks_msec()
 	_server_time = server_time
 	_server_time_at = Time.get_ticks_msec() / 1000.0
 	states = all.duplicate()

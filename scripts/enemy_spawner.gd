@@ -43,7 +43,7 @@ func _physics_process(delta: float) -> void:
 ## Advances the raid clock by `delta` seconds and spawns whatever is due (the smoke test calls this directly).
 func tick(delta: float) -> void:
 	_elapsed += delta
-	if get_tree().get_nodes_in_group("enemies").size() >= max_alive:
+	if RaidScope.nodes(self, &"enemies").size() >= max_alive:
 		return
 	if raiders_spawned < mini(raider_budget, raider_times.size()) and _elapsed >= raider_times[raiders_spawned]:
 		_spawn(raider_scene)
@@ -55,7 +55,7 @@ func tick(delta: float) -> void:
 func _spawn(scene: PackedScene) -> bool:
 	if scene == null:
 		return false
-	var players := get_tree().get_nodes_in_group("player")
+	var players := RaidScope.nodes(self, &"player")
 	var far: Array[Marker3D] = []
 	var hidden: Array[Marker3D] = []
 	for child in get_children():

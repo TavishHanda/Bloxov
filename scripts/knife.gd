@@ -70,6 +70,10 @@ func _pose_blade(t: float) -> void:
 
 
 func _strike() -> void:
+	if Network.main.in_online_raid():
+		# Online, the server decides what the blade reached (hit marker and sounds come when it confirms).
+		Network.main.send_knife(camera.global_position, -camera.global_basis.z)
+		return
 	var target := _find_target()
 	if target.is_empty():
 		return
@@ -79,7 +83,7 @@ func _strike() -> void:
 	# A backstab always kills, armor or not (enough damage to get through the armor multiplier).
 	var amount := ceili(health.current / maxf(health.damage_multiplier, 0.01)) if backstab else damage
 	var dealt := health.take_damage(amount, player.global_position)
-	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
+	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
 	player.on_hit_landed(health, target.position, target.normal, dealt, backstab)
 	Effects.sound(get_tree().current_scene, KILL_SOUND if health.is_dead else HIT_SOUND, -2.0, 0.03)
 	hit_confirmed.emit(health.is_dead, false)

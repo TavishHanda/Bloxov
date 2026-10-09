@@ -55,7 +55,7 @@ static func shuffle_seeded(extracts: Array[ExtractZone], seed_value: int) -> voi
 
 func get_extracts() -> Array[ExtractZone]:
 	var list: Array[ExtractZone] = []
-	for node in get_tree().get_nodes_in_group("extracts"):
+	for node in RaidScope.nodes(self, &"extracts"):
 		list.append(node as ExtractZone)
 	return list
 

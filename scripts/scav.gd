@@ -212,6 +212,23 @@ var _side := 1.0
 var _stride_left := 0.0
 var _meshes: Array[Node] = []
 
+## Online (0.7.8): the AI runs on the server; each player sees a puppet copy that only shows what the server's
+## scav does (moved by net_push, no thinking of its own). The server sends net_capture() and these events.
+signal fired(end: Vector3)
+signal alerted
+signal bash_started
+const NET_LEAN_IN := 1
+const NET_WINDUP := 2
+const NET_LUNGE := 4
+const NET_SNEAK := 8
+var puppet := false
+## Times it has been hit (sent to puppets so they flash when it goes up).
+var hits_taken := 0
+## Puppet only: [arrival seconds, state] buffer, drawn RemotePlayer.INTERP_DELAY in the past like other players.
+var _net_buffer: Array = []
+var _net_flags := 0
+var _net_hits := 0
+
 
 func _ready() -> void:
 	add_to_group("enemies")
@@ -228,6 +245,8 @@ func _ready() -> void:
 ## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
 ## Unaware scavs walk over to investigate; scavs already fighting ignore it.
 func hear_noise(pos: Vector3, radius: float) -> void:
+	if puppet:
+		return
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius * hearing_mult:
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -237,7 +256,7 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if state == State.DEAD:
+	if state == State.DEAD or puppet:
 		return
 	if not is_on_floor():
 		velocity += get_gravity() * delta
@@ -343,12 +362,12 @@ func _physics_process(delta: float) -> void:
 ## Scav footsteps, so you can hear them coming.
 func _update_footsteps(delta: float) -> void:
 	var speed := Vector2(velocity.x, velocity.z).length()
-	if not is_on_floor() or speed < 0.5:
+	if (not puppet and not is_on_floor()) or speed < 0.5:
 		return
 	_stride_left -= speed * delta
 	if _stride_left <= 0.0:
 		_stride_left = 1.4
-		if _sneaking():
+		if _sneaking() or _net_flags & NET_SNEAK:
 			return  # sneaking up: no footstep sounds
 		Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -6.0, 0.1, 0.9, 2.5)
 
@@ -356,6 +375,8 @@ func _update_footsteps(delta: float) -> void:
 func _process(delta: float) -> void:
 	if state == State.DEAD:
 		return
+	if puppet:
+		_puppet_update(delta)
 	var speed := Vector2(velocity.x, velocity.z).length()
 	_walk_time += delta * speed * 2.5
 	var swing := sin(_walk_time) * 0.6 * minf(speed / 2.0, 1.0)
@@ -375,6 +396,8 @@ func _process(delta: float) -> void:
 		tilt -= 0.35  # leaning in: searching a container, or patching itself up
 	if _windup_left > 0.0:
 		tilt += 0.35 * (1.0 - _windup_left / melee_windup)
+		if puppet:
+			_windup_left -= delta
 	elif _lunge_left > 0.0:
 		tilt -= 0.4
 	model.rotation.x = tilt
@@ -388,7 +411,8 @@ func _process(delta: float) -> void:
 
 ## Fills the spot meter while the target is in view (by distance, stance, movement); true once it's noticed.
 func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bool:
-	if not (_can_see and _in_view(to_target)):
+	# (No target: everyone left, died or extracted since the last sight check.)
+	if _target == null or not (_can_see and _in_view(to_target)):
 		_spot = maxf(_spot - delta * 0.5, 0.0)
 		return false
 	var t := lerpf(spot_time_near, spot_time_far, clampf((dist - 5.0) / maxf(sight_range - 5.0, 1.0), 0.0, 1.0))
@@ -406,6 +430,8 @@ func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bo
 
 ## A bullet from `shooter_pos` passed close by: unaware scavs turn toward roughly where it came from.
 func notice_near_miss(shooter_pos: Vector3) -> void:
+	if puppet:
+		return
 	_since_threat = 0.0
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 		return
@@ -422,6 +448,7 @@ func _alert(known_pos: Vector3) -> void:
 	_looting_left = 0.0
 	_last_seen = known_pos
 	_set_state(State.ALERT)
+	alerted.emit()
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
 
 
@@ -429,7 +456,7 @@ func _alert(known_pos: Vector3) -> void:
 func _pick_target() -> Player:
 	var best: Player = null
 	var best_dist := INF
-	for node in get_tree().get_nodes_in_group("player"):
+	for node in RaidScope.nodes(self, &"player"):
 		var player := node as Player
 		if player == null or player.controls_locked():
 			continue
@@ -444,6 +471,7 @@ func _pick_target() -> Player:
 func _update_melee(delta: float, dist: float) -> void:
 	if _windup_left <= 0.0:
 		_windup_left = melee_windup
+		bash_started.emit()
 		_hold_fire()
 		Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8)
 		return
@@ -458,6 +486,8 @@ func _update_melee(delta: float, dist: float) -> void:
 
 ## Something threatened it (a shot fired, a hit, a near miss): no break in the fight right now.
 func notice_threat() -> void:
+	if puppet:
+		return
 	_since_threat = 0.0
 
 
@@ -490,7 +520,7 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 	var side := to_target.normalized().cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
 	var target_pos := _target.global_position
 	var spot := target_pos - to_target.normalized().rotated(Vector3.UP, 0.0) * dist * 0.4 + side * dist * 0.8
-	spot = NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, spot)
+	spot = _nav_closest(spot)
 	if spot == Vector3.ZERO:
 		return
 	_cover_point = spot
@@ -518,7 +548,6 @@ func _start_heal() -> void:
 
 ## The closest walkable spot within cover_search_radius (by walking distance) the target can't see; INF if none.
 func _find_cover() -> Vector3:
-	var map := get_world_3d().navigation_map
 	var eyes := _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
@@ -526,14 +555,14 @@ func _find_cover() -> Vector3:
 	for radius in [3.0, 5.0, cover_search_radius]:
 		for i in 12:
 			var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 12.0)
-			var spot := NavigationServer3D.map_get_closest_point(map, global_position + dir * radius)
+			var spot := _nav_closest(global_position + dir * radius)
 			if spot == Vector3.ZERO or _flat(spot - global_position).length() > radius + 1.0:
 				continue
 			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
 			if space.intersect_ray(query).is_empty():
 				continue  # the target could see it there
 			# Judge by walking distance: a spot inside a building may be close in a straight line but far around.
-			var walk := _path_length(NavigationServer3D.map_get_path(map, global_position, spot, true))
+			var walk := _path_length(_nav_path(global_position, spot))
 			if walk <= radius * 1.6 and walk < best_walk:
 				best = spot
 				best_walk = walk
@@ -619,7 +648,7 @@ func _path_velocity(goal: Vector3, speed: float) -> Vector3:
 	if _path.is_empty() or _flat(goal - _path_goal).length() > 1.0 or _repath_left <= 0.0:
 		_path_goal = goal
 		_repath_left = 1.0
-		_path = NavigationServer3D.map_get_path(get_world_3d().navigation_map, global_position, goal, true)
+		_path = _nav_path(global_position, goal)
 		_path_index = 1
 	if _path.size() < 2:
 		var direct := _flat(goal - global_position)
@@ -724,6 +753,7 @@ func _fire_at_target(dist: float) -> void:
 		else:
 			Effects.impact(world, end, result.normal, Color(0.85, 0.8, 0.6))
 
+	fired.emit(end)
 	# The tracer and sound still come from the gun.
 	Effects.tracer(world, muzzle_pos, end)
 	Effects.sound_at(world, SHOT_SOUND, muzzle_pos, -3.0, 0.06, 0.8)
@@ -782,8 +812,7 @@ func _wander(delta: float) -> Vector3:
 
 
 func _pick_patrol_point() -> Vector3:
-	var map := get_world_3d().navigation_map
-	var spots := get_tree().get_nodes_in_group("loot_containers")
+	var spots := RaidScope.nodes(self, &"loot_containers")
 	_patrol_jog = randf() < jog_chance
 	for attempt in 6:
 		var spot: Vector3
@@ -791,9 +820,9 @@ func _pick_patrol_point() -> Vector3:
 		if not spots.is_empty() and randf() < 0.65:
 			_patrol_container = spots.pick_random() as Node3D
 			# Walk up next to it (the closest walkable point to the container).
-			spot = NavigationServer3D.map_get_closest_point(map, _patrol_container.global_position)
+			spot = _nav_closest(_patrol_container.global_position)
 		else:
-			spot = NavigationServer3D.map_get_random_point(map, 1, false)
+			spot = _nav_random()
 		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0:
 			return spot
 	# No navigation map yet: somewhere a few meters ahead.
@@ -824,6 +853,7 @@ func _has_line_of_sight() -> bool:
 
 
 func _on_damaged(_amount: int, source_position: Vector3) -> void:
+	hits_taken += 1
 	_since_threat = 0.0
 	if _cover_phase == Cover.HEALING:
 		# Interrupted: back to fighting; it can try again in a few seconds.
@@ -850,9 +880,114 @@ func _on_died() -> void:
 	var world := get_tree().current_scene
 	Effects.burst(world, global_position + Vector3(0, 0.9, 0), burst_color)
 	Effects.sound_at(world, POP_SOUND, global_position)
+	if puppet:
+		queue_free()  # its body (and loot) is the server's
+		return
 	var drops: Array = []
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])
-	LootContainer.spawn_bag(world, global_position, body_name, drops, 1.0)
+	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
+	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0)
 	queue_free()
+
+
+# --- Online ------------------------------------------------------------------------
+
+# --- Navigation (safe before the map is ready) ---------------------------------------
+# A raid world made on the server mid-game has no synced navigation map for its first frames; asking it then only
+# logs errors. Until it's ready these act like "no map" (callers then walk straight).
+
+func _nav_ready() -> bool:
+	return NavigationServer3D.map_get_iteration_id(get_world_3d().navigation_map) > 0
+
+
+func _nav_closest(point: Vector3) -> Vector3:
+	return NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, point) if _nav_ready() else Vector3.ZERO
+
+
+func _nav_path(from: Vector3, to: Vector3) -> PackedVector3Array:
+	return NavigationServer3D.map_get_path(get_world_3d().navigation_map, from, to, true) if _nav_ready() else PackedVector3Array()
+
+
+func _nav_random() -> Vector3:
+	return NavigationServer3D.map_get_random_point(get_world_3d().navigation_map, 1, false) if _nav_ready() else Vector3.ZERO
+
+
+## What puppets need to show this scav: [position, yaw, flags, hits_taken].
+func net_capture() -> Array:
+	var flags := 0
+	if (_looting_left > 0.0 and state == State.IDLE) or _cover_phase == Cover.HEALING:
+		flags |= NET_LEAN_IN
+	if _windup_left > 0.0:
+		flags |= NET_WINDUP
+	if _lunge_left > 0.0:
+		flags |= NET_LUNGE
+	if _sneaking():
+		flags |= NET_SNEAK
+	return [global_position, rotation.y, flags, hits_taken]
+
+
+## Puppet: a new state from the server (`at` = arrival time in seconds).
+func net_push(net_state: Array, at := -1.0) -> void:
+	if at < 0.0:
+		at = Time.get_ticks_msec() / 1000.0
+	if _net_buffer.is_empty():
+		global_position = net_state[0]
+		rotation.y = net_state[1]
+		_net_hits = net_state[3]
+	_net_buffer.append([at, net_state])
+	if _net_buffer.size() > 20:
+		_net_buffer.pop_front()
+
+
+## Puppet: shows a shot the server's scav fired (tracer, sound, flash from this copy's gun).
+func net_fired(end: Vector3) -> void:
+	var muzzle_pos := muzzle.global_position
+	Effects.tracer(get_tree().current_scene, muzzle_pos, end)
+	Effects.sound_at(get_tree().current_scene, SHOT_SOUND, muzzle_pos, -3.0, 0.06, 0.8)
+	_muzzle_flash_time = 0.05
+
+
+## Puppet: the server's scav died (pop into voxels, like offline; its body bag comes from the server).
+func net_died() -> void:
+	if state != State.DEAD:
+		_on_died()
+
+
+func net_alerted() -> void:
+	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
+
+
+func net_bash_started() -> void:
+	Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8)
+
+
+func _puppet_update(delta: float) -> void:
+	if _net_buffer.is_empty():
+		return
+	var time := Time.get_ticks_msec() / 1000.0 - 0.1
+	while _net_buffer.size() > 2 and _net_buffer[1][0] <= time:
+		_net_buffer.pop_front()
+	var a: Array = _net_buffer[0]
+	var b: Array = _net_buffer[1] if _net_buffer.size() > 1 else a
+	var t := 1.0 if b[0] <= a[0] else clampf((time - a[0]) / (b[0] - a[0]), 0.0, 1.0)
+	var old := global_position
+	global_position = (a[1][0] as Vector3).lerp(b[1][0], t)
+	rotation.y = lerp_angle(a[1][1], b[1][1], t)
+	velocity = (global_position - old) / maxf(delta, 0.001)
+	var flags: int = b[1][2]
+	# Rising edges start the same animations the server's scav is playing.
+	if flags & NET_WINDUP and not _net_flags & NET_WINDUP:
+		_windup_left = melee_windup
+	if flags & NET_LUNGE and not _net_flags & NET_LUNGE:
+		_lunge_left = 0.15
+	if not flags & NET_WINDUP:
+		_windup_left = 0.0
+	_net_flags = flags
+	_looting_left = 1.0 if flags & NET_LEAN_IN else 0.0
+	if b[1][3] > _net_hits:
+		_net_hits = b[1][3]
+		_hit_flash_time = 0.08
+		_flinch_left = flinch_time
+	_update_footsteps(delta)

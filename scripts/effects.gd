@@ -18,6 +18,8 @@ static func unshaded(color: Color) -> StandardMaterial3D:
 
 
 static func tracer(world: Node, from: Vector3, to: Vector3) -> void:
+	if world == null:
+		return  # the game server has no scene to show it in
 	var dist := from.distance_to(to)
 	if dist < 0.2:
 		return
@@ -36,6 +38,8 @@ static func tracer(world: Node, from: Vector3, to: Vector3) -> void:
 
 
 static func impact(world: Node, pos: Vector3, normal: Vector3, color: Color, amount := 8) -> void:
+	if world == null:
+		return  # the game server has no scene to show it in
 	var particles := _cube_particles(color, 0.06, amount)
 	particles.lifetime = 0.45
 	particles.direction = normal
@@ -47,6 +51,8 @@ static func impact(world: Node, pos: Vector3, normal: Vector3, color: Color, amo
 
 ## Explodes something into voxel chunks (enemy deaths).
 static func burst(world: Node, pos: Vector3, color: Color) -> void:
+	if world == null:
+		return  # the game server has no scene to show it in
 	var particles := _cube_particles(color, 0.16, 30)
 	particles.lifetime = 1.2
 	particles.direction = Vector3.UP
@@ -61,6 +67,8 @@ static func burst(world: Node, pos: Vector3, color: Color) -> void:
 
 
 static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool) -> void:
+	if world == null:
+		return  # the game server has no scene to show it in
 	var label := Label3D.new()
 	label.text = str(amount) + ("!" if critical else "")
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -84,6 +92,8 @@ static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool
 
 
 static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08) -> void:
+	if world == null:
+		return  # the game server has no scene to show it in
 	var audio := AudioStreamPlayer.new()
 	audio.stream = stream
 	audio.volume_db = volume_db
@@ -94,6 +104,8 @@ static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitt
 
 
 static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0) -> void:
+	if world == null:
+		return  # the game server has no scene to show it in
 	var audio := AudioStreamPlayer3D.new()
 	audio.stream = stream
 	audio.volume_db = volume_db

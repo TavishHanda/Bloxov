@@ -31,7 +31,7 @@ func _ready() -> void:
 func _bake() -> void:
 	await get_tree().physics_frame
 	var source := NavigationMeshSourceGeometryData3D.new()
-	for node in get_tree().get_nodes_in_group(SOURCE_GROUP):
+	for node in RaidScope.nodes(self, SOURCE_GROUP):
 		_add_geometry(node, source)
 	NavigationServer3D.bake_from_source_geometry_data(navigation_mesh, source)
 	# Hand the freshly baked polygons to the navigation server (the map picks them up on its next sync).

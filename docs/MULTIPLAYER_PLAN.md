@@ -55,7 +55,11 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       server with accounts). Scavs come with step 4.
 - [ ] ~~3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound
       as now. Friendly fire per the owner's answer below.
-- [ ] **4. AI on the server (0.7.3).** Scavs/Raiders run on the server and react to every player.
+- [x] **4. AI on the server (0.7.8).** `RaidWorld` keeps Navigation + EnemySpawner; every player has a proxy body
+      (`player.tscn` with `proxy = true`, moved by their states, makes footstep noise) the AI targets; what scavs do
+      to proxies is forwarded (`_hit`, `_bashed`). Clients show puppets (`Scav.puppet`, `net_push`, seeded outfits)
+      and events (fired/alerted/bash/died). Groups are per raid via `RaidScope`. Server knife checks too.
+- [ ] ~~4. AI on the server (0.7.3).** Scavs/Raiders run on the server and react to every player.
 - [ ] **5. Loot and bodies (0.7.4).** Shared containers (one person takes an item, it's gone for everyone),
       player bodies you can loot (PvP).
 - [ ] **6. Raid flow (0.7.5).** Per-player extract and death, squads spawn together, raid ends when everyone is

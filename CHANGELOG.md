@@ -2,6 +2,19 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.8 (multiplayer: everyone sees the same AI)
+- **Scavs and Raiders are back in online raids, and everyone sees the same ones.** They run on the server (each
+  raid has its own), with the same behavior as solo: patrols, spotting, hearing, cover, healing, Raider duos, spawn
+  budget. Everyone sees the same scavs in the same places, wearing the same outfits
+- They **see, hear, shoot and rifle-butt every player** in the raid (footsteps, gunshots, near misses); their hits
+  go through your armor as usual
+- **Your shots and knife hit them on the server** (hit markers, sounds and kills like solo; backstabs still kill)
+- The **knife works on other players too** now (45 damage, backstab kills)
+- Scavs pop into voxels for everyone when they die. Their **body bags (loot) come in the next update** (shared
+  loot)
+- Fix: a scav whose target left (died/extracted/disconnected) between sight checks could crash its AI (only
+  possible with more than one player)
+
 ## 0.7.7 (multiplayer: shooting each other)
 - **You can shoot other players online** (friendly fire is on: teammates too). Hit markers, hit/headshot sounds and
   the kill sound work like against scavs; kills count on the end screen
