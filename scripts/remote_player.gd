@@ -5,19 +5,14 @@ extends CharacterBody3D
 ## and lying down when dead. Drawn slightly in the past (INTERP_DELAY), smoothly between the last updates,
 ## so 20 updates a second look like continuous movement.
 
-## A state is [position, yaw, pitch, lean, flags] (see capture()).
-const FLAG_CROUCH := 1
-const FLAG_AIM := 2
-const FLAG_SPRINT := 4
-const FLAG_DEAD := 8
-const FLAG_EXTRACTED := 16
+## A state is [position, yaw, pitch, lean, flags] (see capture()). Flags and hitbox sizes live in Hitbox.
+const FLAG_CROUCH := Hitbox.FLAG_CROUCH
+const FLAG_AIM := Hitbox.FLAG_AIM
+const FLAG_SPRINT := Hitbox.FLAG_SPRINT
+const FLAG_DEAD := Hitbox.FLAG_DEAD
+const FLAG_EXTRACTED := Hitbox.FLAG_EXTRACTED
 ## How far in the past other players are drawn (two updates' worth, so there's always one to move toward).
 const INTERP_DELAY := 0.1
-## Same as the local player (player.gd: lean_distance 0.35 m at head height): the angle the body tips by.
-const LEAN_ANGLE := 0.21
-const CROUCH_SCALE := 0.67
-const BODY_HEIGHT := 1.35
-const HEAD_HEIGHT := 1.71
 ## The head tilts around the neck (just below the head box). Its parts are the model's Head/Hat/Eyes/Mask nodes.
 const NECK_HEIGHT := 1.38
 const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
@@ -130,10 +125,10 @@ func update_view(time: float, delta: float) -> void:
 
 
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
-	var height := lerpf(1.0, CROUCH_SCALE, _crouch)
+	var height := Hitbox.height_scale(_crouch)
 	model.scale = Vector3(1.0, height, 1.0)
 	# Lean tips the whole body around the feet; the dead fall over backward. (The model faces -Z.)
-	model.rotation.z = -_lean * LEAN_ANGLE
+	model.rotation.z = -_lean * Hitbox.LEAN_ANGLE
 	# Negative X tips it forward (sprinting), positive backward (lying on its back when dead).
 	model.rotation.x = lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, 1.5, _down)
 	# Looking up and down tilts the head (owner: the head, not the gun), limited so it stays on the shoulders.
@@ -144,9 +139,9 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	var swing := sin(_walk_time) * 0.6 * minf(speed / 2.0, 1.0)
 	leg_l.rotation.x = swing
 	leg_r.rotation.x = -swing
-	# Hitboxes follow the pose (crouched = shorter, leaning = head off to the side), ready for shooting (0.7.3).
-	(body_shape.shape as BoxShape3D).size.y = BODY_HEIGHT * height
-	body_shape.position.y = BODY_HEIGHT * height * 0.5
-	head_shape.position = Vector3(sin(_lean * LEAN_ANGLE) * HEAD_HEIGHT * height, cos(_lean * LEAN_ANGLE) * HEAD_HEIGHT * height, 0)
+	# Hitboxes follow the pose (crouched = shorter, leaning = head off to the side), same as the server's (Hitbox).
+	(body_shape.shape as BoxShape3D).size = Hitbox.body_size(_crouch)
+	body_shape.position = Hitbox.body_center(_crouch)
+	head_shape.position = Hitbox.head_center(_crouch, _lean)
 	body_shape.disabled = _down > 0.5
 	head_shape.disabled = _down > 0.5

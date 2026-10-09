@@ -17,6 +17,12 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 - **Scav spawns:** *how many and when* is done (0.6.4 spawn budget). Still to do with the maps: *where*
   (hand-placed spawn points per area) and retuning the budget/timings for the real raid flow (owner).
 
+## Next after the multiplayer update (owner, 0.7.x)
+Owner: before moving on to the next big thing, a polish round. Starts with:
+- **HUD** fixes (owner will say what bugs them).
+- **Inventory screen** fixes.
+- Then other things the owner wants to talk through.
+
 ## Owner's wishlist (after 0.5.9)
 Agreed order: core gameplay first (scavs next), then the co-op test (M3), then map, then content and art.
 - **Playable characters with their own perks (owner wants this; M5 content).** Plan discussed:

@@ -318,12 +318,20 @@ func shoot_once() -> void:
 	var from := camera.global_position
 	var to := from + dir * max_range
 
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4, [player.get_rid()])
+	# Online, other players (layer 2) can be hit too; the server decides whether they were.
+	var online := Network.main.in_online_raid()
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | (2 if online else 0), [player.get_rid()])
 	var result := get_world_3d().direct_space_state.intersect_ray(query)
 	var end := to
 	if not result.is_empty():
 		end = result.position
-		_handle_hit(result)
+		if result.collider is RemotePlayer:
+			# Just the puff here; damage, the hit marker and the sound come when the server confirms.
+			Effects.impact(world, result.position, result.normal, Player.HIT_COLOR, 12)
+		else:
+			_handle_hit(result)
+	if online:
+		Network.main.send_shot(from, dir, weapon.id)
 
 	_warn_near_misses(from, end, result.get("collider"))
 	Effects.tracer(world, muzzle.global_position, end)

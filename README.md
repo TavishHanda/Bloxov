@@ -4,13 +4,18 @@ A blocky voxel extraction shooter. Loot weird stuff, get attached to it, try to 
 
 Design doc: [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md)
 
-## Status: 0.5.7 (guns update)
+## Status: 0.7.7 (multiplayer update)
+
+The current version and every change are in [`CHANGELOG.md`](CHANGELOG.md).
 
 Gear up in the hideout, drop into a raid, loot crates/lockers/safes and dead scavs and Raiders, and get to an open
 extract before the timer runs out. Extract and you keep it all; sell loot to the trader and buy better gear. Die and
 you lose everything except your 2×2 secure pocket. Progress is saved in your browser.
 The 0.5 guns update added aiming down sights, real view recoil, spread/flinch, a knife (backstabs kill),
-crouching and stamina, and retuned time-to-kill.
+crouching and stamina, and retuned time-to-kill. The 0.6 update made scavs and Raiders smarter (senses, paths
+around buildings, patrols, cover, healing). The 0.7 multiplayer update (in progress) adds **ONLINE**: party up
+with a friend's code and queue into raids with other players (2-6 per raid), and shoot each other, on a game
+server on Heroku.
 Every push to `main` builds the web version and publishes it to GitHub Pages.
 
 **Controls:**

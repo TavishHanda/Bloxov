@@ -49,7 +49,11 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       once 2 are waiting, raids of 2-6 (full = start now, parties never split), no late joining, "Start now" for
       one party (testing), up to 4 raids per server. Teammates get a name tag. START RAID stays the solo raid
       against the AI (owner: keep solo in the final game too; later it can run on the server so its loot counts).
-- [ ] **3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound
+- [x] **3. Shoot each other (0.7.7).** `RaidWorld` (one map copy per raid on the server, its own physics world),
+      `Hitbox` (shared box math), position history + rewind to the shooter's view time (max 0.5 s). Victims
+      apply hits to their own health (armor), so health isn't server-owned yet (fine with friends; moves to the
+      server with accounts). Scavs come with step 4.
+- [ ] ~~3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound
       as now. Friendly fire per the owner's answer below.
 - [ ] **4. AI on the server (0.7.3).** Scavs/Raiders run on the server and react to every player.
 - [ ] **5. Loot and bodies (0.7.4).** Shared containers (one person takes an item, it's gone for everyone),

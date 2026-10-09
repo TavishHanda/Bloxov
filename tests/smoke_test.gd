@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -831,6 +831,7 @@ func _section_net() -> void:
 		c.raid_started.connect(func() -> void: log[c].append("raid"))
 		c.notice.connect(func(text: String) -> void: log[c].append(text))
 	_check(server.join_problem("0.0.1").contains("Reload"), "an outdated game is told to reload")
+	_check(server.join_problem(server.version()) == "", "the right version can come online")
 	c1.go_online("localhost:19081", "Alpha")
 	c2.go_online("localhost:19081", "Bravo")
 	c3.go_online("localhost:19081", "Charlie")
@@ -936,6 +937,104 @@ func _until(condition: Callable) -> void:
 		if condition.call():
 			return
 		await process_frame
+
+
+func _section_pvp() -> void:
+	# Shooting each other (0.7.7): the server checks every shot against its own copy of the map and the other
+	# players where the shooter saw them (lag compensation); damage comes from the weapon, armor on the victim.
+	var server := _net_peer("PvpServer")
+	var c1 := _net_peer("PvpClient1")
+	var c2 := _net_peer("PvpClient2")
+	server.start_server(19082)
+	server.matchmaker.queue_countdown = 0.2
+	var got := {"hits": [], "confirmed": [], "kills": 0}
+	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void: got["hits"].append([amount, headshot]))
+	c1.shot_confirmed.connect(func(headshot: bool) -> void: got["confirmed"].append(headshot))
+	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
+	c1.go_online("localhost:19082", "Shooter")
+	c2.go_online("localhost:19082", "Target")
+	await _until(func() -> bool: return c1.is_client() and c2.is_client() and c1.party_code != "" and c2.party_code != "")
+	c1.set_queued(true)
+	c2.set_queued(true)
+	await _until(func() -> bool: return c1.in_raid and c2.in_raid)
+	var world: RaidWorld = server._worlds.values()[0] if not server._worlds.is_empty() else null
+	_check(world != null and world.get_node_or_null("Main/Level") != null and world.get_node_or_null("Main/Player") == null,
+		"each online raid gets its own copy of the map on the server (map only)")
+	await _frames(5)
+	var c1_id: int = c1.multiplayer.get_unique_id()
+	var c2_id: int = c2.multiplayer.get_unique_id()
+
+	# Target stands still facing the shooter; the shooter fires at the body, then the head.
+	# (Shots are checked where targets were ~0.1 s ago in real time, and the test runs faster than real time,
+	# so each move is held for a moment of real time.)
+	var stand := func(c: Network, pos: Vector3) -> void:
+		for i in 4:
+			c.send_state([pos, 0.0, 0.0, 0.0, 0])
+			await _frames(2)
+			OS.delay_msec(40)
+	await stand.call(c2, Vector3(0, 0.1, -10))
+	await stand.call(c1, Vector3(0, 0.1, -4))
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized(), "ak")
+	await _until(func() -> bool: return not got["hits"].is_empty())
+	_check(got["hits"] == [[28, false]] and got["confirmed"] == [false], "an AK body shot hits the other player for 28 (%s)" % str(got["hits"]))
+	await _frames(4)
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized(), "ak")
+	await _until(func() -> bool: return got["hits"].size() >= 2)
+	_check(got["hits"].size() == 2 and got["hits"][1] == [56, true], "a headshot does double (%s)" % str(got["hits"]))
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, -4), Vector3(1, 0, 0), "ak")
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized(), "gold_watch")
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(30, 1.5, -4), Vector3(0, 0, -1), "ak")
+	await _frames(20)
+	_check(got["hits"].size() == 2, "misses, non-weapons and shots from somewhere else don't count")
+
+	# Walls block shots (the north wall at z = 40.5).
+	await stand.call(c2, Vector3(0, 0.1, 43))
+	await stand.call(c1, Vector3(0, 0.1, 38))
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, 38), Vector3(0, -0.05, 1).normalized(), "ak")
+	await _frames(20)
+	_check(got["hits"].size() == 2, "a wall stops the shot")
+
+	# Lag compensation: a shot counts where the target was on the shooter's screen.
+	var now: float = server._now()
+	world.record(901, [Vector3(10, 0.1, 0), 0.0, 0.0, 0.0, 0], now - 0.3)
+	world.record(901, [Vector3(14, 0.1, 0), 0.0, 0.0, 0.0, 0], now)
+	var at_then := world.trace_shot(c1_id, Vector3(10, 1.0, 6), Vector3(0, 0, -1), 50.0, now - 0.3, now)
+	var at_now := world.trace_shot(c1_id, Vector3(10, 1.0, 6), Vector3(0, 0, -1), 50.0, now, now)
+	_check(at_then.get("peer") == 901 and at_now.is_empty(), "shots are checked against where the target was when you fired")
+	world.forget(901)
+
+	# Dying credits the last attacker; the victim's own armor applies to hits.
+	await stand.call(c2, Vector3(0, 0.1, -10))
+	await stand.call(c1, Vector3(0, 0.1, -4))
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized(), "pistol")
+	await _until(func() -> bool: return got["hits"].size() >= 3)
+	_check(got["hits"].size() == 3 and got["hits"][2] == [17, false], "pistol body shot: 17")
+	c2.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD])
+	await _until(func() -> bool: return got["kills"] == 1)
+	_check(got["kills"] == 1, "the killer is told about the kill")
+	var net_raid := main.get_node("NetRaid") as NetRaid
+	var before := player.health.current
+	net_raid.apply_hit(28, Vector3(0, 0, -20), false)
+	# (In a full run the player died in an earlier section, and a dead player takes no more hits.)
+	var expected := 0 if player.controls_locked() else roundi(28 * player.health.damage_multiplier)
+	_check(before - player.health.current == expected, "the victim takes the hit through their own armor (%d)" % expected)
+	player.health.heal(100)
+
+	for c in [c1, c2]:
+		c.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	await _frames(2)
+	_check(server._worlds.is_empty(), "the raid's map copy is removed when the raid ends")
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1, c2]:
+		n.get_parent().queue_free()
 
 
 func _section_owner_rules() -> void:

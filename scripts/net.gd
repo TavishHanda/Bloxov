@@ -10,9 +10,11 @@ extends Node
 ##
 ## Going online (hideout): connect, and the server checks the game version. Then parties, the queue and
 ## "start now" (Matchmaker, on the server) decide who plays together; when a raid starts, every player in it
-## loads the raid scene. One server runs several raids at once. In a raid the server relays every player's state
-## to the others in that raid, owns the raid clock and which extracts are open. AI, loot and hits still run on
-## each player's own machine until the next steps (docs/MULTIPLAYER_PLAN.md).
+## loads the raid scene. One server runs several raids at once, each with its own copy of the map (RaidWorld).
+## In a raid the server relays every player's state to the others in that raid, owns the raid clock and which
+## extracts are open, and decides what every shot hit (walls block, lag compensated, damage from the weapon).
+## Each player still applies hits to their own health (through their armor), and AI and loot still run on each
+## player's own machine until the next steps (docs/MULTIPLAYER_PLAN.md).
 
 ## Connected and let in (the hideout shows the party/queue screen).
 signal connected
@@ -26,6 +28,10 @@ signal queue_changed
 signal notice(text: String)
 ## The server put us in a raid: load it.
 signal raid_started
+## In a raid: another player's shot hit us (damage before our armor); our shot hit someone; we killed someone.
+signal got_hit(amount: int, from: Vector3, headshot: bool)
+signal shot_confirmed(headshot: bool)
+signal kill_confirmed
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -37,6 +43,8 @@ const RAID_TIME := 600.0
 const SEND_RATE := 20.0
 ## Queue status updates per second (to players in the hideout).
 const QUEUE_RATE := 2.0
+## Players online at once (in the hideout or raids). Keeps a flood of fake players from swamping the server.
+const MAX_ONLINE := 40
 
 var mode := Mode.OFFLINE
 
@@ -60,6 +68,10 @@ var teammates: Array[int] = []
 ## The other players in our raid: their latest state (RemotePlayer.capture) by peer id, and when it arrived.
 var states := {}
 var states_msec := 0
+## Server clock (seconds) of the last states update, and our clock when it arrived: lets shots say what moment
+## of the raid we were looking at when we fired (the server checks hits against that moment).
+var _server_time := 0.0
+var _server_time_at := 0.0
 
 ## The game's own connection (the "Net" autoload). The test makes extra Network nodes; those aren't this.
 static var main: Network
@@ -68,6 +80,12 @@ static var main: Network
 var matchmaker := Matchmaker.new()
 ## peer -> latest state, for players in a raid.
 var _player_states := {}
+## raid id -> RaidWorld (that raid's map on the server, for checking shots).
+var _worlds := {}
+## victim peer -> [attacker peer, server time]: who to credit when they die.
+var _last_attacker := {}
+## peer -> server time of their last shot (to ignore impossible fire rates).
+var _last_shot := {}
 var _send_left := 0.0
 var _queue_send_left := 0.0
 
@@ -149,6 +167,8 @@ static func is_valid_state(state: Array) -> bool:
 func join_problem(client_version: String) -> String:
 	if client_version != version():
 		return "The server is on v%s and you have v%s. Reload the page to update." % [version(), client_version]
+	if matchmaker.players.size() >= MAX_ONLINE:
+		return "The server is full right now (%d players). Try again in a few minutes." % MAX_ONLINE
 	return ""
 
 
@@ -206,9 +226,47 @@ func _leave_raid() -> void:
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func _state(state: Array) -> void:
 	var peer := multiplayer.get_remote_sender_id()
-	if (mode == Mode.SERVER and matchmaker.players.has(peer) and matchmaker.players[peer]["raid"] != 0
+	if not (mode == Mode.SERVER and matchmaker.players.has(peer) and matchmaker.players[peer]["raid"] != 0
 			and is_valid_state(state)):
-		_player_states[peer] = state
+		return
+	var was_dead: bool = _player_states.has(peer) and _player_states[peer][4] & Hitbox.FLAG_DEAD
+	_player_states[peer] = state
+	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
+	if world != null:
+		world.record(peer, state, _now())
+	# Just died: credit whoever hit them last (within 10 s).
+	if state[4] & Hitbox.FLAG_DEAD and not was_dead and _last_attacker.has(peer):
+		var attacker: Array = _last_attacker[peer]
+		if _now() - attacker[1] < 10.0 and _peer_open(attacker[0]):
+			_kill_confirmed.rpc_id(attacker[0])
+		_last_attacker.erase(peer)
+
+
+## A player fired: the server decides what it hit (the map blocks shots; players are checked where they were on
+## the shooter's screen at `view_time`). Damage comes from the weapon's stats, never from the shooter.
+@rpc("any_peer", "call_remote", "reliable")
+func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER or not matchmaker.players.has(peer) or not _player_states.has(peer):
+		return
+	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
+	var me: Array = _player_states[peer]
+	var stats := ItemDB.item(weapon)
+	if (world == null or me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED) or stats.get("kind") != "weapon"
+			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or dir.length_squared() < 0.5
+			or _now() - _last_shot.get(peer, -1.0) < 0.05):
+		return
+	_last_shot[peer] = _now()
+	var hit := world.trace_shot(peer, from, dir, 150.0, view_time, _now())
+	if hit.is_empty():
+		return
+	var victim: int = hit["peer"]
+	var amount := roundi(float(stats["damage"]) * (float(stats.get("head", 2.0)) if hit["headshot"] else 1.0))
+	_last_attacker[victim] = [peer, _now()]
+	if _peer_open(victim):
+		_hit.rpc_id(victim, amount, me[0], hit["headshot"])
+	if _peer_open(peer):
+		_hit_confirmed.rpc_id(peer, hit["headshot"])
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
@@ -257,6 +315,10 @@ func _peer_open(peer: int) -> bool:
 
 func _send_raid_start(id: int) -> void:
 	var raid: Dictionary = matchmaker.raids[id]
+	var world := RaidWorld.new()
+	world.name = "Raid%d" % id
+	add_child(world)
+	_worlds[id] = world
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
@@ -269,12 +331,25 @@ func _send_raid_start(id: int) -> void:
 		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team)
 
 
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
 func _process(delta: float) -> void:
 	if mode != Mode.SERVER:
 		return
 	for id in matchmaker.tick(delta):
 		_send_raid_start(id)
 	_flush()
+	# Raids that ended: drop their worlds; players who left a raid: drop their history.
+	for id in _worlds.keys():
+		if not matchmaker.raids.has(id):
+			_worlds[id].queue_free()
+			_worlds.erase(id)
+		else:
+			for peer in _worlds[id].history.keys():
+				if not matchmaker.raids[id]["players"].has(peer):
+					_worlds[id].forget(peer)
 	_queue_send_left -= delta
 	if _queue_send_left <= 0.0:
 		_queue_send_left = 1.0 / QUEUE_RATE
@@ -294,7 +369,7 @@ func _process(delta: float) -> void:
 				shown[peer] = _player_states[peer]
 		for peer in matchmaker.raids[id]["players"]:
 			if _peer_open(peer):
-				_states.rpc_id(peer, shown)
+				_states.rpc_id(peer, shown, _now())
 
 
 # --- Client --------------------------------------------------------------------------
@@ -372,6 +447,18 @@ func send_state(state: Array) -> void:
 		_state.rpc_id(1, state)
 
 
+## Tells the server we fired (it decides what the shot hit).
+func send_shot(from: Vector3, dir: Vector3, weapon: String) -> void:
+	if in_online_raid():
+		_shot.rpc_id(1, from, dir, weapon, client_view_time())
+
+
+## The moment of the raid (server clock) we're seeing right now: other players are drawn RemotePlayer's
+## INTERP_DELAY behind the latest update.
+func client_view_time() -> float:
+	return _server_time + (Time.get_ticks_msec() / 1000.0 - _server_time_at) - 0.1
+
+
 func _on_connected(player_name: String) -> void:
 	_hello.rpc_id(1, version(), player_name)
 
@@ -437,10 +524,30 @@ func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team
 	raid_started.emit()
 
 
+@rpc("authority", "call_remote", "reliable")
+func _hit(amount: int, from: Vector3, headshot: bool) -> void:
+	if in_online_raid():
+		got_hit.emit(amount, from, headshot)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _hit_confirmed(headshot: bool) -> void:
+	if in_online_raid():
+		shot_confirmed.emit(headshot)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _kill_confirmed() -> void:
+	if in_online_raid():
+		kill_confirmed.emit()
+
+
 @rpc("authority", "call_remote", "unreliable_ordered")
-func _states(all: Dictionary) -> void:
+func _states(all: Dictionary, server_time: float) -> void:
 	if not in_online_raid():
 		return
+	_server_time = server_time
+	_server_time_at = Time.get_ticks_msec() / 1000.0
 	states = all.duplicate()
 	states.erase(multiplayer.get_unique_id())
 	states_msec = Time.get_ticks_msec()

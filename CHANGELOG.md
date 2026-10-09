@@ -2,6 +2,18 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.7 (multiplayer: shooting each other)
+- **You can shoot other players online** (friendly fire is on: teammates too). Hit markers, hit/headshot sounds and
+  the kill sound work like against scavs; kills count on the end screen
+- **The server decides every hit:** each online raid has its own copy of the map on the server, so walls stop
+  bullets, and damage comes from the gun's stats (AK 28, x2 to the head; pistol 17, x2.5), never from the shooter
+- **Lag compensation:** a shot is checked against where the target was *on your screen* when you fired, so a shot
+  that looked like a hit counts
+- Your armor protects you from other players like it does from scavs
+- The server ignores shots that couldn't be real (impossible fire rate, fired from somewhere you aren't, not a gun)
+- At most 40 players online at once, so a flood of fake connections can't swamp the server
+- README shows the current version (it still said 0.5.7)
+
 ## 0.7.6 (other players' heads look around)
 - Other players' **heads** now tilt up and down with where they look; their gun stays put (owner: it was the gun
   that moved)

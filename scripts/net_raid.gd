@@ -23,6 +23,9 @@ func _ready() -> void:
 	if enemy_spawner != null:
 		enemy_spawner.queue_free()
 	Network.main.connection_lost.connect(_on_connection_lost)
+	Network.main.got_hit.connect(apply_hit)
+	Network.main.shot_confirmed.connect(_on_shot_confirmed)
+	Network.main.kill_confirmed.connect(_on_kill_confirmed)
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_label = Label.new()
@@ -68,6 +71,24 @@ func sync_remotes(states: Dictionary) -> void:
 			get_parent().add_child(remote)
 			remotes[peer] = remote
 		remote.push_state(states[peer])
+
+
+## Another player's shot hit us (the server checked it): our armor applies as for any other hit.
+func apply_hit(amount: int, from: Vector3, _headshot: bool) -> void:
+	if not player.controls_locked():
+		player.health.take_damage(amount, from)
+
+
+func _on_shot_confirmed(headshot: bool) -> void:
+	var world := get_tree().current_scene
+	Effects.sound(world, Gun.HEADSHOT_SOUND if headshot else Gun.HIT_SOUND, -3.0, 0.03)
+	player.gun.hit_confirmed.emit(false, headshot)
+
+
+func _on_kill_confirmed() -> void:
+	player.kills += 1
+	Effects.sound(get_tree().current_scene, Gun.KILL_SOUND, -2.0, 0.0)
+	player.gun.hit_confirmed.emit(true, false)
 
 
 func _on_connection_lost() -> void:
