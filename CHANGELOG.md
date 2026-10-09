@@ -5,6 +5,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.6 (HUD "Ammo Can" 2/4: hotbar, owner)
+- **New hotbar:** gunmetal lids with the key stenciled small in the corner (no more tabs on top), the icon, the
+  count and the rarity stripe, with more room between slots
+- **The gun in your hands pops up:** lighter lid, hazard-yellow rim, caution stripes along its top edge and a
+  yellow key
+- **Switching guns** slaps its name on a strip of tape above its slot for a moment (it used to be plain text)
+- **Empty slots** are sunk-in wells with a faint ghost of what goes there (rifle on 1, pistol on 2, grenade on 4-5)
+- **No meds left:** the cross dims and gets crossed out with a red pixel line, the count turns red
+
 ## 0.8.5 (centered hotbar, owner)
 - **Everything on the hotbar is centered:** key numbers in their tabs, icons in the space under the tab, counts
   across the slot (measured to the pixel; the text used to sit a bit left and low)

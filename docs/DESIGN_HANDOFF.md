@@ -3,12 +3,13 @@
 The owner runs a separate Claude session, **designer**, for visual/UI design. This file catches it up. The main
 session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (the project rules apply to both).
 
-## What Bloxov looks like today (0.8.4)
+## What Bloxov looks like today (0.8.6)
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
 - **Raid HUD: being redone as "Ammo Can"** (owner picked it from 3 pitches, in the gunmetal color and the compact
-  size; 0.8.4 = style + health + ammo, next: hotbar, then timer/prompts/extract list/crosshair, then a light
+  size; 0.8.4 = style + health + ammo, 0.8.5 = centering (`HudStyle.draw_centered`, measured), 0.8.6 = hotbar;
+  next: timer/prompts/extract list/crosshair, then a light
   inventory pass). Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
   tags, hazard stripes (`draw_hazard`), masking-tape labels (`draw_tape`); fonts Jersey 10 (numbers), Silkscreen
   Bold (tiny labels, `draw_label`), Pixelify Sans (tape). Owner: "make sure it looks super nice", not cramped.

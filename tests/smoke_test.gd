@@ -1268,6 +1268,13 @@ func _section_hud() -> void:
 	gun.is_reloading = false
 	health_widget.queue_free()
 	ammo_widget.queue_free()
+	# Hotbar (0.8.6): the gun in your hands pops up; empty gun slots show a faint ghost of what goes there.
+	var bar := HotbarHUD.new(player)
+	root.add_child(bar)
+	await _frames(20)
+	_check(bar.held_slot() == 0 and bar.slot_rect(0).position.y < bar.slot_rect(2).position.y, "the held rifle's slot pops up above the others")
+	_check(bar._ghost_icon(1) == HudStyle.PISTOL and bar._ghost_icon(3) == HudStyle.GRENADE and bar._ghost_icon(5).is_empty(), "empty slots ghost a pistol (2) and a grenade (4)")
+	bar.queue_free()
 
 
 func _section_owner_rules() -> void:

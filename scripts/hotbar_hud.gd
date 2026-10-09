@@ -1,15 +1,19 @@
 class_name HotbarHUD
 extends Control
-## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.3): 1 = primary, 2 = secondary, 3 = meds (all your heals;
-## uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V).
-## Each slot is a small plate with a stamped key tab, a pixel icon, a count, and a rarity stripe along the bottom.
-## The gun in your hands rises and glows; switching shows its name for a moment. Empty slots are sunk-in wells;
-## out-of-stock ones are crossed out.
+## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.6 "Ammo Can"): 1 = primary, 2 = secondary, 3 = meds (all
+## your heals; uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V).
+## Each slot is a gunmetal lid with its key stenciled in the corner, a pixel icon, a count and a rarity stripe.
+## The gun in your hands pops up: lighter lid, hazard-yellow rim and caution stripes, yellow key. Switching guns
+## slaps its name on a strip of tape above it for a moment. Empty slots are sunk-in wells with a faint ghost of
+## what goes there; no meds left = the cross is crossed out in red.
 
-const SLOT_SIZE := Vector2(64, 56)
-const GAP := 6.0
-const RISE := 6.0
+const SLOT_SIZE := Vector2(54, 48)
+const GAP := 8.0
+const RISE := 7.0
+## Room above the slots for the switch tape.
+const TAPE_ROOM := 34.0
 const SLOTS := 2 + Inventory.HOTBAR_SIZE
+const SWITCH_TIME := 1.3
 
 var player: Player
 ## How far each slot has risen (0..1, the held gun rises).
@@ -31,16 +35,16 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	offset_left = -width * 0.5
 	offset_right = width * 0.5
-	offset_top = -14 - SLOT_SIZE.y - RISE - 30
-	offset_bottom = -14
+	offset_top = -18 - SLOT_SIZE.y - RISE - TAPE_ROOM
+	offset_bottom = -18
 
 
 func _process(delta: float) -> void:
 	var held := held_slot()
 	if held != _held_slot:
 		if held >= 0 and _held_slot != -1:
-			_switch_text = ItemDB.display_name(player.gun.weapon.id)
-			_switch_left = 1.2
+			_switch_text = ItemDB.display_name(player.gun.weapon.id).to_upper()
+			_switch_left = SWITCH_TIME
 		_held_slot = held
 	_switch_left -= delta
 	for i in SLOTS:
@@ -92,50 +96,76 @@ func slot_info(i: int) -> Dictionary:
 	return info
 
 
+func slot_rect(i: int) -> Rect2:
+	var top := TAPE_ROOM + RISE * (1.0 - _rise[i])
+	return Rect2(Vector2(i * (SLOT_SIZE.x + GAP), top), SLOT_SIZE)
+
+
 func _draw() -> void:
 	var held := held_slot()
 	for i in SLOTS:
 		var info := slot_info(i)
-		var top := 30.0 + RISE * (1.0 - _rise[i])
-		var rect := Rect2(Vector2(i * (SLOT_SIZE.x + GAP), top), SLOT_SIZE)
+		var rect := slot_rect(i)
 		var active := i == held
 		var state: String = info["state"]
-		# Everything is centered in its own box: the icon in the area above the count (the whole slot when there's
-		# no count), the count across the slot, the key in its tab.
-		var has_count: String = info["count"]
-		var icon_box := Rect2(rect.position + Vector2(0, 8), Vector2(SLOT_SIZE.x, 26 if has_count != "" else SLOT_SIZE.y - 14))  # (below the key tab)
+		var key := "V" if i - 2 == Inventory.KNIFE_KEY else str(i + 1)
+		var count: String = info["count"]
+		# Icon area above the count (the whole slot when there's no count); count area along the bottom.
+		var icon_box := Rect2(rect.position + Vector2(0, 4), Vector2(SLOT_SIZE.x, 26 if count != "" else SLOT_SIZE.y - 8))
+		var count_box := Rect2(rect.position + Vector2(0, 28), Vector2(SLOT_SIZE.x, 14))
 		if state == "empty":
 			HudStyle.draw_well(self, rect, 0.8)
-			if i - 2 in Inventory.BINDABLE_KEYS:
-				var ghost := HudStyle.icon_size(HudStyle.GRENADE, 3)
-				HudStyle.draw_icon(self, HudStyle.GRENADE, (rect.get_center() - ghost * 0.5).round(), 3, Color(HudStyle.INK, 0.18), Color(0, 0, 0, 0))
-		else:
-			HudStyle.draw_plate(self, rect, HudStyle.ACTIVE if active else HudStyle.OUTLINE)
-			var icon: Array = info["icon"]
-			var alpha := 0.35 if state == "out" else 1.0
-			if not icon.is_empty():
-				var px := 2.0 if String(icon[0]).length() > 9 else 3.0
-				var size := HudStyle.icon_size(icon, px)
-				var color := HudStyle.BLOOD if icon == HudStyle.MED else HudStyle.INK
-				HudStyle.draw_icon(self, icon, (icon_box.get_center() - size * 0.5).round(), px, Color(color, alpha))
-			elif info["text"] != "":
-				HudStyle.draw_centered(self, info["text"], icon_box, 16, Color(HudStyle.INK, alpha), HudStyle.label_font())
-			if state == "out":
-				draw_line(icon_box.position + Vector2(10, icon_box.size.y - 2), Vector2(icon_box.end.x - 10, icon_box.position.y + 2), HudStyle.BLOOD, 2.0)
-			if has_count != "":
-				var count_color := HudStyle.BLOOD if state == "out" else HudStyle.INK
-				HudStyle.draw_centered(self, has_count, Rect2(rect.position + Vector2(0, 34), Vector2(SLOT_SIZE.x, 14)), 20, count_color)
-			var stripe: Color = info["stripe"]
-			if stripe.a > 0.0:
-				draw_rect(Rect2(rect.position + Vector2(4, SLOT_SIZE.y - 6), Vector2(SLOT_SIZE.x - 8, 2)), Color(stripe, alpha))
-		# Key tab, stamped on top, centered over the slot.
-		var tab := Rect2(rect.position + Vector2((SLOT_SIZE.x - 20) * 0.5, -9), Vector2(20, 17))
-		HudStyle.draw_plate(self, tab, HudStyle.OUTLINE, HudStyle.ACTIVE if active else HudStyle.FACE, 2.0)
-		var key := "V" if i - 2 == Inventory.KNIFE_KEY else str(i + 1)
-		HudStyle.draw_centered(self, key, tab, 20, HudStyle.DEEP if active else HudStyle.INK, null, not active)
-	if _switch_left > 0.0:
+			var ghost: Array = _ghost_icon(i)
+			if not ghost.is_empty():
+				var px := 2.0 if String(ghost[0]).length() > 9 else 3.0
+				var size := HudStyle.icon_size(ghost, px)
+				HudStyle.draw_icon(self, ghost, (rect.get_center() - size * 0.5).round(), px, Color(HudStyle.INK, 0.14), Color(0, 0, 0, 0))
+			HudStyle.draw_label(self, key, rect.position + Vector2(5, 10), Color(HudStyle.INK, 0.35))
+			continue
+		var face := HudStyle.FACE.lerp(HudStyle.FACE_HI, 0.45 * _rise[i])
+		HudStyle.draw_block(self, rect, face, face.lightened(0.25), HudStyle.FACE_DK, 3.0,
+			HudStyle.HAZARD if active else HudStyle.OUTLINE)
+		if _rise[i] > 0.0:
+			# Caution stripes along the popped-up lid's top edge.
+			HudStyle.draw_hazard(self, Rect2(rect.position + Vector2(3, 3), Vector2(SLOT_SIZE.x - 6, 3)), _rise[i], 6.0)
+		var alpha := 0.35 if state == "out" else 1.0
+		var icon: Array = info["icon"]
+		if not icon.is_empty():
+			var px := 2.0 if String(icon[0]).length() > 9 else 3.0
+			var size := HudStyle.icon_size(icon, px)
+			var color := HudStyle.BLOOD if icon == HudStyle.MED else HudStyle.INK
+			HudStyle.draw_icon(self, icon, (icon_box.get_center() - size * 0.5).round(), px, Color(color, alpha))
+		elif info["text"] != "":
+			HudStyle.draw_centered(self, info["text"], icon_box, 8, Color(HudStyle.INK, alpha), HudStyle.label_font())
+		if state == "out":
+			# Crossed out: a stepped red pixel line over the icon.
+			var c := icon_box.get_center()
+			for k in range(-6, 7):
+				draw_rect(Rect2(c + Vector2(k * 2 - 1, -k * 2 - 1), Vector2(3, 3)), Color(0, 0, 0, 0.6))
+			for k in range(-6, 7):
+				draw_rect(Rect2(c + Vector2(k * 2 - 1, -k * 2 - 2), Vector2(2, 2)), HudStyle.BLOOD)
+		if count != "":
+			HudStyle.draw_centered(self, count, count_box, 20, HudStyle.BLOOD if state == "out" else HudStyle.INK)
+		var stripe: Color = info["stripe"]
+		if stripe.a > 0.0:
+			draw_rect(Rect2(rect.position + Vector2(6, SLOT_SIZE.y - 5), Vector2(SLOT_SIZE.x - 12, 2)), Color(stripe, alpha))
+		HudStyle.draw_label(self, key, rect.position + Vector2(5, 13 if _rise[i] > 0.0 else 10),
+			HudStyle.HAZARD if active else HudStyle.INK_DIM)
+	# Switching guns: its name on a strip of tape, slapped on above the slot (drops in, then fades).
+	if _switch_left > 0.0 and held >= 0:
+		var t := SWITCH_TIME - _switch_left
 		var alpha := clampf(_switch_left / 0.3, 0.0, 1.0)
-		var font := get_theme_default_font()
-		draw_string_outline(font, Vector2(0, 18), _switch_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 14, 3, Color(0, 0, 0, alpha))
-		draw_string(font, Vector2(0, 18), _switch_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 14, Color(HudStyle.TEXT, alpha))
+		var drop := (1.0 - clampf(t / 0.1, 0.0, 1.0)) * -6.0
+		var width := HudStyle.tape_width(_switch_text, 14)
+		var over := slot_rect(held)
+		var x := clampf(over.get_center().x - width * 0.5, 0.0, size.x - width)
+		HudStyle.draw_tape(self, Rect2(Vector2(x, over.position.y - 26 + drop), Vector2(width, 20)), _switch_text, -2.0, alpha, 14)
 
+
+## A faint picture of what goes in an empty slot (1 rifle, 2 pistol, 4-5 a grenade).
+func _ghost_icon(i: int) -> Array:
+	if i == 0:
+		return HudStyle.RIFLE
+	if i == 1:
+		return HudStyle.PISTOL
+	return HudStyle.GRENADE if i - 2 in Inventory.BINDABLE_KEYS else []
