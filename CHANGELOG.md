@@ -2,6 +2,16 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.13 (harder PMCs; scav teamwork removed)
+- **PMCs are harder to fight** (scavs behave exactly as before):
+  - They **hear gunshots twice as far away** and come toward fights
+  - In a lull they sometimes **flank**: circle around to hit you from the side instead of taking cover
+  - Closing in on you they **sneak**: slower, and their footsteps go silent
+  - They **hunt longer** (chase 15 s, search 10 s) and take cover sooner and more often
+  - They can **heal twice**
+  - **15% of PMCs arrive as a duo**: a partner that sticks with them (still 5 PMCs per raid in total)
+- **Removed scav radio calls** (0.6.12): owner didn't like it
+
 ## 0.6.12 (scavs: teamwork)
 - **Scavs call for help:** when one spots you (or gets shot) it radios enemies within 30 m, and they **jog over**
   to roughly where you are. They don't know your exact spot. One scav is a speed bump; a group is a fight

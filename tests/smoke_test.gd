@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "teamwork",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "pmc",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1205,22 +1205,70 @@ func _section_hurt() -> void:
 	patient.queue_free()
 
 
-func _section_teamwork() -> void:
-	# A scav that spots you radios scavs within 30 m: they jog over to roughly where you are. Farther ones don't hear.
-	player.teleport_to(Vector3(-30, 0.1, -30))
-	var spotter := _spawn(SCAV_SCENE, Vector3(-20, 0.1, -30)) as Scav
-	var buddy := _spawn(SCAV_SCENE, Vector3(-20, 0.1, -5)) as Scav  # 25 m from the spotter
-	var far := _spawn(SCAV_SCENE, Vector3(20, 0.1, 20)) as Scav  # way out of radio range
-	for s in [buddy, far]:
+func _section_pmc() -> void:
+	# PMCs are harder (owner); scavs keep their behavior. PMCs: hear fights from farther, flank, sneak when close,
+	# hunt longer, cover/heal better, and sometimes come as a duo.
+	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
+	var pmc := _spawn(PMC_SCENE, Vector3(-30, 0.1, 30)) as Scav
+	_check(scav.hearing_mult == 1.0 and scav.flank_chance == 0.0 and scav.sneak_range == 0.0 and scav.give_up_time == 6.0 and scav.heals == 1,
+		"scavs keep their behavior (no PMC tricks)")
+	_check(pmc.hearing_mult > 1.0 and pmc.flank_chance > 0.0 and pmc.sneak_range > 0.0 and pmc.give_up_time > scav.give_up_time
+		and pmc.search_time > scav.search_time and pmc.heals > scav.heals and pmc.cover_cooldown < scav.cover_cooldown, "PMCs get the harder behavior")
+	# Hears a gunshot from farther than a scav would (comes toward fights).
+	for s in [scav, pmc]:
 		s._wander_time = 99.0
 		s._wander_dir = Vector3.ZERO
 	await physics_frame
-	spotter._alert(player.global_position)
-	_check(buddy.state == Scav.State.INVESTIGATE and buddy._goal.distance_to(player.global_position) <= buddy.radio_uncertainty + 0.01,
-		"a nearby scav gets the radio call and heads roughly to where you are")
-	_check(far.state == Scav.State.IDLE, "scavs out of radio range don't hear it")
-	for s in [spotter, buddy, far]:
-		s.queue_free()
+	var shot_from := pmc.global_position + Vector3(0, 0, -40)
+	pmc.hear_noise(shot_from, 25.0)
+	scav.hear_noise(scav.global_position + Vector3(0, 0, -40), 25.0)
+	_check(pmc.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE, "a PMC hears a gunshot 40 m away (a scav doesn't)")
+	# Sneaks (quiet, slower) when close to where it's going.
+	pmc._goal = pmc.global_position + Vector3(0, 0, -8)
+	_check(pmc._sneaking(), "a PMC closing in moves quietly")
+	pmc.queue_free()
+	scav.queue_free()
+	# Flanking: in a lull, a PMC may circle around instead of trading shots.
+	player.teleport_to(Vector3(0, 0.1, -10))
+	var flanker := _spawn(PMC_SCENE, Vector3(0, 0.1, 5)) as Scav
+	_face_player(flanker)
+	flanker.shot_damage = 0
+	await physics_frame
+	flanker._alert(player.global_position)
+	flanker._set_state(Scav.State.ENGAGE)
+	flanker._target = player
+	flanker._try_flank(player.global_position - flanker.global_position, 15.0)
+	var start := flanker.global_position
+	var to_player := (player.global_position - start).normalized()
+	for i in 120:
+		await physics_frame
+	var moved := flanker.global_position - start
+	var sideways := absf(moved.dot(to_player.cross(Vector3.UP)))
+	_check(sideways > 2.0, "a flanking PMC circles around to your side (%.1f m sideways)" % sideways)
+	flanker.queue_free()
+	# Duos: a PMC can arrive with a partner that follows it.
+	var spawner := EnemySpawner.new()
+	spawner.enemy_scene = load(SCAV_SCENE)
+	spawner.pmc_scene = load(PMC_SCENE)
+	spawner.set_physics_process(false)
+	spawner.initial_count = 0
+	spawner.pmc_duo_chance = 1.0
+	var marker := Marker3D.new()
+	marker.position = Vector3(30, 0.1, 30)
+	spawner.add_child(marker)
+	main.add_child(spawner)
+	await physics_frame
+	spawner._spawn(spawner.pmc_scene)
+	var partners := 0
+	for e in get_nodes_in_group("enemies"):
+		if e is Scav and (e as Scav).leader != null:
+			partners += 1
+	_check(spawner.pmcs_spawned == 2 and partners == 1, "a PMC duo spawns (2 PMCs, one following the other)")
+	for e in get_nodes_in_group("enemies"):
+		e.remove_from_group("enemies")
+		e.queue_free()
+	spawner.queue_free()
+	await _frames(2)
 
 
 # --- Helpers -------------------------------------------------------------------

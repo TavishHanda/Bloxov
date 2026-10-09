@@ -1,6 +1,6 @@
 class_name Scav
 extends CharacterBody3D
-## Scav: armed scavenger. Wanders until it spots a player (radios it in, then shoots in short bursts).
+## Scav: armed scavenger. Patrols until it spots a player, then shoots in short bursts.
 ## Senses: seeing you = knows where you are. Hearing you = walks over to investigate roughly where the sound was.
 ## Losing sight of you = goes to where it last saw you, searches for a bit, then goes back to wandering.
 ## Moves along navigation paths (scripts/nav_baker.gd builds the map's walkable area at raid start), so it walks
@@ -97,11 +97,14 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## At most one move to cover per this many seconds.
 @export var cover_cooldown := 10.0
 
-@export_group("Teamwork")
-## When it spots you (or gets shot), it radios enemies within this range: they jog over to check out roughly
-## where you are (they don't know exactly). Lone scavs are a speed bump; groups are dangerous (owner).
-@export var radio_range := 30.0
-@export var radio_uncertainty := 4.0
+@export_group("PMC behavior")
+## All off for scavs (their behavior stays as it is); pmc.tscn turns these on (owner, 0.6.13: PMCs harder to fight).
+## Hears gunshots from this many times farther away, so it comes toward fights.
+@export var hearing_mult := 1.0
+## Chance (per lull in a fight) to flank: circle around to hit you from the side instead of trading shots.
+@export var flank_chance := 0.0
+## Moves quietly (slower, silent footsteps) within this distance of where it thinks you are. 0 = never.
+@export var sneak_range := 0.0
 
 @export_group("Healing")
 ## Badly hurt (below this fraction of max health), it falls back to cover and patches up (owner: scavs can heal).
@@ -185,7 +188,7 @@ var _flashing := false
 var _flinch_left := 0.0
 var _melee_cooldown_left := 0.0
 ## Cover: seconds since the last threat, where it's heading/holding, and the cooldown.
-enum Cover { NONE, MOVING, HOLDING, HEALING }
+enum Cover { NONE, MOVING, HOLDING, HEALING, FLANKING }
 var _since_threat := 0.0
 var _cover_phase := Cover.NONE
 var _cover_point := Vector3.ZERO
@@ -197,8 +200,8 @@ var _wants_heal := false
 var _heal_left := 0.0
 var _heal_retry_left := 0.0
 var _heal_after_move := false
-## Investigating a radio call (jogs) rather than a sound it heard itself (walks).
-var _investigate_fast := false
+## Duo partner: the PMC it follows around while patrolling (null = it leads itself).
+var leader: Scav = null
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
 var _lunge_left := 0.0
@@ -224,11 +227,10 @@ func _ready() -> void:
 ## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
 ## Unaware scavs walk over to investigate; scavs already fighting ignore it.
 func hear_noise(pos: Vector3, radius: float) -> void:
-	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius:
+	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius * hearing_mult:
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
 	_goal = pos + offset
-	_investigate_fast = false
 	if state != State.INVESTIGATE:
 		_set_state(State.INVESTIGATE)
 
@@ -267,7 +269,7 @@ func _physics_process(delta: float) -> void:
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
-			desired = _path_velocity(_goal, move_speed * (jog_speed if _investigate_fast else investigate_speed))
+			desired = _path_velocity(_goal, move_speed * investigate_speed)
 			_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
@@ -311,7 +313,10 @@ func _physics_process(delta: float) -> void:
 					_update_shooting(delta, dist)
 					# A break in the fight (between its bursts, nothing coming its way): reposition to cover.
 					if _since_threat > lull_time and _cover_cooldown_left <= 0.0 and _shots_left <= 0:
-						_try_take_cover()
+						if randf() < flank_chance:
+							_try_flank(to_target, dist)
+						else:
+							_try_take_cover()
 				else:
 					desired = _path_velocity(_target.global_position, move_speed)
 					_hold_fire()
@@ -325,6 +330,8 @@ func _physics_process(delta: float) -> void:
 					desired = _path_velocity(_last_seen, move_speed)
 					_face(desired, delta)
 
+	if _sneaking():
+		desired *= 0.55
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
@@ -340,6 +347,8 @@ func _update_footsteps(delta: float) -> void:
 	_stride_left -= speed * delta
 	if _stride_left <= 0.0:
 		_stride_left = 1.4
+		if _sneaking():
+			return  # sneaking up: no footstep sounds
 		Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -6.0, 0.1, 0.9, 2.5)
 
 
@@ -405,7 +414,7 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 	_alert(guess)
 
 
-## Spotted (or got shot by) someone at `known_pos`: radio it in and get ready to fight.
+## Spotted (or got shot by) someone at `known_pos`: get ready to fight.
 func _alert(known_pos: Vector3) -> void:
 	_cover_phase = Cover.NONE
 	_spot = 0.0
@@ -413,24 +422,6 @@ func _alert(known_pos: Vector3) -> void:
 	_last_seen = known_pos
 	_set_state(State.ALERT)
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
-	_radio(known_pos)
-
-
-## Calls nearby enemies over to check out `pos`.
-func _radio(pos: Vector3) -> void:
-	for other in get_tree().get_nodes_in_group("enemies"):
-		if other != self and other is Scav and (other as Scav).global_position.distance_to(global_position) <= radio_range:
-			(other as Scav).hear_radio(pos)
-
-
-## A nearby enemy radioed in a contact: jog over to roughly where it is (unless already fighting).
-func hear_radio(pos: Vector3) -> void:
-	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
-		return
-	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * radio_uncertainty
-	_investigate_fast = true
-	_looting_left = 0.0
-	_set_state(State.INVESTIGATE)
 
 
 ## The closest player who can still be fought (co-op ready: never assumes a single player).
@@ -478,6 +469,31 @@ func _try_take_cover() -> void:
 		_cover_phase = Cover.MOVING
 	else:
 		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
+
+
+## PMCs closing in on where they think you are (investigating, or chasing without seeing you) move quietly.
+func _sneaking() -> bool:
+	if sneak_range <= 0.0:
+		return false
+	var spot := Vector3.INF
+	if state == State.INVESTIGATE:
+		spot = _goal
+	elif state == State.ENGAGE and not _can_see and _cover_phase == Cover.NONE:
+		spot = _last_seen
+	return spot != Vector3.INF and _flat(spot - global_position).length() < sneak_range
+
+
+## Circle around the target: a reachable spot off to one side at about the same distance (PMCs only).
+func _try_flank(to_target: Vector3, dist: float) -> void:
+	_cover_cooldown_left = cover_cooldown
+	var side := to_target.normalized().cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
+	var target_pos := _target.global_position
+	var spot := target_pos - to_target.normalized().rotated(Vector3.UP, 0.0) * dist * 0.4 + side * dist * 0.8
+	spot = NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, spot)
+	if spot == Vector3.ZERO:
+		return
+	_cover_point = spot
+	_cover_phase = Cover.FLANKING
 
 
 ## Hurt: get to cover (or patch up where it stands if there's none) and heal.
@@ -540,6 +556,18 @@ func _path_length(path: PackedVector3Array) -> float:
 ## Moving to cover (still shooting if it has a shot), then holding a moment; after that it goes back to the fight
 ## (if it can't see you from cover, it heads to where it last saw you = peeking out).
 func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
+	if _cover_phase == Cover.FLANKING:
+		var flank_move := _path_velocity(_cover_point, move_speed)
+		if sees and dist <= shoot_range:
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+		else:
+			_face(flank_move, delta)
+			_hold_fire()
+		if _arrived(_cover_point) or _cover_stuck(flank_move):
+			_cover_phase = Cover.NONE
+			_lost_sight_time = 0.0
+		return flank_move
 	if _cover_phase == Cover.MOVING:
 		var move := _path_velocity(_cover_point, move_speed)
 		if sees and dist <= shoot_range:
@@ -714,6 +742,16 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 ## buildings, sometimes anywhere reachable), pause there for a few seconds, then pick the next one.
 ## `_wander_dir` is zero while pausing (`_wander_time` counts the pause down).
 func _wander(delta: float) -> Vector3:
+	# A duo partner sticks with its leader instead of picking its own patrol.
+	if leader != null and is_instance_valid(leader) and leader.state != State.DEAD:
+		var spot := leader.global_position + leader.global_basis.x * 2.0 + leader.global_basis.z * 1.5
+		if _flat(spot - global_position).length() < 1.5:
+			_wander_dir = Vector3.ZERO
+			return Vector3.ZERO
+		_wander_dir = _flat(spot - global_position).normalized()
+		var follow := _path_velocity(spot, move_speed * (jog_speed if leader._patrol_jog else patrol_speed) * 1.1)
+		_face(follow, delta, 4.0)
+		return follow
 	if _wander_dir == Vector3.ZERO:
 		_wander_time -= delta
 		_looting_left -= delta

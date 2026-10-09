@@ -20,6 +20,8 @@ extends Node3D
 ## When each PMC arrives (seconds into the raid). A 10-minute raid: minutes 2, 3.5, 5, 6.5 and 8.
 @export var pmc_times: PackedFloat32Array = [120.0, 210.0, 300.0, 390.0, 480.0]
 @export var min_distance_from_player := 18.0
+## Chance a PMC arrives with a partner that sticks with it (both count toward pmc_budget).
+@export_range(0.0, 1.0) var pmc_duo_chance := 0.15
 
 ## Spawned so far this raid.
 var scavs_spawned := 0
@@ -70,6 +72,13 @@ func _spawn(scene: PackedScene) -> bool:
 	enemy.global_position = points.pick_random().global_position
 	if scene == pmc_scene:
 		pmcs_spawned += 1
+		# Sometimes a duo: a partner right next to it that follows it around.
+		if pmcs_spawned < pmc_budget and randf() < pmc_duo_chance:
+			var partner := pmc_scene.instantiate() as Scav
+			get_parent().add_child(partner)
+			partner.global_position = enemy.global_position + Vector3(1.5, 0, 1.0)
+			partner.leader = enemy as Scav
+			pmcs_spawned += 1
 	else:
 		scavs_spawned += 1
 	return true
