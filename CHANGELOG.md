@@ -5,6 +5,21 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.10.1 (Old Bloxov: junkyard, checkpoint, church, power lines, owner)
+- **Fewer buildings, more places** (owner: replace rather than add, so players spread out and meet at hot spots):
+  - a **junkyard** north of the gas station (fenced maze of stacked wrecks, a crane, a crusher, the office) replaces two old houses
+  - a **roadblock checkpoint** across the highway west of the gas station (barrier chicane, sandbag nests, guard booth,
+    two army trucks) replaces another
+  - a **church and graveyard** top right of town (bell tower with a roof lookout, pews, headstones for low cover, a crypt)
+    replaces the road house nearest town
+  - a **modern gas station** on the corner of Main Street and Old Road replaces the small town house
+  - **power lines** along Main Street, the county road and the highway
+  - in the bottom-left woods (kept quiet on purpose): a **campsite** by the creek and two climbable **hunting stands**,
+    one watching the Creek Trail extract
+- **3 big houses on the hill instead of 5**, so the expensive loot isn't spread thin and the hill has sightlines over town
+- Main Street runs to the map edge again (the big house at its end is gone)
+- 95 loot spots (new places: Campsite, Junkyard, JunkOffice, Checkpoint, Church, BellTower, Crypt, GasStationTown)
+
 ## 0.10.0 (the first real map: Old Bloxov, gray box, owner)
 - **Raids now happen in Old Bloxov**, a 350 x 350 m town (about 2:15 to walk across on a real route) laid out with the owner:
   the **town** in the top left (winding Main Street, town square full of cover, gun store, pharmacy, grocery, bank,
