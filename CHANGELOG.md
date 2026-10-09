@@ -2,6 +2,12 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.9 (scavs: cover during breaks, owner direction)
+- **Fighting comes first:** while you're shooting at a scav it fights back from where it is
+- **In a break** (about 2 seconds with no shots, hits or near misses, between its own bursts) it moves to a nearby
+  spot you can't see, waits about 1.5 seconds, then peeks back out to keep fighting. At most once every 10 seconds
+- It only picks spots it can actually walk to quickly (not the other side of a building)
+
 ## 0.6.8 (player-like scavs, owner idea)
 - **Scavs "loot" like players:** at a crate they stop, lean in and search it for 3-6 seconds before moving on.
   They don't take anything (they only carry what they spawned with), but **while searching they're distracted**

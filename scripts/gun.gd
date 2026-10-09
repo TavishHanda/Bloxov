@@ -342,6 +342,7 @@ func shoot_once() -> void:
 	player.add_kick(kick.x * recoil_kick_fraction, 0.0)
 	player.add_shake(shake)
 	get_tree().call_group("enemies", "hear_noise", player.global_position, noise_radius)
+	get_tree().call_group("enemies", "notice_threat")
 
 
 ## Enemies a bullet passed close to notice it, even if they're too far away to hear the shot.

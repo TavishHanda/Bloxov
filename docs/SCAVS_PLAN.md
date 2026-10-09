@@ -45,8 +45,13 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
 - [x] **3c. Player-like scavs (0.6.8, owner idea).** At a loot spot a scav leans in and searches the container for
       3-6 s, distracted (60% slower to notice you), but takes nothing (owner: AI keeps only what it spawned with).
       About 1 in 3 patrol legs is a jog (~3 m/s). AI PMCs don't extract (owner: real PMCs will, with multiplayer).
-- [ ] **4. Cover.** In a fight, a scav looks for a nearby spot that blocks your line of sight, moves
-      there, and peeks out to shoot. No more standing in the open trading shots.
+- [x] **4. Cover (0.6.9). Owner: fighting comes first; cover is for breaks in the fight.** After 2 s with no threat
+      (no shot fired, no hit, no near miss) and between its bursts, a scav moves to the nearest spot within ~7 m
+      walking distance that you can't see (still shooting on the way if it has a shot), holds 1.5 s, then peeks
+      back out (goes to where it last saw you). At most once per 10 s (3 s retry if no cover nearby).
+- [ ] **4b. Losing interest (owner asked: "when do they lose aggro?").** Today: a scav that loses sight of you goes
+      to where it last saw you (gives up on that after 6 s, PMCs 9 s), searches 5 s, then goes back to patrolling.
+      While it can see you (up to 40 m) it never gives up. Owner to decide the rules (see chat / next update).
 - [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
 - [ ] **6. Teamwork.** A scav that spots you alerts scavs near it (they come to investigate).
       Maybe: one holds you in place while another moves to flank.

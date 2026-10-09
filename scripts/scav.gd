@@ -87,6 +87,15 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Keeps at least this far from its target: closer and it backs off while shooting.
 @export var min_distance := 3.0
 
+@export_group("Cover")
+## Fighting comes first (owner, 0.6.9). Cover is for breaks: after this many seconds with no threat (you haven't
+## fired, hit it, or sent a bullet past it) it moves to a nearby spot you can't see, holds briefly, then peeks out.
+@export var lull_time := 2.0
+@export var cover_search_radius := 7.0
+@export var cover_hold_time := 1.5
+## At most one move to cover per this many seconds.
+@export var cover_cooldown := 10.0
+
 @export_group("Melee")
 ## Get this close (meters) and it bashes you with its rifle butt instead of shooting.
 @export var melee_range := 1.6
@@ -159,6 +168,13 @@ var _hit_flash_time := 0.0
 var _flashing := false
 var _flinch_left := 0.0
 var _melee_cooldown_left := 0.0
+## Cover: seconds since the last threat, where it's heading/holding, and the cooldown.
+enum Cover { NONE, MOVING, HOLDING }
+var _since_threat := 0.0
+var _cover_phase := Cover.NONE
+var _cover_point := Vector3.ZERO
+var _cover_hold_left := 0.0
+var _cover_cooldown_left := 0.0
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
 var _lunge_left := 0.0
@@ -198,6 +214,8 @@ func _physics_process(delta: float) -> void:
 		velocity += get_gravity() * delta
 	_state_time += delta
 	_melee_cooldown_left -= delta
+	_since_threat += delta
+	_cover_cooldown_left -= delta
 
 	if _target == null or not is_instance_valid(_target) or _target.controls_locked():
 		_target = _pick_target()
@@ -246,6 +264,8 @@ func _physics_process(delta: float) -> void:
 			var sees := _can_see and (_lost_sight_time < reacquire_grace or _spotting(delta, to_target, dist, spot_reacquire_mult))
 			if dist == INF:
 				_set_state(State.IDLE)
+			elif _cover_phase != Cover.NONE:
+				desired = _update_cover(delta, sees, to_target, dist)
 			elif sees:
 				_last_seen = _target.global_position
 				_lost_sight_time = 0.0
@@ -260,6 +280,9 @@ func _physics_process(delta: float) -> void:
 				elif dist <= shoot_range:
 					desired = _clear_of_walls(_strafe(delta, to_target))
 					_update_shooting(delta, dist)
+					# A break in the fight (between its bursts, nothing coming its way): reposition to cover.
+					if _since_threat > lull_time and _cover_cooldown_left <= 0.0 and _shots_left <= 0:
+						_try_take_cover()
 				else:
 					desired = _path_velocity(_target.global_position, move_speed)
 					_hold_fire()
@@ -344,6 +367,7 @@ func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bo
 
 ## A bullet from `shooter_pos` passed close by: unaware scavs turn toward roughly where it came from.
 func notice_near_miss(shooter_pos: Vector3) -> void:
+	_since_threat = 0.0
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 		return
 	# The farther the shooter, the rougher its guess.
@@ -354,6 +378,7 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 
 ## Spotted (or got shot by) someone at `known_pos`: radio it in and get ready to fight.
 func _alert(known_pos: Vector3) -> void:
+	_cover_phase = Cover.NONE
 	_spot = 0.0
 	_looting_left = 0.0
 	_last_seen = known_pos
@@ -390,6 +415,79 @@ func _update_melee(delta: float, dist: float) -> void:
 	_lunge_left = 0.15
 	if dist <= melee_range + 0.5:
 		_target.take_bash(melee_damage, global_position, melee_shove, melee_aim_block)
+
+
+## Something threatened it (a shot fired, a hit, a near miss): no break in the fight right now.
+func notice_threat() -> void:
+	_since_threat = 0.0
+
+
+## Looks for a walkable spot nearby that the target can't see; starts moving there if it finds one.
+func _try_take_cover() -> void:
+	_cover_cooldown_left = cover_cooldown
+	var map := get_world_3d().navigation_map
+	var eyes := _target.global_position + Vector3(0, _target.eye_height(), 0)
+	var space := get_world_3d().direct_space_state
+	var best := Vector3.INF
+	var best_walk := INF
+	for radius in [3.0, 5.0, cover_search_radius]:
+		for i in 12:
+			var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 12.0)
+			var spot := NavigationServer3D.map_get_closest_point(map, global_position + dir * radius)
+			if spot == Vector3.ZERO or _flat(spot - global_position).length() > radius + 1.0:
+				continue
+			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
+			if space.intersect_ray(query).is_empty():
+				continue  # the target could see it there
+			# Judge by walking distance: a spot inside a building may be close in a straight line but far around.
+			var walk := _path_length(NavigationServer3D.map_get_path(map, global_position, spot, true))
+			if walk <= radius * 1.6 and walk < best_walk:
+				best = spot
+				best_walk = walk
+		if best != Vector3.INF:
+			break
+	if best != Vector3.INF:
+		_cover_point = best
+		_cover_phase = Cover.MOVING
+	else:
+		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
+
+
+## True if it's not getting anywhere (e.g. the last bit of the path is blocked by another scav).
+func _cover_stuck(move: Vector3) -> bool:
+	return move.length() < 0.05 or (get_real_velocity().length() < 0.1 and _flat(_cover_point - global_position).length() < 1.2)
+
+
+func _path_length(path: PackedVector3Array) -> float:
+	var total := 0.0
+	for i in range(1, path.size()):
+		total += path[i - 1].distance_to(path[i])
+	return total if path.size() > 1 else INF
+
+
+## Moving to cover (still shooting if it has a shot), then holding a moment; after that it goes back to the fight
+## (if it can't see you from cover, it heads to where it last saw you = peeking out).
+func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
+	if _cover_phase == Cover.MOVING:
+		var move := _path_velocity(_cover_point, move_speed)
+		if sees and dist <= shoot_range:
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+		else:
+			_face(move, delta)
+			_hold_fire()
+		# Get all the way in (normal arriving allows 1.2 m, which can leave it peeking past the corner).
+		if _flat(_cover_point - global_position).length() < 0.4 or _cover_stuck(move):
+			_cover_phase = Cover.HOLDING
+			_cover_hold_left = cover_hold_time
+		return move
+	_cover_hold_left -= delta
+	_face(_flat(_last_seen - global_position), delta)
+	_hold_fire()
+	if _cover_hold_left <= 0.0:
+		_cover_phase = Cover.NONE
+		_lost_sight_time = 0.0
+	return Vector3.ZERO
 
 
 ## No shot right now: drop the burst and re-aim when a shot comes back.
@@ -598,6 +696,7 @@ func _has_line_of_sight() -> bool:
 
 
 func _on_damaged(_amount: int, source_position: Vector3) -> void:
+	_since_threat = 0.0
 	_hit_flash_time = 0.08
 	_flinch_left = flinch_time
 	_fire_timer = maxf(_fire_timer, flinch_fire_delay)

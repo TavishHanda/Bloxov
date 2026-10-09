@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1075,6 +1075,52 @@ func _section_scav_looting() -> void:
 			jogs += 1
 	_check(jogs > 15 and jogs < 45, "about 1 in 3 patrol legs is a jog (%d of 90)" % jogs)
 	tester.queue_free()
+
+
+func _section_cover() -> void:
+	# Fighting comes first; in a break (nobody shooting at it for a bit) a scav ducks behind something nearby,
+	# holds a moment, then comes back out to fight. Next to the police station (walls x -20..-10, z -20..-10).
+	player.teleport_to(Vector3(-15, 0.1, 0))
+	var scav := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
+	_face_player(scav)
+	scav.shot_damage = 0  # watching it move, not dying
+	scav._strafe_time = 99.0  # no random strafing, so the cover it finds doesn't depend on luck
+	scav._strafe_dir = 0.0
+	await physics_frame
+	scav._alert(player.global_position)
+	scav._set_state(Scav.State.ENGAGE)
+	var took_cover := false
+	var hidden_in_cover := false
+	var came_back := false
+	for i in 60 * 12:
+		await physics_frame
+		if scav._cover_phase == Scav.Cover.HOLDING and not took_cover:
+			took_cover = true
+			var eyes := player.camera.global_position
+			var query := PhysicsRayQueryParameters3D.create(eyes, scav.global_position + Vector3(0, 1.3, 0), 1)
+			hidden_in_cover = not scav.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+		if took_cover and scav._cover_phase == Scav.Cover.NONE and scav._can_see:
+			came_back = true
+			break
+	_check(took_cover and hidden_in_cover, "in a break in the fight, a scav moves to cover you can't see")
+	_check(came_back, "...then comes back out to fight")
+	scav.queue_free()
+	# While you keep shooting, there's no break: it stays and fights.
+	var fighter := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
+	_face_player(fighter)
+	fighter.shot_damage = 0
+	await physics_frame
+	fighter._alert(player.global_position)
+	fighter._set_state(Scav.State.ENGAGE)
+	var ducked := false
+	for i in 60 * 5:
+		if i % 30 == 0:
+			fighter.notice_threat()  # the player firing every half second
+		await physics_frame
+		if fighter._cover_phase != Scav.Cover.NONE:
+			ducked = true
+	_check(not ducked, "while you keep shooting it keeps fighting (no ducking)")
+	fighter.queue_free()
 
 
 # --- Helpers -------------------------------------------------------------------
