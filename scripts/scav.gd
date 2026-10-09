@@ -97,6 +97,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## At most one move to cover per this many seconds.
 @export var cover_cooldown := 10.0
 
+@export_group("Teamwork")
+## When it spots you (or gets shot), it radios enemies within this range: they jog over to check out roughly
+## where you are (they don't know exactly). Lone scavs are a speed bump; groups are dangerous (owner).
+@export var radio_range := 30.0
+@export var radio_uncertainty := 4.0
+
 @export_group("Healing")
 ## Badly hurt (below this fraction of max health), it falls back to cover and patches up (owner: scavs can heal).
 ## Getting hit while healing interrupts it (and wastes nothing: it can try again a few seconds later).
@@ -191,6 +197,8 @@ var _wants_heal := false
 var _heal_left := 0.0
 var _heal_retry_left := 0.0
 var _heal_after_move := false
+## Investigating a radio call (jogs) rather than a sound it heard itself (walks).
+var _investigate_fast := false
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
 var _lunge_left := 0.0
@@ -220,6 +228,7 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
 	_goal = pos + offset
+	_investigate_fast = false
 	if state != State.INVESTIGATE:
 		_set_state(State.INVESTIGATE)
 
@@ -258,7 +267,7 @@ func _physics_process(delta: float) -> void:
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
-			desired = _path_velocity(_goal, move_speed * investigate_speed)
+			desired = _path_velocity(_goal, move_speed * (jog_speed if _investigate_fast else investigate_speed))
 			_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
@@ -404,6 +413,24 @@ func _alert(known_pos: Vector3) -> void:
 	_last_seen = known_pos
 	_set_state(State.ALERT)
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
+	_radio(known_pos)
+
+
+## Calls nearby enemies over to check out `pos`.
+func _radio(pos: Vector3) -> void:
+	for other in get_tree().get_nodes_in_group("enemies"):
+		if other != self and other is Scav and (other as Scav).global_position.distance_to(global_position) <= radio_range:
+			(other as Scav).hear_radio(pos)
+
+
+## A nearby enemy radioed in a contact: jog over to roughly where it is (unless already fighting).
+func hear_radio(pos: Vector3) -> void:
+	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		return
+	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * radio_uncertainty
+	_investigate_fast = true
+	_looting_left = 0.0
+	_set_state(State.INVESTIGATE)
 
 
 ## The closest player who can still be fought (co-op ready: never assumes a single player).

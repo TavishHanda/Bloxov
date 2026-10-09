@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.12 (scavs: teamwork)
+- **Scavs call for help:** when one spots you (or gets shot) it radios enemies within 30 m, and they **jog over**
+  to roughly where you are. They don't know your exact spot. One scav is a speed bump; a group is a fight
+
 ## 0.6.11 (scavs: getting hurt)
 - **Badly hurt scavs fall back and heal:** below 40% health a scav retreats to nearby cover and patches itself up
   (+40 HP over 4 seconds, once per life). You'll see it lean in while healing

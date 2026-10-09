@@ -54,8 +54,8 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       you're far away (owner: distance-based giving up can be gamed).
 - [x] **5. Getting hurt (0.6.11).** Below 40% health a scav falls back to the nearest cover (or heals where it stands if
       there is none) and patches up: +40 HP over 4 s, once per life. Getting hit interrupts it (retry after 4 s).
-- [ ] **6. Teamwork.** A scav that spots you alerts scavs near it (they come to investigate).
-      Maybe: one holds you in place while another moves to flank.
+- [x] **6. Teamwork (0.6.12).** A scav that spots you (or gets shot) radios enemies within 30 m: they jog over to
+      roughly where you are (±4 m). Flanking is saved for PMCs (owner: scav behavior otherwise unchanged).
 - [ ] **7. PMCs are harder to fight (owner, after 0.6.10). Scav behavior stays exactly as it is.** PMCs:
       come toward fights they hear, sometimes flank instead of trading shots, crouch-walk (quieter) when close,
       hunt longer after losing you, use cover and heal better, and sometimes spawn as a **duo** that moves together.

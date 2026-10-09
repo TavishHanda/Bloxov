@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "teamwork",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1203,6 +1203,24 @@ func _section_hurt() -> void:
 	await create_timer(3.5).timeout
 	_check(patient._cover_phase != Scav.Cover.HEALING and patient.health.current == 30, "getting shot interrupts its heal (hp %d)" % patient.health.current)
 	patient.queue_free()
+
+
+func _section_teamwork() -> void:
+	# A scav that spots you radios scavs within 30 m: they jog over to roughly where you are. Farther ones don't hear.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var spotter := _spawn(SCAV_SCENE, Vector3(-20, 0.1, -30)) as Scav
+	var buddy := _spawn(SCAV_SCENE, Vector3(-20, 0.1, -5)) as Scav  # 25 m from the spotter
+	var far := _spawn(SCAV_SCENE, Vector3(20, 0.1, 20)) as Scav  # way out of radio range
+	for s in [buddy, far]:
+		s._wander_time = 99.0
+		s._wander_dir = Vector3.ZERO
+	await physics_frame
+	spotter._alert(player.global_position)
+	_check(buddy.state == Scav.State.INVESTIGATE and buddy._goal.distance_to(player.global_position) <= buddy.radio_uncertainty + 0.01,
+		"a nearby scav gets the radio call and heads roughly to where you are")
+	_check(far.state == Scav.State.IDLE, "scavs out of radio range don't hear it")
+	for s in [spotter, buddy, far]:
+		s.queue_free()
 
 
 # --- Helpers -------------------------------------------------------------------
