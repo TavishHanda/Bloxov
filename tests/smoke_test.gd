@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules",
@@ -1121,6 +1121,47 @@ func _section_cover() -> void:
 			ducked = true
 	_check(not ducked, "while you keep shooting it keeps fighting (no ducking)")
 	fighter.queue_free()
+
+
+func _section_lean() -> void:
+	# Q/E lean: the head shifts and tilts; no sprinting while leaning. Interact moved to F.
+	var interact_keys := InputMap.action_get_events("interact")
+	_check(interact_keys.size() > 0 and (interact_keys[0] as InputEventKey).physical_keycode == KEY_F, "interact is on F")
+	_check((InputMap.action_get_events("lean_left")[0] as InputEventKey).physical_keycode == KEY_Q
+		and (InputMap.action_get_events("lean_right")[0] as InputEventKey).physical_keycode == KEY_E, "lean is on Q / E")
+	Input.action_press("lean_right")
+	await create_timer(0.5).timeout
+	_check(player.lean > 0.9 and player.head.position.x > 0.3, "leaning right moves the head over (%.2f m)" % player.head.position.x)
+	_check(player.camera.rotation.z < -0.15, "...and tilts the camera")
+	player.rotation.y = PI
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	await create_timer(0.5).timeout
+	_check(not player.is_sprinting(), "can't sprint while leaning")
+	Input.action_release("sprint")
+	Input.action_release("move_forward")
+	Input.action_release("lean_right")
+	await create_timer(0.5).timeout
+	_check(absf(player.head.position.x) < 0.05, "letting go stops leaning")
+	# Tap-to-toggle mode (the setting for touch screens).
+	GameSettings.lean_toggle = true
+	await _press("lean_left")
+	await create_timer(0.5).timeout
+	_check(player.lean < -0.9, "tap mode: one tap leans and stays leaning")
+	await _press("lean_left")
+	await create_timer(0.5).timeout
+	_check(absf(player.lean) < 0.1, "tap mode: tapping again stops")
+	GameSettings.lean_toggle = false
+	# No leaning through walls: next to the grocery's west wall (surface at x 9.0), facing +Z so "left" is +X,
+	# leaning left goes only as far as there's room.
+	player.teleport_to(Vector3(8.5, 0.1, 15))
+	player.rotation.y = PI
+	await physics_frame
+	Input.action_press("lean_left")
+	await create_timer(0.5).timeout
+	Input.action_release("lean_left")
+	var head_x := player.head.global_position.x
+	_check(head_x < 9.25 - 0.1, "leaning into a wall stops short of it (head at x %.2f, wall at 9.25)" % head_x)
 
 
 # --- Helpers -------------------------------------------------------------------

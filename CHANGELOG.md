@@ -2,6 +2,13 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.6.10 (leaning, owner idea)
+- **Lean with Q / E** to peek around corners: your head shifts sideways and tilts. You walk slower and can't sprint
+  while leaning, and you can't lean through a wall
+- **Interact (search/loot) moved from E to F**
+- **"Lean: tap to toggle"** option in the Esc menu (tap Q/E to lean, tap again to stop; planned for touch screens)
+- Scavs see your leaning head: peek out and they can spot you, and if your body is behind cover they aim for your head
+
 ## 0.6.9 (scavs: cover during breaks, owner direction)
 - **Fighting comes first:** while you're shooting at a scav it fights back from where it is
 - **In a break** (about 2 seconds with no shots, hits or near misses, between its own bursts) it moves to a nearby

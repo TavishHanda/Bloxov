@@ -5,7 +5,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 ## Owner's notes (after 0.3.0)
 - **Art:** owner makes models in Blender, but **placeholders everywhere until M4 (vertical slice)**. Pipeline proven with the crate (0.3.3-0.3.4).
 - **Movement:** 0.3.1 (speed, sprint pose, raise time, jumps) and 0.3.2 (footsteps/noise, crouch, stamina) done.
-  Later: vaulting, leaning, fall damage, stairs/ladders, real arms/sprint animation once there are models.
+  Later: vaulting, fall damage, stairs/ladders, real arms/sprint animation once there are models.
+  **Leaning done (0.6.10, Q/E; interact moved to F; tap-to-toggle option for touch).**
 - **Weight from loot:** on hold until the inventory redesign.
 - **Inventory:** redesign in progress, see `docs/INVENTORY_DESIGN.md`.
 - **Sound:** needs a full redesign (current sounds are generated placeholders from `tools/make_sounds.py`). Later.

@@ -579,7 +579,7 @@ offset_bottom = 70.0
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 20
-text = "[E] Search"
+text = "[F] Search"
 horizontal_alignment = 1
 
 [node name="ActionBar" type="ProgressBar" parent="HUD"]
@@ -736,12 +736,16 @@ horizontal_alignment = 2
 layout_mode = 2
 text = "Show damage numbers"
 
+[node name="LeanToggle" type="CheckBox" parent="HUD/Menu/Margin/VBox"]
+layout_mode = 2
+text = "Lean: tap to toggle (instead of hold)"
+
 [node name="Controls" type="Label" parent="HUD/Menu/Margin/VBox"]
 modulate = Color(1, 1, 1, 0.7)
 layout_mode = 2
 theme_override_font_sizes/font_size = 14
 text = "WASD move · Mouse look · Click shoot · Right-click aim · R reload · V knife · Shift sprint · Space jump · C crouch
-E search/loot · Tab backpack · H heal · O extracts · Esc menu · F3 debug
+Q/E lean · F search/loot · Tab backpack · H heal · O extracts · Esc menu · F3 debug
 Find loot, then get to an open extract (green beam) before the timer runs out."
 horizontal_alignment = 1
 autowrap_mode = 3

@@ -426,7 +426,7 @@ func notice_threat() -> void:
 func _try_take_cover() -> void:
 	_cover_cooldown_left = cover_cooldown
 	var map := get_world_3d().navigation_map
-	var eyes := _target.global_position + Vector3(0, _target.eye_height(), 0)
+	var eyes := _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
 	var best_walk := INF
@@ -574,6 +574,10 @@ func _fire_at_target(dist: float) -> void:
 	# with someone right in its face, a ray from the barrel tip would start past them and miss.
 	var from := global_position + Vector3(0, 1.3, 0)
 	var chest := _target.global_position + Vector3(0, _target.chest_height(), 0)
+	# Peeking around cover (leaning): if the chest is hidden, aim at the head it can see.
+	var cover_check := PhysicsRayQueryParameters3D.create(from, chest, 1, [get_rid()])
+	if not get_world_3d().direct_space_state.intersect_ray(cover_check).is_empty():
+		chest = _target.eye_position() - Vector3(0, 0.1, 0)
 
 	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / shoot_range, 0.0, 1.0))
 	if dist < point_blank_range:
@@ -690,8 +694,7 @@ func _has_line_of_sight() -> bool:
 	if _target == null:
 		return false
 	var eyes := global_position + Vector3(0, 1.65, 0)
-	var target_eyes := _target.global_position + Vector3(0, _target.eye_height(), 0)
-	var query := PhysicsRayQueryParameters3D.create(eyes, target_eyes, 1, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(eyes, _target.eye_position(), 1, [get_rid()])
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 

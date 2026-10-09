@@ -1,6 +1,6 @@
 class_name LootUI
 extends Control
-## Inventory screen (Tab), and the container + inventory screen when you open loot (E).
+## Inventory screen (Tab), and the container + inventory screen when you open loot (F).
 ## Also used in the hideout (no player): the "other side" is the stash instead of a container, items can be
 ## sold, and the hideout adds the trader as an extra column (add_column).
 ## Columns: [container or stash] [equipment, pockets, secure pocket] [backpack] (+ [trader] in the hideout).
@@ -741,7 +741,7 @@ func _build() -> void:
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
 	footer.add_theme_constant_override("separation", 16)
 	root.add_child(footer)
-	_footer_hint = _small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · Tab/E close · the raid doesn't pause!")
+	_footer_hint = _small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · Tab/F close · the raid doesn't pause!")
 	footer.add_child(_footer_hint)
 	_close_button = Button.new()
 	_close_button.text = "Close"

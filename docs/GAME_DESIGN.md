@@ -161,7 +161,7 @@ Idle/Patrol → (sees or hears player) → Alert/Investigate → Attack → Sear
 
 ## 10. Controls
 
-**PC:** WASD move · mouse look · LMB shoot · RMB aim · R reload · V knife · E interact · Tab inventory · Shift sprint
+**PC:** WASD move · mouse look · LMB shoot · RMB aim · R reload · V knife · Q/E lean · F interact · Tab inventory · Shift sprint
 
 > **Changed since:** also C crouch, Space jump, 1/2 weapons, 3–6 hotbar items, H heal, O extracts, Esc menu
 > (volume, sensitivity, damage numbers toggle), F3 debug. The full current list is in the [`README`](../README.md#status-057-guns-update).

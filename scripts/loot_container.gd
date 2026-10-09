@@ -9,7 +9,7 @@ extends StaticBody3D
 @export var min_items := 1
 @export var max_items := 3
 @export var grid_size := Vector2i(4, 3)
-## Seconds of holding E to search it the first time. You're exposed while searching.
+## Seconds of holding F to search it the first time. You're exposed while searching.
 @export var search_time := 1.5
 ## If > 0, finishing the search makes noise that alerts enemies in this radius.
 @export var noise_radius := 0.0

@@ -1,6 +1,6 @@
 class_name Interactor
 extends Node
-## Finds the loot container the player is looking at and handles hold-E-to-search.
+## Finds the loot container the player is looking at and handles hold-F-to-search.
 
 signal opened(container: LootContainer)
 
@@ -11,7 +11,7 @@ signal opened(container: LootContainer)
 var target: LootContainer = null
 ## The container `progress` belongs to (looking at another one starts over).
 var _progress_target: LootContainer = null
-## 0..1 while holding E on an unsearched container.
+## 0..1 while holding F on an unsearched container.
 var progress := 0.0
 ## Set by the HUD while a loot/inventory screen is open.
 var blocked := false

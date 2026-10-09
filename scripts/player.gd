@@ -1,6 +1,6 @@
 class_name Player
 extends CharacterBody3D
-## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump, C to crouch.
+## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump, C to crouch, Q/E to lean.
 ## Aiming down sights (RMB, handled by the Gun) slows you down, zooms the camera and stops sprinting.
 
 ## Emitted for every sound the player makes that enemies can hear (footsteps, landing).
@@ -65,6 +65,14 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var crouch_noise := 0.0
 @export var landing_noise := 10.0
 
+@export_group("Lean")
+## Q/E: the head shifts sideways and tilts to peek around corners. Can't sprint while leaning; walk slower.
+## The body (hitbox) stays put, so peeking only exposes what the camera can see past.
+@export var lean_distance := 0.35
+@export var lean_angle_deg := 12.0
+@export var lean_speed := 8.0
+@export var lean_move_multiplier := 0.6
+
 @export_group("Camera")
 @export var mouse_sensitivity := 0.0025
 @export var base_fov := 80.0
@@ -122,6 +130,9 @@ var _sprinting := false
 var _recoil_debt := Vector2.ZERO
 var _recoil_return_wait := 0.0
 var _sprint_fov := 0.0
+## -1 = fully leaning left, 1 = right (smoothed). _lean_toggled is the held direction in tap-to-toggle mode.
+var lean := 0.0
+var _lean_toggled := 0
 var _jump_cooldown_left := 0.0
 var _landing_left := 0.0
 var _was_on_floor := true
@@ -177,6 +188,11 @@ func is_sprinting() -> bool:
 ## Height of the player's eyes / chest above their feet (lower when crouched). Used by enemies to aim.
 func eye_height() -> float:
 	return head.position.y
+
+
+## Where the player's eyes actually are (includes leaning). Enemies check line of sight to this.
+func eye_position() -> Vector3:
+	return head.global_position
 
 
 func chest_height() -> float:
@@ -313,6 +329,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		use_hotbar(hotbar_index)
 	elif event.is_action_pressed("crouch"):
 		set_crouching(not is_crouching)
+	elif GameSettings.lean_toggle and (event.is_action_pressed("lean_left") or event.is_action_pressed("lean_right")):
+		var dir := -1 if event.is_action_pressed("lean_left") else 1
+		_lean_toggled = 0 if _lean_toggled == dir else dir
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
@@ -354,6 +373,7 @@ func _process(delta: float) -> void:
 	if not controls_locked():
 		var eye := crouch_eye_height if is_crouching else stand_eye_height
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
+	_update_lean(delta)
 	if heal_time_left > 0.0:
 		heal_time_left -= delta
 		if heal_time_left <= 0.0:
@@ -383,7 +403,7 @@ func _physics_process(delta: float) -> void:
 
 	# Sprint: only forward-ish, on the ground, not while healing, needs stamina. Sprinting stands you up.
 	var wants_sprint := (not controls_locked() and on_floor and not is_healing() and not is_exhausted
-		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim())
+		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim() and not is_leaning())
 	if wants_sprint and is_crouching:
 		set_crouching(false)
 	_sprinting = wants_sprint and not is_crouching
@@ -429,6 +449,7 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 	if _landing_left > 0.0:
 		speed *= landing_slowdown
 	speed *= lerpf(1.0, ads_move_multiplier, gun.aim)
+	speed *= lerpf(1.0, lean_move_multiplier, absf(lean))
 	# Slower backwards and sideways.
 	var scaled := Vector2(input_dir.x * strafe_multiplier, input_dir.y * (backward_multiplier if input_dir.y > 0.0 else 1.0))
 	var local := Vector3(scaled.x, 0.0, scaled.y) * speed
@@ -448,12 +469,39 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 
 	var tilt := deg_to_rad(-_move_input.x * strafe_tilt)
 	_roll = lerpf(_roll, tilt, minf(delta * 8.0, 1.0))
-	camera.rotation.z = _roll + randf_range(-1.0, 1.0) * 0.05 * shake
+	camera.rotation.z = _roll - deg_to_rad(lean_angle_deg) * lean + randf_range(-1.0, 1.0) * 0.05 * shake
 
 	# Sprint FOV eases in and out; aim zoom follows the gun's aim amount (already smoothed).
 	var sprint_target := sprint_fov_boost if _sprinting and speed > walk_speed else 0.0
 	_sprint_fov = lerpf(_sprint_fov, sprint_target, minf(delta * 6.0, 1.0))
 	camera.fov = lerpf(base_fov + _sprint_fov, gun.ads_fov, gun.aim)
+
+
+## Which way the player wants to lean right now (-1, 0, 1).
+func lean_input() -> int:
+	if controls_locked() or _sprinting:
+		return 0
+	if GameSettings.lean_toggle:
+		return _lean_toggled
+	return int(Input.is_action_pressed("lean_right")) - int(Input.is_action_pressed("lean_left"))
+
+
+func is_leaning() -> bool:
+	return absf(lean) > 0.1
+
+
+func _update_lean(delta: float) -> void:
+	lean = move_toward(lean, float(lean_input()), delta * lean_speed * 0.5)
+	# Don't push the camera into a wall: lean only as far as there's room.
+	var reach := lean_distance
+	if absf(lean) > 0.01:
+		var from := global_transform * Vector3(0, head.position.y, 0)
+		var side := global_basis.x * signf(lean)
+		var query := PhysicsRayQueryParameters3D.create(from, from + side * (lean_distance + 0.2), 1, [get_rid()])
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty():
+			reach = maxf(from.distance_to(hit.position) - 0.2, 0.0)
+	head.position.x = lerpf(head.position.x, lean * reach, minf(delta * 20.0, 1.0))
 
 
 func _use_stamina(amount: float) -> void:

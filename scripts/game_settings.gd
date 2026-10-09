@@ -11,6 +11,8 @@ static var volume := 0.6
 static var sensitivity := 1.0
 ## Floating damage numbers on hits (off by default: Bloxov keeps hit feedback subtle).
 static var damage_numbers := false
+## Lean: hold Q/E (false) or tap to toggle (true; planned default for touch screens).
+static var lean_toggle := false
 
 static var _loaded := false
 
@@ -24,6 +26,7 @@ static func load_settings() -> void:
 		volume = cfg.get_value("audio", "volume", volume)
 		sensitivity = cfg.get_value("controls", "sensitivity", sensitivity)
 		damage_numbers = cfg.get_value("gameplay", "damage_numbers", damage_numbers)
+		lean_toggle = cfg.get_value("controls", "lean_toggle", lean_toggle)
 	apply()
 
 
@@ -35,6 +38,11 @@ static func set_volume(value: float) -> void:
 
 static func set_sensitivity(value: float) -> void:
 	sensitivity = clampf(value, 0.1, 3.0)
+	save()
+
+
+static func set_lean_toggle(on: bool) -> void:
+	lean_toggle = on
 	save()
 
 
@@ -55,4 +63,5 @@ static func save() -> void:
 	cfg.set_value("audio", "volume", volume)
 	cfg.set_value("controls", "sensitivity", sensitivity)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
+	cfg.set_value("controls", "lean_toggle", lean_toggle)
 	cfg.save(PATH)

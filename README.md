@@ -29,7 +29,8 @@ Every push to `main` builds the web version and publishes it to GitHub Pages.
 | 1 / 2 | Primary / secondary weapon |
 | 3–6 | Hotbar items (heals bind automatically) |
 | H | Heal (uses the best-fitting heal item) |
-| E | Search / loot |
+| F | Search / loot |
+| Q / E | Lean left / right (hold; tap-to-toggle in the Esc menu) |
 | Tab | Inventory |
 | O | Show open extracts |
 | Esc | Menu: volume, mouse sensitivity, damage numbers on/off |

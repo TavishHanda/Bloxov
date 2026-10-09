@@ -49,9 +49,9 @@ Versions: every scav update is the next 0.6.x (tuning updates included), in orde
       (no shot fired, no hit, no near miss) and between its bursts, a scav moves to the nearest spot within ~7 m
       walking distance that you can't see (still shooting on the way if it has a shot), holds 1.5 s, then peeks
       back out (goes to where it last saw you). At most once per 10 s (3 s retry if no cover nearby).
-- [ ] **4b. Losing interest (owner asked: "when do they lose aggro?").** Today: a scav that loses sight of you goes
-      to where it last saw you (gives up on that after 6 s, PMCs 9 s), searches 5 s, then goes back to patrolling.
-      While it can see you (up to 40 m) it never gives up. Owner to decide the rules (see chat / next update).
+- [x] **4b. Losing interest: keep as is (owner, 0.6.10).** A scav that loses sight of you goes to where it last saw
+      you (gives up on that after 6 s, PMCs 9 s), searches 5 s, then patrols again. No giving up just because
+      you're far away (owner: distance-based giving up can be gamed).
 - [ ] **5. Getting hurt.** Badly hurt scavs fall back to cover and (maybe) patch up for a few seconds.
 - [ ] **6. Teamwork.** A scav that spots you alerts scavs near it (they come to investigate).
       Maybe: one holds you in place while another moves to flank.

@@ -27,6 +27,7 @@ extends CanvasLayer
 @onready var volume_value: Label = $Menu/Margin/VBox/VolumeRow/Value
 @onready var sensitivity_slider: HSlider = $Menu/Margin/VBox/SensitivityRow/Slider
 @onready var damage_numbers_toggle: CheckBox = $Menu/Margin/VBox/DamageNumbers
+@onready var lean_toggle: CheckBox = $Menu/Margin/VBox/LeanToggle
 @onready var sensitivity_value: Label = $Menu/Margin/VBox/SensitivityRow/Value
 @onready var menu_version: Label = $Menu/Margin/VBox/Version
 @onready var corner_version: Label = $VersionCorner
@@ -54,6 +55,8 @@ func _ready() -> void:
 	sensitivity_slider.value_changed.connect(_on_sensitivity_changed)
 	damage_numbers_toggle.button_pressed = GameSettings.damage_numbers
 	damage_numbers_toggle.toggled.connect(GameSettings.set_damage_numbers)
+	lean_toggle.button_pressed = GameSettings.lean_toggle
+	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
 	play_button.pressed.connect(_capture_mouse)
 
 	hotbar = HotbarHUD.new(player)
@@ -157,7 +160,7 @@ func _update_prompt() -> void:
 		action_bar.visible = true
 		action_bar.value = 1.0 - player.heal_time_left / player.heal_duration
 	elif interactor.target != null:
-		prompt_label.text = "[E] " + interactor.target.prompt()
+		prompt_label.text = "[F] " + interactor.target.prompt()
 		prompt_label.visible = true
 		if interactor.progress > 0.0:
 			action_bar.visible = true
