@@ -66,3 +66,6 @@ Going through every mechanic in 0.3.0 one by one to hone it. See the list in the
 - **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.
 - **Meds wheel (owner, 0.9.3):** more medical items are planned. If meds grow past ~4 types, turn "hold 3" into a
   radial wheel (hold, drag/move onto a med, release). `Inventory.cycle_meds()` already keeps the options as a list.
+- **First-person spectate (owner, 0.9.5):** a toggle (Space) between the over-the-shoulder view (`Spectator`, default)
+  and the teammate's eyes, with their body hidden. Wait for separate gun models (`GunSocket`, above) so the view can
+  show the gun they're actually holding; until then it would be a floating camera with a placeholder gun.
