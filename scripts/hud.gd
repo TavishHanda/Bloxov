@@ -11,7 +11,7 @@ extends CanvasLayer
 @onready var vignette: ColorRect = $Vignette
 @onready var damage_indicator: Control = $DamageIndicator
 @onready var debug_label: Label = $Debug
-@onready var menu: Control = $Menu
+@onready var menu: PanelContainer = $Menu
 @onready var play_button: Button = $Menu/Margin/VBox/PlayButton
 @onready var volume_slider: HSlider = $Menu/Margin/VBox/VolumeRow/Slider
 @onready var volume_value: Label = $Menu/Margin/VBox/VolumeRow/Value
@@ -54,6 +54,7 @@ func _ready() -> void:
 	lean_toggle.button_pressed = GameSettings.lean_toggle
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
 	play_button.pressed.connect(_capture_mouse)
+	PauseMenuStyle.apply(menu)
 
 	hotbar = HotbarHUD.new(player)
 	add_child(hotbar)

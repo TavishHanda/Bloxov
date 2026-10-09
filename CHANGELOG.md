@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.14 (pause menu in the "Ammo Can" look, owner)
+- **Pause menu:** a gunmetal panel with BLOXOV in the big pixel font, a hazard-yellow PLAY button, sliders with a
+  brass fill and a gunmetal handle, checkboxes as small sunk-in boxes with a yellow block when ticked
+- The controls list breaks lines between controls (it used to split things like "F3 / debug"), in a slightly wider
+  panel
+
 ## 0.8.13 (crisp pixel text everywhere, owner)
 - **All text is pixel-perfect now:** the pixel font used to be drawn at sizes where its pixels landed between screen
   pixels, so some strokes were thinner than others and some letter pairs looked off. Every size now uses the Jersey

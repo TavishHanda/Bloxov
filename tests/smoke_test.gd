@@ -1282,6 +1282,13 @@ func _section_hud() -> void:
 	_check(bar.held_slot() == 0 and bar.slot_rect(0).position.y < bar.slot_rect(2).position.y, "the held rifle's slot pops up above the others")
 	_check(bar._ghost_icon(1) == HudStyle.PISTOL and bar._ghost_icon(3) == HudStyle.GRENADE and bar._ghost_icon(5).is_empty(), "empty slots ghost a pistol (2) and a grenade (4)")
 	bar.queue_free()
+	# Pause menu (0.8.14): the controls list is re-flowed to fit, with every control still in it.
+	var listed := "WASD move · Mouse look · Click shoot · Right-click aim · R reload\nQ/E lean · F search/loot\nFind loot, then extract."
+	var flowed := PauseMenuStyle.reflow(listed, HudStyle.font(20), 20, 200.0)
+	var kept := true
+	for item in ["WASD move", "Right-click aim", "R reload", "Q/E lean", "F search/loot", "Find loot, then extract."]:
+		kept = kept and flowed.contains(item)
+	_check(kept and flowed.count("\n") >= 3, "the pause menu's controls list re-flows without losing a control")
 	# Timer / extract list (0.8.7): the timer reads the raid clock; O hides the list and brings it back.
 	var hud_node := main.get_node("HUD")
 	var old_time := raid.time_left
