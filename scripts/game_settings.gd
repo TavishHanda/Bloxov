@@ -13,9 +13,9 @@ static var sensitivity := 1.0
 static var damage_numbers := false
 ## Lean: hold Q/E (false) or tap to toggle (true; planned default for touch screens).
 static var lean_toggle := false
-## Last server and room code used in the hideout's Join box.
+## Last server and name used to go online from the hideout.
 static var server_address := ""
-static var room_code := ""
+static var player_name := ""
 
 static var _loaded := false
 
@@ -31,7 +31,7 @@ static func load_settings() -> void:
 		damage_numbers = cfg.get_value("gameplay", "damage_numbers", damage_numbers)
 		lean_toggle = cfg.get_value("controls", "lean_toggle", lean_toggle)
 		server_address = cfg.get_value("online", "server_address", server_address)
-		room_code = cfg.get_value("online", "room_code", room_code)
+		player_name = cfg.get_value("online", "player_name", player_name)
 	apply()
 
 
@@ -56,9 +56,9 @@ static func set_damage_numbers(on: bool) -> void:
 	save()
 
 
-static func set_last_join(address: String, code: String) -> void:
+static func set_online(address: String, online_name: String) -> void:
 	server_address = address
-	room_code = code
+	player_name = online_name
 	save()
 
 
@@ -76,5 +76,5 @@ static func save() -> void:
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	cfg.set_value("controls", "lean_toggle", lean_toggle)
 	cfg.set_value("online", "server_address", server_address)
-	cfg.set_value("online", "room_code", room_code)
+	cfg.set_value("online", "player_name", player_name)
 	cfg.save(PATH)

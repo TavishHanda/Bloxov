@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "net",
+	"ghost_stack", "owner_rules", "matchmaking", "net",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -671,8 +671,9 @@ func _section_hideout() -> void:
 	_check(hideout_inv.equipped("primary") != null and hideout.screen.visible, "hideout shows your loadout and stash")
 	var version: String = ProjectSettings.get_setting("application/config/version")
 	_check(hideout._version_label.text == "v" + version, "hideout shows the version (%s)" % hideout._version_label.text)
-	hideout.join_online("localhost:9080", "  ")
-	_check(hideout._join_status.text.contains("room code") and not Network.main.is_online(), "joining online needs a room code")
+	hideout.go_online("  ", "Tester")
+	_check(hideout._online_status.text.contains("address") and not Network.main.is_online(), "going online needs a server address")
+	_check(hideout._online_panel != null and not hideout._online_box.visible, "the online panel starts offline")
 	var money := Profile.money
 	_check(hideout.buy("bandage", 1) and Profile.money == money - hideout.buy_price("bandage", 1) and Profile.stash.count_of("bandage") >= 1,
 		"buy a bandage into the stash")
@@ -757,40 +758,108 @@ func _section_ghost_stack() -> void:
 	bag.queue_free()
 
 
+func _section_matchmaking() -> void:
+	# Owner rules (0.7.3): duo parties by code, solos and duos share the queue, 2-6 players per raid,
+	# a countdown once 2 are waiting, parties never split, no late joining, "start now" for one party.
+	var mm := Matchmaker.new()
+	mm.queue_countdown = 30.0
+	for peer in [1, 2, 3, 4, 5, 6, 7]:
+		mm.add_player(peer, "P%d" % peer)
+	_check(mm.parties.size() == 7 and mm.party_of(1)["members"] == [1], "everyone starts in a party of their own (with a code)")
+	var code1: String = mm.players[1]["party"]
+	_check(mm.join_party(2, code1.to_lower()) == "" and mm.party_of(2)["members"] == [1, 2], "a friend joins your party with your code")
+	_check(mm.join_party(3, code1).contains("full"), "parties are duos at most")
+	_check(mm.join_party(3, "ZZZZ").begins_with("No party"), "a wrong code says so")
+	_check(mm.set_queued(2, true).contains("leader"), "only the party leader queues")
+	_check(mm.set_queued(1, true) == "" and mm.queued_count() == 2, "the duo is in the queue (2 players)")
+	mm.tick(1.0)
+	_check(mm.countdown_left > 28.0 and mm.raids.is_empty(), "2 waiting: the countdown starts, no raid yet")
+	mm.set_queued(3, true)
+	mm.tick(28.5)
+	var started := mm.tick(1.0)
+	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
+	var raid: Dictionary = mm.raids[started[0]]
+	_check(raid["teams"][1] == raid["teams"][2] and raid["teams"][1] != raid["teams"][3], "the duo are teammates, the solo isn't")
+	_check(mm.join_party(4, code1).contains("full") and mm.set_queued(1, true).contains("back from"), "no joining or queueing a party that's in a raid")
+	# A full raid starts at once; a duo isn't split to fill the last spot.
+	mm.join_party(5, mm.players[4]["party"])
+	for peer in [4, 6, 7]:
+		mm.set_queued(peer, true)
+	mm.leave_raid(3)
+	mm.set_queued(3, true)
+	_check(mm.queued_count() == 5, "5 waiting (a duo and three solos)")
+	started = mm.tick(0.1)
+	_check(started.is_empty(), "5 waiting: still counting down")
+	mm.add_player(8, "P8")
+	mm.add_player(9, "P9")
+	mm.join_party(9, mm.players[8]["party"])
+	mm.set_queued(8, true)
+	started = mm.tick(0.1)
+	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 5 and mm.queued_count() == 2,
+		"7 waiting: a raid starts at once with the first 5 (the last duo isn't split up; they wait)")
+	mm.leave_raid(3)
+	mm.set_queued(3, false)
+	mm.leave_party(9)
+	mm.tick(5.0)
+	_check(mm.countdown_left < 0.0 and mm.queued_count() == 0, "a party that changes leaves the queue (no countdown)")
+	# Start now, raids ending, people leaving.
+	mm.leave_raid(1)
+	mm.leave_raid(2)
+	_check(not mm.raids.has(1), "a raid closes when everyone has left it")
+	var why := []
+	_check(mm.start_now(1, why) != 0 and mm.players[2]["raid"] == mm.players[1]["raid"], "start now: a raid with just your party")
+	mm.remove_player(2)
+	_check(mm.party_of(1)["members"] == [1], "a partner going offline leaves you in your party")
+	mm.add_player(10, "  ")
+	_check(mm.players[10]["name"] == "Player 10", "a blank name gets a default")
+
+
 func _section_net() -> void:
-	# Multiplayer step 1 (0.7.0): a real WebSocket server and two players in this one process. Each gets its own
+	# Multiplayer over a real WebSocket server with three players, all in this one process. Each gets its own
 	# branch of the tree with its own multiplayer API, so they talk over localhost like separate machines.
 	var server := _net_peer("NetServer")
 	var c1 := _net_peer("NetClient1")
 	var c2 := _net_peer("NetClient2")
+	var c3 := _net_peer("NetClient3")
 	_check(server.start_server(19081) == OK and server.mode == server.Mode.SERVER, "server starts")
-	var results := {}
-	for c in [c1, c2]:
-		c.joined.connect(func() -> void: results[c] = "joined")
-		c.join_failed.connect(func(reason: String) -> void: results[c] = reason)
-	c1.join("localhost:19081", " abcd")
-	await _until(func() -> bool: return results.has(c1))
-	_check(results.get(c1) == "joined" and c1.is_client() and c1.room_code == "ABCD", "first player opens room ABCD (%s)" % results.get(c1))
-	_check(absf(c1.raid_time_left - c1.RAID_TIME) < 5.0, "the raid clock starts when the room opens (%.0f s)" % c1.raid_time_left)
-	c2.join("localhost:19081", "WRONG")
-	await _until(func() -> bool: return results.has(c2))
-	_check(str(results.get(c2)).contains("another room") and not c2.is_client(), "a different code is turned away (%s)" % results.get(c2))
-	_check(server.join_problem("0.0.1", "ABCD").contains("Reload"), "an outdated game is told to reload")
-	results.erase(c2)
-	await _frames(2)
-	c2.join("localhost:19081", "abcd")
-	await _until(func() -> bool: return results.has(c2))
-	_check(results.get(c2) == "joined" and c2.raid_seed == c1.raid_seed, "second player joins the same raid (same extract seed)")
-	_check(server.player_count() == 2, "server counts 2 players (%d)" % server.player_count())
+	server.matchmaker.queue_countdown = 0.3
+	var log := {}
+	for c in [c1, c2, c3]:
+		log[c] = []
+		c.connected.connect(func() -> void: log[c].append("connected"))
+		c.connect_failed.connect(func(reason: String) -> void: log[c].append(reason))
+		c.raid_started.connect(func() -> void: log[c].append("raid"))
+		c.notice.connect(func(text: String) -> void: log[c].append(text))
+	_check(server.join_problem("0.0.1").contains("Reload"), "an outdated game is told to reload")
+	c1.go_online("localhost:19081", "Alpha")
+	c2.go_online("localhost:19081", "Bravo")
+	c3.go_online("localhost:19081", "Charlie")
+	await _until(func() -> bool: return [c1, c2, c3].all(func(c: Network) -> bool: return c.is_client() and c.party_code != ""))
+	_check([c1, c2, c3].all(func(c: Network) -> bool: return log[c].has("connected") and c.party_code.length() == 4), "three players come online, each with a party code")
 
-	# States are relayed: player 2 sees player 1 where player 1 is, and never sees itself.
+	c2.join_party(c1.party_code)
+	await _until(func() -> bool: return c1.party_names.size() == 2 and c2.party_code == c1.party_code)
+	_check(c1.party_names == PackedStringArray(["Alpha", "Bravo"]) and c1.is_leader and not c2.is_leader, "Bravo joins Alpha's party (Alpha leads)")
+	c2.set_queued(true)
+	await _until(func() -> bool: return not log[c2].is_empty() and log[c2][-1].contains("leader"))
+	_check(log[c2][-1].contains("leader"), "the server tells a non-leader they can't queue")
+	c1.set_queued(true)
+	c3.set_queued(true)
+	await _until(func() -> bool: return [c1, c2, c3].all(func(c: Network) -> bool: return c.in_raid))
+	_check([c1, c2, c3].all(func(c: Network) -> bool: return c.in_online_raid() and log[c].has("raid")), "the queue puts all three in one raid")
+	_check(c1.raid_seed == c3.raid_seed and absf(c1.raid_time_left - c1.RAID_TIME) < 5.0 and c1.player_count() == 3,
+		"same raid: same extract seed, a fresh clock, 3 players")
 	var c1_id: int = c1.multiplayer.get_unique_id()
+	var c2_id: int = c2.multiplayer.get_unique_id()
+	_check(c1.teammates == [c2_id] and c3.teammates.is_empty() and c3.names.get(c1_id) == "Alpha", "Alpha and Bravo are teammates; Charlie knows their names")
+
+	# States are relayed within the raid: Charlie sees Alpha where Alpha is, and never sees himself.
 	var sent := [Vector3(4, 0.1, -6), 1.2, 0.3, 1.0, RemotePlayer.FLAG_CROUCH]
 	await _until(func() -> bool:
 		c1.send_state(sent)
-		return c2.states.has(c1_id) and c2.states[c1_id][0].is_equal_approx(Vector3(4, 0.1, -6)))
-	_check(c2.states.has(c1_id) and c2.states[c1_id] == sent, "player 2 sees player 1's position, facing, crouch and lean")
-	_check(not c2.states.has(c2.multiplayer.get_unique_id()) and c2.player_count() == 2, "you don't see yourself as another player")
+		return c3.states.has(c1_id) and c3.states[c1_id][0].is_equal_approx(Vector3(4, 0.1, -6)))
+	_check(c3.states.has(c1_id) and c3.states[c1_id] == sent, "Charlie sees Alpha's position, facing, crouch and lean")
+	_check(not c3.states.has(c3.multiplayer.get_unique_id()), "you don't see yourself as another player")
 	_check(not RemotePlayer.is_valid_state([Vector3.ZERO, "hi"]) and RemotePlayer.is_valid_state(RemotePlayer.capture(player)),
 		"the server only relays well-formed states")
 
@@ -825,15 +894,22 @@ func _section_net() -> void:
 	Raid.shuffle_seeded(b, 99)
 	_check(a == b, "everyone in a room gets the same open extracts")
 
-	# Leaving: the others stop seeing you; the room resets once everyone is gone.
-	c1.leave()
-	await _until(func() -> bool: return server.player_count() == 1 and not c2.states.has(c1_id))
-	_check(server.player_count() == 1 and not c2.states.has(c1_id), "a player leaving is gone for the others")
-	c2.leave()
-	await _until(func() -> bool: return server.player_count() == 0)
-	_check(server.room_code == "" and not c1.is_online(), "the room resets when everyone has left")
+	# Back to the hideout: still online, same party; "start now" gives a raid of just your party.
+	c3.leave_raid()
+	await _until(func() -> bool: return server.matchmaker.players[c3.multiplayer.get_unique_id()]["raid"] == 0)
+	c3.start_now()
+	await _until(func() -> bool: return c3.in_raid)
+	_check(c3.in_online_raid() and c3.player_count() == 1, "start now: Charlie gets a raid of his own")
+	# Going offline: gone for the others, and the raid closes once everyone has left.
+	c1.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.size() == 2 and c2.party_names.size() == 1)
+	_check(c2.party_names.size() == 1, "Bravo is left in his own party when Alpha goes offline")
+	c2.go_offline()
+	c3.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	_check(server.matchmaker.raids.is_empty() and server.matchmaker.parties.is_empty(), "everything closes when everyone has gone")
 	server.multiplayer.multiplayer_peer.close()
-	for n in [server, c1, c2]:
+	for n in [server, c1, c2, c3]:
 		n.get_parent().queue_free()
 	_check(not Network.main.is_online(), "solo raids stay offline")
 

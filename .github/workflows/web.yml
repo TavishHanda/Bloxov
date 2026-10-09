@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-      HEROKU_ON: "false"
+      HEROKU_ON: "true"
       APP: bloxov-server
     steps:
       - uses: actions/checkout@v5

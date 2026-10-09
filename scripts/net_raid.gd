@@ -18,7 +18,7 @@ var _lost := false
 
 
 func _ready() -> void:
-	if not Network.main.is_client():
+	if not Network.main.in_online_raid():
 		return
 	if enemy_spawner != null:
 		enemy_spawner.queue_free()
@@ -36,7 +36,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _label == null:
 		return
-	if Network.main.is_client():
+	if Network.main.in_online_raid():
 		_send_left -= delta
 		if _send_left <= 0.0:
 			_send_left = 1.0 / Network.SEND_RATE
@@ -47,7 +47,7 @@ func _process(delta: float) -> void:
 	if _lost:
 		_label.text = "Disconnected from the server: you're on your own now."
 	else:
-		_label.text = "Online · room %s · %d players" % [Network.main.room_code, Network.main.player_count()]
+		_label.text = "Online · %d players in this raid" % Network.main.player_count()
 
 
 ## Adds and removes RemotePlayer bodies to match `states` (peer id -> RemotePlayer state) and hands each its
@@ -63,6 +63,8 @@ func sync_remotes(states: Dictionary) -> void:
 			remote = REMOTE_SCENE.instantiate()
 			remote.peer_id = peer
 			remote.name = "Remote%d" % peer
+			remote.player_name = Network.main.names.get(peer, "")
+			remote.teammate = Network.main.teammates.has(peer)
 			get_parent().add_child(remote)
 			remotes[peer] = remote
 		remote.push_state(states[peer])

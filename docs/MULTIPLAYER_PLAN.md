@@ -43,6 +43,12 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
       processes (server + two games joining through the hideout).
 - [x] **2. See each other (0.7.1).** Other players move, turn, crouch, lean, aim, with smoothing so they don't
       jitter. The PMC model is the player model (owner: kept for real players).
+- [x] **Matchmaking (0.7.3, owner; moved before shooting because server-side hits need the server to load
+      raid worlds, the same piece as running several raids).** `scripts/matchmaker.gd` (pure logic, tested
+      directly): party codes (duos max, party kept between raids), one queue for solos and duos, countdown 30 s
+      once 2 are waiting, raids of 2-6 (full = start now, parties never split), no late joining, "Start now" for
+      one party (testing), up to 4 raids per server. Teammates get a name tag. START RAID stays the solo raid
+      against the AI (owner: keep solo in the final game too; later it can run on the server so its loot counts).
 - [ ] **3. Shoot each other and scavs (0.7.2).** Server-side hits and damage; hit feedback and kill sound
       as now. Friendly fire per the owner's answer below.
 - [ ] **4. AI on the server (0.7.3).** Scavs/Raiders run on the server and react to every player.

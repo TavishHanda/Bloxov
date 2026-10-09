@@ -2,6 +2,19 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.3 (multiplayer: matchmaking)
+- **ONLINE** in the hideout (was JOIN ONLINE): pick a name and **Go online**. Room codes are gone
+- **Party up:** everyone gets a party code; a friend types it in to join you (duos max). Your party stays
+  together between raids
+- **Queue:** solos and duos queue into the same raids. Once 2 players are waiting, a **30-second countdown**
+  gives others time to join, then everyone waiting goes into one raid together (up to 6; a full queue starts at
+  once; a duo is never split up). **No joining a raid that's already running**
+- **Start now:** an online raid with just you (or your party), no queue: for testing
+- **Teammates get a green name tag** (friendly fire is on); other players get none
+- One server now runs **several raids at once** (up to 4)
+- START RAID is still the solo raid against the AI (offline)
+- The game server goes up on Heroku (student credit)
+
 ## 0.7.2 (multiplayer: see each other properly)
 - Other players now **crouch, lean, sprint and aim** where you can see it, their gun follows where they look,
   their legs walk, and they **fall over when they die** (and vanish when they extract)

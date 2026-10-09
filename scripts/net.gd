@@ -1,42 +1,63 @@
 class_name Network
 extends Node
 ## Multiplayer connection (autoload "Net"; other scripts use it as `Network.main`, which also works in the
-## headless test, where autoload names aren't known when scripts compile). Offline by default: solo raids never touch the network.
+## headless test, where autoload names aren't known when scripts compile). Offline by default: solo raids never
+## touch the network.
 ##
 ## Browsers can't host, so online raids run on a dedicated server: this same project started with
 ##   godot --headless -- --server [--port=9080]
-## (or the PORT environment variable, which hosting services set). Players join from the hideout with the
-## server's address and a room code. One raid (room) per server process for now: the first player to join
-## picks the code, the room resets when everyone has left.
+## (or the PORT environment variable, which hosting services set).
 ##
-## 0.7.0 (multiplayer step 1): the server checks version, room code and player count, owns the raid clock and
-## which extracts are open, and relays every player's position to the others. Everything else (AI, loot, hits)
-## still runs on each player's own machine until the later steps.
+## Going online (hideout): connect, and the server checks the game version. Then parties, the queue and
+## "start now" (Matchmaker, on the server) decide who plays together; when a raid starts, every player in it
+## loads the raid scene. One server runs several raids at once. In a raid the server relays every player's state
+## to the others in that raid, owns the raid clock and which extracts are open. AI, loot and hits still run on
+## each player's own machine until the next steps (docs/MULTIPLAYER_PLAN.md).
 
-signal joined
-signal join_failed(reason: String)
-## The connection to the server dropped mid-raid (the server stopped, or the internet went away).
+## Connected and let in (the hideout shows the party/queue screen).
+signal connected
+## Couldn't connect, or the server turned us away (the reason says why).
+signal connect_failed(reason: String)
+## The connection dropped (the server stopped, or the internet went away).
 signal connection_lost
+## Party, queue, or a message from the server changed (the hideout redraws).
+signal party_changed
+signal queue_changed
+signal notice(text: String)
+## The server put us in a raid: load it.
+signal raid_started
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
 const DEFAULT_PORT := 9080
-## The hosted server (Fly.io, deployed by CI: see fly.toml). A local test server is ws://localhost:9080.
+## The hosted server (see fly.toml / heroku.yml). A local test server is ws://localhost:9080.
 const DEFAULT_ADDRESS := "wss://bloxov-server.fly.dev"
-## Owner: duos, up to 6 players per raid.
-const MAX_PLAYERS := 6
 const RAID_TIME := 600.0
-## Position updates per second, both ways.
+## Player state updates per second, both ways.
 const SEND_RATE := 20.0
+## Queue status updates per second (to players in the hideout).
+const QUEUE_RATE := 2.0
 
 var mode := Mode.OFFLINE
-var room_code := ""
-## Shared by everyone in the room so they all get the same open extracts.
+
+# Client: what the server last told us.
+var party_code := ""
+## Names of the people in our party, leader first.
+var party_names: PackedStringArray = []
+var is_leader := true
+var queued := false
+## Players waiting in the queue, and seconds until their raid starts (-1 = waiting for more players).
+var queue_waiting := 0
+var queue_countdown := -1.0
+var in_raid := false
+## Shared by everyone in the raid so they all get the same open extracts.
 var raid_seed := 0
-## Seconds left on the raid clock when we joined (the client counts down from there).
+## Seconds left on the raid clock when it started for us (the raid counts down from there).
 var raid_time_left := RAID_TIME
-## Client: the other players' latest state (RemotePlayer.capture: position, yaw, pitch, lean, flags), by peer id
-## (not including us), and when it arrived (msec).
+## Peer id -> name, for everyone in our raid; and which of them are in our party.
+var names := {}
+var teammates: Array[int] = []
+## The other players in our raid: their latest state (RemotePlayer.capture) by peer id, and when it arrived.
 var states := {}
 var states_msec := 0
 
@@ -44,9 +65,11 @@ var states_msec := 0
 static var main: Network
 
 # Server only.
-var _welcomed := {}
-var _raid_started_msec := 0
+var matchmaker := Matchmaker.new()
+## peer -> latest state, for players in a raid.
+var _player_states := {}
 var _send_left := 0.0
+var _queue_send_left := 0.0
 
 
 func _enter_tree() -> void:
@@ -65,7 +88,9 @@ func _ready() -> void:
 		for arg in args:
 			if arg.begins_with("--port="):
 				port = arg.trim_prefix("--port=").to_int()
-		# The server has no screen and no hideout: drop the main scene and just run the room.
+			elif arg.begins_with("--countdown="):  # shorter queue countdown, for testing
+				matchmaker.queue_countdown = arg.trim_prefix("--countdown=").to_float()
+		# The server has no screen and no hideout: drop the main scene and just run the matchmaking and raids.
 		get_tree().unload_current_scene.call_deferred()
 		if start_server(port) != OK:
 			get_tree().quit(1)
@@ -75,17 +100,23 @@ func is_online() -> bool:
 	return mode != Mode.OFFLINE
 
 
+## Connected to a server (in the hideout or a raid).
 func is_client() -> bool:
 	return mode == Mode.CLIENT
+
+
+## In an online raid right now (the raid scene asks this).
+func in_online_raid() -> bool:
+	return mode == Mode.CLIENT and in_raid
 
 
 func version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", "?"))
 
 
-## Players in the raid, us included (1 offline).
+## Players in our raid, us included.
 func player_count() -> int:
-	return _welcomed.size() if mode == Mode.SERVER else states.size() + 1
+	return names.size() if in_raid else 1
 
 
 # --- Server --------------------------------------------------------------------------
@@ -96,96 +127,173 @@ func start_server(port: int) -> Error:
 	if err != OK:
 		_log("could not listen on port %d (error %d)" % [port, err])
 		return err
+	# Players only ever talk to the server (no relaying between them, no "player joined/left" broadcasts).
+	(multiplayer as SceneMultiplayer).server_relay = false
 	multiplayer.multiplayer_peer = peer
 	multiplayer.peer_disconnected.connect(_on_peer_left)
 	mode = Mode.SERVER
-	_reset_room()
+	matchmaker.raid_time = RAID_TIME
 	_log("v%s listening on port %d" % [version(), port])
 	return OK
 
 
-func _reset_room() -> void:
-	room_code = ""
-	_welcomed.clear()
-	raid_seed = randi()
-
-
-func _server_time_left() -> float:
-	return RAID_TIME - (Time.get_ticks_msec() - _raid_started_msec) / 1000.0
+## Why a player can't come online ("" = they can).
+func join_problem(client_version: String) -> String:
+	if client_version != version():
+		return "The server is on v%s and you have v%s. Reload the page to update." % [version(), client_version]
+	return ""
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _hello(client_version: String, code: String) -> void:
+func _hello(client_version: String, player_name: String) -> void:
 	if mode != Mode.SERVER:
 		return
 	var peer := multiplayer.get_remote_sender_id()
-	code = code.strip_edges().to_upper()
-	var reason := join_problem(client_version, code)
+	var reason := join_problem(client_version)
 	if reason != "":
 		_log("peer %d turned away: %s" % [peer, reason])
 		_rejected.rpc_id(peer, reason)
 		return
-	if room_code == "":
-		room_code = code
-		_raid_started_msec = Time.get_ticks_msec()
-		_log("room %s opened" % code)
-	_welcomed[peer] = []
-	_log("peer %d joined room %s (%d players)" % [peer, room_code, _welcomed.size()])
-	_welcome.rpc_id(peer, room_code, raid_seed, _server_time_left())
+	matchmaker.add_player(peer, player_name)
+	_log("%s (peer %d) is online (%d players)" % [matchmaker.players[peer]["name"], peer, matchmaker.players.size()])
+	_welcome.rpc_id(peer)
+	_flush()
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _join_party(code: String) -> void:
+	_server_call(func(peer: int) -> String: return matchmaker.join_party(peer, code))
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _leave_party() -> void:
+	_server_call(func(peer: int) -> String:
+		matchmaker.leave_party(peer)
+		return "")
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _set_queued(on: bool) -> void:
+	_server_call(func(peer: int) -> String: return matchmaker.set_queued(peer, on))
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _start_now() -> void:
+	_server_call(func(peer: int) -> String:
+		var why := []
+		var id := matchmaker.start_now(peer, why)
+		if id != 0:
+			_send_raid_start(id)
+		return "" if why.is_empty() else why[0])
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _leave_raid() -> void:
+	_server_call(func(peer: int) -> String:
+		_player_states.erase(peer)
+		matchmaker.leave_raid(peer)
+		return "")
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func _state(state: Array) -> void:
 	var peer := multiplayer.get_remote_sender_id()
-	if mode == Mode.SERVER and _welcomed.has(peer) and RemotePlayer.is_valid_state(state):
-		_welcomed[peer] = state
+	if (mode == Mode.SERVER and matchmaker.players.has(peer) and matchmaker.players[peer]["raid"] != 0
+			and RemotePlayer.is_valid_state(state)):
+		_player_states[peer] = state
+
+
+## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
+func _server_call(action: Callable) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER or not matchmaker.players.has(peer):
+		return
+	var problem: String = action.call(peer)
+	if problem != "":
+		_notice.rpc_id(peer, problem)
+	_flush()
 
 
 func _on_peer_left(peer: int) -> void:
-	if not _welcomed.erase(peer):
+	if not matchmaker.players.has(peer):
 		return
-	_log("peer %d left (%d players)" % [peer, _welcomed.size()])
-	if _welcomed.is_empty():
-		_log("room %s closed" % room_code)
-		_reset_room()
+	_log("%s (peer %d) went offline" % [matchmaker.players[peer]["name"], peer])
+	_player_states.erase(peer)
+	matchmaker.remove_player(peer)
+	_flush()
+
+
+## Sends a fresh party update to everyone whose party changed.
+func _flush() -> void:
+	for code in matchmaker.changed_parties:
+		if not matchmaker.parties.has(code):
+			continue
+		var party: Dictionary = matchmaker.parties[code]
+		var member_names := PackedStringArray()
+		for member in party["members"]:
+			member_names.append(matchmaker.players[member]["name"])
+		for member in party["members"]:
+			if _peer_open(member):
+				_party.rpc_id(member, code, member_names, member == party["members"][0], party["queued"])
+	matchmaker.changed_parties.clear()
+
+
+## False for a player who is disconnecting (sending to them would only log errors until they're gone).
+func _peer_open(peer: int) -> bool:
+	var ws := multiplayer.multiplayer_peer as WebSocketMultiplayerPeer
+	if ws == null:
+		return true
+	var socket := ws.get_peer(peer)
+	return socket != null and socket.get_ready_state() == WebSocketPeer.STATE_OPEN
+
+
+func _send_raid_start(id: int) -> void:
+	var raid: Dictionary = matchmaker.raids[id]
+	var raid_names := {}
+	for peer in raid["players"]:
+		raid_names[peer] = matchmaker.players[peer]["name"]
+	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
+	for peer in raid["players"]:
+		var team: Array[int] = []
+		for other in raid["players"]:
+			if other != peer and raid["teams"][other] == raid["teams"][peer]:
+				team.append(other)
+		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team)
 
 
 func _process(delta: float) -> void:
-	if mode != Mode.SERVER or _welcomed.is_empty():
+	if mode != Mode.SERVER:
 		return
+	for id in matchmaker.tick(delta):
+		_send_raid_start(id)
+	_flush()
+	_queue_send_left -= delta
+	if _queue_send_left <= 0.0:
+		_queue_send_left = 1.0 / QUEUE_RATE
+		var waiting := matchmaker.queued_count()
+		for peer in matchmaker.players:
+			if matchmaker.players[peer]["raid"] == 0 and _peer_open(peer):
+				_queue_status.rpc_id(peer, waiting, matchmaker.countdown_left)
 	_send_left -= delta
 	if _send_left > 0.0:
 		return
 	_send_left = 1.0 / SEND_RATE
-	# Players who haven't sent a state yet (still loading the raid) aren't shown.
-	var shown := {}
-	for peer in _welcomed:
-		if not _welcomed[peer].is_empty():
-			shown[peer] = _welcomed[peer]
-	for peer in _welcomed:
-		_states.rpc_id(peer, shown)
-
-
-## Why a player can't join right now ("" = they can).
-func join_problem(client_version: String, code: String) -> String:
-	if client_version != version():
-		return "The server is on v%s and you have v%s. Reload the page to update." % [version(), client_version]
-	if code == "":
-		return "Enter a room code."
-	if _welcomed.size() >= MAX_PLAYERS:
-		return "The raid is full (%d players)." % MAX_PLAYERS
-	if room_code != "" and code != room_code:
-		return "This server is running another room. Check the code."
-	if room_code != "" and _server_time_left() < 30.0:
-		return "This raid is about to end. Try again in a minute."
-	return ""
+	for id in matchmaker.raids:
+		# Players who haven't sent a state yet (still loading the raid) aren't shown.
+		var shown := {}
+		for peer in matchmaker.raids[id]["players"]:
+			if _player_states.has(peer):
+				shown[peer] = _player_states[peer]
+		for peer in matchmaker.raids[id]["players"]:
+			if _peer_open(peer):
+				_states.rpc_id(peer, shown)
 
 
 # --- Client --------------------------------------------------------------------------
 
-## Connects to a server and asks to join the room. Emits `joined` or `join_failed`.
-func join(address: String, code: String) -> void:
-	leave()
+## Connects to a server. Emits `connected` or `connect_failed`.
+func go_online(address: String, player_name: String) -> void:
+	go_offline()
 	address = address.strip_edges()
 	if not address.contains("://"):
 		# Secure by default (the web page is https, so browsers refuse plain ws:// to other machines).
@@ -194,16 +302,16 @@ func join(address: String, code: String) -> void:
 	var peer := WebSocketMultiplayerPeer.new()
 	var err := peer.create_client(address)
 	if err != OK:
-		join_failed.emit("Couldn't connect to %s." % address)
+		connect_failed.emit("Couldn't connect to %s." % address)
 		return
 	multiplayer.multiplayer_peer = peer
-	multiplayer.connected_to_server.connect(_on_connected.bind(code), CONNECT_ONE_SHOT)
+	multiplayer.connected_to_server.connect(_on_connected.bind(player_name), CONNECT_ONE_SHOT)
 	multiplayer.connection_failed.connect(_on_connection_failed, CONNECT_ONE_SHOT)
 	multiplayer.server_disconnected.connect(_on_server_disconnected, CONNECT_ONE_SHOT)
 
 
-## Back to offline (after a raid, or to cancel joining).
-func leave() -> void:
+## Disconnects (going back to solo play, or cancelling a connection attempt).
+func go_offline() -> void:
 	if mode == Mode.SERVER:
 		return
 	for sig: Signal in [multiplayer.connected_to_server, multiplayer.connection_failed, multiplayer.server_disconnected]:
@@ -213,59 +321,120 @@ func leave() -> void:
 	if multiplayer.multiplayer_peer != null and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = null
-	if mode == Mode.CLIENT:
-		mode = Mode.OFFLINE
+	mode = Mode.OFFLINE
+	in_raid = false
+	queued = false
+	party_code = ""
+	party_names = []
+	states.clear()
+
+
+func join_party(code: String) -> void:
+	if is_client():
+		_join_party.rpc_id(1, code)
+
+
+func leave_party() -> void:
+	if is_client():
+		_leave_party.rpc_id(1)
+
+
+func set_queued(on: bool) -> void:
+	if is_client():
+		_set_queued.rpc_id(1, on)
+
+
+## Starts a raid with just our party, no queue (testing, or playing online alone).
+func start_now() -> void:
+	if is_client():
+		_start_now.rpc_id(1)
+
+
+## Back in the hideout after a raid: tell the server (we stay online, in the same party).
+func leave_raid() -> void:
+	if in_online_raid():
+		_leave_raid.rpc_id(1)
+	in_raid = false
 	states.clear()
 
 
 ## Sends our state (RemotePlayer.capture) to the server (the raid calls this SEND_RATE times a second).
 func send_state(state: Array) -> void:
-	if mode == Mode.CLIENT:
+	if in_online_raid():
 		_state.rpc_id(1, state)
 
 
-func _on_connected(code: String) -> void:
-	_hello.rpc_id(1, version(), code)
+func _on_connected(player_name: String) -> void:
+	_hello.rpc_id(1, version(), player_name)
 
 
 func _on_connection_failed() -> void:
-	leave.call_deferred()
-	join_failed.emit("Couldn't reach the server.")
+	# Not while the network is being polled (that's where this signal comes from).
+	go_offline.call_deferred()
+	connect_failed.emit("Couldn't reach the server.")
 
 
 func _on_server_disconnected() -> void:
-	var was_in_raid := mode == Mode.CLIENT
-	# Not while the network is being polled (that's where this signal comes from).
-	leave.call_deferred()
-	if was_in_raid:
+	var was_online := mode == Mode.CLIENT
+	go_offline.call_deferred()
+	if was_online:
 		connection_lost.emit()
 	else:
-		join_failed.emit("The server closed the connection.")
+		connect_failed.emit("The server closed the connection.")
 
 
 @rpc("authority", "call_remote", "reliable")
-func _welcome(code: String, seed_value: int, time_left: float) -> void:
+func _welcome() -> void:
 	mode = Mode.CLIENT
-	room_code = code
-	raid_seed = seed_value
-	raid_time_left = time_left
-	states.clear()
-	joined.emit()
+	in_raid = false
+	connected.emit()
 
 
 @rpc("authority", "call_remote", "reliable")
 func _rejected(reason: String) -> void:
-	leave.call_deferred()
-	join_failed.emit(reason)
+	go_offline.call_deferred()
+	connect_failed.emit(reason)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _notice(text: String) -> void:
+	notice.emit(text)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _party(code: String, member_names: PackedStringArray, leader: bool, is_queued: bool) -> void:
+	party_code = code
+	party_names = member_names
+	is_leader = leader
+	queued = is_queued
+	party_changed.emit()
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _queue_status(waiting: int, countdown: float) -> void:
+	queue_waiting = waiting
+	queue_countdown = countdown
+	queue_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team: Array[int]) -> void:
+	in_raid = true
+	queued = false
+	raid_seed = seed_value
+	raid_time_left = time_left
+	names = raid_names
+	teammates = team
+	states.clear()
+	raid_started.emit()
 
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _states(all: Dictionary) -> void:
-	if mode != Mode.CLIENT:
+	if not in_online_raid():
 		return
-	var me := multiplayer.get_unique_id()
 	states = all.duplicate()
-	states.erase(me)
+	states.erase(multiplayer.get_unique_id())
 	states_msec = Time.get_ticks_msec()
 
 

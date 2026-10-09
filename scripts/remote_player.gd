@@ -27,6 +27,9 @@ const HEAD_HEIGHT := 1.71
 @onready var head_shape: CollisionShape3D = $HeadShape
 
 var peer_id := 0
+var player_name := ""
+## In our party: gets a name tag (friendly fire is on, so you need to tell them apart). Others get none.
+var teammate := false
 ## The state being shown right now.
 var shown: Array = []
 ## [arrival seconds, state], oldest first.
@@ -64,6 +67,18 @@ func _ready() -> void:
 	_gun_rest = gun_model.position
 	# Each body gets its own shapes so crouching one doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
+	if teammate:
+		var tag := Label3D.new()
+		tag.name = "NameTag"
+		tag.text = player_name
+		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		tag.no_depth_test = true
+		tag.fixed_size = true
+		tag.pixel_size = 0.0015
+		tag.modulate = Color(0.55, 1.0, 0.55)
+		tag.outline_size = 8
+		tag.position.y = 2.25
+		add_child(tag)
 
 
 ## Adds a state that arrived now (`at` = seconds, for the test).

@@ -22,7 +22,7 @@ var loot_summary: PackedStringArray = []
 
 func _ready() -> void:
 	# Online, the server runs the clock (you may join a raid that's already going).
-	time_left = Network.main.raid_time_left if Network.main.is_client() else raid_time
+	time_left = Network.main.raid_time_left if Network.main.in_online_raid() else raid_time
 	player.health.died.connect(_on_player_died)
 
 	if spawn_points != null and spawn_points.get_child_count() > 0:
@@ -31,7 +31,7 @@ func _ready() -> void:
 		player.face_towards(Vector3.ZERO)
 
 	var extracts := get_extracts()
-	if Network.main.is_client():
+	if Network.main.in_online_raid():
 		# Everyone in an online raid gets the same open extracts (the server hands out the seed).
 		shuffle_seeded(extracts, Network.main.raid_seed)
 	else:

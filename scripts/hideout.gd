@@ -21,19 +21,29 @@ var _version_label: Label
 var _stats_label: Label
 var _message_label: Label
 var _free_kit_button: Button
-var _join_panel: PanelContainer
-var _join_address: LineEdit
-var _join_code: LineEdit
-var _join_status: Label
-var _join_button: Button
+var _online_panel: PanelContainer
+var _offline_box: VBoxContainer
+var _online_box: VBoxContainer
+var _name_edit: LineEdit
+var _address_edit: LineEdit
+var _connect_button: Button
+var _party_label: Label
+var _party_members: Label
+var _join_row: HBoxContainer
+var _party_code_edit: LineEdit
+var _leave_party_button: Button
+var _queue_button: Button
+var _queue_info: Label
+var _start_now_button: Button
+var _online_status: Label
 var _save_queued := false
 
 
 func _ready() -> void:
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	# Back from an online raid: disconnect (the next raid is solo unless you join again).
-	Network.main.leave()
+	# Back from an online raid: still online, in the same party (tell the server we're out of the raid).
+	Network.main.leave_raid()
 	Profile.load_profile()
 	GameSettings.load_settings()
 
@@ -56,9 +66,20 @@ func _ready() -> void:
 	screen.add_column(_build_trader())
 
 	_build_top_bar()
-	_build_join_panel()
-	Network.main.joined.connect(start_raid)
-	Network.main.join_failed.connect(_on_join_failed)
+	_build_online_panel()
+	var net := Network.main
+	net.raid_started.connect(start_raid)
+	net.connected.connect(func() -> void:
+		_online_status.text = ""
+		_refresh_online())
+	net.connect_failed.connect(_on_connect_failed)
+	net.connection_lost.connect(_on_connection_lost)
+	net.party_changed.connect(_refresh_online)
+	net.queue_changed.connect(_refresh_online)
+	net.notice.connect(func(text: String) -> void: _online_status.text = text)
+	# Came back from an online raid: show the party/queue screen again.
+	if net.is_client():
+		_online_panel.visible = true
 	inventory.changed.connect(_queue_save)
 	Profile.stash.changed.connect(_queue_save)
 	_refresh()
@@ -223,90 +244,181 @@ func _build_top_bar() -> void:
 	raid_button.add_theme_font_size_override("font_size", 20)
 	raid_button.focus_mode = Control.FOCUS_NONE
 	raid_button.pressed.connect(func() -> void:
-		Network.main.leave()  # START RAID is always solo, even if a join was still connecting.
+		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
 		start_raid())
 	row.add_child(raid_button)
 	var online_button := Button.new()
-	online_button.text = "JOIN ONLINE"
-	online_button.tooltip_text = "Join an online raid with a room code"
+	online_button.text = "ONLINE"
+	online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
 	online_button.focus_mode = Control.FOCUS_NONE
-	online_button.pressed.connect(func() -> void: _join_panel.visible = not _join_panel.visible)
+	online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
 	row.add_child(online_button)
 
 
 # --- Online --------------------------------------------------------------------------
+## The online panel (JOIN ONLINE): go online, party up with a friend's code, queue, or start a raid right away.
+## Raids start when the server says so (Network.raid_started).
 
-## Connects to the server in the Join box. The raid starts when the server lets us in (Network.main.joined).
-func join_online(address: String, code: String) -> void:
-	code = code.strip_edges().to_upper()
-	if address.strip_edges() == "" or code == "":
-		_join_status.text = "Enter the server address and a room code."
+## Connects to the server with the address and name in the panel.
+func go_online(address: String, player_name: String) -> void:
+	if address.strip_edges() == "":
+		_online_status.text = "Enter the server address."
 		return
-	GameSettings.set_last_join(address.strip_edges(), code)
+	GameSettings.set_online(address.strip_edges(), player_name.strip_edges())
 	save_now()
-	_join_status.text = "Connecting..."
-	_join_button.disabled = true
-	Network.main.join(address, code)
+	_online_status.text = "Connecting... (a sleeping server can take a few seconds to wake up)"
+	_connect_button.disabled = true
+	Network.main.go_online(address, player_name)
 
 
-func _on_join_failed(reason: String) -> void:
-	_join_status.text = reason
-	_join_button.disabled = false
+func _on_connect_failed(reason: String) -> void:
+	_online_status.text = reason
+	_refresh_online()
 
 
-func _build_join_panel() -> void:
-	_join_panel = PanelContainer.new()
-	_join_panel.visible = false
-	_join_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_join_panel.custom_minimum_size = Vector2(420, 0)
-	_join_panel.position = Vector2(-210, -120)
-	add_child(_join_panel)
+func _on_connection_lost() -> void:
+	_online_status.text = "Lost the connection to the server."
+	_refresh_online()
+
+
+## Redraws the online panel from what the server last told us.
+func _refresh_online() -> void:
+	if _online_panel == null:
+		return
+	var net := Network.main
+	var online := net.is_client()
+	_offline_box.visible = not online
+	_online_box.visible = online
+	_connect_button.disabled = net.is_online() and not online
+	if not online:
+		return
+	_party_label.text = "Your party code: %s" % net.party_code
+	var who := PackedStringArray()
+	for i in net.party_names.size():
+		who.append(net.party_names[i] + (" (leader)" if i == 0 and net.party_names.size() > 1 else ""))
+	_party_members.text = "In your party: " + ", ".join(who)
+	var in_party := net.party_names.size() > 1
+	_join_row.visible = not in_party
+	_leave_party_button.visible = in_party
+	_queue_button.visible = net.is_leader
+	_start_now_button.visible = net.is_leader
+	_queue_button.text = "CANCEL QUEUE" if net.queued else "QUEUE"
+	if not net.is_leader:
+		_queue_info.text = "Your party leader starts the queue." + (" Queued..." if net.queued else "")
+	elif net.queued and net.queue_countdown >= 0.0:
+		_queue_info.text = "Raid starts in %d s · %d players" % [ceili(net.queue_countdown), net.queue_waiting]
+	elif net.queued:
+		_queue_info.text = "Waiting for more players (%d in the queue, needs %d)" % [net.queue_waiting, Matchmaker.MIN_PLAYERS]
+	else:
+		_queue_info.text = "%d players in the queue right now" % net.queue_waiting
+
+
+func _build_online_panel() -> void:
+	_online_panel = PanelContainer.new()
+	_online_panel.visible = false
+	_online_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_online_panel.custom_minimum_size = Vector2(460, 0)
+	_online_panel.position = Vector2(-230, -170)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.13, 0.14, 0.13, 0.98)
+	style.border_color = Color(0.45, 0.5, 0.45)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	_online_panel.add_theme_stylebox_override("panel", style)
+	add_child(_online_panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, 16)
-	_join_panel.add_child(margin)
+	_online_panel.add_child(margin)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 10)
 	margin.add_child(column)
 	var title := Label.new()
-	title.text = "JOIN ONLINE RAID"
+	title.text = "ONLINE"
 	title.add_theme_font_size_override("font_size", 20)
 	column.add_child(title)
+
+	# Not connected: name + server, Go online.
+	_offline_box = VBoxContainer.new()
+	_offline_box.add_theme_constant_override("separation", 8)
+	column.add_child(_offline_box)
 	var hint := Label.new()
-	hint.text = "Everyone who enters the same room code ends up in the same raid (up to %d players)." % Network.MAX_PLAYERS
+	hint.text = "Queue into raids with other players (solos and duos, up to %d per raid). Party up with a friend using your party code." % Matchmaker.MAX_PLAYERS
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.modulate = Color(1, 1, 1, 0.7)
-	column.add_child(hint)
-	_join_address = LineEdit.new()
-	_join_address.placeholder_text = "Server address"
-	# The old 0.7.0 default (a local test server) is replaced by the hosted one.
+	_offline_box.add_child(hint)
+	_name_edit = LineEdit.new()
+	_name_edit.placeholder_text = "Your name"
+	_name_edit.max_length = 16
+	_name_edit.text = GameSettings.player_name if GameSettings.player_name != "" else "Player %d" % randi_range(100, 999)
+	_offline_box.add_child(_name_edit)
+	_address_edit = LineEdit.new()
+	_address_edit.placeholder_text = "Server address"
+	# Old defaults (a local test server, the first hosted address) are replaced by the current one.
 	var saved := GameSettings.server_address
-	_join_address.text = saved if saved != "" and saved != "ws://localhost:9080" else Network.DEFAULT_ADDRESS
-	column.add_child(_join_address)
-	_join_code = LineEdit.new()
-	_join_code.placeholder_text = "Room code"
-	_join_code.max_length = 12
-	_join_code.text = GameSettings.room_code
-	column.add_child(_join_code)
-	var buttons := HBoxContainer.new()
-	column.add_child(buttons)
-	_join_button = Button.new()
-	_join_button.text = "Join"
-	_join_button.custom_minimum_size = Vector2(120, 0)
-	_join_button.pressed.connect(func() -> void: join_online(_join_address.text, _join_code.text))
-	buttons.add_child(_join_button)
-	var cancel := Button.new()
-	cancel.text = "Cancel"
-	cancel.pressed.connect(func() -> void:
-		Network.main.leave()
-		_join_button.disabled = false
-		_join_status.text = ""
-		_join_panel.visible = false)
-	buttons.add_child(cancel)
-	_join_status = Label.new()
-	_join_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_join_status.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
-	column.add_child(_join_status)
+	var old := ["ws://localhost:9080", "wss://bloxov-server.fly.dev"]
+	_address_edit.text = saved if saved != "" and not old.has(saved) else Network.DEFAULT_ADDRESS
+	_offline_box.add_child(_address_edit)
+	_connect_button = Button.new()
+	_connect_button.text = "Go online"
+	_connect_button.pressed.connect(func() -> void: go_online(_address_edit.text, _name_edit.text))
+	_offline_box.add_child(_connect_button)
+
+	# Connected: party, queue, start now.
+	_online_box = VBoxContainer.new()
+	_online_box.add_theme_constant_override("separation", 8)
+	column.add_child(_online_box)
+	_party_label = Label.new()
+	_party_label.add_theme_font_size_override("font_size", 18)
+	_online_box.add_child(_party_label)
+	_party_members = Label.new()
+	_party_members.modulate = Color(1, 1, 1, 0.8)
+	_online_box.add_child(_party_members)
+	_join_row = HBoxContainer.new()
+	_online_box.add_child(_join_row)
+	_party_code_edit = LineEdit.new()
+	_party_code_edit.placeholder_text = "Friend's party code"
+	_party_code_edit.max_length = 4
+	_party_code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_join_row.add_child(_party_code_edit)
+	var join_button := Button.new()
+	join_button.text = "Join party"
+	join_button.pressed.connect(func() -> void: Network.main.join_party(_party_code_edit.text))
+	_join_row.add_child(join_button)
+	_leave_party_button = Button.new()
+	_leave_party_button.text = "Leave party"
+	_leave_party_button.pressed.connect(func() -> void: Network.main.leave_party())
+	_online_box.add_child(_leave_party_button)
+	_queue_button = Button.new()
+	_queue_button.custom_minimum_size = Vector2(0, 40)
+	_queue_button.add_theme_font_size_override("font_size", 20)
+	_queue_button.pressed.connect(func() -> void: Network.main.set_queued(not Network.main.queued))
+	_online_box.add_child(_queue_button)
+	_queue_info = Label.new()
+	_queue_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_online_box.add_child(_queue_info)
+	_start_now_button = Button.new()
+	_start_now_button.text = "Start now: just my party, no queue"
+	_start_now_button.tooltip_text = "An online raid with only you (and your party). For testing."
+	_start_now_button.pressed.connect(func() -> void: Network.main.start_now())
+	_online_box.add_child(_start_now_button)
+	var offline_button := Button.new()
+	offline_button.text = "Go offline"
+	offline_button.pressed.connect(func() -> void:
+		Network.main.go_offline()
+		_online_status.text = ""
+		_refresh_online())
+	_online_box.add_child(offline_button)
+
+	_online_status = Label.new()
+	_online_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_online_status.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	column.add_child(_online_status)
+	var close := Button.new()
+	close.text = "Close"
+	close.pressed.connect(func() -> void: _online_panel.visible = false)
+	column.add_child(close)
+	_refresh_online()
 
 
 func _build_trader() -> Control:
