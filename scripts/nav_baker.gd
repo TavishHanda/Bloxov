@@ -40,8 +40,12 @@ func _bake() -> void:
 	baked.emit()
 
 
-## Adds solid boxes under `node`: CSG boxes with collision, and box colliders on the world layer.
+## Adds solid boxes under `node`: CSG boxes with collision, box colliders on the world layer, and gray-box maps
+## (BoxMap: all their solid boxes at once).
 func _add_geometry(node: Node, source: NavigationMeshSourceGeometryData3D) -> void:
+	if node is BoxMap:
+		source.add_faces((node as BoxMap).collision_faces, (node as Node3D).global_transform)
+		return
 	if node is CSGBox3D and (node as CSGBox3D).use_collision:
 		var box := BoxMesh.new()
 		box.size = (node as CSGBox3D).size

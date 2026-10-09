@@ -5,6 +5,22 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.10.0 (the first real map: Old Bloxov, gray box, owner)
+- **Raids now happen in Old Bloxov**, a 350 x 350 m town (about 2:15 to walk across on a real route) laid out with the owner:
+  the **town** in the top left (winding Main Street, town square full of cover, gun store, pharmacy, grocery, bank,
+  offices, police station, school, big houses on the hillside), the **farm** top right, the **train station and
+  depot** in the middle, **old houses and the gas station** bottom right, **woods** with 3 cabins, a creek and a railway
+- **Buildings have rooms and stairs:** most have 2 floors, and the town hall, police station, school, grocery and train
+  station have **rooftops** you can walk on. **The bunker is under the town hall** (ramp down from its west room)
+- **87 loot spots**, each tagged with its place (police, bank, bunker, ...) for the Items update. Placeholders for
+  the **bunker key door** and the **bank vault door** (open for now; keys come in the Items update)
+- **3 extracts** (Farm Road, Highway, Creek Trail; 2 open per raid) and **8 player spawns** round the edges
+- **More AI for testing** (owner: harder than seems right): 12 scavs and 3 Raiders at the start, up to 15 alive,
+  32 scavs and 8 Raiders over the raid. Spawn spots are placeholders until Scavs 2.0. AI paths can now cross the
+  whole map (they used to stop searching after a few thousand pieces of it)
+- It's a **gray box**: plain coloured blocks for walking, fighting and timing the layout. The look comes later
+  (designer), and the props/models after that (artist)
+
 ## 0.9.5 (squads spawn together, spectate your teammate, owner)
 - **Squads spawn together** online: you and your duo start side by side, and every other squad gets a different spawn
 - **Dead with your teammate still in the raid?** The end screen has a **SPECTATE <NAME>** button: the camera follows
