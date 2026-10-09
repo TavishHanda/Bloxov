@@ -31,6 +31,14 @@ signal player_bashed(peer: int, amount: int, from: Vector3, shove: float, aim_bl
 ## Something a scav did that everyone in the raid should see/hear: kind is "fired" (pos = where the shot ended),
 ## "alerted", "bash" or "died" (pos = where).
 signal enemy_event(id: int, kind: String, pos: Vector3)
+## Loot (0.7.9): a bag appeared (a body, dropped items) or went (emptied). Network tells everyone in the raid.
+signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
+signal bag_removed(id: String)
+
+## Loot containers are shared: their contents live here, and one player at a time has one open
+## (container id -> peer). Ids are the container's node name: "Crate3" under Loot, or "Bag12" for bags.
+var locks := {}
+var _next_bag := 1
 
 
 func _init() -> void:
@@ -51,8 +59,11 @@ func _ready() -> void:
 	add_child(raid)
 
 
-## Every scav the spawner adds: pass its events on.
+## Every scav the spawner adds: pass its events on. Every bag (scav bodies): name it and announce it.
 func _on_raid_child(node: Node) -> void:
+	if node is LootContainer:
+		_announce_bag.call_deferred(node)
+		return
 	if not node.has_signal("fired"):
 		return
 	var id := node.get_instance_id()
@@ -60,6 +71,64 @@ func _on_raid_child(node: Node) -> void:
 	node.alerted.connect(func() -> void: enemy_event.emit(id, "alerted", Vector3.ZERO))
 	node.bash_started.connect(func() -> void: enemy_event.emit(id, "bash", Vector3.ZERO))
 	node.tree_exiting.connect(func() -> void: enemy_event.emit(id, "died", node.global_position))
+
+
+func _announce_bag(bag: LootContainer) -> void:
+	if not is_instance_valid(bag):
+		return
+	bag.name = "Bag%d" % _next_bag
+	_next_bag += 1
+	bag_spawned.emit(String(bag.name), bag.global_position, bag.rotation.y, bag.display_name, bag.search_time)
+
+
+## A shared container by id, or null.
+func container(id: String) -> LootContainer:
+	if id.is_empty() or id.contains("/") or id.contains(".."):
+		return null
+	var node := raid.get_node_or_null("Loot/" + id)
+	if node == null:
+		node = raid.get_node_or_null(id)
+	return node as LootContainer
+
+
+## A player opens a container: its contents if they get it, or null if someone else has it open.
+func open_container(peer: int, id: String) -> Variant:
+	var box := container(id)
+	if box == null or (locks.has(id) and locks[id] != peer):
+		return null
+	close_containers(peer)
+	locks[id] = peer
+	return box.grid.to_data()
+
+
+## The player who has it open moved things around: store the new contents (an emptied bag goes away).
+func update_container(peer: int, id: String, data: Array) -> void:
+	var box := container(id)
+	if box == null or locks.get(id) != peer:
+		return
+	box.grid.load_data(data)
+	if box.remove_when_empty and box.grid.is_empty():
+		locks.erase(id)
+		box.queue_free()
+		bag_removed.emit(id)
+
+
+## Lets go of whatever this player has open (closed it, walked off, died, left).
+func close_containers(peer: int) -> void:
+	for id in locks.keys():
+		if locks[id] == peer:
+			locks.erase(id)
+
+
+## A bag of items (a dead player's body, things a player dropped) at `pos`.
+func drop_bag(pos: Vector3, title: String, data: Array) -> void:
+	var contents := []
+	for entry in data:
+		var stack := GridInventory.data_stack(entry)
+		if stack != null:
+			contents.append(stack)
+	if not contents.is_empty():
+		LootContainer.spawn_bag(raid, pos, title, contents)
 
 
 ## Every living scav/Raider: [id, kind (0 scav, 1 Raider), net_capture()...].
@@ -83,6 +152,7 @@ func record(peer: int, state: Array, now: float) -> void:
 
 func forget(peer: int) -> void:
 	history.erase(peer)
+	close_containers(peer)
 	if proxies.has(peer):
 		proxies[peer].queue_free()
 		proxies.erase(peer)

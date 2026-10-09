@@ -323,7 +323,10 @@ func _stow(stack: ItemStack, preferred: GridInventory, cell: Vector2i) -> void:
 
 ## Nowhere to put it: in a raid it drops on the ground; in the hideout the stash grows to fit it.
 func _drop_or_overflow(stack: ItemStack) -> void:
-	if player != null:
+	if player != null and Network.main.in_online_raid():
+		# Online, the server makes the bag (so everyone sees the same one).
+		Network.main.drop_items([GridInventory.stack_data(stack)])
+	elif player != null:
 		var drop_pos := player.global_position - player.global_basis.z * 0.8
 		LootContainer.spawn_bag(get_tree().current_scene, drop_pos, "Dropped Items", [stack])
 	elif stash != null:

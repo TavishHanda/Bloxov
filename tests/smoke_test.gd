@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -1125,6 +1125,116 @@ func _section_online_ai() -> void:
 		n.get_parent().queue_free()
 	await _frames(2)
 	_check(RaidScope.nodes(main, &"enemies").is_empty(), "nothing from online raids is left in the solo raid")
+
+
+func _section_online_loot() -> void:
+	# Shared loot (0.7.9): containers live on the server; one player at a time has one open; bodies (scavs and
+	# players) and dropped items are bags everyone sees.
+	var server := _net_peer("LootServer")
+	var c1 := _net_peer("LootClient1")
+	var c2 := _net_peer("LootClient2")
+	server.start_server(19084)
+	server.matchmaker.queue_countdown = 0.2
+	var got := {}
+	for c in [c1, c2]:
+		got[c] = {"opened": {}, "busy": [], "bags": {}, "gone": []}
+		c.container_opened.connect(func(id: String, data: Array) -> void: got[c]["opened"][id] = data)
+		c.container_busy.connect(func(id: String) -> void: got[c]["busy"].append(id))
+		c.bag_spawned.connect(func(id: String, _p: Vector3, _y: float, title: String, _s: float) -> void: got[c]["bags"][id] = title)
+		c.bag_removed.connect(func(id: String) -> void: got[c]["gone"].append(id))
+	c1.go_online("localhost:19084", "Looter")
+	c2.go_online("localhost:19084", "Rival")
+	await _until(func() -> bool: return c1.is_client() and c2.is_client() and c1.party_code != "" and c2.party_code != "")
+	c1.set_queued(true)
+	c2.set_queued(true)
+	await _until(func() -> bool: return c1.in_raid and c2.in_raid)
+	for i in 4:
+		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
+		c2.send_state([Vector3(2, 0.1, -10), 0.0, 0.0, 0.0, 0])
+		await _frames(2)
+	var world: RaidWorld = server._worlds.values()[0]
+	var crate := world.container("Crate0")
+	_check(crate != null and not crate.grid.is_empty(), "the server rolls the raid's container contents")
+
+	# One looter at a time; changes are kept for the next person.
+	c1.open_container("Crate0")
+	await _until(func() -> bool: return got[c1]["opened"].has("Crate0"))
+	c2.open_container("Crate0")
+	await _until(func() -> bool: return got[c2]["busy"].has("Crate0"))
+	_check(got[c1]["opened"]["Crate0"] == crate.grid.to_data() and got[c2]["busy"] == ["Crate0"],
+		"the first player gets the crate's contents; the second is told someone's looting it")
+	var taken: Array = got[c1]["opened"]["Crate0"].duplicate(true)
+	taken[2].pop_front()
+	c1.update_container("Crate0", taken)
+	c1.close_container()
+	await _frames(4)
+	c2.open_container("Crate0")
+	await _until(func() -> bool: return got[c2]["opened"].has("Crate0"))
+	_check(got[c2]["opened"]["Crate0"] == taken, "what the first player took is gone for the second")
+	c1.update_container("Crate0", [4, 3, []])
+	await _frames(4)
+	_check(crate.grid.to_data() == taken, "only the player who has a container open can change it")
+	c2.close_container()
+
+	# Dropped items, and bodies: bags everyone sees.
+	c1.drop_items([["bandage", 2, 0, 0, false, 0]])
+	await _until(func() -> bool: return got[c2]["bags"].size() >= 1)
+	var drop_id: String = got[c2]["bags"].keys()[0]
+	_check(got[c1]["bags"].get(drop_id) == "Dropped Items" and got[c2]["bags"].get(drop_id) == "Dropped Items", "dropped items become a bag both players see")
+	c2.open_container(drop_id)
+	await _until(func() -> bool: return got[c2]["opened"].has(drop_id))
+	_check(got[c2]["opened"][drop_id][2].size() == 1 and got[c2]["opened"][drop_id][2][0][0] == "bandage", "the other player can loot it")
+	c2.update_container(drop_id, [4, 4, []])
+	await _until(func() -> bool: return got[c1]["gone"].has(drop_id))
+	await _frames(2)
+	_check(got[c1]["gone"] == [drop_id] and world.container(drop_id) == null, "an emptied bag disappears for everyone (%s)" % str(got[c1]["gone"]))
+	c2.drop_items([["ak", 1, 0, 0, false, 30], ["gold_watch", 1, 0, 0, false, 0], ["not_an_item", 1, 0, 0, false, 0]], true)
+	await _until(func() -> bool: return got[c1]["bags"].values().has("Rival's Body"))
+	_check(got[c1]["bags"].values().has("Rival's Body"), "a dead player's gear becomes a body others can loot")
+	var body_id: String = got[c1]["bags"].find_key("Rival's Body")
+	_check(world.container(body_id).grid.stacks.size() == 2, "fake items don't make it into bags")
+
+	# A scav's body on the server: announced to everyone.
+	var scav: Node = RaidScope.nodes(world.raid, &"enemies")[0]
+	var body_name: String = scav.body_name
+	scav.health.take_damage(9999)
+	await _until(func() -> bool: return got[c1]["bags"].values().has(body_name))
+	_check(got[c1]["bags"].values().has("Scav Body") or got[c1]["bags"].values().has("Raider Body"), "a scav killed on the server leaves a body bag for everyone")
+
+	# The raid on players' screens: bags appear and go with the server's.
+	var net_raid := main.get_node("NetRaid") as NetRaid
+	net_raid.on_bag_spawned("Bag99", player.global_position + Vector3(2, 0, 0), 0.0, "Test Body", 0.0)
+	var shown := net_raid.find_container("Bag99")
+	_check(shown != null and shown.display_name == "Test Body", "a bag from the server shows up in the raid")
+	net_raid.on_bag_removed("Bag99")
+	await _frames(1)
+	_check(not is_instance_valid(shown), "and goes when the server's does")
+	# Opening: the screen shows the server's contents; closing it lets the container go.
+	var local_crate := net_raid.find_container("Crate0")
+	net_raid._asked = local_crate
+	net_raid.on_container_opened("Crate0", [4, 3, [["gold_watch", 1, 0, 0, false, 0]]])
+	_check(loot_ui.visible and loot_ui.container == local_crate and local_crate.grid.count_of("gold_watch") == 1,
+		"the loot screen opens with the server's contents")
+	local_crate.grid.add("bandage")
+	_check(net_raid._dirty, "changes are noted to send to the server")
+	net_raid._update_open_container()
+	loot_ui.close()
+	net_raid._update_open_container()
+	_check(net_raid._open == null and not net_raid._dirty, "closing the screen lets the container go")
+
+	# Leaving lets go of anything open.
+	c1.open_container(body_id)
+	await _until(func() -> bool: return got[c1]["opened"].has(body_id))
+	c1.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.size() == 1)
+	await _frames(4)
+	_check(not world.locks.has(body_id), "a player who leaves stops holding the container")
+	c2.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1, c2]:
+		n.get_parent().queue_free()
+	await _frames(2)
 
 
 func _section_owner_rules() -> void:
