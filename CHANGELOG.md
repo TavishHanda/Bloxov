@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.9.3 (pick your med: tap 3 to use, hold 3 to switch, owner)
+- **Hold 3 to switch meds:** each hold steps through **Auto -> Bandage -> Medkit -> Auto** (smallest heal first,
+  only meds you carry); keep holding to keep stepping. The new pick is shown on tape over the slot ("MEDKIT x1")
+- **Tap 3 uses the med the slot shows.** Auto works like before (and like H): the best fit for how hurt you are, marked
+  with a small **A** in the slot's corner. Run out of the picked med and it goes back to Auto. **H always heals on Auto**
+- **Touch screens:** tapping / holding the meds slot does the same (first piece of touch controls)
+- (0.9.2 is the downed/revive update, built alongside)
+
 ## 0.9.1 (meds slot shows what it'll use, owner)
 - **Hotbar key 3 shows the heal it will use right now** (the best fit for how hurt you are, same as H): a
   **bandage roll** for small damage, the **medkit cross** when you're badly hurt, with how many of that one you have.

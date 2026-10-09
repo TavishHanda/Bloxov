@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "extract", "death", "profile", "hideout", "settings",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -28,6 +28,7 @@ const NEEDS := {
 	"equipment": ["inventory"],  # counts the bandages picked up there (hotbar key 3)
 	"loot_ui": ["equipment"],  # moves the watch/bandages from "inventory", swaps the heavy armor and pistol
 	"heal": ["loot_ui"],  # uses one of the 7 bandages; adjusts the expected loot value
+	"meds": ["heal"],  # puts the inventory and health back as "heal" left them
 	"extract": ["heal"],  # checks the loot value carried out
 	"death": ["extract"],
 	"profile": ["death"],  # extracting saved the equipment
@@ -618,6 +619,46 @@ func _section_heal() -> void:
 	var heal_amount: int = bandage["heal"]
 	_check(player.health.current == mini(hurt_hp + heal_amount, player.health.max_health), "bandage heals %d (hp %d -> %d)" % [heal_amount, hurt_hp, player.health.current])
 	expected_value -= ItemDB.value("bandage")
+
+
+func _section_meds() -> void:
+	# Key 3 / the meds slot (owner): tap uses the med shown, hold switches it (Auto = best fit, like H).
+	var saved := Profile.capture_inventory(inv)
+	var hp := player.health.current
+	for id in ["bandage", "medkit"]:
+		inv.take(id, inv.count_of(id))
+	inv.add("bandage", 1)
+	inv.add("medkit", 1)
+	player.health.current = player.health.max_health - 10
+	# Hold 3 to switch meds (owner): Auto -> bandage -> medkit -> Auto, smallest first; a tap uses the pick.
+	var meds_bar := HotbarHUD.new(player)
+	root.add_child(meds_bar)
+	var hold := Player.MEDS_HOLD_TIME + 0.1
+	_check(inv.meds_choice == "" and meds_bar.slot_info(2).get("auto", false), "meds start on Auto (the slot shows the A)")
+	player.meds_press()
+	await create_timer(hold).timeout
+	player.meds_release()
+	_check(inv.meds_choice == "bandage" and not player.is_healing() and meds_bar._switch_text == "BANDAGE x1",
+		"holding 3 switches to the bandage without using it (tape: %s)" % meds_bar._switch_text)
+	player.meds_press()
+	await create_timer(hold).timeout
+	player.meds_release()
+	_check(inv.meds_choice == "medkit" and meds_bar.slot_info(2).get("item") == "medkit" and not meds_bar.slot_info(2)["auto"],
+		"holding 3 again switches to the medkit, and the slot shows it")
+	# A touch on the meds slot is a tap of key 3: it uses the picked medkit even for a scratch.
+	var at := meds_bar.get_global_transform_with_canvas() * meds_bar.slot_rect(2).get_center()
+	for down in [true, false]:
+		var touch := InputEventScreenTouch.new()
+		touch.position = at
+		touch.pressed = down
+		meds_bar._input(touch)
+	_check(player.is_healing() and inv.count_of("medkit") == 0 and inv.count_of("bandage") == 1, "tapping the meds slot uses the picked medkit")
+	player.heal_time_left = 0.0
+	_check(inv.find_meds(10)[1].id == "bandage" and meds_bar.slot_info(2)["auto"], "out of the picked med: back to Auto (bandage)")
+	inv.meds_choice = ""
+	meds_bar.queue_free()
+	Profile.apply_inventory(inv, saved)
+	player.health.current = hp
 
 
 func _section_extract() -> void:

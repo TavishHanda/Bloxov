@@ -1,7 +1,9 @@
 class_name HotbarHUD
 extends Control
 ## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.6 "Ammo Can"): 1 = primary, 2 = secondary, 3 = meds (all
-## your heals; uses the best fit), 4 = one bound item (for later: grenades...), V = the knife (owner, 0.9.0: 1, 2, 3, 4, V).
+## your heals: tap uses the one shown, hold switches it; Auto = best fit, marked with a small "A"),
+## 4 = one bound item (for later: grenades...), V = the knife (owner, 0.9.0: 1, 2, 3, 4, V).
+## The meds slot also takes touches (tap / hold), for touch screens.
 ## Each slot is a gunmetal lid with its key in the corner (hand-drawn pixel digits), a pixel icon, a count and a rarity stripe.
 ## The gun in your hands pops up: lighter lid, hazard-yellow rim and caution stripes, yellow key. Switching guns
 ## slaps its name on a strip of tape above it for a moment. Empty slots are sunk-in wells with a faint ghost of
@@ -21,6 +23,10 @@ var _rise: Array[float] = []
 var _held_slot := -1
 var _switch_text := ""
 var _switch_left := 0.0
+## The slot the tape is over (the held gun, or the meds slot after switching meds).
+var _switch_slot := -1
+## The touch (finger index) holding the meds slot, -1 = none.
+var _meds_touch := -1
 
 
 func _init(owner_player: Player) -> void:
@@ -37,6 +43,7 @@ func _ready() -> void:
 	offset_right = width * 0.5
 	offset_top = -18 - SLOT_SIZE.y - RISE - TAPE_ROOM
 	offset_bottom = -18
+	player.inventory.meds_switched.connect(_on_meds_switched)
 
 
 func _process(delta: float) -> void:
@@ -45,11 +52,37 @@ func _process(delta: float) -> void:
 		if held >= 0 and _held_slot != -1:
 			_switch_text = ItemDB.display_name(player.gun.weapon.id).to_upper()
 			_switch_left = SWITCH_TIME
+			_switch_slot = held
 		_held_slot = held
 	_switch_left -= delta
 	for i in SLOTS:
 		_rise[i] = move_toward(_rise[i], 1.0 if i == held else 0.0, delta / 0.09)
 	queue_redraw()
+
+
+## Touch screens: tap the meds slot to use it, hold it to switch meds (same as key 3).
+func _input(event: InputEvent) -> void:
+	if not event is InputEventScreenTouch:
+		return
+	var touch := event as InputEventScreenTouch
+	if touch.pressed and _meds_touch == -1:
+		var local := get_global_transform_with_canvas().affine_inverse() * touch.position
+		if is_visible_in_tree() and slot_rect(2 + Inventory.MEDS_KEY).has_point(local):
+			_meds_touch = touch.index
+			player.meds_press()
+			get_viewport().set_input_as_handled()
+	elif not touch.pressed and touch.index == _meds_touch:
+		_meds_touch = -1
+		player.meds_release()
+		get_viewport().set_input_as_handled()
+
+
+## Holding 3 switched meds: the new pick on tape over the meds slot.
+func _on_meds_switched() -> void:
+	var id := player.inventory.meds_choice
+	_switch_text = "AUTO" if id == "" else "%s x%d" % [ItemDB.display_name(id).to_upper(), player.inventory.count_of(id)]
+	_switch_left = SWITCH_TIME
+	_switch_slot = 2 + Inventory.MEDS_KEY
 
 
 ## Which slot (0 = key 1) holds the gun in your hands, or -1.
@@ -77,9 +110,10 @@ func slot_info(i: int) -> Dictionary:
 			info["stripe"] = ItemDB.color(weapon.id)
 			info["state"] = "filled"
 	elif i - 2 == Inventory.MEDS_KEY:
-		# Shows the heal that pressing 3 would use right now (the best fit for how hurt you are) and how many of it
-		# you have (owner, 0.9.1): a bandage roll or the medkit cross.
-		var found := inventory.find_heal(player.health.max_health - player.health.current)
+		# Shows the heal that pressing 3 would use right now and how many of it you have (owner, 0.9.1): the one
+		# picked by holding 3, or on Auto the best fit for how hurt you are. A bandage roll or the medkit cross.
+		info["auto"] = inventory.meds_choice == "" or inventory.find(inventory.meds_choice).is_empty()
+		var found := inventory.find_meds(player.health.max_health - player.health.current)
 		if found.is_empty():
 			info["icon"] = HudStyle.MED
 			info["count"] = "x0"
@@ -160,13 +194,16 @@ func _draw() -> void:
 		if stripe.a > 0.0:
 			draw_rect(Rect2(rect.position + Vector2(6, SLOT_SIZE.y - 5), Vector2(SLOT_SIZE.x - 12, 2)), Color(stripe, alpha))
 		HudStyle.draw_key(self, key, rect.position + Vector2(5, 8 if _rise[i] > 0.0 else 5), HudStyle.HAZARD if active else HudStyle.INK_DIM)
-	# Switching guns: its name on a strip of tape, slapped on above the slot (drops in, then fades).
-	if _switch_left > 0.0 and held >= 0:
+		if info.get("auto", false) and state != "out":
+			# Meds on Auto (best fit): a small "A" in the top-right corner.
+			HudStyle.draw_key(self, "A", rect.position + Vector2(SLOT_SIZE.x - 8, 5), HudStyle.INK_DIM)
+	# Switching guns or meds: its name on a strip of tape, slapped on above the slot (drops in, then fades).
+	if _switch_left > 0.0 and _switch_slot >= 0:
 		var t := SWITCH_TIME - _switch_left
 		var alpha := clampf(_switch_left / 0.3, 0.0, 1.0)
 		var drop := (1.0 - clampf(t / 0.1, 0.0, 1.0)) * -6.0
 		var width := HudStyle.tape_width(_switch_text, 14)
-		var over := slot_rect(held)
+		var over := slot_rect(_switch_slot)
 		var x := clampf(over.get_center().x - width * 0.5, 0.0, size.x - width)
 		HudStyle.draw_tape(self, Rect2(Vector2(x, over.position.y - 26 + drop), Vector2(width, 20)), _switch_text, -2.0, alpha, 14)
 

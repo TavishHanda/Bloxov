@@ -3,9 +3,12 @@ extends Node
 ## Everything the player carries:
 ##  - equipment slots: primary, secondary, armor, backpack (each holds one ItemStack or nothing)
 ##  - grids: pockets (always), the equipped backpack's grid, and the secure pocket (survives death)
-##  - hotbar (owner): 1-2 guns, 3 = meds (best-fitting heal, like H), 4 = one bound item (grenades later), V = knife.
+##  - hotbar (owner): 1-2 guns, 3 = meds (tap: the med picked there, Auto = best fit like H; hold: switch med),
+##    4 = one bound item (grenades later), V = knife.
 
 signal changed
+## Hold 3 switched the med key 3 uses (the HUD slaps its name on tape).
+signal meds_switched
 ## Something was equipped or unequipped (the screen rebuilds, the gun/armor update).
 signal equipment_changed
 
@@ -27,6 +30,9 @@ var equipment := {"primary": null, "secondary": null, "armor": null, "backpack":
 ## Item ids on the hotbar: index 0 = key 3 (meds), 1 = key 4 (one bindable slot, for grenades later), 2 = the knife (V).
 ## "" = empty; only BINDABLE_KEYS are ever filled. (Owner, 0.9.0: 1, 2, 3, 4, V; was 3-6.)
 var hotbar: Array[String] = ["", "", ""]
+## The med key 3 uses (owner, 0.9.3: hold 3 to switch): "" = Auto (the best fit for how hurt you are, like H),
+## else that item id. Running out of it falls back to Auto.
+var meds_choice := ""
 
 
 func _ready() -> void:
@@ -182,6 +188,37 @@ func find_heal(missing_health: int) -> Array:
 				best_score = score
 				best = [grid, stack]
 	return best
+
+
+## The heal ids you carry, smallest heal first (what holding 3 steps through after Auto).
+func med_types() -> Array[String]:
+	var ids: Array[String] = []
+	for grid in grids():
+		for stack in grid.stacks:
+			if ItemDB.kind(stack.id) == "heal" and not ids.has(stack.id):
+				ids.append(stack.id)
+	ids.sort_custom(func(a: String, b: String) -> bool: return int(ItemDB.item(a)["heal"]) < int(ItemDB.item(b)["heal"]))
+	return ids
+
+
+## The med key 3 uses now: [grid, stack] of the picked med, or the best fit on Auto (or if the pick ran out).
+func find_meds(missing_health: int) -> Array:
+	if meds_choice != "":
+		var found := find(meds_choice)
+		if not found.is_empty():
+			return found
+	return find_heal(missing_health)
+
+
+## Steps key 3 to the next med: Auto, then each med you carry (smallest first), then back to Auto.
+## Kept as a list so a wheel can pick from the same entries later if meds grow.
+func cycle_meds() -> void:
+	var options: Array[String] = [""]
+	options.append_array(med_types())
+	var at := options.find(meds_choice)
+	meds_choice = options[(at + 1) % options.size()]
+	meds_switched.emit()
+	changed.emit()
 
 
 # --- Hotbar ----------------------------------------------------------------------

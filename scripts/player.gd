@@ -12,6 +12,10 @@ const HURT_SOUND := preload("res://audio/hurt.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
 ## Blood-red sparks where the player's gun or knife hits someone.
 const HIT_COLOR := Color(0.95, 0.25, 0.2)
+## Key 3 / the meds slot (owner, 0.9.3): a tap uses the med, holding this long switches to the next one,
+## and keeping it held switches again every MEDS_REPEAT_TIME.
+const MEDS_HOLD_TIME := 0.35
+const MEDS_REPEAT_TIME := 0.5
 const STEP_SOUNDS: Array[AudioStream] = [
 	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 
@@ -126,6 +130,10 @@ var extracted := false
 var heal_time_left := 0.0
 var heal_duration := 0.0
 var _heal_item := ""
+## How long key 3 (or the meds slot) has been held, -1 = not held; when it switches next; whether it switched.
+var _meds_held := -1.0
+var _meds_next_switch := 0.0
+var _meds_switched := false
 
 var _spawn_position: Vector3
 var _trauma := 0.0
@@ -251,10 +259,34 @@ func try_heal() -> void:
 		use_item(found[0], found[1])
 
 
-## A hotbar slot (0 = key 3): 3 heals (best fit, like H), 4 uses what's bound there, the knife slot swings it.
+## Key 3: use the med it shows (the one picked by holding 3, or the best fit on Auto).
+func use_meds() -> void:
+	var found := inventory.find_meds(health.max_health - health.current)
+	if not found.is_empty():
+		use_item(found[0], found[1])
+
+
+## Key 3 (or a touch on the meds slot) went down: a quick release uses the med, holding switches it.
+func meds_press() -> void:
+	if controls_locked():
+		return
+	_meds_held = 0.0
+	_meds_next_switch = MEDS_HOLD_TIME
+	_meds_switched = false
+
+
+func meds_release() -> void:
+	if _meds_held < 0.0:
+		return
+	_meds_held = -1.0
+	if not _meds_switched:
+		use_meds()
+
+
+## A hotbar slot (0 = key 3): 3 uses the picked med (Auto = best fit, like H), 4 uses what's bound there, the knife slot swings it.
 func use_hotbar(index: int) -> void:
 	if index == Inventory.MEDS_KEY:
-		try_heal()
+		use_meds()
 		return
 	if index == Inventory.KNIFE_KEY:
 		knife.swing()
@@ -342,6 +374,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		gun.select_slot("primary")
 	elif event.is_action_pressed("weapon_2"):
 		gun.select_slot("secondary")
+	elif hotbar_index == Inventory.MEDS_KEY:
+		meds_press()
+	elif event.is_action_released("hotbar_3"):
+		meds_release()
 	elif hotbar_index >= 0:
 		use_hotbar(hotbar_index)
 	elif event.is_action_pressed("crouch"):
@@ -391,6 +427,15 @@ func _process(delta: float) -> void:
 		var eye := crouch_eye_height if is_crouching else stand_eye_height
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
 	_update_lean(delta)
+	if _meds_held >= 0.0:
+		if controls_locked():
+			_meds_held = -1.0
+		else:
+			_meds_held += delta
+			if _meds_held >= _meds_next_switch:
+				inventory.cycle_meds()
+				_meds_switched = true
+				_meds_next_switch += MEDS_REPEAT_TIME
 	if heal_time_left > 0.0:
 		heal_time_left -= delta
 		if heal_time_left <= 0.0:

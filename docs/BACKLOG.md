@@ -64,3 +64,5 @@ Agreed order: core gameplay first (scavs next), then the co-op test (M3), then m
 ## Review order
 Going through every mechanic in 0.3.0 one by one to hone it. See the list in the chat / CHANGELOG.
 - **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.
+- **Meds wheel (owner, 0.9.3):** more medical items are planned. If meds grow past ~4 types, turn "hold 3" into a
+  radial wheel (hold, drag/move onto a med, release). `Inventory.cycle_meds()` already keeps the options as a list.
