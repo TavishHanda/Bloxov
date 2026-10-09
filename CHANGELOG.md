@@ -7,8 +7,8 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
 ## 0.8.12 (a nicer A, owner)
 - **The pixel font's capital A is redrawn:** a square top with clipped corners (the old one had a pointed, stepped
-  top that looked odd next to the other blocky capitals), with one extra pixel of space on each side so "RA", "AI"
-  don't look squished. It's everywhere the font is: HUD, inventory, hideout, end screen, buttons. The font is now "Bloxov Jersey 10" (`assets/fonts/BloxovJersey10-Regular.ttf`, OFL, made by
+  top that looked odd next to the other blocky capitals), spaced like every other letter. It's everywhere the font
+  is: HUD, inventory, hideout, end screen, buttons. The font is now "Bloxov Jersey 10" (`assets/fonts/BloxovJersey10-Regular.ttf`, OFL, made by
   `tools/make_bloxov_font.py` from Jersey 10; see `assets/fonts/README.md`)
 - **Letters no longer run together:** text shadows drop straight down instead of diagonally (the diagonal shadow
   filled the 1-pixel gaps between letters, so words looked squished)

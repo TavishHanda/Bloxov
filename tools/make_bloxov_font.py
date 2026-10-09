@@ -2,7 +2,7 @@
 
 Jersey 10's A has a pointed, stepped top while the other capitals are square; the owner found it odd (0.8.12).
 The new A sits on the font's own pixel grid (75 units per pixel, 7 px wide, 10 px tall) with 2-px strokes and
-crossbar like H and R, and one extra pixel of space on each side (else "RA", "AI" look squished). The font is renamed "Bloxov Jersey 10" since it's a modified version.
+crossbar like H and R, and the same spacing as every other letter. The font is renamed "Bloxov Jersey 10" since it's a modified version.
 
 Usage: pip install fonttools; python3 tools/make_bloxov_font.py path/to/Jersey10-Regular.ttf
 (The original is at https://github.com/google/fonts/tree/main/ofl/jersey10.)
@@ -13,9 +13,10 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.ttLib import TTFont
 
 OUT = "assets/fonts/BloxovJersey10-Regular.ttf"
-## Extra space around the A, one pixel of the font's grid (75 units) on each side.
-LEFT = 75
-RIGHT = 75
+## Extra space around the A (font units; 75 = one pixel). None: with straight-down text shadows (0.8.12) the
+## normal 1-pixel gaps read cleanly, and extra space made the A look off next to the other letters (owner).
+LEFT = 0
+RIGHT = 0
 
 
 def main(source: str) -> None:
@@ -29,8 +30,7 @@ def main(source: str) -> None:
             pen.lineTo(point)
         pen.closePath()
 
-    # One more pixel of space on each side (LEFT, RIGHT): a full-height square A sat too close to its neighbors
-    # ("RA", "TA", "AI" looked squished; the old pointed A hid that).
+    # Optional extra space on each side (LEFT, RIGHT; none now).
     def shifted(points):
         return [(x + LEFT, y) for x, y in points]
 
