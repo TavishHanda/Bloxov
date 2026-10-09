@@ -2,6 +2,10 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.11 (no gun when unarmed)
+- Other players' models only show a gun while they're holding one (the character models have a rifle built in;
+  separate gun models are planned, see BACKLOG)
+
 ## 0.7.10 (Raider models, owner)
 - **Raiders have their own look** instead of a red-tinted PMC: dark gear with a red armband, heavy armor with
   shoulder plates and a groin flap, skull masks, gas masks, balaclavas, visored heavy helmets, hoods or red bandanas,

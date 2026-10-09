@@ -21,6 +21,15 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 Owner: before moving on to the next big thing, a polish round. Starts with:
 - **HUD** fixes (owner will say what bugs them).
 - **Inventory screen** fixes.
+- **Guns as separate models (owner, 0.7.11).** Today every character .glb has a rifle built in (`Gun` node), so
+  players/scavs/Raiders always look like they hold that rifle (0.7.11 hides it on unarmed players). Plan:
+  - **Owner, Blender:** in pmc/scav/raider, replace the gun meshes with an empty `GunSocket` where the hands hold a
+    gun (same place the `Gun` node is now: 0.10, 1.12, -0.43; barrel pointing -Z). Make each gun its own file
+    (`assets/models/guns/ak.glb`, `pistol.glb`, `rpk.glb`), origin at the grip, barrel along -Z, with a `Muzzle`
+    empty at the barrel tip. Same 16 px/m texel density (`docs/ART_SPEC.md`).
+  - **Code:** attach the right gun model to `GunSocket`: other players get what they're holding (synced), scavs
+    and Raiders get theirs; muzzle flash/tracers from the gun's `Muzzle`. The first-person guns could use the
+    same models later.
 - Then other things the owner wants to talk through.
 
 ## Owner's wishlist (after 0.5.9)

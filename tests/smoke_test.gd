@@ -883,6 +883,10 @@ func _section_net() -> void:
 	body.update_view(10.06, 0.016)
 	_check(is_equal_approx(body.head_pivot.rotation.x, 0.5) and body.head_pivot.get_child_count() >= 3 and body.gun_model.rotation.x == 0.0,
 		"looking up tilts their head, not their gun (owner)")
+	_check(not body.gun_model.visible, "an unarmed player shows no gun")
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.07)
+	body.update_view(10.07, 0.016)
+	_check(body.gun_model.visible and RemotePlayer.capture(player)[4] & RemotePlayer.FLAG_ARMED, "a player holding a gun shows it")
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD], 10.1)
 	for i in 60:
 		body.update_view(10.1, 0.016)

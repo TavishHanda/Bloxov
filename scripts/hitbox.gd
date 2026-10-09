@@ -9,6 +9,8 @@ const FLAG_AIM := 2
 const FLAG_SPRINT := 4
 const FLAG_DEAD := 8
 const FLAG_EXTRACTED := 16
+## Holding a gun (other players only show the gun on their model when they are).
+const FLAG_ARMED := 32
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
 const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)

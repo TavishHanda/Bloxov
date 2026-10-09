@@ -11,6 +11,7 @@ const FLAG_AIM := Hitbox.FLAG_AIM
 const FLAG_SPRINT := Hitbox.FLAG_SPRINT
 const FLAG_DEAD := Hitbox.FLAG_DEAD
 const FLAG_EXTRACTED := Hitbox.FLAG_EXTRACTED
+const FLAG_ARMED := Hitbox.FLAG_ARMED
 ## How far in the past other players are drawn (two updates' worth, so there's always one to move toward).
 const INTERP_DELAY := 0.1
 ## The head tilts around the neck (just below the head box). Its parts are the model's Head/Hat/Eyes/Mask nodes.
@@ -54,6 +55,8 @@ static func capture(player: Player) -> Array:
 		flags |= FLAG_DEAD
 	if player.extracted:
 		flags |= FLAG_EXTRACTED
+	if player.gun.weapon != null:
+		flags |= FLAG_ARMED
 	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
 
 
@@ -133,6 +136,8 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	model.rotation.x = lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, 1.5, _down)
 	# Looking up and down tilts the head (owner: the head, not the gun), limited so it stays on the shoulders.
 	head_pivot.rotation.x = clampf(pitch, -0.7, 0.7)
+	# The model's built-in rifle only shows while they hold a gun (until guns are separate models: BACKLOG).
+	gun_model.visible = flags & FLAG_ARMED != 0
 	gun_model.position = _gun_rest + (Vector3(0, 0.12, 0.08) if flags & FLAG_AIM else Vector3.ZERO)
 	if speed > 0.3 and _down < 0.5:
 		_walk_time += delta * speed * 2.5
