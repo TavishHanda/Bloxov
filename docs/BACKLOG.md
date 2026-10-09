@@ -30,6 +30,12 @@ Owner: before moving on to the next big thing, a polish round. Starts with:
   - **Code:** attach the right gun model to `GunSocket`: other players get what they're holding (synced), scavs
     and Raiders get theirs; muzzle flash/tracers from the gun's `Muzzle`. The first-person guns could use the
     same models later.
+- **Item descriptions (owner writes them, after 0.7.14).** A short description per item, shown in the inventory's
+  details area under the stats (needs a `desc` field per item in `scripts/item_db.gd`).
+- **Mobile: hold an item to see its details** (no hover on touch screens), when the touch controls come.
+- **Loading screen (owner asked, 0.7.14):** the web build shows Godot's logo while it downloads and starts. Both the
+  page's loading screen and the engine's boot splash can show Bloxov's own logo/colors instead (export preset +
+  `application/boot_splash` settings). The wait itself is the download; the browser caches it after the first visit.
 - Then other things the owner wants to talk through.
 
 ## Owner's wishlist (after 0.5.9)

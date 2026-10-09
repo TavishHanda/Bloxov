@@ -149,6 +149,12 @@ func _process(delta: float) -> void:
 
 	_update_prompt()
 	_update_extract_info(delta)
+	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.7.14).
+	for element: CanvasItem in [health_bar, health_label, ammo_label, hotbar]:
+		element.visible = not loot_ui.visible
+	if loot_ui.visible:
+		for element: CanvasItem in [stamina_bar, extract_list, extract_status, prompt_label, action_bar]:
+			element.visible = false
 
 	if not get_tree().paused:
 		# Red flash when hit; a faint red edge stays while health is low.

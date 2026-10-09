@@ -3,13 +3,17 @@ extends Control
 ## Inventory screen (Tab), and the container + inventory screen when you open loot (F).
 ## Also used in the hideout (no player): the "other side" is the stash instead of a container, items can be
 ## sold, and the hideout adds the trader as an extra column (add_column).
-## Columns: [container or stash] [equipment, pockets, secure pocket] [backpack] (+ [trader] in the hideout).
+## Columns (owner, 0.7.14): [gear: your character, equipment slots] [carried: pockets, secure pocket, backpack]
+## [the container you're looting, or the stash in the hideout] (+ [trader] in the hideout).
 ## Drag & drop items between grids and equipment slots, R rotates while dragging, Shift+click quick-moves,
 ## right-click for Use / Bind / Unbind / Equip / Unequip / Split / Put in (container or stash) / Drop / Sell.
 ## The raid keeps running while this is open.
 
 const CELL := GridView.CELL
 const PICKUP_SOUND := preload("res://audio/mag_in.wav")
+## Your character on the gear side (the PMC model, for now; owner: swap for new art later).
+const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
+const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
 enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL }
 
 ## The player in a raid, or null in the hideout.
@@ -48,10 +52,13 @@ var _columns: HBoxContainer
 var _other_panel: Control
 var _other_box: VBoxContainer
 var _player_box: VBoxContainer
-var _backpack_panel: Control
-var _backpack_box: VBoxContainer
 var _value_label: Label
+## Details for the item under the mouse (or a message like "No room"): its name, then its stats.
 var _info_label: Label
+var _info_detail: Label
+var _doll: SubViewportContainer
+var _carried_panel: Control
+var _carried_box: VBoxContainer
 var _footer_hint: Label
 var _close_button: Button
 
@@ -258,7 +265,7 @@ func equip_from_grid(grid: GridInventory, stack: ItemStack, slot: String) -> boo
 		return false
 	var old := inventory.equipped(slot)
 	if old != null and not inventory.can_unequip(slot):
-		_info_label.text = "Empty your backpack first"
+		_say("Empty your backpack first")
 		return false
 	var old_cell := Vector2i(stack.x, stack.y)
 	grid.remove(stack)
@@ -298,7 +305,7 @@ func _slot_item_fits(slot: String, grid: GridInventory, cell: Vector2i, rotated:
 ## Shift+click / menu: take an item off into the first free spot (see _stow for where it ends up).
 func unequip_to_inventory(slot: String) -> void:
 	if not inventory.can_unequip(slot):
-		_info_label.text = "Empty your backpack first"
+		_say("Empty your backpack first")
 		return
 	var stack := inventory.unequip(slot)
 	_stow(stack, null, Vector2i.ZERO)
@@ -355,7 +362,7 @@ func _after_move() -> void:
 
 func start_drag_from_slot(slot: String) -> void:
 	if not inventory.can_unequip(slot):
-		_info_label.text = "Empty your backpack first"
+		_say("Empty your backpack first")
 		return
 	_cancel_drag()
 	var stack := inventory.equipped(slot)
@@ -551,10 +558,10 @@ func _on_slot_menu(action: int) -> void:
 			unequip_to_inventory(slot)
 		MenuAction.DROP:
 			if not inventory.can_unequip(slot):
-				_info_label.text = "Empty your backpack first"
+				_say("Empty your backpack first")
 				return
 			if other_grid() != null and other_grid().find_spot(inventory.equipped(slot).id).is_empty():
-				_info_label.text = "No room in %s" % _other_title()
+				_say("No room in %s" % _other_title())
 				return
 			var stack := inventory.unequip(slot)
 			var into: Array[GridInventory] = []
@@ -566,7 +573,7 @@ func _on_slot_menu(action: int) -> void:
 
 
 func _no_room(to_player: bool) -> void:
-	_info_label.text = "No room in your inventory" if to_player else "No room in %s" % _other_title()
+	_say("No room in your inventory" if to_player else "No room in %s" % _other_title())
 
 
 ## Moves half a stack into a free spot: the same grid if there's room, otherwise another of yours.
@@ -598,28 +605,36 @@ func drop_stack(grid: GridInventory, stack: ItemStack) -> void:
 
 # --- Info / labels ---------------------------------------------------------------
 
+## A message in the details area ("No room in ...", "Empty your backpack first").
+func _say(text: String) -> void:
+	_info_label.text = text
+	_info_label.remove_theme_color_override("font_color")
+	_info_detail.text = ""
+
+
 func show_info(stack: ItemStack) -> void:
 	var data := ItemDB.item(stack.id)
 	var rarity: String = data["rarity"]
 	var cells := ItemDB.size(stack.id)
-	var parts: PackedStringArray = [ItemDB.display_name(stack.id), rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]
+	_info_label.text = ItemDB.display_name(stack.id) + ("  x%d" % stack.count if stack.count > 1 else "")
+	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
+	var parts: PackedStringArray = [rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]
 	match ItemDB.kind(stack.id):
 		"heal":
-			parts.append("heals %d" % int(data["heal"]))
+			parts.append("Heals %d HP" % int(data["heal"]))
 		"ammo":
-			parts.append("ammo")
+			parts.append("Ammo")
 		"weapon":
-			parts.append("%s · %d dmg · %d rpm · %s loaded" % [str(data["slot"]).capitalize(), int(data["damage"]), int(data["rpm"]), str(stack.loaded)])
+			parts.append("%s · %d damage · %d rpm · %d-round mag · %d loaded" % [str(data["slot"]).capitalize(), int(data["damage"]),
+				int(data["rpm"]), int(data["mag"]), stack.loaded])
 		"armor":
-			parts.append("-%d%% damage" % roundi(float(data["reduction"]) * 100.0))
+			parts.append("Takes %d%% off damage" % roundi(float(data["reduction"]) * 100.0))
 		"backpack":
 			parts.append("%d×%d storage" % [int(data["grid"][0]), int(data["grid"][1])])
-	if stack.count > 1:
-		parts.append("x%d (%s)" % [stack.count, ItemDB.money(stack.value())])
-	else:
-		parts.append(ItemDB.money(stack.value()))
-	_info_label.text = "  ·  ".join(parts)
-	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
+	parts.append("Worth %s" % ItemDB.money(stack.value()) + (" (%s each)" % ItemDB.money(ItemDB.value(stack.id)) if stack.count > 1 else ""))
+	if price_handler.is_valid():
+		parts.append("Sells for %s" % ItemDB.money(price_handler.call(stack)))
+	_info_detail.text = "  ·  ".join(parts)
 
 
 func _update_labels() -> void:
@@ -631,10 +646,11 @@ func _update_labels() -> void:
 
 func _clear_views() -> void:
 	_views.clear()
-	for box in [_other_box, _player_box, _backpack_box]:
+	for box in [_other_box, _player_box, _carried_box]:
 		for child in box.get_children():
 			box.remove_child(child)
-			child.queue_free()
+			if child != _doll:
+				child.queue_free()
 
 
 func _rebuild_layout() -> void:
@@ -643,11 +659,11 @@ func _rebuild_layout() -> void:
 	_clear_views()
 	_build_other_column()
 	_build_equipment_column()
-	_build_backpack_column()
+	_build_carried_column()
 	_update_labels()
 
 
-## Left column: the open container, or the stash in the hideout (hidden if neither).
+## Right column: the open container, or the stash in the hideout (hidden if neither).
 func _build_other_column() -> void:
 	var other := other_grid()
 	_other_panel.visible = other != null
@@ -665,11 +681,12 @@ func _build_other_column() -> void:
 		_add_view(_other_box, other)
 
 
-## Middle column: equipment slots, pockets and the secure pocket.
+## Left column: your character and the equipment slots.
 func _build_equipment_column() -> void:
 	_player_box.add_child(_title("EQUIPMENT"))
 	_value_label = _small("")
 	_player_box.add_child(_value_label)
+	_player_box.add_child(_doll)
 	_add_slot(_player_box, "primary", Vector2i(4, 2))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 0)
@@ -677,20 +694,20 @@ func _build_equipment_column() -> void:
 	_add_slot(row, "secondary", Vector2i(2, 2))
 	_add_slot(row, "armor", Vector2i(2, 2))
 	_add_slot(_player_box, "backpack", Vector2i(2, 2))
-	_player_box.add_child(_small(inventory.pockets.title))
-	_add_view(_player_box, inventory.pockets)
-	_player_box.add_child(_small(inventory.secure.title + " (kept if you die)"))
-	_add_view(_player_box, inventory.secure)
 
 
-## Right column: the equipped backpack's grid (hidden with no backpack).
-func _build_backpack_column() -> void:
-	_backpack_panel.visible = inventory.backpack != null
-	if inventory.backpack == null:
-		return
-	_backpack_box.add_child(_title("BACKPACK"))
-	_backpack_box.add_child(_small(inventory.backpack.title))
-	_add_view(_backpack_box, inventory.backpack)
+## Middle column: everything you carry: pockets, the secure pocket, and the backpack's grid.
+func _build_carried_column() -> void:
+	_carried_box.add_child(_title("INVENTORY"))
+	_carried_box.add_child(_small(inventory.pockets.title))
+	_add_view(_carried_box, inventory.pockets)
+	_carried_box.add_child(_small(inventory.secure.title + " (kept if you die)"))
+	_add_view(_carried_box, inventory.secure)
+	if inventory.backpack != null:
+		_carried_box.add_child(_small(inventory.backpack.title))
+		_add_view(_carried_box, inventory.backpack)
+	else:
+		_carried_box.add_child(_small("No backpack"))
 
 
 func _add_slot(box: Container, slot: String, cells: Vector2i) -> void:
@@ -727,18 +744,28 @@ func _build() -> void:
 	_center.add_child(root)
 
 	_columns = HBoxContainer.new()
-	_columns.add_theme_constant_override("separation", 18)
+	_columns.add_theme_constant_override("separation", 14)
 	root.add_child(_columns)
-	_other_panel = _panel(_columns)
-	_other_box = _other_panel.get_meta("box")
 	var player_panel := _panel(_columns)
 	_player_box = player_panel.get_meta("box")
-	_backpack_panel = _panel(_columns)
-	_backpack_box = _backpack_panel.get_meta("box")
+	_carried_panel = _panel(_columns)
+	_carried_box = _carried_panel.get_meta("box")
+	_other_panel = _panel(_columns)
+	_other_box = _other_panel.get_meta("box")
+	_doll = _build_doll()
 
-	_info_label = _small("Hover an item for details")
+	# Details: the item under the mouse (name in its rarity color, then its stats), or messages.
+	# Empty until you point at something (owner: no placeholder text); keeps its height so nothing jumps.
+	var info_box := VBoxContainer.new()
+	info_box.custom_minimum_size = Vector2(0, 48)
+	info_box.add_theme_constant_override("separation", 0)
+	root.add_child(info_box)
+	_info_label = _title("", 17)
 	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(_info_label)
+	info_box.add_child(_info_label)
+	_info_detail = _small("")
+	_info_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_box.add_child(_info_detail)
 
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -755,6 +782,47 @@ func _build() -> void:
 	_menu = PopupMenu.new()
 	_menu.id_pressed.connect(_on_menu)
 	add_child(_menu)
+
+
+func _notification(what: int) -> void:
+	# The character view is moved between layouts; free it if it's between them when the screen goes.
+	if what == NOTIFICATION_PREDELETE and _doll != null and _doll.get_parent() == null:
+		_doll.free()
+
+
+## Your character, drawn by its own little camera (its own world, so it never shows up in the raid).
+## Kept across rebuilds (only moved between layouts).
+func _build_doll() -> SubViewportContainer:
+	var holder := SubViewportContainer.new()
+	holder.stretch = true
+	holder.custom_minimum_size = Vector2(176, 150)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	view.transparent_bg = true
+	view.size = Vector2i(176, 150)
+	view.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	holder.add_child(view)
+	var model := CHARACTER_MODEL.instantiate()
+	model.set_script(PIXEL_MODEL_SCRIPT)
+	model.name = "Character"
+	model.rotation.y = PI + 0.5
+	view.add_child(model)
+	var camera := Camera3D.new()
+	camera.fov = 30.0
+	# Aimed by its transform (it isn't in the scene tree yet, so look_at() can't be used).
+	var eye := Vector3(0, 1.05, 4.6)
+	camera.transform = Transform3D(Basis.looking_at(Vector3(0, 1.0, 0) - eye), eye)
+	view.add_child(camera)
+	var light := DirectionalLight3D.new()
+	light.rotation = Vector3(-0.7, 0.5, 0)
+	view.add_child(light)
+	var environment := WorldEnvironment.new()
+	environment.environment = Environment.new()
+	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.environment.ambient_light_color = Color(0.75, 0.75, 0.8)
+	view.add_child(environment)
+	return holder
 
 
 func _panel(parent: Control) -> PanelContainer:

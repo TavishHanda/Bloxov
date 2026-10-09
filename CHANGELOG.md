@@ -2,6 +2,15 @@
 
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
+## 0.7.14 (inventory screen polish, owner)
+- **New layout:** gear on the left (with **your character**, the PMC model for now), everything you carry in the
+  middle (pockets, secure pocket, backpack), and the container you're looting (or your stash) on the right
+- **The HUD hides while the inventory is open** (only the raid timer stays: the raid doesn't pause)
+- **Item names fit their tiles** (full name, smaller font when needed)
+- **Item details** when you point at something: name in its rarity color, then rarity, size, stats (guns: damage,
+  fire rate, magazine, loaded; heals: HP; armor: %; backpacks: size), value, and the sell price in the hideout.
+  No placeholder text when you're not pointing at anything
+
 ## 0.7.13 (HUD polish, owner)
 - **Health is a bar** with the number on it (green, yellow as it drops, red at 30 or less)
 - **"Carrying $..." is gone from the raid screen** (it's still in the inventory)

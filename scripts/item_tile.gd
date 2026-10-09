@@ -18,8 +18,8 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 	mouse_filter = Control.MOUSE_FILTER_IGNORE if is_preview else Control.MOUSE_FILTER_STOP
 
 	_name_label = Label.new()
-	_name_label.text = ItemDB.short_name(stack.id)
-	_name_label.add_theme_font_size_override("font_size", 11)
+	_name_label.text = ItemDB.display_name(stack.id)
+	_name_label.add_theme_font_size_override("font_size", 12)
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_name_label.clip_text = true
 	_name_label.position = Vector2(5, 3)
@@ -40,10 +40,23 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 func set_tile_size(cells: Vector2i) -> void:
 	size = Vector2(cells) * GridView.CELL
 	_name_label.size = Vector2(size.x - 10, size.y - 18)
+	_fit_name()
 	_count_label.text = "x%d" % stack.count if stack.count > 1 else ""
 	_count_label.position = Vector2(4, size.y - 19)
 	_count_label.size = Vector2(size.x - 9, 16)
 	queue_redraw()
+
+
+## The full name, in the biggest font (12 down to 8) that fits the tile (owner: icons replace this with the art).
+func _fit_name() -> void:
+	var font := _name_label.get_theme_font("font")
+	var room := _name_label.size
+	for font_size in range(12, 7, -1):
+		var needed := font.get_multiline_string_size(_name_label.text, HORIZONTAL_ALIGNMENT_LEFT, room.x, font_size)
+		if needed.x <= room.x and needed.y <= room.y + 2:
+			_name_label.add_theme_font_size_override("font_size", font_size)
+			return
+	_name_label.add_theme_font_size_override("font_size", 8)
 
 
 func _draw() -> void:
