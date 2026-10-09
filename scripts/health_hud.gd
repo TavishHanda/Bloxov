@@ -91,9 +91,8 @@ func _draw() -> void:
 	var tag_face := HudStyle.BLOOD.lerp(HudStyle.BLOOD.lightened(0.25), glow) if low else HudStyle.BRASS
 	HudStyle.draw_block(self, TAG, tag_face, tag_face.lightened(0.3), tag_face.darkened(0.4), 2.0)
 	var digits := HudStyle.INK if low else HudStyle.DEEP
-	var f := HudStyle.font()
-	var baseline := TAG.position.y + TAG.size.y * 0.5 + 8.0  # digits optically centered (measured)
-	draw_string(f, Vector2(TAG.position.x, baseline), str(health.current), HORIZONTAL_ALIGNMENT_CENTER, TAG.size.x, 30, digits)
+	# (the bevel is 2 px on every side, so the face's center is the tag's center)
+	HudStyle.draw_centered(self, str(health.current), TAG, 30, digits, null, false)
 	# Stamina.
 	if _stamina_alpha > 0.0:
 		var bar := Rect2(STAMINA_AT, Vector2(SEGMENTS * (CUBE + CUBE_GAP) - CUBE_GAP, 3))

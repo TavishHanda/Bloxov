@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.5 (centered hotbar, owner)
+- **Everything on the hotbar is centered:** key numbers in their tabs, icons in the space under the tab, counts
+  across the slot (measured to the pixel; the text used to sit a bit left and low)
+- The health number is centered on its brass tag, and RELOADING on its tape
+- Empty hotbar slots are sunk-in wells (instead of dashed outlines), matching the new look
+
 ## 0.8.4 (HUD "Ammo Can" 1/4: health & ammo, owner)
 - **New HUD look, "Ammo Can":** chunky beveled blocks of gunmetal-painted steel, built like the voxels of the world,
   with brass, hazard stripes and masking-tape labels as the scavenged details. Two new pixel fonts (Silkscreen for

@@ -154,9 +154,7 @@ static func draw_tape(ci: CanvasItem, rect: Rect2, text: String, angle_deg := -2
 	ci.draw_colored_polygon(_torn(Rect2(local.position + Vector2(2, 3), local.size)), Color(0, 0, 0, 0.4 * alpha))
 	ci.draw_colored_polygon(_torn(local), Color(TAPE, alpha))
 	ci.draw_line(local.position + Vector2(4, 3), Vector2(local.end.x - 4, local.position.y + 3), Color(1, 1, 1, 0.18 * alpha), 1.0)
-	var f := tape_font()
-	var baseline := (f.get_ascent(size) - f.get_descent(size)) * 0.5
-	ci.draw_string(f, Vector2(local.position.x, baseline), text, HORIZONTAL_ALIGNMENT_CENTER, local.size.x, size, Color(TAPE_INK, alpha))
+	draw_centered(ci, text, local, size, Color(TAPE_INK, alpha), tape_font(), false)
 	ci.draw_set_transform(Vector2.ZERO)
 
 
@@ -219,6 +217,29 @@ static func draw_label(ci: CanvasItem, text: String, pos: Vector2, color := INK_
 
 static func text_width(text: String, size: int, f: Font = null) -> float:
 	return (font() if f == null else f).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+
+## Text centered on its ink inside `rect` (both ways, on whole pixels). The fonts' glyphs sit right on the
+## baseline (ink rows baseline-cap .. baseline-1) with capitals/digits `cap_height` tall, and leave ~1 px of spacing after the last glyph (measured).
+static func draw_centered(ci: CanvasItem, text: String, rect: Rect2, size: int, color: Color, f: Font = null, shadow := true) -> void:
+	if f == null:
+		f = font()
+	var ink_w := text_width(text, size, f) - 1.0
+	var cap := cap_height(f, size)
+	var pos := Vector2(roundf(rect.get_center().x - ink_w * 0.5), roundf(rect.get_center().y + cap * 0.5))
+	if shadow:
+		var drop := Vector2(2, 2) if size >= 20 else Vector2(1, 1)
+		ci.draw_string(f, pos + drop, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(0, 0, 0, color.a * 0.9))
+	ci.draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+
+
+## How tall capitals/digits are in a HUD font at `size` (measured from renders).
+static func cap_height(f: Font, size: int) -> float:
+	if f == label_font():
+		return roundf(size * 0.625)
+	if f == tape_font():
+		return roundf(size * 0.643)
+	return roundf(size * 0.53)
 
 
 ## The health color for a fraction of max health.

@@ -3,7 +3,7 @@ extends Control
 ## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.3): 1 = primary, 2 = secondary, 3 = meds (all your heals;
 ## uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V).
 ## Each slot is a small plate with a stamped key tab, a pixel icon, a count, and a rarity stripe along the bottom.
-## The gun in your hands rises and glows; switching shows its name for a moment. Empty slots are dashed ghosts;
+## The gun in your hands rises and glows; switching shows its name for a moment. Empty slots are sunk-in wells;
 ## out-of-stock ones are crossed out.
 
 const SLOT_SIZE := Vector2(64, 56)
@@ -100,49 +100,42 @@ func _draw() -> void:
 		var rect := Rect2(Vector2(i * (SLOT_SIZE.x + GAP), top), SLOT_SIZE)
 		var active := i == held
 		var state: String = info["state"]
+		# Everything is centered in its own box: the icon in the area above the count (the whole slot when there's
+		# no count), the count across the slot, the key in its tab.
+		var has_count: String = info["count"]
+		var icon_box := Rect2(rect.position + Vector2(0, 8), Vector2(SLOT_SIZE.x, 26 if has_count != "" else SLOT_SIZE.y - 14))  # (below the key tab)
 		if state == "empty":
-			_draw_dashed(rect, Color(HudStyle.PLATE_EDGE, 0.4))
+			HudStyle.draw_well(self, rect, 0.8)
 			if i - 2 in Inventory.BINDABLE_KEYS:
 				var ghost := HudStyle.icon_size(HudStyle.GRENADE, 3)
-				HudStyle.draw_icon(self, HudStyle.GRENADE, rect.position + Vector2((SLOT_SIZE.x - ghost.x) * 0.5, 8), 3, Color(HudStyle.TEXT, 0.2))
+				HudStyle.draw_icon(self, HudStyle.GRENADE, (rect.get_center() - ghost * 0.5).round(), 3, Color(HudStyle.INK, 0.18), Color(0, 0, 0, 0))
 		else:
-			HudStyle.draw_plate(self, rect, HudStyle.ACTIVE if active else HudStyle.PLATE_EDGE)
+			HudStyle.draw_plate(self, rect, HudStyle.ACTIVE if active else HudStyle.OUTLINE)
 			var icon: Array = info["icon"]
 			var alpha := 0.35 if state == "out" else 1.0
 			if not icon.is_empty():
 				var px := 2.0 if String(icon[0]).length() > 9 else 3.0
 				var size := HudStyle.icon_size(icon, px)
-				var color := HudStyle.WARN if icon == HudStyle.MED else HudStyle.TEXT
-				HudStyle.draw_icon(self, icon, rect.position + Vector2((SLOT_SIZE.x - size.x) * 0.5, 4 + (30 - size.y) * 0.5), px, Color(color, alpha))
+				var color := HudStyle.BLOOD if icon == HudStyle.MED else HudStyle.INK
+				HudStyle.draw_icon(self, icon, (icon_box.get_center() - size * 0.5).round(), px, Color(color, alpha))
 			elif info["text"] != "":
-				draw_string(get_theme_default_font(), rect.position + Vector2(6, 26), info["text"], HORIZONTAL_ALIGNMENT_LEFT, SLOT_SIZE.x - 12, 12, Color(HudStyle.TEXT, alpha))
+				HudStyle.draw_centered(self, info["text"], icon_box, 16, Color(HudStyle.INK, alpha), HudStyle.label_font())
 			if state == "out":
-				draw_line(rect.position + Vector2(8, 34), rect.position + Vector2(SLOT_SIZE.x - 8, 6), HudStyle.WARN, 2.0)
-			if info["count"] != "":
-				var count_color := HudStyle.WARN if state == "out" else HudStyle.TEXT
-				HudStyle.draw_text(self, info["count"], rect.position + Vector2(4, 50), 20, count_color, SLOT_SIZE.x - 8, 2)
+				draw_line(icon_box.position + Vector2(10, icon_box.size.y - 2), Vector2(icon_box.end.x - 10, icon_box.position.y + 2), HudStyle.BLOOD, 2.0)
+			if has_count != "":
+				var count_color := HudStyle.BLOOD if state == "out" else HudStyle.INK
+				HudStyle.draw_centered(self, has_count, Rect2(rect.position + Vector2(0, 34), Vector2(SLOT_SIZE.x, 14)), 20, count_color)
 			var stripe: Color = info["stripe"]
 			if stripe.a > 0.0:
-				draw_rect(Rect2(rect.position + Vector2(HudStyle.NOTCH, SLOT_SIZE.y - 4), Vector2(SLOT_SIZE.x - HudStyle.NOTCH * 2, 3)), Color(stripe, alpha))
-		# Key tab, stamped on top.
+				draw_rect(Rect2(rect.position + Vector2(4, SLOT_SIZE.y - 6), Vector2(SLOT_SIZE.x - 8, 2)), Color(stripe, alpha))
+		# Key tab, stamped on top, centered over the slot.
 		var tab := Rect2(rect.position + Vector2((SLOT_SIZE.x - 20) * 0.5, -9), Vector2(20, 17))
-		HudStyle.draw_plate(self, tab, HudStyle.ACTIVE if active else HudStyle.PLATE_EDGE, HudStyle.ACTIVE if active else HudStyle.PLATE_EDGE, 3.0)
+		HudStyle.draw_plate(self, tab, HudStyle.OUTLINE, HudStyle.ACTIVE if active else HudStyle.FACE, 2.0)
 		var key := "V" if i - 2 == Inventory.KNIFE_KEY else str(i + 1)
-		HudStyle.draw_text(self, key, tab.position + Vector2(0, 15), 20, HudStyle.PLATE if active else HudStyle.TEXT, 20, 1)
+		HudStyle.draw_centered(self, key, tab, 20, HudStyle.DEEP if active else HudStyle.INK, null, not active)
 	if _switch_left > 0.0:
 		var alpha := clampf(_switch_left / 0.3, 0.0, 1.0)
 		var font := get_theme_default_font()
 		draw_string_outline(font, Vector2(0, 18), _switch_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 14, 3, Color(0, 0, 0, alpha))
 		draw_string(font, Vector2(0, 18), _switch_text, HORIZONTAL_ALIGNMENT_CENTER, size.x, 14, Color(HudStyle.TEXT, alpha))
 
-
-func _draw_dashed(rect: Rect2, color: Color) -> void:
-	var corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]
-	for side in 4:
-		var a: Vector2 = corners[side]
-		var b: Vector2 = corners[(side + 1) % 4]
-		var length := a.distance_to(b)
-		var t := 0.0
-		while t < length:
-			draw_line(a.lerp(b, t / length), a.lerp(b, minf(t + 4.0, length) / length), color, 2.0)
-			t += 8.0
