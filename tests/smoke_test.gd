@@ -635,6 +635,10 @@ func _section_extract() -> void:
 	_check(raid.loot_value == expected_value, "extracted loot is counted (%s, expected %s)" % [ItemDB.money(raid.loot_value), ItemDB.money(expected_value)])
 	_check(not raid.loot_summary.is_empty(), "end screen lists the loot")
 	_check(player.controls_locked(), "controls lock after extracting")
+	var end_screen: RaidEndScreen = main.get_node("HUD").end_screen
+	var shown := end_screen.summary()
+	_check(end_screen.visible and shown["stamp"] == "EXTRACTED" and String(shown["value"]).begins_with("KEPT"),
+		"the end screen stamps EXTRACTED and tags what you kept (%s, %s)" % [shown["stamp"], shown["value"]])
 
 
 func _section_death() -> void:

@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.10 (end-of-raid screen in the "Ammo Can" look, owner)
+- **The result is an ink stamp:** green EXTRACTED, amber MISSING IN ACTION or red KILLED IN ACTION, with a double,
+  slightly worn border
+- **What your loot was worth on a tag:** brass "KEPT $..." when you made it out, red "LOST $..." when you didn't
+- The loot list, how you got out and what happens to your gear in the pixel font; kills, money, raids, extracts
+  and deaths as stenciled chips; a gunmetal BACK TO HIDEOUT button
+- The raid HUD hides behind it (it used to show through)
+
 ## 0.8.9 (extract name tags on plates, "Unarmed", owner)
 - **Extract name tags** sit on a small gunmetal plate (green flag + name with the HUD's hard drop shadow) instead
   of a black outline, which looked odd

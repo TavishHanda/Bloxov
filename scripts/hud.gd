@@ -120,8 +120,10 @@ func _process(delta: float) -> void:
 	var hp := player.health.current
 
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
+	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
 	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud]:
-		element.visible = not loot_ui.visible
+		element.visible = not loot_ui.visible and not end_screen.visible
+	timer_hud.visible = not end_screen.visible
 
 	if not get_tree().paused:
 		# Red flash when hit; a faint red edge stays while health is low.
