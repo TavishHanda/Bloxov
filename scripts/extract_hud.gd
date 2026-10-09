@@ -96,7 +96,8 @@ func _draw_world_tags() -> void:
 		var rect := Rect2(Vector2(roundf(at.x - width * 0.5), at.y - 26.0), Vector2(width, 24))
 		HudStyle.draw_plate(self, rect, HudStyle.OUTLINE, HudStyle.FACE, 2.0)
 		HudStyle.draw_icon(self, HudStyle.FLAG, Vector2(rect.position.x + 8, roundf(rect.get_center().y - flag.y * 0.5)), 2, HudStyle.EXTRACT)
-		HudStyle.draw_text(self, text, Vector2(rect.position.x + 8 + flag.x + 6, HudStyle.centered_baseline(rect.get_center().y, 20)), 20, HudStyle.EXTRACT)
+		# Cream name (like the extract list), green flag (green text is for teammates' tags).
+		HudStyle.draw_text(self, text, Vector2(rect.position.x + 8 + flag.x + 6, HudStyle.centered_baseline(rect.get_center().y, 20)), 20, HudStyle.INK)
 
 
 func _draw_list() -> void:

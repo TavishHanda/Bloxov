@@ -8,8 +8,9 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 ## 0.8.16 (damage numbers and teammate tags in the HUD style, owner)
 - **Damage numbers** (the optional setting) are drawn crisp in the pixel font with a hard dark edge, pop up and float
   away; headshots and backstabs are bigger and yellow with "!" (they used to be blurry 3D text)
-- **Teammate name tags** are small green names on a mini gunmetal plate, still visible through walls (same 2D
-  drawing as the extract tags)
+- **Teammate name tags** are small green names (no plate behind them), still visible through walls
+- **Extract tags** keep their plate, with the name in cream (like the extract list) and the green flag, so green
+  text now only means a teammate
 
 ## 0.8.15 (ONLINE panel in the "Ammo Can" look, owner)
 - **ONLINE panel** (hideout): a gunmetal plate, the pixel font, sunk-in text boxes (yellow edge while you type),
