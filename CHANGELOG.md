@@ -12,14 +12,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
   depot** in the middle, **old houses and the gas station** bottom right, **woods** with 3 cabins, a creek and a railway
 - **Buildings have rooms and stairs:** most have 2 floors, and the town hall, police station, school, grocery and train
   station have **rooftops** you can walk on. **The bunker is under the town hall** (ramp down from its west room)
-- **87 loot spots**, each tagged with its place (police, bank, bunker, ...) for the Items update. Placeholders for
+- **97 loot spots**, each tagged with its place (police, bank, bunker, ...) for the Items update. Placeholders for
   the **bunker key door** and the **bank vault door** (open for now; keys come in the Items update)
 - **3 extracts** (Farm Road, Highway, Creek Trail; 2 open per raid) and **8 player spawns** round the edges
 - **More AI for testing** (owner: harder than seems right): 12 scavs and 3 Raiders at the start, up to 15 alive,
   32 scavs and 8 Raiders over the raid. Spawn spots are placeholders until Scavs 2.0. AI paths can now cross the
   whole map (they used to stop searching after a few thousand pieces of it)
 - **Roads are smooth curves** that join up cleanly, and no building stands on a road (the map builder now refuses
-  to build one that does)
+  to build one that does, or buildings that overlap)
+- **Town and farm layout tweaks** (owner): the county road runs down the farm's west side instead of through it (Farm Road
+  extract at its north end), Main Street ends at a **big house** on the west edge, the two shops on the top-left road
+  are one big building, the **bank and offices** east of the square are one building (bank and vault downstairs,
+  offices upstairs), and the offices west of the square are bigger
 - It's a **gray box**: plain coloured blocks for walking, fighting and timing the layout. The look comes later
   (designer), and the props/models after that (artist)
 
