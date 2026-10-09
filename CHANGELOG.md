@@ -5,6 +5,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.9 (extract name tags on plates, owner)
+- **Extract name tags** sit on a small gunmetal plate (green flag + name with the HUD's hard drop shadow) instead
+  of a black outline, which looked odd
+
 ## 0.8.8 (inventory in the "Ammo Can" look, extract tags, owner)
 - **Inventory screen (light pass, same layout):** the columns are gunmetal plates like the HUD; headings, section
   names (POCKETS, SECURE POCKET...), item names in the details and counts use the HUD's pixel font; "Carrying $..."

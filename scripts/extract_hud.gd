@@ -4,7 +4,8 @@ extends Control
 ## - Top-right list of open extracts (a green flag, the name, the distance), sliding in for a few seconds at the
 ##   start of the raid and when you press O (owner rule: not on screen all the time).
 ## - A name tag over every open extract in the world (0.8.8): a green flag and the name, drawn crisp in 2D at the
-##   pad's spot, visible through walls (it used to be a Label3D, which blurred the pixel font).
+##   pad's spot on a small gunmetal plate, visible through walls (it used to be a Label3D, which blurred the pixel
+##   font).
 ## - Above the crosshair while you stand in an extract: "EXTRACTING 3.2" on a green-rimmed plate that fills up,
 ##   or "EXTRACT CLOSED" on a red one with red caution stripes.
 
@@ -81,7 +82,6 @@ func _draw_world_tags() -> void:
 	var camera := get_viewport().get_camera_3d()
 	if camera == null:
 		return
-	var f := HudStyle.font()
 	for zone in raid.get_extracts():
 		if not zone.is_open:
 			continue
@@ -90,13 +90,13 @@ func _draw_world_tags() -> void:
 			continue
 		var at := camera.unproject_position(spot).round()
 		var text: String = zone.extract_name
+		# A small gunmetal plate: green flag + the name (hard drop shadow, like the rest of the HUD), over the pad.
 		var flag := HudStyle.icon_size(HudStyle.FLAG, 2)
-		var width := flag.x + 6.0 + HudStyle.text_width(text, 20) - 1.0
-		var left := roundf(at.x - width * 0.5)
-		HudStyle.draw_icon(self, HudStyle.FLAG, Vector2(left, at.y - flag.y * 0.5).round(), 2, HudStyle.EXTRACT, Color(0, 0, 0, 0.9))
-		var pos := Vector2(left + flag.x + 6.0, HudStyle.centered_baseline(at.y, 20))
-		draw_string_outline(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 4, Color(0, 0, 0, 0.85))
-		draw_string(f, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, HudStyle.EXTRACT)
+		var width := 8.0 + flag.x + 6.0 + HudStyle.text_width(text, 20) - 1.0 + 9.0
+		var rect := Rect2(Vector2(roundf(at.x - width * 0.5), at.y - 26.0), Vector2(width, 24))
+		HudStyle.draw_plate(self, rect, HudStyle.OUTLINE, HudStyle.FACE, 2.0)
+		HudStyle.draw_icon(self, HudStyle.FLAG, Vector2(rect.position.x + 8, roundf(rect.get_center().y - flag.y * 0.5)), 2, HudStyle.EXTRACT)
+		HudStyle.draw_text(self, text, Vector2(rect.position.x + 8 + flag.x + 6, HudStyle.centered_baseline(rect.get_center().y, 20)), 20, HudStyle.EXTRACT)
 
 
 func _draw_list() -> void:
