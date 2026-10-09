@@ -10,6 +10,8 @@
 - **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
   (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended
   behavior are fine; anything that changes how the game plays (AI, numbers, rules) gets proposed, not shipped.
+- **Two sessions:** the owner runs a separate **designer** session for UI/visual design (catch-up: `docs/DESIGN_HANDOFF.md`).
+  Both push to `main`: pull/rebase right before working and before pushing; keep commits small.
 - Plan: `docs/ROADMAP.md` (milestones). Parked ideas/notes: `docs/BACKLOG.md`.
   Keep new code co-op-friendly: don't add new single-player assumptions (see ROADMAP rules).
 - Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
