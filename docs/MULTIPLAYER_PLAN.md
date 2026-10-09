@@ -53,6 +53,10 @@ Versions: each update is the next 0.7.x in order (hosting moved up to 0.7.1, so 
 - [ ] **7. Online test (0.7.6).** Server deployed to a host, friends play over the internet.
       Measure lag and bandwidth. **Decision point:** keep going (lag compensation for PvP hits,
       matchmaking, accounts) or adjust the approach.
+- **Public queue (owner wants it, before going public).** Press "Queue" alone or with your duo; a small
+  matchmaker groups waiting players into raids of up to 6 and starts a fresh raid server for each match (Fly
+  Machines, one process per raid), then sends everyone its address + a match code. Today's pieces carry over:
+  the room code becomes the match code, the server's join checks stay. Room codes stay for playing with friends.
 - Later (after the test): lag compensation (the server checks hits against where the target *was* on your
   screen), matchmaking/server list, accounts and a server-side stash, anti-cheat basics.
 
