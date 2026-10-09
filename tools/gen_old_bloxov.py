@@ -309,6 +309,7 @@ class Building:
 
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset)."""
+    footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
     b.build()
     for kind, i, j, floor, side, off in loot_spots:
         x, y, z, yaw = b.against_wall(i, j, floor, side, off)
@@ -329,14 +330,45 @@ def ground(holes):
             box(xs[a], -1.0, zs[b], xs[a + 1], 0.0, zs[b + 1], "grass")
 
 
+roads = []        # (points, width) of every road, for the overlap check
+footprints = []   # (name, x0, z0, x1, z1) of every building
+
+
+def smooth(points, step=5.0):
+    """A Catmull-Rom curve through the points (so roads bend instead of kinking), sampled about every `step` m."""
+    if len(points) < 3:
+        return list(points)
+    pts = [points[0]] + list(points) + [points[-1]]
+    out = []
+    for i in range(1, len(pts) - 2):
+        p0, p1, p2, p3 = pts[i - 1], pts[i], pts[i + 1], pts[i + 2]
+        n = max(2, int(math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / step))
+        for k in range(n):
+            t = k / n
+            out.append(tuple(0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t
+                                    + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t ** 3) for j in (0, 1)))
+    out.append(points[-1])
+    return out
+
+
+def road(points, width):
+    """A road through `points`, smoothed. Each road sits a hair higher than the one before, so where two meet
+    neither flickers through the other."""
+    curve = smooth(points)
+    roads.append((curve, width))
+    strip(curve, width, "road", y=0.02 + 0.004 * len(roads))
+
+
 def strip(points, width, colour, y=0.02, h=0.04, solid=False):
-    """A flat band along a polyline (roads, paths, water)."""
-    for (ax, az), (bx, bz) in zip(points, points[1:]):
+    """A flat band along a polyline (roads, paths, water). Pieces overlap a little at each bend so there are no
+    gaps; every other piece is a millimetre higher so the overlaps don't flicker."""
+    for k, ((ax, az), (bx, bz)) in enumerate(zip(points, points[1:])):
         length = math.hypot(bx - ax, bz - az)
+        if length < 0.01:
+            continue
         yaw = math.degrees(math.atan2(bx - ax, bz - az))
-        obox((ax + bx) / 2, y + h / 2, (az + bz) / 2, width, h, length + width * 0.02, yaw, colour, solid)
-    for (px, pz) in points[1:-1]:
-        obox(px, y + h / 2 + 0.001, pz, width, h, width, 0.0, colour, solid)
+        lift = 0.001 * (k % 2)
+        obox((ax + bx) / 2, y + h / 2 + lift, (az + bz) / 2, width, h, length + width * 0.5, yaw, colour, solid)
 
 
 def bezier(p0, p1, p2, p3, n=24):
@@ -414,16 +446,16 @@ def main():
     box(M - 0.5, 0, -1, M + 1, 6, M + 1, "boundary")
 
     # --- roads (from the agreed layout picture)
-    strip([(0, 82), (30, 80), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9, "road")              # Main Street
-    strip([(200, 104), (235, 92), (265, 72), (292, 42), (318, 0)], 8, "road")                                   # county road
-    strip([(62, 86), (48, 58), (58, 30), (95, 18), (130, 22)], 6, "road")                                       # Hill Road
-    strip([(112, 100), (118, 70), (122, 40), (138, 8)], 6, "road")                                              # Mill Lane
-    strip([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300), (350, 306)], 8, "road")
-    strip([(186, 104), (194, 150), (214, 186)], 6, "road")                                                      # Station Road
-    strip([(236, 270), (290, 258), (350, 252)], 6, "road")                                                      # East Lane
-    strip([(196, 240), (180, 300), (160, 348)], 6, "road")                                                      # South Lane
+    road([(0, 82), (30, 80), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9)              # Main Street
+    road([(200, 104), (235, 92), (265, 72), (292, 42), (318, 0)], 8)                                   # county road
+    road([(62, 86), (48, 58), (58, 30), (95, 18), (130, 22)], 6)                                       # Hill Road
+    road([(112, 100), (118, 70), (122, 40), (138, 8)], 6)                                              # Mill Lane
+    road([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300), (350, 306)], 8)
+    road([(186, 104), (194, 150), (214, 186)], 6)                                                      # Station Road
+    road([(236, 270), (290, 258), (350, 252)], 6)                                                      # East Lane
+    road([(196, 240), (180, 300), (160, 348)], 6)                                                      # South Lane
     # creek (shallow: walkable) and the rail bridge over it
-    creek = bezier((0, 212), (60, 250), (40, 300), (110, 350))
+    creek = bezier((0, 212), (60, 250), (40, 300), (110, 350), n=48)
     strip(creek, 5, "water", y=0.01, h=0.03)
 
     # --- railway (west to east at y 210) with sidings to the depot
@@ -509,8 +541,8 @@ def main():
         box(x, 0, 72.0, x + 0.9, 1.7, 77.0, "wood")
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
-    build(Building("ShopA", 36, 68, 12, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 1, 0, 0, "E", 0)])
-    build(Building("ShopB", 50, 70, 14, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 0, 0, 1, "W", 0)])
+    build(Building("ShopA", 30, 62, 12, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 1, 0, 0, "E", 0)])
+    build(Building("ShopB", 16, 64, 12, 10, floors=2, rooms=(2, 1), doors="S"), [("crate", 0, 0, 1, "W", 0)])
     build(Building("TownHouse", 66, 108, 11, 9, floors=2, rooms=(2, 1), doors="E"), [("crate", 1, 0, 1, "E", 0)])
     build(Building("Police", 150, 112, 26, 22, floors=2, colour="wall_police", rooms=(3, 3), doors="WS", roof=True), [
         ("locker", 2, 0, 0, "E", 0), ("locker", 2, 0, 0, "N", 0), ("locker", 0, 2, 1, "W", 0),
@@ -527,7 +559,7 @@ def main():
         box(gx_, 0, 158.8, gx_ + 0.2, 2.4, 159.0, "metal")
 
     # hillside: big houses (owner: expensive loot)
-    for n, (x, y, w, d) in enumerate([(30, 22, 16, 13), (68, 36, 15, 12), (75, 6, 16, 11), (100, 32, 15, 12),
+    for n, (x, y, w, d) in enumerate([(30, 22, 16, 13), (68, 36, 15, 12), (75, 4, 16, 10), (100, 32, 15, 12),
                                       (28, 42, 13, 12)], start=1):
         build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2),
                        doors="S" if n != 3 else "W"), [
@@ -552,16 +584,16 @@ def main():
                    big_doors=True), [("crate", 0, 0, 0, "E", 0), ("crate", 0, 0, 0, "W", 2)])
     for hx, hz in ((262, 31), (262, 33.5), (274, 39), (270, 30)):
         hay(hx, hz)
-    box(286, 0, 28, 294, 12, 36, "concrete")                          # silo
-    build(Building("Farmhouse", 306, 26, 16, 12, floors=2, rooms=(2, 2), doors="S"), [
+    box(282, 0, 30, 290, 12, 38, "concrete")                          # silo
+    build(Building("Farmhouse", 310, 26, 16, 12, floors=2, rooms=(2, 2), doors="S"), [
         ("locker", 1, 0, 0, "E", 0), ("crate", 0, 1, 1, "W", 0)])
-    build(Building("Shed", 256, 62, 18, 12, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
+    build(Building("Shed", 248, 46, 14, 10, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
                    big_doors=True), [("crate", 0, 0, 0, "W", 0)])
     for k in range(5):   # crop rows (low cover)
         z = 50 + k * 9
         box(286, 0, z, 338, 1.0, z + 3, "crop")
     fence([(245, 8), (245, 40)]); fence([(245, 52), (245, 100), (300, 100)]); fence([(312, 100), (343, 100)])
-    obox(282, 1.0, 56, 2.2, 2.0, 3.6, 20, "car_a")                     # tractor
+    obox(250, 1.0, 90, 2.2, 2.0, 3.6, 20, "car_a")                     # tractor
 
     # ===================================================================== MIDDLE: train station + depot
     build(Building("TrainStation", 200, 190, 38, 14, colour="wall", rooms=(3, 1), doors="SN", roof=True,
@@ -574,8 +606,8 @@ def main():
     add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
 
     # ===================================================================== BOTTOM RIGHT: old houses, gas station
-    for n, (x, y) in enumerate([(206, 258), (248, 284), (316, 238), (330, 268), (304, 282), (176, 276),
-                                (166, 318), (214, 316)], start=1):
+    for n, (x, y) in enumerate([(196, 264), (248, 292), (316, 238), (330, 268), (304, 282), (164, 276),
+                                (148, 312), (214, 316)], start=1):
         build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W"),
               [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
     build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S"), [
@@ -622,8 +654,34 @@ def main():
             (320, 260), (300, 312), (190, 330), (60, 250), (90, 300), (40, 330), (320, 190), (150, 250)]):
         enemy_spawns.append((f"Spawn{n}", x, z))
 
+    check_roads()
     write_scene()
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
+
+
+def _seg_rect_gap(a, b, rect):
+    """Shortest distance between segment a-b and a rectangle (0 = they touch)."""
+    x0, z0, x1, z1 = rect
+    best = float("inf")
+    for k in range(41):
+        t = k / 40
+        px, pz = a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+        dx = max(x0 - px, 0, px - x1)
+        dz = max(z0 - pz, 0, pz - z1)
+        best = min(best, math.hypot(dx, dz))
+    return best
+
+
+def check_roads():
+    """Fails the build if a building stands on a road (owner, 0.10.1): keep 1 m of pavement between them."""
+    bad = []
+    for name, x0, z0, x1, z1 in footprints:
+        for points, width in roads:
+            for a, b in zip(points, points[1:]):
+                if _seg_rect_gap(a, b, (x0, z0, x1, z1)) < width / 2 + 1.0:
+                    bad.append(f"{name} on the road through {a}-{b}")
+    if bad:
+        raise SystemExit("Buildings on roads:\n  " + "\n  ".join(bad))
 
 
 # ---------------------------------------------------------------------------------------------- tscn

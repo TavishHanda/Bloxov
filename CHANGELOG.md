@@ -18,6 +18,8 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 - **More AI for testing** (owner: harder than seems right): 12 scavs and 3 Raiders at the start, up to 15 alive,
   32 scavs and 8 Raiders over the raid. Spawn spots are placeholders until Scavs 2.0. AI paths can now cross the
   whole map (they used to stop searching after a few thousand pieces of it)
+- **Roads are smooth curves** that join up cleanly, and no building stands on a road (the map builder now refuses
+  to build one that does)
 - It's a **gray box**: plain coloured blocks for walking, fighting and timing the layout. The look comes later
   (designer), and the props/models after that (artist)
 
