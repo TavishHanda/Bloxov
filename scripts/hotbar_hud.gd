@@ -1,7 +1,7 @@
 class_name HotbarHUD
 extends Control
 ## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.6 "Ammo Can"): 1 = primary, 2 = secondary, 3 = meds (all
-## your heals; uses the best fit), 4 and 5 = bound items (for later: grenades...), 6 = the knife (V).
+## your heals; uses the best fit), 4 = one bound item (for later: grenades...), V = the knife (owner, 0.9.0: 1, 2, 3, 4, V).
 ## Each slot is a gunmetal lid with its key in the corner (hand-drawn pixel digits), a pixel icon, a count and a rarity stripe.
 ## The gun in your hands pops up: lighter lid, hazard-yellow rim and caution stripes, yellow key. Switching guns
 ## slaps its name on a strip of tape above it for a moment. Empty slots are sunk-in wells with a faint ghost of

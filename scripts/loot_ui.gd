@@ -697,18 +697,19 @@ func _build_equipment_column() -> void:
 	_add_slot(_player_box, "backpack", Vector2i(2, 2))
 
 
-## Middle column: everything you carry: pockets, the secure pocket, and the backpack's grid.
+## Middle column: everything you carry: pockets, the backpack's grid, then the secure pocket at the bottom.
 func _build_carried_column() -> void:
 	_carried_box.add_child(_title("INVENTORY"))
 	_carried_box.add_child(_section(inventory.pockets.title))
 	_add_view(_carried_box, inventory.pockets)
-	_carried_box.add_child(_section(inventory.secure.title + " (kept if you die)"))
-	_add_view(_carried_box, inventory.secure)
 	if inventory.backpack != null:
 		_carried_box.add_child(_section(inventory.backpack.title))
 		_add_view(_carried_box, inventory.backpack)
 	else:
 		_carried_box.add_child(_section("No backpack"))
+	# Owner (0.9.0): the secure pocket goes last, under everything else.
+	_carried_box.add_child(_section(inventory.secure.title + " (kept if you die)"))
+	_add_view(_carried_box, inventory.secure)
 
 
 func _add_slot(box: Container, slot: String, cells: Vector2i) -> void:

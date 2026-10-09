@@ -251,7 +251,7 @@ func try_heal() -> void:
 		use_item(found[0], found[1])
 
 
-## A hotbar key (0 = key 3): 3 heals (best fit, like H), 6 swings the knife, 4 and 5 use what's bound there.
+## A hotbar slot (0 = key 3): 3 heals (best fit, like H), 4 uses what's bound there, the knife slot swings it.
 func use_hotbar(index: int) -> void:
 	if index == Inventory.MEDS_KEY:
 		try_heal()
@@ -279,8 +279,9 @@ func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount:
 
 
 func _hotbar_key(event: InputEvent) -> int:
+	# Keys 3 and 4 (the knife is on V, not a number key).
 	for i in Inventory.HOTBAR_SIZE:
-		if event.is_action_pressed("hotbar_%d" % (i + 3)):
+		if i != Inventory.KNIFE_KEY and event.is_action_pressed("hotbar_%d" % (i + 3)):
 			return i
 	return -1
 

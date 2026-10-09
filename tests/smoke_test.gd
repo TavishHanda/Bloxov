@@ -1327,13 +1327,13 @@ func _section_owner_rules() -> void:
 	var old_save := Profile.capture_inventory(inv)
 	old_save["hotbar"] = ["bandage", "medkit", "", ""]
 	Profile.apply_inventory(inv, old_save)
-	_check(inv.hotbar == ["", "", "", ""], "old saves with heals on the hotbar load with them on key 3 instead")
+	_check(inv.hotbar == ["", "", ""], "old saves with heals on the hotbar load with them on key 3 instead")
 	var bar := HotbarHUD.new(player)
 	root.add_child(bar)
 	var meds := bar.slot_info(2)
-	var knife := bar.slot_info(5)
+	var knife := bar.slot_info(4)
 	_check(meds["icon"] == HudStyle.MED and meds["count"] == "x3" and knife["icon"] == HudStyle.KNIFE and bar.slot_info(3)["state"] == "empty",
-		"the hotbar shows meds x3 on key 3, the knife (V) on 6, and 4 empty (%s %s)" % [meds["count"], knife["state"]])
+		"the hotbar shows meds x3 on key 3, 4 empty, and the knife (V) last (%s %s)" % [meds["count"], knife["state"]])
 	inv.take("bandage", 2)
 	inv.take("medkit", 1)
 	_check(bar.slot_info(2)["state"] == "out", "no heals left: the meds slot is crossed out")

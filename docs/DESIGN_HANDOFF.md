@@ -43,8 +43,8 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
 
 ## Owner rules for the UI (decided, don't undo without asking)
 - **Hit feedback stays subtle:** no kill marker, no flashy damage numbers by default (toggle exists). Kill sound stays.
-- **Hotbar layout:** 1 and 2 = guns, 3 = Meds (all heals, uses the best fit, same as H), 4 and 5 = free for later
-  (grenades...), 6 = Knife (V). Heals don't bind to keys one by one.
+- **Hotbar layout:** 1 and 2 = guns, 3 = Meds (all heals, uses the best fit, same as H), 4 = one free slot for later
+  (grenades...), V = Knife (owner, 0.9.0; was 4 and 5 free, 6 = knife). Heals don't bind to keys one by one.
 - **Health = a bar/blocks with the number on it.** No "Carrying $" on the raid HUD (only in the inventory).
 - **Extract list** shows a few seconds at raid start and when O is pressed, then hides.
 - **While the inventory is open** the HUD hides except the raid timer (the raid doesn't pause).

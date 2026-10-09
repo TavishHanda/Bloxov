@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.9.0 (start of 0.9: hotbar 1-4 + V, secure pocket at the bottom, owner)
+- 0.8 (HUD & inventory) is closed; 0.9 is the rest of multiplayer (raid flow), starting with two owner tweaks:
+- **Hotbar is now 1, 2, 3, 4, V:** 1-2 guns, 3 meds, **4 = one free slot** (grenades later), V = knife. Keys 5 and 6
+  do nothing now (one grenade slot is enough)
+- **The secure pocket is at the bottom** of the inventory column, under your backpack
+
 ## 0.8.16 (damage numbers and teammate tags in the HUD style, owner)
 - **Damage numbers** (the optional setting) are drawn crisp in the pixel font with a hard dark edge, pop up and float
   away; headshots and backstabs are bigger and yellow with "!" (they used to be blurry 3D text)

@@ -102,13 +102,13 @@ static func starting_loadout() -> Dictionary:
 		"pockets": [{"id": "rifle_ammo", "count": 60, "x": 0, "y": 0}, {"id": "bandage", "count": 1, "x": 1, "y": 0}],
 		"backpack": [],
 		"secure": [],
-		"hotbar": ["", "", "", ""],
+		"hotbar": ["", "", ""],
 	}
 
 
 ## What's left of a loadout after dying: only the secure pocket (and hotbar bindings).
 static func death_loadout(data: Dictionary) -> Dictionary:
-	return {"equipment": {}, "pockets": [], "backpack": [], "secure": data.get("secure", []), "hotbar": data.get("hotbar", ["", "", "", ""])}
+	return {"equipment": {}, "pockets": [], "backpack": [], "secure": data.get("secure", []), "hotbar": data.get("hotbar", ["", "", ""])}
 
 
 # --- Inventory <-> data ------------------------------------------------------------

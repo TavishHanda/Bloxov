@@ -3,19 +3,18 @@ extends Node
 ## Everything the player carries:
 ##  - equipment slots: primary, secondary, armor, backpack (each holds one ItemStack or nothing)
 ##  - grids: pockets (always), the equipped backpack's grid, and the secure pocket (survives death)
-##  - hotbar: keys 3-6. Owner (0.8.1): 3 = meds (best-fitting heal, like H), 4 and 5 = bound items (future
-##    grenades etc.), 6 = the knife (V). Only keys 4 and 5 hold bindings.
+##  - hotbar (owner): 1-2 guns, 3 = meds (best-fitting heal, like H), 4 = one bound item (grenades later), V = knife.
 
 signal changed
 ## Something was equipped or unequipped (the screen rebuilds, the gun/armor update).
 signal equipment_changed
 
 const SLOTS: Array[String] = ["primary", "secondary", "armor", "backpack"]
-const HOTBAR_SIZE := 4
+const HOTBAR_SIZE := 3
 ## Hotbar indexes (0 = key 3): the meds key, the knife key, and the keys items can be bound to.
 const MEDS_KEY := 0
-const KNIFE_KEY := 3
-const BINDABLE_KEYS: Array[int] = [1, 2]
+const KNIFE_KEY := 2
+const BINDABLE_KEYS: Array[int] = [1]
 
 @export var pockets_size := Vector2i(4, 1)
 @export var secure_size := Vector2i(2, 2)
@@ -25,8 +24,9 @@ var secure: GridInventory
 ## The equipped backpack's grid, or null with no backpack.
 var backpack: GridInventory = null
 var equipment := {"primary": null, "secondary": null, "armor": null, "backpack": null}
-## Item ids bound to hotbar keys 3, 4, 5, 6 ("" = empty; only BINDABLE_KEYS are ever filled).
-var hotbar: Array[String] = ["", "", "", ""]
+## Item ids on the hotbar: index 0 = key 3 (meds), 1 = key 4 (one bindable slot, for grenades later), 2 = the knife (V).
+## "" = empty; only BINDABLE_KEYS are ever filled. (Owner, 0.9.0: 1, 2, 3, 4, V; was 3-6.)
+var hotbar: Array[String] = ["", "", ""]
 
 
 func _ready() -> void:
