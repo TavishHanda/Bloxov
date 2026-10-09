@@ -75,6 +75,16 @@ static func font() -> FontFile:
 	return _crisp(FONT_PATH)
 
 
+## The number font with 1 px between letters, for words in mixed case (the plain font squishes "na" together).
+static func spaced_font() -> FontVariation:
+	if not _fonts.has("spaced"):
+		var f := FontVariation.new()
+		f.base_font = font()
+		f.spacing_glyph = 1
+		_fonts["spaced"] = f
+	return _fonts["spaced"]
+
+
 ## Tiny stenciled labels (Silkscreen Bold). Use sizes in multiples of 8.
 static func label_font() -> FontFile:
 	return _crisp(LABEL_FONT_PATH)

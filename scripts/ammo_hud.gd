@@ -3,7 +3,7 @@ extends Control
 ## Bottom-right ammo (0.8.4, "Ammo Can"): a gunmetal plate with the loaded count big on the left and, on the right,
 ## the magazine as a row of brass cartridges (spent ones are empty sockets) over the reserve. Low on rounds =
 ## yellow, empty = red. Reloading: the cartridges fill back up and a strip of tape says so.
-## Unarmed: a smaller plate with the knife and "UNARMED".
+## Unarmed: a smaller plate with the knife and "Unarmed".
 
 const PLATE_SIZE := Vector2(206, 50)
 const UNARMED_SIZE := Vector2(160, 40)
@@ -42,9 +42,10 @@ func _draw() -> void:
 		HudStyle.draw_plate(self, rect)
 		var knife := HudStyle.icon_size(HudStyle.KNIFE, 2)
 		HudStyle.draw_icon(self, HudStyle.KNIFE, rect.position + Vector2(PAD, (rect.size.y - knife.y) * 0.5), 2, HudStyle.INK)
-		# (stencil caps: the number font's "A" looks odd at this size)
-		var label_box := Rect2(Vector2(rect.position.x + PAD + knife.x + 10, rect.position.y), Vector2(rect.end.x - PAD - (rect.position.x + PAD + knife.x + 10), rect.size.y))
-		HudStyle.draw_centered(self, "UNARMED", label_box, 16, HudStyle.INK_DIM, HudStyle.label_font())
+		# (mixed case, letter-spaced: the owner's pick, 0.8.9)
+		var label_left := rect.position.x + PAD + knife.x + 8
+		var label_box := Rect2(Vector2(label_left, rect.position.y), Vector2(rect.end.x - 10 - label_left, rect.size.y))
+		HudStyle.draw_centered(self, "Unarmed", label_box, 20, HudStyle.INK_DIM, HudStyle.spaced_font())
 		return
 	HudStyle.draw_plate(self, Rect2(Vector2.ZERO, PLATE_SIZE))
 	var mag := maxi(gun.mag_size, 1)
