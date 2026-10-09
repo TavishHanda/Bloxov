@@ -88,6 +88,12 @@ func _ready() -> void:
 	_refresh()
 
 
+func _process(_delta: float) -> void:
+	# The online panel's status line takes no room while it has nothing to say.
+	if _online_status != null:
+		_online_status.visible = _online_status.text != ""
+
+
 # --- Trading -----------------------------------------------------------------------
 
 func buy_price(id: String, amount: int) -> int:
@@ -386,12 +392,8 @@ func _build_online_panel() -> void:
 	_online_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_online_panel.custom_minimum_size = Vector2(460, 0)
 	_online_panel.position = Vector2(-230, -170)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.13, 0.14, 0.13, 0.98)
-	style.border_color = Color(0.45, 0.5, 0.45)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	_online_panel.add_theme_stylebox_override("panel", style)
+	# Look (0.8.15, "Ammo Can"): gunmetal plate, pixel font, sunk-in text boxes, gunmetal buttons, yellow QUEUE.
+	LootUI.skin_panel(_online_panel)
 	add_child(_online_panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -402,7 +404,7 @@ func _build_online_panel() -> void:
 	margin.add_child(column)
 	var title := Label.new()
 	title.text = "ONLINE"
-	title.add_theme_font_size_override("font_size", 20)
+	HudStyle.style_label(title, 30)
 	column.add_child(title)
 
 	# Not connected: name + server, Go online.
@@ -418,10 +420,12 @@ func _build_online_panel() -> void:
 	_name_edit.placeholder_text = "Your name"
 	_name_edit.max_length = 16
 	_name_edit.text = GameSettings.player_name if GameSettings.player_name != "" else "Player %d" % randi_range(100, 999)
+	_style_edit(_name_edit)
 	_offline_box.add_child(_name_edit)
 	# Always the game's own server (owner: no address box).
 	_connect_button = Button.new()
-	_connect_button.text = "Go online"
+	_connect_button.text = "GO ONLINE"
+	LootUI.style_button(_connect_button, 30, HudStyle.HAZARD)
 	_connect_button.pressed.connect(func() -> void: go_online(Network.DEFAULT_ADDRESS, _name_edit.text))
 	_offline_box.add_child(_connect_button)
 
@@ -430,10 +434,13 @@ func _build_online_panel() -> void:
 	_online_box.add_theme_constant_override("separation", 8)
 	column.add_child(_online_box)
 	_party_label = Label.new()
-	_party_label.add_theme_font_size_override("font_size", 18)
+	HudStyle.style_label(_party_label, 20)
+	_party_label.add_theme_font_override("font", HudStyle.spaced_font(20))
 	_online_box.add_child(_party_label)
 	_party_members = Label.new()
-	_party_members.modulate = Color(1, 1, 1, 0.8)
+	HudStyle.style_label(_party_members, 20, HudStyle.INK_DIM)
+	_party_members.add_theme_font_override("font", HudStyle.spaced_font(20))
+	_party_members.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_online_box.add_child(_party_members)
 	_join_row = HBoxContainer.new()
 	_online_box.add_child(_join_row)
@@ -441,30 +448,38 @@ func _build_online_panel() -> void:
 	_party_code_edit.placeholder_text = "Friend's party code"
 	_party_code_edit.max_length = 4
 	_party_code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_edit(_party_code_edit)
+	_join_row.add_theme_constant_override("separation", 8)
 	_join_row.add_child(_party_code_edit)
 	var join_button := Button.new()
-	join_button.text = "Join party"
+	join_button.text = "JOIN PARTY"
+	LootUI.style_button(join_button)
 	join_button.pressed.connect(func() -> void: Network.main.join_party(_party_code_edit.text))
 	_join_row.add_child(join_button)
 	_leave_party_button = Button.new()
-	_leave_party_button.text = "Leave party"
+	_leave_party_button.text = "LEAVE PARTY"
+	LootUI.style_button(_leave_party_button)
 	_leave_party_button.pressed.connect(func() -> void: Network.main.leave_party())
 	_online_box.add_child(_leave_party_button)
 	_queue_button = Button.new()
-	_queue_button.custom_minimum_size = Vector2(0, 40)
-	_queue_button.add_theme_font_size_override("font_size", 20)
+	_queue_button.custom_minimum_size = Vector2(0, 44)
+	LootUI.style_button(_queue_button, 30, HudStyle.HAZARD)
 	_queue_button.pressed.connect(func() -> void: Network.main.set_queued(not Network.main.queued))
 	_online_box.add_child(_queue_button)
 	_queue_info = Label.new()
 	_queue_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	HudStyle.style_label(_queue_info, 20, HudStyle.INK_DIM)
+	_queue_info.add_theme_font_override("font", HudStyle.spaced_font(20))
 	_online_box.add_child(_queue_info)
 	_start_now_button = Button.new()
-	_start_now_button.text = "Start now: just my party, no queue"
+	_start_now_button.text = "START NOW: JUST MY PARTY, NO QUEUE"
+	LootUI.style_button(_start_now_button)
 	_start_now_button.tooltip_text = "An online raid with only you (and your party). For testing."
 	_start_now_button.pressed.connect(func() -> void: Network.main.start_now())
 	_online_box.add_child(_start_now_button)
 	var offline_button := Button.new()
-	offline_button.text = "Go offline"
+	offline_button.text = "GO OFFLINE"
+	LootUI.style_button(offline_button)
 	offline_button.pressed.connect(func() -> void:
 		Network.main.go_offline()
 		_online_status.text = ""
@@ -473,13 +488,35 @@ func _build_online_panel() -> void:
 
 	_online_status = Label.new()
 	_online_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_online_status.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	HudStyle.style_label(_online_status, 20, HudStyle.HAZARD)
+	_online_status.add_theme_font_override("font", HudStyle.spaced_font(20))
 	column.add_child(_online_status)
 	var close := Button.new()
-	close.text = "Close"
+	close.text = "CLOSE"
+	LootUI.style_button(close)
 	close.pressed.connect(func() -> void: _online_panel.visible = false)
 	column.add_child(close)
 	_refresh_online()
+
+
+## A text box in the HUD look: sunk in (dark, black edge), yellow edge while typing, the pixel font.
+func _style_edit(edit: LineEdit) -> void:
+	for state in ["normal", "focus", "read_only"]:
+		var box := StyleBoxFlat.new()
+		box.bg_color = HudStyle.DEEP
+		box.border_color = HudStyle.HAZARD if state == "focus" else Color.BLACK
+		box.set_border_width_all(2)
+		box.content_margin_left = 10
+		box.content_margin_right = 10
+		box.content_margin_top = 6
+		box.content_margin_bottom = 6
+		edit.add_theme_stylebox_override(state, box)
+	edit.add_theme_font_override("font", HudStyle.spaced_font(20))
+	edit.add_theme_font_size_override("font_size", 20)
+	edit.add_theme_color_override("font_color", HudStyle.INK)
+	edit.add_theme_color_override("font_placeholder_color", Color(HudStyle.INK, 0.35))
+	edit.add_theme_color_override("caret_color", HudStyle.HAZARD)
+	edit.add_theme_color_override("selection_color", Color(HudStyle.HAZARD, 0.35))
 
 
 func _build_trader() -> Control:
