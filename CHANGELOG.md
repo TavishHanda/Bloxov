@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.8.12 (a nicer A, owner)
+- **The pixel font's capital A is redrawn:** a square top with clipped corners (the old one had a pointed, stepped
+  top that looked odd next to the other blocky capitals). It's everywhere the font is: HUD, inventory, hideout,
+  end screen, buttons. The font is now "Bloxov Jersey 10" (`assets/fonts/BloxovJersey10-Regular.ttf`, OFL, made by
+  `tools/make_bloxov_font.py` from Jersey 10; see `assets/fonts/README.md`)
+
 ## 0.8.11 (hideout in the "Ammo Can" look, owner)
 - **Top bar:** a gunmetal strip with BLOXOV in the pixel font, your money on a brass tag, the stats in the pixel font,
   gunmetal buttons and a big hazard-yellow **START RAID**

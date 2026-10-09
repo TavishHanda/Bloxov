@@ -3,7 +3,8 @@ extends RefCounted
 ## The raid HUD's look (0.8.4, "Ammo Can"): chunky beveled blocks of gunmetal-painted steel, built like the voxels
 ## of the world (lit top/left edge, dark bottom/right edge, hard black outline), with brass, hazard stripes and
 ## masking-tape labels as the scavenged details. Fonts (all OFL, in assets/fonts/): Jersey 10 for numbers,
-## Silkscreen Bold for tiny stenciled labels, Pixelify Sans for writing on tape.
+## Silkscreen Bold for tiny stenciled labels, Pixelify Sans for writing on tape. The number font is "Bloxov Jersey 10":
+## Jersey 10 with a redrawn square-topped A (0.8.12; the original A had a pointed top, see assets/fonts/README.md).
 ## Used by the HUD widgets (health, ammo, hotbar, crosshair...).
 
 # Painted steel.
@@ -41,7 +42,7 @@ const STAMINA := HAZARD
 const ACTIVE := HAZARD
 const NOTCH := 3.0
 
-const FONT_PATH := "res://assets/fonts/Jersey10-Regular.ttf"
+const FONT_PATH := "res://assets/fonts/BloxovJersey10-Regular.ttf"
 const LABEL_FONT_PATH := "res://assets/fonts/Silkscreen-Bold.ttf"
 const TAPE_FONT_PATH := "res://assets/fonts/PixelifySans.ttf"
 

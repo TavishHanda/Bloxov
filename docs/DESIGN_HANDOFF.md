@@ -3,7 +3,7 @@
 The owner runs a separate Claude session, **designer**, for visual/UI design. This file catches it up. The main
 session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (the project rules apply to both).
 
-## What Bloxov looks like today (0.8.11)
+## What Bloxov looks like today (0.8.12)
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
@@ -13,8 +13,9 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
   (`damage_arrow_hud.gd`), hand-drawn key glyphs (`HudStyle.draw_key/draw_keycap`), 0.8.8 = light inventory pass
   (`LootUI._panel/_title/_section/style_button`) + extract name tags drawn in 2D by `extract_hud.gd` (Label3D
   blurred the pixel font), 0.8.10 = end-of-raid screen (stamp, value tag, stat chips). 0.8.11 = hideout top bar
-  + trader (`LootUI.skin_panel/style_button`, tape messages). Next: 0.8.12 pause menu; the ONLINE panel is untouched. Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
-  tags, hazard stripes (`draw_hazard`), masking-tape labels (`draw_tape`); fonts Jersey 10 (numbers), Silkscreen
+  + trader (`LootUI.skin_panel/style_button`, tape messages). 0.8.12 = redrawn A in the
+  number font ("Bloxov Jersey 10", `tools/make_bloxov_font.py`). Next: 0.8.13 pause menu; the ONLINE panel is untouched. Look: beveled voxel blocks of gunmetal-painted steel (`HudStyle.draw_block/draw_plate`), brass
+  tags, hazard stripes (`draw_hazard`), masking-tape labels (`draw_tape`); fonts Bloxov Jersey 10 (numbers; Jersey 10 with a square A), Silkscreen
   Bold (tiny labels, `draw_label`), Pixelify Sans (tape). Owner: "make sure it looks super nice", not cramped.
   Pieces (some still from the 0.8.3 "Stenciled Field Kit" pass):
   - `scripts/hud_style.gd` (`HudStyle`): palette consts, the Jersey 10 pixel font (`assets/fonts/`, OFL, loaded
