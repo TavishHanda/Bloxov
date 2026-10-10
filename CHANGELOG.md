@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.16 (AI pick up gear off bodies; owner)
+- Unaware AI head for a body or dropped bag within 25 m (in their area) that has gear better than theirs, yours
+  included, search it, and take it: a rifle (hits 5 harder, bursts 1 longer) and/or armor (light: 20% less damage,
+  heavy: 40%). They drop what they took when killed. Everything else stays in the bag. They won't take anything
+  while a player is within 6 m of the bag. Online, a bag they empty disappears for everyone.
+- Not visible on their model yet (the models' guns are built in; see BACKLOG "guns as separate models").
+
 ## 0.12.15 (suppress and push; owner)
 - When you duck out of sight mid-fight and two or more AI are on you, one keeps firing at where you disappeared for
   5 s (pinning you in cover; it hits you only if you peek into it) and calls the push, while the nearest other one

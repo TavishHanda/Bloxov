@@ -79,6 +79,10 @@ func _announce_bag(bag: LootContainer) -> void:
 		return
 	bag.name = "Bag%d" % _next_bag
 	_next_bag += 1
+	var id := String(bag.name)
+	bag.emptied.connect(func() -> void:
+		locks.erase(id)
+		bag_removed.emit(id))
 	bag_spawned.emit(String(bag.name), bag.global_position, bag.rotation.y, bag.display_name, bag.search_time)
 
 

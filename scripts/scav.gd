@@ -320,6 +320,8 @@ signal alerted
 signal bash_started
 ## Said a callout (VOICE key); online the server sends it on so players hear it.
 signal barked(kind: String)
+## Took an item off a body (gear pickup).
+signal gear_picked(id: String)
 const NET_LEAN_IN := 1
 const NET_WINDUP := 2
 const NET_LUNGE := 4
@@ -769,6 +771,45 @@ func _pick_hunt_point() -> Vector3:
 			best_score = score
 			best = spot
 	return best
+
+
+## Gear pickup (0.12.16, owner): an item in this body/bag better than what it has (a rifle, armor), or "".
+func _upgrade_in(bag: LootContainer) -> String:
+	if bag == null or not bag.remove_when_empty or holds_position:
+		return ""
+	for grid in bag.all_grids():
+		for stack in grid.stacks:
+			var item: Dictionary = ItemDB.ITEMS.get(stack.id, {})
+			if item.get("kind", "") == "armor" and 1.0 - float(item.get("reduction", 0.0)) < health.damage_multiplier - 0.01:
+				return stack.id
+			if item.get("kind", "") == "weapon" and item.get("auto", false) and not _upgraded_gun:
+				return stack.id
+	return ""
+
+
+## Searching a body: takes the best upgrades in it (unless a player is right there, maybe looting it too).
+func _scavenge(bag: LootContainer) -> void:
+	if bag == null:
+		return
+	for node in RaidScope.nodes(self, &"player"):
+		if (node as Node3D).global_position.distance_to(bag.global_position) < 6.0:
+			return
+	for i in 2:
+		var id := _upgrade_in(bag)
+		if id == "" or not bag.take_item(id):
+			return
+		var item: Dictionary = ItemDB.ITEMS[id]
+		if item.kind == "armor":
+			health.damage_multiplier = 1.0 - float(item.get("reduction", 0.0))
+			extra_drops.append(id)
+		else:
+			# A rifle: hits harder and fires longer bursts; it drops it when it dies.
+			_upgraded_gun = true
+			shot_damage += 5
+			burst_size += 1
+			weapon_drop = id
+			weapon_drop_chance = 1.0
+		gear_picked.emit(id)
 
 
 ## Badly hurt: limps (puppets: the server's scav is).
@@ -1370,9 +1411,12 @@ func _wander(delta: float) -> Vector3:
 		return follow
 	if _wander_dir == Vector3.ZERO:
 		_wander_time -= delta
+		var was_looting := _looting_left > 0.0
 		_looting_left -= delta
 		if _looting_left > 0.0 and is_instance_valid(_patrol_container):
 			_face(_flat(_patrol_container.global_position - global_position), delta, 4.0)
+		elif was_looting and is_instance_valid(_patrol_container):
+			_scavenge(_patrol_container as LootContainer)
 		if _wander_time > 0.0:
 			return Vector3.ZERO
 		_wander_point = _pick_patrol_point()
@@ -1398,6 +1442,17 @@ func _wander(delta: float) -> Vector3:
 
 func _pick_patrol_point() -> Vector3:
 	var spots := RaidScope.nodes(self, &"loot_containers")
+	# A body nearby with gear worth having: go take it (0.12.16).
+	for node in spots:
+		var bag := node as LootContainer
+		if (bag != null and not bag in _tried_bags and _flat(bag.global_position - global_position).length() < 25.0
+				and _in_home(bag.global_position) and _upgrade_in(bag) != ""):
+			_tried_bags.append(bag)   # (once: if it can't get there, or someone's at it, it moves on)
+			_patrol_container = bag
+			_patrol_jog = true
+			var near := AINav.closest(self, bag.global_position)
+			if near != Vector3.ZERO:
+				return near
 	if home_radius > 0.0:
 		spots = spots.filter(func(c: Node) -> bool: return _in_home((c as Node3D).global_position))
 		# Out of its area (after a fight): head straight back in.
@@ -1474,6 +1529,8 @@ var _voice := 1.0
 var _was_pushing := false
 var _home_return_left := 0.0
 var _hunting := false
+var _upgraded_gun := false
+var _tried_bags: Array[LootContainer] = []
 var _suppress_left := 0.0
 var _may_suppress := true
 var _hunt_point := Vector3.INF
