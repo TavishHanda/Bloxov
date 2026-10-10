@@ -1883,9 +1883,16 @@ func _section_senses() -> void:
 			break
 	_check(reached and hunter.global_position.distance_to(seen_at) < 3.0,
 		"lost sight: it goes to where it last saw you and searches (%.1f m away)" % hunter.global_position.distance_to(seen_at))
-	for i in int((hunter.search_time + 0.5) * 60):
+	# 0.12.14: it hunts around that spot (30 s in the game; shortened here), checking places, then patrols, wary.
+	_check(hunter._hunting, "...and hunts for you around there")
+	hunter.hunt_time = 5.0
+	var start_spot := hunter.global_position
+	var roamed := 0.0
+	for i in int((hunter.hunt_time + 0.5) * 60):
 		await physics_frame
-	_check(hunter.state == Scav.State.IDLE, "after searching a while it goes back to wandering")
+		roamed = maxf(roamed, hunter.global_position.distance_to(start_spot))
+	_check(roamed > 2.5, "it walks around checking spots nearby (up to %.1f m away)" % roamed)
+	_check(hunter.state == Scav.State.IDLE and hunter._wary_left > 0.0, "after searching a while it goes back to wandering, wary")
 	hunter.queue_free()
 
 
