@@ -5,15 +5,15 @@ Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
 **Where we are (2026-10-10):** 0.10.x, the **Map & Spawn update**: Old Bloxov is in as a gray box
-(`docs/MAP_PLAN.md`), with player spawns and per-squad extracts (0.10.3). Now: the code cleanup (0.11). M1-M3 are done (multiplayer co-op + PvP is live).
+(`docs/MAP_PLAN.md`), with player spawns and per-squad extracts (0.10.3). The code cleanup (0.11.0) is done; map follow-ups shipped as 0.11.x.
+Now: the **Stash update (0.12)**. M1-M3 are done (multiplayer co-op + PvP is live).
 Art is paused: cover props (cars, square props) are built; buildings wait until the layout is proven in play.
 
 ### Up next, in order
 1. **Playtest the big map** (0.10 Map & Spawn, done through 0.10.3). Still untested live:
    extracting one at a time, the downed timer running out, squads spawning together, the 0.10.1 places
    (hunting stands, bell tower, junkyard, bunker, vault), AI on the big map. Layout fixes from it ship as 0.11.x.
-2. **Code cleanup (0.11, in progress alongside the playtest):** a pass over the code before the next big systems
-   (owner, 0.10.0). No gameplay changes.
+2. ~~**Code cleanup (0.11):**~~ done in 0.11.0.
 3. **Stash update (0.12, owner 2026-10-10):** solo and online get **separate stashes** (each with its own money,
    loadout and stats), picked with a SOLO / ONLINE switch in the hideout. Solo stays on the device and works
    offline with no account. The **online stash moves onto the server** so it can't be edited to cheat: the server
@@ -43,8 +43,8 @@ between updates. Lore is the owner's.
 ## Version phases (middle number)
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
 0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
-per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Old Bloxov) · **0.11 cleanup (current)**,
-then 0.12 Stash update (solo/online stashes), Scavs 2.0 and Items as their own phases.
+per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Old Bloxov) · 0.11 cleanup ·
+**0.12 Stash update (current)** (solo/online stashes), then Scavs 2.0 and Items as their own phases.
 
 ## Rules while we go
 - **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.
