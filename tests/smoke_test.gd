@@ -2412,6 +2412,33 @@ func _section_teamwork() -> void:
 	bleeder.queue_free()
 	nearby.queue_free()
 	await physics_frame
+	# 0.12.17 rivals (owner): scavs never answer a Raider's call; at the contested spot the two sides trade fire
+	# that never hurts anyone.
+	var shouter := _spawn(RAIDER_SCENE, Vector3(10, 0.1, 30)) as Scav
+	var other_side := _spawn(SCAV_SCENE, Vector3(16, 0.1, 30)) as Scav
+	other_side._wander_time = 99.0
+	other_side._wander_dir = Vector3.ZERO
+	await physics_frame
+	shouter._call_for_help(shouter.global_position)
+	_check(other_side.state == Scav.State.IDLE, "a scav doesn't answer a Raider's call for help")
+	shouter.queue_free()
+	other_side.queue_free()
+	await physics_frame
+	var sides: Array[Scav] = [_spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav, _spawn(RAIDER_SCENE, Vector3(26, 0.1, 30)) as Scav]
+	var side_shots := [0, 0]
+	for i in 2:
+		sides[i].skirmish = true
+		sides[i].sight_range = 5.0   # (busy with each other, not the player)
+		sides[i].skirmish_pause_max = 2.0
+		sides[i].fired.connect(func(_end: Vector3) -> void: side_shots[i] += 1)
+	for i in 240:
+		await physics_frame
+	_check(side_shots[0] > 0 and side_shots[1] > 0 and sides.all(func(e: Scav) -> bool:
+			return e.state == Scav.State.IDLE and e.health.current == e.health.max_health),
+		"at the contested spot scavs and Raiders trade fire (%d and %d shots) and nobody gets hurt" % side_shots)
+	for e in sides:
+		e.queue_free()
+	await physics_frame
 	# 0.12.15 suppress and push (owner): you duck out of sight with two on you: one keeps shooting where you were,
 	# the other goes around.
 	player.teleport_to(Vector3(-30, 0.1, -30))
@@ -2436,25 +2463,6 @@ func _section_teamwork() -> void:
 	_check(pin_shots[0] >= 2, "...firing at your cover while it does (%d shots)" % pin_shots[0])
 	pinner.queue_free()
 	mover.queue_free()
-	await physics_frame
-	# 0.12.16 gear pickup (owner): a scav takes a rifle and armor off a body nearby, and it shows.
-	player.teleport_to(Vector3(-30, 0.1, -30))
-	var looter := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
-	for other in get_nodes_in_group("loot_containers"):   # (bodies left by earlier checks: not this test's)
-		if other is LootContainer:
-			looter._tried_bags.append(other)
-	var body := LootContainer.spawn_bag(main, Vector3(14, 0.1, 30), "Body", [["ak", 1], ["armor_light", 1], ["bandage", 1]], 0.0, true)
-	await physics_frame
-	var damage_before := looter.shot_damage
-	await physics_frame
-	_check(looter._patrol_container == body and looter._wander_point.distance_to(body.global_position) < 3.0, "a scav heads for a body with better gear nearby")
-	looter._scavenge(body)
-	_check(looter.shot_damage > damage_before and looter.health.damage_multiplier < 1.0 and looter.weapon_drop == "ak"
-		and "armor_light" in looter.extra_drops and is_instance_valid(body) and body.grid.count_of("bandage") == 1
-		and body.grid.count_of("ak") == 0,
-		"it takes the rifle and the armor (hits harder, takes less damage, drops them when killed), leaves the rest")
-	looter.queue_free()
-	body.queue_free()
 	await physics_frame
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))

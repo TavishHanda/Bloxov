@@ -47,20 +47,6 @@ func all_grids() -> Array[GridInventory]:
 	return list
 
 
-## Taken by an AI (gear pickup): one of `id`. An emptied bag goes away (online, RaidWorld tells players).
-signal emptied
-
-
-func take_item(id: String) -> bool:
-	for g in all_grids():
-		if g.take(id, 1) > 0:
-			if remove_when_empty and is_empty():
-				emptied.emit()
-				queue_free()
-			return true
-	return false
-
-
 func is_empty() -> bool:
 	return all_grids().all(func(g: GridInventory) -> bool: return g.is_empty())
 

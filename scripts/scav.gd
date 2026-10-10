@@ -157,6 +157,16 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var suppress_chance := 0.5
 @export var suppress_time := 5.0
 @export var leash := 40.0
+## Scavs and Raiders are rivals (0.12.17, owner): they ignore each other, but never answer the other side's calls
+## for help, warn it or team up with it. raider.tscn and boss.tscn are "raider".
+@export var faction := &"scav"
+## At the contested spot (the spawner sets this for its zone's AI): while it hasn't spotted a player it trades fire
+## with the other side there. Those shots always miss and hurt no one, so the spot stays held all raid.
+var skirmish := false
+## How far it looks for someone of the other side to shoot at, and the pause between its bursts there.
+@export var skirmish_range := 60.0
+@export var skirmish_pause_min := 2.0
+@export var skirmish_pause_max := 6.0
 
 @export_group("Voice")
 ## Callouts: how deep its voice is (Raiders and Bon lower) and at most one callout per this many seconds.
@@ -303,6 +313,14 @@ var home_radius := 0.0
 ## Duo partner or boss guard: who it follows around while patrolling (null = it leads itself), and where it
 ## walks relative to them (right/back in their facing).
 var leader: Scav = null
+## Contested spot: who it's trading fire with, where it hides from them and where it steps out to shoot.
+var _rival: Scav = null
+var _rival_check_left := 0.0
+var _sk_post := Vector3.INF
+var _sk_peek := Vector3.INF
+var _sk_hiding := false
+var _sk_wait := 0.0
+var _sk_shots := 0
 var follow_offset := Vector3(2.0, 0.0, 1.5)
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
@@ -320,8 +338,6 @@ signal alerted
 signal bash_started
 ## Said a callout (VOICE key); online the server sends it on so players hear it.
 signal barked(kind: String)
-## Took an item off a body (gear pickup).
-signal gear_picked(id: String)
 const NET_LEAN_IN := 1
 const NET_WINDUP := 2
 const NET_LUNGE := 4
@@ -425,7 +441,12 @@ func _physics_process(delta: float) -> void:
 	var desired := Vector3.ZERO
 	match state:
 		State.IDLE:
-			desired = _scan(delta) if holds_position else _wander(delta)
+			if holds_position:
+				desired = _scan(delta)
+			elif skirmish and _home_return_left <= 0.0:
+				desired = _skirmish(delta)
+			else:
+				desired = _wander(delta)
 			if _home_return_left <= 0.0 and _spotting(delta, to_target, dist, spot_suspicious_mult if _wary_left > 0.0 else 1.0):
 				_alert(_target.global_position)
 		State.INVESTIGATE:
@@ -567,6 +588,7 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 		_cover_cooldown_left = cover_cooldown
 		_heal_after_move = false
 	elif state == State.IDLE:
+		_rival = null
 		_wander_dir = Vector3.ZERO
 		_wander_time = 0.0
 	elif state == State.INVESTIGATE:
@@ -689,7 +711,7 @@ func _call_for_help(known_pos: Vector3) -> bool:
 	var called := false
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
-		if ally != null and ally != self and global_position.distance_to(ally.global_position) <= help_radius:
+		if ally != null and ally != self and ally.faction == faction and global_position.distance_to(ally.global_position) <= help_radius:
 			ally.answer_call(known_pos)
 			called = true
 	return called
@@ -773,45 +795,6 @@ func _pick_hunt_point() -> Vector3:
 	return best
 
 
-## Gear pickup (0.12.16, owner): an item in this body/bag better than what it has (a rifle, armor), or "".
-func _upgrade_in(bag: LootContainer) -> String:
-	if bag == null or not bag.remove_when_empty or holds_position:
-		return ""
-	for grid in bag.all_grids():
-		for stack in grid.stacks:
-			var item: Dictionary = ItemDB.ITEMS.get(stack.id, {})
-			if item.get("kind", "") == "armor" and 1.0 - float(item.get("reduction", 0.0)) < health.damage_multiplier - 0.01:
-				return stack.id
-			if item.get("kind", "") == "weapon" and item.get("auto", false) and not _upgraded_gun:
-				return stack.id
-	return ""
-
-
-## Searching a body: takes the best upgrades in it (unless a player is right there, maybe looting it too).
-func _scavenge(bag: LootContainer) -> void:
-	if bag == null:
-		return
-	for node in RaidScope.nodes(self, &"player"):
-		if (node as Node3D).global_position.distance_to(bag.global_position) < 6.0:
-			return
-	for i in 2:
-		var id := _upgrade_in(bag)
-		if id == "" or not bag.take_item(id):
-			return
-		var item: Dictionary = ItemDB.ITEMS[id]
-		if item.kind == "armor":
-			health.damage_multiplier = 1.0 - float(item.get("reduction", 0.0))
-			extra_drops.append(id)
-		else:
-			# A rifle: hits harder and fires longer bursts; it drops it when it dies.
-			_upgraded_gun = true
-			shot_damage += 5
-			burst_size += 1
-			weapon_drop = id
-			weapon_drop_chance = 1.0
-		gear_picked.emit(id)
-
-
 ## Badly hurt: limps (puppets: the server's scav is).
 func is_wounded() -> bool:
 	if puppet:
@@ -842,6 +825,87 @@ func _hold_alert(pos: Vector3) -> void:
 		_set_state(State.SEARCH)
 	if _flat(pos - global_position).length() > 0.5:
 		look_at(Vector3(pos.x, global_position.y, pos.z), Vector3.UP)
+
+
+## The contested spot (0.12.17, owner): someone of the other side in sight: duck behind something, then step back
+## out to where it saw them from and fire a burst their way, again and again. Every shot misses (_fire_wide_of).
+## Nobody in sight: patrol as usual.
+func _skirmish(delta: float) -> Vector3:
+	_rival_check_left -= delta
+	if _rival_check_left <= 0.0:
+		_rival_check_left = 1.0
+		if not _rival_ok(_rival):
+			_rival = _pick_rival()
+			if _rival != null:
+				_sk_peek = global_position
+				_sk_post = _find_cover(_rival.global_position + Vector3(0, 1.65, 0))
+				_sk_hiding = false
+				_sk_shots = 0
+				_sk_wait = randf_range(0.3, 1.0)
+	if _rival == null:
+		return _wander(delta)
+	var to_rival := _flat(_rival.global_position - global_position)
+	var spot := _sk_post if _sk_hiding else _sk_peek
+	if spot != Vector3.INF and not _arrived(spot):
+		var move := _path_velocity(spot, move_speed * jog_speed)
+		_face(move, delta)
+		return move
+	_face(to_rival, delta, 4.0 if _sk_hiding else 10.0)
+	_sk_wait -= delta
+	if _sk_wait > 0.0:
+		return Vector3.ZERO
+	if _sk_hiding:   # back out to shoot
+		_sk_hiding = false
+		_sk_wait = randf_range(0.3, 0.8)
+		return Vector3.ZERO
+	if _sk_shots <= 0:
+		_sk_shots = _burst_length(to_rival.length())
+	_fire_wide_of(_rival)
+	_sk_shots -= 1
+	if _sk_shots > 0:
+		_sk_wait = burst_interval
+	else:   # burst done: back behind cover for a while
+		_sk_hiding = true
+		_sk_wait = randf_range(skirmish_pause_min, skirmish_pause_max)
+	return Vector3.ZERO
+
+
+## Still someone to trade fire with at the contested spot.
+func _rival_ok(rival: Scav) -> bool:
+	return (rival != null and is_instance_valid(rival) and rival.state != State.DEAD and rival.skirmish
+		and rival.faction != faction and global_position.distance_to(rival.global_position) <= skirmish_range * 1.2)
+
+
+## The closest one of the other side at the contested spot it can see, or null.
+func _pick_rival() -> Scav:
+	var space := get_world_3d().direct_space_state
+	var eyes := global_position + Vector3(0, 1.65, 0)
+	var best: Scav = null
+	var best_dist := skirmish_range
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if not _rival_ok(other):
+			continue
+		var d := global_position.distance_to(other.global_position)
+		if d < best_dist and space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, other.global_position + Vector3(0, 1.4, 0), 1)).is_empty():
+			best = other
+			best_dist = d
+	return best
+
+
+## A shot toward `rival` that always goes wide (and can't hit anyone: it only stops at the world).
+func _fire_wide_of(rival: Scav) -> void:
+	var from := global_position + Vector3(0, 1.65, 0)
+	var miss := Vector3(randf_range(-1.0, 1.0), randf_range(-0.3, 1.0), randf_range(-1.0, 1.0)).normalized() * randf_range(1.2, 2.5)
+	var aim := rival.global_position + Vector3(0, 1.2, 0) + miss
+	var to := from + (aim - from).normalized() * (shoot_range + 20.0)
+	var result := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()]))
+	var end := to
+	if not result.is_empty():
+		end = result.position
+		Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
+	fired.emit(end)
+	net_fired(end)
 
 
 ## The target is reloading or healing (a moment to push).
@@ -1030,9 +1094,11 @@ func _start_heal() -> void:
 	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1)
 
 
-## The closest walkable spot within cover_search_radius (by walking distance) the target can't see; INF if none.
-func _find_cover() -> Vector3:
-	var eyes := _target.eye_position()
+## The closest walkable spot within cover_search_radius (by walking distance) the target (or whoever is looking
+## from `eyes`) can't see; INF if none.
+func _find_cover(eyes := Vector3.INF) -> Vector3:
+	if eyes == Vector3.INF:
+		eyes = _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
 	var best_walk := INF
@@ -1040,7 +1106,7 @@ func _find_cover() -> Vector3:
 	# First the far side of things right around it (a tree trunk, a tent, a car, a wall corner, a hillside): the
 	# circle samples below easily miss something as thin as a trunk (0.12.10, owner: one didn't hide behind the
 	# tents or trees at the camp).
-	var away := _flat(global_position - _target.global_position).normalized()
+	var away := _flat(global_position - eyes).normalized()
 	var chest := global_position + Vector3(0, 1.0, 0)
 	for i in 16:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 16.0)
@@ -1243,6 +1309,7 @@ func _flat(v: Vector3) -> Vector3:
 
 func _set_state(new_state: State) -> void:
 	_hunting = false
+	_rival = null
 	if new_state != State.INVESTIGATE:
 		_answering_call = false
 		_alarmed = false
@@ -1366,7 +1433,7 @@ func _try_suppress() -> bool:
 	var best := 40.0
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
-		if ally == null or ally == self or ally.state != State.ENGAGE or ally._target != _target:
+		if ally == null or ally == self or ally.faction != faction or ally.state != State.ENGAGE or ally._target != _target:
 			continue
 		if ally._suppress_left > 0.0:
 			return false   # someone already is
@@ -1411,12 +1478,9 @@ func _wander(delta: float) -> Vector3:
 		return follow
 	if _wander_dir == Vector3.ZERO:
 		_wander_time -= delta
-		var was_looting := _looting_left > 0.0
 		_looting_left -= delta
 		if _looting_left > 0.0 and is_instance_valid(_patrol_container):
 			_face(_flat(_patrol_container.global_position - global_position), delta, 4.0)
-		elif was_looting and is_instance_valid(_patrol_container):
-			_scavenge(_patrol_container as LootContainer)
 		if _wander_time > 0.0:
 			return Vector3.ZERO
 		_wander_point = _pick_patrol_point()
@@ -1442,17 +1506,6 @@ func _wander(delta: float) -> Vector3:
 
 func _pick_patrol_point() -> Vector3:
 	var spots := RaidScope.nodes(self, &"loot_containers")
-	# A body nearby with gear worth having: go take it (0.12.16).
-	for node in spots:
-		var bag := node as LootContainer
-		if (bag != null and not bag in _tried_bags and _flat(bag.global_position - global_position).length() < 25.0
-				and _in_home(bag.global_position) and _upgrade_in(bag) != ""):
-			_tried_bags.append(bag)   # (once: if it can't get there, or someone's at it, it moves on)
-			_patrol_container = bag
-			_patrol_jog = true
-			var near := AINav.closest(self, bag.global_position)
-			if near != Vector3.ZERO:
-				return near
 	if home_radius > 0.0:
 		spots = spots.filter(func(c: Node) -> bool: return _in_home((c as Node3D).global_position))
 		# Out of its area (after a fight): head straight back in.
@@ -1529,8 +1582,6 @@ var _voice := 1.0
 var _was_pushing := false
 var _home_return_left := 0.0
 var _hunting := false
-var _upgraded_gun := false
-var _tried_bags: Array[LootContainer] = []
 var _suppress_left := 0.0
 var _may_suppress := true
 var _hunt_point := Vector3.INF
@@ -1712,7 +1763,7 @@ func _warn_friends() -> void:
 	var said := false   # (one "man down" is enough)
 	for node in RaidScope.nodes(self, &"enemies"):
 		var friend := node as Scav
-		if friend == null or friend == self or friend.puppet or friend.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		if friend == null or friend == self or friend.puppet or friend.faction != faction or friend.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 			continue
 		var d := friend.global_position.distance_to(global_position)
 		if d > buddy_see_radius:
