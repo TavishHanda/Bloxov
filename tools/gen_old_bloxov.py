@@ -1705,10 +1705,107 @@ def main():
 
     trench()
     scatter_trees(clutter())
+    zone_spawns()
     map_labels()
     check_roads()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
+
+
+# AI zones (Scavs 2.0, owner 2026-10-10): each AI patrols only its own zone, so players learn where AI is.
+# Hot zones are big areas with more AI and most Raiders: the town core round the town hall (hottest), the rest of
+# town and the bottom right (hot-ish). Elsewhere a few small patrols, plus a few roamers that cross the whole map.
+# (name, x, z, radius, scavs at the start, Raiders at the start, trickle weight for later arrivals)
+AI_ZONES = [
+    ("TownCore", 112, 128, 30, 2, 3, 3.0),    # town hall, bank, square, police side
+    ("Town", 85, 95, 65, 4, 1, 2.0),          # the rest of town (overlaps the core)
+    ("SouthEast", 290, 280, 55, 3, 2, 2.0),   # depot, junkyard, old gas station, diner, garage
+    ("Station", 225, 215, 30, 2, 0, 1.0),     # train station
+    ("Farm", 285, 42, 40, 2, 0, 0.0),
+    ("Church", 180, 42, 25, 1, 0, 0.0),
+    ("Woods", 75, 290, 40, 1, 0, 0.0),        # cabins, campsite, hunting stand
+    ("OldHouses", 200, 300, 30, 1, 0, 0.0),   # old houses south of the railway
+]
+AI_ROAMERS = 3
+spawn_zone = {}   # enemy spawn name -> its AI zone (no entry = only roamers use it)
+
+
+def _zone_of(x, z):
+    """The smallest AI zone containing (x, z), or None."""
+    best = None
+    for zone in AI_ZONES:
+        if math.hypot(x - zone[1], z - zone[2]) <= zone[3] and (best is None or zone[3] < best[3]):
+            best = zone
+    return best
+
+
+def _zone_spot_ok(x, z, taken):
+    """Open, walkable ground for an AI spawn: off buildings, water, rail, props and trees, apart from other spots."""
+    if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 5:
+        return False
+    for points, width in water:
+        for a, b in zip(points, points[1:]):
+            if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 3:
+                return False
+    if any(x0 - 4 < x < x1 + 4 and z0 - 4 < z < z1 + 4 for _, x0, z0, x1, z1 in footprints):
+        return False
+    if any(t[0] - 3 < x < t[2] + 3 and t[1] - 3 < z < t[3] + 3 for t in TRENCHES):
+        return False
+    if any(math.hypot(x - tx, z - tz) < 3 for tx, tz in trunks):
+        return False
+    if any(math.hypot(x - sx, z - sz) < 40 for _, sx, sz in player_spawns):
+        return False
+    if any(math.hypot(x - ex, z - ez) < 14 for _, _, ex, ez in extracts):
+        return False
+    if any(math.hypot(x - sx, z - sz) < 8 for sx, sz in taken):
+        return False
+    for b in boxes:   # props (wrecks, rubble, stands, poles, fences...)
+        if b[4] > 0.2 and max(b[3], b[5]) < 30 and math.hypot(x - (b[0] + M / 2), z - (b[2] + M / 2)) < max(b[3], b[5]) / 2 + 2:
+            return False
+    return True
+
+
+def zone_spawns():
+    """Tags the placeholder AI spawn spots with their zone, then adds spots until each zone has one more than it
+    starts with (so its AI don't spawn on top of each other)."""
+    rng = random.Random(1200)
+    for zone in AI_ZONES:   # no zone reaches a player spawn (its AI would be on you the moment the raid starts)
+        assert all(math.hypot(zone[1] - x, zone[2] - z) > zone[3] + 8 for _, x, z in player_spawns), zone[0]
+    for name, x, z in enemy_spawns:
+        zone = _zone_of(x, z)
+        if zone:
+            spawn_zone[name] = zone[0]
+    for zone in AI_ZONES:
+        zname, cx, cz, r, scavs, raiders = zone[:6]
+        have = sum(1 for n, x, z in enemy_spawns if spawn_zone.get(n) == zname)
+        need = max(3, scavs + raiders + 1) - have
+        for _ in range(3000):
+            if need <= 0:
+                break
+            a, d = rng.uniform(0, math.tau), r * 0.85 * math.sqrt(rng.random())
+            x, z = cx + d * math.cos(a), cz + d * math.sin(a)
+            if _zone_of(x, z) is not zone or not _zone_spot_ok(x, z, [(sx, sz) for _, sx, sz in enemy_spawns]):
+                continue
+            name = f"Spawn{len(enemy_spawns)}"
+            enemy_spawns.append((name, round(x, 1), round(z, 1)))
+            spawn_zone[name] = zname
+            need -= 1
+        assert need <= 0, f"no room for AI spawn spots in zone {zname}"
+
+
+def spawner_meta(ter):
+    """The map's AI numbers and zones (EnemySpawner settings)."""
+    zones = ", ".join(
+        f'{{"name": "{n}", "center": Vector3({fmt(gx(x))}, {fmt(ter.lift(x, z))}, {fmt(gz(z))}), "radius": {fmt(r)}, '
+        f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}}}' for n, x, z, r, s, rd, t in AI_ZONES)
+    scavs = sum(z[4] for z in AI_ZONES) + AI_ROAMERS
+    raiders = sum(z[5] for z in AI_ZONES)
+    # Scavs 2.0 (owner: about 30 at the start once the boss and snipers are in): the zones' AI and the roamers at
+    # the start, then 5 more scavs (one every 50-70 s) and 3 more Raiders trickle into the hot zones.
+    return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "initial_count": 0, '
+            f'"max_alive": 30, "scav_budget": {scavs + 5}, "raider_budget": {raiders + 3}, '
+            '"scav_interval_min": 50.0, "scav_interval_max": 70.0, '
+            '"raider_times": PackedFloat32Array(150, 300, 420), "min_distance_from_player": 40.0}')
 
 
 # Names on the in-raid map (M): buildings by their footprint, plus spots and areas.
@@ -1824,11 +1921,7 @@ def write_scene(ter):
     out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
             '[node name="OldBloxov" type="Node3D"]',
             'metadata/map_name = "Bloxov Battlegrounds"',
-            # AI numbers for this map (owner, 0.10.0: harder than seems right, for testing; doubled in 0.11.10, owner:
-            # testers found it too easy; Scavs 2.0 retunes)
-            'metadata/spawner = {"initial_count": 24, "max_alive": 30, "scav_budget": 64, "raider_budget": 16, '
-            '"raider_times": PackedFloat32Array(0, 0, 0, 0, 0, 0, 60, 120, 165, 210, 255, 300, 345, 390, 435, 480), '
-            '"min_distance_from_player": 40.0}',
+            spawner_meta(ter),
             minimap_meta(ter),
             "",
             '[node name="Level" type="Node3D" parent="."]', "",
@@ -1862,7 +1955,8 @@ def write_scene(ter):
     out += ['[node name="EnemySpawns" type="Node3D" parent="."]', ""]
     for name, x, z in enemy_spawns:
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
-                f"transform = {xform(x, ground_y['enemy', name] + 0.1, z)}", ""]
+                f"transform = {xform(x, ground_y['enemy', name] + 0.1, z)}"]
+        out += ([f'metadata/zone = "{spawn_zone[name]}"'] if name in spawn_zone else []) + [""]
     groups = sorted({m[0] for m in markers})
     for g in groups:
         out += [f'[node name="{g}" type="Node3D" parent="."]', ""]

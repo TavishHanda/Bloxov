@@ -22,18 +22,45 @@ extends Node3D
 @export var min_distance_from_player := 18.0
 ## Chance a Raider arrives with a partner that sticks with it (both count toward raider_budget).
 @export_range(0.0, 1.0) var raider_duo_chance := 0.15
+## AI zones (Scavs 2.0; a map sets these, the test map has none). Each is a Dictionary: "name", "center"
+## (Vector3), "radius" (m), "scavs" and "raiders" (how many start there), "trickle" (how likely later arrivals
+## come here; hot zones get the most). Markers with metadata `zone` = that name are its spawn spots. AI that
+## spawns in a zone patrols only that zone. With zones, initial_count is ignored and raider_times are only the
+## later Raiders (the zones' own start at 0:00).
+@export var zones: Array = []
+## With zones: this many scavs roam the whole map instead of one zone (they start at any marker).
+@export var roamers := 0
 
 ## Spawned so far this raid.
 var scavs_spawned := 0
 var raiders_spawned := 0
 var _elapsed := 0.0
 var _next_scav := 0.0
+## With zones: how many of raider_times have come up.
+var _raider_wave := 0
 
 
 func _ready() -> void:
 	_next_scav = randf_range(scav_interval_min, scav_interval_max)
+	if not zones.is_empty():
+		_spawn_zones.call_deferred()
+		return
 	for i in mini(initial_count, scav_budget):
 		_spawn.call_deferred(enemy_scene)
+
+
+## Raid start with zones: each zone's own scavs and Raiders, then the roamers.
+func _spawn_zones() -> void:
+	for zone in zones:
+		for i in int(zone.get("raiders", 0)):
+			if raiders_spawned < raider_budget:
+				_spawn(raider_scene, zone, false)
+		for i in int(zone.get("scavs", 0)):
+			if scavs_spawned < scav_budget:
+				_spawn(enemy_scene, zone)
+	for i in roamers:
+		if scavs_spawned < scav_budget:
+			_spawn(enemy_scene, {})
 
 
 func _physics_process(delta: float) -> void:
@@ -45,21 +72,52 @@ func tick(delta: float) -> void:
 	_elapsed += delta
 	if RaidScope.nodes(self, &"enemies").size() >= max_alive:
 		return
-	if raiders_spawned < mini(raider_budget, raider_times.size()) and _elapsed >= raider_times[raiders_spawned]:
-		_spawn(raider_scene)
+	if zones.is_empty():
+		if raiders_spawned < mini(raider_budget, raider_times.size()) and _elapsed >= raider_times[raiders_spawned]:
+			_spawn(raider_scene)
+		elif scavs_spawned < scav_budget and _elapsed >= _next_scav:
+			if _spawn(enemy_scene):
+				_next_scav = _elapsed + randf_range(scav_interval_min, scav_interval_max)
+		return
+	# With zones, later arrivals go to a zone picked by its "trickle" weight (mostly the hot zones).
+	if _raider_wave < raider_times.size() and raiders_spawned < raider_budget and _elapsed >= raider_times[_raider_wave]:
+		if _spawn(raider_scene, _trickle_zone("raiders")):
+			_raider_wave += 1
 	elif scavs_spawned < scav_budget and _elapsed >= _next_scav:
-		if _spawn(enemy_scene):
+		if _spawn(enemy_scene, _trickle_zone("scavs")):
 			_next_scav = _elapsed + randf_range(scav_interval_min, scav_interval_max)
 
 
-func _spawn(scene: PackedScene) -> bool:
+## A zone for a later arrival, picked by "trickle" weight among zones that start with that kind of AI.
+func _trickle_zone(kind: String) -> Dictionary:
+	var total := 0.0
+	for zone in zones:
+		if int(zone.get(kind, 0)) > 0:
+			total += float(zone.get("trickle", 0.0))
+	var roll := randf() * total
+	for zone in zones:
+		if int(zone.get(kind, 0)) > 0 and float(zone.get("trickle", 0.0)) > 0.0:
+			roll -= float(zone.get("trickle", 0.0))
+			if roll <= 0.0:
+				return zone
+	return {}
+
+
+## Spawns one enemy (plus maybe a Raider partner). `zone` = {} for no zone: it roams the whole map (with zones
+## set, a roamer). `duo` false = never brings a Raider partner (a zone's start count is exact).
+func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	if scene == null:
 		return false
 	var players := RaidScope.nodes(self, &"player")
+	var zone_name := String(zone.get("name", ""))
 	var far: Array[Marker3D] = []
 	var hidden: Array[Marker3D] = []
 	for child in get_children():
-		if child is Marker3D and _far_from_players(child as Marker3D, players):
+		if not child is Marker3D:
+			continue
+		if zone_name != "" and String(child.get_meta("zone", "")) != zone_name:
+			continue
+		if _far_from_players(child as Marker3D, players):
 			far.append(child as Marker3D)
 			if not _seen_by_players(child as Marker3D, players):
 				hidden.append(child as Marker3D)
@@ -67,17 +125,29 @@ func _spawn(scene: PackedScene) -> bool:
 	var points := hidden if not hidden.is_empty() else far
 	if points.is_empty():
 		return false
-	var enemy := scene.instantiate() as Node3D
+	# ...and a point nobody is standing on: two spawned on one spot got stuck in each other for good.
+	var enemies := RaidScope.nodes(self, &"enemies")
+	var free := points.filter(func(m: Marker3D) -> bool:
+		return enemies.all(func(e: Node) -> bool: return (e as Node3D).global_position.distance_to(m.global_position) > 2.5))
+	var spot: Vector3 = (free if not free.is_empty() else points).pick_random().global_position
+	if free.is_empty():
+		spot += Vector3(randf_range(-2.0, 2.0), 0, randf_range(-2.0, 2.0))
+	var enemy := scene.instantiate() as Scav
 	get_parent().add_child(enemy)
-	enemy.global_position = points.pick_random().global_position
+	enemy.global_position = spot
+	if zone_name != "":
+		enemy.home_center = zone.get("center", spot)
+		enemy.home_radius = float(zone.get("radius", 0.0))
 	if scene == raider_scene:
 		raiders_spawned += 1
 		# Sometimes a duo: a partner right next to it that follows it around.
-		if raiders_spawned < raider_budget and randf() < raider_duo_chance:
+		if duo and raiders_spawned < raider_budget and randf() < raider_duo_chance:
 			var partner := raider_scene.instantiate() as Scav
 			get_parent().add_child(partner)
 			partner.global_position = enemy.global_position + Vector3(1.5, 0, 1.0)
-			partner.leader = enemy as Scav
+			partner.leader = enemy
+			partner.home_center = enemy.home_center
+			partner.home_radius = enemy.home_radius
 			raiders_spawned += 1
 	else:
 		scavs_spawned += 1

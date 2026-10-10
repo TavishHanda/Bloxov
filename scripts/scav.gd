@@ -213,6 +213,11 @@ var _wants_heal := false
 var _heal_left := 0.0
 var _heal_retry_left := 0.0
 var _heal_after_move := false
+## Its patrol area (Scavs 2.0, owner: AI stays where players learn to expect it). Set by the spawner from the
+## map's AI zones: while unaware it only patrols within `home_radius` meters of `home_center`. 0 = roams the
+## whole map (the few random roamers, and every AI on the test map). Fights can still pull it out.
+var home_center := Vector3.ZERO
+var home_radius := 0.0
 ## Duo partner: the Raider it follows around while patrolling (null = it leads itself).
 var leader: Scav = null
 ## > 0 while winding up a bash.
@@ -784,8 +789,8 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 	return side * move_speed * 0.5
 
 
-## Patrolling while unaware: walk to a destination across the map (mostly loot spots, which are in and around
-## buildings, sometimes anywhere reachable), pause there for a few seconds, then pick the next one.
+## Patrolling while unaware: walk to a destination in its area (`home_radius`; the whole map for a roamer), mostly
+## loot spots, which are in and around buildings, sometimes anywhere reachable. Pause there, then pick the next one.
 ## `_wander_dir` is zero while pausing (`_wander_time` counts the pause down).
 func _wander(delta: float) -> Vector3:
 	# A duo partner sticks with its leader instead of picking its own patrol.
@@ -828,20 +833,36 @@ func _wander(delta: float) -> Vector3:
 
 func _pick_patrol_point() -> Vector3:
 	var spots := RaidScope.nodes(self, &"loot_containers")
+	if home_radius > 0.0:
+		spots = spots.filter(func(c: Node) -> bool: return _in_home((c as Node3D).global_position))
+		# Out of its area (after a fight): head straight back in.
+		if not _in_home(global_position):
+			_patrol_container = null
+			var back := AINav.closest(self, home_center)
+			if back != Vector3.ZERO:
+				return back
 	_patrol_jog = randf() < jog_chance
-	for attempt in 6:
+	for attempt in 8:
 		var spot: Vector3
 		_patrol_container = null
 		if not spots.is_empty() and randf() < 0.65:
 			_patrol_container = spots.pick_random() as Node3D
 			# Walk up next to it (the closest walkable point to the container).
 			spot = AINav.closest(self, _patrol_container.global_position)
+		elif home_radius > 0.0:
+			var offset := Vector3(home_radius * sqrt(randf()), 0, 0).rotated(Vector3.UP, randf() * TAU)
+			spot = AINav.closest(self, home_center + offset)
 		else:
 			spot = AINav.random_point(self)
-		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0:
+		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0 and (home_radius <= 0.0 or _in_home(spot)):
 			return spot
 	# No navigation map yet: somewhere a few meters ahead.
 	return global_position + _flat(-global_basis.z).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2)) * 6.0
+
+
+## Inside its patrol area (a little slack at the edge); always true for a roamer.
+func _in_home(point: Vector3) -> bool:
+	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + 4.0
 
 
 func _face(dir: Vector3, delta: float, turn_speed := 10.0) -> void:

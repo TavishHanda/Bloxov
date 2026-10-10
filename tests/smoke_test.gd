@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -1593,8 +1593,18 @@ func _section_old_bloxov() -> void:
 	root.add_child(world)
 	RaidMap.scene_path = ""
 	var spawner := world.raid.get_node("EnemySpawner")
-	_check(spawner.initial_count == 24 and spawner.max_alive == 30 and spawner.get_child_count() == 48,
-		"the map sets its AI numbers (24 at the start, 30 alive at most) and brings 48 AI spawn points")
+	var zone_names: Array = spawner.zones.map(func(z: Dictionary) -> String: return z.name)
+	var start_ai: int = spawner.roamers
+	for z: Dictionary in spawner.zones:
+		start_ai += int(z.scavs) + int(z.raiders)
+	var zone_spots := {}
+	for m: Node in spawner.get_children():
+		zone_spots[m.get_meta("zone", "")] = zone_spots.get(m.get_meta("zone", ""), 0) + 1
+	_check(zone_names.has("TownCore") and zone_names.has("SouthEast") and start_ai >= 20 and start_ai <= 30
+		and spawner.roamers == 3 and spawner.max_alive == 30,
+		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 3 roamers" % [zone_names, start_ai])
+	_check(spawner.zones.all(func(z: Dictionary) -> bool: return zone_spots.get(z.name, 0) > int(z.scavs) + int(z.raiders)),
+		"...and every zone has more spawn spots than AI starting there (%s)" % [zone_spots])
 	var loot := world.raid.get_node("Loot").get_children()
 	_check(loot.size() >= 80 and loot.all(func(c: Node) -> bool: return c is LootContainer and c.has_meta("place")),
 		"%d loot containers, each tagged with its place (police, bunker, ...)" % loot.size())
@@ -1649,6 +1659,20 @@ func _section_old_bloxov() -> void:
 		if hit.is_empty() or absf(hit.position.y - spot.y) > 0.3:
 			off_ground.append(spot)
 	_check(off_ground.is_empty(), "spawns and extracts stand on the ground (%s)" % [off_ground])
+	# Scavs 2.0 zones: the raid starts with each zone's AI in it, they patrol only their zone, roamers anywhere.
+	var ai := RaidScope.nodes(world.raid, &"enemies")
+	var zoned := ai.filter(func(e: Node) -> bool: return (e as Scav).home_radius > 0.0)
+	_check(ai.size() == start_ai and zoned.size() == start_ai - spawner.roamers,
+		"the raid starts with %d AI, %d of them in zones (%d, %d)" % [start_ai, start_ai - spawner.roamers, ai.size(), zoned.size()])
+	var strays := 0
+	for e: Scav in zoned:
+		if Vector2(e.global_position.x - e.home_center.x, e.global_position.z - e.home_center.z).length() > e.home_radius + 3.0:
+			strays += 1
+		for i in 4:
+			var p := e._pick_patrol_point()
+			if Vector2(p.x - e.home_center.x, p.z - e.home_center.z).length() > e.home_radius + 4.0:
+				strays += 1
+	_check(strays == 0, "zone AI spawn in their zone and pick patrol spots inside it (%d outside)" % strays)
 	# The creek (0.11.20): real water in a dug channel (the bed under the surface), the AI can walk into it, and
 	# anyone in it is wading (slower, owner).
 	var water := blocks.water_points
@@ -2057,6 +2081,55 @@ func _section_spawn_budget() -> void:
 		enemy.remove_from_group("enemies")
 		enemy.queue_free()
 	crowded.queue_free()
+	await _frames(2)
+
+
+func _section_zones() -> void:
+	# Scavs 2.0: AI zones. Each zone starts with its own scavs and Raiders (who patrol only there), roamers start
+	# anywhere, and later arrivals go only to zones with a trickle weight (the hot zones).
+	var spawner := EnemySpawner.new()
+	spawner.enemy_scene = load(SCAV_SCENE)
+	spawner.raider_scene = load(RAIDER_SCENE)
+	spawner.set_physics_process(false)
+	var hot := {"name": "Hot", "center": player.global_position + Vector3(60, 0, 0), "radius": 15.0, "scavs": 2, "raiders": 1, "trickle": 1.0}
+	var quiet := {"name": "Quiet", "center": player.global_position + Vector3(-60, 0, 0), "radius": 15.0, "scavs": 1, "raiders": 0, "trickle": 0.0}
+	spawner.zones = [hot, quiet]
+	spawner.roamers = 1
+	spawner.scav_budget = 8
+	spawner.raider_budget = 2
+	spawner.max_alive = 20
+	spawner.raider_times = PackedFloat32Array([30.0])
+	spawner.scav_interval_min = 10.0
+	spawner.scav_interval_max = 10.0
+	for zone: Dictionary in [hot, quiet, {"name": ""}]:
+		for i in 4:
+			var marker := Marker3D.new()
+			marker.position = zone.get("center", player.global_position + Vector3(0, 0, 70)) + Vector3(i * 3.0, 0, 0)
+			if zone.name != "":
+				marker.set_meta("zone", zone.name)
+			spawner.add_child(marker)
+	main.add_child(spawner)
+	await _frames(2)
+	var in_zone := func(zone: Dictionary) -> Array:
+		var found := []
+		for e: Scav in get_nodes_in_group("enemies"):
+			var gap := Vector2(e.global_position.x - zone.center.x, e.global_position.z - zone.center.z).length()
+			if e.home_radius > 0.0 and e.home_center == zone.center and gap < 15.0:
+				found.append(e)
+		return found
+	var roamers := get_nodes_in_group("enemies").filter(func(e: Scav) -> bool: return e.home_radius == 0.0)
+	_check(in_zone.call(hot).size() == 3 and in_zone.call(quiet).size() == 1 and roamers.size() == 1,
+		"each zone starts with its own AI (hot 3, quiet 1) plus 1 roamer (%d, %d, %d)" % [in_zone.call(hot).size(), in_zone.call(quiet).size(), roamers.size()])
+	_check(spawner.raiders_spawned == 1 and in_zone.call(hot).filter(func(e: Scav) -> bool: return e.scene_file_path == RAIDER_SCENE).size() == 1,
+		"the hot zone's Raider starts there")
+	for second in 60:
+		spawner.tick(1.0)
+	_check(in_zone.call(hot).size() >= 7 and in_zone.call(quiet).size() == 1 and spawner.raiders_spawned == 2,
+		"later arrivals (scavs and the 0:30 Raider) all go to the hot zone (hot %d, quiet %d)" % [in_zone.call(hot).size(), in_zone.call(quiet).size()])
+	for enemy in get_nodes_in_group("enemies"):
+		enemy.remove_from_group("enemies")
+		enemy.queue_free()
+	spawner.queue_free()
 	await _frames(2)
 
 

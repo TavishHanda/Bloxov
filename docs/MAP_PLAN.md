@@ -54,9 +54,11 @@ session does the look; the Artist session makes props and models per `ART_SPEC.m
 
 ## Still to decide (owner: "there will be a lot of changes")
 Spawns, extracts, loot spots and player spawns on the layout picture are **placeholders**.
-- **AI spawn spots (owner: super important):** designated spots for every AI on this map, per area. Today
-  `enemy_spawner.gd` picks any child marker out of sight of players (20 scavs + 5 Raiders per raid, max 5 alive),
-  tuned for the 80 m test map.
+- **AI spawn spots (owner: super important):** 0.12.0 (Scavs 2.0) gives the map **AI zones** (`AI_ZONES` in the
+  generator: centre, radius, scavs and Raiders at the start, trickle weight for later arrivals). Each zone's spawn
+  markers carry `metadata/zone`; its AI patrol only inside it. Hot zones: town core (hottest), rest of town, the
+  bottom right; quiet ones: farm, church, woods, old houses; 3 roamers use the untagged markers. No zone may reach
+  a player spawn (the generator asserts it).
 - Spawning in general, extracts, loot placement, when players spawn. Questions for the owner are in the project thread.
 
 ## Owner answers (2026-10-09)

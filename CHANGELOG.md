@@ -6,6 +6,24 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.0 (Scavs 2.0: AI zones and hot zones; owner)
+- **Scavs 2.0 starts** (owner, from playtests: "too easy but too many", AI roaming in weird places). AI now live
+  in **zones** on Bloxov Battlegrounds and patrol only their own zone, so you learn where to expect them:
+  - **Hot zones** have the most AI and most of the Raiders: the town core round the town hall, bank and square
+    (hottest: 2 scavs and 3 Raiders), the rest of town (4 scavs, 1 Raider) and the bottom right round the depot,
+    junkyard and old gas station (3 scavs, 2 Raiders). The train station is busy too (2 scavs)
+  - **Quiet areas** get small patrols: the farm (2), the church (1), the woods by the creek (1), the old houses
+    south of the railway (1)
+  - **3 roamers** still cross the whole map
+  - Zone AI walk between the loot spots in their zone (in and out of the buildings) and other spots in it, and
+    head back into their zone after a fight pulls them out
+- **Fewer AI:** 25 at the start (was 30), then 5 more scavs (one every 50-70 s) and 3 more Raiders (2:30, 5:00,
+  7:00) arrive in the hot zones: about 33 over a raid (was up to 80). The town hall boss and guards, and
+  sniper scavs, come in the next versions (about 30 at the start then, owner)
+- No zone reaches a player spawn, so nobody starts a raid next to a patrol
+- Fix: two AI could spawn on the same spot and stay stuck in each other for the whole raid (one reason for AI
+  "standing around doing nothing" in a playtest). They now spawn on a free spot
+
 ## 0.11.21 (building floors stop flickering; owner)
 - Fix: building floors flickered against the ground under them (owner: "a really bad visual glitch"). Since the hills
   (0.11.17), floors were only 3 cm above the ground, and in 5 buildings the ground poked up through the floor
