@@ -16,8 +16,8 @@ const POP_SOUND := preload("res://audio/pop.wav")
 const BASH_SOUND := preload("res://audio/swing.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
 const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
-## Callouts (0.12.12, owner): placeholder gibberish barks from tools/gen_voice_placeholders.py until real recorded
-## lines replace audio/voice/<kind>.wav.
+## Callouts (0.12.12; 0.12.27, owner: cartoony gibberish, no real voice lines): barks from tools/gen_voice_placeholders.py,
+## 3 takes per kind (audio/voice/<kind>.wav, <kind>_2.wav, <kind>_3.wav).
 const VOICE := {
 	"spotted": preload("res://audio/voice/spotted.wav"), "lost": preload("res://audio/voice/lost.wav"),
 	"cover": preload("res://audio/voice/cover.wav"), "flank": preload("res://audio/voice/flank.wav"),

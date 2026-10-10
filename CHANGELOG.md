@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.27 (better AI callouts; owner)
+- AI callouts stay cartoony gibberish (owner: no real voice lines) but sound better: consonants (b, d, g, m...)
+  between bouncier vowels, a snappier, slightly lo-fi sound to match the game's other effects, and each kind has
+  its own shape (spotted: sharp and rising; hurt: a yelp; help: a long call; heal: a low mumble).
+- 3 takes per callout so the same line doesn't repeat. Raiders and Bon still say them deeper.
+- Demo of all 27: `/mnt/project-files/scavs2/0.12.27-callouts-demo.wav`.
+
 ## 0.12.26 (Raider and Bon close-range accuracy; owner)
 - Raiders and Bon hit 80% and 85% up close again (owner), as before 0.12.25. Their 28 m and long-range hit chances
   stay at 0.12.25's lower numbers (Raiders 32/16%, Bon 40/20%).
