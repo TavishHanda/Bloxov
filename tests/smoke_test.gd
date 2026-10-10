@@ -64,8 +64,9 @@ var expected_value := 0
 
 func _initialize() -> void:
 	_backup_profile()
-	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI.
-	create_timer(150.0, true).timeout.connect(func() -> void:
+	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
+	# it runs faster than real time; the whole test is about 150 game seconds.)
+	create_timer(200.0, true).timeout.connect(func() -> void:
 		print("SMOKE TEST: TIMED OUT (a script error probably stopped the test; see errors above)")
 		_quit(1))
 	_run.call_deferred()
@@ -1912,6 +1913,7 @@ func _section_spotting() -> void:
 	distant.look_at(distant.global_position + Vector3(0, 0, 10))  # facing away
 	distant._wander_time = 99.0
 	distant._wander_dir = Vector3.ZERO
+	gun.noise_radius = 20.0  # (a quiet gun: the AK carries 50 m now, and the test map is small)
 	await physics_frame
 	_check(distant.global_position.distance_to(player.global_position) > gun.noise_radius, "the scav is out of earshot")
 	gun.base_spread_deg = 0.0
@@ -2275,6 +2277,57 @@ func _section_teamwork() -> void:
 	var idle := load(SCAV_SCENE).instantiate() as Scav
 	_check(idle.patrol_pause_max <= 3.0 and idle.loot_time_max <= 4.0, "shorter pauses on patrol, so they keep moving")
 	idle.free()
+	# 0.12.7 (owner: from a hill he shot lots of scavs that never noticed him).
+	# A friend shot dead nearby: it turns toward where the shots came from.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var victim := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	var friend := _spawn(SCAV_SCENE, Vector3(16, 0.1, 30)) as Scav
+	var loner := _spawn(SCAV_SCENE, Vector3(-25, 0.1, 30)) as Scav
+	for s: Scav in [victim, friend, loner]:
+		s._wander_time = 99.0
+		s._wander_dir = Vector3.ZERO
+	await physics_frame
+	victim.health.take_damage(9999, Vector3(30, 0, 60))
+	await physics_frame
+	_check(friend.state == Scav.State.ALERT and loner.state == Scav.State.IDLE,
+		"a friend dying next to it alerts it toward the shooter; AI far off don't notice")
+	friend.queue_free()
+	loner.queue_free()
+	# Gunshots carry farther and alarm it (it hurries over).
+	var listener := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	await physics_frame
+	listener.hear_noise(listener.global_position + Vector3(40, 0, 0), ItemDB.ITEMS["ak"]["noise"])
+	_check(listener.state == Scav.State.INVESTIGATE and listener._alarmed, "it hears an AK from 40 m and hurries toward it")
+	_check(listener.sight_range >= 75.0, "it can spot you from 75 m (players on hills)")
+	# Patrol stops in the open prefer a spot next to cover.
+	listener._set_state(Scav.State.IDLE)
+	var covered := 0
+	for i in 20:
+		var spot := listener._pick_patrol_point()
+		if listener._patrol_container != null or listener._has_cover_at(spot):
+			covered += 1
+	_check(covered >= 16, "patrol stops are next to cover or loot (%d of 20)" % covered)
+	listener.queue_free()
+	await physics_frame
+	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav
+	far_one.shot_damage = 0
+	await physics_frame
+	far_one._target = player
+	far_one._alert(player.global_position)
+	var space := far_one.get_world_3d().direct_space_state
+	var exposed := 0.0
+	for i in 60 * 4:
+		await physics_frame
+		var in_view := space.intersect_ray(PhysicsRayQueryParameters3D.create(player.eye_position(), far_one.global_position + Vector3(0, 1.2, 0), 1)).is_empty()
+		if in_view and Vector2(far_one.velocity.x, far_one.velocity.z).length() > 0.5 and far_one._cover_phase == Scav.Cover.NONE:
+			exposed += 1.0 / 60.0
+	_check(far_one._peeks_left == 0 and exposed < 1.0,
+		"from %.0f m it moves up cover to cover, not walking at you in the open (%.1f s in the open)" % [far_one.global_position.distance_to(player.global_position), exposed])
+	far_one.queue_free()
+	player.health.heal(player.health.max_health)
+	await physics_frame
 	player.health.heal(player.health.max_health)
 	await physics_frame
 
