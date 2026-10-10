@@ -959,18 +959,30 @@ func _sneaking() -> bool:
 
 
 ## Circle around the target: a reachable spot off to one side at about the same distance (Raiders, scavs since 0.12.3).
+## A flank ends somewhere off to your side that you can't see (0.12.28, owner: AI kept running sideways in the
+## open: a flank used to be a sideways run in plain view). With no hidden spot on either side it takes cover instead.
 func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_cooldown_left = cover_cooldown
-	var side := to_target.normalized().cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
 	var target_pos := _target.global_position
-	var spot := target_pos - to_target.normalized() * dist * 0.4 + side * dist * 0.8
-	spot = AINav.closest(self, spot)
-	if spot == Vector3.ZERO:
-		return
-	_cover_point = spot
-	_cover_low = false
-	_cover_phase = Cover.FLANKING
-	_bark("flank")
+	var eyes := _target.eye_position()
+	var space := get_world_3d().direct_space_state
+	var first := 1.0 if randf() < 0.5 else -1.0
+	for side_sign: float in [first, -first]:
+		var side := to_target.normalized().cross(Vector3.UP) * side_sign
+		for reach: float in [0.8, 0.6, 1.0]:
+			var spot := AINav.closest(self, target_pos - to_target.normalized() * dist * 0.4 + side * dist * reach)
+			if spot == Vector3.ZERO or _flat(spot - global_position).length() < 3.0:
+				continue
+			var look := PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 1.5, eyes, 1)
+			if space.intersect_ray(look).is_empty():
+				continue   # you'd see it get there
+			_cover_point = spot
+			_cover_low = false
+			_cover_phase = Cover.FLANKING
+			_bark("flank")
+			return
+	_cover_cooldown_left = 0.0
+	_try_take_cover()
 
 
 ## Hurt: get to cover (or patch up where it stands if there's none) and heal.
@@ -1065,20 +1077,20 @@ func _cover_stuck(move: Vector3) -> bool:
 ## (if it can't see you from cover, it heads to where it last saw you = peeking out).
 func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
 	if _cover_phase == Cover.FLANKING:
+		# Runs there facing where it's going (not sideways while shooting at you); shot on the way: fights back.
 		var flank_move := _path_velocity(_cover_point, move_speed)
-		if sees and dist <= shoot_range:
-			_face(to_target, delta)
-			_update_shooting(delta, dist)
-		else:
-			_face(flank_move, delta)
-			_hold_fire()
-		if _arrived(_cover_point) or _cover_stuck(flank_move):
+		_face(flank_move, delta)
+		_hold_fire()
+		if _arrived(_cover_point) or _cover_stuck(flank_move) or (_flinch_left > 0.0 and sees):
 			_cover_phase = Cover.NONE
 			_lost_sight_time = 0.0
 		return flank_move
 	if _cover_phase == Cover.MOVING:
+		# Runs to cover facing where it's going; it only shoots on the way if you're roughly ahead of it, so it
+		# doesn't walk sideways to cover while shooting at you (0.12.28, owner: "just moving sideways").
 		var move := _path_velocity(_cover_point, move_speed)
-		if sees and dist <= shoot_range:
+		var ahead := move.length() < 0.5 or _flat(move).normalized().dot(_flat(to_target).normalized()) > 0.5
+		if sees and dist <= shoot_range and ahead:
 			_face(to_target, delta)
 			_update_shooting(delta, dist)
 		else:
@@ -1350,11 +1362,17 @@ func _try_suppress() -> bool:
 	return true
 
 
+## In the open: short side-steps between bursts of standing still to shoot, not long sideways runs (0.12.28,
+## owner: AI "just moving sideways"; steps were 0.8-2 s, half the time).
 func _strafe(delta: float, to_target: Vector3) -> Vector3:
 	_strafe_time -= delta
 	if _strafe_time <= 0.0:
-		_strafe_time = randf_range(0.8, 2.0)
-		_strafe_dir = [-1.0, 0.0, 0.0, 1.0].pick_random()
+		if _strafe_dir == 0.0:
+			_strafe_time = randf_range(0.3, 0.6)
+			_strafe_dir = [-1.0, 1.0].pick_random()
+		else:
+			_strafe_time = randf_range(1.2, 2.4)
+			_strafe_dir = 0.0
 	var side := to_target.normalized().cross(Vector3.UP) * _strafe_dir
 	return side * move_speed * 0.5
 

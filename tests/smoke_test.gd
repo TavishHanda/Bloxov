@@ -2455,6 +2455,7 @@ func _section_teamwork() -> void:
 	var mover := _spawn(RAIDER_SCENE, Vector3(-24, 0.1, -12)) as Scav
 	var pin_shots := [0]
 	pinner.fired.connect(func(_end: Vector3) -> void: pin_shots[0] += 1)
+	var flank_wall := _block(Vector3(-21.6, 1.5, -28.8), Vector3(2, 3, 2))   # a flank spot you can't see (0.12.28)
 	await physics_frame
 	for s: Scav in [pinner, mover]:
 		s.shot_damage = 0
@@ -2472,6 +2473,7 @@ func _section_teamwork() -> void:
 	_check(pin_shots[0] >= 2, "...firing at your cover while it does (%d shots)" % pin_shots[0])
 	pinner.queue_free()
 	mover.queue_free()
+	flank_wall.queue_free()
 	await physics_frame
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
@@ -2770,7 +2772,7 @@ func _section_raiders() -> void:
 	_check(packed.grid.stacks.size() == 4, "a body bag fits an AK, a backpack and two medkits (%d of 4)" % packed.grid.stacks.size())
 	packed.queue_free()
 	scav.queue_free()
-	# Flanking: in a lull, a Raider may circle around instead of trading shots.
+	# Flanking: in a lull, a Raider may circle around instead of trading shots, to a spot you can't see (0.12.28).
 	player.teleport_to(Vector3(0, 0.1, -10))
 	var flanker := _spawn(RAIDER_SCENE, Vector3(0, 0.1, 5)) as Scav
 	_face_player(flanker)
@@ -2780,14 +2782,46 @@ func _section_raiders() -> void:
 	flanker._set_state(Scav.State.ENGAGE)
 	flanker._target = player
 	flanker._try_flank(player.global_position - flanker.global_position, 15.0)
+	_check(flanker._cover_phase != Scav.Cover.FLANKING, "with nowhere hidden to flank to, it doesn't run across in the open")
+	var side_wall := _block(Vector3(6, 1.5, -7), Vector3(2, 3, 2))
+	await physics_frame
+	flanker._cover_phase = Scav.Cover.NONE
+	flanker._try_flank(player.global_position - flanker.global_position, 15.0)
 	var start := flanker.global_position
 	var to_player := (player.global_position - start).normalized()
+	var faced_ahead := 0
 	for i in 120:
 		await physics_frame
+		if flanker._cover_phase == Scav.Cover.FLANKING and flanker.velocity.length() > 1.0:
+			faced_ahead += 1 if (-flanker.global_basis.z).dot(flanker.velocity.normalized()) > 0.5 else 0
 	var moved := flanker.global_position - start
 	var sideways := absf(moved.dot(to_player.cross(Vector3.UP)))
-	_check(sideways > 2.0, "a flanking Raider circles around to your side (%.1f m sideways)" % sideways)
+	var hidden := flanker.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(flanker._cover_point + Vector3.UP * 1.5, player.eye_position(), 1))
+	_check(sideways > 2.0 and not hidden.is_empty(), "a flanking Raider circles around to your side, somewhere you can't see (%.1f m sideways)" % sideways)
+	_check(faced_ahead > 30, "it runs there facing where it's going, not sideways (%d frames)" % faced_ahead)
 	flanker.queue_free()
+	side_wall.queue_free()
+	# Out in the open it fights with short side-steps, not long sideways runs (0.12.28, owner: "just moving sideways").
+	var weaver := _spawn(SCAV_SCENE, Vector3(0, 0.1, 8)) as Scav
+	_face_player(weaver)
+	weaver.shot_damage = 0
+	weaver.flank_chance = 0.0
+	await physics_frame
+	weaver._target = player
+	weaver._alert(player.global_position)
+	var run := 0
+	var longest := 0
+	for i in 60 * 8:
+		await physics_frame
+		var v := Vector3(weaver.velocity.x, 0, weaver.velocity.z)
+		var to := Vector3(player.global_position.x - weaver.global_position.x, 0, player.global_position.z - weaver.global_position.z)
+		if weaver._cover_phase == Scav.Cover.NONE and v.length() > 1.0 and absf(v.normalized().dot(to.normalized())) < 0.45:
+			run += 1
+			longest = maxi(longest, run)
+		else:
+			run = 0
+	_check(longest < 50, "in the open it side-steps briefly, it doesn't keep running sideways (longest %.1f s)" % (longest / 60.0))
+	weaver.queue_free()
 	# Duos: a Raider can arrive with a partner that follows it.
 	var spawner := EnemySpawner.new()
 	spawner.enemy_scene = load(SCAV_SCENE)
@@ -2892,3 +2926,15 @@ func _restore_profile() -> void:
 func _quit(code: int) -> void:
 	_restore_profile()
 	quit(code)
+
+
+## A solid world-layer box (cover for the AI checks).
+func _block(pos: Vector3, size: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = size
+	body.add_child(shape)
+	main.add_child(body)
+	body.global_position = pos
+	return body
