@@ -1547,12 +1547,12 @@ func _section_online_loot() -> void:
 
 
 func _section_old_bloxov() -> void:
-	# The first real map (0.10.0): Old Bloxov, a 350 m gray box built by tools/gen_old_bloxov.py. Its pieces
+	# The first real map (0.10.0): Bloxov Battlegrounds (first called Old Bloxov), a 350 m gray box built by tools/gen_old_bloxov.py. Its pieces
 	# replace the test map's when a raid scene is made. Checked on a server raid copy (its own world).
 	const MAP := "res://scenes/maps/old_bloxov.tscn"
 	var map := (load(MAP) as PackedScene).instantiate()
 	_check(map.get_node("Extracts").get_child_count() == 6 and map.get_node("PlayerSpawns").get_child_count() == 8,
-		"Old Bloxov: 6 extracts and 8 player spawns")
+		"Bloxov Battlegrounds: 6 extracts and 8 player spawns")
 	# Extracts near your spawn are closed for you (owner, 0.10.3): every spawn still has enough far ones to open.
 	var short := []
 	for spawn: Node3D in map.get_node("PlayerSpawns").get_children():
@@ -1567,7 +1567,7 @@ func _section_old_bloxov() -> void:
 	var names: Array = minimap.get("labels", []).map(func(l: Array) -> String: return l[0])
 	_check(minimap.get("size", 0.0) == 350.0 and minimap.get("buildings", PackedFloat32Array()).size() >= 4 * 30
 		and names.has("BANK") and names.has("TOWN HALL") and minimap.get("roads", []).size() >= 5,
-		"the map (M) has Old Bloxov's buildings, roads and place names (%d names)" % names.size())
+		"the map (M) has Bloxov Battlegrounds' buildings, roads and place names (%d names)" % names.size())
 	var spots: Array[Vector3] = []
 	for node in map.get_node("PlayerSpawns").get_children() + map.get_node("Extracts").get_children():
 		spots.append((node as Node3D).position)

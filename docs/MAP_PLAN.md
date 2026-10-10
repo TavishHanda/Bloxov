@@ -1,5 +1,6 @@
-# Map plan: Old Bloxov (first real map)
+# Map plan: Bloxov Battlegrounds (first real map)
 
+Named **Bloxov Battlegrounds** by the owner on 2026-10-10 (first called "Old Bloxov"; file names keep `old_bloxov`).
 Agreed with the owner on 2026-10-09 (layout draft 5). Lore is the owner's; don't invent it.
 Picture: [`maps/old_bloxov_layout.png`](maps/old_bloxov_layout.png) (drawn by `maps/old_bloxov_layout.py`; edit
 the script and re-run it to change the picture). Coordinates in the script are meters, origin top-left, north up.

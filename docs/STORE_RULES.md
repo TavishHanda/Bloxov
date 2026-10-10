@@ -26,6 +26,8 @@ CHANGELOG entry when a change was made for store reasons.
 - No sexual content or nudity.
 - Weapons: no real gun brand or model names, logos or trademarked designs without a licence (generic names like
   "AK Rifle" and "Pistol" are fine). No instructions on real weapons. Same for any other real brand (cars, food).
+- Names: check game, map and item names for trademarks before a public release. Open: "Bloxov Battlegrounds" (the
+  first map; "Battlegrounds" is a trademark Krafton/PUBG has enforced).
 - The game must not be put in Apple's Kids category or Google's Families program, and the store listing's target
   audience must be 13+ (or 18+ if the owner prefers). That keeps child-directed rules (COPPA, Families policy)
   from applying; if the owner ever wants under-13 players, that's a big change: raise it first.

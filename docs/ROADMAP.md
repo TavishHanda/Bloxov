@@ -4,7 +4,7 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are (2026-10-10):** 0.10.x, the **Map & Spawn update**: Old Bloxov is in as a gray box
+**Where we are (2026-10-10):** 0.10.x, the **Map & Spawn update**: Bloxov Battlegrounds (first called Old Bloxov) is in as a gray box
 (`docs/MAP_PLAN.md`), with player spawns and per-squad extracts (0.10.3). The code cleanup (0.11.0) is done; map follow-ups shipped as 0.11.x.
 Next: Scavs 2.0. M1-M3 are done (multiplayer co-op + PvP is live).
 Art is paused: cover props (cars, square props) are built; buildings wait until the layout is proven in play.
