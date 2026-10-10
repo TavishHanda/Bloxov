@@ -6,7 +6,7 @@ Every milestone ends with someone other than the owner playing the build.
 
 **Where we are (2026-10-10):** 0.10.x, the **Map & Spawn update**: Bloxov Battlegrounds (first called Old Bloxov) is in as a gray box
 (`docs/MAP_PLAN.md`), with player spawns and per-squad extracts (0.10.3). The code cleanup (0.11.0) is done; map follow-ups shipped as 0.11.x.
-Next: Scavs 2.0. M1-M3 are done (multiplayer co-op + PvP is live).
+Scavs 2.0 (0.12) closed at 0.12.39 (owner, 2026-10-10). Next: the Movement update (0.13). M1-M3 are done (multiplayer co-op + PvP is live).
 Art is paused: cover props (cars, square props) are built; buildings wait until the layout is proven in play.
 
 ### Up next, in order
@@ -14,10 +14,11 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    extracting one at a time, the downed timer running out, squads spawning together, the 0.10.1 places
    (hunting stands, bell tower, junkyard, bunker, vault), AI on the big map. Layout fixes from it ship as 0.11.x.
 2. ~~**Code cleanup (0.11):**~~ done in 0.11.0.
-3. **Scavs 2.0 (0.12, in progress):** 0.12.0 AI zones + hot zones + fewer AI (done), 0.12.1 sniper scavs on high perches
-   (scope glint + their own shot sound, done), 0.12.2 the town hall boss + 3 guards (every raid while testing, a
-   chance later; done), 0.12.3 smarter fights (calling for help, cover at range, pushing while you reload/heal,
-   scavs flank too, shorter idle pauses; done). Then: owner playtest and tuning, the close-range "walks into you" bug.
+3. ~~**Scavs 2.0 (0.12):**~~ closed at 0.12.39 (owner: "feeling really good"). AI zones, snipers, Bon + guards (trips
+   to the bank), one-plan fight brain (shoot first, chase in range, cover with intent, hurt AI fight from cover),
+   tracking after losing sight, callouts. Left over, not blocking: step 2 of the AI rebuild (patrol/investigate/search
+   on the one-plan pattern), Bon's spawn chance before launch (100% while testing), difficulty tuning (accuracy and
+   bursts only), and playtesting the bell tower, hunting stands, junkyard, bunker, vault and rival fights.
 4. **Movement update (owner, 2026-10-10; small):** mainly **vaulting**: vault or mantle over low cover (fences,
    sandbags, the trench, walls) and climb onto ledges. Candidates for the owner to pick from: ladders, fall damage
    (both parked in `BACKLOG.md`), prone, crouch-walk speed tuning. (Leaning and stamina already exist.) Right after
