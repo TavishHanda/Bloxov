@@ -6,6 +6,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.37 (strafe to cover in the open; owner)
+- Out in the open past chase range, after its first shots an AI now strafes to cover still shooting at you (owner:
+  "they shoot a few times then run to cover, which is unrealistic"). Every other cover run is unchanged: facing
+  where it's going, not shooting.
+- Smoke test: out in the open it strafes to cover still shooting.
+
 ## 0.12.36 (shoot first, chase all the way in, Bon's trips; owner)
 - Shooting comes first (owner: in the open they still ran first). A healthy AI that sees you stands and shoots
   for 2-3 s before it moves to cover; getting hit in that first second doesn't send it running.

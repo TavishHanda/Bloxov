@@ -1952,7 +1952,7 @@ func _section_senses() -> void:
 	wall.queue_free()
 	await _frames(12)
 	_check(tracker._lost_sight_time == 0.0, "...and sees you again the moment you're in view")
-	player.teleport_to(track_home)
+	player.teleport_to(Vector3(30, 0.1, -30))
 	tracker.queue_free()
 	# Its first instinct in the open is to shoot, not run for cover (0.12.36, owner).
 	var opener := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 40)) as Scav
@@ -1974,6 +1974,26 @@ func _section_senses() -> void:
 	_check(first_plan == Scav.Tactic.STAND and opener_shots[0] > 0 and shots_before_moving != 0,
 		"out of chase range in the open it shoots first, cover after (%d shots before moving)" % shots_before_moving)
 	opener.queue_free()
+	# ...and from there it strafes to cover still shooting (0.12.37, owner), unlike other cover runs.
+	var strafer := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 40)) as Scav
+	_face_player(strafer)
+	strafer.shot_damage = 0
+	strafer.flank_chance = 0.0
+	var _cover_spot := _block(strafer.global_position + Vector3(4, 1.0, 1.5), Vector3(1.5, 2.0, 1.5))
+	var strafe_shots := [0]
+	strafer.fired.connect(func(_end: Vector3) -> void:
+		if strafer._cover_phase == Scav.Cover.MOVING:
+			strafe_shots[0] += 1)
+	await physics_frame
+	strafer._alert(player.global_position)
+	var strafed := false
+	for i in 60 * 6:
+		await physics_frame
+		strafed = strafed or (strafer._cover_phase == Scav.Cover.MOVING and strafer._strafe_to_cover)
+	_check(strafed and strafe_shots[0] > 0, "out in the open it strafes to cover still shooting (%d shots on the way)" % strafe_shots[0])
+	strafer.queue_free()
+	_cover_spot.queue_free()
+	player.teleport_to(track_home)
 
 
 func _section_spotting() -> void:

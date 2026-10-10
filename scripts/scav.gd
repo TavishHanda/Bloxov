@@ -939,6 +939,8 @@ var _hit_since_decide := false
 ## Its last plan in the open was standing and shooting (so next it moves to cover: shoot first, then cover).
 var _stood_last := false
 var _suppress_at := Vector3.ZERO
+## Moving to cover after trading shots in the open: strafes there still shooting (0.12.37).
+var _strafe_to_cover := false
 ## A quick sidestep after getting shot in the open (the only sideways move it makes there).
 var _dodge_left := 0.0
 var _dodge_dir := 0.0
@@ -1112,7 +1114,9 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		tactic = Tactic.STAND
 		_stand_time = randf_range(2.0, 3.0)
 		return
+	var from_the_open := _stood_last and dist > chase_range
 	_stood_last = false
+	_strafe_to_cover = false
 	if not holds_position and _cover_cooldown_left <= 0.0:
 		# Up close (inside a building, round a corner) its first instinct is to shoot back: it only ducks into cover
 		# that's a step or two away (0.12.30, owner: one ran around looking for cover while he shot it).
@@ -1124,6 +1128,7 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 			_try_take_cover()
 		if _cover_phase != Cover.NONE:
 			tactic = Tactic.FLANK if _cover_phase == Cover.FLANKING else Tactic.COVER
+			_strafe_to_cover = from_the_open and _cover_phase == Cover.MOVING
 			return
 	tactic = Tactic.STAND
 	_stand_time = randf_range(2.0, 3.0) * (0.5 if is_hurt() else 1.0)   # badly hurt: looks for cover again sooner
@@ -1150,6 +1155,7 @@ func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
 			_cover_point = spot
 			_cover_low = false
 			_cover_phase = Cover.MOVING
+			_strafe_to_cover = false
 			_peek_point = Vector3.INF
 			_peeks_left = 0
 			return _path_velocity(spot, move_speed)
@@ -1203,6 +1209,7 @@ func _find_advance_cover(goal: Vector3) -> Vector3:
 
 ## Looks for a walkable spot nearby that the target can't see; starts moving there if it finds one.
 func _try_take_cover(radius := -1.0) -> void:
+	_strafe_to_cover = false
 	_cover_cooldown_left = cover_cooldown
 	var spot := _find_cover(radius)
 	if spot != Vector3.INF:
@@ -1401,6 +1408,16 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 	if _cover_phase == Cover.MOVING:
 		# Runs to cover with intent: facing where it's going, not shooting (0.12.36, owner; 0.12.28: no sideways
 		# walking to cover while shooting at you). The last step in it turns to face you.
+		# Except out in the open after trading shots (0.12.37, owner: "they shoot a few times then run to cover,
+		# which is unrealistic"): there it strafes over still shooting at you.
+		if _strafe_to_cover and sees and dist <= shoot_range:
+			var strafe := _path_velocity(_cover_point, move_speed * 0.85)
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+			if _flat(_cover_point - global_position).length() < 0.4 or _cover_stuck(strafe):
+				_cover_phase = Cover.HOLDING
+				_cover_hold_left = cover_hold_time
+			return strafe
 		var move := _path_velocity(_cover_point, move_speed)
 		if move.length() < 0.5:
 			_face(to_target if sees else _flat(_last_seen - global_position), delta)
