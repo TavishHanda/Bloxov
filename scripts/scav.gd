@@ -97,11 +97,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## (0.12.12: 75 m in 0.12.8-0.12.11, owner: "lower by 5".)
 @export var shoot_range := 70.0
 ## Delay between spotting the player and starting to aim. Gives you a moment to react.
-@export var reaction_time := 0.3
+## (0.12.30, owner: "reaction time is still really slow": spotted -> first shot was 0.65 s, now 0.35 s.)
+@export var reaction_time := 0.15
 ## Getting shot (or a bullet whizzing past) while unaware startles it: it turns and starts aiming after only this
 ## long, so whoever sees first gets the first shots, not a free kill (0.11.16: before, it died before it reacted).
 @export var startle_reaction_time := 0.15
-@export var aim_time := 0.35
+@export var aim_time := 0.2
 ## The longest burst. Each burst is a random length: longer up close, short taps far away (0.12.6, owner: not
 ## always 3). 1 = single shots (snipers).
 @export var burst_size := 3
@@ -131,6 +132,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## and repeats. It also ducks in a lull (this many seconds with no threat).
 @export var lull_time := 2.0
 @export var cover_search_radius := 12.0
+## Closer than this (meters) it fights back first and only takes cover within close_cover_radius (0.12.30, owner).
+@export var close_fight_range := 12.0
+@export var close_cover_radius := 3.0
 @export var cover_hold_time := 1.2
 ## At most one new cover spot per this many seconds. (0.12.10: 5 s before; owner: they kept running sideways in
 ## the open instead of hiding.)
@@ -296,6 +300,11 @@ var _wants_heal := false
 var _heal_left := 0.0
 var _heal_retry_left := 0.0
 var _heal_after_move := false
+## Already retreated at this health (it retreats again only after patching up above hurt_fraction).
+var _retreated := false
+## Where it last heard something, and how long it still stands looking that way first.
+var _heard_at := Vector3.ZERO
+var _look_at_sound_left := 0.0
 ## Its patrol area (Scavs 2.0, owner: AI stays where players learn to expect it). Set by the spawner from the
 ## map's AI zones: while unaware it only patrols within `home_radius` meters of `home_center`. 0 = roams the
 ## whole map (the few random roamers, and every AI on the test map). Fights can still pull it out.
@@ -375,6 +384,12 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
 	_goal = pos + offset
+	# First it snaps round to look where the sound came from (0.12.30, owner: walking right past them, they never
+	# looked); then it walks over. (Not again for every footstep it's already looking toward.)
+	var to_sound := _flat(pos - global_position)
+	if state != State.INVESTIGATE or (to_sound.length() > 0.1 and _flat(-global_basis.z).normalized().dot(to_sound.normalized()) < 0.5):
+		_heard_at = pos
+		_look_at_sound_left = 0.85
 	if state != State.INVESTIGATE:
 		_set_state(State.INVESTIGATE)
 	if radius >= alarm_noise:
@@ -434,8 +449,14 @@ func _physics_process(delta: float) -> void:
 				if _state_time > 3.0:
 					_set_state(State.SEARCH)
 			else:
-				desired = _path_velocity(_goal, move_speed * (jog_speed if _answering_call or _alarmed else investigate_speed))
-				_face(desired, delta)
+				_look_at_sound_left -= delta
+				if _look_at_sound_left > 0.6:
+					pass   # a moment to register it ("huh?")
+				elif _look_at_sound_left > 0.0:
+					_face(_flat(_heard_at - global_position), delta, 14.0)
+				else:
+					desired = _path_velocity(_goal, move_speed * (jog_speed if _answering_call or _alarmed else investigate_speed))
+					_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
 			elif _arrived(_goal) or _state_time > 15.0:
@@ -957,7 +978,11 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		_bark("push")
 		return
 	if not holds_position and _cover_cooldown_left <= 0.0:
-		if _since_threat > lull_time and randf() < flank_chance and not is_wounded():
+		# Up close (inside a building, round a corner) its first instinct is to shoot back: it only ducks into cover
+		# that's a step or two away (0.12.30, owner: one ran around looking for cover while he shot it).
+		if dist < close_fight_range:
+			_try_take_cover(close_cover_radius)
+		elif _since_threat > lull_time and randf() < flank_chance and not is_wounded():
 			_try_flank(to_target, dist)   # (takes cover instead if there's no hidden spot to flank to)
 		else:
 			_try_take_cover()
@@ -1036,9 +1061,9 @@ func _find_advance_cover(goal: Vector3) -> Vector3:
 
 
 ## Looks for a walkable spot nearby that the target can't see; starts moving there if it finds one.
-func _try_take_cover() -> void:
+func _try_take_cover(radius := -1.0) -> void:
 	_cover_cooldown_left = cover_cooldown
-	var spot := _find_cover()
+	var spot := _find_cover(radius)
 	if spot != Vector3.INF:
 		_cover_point = spot
 		_cover_low = _found_low
@@ -1103,16 +1128,25 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 	_try_take_cover()
 
 
-## Hurt: get to cover (or patch up where it stands if there's none) and heal.
+## Badly hurt (hurt_fraction: scavs 30%, Raiders and Bon 40%): it retreats (0.12.30, owner: "at some threshold like
+## 30% they need to go retreat"): runs back to cover farther from you (up to 20 m away, facing where it's going),
+## patches up there if it has a heal left, else lies low there a while before fighting again. With nowhere farther
+## back it takes the nearest cover; with none at all it patches up where it stands.
 func _fall_back_to_heal() -> void:
 	_wants_heal = false
-	var spot := _find_cover()
+	_retreated = true
+	var spot := _find_cover(20.0, 3.0)
+	if spot == Vector3.INF:
+		spot = _find_cover()
 	if spot != Vector3.INF:
 		_cover_point = spot
 		_cover_low = _found_low
 		_cover_phase = Cover.MOVING
-		_heal_after_move = true
-	else:
+		_heal_after_move = _heals_left > 0
+		_peek_point = Vector3.INF
+		_peeks_left = 0
+		_bark("cover")
+	elif _heals_left > 0:
 		_start_heal()
 
 
@@ -1124,8 +1158,12 @@ func _start_heal() -> void:
 	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1)
 
 
-## The closest walkable spot within cover_search_radius (by walking distance) the target can't see; INF if none.
-func _find_cover() -> Vector3:
+## The closest walkable spot within `radius` (by walking distance) the target can't see; INF if none. Retreating
+## (`farther` > 0), only spots at least that much farther from the target than it is now count.
+func _find_cover(radius := -1.0, farther := 0.0) -> Vector3:
+	if radius < 0.0:
+		radius = cover_search_radius
+	var my_dist := _flat(global_position - _target.global_position).length()
 	var eyes := _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
@@ -1138,7 +1176,7 @@ func _find_cover() -> Vector3:
 	var chest := global_position + Vector3(0, 1.0, 0)
 	for i in 16:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 16.0)
-		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(chest, chest + dir * cover_search_radius, 1, [get_rid()]))
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(chest, chest + dir * radius, 1, [get_rid()]))
 		if hit.is_empty():
 			continue
 		var behind: Vector3 = hit.position + away * 0.9 - dir * 0.3
@@ -1146,28 +1184,28 @@ func _find_cover() -> Vector3:
 		if spot == Vector3.ZERO or _flat(spot - behind).length() > 1.5:
 			continue
 		var hides := _hides_at(space, eyes, spot)
-		if hides == 0 or _spot_taken(spot):
+		if hides == 0 or _spot_taken(spot) or _flat(spot - _target.global_position).length() < my_dist + farther:
 			continue  # the target could see it there, or a friend is already hiding there
 		# (Low cover, where it has to crouch, counts as a few meters farther: it prefers a spot it can stand at.)
 		var walk := AINav.path_length(AINav.path(self, global_position, spot))
-		if walk <= cover_search_radius * 1.6 and walk + (3.0 if hides == 1 else 0.0) < best_walk:
+		if walk <= radius * 1.6 and walk + (3.0 if hides == 1 else 0.0) < best_walk:
 			best = spot
 			best_walk = walk + (3.0 if hides == 1 else 0.0)
 			_found_low = hides == 1
 	if best != Vector3.INF:
 		return best
-	for radius in [3.0, 5.0, cover_search_radius]:
+	for ring: float in [3.0, 5.0, radius]:
 		for i in 12:
 			var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 12.0)
-			var spot := AINav.closest(self, global_position + dir * radius)
-			if spot == Vector3.ZERO or _flat(spot - global_position).length() > radius + 1.0:
+			var spot := AINav.closest(self, global_position + dir * ring)
+			if spot == Vector3.ZERO or _flat(spot - global_position).length() > ring + 1.0:
 				continue
 			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
-			if space.intersect_ray(query).is_empty() or _spot_taken(spot):
+			if space.intersect_ray(query).is_empty() or _spot_taken(spot) or _flat(spot - _target.global_position).length() < my_dist + farther:
 				continue  # the target could see it there, or a friend is already hiding there
 			# Judge by walking distance: a spot inside a building may be close in a straight line but far around.
 			var walk := AINav.path_length(AINav.path(self, global_position, spot))
-			if walk <= radius * 1.6 and walk < best_walk:
+			if walk <= ring * 1.6 and walk < best_walk:
 				best = spot
 				best_walk = walk
 		if best != Vector3.INF:
@@ -1236,7 +1274,7 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 				_start_heal()
 			else:
 				_cover_phase = Cover.HOLDING
-				_cover_hold_left = cover_hold_time
+				_cover_hold_left = cover_hold_time * (3.0 if tactic == Tactic.HEAL else 1.0)   # retreated: lies low
 		return move
 	if _cover_phase == Cover.HEALING:
 		_heal_left -= delta
@@ -1245,6 +1283,7 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		if _heal_left <= 0.0:
 			health.heal(heal_amount)
 			_heals_left -= 1
+			_retreated = health.current <= health.max_health * hurt_fraction
 			_was_wounded = is_wounded()
 			_cover_phase = Cover.NONE
 			_lost_sight_time = 0.0
@@ -1274,7 +1313,10 @@ func _update_peek(delta: float, sees: bool, to_target: Vector3, dist: float) -> 
 	var move := Vector3.ZERO
 	if not sees:
 		move = _path_velocity(_peek_point, move_speed * 0.8)
-		_face(_flat(_last_seen - global_position), delta)
+		# The last step or two out it faces you, ready to shoot; farther than that it walks there facing ahead
+		# (0.12.30: no long sideways walks out of cover).
+		var out_left := _flat(_peek_point - global_position).length()
+		_face(_flat(_last_seen - global_position) if out_left < 2.0 else move, delta)
 		_hold_fire()
 		if _arrived(_peek_point) or _cover_stuck(move):
 			_peek_blind += delta
@@ -1755,7 +1797,10 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 		_cover_phase = Cover.NONE
 		_wants_heal = true
 		_heal_retry_left = 4.0
-	elif not health.is_dead and _heals_left > 0 and health.current <= health.max_health * hurt_fraction:
+	elif not health.is_dead and (_heals_left > 0 or not _retreated) and health.current <= health.max_health * hurt_fraction:
+		if not _wants_heal and state == State.ENGAGE and not holds_position and tactic != Tactic.HEAL:
+			_cover_phase = Cover.NONE   # drop whatever it was doing: retreat now (next frame)
+			tactic = Tactic.NONE
 		_wants_heal = true
 	_hit_flash_time = 0.08
 	if _flinch_left <= 0.0:

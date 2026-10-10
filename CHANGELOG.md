@@ -6,6 +6,20 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.30 (AI hearing, retreat, shoot back first, faster reactions; owner)
+- AI hear you better (owner: walking right past them, they never looked). Footsteps carry farther: walking 12 m
+  (was 7), sprinting 25 m (was 15); crouch-walking is nearly silent (2 m, was silent). On hearing a step an AI stops,
+  snaps round to look where it came from, then walks over: walking up behind one, it spots you in about 0.4 s.
+- Retreat when badly hurt (owner: "like 30%"): scavs at 30%, Raiders and Bon at 40%, drop what they're doing and run
+  back to cover farther from you (up to 20 m), patch up there if they have a heal, else lie low a while. Before,
+  only an AI with a heal left fell back, to the nearest cover.
+- Up close (within 12 m) an AI's first instinct is to shoot back: it only ducks into cover a step or two away
+  (owner: one ran round inside a building looking for cover while he shot it).
+- Faster reactions (owner): spotted -> first shot 0.35 s for scavs (was 0.65), 0.27 s for Raiders (was 0.55),
+  0.22 s for Bon (was 0.45). Snipers unchanged.
+- Peeking out of cover from a few meters away, it walks out facing ahead and only turns to you for the last step.
+- Smoke test: retreating with no heals, shooting back up close, hearing footsteps from behind.
+
 ## 0.12.29 (AI fight brain, step 1; owner)
 - AI fights are rebuilt around one decision layer, like shipped shooters (owner: the AI felt "cluttered and messy").
   Each AI picks ONE plan and sticks to it until it's done or something real changes (shot in the open, lost sight
