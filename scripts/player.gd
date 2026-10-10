@@ -310,6 +310,7 @@ func horizontal_speed() -> float:
 
 func teleport_to(pos: Vector3) -> void:
 	_vault_path.clear()
+	_fall_speed = 0.0
 	global_position = pos
 	_spawn_position = pos
 	velocity = Vector3.ZERO
@@ -600,6 +601,7 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < kill_height:
 		global_position = _spawn_position
 		velocity = Vector3.ZERO
+		_fall_speed = 0.0
 	# Somehow under the hills (the ground is solid from below too, so you'd be stuck there): back on top.
 	_ground_check_left -= delta
 	if _ground_check_left <= 0.0:
@@ -608,6 +610,7 @@ func _physics_process(delta: float) -> void:
 		if lifted != global_position:
 			global_position = lifted
 			velocity = Vector3.ZERO
+			_fall_speed = 0.0
 
 
 func is_vaulting() -> bool:

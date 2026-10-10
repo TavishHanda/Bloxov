@@ -6,6 +6,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.4 (fall damage fix)
+- 0.13.3's fall damage also counted being moved (spawning, being set back on the ground): a fast fall before the
+  move could hurt or kill you on arrival. Moves now reset the fall.
+
 ## 0.13.3 (fall damage; owner)
 - Drops up to 3.5 m are free (jumps, vaults, a one-storey roof). Past that, 12 damage per extra meter: a two-storey
   roof (5.5 m) costs about 24, 9 m about 66, 12 m kills. Armor doesn't stop it. A hard landing dips the view more,
