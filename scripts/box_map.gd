@@ -26,6 +26,8 @@ const WADE_DEPTH := 0.05
 @export var terrain_heights := PackedFloat32Array()
 @export var terrain_holes := PackedInt32Array()
 @export var terrain_colour := 0
+## Cells covered by something on top of them (building floors, yards: 0.11.21): still solid, just not drawn.
+@export var terrain_hidden := PackedInt32Array()
 @export var water_points := PackedVector3Array()
 @export var water_width := 8.0
 @export var water_colour := 0
@@ -70,6 +72,7 @@ func _ready() -> void:
 		var points: PackedVector3Array = ground[Mesh.ARRAY_VERTEX]
 		for index in ground[Mesh.ARRAY_INDEX] as PackedInt32Array:
 			faces.append(points[index])
+		ground[Mesh.ARRAY_INDEX] = _terrain_indices(terrain_hidden)
 	collision_faces = faces
 	if DisplayServer.get_name() != "headless":
 		var mesh_node := MeshInstance3D.new()
@@ -127,26 +130,33 @@ func _terrain_arrays() -> Array:
 			normals[j * nx + i] = Vector3(-dx, 1.0, -dz).normalized()
 			var tint := grass.lightened(clampf(h * 0.015, 0.0, 0.12)) if h > 0.0 else grass.darkened(clampf(-h * 0.04, 0.0, 0.15))
 			tints[j * nx + i] = tint.darkened(clampf(Vector2(dx, dz).length() * 0.6, 0.0, 0.25))
-	var holes := {}
-	for cell in terrain_holes:
-		holes[cell] = true
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = points
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = tints
+	arrays[Mesh.ARRAY_INDEX] = _terrain_indices()
+	return arrays
+
+
+## The ground's triangles (two per grid cell), leaving out the holes and the cells in `skip`.
+func _terrain_indices(skip := PackedInt32Array()) -> PackedInt32Array:
+	var nx := terrain_xs.size()
+	var nz := terrain_zs.size()
+	var left_out := {}
+	for cell in terrain_holes + skip:
+		left_out[cell] = true
 	var indices := PackedInt32Array()
 	for j in nz - 1:
 		for i in nx - 1:
-			if holes.has(j * (nx - 1) + i):
+			if left_out.has(j * (nx - 1) + i):
 				continue
 			var a := j * nx + i
 			var b := a + 1
 			var c := a + nx
 			var d := c + 1
 			indices.append_array([a, b, d, a, d, c])
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = points
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_COLOR] = tints
-	arrays[Mesh.ARRAY_INDEX] = indices
-	return arrays
+	return indices
 
 
 ## True while `body` stands in water.

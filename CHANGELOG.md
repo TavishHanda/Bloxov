@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.11.21 (building floors stop flickering; owner)
+- Fix: building floors flickered against the ground under them (owner: "a really bad visual glitch"). Since the hills
+  (0.11.17), floors were only 3 cm above the ground, and in 5 buildings the ground poked up through the floor
+  (a spawn's level spot next to them lifted it). Now floors, yards and car parks sit 7 cm up, nothing lifts the
+  ground under a building, and the ground hidden under a floor isn't drawn at all
+- The generator now checks that no ground pokes through any floor or yard
+
 ## 0.11.20 (real water in the creek; owner)
 - **The creek is water now, not a blue path** (owner: "the water is not water at all its just a blue path"). It
   runs in a channel dug into the bottom of its valley, about half a metre deep in the middle, with a see-through

@@ -32,6 +32,9 @@ shades the hills (`relief` in the minimap data).
 The creek (0.11.20, owner) is real water: a channel dug into its valley floor (`CREEK_DEPTH`, `CREEK_BED`,
 `CREEK_BANK`) with a see-through water surface `WATER_DROP` below the banks (about 0.55 m deep in the middle).
 `BoxMap` draws it from `water_points` and adds a `Water` area: anyone in it is wading (60% speed, no sprint).
+Ground covers (building ground floors, yards, car parks: flat looks-only boxes built from height 0) are moved up to
+`COVER_TOP` (7 cm) over the ground so they don't flicker against it, and the ground cells fully under one aren't
+drawn (`terrain_hidden`; still solid). The generator asserts nothing pokes through.
 
 ## Loot by place (owner)
 | Place | Loot |
