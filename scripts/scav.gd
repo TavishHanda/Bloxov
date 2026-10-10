@@ -21,7 +21,7 @@ const STEP_SOUNDS: Array[AudioStream] = [
 
 @export_group("Movement")
 @export var move_speed := 3.6
-@export var sight_range := 40.0
+@export var sight_range := 50.0
 ## While unaware, a scav only spots you inside this field of view (degrees); it can still hear you.
 ## Once alerted it tracks you in any direction.
 @export var view_angle_deg := 180.0
@@ -46,10 +46,10 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export_group("Spotting")
 ## Seconds a scav needs you in view before it notices you: quick up close, slow far away.
 @export var spot_time_near := 0.25
-@export var spot_time_far := 1.8
+@export var spot_time_far := 1.2
 ## Crouching or standing still makes you slower to notice; sprinting faster (multipliers on spot time).
 @export var spot_crouch_mult := 1.6
-@export var spot_still_mult := 1.4
+@export var spot_still_mult := 1.2
 @export var spot_sprint_mult := 0.6
 ## Already suspicious (investigating/searching) or re-finding someone it was fighting: notices faster.
 @export var spot_suspicious_mult := 0.6
@@ -68,19 +68,24 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var search_time := 5.0
 
 @export_group("Shooting")
-@export var shoot_range := 28.0
+## Fires at you from this far; beyond it, it closes in first.
+@export var shoot_range := 40.0
 ## Delay between spotting the player and starting to aim. Gives you a moment to react.
-@export var reaction_time := 0.6
-@export var aim_time := 0.45
+@export var reaction_time := 0.4
+## Getting shot (or a bullet whizzing past) while unaware startles it: it turns and starts aiming after only this
+## long, so whoever sees first gets the first shots, not a free kill (0.11.16: before, it died before it reacted).
+@export var startle_reaction_time := 0.15
+@export var aim_time := 0.35
 @export var burst_size := 3
 @export var burst_interval := 0.13
 @export var burst_cooldown_min := 1.0
 @export var burst_cooldown_max := 1.8
 ## Time to kill: 15 = an unarmored player (100 HP) dies in 7 hits (9 with light armor, 12 with heavy).
 @export var shot_damage := 15
-## Chance each bullet hits, up close vs. at max range.
+## Chance each bullet hits, up close vs. at accuracy_range and beyond.
 @export var accuracy_near := 0.7
 @export var accuracy_far := 0.2
+@export var accuracy_range := 28.0
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
 ## Point blank (closer than this, meters): shots almost always hit.
@@ -129,7 +134,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 
 @export_group("Flinch")
 ## Getting shot throws a scav off: it stops firing for a moment and aims worse for a while.
-## Mirrors the player's flinch, so whoever lands the first hit has the edge.
+## Mirrors the player's flinch, so whoever lands the first hit has the edge. Only the first hit of a flinch holds
+## its fire (0.11.16): a steady stream of hits used to keep it from ever shooting back.
 @export var flinch_fire_delay := 0.35
 @export var flinch_time := 0.8
 @export var flinch_accuracy_penalty := 0.4
@@ -176,6 +182,8 @@ var _patrol_jog := false
 var _looting_left := 0.0
 ## 0..1: how close it is to noticing you (fills while you're in view, drains when you're not).
 var _spot := 0.0
+## How long it takes in ALERT before it starts aiming (reaction_time, or startle_reaction_time when shot at).
+var _reaction := 0.0
 var _state_time := 0.0
 var _lost_sight_time := 0.0
 var _can_see := false
@@ -309,7 +317,7 @@ func _physics_process(delta: float) -> void:
 		State.ALERT:
 			# Turn toward you if it can see you, else toward where it knows you were.
 			_face(to_target if _can_see else _flat(_last_seen - global_position), delta)
-			if _state_time >= reaction_time:
+			if _state_time >= _reaction:
 				_set_state(State.ENGAGE)
 				_fire_timer = aim_time
 		State.ENGAGE:
@@ -442,11 +450,13 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 	# The farther the shooter, the rougher its guess.
 	var spread := global_position.distance_to(shooter_pos) * 0.15
 	var guess := shooter_pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * spread
-	_alert(guess)
+	_alert(guess, startle_reaction_time)
 
 
-## Spotted (or got shot by) someone at `known_pos`: get ready to fight.
-func _alert(known_pos: Vector3) -> void:
+## Spotted (or got shot by) someone at `known_pos`: get ready to fight, starting to aim after `reaction` seconds
+## (-1 = reaction_time).
+func _alert(known_pos: Vector3, reaction := -1.0) -> void:
+	_reaction = reaction_time if reaction < 0.0 else reaction
 	_cover_phase = Cover.NONE
 	_spot = 0.0
 	_looting_left = 0.0
@@ -718,7 +728,7 @@ func _fire_at_target(dist: float) -> void:
 	if not get_world_3d().direct_space_state.intersect_ray(cover_check).is_empty():
 		chest = _target.eye_position() - Vector3(0, 0.1, 0)
 
-	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / shoot_range, 0.0, 1.0))
+	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / accuracy_range, 0.0, 1.0))
 	if dist < point_blank_range:
 		chance = maxf(chance, point_blank_accuracy)
 	if _target.is_sprinting():
@@ -855,15 +865,16 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	elif not health.is_dead and _heals_left > 0 and health.current <= health.max_health * hurt_fraction:
 		_wants_heal = true
 	_hit_flash_time = 0.08
+	if _flinch_left <= 0.0:
+		_fire_timer = maxf(_fire_timer, flinch_fire_delay)
 	_flinch_left = flinch_time
-	_fire_timer = maxf(_fire_timer, flinch_fire_delay)
 	var push := global_position - source_position
 	push.y = 0.0
 	if push.length() > 0.01:
 		_knockback = push.normalized() * 3.0
 	# Getting shot while unaware: it knows roughly where that came from.
 	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
-		_alert(source_position)
+		_alert(source_position, startle_reaction_time)
 
 
 func _on_died() -> void:

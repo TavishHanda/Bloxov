@@ -5,6 +5,18 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.16 (scavs fight back; owner)
+- **Scavs and Raiders react faster** (owner, from a playtest: you could see a scav first and kill it before it
+  did anything). Same accuracy and damage as before; they just notice you and get their shots off sooner:
+  - Getting shot (or a bullet whizzing past) while unaware startles them: they turn and start shooting back in
+    about half a second (scavs 0.15 s + 0.35 s aim, Raiders 0.1 s + 0.25 s). Before, it was over a second
+  - Only the first hit of a flinch holds their fire. Before, every hit pushed their next shot back, so steady
+    fire kept them from ever shooting back
+  - Spotting you: quicker at range (far spot time 1.8 s to 1.2 s, standing still slows it less), then 0.4 s to
+    react and 0.35 s to aim (were 0.6 s and 0.45 s; Raiders 0.3 s and 0.25 s, were 0.45 s and 0.35 s)
+  - They see farther (scavs 40 m to 50 m, Raiders 45 m to 55 m) and shoot back from farther (28 m to 40 m and
+    45 m), at their long-range accuracy instead of walking at you without firing
+
 ## 0.11.15 (Bloxov Battlegrounds; owner)
 - The first map is now called **Bloxov Battlegrounds** (owner; it was "Old Bloxov"). The map screen (M) shows the
   new name
