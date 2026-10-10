@@ -37,6 +37,7 @@ var collision_faces := PackedVector3Array()
 
 
 func _ready() -> void:
+	add_to_group(&"box_maps")
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var faces := PackedVector3Array()
@@ -157,6 +158,44 @@ func _terrain_indices(skip := PackedInt32Array()) -> PackedInt32Array:
 			var d := c + 1
 			indices.append_array([a, b, d, a, d, c])
 	return indices
+
+
+## The ground's height (world y) under world point `pos`, or NAN off the grid or over a hole (bunker ramp, trench).
+func ground_height(pos: Vector3) -> float:
+	var local := to_local(pos)
+	var nx := terrain_xs.size()
+	var nz := terrain_zs.size()
+	if nx < 2 or nz < 2 or terrain_heights.size() != nx * nz:
+		return NAN
+	var i := terrain_xs.bsearch(local.x) - 1
+	var j := terrain_zs.bsearch(local.z) - 1
+	if i < 0 or j < 0 or i >= nx - 1 or j >= nz - 1 or terrain_holes.has(j * (nx - 1) + i):
+		return NAN
+	var u := (local.x - terrain_xs[i]) / maxf(terrain_xs[i + 1] - terrain_xs[i], 0.001)
+	var v := (local.z - terrain_zs[j]) / maxf(terrain_zs[j + 1] - terrain_zs[j], 0.001)
+	var ha := terrain_heights[j * nx + i]
+	var hb := terrain_heights[j * nx + i + 1]
+	var hc := terrain_heights[(j + 1) * nx + i]
+	var hd := terrain_heights[(j + 1) * nx + i + 1]
+	# (the same split as the triangles: north-west to south-east corner)
+	var h := ha + u * (hb - ha) + v * (hd - hb) if u >= v else ha + v * (hc - ha) + u * (hd - hc)
+	return to_global(Vector3(local.x, h, local.z)).y
+
+
+## Under the ground (0.12.35, owner's screenshot: a squadmate spawned on a slope ended up below the hills, and the
+## ground is solid from below too, so they were stuck there): `pos` lifted onto the ground if it's below it.
+## Underground rooms (the bunker) have their own ceiling: only lifted when the first thing above is the ground itself.
+static func above_ground(node: Node3D, pos: Vector3, margin := 0.3) -> Vector3:
+	for map in RaidScope.nodes(node, &"box_maps"):
+		var ground := map as BoxMap
+		var h := ground.ground_height(pos)
+		if is_nan(h) or pos.y >= h - margin:
+			continue
+		var query := PhysicsRayQueryParameters3D.create(pos, Vector3(pos.x, h + 0.5, pos.z), 1)
+		var hit := node.get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty() and hit.collider == ground and absf((hit.position as Vector3).y - h) < 0.05:
+			return Vector3(pos.x, h + 0.1, pos.z)
+	return pos
 
 
 ## True while `body` stands in water.

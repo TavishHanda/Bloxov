@@ -285,7 +285,7 @@ func clear_spot_near(origin: Vector3, offset: Vector3) -> Vector3:
 				continue   # a step up onto furniture or down a drop
 			var q := PhysicsShapeQueryParameters3D.new()
 			q.shape = body
-			q.collision_mask = 1
+			q.collision_mask = 1 | 2 | 4   # (not inside a wall, a player or another AI: 0.12.35, they stacked up)
 			q.transform = Transform3D(Basis(), Vector3(p.x, y + 0.05 + body.height / 2.0, p.z))
 			if not space.intersect_shape(q, 1).is_empty():
 				continue

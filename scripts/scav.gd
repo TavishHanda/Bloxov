@@ -532,8 +532,36 @@ func _physics_process(delta: float) -> void:
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
 	move_and_slide()
+	_slide_off_heads()
 	_check_stuck(delta, desired)
 	_update_footsteps(delta)
+
+
+## Standing on someone's head (another AI or a player): steps off it. Two AI that ended up in one spot used to
+## stack, the top one's head stuck in the ceiling for good (0.12.35, owner's screenshot).
+## (Checked with a ray down from its feet, not just what it bumped: with its head wedged in a ceiling it may not
+## report the body under it.)
+func _slide_off_heads() -> void:
+	var feet := global_position + Vector3(0, 0.15, 0)
+	var query := PhysicsRayQueryParameters3D.create(feet, feet + Vector3(0, -0.45, 0), 2 | 4, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var other := hit.get("collider") as Node3D
+	for i in get_slide_collision_count():
+		var bump := get_slide_collision(i)
+		if bump.get_collider() is CharacterBody3D and bump.get_normal().y > 0.5:
+			other = bump.get_collider() as Node3D
+	if other == null or other == self or not other is PhysicsBody3D:
+		return
+	# Drops through it to the floor (even wedged under a ceiling) and steps aside; they collide again in a moment.
+	var away := _flat(global_position - other.global_position)
+	away = away.normalized() if away.length() > 0.05 else Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU)
+	_knockback = away * 4.0
+	if get_collision_exceptions().has(other):
+		return   # (already passes through it: Bon and his guards)
+	add_collision_exception_with(other)
+	get_tree().create_timer(1.0, false, true).timeout.connect(func() -> void:
+		if is_instance_valid(other) and is_inside_tree():
+			remove_collision_exception_with(other))
 
 
 ## Trying to move but not getting anywhere (pressed against a wall, sliding along it) for a while: gives up on

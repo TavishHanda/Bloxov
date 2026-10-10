@@ -154,6 +154,7 @@ var _meds_next_switch := 0.0
 var _meds_switched := false
 
 var _spawn_position: Vector3
+var _ground_check_left := 0.0
 var _trauma := 0.0
 var _sprinting := false
 ## Recoil that went into the view (x = pitch, y = yaw, radians) and hasn't been pulled down against yet.
@@ -568,6 +569,14 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < kill_height:
 		global_position = _spawn_position
 		velocity = Vector3.ZERO
+	# Somehow under the hills (the ground is solid from below too, so you'd be stuck there): back on top.
+	_ground_check_left -= delta
+	if _ground_check_left <= 0.0:
+		_ground_check_left = 0.5
+		var lifted := BoxMap.above_ground(self, global_position)
+		if lifted != global_position:
+			global_position = lifted
+			velocity = Vector3.ZERO
 
 
 func _target_velocity(input_dir: Vector2) -> Vector3:

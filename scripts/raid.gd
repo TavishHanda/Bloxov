@@ -34,7 +34,8 @@ func _ready() -> void:
 		var points := spawn_points.get_children()
 		if Network.main.in_online_raid() and Network.main.raid_spawn.size() == 2:
 			# Online the server picks: your squad together, other squads elsewhere (0.9.5).
-			player.teleport_to(spawn_position(points, Network.main.raid_spawn[0], Network.main.raid_spawn[1]))
+			# (squadmates stand off to the side of the marker, where the hill can be higher: onto the ground)
+			player.teleport_to(BoxMap.above_ground(player, spawn_position(points, Network.main.raid_spawn[0], Network.main.raid_spawn[1]), 0.0))
 		else:
 			player.teleport_to((points.pick_random() as Node3D).global_position)
 		player.face_towards(Vector3.ZERO)

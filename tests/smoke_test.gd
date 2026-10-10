@@ -1140,6 +1140,14 @@ func _section_net() -> void:
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.07)
 	body.update_view(10.07, 0.016)
 	_check(body.gun_model.visible and RemotePlayer.capture(player)[4] & RemotePlayer.FLAG_ARMED, "a player holding a gun shows it")
+	# You hear other players walk (0.12.35, owner: teammates were silent online).
+	var steps_before := main.get_tree().current_scene.find_children("*", "AudioStreamPlayer3D", false, false).size()
+	for k in 40:
+		body.push_state([Vector3(2 + 0.08 * (k + 1), 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.08 + 0.016 * k)
+		body.update_view(10.08 + 0.016 * k, 0.016)
+	var steps_after := main.get_tree().current_scene.find_children("*", "AudioStreamPlayer3D", false, false).size()
+	_check(steps_after > steps_before, "another player walking makes footstep sounds (%d)" % (steps_after - steps_before))
+	body._buffer.clear()
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD], 10.1)
 	for i in 60:
 		body.update_view(10.1, 0.016)
@@ -1620,6 +1628,33 @@ func _section_old_bloxov() -> void:
 	var off_nav := spots.filter(func(p: Vector3) -> bool:
 		return NavigationServer3D.map_get_closest_point(nav_map, p).distance_to(p) > 1.5)
 	_check(off_nav.is_empty(), "every player spawn and extract is on walkable ground (%s)" % [off_nav])
+	# Nobody starts under the hills (0.12.35, owner's screenshot): squadmates stand off to the side of a spawn marker,
+	# where the slope can be higher; they're lifted onto the ground. And anyone who ends up under it gets put back on
+	# top, but not someone down in the bunker (it has its own ceiling).
+	var ground_map := RaidScope.nodes(world.raid, &"box_maps")[0] as BoxMap
+	var map_copy := (load(MAP) as PackedScene).instantiate()
+	var spawn_node := map_copy.get_node("PlayerSpawns")
+	map_copy.remove_child(spawn_node)
+	map_copy.free()
+	world.raid.add_child(spawn_node)   # (a server raid has no player spawns of its own)
+	var markers := spawn_node.get_children()
+	var under := []
+	for slot in markers.size() * 2:
+		for place in 4:
+			var at := BoxMap.above_ground(ground_map, Raid.spawn_position(markers, slot, place), 0.0)
+			if at.y < ground_map.ground_height(at) - 0.02:
+				under.append("%d/%d" % [slot, place])
+	_check(under.is_empty(), "no squad spawn spot is under the ground (%s)" % [under])
+	var sunk := Vector3(-150.0, 0.0, 120.0)
+	sunk.y = ground_map.ground_height(sunk) - 1.5
+	var bunker := Vector3(-60.0, 0.0, -24.0)
+	var floor_hit := ground_map.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(
+		Vector3(bunker.x, ground_map.ground_height(bunker) - 1.6, bunker.z), Vector3(bunker.x, -20.0, bunker.z), 1))
+	bunker.y = (floor_hit.position as Vector3).y + 0.1 if not floor_hit.is_empty() else 0.0
+	_check(BoxMap.above_ground(ground_map, sunk).y > sunk.y + 1.0 and BoxMap.above_ground(ground_map, bunker) == bunker
+		and bunker.y < ground_map.ground_height(bunker) - 2.0,
+		"someone stuck under the ground is put back on top, but not someone down in the bunker (floor %.1f)" % bunker.y)
+	spawn_node.queue_free()
 	# Every container (upstairs, in the bunker, in the bank vault) can be walked to from a spawn: the AI's paths
 	# go there too (ramps, doorways and stair landings wide enough for them).
 	var unreachable: Array[String] = []
@@ -2123,6 +2158,25 @@ func _section_spawn_budget() -> void:
 	_check(clear != origin and not shelf_box.has_point(clear + Vector3(0, 1.0, 0)) and absf(clear.y - origin.y) < 0.3,
 		"a partner's spawn spot blocked by something moves to a clear spot beside the leader (%s)" % (clear - origin))
 	shelf.queue_free()
+	# ...and never into another AI (0.12.35, owner's screenshot: two in one spot stacked, one stuck in the ceiling).
+	var squatter := _spawn(SCAV_SCENE, origin + Vector3(1.5, 0, 1.0)) as Scav
+	squatter.set_physics_process(false)
+	await physics_frame
+	var beside := placer.clear_spot_near(origin, Vector3(1.5, 0, 1.0))
+	_check(Vector2(beside.x - squatter.global_position.x, beside.z - squatter.global_position.z).length() > 0.9,
+		"a spawn spot never lands inside another AI (%.1f m from it)" % beside.distance_to(squatter.global_position))
+	squatter.queue_free()
+	# Standing on another AI's head, it steps off.
+	var bottom := _spawn(SCAV_SCENE, origin + Vector3(6, 0, 0)) as Scav
+	var top := _spawn(SCAV_SCENE, origin + Vector3(6, 1.95, 0)) as Scav
+	var low_ceiling := _block(origin + Vector3(6, 4.0, 0), Vector3(6, 0.2, 6))   # (its head stuck in it)
+	bottom.set_physics_process(false)
+	top._set_state(Scav.State.SEARCH)
+	await _frames(90)
+	low_ceiling.queue_free()
+	_check(top.global_position.y < origin.y + 0.5, "an AI that lands on another's head steps off it (feet at %.1f m)" % (top.global_position.y - origin.y))
+	bottom.queue_free()
+	top.queue_free()
 	placer.queue_free()
 
 

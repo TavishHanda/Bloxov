@@ -19,6 +19,13 @@ const INTERP_DELAY := 0.1
 const NECK_HEIGHT := 1.38
 const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
 const GROUP := &"remote_players"
+## Their footsteps (0.12.35, owner: teammates were silent online): every stride, louder and heard farther when
+## they sprint, barely when they crouch. Max hearing distance per pace, meters.
+const STEP_SOUNDS: Array[AudioStream] = [
+	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
+const STEP_RANGE_WALK := 25.0
+const STEP_RANGE_SPRINT := 35.0
+const STEP_RANGE_CROUCH := 6.0
 
 @onready var model: Node3D = $Model
 @onready var gun_model: Node3D = $Model/Gun
@@ -36,6 +43,7 @@ var shown: Array = []
 ## [arrival seconds, state], oldest first.
 var _buffer: Array = []
 var _walk_time := 0.0
+var _stride_left := 0.0
 var _crouch := 0.0
 var _lean := 0.0
 var _down := 0.0
@@ -145,6 +153,29 @@ func update_view(time: float, delta: float) -> void:
 		_tag.set_meta("label_downed", flags & FLAG_DOWNED != 0 and not flags & FLAG_DEAD)
 		_tag.position.y = lerpf(2.25, 0.9, _prone)
 	_pose(pitch, flags, (global_position - old_position).length() / maxf(delta, 0.001), delta)
+	var flat_speed := Vector2(global_position.x - old_position.x, global_position.z - old_position.z).length() / maxf(delta, 0.001)
+	_footsteps(flags, flat_speed, delta)
+
+
+func _footsteps(flags: int, speed: float, delta: float) -> void:
+	if not visible or flags & (FLAG_DEAD | FLAG_DOWNED) or speed < 0.5 or speed > 15.0:   # (a jump in position: no steps)
+		_stride_left = minf(_stride_left, 0.3)
+		return
+	_stride_left -= speed * delta
+	if _stride_left > 0.0:
+		return
+	var volume := -9.0
+	var reach := STEP_RANGE_WALK
+	_stride_left = 1.5
+	if flags & FLAG_CROUCH:
+		volume = -16.0
+		reach = STEP_RANGE_CROUCH
+		_stride_left = 1.1
+	elif flags & FLAG_SPRINT:
+		volume = -4.0
+		reach = STEP_RANGE_SPRINT
+		_stride_left = 1.9
+	Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, volume, 0.1, 1.0, 3.0, reach)
 
 
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:

@@ -6,6 +6,19 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.35 (AI stuck in ceilings, teammate footsteps; owner)
+- AI stuck in a ceiling (owner's screenshot): an AI could spawn right inside another (a crowded spawn spot, a
+  Raider's partner, Bon's guards: the free-spot check only looked for walls) and get pushed up onto its head, with
+  its own head jammed in the ceiling. Spawn spots now keep clear of other AI and players too, and an AI standing on
+  anyone's head drops through them to the floor and steps aside.
+- Teammates' footsteps (owner): online you now hear other players walk (about 25 m), sprint (35 m) and, barely,
+  crouch-walk (6 m).
+- Nobody can get stuck under the hills: big online raids (more than 8 squads) could start squadmates on a slope
+  below the ground, which is solid from underneath. Spawns are lifted onto the ground, and a player who ends up
+  under it is put back on top (not in the bunker, which has its own ceiling).
+- Smoke test: spawn spots avoid other AI, an AI on another's head steps off (even wedged under a ceiling), other
+  players' footsteps play, no squad spawn is underground, and someone under the ground is put back on top.
+
 ## 0.12.34 (smarter chasing; owner)
 - Chasing is no longer a straight walk at you (owner: "strategically"). In range an AI dashes about 5-11 m at a
   time to the next spot closer to you, picking one out of your sight when there is one and curving round to one
