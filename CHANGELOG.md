@@ -6,6 +6,22 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.31 (up-close fight priorities, town patrols, stuck spawns, hit arrow; owner)
+- Up-close priorities (owner: "the scavs priorities are not right at all"): badly hurt with you close by and in
+  sight, an AI only falls back to cover a few steps away (6 m); with none that close it keeps shooting back and tries
+  again shortly, instead of turning its back to run 20 m or patching up in the open in front of you. Shot up close
+  while running to far cover, it turns and fights. Badly hurt up close, it only ducks into cover a step away.
+- In co-op an AI turns on whoever is shooting it (it used to keep fighting the closest player).
+- Town scavs no longer spawn or patrol around the town hall and bank (Bon's guards are there): they start and
+  patrol out toward the edges of town (owner).
+- Spawns: a Raider's partner (and Bon's guards) used a fixed offset from the leader, which could put it on a shelf
+  under the ceiling or inside a wall (owner saw a Raider stuck in a roof). They now go to a clear spot beside the
+  leader: same floor, headroom, nothing in the way.
+- The hit-direction arrow keeps pointing at whoever shot you while you turn (owner: it felt off turning fast; it
+  kept the angle from the moment of the hit).
+- Smoke test: hurt up close with no cover near, it fights back; town patrols keep out of the avoid areas; a blocked
+  partner spawn moves to a clear spot.
+
 ## 0.12.30 (AI hearing, retreat, shoot back first, faster reactions; owner)
 - AI hear you better (owner: walking right past them, they never looked). Footsteps carry farther: walking 12 m
   (was 7), sprinting 25 m (was 15); crouch-walking is nearly silent (2 m, was silent). On hearing a step an AI stops,

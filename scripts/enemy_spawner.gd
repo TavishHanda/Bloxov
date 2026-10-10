@@ -25,7 +25,8 @@ extends Node3D
 ## Chance a Raider arrives with a partner that sticks with it (both count toward raider_budget).
 @export_range(0.0, 1.0) var raider_duo_chance := 0.15
 ## AI zones (Scavs 2.0; a map sets these, the test map has none). Each is a Dictionary: "name", "center"
-## (Vector3), "radius" (m), "scavs" and "raiders" (how many start there), "trickle" (how likely later arrivals
+## (Vector3), "radius" (m), optional "avoid" (Vector3(x, radius, z) circles its AI keep out of) and "edge" (patrol
+## stops sit at least this fraction of the radius out), "scavs" and "raiders" (how many start there), "trickle" (how likely later arrivals
 ## come here; hot zones get the most). Markers with metadata `zone` = that name are its spawn spots. AI that
 ## spawns in a zone patrols only that zone. With zones, initial_count is ignored and raider_times are only the
 ## later Raiders (the zones' own start at 0:00).
@@ -138,7 +139,7 @@ func _spawn_boss() -> void:
 		get_parent().add_child(guard)
 		var offset := GUARD_OFFSETS[i] if i < GUARD_OFFSETS.size() else Vector3(randf_range(-4, 4), 0, randf_range(2, 5))
 		guard.follow_offset = offset
-		guard.global_position = spot + offset
+		guard.global_position = clear_spot_near(spot, offset)
 		guard.follow(boss_spawned)
 		guard.home_center = boss_spawned.home_center
 		guard.home_radius = boss_spawned.home_radius
@@ -233,27 +234,66 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 		return enemies.all(func(e: Node) -> bool: return (e as Node3D).global_position.distance_to(m.global_position) > 2.5))
 	var spot: Vector3 = (free if not free.is_empty() else points).pick_random().global_position
 	if free.is_empty():
-		spot += Vector3(randf_range(-2.0, 2.0), 0, randf_range(-2.0, 2.0))
+		spot = clear_spot_near(spot, Vector3(randf_range(-2.0, 2.0), 0, randf_range(-2.0, 2.0)))
 	var enemy := scene.instantiate() as Scav
 	get_parent().add_child(enemy)
 	enemy.global_position = spot
 	if zone_name != "":
 		enemy.home_center = zone.get("center", spot)
 		enemy.home_radius = float(zone.get("radius", 0.0))
+		enemy.home_avoid = zone.get("avoid", [])
+		enemy.home_edge = float(zone.get("edge", 0.0))
 	if scene == raider_scene:
 		raiders_spawned += 1
 		# Sometimes a duo: a partner right next to it that follows it around.
 		if duo and raiders_spawned < raider_budget and randf() < raider_duo_chance:
 			var partner := raider_scene.instantiate() as Scav
 			get_parent().add_child(partner)
-			partner.global_position = enemy.global_position + Vector3(1.5, 0, 1.0)
+			partner.global_position = clear_spot_near(enemy.global_position, Vector3(1.5, 0, 1.0))
 			partner.follow(enemy)
 			partner.home_center = enemy.home_center
 			partner.home_radius = enemy.home_radius
+			partner.home_avoid = enemy.home_avoid
+			partner.home_edge = enemy.home_edge
 			raiders_spawned += 1
 	else:
 		scavs_spawned += 1
 	return true
+
+
+## A spot `offset` from `origin` (a spawn point) with room to stand: same floor, nothing in the way, a clear line
+## back to `origin`, headroom. Tries the offset, then the same distance in other directions, then closer in;
+## `origin` itself if nothing fits. (0.12.31, owner: a Raider's partner spawned inside a building stuck in the
+## roof: its fixed offset had put it on a shelf right under the ceiling.)
+func clear_spot_near(origin: Vector3, offset: Vector3) -> Vector3:
+	var space := get_world_3d().direct_space_state
+	var body := CapsuleShape3D.new()
+	body.radius = 0.45
+	body.height = 1.9
+	var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin + Vector3(0, 0.5, 0), origin + Vector3(0, -3, 0), 1))
+	var floor_y: float = floor_hit.position.y if not floor_hit.is_empty() else origin.y - 0.1
+	var reach := maxf(Vector2(offset.x, offset.z).length(), 1.0)
+	for r: float in [reach, reach * 0.6, 1.0]:
+		for turn in 8:
+			var flat := Vector3(offset.x, 0, offset.z).normalized() if Vector2(offset.x, offset.z).length() > 0.01 else Vector3.RIGHT
+			var p := origin + flat.rotated(Vector3.UP, turn * PI / 4.0 * (1 if turn % 2 == 0 else -1)) * r
+			var down := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(p.x, floor_y + 0.6, p.z), Vector3(p.x, floor_y - 1.0, p.z), 1))
+			if down.is_empty():
+				continue
+			var y: float = down.position.y
+			if absf(y - floor_y) > 0.4:
+				continue   # a step up onto furniture or down a drop
+			var q := PhysicsShapeQueryParameters3D.new()
+			q.shape = body
+			q.collision_mask = 1
+			q.transform = Transform3D(Basis(), Vector3(p.x, y + 0.05 + body.height / 2.0, p.z))
+			if not space.intersect_shape(q, 1).is_empty():
+				continue
+			var line := PhysicsRayQueryParameters3D.create(origin + Vector3(0, 1.0, 0), Vector3(p.x, y + 1.0, p.z), 1)
+			if not space.intersect_ray(line).is_empty():
+				continue   # through a wall
+			return Vector3(p.x, maxf(origin.y, y + 0.1), p.z)
+	return origin
 
 
 ## The spawn points far enough from every player, preferring ones no player can see.
