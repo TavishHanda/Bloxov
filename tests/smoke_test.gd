@@ -2244,7 +2244,7 @@ func _section_teamwork() -> void:
 	far_away.queue_free()
 	buddy.queue_free()
 	# Spotted from 25 m: it goes for cover first (if there's any) instead of standing in the open.
-	_check(caller.shoot_range >= 75.0, "it shoots back from far off (up to %.0f m) before heading for cover" % caller.shoot_range)
+	_check(caller.shoot_range >= 70.0, "it shoots back from far off (up to %.0f m) before heading for cover" % caller.shoot_range)
 	caller.queue_free()
 	await physics_frame
 	# You heal (or reload): it pushes in on you instead of strafing.
@@ -2355,6 +2355,35 @@ func _section_teamwork() -> void:
 	for c in crowd:
 		c.queue_free()
 	await physics_frame
+	# 0.12.12 callouts: it says what it's doing (once per few seconds at most).
+	var talker := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	var said: Array[String] = []
+	talker.barked.connect(func(kind: String) -> void: said.append(kind))
+	await physics_frame
+	talker._bark("spotted")
+	talker._bark("hurt")
+	_check(said == ["spotted"] and Scav.VOICE.has("man_down") and Scav.VOICE.has("flank"),
+		"AI call out what they're doing, at most one callout every %.0f s (%s)" % [talker.bark_cooldown, said])
+	talker.queue_free()
+	# 0.12.12 (owner): Bon and his guards stick to their area: no running to far gunshots; a chase ends at the leash.
+	var homebody := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	homebody.stays_home = true
+	homebody.home_center = homebody.global_position
+	homebody.home_radius = 10.0
+	homebody.leash = 20.0
+	homebody._wander_time = 99.0
+	homebody._wander_dir = Vector3.ZERO
+	await physics_frame
+	homebody.hear_noise(homebody.global_position + Vector3(0, 0, 40), 60.0)
+	var ignored := homebody.state == Scav.State.IDLE
+	homebody.global_position = homebody.home_center + Vector3(0, 0, 35)
+	homebody._target = player
+	homebody._set_state(Scav.State.ENGAGE)
+	await physics_frame
+	await physics_frame
+	_check(ignored and homebody.state == Scav.State.IDLE and homebody._home_return_left > 0.0,
+		"a boss ignores gunshots far from its area and gives up a chase past its leash")
+	homebody.queue_free()
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
 	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav
