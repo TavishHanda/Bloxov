@@ -7,11 +7,10 @@ tie back to what's written here.
 ## The world
 - Two nations at war; the war has gone **global** (names: owner, 2026-10-10).
   - **Novarra**: what it's like **TBD**. Its army is **NOVA** (the light side).
-  - **The Onyx Dominion**: what it's like **TBD**. Its army is **ONYX** (the dark side).
-  - Players fight as **NOVA** or **ONYX**: short names for patches and voice chat, with a light vs dark look.
-  - **The X1 Brotherhood** (named after the owner's friend group, 2026-10-10): the order that founded and rules
-    the Onyx Dominion. ONYX is its army, and the **X1** mark shows up on ONYX gear (later: uniforms and skins).
-    (A first pick, not final: the owner decides; the nation itself could also just be called the X1 Brotherhood.)
+  - **The Exion Brotherhood**: named after the owner's friend group, the X1 Brotherhood ("Exion" is "X-one" said
+    fast; owner, 2026-10-10). What it's like **TBD**. Its army is **EXION** (the dark side), and the **X1** mark
+    shows up on EXION gear (later: uniforms and skins).
+  - Players fight as **NOVA** or **EXION**: short names for patches and voice chat, with a light vs dark look.
   - What started the war: **TBD**
 - The world is **mostly abandoned**, with a few **safe havens** left. TBD: what they are, who runs them, and
   whether the hideout is one.
@@ -23,7 +22,7 @@ Each region is a part of the world the war touched, with its own maps and look. 
 ones are harder.
 
 ### Bloxov (starting region)
-- The **border region** between Novarra and the Onyx Dominion, where it all started.
+- The **border region** between Novarra and the Exion Brotherhood, where it all started.
 - The intro region: the easiest, holding a few maps.
 - Maps:
   - **Bloxov Battlegrounds** (the current map, owner 2026-10-10; first called "Old Bloxov", and file names still
