@@ -1773,6 +1773,10 @@ SNIPER_PERCHES = [
     ("PerchStand", 116.0, 266.0, 3.5, "N"),        # the hunting stand by the creek trail
 ]
 AI_SNIPERS = 2
+# AI spawn spots that overlapped something (0.12.20 check): the marker moves to a clear spot nearby. (Only the
+# marker: the flat ground and props around the spot are placed for the old spot, so the map doesn't change.)
+SPAWN_NUDGE = {(320, 260): (316, 254),   # under the edge of the raised road by the junkyard
+               (40, 330): (46, 336)}     # under the hunting stand's ladder
 spawn_zone = {}   # enemy spawn name -> its AI zone (no entry = only roamers use it)
 
 
@@ -2001,8 +2005,11 @@ def write_scene(ter):
                 f"transform = {xform(x, ground_y['player', name] + 0.1, z)}", ""]
     out += ['[node name="EnemySpawns" type="Node3D" parent="."]', ""]
     for name, x, z in enemy_spawns:
-        out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
-                f"transform = {xform(x, ground_y['enemy', name] + 0.1, z)}"]
+        y = ground_y['enemy', name] + 0.1
+        if (x, z) in SPAWN_NUDGE:
+            x, z = SPAWN_NUDGE[x, z]
+            y = ter.lift(x, z) + 0.3
+        out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, y, z)}"]
         out += ([f'metadata/zone = "{spawn_zone[name]}"'] if name in spawn_zone else []) + [""]
     for i, (x, z) in enumerate(BOSS_STARTS):   # (dropped from just above the hall's floor)
         out += [f'[node name="BossStart{i + 1}" type="Marker3D" parent="EnemySpawns"]',

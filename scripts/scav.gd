@@ -567,6 +567,8 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 		_cover_phase = Cover.NONE
 		_cover_cooldown_left = cover_cooldown
 		_heal_after_move = false
+	elif state == State.IDLE and leader != null:
+		_follow_direct_left = 4.0
 	elif state == State.IDLE:
 		_wander_dir = Vector3.ZERO
 		_wander_time = 0.0
@@ -1364,6 +1366,9 @@ func _wander(delta: float) -> Vector3:
 	# A duo partner sticks with its leader instead of picking its own patrol.
 	if leader != null and is_instance_valid(leader) and leader.state != State.DEAD:
 		var spot := leader.global_position + leader.global_basis.x * follow_offset.x + leader.global_basis.z * follow_offset.z
+		_follow_direct_left -= delta
+		if _follow_direct_left > 0.0:
+			spot = leader.global_position   # (stuck getting to its own spot: just follow the leader's steps)
 		if _flat(spot - global_position).length() < 1.5:
 			_wander_dir = Vector3.ZERO
 			return Vector3.ZERO
@@ -1397,6 +1402,17 @@ func _wander(delta: float) -> Vector3:
 	var move := _path_velocity(_wander_point, move_speed * (jog_speed if _patrol_jog else patrol_speed))
 	_face(move, delta, 4.0)
 	return move
+
+
+## Starts following `new_leader` (a boss's guard, a Raider's partner). Followers and their leader walk through each
+## other (0.12.20: Bon's guards boxed him into a corner of the town hall and none of them could move).
+func follow(new_leader: Scav) -> void:
+	leader = new_leader
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if other != null and other != self and (other == new_leader or other.leader == new_leader):
+			add_collision_exception_with(other)
+			other.add_collision_exception_with(self)
 
 
 func _pick_patrol_point() -> Vector3:
@@ -1472,6 +1488,7 @@ var _peek_left := 0.0
 var _peeks_left := 0
 var _advance_check_left := 0.0
 var _stuck_time := 0.0
+var _follow_direct_left := 0.0
 var _bark_left := 0.0
 var _voice := 1.0
 var _was_pushing := false
