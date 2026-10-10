@@ -140,6 +140,10 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Loot table in ItemDB.LOOT_TABLES, and the name on the body bag.
 @export var loot_table := "scav"
 @export var body_name := "Scav Body"
+## Chance its gun ends up in the body bag too (owner, 0.11.11: Raiders sometimes drop their AK).
+@export_range(0.0, 1.0) var weapon_drop_chance := 0.0
+## Item id of that gun.
+@export var weapon_drop := ""
 
 @export_group("Look")
 @export var burst_color := Color(0.33, 0.38, 0.24)
@@ -872,6 +876,8 @@ func _on_died() -> void:
 		queue_free()  # its body (and loot) is the server's
 		return
 	var drops: Array = []
+	if weapon_drop != "" and randf() < weapon_drop_chance:
+		drops.append([weapon_drop, 1])
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])

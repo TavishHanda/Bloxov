@@ -49,6 +49,8 @@ min_drops = 2
 max_drops = 4
 loot_table = "raider"
 body_name = "Raider Body"
+weapon_drop_chance = 0.3
+weapon_drop = "ak"
 burst_color = Color(0.66, 0.6, 0.42, 1)
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
