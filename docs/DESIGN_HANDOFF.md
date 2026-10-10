@@ -7,7 +7,7 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
 - **Game:** blocky voxel (16 px/m pixel textures) first-person extraction shooter, goofy but tense ("Loot weird stuff,
   get attached to it, try to make it out alive"). Web first (Godot 4.5, Compatibility renderer), mobile later.
   Tone and art rules: `docs/GAME_DESIGN.md`, `docs/ART_SPEC.md` (models are the owner's Blender work).
-- **0.10.2 (dev session, owner): the map (M, `map_hud.gd`)** replaced the extract list and the extract name tags (`extract_hud.gd` now only draws the EXTRACTING/EXTRACT CLOSED status). The map is a plain functional first pass in the Ammo Can plate: yours to restyle.
+- **0.10.2 (dev session, owner): the map (M, `map_hud.gd`)** replaced the extract name tags; the O extract list came back in 0.11.1 (only on O, no auto-show at raid start). The map is a plain functional first pass in the Ammo Can plate: yours to restyle.
 - **Raid HUD: being redone as "Ammo Can"** (owner picked it from 3 pitches, in the gunmetal color and the compact
   size). 0.8.4 = style + health + ammo, 0.8.5 = centering (`HudStyle.draw_centered`, measured), 0.8.6 = hotbar,
   0.8.7 = timer (`timer_hud.gd`), [F] prompt (`prompt_hud.gd`), extract list/status (`extract_hud.gd`), hit chevron

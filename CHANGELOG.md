@@ -5,6 +5,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.1 (spawns spread out, O extract list back; Map & Spawn follow-up, owner)
+- **Player spawns spread out** (owner: not all on the edge): west field, the creek (bottom left), south of the
+  railway, bottom middle, the east edge, east of the train station, the farm, and between the town and the farm.
+  All still away from the hot spots, each with room for a duo
+- **O shows the extracts open for you** again: a list in the top right (name and distance) that slides in when you
+  press O and goes away after a few seconds (or press O again). It no longer pops up on its own at the start, and
+  there are still no name tags over extracts; the map (M) shows where they are
 ## 0.11.0 (code cleanup starts: the AI's navigation helpers)
 No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items update (owner, 0.10.0).
 - The AI's navigation queries (closest walkable point, paths, random spots, safe before the map is ready) moved out
