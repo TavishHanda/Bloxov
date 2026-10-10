@@ -5,6 +5,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.3 (spawn 5 moved; Map & Spawn follow-up, owner)
+- **Spawn 5 moved** (owner: it wasn't good): it was out in the open field in the middle of the map, next to the
+  railway, with no cover. It's now behind an old house south of the railway, off the roads, 124 m from the
+  nearest other spawn
+
 ## 0.11.2 (spawns spread evenly; Map & Spawn follow-up, owner)
 - **Player spawns moved** (owner: some pairs felt close enough to see each other): one now in the top-left corner,
   and the rest re-spread evenly, 3 across the top (top-left corner, north of the church, the farm), 3 across the
