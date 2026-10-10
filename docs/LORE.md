@@ -17,7 +17,9 @@ tie back to what's written here.
     side), and the **X1** mark shows up on EXION gear (later: uniforms and skins).
     - **The Exion Brotherhood** (named after the owner's friend group, the X1 Brotherhood): a powerful group inside
       Exion that controls it, the order behind its government and army. Details **TBD** (owner).
-  - Players fight as **NOVA** or **EXION**: short names for patches and voice chat, with a light vs dark look.
+  - NOVA and EXION are short names for patches and voice chat, with a light vs dark look.
+  - **Players don't pick a side** (owner, 2026-10-10: picking would get in the way of characters and skins). How
+    the player's PMC relates to NOVA and EXION: **TBD**.
   - What started the war: see the timeline below.
 - The world is **mostly abandoned**, with a few **safe havens** left. TBD: what they are, who runs them, and
   whether the hideout is one.
@@ -31,7 +33,7 @@ tie back to what's written here.
 3. **The attack goes wrong.** The strike breaks the program open: super soldiers and **failed experiments** get
    loose in the open. Huge regions are wasted.
 4. **The game: years later.** Most of the world is abandoned and the war still goes on. Some regions are still
-   valuable, so **PMCs** (NOVA and EXION players) are sent in to gather resources.
+   valuable, so **PMCs** (the players) are sent in to gather resources.
    - Why PMCs and what they gather: **TBD**. One option: the Brotherhood's research (and whatever made the super
      soldiers) plus pre-war stockpiles are still in those zones; both sides want them, but sending whole armies
      costs too much, so they send PMCs.
