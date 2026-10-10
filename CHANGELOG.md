@@ -6,6 +6,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.1 (far-range scav accuracy; owner)
+- Scavs hit more often at range: 30% at 28 m (was 20%), sliding to 18% at the edge of their range (was 10%).
+  Close range is unchanged. Raiders, Bon, guards and snipers are unchanged.
+
 ## 0.13.0 (Movement update: vaulting; owner)
 - **Vaulting.** Press Space while walking into cover: waist-high cover you can see over (sandbags, fences, low
   walls, up to 1.25 m) is vaulted, over and down the other side, keeping your speed. Ledges and wide tops up to chest

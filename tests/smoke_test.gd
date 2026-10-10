@@ -65,8 +65,8 @@ var expected_value := 0
 func _initialize() -> void:
 	_backup_profile()
 	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
-	# it runs faster than real time; the whole test is about 150 game seconds.)
-	create_timer(200.0, true).timeout.connect(func() -> void:
+	# it runs faster than real time; the whole test is about 200 game seconds.)
+	create_timer(300.0, true).timeout.connect(func() -> void:
 		print("SMOKE TEST: TIMED OUT (a script error probably stopped the test; see errors above)")
 		_quit(1))
 	_run.call_deferred()
@@ -2556,7 +2556,7 @@ func _section_teamwork() -> void:
 	# 0.12.8 (owner): accuracy is a gradient, worse the farther you are, very poor at the edge of its range.
 	var aim := load(SCAV_SCENE).instantiate() as Scav
 	_check(aim.hit_chance(5.0) > aim.hit_chance(25.0) and aim.hit_chance(25.0) > aim.hit_chance(50.0)
-		and aim.hit_chance(50.0) > aim.hit_chance(75.0) and aim.hit_chance(75.0) <= 0.11,
+		and aim.hit_chance(50.0) > aim.hit_chance(75.0) and aim.hit_chance(75.0) <= 0.19,
 		"accuracy drops with range: %.2f at 5 m, %.2f at 25, %.2f at 50, %.2f at 75" % [aim.hit_chance(5.0), aim.hit_chance(25.0), aim.hit_chance(50.0), aim.hit_chance(75.0)])
 	aim.free()
 	# Pressed against a wall going nowhere: it gives up on that spot instead of hugging the wall.
