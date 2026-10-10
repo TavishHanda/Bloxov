@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -2740,6 +2740,47 @@ func _section_pathing() -> void:
 	_check(scav._path.size() > 2, "its path goes around the building (%d points)" % scav._path.size())
 	_check(arrived, "it walks around the grocery to a spot inside (ended at %s)" % str(scav.global_position.snapped(Vector3.ONE * 0.1)))
 	scav.queue_free()
+
+
+## AI vaulting (0.13.1): the navigation map links over low, thin cover, and a scav whose path goes that way vaults it
+## instead of walking the long way round.
+func _section_ai_vault() -> void:
+	var nav := main.get_node("Navigation") as NavBaker
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	# A long sandbag-high wall in the open south-west, a scav on one side and its goal straight across.
+	var wall := StaticBody3D.new()
+	wall.add_to_group(NavBaker.SOURCE_GROUP)
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(24, 1.0, 0.6)
+	wall.add_child(shape)
+	main.add_child(wall)
+	wall.global_position = Vector3(-20, 0.5, 30)
+	nav._bake()
+	await nav.baked
+	await physics_frame
+	await physics_frame
+	var scav := _spawn(SCAV_SCENE, Vector3(-20, 0.1, 27)) as Scav
+	scav.investigate_speed = 1.0
+	await physics_frame
+	var goal := Vector3(-20, 0, 33)
+	scav._goal = goal
+	scav._set_state(Scav.State.INVESTIGATE)
+	var vaulted := false
+	var arrived := false
+	for i in 60 * 10:
+		await physics_frame
+		vaulted = vaulted or not scav._vault_path.is_empty()
+		if Vector2(scav.global_position.x - goal.x, scav.global_position.z - goal.z).length() < 1.5:
+			arrived = true
+			break
+	_check(vaulted and arrived, "a scav vaults low cover on its way (vaulted %s, ended at %s)" % [vaulted,
+		str(scav.global_position.snapped(Vector3.ONE * 0.1))])
+	scav.queue_free()
+	wall.queue_free()
+	await physics_frame
+	nav._bake()
+	await nav.baked
 
 
 func _section_patrol() -> void:

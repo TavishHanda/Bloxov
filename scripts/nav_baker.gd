@@ -8,8 +8,13 @@ extends NavigationRegion3D
 signal baked
 
 const SOURCE_GROUP := &"nav_source"
+## AI vaulting (0.13.1): a link over low, thin cover every this many meters along it.
+const VAULT_LINK_SPACING := 3.0
+## Going over costs as much as walking this many extra meters, so a short way round still wins.
+const VAULT_LINK_COST := 3.0
 
 var is_baked := false
+var _vault_links: Array[NavigationLink3D] = []
 
 
 func _ready() -> void:
@@ -31,6 +36,9 @@ func _ready() -> void:
 func _bake() -> void:
 	await get_tree().physics_frame
 	var source := NavigationMeshSourceGeometryData3D.new()
+	for link in _vault_links:
+		link.queue_free()
+	_vault_links.clear()
 	for node in RaidScope.nodes(self, SOURCE_GROUP):
 		_add_geometry(node, source)
 	NavigationServer3D.bake_from_source_geometry_data(navigation_mesh, source)
@@ -44,7 +52,13 @@ func _bake() -> void:
 ## (BoxMap: all their solid boxes at once).
 func _add_geometry(node: Node, source: NavigationMeshSourceGeometryData3D) -> void:
 	if node is BoxMap:
-		source.add_faces((node as BoxMap).collision_faces, (node as Node3D).global_transform)
+		var map := node as BoxMap
+		source.add_faces(map.collision_faces, map.global_transform)
+		for i in range(0, map.boxes.size(), BoxMap.STRIDE):
+			var b := map.boxes
+			if b[i + 9] > 0.5 and is_zero_approx(b[i + 7]):
+				_add_vault_links(map.global_transform * Transform3D(Basis(Vector3.UP, deg_to_rad(b[i + 6])),
+					Vector3(b[i], b[i + 1], b[i + 2])), Vector3(b[i + 3], b[i + 4], b[i + 5]))
 		return
 	if node is CSGBox3D and (node as CSGBox3D).use_collision:
 		var box := BoxMesh.new()
@@ -56,5 +70,36 @@ func _add_geometry(node: Node, source: NavigationMeshSourceGeometryData3D) -> vo
 			var box := BoxMesh.new()
 			box.size = ((node as CollisionShape3D).shape as BoxShape3D).size
 			source.add_faces(box.get_faces(), (node as Node3D).global_transform)
+			_add_vault_links((node as Node3D).global_transform, box.size)
 	for child in node.get_children():
 		_add_geometry(child, source)
+
+
+## Low, thin cover (fences, sandbags, low walls): links across it, so the AI's paths can go over (AI vault when
+## their path walks them into it; see Scav). Upright boxes only.
+func _add_vault_links(xform: Transform3D, size: Vector3) -> void:
+	if size.y < Vault.MIN_HEIGHT or size.y > Vault.VAULT_HEIGHT or not xform.basis.y.normalized().is_equal_approx(Vector3.UP):
+		return
+	var across := xform.basis.x.normalized()
+	var along := xform.basis.z.normalized()
+	var thickness := size.x
+	var length := size.z
+	if size.z < size.x:
+		across = xform.basis.z.normalized()
+		along = xform.basis.x.normalized()
+		thickness = size.z
+		length = size.x
+	if thickness > Vault.MAX_THICKNESS or length < 0.8:
+		return
+	var count := maxi(1, floori(length / VAULT_LINK_SPACING))
+	var bottom := xform.origin - Vector3(0, size.y * 0.5, 0)
+	for k in count:
+		var at := bottom + along * ((k + 0.5) / count - 0.5) * length
+		var link := NavigationLink3D.new()
+		link.bidirectional = true
+		link.enter_cost = VAULT_LINK_COST
+		add_child(link)
+		link.global_position = at
+		link.start_position = link.to_local(at - across * (thickness * 0.5 + 1.0))
+		link.end_position = link.to_local(at + across * (thickness * 0.5 + 1.0))
+		_vault_links.append(link)

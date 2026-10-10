@@ -1,0 +1,112 @@
+class_name Vault
+extends RefCounted
+## Vaulting over low cover and climbing onto ledges (0.13.0), shared by players and the AI (0.13.1).
+## `plan()` looks straight ahead of a body for something waist-to-chest high and works out the move;
+## `position_at()` walks it. Heights are from the body's feet (its origin).
+
+## Lower than this is a step or a jump, not a vault.
+const MIN_HEIGHT := 0.5
+## Up to this, thin cover (fences, sandbags, low walls) is vaulted: over and down the other side.
+const VAULT_HEIGHT := 1.25
+## Up to this (chest high), ledges and wide tops are climbed onto.
+const MANTLE_HEIGHT := 1.7
+## Cover thinner than this is vaulted over (thicker: climbed onto). The AI's navigation crosses the same pieces.
+const MAX_THICKNESS := 0.9
+## Of a vault's time, the share spent getting up and over the top (the rest is down the far side).
+const SPLIT := 0.6
+
+
+## The move for `body` heading `forward` (flat), or {} if there's nothing to vault or no room:
+## {"path": [start, over the top, end], "over": true = vaulted over (false = climbed onto), "crouch_after": only
+## fits crouched at the end}. `reach` = how far past the body cover still counts; `mantle_height` = VAULT_HEIGHT
+## means vault-overs only.
+static func plan(body: CollisionObject3D, forward: Vector3, radius: float, stand_height: float, crouch_height: float,
+		reach: float, mantle_height := MANTLE_HEIGHT) -> Dictionary:
+	var space := body.get_world_3d().direct_space_state
+	var feet := body.global_position
+	forward = Vector3(forward.x, 0.0, forward.z).normalized()
+	# Something in front at knee height, faced fairly head-on...
+	var knee := feet + Vector3(0, 0.3, 0)
+	var hit := _ray(body, space, knee, knee + forward * (radius + reach))
+	if hit.is_empty():
+		return {}
+	var into := -Vector3(hit["normal"].x, 0.0, hit["normal"].z).normalized()
+	if into.dot(forward) < 0.6:
+		return {}
+	var wall: Vector3 = hit["position"]
+	# ...with a top in reach (and not still wall above it).
+	var top: Variant = _top(body, space, wall + into * 0.15, feet.y + mantle_height + 0.1, feet.y + 0.3)
+	if top == null:
+		return {}
+	var height: float = top.y - feet.y
+	if height < MIN_HEIGHT or height > mantle_height:
+		return {}
+	var above_top := Vector3(feet.x, top.y + 0.25, feet.z)
+	var to_wall := Vector2(wall.x - feet.x, wall.z - feet.z).length()
+	if not _ray(body, space, above_top, above_top + forward * (to_wall + 0.3)).is_empty():
+		return {}
+	var over := Vector3(wall.x, top.y + 0.05, wall.z) + into * 0.15
+	if not _fits(body, over, radius, crouch_height):
+		return {}
+	# Thin enough to go over: find where the top ends, then land on the ground past it.
+	var end: Variant = null
+	if height <= VAULT_HEIGHT:
+		var d := 0.3
+		while d <= MAX_THICKNESS + 0.15 and end == null:
+			var below: Variant = _top(body, space, wall + into * d, top.y + 0.1, top.y - 3.0)
+			if below == null or below.y < top.y - 0.3:
+				var far := wall + into * (d + radius + 0.1)
+				var ground: Variant = _top(body, space, far, top.y + 0.1, top.y - 3.0)
+				end = Vector3(far.x, top.y if ground == null else ground.y + 0.02, far.z)
+			d += 0.15
+	var vault_over := end != null
+	# Otherwise climb onto it.
+	if not vault_over:
+		if height > mantle_height or mantle_height <= VAULT_HEIGHT:
+			return {}
+		var on_top := wall + into * (radius + 0.15)
+		end = Vector3(on_top.x, top.y + 0.02, on_top.z)
+	var crouch_after := false
+	if not _fits(body, end, radius, stand_height):
+		if not _fits(body, end, radius, crouch_height):
+			return {}
+		crouch_after = true
+	return {"path": PackedVector3Array([feet, over, end]), "over": vault_over, "crouch_after": crouch_after}
+
+
+## Where the body is `t` (0-1) of the way through a vault's path.
+static func position_at(path: PackedVector3Array, t: float) -> Vector3:
+	var from := path[0]
+	var to := path[1]
+	var k := t / SPLIT
+	if t >= SPLIT:
+		from = path[1]
+		to = path[2]
+		k = (t - SPLIT) / (1.0 - SPLIT)
+	k = clampf(k, 0.0, 1.0)
+	return Vector3(lerpf(from.x, to.x, k), lerpf(from.y, to.y, smoothstep(0.0, 1.0, k)), lerpf(from.z, to.z, k))
+
+
+static func _ray(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
+	return space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [body.get_rid()]))
+
+
+## The walkable top straight down at `at` between heights `from_y` and `to_y` (null = none).
+static func _top(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, at: Vector3, from_y: float, to_y: float) -> Variant:
+	var hit := _ray(body, space, Vector3(at.x, from_y, at.z), Vector3(at.x, to_y, at.z))
+	if hit.is_empty() or hit["normal"].y < 0.7:
+		return null
+	return hit["position"]
+
+
+## Room for the body (`height` tall) standing at `feet`: no world, player or AI in the way.
+static func _fits(body: CollisionObject3D, feet: Vector3, radius: float, height: float) -> bool:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = radius
+	capsule.height = height
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis(), feet + Vector3(0, height * 0.5 + 0.05, 0))
+	query.collision_mask = 1 | 2 | 4
+	query.exclude = [body.get_rid()]
+	return body.get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()

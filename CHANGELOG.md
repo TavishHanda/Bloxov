@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.2 (AI vaulting; owner)
+- The AI vault too: fences, sandbags and low walls (the same heights as yours) when going over is shorter than
+  walking round, whether chasing you, moving to cover or patrolling. Over only: they never climb onto ledges or roofs.
+- They can't shoot mid-vault. The navigation map links across every low, thin piece of cover (a link every 3 m;
+  going over costs about 3 m of walking, so a short way round still wins).
+- Vaulting moved into one shared `Vault` script used by players and the AI.
+
 ## 0.13.1 (far-range scav accuracy; owner)
 - Scavs hit more often at range: 30% at 28 m (was 20%), sliding to 18% at the edge of their range (was 10%).
   Close range is unchanged. Raiders, Bon, guards and snipers are unchanged.
