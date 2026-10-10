@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -1904,6 +1904,45 @@ func _section_close_range() -> void:
 	_check(gap >= pusher.min_distance - 0.3 and gap < pusher.min_distance + 2.5, "a scav that's too close backs off to about %.0f m (%.1f m)" % [pusher.min_distance, gap])
 	pusher.queue_free()
 	player.health.heal(player.health.max_health)
+
+
+func _section_crest() -> void:
+	# Over a hill crest (0.11.17 hills): the scav sees the player's head over the ridge but its chest-height line
+	# hits the ground. It shoots from its eyes at what it can see instead of into the hill.
+	var scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 10)) as Scav
+	_face_player(scav)
+	scav.set_physics_process(false)
+	scav._target = player
+	scav.accuracy_near = 1.0
+	scav.accuracy_far = 1.0
+	var ridge := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(4, 1.45, 0.5)
+	ridge.add_child(shape)
+	main.add_child(ridge)
+	ridge.global_position = player.global_position + Vector3(0, 0.725, 5)
+	await physics_frame
+	await physics_frame
+	_check(scav._has_line_of_sight(), "the scav can see the player's head over the ridge")
+	var hits := 0
+	for i in 4:
+		var before := player.health.current
+		scav._fire_at_target(10.0)
+		if player.health.current < before:
+			hits += 1
+	_check(hits == 4, "...and its shots go over the crest and hit (%d of 4), not into the ground" % hits)
+	# Taller ridge, nothing of the player showing: no clear line, so it holds fire.
+	(shape.shape as BoxShape3D).size = Vector3(4, 4, 0.5)
+	await physics_frame
+	var hp := player.health.current
+	scav._fire_at_target(10.0)
+	_check(player.health.current == hp, "with no clear line it doesn't fire into the hill")
+	ridge.queue_free()
+	scav.queue_free()
+	player.health.heal(player.health.max_health)
+	player.teleport_to(START_SPOT)
+	await physics_frame
 
 
 func _section_melee() -> void:

@@ -719,14 +719,25 @@ func _update_shooting(delta: float, dist: float) -> void:
 
 
 func _fire_at_target(dist: float) -> void:
-	# The bullet's path starts at the scav's own chest (its body is excluded), not the gun barrel:
-	# with someone right in its face, a ray from the barrel tip would start past them and miss.
-	var from := global_position + Vector3(0, 1.3, 0)
+	# The bullet's path starts inside the scav's own body (excluded), not the gun barrel: with someone right
+	# in its face, a ray from the barrel tip would start past them and miss. Chest height normally; from the
+	# eyes when the chest's line is blocked (over a hill crest, a windowsill), since the eyes are what saw them.
+	var space := get_world_3d().direct_space_state
+	var chest_from := global_position + Vector3(0, 1.3, 0)
+	var eyes := global_position + Vector3(0, 1.65, 0)
 	var chest := _target.global_position + Vector3(0, _target.chest_height(), 0)
-	# Peeking around cover (leaning): if the chest is hidden, aim at the head it can see.
-	var cover_check := PhysicsRayQueryParameters3D.create(from, chest, 1, [get_rid()])
-	if not get_world_3d().direct_space_state.intersect_ray(cover_check).is_empty():
-		chest = _target.eye_position() - Vector3(0, 0.1, 0)
+	var head := _target.eye_position() - Vector3(0, 0.1, 0)
+	# Peeking around cover (leaning) or over a crest: aim at whatever part of them has a clear line.
+	var from := chest_from
+	var picked := false
+	for option in [[chest_from, chest], [eyes, chest], [eyes, head]]:
+		if space.intersect_ray(PhysicsRayQueryParameters3D.create(option[0], option[1], 1, [get_rid()])).is_empty():
+			from = option[0]
+			chest = option[1]
+			picked = true
+			break
+	if not picked:
+		return  # no clear shot (seen over the crest, but every line hits the ground): don't shoot the hill
 
 	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / accuracy_range, 0.0, 1.0))
 	if dist < point_blank_range:
@@ -749,7 +760,7 @@ func _fire_at_target(dist: float) -> void:
 	var mask := (1 | 2) if hit else 1
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask, [get_rid()])
 	query.hit_from_inside = true
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
+	var result := space.intersect_ray(query)
 	var end := to
 	if not result.is_empty():
 		end = result.position
