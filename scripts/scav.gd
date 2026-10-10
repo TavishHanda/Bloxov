@@ -123,7 +123,7 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var shot_pitch := 0.8
 @export var shot_volume_db := -3.0
 @export var shot_unit_size := 6.0
-## What the server tells players' games this is (0 scav, 1 Raider, 2 sniper: which puppet scene to show).
+## What the server tells players' games this is (0 scav, 1 Raider, 2 sniper, 3 boss: which puppet scene to show).
 @export var net_kind := 0
 
 @export_group("Healing")
@@ -232,8 +232,10 @@ var _heal_after_move := false
 ## whole map (the few random roamers, and every AI on the test map). Fights can still pull it out.
 var home_center := Vector3.ZERO
 var home_radius := 0.0
-## Duo partner: the Raider it follows around while patrolling (null = it leads itself).
+## Duo partner or boss guard: who it follows around while patrolling (null = it leads itself), and where it
+## walks relative to them (right/back in their facing).
 var leader: Scav = null
+var follow_offset := Vector3(2.0, 0.0, 1.5)
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
 var _lunge_left := 0.0
@@ -824,7 +826,7 @@ func _strafe(delta: float, to_target: Vector3) -> Vector3:
 func _wander(delta: float) -> Vector3:
 	# A duo partner sticks with its leader instead of picking its own patrol.
 	if leader != null and is_instance_valid(leader) and leader.state != State.DEAD:
-		var spot := leader.global_position + leader.global_basis.x * 2.0 + leader.global_basis.z * 1.5
+		var spot := leader.global_position + leader.global_basis.x * follow_offset.x + leader.global_basis.z * follow_offset.z
 		if _flat(spot - global_position).length() < 1.5:
 			_wander_dir = Vector3.ZERO
 			return Vector3.ZERO

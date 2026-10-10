@@ -1725,7 +1725,11 @@ AI_ZONES = [
     ("Church", 180, 42, 25, 1, 0, 0.0),
     ("Woods", 75, 290, 40, 1, 0, 0.0),        # cabins, campsite, hunting stand
     ("OldHouses", 200, 300, 30, 1, 0, 0.0),   # old houses south of the railway
+    ("TownHall", 107, 151, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
 ]
+# The boss (owner: a Raider commander with guards, at the town hall + bunker, in every raid while testing; a chance
+# later): zone, guards, chance per raid.
+AI_BOSS = ("TownHall", 3, 1.0)
 AI_ROAMERS = 3
 # Sniper perches (Scavs 2.0, owner): high spots with a view, a sniper stays on one. 2 of them are used each raid
 # (preferring ones that don't already see a player). (name, x, z, height above the ground, which way it watches)
@@ -1788,7 +1792,7 @@ def zone_spawns():
     for zone in AI_ZONES:
         zname, cx, cz, r, scavs, raiders = zone[:6]
         have = sum(1 for n, x, z in enemy_spawns if spawn_zone.get(n) == zname)
-        need = max(3, scavs + raiders + 1) - have
+        need = max(3 if zname != AI_BOSS[0] else 4, scavs + raiders + 1) - have
         for _ in range(3000):
             if need <= 0:
                 break
@@ -1813,7 +1817,8 @@ def spawner_meta(ter):
     # Scavs 2.0 (owner: about 30 at the start once the boss and snipers are in): the zones' AI and the roamers at
     # the start, then 5 more scavs (one every 50-70 s) and 3 more Raiders trickle into the hot zones.
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
-            f'"max_alive": 30, "scav_budget": {scavs + 5}, "raider_budget": {raiders + 3}, '
+            f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}}}, '
+            f'"max_alive": 34, "scav_budget": {scavs + 5}, "raider_budget": {raiders + 3}, '
             '"scav_interval_min": 50.0, "scav_interval_max": 70.0, '
             '"raider_times": PackedFloat32Array(150, 300, 420), "min_distance_from_player": 40.0}')
 
