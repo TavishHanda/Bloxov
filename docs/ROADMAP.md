@@ -61,7 +61,7 @@ between updates. Lore is the owner's.
 ## Version phases (middle number)
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
 0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
-per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Old Bloxov) · 0.11 cleanup ·
+per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Bloxov Battlegrounds) · **0.11 Scorched Earth** (cleanup, war-torn map, hills) ·
 then Scavs 2.0 and Items as their own phases (the Stash update waits until closer to release).
 
 ## Rules while we go

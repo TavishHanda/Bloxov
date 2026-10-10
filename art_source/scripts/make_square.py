@@ -1,5 +1,5 @@
-"""Bloxov town square props for Old Bloxov: planter, market stall, fountain and statue (docs/MAP_PLAN.md, docs/ART_SPEC.md).
-Each one fits its gray box in tools/gen_old_bloxov.py (sizes in PROPS below). Old Bloxov theme (owner): 2000s,
+"""Bloxov town square props for Bloxov Battlegrounds: planter, market stall, fountain and statue (docs/MAP_PLAN.md, docs/ART_SPEC.md).
+Each one fits its gray box in tools/gen_old_bloxov.py (sizes in PROPS below). Bloxov Battlegrounds theme (owner): 2000s,
 abandoned but intact, summer, nothing that points to a country.
 
 How to use (Blender 4.x / 5.x):

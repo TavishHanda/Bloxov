@@ -16,7 +16,7 @@ static func closest(node: Node3D, point: Vector3) -> Vector3:
 
 
 ## No limit on how much of the map a path search may look at: the default (4096 pieces) is less than a real map
-## has (Old Bloxov, 0.10.0), so a path across it would stop short and lead somewhere odd. Empty without a map.
+## has (Bloxov Battlegrounds, 0.10.0), so a path across it would stop short and lead somewhere odd. Empty without a map.
 static func path(node: Node3D, from: Vector3, to: Vector3) -> PackedVector3Array:
 	if not ready(node):
 		return PackedVector3Array()

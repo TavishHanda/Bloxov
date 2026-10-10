@@ -1680,7 +1680,7 @@ def map_labels():
             labels.append((MAP_NAMES[name], (x0 + x1) / 2, z, 0))
     labels.extend([("JUNKYARD", 322, 278, 0), ("CHECKPOINT", 263, 276, 0), ("CAMPSITE", 66, 262, 0),
                    ("HILL HOUSES", 66, 12, 0), ("GRAVEYARD", 189, 60, 0),
-                   ("OLD TOWN", 30, 104, 1), ("FARM", 312, 72, 1), ("WOODS", 72, 326, 1), ("WOODS", 300, 140, 1), ("RAILWAY", 120, 204, 1),
+                   ("TOWN", 30, 104, 1), ("FARM", 312, 72, 1), ("WOODS", 72, 326, 1), ("WOODS", 300, 140, 1), ("RAILWAY", 120, 204, 1),
                    ("OLD HOUSES", 220, 300, 1)])
     yards.extend([(245, 8, 343, 100), (88, 108, 124, 138), (298, 262, 346, 294), (176, 30, 202, 56),
                   (154, 62, 168, 80), (15, 148, 45, 166)])

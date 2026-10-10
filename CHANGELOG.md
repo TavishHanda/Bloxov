@@ -3,7 +3,15 @@
 Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, every change after that bumps the last.
 
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
-updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
+updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
+(owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
+
+## 0.11.18 (the map screen says TOWN, not OLD TOWN; owner)
+- The map (M) labels the town area **TOWN** instead of "OLD TOWN", so nothing in the game says "Old" any more
+  (owner: the map is Bloxov Battlegrounds, not Old Bloxov). The town's own name is still to come
+- The 0.11 update is now called **Scorched Earth** (owner): the cleanup plus the map turning into a war zone
+- Docs: every leftover "Old Bloxov" in the changelog, docs and comments now says Bloxov Battlegrounds (file names
+  keep `old_bloxov`); the layout picture is redrawn
 
 ## 0.11.17 (hills and valleys; owner)
 - **The ground isn't flat any more** (owner: "there should be hills and valleys"). Bloxov Battlegrounds now rolls,
@@ -64,12 +72,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
   the body). Tunable per enemy: `weapon_drop` / `weapon_drop_chance` on the scene
 - Body bags grow taller when their loot wouldn't fit (an AK next to a backpack used to lose the backpack)
 
-## 0.11.10 (twice the enemies on Old Bloxov; owner)
+## 0.11.10 (twice the enemies on Bloxov Battlegrounds; owner)
 - **Twice the enemies** (owner: testers found it way too easy): 24 scavs at the start (was 12), up to 30 alive at
   once (15), 64 scavs over the raid (32) and up to 16 Raiders (8): 6 at the start, then one about every 45 s from
   1:00 to 8:00. Twice the AI spawn spots too (48, the new 24 on open ground away from the others and 45+ m from
   player spawns), so they don't stack. Still placeholders until Scavs 2.0
-- Only Old Bloxov's numbers changed (the test map keeps 3)
+- Only Bloxov Battlegrounds' numbers changed (the test map keeps 3)
 
 ## 0.11.9 (dead grass patches removed; Map & Spawn follow-up, owner)
 - **The dead grass patches are gone** (owner: the flat grey and green patches looked bad). Flat blocks can't sell
@@ -141,7 +149,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 - **O shows the extracts open for you** again: a list in the top right (name and distance) that slides in when you
   press O and goes away after a few seconds (or press O again). It no longer pops up on its own at the start, and
   there are still no name tags over extracts; the map (M) shows where they are
-## 0.11.0 (code cleanup starts: the AI's navigation helpers)
+## 0.11.0 (Scorched Earth update starts: code cleanup: the AI's navigation helpers)
 No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items update (owner, 0.10.0).
 - The AI's navigation queries (closest walkable point, paths, random spots, safe before the map is ready) moved out
   of `scav.gd` into `ai_nav.gd`, ready for Scavs 2.0's spawn spots and roaming areas
@@ -159,14 +167,14 @@ No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items updat
   (west field, the creek, the south edge twice, the east edge twice, the farm, north of town)
 
 ## 0.10.2 (the map: M, owner)
-- **Press M for the map**: Old Bloxov from above with the names of places (bank, police, junkyard, farm...), the
+- **Press M for the map**: Bloxov Battlegrounds from above with the names of places (bank, police, junkyard, farm...), the
   extracts open for you this raid (green flags), your teammates (green dots) and you (a yellow arrow pointing where
   you look). It stays open while you move; M again closes it
 - **Extracts are no longer on your screen** (owner): the O list and the name tags over extracts are gone; the map is
   where you find them. "EXTRACTING" still shows while you stand in one
 - The map's drawing comes from the map generator (buildings, roads, the creek, woods, yards, place names)
 
-## 0.10.1 (Old Bloxov: junkyard, checkpoint, church, power lines, owner)
+## 0.10.1 (Bloxov Battlegrounds: junkyard, checkpoint, church, power lines, owner)
 - **Fewer buildings, more places** (owner: replace rather than add, so players spread out and meet at hot spots):
   - a **junkyard** north of the gas station (fenced maze of stacked wrecks, a crane, a crusher, the office) replaces two old houses
   - a **roadblock checkpoint** across the highway west of the gas station (barrier chicane, sandbag nests, guard booth,
@@ -181,8 +189,8 @@ No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items updat
 - Main Street runs to the map edge again (the big house at its end is gone)
 - 95 loot spots (new places: Campsite, Junkyard, JunkOffice, Checkpoint, Church, BellTower, Crypt, GasStationTown)
 
-## 0.10.0 (the first real map: Old Bloxov, gray box, owner)
-- **Raids now happen in Old Bloxov**, a 350 x 350 m town (about 2:15 to walk across on a real route) laid out with the owner:
+## 0.10.0 (the first real map: Bloxov Battlegrounds, gray box, owner)
+- **Raids now happen in Bloxov Battlegrounds**, a 350 x 350 m town (about 2:15 to walk across on a real route) laid out with the owner:
   the **town** in the top left (winding Main Street, town square full of cover, gun store, pharmacy, grocery, bank,
   offices, police station, school, big houses on the hillside), the **farm** top right, the **train station and
   depot** in the middle, **old houses and the gas station** bottom right, **woods** with 3 cabins, a creek and a railway

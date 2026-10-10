@@ -44,7 +44,7 @@ road([(236,270),(290,258),(350,252)],6)                                         
 road([(196,240),(180,300),(160,348)],6)                                          # South Lane
 # ---- town
 rect(8,8,190,180,"none",stroke="#b0442c",sw=1.5,dash="7,4")
-text(14,16,"OLD BLOXOV TOWN",11,"bold","#b0442c",anchor="start")
+text(14,16,"TOWN",11,"bold","#b0442c",anchor="start")
 rect(88,108,36,30,"#e8e2d4",stroke="#777")
 circ(106,123,3.2,"#a9cbe8")
 for (x,y) in [(92,112),(116,112),(92,132),(116,132)]: rect(x,y,4,3,"#7fae6a",stroke="#555",sw=.8)
@@ -102,7 +102,7 @@ for (x,y) in [(6,40),(6,180),(100,344),(230,344),(344,120),(344,70),(178,6),(250
 rect(5,355,50,2,"#000",stroke="none"); text(30,361,"50 m",9)
 # ---- legend
 lx=PAD+M*S+22; y=PAD+10
-o.append(f'<text x="{lx}" y="{y}" font-size="16" font-weight="bold" font-family="Arial,sans-serif">Old Bloxov (draft 5)</text>'); y+=18
+o.append(f'<text x="{lx}" y="{y}" font-size="16" font-weight="bold" font-family="Arial,sans-serif">Bloxov Battlegrounds (draft 5)</text>'); y+=18
 o.append(f'<text x="{lx}" y="{y}" font-size="11" fill="#555" font-family="Arial,sans-serif">350 x 350 m, north up. Colour = loot type</text>'); y+=18
 def leg(col,label,shape="rect"):
     global y
