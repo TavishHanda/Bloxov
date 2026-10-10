@@ -176,12 +176,19 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 ## Chasing (0.12.33, owner: "they never push when in range to actually shoot"; cover is for when it sees you but
-## you're too far to hit). Within chase_range it walks at you shooting (push_speed) until chase_stop meters away,
-## and comes after you again if you back off. It only takes cover instead (or after getting hit) chase_cover_chance
-## of the time, and from cover in this range it peeks once, then comes out to chase. Badly hurt AI don't chase.
+## you're too far to hit). Within chase_range it closes in until chase_stop meters away, and comes after you again
+## if you back off. It only takes cover instead (or after getting hit) chase_cover_chance of the time, and from
+## cover in this range it peeks once, then comes out to chase. Badly hurt AI don't chase.
+## Not a brainless run at you (0.12.34, owner: "strategically"): it dashes a few meters at a time to the next spot
+## closer to you, out of your sight when there is one and curving round to one side, then stops and shoots for a
+## moment. Friends fighting you take turns: one dashes while the others shoot from where they are.
 @export var chase_range := 30.0
 @export var chase_stop := 7.0
 @export var chase_cover_chance := 0.25
+## Each dash covers about this far (meters); it shoots from where it stops for this long (seconds, random).
+@export var chase_dash := 8.0
+@export var chase_pause_min := 0.8
+@export var chase_pause_max := 1.6
 
 @export_group("Raider behavior")
 ## Off for scavs except flanking (0.12.3, less often than Raiders); raider.tscn turns these on (owner, 0.6.13: harder to fight).
@@ -926,16 +933,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			_update_shooting(delta, dist)
 			return _path_velocity(_target.global_position, move_speed * push_speed)
 		Tactic.CHASE:
-			# Walks straight at you shooting. Where the path bends round something it faces where it's going and
-			# holds fire for those steps, so it never walks sideways across your view.
-			var chase_move := _path_velocity(_target.global_position, move_speed * push_speed)
-			if chase_move.length() > 0.1 and _flat(chase_move).normalized().dot(_flat(to_target).normalized()) < 0.5:
-				_face(chase_move, delta)
-				_hold_fire()
-			else:
-				_face(to_target, delta)
-				_update_shooting(delta, dist)
-			return chase_move
+			return _chase(delta, sees, to_target, dist)
 		Tactic.ADVANCE:
 			_hold_fire()
 			if holds_position:
@@ -993,9 +991,12 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 			return (not sees or dist > shoot_range or _can_push(dist) or _tactic_time > _stand_time
 				or (_hit_since_decide and _dodge_left <= 0.0) or (_can_chase(dist) and dist > chase_stop + 3.0))
 		Tactic.CHASE:
-			# Getting hit: re-rolls chase or cover (it mostly keeps coming).
-			return (not sees or not _can_chase(dist) or dist <= chase_stop or _can_push(dist)
-				or (_hit_since_decide and _tactic_time > 0.5))
+			# Getting hit while stopped: re-rolls chase or cover (it mostly keeps coming). Out of sight mid-dash is
+			# fine (that's the point); lost you for a while at a stop: go find you.
+			if not sees:
+				return _dash_point == Vector3.INF and _lost_sight_time > 1.5
+			return (not _can_chase(dist) or dist <= chase_stop or _can_push(dist)
+				or (_hit_since_decide and _tactic_time > 0.5 and _dash_point == Vector3.INF))
 		Tactic.PUSH:
 			return not sees or not _can_push(dist)
 		Tactic.ADVANCE:
@@ -1038,6 +1039,9 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		if randf() >= chase_cover_chance or _cover_cooldown_left > 0.0:
 			if tactic != Tactic.CHASE:
 				_bark("push", 0.4)
+				_dash_point = Vector3.INF
+				_dash_pause = randf_range(0.2, 0.6)
+				_dash_side = 1.0 if randf() < 0.5 else -1.0
 			tactic = Tactic.CHASE
 			return
 	if not holds_position and _cover_cooldown_left <= 0.0:
@@ -1059,6 +1063,95 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 ## You're reloading or healing and it's not hurt: worth rushing you.
 func _can_push(dist: float) -> bool:
 	return _target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
+
+
+var _dash_point := Vector3.INF
+var _dash_pause := 0.0
+var _dash_time := 0.0
+var _dash_side := 1.0
+var _dash_wait := 0.0
+
+## Chasing (0.12.34): dash to the next spot, stop and shoot, dash again (bounding, friends taking turns).
+func _chase(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
+	if _dash_point != Vector3.INF:
+		_dash_time += delta
+		var move := _path_velocity(_dash_point, move_speed)
+		# Shoots on the move only with you roughly ahead; otherwise faces where it's going (never sideways).
+		if sees and move.length() > 0.1 and _flat(move).normalized().dot(_flat(to_target).normalized()) > 0.7:
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+		else:
+			_face(move, delta)
+			_hold_fire()
+		if _flat(_dash_point - global_position).length() < 0.6 or _dash_time > 4.0 or _cover_stuck(move):
+			_dash_point = Vector3.INF
+			_dash_pause = randf_range(chase_pause_min, chase_pause_max) * (0.5 if not sees else 1.0)
+		return move
+	# Stopped: shoots while it can see you, then picks the next dash (if it's its turn).
+	_dash_pause -= delta
+	if sees:
+		_face(to_target, delta)
+		_update_shooting(delta, dist)
+	else:
+		_face(_flat(_last_seen - global_position), delta)
+		_hold_fire()
+	if _dash_pause <= 0.0 and _shots_left <= 0:
+		if _friend_dashing():
+			_dash_pause = 0.3   # covering a friend's dash: keep shooting, go after they stop
+			return Vector3.ZERO
+		_dash_point = _pick_dash_point()
+		_dash_time = 0.0
+		if _dash_point == Vector3.INF:
+			_dash_pause = 0.8   # nowhere better to go yet: keep shooting from here
+	return Vector3.ZERO
+
+
+## Another AI fighting the same target nearby is mid-dash (they take turns: one moves, the rest shoot).
+func _friend_dashing() -> bool:
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if (other != null and other != self and other.state == State.ENGAGE and other.tactic == Tactic.CHASE
+				and other._dash_point != Vector3.INF and other._target == _target
+				and _flat(other.global_position - global_position).length() < 25.0):
+			return true
+	return false
+
+
+## The next chase spot: a few meters closer to where it last saw you, not closer than chase_stop, reachable by a
+## short path. Best: out of your sight; then: curving round on its side (so it comes at you from an angle); ahead.
+func _pick_dash_point() -> Vector3:
+	var goal := _last_seen
+	var to_goal := _flat(goal - global_position)
+	var dist := to_goal.length()
+	if dist <= chase_stop + 1.0:
+		return Vector3.INF
+	var forward := to_goal / dist
+	var eyes := goal + Vector3(0, 1.6, 0)
+	if _target != null and is_instance_valid(_target) and _can_see:
+		eyes = _target.eye_position()
+	var space := get_world_3d().direct_space_state
+	var best := Vector3.INF
+	var best_score := -INF
+	for length: float in [chase_dash * 0.6, chase_dash, chase_dash * 1.4]:
+		for i in 7:
+			var angle := deg_to_rad(-54.0 + i * 18.0)
+			var spot := AINav.closest(self, global_position + forward.rotated(Vector3.UP, angle) * length)
+			if spot == Vector3.ZERO:
+				continue
+			var left := _flat(goal - spot).length()
+			var gain := dist - left
+			if gain < 2.5 or left < chase_stop or _spot_taken(spot):
+				continue
+			if AINav.path_length(AINav.path(self, global_position, spot)) > length * 1.5:
+				continue
+			var score := gain
+			score += 5.0 * _hides_at(space, eyes, spot)
+			score += 2.0 * signf(angle) * _dash_side
+			score += randf() * 1.5
+			if score > best_score:
+				best_score = score
+				best = spot
+	return best
 
 
 ## Close enough to really hurt you, and fit and free to come after you.

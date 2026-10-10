@@ -2715,6 +2715,36 @@ func _section_cover() -> void:
 	_check(chased and chase_shots[0] > 0 and closest < 12.0 and closest > chaser.min_distance,
 		"in range it chases you while shooting (%d shots, got to %.1f m)" % [chase_shots[0], closest])
 	chaser.queue_free()
+	# Not a straight run (0.12.34, owner: "strategically"): it dashes and stops to shoot, and two chasing you take
+	# turns (one dashes while the other shoots).
+	var duo: Array[Scav] = []
+	for z in [-1.5, 1.5]:
+		var c := _spawn(SCAV_SCENE, Vector3(7, 0.1, z)) as Scav
+		_face_player(c)
+		c.shot_damage = 0
+		c.flank_chance = 0.0
+		c.chase_cover_chance = 0.0
+		duo.append(c)
+	await physics_frame
+	for c in duo:
+		c._alert(player.global_position)
+		c._set_state(Scav.State.ENGAGE)
+	var both_dashing := 0
+	var dashes := 0
+	var stops := 0
+	for i in 60 * 6:
+		await physics_frame
+		var dashing := 0
+		for c in duo:
+			if c.tactic == Scav.Tactic.CHASE and c._dash_point != Vector3.INF:
+				dashing += 1
+		both_dashing += 1 if dashing == 2 else 0
+		dashes += dashing
+		stops += 1 if duo[0].tactic == Scav.Tactic.CHASE and duo[0]._dash_point == Vector3.INF else 0
+	_check(dashes > 0 and stops > 0 and both_dashing == 0,
+		"chasing, it dashes and stops to shoot, and two take turns (%d dash frames, %d stopped, %d both dashing)" % [dashes, stops, both_dashing])
+	for c in duo:
+		c.queue_free()
 
 
 func _section_lean() -> void:

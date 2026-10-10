@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.34 (smarter chasing; owner)
+- Chasing is no longer a straight walk at you (owner: "strategically"). In range an AI dashes about 5-11 m at a
+  time to the next spot closer to you, picking one out of your sight when there is one and curving round to one
+  side, then stops and shoots for about 1-1.5 s before the next dash. It shoots on the move only when you're
+  ahead of it. AI fighting you together take turns: one dashes while the others shoot from where they are.
+- Smoke test: a chaser dashes and stops to shoot, and two chasers never dash at the same time.
+
 ## 0.12.33 (AI chase you in range; owner)
 - AI now push you when they're close enough to really hit you (owner: "they never push when in range to actually
   shoot"; cover is for when they see you but you're too far). Within 30 m an AI mostly walks straight at you
