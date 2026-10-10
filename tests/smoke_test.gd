@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -2226,6 +2226,49 @@ func _section_boss() -> void:
 	await _frames(2)
 
 
+func _section_teamwork() -> void:
+	# Smarter fights (0.12.3, owner: AI were "too dumb"): a scav that starts a fight calls unaware AI nearby over,
+	# heads for cover when it spots you from far off, and pushes in while you heal or reload.
+	var caller := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 25)) as Scav
+	var buddy := _spawn(SCAV_SCENE, player.global_position + Vector3(12, 0, 40)) as Scav
+	var far_away := _spawn(SCAV_SCENE, player.global_position + Vector3(-60, 0, 30)) as Scav
+	for s: Scav in [caller, buddy, far_away]:
+		s.shot_damage = 0
+	await physics_frame
+	caller._alert(player.global_position)
+	_check(buddy.state == Scav.State.INVESTIGATE and buddy._answering_call and far_away.state == Scav.State.IDLE,
+		"a scav that starts a fight calls nearby AI over (they jog toward it); AI far off don't hear it")
+	far_away.queue_free()
+	buddy.queue_free()
+	# Spotted from 25 m: it goes for cover first (if there's any) instead of standing in the open.
+	_check(caller.cover_at_range < 25.0, "it heads for cover when the fight starts from far off (past %.0f m)" % caller.cover_at_range)
+	caller.queue_free()
+	await physics_frame
+	# You heal (or reload): it pushes in on you instead of strafing.
+	var pusher := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 18)) as Scav
+	_face_player(pusher)
+	pusher.shot_damage = 0
+	pusher.flank_chance = 0.0
+	pusher._cover_cooldown_left = 99.0
+	pusher._alert(player.global_position)
+	pusher._set_state(Scav.State.ENGAGE)
+	for i in 20:
+		await physics_frame
+	var before := pusher.global_position.distance_to(player.global_position)
+	player.heal_time_left = 2.0  # (as if patching up; reloading works the same)
+	for i in 60:
+		await physics_frame
+	player.heal_time_left = 0.0
+	var after := pusher.global_position.distance_to(player.global_position)
+	_check(before - after > 1.5, "while you heal or reload it pushes in (%.1f m -> %.1f m)" % [before, after])
+	pusher.queue_free()
+	var idle := load(SCAV_SCENE).instantiate() as Scav
+	_check(idle.patrol_pause_max <= 3.0 and idle.loot_time_max <= 4.0, "shorter pauses on patrol, so they keep moving")
+	idle.free()
+	player.health.heal(player.health.max_health)
+	await physics_frame
+
+
 func _section_pathing() -> void:
 	# The raid builds a navigation map; a scav walks around a building instead of into its wall.
 	var nav := main.get_node("Navigation") as NavBaker
@@ -2326,6 +2369,7 @@ func _section_cover() -> void:
 	scav.shot_damage = 0  # watching it move, not dying
 	scav._strafe_time = 99.0  # no random strafing, so the cover it finds doesn't depend on luck
 	scav._strafe_dir = 0.0
+	scav.flank_chance = 0.0  # (scavs flank sometimes since 0.12.3; this checks cover)
 	await physics_frame
 	scav._alert(player.global_position)
 	scav._set_state(Scav.State.ENGAGE)
@@ -2455,8 +2499,9 @@ func _section_raiders() -> void:
 	# hunt longer, cover/heal better, and sometimes come as a duo.
 	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
 	var raider := _spawn(RAIDER_SCENE, Vector3(-30, 0.1, 30)) as Scav
-	_check(scav.hearing_mult == 1.0 and scav.flank_chance == 0.0 and scav.sneak_range == 0.0 and scav.give_up_time == 6.0 and scav.heals == 1,
-		"scavs keep their behavior (no Raider tricks)")
+	_check(scav.hearing_mult == 1.0 and scav.flank_chance > 0.0 and scav.flank_chance < raider.flank_chance and scav.sneak_range == 0.0
+		and scav.give_up_time == 6.0 and scav.heals == 1,
+		"scavs keep their behavior (no Raider tricks except flanking, less often: 0.12.3)")
 	_check(raider.hearing_mult > 1.0 and raider.flank_chance > 0.0 and raider.sneak_range > 0.0 and raider.give_up_time > scav.give_up_time
 		and raider.search_time > scav.search_time and raider.heals > scav.heals and raider.cover_cooldown < scav.cover_cooldown, "Raiders get the harder behavior")
 	# Hears a gunshot from farther than a scav would (comes toward fights).

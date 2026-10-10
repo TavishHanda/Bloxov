@@ -6,6 +6,23 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.3 (smarter fights; owner)
+- **AI fight smarter** (owner: every AI was "too dumb"; a friend's playtest: AI standing around). This covers scavs,
+  Raiders and the boss:
+  - **They call for help:** an AI that starts a fight brings over every unaware AI within 35 m (mostly its
+    zone-mates). They jog over toward the fight, not straight to you. The ones that answer don't call again, so
+    one fight doesn't pull in the whole map
+  - **Cover at range:** spotting you from more than 20 m away, an AI heads for cover first (shooting on the way if
+    it can) instead of trading shots in the open
+  - **They push you:** while you reload or heal, an AI in a fight walks in on you, still shooting, instead of
+    strafing in place, and one holding cover comes out straight away. Hiding was already pushed: they go to where
+    they last saw you. (Online, reloading isn't sent to the server yet, so there it's healing only)
+  - **Scavs flank too:** in a break in the fight a scav sometimes circles round to your side (30% of the time;
+    Raiders 50%)
+  - **They keep moving:** shorter stops on patrol (1-3 s, was 2-6 s) and shorter container searches (2-4 s, was
+    3-6 s)
+- Snipers stay on their perches (they don't answer calls)
+
 ## 0.12.2 (the town hall boss; owner)
 - **A boss guards the town hall** (owner: high-tier loot guarded by a better-equipped boss and guards). A Raider
   **commander** and 3 Raider guards patrol the town hall and its bunker together. They're in every raid while
