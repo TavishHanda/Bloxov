@@ -18,7 +18,9 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    "walks into you" bug, spawn budget retuned for the real raid.
 4. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions.
 5. **Then (M4, vertical slice):** building models fitted to the proven layout, guns as separate models
-   (`GunSocket`), real sounds, loading screen. After that M5 content (characters with perks, more traders,
+   (`GunSocket`), real sounds, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
+   saturated; tune it once, against the real models and ground textures, within what the web build supports).
+   After that M5 content (characters with perks, more traders,
    more maps) and the M6 public release.
 - **Stash update (planned, before the store/Steam release; owner 2026-10-10: wait until closer to shipping, solo and
   online share one stash while we playtest):** solo and online get **separate stashes** (each with its own money,
