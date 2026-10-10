@@ -368,7 +368,7 @@ func _drop_items(data: Array, is_body: bool) -> void:
 	var me: Array = _player_states[peer]
 	var title: String = ("%s's Body" % matchmaker.players[peer]["name"]) if is_body else "Dropped Items"
 	var forward := Vector3(-sin(me[1]), 0, -cos(me[1]))
-	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data)
+	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data, is_body)
 
 
 ## A player started (on) or stopped holding F on a downed teammate: tell the downed one (their screen shows it).

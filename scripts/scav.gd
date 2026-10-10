@@ -140,7 +140,7 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Loot table in ItemDB.LOOT_TABLES, and the name on the body bag.
 @export var loot_table := "scav"
 @export var body_name := "Scav Body"
-## Chance its gun ends up in the body bag too (owner, 0.11.11: Raiders sometimes drop their AK).
+## Chance its gun ends up on its body too (in the Primary slot) (owner, 0.11.11: Raiders sometimes drop their AK).
 @export_range(0.0, 1.0) var weapon_drop_chance := 0.0
 ## Item id of that gun.
 @export var weapon_drop := ""
@@ -882,7 +882,7 @@ func _on_died() -> void:
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
-	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0)
+	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
 	queue_free()
 
 

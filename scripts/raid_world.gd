@@ -98,7 +98,7 @@ func open_container(peer: int, id: String) -> Variant:
 		return null
 	close_containers(peer)
 	locks[id] = peer
-	return box.grid.to_data()
+	return box.net_data()
 
 
 ## The player who has it open moved things around: store the new contents (an emptied bag goes away).
@@ -106,8 +106,8 @@ func update_container(peer: int, id: String, data: Array) -> void:
 	var box := container(id)
 	if box == null or locks.get(id) != peer:
 		return
-	box.grid.load_data(data)
-	if box.remove_when_empty and box.grid.is_empty():
+	box.load_net_data(data)
+	if box.remove_when_empty and box.is_empty():
 		locks.erase(id)
 		box.queue_free()
 		bag_removed.emit(id)
@@ -120,15 +120,15 @@ func close_containers(peer: int) -> void:
 			locks.erase(id)
 
 
-## A bag of items (a dead player's body, things a player dropped) at `pos`.
-func drop_bag(pos: Vector3, title: String, data: Array) -> void:
+## A bag of items (a dead player's body, things a player dropped) at `pos`. A body gets gear slots.
+func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
 	var contents := []
 	for entry in data:
 		var stack := GridInventory.data_stack(entry)
 		if stack != null:
 			contents.append(stack)
 	if not contents.is_empty():
-		LootContainer.spawn_bag(raid, pos, title, contents)
+		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body)
 
 
 ## Every living scav/Raider: [id, kind (0 scav, 1 Raider), net_capture()...].

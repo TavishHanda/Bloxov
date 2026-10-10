@@ -8,6 +8,9 @@ var title: String
 var width: int
 var height: int
 var stacks: Array[ItemStack] = []
+## A body's gear slot ("primary", "armor", ...): holds one item that goes in that slot, whatever its size
+## (it sits at 0, 0). Empty = a normal grid.
+var slot := ""
 
 
 func _init(grid_title: String, grid_width: int, grid_height: int) -> void:
@@ -22,6 +25,8 @@ func is_empty() -> bool:
 
 ## True if an item of this id/rotation can sit with its top-left at (x, y). `ignore` is skipped (the stack being moved).
 func fits(id: String, x: int, y: int, rotated: bool, ignore: ItemStack = null) -> bool:
+	if slot != "":
+		return ItemDB.equip_slot(id) == slot and stacks.all(func(stack: ItemStack) -> bool: return stack == ignore)
 	var size := ItemDB.rotated_size(id, rotated)
 	if x < 0 or y < 0 or x + size.x > width or y + size.y > height:
 		return false
@@ -80,6 +85,8 @@ func add(id: String, count := 1) -> int:
 
 ## Puts an existing stack at its own x/y (caller checked `fits`).
 func place(stack: ItemStack) -> void:
+	if slot != "":
+		stack.set_spot(Vector2i.ZERO, false)
 	stacks.append(stack)
 	changed.emit()
 

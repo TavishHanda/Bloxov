@@ -16,7 +16,14 @@ extends StaticBody3D
 ## Bags disappear once emptied.
 @export var remove_when_empty := false
 
+## Bodies' gear slots, in the same order as the player's (Inventory.SLOTS; not referenced here so the server's
+## loot code doesn't pull in player scripts).
+const GEAR_SLOTS: Array[String] = ["primary", "secondary", "armor", "backpack"]
+
+## Pockets: the loose loot (for bodies, everything that isn't in a gear slot).
 var grid: GridInventory
+## Bodies only (owner, 0.11.13: loot a body's loadout): slot -> one-item GridInventory. Empty for other containers.
+var gear := {}
 var searched := false
 
 
@@ -30,10 +37,63 @@ func _ready() -> void:
 			grid.add(id, ItemDB.roll_count(id))
 
 
+## Pockets and gear slots: gear first (so quick-moving gear into a body fills its slots before the pockets).
+func all_grids() -> Array[GridInventory]:
+	var list: Array[GridInventory] = []
+	for slot in GEAR_SLOTS:
+		if gear.has(slot):
+			list.append(gear[slot])
+	list.append(grid)
+	return list
+
+
+func is_empty() -> bool:
+	return all_grids().all(func(g: GridInventory) -> bool: return g.is_empty())
+
+
+## Gives it (empty) gear slots: it's a body.
+func add_gear_slots() -> void:
+	if not gear.is_empty():
+		return
+	for slot in GEAR_SLOTS:
+		var slot_grid := GridInventory.new(slot.capitalize(), 1, 1)
+		slot_grid.slot = slot
+		gear[slot] = slot_grid
+
+
+## Everything in it, for the network: the pockets' GridInventory.to_data(), plus (bodies) each gear slot's.
+func net_data() -> Array:
+	return LootContainer.grids_data(all_grids())
+
+
+## `grids` as from all_grids() (gear slots, then pockets).
+static func grids_data(grids: Array[GridInventory]) -> Array:
+	var data := grids[-1].to_data()
+	if grids.size() > 1:
+		var slots := []
+		for i in grids.size() - 1:
+			slots.append(grids[i].to_data())
+		data.append(slots)
+	return data
+
+
+## Replaces the contents with net_data() from the other side. Ignores anything malformed.
+func load_net_data(data: Array) -> void:
+	if data.size() == 4 and data[3] is Array and data[3].size() == GEAR_SLOTS.size():
+		add_gear_slots()
+		for i in GEAR_SLOTS.size():
+			var slot_grid: GridInventory = gear[GEAR_SLOTS[i]]
+			slot_grid.load_data(data[3][i] if data[3][i] is Array else [])
+			slot_grid.width = 1
+			slot_grid.height = 1
+		data = data.slice(0, 3)
+	grid.load_data(data)
+
+
 func prompt() -> String:
 	if not searched:
 		return "Search " + display_name
-	if grid.is_empty():
+	if is_empty():
 		return display_name + " (empty)"
 	return "Open " + display_name
 
@@ -50,13 +110,29 @@ func mark_searched() -> void:
 
 
 ## Drops a bag in the world holding `contents` ([id, count] pairs, or ItemStacks). Bodies and dropped items.
-static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Array, search := 0.0) -> LootContainer:
+## A body (`body`) gets gear slots: the first gun/armor/backpack for each slot goes there, the rest in its pockets.
+static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Array, search := 0.0, body := false) -> LootContainer:
 	var bag := (load("res://scenes/loot_bag.tscn") as PackedScene).instantiate() as LootContainer
 	bag.display_name = bag_name
 	bag.loot_table = ""
 	bag.search_time = search
 	bag.searched = search <= 0.0
 	bag.remove_when_empty = true
+	if body:
+		bag.add_gear_slots()
+		var loose := []
+		for entry in contents:
+			var id: String = entry.id if entry is ItemStack else entry[0]
+			var slot := ItemDB.equip_slot(id)
+			if slot != "" and bag.gear[slot].is_empty():
+				var slot_grid: GridInventory = bag.gear[slot]
+				if entry is ItemStack:
+					slot_grid.place(entry)
+				else:
+					slot_grid.add(id, entry[1])
+			else:
+				loose.append(entry)
+		contents = loose
 	# Big enough for whatever's going in: at least as big as the biggest item, plus rows until everything fits.
 	var cells := Vector2i(4, 3)
 	for entry in contents:

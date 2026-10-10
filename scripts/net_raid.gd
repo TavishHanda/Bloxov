@@ -16,12 +16,12 @@ var remotes := {}
 ## Server enemy id -> puppet Scav.
 var enemy_puppets := {}
 var _last_enemies_msec := -1
-## Shared loot: the container we asked to open, the one we have open (and its grid, kept in case the bag is
+## Shared loot: the container we asked to open, the one we have open (and its grids, kept in case the bag is
 ## freed when emptied), and whether its contents changed since we last told the server.
 var _asked: LootContainer = null
 var _open: LootContainer = null
 var _open_id := ""
-var _open_grid: GridInventory = null
+var _open_grids: Array[GridInventory] = []
 var _dirty := false
 var _message_left := 0.0
 var _send_left := 0.0
@@ -129,12 +129,16 @@ func on_container_opened(id: String, data: Array) -> void:
 	if box == null:
 		Network.main.close_container()
 		return
-	box.grid.load_data(data)
+	for grid in _open_grids:
+		if grid.changed.is_connected(_mark_dirty):
+			grid.changed.disconnect(_mark_dirty)
+	box.load_net_data(data)
 	_open = box
 	_open_id = id
-	_open_grid = box.grid
+	_open_grids = box.all_grids()
 	_dirty = false
-	_open_grid.changed.connect(_mark_dirty)
+	for grid in _open_grids:
+		grid.changed.connect(_mark_dirty)
 	var hud := get_parent().get_node_or_null("HUD")
 	if hud != null and _asked == box:
 		hud.loot_ui.open_for(box)
@@ -147,16 +151,17 @@ func _mark_dirty() -> void:
 
 ## Sends our changes to the open container, and lets it go once the screen closes (or we walk off, or it's gone).
 func _update_open_container() -> void:
-	if _open_grid == null:
+	if _open_grids.is_empty():
 		return
 	var hud := get_parent().get_node_or_null("HUD")
 	var still_open: bool = hud != null and is_instance_valid(_open) and hud.loot_ui.visible and hud.loot_ui.container == _open
 	if _dirty:
 		_dirty = false
-		Network.main.update_container(_open_id, _open_grid.to_data())
+		Network.main.update_container(_open_id, LootContainer.grids_data(_open_grids))
 	if not still_open:
-		_open_grid.changed.disconnect(_mark_dirty)
-		_open_grid = null
+		for grid in _open_grids:
+			grid.changed.disconnect(_mark_dirty)
+		_open_grids = []
 		_open = null
 		Network.main.close_container()
 
