@@ -1,5 +1,5 @@
 """Bloxov parked car: builds the blocky 2000s sedan used as cover on Old Bloxov (docs/MAP_PLAN.md, docs/ART_SPEC.md).
-It fits the gray-box car in tools/gen_old_bloxov.py: 1.9 m wide, 4.2 m long, 1.65 m tall (body 1.1 m, cabin 1.7 x 2.2 m).
+It fits inside the gray-box car in tools/gen_old_bloxov.py: 1.9 m wide, 4.2 m long; the roof is at 1.45 m (gray box 1.65 m).
 
 How to use (Blender 4.x / 5.x):
   1. Save your .blend into the repo's art_source/ folder first (art_source/car.blend), so the relative paths work.
@@ -49,9 +49,9 @@ BODY_Z = (0.42, 0.95)
 SKIRT_Z = (0.28, BODY_Z[0])  # sill between the wheels
 CAB_HW = 0.85
 # Side profile of the cabin (y, z): raked windshield and rear window, 2.2 m long at the base, bottom buried in the body.
-CAB_BASE, CAB_TOP = 0.85, 1.65
+CAB_BASE, CAB_TOP = 0.85, 1.45
 CAB_Y = (-1.25, 0.95)        # base, back to front
-CAB_ROOF_Y = (-0.95, 0.3)    # roof, back to front
+CAB_ROOF_Y = (-0.98, 0.4)    # roof, back to front
 CAB_PROFILE = [(CAB_Y[0], CAB_BASE), (CAB_Y[1], CAB_BASE), (CAB_ROOF_Y[1], CAB_TOP), (CAB_ROOF_Y[0], CAB_TOP)]
 B_PILLAR_Y = -0.2
 BUMPER_Z = (0.30, 0.52)
