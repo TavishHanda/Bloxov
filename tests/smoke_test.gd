@@ -2632,6 +2632,7 @@ func _section_cover() -> void:
 	scav.shot_damage = 0  # watching it move, not dying
 	scav.flank_chance = 0.0  # (scavs flank sometimes since 0.12.3; this checks cover)
 	scav.close_fight_range = 0.0  # (10 m away: up close it would shoot back first, 0.12.30)
+	scav.chase_range = 0.0  # (and in range it would mostly chase you, 0.12.33)
 	await physics_frame
 	scav._alert(player.global_position)
 	scav._set_state(Scav.State.ENGAGE)
@@ -2676,6 +2677,7 @@ func _section_cover() -> void:
 	fighter.shot_damage = 0
 	fighter.flank_chance = 0.0
 	fighter.close_fight_range = 0.0
+	fighter.chase_range = 0.0
 	await physics_frame
 	fighter._alert(player.global_position)
 	fighter._set_state(Scav.State.ENGAGE)
@@ -2692,6 +2694,27 @@ func _section_cover() -> void:
 	_check(phases.has(Scav.Cover.HOLDING) and phases.has(Scav.Cover.PEEKING) and shots[0] > 0,
 		"under fire it fights from cover: ducks in, peeks out and shoots from there (%d shots peeking)" % shots[0])
 	fighter.queue_free()
+	# In range to really hurt you it comes at you shooting (0.12.33, owner: "should prio chasing u"), stops a few
+	# meters short, and doesn't take cover first.
+	var chaser := _spawn(SCAV_SCENE, Vector3(-15, 0.1, 22)) as Scav
+	_face_player(chaser)
+	chaser.shot_damage = 0
+	chaser.flank_chance = 0.0
+	chaser.chase_cover_chance = 0.0
+	await physics_frame
+	chaser._alert(player.global_position)
+	chaser._set_state(Scav.State.ENGAGE)
+	var chase_shots := [0]
+	chaser.fired.connect(func(_end: Vector3) -> void: chase_shots[0] += 1)
+	var chased := false
+	var closest := 99.0
+	for i in 60 * 6:
+		await physics_frame
+		chased = chased or chaser.tactic == Scav.Tactic.CHASE
+		closest = minf(closest, chaser.global_position.distance_to(player.global_position))
+	_check(chased and chase_shots[0] > 0 and closest < 12.0 and closest > chaser.min_distance,
+		"in range it chases you while shooting (%d shots, got to %.1f m)" % [chase_shots[0], closest])
+	chaser.queue_free()
 
 
 func _section_lean() -> void:
@@ -2762,7 +2785,7 @@ func _section_hurt() -> void:
 	var strayed := 0.0
 	for i in 60 * 8:
 		await physics_frame
-		bold = bold or scav.tactic in [Scav.Tactic.PUSH, Scav.Tactic.FLANK]
+		bold = bold or scav.tactic in [Scav.Tactic.PUSH, Scav.Tactic.FLANK, Scav.Tactic.CHASE]
 		strayed = maxf(strayed, scav.global_position.distance_to(hurt_start))
 	_check(hurt_shots[0] >= 1 and strayed < 8.0 and not bold,
 		"badly hurt it repositions and keeps fighting: no running off, pushing or flanking (%d shots, moved %.1f m)" % [hurt_shots[0], strayed])

@@ -6,6 +6,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.33 (AI chase you in range; owner)
+- AI now push you when they're close enough to really hit you (owner: "they never push when in range to actually
+  shoot"; cover is for when they see you but you're too far). Within 30 m an AI mostly walks straight at you
+  shooting, stops about 7 m away, and comes after you again if you back off. About 1 in 4 times (and sometimes after
+  getting hit) it takes cover instead, and from cover in that range it peeks once, then comes out after you.
+  Where its path bends round something it faces where it's going and holds fire, so no sideways walking.
+  Farther than 30 m nothing changes: cover to cover. Badly hurt AI, snipers and AI pushing while you reload are as before.
+- Smoke test: in range a scav chases you while shooting.
+
 ## 0.12.32 (fight on, heal when it's quiet; quieter AI footsteps; owner)
 - No more retreating at low health (owner: "reposition and fight", heal once they lose you). Below 30% (Raiders and
   Bon 40%) an AI plays safer: no pushing, flanking or chasing you, cover whenever it can (and it stays down a bit

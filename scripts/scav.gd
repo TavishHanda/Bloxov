@@ -175,6 +175,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var bark_cooldown := 4.0
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
+## Chasing (0.12.33, owner: "they never push when in range to actually shoot"; cover is for when it sees you but
+## you're too far to hit). Within chase_range it walks at you shooting (push_speed) until chase_stop meters away,
+## and comes after you again if you back off. It only takes cover instead (or after getting hit) chase_cover_chance
+## of the time, and from cover in this range it peeks once, then comes out to chase. Badly hurt AI don't chase.
+@export var chase_range := 30.0
+@export var chase_stop := 7.0
+@export var chase_cover_chance := 0.25
 
 @export_group("Raider behavior")
 ## Off for scavs except flanking (0.12.3, less often than Raiders); raider.tscn turns these on (owner, 0.6.13: harder to fight).
@@ -864,7 +871,7 @@ func _update_crouch(delta: float) -> void:
 ## loses sight of you, you start reloading, you get out of range); every move it makes serves that plan.
 ## Before, each behavior grabbed control on its own every frame, so plans flip-flopped.
 ## Reflexes still come first: a bash up close, backing off when you're in its face.
-enum Tactic { NONE, COVER, STAND, PUSH, FLANK, ADVANCE, PURSUE, SUPPRESS }
+enum Tactic { NONE, COVER, STAND, PUSH, FLANK, ADVANCE, PURSUE, SUPPRESS, CHASE }
 var tactic := Tactic.NONE
 var _tactic_time := 0.0
 ## STAND: how long it trades shots in the open before looking for cover (or a flank) again.
@@ -918,6 +925,17 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			_face(to_target, delta)
 			_update_shooting(delta, dist)
 			return _path_velocity(_target.global_position, move_speed * push_speed)
+		Tactic.CHASE:
+			# Walks straight at you shooting. Where the path bends round something it faces where it's going and
+			# holds fire for those steps, so it never walks sideways across your view.
+			var chase_move := _path_velocity(_target.global_position, move_speed * push_speed)
+			if chase_move.length() > 0.1 and _flat(chase_move).normalized().dot(_flat(to_target).normalized()) < 0.5:
+				_face(chase_move, delta)
+				_hold_fire()
+			else:
+				_face(to_target, delta)
+				_update_shooting(delta, dist)
+			return chase_move
 		Tactic.ADVANCE:
 			_hold_fire()
 			if holds_position:
@@ -973,7 +991,11 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 	match tactic:
 		Tactic.STAND:
 			return (not sees or dist > shoot_range or _can_push(dist) or _tactic_time > _stand_time
-				or (_hit_since_decide and _dodge_left <= 0.0))
+				or (_hit_since_decide and _dodge_left <= 0.0) or (_can_chase(dist) and dist > chase_stop + 3.0))
+		Tactic.CHASE:
+			# Getting hit: re-rolls chase or cover (it mostly keeps coming).
+			return (not sees or not _can_chase(dist) or dist <= chase_stop or _can_push(dist)
+				or (_hit_since_decide and _tactic_time > 0.5))
 		Tactic.PUSH:
 			return not sees or not _can_push(dist)
 		Tactic.ADVANCE:
@@ -1005,6 +1027,19 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		tactic = Tactic.PUSH
 		_bark("push")
 		return
+	# In range to really hurt you: mostly it comes at you (a flank in a lull still counts), sometimes cover first.
+	if _can_chase(dist) and dist > chase_stop:
+		if _since_threat > lull_time and dist >= close_fight_range and randf() < flank_chance:
+			_try_flank(to_target, dist)
+			if _cover_phase == Cover.FLANKING:
+				tactic = Tactic.FLANK
+				return
+			_cover_phase = Cover.NONE   # (no hidden flank spot: it took cover instead; chase or cover rolls below)
+		if randf() >= chase_cover_chance or _cover_cooldown_left > 0.0:
+			if tactic != Tactic.CHASE:
+				_bark("push", 0.4)
+			tactic = Tactic.CHASE
+			return
 	if not holds_position and _cover_cooldown_left <= 0.0:
 		# Up close (inside a building, round a corner) its first instinct is to shoot back: it only ducks into cover
 		# that's a step or two away (0.12.30, owner: one ran around looking for cover while he shot it).
@@ -1024,6 +1059,11 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 ## You're reloading or healing and it's not hurt: worth rushing you.
 func _can_push(dist: float) -> bool:
 	return _target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
+
+
+## Close enough to really hurt you, and fit and free to come after you.
+func _can_chase(dist: float) -> bool:
+	return dist <= chase_range and not holds_position and not is_hurt()
 
 
 ## Too far away to shoot (e.g. you're up on a hill): it moves up cover to cover (0.12.7, owner: they went into
@@ -1101,6 +1141,8 @@ func _try_take_cover(radius := -1.0) -> void:
 		_peek_point = global_position
 		# (Too far to shoot back from there: no point peeking out, it moves up cover to cover instead.)
 		_peeks_left = peeks if _target != null and global_position.distance_to(_target.global_position) <= shoot_range else 0
+		if _target != null and _can_chase(global_position.distance_to(_target.global_position)):
+			_peeks_left = mini(_peeks_left, 1)   # in chase range: one peek, then it comes after you
 	else:
 		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
 
@@ -1353,7 +1395,8 @@ func _update_peek(delta: float, sees: bool, to_target: Vector3, dist: float) -> 
 	_peek_left -= delta
 	# Done (and between bursts), or getting hit: duck back in.
 	if (_peek_left <= 0.0 or _flinch_left > 0.0) and _shots_left <= 0:
-		_cover_phase = Cover.MOVING
+		# Last peek with you in chase range: it comes straight out after you instead of ducking back in.
+		_cover_phase = Cover.NONE if _peeks_left <= 0 and _can_chase(dist) and _flinch_left <= 0.0 else Cover.MOVING
 	return move
 
 
