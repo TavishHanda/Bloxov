@@ -24,7 +24,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
 - **Live:** https://tavishhanda.github.io/Bloxov/ (version at `/version.txt`) + game server on Heroku
   `wss://bloxov-server-0f9c9a343ceb.herokuapp.com` (both deploy from `main` via CI; see §5).
 - **Phases:** 0.5 guns · 0.6 scavs · 0.7 multiplayer · 0.8 HUD & inventory (designer) · 0.9 raid flow (paused at
-  0.9.5) · 0.10 Map & Spawn (Bloxov Battlegrounds gray box, first called Old Bloxov, player spawns, per-squad extracts) · 0.11 code cleanup (closed). Next: Scavs 2.0.
+  0.9.5) · 0.10 Map & Spawn (Bloxov Battlegrounds gray box, first called Old Bloxov, player spawns, per-squad extracts) · 0.11 Scorched Earth (code cleanup + war-torn map; closed). Next: Scavs 2.0.
 - **Done:** solo raids (hideout → raid → extract/die → hideout, stash/trader/profile in the browser), guns
   (ADS, recoil, spread, TTK, knife), smart scavs + tougher Raiders (senses, navmesh paths, patrols, cover, healing,
   duos, spawn budget), online play (parties, queue 2-6 players, several raids per server, server-checked shots with

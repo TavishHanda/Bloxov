@@ -1,4 +1,4 @@
-"""Bloxov parked car: builds the blocky 2000s sedan used as cover on Old Bloxov (docs/MAP_PLAN.md, docs/ART_SPEC.md).
+"""Bloxov parked car: builds the blocky 2000s sedan used as cover on Bloxov Battlegrounds (docs/MAP_PLAN.md, docs/ART_SPEC.md).
 It fits inside the gray-box car in tools/gen_old_bloxov.py: 1.9 m wide, 4.2 m long; the roof is at 1.45 m (gray box 1.65 m).
 
 How to use (Blender 4.x / 5.x):
@@ -9,7 +9,7 @@ Re-running rebuilds the cars (it only touches objects it made, in the "Bloxov" c
 What you get: one object per paint job in VARIANTS (car_red, car_blue, car_rust), each with its own 128x128 texture
 and material. Origin at the bottom-center, FRONT facing +Y (headlights and grille), so Godot's forward (-Z) is the
 front. Blocky on purpose: an extruded side profile for the body and the raked cabin, boxes for the plastic bumpers,
-mirrors and wheels; doors, windows, lights and wear are painted. Old Bloxov theme (owner): 2000s, abandoned but
+mirrors and wheels; doors, windows, lights and wear are painted. Bloxov Battlegrounds theme (owner): 2000s, abandoned but
 intact, summer, no country-specific markings (blank plates, no badges).
   - "REF_Player": a wireframe 0.8 x 1.8 m box showing how big the player is. Not exported.
 

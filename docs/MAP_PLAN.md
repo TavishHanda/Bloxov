@@ -66,7 +66,7 @@ Spawns, extracts, loot spots and player spawns on the layout picture are **place
 - **Keys:** probably yes for the bunker and bank vault (see the thread). Locked doors only at special places.
 
 ## Phases (owner, 2026-10-09)
-- **0.10 the map:** Old Bloxov as a walkable gray box (layout, buildings with rooms, cover, extracts, player spawns,
+- **0.10 the map:** Bloxov Battlegrounds as a walkable gray box (layout, buildings with rooms, cover, extracts, player spawns,
   loot spots), then iterations with the owner.
 - **Scavs 2.0 (own update):** designated AI spawn spots per area, scavs roaming their area, Raiders at hotspots,
   low-tier "scavenged" loot on scavs, new AI numbers.

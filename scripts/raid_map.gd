@@ -1,7 +1,7 @@
 class_name RaidMap
 extends Node3D
 ## The raid scene (main.tscn) holds everything a raid needs (player, HUD, raid rules, spawner) plus a small built-in
-## test map. Real maps (0.10.0: Old Bloxov) are their own scenes in `scenes/maps/`: when a raid scene is made, the
+## test map. Real maps (0.10.0: Bloxov Battlegrounds) are their own scenes in `scenes/maps/`: when a raid scene is made, the
 ## chosen map's pieces replace the test map's (the contents of Level, Loot, Extracts, PlayerSpawns and the
 ## spawner's markers move in; the nodes themselves stay, so everything that points at them keeps working).
 ## This runs as soon as the raid scene is instantiated (before anything is ready), on players' games and on the
