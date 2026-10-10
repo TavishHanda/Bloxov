@@ -6,6 +6,9 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.39 (Bon's Guard; owner)
+- Bon's guards are named "Bon's Guard" (their body bags), not "Raider Body".
+
 ## 0.12.38 (scavs spawning in roofs, the real cause; owner)
 - Scavs spawning with their heads in the ceiling (owner, screenshots from the first 20 s of a raid): the indoor AI
   spawn spots (0.12.23) and Bon's start spots (0.12.18) were 1.2 m above the floor, meant as "dropped from just

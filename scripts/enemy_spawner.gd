@@ -143,6 +143,7 @@ func _spawn_boss() -> void:
 		guard.follow(boss_spawned)
 		guard.home_center = boss_spawned.home_center
 		guard.home_radius = boss_spawned.home_radius
+		guard.body_name = "Bon's Guard"   # (owner, 0.12.39)
 		guard.stays_home = true   # (owner: Bon and his guards patrol their area, they don't run to every gunshot)
 		guard.leash = boss_spawned.leash
 

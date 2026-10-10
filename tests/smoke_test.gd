@@ -2385,6 +2385,7 @@ func _section_boss() -> void:
 	raider.free()
 	var offsets := guards.map(func(g: Scav) -> Vector3: return g.follow_offset)
 	_check(offsets.size() == 3 and offsets[0] != offsets[1] and offsets[1] != offsets[2], "each guard has its own spot round the boss")
+	_check(guards.all(func(g: Scav) -> bool: return g.body_name == "Bon's Guard"), "Bon's guards are named Bon's Guard (owner)")
 	# 0.12.20 (owner: Bon and his guards stood still): they walk through each other, so the guards can't box him in.
 	var apart := true
 	for g: Scav in guards:
