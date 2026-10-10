@@ -1603,7 +1603,7 @@ func _section_old_bloxov() -> void:
 	var zone_spots := {}
 	for m: Node in spawner.get_children():
 		zone_spots[m.get_meta("zone", "")] = zone_spots.get(m.get_meta("zone", ""), 0) + 1
-	_check(zone_names.has("TownCore") and zone_names.has("SouthEast") and start_ai >= 20 and start_ai <= 30
+	_check(zone_names.has("PoliceBank") and zone_names.has("SouthEast") and start_ai >= 20 and start_ai <= 30
 		and spawner.roamers == 3 and spawner.max_alive >= 30,
 		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 3 roamers" % [zone_names, start_ai])
 	_check(spawner.zones.all(func(z: Dictionary) -> bool: return zone_spots.get(z.name, 0) > int(z.scavs) + int(z.raiders)),

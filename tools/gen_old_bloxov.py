@@ -1746,13 +1746,15 @@ def main():
 # (name, x, z, radius, scavs at the start, Raiders at the start, trickle weight for later arrivals)
 AI_ZONES = [
     # Scavs and Raiders are rivals (0.12.17, owner): each side has its own areas.
-    ("TownCore", 112, 128, 30, 0, 3, 3.0),    # Raiders: town hall, bank, square, police side
-    ("Town", 85, 95, 65, 7, 0, 2.0),          # scavs: the rest of town (overlaps the core)
-    ("SouthEast", 305, 300, 45, 0, 3, 2.0),   # Raiders: junkyard, old gas station, diner, garage
+    ("Town", 85, 95, 65, 7, 0, 2.0),          # scavs: the town, square included
+    ("PoliceBank", 150, 124, 30, 0, 2, 2.0),  # Raiders: the police station and the bank (0.12.22, owner: spread out)
+    ("GunStore", 80, 74, 20, 0, 2, 2.0),      # Raiders: the gun store and pharmacy, north of town
+    ("SouthEast", 305, 300, 45, 0, 2, 2.0),   # Raiders: junkyard, old gas station, diner, garage
     ("Station", 240, 220, 35, 2, 0, 1.0),     # scavs: train station and depot
     ("Farm", 285, 42, 40, 2, 0, 0.0),
+    ("RoadHouses", 222, 47, 20, 1, 0, 0.0),   # the two houses on the road between the church and the farm
     ("Church", 180, 42, 25, 1, 0, 0.0),
-    ("Woods", 75, 290, 40, 2, 0, 0.0),        # cabins, campsite, hunting stand
+    ("Woods", 75, 290, 40, 3, 0, 0.0),        # cabins, campsite, hunting stand
     ("OldHouses", 200, 300, 30, 2, 0, 1.0),   # old houses south of the railway
     ("TownHall", 107, 151, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
 ]
@@ -1854,7 +1856,7 @@ def spawner_meta(ter):
     # the start, then 5 more scavs (one every 50-70 s) and 3 more Raiders trickle into the hot zones.
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
             f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}}}, '
-            f'"max_alive": 34, "scav_budget": {scavs + 5}, "raider_budget": {raiders + 3}, '
+            f'"max_alive": 36, "scav_budget": {scavs + 5}, "raider_budget": {raiders + 3}, '
             '"scav_interval_min": 50.0, "scav_interval_max": 70.0, '
             '"raider_times": PackedFloat32Array(150, 300, 420), "min_distance_from_player": 40.0}')
 
