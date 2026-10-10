@@ -8,7 +8,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 ## 0.11.15 (Bloxov Battlegrounds; owner)
 - The first map is now called **Bloxov Battlegrounds** (owner; it was "Old Bloxov"). The map screen (M) shows the
   new name
-- Lore (owner): the two nations are **Novarra** and **the Exion Brotherhood**; their armies, which players fight as, are
+- Lore (owner): the two nations are **Novarra** and **Exion**; their armies, which players fight as, are
   **NOVA** and **EXION**. Bloxov sits on the border between them (`docs/LORE.md`)
 
 ## 0.11.14 (loot no longer lost on reload)

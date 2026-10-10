@@ -7,9 +7,10 @@ tie back to what's written here.
 ## The world
 - Two nations at war; the war has gone **global** (names: owner, 2026-10-10).
   - **Novarra**: what it's like **TBD**. Its army is **NOVA** (the light side).
-  - **The Exion Brotherhood**: named after the owner's friend group, the X1 Brotherhood ("Exion" is "X-one" said
-    fast; owner, 2026-10-10). What it's like **TBD**. Its army is **EXION** (the dark side), and the **X1** mark
-    shows up on EXION gear (later: uniforms and skins).
+  - **Exion** ("X-one" said fast; owner, 2026-10-10): what it's like **TBD**. Its army is **EXION** (the dark
+    side), and the **X1** mark shows up on EXION gear (later: uniforms and skins).
+    - **The Exion Brotherhood** (named after the owner's friend group, the X1 Brotherhood): a powerful group inside
+      Exion that controls it, the order behind its government and army. Details **TBD** (owner).
   - Players fight as **NOVA** or **EXION**: short names for patches and voice chat, with a light vs dark look.
   - What started the war: **TBD**
 - The world is **mostly abandoned**, with a few **safe havens** left. TBD: what they are, who runs them, and
@@ -22,7 +23,7 @@ Each region is a part of the world the war touched, with its own maps and look. 
 ones are harder.
 
 ### Bloxov (starting region)
-- The **border region** between Novarra and the Exion Brotherhood, where it all started.
+- The **border region** between Novarra and Exion, where it all started.
 - The intro region: the easiest, holding a few maps.
 - Maps:
   - **Bloxov Battlegrounds** (the current map, owner 2026-10-10; first called "Old Bloxov", and file names still
