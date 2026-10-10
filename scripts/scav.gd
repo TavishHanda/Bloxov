@@ -106,8 +106,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## always 3). 1 = single shots (snipers).
 @export var burst_size := 3
 @export var burst_interval := 0.13
-@export var burst_cooldown_min := 1.0
-@export var burst_cooldown_max := 1.8
+@export var burst_cooldown_min := 0.75
+@export var burst_cooldown_max := 1.0
 ## Time to kill: 15 = an unarmored player (100 HP) dies in 7 hits (9 with light armor, 12 with heavy).
 @export var shot_damage := 15
 ## Chance each bullet hits: accuracy_near up close, accuracy_far at accuracy_range, then down to accuracy_long at
