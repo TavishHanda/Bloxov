@@ -710,321 +710,166 @@ metadata/zone = "PoliceBank"
 metadata/indoor = true
 
 [node name="Indoor2" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43, 2.127, -50)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor3" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43, 2.127, -40)
 metadata/zone = "PoliceBank"
 metadata/indoor = true
 
-[node name="Indoor4" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 2.127, -60)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor5" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor3" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 2.127, -50)
 metadata/zone = "PoliceBank"
 metadata/indoor = true
 
-[node name="Indoor6" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 2.127, -40)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor7" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor4" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.3, 2.127, -50.8)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor8" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.3, 2.127, -40.2)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor9" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor5" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 2.127, -50.8)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor10" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -100, 2.127, -40.2)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor11" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor6" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.7, 2.127, -50.8)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor12" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -92.7, 2.127, -40.2)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor13" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor7" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -101, 2.578, -99)
 metadata/zone = "GunStore"
 metadata/indoor = true
 
-[node name="Indoor14" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93, 2.578, -99)
-metadata/zone = "GunStore"
-metadata/indoor = true
-
-[node name="Indoor15" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor8" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.2, 2.578, -97)
 metadata/zone = "GunStore"
 metadata/indoor = true
 
-[node name="Indoor16" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73.8, 2.578, -97)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor17" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor9" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -147.5, 4.397, -107.5)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor18" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -137.8, 4.397, -107.5)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor19" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor10" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.8, 2.127, -64)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor20" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.2, 2.127, -64)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor21" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor11" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.7, 2.127, -52)
 metadata/zone = "PoliceBank"
 metadata/indoor = true
 
-[node name="Indoor22" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20.7, 2.127, -44.7)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor23" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor12" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 2.127, -59.3)
 metadata/zone = "PoliceBank"
 metadata/indoor = true
 
-[node name="Indoor24" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 2.127, -52)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor25" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor13" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 2.127, -44.7)
 metadata/zone = "PoliceBank"
 metadata/indoor = true
 
-[node name="Indoor26" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.3, 2.127, -59.3)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor27" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.3, 2.127, -52)
-metadata/zone = "PoliceBank"
-metadata/indoor = true
-
-[node name="Indoor28" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor14" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -145, 1.926, -51)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor29" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135, 1.926, -51)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor30" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor15" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135, 1.926, -43)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor31" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135, 1.926, -35)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor32" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor16" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -103.2, 6.302, -130)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor33" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.8, 6.302, -136)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor34" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.8, 6.302, -130)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor35" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor17" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.2, 4.783, -134)
 metadata/zone = "Town"
 metadata/indoor = true
 
-[node name="Indoor36" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.8, 4.783, -134)
-metadata/zone = "Town"
-metadata/indoor = true
-
-[node name="Indoor37" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor18" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 1.219, -137.5)
 metadata/zone = "RoadHouses"
 metadata/indoor = true
 
-[node name="Indoor38" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, 1.219, -137.5)
-metadata/zone = "RoadHouses"
-metadata/indoor = true
-
-[node name="Indoor39" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor19" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, 1.585, -118.5)
 metadata/zone = "RoadHouses"
 metadata/indoor = true
 
-[node name="Indoor40" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, 1.585, -113.5)
-metadata/zone = "RoadHouses"
-metadata/indoor = true
-
-[node name="Indoor41" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor20" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 1.585, -118.5)
 metadata/zone = "RoadHouses"
 metadata/indoor = true
 
-[node name="Indoor42" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 1.585, -113.5)
-metadata/zone = "RoadHouses"
-metadata/indoor = true
-
-[node name="Indoor43" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor21" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3.077, -135)
 metadata/zone = "Church"
 metadata/indoor = true
 
-[node name="Indoor44" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor22" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 3.077, -128)
 metadata/zone = "Church"
 metadata/indoor = true
 
-[node name="Indoor45" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor23" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 93, 1.797, -140)
 metadata/zone = "Farm"
 metadata/indoor = true
 
-[node name="Indoor46" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor24" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 139, 1.797, -140)
 metadata/zone = "Farm"
 metadata/indoor = true
 
-[node name="Indoor47" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 147, 1.797, -146)
-metadata/zone = "Farm"
-metadata/indoor = true
-
-[node name="Indoor48" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 147, 1.797, -140)
-metadata/zone = "Farm"
-metadata/indoor = true
-
-[node name="Indoor49" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor25" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 1.797, -124)
 metadata/zone = "Farm"
 metadata/indoor = true
 
-[node name="Indoor50" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor26" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 1.2, 22)
 metadata/zone = "Station"
 metadata/indoor = true
 
-[node name="Indoor51" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.7, 1.2, 22)
-metadata/zone = "Station"
-metadata/indoor = true
-
-[node name="Indoor52" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor27" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 1.003, 96.5)
 metadata/zone = "OldHouses"
 metadata/indoor = true
 
-[node name="Indoor53" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 1.003, 96.5)
-metadata/zone = "OldHouses"
-metadata/indoor = true
-
-[node name="Indoor54" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor28" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 5.031, 143.5)
 metadata/zone = "OldHouses"
 metadata/indoor = true
 
-[node name="Indoor55" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 5.031, 148.5)
-metadata/zone = "OldHouses"
-metadata/indoor = true
-
-[node name="Indoor56" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, 5.031, 143.5)
-metadata/zone = "OldHouses"
-metadata/indoor = true
-
-[node name="Indoor57" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor29" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130, 0.453, 152)
 metadata/zone = "SouthEast"
 metadata/indoor = true
 
-[node name="Indoor58" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 144, 0.453, 152)
-metadata/zone = "SouthEast"
-metadata/indoor = true
-
-[node name="Indoor59" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor30" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105, 0.453, 151)
 metadata/zone = "SouthEast"
 metadata/indoor = true
 
-[node name="Indoor60" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 113, 0.453, 151)
-metadata/zone = "SouthEast"
-metadata/indoor = true
-
-[node name="Indoor61" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor31" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 164, 0.453, 154)
 metadata/zone = "SouthEast"
 metadata/indoor = true
 
-[node name="Indoor62" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor32" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.5, 0.718, 93.5)
 metadata/zone = "SouthEast"
 metadata/indoor = true
 
-[node name="Indoor63" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor33" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.8, 7.151, 118)
 metadata/zone = "Woods"
 metadata/indoor = true
 
-[node name="Indoor64" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75.2, 7.151, 118)
-metadata/zone = "Woods"
-metadata/indoor = true
-
-[node name="Indoor65" type="Marker3D" parent="EnemySpawns"]
+[node name="Indoor34" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129.2, 1.899, 134)
 metadata/zone = "Woods"
 metadata/indoor = true
