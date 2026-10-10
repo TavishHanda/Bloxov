@@ -61,6 +61,12 @@ Agreed order: core gameplay first (scavs next), then the co-op test (M3), then m
   same behavior. Own Raider model since 0.7.10 (`raider.glb`, built by `make_character.py`).
 - **The PMC model (`assets/models/characters/pmc.glb`) stays untouched for actual players.**
 
+## Ground textures (owner, 0.11.9)
+- The ground needs real textures (dead grass, mud, scorch, dirt paths), not flat coloured boxes (0.11.8's flat
+  dead-grass patches looked bad and were removed). Plan: a ground shader that blends a few tiling textures
+  (grass, dead grass, dirt, burnt) by a mask image the map generator paints (round junk, craters, trenches,
+  buildings). Do it with the owner's art/model pass, so the textures match the models (`docs/ART_SPEC.md`).
+
 ## Review order
 Going through every mechanic in 0.3.0 one by one to hone it. See the list in the chat / CHANGELOG.
 - **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.
