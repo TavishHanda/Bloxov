@@ -14,8 +14,8 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    extracting one at a time, the downed timer running out, squads spawning together, the 0.10.1 places
    (hunting stands, bell tower, junkyard, bunker, vault), AI on the big map. Layout fixes from it ship as 0.11.x.
 2. ~~**Code cleanup (0.11):**~~ done in 0.11.0.
-3. **Scavs 2.0 (0.12, in progress):** 0.12.0 AI zones + hot zones + fewer AI (done), then smarter fights (all AI,
-   owner: "too dumb"), sniper scavs on high perches (scope glint + their own shot sound), a boss with guards at the
+3. **Scavs 2.0 (0.12, in progress):** 0.12.0 AI zones + hot zones + fewer AI (done), 0.12.1 sniper scavs on high perches
+   (scope glint + their own shot sound, done), then smarter fights (all AI, owner: "too dumb"), a boss with guards at the
    town hall + bunker (every raid while testing, a chance later), the close-range "walks into you" bug.
 4. **Movement update (owner, 2026-10-10; small):** mainly **vaulting**: vault or mantle over low cover (fences,
    sandbags, the trench, walls) and climb onto ledges. Candidates for the owner to pick from: ladders, fall damage

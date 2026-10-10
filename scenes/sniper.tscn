@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/scav.gd" id="1_scav"]
 [ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
-[ext_resource type="PackedScene" path="res://assets/models/characters/raider.glb" id="3_model"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/scav.glb" id="3_model"]
 [ext_resource type="Script" path="res://scripts/pixel_model.gd" id="4_pixel"]
 
 [sub_resource type="BoxShape3D" id="BodyBox"]
@@ -19,42 +19,34 @@ albedo_color = Color(1, 0.85, 0.35, 1)
 material = SubResource("FlashMat")
 size = Vector3(0.16, 0.16, 0.02)
 
-[node name="Raider" type="CharacterBody3D"]
+[node name="Sniper" type="CharacterBody3D"]
 collision_layer = 4
 collision_mask = 7
 script = ExtResource("1_scav")
-move_speed = 3.9
-sight_range = 55.0
-give_up_time = 15.0
-search_time = 10.0
-hearing_mult = 2.0
-flank_chance = 0.5
-sneak_range = 15.0
-lull_time = 1.5
-cover_cooldown = 6.0
-heals = 2
-hurt_fraction = 0.4
-reaction_time = 0.3
-startle_reaction_time = 0.1
-aim_time = 0.25
-shoot_range = 45.0
-burst_size = 4
-burst_cooldown_min = 0.8
-burst_cooldown_max = 1.5
-shot_damage = 18
-melee_damage = 25
-melee_windup = 0.22
-melee_cooldown = 1.1
-accuracy_near = 0.8
-accuracy_far = 0.3
-min_drops = 2
-max_drops = 4
-loot_table = "raider"
-body_name = "Raider Body"
-weapon_drop_chance = 0.3
-weapon_drop = "ak"
-burst_color = Color(0.66, 0.6, 0.42, 1)
-net_kind = 1
+sight_range = 120.0
+view_angle_deg = 140.0
+give_up_time = 8.0
+spot_time_far = 2.0
+reaction_time = 0.5
+aim_time = 1.2
+shoot_range = 110.0
+burst_size = 1
+burst_cooldown_min = 2.8
+burst_cooldown_max = 4.0
+shot_damage = 35
+accuracy_near = 0.75
+accuracy_far = 0.35
+accuracy_range = 100.0
+min_distance = 0.0
+cover_cooldown = 9999.0
+heals = 0
+holds_position = true
+glint = true
+shot_pitch = 0.55
+shot_volume_db = 4.0
+shot_unit_size = 30.0
+net_kind = 2
+body_name = "Sniper Body"
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
@@ -67,7 +59,6 @@ shape = SubResource("HeadBox")
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 100
-damage_multiplier = 0.8
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")

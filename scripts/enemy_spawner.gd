@@ -7,6 +7,7 @@ extends Node3D
 
 @export var enemy_scene: PackedScene
 @export var raider_scene: PackedScene
+@export var sniper_scene: PackedScene = preload("res://scenes/sniper.tscn")
 ## Total enemies for the whole raid (owner, 0.6.5: 20 + 5 for now; tune once the maps exist).
 @export var scav_budget := 20
 @export var raider_budget := 5
@@ -30,6 +31,12 @@ extends Node3D
 @export var zones: Array = []
 ## With zones: this many scavs roam the whole map instead of one zone (they start at any marker).
 @export var roamers := 0
+## Sniper scavs at the start (Scavs 2.0, owner): each on its own perch, picked from the markers with metadata
+## `perch` (high spots: roofs, the bell tower), preferring perches no player is in sight of. They don't count
+## toward the scav budget.
+@export var snipers := 0
+## How far a sniper can move around on its perch.
+@export var perch_radius := 3.0
 
 ## Spawned so far this raid.
 var scavs_spawned := 0
@@ -38,15 +45,54 @@ var _elapsed := 0.0
 var _next_scav := 0.0
 ## With zones: how many of raider_times have come up.
 var _raider_wave := 0
+var snipers_spawned := 0
 
 
 func _ready() -> void:
 	_next_scav = randf_range(scav_interval_min, scav_interval_max)
+	if snipers > 0:
+		_spawn_snipers.call_deferred()
 	if not zones.is_empty():
 		_spawn_zones.call_deferred()
 		return
 	for i in mini(initial_count, scav_budget):
 		_spawn.call_deferred(enemy_scene)
+
+
+## Puts the snipers on their perches: random ones, but not where a player is already in its sights.
+func _spawn_snipers() -> void:
+	var players := RaidScope.nodes(self, &"player")
+	var perches: Array[Marker3D] = []
+	var watched: Array[Marker3D] = []
+	for child in get_children():
+		if child is Marker3D and child.get_meta("perch", false):
+			if _perch_sees_player(child as Marker3D, players):
+				watched.append(child as Marker3D)
+			else:
+				perches.append(child as Marker3D)
+	perches.shuffle()
+	watched.shuffle()
+	perches.append_array(watched)
+	for perch in perches.slice(0, snipers):
+		var sniper := sniper_scene.instantiate() as Scav
+		get_parent().add_child(sniper)
+		sniper.global_position = perch.global_position
+		var face: Vector3 = perch.get_meta("face", Vector3.FORWARD)
+		sniper.rotation.y = atan2(-face.x, -face.z)
+		sniper.home_center = perch.global_position
+		sniper.home_radius = perch_radius
+		snipers_spawned += 1
+
+
+func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
+	var space := get_world_3d().direct_space_state
+	for player in players:
+		if player is Node3D and perch.global_position.distance_to((player as Node3D).global_position) < 120.0:
+			var query := PhysicsRayQueryParameters3D.create(perch.global_position + Vector3(0, 1.6, 0),
+				(player as Node3D).global_position + Vector3(0, 1.4, 0), 1)
+			if space.intersect_ray(query).is_empty():
+				return true
+	return false
 
 
 ## Raid start with zones: each zone's own scavs and Raiders, then the roamers.
@@ -113,7 +159,7 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	var far: Array[Marker3D] = []
 	var hidden: Array[Marker3D] = []
 	for child in get_children():
-		if not child is Marker3D:
+		if not child is Marker3D or child.get_meta("perch", false):
 			continue
 		if zone_name != "" and String(child.get_meta("zone", "")) != zone_name:
 			continue
