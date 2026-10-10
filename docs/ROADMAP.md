@@ -4,10 +4,23 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are:** 0.5.7. M1's build is complete: hideout, stash, trader, persistent loadout, death rules.
-Friends have played it and liked it. Now honing core mechanics one at a time (movement done, looting OK for now):
-the **guns update** is done through the knife (0.5.x, see `docs/GUNS_PLAN.md`); a code cleanup is in progress.
-Next phase: **scavs** (0.6).
+**Where we are (2026-10-10):** 0.10.x, the **Map & Spawn update**: Old Bloxov is in as a gray box
+(`docs/MAP_PLAN.md`), with player spawns in progress (0.10.3). M1-M3 are done (multiplayer co-op + PvP is live).
+Art is paused: cover props (cars, square props) are built; buildings wait until the layout is proven in play.
+
+### Up next, in order
+1. **Finish 0.10 (Map & Spawn):** ship 0.10.3 (player spawns), then a playtest on the big map. Still untested live:
+   extracting one at a time, the downed timer running out, squads spawning together, the 0.10.1 places
+   (hunting stands, bell tower, junkyard, bunker, vault), AI on the big map. Layout fixes from that playtest close 0.10.
+2. **Code cleanup (0.11):** a pass over the code before the next big systems (owner, 0.10.0). No gameplay changes.
+3. **Scavs 2.0:** AI spawn spots per area, scavs roaming their area, Raiders at hot spots, the close-range
+   "walks into you" bug, spawn budget retuned for the real raid.
+4. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions.
+5. **Then (M4, vertical slice):** building models fitted to the proven layout, guns as separate models
+   (`GunSocket`), real sounds, loading screen. After that M5 content (characters with perks, more traders,
+   more maps) and the M6 public release.
+Parked 0.9 leftovers (teammate-down alert, squad line on the end screen, rejoin after disconnect) can slot in
+between updates. Lore is the owner's.
 
 | # | Milestone | Goal | Done when |
 |---|---|---|---|
@@ -20,8 +33,9 @@ Next phase: **scavs** (0.6).
 
 ## Version phases (middle number)
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
-**0.8 HUD & inventory** (owner's designer session; started as 0.7.12-0.7.15, renumbered to 0.8.0-0.8.3) ·
-next: the rest of multiplayer (raid flow: downed/revive, per-player extract) once 0.8 closes.
+0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
+per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Old Bloxov) · next: 0.11 cleanup,
+then Scavs 2.0 and Items as their own phases.
 
 ## Rules while we go
 - **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.
