@@ -112,8 +112,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var shot_damage := 15
 ## Chance each bullet hits: accuracy_near up close, accuracy_far at accuracy_range, then down to accuracy_long at
 ## shoot_range (0.12.8, owner: "at far their accuracy should be even worse ... a gradient, as they get closer it's better").
-@export var accuracy_near := 0.7
-@export var accuracy_far := 0.25
+@export var accuracy_near := 0.6
+@export var accuracy_far := 0.2
 @export var accuracy_range := 28.0
 ## (0.12.9, owner: too low; scavs bottom out at about 10%.)
 @export var accuracy_long := 0.1

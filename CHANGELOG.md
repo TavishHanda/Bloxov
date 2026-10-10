@@ -6,6 +6,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.22 (Raiders spread out; scav accuracy; owner)
+- Raiders spread out instead of crowding round Bon: the town square is scav ground now; Raiders hold the police
+  station and the bank (2), the gun store and pharmacy (2) and the south-east (2, was 3).
+- One more scav in the woods (3) and a new one at the two road houses between the church and the farm.
+  33 AI at the start; the cap on AI alive at once goes 34 -> 36 so later arrivals still come.
+- Scavs a bit less accurate (owner: with 0.12.21's shorter pauses they hurt about 50% more; aim for about 20%):
+  hit chance 60% up close (was 70%) down to 20% at 28 m (was 25%), still bottoming out at 10%. Raiders, Bon and
+  snipers unchanged.
+- Spawn map: `/mnt/project-files/scavs2/0.12.22-ai-spawns.png`.
+
 ## 0.12.21 (shorter pauses between AI bursts; owner)
 - AI pause less between bursts: scavs 0.75-1 s (was 1-1.8), Raiders 0.5-1 s (was 0.8-1.5), Bon 0.5-0.75 s
   (was 0.8-1.4). Snipers unchanged.
