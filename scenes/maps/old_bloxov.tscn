@@ -437,22 +437,22 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -161, 0.1, 21)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115, 0.1, 169)
 
 [node name="Spawn2" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, 0.1, 169)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -47, 0.1, 65)
 
 [node name="Spawn3" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77, 0.1, 169)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 0.1, 125)
 
 [node name="Spawn4" type="Marker3D" parent="PlayerSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 169, 0.1, 39)
 
 [node name="Spawn5" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 169, 0.1, -47)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0.1, -10)
 
 [node name="Spawn6" type="Marker3D" parent="PlayerSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 155, 0.1, -163)
 
 [node name="Spawn7" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0.1, -163)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0.1, -100)
 
 [node name="EnemySpawns" type="Node3D" parent="."]
 

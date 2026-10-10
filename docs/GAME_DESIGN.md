@@ -163,7 +163,7 @@ Idle/Patrol → (sees or hears player) → Alert/Investigate → Attack → Sear
 
 **PC:** WASD move · mouse look · LMB shoot · RMB aim · R reload · V knife · Q/E lean · F interact · Tab inventory · Shift sprint
 
-> **Changed since:** also C crouch, Space jump, 1/2 weapons, 3–6 hotbar items, H heal, M map (0.10.2; was O extracts), Esc menu
+> **Changed since:** also C crouch, Space jump, 1/2 weapons, 3–6 hotbar items, H heal, M map, O extracts (0.11.1), Esc menu
 > (volume, sensitivity, damage numbers toggle), F3 debug. The full current list is in the [`README`](../README.md#status-057-guns-update).
 
 **Mobile (designed from day 1, built in Phase 6):**

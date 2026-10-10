@@ -1595,6 +1595,17 @@ func _section_hud() -> void:
 	await _frames(2)
 	hud_node._input(press)
 	_check(not map_hud.visible, "M closes the map")
+	# O (0.11.1, owner): a list of the extracts open for you, only when you press it.
+	var extracts: ExtractHUD = hud_node.extract_hud
+	_check(not extracts.is_list_showing(), "the extract list is hidden until you press O")
+	var press_o := InputEventAction.new()
+	press_o.action = "extracts"
+	press_o.pressed = true
+	hud_node._input(press_o)
+	_check(extracts.is_list_showing() and extracts.open_extracts().size() == raid.open_extract_count,
+		"O shows the open extracts (%d)" % extracts.open_extracts().size())
+	hud_node._input(press_o)
+	_check(not extracts.is_list_showing(), "O again hides the list")
 
 func _section_owner_rules() -> void:
 	# Damage numbers use the damage actually dealt: an AK body shot on an armored Raider shows 22, not 28.
