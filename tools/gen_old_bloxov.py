@@ -854,6 +854,14 @@ HILLS = [
     (285, 112, 16, -2.5),
 ]
 CRATER_DEPTH = 0.9
+# The creek (0.11.20): a channel this deep in the middle of its valley floor, full depth out to CREEK_BED m from the
+# middle line and back up to the floor at CREEK_BANK m; the water sits WATER_DROP m below the floor (so about 0.55 m
+# deep in the middle: wading, not swimming). It starts just south of the railway (the rail stays level).
+CREEK_DEPTH = 0.9
+CREEK_BED = 1.5
+CREEK_BANK = 4.5
+WATER_DROP = 0.35
+WATER_START = 2   # the first creek point with water (the ones before run under the railway at the map edge)
 HILL_CLEAR = 20.0   # hills reach full height this far from a road or the creek (and fade out within 4 m of it)
 
 # Extra flat pads (map x0, z0, x1, z1) for things that stand outside a building's footprint.
@@ -1084,7 +1092,8 @@ class Terrain:
             on_road = max(on_road, 1.0 - _smoothstep(width / 2 + 0.3, width / 2 + 1.3, d))
         return h, on_road
 
-    def _height(self, x, z):
+    def _surface(self, x, z):
+        """The ground before the creek's channel is dug."""
         h, on_road = self._big(x, z)
         h = self._blend(self.small, x, z, h, on_road)[0]
         for cx, cz, r in craters:
@@ -1092,6 +1101,19 @@ class Terrain:
             if d < r + 1.0:
                 h -= CRATER_DEPTH * (1.0 - _smoothstep(0.0, r + 1.0, d))
         return h
+
+    def _height(self, x, z):
+        h = self._surface(x, z)
+        for points, width, carve, bound in self.lines:
+            if carve and bound[0] <= x <= bound[2] and bound[1] <= z <= bound[3]:
+                d, (_, pz) = _nearest_on(points, x, z)
+                if d < CREEK_BANK:
+                    h -= CREEK_DEPTH * (1.0 - _smoothstep(CREEK_BED, CREEK_BANK, d)) * _smoothstep(212.5, 216.0, pz)
+        return h
+
+    def water_level(self, x, z):
+        """The creek's water surface at a point on its middle line."""
+        return self._surface(x, z) - WATER_DROP
 
     def _ease(self, limit=0.42, rounds=300):
         """Eases the ground wherever it's steeper than `limit` (about 23 degrees) between grid points, leaving pads,
@@ -1106,7 +1128,7 @@ class Terrain:
             for i, x in enumerate(self.xs):
                 fixed[j, i] = i in (0, len(self.xs) - 1) or j in (0, len(self.zs) - 1) or \
                     self.pad_at(x, z) is not None or \
-                    any(_nearest_on(pts, x, z)[0] < w / 2 + 1.5 for pts, w, _, b in self.lines
+                    any(_nearest_on(pts, x, z)[0] < max(w / 2 + 1.5, CREEK_BANK if c else 0.0) for pts, w, c, b in self.lines
                         if b[0] <= x <= b[2] and b[1] <= z <= b[3])
         h = self.h
         step = TERRAIN_STEP
@@ -1316,8 +1338,7 @@ def main():
     road([(196, 240), (180, 300), (160, 348)], 6)                                                      # South Lane
     # creek (shallow: walkable) and the rail bridge over it
     creek = bezier((0, 212), (60, 250), (40, 300), (110, 350), n=48)
-    strip(creek, 5, "water", y=0.01, h=0.03)
-    water.append((creek, 5.0))
+    water.append((creek, 5.0))   # (the water itself is a surface `BoxMap` makes from `water_points`)
 
     # --- railway (west to east at y 210) with sidings to the depot
     RY = 210.0
@@ -1789,7 +1810,11 @@ def write_scene(ter):
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(gx(x)) for x in ter.xs) + ")",
             "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for row in ter.h for h in row) + ")",
-            "terrain_holes = PackedInt32Array(" + ", ".join(str(c) for c in ter.hole_cells) + ")", "",
+            "terrain_holes = PackedInt32Array(" + ", ".join(str(c) for c in ter.hole_cells) + ")",
+            f"water_colour = {C['water']}",
+            f"water_width = {fmt(2 * CREEK_BANK)}",
+            "water_points = PackedVector3Array(" + ", ".join(
+                f"{fmt(gx(x))}, {fmt(ter.water_level(x, z))}, {fmt(gz(z))}" for x, z in water[0][0][WATER_START:]) + ")", "",
             '[node name="Loot" type="Node3D" parent="."]', ""]
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',

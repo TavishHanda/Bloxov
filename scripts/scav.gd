@@ -364,6 +364,8 @@ func _physics_process(delta: float) -> void:
 
 	if _sneaking():
 		desired *= 0.55
+	if BoxMap.is_wading(self):   # slower through water, like players (0.11.20)
+		desired *= 0.6
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
