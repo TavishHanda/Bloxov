@@ -67,10 +67,11 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var walk_stride := 1.5
 @export var sprint_stride := 1.9
 @export var crouch_stride := 1.1
-## How far away enemies hear each step (meters). 0 = silent.
-@export var walk_noise := 7.0
-@export var sprint_noise := 15.0
-@export var crouch_noise := 0.0
+## How far away enemies hear each step (meters). 0 = silent. (0.12.30, owner: AI didn't hear him walking right past
+## them: walk 7, sprint 15, crouch silent before. Crouching is still nearly silent: only right next to them.)
+@export var walk_noise := 12.0
+@export var sprint_noise := 25.0
+@export var crouch_noise := 2.0
 @export var landing_noise := 10.0
 
 @export_group("Lean")

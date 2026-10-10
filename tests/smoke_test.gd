@@ -411,7 +411,7 @@ func _section_movement() -> void:
 
 
 func _section_stealth() -> void:
-	# Crouch: slower, lower, silent. Walking makes noise.
+	# Crouch: slower, lower, nearly silent. Walking makes noise.
 	var noises: Array[float] = []
 	var on_noise := func(_pos: Vector3, radius: float) -> void: noises.append(radius)
 	player.noise_made.connect(on_noise)
@@ -425,7 +425,7 @@ func _section_stealth() -> void:
 	var crouch_speed := player.horizontal_speed()
 	_check(player.is_crouching and absf(crouch_speed - player.crouch_speed) < 0.3, "crouch speed ~%.1f (got %.2f)" % [player.crouch_speed, crouch_speed])
 	_check(player.eye_height() < player.stand_eye_height - 0.4, "crouching lowers the camera (%.2f)" % player.eye_height())
-	_check(noises.is_empty(), "crouch-walking is silent")
+	_check(noises.max() <= 2.0 if not noises.is_empty() else true, "crouch-walking is nearly silent (heard only right next to you)")
 	# Sprinting stands you up, and drains stamina until you can't sprint.
 	Input.action_press("sprint")
 	await create_timer(0.5).timeout
@@ -2598,6 +2598,7 @@ func _section_cover() -> void:
 	_face_player(scav)
 	scav.shot_damage = 0  # watching it move, not dying
 	scav.flank_chance = 0.0  # (scavs flank sometimes since 0.12.3; this checks cover)
+	scav.close_fight_range = 0.0  # (10 m away: up close it would shoot back first, 0.12.30)
 	await physics_frame
 	scav._alert(player.global_position)
 	scav._set_state(Scav.State.ENGAGE)
@@ -2641,6 +2642,7 @@ func _section_cover() -> void:
 	_face_player(fighter)
 	fighter.shot_damage = 0
 	fighter.flank_chance = 0.0
+	fighter.close_fight_range = 0.0
 	await physics_frame
 	fighter._alert(player.global_position)
 	fighter._set_state(Scav.State.ENGAGE)
@@ -2742,6 +2744,61 @@ func _section_hurt() -> void:
 	await create_timer(3.5).timeout
 	_check(patient._cover_phase != Scav.Cover.HEALING and patient.health.current == 30, "getting shot interrupts its heal (hp %d)" % patient.health.current)
 	patient.queue_free()
+	await physics_frame
+	# 0.12.30 (owner): at 30% it retreats, back to cover farther from you, even with no heals left.
+	player.teleport_to(Vector3(-15, 0.1, 0))
+	var runner := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
+	_face_player(runner)
+	runner.shot_damage = 0
+	runner.heals = 0
+	runner._heals_left = 0
+	runner.close_fight_range = 0.0
+	await physics_frame
+	runner._target = player
+	runner._set_state(Scav.State.ENGAGE)
+	var start_gap := runner.global_position.distance_to(player.global_position)
+	runner.health.take_damage(75, player.global_position)
+	var gap := start_gap
+	for i in 60 * 5:
+		await physics_frame
+		gap = maxf(gap, runner.global_position.distance_to(player.global_position))
+	_check(gap > start_gap + 2.5, "at 30%% it retreats, even with no heals left (%.0f m -> %.0f m from you)" % [start_gap, gap])
+	runner.queue_free()
+	await physics_frame
+	# 0.12.30 (owner): up close with no cover a step away, its first instinct is to shoot back, not run round.
+	player.teleport_to(Vector3(30, 0.1, -30))
+	var brawler := _spawn(SCAV_SCENE, Vector3(30, 0.1, -36)) as Scav
+	_face_player(brawler)
+	brawler.shot_damage = 0
+	var brawl_shots := [0]
+	brawler.fired.connect(func(_end: Vector3) -> void: brawl_shots[0] += 1)
+	await physics_frame
+	brawler._alert(player.global_position)
+	var wandered := 0.0
+	var brawl_start := brawler.global_position
+	for i in 60 * 2:
+		await physics_frame
+		wandered = maxf(wandered, brawler.global_position.distance_to(brawl_start))
+	_check(brawl_shots[0] >= 2 and wandered < 4.0, "up close it shoots back first (%d shots, moved %.1f m)" % [brawl_shots[0], wandered])
+	brawler.queue_free()
+	await physics_frame
+	# 0.12.30 (owner): it hears you walk up behind it, looks round and spots you.
+	player.teleport_to(Vector3(30, 0.1, -25))
+	var listener := _spawn(SCAV_SCENE, Vector3(30, 0.1, -30)) as Scav
+	listener.look_at(listener.global_position + Vector3(0, 0, -10))   # facing away from you
+	listener._wander_time = 99.0
+	listener._wander_dir = Vector3.ZERO
+	listener.shot_damage = 0
+	await physics_frame
+	player._make_noise(player.walk_noise)
+	var noticed := false
+	for i in 90:
+		await physics_frame
+		if listener.state in [Scav.State.ALERT, Scav.State.ENGAGE]:
+			noticed = true
+			break
+	_check(noticed, "a scav facing away hears your footsteps 5 m behind it, turns and spots you")
+	listener.queue_free()
 
 
 func _section_raiders() -> void:
