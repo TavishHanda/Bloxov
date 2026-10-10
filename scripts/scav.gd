@@ -135,6 +135,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Closer than this (meters) it fights back first and only takes cover within close_cover_radius (0.12.30, owner).
 @export var close_fight_range := 12.0
 @export var close_cover_radius := 3.0
+## Badly hurt up close: the farthest (walking) it runs to cover to patch up before it would rather shoot back.
+@export var retreat_close_radius := 6.0
 @export var cover_hold_time := 1.2
 ## At most one new cover spot per this many seconds. (0.12.10: 5 s before; owner: they kept running sideways in
 ## the open instead of hiding.)
@@ -310,6 +312,11 @@ var _look_at_sound_left := 0.0
 ## whole map (the few random roamers, and every AI on the test map). Fights can still pull it out.
 var home_center := Vector3.ZERO
 var home_radius := 0.0
+## Parts of its area it keeps out of: Vector3(x, radius, z) circles (0.12.31, owner: the town's scavs stay away
+## from the town hall and the bank, where Bon's guards and the Raiders are), and how far out (fraction of
+## home_radius) its open-ground patrol stops sit (the town's scavs patrol round the edges of town).
+var home_avoid: Array = []
+var home_edge := 0.0
 ## Duo partner or boss guard: who it follows around while patrolling (null = it leads itself), and where it
 ## walks relative to them (right/back in their facing).
 var leader: Scav = null
@@ -789,6 +796,18 @@ func _pick_target() -> Player:
 	return best
 
 
+## Shot by someone other than who it's fighting (co-op): it turns on the one shooting it (0.12.31; it used to keep
+## its eyes on the closest player while someone else shot it).
+func _target_shooter(source_position: Vector3) -> void:
+	for node in RaidScope.nodes(self, &"player"):
+		var player := node as Player
+		if player != null and player != _target and not player.out_of_fight() \
+				and player.global_position.distance_to(source_position) < 2.5:
+			_target = player
+			_lost_sight_time = 0.0
+			return
+
+
 ## Rifle-butt bash: wind up (visible), then hit if the target is still in reach.
 func _update_melee(delta: float, dist: float) -> void:
 	if _windup_left <= 0.0:
@@ -961,9 +980,9 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	_tactic_time = 0.0
 	_hit_since_decide = false
 	if _wants_heal and _heal_retry_left <= 0.0 and not holds_position:
-		tactic = Tactic.HEAL
-		_fall_back_to_heal()
-		return
+		if _fall_back_to_heal():
+			tactic = Tactic.HEAL
+			return
 	if not sees:
 		if _suppress_left > 0.0 or _try_suppress():
 			tactic = Tactic.SUPPRESS
@@ -1132,12 +1151,19 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 ## 30% they need to go retreat"): runs back to cover farther from you (up to 20 m away, facing where it's going),
 ## patches up there if it has a heal left, else lies low there a while before fighting again. With nowhere farther
 ## back it takes the nearest cover; with none at all it patches up where it stands.
-func _fall_back_to_heal() -> void:
+func _fall_back_to_heal() -> bool:
+	# Up close with you in sight it only ducks into cover a few steps away: turning its back to run 20 m (or
+	# patching up in the open in front of you) gets it killed. No cover that close: it shoots back and tries again
+	# in a moment (0.12.31, owner: the AI's priorities felt wrong).
+	var close := _can_see and _target != null and global_position.distance_to(_target.global_position) < close_fight_range
+	var spot := _find_cover(retreat_close_radius) if close else _find_cover(20.0, 3.0)
+	if spot == Vector3.INF and not close:
+		spot = _find_cover()
+	if spot == Vector3.INF and close:
+		_heal_retry_left = 2.5
+		return false
 	_wants_heal = false
 	_retreated = true
-	var spot := _find_cover(20.0, 3.0)
-	if spot == Vector3.INF:
-		spot = _find_cover()
 	if spot != Vector3.INF:
 		_cover_point = spot
 		_cover_low = _found_low
@@ -1148,6 +1174,7 @@ func _fall_back_to_heal() -> void:
 		_bark("cover")
 	elif _heals_left > 0:
 		_start_heal()
+	return true
 
 
 func _start_heal() -> void:
@@ -1267,6 +1294,13 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		else:
 			_face(move, delta)
 			_hold_fire()
+		# Shot up close on the way, with the cover still a way off: turns and fights instead of running with its
+		# back to you (0.12.31). (Not when it's falling back to patch up: that already only goes a few steps up close.)
+		if (sees and _hit_since_decide and dist < close_fight_range and tactic != Tactic.HEAL
+				and _flat(_cover_point - global_position).length() > 2.0):
+			_cover_phase = Cover.NONE
+			_cover_cooldown_left = cover_cooldown
+			return Vector3.ZERO
 		# Get all the way in (normal arriving allows 1.2 m, which can leave it peeking past the corner).
 		if _flat(_cover_point - global_position).length() < 0.4 or _cover_stuck(move):
 			if _heal_after_move:
@@ -1617,7 +1651,7 @@ func _pick_patrol_point() -> Vector3:
 			# Walk up next to it (the closest walkable point to the container).
 			spot = AINav.closest(self, _patrol_container.global_position)
 		elif home_radius > 0.0:
-			var offset := Vector3(home_radius * sqrt(randf()), 0, 0).rotated(Vector3.UP, randf() * TAU)
+			var offset := Vector3(home_radius * lerpf(home_edge, 1.0, sqrt(randf())), 0, 0).rotated(Vector3.UP, randf() * TAU)
 			spot = AINav.closest(self, home_center + offset)
 		else:
 			spot = AINav.random_point(self)
@@ -1646,7 +1680,12 @@ func _has_cover_at(spot: Vector3) -> bool:
 
 ## Inside its patrol area (a little slack at the edge); always true for a roamer.
 func _in_home(point: Vector3) -> bool:
-	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0)
+	if home_radius <= 0.0:
+		return true
+	for circle: Vector3 in home_avoid:
+		if Vector2(point.x - circle.x, point.z - circle.z).length() <= circle.y:
+			return false
+	return _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0)
 
 
 ## A sniper on its perch, unaware: slowly sweeps its view one way, then the other, with the odd pause.
@@ -1790,6 +1829,7 @@ func _has_line_of_sight() -> bool:
 
 func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	hits_taken += 1
+	_target_shooter(source_position)
 	_since_threat = 0.0
 	_last_hit_from = source_position
 	if _cover_phase == Cover.HEALING:
@@ -1818,7 +1858,8 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 		if _target != null:
 			_call_for_help(_target.global_position)
 		if not holds_position and not _wants_heal and _cover_phase == Cover.NONE and state == State.ENGAGE:
-			_try_take_cover()
+			_try_take_cover(close_cover_radius if _can_see and _target != null and global_position.distance_to(_target.global_position) < close_fight_range else -1.0)
+			_hit_since_decide = false   # (this hit is why it's going: don't count it as being shot on the way)
 	elif not health.is_dead:
 		_bark("hurt", 0.5)
 	var push := global_position - source_position

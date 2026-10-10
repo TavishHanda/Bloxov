@@ -2109,6 +2109,21 @@ func _section_spawn_budget() -> void:
 		enemy.queue_free()
 	crowded.queue_free()
 	await _frames(2)
+	# 0.12.31 (owner: a Raider's partner spawned stuck in a roof): a partner/guard spot that would be inside
+	# something moves to a clear spot next to the leader instead.
+	var origin := Vector3(-30, 0.1, 30)
+	var shelf := _block(origin + Vector3(1.5, 1.0, 1.0), Vector3(1.6, 2.0, 1.6))
+	var placer := EnemySpawner.new()
+	placer.set_process(false)
+	placer.set_physics_process(false)
+	main.add_child(placer)
+	await physics_frame
+	var clear := placer.clear_spot_near(origin, Vector3(1.5, 0, 1.0))
+	var shelf_box := AABB(shelf.global_position - Vector3(0.8, 1.0, 0.8), Vector3(1.6, 2.0, 1.6)).grow(0.3)
+	_check(clear != origin and not shelf_box.has_point(clear + Vector3(0, 1.0, 0)) and absf(clear.y - origin.y) < 0.3,
+		"a partner's spawn spot blocked by something moves to a clear spot beside the leader (%s)" % (clear - origin))
+	shelf.queue_free()
+	placer.queue_free()
 
 
 func _section_zones() -> void:
@@ -2549,6 +2564,24 @@ func _section_patrol() -> void:
 	_check(farthest > 15.0, "an unaware scav patrols away from its spawn (%.0f m in 20 s)" % farthest)
 	_check(top_speed > 1.7 and top_speed < scav.move_speed, "it patrols at a walking pace (%.1f m/s)" % top_speed)
 	scav.queue_free()
+	# 0.12.31 (owner): a zone can keep its AI out of part of it (the town's scavs stay away from the town hall and the
+	# bank) and send its patrols round the edges.
+	var edger := _spawn(SCAV_SCENE, Vector3(0, 0.1, 30)) as Scav
+	await physics_frame
+	edger.home_center = Vector3(0, 0, 30)
+	edger.home_radius = 25.0
+	edger.home_avoid = [Vector3(10, 8.0, 30)]
+	edger.home_edge = 0.45
+	var in_avoid := 0
+	var near_middle := 0
+	for i in 40:
+		var p := edger._pick_patrol_point()
+		if Vector2(p.x - 10, p.z - 30).length() <= 8.0:
+			in_avoid += 1
+		if edger._patrol_container == null and Vector2(p.x, p.z - 30).length() < 25.0 * 0.3:
+			near_middle += 1
+	_check(in_avoid == 0 and near_middle == 0, "patrol stops stay out of the zone's no-go part and round its edges (%d in it, %d in the middle)" % [in_avoid, near_middle])
+	edger.queue_free()
 
 
 func _section_scav_looting() -> void:
@@ -2781,6 +2814,30 @@ func _section_hurt() -> void:
 		wandered = maxf(wandered, brawler.global_position.distance_to(brawl_start))
 	_check(brawl_shots[0] >= 2 and wandered < 4.0, "up close it shoots back first (%d shots, moved %.1f m)" % [brawl_shots[0], wandered])
 	brawler.queue_free()
+	await physics_frame
+	# 0.12.31 (owner: priorities felt wrong): badly hurt up close with no cover a few steps away, it keeps shooting
+	# back instead of turning its back to run (or patching up in the open in front of you).
+	var cornered := _spawn(SCAV_SCENE, Vector3(30, 0.1, -36)) as Scav
+	_face_player(cornered)
+	cornered.shot_damage = 0
+	var cornered_shots := [0]
+	cornered.fired.connect(func(_end: Vector3) -> void: cornered_shots[0] += 1)
+	await physics_frame
+	cornered._alert(player.global_position)
+	await create_timer(0.4).timeout
+	cornered.health.take_damage(75, player.global_position)
+	var shots_before: int = cornered_shots[0]
+	var cornered_start := cornered.global_position
+	var cornered_moved := 0.0
+	var healed_in_open := false
+	for i in 60 * 2:
+		await physics_frame
+		cornered_moved = maxf(cornered_moved, cornered.global_position.distance_to(cornered_start))
+		healed_in_open = healed_in_open or cornered._cover_phase == Scav.Cover.HEALING
+	_check(cornered_shots[0] - shots_before >= 2 and cornered_moved < 4.0 and not healed_in_open,
+		"hurt up close with no cover near, it fights back (%d shots, moved %.1f m, healed in the open: %s)" % [
+			cornered_shots[0] - shots_before, cornered_moved, healed_in_open])
+	cornered.queue_free()
 	await physics_frame
 	# 0.12.30 (owner): it hears you walk up behind it, looks round and spots you.
 	player.teleport_to(Vector3(30, 0.1, -25))

@@ -39,6 +39,7 @@ var downed_hud: DownedHUD
 var spectator: Spectator
 
 var _indicator_time := 0.0
+var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
 
 
@@ -155,6 +156,8 @@ func _process(delta: float) -> void:
 		vignette.color.a = maxf(vignette.color.a - delta * 1.5, low_health_alpha)
 		_indicator_time -= delta
 	damage_indicator.modulate.a = clampf(_indicator_time, 0.0, 1.0)
+	if _indicator_time > 0.0 and player != null:
+		_point_indicator()
 
 	_update_debug(delta)
 
@@ -195,10 +198,16 @@ func _on_container_opened(container: LootContainer) -> void:
 
 func _on_player_damaged(_amount: int, source_position: Vector3) -> void:
 	vignette.color.a = 0.45
-	# Point the arrow toward whoever hit us (0 = straight ahead).
-	var local := player.global_basis.inverse() * (source_position - player.global_position)
-	damage_indicator.rotation = atan2(local.x, -local.z)
+	_hit_from = source_position
+	_point_indicator()
 	_indicator_time = 1.2
+
+
+## Points the arrow toward whoever hit us (0 = straight ahead). Every frame while it shows, so it stays right while
+## you turn (0.12.31, owner: it felt off when turning fast; it used to keep the angle from the moment of the hit).
+func _point_indicator() -> void:
+	var local := player.global_basis.inverse() * (_hit_from - player.global_position)
+	damage_indicator.rotation = atan2(local.x, -local.z)
 
 
 ## Dead: watch a teammate instead of the end screen (it comes back when they're out).

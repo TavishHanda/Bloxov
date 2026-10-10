@@ -1762,6 +1762,11 @@ AI_ZONES = [
     ("OldHouses", 200, 300, 30, 2, 0, 1.0),   # old houses south of the railway
     ("TownHall", 107, 151, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
 ]
+# Parts of a zone its AI keep out of (spawns and patrols), and how far out its open-ground patrol stops sit
+# (fraction of the radius). Town (0.12.31, owner): Bon's guards hold the town hall and Raiders the bank, so the
+# town's scavs spawn and patrol away from both, more round the edges of town.
+AI_ZONE_AVOID = {"Town": [(107, 151, 30), (150, 124, 32)]}
+AI_ZONE_EDGE = {"Town": 0.45}
 # The boss (owner: a Raider commander with guards, at the town hall + bunker, in every raid while testing; a chance
 # later): zone, guards, chance per raid.
 AI_BOSS = ("TownHall", 3, 1.0)
@@ -1790,6 +1795,8 @@ def _zone_of(x, z):
     """The smallest AI zone containing (x, z), or None."""
     best = None
     for zone in AI_ZONES:
+        if any(math.hypot(x - ax, z - az) <= ar for ax, az, ar in AI_ZONE_AVOID.get(zone[0], [])):
+            continue
         if math.hypot(x - zone[1], z - zone[2]) <= zone[3] and (best is None or zone[3] < best[3]):
             best = zone
     return best
@@ -1875,9 +1882,17 @@ def zone_spawns():
 
 def spawner_meta(ter):
     """The map's AI numbers and zones (EnemySpawner settings)."""
+    def extra(n):
+        avoid = AI_ZONE_AVOID.get(n)
+        out = ""
+        if avoid:
+            out += ', "avoid": [' + ", ".join(f"Vector3({fmt(gx(ax))}, {fmt(ar)}, {fmt(gz(az))})" for ax, az, ar in avoid) + "]"
+        if n in AI_ZONE_EDGE:
+            out += f', "edge": {fmt(AI_ZONE_EDGE[n])}'
+        return out
     zones = ", ".join(
         f'{{"name": "{n}", "center": Vector3({fmt(gx(x))}, {fmt(ter.lift(x, z))}, {fmt(gz(z))}), "radius": {fmt(r)}, '
-        f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}}}' for n, x, z, r, s, rd, t in AI_ZONES)
+        f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}{extra(n)}}}' for n, x, z, r, s, rd, t in AI_ZONES)
     scavs = sum(z[4] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[5] for z in AI_ZONES)
     # Scavs 2.0 (owner: about 30 at the start once the boss and snipers are in): the zones' AI and the roamers at
