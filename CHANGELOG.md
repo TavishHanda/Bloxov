@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.5 (farm house floor stops flickering; owner)
+- Fix: the farm house, barn and shed floors still flickered (owner). They stand on the farmyard's dirt, and since
+  0.11.21 both sat at exactly the same height. Now a floor or patch on top of a bigger one sits 5 cm higher (10 cm
+  on a road), so no two are ever level. Checked every building, yard and road on the map: none overlap level now
+- Same fix where the Old Road crosses the railway: the road goes over the rails instead of level with them, with
+  no sleepers under it, and the sleepers stand 5 cm above the rail bed (was 2 cm)
+
 ## 0.12.4 (the boss is Bon; owner)
 - The town hall boss is called **Bon** (owner). Its body is labelled "Bon"
 - Bon always carries **heavy armor** (owner), on top of its AK and 4-6 items. It goes straight into the body's

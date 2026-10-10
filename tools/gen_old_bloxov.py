@@ -861,11 +861,17 @@ CREEK_DEPTH = 0.9
 CREEK_BED = 1.5
 CREEK_BANK = 4.5
 WATER_DROP = 0.35
-WATER_START = 2
+WATER_START = 2   # the first creek point with water (the ones before run under the railway at the map edge)
 # Ground covers (building ground floors, yards, car parks: flat, looks-only boxes built from height 0) end up this far
 # above the ground, so the two never flicker against each other from far away (0.11.21; they were 3 cm up). The
 # ground under them isn't drawn where they cover it completely (`terrain_hidden`).
-COVER_TOP = 0.07   # the first creek point with water (the ones before run under the railway at the map edge)
+# A cover on top of a bigger one (a house floor on the farmyard) or on a road sits COVER_STEP higher for each, so
+# no two are level with each other either (0.12.5).
+COVER_TOP = 0.07
+COVER_STEP = 0.05
+# The railway's top (its sleepers stick up above it); road pieces that cross it are lifted over it.
+RAIL_TOP = 0.12
+RAIL_Z = 210.0
 HILL_CLEAR = 20.0   # hills reach full height this far from a road or the creek (and fade out within 4 m of it)
 
 # Extra flat pads (map x0, z0, x1, z1) for things that stand outside a building's footprint.
@@ -1241,15 +1247,31 @@ def terrain():
             group_lift[a] = min(group_lift.get(a, float("inf")), low(b))
     out = []
     covers = []
+
+    def is_cover(b, a):
+        return a is None and not b[9] and b[7] == 0 and abs(b[1] - b[4] / 2) < 1e-6 and b[4] <= 0.06 + 1e-6
+
+    def bounds(b):
+        fp = _footprint(b)
+        return min(p[0] for p in fp), min(p[1] for p in fp), max(p[0] for p in fp), max(p[1] for p in fp)
+
+    def overlap(r, q):
+        return r[0] < q[2] and q[0] < r[2] and r[1] < q[3] and q[1] < r[3]
+    cover_rects = [(bounds(b), b[3] * b[5]) for b, a in zip(boxes, anchors) if is_cover(b, a)]
+    road_rects = [bounds(b) for b, a in zip(boxes, anchors) if isinstance(a, tuple) and a[0] == "seg" and b[8] == C["road"]]
     for b, a in zip(boxes, anchors):
-        if a is None and not b[9] and b[7] == 0 and abs(b[1] - b[4] / 2) < 1e-6 and b[4] <= 0.06 + 1e-6:
-            # a ground cover: COVER_TOP above the ground, and deep enough underneath to cover a little dip
-            b = (b[0], (COVER_TOP - 0.25) / 2, b[2], b[3], COVER_TOP + 0.25) + tuple(b[5:])
+        if is_cover(b, a):
+            # a ground cover: COVER_TOP above the ground (a step higher for each bigger cover it's on, two on a road),
+            # and deep enough underneath to cover a little dip
+            r, area = bounds(b), b[3] * b[5]
+            steps = sum(1 for q, qa in cover_rects if qa > area and overlap(r, q)) + 2 * any(overlap(r, q) for q in road_rects)
+            top = COVER_TOP + COVER_STEP * steps
+            b = (b[0], (top - 0.25) / 2, b[2], b[3], top + 0.25) + tuple(b[5:])
             out.append(_moved(b, low(b)))
             if b[6] % 90 == 0:
                 hx, hz = (b[3], b[5]) if b[6] % 180 == 0 else (b[5], b[3])
                 cx, cz = b[0] + M / 2, b[2] + M / 2
-                covers.append((cx - hx / 2, cz - hz / 2, cx + hx / 2, cz + hz / 2, low(b) + COVER_TOP))
+                covers.append((cx - hx / 2, cz - hz / 2, cx + hx / 2, cz + hz / 2, low(b) + top))
         elif a is None:
             out.append(_moved(b, low(b)))
         elif a[0] == "g":
@@ -1271,7 +1293,11 @@ def terrain():
                 sub[5] = length / n + width * 0.5
                 sub[1] -= 0.15
                 sub[4] += 0.3
-                out.append(_tilted(tuple(sub), ter.at(px0, pz0), ter.at(px1, pz1), length / n))
+                piece = _tilted(tuple(sub), ter.at(px0, pz0), ter.at(px1, pz1), length / n)
+                if b[8] == C["road"] and min(pz0, pz1) - width < RAIL_Z + 1.6 and max(pz0, pz1) + width > RAIL_Z - 1.6:
+                    # a level crossing: the road goes over the rails (not level with them: it would flicker)
+                    piece = _moved(piece, max(0.0, RAIL_TOP + COVER_STEP - (piece[1] + piece[4] / 2)))
+                out.append(piece)
     boxes = out
     for x0, z0, x1, z1, top in covers:   # (no ground poking up through a floor or a yard: it flickers)
         poke = max(ter.at(x0 + (x1 - x0) * i / 12, z0 + (z1 - z0) * k / 12) for i in range(13) for k in range(13))
@@ -1371,10 +1397,12 @@ def main():
     water.append((creek, 5.0))   # (the water itself is a surface `BoxMap` makes from `water_points`)
 
     # --- railway (west to east at y 210) with sidings to the depot
-    RY = 210.0
-    box(0, 0, RY - 1.6, M, 0.12, RY + 1.6, "rail", solid=False)
+    RY = RAIL_Z
+    box(0, 0, RY - 1.6, M, RAIL_TOP, RY + 1.6, "rail", solid=False)
     for x in range(2, int(M), 3):
-        box(x, 0.0, RY - 1.4, x + 0.4, 0.14, RY + 1.4, "wood", solid=False)
+        if any(_nearest_on(pts, x + 0.2, RY)[0] < w / 2 + 3.0 for pts, w in roads):
+            continue   # (no sleepers poking through a level crossing)
+        box(x, 0.0, RY - 1.4, x + 0.4, RAIL_TOP + 0.05, RY + 1.4, "wood", solid=False)   # (5 cm up: no flicker)
     for siding in ([(232, RY), (248, 220), (290, 220)], [(238, RY), (254, 228), (290, 228)]):
         strip(siding, 3.0, "rail", y=0.0, h=0.12)
     box(36, 0.0, RY - 3, 48, 0.25, RY + 3, "wood")   # rail bridge deck over the creek
