@@ -2115,7 +2115,26 @@ func _section_raiders() -> void:
 	# Sneaks (quiet, slower) when close to where it's going.
 	raider._goal = raider.global_position + Vector3(0, 0, -8)
 	_check(raider._sneaking(), "a Raider closing in moves quietly")
-	raider.queue_free()
+	# Weapon drops (owner, 0.11.11): Raiders sometimes leave their AK in the body bag; scavs don't drop guns this way.
+	_check(raider.weapon_drop == "ak" and raider.weapon_drop_chance > 0.0 and raider.weapon_drop_chance < 1.0, "Raiders have a chance to drop an AK")
+	_check(scav.weapon_drop_chance == 0.0, "scavs don't drop their gun")
+	raider.weapon_drop_chance = 1.0
+	raider.max_drops = 3
+	raider.min_drops = 3
+	var bags_before := get_nodes_in_group("loot_containers")
+	raider.health.take_damage(9999)
+	await _frames(3)
+	var body: LootContainer = null
+	for bag in get_nodes_in_group("loot_containers"):
+		if not bag in bags_before:
+			body = bag
+	_check(body != null and body.grid.stacks.any(func(stack: ItemStack) -> bool: return stack.id == "ak"), "a Raider's body bag can hold its AK")
+	if body != null:
+		body.queue_free()
+	# The bag grows so an AK and a big backpack both fit.
+	var packed := LootContainer.spawn_bag(main, Vector3(50, 0, 50), "Test Body", [["ak", 1], ["backpack_medium", 1], ["medkit", 1], ["medkit", 1]])
+	_check(packed.grid.stacks.size() == 4, "a body bag fits an AK, a backpack and two medkits (%d of 4)" % packed.grid.stacks.size())
+	packed.queue_free()
 	scav.queue_free()
 	# Flanking: in a lull, a Raider may circle around instead of trading shots.
 	player.teleport_to(Vector3(0, 0.1, -10))

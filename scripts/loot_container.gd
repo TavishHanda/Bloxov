@@ -57,25 +57,34 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 	bag.search_time = search
 	bag.searched = search <= 0.0
 	bag.remove_when_empty = true
-	# Big enough for whatever's going in.
+	# Big enough for whatever's going in: at least as big as the biggest item, plus rows until everything fits.
 	var cells := Vector2i(4, 3)
 	for entry in contents:
 		var id: String = entry.id if entry is ItemStack else entry[0]
 		cells = cells.max(ItemDB.size(id))
-	bag.grid = GridInventory.new(bag_name, cells.x, cells.y + 1)
+	var rows := cells.y + 1
+	while not _fill_bag(bag, bag_name, cells.x, rows, contents) and rows < cells.y + 12:
+		rows += 1
+	world.add_child(bag)
+	bag.global_position = pos
+	bag.rotation.y = randf() * TAU
+	return bag
+
+
+## Puts `contents` into a fresh w x h grid on the bag. False if something didn't fit.
+static func _fill_bag(bag: LootContainer, bag_name: String, w: int, h: int, contents: Array) -> bool:
+	bag.grid = GridInventory.new(bag_name, w, h)
+	var all_fit := true
 	for entry in contents:
 		if entry is ItemStack:
 			# Keep the stack itself (a gun keeps its loaded rounds).
 			var stack := entry as ItemStack
 			var spot := bag.grid.find_spot(stack.id)
 			if spot.is_empty():
-				bag.grid.add(stack.id, stack.count)
+				all_fit = bag.grid.add(stack.id, stack.count) == 0 and all_fit
 			else:
 				stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 				bag.grid.place(stack)
 		else:
-			bag.grid.add(entry[0], entry[1])
-	world.add_child(bag)
-	bag.global_position = pos
-	bag.rotation.y = randf() * TAU
-	return bag
+			all_fit = bag.grid.add(entry[0], entry[1]) == 0 and all_fit
+	return all_fit
