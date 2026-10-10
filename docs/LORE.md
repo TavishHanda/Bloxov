@@ -18,9 +18,6 @@ tie back to what's written here.
     - **The Exion Brotherhood** (named after the owner's friend group, the X1 Brotherhood): a powerful group inside
       Exion that controls it, the order behind its government and army. Details **TBD** (owner).
   - Players fight as **NOVA** or **EXION**: short names for patches and voice chat, with a light vs dark look.
-    In the game (planned, owner 2026-10-10): you pick your side when you start. It's mostly flavor (look, voice
-    lines, starting kit, faction skins, no stat edge); friends on different sides can still squad up, and in a raid
-    every other PMC is a threat whatever their side.
   - What started the war: see the timeline below.
 - The world is **mostly abandoned**, with a few **safe havens** left. TBD: what they are, who runs them, and
   whether the hideout is one.
