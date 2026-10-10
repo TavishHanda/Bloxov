@@ -2207,6 +2207,7 @@ func _section_boss() -> void:
 	_check(the_boss.get_node("Health").max_health > 2 * raider.get_node("Health").max_health and the_boss.shot_damage > raider.shot_damage
 		and the_boss.heals > raider.heals and the_boss.weapon_drop_chance == 1.0 and the_boss.max_drops > raider.max_drops,
 		"the boss is much tougher than a Raider, hits harder and always carries its rifle and more loot")
+	_check(the_boss.body_name == "Bon" and the_boss.extra_drops.has("armor_heavy"), "the boss is Bon and always carries heavy armor (owner)")
 	raider.free()
 	var offsets := guards.map(func(g: Scav) -> Vector3: return g.follow_offset)
 	_check(offsets.size() == 3 and offsets[0] != offsets[1] and offsets[1] != offsets[2], "each guard has its own spot round the boss")

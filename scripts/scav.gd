@@ -171,6 +171,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var body_name := "Scav Body"
 ## Chance its gun ends up on its body too (in the Primary slot) (owner, 0.11.11: Raiders sometimes drop their AK).
 @export_range(0.0, 1.0) var weapon_drop_chance := 0.0
+## Always on its body, on top of the rolled loot (Bon, the boss: heavy armor, owner).
+@export var extra_drops := PackedStringArray()
 ## Item id of that gun.
 @export var weapon_drop := ""
 
@@ -1078,6 +1080,8 @@ func _on_died() -> void:
 	var drops: Array = []
 	if weapon_drop != "" and randf() < weapon_drop_chance:
 		drops.append([weapon_drop, 1])
+	for id in extra_drops:
+		drops.append([id, 1])
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])

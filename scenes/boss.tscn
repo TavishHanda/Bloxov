@@ -19,7 +19,7 @@ albedo_color = Color(1, 0.85, 0.35, 1)
 material = SubResource("FlashMat")
 size = Vector3(0.16, 0.16, 0.02)
 
-[node name="Boss" type="CharacterBody3D"]
+[node name="Bon" type="CharacterBody3D"]
 collision_layer = 4
 collision_mask = 7
 script = ExtResource("1_scav")
@@ -50,7 +50,8 @@ accuracy_far = 0.4
 min_drops = 4
 max_drops = 6
 loot_table = "raider"
-body_name = "Commander Body"
+body_name = "Bon"
+extra_drops = PackedStringArray("armor_heavy")
 weapon_drop_chance = 1.0
 weapon_drop = "ak"
 burst_color = Color(0.66, 0.6, 0.42, 1)
