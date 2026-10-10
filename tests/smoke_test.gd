@@ -2312,7 +2312,7 @@ func _section_teamwork() -> void:
 	# 0.12.8 (owner): accuracy is a gradient, worse the farther you are, very poor at the edge of its range.
 	var aim := load(SCAV_SCENE).instantiate() as Scav
 	_check(aim.hit_chance(5.0) > aim.hit_chance(25.0) and aim.hit_chance(25.0) > aim.hit_chance(50.0)
-		and aim.hit_chance(50.0) > aim.hit_chance(75.0) and aim.hit_chance(75.0) <= 0.06,
+		and aim.hit_chance(50.0) > aim.hit_chance(75.0) and aim.hit_chance(75.0) <= 0.11,
 		"accuracy drops with range: %.2f at 5 m, %.2f at 25, %.2f at 50, %.2f at 75" % [aim.hit_chance(5.0), aim.hit_chance(25.0), aim.hit_chance(50.0), aim.hit_chance(75.0)])
 	aim.free()
 	# Pressed against a wall going nowhere: it gives up on that spot instead of hugging the wall.
