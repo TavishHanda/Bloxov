@@ -351,6 +351,10 @@ func _section_scav_hit() -> void:
 	# Shooting a scav flinches it: it holds fire for a moment and aims worse.
 	enemy.health.take_damage(10, player.global_position)
 	_check(enemy._flinch_left > 0.0 and enemy._fire_timer >= enemy.flinch_fire_delay - 0.001, "hit scav flinches (holds fire, aims worse)")
+	# Only the first hit of a flinch holds its fire: a stream of hits can't keep it from ever shooting back (0.11.16).
+	enemy._fire_timer = 0.0
+	enemy.health.take_damage(1, player.global_position)
+	_check(enemy._fire_timer == 0.0 and enemy._flinch_left > 0.0, "more hits while flinching don't keep holding its fire")
 
 	# Killing the enemy removes it.
 	enemy.health.take_damage(9999)
@@ -1824,6 +1828,22 @@ func _section_spotting() -> void:
 	_check(distant.state == Scav.State.ALERT, "a near miss alerts it even out of earshot")
 	distant.queue_free()
 	gun._apply_weapon(gun.weapon)
+
+	# Shot while unaware (from behind): it's startled, turns and shoots back quickly instead of dying before it reacts.
+	var victim := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 20)) as Scav
+	victim.look_at(victim.global_position + Vector3(0, 0, 10))  # facing away
+	victim._wander_time = 99.0
+	victim._wander_dir = Vector3.ZERO
+	victim.shot_damage = 0
+	var shots := [0]
+	victim.fired.connect(func(_end: Vector3) -> void: shots[0] += 1)
+	await physics_frame
+	victim.health.take_damage(10, player.global_position)
+	_check(victim.state == Scav.State.ALERT and victim._reaction == victim.startle_reaction_time, "getting shot startles an unaware scav")
+	for i in int((victim.startle_reaction_time + victim.aim_time + 0.1) * 60):
+		await physics_frame
+	_check(shots[0] > 0, "a startled scav shoots back within about half a second")
+	victim.queue_free()
 
 
 func _section_close_range() -> void:
