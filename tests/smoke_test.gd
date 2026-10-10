@@ -2263,6 +2263,15 @@ func _section_teamwork() -> void:
 	var after := pusher.global_position.distance_to(player.global_position)
 	_check(before - after > 1.5, "while you heal or reload it pushes in (%.1f m -> %.1f m)" % [before, after])
 	pusher.queue_free()
+	var bursts := load(SCAV_SCENE).instantiate() as Scav
+	var close := {}
+	var far := {}
+	for i in 200:
+		close[bursts._burst_length(5.0)] = true
+		far[bursts._burst_length(35.0)] = true
+	_check(close.size() >= 2 and far.size() >= 2 and close.keys().max() > far.keys().max() and far.keys().min() == 1,
+		"bursts vary: longer up close (%s), short taps far away (%s)" % [close.keys(), far.keys()])
+	bursts.free()
 	var idle := load(SCAV_SCENE).instantiate() as Scav
 	_check(idle.patrol_pause_max <= 3.0 and idle.loot_time_max <= 4.0, "shorter pauses on patrol, so they keep moving")
 	idle.free()
@@ -2384,27 +2393,33 @@ func _section_cover() -> void:
 			var eyes := player.camera.global_position
 			var query := PhysicsRayQueryParameters3D.create(eyes, scav.global_position + Vector3(0, 1.3, 0), 1)
 			hidden_in_cover = not scav.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
-		if took_cover and scav._cover_phase == Scav.Cover.NONE and scav._can_see:
+		if took_cover and scav._cover_phase == Scav.Cover.PEEKING and scav._can_see:
 			came_back = true
 			break
 	_check(took_cover and hidden_in_cover, "in a break in the fight, a scav moves to cover you can't see")
-	_check(came_back, "...then comes back out to fight")
+	_check(came_back, "...then peeks back out to fight")
 	scav.queue_free()
-	# While you keep shooting, there's no break: it stays and fights.
+	# Fights from cover (0.12.6, owner): even while you keep shooting, between its bursts it gets to cover, then
+	# peeks out to shoot from where it could see you, and ducks back in.
 	var fighter := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
 	_face_player(fighter)
 	fighter.shot_damage = 0
+	fighter.flank_chance = 0.0
 	await physics_frame
 	fighter._alert(player.global_position)
 	fighter._set_state(Scav.State.ENGAGE)
-	var ducked := false
-	for i in 60 * 5:
+	var phases := {}
+	var shots := [0]
+	fighter.fired.connect(func(_end: Vector3) -> void:
+		if fighter._cover_phase == Scav.Cover.PEEKING:
+			shots[0] += 1)
+	for i in 60 * 10:
 		if i % 30 == 0:
 			fighter.notice_threat()  # the player firing every half second
 		await physics_frame
-		if fighter._cover_phase != Scav.Cover.NONE:
-			ducked = true
-	_check(not ducked, "while you keep shooting it keeps fighting (no ducking)")
+		phases[fighter._cover_phase] = true
+	_check(phases.has(Scav.Cover.HOLDING) and phases.has(Scav.Cover.PEEKING) and shots[0] > 0,
+		"under fire it fights from cover: ducks in, peeks out and shoots from there (%d shots peeking)" % shots[0])
 	fighter.queue_free()
 
 
