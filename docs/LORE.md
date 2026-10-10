@@ -9,6 +9,9 @@ tie back to what's written here.
   - **Novarra**: what it's like **TBD**. Its army is **NOVA** (the light side).
   - **The Onyx Dominion**: what it's like **TBD**. Its army is **ONYX** (the dark side).
   - Players fight as **NOVA** or **ONYX**: short names for patches and voice chat, with a light vs dark look.
+  - **The X1 Brotherhood** (named after the owner's friend group, 2026-10-10): NOVA's elite founding unit, the
+    first squad that formed Novarra's army. Its **X1** patch can show up later on NOVA uniforms and skins. (A first
+    pick, not final: the owner decides what the X1 Brotherhood is and does.)
   - What started the war: **TBD**
 - The world is **mostly abandoned**, with a few **safe havens** left. TBD: what they are, who runs them, and
   whether the hideout is one.
