@@ -14,10 +14,17 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    (hunting stands, bell tower, junkyard, bunker, vault), AI on the big map. Layout fixes from it ship as 0.11.x.
 2. **Code cleanup (0.11, in progress alongside the playtest):** a pass over the code before the next big systems
    (owner, 0.10.0). No gameplay changes.
-3. **Scavs 2.0:** AI spawn spots per area, scavs roaming their area, Raiders at hot spots, the close-range
+3. **Stash update (0.12, owner 2026-10-10):** solo and online get **separate stashes** (each with its own money,
+   loadout and stats), picked with a SOLO / ONLINE switch in the hideout. Solo stays on the device and works
+   offline with no account. The **online stash moves onto the server** so it can't be edited to cheat: the server
+   owns the stash, loadout and money, checks what you take in and saves what you bring out. Needs: a player
+   identity (an account), a database (Heroku's disk is wiped on restart), and the store rules on accounts
+   (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
+   account for solo). The current save becomes the solo stash.
+4. **Scavs 2.0:** AI spawn spots per area, scavs roaming their area, Raiders at hot spots, the close-range
    "walks into you" bug, spawn budget retuned for the real raid.
-4. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions.
-5. **Then (M4, vertical slice):** building models fitted to the proven layout, guns as separate models
+5. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions.
+6. **Then (M4, vertical slice):** building models fitted to the proven layout, guns as separate models
    (`GunSocket`), real sounds, loading screen. After that M5 content (characters with perks, more traders,
    more maps) and the M6 public release.
 Parked 0.9 leftovers (teammate-down alert, squad line on the end screen, rejoin after disconnect) can slot in
@@ -36,7 +43,7 @@ between updates. Lore is the owner's.
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
 0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
 per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Old Bloxov) · **0.11 cleanup (current)**,
-then Scavs 2.0 and Items as their own phases.
+then 0.12 Stash update (solo/online stashes), Scavs 2.0 and Items as their own phases.
 
 ## Rules while we go
 - **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.
