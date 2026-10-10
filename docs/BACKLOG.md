@@ -67,6 +67,11 @@ Agreed order: core gameplay first (scavs next), then the co-op test (M3), then m
   (grass, dead grass, dirt, burnt) by a mask image the map generator paints (round junk, craters, trenches,
   buildings). Do it with the owner's art/model pass, so the textures match the models (`docs/ART_SPEC.md`).
 
+## Scav callouts: real voice lines (owner, 0.12.12)
+- Callouts are in with placeholder gibberish barks (`tools/gen_voice_placeholders.py`). The owner will record the
+  real lines with friends later: the list is in `/mnt/project-files/scavs2/callouts.md` (9 kinds, files go to
+  `audio/voice/<kind>.wav`, extra takes `<kind>_2.wav`...). Keep them clean (store age rating).
+
 ## Review order
 Going through every mechanic in 0.3.0 one by one to hone it. See the list in the chat / CHANGELOG.
 - **Inventory screen:** show the player's own character model (paper-doll) once there's a player model.
