@@ -2384,6 +2384,27 @@ func _section_teamwork() -> void:
 	_check(ignored and homebody.state == Scav.State.IDLE and homebody._home_return_left > 0.0,
 		"a boss ignores gunshots far from its area and gives up a chase past its leash")
 	homebody.queue_free()
+	# 0.12.13 wounded (owner): badly hurt it limps, shouts for help (calling nearby AI over) and won't push or flank.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var bleeder := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	var nearby := _spawn(SCAV_SCENE, Vector3(18, 0.1, 30)) as Scav
+	nearby._wander_time = 99.0
+	nearby._wander_dir = Vector3.ZERO
+	bleeder.heals = 0
+	bleeder._heals_left = 0
+	var cries: Array[String] = []
+	bleeder.barked.connect(func(kind: String) -> void: cries.append(kind))
+	await physics_frame
+	bleeder._target = player
+	bleeder._set_state(Scav.State.ENGAGE)
+	bleeder.health.take_damage(70, player.global_position)
+	await physics_frame
+	_check(bleeder.is_wounded() and "help" in cries and nearby.state == Scav.State.INVESTIGATE
+		and bleeder.net_capture()[2] & Scav.NET_WOUNDED,
+		"badly hurt it limps and calls for help (%s); a nearby AI comes over" % [cries])
+	bleeder.queue_free()
+	nearby.queue_free()
+	await physics_frame
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
 	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav
