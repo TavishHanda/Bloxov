@@ -22,11 +22,14 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    sandbags, the trench, walls) and climb onto ledges. Candidates for the owner to pick from: ladders, fall damage
    (both parked in `BACKLOG.md`), prone, crouch-walk speed tuning. (Leaning and stamina already exist.) Right after
    Scavs 2.0, so the AI's paths can use the same vaultable cover.
-5. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions.
+5. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions, and
+   **durability** (owner, 2026-10-10) for armor and helmets: hits wear them down and protect less as they do, shown
+   on the item, so worn gear is worth less. Other gear only where it makes sense (keys could have limited uses).
 6. **Guns update (owner, 2026-10-10):** gun categories (e.g. pistols, SMGs, rifles, shotguns, marksman), a real set
    of guns in each, attachments (sights, muzzles, grips, mags, stocks), and gun models: each gun its own model on the
    characters' `GunSocket` (see `BACKLOG.md`), owner in Blender. After the Items update, since guns, attachments and
-   their loot spots build on it. Made-up gun names and looks only (`STORE_RULES.md`: no real brands or models).
+   their loot spots build on it. **Gun durability** (owner, 2026-10-10): guns wear with use and a worn gun
+   jams or misfires more often, shown on the item. Made-up gun names and looks only (`STORE_RULES.md`: no real brands or models).
 7. **Sound update (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
    (`tools/make_sounds.py`): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
    (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come
@@ -34,7 +37,8 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    the Guns update, since gun sounds need the gun set.
 8. **Economy update (owner, 2026-10-10):** after the Items and Guns updates, when there's a full set of things to
    price: trader buy/sell prices, what's worth looting and where, money in vs. money out (sinks), and how traders and
-   their stock fit in (more traders are on the wishlist). Earned money only (`STORE_RULES.md`: no real-money trading).
+   their stock fit in (more traders are on the wishlist). **Repairs** for worn armor and guns (a trader or repair
+   kits) as a money sink. Earned money only (`STORE_RULES.md`: no real-money trading).
 9. **Then (M4, vertical slice):** building models fitted to the proven layout, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
    saturated; tune it once, against the real models and ground textures, within what the web build supports).
    After that M5 content (characters with perks, more traders,
