@@ -4,7 +4,7 @@ extends CharacterBody3D
 ## Senses: seeing you = knows where you are. Hearing you = walks over to investigate roughly where the sound was.
 ## Losing sight of you = goes to where it last saw you, searches for a bit, then goes back to wandering.
 ## Moves along navigation paths (scripts/nav_baker.gd builds the map's walkable area at raid start), so it walks
-## around buildings and crates. No cover yet (see docs/SCAVS_PLAN.md).
+## around buildings and crates.
 ## Raiders (the tougher AI faction, scenes/raider.tscn) use this script too, with tougher numbers and the
 ## "Raider behavior" settings on. (Real PMCs will be players, with multiplayer.)
 
@@ -449,7 +449,7 @@ func _alert(known_pos: Vector3) -> void:
 	_last_seen = known_pos
 	_set_state(State.ALERT)
 	alerted.emit()
-	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
+	net_alerted()
 
 
 ## The closest player who can still be fought (co-op ready: never assumes a single player).
@@ -473,7 +473,7 @@ func _update_melee(delta: float, dist: float) -> void:
 		_windup_left = melee_windup
 		bash_started.emit()
 		_hold_fire()
-		Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8)
+		net_bash_started()
 		return
 	_windup_left -= delta
 	if _windup_left > 0.0:
@@ -519,8 +519,8 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_cooldown_left = cover_cooldown
 	var side := to_target.normalized().cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
 	var target_pos := _target.global_position
-	var spot := target_pos - to_target.normalized().rotated(Vector3.UP, 0.0) * dist * 0.4 + side * dist * 0.8
-	spot = _nav_closest(spot)
+	var spot := target_pos - to_target.normalized() * dist * 0.4 + side * dist * 0.8
+	spot = AINav.closest(self, spot)
 	if spot == Vector3.ZERO:
 		return
 	_cover_point = spot
@@ -555,14 +555,14 @@ func _find_cover() -> Vector3:
 	for radius in [3.0, 5.0, cover_search_radius]:
 		for i in 12:
 			var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 12.0)
-			var spot := _nav_closest(global_position + dir * radius)
+			var spot := AINav.closest(self, global_position + dir * radius)
 			if spot == Vector3.ZERO or _flat(spot - global_position).length() > radius + 1.0:
 				continue
 			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
 			if space.intersect_ray(query).is_empty():
 				continue  # the target could see it there
 			# Judge by walking distance: a spot inside a building may be close in a straight line but far around.
-			var walk := _path_length(_nav_path(global_position, spot))
+			var walk := AINav.path_length(AINav.path(self, global_position, spot))
 			if walk <= radius * 1.6 and walk < best_walk:
 				best = spot
 				best_walk = walk
@@ -574,13 +574,6 @@ func _find_cover() -> Vector3:
 ## True if it's not getting anywhere (e.g. the last bit of the path is blocked by another scav).
 func _cover_stuck(move: Vector3) -> bool:
 	return move.length() < 0.05 or (get_real_velocity().length() < 0.1 and _flat(_cover_point - global_position).length() < 1.2)
-
-
-func _path_length(path: PackedVector3Array) -> float:
-	var total := 0.0
-	for i in range(1, path.size()):
-		total += path[i - 1].distance_to(path[i])
-	return total if path.size() > 1 else INF
 
 
 ## Moving to cover (still shooting if it has a shot), then holding a moment; after that it goes back to the fight
@@ -648,7 +641,7 @@ func _path_velocity(goal: Vector3, speed: float) -> Vector3:
 	if _path.is_empty() or _flat(goal - _path_goal).length() > 1.0 or _repath_left <= 0.0:
 		_path_goal = goal
 		_repath_left = 1.0
-		_path = _nav_path(global_position, goal)
+		_path = AINav.path(self, global_position, goal)
 		_path_index = 1
 	if _path.size() < 2:
 		var direct := _flat(goal - global_position)
@@ -712,8 +705,6 @@ func _update_shooting(delta: float, dist: float) -> void:
 
 
 func _fire_at_target(dist: float) -> void:
-	var world := get_tree().current_scene
-	var muzzle_pos := muzzle.global_position
 	# The bullet's path starts at the scav's own chest (its body is excluded), not the gun barrel:
 	# with someone right in its face, a ray from the barrel tip would start past them and miss.
 	var from := global_position + Vector3(0, 1.3, 0)
@@ -751,13 +742,10 @@ func _fire_at_target(dist: float) -> void:
 		if result.collider == _target:
 			_target.health.take_damage(shot_damage, global_position)
 		else:
-			Effects.impact(world, end, result.normal, Color(0.85, 0.8, 0.6))
+			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 
 	fired.emit(end)
-	# The tracer and sound still come from the gun.
-	Effects.tracer(world, muzzle_pos, end)
-	Effects.sound_at(world, SHOT_SOUND, muzzle_pos, -3.0, 0.06, 0.8)
-	_muzzle_flash_time = 0.05
+	net_fired(end)  # the tracer and sound still come from the gun
 
 
 func _strafe(delta: float, to_target: Vector3) -> Vector3:
@@ -820,9 +808,9 @@ func _pick_patrol_point() -> Vector3:
 		if not spots.is_empty() and randf() < 0.65:
 			_patrol_container = spots.pick_random() as Node3D
 			# Walk up next to it (the closest walkable point to the container).
-			spot = _nav_closest(_patrol_container.global_position)
+			spot = AINav.closest(self, _patrol_container.global_position)
 		else:
-			spot = _nav_random()
+			spot = AINav.random_point(self)
 		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0:
 			return spot
 	# No navigation map yet: somewhere a few meters ahead.
@@ -894,37 +882,6 @@ func _on_died() -> void:
 
 # --- Online ------------------------------------------------------------------------
 
-# --- Navigation (safe before the map is ready) ---------------------------------------
-# A raid world made on the server mid-game has no synced navigation map for its first frames; asking it then only
-# logs errors. Until it's ready these act like "no map" (callers then walk straight).
-
-func _nav_ready() -> bool:
-	return NavigationServer3D.map_get_iteration_id(get_world_3d().navigation_map) > 0
-
-
-func _nav_closest(point: Vector3) -> Vector3:
-	return NavigationServer3D.map_get_closest_point(get_world_3d().navigation_map, point) if _nav_ready() else Vector3.ZERO
-
-
-## No limit on how much of the map a path search may look at: the default (4096 pieces) is less than a real map
-## has (Old Bloxov, 0.10.0), so a path across it would stop short and lead somewhere odd.
-func _nav_path(from: Vector3, to: Vector3) -> PackedVector3Array:
-	if not _nav_ready():
-		return PackedVector3Array()
-	var query := NavigationPathQueryParameters3D.new()
-	query.map = get_world_3d().navigation_map
-	query.start_position = from
-	query.target_position = to
-	query.path_search_max_polygons = 0
-	var result := NavigationPathQueryResult3D.new()
-	NavigationServer3D.query_path(query, result)
-	return result.path
-
-
-func _nav_random() -> Vector3:
-	return NavigationServer3D.map_get_random_point(get_world_3d().navigation_map, 1, false) if _nav_ready() else Vector3.ZERO
-
-
 ## What puppets need to show this scav: [position, yaw, flags, hits_taken].
 func net_capture() -> Array:
 	var flags := 0
@@ -952,7 +909,7 @@ func net_push(net_state: Array, at := -1.0) -> void:
 		_net_buffer.pop_front()
 
 
-## Puppet: shows a shot the server's scav fired (tracer, sound, flash from this copy's gun).
+## Tracer, sound and flash from the gun for a shot ending at `end` (puppets: one the server's scav fired).
 func net_fired(end: Vector3) -> void:
 	var muzzle_pos := muzzle.global_position
 	Effects.tracer(get_tree().current_scene, muzzle_pos, end)
@@ -966,10 +923,12 @@ func net_died() -> void:
 		_on_died()
 
 
+## Alert sound (puppets: the server's scav spotted someone).
 func net_alerted() -> void:
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
 
 
+## Bash wind-up sound (puppets: the server's scav started one).
 func net_bash_started() -> void:
 	Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8)
 
@@ -977,7 +936,7 @@ func net_bash_started() -> void:
 func _puppet_update(delta: float) -> void:
 	if _net_buffer.is_empty():
 		return
-	var time := Time.get_ticks_msec() / 1000.0 - 0.1
+	var time := Time.get_ticks_msec() / 1000.0 - RemotePlayer.INTERP_DELAY
 	while _net_buffer.size() > 2 and _net_buffer[1][0] <= time:
 		_net_buffer.pop_front()
 	var a: Array = _net_buffer[0]

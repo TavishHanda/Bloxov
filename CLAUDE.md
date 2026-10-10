@@ -10,8 +10,8 @@
   Version history = CHANGELOG.md + version-prefixed commit messages. Don't ask the owner to tag.
   When telling the owner about an update, lead with its version and a short name (e.g. "**0.5.1: Recoil & accuracy**").
   Phases so far: 0.5 guns, 0.6 scavs, 0.7 multiplayer (to 0.7.11), 0.8 HUD & inventory (designer session, closed at
-  0.8.16; 0.8.0-0.8.3 were first released as 0.7.12-0.7.15), 0.9 multiplayer raid flow (downed/revive, per-player extract; paused at 0.9.5), **0.10 the Map & Spawn update** (Old Bloxov,
-  `docs/MAP_PLAN.md`; then Scavs 2.0 and an Items update, owner). Only one phase can be current: other work waits for the phase to close or is
+  0.8.16; 0.8.0-0.8.3 were first released as 0.7.12-0.7.15), 0.9 multiplayer raid flow (downed/revive, per-player extract; paused at 0.9.5), 0.10 the Map & Spawn update (Old Bloxov,
+  `docs/MAP_PLAN.md`, to 0.10.3), **0.11 code cleanup** (then Scavs 2.0 and an Items update, owner). Only one phase can be current: other work waits for the phase to close or is
   built on a branch and released as the next phase.
 - **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
   (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended

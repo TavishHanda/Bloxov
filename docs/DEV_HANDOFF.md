@@ -20,23 +20,17 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   pixel font sizes 20/30/40/50, `Effects.WORLD_LABELS` instead of Label3D, `LootUI.style_button()`), and say so
   in the commit message when you touch shared UI scripts. Pull before you start and before every push.
 
-## 2. Where things stand (0.9.1)
+## 2. Where things stand (0.10.3, 2026-10-10)
 - **Live:** https://tavishhanda.github.io/Bloxov/ (version at `/version.txt`) + game server on Heroku
   `wss://bloxov-server-0f9c9a343ceb.herokuapp.com` (both deploy from `main` via CI; see §5).
-- **Phases:** 0.5 guns · 0.6 scavs · 0.7 multiplayer · 0.8 HUD & inventory (designer) · **0.9 raid flow (current)**.
+- **Phases:** 0.5 guns · 0.6 scavs · 0.7 multiplayer · 0.8 HUD & inventory (designer) · 0.9 raid flow (paused at
+  0.9.5) · 0.10 Map & Spawn (Old Bloxov gray box, player spawns, per-squad extracts) · **0.11 code cleanup (current)**.
 - **Done:** solo raids (hideout → raid → extract/die → hideout, stash/trader/profile in the browser), guns
   (ADS, recoil, spread, TTK, knife), smart scavs + tougher Raiders (senses, navmesh paths, patrols, cover, healing,
   duos, spawn budget), online play (parties, queue 2-6 players, several raids per server, server-checked shots with
-  lag compensation, server-run AI with puppets, shared loot + lootable bodies), the "Ammo Can" HUD and inventory.
-- **Immediate next work (in order):**
-  1. ~~Downed/revive~~ done in **0.9.2**; ~~per-player extract, spectate or back to hideout, squads spawn together~~
-     done in **0.9.5** (details: `docs/MULTIPLAYER_PLAN.md` step 6; `Health` downed bar, `DownedHUD`, `Spectator`).
-  2. Ask the owner what's next. The plan says map next (real map with risk zones; owner makes models), see
-     `docs/ROADMAP.md` / `docs/BACKLOG.md`.
-- **Heads-up: the owner plans to change the meds slot** (hotbar key 3). Today it's a shortcut, not a real
-  inventory slot: it uses `Inventory.find_heal()` (best fit for missing HP, same as H) and shows that item (bandage
-  roll or medkit cross, `HotbarHUD.slot_info`). Options discussed: (a) current, (b) hold 3 to cycle, (c) a real
-  "Meds" pouch grid in the inventory that key 3 uses. Wait for their design; don't redo it on your own.
+  lag compensation, server-run AI with puppets, shared loot + lootable bodies), the "Ammo Can" HUD and inventory,
+  downed/revive/spectate and per-player extract (0.9), the first real map with the M map (0.10).
+- **Next:** see `docs/ROADMAP.md` ("Up next"): a playtest on the big map, then Scavs 2.0, then the Items update.
 - Hotbar now: 1-2 guns, 3 meds, 4 one bindable slot (grenades later), V knife (`Inventory.MEDS_KEY/KNIFE_KEY/
   BINDABLE_KEYS`, `HOTBAR_SIZE = 3`).
 
@@ -49,7 +43,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
 - **Raid:** `raid.gd` (clock, extracts, end + profile save), `enemy_spawner.gd`, `nav_baker.gd` (runtime navmesh),
   `raid_map.gd` + `box_map.gd` (0.10.0: the real map is swapped into main.tscn; see `docs/MAP_PLAN.md`),
   `scav.gd` (the whole AI; `puppet` mode for online copies; Raiders are `scenes/raider.tscn` = same script,
-  different exports).
+  different exports), `ai_nav.gd` (navigation queries for the AI, safe before the map is ready).
 - **UI:** `hud.gd` + widgets (`health_hud`, `ammo_hud`, `hotbar_hud`, `crosshair_hud`, `timer_hud`, `prompt_hud`,
   `extract_hud`, `map_hud` (M map, 0.10.2), `damage_arrow_hud`, `world_labels_hud`), `hud_style.gd` (palette/fonts/plates/icons),
   `loot_ui.gd` (inventory screen, also used by the hideout), `hideout.gd` (hideout + ONLINE panel),

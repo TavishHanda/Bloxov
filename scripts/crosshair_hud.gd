@@ -22,10 +22,6 @@ func flash_hit(headshot: bool) -> void:
 	_headshot = headshot
 
 
-func is_marker_showing() -> bool:
-	return _hit_left > 0.0
-
-
 func _process(delta: float) -> void:
 	_hit_left -= delta
 	queue_redraw()

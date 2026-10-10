@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.0 (code cleanup starts: the AI's navigation helpers)
+No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items update (owner, 0.10.0).
+- The AI's navigation queries (closest walkable point, paths, random spots, safe before the map is ready) moved out
+  of `scav.gd` into `ai_nav.gd`, ready for Scavs 2.0's spawn spots and roaming areas
+- A scav and its online copies share one place for their shot, alert and bash effects
+- Removed unused code: the character tint (unused since Raiders got their own model in 0.7.10) and a crosshair check
+- Docs: roadmap, handoff and phase list brought up to date
+
 ## 0.10.3 (spawns and extracts; 0.10 is now the "Map & Spawn update", owner)
 - **Extracts near where you spawned are closed for you** (owner): anything within 120 m of your spawn stays shut, and
   2 of the far ones open. You and your duo spawn together, so you get the same ones; other squads get their own.
