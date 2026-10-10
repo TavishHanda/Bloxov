@@ -6,6 +6,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.17 (Scav and Raider rivals; owner)
+- Scavs and Raiders are rivals. Each side has its own areas: Raiders hold the town core, the town hall (Bon) and the
+  south-east (junkyard, old gas station, diner, garage); scavs hold the rest of town, the farm, the church, the
+  woods and the old houses. Same number of AI as before.
+- The train station and depot are contested: 2 scavs and 2 Raiders trade fire there all raid. Their shots at each
+  other always miss, so the spot stays held; they drop it to fight you when they spot you, and go back to it after.
+- Elsewhere they ignore each other, and they never back up the other side (calls for help, "man down" warnings,
+  suppress-and-flank).
+- Removed 0.12.16's gear pickup (owner didn't like it): AI no longer take gear off bodies.
+
 ## 0.12.16 (AI pick up gear off bodies; owner)
 - Unaware AI head for a body or dropped bag within 25 m (in their area) that has gear better than theirs, yours
   included, search it, and take it: a rifle (hits 5 harder, bursts 1 longer) and/or armor (light: 20% less damage,

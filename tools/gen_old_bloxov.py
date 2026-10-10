@@ -1745,16 +1745,21 @@ def main():
 # town and the bottom right (hot-ish). Elsewhere a few small patrols, plus a few roamers that cross the whole map.
 # (name, x, z, radius, scavs at the start, Raiders at the start, trickle weight for later arrivals)
 AI_ZONES = [
-    ("TownCore", 112, 128, 30, 2, 3, 3.0),    # town hall, bank, square, police side
-    ("Town", 85, 95, 65, 4, 1, 2.0),          # the rest of town (overlaps the core)
-    ("SouthEast", 290, 280, 55, 3, 2, 2.0),   # depot, junkyard, old gas station, diner, garage
-    ("Station", 225, 215, 30, 2, 0, 1.0),     # train station
+    # Scavs and Raiders are rivals (0.12.17, owner): each side has its own areas, and they only fight at the
+    # contested spot (SKIRMISH_ZONE).
+    ("TownCore", 112, 128, 30, 0, 2, 3.0),    # Raiders: town hall, bank, square, police side
+    ("Town", 85, 95, 65, 7, 0, 2.0),          # scavs: the rest of town (overlaps the core)
+    ("SouthEast", 305, 300, 45, 0, 2, 2.0),   # Raiders: junkyard, old gas station, diner, garage
+    ("Station", 240, 220, 35, 2, 2, 1.0),     # contested: train station and depot
     ("Farm", 285, 42, 40, 2, 0, 0.0),
     ("Church", 180, 42, 25, 1, 0, 0.0),
-    ("Woods", 75, 290, 40, 1, 0, 0.0),        # cabins, campsite, hunting stand
-    ("OldHouses", 200, 300, 30, 1, 0, 0.0),   # old houses south of the railway
+    ("Woods", 75, 290, 40, 2, 0, 0.0),        # cabins, campsite, hunting stand
+    ("OldHouses", 200, 300, 30, 2, 0, 1.0),   # old houses south of the railway
     ("TownHall", 107, 151, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
 ]
+# The contested spot (owner, 0.12.17): its scavs and Raiders shoot at each other all raid, but never hit (so the
+# area stays held), and drop it to fight a player.
+SKIRMISH_ZONE = "Station"
 # The boss (owner: a Raider commander with guards, at the town hall + bunker, in every raid while testing; a chance
 # later): zone, guards, chance per raid.
 AI_BOSS = ("TownHall", 3, 1.0)
@@ -1820,7 +1825,7 @@ def zone_spawns():
     for zone in AI_ZONES:
         zname, cx, cz, r, scavs, raiders = zone[:6]
         have = sum(1 for n, x, z in enemy_spawns if spawn_zone.get(n) == zname)
-        need = max(3 if zname != AI_BOSS[0] else 4, scavs + raiders + 1) - have
+        need = max(4 if zname == AI_BOSS[0] else (3 if r >= 30 else 2), scavs + raiders + 1) - have
         for _ in range(3000):
             if need <= 0:
                 break
@@ -1839,7 +1844,8 @@ def spawner_meta(ter):
     """The map's AI numbers and zones (EnemySpawner settings)."""
     zones = ", ".join(
         f'{{"name": "{n}", "center": Vector3({fmt(gx(x))}, {fmt(ter.lift(x, z))}, {fmt(gz(z))}), "radius": {fmt(r)}, '
-        f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}}}' for n, x, z, r, s, rd, t in AI_ZONES)
+        f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}{", \"skirmish\": true" if n == SKIRMISH_ZONE else ""}}}'
+        for n, x, z, r, s, rd, t in AI_ZONES)
     scavs = sum(z[4] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[5] for z in AI_ZONES)
     # Scavs 2.0 (owner: about 30 at the start once the boss and snipers are in): the zones' AI and the roamers at
