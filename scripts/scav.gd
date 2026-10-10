@@ -32,12 +32,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Unaware scavs walk between destinations at this fraction of move_speed (0.55 x 3.6 = about 2 m/s),
 ## pausing this long (seconds) at each one.
 @export var patrol_speed := 0.55
-@export var patrol_pause_min := 2.0
-@export var patrol_pause_max := 6.0
+@export var patrol_pause_min := 1.0
+@export var patrol_pause_max := 3.0
 ## Like a player: at a loot spot it stops and "searches" the container for a while (it doesn't take anything;
 ## owner, 0.6.8). While searching it's distracted: slower to notice you.
-@export var loot_time_min := 3.0
-@export var loot_time_max := 6.0
+@export var loot_time_min := 2.0
+@export var loot_time_max := 4.0
 @export var spot_looting_mult := 1.6
 ## Chance a patrol leg is a jog instead of a walk, and the jog speed (fraction of move_speed, ~3 m/s).
 @export var jog_chance := 0.33
@@ -103,8 +103,17 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## At most one move to cover per this many seconds.
 @export var cover_cooldown := 10.0
 
+@export_group("Teamwork")
+## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
+## within this many meters jog over to where the fight is. 0 = never.
+@export var help_radius := 35.0
+## Spotting you farther away than this, it heads for cover first instead of trading shots in the open.
+@export var cover_at_range := 20.0
+## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
+@export var push_speed := 0.8
+
 @export_group("Raider behavior")
-## All off for scavs (their behavior stays as it is); raider.tscn turns these on (owner, 0.6.13: harder to fight).
+## Off for scavs except flanking (0.12.3, less often than Raiders); raider.tscn turns these on (owner, 0.6.13: harder to fight).
 ## Hears gunshots from this many times farther away, so it comes toward fights.
 @export var hearing_mult := 1.0
 ## Chance (per lull in a fight) to flank: circle around to hit you from the side instead of trading shots.
@@ -330,7 +339,7 @@ func _physics_process(delta: float) -> void:
 				if _state_time > 3.0:
 					_set_state(State.SEARCH)
 			else:
-				desired = _path_velocity(_goal, move_speed * investigate_speed)
+				desired = _path_velocity(_goal, move_speed * (jog_speed if _answering_call else investigate_speed))
 				_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
@@ -349,6 +358,9 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= _reaction:
 				_set_state(State.ENGAGE)
 				_fire_timer = aim_time
+				# Seen from far off and out in the open: get to cover first, shooting on the way if it can.
+				if not holds_position and dist > cover_at_range and dist < INF and _cover_cooldown_left <= 0.0:
+					_try_take_cover()
 		State.ENGAGE:
 			# Keeps tracking you while it can see you; once it has lost you for a moment it has to re-spot you.
 			var sees := _can_see and (_lost_sight_time < reacquire_grace or _spotting(delta, to_target, dist, spot_reacquire_mult))
@@ -370,7 +382,11 @@ func _physics_process(delta: float) -> void:
 					desired = _clear_of_walls(-to_target.normalized() * move_speed * 0.7 + _strafe(delta, to_target) * 0.5)
 					_update_shooting(delta, dist)
 				elif dist <= shoot_range:
-					desired = _clear_of_walls(_strafe(delta, to_target))
+					# You're reloading or healing: push in on you (still shooting); otherwise strafe.
+					if _target_busy() and not holds_position and dist > min_distance + 2.0:
+						desired = _path_velocity(_target.global_position, move_speed * push_speed)
+					else:
+						desired = _clear_of_walls(_strafe(delta, to_target))
 					_update_shooting(delta, dist)
 					# A break in the fight (between its bursts, nothing coming its way): reposition to cover.
 					if _since_threat > lull_time and _cover_cooldown_left <= 0.0 and _shots_left <= 0:
@@ -494,6 +510,9 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 ## Spotted (or got shot by) someone at `known_pos`: get ready to fight, starting to aim after `reaction` seconds
 ## (-1 = reaction_time).
 func _alert(known_pos: Vector3, reaction := -1.0) -> void:
+	# (Ones that came because of a call don't call again, so one fight doesn't pull in the whole map.)
+	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH] and not _answering_call:
+		_call_for_help(known_pos)
 	_reaction = reaction_time if reaction < 0.0 else reaction
 	_cover_phase = Cover.NONE
 	_spot = 0.0
@@ -502,6 +521,31 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 	_set_state(State.ALERT)
 	alerted.emit()
 	net_alerted()
+
+
+## A fight starts: unaware AI nearby (its zone-mates, mostly) come over to help.
+func _call_for_help(known_pos: Vector3) -> void:
+	if help_radius <= 0.0 or puppet:
+		return
+	for node in RaidScope.nodes(self, &"enemies"):
+		var ally := node as Scav
+		if ally != null and ally != self and global_position.distance_to(ally.global_position) <= help_radius:
+			ally.answer_call(known_pos)
+
+
+## Another AI called for help: if unaware, jog over toward where the fight is (not exactly where you are).
+func answer_call(pos: Vector3) -> void:
+	if puppet or holds_position or state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		return
+	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
+	_looting_left = 0.0
+	_answering_call = true
+	_set_state(State.INVESTIGATE)
+
+
+## The target is reloading or healing (a moment to push).
+func _target_busy() -> bool:
+	return _target != null and is_instance_valid(_target) and (_target.is_healing() or (_target.gun != null and _target.gun.is_reloading))
 
 
 ## The closest player who can still be fought (co-op ready: never assumes a single player).
@@ -566,7 +610,7 @@ func _sneaking() -> bool:
 	return spot != Vector3.INF and _flat(spot - global_position).length() < sneak_range
 
 
-## Circle around the target: a reachable spot off to one side at about the same distance (Raiders only).
+## Circle around the target: a reachable spot off to one side at about the same distance (Raiders, scavs since 0.12.3).
 func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_cooldown_left = cover_cooldown
 	var side := to_target.normalized().cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
@@ -671,6 +715,8 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 			_lost_sight_time = 0.0
 		return Vector3.ZERO
 	_cover_hold_left -= delta
+	if _target_busy():
+		_cover_hold_left = 0.0   # you're reloading or healing: come out now
 	_face(_flat(_last_seen - global_position), delta)
 	_hold_fire()
 	if _cover_hold_left <= 0.0:
@@ -737,6 +783,8 @@ func _flat(v: Vector3) -> Vector3:
 
 
 func _set_state(new_state: State) -> void:
+	if new_state != State.INVESTIGATE:
+		_answering_call = false
 	state = new_state
 	_state_time = 0.0
 	_lost_sight_time = 0.0
@@ -908,6 +956,8 @@ func _scan(delta: float) -> Vector3:
 
 var _glint: MeshInstance3D = null
 var _scan_dir := 1.0
+## Heading over because another AI called for help (jogs instead of walking).
+var _answering_call := false
 
 
 ## The scope glint: a bright spot by the head that always faces the camera.
