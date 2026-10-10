@@ -459,6 +459,125 @@ def sandbags(x, z, yaw, length=4.0):
     obox(x, 0.55, z, 0.7, 1.1, length, yaw, "sandbag")
 
 
+# ---------------------------------------------------------------------------------------------- clutter (0.11.4)
+# War-torn junk in the empty grass (owner, 0.11.4): rocks, rubble, wrecks, tank traps, craters. Gray boxes for
+# now; real models come later. Placed by `clutter()` in the dead areas only, away from buildings, roads and spawns.
+def rock(x, z, rng):
+    for _ in range(rng.randint(1, 3)):
+        w, h, d = rng.uniform(1.4, 3.6), rng.uniform(0.8, 2.4), rng.uniform(1.4, 3.2)
+        obox(x + rng.uniform(-1.5, 1.5), h / 2 - 0.1, z + rng.uniform(-1.2, 1.2), w, h, d, rng.uniform(0, 90), "stone")
+
+
+def rubble(x, z, rng):
+    """A pile of broken concrete with a chunk of wall still standing."""
+    for _ in range(rng.randint(4, 7)):
+        w, h, d = rng.uniform(0.6, 1.8), rng.uniform(0.3, 0.9), rng.uniform(0.6, 1.8)
+        obox(x + rng.uniform(-2.5, 2.5), h / 2, z + rng.uniform(-2.5, 2.5), w, h, d, rng.uniform(0, 90),
+             rng.choice(("concrete", "concrete", "wall", "slab")))
+    obox(x + rng.uniform(-1, 1), 1.1, z + rng.uniform(-1, 1), rng.uniform(2.5, 4.0), 2.2, 0.3, rng.uniform(0, 180), "wall")
+
+
+def wreck(x, z, rng):
+    """A burnt-out car, sometimes on its side."""
+    yaw = rng.uniform(0, 180)
+    if rng.random() < 0.3:
+        obox(x, 0.95, z, 1.1, 1.9, 4.2, yaw, "rust", pitch=0.0)
+    else:
+        obox(x, 0.5, z, 1.9, 1.0, 4.2, yaw, "rust")
+        obox(x, 1.25, z, 1.7, 0.5, 2.0, yaw + rng.uniform(-4, 4), "metal")
+
+
+def wrecked_truck(x, z, rng):
+    yaw = rng.uniform(0, 180)
+    obox(x, 1.3, z, 2.5, 2.6, 6.5, yaw, "rust")
+    fx, fz = x + 4.0 * math.sin(math.radians(yaw)), z + 4.0 * math.cos(math.radians(yaw))
+    obox(fx, 0.9, fz, 2.4, 1.8, 1.8, yaw + rng.uniform(-10, 10), "army", pitch=rng.uniform(-8, 0))
+
+
+def tank_traps(x, z, rng):
+    """A short row of steel hedgehogs."""
+    yaw = rng.uniform(0, 180)
+    for k in range(rng.randint(2, 4)):
+        tx = x + (k - 1.5) * 3.0 * math.cos(math.radians(yaw))
+        tz = z - (k - 1.5) * 3.0 * math.sin(math.radians(yaw))
+        for a in (0, 60, 120):
+            obox(tx, 0.7, tz, 0.25, 0.25, 2.0, yaw + a, "metal", pitch=35.0)
+
+
+def crater(x, z, rng):
+    """A shell crater: a ring of dirt mounds (you can crouch in it)."""
+    r = rng.uniform(2.5, 3.5)
+    for k in range(8):
+        a = k * 45 + rng.uniform(-10, 10)
+        obox(x + r * math.sin(math.radians(a)), 0.3, z + r * math.cos(math.radians(a)), 2.4, 0.6, 1.0, a + 90, "dirt")
+    box(x - 1.6, 0.0, z - 1.6, x + 1.6, 0.03, z + 1.6, "dirt", solid=False)
+
+
+def barrels(x, z, rng):
+    for _ in range(rng.randint(2, 4)):
+        obox(x + rng.uniform(-1.5, 1.5), 0.5, z + rng.uniform(-1.5, 1.5), 0.6, 1.0, 0.6, rng.uniform(0, 90),
+             rng.choice(("rust", "army", "metal")))
+    if rng.random() < 0.5:
+        obox(x + 2.0, 0.3, z, 0.6, 0.6, 1.0, 90, "rust", pitch=90.0)   # one knocked over
+
+
+CLUTTER = [(rock, 5), (rubble, 3), (wreck, 3), (wrecked_truck, 1), (tank_traps, 2), (crater, 2), (barrels, 2)]
+
+
+def _clear_of_map(x, z):
+    """True if (x, z) is open grass: off roads, rail, water, yards and away from buildings, props and spawns."""
+    if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 8:   # the railway
+        return False
+    for points, width in roads + water:
+        for a, b in zip(points, points[1:]):
+            if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 6:
+                return False
+    for x0, z0, x1, z1 in yards:
+        if x0 - 6 < x < x1 + 6 and z0 - 6 < z < z1 + 6:
+            return False
+    for _, x0, z0, x1, z1 in footprints + areas:
+        if x0 - 12 < x < x1 + 12 and z0 - 12 < z < z1 + 12:
+            return False
+    if any(math.hypot(x - tx, z - tz) < 5 for tx, tz in trunks):
+        return False
+    for _, sx, sz in player_spawns + enemy_spawns:
+        if math.hypot(x - sx, z - sz) < 10:
+            return False
+    for _, _, ex, ez in extracts:
+        if math.hypot(x - ex, z - ez) < 14:
+            return False
+    for l in loot:
+        if math.hypot(x - l[2], z - l[4]) < 8:
+            return False
+    for b in boxes:   # props already placed (stands, campsite, power poles, fences...)
+        if b[4] > 0.2 and max(b[3], b[5]) < 30 and math.hypot(x - (b[0] + M / 2), z - (b[2] + M / 2)) < max(b[3], b[5]) / 2 + 6:
+            return False
+    return True
+
+
+def bits(x, z, rng):
+    """Small junk scattered round a clutter spot (planks, scrap, stones)."""
+    for _ in range(rng.randint(2, 4)):
+        a, r = rng.uniform(0, 360), rng.uniform(3.5, 6.0)
+        obox(x + r * math.sin(math.radians(a)), 0.12, z + r * math.cos(math.radians(a)), rng.uniform(0.3, 0.8), 0.25,
+             rng.uniform(0.6, 2.2), rng.uniform(0, 180), rng.choice(("wood", "metal", "stone", "rust")), solid=False)
+
+
+def clutter(spacing=18.0):
+    rng = random.Random(4100)
+    placed = []
+    kinds = [k for k, w in CLUTTER for _ in range(w)]
+    for _ in range(4000):
+        x, z = rng.uniform(0, M), rng.uniform(0, M)
+        if any(math.hypot(x - px, z - pz) < spacing for px, pz in placed) or not _clear_of_map(x, z):
+            continue
+        placed.append((x, z))
+    for x, z in placed:
+        rng.choice(kinds)(x, z, rng)
+        bits(x, z, rng)
+    return placed
+
+
 def power_line(curve, side, width, every=34.0, skip_from=0.0):
     """Wooden poles beside a road (on `side`: +1 right of travel, -1 left) with the wire between them. Poles skip
     spots near buildings and other roads."""
@@ -846,6 +965,7 @@ def main():
     power_line(county, 1, 8)
     power_line(old_road, 1, 8)
 
+    clutter()
     map_labels()
     check_roads()
     write_scene()

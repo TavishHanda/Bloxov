@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.4 (war-torn clutter in the empty grass; Map & Spawn follow-up, owner)
+- **The empty grass isn't empty any more** (owner: the dead areas need stuff, like a war-torn place would have):
+  about 80 spots of gray-box junk spread over the open ground between places: boulders, rubble piles with a bit of
+  wall still standing, burnt-out cars (some on their side), a wrecked army truck or two, rows of tank traps, shell
+  craters you can crouch in and knocked-over barrels, each with planks and scrap scattered round it. Most of it is
+  solid cover. Kept off roads, the railway, yards, buildings, spawns, extracts and loot. Real models come later
+- `tools/gen_old_bloxov.py`: `clutter()` places it (fixed seed, so the map stays the same every build)
+
 ## 0.11.3 (spawn 5 moved; Map & Spawn follow-up, owner)
 - **Spawn 5 moved** (owner: it wasn't good): it was out in the open field in the middle of the map, next to the
   railway, with no cover. It's now behind an old house south of the railway, off the roads, 124 m from the
