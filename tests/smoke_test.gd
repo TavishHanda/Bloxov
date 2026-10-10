@@ -1501,8 +1501,8 @@ func _section_old_bloxov() -> void:
 	root.add_child(world)
 	RaidMap.scene_path = ""
 	var spawner := world.raid.get_node("EnemySpawner")
-	_check(spawner.initial_count == 12 and spawner.max_alive == 15 and spawner.get_child_count() == 24,
-		"the map sets its AI numbers (12 at the start, 15 alive at most) and brings 24 AI spawn points")
+	_check(spawner.initial_count == 24 and spawner.max_alive == 30 and spawner.get_child_count() == 48,
+		"the map sets its AI numbers (24 at the start, 30 alive at most) and brings 48 AI spawn points")
 	var loot := world.raid.get_node("Loot").get_children()
 	_check(loot.size() >= 80 and loot.all(func(c: Node) -> bool: return c is LootContainer and c.has_meta("place")),
 		"%d loot containers, each tagged with its place (police, bunker, ...)" % loot.size())
