@@ -21,10 +21,15 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    of guns in each, attachments (sights, muzzles, grips, mags, stocks), and gun models: each gun its own model on the
    characters' `GunSocket` (see `BACKLOG.md`), owner in Blender. After the Items update, since guns, attachments and
    their loot spots build on it. Made-up gun names and looks only (`STORE_RULES.md`: no real brands or models).
-6. **Economy update (owner, 2026-10-10):** after the Items and Guns updates, when there's a full set of things to
+6. **Sound update (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
+   (`tools/make_sounds.py`): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
+   (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come
+   from, muffled through walls), scav and Raider voice lines, map ambience, UI sounds, and a final mix. Right after
+   the Guns update, since gun sounds need the gun set.
+7. **Economy update (owner, 2026-10-10):** after the Items and Guns updates, when there's a full set of things to
    price: trader buy/sell prices, what's worth looting and where, money in vs. money out (sinks), and how traders and
    their stock fit in (more traders are on the wishlist). Earned money only (`STORE_RULES.md`: no real-money trading).
-7. **Then (M4, vertical slice):** building models fitted to the proven layout, real sounds, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
+8. **Then (M4, vertical slice):** building models fitted to the proven layout, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
    saturated; tune it once, against the real models and ground textures, within what the web build supports).
    After that M5 content (characters with perks, more traders,
    more maps) and the M6 public release.
