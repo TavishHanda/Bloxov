@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.15 (Bloxov Battlegrounds; owner)
+- The first map is now called **Bloxov Battlegrounds** (owner; it was "Old Bloxov"). The map screen (M) shows the
+  new name
+- Lore (owner): the two nations are **Novarra** and **the Onyx Dominion**; their armies, which players fight as, are
+  **NOVA** and **ONYX**. Bloxov sits on the border between them (`docs/LORE.md`)
+
 ## 0.11.14 (loot no longer lost on reload)
 - Fix: after extracting, reloading the page (e.g. for an update) could load the save from the start of that raid,
   as if you had died in it: the raid's loot and the kit you took in were gone. The browser's storage connection can

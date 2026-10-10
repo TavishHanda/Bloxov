@@ -5,9 +5,10 @@ The game's world and story. **The owner writes the lore**; this file keeps it or
 tie back to what's written here.
 
 ## The world
-- Two nations at war; the war has gone **global**.
-  - Nation A: **TBD** (name, what it's like)
-  - Nation B: **TBD** (name, what it's like)
+- Two nations at war; the war has gone **global** (names: owner, 2026-10-10).
+  - **Novarra**: what it's like **TBD**. Its army is **NOVA** (the light side).
+  - **The Onyx Dominion**: what it's like **TBD**. Its army is **ONYX** (the dark side).
+  - Players fight as **NOVA** or **ONYX**: short names for patches and voice chat, with a light vs dark look.
   - What started the war: **TBD**
 - The world is **mostly abandoned**, with a few **safe havens** left. TBD: what they are, who runs them, and
   whether the hideout is one.
@@ -19,12 +20,13 @@ Each region is a part of the world the war touched, with its own maps and look. 
 ones are harder.
 
 ### Bloxov (starting region)
-- The **border region** near one of the nations, where it all started (which nation: **TBD**).
+- The **border region** between Novarra and the Onyx Dominion, where it all started.
 - The intro region: the easiest, holding a few maps.
 - Maps:
-  - **The border town** (the current map; name **TBD**: the owner wants something iconic. Ideas so far: Kordon,
-    Marchgate, Ashfield). 2000s era, summer, abandoned but intact. Layout: `docs/MAP_PLAN.md`
-    (the code and docs call it "Old Bloxov" until it has a name).
+  - **Bloxov Battlegrounds** (the current map, owner 2026-10-10; first called "Old Bloxov", and file names still
+    say `old_bloxov`). A border town, 2000s era, summer, abandoned and war-torn. Layout: `docs/MAP_PLAN.md`.
+    Before a public store/Steam release, check the name: "Battlegrounds" is a trademark PUBG's owner Krafton has
+    enforced (see `docs/STORE_RULES.md`).
   - More Bloxov maps: **TBD** (ideas: the depot, a nearby base).
 
 ### Later regions
@@ -32,4 +34,4 @@ ones are harder.
 
 ## Names and rules to keep in mind
 - `docs/STORE_RULES.md`: no real-world countries, conflicts, hate symbols, or groups; no real brands.
-- Map and town names: **TBD**.
+- Map names so far: Bloxov Battlegrounds. Town names: **TBD**.
