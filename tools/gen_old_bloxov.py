@@ -861,7 +861,11 @@ CREEK_DEPTH = 0.9
 CREEK_BED = 1.5
 CREEK_BANK = 4.5
 WATER_DROP = 0.35
-WATER_START = 2   # the first creek point with water (the ones before run under the railway at the map edge)
+WATER_START = 2
+# Ground covers (building ground floors, yards, car parks: flat, looks-only boxes built from height 0) end up this far
+# above the ground, so the two never flicker against each other from far away (0.11.21; they were 3 cm up). The
+# ground under them isn't drawn where they cover it completely (`terrain_hidden`).
+COVER_TOP = 0.07   # the first creek point with water (the ones before run under the railway at the map edge)
 HILL_CLEAR = 20.0   # hills reach full height this far from a road or the creek (and fade out within 4 m of it)
 
 # Extra flat pads (map x0, z0, x1, z1) for things that stand outside a building's footprint.
@@ -1095,7 +1099,10 @@ class Terrain:
     def _surface(self, x, z):
         """The ground before the creek's channel is dug."""
         h, on_road = self._big(x, z)
-        h = self._blend(self.small, x, z, h, on_road)[0]
+        # (small pads never move a big pad's ground: a spawn by a house would lift the house floor's ground)
+        on_big = any(b[0] <= x <= b[2] and b[1] <= z <= b[3] and any(r[0] <= x <= r[2] and r[1] <= z <= r[3]
+                                                                    for r, _, _ in m) for m, _, b in self.clusters)
+        h = self._blend(self.small, x, z, h, 1.0 if on_big else on_road)[0]
         for cx, cz, r in craters:
             d = math.hypot(x - cx, z - cz)
             if d < r + 1.0:
@@ -1164,6 +1171,16 @@ class Terrain:
                 h[j][i] = (h[j0][i0] * (1 - u) * (1 - v) + h[j0][i1] * u * (1 - v) + h[j1][i0] * (1 - u) * v
                            + h[j1][i1] * u * v)
 
+    def hide_under(self, covers):
+        """Grid cells completely under a ground cover (and below it) aren't drawn."""
+        self.hidden_cells = []
+        for j in range(len(self.zs) - 1):
+            for i in range(len(self.xs) - 1):
+                x0, x1, z0, z1 = self.xs[i], self.xs[i + 1], self.zs[j], self.zs[j + 1]
+                top = max(self.h[j][i], self.h[j][i + 1], self.h[j + 1][i], self.h[j + 1][i + 1])
+                if any(c[0] <= x0 and x1 <= c[2] and c[1] <= z0 and z1 <= c[3] and top < c[4] - 0.02 for c in covers):
+                    self.hidden_cells.append(j * (len(self.xs) - 1) + i)
+
     def at(self, x, z):
         """The ground height at (x, z) exactly as the mesh has it (each grid cell is two triangles, split from its
         north-west to its south-east corner)."""
@@ -1223,8 +1240,17 @@ def terrain():
         if isinstance(a, tuple) and a[0] == "g":
             group_lift[a] = min(group_lift.get(a, float("inf")), low(b))
     out = []
+    covers = []
     for b, a in zip(boxes, anchors):
-        if a is None:
+        if a is None and not b[9] and b[7] == 0 and abs(b[1] - b[4] / 2) < 1e-6 and b[4] <= 0.06 + 1e-6:
+            # a ground cover: COVER_TOP above the ground, and deep enough underneath to cover a little dip
+            b = (b[0], (COVER_TOP - 0.25) / 2, b[2], b[3], COVER_TOP + 0.25) + tuple(b[5:])
+            out.append(_moved(b, low(b)))
+            if b[6] % 90 == 0:
+                hx, hz = (b[3], b[5]) if b[6] % 180 == 0 else (b[5], b[3])
+                cx, cz = b[0] + M / 2, b[2] + M / 2
+                covers.append((cx - hx / 2, cz - hz / 2, cx + hx / 2, cz + hz / 2, low(b) + COVER_TOP))
+        elif a is None:
             out.append(_moved(b, low(b)))
         elif a[0] == "g":
             out.append(_moved(b, group_lift[a]))
@@ -1247,6 +1273,10 @@ def terrain():
                 sub[4] += 0.3
                 out.append(_tilted(tuple(sub), ter.at(px0, pz0), ter.at(px1, pz1), length / n))
     boxes = out
+    for x0, z0, x1, z1, top in covers:   # (no ground poking up through a floor or a yard: it flickers)
+        poke = max(ter.at(x0 + (x1 - x0) * i / 12, z0 + (z1 - z0) * k / 12) for i in range(13) for k in range(13))
+        assert poke < top - 0.03, f"the ground pokes through the cover at {x0:.0f}, {z0:.0f}"
+    ter.hide_under(covers)
     # the edge of the map: a wall that follows the ground
     for k in range(35):
         a0, a1 = k * 10.0, k * 10.0 + 10.0
@@ -1811,6 +1841,7 @@ def write_scene(ter):
             "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for row in ter.h for h in row) + ")",
             "terrain_holes = PackedInt32Array(" + ", ".join(str(c) for c in ter.hole_cells) + ")",
+            "terrain_hidden = PackedInt32Array(" + ", ".join(str(c) for c in ter.hidden_cells) + ")",
             f"water_colour = {C['water']}",
             f"water_width = {fmt(2 * CREEK_BANK)}",
             "water_points = PackedVector3Array(" + ", ".join(
