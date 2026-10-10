@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.4 (the boss is Bon; owner)
+- The town hall boss is called **Bon** (owner). Its body is labelled "Bon"
+- Bon always carries **heavy armor** (owner), on top of its AK and 4-6 items. It goes straight into the body's
+  Armor slot
+
 ## 0.12.3 (smarter fights; owner)
 - **AI fight smarter** (owner: every AI was "too dumb"; a friend's playtest: AI standing around). This covers scavs,
   Raiders and the boss:
