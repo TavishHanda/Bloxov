@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "containers", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "fall", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
@@ -507,6 +507,25 @@ func _section_vault() -> void:
 		box.queue_free()
 		await physics_frame
 		_check(start.distance_to(spot) < 0.5, "vault test spot is flat ground (%s)" % start)
+
+
+## Fall damage (0.13.3): a jump is free, a drop past 3.5 m hurts, armor or not.
+func _section_fall() -> void:
+	var spot := Vector3(30, 0.1, -30)
+	var hurt := []
+	for height: float in [3.0, 6.0, 9.0]:
+		player.health.heal(player.health.max_health)
+		player.teleport_to(spot + Vector3(0, height, 0))
+		var before := player.health.current
+		for i in 120:
+			await physics_frame
+			if player.is_on_floor():
+				break
+		await physics_frame
+		hurt.append(before - player.health.current)
+	_check(hurt[0] == 0 and hurt[1] > 15 and hurt[1] < 40 and hurt[2] > hurt[1] + 20,
+		"fall damage from 3 / 6 / 9 m: %s" % str(hurt))
+	player.health.heal(player.health.max_health)
 
 
 func _section_containers() -> void:

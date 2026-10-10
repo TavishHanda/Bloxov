@@ -198,6 +198,8 @@ func _on_container_opened(container: LootContainer) -> void:
 
 func _on_player_damaged(_amount: int, source_position: Vector3) -> void:
 	vignette.color.a = 0.45
+	if Vector2(source_position.x - player.global_position.x, source_position.z - player.global_position.z).length() < 0.1:
+		return   # from right here (a fall): no direction to show
 	_hit_from = source_position
 	_point_indicator()
 	_indicator_time = 1.2

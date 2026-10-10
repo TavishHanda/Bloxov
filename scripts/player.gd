@@ -37,6 +37,10 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var jump_cooldown := 0.45
 ## Landing from a jump or fall slows you briefly.
 @export var landing_slowdown_time := 0.3
+## Fall damage (0.13.3): drops up to this high (meters) are free; past it, `fall_damage_per_meter` each extra meter.
+## About: a one-storey roof (2.75 m) is free, a two-storey roof (5.5 m) costs ~24, 12 m kills. Armor doesn't help.
+@export var safe_fall_height := 3.5
+@export var fall_damage_per_meter := 12.0
 @export var landing_slowdown := 0.5
 ## Speed multiplier while fully aimed down sights.
 @export var ads_move_multiplier := 0.7
@@ -584,6 +588,10 @@ func _physics_process(delta: float) -> void:
 		_landing_dip = clampf(_fall_speed * 0.02, 0.03, 0.15)
 		_play_step(4.0)
 		_make_noise(landing_noise)
+		var dropped := _fall_speed * _fall_speed / (2.0 * get_gravity().length())
+		if dropped > safe_fall_height and not out_of_fight():
+			_landing_dip = 0.2
+			health.take_damage(ceili((dropped - safe_fall_height) * fall_damage_per_meter), global_position, true)
 	if is_on_floor():
 		_fall_speed = 0.0
 	_was_on_floor = is_on_floor()

@@ -42,10 +42,12 @@ static func of(target: Object) -> Health:
 
 
 ## Returns the damage actually dealt (after armor), 0 if none. While downed it comes off the downed bar.
-func take_damage(amount: int, source_position := Vector3.ZERO) -> int:
+## `ignore_armor`: damage armor doesn't stop (falls).
+func take_damage(amount: int, source_position := Vector3.ZERO, ignore_armor := false) -> int:
 	if is_dead or amount <= 0:
 		return 0
-	amount = maxi(roundi(amount * damage_multiplier), 1)
+	if not ignore_armor:
+		amount = maxi(roundi(amount * damage_multiplier), 1)
 	if is_downed:
 		down_hp = maxf(down_hp - amount, 0.0)
 		damaged.emit(amount, source_position)

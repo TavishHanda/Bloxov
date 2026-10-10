@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.3 (fall damage; owner)
+- Drops up to 3.5 m are free (jumps, vaults, a one-storey roof). Past that, 12 damage per extra meter: a two-storey
+  roof (5.5 m) costs about 24, 9 m about 66, 12 m kills. Armor doesn't stop it. A hard landing dips the view more,
+  and the damage arrow doesn't show (there's no direction).
+
 ## 0.13.2 (AI vaulting; owner)
 - The AI vault too: fences, sandbags and low walls (the same heights as yours) when going over is shorter than
   walking round, whether chasing you, moving to cover or patrolling. Over only: they never climb onto ledges or roofs.
