@@ -9,7 +9,7 @@ Re-running rebuilds the props (it only touches objects it made, in the "Bloxov" 
 
 What you get: one object per prop, origin at the bottom-center, FRONT facing +Y (the stall's counter, the statue's
 plaque). Options use the outfit naming from make_character.py, so scripts/pixel_model.gd shows one at random:
-  planter: Plant__bush / Plant__flowers / Plant__none      stall: Canopy__blue / Canopy__red
+  stall: Canopy__blue / Canopy__red (the planter always has flowers)
 Materials are small tiling textures shared by all the props (mat_concrete, mat_wood...), mapped in meters, so
 1 m = 16 px everywhere and the same files can dress buildings later. Painted only with the Bloxov palette.
 Textures are saved to art_source/textures/<material>.png; existing files are loaded instead of repainted (hand-paint
@@ -275,19 +275,9 @@ def make_planter():
     p.box((-w / 2, -d / 2 + t, 0), (-w / 2 + t, d / 2 - t, h), "mat_concrete")
     p.box((w / 2 - t, -d / 2 + t, 0), (w / 2, d / 2 - t, h), "mat_concrete")
     p.box((-w / 2 + t, -d / 2 + t, 0), (w / 2 - t, d / 2 - t, h - 0.12), "mat_soil")
-    root = p.finish()
-    bush = Part("Plant__bush")
-    for cx, cy, s, top in ((-0.7, 0.1, 0.9, 1.75), (0.35, -0.15, 1.0, 1.9), (0.9, 0.35, 0.6, 1.45)):
-        bush.cbox(cx, cy, h - 0.15, s, s, top, "mat_leaves")
-    bush.finish(root)
-    flowers = Part("Plant__flowers")
-    for cx in (-0.9, 0.0, 0.9):
-        flowers.cbox(cx, 0, h - 0.15, 0.75, 1.5, h + 0.2, "mat_flowers")
-    flowers.finish(root)
-    none = bpy.data.objects.new("Plant__none", None)  # an empty: overgrown weeds are not always there
-    get_collection("Bloxov").objects.link(none)
-    none.parent = root
-    return root
+    for cx in (-0.9, 0.0, 0.9):  # summer flowers (owner picked these over a bush)
+        p.cbox(cx, 0, h - 0.15, 0.75, 1.5, h + 0.2, "mat_flowers")
+    return p.finish()
 
 
 def make_stall():
