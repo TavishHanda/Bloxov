@@ -2412,6 +2412,31 @@ func _section_teamwork() -> void:
 	bleeder.queue_free()
 	nearby.queue_free()
 	await physics_frame
+	# 0.12.15 suppress and push (owner): you duck out of sight with two on you: one keeps shooting where you were,
+	# the other goes around.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var pinner := _spawn(RAIDER_SCENE, Vector3(-30, 0.1, -12)) as Scav
+	var mover := _spawn(RAIDER_SCENE, Vector3(-24, 0.1, -12)) as Scav
+	var pin_shots := [0]
+	pinner.fired.connect(func(_end: Vector3) -> void: pin_shots[0] += 1)
+	await physics_frame
+	for s: Scav in [pinner, mover]:
+		s.shot_damage = 0
+		s._target = player
+		s._set_state(Scav.State.ENGAGE)
+	pinner._last_seen = player.global_position
+	pinner._can_see = false
+	pinner._lost_sight_time = 0.5
+	_check(pinner._try_suppress() and mover._cover_phase == Scav.Cover.FLANKING,
+		"you duck out of sight: one Raider suppresses where you were while the other flanks")
+	for i in 120:
+		pinner._can_see = false
+		pinner._sight_check_time = 1.0
+		await physics_frame
+	_check(pin_shots[0] >= 2, "...firing at your cover while it does (%d shots)" % pin_shots[0])
+	pinner.queue_free()
+	mover.queue_free()
+	await physics_frame
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
 	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav

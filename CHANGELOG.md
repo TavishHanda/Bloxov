@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.15 (suppress and push; owner)
+- When you duck out of sight mid-fight and two or more AI are on you, one keeps firing at where you disappeared for
+  5 s (pinning you in cover; it hits you only if you peek into it) and calls the push, while the nearest other one
+  goes around to flank you. Raiders always do it; scavs half the time. Only one suppresses at a time.
+
 ## 0.12.14 (smarter search; owner)
 - Lost you in a fight: AI hunt for you for 30 s (owner) around where they last saw you instead of turning on the
   spot: they walk to spots within 18 m, indoor ones first (you'd hide inside), look around at each, and several

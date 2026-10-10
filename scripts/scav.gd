@@ -151,6 +151,11 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Sticks to its patrol area (Bon and his guards, 0.12.12, owner): ignores calls and sounds from outside it, and
 ## gives up a chase once it's more than `leash` meters past the edge of its area, heading back to patrol.
 @export var stays_home := false
+## Suppress and push (0.12.15, owner): you duck out of sight mid-fight and another AI is fighting you too: it keeps
+## shooting at where you were for suppress_time seconds (pinning you in cover) while the nearest other one flanks.
+## Chance it happens each time it loses you (Raiders always).
+@export var suppress_chance := 0.5
+@export var suppress_time := 5.0
 @export var leash := 40.0
 
 @export_group("Voice")
@@ -466,6 +471,8 @@ func _physics_process(delta: float) -> void:
 			elif _wants_heal and _heal_retry_left <= 0.0:
 				_fall_back_to_heal()
 			elif sees:
+				_suppress_left = 0.0
+				_may_suppress = true
 				_last_seen = _target.global_position
 				_lost_sight_time = 0.0
 				_spot = 0.0
@@ -503,8 +510,12 @@ func _physics_process(delta: float) -> void:
 			else:
 				# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
 				_lost_sight_time += delta
-				_hold_fire()
-				if _arrived(_last_seen) or _lost_sight_time > give_up_time:
+				if _suppress_left > 0.0 or _try_suppress():
+					# Pinning you down: keeps firing at where you ducked out of sight.
+					_suppress_left -= delta
+					_face(_flat(_last_seen - global_position), delta)
+					_update_shooting(delta, global_position.distance_to(_last_seen), true)
+				elif _arrived(_last_seen) or _lost_sight_time > give_up_time:
 					_set_state(State.SEARCH)
 					_start_hunt()
 					_bark("lost", 0.6)
@@ -1199,13 +1210,16 @@ func _set_state(new_state: State) -> void:
 	_lost_sight_time = 0.0
 
 
-func _update_shooting(delta: float, dist: float) -> void:
+func _update_shooting(delta: float, dist: float, suppressing := false) -> void:
 	_fire_timer -= delta
 	if _fire_timer > 0.0:
 		return
 	if _shots_left <= 0:
 		_shots_left = _burst_length(dist)
-	_fire_at_target(dist)
+	if suppressing:
+		_fire_at_point(_last_seen + Vector3(0, 1.1, 0))
+	else:
+		_fire_at_target(dist)
 	_shots_left -= 1
 	if _shots_left > 0:
 		_fire_timer = burst_interval
@@ -1277,6 +1291,58 @@ func _fire_at_target(dist: float) -> void:
 
 	fired.emit(end)
 	net_fired(end)  # the tracer and sound still come from the gun
+
+
+## Suppressing: a shot at roughly `point` (where you were); it hits you only if you're in the way.
+func _fire_at_point(point: Vector3) -> void:
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3(0, 1.65, 0)
+	var aim := point + Vector3(randf_range(-0.8, 0.8), randf_range(-0.4, 0.6), randf_range(-0.8, 0.8))
+	var to := from + (aim - from).normalized() * (shoot_range + 20.0)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 2, [get_rid()])
+	query.hit_from_inside = true
+	var result := space.intersect_ray(query)
+	var end := to
+	if not result.is_empty():
+		end = result.position
+		if result.collider == _target:
+			_target.health.take_damage(shot_damage, global_position)
+		else:
+			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
+	fired.emit(end)
+	net_fired(end)
+
+
+## Just lost you: if another AI is fighting you too and nobody's suppressing yet, it pins you down and sends the
+## nearest other one around to flank you. True if it's suppressing now.
+func _try_suppress() -> bool:
+	if not _may_suppress or _lost_sight_time > 1.0:
+		return false
+	_may_suppress = false   # (decided once each time it loses you)
+	if randf() > suppress_chance or global_position.distance_to(_last_seen) > shoot_range * 0.8:
+		return false
+	var flanker: Scav = null
+	var best := 40.0
+	for node in RaidScope.nodes(self, &"enemies"):
+		var ally := node as Scav
+		if ally == null or ally == self or ally.state != State.ENGAGE or ally._target != _target:
+			continue
+		if ally._suppress_left > 0.0:
+			return false   # someone already is
+		var d := ally.global_position.distance_to(global_position)
+		if d < best and not ally.holds_position and not ally.is_wounded() and ally._cover_phase in [Cover.NONE, Cover.HOLDING]:
+			best = d
+			flanker = ally
+	if flanker == null:
+		return false
+	_suppress_left = suppress_time
+	_bark_left = 0.0
+	_bark("push")
+	var to_target := _flat(_last_seen - flanker.global_position)
+	flanker._try_flank(to_target, to_target.length())
+	flanker._bark_left = 0.0
+	flanker._bark("flank")
+	return true
 
 
 func _strafe(delta: float, to_target: Vector3) -> Vector3:
@@ -1408,6 +1474,8 @@ var _voice := 1.0
 var _was_pushing := false
 var _home_return_left := 0.0
 var _hunting := false
+var _suppress_left := 0.0
+var _may_suppress := true
 var _hunt_point := Vector3.INF
 var _hunt_pause := 0.0
 var _hunted: Array[Vector3] = []
