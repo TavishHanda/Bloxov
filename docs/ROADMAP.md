@@ -18,7 +18,8 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    loadout and stats), picked with a SOLO / ONLINE switch in the hideout. Solo stays on the device and works
    offline with no account. The **online stash moves onto the server** so it can't be edited to cheat: the server
    owns the stash, loadout and money, checks what you take in and saves what you bring out. Needs: a player
-   identity (an account), a database (Heroku's disk is wiped on restart), and the store rules on accounts
+   identity (owner chose a **device account**: made silently on the device, no email or login, a transfer code
+   moves it to another device; Steam login can be linked later), a database (Heroku's disk is wiped on restart), and the store rules on accounts
    (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
    account for solo). The current save becomes the solo stash.
 4. **Scavs 2.0:** AI spawn spots per area, scavs roaming their area, Raiders at hot spots, the close-range
