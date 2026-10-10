@@ -55,6 +55,9 @@ best made while doing the first test asset (a crate).
 - **Style: military / scavenged / post-collapse, not fantasy and not cartoony.** Think olive-drab paint,
   stenciled codes, metal latches, worn edges. Blocky (it's voxel), but grounded: the owner rejected both the wooden
   "dungeon crate" and a chunky, toy-like version. The crate is a military hard case with a spray-painted skull.
+- **Characters and gear have creative freedom** (owner, 2026-10-10): military, but not strictly realistic.
+  Character, uniform, armor and faction designs (NOVA, EXION, scavs, Raiders) can be stylized and game-like rather
+  than copies of real kit. The grounded rule above is about props and the world's look.
 - Factions must read at a glance: Scavs are mismatched civilians, PMCs wear tan/green kit, Raiders are dark with red.
 - **Palette: 24 colors in `art_source/palette.gpl`** (chosen for the crate test; confirm once it's seen in-game).
   Paint only with those. The `.gpl` loads in Aseprite, Krita and GIMP; `make_crate.py` has the same list as hex codes.

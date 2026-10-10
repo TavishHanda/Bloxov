@@ -4,6 +4,11 @@ The game's world and story. **The owner writes the lore**; this file keeps it or
 **TBD** is waiting on the owner: don't fill it in with invented names or story. Maps, items and characters should
 tie back to what's written here.
 
+## Tone (owner, 2026-10-10)
+- A **military** setting, but **not strictly realistic**. Characters, gear, uniforms and factions can be stylized
+  and game-like: the owner wants freedom to design characters, so don't hold designs to real-world military
+  accuracy. It should still read as soldiers at war, not fantasy (see `docs/ART_SPEC.md` §5).
+
 ## The world
 - Two nations at war; the war has gone **global** (names: owner, 2026-10-10).
   - **Novarra**: what it's like **TBD**. Its army is **NOVA** (the light side).
