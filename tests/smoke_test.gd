@@ -2323,6 +2323,21 @@ func _section_teamwork() -> void:
 		hugger._check_stuck(1.0 / 60.0, Vector3(3, 0, 0))   # wants to move, doesn't
 	_check(hugger._cover_phase == Scav.Cover.NONE, "an AI stuck against a wall gives up on where it was going")
 	hugger.queue_free()
+	# 0.12.10 (owner: it didn't hide behind the tents): behind low cover it crouches, hitboxes and all.
+	var croucher := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	await physics_frame
+	var head_up := (croucher.get_node("HeadShape") as Node3D).position.y
+	croucher._set_state(Scav.State.ENGAGE)
+	croucher._cover_low = true
+	croucher._cover_phase = Scav.Cover.HOLDING
+	croucher._cover_hold_left = 99.0
+	croucher._target = player
+	for i in 30:
+		await physics_frame
+	var head_down := (croucher.get_node("HeadShape") as Node3D).position.y
+	_check(croucher._crouched and head_down < head_up * 0.7 and croucher.net_capture()[2] & Scav.NET_CROUCH,
+		"behind low cover it crouches (head %.2f m -> %.2f m)" % [head_up, head_down])
+	croucher.queue_free()
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
 	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav
