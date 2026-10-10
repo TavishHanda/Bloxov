@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.25 (Raider and Bon accuracy; owner)
+- Raiders and Bon a bit less accurate (owner: with 0.12.21's shorter pauses they hurt about 45% more; aim for about
+  15%): every hit chance x0.79. Raiders 63% up close (was 80%), 32% at 28 m (was 40%), 16% at the edge of their
+  range (was 20%); Bon 67/40/20% (was 85/50/25%). Scavs and snipers unchanged.
+
 ## 0.12.24 (fewer indoor spawns, more patrolling; owner)
 - Half as many indoor AI spawn spots (owner: 6 in a building -> 3, 2 -> 1): 34 spots, was 65. Each building keeps
   at least one, spread through its rooms. A zone's AI still start inside about half the time.
