@@ -6,6 +6,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.11 (fewer AI pile into one fight; owner)
+- Owner: a friend who spawned near town had to fight 8-9 scavs and Raiders at once; they grouped up a lot.
+- At most 4 AI per raid head over to a fight they heard or were called to at a time. The rest go on alert where
+  they are: they look toward the trouble, spot you faster, then go back to patrolling.
+- Gunshots don't carry as far (owner: "kinda insane, not everyone should show up"): scavs hear an AK 35 m away
+  (was 50) and the pistol 25 m (was 35). Raiders and Bon hear 1.5x as far (was 2x and 2.5x): an AK about 52 m
+  (was 100 / 125 m). A bullet passing close or a friend dropping next to them still alerts AI farther away.
+
 ## 0.12.10 (AI actually hide: cover right away, behind trees/tents, crouching; owner)
 - Owner: cover didn't seem to work; a scav looting at the camp didn't hide behind the tents, trees or a hill, it just
   kept running sideways.

@@ -129,6 +129,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
 ## within this many meters jog over to where the fight is. 0 = never.
 @export var help_radius := 35.0
+## At most this many AI in a raid head over to a fight they heard or were called to at once; the rest go on alert
+## where they are (0.12.11, owner: a friend in town had to fight 8-9 at once, they grouped up a LOT).
+@export var max_responders := 4
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 
@@ -325,6 +328,9 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 	if puppet:
 		return
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius * hearing_mult:
+		return
+	if radius >= alarm_noise and not _is_responding() and _responders() >= max_responders:
+		_hold_alert(pos)
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
 	_goal = pos + offset
@@ -611,10 +617,38 @@ func _call_for_help(known_pos: Vector3) -> void:
 func answer_call(pos: Vector3) -> void:
 	if puppet or holds_position or state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 		return
+	if not _is_responding() and _responders() >= max_responders:
+		_hold_alert(pos)
+		return
 	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
 	_looting_left = 0.0
 	_answering_call = true
 	_set_state(State.INVESTIGATE)
+
+
+## Heading over to a fight it heard or was called to.
+func _is_responding() -> bool:
+	return state == State.INVESTIGATE and (_answering_call or _alarmed)
+
+
+## How many AI in this raid are heading over to a fight right now.
+func _responders() -> int:
+	var count := 0
+	for node in RaidScope.nodes(self, &"enemies"):
+		var ally := node as Scav
+		if ally != null and ally != self and ally._is_responding():
+			count += 1
+	return count
+
+
+## Enough others are already going: it stays put, on alert, looking toward the trouble (quicker to spot you).
+func _hold_alert(pos: Vector3) -> void:
+	_looting_left = 0.0
+	_goal = pos
+	if state != State.SEARCH:
+		_set_state(State.SEARCH)
+	if _flat(pos - global_position).length() > 0.5:
+		look_at(Vector3(pos.x, global_position.y, pos.z), Vector3.UP)
 
 
 ## The target is reloading or healing (a moment to push).
