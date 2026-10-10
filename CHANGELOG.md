@@ -6,6 +6,24 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.6 (AI fight from cover, varied bursts, quicker spotting; owner)
+- **Fighting from cover** (owner, from a playtest: the first scav ran sideways at him with cover right next to
+  it). Scavs, Raiders and Bon now get into cover and fight from there:
+  - In a fight out in the open, between bursts (or as soon as they're hit), they go to a nearby spot you can't
+    see, up to 12 m away (was 7). Scavs do this every 5 s at most, Raiders and Bon every 3.5 s
+  - From cover they **peek out** to where they could see you, shoot for 1.5-3 s, duck back in, and do it again
+    (up to 3 peeks). Getting hit while peeking sends them back in after the burst
+  - If you've moved when they peek, they come looking for you. While you reload or heal they still push in
+  - With no cover nearby (open fields) they fight in the open as before
+- **Bursts vary** (owner: "not always 3"): each burst is a random length. Up close they're longer (3-5 rounds for
+  scavs, 4-6 for Raiders, 5-7 for Bon); in the middle 2-4 for scavs; far away scavs tap 1-2 rounds
+  (Raiders 1-3)
+- **They spot you faster** (owner: scavs should be pretty aware and spot you fairly easily):
+  - Time to notice you: 0.15 s up close (was 0.25) to 0.7 s at the edge of their sight (was 1.2)
+  - Standing still no longer hides you any better; crouching helps a bit less (1.4x, was 1.6x)
+  - Reaction after spotting: 0.3 s (was 0.4)
+  - Snipers keep their slower spotting at long range
+
 ## 0.12.5 (farm house floor stops flickering; owner)
 - Fix: the farm house, barn and shed floors still flickered (owner). They stand on the farmyard's dirt, and since
   0.11.21 both sat at exactly the same height. Now a floor or patch on top of a bigger one sits 5 cm higher (10 cm

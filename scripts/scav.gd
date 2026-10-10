@@ -45,11 +45,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 
 @export_group("Spotting")
 ## Seconds a scav needs you in view before it notices you: quick up close, slow far away.
-@export var spot_time_near := 0.25
-@export var spot_time_far := 1.2
+## (0.12.6, owner: scavs should be pretty aware and spot you fairly easily: 0.25 / 1.2 s before.)
+@export var spot_time_near := 0.15
+@export var spot_time_far := 0.7
 ## Crouching or standing still makes you slower to notice; sprinting faster (multipliers on spot time).
-@export var spot_crouch_mult := 1.6
-@export var spot_still_mult := 1.2
+@export var spot_crouch_mult := 1.4
+@export var spot_still_mult := 1.0
 @export var spot_sprint_mult := 0.6
 ## Already suspicious (investigating/searching) or re-finding someone it was fighting: notices faster.
 @export var spot_suspicious_mult := 0.6
@@ -71,11 +72,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Fires at you from this far; beyond it, it closes in first.
 @export var shoot_range := 40.0
 ## Delay between spotting the player and starting to aim. Gives you a moment to react.
-@export var reaction_time := 0.4
+@export var reaction_time := 0.3
 ## Getting shot (or a bullet whizzing past) while unaware startles it: it turns and starts aiming after only this
 ## long, so whoever sees first gets the first shots, not a free kill (0.11.16: before, it died before it reacted).
 @export var startle_reaction_time := 0.15
 @export var aim_time := 0.35
+## The longest burst. Each burst is a random length: longer up close, short taps far away (0.12.6, owner: not
+## always 3). 1 = single shots (snipers).
 @export var burst_size := 3
 @export var burst_interval := 0.13
 @export var burst_cooldown_min := 1.0
@@ -95,13 +98,19 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var min_distance := 3.0
 
 @export_group("Cover")
-## Fighting comes first (owner, 0.6.9). Cover is for breaks: after this many seconds with no threat (you haven't
-## fired, hit it, or sent a bullet past it) it moves to a nearby spot you can't see, holds briefly, then peeks out.
+## Fights from cover (0.12.6, owner: a scav ran at him sideways with cover right beside it). In a fight it gets to
+## a nearby spot you can't see, holds briefly, peeks out to where it can see you for a burst or two, ducks back,
+## and repeats. It also ducks in a lull (this many seconds with no threat).
 @export var lull_time := 2.0
-@export var cover_search_radius := 7.0
-@export var cover_hold_time := 1.5
-## At most one move to cover per this many seconds.
-@export var cover_cooldown := 10.0
+@export var cover_search_radius := 12.0
+@export var cover_hold_time := 1.2
+## At most one new cover spot per this many seconds.
+@export var cover_cooldown := 5.0
+## Each peek lasts this long (seconds, random), then it ducks back in; after this many peeks it re-thinks
+## (a new spot, or chasing you if you've gone).
+@export var peek_time_min := 1.5
+@export var peek_time_max := 3.0
+@export var peeks := 3
 
 @export_group("Teamwork")
 ## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
@@ -226,7 +235,7 @@ var _flashing := false
 var _flinch_left := 0.0
 var _melee_cooldown_left := 0.0
 ## Cover: seconds since the last threat, where it's heading/holding, and the cooldown.
-enum Cover { NONE, MOVING, HOLDING, HEALING, FLANKING }
+enum Cover { NONE, MOVING, HOLDING, HEALING, FLANKING, PEEKING }
 var _since_threat := 0.0
 var _cover_phase := Cover.NONE
 var _cover_point := Vector3.ZERO
@@ -385,14 +394,16 @@ func _physics_process(delta: float) -> void:
 					_update_shooting(delta, dist)
 				elif dist <= shoot_range:
 					# You're reloading or healing: push in on you (still shooting); otherwise strafe.
-					if _target_busy() and not holds_position and dist > min_distance + 2.0:
+					var pushing := _target_busy() and not holds_position and dist > min_distance + 2.0
+					if pushing:
 						desired = _path_velocity(_target.global_position, move_speed * push_speed)
 					else:
 						desired = _clear_of_walls(_strafe(delta, to_target))
 					_update_shooting(delta, dist)
-					# A break in the fight (between its bursts, nothing coming its way): reposition to cover.
-					if _since_threat > lull_time and _cover_cooldown_left <= 0.0 and _shots_left <= 0:
-						if randf() < flank_chance:
+					# Out in the open: get to cover and fight from there (between bursts, or right away when
+					# hit). Sometimes, in a lull, circle round to flank instead.
+					if not pushing and not holds_position and _cover_cooldown_left <= 0.0 and (_shots_left <= 0 or _flinch_left > 0.0):
+						if _since_threat > lull_time and randf() < flank_chance:
 							_try_flank(to_target, dist)
 						else:
 							_try_take_cover()
@@ -596,6 +607,9 @@ func _try_take_cover() -> void:
 	if spot != Vector3.INF:
 		_cover_point = spot
 		_cover_phase = Cover.MOVING
+		# Where it stands now can see you: that's where it peeks out from.
+		_peek_point = global_position
+		_peeks_left = peeks
 	else:
 		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
 
@@ -717,14 +731,47 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 			_lost_sight_time = 0.0
 		return Vector3.ZERO
 	_cover_hold_left -= delta
+	if _cover_phase == Cover.PEEKING:
+		return _update_peek(delta, sees, to_target, dist)
 	if _target_busy():
 		_cover_hold_left = 0.0   # you're reloading or healing: come out now
 	_face(_flat(_last_seen - global_position), delta)
 	_hold_fire()
 	if _cover_hold_left <= 0.0:
-		_cover_phase = Cover.NONE
 		_lost_sight_time = 0.0
+		if _peeks_left > 0 and _peek_point != Vector3.INF and not _target_busy():
+			_peeks_left -= 1
+			_cover_phase = Cover.PEEKING
+			_peek_left = randf_range(peek_time_min, peek_time_max)
+			_peek_blind = 0.0
+		else:
+			_cover_phase = Cover.NONE   # done peeking (or you're reloading): back to the open fight / chase
 	return Vector3.ZERO
+
+
+## Peeking out of cover: step to where it could see you, shoot while it can, then duck back into cover.
+## If it gets there and you're gone, it stops hiding and goes after you.
+func _update_peek(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
+	var move := Vector3.ZERO
+	if not sees:
+		move = _path_velocity(_peek_point, move_speed * 0.8)
+		_face(_flat(_last_seen - global_position), delta)
+		_hold_fire()
+		if _arrived(_peek_point) or _cover_stuck(move):
+			_peek_blind += delta
+			if _peek_blind > 1.0:
+				_cover_phase = Cover.NONE   # you moved: find you
+				_lost_sight_time = 0.0
+		return move
+	_peek_blind = 0.0
+	_face(to_target, delta)
+	if dist <= shoot_range:
+		_update_shooting(delta, dist)
+	_peek_left -= delta
+	# Done (and between bursts), or getting hit: duck back in.
+	if (_peek_left <= 0.0 or _flinch_left > 0.0) and _shots_left <= 0:
+		_cover_phase = Cover.MOVING
+	return move
 
 
 ## No shot right now: drop the burst and re-aim when a shot comes back.
@@ -797,13 +844,24 @@ func _update_shooting(delta: float, dist: float) -> void:
 	if _fire_timer > 0.0:
 		return
 	if _shots_left <= 0:
-		_shots_left = burst_size
+		_shots_left = _burst_length(dist)
 	_fire_at_target(dist)
 	_shots_left -= 1
 	if _shots_left > 0:
 		_fire_timer = burst_interval
 	else:
 		_fire_timer = randf_range(burst_cooldown_min, burst_cooldown_max)
+
+
+## A burst's length: random, longer up close (up to burst_size + 2 inside 10 m), short taps far away.
+func _burst_length(dist: float) -> int:
+	if burst_size <= 1:
+		return 1
+	if dist < 10.0:
+		return randi_range(burst_size, burst_size + 2)
+	if dist < 25.0:
+		return randi_range(2, burst_size + 1)
+	return randi_range(1, maxi(burst_size - 1, 1))
 
 
 func _fire_at_target(dist: float) -> void:
@@ -958,6 +1016,12 @@ func _scan(delta: float) -> Vector3:
 
 var _glint: MeshInstance3D = null
 var _scan_dir := 1.0
+## Fighting from cover: where it peeks out from, how long this peek has left, how many peeks before it re-thinks,
+## and how long it's stood at the peek spot without seeing you.
+var _peek_point := Vector3.INF
+var _peek_left := 0.0
+var _peeks_left := 0
+var _peek_blind := 0.0
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false
 
