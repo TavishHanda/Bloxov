@@ -5,11 +5,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.9 (dead grass patches removed; Map & Spawn follow-up, owner)
+- **The dead grass patches are gone** (owner: the flat grey and green patches looked bad). Flat blocks can't sell
+  dead grass; it waits for real ground textures/models. The trench, dead trees and junk stay
+
 ## 0.11.8 (dead trees, dead grass, a trench; Map & Spawn follow-up, owner)
 - **Fewer trees in the open, most of them dead** (owner: tone it down, and war-torn trees): about half as many
   as 0.11.7, mostly lone trees; 6 in 10 spots are dead instead: burnt bare trunks with broken branches, snapped-off
   trunks or stumps. Only the living ones show on the M map
-- **Dead grass**: brown and burnt patches round the junk, along the trench and dotted over the open ground (looks only)
+- **Dead grass**: brown and burnt patches round the junk, along the trench and dotted over the open ground (looks only;
+  removed again in 0.11.9)
 - **A trench line** (owner: terrain change, trench warfare): a zig-zag trench dug 1.1 m into the field south of the
   town hall, with a ramp in at each end and sandbags along parts of its north lip. Stand up to see over the bare
   edge, crouch to hide. Junk and trees stay 6 m clear of it
