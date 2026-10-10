@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.14 (loot no longer lost on reload)
+- Fix: after extracting, reloading the page (e.g. for an update) could load the save from the start of that raid,
+  as if you had died in it: the raid's loot and the kit you took in were gone. The browser's storage connection can
+  drop mid-session and the game kept saving into it without noticing. The save now also goes to the browser's
+  localStorage straight away, and loading takes whichever copy is newer
+
 ## 0.11.13 (loot a body's loadout; owner)
 - **Bodies show their loadout** (owner): scav, Raider and dead-player bodies open with Primary, Secondary, Armor
   and Backpack slots, plus their Pockets for everything else. Loot the slots like your own: drag a body's gun onto

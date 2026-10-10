@@ -1,7 +1,8 @@
 class_name Profile
 extends RefCounted
 ## The persistent player profile: money, stash, the loadout you take into raids, and stats.
-## Saved as JSON in user://profile.json (browser storage on web).
+## Saved as JSON in user://profile.json (browser storage on web). On web it's also copied to localStorage, see
+## save_profile.
 ## Static so both the hideout and the raid scene see the same data.
 
 const PATH := "user://profile.json"
@@ -11,6 +12,8 @@ const START_MONEY := 3000
 const DEFAULT_STATS := {"raids": 0, "extracts": 0, "deaths": 0, "earned": 0}
 ## Where an unreadable save is copied before the profile is reset, so it isn't silently lost.
 const BAD_PATH := "user://profile.bad.json"
+## The localStorage key of the web copy of the save.
+const WEB_KEY := "bloxov_profile"
 
 static var money := START_MONEY
 static var stash: GridInventory = GridInventory.new("Stash", STASH_SIZE.x, STASH_SIZE.y)
@@ -26,12 +29,10 @@ static func load_profile() -> void:
 	if _loaded:
 		return
 	_loaded = true
-	var file := FileAccess.open(PATH, FileAccess.READ)
-	if file == null:
+	var text := newer_save(_read_file(), _web_read())
+	if text == "":
 		reset()
 		return
-	var text := file.get_as_text()
-	file.close()
 	var data = JSON.parse_string(text)
 	if not data is Dictionary or not _is_number(data.get("version")) or int(data["version"]) != VERSION:
 		_backup_bad_save(text)
@@ -52,6 +53,28 @@ static func load_profile() -> void:
 		for key in stats:
 			if _is_number(saved_stats.get(key)):
 				stats[key] = int(saved_stats[key])
+
+
+static func _read_file() -> String:
+	var file := FileAccess.open(PATH, FileAccess.READ)
+	if file == null:
+		return ""
+	var text := file.get_as_text()
+	file.close()
+	return text
+
+
+## Of two saves (JSON text, "" = none), the one written last (by its saved_at stamp; the file wins a tie and
+## when neither has a stamp).
+static func newer_save(file_text: String, web_text: String) -> String:
+	if web_text == "":
+		return file_text
+	if file_text == "":
+		return web_text
+	var stamp := func(text: String) -> float:
+		var data = JSON.parse_string(text)
+		return float(data["saved_at"]) if data is Dictionary and _is_number(data.get("saved_at")) else -1.0
+	return web_text if stamp.call(web_text) > stamp.call(file_text) else file_text
 
 
 static func _backup_bad_save(text: String) -> void:
@@ -86,10 +109,28 @@ static func save_profile() -> void:
 		"stash": _write_grid(stash),
 		"loadout": loadout,
 		"stats": stats,
+		"saved_at": Time.get_unix_time_from_system(),
 	}
+	var text := JSON.stringify(data)
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file != null:
-		file.store_string(JSON.stringify(data))
+		file.store_string(text)
+	_web_write(text)
+
+
+## On web, user:// only reaches the browser's storage when the engine copies it there a frame later, and if the
+## browser drops that storage connection (seen after an update mid-raid: the extract save was lost on reload) every
+## later copy fails quietly. localStorage is written right away, so the save keeps a second copy there.
+static func _web_write(text: String) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("try { localStorage.setItem('%s', %s) } catch (e) {}" % [WEB_KEY, JSON.stringify(text)], true)
+
+
+static func _web_read() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var text = JavaScriptBridge.eval("(function () { try { return localStorage.getItem('%s') || '' } catch (e) { return '' } })()" % WEB_KEY, true)
+	return text if text is String else ""
 
 
 ## The starter kit: AK (loaded), medium backpack, 60 rifle rounds, a bandage (heals are on hotbar key 3).

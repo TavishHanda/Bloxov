@@ -838,6 +838,13 @@ func _section_profile() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.money == money_before and Profile.stash.count_of("gold_watch") == 1, "profile saves and loads (money + stash)")
+	# Web keeps a second copy in localStorage: loading takes whichever copy was saved last.
+	var older := JSON.stringify({"version": Profile.VERSION, "saved_at": 100.0})
+	var newer := JSON.stringify({"version": Profile.VERSION, "saved_at": 200.0})
+	_check(Profile.newer_save(older, newer) == newer and Profile.newer_save(newer, older) == newer
+		and Profile.newer_save("", older) == older and Profile.newer_save(older, "") == older
+		and Profile.newer_save("{}", newer) == newer and Profile.newer_save(older, "{}") == older,
+		"loading picks the newest of the file and web copies of the save")
 
 
 func _section_hideout() -> void:
