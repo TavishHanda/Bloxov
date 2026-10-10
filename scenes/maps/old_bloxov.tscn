@@ -416,31 +416,43 @@ extract_name = "Highway"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165, 0, 163)
 extract_name = "Creek Trail"
 
+[node name="TownRoad" parent="Extracts" instance=ExtResource("2_extract")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -169, 0, -93)
+extract_name = "Town Road"
+
+[node name="MillLane" parent="Extracts" instance=ExtResource("2_extract")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37, 0, -169)
+extract_name = "Mill Lane"
+
+[node name="SouthRoad" parent="Extracts" instance=ExtResource("2_extract")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, 169)
+extract_name = "South Road"
+
 [node name="PlayerSpawns" type="Node3D" parent="."]
 
 [node name="Spawn0" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -167, 0.1, -135)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -161, 0.1, 21)
 
 [node name="Spawn1" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -167, 0.1, 5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -115, 0.1, 169)
 
 [node name="Spawn2" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -75, 0.1, 165)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45, 0.1, 169)
 
 [node name="Spawn3" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 0.1, 165)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77, 0.1, 169)
 
 [node name="Spawn4" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 165, 0.1, -55)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 169, 0.1, 39)
 
 [node name="Spawn5" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 165, 0.1, -105)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 169, 0.1, -47)
 
 [node name="Spawn6" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.1, -167)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 155, 0.1, -163)
 
 [node name="Spawn7" type="Marker3D" parent="PlayerSpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0.1, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0.1, -163)
 
 [node name="EnemySpawns" type="Node3D" parent="."]
 

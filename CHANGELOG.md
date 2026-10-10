@@ -5,6 +5,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.10.3 (spawns and extracts; 0.10 is now the "Map & Spawn update", owner)
+- **Extracts near where you spawned are closed for you** (owner): anything within 120 m of your spawn stays shut, and
+  2 of the far ones open. You and your duo spawn together, so you get the same ones; other squads get their own.
+  The map (M) shows only yours
+- **6 extracts** now (was 3): Farm Road, Highway, Creek Trail, plus **Town Road** (west end of Main Street),
+  **Mill Lane** (top of town) and **South Road** (bottom middle)
+- **New player spawns:** 8 spots round the edges in quiet places away from the hot spots, each with room for a duo
+  (west field, the creek, the south edge twice, the east edge twice, the farm, north of town)
+
 ## 0.10.2 (the map: M, owner)
 - **Press M for the map**: Old Bloxov from above with the names of places (bank, police, junkyard, farm...), the
   extracts open for you this raid (green flags), your teammates (green dots) and you (a yellow arrow pointing where

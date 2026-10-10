@@ -51,7 +51,8 @@ Spawns, extracts, loot spots and player spawns on the layout picture are **place
   Tough AI is most likely where the best loot is.
 - **AI count:** a set number at raid start, then more trickle in. Make it harder than seems right for testing.
 - **Players:** duos spawn together; everyone spawns at raid start (no late spawns).
-- **Extracts:** preset spots; extracts close to where you spawned are closed for you. Special extracts: later.
+- **Extracts:** preset spots; extracts close to where you spawned are closed for you. Special extracts: later. (Built in
+  0.10.3: 6 extracts, closed within 120 m of your spawn, 2 of the rest open; 8 player spawns round the edges.)
   No train extract.
 - **Keys:** probably yes for the bunker and bank vault (see the thread). Locked doors only at special places.
 

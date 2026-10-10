@@ -426,7 +426,11 @@ def hay(x, z):
     box(x - 1.0, 0, z - 0.7, x + 1.0, 1.2, z + 0.7, "hay")
 
 
+trunks = []       # (x, z) of every tree, to keep spawns clear of them
+
+
 def tree(x, z, rng):
+    trunks.append((x, z))
     h = rng.uniform(5.0, 7.5)
     box(x - 0.35, 0, z - 0.35, x + 0.35, h, z + 0.35, "trunk")
     s = rng.uniform(3.0, 4.6)
@@ -817,10 +821,16 @@ def main():
               [("crate", 1, 0, 0, "E", 0)])
 
     # ===================================================================== extracts, spawns
+    # Extracts at the road ends and edges (0.10.3: 6, so the ones near your spawn can be closed for you, owner)
     extracts.extend([("FarmRoad", "Farm Road", 240, 6), ("Highway", "Highway", 342, 304),
-                     ("CreekTrail", "Creek Trail", 10, 338)])
-    for n, (x, z) in enumerate([(8, 40), (8, 180), (100, 340), (230, 340), (340, 120), (340, 70), (178, 8), (250, 152)]):
+                     ("CreekTrail", "Creek Trail", 10, 338), ("TownRoad", "Town Road", 6, 82),
+                     ("MillLane", "Mill Lane", 138, 6), ("SouthRoad", "South Road", 160, 344)])
+    # Player spawns (0.10.3): round the edges, in quiet spots away from the hot spots, room for a duo
+    for n, (x, z) in enumerate([(14, 196), (60, 344), (130, 344), (252, 344), (344, 214), (344, 128), (330, 12),
+                                (222, 12)]):
         player_spawns.append((f"Spawn{n}", x, z))
+        assert all(math.hypot(x - tx, z - tz) > 3.0 for tx, tz in trunks), f"Spawn{n} is in the trees"
+        assert not any(x0 - 3 < x < x1 + 3 and z0 - 3 < z < z1 + 3 for _, x0, z0, x1, z1 in footprints), f"Spawn{n}"
     # AI spawn spots: placeholders spread over every area (Scavs 2.0 replaces them with designated spots)
     for n, (x, z) in enumerate([
             (106, 104), (60, 100), (140, 90), (40, 60), (90, 25), (163, 145), (30, 172), (100, 168),

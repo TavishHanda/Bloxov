@@ -13,6 +13,8 @@ signal ended(result: String)
 
 ## Meters between squadmates at the spawn.
 const SQUAD_SPACING := 1.4
+## Extracts closer than this to where you spawned are closed for you (owner, 0.10.3).
+const CLOSED_NEAR_SPAWN := 120.0
 
 var time_left: float
 ## "" while the raid is running.
@@ -39,13 +41,30 @@ func _ready() -> void:
 
 	var extracts := get_extracts()
 	if Network.main.in_online_raid():
-		# Everyone in an online raid gets the same open extracts (the server hands out the seed).
+		# Same seed on every machine: your squad (same spawn) gets the same open extracts (the server hands it out).
 		shuffle_seeded(extracts, Network.main.raid_seed)
 	else:
 		extracts.shuffle()
-	for i in extracts.size():
-		extracts[i].set_open(i < open_extract_count)
-		extracts[i].extracted.connect(_on_extracted)
+	var open := pick_open(extracts, player.global_position, open_extract_count)
+	for zone in extracts:
+		zone.set_open(open.has(zone))
+		zone.extracted.connect(_on_extracted)
+
+
+## The extracts open for someone who spawned at `spawn` (owner, 0.10.3): the first `count` of `shuffled` that
+## aren't near the spawn. If too few are far enough (a small map), the farthest of the rest fill in.
+static func pick_open(shuffled: Array[ExtractZone], spawn: Vector3, count: int) -> Array[ExtractZone]:
+	var flat := func(zone: ExtractZone) -> float: return Vector2(zone.global_position.x - spawn.x, zone.global_position.z - spawn.z).length()
+	var open: Array[ExtractZone] = []
+	for zone in shuffled:
+		if open.size() < count and flat.call(zone) >= CLOSED_NEAR_SPAWN:
+			open.append(zone)
+	if open.size() < count:
+		var rest := shuffled.filter(func(zone: ExtractZone) -> bool: return not open.has(zone))
+		rest.sort_custom(func(a: ExtractZone, b: ExtractZone) -> bool: return flat.call(a) > flat.call(b))
+		for zone in rest.slice(0, count - open.size()):
+			open.append(zone)
+	return open
 
 
 ## Spawn point `slot` (Matchmaker.spawn_slots; the same on every machine: points sorted by name), and `place`
