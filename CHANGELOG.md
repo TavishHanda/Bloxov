@@ -6,6 +6,20 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.28 (AI stop running sideways; Raider, Bon and sniper accuracy; owner)
+- AI stop running sideways in fights (owner: "the AI was just moving sideways again"). On the real map the longest
+  sideways run went from 6.5 s to 1.3 s, and the worst AI went from 62% of a fight spent sideways to 24%. It had three causes:
+  - Flanks were a sideways run across your view while shooting. Now a flank goes to a spot off to your side that you
+    can't see, facing where it's going; with no such spot it takes cover instead, and if it's shot on the way it fights back.
+  - Running to cover while facing (and shooting at) you. Now it faces where it's going and only shoots on the way if
+    you're roughly ahead of it.
+  - Strafing in the open in 0.8-2 s runs. Now it takes short side-steps (0.3-0.6 s) between longer stops to shoot.
+  Peeking out of cover still steps sideways around the corner (that's the peek).
+- New real-map check `tests/ai_sideways_check.gd` (slow, run by hand) plus smoke checks for flanks and strafing.
+- Raiders, Bon and snipers more accurate (owner: "everyone just misses too much"; scavs unchanged). Hit chance up
+  close / 28 m / edge of range: Raiders 85/50/30% (was 80/32/16%), Bon 90/60/35% (was 85/40/20%), snipers
+  85/50/50% (was 75/35/35%, out to 100 m).
+
 ## 0.12.27 (better AI callouts; owner)
 - AI callouts stay cartoony gibberish (owner: no real voice lines) but sound better: consonants (b, d, g, m...)
   between bouncier vowels, a snappier, slightly lo-fi sound to match the game's other effects, and each kind has
