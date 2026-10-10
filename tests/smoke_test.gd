@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -39,6 +39,7 @@ const PROFILE_PATH := "user://profile.json"
 const START_SPOT := Vector3(0, 0.1, -10)
 const SCAV_SCENE := "res://scenes/scav.tscn"
 const SNIPER_SCENE := "res://scenes/sniper.tscn"
+const BOSS_SCENE := "res://scenes/boss.tscn"
 const RAIDER_SCENE := "res://scenes/raider.tscn"
 
 var _failures := 0
@@ -1602,7 +1603,7 @@ func _section_old_bloxov() -> void:
 	for m: Node in spawner.get_children():
 		zone_spots[m.get_meta("zone", "")] = zone_spots.get(m.get_meta("zone", ""), 0) + 1
 	_check(zone_names.has("TownCore") and zone_names.has("SouthEast") and start_ai >= 20 and start_ai <= 30
-		and spawner.roamers == 3 and spawner.max_alive == 30,
+		and spawner.roamers == 3 and spawner.max_alive >= 30,
 		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 3 roamers" % [zone_names, start_ai])
 	_check(spawner.zones.all(func(z: Dictionary) -> bool: return zone_spots.get(z.name, 0) > int(z.scavs) + int(z.raiders)),
 		"...and every zone has more spawn spots than AI starting there (%s)" % [zone_spots])
@@ -1664,8 +1665,13 @@ func _section_old_bloxov() -> void:
 	var ai := RaidScope.nodes(world.raid, &"enemies")
 	var snipers := ai.filter(func(e: Node) -> bool: return (e as Scav).holds_position)
 	var zoned := ai.filter(func(e: Node) -> bool: return (e as Scav).home_radius > 0.0 and not (e as Scav).holds_position)
-	_check(ai.size() == start_ai + spawner.snipers and zoned.size() == start_ai - spawner.roamers and snipers.size() == 2,
-		"the raid starts with %d AI, %d of them in zones, plus 2 snipers (%d, %d, %d)" % [start_ai, start_ai - spawner.roamers, ai.size(), zoned.size(), snipers.size()])
+	_check(ai.size() == start_ai + spawner.snipers + 4 and zoned.size() == start_ai - spawner.roamers + 4 and snipers.size() == 2,
+		"the raid starts with %d AI, %d of them in zones, plus 2 snipers and the boss with 3 guards (%d, %d, %d)" % [start_ai, start_ai - spawner.roamers, ai.size(), zoned.size(), snipers.size()])
+	var the_boss: Scav = spawner.boss_spawned
+	var guards := ai.filter(func(e: Node) -> bool: return (e as Scav).leader == the_boss and the_boss != null)
+	_check(the_boss != null and the_boss.net_kind == 3 and guards.size() == 3 and spawner.boss.zone == "TownHall"
+		and Vector2(the_boss.global_position.x - the_boss.home_center.x, the_boss.global_position.z - the_boss.home_center.z).length() <= the_boss.home_radius + 3.0,
+		"the boss and 3 guards start at the town hall (owner: every raid while testing)")
 	# Snipers stand on their perches: high up (a roof or the hunting stand), on something solid.
 	var perches := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("perch", false))
 	var bad_perches: Array[String] = []
@@ -2176,6 +2182,48 @@ func _section_sniper() -> void:
 	sniper.queue_free()
 	player.health.heal(player.health.max_health)
 	await physics_frame
+
+
+func _section_boss() -> void:
+	# The boss (Scavs 2.0, owner): a Raider commander, tougher and better armed than a Raider, with Raider guards
+	# that follow it round its zone and keep patrolling the zone if it dies.
+	var spawner := EnemySpawner.new()
+	spawner.enemy_scene = load(SCAV_SCENE)
+	spawner.raider_scene = load(RAIDER_SCENE)
+	spawner.set_physics_process(false)
+	var hall := {"name": "Hall", "center": player.global_position + Vector3(0, 0, 60), "radius": 12.0, "scavs": 0, "raiders": 0, "trickle": 0.0}
+	spawner.zones = [hall]
+	spawner.boss = {"zone": "Hall", "guards": 3, "chance": 1.0}
+	var marker := Marker3D.new()
+	marker.position = hall.center
+	marker.set_meta("zone", "Hall")
+	spawner.add_child(marker)
+	main.add_child(spawner)
+	await _frames(2)
+	var the_boss := spawner.boss_spawned
+	var guards := get_nodes_in_group("enemies").filter(func(e: Scav) -> bool: return e.leader == the_boss)
+	var raider := load(RAIDER_SCENE).instantiate() as Scav
+	_check(the_boss != null and guards.size() == 3 and get_nodes_in_group("enemies").size() == 4, "a boss with 3 guards")
+	_check(the_boss.get_node("Health").max_health > 2 * raider.get_node("Health").max_health and the_boss.shot_damage > raider.shot_damage
+		and the_boss.heals > raider.heals and the_boss.weapon_drop_chance == 1.0 and the_boss.max_drops > raider.max_drops,
+		"the boss is much tougher than a Raider, hits harder and always carries its rifle and more loot")
+	raider.free()
+	var offsets := guards.map(func(g: Scav) -> Vector3: return g.follow_offset)
+	_check(offsets.size() == 3 and offsets[0] != offsets[1] and offsets[1] != offsets[2], "each guard has its own spot round the boss")
+	# The boss walks off on patrol; its guards keep up.
+	the_boss._wander_point = hall.center + Vector3(8, 0, 0)
+	for i in 240:
+		await physics_frame
+	var near := guards.filter(func(g: Scav) -> bool: return g.global_position.distance_to(the_boss.global_position) < 7.0)
+	_check(near.size() == 3, "the guards stay with the boss while it patrols (%d of 3 close)" % near.size())
+	the_boss.get_node("Health").take_damage(10000)
+	await _frames(2)
+	_check(guards.all(func(g: Scav) -> bool: return g.home_radius == 12.0), "without the boss, the guards keep to its zone")
+	for enemy in get_nodes_in_group("enemies"):
+		enemy.remove_from_group("enemies")
+		enemy.queue_free()
+	spawner.queue_free()
+	await _frames(2)
 
 
 func _section_pathing() -> void:

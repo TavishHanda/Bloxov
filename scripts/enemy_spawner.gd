@@ -8,6 +8,7 @@ extends Node3D
 @export var enemy_scene: PackedScene
 @export var raider_scene: PackedScene
 @export var sniper_scene: PackedScene = preload("res://scenes/sniper.tscn")
+@export var boss_scene: PackedScene = preload("res://scenes/boss.tscn")
 ## Total enemies for the whole raid (owner, 0.6.5: 20 + 5 for now; tune once the maps exist).
 @export var scav_budget := 20
 @export var raider_budget := 5
@@ -37,6 +38,10 @@ extends Node3D
 @export var snipers := 0
 ## How far a sniper can move around on its perch.
 @export var perch_radius := 3.0
+## The boss (Scavs 2.0, owner): a Raider commander and its Raider guards in one zone (the town hall and bunker),
+## guarding the best loot. "zone" = the zone's name in `zones`, "guards" = how many, "chance" = how often a raid
+## has it (owner: every raid while testing, a chance later). Empty = no boss. Not part of the budgets.
+@export var boss := {}
 
 ## Spawned so far this raid.
 var scavs_spawned := 0
@@ -46,12 +51,18 @@ var _next_scav := 0.0
 ## With zones: how many of raider_times have come up.
 var _raider_wave := 0
 var snipers_spawned := 0
+## The boss of this raid (null if none).
+var boss_spawned: Scav = null
+## Where the guards walk around the boss (right/back in its facing), the first three; more get random spots.
+const GUARD_OFFSETS: Array[Vector3] = [Vector3(2.5, 0, 1.5), Vector3(-2.5, 0, 1.5), Vector3(0, 0, 3.5)]
 
 
 func _ready() -> void:
 	_next_scav = randf_range(scav_interval_min, scav_interval_max)
 	if snipers > 0:
 		_spawn_snipers.call_deferred()
+	if not boss.is_empty() and randf() < float(boss.get("chance", 1.0)):
+		_spawn_boss.call_deferred()
 	if not zones.is_empty():
 		_spawn_zones.call_deferred()
 		return
@@ -93,6 +104,36 @@ func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
 			if space.intersect_ray(query).is_empty():
 				return true
 	return false
+
+
+## The boss and its guards, at a spot in its zone. They patrol the zone together; guards follow the boss and
+## carry on patrolling the zone on their own if it dies.
+func _spawn_boss() -> void:
+	var zone := {}
+	for z in zones:
+		if z.get("name", "") == boss.get("zone", ""):
+			zone = z
+	var spots: Array[Marker3D] = []
+	for child in get_children():
+		if child is Marker3D and String(child.get_meta("zone", "")) == String(zone.get("name", "")):
+			spots.append(child as Marker3D)
+	if zone.is_empty() or spots.is_empty() or boss_scene == null:
+		return
+	var spot := spots.pick_random().global_position as Vector3
+	boss_spawned = boss_scene.instantiate() as Scav
+	get_parent().add_child(boss_spawned)
+	boss_spawned.global_position = spot
+	boss_spawned.home_center = zone.get("center", spot)
+	boss_spawned.home_radius = float(zone.get("radius", 0.0))
+	for i in int(boss.get("guards", 0)):
+		var guard := raider_scene.instantiate() as Scav
+		get_parent().add_child(guard)
+		var offset := GUARD_OFFSETS[i] if i < GUARD_OFFSETS.size() else Vector3(randf_range(-4, 4), 0, randf_range(2, 5))
+		guard.follow_offset = offset
+		guard.global_position = spot + offset
+		guard.leader = boss_spawned
+		guard.home_center = boss_spawned.home_center
+		guard.home_radius = boss_spawned.home_radius
 
 
 ## Raid start with zones: each zone's own scavs and Raiders, then the roamers.

@@ -6,6 +6,20 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.2 (the town hall boss; owner)
+- **A boss guards the town hall** (owner: high-tier loot guarded by a better-equipped boss and guards). A Raider
+  **commander** and 3 Raider guards patrol the town hall and its bunker together. They're in every raid while
+  we test (owner); later it'll be a chance per raid. The name comes later (owner)
+- The commander: 250 health with built-in armor (takes 75% damage), so it lasts about 3 Raiders' worth of shots.
+  5-round bursts of 20 damage, sharper aim (85% close, 40% far), sees you from 60 m and hears fights from farther
+  off. It patches itself up to 3 times and flanks sometimes. It's a little bigger than a Raider, so you can tell
+  it apart
+- The guards walk in formation round the commander (each in its own spot) and fight like Raiders. If the
+  commander dies they keep guarding the town hall
+- Its body ("Commander Body") always has its AK and 4-6 items from the Raider loot list
+- With the boss and the snipers, a raid now starts with 31 AI (owner: about 30); up to 34 alive at once
+- Works online (players' games show the server's boss)
+
 ## 0.12.1 (sniper scavs; owner)
 - **Sniper scavs** (owner: a long-range threat up high that you can spot and shoot back). 2 per raid, each on a
   perch picked from 5 high spots: the police roof (over the town core), the bell tower, the school roof, the train

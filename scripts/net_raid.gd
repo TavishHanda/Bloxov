@@ -6,7 +6,7 @@ extends Node
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
 ## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider).
-const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn")]
+const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn")]
 
 @export var player: Player
 @export var enemy_spawner: Node
