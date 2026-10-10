@@ -613,6 +613,9 @@ def _clear_of_map(x, z):
     for l in loot:
         if math.hypot(x - l[2], z - l[4]) < 8:
             return False
+    for b in boxes:   # flat ground patches: the farm field, car parks, sports field...
+        if b[4] <= 0.06 and max(b[3], b[5]) > 8 and abs(x - (b[0] + M / 2)) < b[3] / 2 + 4 and abs(z - (b[2] + M / 2)) < b[5] / 2 + 4:
+            return False
     for b in boxes:   # props already placed (stands, campsite, power poles, fences...)
         if b[4] > 0.2 and max(b[3], b[5]) < 30 and math.hypot(x - (b[0] + M / 2), z - (b[2] + M / 2)) < max(b[3], b[5]) / 2 + 6:
             return False
@@ -639,6 +642,28 @@ def clutter(spacing=18.0):
     for x, z in placed:
         rng.choice(kinds)(x, z, rng)
         bits(x, z, rng)
+    return placed
+
+
+def scatter_trees(spots, spacing=26.0):
+    """A few lone trees and little clumps of 2-3 in the open grass (owner, 0.11.7), clear of the clutter `spots`."""
+    rng = random.Random(4200)
+    placed = []
+    for _ in range(4000):
+        x, z = rng.uniform(0, M), rng.uniform(0, M)
+        if any(math.hypot(x - px, z - pz) < spacing for px, pz in placed) or \
+                any(math.hypot(x - cx, z - cz) < 10 for cx, cz in spots) or not _clear_of_map(x, z):
+            continue
+        placed.append((x, z))
+    for x, z in placed:
+        n = rng.choice((1, 1, 2, 3))
+        for k in range(n):
+            a = rng.uniform(0, 360)
+            r = 0.0 if k == 0 else rng.uniform(3.5, 5.0)
+            tree(x + r * math.sin(math.radians(a)), z + r * math.cos(math.radians(a)), rng)
+        if rng.random() < 0.5:
+            bush(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4), rng)
+        woods.append((x, z, 2.0 + 2.0 * (n > 1)))
     return placed
 
 
@@ -1036,7 +1061,7 @@ def main():
     power_line(county, 1, 8)
     power_line(old_road, 1, 8)
 
-    clutter()
+    scatter_trees(clutter())
     map_labels()
     check_roads()
     write_scene()
