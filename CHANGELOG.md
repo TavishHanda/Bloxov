@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.11.19 (scavs shoot over hills, not into them; owner)
+- Fix: a scav that could see you over a hill crest shot into the ground in front of it (owner). Its eyes saw
+  your head, but its shots left from chest height and hit the hill. Now it shoots from its eyes at whatever part
+  of you it can see, and holds fire when nothing has a clear line (since 0.11.17's hills)
+
 ## 0.11.18 (the map screen says TOWN, not OLD TOWN; owner)
 - The map (M) labels the town area **TOWN** instead of "OLD TOWN", so nothing in the game says "Old" any more
   (owner: the map is Bloxov Battlegrounds, not Old Bloxov). The town's own name is still to come
