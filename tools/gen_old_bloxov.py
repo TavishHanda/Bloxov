@@ -69,7 +69,6 @@ COLOURS = [
     ("wall_modern", (0.82, 0.84, 0.86)),
     ("brand", (0.2, 0.55, 0.45)),
     ("scorch", (0.22, 0.2, 0.19)),
-    ("deadgrass", (0.42, 0.4, 0.25)),
     ("deadwood", (0.3, 0.26, 0.22)),
     ("earth", (0.36, 0.28, 0.2)),
 ]
@@ -701,23 +700,6 @@ def dead_tree(x, z, rng):
              a, "deadwood", solid=False, pitch=-rng.uniform(15, 40))
 
 
-def dead_grass(spots, rng):
-    """Dead and burnt patches of grass: round the junk spots, along the trenches and dotted about."""
-    centres = [(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4)) for x, z in spots]
-    centres += [((t[0] + t[2]) / 2 + rng.uniform(-6, 6), (t[1] + t[3]) / 2 + rng.uniform(-5, 5)) for t in TRENCHES for _ in range(2)]
-    centres += [(rng.uniform(10, M - 10), rng.uniform(10, M - 10)) for _ in range(70)]
-    for x, z in centres:
-        if any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for _, x0, z0, x1, z1 in footprints + areas) or \
-                any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for x0, z0, x1, z1 in yards) or abs(z - 210.0) < 3:
-            continue
-        colour = rng.choice(("deadgrass", "deadgrass", "deadgrass", "deadgrass", "earth", "scorch"))
-        small = colour == "scorch"
-        for k in range(rng.randint(2, 4)):
-            w, d = rng.uniform(3, 8) * (0.5 if small else 1), rng.uniform(2, 6) * (0.5 if small else 1)
-            obox(x + rng.uniform(-3, 3), 0.004 + 0.001 * k, z + rng.uniform(-3, 3), w, 0.008, d, rng.uniform(0, 90),
-                 colour, solid=False)
-
-
 def scatter_trees(spots, spacing=34.0):
     """A few lone trees and pairs in the open grass (owner, 0.11.7; fewer and mostly dead in 0.11.8), clear of the
     clutter `spots`."""
@@ -1138,9 +1120,7 @@ def main():
     power_line(old_road, 1, 8)
 
     trench()
-    spots = clutter()
-    scatter_trees(spots)
-    dead_grass(spots, random.Random(4300))
+    scatter_trees(clutter())
     map_labels()
     check_roads()
     write_scene()
