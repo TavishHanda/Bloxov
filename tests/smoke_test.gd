@@ -1956,6 +1956,7 @@ func _section_close_range() -> void:
 	_face_player(scav)
 	scav.set_physics_process(false)
 	scav._target = player
+	scav.point_blank_accuracy = 1.0   # (this checks the bullet's path, not the dice: 90% could roll 3 of 6)
 	await physics_frame
 	var hp := player.health.current
 	var hits := 0
@@ -2455,7 +2456,7 @@ func _section_teamwork() -> void:
 	var mover := _spawn(RAIDER_SCENE, Vector3(-24, 0.1, -12)) as Scav
 	var pin_shots := [0]
 	pinner.fired.connect(func(_end: Vector3) -> void: pin_shots[0] += 1)
-	var flank_wall := _block(Vector3(-21.6, 1.5, -28.8), Vector3(2, 3, 2))   # a flank spot you can't see (0.12.28)
+	var flank_wall := _block(Vector3(-21.6, 1.5, -29.6), Vector3(2, 3, 3))   # a flank spot you can't see (0.12.28)
 	await physics_frame
 	for s: Scav in [pinner, mover]:
 		s.shot_damage = 0
@@ -2596,8 +2597,6 @@ func _section_cover() -> void:
 	var scav := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
 	_face_player(scav)
 	scav.shot_damage = 0  # watching it move, not dying
-	scav._strafe_time = 99.0  # no random strafing, so the cover it finds doesn't depend on luck
-	scav._strafe_dir = 0.0
 	scav.flank_chance = 0.0  # (scavs flank sometimes since 0.12.3; this checks cover)
 	await physics_frame
 	scav._alert(player.global_position)
@@ -2618,6 +2617,24 @@ func _section_cover() -> void:
 	_check(took_cover and hidden_in_cover, "in a break in the fight, a scav moves to cover you can't see")
 	_check(came_back, "...then peeks back out to fight")
 	scav.queue_free()
+	# Two friends side by side don't pick the same cover spot (0.12.29: each gets its own, no bunching).
+	var pair: Array[Scav] = []
+	for x in [-8.0, -7.0]:
+		var s := _spawn(SCAV_SCENE, Vector3(x, 0.1, -8)) as Scav
+		_face_player(s)
+		s.shot_damage = 0
+		s.flank_chance = 0.0
+		pair.append(s)
+	await physics_frame
+	for s in pair:
+		s._target = player
+		s._set_state(Scav.State.ENGAGE)
+		s._try_take_cover()
+	_check(pair[0]._cover_phase == Scav.Cover.MOVING and pair[1]._cover_phase == Scav.Cover.MOVING
+		and pair[1]._spot_taken(pair[0]._cover_point) and pair[0]._cover_point.distance_to(pair[1]._cover_point) >= 2.0,
+		"two scavs side by side head for different cover spots (%.1f m apart)" % pair[0]._cover_point.distance_to(pair[1]._cover_point))
+	for s in pair:
+		s.queue_free()
 	# Fights from cover (0.12.6, owner): even while you keep shooting, between its bursts it gets to cover, then
 	# peeks out to shoot from where it could see you, and ducks back in.
 	var fighter := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
@@ -2694,8 +2711,6 @@ func _section_hurt() -> void:
 	var scav := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
 	_face_player(scav)
 	scav.shot_damage = 0
-	scav._strafe_time = 99.0
-	scav._strafe_dir = 0.0
 	await physics_frame
 	scav._alert(player.global_position)
 	scav._set_state(Scav.State.ENGAGE)
@@ -2811,8 +2826,13 @@ func _section_raiders() -> void:
 	weaver._alert(player.global_position)
 	var run := 0
 	var longest := 0
+	var plan_changes := 0
+	var last_plan := weaver.tactic
 	for i in 60 * 8:
 		await physics_frame
+		if weaver.tactic != last_plan:
+			plan_changes += 1
+			last_plan = weaver.tactic
 		var v := Vector3(weaver.velocity.x, 0, weaver.velocity.z)
 		var to := Vector3(player.global_position.x - weaver.global_position.x, 0, player.global_position.z - weaver.global_position.z)
 		if weaver._cover_phase == Scav.Cover.NONE and v.length() > 1.0 and absf(v.normalized().dot(to.normalized())) < 0.45:
@@ -2821,6 +2841,8 @@ func _section_raiders() -> void:
 		else:
 			run = 0
 	_check(longest < 50, "in the open it side-steps briefly, it doesn't keep running sideways (longest %.1f s)" % (longest / 60.0))
+	# 0.12.29 fight brain (owner: AI felt "cluttered and messy"): one plan at a time, kept until something changes.
+	_check(plan_changes <= 6, "it sticks to a plan instead of flip-flopping (%d plan changes in 8 s)" % plan_changes)
 	weaver.queue_free()
 	# Duos: a Raider can arrive with a partner that follows it.
 	var spawner := EnemySpawner.new()

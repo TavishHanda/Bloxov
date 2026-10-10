@@ -43,7 +43,10 @@ standing rules) and you're caught up. Where this file and the code disagree, the
 - **Raid:** `raid.gd` (clock, extracts, end + profile save), `enemy_spawner.gd`, `nav_baker.gd` (runtime navmesh),
   `raid_map.gd` + `box_map.gd` (0.10.0: the real map is swapped into main.tscn; see `docs/MAP_PLAN.md`),
   `scav.gd` (the whole AI; `puppet` mode for online copies; Raiders are `scenes/raider.tscn` = same script,
-  different exports), `ai_nav.gd` (navigation queries for the AI, safe before the map is ready).
+  different exports; fights go through one decision layer since 0.12.29: `_fight` picks one `Tactic` in `_decide` and
+  keeps it until `_should_rethink`; add new fight behavior as a tactic there, not as its own per-frame check),
+  `ai_nav.gd` (navigation queries for the AI, safe before the map is ready). After AI movement changes also run
+  the slow real-map check `tests/ai_sideways_check.gd` (must print `SIDEWAYS CHECK: PASSED`).
 - **UI:** `hud.gd` + widgets (`health_hud`, `ammo_hud`, `hotbar_hud`, `crosshair_hud`, `timer_hud`, `prompt_hud`,
   `extract_hud`, `map_hud` (M map, 0.10.2), `damage_arrow_hud`, `world_labels_hud`), `hud_style.gd` (palette/fonts/plates/icons),
   `loot_ui.gd` (inventory screen, also used by the hideout), `hideout.gd` (hideout + ONLINE panel),
