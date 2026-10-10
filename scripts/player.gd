@@ -41,6 +41,21 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Speed multiplier while fully aimed down sights.
 @export var ads_move_multiplier := 0.7
 
+@export_group("Vault")
+## Space while moving into low cover vaults over it or climbs onto it (0.13.0). Heights are from your feet.
+## Lower than this is a normal jump.
+@export var vault_min_height := 0.5
+## Up to this, thin cover (fences, sandbags, low walls) is vaulted: over and down the other side.
+@export var vault_max_height := 1.25
+## Up to this (chest high), you climb onto ledges and wide tops.
+@export var mantle_max_height := 1.7
+## How far in front of you (past your body) cover counts.
+@export var vault_reach := 0.7
+## Seconds to vault over / climb onto something.
+@export var vault_time := 0.45
+@export var mantle_time := 0.7
+@export var vault_noise := 12.0
+
 @export_group("Crouch")
 ## C toggles crouch. Slower, quieter, smaller, steadier aim.
 @export var crouch_speed := 1.8
@@ -175,6 +190,12 @@ var _move_input := Vector2.ZERO
 var _roll := 0.0
 
 var is_crouching := false
+## While vaulting: the path (start, over the top, end), time into it and how long it takes; empty = not vaulting.
+var _vault_path := PackedVector3Array()
+var _vault_t := 0.0
+var _vault_duration := 0.0
+var _vault_crouch_after := false
+var _vault_exit_speed := 0.0
 var stamina := 100.0
 ## True after running out of stamina, until it recovers to `exhausted_recover_at`.
 var is_exhausted := false
@@ -224,7 +245,7 @@ func out_of_fight() -> bool:
 
 ## Free to shoot, swing, heal or loot: not dead/out, downed, healing or reviving someone.
 func hands_free() -> bool:
-	return not out_of_fight() and not is_healing() and not interactor.is_reviving()
+	return not out_of_fight() and not is_healing() and not interactor.is_reviving() and not is_vaulting()
 
 
 ## Online: is a teammate up (alive, not downed, still in the raid) who could revive us?
@@ -288,6 +309,7 @@ func horizontal_speed() -> float:
 
 
 func teleport_to(pos: Vector3) -> void:
+	_vault_path.clear()
 	global_position = pos
 	_spawn_position = pos
 	velocity = Vector3.ZERO
@@ -514,6 +536,9 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_vaulting():
+		_update_vault(delta)
+		return
 	var on_floor := is_on_floor()
 	if not on_floor:
 		velocity += get_gravity() * delta
@@ -524,8 +549,10 @@ func _physics_process(delta: float) -> void:
 	var input_dir := Vector2.ZERO
 	if not controls_locked():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-		if Input.is_action_just_pressed("jump") and on_floor and not downed:
-			if is_crouching:
+		if Input.is_action_just_pressed("jump") and on_floor and not downed and not is_vaulting():
+			if input_dir.y < -0.3 and not is_healing() and stamina >= jump_cost and try_vault():
+				_use_stamina(jump_cost)
+			elif is_crouching:
 				set_crouching(false)
 			elif _jump_cooldown_left <= 0.0 and stamina >= jump_cost:
 				velocity.y = jump_velocity
@@ -577,6 +604,131 @@ func _physics_process(delta: float) -> void:
 		if lifted != global_position:
 			global_position = lifted
 			velocity = Vector3.ZERO
+
+
+func is_vaulting() -> bool:
+	return not _vault_path.is_empty()
+
+
+## Space while moving into cover: looks for something waist-to-chest high straight ahead and, if there's room,
+## starts vaulting over it (thin cover) or climbing onto it (ledges, wide tops). False = nothing to vault.
+## Plain movement, so online it shows up for the others like any other move.
+func try_vault() -> bool:
+	var space := get_world_3d().direct_space_state
+	var feet := global_position
+	var forward := -global_basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var radius := (body_shape.shape as CapsuleShape3D).radius
+	# Something in front at knee height, faced fairly head-on...
+	var knee := feet + Vector3(0, 0.3, 0)
+	var hit := _vault_ray(space, knee, knee + forward * (radius + vault_reach))
+	if hit.is_empty():
+		return false
+	var into := -Vector3(hit["normal"].x, 0.0, hit["normal"].z).normalized()
+	if into.dot(forward) < 0.6:
+		return false
+	var wall: Vector3 = hit["position"]
+	# ...with a top in reach (and not still wall above it).
+	var top: Variant = _vault_top(space, wall + into * 0.15, feet.y + mantle_max_height + 0.1, feet.y + 0.3)
+	if top == null:
+		return false
+	var height: float = top.y - feet.y
+	if height < vault_min_height or height > mantle_max_height:
+		return false
+	var above_top := Vector3(feet.x, top.y + 0.25, feet.z)
+	var to_wall := Vector2(wall.x - feet.x, wall.z - feet.z).length()
+	if not _vault_ray(space, above_top, above_top + forward * (to_wall + 0.3)).is_empty():
+		return false
+	var over := Vector3(wall.x, top.y + 0.05, wall.z) + into * 0.15
+	if not _vault_fits(over, crouch_height):
+		return false
+	# Thin enough to go over: find where the top ends, then land on the ground past it.
+	var end: Variant = null
+	var vault_over := false
+	if height <= vault_max_height:
+		var d := 0.3
+		while d <= 1.2 and end == null:
+			var below: Variant = _vault_top(space, wall + into * d, top.y + 0.1, top.y - 3.0)
+			if below == null or below.y < top.y - 0.3:
+				var far := wall + into * (d + radius + 0.1)
+				var ground: Variant = _vault_top(space, far, top.y + 0.1, top.y - 3.0)
+				end = Vector3(far.x, top.y if ground == null else ground.y + 0.02, far.z)
+				vault_over = true
+			d += 0.15
+	# Otherwise climb onto it.
+	if end == null:
+		var on_top := wall + into * (radius + 0.15)
+		end = Vector3(on_top.x, top.y + 0.02, on_top.z)
+	var crouch_after := false
+	if not _vault_fits(end, stand_height):
+		if not _vault_fits(end, crouch_height):
+			return false
+		crouch_after = true
+	if crouch_after and not is_crouching:
+		set_crouching(true)
+	_vault_crouch_after = crouch_after
+	_vault_path = PackedVector3Array([feet, over, end])
+	_vault_t = 0.0
+	_vault_duration = vault_time if vault_over else mantle_time
+	_vault_exit_speed = maxf(horizontal_speed(), walk_speed) if vault_over else 0.0
+	velocity = Vector3.ZERO
+	_sprinting = false
+	_play_step(2.0)
+	_make_noise(vault_noise)
+	return true
+
+
+func _update_vault(delta: float) -> void:
+	if out_of_fight():
+		_vault_path.clear()
+		return
+	_vault_t += delta / _vault_duration
+	# Up and over the top first (most of the time), then down the far side.
+	var split := 0.6
+	var from := _vault_path[0]
+	var to := _vault_path[1]
+	var t := _vault_t / split
+	if _vault_t >= split:
+		from = _vault_path[1]
+		to = _vault_path[2]
+		t = (_vault_t - split) / (1.0 - split)
+	t = clampf(t, 0.0, 1.0)
+	global_position = Vector3(lerpf(from.x, to.x, t), lerpf(from.y, to.y, smoothstep(0.0, 1.0, t)), lerpf(from.z, to.z, t))
+	if _vault_t < 1.0:
+		return
+	var dir := Vector3(_vault_path[2].x - _vault_path[0].x, 0.0, _vault_path[2].z - _vault_path[0].z).normalized()
+	_vault_path.clear()
+	velocity = dir * _vault_exit_speed
+	_landing_dip = 0.05
+	_play_step(0.0)
+	if not _vault_crouch_after:
+		set_crouching(false)
+
+
+func _vault_ray(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
+	return space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()]))
+
+
+## The walkable top straight down at `at` between heights `from_y` and `to_y` (null = none).
+func _vault_top(space: PhysicsDirectSpaceState3D, at: Vector3, from_y: float, to_y: float) -> Variant:
+	var hit := _vault_ray(space, Vector3(at.x, from_y, at.z), Vector3(at.x, to_y, at.z))
+	if hit.is_empty() or hit["normal"].y < 0.7:
+		return null
+	return hit["position"]
+
+
+## Room for the body (`height` tall) standing at `feet`: no world, player or enemy in the way.
+func _vault_fits(feet: Vector3, height: float) -> bool:
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = (body_shape.shape as CapsuleShape3D).radius
+	capsule.height = height
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis(), feet + Vector3(0, height * 0.5 + 0.05, 0))
+	query.collision_mask = 1 | 2 | 4
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _target_velocity(input_dir: Vector2) -> Vector3:

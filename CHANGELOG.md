@@ -6,6 +6,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.0 (Movement update: vaulting; owner)
+- **Vaulting.** Press Space while walking into cover: waist-high cover you can see over (sandbags, fences, low
+  walls, up to 1.25 m) is vaulted, over and down the other side, keeping your speed. Ledges and wide tops up to chest
+  high (1.7 m) are climbed onto. Anything lower than 0.5 m or taller than 1.7 m is a normal jump.
+- Costs the same stamina as a jump and makes a little noise. The gun is lowered while you vault (no shooting,
+  healing or looting) and comes back up like after a sprint. Needs room: no vaulting into a low roof (you climb on
+  crouched if only that fits), a wall, another player or an AI.
+- Online it's ordinary movement, so the others see you go over. The AI don't vault yet.
+
 ## 0.12.39 (Bon's Guard; owner)
 - Bon's guards are named "Bon's Guard" (their body bags), not "Raider Body".
 

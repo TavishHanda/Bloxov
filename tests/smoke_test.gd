@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
@@ -457,6 +457,56 @@ func _section_jump() -> void:
 		peak = maxf(peak, player.global_position.y)
 	var jump_height := peak - ground_y
 	_check(jump_height > 0.4 and jump_height < 0.9, "jump height %.2fm" % jump_height)
+
+
+## Vaulting (0.13.0): Space while walking into waist-high cover goes over it, chest-high climbs onto it,
+## head-high is a plain jump.
+func _section_vault() -> void:
+	var spot := Vector3(40, 0, -40)
+	var cases := [
+		# [height, thickness, what should happen]
+		[0.9, 0.3, "over"],
+		[1.5, 2.0, "onto"],
+		[2.4, 0.3, "none"],
+	]
+	for case: Array in cases:
+		var box := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		var size := Vector3(3.0, case[0], case[1])
+		shape.shape = BoxShape3D.new()
+		(shape.shape as BoxShape3D).size = size
+		box.add_child(shape)
+		main.add_child(box)
+		box.global_position = spot + Vector3(0, size.y * 0.5, 1.0 + size.z * 0.5)
+		player.teleport_to(spot + Vector3(0, 0.1, 0))
+		player.rotation.y = PI  # facing +z, at the box
+		await create_timer(0.3).timeout
+		var start := player.global_position
+		var stamina := player.stamina
+		Input.action_press("move_forward")
+		Input.action_press("jump")
+		await physics_frame
+		await physics_frame
+		Input.action_release("jump")
+		var vaulted := player.is_vaulting()
+		_check(not player.hands_free() or not vaulted, "no shooting mid-vault (%.1fm)" % case[0])
+		await create_timer(1.0).timeout
+		Input.action_release("move_forward")
+		var pos := player.global_position
+		var far_side := box.global_position.z + size.z * 0.5
+		match case[2]:
+			"over":
+				_check(vaulted and pos.z > far_side and pos.y < 0.3,
+					"vaulted over %.1fm cover (z %.2f past %.2f, y %.2f)" % [case[0], pos.z, far_side, pos.y])
+				_check(player.stamina < stamina, "vaulting costs stamina")
+			"onto":
+				_check(vaulted and pos.y > case[0] - 0.1, "climbed onto %.1fm ledge (y %.2f)" % [case[0], pos.y])
+			"none":
+				_check(not vaulted and pos.z < box.global_position.z, "no vault over %.1fm wall (z %.2f)" % [case[0], pos.z])
+		_check(not player.is_vaulting() and player.hands_free(), "vault finished (%.1fm)" % case[0])
+		box.queue_free()
+		await physics_frame
+		_check(start.distance_to(spot) < 0.5, "vault test spot is flat ground (%s)" % start)
 
 
 func _section_containers() -> void:

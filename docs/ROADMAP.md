@@ -19,7 +19,7 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    tracking after losing sight, callouts. Left over, not blocking: step 2 of the AI rebuild (patrol/investigate/search
    on the one-plan pattern), Bon's spawn chance before launch (100% while testing), difficulty tuning (accuracy and
    bursts only), and playtesting the bell tower, hunting stands, junkyard, bunker, vault and rival fights.
-4. **Movement update (owner, 2026-10-10; small):** mainly **vaulting**: vault or mantle over low cover (fences,
+4. **Movement update (owner, 2026-10-10; small; 0.13.0 vaulting done):** mainly **vaulting**: vault or mantle over low cover (fences,
    sandbags, the trench, walls) and climb onto ledges. Candidates for the owner to pick from: ladders, fall damage
    (both parked in `BACKLOG.md`), prone, crouch-walk speed tuning. (Leaning and stamina already exist.) Right after
    Scavs 2.0, so the AI's paths can use the same vaultable cover.

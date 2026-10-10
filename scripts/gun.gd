@@ -210,7 +210,7 @@ func _process(delta: float) -> void:
 	_update_reload(delta)
 	_update_model(delta)
 
-	if player.is_sprinting():
+	if player.is_sprinting() or player.is_vaulting():
 		_raise_left = maxf(_raise_left, raise_time)
 	else:
 		_raise_left = maxf(_raise_left - delta, 0.0)
