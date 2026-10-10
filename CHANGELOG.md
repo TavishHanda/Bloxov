@@ -6,6 +6,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.8 (AI shoot back from far, accuracy falls off with range, no more wall hugging; owner)
+- Owner: far-off scavs just looked at him, then went for cover, so they were easy to kill; their reaction should be a
+  lot faster, and far shots should be even less accurate, getting better as they close in. One scav hugged a building
+  for 20 seconds.
+- Shooting range: scavs 75 m (was 40), Raiders 80 (was 45), Bon 85 (was 50). In range they shoot first and take cover
+  after their first burst; only when you're out of range do they go for cover straight away.
+- Accuracy is a gradient: a scav's hit chance per bullet is 70% up close, 20% at 28 m, and drops to 5% at 75 m
+  (Raiders 8%, Bon 12% at the edge of their range).
+- An AI pressing into a wall (or sliding along it) for 1.5 s gives up on that spot and picks another.
+
 ## 0.12.7 (AI notice you on hills, patrol near cover, move up cover to cover; owner)
 - Owner: from a hill he shot lots of scavs that never noticed him, and scavs shot at from far away went into cover,
   then just walked at him in the open.

@@ -2244,7 +2244,7 @@ func _section_teamwork() -> void:
 	far_away.queue_free()
 	buddy.queue_free()
 	# Spotted from 25 m: it goes for cover first (if there's any) instead of standing in the open.
-	_check(caller.cover_at_range < 25.0, "it heads for cover when the fight starts from far off (past %.0f m)" % caller.cover_at_range)
+	_check(caller.shoot_range >= 75.0, "it shoots back from far off (up to %.0f m) before heading for cover" % caller.shoot_range)
 	caller.queue_free()
 	await physics_frame
 	# You heal (or reload): it pushes in on you instead of strafing.
@@ -2309,6 +2309,20 @@ func _section_teamwork() -> void:
 	_check(covered >= 16, "patrol stops are next to cover or loot (%d of 20)" % covered)
 	listener.queue_free()
 	await physics_frame
+	# 0.12.8 (owner): accuracy is a gradient, worse the farther you are, very poor at the edge of its range.
+	var aim := load(SCAV_SCENE).instantiate() as Scav
+	_check(aim.hit_chance(5.0) > aim.hit_chance(25.0) and aim.hit_chance(25.0) > aim.hit_chance(50.0)
+		and aim.hit_chance(50.0) > aim.hit_chance(75.0) and aim.hit_chance(75.0) <= 0.06,
+		"accuracy drops with range: %.2f at 5 m, %.2f at 25, %.2f at 50, %.2f at 75" % [aim.hit_chance(5.0), aim.hit_chance(25.0), aim.hit_chance(50.0), aim.hit_chance(75.0)])
+	aim.free()
+	# Pressed against a wall going nowhere: it gives up on that spot instead of hugging the wall.
+	var hugger := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
+	await physics_frame
+	hugger._cover_phase = Scav.Cover.MOVING
+	for i in 60 * 2:
+		hugger._check_stuck(1.0 / 60.0, Vector3(3, 0, 0))   # wants to move, doesn't
+	_check(hugger._cover_phase == Scav.Cover.NONE, "an AI stuck against a wall gives up on where it was going")
+	hugger.queue_free()
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
 	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav
