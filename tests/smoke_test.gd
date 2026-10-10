@@ -742,6 +742,9 @@ func _section_extract() -> void:
 			open_count += 1
 			open_zone = zone
 	_check(open_count == raid.open_extract_count, "%d of 3 extracts are open" % open_count)
+	# Near your spawn = closed for you (0.10.3); a small map fills in with the farthest ones.
+	var picked := Raid.pick_open(raid.get_extracts(), player.global_position, 2)
+	_check(picked.size() == 2, "two extracts open even when they're all near the spawn (test map)")
 	player.teleport_to(open_zone.global_position + Vector3(0, 0.2, 0))
 	await create_timer(open_zone.extract_time + 1.0).timeout
 	_check(raid.result == "extracted" and raid.extract_used == open_zone.extract_name, "standing in an open extract extracts (%s)" % raid.result)
@@ -1463,8 +1466,16 @@ func _section_old_bloxov() -> void:
 	# replace the test map's when a raid scene is made. Checked on a server raid copy (its own world).
 	const MAP := "res://scenes/maps/old_bloxov.tscn"
 	var map := (load(MAP) as PackedScene).instantiate()
-	_check(map.get_node("Extracts").get_child_count() == 3 and map.get_node("PlayerSpawns").get_child_count() == 8,
-		"Old Bloxov: 3 extracts and 8 player spawns")
+	_check(map.get_node("Extracts").get_child_count() == 6 and map.get_node("PlayerSpawns").get_child_count() == 8,
+		"Old Bloxov: 6 extracts and 8 player spawns")
+	# Extracts near your spawn are closed for you (owner, 0.10.3): every spawn still has enough far ones to open.
+	var short := []
+	for spawn: Node3D in map.get_node("PlayerSpawns").get_children():
+		var far := map.get_node("Extracts").get_children().filter(func(e: Node3D) -> bool:
+			return Vector2(e.position.x - spawn.position.x, e.position.z - spawn.position.z).length() >= Raid.CLOSED_NEAR_SPAWN)
+		if far.size() < 3:
+			short.append(spawn.name)
+	_check(short.is_empty(), "every spawn has 3+ extracts far enough away to be open for it (%s)" % [short])
 	_check(map.has_node("KeyDoors/BunkerDoor") and map.has_node("KeyDoors/BankVaultDoor"),
 		"key door placeholders at the bunker and the bank vault (owner: keys come in the Items update)")
 	var minimap: Dictionary = map.get_meta("minimap", {})
