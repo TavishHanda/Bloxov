@@ -5,6 +5,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.2 (spawns spread evenly; Map & Spawn follow-up, owner)
+- **Player spawns moved** (owner: some pairs felt close enough to see each other): one now in the top-left corner,
+  and the rest re-spread evenly, 3 across the top (top-left corner, north of the church, the farm), 3 across the
+  middle (west field, north of the railway, east woods edge) and 2 across the bottom (the creek, bottom right).
+  The closest two are now 139 m apart (before: 108 m). Each still has 4+ extracts far enough away to open
+
 ## 0.11.1 (spawns spread out, O extract list back; Map & Spawn follow-up, owner)
 - **Player spawns spread out** (owner: not all on the edge): west field, the creek (bottom left), south of the
   railway, bottom middle, the east edge, east of the train station, the farm, and between the town and the farm.

@@ -825,11 +825,11 @@ def main():
     extracts.extend([("FarmRoad", "Farm Road", 240, 6), ("Highway", "Highway", 342, 304),
                      ("CreekTrail", "Creek Trail", 10, 338), ("TownRoad", "Town Road", 6, 82),
                      ("MillLane", "Mill Lane", 138, 6), ("SouthRoad", "South Road", 160, 344)])
-    # Player spawns (0.11.1, owner: spread out, not all on the edge): quiet spots away from the hot spots, room for
-    # a duo. West field, bottom-left creek, south of the railway, bottom middle, east edge, east of the station,
-    # the farm, between the town and the farm.
-    for n, (x, z) in enumerate([(14, 196), (60, 344), (128, 240), (230, 300), (344, 214), (250, 165), (330, 12),
-                                (195, 75)]):
+    # Player spawns (0.11.2, owner: spread out evenly, one in the top left, no two close enough to see each other):
+    # 3 across the top, 3 across the middle, 2 across the bottom, 139+ m apart. Top-left corner, north of the
+    # church, the farm, west field, north of the railway, east woods edge, the creek, bottom right.
+    for n, (x, z) in enumerate([(14, 14), (204, 18), (336, 14), (14, 190), (160, 195), (344, 180), (70, 344),
+                                (270, 342)]):
         player_spawns.append((f"Spawn{n}", x, z))
         assert all(math.hypot(x - tx, z - tz) > 3.0 for tx, tz in trunks), f"Spawn{n} is in the trees"
         assert not any(x0 - 3 < x < x1 + 3 and z0 - 3 < z < z1 + 3 for _, x0, z0, x1, z1 in footprints), f"Spawn{n}"
