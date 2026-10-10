@@ -5,6 +5,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.12 (F no longer reopens the loot screen it just closed)
+- Fix: pressing F to close a body's or crate's loot screen sometimes reopened it right away (the same F press
+  closed the screen and then counted as a new interact). F now has to be let go before it can open a container again
+
 ## 0.11.11 (Raiders can drop their AK; owner)
 - **Raiders sometimes drop their AK** (owner): a 30% chance a Raider's body bag holds an AK Rifle on top of its
   usual loot (empty mag, like any found gun). Scavs don't drop guns this way. Works online too (the server rolls

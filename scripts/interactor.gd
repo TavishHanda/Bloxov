@@ -27,6 +27,9 @@ var revive_progress := 0.0
 var _reviving_peer := 0
 ## After a revive, F has to be let go before the next one starts.
 var _needs_release := false
+## After a loot screen closes, F has to be let go before it can open one again
+## (the F press that closed it would otherwise reopen it in the same frame).
+var _open_needs_release := false
 
 
 func is_reviving() -> bool:
@@ -35,6 +38,8 @@ func is_reviving() -> bool:
 
 func _physics_process(delta: float) -> void:
 	target = null
+	if blocked or not Input.is_action_pressed("interact"):
+		_open_needs_release = blocked
 	var able := not blocked and not player.out_of_fight() and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	revive_target = find_revive_target() if able and not player.is_healing() else null
 	update_revive(delta, able and Input.is_action_pressed("interact"))
@@ -42,7 +47,7 @@ func _physics_process(delta: float) -> void:
 		progress = 0.0
 		return
 	target = _find_target()
-	if target == null or not Input.is_action_pressed("interact"):
+	if target == null or not Input.is_action_pressed("interact") or _open_needs_release:
 		progress = 0.0
 		return
 
