@@ -1432,7 +1432,8 @@ func _pick_patrol_point() -> Vector3:
 	for attempt in 8:
 		var spot: Vector3
 		_patrol_container = null
-		if not spots.is_empty() and randf() < 0.65:
+		# (Mostly loot spots, which are inside buildings: 0.12.23, owner: patrols go through buildings.)
+		if not spots.is_empty() and randf() < 0.8:
 			_patrol_container = spots.pick_random() as Node3D
 			# Walk up next to it (the closest walkable point to the container).
 			spot = AINav.closest(self, _patrol_container.global_position)

@@ -2152,6 +2152,18 @@ func _section_zones() -> void:
 		spawner.tick(1.0)
 	_check(in_zone.call(hot).size() >= 7 and in_zone.call(quiet).size() == 1 and spawner.raiders_spawned == 2,
 		"later arrivals (scavs and the 0:30 Raider) all go to the hot zone (hot %d, quiet %d)" % [in_zone.call(hot).size(), in_zone.call(quiet).size()])
+	# 0.12.23 (owner): a zone's AI start inside its buildings about half the time (indoor_chance).
+	var indoor := Marker3D.new()
+	indoor.position = quiet.center + Vector3(0, 0, 8)
+	indoor.set_meta("zone", quiet.name)
+	indoor.set_meta("indoor", true)
+	spawner.add_child(indoor)
+	var landed := func(chance: float) -> bool:
+		spawner.indoor_chance = chance
+		spawner._spawn(spawner.enemy_scene, quiet, false)
+		var newest := get_nodes_in_group("enemies").back() as Scav
+		return newest.global_position.distance_to(indoor.global_position) < 3.0
+	_check(landed.call(1.0) and not landed.call(0.0), "a zone's AI can start inside a building (or outside)")
 	for enemy in get_nodes_in_group("enemies"):
 		enemy.remove_from_group("enemies")
 		enemy.queue_free()
