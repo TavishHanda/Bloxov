@@ -598,6 +598,22 @@ func _section_loot_ui() -> void:
 	_check(gun.weapon == inv.equipped("primary"), "still holding the AK")
 	loot_ui.close()
 	expected_value = inv.total_value()
+	# Pressing F to close the loot screen doesn't reopen it (F has to be let go first).
+	var it := player.interactor
+	loot_ui.open_for(null)
+	await physics_frame
+	var f_down := InputEventAction.new()
+	f_down.action = "interact"
+	f_down.pressed = true
+	Input.action_press("interact")
+	main.get_node("HUD")._input(f_down)  # the HUD closes the screen on the F press
+	await physics_frame
+	await physics_frame
+	_check(not loot_ui.visible and not it.blocked, "F closes the loot screen")
+	_check(it._open_needs_release, "holding the F that closed it can't open a container again")
+	Input.action_release("interact")
+	await physics_frame
+	_check(not it._open_needs_release, "after letting go of F, F opens containers again")
 
 
 func _section_dropped_gun() -> void:
