@@ -68,6 +68,7 @@ COLOURS = [
     ("rust", (0.5, 0.33, 0.22)),
     ("wall_modern", (0.82, 0.84, 0.86)),
     ("brand", (0.2, 0.55, 0.45)),
+    ("scorch", (0.22, 0.2, 0.19)),
 ]
 C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
@@ -139,13 +140,16 @@ class Building:
     windows in every outside room wall, ramps (stairs) between storeys, optional flat roof you can walk on."""
 
     def __init__(self, name, x, y, w, d, floors=1, colour="wall", rooms=(2, 2), doors="S", roof=False,
-                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False):
+                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=()):
         self.name, self.x0, self.z0, self.x1, self.z1 = name, x, y, x + w, y + d
         self.floors, self.colour, self.nx, self.nz = floors, colour, rooms[0], rooms[1]
         self.doors, self.roof, self.h = doors, roof, height
         self.solid_inner = set(solid_inner)   # interior wall segments with no doorway: ("v"|"h", i, j)
         self.no_windows = set(no_windows)     # rooms (i, j) whose outside walls get no windows
         self.big_doors = big_doors
+        # War damage (owner, 0.11.6): blasts = blown-out holes in outside walls, (floor, side, k) with k the room
+        # along that wall; caved = rooms (i, j) whose roof fell in. Rubble and scorch marks come with them.
+        self.blasts, self.caved = set(blasts), set(caved)
         self.holes = {}   # storey -> (x0, z0, x1, z1) slab hole above a ramp
         self.cw = (self.x1 - self.x0) / self.nx
         self.cd = (self.z1 - self.z0) / self.nz
@@ -197,7 +201,12 @@ class Building:
                 a0, a1 = (self.x0 + k * self.cw, self.x0 + (k + 1) * self.cw) if horizontal else \
                          (self.z0 + k * self.cd, self.z0 + (k + 1) * self.cd)
                 mid = (a0 + a1) / 2
-                if f == 0 and side in self.doors and k == n // 2:
+                if (f, side, k) in self.blasts:
+                    assert not (f == 0 and side in self.doors and k == n // 2), f"{self.name}: blast on the door"
+                    assert not self._ramp_blocks(f, side, cell), f"{self.name}: blast behind the stairs"
+                    w = min(3.4, a1 - a0 - 0.6)
+                    openings.append((mid, w, 0.0 if f == 0 else 0.5, self.h if f == self.floors - 1 else self.h - 0.6))
+                elif f == 0 and side in self.doors and k == n // 2:
                     if self.big_doors:
                         openings.append((mid, min(4.0, a1 - a0 - 1.0), 0.0, 4.0))
                     else:
@@ -278,15 +287,69 @@ class Building:
         y = f * self.h
         x0, z0, x1, z1 = self.x0, self.z0, self.x1, self.z1
         colour = "roof" if f == self.floors else "slab"
-        hole = self.holes.get(f)
-        if hole is None:
-            box(x0, y - SLAB_T, z0, x1, y, z1, colour)
-            return
-        hx0, hz0, hx1, hz1 = hole
-        box(x0, y - SLAB_T, z0, x1, y, hz0, colour)
-        box(x0, y - SLAB_T, hz1, x1, y, z1, colour)
-        box(x0, y - SLAB_T, hz0, hx0, y, hz1, colour)
-        box(hx1, y - SLAB_T, hz0, x1, y, hz1, colour)
+        holes = [self.holes[f]] if f in self.holes else []
+        if f == self.floors:
+            for i, j in self.caved:
+                c = self.cell(i, j)
+                assert not any(c[0] < sx1 and sx0 < c[2] and c[1] < sz1 and sz0 < c[3] for sx0, sx1, sz0, sz1 in self.strips), \
+                    f"{self.name}: caved roof over the stairs"
+                holes.append(c)
+        # the slab minus its holes, cut into rectangles along the holes' edges
+        xs = sorted({x0, x1} | {h[0] for h in holes} | {h[2] for h in holes})
+        zs = sorted({z0, z1} | {h[1] for h in holes} | {h[3] for h in holes})
+        for a in range(len(xs) - 1):
+            for b in range(len(zs) - 1):
+                cx, cz = (xs[a] + xs[a + 1]) / 2, (zs[b] + zs[b + 1]) / 2
+                if not any(h[0] < cx < h[2] and h[1] < cz < h[3] for h in holes):
+                    box(xs[a], y - SLAB_T, zs[b], xs[a + 1], y, zs[b + 1], colour)
+
+    def damage_debris(self, rng):
+        """Rubble and scorch marks for the blasts and caved roofs (looks only inside, so nothing blocks a room)."""
+        for f, side, k in sorted(self.blasts):
+            y = f * self.h
+            horizontal = side in "NS"
+            if horizontal:
+                mid = self.x0 + (k + 0.5) * self.cw
+                wz = self.z0 if side == "N" else self.z1
+                out = -1 if side == "N" else 1
+                at = lambda along, off: (mid + along, wz + out * off)
+                face = lambda along, yy, w, hh: obox(mid + along, yy, wz + out * (WALL_T / 2 + 0.03), w, hh, 0.04, 0,
+                                                     "scorch", solid=False)
+            else:
+                mid = self.z0 + (k + 0.5) * self.cd
+                wx = self.x0 if side == "W" else self.x1
+                out = -1 if side == "W" else 1
+                at = lambda along, off: (wx + out * off, mid + along)
+                face = lambda along, yy, w, hh: obox(wx + out * (WALL_T / 2 + 0.03), yy, mid + along, 0.04, hh, w, 0,
+                                                     "scorch", solid=False)
+            # scorch round the hole (not over it), and jagged bits of wall hanging into it
+            hw = min(3.4, (self.cw if horizontal else self.cd) - 0.6) / 2
+            for sgn in (-1, 1):
+                face(sgn * (hw + 0.6), y + self.h * 0.45, 1.2, self.h * 0.8)
+                jx, jz = at(sgn * (hw - 0.3), 0)
+                jh = rng.uniform(0.25, 0.5) * self.h
+                obox(jx, y + self.h - jh / 2, jz, 0.6 if horizontal else WALL_T, jh, WALL_T if horizontal else 0.6, 0,
+                     self.colour)
+            if f < self.floors - 1:
+                face(0, y + self.h - 0.35, 2 * hw, 0.6)
+            for _ in range(rng.randint(5, 8)):   # chunks blown out onto the ground
+                px, pz = at(rng.uniform(-3, 3), rng.uniform(1.0, 4.5))
+                w, h, d = rng.uniform(0.4, 1.3), rng.uniform(0.2, 0.6), rng.uniform(0.4, 1.3)
+                obox(px, h / 2, pz, w, h, d, rng.uniform(0, 90), rng.choice((self.colour, "concrete", "scorch")), solid=False)
+            for sgn in (-1, 1):                    # a solid heap each side of the hole (cover)
+                px, pz = at(sgn * rng.uniform(2.6, 3.4), rng.uniform(1.4, 2.4))
+                obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour)
+        top = (self.floors - 1) * self.h
+        for i, j in sorted(self.caved):
+            cx0, cz0, cx1, cz1 = self.cell(i, j)
+            cx, cz = (cx0 + cx1) / 2, (cz0 + cz1) / 2
+            for _ in range(rng.randint(6, 10)):
+                w, h, d = rng.uniform(0.5, 1.6), rng.uniform(0.15, 0.5), rng.uniform(0.5, 1.6)
+                obox(cx + rng.uniform(-1.6, 1.6), top + h / 2, cz + rng.uniform(-1.6, 1.6), w, h, d, rng.uniform(0, 90),
+                     rng.choice(("roof", "slab", "wood", "scorch")), solid=False)
+            obox(cx, top + 0.9, cz, min(cx1 - cx0, cz1 - cz0) * 0.6, 0.15, 2.6, rng.uniform(0, 180), "roof",
+                 solid=False, pitch=35.0)   # a piece of the roof hanging down
+            box(cx0 + 0.3, top + 0.031, cz0 + 0.3, cx1 - 0.3, top + 0.04, cz1 - 0.3, "scorch", solid=False)
 
     def room_centre(self, i, j, floor=0):
         cx0, cz0, cx1, cz1 = self.cell(i, j)
@@ -317,6 +380,7 @@ def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset)."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
     b.build()
+    b.damage_debris(random.Random(b.name))
     for kind, i, j, floor, side, off in loot_spots:
         x, y, z, yaw = b.against_wall(i, j, floor, side, off)
         add_loot(b.name, kind, x, z, y=y, yaw=yaw)
@@ -715,24 +779,26 @@ def main():
         add_loot("Offices", kind, x, z, y=y, yaw=yaw)
     box(139.0, 2.3, 129.7, 141.0, 2.6, 130.3, "keydoor", solid=False)
     markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank"}))
-    build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E"), [
+    build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E",
+                   blasts=[(0, "W", 0)], caved=[(1, 1)]), [
         ("crate", 0, 1, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 0, 1, "N", 0),
         ("locker", 2, 1, 1, "E", 0), ("crate", 0, 0, 1, "W", 0)])
     gun = build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [
         ("locker", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0), ("crate", 1, 0, 0, "N", 0)])
     for z in (73.0, 77.0):   # display counters
         box(72.0, 0, z, 77.0, 1.0, z + 0.8, "wood")
-    build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S"), [
+    build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 1, 0, 0, "E", 0)])
     box(92.0, 0, 76.0, 96.5, 1.6, 76.8, "wood")
-    groc = build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True), [
+    groc = build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True,
+                          blasts=[(0, "E", 0)]), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 1, 0, "S", -2)])
     for x in (132.0, 140.0, 148.0):  # aisles
         box(x, 0, 63.0, x + 0.9, 1.7, 68.0, "wood")
         box(x, 0, 72.0, x + 0.9, 1.7, 77.0, "wood")
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
-    build(Building("Shops", 13, 61, 29, 13, floors=2, rooms=(3, 1), doors="S"), [
+    build(Building("Shops", 13, 61, 29, 13, floors=2, rooms=(3, 1), doors="S", caved=[(2, 0)]), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
     # modern gas station on the corner of Main Street and Old Road (owner, 0.10.1; the town house was here)
     build(Building("GasStationTown", 74, 106, 13, 10, colour="wall_modern", rooms=(2, 1), doors="W"), [
@@ -826,16 +892,20 @@ def main():
                    height=3.6), [("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("locker", 1, 0, 0, "N", 0)])
     box(196, 0, 205, 246, 0.8, 207.6, "concrete")                       # platform
     build(Building("Depot", 262, 232, 30, 18, colour="wall_farm", rooms=(1, 1), doors="WE", height=7.0,
-                   big_doors=True), [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
+                   big_doors=True, blasts=[(0, "N", 0)]), [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
     for x0, z0 in ((145, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
         box(x0, 0, z0 - 1.5, x0 + 11, 3.6, z0 + 1.5, "boxcar")
     add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
 
     # ===================================================================== BOTTOM RIGHT: old houses, gas station
+    # war damage (owner, 0.11.6): most houses down here are shot up; OldHouse6 stays whole (spawn 5's cover)
+    damage = {1: dict(blasts=[(0, "S", 1), (1, "E", 1)], caved=[(1, 1)]), 3: dict(blasts=[(0, "E", 0)], caved=[(0, 1)]),
+              7: dict(blasts=[(1, "S", 0)], caved=[(0, 1)]), 8: dict(blasts=[(0, "S", 0)], caved=[(1, 1)])}
     for n, (x, y) in [(1, (196, 264)), (3, (316, 238)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
-        build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W"),
+        build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
+                       **damage.get(n, {})),
               [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
-    build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S"), [
+    build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
         ("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0)])
     for x in (296.5, 329.5):  # canopy over the pumps
         for z in (336.0, 341.5):
@@ -843,7 +913,8 @@ def main():
     box(296, 4.5, 335.5, 330.5, 4.9, 342.5, "wall_fuel")
     for x in (302, 310, 318):
         box(x, 0, 338.2, x + 1.2, 1.6, 339.4, "metal")
-    build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W"), [("crate", 1, 0, 0, "E", 0)])
+    build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W",
+                   blasts=[(0, "N", 1)], caved=[(0, 0)]), [("crate", 1, 0, 0, "E", 0)])
     build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True),
           [("crate", 0, 0, 0, "E", 0)])
     car(286, 300, 70, "car_b"); car(244, 268, 40, "car_a")

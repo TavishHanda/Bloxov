@@ -5,6 +5,17 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.6 (war-damaged buildings; Map & Spawn follow-up, owner)
+- **Buildings are shot up** (owner: houses and the town should look war torn too, especially the bottom right):
+  blown-out holes in outside walls (scorched round the edges, chunks of wall hanging into them, rubble blown out
+  onto the ground with a solid heap each side for cover) and caved-in roofs (rubble on the floor below, a piece of
+  roof hanging down). Bottom right: OldHouse1, 3, 7 and 8, the Diner, the old gas station and the depot.
+  Town: the Offices, Pharmacy and Grocery (blown walls) and the Shops (caved roof). OldHouse6 stays whole (it's spawn
+  5's cover); the bank, police, town hall and gun store are untouched
+- Blast holes are new ways in and out. Rubble inside rooms is looks only, so nothing blocks a doorway or loot
+- `tools/gen_old_bloxov.py`: `Building(blasts=..., caved=...)`; the generator refuses a blast on a door or behind
+  stairs, and a caved roof over stairs. Real models come later (owner)
+
 ## 0.11.5 (store rules: player names filtered; owner)
 - **Bloxov now follows the App Store and Google Play rules** (owner: the game will go on phones too). The rules
   that matter are written down in `docs/STORE_RULES.md`, and every change from now on gets checked against them.
