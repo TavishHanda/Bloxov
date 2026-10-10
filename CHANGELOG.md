@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.7 (trees in the open; Map & Spawn follow-up, owner)
+- **More trees in the empty areas** (owner): about 55 lone trees and little clumps of 2-3 (some with a bush)
+  scattered over the open grass, clear of the junk spots, roads, buildings, spawns and extracts. They show on the
+  M map as small tree patches
+- Junk and trees now also stay off flat ground patches (the farm field, car parks, the sports field), so a few
+  junk spots moved
+- `tools/gen_old_bloxov.py`: `scatter_trees()` (fixed seed)
+
 ## 0.11.6 (war-damaged buildings; Map & Spawn follow-up, owner)
 - **Buildings are shot up** (owner: houses and the town should look war torn too, especially the bottom right):
   blown-out holes in outside walls (scorched round the edges, chunks of wall hanging into them, rubble blown out
