@@ -160,13 +160,6 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Scavs and Raiders are rivals (0.12.17, owner): they ignore each other, but never answer the other side's calls
 ## for help, warn it or team up with it. raider.tscn and boss.tscn are "raider".
 @export var faction := &"scav"
-## At the contested spot (the spawner sets this for its zone's AI): while it hasn't spotted a player it trades fire
-## with the other side there. Those shots always miss and hurt no one, so the spot stays held all raid.
-var skirmish := false
-## How far it looks for someone of the other side to shoot at, and the pause between its bursts there.
-@export var skirmish_range := 60.0
-@export var skirmish_pause_min := 2.0
-@export var skirmish_pause_max := 6.0
 
 @export_group("Voice")
 ## Callouts: how deep its voice is (Raiders and Bon lower) and at most one callout per this many seconds.
@@ -313,14 +306,6 @@ var home_radius := 0.0
 ## Duo partner or boss guard: who it follows around while patrolling (null = it leads itself), and where it
 ## walks relative to them (right/back in their facing).
 var leader: Scav = null
-## Contested spot: who it's trading fire with, where it hides from them and where it steps out to shoot.
-var _rival: Scav = null
-var _rival_check_left := 0.0
-var _sk_post := Vector3.INF
-var _sk_peek := Vector3.INF
-var _sk_hiding := false
-var _sk_wait := 0.0
-var _sk_shots := 0
 var follow_offset := Vector3(2.0, 0.0, 1.5)
 ## > 0 while winding up a bash.
 var _windup_left := 0.0
@@ -441,12 +426,7 @@ func _physics_process(delta: float) -> void:
 	var desired := Vector3.ZERO
 	match state:
 		State.IDLE:
-			if holds_position:
-				desired = _scan(delta)
-			elif skirmish and _home_return_left <= 0.0:
-				desired = _skirmish(delta)
-			else:
-				desired = _wander(delta)
+			desired = _scan(delta) if holds_position else _wander(delta)
 			if _home_return_left <= 0.0 and _spotting(delta, to_target, dist, spot_suspicious_mult if _wary_left > 0.0 else 1.0):
 				_alert(_target.global_position)
 		State.INVESTIGATE:
@@ -588,7 +568,6 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 		_cover_cooldown_left = cover_cooldown
 		_heal_after_move = false
 	elif state == State.IDLE:
-		_rival = null
 		_wander_dir = Vector3.ZERO
 		_wander_time = 0.0
 	elif state == State.INVESTIGATE:
@@ -827,87 +806,6 @@ func _hold_alert(pos: Vector3) -> void:
 		look_at(Vector3(pos.x, global_position.y, pos.z), Vector3.UP)
 
 
-## The contested spot (0.12.17, owner): someone of the other side in sight: duck behind something, then step back
-## out to where it saw them from and fire a burst their way, again and again. Every shot misses (_fire_wide_of).
-## Nobody in sight: patrol as usual.
-func _skirmish(delta: float) -> Vector3:
-	_rival_check_left -= delta
-	if _rival_check_left <= 0.0:
-		_rival_check_left = 1.0
-		if not _rival_ok(_rival):
-			_rival = _pick_rival()
-			if _rival != null:
-				_sk_peek = global_position
-				_sk_post = _find_cover(_rival.global_position + Vector3(0, 1.65, 0))
-				_sk_hiding = false
-				_sk_shots = 0
-				_sk_wait = randf_range(0.3, 1.0)
-	if _rival == null:
-		return _wander(delta)
-	var to_rival := _flat(_rival.global_position - global_position)
-	var spot := _sk_post if _sk_hiding else _sk_peek
-	if spot != Vector3.INF and not _arrived(spot):
-		var move := _path_velocity(spot, move_speed * jog_speed)
-		_face(move, delta)
-		return move
-	_face(to_rival, delta, 4.0 if _sk_hiding else 10.0)
-	_sk_wait -= delta
-	if _sk_wait > 0.0:
-		return Vector3.ZERO
-	if _sk_hiding:   # back out to shoot
-		_sk_hiding = false
-		_sk_wait = randf_range(0.3, 0.8)
-		return Vector3.ZERO
-	if _sk_shots <= 0:
-		_sk_shots = _burst_length(to_rival.length())
-	_fire_wide_of(_rival)
-	_sk_shots -= 1
-	if _sk_shots > 0:
-		_sk_wait = burst_interval
-	else:   # burst done: back behind cover for a while
-		_sk_hiding = true
-		_sk_wait = randf_range(skirmish_pause_min, skirmish_pause_max)
-	return Vector3.ZERO
-
-
-## Still someone to trade fire with at the contested spot.
-func _rival_ok(rival: Scav) -> bool:
-	return (rival != null and is_instance_valid(rival) and rival.state != State.DEAD and rival.skirmish
-		and rival.faction != faction and global_position.distance_to(rival.global_position) <= skirmish_range * 1.2)
-
-
-## The closest one of the other side at the contested spot it can see, or null.
-func _pick_rival() -> Scav:
-	var space := get_world_3d().direct_space_state
-	var eyes := global_position + Vector3(0, 1.65, 0)
-	var best: Scav = null
-	var best_dist := skirmish_range
-	for node in RaidScope.nodes(self, &"enemies"):
-		var other := node as Scav
-		if not _rival_ok(other):
-			continue
-		var d := global_position.distance_to(other.global_position)
-		if d < best_dist and space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, other.global_position + Vector3(0, 1.4, 0), 1)).is_empty():
-			best = other
-			best_dist = d
-	return best
-
-
-## A shot toward `rival` that always goes wide (and can't hit anyone: it only stops at the world).
-func _fire_wide_of(rival: Scav) -> void:
-	var from := global_position + Vector3(0, 1.65, 0)
-	var miss := Vector3(randf_range(-1.0, 1.0), randf_range(-0.3, 1.0), randf_range(-1.0, 1.0)).normalized() * randf_range(1.2, 2.5)
-	var aim := rival.global_position + Vector3(0, 1.2, 0) + miss
-	var to := from + (aim - from).normalized() * (shoot_range + 20.0)
-	var result := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()]))
-	var end := to
-	if not result.is_empty():
-		end = result.position
-		Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
-	fired.emit(end)
-	net_fired(end)
-
-
 ## The target is reloading or healing (a moment to push).
 func _target_busy() -> bool:
 	return _target != null and is_instance_valid(_target) and (_target.is_healing() or (_target.gun != null and _target.gun.is_reloading))
@@ -1094,11 +992,9 @@ func _start_heal() -> void:
 	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1)
 
 
-## The closest walkable spot within cover_search_radius (by walking distance) the target (or whoever is looking
-## from `eyes`) can't see; INF if none.
-func _find_cover(eyes := Vector3.INF) -> Vector3:
-	if eyes == Vector3.INF:
-		eyes = _target.eye_position()
+## The closest walkable spot within cover_search_radius (by walking distance) the target can't see; INF if none.
+func _find_cover() -> Vector3:
+	var eyes := _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
 	var best_walk := INF
@@ -1106,7 +1002,7 @@ func _find_cover(eyes := Vector3.INF) -> Vector3:
 	# First the far side of things right around it (a tree trunk, a tent, a car, a wall corner, a hillside): the
 	# circle samples below easily miss something as thin as a trunk (0.12.10, owner: one didn't hide behind the
 	# tents or trees at the camp).
-	var away := _flat(global_position - eyes).normalized()
+	var away := _flat(global_position - _target.global_position).normalized()
 	var chest := global_position + Vector3(0, 1.0, 0)
 	for i in 16:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 16.0)
@@ -1309,7 +1205,6 @@ func _flat(v: Vector3) -> Vector3:
 
 func _set_state(new_state: State) -> void:
 	_hunting = false
-	_rival = null
 	if new_state != State.INVESTIGATE:
 		_answering_call = false
 		_alarmed = false

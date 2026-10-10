@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.19 (no station firefight; owner)
+- Removed 0.12.17's contested spot: scavs and Raiders no longer trade fire at the train station. The station and
+  depot are scav ground again (2 scavs); its 2 Raiders moved to the town core and the south-east (3 each).
+  Scavs and Raiders still keep to their own areas and never back each other up.
+
 ## 0.12.18 (Bon starts inside the town hall; owner)
 - Bon and his 3 guards start each raid inside the town hall (in one of four ground-floor rooms, picked at random),
   then head out on their usual patrol of the hall, the bunker and the area round it.
