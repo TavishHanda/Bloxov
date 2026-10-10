@@ -6,6 +6,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.21 (shorter pauses between AI bursts; owner)
+- AI pause less between bursts: scavs 0.75-1 s (was 1-1.8), Raiders 0.5-1 s (was 0.8-1.5), Bon 0.5-0.75 s
+  (was 0.8-1.4). Snipers unchanged.
+
 ## 0.12.20 (Bon's patrol fixed; AI spawn check; owner)
 - Bon and his guards stood still (owner, on 0.12.17): his guards crowded round him and boxed him into a corner, so
   none of them could move. Bon and his guards now walk through each other (a Raider and its partner too), and a
