@@ -148,6 +148,16 @@ func other_grid() -> GridInventory:
 	return stash
 
 
+## Every grid on the other side: a body's gear slots and pockets, a container's grid, or the stash.
+func other_grids() -> Array[GridInventory]:
+	if _has_container():
+		return container.all_grids()
+	var list: Array[GridInventory] = []
+	if stash != null:
+		list.append(stash)
+	return list
+
+
 func _other_title() -> String:
 	if _has_container():
 		return container.display_name
@@ -199,16 +209,12 @@ func _merge_target(stack: ItemStack, grid: GridInventory, cell: Vector2i) -> Ite
 
 ## Shift+click: send a stack straight to the other side (container or stash <-> your inventory).
 func quick_move(grid: GridInventory, stack: ItemStack) -> void:
-	var other := other_grid()
-	if other == null:
+	var others := other_grids()
+	if others.is_empty():
 		return
 	# Shift+clicking something in the container/stash sends it to you, and vice versa.
-	var to_player := grid == other
-	var destinations: Array[GridInventory] = []
-	if to_player:
-		destinations = inventory.grids()
-	else:
-		destinations.append(other)
+	var to_player := others.has(grid)
+	var destinations: Array[GridInventory] = inventory.grids() if to_player else others
 	# Gear goes straight into an empty equipment slot.
 	var slot := ItemDB.equip_slot(stack.id)
 	if to_player and slot != "" and inventory.equipped(slot) == null:
@@ -322,8 +328,7 @@ func _stow(stack: ItemStack, preferred: GridInventory, cell: Vector2i) -> void:
 				preferred.place(stack)
 				return
 	var candidates: Array[GridInventory] = inventory.grids()
-	if other_grid() != null:
-		candidates.append(other_grid())
+	candidates.append_array(other_grids())
 	if not _place_in_first(stack, candidates):
 		_drop_or_overflow(stack)
 
@@ -351,7 +356,7 @@ func can_drop_on_slot(slot: String) -> bool:
 
 func _after_move() -> void:
 	Effects.sound(get_tree().current_scene, PICKUP_SOUND, -10.0)
-	if _has_container() and container.remove_when_empty and container.grid.is_empty():
+	if _has_container() and container.remove_when_empty and container.is_empty():
 		container.queue_free()
 		container = null
 		_rebuild_layout.call_deferred()
@@ -490,7 +495,7 @@ func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 		_menu.add_item("Equip", MenuAction.EQUIP)
 	if stack.count > 1:
 		_menu.add_item("Split", MenuAction.SPLIT)
-	_add_drop_entry(grid == other_grid())
+	_add_drop_entry(other_grids().has(grid))
 	if sell_handler.is_valid():
 		_menu.add_item("Sell for %s" % ItemDB.money(price_handler.call(stack)), MenuAction.SELL)
 	_popup_menu()
@@ -560,13 +565,11 @@ func _on_slot_menu(action: int) -> void:
 			if not inventory.can_unequip(slot):
 				_say("Empty your backpack first")
 				return
-			if other_grid() != null and other_grid().find_spot(inventory.equipped(slot).id).is_empty():
+			var into := other_grids()
+			if not into.is_empty() and into.all(func(g: GridInventory) -> bool: return g.find_spot(inventory.equipped(slot).id).is_empty()):
 				_say("No room in %s" % _other_title())
 				return
 			var stack := inventory.unequip(slot)
-			var into: Array[GridInventory] = []
-			if other_grid() != null:
-				into.append(other_grid())
 			if not _place_in_first(stack, into):
 				_drop_or_overflow(stack)
 			_after_move()
@@ -593,7 +596,7 @@ func split_stack(grid: GridInventory, stack: ItemStack) -> bool:
 
 ## Drop on the ground, or into the open container / stash.
 func drop_stack(grid: GridInventory, stack: ItemStack) -> void:
-	if other_grid() != null and grid != other_grid():
+	if other_grid() != null and not other_grids().has(grid):
 		quick_move(grid, stack)
 		return
 	if player == null:
@@ -677,8 +680,25 @@ func _build_other_column() -> void:
 		scroll.custom_minimum_size = Vector2(other.width * CELL + 14, 480)  # (fits the hideout with its hint line under it)
 		_other_box.add_child(scroll)
 		_add_view(scroll, other)
+	elif _has_container() and not container.gear.is_empty():
+		# A body: its loadout, then its pockets (owner, 0.11.13).
+		_add_slot_view(_other_box, "primary", Vector2i(4, 2))
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 0)
+		_other_box.add_child(row)
+		_add_slot_view(row, "secondary", Vector2i(2, 2))
+		_add_slot_view(row, "armor", Vector2i(2, 2))
+		_add_slot_view(_other_box, "backpack", Vector2i(2, 2))
+		_other_box.add_child(_section("Pockets"))
+		_add_view(_other_box, other)
 	else:
 		_add_view(_other_box, other)
+
+
+func _add_slot_view(box: Container, slot: String, cells: Vector2i) -> void:
+	var view := SlotGridView.new(container.gear[slot], self, cells)
+	box.add_child(view)
+	_views.append(view)
 
 
 ## Left column: your character and the equipment slots.

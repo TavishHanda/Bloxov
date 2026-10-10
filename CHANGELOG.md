@@ -5,6 +5,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.13 (loot a body's loadout; owner)
+- **Bodies show their loadout** (owner): scav, Raider and dead-player bodies open with Primary, Secondary, Armor
+  and Backpack slots, plus their Pockets for everything else. Loot the slots like your own: drag a body's gun onto
+  your Primary (yours swaps into its slot), Shift+click a body's pistol straight into your empty Secondary, or put
+  gear back. A Raider's dropped AK sits in its Primary slot. Each slot takes one item of its kind
+- Works online: the server sends and checks the slots with the rest of the body (old crates and dropped-item bags
+  are unchanged)
+
 ## 0.11.12 (F no longer reopens the loot screen it just closed)
 - Fix: pressing F to close a body's or crate's loot screen sometimes reopened it right away (the same F press
   closed the screen and then counted as a new interact). F now has to be let go before it can open a container again

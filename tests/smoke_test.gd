@@ -598,6 +598,40 @@ func _section_loot_ui() -> void:
 	_check(gun.weapon == inv.equipped("primary"), "still holding the AK")
 	loot_ui.close()
 	expected_value = inv.total_value()
+	# Bodies (owner, 0.11.13): their loadout shows as gear slots you can loot like your own.
+	var corpse := LootContainer.spawn_bag(main, player.global_position, "Raider Body",
+		[["ak", 1], ["armor_heavy", 1], ["pistol", 1], ["pistol", 1], ["bandage", 2]], 0.0, true)
+	_check(corpse.gear["primary"].count_of("ak") == 1 and corpse.gear["armor"].count_of("armor_heavy") == 1
+		and corpse.gear["secondary"].count_of("pistol") == 1 and corpse.grid.count_of("pistol") == 1 and corpse.grid.count_of("bandage") == 2,
+		"a body's gear goes in its slots (one per slot), the rest in its pockets")
+	_check(not corpse.gear["primary"].fits("pistol", 0, 0, false) and not corpse.gear["armor"].fits("armor_light", 0, 0, false),
+		"a body's slot only takes its kind of item, one at a time")
+	loot_ui.open_for(corpse)
+	await process_frame
+	var slot_views := loot_ui._views.filter(func(v: Control) -> bool: return v is SlotGridView)
+	_check(slot_views.size() == 4, "the loot screen shows a body's 4 gear slots (%d)" % slot_views.size())
+	var body_ak: ItemStack = corpse.gear["primary"].stacks[0]
+	var my_ak := inv.equipped("primary")
+	_check(loot_ui.equip_from_grid(corpse.gear["primary"], body_ak, "primary") and inv.equipped("primary") == body_ak
+		and corpse.gear["primary"].stacks == [my_ak], "drag the body's AK onto your Primary: yours swaps into its slot")
+	_check(loot_ui.equip_from_grid(corpse.gear["primary"], my_ak, "primary") and inv.equipped("primary") == my_ak, "and back")
+	var body_pistol: ItemStack = corpse.gear["secondary"].stacks[0]
+	loot_ui.quick_move(corpse.gear["secondary"], body_pistol)
+	_check(corpse.gear["secondary"].is_empty() and inv.equipped("secondary") == body_pistol, "shift+click a body's pistol: straight into your empty Secondary slot")
+	var my_bandage := _find_stack(inv.all_stacks(), "bandage")
+	var bandages_moved := my_bandage.count
+	loot_ui.quick_move(inv.pockets if inv.pockets.stacks.has(my_bandage) else inv.backpack, my_bandage)
+	_check(corpse.gear["secondary"].is_empty() and corpse.grid.count_of("bandage") == 2 + bandages_moved, "shift+clicking a bandage into a body skips its gear slots")
+	corpse.grid.take("bandage", bandages_moved)
+	inv.add("bandage", bandages_moved)
+	loot_ui.unequip_to_inventory("secondary")
+	var my_pistol := _find_stack(inv.all_stacks(), "pistol")
+	var pistol_grid := inv.pockets if inv.pockets.stacks.has(my_pistol) else inv.backpack
+	loot_ui.quick_move(pistol_grid, my_pistol)
+	_check(corpse.gear["secondary"].stacks == [my_pistol], "shift+click a pistol into a body: it fills the empty Secondary slot first")
+	loot_ui.close()
+	corpse.queue_free()
+	expected_value = inv.total_value()
 	# Pressing F to close the loot screen doesn't reopen it (F has to be let go first).
 	var it := player.interactor
 	loot_ui.open_for(null)
@@ -1440,7 +1474,27 @@ func _section_online_loot() -> void:
 	await _until(func() -> bool: return got[c1]["bags"].values().has("Rival's Body"))
 	_check(got[c1]["bags"].values().has("Rival's Body"), "a dead player's gear becomes a body others can loot")
 	var body_id: String = got[c1]["bags"].find_key("Rival's Body")
-	_check(world.container(body_id).grid.stacks.size() == 2, "fake items don't make it into bags")
+	var rival_body := world.container(body_id)
+	_check(rival_body.gear["primary"].count_of("ak") == 1 and rival_body.grid.count_of("gold_watch") == 1
+		and rival_body.all_grids().reduce(func(n: int, g: GridInventory) -> int: return n + g.stacks.size(), 0) == 2,
+		"a dead player's AK is in their body's Primary slot, the rest in its pockets, fake items left out")
+	# Bodies online: the gear slots go with the contents, and taking the gun is seen by the next player.
+	c1.open_container(body_id)
+	await _until(func() -> bool: return got[c1]["opened"].has(body_id))
+	var body_data: Array = got[c1]["opened"][body_id]
+	_check(body_data.size() == 4 and body_data[3][0][2].size() == 1 and body_data[3][0][2][0][0] == "ak" and body_data[3][0][2][0][5] == 30,
+		"opening a body online sends its gear slots too (the AK keeps its 30 rounds)")
+	body_data[3][0] = [1, 1, []]
+	c1.update_container(body_id, body_data)
+	await _frames(4)
+	_check(rival_body.gear["primary"].is_empty() and rival_body.grid.count_of("gold_watch") == 1, "taking a body's gun online empties its Primary slot")
+	var bad_data := body_data.duplicate(true)
+	bad_data[3][2] = [1, 1, [["bandage", 1, 0, 0, false, 0]]]
+	c1.update_container(body_id, bad_data)
+	await _frames(4)
+	_check(rival_body.gear["armor"].is_empty(), "a body's armor slot only takes armor")
+	c1.close_container()
+	await _frames(2)
 
 	# A scav's body on the server: announced to everyone.
 	var scav: Node = RaidScope.nodes(world.raid, &"enemies")[0]
@@ -2144,7 +2198,7 @@ func _section_raiders() -> void:
 	for bag in get_nodes_in_group("loot_containers"):
 		if not bag in bags_before:
 			body = bag
-	_check(body != null and body.grid.stacks.any(func(stack: ItemStack) -> bool: return stack.id == "ak"), "a Raider's body bag can hold its AK")
+	_check(body != null and not body.gear.is_empty() and body.gear["primary"].count_of("ak") == 1, "a Raider's AK is in its body's Primary slot")
 	if body != null:
 		body.queue_free()
 	# The bag grows so an AK and a big backpack both fit.
