@@ -6,6 +6,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.26 (Raider and Bon close-range accuracy; owner)
+- Raiders and Bon hit 80% and 85% up close again (owner), as before 0.12.25. Their 28 m and long-range hit chances
+  stay at 0.12.25's lower numbers (Raiders 32/16%, Bon 40/20%).
+
 ## 0.12.25 (Raider and Bon accuracy; owner)
 - Raiders and Bon a bit less accurate (owner: with 0.12.21's shorter pauses they hurt about 45% more; aim for about
   15%): every hit chance x0.79. Raiders 63% up close (was 80%), 32% at 28 m (was 40%), 16% at the edge of their
