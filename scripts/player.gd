@@ -44,6 +44,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export_group("Crouch")
 ## C toggles crouch. Slower, quieter, smaller, steadier aim.
 @export var crouch_speed := 1.8
+## Wading through water (the creek, 0.11.20; owner): this fraction of the speed, and no sprinting.
+@export var wade_multiplier := 0.6
 @export var stand_height := 1.8
 @export var crouch_height := 1.2
 @export var stand_eye_height := 1.6
@@ -531,7 +533,8 @@ func _physics_process(delta: float) -> void:
 
 	# Sprint: only forward-ish, on the ground, not while healing, needs stamina. Sprinting stands you up.
 	var wants_sprint := (not out_of_fight() and on_floor and not is_healing() and not is_exhausted
-		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim() and not is_leaning())
+		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim() and not is_leaning()
+		and not BoxMap.is_wading(self))
 	if wants_sprint and is_crouching:
 		set_crouching(false)
 	_sprinting = wants_sprint and not is_crouching
@@ -580,6 +583,8 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 		speed *= landing_slowdown
 	speed *= lerpf(1.0, ads_move_multiplier, gun.aim)
 	speed *= lerpf(1.0, lean_move_multiplier, absf(lean))
+	if BoxMap.is_wading(self):
+		speed *= wade_multiplier
 	# Slower backwards and sideways.
 	var scaled := Vector2(input_dir.x * strafe_multiplier, input_dir.y * (backward_multiplier if input_dir.y > 0.0 else 1.0))
 	var local := Vector3(scaled.x, 0.0, scaled.y) * speed

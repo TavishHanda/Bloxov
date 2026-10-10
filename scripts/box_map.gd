@@ -10,8 +10,14 @@ extends StaticBody3D
 ## (`terrain_zs` rows of `terrain_xs` points; the spacing can vary), and `terrain_holes` lists the cells left open
 ## (the trench, the bunker ramp). Each cell is two triangles split from its north-west to its south-east corner (the
 ## generator puts things on the ground with the same split).
+## Water (0.11.20, the creek): `water_points` is its middle line (x, water level, z); it's drawn as a see-through
+## ribbon `water_width` wide (the banks hide its edges) and wading through it slows you down (`WADE_META`).
 
 const STRIDE := 10
+## Players and AI standing in water get this meta (how many water areas they're in); they move slower while it's set.
+const WADE_META := &"wading"
+## Wading counts from this deep (feet this far below the surface).
+const WADE_DEPTH := 0.05
 
 @export var boxes := PackedFloat32Array()
 @export var colors := PackedColorArray()
@@ -20,6 +26,9 @@ const STRIDE := 10
 @export var terrain_heights := PackedFloat32Array()
 @export var terrain_holes := PackedInt32Array()
 @export var terrain_colour := 0
+@export var water_points := PackedVector3Array()
+@export var water_width := 8.0
+@export var water_colour := 0
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
@@ -74,8 +83,13 @@ func _ready() -> void:
 		if not ground.is_empty():
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ground)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, material)
+		if water_points.size() >= 2:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _water_arrays())
+			mesh.surface_set_material(mesh.get_surface_count() - 1, _water_material())
 		mesh_node.mesh = mesh
 		add_child(mesh_node)
+	if water_points.size() >= 2:
+		add_child(_wading_area())
 	var shape := ConcavePolygonShape3D.new()
 	shape.backface_collision = true
 	shape.set_faces(faces)
@@ -133,3 +147,73 @@ func _terrain_arrays() -> Array:
 	arrays[Mesh.ARRAY_COLOR] = tints
 	arrays[Mesh.ARRAY_INDEX] = indices
 	return arrays
+
+
+## True while `body` stands in water.
+static func is_wading(body: Node) -> bool:
+	return int(body.get_meta(WADE_META, 0)) > 0
+
+
+## The water's middle line pushed out sideways (half the width each way) at point k: [left, right].
+func _water_sides(k: int, half: float) -> Array[Vector3]:
+	var a := water_points[maxi(k - 1, 0)]
+	var b := water_points[mini(k + 1, water_points.size() - 1)]
+	var along := Vector3(b.x - a.x, 0.0, b.z - a.z).normalized()
+	var side := Vector3(along.z, 0.0, -along.x) * half
+	return [water_points[k] + side, water_points[k] - side]
+
+
+## The water surface: one ribbon along the middle line (no overlapping pieces, so it's evenly see-through).
+func _water_arrays() -> Array:
+	var points := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var indices := PackedInt32Array()
+	for k in water_points.size():
+		points.append_array(_water_sides(k, water_width / 2.0))
+		normals.append_array([Vector3.UP, Vector3.UP])
+		if k > 0:
+			var a := (k - 1) * 2
+			indices.append_array([a, a + 2, a + 1, a + 1, a + 2, a + 3])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = points
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	return arrays
+
+
+func _water_material() -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	var colour := colors[water_colour] if water_colour < colors.size() else Color.MAGENTA
+	material.albedo_color = Color(colour.darkened(0.2), 0.82)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.roughness = 0.2
+	material.metallic_specular = 0.5
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return material
+
+
+## An area along the water (a box per stretch, from the bed up to just under the surface) that marks players and AI
+## in it as wading.
+func _wading_area() -> Area3D:
+	var area := Area3D.new()
+	area.name = "Water"
+	area.collision_layer = 0
+	area.collision_mask = 2 | 4   # players, enemies
+	area.monitorable = false
+	for k in water_points.size() - 1:
+		var a := water_points[k]
+		var b := water_points[k + 1]
+		var length := Vector2(b.x - a.x, b.z - a.z).length()
+		var top := minf(a.y, b.y) - WADE_DEPTH
+		var shape := BoxShape3D.new()
+		# only as wide as the water really is (the ribbon is wider, its edges under the banks)
+		shape.size = Vector3(water_width * 0.6, 2.0, length + 0.5)
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.position = Vector3((a.x + b.x) / 2.0, top - 1.0, (a.z + b.z) / 2.0)
+		collider.rotation.y = atan2(b.x - a.x, b.z - a.z)
+		area.add_child(collider)
+	area.body_entered.connect(func(body: Node) -> void: body.set_meta(WADE_META, int(body.get_meta(WADE_META, 0)) + 1))
+	area.body_exited.connect(func(body: Node) -> void: body.set_meta(WADE_META, maxi(int(body.get_meta(WADE_META, 0)) - 1, 0)))
+	return area

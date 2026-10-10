@@ -393,6 +393,17 @@ func _section_movement() -> void:
 	_check(not player.is_sprinting() and player.horizontal_speed() < player.walk_speed, "can't sprint backwards (%.2f)" % player.horizontal_speed())
 	Input.action_release("move_back")
 	Input.action_release("sprint")
+	# Wading (0.11.20, owner): in water you're slower and can't sprint.
+	player.set_meta(BoxMap.WADE_META, 1)
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	await create_timer(1.0).timeout
+	_check(not player.is_sprinting() and absf(player.horizontal_speed() - player.walk_speed * player.wade_multiplier) < 0.3,
+		"wading: no sprint, %.1f m/s (got %.2f)" % [player.walk_speed * player.wade_multiplier, player.horizontal_speed()])
+	Input.action_release("move_forward")
+	Input.action_release("sprint")
+	player.remove_meta(BoxMap.WADE_META)
+	await create_timer(0.8).timeout
 	await create_timer(0.8).timeout
 
 
@@ -1638,6 +1649,23 @@ func _section_old_bloxov() -> void:
 		if hit.is_empty() or absf(hit.position.y - spot.y) > 0.3:
 			off_ground.append(spot)
 	_check(off_ground.is_empty(), "spawns and extracts stand on the ground (%s)" % [off_ground])
+	# The creek (0.11.20): real water in a dug channel (the bed under the surface), the AI can walk into it, and
+	# anyone in it is wading (slower, owner).
+	var water := blocks.water_points
+	var mid := blocks.global_transform * water[water.size() / 2]
+	var bed: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(mid + Vector3.UP * 3.0, mid + Vector3.DOWN * 3.0, 1))
+	_check(water.size() > 20 and blocks.has_node("Water") and not bed.is_empty() and mid.y - bed.position.y > 0.4,
+		"the creek is water over a dug bed (%.2f m deep)" % (mid.y - bed.position.y if not bed.is_empty() else 0.0))
+	query.target_position = bed.get("position", mid)
+	var to_creek := NavigationPathQueryResult3D.new()
+	NavigationServer3D.query_path(query, to_creek)
+	_check(not to_creek.path.is_empty() and to_creek.path[to_creek.path.size() - 1].distance_to(bed.get("position", mid)) < 1.5,
+		"the AI can walk into the creek")
+	var wader: Node3D = RaidScope.nodes(world.raid, &"enemies")[0]
+	wader.global_position = bed.get("position", mid) + Vector3.UP * 0.1
+	for i in 4:
+		await physics_frame
+	_check(BoxMap.is_wading(wader), "an AI standing in the creek is wading")
 	for enemy_node in RaidScope.nodes(world.raid, &"enemies"):
 		enemy_node.queue_free()
 	world.queue_free()

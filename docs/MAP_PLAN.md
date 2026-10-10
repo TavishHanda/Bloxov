@@ -29,6 +29,10 @@ spots are eased to about 23 degrees. To move a hill, edit `HILLS` and re-run the
 script is lifted onto the ground automatically (`anchors`: groups move together, road/fence pieces tilt). The M map
 shades the hills (`relief` in the minimap data).
 
+The creek (0.11.20, owner) is real water: a channel dug into its valley floor (`CREEK_DEPTH`, `CREEK_BED`,
+`CREEK_BANK`) with a see-through water surface `WATER_DROP` below the banks (about 0.55 m deep in the middle).
+`BoxMap` draws it from `water_points` and adds a `Water` area: anyone in it is wading (60% speed, no sprint).
+
 ## Loot by place (owner)
 | Place | Loot |
 |---|---|

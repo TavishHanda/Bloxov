@@ -6,6 +6,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.11.20 (real water in the creek; owner)
+- **The creek is water now, not a blue path** (owner: "the water is not water at all its just a blue path"). It
+  runs in a channel dug into the bottom of its valley, about half a metre deep in the middle, with a see-through
+  water surface below the banks: you can see the bed through it, and the banks hide its edges
+- **Wading slows you down** (owner's pick): in the water players and AI move at 60% speed, and you can't sprint.
+  It doesn't hide you and bullets go through it
+- The AI walks into and across the creek as before (its paths go through the channel)
+
 ## 0.11.19 (scavs shoot over hills, not into them; owner)
 - Fix: a scav that could see you over a hill crest shot into the ground in front of it (owner). Its eyes saw
   your head, but its shots left from chest height and hit the hill. Now it shoots from its eyes at whatever part
