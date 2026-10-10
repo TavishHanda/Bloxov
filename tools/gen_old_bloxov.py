@@ -11,6 +11,8 @@ Everything solid is a box (see scripts/box_map.gd). Loot containers, extracts an
 Spawn points, extracts and loot spots are placeholders (owner: Scavs 2.0 and the Items update rework them).
 """
 
+import bisect
+import contextlib
 import math
 import os
 import random
@@ -75,6 +77,28 @@ COLOURS = [
 C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
 boxes = []  # (cx, cy, cz, sx, sy, sz, yaw, pitch, colour, solid) in Godot space
+# What each box sits on (0.11.17, hills): None = the ground under it (or the flat pad it stands on), ("g", n) = a
+# group that moves as one (a car, a tree), ("seg", ...) = a piece of a strip that tilts with the ground (roads,
+# fences), ("wire", ...) = a power line between two poles, "ground" = the old flat ground (only kept for the clutter
+# placement, then dropped). Boxes are built flat at height 0 first; `terrain()` lifts them onto the hills.
+anchors = []
+_anchor = [None]
+_groups = [0]
+
+
+@contextlib.contextmanager
+def anchored(a):
+    _anchor.append(a)
+    try:
+        yield
+    finally:
+        _anchor.pop()
+
+
+def group():
+    """Boxes made inside `with group():` move up or down together (the lowest any of them needs)."""
+    _groups[0] += 1
+    return anchored(("g", _groups[0]))
 
 
 def gx(mx):
@@ -91,11 +115,13 @@ def box(x0, y0, z0, x1, y1, z1, colour, solid=True):
         return
     boxes.append(((x0 + x1) / 2 - M / 2, (y0 + y1) / 2, (z0 + z1) / 2 - M / 2,
                   x1 - x0, y1 - y0, z1 - z0, 0.0, 0.0, C[colour], 1 if solid else 0))
+    anchors.append(_anchor[-1])
 
 
 def obox(cx, cy, cz, sx, sy, sz, yaw, colour, solid=True, pitch=0.0):
     """Rotated box: centre in map space, yaw in degrees (Godot convention, around +Y)."""
     boxes.append((cx - M / 2, cy, cz - M / 2, sx, sy, sz, yaw, pitch, C[colour], 1 if solid else 0))
+    anchors.append(_anchor[-1])
 
 
 # ---------------------------------------------------------------------------------------------- nodes
@@ -391,7 +417,8 @@ def build(b, loot_spots=()):
 
 # ---------------------------------------------------------------------------------------------- ground
 def ground(holes):
-    """Grass everywhere except the rectangles in `holes` (openings down to the bunker)."""
+    """The old flat grass, cut round `holes` (openings down to the bunker, the trench). Since 0.11.17 the real ground
+    is the hill mesh (`terrain()`); these boxes are only made so the clutter lands where it always has, then dropped."""
     xs = sorted({0.0, M} | {h[0] for h in holes} | {h[2] for h in holes})
     zs = sorted({0.0, M} | {h[1] for h in holes} | {h[3] for h in holes})
     for a in range(len(xs) - 1):
@@ -399,7 +426,8 @@ def ground(holes):
             cx, cz = (xs[a] + xs[a + 1]) / 2, (zs[b] + zs[b + 1]) / 2
             if any(h[0] <= cx <= h[2] and h[1] <= cz <= h[3] for h in holes):
                 continue
-            box(xs[a], -1.0, zs[b], xs[a + 1], 0.0, zs[b + 1], "grass")
+            with anchored("ground"):
+                box(xs[a], -1.0, zs[b], xs[a + 1], 0.0, zs[b + 1], "grass")
 
 
 roads = []        # (points, width) of every road, for the overlap check
@@ -413,6 +441,8 @@ yards = []        # (x0, z0, x1, z1) of yards, fields and paving, for the map
 TRENCHES = [(126, 172, 140, 174.4), (137.6, 172, 140, 180), (137.6, 177.6, 158, 180), (155.6, 170, 158, 180),
             (155.6, 170, 176, 172.4)]
 TRENCH_DEPTH = 1.1
+BUNKER_HOLE = (85.5, 148.0, 94.0, 150.4)   # the ramp down to the bunker, at the town hall's west end
+BUNKER = (80.0, 143.0, 132.0, 159.0)       # the bunker under the town hall
 areas = []        # (name, x0, z0, x1, z1) of yards (junkyard, graveyard): kept off roads, buildings may stand inside
 
 
@@ -451,7 +481,8 @@ def strip(points, width, colour, y=0.02, h=0.04, solid=False):
             continue
         yaw = math.degrees(math.atan2(bx - ax, bz - az))
         lift = 0.001 * (k % 2)
-        obox((ax + bx) / 2, y + h / 2 + lift, (az + bz) / 2, width, h, length + width * 0.5, yaw, colour, solid)
+        with anchored(("seg", ax, az, bx, bz, width)):
+            obox((ax + bx) / 2, y + h / 2 + lift, (az + bz) / 2, width, h, length + width * 0.5, yaw, colour, solid)
 
 
 def bezier(p0, p1, p2, p3, n=24):
@@ -468,8 +499,9 @@ def bezier(p0, p1, p2, p3, n=24):
 
 # ---------------------------------------------------------------------------------------------- props (cover)
 def car(x, z, yaw, colour="car_a"):
-    obox(x, 0.55, z, 1.9, 1.1, 4.2, yaw, colour)
-    obox(x, 1.35, z, 1.7, 0.6, 2.2, yaw, colour)
+    with group():
+        obox(x, 0.55, z, 1.9, 1.1, 4.2, yaw, colour)
+        obox(x, 1.35, z, 1.7, 0.6, 2.2, yaw, colour)
 
 
 def dumpster(x, z, yaw=0.0):
@@ -485,12 +517,13 @@ def planter(x, z):
 
 
 def stall(x, z, yaw=0.0):
-    obox(x, 0.55, z, 3.0, 1.1, 1.6, yaw, "wood")
-    obox(x, 2.4, z, 3.4, 0.15, 2.2, yaw, "car_b", solid=False)
-    for dx in (-1.5, 1.5):
-        ox = x + dx * math.cos(math.radians(yaw))
-        oz = z - dx * math.sin(math.radians(yaw))
-        obox(ox, 1.4, oz, 0.12, 2.0, 0.12, yaw, "wood")
+    with group():
+        obox(x, 0.55, z, 3.0, 1.1, 1.6, yaw, "wood")
+        obox(x, 2.4, z, 3.4, 0.15, 2.2, yaw, "car_b", solid=False)
+        for dx in (-1.5, 1.5):
+            ox = x + dx * math.cos(math.radians(yaw))
+            oz = z - dx * math.sin(math.radians(yaw))
+            obox(ox, 1.4, oz, 0.12, 2.0, 0.12, yaw, "wood")
 
 
 def hay(x, z):
@@ -503,9 +536,10 @@ trunks = []       # (x, z) of every tree, to keep spawns clear of them
 def tree(x, z, rng):
     trunks.append((x, z))
     h = rng.uniform(5.0, 7.5)
-    box(x - 0.35, 0, z - 0.35, x + 0.35, h, z + 0.35, "trunk")
-    s = rng.uniform(3.0, 4.6)
-    box(x - s / 2, h - 1.0, z - s / 2, x + s / 2, h + s * 0.7, z + s / 2, "leaves", solid=False)
+    with group():
+        box(x - 0.35, 0, z - 0.35, x + 0.35, h, z + 0.35, "trunk")
+        s = rng.uniform(3.0, 4.6)
+        box(x - s / 2, h - 1.0, z - s / 2, x + s / 2, h + s * 0.7, z + s / 2, "leaves", solid=False)
 
 
 def bush(x, z, rng):
@@ -515,15 +549,17 @@ def bush(x, z, rng):
 
 def car_stack(x, z, yaw, n, rng):
     """Wrecked cars stacked n high (junkyard walls)."""
-    for k in range(n):
-        obox(x, 0.55 + k * 1.1, z, 1.9, 1.1, 4.2, yaw + rng.uniform(-6, 6), ("car_a", "car_b", "rust")[rng.randrange(3)])
+    with group():
+        for k in range(n):
+            obox(x, 0.55 + k * 1.1, z, 1.9, 1.1, 4.2, yaw + rng.uniform(-6, 6), ("car_a", "car_b", "rust")[rng.randrange(3)])
 
 
 def truck(x, z, yaw):
     """An army truck (checkpoint)."""
-    obox(x, 1.4, z, 2.5, 2.8, 7.0, yaw, "army")
-    fx, fz = x + 4.3 * math.sin(math.radians(yaw)), z + 4.3 * math.cos(math.radians(yaw))
-    obox(fx, 1.1, fz, 2.4, 2.2, 1.8, yaw, "army")
+    with group():
+        obox(x, 1.4, z, 2.5, 2.8, 7.0, yaw, "army")
+        fx, fz = x + 4.3 * math.sin(math.radians(yaw)), z + 4.3 * math.cos(math.radians(yaw))
+        obox(fx, 1.1, fz, 2.4, 2.2, 1.8, yaw, "army")
 
 
 def sandbags(x, z, yaw, length=4.0):
@@ -551,18 +587,20 @@ def rubble(x, z, rng):
 def wreck(x, z, rng):
     """A burnt-out car, sometimes on its side."""
     yaw = rng.uniform(0, 180)
-    if rng.random() < 0.3:
-        obox(x, 0.95, z, 1.1, 1.9, 4.2, yaw, "rust", pitch=0.0)
-    else:
-        obox(x, 0.5, z, 1.9, 1.0, 4.2, yaw, "rust")
-        obox(x, 1.25, z, 1.7, 0.5, 2.0, yaw + rng.uniform(-4, 4), "metal")
+    with group():
+        if rng.random() < 0.3:
+            obox(x, 0.95, z, 1.1, 1.9, 4.2, yaw, "rust", pitch=0.0)
+        else:
+            obox(x, 0.5, z, 1.9, 1.0, 4.2, yaw, "rust")
+            obox(x, 1.25, z, 1.7, 0.5, 2.0, yaw + rng.uniform(-4, 4), "metal")
 
 
 def wrecked_truck(x, z, rng):
     yaw = rng.uniform(0, 180)
-    obox(x, 1.3, z, 2.5, 2.6, 6.5, yaw, "rust")
-    fx, fz = x + 4.0 * math.sin(math.radians(yaw)), z + 4.0 * math.cos(math.radians(yaw))
-    obox(fx, 0.9, fz, 2.4, 1.8, 1.8, yaw + rng.uniform(-10, 10), "army", pitch=rng.uniform(-8, 0))
+    with group():
+        obox(x, 1.3, z, 2.5, 2.6, 6.5, yaw, "rust")
+        fx, fz = x + 4.0 * math.sin(math.radians(yaw)), z + 4.0 * math.cos(math.radians(yaw))
+        obox(fx, 0.9, fz, 2.4, 1.8, 1.8, yaw + rng.uniform(-10, 10), "army", pitch=rng.uniform(-8, 0))
 
 
 def tank_traps(x, z, rng):
@@ -571,17 +609,21 @@ def tank_traps(x, z, rng):
     for k in range(rng.randint(2, 4)):
         tx = x + (k - 1.5) * 3.0 * math.cos(math.radians(yaw))
         tz = z - (k - 1.5) * 3.0 * math.sin(math.radians(yaw))
-        for a in (0, 60, 120):
-            obox(tx, 0.7, tz, 0.25, 0.25, 2.0, yaw + a, "metal", pitch=35.0)
+        with group():
+            for a in (0, 60, 120):
+                obox(tx, 0.7, tz, 0.25, 0.25, 2.0, yaw + a, "metal", pitch=35.0)
+
+
+craters = []      # (x, z, ring radius): shell holes dug into the ground (0.11.17)
 
 
 def crater(x, z, rng):
-    """A shell crater: a ring of dirt mounds (you can crouch in it)."""
+    """A shell crater: a ring of dirt mounds round a hole in the ground (you can crouch in it)."""
     r = rng.uniform(2.5, 3.5)
+    craters.append((x, z, r))
     for k in range(8):
         a = k * 45 + rng.uniform(-10, 10)
         obox(x + r * math.sin(math.radians(a)), 0.3, z + r * math.cos(math.radians(a)), 2.4, 0.6, 1.0, a + 90, "dirt")
-    box(x - 1.6, 0.0, z - 1.6, x + 1.6, 0.03, z + 1.6, "dirt", solid=False)
 
 
 def barrels(x, z, rng):
@@ -649,8 +691,11 @@ def clutter(spacing=18.0):
             continue
         placed.append((x, z))
     for x, z in placed:
-        rng.choice(kinds)(x, z, rng)
+        kind = rng.choice(kinds)
+        kind(x, z, rng)
         bits(x, z, rng)
+        if kind is not crater:   # (wrecks and rubble get a level spot on the hills; craters are dug into them)
+            clutter_spots.append((x, z))
     return placed
 
 
@@ -691,13 +736,14 @@ def dead_tree(x, z, rng):
         box(x - 0.4, 0, z - 0.4, x + 0.4, rng.uniform(0.6, 1.2), z + 0.4, "deadwood")
         return
     h = rng.uniform(2.5, 4.0) if kind < 0.5 else rng.uniform(4.5, 7.0)
-    box(x - 0.3, 0, z - 0.3, x + 0.3, h, z + 0.3, "deadwood")
-    for _ in range(rng.randint(1, 3) if kind >= 0.5 else 0):
-        y = rng.uniform(h * 0.5, h * 0.9)
-        a = rng.uniform(0, 360)
-        ln = rng.uniform(1.2, 2.4)
-        obox(x + math.sin(math.radians(a)) * ln / 2, y + 0.3, z + math.cos(math.radians(a)) * ln / 2, 0.18, 0.18, ln,
-             a, "deadwood", solid=False, pitch=-rng.uniform(15, 40))
+    with group():
+        box(x - 0.3, 0, z - 0.3, x + 0.3, h, z + 0.3, "deadwood")
+        for _ in range(rng.randint(1, 3) if kind >= 0.5 else 0):
+            y = rng.uniform(h * 0.5, h * 0.9)
+            a = rng.uniform(0, 360)
+            ln = rng.uniform(1.2, 2.4)
+            obox(x + math.sin(math.radians(a)) * ln / 2, y + 0.3, z + math.cos(math.radians(a)) * ln / 2, 0.18, 0.18, ln,
+                 a, "deadwood", solid=False, pitch=-rng.uniform(15, 40))
 
 
 def scatter_trees(spots, spacing=34.0):
@@ -749,13 +795,15 @@ def power_line(curve, side, width, every=34.0, skip_from=0.0):
             poles.append((px, pz))
         dist += seg
     for px, pz in poles:
-        box(px - 0.15, 0, pz - 0.15, px + 0.15, 8.0, pz + 0.15, "wood")
-        box(px - 0.9, 7.4, pz - 0.08, px + 0.9, 7.55, pz + 0.08, "wood", solid=False)
+        with group():
+            box(px - 0.15, 0, pz - 0.15, px + 0.15, 8.0, pz + 0.15, "wood")
+            box(px - 0.9, 7.4, pz - 0.08, px + 0.9, 7.55, pz + 0.08, "wood", solid=False)
     for (ax, az), (bx, bz) in zip(poles, poles[1:]):
         length = math.hypot(bx - ax, bz - az)
         if length < 60:   # (a long gap means poles were skipped round a junction: no wire across it)
-            obox((ax + bx) / 2, 7.3, (az + bz) / 2, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)),
-                 "metal", solid=False)
+            with anchored(("wire", ax, az, bx, bz)):
+                obox((ax + bx) / 2, 7.3, (az + bz) / 2, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)),
+                     "metal", solid=False)
 
 
 def fence(points, h=1.1):
@@ -763,19 +811,498 @@ def fence(points, h=1.1):
     strip(points, 0.15, "wood", y=0.0, h=h, solid=True)
 
 
+# ---------------------------------------------------------------------------------------------- hills (0.11.17)
+# The ground rolls (owner, 0.11.17: "the ground is all flat, there should be hills and valleys"). How it's made:
+#  1. `base_height`: a broad rise north of town plus long, gentle waves everywhere (so roads never get steep).
+#  2. Roads and the creek flatten the ground across them (the creek sits in a valley it carves).
+#  3. HILLS: real hills and hollows away from the roads (they fade out 4-20 m from a road or the creek).
+#  4. Flat pads under every building, yard and area, at the average ground round them (pads close together share
+#     one height, so neighbours line up; a house on a hillside is dug in on one side); the railway is level at 0 all
+#     the way. Roads level out across again where a pad's slope reaches them. Then small level spots for spawns,
+#     extracts and outside loot.
+#  5. Shell craters dig small holes.
+# The ground is a height grid every TERRAIN_STEP m (plus the trench and bunker-hole edges, which are holes in it);
+# `BoxMap` turns it into a mesh. Everything built sits on it: boxes are moved up by the ground under them (see
+# `anchors`), road and fence pieces tilt with it.
+TERRAIN_STEP = 2.5
+# (map x, map z, radius, height): broad, gentle rises and dips that roads and buildings follow.
+BASE_HILLS = [(62, 22, 75, 6.0), (300, 150, 80, 2.0), (175, 330, 70, 1.5), (40, 300, 70, -1.0)]
+# (direction degrees, wavelength m, height m, phase): long rolling waves over everything.
+WAVES = [(20, 150, 1.0, 0.3), (110, 120, 0.8, 1.9), (65, 85, 0.45, 4.0), (160, 70, 0.3, 2.2)]
+# (map x, map z, radius, height): hills (+) and hollows (-) in the open ground.
+HILLS = [
+    (305, 150, 40, 9.0),    # the east woods sit on a big hill
+    (334, 108, 20, 4.0),
+    (235, 150, 22, 6.0),    # a rise east of Station Road
+    (252, 186, 18, 4.0),
+    (150, 194, 22, 4.5),    # the field between town and the railway
+    (106, 180, 16, 3.5),
+    (176, 162, 14, -2.5),
+    (12, 300, 28, 7.0),     # west of the creek
+    (98, 302, 26, 7.0),     # east of the creek (cabin 1, the campsite)
+    (75, 232, 18, 4.0),
+    (160, 246, 20, 5.0),    # the field south of the railway
+    (120, 266, 18, -4.0),   # a hollow by the hunting stand
+    (192, 300, 22, 5.0),    # between the old houses
+    (132, 326, 20, 5.0),
+    (250, 316, 20, 4.0),
+    (336, 222, 22, 5.0),    # the east edge behind the depot
+    (276, 198, 16, -3.5),   # a dip between the east woods and the depot
+    (220, 230, 14, -2.5),
+    (20, 192, 16, 3.5),     # west of the school
+    (125, 10, 14, 3.0),
+    (285, 112, 16, -2.5),
+]
+CRATER_DEPTH = 0.9
+HILL_CLEAR = 20.0   # hills reach full height this far from a road or the creek (and fade out within 4 m of it)
+
+# Extra flat pads (map x0, z0, x1, z1) for things that stand outside a building's footprint.
+EXTRA_PADS = [
+    (61.5, 98.5, 72.5, 114.5),    # town gas station forecourt
+    (295.0, 334.0, 331.0, 343.0),  # old gas station canopy
+    (196.0, 204.0, 246.0, 208.0),  # station platform
+    (232.0, 214.0, 292.0, 231.0),  # depot sidings
+    (124.0, 168.0, 178.0, 182.0),  # the trench
+    (249.0, 271.0, 277.0, 299.0),  # the checkpoint
+    (58.0, 260.0, 74.0, 274.0),    # campsite
+]
+
+
+def _bumps(hills, x, z):
+    return sum(a * math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (r * r)) for cx, cz, r, a in hills)
+
+
+def base_height(x, z):
+    h = _bumps(BASE_HILLS, x, z)
+    for deg, length, a, phase in WAVES:
+        d = x * math.cos(math.radians(deg)) + z * math.sin(math.radians(deg))
+        h += a * math.sin(2 * math.pi * d / length + phase)
+    return h
+
+
+def _smoothstep(a, b, v):
+    if v <= a:
+        return 0.0
+    if v >= b:
+        return 1.0
+    t = (v - a) / (b - a)
+    return t * t * (3 - 2 * t)
+
+
+def _rect_gap(x, z, r):
+    dx = max(r[0] - x, 0.0, x - r[2])
+    dz = max(r[1] - z, 0.0, z - r[3])
+    return math.hypot(dx, dz)
+
+
+def _nearest_on(points, x, z):
+    """(distance, nearest point) from (x, z) to a polyline."""
+    best = (float("inf"), points[0])
+    for (ax, az), (bx, bz) in zip(points, points[1:]):
+        dx, dz = bx - ax, bz - az
+        ln2 = dx * dx + dz * dz
+        t = 0.0 if ln2 == 0 else max(0.0, min(1.0, ((x - ax) * dx + (z - az) * dz) / ln2))
+        px, pz = ax + dx * t, az + dz * t
+        d = math.hypot(x - px, z - pz)
+        if d < best[0]:
+            best = (d, (px, pz))
+    return best
+
+
+class Terrain:
+    def __init__(self, holes):
+        xs = {round(k * TERRAIN_STEP, 3) for k in range(int(M / TERRAIN_STEP) + 1)}
+        zs = set(xs)
+        for x0, z0, x1, z1 in holes:
+            xs |= {x0, x1}
+            zs |= {z0, z1}
+        self.xs, self.zs = sorted(xs), sorted(zs)
+        self.lines = []   # (points, width, creek depth, bounding box)
+        for points, width, carve in line_features():
+            reach = width / 2 + HILL_CLEAR + 1.0   # (far enough to know how close the hills may come)
+            self.lines.append((points, width, carve, (min(p[0] for p in points) - reach, min(p[1] for p in points) - reach,
+                                                      max(p[0] for p in points) + reach, max(p[1] for p in points) + reach)))
+        self._pads()
+        self.h = [[self._height(x, z) for x in self.xs] for z in self.zs]
+        self._ease()
+        self.hole_cells = []
+        for j in range(len(self.zs) - 1):
+            for i in range(len(self.xs) - 1):
+                cx, cz = (self.xs[i] + self.xs[i + 1]) / 2, (self.zs[j] + self.zs[j + 1]) / 2
+                if any(h[0] < cx < h[2] and h[1] < cz < h[3] for h in holes):
+                    self.hole_cells.append(j * (len(self.xs) - 1) + i)
+
+    # --- pads
+    def _pads(self):
+        """Flat pads: cores (x0, z0, x1, z1, already grown by their margin) with a falloff round each. Big pads
+        close together are joined into clusters that share one height; small pads (spawns, extracts, outside loot)
+        then take the height the ground has there."""
+        big, small = [], []   # [core rect, falloff, fixed height or None]
+
+        def add(into, r, margin, fall, fixed=None):
+            into.append(((r[0] - margin, r[1] - margin, r[2] + margin, r[3] + margin), fall, fixed))
+        for _, x0, z0, x1, z1 in footprints:
+            add(big, (x0, z0, x1, z1), 3.0, 12.0)
+        for r in [a[1:] for a in areas] + yards + EXTRA_PADS:   # (big yards blend out further: the farm is 100 m)
+            add(big, r, 2.0, max(12.0, 0.25 * min(r[2] - r[0], r[3] - r[1])))
+        for sx, sz in stand_spots:
+            add(big, (sx - 1.5, sz - 1.5, sx + 1.5, sz + 7.0), 1.0, 8.0)
+        add(big, (-20.0, 207.0, M + 20.0, 213.0), 1.0, 22.0, fixed=0.0)   # the railway: level all the way
+        for _, x, z in player_spawns:
+            add(small, (x, z, x, z), 3.5, 8.0)
+        for _, x, z in enemy_spawns:
+            add(small, (x, z, x, z), 3.0, 6.0)
+        for _, _, x, z in extracts:
+            add(small, (x, z, x, z), 6.0, 8.0)
+        for l in loot:
+            if not any(x0 <= l[2] <= x1 and z0 <= l[4] <= z1 for _, x0, z0, x1, z1 in footprints):
+                add(small, (l[2], l[4], l[2], l[4]), 1.5, 5.0)
+        for x, z in clutter_spots:   # (not right next to a building's pad: the two levels would make a bank)
+            if all(_rect_gap(x, z, r) > 12.0 for r, _, _ in big):
+                add(small, (x, z, x, z), 3.0, 6.0)
+        # clusters: big pads whose cores are close share a height (so there's never a cliff between two of them)
+        parent = list(range(len(big)))
+        gap = 4.0
+
+        def find(a):
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+        for a in range(len(big)):
+            ra = big[a][0]
+            for b in range(a + 1, len(big)):
+                rb = big[b][0]
+                if ra[0] <= rb[2] + gap and rb[0] <= ra[2] + gap and ra[1] <= rb[3] + gap and rb[1] <= ra[3] + gap:
+                    parent[find(a)] = find(b)
+        groups = {}
+        for k in range(len(big)):
+            groups.setdefault(find(k), []).append(big[k])
+        self.clusters = []
+        for members in groups.values():
+            fixed = [m[2] for m in members if m[2] is not None]
+            if fixed:
+                target = fixed[0]
+            else:   # the average ground (after roads) over the pads and 8 m round them, so neighbours come out alike
+                total, n = 0.0, 0
+                for (x0, z0, x1, z1), _, _ in members:
+                    for xx in _samples(x0 - 8, x1 + 8, 3.0):
+                        for zz in _samples(z0 - 8, z1 + 8, 3.0):
+                            total += self._hills(xx, zz)[0]
+                            n += 1
+                target = total / n
+            self.clusters.append(self._cluster(members, target))
+        self.small = []
+        for core, fall, _ in small:
+            x, z = (core[0] + core[2]) / 2, (core[1] + core[3]) / 2
+            self.small.append(self._cluster([(core, fall, None)], self._big(x, z)[0]))
+
+    @staticmethod
+    def _cluster(members, target):
+        reach = max(max(m[1] for m in members), HILL_CLEAR + 1.0)
+        bound = (min(m[0][0] for m in members) - reach, min(m[0][1] for m in members) - reach,
+                 max(m[0][2] for m in members) + reach, max(m[0][3] for m in members) + reach)
+        return members, target, bound
+
+    def pad_at(self, x, z):
+        """The height of the flat pad (x, z) stands on, or None."""
+        for members, target, bound in self.clusters + self.small:
+            if bound[0] <= x <= bound[2] and bound[1] <= z <= bound[3]:
+                for r, _, _ in members:
+                    if r[0] <= x <= r[2] and r[1] <= z <= r[3]:
+                        return target
+        return None
+
+    # --- the height field
+    def _lines(self, x, z):
+        """The base ground with roads and the creek flattened across, and the roads near (x, z): (distance, nearest
+        point on the road, width)."""
+        h = base_height(x, z)
+        near = []
+        for points, width, carve, bound in self.lines:
+            if not (bound[0] <= x <= bound[2] and bound[1] <= z <= bound[3]):
+                continue
+            d, (px, pz) = _nearest_on(points, x, z)
+            near.append((d, px, pz, width, carve))
+            core, fall = width / 2 + 1.5, (22.0 if carve else 10.0)
+            w = 1.0 - _smoothstep(core, core + fall, d)
+            if w <= 0:
+                continue
+            t = base_height(px, pz)
+            if carve:   # the creek's valley deepens away from the railway
+                t -= carve * _smoothstep(4.0, 40.0, abs(pz - 210.0))
+            h += (t - h) * w
+        return h, near
+
+    @staticmethod
+    def _blend(clusters, x, z, h, keep):
+        """Pulls h toward the pads near (x, z): exactly level on a pad, blending out over its falloff (several
+        nearby pads blend by distance). `keep` (0-1) protects roads. Returns (height, distance to the nearest pad)."""
+        num = den = most = 0.0
+        nearest = float("inf")
+        for members, target, bound in clusters:
+            if not (bound[0] <= x <= bound[2] and bound[1] <= z <= bound[3]):
+                continue
+            d = min(_rect_gap(x, z, r) for r, _, _ in members)
+            nearest = min(nearest, d)
+            if d == 0.0:
+                return target + (h - target) * keep, 0.0
+            f = max(1.0 - _smoothstep(0.0, fall, _rect_gap(x, z, r)) for r, fall, _ in members)
+            if f <= 0:
+                continue
+            s = f / (d * d)
+            num += s * target
+            den += s
+            most = max(most, f)
+        if den > 0:
+            h += (num / den - h) * most * (1.0 - keep)
+        return h, nearest
+
+    def _hills(self, x, z):
+        """The ground before pads: base, roads and creek, and the hills (they fade out 4-20 m from a road or the
+        creek, so those stay level across)."""
+        h, near = self._lines(x, z)
+        clear = min([d - width / 2 for d, _, _, width, _ in near], default=float("inf"))
+        return h + _bumps(HILLS, x, z) * _smoothstep(4.0, HILL_CLEAR, clear), near
+
+    def _padded(self, x, z):
+        h, near = self._hills(x, z)
+        h, pad = self._blend(self.clusters, x, z, h, 0.0)
+        return h, near, pad
+
+    def _big(self, x, z):
+        """After the big pads, the roads level out across again (at the height the ground has on their middle line),
+        so a pad next to a road never leaves it tilted. Returns (height, how much it's on a road)."""
+        h, near, _ = self._padded(x, z)
+        on_road = 0.0
+        for d, px, pz, width, carve in near:
+            if carve:
+                continue
+            w = 1.0 - _smoothstep(width / 2 + 0.5, width / 2 + 3.0, d)
+            if w > 0:
+                h += (self._padded(px, pz)[0] - h) * w
+            on_road = max(on_road, 1.0 - _smoothstep(width / 2 + 0.3, width / 2 + 1.3, d))
+        return h, on_road
+
+    def _height(self, x, z):
+        h, on_road = self._big(x, z)
+        h = self._blend(self.small, x, z, h, on_road)[0]
+        for cx, cz, r in craters:
+            d = math.hypot(x - cx, z - cz)
+            if d < r + 1.0:
+                h -= CRATER_DEPTH * (1.0 - _smoothstep(0.0, r + 1.0, d))
+        return h
+
+    def _ease(self, limit=0.42, rounds=300):
+        """Eases the ground wherever it's steeper than `limit` (about 23 degrees) between grid points, leaving pads,
+        roads and the map edge alone: walkable everywhere (the AI's paths take 40 degrees), no sudden banks. Works on
+        the regular grid; the extra lines (hole edges) then take their height from it, except on pads."""
+        on_x = [abs(x / TERRAIN_STEP - round(x / TERRAIN_STEP)) < 1e-6 for x in self.xs]
+        on_z = [abs(z / TERRAIN_STEP - round(z / TERRAIN_STEP)) < 1e-6 for z in self.zs]
+        ri = [i for i in range(len(self.xs)) if on_x[i]]
+        rj = [j for j in range(len(self.zs)) if on_z[j]]
+        fixed = {}
+        for j, z in enumerate(self.zs):
+            for i, x in enumerate(self.xs):
+                fixed[j, i] = i in (0, len(self.xs) - 1) or j in (0, len(self.zs) - 1) or \
+                    self.pad_at(x, z) is not None or \
+                    any(_nearest_on(pts, x, z)[0] < w / 2 + 1.5 for pts, w, _, b in self.lines
+                        if b[0] <= x <= b[2] and b[1] <= z <= b[3])
+        h = self.h
+        step = TERRAIN_STEP
+        for _ in range(rounds):
+            changed = False
+            for jj in range(1, len(rj) - 1):
+                j0, j, j1 = rj[jj - 1], rj[jj], rj[jj + 1]
+                for ii in range(1, len(ri) - 1):
+                    i0, i, i1 = ri[ii - 1], ri[ii], ri[ii + 1]
+                    if fixed[j, i]:
+                        continue
+                    # keep within `limit` of every neighbour (the slope then spreads out from the pads and roads)
+                    around = (h[j][i0], h[j][i1], h[j0][i], h[j1][i])
+                    lo, hi = max(around) - limit * step, min(around) + limit * step
+                    here = h[j][i]
+                    want = (lo + hi) / 2 if lo > hi else min(max(here, lo), hi)
+                    if abs(want - here) > 0.01:
+                        h[j][i] = want
+                        changed = True
+            if not changed:
+                break
+        # the extra lines follow the regular grid round them (pads and roads keep their own, exact height)
+        for j in range(len(self.zs)):
+            for i in range(len(self.xs)):
+                if (on_x[i] and on_z[j]) or fixed[j, i]:
+                    continue
+                i0 = max(k for k in ri if self.xs[k] <= self.xs[i]) if not on_x[i] else i
+                i1 = min(k for k in ri if self.xs[k] >= self.xs[i]) if not on_x[i] else i
+                j0 = max(k for k in rj if self.zs[k] <= self.zs[j]) if not on_z[j] else j
+                j1 = min(k for k in rj if self.zs[k] >= self.zs[j]) if not on_z[j] else j
+                u = 0.0 if i1 == i0 else (self.xs[i] - self.xs[i0]) / (self.xs[i1] - self.xs[i0])
+                v = 0.0 if j1 == j0 else (self.zs[j] - self.zs[j0]) / (self.zs[j1] - self.zs[j0])
+                h[j][i] = (h[j0][i0] * (1 - u) * (1 - v) + h[j0][i1] * u * (1 - v) + h[j1][i0] * (1 - u) * v
+                           + h[j1][i1] * u * v)
+
+    def at(self, x, z):
+        """The ground height at (x, z) exactly as the mesh has it (each grid cell is two triangles, split from its
+        north-west to its south-east corner)."""
+        x = max(0.0, min(M, x))
+        z = max(0.0, min(M, z))
+        i = max(0, min(len(self.xs) - 2, bisect.bisect_right(self.xs, x) - 1))
+        j = max(0, min(len(self.zs) - 2, bisect.bisect_right(self.zs, z) - 1))
+        u = (x - self.xs[i]) / (self.xs[i + 1] - self.xs[i])
+        v = (z - self.zs[j]) / (self.zs[j + 1] - self.zs[j])
+        h00, h10, h01, h11 = self.h[j][i], self.h[j][i + 1], self.h[j + 1][i], self.h[j + 1][i + 1]
+        if u >= v:
+            return h00 + u * (h10 - h00) + v * (h11 - h10)
+        return h00 + v * (h01 - h00) + u * (h11 - h01)
+
+    def lift(self, x, z):
+        """How far something standing at (x, z) moves up: its pad, or the ground there."""
+        p = self.pad_at(x, z)
+        return p if p is not None else self.at(x, z)
+
+
+def _samples(a, b, step=2.5):
+    n = max(1, int((b - a) / step))
+    return [a + (b - a) * (k + 0.5) / n for k in range(n)]
+
+
+stand_spots = []    # hunting stands (flat pads)
+clutter_spots = []  # wrecks, rubble, rocks... (small level spots)
+
+
+def line_features():
+    """(points, width, creek valley depth or 0) of the roads and the creek."""
+    return [(pts, w, 0.0) for pts, w in roads] + [(pts, w, 2.2) for pts, w in water]
+
+
+def _footprint(b):
+    """Map-space corners of a box seen from above."""
+    cx, cz = b[0] + M / 2, b[2] + M / 2
+    c, s = math.cos(math.radians(b[6])), math.sin(math.radians(b[6]))
+    hx, hz = b[3] / 2, b[5] / 2
+    return [(cx + c * lx + s * lz, cz - s * lx + c * lz) for lx, lz in ((-hx, -hz), (hx, -hz), (hx, hz), (-hx, hz))]
+
+
+def terrain():
+    """Builds the hills, then moves every box, container, spawn and extract onto them."""
+    global boxes, anchors
+    keep = [k for k, a in enumerate(anchors) if a != "ground"]
+    boxes, anchors = [boxes[k] for k in keep], [anchors[k] for k in keep]
+    ter = Terrain([BUNKER_HOLE] + TRENCHES)
+
+    def low(b):   # the lowest ground under a box that isn't on a pad (so it never floats)
+        p = ter.pad_at(b[0] + M / 2, b[2] + M / 2)
+        if p is not None:
+            return p
+        return min([ter.at(x, z) for x, z in _footprint(b)] + [ter.at(b[0] + M / 2, b[2] + M / 2)])
+    group_lift = {}
+    for b, a in zip(boxes, anchors):
+        if isinstance(a, tuple) and a[0] == "g":
+            group_lift[a] = min(group_lift.get(a, float("inf")), low(b))
+    out = []
+    for b, a in zip(boxes, anchors):
+        if a is None:
+            out.append(_moved(b, low(b)))
+        elif a[0] == "g":
+            out.append(_moved(b, group_lift[a]))
+        elif a[0] == "wire":
+            _, ax, az, bx, bz = a
+            ha, hb = ter.lift(ax, az), ter.lift(bx, bz)
+            out.append(_tilted(b, ha, hb, math.hypot(bx - ax, bz - az)))
+        else:   # a strip piece: split long ones so they bend with the ground; thicker underneath so they never float
+            _, ax, az, bx, bz, width = a
+            length = math.hypot(bx - ax, bz - az)
+            n = max(1, int(math.ceil(length / 4.0))) if length > 6.0 else 1
+            for k in range(n):
+                t0, t1 = k / n, (k + 1) / n
+                px0, pz0 = ax + (bx - ax) * t0, az + (bz - az) * t0
+                px1, pz1 = ax + (bx - ax) * t1, az + (bz - az) * t1
+                sub = list(b)
+                sub[0], sub[2] = (px0 + px1) / 2 - M / 2, (pz0 + pz1) / 2 - M / 2
+                sub[5] = length / n + width * 0.5
+                sub[1] -= 0.15
+                sub[4] += 0.3
+                out.append(_tilted(tuple(sub), ter.at(px0, pz0), ter.at(px1, pz1), length / n))
+    boxes = out
+    # the edge of the map: a wall that follows the ground
+    for k in range(35):
+        a0, a1 = k * 10.0, k * 10.0 + 10.0
+        for side in range(4):
+            pts = [(a0 + t * 2.5, 0.0) for t in range(5)] if side == 0 else \
+                  [(a0 + t * 2.5, M) for t in range(5)] if side == 1 else \
+                  [(0.0, a0 + t * 2.5) for t in range(5)] if side == 2 else [(M, a0 + t * 2.5) for t in range(5)]
+            hs = [ter.at(x, z) for x, z in pts]
+            lo, hi = min(hs) - 1.0, max(hs) + 6.0
+            if side == 0:
+                box(a0, lo, -1, a1, hi, 0.5, "boundary")
+            elif side == 1:
+                box(a0, lo, M - 0.5, a1, hi, M + 1, "boundary")
+            elif side == 2:
+                box(-1, lo, a0, 0.5, hi, a1, "boundary")
+            else:
+                box(M - 0.5, lo, a0, M + 1, hi, a1, "boundary")
+    # the bunker's ceiling (the ground above it is a thin mesh now): under the hall's floor, round the ramp hole
+    hall_y = ter.pad_at(BUNKER_HOLE[0], BUNKER_HOLE[1])
+    bx0, bz0, bx1, bz1 = BUNKER[0] - 0.3, BUNKER[1] - 0.3, BUNKER[2] + 0.3, BUNKER[3] + 0.3
+    hx0, hz0, hx1, hz1 = BUNKER_HOLE
+    for x0, z0, x1, z1 in ((bx0, bz0, hx0, bz1), (hx1, bz0, bx1, bz1), (hx0, bz0, hx1, hz0), (hx0, hz1, hx1, bz1)):
+        box(x0, hall_y - 1.0, z0, x1, hall_y - 0.02, z1, "bunker")
+    # containers, extracts, spawns and markers stand on the ground too
+    for k, l in enumerate(loot):
+        loot[k] = l[:3] + (l[3] + ter.lift(l[2], l[4]),) + l[4:]
+    for name, _, x, z in extracts:
+        ground_y["extract", name] = ter.lift(x, z)
+    for name, x, z in player_spawns:
+        ground_y["player", name] = ter.lift(x, z)
+    for name, x, z in enemy_spawns:
+        ground_y["enemy", name] = ter.lift(x, z)
+    for k, m in enumerate(markers):
+        markers[k] = m[:3] + (m[3] + ter.lift(m[2], m[4]),) + m[4:]
+    terrain_report(ter)
+    return ter
+
+
+ground_y = {}
+
+
+def _moved(b, dy):
+    return (b[0], b[1] + dy) + tuple(b[2:])
+
+
+def _tilted(b, ha, hb, length):
+    """A box between two points (its local +z runs from the first to the second) tilted to their heights."""
+    pitch = math.degrees(math.atan2(ha - hb, length)) if length > 0 else 0.0
+    return (b[0], b[1] + (ha + hb) / 2) + tuple(b[2:7]) + (b[7] + pitch,) + tuple(b[8:])
+
+
+def terrain_report(ter):
+    hs = [h for row in ter.h for h in row]
+    steep = 0.0
+    for j in range(len(ter.zs) - 1):
+        for i in range(len(ter.xs) - 1):
+            dx = (ter.h[j][i + 1] - ter.h[j][i]) / (ter.xs[i + 1] - ter.xs[i])
+            dz = (ter.h[j + 1][i] - ter.h[j][i]) / (ter.zs[j + 1] - ter.zs[j])
+            steep = max(steep, math.degrees(math.atan(math.hypot(dx, dz))))
+    grade = 0.0
+    for points, _ in roads:
+        for (ax, az), (bx, bz) in zip(points, points[1:]):
+            ln = math.hypot(bx - ax, bz - az)
+            if ln > 0.5:
+                grade = max(grade, abs(ter.at(ax, az) - ter.at(bx, bz)) / ln)
+    print(f"hills: {min(hs):.1f} to {max(hs):.1f} m, steepest ground {steep:.0f} deg, steepest road {grade * 100:.0f}%, "
+          f"{len(ter.xs)} x {len(ter.zs)} grid")
+    assert steep < 38, "too steep for the AI's paths (40 degrees)"
+
+
 # ================================================================================================ the map
 def main():
     rng = random.Random(1234)
 
     # --- the bunker under the town hall: a ramp hole in the ground at the hall's west end
-    bunker_hole = (85.5, 148.0, 94.0, 150.4)
+    bunker_hole = BUNKER_HOLE
     ground([bunker_hole] + TRENCHES)
-
-    # map edge: a wall all round (gray box; hills/fences later)
-    box(-1, 0, -1, M + 1, 6, 0.5, "boundary")
-    box(-1, 0, M - 0.5, M + 1, 6, M + 1, "boundary")
-    box(-1, 0, -1, 0.5, 6, M + 1, "boundary")
-    box(M - 0.5, 0, -1, M + 1, 6, M + 1, "boundary")
+    # (the wall round the map edge follows the hills: made in `terrain()`)
 
     # --- roads (from the agreed layout picture)
     main_st = road([(0, 82), (30, 80), (62, 86), (100, 98), (135, 96), (168, 104), (200, 104)], 9)              # Main Street
@@ -826,7 +1353,7 @@ def main():
     run = hx1 - hx0
     obox((hx0 + hx1) / 2, bunker_floor / 2 - 0.1, (hz0 + hz1) / 2, hz1 - hz0 - 0.1, 0.2, math.hypot(run, bunker_floor),
          90.0, "concrete", pitch=math.degrees(math.atan2(-bunker_floor, run)))   # top (y 0) west, bottom east
-    bx0, bz0, bx1, bz1 = 80.0, 143.0, 132.0, 159.0
+    bx0, bz0, bx1, bz1 = BUNKER
     box(bx0, bunker_floor - 0.3, bz0, bx1, bunker_floor, bz1, "bunker")                 # floor
     box(bx0 - 0.3, bunker_floor, bz0 - 0.3, bx1 + 0.3, -1.0, bz0, "bunker")              # north wall
     box(bx0 - 0.3, bunker_floor, bz1, bx1 + 0.3, -1.0, bz1 + 0.3, "bunker")              # south wall
@@ -1080,6 +1607,7 @@ def main():
     add_loot("Campsite", "crate", x + 0.5, z - 5.5, yaw=180.0)
     # hunting stands (owner, 0.10.1): a platform 3.5 m up with a ramp, one watching the Creek Trail extract
     for sx, sz in stands:
+        stand_spots.append((sx, sz))
         h, run = 3.5, 5.2
         box(sx - 1.4, h - 0.2, sz - 1.4, sx + 1.4, h, sz + 1.4, "wood")
         for px, pz in ((sx - 1.3, sz - 1.3), (sx + 1.3, sz - 1.3), (sx - 1.3, sz + 1.3), (sx + 1.3, sz + 1.3)):
@@ -1128,7 +1656,7 @@ def main():
     scatter_trees(clutter())
     map_labels()
     check_roads()
-    write_scene()
+    write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
 
 
@@ -1204,7 +1732,7 @@ def xform(x, y, z, yaw=0.0):
             f"{fmt(gx(x))}, {fmt(y)}, {fmt(gz(z))})")
 
 
-def minimap_meta():
+def minimap_meta(ter):
     """What the in-raid map (M) draws, in map metres (x east, z south from the top-left corner)."""
     def floats(values):
         return "PackedFloat32Array(" + ", ".join(fmt(v) for v in values) + ")"
@@ -1220,10 +1748,19 @@ def minimap_meta():
             + f'"roads": {lines(roads)}, "road_widths": {floats([w for _, w in roads])}, '
             + f'"water": {lines(water)}, "water_widths": {floats([w for _, w in water])}, '
             + '"rail": PackedVector2Array(0, 210, 350, 210), '
+            + f'"relief_cells": {RELIEF_CELLS}, "relief": {floats(relief(ter))}, '
             + f'"labels": [{text}]' + "}")
 
 
-def write_scene():
+RELIEF_CELLS = 140   # the in-raid map's picture of the hills: one height every 2.5 m
+
+
+def relief(ter):
+    step = M / RELIEF_CELLS
+    return [ter.at((i + 0.5) * step, (j + 0.5) * step) for j in range(RELIEF_CELLS) for i in range(RELIEF_CELLS)]
+
+
+def write_scene(ter):
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn"}
     out = ["[gd_scene format=3]", "",
@@ -1241,13 +1778,18 @@ def write_scene():
             'metadata/spawner = {"initial_count": 24, "max_alive": 30, "scav_budget": 64, "raider_budget": 16, '
             '"raider_times": PackedFloat32Array(0, 0, 0, 0, 0, 0, 60, 120, 165, 210, 255, 300, 345, 390, 435, 480), '
             '"min_distance_from_player": 40.0}',
-            minimap_meta(),
+            minimap_meta(ter),
             "",
             '[node name="Level" type="Node3D" parent="."]', "",
             '[node name="Blocks" type="StaticBody3D" parent="Level"]',
             'script = ExtResource("1_boxmap")',
             "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
-            "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b) + ")", "",
+            "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b) + ")",
+            f"terrain_colour = {C['grass']}",
+            "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(gx(x)) for x in ter.xs) + ")",
+            "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
+            "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for row in ter.h for h in row) + ")",
+            "terrain_holes = PackedInt32Array(" + ", ".join(str(c) for c in ter.hole_cells) + ")", "",
             '[node name="Loot" type="Node3D" parent="."]', ""]
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
@@ -1256,13 +1798,15 @@ def write_scene():
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, z in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',
-                f"transform = {xform(x, 0, z)}", f'extract_name = "{title}"', ""]
+                f"transform = {xform(x, ground_y['extract', name], z)}", f'extract_name = "{title}"', ""]
     out += ['[node name="PlayerSpawns" type="Node3D" parent="."]', ""]
     for name, x, z in player_spawns:
-        out += [f'[node name="{name}" type="Marker3D" parent="PlayerSpawns"]', f"transform = {xform(x, 0.1, z)}", ""]
+        out += [f'[node name="{name}" type="Marker3D" parent="PlayerSpawns"]',
+                f"transform = {xform(x, ground_y['player', name] + 0.1, z)}", ""]
     out += ['[node name="EnemySpawns" type="Node3D" parent="."]', ""]
     for name, x, z in enemy_spawns:
-        out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, 0.1, z)}", ""]
+        out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
+                f"transform = {xform(x, ground_y['enemy', name] + 0.1, z)}", ""]
     groups = sorted({m[0] for m in markers})
     for g in groups:
         out += [f'[node name="{g}" type="Node3D" parent="."]', ""]
