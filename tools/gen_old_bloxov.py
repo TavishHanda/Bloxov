@@ -69,6 +69,9 @@ COLOURS = [
     ("wall_modern", (0.82, 0.84, 0.86)),
     ("brand", (0.2, 0.55, 0.45)),
     ("scorch", (0.22, 0.2, 0.19)),
+    ("deadgrass", (0.42, 0.4, 0.25)),
+    ("deadwood", (0.3, 0.26, 0.22)),
+    ("earth", (0.36, 0.28, 0.2)),
 ]
 C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
@@ -406,6 +409,11 @@ labels = []       # (text, x, z, big) for the in-raid map (M)
 water = []        # (points, width) of water, for the map
 woods = []        # (x, z, radius) of tree clusters, for the map
 yards = []        # (x0, z0, x1, z1) of yards, fields and paving, for the map
+# A dug trench line in the open field south of the town hall (owner, 0.11.8: trench warfare). Axis-aligned
+# rectangles (x0, z0, x1, z1) that overlap at the corners; the ground has holes there and the floor is 1.1 m down.
+TRENCHES = [(126, 172, 140, 174.4), (137.6, 172, 140, 180), (137.6, 177.6, 158, 180), (155.6, 170, 158, 180),
+            (155.6, 170, 176, 172.4)]
+TRENCH_DEPTH = 1.1
 areas = []        # (name, x0, z0, x1, z1) of yards (junkyard, graveyard): kept off roads, buildings may stand inside
 
 
@@ -592,6 +600,8 @@ def _clear_of_map(x, z):
     """True if (x, z) is open grass: off roads, rail, water, yards and away from buildings, props and spawns."""
     if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 8:   # the railway
         return False
+    if any(t[0] - 6 < x < t[2] + 6 and t[1] - 6 < z < t[3] + 6 for t in TRENCHES):
+        return False
     for points, width in roads + water:
         for a, b in zip(points, points[1:]):
             if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 6:
@@ -645,8 +655,72 @@ def clutter(spacing=18.0):
     return placed
 
 
-def scatter_trees(spots, spacing=26.0):
-    """A few lone trees and little clumps of 2-3 in the open grass (owner, 0.11.7), clear of the clutter `spots`."""
+def trench():
+    """Floor, earth walls and two ramps for TRENCHES, with sandbags along parts of the north lip."""
+    floor = -TRENCH_DEPTH
+    for x0, z0, x1, z1 in TRENCHES:
+        box(x0, floor - 0.3, z0, x1, floor, z1, "earth")
+    inside = lambda x, z: any(t[0] < x < t[2] and t[1] < z < t[3] for t in TRENCHES)
+    for x0, z0, x1, z1 in TRENCHES:   # walls round the outline only (not where two pieces meet)
+        for horizontal, fixed, a0, a1, out in ((True, z0, x0, x1, -1), (True, z1, x0, x1, 1),
+                                                (False, x0, z0, z1, -1), (False, x1, z0, z1, 1)):
+            cuts = sorted({a0, a1} | {v for t in TRENCHES for v in ((t[0], t[2]) if horizontal else (t[1], t[3]))
+                                     if a0 < v < a1})
+            for c0, c1 in zip(cuts, cuts[1:]):
+                m = (c0 + c1) / 2
+                if inside(*((m, fixed + out * 0.05) if horizontal else (fixed + out * 0.05, m))):
+                    continue
+                # (a little inside the hole, so the wall hides the ground's cut edge instead of flickering with it)
+                w0, w1 = sorted((fixed - out * 0.05, fixed + out * 0.25))
+                if horizontal:
+                    box(c0, floor - 0.3, w0, c1, 0.0, w1, "earth")
+                else:
+                    box(w0, floor - 0.3, c0, w1, 0.0, c1, "earth")
+    for (x0, z0, x1, z1), (hi_x, lo_x) in ((TRENCHES[0], (126.0, 130.5)), (TRENCHES[-1], (176.0, 171.5))):
+        run = abs(lo_x - hi_x)
+        obox((hi_x + lo_x) / 2, floor / 2 - 0.1, (z0 + z1) / 2, z1 - z0, 0.2, math.hypot(run, TRENCH_DEPTH),
+             90.0 if lo_x > hi_x else -90.0, "earth", pitch=math.degrees(math.atan2(TRENCH_DEPTH, run)))
+    for x0, x1, z in ((131, 139, 171.6), (143, 151, 177.2), (160, 168, 169.6)):   # sandbags on the north lip
+        sandbags((x0 + x1) / 2, z, 90, length=x1 - x0)
+
+
+def dead_tree(x, z, rng):
+    """A burnt, bare tree: a dark trunk (sometimes snapped off) with a few broken branches, or just a stump."""
+    trunks.append((x, z))
+    kind = rng.random()
+    if kind < 0.25:
+        box(x - 0.4, 0, z - 0.4, x + 0.4, rng.uniform(0.6, 1.2), z + 0.4, "deadwood")
+        return
+    h = rng.uniform(2.5, 4.0) if kind < 0.5 else rng.uniform(4.5, 7.0)
+    box(x - 0.3, 0, z - 0.3, x + 0.3, h, z + 0.3, "deadwood")
+    for _ in range(rng.randint(1, 3) if kind >= 0.5 else 0):
+        y = rng.uniform(h * 0.5, h * 0.9)
+        a = rng.uniform(0, 360)
+        ln = rng.uniform(1.2, 2.4)
+        obox(x + math.sin(math.radians(a)) * ln / 2, y + 0.3, z + math.cos(math.radians(a)) * ln / 2, 0.18, 0.18, ln,
+             a, "deadwood", solid=False, pitch=-rng.uniform(15, 40))
+
+
+def dead_grass(spots, rng):
+    """Dead and burnt patches of grass: round the junk spots, along the trenches and dotted about."""
+    centres = [(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4)) for x, z in spots]
+    centres += [((t[0] + t[2]) / 2 + rng.uniform(-6, 6), (t[1] + t[3]) / 2 + rng.uniform(-5, 5)) for t in TRENCHES for _ in range(2)]
+    centres += [(rng.uniform(10, M - 10), rng.uniform(10, M - 10)) for _ in range(70)]
+    for x, z in centres:
+        if any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for _, x0, z0, x1, z1 in footprints + areas) or \
+                any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for x0, z0, x1, z1 in yards) or abs(z - 210.0) < 3:
+            continue
+        colour = rng.choice(("deadgrass", "deadgrass", "deadgrass", "deadgrass", "earth", "scorch"))
+        small = colour == "scorch"
+        for k in range(rng.randint(2, 4)):
+            w, d = rng.uniform(3, 8) * (0.5 if small else 1), rng.uniform(2, 6) * (0.5 if small else 1)
+            obox(x + rng.uniform(-3, 3), 0.004 + 0.001 * k, z + rng.uniform(-3, 3), w, 0.008, d, rng.uniform(0, 90),
+                 colour, solid=False)
+
+
+def scatter_trees(spots, spacing=34.0):
+    """A few lone trees and pairs in the open grass (owner, 0.11.7; fewer and mostly dead in 0.11.8), clear of the
+    clutter `spots`."""
     rng = random.Random(4200)
     placed = []
     for _ in range(4000):
@@ -656,14 +730,16 @@ def scatter_trees(spots, spacing=26.0):
             continue
         placed.append((x, z))
     for x, z in placed:
-        n = rng.choice((1, 1, 2, 3))
+        n = rng.choice((1, 1, 1, 2))
+        dead = rng.random() < 0.6   # most trees out here are dead or burnt (owner, 0.11.8)
         for k in range(n):
             a = rng.uniform(0, 360)
             r = 0.0 if k == 0 else rng.uniform(3.5, 5.0)
-            tree(x + r * math.sin(math.radians(a)), z + r * math.cos(math.radians(a)), rng)
-        if rng.random() < 0.5:
-            bush(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4), rng)
-        woods.append((x, z, 2.0 + 2.0 * (n > 1)))
+            (dead_tree if dead else tree)(x + r * math.sin(math.radians(a)), z + r * math.cos(math.radians(a)), rng)
+        if not dead:
+            if rng.random() < 0.4:
+                bush(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4), rng)
+            woods.append((x, z, 2.0 + 2.0 * (n > 1)))
     return placed
 
 
@@ -711,7 +787,7 @@ def main():
 
     # --- the bunker under the town hall: a ramp hole in the ground at the hall's west end
     bunker_hole = (85.5, 148.0, 94.0, 150.4)
-    ground([bunker_hole])
+    ground([bunker_hole] + TRENCHES)
 
     # map edge: a wall all round (gray box; hills/fences later)
     box(-1, 0, -1, M + 1, 6, 0.5, "boundary")
@@ -1061,7 +1137,10 @@ def main():
     power_line(county, 1, 8)
     power_line(old_road, 1, 8)
 
-    scatter_trees(clutter())
+    trench()
+    spots = clutter()
+    scatter_trees(spots)
+    dead_grass(spots, random.Random(4300))
     map_labels()
     check_roads()
     write_scene()
