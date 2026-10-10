@@ -37,6 +37,7 @@ shot_damage = 35
 accuracy_near = 0.75
 accuracy_far = 0.35
 accuracy_range = 100.0
+accuracy_long = 0.35
 min_distance = 0.0
 cover_cooldown = 9999.0
 heals = 0

@@ -78,7 +78,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 
 @export_group("Shooting")
 ## Fires at you from this far; beyond it, it closes in first.
-@export var shoot_range := 40.0
+## (0.12.8, owner: far-off scavs just looked at you, then went for cover: 40 m before. Far shots rarely hit.)
+@export var shoot_range := 75.0
 ## Delay between spotting the player and starting to aim. Gives you a moment to react.
 @export var reaction_time := 0.3
 ## Getting shot (or a bullet whizzing past) while unaware startles it: it turns and starts aiming after only this
@@ -93,10 +94,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var burst_cooldown_max := 1.8
 ## Time to kill: 15 = an unarmored player (100 HP) dies in 7 hits (9 with light armor, 12 with heavy).
 @export var shot_damage := 15
-## Chance each bullet hits, up close vs. at accuracy_range and beyond.
+## Chance each bullet hits: accuracy_near up close, accuracy_far at accuracy_range, then down to accuracy_long at
+## shoot_range (0.12.8, owner: "at far their accuracy should be even worse ... a gradient, as they get closer it's better").
 @export var accuracy_near := 0.7
 @export var accuracy_far := 0.2
 @export var accuracy_range := 28.0
+@export var accuracy_long := 0.05
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
 ## Point blank (closer than this, meters): shots almost always hit.
@@ -124,8 +127,6 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
 ## within this many meters jog over to where the fight is. 0 = never.
 @export var help_radius := 35.0
-## Spotting you farther away than this, it heads for cover first instead of trading shots in the open.
-@export var cover_at_range := 20.0
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 
@@ -379,8 +380,9 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= _reaction:
 				_set_state(State.ENGAGE)
 				_fire_timer = aim_time
-				# Seen from far off and out in the open: get to cover first, shooting on the way if it can.
-				if not holds_position and dist > cover_at_range and dist < INF and _cover_cooldown_left <= 0.0:
+				# Out of range (you're far off): get to cover first. In range it shoots first and takes cover
+				# after its first burst (0.12.8, owner: far-off scavs just looked at you, then went for cover).
+				if not holds_position and dist > shoot_range and dist < INF and _cover_cooldown_left <= 0.0:
 					_try_take_cover()
 		State.ENGAGE:
 			# Keeps tracking you while it can see you; once it has lost you for a moment it has to re-spot you.
@@ -446,7 +448,38 @@ func _physics_process(delta: float) -> void:
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
 	move_and_slide()
+	_check_stuck(delta, desired)
 	_update_footsteps(delta)
+
+
+## Trying to move but not getting anywhere (pressed against a wall, sliding along it) for a while: gives up on
+## where it was going (0.12.8, owner: one hugged a building for 20 seconds).
+func _check_stuck(delta: float, desired: Vector3) -> void:
+	var want := _flat(desired)
+	if want.length() < 0.5:
+		_stuck_time = 0.0
+		return
+	var progress := _flat(get_real_velocity()).dot(want.normalized())
+	if progress < want.length() * 0.3:
+		_stuck_time += delta
+	else:
+		_stuck_time = maxf(_stuck_time - delta * 2.0, 0.0)
+	if _stuck_time < 1.5:
+		return
+	_stuck_time = 0.0
+	_path.clear()
+	_side = -_side
+	if _cover_phase in [Cover.MOVING, Cover.FLANKING, Cover.PEEKING]:
+		_cover_phase = Cover.NONE
+		_cover_cooldown_left = cover_cooldown
+		_heal_after_move = false
+	elif state == State.IDLE:
+		_wander_dir = Vector3.ZERO
+		_wander_time = 0.0
+	elif state == State.INVESTIGATE:
+		_set_state(State.SEARCH)
+	elif state == State.ENGAGE and not _can_see:
+		_set_state(State.SEARCH)
 
 
 ## Scav footsteps, so you can hear them coming.
@@ -960,7 +993,7 @@ func _fire_at_target(dist: float) -> void:
 	if not picked:
 		return  # no clear shot (seen over the crest, but every line hits the ground): don't shoot the hill
 
-	var chance := lerpf(accuracy_near, accuracy_far, clampf(dist / accuracy_range, 0.0, 1.0))
+	var chance := hit_chance(dist)
 	if dist < point_blank_range:
 		chance = maxf(chance, point_blank_accuracy)
 	if _target.is_sprinting():
@@ -1117,6 +1150,7 @@ var _peek_point := Vector3.INF
 var _peek_left := 0.0
 var _peeks_left := 0
 var _advance_check_left := 0.0
+var _stuck_time := 0.0
 var _peek_blind := 0.0
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false
@@ -1155,6 +1189,13 @@ func _make_glint() -> void:
 	_glint.position = Vector3(0.12, 1.72, -0.45)
 	_glint.visible = false
 	add_child(_glint)
+
+
+## Chance a bullet hits at `dist` meters (before point blank, sprinting and flinch adjustments).
+func hit_chance(dist: float) -> float:
+	if dist <= accuracy_range:
+		return lerpf(accuracy_near, accuracy_far, dist / maxf(accuracy_range, 0.01))
+	return lerpf(accuracy_far, accuracy_long, clampf((dist - accuracy_range) / maxf(shoot_range - accuracy_range, 1.0), 0.0, 1.0))
 
 
 ## How bright its scope glint looks from `eye` (0 = none): full while it aims your way, a faint flicker as its
