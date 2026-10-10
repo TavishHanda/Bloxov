@@ -72,6 +72,11 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var spot_reacquire_mult := 0.4
 ## After losing sight this briefly, it still keeps tracking you (it was just looking at you).
 @export var reacquire_grace := 0.3
+## After losing sight of you in a fight it still knows where you are for this long (seconds; heard you, saw you
+## move): it heads for where you really are and spots you again the moment you're in view, e.g. through a window
+## (0.12.36, owner: indoors it lost you as soon as you broke line of sight).
+@export var track_time := 5.0
+@export var track_range := 35.0
 ## A bullet passing this close (meters) gets its attention, even if it's too far to hear the shot.
 @export var near_miss_radius := 2.5
 ## A friend dying this close (meters) gets its attention too: it turns toward roughly where the shots came from
@@ -128,7 +133,7 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var point_blank_range := 4.0
 @export var point_blank_accuracy := 0.9
 ## Keeps at least this far from its target: closer and it backs off while shooting.
-@export var min_distance := 3.0
+@export var min_distance := 1.5
 
 @export_group("Cover")
 ## Fights from cover (0.12.6, owner: a scav ran at him sideways with cover right beside it). In a fight it gets to
@@ -165,6 +170,15 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var suppress_chance := 0.5
 @export var suppress_time := 5.0
 @export var leash := 40.0
+## Trips out of its area (Bon and his guards, 0.12.36, owner: "maybe go into the bank or other buildings in town
+## from time to time, once or twice per raid"): this many at most per raid, each to a loot spot in another building
+## within excursion_range meters (the bank more often than not), then back home. The second one only happens
+## second_excursion_chance of the time.
+@export var excursions := 0
+@export var excursion_range := 75.0
+@export var second_excursion_chance := 0.5
+## Share of its open-ground patrol stops just outside its area (0.12.36, owner: guards should patrol outside too).
+@export var outside_patrol := 0.0
 ## Scavs and Raiders are rivals (0.12.17, owner): they ignore each other, but never answer the other side's calls
 ## for help, warn it or team up with it. raider.tscn and boss.tscn are "raider".
 @export var faction := &"scav"
@@ -176,19 +190,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 ## Chasing (0.12.33, owner: "they never push when in range to actually shoot"; cover is for when it sees you but
-## you're too far to hit). Within chase_range it closes in until chase_stop meters away, and comes after you again
-## if you back off. It only takes cover instead (or after getting hit) chase_cover_chance of the time, and from
-## cover in this range it peeks once, then comes out to chase. Badly hurt AI don't chase.
-## Not a brainless run at you (0.12.34, owner: "strategically"): it dashes a few meters at a time to the next spot
-## closer to you, out of your sight when there is one and curving round to one side, then stops and shoots for a
-## moment. Friends fighting you take turns: one dashes while the others shoot from where they are.
+## you're too far to hit). Within chase_range it walks at you shooting (push_speed), all the way in (0.12.36,
+## owner: "chase all the way into you"; the 0.12.34 dash-and-stop is gone: "they can just be walking and
+## shooting"). Only chase_cover_chance of the time it runs to cover instead, and from cover in this range it peeks
+## once, then comes out to chase. Badly hurt AI don't chase: they fight from cover.
 @export var chase_range := 30.0
-@export var chase_stop := 7.0
-@export var chase_cover_chance := 0.25
-## Each dash covers about this far (meters); it shoots from where it stops for this long (seconds, random).
-@export var chase_dash := 8.0
-@export var chase_pause_min := 0.8
-@export var chase_pause_max := 1.6
+@export var chase_stop := 2.0
+@export var chase_cover_chance := 0.1
 
 @export_group("Raider behavior")
 ## Off for scavs except flanking (0.12.3, less often than Raiders); raider.tscn turns these on (owner, 0.6.13: harder to fight).
@@ -425,6 +433,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	_state_time += delta
+	_alive_time += delta
 	_melee_cooldown_left -= delta
 	_since_threat += delta
 	_cover_cooldown_left -= delta
@@ -508,7 +517,8 @@ func _physics_process(delta: float) -> void:
 					_try_take_cover()
 		State.ENGAGE:
 			# Keeps tracking you while it can see you; once it has lost you for a moment it has to re-spot you.
-			var sees := _can_see and (_lost_sight_time < reacquire_grace or _spotting(delta, to_target, dist, spot_reacquire_mult))
+			var sees := _can_see and (_lost_sight_time < maxf(reacquire_grace, track_time)
+				or _spotting(delta, to_target, dist, spot_reacquire_mult))
 			if dist == INF:
 				_set_state(State.IDLE)
 			else:
@@ -528,6 +538,9 @@ func _physics_process(delta: float) -> void:
 		desired *= wounded_speed
 	if BoxMap.is_wading(self):   # slower through water, like players (0.11.20)
 		desired *= 0.6
+	_unstick_left -= delta
+	if _unstick_left > 0.0 and desired.length() > 0.5:
+		desired = _unstick_dir * desired.length()
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
@@ -566,6 +579,9 @@ func _slide_off_heads() -> void:
 
 ## Trying to move but not getting anywhere (pressed against a wall, sliding along it) for a while: gives up on
 ## where it was going (0.12.8, owner: one hugged a building for 20 seconds).
+var _unstick_left := 0.0
+var _unstick_dir := Vector3.ZERO
+
 func _check_stuck(delta: float, desired: Vector3) -> void:
 	var want := _flat(desired)
 	if want.length() < 0.5:
@@ -581,6 +597,10 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 	_stuck_time = 0.0
 	_path.clear()
 	_side = -_side
+	# A short step to the side first (0.12.36: Bon's guards got caught for good on a ramp's edge and a corner on
+	# the way to the trips' destinations, re-trying the same path forever).
+	_unstick_left = 0.7
+	_unstick_dir = want.normalized().rotated(Vector3.UP, PI / 2.0 * _side)
 	if _cover_phase in [Cover.MOVING, Cover.FLANKING, Cover.PEEKING]:
 		_cover_phase = Cover.NONE
 		_cover_cooldown_left = cover_cooldown
@@ -732,6 +752,9 @@ func answer_call(pos: Vector3) -> void:
 
 ## Within `leash` meters of its patrol area (always true without one).
 func _near_home(point: Vector3) -> bool:
+	var boss := leader if leader != null and is_instance_valid(leader) else self
+	if boss._trip_point != Vector3.INF and _flat(point - boss._trip_point).length() <= leash:
+		return true   # out on a trip (a fight there doesn't send it straight home)
 	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + leash
 
 
@@ -913,6 +936,9 @@ var _tactic_time := 0.0
 var _stand_time := 0.0
 ## Got shot since it last decided (makes a plan in the open rethink).
 var _hit_since_decide := false
+## Its last plan in the open was standing and shooting (so next it moves to cover: shoot first, then cover).
+var _stood_last := false
+var _suppress_at := Vector3.ZERO
 ## A quick sidestep after getting shot in the open (the only sideways move it makes there).
 var _dodge_left := 0.0
 var _dodge_dir := 0.0
@@ -921,6 +947,9 @@ var _dodge_dir := 0.0
 func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
 	_tactic_time += delta
 	_dodge_left -= delta
+	if (not sees and _lost_sight_time < track_time and _target != null and is_instance_valid(_target)
+			and dist < track_range):
+		_last_seen = _target.global_position   # still knows where you are for a few seconds after losing sight
 	# The cover plans (cover + peeking, flanking, falling back to heal) run their own steps until they end.
 	if _cover_phase != Cover.NONE:
 		var move := _update_cover(delta, sees, to_target, dist)
@@ -931,6 +960,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 		_suppress_left = 0.0
 		_may_suppress = true
 		_last_seen = _target.global_position
+		_suppress_at = _last_seen   # (pinning you down: where it last SAW you, not where it knows you went)
 		_lost_sight_time = 0.0
 		_spot = 0.0
 		# Reflexes.
@@ -961,7 +991,16 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			_update_shooting(delta, dist)
 			return _path_velocity(_target.global_position, move_speed * push_speed)
 		Tactic.CHASE:
-			return _chase(delta, sees, to_target, dist)
+			# Walks straight at you shooting. Where the path bends round something it faces where it's going and
+			# holds fire for those steps, so it never walks sideways across your view.
+			var chase_move := _path_velocity(_target.global_position, move_speed * push_speed)
+			if chase_move.length() > 0.1 and _flat(chase_move).normalized().dot(_flat(to_target).normalized()) < 0.5:
+				_face(chase_move, delta)
+				_hold_fire()
+			else:
+				_face(to_target, delta)
+				_update_shooting(delta, dist)
+			return chase_move
 		Tactic.ADVANCE:
 			_hold_fire()
 			if holds_position:
@@ -971,8 +1010,8 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 		Tactic.SUPPRESS:
 			# Pinning you down: keeps firing at where you ducked out of sight.
 			_suppress_left -= delta
-			_face(_flat(_last_seen - global_position), delta)
-			_update_shooting(delta, global_position.distance_to(_last_seen), true)
+			_face(_flat(_suppress_at - global_position), delta)
+			_update_shooting(delta, global_position.distance_to(_suppress_at), true)
 			return Vector3.ZERO
 		Tactic.PURSUE:
 			# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
@@ -1017,14 +1056,11 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 	match tactic:
 		Tactic.STAND:
 			return (not sees or dist > shoot_range or _can_push(dist) or _tactic_time > _stand_time
-				or (_hit_since_decide and _dodge_left <= 0.0) or (_can_chase(dist) and dist > chase_stop + 3.0))
+				or (_hit_since_decide and _dodge_left <= 0.0 and _tactic_time > 1.0)
+				or (_can_chase(dist) and dist > chase_stop + 3.0))
 		Tactic.CHASE:
-			# Getting hit while stopped: re-rolls chase or cover (it mostly keeps coming). Out of sight mid-dash is
-			# fine (that's the point); lost you for a while at a stop: go find you.
-			if not sees:
-				return _dash_point == Vector3.INF and _lost_sight_time > 1.5
-			return (not _can_chase(dist) or dist <= chase_stop or _can_push(dist)
-				or (_hit_since_decide and _tactic_time > 0.5 and _dash_point == Vector3.INF))
+			# (Getting hit doesn't stop it: it keeps coming.)
+			return not sees or not _can_chase(dist) or dist <= chase_stop or _can_push(dist)
 		Tactic.PUSH:
 			return not sees or not _can_push(dist)
 		Tactic.ADVANCE:
@@ -1067,11 +1103,16 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		if randf() >= chase_cover_chance or _cover_cooldown_left > 0.0:
 			if tactic != Tactic.CHASE:
 				_bark("push", 0.4)
-				_dash_point = Vector3.INF
-				_dash_pause = randf_range(0.2, 0.6)
-				_dash_side = 1.0 if randf() < 0.5 else -1.0
 			tactic = Tactic.CHASE
 			return
+	# Its first instinct is to shoot (0.12.36, owner: in the open they still ran first): a healthy AI that wasn't
+	# just trading shots stands and fires for a couple of seconds before it moves to cover. Badly hurt, cover first.
+	if not is_hurt() and tactic != Tactic.STAND and not _stood_last:
+		_stood_last = true
+		tactic = Tactic.STAND
+		_stand_time = randf_range(2.0, 3.0)
+		return
+	_stood_last = false
 	if not holds_position and _cover_cooldown_left <= 0.0:
 		# Up close (inside a building, round a corner) its first instinct is to shoot back: it only ducks into cover
 		# that's a step or two away (0.12.30, owner: one ran around looking for cover while he shot it).
@@ -1091,95 +1132,6 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 ## You're reloading or healing and it's not hurt: worth rushing you.
 func _can_push(dist: float) -> bool:
 	return _target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
-
-
-var _dash_point := Vector3.INF
-var _dash_pause := 0.0
-var _dash_time := 0.0
-var _dash_side := 1.0
-var _dash_wait := 0.0
-
-## Chasing (0.12.34): dash to the next spot, stop and shoot, dash again (bounding, friends taking turns).
-func _chase(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
-	if _dash_point != Vector3.INF:
-		_dash_time += delta
-		var move := _path_velocity(_dash_point, move_speed)
-		# Shoots on the move only with you roughly ahead; otherwise faces where it's going (never sideways).
-		if sees and move.length() > 0.1 and _flat(move).normalized().dot(_flat(to_target).normalized()) > 0.7:
-			_face(to_target, delta)
-			_update_shooting(delta, dist)
-		else:
-			_face(move, delta)
-			_hold_fire()
-		if _flat(_dash_point - global_position).length() < 0.6 or _dash_time > 4.0 or _cover_stuck(move):
-			_dash_point = Vector3.INF
-			_dash_pause = randf_range(chase_pause_min, chase_pause_max) * (0.5 if not sees else 1.0)
-		return move
-	# Stopped: shoots while it can see you, then picks the next dash (if it's its turn).
-	_dash_pause -= delta
-	if sees:
-		_face(to_target, delta)
-		_update_shooting(delta, dist)
-	else:
-		_face(_flat(_last_seen - global_position), delta)
-		_hold_fire()
-	if _dash_pause <= 0.0 and _shots_left <= 0:
-		if _friend_dashing():
-			_dash_pause = 0.3   # covering a friend's dash: keep shooting, go after they stop
-			return Vector3.ZERO
-		_dash_point = _pick_dash_point()
-		_dash_time = 0.0
-		if _dash_point == Vector3.INF:
-			_dash_pause = 0.8   # nowhere better to go yet: keep shooting from here
-	return Vector3.ZERO
-
-
-## Another AI fighting the same target nearby is mid-dash (they take turns: one moves, the rest shoot).
-func _friend_dashing() -> bool:
-	for node in RaidScope.nodes(self, &"enemies"):
-		var other := node as Scav
-		if (other != null and other != self and other.state == State.ENGAGE and other.tactic == Tactic.CHASE
-				and other._dash_point != Vector3.INF and other._target == _target
-				and _flat(other.global_position - global_position).length() < 25.0):
-			return true
-	return false
-
-
-## The next chase spot: a few meters closer to where it last saw you, not closer than chase_stop, reachable by a
-## short path. Best: out of your sight; then: curving round on its side (so it comes at you from an angle); ahead.
-func _pick_dash_point() -> Vector3:
-	var goal := _last_seen
-	var to_goal := _flat(goal - global_position)
-	var dist := to_goal.length()
-	if dist <= chase_stop + 1.0:
-		return Vector3.INF
-	var forward := to_goal / dist
-	var eyes := goal + Vector3(0, 1.6, 0)
-	if _target != null and is_instance_valid(_target) and _can_see:
-		eyes = _target.eye_position()
-	var space := get_world_3d().direct_space_state
-	var best := Vector3.INF
-	var best_score := -INF
-	for length: float in [chase_dash * 0.6, chase_dash, chase_dash * 1.4]:
-		for i in 7:
-			var angle := deg_to_rad(-54.0 + i * 18.0)
-			var spot := AINav.closest(self, global_position + forward.rotated(Vector3.UP, angle) * length)
-			if spot == Vector3.ZERO:
-				continue
-			var left := _flat(goal - spot).length()
-			var gain := dist - left
-			if gain < 2.5 or left < chase_stop or _spot_taken(spot):
-				continue
-			if AINav.path_length(AINav.path(self, global_position, spot)) > length * 1.5:
-				continue
-			var score := gain
-			score += 5.0 * _hides_at(space, eyes, spot)
-			score += 2.0 * signf(angle) * _dash_side
-			score += randf() * 1.5
-			if score > best_score:
-				best_score = score
-				best = spot
-	return best
 
 
 ## Close enough to really hurt you, and fit and free to come after you.
@@ -1447,16 +1399,14 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 			_lost_sight_time = 0.0
 		return flank_move
 	if _cover_phase == Cover.MOVING:
-		# Runs to cover facing where it's going; it only shoots on the way if you're roughly ahead of it, so it
-		# doesn't walk sideways to cover while shooting at you (0.12.28, owner: "just moving sideways").
+		# Runs to cover with intent: facing where it's going, not shooting (0.12.36, owner; 0.12.28: no sideways
+		# walking to cover while shooting at you). The last step in it turns to face you.
 		var move := _path_velocity(_cover_point, move_speed)
-		var ahead := move.length() < 0.5 or _flat(move).normalized().dot(_flat(to_target).normalized()) > 0.5
-		if sees and dist <= shoot_range and ahead:
-			_face(to_target, delta)
-			_update_shooting(delta, dist)
+		if move.length() < 0.5:
+			_face(to_target if sees else _flat(_last_seen - global_position), delta)
 		else:
 			_face(move, delta)
-			_hold_fire()
+		_hold_fire()
 		# Shot up close on the way, with the cover still a way off: turns and fights instead of running with its
 		# back to you (0.12.31).
 		if (sees and _hit_since_decide and dist < close_fight_range
@@ -1596,7 +1546,7 @@ func _update_shooting(delta: float, dist: float, suppressing := false) -> void:
 	if _shots_left <= 0:
 		_shots_left = _burst_length(dist)
 	if suppressing:
-		_fire_at_point(_last_seen + Vector3(0, 1.1, 0))
+		_fire_at_point(_suppress_at + Vector3(0, 1.1, 0))
 	else:
 		_fire_at_target(dist)
 	_shots_left -= 1
@@ -1738,7 +1688,9 @@ func _wander(delta: float) -> Vector3:
 			_wander_dir = Vector3.ZERO
 			return Vector3.ZERO
 		_wander_dir = _flat(spot - global_position).normalized()
-		var follow := _path_velocity(spot, move_speed * (jog_speed if leader._patrol_jog else patrol_speed) * 1.1)
+		# (fallen behind: jogs to catch up)
+		var catch_up := leader._patrol_jog or _flat(spot - global_position).length() > 8.0
+		var follow := _path_velocity(spot, move_speed * (jog_speed if catch_up else patrol_speed) * 1.1)
 		_face(follow, delta, 4.0)
 		return follow
 	if _wander_dir == Vector3.ZERO:
@@ -1754,8 +1706,16 @@ func _wander(delta: float) -> Vector3:
 		if _wander_dir == Vector3.ZERO:
 			_wander_time = 1.0
 		return Vector3.ZERO
+	# Leading guards (Bon): waits for one that's fallen far behind, a few seconds at most each time (0.12.36: on
+	# trips out of the town hall they trailed 50 m behind).
+	if _has_followers:
+		if not _follower_behind(14.0):
+			_waited = 0.0
+		elif _waited < 6.0:
+			_waited += delta
+			return Vector3.ZERO
 	_patrol_time += delta
-	if _arrived(_wander_point) or _patrol_time > 45.0:
+	if _arrived(_wander_point) or _patrol_time > (90.0 if _trip_point != Vector3.INF else 45.0):
 		_wander_dir = Vector3.ZERO
 		if is_instance_valid(_patrol_container) and _flat(_patrol_container.global_position - global_position).length() < 3.5:
 			# At a container: search it for a while, like a player would.
@@ -1769,10 +1729,24 @@ func _wander(delta: float) -> Vector3:
 	return move
 
 
+var _waited := 0.0
+var _has_followers := false
+
+## A follower of this one is more than `dist` meters away (not one that's in a fight or dead).
+func _follower_behind(dist: float) -> bool:
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if (other != null and other.leader == self and other.state == State.IDLE
+				and _flat(other.global_position - global_position).length() > dist):
+			return true
+	return false
+
+
 ## Starts following `new_leader` (a boss's guard, a Raider's partner). Followers and their leader walk through each
 ## other (0.12.20: Bon's guards boxed him into a corner of the town hall and none of them could move).
 func follow(new_leader: Scav) -> void:
 	leader = new_leader
+	new_leader._has_followers = true
 	for node in RaidScope.nodes(self, &"enemies"):
 		var other := node as Scav
 		if other != null and other != self and (other == new_leader or other.leader == new_leader):
@@ -1780,8 +1754,30 @@ func follow(new_leader: Scav) -> void:
 			other.add_collision_exception_with(self)
 
 
+var _trips_left := -1
+var _alive_time := 0.0
+var _next_trip_at := 0.0
+## Where its current trip goes (INF: at home). Its guards check it too.
+var _trip_point := Vector3.INF
+
 func _pick_patrol_point() -> Vector3:
 	var spots := RaidScope.nodes(self, &"loot_containers")
+	if _trip_point != Vector3.INF and _in_home(global_position):
+		_trip_point = Vector3.INF   # back from its trip
+	if excursions > 0 and home_radius > 0.0:
+		if _trips_left < 0:
+			_trips_left = excursions
+			_next_trip_at = randf_range(60.0, 200.0)
+		if _trips_left > 0 and _alive_time >= _next_trip_at and _trip_point == Vector3.INF:
+			var trip := _pick_trip(spots)
+			if trip != Vector3.ZERO:
+				_trips_left -= 1
+				if randf() > second_excursion_chance:
+					_trips_left = 0
+				_next_trip_at = _alive_time + randf_range(150.0, 250.0)
+				_trip_point = trip
+				_patrol_jog = false
+				return trip
 	if home_radius > 0.0:
 		spots = spots.filter(func(c: Node) -> bool: return _in_home((c as Node3D).global_position))
 		# Out of its area (after a fight): head straight back in.
@@ -1802,6 +1798,13 @@ func _pick_patrol_point() -> Vector3:
 			_patrol_container = spots.pick_random() as Node3D
 			# Walk up next to it (the closest walkable point to the container).
 			spot = AINav.closest(self, _patrol_container.global_position)
+		elif home_radius > 0.0 and randf() < outside_patrol:
+			# Just outside its area (round its building): allowed though it's past the edge.
+			var out := Vector3(randf_range(home_radius, home_radius + 12.0), 0, 0).rotated(Vector3.UP, randf() * TAU)
+			spot = AINav.closest(self, home_center + out)
+			if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0:
+				return spot
+			continue
 		elif home_radius > 0.0:
 			var offset := Vector3(home_radius * lerpf(home_edge, 1.0, sqrt(randf())), 0, 0).rotated(Vector3.UP, randf() * TAU)
 			spot = AINav.closest(self, home_center + offset)
@@ -1817,6 +1820,19 @@ func _pick_patrol_point() -> Vector3:
 		return fallback
 	# No navigation map yet: somewhere a few meters ahead.
 	return global_position + _flat(-global_basis.z).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2)) * 6.0
+
+
+## A trip's destination: a loot spot in another building (not in its area) within excursion_range, the bank half
+## the time when there is one. ZERO if none.
+func _pick_trip(spots: Array[Node]) -> Vector3:
+	var away := spots.filter(func(c: Node) -> bool:
+		var at := (c as Node3D).global_position
+		return not _in_home(at) and _flat(at - home_center).length() <= excursion_range)
+	if away.is_empty():
+		return Vector3.ZERO
+	var bank := away.filter(func(c: Node) -> bool: return c.get_meta("place", "") == "Bank")
+	_patrol_container = ((bank if not bank.is_empty() and randf() < 0.5 else away).pick_random()) as Node3D
+	return AINav.closest(self, _patrol_container.global_position)
 
 
 ## Something solid (a wall, crate, car) right next to `spot`, about chest high.

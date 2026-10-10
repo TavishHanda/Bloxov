@@ -1723,7 +1723,8 @@ func _section_old_bloxov() -> void:
 			strays += 1
 		for i in 4:
 			var p := e._pick_patrol_point()
-			if Vector2(p.x - e.home_center.x, p.z - e.home_center.z).length() > e.home_radius + 4.0:
+			# (Bon also stops just outside his building, up to 12 m past its edge: 0.12.36, owner)
+			if Vector2(p.x - e.home_center.x, p.z - e.home_center.z).length() > e.home_radius + (12.5 if e.outside_patrol > 0.0 else 4.0):
 				strays += 1
 	_check(strays == 0, "zone AI spawn in their zone and pick patrol spots inside it (%d outside)" % strays)
 	# The creek (0.11.20): real water in a dug channel (the bed under the surface), the AI can walk into it, and
@@ -1929,6 +1930,50 @@ func _section_senses() -> void:
 	_check(roamed > 2.5, "it walks around checking spots nearby (up to %.1f m away)" % roamed)
 	_check(hunter.state == Scav.State.IDLE and hunter._wary_left > 0.0, "after searching a while it goes back to wandering, wary")
 	hunter.queue_free()
+	# 0.12.36 (owner: indoors it lost you the moment you broke line of sight): nearby, it still knows where you are
+	# for a few seconds after losing sight, and sees you again the moment you're in view.
+	var track_home := player.global_position
+	player.teleport_to(Vector3(30, 0.1, -30))
+	await _frames(5)
+	var tracker := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 12)) as Scav
+	_face_player(tracker)
+	tracker.shot_damage = 0
+	await physics_frame
+	tracker._alert(player.global_position)
+	tracker._set_state(Scav.State.ENGAGE)
+	await _frames(20)
+	var wall := _block(player.global_position + Vector3(0, 1.5, 6), Vector3(10, 3, 0.5))
+	await _frames(12)
+	var moved_to := player.global_position + Vector3(4, 0, 0)
+	player.teleport_to(moved_to)
+	await _frames(30)
+	_check(tracker._last_seen.distance_to(moved_to) < 0.5 and tracker._lost_sight_time > 0.0,
+		"out of sight close by, it still knows where you went for a few seconds (%.1f m off, lost %.2f s)" % [tracker._last_seen.distance_to(moved_to), tracker._lost_sight_time])
+	wall.queue_free()
+	await _frames(12)
+	_check(tracker._lost_sight_time == 0.0, "...and sees you again the moment you're in view")
+	player.teleport_to(track_home)
+	tracker.queue_free()
+	# Its first instinct in the open is to shoot, not run for cover (0.12.36, owner).
+	var opener := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 40)) as Scav
+	_face_player(opener)
+	opener.shot_damage = 0
+	opener.flank_chance = 0.0
+	var opener_shots := [0]
+	opener.fired.connect(func(_end: Vector3) -> void: opener_shots[0] += 1)
+	await physics_frame
+	opener._alert(player.global_position)
+	var first_plan := Scav.Tactic.NONE
+	var shots_before_moving := -1
+	for i in 60 * 3:
+		await physics_frame
+		if first_plan == Scav.Tactic.NONE and opener.tactic != Scav.Tactic.NONE:
+			first_plan = opener.tactic
+		if shots_before_moving < 0 and opener._cover_phase == Scav.Cover.MOVING:
+			shots_before_moving = opener_shots[0]
+	_check(first_plan == Scav.Tactic.STAND and opener_shots[0] > 0 and shots_before_moving != 0,
+		"out of chase range in the open it shoots first, cover after (%d shots before moving)" % shots_before_moving)
+	opener.queue_free()
 
 
 func _section_spotting() -> void:
@@ -2321,6 +2366,20 @@ func _section_boss() -> void:
 		await physics_frame
 	var near := guards.filter(func(g: Scav) -> bool: return g.global_position.distance_to(the_boss.global_position) < 7.0)
 	_check(near.size() == 3, "the guards stay with the boss while it patrols (%d of 3 close)" % near.size())
+	# 0.12.36 (owner): once or twice a raid it takes its guards on a trip to another building (the bank most
+	# often), and some patrol stops are just outside its area. A fight on a trip doesn't send it straight home.
+	_check(the_boss.excursions == 2 and the_boss.outside_patrol > 0.0, "the boss makes 1-2 trips a raid and patrols outside its building too")
+	var far_spot := Node3D.new()
+	far_spot.set_meta("place", "Bank")
+	main.add_child(far_spot)
+	far_spot.global_position = hall.center + Vector3(the_boss.home_radius + 20.0, 0, 0)
+	var spots: Array[Node] = [far_spot]
+	var trip := the_boss._pick_trip(spots)
+	_check(trip != Vector3.ZERO and not the_boss._in_home(trip), "a trip goes to a building outside its area")
+	the_boss._trip_point = trip
+	_check(guards[0]._near_home(trip + Vector3(5, 0, 0)), "on a trip, a fight there counts as near home (no instant walk back)")
+	the_boss._trip_point = Vector3.INF
+	far_spot.queue_free()
 	the_boss.get_node("Health").take_damage(10000)
 	await _frames(2)
 	_check(guards.all(func(g: Scav) -> bool: return g.home_radius == 12.0), "without the boss, the guards keep to its zone")
@@ -2748,8 +2807,8 @@ func _section_cover() -> void:
 	_check(phases.has(Scav.Cover.HOLDING) and phases.has(Scav.Cover.PEEKING) and shots[0] > 0,
 		"under fire it fights from cover: ducks in, peeks out and shoots from there (%d shots peeking)" % shots[0])
 	fighter.queue_free()
-	# In range to really hurt you it comes at you shooting (0.12.33, owner: "should prio chasing u"), stops a few
-	# meters short, and doesn't take cover first.
+	# In range to really hurt you it comes at you shooting (0.12.33, owner: "should prio chasing u"), all the way in
+	# (0.12.36), and doesn't take cover first.
 	var chaser := _spawn(SCAV_SCENE, Vector3(-15, 0.1, 22)) as Scav
 	_face_player(chaser)
 	chaser.shot_damage = 0
@@ -2762,43 +2821,13 @@ func _section_cover() -> void:
 	chaser.fired.connect(func(_end: Vector3) -> void: chase_shots[0] += 1)
 	var chased := false
 	var closest := 99.0
-	for i in 60 * 6:
+	for i in 60 * 10:
 		await physics_frame
 		chased = chased or chaser.tactic == Scav.Tactic.CHASE
 		closest = minf(closest, chaser.global_position.distance_to(player.global_position))
-	_check(chased and chase_shots[0] > 0 and closest < 12.0 and closest > chaser.min_distance,
-		"in range it chases you while shooting (%d shots, got to %.1f m)" % [chase_shots[0], closest])
+	_check(chased and chase_shots[0] > 0 and closest < 3.5,
+		"in range it chases you while shooting, all the way in (%d shots, got to %.1f m)" % [chase_shots[0], closest])
 	chaser.queue_free()
-	# Not a straight run (0.12.34, owner: "strategically"): it dashes and stops to shoot, and two chasing you take
-	# turns (one dashes while the other shoots).
-	var duo: Array[Scav] = []
-	for z in [-1.5, 1.5]:
-		var c := _spawn(SCAV_SCENE, Vector3(7, 0.1, z)) as Scav
-		_face_player(c)
-		c.shot_damage = 0
-		c.flank_chance = 0.0
-		c.chase_cover_chance = 0.0
-		duo.append(c)
-	await physics_frame
-	for c in duo:
-		c._alert(player.global_position)
-		c._set_state(Scav.State.ENGAGE)
-	var both_dashing := 0
-	var dashes := 0
-	var stops := 0
-	for i in 60 * 6:
-		await physics_frame
-		var dashing := 0
-		for c in duo:
-			if c.tactic == Scav.Tactic.CHASE and c._dash_point != Vector3.INF:
-				dashing += 1
-		both_dashing += 1 if dashing == 2 else 0
-		dashes += dashing
-		stops += 1 if duo[0].tactic == Scav.Tactic.CHASE and duo[0]._dash_point == Vector3.INF else 0
-	_check(dashes > 0 and stops > 0 and both_dashing == 0,
-		"chasing, it dashes and stops to shoot, and two take turns (%d dash frames, %d stopped, %d both dashing)" % [dashes, stops, both_dashing])
-	for c in duo:
-		c.queue_free()
 
 
 func _section_lean() -> void:
@@ -2907,12 +2936,12 @@ func _section_hurt() -> void:
 	brawler.fired.connect(func(_end: Vector3) -> void: brawl_shots[0] += 1)
 	await physics_frame
 	brawler._alert(player.global_position)
-	var wandered := 0.0
-	var brawl_start := brawler.global_position
+	var backed := 0.0
+	var brawl_dist := brawler.global_position.distance_to(player.global_position)
 	for i in 60 * 2:
 		await physics_frame
-		wandered = maxf(wandered, brawler.global_position.distance_to(brawl_start))
-	_check(brawl_shots[0] >= 2 and wandered < 4.0, "up close it shoots back first (%d shots, moved %.1f m)" % [brawl_shots[0], wandered])
+		backed = maxf(backed, brawler.global_position.distance_to(player.global_position) - brawl_dist)
+	_check(brawl_shots[0] >= 2 and backed < 1.0, "up close it shoots back first, no running off (%d shots, backed off %.1f m)" % [brawl_shots[0], backed])
 	brawler.queue_free()
 	await physics_frame
 	# 0.12.31 (owner: priorities felt wrong): badly hurt up close with no cover a few steps away, it keeps shooting

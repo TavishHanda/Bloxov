@@ -6,6 +6,24 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.36 (shoot first, chase all the way in, Bon's trips; owner)
+- Shooting comes first (owner: in the open they still ran first). A healthy AI that sees you stands and shoots
+  for 2-3 s before it moves to cover; getting hit in that first second doesn't send it running.
+- Chasing (owner: "chase all the way into you", "just be walking and shooting"): within 30 m it walks straight at
+  you shooting, all the way up to you (rifle-butt range), and getting hit doesn't stop it. The 0.12.34
+  dash-and-stop is gone. 1 time in 10 it takes cover instead. Badly hurt (about 30%, Raiders and Bon 40%) it doesn't
+  chase and fights from cover, as before.
+- Running to cover is done with intent: facing where it's going, not shooting on the way.
+- Vision (owner: indoors it lost you the moment you broke line of sight): within 35 m it still knows where you are
+  for 5 s after losing sight, heads there, and sees you again the moment you're in view (through a window, round a
+  corner). Suppressing fire still goes where it last saw you.
+- Bon and his guards (owner): some patrol stops are just outside the town hall, and once or twice a raid Bon takes
+  the guards to another building in town (the bank half the time), then back. A fight while they're out doesn't
+  send them straight home. Bon waits for a guard that falls far behind.
+- AI that get caught on an edge (a ramp's side, a corner) step to the side before trying again. Bon's guards used
+  to get stuck for good on the way out of the hall.
+- Smoke test: chases all the way in, shoots first in the open, keeps track of you for a few seconds, Bon's trips.
+
 ## 0.12.35 (AI stuck in ceilings, teammate footsteps; owner)
 - AI stuck in a ceiling (owner's screenshot): an AI could spawn right inside another (a crowded spawn spot, a
   Raider's partner, Bon's guards: the free-spot check only looked for walls) and get pushed up onto its head, with
