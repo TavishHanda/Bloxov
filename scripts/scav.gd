@@ -278,8 +278,6 @@ var _shots_left := 0
 var _knockback := Vector3.ZERO
 var _wander_dir := Vector3.ZERO
 var _wander_time := 0.0
-var _strafe_dir := 0.0
-var _strafe_time := 0.0
 var _hit_flash_time := 0.0
 ## Whether the hit-flash overlay is on right now (so the meshes are only touched when it changes).
 var _flashing := false
@@ -469,66 +467,8 @@ func _physics_process(delta: float) -> void:
 			var sees := _can_see and (_lost_sight_time < reacquire_grace or _spotting(delta, to_target, dist, spot_reacquire_mult))
 			if dist == INF:
 				_set_state(State.IDLE)
-			elif _cover_phase != Cover.NONE:
-				desired = _update_cover(delta, sees, to_target, dist)
-			elif _wants_heal and _heal_retry_left <= 0.0:
-				_fall_back_to_heal()
-			elif sees:
-				_suppress_left = 0.0
-				_may_suppress = true
-				_last_seen = _target.global_position
-				_lost_sight_time = 0.0
-				_spot = 0.0
-				_face(to_target, delta)
-				if _windup_left > 0.0 or (dist < melee_range and _melee_cooldown_left <= 0.0):
-					_update_melee(delta, dist)
-				elif dist < min_distance:
-					# Too close: back off (with a bit of sideways movement) while shooting.
-					desired = _clear_of_walls(-to_target.normalized() * move_speed * 0.7 + _strafe(delta, to_target) * 0.5)
-					_update_shooting(delta, dist)
-				elif dist <= shoot_range:
-					# You're reloading or healing: push in on you (still shooting); otherwise strafe.
-					var pushing := _target_busy() and not holds_position and not is_wounded() and dist > min_distance + 2.0
-					if pushing and not _was_pushing:
-						_bark("push")
-					_was_pushing = pushing
-					if pushing:
-						desired = _path_velocity(_target.global_position, move_speed * push_speed)
-					else:
-						desired = _clear_of_walls(_strafe(delta, to_target))
-					_update_shooting(delta, dist)
-					# Out in the open: get to cover and fight from there (between bursts, or right away when
-					# hit). Sometimes, in a lull, circle round to flank instead.
-					# (0.12.10: right away, shooting on the way, instead of after a burst; owner: they kept strafing.)
-					if not pushing and not holds_position and _cover_cooldown_left <= 0.0:
-						if _since_threat > lull_time and randf() < flank_chance and not is_wounded():
-							_try_flank(to_target, dist)
-						else:
-							_try_take_cover()
-				elif holds_position:   # out of range: keep watching, don't leave the perch
-					_hold_fire()
-				else:
-					desired = _close_in(delta, _target.global_position, to_target)
-					_hold_fire()
 			else:
-				# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
-				_lost_sight_time += delta
-				if _suppress_left > 0.0 or _try_suppress():
-					# Pinning you down: keeps firing at where you ducked out of sight.
-					_suppress_left -= delta
-					_face(_flat(_last_seen - global_position), delta)
-					_update_shooting(delta, global_position.distance_to(_last_seen), true)
-				elif _arrived(_last_seen) or _lost_sight_time > give_up_time:
-					_set_state(State.SEARCH)
-					_start_hunt()
-					_bark("lost", 0.6)
-				elif holds_position:
-					_face(_flat(_last_seen - global_position), delta)
-				elif _flat(_last_seen - global_position).length() > shoot_range:
-					desired = _close_in(delta, _last_seen, _flat(_last_seen - global_position))
-				else:
-					desired = _path_velocity(_last_seen, move_speed)
-					_face(desired, delta)
+				desired = _fight(delta, sees, to_target, dist) + _separation(delta)
 
 	if holds_position and home_radius > 0.0 and not _in_home(global_position + desired * delta * 4.0):
 		desired = Vector3.ZERO   # the edge of its perch
@@ -867,6 +807,172 @@ func _update_crouch(delta: float) -> void:
 	($HeadShape as CollisionShape3D).position = _head_rest * height
 
 
+## The fight brain (0.12.29, owner: the AI felt "cluttered and messy"; built like shipped shooters' AI). It picks
+## ONE plan (a Tactic) and sticks to it until the plan is done or something real changes (it gets shot in the open,
+## loses sight of you, you start reloading, you get out of range); every move it makes serves that plan.
+## Before, each behavior grabbed control on its own every frame, so plans flip-flopped.
+## Reflexes still come first: a bash up close, backing off when you're in its face.
+enum Tactic { NONE, COVER, STAND, PUSH, FLANK, ADVANCE, PURSUE, SUPPRESS, HEAL }
+var tactic := Tactic.NONE
+var _tactic_time := 0.0
+## STAND: how long it trades shots in the open before looking for cover (or a flank) again.
+var _stand_time := 0.0
+## Got shot since it last decided (makes a plan in the open rethink).
+var _hit_since_decide := false
+## A quick sidestep after getting shot in the open (the only sideways move it makes there).
+var _dodge_left := 0.0
+var _dodge_dir := 0.0
+
+
+func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
+	_tactic_time += delta
+	_dodge_left -= delta
+	# The cover plans (cover + peeking, flanking, falling back to heal) run their own steps until they end.
+	if _cover_phase != Cover.NONE:
+		var move := _update_cover(delta, sees, to_target, dist)
+		if _cover_phase == Cover.NONE:
+			tactic = Tactic.NONE   # done: decide again next frame
+		return move
+	if sees:
+		_suppress_left = 0.0
+		_may_suppress = true
+		_last_seen = _target.global_position
+		_lost_sight_time = 0.0
+		_spot = 0.0
+		# Reflexes.
+		if _windup_left > 0.0 or (dist < melee_range and _melee_cooldown_left <= 0.0):
+			_face(to_target, delta)
+			_update_melee(delta, dist)
+			return Vector3.ZERO
+		if dist < min_distance:
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+			return _clear_of_walls(-to_target.normalized() * move_speed * 0.7)
+	else:
+		_lost_sight_time += delta
+	if tactic == Tactic.NONE or _should_rethink(sees, dist):
+		_decide(sees, to_target, dist)
+		if _cover_phase != Cover.NONE:
+			return _update_cover(delta, sees, to_target, dist)
+	match tactic:
+		Tactic.STAND:
+			# Trades shots where it stands; the only sideways move is a quick dodge right after being hit.
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+			if _dodge_left > 0.0 and not holds_position:
+				return _clear_of_walls(to_target.normalized().cross(Vector3.UP) * _dodge_dir * move_speed * 0.8)
+			return Vector3.ZERO
+		Tactic.PUSH:
+			_face(to_target, delta)
+			_update_shooting(delta, dist)
+			return _path_velocity(_target.global_position, move_speed * push_speed)
+		Tactic.ADVANCE:
+			_hold_fire()
+			if holds_position:
+				_face(to_target, delta)
+				return Vector3.ZERO
+			return _close_in(delta, _target.global_position, to_target)
+		Tactic.SUPPRESS:
+			# Pinning you down: keeps firing at where you ducked out of sight.
+			_suppress_left -= delta
+			_face(_flat(_last_seen - global_position), delta)
+			_update_shooting(delta, global_position.distance_to(_last_seen), true)
+			return Vector3.ZERO
+		Tactic.PURSUE:
+			# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
+			if _arrived(_last_seen) or _lost_sight_time > give_up_time:
+				_set_state(State.SEARCH)
+				_start_hunt()
+				_bark("lost", 0.6)
+				return Vector3.ZERO
+			if holds_position:
+				_face(_flat(_last_seen - global_position), delta)
+				return Vector3.ZERO
+			if _flat(_last_seen - global_position).length() > shoot_range:
+				return _close_in(delta, _last_seen, _flat(_last_seen - global_position))
+			var move := _path_velocity(_last_seen, move_speed)
+			_face(move, delta)
+			return move
+	return Vector3.ZERO
+
+
+## In a fight, friends keep a step apart instead of standing inside each other (Bon's guards can walk through him
+## on patrol, so they don't box him in): a gentle push away from anyone closer than 1.5 m (0.12.29).
+var _apart := Vector3.ZERO
+var _apart_check_left := 0.0
+func _separation(delta: float) -> Vector3:
+	_apart_check_left -= delta
+	if _apart_check_left <= 0.0:
+		_apart_check_left = 0.2
+		_apart = Vector3.ZERO
+		for node in RaidScope.nodes(self, &"enemies"):
+			var other := node as Scav
+			if other == null or other == self or other.state == State.DEAD:
+				continue
+			var away := _flat(global_position - other.global_position)
+			var d := away.length()
+			if d < 1.5:
+				_apart += (away / d if d > 0.01 else Vector3.RIGHT.rotated(Vector3.UP, randf() * TAU)) * (1.5 - d) * 2.0
+	return _apart
+
+
+## Whether the current plan no longer fits (something real changed).
+func _should_rethink(sees: bool, dist: float) -> bool:
+	match tactic:
+		Tactic.STAND:
+			return (not sees or dist > shoot_range or _can_push(dist) or _tactic_time > _stand_time
+				or (_hit_since_decide and _dodge_left <= 0.0) or (_wants_heal and _heal_retry_left <= 0.0))
+		Tactic.PUSH:
+			return not sees or not _can_push(dist) or (_wants_heal and _heal_retry_left <= 0.0)
+		Tactic.ADVANCE:
+			return not sees or dist <= shoot_range
+		Tactic.SUPPRESS:
+			return sees or _suppress_left <= 0.0
+		Tactic.PURSUE:
+			return sees or (_wants_heal and _heal_retry_left <= 0.0)
+	return true
+
+
+## Picks the plan, in order: patch up if badly hurt; lost you: pin you down (if a friend can flank) or go after you;
+## too far: move up; you're reloading or healing: push; otherwise get to cover (sometimes flank in a lull), and only
+## with no cover anywhere near, trade shots in the open.
+func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
+	_tactic_time = 0.0
+	_hit_since_decide = false
+	if _wants_heal and _heal_retry_left <= 0.0 and not holds_position:
+		tactic = Tactic.HEAL
+		_fall_back_to_heal()
+		return
+	if not sees:
+		if _suppress_left > 0.0 or _try_suppress():
+			tactic = Tactic.SUPPRESS
+		else:
+			tactic = Tactic.PURSUE
+		return
+	if dist > shoot_range:
+		tactic = Tactic.ADVANCE
+		return
+	if _can_push(dist):
+		tactic = Tactic.PUSH
+		_bark("push")
+		return
+	if not holds_position and _cover_cooldown_left <= 0.0:
+		if _since_threat > lull_time and randf() < flank_chance and not is_wounded():
+			_try_flank(to_target, dist)   # (takes cover instead if there's no hidden spot to flank to)
+		else:
+			_try_take_cover()
+		if _cover_phase != Cover.NONE:
+			tactic = Tactic.FLANK if _cover_phase == Cover.FLANKING else Tactic.COVER
+			return
+	tactic = Tactic.STAND
+	_stand_time = randf_range(2.0, 3.0)
+
+
+## You're reloading or healing and it's not hurt: worth rushing you.
+func _can_push(dist: float) -> bool:
+	return _target_busy() and not holds_position and not is_wounded() and dist > min_distance + 2.0
+
+
 ## Too far away to shoot (e.g. you're up on a hill): it moves up cover to cover (0.12.7, owner: they went into
 ## cover, then just walked at him in the open). With no cover ahead it waits where it is, out of sight if it can.
 func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
@@ -887,8 +993,8 @@ func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
 				return Vector3.ZERO
 	_face(to_goal, delta)
 	if _can_see and _lost_sight_time <= 0.0 and _no_cover_around():
-		# Out in the open with nowhere to hide: rush in, weaving.
-		return _path_velocity(goal, move_speed) + _strafe(delta, to_goal) * 0.6
+		# Out in the open with nowhere to hide: rush straight in.
+		return _path_velocity(goal, move_speed)
 	return Vector3.ZERO
 
 
@@ -959,23 +1065,35 @@ func _sneaking() -> bool:
 
 
 ## Circle around the target: a reachable spot off to one side at about the same distance (Raiders, scavs since 0.12.3).
-## A flank ends somewhere off to your side that you can't see (0.12.28, owner: AI kept running sideways in the
-## open: a flank used to be a sideways run in plain view). With no hidden spot on either side it takes cover instead.
+## A flank (0.12.28-0.12.29, owner: no sideways runs across your view, no messy loops): it circles to a spot
+## 50-90 degrees round from where it is now, 10-20 m from where it knows you are, that you can't see, along a path
+## that's not too long and doesn't pass close to you. With no such spot it takes cover instead.
 func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_cooldown_left = cover_cooldown
-	var target_pos := _target.global_position
+	var center := global_position + _flat(to_target)
 	var eyes := _target.eye_position()
 	var space := get_world_3d().direct_space_state
+	var back := -_flat(to_target).normalized()   # from you toward it
+	var radius := clampf(dist, 10.0, 20.0)
 	var first := 1.0 if randf() < 0.5 else -1.0
 	for side_sign: float in [first, -first]:
-		var side := to_target.normalized().cross(Vector3.UP) * side_sign
-		for reach: float in [0.8, 0.6, 1.0]:
-			var spot := AINav.closest(self, target_pos - to_target.normalized() * dist * 0.4 + side * dist * reach)
-			if spot == Vector3.ZERO or _flat(spot - global_position).length() < 3.0:
+		for angle: float in [70.0, 50.0, 90.0]:
+			var spot := AINav.closest(self, center + back.rotated(Vector3.UP, deg_to_rad(angle) * side_sign) * radius)
+			if spot == Vector3.ZERO or _flat(spot - global_position).length() < 4.0:
 				continue
-			var look := PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 1.5, eyes, 1)
-			if space.intersect_ray(look).is_empty():
+			if space.intersect_ray(PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 1.5, eyes, 1)).is_empty():
 				continue   # you'd see it get there
+			var route := AINav.path(self, global_position, spot)
+			var length := AINav.path_length(route)
+			if length > 30.0 or length > _flat(spot - global_position).length() * 2.0:
+				continue   # a long loop round
+			var too_close := false
+			for point in route:
+				if _flat(point - center).length() < 6.0:
+					too_close = true
+					break
+			if too_close:
+				continue   # the way there runs right past you
 			_cover_point = spot
 			_cover_low = false
 			_cover_phase = Cover.FLANKING
@@ -1028,8 +1146,8 @@ func _find_cover() -> Vector3:
 		if spot == Vector3.ZERO or _flat(spot - behind).length() > 1.5:
 			continue
 		var hides := _hides_at(space, eyes, spot)
-		if hides == 0:
-			continue  # the target could see it there
+		if hides == 0 or _spot_taken(spot):
+			continue  # the target could see it there, or a friend is already hiding there
 		# (Low cover, where it has to crouch, counts as a few meters farther: it prefers a spot it can stand at.)
 		var walk := AINav.path_length(AINav.path(self, global_position, spot))
 		if walk <= cover_search_radius * 1.6 and walk + (3.0 if hides == 1 else 0.0) < best_walk:
@@ -1045,8 +1163,8 @@ func _find_cover() -> Vector3:
 			if spot == Vector3.ZERO or _flat(spot - global_position).length() > radius + 1.0:
 				continue
 			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
-			if space.intersect_ray(query).is_empty():
-				continue  # the target could see it there
+			if space.intersect_ray(query).is_empty() or _spot_taken(spot):
+				continue  # the target could see it there, or a friend is already hiding there
 			# Judge by walking distance: a spot inside a building may be close in a straight line but far around.
 			var walk := AINav.path_length(AINav.path(self, global_position, spot))
 			if walk <= radius * 1.6 and walk < best_walk:
@@ -1055,6 +1173,20 @@ func _find_cover() -> Vector3:
 		if best != Vector3.INF:
 			break
 	return best
+
+
+## A friend is at (or heading to) cover within 2 m of `spot`: each AI gets its own spot, so they don't bunch up
+## behind the same box (0.12.29).
+func _spot_taken(spot: Vector3) -> bool:
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if other == null or other == self or other.state == State.DEAD:
+			continue
+		if _flat(other.global_position - spot).length() < 2.0:
+			return true
+		if other._cover_phase != Cover.NONE and _flat(other._cover_point - spot).length() < 2.0:
+			return true
+	return false
 
 
 ## Whether `spot` is hidden from `eyes`: 2 standing up, 1 only crouched (low cover), 0 not at all.
@@ -1081,7 +1213,8 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		var flank_move := _path_velocity(_cover_point, move_speed)
 		_face(flank_move, delta)
 		_hold_fire()
-		if _arrived(_cover_point) or _cover_stuck(flank_move) or (_flinch_left > 0.0 and sees):
+		# Done, stuck, shot at, or it runs into you up close: back to deciding (and fighting).
+		if _arrived(_cover_point) or _cover_stuck(flank_move) or (sees and (_flinch_left > 0.0 or dist < 10.0)):
 			_cover_phase = Cover.NONE
 			_lost_sight_time = 0.0
 		return flank_move
@@ -1198,11 +1331,11 @@ func _arrived(goal: Vector3) -> bool:
 		and _flat(_path[_path.size() - 1] - global_position).length() < 1.2)
 
 
-## Short fight moves (strafing, backing off): don't push into a wall; try the other side instead.
+## Short fight moves (a dodge, backing off): don't push into a wall; try the other side instead.
 func _clear_of_walls(move: Vector3) -> Vector3:
 	if move.length() < 0.1 or not _blocked(move):
 		return move
-	_strafe_dir = -_strafe_dir
+	_dodge_dir = -_dodge_dir
 	var flipped := Vector3(-move.x, 0.0, -move.z)
 	return Vector3.ZERO if _blocked(flipped) else flipped
 
@@ -1219,6 +1352,7 @@ func _flat(v: Vector3) -> Vector3:
 
 func _set_state(new_state: State) -> void:
 	_hunting = false
+	tactic = Tactic.NONE
 	if new_state != State.INVESTIGATE:
 		_answering_call = false
 		_alarmed = false
@@ -1362,21 +1496,6 @@ func _try_suppress() -> bool:
 	return true
 
 
-## In the open: short side-steps between bursts of standing still to shoot, not long sideways runs (0.12.28,
-## owner: AI "just moving sideways"; steps were 0.8-2 s, half the time).
-func _strafe(delta: float, to_target: Vector3) -> Vector3:
-	_strafe_time -= delta
-	if _strafe_time <= 0.0:
-		if _strafe_dir == 0.0:
-			_strafe_time = randf_range(0.3, 0.6)
-			_strafe_dir = [-1.0, 1.0].pick_random()
-		else:
-			_strafe_time = randf_range(1.2, 2.4)
-			_strafe_dir = 0.0
-	var side := to_target.normalized().cross(Vector3.UP) * _strafe_dir
-	return side * move_speed * 0.5
-
-
 ## Patrolling while unaware: walk to a destination in its area (`home_radius`; the whole map for a roamer), mostly
 ## loot spots, which are in and around buildings, sometimes anywhere reachable. Pause there, then pick the next one.
 ## `_wander_dir` is zero while pausing (`_wander_time` counts the pause down).
@@ -1510,7 +1629,6 @@ var _stuck_time := 0.0
 var _follow_direct_left := 0.0
 var _bark_left := 0.0
 var _voice := 1.0
-var _was_pushing := false
 var _home_return_left := 0.0
 var _hunting := false
 var _suppress_left := 0.0
@@ -1643,6 +1761,10 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	if _flinch_left <= 0.0:
 		_fire_timer = maxf(_fire_timer, flinch_fire_delay)
 	_flinch_left = flinch_time
+	_hit_since_decide = true
+	if tactic == Tactic.STAND and _cover_phase == Cover.NONE and _dodge_left <= 0.0:
+		_dodge_left = 0.35
+		_dodge_dir = -1.0 if randf() < 0.5 else 1.0
 	if not health.is_dead and is_wounded() and not _was_wounded:
 		# Just got badly hurt: shout for help and fall back to cover (unless it's about to patch up anyway).
 		_was_wounded = true

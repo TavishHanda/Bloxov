@@ -6,6 +6,22 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.29 (AI fight brain, step 1; owner)
+- AI fights are rebuilt around one decision layer, like shipped shooters (owner: the AI felt "cluttered and messy").
+  Each AI picks ONE plan and sticks to it until it's done or something real changes (shot in the open, lost sight
+  of you, you start reloading, out of range): take cover and peek, trade shots in the open (only when there's no cover
+  near), push you while you reload or heal, flank, move up from far away, pin you down, chase where it last saw you,
+  or fall back and heal. Before, every behavior grabbed control on its own each frame, so plans flip-flopped.
+  All AI keep every move (owner); scavs vs Raiders still differ only by their numbers.
+- Flanks are short and purposeful: a spot 50-90 degrees round you, 10-20 m from you, out of your sight, at most a 30 m
+  walk that doesn't pass right by you (some were 50-60 m loops round you). A flanker that runs into you up close fights.
+- Friends pick their own cover spots (2 m apart) and keep a step apart in fights instead of bunching up.
+- In the open it stands and shoots; its only sideways move is a quick dodge right after getting hit. Rushing in from
+  far away goes straight in instead of weaving.
+- Same aggression as before: in real-map group fights the AI fired about as much as 0.12.28 (45 vs 41 shots per AI
+  per minute), the longest sideways run stays under 1.3 s.
+- Smoke test: sticking to a plan, separate cover spots; a point-blank check no longer depends on the dice.
+
 ## 0.12.28 (AI stop running sideways; Raider, Bon and sniper accuracy; owner)
 - AI stop running sideways in fights (owner: "the AI was just moving sideways again"). On the real map the longest
   sideways run went from 6.5 s to 1.3 s, and the worst AI went from 62% of a fight spent sideways to 24%. It had three causes:
