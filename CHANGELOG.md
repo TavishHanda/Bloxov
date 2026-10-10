@@ -6,6 +6,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.14 (smarter search; owner)
+- Lost you in a fight: AI hunt for you for 30 s (owner) around where they last saw you instead of turning on the
+  spot: they walk to spots within 18 m, indoor ones first (you'd hide inside), look around at each, and several
+  searchers split up (each checks a different spot). Afterwards they patrol again but stay wary for 30 s (quicker
+  to spot you). Bon and his guards only search inside their own area.
+
 ## 0.12.13 (wounded AI; owner)
 - Badly hurt AI (below 35% health) limp: 70% speed, and the body dips with every other step (shown online too).
 - The moment they get that low they shout for help (nearby AI come over, still at most 4 at a time) and fall back

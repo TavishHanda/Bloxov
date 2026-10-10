@@ -84,6 +84,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var investigate_speed := 0.6
 ## Seconds spent looking around at a spot (a sound it investigated, or where it lost you) before giving up.
 @export var search_time := 5.0
+## Lost you in a fight: it hunts for you this long (seconds) around where it last saw you, walking to spots within
+## hunt_radius (indoor ones first, each searcher picking a different one), then patrols again, wary for wary_time
+## (quicker to spot you). (0.12.14, owner: smarter search, about 30 s.)
+@export var hunt_time := 30.0
+@export var hunt_radius := 18.0
+@export var wary_time := 30.0
 
 @export_group("Shooting")
 ## Fires at you from this far; beyond it, it closes in first.
@@ -400,6 +406,7 @@ func _physics_process(delta: float) -> void:
 
 	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).
 	_home_return_left -= delta
+	_wary_left -= delta
 	if stays_home and state in [State.ALERT, State.ENGAGE, State.INVESTIGATE] and not _near_home(global_position):
 		_cover_phase = Cover.NONE
 		_hold_fire()
@@ -412,7 +419,7 @@ func _physics_process(delta: float) -> void:
 	match state:
 		State.IDLE:
 			desired = _scan(delta) if holds_position else _wander(delta)
-			if _home_return_left <= 0.0 and _spotting(delta, to_target, dist, 1.0):
+			if _home_return_left <= 0.0 and _spotting(delta, to_target, dist, spot_suspicious_mult if _wary_left > 0.0 else 1.0):
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
@@ -428,11 +435,16 @@ func _physics_process(delta: float) -> void:
 			elif _arrived(_goal) or _state_time > 15.0:
 				_set_state(State.SEARCH)
 		State.SEARCH:
-			# Look around the spot, then go back to wandering.
-			rotation.y += delta * 1.2 * _side
+			if _hunting and not holds_position:
+				desired = _hunt(delta)
+			else:
+				# Look around the spot, then go back to wandering.
+				rotation.y += delta * 1.2 * _side
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
-			elif _state_time > search_time:
+			elif _state_time > (hunt_time if _hunting else search_time):
+				if _hunting:
+					_wary_left = wary_time
 				_set_state(State.IDLE)
 		State.ALERT:
 			# Turn toward you if it can see you, else toward where it knows you were.
@@ -494,6 +506,7 @@ func _physics_process(delta: float) -> void:
 				_hold_fire()
 				if _arrived(_last_seen) or _lost_sight_time > give_up_time:
 					_set_state(State.SEARCH)
+					_start_hunt()
 					_bark("lost", 0.6)
 				elif holds_position:
 					_face(_flat(_last_seen - global_position), delta)
@@ -687,6 +700,64 @@ func answer_call(pos: Vector3) -> void:
 ## Within `leash` meters of its patrol area (always true without one).
 func _near_home(point: Vector3) -> bool:
 	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + leash
+
+
+## Lost you mid-fight: start hunting around where it last saw you.
+func _start_hunt() -> void:
+	_hunting = true
+	_hunt_point = Vector3.INF
+	_hunt_pause = 0.0
+	_hunted.clear()
+
+
+## Hunting: walk to a spot near where it lost you, look around there a moment, pick the next.
+func _hunt(delta: float) -> Vector3:
+	if _hunt_point == Vector3.INF or _hunt_pause > 0.0:
+		rotation.y += delta * 1.5 * _side
+		_hunt_pause -= delta
+		if _hunt_pause <= 0.0:
+			_hunt_point = _pick_hunt_point()
+			if _hunt_point == Vector3.INF:
+				_hunt_pause = 1.0
+		return Vector3.ZERO
+	var move := _path_velocity(_hunt_point, move_speed * investigate_speed * 1.2)
+	_face(move, delta, 5.0)
+	if _arrived(_hunt_point):
+		_hunted.append(_hunt_point)
+		_hunt_point = Vector3.INF
+		_hunt_pause = randf_range(1.5, 2.5)
+	return move
+
+
+## The next place to check: a walkable spot near where it lost you that it hasn't checked, isn't where another
+## searcher is heading, and is preferably indoors (something overhead) where you'd hide.
+func _pick_hunt_point() -> Vector3:
+	var space := get_world_3d().direct_space_state
+	var others: Array[Vector3] = []
+	for node in RaidScope.nodes(self, &"enemies"):
+		var ally := node as Scav
+		if ally != null and ally != self and ally._hunting and ally._hunt_point != Vector3.INF:
+			others.append(ally._hunt_point)
+	var best := Vector3.INF
+	var best_score := -INF
+	for i in 10:
+		var offset := Vector3(hunt_radius * sqrt(randf()), 0, 0).rotated(Vector3.UP, randf() * TAU)
+		var spot := AINav.closest(self, _last_seen + offset)
+		if spot == Vector3.ZERO or _flat(spot - global_position).length() < 3.0:
+			continue
+		if stays_home and not _near_home(spot):
+			continue
+		var score := randf() * 2.0
+		var up := spot + Vector3(0, 1.0, 0)
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(up, up + Vector3(0, 8, 0), 1)).is_empty():
+			score += 5.0   # indoors
+		for p in others + _hunted:
+			if _flat(p - spot).length() < 6.0:
+				score -= 8.0
+		if score > best_score:
+			best_score = score
+			best = spot
+	return best
 
 
 ## Badly hurt: limps (puppets: the server's scav is).
@@ -1119,6 +1190,7 @@ func _flat(v: Vector3) -> Vector3:
 
 
 func _set_state(new_state: State) -> void:
+	_hunting = false
 	if new_state != State.INVESTIGATE:
 		_answering_call = false
 		_alarmed = false
@@ -1335,6 +1407,11 @@ var _bark_left := 0.0
 var _voice := 1.0
 var _was_pushing := false
 var _home_return_left := 0.0
+var _hunting := false
+var _hunt_point := Vector3.INF
+var _hunt_pause := 0.0
+var _hunted: Array[Vector3] = []
+var _wary_left := 0.0
 var _was_wounded := false
 var _limp := 0.0
 ## The cover spot it's heading for is low (only hides it crouched); it's crouching there now; how crouched it looks.
