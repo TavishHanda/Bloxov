@@ -55,6 +55,7 @@ body_name = "Raider Body"
 weapon_drop_chance = 0.3
 weapon_drop = "ak"
 burst_color = Color(0.66, 0.6, 0.42, 1)
+suppress_chance = 1.0
 net_kind = 1
 voice_pitch = 0.85
 
