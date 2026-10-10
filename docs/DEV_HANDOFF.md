@@ -119,6 +119,7 @@ distance-based aggro loss; spawn budget 20 scavs + 5 Raiders, 15% Raider duos; R
 PMCs = real players (PMC model); **co-op AND PvP**; duos max, 2-6 per raid, 30 s queue countdown, no late joining,
 friendly fire on, downed on 0 HP in a squad (numbers pending), party codes + queue, solo stays (START RAID);
 stash in the browser until accounts; separate gun models later (`GunSocket`, see BACKLOG).
+**Phones too (2026-10-10): every change must follow the App Store and Google Play rules, see `docs/STORE_RULES.md`.**
 
 ## 8. Art & models (from the Artist session)
 The owner runs a separate **Artist** chat on their PC with Blender (cloud sessions can't read it). Full rules are in

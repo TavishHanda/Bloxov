@@ -38,9 +38,8 @@ var _next_raid_id := 1
 
 
 func add_player(peer: int, player_name: String) -> void:
-	player_name = player_name.strip_edges().left(16)
-	if player_name == "":
-		player_name = "Player %d" % (peer % 1000)
+	# Store rules: only clean names reach other players (docs/STORE_RULES.md).
+	player_name = NameFilter.clean(player_name, "Player %d" % (peer % 1000))
 	players[peer] = {"name": player_name, "party": "", "raid": 0}
 	_new_party(peer)
 

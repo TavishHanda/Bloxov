@@ -5,6 +5,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.5 (store rules: player names filtered; owner)
+- **Bloxov now follows the App Store and Google Play rules** (owner: the game will go on phones too). The rules
+  that matter are written down in `docs/STORE_RULES.md`, and every change from now on gets checked against them.
+  An audit of the game found it already fits (blocky violence, made-up item names, no real money, ads, accounts
+  or tracking, saves on your device, encrypted online play). Before a store launch it still needs a privacy policy,
+  the age rating forms and phone controls (listed in the doc)
+- **Player names are cleaned by the server** (the stores require a filter on anything players type that others
+  see): odd characters are dropped, and a rude or hateful name (also spelled with numbers or spaces) becomes
+  "Player N". `scripts/name_filter.gd`
+
 ## 0.11.4 (war-torn clutter in the empty grass; Map & Spawn follow-up, owner)
 - **The empty grass isn't empty any more** (owner: the dead areas need stuff, like a war-torn place would have):
   about 80 spots of gray-box junk spread over the open ground between places: boulders, rubble piles with a bit of

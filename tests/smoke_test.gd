@@ -953,6 +953,14 @@ func _section_matchmaking() -> void:
 	_check(mm.party_of(1)["members"] == [1], "a partner going offline leaves you in your party")
 	mm.add_player(10, "  ")
 	_check(mm.players[10]["name"] == "Player 10", "a blank name gets a default")
+	mm.add_player(11, "  Big\tBoss  [x]  ")
+	mm.add_player(12, "sh1t head")
+	mm.add_player(13, "f u c k")
+	_check(mm.players[11]["name"] == "BigBoss x" and mm.players[12]["name"] == "Player 12" and mm.players[13]["name"] == "Player 13",
+		"names are cleaned for other players: odd characters dropped, rude words (even spelled with numbers or spaces) replaced (%s)"
+		% [[mm.players[11]["name"], mm.players[12]["name"], mm.players[13]["name"]]])
+	_check(NameFilter.clean("Torpedo Grape", "x") == "Torpedo Grape" and NameFilter.clean("abcdefghijklmnopqrstu", "x").length() == NameFilter.MAX_LENGTH,
+		"ordinary names stay as they are (cut to 16 letters)")
 
 
 func _section_net() -> void:
