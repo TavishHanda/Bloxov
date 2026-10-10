@@ -17,8 +17,11 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
 3. **Scavs 2.0:** AI spawn spots per area, scavs roaming their area, Raiders at hot spots, the close-range
    "walks into you" bug, spawn budget retuned for the real raid.
 4. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions.
-5. **Then (M4, vertical slice):** building models fitted to the proven layout, guns as separate models
-   (`GunSocket`), real sounds, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
+5. **Guns update (owner, 2026-10-10):** gun categories (e.g. pistols, SMGs, rifles, shotguns, marksman), a real set
+   of guns in each, attachments (sights, muzzles, grips, mags, stocks), and gun models: each gun its own model on the
+   characters' `GunSocket` (see `BACKLOG.md`), owner in Blender. After the Items update, since guns, attachments and
+   their loot spots build on it. Made-up gun names and looks only (`STORE_RULES.md`: no real brands or models).
+6. **Then (M4, vertical slice):** building models fitted to the proven layout, real sounds, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
    saturated; tune it once, against the real models and ground textures, within what the web build supports).
    After that M5 content (characters with perks, more traders,
    more maps) and the M6 public release.
