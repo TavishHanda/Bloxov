@@ -21,7 +21,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 
 @export_group("Movement")
 @export var move_speed := 3.6
-@export var sight_range := 50.0
+## (0.12.7, owner: players on hills shot scavs that never noticed them: 50 m before.)
+@export var sight_range := 75.0
 ## While unaware, a scav only spots you inside this field of view (degrees); it can still hear you.
 ## Once alerted it tracks you in any direction.
 @export var view_angle_deg := 180.0
@@ -45,9 +46,10 @@ const STEP_SOUNDS: Array[AudioStream] = [
 
 @export_group("Spotting")
 ## Seconds a scav needs you in view before it notices you: quick up close, slow far away.
-## (0.12.6, owner: scavs should be pretty aware and spot you fairly easily: 0.25 / 1.2 s before.)
+## (0.12.6, owner: scavs should be pretty aware and spot you fairly easily: 0.25 / 1.2 s before.
+## 0.12.7: far is now at 75 m instead of 50, so 1.0 s there keeps 50 m at about 0.7 s.)
 @export var spot_time_near := 0.15
-@export var spot_time_far := 0.7
+@export var spot_time_far := 1.0
 ## Crouching or standing still makes you slower to notice; sprinting faster (multipliers on spot time).
 @export var spot_crouch_mult := 1.4
 @export var spot_still_mult := 1.0
@@ -59,8 +61,14 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var reacquire_grace := 0.3
 ## A bullet passing this close (meters) gets its attention, even if it's too far to hear the shot.
 @export var near_miss_radius := 2.5
+## A friend dying this close (meters) gets its attention too: it turns toward roughly where the shots came from
+## (0.12.7). Up to `buddy_hear_radius` it notices anyway; farther, only if it can see the body.
+@export var buddy_see_radius := 35.0
+@export var buddy_hear_radius := 12.0
 
 @export_group("Hearing")
+## Sounds this loud (noise radius, meters; gunshots) alarm it: it jogs over instead of walking (0.12.7).
+@export var alarm_noise := 30.0
 ## How far off a heard sound's spot can be (meters): it investigates *roughly* where the sound came from.
 @export var noise_uncertainty := 3.0
 ## Walks at this fraction of move_speed while investigating.
@@ -309,6 +317,8 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 	_goal = pos + offset
 	if state != State.INVESTIGATE:
 		_set_state(State.INVESTIGATE)
+	if radius >= alarm_noise:
+		_alarmed = true
 
 
 func _physics_process(delta: float) -> void:
@@ -350,7 +360,7 @@ func _physics_process(delta: float) -> void:
 				if _state_time > 3.0:
 					_set_state(State.SEARCH)
 			else:
-				desired = _path_velocity(_goal, move_speed * (jog_speed if _answering_call else investigate_speed))
+				desired = _path_velocity(_goal, move_speed * (jog_speed if _answering_call or _alarmed else investigate_speed))
 				_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
@@ -410,7 +420,7 @@ func _physics_process(delta: float) -> void:
 				elif holds_position:   # out of range: keep watching, don't leave the perch
 					_hold_fire()
 				else:
-					desired = _path_velocity(_target.global_position, move_speed)
+					desired = _close_in(delta, _target.global_position, to_target)
 					_hold_fire()
 			else:
 				# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
@@ -420,6 +430,8 @@ func _physics_process(delta: float) -> void:
 					_set_state(State.SEARCH)
 				elif holds_position:
 					_face(_flat(_last_seen - global_position), delta)
+				elif _flat(_last_seen - global_position).length() > shoot_range:
+					desired = _close_in(delta, _last_seen, _flat(_last_seen - global_position))
 				else:
 					desired = _path_velocity(_last_seen, move_speed)
 					_face(desired, delta)
@@ -600,6 +612,67 @@ func notice_threat() -> void:
 	_since_threat = 0.0
 
 
+## Too far away to shoot (e.g. you're up on a hill): it moves up cover to cover (0.12.7, owner: they went into
+## cover, then just walked at him in the open). With no cover ahead it waits where it is, out of sight if it can.
+func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
+	_advance_check_left -= delta
+	if _advance_check_left <= 0.0:
+		_advance_check_left = 0.6
+		var spot := _find_advance_cover(goal)
+		if spot != Vector3.INF:
+			_cover_point = spot
+			_cover_phase = Cover.MOVING
+			_peek_point = Vector3.INF
+			_peeks_left = 0
+			return _path_velocity(spot, move_speed)
+		if _can_see and _cover_cooldown_left <= 0.0:
+			_try_take_cover()   # nothing closer: at least get out of your sight
+			if _cover_phase != Cover.NONE:
+				return Vector3.ZERO
+	_face(to_goal, delta)
+	if _can_see and _lost_sight_time <= 0.0 and _no_cover_around():
+		# Out in the open with nowhere to hide: rush in, weaving.
+		return _path_velocity(goal, move_speed) + _strafe(delta, to_goal) * 0.6
+	return Vector3.ZERO
+
+
+## True when it already checked and there's no cover near here worth going to.
+func _no_cover_around() -> bool:
+	return _cover_cooldown_left > 0.0 and _cover_phase == Cover.NONE
+
+
+## The next spot of cover toward `goal`: a few meters closer to it and out of its view, or INF if there's none.
+func _find_advance_cover(goal: Vector3) -> Vector3:
+	var eyes := goal + Vector3(0, 1.6, 0)
+	if _target != null and _can_see:
+		eyes = _target.eye_position()
+	var to_goal := _flat(goal - global_position)
+	var dist := to_goal.length()
+	if dist < 1.0:
+		return Vector3.INF
+	var forward := to_goal / dist
+	var space := get_world_3d().direct_space_state
+	var best := Vector3.INF
+	var best_left := dist - 5.0   # must gain at least 5 m
+	for radius in [8.0, 13.0, 18.0]:
+		for i in 7:
+			var dir := forward.rotated(Vector3.UP, deg_to_rad(-60.0 + i * 20.0))
+			var spot := AINav.closest(self, global_position + dir * radius)
+			if spot == Vector3.ZERO:
+				continue
+			var left := _flat(goal - spot).length()
+			if left >= best_left or left < shoot_range * 0.5:
+				continue
+			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
+			if space.intersect_ray(query).is_empty():
+				continue  # it would be in view there
+			if AINav.path_length(AINav.path(self, global_position, spot)) > radius * 1.6:
+				continue
+			best = spot
+			best_left = left
+	return best
+
+
 ## Looks for a walkable spot nearby that the target can't see; starts moving there if it finds one.
 func _try_take_cover() -> void:
 	_cover_cooldown_left = cover_cooldown
@@ -609,7 +682,8 @@ func _try_take_cover() -> void:
 		_cover_phase = Cover.MOVING
 		# Where it stands now can see you: that's where it peeks out from.
 		_peek_point = global_position
-		_peeks_left = peeks
+		# (Too far to shoot back from there: no point peeking out, it moves up cover to cover instead.)
+		_peeks_left = peeks if _target != null and global_position.distance_to(_target.global_position) <= shoot_range else 0
 	else:
 		_cover_cooldown_left = 3.0  # nothing nearby: keep fighting, look again soon
 
@@ -834,6 +908,7 @@ func _flat(v: Vector3) -> Vector3:
 func _set_state(new_state: State) -> void:
 	if new_state != State.INVESTIGATE:
 		_answering_call = false
+		_alarmed = false
 	state = new_state
 	_state_time = 0.0
 	_lost_sight_time = 0.0
@@ -981,6 +1056,9 @@ func _pick_patrol_point() -> Vector3:
 			if back != Vector3.ZERO:
 				return back
 	_patrol_jog = randf() < jog_chance
+	# Open-ground stops prefer a spot next to a wall or other cover (0.12.7, owner: patrol behind cover, not out
+	# in the open where anyone on a hill can pick them off).
+	var fallback := Vector3.INF
 	for attempt in 8:
 		var spot: Vector3
 		_patrol_container = null
@@ -994,9 +1072,26 @@ func _pick_patrol_point() -> Vector3:
 		else:
 			spot = AINav.random_point(self)
 		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0 and (home_radius <= 0.0 or _in_home(spot)):
-			return spot
+			if _patrol_container != null or _has_cover_at(spot):
+				return spot
+			if fallback == Vector3.INF:
+				fallback = spot
+	_patrol_container = null
+	if fallback != Vector3.INF:
+		return fallback
 	# No navigation map yet: somewhere a few meters ahead.
 	return global_position + _flat(-global_basis.z).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2)) * 6.0
+
+
+## Something solid (a wall, crate, car) right next to `spot`, about chest high.
+func _has_cover_at(spot: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var from := spot + Vector3(0, 1.0, 0)
+	for i in 8:
+		var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 8.0)
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + dir * 2.5, 1)).is_empty():
+			return true
+	return false
 
 
 ## Inside its patrol area (a little slack at the edge); always true for a roamer.
@@ -1021,9 +1116,14 @@ var _scan_dir := 1.0
 var _peek_point := Vector3.INF
 var _peek_left := 0.0
 var _peeks_left := 0
+var _advance_check_left := 0.0
 var _peek_blind := 0.0
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false
+## Investigating a gunshot: hurries.
+var _alarmed := false
+## Where the last hit on it came from (friends nearby turn that way when it dies).
+var _last_hit_from := Vector3.INF
 
 
 ## The scope glint: a bright spot by the head that always faces the camera.
@@ -1112,6 +1212,7 @@ func _has_line_of_sight() -> bool:
 func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	hits_taken += 1
 	_since_threat = 0.0
+	_last_hit_from = source_position
 	if _cover_phase == Cover.HEALING:
 		# Interrupted: back to fighting; it can try again in a few seconds.
 		_cover_phase = Cover.NONE
@@ -1138,6 +1239,8 @@ func _on_died() -> void:
 	var world := get_tree().current_scene
 	Effects.burst(world, global_position + Vector3(0, 0.9, 0), burst_color)
 	Effects.sound_at(world, POP_SOUND, global_position)
+	if not puppet and _last_hit_from != Vector3.INF:
+		_warn_friends()
 	if puppet:
 		queue_free()  # its body (and loot) is the server's
 		return
@@ -1152,6 +1255,24 @@ func _on_died() -> void:
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
 	queue_free()
+
+
+## Just died: unaware friends close by, or ones that see it go down, turn toward roughly where it was shot from.
+func _warn_friends() -> void:
+	var space := get_world_3d().direct_space_state
+	var chest := global_position + Vector3(0, 1.2, 0)
+	for node in RaidScope.nodes(self, &"enemies"):
+		var friend := node as Scav
+		if friend == null or friend == self or friend.puppet or friend.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+			continue
+		var d := friend.global_position.distance_to(global_position)
+		if d > buddy_see_radius:
+			continue
+		if d > buddy_hear_radius:
+			var eyes := friend.global_position + Vector3(0, 1.65, 0)
+			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1)).is_empty():
+				continue
+		friend.notice_near_miss(_last_hit_from)
 
 
 # --- Online ------------------------------------------------------------------------

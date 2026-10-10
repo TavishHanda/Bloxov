@@ -6,6 +6,18 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.7 (AI notice you on hills, patrol near cover, move up cover to cover; owner)
+- Owner: from a hill he shot lots of scavs that never noticed him, and scavs shot at from far away went into cover,
+  then just walked at him in the open.
+- Scavs see 75 m (was 50; Raiders 80, Bon 85). Spotting at 50 m stays about as quick as 0.12.6.
+- Gunshots carry farther: an AK is heard 50 m away (was 25), the pistol 35 m (was 18). AI that hear a shot jog over.
+- A scav shot dead alerts friends within 12 m, or within 35 m that see it go down: they turn toward roughly where the
+  shots came from.
+- Patrol stops out in the open are now next to a wall or other cover when there is one nearby.
+- Too far away to shoot back: AI move up cover to cover toward you (a spot at least 5 m closer that you can't see),
+  holding a moment at each. With no cover ahead they wait out of sight; only with no cover at all do they rush in,
+  weaving. They no longer peek out from cover when you're out of their range.
+
 ## 0.12.6 (AI fight from cover, varied bursts, quicker spotting; owner)
 - **Fighting from cover** (owner, from a playtest: the first scav ran sideways at him with cover right next to
   it). Scavs, Raiders and Bon now get into cover and fight from there:
