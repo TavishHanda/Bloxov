@@ -102,6 +102,22 @@ Way later, near release. When it comes up, design it to these rules from the sta
   paid random rewards off per region, or sell items directly instead.
 - Offer a direct-purchase path for skins where possible; it avoids most of the above.
 
+#### Premium currency (owner plan, 2026-10-10)
+The owner plans an in-game currency bought with real money, used for the battle pass, skins and crates. That's
+allowed on all three platforms if it follows these rules:
+- **Phones:** the currency is sold only through Apple In-App Purchase / Google Play Billing. No links or buttons
+  inside the app pointing to a cheaper web store, unless the store's current rules for that country allow it.
+- **Steam:** in-game purchases in the Steam build go through Steam's own microtransaction system (Steam Wallet),
+  not an outside payment page.
+- **Web:** any payment provider works (it isn't a store app), but the same no-cash-out rules apply.
+- Show the real-money price of each currency pack before buying. Make it clear what the currency buys.
+- **No cash-out:** the currency and anything bought with it can never be turned back into real money, sent to
+  other players for money, or traded off-platform.
+- Anything random bought with it (crates) shows its odds first, the same as a direct paid crate (see above).
+- Currency bought on one platform can only be spent on another if it is also sold through IAP there. Phones are
+  planned as a separate version without crossplay, which keeps this simple: keep the phone wallet separate too.
+- Earned currency (from playing) can sit alongside it; keep the two clearly separate if they behave differently.
+
 ### 6. Ads (Apple 5.1.1, Google Ads policy)
 - No ads today. If added: only approved ad SDKs, declared in the privacy forms, no ads that interrupt gameplay
   unexpectedly or are hard to close, no ads unsuitable for the age rating, no tracking without ATT consent on iOS.
