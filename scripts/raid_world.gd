@@ -69,6 +69,7 @@ func _on_raid_child(node: Node) -> void:
 	var id := node.get_instance_id()
 	node.fired.connect(func(end: Vector3) -> void: enemy_event.emit(id, "fired", end))
 	node.alerted.connect(func() -> void: enemy_event.emit(id, "alerted", Vector3.ZERO))
+	node.barked.connect(func(kind: String) -> void: enemy_event.emit(id, "bark:" + kind, Vector3.ZERO))
 	node.bash_started.connect(func() -> void: enemy_event.emit(id, "bash", Vector3.ZERO))
 	node.tree_exiting.connect(func() -> void: enemy_event.emit(id, "died", node.global_position))
 

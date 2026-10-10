@@ -16,6 +16,15 @@ const POP_SOUND := preload("res://audio/pop.wav")
 const BASH_SOUND := preload("res://audio/swing.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
 const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
+## Callouts (0.12.12, owner): placeholder gibberish barks from tools/gen_voice_placeholders.py until real recorded
+## lines replace audio/voice/<kind>.wav.
+const VOICE := {
+	"spotted": preload("res://audio/voice/spotted.wav"), "lost": preload("res://audio/voice/lost.wav"),
+	"cover": preload("res://audio/voice/cover.wav"), "flank": preload("res://audio/voice/flank.wav"),
+	"hurt": preload("res://audio/voice/hurt.wav"), "man_down": preload("res://audio/voice/man_down.wav"),
+	"help": preload("res://audio/voice/help.wav"), "push": preload("res://audio/voice/push.wav"),
+	"heal": preload("res://audio/voice/heal.wav"),
+}
 const STEP_SOUNDS: Array[AudioStream] = [
 	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 
@@ -79,7 +88,8 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export_group("Shooting")
 ## Fires at you from this far; beyond it, it closes in first.
 ## (0.12.8, owner: far-off scavs just looked at you, then went for cover: 40 m before. Far shots rarely hit.)
-@export var shoot_range := 75.0
+## (0.12.12: 75 m in 0.12.8-0.12.11, owner: "lower by 5".)
+@export var shoot_range := 70.0
 ## Delay between spotting the player and starting to aim. Gives you a moment to react.
 @export var reaction_time := 0.3
 ## Getting shot (or a bullet whizzing past) while unaware startles it: it turns and starts aiming after only this
@@ -132,6 +142,15 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## At most this many AI in a raid head over to a fight they heard or were called to at once; the rest go on alert
 ## where they are (0.12.11, owner: a friend in town had to fight 8-9 at once, they grouped up a LOT).
 @export var max_responders := 4
+## Sticks to its patrol area (Bon and his guards, 0.12.12, owner): ignores calls and sounds from outside it, and
+## gives up a chase once it's more than `leash` meters past the edge of its area, heading back to patrol.
+@export var stays_home := false
+@export var leash := 40.0
+
+@export_group("Voice")
+## Callouts: how deep its voice is (Raiders and Bon lower) and at most one callout per this many seconds.
+@export var voice_pitch := 1.0
+@export var bark_cooldown := 4.0
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 
@@ -284,6 +303,8 @@ var _meshes: Array[Node] = []
 signal fired(end: Vector3)
 signal alerted
 signal bash_started
+## Said a callout (VOICE key); online the server sends it on so players hear it.
+signal barked(kind: String)
 const NET_LEAN_IN := 1
 const NET_WINDUP := 2
 const NET_LUNGE := 4
@@ -312,6 +333,7 @@ func _ready() -> void:
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	_heals_left = heals
+	_voice = voice_pitch * randf_range(0.92, 1.08)
 	# Its own copies of the hit shapes, so crouching this one doesn't shrink every scav.
 	for shape_node: CollisionShape3D in [$BodyShape, $HeadShape]:
 		shape_node.shape = shape_node.shape.duplicate()
@@ -328,6 +350,8 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 	if puppet:
 		return
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius * hearing_mult:
+		return
+	if stays_home and not _near_home(pos):
 		return
 	if radius >= alarm_noise and not _is_responding() and _responders() >= max_responders:
 		_hold_alert(pos)
@@ -349,6 +373,7 @@ func _physics_process(delta: float) -> void:
 	_melee_cooldown_left -= delta
 	_since_threat += delta
 	_cover_cooldown_left -= delta
+	_bark_left -= delta
 	# Crouched only while hiding at low cover (holding, or patching up there); up again to peek or move.
 	_crouched = _cover_low and state == State.ENGAGE and _cover_phase in [Cover.HOLDING, Cover.HEALING]
 	_heal_retry_left -= delta
@@ -368,11 +393,21 @@ func _physics_process(delta: float) -> void:
 		_sight_check_time = 0.1
 		_can_see = dist < sight_range and _has_line_of_sight()
 
+	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).
+	_home_return_left -= delta
+	if stays_home and state in [State.ALERT, State.ENGAGE, State.INVESTIGATE] and not _near_home(global_position):
+		_cover_phase = Cover.NONE
+		_hold_fire()
+		_set_state(State.IDLE)
+		_wander_dir = Vector3.ZERO
+		_wander_time = 0.0
+		_home_return_left = 6.0
+
 	var desired := Vector3.ZERO
 	match state:
 		State.IDLE:
 			desired = _scan(delta) if holds_position else _wander(delta)
-			if _spotting(delta, to_target, dist, 1.0):
+			if _home_return_left <= 0.0 and _spotting(delta, to_target, dist, 1.0):
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
@@ -427,6 +462,9 @@ func _physics_process(delta: float) -> void:
 				elif dist <= shoot_range:
 					# You're reloading or healing: push in on you (still shooting); otherwise strafe.
 					var pushing := _target_busy() and not holds_position and dist > min_distance + 2.0
+					if pushing and not _was_pushing:
+						_bark("push")
+					_was_pushing = pushing
 					if pushing:
 						desired = _path_velocity(_target.global_position, move_speed * push_speed)
 					else:
@@ -451,6 +489,7 @@ func _physics_process(delta: float) -> void:
 				_hold_fire()
 				if _arrived(_last_seen) or _lost_sight_time > give_up_time:
 					_set_state(State.SEARCH)
+					_bark("lost", 0.6)
 				elif holds_position:
 					_face(_flat(_last_seen - global_position), delta)
 				elif _flat(_last_seen - global_position).length() > shoot_range:
@@ -591,8 +630,11 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 ## (-1 = reaction_time).
 func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 	# (Ones that came because of a call don't call again, so one fight doesn't pull in the whole map.)
-	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH] and not _answering_call:
-		_call_for_help(known_pos)
+	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		if not _answering_call and _call_for_help(known_pos):
+			_bark("help")
+		else:
+			_bark("spotted", 0.7)
 	_reaction = reaction_time if reaction < 0.0 else reaction
 	_cover_phase = Cover.NONE
 	_spot = 0.0
@@ -604,18 +646,24 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 
 
 ## A fight starts: unaware AI nearby (its zone-mates, mostly) come over to help.
-func _call_for_help(known_pos: Vector3) -> void:
+## True if anyone was in earshot.
+func _call_for_help(known_pos: Vector3) -> bool:
 	if help_radius <= 0.0 or puppet:
-		return
+		return false
+	var called := false
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
 		if ally != null and ally != self and global_position.distance_to(ally.global_position) <= help_radius:
 			ally.answer_call(known_pos)
+			called = true
+	return called
 
 
 ## Another AI called for help: if unaware, jog over toward where the fight is (not exactly where you are).
 func answer_call(pos: Vector3) -> void:
 	if puppet or holds_position or state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		return
+	if stays_home and not _near_home(pos):
 		return
 	if not _is_responding() and _responders() >= max_responders:
 		_hold_alert(pos)
@@ -624,6 +672,11 @@ func answer_call(pos: Vector3) -> void:
 	_looting_left = 0.0
 	_answering_call = true
 	_set_state(State.INVESTIGATE)
+
+
+## Within `leash` meters of its patrol area (always true without one).
+func _near_home(point: Vector3) -> bool:
+	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + leash
 
 
 ## Heading over to a fight it heard or was called to.
@@ -780,6 +833,7 @@ func _try_take_cover() -> void:
 		_cover_point = spot
 		_cover_low = _found_low
 		_cover_phase = Cover.MOVING
+		_bark("cover", 0.35)
 		# Where it stands now can see you: that's where it peeks out from.
 		_peek_point = global_position
 		# (Too far to shoot back from there: no point peeking out, it moves up cover to cover instead.)
@@ -812,6 +866,7 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_point = spot
 	_cover_low = false
 	_cover_phase = Cover.FLANKING
+	_bark("flank")
 
 
 ## Hurt: get to cover (or patch up where it stands if there's none) and heal.
@@ -831,6 +886,7 @@ func _start_heal() -> void:
 	_cover_phase = Cover.HEALING
 	_heal_left = heal_time
 	_hold_fire()
+	_bark("heal")
 	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1)
 
 
@@ -1257,6 +1313,10 @@ var _peek_left := 0.0
 var _peeks_left := 0
 var _advance_check_left := 0.0
 var _stuck_time := 0.0
+var _bark_left := 0.0
+var _voice := 1.0
+var _was_pushing := false
+var _home_return_left := 0.0
 ## The cover spot it's heading for is low (only hides it crouched); it's crouching there now; how crouched it looks.
 var _cover_low := false
 var _found_low := false
@@ -1379,6 +1439,8 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	if _flinch_left <= 0.0:
 		_fire_timer = maxf(_fire_timer, flinch_fire_delay)
 	_flinch_left = flinch_time
+	if not health.is_dead:
+		_bark("hurt", 0.5)
 	var push := global_position - source_position
 	push.y = 0.0
 	if push.length() > 0.01:
@@ -1416,6 +1478,7 @@ func _on_died() -> void:
 func _warn_friends() -> void:
 	var space := get_world_3d().direct_space_state
 	var chest := global_position + Vector3(0, 1.2, 0)
+	var said := false   # (one "man down" is enough)
 	for node in RaidScope.nodes(self, &"enemies"):
 		var friend := node as Scav
 		if friend == null or friend == self or friend.puppet or friend.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
@@ -1428,6 +1491,9 @@ func _warn_friends() -> void:
 			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1)).is_empty():
 				continue
 		friend.notice_near_miss(_last_hit_from)
+		if not said:
+			said = true
+			friend._bark("man_down")
 
 
 # --- Online ------------------------------------------------------------------------
@@ -1478,6 +1544,41 @@ func net_died() -> void:
 
 
 ## Alert sound (puppets: the server's scav spotted someone).
+## Says a callout (`chance` of it, at most one per bark_cooldown); online the server passes it on to players.
+func _bark(kind: String, chance := 1.0) -> void:
+	if puppet or _bark_left > 0.0 or randf() > chance:
+		return
+	_bark_left = bark_cooldown
+	play_bark(kind)
+	barked.emit(kind)
+
+
+## The callout's sound (puppets: the server's scav said it).
+func play_bark(kind: String) -> void:
+	var stream := _voice_line(kind)
+	if stream != null and is_inside_tree():
+		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -1.0, 0.03, _voice, 8.0)
+
+
+## A random take of a callout: audio/voice/<kind>.wav, plus <kind>_2.wav, <kind>_3.wav... if they exist.
+static var _voice_takes := {}
+
+
+static func _voice_line(kind: String) -> AudioStream:
+	if not _voice_takes.has(kind):
+		var takes: Array[AudioStream] = []
+		if VOICE.has(kind):
+			takes.append(VOICE[kind])
+		for i in range(2, 9):
+			var path := "res://audio/voice/%s_%d.wav" % [kind, i]
+			if not ResourceLoader.exists(path):
+				break
+			takes.append(load(path))
+		_voice_takes[kind] = takes
+	var options: Array[AudioStream] = _voice_takes[kind]
+	return options.pick_random() if not options.is_empty() else null
+
+
 func net_alerted() -> void:
 	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
 

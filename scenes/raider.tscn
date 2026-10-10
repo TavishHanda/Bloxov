@@ -37,7 +37,7 @@ hurt_fraction = 0.4
 reaction_time = 0.3
 startle_reaction_time = 0.1
 aim_time = 0.25
-shoot_range = 80.0
+shoot_range = 75.0
 burst_size = 4
 burst_cooldown_min = 0.8
 burst_cooldown_max = 1.5
@@ -56,6 +56,7 @@ weapon_drop_chance = 0.3
 weapon_drop = "ak"
 burst_color = Color(0.66, 0.6, 0.42, 1)
 net_kind = 1
+voice_pitch = 0.85
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)

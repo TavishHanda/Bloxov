@@ -228,6 +228,9 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 	var puppet: Scav = enemy_puppets.get(id)
 	if puppet == null or not is_instance_valid(puppet):
 		return
+	if kind.begins_with("bark:"):
+		puppet.play_bark(kind.substr(5))
+		return
 	match kind:
 		"fired":
 			puppet.net_fired(pos)

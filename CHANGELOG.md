@@ -6,6 +6,16 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.12 (callouts, Bon guards his area, shooting range -5 m; owner)
+- Callouts (owner): AI call out what they're doing: spotted you, calling for help, lost you, taking cover,
+  flanking, pushing while you reload/heal, hurt, man down, healing. At most one per AI every 4 s; Raiders sound
+  deeper, Bon deepest. Placeholder gibberish barks for now (`tools/gen_voice_placeholders.py`); the owner will
+  record real lines (`audio/voice/<kind>.wav`, extra takes as `<kind>_2.wav`...). Heard online too.
+- Bon and his guards stick to the town hall (owner: "he should just patrol an area"): they ignore gunshots and calls
+  from outside their area, spot you out to 60 m (was 85), and give up a chase 40 m past the edge of their area,
+  going back to patrol (not re-spotting you for 6 s unless shot). Bon's hearing is a scav's (was 1.5x).
+- Shooting range 5 m shorter (owner): scavs 70 m, Raiders 75, Bon 80.
+
 ## 0.12.11 (fewer AI pile into one fight; owner)
 - Owner: a friend who spawned near town had to fight 8-9 scavs and Raiders at once; they grouped up a lot.
 - At most 4 AI per raid head over to a fight they heard or were called to at a time. The rest go on alert where
