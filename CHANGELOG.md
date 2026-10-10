@@ -6,6 +6,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.23 (AI inside buildings; owner)
+- AI spawn inside buildings too (owner: so you have to clear buildings, and can get ambushed): every zone now has
+  spawn spots in the middle of its buildings' ground-floor rooms (not the grocery, full of shelves), and about
+  half of a zone's AI start in one. In a test raid 15 of 31 AI started indoors (was 6, Bon and his guards).
+- Patrols go through buildings more: AI head for loot spots (inside buildings) 80% of the time (was 65%).
+  AI were indoors 48% of the time on patrol (was 34%).
+- Town scavs 7 -> 6 (owner). 32 AI at the start.
+- Spawn map: `/mnt/project-files/scavs2/0.12.23-ai-spawns.png`.
+
 ## 0.12.22 (Raiders spread out; scav accuracy; owner)
 - Raiders spread out instead of crowding round Bon: the town square is scav ground now; Raiders hold the police
   station and the bank (2), the gun store and pharmacy (2) and the south-east (2, was 3).

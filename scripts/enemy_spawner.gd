@@ -32,6 +32,9 @@ extends Node3D
 @export var zones: Array = []
 ## With zones: this many scavs roam the whole map instead of one zone (they start at any marker).
 @export var roamers := 0
+## With zones: chance a zone's AI starts at one of its spots inside a building (markers with metadata `indoor`)
+## rather than outside (0.12.23, owner: some AI inside, so you have to clear buildings).
+@export_range(0.0, 1.0) var indoor_chance := 0.5
 ## Sniper scavs at the start (Scavs 2.0, owner): each on its own perch, picked from the markers with metadata
 ## `perch` (high spots: roofs, the bell tower), preferring perches no player is in sight of. They don't count
 ## toward the scav budget.
@@ -204,19 +207,24 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 		return false
 	var players := RaidScope.nodes(self, &"player")
 	var zone_name := String(zone.get("name", ""))
-	var far: Array[Marker3D] = []
-	var hidden: Array[Marker3D] = []
+	var candidates: Array[Marker3D] = []
 	for child in get_children():
 		if not child is Marker3D or child.get_meta("perch", false) or child.get_meta("boss_start", false):
 			continue
 		if zone_name != "" and String(child.get_meta("zone", "")) != zone_name:
 			continue
-		if _far_from_players(child as Marker3D, players):
-			far.append(child as Marker3D)
-			if not _seen_by_players(child as Marker3D, players):
-				hidden.append(child as Marker3D)
-	# Prefer points no player can see; any far point if none are hidden.
-	var points := hidden if not hidden.is_empty() else far
+		candidates.append(child as Marker3D)
+	# Inside or outside, when the zone has both (the other kind if none of the picked kind is usable).
+	var inside := candidates.filter(func(m: Marker3D) -> bool: return m.get_meta("indoor", false))
+	var outside := candidates.filter(func(m: Marker3D) -> bool: return not m.get_meta("indoor", false))
+	var points: Array[Marker3D] = []
+	if zone_name != "" and not inside.is_empty() and not outside.is_empty():
+		var first := inside if randf() < indoor_chance else outside
+		points = _usable_points(first, players)
+		if points.is_empty():
+			points = _usable_points(outside if first == inside else inside, players)
+	else:
+		points = _usable_points(candidates, players)
 	if points.is_empty():
 		return false
 	# ...and a point nobody is standing on: two spawned on one spot got stuck in each other for good.
@@ -246,6 +254,18 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	else:
 		scavs_spawned += 1
 	return true
+
+
+## The spawn points far enough from every player, preferring ones no player can see.
+func _usable_points(markers: Array, players: Array[Node]) -> Array[Marker3D]:
+	var far: Array[Marker3D] = []
+	var hidden: Array[Marker3D] = []
+	for marker: Marker3D in markers:
+		if _far_from_players(marker, players):
+			far.append(marker)
+			if not _seen_by_players(marker, players):
+				hidden.append(marker)
+	return hidden if not hidden.is_empty() else far
 
 
 func _far_from_players(marker: Marker3D, players: Array[Node]) -> bool:

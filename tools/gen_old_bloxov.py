@@ -129,6 +129,9 @@ loot = []        # (name, scene, x, y, z, yaw, table, place)
 extracts = []    # (node name, display name, x, z)
 player_spawns = []
 enemy_spawns = []
+NO_INDOOR_SPAWNS = {"Grocery"}   # rooms full of shelves
+indoor_spawns = []   # (name, x, z, zone): AI spawn spots inside buildings, in the middle of ground-floor rooms
+buildings = []
 markers = []     # (group node, name, x, y, z, metadata dict)
 
 
@@ -407,6 +410,7 @@ class Building:
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset)."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
+    buildings.append(b)
     b.build()
     b.damage_debris(random.Random(b.name))
     for kind, i, j, floor, side, off in loot_spots:
@@ -1746,7 +1750,7 @@ def main():
 # (name, x, z, radius, scavs at the start, Raiders at the start, trickle weight for later arrivals)
 AI_ZONES = [
     # Scavs and Raiders are rivals (0.12.17, owner): each side has its own areas.
-    ("Town", 85, 95, 65, 7, 0, 2.0),          # scavs: the town, square included
+    ("Town", 85, 95, 65, 6, 0, 2.0),          # scavs: the town, square included
     ("PoliceBank", 150, 124, 30, 0, 2, 2.0),  # Raiders: the police station and the bank (0.12.22, owner: spread out)
     ("GunStore", 80, 74, 20, 0, 2, 2.0),      # Raiders: the gun store and pharmacy, north of town
     ("SouthEast", 305, 300, 45, 0, 2, 2.0),   # Raiders: junkyard, old gas station, diner, garage
@@ -1843,6 +1847,24 @@ def zone_spawns():
             spawn_zone[name] = zname
             need -= 1
         assert need <= 0, f"no room for AI spawn spots in zone {zname}"
+    # Inside buildings too (0.12.23, owner: "don't be afraid to spawn the AI in actual buildings", so clearing a
+    # building matters): the middle of each ground-floor room of a zone's buildings, away from the stairs. The
+    # spawner uses these for about half of a zone's AI. (Only markers: no ground or props move for them.)
+    for b in buildings:
+        if b.name in NO_INDOOR_SPAWNS:
+            continue
+        for i in range(b.nx):
+            for j in range(b.nz):
+                x0, z0, x1, z1 = b.cell(i, j)
+                cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+                if min(x1 - x0, z1 - z0) < 3.5:
+                    continue   # too small a room
+                if any(sx0 - 1.5 < cx < sx1 + 1.5 and sz0 - 1.5 < cz < sz1 + 1.5 for sx0, sx1, sz0, sz1 in b.strips):
+                    continue   # the stairs
+                zone = _zone_of(cx, cz)
+                if zone is None or zone[0] == AI_BOSS[0] or (zone[4] + zone[5]) == 0:
+                    continue
+                indoor_spawns.append((f"Indoor{len(indoor_spawns) + 1}", round(cx, 1), round(cz, 1), zone[0]))
 
 
 def spawner_meta(ter):
@@ -2013,6 +2035,10 @@ def write_scene(ter):
             y = ter.lift(x, z) + 0.3
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, y, z)}"]
         out += ([f'metadata/zone = "{spawn_zone[name]}"'] if name in spawn_zone else []) + [""]
+    for name, x, z, zone in indoor_spawns:   # (dropped from just above the floor)
+        out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
+                f"transform = {xform(x, ter.lift(x, z) + 1.2, z)}", f'metadata/zone = "{zone}"',
+                "metadata/indoor = true", ""]
     for i, (x, z) in enumerate(BOSS_STARTS):   # (dropped from just above the hall's floor)
         out += [f'[node name="BossStart{i + 1}" type="Marker3D" parent="EnemySpawns"]',
                 f"transform = {xform(x, ter.lift(x, z) + 1.2, z)}", "metadata/boss_start = true", ""]
