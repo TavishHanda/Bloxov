@@ -522,7 +522,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105, 0.1, 70)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 0.95, 115)
 
 [node name="Spawn16" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 145, -0.382, 85)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 141, 0.917, 79)
 metadata/zone = "SouthEast"
 
 [node name="Spawn17" type="Marker3D" parent="EnemySpawns"]
@@ -540,7 +540,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85, 6.051, 125)
 metadata/zone = "Woods"
 
 [node name="Spawn21" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -135, 0.451, 155)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -129, 0.275, 161)
 
 [node name="Spawn22" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 145, 4.161, 15)

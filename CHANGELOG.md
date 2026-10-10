@@ -6,6 +6,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.20 (Bon's patrol fixed; AI spawn check; owner)
+- Bon and his guards stood still (owner, on 0.12.17): his guards crowded round him and boxed him into a corner, so
+  none of them could move. Bon and his guards now walk through each other (a Raider and its partner too), and a
+  guard that gets stuck on the way to its spot just follows Bon's steps for a bit. In a 90 s test Bon stood still
+  10 s (his normal stops) instead of 75 s.
+- Checked every AI spawn spot on the map (on walkable ground, clear of walls and props, can walk to town): two
+  were overlapping something (one under the raised road by the junkyard, one under a hunting stand's ladder) and
+  moved a few meters. Map: `/mnt/project-files/scavs2/0.12.20-ai-spawns.png`.
+
 ## 0.12.19 (no station firefight; owner)
 - Removed 0.12.17's contested spot: scavs and Raiders no longer trade fire at the train station. The station and
   depot are scav ground again (2 scavs); its 2 Raiders moved to the town core and the south-east (3 each).

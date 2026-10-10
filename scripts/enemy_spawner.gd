@@ -136,7 +136,7 @@ func _spawn_boss() -> void:
 		var offset := GUARD_OFFSETS[i] if i < GUARD_OFFSETS.size() else Vector3(randf_range(-4, 4), 0, randf_range(2, 5))
 		guard.follow_offset = offset
 		guard.global_position = spot + offset
-		guard.leader = boss_spawned
+		guard.follow(boss_spawned)
 		guard.home_center = boss_spawned.home_center
 		guard.home_radius = boss_spawned.home_radius
 		guard.stays_home = true   # (owner: Bon and his guards patrol their area, they don't run to every gunshot)
@@ -239,7 +239,7 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 			var partner := raider_scene.instantiate() as Scav
 			get_parent().add_child(partner)
 			partner.global_position = enemy.global_position + Vector3(1.5, 0, 1.0)
-			partner.leader = enemy
+			partner.follow(enemy)
 			partner.home_center = enemy.home_center
 			partner.home_radius = enemy.home_radius
 			raiders_spawned += 1
