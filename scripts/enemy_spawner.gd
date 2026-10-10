@@ -131,7 +131,7 @@ func _spawn_boss() -> void:
 	var spot := spots.pick_random().global_position as Vector3
 	boss_spawned = boss_scene.instantiate() as Scav
 	get_parent().add_child(boss_spawned)
-	boss_spawned.global_position = spot
+	boss_spawned.global_position = on_floor(spot)
 	boss_spawned.home_center = zone.get("center", spot)
 	boss_spawned.home_radius = float(zone.get("radius", 0.0))
 	for i in int(boss.get("guards", 0)):
@@ -237,7 +237,7 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 		spot = clear_spot_near(spot, Vector3(randf_range(-2.0, 2.0), 0, randf_range(-2.0, 2.0)))
 	var enemy := scene.instantiate() as Scav
 	get_parent().add_child(enemy)
-	enemy.global_position = spot
+	enemy.global_position = on_floor(spot)
 	if zone_name != "":
 		enemy.home_center = zone.get("center", spot)
 		enemy.home_radius = float(zone.get("radius", 0.0))
@@ -265,6 +265,14 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 ## back to `origin`, headroom. Tries the offset, then the same distance in other directions, then closer in;
 ## `origin` itself if nothing fits. (0.12.31, owner: a Raider's partner spawned inside a building stuck in the
 ## roof: its fixed offset had put it on a shelf right under the ceiling.)
+## `spot` set down on the floor under it (0.12.38, owner: scavs spawned with their heads in the ceiling: indoor
+## markers were 1.2 m up, so a 1.9 m AI's head started inside the floor above and got pushed up through it).
+func on_floor(spot: Vector3) -> Vector3:
+	var hit := get_world_3d().direct_space_state.intersect_ray(
+		PhysicsRayQueryParameters3D.create(spot + Vector3(0, 0.3, 0), spot + Vector3(0, -3.0, 0), 1))
+	return Vector3(spot.x, (hit.position as Vector3).y + 0.05, spot.z) if not hit.is_empty() else spot
+
+
 func clear_spot_near(origin: Vector3, offset: Vector3) -> Vector3:
 	var space := get_world_3d().direct_space_state
 	var body := CapsuleShape3D.new()

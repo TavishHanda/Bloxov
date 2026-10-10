@@ -1717,6 +1717,18 @@ func _section_old_bloxov() -> void:
 		if roof.is_empty() or p.y - roof.position.y > 0.6:
 			bad_perches.append("%s: nothing under it" % perch.name)
 	_check(perches.size() >= 4 and bad_perches.is_empty(), "%d sniper perches, each on a roof or stand (%s)" % [perches.size(), bad_perches])
+	# Every AI spawn spot is on a floor with head room (0.12.38, owner: scavs spawned with their heads in the ceiling).
+	var cramped: Array[String] = []
+	for m in spawner.get_children():
+		if not m is Marker3D or m.get_meta("perch", false):
+			continue
+		var p: Vector3 = (m as Marker3D).global_position
+		var down: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.5, p + Vector3.DOWN * 3.0, 1))
+		var floor_y: float = (down.position as Vector3).y if not down.is_empty() else -INF
+		var up: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(p.x, floor_y + 0.05, p.z), Vector3(p.x, floor_y + 2.2, p.z), 1))
+		if p.y - floor_y > 0.4 or not up.is_empty():
+			cramped.append("%s %.1f m up, ceiling %s" % [m.name, p.y - floor_y, "%.1f" % ((up.position as Vector3).y - floor_y) if not up.is_empty() else "ok"])
+	_check(cramped.is_empty(), "every AI spawn spot is on a floor with head room (%s)" % [cramped])
 	var strays := 0
 	for e: Scav in zoned:
 		if Vector2(e.global_position.x - e.home_center.x, e.global_position.z - e.home_center.z).length() > e.home_radius + 3.0:

@@ -2056,13 +2056,13 @@ def write_scene(ter):
             y = ter.lift(x, z) + 0.3
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, y, z)}"]
         out += ([f'metadata/zone = "{spawn_zone[name]}"'] if name in spawn_zone else []) + [""]
-    for name, x, z, zone in indoor_spawns:   # (dropped from just above the floor)
+    for name, x, z, zone in indoor_spawns:   # (on the floor: 0.12.23-0.12.37 put them 1.2 m up, heads in the ceiling)
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
-                f"transform = {xform(x, ter.lift(x, z) + 1.2, z)}", f'metadata/zone = "{zone}"',
+                f"transform = {xform(x, ter.lift(x, z) + 0.1, z)}", f'metadata/zone = "{zone}"',
                 "metadata/indoor = true", ""]
-    for i, (x, z) in enumerate(BOSS_STARTS):   # (dropped from just above the hall's floor)
+    for i, (x, z) in enumerate(BOSS_STARTS):   # (on the hall's floor)
         out += [f'[node name="BossStart{i + 1}" type="Marker3D" parent="EnemySpawns"]',
-                f"transform = {xform(x, ter.lift(x, z) + 1.2, z)}", "metadata/boss_start = true", ""]
+                f"transform = {xform(x, ter.lift(x, z) + 0.1, z)}", "metadata/boss_start = true", ""]
     faces = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
     for name, x, z, h, face in SNIPER_PERCHES:
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',

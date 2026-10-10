@@ -6,6 +6,14 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.38 (scavs spawning in roofs, the real cause; owner)
+- Scavs spawning with their heads in the ceiling (owner, screenshots from the first 20 s of a raid): the indoor AI
+  spawn spots (0.12.23) and Bon's start spots (0.12.18) were 1.2 m above the floor, meant as "dropped from just
+  above it", but a 1.9 m AI's head then started inside the floor above (ceilings are 2.75 m up) and got pushed up
+  through it. All 37 spots are now on the floor, and the spawner also sets every AI down on the floor under its
+  spot. (0.12.35's fix was for a different, rarer case: two AI spawned in one spot.)
+- Smoke test: every AI spawn spot on the real map is on a floor with head room.
+
 ## 0.12.37 (strafe to cover in the open; owner)
 - Out in the open past chase range, after its first shots an AI now strafes to cover still shooting at you (owner:
   "they shoot a few times then run to cover, which is unrealistic"). Every other cover run is unchanged: facing
