@@ -16,7 +16,8 @@
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read
   `docs/STORE_RULES.md` and check every change against it (violence/age rating, player-made text, privacy/data,
   accounts, real-money purchases and loot odds, ads, no downloaded code). Anything that would break a rule gets
-  proposed to the owner in a compliant form, not shipped. Text other players see goes through `NameFilter`.
+  proposed to the owner in a compliant form, not shipped. Whenever a rule becomes relevant to the work at hand, mention it
+  to the owner (they asked to be reminded). Text other players see goes through `NameFilter`.
 - **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
   (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended
   behavior are fine; anything that changes how the game plays (AI, numbers, rules) gets proposed, not shipped.
