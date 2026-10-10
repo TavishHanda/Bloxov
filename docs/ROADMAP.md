@@ -26,7 +26,9 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    their stock fit in (more traders are on the wishlist). Earned money only (`STORE_RULES.md`: no real-money trading).
 7. **Then (M4, vertical slice):** building models fitted to the proven layout, real sounds, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
    saturated; tune it once, against the real models and ground textures, within what the web build supports).
-   After that M5 content (characters with perks, more traders,
+   After that M5 content (characters with perks; **PMC faction choice**: players pick **NOVA** or **EXION** when they
+   start (owner, 2026-10-10). Mostly flavor: look, voice lines, starting kit, faction-only skins, no stat advantages;
+   mixed-faction squads allowed; every other PMC stays hostile in raids. See `LORE.md`. Then more traders,
    more maps) and the M6 public release.
 - **Stash update (planned, before the store/Steam release; owner 2026-10-10: wait until closer to shipping, solo and
   online share one stash while we playtest):** solo and online get **separate stashes** (each with its own money,
