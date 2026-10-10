@@ -6,6 +6,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.32 (fight on, heal when it's quiet; quieter AI footsteps; owner)
+- No more retreating at low health (owner: "reposition and fight", heal once they lose you). Below 30% (Raiders and
+  Bon 40%) an AI plays safer: no pushing, flanking or chasing you, cover whenever it can (and it stays down a bit
+  longer), but it keeps fighting. It patches up only once the fight goes quiet: about 5 s without seeing anyone and
+  without being shot at. Shooting it while it heals stops the heal.
+- AI footsteps carry 30 m (owner + friend: you could hear every AI on the map walking, "like 30 crunching steps").
+  Callouts carry 50 m, the heal sound 20 m, the rifle-butt bash 30 m. Gunshots still carry across the map.
+- Smoke test: badly hurt it repositions and keeps fighting, and patches up once it's quiet.
+
 ## 0.12.31 (up-close fight priorities, town patrols, stuck spawns, hit arrow; owner)
 - Up-close priorities (owner: "the scavs priorities are not right at all"): badly hurt with you close by and in
   sight, an AI only falls back to cover a few steps away (6 m); with none that close it keeps shooting back and tries

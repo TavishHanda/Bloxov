@@ -99,13 +99,14 @@ static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitt
 	audio.play()
 
 
-static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0) -> void:
+static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
 	var audio := AudioStreamPlayer3D.new()
 	audio.stream = stream
 	audio.volume_db = volume_db
 	audio.unit_size = unit_size
+	audio.max_distance = max_distance   # (0 = heard from anywhere, fading with distance: gunshots)
 	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
 	world.add_child(audio)
 	audio.global_position = pos
