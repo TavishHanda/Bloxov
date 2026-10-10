@@ -26,7 +26,7 @@ extends Node3D
 @export_range(0.0, 1.0) var raider_duo_chance := 0.15
 ## AI zones (Scavs 2.0; a map sets these, the test map has none). Each is a Dictionary: "name", "center"
 ## (Vector3), "radius" (m), "scavs" and "raiders" (how many start there), "trickle" (how likely later arrivals
-## come here; hot zones get the most), "skirmish" (the contested spot: its scavs and Raiders trade harmless fire). Markers with metadata `zone` = that name are its spawn spots. AI that
+## come here; hot zones get the most). Markers with metadata `zone` = that name are its spawn spots. AI that
 ## spawns in a zone patrols only that zone. With zones, initial_count is ignored and raider_times are only the
 ## later Raiders (the zones' own start at 0:00).
 @export var zones: Array = []
@@ -232,7 +232,6 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	if zone_name != "":
 		enemy.home_center = zone.get("center", spot)
 		enemy.home_radius = float(zone.get("radius", 0.0))
-		enemy.skirmish = bool(zone.get("skirmish", false))
 	if scene == raider_scene:
 		raiders_spawned += 1
 		# Sometimes a duo: a partner right next to it that follows it around.
@@ -243,7 +242,6 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 			partner.leader = enemy
 			partner.home_center = enemy.home_center
 			partner.home_radius = enemy.home_radius
-			partner.skirmish = enemy.skirmish
 			raiders_spawned += 1
 	else:
 		scavs_spawned += 1

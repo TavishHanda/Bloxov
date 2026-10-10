@@ -2418,8 +2418,7 @@ func _section_teamwork() -> void:
 	bleeder.queue_free()
 	nearby.queue_free()
 	await physics_frame
-	# 0.12.17 rivals (owner): scavs never answer a Raider's call; at the contested spot the two sides trade fire
-	# that never hurts anyone.
+	# 0.12.17 rivals (owner): scavs never answer a Raider's call.
 	var shouter := _spawn(RAIDER_SCENE, Vector3(10, 0.1, 30)) as Scav
 	var other_side := _spawn(SCAV_SCENE, Vector3(16, 0.1, 30)) as Scav
 	other_side._wander_time = 99.0
@@ -2429,21 +2428,6 @@ func _section_teamwork() -> void:
 	_check(other_side.state == Scav.State.IDLE, "a scav doesn't answer a Raider's call for help")
 	shouter.queue_free()
 	other_side.queue_free()
-	await physics_frame
-	var sides: Array[Scav] = [_spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav, _spawn(RAIDER_SCENE, Vector3(26, 0.1, 30)) as Scav]
-	var side_shots := [0, 0]
-	for i in 2:
-		sides[i].skirmish = true
-		sides[i].sight_range = 5.0   # (busy with each other, not the player)
-		sides[i].skirmish_pause_max = 2.0
-		sides[i].fired.connect(func(_end: Vector3) -> void: side_shots[i] += 1)
-	for i in 240:
-		await physics_frame
-	_check(side_shots[0] > 0 and side_shots[1] > 0 and sides.all(func(e: Scav) -> bool:
-			return e.state == Scav.State.IDLE and e.health.current == e.health.max_health),
-		"at the contested spot scavs and Raiders trade fire (%d and %d shots) and nobody gets hurt" % side_shots)
-	for e in sides:
-		e.queue_free()
 	await physics_frame
 	# 0.12.15 suppress and push (owner): you duck out of sight with two on you: one keeps shooting where you were,
 	# the other goes around.
