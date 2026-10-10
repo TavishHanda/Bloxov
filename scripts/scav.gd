@@ -112,6 +112,20 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Moves quietly (slower, silent footsteps) within this distance of where it thinks you are. 0 = never.
 @export var sneak_range := 0.0
 
+@export_group("Sniper")
+## Snipers (Scavs 2.0, scenes/sniper.tscn, owner): stays on its perch (within home_radius): never chases, takes
+## cover or walks over to a noise; scans the area instead of patrolling.
+@export var holds_position := false
+## A scope glint you can see from far away when it's looking your way (bright while it aims at you), so you can
+## spot it and shoot back (owner: visible, not hidden).
+@export var glint := false
+## Its shot sound (snipers: deeper, louder and heard farther than a scav's, owner: "different for sure").
+@export var shot_pitch := 0.8
+@export var shot_volume_db := -3.0
+@export var shot_unit_size := 6.0
+## What the server tells players' games this is (0 scav, 1 Raider, 2 sniper: which puppet scene to show).
+@export var net_kind := 0
+
 @export_group("Healing")
 ## Badly hurt (below this fraction of max health; scavs 30%, owner 0.6.14), it falls back to cover and patches up (owner: scavs can heal).
 ## Getting hit while healing interrupts it (and wastes nothing: it can try again a few seconds later).
@@ -238,6 +252,7 @@ const NET_LEAN_IN := 1
 const NET_WINDUP := 2
 const NET_LUNGE := 4
 const NET_SNEAK := 8
+const NET_AIM := 16
 var puppet := false
 ## Times it has been hit (sent to puppets so they flash when it goes up).
 var hits_taken := 0
@@ -257,6 +272,8 @@ func _ready() -> void:
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	_heals_left = heals
+	if glint:
+		_make_glint()
 
 
 ## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
@@ -301,13 +318,18 @@ func _physics_process(delta: float) -> void:
 	var desired := Vector3.ZERO
 	match state:
 		State.IDLE:
-			desired = _wander(delta)
+			desired = _scan(delta) if holds_position else _wander(delta)
 			if _spotting(delta, to_target, dist, 1.0):
 				_alert(_target.global_position)
 		State.INVESTIGATE:
 			# Walk over to where the sound was, looking that way.
-			desired = _path_velocity(_goal, move_speed * investigate_speed)
-			_face(desired, delta)
+			if holds_position:   # look toward the noise from the perch
+				_face(_flat(_goal - global_position), delta, 3.0)
+				if _state_time > 3.0:
+					_set_state(State.SEARCH)
+			else:
+				desired = _path_velocity(_goal, move_speed * investigate_speed)
+				_face(desired, delta)
 			if _spotting(delta, to_target, dist, spot_suspicious_mult):
 				_alert(_target.global_position)
 			elif _arrived(_goal) or _state_time > 15.0:
@@ -354,6 +376,8 @@ func _physics_process(delta: float) -> void:
 							_try_flank(to_target, dist)
 						else:
 							_try_take_cover()
+				elif holds_position:   # out of range: keep watching, don't leave the perch
+					_hold_fire()
 				else:
 					desired = _path_velocity(_target.global_position, move_speed)
 					_hold_fire()
@@ -363,10 +387,14 @@ func _physics_process(delta: float) -> void:
 				_hold_fire()
 				if _arrived(_last_seen) or _lost_sight_time > give_up_time:
 					_set_state(State.SEARCH)
+				elif holds_position:
+					_face(_flat(_last_seen - global_position), delta)
 				else:
 					desired = _path_velocity(_last_seen, move_speed)
 					_face(desired, delta)
 
+	if holds_position and home_radius > 0.0 and not _in_home(global_position + desired * delta * 4.0):
+		desired = Vector3.ZERO   # the edge of its perch
 	if _sneaking():
 		desired *= 0.55
 	if BoxMap.is_wading(self):   # slower through water, like players (0.11.20)
@@ -404,6 +432,7 @@ func _process(delta: float) -> void:
 
 	_muzzle_flash_time -= delta
 	muzzle_flash.visible = _muzzle_flash_time > 0.0
+	_update_glint()
 
 	_hit_flash_time -= delta
 	_flinch_left -= delta
@@ -862,7 +891,81 @@ func _pick_patrol_point() -> Vector3:
 
 ## Inside its patrol area (a little slack at the edge); always true for a roamer.
 func _in_home(point: Vector3) -> bool:
-	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + 4.0
+	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0)
+
+
+## A sniper on its perch, unaware: slowly sweeps its view one way, then the other, with the odd pause.
+func _scan(delta: float) -> Vector3:
+	_wander_time -= delta
+	if _wander_time <= 0.0:
+		_wander_time = randf_range(3.0, 7.0)
+		_scan_dir = [-1.0, 0.0, 1.0].pick_random()
+	rotation.y += delta * 0.35 * _scan_dir
+	return Vector3.ZERO
+
+
+var _glint: MeshInstance3D = null
+var _scan_dir := 1.0
+
+
+## The scope glint: a bright spot by the head that always faces the camera.
+func _make_glint() -> void:
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.5, 0.5)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.billboard_keep_scale = true
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1.0, 0.98, 0.8, 1.0)
+	var tex := GradientTexture2D.new()
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	var grad := Gradient.new()
+	# A solid bright core with a soft edge (an additive glow vanished against the bright sky).
+	grad.set_color(0, Color(1, 1, 1, 1))
+	grad.set_color(1, Color(1, 1, 1, 0))
+	grad.add_point(0.22, Color(1, 1, 1, 1))
+	grad.add_point(0.5, Color(1, 0.8, 0.25, 0.9))
+	tex.gradient = grad
+	mat.albedo_texture = tex
+	quad.material = mat
+	_glint = MeshInstance3D.new()
+	_glint.mesh = quad
+	_glint.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_glint.position = Vector3(0.12, 1.72, -0.45)
+	_glint.visible = false
+	add_child(_glint)
+
+
+## How bright its scope glint looks from `eye` (0 = none): full while it aims your way, a faint flicker as its
+## scan sweeps past you, nothing when it faces away or you're right next to it.
+func glint_strength(eye: Vector3) -> float:
+	if not glint or state == State.DEAD:
+		return 0.0
+	var to_eye := _flat(eye - global_position)
+	if to_eye.length() < 12.0:
+		return 0.0
+	var facing := _flat(-global_basis.z).normalized()
+	var angle := rad_to_deg(facing.angle_to(to_eye.normalized()))
+	var aiming := (_net_flags & NET_AIM) != 0 if puppet else state in [State.ALERT, State.ENGAGE]
+	if aiming:
+		return clampf((40.0 - angle) / 15.0, 0.0, 1.0)
+	return clampf((14.0 - angle) / 8.0, 0.0, 1.0) * 0.5
+
+
+func _update_glint() -> void:
+	if _glint == null:
+		return
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var strength := glint_strength(camera.global_position) if camera != null else 0.0
+	_glint.visible = strength > 0.0
+	if _glint.visible:
+		# Grows with distance so it still reads as a bright dot far away, and twinkles a little.
+		var dist := camera.global_position.distance_to(_glint.global_position)
+		var size := clampf(dist * 0.06, 0.8, 8.0) * strength * randf_range(0.8, 1.15)
+		_glint.scale = Vector3.ONE * size
 
 
 func _face(dir: Vector3, delta: float, turn_speed := 10.0) -> void:
@@ -944,6 +1047,8 @@ func net_capture() -> Array:
 		flags |= NET_LUNGE
 	if _sneaking():
 		flags |= NET_SNEAK
+	if state in [State.ALERT, State.ENGAGE]:
+		flags |= NET_AIM
 	return [global_position, rotation.y, flags, hits_taken]
 
 
@@ -964,7 +1069,7 @@ func net_push(net_state: Array, at := -1.0) -> void:
 func net_fired(end: Vector3) -> void:
 	var muzzle_pos := muzzle.global_position
 	Effects.tracer(get_tree().current_scene, muzzle_pos, end)
-	Effects.sound_at(get_tree().current_scene, SHOT_SOUND, muzzle_pos, -3.0, 0.06, 0.8)
+	Effects.sound_at(get_tree().current_scene, SHOT_SOUND, muzzle_pos, shot_volume_db, 0.06, shot_pitch, shot_unit_size)
 	_muzzle_flash_time = 0.05
 
 

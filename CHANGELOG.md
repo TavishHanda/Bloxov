@@ -6,6 +6,24 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.1 (sniper scavs; owner)
+- **Sniper scavs** (owner: a long-range threat up high that you can spot and shoot back). 2 per raid, each on a
+  perch picked from 5 high spots: the police roof (over the town core), the bell tower, the school roof, the train
+  station roof and the hunting stand by the creek trail. A perch that already has a player in its sights at the
+  start is only used if nothing else is free
+- A sniper stays on its perch (it can shift a few meters but never comes down to chase you, take cover or
+  check a noise). It scans the area slowly while it hasn't seen you
+- It sees you from up to 120 m and fires single heavy shots (35 damage, one every 3-4 s) out to 110 m. It's
+  accurate up close and less so far out (75% to 35%), and running still makes you harder to hit. It takes a
+  little longer to aim than a scav (1.2 s)
+- **Scope glint** (owner): a bright yellow-white flash at its head when it's aiming at you. It gets bigger with
+  distance, so it still shows up from far away. A faint flicker shows when its scan sweeps past you. Nothing shows
+  when it looks the other way
+- **Its own shot sound** (owner): deeper and louder than a scav's, and heard from much farther, so you know a
+  sniper is shooting
+- Same health as a scav; its body is a "Sniper Body". Works online (players' games show the server's snipers
+  with the glint)
+
 ## 0.12.0 (Scavs 2.0: AI zones and hot zones; owner)
 - **Scavs 2.0 starts** (owner, from playtests: "too easy but too many", AI roaming in weird places). AI now live
   in **zones** on Bloxov Battlegrounds and patrol only their own zone, so you learn where to expect them:

@@ -6,7 +6,7 @@ extends Node
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
 ## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider).
-const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn")]
+const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn")]
 
 @export var player: Player
 @export var enemy_spawner: Node
@@ -208,7 +208,7 @@ func sync_enemies(list: Array) -> void:
 		seen[id] = true
 		var puppet: Scav = enemy_puppets.get(id)
 		if puppet == null:
-			puppet = ENEMY_SCENES[clampi(entry[1], 0, 1)].instantiate()
+			puppet = ENEMY_SCENES[clampi(entry[1], 0, ENEMY_SCENES.size() - 1)].instantiate()
 			puppet.puppet = true
 			puppet.name = "Enemy%d" % id
 			get_parent().add_child(puppet)

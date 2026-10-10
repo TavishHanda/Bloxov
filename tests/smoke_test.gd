@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "pathing", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -38,6 +38,7 @@ const PROFILE_PATH := "user://profile.json"
 ## Where the player stands for most tests: facing the dummy, open road behind.
 const START_SPOT := Vector3(0, 0.1, -10)
 const SCAV_SCENE := "res://scenes/scav.tscn"
+const SNIPER_SCENE := "res://scenes/sniper.tscn"
 const RAIDER_SCENE := "res://scenes/raider.tscn"
 
 var _failures := 0
@@ -1661,9 +1662,19 @@ func _section_old_bloxov() -> void:
 	_check(off_ground.is_empty(), "spawns and extracts stand on the ground (%s)" % [off_ground])
 	# Scavs 2.0 zones: the raid starts with each zone's AI in it, they patrol only their zone, roamers anywhere.
 	var ai := RaidScope.nodes(world.raid, &"enemies")
-	var zoned := ai.filter(func(e: Node) -> bool: return (e as Scav).home_radius > 0.0)
-	_check(ai.size() == start_ai and zoned.size() == start_ai - spawner.roamers,
-		"the raid starts with %d AI, %d of them in zones (%d, %d)" % [start_ai, start_ai - spawner.roamers, ai.size(), zoned.size()])
+	var snipers := ai.filter(func(e: Node) -> bool: return (e as Scav).holds_position)
+	var zoned := ai.filter(func(e: Node) -> bool: return (e as Scav).home_radius > 0.0 and not (e as Scav).holds_position)
+	_check(ai.size() == start_ai + spawner.snipers and zoned.size() == start_ai - spawner.roamers and snipers.size() == 2,
+		"the raid starts with %d AI, %d of them in zones, plus 2 snipers (%d, %d, %d)" % [start_ai, start_ai - spawner.roamers, ai.size(), zoned.size(), snipers.size()])
+	# Snipers stand on their perches: high up (a roof or the hunting stand), on something solid.
+	var perches := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("perch", false))
+	var bad_perches: Array[String] = []
+	for perch: Marker3D in perches:
+		var p := perch.global_position
+		var roof: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.5, p + Vector3.DOWN * 1.5, 1))
+		if roof.is_empty() or p.y - roof.position.y > 0.6:
+			bad_perches.append("%s: nothing under it" % perch.name)
+	_check(perches.size() >= 4 and bad_perches.is_empty(), "%d sniper perches, each on a roof or stand (%s)" % [perches.size(), bad_perches])
 	var strays := 0
 	for e: Scav in zoned:
 		if Vector2(e.global_position.x - e.home_center.x, e.global_position.z - e.home_center.z).length() > e.home_radius + 3.0:
@@ -2131,6 +2142,40 @@ func _section_zones() -> void:
 		enemy.queue_free()
 	spawner.queue_free()
 	await _frames(2)
+
+
+func _section_sniper() -> void:
+	# Sniper scavs (Scavs 2.0, owner): stay on their perch, shoot slow heavy single shots from far, sound different
+	# from scavs, and show a scope glint when looking your way so you can spot them.
+	var sniper := _spawn(SNIPER_SCENE, player.global_position + Vector3(0, 0, 35)) as Scav
+	_face_player(sniper)
+	sniper.home_center = sniper.global_position
+	sniper.home_radius = 3.0
+	sniper.shot_damage = 0  # just watching it
+	var scav := load(SCAV_SCENE).instantiate() as Scav
+	_check(sniper.holds_position and sniper.glint and sniper.shoot_range >= 100.0 and sniper.burst_size == 1
+		and sniper.shot_damage == 0 and scav.shot_damage < 35 and sniper.shot_pitch < scav.shot_pitch
+		and sniper.shot_volume_db > scav.shot_volume_db and sniper.shot_unit_size > scav.shot_unit_size,
+		"snipers: long range single shots, a deeper and louder shot heard from farther away")
+	scav.free()
+	var eye := player.camera.global_position
+	_check(sniper.glint_strength(eye) > 0.0 and sniper.glint_strength(eye) < 0.6, "an unaware sniper looking your way glints faintly")
+	sniper._alert(player.global_position)
+	var shots := [0]
+	sniper.fired.connect(func(_end: Vector3) -> void: shots[0] += 1)
+	var start := sniper.global_position
+	var farthest := 0.0
+	for i in 300:
+		await physics_frame
+		farthest = maxf(farthest, Vector2(sniper.global_position.x - start.x, sniper.global_position.z - start.z).length())
+	_check(shots[0] >= 1 and shots[0] <= 3, "it fires slow single shots (%d in 5 s)" % shots[0])
+	_check(farthest <= 3.2, "it stays on its perch while fighting (moved %.1f m)" % farthest)
+	_check(sniper.glint_strength(player.camera.global_position) >= 0.9, "aiming at you, its scope glints brightly")
+	sniper.rotation.y += PI
+	_check(sniper.glint_strength(player.camera.global_position) == 0.0, "facing away: no glint")
+	sniper.queue_free()
+	player.health.heal(player.health.max_health)
+	await physics_frame
 
 
 func _section_pathing() -> void:
