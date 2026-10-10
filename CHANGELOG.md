@@ -6,6 +6,19 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.10 (AI actually hide: cover right away, behind trees/tents, crouching; owner)
+- Owner: cover didn't seem to work; a scav looting at the camp didn't hide behind the tents, trees or a hill, it just
+  kept running sideways.
+- In a fight in the open, AI head for cover as soon as they can (shooting on the way) instead of strafing until
+  their burst ends. They look for cover every 2.5 s (was 5; Raiders and Bon 2, was 3.5) and peek out up to 5 times
+  (was 3) before re-thinking.
+- Cover search first looks at the far side of whatever is right around it (tree trunks, tents, cars, wall corners,
+  hillsides), which the old ring of sample points often missed.
+- Low cover (tents, low walls, cars): it crouches behind it while hiding (model and hitboxes shrink, also online),
+  then stands up to shoot. It prefers cover it can stand behind when there's a choice.
+- In a test on the real map (8 fights at 25 m) every AI fought from cover, and spent 0-3 s in your view out of cover
+  (before: 3 of 8 never took cover, and some strafed or flanked in the open for 3-6 s).
+
 ## 0.12.9 (AI hit more often at range; owner)
 - Owner: the 0.12.8 accuracy was far too low, especially for Bon and Raiders; scavs should bottom out at about 10%.
 - Hit chance per bullet (up close / at 28 m / at the edge of their range): scavs 70% / 25% / 10% at 75 m,

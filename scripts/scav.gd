@@ -116,13 +116,14 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var lull_time := 2.0
 @export var cover_search_radius := 12.0
 @export var cover_hold_time := 1.2
-## At most one new cover spot per this many seconds.
-@export var cover_cooldown := 5.0
+## At most one new cover spot per this many seconds. (0.12.10: 5 s before; owner: they kept running sideways in
+## the open instead of hiding.)
+@export var cover_cooldown := 2.5
 ## Each peek lasts this long (seconds, random), then it ducks back in; after this many peeks it re-thinks
 ## (a new spot, or chasing you if you've gone).
 @export var peek_time_min := 1.5
 @export var peek_time_max := 3.0
-@export var peeks := 3
+@export var peeks := 5
 
 @export_group("Teamwork")
 ## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
@@ -285,6 +286,10 @@ const NET_WINDUP := 2
 const NET_LUNGE := 4
 const NET_SNEAK := 8
 const NET_AIM := 16
+const NET_CROUCH := 32
+## Crouched behind low cover (a tent, a car, a low wall): the model and hitboxes shrink to this fraction of its
+## height (0.12.10).
+const CROUCH_HEIGHT := 0.6
 var puppet := false
 ## Times it has been hit (sent to puppets so they flash when it goes up).
 var hits_taken := 0
@@ -304,6 +309,12 @@ func _ready() -> void:
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	_heals_left = heals
+	# Its own copies of the hit shapes, so crouching this one doesn't shrink every scav.
+	for shape_node: CollisionShape3D in [$BodyShape, $HeadShape]:
+		shape_node.shape = shape_node.shape.duplicate()
+	_body_rest = ($BodyShape as CollisionShape3D).position
+	_body_size = (($BodyShape as CollisionShape3D).shape as BoxShape3D).size
+	_head_rest = ($HeadShape as CollisionShape3D).position
 	if glint:
 		_make_glint()
 
@@ -332,6 +343,8 @@ func _physics_process(delta: float) -> void:
 	_melee_cooldown_left -= delta
 	_since_threat += delta
 	_cover_cooldown_left -= delta
+	# Crouched only while hiding at low cover (holding, or patching up there); up again to peek or move.
+	_crouched = _cover_low and state == State.ENGAGE and _cover_phase in [Cover.HOLDING, Cover.HEALING]
 	_heal_retry_left -= delta
 
 	if _target == null or not is_instance_valid(_target) or _target.out_of_fight():
@@ -415,7 +428,8 @@ func _physics_process(delta: float) -> void:
 					_update_shooting(delta, dist)
 					# Out in the open: get to cover and fight from there (between bursts, or right away when
 					# hit). Sometimes, in a lull, circle round to flank instead.
-					if not pushing and not holds_position and _cover_cooldown_left <= 0.0 and (_shots_left <= 0 or _flinch_left > 0.0):
+					# (0.12.10: right away, shooting on the way, instead of after a burst; owner: they kept strafing.)
+					if not pushing and not holds_position and _cover_cooldown_left <= 0.0:
 						if _since_threat > lull_time and randf() < flank_chance:
 							_try_flank(to_target, dist)
 						else:
@@ -526,6 +540,7 @@ func _process(delta: float) -> void:
 	elif _lunge_left > 0.0:
 		tilt -= 0.4
 	model.rotation.x = tilt
+	_update_crouch(delta)
 	var flashing := _hit_flash_time > 0.0
 	if flashing != _flashing:
 		_flashing = flashing
@@ -646,6 +661,21 @@ func notice_threat() -> void:
 	_since_threat = 0.0
 
 
+## Crouching behind low cover: shorter model and hitboxes (puppets follow the server's flag).
+func _update_crouch(delta: float) -> void:
+	var want := (_net_flags & NET_CROUCH) != 0 if puppet else _crouched
+	var amount := move_toward(_crouch_amount, 1.0 if want else 0.0, delta * 5.0)
+	if amount == _crouch_amount:
+		return
+	_crouch_amount = amount
+	var height := lerpf(1.0, CROUCH_HEIGHT, amount)
+	model.scale.y = height
+	var body := $BodyShape as CollisionShape3D
+	(body.shape as BoxShape3D).size = Vector3(_body_size.x, _body_size.y * height, _body_size.z)
+	body.position = _body_rest * height
+	($HeadShape as CollisionShape3D).position = _head_rest * height
+
+
 ## Too far away to shoot (e.g. you're up on a hill): it moves up cover to cover (0.12.7, owner: they went into
 ## cover, then just walked at him in the open). With no cover ahead it waits where it is, out of sight if it can.
 func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
@@ -655,6 +685,7 @@ func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
 		var spot := _find_advance_cover(goal)
 		if spot != Vector3.INF:
 			_cover_point = spot
+			_cover_low = false
 			_cover_phase = Cover.MOVING
 			_peek_point = Vector3.INF
 			_peeks_left = 0
@@ -713,6 +744,7 @@ func _try_take_cover() -> void:
 	var spot := _find_cover()
 	if spot != Vector3.INF:
 		_cover_point = spot
+		_cover_low = _found_low
 		_cover_phase = Cover.MOVING
 		# Where it stands now can see you: that's where it peeks out from.
 		_peek_point = global_position
@@ -744,6 +776,7 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 	if spot == Vector3.ZERO:
 		return
 	_cover_point = spot
+	_cover_low = false
 	_cover_phase = Cover.FLANKING
 
 
@@ -753,6 +786,7 @@ func _fall_back_to_heal() -> void:
 	var spot := _find_cover()
 	if spot != Vector3.INF:
 		_cover_point = spot
+		_cover_low = _found_low
 		_cover_phase = Cover.MOVING
 		_heal_after_move = true
 	else:
@@ -772,6 +806,32 @@ func _find_cover() -> Vector3:
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
 	var best_walk := INF
+	_found_low = false
+	# First the far side of things right around it (a tree trunk, a tent, a car, a wall corner, a hillside): the
+	# circle samples below easily miss something as thin as a trunk (0.12.10, owner: one didn't hide behind the
+	# tents or trees at the camp).
+	var away := _flat(global_position - _target.global_position).normalized()
+	var chest := global_position + Vector3(0, 1.0, 0)
+	for i in 16:
+		var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 16.0)
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(chest, chest + dir * cover_search_radius, 1, [get_rid()]))
+		if hit.is_empty():
+			continue
+		var behind: Vector3 = hit.position + away * 0.9 - dir * 0.3
+		var spot := AINav.closest(self, Vector3(behind.x, global_position.y, behind.z))
+		if spot == Vector3.ZERO or _flat(spot - behind).length() > 1.5:
+			continue
+		var hides := _hides_at(space, eyes, spot)
+		if hides == 0:
+			continue  # the target could see it there
+		# (Low cover, where it has to crouch, counts as a few meters farther: it prefers a spot it can stand at.)
+		var walk := AINav.path_length(AINav.path(self, global_position, spot))
+		if walk <= cover_search_radius * 1.6 and walk + (3.0 if hides == 1 else 0.0) < best_walk:
+			best = spot
+			best_walk = walk + (3.0 if hides == 1 else 0.0)
+			_found_low = hides == 1
+	if best != Vector3.INF:
+		return best
 	for radius in [3.0, 5.0, cover_search_radius]:
 		for i in 12:
 			var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 12.0)
@@ -789,6 +849,17 @@ func _find_cover() -> Vector3:
 		if best != Vector3.INF:
 			break
 	return best
+
+
+## Whether `spot` is hidden from `eyes`: 2 standing up, 1 only crouched (low cover), 0 not at all.
+func _hides_at(space: PhysicsDirectSpaceState3D, eyes: Vector3, spot: Vector3) -> int:
+	if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)).is_empty():
+		return 2
+	var head := spot + Vector3(0, 1.71 * CROUCH_HEIGHT + 0.2, 0)
+	if (not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, head, 1)).is_empty()
+			and not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 0.5, 0), 1)).is_empty()):
+		return 1
+	return 0
 
 
 ## True if it's not getting anywhere (e.g. the last bit of the path is blocked by another scav).
@@ -1152,6 +1223,14 @@ var _peek_left := 0.0
 var _peeks_left := 0
 var _advance_check_left := 0.0
 var _stuck_time := 0.0
+## The cover spot it's heading for is low (only hides it crouched); it's crouching there now; how crouched it looks.
+var _cover_low := false
+var _found_low := false
+var _crouched := false
+var _crouch_amount := 0.0
+var _body_rest := Vector3.ZERO
+var _body_size := Vector3.ONE
+var _head_rest := Vector3.ZERO
 var _peek_blind := 0.0
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false
@@ -1332,6 +1411,8 @@ func net_capture() -> Array:
 		flags |= NET_SNEAK
 	if state in [State.ALERT, State.ENGAGE]:
 		flags |= NET_AIM
+	if _crouched:
+		flags |= NET_CROUCH
 	return [global_position, rotation.y, flags, hits_taken]
 
 
