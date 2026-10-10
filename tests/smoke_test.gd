@@ -2296,8 +2296,8 @@ func _section_teamwork() -> void:
 	# Gunshots carry farther and alarm it (it hurries over).
 	var listener := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
 	await physics_frame
-	listener.hear_noise(listener.global_position + Vector3(40, 0, 0), ItemDB.ITEMS["ak"]["noise"])
-	_check(listener.state == Scav.State.INVESTIGATE and listener._alarmed, "it hears an AK from 40 m and hurries toward it")
+	listener.hear_noise(listener.global_position + Vector3(30, 0, 0), ItemDB.ITEMS["ak"]["noise"])
+	_check(listener.state == Scav.State.INVESTIGATE and listener._alarmed, "it hears an AK from 30 m and hurries toward it")
 	_check(listener.sight_range >= 75.0, "it can spot you from 75 m (players on hills)")
 	# Patrol stops in the open prefer a spot next to cover.
 	listener._set_state(Scav.State.IDLE)
@@ -2338,6 +2338,23 @@ func _section_teamwork() -> void:
 	_check(croucher._crouched and head_down < head_up * 0.7 and croucher.net_capture()[2] & Scav.NET_CROUCH,
 		"behind low cover it crouches (head %.2f m -> %.2f m)" % [head_up, head_down])
 	croucher.queue_free()
+	# 0.12.11 (owner: a friend in town had to fight 8-9 at once): only a few come over; the rest hold, on alert.
+	var crowd: Array[Scav] = []
+	for i in 7:
+		var c := _spawn(SCAV_SCENE, Vector3(-10 + i * 3.0, 0.1, 30)) as Scav
+		c._wander_time = 99.0
+		c._wander_dir = Vector3.ZERO
+		crowd.append(c)
+	await physics_frame
+	for c in crowd:
+		c.hear_noise(Vector3(0, 0, 0), 50.0)
+	var coming := crowd.filter(func(c: Scav) -> bool: return c._is_responding())
+	var holding := crowd.filter(func(c: Scav) -> bool: return c.state == Scav.State.SEARCH)
+	_check(coming.size() == crowd[0].max_responders and holding.size() == crowd.size() - coming.size(),
+		"a gunshot brings at most %d over; the other %d go on alert where they are" % [coming.size(), holding.size()])
+	for c in crowd:
+		c.queue_free()
+	await physics_frame
 	# Shot at from too far to shoot back: it doesn't just walk at you in the open.
 	player.teleport_to(Vector3(-30, 0.1, -30))
 	var far_one := _spawn(SCAV_SCENE, Vector3(25, 0.1, 25)) as Scav
@@ -2607,10 +2624,10 @@ func _section_raiders() -> void:
 		s._wander_time = 99.0
 		s._wander_dir = Vector3.ZERO
 	await physics_frame
-	var shot_from := raider.global_position + Vector3(0, 0, -40)
+	var shot_from := raider.global_position + Vector3(0, 0, -35)
 	raider.hear_noise(shot_from, 25.0)
-	scav.hear_noise(scav.global_position + Vector3(0, 0, -40), 25.0)
-	_check(raider.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE, "a Raider hears a gunshot 40 m away (a scav doesn't)")
+	scav.hear_noise(scav.global_position + Vector3(0, 0, -35), 25.0)
+	_check(raider.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE, "a Raider hears a gunshot 35 m away (a scav doesn't)")
 	# Sneaks (quiet, slower) when close to where it's going.
 	raider._goal = raider.global_position + Vector3(0, 0, -8)
 	_check(raider._sneaking(), "a Raider closing in moves quietly")
