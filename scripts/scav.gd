@@ -13,6 +13,10 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 const SHOT_SOUND := preload("res://audio/shot.wav")
 const ALERT_SOUND := preload("res://audio/alert.wav")
 const POP_SOUND := preload("res://audio/pop.wav")
+## How far away you can hear an AI's footsteps and its callouts (0.12.32, owner: you could hear every AI on the map
+## walking, "like 30 crunching steps"). Gunshots still carry across the map.
+const STEP_HEAR_RANGE := 30.0
+const BARK_HEAR_RANGE := 50.0
 const BASH_SOUND := preload("res://audio/swing.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
 const FLASH_MATERIAL := preload("res://materials/flash_white.tres")
@@ -135,8 +139,6 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Closer than this (meters) it fights back first and only takes cover within close_cover_radius (0.12.30, owner).
 @export var close_fight_range := 12.0
 @export var close_cover_radius := 3.0
-## Badly hurt up close: the farthest (walking) it runs to cover to patch up before it would rather shoot back.
-@export var retreat_close_radius := 6.0
 @export var cover_hold_time := 1.2
 ## At most one new cover spot per this many seconds. (0.12.10: 5 s before; owner: they kept running sideways in
 ## the open instead of hiding.)
@@ -198,9 +200,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var net_kind := 0
 
 @export_group("Healing")
-## Badly hurt (below this fraction of max health; scavs 30%, owner 0.6.14), it falls back to cover and patches up (owner: scavs can heal).
-## Getting hit while healing interrupts it (and wastes nothing: it can try again a few seconds later).
+## Badly hurt (below this fraction of max health; scavs 30%, Raiders and Bon 40%) it plays safer: no pushing or
+## flanking, cover whenever it can. It doesn't run away (0.12.32, owner: "reposition and fight"); it patches up once
+## the fight goes quiet (quiet_heal_time). Getting hit while healing interrupts it (it can try again later).
 @export var hurt_fraction := 0.3
+## Patches up only after this long with no sight of anyone and nothing shot at it (and only if it's lost a fair bit).
+@export var quiet_heal_time := 5.0
 ## Wounded (below this fraction of max health, 0.12.13, owner): it limps (this fraction of its speed), stops pushing
 ## and flanking, and when it first gets this low it calls for help and falls back to cover.
 @export var wounded_fraction := 0.35
@@ -296,14 +301,11 @@ var _cover_phase := Cover.NONE
 var _cover_point := Vector3.ZERO
 var _cover_hold_left := 0.0
 var _cover_cooldown_left := 0.0
-## Heals left this life, whether it's hurt and wants to fall back, and time left on the current heal.
+## Heals left this life, and time left on the current heal.
 var _heals_left := 0
-var _wants_heal := false
 var _heal_left := 0.0
-var _heal_retry_left := 0.0
-var _heal_after_move := false
-## Already retreated at this health (it retreats again only after patching up above hurt_fraction).
-var _retreated := false
+## How long since it last had a line of sight to its target (for patching up once things go quiet).
+var _unseen_time := 0.0
 ## Where it last heard something, and how long it still stands looking that way first.
 var _heard_at := Vector3.ZERO
 var _look_at_sound_left := 0.0
@@ -415,7 +417,6 @@ func _physics_process(delta: float) -> void:
 	_bark_left -= delta
 	# Crouched only while hiding at low cover (holding, or patching up there); up again to peek or move.
 	_crouched = _cover_low and state == State.ENGAGE and _cover_phase in [Cover.HOLDING, Cover.HEALING]
-	_heal_retry_left -= delta
 
 	if _target == null or not is_instance_valid(_target) or _target.out_of_fight():
 		_target = _pick_target()
@@ -431,6 +432,7 @@ func _physics_process(delta: float) -> void:
 	if _sight_check_time <= 0.0:
 		_sight_check_time = 0.1
 		_can_see = dist < sight_range and _has_line_of_sight()
+	_unseen_time = 0.0 if _can_see else _unseen_time + delta
 
 	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).
 	_home_return_left -= delta
@@ -498,6 +500,12 @@ func _physics_process(delta: float) -> void:
 			else:
 				desired = _fight(delta, sees, to_target, dist) + _separation(delta)
 
+	# The fight's gone quiet (out of sight a while, nothing shooting at it): patch up where it is.
+	if _cover_phase == Cover.HEALING and state != State.ENGAGE:
+		desired = Vector3.ZERO
+		_tick_heal(delta)
+	elif _quiet_enough_to_heal():
+		_start_heal()
 	if holds_position and home_radius > 0.0 and not _in_home(global_position + desired * delta * 4.0):
 		desired = Vector3.ZERO   # the edge of its perch
 	if _sneaking():
@@ -534,7 +542,6 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 	if _cover_phase in [Cover.MOVING, Cover.FLANKING, Cover.PEEKING]:
 		_cover_phase = Cover.NONE
 		_cover_cooldown_left = cover_cooldown
-		_heal_after_move = false
 	elif state == State.IDLE and leader != null:
 		_follow_direct_left = 4.0
 	elif state == State.IDLE:
@@ -556,7 +563,7 @@ func _update_footsteps(delta: float) -> void:
 		_stride_left = 1.4
 		if _sneaking() or _net_flags & NET_SNEAK:
 			return  # sneaking up: no footstep sounds
-		Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -6.0, 0.1, 0.9, 2.5)
+		Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -6.0, 0.1, 0.9, 2.5, STEP_HEAR_RANGE)
 
 
 func _process(delta: float) -> void:
@@ -744,6 +751,11 @@ func _pick_hunt_point() -> Vector3:
 	return best
 
 
+## Below hurt_fraction (or wounded): plays safer, no pushing, flanking or chasing (0.12.32).
+func is_hurt() -> bool:
+	return is_wounded() or (not health.is_dead and health.current <= health.max_health * hurt_fraction)
+
+
 ## Badly hurt: limps (puppets: the server's scav is).
 func is_wounded() -> bool:
 	if puppet:
@@ -852,7 +864,7 @@ func _update_crouch(delta: float) -> void:
 ## loses sight of you, you start reloading, you get out of range); every move it makes serves that plan.
 ## Before, each behavior grabbed control on its own every frame, so plans flip-flopped.
 ## Reflexes still come first: a bash up close, backing off when you're in its face.
-enum Tactic { NONE, COVER, STAND, PUSH, FLANK, ADVANCE, PURSUE, SUPPRESS, HEAL }
+enum Tactic { NONE, COVER, STAND, PUSH, FLANK, ADVANCE, PURSUE, SUPPRESS }
 var tactic := Tactic.NONE
 var _tactic_time := 0.0
 ## STAND: how long it trades shots in the open before looking for cover (or a flank) again.
@@ -925,7 +937,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 				_start_hunt()
 				_bark("lost", 0.6)
 				return Vector3.ZERO
-			if holds_position:
+			if holds_position or is_hurt():   # (badly hurt: it doesn't come after you, it waits for you to show)
 				_face(_flat(_last_seen - global_position), delta)
 				return Vector3.ZERO
 			if _flat(_last_seen - global_position).length() > shoot_range:
@@ -961,28 +973,25 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 	match tactic:
 		Tactic.STAND:
 			return (not sees or dist > shoot_range or _can_push(dist) or _tactic_time > _stand_time
-				or (_hit_since_decide and _dodge_left <= 0.0) or (_wants_heal and _heal_retry_left <= 0.0))
+				or (_hit_since_decide and _dodge_left <= 0.0))
 		Tactic.PUSH:
-			return not sees or not _can_push(dist) or (_wants_heal and _heal_retry_left <= 0.0)
+			return not sees or not _can_push(dist)
 		Tactic.ADVANCE:
 			return not sees or dist <= shoot_range
 		Tactic.SUPPRESS:
 			return sees or _suppress_left <= 0.0
 		Tactic.PURSUE:
-			return sees or (_wants_heal and _heal_retry_left <= 0.0)
+			return sees
 	return true
 
 
-## Picks the plan, in order: patch up if badly hurt; lost you: pin you down (if a friend can flank) or go after you;
-## too far: move up; you're reloading or healing: push; otherwise get to cover (sometimes flank in a lull), and only
-## with no cover anywhere near, trade shots in the open.
+## Picks the plan, in order: lost you: pin you down (if a friend can flank) or go after you; too far: move up;
+## you're reloading or healing: push; otherwise get to cover (sometimes flank in a lull), and only with no cover
+## anywhere near, trade shots in the open. Badly hurt it never pushes or flanks, and it never runs away: it
+## repositions to cover and keeps fighting (0.12.32, owner), patching up once the fight goes quiet.
 func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	_tactic_time = 0.0
 	_hit_since_decide = false
-	if _wants_heal and _heal_retry_left <= 0.0 and not holds_position:
-		if _fall_back_to_heal():
-			tactic = Tactic.HEAL
-			return
 	if not sees:
 		if _suppress_left > 0.0 or _try_suppress():
 			tactic = Tactic.SUPPRESS
@@ -1001,7 +1010,7 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		# that's a step or two away (0.12.30, owner: one ran around looking for cover while he shot it).
 		if dist < close_fight_range:
 			_try_take_cover(close_cover_radius)
-		elif _since_threat > lull_time and randf() < flank_chance and not is_wounded():
+		elif _since_threat > lull_time and randf() < flank_chance and not is_hurt():
 			_try_flank(to_target, dist)   # (takes cover instead if there's no hidden spot to flank to)
 		else:
 			_try_take_cover()
@@ -1009,12 +1018,12 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 			tactic = Tactic.FLANK if _cover_phase == Cover.FLANKING else Tactic.COVER
 			return
 	tactic = Tactic.STAND
-	_stand_time = randf_range(2.0, 3.0)
+	_stand_time = randf_range(2.0, 3.0) * (0.5 if is_hurt() else 1.0)   # badly hurt: looks for cover again sooner
 
 
 ## You're reloading or healing and it's not hurt: worth rushing you.
 func _can_push(dist: float) -> bool:
-	return _target_busy() and not holds_position and not is_wounded() and dist > min_distance + 2.0
+	return _target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
 
 
 ## Too far away to shoot (e.g. you're up on a hill): it moves up cover to cover (0.12.7, owner: they went into
@@ -1147,33 +1156,24 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 	_try_take_cover()
 
 
-## Badly hurt (hurt_fraction: scavs 30%, Raiders and Bon 40%): it retreats (0.12.30, owner: "at some threshold like
-## 30% they need to go retreat"): runs back to cover farther from you (up to 20 m away, facing where it's going),
-## patches up there if it has a heal left, else lies low there a while before fighting again. With nowhere farther
-## back it takes the nearest cover; with none at all it patches up where it stands.
-func _fall_back_to_heal() -> bool:
-	# Up close with you in sight it only ducks into cover a few steps away: turning its back to run 20 m (or
-	# patching up in the open in front of you) gets it killed. No cover that close: it shoots back and tries again
-	# in a moment (0.12.31, owner: the AI's priorities felt wrong).
-	var close := _can_see and _target != null and global_position.distance_to(_target.global_position) < close_fight_range
-	var spot := _find_cover(retreat_close_radius) if close else _find_cover(20.0, 3.0)
-	if spot == Vector3.INF and not close:
-		spot = _find_cover()
-	if spot == Vector3.INF and close:
-		_heal_retry_left = 2.5
+## Lost sight of everyone a while and nothing's shooting at it: worth patching up (if it's lost a fair bit).
+func _quiet_enough_to_heal() -> bool:
+	return (_heals_left > 0 and _cover_phase != Cover.HEALING and state in [State.ENGAGE, State.SEARCH, State.IDLE]
+		and health.current <= health.max_health - heal_amount / 2 and _since_threat >= quiet_heal_time
+		and _unseen_time >= quiet_heal_time and _windup_left <= 0.0)
+
+
+## Patching up: true when done (healed).
+func _tick_heal(delta: float) -> bool:
+	_heal_left -= delta
+	_hold_fire()
+	if _heal_left > 0.0:
 		return false
-	_wants_heal = false
-	_retreated = true
-	if spot != Vector3.INF:
-		_cover_point = spot
-		_cover_low = _found_low
-		_cover_phase = Cover.MOVING
-		_heal_after_move = _heals_left > 0
-		_peek_point = Vector3.INF
-		_peeks_left = 0
-		_bark("cover")
-	elif _heals_left > 0:
-		_start_heal()
+	health.heal(heal_amount)
+	_heals_left -= 1
+	_was_wounded = is_wounded()
+	_cover_phase = Cover.NONE
+	_lost_sight_time = 0.0
 	return true
 
 
@@ -1182,7 +1182,7 @@ func _start_heal() -> void:
 	_heal_left = heal_time
 	_hold_fire()
 	_bark("heal")
-	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1)
+	Effects.sound_at(get_tree().current_scene, HEAL_SOUND, global_position, -6.0, 0.1, 1.0, 6.0, 20.0)
 
 
 ## The closest walkable spot within `radius` (by walking distance) the target can't see; INF if none. Retreating
@@ -1295,32 +1295,20 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 			_face(move, delta)
 			_hold_fire()
 		# Shot up close on the way, with the cover still a way off: turns and fights instead of running with its
-		# back to you (0.12.31). (Not when it's falling back to patch up: that already only goes a few steps up close.)
-		if (sees and _hit_since_decide and dist < close_fight_range and tactic != Tactic.HEAL
+		# back to you (0.12.31).
+		if (sees and _hit_since_decide and dist < close_fight_range
 				and _flat(_cover_point - global_position).length() > 2.0):
 			_cover_phase = Cover.NONE
 			_cover_cooldown_left = cover_cooldown
 			return Vector3.ZERO
 		# Get all the way in (normal arriving allows 1.2 m, which can leave it peeking past the corner).
 		if _flat(_cover_point - global_position).length() < 0.4 or _cover_stuck(move):
-			if _heal_after_move:
-				_heal_after_move = false
-				_start_heal()
-			else:
-				_cover_phase = Cover.HOLDING
-				_cover_hold_left = cover_hold_time * (3.0 if tactic == Tactic.HEAL else 1.0)   # retreated: lies low
+			_cover_phase = Cover.HOLDING
+			_cover_hold_left = cover_hold_time * (1.5 if is_hurt() else 1.0)   # badly hurt: stays down a bit longer
 		return move
 	if _cover_phase == Cover.HEALING:
-		_heal_left -= delta
 		_face(_flat(_last_seen - global_position), delta)
-		_hold_fire()
-		if _heal_left <= 0.0:
-			health.heal(heal_amount)
-			_heals_left -= 1
-			_retreated = health.current <= health.max_health * hurt_fraction
-			_was_wounded = is_wounded()
-			_cover_phase = Cover.NONE
-			_lost_sight_time = 0.0
+		_tick_heal(delta)
 		return Vector3.ZERO
 	_cover_hold_left -= delta
 	if _cover_phase == Cover.PEEKING:
@@ -1833,15 +1821,7 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	_since_threat = 0.0
 	_last_hit_from = source_position
 	if _cover_phase == Cover.HEALING:
-		# Interrupted: back to fighting; it can try again in a few seconds.
-		_cover_phase = Cover.NONE
-		_wants_heal = true
-		_heal_retry_left = 4.0
-	elif not health.is_dead and (_heals_left > 0 or not _retreated) and health.current <= health.max_health * hurt_fraction:
-		if not _wants_heal and state == State.ENGAGE and not holds_position and tactic != Tactic.HEAL:
-			_cover_phase = Cover.NONE   # drop whatever it was doing: retreat now (next frame)
-			tactic = Tactic.NONE
-		_wants_heal = true
+		_cover_phase = Cover.NONE   # interrupted: back to fighting (it patches up again once it's quiet)
 	_hit_flash_time = 0.08
 	if _flinch_left <= 0.0:
 		_fire_timer = maxf(_fire_timer, flinch_fire_delay)
@@ -1851,13 +1831,13 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 		_dodge_left = 0.35
 		_dodge_dir = -1.0 if randf() < 0.5 else 1.0
 	if not health.is_dead and is_wounded() and not _was_wounded:
-		# Just got badly hurt: shout for help and fall back to cover (unless it's about to patch up anyway).
+		# Just got badly hurt: shout for help and get into cover (close by if you're close).
 		_was_wounded = true
 		_bark_left = 0.0
 		_bark("help")
 		if _target != null:
 			_call_for_help(_target.global_position)
-		if not holds_position and not _wants_heal and _cover_phase == Cover.NONE and state == State.ENGAGE:
+		if not holds_position and _cover_phase == Cover.NONE and state == State.ENGAGE:
 			_try_take_cover(close_cover_radius if _can_see and _target != null and global_position.distance_to(_target.global_position) < close_fight_range else -1.0)
 			_hit_since_decide = false   # (this hit is why it's going: don't count it as being shot on the way)
 	elif not health.is_dead:
@@ -1980,7 +1960,7 @@ func _bark(kind: String, chance := 1.0) -> void:
 func play_bark(kind: String) -> void:
 	var stream := _voice_line(kind)
 	if stream != null and is_inside_tree():
-		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -1.0, 0.03, _voice, 8.0)
+		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -1.0, 0.03, _voice, 8.0, BARK_HEAR_RANGE)
 
 
 ## A random take of a callout: audio/voice/<kind>.wav, plus <kind>_2.wav, <kind>_3.wav... if they exist.
@@ -2003,12 +1983,12 @@ static func _voice_line(kind: String) -> AudioStream:
 
 
 func net_alerted() -> void:
-	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05)
+	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05, 1.0, 6.0, BARK_HEAR_RANGE)
 
 
 ## Bash wind-up sound (puppets: the server's scav started one).
 func net_bash_started() -> void:
-	Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8)
+	Effects.sound_at(get_tree().current_scene, BASH_SOUND, global_position, -4.0, 0.1, 0.8, 6.0, 30.0)
 
 
 func _puppet_update(delta: float) -> void:

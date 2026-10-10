@@ -2736,33 +2736,46 @@ func _section_lean() -> void:
 
 
 func _section_hurt() -> void:
-	# A badly hurt scav (below 30%) falls back to cover and patches up (+40 HP over 4 s); shooting it interrupts the heal.
+	# 0.12.32 (owner): badly hurt AI don't run away. They play safer (no pushing or flanking) and keep fighting,
+	# and patch up (+40 HP over 4 s) only once the fight goes quiet; shooting it interrupts the heal.
 	var checker := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
 	await physics_frame
-	checker.health.take_damage(65)  # 35 HP: hurt, but above 30%
-	_check(not checker._wants_heal, "a scav at 35% keeps fighting (falls back below 30%)")
+	checker.health.take_damage(60)
+	var hurt_at_40 := checker.is_hurt()
+	checker.health.take_damage(15)
+	_check(not hurt_at_40 and checker.is_hurt(), "a scav plays safer once badly hurt (not at 40 HP, yes at 25)")
 	checker.queue_free()
 	player.teleport_to(Vector3(-15, 0.1, 0))
 	var scav := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
 	_face_player(scav)
 	scav.shot_damage = 0
+	scav.close_fight_range = 0.0
 	await physics_frame
 	scav._alert(player.global_position)
 	scav._set_state(Scav.State.ENGAGE)
 	scav.health.take_damage(75, player.global_position)  # 25 HP left: below 30%
 	var hp_hurt := scav.health.current
-	var healed := false
-	var hid_to_heal := false
-	for i in 60 * 10:
+	var hurt_shots := [0]
+	scav.fired.connect(func(_end: Vector3) -> void: hurt_shots[0] += 1)
+	var bold := false
+	var hurt_start := scav.global_position
+	var strayed := 0.0
+	for i in 60 * 8:
 		await physics_frame
-		if scav._cover_phase == Scav.Cover.HEALING and not hid_to_heal:
-			var query := PhysicsRayQueryParameters3D.create(player.camera.global_position, scav.global_position + Vector3(0, 1.3, 0), 1)
-			hid_to_heal = not scav.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+		bold = bold or scav.tactic in [Scav.Tactic.PUSH, Scav.Tactic.FLANK]
+		strayed = maxf(strayed, scav.global_position.distance_to(hurt_start))
+	_check(hurt_shots[0] >= 1 and strayed < 8.0 and not bold,
+		"badly hurt it repositions and keeps fighting: no running off, pushing or flanking (%d shots, moved %.1f m)" % [hurt_shots[0], strayed])
+	# Out of sight and nothing shooting at it: it patches up after a few quiet seconds.
+	var screen := _block((player.global_position + scav.global_position) / 2.0 + Vector3(0, 1.5, 0), Vector3(8, 3, 8))
+	var healed := false
+	for i in 60 * 12:
+		await physics_frame
 		if scav.health.current > hp_hurt:
 			healed = true
 			break
-	_check(hid_to_heal, "a badly hurt scav falls back to cover to heal")
-	_check(healed and scav.health.current == hp_hurt + scav.heal_amount, "it patches up (+%d HP: %d -> %d)" % [scav.heal_amount, hp_hurt, scav.health.current])
+	_check(healed and scav.health.current == hp_hurt + scav.heal_amount, "once it's quiet it patches up (+%d HP: %d -> %d)" % [scav.heal_amount, hp_hurt, scav.health.current])
+	screen.queue_free()
 	scav.queue_free()
 	# Shooting it while it heals interrupts the heal.
 	var patient := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
@@ -2777,26 +2790,6 @@ func _section_hurt() -> void:
 	await create_timer(3.5).timeout
 	_check(patient._cover_phase != Scav.Cover.HEALING and patient.health.current == 30, "getting shot interrupts its heal (hp %d)" % patient.health.current)
 	patient.queue_free()
-	await physics_frame
-	# 0.12.30 (owner): at 30% it retreats, back to cover farther from you, even with no heals left.
-	player.teleport_to(Vector3(-15, 0.1, 0))
-	var runner := _spawn(SCAV_SCENE, Vector3(-8, 0.1, -8)) as Scav
-	_face_player(runner)
-	runner.shot_damage = 0
-	runner.heals = 0
-	runner._heals_left = 0
-	runner.close_fight_range = 0.0
-	await physics_frame
-	runner._target = player
-	runner._set_state(Scav.State.ENGAGE)
-	var start_gap := runner.global_position.distance_to(player.global_position)
-	runner.health.take_damage(75, player.global_position)
-	var gap := start_gap
-	for i in 60 * 5:
-		await physics_frame
-		gap = maxf(gap, runner.global_position.distance_to(player.global_position))
-	_check(gap > start_gap + 2.5, "at 30%% it retreats, even with no heals left (%.0f m -> %.0f m from you)" % [start_gap, gap])
-	runner.queue_free()
 	await physics_frame
 	# 0.12.30 (owner): up close with no cover a step away, its first instinct is to shoot back, not run round.
 	player.teleport_to(Vector3(30, 0.1, -30))
