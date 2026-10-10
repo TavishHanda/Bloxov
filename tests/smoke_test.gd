@@ -2207,12 +2207,18 @@ func _section_boss() -> void:
 	marker.position = hall.center
 	marker.set_meta("zone", "Hall")
 	spawner.add_child(marker)
+	# 0.12.18 (owner): it starts inside its building (a boss start spot), then goes out on patrol.
+	var inside := Marker3D.new()
+	inside.position = hall.center + Vector3(3, 0, 0)
+	inside.set_meta("boss_start", true)
+	spawner.add_child(inside)
 	main.add_child(spawner)
 	await _frames(2)
 	var the_boss := spawner.boss_spawned
 	var guards := get_nodes_in_group("enemies").filter(func(e: Scav) -> bool: return e.leader == the_boss)
 	var raider := load(RAIDER_SCENE).instantiate() as Scav
 	_check(the_boss != null and guards.size() == 3 and get_nodes_in_group("enemies").size() == 4, "a boss with 3 guards")
+	_check(Vector2(the_boss.global_position.x - inside.global_position.x, the_boss.global_position.z - inside.global_position.z).length() < 0.5, "the boss starts at its start spot inside its building")
 	_check(the_boss.get_node("Health").max_health > 2 * raider.get_node("Health").max_health and the_boss.shot_damage > raider.shot_damage
 		and the_boss.heals > raider.heals and the_boss.weapon_drop_chance == 1.0 and the_boss.max_drops > raider.max_drops,
 		"the boss is much tougher than a Raider, hits harder and always carries its rifle and more loot")

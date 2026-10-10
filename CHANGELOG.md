@@ -6,6 +6,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.18 (Bon starts inside the town hall; owner)
+- Bon and his 3 guards start each raid inside the town hall (in one of four ground-floor rooms, picked at random),
+  then head out on their usual patrol of the hall, the bunker and the area round it.
+
 ## 0.12.17 (Scav and Raider rivals; owner)
 - Scavs and Raiders are rivals. Each side has its own areas: Raiders hold the town core, the town hall (Bon) and the
   south-east (junkyard, old gas station, diner, garage); scavs hold the rest of town, the farm, the church, the

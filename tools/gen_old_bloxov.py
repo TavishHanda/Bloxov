@@ -1763,6 +1763,9 @@ SKIRMISH_ZONE = "Station"
 # The boss (owner: a Raider commander with guards, at the town hall + bunker, in every raid while testing; a chance
 # later): zone, guards, chance per raid.
 AI_BOSS = ("TownHall", 3, 1.0)
+# Where the boss and guards start (owner, 0.12.18: inside the town hall, then out on patrol): ground-floor room
+# centres of the hall (rooms 12.5 x 9 m), one picked per raid.
+BOSS_STARTS = [(100.75, 155.5), (113.25, 146.5), (113.25, 155.5), (125.75, 155.5)]
 AI_ROAMERS = 3
 # Sniper perches (Scavs 2.0, owner): high spots with a view, a sniper stays on one. 2 of them are used each raid
 # (preferring ones that don't already see a player). (name, x, z, height above the ground, which way it watches)
@@ -2006,6 +2009,9 @@ def write_scene(ter):
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
                 f"transform = {xform(x, ground_y['enemy', name] + 0.1, z)}"]
         out += ([f'metadata/zone = "{spawn_zone[name]}"'] if name in spawn_zone else []) + [""]
+    for i, (x, z) in enumerate(BOSS_STARTS):   # (dropped from just above the hall's floor)
+        out += [f'[node name="BossStart{i + 1}" type="Marker3D" parent="EnemySpawns"]',
+                f"transform = {xform(x, ter.lift(x, z) + 1.2, z)}", "metadata/boss_start = true", ""]
     faces = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
     for name, x, z, h, face in SNIPER_PERCHES:
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',

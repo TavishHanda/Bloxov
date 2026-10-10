@@ -106,8 +106,9 @@ func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
 	return false
 
 
-## The boss and its guards, at a spot in its zone. They patrol the zone together; guards follow the boss and
-## carry on patrolling the zone on their own if it dies.
+## The boss and its guards, at a spot in its zone: inside its building if the map has start spots for it (markers
+## with metadata `boss_start`; owner, 0.12.18). They patrol the zone together; guards follow the boss and carry on
+## patrolling the zone on their own if it dies.
 func _spawn_boss() -> void:
 	var zone := {}
 	for z in zones:
@@ -115,8 +116,12 @@ func _spawn_boss() -> void:
 			zone = z
 	var spots: Array[Marker3D] = []
 	for child in get_children():
-		if child is Marker3D and String(child.get_meta("zone", "")) == String(zone.get("name", "")):
+		if child is Marker3D and child.get_meta("boss_start", false):
 			spots.append(child as Marker3D)
+	if spots.is_empty():
+		for child in get_children():
+			if child is Marker3D and String(child.get_meta("zone", "")) == String(zone.get("name", "")):
+				spots.append(child as Marker3D)
 	if zone.is_empty() or spots.is_empty() or boss_scene == null:
 		return
 	var spot := spots.pick_random().global_position as Vector3
@@ -202,7 +207,7 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	var far: Array[Marker3D] = []
 	var hidden: Array[Marker3D] = []
 	for child in get_children():
-		if not child is Marker3D or child.get_meta("perch", false):
+		if not child is Marker3D or child.get_meta("perch", false) or child.get_meta("boss_start", false):
 			continue
 		if zone_name != "" and String(child.get_meta("zone", "")) != zone_name:
 			continue
