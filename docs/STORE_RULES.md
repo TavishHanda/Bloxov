@@ -85,6 +85,21 @@ CHANGELOG entry when a change was made for store reasons.
 - Don't make paid items that give a big PvP advantage without the owner deciding it (not a store rule as such, but
   "pay-to-win" plus random rewards draws rating and review scrutiny).
 
+#### Planned near release (owner, 2026-10-10): battle pass, skins and "a form of gambling"
+Way later, near release. When it comes up, design it to these rules from the start:
+- **Battle pass and skins:** sold only through Apple IAP / Google Play Billing (or premium currency bought that
+  way). Show exactly what each tier gives and the price before buying; a season-length pass is fine, an
+  auto-renewing one is a subscription (clear terms + how to cancel). Skins are cosmetic, which keeps it simple.
+- **Gambling-style features** (crates, spins, case openings) are allowed only as *paid random rewards with odds
+  shown* or as free/earned-currency chance mechanics. Hard lines: no cashing out, no real-money stakes, no
+  trading winnings for real money, no betting between players with bought currency.
+- Chance mechanics bought with real money raise the age rating (Apple's questionnaire asks about simulated
+  gambling and loot boxes; frequent simulated gambling can push the rating to 18+; IARC adds "In-Game
+  Purchases (Includes Random Items)"). Decide the target rating before designing it.
+- Some countries restrict or ban paid loot boxes (e.g. Belgium; others are moving that way). Plan a way to turn
+  paid random rewards off per region, or sell items directly instead.
+- Offer a direct-purchase path for skins where possible; it avoids most of the above.
+
 ### 6. Ads (Apple 5.1.1, Google Ads policy)
 - No ads today. If added: only approved ad SDKs, declared in the privacy forms, no ads that interrupt gameplay
   unexpectedly or are hard to close, no ads unsuitable for the age rating, no tracking without ATT consent on iOS.
