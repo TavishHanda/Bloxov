@@ -181,6 +181,10 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Badly hurt (below this fraction of max health; scavs 30%, owner 0.6.14), it falls back to cover and patches up (owner: scavs can heal).
 ## Getting hit while healing interrupts it (and wastes nothing: it can try again a few seconds later).
 @export var hurt_fraction := 0.3
+## Wounded (below this fraction of max health, 0.12.13, owner): it limps (this fraction of its speed), stops pushing
+## and flanking, and when it first gets this low it calls for help and falls back to cover.
+@export var wounded_fraction := 0.35
+@export var wounded_speed := 0.7
 @export var heal_amount := 40
 @export var heal_time := 4.0
 ## How many times per life it can heal.
@@ -311,6 +315,7 @@ const NET_LUNGE := 4
 const NET_SNEAK := 8
 const NET_AIM := 16
 const NET_CROUCH := 32
+const NET_WOUNDED := 64
 ## Crouched behind low cover (a tent, a car, a low wall): the model and hitboxes shrink to this fraction of its
 ## height (0.12.10).
 const CROUCH_HEIGHT := 0.6
@@ -461,7 +466,7 @@ func _physics_process(delta: float) -> void:
 					_update_shooting(delta, dist)
 				elif dist <= shoot_range:
 					# You're reloading or healing: push in on you (still shooting); otherwise strafe.
-					var pushing := _target_busy() and not holds_position and dist > min_distance + 2.0
+					var pushing := _target_busy() and not holds_position and not is_wounded() and dist > min_distance + 2.0
 					if pushing and not _was_pushing:
 						_bark("push")
 					_was_pushing = pushing
@@ -474,7 +479,7 @@ func _physics_process(delta: float) -> void:
 					# hit). Sometimes, in a lull, circle round to flank instead.
 					# (0.12.10: right away, shooting on the way, instead of after a burst; owner: they kept strafing.)
 					if not pushing and not holds_position and _cover_cooldown_left <= 0.0:
-						if _since_threat > lull_time and randf() < flank_chance:
+						if _since_threat > lull_time and randf() < flank_chance and not is_wounded():
 							_try_flank(to_target, dist)
 						else:
 							_try_take_cover()
@@ -502,6 +507,8 @@ func _physics_process(delta: float) -> void:
 		desired = Vector3.ZERO   # the edge of its perch
 	if _sneaking():
 		desired *= 0.55
+	if is_wounded():
+		desired *= wounded_speed
 	if BoxMap.is_wading(self):   # slower through water, like players (0.11.20)
 		desired *= 0.6
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
@@ -585,6 +592,9 @@ func _process(delta: float) -> void:
 	elif _lunge_left > 0.0:
 		tilt -= 0.4
 	model.rotation.x = tilt
+	# Limping: the body dips to one side with every other step.
+	_limp = move_toward(_limp, 1.0 if is_wounded() else 0.0, delta * 3.0)
+	model.rotation.z = _limp * maxf(sin(_walk_time), 0.0) * 0.18 * minf(speed / 1.5, 1.0)
 	_update_crouch(delta)
 	var flashing := _hit_flash_time > 0.0
 	if flashing != _flashing:
@@ -677,6 +687,13 @@ func answer_call(pos: Vector3) -> void:
 ## Within `leash` meters of its patrol area (always true without one).
 func _near_home(point: Vector3) -> bool:
 	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + leash
+
+
+## Badly hurt: limps (puppets: the server's scav is).
+func is_wounded() -> bool:
+	if puppet:
+		return (_net_flags & NET_WOUNDED) != 0
+	return not health.is_dead and health.current <= health.max_health * wounded_fraction
 
 
 ## Heading over to a fight it heard or was called to.
@@ -996,6 +1013,7 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		if _heal_left <= 0.0:
 			health.heal(heal_amount)
 			_heals_left -= 1
+			_was_wounded = is_wounded()
 			_cover_phase = Cover.NONE
 			_lost_sight_time = 0.0
 		return Vector3.ZERO
@@ -1317,6 +1335,8 @@ var _bark_left := 0.0
 var _voice := 1.0
 var _was_pushing := false
 var _home_return_left := 0.0
+var _was_wounded := false
+var _limp := 0.0
 ## The cover spot it's heading for is low (only hides it crouched); it's crouching there now; how crouched it looks.
 var _cover_low := false
 var _found_low := false
@@ -1439,7 +1459,16 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 	if _flinch_left <= 0.0:
 		_fire_timer = maxf(_fire_timer, flinch_fire_delay)
 	_flinch_left = flinch_time
-	if not health.is_dead:
+	if not health.is_dead and is_wounded() and not _was_wounded:
+		# Just got badly hurt: shout for help and fall back to cover (unless it's about to patch up anyway).
+		_was_wounded = true
+		_bark_left = 0.0
+		_bark("help")
+		if _target != null:
+			_call_for_help(_target.global_position)
+		if not holds_position and not _wants_heal and _cover_phase == Cover.NONE and state == State.ENGAGE:
+			_try_take_cover()
+	elif not health.is_dead:
 		_bark("hurt", 0.5)
 	var push := global_position - source_position
 	push.y = 0.0
@@ -1513,6 +1542,8 @@ func net_capture() -> Array:
 		flags |= NET_AIM
 	if _crouched:
 		flags |= NET_CROUCH
+	if is_wounded():
+		flags |= NET_WOUNDED
 	return [global_position, rotation.y, flags, hits_taken]
 
 

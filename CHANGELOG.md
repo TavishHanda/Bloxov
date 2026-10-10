@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.13 (wounded AI; owner)
+- Badly hurt AI (below 35% health) limp: 70% speed, and the body dips with every other step (shown online too).
+- The moment they get that low they shout for help (nearby AI come over, still at most 4 at a time) and fall back
+  to cover; wounded AI no longer push you or flank. Healing back up ends it.
+
 ## 0.12.12 (callouts, Bon guards his area, shooting range -5 m; owner)
 - Callouts (owner): AI call out what they're doing: spotted you, calling for help, lost you, taking cover,
   flanking, pushing while you reload/heal, hurt, man down, healing. At most one per AI every 4 s; Raiders sound
