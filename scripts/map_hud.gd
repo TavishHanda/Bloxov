@@ -22,8 +22,10 @@ const FALLBACK_SIZE := 140.0
 var player: Player
 var raid: Raid
 ## The map's drawing data (see the generator): size/offset (metres), buildings, yards, woods, roads, water, rail,
-## labels.
+## labels, relief (ground heights on a grid, 0.11.17 hills).
 var data := {}
+## The hills, shaded (lit from the north-west, hilltops lighter), drawn under everything else. Null without relief.
+var _relief: ImageTexture
 
 
 func _init(owner_player: Player, owner_raid: Raid) -> void:
@@ -38,6 +40,23 @@ func _ready() -> void:
 	var root := raid.get_parent()
 	if root != null:
 		data = root.get_meta("minimap", {})
+	_relief = _shade_relief(data.get("relief", PackedFloat32Array()), int(data.get("relief_cells", 0)))
+
+
+## A small picture of the hills from `heights` (cells x cells, row by row from the north-west corner).
+static func _shade_relief(heights: PackedFloat32Array, cells: int) -> ImageTexture:
+	if cells < 2 or heights.size() != cells * cells:
+		return null
+	var image := Image.create(cells, cells, false, Image.FORMAT_RGBA8)
+	var light := Vector3(-1.0, 1.4, -1.0).normalized()
+	var at := func(i: int, j: int) -> float: return heights[clampi(j, 0, cells - 1) * cells + clampi(i, 0, cells - 1)]
+	for j in cells:
+		for i in cells:
+			var normal := Vector3(at.call(i - 1, j) - at.call(i + 1, j), 2.0, at.call(i, j - 1) - at.call(i, j + 1)).normalized()
+			var lit := clampf((normal.dot(light) - light.y) * 1.6, -0.12, 0.12) + clampf(at.call(i, j) * 0.008, -0.03, 0.06)
+			var shade := GRASS.lightened(lit) if lit > 0.0 else GRASS.darkened(-lit)
+			image.set_pixel(i, j, shade)
+	return ImageTexture.create_from_image(image)
 
 
 ## M: open the map, or close it.
@@ -87,6 +106,8 @@ func _draw() -> void:
 	HudStyle.draw_label(self, title, frame.position + Vector2(12, HudStyle.centered_baseline(19, 8, HudStyle.label_font())), HudStyle.INK_DIM)
 	HudStyle.draw_keycap(self, Rect2(frame.position + Vector2(frame.size.x - 12 - 18, 10), Vector2(18, 18)), "M")
 	draw_rect(rect, GRASS)
+	if _relief != null:
+		draw_texture_rect(_relief, rect, false)
 	var yards: PackedFloat32Array = data.get("yards", PackedFloat32Array())
 	for i in range(0, yards.size() - 3, 4):
 		draw_rect(Rect2(to_screen.call(Vector2(yards[i], yards[i + 1])), Vector2(yards[i + 2] - yards[i], yards[i + 3] - yards[i + 1]) * scale), YARD)

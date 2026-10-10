@@ -5,6 +5,23 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). -->
 
+## 0.11.17 (hills and valleys; owner)
+- **The ground isn't flat any more** (owner: "there should be hills and valleys"). Bloxov Battlegrounds now rolls,
+  about 14 m from the lowest hollow to the highest hilltop:
+  - Big hills in the open: the east woods sit on the tallest one (about 11 m), and there are hills either side of
+    the creek, between the old houses, in the field south of the railway and east of Station Road
+  - Hollows and dips: the creek runs down a real valley, there's a hollow by the hunting stand, and the shell
+    craters are now holes dug into the ground (ring of dirt round the rim, as before)
+  - The north end of town sits on a gentle rise, so the hill houses look down on Main Street
+  - Hills block sight and bullets: a crest hides you from whoever is on the other side, scavs included
+- Everything built stays usable: every building, yard, spawn, extract and loot spot sits on its own level ground,
+  roads follow the hills without tilting sideways, the railway stays level all the way across, and the trench and
+  bunker are where they were. Wrecks and rubble out on the hills get a small level spot
+- Slopes are gentle enough to walk up anywhere (about 23 degrees, a few short banks up to 35 by
+  buildings). Scavs and Raiders still path everywhere: every loot spot, spawn and AI spawn point is reachable
+- The map screen (M) shades the hills, so you can plan routes round them
+- The edge wall follows the hills. Same layout, buildings, loot and spawns as before (owner: layout unchanged)
+
 ## 0.11.16 (scavs fight back; owner)
 - **Scavs and Raiders react faster** (owner, from a playtest: you could see a scav first and kill it before it
   did anything). Same accuracy and damage as before; they just notice you and get their shots off sooner:

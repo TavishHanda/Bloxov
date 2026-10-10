@@ -1612,6 +1612,32 @@ func _section_old_bloxov() -> void:
 		if path.is_empty() or path[path.size() - 1].distance_to(front) > 1.3:
 			unreachable.append(String(c.name))
 	_check(unreachable.is_empty(), "every loot container can be walked to (unreachable: %s)" % [unreachable])
+	# Hills (0.11.17): the ground rolls, the AI can still walk from a spawn to every AI spawn point over it, and
+	# spawns and extracts stand on the ground (not floating over a hollow or buried in a hill).
+	var blocks := world.raid.get_node("Level/Blocks") as BoxMap
+	var heights := blocks.terrain_heights
+	var lowest := INF
+	var highest := -INF
+	for h in heights:
+		lowest = minf(lowest, h)
+		highest = maxf(highest, h)
+	_check(highest - lowest > 8.0, "the ground has hills and hollows (%.1f m from lowest to highest)" % (highest - lowest))
+	var stranded: Array[String] = []
+	for marker: Node3D in spawner.get_children():
+		query.target_position = marker.global_position
+		var result := NavigationPathQueryResult3D.new()
+		NavigationServer3D.query_path(query, result)
+		if result.path.is_empty() or result.path[result.path.size() - 1].distance_to(marker.global_position) > 1.5:
+			stranded.append(String(marker.name))
+	_check(stranded.is_empty(), "every AI spawn point can be walked to over the hills (%s)" % [stranded])
+	var space: PhysicsDirectSpaceState3D = (world.raid as Node3D).get_world_3d().direct_space_state
+	var off_ground: Array[Vector3] = []
+	for spot in spots:
+		var hit: Dictionary = space.intersect_ray(PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 3.0,
+			spot + Vector3.DOWN * 3.0, 1))
+		if hit.is_empty() or absf(hit.position.y - spot.y) > 0.3:
+			off_ground.append(spot)
+	_check(off_ground.is_empty(), "spawns and extracts stand on the ground (%s)" % [off_ground])
 	for enemy_node in RaidScope.nodes(world.raid, &"enemies"):
 		enemy_node.queue_free()
 	world.queue_free()

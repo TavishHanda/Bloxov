@@ -21,6 +21,14 @@ the script and re-run it to change the picture). Coordinates in the script are m
 - **Woods:** bottom left (with the creek) and east side (between the farm and the old houses).
   Woods cabins: 2 in the bottom-left woods, 1 in the east woods.
 
+## Ground: hills and valleys (0.11.17, owner)
+The ground rolls (about -3 to +11 m). Built by `terrain()` in `tools/gen_old_bloxov.py`: a gentle base (a rise
+north of town, long waves) that roads follow, the creek's valley, `HILLS` (hills and hollows away from roads),
+then flat pads under every building, yard, spawn, extract and outside loot spot, and the railway level at 0. Steep
+spots are eased to about 23 degrees. To move a hill, edit `HILLS` and re-run the script. Everything placed by the
+script is lifted onto the ground automatically (`anchors`: groups move together, road/fence pieces tilt). The M map
+shades the hills (`relief` in the minimap data).
+
 ## Loot by place (owner)
 | Place | Loot |
 |---|---|
