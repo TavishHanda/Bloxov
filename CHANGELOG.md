@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.12.24 (fewer indoor spawns, more patrolling; owner)
+- Half as many indoor AI spawn spots (owner: 6 in a building -> 3, 2 -> 1): 34 spots, was 65. Each building keeps
+  at least one, spread through its rooms. A zone's AI still start inside about half the time.
+- Patrols go to loot spots 45% of the time (was 80%; owner: they should patrol a lot, not go for loot).
+
 ## 0.12.23 (AI inside buildings; owner)
 - AI spawn inside buildings too (owner: so you have to clear buildings, and can get ambushed): every zone now has
   spawn spots in the middle of its buildings' ground-floor rooms (not the grocery, full of shelves), and about

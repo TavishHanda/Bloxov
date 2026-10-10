@@ -1853,6 +1853,7 @@ def zone_spawns():
     for b in buildings:
         if b.name in NO_INDOOR_SPAWNS:
             continue
+        rooms = []
         for i in range(b.nx):
             for j in range(b.nz):
                 x0, z0, x1, z1 = b.cell(i, j)
@@ -1864,7 +1865,12 @@ def zone_spawns():
                 zone = _zone_of(cx, cz)
                 if zone is None or zone[0] == AI_BOSS[0] or (zone[4] + zone[5]) == 0:
                     continue
-                indoor_spawns.append((f"Indoor{len(indoor_spawns) + 1}", round(cx, 1), round(cz, 1), zone[0]))
+                rooms.append((round(cx, 1), round(cz, 1), zone[0]))
+        # Half the rooms (owner, 0.12.24: 6 in a building -> 3, 2 -> 1), spread through the building; one if only one.
+        keep = max(1, len(rooms) // 2) if rooms else 0
+        for k in range(keep):
+            x, z, zname = rooms[k * len(rooms) // keep]
+            indoor_spawns.append((f"Indoor{len(indoor_spawns) + 1}", x, z, zname))
 
 
 def spawner_meta(ter):
