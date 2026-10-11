@@ -4,7 +4,8 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
-(owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
+(owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
+(Movement), 0.14 Spoils of War (Items). -->
 
 ## 0.14.12 (the Holy Grail; owner asked)
 - **Holy Grail** ($75,000, 2×2): the most valuable item in the game. It never comes from random loot: each raid
@@ -94,7 +95,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   room to land on both sides count (not one with a crate right inside).
 - (A Movement follow-up, first pushed as "v0.13.11" without a version bump.) Checked against the AI's fight movement on the real map (the sideways check, several runs): no change.
 
-## 0.14.0 (the Items update: keys, loot by place, descriptions, armor wear; owner)
+## 0.14.0 (Spoils of War, the Items update: keys, loot by place, descriptions, armor wear; owner)
 - **Keys.** The bunker under the town hall and the bank vault are locked now. Hold F at the door with its key
   anywhere on you (pockets, backpack or secure pocket) to unlock it; it opens for everyone in the raid until the
   raid ends. Each opening takes a use off the key (Bunker Key 3 uses, Bank Vault Key 5) and a used-up key is gone.
@@ -169,7 +170,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 - Scavs hit more often at range: 30% at 28 m (was 20%), sliding to 18% at the edge of their range (was 10%).
   Close range is unchanged. Raiders, Bon, guards and snipers are unchanged.
 
-## 0.13.0 (Movement update: vaulting; owner)
+## 0.13.0 (Over the Top, the Movement update: vaulting; owner)
 - **Vaulting.** Press Space while walking into cover: waist-high cover you can see over (sandbags, fences, low
   walls, up to 1.25 m) is vaulted, over and down the other side, keeping your speed. Ledges and wide tops up to chest
   high (1.7 m) are climbed onto. Anything lower than 0.5 m or taller than 1.7 m is a normal jump.
@@ -543,7 +544,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 - Same health as a scav; its body is a "Sniper Body". Works online (players' games show the server's snipers
   with the glint)
 
-## 0.12.0 (Scavs 2.0: AI zones and hot zones; owner)
+## 0.12.0 (Hot Zone, the Scavs 2.0 update: AI zones and hot zones; owner)
 - **Scavs 2.0 starts** (owner, from playtests: "too easy but too many", AI roaming in weird places). AI now live
   in **zones** on Bloxov Battlegrounds and patrol only their own zone, so you learn where to expect them:
   - **Hot zones** have the most AI and most of the Raiders: the town core round the town hall, bank and square
