@@ -107,8 +107,11 @@ def main():
         if it["kind"] == "ammo":
             notes.append("full stack %s" % money(it["value"] * it["stack"]))
         if it["kind"] == "weapon":
-            notes.append("%s slot; %s; %d dmg, %d rpm, %d-round mag, %s" % (
-                it["slot"], "full-auto" if it["auto"] else "semi-auto", it["damage"], it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
+            dmg = ("%d pellets x %d" % (it["pellets"], it["damage"])) if it.get("pellets") else "%d" % it["damage"]
+            notes.append("%s slot; %s; %s dmg, %d rpm, %d-round mag, %s" % (
+                it["slot"], "full-auto" if it["auto"] else "semi-auto", dmg, it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
+            if it.get("falloff"):
+                notes.append("damage drops to %d%% from %d to %d m" % (round(it["falloff"][2] * 100), it["falloff"][0], it["falloff"][1]))
         if it["kind"] == "weapon" and it.get("slots"):
             notes.append("attachment slots: " + ", ".join(it["slots"]))
         if it["kind"] == "attachment":

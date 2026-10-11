@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.4 (Three new guns: Wasp, Mauler, Lancer; owner OK'd names and numbers)
+- **Wasp** (SMG): full auto, 900 rounds a minute, 30-round mag, 20 damage (5 body shots). Great from the hip,
+  light kick, but its damage drops past 25 m (down to 14 by 50 m). Uses its own **SMG Rounds** (owner).
+- **Mauler** (pump shotgun): 8 pellets of 14 damage per shot (one blast kills up close), 6 shells, loaded one at a
+  time; you can fire whatever's loaded mid-reload. Pellets do much less past 12 m. Uses **Shotgun Shells**.
+- **Lancer** (bolt-action sniper): 90 damage (2 body shots, one headshot kills), 5 rounds, slow to work the bolt,
+  terrible from the hip, loud. Uses **Sniper Rounds**.
+- Each has its own sound (Wasp higher, Mauler and Lancer deep and loud), kick and muzzle flash size.
+- Scopes now show a scope view when you aim (round view, black around it, a cross and a red center), and the
+  red dot shows a red dot. The 8x Scope (Lancer only) and the Choke (Mauler only) now turn up too.
+- Where to find them: gun store (all three), police station (Mauler), bunker (Lancer), lockers now and then. The
+  trader sells all three, their ammo and every attachment. Ammo turns up in crates and on bodies.
+- Placeholder first-person models for now (the art pass makes real ones).
+- Online: the server checks every pellet; pellets that hit the same player add up into one hit.
+
 ## 0.15.3 (asks before closing the tab mid-raid; owner's friends kept hitting Ctrl+W)
 - In the browser, closing or reloading the tab (Ctrl+W, the X, F5) during a raid now asks "Leave site?" first.
   Only while the raid is on: in the hideout and on the end screen the tab closes as normal. The browser writes

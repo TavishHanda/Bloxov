@@ -8,7 +8,8 @@ const BUY_MARKUP := 1.2
 const GEAR_SELL_RATE := 0.6
 ## [item id, amount per purchase]
 const TRADER_STOCK := [
-	["ak", 1], ["pistol", 1], ["rifle_ammo", 60], ["pistol_ammo", 50], ["red_dot", 1], ["foregrip", 1], ["ext_mag", 1],
+	["ak", 1], ["pistol", 1], ["smg", 1], ["shotgun", 1], ["sniper", 1], ["rifle_ammo", 60], ["pistol_ammo", 50],
+	["smg_ammo", 60], ["shells", 12], ["sniper_ammo", 10], ["red_dot", 1], ["scope_8x", 1], ["choke", 1], ["foregrip", 1], ["ext_mag", 1],
 	["scope_4x", 1], ["suppressor", 1], ["bandage", 1],
 	["medkit", 1], ["armor_light", 1], ["helmet_basic", 1], ["grenade", 1], ["energy_drink", 1], ["backpack_small", 1], ["backpack_medium", 1],
 ]

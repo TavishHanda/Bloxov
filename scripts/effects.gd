@@ -87,13 +87,13 @@ static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool
 	marker.get_tree().create_timer(DAMAGE_NUMBER_LIFE).timeout.connect(marker.queue_free)
 
 
-static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08) -> void:
+static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
 	var audio := AudioStreamPlayer.new()
 	audio.stream = stream
 	audio.volume_db = volume_db
-	audio.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	audio.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	world.add_child(audio)
 	audio.finished.connect(audio.queue_free)
 	audio.play()

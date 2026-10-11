@@ -50,7 +50,7 @@ func _draw() -> void:
 	HudStyle.draw_plate(self, Rect2(Vector2.ZERO, PLATE_SIZE))
 	var mag := maxi(gun.mag_size, 1)
 	var loaded := gun.in_mag
-	if gun.is_reloading:
+	if gun.is_reloading and not gun.load_one:
 		# The cartridges fill back up over the reload.
 		loaded = roundi(lerpf(float(gun.in_mag), float(mag), clampf(1.0 - gun._reload_left / maxf(gun.reload_time, 0.01), 0.0, 1.0)))
 	# Big count.

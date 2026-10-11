@@ -274,9 +274,10 @@ func _state(state: Array) -> void:
 
 ## A player fired: the server decides what it hit (the map blocks shots; players are checked where they were on
 ## the shooter's screen at `view_time`). Damage comes from the weapon's stats, never from the shooter.
-## `suppressed`: a suppressor on the gun, so AI hear it half as far (0.15.1).
+## `suppressed`: a suppressor on the gun, so AI hear it half as far (0.15.1). `dirs`: one per bullet, or one per
+## pellet for a shotgun (0.15.4; at most its "pellets"); pellets that hit the same target add up into one hit.
 @rpc("any_peer", "call_remote", "reliable")
-func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float, suppressed: bool) -> void:
+func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: float, suppressed: bool) -> void:
 	var peer := multiplayer.get_remote_sender_id()
 	if mode != Mode.SERVER or not matchmaker.players.has(peer) or not _player_states.has(peer):
 		return
@@ -284,16 +285,30 @@ func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float, suppre
 	var me: Array = _player_states[peer]
 	var stats := ItemDB.item(weapon)
 	if (world == null or me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED) or stats.get("kind") != "weapon"
-			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or dir.length_squared() < 0.5
+			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or dirs.is_empty() or dirs.size() > int(stats.get("pellets", 1))
 			or _now() - _last_shot.get(peer, -1.0) < 0.05):
 		return
 	_last_shot[peer] = _now()
-	var hit := world.trace_shot(peer, from, dir, 150.0, view_time, _now())
+	var targets := {}   # target key -> [hit, damage, headshot]
+	var noise_end := from
+	for dir in dirs:
+		if dir.length_squared() < 0.5:
+			continue
+		var hit := world.trace_shot(peer, from, dir, 150.0, view_time, _now())
+		noise_end = hit["end"]
+		if not (hit.has("peer") or hit.has("enemy")):
+			continue
+		var key: Variant = hit["peer"] if hit.has("peer") else hit["enemy"].get_instance_id()
+		var amount := float(stats["damage"]) * ItemDB.falloff_mult(stats.get("falloff", []), from.distance_to(hit["end"]))
+		amount *= float(stats.get("head", 2.0)) if hit["headshot"] else 1.0
+		if not targets.has(key):
+			targets[key] = [hit, 0.0]
+		targets[key][1] += amount
+		targets[key][0]["headshot"] = targets[key][0]["headshot"] or hit["headshot"]
 	var noise := float(stats.get("noise", 25.0)) * (float(ItemDB.item("suppressor")["mult"]["noise"]) if suppressed else 1.0)
-	world.shot_noise(from, hit["end"], noise, me[0])
-	if hit.has("peer") or hit.has("enemy"):
-		var amount := roundi(float(stats["damage"]) * (float(stats.get("head", 2.0)) if hit["headshot"] else 1.0))
-		_damage(peer, hit, amount, me[0])
+	world.shot_noise(from, noise_end, noise, me[0])
+	for key: Variant in targets:
+		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0])
 
 
 ## Melee: the server checks what the knife reached (the same small fan of rays as on the player's screen).
@@ -688,9 +703,9 @@ func send_state(state: Array) -> void:
 
 
 ## Tells the server we fired (it decides what the shot hit).
-func send_shot(from: Vector3, dir: Vector3, weapon: String, suppressed := false) -> void:
+func send_shot(from: Vector3, dirs: PackedVector3Array, weapon: String, suppressed := false) -> void:
 	if in_online_raid():
-		_shot.rpc_id(1, from, dir, weapon, client_view_time(), suppressed)
+		_shot.rpc_id(1, from, dirs, weapon, client_view_time(), suppressed)
 
 
 func open_container(id: String) -> void:

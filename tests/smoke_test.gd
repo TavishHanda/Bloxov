@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -907,7 +907,7 @@ func _section_items() -> void:
 	for i in 400:
 		if ItemDB.kind(ItemDB.roll("locker", "GunStore")) in ["weapon", "ammo", "attachment"]:
 			guns += 1
-		if ItemDB.roll("crate", "Pharmacy") in ["bandage", "medkit"]:
+		if ItemDB.roll("crate", "Pharmacy") in ["bandage", "medkit", "med_supplies"]:
 			meds += 1
 	_check(guns > 160 and meds > 160, "loot by place: gun store lockers %d/400 guns or ammo, pharmacy crates %d/400 meds" % [guns, meds])
 	var tagged: LootContainer = (load("res://scenes/loot_crate.tscn") as PackedScene).instantiate()
@@ -1204,6 +1204,62 @@ func _section_attachments() -> void:
 	loot_ui.detach(rifle, "scope", grid)
 	_check(rifle.attachments.is_empty() and gun.ads_time == old_ads, "all off: the gun is back to normal")
 	rifle.loaded = old_mag
+
+
+func _section_new_guns() -> void:
+	# The Guns update's guns (0.15.2): Wasp (SMG), Mauler (shotgun), Lancer (sniper), each with its own ammo.
+	for id in ["smg", "shotgun", "sniper"]:
+		var data := ItemDB.item(id)
+		_check(ItemDB.kind(id) == "weapon" and ItemDB.kind(data["ammo"]) == "ammo" and data["slot"] == "primary", "%s is a primary gun with its own ammo" % data["name"])
+	_check(ItemDB.item("smg")["ammo"] != ItemDB.item("pistol")["ammo"], "the SMG has its own ammo (owner)")
+	_check(ceili(100.0 / ItemDB.item("sniper")["damage"]) == 2 and ItemDB.item("sniper")["damage"] * ItemDB.item("sniper")["head"] >= 100,
+		"sniper: 2 body shots or 1 headshot")
+	_check(is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 10.0), 1.0)
+		and is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 60.0), 0.7), "SMG damage drops off past 25 m")
+	_check(ItemDB.attachment_slot_for("sniper", "scope_8x") == "scope" and ItemDB.attachment_slot_for("shotgun", "choke") == "barrel"
+		and ItemDB.attachment_slot_for("shotgun", "scope_4x") == "", "the 8x scope and choke go on their guns")
+	# Hold the shotgun (the AK goes back after).
+	var rifle := inv.unequip("primary")
+	var shotgun := ItemStack.new("shotgun")
+	shotgun.loaded = 6
+	inv.equip("primary", shotgun)
+	gun.select_slot("primary")
+	_check(gun.weapon == shotgun and gun.pellets == 8 and gun.model.visible and gun.model.name == "ShotgunModel", "holding the Mauler (its own model)")
+	gun.base_spread_deg = 0.0
+	gun.hip_spread_deg = 0.0
+	gun.moving_spread_deg = 0.0
+	gun._flinch_spread = 0.0
+	gun._bloom = 0.0
+	player.teleport_to(dummy.global_position + Vector3(0, 0, 5))
+	await _frames(3)
+	_aim(dummy.global_position + Vector3(0, 1.0, 0))
+	await physics_frame
+	var before := dummy_health.current
+	gun.shoot_once()
+	var close := before - dummy_health.current
+	_check(close >= 60 and gun.in_mag == 5, "a shotgun blast at 5 m does %d (most of 8 x 14)" % close)
+	await create_timer(1.0).timeout
+	player.teleport_to(dummy.global_position + Vector3(0, 0, 35))
+	await _frames(3)
+	_aim(dummy.global_position + Vector3(0, 1.0, 0))
+	await physics_frame
+	before = dummy_health.current
+	gun.shoot_once()
+	_check(before - dummy_health.current < close * 0.5, "at 35 m it does much less (%d)" % (before - dummy_health.current))
+	# Shells load one at a time, and firing stops the loading.
+	inv.add("shells", 10)
+	gun.in_mag = 2
+	gun.start_reload()
+	await create_timer(gun.reload_time * 2.5).timeout
+	_check(gun.in_mag == 4 and gun.is_reloading, "two shells loaded one at a time (%d)" % gun.in_mag)
+	await create_timer(1.0).timeout
+	gun.shoot_once()
+	_check(not gun.is_reloading, "firing stops the loading")
+	inv.take("shells", inv.count_of("shells"))
+	inv.unequip("primary")
+	inv.equip("primary", rifle)
+	gun.select_slot("primary")
+	_check(gun.weapon == rifle and gun.pellets == 1 and gun.load_one == false, "back to the AK")
 
 
 func _section_dropped_gun() -> void:
@@ -1843,20 +1899,20 @@ func _section_pvp() -> void:
 	await stand.call(c2, Vector3(0, 0.1, -10))
 	await stand.call(c1, Vector3(0, 0.1, -4))
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized(), "ak")
+	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return not got["hits"].is_empty())
 	_check(got["hits"] == [[28, false]] and got["confirmed"] == [false], "an AK body shot hits the other player for 28 (%s)" % str(got["hits"]))
 	await _frames(4)
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized(), "ak")
+	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return got["hits"].size() >= 2)
 	_check(got["hits"].size() == 2 and got["hits"][1] == [56, true], "a headshot does double (%s)" % str(got["hits"]))
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(0, 1.5, -4), Vector3(1, 0, 0), "ak")
+	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([Vector3(1, 0, 0)]), "ak")
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized(), "gold_watch")
+	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "gold_watch")
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(30, 1.5, -4), Vector3(0, 0, -1), "ak")
+	c1.send_shot(Vector3(30, 1.5, -4), PackedVector3Array([Vector3(0, 0, -1)]), "ak")
 	await _frames(20)
 	_check(got["hits"].size() == 2, "misses, non-weapons and shots from somewhere else don't count")
 
@@ -1864,7 +1920,7 @@ func _section_pvp() -> void:
 	await stand.call(c2, Vector3(0, 0.1, 43))
 	await stand.call(c1, Vector3(0, 0.1, 38))
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(0, 1.5, 38), Vector3(0, -0.05, 1).normalized(), "ak")
+	c1.send_shot(Vector3(0, 1.5, 38), PackedVector3Array([Vector3(0, -0.05, 1).normalized()]), "ak")
 	await _frames(20)
 	_check(got["hits"].size() == 2, "a wall stops the shot")
 
@@ -1881,9 +1937,21 @@ func _section_pvp() -> void:
 	await stand.call(c2, Vector3(0, 0.1, -10))
 	await stand.call(c1, Vector3(0, 0.1, -4))
 	OS.delay_msec(60)
-	c1.send_shot(Vector3(0, 1.5, -4), (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized(), "pistol")
+	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "pistol")
 	await _until(func() -> bool: return got["hits"].size() >= 3)
 	_check(got["hits"].size() == 3 and got["hits"][2] == [17, false], "pistol body shot: 17")
+	# A shotgun's pellets (0.15.2): all of them that hit add up into one hit; more pellets than it fires don't count.
+	var chest := (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()
+	var too_many := PackedVector3Array()
+	too_many.resize(9)
+	too_many.fill(chest)
+	OS.delay_msec(60)
+	c1.send_shot(Vector3(0, 1.5, -4), too_many, "shotgun")
+	OS.delay_msec(60)
+	too_many.resize(8)
+	c1.send_shot(Vector3(0, 1.5, -4), too_many, "shotgun")
+	await _until(func() -> bool: return got["hits"].size() >= 4)
+	_check(got["hits"].size() == 4 and got["hits"][3] == [8 * 14, false], "8 shotgun pellets up close: one hit of 112 (%s)" % str(got["hits"]))
 	c2.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD])
 	await _until(func() -> bool: return got["kills"] == 1)
 	_check(got["kills"] == 1, "the killer is told about the kill")
@@ -1965,7 +2033,7 @@ func _section_online_ai() -> void:
 	var before: int = target.health.current
 	OS.delay_msec(60)
 	var eye := target.global_position + Vector3(0, 1.5, 6)
-	c1.send_shot(eye, (target.global_position + Vector3(0, 0.8, 0) - eye).normalized(), "ak")
+	c1.send_shot(eye, PackedVector3Array([(target.global_position + Vector3(0, 0.8, 0) - eye).normalized()]), "ak")
 	await _until(func() -> bool: return got["confirmed"] >= 1)
 	_check(got["confirmed"] == 1 and target.health.current < before, "a player's shot hits a server scav (%d -> %d)" % [before, target.health.current])
 	var listener: Node = scavs1[1]

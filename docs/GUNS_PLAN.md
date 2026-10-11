@@ -48,7 +48,11 @@ Details and open questions to the owner: project file `guns/plan.md`.
 - [x] **0.15.0 No RPK.** The RPK only existed as the gun drawn into the Raider model (Raiders and Bon). `HeldGun`
       swaps a model's drawn-in "Gun" node for another gun model (`held_model` on the AI scenes); Raiders and Bon
       hold the scav model's AK.
-- [ ] New guns + ammo (names and numbers wait on the owner).
+- [x] **0.15.4 New guns + ammo.** Wasp (`smg`), Mauler (`shotgun`), Lancer (`sniper`) with `smg_ammo`, `shells`,
+      `sniper_ammo`. New optional weapon stats: `pellets`/`pellet_spread`, `falloff` (`ItemDB.falloff_mult`, used by the
+      gun and the server), `load_one`, `flash`, `shot_pitch`/`shot_db`. Placeholder first-person models are built in
+      code (`GunViewModels`). `_shot` takes one direction per pellet. Optic attachments have a `reticle` ("dot" or
+      "scope"; `Gun.reticle()`, drawn by `CrosshairHUD`; the gun hides behind a scope view).
 - [x] **0.15.1 Attachments.** Weapons list their slot types (`"slots"`), attachments (kind `attachment`) list the
       slot types they go in (`"slots"`, "sight"/"scope" etc.) and optionally the guns they fit (`"fits"`); their
       `"mult"`/`"set"` stats apply in `ItemDB.weapon_stats(stack)`, which the gun uses. `ItemStack.attachments`

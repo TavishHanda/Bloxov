@@ -172,6 +172,7 @@ func _process(delta: float) -> void:
 	get_tree().paused = menu.visible and not Network.main.in_online_raid()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
 	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
+	crosshair.reticle = player.gun.reticle() if captured and not player.out_of_fight() else ""
 	var hp := player.health.current
 
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).

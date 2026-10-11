@@ -8,14 +8,17 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Item | Type | Rarity | Size | Stack | Value (each) | Notes | Description |
 |---|---|---|---|---|---|---|---|
 | Pistol (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo; attachment slots: barrel, sight | Small sidearm. Quick to aim, one shot per click. |
+| Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $2,000 | primary slot; full-auto; 20 dmg, 900 rpm, 30-round mag, smg ammo; damage drops to 70% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
+| Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $2,200 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
 | AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
-| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits AK Rifle, Pistol; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
-| Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits ; pellet_spread x0.7 | Shotgun muzzle. Keeps the pellets tighter. |
-| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits AK Rifle; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
-| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits AK Rifle; mag x1.5, reload x1.1 | Holds half as many rounds again. Slower to reload. |
-| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits AK Rifle; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
-| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits AK Rifle, Pistol; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
-| 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits ; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
+| Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $4,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
+| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits AK Rifle, Pistol, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
+| Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler; pellet_spread x0.7 | Shotgun muzzle. Keeps the pellets tighter. |
+| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits AK Rifle, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
+| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits AK Rifle, Wasp, Lancer; mag x1.5, reload x1.1 | Holds half as many rounds again. Slower to reload. |
+| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits AK Rifle, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
+| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits AK Rifle, Pistol, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
+| 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits Lancer; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken | Plated vest. Stops a lot. |
 | Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $1,000 | -25% head damage taken | Dented steel pot. Better than nothing on your head. |
@@ -24,7 +27,10 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $900 | 5×4 storage | Hiking pack with room for a good haul. |
 | Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $2,000 | 6×5 storage | Big army rucksack. Carry everything home. |
 | Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $2 | full stack $100 | Pistol rounds. Loaded when you reload. |
+| SMG Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $2 | full stack $180 | Small rounds for the Wasp. Loaded when you reload. |
 | Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $3 | full stack $360 | Rifle rounds for the AK. Loaded when you reload. |
+| Shotgun Shells (`shells`) | Ammo | Common | 1×1 | 30 | $6 | full stack $180 | Buckshot for the Mauler. Loaded one at a time. |
+| Sniper Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $15 | full stack $450 | Long rounds for the Lancer. Loaded when you reload. |
 | Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $100 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
 | Medkit (`medkit`) | Healing | Uncommon | 2×1 | 3 | $400 | heals 70 over 4 s | Field kit. Heals a lot, takes a while. |
 | Energy Drink (`energy_drink`) | Drink | Common | 1×1 | 1 | $250 |  | Fills your stamina, then sprinting costs none for 10 s. |
@@ -70,42 +76,50 @@ Nothing wears out for now: durability (armor, helmets, keys, guns) is its own up
 
 Each container rolls a number of times; each roll picks from its table by weight.
 A rarity entry (e.g. *rare*) means a random **valuable** of that rarity.
-A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pistol Rounds 15–40, Bandage 1–2.
+A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG Rounds 15–40, Shotgun Shells 5–12, Sniper Rounds 3–10, Bandage 1–2.
 
 ### Crate (1–3 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 27% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 27% |
-| Bandage | 16% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 11% |
+| Rifle Rounds | 25% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 25% |
+| Bandage | 15% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 10% |
 | Pistol Rounds | 7% |
 | Energy Drink | 4% |
-| Medkit | 4% |
+| Medkit | 3% |
+| SMG Rounds | 3% |
+| Shotgun Shells | 3% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 3% |
 | Small Backpack | 2% |
+| Sniper Rounds | 1% |
 
 ### Locker (2–4 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 19% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 14% |
-| Rifle Rounds | 11% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 11% |
-| Medkit | 9% |
-| Bandage | 8% |
-| Pistol Rounds | 5% |
-| Pistol | 4% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 17% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 12% |
+| Rifle Rounds | 10% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 10% |
+| Medkit | 8% |
+| Bandage | 7% |
+| Pistol Rounds | 4% |
+| SMG Rounds | 3% |
+| Shotgun Shells | 3% |
+| Pistol | 3% |
 | Energy Drink | 3% |
 | Light Armor | 3% |
 | Old Helmet | 3% |
 | Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 3% |
 | Frag Grenade | 2% |
 | Small Backpack | 2% |
-| Powder Tin | 2% |
-| Medium Backpack | 2% |
+| Wasp | 1% |
+| Mauler | 1% |
+| Sniper Rounds | 1% |
+| Powder Tin | 1% |
+| Medium Backpack | 1% |
 | Novarra Field Report | 1% |
 
 ### Safe (1–2 rolls, loud to open)
@@ -124,12 +138,14 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 34% |
-| Bandage | 17% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 17% |
-| Pistol Rounds | 8% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 8% |
-| Medkit | 5% |
+| Rifle Rounds | 29% |
+| Bandage | 15% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 15% |
+| SMG Rounds | 7% |
+| Pistol Rounds | 7% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 7% |
+| Shotgun Shells | 6% |
+| Medkit | 4% |
 | Energy Drink | 3% |
 | Pistol | 3% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 3% |
@@ -138,20 +154,23 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 23% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 15% |
-| Bandage | 9% |
-| Medkit | 9% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 9% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 8% |
-| Frag Grenade | 5% |
-| Pistol Rounds | 5% |
-| Pistol | 4% |
+| Rifle Rounds | 20% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
+| Bandage | 8% |
+| Medkit | 8% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
+| SMG Rounds | 7% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 7% |
+| Shotgun Shells | 5% |
+| Frag Grenade | 4% |
+| Pistol Rounds | 4% |
+| Pistol | 3% |
 | Energy Drink | 3% |
+| Sniper Rounds | 2% |
 | Red Dot | 2% |
 | Foregrip | 2% |
 | Medium Backpack | 2% |
-| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 2% |
+| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
 | 4x Scope | 1% |
 | Suppressor | 1% |
 | Extended Mag | 1% |
@@ -163,15 +182,15 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 
 | Place | Extra weights |
 |---|---|
-| Bunker | 4x Scope 6, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, AK Rifle 8, Rifle Rounds 15 |
+| Bunker | Lancer 6, Sniper Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, AK Rifle 8, Rifle Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, Bunker Key 3, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
 | BigHouse1 | Diamond Ring 3, Gold Watch 20, Cash Bundle 15, Rare Crystal 3 |
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, Golden Toilet 2, epic valuable 8 |
-| Police | Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Pistol 15, Pistol Rounds 20, Bunker Key 2 |
-| GunStore | Red Dot 10, 4x Scope 6, Suppressor 5, Foregrip 8, Extended Mag 6, Powder Tin 15, AK Rifle 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
+| Police | Mauler 10, Shotgun Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Pistol 15, Pistol Rounds 20, Bunker Key 2 |
+| GunStore | Wasp 10, Mauler 10, Lancer 4, SMG Rounds 20, Shotgun Shells 20, Sniper Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, AK Rifle 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
 | Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |

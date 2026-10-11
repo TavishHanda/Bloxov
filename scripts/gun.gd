@@ -17,7 +17,8 @@ const KILL_SOUND := preload("res://audio/kill.wav")
 const EMPTY_SOUND := preload("res://audio/empty.wav")
 const MAG_OUT_SOUND := preload("res://audio/mag_out.wav")
 const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
-## Where each model sits when aimed: centered, with its sight just under the middle of the screen.
+## Where each model sits when aimed: centered, with its sight just under the middle of the screen
+## (the new guns' are in GunViewModels.ADS).
 const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0, -0.036, -0.28)}
 
 @export_group("Damage")
@@ -92,6 +93,16 @@ var weapon: ItemStack = null
 var active_slot := "primary"
 ## Full-auto (hold) or semi-auto (one shot per click).
 var auto := true
+## Shotguns (0.15.4): this many pellets per shot, each doing `damage`, spread over this many degrees.
+var pellets := 1
+var pellet_spread_deg := 0.0
+## Damage drop with distance: [from m, to m, multiplier at the far end], or empty for none.
+var falloff: Array = []
+## Reload one round at a time (`reload_time` each); firing stops it.
+var load_one := false
+var flash_size := 1.0
+var shot_pitch := 1.0
+var shot_db := -4.0
 
 ## Rounds loaded in the current weapon (stored on its ItemStack, so each gun keeps its own).
 var in_mag: int:
@@ -111,6 +122,7 @@ var aim := 0.0
 @onready var player: Player = owner
 @onready var camera: Camera3D = get_parent()
 @onready var _models := {"rifle": $Model, "pistol": $PistolModel}
+var _ads_positions := ADS_POSITIONS.duplicate()
 var model: Node3D
 var muzzle: Node3D
 var flash: Node3D
@@ -136,6 +148,8 @@ var _raise_left := 0.0
 
 
 func _ready() -> void:
+	_models.merge(GunViewModels.build_all(self))
+	_ads_positions.merge(GunViewModels.ADS)
 	for key in _models:
 		var node: Node3D = _models[key]
 		_model_rests[key] = node.position
@@ -208,6 +222,13 @@ func _apply_stats(stack: ItemStack) -> Dictionary:
 	recoil_pitch_deg = data["recoil"]
 	recoil_yaw_deg = data["recoil_yaw"]
 	noise_radius = data["noise"]
+	pellets = int(data.get("pellets", 1))
+	pellet_spread_deg = float(data.get("pellet_spread", 0.0))
+	falloff = data.get("falloff", [])
+	load_one = bool(data.get("load_one", false))
+	flash_size = float(data.get("flash", 1.0))
+	shot_pitch = float(data.get("shot_pitch", 1.0))
+	shot_db = float(data.get("shot_db", -4.0))
 	return data
 
 
@@ -250,7 +271,9 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("reload"):
 		start_reload()
 	var trigger := Input.is_action_pressed("shoot") if auto else Input.is_action_just_pressed("shoot")
-	if trigger and _cooldown <= 0.0 and not is_reloading and is_ready_to_fire():
+	# Loading shells one at a time, you can fire whatever's in already (it stops loading).
+	var loading_ok := not is_reloading or (load_one and in_mag > 0)
+	if trigger and _cooldown <= 0.0 and loading_ok and is_ready_to_fire():
 		if in_mag > 0:
 			shoot_once()
 		elif Input.is_action_just_pressed("shoot"):
@@ -319,6 +342,17 @@ func is_aiming() -> bool:
 	return aim > 0.5
 
 
+## What you see through the optic while fully aimed (0.15.4): "dot", "scope", or "" (iron sights or not aimed).
+func reticle() -> String:
+	if weapon == null or aim < 0.95:
+		return ""
+	for slot: String in weapon.attachments:
+		var part: Dictionary = ItemDB.item(weapon.attachments[slot])
+		if part.has("reticle"):
+			return part["reticle"]
+	return ""
+
+
 ## False while sprinting and for `raise_time` after.
 func is_ready_to_fire() -> bool:
 	return _raise_left <= 0.0 and not player.is_throwing()
@@ -329,39 +363,44 @@ func shoot_once() -> void:
 		return
 	_cooldown = 60.0 / rounds_per_minute
 	in_mag -= 1
+	is_reloading = false
 	var world := get_tree().current_scene
 
-	# Pick a point evenly inside the spread circle.
-	var spread := deg_to_rad(current_spread())
-	var angle := randf() * TAU
-	var radius := spread * sqrt(randf())
 	var cam_basis := camera.global_basis
-	var dir := -cam_basis.z
-	dir = dir.rotated(cam_basis.x, radius * sin(angle)).rotated(cam_basis.y, radius * cos(angle))
+	var aim_dir := _spread_dir(cam_basis, -cam_basis.z, deg_to_rad(current_spread()))
 	var from := camera.global_position
-	var to := from + dir * max_range
+	# A shotgun's pellets spread around where the shot went.
+	var dirs := PackedVector3Array()
+	for i in pellets:
+		dirs.append(aim_dir if pellets == 1 else _spread_dir(cam_basis, aim_dir, deg_to_rad(pellet_spread_deg)))
 
 	# Online, other players (layer 2) can be hit too; the server decides whether they were.
 	var online := Network.main.in_online_raid()
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | (2 if online else 0), [player.get_rid()])
-	var result := get_world_3d().direct_space_state.intersect_ray(query)
-	var end := to
-	if not result.is_empty():
-		end = result.position
-		if result.collider is RemotePlayer or (result.collider is Scav and (result.collider as Scav).puppet):
-			# Just the puff here; damage, the hit marker and the sound come when the server confirms.
-			Effects.impact(world, result.position, result.normal, Player.HIT_COLOR, 12)
-		else:
-			_handle_hit(result)
+	var space := get_world_3d().direct_space_state
+	var hits: Array[Dictionary] = []
+	for dir in dirs:
+		var to := from + dir * max_range
+		var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | (2 if online else 0), [player.get_rid()])
+		var result := space.intersect_ray(query)
+		var end := to
+		if not result.is_empty():
+			end = result.position
+			if result.collider is RemotePlayer or (result.collider is Scav and (result.collider as Scav).puppet):
+				# Just the puff here; damage, the hit marker and the sound come when the server confirms.
+				Effects.impact(world, result.position, result.normal, Player.HIT_COLOR, 12)
+			else:
+				hits.append(result)
+		_warn_near_misses(from, end, result.get("collider"))
+		Effects.tracer(world, muzzle.global_position, end)
+	_handle_hits(hits, from)
 	if online:
-		Network.main.send_shot(from, dir, weapon.id, weapon.attachments.values().has("suppressor"))
+		Network.main.send_shot(from, dirs, weapon.id, weapon.attachments.values().has("suppressor"))
 
-	_warn_near_misses(from, end, result.get("collider"))
-	Effects.tracer(world, muzzle.global_position, end)
-	Effects.sound(world, SHOT_SOUND, -4.0)
+	Effects.sound(world, SHOT_SOUND, shot_db, 0.08, shot_pitch)
 	_flash_left = 0.045
 	flash.visible = true
 	flash.rotation.z = randf() * TAU
+	flash.scale = Vector3.ONE * flash_size
 	_kick = 1.0
 	_bloom = minf(_bloom + bloom_per_shot_deg, max_bloom_deg)
 	if _since_shot > 60.0 / rounds_per_minute + 0.15:
@@ -374,6 +413,13 @@ func shoot_once() -> void:
 	player.add_shake(shake)
 	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
 	RaidScope.call_all(self, &"enemies", &"notice_threat")
+
+
+## `dir` turned a random amount (evenly inside a circle of `radius` radians) around the camera's axes.
+func _spread_dir(cam_basis: Basis, dir: Vector3, radius: float) -> Vector3:
+	var angle := randf() * TAU
+	var r := radius * sqrt(randf())
+	return dir.rotated(cam_basis.x, r * sin(angle)).rotated(cam_basis.y, r * cos(angle)).normalized()
 
 
 ## Enemies a bullet passed close to notice it, even if they're too far away to hear the shot.
@@ -394,7 +440,8 @@ func start_reload() -> void:
 	is_reloading = true
 	_reload_left = reload_time
 	_mag_in_played = false
-	Effects.sound(get_tree().current_scene, MAG_OUT_SOUND)
+	if not load_one:
+		Effects.sound(get_tree().current_scene, MAG_OUT_SOUND)
 
 
 func _update_reload(delta: float) -> void:
@@ -404,37 +451,49 @@ func _update_reload(delta: float) -> void:
 	if not _mag_in_played and _reload_left <= reload_time * 0.4:
 		_mag_in_played = true
 		Effects.sound(get_tree().current_scene, MAG_IN_SOUND)
-	if _reload_left <= 0.0:
+	if _reload_left <= 0.0 and load_one:
+		# One round in; keep going while there's room and rounds to load.
+		in_mag += player.inventory.take(ammo_id, 1)
+		is_reloading = in_mag < mag_size and reserve > 0
+		_reload_left = reload_time
+		_mag_in_played = false
+	elif _reload_left <= 0.0:
 		in_mag += player.inventory.take(ammo_id, mag_size - in_mag)
 		is_reloading = false
 
 
-func _handle_hit(result: Dictionary) -> void:
+## What this shot's bullets (or pellets) hit: puffs on the world, damage on whatever has health. Pellets that hit
+## the same target add up into one hit (one sound, one hit marker), a headshot if any of them was.
+func _handle_hits(hits: Array[Dictionary], from: Vector3) -> void:
 	var world := get_tree().current_scene
-	var collider: Object = result.collider
-	var hit_pos: Vector3 = result.position
-	var normal: Vector3 = result.normal
-	var health := Health.of(collider)
-
-	if health == null or health.is_dead:
-		Effects.impact(world, hit_pos, normal, Color(0.85, 0.8, 0.6))
-		return
-
-	var headshot := false
-	if collider is CollisionObject3D:
-		var body := collider as CollisionObject3D
-		var shape_index: int = result.shape
-		var shape_node := body.shape_owner_get_owner(body.shape_find_owner(shape_index)) as Node
-		headshot = shape_node != null and shape_node.name == &"HeadShape"
-
-	var amount := roundi(damage * (headshot_multiplier if headshot else 1.0))
-	var dealt := health.take_damage(amount, player.global_position, false, headshot)
-	player.on_hit_landed(health, hit_pos, normal, dealt, headshot)
-	if health.is_dead:
-		Effects.sound(world, KILL_SOUND, -2.0, 0.0)
-	else:
-		Effects.sound(world, HEADSHOT_SOUND if headshot else HIT_SOUND, -3.0, 0.03)
-	hit_confirmed.emit(health.is_dead, headshot)
+	var targets := {}   # Health -> [damage, headshot, position, normal]
+	for result in hits:
+		var collider: Object = result.collider
+		var health := Health.of(collider)
+		if health == null or health.is_dead:
+			Effects.impact(world, result.position, result.normal, Color(0.85, 0.8, 0.6))
+			continue
+		var headshot := false
+		if collider is CollisionObject3D:
+			var body := collider as CollisionObject3D
+			var shape_index: int = result.shape
+			var shape_node := body.shape_owner_get_owner(body.shape_find_owner(shape_index)) as Node
+			headshot = shape_node != null and shape_node.name == &"HeadShape"
+		var amount := damage * ItemDB.falloff_mult(falloff, from.distance_to(result.position)) * (headshot_multiplier if headshot else 1.0)
+		if not targets.has(health):
+			targets[health] = [0.0, false, result.position, result.normal]
+		targets[health][0] += amount
+		targets[health][1] = targets[health][1] or headshot
+	for health: Health in targets:
+		var hit: Array = targets[health]
+		var headshot: bool = hit[1]
+		var dealt := health.take_damage(roundi(hit[0]), player.global_position, false, headshot)
+		player.on_hit_landed(health, hit[2], hit[3], dealt, headshot)
+		if health.is_dead:
+			Effects.sound(world, KILL_SOUND, -2.0, 0.0)
+		else:
+			Effects.sound(world, HEADSHOT_SOUND if headshot else HIT_SOUND, -3.0, 0.03)
+		hit_confirmed.emit(health.is_dead, headshot)
 
 
 func _update_model(delta: float) -> void:
@@ -451,7 +510,7 @@ func _update_model(delta: float) -> void:
 	var bob_scale := minf(speed / player.walk_speed, 1.0) * (2.2 if sprinting else 1.0)
 	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale * (1.0 - 0.85 * aim)
 
-	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(ADS_POSITIONS[_model_key], aim)
+	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(_ads_positions[_model_key], aim)
 	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
 	if player.hands_busy():
@@ -474,3 +533,5 @@ func _update_model(delta: float) -> void:
 	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0 + 30.0 * aim), 1.0)
 	model.position = model.position.lerp(target_pos, weight)
 	model.rotation = model.rotation.lerp(target_rot, weight)
+	# Looking through a scope, the gun is out of the way (the HUD draws the scope's view).
+	model.visible = reticle() != "scope"

@@ -23,6 +23,10 @@ const RARITY_COLORS := {
 const ITEMS := {
 	"rifle_ammo": {"name": "Rifle Rounds", "desc": "Rifle rounds for the AK. Loaded when you reload.", "short": "5.45", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 3},
 	"pistol_ammo": {"name": "Pistol Rounds", "desc": "Pistol rounds. Loaded when you reload.", "short": "9mm", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 2},
+	# One ammo per gun type (owner, 0.15.4: the SMG gets its own).
+	"smg_ammo": {"name": "SMG Rounds", "desc": "Small rounds for the Wasp. Loaded when you reload.", "short": "SMG", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 90, "value": 2},
+	"shells": {"name": "Shotgun Shells", "desc": "Buckshot for the Mauler. Loaded one at a time.", "short": "Shells", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 30, "value": 6},
+	"sniper_ammo": {"name": "Sniper Rounds", "desc": "Long rounds for the Lancer. Loaded when you reload.", "short": "Sniper", "kind": "ammo", "rarity": "uncommon", "w": 1, "h": 1, "stack": 30, "value": 15},
 	"ak": {"name": "AK Rifle", "desc": "Old army rifle, full auto. Hits hard, kicks harder.", "short": "AK", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 2500,
 		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 28, "head": 2.0, "rpm": 600, "mag": 30, "reload": 1.6,
 		"spread": 0.15, "hip_spread": 0.68, "move_spread": 0.75, "ads_time": 0.28, "ads_fov": 55.0,
@@ -33,14 +37,35 @@ const ITEMS := {
 		"spread": 0.3, "hip_spread": 0.5, "move_spread": 0.5, "ads_time": 0.16, "ads_fov": 66.0,
 		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0,
 		"slots": ["barrel", "sight"]},
+	# The Guns update's new guns (0.15.4, owner OK'd names and numbers; tune after playing). Made-up names, no real
+	# brands (STORE_RULES.md). Optional stats: "pellets" + "pellet_spread" (degrees: a shotgun fires that many at
+	# once, each doing "damage"), "falloff" [from m, to m, damage multiplier at the far end and beyond],
+	# "load_one" (reload is per round: "reload" seconds each, and firing stops it), "flash" (muzzle flash size),
+	# "shot_pitch"/"shot_db" (its shot sound).
+	"smg": {"name": "Wasp", "desc": "Small and fast. Sprays at close range, weak far away.", "short": "Wasp", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 3, "h": 2, "stack": 1, "value": 2000,
+		"model": "smg", "ammo": "smg_ammo", "auto": true, "damage": 20, "head": 2.0, "rpm": 900, "mag": 30, "reload": 1.4,
+		"spread": 0.25, "hip_spread": 0.45, "move_spread": 0.45, "ads_time": 0.2, "ads_fov": 62.0,
+		"bloom": 0.1, "max_bloom": 1.3, "recoil": 0.7, "recoil_yaw": 0.4, "noise": 28.0, "falloff": [25.0, 50.0, 0.7], "flash": 0.8, "shot_pitch": 1.25, "shot_db": -6.0,
+		"slots": ["scope", "barrel", "grip", "mag"]},
+	"shotgun": {"name": "Mauler", "desc": "Pump shotgun. Deadly up close, useless far away. Loads one shell at a time.", "short": "Mauler", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 1, "stack": 1, "value": 2200,
+		"model": "shotgun", "ammo": "shells", "auto": false, "damage": 14, "head": 1.5, "rpm": 70, "mag": 6, "reload": 0.45, "load_one": true,
+		"pellets": 8, "pellet_spread": 3.0, "spread": 0.3, "hip_spread": 0.6, "move_spread": 0.6, "ads_time": 0.3, "ads_fov": 62.0,
+		"bloom": 0.0, "max_bloom": 0.0, "recoil": 4.0, "recoil_yaw": 0.6, "noise": 40.0, "falloff": [12.0, 30.0, 0.4], "flash": 1.6, "shot_pitch": 0.7, "shot_db": -1.0,
+		"slots": ["barrel", "grip", "sight"]},
+	"sniper": {"name": "Lancer", "desc": "Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip.", "short": "Lancer", "kind": "weapon", "slot": "primary", "rarity": "rare", "w": 5, "h": 1, "stack": 1, "value": 4500,
+		"model": "sniper", "ammo": "sniper_ammo", "auto": false, "damage": 90, "head": 2.0, "rpm": 40, "mag": 5, "reload": 2.4,
+		"spread": 0.03, "hip_spread": 3.0, "move_spread": 1.5, "ads_time": 0.4, "ads_fov": 45.0,
+		"bloom": 0.0, "max_bloom": 0.0, "recoil": 5.0, "recoil_yaw": 0.5, "noise": 60.0, "flash": 1.4, "shot_pitch": 0.6, "shot_db": -1.0,
+		"slots": ["scope", "barrel", "grip", "mag"]},
 	# Attachments (0.15.1, owner's plan): each goes in one slot type of a gun ("slots" on the gun) and its "mult"
-	# stats multiply the gun's (ItemDB.weapon_stats). "fits" (optional) limits it to those guns.
+	# stats multiply the gun's (ItemDB.weapon_stats). "fits" (optional) limits it to those guns. "reticle": what you
+	# see through it when aimed ("dot": a red dot; "scope": the view through a scope, the gun out of sight).
 	"red_dot": {"name": "Red Dot", "desc": "Small sight with a red dot. Quicker to aim, a little more zoom.", "kind": "attachment", "rarity": "uncommon",
-		"w": 1, "h": 1, "stack": 1, "value": 500, "slots": ["sight", "scope"], "mult": {"ads_time": 0.85, "ads_fov": 0.92}},
+		"w": 1, "h": 1, "stack": 1, "value": 500, "slots": ["sight", "scope"], "mult": {"ads_time": 0.85, "ads_fov": 0.92}, "reticle": "dot"},
 	"scope_4x": {"name": "4x Scope", "short": "4x", "desc": "Brings far targets close. Slower to aim.", "kind": "attachment", "rarity": "rare",
-		"w": 2, "h": 1, "stack": 1, "value": 1500, "slots": ["scope"], "mult": {"ads_time": 1.2}, "set": {"ads_fov": 30.0}},
+		"w": 2, "h": 1, "stack": 1, "value": 1500, "slots": ["scope"], "mult": {"ads_time": 1.2}, "set": {"ads_fov": 30.0}, "reticle": "scope"},
 	"scope_8x": {"name": "8x Scope", "short": "8x", "desc": "A sniper's scope. Huge zoom, slow to aim.", "kind": "attachment", "rarity": "epic",
-		"w": 2, "h": 1, "stack": 1, "value": 3000, "slots": ["scope"], "fits": ["sniper"], "mult": {"ads_time": 1.3}, "set": {"ads_fov": 14.0}},
+		"w": 2, "h": 1, "stack": 1, "value": 3000, "slots": ["scope"], "fits": ["sniper"], "mult": {"ads_time": 1.3}, "set": {"ads_fov": 14.0}, "reticle": "scope"},
 	"suppressor": {"name": "Suppressor", "short": "Supp", "desc": "Your shots are heard half as far. A little less kick.", "kind": "attachment", "rarity": "rare",
 		"w": 2, "h": 1, "stack": 1, "value": 1800, "slots": ["barrel"], "fits": ["pistol", "ak", "smg", "sniper"], "mult": {"noise": 0.5, "recoil": 0.9, "recoil_yaw": 0.9}},
 	"choke": {"name": "Choke", "desc": "Shotgun muzzle. Keeps the pellets tighter.", "kind": "attachment", "rarity": "uncommon",
@@ -104,11 +129,11 @@ const ITEMS := {
 
 ## Weights. A key is either an item id or a rarity (= a random valuable of that rarity).
 const LOOT_TABLES := {
-	"crate": {"energy_drink": 5, "pistol_ammo": 8, "backpack_small": 2, "rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
-	"locker": {"gunpowder": 2, "grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
+	"crate": {"smg_ammo": 3, "shells": 3, "sniper_ammo": 1, "energy_drink": 5, "pistol_ammo": 8, "backpack_small": 2, "rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
+	"locker": {"smg": 2, "shotgun": 2, "smg_ammo": 5, "shells": 5, "sniper_ammo": 2, "gunpowder": 2, "grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"armor_heavy": 6, "helmet_good": 5, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
-	"scav": {"energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"raider": {"red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"scav": {"smg_ammo": 10, "shells": 8, "energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
+	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
@@ -129,15 +154,15 @@ const SPECIAL_FINDS := {
 ## `place` metadata) rolls from its own table plus these weights, so a gun store's lockers are mostly guns.
 ## Places not listed (shops, offices, houses, the station...) roll the plain tables: mid loot.
 const PLACE_LOOT := {
-	"Bunker": {"scope_4x": 6, "suppressor": 5, "ext_mag": 5, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
+	"Bunker": {"sniper": 6, "sniper_ammo": 10, "scope_4x": 6, "scope_8x": 3, "suppressor": 5, "ext_mag": 5, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
 	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
 	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5},
 	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
 	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2},
-	"GunStore": {"red_dot": 10, "scope_4x": 6, "suppressor": 5, "foregrip": 8, "ext_mag": 6, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
+	"Police": {"shotgun": 10, "shells": 15, "red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2},
+	"GunStore": {"smg": 10, "shotgun": 10, "sniper": 4, "smg_ammo": 20, "shells": 20, "sniper_ammo": 10, "red_dot": 10, "scope_4x": 6, "scope_8x": 2, "suppressor": 5, "choke": 6, "foregrip": 8, "ext_mag": 6, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"Diner": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
@@ -192,8 +217,12 @@ static func roll_count(id: String) -> int:
 	match id:
 		"rifle_ammo":
 			return randi_range(20, 60)
-		"pistol_ammo":
+		"pistol_ammo", "smg_ammo":
 			return randi_range(15, 40)
+		"shells":
+			return randi_range(5, 12)
+		"sniper_ammo":
+			return randi_range(3, 10)
 		"bandage":
 			return randi_range(1, 2)
 	return 1
@@ -209,6 +238,13 @@ static func kind(id: String) -> String:
 
 static func color(id: String) -> Color:
 	return RARITY_COLORS[ITEMS[id]["rarity"]]
+
+
+## Damage multiplier at `distance` for a gun's "falloff" [from m, to m, multiplier at the far end] (1 = none).
+static func falloff_mult(falloff: Array, distance: float) -> float:
+	if falloff.size() != 3:
+		return 1.0
+	return lerpf(1.0, float(falloff[2]), clampf(inverse_lerp(float(falloff[0]), float(falloff[1]), distance), 0.0, 1.0))
 
 
 ## A weapon's stats with its attachments' on top (0.15.1): "mult" stats multiply, "set" stats replace
