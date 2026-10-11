@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.16 (drag to swap; owner asked)
+- Drop an item onto another one and they swap places (in the same grid or between your inventory and a stash,
+  crate or body), as long as each fits in the other's spot. Same items still stack instead.
+
 ## 0.14.15 (playtest fixes, batch 1; owner asked)
 - Right-clicking in the inventory no longer zooms in with your gun.
 - No shooting and throwing at once: the gun can't fire for 0.6 s after a throw, and you can't throw within 0.3 s

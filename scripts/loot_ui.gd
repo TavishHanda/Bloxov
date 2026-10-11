@@ -184,7 +184,7 @@ func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: 
 		_after_move()
 		return true
 	if not to.fits(stack.id, cell.x, cell.y, rotated, stack if to == from else null):
-		return false
+		return _swap(stack, from, to, merge_cell, rotated)
 	if to == from:
 		stack.set_spot(cell, rotated)
 		from.changed.emit()
@@ -197,6 +197,43 @@ func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: 
 		inventory.auto_bind(stack.id)
 	_after_move()
 	return true
+
+
+## Dropped onto another item it doesn't merge with (owner, 0.14.16): the two swap places, if each fits in the
+## other's spot (the dragged one at the other's top-left; the other where the dragged one was, unrotated if needed).
+func _swap(stack: ItemStack, from: GridInventory, to: GridInventory, cell: Vector2i, rotated: bool) -> bool:
+	if cell.x < 0 or cell.y < 0:
+		return false
+	var other := to.stack_at(cell)
+	if other == null or other == stack:
+		return false
+	var old_spot := Vector2i(stack.x, stack.y)
+	var old_rotated := stack.rotated
+	var other_spot := Vector2i(other.x, other.y)
+	var other_rotated := other.rotated
+	from.remove(stack)
+	to.remove(other)
+	if to.fits(stack.id, other_spot.x, other_spot.y, rotated):
+		stack.set_spot(other_spot, rotated)
+		to.place(stack)
+		for turn in [other_rotated, not other_rotated]:
+			if from.fits(other.id, old_spot.x, old_spot.y, turn):
+				other.set_spot(old_spot, turn)
+				from.place(other)
+				if inventory.grids().has(to) and not inventory.grids().has(from):
+					inventory.auto_bind(stack.id)
+				if inventory.grids().has(from) and not inventory.grids().has(to):
+					inventory.auto_bind(other.id)
+				_after_move()
+				return true
+		to.remove(stack)
+	# Doesn't fit: put both back.
+	stack.set_spot(old_spot, old_rotated)
+	from.place(stack)
+	to.place(other)
+	from.changed.emit()
+	to.changed.emit()
+	return false
 
 
 ## The stack in `grid` at `cell` that `stack` would merge into (same item, has room), or null.
