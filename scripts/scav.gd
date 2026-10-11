@@ -324,6 +324,9 @@ func _on_died() -> void:
 		drops.append([weapon_drop, 1])
 	for id in extra_drops:
 		drops.append([id, 1])
+	for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):
+		if randf() < ItemDB.TABLE_CHANCES[loot_table][id]:
+			drops.append([id, 1])
 	for stack in _gear:
 		drops.append(stack)
 	for i in randi_range(min_drops, max_drops):

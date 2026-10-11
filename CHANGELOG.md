@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.15 (playtest fixes, batch 1; owner asked)
+- Right-clicking in the inventory no longer zooms in with your gun.
+- No shooting and throwing at once: the gun can't fire for 0.6 s after a throw, and you can't throw within 0.3 s
+  of a shot.
+- Medkits are 2×1 (were 2×2) and stack to 3. (Bandages already stacked to 5.)
+- Dog tags only come off bodies (one per Raider, Bon's on Bon, a PMC tag on player bodies online), never from random
+  loot.
+- The bank vault key: a 10% chance on each Raider and a 2% chance in each crate (for now). It's no longer in
+  police and office loot.
+- Energy drink: fills your stamina, then sprinting costs no stamina for 10 s (was: half cost and double regen for
+  30 s).
+
 ## 0.14.14 (vault anything vaultable; owner asked)
 - Fences vault now: the check for a top looked 15 cm in, exactly a fence's thickness, and missed it. It looks at
   a few depths now and takes the highest.

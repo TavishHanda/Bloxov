@@ -289,7 +289,9 @@ func recoil_for_shot(n: int) -> Vector2:
 
 ## Holding the aim button with a gun out (and able to use it). Aiming stops the player from sprinting.
 func wants_aim() -> bool:
+	# (not with the inventory open, where right-click is the item menu: owner 0.14.14)
 	return (weapon != null and Input.is_action_pressed("aim") and player.hands_free()
+		and not player.interactor.blocked
 		and _aim_block_left <= 0.0)
 
 
@@ -299,13 +301,18 @@ func block_aim(seconds: float) -> void:
 	aim = 0.0
 
 
+## Seconds since the last shot.
+func since_shot() -> float:
+	return _since_shot
+
+
 func is_aiming() -> bool:
 	return aim > 0.5
 
 
 ## False while sprinting and for `raise_time` after.
 func is_ready_to_fire() -> bool:
-	return _raise_left <= 0.0
+	return _raise_left <= 0.0 and not player.is_throwing()
 
 
 func shoot_once() -> void:

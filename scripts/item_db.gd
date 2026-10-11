@@ -42,10 +42,10 @@ const ITEMS := {
 	"backpack_large": {"name": "Large Backpack", "desc": "Big army rucksack. Carry everything home.", "short": "Lg Pack", "kind": "backpack", "rarity": "rare", "w": 4, "h": 4, "stack": 1, "value": 2000, "grid": [6, 5]},
 	"grenade": {"name": "Frag Grenade", "short": "Frag", "desc": "Pull, throw, take cover. Goes off 3 seconds after it leaves your hand.",
 		"kind": "throwable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 3, "value": 600},
-	"energy_drink": {"name": "Energy Drink", "short": "Energy", "desc": "Fills your stamina, then it comes back twice as fast and sprinting costs half for 30 s.",
-		"kind": "drink", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 250, "use_time": 1.5, "boost_time": 30.0},
+	"energy_drink": {"name": "Energy Drink", "short": "Energy", "desc": "Fills your stamina, then sprinting costs none for 10 s.",
+		"kind": "drink", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 250, "use_time": 1.5, "boost_time": 10.0},
 	"bandage": {"name": "Bandage", "desc": "Stops the bleeding. Quick to use.", "kind": "heal", "rarity": "common", "w": 1, "h": 1, "stack": 5, "value": 100, "heal": 25, "use_time": 2.0},
-	"medkit": {"name": "Medkit", "desc": "Field kit. Heals a lot, takes a while.", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 400, "heal": 70, "use_time": 4.0},
+	"medkit": {"name": "Medkit", "desc": "Field kit. Heals a lot, takes a while.", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 1, "stack": 3, "value": 400, "heal": 70, "use_time": 4.0},
 	"bunker_key": {"name": "Bunker Key", "short": "Bunker", "desc": "Opens the bunker under the town hall. Bon keeps one on him.",
 		"kind": "key", "door": "BunkerDoor", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 6000},
 	"bank_vault_key": {"name": "Bank Vault Key", "short": "Vault", "desc": "Opens the vault in the bank.",
@@ -61,9 +61,9 @@ const ITEMS := {
 	"laptop": {"name": "Laptop", "desc": "Novarran office laptop. The data is worth more than the machine.", "kind": "valuable", "rarity": "rare", "w": 2, "h": 1, "stack": 1, "value": 4000},
 	"cash": {"name": "Cash Bundle", "short": "Cash", "desc": "Old Novarran notes. Still good with the traders.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"gold_bar": {"name": "Gold Bar", "short": "Gold", "desc": "Straight from the vault.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8000},
-	"dog_tag": {"name": "Raider Dog Tag", "short": "Tag", "desc": "Taken off a Raider. Proof of a kill, and traders pay for it.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 900},
-	"player_tag": {"name": "PMC Dog Tag", "short": "PMC Tag", "desc": "Taken off another player. Traders pay well for these.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2500},
-	"bon_tag": {"name": "Bon's Dog Tag", "short": "Bon Tag", "desc": "Bon's own tag. Everyone in Bloxov will want to see this.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 9000},
+	"dog_tag": {"name": "Raider Dog Tag", "short": "Tag", "desc": "Taken off a Raider. Proof of a kill, and traders pay for it.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 900, "special": true},
+	"player_tag": {"name": "PMC Dog Tag", "short": "PMC Tag", "desc": "Taken off another player. Traders pay well for these.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2500, "special": true},
+	"bon_tag": {"name": "Bon's Dog Tag", "short": "Bon Tag", "desc": "Bon's own tag. Everyone in Bloxov will want to see this.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 9000, "special": true},
 	"intel_novarra": {"name": "Novarra Field Report", "short": "Report", "desc": "Novarran army papers: patrols, supply runs, names. Someone will pay to read them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"intel_exion": {"name": "Exion Orders", "short": "Orders", "desc": "Sealed orders with the Brotherhood's X1 mark. Dangerous to carry, worth a fortune.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8500},
 	"mil_chip": {"name": "Military Chip", "desc": "Exion military hardware. Very wanted.", "short": "Chip", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7500},
@@ -90,11 +90,18 @@ const LOOT_TABLES := {
 	"locker": {"gunpowder": 2, "grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"armor_heavy": 6, "helmet_good": 5, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"raider": {"grenade": 6, "energy_drink": 4, "bank_vault_key": 1, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"raider": {"grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+}
+
+## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
+## The bank vault key: 10% on Raiders, 2% in crates (for now: later it goes in chests by place).
+const TABLE_CHANCES := {
+	"raider": {"bank_vault_key": 0.10},
+	"crate": {"bank_vault_key": 0.02},
 }
 
 ## One-off finds (0.14.12, owner): a chance, each raid, that this item is in that container (by its map name).
-## "special" items never come from random rolls, only from here.
+## "special" items never come from random rolls: only from here, or off bodies (dog tags).
 const SPECIAL_FINDS := {
 	"TownHall_Locker1": {"holy_grail": 0.15},
 	"Bank_Safe1": {"holy_grail": 0.05},   # the bank vault
@@ -107,11 +114,11 @@ const PLACE_LOOT := {
 	"Bunker": {"gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
 	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
-	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5, "bank_vault_key": 4},
+	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5},
 	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
 	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
+	"Police": {"gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2},
 	"GunStore": {"gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},

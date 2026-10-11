@@ -293,7 +293,7 @@ func _update_lean(delta: float) -> void:
 
 func _use_stamina(amount: float) -> void:
 	if drink_boost_left > 0.0:
-		amount *= 0.5
+		return   # energy drink (0.14.14, owner): no stamina drain while it lasts
 	stamina = maxf(stamina - amount, 0.0)
 	_stamina_delay_left = stamina_regen_delay
 	if stamina <= 0.0:
@@ -306,7 +306,7 @@ func _update_stamina(delta: float) -> void:
 		return
 	_stamina_delay_left -= delta
 	if _stamina_delay_left <= 0.0:
-		stamina = minf(stamina + stamina_regen * (2.0 if drink_boost_left > 0.0 else 1.0) * delta, max_stamina)
+		stamina = minf(stamina + stamina_regen * delta, max_stamina)
 	if is_exhausted and stamina >= exhausted_recover_at:
 		is_exhausted = false
 

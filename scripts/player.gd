@@ -15,6 +15,9 @@ const THROW_SOUND := preload("res://audio/throw.wav")
 const THROW_SPEED := 15.0
 const THROW_LIFT := 3.0
 const THROW_COOLDOWN := 1.0
+## The gun can't fire for this long after a throw, and you can't throw this soon after a shot (owner 0.14.14).
+const THROW_BUSY := 0.6
+const THROW_AFTER_SHOT := 0.3
 ## Blood-red sparks where the player's gun or knife hits someone.
 const HIT_COLOR := Color(0.95, 0.25, 0.2)
 ## Key 3 / the meds slot (owner, 0.9.3): a tap uses the med, holding this long switches to the next one,
@@ -377,9 +380,15 @@ func _physics_process(delta: float) -> void:
 			_fall_speed = 0.0
 
 
+## Just threw a grenade: the gun can't fire until the arm is back (0.14.14, owner: no shooting while throwing).
+func is_throwing() -> bool:
+	return _throw_cooldown_left > THROW_COOLDOWN - THROW_BUSY
+
+
 ## Throws one grenade from `stack` where you're looking (offline it does the damage; online the server's copy does).
 func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
-	if not hands_free() or _throw_cooldown_left > 0.0 or grid.take(stack.id, 1) == 0:
+	# (not mid-burst either: shooting and throwing at once, owner 0.14.14)
+	if not hands_free() or _throw_cooldown_left > 0.0 or gun.since_shot() < THROW_AFTER_SHOT or grid.take(stack.id, 1) == 0:
 		return
 	_throw_cooldown_left = THROW_COOLDOWN
 	var forward := -camera.global_basis.z

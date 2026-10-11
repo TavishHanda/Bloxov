@@ -766,6 +766,12 @@ func _section_items() -> void:
 	var flying: Array = main.get_children().filter(func(n: Node) -> bool: return n is Grenade)
 	_check(inv.count_of("grenade") == count_before - 1 and flying.size() == 1 and (flying[0] as Grenade).velocity.length() > 10.0,
 		"key 4 throws one (%d left)" % inv.count_of("grenade"))
+	_check(player.is_throwing() and not player.gun.is_ready_to_fire(), "you can't shoot while throwing")
+	player.interactor.blocked = true
+	Input.action_press("aim")
+	_check(not player.gun.wants_aim(), "right-click with the inventory open doesn't aim")
+	Input.action_release("aim")
+	player.interactor.blocked = false
 	for g in flying:
 		g.queue_free()
 	inv.take("grenade", 10)
@@ -776,13 +782,22 @@ func _section_items() -> void:
 	player.use_item(drink[0], drink[1])
 	_check(player.is_drinking(), "drinking an energy drink takes a moment")
 	await create_timer(ItemDB.item("energy_drink")["use_time"] + 0.2).timeout
-	_check(player.stamina >= player.max_stamina - 1.0 and player.drink_boost_left > 25.0 and inv.count_of("energy_drink") == 0,
-		"it fills your stamina and boosts it for 30 s")
+	var full := player.stamina
+	player._use_stamina(30.0)
+	_check(full >= player.max_stamina - 1.0 and player.stamina == full and player.drink_boost_left > 8.0 and inv.count_of("energy_drink") == 0,
+		"it fills your stamina, and sprinting costs none for 10 s")
+	player.drink_boost_left = 0.0
 	player.drink_boost_left = 0.0
 	# Dog tags.
 	var tag_raider := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
 	var tag_boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav
 	_check(tag_raider.extra_drops.has("dog_tag") and tag_boss.extra_drops.has("bon_tag"), "Raiders carry dog tags, Bon his own")
+	# Playtest fixes (0.14.14, owner): dog tags only come off bodies, the vault key from Raiders (10%) and crates (2%),
+	# medkits are 2x1 and stack to 3.
+	_check(not ItemDB.LOOT_TABLES.values().any(func(t: Dictionary) -> bool: return t.has("bank_vault_key"))
+		and ItemDB.TABLE_CHANCES["raider"]["bank_vault_key"] == 0.10 and ItemDB.TABLE_CHANCES["crate"]["bank_vault_key"] == 0.02
+		and ItemDB.item("dog_tag").get("special", false) and ItemDB.size("medkit") == Vector2i(2, 1) and ItemDB.item("medkit")["stack"] == 3,
+		"tags only off bodies, the vault key from Raiders and crates, medkits 2x1 stacking to 3")
 	# Sell items (0.14.8, owner's picks): valuables, found by place, and Bon carries the Exion Medal.
 	var sellables := ["fuel_can", "med_supplies", "novarra_badge", "hard_drive", "exion_medal", "gpu", "diamond_ring", "bolts", "wires", "gunpowder", "cpu"]
 	_check(sellables.all(func(id: String) -> bool: return ItemDB.kind(id) == "valuable" and ItemDB.description(id) != "")
@@ -3634,8 +3649,8 @@ func _section_raiders() -> void:
 	if body != null:
 		body.queue_free()
 	# The bag grows so an AK and a big backpack both fit.
-	var packed := LootContainer.spawn_bag(main, Vector3(50, 0, 50), "Test Body", [["ak", 1], ["backpack_medium", 1], ["medkit", 1], ["medkit", 1]])
-	_check(packed.grid.stacks.size() == 4, "a body bag fits an AK, a backpack and two medkits (%d of 4)" % packed.grid.stacks.size())
+	var packed := LootContainer.spawn_bag(main, Vector3(50, 0, 50), "Test Body", [["ak", 1], ["backpack_medium", 1], ["medkit", 1], ["armor_light", 1]])
+	_check(packed.grid.stacks.size() == 4, "a body bag fits an AK, a backpack, a medkit and armor (%d of 4)" % packed.grid.stacks.size())
 	packed.queue_free()
 	scav.queue_free()
 	# Flanking: in a lull, a Raider may circle around instead of trading shots, to a spot you can't see (0.12.28).
