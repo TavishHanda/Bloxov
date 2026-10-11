@@ -1292,12 +1292,25 @@ func _section_death() -> void:
 	# In a squad: downed first; once nobody is left who could revive you (they went down too), you die.
 	var teammate_up := [true]
 	player.squad_check = func() -> bool: return teammate_up[0]
+	player.inventory.secure.clear()
+	player.inventory.secure.add("crystal")
 	player.health.take_damage(9999)
 	await _frames(3)
 	_check(player.downed and not player.is_dead, "player goes down at 0 hp with a teammate up")
 	teammate_up[0] = false
 	await _frames(3)
 	_check(player.is_dead and not player.downed, "player dies once nobody is left to revive them (both down)")
+	# The death screen's lost loot leaves out the secure pocket, which comes home (owner, 0.14.19).
+	var expected_lost := 0
+	for stack in player.inventory.all_stacks():
+		if not stack in player.inventory.secure.stacks:
+			expected_lost += stack.value()
+	var real_result := raid.result
+	raid.result = "killed"
+	raid._tally_loot()
+	raid.result = real_result
+	_check(raid.loot_value == expected_lost and raid.loot_summary.size() == player.inventory.all_stacks().size() - 1,
+		"what you lost leaves out the secure pocket (%s)" % ItemDB.money(raid.loot_value))
 	player.squad_check = player.teammate_can_revive
 
 

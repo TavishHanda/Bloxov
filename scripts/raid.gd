@@ -127,12 +127,22 @@ func _on_extracted(zone: ExtractZone) -> void:
 
 
 func _finish() -> void:
-	loot_summary.clear()
-	for stack in player.inventory.all_stacks():
-		loot_summary.append(ItemDB.label(stack.id, stack.count))
-	loot_value = player.inventory.total_value()
+	_tally_loot()
 	_save_to_profile()
 	ended.emit(result)
+
+
+## The end screen's loot list and value. Killed or MIA: the secure pocket comes home, so it isn't part of what you
+## lost (owner, 0.14.19).
+func _tally_loot() -> void:
+	loot_summary.clear()
+	loot_value = 0
+	var kept: Array = player.inventory.secure.stacks if result != "extracted" else []
+	for stack in player.inventory.all_stacks():
+		if stack in kept:
+			continue
+		loot_summary.append(ItemDB.label(stack.id, stack.count))
+		loot_value += stack.value()
 
 
 ## Extracted: you keep everything you're carrying. Killed / MIA: only the secure pocket survives.
