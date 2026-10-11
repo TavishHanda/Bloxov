@@ -47,7 +47,8 @@ def scene_props(scene_text, script_name):
 def roll_counts():
     """{loot table: (min rolls, max rolls, is a body bag, makes noise)} read from the scenes and their scripts."""
     container_defaults = read_exports((ROOT / "scripts" / "loot_container.gd").read_text())
-    body_defaults = read_exports((ROOT / "scripts" / "scav.gd").read_text())
+    # (since 0.14.6 the AI's exports live in scav_base.gd, which scav.gd extends)
+    body_defaults = {**read_exports((ROOT / "scripts" / "scav_base.gd").read_text()), **read_exports((ROOT / "scripts" / "scav.gd").read_text())}
     result = {}
     for scene in sorted(SCENES.glob("*.tscn")):
         text = scene.read_text()

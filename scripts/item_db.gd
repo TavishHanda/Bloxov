@@ -67,6 +67,13 @@ const ITEMS := {
 	"intel_novarra": {"name": "Novarra Field Report", "short": "Report", "desc": "Novarran army papers: patrols, supply runs, names. Someone will pay to read them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"intel_exion": {"name": "Exion Orders", "short": "Orders", "desc": "Sealed orders with the Brotherhood's X1 mark. Dangerous to carry, worth a fortune.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8500},
 	"mil_chip": {"name": "Military Chip", "desc": "Exion military hardware. Very wanted.", "short": "Chip", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7500},
+	"fuel_can": {"name": "Fuel Can", "short": "Fuel", "desc": "Half full. Every generator in Bloxov wants it.", "kind": "valuable", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 900},
+	"med_supplies": {"name": "Medical Supplies", "short": "Meds", "desc": "Gauze, syringes, pills. Clinics pay well for them.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 800},
+	"novarra_badge": {"name": "Novarra Badge", "short": "Badge", "desc": "A Novarran soldier's unit badge. Collectors and traders want them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2000},
+	"hard_drive": {"name": "Hard Drive", "short": "HDD", "desc": "Pulled from an office computer. Nobody wiped it.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500},
+	"exion_medal": {"name": "Exion Medal", "short": "Medal", "desc": "Brotherhood medal with the X1 mark. Only their best get one.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7000},
+	"gpu": {"name": "Graphics Card", "short": "GPU", "desc": "A high-end graphics card. Worth more than most guns.", "kind": "valuable", "rarity": "epic", "w": 2, "h": 1, "stack": 1, "value": 10000},
+	"diamond_ring": {"name": "Diamond Ring", "short": "Ring", "desc": "A real diamond. Someone kept it in the vault for a reason.", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 15000},
 	"vase": {"name": "Antique Vase", "desc": "Old and fragile. Don't drop it.", "kind": "valuable", "rarity": "epic", "w": 2, "h": 2, "stack": 1, "value": 9000},
 	"crystal": {"name": "Rare Crystal", "desc": "Nobody knows where these come from. Everyone wants one.", "short": "Crystal", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 18000},
 	"golden_toilet": {"name": "Golden Toilet", "desc": "Yes, really.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 3, "stack": 1, "value": 50000},
@@ -85,20 +92,26 @@ const LOOT_TABLES := {
 ## `place` metadata) rolls from its own table plus these weights, so a gun store's lockers are mostly guns.
 ## Places not listed (shops, offices, houses, the station...) roll the plain tables: mid loot.
 const PLACE_LOOT := {
-	"Bunker": {"intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
-	"TownHall": {"intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
-	"Bank": {"cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
-	"Offices": {"intel_novarra": 5, "bank_vault_key": 4},
-	"BigHouse1": {"gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
-	"BigHouse2": {"laptop": 15, "phone": 25, "battery": 10},          # electronics
+	"Bunker": {"exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
+	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
+	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
+	"Offices": {"hard_drive": 8, "gpu": 3, "intel_novarra": 5, "bank_vault_key": 4},
+	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
+	"BigHouse2": {"gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
+	"Police": {"novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
 	"GunStore": {"ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
-	"Pharmacy": {"bandage": 45, "medkit": 25},
+	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"Diner": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
-	"Checkpoint": {"grenade": 10, "intel_novarra": 6, "intel_exion": 2},
-	"School": {"backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5, "helmet_basic": 5},
+	"Checkpoint": {"novarra_badge": 8, "grenade": 10, "intel_novarra": 6, "intel_exion": 2},
+	"GasStation": {"fuel_can": 25},
+	"GasStationTown": {"fuel_can": 25},
+	"Garage": {"fuel_can": 20},
+	"Depot": {"fuel_can": 10},
+	"Barn": {"fuel_can": 8},
+	"Junkyard": {"fuel_can": 6},
+	"School": {"med_supplies": 5, "backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5, "helmet_basic": 5},
 }
 
 

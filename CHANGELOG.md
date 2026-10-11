@@ -6,6 +6,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.8 (Items: more to sell; owner's picks)
+- Seven new valuables, picked with crafting in mind for later: **Fuel Can** ($900; gas stations, the garage,
+  depot, barn, junkyard), **Medical Supplies** ($800; the pharmacy, bunker), **Novarra Badge** ($2000; police,
+  checkpoint, town hall), **Hard Drive** ($3500; offices, town hall, the electronics house), **Exion Medal** ($7000;
+  Bon always carries one, and the bunker), **Graphics Card** ($10000; electronics house, offices, bunker) and
+  **Diamond Ring** ($15000; the bank, the jewellery house). Like every valuable, they can also turn up anywhere a
+  container rolls a random valuable of their rarity.
+- The item list tool reads the AI's loot settings from their new place after the 0.14.6 script split.
+
 ## 0.14.7 (inventory layout; owner asked)
 - The equipment slots are rearranged: primary on top, secondary under it (next to the backpack), then armor and
   helmet together. Bodies you loot show their gear the same way.

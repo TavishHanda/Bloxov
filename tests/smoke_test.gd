@@ -782,6 +782,11 @@ func _section_items() -> void:
 	var tag_raider := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
 	var tag_boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav
 	_check(tag_raider.extra_drops.has("dog_tag") and tag_boss.extra_drops.has("bon_tag"), "Raiders carry dog tags, Bon his own")
+	# Sell items (0.14.8, owner's picks): valuables, found by place, and Bon carries the Exion Medal.
+	var sellables := ["fuel_can", "med_supplies", "novarra_badge", "hard_drive", "exion_medal", "gpu", "diamond_ring"]
+	_check(sellables.all(func(id: String) -> bool: return ItemDB.kind(id) == "valuable" and ItemDB.description(id) != "")
+		and tag_boss.extra_drops.has("exion_medal") and ItemDB.PLACE_LOOT["GasStation"].has("fuel_can")
+		and ItemDB.PLACE_LOOT["Bank"].has("diamond_ring"), "the new sell items exist and are found by place")
 	tag_raider.free()
 	tag_boss.free()
 	# Loot by place: a gun store locker is mostly guns and ammo, a pharmacy crate mostly meds.
