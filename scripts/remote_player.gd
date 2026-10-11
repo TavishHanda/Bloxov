@@ -205,7 +205,7 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	if _prone > 0.5:
 		(body_shape.shape as BoxShape3D).size = Hitbox.DOWNED_BODY_SIZE
 		body_shape.position = Hitbox.DOWNED_BODY_CENTER
-		head_shape.position = Hitbox.DOWNED_HEAD_CENTER
+		head_shape.position = Hitbox.prone_head_center(_lean)
 	else:
 		(body_shape.shape as BoxShape3D).size = Hitbox.body_size(_crouch)
 		body_shape.position = Hitbox.body_center(_crouch)

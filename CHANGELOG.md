@@ -6,6 +6,9 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.7 (lean while prone; owner)
+- Q/E lean works while prone too: your head shifts sideways to peek past cover (online, your head hitbox moves with it).
+
 ## 0.13.6 (prone; owner)
 - **Prone: Z.** Lie flat: a slow crawl (1 m/s), as quiet as crouching, eyes 0.4 m off the ground, and the steadiest
   aim (spread x0.75 and recoil x0.7 on top of the crouch bonus). Z, Space or Shift gets you up (C to a crouch);

@@ -28,6 +28,12 @@ const DOWNED_BODY_SIZE := Vector3(0.8, 0.6, 1.36)
 const DOWNED_HEAD_CENTER := Vector3(0, 0.31, -1.71)
 
 
+## Lying down (prone or downed), the head box in front; leaning (prone, 0.13.7) shifts it sideways, like the
+## local player's head (player.gd lean_distance 0.35 m).
+static func prone_head_center(lean: float) -> Vector3:
+	return DOWNED_HEAD_CENTER + Vector3(lean * 0.35, 0, 0)
+
+
 ## Body box center (relative to the feet, before turning by yaw) for a crouch amount (0..1).
 static func body_center(crouch: float) -> Vector3:
 	return Vector3(0, BODY_SIZE.y * height_scale(crouch) * 0.5, 0)
@@ -58,7 +64,7 @@ static func trace(state: Array, from: Vector3, to: Vector3) -> Dictionary:
 	var best := {}
 	var parts := [[head_center(crouch, state[3]), HEAD_SIZE, true], [body_center(crouch), body_size(crouch), false]]
 	if flags & (FLAG_DOWNED | FLAG_PRONE):
-		parts = [[DOWNED_HEAD_CENTER, HEAD_SIZE, true], [DOWNED_BODY_CENTER, DOWNED_BODY_SIZE, false]]
+		parts = [[prone_head_center(state[3]), HEAD_SIZE, true], [DOWNED_BODY_CENTER, DOWNED_BODY_SIZE, false]]
 	for part in parts:
 		var box := AABB(part[0] - part[1] * 0.5, part[1])
 		var hit: Variant = box.intersects_segment(local_from, local_to)

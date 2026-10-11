@@ -817,7 +817,7 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 
 ## Which way the player wants to lean right now (-1, 0, 1).
 func lean_input() -> int:
-	if out_of_fight() or _sprinting or is_prone:
+	if out_of_fight() or _sprinting:
 		return 0
 	if GameSettings.lean_toggle:
 		return _lean_toggled

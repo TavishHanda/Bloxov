@@ -592,6 +592,13 @@ func _section_prone() -> void:
 	_check(state[4] & Hitbox.FLAG_PRONE != 0 and Hitbox.trace(state, at + Vector3(-3, 1.2, 0), at + Vector3(3, 1.2, 0)).is_empty()
 		and not Hitbox.trace(state, body + Vector3(-3, 0, 0), body + Vector3(3, 0, 0)).is_empty(),
 		"online, a prone player is hit lying down (not at standing height)")
+	# Leaning works prone too (0.13.7): the head moves over, and so does its hitbox online.
+	Input.action_press("lean_right")
+	await create_timer(0.6).timeout
+	var leaned := RemotePlayer.capture(player)
+	Input.action_release("lean_right")
+	_check(player.head.position.x > 0.2 and Hitbox.prone_head_center(leaned[3]).x > 0.2,
+		"prone, E leans the head over (%.2f m)" % player.head.position.x)
 	# A low roof overhead: can't stand (or crouch) up.
 	var roof := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
