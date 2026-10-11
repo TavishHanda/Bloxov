@@ -25,6 +25,10 @@ tie back to what's written here.
   whether the hideout is one.
 - Who the player is, and why they go on raids: a **REVENANT** contractor (see "REVENANT" below).
 - Scavs and Raiders: who they are in this world: **TBD**
+- **Bon** (owner, 2026-10-11): the boss of **Bloxov Battlegrounds**. In the game he holds the town hall and the
+  bunker under it with his guards, in heavy armor and a Combat Helmet, and carries the Bunker Key, an **Exion
+  Medal** (a Brotherhood medal with the X1 mark, "only their best get one") and his own dog tag. Who he is and how he
+  got that medal: **TBD** (owner).
 
 ## Timeline (owner's draft, 2026-10-10; can change)
 1. **The war starts.** Something sparks war between Novarra and Exion. What exactly: **TBD**.

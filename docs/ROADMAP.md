@@ -69,7 +69,7 @@ between updates. Lore is the owner's.
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
 0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
 per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Bloxov Battlegrounds) · **0.11 Scorched Earth** (cleanup, war-torn map, hills) ·
-**0.12 Scavs 2.0** (closed at 0.12.39) · **0.13 Movement** (to 0.13.9) · **0.14 Items** (the Stash update waits until closer to release).
+**0.12 Hot Zone** (Scavs 2.0, closed at 0.12.39) · **0.13 Over the Top** (Movement, to 0.13.9) · **0.14 Spoils of War** (Items) (the Stash update waits until closer to release).
 
 ## Rules while we go
 - **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.
