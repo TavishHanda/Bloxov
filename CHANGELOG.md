@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.9 (Items: crafting materials to sell; owner asked)
+- Four more valuables, meant as crafting materials later: **Bolts** ($120; junkyard, garage, shed, railyard, barn),
+  **Wires** ($180; junkyard, offices, garage, shed, the electronics house), **Gunpowder Tin** ($1000; gun store,
+  bunker, police, lockers) and **Processor** (CPU, $5000; electronics house, offices).
+
 ## 0.14.8 (Items: more to sell; owner's picks)
 - Seven new valuables, picked with crafting in mind for later: **Fuel Can** ($900; gas stations, the garage,
   depot, barn, junkyard), **Medical Supplies** ($800; the pharmacy, bunker), **Novarra Badge** ($2000; police,

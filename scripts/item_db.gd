@@ -67,6 +67,10 @@ const ITEMS := {
 	"intel_novarra": {"name": "Novarra Field Report", "short": "Report", "desc": "Novarran army papers: patrols, supply runs, names. Someone will pay to read them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"intel_exion": {"name": "Exion Orders", "short": "Orders", "desc": "Sealed orders with the Brotherhood's X1 mark. Dangerous to carry, worth a fortune.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8500},
 	"mil_chip": {"name": "Military Chip", "desc": "Exion military hardware. Very wanted.", "short": "Chip", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7500},
+	"bolts": {"name": "Bolts", "desc": "A handful of nuts and bolts. Small, but always needed.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 120},
+	"wires": {"name": "Wires", "desc": "Copper wire stripped from a wall. Useful for fixing things.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 180},
+	"gunpowder": {"name": "Gunpowder Tin", "short": "Powder", "desc": "A tin of gunpowder. Keep it away from fire.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 1000},
+	"cpu": {"name": "Processor", "short": "CPU", "desc": "A computer processor. Small, light and worth a lot.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 5000},
 	"fuel_can": {"name": "Fuel Can", "short": "Fuel", "desc": "Half full. Every generator in Bloxov wants it.", "kind": "valuable", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 900},
 	"med_supplies": {"name": "Medical Supplies", "short": "Meds", "desc": "Gauze, syringes, pills. Clinics pay well for them.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 800},
 	"novarra_badge": {"name": "Novarra Badge", "short": "Badge", "desc": "A Novarran soldier's unit badge. Collectors and traders want them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2000},
@@ -82,7 +86,7 @@ const ITEMS := {
 ## Weights. A key is either an item id or a rarity (= a random valuable of that rarity).
 const LOOT_TABLES := {
 	"crate": {"energy_drink": 5, "pistol_ammo": 8, "backpack_small": 2, "rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
-	"locker": {"grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
+	"locker": {"gunpowder": 2, "grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"armor_heavy": 6, "helmet_good": 5, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
 	"raider": {"grenade": 6, "energy_drink": 4, "bank_vault_key": 1, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
@@ -92,25 +96,27 @@ const LOOT_TABLES := {
 ## `place` metadata) rolls from its own table plus these weights, so a gun store's lockers are mostly guns.
 ## Places not listed (shops, offices, houses, the station...) roll the plain tables: mid loot.
 const PLACE_LOOT := {
-	"Bunker": {"exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
+	"Bunker": {"gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
 	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
-	"Offices": {"hard_drive": 8, "gpu": 3, "intel_novarra": 5, "bank_vault_key": 4},
+	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5, "bank_vault_key": 4},
 	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
-	"BigHouse2": {"gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
+	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
-	"GunStore": {"ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
+	"Police": {"gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
+	"GunStore": {"gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"Diner": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"Checkpoint": {"novarra_badge": 8, "grenade": 10, "intel_novarra": 6, "intel_exion": 2},
 	"GasStation": {"fuel_can": 25},
 	"GasStationTown": {"fuel_can": 25},
-	"Garage": {"fuel_can": 20},
+	"Garage": {"bolts": 15, "wires": 8, "fuel_can": 20},
 	"Depot": {"fuel_can": 10},
-	"Barn": {"fuel_can": 8},
-	"Junkyard": {"fuel_can": 6},
+	"Barn": {"fuel_can": 8, "bolts": 10},
+	"Shed": {"bolts": 15, "wires": 10},
+	"Railyard": {"bolts": 15},
+	"Junkyard": {"bolts": 20, "wires": 15, "fuel_can": 6},
 	"School": {"med_supplies": 5, "backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5, "helmet_basic": 5},
 }
 
