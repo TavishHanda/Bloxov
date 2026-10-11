@@ -18,6 +18,12 @@ const THROW_COOLDOWN := 1.0
 ## The gun can't fire for this long after a throw, and you can't throw this soon after a shot (owner 0.14.14).
 const THROW_BUSY := 0.6
 const THROW_AFTER_SHOT := 0.3
+## Grenade in hand (0.14.17, owner): key 4 pulls it out (this long), click throws it (after a short wind-up),
+## key 4 again puts it away.
+const NADE_PULL_TIME := 0.45
+const NADE_WINDUP_TIME := 0.18
+## A heal or drink can be cancelled (same key again, item back) once it's this far in: no heal-cancel spam (owner).
+const HEAL_CANCEL_AFTER := 1.0
 ## Blood-red sparks where the player's gun or knife hits someone.
 const HIT_COLOR := Color(0.95, 0.25, 0.2)
 ## Key 3 / the meds slot (owner, 0.9.3): a tap uses the med, holding this long switches to the next one,
@@ -37,6 +43,13 @@ var revive_time_left := 0.0
 var squad_check := Callable()
 var heal_duration := 0.0
 var _throw_cooldown_left := 0.0
+## The hand that holds grenades, meds and drinks (placeholder animations, 0.14.17).
+var hand: HandItem
+## 0 = no grenade out, 1 = pulling it out, 2 = holding it, 3 = winding up to throw.
+var _nade_phase := 0
+var _nade_time := 0.0
+var _nade_id := ""
+var _heal_grid: GridInventory
 ## How long key 3 (or the meds slot) has been held, -1 = not held; when it switches next; whether it switched.
 var _meds_held := -1.0
 var _meds_next_switch := 0.0
@@ -61,6 +74,8 @@ func _ready() -> void:
 			node.process_mode = Node.PROCESS_MODE_DISABLED
 		return
 	_spawn_position = global_position
+	hand = HandItem.new()
+	camera.add_child(hand)
 	inventory.equipment_changed.connect(_on_equipment_changed)
 	# Bring in the loadout from the hideout (or the starter kit on a new profile).
 	Profile.load_profile()
@@ -176,10 +191,16 @@ func _on_armor_hit(amount: int, head: bool) -> void:
 
 ## Use one item from a stack: a heal or a drink takes a few seconds (you can't shoot meanwhile); a grenade is thrown.
 func use_item(grid: GridInventory, stack: ItemStack) -> void:
+	if ItemDB.kind(stack.id) == "throwable":
+		toggle_grenade(stack.id)
+		return
+	# The same key again while healing/drinking cancels it (owner, 0.14.17).
+	if is_healing():
+		cancel_heal()
+		return
+	if _nade_phase != 0:
+		return
 	match ItemDB.kind(stack.id):
-		"throwable":
-			throw_grenade(grid, stack)
-			return
 		"drink":
 			if not hands_free():
 				return
@@ -192,6 +213,9 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	if grid.take(stack.id, 1) == 0:
 		return
 	_heal_item = stack.id
+	_heal_grid = grid
+	if hand != null:
+		hand.show_item(stack.id)
 	heal_duration = ItemDB.item(stack.id)["use_time"]
 	heal_time_left = heal_duration
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
@@ -207,8 +231,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("heal"):
 		try_heal()
 	elif event.is_action_pressed("weapon_1"):
+		put_away_grenade()
 		gun.select_slot("primary")
 	elif event.is_action_pressed("weapon_2"):
+		put_away_grenade()
 		gun.select_slot("secondary")
 	elif hotbar_index == Inventory.MEDS_KEY:
 		meds_press()
@@ -297,6 +323,10 @@ func _process(delta: float) -> void:
 				drink_boost_left = float(ItemDB.item(_heal_item)["boost_time"])
 			else:
 				health.heal(ItemDB.item(_heal_item)["heal"])
+	_update_grenade(delta)
+	# Heal done or stopped (finished, cancelled, downed...): the hand goes back down.
+	if hand != null and hand.pose == HandItem.Pose.HELD and _nade_phase == 0 and not is_healing():
+		hand.put_away()
 	drink_boost_left = maxf(drink_boost_left - delta, 0.0)
 	_throw_cooldown_left -= delta
 
@@ -380,9 +410,86 @@ func _physics_process(delta: float) -> void:
 			_fall_speed = 0.0
 
 
-## Just threw a grenade: the gun can't fire until the arm is back (0.14.14, owner: no shooting while throwing).
+## A grenade out, or just thrown: the gun can't fire until the arm is back (0.14.14, owner: no shooting while throwing).
 func is_throwing() -> bool:
-	return _throw_cooldown_left > THROW_COOLDOWN - THROW_BUSY
+	return _nade_phase != 0 or _throw_cooldown_left > THROW_COOLDOWN - THROW_BUSY
+
+
+## Healing, drinking or a grenade out: the gun is lowered out of the way.
+func hands_busy() -> bool:
+	return is_healing() or is_throwing()
+
+
+## Stops a heal or drink partway (after HEAL_CANCEL_AFTER s): no effect, and the item goes back where it came from.
+func cancel_heal() -> bool:
+	if not is_healing() or heal_duration - heal_time_left < HEAL_CANCEL_AFTER:
+		return false
+	heal_time_left = 0.0
+	var left := 1
+	if _heal_grid != null:
+		left = _heal_grid.add(_heal_item, 1)
+	for grid in inventory.grids():
+		if left > 0:
+			left = grid.add(_heal_item, left)
+	return true
+
+
+## Key 4 with a grenade bound: pull one out (then click to throw), or put it away if it's already out.
+func toggle_grenade(id: String) -> void:
+	if _nade_phase == 1 or _nade_phase == 2:
+		put_away_grenade()
+		return
+	if (_nade_phase != 0 or not hands_free() or _throw_cooldown_left > 0.0 or gun.since_shot() < THROW_AFTER_SHOT
+			or inventory.count_of(id) == 0):
+		return
+	_nade_id = id
+	_nade_phase = 1
+	_nade_time = NADE_PULL_TIME
+	if hand != null:
+		hand.show_item(id)
+
+
+func put_away_grenade() -> void:
+	if _nade_phase == 0:
+		return
+	_nade_phase = 0
+	if hand != null:
+		hand.put_away()
+
+
+## Click with a grenade out: wind up and throw it.
+func throw_held_grenade() -> void:
+	if _nade_phase != 2:
+		return
+	_nade_phase = 3
+	_nade_time = NADE_WINDUP_TIME
+	if hand != null:
+		hand.wind_up()
+
+
+func _update_grenade(delta: float) -> void:
+	if _nade_phase == 0:
+		return
+	if not hands_free():
+		put_away_grenade()
+		return
+	_nade_time -= delta
+	match _nade_phase:
+		1:
+			if _nade_time <= 0.0:
+				_nade_phase = 2
+		2:
+			if Input.is_action_just_pressed("shoot") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not interactor.blocked:
+				throw_held_grenade()
+		3:
+			if _nade_time <= 0.0:
+				_nade_phase = 0
+				var found := inventory.find(_nade_id)
+				if found.is_empty():
+					hand.put_away()
+					return
+				throw_grenade(found[0], found[1])
+				hand.throw()
 
 
 ## Throws one grenade from `stack` where you're looking (offline it does the damage; online the server's copy does).

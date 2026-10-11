@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.17 (grenade and heal animations, cancel heal; owner asked; placeholders)
+- **Grenades:** key 4 now pulls one out (the gun drops out of the way and a gloved hand brings the grenade up),
+  click throws it (a quick wind-up, then it flies), and key 4 again, or switching guns, puts it away. The fuse
+  still starts when it leaves your hand. You can't shoot or aim with a grenade out.
+- **Healing and drinking:** same as before, but now the gun lowers and the hand shows the bandage, medkit or can
+  while you use it.
+- **Cancel a heal or drink:** press the same key again (H, 3 or its hotbar key). Only after the first second (no
+  heal-cancel spam); you get the item back.
+- All placeholder looks (owner: the real art comes later in the roadmap). New `HandItem` (`scripts/hand_item.gd`).
+
 ## 0.14.16 (drag to swap; owner asked)
 - Drop an item onto another one and they swap places (in the same grid or between your inventory and a stash,
   crate or body), as long as each fits in the other's spot. Same items still stack instead.

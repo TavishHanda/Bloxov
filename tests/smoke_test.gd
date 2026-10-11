@@ -759,13 +759,21 @@ func _section_items() -> void:
 	for s2 in [near_scav, far_scav]:
 		if is_instance_valid(s2):
 			s2.queue_free()
-	# Thrown from the hotbar: flies off where you look and bounces to a stop.
+	# From the hotbar (0.14.17): key 4 pulls it out (gun lowered), a click throws it, and it flies off where you look.
 	var count_before := inv.count_of("grenade")
 	player.use_hotbar(1)
-	await physics_frame
+	_check(player.is_throwing() and player.hand.is_up() and inv.count_of("grenade") == count_before, "key 4 pulls a grenade out")
+	player.use_hotbar(1)
+	await create_timer(0.1).timeout
+	_check(not player.is_throwing() and inv.count_of("grenade") == count_before, "key 4 again puts it away")
+	await create_timer(0.6).timeout
+	player.use_hotbar(1)
+	await create_timer(player.NADE_PULL_TIME + 0.1).timeout
+	player.throw_held_grenade()
+	await create_timer(player.NADE_WINDUP_TIME + 0.05).timeout
 	var flying: Array = main.get_children().filter(func(n: Node) -> bool: return n is Grenade)
 	_check(inv.count_of("grenade") == count_before - 1 and flying.size() == 1 and (flying[0] as Grenade).velocity.length() > 10.0,
-		"key 4 throws one (%d left)" % inv.count_of("grenade"))
+		"a click throws it (%d left)" % inv.count_of("grenade"))
 	_check(player.is_throwing() and not player.gun.is_ready_to_fire(), "you can't shoot while throwing")
 	player.interactor.blocked = true
 	Input.action_press("aim")
@@ -787,7 +795,18 @@ func _section_items() -> void:
 	_check(full >= player.max_stamina - 1.0 and player.stamina == full and player.drink_boost_left > 8.0 and inv.count_of("energy_drink") == 0,
 		"it fills your stamina, and sprinting costs none for 10 s")
 	player.drink_boost_left = 0.0
-	player.drink_boost_left = 0.0
+	# Cancel (0.14.17, owner): the same key again, only after 1 s, and you get the item back.
+	inv.add("energy_drink")
+	drink = inv.find("energy_drink")
+	player.use_item(drink[0], drink[1])
+	player.use_item(drink[0], drink[1])
+	var early := player.is_drinking()
+	await create_timer(player.HEAL_CANCEL_AFTER + 0.1).timeout
+	player.use_item(drink[0], drink[1])
+	var cancelled := not player.is_drinking()
+	_check(early and cancelled and inv.count_of("energy_drink") == 1,
+		"a drink can't be cancelled in its first second, then can be, and you keep it")
+	inv.take("energy_drink", 1)
 	# Dog tags.
 	var tag_raider := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
 	var tag_boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav

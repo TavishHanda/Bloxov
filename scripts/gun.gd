@@ -218,7 +218,7 @@ func _process(delta: float) -> void:
 	else:
 		_raise_left = maxf(_raise_left - delta, 0.0)
 
-	if not player.hands_free():
+	if not player.hands_free() or player.is_throwing():
 		_needs_trigger_release = true
 		return
 	# Quick melee works with or without a gun; it cancels a reload (no rounds lost).
@@ -291,7 +291,7 @@ func recoil_for_shot(n: int) -> Vector2:
 func wants_aim() -> bool:
 	# (not with the inventory open, where right-click is the item menu: owner 0.14.14)
 	return (weapon != null and Input.is_action_pressed("aim") and player.hands_free()
-		and not player.interactor.blocked
+		and not player.interactor.blocked and not player.is_throwing()
 		and _aim_block_left <= 0.0)
 
 
@@ -445,7 +445,11 @@ func _update_model(delta: float) -> void:
 	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(ADS_POSITIONS[_model_key], aim)
 	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
-	if sprinting:
+	if player.hands_busy():
+		# Lowered out of the way while the other hand heals, drinks or holds a grenade (0.14.17).
+		target_pos += Vector3(0.04, -0.32, 0.1)
+		target_rot += Vector3(-0.8, 0.3, 0.2)
+	elif sprinting:
 		# Gun held low and across the body.
 		target_pos += Vector3(-0.08, -0.1, 0.06)
 		target_rot += Vector3(-0.35, 0.85, 0.35)
