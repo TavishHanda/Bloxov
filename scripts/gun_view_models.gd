@@ -4,9 +4,11 @@ extends RefCounted
 ## the AK and pistol in player.tscn (dark body, orange accents). Mechanics only for now (owner): the art pass swaps
 ## real models in. Each model has a "Muzzle" marker with the muzzle flash (copied from the AK's) like the others.
 
+## Turned a little at the hip so its side shows (the shotgun's pump), straight when aimed.
+const REST_TURN := {"shotgun": Vector3(0.0, 0.35, 0.12)}
 ## Where each model sits at rest, and when aimed (its sight just under the middle of the screen).
 const REST := {"smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2, -0.42), "sniper": Vector3(0.22, -0.2, -0.44)}
-const ADS := {"smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.066, -0.38), "sniper": Vector3(0, -0.084, -0.4)}
+const ADS := {"smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.072, -0.38), "sniper": Vector3(0, -0.084, -0.4)}
 
 ## Boxes: [size, position, accent?, optional name ("Mag": an extended mag stretches it)]. Muzzle: where shots
 ## and the flash come out.
@@ -22,14 +24,21 @@ const PARTS := {
 		"muzzle": Vector3(0, 0.01, -0.25),
 	},
 	"shotgun": {
+		# Pump shotgun: a fat barrel with the shell tube under it, a chunky pump around the tube, a stubby
+		# receiver with no box mag, a pistol grip and a wide stock (owner: the first one didn't read as a shotgun).
 		"boxes": [
-			[Vector3(0.075, 0.09, 0.3), Vector3.ZERO, false],               # receiver
-			[Vector3(0.045, 0.045, 0.42), Vector3(0, 0.015, -0.33), false],  # barrel
-			[Vector3(0.06, 0.05, 0.14), Vector3(0, -0.035, -0.28), true],    # pump
-			[Vector3(0.06, 0.1, 0.18), Vector3(0, -0.02, 0.23), true],       # stock
-			[Vector3(0.015, 0.02, 0.02), Vector3(0, 0.05, -0.52), false],    # bead sight
+			[Vector3(0.07, 0.1, 0.2), Vector3(0, 0, 0.02), false],             # receiver
+			[Vector3(0.05, 0.05, 0.5), Vector3(0, 0.025, -0.33), false],      # barrel
+			[Vector3(0.042, 0.042, 0.42), Vector3(0, -0.028, -0.29), false],  # shell tube under the barrel
+			[Vector3(0.085, 0.072, 0.16), Vector3(0, -0.03, -0.27), true],    # pump
+			[Vector3(0.088, 0.075, 0.012), Vector3(0, -0.03, -0.23), false],  # pump grooves
+			[Vector3(0.088, 0.075, 0.012), Vector3(0, -0.03, -0.27), false],
+			[Vector3(0.088, 0.075, 0.012), Vector3(0, -0.03, -0.31), false],
+			[Vector3(0.045, 0.1, 0.05), Vector3(0, -0.08, 0.09), false],      # pistol grip
+			[Vector3(0.065, 0.11, 0.2), Vector3(0, -0.03, 0.22), true],       # stock
+			[Vector3(0.018, 0.02, 0.02), Vector3(0, 0.06, -0.56), true],      # bead sight
 		],
-		"muzzle": Vector3(0, 0.015, -0.55),
+		"muzzle": Vector3(0, 0.025, -0.59),
 	},
 	"sniper": {
 		"boxes": [
@@ -88,7 +97,7 @@ const MOUNTS := {
 	"rifle": {"top": Vector2(0.09, -0.02), "grip": Vector3(0, -0.075, -0.22)},
 	"pistol": {"top": Vector2(0.03, -0.01), "grip": Vector3.ZERO},
 	"smg": {"top": Vector2(0.0775, 0.0), "grip": Vector3(0, -0.06, -0.16)},
-	"shotgun": {"top": Vector2(0.045, -0.06), "grip": Vector3(0, -0.085, -0.3)},
+	"shotgun": {"top": Vector2(0.05, 0.02), "grip": Vector3(0, -0.085, -0.2)},
 	"sniper": {"top": Vector2(0.075, -0.02), "grip": Vector3(0, -0.055, -0.3)},
 }
 ## Placeholder looks: [size, accent?]. Optics sit on top, barrel parts on the muzzle (moving it forward by their

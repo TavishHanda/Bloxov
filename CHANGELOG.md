@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.7 (The Mauler looks like a shotgun; owner: "i cant tell what it is")
+- New placeholder shape for the Mauler: a fat barrel with the shell tube under it, a big ridged orange pump, a
+  short receiver with no mag, a pistol grip and a wide stock. At the hip it's turned a little so you see the pump
+  side on; aimed, it lines up straight down the barrel to the bead sight.
+
 ## 0.15.6 (Gun feel: attachments show on the gun, pump and bolt action)
 - Attachments show on the gun in your hands: sights and scopes on top, a suppressor or choke on the muzzle (the
   flash moves out to its end), a foregrip under the barrel, a longer extended mag. Aiming with a red dot lines

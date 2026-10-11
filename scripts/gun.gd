@@ -530,7 +530,7 @@ func _update_model(delta: float) -> void:
 	var ads: Vector3 = _ads_positions[_model_key] - Vector3(0, _optic_raise, 0)
 	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(ads, aim)
 	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
-	var target_rot := Vector3(0.12 * _kick, 0, 0)
+	var target_rot := Vector3(0.12 * _kick, 0, 0) + (GunViewModels.REST_TURN.get(_model_key, Vector3.ZERO) as Vector3) * (1.0 - aim)
 	if player.hands_busy():
 		# Lowered out of the way while the other hand heals, drinks or holds a grenade (0.14.17).
 		target_pos += Vector3(0.04, -0.32, 0.1)
