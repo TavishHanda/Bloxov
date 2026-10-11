@@ -56,7 +56,9 @@ min_drops = 4
 max_drops = 6
 loot_table = "raider"
 body_name = "Bon"
-extra_drops = PackedStringArray("armor_heavy", "bunker_key")
+extra_drops = PackedStringArray("bunker_key")
+armor = "armor_heavy"
+helmet = "helmet_good"
 weapon_drop_chance = 1.0
 weapon_drop = "ak"
 burst_color = Color(0.66, 0.6, 0.42, 1)
@@ -74,7 +76,6 @@ shape = SubResource("HeadBox")
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 250
-damage_multiplier = 0.75
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 transform = Transform3D(1.12, 0, 0, 0, 1.12, 0, 0, 0, 1.12, 0, 0, 0)

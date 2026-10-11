@@ -18,7 +18,7 @@ extends StaticBody3D
 
 ## Bodies' gear slots, in the same order as the player's (Inventory.SLOTS; not referenced here so the server's
 ## loot code doesn't pull in player scripts).
-const GEAR_SLOTS: Array[String] = ["primary", "secondary", "armor", "backpack"]
+const GEAR_SLOTS: Array[String] = ["primary", "secondary", "armor", "helmet", "backpack"]
 
 ## Pockets: the loose loot (for bodies, everything that isn't in a gear slot).
 var grid: GridInventory

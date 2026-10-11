@@ -26,7 +26,7 @@ var proxies := {}
 var raid: Node
 
 ## A scav hurt or bashed a player: Network passes it on to their game.
-signal player_hit(peer: int, amount: int, from: Vector3)
+signal player_hit(peer: int, amount: int, from: Vector3, head: bool)
 signal player_bashed(peer: int, amount: int, from: Vector3, shove: float, aim_block: float)
 ## Something a scav did that everyone in the raid should see/hear: kind is "fired" (pos = where the shot ended),
 ## "alerted", "bash" or "died" (pos = where).
@@ -185,7 +185,7 @@ func update_proxy(peer: int, state: Array) -> void:
 		body.health.damaged.connect(func(amount: int, from: Vector3) -> void:
 			# The player's own game owns their health (and armor): pass the hit on, keep the proxy alive.
 			body.health.current = body.health.max_health
-			player_hit.emit(peer, amount, from))
+			player_hit.emit(peer, amount, from, body.health.last_hit_head))
 		body.bashed.connect(func(amount: int, from: Vector3, shove: float, block: float) -> void:
 			player_bashed.emit(peer, amount, from, shove, block))
 		proxies[peer] = body

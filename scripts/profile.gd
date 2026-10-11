@@ -181,7 +181,7 @@ static func apply_inventory(inventory: Inventory, data: Dictionary) -> void:
 	if not equipment is Dictionary:
 		equipment = {}
 	# Backpack first, so its grid exists before its contents are read. Items that no longer exist are dropped.
-	for slot in ["backpack", "primary", "secondary", "armor"]:
+	for slot in ["backpack", "primary", "secondary", "armor", "helmet"]:
 		var entry = equipment.get(slot)
 		if entry is Dictionary and ItemDB.ITEMS.has(str(entry.get("id", ""))):
 			inventory.equip(slot, _read_stack(entry))

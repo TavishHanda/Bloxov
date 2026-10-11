@@ -118,6 +118,9 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var burst_interval := 0.13
 @export var burst_cooldown_min := 0.75
 @export var burst_cooldown_max := 1.0
+## Of its hits on a player, this share land on the head (0.14.2: the helmet takes those, the armor the rest). The
+## damage is the same either way: AI don't get headshot damage.
+const HEAD_HIT_CHANCE := 0.15
 ## Time to kill: 15 = an unarmored player (100 HP) dies in 7 hits (9 with light armor, 12 with heavy).
 @export var shot_damage := 15
 ## Chance each bullet hits: accuracy_near up close, accuracy_far at accuracy_range, then down to accuracy_long at
@@ -264,8 +267,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var body_name := "Scav Body"
 ## Chance its gun ends up on its body too (in the Primary slot) (owner, 0.11.11: Raiders sometimes drop their AK).
 @export_range(0.0, 1.0) var weapon_drop_chance := 0.0
-## Always on its body, on top of the rolled loot (Bon, the boss: heavy armor, owner).
+## Always on its body, on top of the rolled loot (Bon, the boss: the bunker key).
 @export var extra_drops := PackedStringArray()
+## Gear it wears (ItemDB ids, "" = none; 0.14.2, owner): the armor protects its body and the helmet its head the same
+## way they protect a player, wear down from hits the same way, and end up on its body as they are.
+@export var armor := ""
+@export var helmet := ""
 ## Item id of that gun.
 @export var weapon_drop := ""
 
@@ -395,6 +402,7 @@ func _ready() -> void:
 	_meshes = model.find_children("*", "GeometryInstance3D", true, false)
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	_wear_gear()
 	_heals_left = heals
 	_voice = voice_pitch * randf_range(0.92, 1.08)
 	# Its own copies of the hit shapes, so crouching this one doesn't shrink every scav.
@@ -1677,7 +1685,7 @@ func _fire_at_target(dist: float) -> void:
 	if not result.is_empty():
 		end = result.position
 		if result.collider == _target:
-			_target.health.take_damage(shot_damage, global_position)
+			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 
@@ -1698,7 +1706,7 @@ func _fire_at_point(point: Vector3) -> void:
 	if not result.is_empty():
 		end = result.position
 		if result.collider == _target:
-			_target.health.take_damage(shot_damage, global_position)
+			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 	fired.emit(end)
@@ -2095,6 +2103,34 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 		_alert(source_position, startle_reaction_time)
 
 
+## Its armor and helmet, worn (see `armor`).
+var _gear: Array[ItemStack] = []
+
+
+func _wear_gear() -> void:
+	for id in [armor, helmet]:
+		if ItemDB.ITEMS.has(id):
+			_gear.append(ItemStack.new(id))
+	_update_gear()
+	health.armor_hit.connect(func(amount: int, head: bool) -> void:
+		var hit_gear := _gear_for(head)
+		if hit_gear != null and hit_gear.durability > 0:
+			ItemDB.wear(hit_gear, amount)
+			_update_gear())
+
+
+func _gear_for(head: bool) -> ItemStack:
+	for stack in _gear:
+		if (ItemDB.kind(stack.id) == "helmet") == head:
+			return stack
+	return null
+
+
+func _update_gear() -> void:
+	health.damage_multiplier = 1.0 - ItemDB.reduction(_gear_for(false))
+	health.head_multiplier = 1.0 - ItemDB.reduction(_gear_for(true))
+
+
 func _on_died() -> void:
 	state = State.DEAD
 	remove_from_group("enemies")
@@ -2111,6 +2147,8 @@ func _on_died() -> void:
 		drops.append([weapon_drop, 1])
 	for id in extra_drops:
 		drops.append([id, 1])
+	for stack in _gear:
+		drops.append(stack)
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])

@@ -12,7 +12,7 @@ signal meds_switched
 ## Something was equipped or unequipped (the screen rebuilds, the gun/armor update).
 signal equipment_changed
 
-const SLOTS: Array[String] = ["primary", "secondary", "armor", "backpack"]
+const SLOTS: Array[String] = ["primary", "secondary", "armor", "helmet", "backpack"]
 const HOTBAR_SIZE := 3
 ## Hotbar indexes (0 = key 3): the meds key, the knife key, and the keys items can be bound to.
 const MEDS_KEY := 0
@@ -26,7 +26,7 @@ var pockets: GridInventory
 var secure: GridInventory
 ## The equipped backpack's grid, or null with no backpack.
 var backpack: GridInventory = null
-var equipment := {"primary": null, "secondary": null, "armor": null, "backpack": null}
+var equipment := {"primary": null, "secondary": null, "armor": null, "helmet": null, "backpack": null}
 ## Item ids on the hotbar: index 0 = key 3 (meds), 1 = key 4 (one bindable slot, for grenades later), 2 = the knife (V).
 ## "" = empty; only BINDABLE_KEYS are ever filled. (Owner, 0.9.0: 1, 2, 3, 4, V; was 3-6.)
 var hotbar: Array[String] = ["", "", ""]
@@ -98,18 +98,21 @@ func unequip(slot: String) -> ItemStack:
 
 ## Armor damage reduction (0 to 1). Worn armor stops less: its reduction times how much of it is left (0.14.0).
 func armor_reduction() -> float:
-	var armor: ItemStack = equipment["armor"]
-	return float(ItemDB.item(armor.id)["reduction"]) * armor.condition() if armor != null else 0.0
+	return ItemDB.reduction(equipment["armor"])
 
 
-## A hit of `damage` (before armor) landed on the armor: it loses the part it stops when new (at least 1 point).
-## Returns true if that changed it.
-func wear_armor(damage: int) -> bool:
-	var armor: ItemStack = equipment["armor"]
+## The helmet's reduction for hits on the head (0.14.2).
+func helmet_reduction() -> float:
+	return ItemDB.reduction(equipment["helmet"])
+
+
+## A hit of `damage` (before armor) landed on the armor (or the helmet: `head`): it loses the part it stops when new
+## (at least 1 point). Returns true if that changed it.
+func wear_armor(damage: int, head := false) -> bool:
+	var armor: ItemStack = equipment["helmet" if head else "armor"]
 	if armor == null or armor.durability <= 0 or damage <= 0:
 		return false
-	var wear := maxi(roundi(mini(damage, 100) * float(ItemDB.item(armor.id)["reduction"])), 1)
-	armor.durability = maxi(armor.durability - wear, 0)
+	ItemDB.wear(armor, damage)
 	changed.emit()
 	return true
 

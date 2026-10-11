@@ -6,6 +6,17 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.2 (helmets, AI wear their gear; owner)
+- **Helmets**, in a new Helmet slot next to the backpack: the **Old Helmet** (uncommon, -25% on hits to the head,
+  40 durability, $1,000) and the **Combat Helmet** (rare, -45%, 80 durability, $3,000). They wear down from hits like
+  armor. Body armor now covers the body only; the helmet covers the head. The trader sells the Old Helmet; both turn
+  up in lockers, safes, the police station, the school (old) and the bunker (combat).
+- AI land some of their hits on your head (15%): same damage as before, but those go to your helmet, not your armor.
+- **AI wear real gear** (owner): Raiders wear light armor and an Old Helmet, Bon heavy armor and a Combat Helmet. It
+  protects them exactly like it protects you (body and head separately), wears down from your hits, and is on their
+  body when they die, as worn as you left it. (Before, Raiders took a flat x0.8 and Bon x0.75 everywhere; Raiders are
+  about the same now, Bon is tougher until his gear wears down.) Raiders no longer roll extra armor in their loot.
+
 ## 0.14.1 (AI climb through windows; owner: "if it fits in seamlessly")
 - The AI climb through ground-floor windows the same way they vault fences: only when it's clearly shorter than the
   door (it costs them about 3 m of walking), ducking through the gap, no shooting while they do. Only windows with

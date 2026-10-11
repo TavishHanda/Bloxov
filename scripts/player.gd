@@ -449,11 +449,12 @@ func _hotbar_key(event: InputEvent) -> int:
 
 func _on_equipment_changed() -> void:
 	health.damage_multiplier = 1.0 - inventory.armor_reduction()
+	health.head_multiplier = 1.0 - inventory.helmet_reduction()
 
 
-## Hits wear the armor down (0.14.0), and worn armor stops less from the next one.
-func _on_armor_hit(amount: int) -> void:
-	if inventory.wear_armor(amount):
+## Hits wear the armor (or on the head, the helmet) down (0.14.0), and worn gear stops less from the next one.
+func _on_armor_hit(amount: int, head: bool) -> void:
+	if inventory.wear_armor(amount, head):
 		_on_equipment_changed()
 
 

@@ -55,6 +55,8 @@ loot_table = "raider"
 body_name = "Raider Body"
 weapon_drop_chance = 0.3
 weapon_drop = "ak"
+armor = "armor_light"
+helmet = "helmet_basic"
 burst_color = Color(0.66, 0.6, 0.42, 1)
 suppress_chance = 1.0
 net_kind = 1
@@ -71,7 +73,6 @@ shape = SubResource("HeadBox")
 [node name="Health" type="Node" parent="."]
 script = ExtResource("2_health")
 max_health = 100
-damage_multiplier = 0.8
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")

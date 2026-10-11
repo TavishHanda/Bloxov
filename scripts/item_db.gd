@@ -13,7 +13,7 @@ const RARITY_COLORS := {
 
 ## kind: "valuable" (worth money), "heal" (press H or Use), "ammo" (loaded into guns when you reload),
 ##       "weapon" (Primary/Secondary slot), "armor" (Armor slot), "backpack" (Backpack slot; "grid" = its inventory size),
-##       "key" (opens the key door named by "door"; carry it anywhere on you)
+##       "helmet" (Helmet slot; "reduction" applies to hits on the head), "key" (opens the key door named by "door"; carry it anywhere on you)
 ## w/h: size in grid cells (before rotation). stack: how many fit in one cell stack. value: price of ONE (new).
 ## desc: the line the inventory shows about it.
 ## durability (0.14.0): armor points (hits wear it down, worn armor protects less) or a key's uses. Each item keeps
@@ -31,6 +31,10 @@ const ITEMS := {
 		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0},
 	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Wears down as it takes hits, and protects less as it does.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 1500, "reduction": 0.2, "durability": 60},
 	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot, wears down as it takes hits.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 4000, "reduction": 0.4, "durability": 120},
+	"helmet_basic": {"name": "Old Helmet", "short": "Old Helm", "desc": "Dented steel pot. Better than nothing on your head.",
+		"kind": "helmet", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 1000, "reduction": 0.25, "durability": 40},
+	"helmet_good": {"name": "Combat Helmet", "short": "Combat", "desc": "Army helmet. Takes a hit to the head well, wears down as it does.",
+		"kind": "helmet", "rarity": "rare", "w": 2, "h": 2, "stack": 1, "value": 3000, "reduction": 0.45, "durability": 80},
 	"backpack_small": {"name": "Small Backpack", "desc": "A school bag. Better than pockets.", "short": "Sm Pack", "kind": "backpack", "rarity": "common", "w": 3, "h": 3, "stack": 1, "value": 400, "grid": [4, 3]},
 	"backpack_medium": {"name": "Medium Backpack", "desc": "Hiking pack with room for a good haul.", "short": "Md Pack", "kind": "backpack", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 900, "grid": [5, 4]},
 	"backpack_large": {"name": "Large Backpack", "desc": "Big army rucksack. Carry everything home.", "short": "Lg Pack", "kind": "backpack", "rarity": "rare", "w": 4, "h": 4, "stack": 1, "value": 2000, "grid": [6, 5]},
@@ -60,29 +64,29 @@ const ITEMS := {
 ## Weights. A key is either an item id or a rarity (= a random valuable of that rarity).
 const LOOT_TABLES := {
 	"crate": {"pistol_ammo": 8, "backpack_small": 2, "rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
-	"locker": {"pistol": 5, "armor_light": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
-	"safe": {"armor_heavy": 6, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
+	"locker": {"pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
+	"safe": {"armor_heavy": 6, "helmet_good": 5, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"raider": {"bank_vault_key": 1, "pistol": 5, "armor_light": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"raider": {"bank_vault_key": 1, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 ## Loot by place (0.14.0, MAP_PLAN.md "Loot by place"): a container tagged with one of these places (its
 ## `place` metadata) rolls from its own table plus these weights, so a gun store's lockers are mostly guns.
 ## Places not listed (shops, offices, houses, the station...) roll the plain tables: mid loot.
 const PLACE_LOOT := {
-	"Bunker": {"legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "ak": 8, "rifle_ammo": 15},
+	"Bunker": {"legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"bunker_key": 3, "uncommon": 10},
 	"Bank": {"cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
 	"Offices": {"bank_vault_key": 4},
 	"BigHouse1": {"gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
 	"BigHouse2": {"laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"armor_light": 15, "armor_heavy": 4, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
+	"Police": {"armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2, "bank_vault_key": 3},
 	"GunStore": {"ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"bandage": 45, "medkit": 25},
 	"Grocery": {"beans": 30, "water": 30, "ration": 10},
 	"Diner": {"beans": 30, "water": 30, "ration": 10},
-	"School": {"backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5},
+	"School": {"backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5, "helmet_basic": 5},
 }
 
 
@@ -150,6 +154,8 @@ static func equip_slot(id: String) -> String:
 			return ITEMS[id]["slot"]
 		"armor":
 			return "armor"
+		"helmet":
+			return "helmet"
 		"backpack":
 			return "backpack"
 	return ""
@@ -165,10 +171,23 @@ static func max_durability(id: String) -> int:
 	return int(ITEMS[id].get("durability", 0))
 
 
+## How much of a hit an armor or helmet stack stops (0 to 1, 0 for none): its reduction times how much is left.
+static func reduction(stack: ItemStack) -> float:
+	if stack == null or not ITEMS[stack.id].has("reduction"):
+		return 0.0
+	return float(ITEMS[stack.id]["reduction"]) * stack.condition()
+
+
+## A hit of `damage` (before armor) wore `stack` down: it loses the part it stops when new (at least 1 point).
+static func wear(stack: ItemStack, damage: int) -> void:
+	var lost := maxi(roundi(mini(damage, 100) * float(ITEMS[stack.id]["reduction"])), 1)
+	stack.durability = maxi(stack.durability - lost, 0)
+
+
 ## Durability of one found in a raid: armor turns up worn (40-100%), keys with all their uses.
 static func found_durability(id: String) -> int:
 	var most := max_durability(id)
-	if kind(id) == "armor":
+	if kind(id) in ["armor", "helmet"]:
 		return randi_range(ceili(most * 0.4), most)
 	return most
 

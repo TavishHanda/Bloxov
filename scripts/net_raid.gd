@@ -252,10 +252,11 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 			puppet.net_died()
 
 
-## Another player's shot hit us (the server checked it): our armor applies as for any other hit.
-func apply_hit(amount: int, from: Vector3, _headshot: bool) -> void:
+## A hit the server sent (another player's shot, or online an AI's): our armor, or on the head our helmet, applies
+## as for any other hit.
+func apply_hit(amount: int, from: Vector3, headshot: bool) -> void:
 	if not player.controls_locked():
-		player.health.take_damage(amount, from)
+		player.health.take_damage(amount, from, false, headshot)
 
 
 func _on_shot_confirmed(headshot: bool) -> void:

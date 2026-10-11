@@ -81,7 +81,7 @@ func _strike() -> void:
 	var victim: Node3D = target.node
 	var backstab := _is_behind(victim)
 	# A backstab always kills, armor or not (enough damage to get through the armor multiplier).
-	var amount := ceili(health.current / maxf(health.damage_multiplier, 0.01)) if backstab else damage
+	var amount := ceili(health.current / maxf(minf(health.damage_multiplier, health.head_multiplier), 0.01)) if backstab else damage
 	var dealt := health.take_damage(amount, player.global_position)
 	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
 	player.on_hit_landed(health, target.position, target.normal, dealt, backstab)

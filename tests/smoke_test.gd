@@ -281,7 +281,9 @@ func _section_ttk() -> void:
 	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
 	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 2,
 		"scav: 4 AK body shots or 2 headshots")
-	_check(hits_to_kill.call(raider_health.max_health, ak_damage * raider_health.damage_multiplier) == 5, "armored Raider: 5 AK body shots")
+	_check(raider_probe.armor == "armor_light" and raider_probe.helmet == "helmet_basic"
+		and hits_to_kill.call(raider_health.max_health, ak_damage * (1.0 - ItemDB.item(raider_probe.armor)["reduction"])) == 5,
+		"Raiders wear light armor and an old helmet: 5 AK body shots")
 	var pistol_data := ItemDB.item("pistol")
 	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 6 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 3,
 		"pistol: 6 body shots or 3 headshots")
@@ -689,7 +691,44 @@ func _section_items() -> void:
 	inv.unequip("armor")
 	if old_armor != null:
 		inv.equip("armor", old_armor)
+	# Helmets (0.14.2): hits on the head go to the helmet, not the armor.
+	var vest2 := ItemStack.new("armor_light")
+	var helm := ItemStack.new("helmet_basic")
+	var old_helmet := inv.unequip("helmet") if inv.equipped("helmet") != null else null
+	old_armor = inv.unequip("armor") if inv.equipped("armor") != null else null
+	inv.equip("armor", vest2)
+	inv.equip("helmet", helm)
+	hp = player.health.current
+	player.health.take_damage(40, Vector3.ZERO, false, true)
+	_check(player.health.current == hp - 30 and helm.durability == 30 and vest2.durability == 60,
+		"a 40 head hit: the old helmet stops 25%% and wears (%d/40), the armor doesn't" % helm.durability)
+	_check(is_equal_approx(player.health.head_multiplier, 1.0 - 0.25 * 30.0 / 40.0) and is_equal_approx(player.health.damage_multiplier, 0.8),
+		"a worn helmet stops less on the head; the body still has its armor")
+	inv.unequip("helmet")
+	inv.unequip("armor")
+	_check(player.health.head_multiplier == 1.0 and Scav.HEAD_HIT_CHANCE > 0.0, "no helmet: head hits get through (AI land some hits on the head)")
+	if old_helmet != null:
+		inv.equip("helmet", old_helmet)
+	if old_armor != null:
+		inv.equip("armor", old_armor)
 	player.health.current = player.health.max_health
+	# AI wear their gear: it protects them, wears, and ends up on their body as it is.
+	var gear_raider := _spawn(RAIDER_SCENE, player.global_position + Vector3(30, 0, 30)) as Scav
+	await physics_frame
+	gear_raider.health.take_damage(20)
+	_check(is_equal_approx(gear_raider.health.damage_multiplier, 1.0 - 0.2 * 56.0 / 60.0), "a Raider's armor wore from a hit (x%.3f)" % gear_raider.health.damage_multiplier)
+	var raider_name := gear_raider.body_name
+	gear_raider.health.take_damage(1000)
+	await physics_frame
+	await physics_frame
+	var raider_body: LootContainer = null
+	for bag in get_nodes_in_group("loot_containers"):
+		if bag.display_name == raider_name:
+			raider_body = bag
+	_check(raider_body != null and raider_body.gear["armor"].count_of("armor_light") == 1 and raider_body.gear["helmet"].count_of("helmet_basic") == 1
+		and raider_body.gear["armor"].stacks[0].durability < 56, "its body has the armor and helmet it wore, worn")
+	if raider_body != null:
+		raider_body.queue_free()
 	# Durability goes over the network and into the save.
 	var sent := GridInventory.data_stack(GridInventory.stack_data(vest))
 	var saved := Profile._read_stack(Profile._write_stack(vest))
@@ -905,7 +944,7 @@ func _section_loot_ui() -> void:
 	loot_ui.open_for(corpse)
 	await process_frame
 	var slot_views := loot_ui._views.filter(func(v: Control) -> bool: return v is SlotGridView)
-	_check(slot_views.size() == 4, "the loot screen shows a body's 4 gear slots (%d)" % slot_views.size())
+	_check(slot_views.size() == 5, "the loot screen shows a body's 5 gear slots (%d)" % slot_views.size())
 	var body_ak: ItemStack = corpse.gear["primary"].stacks[0]
 	var my_ak := inv.equipped("primary")
 	_check(loot_ui.equip_from_grid(corpse.gear["primary"], body_ak, "primary") and inv.equipped("primary") == body_ak
@@ -2687,7 +2726,9 @@ func _section_boss() -> void:
 	_check(the_boss.get_node("Health").max_health > 2 * raider.get_node("Health").max_health and the_boss.shot_damage > raider.shot_damage
 		and the_boss.heals > raider.heals and the_boss.weapon_drop_chance == 1.0 and the_boss.max_drops > raider.max_drops,
 		"the boss is much tougher than a Raider, hits harder and always carries its rifle and more loot")
-	_check(the_boss.body_name == "Bon" and the_boss.extra_drops.has("armor_heavy"), "the boss is Bon and always carries heavy armor (owner)")
+	_check(the_boss.body_name == "Bon" and the_boss.armor == "armor_heavy" and the_boss.helmet == "helmet_good"
+		and is_equal_approx(the_boss.health.damage_multiplier, 0.6) and is_equal_approx(the_boss.health.head_multiplier, 0.55),
+		"the boss is Bon and wears heavy armor and a combat helmet, which protect him like a player (owner)")
 	raider.free()
 	var offsets := guards.map(func(g: Scav) -> Vector3: return g.follow_offset)
 	_check(offsets.size() == 3 and offsets[0] != offsets[1] and offsets[1] != offsets[2], "each guard has its own spot round the boss")

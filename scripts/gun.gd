@@ -412,7 +412,7 @@ func _handle_hit(result: Dictionary) -> void:
 		headshot = shape_node != null and shape_node.name == &"HeadShape"
 
 	var amount := roundi(damage * (headshot_multiplier if headshot else 1.0))
-	var dealt := health.take_damage(amount, player.global_position)
+	var dealt := health.take_damage(amount, player.global_position, false, headshot)
 	player.on_hit_landed(health, hit_pos, normal, dealt, headshot)
 	if health.is_dead:
 		Effects.sound(world, KILL_SOUND, -2.0, 0.0)

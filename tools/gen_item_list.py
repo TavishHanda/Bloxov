@@ -11,7 +11,7 @@ SOURCE = ROOT / "scripts" / "item_db.gd"
 SCENES = ROOT / "scenes"
 OUT = ROOT / "docs" / "ITEMS.md"
 RARITIES = ["common", "uncommon", "rare", "epic", "legendary"]
-KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "key": "Key", "valuable": "Valuable"}
+KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "helmet": "Helmet", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "key": "Key", "valuable": "Valuable"}
 
 
 def read_dict(text, name):
@@ -109,6 +109,8 @@ def main():
                 it["slot"], "full-auto" if it["auto"] else "semi-auto", it["damage"], it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
         if it["kind"] == "armor":
             notes.append("-%d%% damage taken when new; %d durability" % (round(it["reduction"] * 100), it["durability"]))
+        if it["kind"] == "helmet":
+            notes.append("-%d%% head damage taken when new; %d durability" % (round(it["reduction"] * 100), it["durability"]))
         if it["kind"] == "key":
             notes.append("opens %s; %d uses" % (it["door"], it["durability"]))
         if it["kind"] == "backpack":

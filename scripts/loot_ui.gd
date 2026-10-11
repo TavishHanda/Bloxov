@@ -636,6 +636,9 @@ func show_info(stack: ItemStack) -> void:
 		"armor":
 			parts.append("Takes %d%% off damage" % roundi(float(data["reduction"]) * stack.condition() * 100.0))
 			parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
+		"helmet":
+			parts.append("Takes %d%% off hits to the head" % roundi(ItemDB.reduction(stack) * 100.0))
+			parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
 		"key":
 			parts.append("Key · %d/%d uses left" % [stack.durability, ItemDB.max_durability(stack.id)])
 		"backpack":
@@ -695,7 +698,11 @@ func _build_other_column() -> void:
 		_other_box.add_child(row)
 		_add_slot_view(row, "secondary", Vector2i(2, 2))
 		_add_slot_view(row, "armor", Vector2i(2, 2))
-		_add_slot_view(_other_box, "backpack", Vector2i(2, 2))
+		var row2 := HBoxContainer.new()
+		row2.add_theme_constant_override("separation", 0)
+		_other_box.add_child(row2)
+		_add_slot_view(row2, "helmet", Vector2i(2, 2))
+		_add_slot_view(row2, "backpack", Vector2i(2, 2))
 		_other_box.add_child(_section("Pockets"))
 		_add_view(_other_box, other)
 	else:
@@ -721,7 +728,11 @@ func _build_equipment_column() -> void:
 	_player_box.add_child(row)
 	_add_slot(row, "secondary", Vector2i(2, 2))
 	_add_slot(row, "armor", Vector2i(2, 2))
-	_add_slot(_player_box, "backpack", Vector2i(2, 2))
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 0)
+	_player_box.add_child(row2)
+	_add_slot(row2, "helmet", Vector2i(2, 2))
+	_add_slot(row2, "backpack", Vector2i(2, 2))
 
 
 ## Middle column: everything you carry: pockets, the backpack's grid, then the secure pocket at the bottom.

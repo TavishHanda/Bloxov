@@ -8,8 +8,9 @@ extends Node
 ## take from it too, and at 0 you die (owner, 0.9.2). `revive()` stands you back up.
 
 signal damaged(amount: int, source_position: Vector3)
-## A hit armor applies to, with its damage before armor (0.14.0: armor wears from it).
-signal armor_hit(amount: int)
+## A hit armor applies to, with its damage before armor (0.14.0: armor wears from it) and whether it was on the head
+## (0.14.2: the helmet takes those).
+signal armor_hit(amount: int, head: bool)
 signal died
 signal downed
 signal revived
@@ -20,6 +21,8 @@ const DOWN_HP := 100.0
 @export var max_health := 100
 ## Incoming damage is multiplied by this (armor lowers it). Always deals at least 1.
 @export var damage_multiplier := 1.0
+## The same for hits on the head (a helmet lowers it, 0.14.2).
+@export var head_multiplier := 1.0
 ## Seconds the downed bar takes to drain on its own (owner: 30 s).
 @export var bleed_out_time := 30.0
 
@@ -30,6 +33,8 @@ var is_downed := false
 var down_hp := 0.0
 ## Asked when health reaches 0: true = go down instead of dying. Unset = always die (solo, scavs).
 var can_go_down := Callable()
+## Whether the last hit was on the head (the server passes it on with a proxy's hits).
+var last_hit_head := false
 
 
 func _ready() -> void:
@@ -44,13 +49,15 @@ static func of(target: Object) -> Health:
 
 
 ## Returns the damage actually dealt (after armor), 0 if none. While downed it comes off the downed bar.
-## `ignore_armor`: damage armor doesn't stop (falls).
-func take_damage(amount: int, source_position := Vector3.ZERO, ignore_armor := false) -> int:
+## `ignore_armor`: damage armor doesn't stop (falls). `head`: a hit on the head (the helmet applies, not the armor).
+func take_damage(amount: int, source_position := Vector3.ZERO, ignore_armor := false, head := false) -> int:
 	if is_dead or amount <= 0:
 		return 0
+	last_hit_head = head
 	if not ignore_armor:
-		var multiplier := damage_multiplier   # (the armor as it was when hit; the wear counts from the next hit)
-		armor_hit.emit(amount)
+		# (the gear as it was when hit; the wear counts from the next hit)
+		var multiplier := head_multiplier if head else damage_multiplier
+		armor_hit.emit(amount, head)
 		amount = maxi(roundi(amount * multiplier), 1)
 	if is_downed:
 		down_hp = maxf(down_hp - amount, 0.0)

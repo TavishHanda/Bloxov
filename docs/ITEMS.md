@@ -11,6 +11,8 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo | Old army rifle, full auto. Hits hard, kicks harder. |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken when new; 60 durability | Soft vest. Wears down as it takes hits, and protects less as it does. |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken when new; 120 durability | Plated vest. Stops a lot, wears down as it takes hits. |
+| Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $1,000 | -25% head damage taken when new; 40 durability | Dented steel pot. Better than nothing on your head. |
+| Combat Helmet (`helmet_good`) | Helmet | Rare | 2×2 | 1 | $3,000 | -45% head damage taken when new; 80 durability | Army helmet. Takes a hit to the head well, wears down as it does. |
 | Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $400 | 4×3 storage | A school bag. Better than pockets. |
 | Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $900 | 5×4 storage | Hiking pack with room for a good haul. |
 | Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $2,000 | 6×5 storage | Big army rucksack. Carry everything home. |
@@ -63,29 +65,31 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 
 | Entry | Chance per roll |
 |---|---|
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery) | 21% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery) | 20% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal) | 15% |
-| Rifle Rounds | 13% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle) | 13% |
+| Rifle Rounds | 12% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle) | 12% |
 | Medkit | 10% |
 | Bandage | 8% |
 | Pistol Rounds | 5% |
 | Pistol | 4% |
 | Light Armor | 3% |
+| Old Helmet | 3% |
 | Epic valuable (Gold Bar, Military Chip, Antique Vase) | 3% |
-| Small Backpack | 3% |
+| Small Backpack | 2% |
 | Medium Backpack | 2% |
 
 ### Safe (1–2 rolls, loud to open)
 
 | Entry | Chance per roll |
 |---|---|
-| Rare valuable (Gold Watch, Laptop, Cash Bundle) | 36% |
-| Epic valuable (Gold Bar, Military Chip, Antique Vase) | 27% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery) | 14% |
-| Legendary valuable (Rare Crystal, Golden Toilet) | 14% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle) | 35% |
+| Epic valuable (Gold Bar, Military Chip, Antique Vase) | 26% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery) | 13% |
+| Legendary valuable (Rare Crystal, Golden Toilet) | 13% |
 | Heavy Armor | 5% |
-| Large Backpack | 4% |
+| Combat Helmet | 4% |
+| Large Backpack | 3% |
 
 ### Scav (body bag, 1–3 rolls)
 
@@ -104,15 +108,14 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 25% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery) | 17% |
-| Bandage | 10% |
-| Medkit | 10% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal) | 10% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle) | 8% |
+| Rifle Rounds | 27% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery) | 18% |
+| Bandage | 11% |
+| Medkit | 11% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal) | 11% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle) | 9% |
 | Pistol Rounds | 5% |
 | Pistol | 4% |
-| Light Armor | 4% |
 | Medium Backpack | 3% |
 | Epic valuable (Gold Bar, Military Chip, Antique Vase) | 2% |
 | Bank Vault Key | 1% |
@@ -124,16 +127,16 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 
 | Place | Extra weights |
 |---|---|
-| Bunker | legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, AK Rifle 8, Rifle Rounds 15 |
+| Bunker | legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, AK Rifle 8, Rifle Rounds 15 |
 | TownHall | Bunker Key 3, uncommon valuable 10 |
 | Bank | Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Bank Vault Key 4 |
 | BigHouse1 | Gold Watch 20, Cash Bundle 15, Rare Crystal 3 |
 | BigHouse2 | Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, Golden Toilet 2, epic valuable 8 |
-| Police | Light Armor 15, Heavy Armor 4, Pistol 15, Pistol Rounds 20, Bunker Key 2, Bank Vault Key 3 |
+| Police | Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Pistol 15, Pistol Rounds 20, Bunker Key 2, Bank Vault Key 3 |
 | GunStore | AK Rifle 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
 | Pharmacy | Bandage 45, Medkit 25 |
 | Grocery | Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Canned Beans 30, Water Bottle 30, Ration Pack 10 |
-| School | Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5 |
+| School | Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |

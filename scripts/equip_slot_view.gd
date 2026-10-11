@@ -65,7 +65,7 @@ func rebuild() -> void:
 		match ItemDB.kind(stack.id):
 			"weapon":
 				_detail.text = "%d/%d" % [stack.loaded, int(ItemDB.item(stack.id)["mag"])]
-			"armor":
+			"armor", "helmet":
 				_detail.text = "%d/%d" % [stack.durability, ItemDB.max_durability(stack.id)]   # durability (0.14.0)
 			"backpack":
 				var grid: Array = ItemDB.item(stack.id)["grid"]

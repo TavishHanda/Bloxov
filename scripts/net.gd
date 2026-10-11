@@ -327,7 +327,7 @@ func _knife(from: Vector3, dir: Vector3) -> void:
 		var amount := 45
 		if backstab:
 			# Enough to get through any armor (the victim's game applies theirs; a scav's is its damage multiplier).
-			amount = 1000 if hit.has("peer") else ceili(hit["enemy"].health.current / maxf(hit["enemy"].health.damage_multiplier, 0.01))
+			amount = 1000 if hit.has("peer") else ceili(hit["enemy"].health.current / maxf(minf(hit["enemy"].health.damage_multiplier, hit["enemy"].health.head_multiplier), 0.01))
 		hit["headshot"] = backstab
 		_damage(peer, hit, amount, me[0])
 		return
@@ -454,7 +454,7 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3)
 			_hit.rpc_id(victim, amount, attacker_pos, hit["headshot"])
 	else:
 		var health: Node = hit["enemy"].health
-		health.take_damage(amount, attacker_pos)
+		health.take_damage(amount, attacker_pos, false, hit["headshot"])
 		killed = health.is_dead
 	if _peer_open(attacker):
 		_hit_confirmed.rpc_id(attacker, hit["headshot"])
@@ -520,9 +520,9 @@ func _send_raid_start(id: int) -> void:
 	world.name = "Raid%d" % id
 	add_child(world)
 	_worlds[id] = world
-	world.player_hit.connect(func(peer: int, amount: int, from: Vector3) -> void:
+	world.player_hit.connect(func(peer: int, amount: int, from: Vector3, head: bool) -> void:
 		if _peer_open(peer):
-			_hit.rpc_id(peer, amount, from, false))
+			_hit.rpc_id(peer, amount, from, head))
 	world.player_bashed.connect(func(peer: int, amount: int, from: Vector3, shove: float, block: float) -> void:
 		if _peer_open(peer):
 			_bashed.rpc_id(peer, amount, from, shove, block))
