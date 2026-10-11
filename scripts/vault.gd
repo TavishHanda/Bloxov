@@ -25,17 +25,33 @@ static func plan(body: CollisionObject3D, forward: Vector3, radius: float, stand
 	var space := body.get_world_3d().direct_space_state
 	var feet := body.global_position
 	forward = Vector3(forward.x, 0.0, forward.z).normalized()
-	# Something in front at knee height, faced fairly head-on...
-	var knee := feet + Vector3(0, 0.3, 0)
-	var hit := _ray(body, space, knee, knee + forward * (radius + reach))
+	# Something in front from knee to chest height (0.14.14: raised cover too, like a ramp's side), faced
+	# fairly head-on...
+	var hit := {}
+	var nearest := INF
+	for h: float in [0.3, 0.65, 1.0, 1.35]:
+		var from := feet + Vector3(0, h, 0)
+		var probe := _ray(body, space, from, from + forward * (radius + reach))
+		if probe.is_empty():
+			continue
+		var d := Vector2(probe["position"].x - feet.x, probe["position"].z - feet.z).length()
+		if d < nearest - 0.05:
+			nearest = d
+			hit = probe
 	if hit.is_empty():
 		return {}
 	var into := -Vector3(hit["normal"].x, 0.0, hit["normal"].z).normalized()
 	if into.dot(forward) < 0.6:
 		return {}
 	var wall: Vector3 = hit["position"]
-	# ...with a top in reach (and not still wall above it).
-	var top: Variant = _top(body, space, wall + into * 0.15, feet.y + mantle_height + 0.1, feet.y + 0.3)
+	wall.y = feet.y
+	# ...with a top in reach (and not still wall above it). Looked for just past the face and a bit further in, the
+	# highest one counting (0.14.14: a 15 cm fence's top was missed by looking 15 cm in).
+	var top: Variant = null
+	for depth: float in [0.06, 0.15, 0.3]:
+		var t: Variant = _top(body, space, wall + into * depth, feet.y + mantle_height + 0.1, feet.y + 0.3)
+		if t != null and (top == null or t.y > top.y):
+			top = t
 	if top == null:
 		return {}
 	var height: float = top.y - feet.y
@@ -78,6 +94,9 @@ static func _finish(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, f
 				var ground: Variant = _top(body, space, far, top.y + 0.1, top.y - 3.0)
 				end = Vector3(far.x, top.y if ground == null else ground.y + 0.02, far.z)
 			d += 0.15
+	# No room on the far side (cover against a wall, a ramp's side): climb onto it instead, if that's allowed.
+	if end != null and not _fits(body, end, radius, crouch_height):
+		end = null
 	var vault_over := end != null
 	# Otherwise climb onto it.
 	if not vault_over:

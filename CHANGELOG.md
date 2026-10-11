@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.14 (vault anything vaultable; owner asked)
+- Fences vault now: the check for a top looked 15 cm in, exactly a fence's thickness, and missed it. It looks at
+  a few depths now and takes the highest.
+- Raised cover counts too (a ramp's side, a counter or crate on legs): cover is looked for at four heights from
+  knee to chest, not just one.
+- When there's no room on the far side (cover against a wall), you climb onto it instead of the vault failing.
+- Same rules for the AI (it still only vaults over, never onto). Things that are too tall, too thick or have no
+  room to stand stay unvaultable, so you can't vault into walls or out of the map.
+
 ## 0.14.13 (hideout message font; owner asked)
 - The hideout's message tape ("Sold ... for $...") uses the HUD's pixel font now: the old tape font spaced its
   letters unevenly ("Ra ider", "Ta g").

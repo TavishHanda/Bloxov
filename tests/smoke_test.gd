@@ -478,6 +478,7 @@ func _section_vault() -> void:
 	var cases := [
 		# [height, thickness, what should happen]
 		[0.9, 0.3, "over"],
+		[1.1, 0.15, "over"],   # a fence (0.14.14: its top used to be missed)
 		[1.5, 2.0, "onto"],
 		[2.4, 0.3, "none"],
 	]
