@@ -34,6 +34,11 @@ func _ready() -> void:
 	if loot_table != "":
 		# Loot by place (0.14.0): the container's `place` (map metadata) adds that place's loot to its table.
 		var place: String = get_meta("place", "")
+		# One-off finds go in first, so there's always room for them.
+		var special: Dictionary = ItemDB.SPECIAL_FINDS.get(String(name), {})
+		for id in special:
+			if randf() < special[id]:
+				grid.add(id, 1)
 		for i in randi_range(min_items, max_items):
 			var id := ItemDB.roll(loot_table, place)
 			grid.add(id, ItemDB.roll_count(id))

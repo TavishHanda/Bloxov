@@ -787,6 +787,21 @@ func _section_items() -> void:
 	_check(sellables.all(func(id: String) -> bool: return ItemDB.kind(id) == "valuable" and ItemDB.description(id) != "")
 		and tag_boss.extra_drops.has("exion_medal") and ItemDB.PLACE_LOOT["GasStation"].has("fuel_can")
 		and ItemDB.PLACE_LOOT["Bank"].has("diamond_ring"), "the new sell items exist and are found by place")
+	# The Holy Grail (0.14.12, owner): never from random rolls, only its one-off finds, in containers the map has.
+	var map_text := FileAccess.get_file_as_string("res://scenes/maps/old_bloxov.tscn")
+	var grail_rolled := false
+	for i in 300:
+		grail_rolled = grail_rolled or ItemDB._random_valuable("legendary") == "holy_grail"
+	var grails := 0
+	for i in 200:
+		var grail_box := LootContainer.new()
+		grail_box.name = "TownHall_Locker1"
+		root.add_child(grail_box)
+		grails += grail_box.grid.count_of("holy_grail")
+		grail_box.free()
+	_check(not grail_rolled and grails > 10 and grails < 60 and ItemDB.value("holy_grail") > ItemDB.value("golden_toilet")
+		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return map_text.contains('name="%s"' % n)),
+		"the Holy Grail only turns up as a one-off find, in the town hall and the bank vault (%d in 200 town hall lockers)" % grails)
 	tag_raider.free()
 	tag_boss.free()
 	# Loot by place: a gun store locker is mostly guns and ammo, a pharmacy crate mostly meds.

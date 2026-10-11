@@ -85,6 +85,7 @@ def main():
     items = read_dict(text, "ITEMS")
     tables = read_dict(text, "LOOT_TABLES")
     places = read_dict(text, "PLACE_LOOT")
+    specials = read_dict(text, "SPECIAL_FINDS")
 
     lines = [
         "# Item List",
@@ -116,6 +117,9 @@ def main():
             notes.append("opens %s" % it["door"])
         if it["kind"] == "backpack":
             notes.append("%d×%d storage" % tuple(it["grid"]))
+        if it.get("special"):
+            notes.append("only from one-off finds: " + ", ".join(
+                "%d%% in %s" % (round(chances[item_id] * 100), container) for container, chances in specials.items() if item_id in chances))
         lines.append("| %s (`%s`) | %s | %s | %d×%d | %d | %s | %s | %s |" % (
             it["name"], item_id, KIND_LABEL[it["kind"]], it["rarity"].capitalize(), it["w"], it["h"],
             it["stack"], money(it["value"]), "; ".join(notes), it.get("desc", "")))
@@ -142,7 +146,7 @@ def main():
             if key in items:
                 label = items[key]["name"]
             else:
-                names = [items[i]["name"] for i in items if items[i]["kind"] == "valuable" and items[i]["rarity"] == key]
+                names = [items[i]["name"] for i in items if items[i]["kind"] == "valuable" and items[i]["rarity"] == key and not items[i].get("special")]
                 label = "%s valuable (%s)" % (key.capitalize(), ", ".join(names))
             lines.append("| %s | %.0f%% |" % (label, 100.0 * weight / total))
         lines.append("")

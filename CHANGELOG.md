@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.12 (the Holy Grail; owner asked)
+- **Holy Grail** ($75,000, 2×2): the most valuable item in the game. It never comes from random loot: each raid
+  there's a 15% chance it's in the town hall's first locker (the town hall has no vault yet) and a 5% chance it's
+  in the bank vault's first safe. New `ItemDB.SPECIAL_FINDS` holds these one-off finds by container name.
+
 ## 0.14.11 (AI fight back when you show up mid-move; owner asked)
 - An AI running to cover or round a flank now stops and shoots when you come at it (you've moved a few meters
   and are within 12 m and in view), or when it set off with you out of sight or out of range and you then show up

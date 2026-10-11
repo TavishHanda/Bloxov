@@ -55,6 +55,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Diamond Ring (`diamond_ring`) | Valuable | Legendary | 1×1 | 1 | $15,000 |  | A real diamond. Someone kept it in the vault for a reason. |
 | Rare Crystal (`crystal`) | Valuable | Legendary | 1×1 | 1 | $18,000 |  | Nobody knows where these come from. Everyone wants one. |
 | Golden Toilet (`golden_toilet`) | Valuable | Legendary | 2×3 | 1 | $50,000 |  | Yes, really. |
+| Holy Grail (`holy_grail`) | Valuable | Legendary | 2×2 | 1 | $75,000 | only from one-off finds: 15% in TownHall_Locker1, 5% in Bank_Safe1 | The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault. |
 
 Nothing wears out for now: durability (armor, helmets, keys, guns) is its own update later (owner).
 

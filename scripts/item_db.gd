@@ -81,6 +81,7 @@ const ITEMS := {
 	"vase": {"name": "Antique Vase", "desc": "Old and fragile. Don't drop it.", "kind": "valuable", "rarity": "epic", "w": 2, "h": 2, "stack": 1, "value": 9000},
 	"crystal": {"name": "Rare Crystal", "desc": "Nobody knows where these come from. Everyone wants one.", "short": "Crystal", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 18000},
 	"golden_toilet": {"name": "Golden Toilet", "desc": "Yes, really.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 3, "stack": 1, "value": 50000},
+	"holy_grail": {"name": "Holy Grail", "short": "Grail", "desc": "The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 2, "stack": 1, "value": 75000, "special": true},
 }
 
 ## Weights. A key is either an item id or a rarity (= a random valuable of that rarity).
@@ -90,6 +91,13 @@ const LOOT_TABLES := {
 	"safe": {"armor_heavy": 6, "helmet_good": 5, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
 	"raider": {"grenade": 6, "energy_drink": 4, "bank_vault_key": 1, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+}
+
+## One-off finds (0.14.12, owner): a chance, each raid, that this item is in that container (by its map name).
+## "special" items never come from random rolls, only from here.
+const SPECIAL_FINDS := {
+	"TownHall_Locker1": {"holy_grail": 0.15},
+	"Bank_Safe1": {"holy_grail": 0.05},   # the bank vault
 }
 
 ## Loot by place (0.14.0, MAP_PLAN.md "Loot by place"): a container tagged with one of these places (its
@@ -245,7 +253,7 @@ static func roll(table: String, place := "") -> String:
 static func _random_valuable(rarity: String) -> String:
 	var options: Array[String] = []
 	for id in ITEMS:
-		if ITEMS[id]["kind"] == "valuable" and ITEMS[id]["rarity"] == rarity:
+		if ITEMS[id]["kind"] == "valuable" and ITEMS[id]["rarity"] == rarity and not ITEMS[id].get("special", false):
 			options.append(id)
 	return options.pick_random()
 
