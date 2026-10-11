@@ -48,6 +48,11 @@ static func head_center(crouch: float, lean: float) -> Vector3:
 	return Vector3(sin(lean * LEAN_ANGLE) * h, cos(lean * LEAN_ANGLE) * h, 0)
 
 
+## The tilt of a leaning body (around the feet, sideways), same as the model's.
+static func lean_basis(lean: float) -> Basis:
+	return Basis(Vector3.BACK, -lean * LEAN_ANGLE)
+
+
 static func height_scale(crouch: float) -> float:
 	return lerpf(1.0, CROUCH_SCALE, crouch)
 
@@ -62,9 +67,17 @@ static func trace(state: Array, from: Vector3, to: Vector3) -> Dictionary:
 	var local_from := feet.affine_inverse() * from
 	var local_to := feet.affine_inverse() * to
 	var best := {}
-	var parts := [[head_center(crouch, state[3]), HEAD_SIZE, true], [body_center(crouch), body_size(crouch), false]]
+	var parts := []
 	if flags & (FLAG_DOWNED | FLAG_PRONE):
 		parts = [[prone_head_center(state[3]), HEAD_SIZE, true], [DOWNED_BODY_CENTER, DOWNED_BODY_SIZE, false]]
+	else:
+		# Leaning tips the whole body around the feet (0.13.8: the body box too, so a shoulder that shows round a
+		# corner can be hit); in the tipped frame both boxes stand straight up.
+		var tipped := lean_basis(state[3]).inverse()
+		local_from = tipped * local_from
+		local_to = tipped * local_to
+		parts = [[Vector3(0, HEAD_HEIGHT * height_scale(crouch), 0), HEAD_SIZE, true],
+			[body_center(crouch), body_size(crouch), false]]
 	for part in parts:
 		var box := AABB(part[0] - part[1] * 0.5, part[1])
 		var hit: Variant = box.intersects_segment(local_from, local_to)

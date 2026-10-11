@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.8 (leaning hitboxes online; owner)
+- Online, a leaning player's body hitbox now tips with their model (before, only the head moved over and the body
+  box stayed upright), so a shoulder showing round a corner can be hit, the same in what you shoot at and the
+  server's hit check.
+
 ## 0.13.7 (lean while prone; owner)
 - Q/E lean works while prone too: your head shifts sideways to peek past cover (online, your head hitbox moves with it).
 

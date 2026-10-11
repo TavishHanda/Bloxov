@@ -3062,6 +3062,11 @@ func _section_cover() -> void:
 
 
 func _section_lean() -> void:
+	# Online (0.13.8): leaning tips the body's hitbox with the model, so a shoulder round a corner can be hit.
+	var shoulder_shot := func(lean: float) -> bool:
+		var state := [Vector3.ZERO, 0.0, 0.0, lean, 0]
+		return not Hitbox.trace(state, Vector3(0.55, 1.2, 3), Vector3(0.55, 1.2, -3)).is_empty()
+	_check(shoulder_shot.call(1.0) and not shoulder_shot.call(0.0), "online, a leaning player's shoulder is hittable past their feet")
 	# Q/E lean: the head shifts and tilts; no sprinting while leaning. Interact moved to F.
 	var interact_keys := InputMap.action_get_events("interact")
 	_check(interact_keys.size() > 0 and (interact_keys[0] as InputEventKey).physical_keycode == KEY_F, "interact is on F")
