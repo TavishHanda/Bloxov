@@ -44,6 +44,9 @@ var _indicator_time := 0.0
 ## hint shows instead of the menu.
 var resume_pending := false
 var _resume_hint: Label
+## LEAVE RAID (0.14.24, owner) under PLAY, and the "are you sure?" box that takes its place when pressed.
+var leave_button: Button
+var leave_confirm: VBoxContainer
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
 
@@ -65,6 +68,7 @@ func _ready() -> void:
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
 	play_button.pressed.connect(_capture_mouse)
 	PauseMenuStyle.apply(menu)
+	_build_leave()
 
 	hotbar = HotbarHUD.new(player)
 	add_child(hotbar)
@@ -161,6 +165,8 @@ func _process(delta: float) -> void:
 		add_child(_resume_hint)
 	_resume_hint.visible = resume_pending
 	menu.visible = not captured and not other_screen_open and not player.controls_locked() and not resume_pending
+	if not menu.visible:
+		cancel_leave()
 	get_tree().paused = menu.visible and not Network.main.in_online_raid()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
 	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
@@ -189,6 +195,63 @@ func _process(delta: float) -> void:
 		_point_indicator()
 
 	_update_debug(delta)
+
+
+## Big buttons (touch-friendly). The confirm's LEAVE is red and never has focus, so a stray Enter/Space can't press it.
+func _build_leave() -> void:
+	var box := play_button.get_parent()
+	leave_button = Button.new()
+	leave_button.name = "LeaveButton"
+	leave_button.text = "LEAVE RAID"
+	leave_button.custom_minimum_size = Vector2(0, 52)
+	leave_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(leave_button, 30)
+	leave_button.pressed.connect(ask_leave)
+	box.add_child(leave_button)
+	box.move_child(leave_button, play_button.get_index() + 1)
+
+	leave_confirm = VBoxContainer.new()
+	leave_confirm.name = "LeaveConfirm"
+	leave_confirm.add_theme_constant_override("separation", 10)
+	leave_confirm.visible = false
+	var question := Label.new()
+	question.text = "Leave the raid? It counts as dying: everything you carried is lost (your secure pocket comes home)."
+	question.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	question.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	HudStyle.style_label(question, 20)
+	leave_confirm.add_child(question)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	leave_confirm.add_child(row)
+	for entry in [["STAY", HudStyle.FACE, cancel_leave], ["LEAVE", HudStyle.BLOOD, confirm_leave]]:
+		var button := Button.new()
+		button.name = entry[0].capitalize()
+		button.text = entry[0]
+		button.custom_minimum_size = Vector2(0, 52)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.focus_mode = Control.FOCUS_NONE
+		LootUI.style_button(button, 30, entry[1])
+		button.pressed.connect(entry[2])
+		row.add_child(button)
+	box.add_child(leave_confirm)
+	box.move_child(leave_confirm, leave_button.get_index() + 1)
+
+
+## LEAVE RAID pressed: ask first, in case it was a misclick.
+func ask_leave() -> void:
+	leave_button.visible = false
+	leave_confirm.visible = true
+
+
+func cancel_leave() -> void:
+	if leave_confirm != null and leave_confirm.visible:
+		leave_confirm.visible = false
+		leave_button.visible = true
+
+
+func confirm_leave() -> void:
+	cancel_leave()
+	raid.leave()
 
 
 func _capture_mouse() -> void:

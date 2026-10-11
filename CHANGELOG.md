@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.24 (LEAVE RAID in the pause menu; owner asked)
+- The pause menu (Esc) has a LEAVE RAID button under PLAY. Pressing it asks first ("Leave the raid? It counts
+  as dying...") with STAY and a red LEAVE, so a misclick can't end your raid. Leaving counts as dying: you keep
+  only your secure pocket, it adds a death, and the end screen says LEFT THE RAID. Online you drop where you
+  stand and your body can be looted, like any death. Buttons are big enough to tap.
+
 ## 0.14.23 (no black bars on wide or narrow screens; owner asked)
 - The game now fills the whole window at any shape. It used to keep a fixed 16:9 picture and put black bars
   on the sides (wider screens, e.g. phones and ultrawides) or top and bottom (4:3, 16:10). Now the view just

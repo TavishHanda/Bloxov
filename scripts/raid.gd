@@ -1,7 +1,7 @@
 class_name Raid
 extends Node
 ## Runs one raid: places the player, opens a random set of extracts, counts down the timer,
-## and decides how it ends: "extracted", "killed", or "mia" (out of time).
+## and decides how it ends: "extracted", "killed", "mia" (out of time) or "left" (LEAVE RAID in the pause menu).
 
 signal ended(result: String)
 
@@ -109,6 +109,16 @@ func _process(delta: float) -> void:
 		result = "mia"
 		player.health.kill()
 		_finish()
+
+
+## LEAVE RAID (pause menu, 0.14.24, owner): counts as dying. You drop dead where you stand (online, others see the
+## body) and keep only the secure pocket.
+func leave() -> void:
+	if result != "":
+		return
+	result = "left"
+	player.health.kill()
+	_finish()
 
 
 func _on_player_died() -> void:

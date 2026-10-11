@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -2074,6 +2074,34 @@ func _section_online_loot() -> void:
 	server.multiplayer.multiplayer_peer.close()
 	for n in [server, c1, c2]:
 		n.get_parent().queue_free()
+	await _frames(2)
+
+
+func _section_leave_raid() -> void:
+	# LEAVE RAID in the pause menu (0.14.24, owner): asks first, then counts as dying. On a fresh raid scene.
+	var raid_scene := (load("res://scenes/main.tscn") as PackedScene).instantiate()
+	root.add_child(raid_scene)
+	raid_scene.get_node("HUD").process_mode = Node.PROCESS_MODE_DISABLED
+	paused = false
+	await _frames(3)
+	var hud = raid_scene.get_node("HUD")
+	var leaver: Player = raid_scene.get_node("Player")
+	var leave_raid: Raid = raid_scene.get_node("Raid")
+	_check(hud.leave_button.get_index() == hud.play_button.get_index() + 1 and hud.leave_button.visible and not hud.leave_confirm.visible,
+		"the pause menu has LEAVE RAID under PLAY")
+	hud.leave_button.pressed.emit()
+	_check(not hud.leave_button.visible and hud.leave_confirm.visible and leave_raid.result == "", "LEAVE RAID asks first")
+	var confirm_buttons := {}
+	for button: Button in hud.leave_confirm.find_children("*", "Button", true, false):
+		confirm_buttons[button.text] = button
+	confirm_buttons["STAY"].pressed.emit()
+	_check(hud.leave_button.visible and not hud.leave_confirm.visible and leave_raid.result == "" and not leaver.is_dead, "STAY keeps you in the raid")
+	var deaths: int = Profile.stats["deaths"]
+	hud.ask_leave()
+	confirm_buttons["LEAVE"].pressed.emit()
+	_check(leave_raid.result == "left" and leaver.is_dead and Profile.stats["deaths"] == deaths + 1, "LEAVE counts as dying")
+	_check(hud.end_screen.visible and hud.end_screen.summary()["stamp"] == "LEFT THE RAID", "the end screen says you left (%s)" % hud.end_screen.summary()["stamp"])
+	raid_scene.queue_free()
 	await _frames(2)
 
 

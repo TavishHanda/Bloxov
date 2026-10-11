@@ -50,6 +50,10 @@ func show_result(kills: int) -> void:
 			_stamp_text = "MISSING IN ACTION"
 			_stamp_color = AMBER
 			_subtitle.text = "The raid timer ran out. Everything you carried is gone."
+		"left":
+			_stamp_text = "LEFT THE RAID"
+			_stamp_color = AMBER
+			_subtitle.text = "You left the raid. Everything you carried is gone."
 		_:
 			_stamp_text = "KILLED IN ACTION"
 			_stamp_color = HudStyle.BLOOD
