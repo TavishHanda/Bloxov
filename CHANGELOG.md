@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.19 (AI fell through stair ramps; bug fix, owner reported)
+- AI walking up the stairs inside buildings no longer drop through the ramp to the floor below. Since 0.14.14 the
+  vault check counted the rising ramp in front as cover and "vaulted" over it, landing downstairs. A slope you can
+  walk up isn't cover any more (players too: Space on a ramp no longer vaults you through it). On the real map 25 of
+  28 ramps failed before; all the stair ramps work again. The smoke test checks a ramp now.
+
 ## 0.14.18 (grenade damage, right-click to cancel; owner asked)
 - Grenade damage: 80 on a direct hit, falling off evenly to nothing at 7 m (was 120 within 1.5 m).
 - Cancel a heal or drink with **right-click** now (was the same key again), still only after the first second.

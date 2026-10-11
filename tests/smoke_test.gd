@@ -520,6 +520,36 @@ func _section_vault() -> void:
 		box.queue_free()
 		await physics_frame
 		_check(start.distance_to(spot) < 0.5, "vault test spot is flat ground (%s)" % start)
+	# A stair ramp ahead (34 degrees, 3 m up over 4.4 m, a thin plank like the map's) is walked up, not vaulted
+	# (0.14.19: AI halfway up "vaulted" over the rising ramp and dropped through it to the floor below).
+	var ramp := StaticBody3D.new()
+	var plank := CollisionShape3D.new()
+	var plank_mesh := BoxMesh.new()
+	plank_mesh.size = Vector3(2.2, 0.2, 5.3)
+	plank.shape = plank_mesh.create_trimesh_shape()   # (the map's collision is triangles, hit from both sides)
+	(plank.shape as ConcavePolygonShape3D).backface_collision = true
+	ramp.add_child(plank)
+	main.add_child(ramp)
+	ramp.global_transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-34.3)), spot + Vector3(0, 1.4, 3.0))
+	var landing := CollisionShape3D.new()   # the floor upstairs, past the top end
+	landing.shape = BoxShape3D.new()
+	(landing.shape as BoxShape3D).size = Vector3(2.2, 0.2, 3.0)
+	landing.transform = ramp.global_transform.affine_inverse() * Transform3D(Basis(), spot + Vector3(0, 2.8, 6.7))
+	ramp.add_child(landing)
+	await physics_frame
+	var on_ramp := []
+	for along: float in [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]:
+		var at := spot + Vector3(0, 0, along)
+		var hit := (main as Node3D).get_world_3d().direct_space_state.intersect_ray(
+			PhysicsRayQueryParameters3D.create(at + Vector3.UP * 3.5, at + Vector3.DOWN, 1, [player.get_rid()]))
+		player.teleport_to(hit.position + Vector3.UP * 0.02)
+		await physics_frame
+		var move := Vault.plan(player, Vector3(0, 0, 1), 0.4, 2.05, 1.2, 0.5, Vault.VAULT_HEIGHT)
+		if not move.is_empty():
+			on_ramp.append("%.1f m in: %s" % [along, move["path"]])
+	_check(on_ramp.is_empty(), "no vault up a stair ramp (%s)" % [on_ramp])
+	ramp.queue_free()
+	await physics_frame
 
 
 ## Fall damage (0.13.3): a jump is free, a drop past 3.5 m hurts, armor or not.

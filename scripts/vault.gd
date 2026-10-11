@@ -32,7 +32,9 @@ static func plan(body: CollisionObject3D, forward: Vector3, radius: float, stand
 	for h: float in [0.3, 0.65, 1.0, 1.35]:
 		var from := feet + Vector3(0, h, 0)
 		var probe := _ray(body, space, from, from + forward * (radius + reach))
-		if probe.is_empty():
+		# (a slope you can walk up, like a ramp ahead, isn't cover: 0.14.19, vaulting "over" a ramp dropped you
+		# through it to the floor below)
+		if probe.is_empty() or probe["normal"].y >= 0.7:
 			continue
 		var d := Vector2(probe["position"].x - feet.x, probe["position"].z - feet.z).length()
 		if d < nearest - 0.05:
