@@ -6,6 +6,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.11 (AI fight back when you show up mid-move; owner asked)
+- An AI running to cover or round a flank now stops and shoots when you come at it (you've moved a few meters
+  and are within 12 m and in view), or when it set off with you out of sight or out of range and you then show up
+  in range. Before, it only stopped if you shot it up close, so one kept repositioning while you walked right up to it.
+  Everything else about the AI is unchanged.
+
 ## 0.14.10 (full item names on tiles; owner asked)
 - Item tiles show the whole name: on one line if it fits, else one word per line ("Raider / Dog / Tag" instead of a
   cut-off "Raider"), in the biggest text that fits. The name uses the whole tile unless there's a count at the bottom.

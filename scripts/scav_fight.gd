@@ -56,6 +56,9 @@ var _suppress_at := Vector3.ZERO
 var _strafe_to_cover := false
 ## A quick sidestep after getting shot in the open (the only sideways move it makes there).
 var _dodge_left := 0.0
+## When it set off to cover or round a flank: how far off you were (INF if it couldn't see you) and where you were.
+var _move_seen_from := INF
+var _move_target_from := Vector3.ZERO
 
 
 func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
@@ -250,6 +253,7 @@ func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
 			_strafe_to_cover = false
 			_peek_point = Vector3.INF
 			_peeks_left = 0
+			_note_move_start()
 			return _path_velocity(spot, move_speed)
 		if _can_see and _cover_cooldown_left <= 0.0:
 			_try_take_cover()   # nothing closer: at least get out of your sight
@@ -308,6 +312,7 @@ func _try_take_cover(radius := -1.0) -> void:
 		_cover_point = spot
 		_cover_low = _found_low
 		_cover_phase = Cover.MOVING
+		_note_move_start()
 		_bark("cover", 0.35)
 		# Where it stands now can see you: that's where it peeks out from.
 		_peek_point = global_position
@@ -352,6 +357,7 @@ func _try_flank(to_target: Vector3, dist: float) -> void:
 			_cover_point = spot
 			_cover_low = false
 			_cover_phase = Cover.FLANKING
+			_note_move_start()
 			_bark("flank")
 			return
 	_cover_cooldown_left = 0.0
@@ -480,10 +486,13 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		var flank_move := _path_velocity(_cover_point, move_speed)
 		_face(flank_move, delta)
 		_hold_fire()
-		# Done, stuck, shot at, or it runs into you up close: back to deciding (and fighting).
-		if _arrived(_cover_point) or _cover_stuck(flank_move) or (sees and (_flinch_left > 0.0 or dist < 10.0)):
+		# Done, stuck, shot at, it runs into you up close, or you show up: back to deciding (and fighting).
+		var fight := _fight_instead(sees, dist)
+		if _arrived(_cover_point) or _cover_stuck(flank_move) or (sees and (_flinch_left > 0.0 or dist < 10.0)) or fight:
 			_cover_phase = Cover.NONE
 			_lost_sight_time = 0.0
+			if fight:
+				_cover_cooldown_left = cover_cooldown   # (shoots first, not straight off to cover again)
 		return flank_move
 	if _cover_phase == Cover.MOVING:
 		# Runs to cover with intent: facing where it's going, not shooting (0.12.36, owner; 0.12.28: no sideways
@@ -506,7 +515,8 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		_hold_fire()
 		# Shot up close on the way, with the cover still a way off: turns and fights instead of running with its
 		# back to you (0.12.31).
-		if (sees and _hit_since_decide and dist < close_fight_range
+		# Same when you show up or come at it while it's on its way (0.14.11, owner).
+		if (sees and (_hit_since_decide and dist < close_fight_range or _fight_instead(sees, dist))
 				and _flat(_cover_point - global_position).length() > 2.0):
 			_cover_phase = Cover.NONE
 			_cover_cooldown_left = cover_cooldown
@@ -565,7 +575,29 @@ func _update_peek(delta: float, sees: bool, to_target: Vector3, dist: float) -> 
 	if (_peek_left <= 0.0 or _flinch_left > 0.0) and _shots_left <= 0:
 		# Last peek with you in chase range: it comes straight out after you instead of ducking back in.
 		_cover_phase = Cover.NONE if _peeks_left <= 0 and _can_chase(dist) and _flinch_left <= 0.0 else Cover.MOVING
+		if _cover_phase == Cover.MOVING:
+			_note_move_start()
 	return move
+
+
+## Setting off to cover or round a flank: remembers where you were (see _fight_instead).
+func _note_move_start() -> void:
+	_move_seen_from = INF
+	if _target != null and is_instance_valid(_target):
+		_move_target_from = _target.global_position
+		if _can_see:
+			_move_seen_from = _flat(_target.global_position - global_position).length()
+
+
+## On its way to cover or round a flank and you show up (0.14.11, owner: one kept repositioning while he walked
+## right up to it): it stops and fights if it set off with you out of sight or out of range and now sees you in
+## range, or you've come at it (moved a few meters, now close).
+func _fight_instead(sees: bool, dist: float) -> bool:
+	if not sees or dist > shoot_range or _target == null:
+		return false
+	if _move_seen_from > shoot_range:
+		return true
+	return dist < close_fight_range and _flat(_target.global_position - _move_target_from).length() > 3.0
 
 
 ## No shot right now: drop the burst and re-aim when a shot comes back.

@@ -2400,6 +2400,42 @@ func _section_senses() -> void:
 	_check(strafed and strafe_shots[0] > 0, "out in the open it strafes to cover still shooting (%d shots on the way)" % strafe_shots[0])
 	strafer.queue_free()
 	_cover_spot.queue_free()
+	# On its way to cover and you come at it, or you show up after it lost you: it stops and fights (0.14.11, owner:
+	# one kept repositioning while he walked right up to it).
+	var runner := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 30)) as Scav
+	_face_player(runner)
+	runner.shot_damage = 0
+	var runner_shots := [0]
+	runner.fired.connect(func(_end: Vector3) -> void: runner_shots[0] += 1)
+	await physics_frame
+	runner._alert(player.global_position)
+	runner._set_state(Scav.State.ENGAGE)
+	var send_off := func() -> void:
+		runner.tactic = Scav.Tactic.COVER
+		runner._cover_point = runner.global_position + Vector3(20, 0, 10)
+		runner._cover_phase = Scav.Cover.MOVING
+		runner._strafe_to_cover = false
+		runner._note_move_start()
+	await _frames(12)
+	send_off.call()
+	await _frames(20)
+	_check(runner._cover_phase == Scav.Cover.MOVING, "a cover run with you in view 30 m off carries on")
+	player.teleport_to(runner.global_position + Vector3(0, 0, -8))
+	await _frames(6)
+	_check(runner._cover_phase != Scav.Cover.MOVING, "...but stops when you come up close")
+	runner_shots[0] = 0
+	await _frames(60 * 2)
+	_check(runner_shots[0] > 0, "...and it shoots at you (%d shots)" % runner_shots[0])
+	player.teleport_to(runner.global_position + Vector3(0, 0, -25))
+	var blind := _block(runner.global_position + Vector3(0, 1.5, -3), Vector3(10, 3, 0.5))
+	await _frames(12)
+	send_off.call()
+	await _frames(20)
+	_check(runner._cover_phase == Scav.Cover.MOVING and runner._move_seen_from == INF, "a run that starts with you out of sight")
+	blind.queue_free()
+	await _frames(12)
+	_check(runner._cover_phase != Scav.Cover.MOVING, "...stops when you show up in range")
+	runner.queue_free()
 	player.teleport_to(track_home)
 
 
