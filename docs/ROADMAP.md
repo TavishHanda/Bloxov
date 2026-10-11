@@ -31,17 +31,19 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    characters' `GunSocket` (see `BACKLOG.md`), owner in Blender. After the Items update, since guns, attachments and
    their loot spots build on it. **Gun durability** (owner, 2026-10-10): guns wear with use and a worn gun
    jams or misfires more often, shown on the item. Made-up gun names and looks only (`STORE_RULES.md`: no real brands or models).
-7. **Sound update (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
-   (`tools/make_sounds.py`): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
-   (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come
-   from, muffled through walls), scav and Raider voice lines, map ambience, UI sounds, and a final mix. Right after
-   the Guns update, since gun sounds need the gun set.
-8. **Economy update (owner, 2026-10-10):** after the Items and Guns updates, when there's a full set of things to
+7. **Economy update (owner, 2026-10-10):** after the Items and Guns updates, when there's a full set of things to
    price: trader buy/sell prices, what's worth looting and where, money in vs. money out (sinks), and how traders and
    their stock fit in (more traders are on the wishlist). **Repairs** for worn armor and guns (a trader or repair
    kits) as a money sink. Earned money only (`STORE_RULES.md`: no real-money trading).
-9. **Then (M4, vertical slice):** building models fitted to the proven layout, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
-   saturated; tune it once, against the real models and ground textures, within what the web build supports).
+8. **Then (M4, vertical slice), split into three updates (owner, 2026-10-11), in this order:**
+   1. **World art:** building models fitted to the proven layout, ground textures, props.
+   2. **Look:** a **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
+      real models and ground textures, within what the web build supports), plus the loading screen.
+   3. **Sound (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
+      (`tools/make_sounds.py`): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
+      (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come
+      from, muffled through walls), scav and Raider voice lines, map ambience, UI sounds, and a final mix. Last, since footsteps by surface and ambience
+      need the final ground and buildings.
    After that M5 content (characters with perks, more traders, more maps) and the M6 public release.
    - **Character prestige (owner, 2026-10-11):** play a character a lot and you can "prestige" it to unlock skill
      points that slightly boost that character's own traits (e.g. sprint 2% longer per point, up to 20%). Comes with
