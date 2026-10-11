@@ -545,11 +545,23 @@ func _build_trader() -> Control:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 4)
 	box.add_child(gap)
+	# The stock scrolls (0.15.8, owner: the list ran off the screen once the new guns came in). Mouse wheel, the
+	# scroll bar, or a finger dragging on a phone.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 360)
+	scroll.scroll_deadzone = 8
+	box.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override("separation", 6)
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(rows)
 	for entry in TRADER_STOCK:
 		var id: String = entry[0]
 		var amount: int = entry[1]
 		var row := HBoxContainer.new()
-		box.add_child(row)
+		rows.add_child(row)
 		var item_name := Label.new()
 		item_name.text = ItemDB.label(id, amount)
 		HudStyle.style_label(item_name, 20, ItemDB.color(id))

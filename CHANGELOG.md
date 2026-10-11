@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.8 (Trader list scrolls; owner: "its going off the screen")
+- The trader's stock is now a scrolling list under the TRADER title and hint, so every gun, ammo and attachment
+  can be reached. Scroll with the mouse wheel, the scroll bar, or by dragging with a finger on a phone.
+
 ## 0.15.7 (The Mauler looks like a shotgun; owner: "i cant tell what it is")
 - New placeholder shape for the Mauler: a fat barrel with the shell tube under it, a big ridged orange pump, a
   short receiver with no mag, a pistol grip and a wide stock. At the hip it's turned a little so you see the pump
