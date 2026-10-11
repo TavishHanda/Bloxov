@@ -207,6 +207,8 @@ var _vault_path := PackedVector3Array()
 var _vault_t := 0.0
 var _vault_duration := 0.0
 var _vault_crouch_after := false
+## Squeezing through a window: the eyes go down to crouch height so the camera clears the top of it.
+var _vault_duck := false
 var _vault_exit_speed := 0.0
 ## Ladders we're in reach of (newest last), the one we're on (null = none), and a moment after letting go
 ## before one can catch us again.
@@ -555,8 +557,8 @@ func _process(delta: float) -> void:
 	# Eyes move smoothly between standing and crouched height.
 	if not controls_locked():
 		var eye := crouch_eye_height if is_crouching else stand_eye_height
-		if is_prone:
-			eye = prone_eye_height
+		if is_prone or (is_vaulting() and _vault_duck):
+			eye = prone_eye_height if is_prone else crouch_eye_height
 		if downed:
 			eye = downed_eye_height
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
@@ -744,6 +746,7 @@ func try_vault() -> bool:
 	if move["crouch_after"] and not is_crouching:
 		set_crouching(true)
 	_vault_crouch_after = move["crouch_after"]
+	_vault_duck = move["duck"]
 	_vault_path = move["path"]
 	_vault_t = 0.0
 	_vault_duration = vault_time if move["over"] else mantle_time

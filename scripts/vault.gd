@@ -18,7 +18,7 @@ const SPLIT := 0.6
 
 ## The move for `body` heading `forward` (flat), or {} if there's nothing to vault or no room:
 ## {"path": [start, over the top, end], "over": true = vaulted over (false = climbed onto), "crouch_after": only
-## fits crouched at the end}. `reach` = how far past the body cover still counts; `mantle_height` = VAULT_HEIGHT
+## fits crouched at the end, "duck": squeezing through a low gap (a window)}. `reach` = how far past the body cover still counts; `mantle_height` = VAULT_HEIGHT
 ## means vault-overs only.
 static func plan(body: CollisionObject3D, forward: Vector3, radius: float, stand_height: float, crouch_height: float,
 		reach: float, mantle_height := MANTLE_HEIGHT) -> Dictionary:
@@ -45,9 +45,28 @@ static func plan(body: CollisionObject3D, forward: Vector3, radius: float, stand
 	var to_wall := Vector2(wall.x - feet.x, wall.z - feet.z).length()
 	if not _ray(body, space, above_top, above_top + forward * (to_wall + 0.3)).is_empty():
 		return {}
-	var over := Vector3(wall.x, top.y + 0.05, wall.z) + into * 0.15
-	if not _fits(body, over, radius, crouch_height):
-		return {}
+	# Windows (0.13.10, owner): the gap over a sill is lower than a crouch, so squeeze through ducked; and
+	# slide sideways a little to fit the gap if you're not dead centre.
+	var along := into.cross(Vector3.UP)
+	for shift: float in [0.0, 0.2, -0.2, 0.4, -0.4]:
+		var at := wall + along * shift
+		var over := Vector3(at.x, top.y + 0.05, at.z) + into * 0.15
+		var duck := false
+		if not _fits(body, over, radius, crouch_height):
+			if not _fits(body, over, radius, radius * 2.0):
+				continue
+			duck = true
+		var move := _finish(body, space, feet, over, at, into, top, height, radius, stand_height, crouch_height, mantle_height)
+		if not move.is_empty():
+			move["duck"] = duck
+			return move
+	return {}
+
+
+## The rest of plan(): where it ends (over and down, or on top) and whether there's room there.
+static func _finish(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, feet: Vector3, over: Vector3,
+		wall: Vector3, into: Vector3, top: Vector3, height: float, radius: float, stand_height: float,
+		crouch_height: float, mantle_height: float) -> Dictionary:
 	# Thin enough to go over: find where the top ends, then land on the ground past it.
 	var end: Variant = null
 	if height <= VAULT_HEIGHT:

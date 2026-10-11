@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "fall", "ladder", "prone", "containers", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
@@ -510,6 +510,43 @@ func _section_vault() -> void:
 
 
 ## Fall damage (0.13.3): a jump is free, a drop past 3.5 m hurts, armor or not.
+## Windows (0.13.10): a wall with a window (sill 1 m, gap to 2.2 m, as on the map): vault in through it, and back out.
+func _section_window_vault() -> void:
+	var spot := Vector3(-30, 0, 30)
+	var wall := StaticBody3D.new()
+	for part: Array in [[Vector3(-2.2, 1.5, 0), Vector3(3.0, 3.0, 0.3)], [Vector3(2.2, 1.5, 0), Vector3(3.0, 3.0, 0.3)],
+			[Vector3(0, 0.5, 0), Vector3(1.4, 1.0, 0.3)], [Vector3(0, 2.6, 0), Vector3(1.4, 0.8, 0.3)]]:
+		var shape := CollisionShape3D.new()
+		shape.shape = BoxShape3D.new()
+		(shape.shape as BoxShape3D).size = part[1]
+		shape.position = part[0]
+		wall.add_child(shape)
+	main.add_child(wall)
+	wall.global_position = spot
+	for way: float in [1.0, -1.0]:
+		player.teleport_to(spot + Vector3(0.15, 0.1, 1.2 * way))   # a little off centre
+		player.rotation.y = 0.0 if way > 0.0 else PI   # facing the window
+		await create_timer(0.3).timeout
+		Input.action_press("move_forward")
+		Input.action_press("jump")
+		await physics_frame
+		await physics_frame
+		Input.action_release("jump")
+		var vaulted := player.is_vaulting()
+		var lowest_head_room := INF
+		for i in 50:
+			await physics_frame
+			if player.is_vaulting():
+				lowest_head_room = minf(lowest_head_room, 2.2 - player.eye_position().y)
+		Input.action_release("move_forward")
+		var z := player.global_position.z - spot.z
+		_check(vaulted and z * way < -0.3 and lowest_head_room > 0.0,
+			"vaulted through a window (%s; ended %.2f m past, camera under the top: %s)" % [
+			"in" if way > 0.0 else "out", -z * way, lowest_head_room > 0.0])
+	wall.queue_free()
+	await physics_frame
+
+
 func _section_fall() -> void:
 	var spot := Vector3(30, 0.1, -30)
 	var hurt := []

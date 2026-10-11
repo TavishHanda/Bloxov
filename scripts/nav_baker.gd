@@ -91,6 +91,11 @@ func _add_vault_links(xform: Transform3D, size: Vector3) -> void:
 		length = size.x
 	if thickness > Vault.MAX_THICKNESS or length < 0.8:
 		return
+	# Not window sills (0.13.10): something solid just above the top means it's a gap in a wall, not open cover.
+	var top := xform.origin + Vector3(0, size.y * 0.5 + 0.05, 0)
+	if not get_world_3d().direct_space_state.intersect_ray(
+			PhysicsRayQueryParameters3D.create(top, top + Vector3(0, 1.6, 0), 1)).is_empty():
+		return
 	var count := maxi(1, floori(length / VAULT_LINK_SPACING))
 	var bottom := xform.origin - Vector3(0, size.y * 0.5, 0)
 	for k in count:

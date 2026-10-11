@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.10 (vault through windows; owner)
+- Space while walking into a window vaults you through it, in or out (on upper floors that means a drop, with fall
+  damage past 3.5 m). You duck through the gap (the camera too) and slide a little sideways to fit it if you're not
+  dead centre.
+- Fix: since 0.13.2 the AI's navigation also linked across window sills, as if they were low cover; they couldn't
+  get through and would get stuck at the window. Sills are no longer linked (the AI don't use windows).
+
 ## 0.13.9 (Escape closes the inventory, AI out of the floor; owner)
 - Escape closes the inventory and you're back to playing, not in the pause menu. In the browser the mouse can't be
   grabbed back on Escape (browsers only allow it on a click or another key), so a "Click to keep playing" hint
