@@ -62,16 +62,12 @@ func _physics_process(delta: float) -> void:
 	_lod_scale = delta / get_physics_process_delta_time()
 	var moved_from := global_position
 	var turned_from := rotation.y
-	_vault_cooldown_left -= delta
 	# Somehow under the hills (0.13.9, owner: a friend saw one in the floor; the ground is solid from below, so it
 	# would be stuck there): back on top, like players.
 	_ground_check_left -= delta
 	if _ground_check_left <= 0.0:
 		_ground_check_left = 0.5
 		global_position = BoxMap.above_ground(self, global_position)
-	if not _vault_path.is_empty():
-		_update_vault(delta)
-		return
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	_state_time += delta

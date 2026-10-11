@@ -3223,8 +3223,8 @@ func _section_pathing() -> void:
 	scav.queue_free()
 
 
-## AI vaulting (0.13.1): the navigation map links over low, thin cover, and a scav whose path goes that way vaults it
-## instead of walking the long way round.
+## No AI vaulting (0.14.20, owner: it made AI drop through stair ramps; scrapped): the navigation map has no links
+## over cover, and a scav walks round a low wall to get to the far side.
 func _section_ai_vault() -> void:
 	var nav := main.get_node("Navigation") as NavBaker
 	player.teleport_to(Vector3(-30, 0.1, -30))
@@ -3241,59 +3241,18 @@ func _section_ai_vault() -> void:
 	await nav.baked
 	await physics_frame
 	await physics_frame
+	_check(nav.get_children().filter(func(c: Node) -> bool: return c is NavigationLink3D).is_empty(),
+		"no navigation links over cover")
 	var scav := _spawn(SCAV_SCENE, Vector3(-20, 0.1, 27)) as Scav
-	scav.investigate_speed = 1.0
 	await physics_frame
-	var goal := Vector3(-20, 0, 33)
-	scav._goal = goal
-	scav._set_state(Scav.State.INVESTIGATE)
-	var vaulted := false
-	var arrived := false
-	for i in 60 * 10:
-		await physics_frame
-		vaulted = vaulted or not scav._vault_path.is_empty()
-		if Vector2(scav.global_position.x - goal.x, scav.global_position.z - goal.z).length() < 1.5:
-			arrived = true
-			break
-	_check(vaulted and arrived, "a scav vaults low cover on its way (vaulted %s, ended at %s)" % [vaulted,
-		str(scav.global_position.snapped(Vector3.ONE * 0.1))])
+	var path := AINav.path(scav, scav.global_position, Vector3(-20, 0, 33))
+	var round_end := false
+	for p in path:
+		round_end = round_end or absf(p.x + 20.0) > 12.0
+	_check(path.size() > 2 and round_end and path[path.size() - 1].distance_to(Vector3(-20, 0.5, 33)) < 1.0,
+		"a scav's path goes round low cover, not over it (%s)" % [path])
 	scav.queue_free()
 	wall.queue_free()
-	await physics_frame
-	# Windows too (0.13.11): a long wall with one window (sill 1 m, gap to 2.2 m); the goal straight through it.
-	var window := StaticBody3D.new()
-	window.add_to_group(NavBaker.SOURCE_GROUP)
-	for part: Array in [[Vector3(-6.35, 1.5, 0), Vector3(11.3, 3.0, 0.3)], [Vector3(6.35, 1.5, 0), Vector3(11.3, 3.0, 0.3)],
-			[Vector3(0, 0.5, 0), Vector3(1.4, 1.0, 0.3)], [Vector3(0, 2.6, 0), Vector3(1.4, 0.8, 0.3)]]:
-		var piece := CollisionShape3D.new()
-		piece.shape = BoxShape3D.new()
-		(piece.shape as BoxShape3D).size = part[1]
-		piece.position = part[0]
-		window.add_child(piece)
-	main.add_child(window)
-	window.global_position = Vector3(-20, 0, 30)
-	await physics_frame
-	nav._bake()
-	await nav.baked
-	await physics_frame
-	await physics_frame
-	scav = _spawn(SCAV_SCENE, Vector3(-20, 0.1, 26)) as Scav
-	scav.investigate_speed = 1.0
-	await physics_frame
-	scav._goal = goal
-	scav._set_state(Scav.State.INVESTIGATE)
-	vaulted = false
-	arrived = false
-	for i in 60 * 10:
-		await physics_frame
-		vaulted = vaulted or not scav._vault_path.is_empty()
-		if Vector2(scav.global_position.x - goal.x, scav.global_position.z - goal.z).length() < 1.5:
-			arrived = true
-			break
-	_check(vaulted and arrived, "a scav climbs through a window on its way (vaulted %s, ended at %s)" % [vaulted,
-		str(scav.global_position.snapped(Vector3.ONE * 0.1))])
-	scav.queue_free()
-	window.queue_free()
 	await physics_frame
 	nav._bake()
 	await nav.baked

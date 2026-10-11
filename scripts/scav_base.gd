@@ -2,7 +2,7 @@ extends CharacterBody3D
 ## The AI's settings (everything set per scene: scav, Raider, sniper, Bon) and shared state, plus small helpers.
 ## The AI is one object built from a chain of scripts, each adding one part (split up in 0.14.6, no behaviour change):
 ## scav_base.gd -> scav_senses.gd (seeing, hearing, alerting others, voice) -> scav_movement.gd (paths, patrols,
-## vaulting, level of detail) -> scav_fight.gd (tactics, cover, shooting, melee, healing) -> scav.gd (class Scav: the
+## level of detail) -> scav_fight.gd (tactics, cover, shooting, melee, healing) -> scav.gd (class Scav: the
 ## per-frame brain, damage and death, online). Each part can use everything from the parts before it.
 
 enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }

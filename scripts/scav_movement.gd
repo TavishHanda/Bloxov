@@ -1,5 +1,5 @@
 extends "res://scripts/scav_senses.gd"
-## How the AI gets around: navigation paths, patrols and trips, following a leader, hunting, vaulting, crouching,
+## How the AI gets around: navigation paths, patrols and trips, following a leader, hunting, crouching,
 ## getting unstuck, footsteps, and the level of detail for far, calm AI.
 
 ## How far away you can hear an AI's footsteps and its callouts (0.12.32, owner: you could hear every AI on the map
@@ -9,11 +9,6 @@ const STEP_SOUNDS: Array[AudioStream] = [
 	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 ## Current navigation path (to _path_goal) and the waypoint it's walking to.
 var _path := PackedVector3Array()
-## Vaulting low cover on its path (0.13.1, owner): the move (see Vault), time into it (0-1); empty = not vaulting.
-var _vault_path := PackedVector3Array()
-var _vault_t := 0.0
-var _vault_cooldown_left := 0.0
-const VAULT_TIME := 0.5
 var _ground_check_left := randf() * 0.5
 var _path_index := 0
 var _path_goal := Vector3.INF
@@ -245,37 +240,7 @@ func _path_velocity(goal: Vector3, speed: float) -> Vector3:
 	var to_next := _flat(_path[_path_index] - global_position)
 	if to_next.length() < 0.1:
 		return Vector3.ZERO
-	if to_next.length() > 1.2 and _try_vault(to_next):
-		return Vector3.ZERO
 	return to_next.normalized() * speed
-
-
-## Its path runs over low cover right in front of it (fences, sandbags, low walls, windows; the navigation map links
-## across them): vaults it, like players do. Over only, never up onto ledges or roofs. No shooting while vaulting.
-func _try_vault(direction: Vector3) -> bool:
-	if _vault_cooldown_left > 0.0 or not is_on_floor():
-		return false
-	var move := Vault.plan(self, direction, 0.4, 2.05, 1.2, 0.5, Vault.VAULT_HEIGHT)
-	if move.is_empty() or not move["over"] or move["crouch_after"]:
-		return false
-	_vault_path = move["path"]
-	_vault_t = 0.0
-	_crouched = move["duck"]   # ducking through a window (0.13.11)
-	_face(direction, 1.0, 100.0)
-	Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -3.0, 0.1, 0.9, 2.5, STEP_HEAR_RANGE)
-	return true
-
-
-func _update_vault(delta: float) -> void:
-	_vault_t += delta / VAULT_TIME
-	var was := global_position
-	global_position = Vault.position_at(_vault_path, _vault_t)
-	velocity = (global_position - was) / delta
-	if _vault_t >= 1.0:
-		var end := _vault_path[2] - _vault_path[1]
-		_vault_path.clear()
-		_vault_cooldown_left = 1.0
-		velocity = _flat(end).normalized() * move_speed * 0.5
 
 
 ## Reached `goal` (or the closest reachable point to it, if the path ended short).
@@ -527,7 +492,7 @@ func _lod_skip(delta: float) -> bool:
 	if _lod_check_left <= 0.0:
 		_lod_check_left = 0.5
 		_lod_far = _far_from_players()
-	if not lod_enabled or not _lod_far or state != State.IDLE or not _vault_path.is_empty() or _cover_phase == Cover.HEALING:
+	if not lod_enabled or not _lod_far or state != State.IDLE or _cover_phase == Cover.HEALING:
 		return false
 	_lod_wait -= 1
 	if _lod_wait <= 0:

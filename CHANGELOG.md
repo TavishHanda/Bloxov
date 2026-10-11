@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.20 (AI vaulting scrapped; owner decided)
+- The AI doesn't vault any more, not even fences or windows: it walks round. The owner asked to scrap AI vaulting
+  entirely if it caused the stair-ramp bug, and it did (0.14.19). The navigation map no longer links across low
+  cover. Players still vault as before.
+
 ## 0.14.19 (AI fell through stair ramps; bug fix, owner reported)
 - AI walking up the stairs inside buildings no longer drop through the ramp to the floor below. Since 0.14.14 the
   vault check counted the rising ramp in front as cover and "vaulted" over it, landing downstairs. A slope you can
