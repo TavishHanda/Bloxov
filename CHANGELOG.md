@@ -25,6 +25,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 - Fix: the AI's paths could go through a wall next to a low box against it (a safe, a bench), from one side of the
   wall to the other. They no longer do (it let them into the bank vault).
 
+## 0.13.11 (AI climb through windows; owner: "if it fits in seamlessly")
+- The AI climb through ground-floor windows the same way they vault fences: only when it's clearly shorter than the
+  door (it costs them about 3 m of walking), ducking through the gap, no shooting while they do. Only windows with
+  room to land on both sides count (not one with a crate right inside).
+- Checked against the AI's fight movement on the real map (the sideways check, several runs): no change.
+
 ## 0.13.10 (vault through windows; owner)
 - Space while walking into a window vaults you through it, in or out (on upper floors that means a drop, with fall
   damage past 3.5 m). You duck through the gap (the camera too) and slide a little sideways to fit it if you're not

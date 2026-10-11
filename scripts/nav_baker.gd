@@ -91,16 +91,23 @@ func _add_vault_links(xform: Transform3D, size: Vector3) -> void:
 		length = size.x
 	if thickness > Vault.MAX_THICKNESS or length < 0.8:
 		return
-	# Not window sills (0.13.10): something solid just above the top means it's a gap in a wall, not open cover.
+	# Something solid just above the top: a gap in a wall. A window (a gap of 1 m or more, 0.13.11, owner: the AI
+	# may climb through windows if it fits in) is linked like low cover; anything tighter isn't.
 	var top := xform.origin + Vector3(0, size.y * 0.5 + 0.05, 0)
-	if not get_world_3d().direct_space_state.intersect_ray(
-			PhysicsRayQueryParameters3D.create(top, top + Vector3(0, 1.6, 0), 1)).is_empty():
+	var above := get_world_3d().direct_space_state.intersect_ray(
+			PhysicsRayQueryParameters3D.create(top, top + Vector3(0, 1.6, 0), 1))
+	if not above.is_empty() and (above.position as Vector3).y - top.y < 1.0:
 		return
+	var is_window := not above.is_empty()
 	var count := maxi(1, floori(length / VAULT_LINK_SPACING))
 	var bottom := xform.origin - Vector3(0, size.y * 0.5, 0)
 	var space := get_world_3d().direct_space_state
 	for k in count:
 		var at := bottom + along * ((k + 0.5) / count - 0.5) * length
+		# A window: only if an AI fits where it lands on both sides (furniture or a crate right inside would
+		# leave it pressing into the wall).
+		if is_window and not (_room_at(at - across * (thickness * 0.5 + 0.55)) and _room_at(at + across * (thickness * 0.5 + 0.55))):
+			continue
 		# Only where both sides are open: a safe or bench against a wall would otherwise get a link through the
 		# wall (0.14.0: the AI's paths went into the locked bank vault through its outside wall). The rays start
 		# inside the box itself, which they don't count.
@@ -120,3 +127,19 @@ func _add_vault_links(xform: Transform3D, size: Vector3) -> void:
 		link.start_position = link.to_local(at - across * (thickness * 0.5 + 1.0))
 		link.end_position = link.to_local(at + across * (thickness * 0.5 + 1.0))
 		_vault_links.append(link)
+
+
+## Room for an AI standing at `feet` (on the floor there).
+func _room_at(feet: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var down := space.intersect_ray(PhysicsRayQueryParameters3D.create(feet + Vector3(0, 0.5, 0), feet + Vector3(0, -1.0, 0), 1))
+	if down.is_empty():
+		return false
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.45
+	capsule.height = 2.0
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.collision_mask = 1
+	query.transform = Transform3D(Basis(), (down.position as Vector3) + Vector3(0, 1.1, 0))
+	return space.intersect_shape(query, 1).is_empty()

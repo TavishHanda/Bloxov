@@ -1536,8 +1536,8 @@ func _path_velocity(goal: Vector3, speed: float) -> Vector3:
 	return to_next.normalized() * speed
 
 
-## Its path runs over low cover right in front of it (fences, sandbags, low walls; the navigation map links across
-## them): vaults it, like players do. Over only, never up onto ledges or roofs. No shooting while vaulting.
+## Its path runs over low cover right in front of it (fences, sandbags, low walls, windows; the navigation map links
+## across them): vaults it, like players do. Over only, never up onto ledges or roofs. No shooting while vaulting.
 func _try_vault(direction: Vector3) -> bool:
 	if _vault_cooldown_left > 0.0 or not is_on_floor():
 		return false
@@ -1546,6 +1546,7 @@ func _try_vault(direction: Vector3) -> bool:
 		return false
 	_vault_path = move["path"]
 	_vault_t = 0.0
+	_crouched = move["duck"]   # ducking through a window (0.13.11)
 	_face(direction, 1.0, 100.0)
 	Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -3.0, 0.1, 0.9, 2.5, STEP_HEAR_RANGE)
 	return true
