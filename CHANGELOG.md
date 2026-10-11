@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.6 (prone; owner)
+- **Prone: Z.** Lie flat: a slow crawl (1 m/s), as quiet as crouching, eyes 0.4 m off the ground, and the steadiest
+  aim (spread x0.75 and recoil x0.7 on top of the crouch bonus). Z, Space or Shift gets you up (C to a crouch);
+  not under anything too low. No leaning or vaulting while prone.
+- Online the others see you lying down with your gun ahead, and their hits use the lying-down hitboxes (the same
+  as a downed player's). The controls line on the raid screen lists Z.
+
 ## 0.13.5 (ladders, crouch speed; owner)
 - **Ladders.** Walk into one facing it to climb on; W up, S down, Space lets go (you push off it). Climbing past the
   top steps you onto the floor there; stepping off the top over a ladder (or dropping past one) catches you, so you

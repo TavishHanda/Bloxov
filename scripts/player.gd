@@ -60,6 +60,12 @@ const STEP_SOUNDS: Array[AudioStream] = [
 ## Meters per second up or down a ladder (0.13.5).
 @export var climb_speed := 2.2
 
+@export_group("Prone")
+## Z (0.13.6): lie down. Slow crawl, very quiet, hard to hit, steadiest aim. Z or Space gets you up, C to a crouch.
+@export var prone_speed := 1.0
+@export var prone_height := 0.8
+@export var prone_eye_height := 0.4
+
 @export_group("Crouch")
 ## C toggles crouch. Slower, quieter, smaller, steadier aim.
 @export var crouch_speed := 2.2
@@ -194,6 +200,8 @@ var _move_input := Vector2.ZERO
 var _roll := 0.0
 
 var is_crouching := false
+## Lying prone (is_crouching stays true too, so everything quiet/steady about crouching applies).
+var is_prone := false
 ## While vaulting: the path (start, over the top, end), time into it and how long it takes; empty = not vaulting.
 var _vault_path := PackedVector3Array()
 var _vault_t := 0.0
@@ -305,13 +313,39 @@ func chest_height() -> float:
 
 
 func set_crouching(crouch: bool) -> void:
+	if is_prone:
+		# Getting up from prone, to a crouch or all the way (if there's room).
+		if _ceiling_blocked(crouch_height if crouch else stand_height):
+			return
+		is_prone = false
+		is_crouching = not crouch
 	if crouch == is_crouching:
+		_set_capsule()
 		return
 	if not crouch and _ceiling_blocked():
 		return
 	is_crouching = crouch
+	_set_capsule()
+
+
+## Z: lie down, or get up (standing if there's room, else crouched).
+func set_prone(on: bool) -> void:
+	if on == is_prone or downed:
+		return
+	if not on:
+		set_crouching(false)
+		if is_prone:
+			set_crouching(true)
+		return
+	is_prone = true
+	is_crouching = true
+	_sprinting = false
+	_set_capsule()
+
+
+func _set_capsule() -> void:
 	var capsule := body_shape.shape as CapsuleShape3D
-	capsule.height = crouch_height if crouch else stand_height
+	capsule.height = prone_height if is_prone else (crouch_height if is_crouching else stand_height)
 	body_shape.position.y = capsule.height * 0.5
 
 
@@ -475,7 +509,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif hotbar_index >= 0:
 		use_hotbar(hotbar_index)
 	elif event.is_action_pressed("crouch"):
-		set_crouching(not is_crouching)
+		set_crouching(is_prone or not is_crouching)
+	elif event.is_action_pressed("prone"):
+		set_prone(not is_prone)
 	elif GameSettings.lean_toggle and (event.is_action_pressed("lean_left") or event.is_action_pressed("lean_right")):
 		var dir := -1 if event.is_action_pressed("lean_left") else 1
 		_lean_toggled = 0 if _lean_toggled == dir else dir
@@ -519,6 +555,8 @@ func _process(delta: float) -> void:
 	# Eyes move smoothly between standing and crouched height.
 	if not controls_locked():
 		var eye := crouch_eye_height if is_crouching else stand_eye_height
+		if is_prone:
+			eye = prone_eye_height
 		if downed:
 			eye = downed_eye_height
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
@@ -565,7 +603,7 @@ func _physics_process(delta: float) -> void:
 	if not controls_locked():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		if Input.is_action_just_pressed("jump") and on_floor and not downed and not is_vaulting():
-			if input_dir.y < -0.3 and not is_healing() and stamina >= jump_cost and try_vault():
+			if input_dir.y < -0.3 and not is_prone and not is_healing() and stamina >= jump_cost and try_vault():
 				_use_stamina(jump_cost)
 			elif is_crouching:
 				set_crouching(false)
@@ -739,7 +777,7 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 		return Vector3.ZERO
 	var speed := sprint_speed if _sprinting else walk_speed
 	if is_crouching:
-		speed = crouch_speed
+		speed = prone_speed if is_prone else crouch_speed
 	if is_healing():
 		speed = walk_speed * 0.5
 	if downed:
@@ -779,7 +817,7 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 
 ## Which way the player wants to lean right now (-1, 0, 1).
 func lean_input() -> int:
-	if out_of_fight() or _sprinting:
+	if out_of_fight() or _sprinting or is_prone:
 		return 0
 	if GameSettings.lean_toggle:
 		return _lean_toggled
@@ -855,9 +893,9 @@ func _make_noise(radius: float) -> void:
 	RaidScope.call_all(self, &"enemies", &"hear_noise", [global_position, radius])
 
 
-func _ceiling_blocked() -> bool:
+func _ceiling_blocked(height := stand_height) -> bool:
 	var from := global_position + Vector3(0, 0.2, 0)
-	var to := global_position + Vector3(0, stand_height + 0.05, 0)
+	var to := global_position + Vector3(0, height + 0.05, 0)
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
 	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
@@ -899,15 +937,18 @@ func apply_net_state(state: Array) -> void:
 	head.rotation.x = state[2]
 	lean = state[3]
 	is_crouching = flags & Hitbox.FLAG_CROUCH != 0
+	is_prone = flags & Hitbox.FLAG_PRONE != 0
 	_sprinting = flags & Hitbox.FLAG_SPRINT != 0
 	is_dead = flags & Hitbox.FLAG_DEAD != 0
 	extracted = flags & Hitbox.FLAG_EXTRACTED != 0
 	downed = flags & Hitbox.FLAG_DOWNED != 0
 	var low := is_crouching or downed
 	var capsule := body_shape.shape as CapsuleShape3D
-	capsule.height = crouch_height if low else stand_height
+	capsule.height = prone_height if is_prone else (crouch_height if low else stand_height)
 	body_shape.position.y = capsule.height * 0.5
 	var eye := downed_eye_height if downed else (crouch_eye_height if is_crouching else stand_eye_height)
+	if is_prone:
+		eye = prone_eye_height
 	head.position = Vector3(lean * lean_distance, eye, 0)
 	velocity = Vector3(moved * Network.SEND_RATE, 0, 0)
 	if is_crouching or out_of_fight():
@@ -926,6 +967,7 @@ func _on_downed() -> void:
 	_sprinting = false
 	_lean_toggled = 0
 	# Low like crouching (the capsule), even under a low ceiling; standing back up waits for room (set_crouching).
+	is_prone = false
 	is_crouching = true
 	var capsule := body_shape.shape as CapsuleShape3D
 	capsule.height = crouch_height

@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "fall", "ladder", "containers", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "fall", "ladder", "prone", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
@@ -572,6 +572,41 @@ func _section_ladder() -> void:
 	ladder.queue_free()
 	block.queue_free()
 	await physics_frame
+
+
+## Prone (0.13.6): Z lies you down (low, slow, quiet), Z gets you up, not under a low roof; others' hits use the
+## lying-down boxes.
+func _section_prone() -> void:
+	player.rotation.y = PI
+	player.set_prone(true)   # (what Z does; pressed actions don't reach _unhandled_input in the test)
+	Input.action_press("move_forward")
+	await create_timer(1.2).timeout
+	var speed := player.horizontal_speed()
+	Input.action_release("move_forward")
+	_check(player.is_prone and absf(speed - player.prone_speed) < 0.2, "Z: prone, crawling at ~%.1f m/s (%.2f)" % [player.prone_speed, speed])
+	await create_timer(0.3).timeout
+	_check(player.eye_height() < 0.6, "prone lowers the camera (%.2f)" % player.eye_height())
+	var state := RemotePlayer.capture(player)
+	var at: Vector3 = state[0]
+	var body := at + Basis(Vector3.UP, state[1]) * Vector3(0, 0.3, -0.7)   # the lying body, ahead of the feet
+	_check(state[4] & Hitbox.FLAG_PRONE != 0 and Hitbox.trace(state, at + Vector3(-3, 1.2, 0), at + Vector3(3, 1.2, 0)).is_empty()
+		and not Hitbox.trace(state, body + Vector3(-3, 0, 0), body + Vector3(3, 0, 0)).is_empty(),
+		"online, a prone player is hit lying down (not at standing height)")
+	# A low roof overhead: can't stand (or crouch) up.
+	var roof := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(4, 0.2, 4)
+	roof.add_child(shape)
+	main.add_child(roof)
+	roof.global_position = player.global_position + Vector3(0, 1.0, 0)
+	await physics_frame
+	player.set_prone(false)
+	_check(player.is_prone, "can't get up under a low roof")
+	roof.queue_free()
+	await physics_frame
+	player.set_prone(false)
+	_check(not player.is_prone and not player.is_crouching, "Z again stands you up")
 
 
 func _section_containers() -> void:

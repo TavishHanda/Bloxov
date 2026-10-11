@@ -13,6 +13,7 @@ const FLAG_DEAD := Hitbox.FLAG_DEAD
 const FLAG_EXTRACTED := Hitbox.FLAG_EXTRACTED
 const FLAG_ARMED := Hitbox.FLAG_ARMED
 const FLAG_DOWNED := Hitbox.FLAG_DOWNED
+const FLAG_PRONE := Hitbox.FLAG_PRONE
 ## How far in the past other players are drawn (two updates' worth, so there's always one to move toward).
 const INTERP_DELAY := 0.1
 ## The head tilts around the neck (just below the head box). Its parts are the model's Head/Hat/Eyes/Mask nodes.
@@ -71,6 +72,8 @@ static func capture(player: Player) -> Array:
 		flags |= FLAG_EXTRACTED
 	if player.downed:
 		flags |= FLAG_DOWNED
+	if player.is_prone:
+		flags |= FLAG_PRONE
 	if player.gun.weapon != null:
 		flags |= FLAG_ARMED
 	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
@@ -148,7 +151,7 @@ func update_view(time: float, delta: float) -> void:
 	_crouch = lerpf(_crouch, 1.0 if flags & FLAG_CROUCH else 0.0, step)
 	_lean = lerpf(from[3], to[3], t)
 	_down = lerpf(_down, 1.0 if flags & FLAG_DEAD else 0.0, step)
-	_prone = lerpf(_prone, 1.0 if flags & FLAG_DOWNED and not flags & FLAG_DEAD else 0.0, step)
+	_prone = lerpf(_prone, 1.0 if flags & (FLAG_DOWNED | FLAG_PRONE) and not flags & FLAG_DEAD else 0.0, step)
 	if _tag != null:
 		_tag.set_meta("label_downed", flags & FLAG_DOWNED != 0 and not flags & FLAG_DEAD)
 		_tag.position.y = lerpf(2.25, 0.9, _prone)
@@ -190,6 +193,8 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	# The model's built-in rifle only shows while they hold a gun (until guns are separate models: BACKLOG).
 	gun_model.visible = flags & FLAG_ARMED != 0
 	gun_model.position = _gun_rest + (Vector3(0, 0.12, 0.08) if flags & FLAG_AIM else Vector3.ZERO)
+	gun_model.rotation.x = 1.45 * _prone   # lying prone, the gun still points ahead
+
 	if speed > 0.3 and _down < 0.5:
 		_walk_time += delta * speed * 2.5
 	var swing := sin(_walk_time) * 0.6 * minf(speed / 2.0, 1.0)

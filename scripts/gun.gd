@@ -46,6 +46,8 @@ const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0,
 @export var airborne_spread_deg := 4.0
 ## Crouching tightens your spread.
 @export var crouch_spread_multiplier := 0.9
+## Prone (0.13.6), on top of the crouch bonus.
+@export var prone_spread_multiplier := 0.75
 ## Extra spread added per shot while spraying; recovers when you stop. Much smaller while aiming.
 @export var bloom_per_shot_deg := 0.12
 @export var max_bloom_deg := 1.2
@@ -76,6 +78,7 @@ const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0,
 ## How far the pattern drifts sideways per shot (degrees), plus a little randomness.
 @export var recoil_yaw_deg := 0.45
 @export var crouch_recoil_multiplier := 0.85
+@export var prone_recoil_multiplier := 0.7
 ## Part of the recoil that's just a quick visual kick (settles by itself).
 @export var recoil_kick_fraction := 0.25
 
@@ -262,6 +265,8 @@ func spread_for(aim_amount: float, moving: bool, crouching: bool, airborne: bool
 func current_spread() -> float:
 	var moving := player.horizontal_speed() > 1.0
 	var spread := spread_for(aim, moving, player.is_crouching, not player.is_on_floor())
+	if player.is_prone:
+		spread *= prone_spread_multiplier
 	return spread + _bloom * lerpf(1.0, ads_bloom_multiplier, aim) + _flinch_spread
 
 
@@ -277,6 +282,8 @@ func recoil_for_shot(n: int) -> Vector2:
 	# Slight pull left, then right, then back: a slow side-to-side drift.
 	var side := sin(n * 0.45 - 0.8) * 1.4 + randf_range(-0.3, 0.3)
 	var stance := crouch_recoil_multiplier if player.is_crouching else 1.0
+	if player.is_prone:
+		stance *= prone_recoil_multiplier
 	return Vector2(recoil_pitch_deg * up, recoil_yaw_deg * side) * stance
 
 

@@ -13,6 +13,8 @@ const FLAG_EXTRACTED := 16
 const FLAG_ARMED := 32
 ## Knocked down (0.9.2): lying face down, crawling. Still hittable (hits drain the downed bar).
 const FLAG_DOWNED := 64
+## Lying prone (0.13.6): the same lying-down boxes as downed (the crouch flag is set too).
+const FLAG_PRONE := 128
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
 const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)
@@ -55,7 +57,7 @@ static func trace(state: Array, from: Vector3, to: Vector3) -> Dictionary:
 	var local_to := feet.affine_inverse() * to
 	var best := {}
 	var parts := [[head_center(crouch, state[3]), HEAD_SIZE, true], [body_center(crouch), body_size(crouch), false]]
-	if flags & FLAG_DOWNED:
+	if flags & (FLAG_DOWNED | FLAG_PRONE):
 		parts = [[DOWNED_HEAD_CENTER, HEAD_SIZE, true], [DOWNED_BODY_CENTER, DOWNED_BODY_SIZE, false]]
 	for part in parts:
 		var box := AABB(part[0] - part[1] * 0.5, part[1])
