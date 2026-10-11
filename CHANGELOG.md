@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.9 (Escape closes the inventory, AI out of the floor; owner)
+- Escape closes the inventory and you're back to playing, not in the pause menu. In the browser the mouse can't be
+  grabbed back on Escape (browsers only allow it on a click or another key), so a "Click to keep playing" hint
+  shows until you click; Escape again, or Escape while playing, opens the pause menu as before.
+- AI in the floor (owner: a friend saw one, no screenshot): every AI spawn spot on the map checks out (on a floor,
+  head room). As a safety net, an AI that ends up under the ground is put back on top, like players already are.
+
 ## 0.13.8 (leaning hitboxes online; owner)
 - Online, a leaning player's body hitbox now tips with their model (before, only the head moved over and the body
   box stayed upright), so a shoulder showing round a corner can be hit, the same in what you shoot at and the

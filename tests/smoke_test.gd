@@ -1997,6 +1997,21 @@ func _section_hud() -> void:
 	hud_node._input(press_o)
 	_check(not extracts.is_list_showing(), "O again hides the list")
 
+	# Escape (0.13.9): closes the inventory back to playing (a "click to keep playing" hint, not the pause menu,
+	# since a browser won't recapture the mouse on Escape); Escape again, or Escape while playing, is the pause menu.
+	var hud := main.get_node("HUD")
+	var escape := InputEventKey.new()
+	escape.physical_keycode = KEY_ESCAPE
+	escape.pressed = true
+	loot_ui.open_for(null)
+	hud._input(escape)
+	hud._process(0.0)
+	_check(not loot_ui.visible and not hud.menu.visible and hud.resume_pending, "Escape closes the inventory, back to playing (no pause menu)")
+	hud._input(escape)
+	hud._process(0.0)
+	_check(hud.menu.visible and not hud.resume_pending, "Escape again opens the pause menu")
+	paused = false
+
 func _section_owner_rules() -> void:
 	# Damage numbers use the damage actually dealt: an AK body shot on an armored Raider shows 22, not 28.
 	var raider := _spawn(RAIDER_SCENE, player.global_position + Vector3(0, 0, 30))

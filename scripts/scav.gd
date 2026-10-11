@@ -292,6 +292,7 @@ var _vault_path := PackedVector3Array()
 var _vault_t := 0.0
 var _vault_cooldown_left := 0.0
 const VAULT_TIME := 0.5
+var _ground_check_left := randf() * 0.5
 var _path_index := 0
 var _path_goal := Vector3.INF
 var _repath_left := 0.0
@@ -436,6 +437,12 @@ func _physics_process(delta: float) -> void:
 	if state == State.DEAD or puppet:
 		return
 	_vault_cooldown_left -= delta
+	# Somehow under the hills (0.13.9, owner: a friend saw one in the floor; the ground is solid from below, so it
+	# would be stuck there): back on top, like players.
+	_ground_check_left -= delta
+	if _ground_check_left <= 0.0:
+		_ground_check_left = 0.5
+		global_position = BoxMap.above_ground(self, global_position)
 	if not _vault_path.is_empty():
 		_update_vault(delta)
 		return

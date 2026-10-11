@@ -39,6 +39,11 @@ var downed_hud: DownedHUD
 var spectator: Spectator
 
 var _indicator_time := 0.0
+## Escape closed the inventory (0.13.9): back to playing, not the pause menu. A browser won't take the mouse back
+## on Escape (it only does on a click or another key), so until it's captured again a "click to keep playing"
+## hint shows instead of the menu.
+var resume_pending := false
+var _resume_hint: Label
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
 
@@ -101,6 +106,16 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
+		# Escape: out of the inventory back to playing; otherwise (and again while the hint shows) the pause menu.
+		if loot_ui.visible:
+			loot_ui.close()
+			resume_pending = Input.mouse_mode != Input.MOUSE_MODE_CAPTURED
+			get_viewport().set_input_as_handled()
+		elif resume_pending:
+			resume_pending = false
+			get_viewport().set_input_as_handled()
+		return
 	# Handled here (before the GUI) so Tab doesn't move button focus around.
 	if event.is_action_pressed("inventory"):
 		if loot_ui.visible:
@@ -119,7 +134,7 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Clicking anywhere outside the menu panel also resumes.
-	if menu.visible and event is InputEventMouseButton and event.pressed:
+	if (menu.visible or resume_pending) and event is InputEventMouseButton and event.pressed:
 		_capture_mouse()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.physical_keycode == KEY_F3:
@@ -131,7 +146,21 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	var other_screen_open := loot_ui.visible or end_screen.visible
-	menu.visible = not captured and not other_screen_open and not player.controls_locked()
+	if captured or other_screen_open or player.controls_locked():
+		resume_pending = false
+	if _resume_hint == null:
+		_resume_hint = Label.new()
+		_resume_hint.text = "Click to keep playing"
+		_resume_hint.add_theme_font_size_override("font_size", 22)
+		_resume_hint.add_theme_color_override("font_outline_color", Color.BLACK)
+		_resume_hint.add_theme_constant_override("outline_size", 6)
+		_resume_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		_resume_hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		_resume_hint.grow_vertical = Control.GROW_DIRECTION_BOTH
+		_resume_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_resume_hint)
+	_resume_hint.visible = resume_pending
+	menu.visible = not captured and not other_screen_open and not player.controls_locked() and not resume_pending
 	get_tree().paused = menu.visible and not Network.main.in_online_raid()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
 	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
