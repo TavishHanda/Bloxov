@@ -11,7 +11,7 @@ SOURCE = ROOT / "scripts" / "item_db.gd"
 SCENES = ROOT / "scenes"
 OUT = ROOT / "docs" / "ITEMS.md"
 RARITIES = ["common", "uncommon", "rare", "epic", "legendary"]
-KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "helmet": "Helmet", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "key": "Key", "valuable": "Valuable"}
+KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "helmet": "Helmet", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "drink": "Drink", "throwable": "Throwable", "key": "Key", "valuable": "Valuable"}
 
 
 def read_dict(text, name):

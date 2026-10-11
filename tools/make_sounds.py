@@ -136,6 +136,29 @@ def swing():
     return out
 
 
+def explosion():
+    """Grenade blast: a deep boom (falling sine) under a long rumble of smoothed noise."""
+    random.seed(300)
+    n = length(1.4)
+    nz = noise(n, 0.82)
+    crack = noise(n, 0.2)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (38 + 90 * math.exp(-t * 9)) / RATE
+        boom = math.sin(phase) * math.exp(-t * 3.5) * 1.4
+        rumble = nz[i] * 3.0 * math.exp(-t * 2.6)
+        snap = crack[i] * math.exp(-t * 40)
+        out.append(math.tanh((boom + rumble + snap) * 1.6))
+    return out
+
+
+def throw():
+    """Grenade throw: a short whoosh and a pin click."""
+    random.seed(301)
+    return click(0.03, 3000, 150, 0.0) + [s * 0.6 for s in swing()]
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     write("shot.wav", shot())
@@ -151,6 +174,8 @@ def main():
     for v in range(3):
         write(f"step{v + 1}.wav", footstep(v))
     write("swing.wav", swing())
+    write("explosion.wav", explosion())
+    write("throw.wav", throw())
 
 
 if __name__ == "__main__":

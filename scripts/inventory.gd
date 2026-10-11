@@ -295,6 +295,8 @@ func unbind(id: String) -> void:
 		changed.emit()
 
 
-## Picked-up items that go on the hotbar by themselves. None do yet: heals all live on key 3 (owner, 0.8.1).
-func auto_bind(_id: String) -> void:
-	pass
+## Picked-up items that go on the hotbar by themselves: grenades go on key 4 if it's free (0.14.5). Heals all live
+## on key 3 (owner, 0.8.1).
+func auto_bind(id: String) -> void:
+	if ItemDB.kind(id) == "throwable" and can_bind(id):
+		bind_to_hotbar(id)

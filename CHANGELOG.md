@@ -6,6 +6,19 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.5 (Items: grenades, energy drink, dog tags, intel documents; owner's picks)
+- **Frag grenades.** Key 4 throws one (it goes on key 4 by itself when you pick it up); it bounces off the world and goes off 3 s
+  later: 120 damage within 1.5 m, falling to nothing at 7 m, through armor. Walls and floors between you and the
+  blast stop it. It hurts everyone, you and other players included. Online the server's copy does the damage.
+  AI hear the blast from 60 m, but they don't throw grenades. Found in lockers, on Raiders and in the bunker;
+  the trader sells them ($600). No touch button for it yet (comes with the next touch-controls pass).
+- **Energy drink.** 1.5 s to drink: fills your stamina, then for 30 s sprinting costs half and stamina comes back
+  twice as fast. Found in crates, lockers and on scavs; the trader sells it ($250).
+- **Dog tags** to sell: Raiders drop a Raider Dog Tag ($900), Bon drops Bon's Dog Tag ($9000), and online a dead
+  player's body has a PMC Dog Tag ($2500).
+- **Intel documents** to sell: Novarra Field Report ($3000; town hall, offices, lockers) and Exion Orders ($8500;
+  mostly the bunker).
+
 ## 0.14.4 (performance: AI level of detail, Jolt physics; owner asked after the health check)
 - **Far, calm AI cost much less.** An AI that's patrolling and farther from every player than it can see now thinks
   and moves 10 times a second instead of 60, and glides smoothly between steps, so it looks and moves the same. Any

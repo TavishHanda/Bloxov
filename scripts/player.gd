@@ -10,6 +10,11 @@ signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
 
 const HURT_SOUND := preload("res://audio/hurt.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
+const THROW_SOUND := preload("res://audio/throw.wav")
+## Grenades (0.14.5): how hard you throw (m/s along your view, plus a little up), and the wait between throws.
+const THROW_SPEED := 15.0
+const THROW_LIFT := 3.0
+const THROW_COOLDOWN := 1.0
 ## Blood-red sparks where the player's gun or knife hits someone.
 const HIT_COLOR := Color(0.95, 0.25, 0.2)
 ## Key 3 / the meds slot (owner, 0.9.3): a tap uses the med, holding this long switches to the next one,
@@ -173,6 +178,9 @@ var squad_check := Callable()
 var heal_time_left := 0.0
 var heal_duration := 0.0
 var _heal_item := ""
+## Energy drink (0.14.5): seconds left of its boost (stamina comes back twice as fast, sprinting uses half).
+var drink_boost_left := 0.0
+var _throw_cooldown_left := 0.0
 ## How long key 3 (or the meds slot) has been held, -1 = not held; when it switches next; whether it switched.
 var _meds_held := -1.0
 var _meds_next_switch := 0.0
@@ -294,6 +302,11 @@ func revive() -> void:
 
 func is_healing() -> bool:
 	return heal_time_left > 0.0
+
+
+## Healing, but with an energy drink.
+func is_drinking() -> bool:
+	return is_healing() and ItemDB.kind(_heal_item) == "drink"
 
 
 ## True while actually sprinting (holding Shift, moving forward, on the ground).
@@ -458,12 +471,20 @@ func _on_armor_hit(amount: int, head: bool) -> void:
 		_on_equipment_changed()
 
 
-## Use one heal item from a stack. Takes a few seconds; you can't shoot meanwhile.
+## Use one item from a stack: a heal or a drink takes a few seconds (you can't shoot meanwhile); a grenade is thrown.
 func use_item(grid: GridInventory, stack: ItemStack) -> void:
-	if not hands_free() or health.current >= health.max_health:
-		return
-	if ItemDB.kind(stack.id) != "heal":
-		return
+	match ItemDB.kind(stack.id):
+		"throwable":
+			throw_grenade(grid, stack)
+			return
+		"drink":
+			if not hands_free():
+				return
+		"heal":
+			if not hands_free() or health.current >= health.max_health:
+				return
+		_:
+			return
 	# Nothing taken = the stack is already gone (e.g. used mid-drag); don't heal for free.
 	if grid.take(stack.id, 1) == 0:
 		return
@@ -593,7 +614,14 @@ func _process(delta: float) -> void:
 		heal_time_left -= delta
 		if heal_time_left <= 0.0:
 			heal_time_left = 0.0
-			health.heal(ItemDB.item(_heal_item)["heal"])
+			if ItemDB.kind(_heal_item) == "drink":
+				stamina = max_stamina
+				is_exhausted = false
+				drink_boost_left = float(ItemDB.item(_heal_item)["boost_time"])
+			else:
+				health.heal(ItemDB.item(_heal_item)["heal"])
+	drink_boost_left = maxf(drink_boost_left - delta, 0.0)
+	_throw_cooldown_left -= delta
 
 
 func _physics_process(delta: float) -> void:
@@ -853,7 +881,24 @@ func _update_lean(delta: float) -> void:
 	head.position.x = lerpf(head.position.x, lean * reach, minf(delta * 20.0, 1.0))
 
 
+## Throws one grenade from `stack` where you're looking (offline it does the damage; online the server's copy does).
+func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
+	if not hands_free() or _throw_cooldown_left > 0.0 or grid.take(stack.id, 1) == 0:
+		return
+	_throw_cooldown_left = THROW_COOLDOWN
+	var forward := -camera.global_basis.z
+	var from := camera.global_position + forward * 0.5
+	var vel := forward * THROW_SPEED + Vector3.UP * THROW_LIFT + Vector3(velocity.x, 0, velocity.z) * 0.5
+	var online := Network.main.in_online_raid()
+	Grenade.spawn(get_tree().current_scene, from, vel, not online)
+	if online:
+		Network.main.send_grenade(from, vel)
+	Effects.sound(get_tree().current_scene, THROW_SOUND, -4.0)
+
+
 func _use_stamina(amount: float) -> void:
+	if drink_boost_left > 0.0:
+		amount *= 0.5
 	stamina = maxf(stamina - amount, 0.0)
 	_stamina_delay_left = stamina_regen_delay
 	if stamina <= 0.0:
@@ -866,7 +911,7 @@ func _update_stamina(delta: float) -> void:
 		return
 	_stamina_delay_left -= delta
 	if _stamina_delay_left <= 0.0:
-		stamina = minf(stamina + stamina_regen * delta, max_stamina)
+		stamina = minf(stamina + stamina_regen * (2.0 if drink_boost_left > 0.0 else 1.0) * delta, max_stamina)
 	if is_exhausted and stamina >= exhausted_recover_at:
 		is_exhausted = false
 

@@ -185,6 +185,16 @@ func _section_shoot() -> void:
 	_aim(dummy.global_position + Vector3(0, 1.0, 0))
 	await physics_frame
 	await physics_frame
+	# (the player may still be dropping onto the floor at the start: airborne spread would throw the shot off)
+	for i in 120:
+		if player.is_on_floor():
+			break
+		await physics_frame
+	# (no leftover flinch or bloom: a scav may have shot at you by now)
+	gun._flinch_spread = 0.0
+	gun._bloom = 0.0
+	player.add_kick(0.0, 0.0)
+	_aim(dummy.global_position + Vector3(0, 1.0, 0))
 	var before := dummy_health.current
 	gun.shoot_once()
 	_check(dummy_health.current == before - gun.damage, "body shot deals %d damage (got %d)" % [gun.damage, before - dummy_health.current])
@@ -715,6 +725,65 @@ func _section_items() -> void:
 		"its body has the armor and helmet it wore")
 	if raider_body != null:
 		raider_body.queue_free()
+	# Grenades (0.14.5): picked up onto key 4; the blast hurts what it can see, most up close; walls stop it.
+	inv.unbind(inv.hotbar[1]) if inv.hotbar[1] != "" else null
+	inv.add("grenade", 2)
+	_check(inv.hotbar[1] == "grenade", "a grenade goes on key 4 by itself")
+	var probe := Grenade.new()
+	_check(probe.damage_at(1.0) == probe.damage and probe.damage_at(4.25) == probe.damage / 2 and probe.damage_at(7.5) == 0,
+		"blast damage: full within 1.5 m, half at 4.25 m, none past 7 m")
+	probe.free()
+	var near_scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 25)) as Scav
+	var far_scav := _spawn(SCAV_SCENE, player.global_position + Vector3(14, 0, 25)) as Scav
+	await physics_frame
+	var blast := Grenade.spawn(main, near_scav.global_position + Vector3(2, 0.2, 0), Vector3.ZERO)
+	blast.fuse = 0.05
+	await create_timer(0.2).timeout
+	_check(not is_instance_valid(blast) and (not is_instance_valid(near_scav) or near_scav.health.current < near_scav.health.max_health)
+		and far_scav.health.current == far_scav.health.max_health, "a grenade 2 m from a scav kills or hurts it, one 14 m off isn't touched")
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	wall_shape.shape = BoxShape3D.new()
+	(wall_shape.shape as BoxShape3D).size = Vector3(4, 3, 0.3)
+	wall.add_child(wall_shape)
+	main.add_child(wall)
+	wall.global_position = far_scav.global_position + Vector3(0, 1.5, -1.0)
+	await physics_frame
+	var hp_before := far_scav.health.current
+	blast = Grenade.spawn(main, far_scav.global_position + Vector3(0, 0.2, -2.0), Vector3.ZERO)
+	blast.fuse = 0.05
+	await create_timer(0.2).timeout
+	_check(far_scav.health.current == hp_before, "a wall between it and the blast keeps it safe")
+	wall.queue_free()
+	for s2 in [near_scav, far_scav]:
+		if is_instance_valid(s2):
+			s2.queue_free()
+	# Thrown from the hotbar: flies off where you look and bounces to a stop.
+	var count_before := inv.count_of("grenade")
+	player.use_hotbar(1)
+	await physics_frame
+	var flying: Array = main.get_children().filter(func(n: Node) -> bool: return n is Grenade)
+	_check(inv.count_of("grenade") == count_before - 1 and flying.size() == 1 and (flying[0] as Grenade).velocity.length() > 10.0,
+		"key 4 throws one (%d left)" % inv.count_of("grenade"))
+	for g in flying:
+		g.queue_free()
+	inv.take("grenade", 10)
+	# Energy drink: fills stamina, then a boost.
+	inv.add("energy_drink")
+	player.stamina = 10.0
+	var drink := inv.find("energy_drink")
+	player.use_item(drink[0], drink[1])
+	_check(player.is_drinking(), "drinking an energy drink takes a moment")
+	await create_timer(ItemDB.item("energy_drink")["use_time"] + 0.2).timeout
+	_check(player.stamina >= player.max_stamina - 1.0 and player.drink_boost_left > 25.0 and inv.count_of("energy_drink") == 0,
+		"it fills your stamina and boosts it for 30 s")
+	player.drink_boost_left = 0.0
+	# Dog tags.
+	var tag_raider := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
+	var tag_boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav
+	_check(tag_raider.extra_drops.has("dog_tag") and tag_boss.extra_drops.has("bon_tag"), "Raiders carry dog tags, Bon his own")
+	tag_raider.free()
+	tag_boss.free()
 	# Loot by place: a gun store locker is mostly guns and ammo, a pharmacy crate mostly meds.
 	var guns := 0
 	var meds := 0
@@ -1973,6 +2042,9 @@ func _section_old_bloxov() -> void:
 	world.open_door("../Loot")
 	var server_door := world.raid.get_node_or_null("KeyDoors/BunkerDoor") as KeyDoor
 	_check(server_door != null and server_door.is_open and opened == ["BunkerDoor"], "the server opens a key door once and tells the raid (%s)" % [opened])
+	world.throw_grenade(Vector3(0, 40, 0), Vector3.ZERO)
+	var server_nade := world.raid.get_children().filter(func(n: Node) -> bool: return n is Grenade)
+	_check(server_nade.size() == 1 and server_nade[0].deals_damage, "a player's grenade flies in the server's raid, and does the damage there")
 	# Hills (0.11.17): the ground rolls, the AI can still walk from a spawn to every AI spawn point over it, and
 	# spawns and extracts stand on the ground (not floating over a hollow or buried in a hill).
 	var blocks := world.raid.get_node("Level/Blocks") as BoxMap
@@ -2055,6 +2127,7 @@ func _section_old_bloxov() -> void:
 		"the AI can walk into the creek")
 	var wader: Node3D = RaidScope.nodes(world.raid, &"enemies")[0]
 	wader.global_position = bed.get("position", mid) + Vector3.UP * 0.1
+	wader._glide_frame = 0   # (a far AI mid LOD glide would slide itself back)
 	for i in 4:
 		await physics_frame
 	_check(BoxMap.is_wading(wader), "an AI standing in the creek is wading")

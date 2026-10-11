@@ -9,7 +9,7 @@ const GEAR_SELL_RATE := 0.6
 ## [item id, amount per purchase]
 const TRADER_STOCK := [
 	["ak", 1], ["pistol", 1], ["rifle_ammo", 60], ["pistol_ammo", 50], ["bandage", 1],
-	["medkit", 1], ["armor_light", 1], ["helmet_basic", 1], ["backpack_small", 1], ["backpack_medium", 1],
+	["medkit", 1], ["armor_light", 1], ["helmet_basic", 1], ["grenade", 1], ["energy_drink", 1], ["backpack_small", 1], ["backpack_medium", 1],
 ]
 const FREE_KIT_HINT := "Free kit: pistol, 30 rounds and a bandage. Only when you own no weapon and can't afford one."
 

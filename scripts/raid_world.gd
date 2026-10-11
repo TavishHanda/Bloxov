@@ -135,6 +135,12 @@ func open_door(id: String) -> void:
 	door_opened.emit(id)
 
 
+## A player threw a grenade: this raid's copy flies and does the damage (to the AI, and to players through their
+## proxies). Loaded by path: no Grenade type here (see the top).
+func throw_grenade(from: Vector3, vel: Vector3) -> void:
+	(load("res://scripts/grenade.gd") as GDScript).call("spawn", raid, from, vel, true)
+
+
 ## A bag of items (a dead player's body, things a player dropped) at `pos`. A body gets gear slots.
 func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
 	var contents := []

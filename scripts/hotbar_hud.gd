@@ -133,7 +133,10 @@ func slot_info(i: int) -> Dictionary:
 		var id := inventory.hotbar[i - 2]
 		if id != "":
 			var have := inventory.count_of(id)
-			info["text"] = ItemDB.short_name(id)
+			if ItemDB.kind(id) == "throwable":
+				info["icon"] = HudStyle.GRENADE
+			else:
+				info["text"] = ItemDB.short_name(id)
 			info["count"] = "x%d" % have
 			info["stripe"] = ItemDB.color(id)
 			info["state"] = "filled" if have > 0 else "out"

@@ -55,6 +55,7 @@ loot_table = "raider"
 body_name = "Raider Body"
 weapon_drop_chance = 0.3
 weapon_drop = "ak"
+extra_drops = PackedStringArray("dog_tag")
 armor = "armor_light"
 helmet = "helmet_basic"
 burst_color = Color(0.66, 0.6, 0.42, 1)

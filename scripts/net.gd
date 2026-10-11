@@ -42,6 +42,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## Key doors (0.14.0): someone in the raid unlocked one (its node name).
 signal door_opened(id: String)
+## Someone else in the raid threw a grenade (0.14.5): show it (the server's copy does the damage).
+signal grenade_seen(from: Vector3, vel: Vector3)
 ## Downed (0.9.2): a teammate started or stopped holding F on us; they finished (we're back up).
 signal revive_changed(on: bool)
 signal revived
@@ -368,6 +370,22 @@ func _open_door(id: String) -> void:
 		world.open_door(id)
 
 
+## A player threw a grenade: the server's copy flies and does the damage; everyone else in the raid sees it.
+@rpc("any_peer", "call_remote", "reliable")
+func _grenade(from: Vector3, vel: Vector3) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	var world := _world_of(peer)
+	if world == null or not _player_states.has(peer) or vel.length() > 30.0:
+		return
+	var me: Array = _player_states[peer]
+	if (me[0] as Vector3).distance_to(from) > 4.0:
+		return   # (not from where they are)
+	world.throw_grenade(from, vel)
+	for other in _raid_peers(matchmaker.players[peer]["raid"]):
+		if other != peer:
+			_grenade_seen.rpc_id(other, from, vel)
+
+
 ## A player dropped items, or died (their body holds what they carried): a bag where they are.
 @rpc("any_peer", "call_remote", "reliable")
 func _drop_items(data: Array, is_body: bool) -> void:
@@ -688,6 +706,12 @@ func close_container() -> void:
 		_close_container.rpc_id(1)
 
 
+## We threw a grenade.
+func send_grenade(from: Vector3, vel: Vector3) -> void:
+	if in_online_raid():
+		_grenade.rpc_id(1, from, vel)
+
+
 ## We unlocked a key door.
 func open_door(id: String) -> void:
 	if in_online_raid():
@@ -836,6 +860,12 @@ func _bag(id: String, pos: Vector3, yaw: float, title: String, search: float) ->
 func _bag_gone(id: String) -> void:
 	if in_online_raid():
 		bag_removed.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _grenade_seen(from: Vector3, vel: Vector3) -> void:
+	if in_online_raid():
+		grenade_seen.emit(from, vel)
 
 
 @rpc("authority", "call_remote", "reliable")

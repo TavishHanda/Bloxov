@@ -22,7 +22,7 @@ func _ready() -> void:
 ## What to show: {text, key ("" = the med cross), progress (-1 = no bar), bar color}, or {} for nothing.
 func current() -> Dictionary:
 	if player.is_healing():
-		return {"text": "HEALING", "key": "", "progress": 1.0 - player.heal_time_left / player.heal_duration, "bar": HudStyle.LIFE}
+		return {"text": "DRINKING" if player.is_drinking() else "HEALING", "key": "", "progress": 1.0 - player.heal_time_left / player.heal_duration, "bar": HudStyle.LIFE}
 	var interactor := player.interactor
 	if interactor.revive_target != null:
 		var revive := interactor.revive_progress if interactor.revive_progress > 0.0 else -1.0

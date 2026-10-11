@@ -48,6 +48,8 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	Network.main.door_opened.connect(on_door_opened)
+	Network.main.grenade_seen.connect(func(from: Vector3, vel: Vector3) -> void:
+		Grenade.spawn(get_parent(), from, vel, false))
 	player.health.died.connect(_drop_body)
 	Network.main.revive_changed.connect(player.set_being_revived)
 	Network.main.revived.connect(player.revive)
@@ -190,7 +192,8 @@ func on_bag_removed(id: String) -> void:
 
 ## We died: everything we carried (except the secure pocket) becomes a body others can loot.
 func _drop_body() -> void:
-	var data := []
+	# Our dog tag goes on our body (0.14.5): whoever loots it can sell it.
+	var data := [GridInventory.stack_data(ItemStack.new("player_tag"))]
 	for slot in Inventory.SLOTS:
 		var stack := player.inventory.equipped(slot)
 		if stack != null:
