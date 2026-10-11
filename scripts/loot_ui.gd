@@ -119,7 +119,8 @@ func add_column(panel: Control) -> void:
 	_columns.add_child(panel)
 
 
-func close() -> void:
+## `recapture` false (Escape, 0.15.2): leave the mouse free. The HUD shows "Click to keep playing" instead.
+func close(recapture := true) -> void:
 	if not visible:
 		return
 	_cancel_drag()
@@ -128,7 +129,7 @@ func close() -> void:
 	_clear_views()
 	if player != null:
 		player.interactor.blocked = false
-		if not player.controls_locked():
+		if recapture and not player.controls_locked():
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 

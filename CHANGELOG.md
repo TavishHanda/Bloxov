@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.2 (Escape in the loot screen goes back to the game; owner's friends hit the pause menu)
+- Escape while looting a body or container (or in your backpack) now always closes it and shows "Click to keep
+  playing", never the pause menu. It used to grab the mouse right away, and a browser that let go again (Escape
+  still held) dropped you in the pause menu. Now the mouse is only grabbed on your click. Tab still closes the
+  screen and puts you straight back in.
 ## 0.15.1 (Attachments; owner's Guns plan)
 - Guns have attachment slots: AK scope, barrel, grip, mag; pistol barrel and sight. Each attachment's stats
   add to the gun:

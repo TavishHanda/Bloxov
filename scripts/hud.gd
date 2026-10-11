@@ -113,8 +113,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_ESCAPE:
 		# Escape: out of the inventory back to playing; otherwise (and again while the hint shows) the pause menu.
 		if loot_ui.visible:
-			loot_ui.close()
-			resume_pending = Input.mouse_mode != Input.MOUSE_MODE_CAPTURED
+			# Don't ask for the mouse here (0.15.2): a browser that grabbed it right after an Escape could let go
+			# again (Escape still down or repeating), dropping you in the pause menu. Wait for the click instead.
+			loot_ui.close(false)
+			resume_pending = true
 			get_viewport().set_input_as_handled()
 		elif resume_pending:
 			resume_pending = false
