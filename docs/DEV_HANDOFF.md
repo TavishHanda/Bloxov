@@ -35,14 +35,17 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   BINDABLE_KEYS`, `HOTBAR_SIZE = 3`).
 
 ## 3. Code map (scripts/)
-- **Player side:** `player.gd` (movement, stamina, lean, crouch, heal, hotbar keys; `proxy` mode = server copy),
+- **Player side:** `player.gd` (input, heal, hotbar keys; `proxy` mode = server copy; since 0.14.6 it extends
+  `player_movement.gd` (stance, ladders, vault, lean, stamina, footsteps) which extends `player_base.gd` (settings, state)),
   `gun.gd` (shots, ADS, recoil; online it also sends every shot to the server), `knife.gd`, `health.gd`,
   `inventory.gd` + `grid_inventory.gd` + `item_stack.gd` (grid inventory; `to_data/load_data` for the network),
   `item_db.gd` (all items, loot tables; regenerate `docs/ITEMS.md` with `tools/gen_item_list.py` after edits),
   `profile.gd` (static save in `user://profile.json`), `interactor.gd`, `loot_container.gd`, `extract_zone.gd`.
 - **Raid:** `raid.gd` (clock, extracts, end + profile save), `enemy_spawner.gd`, `nav_baker.gd` (runtime navmesh),
   `raid_map.gd` + `box_map.gd` (0.10.0: the real map is swapped into main.tscn; see `docs/MAP_PLAN.md`),
-  `scav.gd` (the whole AI; `puppet` mode for online copies; Raiders are `scenes/raider.tscn` = same script,
+  `scav.gd` (the AI, a chain of parts since 0.14.6: `scav_base.gd` settings/state -> `scav_senses.gd` ->
+  `scav_movement.gd` -> `scav_fight.gd` -> `scav.gd` per-frame brain/damage/online; each part can only use the parts
+  before it, so put new code in the lowest part that has what it needs; `puppet` mode for online copies; Raiders are `scenes/raider.tscn` = same script,
   different exports; fights go through one decision layer since 0.12.29: `_fight` picks one `Tactic` in `_decide` and
   keeps it until `_should_rethink`; add new fight behavior as a tactic there, not as its own per-frame check),
   `ai_nav.gd` (navigation queries for the AI, safe before the map is ready). After AI movement changes also run

@@ -6,6 +6,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.6 (code cleanup: AI and player scripts split up; owner asked after the health check)
+- No change in how anything plays. The AI script (about 2,400 lines) is now five smaller files: settings, senses,
+  movement, fight, and the per-frame brain. The player script is now three: settings, movement, and the rest.
+- Checked: every number the smoke test measures (62 sections) comes out exactly the same as before the split, the
+  real-map AI check passes, and the AI cost per frame is unchanged.
+
 ## 0.14.5 (Items: grenades, energy drink, dog tags, intel documents; owner's picks)
 - **Frag grenades.** Key 4 throws one (it goes on key 4 by itself when you pick it up); it bounces off the world and goes off 3 s
   later: 120 damage within 1.5 m, falling to nothing at 7 m, through armor. Walls and floors between you and the

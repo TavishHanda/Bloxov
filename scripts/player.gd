@@ -1,10 +1,10 @@
 class_name Player
-extends CharacterBody3D
+extends "res://scripts/player_movement.gd"
 ## First-person controller: WASD to move, mouse to look, Shift to sprint, Space to jump, C to crouch, Q/E to lean.
 ## Aiming down sights (RMB, handled by the Gun) slows you down, zooms the camera and stops sprinting.
+## Split into parts (0.14.6): see player_base.gd. This part is input, the per-frame update, items and the hotbar,
+## damage and the online side.
 
-## Emitted for every sound the player makes that enemies can hear (footsteps, landing).
-signal noise_made(pos: Vector3, radius: float)
 ## Proxy only: a scav rifle-butted this player (the server passes it on to their game).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
 
@@ -21,214 +21,25 @@ const HIT_COLOR := Color(0.95, 0.25, 0.2)
 ## and keeping it held switches again every MEDS_REPEAT_TIME.
 const MEDS_HOLD_TIME := 0.35
 const MEDS_REPEAT_TIME := 0.5
-const STEP_SOUNDS: Array[AudioStream] = [
-	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
-
-@export_group("Movement")
-## Meters per second. For reference, a real jog is ~3, a run ~5.
-@export var walk_speed := 3.4
-## Sprint only works moving forward, and lowers your gun.
-@export var sprint_speed := 5.6
-## Speed multipliers when walking backwards / sideways.
-@export var backward_multiplier := 0.7
-@export var strafe_multiplier := 0.85
-## How fast you speed up and slow down on the ground (m/s per second). Lower = heavier.
-@export var ground_acceleration := 16.0
-@export var ground_deceleration := 20.0
-## How much you can steer in the air (m/s per second). Low = jumps commit you.
-@export var air_control := 2.5
-## About 0.6 m high.
-@export var jump_velocity := 3.6
-@export var jump_cooldown := 0.45
-## Landing from a jump or fall slows you briefly.
-@export var landing_slowdown_time := 0.3
-## Fall damage (0.13.3): drops up to this high (meters) are free; past it, `fall_damage_per_meter` each extra meter.
-## About: a one-storey roof (2.75 m) is free, a two-storey roof (5.5 m) costs ~24, 12 m kills. Armor doesn't help.
-@export var safe_fall_height := 3.5
-@export var fall_damage_per_meter := 12.0
-@export var landing_slowdown := 0.5
-## Speed multiplier while fully aimed down sights.
-@export var ads_move_multiplier := 0.7
-
-@export_group("Vault")
-## Space while moving into low cover vaults over it or climbs onto it (0.13.0; heights etc. in `Vault`).
-## Up to this (chest high), you climb onto ledges and wide tops.
-@export var mantle_max_height := Vault.MANTLE_HEIGHT
-## How far in front of you (past your body) cover counts.
-@export var vault_reach := 0.7
-## Seconds to vault over / climb onto something.
-@export var vault_time := 0.45
-@export var mantle_time := 0.7
-@export var vault_noise := 12.0
-
-@export_group("Ladders")
-## Meters per second up or down a ladder (0.13.5).
-@export var climb_speed := 2.2
-
-@export_group("Prone")
-## Z (0.13.6): lie down. Slow crawl, very quiet, hard to hit, steadiest aim. Z or Space gets you up, C to a crouch.
-@export var prone_speed := 1.0
-@export var prone_height := 0.8
-@export var prone_eye_height := 0.4
-
-@export_group("Crouch")
-## C toggles crouch. Slower, quieter, smaller, steadier aim.
-@export var crouch_speed := 2.2
-## Wading through water (the creek, 0.11.20; owner): this fraction of the speed, and no sprinting.
-@export var wade_multiplier := 0.6
-@export var stand_height := 1.8
-@export var crouch_height := 1.2
-@export var stand_eye_height := 1.6
-@export var crouch_eye_height := 1.0
-
-@export_group("Stamina")
-@export var max_stamina := 100.0
-## Per second while sprinting. 100 / 12 = about 8 seconds of sprint.
-@export var sprint_drain := 12.0
-@export var jump_cost := 12.0
-@export var stamina_regen := 16.0
-## Seconds after sprinting/jumping before stamina starts coming back.
-@export var stamina_regen_delay := 1.0
-## Run out completely and you can't sprint again until stamina is back to this.
-@export var exhausted_recover_at := 25.0
-
-@export_group("Footsteps")
-## Meters between footsteps.
-@export var walk_stride := 1.5
-@export var sprint_stride := 1.9
-@export var crouch_stride := 1.1
-## How far away enemies hear each step (meters). 0 = silent. (0.12.30, owner: AI didn't hear him walking right past
-## them: walk 7, sprint 15, crouch silent before. Crouching is still nearly silent: only right next to them.)
-@export var walk_noise := 12.0
-@export var sprint_noise := 25.0
-@export var crouch_noise := 2.0
-@export var landing_noise := 10.0
-
-@export_group("Lean")
-## Q/E: the head shifts sideways and tilts to peek around corners. Can't sprint while leaning; walk slower.
-## The body (hitbox) stays put, so peeking only exposes what the camera can see past.
-@export var lean_distance := 0.35
-@export var lean_angle_deg := 12.0
-@export var lean_speed := 8.0
-@export var lean_move_multiplier := 0.6
-
-@export_group("Camera")
-@export var mouse_sensitivity := 0.0025
-@export var base_fov := 80.0
-## Extra field of view while sprinting, for a sense of speed.
-@export var sprint_fov_boost := 6.0
-## Head bob strength (meters) when walking / sprinting.
-@export var walk_bob := 0.03
-@export var sprint_bob := 0.055
-## Camera lean when strafing (degrees).
-@export var strafe_tilt := 1.5
-
-@export_group("Recoil")
-## How quickly the quick visual kick (and flinch from getting shot) settles.
-@export var recoil_recovery := 9.0
-## After you stop firing, the recoil you didn't pull down against returns at this rate (per second, smoothed).
-@export var recoil_return_speed := 7.0
-## Seconds after the last shot before recoil starts returning.
-@export var recoil_return_delay := 0.12
-## Getting shot kicks your aim this far (degrees, at 25 damage; scales with damage).
-@export var flinch_deg := 2.2
-
-@export_group("Downed")
-## In a squad, 0 HP knocks you down instead of killing you (owner, 0.9.2): you crawl at this fraction of walk speed
-## and can't shoot, heal, loot or extract until a teammate revives you (back up at `revive_health`).
-@export var crawl_multiplier := 0.25
-@export var downed_eye_height := 0.45
-@export var revive_health := 30
-
-@export_group("Other")
-## Mouse movements bigger than this (in pixels, in one event) are treated as glitches and ignored.
-## Works around a Chrome bug where captured-mouse input sometimes reports a huge bogus jump.
-@export var max_mouse_delta := 200.0
-## Falling below this height respawns the player.
-@export var kill_height := -20.0
-
-@onready var head: Node3D = $Head
-@onready var body_shape: CollisionShape3D = $CollisionShape3D
-@onready var recoil: Node3D = $Head/Recoil
-@onready var camera: Camera3D = $Head/Recoil/Camera3D
-@onready var gun: Gun = $Head/Recoil/Camera3D/Gun
-@onready var knife: Knife = $Head/Recoil/Camera3D/Knife
-@onready var health: Health = $Health
-@onready var inventory: Inventory = $Inventory
-@onready var interactor: Interactor = $Interactor
-
-var is_dead := false
 ## On the game server, each player in a raid is a proxy: a body the AI can see, hear, shoot and bash, moved by the
 ## states their game sends (apply_net_state). No input, camera, profile or physics of its own. Set before adding.
 var proxy := false
 ## Enemies killed this raid (gun or knife).
 var kills := 0
-## True once the player has extracted (raid over, controls off).
-var extracted := false
-## Knocked down at 0 HP with a teammate around (see Health). On a proxy, from the player's state flags.
-var downed := false
 ## Downed: a teammate is holding F on us (shown as a bar; the server tells us when it starts and stops).
 var being_revived := false
 var revive_time_left := 0.0
 ## Asked when health reaches 0: can a teammate still come and revive us? Online, a teammate who is up and in the
 ## raid; offline, never (solo dies). Replaceable (the test stands in for a teammate).
 var squad_check := Callable()
-
-## Seconds left on the current heal, and the item being used.
-var heal_time_left := 0.0
 var heal_duration := 0.0
-var _heal_item := ""
-## Energy drink (0.14.5): seconds left of its boost (stamina comes back twice as fast, sprinting uses half).
-var drink_boost_left := 0.0
 var _throw_cooldown_left := 0.0
 ## How long key 3 (or the meds slot) has been held, -1 = not held; when it switches next; whether it switched.
 var _meds_held := -1.0
 var _meds_next_switch := 0.0
 var _meds_switched := false
-
-var _spawn_position: Vector3
 var _ground_check_left := 0.0
-var _trauma := 0.0
-var _sprinting := false
-## Recoil that went into the view (x = pitch, y = yaw, radians) and hasn't been pulled down against yet.
-## It returns after a burst, so if you compensated with the mouse the view doesn't dip below the target.
-var _recoil_debt := Vector2.ZERO
-var _recoil_return_wait := 0.0
-var _sprint_fov := 0.0
-## -1 = fully leaning left, 1 = right (smoothed). _lean_toggled is the held direction in tap-to-toggle mode.
-var lean := 0.0
-var _lean_toggled := 0
 var _jump_cooldown_left := 0.0
-var _landing_left := 0.0
-var _was_on_floor := true
-var _fall_speed := 0.0
-var _bob_time := 0.0
-var _landing_dip := 0.0
-var _move_input := Vector2.ZERO
-var _roll := 0.0
-
-var is_crouching := false
-## Lying prone (is_crouching stays true too, so everything quiet/steady about crouching applies).
-var is_prone := false
-## While vaulting: the path (start, over the top, end), time into it and how long it takes; empty = not vaulting.
-var _vault_path := PackedVector3Array()
-var _vault_t := 0.0
-var _vault_duration := 0.0
-var _vault_crouch_after := false
-## Squeezing through a window: the eyes go down to crouch height so the camera clears the top of it.
-var _vault_duck := false
-var _vault_exit_speed := 0.0
-## Ladders we're in reach of (newest last), the one we're on (null = none), and a moment after letting go
-## before one can catch us again.
-var _ladders: Array[Ladder] = []
-var _climbing: Ladder = null
-var _ladder_grab_wait := 0.0
-var _climbed := 0.0
-var stamina := 100.0
-## True after running out of stamina, until it recovers to `exhausted_recover_at`.
-var is_exhausted := false
-var _stamina_delay_left := 0.0
-var _stride_left := 0.0
 
 # Mouse debug stats, shown by the HUD's F3 overlay.
 var debug_recent_dx: Array[int] = []
@@ -263,32 +74,6 @@ func _ready() -> void:
 	health.can_go_down = func() -> bool: return squad_check.call()
 
 
-func controls_locked() -> bool:
-	return is_dead or extracted
-
-
-## Dead, out, or downed: scavs leave you alone (owner, 0.9.2) and you can't extract.
-func out_of_fight() -> bool:
-	return controls_locked() or downed
-
-
-## Free to shoot, swing, heal or loot: not dead/out, downed, healing or reviving someone.
-func hands_free() -> bool:
-	return (not out_of_fight() and not is_healing() and not interactor.is_reviving() and not is_vaulting()
-		and not is_climbing())
-
-
-## Online: is a teammate up (alive, not downed, still in the raid) who could revive us?
-func teammate_can_revive() -> bool:
-	if not Network.main.in_online_raid():
-		return false
-	for peer in Network.main.teammates:
-		var state: Array = Network.main.states.get(peer, [])
-		if not state.is_empty() and int(state[4]) & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED | Hitbox.FLAG_DOWNED) == 0:
-			return true
-	return false
-
-
 ## A teammate started (or stopped) reviving us.
 func set_being_revived(on: bool) -> void:
 	being_revived = on and downed
@@ -298,91 +83,6 @@ func set_being_revived(on: bool) -> void:
 ## Our teammate finished reviving us: back up with a little health.
 func revive() -> void:
 	health.revive(revive_health)
-
-
-func is_healing() -> bool:
-	return heal_time_left > 0.0
-
-
-## Healing, but with an energy drink.
-func is_drinking() -> bool:
-	return is_healing() and ItemDB.kind(_heal_item) == "drink"
-
-
-## True while actually sprinting (holding Shift, moving forward, on the ground).
-func is_sprinting() -> bool:
-	return _sprinting
-
-
-## Height of the player's eyes / chest above their feet (lower when crouched). Used by enemies to aim.
-func eye_height() -> float:
-	return head.position.y
-
-
-## Where the player's eyes actually are (includes leaning). Enemies check line of sight to this.
-func eye_position() -> Vector3:
-	return head.global_position
-
-
-func chest_height() -> float:
-	return (body_shape.shape as CapsuleShape3D).height * 0.65
-
-
-func set_crouching(crouch: bool) -> void:
-	if is_prone:
-		# Getting up from prone, to a crouch or all the way (if there's room).
-		if _ceiling_blocked(crouch_height if crouch else stand_height):
-			return
-		is_prone = false
-		is_crouching = not crouch
-	if crouch == is_crouching:
-		_set_capsule()
-		return
-	if not crouch and _ceiling_blocked():
-		return
-	is_crouching = crouch
-	_set_capsule()
-
-
-## Z: lie down, or get up (standing if there's room, else crouched).
-func set_prone(on: bool) -> void:
-	if on == is_prone or downed:
-		return
-	if not on:
-		set_crouching(false)
-		if is_prone:
-			set_crouching(true)
-		return
-	is_prone = true
-	is_crouching = true
-	_sprinting = false
-	_set_capsule()
-
-
-func _set_capsule() -> void:
-	var capsule := body_shape.shape as CapsuleShape3D
-	capsule.height = prone_height if is_prone else (crouch_height if is_crouching else stand_height)
-	body_shape.position.y = capsule.height * 0.5
-
-
-func horizontal_speed() -> float:
-	return Vector2(velocity.x, velocity.z).length()
-
-
-func teleport_to(pos: Vector3) -> void:
-	_vault_path.clear()
-	_climbing = null
-	_fall_speed = 0.0
-	global_position = pos
-	_spawn_position = pos
-	velocity = Vector3.ZERO
-
-
-func face_towards(point: Vector3) -> void:
-	var dir := point - global_position
-	dir.y = 0.0
-	if dir.length_squared() > 0.01:
-		rotation.y = atan2(-dir.x, -dir.z)
 
 
 ## Called by the Raid when you make it out.
@@ -492,32 +192,6 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	heal_duration = ItemDB.item(stack.id)["use_time"]
 	heal_time_left = heal_duration
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
-
-
-## Gun recoil: moves where you're looking (you pull the mouse down against it). Returns after the burst.
-func add_recoil(pitch_deg: float, yaw_deg: float) -> void:
-	var pitch := deg_to_rad(pitch_deg)
-	var yaw := deg_to_rad(yaw_deg)
-	_look(pitch, yaw)
-	_recoil_debt += Vector2(pitch, yaw)
-	_recoil_return_wait = recoil_return_delay
-
-
-## A quick visual kick of the camera that settles by itself (doesn't move where you're looking for long).
-## Shots go where the camera points, so this throws off shots while it lasts.
-func add_kick(pitch_deg: float, yaw_deg: float) -> void:
-	recoil.rotation.x += deg_to_rad(pitch_deg)
-	recoil.rotation.y += deg_to_rad(yaw_deg)
-
-
-func _look(pitch: float, yaw: float) -> void:
-	rotate_y(yaw)
-	head.rotation.x = clampf(head.rotation.x + pitch, deg_to_rad(-89.0), deg_to_rad(89.0))
-
-
-## Screen shake. Amounts stack up to 1.0 and fade out.
-func add_shake(amount: float) -> void:
-	_trauma = minf(_trauma + amount, 1.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -703,184 +377,6 @@ func _physics_process(delta: float) -> void:
 			_fall_speed = 0.0
 
 
-func is_climbing() -> bool:
-	return _climbing != null
-
-
-func ladder_entered(ladder: Ladder) -> void:
-	_ladders.append(ladder)
-
-
-func ladder_exited(ladder: Ladder) -> void:
-	_ladders.erase(ladder)
-	if ladder == _climbing:
-		_climbing = null
-
-
-## Ladders (0.13.5): gets on one when walking into it facing it, or when dropping past it (stepping off the top);
-## then W/S climb, Space lets go, and climbing past the top steps you off onto the floor there. True while on one.
-func _update_climb(delta: float) -> bool:
-	_ladder_grab_wait -= delta
-	var input_dir := Vector2.ZERO
-	if not controls_locked():
-		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	if _climbing == null:
-		if _ladders.is_empty() or downed or controls_locked() or _ladder_grab_wait > 0.0:
-			return false
-		var ladder := _ladders.back() as Ladder
-		var facing := -global_basis.z
-		facing = Vector3(facing.x, 0.0, facing.z).normalized()
-		var walking_in := input_dir.y < -0.3 and facing.dot(ladder.into()) > 0.5
-		var dropping := not is_on_floor() and velocity.y < -0.5 and global_position.y < ladder.top_y() - 0.2
-		if not walking_in and not dropping:
-			return false
-		_climbing = ladder
-		_sprinting = false
-		if is_crouching:
-			set_crouching(false)
-	var ladder := _climbing
-	if Input.is_action_just_pressed("jump") and not controls_locked():
-		_climbing = null
-		_ladder_grab_wait = 0.6
-		velocity = -ladder.into() * 2.5 + Vector3.UP * 1.5
-		return false
-	var up := -input_dir.y
-	var feet := global_position.y
-	velocity = Vector3(0.0, up * climb_speed, 0.0) + ladder.into() * 0.5
-	if feet > ladder.top_y() - 0.4 and up >= 0.0:
-		velocity += ladder.into() * 2.0   # over the top, onto the floor
-		if feet > ladder.top_y():
-			velocity.y = -1.0
-	move_and_slide()
-	_fall_speed = 0.0
-	_was_on_floor = is_on_floor()
-	_climbed += absf(global_position.y - feet)
-	if _climbed > 0.6:
-		_climbed = 0.0
-		_play_step(-2.0)
-		_make_noise(walk_noise * 0.5)
-	# Off at the bottom (on the ground, not going up) or at the top (standing on the floor up there).
-	var past := (global_position - ladder.global_position).dot(ladder.into())
-	if is_on_floor() and ((up <= 0.0 and feet < ladder.top_y() - 0.5) or past > 0.5):
-		_climbing = null
-		_ladder_grab_wait = 0.3
-		velocity = Vector3.ZERO
-	return true
-
-
-func is_vaulting() -> bool:
-	return not _vault_path.is_empty()
-
-
-## Space while moving into cover: vaults over it (thin cover) or climbs onto it (ledges, wide tops) if there's
-## room. False = nothing to vault. Plain movement, so online it shows up for the others like any other move.
-func try_vault() -> bool:
-	var move := Vault.plan(self, -global_basis.z, (body_shape.shape as CapsuleShape3D).radius, stand_height,
-		crouch_height, vault_reach, mantle_max_height)
-	if move.is_empty():
-		return false
-	if move["crouch_after"] and not is_crouching:
-		set_crouching(true)
-	_vault_crouch_after = move["crouch_after"]
-	_vault_duck = move["duck"]
-	_vault_path = move["path"]
-	_vault_t = 0.0
-	_vault_duration = vault_time if move["over"] else mantle_time
-	_vault_exit_speed = maxf(horizontal_speed(), walk_speed) if move["over"] else 0.0
-	velocity = Vector3.ZERO
-	_sprinting = false
-	_play_step(2.0)
-	_make_noise(vault_noise)
-	return true
-
-
-func _update_vault(delta: float) -> void:
-	if out_of_fight():
-		_vault_path.clear()
-		return
-	_vault_t += delta / _vault_duration
-	global_position = Vault.position_at(_vault_path, _vault_t)
-	if _vault_t < 1.0:
-		return
-	var dir := Vector3(_vault_path[2].x - _vault_path[0].x, 0.0, _vault_path[2].z - _vault_path[0].z).normalized()
-	_vault_path.clear()
-	velocity = dir * _vault_exit_speed
-	_landing_dip = 0.05
-	_play_step(0.0)
-	if not _vault_crouch_after:
-		set_crouching(false)
-
-
-func _target_velocity(input_dir: Vector2) -> Vector3:
-	if input_dir == Vector2.ZERO:
-		return Vector3.ZERO
-	var speed := sprint_speed if _sprinting else walk_speed
-	if is_crouching:
-		speed = prone_speed if is_prone else crouch_speed
-	if is_healing():
-		speed = walk_speed * 0.5
-	if downed:
-		speed = walk_speed * crawl_multiplier
-	if _landing_left > 0.0:
-		speed *= landing_slowdown
-	speed *= lerpf(1.0, ads_move_multiplier, gun.aim)
-	speed *= lerpf(1.0, lean_move_multiplier, absf(lean))
-	if BoxMap.is_wading(self):
-		speed *= wade_multiplier
-	# Slower backwards and sideways.
-	var scaled := Vector2(input_dir.x * strafe_multiplier, input_dir.y * (backward_multiplier if input_dir.y > 0.0 else 1.0))
-	var local := Vector3(scaled.x, 0.0, scaled.y) * speed
-	if local.length() > speed:
-		local = local.normalized() * speed
-	return transform.basis * local
-
-
-## Head bob, strafe lean, landing dip and sprint FOV.
-func _update_camera_motion(delta: float, shake: float) -> void:
-	var speed := horizontal_speed() if is_on_floor() else 0.0
-	_bob_time += delta * speed * (1.9 if _sprinting else 2.2)
-	var bob_amount := (sprint_bob if _sprinting else walk_bob) * minf(speed / walk_speed, 1.0) * (1.0 - 0.7 * gun.aim)
-	_landing_dip = lerpf(_landing_dip, 0.0, minf(delta * 8.0, 1.0))
-	var bob := Vector3(cos(_bob_time * 0.5) * bob_amount * 0.6, -absf(sin(_bob_time * 0.5)) * bob_amount - _landing_dip, 0.0)
-	camera.position = camera.position.lerp(bob, minf(delta * 12.0, 1.0))
-
-	var tilt := deg_to_rad(-_move_input.x * strafe_tilt)
-	_roll = lerpf(_roll, tilt, minf(delta * 8.0, 1.0))
-	camera.rotation.z = _roll - deg_to_rad(lean_angle_deg) * lean + randf_range(-1.0, 1.0) * 0.05 * shake
-
-	# Sprint FOV eases in and out; aim zoom follows the gun's aim amount (already smoothed).
-	var sprint_target := sprint_fov_boost if _sprinting and speed > walk_speed else 0.0
-	_sprint_fov = lerpf(_sprint_fov, sprint_target, minf(delta * 6.0, 1.0))
-	camera.fov = lerpf(base_fov + _sprint_fov, gun.ads_fov, gun.aim)
-
-
-## Which way the player wants to lean right now (-1, 0, 1).
-func lean_input() -> int:
-	if out_of_fight() or _sprinting:
-		return 0
-	if GameSettings.lean_toggle:
-		return _lean_toggled
-	return int(Input.is_action_pressed("lean_right")) - int(Input.is_action_pressed("lean_left"))
-
-
-func is_leaning() -> bool:
-	return absf(lean) > 0.1
-
-
-func _update_lean(delta: float) -> void:
-	lean = move_toward(lean, float(lean_input()), delta * lean_speed * 0.5)
-	# Don't push the camera into a wall: lean only as far as there's room.
-	var reach := lean_distance
-	if absf(lean) > 0.01:
-		var from := global_transform * Vector3(0, head.position.y, 0)
-		var side := global_basis.x * signf(lean)
-		var query := PhysicsRayQueryParameters3D.create(from, from + side * (lean_distance + 0.2), 1, [get_rid()])
-		var hit := get_world_3d().direct_space_state.intersect_ray(query)
-		if not hit.is_empty():
-			reach = maxf(from.distance_to(hit.position) - 0.2, 0.0)
-	head.position.x = lerpf(head.position.x, lean * reach, minf(delta * 20.0, 1.0))
-
-
 ## Throws one grenade from `stack` where you're looking (offline it does the damage; online the server's copy does).
 func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
 	if not hands_free() or _throw_cooldown_left > 0.0 or grid.take(stack.id, 1) == 0:
@@ -894,66 +390,6 @@ func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
 	if online:
 		Network.main.send_grenade(from, vel)
 	Effects.sound(get_tree().current_scene, THROW_SOUND, -4.0)
-
-
-func _use_stamina(amount: float) -> void:
-	if drink_boost_left > 0.0:
-		amount *= 0.5
-	stamina = maxf(stamina - amount, 0.0)
-	_stamina_delay_left = stamina_regen_delay
-	if stamina <= 0.0:
-		is_exhausted = true
-
-
-func _update_stamina(delta: float) -> void:
-	if _sprinting and horizontal_speed() > walk_speed:
-		_use_stamina(sprint_drain * delta)
-		return
-	_stamina_delay_left -= delta
-	if _stamina_delay_left <= 0.0:
-		stamina = minf(stamina + stamina_regen * (2.0 if drink_boost_left > 0.0 else 1.0) * delta, max_stamina)
-	if is_exhausted and stamina >= exhausted_recover_at:
-		is_exhausted = false
-
-
-func _update_footsteps(delta: float) -> void:
-	var speed := horizontal_speed()
-	if not is_on_floor() or speed < 0.5:
-		_stride_left = minf(_stride_left, 0.3)
-		return
-	_stride_left -= speed * delta
-	if _stride_left > 0.0:
-		return
-	if is_crouching:
-		_stride_left = crouch_stride
-		_play_step(-16.0)
-		_make_noise(crouch_noise)
-	elif _sprinting:
-		_stride_left = sprint_stride
-		_play_step(-4.0)
-		_make_noise(sprint_noise)
-	else:
-		_stride_left = walk_stride
-		_play_step(-9.0)
-		_make_noise(walk_noise)
-
-
-func _play_step(volume_db: float) -> void:
-	Effects.sound(get_tree().current_scene, STEP_SOUNDS.pick_random(), volume_db, 0.1)
-
-
-func _make_noise(radius: float) -> void:
-	if radius <= 0.0:
-		return
-	noise_made.emit(global_position, radius)
-	RaidScope.call_all(self, &"enemies", &"hear_noise", [global_position, radius])
-
-
-func _ceiling_blocked(height := stand_height) -> bool:
-	var from := global_position + Vector3(0, 0.2, 0)
-	var to := global_position + Vector3(0, height + 0.05, 0)
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1, [get_rid()])
-	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _on_damaged(amount: int, source_position: Vector3) -> void:
