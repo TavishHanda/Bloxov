@@ -22,7 +22,8 @@ func _ready() -> void:
 ## What to show: {text, key ("" = the med cross), progress (-1 = no bar), bar color}, or {} for nothing.
 func current() -> Dictionary:
 	if player.is_healing():
-		return {"text": "DRINKING" if player.is_drinking() else "HEALING", "key": "", "progress": 1.0 - player.heal_time_left / player.heal_duration, "bar": HudStyle.LIFE}
+		return {"text": "DRINKING" if player.is_drinking() else "HEALING", "key": "", "progress": 1.0 - player.heal_time_left / player.heal_duration, "bar": HudStyle.LIFE,
+			"cancel": player.can_cancel_heal()}
 	var interactor := player.interactor
 	if interactor.revive_target != null:
 		var revive := interactor.revive_progress if interactor.revive_progress > 0.0 else -1.0
@@ -66,3 +67,20 @@ func _draw() -> void:
 		var color: Color = info["bar"]
 		draw_rect(fill, color)
 		draw_rect(Rect2(fill.position, Vector2(fill.size.x, 2)), color.lightened(0.35))
+		if info.get("cancel", false):
+			_draw_cancel_hint(Vector2(rect.get_center().x, bar.end.y + 10))
+
+
+## A mouse with its right button lit, and "TO CANCEL" (0.14.18, owner).
+func _draw_cancel_hint(top_center: Vector2) -> void:
+	var label := "TO CANCEL"
+	var mouse_size := Vector2(14, 20)
+	var width := mouse_size.x + 8.0 + HudStyle.text_width(label, 20)
+	var mouse := Rect2(Vector2(roundf(top_center.x - width * 0.5), top_center.y + 5), mouse_size)
+	HudStyle.draw_plate(self, Rect2(mouse.position - Vector2(8, 5), Vector2(width + 18, mouse_size.y + 10)))
+	draw_rect(mouse.grow(2), HudStyle.OUTLINE)
+	draw_rect(mouse, HudStyle.INK)
+	draw_rect(Rect2(mouse.position + Vector2(mouse_size.x * 0.5, 0), Vector2(mouse_size.x * 0.5, 8)), HudStyle.BRASS)
+	draw_rect(Rect2(mouse.position + Vector2(mouse_size.x * 0.5 - 1, 0), Vector2(2, 8)), HudStyle.OUTLINE)
+	draw_rect(Rect2(mouse.position + Vector2(0, 8), Vector2(mouse_size.x, 2)), HudStyle.OUTLINE)
+	HudStyle.draw_text(self, label, Vector2(mouse.end.x + 8, HudStyle.centered_baseline(mouse.get_center().y, 20)), 20, HudStyle.INK)

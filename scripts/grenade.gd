@@ -13,9 +13,9 @@ const BOUNCE := 0.35
 
 ## Seconds from the throw to the blast.
 @export var fuse := 3.0
-## Full damage within `core` meters, falling to 0 at `radius`.
-@export var damage := 120
-@export var core := 1.5
+## Full damage within `core` meters, falling evenly to 0 at `radius` (0.14.18, owner: 80 on a direct hit).
+@export var damage := 80
+@export var core := 0.0
 @export var radius := 7.0
 ## AI within this many meters hear the blast.
 @export var noise_radius := 60.0

@@ -22,7 +22,7 @@ const THROW_AFTER_SHOT := 0.3
 ## key 4 again puts it away.
 const NADE_PULL_TIME := 0.45
 const NADE_WINDUP_TIME := 0.18
-## A heal or drink can be cancelled (same key again, item back) once it's this far in: no heal-cancel spam (owner).
+## A heal or drink can be cancelled (right-click, item back) once it's this far in: no heal-cancel spam (owner).
 const HEAL_CANCEL_AFTER := 1.0
 ## Blood-red sparks where the player's gun or knife hits someone.
 const HIT_COLOR := Color(0.95, 0.25, 0.2)
@@ -194,9 +194,8 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	if ItemDB.kind(stack.id) == "throwable":
 		toggle_grenade(stack.id)
 		return
-	# The same key again while healing/drinking cancels it (owner, 0.14.17).
+	# (right-click cancels a heal or drink: _unhandled_input, owner 0.14.18)
 	if is_healing():
-		cancel_heal()
 		return
 	if _nade_phase != 0:
 		return
@@ -228,7 +227,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	var hotbar_index := -1 if downed else _hotbar_key(event)
 	if downed and not (event is InputEventMouseMotion or event.is_action_pressed("ui_cancel")):
 		return  # Downed: you can only look around (and crawl).
-	if event.is_action_pressed("heal"):
+	if event.is_action_pressed("aim") and is_healing():
+		cancel_heal()   # right-click (owner, 0.14.18; a touch button for phones comes with the touch controls)
+	elif event.is_action_pressed("heal"):
 		try_heal()
 	elif event.is_action_pressed("weapon_1"):
 		put_away_grenade()
@@ -420,9 +421,14 @@ func hands_busy() -> bool:
 	return is_healing() or is_throwing()
 
 
-## Stops a heal or drink partway (after HEAL_CANCEL_AFTER s): no effect, and the item goes back where it came from.
+## A heal or drink far enough in to cancel (HEAL_CANCEL_AFTER s: no heal-cancel spam).
+func can_cancel_heal() -> bool:
+	return is_healing() and heal_duration - heal_time_left >= HEAL_CANCEL_AFTER
+
+
+## Right-click while healing or drinking: stops it, no effect, and the item goes back where it came from.
 func cancel_heal() -> bool:
-	if not is_healing() or heal_duration - heal_time_left < HEAL_CANCEL_AFTER:
+	if not can_cancel_heal():
 		return false
 	heal_time_left = 0.0
 	var left := 1

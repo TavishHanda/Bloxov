@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.18 (grenade damage, right-click to cancel; owner asked)
+- Grenade damage: 80 on a direct hit, falling off evenly to nothing at 7 m (was 120 within 1.5 m).
+- Cancel a heal or drink with **right-click** now (was the same key again), still only after the first second.
+  Once you can, a "[mouse, right button lit] TO CANCEL" plate shows under the healing bar. Phones get a cancel
+  button with the touch controls.
+
 ## 0.14.17 (grenade and heal animations, cancel heal; owner asked; placeholders)
 - **Grenades:** key 4 now pulls one out (the gun drops out of the way and a gloved hand brings the grenade up),
   click throws it (a quick wind-up, then it flies), and key 4 again, or switching guns, puts it away. The fuse

@@ -731,8 +731,8 @@ func _section_items() -> void:
 	inv.add("grenade", 2)
 	_check(inv.hotbar[1] == "grenade", "a grenade goes on key 4 by itself")
 	var probe := Grenade.new()
-	_check(probe.damage_at(1.0) == probe.damage and probe.damage_at(4.25) == probe.damage / 2 and probe.damage_at(7.5) == 0,
-		"blast damage: full within 1.5 m, half at 4.25 m, none past 7 m")
+	_check(probe.damage == 80 and probe.damage_at(0.0) == 80 and probe.damage_at(3.5) == 40 and probe.damage_at(7.5) == 0,
+		"blast damage (0.14.18): 80 on a direct hit, half at 3.5 m, none past 7 m")
 	probe.free()
 	var near_scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 25)) as Scav
 	var far_scav := _spawn(SCAV_SCENE, player.global_position + Vector3(14, 0, 25)) as Scav
@@ -799,13 +799,16 @@ func _section_items() -> void:
 	inv.add("energy_drink")
 	drink = inv.find("energy_drink")
 	player.use_item(drink[0], drink[1])
-	player.use_item(drink[0], drink[1])
-	var early := player.is_drinking()
+	player.cancel_heal()
+	var early := player.is_drinking() and not player.can_cancel_heal()
 	await create_timer(player.HEAL_CANCEL_AFTER + 0.1).timeout
-	player.use_item(drink[0], drink[1])
+	var right_click := InputEventAction.new()
+	right_click.action = &"aim"
+	right_click.pressed = true
+	player._unhandled_input(right_click)
 	var cancelled := not player.is_drinking()
 	_check(early and cancelled and inv.count_of("energy_drink") == 1,
-		"a drink can't be cancelled in its first second, then can be, and you keep it")
+		"a drink can't be cancelled in its first second, then right-click cancels it, and you keep it")
 	inv.take("energy_drink", 1)
 	# Dog tags.
 	var tag_raider := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
