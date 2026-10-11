@@ -42,8 +42,12 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    kits) as a money sink. Earned money only (`STORE_RULES.md`: no real-money trading).
 9. **Then (M4, vertical slice):** building models fitted to the proven layout, loading screen, and a **lighting overhaul** (owner, 2026-10-10: today's look is too
    saturated; tune it once, against the real models and ground textures, within what the web build supports).
-   After that M5 content (characters with perks, more traders,
-   more maps) and the M6 public release.
+   After that M5 content (characters with perks, more traders, more maps) and the M6 public release.
+   - **Character prestige (owner, 2026-10-11):** play a character a lot and you can "prestige" it to unlock skill
+     points that slightly boost that character's own traits (e.g. sprint 2% longer per point, up to 20%). Comes with
+     the characters work. Keep the boosts small: the design doc's rule is "progression = access, not power", so
+     this is the one place a little power is earned, and only on that character.
+   - **Crosshair customization (owner, 2026-10-11; later):** pick your own crosshair (style, size, color) in settings.
 - **Stash update (planned, before the store/Steam release; owner 2026-10-10: wait until closer to shipping, solo and
   online share one stash while we playtest):** solo and online get **separate stashes** (each with its own money,
   loadout and stats), picked with a SOLO / ONLINE switch in the hideout. Solo stays on the device and works
