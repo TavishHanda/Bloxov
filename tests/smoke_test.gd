@@ -586,6 +586,35 @@ func _section_window_vault() -> void:
 		_check(vaulted and z * way < -0.3 and lowest_head_room > 0.0,
 			"vaulted through a window (%s; ended %.2f m past, camera under the top: %s)" % [
 			"in" if way > 0.0 else "out", -z * way, lowest_head_room > 0.0])
+	# A crate under the window (0.14.22, owner): still vault through, from the crate's side (long way or side
+	# on) or onto it from the other side.
+	for case: Array in [[1.0, Vector3(1.1, 0.5, 0.6), 1.2], [1.0, Vector3(0.6, 0.5, 1.1), 1.7], [-1.0, Vector3(1.1, 0.5, 0.6), 1.2]]:
+		var crate := StaticBody3D.new()
+		var box := CollisionShape3D.new()
+		box.shape = BoxShape3D.new()
+		(box.shape as BoxShape3D).size = case[1]
+		box.position = Vector3(0, 0.25, 0.15 + case[1].z * 0.5)
+		crate.add_child(box)
+		main.add_child(crate)
+		crate.global_position = spot
+		var way: float = case[0]
+		player.teleport_to(spot + Vector3(0.15, 0.1, case[2] * way))
+		player.rotation.y = 0.0 if way > 0.0 else PI
+		await create_timer(0.3).timeout
+		Input.action_press("move_forward")
+		Input.action_press("jump")
+		await physics_frame
+		await physics_frame
+		Input.action_release("jump")
+		var vaulted := player.is_vaulting()
+		for i in 60:
+			await physics_frame
+		Input.action_release("move_forward")
+		var z := player.global_position.z - spot.z
+		_check(vaulted and z * way < -0.3, "vaulted through a window with a crate %s it (%s; ended %.2f m past)" % [
+			"in front of" if way > 0.0 else "behind", "side on" if case[1].z > 1.0 else "long way", -z * way])
+		crate.queue_free()
+		await physics_frame
 	wall.queue_free()
 	await physics_frame
 

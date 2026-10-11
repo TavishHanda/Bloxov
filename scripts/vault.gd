@@ -14,6 +14,8 @@ const MANTLE_HEIGHT := 1.7
 const MAX_THICKNESS := 0.9
 ## Of a vault's time, the share spent getting up and over the top (the rest is down the far side).
 const SPLIT := 0.6
+## How far behind something low (a crate under a window) cover further back still counts.
+const BEHIND := 1.2
 
 
 ## The move for `body` heading `forward` (flat), or {} if there's nothing to vault or no room:
@@ -25,23 +27,41 @@ static func plan(body: CollisionObject3D, forward: Vector3, radius: float, stand
 	var space := body.get_world_3d().direct_space_state
 	var feet := body.global_position
 	forward = Vector3(forward.x, 0.0, forward.z).normalized()
-	# Something in front from knee to chest height (0.14.14: raised cover too, like a ramp's side), faced
-	# fairly head-on...
-	var hit := {}
-	var nearest := INF
+	# Something in front from knee to chest height (0.14.14: raised cover too, like a ramp's side). Nearest first;
+	# what's further back is tried too when the near thing can't be vaulted over (0.14.22, owner: a crate under a
+	# window used to block the window: you climbed onto the crate, or nothing).
+	var hits := []
 	for h: float in [0.3, 0.65, 1.0, 1.35]:
 		var from := feet + Vector3(0, h, 0)
-		var probe := _ray(body, space, from, from + forward * (radius + reach))
+		var probe := _ray(body, space, from, from + forward * (radius + reach + BEHIND))
 		# (a slope you can walk up, like a ramp ahead, isn't cover: 0.14.19, vaulting "over" a ramp dropped you
 		# through it to the floor below)
 		if probe.is_empty() or probe["normal"].y >= 0.7:
 			continue
-		var d := Vector2(probe["position"].x - feet.x, probe["position"].z - feet.z).length()
-		if d < nearest - 0.05:
-			nearest = d
-			hit = probe
-	if hit.is_empty():
+		probe["distance"] = Vector2(probe["position"].x - feet.x, probe["position"].z - feet.z).length()
+		hits.append(probe)
+	hits.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["distance"] < b["distance"])
+	if hits.is_empty() or hits[0]["distance"] > radius + reach:
 		return {}
+	var climb := {}
+	var tried := -INF
+	for hit: Dictionary in hits:
+		if hit["distance"] < tried + 0.05:
+			continue   # (the same face, seen from another height)
+		tried = hit["distance"]
+		var move := _plan_at(body, space, feet, forward, hit, radius, stand_height, crouch_height, mantle_height)
+		if not move.is_empty():
+			if move["over"]:
+				return move
+			if climb.is_empty():
+				climb = move
+	return climb
+
+
+## plan() for one thing in front (`hit`, a ray hit on its face).
+static func _plan_at(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, feet: Vector3, forward: Vector3,
+		hit: Dictionary, radius: float, stand_height: float, crouch_height: float, mantle_height: float) -> Dictionary:
+	# Faced fairly head-on...
 	var into := -Vector3(hit["normal"].x, 0.0, hit["normal"].z).normalized()
 	if into.dot(forward) < 0.6:
 		return {}

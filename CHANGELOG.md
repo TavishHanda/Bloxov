@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.22 (vault through a window with a crate under it; owner asked)
+- A crate (or anything low) in front of a window no longer blocks it: you used to climb onto the crate or not
+  vault at all. If the near thing can't be vaulted over, cover up to 1.2 m behind it is tried, and vaulting over
+  wins over climbing onto. Landing on a crate on the far side already worked.
+
 ## 0.14.21 (Death screen; owner asked)
 - When you die or go missing, the end screen's lost list and LOST total leave out your secure pocket, since it
   comes home with you. Extracting still lists and counts everything.
