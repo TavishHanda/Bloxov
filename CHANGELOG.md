@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.6 (Gun feel: attachments show on the gun, pump and bolt action)
+- Attachments show on the gun in your hands: sights and scopes on top, a suppressor or choke on the muzzle (the
+  flash moves out to its end), a foregrip under the barrel, a longer extended mag. Aiming with a red dot lines
+  you up through the dot. (Placeholder blocks until the art pass.)
+- The Mauler pumps and the Lancer works its bolt between shots, with a click; loading shells rolls the shotgun
+  over with a push per shell.
+
 ## 0.15.5 (AI loadouts; scavs drop their gun; owner's Guns plan)
 - Every scav and Raider now rolls a gun when it spawns. Scavs: AK 40%, Wasp 25%, Mauler 20%, pistol 15%.
   Raiders: AK 50%, Wasp 30%, Mauler 20%. Sniper scavs carry the Lancer, Bon an AK with a 4x scope and a grip.

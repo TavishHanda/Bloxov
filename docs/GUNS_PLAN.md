@@ -59,7 +59,9 @@ Details and open questions to the owner: project file `guns/plan.md`.
       (slot -> id) travels in saves (`"att"`) and network data (8th entry, cleaned on load). Inventory screen: drop
       on a gun or right-click "Attach to"; right-click a gun to remove. Online, the server hears a suppressed shot at
       half range (`_shot(..., suppressed)`). Damage never changes with attachments, so the server needs nothing else.
-- [ ] Gun feel per gun (recoil, zoom, reloads, flash, sound).
+- [x] Gun feel per gun: recoil, zoom, flash and sound per gun came with 0.15.4 (weapon stats). **0.15.6:**
+      attachments drawn on the first-person model (`GunViewModels.dress`, `MOUNTS`/`LOOKS`; an optic lowers the aim
+      position by its height), pump/bolt worked between shots (`"cycle"`), shell-by-shell reload pose.
 - [x] **0.15.5 AI loadouts.** `ScavBase.loadout` (a table in `AILoadouts.TABLES` or a gun id) rolls the gun at spawn;
       `AILoadouts.STYLES` changes its shooting numbers only (AI behavior is locked in). The gun is its `weapon_drop`
       (scavs 15%, owner), dropped with `drop_parts` (Bon) or a random part (`drop_part_chance`, Raiders). The smoke

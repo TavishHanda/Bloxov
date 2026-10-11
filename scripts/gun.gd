@@ -101,6 +101,9 @@ var falloff: Array = []
 ## Reload one round at a time (`reload_time` each); firing stops it.
 var load_one := false
 var flash_size := 1.0
+## "pump" or "bolt": worked by hand between shots (0.15.6), shown on the model with a click; "" for none.
+var cycle := ""
+var _cycle_clicked := true
 var shot_pitch := 1.0
 var shot_db := -4.0
 
@@ -123,6 +126,9 @@ var aim := 0.0
 @onready var camera: Camera3D = get_parent()
 @onready var _models := {"rifle": $Model, "pistol": $PistolModel}
 var _ads_positions := ADS_POSITIONS.duplicate()
+## Where each model's muzzle sits with nothing on the barrel, and how far its optic raises the sight line.
+var _muzzle_rests := {}
+var _optic_raise := 0.0
 var model: Node3D
 var muzzle: Node3D
 var flash: Node3D
@@ -153,6 +159,7 @@ func _ready() -> void:
 	for key in _models:
 		var node: Node3D = _models[key]
 		_model_rests[key] = node.position
+		_muzzle_rests[key] = (node.get_node("Muzzle") as Node3D).position
 		node.visible = false
 		(node.get_node("Muzzle/Flash") as Node3D).visible = false
 	# The player's own @onready vars aren't set yet (children are ready first), so look the inventory up directly.
@@ -171,6 +178,7 @@ func select_slot(slot: String) -> void:
 func _on_equipment_changed() -> void:
 	if weapon != null and weapon == player.inventory.equipped(active_slot):
 		_apply_stats(weapon)   # same gun, maybe new attachments
+		_dress_model()
 		return
 	var current := player.inventory.equipped(active_slot)
 	if current == null:
@@ -198,8 +206,15 @@ func _apply_weapon(stack: ItemStack) -> void:
 	flash = muzzle.get_node("Flash")
 	flash.visible = false
 	model.visible = true
+	_dress_model()
 	# Start low so the new gun visibly comes up.
 	model.position = (_model_rests[_model_key] as Vector3) + Vector3(0, -0.25, 0.05)
+
+
+## Shows the weapon's attachments on its model (0.15.6).
+func _dress_model() -> void:
+	if model != null:
+		_optic_raise = GunViewModels.dress(model, _model_key, weapon.attachments, _muzzle_rests[_model_key])
 
 
 ## Takes the weapon's stats, attachments included (0.15.1). Returns them.
@@ -227,6 +242,7 @@ func _apply_stats(stack: ItemStack) -> Dictionary:
 	falloff = data.get("falloff", [])
 	load_one = bool(data.get("load_one", false))
 	flash_size = float(data.get("flash", 1.0))
+	cycle = str(data.get("cycle", ""))
 	shot_pitch = float(data.get("shot_pitch", 1.0))
 	shot_db = float(data.get("shot_db", -4.0))
 	return data
@@ -397,6 +413,7 @@ func shoot_once() -> void:
 		Network.main.send_shot(from, dirs, weapon.id, weapon.attachments.values().has("suppressor"))
 
 	Effects.sound(world, SHOT_SOUND, shot_db, 0.08, shot_pitch)
+	_cycle_clicked = cycle == ""
 	_flash_left = 0.045
 	flash.visible = true
 	flash.rotation.z = randf() * TAU
@@ -510,7 +527,8 @@ func _update_model(delta: float) -> void:
 	var bob_scale := minf(speed / player.walk_speed, 1.0) * (2.2 if sprinting else 1.0)
 	var bob := Vector3(sin(_bob_time) * 0.012, absf(cos(_bob_time)) * 0.014, 0.0) * bob_scale * (1.0 - 0.85 * aim)
 
-	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(_ads_positions[_model_key], aim)
+	var ads: Vector3 = _ads_positions[_model_key] - Vector3(0, _optic_raise, 0)
+	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(ads, aim)
 	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
 	var target_rot := Vector3(0.12 * _kick, 0, 0)
 	if player.hands_busy():
@@ -525,9 +543,26 @@ func _update_model(delta: float) -> void:
 		# Gun drops out of the way while the knife swings.
 		target_pos += Vector3(0.05, -0.16, 0.05)
 		target_rot += Vector3(-0.4, -0.3, 0.0)
+	elif is_reloading and load_one:
+		# Shells go in one at a time: the gun rolls over, a little push per shell.
+		var push := sin(clampf(1.0 - _reload_left / maxf(reload_time, 0.01), 0.0, 1.0) * PI)
+		target_pos += Vector3(-0.03, -0.07, 0.03 + 0.02 * push)
+		target_rot += Vector3(-0.3, 0.2, 0.9)
 	elif is_reloading:
 		target_pos += Vector3(0, -0.08, 0.04)
 		target_rot += Vector3(-0.5, 0.3, 0.4)
+	elif cycle != "" and _since_shot < 60.0 / rounds_per_minute:
+		# Working the pump or bolt between shots (0.15.6), with a click halfway.
+		var t := _since_shot / (60.0 / rounds_per_minute)
+		var work := sin(clampf((t - 0.15) / 0.7, 0.0, 1.0) * PI)
+		if cycle == "pump":
+			target_pos += Vector3(0, -0.01, 0.05 * work)
+		else:
+			target_pos += Vector3(0, -0.03 * work, 0.02 * work)
+			target_rot += Vector3(0, 0, 0.45 * work)
+		if t > 0.5 and not _cycle_clicked:
+			_cycle_clicked = true
+			Effects.sound(get_tree().current_scene, MAG_IN_SOUND, -6.0, 0.05, 1.4)
 	# Raising the gun after a sprint is a bit slower than other moves.
 	# While aiming the gun follows the aim amount closely (that's already smoothed).
 	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0 + 30.0 * aim), 1.0)
