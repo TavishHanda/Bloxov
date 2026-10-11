@@ -56,9 +56,13 @@ const STEP_SOUNDS: Array[AudioStream] = [
 @export var mantle_time := 0.7
 @export var vault_noise := 12.0
 
+@export_group("Ladders")
+## Meters per second up or down a ladder (0.13.5).
+@export var climb_speed := 2.2
+
 @export_group("Crouch")
 ## C toggles crouch. Slower, quieter, smaller, steadier aim.
-@export var crouch_speed := 1.8
+@export var crouch_speed := 2.2
 ## Wading through water (the creek, 0.11.20; owner): this fraction of the speed, and no sprinting.
 @export var wade_multiplier := 0.6
 @export var stand_height := 1.8
@@ -196,6 +200,12 @@ var _vault_t := 0.0
 var _vault_duration := 0.0
 var _vault_crouch_after := false
 var _vault_exit_speed := 0.0
+## Ladders we're in reach of (newest last), the one we're on (null = none), and a moment after letting go
+## before one can catch us again.
+var _ladders: Array[Ladder] = []
+var _climbing: Ladder = null
+var _ladder_grab_wait := 0.0
+var _climbed := 0.0
 var stamina := 100.0
 ## True after running out of stamina, until it recovers to `exhausted_recover_at`.
 var is_exhausted := false
@@ -245,7 +255,8 @@ func out_of_fight() -> bool:
 
 ## Free to shoot, swing, heal or loot: not dead/out, downed, healing or reviving someone.
 func hands_free() -> bool:
-	return not out_of_fight() and not is_healing() and not interactor.is_reviving() and not is_vaulting()
+	return (not out_of_fight() and not is_healing() and not interactor.is_reviving() and not is_vaulting()
+		and not is_climbing())
 
 
 ## Online: is a teammate up (alive, not downed, still in the raid) who could revive us?
@@ -310,6 +321,7 @@ func horizontal_speed() -> float:
 
 func teleport_to(pos: Vector3) -> void:
 	_vault_path.clear()
+	_climbing = null
 	_fall_speed = 0.0
 	global_position = pos
 	_spawn_position = pos
@@ -540,6 +552,8 @@ func _physics_process(delta: float) -> void:
 	if is_vaulting():
 		_update_vault(delta)
 		return
+	if _update_climb(delta):
+		return
 	var on_floor := is_on_floor()
 	if not on_floor:
 		velocity += get_gravity() * delta
@@ -611,6 +625,71 @@ func _physics_process(delta: float) -> void:
 			global_position = lifted
 			velocity = Vector3.ZERO
 			_fall_speed = 0.0
+
+
+func is_climbing() -> bool:
+	return _climbing != null
+
+
+func ladder_entered(ladder: Ladder) -> void:
+	_ladders.append(ladder)
+
+
+func ladder_exited(ladder: Ladder) -> void:
+	_ladders.erase(ladder)
+	if ladder == _climbing:
+		_climbing = null
+
+
+## Ladders (0.13.5): gets on one when walking into it facing it, or when dropping past it (stepping off the top);
+## then W/S climb, Space lets go, and climbing past the top steps you off onto the floor there. True while on one.
+func _update_climb(delta: float) -> bool:
+	_ladder_grab_wait -= delta
+	var input_dir := Vector2.ZERO
+	if not controls_locked():
+		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	if _climbing == null:
+		if _ladders.is_empty() or downed or controls_locked() or _ladder_grab_wait > 0.0:
+			return false
+		var ladder := _ladders.back() as Ladder
+		var facing := -global_basis.z
+		facing = Vector3(facing.x, 0.0, facing.z).normalized()
+		var walking_in := input_dir.y < -0.3 and facing.dot(ladder.into()) > 0.5
+		var dropping := not is_on_floor() and velocity.y < -0.5 and global_position.y < ladder.top_y() - 0.2
+		if not walking_in and not dropping:
+			return false
+		_climbing = ladder
+		_sprinting = false
+		if is_crouching:
+			set_crouching(false)
+	var ladder := _climbing
+	if Input.is_action_just_pressed("jump") and not controls_locked():
+		_climbing = null
+		_ladder_grab_wait = 0.6
+		velocity = -ladder.into() * 2.5 + Vector3.UP * 1.5
+		return false
+	var up := -input_dir.y
+	var feet := global_position.y
+	velocity = Vector3(0.0, up * climb_speed, 0.0) + ladder.into() * 0.5
+	if feet > ladder.top_y() - 0.4 and up >= 0.0:
+		velocity += ladder.into() * 2.0   # over the top, onto the floor
+		if feet > ladder.top_y():
+			velocity.y = -1.0
+	move_and_slide()
+	_fall_speed = 0.0
+	_was_on_floor = is_on_floor()
+	_climbed += absf(global_position.y - feet)
+	if _climbed > 0.6:
+		_climbed = 0.0
+		_play_step(-2.0)
+		_make_noise(walk_noise * 0.5)
+	# Off at the bottom (on the ground, not going up) or at the top (standing on the floor up there).
+	var past := (global_position - ladder.global_position).dot(ladder.into())
+	if is_on_floor() and ((up <= 0.0 and feet < ladder.top_y() - 0.5) or past > 0.5):
+		_climbing = null
+		_ladder_grab_wait = 0.3
+		velocity = Vector3.ZERO
+	return true
 
 
 func is_vaulting() -> bool:

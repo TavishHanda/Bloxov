@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "fall", "containers", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "fall", "ladder", "containers", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
@@ -526,6 +526,52 @@ func _section_fall() -> void:
 	_check(hurt[0] == 0 and hurt[1] > 15 and hurt[1] < 40 and hurt[2] > hurt[1] + 20,
 		"fall damage from 3 / 6 / 9 m: %s" % str(hurt))
 	player.health.heal(player.health.max_health)
+
+
+## Ladders (0.13.5): W up onto a 4 m platform, then back off the edge, caught by the ladder, S down: no fall damage.
+func _section_ladder() -> void:
+	var spot := Vector3(30, 0, 30)
+	var block := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(3, 4, 3)
+	block.add_child(shape)
+	main.add_child(block)
+	block.global_position = spot + Vector3(0, 2, -1.5)   # its +Z face at z = spot.z
+	var ladder := (load("res://scenes/ladder.tscn") as PackedScene).instantiate() as Ladder
+	ladder.height = 4.0
+	main.add_child(ladder)
+	ladder.global_position = spot
+	player.teleport_to(spot + Vector3(0, 0.1, 1.2))
+	player.rotation.y = 0.0   # facing -Z, at the ladder
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	var climbed := false
+	for i in 60 * 4:
+		await physics_frame
+		climbed = climbed or player.is_climbing()
+		if climbed and not player.is_climbing():
+			break
+	Input.action_release("move_forward")
+	await create_timer(0.3).timeout
+	var top := player.global_position
+	_check(climbed and top.y > 3.9 and top.y < 4.2 and top.z < spot.z and not player.is_climbing(),
+		"W climbs the ladder onto the platform (at %s)" % str(top.snapped(Vector3.ONE * 0.1)))
+	_check(player.hands_free() or player.is_climbing(), "hands free again off the ladder")
+	# Back off the edge over the ladder: it catches you; hold S to climb down.
+	var hp := player.health.current
+	player.rotation.y = 0.0
+	Input.action_press("move_back")
+	for i in 60 * 5:
+		await physics_frame
+	Input.action_release("move_back")
+	await create_timer(0.5).timeout
+	_check(player.global_position.y < 0.3 and player.health.current == hp,
+		"backing off the top, the ladder catches you and S climbs down (y %.2f, hp %d -> %d)" % [
+		player.global_position.y, hp, player.health.current])
+	ladder.queue_free()
+	block.queue_free()
+	await physics_frame
 
 
 func _section_containers() -> void:

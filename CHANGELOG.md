@@ -6,6 +6,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.13.5 (ladders, crouch speed; owner)
+- **Ladders.** Walk into one facing it to climb on; W up, S down, Space lets go (you push off it). Climbing past the
+  top steps you onto the floor there; stepping off the top over a ladder (or dropping past one) catches you, so you
+  can climb down without a fall. No gun while climbing. Ready for the sniper towers: `scenes/ladder.tscn` (set its
+  `height`; it leans on whatever is behind it). None on the map yet, and the AI don't use them.
+- Crouch-walking is a little quicker: 2.2 m/s (was 1.8). Still nearly silent.
+
 ## 0.13.4 (fall damage fix)
 - 0.13.3's fall damage also counted being moved (spawning, being set back on the ground): a fast fall before the
   move could hurt or kill you on arrival. Moves now reset the fall.
