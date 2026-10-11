@@ -60,4 +60,8 @@ Details and open questions to the owner: project file `guns/plan.md`.
       on a gun or right-click "Attach to"; right-click a gun to remove. Online, the server hears a suppressed shot at
       half range (`_shot(..., suppressed)`). Damage never changes with attachments, so the server needs nothing else.
 - [ ] Gun feel per gun (recoil, zoom, reloads, flash, sound).
-- [ ] AI loadouts per enemy type.
+- [x] **0.15.5 AI loadouts.** `ScavBase.loadout` (a table in `AILoadouts.TABLES` or a gun id) rolls the gun at spawn;
+      `AILoadouts.STYLES` changes its shooting numbers only (AI behavior is locked in). The gun is its `weapon_drop`
+      (scavs 15%, owner), dropped with `drop_parts` (Bon) or a random part (`drop_part_chance`, Raiders). The smoke
+      test's `_spawn` turns loadouts off so AI tests keep the AK numbers. Online puppets don't know the gun yet
+      (they hold the AK model and use the scene's shot pitch): the art pass needs to send it.

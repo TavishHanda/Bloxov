@@ -48,6 +48,8 @@ shot_volume_db = 4.0
 shot_unit_size = 30.0
 net_kind = 2
 body_name = "Sniper Body"
+weapon_drop_chance = 0.15
+loadout = "sniper"
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)

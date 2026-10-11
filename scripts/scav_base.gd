@@ -247,6 +247,12 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var helmet := ""
 ## Item id of that gun.
 @export var weapon_drop := ""
+## What it carries (0.15.5, AILoadouts): a loadout table ("scav", "raider": a random gun each spawn) or a gun id.
+## The gun changes how it shoots (AILoadouts.STYLES) and becomes its weapon_drop. "" = keep the scene's numbers.
+@export var loadout := ""
+## Attachments its gun always has when dropped (Bon: a scope and a grip), and the chance of one random extra.
+@export var drop_parts := PackedStringArray()
+@export_range(0.0, 1.0) var drop_part_chance := 0.0
 
 @export_group("Look")
 ## Which gun model it holds (HeldGun.MODELS key; "" = the one drawn into its model).

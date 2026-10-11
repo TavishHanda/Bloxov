@@ -31,6 +31,12 @@ var _net_hits := 0
 func _ready() -> void:
 	add_to_group("enemies")
 	_side = 1.0 if randf() < 0.5 else -1.0
+	if loadout != "":
+		var gun := AILoadouts.pick(loadout)
+		AILoadouts.apply_style(self, gun)
+		weapon_drop = gun
+		if HeldGun.MODELS.has(gun):
+			held_model = gun   # (until the art pass every AI holds the AK model)
 	if held_model != "":
 		muzzle = HeldGun.show(model, held_model).get_node("Muzzle")
 	# The model is an imported .glb, so the flash lives in this scene and moves onto its muzzle here.
@@ -319,7 +325,7 @@ func _on_died() -> void:
 		return
 	var drops: Array = []
 	if weapon_drop != "" and randf() < weapon_drop_chance:
-		drops.append([weapon_drop, 1])
+		drops.append(AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance))
 	for id in extra_drops:
 		drops.append([id, 1])
 	for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):

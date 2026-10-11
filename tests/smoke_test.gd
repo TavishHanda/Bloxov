@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -1260,6 +1260,39 @@ func _section_new_guns() -> void:
 	inv.equip("primary", rifle)
 	gun.select_slot("primary")
 	_check(gun.weapon == rifle and gun.pellets == 1 and gun.load_one == false, "back to the AK")
+
+
+func _section_ai_loadouts() -> void:
+	# AI loadouts (0.15.5, owner's plan): scavs and Raiders roll a gun; it changes how they shoot and is what they drop.
+	var seen := {}
+	for i in 200:
+		seen[AILoadouts.pick("scav")] = true
+	_check(seen.size() == 4 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol"), "scavs carry AKs, SMGs, shotguns and pistols")
+	_check(AILoadouts.pick("sniper") == "sniper" and not AILoadouts.TABLES["raider"].has("pistol"), "sniper scavs carry the Lancer; Raiders no pistols")
+	var probe := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	var base_damage := probe.shot_damage
+	var base_range := probe.shoot_range
+	AILoadouts.apply_style(probe, "shotgun")
+	_check(probe.shot_damage > base_damage * 2 and probe.burst_size == 1 and probe.shoot_range < 25.0, "a shotgun AI hits hard, one shot at a time, only up close")
+	probe.free()
+	probe = (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	AILoadouts.apply_style(probe, "smg")
+	_check(probe.shot_damage < base_damage and probe.burst_size > 3 and probe.shoot_range < base_range, "an SMG AI fires longer bursts that hurt less")
+	probe.free()
+	# A spawned one: its gun is what it drops.
+	var scav := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	main.add_child(scav)
+	scav.global_position = Vector3(30, 0.1, 30)
+	await physics_frame
+	_check(AILoadouts.TABLES["scav"].has(scav.weapon_drop) and scav.muzzle != null and scav.muzzle.is_inside_tree(), "a spawned scav rolls a gun (%s)" % scav.weapon_drop)
+	scav.queue_free()
+	var boss_gun := AILoadouts.dropped_gun("ak", ["scope_4x", "foregrip"], 0.0)
+	_check(boss_gun.attachments == {"scope": "scope_4x", "grip": "foregrip"}, "Bon's AK drops with a scope and grip")
+	var with_part := 0
+	for i in 100:
+		if not AILoadouts.dropped_gun("shotgun", [], 0.25).attachments.is_empty():
+			with_part += 1
+	_check(with_part > 8 and with_part < 45, "a Raider's dropped gun sometimes has an attachment (%d/100)" % with_part)
 
 
 func _section_dropped_gun() -> void:
@@ -3847,9 +3880,9 @@ func _section_raiders() -> void:
 	# Sneaks (quiet, slower) when close to where it's going.
 	raider._goal = raider.global_position + Vector3(0, 0, -8)
 	_check(raider._sneaking(), "a Raider closing in moves quietly")
-	# Weapon drops (owner, 0.11.11): Raiders sometimes leave their AK in the body bag; scavs don't drop guns this way.
+	# Weapon drops (owner, 0.11.11): Raiders sometimes leave their AK in the body bag; scavs too, less often (0.15.5).
 	_check(raider.weapon_drop == "ak" and raider.weapon_drop_chance > 0.0 and raider.weapon_drop_chance < 1.0, "Raiders have a chance to drop an AK")
-	_check(scav.weapon_drop_chance == 0.0, "scavs don't drop their gun")
+	_check(is_equal_approx(scav.weapon_drop_chance, 0.15), "scavs drop their gun 15% of the time (owner, 0.15.5)")
 	raider.weapon_drop_chance = 1.0
 	raider.max_drops = 3
 	raider.min_drops = 3
@@ -3972,6 +4005,9 @@ func _find_stack(stacks: Array, id: String, count := -1) -> ItemStack:
 ## Instances a scene into the level at `pos`.
 func _spawn(path: String, pos: Vector3) -> Node3D:
 	var node := (load(path) as PackedScene).instantiate() as Node3D
+	if node is Scav:
+		# AI tests are built around the AK's numbers: no random gun (the "ai_loadouts" section checks those).
+		(node as Scav).loadout = ""
 	main.add_child(node)
 	node.global_position = pos
 	return node

@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.5 (AI loadouts; scavs drop their gun; owner's Guns plan)
+- Every scav and Raider now rolls a gun when it spawns. Scavs: AK 40%, Wasp 25%, Mauler 20%, pistol 15%.
+  Raiders: AK 50%, Wasp 30%, Mauler 20%. Sniper scavs carry the Lancer, Bon an AK with a 4x scope and a grip.
+- The gun changes how it shoots (only the numbers; how the AI fights is unchanged):
+  - **Mauler**: one hard hit at a time (you go down in about 4 instead of 7), but only within about 22 m.
+  - **Wasp**: longer, faster bursts that each hurt less, and a shorter reach.
+  - **Pistol**: short bursts, slower, a bit weaker.
+  - **AK**: exactly as before. Overall danger stays about where it was.
+- Their shots sound like their gun (Wasp higher, Mauler deeper).
+- Scavs now drop their gun 15% of the time (owner), sniper scavs their Lancer too. Raiders still 30%, and a
+  Raider's gun sometimes comes with an attachment. Bon's AK drops with its scope and grip.
+- For now every AI still holds the AK model whatever it carries; showing the real gun comes with the art pass.
+
 ## 0.15.4 (Three new guns: Wasp, Mauler, Lancer; owner OK'd names and numbers)
 - **Wasp** (SMG): full auto, 900 rounds a minute, 30-round mag, 20 damage (5 body shots). Great from the hip,
   light kick, but its damage drops past 25 m (down to 14 by 50 m). Uses its own **SMG Rounds** (owner).
