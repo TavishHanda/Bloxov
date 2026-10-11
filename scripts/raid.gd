@@ -29,6 +29,7 @@ func _ready() -> void:
 	# Online, the server runs the clock (you may join a raid that's already going).
 	time_left = Network.main.raid_time_left if Network.main.in_online_raid() else raid_time
 	player.health.died.connect(_on_player_died)
+	_set_leave_warning(true)
 
 	if spawn_points != null and spawn_points.get_child_count() > 0:
 		var points := spawn_points.get_children()
@@ -136,7 +137,19 @@ func _on_extracted(zone: ExtractZone) -> void:
 	_finish()
 
 
+func _exit_tree() -> void:
+	_set_leave_warning(false)
+
+
+## Web (0.15.3, owner: friends kept hitting Ctrl+W mid-raid): while the raid is on, closing or reloading the tab
+## asks "Leave site?" first. The browser writes the question itself; a page can't change its words.
+func _set_leave_warning(on: bool) -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.onbeforeunload = %s;" % ("function(e){e.preventDefault(); e.returnValue=''; return '';}" if on else "null"), true)
+
+
 func _finish() -> void:
+	_set_leave_warning(false)
 	_tally_loot()
 	_save_to_profile()
 	ended.emit(result)
