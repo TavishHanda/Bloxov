@@ -249,6 +249,8 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var weapon_drop := ""
 
 @export_group("Look")
+## Which gun model it holds (HeldGun.MODELS key; "" = the one drawn into its model).
+@export var held_model := ""
 @export var burst_color := Color(0.33, 0.38, 0.24)
 
 @onready var health: Health = $Health

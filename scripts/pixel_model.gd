@@ -12,9 +12,16 @@ var outfit := {}
 
 
 func _ready() -> void:
-	for node in find_children("*", "MeshInstance3D", true, false):
+	make_crisp(self)
+	if randomize_outfit:
+		pick_outfit()
+
+
+## Crisp texture filtering and matte materials on every mesh under `root`.
+static func make_crisp(root: Node) -> void:
+	for node in [root] + root.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := node as MeshInstance3D
-		if mesh_instance.mesh == null:
+		if mesh_instance == null or mesh_instance.mesh == null:
 			continue
 		for i in mesh_instance.mesh.get_surface_count():
 			var material := mesh_instance.mesh.surface_get_material(i) as BaseMaterial3D
@@ -22,8 +29,6 @@ func _ready() -> void:
 				material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
 				material.metallic = 0.0
 				material.roughness = 1.0
-	if randomize_outfit:
-		pick_outfit()
 
 
 ## Shows one random option per outfit slot (or the given ones) and hides the rest.

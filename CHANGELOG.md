@@ -5,7 +5,13 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
+
+## 0.15.0 (Guns update starts: no more RPK; owner asked)
+- Raiders and Bon now hold an AK instead of the RPK that was drawn into their model (owner: "I don't want an
+  rpk"). It was only ever the look: there's no RPK item, and how they shoot hasn't changed.
+- Under the hood: the gun a character holds is now its own piece, swapped onto the model (`HeldGun`), so later
+  each AI can show the gun it really carries and the art pass can drop real gun models in.
 
 ## 0.14.24 (LEAVE RAID in the pause menu; owner asked)
 - The pause menu (Esc) has a LEAVE RAID button under PLAY. Pressing it asks first ("Leave the raid? It counts

@@ -11,7 +11,7 @@
   When telling the owner about an update, lead with its version and a short name (e.g. "**0.5.1: Recoil & accuracy**").
   Phases so far: 0.5 guns, 0.6 scavs, 0.7 multiplayer (to 0.7.11), 0.8 HUD & inventory (designer session, closed at
   0.8.16; 0.8.0-0.8.3 were first released as 0.7.12-0.7.15), 0.9 multiplayer raid flow (downed/revive, per-player extract; paused at 0.9.5), 0.10 the Map & Spawn update (Bloxov Battlegrounds, first called Old Bloxov;
-  `docs/MAP_PLAN.md`, to 0.10.3), 0.11 **Scorched Earth** (owner's name: code cleanup, then the map turned war zone; closed; map follow-ups kept the 0.11.x numbers), 0.12 **Hot Zone** (Scavs 2.0; closed at 0.12.39), 0.13 **Over the Top** (Movement: vaulting, prone, ladders; to 0.13.9), then 0.14 **Spoils of War** (Items: keys, loot by place). A Stash update (separate solo/online
+  `docs/MAP_PLAN.md`, to 0.10.3), 0.11 **Scorched Earth** (owner's name: code cleanup, then the map turned war zone; closed; map follow-ups kept the 0.11.x numbers), 0.12 **Hot Zone** (Scavs 2.0; closed at 0.12.39), 0.13 **Over the Top** (Movement: vaulting, prone, ladders; to 0.13.9), 0.14 **Spoils of War** (Items: keys, loot by place), then 0.15 the **Guns** update (new guns, attachments, AI loadouts; plan in `docs/GUNS_PLAN.md`). A Stash update (separate solo/online
   stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
   built on a branch and released as the next phase.
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read

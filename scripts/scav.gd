@@ -31,6 +31,8 @@ var _net_hits := 0
 func _ready() -> void:
 	add_to_group("enemies")
 	_side = 1.0 if randf() < 0.5 else -1.0
+	if held_model != "":
+		muzzle = HeldGun.show(model, held_model).get_node("Muzzle")
 	# The model is an imported .glb, so the flash lives in this scene and moves onto its muzzle here.
 	muzzle_flash.reparent(muzzle, false)
 	muzzle_flash.visible = false

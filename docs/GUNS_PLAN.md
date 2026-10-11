@@ -34,3 +34,21 @@ Stats live in `scripts/item_db.gd` (weapon entries), so tuning is mostly editing
 ## Mobile notes
 Every new action is an input action (`aim`, `shoot`, ...), so touch buttons can trigger them later.
 Aim will need a toggle mode for touch (hold is awkward on a phone): plan a "hold / toggle" setting.
+
+# Guns update (0.15)
+
+Owner-approved plan (2026-10-11): keep the AK and pistol; add one SMG, one shotgun and one sniper (made-up names on
+real-looking guns, no real brands: `STORE_RULES.md`); one ammo per gun type; attachments as simple slots whose stats
+add to the gun; gun feel per gun; AI loadouts per enemy type. Mechanics only: no character model work, no
+durability, no weight. New guns use placeholder models; the gun a character holds stays separate from the
+character model (`HeldGun`) so the art pass can swap real models in. Controls stay touch-friendly.
+Details and open questions to the owner: project file `guns/plan.md`.
+
+## Steps
+- [x] **0.15.0 No RPK.** The RPK only existed as the gun drawn into the Raider model (Raiders and Bon). `HeldGun`
+      swaps a model's drawn-in "Gun" node for another gun model (`held_model` on the AI scenes); Raiders and Bon
+      hold the scav model's AK.
+- [ ] New guns + ammo (names and numbers wait on the owner).
+- [ ] Attachments (slots on the gun, stats added, inventory drag-on / slot panel).
+- [ ] Gun feel per gun (recoil, zoom, reloads, flash, sound).
+- [ ] AI loadouts per enemy type.
