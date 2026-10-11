@@ -1274,11 +1274,26 @@ func _section_ai_loadouts() -> void:
 	var base_range := probe.shoot_range
 	AILoadouts.apply_style(probe, "shotgun")
 	_check(probe.shot_damage > base_damage * 2 and probe.burst_size == 1 and probe.shoot_range < 25.0, "a shotgun AI hits hard, one shot at a time, only up close")
+	var base_chase := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	_check(probe.chase_range == probe.shoot_range and probe.chase_cover_chance < base_chase.chase_cover_chance
+		and probe.push_speed > base_chase.push_speed, "a shotgun AI rushes: chases from as far as it can hit, faster, hardly stops for cover")
 	probe.free()
 	probe = (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	AILoadouts.apply_style(probe, "smg")
 	_check(probe.shot_damage < base_damage and probe.burst_size > 3 and probe.shoot_range < base_range, "an SMG AI fires longer bursts that hurt less")
+	_check(probe.chase_range > base_chase.chase_range and probe.chase_range <= probe.shoot_range
+		and probe.suppress_chance > base_chase.suppress_chance, "an SMG AI chases from farther and pins you down more")
 	probe.free()
+	probe = (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	AILoadouts.apply_style(probe, "pistol")
+	_check(probe.chase_range < base_chase.chase_range and probe.chase_cover_chance > base_chase.chase_cover_chance,
+		"a pistol AI is careful: chases only up close, takes cover more")
+	probe.free()
+	probe = (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	AILoadouts.apply_style(probe, "ak")
+	_check(probe.chase_range == base_chase.chase_range and probe.shoot_range == base_range, "an AK AI fights as before")
+	probe.free()
+	base_chase.free()
 	# A spawned one: its gun is what it drops.
 	var scav := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	main.add_child(scav)

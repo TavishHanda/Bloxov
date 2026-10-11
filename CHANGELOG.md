@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.11 (AI fight to suit their gun; owner asked)
+- Same fight brain, only how close they like to get changes with the gun:
+  - Mauler AI rush you: they chase from as far as they can hit (22 m), walk in faster and hardly ever stop for cover.
+  - Wasp AI are aggressive: they chase from 40 m (was 30), walk in a bit faster and spray to pin you down more.
+  - Stinger AI are careful: they only chase within 15 m and take cover more often.
+  - Hound AI and the Lancer snipers fight as before.
+
 ## 0.15.10 (The pistol is now the Stinger; owner's pick)
 - The Pistol is renamed the Stinger. It's the same gun with the same stats, and saved pistols keep working.
 

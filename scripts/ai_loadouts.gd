@@ -14,11 +14,19 @@ const TABLES := {
 ## How a gun changes the AI's shooting: "mult" multiplies its stats, "set" replaces them.
 ## Rough damage per second up close against the AK (scav): SMG about the same, shotgun a little less but in big
 ## hits (you go down in 4 instead of 7), pistol about half.
+## How it fights with the gun (0.15.11, owner asked): the same fight brain, only its distance settings change.
+## Mauler rushes (chases from as far as it can hit, faster, hardly stops for cover), Wasp is aggressive (chases
+## from farther, pins you down more), Stinger is careful (chases only up close, takes cover more). Hound and
+## Lancer fight as before.
 const STYLES := {
-	"smg": {"mult": {"shot_damage": 0.75, "burst_size": 1.6, "burst_interval": 0.65, "shoot_range": 0.65, "accuracy_long": 0.7, "shot_pitch": 1.25}},
-	"shotgun": {"mult": {"shot_damage": 2.2, "accuracy_far": 0.6, "accuracy_long": 0.3, "shot_pitch": 0.75},
-		"set": {"burst_size": 1, "burst_cooldown_min": 0.9, "burst_cooldown_max": 1.2, "shoot_range": 22.0}},
-	"pistol": {"mult": {"shot_damage": 0.8, "burst_size": 0.5, "burst_cooldown_min": 1.25, "burst_cooldown_max": 1.25, "shoot_range": 0.7, "shot_pitch": 1.1}},
+	"smg": {"mult": {"shot_damage": 0.75, "burst_size": 1.6, "burst_interval": 0.65, "shoot_range": 0.65, "accuracy_long": 0.7, "shot_pitch": 1.25,
+			"push_speed": 1.12, "suppress_chance": 1.4},
+		"set": {"chase_range": 40.0}},
+	"shotgun": {"mult": {"shot_damage": 2.2, "accuracy_far": 0.6, "accuracy_long": 0.3, "shot_pitch": 0.75, "push_speed": 1.25},
+		"set": {"burst_size": 1, "burst_cooldown_min": 0.9, "burst_cooldown_max": 1.2, "shoot_range": 22.0,
+			"chase_range": 22.0, "chase_cover_chance": 0.03}},
+	"pistol": {"mult": {"shot_damage": 0.8, "burst_size": 0.5, "burst_cooldown_min": 1.25, "burst_cooldown_max": 1.25, "shoot_range": 0.7, "shot_pitch": 1.1},
+		"set": {"chase_range": 15.0, "chase_cover_chance": 0.3}},
 }
 
 ## Attachments a dropped gun may come with (ScavBase.drop_part_chance: Raiders, sometimes).
