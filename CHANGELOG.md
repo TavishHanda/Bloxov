@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.1 (Attachments; owner's Guns plan)
+- Guns have attachment slots: AK scope, barrel, grip, mag; pistol barrel and sight. Each attachment's stats
+  add to the gun:
+  - **Red Dot** (sight/scope): aim 15% faster, a little more zoom.
+  - **4x Scope** (scope): zooms right in, aiming 20% slower.
+  - **Suppressor** (barrel): your shots are heard half as far (by the AI too, online as well), 10% less kick.
+  - **Foregrip** (grip): 20% less kick.
+  - **Extended Mag** (mag): 50% more rounds (AK 45), reload 10% slower.
+- Putting one on: drag it onto the gun (in a grid or your gun slot), or right-click it and pick "Attach to
+  <gun>" (no dragging needed, good for phones later). Swapping puts the old one back where the new one was.
+  Right-click a gun to take its attachments off. Taking an extended mag off a full gun gives you the extra rounds.
+- The gun's info line lists what's on it, and a gun is worth its attachments too when you sell it.
+- Found in the gun store, police station, bunker and on Raiders; the trader sells all five.
+- Already in for the new guns: an 8x Scope (sniper only) and a Choke (shotgun only); they only drop once those
+  guns exist.
+
 ## 0.15.0 (Guns update starts: no more RPK; owner asked)
 - Raiders and Bon now hold an AK instead of the RPK that was drawn into their model (owner: "I don't want an
   rpk"). It was only ever the look: there's no RPK item, and how they shoot hasn't changed.

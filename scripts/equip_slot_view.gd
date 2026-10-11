@@ -64,7 +64,7 @@ func rebuild() -> void:
 		_label.modulate = Color.WHITE
 		match ItemDB.kind(stack.id):
 			"weapon":
-				_detail.text = "%d/%d" % [stack.loaded, int(ItemDB.item(stack.id)["mag"])]
+				_detail.text = "%d/%d" % [stack.loaded, int(ItemDB.weapon_stats(stack)["mag"])]
 			"armor", "helmet":
 				_detail.text = ("%d/%d" % [stack.durability, ItemDB.max_durability(stack.id)] if ItemDB.max_durability(stack.id) > 0
 					else "-%d%%" % roundi(ItemDB.reduction(stack) * 100.0))

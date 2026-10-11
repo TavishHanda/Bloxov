@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -901,11 +901,11 @@ func _section_items() -> void:
 		"the Holy Grail only turns up as a one-off find, in the town hall and the bank vault (%d in 200 town hall lockers)" % grails)
 	tag_raider.free()
 	tag_boss.free()
-	# Loot by place: a gun store locker is mostly guns and ammo, a pharmacy crate mostly meds.
+	# Loot by place: a gun store locker is mostly guns, ammo and attachments, a pharmacy crate mostly meds.
 	var guns := 0
 	var meds := 0
 	for i in 400:
-		if ItemDB.roll("locker", "GunStore") in ["ak", "pistol", "rifle_ammo", "pistol_ammo"]:
+		if ItemDB.kind(ItemDB.roll("locker", "GunStore")) in ["weapon", "ammo", "attachment"]:
 			guns += 1
 		if ItemDB.roll("crate", "Pharmacy") in ["bandage", "medkit"]:
 			meds += 1
@@ -1156,6 +1156,54 @@ func _section_loot_ui() -> void:
 	Input.action_release("interact")
 	await physics_frame
 	_check(not it._open_needs_release, "after letting go of F, F opens containers again")
+
+
+func _section_attachments() -> void:
+	# Attachments (0.15.1): slots on the gun, stats added, on and off from the inventory screen, kept in saves.
+	var ak := ItemStack.new("ak")
+	ak.attachments = {"mag": "ext_mag", "grip": "foregrip"}
+	var stats := ItemDB.weapon_stats(ak)
+	_check(int(stats["mag"]) == 45 and is_equal_approx(float(stats["recoil"]), 1.2 * 0.8), "extended mag + foregrip: 45 rounds, 20%% less kick")
+	_check(ItemDB.attachment_slot_for("pistol", "red_dot") == "sight" and ItemDB.attachment_slot_for("ak", "red_dot") == "scope"
+		and ItemDB.attachment_slot_for("pistol", "foregrip") == "" and ItemDB.attachment_slot_for("ak", "scope_8x") == "",
+		"attachments only go on the guns they fit")
+	_check(ak.value() == ItemDB.value("ak") + ItemDB.value("ext_mag") + ItemDB.value("foregrip"), "a gun is worth more with its attachments")
+	# Saves and network data keep them, and drop anything that isn't a real attachment for that gun.
+	var copy := GridInventory.data_stack(GridInventory.stack_data(ak))
+	_check(copy.attachments == ak.attachments, "attachments survive the network format")
+	_check(Profile._read_stack(Profile._write_stack(ak)).attachments == ak.attachments, "attachments survive a save")
+	var junk := GridInventory.data_stack(["ak", 1, 0, 0, false, 0, 0, {"scope": "medkit", "barrel": "choke", "mag": "ext_mag"}])
+	_check(junk.attachments == {"mag": "ext_mag"}, "bad attachment data is ignored (%s)" % junk.attachments)
+	# On the gun in your hands, from the pockets.
+	var rifle := inv.equipped("primary")
+	_check(rifle != null and rifle.id == "ak" and gun.weapon == rifle, "holding the AK")
+	var old_mag := gun.mag_size
+	var old_ads := gun.ads_time
+	var part := ItemStack.new("ext_mag")
+	var grid := GridInventory.new("Parts", 4, 2)
+	grid.place(part)
+	loot_ui.attach_from_grid(grid, part, rifle, null)
+	_check(rifle.attachments.get("mag") == "ext_mag" and grid.stacks.is_empty(), "attach an extended mag from a grid")
+	_check(gun.mag_size == roundi(old_mag * 1.5), "the gun in your hands takes the bigger mag (%d)" % gun.mag_size)
+	var dot := ItemStack.new("red_dot", 1, 0, 0)
+	grid.place(dot)
+	loot_ui.attach_from_grid(grid, dot, rifle, null)
+	_check(gun.ads_time < old_ads, "a red dot aims faster")
+	var scope := ItemStack.new("scope_4x", 1, 1, 0)
+	grid.place(scope)
+	loot_ui.attach_from_grid(grid, scope, rifle, null)
+	_check(rifle.attachments.get("scope") == "scope_4x" and grid.count_of("red_dot") == 1 and gun.ads_fov == 30.0,
+		"a 4x scope replaces the red dot, which comes back to the grid")
+	# Taking the mag off with more rounds loaded than the normal mag holds unloads the extra.
+	rifle.loaded = 45
+	var ammo_before := inv.count_of("rifle_ammo") + grid.count_of("rifle_ammo")
+	loot_ui.detach(rifle, "mag", grid)
+	_check(rifle.loaded == old_mag and gun.mag_size == old_mag, "mag off: back to %d rounds" % old_mag)
+	_check(inv.count_of("rifle_ammo") + grid.count_of("rifle_ammo") == ammo_before + 15 and grid.count_of("ext_mag") == 1,
+		"the 15 extra rounds and the mag come back")
+	loot_ui.detach(rifle, "scope", grid)
+	_check(rifle.attachments.is_empty() and gun.ads_time == old_ads, "all off: the gun is back to normal")
+	rifle.loaded = old_mag
 
 
 func _section_dropped_gun() -> void:
@@ -3513,11 +3561,14 @@ func _section_cover() -> void:
 	fighter.fired.connect(func(_end: Vector3) -> void:
 		if fighter._cover_phase == Scav.Cover.PEEKING:
 			shots[0] += 1)
-	for i in 60 * 10:
+	# (Up to 16 s: how soon it gets a lull to duck in depends on the random rolls.)
+	for i in 60 * 16:
 		if i % 30 == 0:
 			fighter.notice_threat()  # the player firing every half second
 		await physics_frame
 		phases[fighter._cover_phase] = true
+		if phases.has(Scav.Cover.HOLDING) and phases.has(Scav.Cover.PEEKING) and shots[0] > 0:
+			break
 	_check(phases.has(Scav.Cover.HOLDING) and phases.has(Scav.Cover.PEEKING) and shots[0] > 0,
 		"under fire it fights from cover: ducks in, peeks out and shoots from there (%d shots peeking)" % shots[0])
 	fighter.queue_free()

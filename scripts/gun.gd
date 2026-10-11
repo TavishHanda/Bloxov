@@ -155,6 +155,9 @@ func select_slot(slot: String) -> void:
 
 
 func _on_equipment_changed() -> void:
+	if weapon != null and weapon == player.inventory.equipped(active_slot):
+		_apply_stats(weapon)   # same gun, maybe new attachments
+		return
 	var current := player.inventory.equipped(active_slot)
 	if current == null:
 		var other := "secondary" if active_slot == "primary" else "primary"
@@ -174,7 +177,20 @@ func _apply_weapon(stack: ItemStack) -> void:
 	if stack == null:
 		model = null
 		return
-	var data := ItemDB.item(stack.id)
+	var data := _apply_stats(stack)
+	_model_key = data["model"]
+	model = _models[_model_key]
+	muzzle = model.get_node("Muzzle")
+	flash = muzzle.get_node("Flash")
+	flash.visible = false
+	model.visible = true
+	# Start low so the new gun visibly comes up.
+	model.position = (_model_rests[_model_key] as Vector3) + Vector3(0, -0.25, 0.05)
+
+
+## Takes the weapon's stats, attachments included (0.15.1). Returns them.
+func _apply_stats(stack: ItemStack) -> Dictionary:
+	var data := ItemDB.weapon_stats(stack)
 	damage = data["damage"]
 	rounds_per_minute = data["rpm"]
 	mag_size = data["mag"]
@@ -192,14 +208,7 @@ func _apply_weapon(stack: ItemStack) -> void:
 	recoil_pitch_deg = data["recoil"]
 	recoil_yaw_deg = data["recoil_yaw"]
 	noise_radius = data["noise"]
-	_model_key = data["model"]
-	model = _models[_model_key]
-	muzzle = model.get_node("Muzzle")
-	flash = muzzle.get_node("Flash")
-	flash.visible = false
-	model.visible = true
-	# Start low so the new gun visibly comes up.
-	model.position = (_model_rests[_model_key] as Vector3) + Vector3(0, -0.25, 0.05)
+	return data
 
 
 func _process(delta: float) -> void:
@@ -345,7 +354,7 @@ func shoot_once() -> void:
 		else:
 			_handle_hit(result)
 	if online:
-		Network.main.send_shot(from, dir, weapon.id)
+		Network.main.send_shot(from, dir, weapon.id, weapon.attachments.values().has("suppressor"))
 
 	_warn_near_misses(from, end, result.get("collider"))
 	Effects.tracer(world, muzzle.global_position, end)

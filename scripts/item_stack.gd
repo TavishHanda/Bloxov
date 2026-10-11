@@ -12,6 +12,8 @@ var rotated := false
 var loaded := 0
 ## Armor points left, or a key's uses left (0.14.0). Items that don't wear keep 0.
 var durability := 0
+## Weapons only (0.15.1): attachment slot -> attachment item id, e.g. {"scope": "red_dot"}.
+var attachments := {}
 
 
 func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated := false) -> void:
@@ -50,6 +52,20 @@ func condition() -> float:
 	return clampf(float(durability) / most, 0.0, 1.0) if most > 0 else 1.0
 
 
-## What it's worth: worn gear and part-used keys are worth less (30% when worn out).
+## What it's worth: worn gear and part-used keys are worth less (30% when worn out). A gun's attachments count too.
 func value() -> int:
-	return roundi(ItemDB.value(id) * count * (0.3 + 0.7 * condition()))
+	var total := roundi(ItemDB.value(id) * count * (0.3 + 0.7 * condition()))
+	for slot: String in attachments:
+		total += ItemDB.value(attachments[slot])
+	return total
+
+
+## Keeps only attachments that are real items and fit this gun (saves and network data aren't trusted).
+func clean_attachments(data: Variant) -> void:
+	attachments = {}
+	if not data is Dictionary:
+		return
+	for slot: Variant in data:
+		var part: Variant = data[slot]
+		if slot is String and part is String and ItemDB.ITEMS.has(part) and ItemDB.attachment_slot_for(id, part) == slot:
+			attachments[slot] = part

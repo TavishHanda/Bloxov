@@ -205,6 +205,8 @@ static func _write_stack(stack: ItemStack) -> Dictionary:
 		entry["loaded"] = stack.loaded
 	if stack.durability < ItemDB.max_durability(stack.id):
 		entry["d"] = stack.durability
+	if not stack.attachments.is_empty():
+		entry["att"] = stack.attachments.duplicate()
 	return entry
 
 
@@ -213,6 +215,7 @@ static func _read_stack(entry: Dictionary) -> ItemStack:
 	stack.loaded = int(entry.get("loaded", 0))
 	if _is_number(entry.get("d")):
 		stack.durability = clampi(int(entry["d"]), 0, ItemDB.max_durability(stack.id))
+	stack.clean_attachments(entry.get("att"))
 	return stack
 
 

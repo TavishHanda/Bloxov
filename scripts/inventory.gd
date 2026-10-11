@@ -83,6 +83,33 @@ func can_unequip(slot: String) -> bool:
 	return slot != "backpack" or backpack == null or backpack.is_empty()
 
 
+## Puts attachment `part_id` on weapon `gun` (0.15.1) in the slot it fits. Returns the attachment it replaced
+## ("" if the slot was empty) and the rounds that no longer fit in the mag, as [old part id, spare rounds].
+## The caller takes the attachment out of wherever it was and finds a home for what comes back.
+func attach(gun: ItemStack, part_id: String) -> Array:
+	var slot := ItemDB.attachment_slot_for(gun.id, part_id)
+	var old: String = gun.attachments.get(slot, "")
+	gun.attachments[slot] = part_id
+	return [old, _attachments_changed(gun)]
+
+
+## Takes the attachment in `slot` off weapon `gun`. Returns [its id, spare rounds] like attach().
+func detach(gun: ItemStack, slot: String) -> Array:
+	var old: String = gun.attachments.get(slot, "")
+	gun.attachments.erase(slot)
+	return [old, _attachments_changed(gun)]
+
+
+## A gun's attachments changed: a smaller mag unloads what no longer fits (returned), the gun in hand updates.
+func _attachments_changed(gun: ItemStack) -> int:
+	var spare := maxi(gun.loaded - int(ItemDB.weapon_stats(gun)["mag"]), 0)
+	gun.loaded -= spare
+	if equipment.values().has(gun):
+		equipment_changed.emit()
+	changed.emit()
+	return spare
+
+
 ## Takes the item out of a slot and returns it (or null if it can't come off).
 func unequip(slot: String) -> ItemStack:
 	if not can_unequip(slot):

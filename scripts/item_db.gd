@@ -26,11 +26,29 @@ const ITEMS := {
 	"ak": {"name": "AK Rifle", "desc": "Old army rifle, full auto. Hits hard, kicks harder.", "short": "AK", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 2500,
 		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 28, "head": 2.0, "rpm": 600, "mag": 30, "reload": 1.6,
 		"spread": 0.15, "hip_spread": 0.68, "move_spread": 0.75, "ads_time": 0.28, "ads_fov": 55.0,
-		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.2, "recoil_yaw": 0.45, "noise": 35.0},
+		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.2, "recoil_yaw": 0.45, "noise": 35.0,
+		"slots": ["scope", "barrel", "grip", "mag"]},
 	"pistol": {"name": "Pistol", "desc": "Small sidearm. Quick to aim, one shot per click.", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 600,
 		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 17, "head": 2.5, "rpm": 360, "mag": 12, "reload": 1.2,
 		"spread": 0.3, "hip_spread": 0.5, "move_spread": 0.5, "ads_time": 0.16, "ads_fov": 66.0,
-		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0},
+		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0,
+		"slots": ["barrel", "sight"]},
+	# Attachments (0.15.1, owner's plan): each goes in one slot type of a gun ("slots" on the gun) and its "mult"
+	# stats multiply the gun's (ItemDB.weapon_stats). "fits" (optional) limits it to those guns.
+	"red_dot": {"name": "Red Dot", "desc": "Small sight with a red dot. Quicker to aim, a little more zoom.", "kind": "attachment", "rarity": "uncommon",
+		"w": 1, "h": 1, "stack": 1, "value": 500, "slots": ["sight", "scope"], "mult": {"ads_time": 0.85, "ads_fov": 0.92}},
+	"scope_4x": {"name": "4x Scope", "short": "4x", "desc": "Brings far targets close. Slower to aim.", "kind": "attachment", "rarity": "rare",
+		"w": 2, "h": 1, "stack": 1, "value": 1500, "slots": ["scope"], "mult": {"ads_time": 1.2}, "set": {"ads_fov": 30.0}},
+	"scope_8x": {"name": "8x Scope", "short": "8x", "desc": "A sniper's scope. Huge zoom, slow to aim.", "kind": "attachment", "rarity": "epic",
+		"w": 2, "h": 1, "stack": 1, "value": 3000, "slots": ["scope"], "fits": ["sniper"], "mult": {"ads_time": 1.3}, "set": {"ads_fov": 14.0}},
+	"suppressor": {"name": "Suppressor", "short": "Supp", "desc": "Your shots are heard half as far. A little less kick.", "kind": "attachment", "rarity": "rare",
+		"w": 2, "h": 1, "stack": 1, "value": 1800, "slots": ["barrel"], "fits": ["pistol", "ak", "smg", "sniper"], "mult": {"noise": 0.5, "recoil": 0.9, "recoil_yaw": 0.9}},
+	"choke": {"name": "Choke", "desc": "Shotgun muzzle. Keeps the pellets tighter.", "kind": "attachment", "rarity": "uncommon",
+		"w": 1, "h": 1, "stack": 1, "value": 700, "slots": ["barrel"], "fits": ["shotgun"], "mult": {"pellet_spread": 0.7}},
+	"foregrip": {"name": "Foregrip", "short": "Grip", "desc": "Something to hold on to. Less kick.", "kind": "attachment", "rarity": "uncommon",
+		"w": 1, "h": 1, "stack": 1, "value": 800, "slots": ["grip"], "mult": {"recoil": 0.8, "recoil_yaw": 0.8}},
+	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds half as many rounds again. Slower to reload.", "kind": "attachment", "rarity": "rare",
+		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["mag"], "mult": {"mag": 1.5, "reload": 1.1}},
 	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Takes the edge off a hit.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 1500, "reduction": 0.2},
 	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 4000, "reduction": 0.4},
 	"helmet_basic": {"name": "Old Helmet", "short": "Old Helm", "desc": "Dented steel pot. Better than nothing on your head.",
@@ -90,7 +108,7 @@ const LOOT_TABLES := {
 	"locker": {"gunpowder": 2, "grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
 	"safe": {"armor_heavy": 6, "helmet_good": 5, "backpack_large": 4, "uncommon": 15, "rare": 40, "epic": 30, "legendary": 15},
 	"scav": {"energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
-	"raider": {"grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"raider": {"red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
@@ -111,15 +129,15 @@ const SPECIAL_FINDS := {
 ## `place` metadata) rolls from its own table plus these weights, so a gun store's lockers are mostly guns.
 ## Places not listed (shops, offices, houses, the station...) roll the plain tables: mid loot.
 const PLACE_LOOT := {
-	"Bunker": {"gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
+	"Bunker": {"scope_4x": 6, "suppressor": 5, "ext_mag": 5, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
 	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
 	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5},
 	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
 	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2},
-	"GunStore": {"gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
+	"Police": {"red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2},
+	"GunStore": {"red_dot": 10, "scope_4x": 6, "suppressor": 5, "foregrip": 8, "ext_mag": 6, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"Diner": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
@@ -191,6 +209,37 @@ static func kind(id: String) -> String:
 
 static func color(id: String) -> Color:
 	return RARITY_COLORS[ITEMS[id]["rarity"]]
+
+
+## A weapon's stats with its attachments' on top (0.15.1): "mult" stats multiply, "set" stats replace
+## (a scope's zoom). The mag size rounds to whole rounds.
+static func weapon_stats(stack: ItemStack) -> Dictionary:
+	var stats: Dictionary = ITEMS[stack.id].duplicate()
+	for slot: String in stack.attachments:
+		var part: Dictionary = ITEMS[stack.attachments[slot]]
+		for stat: String in part.get("mult", {}):
+			if stats.has(stat):
+				stats[stat] = float(stats[stat]) * float(part["mult"][stat])
+		for stat: String in part.get("set", {}):
+			stats[stat] = part["set"][stat]
+	stats["mag"] = roundi(float(stats["mag"]))
+	return stats
+
+
+## Attachment slots on a weapon ("scope", "sight", "barrel", "grip", "mag"); none for anything else.
+static func attachment_slots(id: String) -> Array:
+	return ITEMS[id].get("slots", [])
+
+
+## The slot of weapon `gun_id` attachment `part_id` goes in, or "" if it doesn't fit that gun.
+static func attachment_slot_for(gun_id: String, part_id: String) -> String:
+	var part: Dictionary = ITEMS[part_id]
+	if part["kind"] != "attachment" or (part.has("fits") and not gun_id in part["fits"]):
+		return ""
+	for slot: String in attachment_slots(gun_id):
+		if slot in part["slots"]:
+			return slot
+	return ""
 
 
 ## Which equipment slot an item goes in ("primary", "secondary", "armor", "backpack"), or "" if none.

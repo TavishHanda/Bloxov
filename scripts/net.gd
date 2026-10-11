@@ -274,8 +274,9 @@ func _state(state: Array) -> void:
 
 ## A player fired: the server decides what it hit (the map blocks shots; players are checked where they were on
 ## the shooter's screen at `view_time`). Damage comes from the weapon's stats, never from the shooter.
+## `suppressed`: a suppressor on the gun, so AI hear it half as far (0.15.1).
 @rpc("any_peer", "call_remote", "reliable")
-func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float) -> void:
+func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float, suppressed: bool) -> void:
 	var peer := multiplayer.get_remote_sender_id()
 	if mode != Mode.SERVER or not matchmaker.players.has(peer) or not _player_states.has(peer):
 		return
@@ -288,7 +289,8 @@ func _shot(from: Vector3, dir: Vector3, weapon: String, view_time: float) -> voi
 		return
 	_last_shot[peer] = _now()
 	var hit := world.trace_shot(peer, from, dir, 150.0, view_time, _now())
-	world.shot_noise(from, hit["end"], float(stats.get("noise", 25.0)), me[0])
+	var noise := float(stats.get("noise", 25.0)) * (float(ItemDB.item("suppressor")["mult"]["noise"]) if suppressed else 1.0)
+	world.shot_noise(from, hit["end"], noise, me[0])
 	if hit.has("peer") or hit.has("enemy"):
 		var amount := roundi(float(stats["damage"]) * (float(stats.get("head", 2.0)) if hit["headshot"] else 1.0))
 		_damage(peer, hit, amount, me[0])
@@ -686,9 +688,9 @@ func send_state(state: Array) -> void:
 
 
 ## Tells the server we fired (it decides what the shot hit).
-func send_shot(from: Vector3, dir: Vector3, weapon: String) -> void:
+func send_shot(from: Vector3, dir: Vector3, weapon: String, suppressed := false) -> void:
 	if in_online_raid():
-		_shot.rpc_id(1, from, dir, weapon, client_view_time())
+		_shot.rpc_id(1, from, dir, weapon, client_view_time(), suppressed)
 
 
 func open_container(id: String) -> void:

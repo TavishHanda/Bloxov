@@ -49,6 +49,11 @@ Details and open questions to the owner: project file `guns/plan.md`.
       swaps a model's drawn-in "Gun" node for another gun model (`held_model` on the AI scenes); Raiders and Bon
       hold the scav model's AK.
 - [ ] New guns + ammo (names and numbers wait on the owner).
-- [ ] Attachments (slots on the gun, stats added, inventory drag-on / slot panel).
+- [x] **0.15.1 Attachments.** Weapons list their slot types (`"slots"`), attachments (kind `attachment`) list the
+      slot types they go in (`"slots"`, "sight"/"scope" etc.) and optionally the guns they fit (`"fits"`); their
+      `"mult"`/`"set"` stats apply in `ItemDB.weapon_stats(stack)`, which the gun uses. `ItemStack.attachments`
+      (slot -> id) travels in saves (`"att"`) and network data (8th entry, cleaned on load). Inventory screen: drop
+      on a gun or right-click "Attach to"; right-click a gun to remove. Online, the server hears a suppressed shot at
+      half range (`_shot(..., suppressed)`). Damage never changes with attachments, so the server needs nothing else.
 - [ ] Gun feel per gun (recoil, zoom, reloads, flash, sound).
 - [ ] AI loadouts per enemy type.

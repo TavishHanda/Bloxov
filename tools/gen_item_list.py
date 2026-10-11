@@ -11,7 +11,7 @@ SOURCE = ROOT / "scripts" / "item_db.gd"
 SCENES = ROOT / "scenes"
 OUT = ROOT / "docs" / "ITEMS.md"
 RARITIES = ["common", "uncommon", "rare", "epic", "legendary"]
-KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "helmet": "Helmet", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "drink": "Drink", "throwable": "Throwable", "key": "Key", "valuable": "Valuable"}
+KIND_LABEL = {"weapon": "Weapon", "attachment": "Attachment", "armor": "Armor", "helmet": "Helmet", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "drink": "Drink", "throwable": "Throwable", "key": "Key", "valuable": "Valuable"}
 
 
 def read_dict(text, name):
@@ -109,6 +109,13 @@ def main():
         if it["kind"] == "weapon":
             notes.append("%s slot; %s; %d dmg, %d rpm, %d-round mag, %s" % (
                 it["slot"], "full-auto" if it["auto"] else "semi-auto", it["damage"], it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
+        if it["kind"] == "weapon" and it.get("slots"):
+            notes.append("attachment slots: " + ", ".join(it["slots"]))
+        if it["kind"] == "attachment":
+            guns = [g for g in items if items[g]["kind"] == "weapon" and (not it.get("fits") or g in it["fits"])
+                    and set(items[g].get("slots", [])) & set(it["slots"])]
+            effects = ["%s x%s" % (k, v) for k, v in it.get("mult", {}).items()] + ["%s = %s" % (k, v) for k, v in it.get("set", {}).items()]
+            notes.append("fits %s; %s" % (", ".join(items[g]["name"] for g in guns), ", ".join(effects)))
         if it["kind"] == "armor":
             notes.append("-%d%% damage taken" % round(it["reduction"] * 100))
         if it["kind"] == "helmet":

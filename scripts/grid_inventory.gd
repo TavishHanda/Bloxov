@@ -139,7 +139,7 @@ func clear() -> void:
 
 # --- Sending over the network (online loot) ------------------------------------------
 
-## [width, height, [[id, count, x, y, rotated, loaded, durability], ...]]
+## [width, height, [[id, count, x, y, rotated, loaded, durability, attachments], ...]]
 func to_data() -> Array:
 	var list := []
 	for stack in stacks:
@@ -161,15 +161,17 @@ func load_data(data: Array) -> void:
 
 
 static func stack_data(stack: ItemStack) -> Array:
-	return [stack.id, stack.count, stack.x, stack.y, stack.rotated, stack.loaded, stack.durability]
+	return [stack.id, stack.count, stack.x, stack.y, stack.rotated, stack.loaded, stack.durability, stack.attachments]
 
 
 ## An ItemStack from stack_data(), or null if it isn't a real item.
 static func data_stack(entry: Variant) -> ItemStack:
-	if not (entry is Array and entry.size() in [6, 7] and entry[0] is String and ItemDB.ITEMS.has(entry[0])):
+	if not (entry is Array and entry.size() in [6, 7, 8] and entry[0] is String and ItemDB.ITEMS.has(entry[0])):
 		return null
 	var stack := ItemStack.new(entry[0], clampi(int(entry[1]), 1, ItemDB.max_stack(entry[0])), int(entry[2]), int(entry[3]), bool(entry[4]))
 	stack.loaded = maxi(int(entry[5]), 0)
-	if entry.size() == 7:
+	if entry.size() >= 7:
 		stack.durability = clampi(int(entry[6]), 0, ItemDB.max_durability(stack.id))
+	if entry.size() >= 8:
+		stack.clean_attachments(entry[7])
 	return stack

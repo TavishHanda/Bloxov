@@ -7,6 +7,8 @@ extends Control
 ## [the container you're looting, or the stash in the hideout] (+ [trader] in the hideout).
 ## Drag & drop items between grids and equipment slots, R rotates while dragging, Shift+click quick-moves,
 ## right-click for Use / Bind / Unbind / Equip / Unequip / Split / Put in (container or stash) / Drop / Sell.
+## Attachments (0.15.1): drop one on a gun to put it on, or right-click it for "Attach to <gun>" (one tap on a
+## phone, no dragging needed); right-click a gun to take its attachments off.
 ## The raid keeps running while this is open.
 
 const CELL := GridView.CELL
@@ -15,6 +17,11 @@ const PICKUP_SOUND := preload("res://audio/mag_in.wav")
 const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
 enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL }
+## Menu ids past the actions: take attachment slot i off the gun (DETACH + i), put the attachment on your primary
+## (ATTACH) or secondary (ATTACH + 1).
+const DETACH := 100
+const ATTACH := 200
+const GUN_SLOTS: Array[String] = ["primary", "secondary"]
 
 ## The player in a raid, or null in the hideout.
 var player: Player
@@ -387,6 +394,8 @@ func _drop_or_overflow(stack: ItemStack) -> void:
 
 
 func can_drop_on_slot(slot: String) -> bool:
+	if drag_stack != null and drag_slot == "" and _fits_gun(inventory.equipped(slot), drag_stack):
+		return true
 	if drag_stack == null or not inventory.slot_accepts(slot, drag_stack.id):
 		return false
 	var current := inventory.equipped(slot)
@@ -445,6 +454,8 @@ func drop_cell(view: GridView) -> Vector2i:
 
 
 func can_drop_at(view: GridView, cell: Vector2i) -> bool:
+	if attach_target(view) != null:
+		return true
 	if drag_slot != "":
 		return _slot_item_fits(drag_slot, view.grid, cell, drag_rotated)
 	if _merge_target(drag_stack, view.grid, cell + _grab_cell) != null:
@@ -495,7 +506,16 @@ func _finish_drag() -> void:
 	if slot == "" and (from == null or not from.stacks.has(stack)):
 		_refresh_views()
 		return
-	if view is GridView:
+	var gun: ItemStack = null
+	if view != null:
+		drag_stack = stack   # (attach_target looks at what's being dragged)
+		drag_from = from
+		gun = attach_target(view)
+		drag_stack = null
+		drag_from = null
+	if gun != null:
+		attach_from_grid(from, stack, gun, (view as GridView).grid if view is GridView else null)
+	elif view is GridView:
 		var grid_view := view as GridView
 		var cell := drop_cell(grid_view)
 		if slot != "":
@@ -505,6 +525,83 @@ func _finish_drag() -> void:
 	elif view is EquipSlotView and slot == "":
 		equip_from_grid(from, stack, (view as EquipSlotView).slot)
 	_refresh_views()
+
+
+# --- Attachments (0.15.1) ---------------------------------------------------------
+
+## The gun the attachment being dragged would go on if dropped on `view` (a grid cell, a body's slot or your own
+## equipment slot), or null.
+func attach_target(view: Control) -> ItemStack:
+	if drag_stack == null or drag_slot != "":
+		return null
+	var gun: ItemStack = null
+	if view is SlotGridView:
+		var grid := (view as SlotGridView).grid
+		gun = grid.stacks[0] if not grid.stacks.is_empty() else null
+	elif view is GridView:
+		gun = (view as GridView).grid.stack_at(drop_cell(view as GridView) + _grab_cell)
+	elif view is EquipSlotView:
+		gun = inventory.equipped((view as EquipSlotView).slot)
+	return gun if _fits_gun(gun, drag_stack) else null
+
+
+func _fits_gun(gun: ItemStack, part: ItemStack) -> bool:
+	return (gun != null and part != null and gun != part and ItemDB.kind(gun.id) == "weapon"
+		and ItemDB.attachment_slot_for(gun.id, part.id) != "")
+
+
+## Takes attachment `part` out of `from` and puts it on `gun` (in `gun_grid`, or equipped when null). Whatever it
+## replaces, and rounds a smaller mag can't hold, go back near where they came from.
+func attach_from_grid(from: GridInventory, part: ItemStack, gun: ItemStack, gun_grid: GridInventory) -> void:
+	var spot := Vector2i(part.x, part.y)
+	from.remove(part)
+	var result := inventory.attach(gun, part.id)
+	_return_parts(result, gun.id, from if from != null else gun_grid, spot)
+	(gun_grid if gun_grid != null else from).changed.emit()
+	_say("%s on the %s" % [ItemDB.display_name(part.id), ItemDB.display_name(gun.id)])
+	_after_move()
+
+
+## Takes the attachment in `slot` off `gun` (in `gun_grid`, or equipped when null).
+func detach(gun: ItemStack, slot: String, gun_grid: GridInventory) -> void:
+	var result := inventory.detach(gun, slot)
+	if result[0] == "":
+		return
+	_return_parts(result, gun.id, gun_grid, Vector2i(-1, -1))
+	if gun_grid != null:
+		gun_grid.changed.emit()
+	_after_move()
+
+
+## [attachment id or "", spare rounds] from Inventory.attach/detach: puts them in `grid` (at `cell` if it fits),
+## else anywhere of yours, else the other side, else the ground.
+func _return_parts(result: Array, gun_id: String, grid: GridInventory, cell: Vector2i) -> void:
+	var loose: Array[ItemStack] = []
+	if result[0] != "":
+		loose.append(ItemStack.new(result[0]))
+	if int(result[1]) > 0:
+		loose.append(ItemStack.new(ItemDB.item(gun_id)["ammo"], int(result[1])))
+	for stack in loose:
+		if grid != null and cell.x >= 0 and grid.fits(stack.id, cell.x, cell.y, false):
+			stack.set_spot(cell, false)
+			grid.place(stack)
+			cell = Vector2i(-1, -1)
+			continue
+		var candidates: Array[GridInventory] = []
+		if grid != null:
+			candidates.append(grid)
+		candidates.append_array(inventory.grids())
+		candidates.append_array(other_grids())
+		if not _place_in_first(stack, candidates):
+			_drop_or_overflow(stack)
+
+
+## Menu entries to take each attachment off `gun`.
+func _add_detach_entries(gun: ItemStack) -> void:
+	var slots := ItemDB.attachment_slots(gun.id)
+	for i in slots.size():
+		if gun.attachments.has(slots[i]):
+			_menu.add_item("Remove " + ItemDB.display_name(gun.attachments[slots[i]]), DETACH + i)
 
 
 func _cancel_drag() -> void:
@@ -532,6 +629,13 @@ func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 			_menu.add_item("Bind to hotbar", MenuAction.BIND)
 	if ItemDB.equip_slot(stack.id) != "":
 		_menu.add_item("Equip", MenuAction.EQUIP)
+	if ItemDB.kind(stack.id) == "weapon":
+		_add_detach_entries(stack)
+	elif ItemDB.kind(stack.id) == "attachment":
+		for i in GUN_SLOTS.size():
+			var gun := inventory.equipped(GUN_SLOTS[i])
+			if _fits_gun(gun, stack):
+				_menu.add_item("Attach to " + ItemDB.display_name(gun.id), ATTACH + i)
 	if stack.count > 1:
 		_menu.add_item("Split", MenuAction.SPLIT)
 	_add_drop_entry(other_grids().has(grid))
@@ -546,6 +650,8 @@ func open_slot_menu(slot: String) -> void:
 	_menu_stack = null
 	_menu.clear()
 	_menu.add_item("Unequip", MenuAction.UNEQUIP)
+	if ItemDB.kind(inventory.equipped(slot).id) == "weapon":
+		_add_detach_entries(inventory.equipped(slot))
 	_add_drop_entry(false)
 	_popup_menu()
 
@@ -573,6 +679,14 @@ func _on_menu(action: int) -> void:
 	var stack := _menu_stack
 	if grid == null or stack == null or not grid.stacks.has(stack):
 		return
+	if action >= ATTACH:
+		var gun := inventory.equipped(GUN_SLOTS[action - ATTACH])
+		if _fits_gun(gun, stack):
+			attach_from_grid(grid, stack, gun, null)
+		return
+	if action >= DETACH:
+		detach(stack, ItemDB.attachment_slots(stack.id)[action - DETACH], grid)
+		return
 	match action:
 		MenuAction.EQUIP:
 			equip_from_grid(grid, stack, ItemDB.equip_slot(stack.id))
@@ -596,6 +710,10 @@ func _on_slot_menu(action: int) -> void:
 	var slot := _menu_slot
 	_menu_slot = ""
 	if inventory.equipped(slot) == null:
+		return
+	if action >= DETACH:
+		var gun := inventory.equipped(slot)
+		detach(gun, ItemDB.attachment_slots(gun.id)[action - DETACH], null)
 		return
 	match action:
 		MenuAction.UNEQUIP:
@@ -669,7 +787,14 @@ func show_info(stack: ItemStack) -> void:
 			parts.append("Ammo")
 		"weapon":
 			parts.append("%s · %d damage · %d rpm · %d-round mag · %d loaded" % [str(data["slot"]).capitalize(), int(data["damage"]),
-				int(data["rpm"]), int(data["mag"]), stack.loaded])
+				int(data["rpm"]), int(ItemDB.weapon_stats(stack)["mag"]), stack.loaded])
+			var on: PackedStringArray = []
+			for slot: String in stack.attachments:
+				on.append(ItemDB.display_name(stack.attachments[slot]))
+			if not on.is_empty():
+				parts.append("With " + ", ".join(on))
+		"attachment":
+			parts.append("Attachment · fits " + ", ".join(_guns_it_fits(stack.id)))
 		"armor":
 			parts.append("Takes %d%% off damage" % roundi(float(data["reduction"]) * stack.condition() * 100.0))
 			if ItemDB.max_durability(stack.id) > 0:
@@ -687,6 +812,15 @@ func show_info(stack: ItemStack) -> void:
 		parts.append("Sells for %s" % ItemDB.money(price_handler.call(stack)))
 	_info_detail.text = "  ·  ".join(parts)
 	_info_desc.text = ItemDB.description(stack.id)
+
+
+## Names of the guns an attachment goes on.
+func _guns_it_fits(part_id: String) -> PackedStringArray:
+	var names: PackedStringArray = []
+	for id: String in ItemDB.ITEMS:
+		if ItemDB.kind(id) == "weapon" and ItemDB.attachment_slot_for(id, part_id) != "":
+			names.append(ItemDB.short_name(id))
+	return names
 
 
 func _update_labels() -> void:
