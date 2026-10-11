@@ -23,7 +23,7 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    sandbags, the trench, walls) and climb onto ledges. Candidates for the owner to pick from: ladders, fall damage
    (both parked in `BACKLOG.md`), prone, crouch-walk speed tuning. (Leaning and stamina already exist.) Right after
    Scavs 2.0, so the AI's paths can use the same vaultable cover.
-5. **Items update:** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions, and
+5. **Items update (0.14.0: keys, loot by place, descriptions, armor wear done; no helmets yet):** keys (bunker, bank vault), loot by place (`MAP_PLAN.md` table), item descriptions, and
    **durability** (owner, 2026-10-10) for armor and helmets: hits wear them down and protect less as they do, shown
    on the item, so worn gear is worth less. Other gear only where it makes sense (keys could have limited uses).
 6. **Guns update (owner, 2026-10-10):** gun categories (e.g. pistols, SMGs, rifles, shotguns, marksman), a real set
@@ -69,7 +69,7 @@ between updates. Lore is the owner's.
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
 0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
 per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Bloxov Battlegrounds) · **0.11 Scorched Earth** (cleanup, war-torn map, hills) ·
-**0.12 Scavs 2.0** (closed at 0.12.39) · then 0.13 Movement and Items as their own phases (the Stash update waits until closer to release).
+**0.12 Scavs 2.0** (closed at 0.12.39) · **0.13 Movement** (to 0.13.9) · **0.14 Items** (the Stash update waits until closer to release).
 
 ## Rules while we go
 - **Co-op-friendly code, even before M3.** Don't add new "there is exactly one player" assumptions.

@@ -8,6 +8,8 @@ extends Node
 ## take from it too, and at 0 you die (owner, 0.9.2). `revive()` stands you back up.
 
 signal damaged(amount: int, source_position: Vector3)
+## A hit armor applies to, with its damage before armor (0.14.0: armor wears from it).
+signal armor_hit(amount: int)
 signal died
 signal downed
 signal revived
@@ -47,7 +49,9 @@ func take_damage(amount: int, source_position := Vector3.ZERO, ignore_armor := f
 	if is_dead or amount <= 0:
 		return 0
 	if not ignore_armor:
-		amount = maxi(roundi(amount * damage_multiplier), 1)
+		var multiplier := damage_multiplier   # (the armor as it was when hit; the wear counts from the next hit)
+		armor_hit.emit(amount)
+		amount = maxi(roundi(amount * multiplier), 1)
 	if is_downed:
 		down_hp = maxf(down_hp - amount, 0.0)
 		damaged.emit(amount, source_position)

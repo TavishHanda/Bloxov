@@ -79,9 +79,9 @@ Spawns, extracts, loot spots and player spawns on the layout picture are **place
   loot spots), then iterations with the owner.
 - **Scavs 2.0 (own update):** designated AI spawn spots per area, scavs roaming their area, Raiders at hotspots,
   low-tier "scavenged" loot on scavs, new AI numbers.
-- **Items update (own update):** keys (bunker, bank vault), loot by place (the table above). The 0.10 gray box
-  gets placeholders for them now (owner): marked key-door spots at the bunker entrance and the bank vault (open
-  until the Items update makes them lock), and loot spots tagged with their place.
+- **Items update (own update, 0.14.0):** keys (bunker, bank vault), loot by place (the table above). The key doors
+  are `KeyDoor`s (`scenes/key_door.tscn`) under the map's `KeyDoors`; loot behind them has `metadata/locked` (the AI
+  skip it). Each container's `place` picks its extra loot in `ItemDB.PLACE_LOOT`.
 
 ## How it's built (0.10.0)
 - `tools/gen_old_bloxov.py` writes `scenes/maps/old_bloxov.tscn`. **The script is the source of truth:** edit it

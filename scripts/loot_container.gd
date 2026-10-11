@@ -32,9 +32,13 @@ func _ready() -> void:
 	if grid == null:
 		grid = GridInventory.new(display_name, grid_size.x, grid_size.y)
 	if loot_table != "":
+		# Loot by place (0.14.0): the container's `place` (map metadata) adds that place's loot to its table.
+		var place: String = get_meta("place", "")
 		for i in randi_range(min_items, max_items):
-			var id := ItemDB.roll(loot_table)
+			var id := ItemDB.roll(loot_table, place)
 			grid.add(id, ItemDB.roll_count(id))
+		for stack in grid.stacks:
+			stack.durability = ItemDB.found_durability(stack.id)
 
 
 ## Pockets and gear slots: gear first (so quick-moving gear into a body fills its slots before the pockets).
@@ -118,6 +122,13 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 	bag.search_time = search
 	bag.searched = search <= 0.0
 	bag.remove_when_empty = true
+	# Rolled loot (a scav's body) is found gear: armor turns up worn.
+	contents = contents.map(func(entry: Variant) -> Variant:
+		if entry is ItemStack:
+			return entry
+		var stack := ItemStack.new(entry[0], entry[1])
+		stack.durability = ItemDB.found_durability(stack.id)
+		return stack)
 	if body:
 		bag.add_gear_slots()
 		var loose := []

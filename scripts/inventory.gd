@@ -96,10 +96,43 @@ func unequip(slot: String) -> ItemStack:
 	return stack
 
 
-## Armor damage reduction (0 to 1).
+## Armor damage reduction (0 to 1). Worn armor stops less: its reduction times how much of it is left (0.14.0).
 func armor_reduction() -> float:
 	var armor: ItemStack = equipment["armor"]
-	return float(ItemDB.item(armor.id)["reduction"]) if armor != null else 0.0
+	return float(ItemDB.item(armor.id)["reduction"]) * armor.condition() if armor != null else 0.0
+
+
+## A hit of `damage` (before armor) landed on the armor: it loses the part it stops when new (at least 1 point).
+## Returns true if that changed it.
+func wear_armor(damage: int) -> bool:
+	var armor: ItemStack = equipment["armor"]
+	if armor == null or armor.durability <= 0 or damage <= 0:
+		return false
+	var wear := maxi(roundi(mini(damage, 100) * float(ItemDB.item(armor.id)["reduction"])), 1)
+	armor.durability = maxi(armor.durability - wear, 0)
+	changed.emit()
+	return true
+
+
+## A key for door `door` that's on us (pockets, backpack, secure pocket), or null.
+func key_for(door: String) -> ItemStack:
+	for grid in grids():
+		for stack in grid.stacks:
+			if ItemDB.kind(stack.id) == "key" and ItemDB.item(stack.id)["door"] == door and stack.durability > 0:
+				return stack
+	return null
+
+
+## Uses up one use of a key; a key with none left is gone.
+func use_key(stack: ItemStack) -> void:
+	stack.durability -= 1
+	for grid in grids():
+		if grid.stacks.has(stack):
+			if stack.durability <= 0:
+				grid.remove(stack)
+			else:
+				grid.changed.emit()
+			return
 
 
 # --- Items -----------------------------------------------------------------------

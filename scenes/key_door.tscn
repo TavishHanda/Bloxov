@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/key_door.gd" id="1_door"]
+
+[node name="KeyDoor" type="StaticBody3D"]
+script = ExtResource("1_door")

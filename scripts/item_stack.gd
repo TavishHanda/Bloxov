@@ -10,6 +10,8 @@ var y: int
 var rotated := false
 ## Weapons only: rounds currently loaded in the gun.
 var loaded := 0
+## Armor points left, or a key's uses left (0.14.0). Items that don't wear keep 0.
+var durability := 0
 
 
 func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated := false) -> void:
@@ -18,6 +20,7 @@ func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated :=
 	x = cell_x
 	y = cell_y
 	rotated = is_rotated
+	durability = ItemDB.max_durability(item_id)
 
 
 ## Size in cells, taking rotation into account.
@@ -41,5 +44,12 @@ func space_left() -> int:
 	return ItemDB.max_stack(id) - count
 
 
+## How worn it is: 1 = new, 0 = worn out (always 1 for items that don't wear).
+func condition() -> float:
+	var most := ItemDB.max_durability(id)
+	return clampf(float(durability) / most, 0.0, 1.0) if most > 0 else 1.0
+
+
+## What it's worth: worn gear and part-used keys are worth less (30% when worn out).
 func value() -> int:
-	return ItemDB.value(id) * count
+	return roundi(ItemDB.value(id) * count * (0.3 + 0.7 * condition()))

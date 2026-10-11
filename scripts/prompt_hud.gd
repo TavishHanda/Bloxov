@@ -27,6 +27,9 @@ func current() -> Dictionary:
 	if interactor.revive_target != null:
 		var revive := interactor.revive_progress if interactor.revive_progress > 0.0 else -1.0
 		return {"text": "REVIVE", "key": "F", "progress": revive, "bar": HudStyle.LIFE}
+	if interactor.door != null:
+		var unlocking := interactor.progress if interactor.progress > 0.0 else -1.0
+		return {"text": interactor.door.prompt(player.inventory).to_upper(), "key": "F", "progress": unlocking, "bar": HudStyle.BRASS}
 	if interactor.target != null:
 		var progress := interactor.progress if interactor.progress > 0.0 else -1.0
 		return {"text": interactor.target.prompt().to_upper(), "key": "F", "progress": progress, "bar": HudStyle.BRASS}

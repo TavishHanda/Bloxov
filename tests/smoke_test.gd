@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
 ]
@@ -664,6 +664,90 @@ func _section_containers() -> void:
 	_check(ItemDB.money(1234567) == "$1,234,567", "money formatting")
 
 
+func _section_items() -> void:
+	# Items update (0.14.0): every item has a description; armor and keys wear.
+	var bare := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.description(id) == "")
+	_check(bare.is_empty(), "every item has a description (missing: %s)" % [bare])
+	var vest := ItemStack.new("armor_light")
+	_check(vest.durability == 60 and vest.condition() == 1.0 and vest.value() == ItemDB.value("armor_light"),
+		"new armor is at full durability and full value")
+	# Hits wear the armor on the player, and worn armor stops less.
+	var inv := player.inventory
+	var old_armor := inv.unequip("armor") if inv.equipped("armor") != null else null
+	inv.equip("armor", vest)
+	_check(is_equal_approx(player.health.damage_multiplier, 0.8), "light armor takes 20%% off (x%.2f)" % player.health.damage_multiplier)
+	var hp := player.health.current
+	player.health.take_damage(30)
+	_check(player.health.current == hp - 24 and vest.durability == 54,
+		"a 30 hit: 24 gets through, the armor loses the 6 it stopped (%d/60)" % vest.durability)
+	_check(is_equal_approx(player.health.damage_multiplier, 1.0 - 0.2 * 54.0 / 60.0), "worn armor stops less (x%.3f)" % player.health.damage_multiplier)
+	player.health.take_damage(30, Vector3.ZERO, true)
+	_check(vest.durability == 54, "falls (no armor) don't wear it")
+	vest.durability = 0
+	_check(inv.armor_reduction() == 0.0 and vest.value() == roundi(ItemDB.value("armor_light") * 0.3),
+		"worn-out armor stops nothing and is worth 30%")
+	inv.unequip("armor")
+	if old_armor != null:
+		inv.equip("armor", old_armor)
+	player.health.current = player.health.max_health
+	# Durability goes over the network and into the save.
+	var sent := GridInventory.data_stack(GridInventory.stack_data(vest))
+	var saved := Profile._read_stack(Profile._write_stack(vest))
+	var old_save := Profile._read_stack({"id": "armor_heavy"})
+	_check(sent.durability == 0 and saved.durability == 0 and old_save.durability == 120,
+		"durability survives the network and the save (older saves: full)")
+	# Found armor is worn some; found keys have all their uses.
+	var found := []
+	for i in 50:
+		found.append(ItemDB.found_durability("armor_heavy"))
+	_check(found.min() >= 48 and found.max() <= 120 and found.min() < 120, "found armor is 40-100%% (%d-%d)" % [found.min(), found.max()])
+	_check(ItemDB.found_durability("bunker_key") == 3, "found keys have all their uses")
+	# Loot by place: a gun store locker is mostly guns and ammo, a pharmacy crate mostly meds.
+	var guns := 0
+	var meds := 0
+	for i in 400:
+		if ItemDB.roll("locker", "GunStore") in ["ak", "pistol", "rifle_ammo", "pistol_ammo"]:
+			guns += 1
+		if ItemDB.roll("crate", "Pharmacy") in ["bandage", "medkit"]:
+			meds += 1
+	_check(guns > 160 and meds > 160, "loot by place: gun store lockers %d/400 guns or ammo, pharmacy crates %d/400 meds" % [guns, meds])
+	var tagged: LootContainer = (load("res://scenes/loot_crate.tscn") as PackedScene).instantiate()
+	tagged.set_meta("place", "Pharmacy")
+	tagged.min_items = 30
+	tagged.max_items = 30
+	tagged.grid_size = Vector2i(12, 12)
+	main.add_child(tagged)
+	var tagged_meds := tagged.grid.count_of("bandage") + tagged.grid.count_of("medkit")
+	_check(tagged_meds >= 8, "a crate tagged Pharmacy rolls from the pharmacy's loot (%d meds in 30 rolls)" % tagged_meds)
+	tagged.queue_free()
+	# Key doors: shut, a wall; with the key on you, F unlocks it and uses the key up.
+	var door: KeyDoor = (load("res://scenes/key_door.tscn") as PackedScene).instantiate()
+	door.name = "BankVaultDoor"
+	door.key = "bank_vault_key"
+	main.add_child(door)
+	door.global_position = player.global_position + Vector3(0, 0, -1.6)
+	await physics_frame
+	await physics_frame
+	var space := player.get_world_3d().direct_space_state
+	var through := PhysicsRayQueryParameters3D.create(door.global_position + Vector3(0, 1, 1), door.global_position + Vector3(0, 1, -1), 1)
+	_check(space.intersect_ray(through).get("collider") == door and door.is_in_group(&"nav_source"), "a shut key door is a wall (and the AI's paths go round it)")
+	_check(door.prompt(inv) == "Locked: needs Bank Vault Key" and not door.unlock(inv) and not door.is_open, "no key: it stays locked")
+	inv.add("bank_vault_key")
+	var key := inv.key_for("BankVaultDoor")
+	_check(key != null and door.prompt(inv) == "Unlock with Bank Vault Key", "with the key on you: [F] Unlock")
+	_check(door.unlock(inv) and door.is_open and key.durability == 4, "unlocking opens it and takes a use off the key (%d/5 left)" % key.durability)
+	await physics_frame
+	await physics_frame
+	_check(space.intersect_ray(through).is_empty(), "the open door lets you through")
+	key.durability = 1
+	inv.use_key(key)
+	_check(inv.key_for("BankVaultDoor") == null and inv.count_of("bank_vault_key") == 0, "a key with no uses left is gone")
+	door.queue_free()
+	var boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate()
+	_check(boss.extra_drops.has("bunker_key"), "Bon always carries the bunker key")
+	boss.free()
+
+
 func _section_crate_model() -> void:
 	# Imported crate model: right size, crisp pixel filtering.
 	var crate := _spawn("res://scenes/loot_crate.tscn", Vector3(0, 0, 60))
@@ -1007,6 +1091,8 @@ func _section_extract() -> void:
 	# Near your spawn = closed for you (0.10.3); a small map fills in with the farthest ones.
 	var picked := Raid.pick_open(raid.get_extracts(), player.global_position, 2)
 	_check(picked.size() == 2, "two extracts open even when they're all near the spawn (test map)")
+	# (what you carry is worth what it is now: the hits earlier wore the armor down, 0.14.0)
+	expected_value = player.inventory.total_value()
 	player.teleport_to(open_zone.global_position + Vector3(0, 0.2, 0))
 	await create_timer(open_zone.extract_time + 1.0).timeout
 	_check(raid.result == "extracted" and raid.extract_used == open_zone.extract_name, "standing in an open extract extracts (%s)" % raid.result)
@@ -1781,8 +1867,9 @@ func _section_old_bloxov() -> void:
 		if far.size() < 3:
 			short.append(spawn.name)
 	_check(short.is_empty(), "every spawn has 3+ extracts far enough away to be open for it (%s)" % [short])
-	_check(map.has_node("KeyDoors/BunkerDoor") and map.has_node("KeyDoors/BankVaultDoor"),
-		"key door placeholders at the bunker and the bank vault (owner: keys come in the Items update)")
+	_check(map.get_node_or_null("KeyDoors/BunkerDoor") is KeyDoor and map.get_node("KeyDoors/BunkerDoor").key == "bunker_key"
+		and map.get_node_or_null("KeyDoors/BankVaultDoor") is KeyDoor and map.get_node("KeyDoors/BankVaultDoor").key == "bank_vault_key",
+		"locked doors at the bunker and the bank vault, with their keys (0.14.0)")
 	var minimap: Dictionary = map.get_meta("minimap", {})
 	var names: Array = minimap.get("labels", []).map(func(l: Array) -> String: return l[0])
 	_check(minimap.get("size", 0.0) == 350.0 and minimap.get("buildings", PackedFloat32Array()).size() >= 4 * 30
@@ -1862,9 +1949,19 @@ func _section_old_bloxov() -> void:
 		var result := NavigationPathQueryResult3D.new()
 		NavigationServer3D.query_path(query, result)
 		var path := result.path
-		if path.is_empty() or path[path.size() - 1].distance_to(front) > 1.3:
+		if (path.is_empty() or path[path.size() - 1].distance_to(front) > 1.3) != c.has_meta("locked"):
 			unreachable.append(String(c.name))
-	_check(unreachable.is_empty(), "every loot container can be walked to (unreachable: %s)" % [unreachable])
+	_check(unreachable.is_empty(), "every loot container can be walked to, except behind the shut key doors (wrong: %s)" % [unreachable])
+	var locked := loot.filter(func(c: Node) -> bool: return c.has_meta("locked"))
+	_check(locked.size() == 8, "8 containers behind the bunker and bank vault doors (%d)" % locked.size())
+	# Online the server's copy of the map has the doors too; a player unlocking one opens it there and tells the raid.
+	var opened := []
+	world.door_opened.connect(func(id: String) -> void: opened.append(id))
+	world.open_door("BunkerDoor")
+	world.open_door("BunkerDoor")
+	world.open_door("../Loot")
+	var server_door := world.raid.get_node_or_null("KeyDoors/BunkerDoor") as KeyDoor
+	_check(server_door != null and server_door.is_open and opened == ["BunkerDoor"], "the server opens a key door once and tells the raid (%s)" % [opened])
 	# Hills (0.11.17): the ground rolls, the AI can still walk from a spawn to every AI spawn point over it, and
 	# spawns and extracts stand on the ground (not floating over a hollow or buried in a hill).
 	var blocks := world.raid.get_node("Level/Blocks") as BoxMap

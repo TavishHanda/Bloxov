@@ -11,12 +11,13 @@ SOURCE = ROOT / "scripts" / "item_db.gd"
 SCENES = ROOT / "scenes"
 OUT = ROOT / "docs" / "ITEMS.md"
 RARITIES = ["common", "uncommon", "rare", "epic", "legendary"]
-KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "valuable": "Valuable"}
+KIND_LABEL = {"weapon": "Weapon", "armor": "Armor", "backpack": "Backpack", "ammo": "Ammo", "heal": "Healing", "key": "Key", "valuable": "Valuable"}
 
 
 def read_dict(text, name):
     """Parses a `const NAME := { ... }` block (GDScript dict literals are JSON-like here)."""
     block = re.search(r"const %s := (\{.*?\n\})" % name, text, re.S).group(1)
+    block = re.sub(r"#[^\n]*", "", block)  # comments
     block = re.sub(r",(\s*[}\]])", r"\1", block)  # trailing commas
     return json.loads(block)
 
@@ -82,6 +83,7 @@ def main():
     text = SOURCE.read_text()
     items = read_dict(text, "ITEMS")
     tables = read_dict(text, "LOOT_TABLES")
+    places = read_dict(text, "PLACE_LOOT")
 
     lines = [
         "# Item List",
@@ -91,8 +93,8 @@ def main():
         "",
         "## Items",
         "",
-        "| Item | Type | Rarity | Size | Stack | Value (each) | Notes |",
-        "|---|---|---|---|---|---|---|",
+        "| Item | Type | Rarity | Size | Stack | Value (each) | Notes | Description |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     order = sorted(items, key=lambda i: (list(KIND_LABEL).index(items[i]["kind"]), RARITIES.index(items[i]["rarity"]), items[i]["value"]))
     for item_id in order:
@@ -106,12 +108,17 @@ def main():
             notes.append("%s slot; %s; %d dmg, %d rpm, %d-round mag, %s" % (
                 it["slot"], "full-auto" if it["auto"] else "semi-auto", it["damage"], it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
         if it["kind"] == "armor":
-            notes.append("-%d%% damage taken" % round(it["reduction"] * 100))
+            notes.append("-%d%% damage taken when new; %d durability" % (round(it["reduction"] * 100), it["durability"]))
+        if it["kind"] == "key":
+            notes.append("opens %s; %d uses" % (it["door"], it["durability"]))
         if it["kind"] == "backpack":
             notes.append("%d×%d storage" % tuple(it["grid"]))
-        lines.append("| %s (`%s`) | %s | %s | %d×%d | %d | %s | %s |" % (
+        lines.append("| %s (`%s`) | %s | %s | %d×%d | %d | %s | %s | %s |" % (
             it["name"], item_id, KIND_LABEL[it["kind"]], it["rarity"].capitalize(), it["w"], it["h"],
-            it["stack"], money(it["value"]), "; ".join(notes)))
+            it["stack"], money(it["value"]), "; ".join(notes), it.get("desc", "")))
+    lines += ["", "Armor and keys wear (durability): hits take armor points off (the damage it stopped when new), and",
+              "worn armor stops that much less; each door opened takes a use off a key, and a used-up key is gone.",
+              "Worn items are worth less: 30% of their value when worn out. Armor found in a raid is 40-100% worn."]
 
     counts = stack_rolls(text)
     stack_note = "A roll gives one item, except these come as a stack: %s." % ", ".join(
@@ -138,6 +145,15 @@ def main():
                 label = "%s valuable (%s)" % (key.capitalize(), ", ".join(names))
             lines.append("| %s | %.0f%% |" % (label, 100.0 * weight / total))
         lines.append("")
+
+    lines += ["## Loot by place", "",
+              "Containers in these places roll from their own table (crate, locker, safe) with these weights added,",
+              "so a gun store's lockers are mostly guns. Places not listed roll the plain tables.", "",
+              "| Place | Extra weights |", "|---|---|"]
+    for place, weights in places.items():
+        lines.append("| %s | %s |" % (place, ", ".join("%s %d" % (items[k]["name"] if k in items else k + " valuable", w)
+                                                       for k, w in weights.items())))
+    lines.append("")
 
     OUT.write_text("\n".join(lines).rstrip() + "\n")
     print("wrote", OUT.relative_to(ROOT))

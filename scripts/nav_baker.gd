@@ -98,8 +98,20 @@ func _add_vault_links(xform: Transform3D, size: Vector3) -> void:
 		return
 	var count := maxi(1, floori(length / VAULT_LINK_SPACING))
 	var bottom := xform.origin - Vector3(0, size.y * 0.5, 0)
+	var space := get_world_3d().direct_space_state
 	for k in count:
 		var at := bottom + along * ((k + 0.5) / count - 0.5) * length
+		# Only where both sides are open: a safe or bench against a wall would otherwise get a link through the
+		# wall (0.14.0: the AI's paths went into the locked bank vault through its outside wall). The rays start
+		# inside the box itself, which they don't count.
+		var middle := at + Vector3.UP * (size.y * 0.5)
+		var blocked := false
+		for side in [-1.0, 1.0]:
+			var end: Vector3 = middle + across * side * (thickness * 0.5 + 1.0)
+			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(middle, end, 1)).is_empty():
+				blocked = true
+		if blocked:
+			continue
 		var link := NavigationLink3D.new()
 		link.bidirectional = true
 		link.enter_cost = VAULT_LINK_COST

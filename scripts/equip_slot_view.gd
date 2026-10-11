@@ -66,7 +66,7 @@ func rebuild() -> void:
 			"weapon":
 				_detail.text = "%d/%d" % [stack.loaded, int(ItemDB.item(stack.id)["mag"])]
 			"armor":
-				_detail.text = "-%d%%" % roundi(float(ItemDB.item(stack.id)["reduction"]) * 100.0)
+				_detail.text = "%d/%d" % [stack.durability, ItemDB.max_durability(stack.id)]   # durability (0.14.0)
 			"backpack":
 				var grid: Array = ItemDB.item(stack.id)["grid"]
 				_detail.text = "%d×%d" % [grid[0], grid[1]]

@@ -56,6 +56,8 @@ var _value_label: Label
 ## Details for the item under the mouse (or a message like "No room"): its name, then its stats.
 var _info_label: Label
 var _info_detail: Label
+## The item's description line (0.14.0).
+var _info_desc: Label
 var _doll: SubViewportContainer
 var _carried_panel: Control
 var _carried_box: VBoxContainer
@@ -613,6 +615,7 @@ func _say(text: String) -> void:
 	_info_label.text = text
 	_info_label.remove_theme_color_override("font_color")
 	_info_detail.text = ""
+	_info_desc.text = ""
 
 
 func show_info(stack: ItemStack) -> void:
@@ -631,13 +634,17 @@ func show_info(stack: ItemStack) -> void:
 			parts.append("%s · %d damage · %d rpm · %d-round mag · %d loaded" % [str(data["slot"]).capitalize(), int(data["damage"]),
 				int(data["rpm"]), int(data["mag"]), stack.loaded])
 		"armor":
-			parts.append("Takes %d%% off damage" % roundi(float(data["reduction"]) * 100.0))
+			parts.append("Takes %d%% off damage" % roundi(float(data["reduction"]) * stack.condition() * 100.0))
+			parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
+		"key":
+			parts.append("Key · %d/%d uses left" % [stack.durability, ItemDB.max_durability(stack.id)])
 		"backpack":
 			parts.append("%d×%d storage" % [int(data["grid"][0]), int(data["grid"][1])])
 	parts.append("Worth %s" % ItemDB.money(stack.value()) + (" (%s each)" % ItemDB.money(ItemDB.value(stack.id)) if stack.count > 1 else ""))
 	if price_handler.is_valid():
 		parts.append("Sells for %s" % ItemDB.money(price_handler.call(stack)))
 	_info_detail.text = "  ·  ".join(parts)
+	_info_desc.text = ItemDB.description(stack.id)
 
 
 func _update_labels() -> void:
@@ -779,7 +786,7 @@ func _build() -> void:
 	# Details: the item under the mouse (name in its rarity color, then its stats), or messages.
 	# Empty until you point at something (owner: no placeholder text); keeps its height so nothing jumps.
 	var info_box := VBoxContainer.new()
-	info_box.custom_minimum_size = Vector2(0, 56)
+	info_box.custom_minimum_size = Vector2(0, 74)
 	info_box.add_theme_constant_override("separation", 0)
 	root.add_child(info_box)
 	_info_label = _title("", 30)
@@ -788,6 +795,10 @@ func _build() -> void:
 	_info_detail = _small("")
 	_info_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info_box.add_child(_info_detail)
+	_info_desc = _small("")
+	_info_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_info_desc.modulate = Color(1, 1, 1, 0.55)
+	info_box.add_child(_info_desc)
 
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER

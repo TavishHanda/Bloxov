@@ -12,7 +12,7 @@ extends SubViewport
 
 const RAID_SCENE := "res://scenes/main.tscn"
 ## The map pieces the server needs (solid things). Everything else in the raid scene is for players' screens.
-const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner"]
+const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors"]
 const PLAYER_SCENE := "res://scenes/player.tscn"
 ## Seconds of position history kept per player, and the furthest back a shot is checked.
 const HISTORY := 1.0
@@ -34,6 +34,8 @@ signal enemy_event(id: int, kind: String, pos: Vector3)
 ## Loot (0.7.9): a bag appeared (a body, dropped items) or went (emptied). Network tells everyone in the raid.
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
 signal bag_removed(id: String)
+## A key door was unlocked (0.14.0): Network tells everyone in the raid.
+signal door_opened(id: String)
 
 ## Loot containers are shared: their contents live here, and one player at a time has one open
 ## (container id -> peer). Ids are the container's node name: "Crate3" under Loot, or "Bag12" for bags.
@@ -119,6 +121,18 @@ func close_containers(peer: int) -> void:
 	for id in locks.keys():
 		if locks[id] == peer:
 			locks.erase(id)
+
+
+## A player unlocked key door `id` (a node under KeyDoors): open it here (shots and the AI's bodies pass) and
+## tell the raid. Untyped: no KeyDoor type here (see the top).
+func open_door(id: String) -> void:
+	if id.is_empty() or id.contains("/") or id.contains(".."):
+		return
+	var door := raid.get_node_or_null("KeyDoors/" + id)
+	if door == null or not door.has_method("open") or door.get("is_open"):
+		return
+	door.call("open")
+	door_opened.emit(id)
 
 
 ## A bag of items (a dead player's body, things a player dropped) at `pos`. A body gets gear slots.

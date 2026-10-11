@@ -6,6 +6,25 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.0 (the Items update: keys, loot by place, descriptions, armor wear; owner)
+- **Keys.** The bunker under the town hall and the bank vault are locked now. Hold F at the door with its key
+  anywhere on you (pockets, backpack or secure pocket) to unlock it; it opens for everyone in the raid until the
+  raid ends. Each opening takes a use off the key (Bunker Key 3 uses, Bank Vault Key 5) and a used-up key is gone.
+  Bon always carries the Bunker Key; both keys turn up now and then in the police station, the town hall (bunker
+  key) and the offices (vault key), and Raiders sometimes carry the vault key. Keys go home in your stash like
+  any item. The AI stay out of locked rooms.
+- **Loot by place** (the map plan's table): gun store lockers are mostly guns and ammo, the pharmacy meds, the
+  grocery and diner food, the school backpacks, the police station armor and pistols, the bank cash and gold, and
+  each big house its own kind of valuables (jewellery, electronics, antiques). The bunker has the best loot in the
+  game. Other places roll the usual mid loot. New items: Water Bottle, Ration Pack, Cash Bundle, Gold Bar.
+- **Item descriptions**: pointing at an item in the inventory shows a line about it under its stats.
+- **Armor wears** (owner): every hit takes armor points off (the damage it stopped when new; falls don't count),
+  and worn armor stops less (Light 60 points, Heavy 120: about 20 scav hits to wear one out). Durability shows as a
+  bar on the item, in its details and on the armor slot; worn armor is worth less (30% when worn out). Armor found
+  in a raid is 40-100% worn; armor bought from the trader is new. Repairs come with the Economy update.
+- Fix: the AI's paths could go through a wall next to a low box against it (a safe, a bench), from one side of the
+  wall to the other. They no longer do (it let them into the bank vault).
+
 ## 0.13.10 (vault through windows; owner)
 - Space while walking into a window vaults you through it, in or out (on upper floors that means a drop, with fall
   damage past 3.5 m). You duck through the gap (the camera too) and slide a little sideways to fit it if you're not

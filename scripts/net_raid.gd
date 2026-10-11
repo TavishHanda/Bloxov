@@ -47,6 +47,7 @@ func _ready() -> void:
 	Network.main.container_busy.connect(func(_id: String) -> void: _show_message("Someone else is looting that."))
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
+	Network.main.door_opened.connect(on_door_opened)
 	player.health.died.connect(_drop_body)
 	Network.main.revive_changed.connect(player.set_being_revived)
 	Network.main.revived.connect(player.revive)
@@ -106,6 +107,13 @@ func sync_remotes(states: Dictionary) -> void:
 			get_parent().add_child(remote)
 			remotes[peer] = remote
 		remote.push_state(states[peer])
+
+
+## Someone in the raid unlocked a key door: it's open here too.
+func on_door_opened(id: String) -> void:
+	var door := get_parent().get_node_or_null("KeyDoors/" + id) as KeyDoor
+	if door != null:
+		door.open()
 
 
 # --- Shared loot ---------------------------------------------------------------------

@@ -1823,7 +1823,8 @@ var _next_trip_at := 0.0
 var _trip_point := Vector3.INF
 
 func _pick_patrol_point() -> Vector3:
-	var spots := RaidScope.nodes(self, &"loot_containers")
+	# (not the ones behind key doors, 0.14.0: the AI can't get in there)
+	var spots := RaidScope.nodes(self, &"loot_containers").filter(func(c: Node) -> bool: return not c.has_meta("locked"))
 	if _trip_point != Vector3.INF and _in_home(global_position):
 		_trip_point = Vector3.INF   # back from its trip
 	if excursions > 0 and home_radius > 0.0:

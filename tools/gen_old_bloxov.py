@@ -136,7 +136,7 @@ markers = []     # (group node, name, x, y, z, metadata dict)
 
 
 def add_loot(place, kind, x, z, y=0.0, yaw=0.0):
-    """kind: crate / locker / safe (existing loot tables; the Items update gives each place its own)."""
+    """kind: crate / locker / safe (the scene's loot table; ItemDB.PLACE_LOOT adds the place's own loot, 0.14.0)."""
     n = sum(1 for l in loot if l[0].startswith(place + "_")) + 1
     loot.append((f"{place}_{kind.capitalize()}{n}", kind, x, y, z, yaw, kind, place))
 
@@ -1447,10 +1447,10 @@ def main():
     box(hx0, 0, hz0 - 0.1, hx1, 1.0, hz0, "metal")
     box(hx1, 0, hz0 - 0.1, hx1 + 0.1, 1.0, hz1 + 0.1, "metal")
     box(hx0, 0, hz1, hx1, 1.0, hz1 + 0.1, "metal")
-    # key door: the wall at x 99 between the ramp landing and the bunker rooms (doorway open until keys exist)
+    # key door: the wall at x 99 between the ramp landing and the bunker rooms (locked: the bunker key, 0.14.0)
     wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(151.0, DOOR_W, 0.0, DOOR_H)])
     box(98.7, bunker_floor + 2.3, 150.0, 99.3, bunker_floor + 2.6, 152.0, "keydoor", solid=False)
-    markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 151.0, {"key": "bunker_key", "place": "Bunker"}))
+    markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 151.0, {"key": "bunker_key", "place": "Bunker", "yaw": 90.0, "width": DOOR_W}))
     # bunker rooms: corridor along the south, three vaults to the north
     for x in (110.0, 121.0):
         wall_z(bz0, bz1 - 5, x, bunker_floor, 3.5, "bunker", [((bz0 + bz1 - 5) / 2, INNER_DOOR_W, 0.0, DOOR_H)])
@@ -1462,7 +1462,7 @@ def main():
     add_loot("Bunker", "crate", 101.0, 156.5, y=bunker_floor)
 
     # bank with offices upstairs, one building east of the square (owner). The vault is the south-east room (1, 2),
-    # only reachable from room (1, 1) through a key door placeholder (the stairs are along the north wall).
+    # only reachable from room (1, 1) through a key door (the bank vault key; the stairs are along the north wall).
     bank = build(Building("Bank", 128, 110, 16, 30, floors=2, colour="wall_rich", rooms=(2, 3), doors="W",
                           solid_inner=[("v", 1, 2)], no_windows=[(1, 2)]), [
         ("safe", 1, 2, 0, "E", 1.5), ("safe", 1, 2, 0, "S", 0), ("locker", 0, 1, 0, "W", 0),
@@ -1471,7 +1471,7 @@ def main():
         x, y, z, yaw = bank.against_wall(i, j, 1, side)
         add_loot("Offices", kind, x, z, y=y, yaw=yaw)
     box(139.0, 2.3, 129.7, 141.0, 2.6, 130.3, "keydoor", solid=False)
-    markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank"}))
+    markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank", "yaw": 0.0, "width": INNER_DOOR_W}))
     build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E",
                    blasts=[(0, "W", 0)], caved=[(1, 1)]), [
         ("crate", 0, 1, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 0, 1, "N", 0),
@@ -2004,9 +2004,14 @@ def relief(ter):
     return [ter.at((i + 0.5) * step, (j + 0.5) * step) for j in range(RELIEF_CELLS) for i in range(RELIEF_CELLS)]
 
 
+def behind_key_door(place, x, z):
+    """Loot behind a key door (the bunker, the bank vault: the bank's south-east room): the AI leave it alone."""
+    return place == "Bunker" or (place == "Bank" and 136 < x < 144 and 130 < z < 140)
+
+
 def write_scene(ter):
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
-              "safe": "res://scenes/loot_safe.tscn"}
+              "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn"}
     out = ["[gd_scene format=3]", "",
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
            '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]']
@@ -2039,7 +2044,7 @@ def write_scene(ter):
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
                 f"transform = {xform(x, y, z, yaw)}",
-                f'metadata/place = "{place}"', ""]
+                f'metadata/place = "{place}"'] + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, z in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',
@@ -2073,6 +2078,12 @@ def write_scene(ter):
         out += [f'[node name="{g}" type="Node3D" parent="."]', ""]
         for grp, name, x, y, z, meta in markers:
             if grp != g:
+                continue
+            if grp == "KeyDoors":   # locked doors (0.14.0): a door leaf filling the doorway, a bit wider than it
+                out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["door"]}")]',
+                        f"transform = {xform(x, y, z, meta['yaw'])}", f'key = "{meta["key"]}"',
+                        f"size = Vector3({fmt(meta['width'] + 0.2)}, {fmt(DOOR_H + 0.05)}, 0.12)",
+                        f'metadata/place = "{meta["place"]}"', ""]
                 continue
             out += [f'[node name="{name}" type="Marker3D" parent="{g}"]', f"transform = {xform(x, y, z)}"]
             out += [f'metadata/{k} = "{v}"' for k, v in meta.items()]

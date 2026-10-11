@@ -1,6 +1,7 @@
 class_name Interactor
 extends Node
-## Finds the loot container the player is looking at and handles hold-F-to-search.
+## Finds the loot container the player is looking at and handles hold-F-to-search, and hold-F-to-unlock on a key
+## door (0.14.0) when its key is on you.
 ## Online (0.9.2) it also handles hold-F-to-revive: a downed teammate close by (reviving comes before looting).
 
 signal opened(container: LootContainer)
@@ -14,8 +15,10 @@ signal revive_finished(peer: int)
 @onready var player: Player = owner
 
 var target: LootContainer = null
-## The container `progress` belongs to (looking at another one starts over).
-var _progress_target: LootContainer = null
+## A shut key door we're looking at (instead of a container).
+var door: KeyDoor = null
+## The container or door `progress` belongs to (looking at another one starts over).
+var _progress_target: Node = null
 ## 0..1 while holding F on an unsearched container.
 var progress := 0.0
 ## Set by the HUD while a loot/inventory screen is open.
@@ -38,6 +41,7 @@ func is_reviving() -> bool:
 
 func _physics_process(delta: float) -> void:
 	target = null
+	door = null
 	if blocked or not Input.is_action_pressed("interact"):
 		_open_needs_release = blocked
 	var able := not blocked and not player.out_of_fight() and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
@@ -46,7 +50,14 @@ func _physics_process(delta: float) -> void:
 	if not able or revive_target != null:
 		progress = 0.0
 		return
-	target = _find_target()
+	var looked_at := _find_target()
+	target = looked_at as LootContainer
+	door = looked_at as KeyDoor
+	if door != null and door.is_open:
+		door = null
+	if door != null:
+		_update_door(delta)
+		return
 	if target == null or not Input.is_action_pressed("interact") or _open_needs_release:
 		progress = 0.0
 		return
@@ -111,7 +122,22 @@ func _stop_revive() -> void:
 	revive_progress = 0.0
 
 
-func _find_target() -> LootContainer:
+## Holding F on a shut key door with its key on you fills the bar, then unlocks it.
+func _update_door(delta: float) -> void:
+	if not Input.is_action_pressed("interact") or _open_needs_release or player.inventory.key_for(String(door.name)) == null:
+		progress = 0.0
+		return
+	if door != _progress_target:
+		_progress_target = door
+		progress = 0.0
+	progress += delta / door.unlock_time
+	if progress >= 1.0:
+		progress = 0.0
+		door.unlock(player.inventory)
+
+
+## The container or key door in reach under the crosshair, or null.
+func _find_target() -> Node:
 	var camera := player.camera
 	var from := camera.global_position
 	var to := from - camera.global_basis.z * reach
@@ -120,4 +146,4 @@ func _find_target() -> LootContainer:
 	var result := player.get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
 		return null
-	return result.collider as LootContainer
+	return result.collider if result.collider is LootContainer or result.collider is KeyDoor else null

@@ -69,6 +69,12 @@ func _draw() -> void:
 	draw_rect(Rect2(inner.position, Vector2(2, inner.size.y)), Color(color, 0.22))
 	draw_rect(Rect2(Vector2(inner.position.x, inner.end.y - 2), Vector2(inner.size.x, 2)), Color(0, 0, 0, 0.3))
 	draw_rect(rect, color, false, 2.0)
+	# Wear (0.14.0): armor and keys show what's left as a bar along the bottom, green to red.
+	if ItemDB.max_durability(stack.id) > 0:
+		var left := stack.condition()
+		var bar := Rect2(Vector2(inner.position.x + 2, inner.end.y - 6), Vector2(inner.size.x - 4, 4))
+		draw_rect(bar, Color(0, 0, 0, 0.55))
+		draw_rect(Rect2(bar.position, Vector2(roundf(bar.size.x * left), bar.size.y)), Color(1.0, 0.3, 0.2).lerp(Color(0.45, 0.9, 0.35), left))
 
 
 func _gui_input(event: InputEvent) -> void:

@@ -203,12 +203,16 @@ static func _write_stack(stack: ItemStack) -> Dictionary:
 		entry["r"] = true
 	if stack.loaded > 0:
 		entry["loaded"] = stack.loaded
+	if stack.durability < ItemDB.max_durability(stack.id):
+		entry["d"] = stack.durability
 	return entry
 
 
 static func _read_stack(entry: Dictionary) -> ItemStack:
 	var stack := ItemStack.new(str(entry["id"]), int(entry.get("count", 1)), int(entry.get("x", 0)), int(entry.get("y", 0)), bool(entry.get("r", false)))
 	stack.loaded = int(entry.get("loaded", 0))
+	if _is_number(entry.get("d")):
+		stack.durability = clampi(int(entry["d"]), 0, ItemDB.max_durability(stack.id))
 	return stack
 
 

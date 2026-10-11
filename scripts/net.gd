@@ -40,6 +40,8 @@ signal container_opened(id: String, data: Array)
 signal container_busy(id: String)
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
 signal bag_removed(id: String)
+## Key doors (0.14.0): someone in the raid unlocked one (its node name).
+signal door_opened(id: String)
 ## Downed (0.9.2): a teammate started or stopped holding F on us; they finished (we're back up).
 signal revive_changed(on: bool)
 signal revived
@@ -358,6 +360,14 @@ func _close_container() -> void:
 		world.close_containers(multiplayer.get_remote_sender_id())
 
 
+## A player unlocked a key door (their game checked and used up the key): open it here and for everyone else.
+@rpc("any_peer", "call_remote", "reliable")
+func _open_door(id: String) -> void:
+	var world := _world_of(multiplayer.get_remote_sender_id())
+	if world != null:
+		world.open_door(id)
+
+
 ## A player dropped items, or died (their body holds what they carried): a bag where they are.
 @rpc("any_peer", "call_remote", "reliable")
 func _drop_items(data: Array, is_body: bool) -> void:
@@ -525,6 +535,9 @@ func _send_raid_start(id: int) -> void:
 	world.bag_removed.connect(func(bag: String) -> void:
 		for peer in _raid_peers(id):
 			_bag_gone.rpc_id(peer, bag))
+	world.door_opened.connect(func(door: String) -> void:
+		for peer in _raid_peers(id):
+			_door_open.rpc_id(peer, door))
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
@@ -675,6 +688,12 @@ func close_container() -> void:
 		_close_container.rpc_id(1)
 
 
+## We unlocked a key door.
+func open_door(id: String) -> void:
+	if in_online_raid():
+		_open_door.rpc_id(1, id)
+
+
 ## Items we dropped (`body` = we died: everything we carried).
 func drop_items(data: Array, body := false) -> void:
 	if in_online_raid():
@@ -817,6 +836,12 @@ func _bag(id: String, pos: Vector3, yaw: float, title: String, search: float) ->
 func _bag_gone(id: String) -> void:
 	if in_online_raid():
 		bag_removed.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _door_open(id: String) -> void:
+	if in_online_raid():
+		door_opened.emit(id)
 
 
 @rpc("authority", "call_remote", "reliable")

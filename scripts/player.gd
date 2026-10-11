@@ -247,6 +247,7 @@ func _ready() -> void:
 	Profile.loadout = Profile.death_loadout(Profile.loadout)
 	Profile.save_profile()
 	health.damaged.connect(_on_damaged)
+	health.armor_hit.connect(_on_armor_hit)
 	health.died.connect(_on_died)
 	health.downed.connect(_on_downed)
 	health.revived.connect(_on_revived)
@@ -448,6 +449,12 @@ func _hotbar_key(event: InputEvent) -> int:
 
 func _on_equipment_changed() -> void:
 	health.damage_multiplier = 1.0 - inventory.armor_reduction()
+
+
+## Hits wear the armor down (0.14.0), and worn armor stops less from the next one.
+func _on_armor_hit(amount: int) -> void:
+	if inventory.wear_armor(amount):
+		_on_equipment_changed()
 
 
 ## Use one heal item from a stack. Takes a few seconds; you can't shoot meanwhile.
