@@ -9,10 +9,10 @@ edit the item database, then re-run the script (don't edit this file by hand).
 |---|---|---|---|---|---|---|---|
 | Pistol (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo | Small sidearm. Quick to aim, one shot per click. |
 | AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo | Old army rifle, full auto. Hits hard, kicks harder. |
-| Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken when new; 60 durability | Soft vest. Wears down as it takes hits, and protects less as it does. |
-| Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken when new; 120 durability | Plated vest. Stops a lot, wears down as it takes hits. |
-| Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $1,000 | -25% head damage taken when new; 40 durability | Dented steel pot. Better than nothing on your head. |
-| Combat Helmet (`helmet_good`) | Helmet | Rare | 2×2 | 1 | $3,000 | -45% head damage taken when new; 80 durability | Army helmet. Takes a hit to the head well, wears down as it does. |
+| Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
+| Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken | Plated vest. Stops a lot. |
+| Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $1,000 | -25% head damage taken | Dented steel pot. Better than nothing on your head. |
+| Combat Helmet (`helmet_good`) | Helmet | Rare | 2×2 | 1 | $3,000 | -45% head damage taken | Army helmet. Takes a hit to the head well. |
 | Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $400 | 4×3 storage | A school bag. Better than pockets. |
 | Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $900 | 5×4 storage | Hiking pack with room for a good haul. |
 | Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $2,000 | 6×5 storage | Big army rucksack. Carry everything home. |
@@ -20,8 +20,8 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $3 | full stack $360 | Rifle rounds for the AK. Loaded when you reload. |
 | Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $100 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
 | Medkit (`medkit`) | Healing | Uncommon | 2×2 | 1 | $400 | heals 70 over 4 s | Field kit. Heals a lot, takes a while. |
-| Bank Vault Key (`bank_vault_key`) | Key | Rare | 1×1 | 1 | $3,500 | opens BankVaultDoor; 5 uses | Opens the vault in the bank. 5 uses. |
-| Bunker Key (`bunker_key`) | Key | Epic | 1×1 | 1 | $6,000 | opens BunkerDoor; 3 uses | Opens the bunker under the town hall. Bon keeps one on him. 3 uses. |
+| Bank Vault Key (`bank_vault_key`) | Key | Rare | 1×1 | 1 | $3,500 | opens BankVaultDoor | Opens the vault in the bank. |
+| Bunker Key (`bunker_key`) | Key | Epic | 1×1 | 1 | $6,000 | opens BunkerDoor | Opens the bunker under the town hall. Bon keeps one on him. |
 | Canned Beans (`beans`) | Valuable | Common | 1×1 | 1 | $150 |  | Somebody's lunch. Traders pay for food out here. |
 | Water Bottle (`water`) | Valuable | Common | 1×1 | 1 | $200 |  | Clean water is rare out here. Traders pay for it. |
 | Scrap Metal (`scrap`) | Valuable | Common | 2×1 | 1 | $250 |  | Bent metal. Worth a little to the right buyer. |
@@ -38,9 +38,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Rare Crystal (`crystal`) | Valuable | Legendary | 1×1 | 1 | $18,000 |  | Nobody knows where these come from. Everyone wants one. |
 | Golden Toilet (`golden_toilet`) | Valuable | Legendary | 2×3 | 1 | $50,000 |  | Yes, really. |
 
-Armor and keys wear (durability): hits take armor points off (the damage it stopped when new), and
-worn armor stops that much less; each door opened takes a use off a key, and a used-up key is gone.
-Worn items are worth less: 30% of their value when worn out. Armor found in a raid is 40-100% worn.
+Nothing wears out for now: durability (armor, helmets, keys, guns) is its own update later (owner).
 
 ## Where items come from
 

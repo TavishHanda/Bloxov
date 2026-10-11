@@ -635,12 +635,14 @@ func show_info(stack: ItemStack) -> void:
 				int(data["rpm"]), int(data["mag"]), stack.loaded])
 		"armor":
 			parts.append("Takes %d%% off damage" % roundi(float(data["reduction"]) * stack.condition() * 100.0))
-			parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
+			if ItemDB.max_durability(stack.id) > 0:
+				parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
 		"helmet":
 			parts.append("Takes %d%% off hits to the head" % roundi(ItemDB.reduction(stack) * 100.0))
-			parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
+			if ItemDB.max_durability(stack.id) > 0:
+				parts.append("Durability %d/%d" % [stack.durability, ItemDB.max_durability(stack.id)])
 		"key":
-			parts.append("Key · %d/%d uses left" % [stack.durability, ItemDB.max_durability(stack.id)])
+			parts.append("Key" + (" · %d/%d uses left" % [stack.durability, ItemDB.max_durability(stack.id)] if ItemDB.max_durability(stack.id) > 0 else ""))
 		"backpack":
 			parts.append("%d×%d storage" % [int(data["grid"][0]), int(data["grid"][1])])
 	parts.append("Worth %s" % ItemDB.money(stack.value()) + (" (%s each)" % ItemDB.money(ItemDB.value(stack.id)) if stack.count > 1 else ""))

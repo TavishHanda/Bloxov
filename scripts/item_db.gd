@@ -16,8 +16,9 @@ const RARITY_COLORS := {
 ##       "helmet" (Helmet slot; "reduction" applies to hits on the head), "key" (opens the key door named by "door"; carry it anywhere on you)
 ## w/h: size in grid cells (before rotation). stack: how many fit in one cell stack. value: price of ONE (new).
 ## desc: the line the inventory shows about it.
-## durability (0.14.0): armor points (hits wear it down, worn armor protects less) or a key's uses. Each item keeps
-## its own (ItemStack.durability); worn items are worth less (ItemStack.value).
+## durability: armor points (hits wear it down, worn armor protects less) or a key's uses. Each item keeps its own
+## (ItemStack.durability); worn items are worth less (ItemStack.value). No item has one for now (owner, 0.14.3:
+## durability is its own update later); the code is ready for when it comes.
 const ITEMS := {
 	"rifle_ammo": {"name": "Rifle Rounds", "desc": "Rifle rounds for the AK. Loaded when you reload.", "short": "5.45", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 3},
 	"pistol_ammo": {"name": "Pistol Rounds", "desc": "Pistol rounds. Loaded when you reload.", "short": "9mm", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 2},
@@ -29,21 +30,21 @@ const ITEMS := {
 		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 17, "head": 2.5, "rpm": 360, "mag": 12, "reload": 1.2,
 		"spread": 0.3, "hip_spread": 0.5, "move_spread": 0.5, "ads_time": 0.16, "ads_fov": 66.0,
 		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0},
-	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Wears down as it takes hits, and protects less as it does.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 1500, "reduction": 0.2, "durability": 60},
-	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot, wears down as it takes hits.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 4000, "reduction": 0.4, "durability": 120},
+	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Takes the edge off a hit.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 1500, "reduction": 0.2},
+	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 4000, "reduction": 0.4},
 	"helmet_basic": {"name": "Old Helmet", "short": "Old Helm", "desc": "Dented steel pot. Better than nothing on your head.",
-		"kind": "helmet", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 1000, "reduction": 0.25, "durability": 40},
-	"helmet_good": {"name": "Combat Helmet", "short": "Combat", "desc": "Army helmet. Takes a hit to the head well, wears down as it does.",
-		"kind": "helmet", "rarity": "rare", "w": 2, "h": 2, "stack": 1, "value": 3000, "reduction": 0.45, "durability": 80},
+		"kind": "helmet", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 1000, "reduction": 0.25},
+	"helmet_good": {"name": "Combat Helmet", "short": "Combat", "desc": "Army helmet. Takes a hit to the head well.",
+		"kind": "helmet", "rarity": "rare", "w": 2, "h": 2, "stack": 1, "value": 3000, "reduction": 0.45},
 	"backpack_small": {"name": "Small Backpack", "desc": "A school bag. Better than pockets.", "short": "Sm Pack", "kind": "backpack", "rarity": "common", "w": 3, "h": 3, "stack": 1, "value": 400, "grid": [4, 3]},
 	"backpack_medium": {"name": "Medium Backpack", "desc": "Hiking pack with room for a good haul.", "short": "Md Pack", "kind": "backpack", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 900, "grid": [5, 4]},
 	"backpack_large": {"name": "Large Backpack", "desc": "Big army rucksack. Carry everything home.", "short": "Lg Pack", "kind": "backpack", "rarity": "rare", "w": 4, "h": 4, "stack": 1, "value": 2000, "grid": [6, 5]},
 	"bandage": {"name": "Bandage", "desc": "Stops the bleeding. Quick to use.", "kind": "heal", "rarity": "common", "w": 1, "h": 1, "stack": 5, "value": 100, "heal": 25, "use_time": 2.0},
 	"medkit": {"name": "Medkit", "desc": "Field kit. Heals a lot, takes a while.", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 400, "heal": 70, "use_time": 4.0},
-	"bunker_key": {"name": "Bunker Key", "short": "Bunker", "desc": "Opens the bunker under the town hall. Bon keeps one on him. 3 uses.",
-		"kind": "key", "door": "BunkerDoor", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 6000, "durability": 3},
-	"bank_vault_key": {"name": "Bank Vault Key", "short": "Vault", "desc": "Opens the vault in the bank. 5 uses.",
-		"kind": "key", "door": "BankVaultDoor", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500, "durability": 5},
+	"bunker_key": {"name": "Bunker Key", "short": "Bunker", "desc": "Opens the bunker under the town hall. Bon keeps one on him.",
+		"kind": "key", "door": "BunkerDoor", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 6000},
+	"bank_vault_key": {"name": "Bank Vault Key", "short": "Vault", "desc": "Opens the vault in the bank.",
+		"kind": "key", "door": "BankVaultDoor", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500},
 	"beans": {"name": "Canned Beans", "desc": "Somebody's lunch. Traders pay for food out here.", "short": "Beans", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 150},
 	"water": {"name": "Water Bottle", "short": "Water", "desc": "Clean water is rare out here. Traders pay for it.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 200},
 	"ration": {"name": "Ration Pack", "short": "Ration", "desc": "Novarran army meal. Tastes like cardboard, sells like gold.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 700},

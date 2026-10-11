@@ -670,53 +670,39 @@ func _section_items() -> void:
 	# Items update (0.14.0): every item has a description; armor and keys wear.
 	var bare := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.description(id) == "")
 	_check(bare.is_empty(), "every item has a description (missing: %s)" % [bare])
-	var vest := ItemStack.new("armor_light")
-	_check(vest.durability == 60 and vest.condition() == 1.0 and vest.value() == ItemDB.value("armor_light"),
-		"new armor is at full durability and full value")
-	# Hits wear the armor on the player, and worn armor stops less.
+	# Nothing wears for now (owner, 0.14.3: durability is its own update later).
+	var worn := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.max_durability(id) > 0)
+	_check(worn.is_empty(), "no item has durability yet (%s)" % [worn])
+	# Armor protects the body, a helmet the head (0.14.2).
 	var inv := player.inventory
 	var old_armor := inv.unequip("armor") if inv.equipped("armor") != null else null
+	var old_helmet := inv.unequip("helmet") if inv.equipped("helmet") != null else null
+	var vest := ItemStack.new("armor_light")
+	var helm := ItemStack.new("helmet_basic")
 	inv.equip("armor", vest)
-	_check(is_equal_approx(player.health.damage_multiplier, 0.8), "light armor takes 20%% off (x%.2f)" % player.health.damage_multiplier)
+	inv.equip("helmet", helm)
 	var hp := player.health.current
 	player.health.take_damage(30)
-	_check(player.health.current == hp - 24 and vest.durability == 54,
-		"a 30 hit: 24 gets through, the armor loses the 6 it stopped (%d/60)" % vest.durability)
-	_check(is_equal_approx(player.health.damage_multiplier, 1.0 - 0.2 * 54.0 / 60.0), "worn armor stops less (x%.3f)" % player.health.damage_multiplier)
-	player.health.take_damage(30, Vector3.ZERO, true)
-	_check(vest.durability == 54, "falls (no armor) don't wear it")
-	vest.durability = 0
-	_check(inv.armor_reduction() == 0.0 and vest.value() == roundi(ItemDB.value("armor_light") * 0.3),
-		"worn-out armor stops nothing and is worth 30%")
-	inv.unequip("armor")
-	if old_armor != null:
-		inv.equip("armor", old_armor)
-	# Helmets (0.14.2): hits on the head go to the helmet, not the armor.
-	var vest2 := ItemStack.new("armor_light")
-	var helm := ItemStack.new("helmet_basic")
-	var old_helmet := inv.unequip("helmet") if inv.equipped("helmet") != null else null
-	old_armor = inv.unequip("armor") if inv.equipped("armor") != null else null
-	inv.equip("armor", vest2)
-	inv.equip("helmet", helm)
+	player.health.take_damage(30)
+	_check(player.health.current == hp - 48 and is_equal_approx(player.health.damage_multiplier, 0.8),
+		"light armor takes 20%% off body hits, and doesn't wear (%d HP lost)" % (hp - player.health.current))
 	hp = player.health.current
 	player.health.take_damage(40, Vector3.ZERO, false, true)
-	_check(player.health.current == hp - 30 and helm.durability == 30 and vest2.durability == 60,
-		"a 40 head hit: the old helmet stops 25%% and wears (%d/40), the armor doesn't" % helm.durability)
-	_check(is_equal_approx(player.health.head_multiplier, 1.0 - 0.25 * 30.0 / 40.0) and is_equal_approx(player.health.damage_multiplier, 0.8),
-		"a worn helmet stops less on the head; the body still has its armor")
+	_check(player.health.current == hp - 30 and is_equal_approx(player.health.head_multiplier, 0.75),
+		"the old helmet takes 25% off head hits")
 	inv.unequip("helmet")
-	inv.unequip("armor")
 	_check(player.health.head_multiplier == 1.0 and Scav.HEAD_HIT_CHANCE > 0.0, "no helmet: head hits get through (AI land some hits on the head)")
+	inv.unequip("armor")
 	if old_helmet != null:
 		inv.equip("helmet", old_helmet)
 	if old_armor != null:
 		inv.equip("armor", old_armor)
 	player.health.current = player.health.max_health
-	# AI wear their gear: it protects them, wears, and ends up on their body as it is.
+	# AI wear their gear: it protects them like a player, and ends up on their body.
 	var gear_raider := _spawn(RAIDER_SCENE, player.global_position + Vector3(30, 0, 30)) as Scav
 	await physics_frame
-	gear_raider.health.take_damage(20)
-	_check(is_equal_approx(gear_raider.health.damage_multiplier, 1.0 - 0.2 * 56.0 / 60.0), "a Raider's armor wore from a hit (x%.3f)" % gear_raider.health.damage_multiplier)
+	_check(is_equal_approx(gear_raider.health.damage_multiplier, 0.8) and is_equal_approx(gear_raider.health.head_multiplier, 0.75),
+		"a Raider's light armor and old helmet protect it")
 	var raider_name := gear_raider.body_name
 	gear_raider.health.take_damage(1000)
 	await physics_frame
@@ -725,22 +711,10 @@ func _section_items() -> void:
 	for bag in get_nodes_in_group("loot_containers"):
 		if bag.display_name == raider_name:
 			raider_body = bag
-	_check(raider_body != null and raider_body.gear["armor"].count_of("armor_light") == 1 and raider_body.gear["helmet"].count_of("helmet_basic") == 1
-		and raider_body.gear["armor"].stacks[0].durability < 56, "its body has the armor and helmet it wore, worn")
+	_check(raider_body != null and raider_body.gear["armor"].count_of("armor_light") == 1 and raider_body.gear["helmet"].count_of("helmet_basic") == 1,
+		"its body has the armor and helmet it wore")
 	if raider_body != null:
 		raider_body.queue_free()
-	# Durability goes over the network and into the save.
-	var sent := GridInventory.data_stack(GridInventory.stack_data(vest))
-	var saved := Profile._read_stack(Profile._write_stack(vest))
-	var old_save := Profile._read_stack({"id": "armor_heavy"})
-	_check(sent.durability == 0 and saved.durability == 0 and old_save.durability == 120,
-		"durability survives the network and the save (older saves: full)")
-	# Found armor is worn some; found keys have all their uses.
-	var found := []
-	for i in 50:
-		found.append(ItemDB.found_durability("armor_heavy"))
-	_check(found.min() >= 48 and found.max() <= 120 and found.min() < 120, "found armor is 40-100%% (%d-%d)" % [found.min(), found.max()])
-	_check(ItemDB.found_durability("bunker_key") == 3, "found keys have all their uses")
 	# Loot by place: a gun store locker is mostly guns and ammo, a pharmacy crate mostly meds.
 	var guns := 0
 	var meds := 0
@@ -774,13 +748,11 @@ func _section_items() -> void:
 	inv.add("bank_vault_key")
 	var key := inv.key_for("BankVaultDoor")
 	_check(key != null and door.prompt(inv) == "Unlock with Bank Vault Key", "with the key on you: [F] Unlock")
-	_check(door.unlock(inv) and door.is_open and key.durability == 4, "unlocking opens it and takes a use off the key (%d/5 left)" % key.durability)
+	_check(door.unlock(inv) and door.is_open and inv.key_for("BankVaultDoor") == key, "unlocking opens it; the key is kept (no uses for now)")
 	await physics_frame
 	await physics_frame
 	_check(space.intersect_ray(through).is_empty(), "the open door lets you through")
-	key.durability = 1
-	inv.use_key(key)
-	_check(inv.key_for("BankVaultDoor") == null and inv.count_of("bank_vault_key") == 0, "a key with no uses left is gone")
+	inv.take("bank_vault_key", 1)
 	door.queue_free()
 	var boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate()
 	_check(boss.extra_drops.has("bunker_key"), "Bon always carries the bunker key")

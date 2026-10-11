@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.3 (no durability for now; owner)
+- Durability is out until its own update (owner): armor, helmets and keys don't wear, keys open their door every
+  time and are kept, and nothing loses value. Armor and helmets protect at full strength always, on you and on the
+  AI (Raiders x0.8 body / x0.75 head, Bon x0.6 / x0.55). The code for it stays, switched off.
+
 ## 0.14.2 (helmets, AI wear their gear; owner)
 - **Helmets**, in a new Helmet slot next to the backpack: the **Old Helmet** (uncommon, -25% on hits to the head,
   40 durability, $1,000) and the **Combat Helmet** (rare, -45%, 80 durability, $3,000). They wear down from hits like

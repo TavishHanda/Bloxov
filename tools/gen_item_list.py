@@ -108,19 +108,17 @@ def main():
             notes.append("%s slot; %s; %d dmg, %d rpm, %d-round mag, %s" % (
                 it["slot"], "full-auto" if it["auto"] else "semi-auto", it["damage"], it["rpm"], it["mag"], it["ammo"].replace("_", " ")))
         if it["kind"] == "armor":
-            notes.append("-%d%% damage taken when new; %d durability" % (round(it["reduction"] * 100), it["durability"]))
+            notes.append("-%d%% damage taken" % round(it["reduction"] * 100))
         if it["kind"] == "helmet":
-            notes.append("-%d%% head damage taken when new; %d durability" % (round(it["reduction"] * 100), it["durability"]))
+            notes.append("-%d%% head damage taken" % round(it["reduction"] * 100))
         if it["kind"] == "key":
-            notes.append("opens %s; %d uses" % (it["door"], it["durability"]))
+            notes.append("opens %s" % it["door"])
         if it["kind"] == "backpack":
             notes.append("%d×%d storage" % tuple(it["grid"]))
         lines.append("| %s (`%s`) | %s | %s | %d×%d | %d | %s | %s | %s |" % (
             it["name"], item_id, KIND_LABEL[it["kind"]], it["rarity"].capitalize(), it["w"], it["h"],
             it["stack"], money(it["value"]), "; ".join(notes), it.get("desc", "")))
-    lines += ["", "Armor and keys wear (durability): hits take armor points off (the damage it stopped when new), and",
-              "worn armor stops that much less; each door opened takes a use off a key, and a used-up key is gone.",
-              "Worn items are worth less: 30% of their value when worn out. Armor found in a raid is 40-100% worn."]
+    lines += ["", "Nothing wears out for now: durability (armor, helmets, keys, guns) is its own update later (owner)."]
 
     counts = stack_rolls(text)
     stack_note = "A roll gives one item, except these come as a stack: %s." % ", ".join(

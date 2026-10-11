@@ -121,13 +121,15 @@ func wear_armor(damage: int, head := false) -> bool:
 func key_for(door: String) -> ItemStack:
 	for grid in grids():
 		for stack in grid.stacks:
-			if ItemDB.kind(stack.id) == "key" and ItemDB.item(stack.id)["door"] == door and stack.durability > 0:
+			if ItemDB.kind(stack.id) == "key" and ItemDB.item(stack.id)["door"] == door and (stack.durability > 0 or ItemDB.max_durability(stack.id) == 0):
 				return stack
 	return null
 
 
 ## Uses up one use of a key; a key with none left is gone.
 func use_key(stack: ItemStack) -> void:
+	if ItemDB.max_durability(stack.id) == 0:
+		return   # (keys don't wear for now)
 	stack.durability -= 1
 	for grid in grids():
 		if grid.stacks.has(stack):
