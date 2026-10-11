@@ -69,7 +69,7 @@ const ITEMS := {
 	"mil_chip": {"name": "Military Chip", "desc": "Exion military hardware. Very wanted.", "short": "Chip", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7500},
 	"bolts": {"name": "Bolts", "desc": "A handful of nuts and bolts. Small, but always needed.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 120},
 	"wires": {"name": "Wires", "desc": "Copper wire stripped from a wall. Useful for fixing things.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 180},
-	"gunpowder": {"name": "Gunpowder Tin", "short": "Powder", "desc": "A tin of gunpowder. Keep it away from fire.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 1000},
+	"gunpowder": {"name": "Powder Tin", "short": "Powder", "desc": "A tin of gunpowder. Keep it away from fire.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 1000},
 	"cpu": {"name": "Processor", "short": "CPU", "desc": "A computer processor. Small, light and worth a lot.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 5000},
 	"fuel_can": {"name": "Fuel Can", "short": "Fuel", "desc": "Half full. Every generator in Bloxov wants it.", "kind": "valuable", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 900},
 	"med_supplies": {"name": "Medical Supplies", "short": "Meds", "desc": "Gauze, syringes, pills. Clinics pay well for them.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 800},

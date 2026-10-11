@@ -35,7 +35,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Medical Supplies (`med_supplies`) | Valuable | Uncommon | 1×1 | 1 | $800 |  | Gauze, syringes, pills. Clinics pay well for them. |
 | Raider Dog Tag (`dog_tag`) | Valuable | Uncommon | 1×1 | 1 | $900 |  | Taken off a Raider. Proof of a kill, and traders pay for it. |
 | Fuel Can (`fuel_can`) | Valuable | Uncommon | 2×2 | 1 | $900 |  | Half full. Every generator in Bloxov wants it. |
-| Gunpowder Tin (`gunpowder`) | Valuable | Uncommon | 1×1 | 1 | $1,000 |  | A tin of gunpowder. Keep it away from fire. |
+| Powder Tin (`gunpowder`) | Valuable | Uncommon | 1×1 | 1 | $1,000 |  | A tin of gunpowder. Keep it away from fire. |
 | Car Battery (`battery`) | Valuable | Uncommon | 2×2 | 1 | $1,200 |  | Heavy and worth it. |
 | Novarra Badge (`novarra_badge`) | Valuable | Rare | 1×1 | 1 | $2,000 |  | A Novarran soldier's unit badge. Collectors and traders want them. |
 | Gold Watch (`gold_watch`) | Valuable | Rare | 1×1 | 1 | $2,500 |  | Somebody's pride. Now yours. |
@@ -71,7 +71,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 | Rifle Rounds | 27% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 27% |
 | Bandage | 16% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Gunpowder Tin, Fuel Can, Medical Supplies) | 11% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Powder Tin, Fuel Can, Medical Supplies) | 11% |
 | Pistol Rounds | 7% |
 | Energy Drink | 4% |
 | Medkit | 4% |
@@ -82,7 +82,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 
 | Entry | Chance per roll |
 |---|---|
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Gunpowder Tin, Fuel Can, Medical Supplies) | 19% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Powder Tin, Fuel Can, Medical Supplies) | 19% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 14% |
 | Rifle Rounds | 11% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, PMC Dog Tag, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 11% |
@@ -96,7 +96,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 | Epic valuable (Gold Bar, Bon's Dog Tag, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 3% |
 | Frag Grenade | 2% |
 | Small Backpack | 2% |
-| Gunpowder Tin | 2% |
+| Powder Tin | 2% |
 | Medium Backpack | 2% |
 | Novarra Field Report | 1% |
 
@@ -106,7 +106,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 |---|---|
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, PMC Dog Tag, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 35% |
 | Epic valuable (Gold Bar, Bon's Dog Tag, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 26% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Gunpowder Tin, Fuel Can, Medical Supplies) | 13% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Powder Tin, Fuel Can, Medical Supplies) | 13% |
 | Legendary valuable (Diamond Ring, Rare Crystal, Golden Toilet) | 13% |
 | Heavy Armor | 5% |
 | Combat Helmet | 4% |
@@ -120,7 +120,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 | Bandage | 17% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 17% |
 | Pistol Rounds | 8% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Gunpowder Tin, Fuel Can, Medical Supplies) | 8% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Powder Tin, Fuel Can, Medical Supplies) | 8% |
 | Medkit | 5% |
 | Energy Drink | 3% |
 | Pistol | 3% |
@@ -131,7 +131,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, Pisto
 | Entry | Chance per roll |
 |---|---|
 | Rifle Rounds | 24% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Gunpowder Tin, Fuel Can, Medical Supplies) | 16% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Raider Dog Tag, Powder Tin, Fuel Can, Medical Supplies) | 16% |
 | Bandage | 10% |
 | Medkit | 10% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 10% |
@@ -151,15 +151,15 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 
 | Place | Extra weights |
 |---|---|
-| Bunker | Gunpowder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, AK Rifle 8, Rifle Rounds 15 |
+| Bunker | Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, AK Rifle 8, Rifle Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, Bunker Key 3, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5, Bank Vault Key 4 |
 | BigHouse1 | Diamond Ring 3, Gold Watch 20, Cash Bundle 15, Rare Crystal 3 |
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, Golden Toilet 2, epic valuable 8 |
-| Police | Gunpowder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Pistol 15, Pistol Rounds 20, Bunker Key 2, Bank Vault Key 3 |
-| GunStore | Gunpowder Tin 15, AK Rifle 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
+| Police | Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Pistol 15, Pistol Rounds 20, Bunker Key 2, Bank Vault Key 3 |
+| GunStore | Powder Tin 15, AK Rifle 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
 | Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |

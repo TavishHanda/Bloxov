@@ -6,6 +6,11 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.10 (full item names on tiles; owner asked)
+- Item tiles show the whole name: on one line if it fits, else one word per line ("Raider / Dog / Tag" instead of a
+  cut-off "Raider"), in the biggest text that fits. The name uses the whole tile unless there's a count at the bottom.
+- The Gunpowder Tin is now called **Powder Tin**, so it fits a 1×1 tile.
+
 ## 0.14.9 (Items: crafting materials to sell; owner asked)
 - Four more valuables, meant as crafting materials later: **Bolts** ($120; junkyard, garage, shed, railyard, barn),
   **Wires** ($180; junkyard, offices, garage, shed, the electronics house), **Gunpowder Tin** ($1000; gun store,

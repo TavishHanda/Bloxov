@@ -20,9 +20,8 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 	_name_label = Label.new()
 	_name_label.text = ItemDB.display_name(stack.id)
 	_name_label.add_theme_font_size_override("font_size", 12)
-	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_name_label.clip_text = true
-	_name_label.position = Vector2(5, 3)
+	_name_label.position = Vector2(4, 3)
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_name_label)
 
@@ -39,24 +38,36 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 
 func set_tile_size(cells: Vector2i) -> void:
 	size = Vector2(cells) * GridView.CELL
-	_name_label.size = Vector2(size.x - 10, size.y - 18)
-	_fit_name()
 	_count_label.text = "x%d" % stack.count if stack.count > 1 else ""
 	_count_label.position = Vector2(4, size.y - 22)
 	_count_label.size = Vector2(size.x - 9, 18)
+	# (the name gets the whole tile unless there's a count at the bottom)
+	_name_label.size = Vector2(size.x - 6, size.y - (20 if stack.count > 1 else 6))
+	_fit_name()
 	queue_redraw()
 
 
-## The full name, in the biggest font (12 down to 8) that fits the tile (owner: icons replace this with the art).
+## The full name in the biggest font (12 down to 7) that fits the tile: on one line if it fits, else one word per
+## line (owner, 0.14.10: "Raider / Dog / Tag", not a cut-off "Raider"). (Icons replace this with the art later.)
 func _fit_name() -> void:
 	var font := _name_label.get_theme_font("font")
 	var room := _name_label.size
-	for font_size in range(12, 7, -1):
-		var needed := font.get_multiline_string_size(_name_label.text, HORIZONTAL_ALIGNMENT_LEFT, room.x, font_size)
-		if needed.x <= room.x and needed.y <= room.y + 2:
-			_name_label.add_theme_font_size_override("font_size", font_size)
+	var name := ItemDB.display_name(stack.id)
+	var words := name.split(" ", false)
+	_name_label.add_theme_constant_override("line_spacing", -3)
+	for font_size in range(12, 6, -1):
+		_name_label.add_theme_font_size_override("font_size", font_size)
+		var line_height := font.get_height(font_size)
+		if font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room.x and line_height <= room.y:
+			_name_label.text = name
 			return
-	_name_label.add_theme_font_size_override("font_size", 8)
+		var widest := 0.0
+		for word in words:
+			widest = maxf(widest, font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
+		if widest <= room.x and words.size() * (line_height - 3) + 3 <= room.y:
+			_name_label.text = "\n".join(words)
+			return
+	_name_label.text = "\n".join(words)
 
 
 func _draw() -> void:
