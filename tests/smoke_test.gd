@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov",
@@ -3123,6 +3123,51 @@ func _section_patrol() -> void:
 			near_middle += 1
 	_check(in_avoid == 0 and near_middle == 0, "patrol stops stay out of the zone's no-go part and round its edges (%d in it, %d in the middle)" % [in_avoid, near_middle])
 	edger.queue_free()
+
+
+func _section_ai_lod() -> void:
+	# 0.14.4 (health check: 32 AI were too slow for phones): a calm AI far from every player thinks and moves 10 times
+	# a second instead of every frame, but still moves smoothly, and anything that alerts it brings it straight back.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, 30)) as Scav
+	scav.sight_range = 20.0   # (the test map is small: "far" is past what it can see, plus a margin)
+	await _frames(40)
+	_check(scav._lod_far and scav.state == Scav.State.IDLE, "a calm AI far from the player goes to the slow rate")
+	var slow_ticks := 0
+	var frames := 0
+	var biggest_step := 0.0
+	var top_speed := 0.0
+	var start := scav.global_position
+	var last := scav.global_position
+	for i in 60 * 15:
+		await physics_frame
+		if scav.state != Scav.State.IDLE:
+			break
+		frames += 1
+		if scav._glide_frame == 1 and scav._tick_delta > 0.09:   # (just took a slow tick)
+			slow_ticks += 1
+		biggest_step = maxf(biggest_step, Vector2(scav.global_position.x - last.x, scav.global_position.z - last.z).length())
+		top_speed = maxf(top_speed, Vector2(scav.velocity.x, scav.velocity.z).length())
+		last = scav.global_position
+	_check(slow_ticks > 0 and absf(frames / float(slow_ticks) - Scav.LOD_FRAMES) < 1.0,
+		"it thinks every %d frames (%d slow ticks in %d frames)" % [Scav.LOD_FRAMES, slow_ticks, frames])
+	_check(scav.global_position.distance_to(start) > 8.0 and top_speed < scav.move_speed,
+		"it still patrols at a walking pace (%.0f m, %.1f m/s)" % [scav.global_position.distance_to(start), top_speed])
+	_check(biggest_step < top_speed / 60.0 * 1.6 + 0.01,
+		"it glides smoothly between ticks (biggest step in one frame %.3f m)" % biggest_step)
+	# A noise reaches it at once and brings it back to every frame.
+	scav.hear_noise(scav.global_position + Vector3(3, 0, 0), 20.0)
+	await physics_frame
+	await physics_frame
+	_check(scav.state == Scav.State.INVESTIGATE and absf(scav._tick_delta - 1.0 / 60.0) < 0.001,
+		"a noise wakes it straight away (%s, tick %.3f s)" % [Scav.State.keys()[scav.state], scav._tick_delta])
+	# A player coming near brings it back too.
+	scav._set_state(Scav.State.IDLE)
+	await _frames(40)
+	player.teleport_to(scav.global_position + Vector3(20, 0, 0))
+	await _frames(40)
+	_check(not scav._lod_far, "a player within range keeps it at full rate")
+	scav.queue_free()
 
 
 func _section_scav_looting() -> void:

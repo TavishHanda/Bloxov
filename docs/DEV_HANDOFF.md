@@ -47,6 +47,9 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   keeps it until `_should_rethink`; add new fight behavior as a tactic there, not as its own per-frame check),
   `ai_nav.gd` (navigation queries for the AI, safe before the map is ready). After AI movement changes also run
   the slow real-map check `tests/ai_sideways_check.gd` (must print `SIDEWAYS CHECK: PASSED`).
+  Far, calm AI run at a slower rate (level of detail, 0.14.4, `_lod_skip` in scav.gd): anything new that an IDLE
+  AI does every frame should work with a bigger `delta` (use `_tick_delta`, not `get_physics_process_delta_time()`).
+  `tests/perf_check.gd` measures the AI cost per frame on the real map. Physics engine: Jolt (0.14.4).
 - **UI:** `hud.gd` + widgets (`health_hud`, `ammo_hud`, `hotbar_hud`, `crosshair_hud`, `timer_hud`, `prompt_hud`,
   `extract_hud`, `map_hud` (M map, 0.10.2), `damage_arrow_hud`, `world_labels_hud`), `hud_style.gd` (palette/fonts/plates/icons),
   `loot_ui.gd` (inventory screen, also used by the hideout), `hideout.gd` (hideout + ONLINE panel),

@@ -444,6 +444,15 @@ func hear_noise(pos: Vector3, radius: float) -> void:
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD or puppet:
 		return
+	if _lod_skip(delta):
+		return
+	delta += _lod_delta
+	_lod_delta = 0.0
+	_lod_glide_finish()
+	_tick_delta = delta
+	_lod_scale = delta / get_physics_process_delta_time()
+	var moved_from := global_position
+	var turned_from := rotation.y
 	_vault_cooldown_left -= delta
 	# Somehow under the hills (0.13.9, owner: a friend saw one in the floor; the ground is solid from below, so it
 	# would be stuck there): back on top, like players.
@@ -568,7 +577,14 @@ func _physics_process(delta: float) -> void:
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
-	move_and_slide()
+	if _lod_scale > 1.01:
+		# (A slow tick: moves as far as all the frames it skipped would have.)
+		velocity *= _lod_scale
+		move_and_slide()
+		velocity /= _lod_scale
+		_lod_glide_start(moved_from, turned_from)
+	else:
+		move_and_slide()
 	_slide_off_heads()
 	_check_stuck(delta, desired)
 	_update_footsteps(delta)
@@ -611,7 +627,7 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 	if want.length() < 0.5:
 		_stuck_time = 0.0
 		return
-	var progress := _flat(get_real_velocity()).dot(want.normalized())
+	var progress := _flat(get_real_velocity() / _lod_scale).dot(want.normalized())
 	if progress < want.length() * 0.3:
 		_stuck_time += delta
 	else:
@@ -1522,7 +1538,7 @@ func _hold_fire() -> void:
 ## more than a meter or every second. If the goal can't be reached, the path ends at the closest point it can.
 ## Without a navigation map (e.g. before it's built) it walks straight, sliding off walls.
 func _path_velocity(goal: Vector3, speed: float) -> Vector3:
-	_repath_left -= get_physics_process_delta_time()
+	_repath_left -= _tick_delta
 	if _path.is_empty() or _flat(goal - _path_goal).length() > 1.0 or _repath_left <= 0.0:
 		_path_goal = goal
 		_repath_left = 1.0
@@ -2301,3 +2317,78 @@ func _puppet_update(delta: float) -> void:
 		_hit_flash_time = 0.08
 		_flinch_left = flinch_time
 	_update_footsteps(delta)
+
+
+## Level of detail (0.14.4, health check: 32 AI took ~4 ms of every frame on a fast desktop, too much for phones,
+## and the server runs every raid in one process). A calm AI (patrolling, unaware) that's farther from every player
+## than it can see thinks and moves every LOD_FRAMES frames instead of every frame, catching up the time it skipped
+## in one step. Nothing it does changes: it can't spot anyone from there anyway, and noises, shots and calls for help
+## still reach it at once (they change its state, which brings it straight back to every frame). Between its ticks
+## the body glides along the step it just took, so it moves as smoothly as before and its hitbox is where it's drawn.
+const LOD_FRAMES := 6
+## Players this close to it (beyond what it can see) keep it at full rate.
+const LOD_MARGIN := 15.0
+## (Tests switch it off to compare.)
+static var lod_enabled := true
+var _lod_far := false
+var _lod_check_left := randf() * 0.5
+var _lod_wait := randi() % LOD_FRAMES   # (spread over the frames so they don't all tick on the same one)
+var _lod_delta := 0.0
+## How many frames this tick stands for (1 at full rate).
+var _lod_scale := 1.0
+## The time this tick covers (more than one frame's on a slow tick).
+var _tick_delta := 1.0 / 60.0
+var _glide_from := Vector3.ZERO
+var _glide_to := Vector3.ZERO
+var _glide_yaw_from := 0.0
+var _glide_yaw_to := 0.0
+var _glide_frame := 0
+
+
+## True to skip this physics frame (its time is saved up for the next slow tick).
+func _lod_skip(delta: float) -> bool:
+	_lod_check_left -= delta
+	if _lod_check_left <= 0.0:
+		_lod_check_left = 0.5
+		_lod_far = _far_from_players()
+	if not lod_enabled or not _lod_far or state != State.IDLE or not _vault_path.is_empty() or _cover_phase == Cover.HEALING:
+		return false
+	_lod_wait -= 1
+	if _lod_wait <= 0:
+		_lod_wait = LOD_FRAMES
+		return false
+	_lod_delta += delta
+	if _glide_frame > 0 and _glide_frame < LOD_FRAMES:
+		_glide_frame += 1
+		_glide_at(float(_glide_frame) / LOD_FRAMES)
+	return true
+
+
+func _far_from_players() -> bool:
+	var range_sq := (sight_range + LOD_MARGIN) * (sight_range + LOD_MARGIN)
+	for node in RaidScope.nodes(self, &"player"):
+		if (node as Node3D).global_position.distance_squared_to(global_position) < range_sq:
+			return false
+	return true
+
+
+## After a slow tick's move: back to where it started, then a share of the way each frame until the next tick.
+func _lod_glide_start(from: Vector3, yaw_from: float) -> void:
+	_glide_from = from
+	_glide_to = global_position
+	_glide_yaw_from = yaw_from
+	_glide_yaw_to = rotation.y
+	_glide_frame = 1
+	_glide_at(1.0 / LOD_FRAMES)
+
+
+## The rest of the way at once (before it thinks or moves again).
+func _lod_glide_finish() -> void:
+	if _glide_frame > 0:
+		_glide_frame = 0
+		_glide_at(1.0)
+
+
+func _glide_at(t: float) -> void:
+	global_position = _glide_from.lerp(_glide_to, t)
+	rotation.y = lerp_angle(_glide_yaw_from, _glide_yaw_to, t)

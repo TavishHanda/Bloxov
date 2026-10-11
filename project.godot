@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Bloxov"
 config/description="Blocky voxel extraction shooter."
-config/version="0.14.3"
+config/version="0.14.4"
 run/main_scene="res://scenes/hideout.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 
@@ -170,3 +170,7 @@ renderer/rendering_method.mobile="gl_compatibility"
 
 world/map_use_async_iterations=false
 world/region_use_async_iterations=false
+
+[physics]
+
+3d/physics_engine="Jolt Physics"

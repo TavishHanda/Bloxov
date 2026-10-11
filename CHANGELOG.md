@@ -6,6 +6,19 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.4 (performance: AI level of detail, Jolt physics; owner asked after the health check)
+- **Far, calm AI cost much less.** An AI that's patrolling and farther from every player than it can see now thinks
+  and moves 10 times a second instead of 60, and glides smoothly between steps, so it looks and moves the same. Any
+  noise, shot, call for help or player coming near puts it straight back to full speed. Nothing about how the AI
+  plays changed (the sideways check on the real map still passes).
+- **Jolt physics** (Godot's faster physics engine) replaces the old one. With every AI at full speed (big fights)
+  it cut the AI's cost by about 20%; the rest of the physics got slightly slower (+0.1 ms), so it's a win in fights
+  and even otherwise.
+- Measured on Bloxov Battlegrounds with 32 AI and the player at a spawn (`tests/perf_check.gd`, whole physics frame):
+  **about 4.3 ms before, about 2.2 ms now**; in a fight, where every AI runs at full speed, 4.3 → 3.6 ms.
+  Phones and browsers are 2-3x slower than this desktop, so it matters most there. The game server gains the same
+  per raid.
+
 ## 0.14.3 (no durability for now; owner)
 - Durability is out until its own update (owner): armor, helmets and keys don't wear, keys open their door every
   time and are kept, and nothing loses value. Armor and helmets protect at full strength always, on you and on the
