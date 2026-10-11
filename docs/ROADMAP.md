@@ -36,8 +36,11 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    their stock fit in (more traders are on the wishlist). **Repairs** for worn armor and guns (a trader or repair
    kits) as a money sink. Earned money only (`STORE_RULES.md`: no real-money trading).
 8. **Then (M4, vertical slice), split into three updates (owner, 2026-10-11), in this order:**
-   1. **World art:** building models fitted to the proven layout, ground textures, props.
-   2. **Look:** a **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
+   1. **World art:** starts with a quick **neutral lighting baseline** (less saturated, plain sun and sky; owner
+      asked which comes first, 2026-10-11) and **one test building** finished under it. Models and lighting change
+      each other, so lock the baseline and the test piece first, then model everything else against them.
+      Then building models fitted to the proven layout, ground textures, props.
+   2. **Look:** the final **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
       real models and ground textures, within what the web build supports), plus the loading screen.
    3. **Sound (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
       (`tools/make_sounds.py`): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
