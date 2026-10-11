@@ -694,17 +694,7 @@ func _build_other_column() -> void:
 		_add_view(scroll, other)
 	elif _has_container() and not container.gear.is_empty():
 		# A body: its loadout, then its pockets (owner, 0.11.13).
-		_add_slot_view(_other_box, "primary", Vector2i(4, 2))
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 0)
-		_other_box.add_child(row)
-		_add_slot_view(row, "secondary", Vector2i(2, 2))
-		_add_slot_view(row, "armor", Vector2i(2, 2))
-		var row2 := HBoxContainer.new()
-		row2.add_theme_constant_override("separation", 0)
-		_other_box.add_child(row2)
-		_add_slot_view(row2, "helmet", Vector2i(2, 2))
-		_add_slot_view(row2, "backpack", Vector2i(2, 2))
+		_add_slot_rows(_other_box, _add_slot_view)
 		_other_box.add_child(_section("Pockets"))
 		_add_view(_other_box, other)
 	else:
@@ -724,17 +714,19 @@ func _build_equipment_column() -> void:
 	_value_label.add_theme_color_override("font_color", HudStyle.BRASS)
 	_player_box.add_child(_value_label)
 	_player_box.add_child(_doll)
-	_add_slot(_player_box, "primary", Vector2i(4, 2))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 0)
-	_player_box.add_child(row)
-	_add_slot(row, "secondary", Vector2i(2, 2))
-	_add_slot(row, "armor", Vector2i(2, 2))
-	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 0)
-	_player_box.add_child(row2)
-	_add_slot(row2, "helmet", Vector2i(2, 2))
-	_add_slot(row2, "backpack", Vector2i(2, 2))
+	_add_slot_rows(_player_box, _add_slot)
+
+
+## The equipment slots, laid out the same for you and for a body (owner, 0.14.7): primary on top, secondary under
+## it (with the backpack), then armor and helmet together.
+func _add_slot_rows(box: Container, add: Callable) -> void:
+	add.call(box, "primary", Vector2i(4, 2))
+	for pair in [["secondary", "backpack"], ["armor", "helmet"]]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 0)
+		box.add_child(row)
+		for slot: String in pair:
+			add.call(row, slot, Vector2i(2, 2))
 
 
 ## Middle column: everything you carry: pockets, the backpack's grid, then the secure pocket at the bottom.

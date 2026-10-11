@@ -6,6 +6,10 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.7 (inventory layout; owner asked)
+- The equipment slots are rearranged: primary on top, secondary under it (next to the backpack), then armor and
+  helmet together. Bodies you loot show their gear the same way.
+
 ## 0.14.6 (code cleanup: AI and player scripts split up; owner asked after the health check)
 - No change in how anything plays. The AI script (about 2,400 lines) is now five smaller files: settings, senses,
   movement, fight, and the per-frame brain. The player script is now three: settings, movement, and the rest.
