@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items). -->
 
+## 0.14.13 (hideout message font; owner asked)
+- The hideout's message tape ("Sold ... for $...") uses the HUD's pixel font now: the old tape font spaced its
+  letters unevenly ("Ra ider", "Ta g").
+
 ## 0.14.12 (the Holy Grail; owner asked)
 - **Holy Grail** ($75,000, 2×2): the most valuable item in the game. It never comes from random loot: each raid
   there's a 15% chance it's in the town hall's first locker (the town hall has no vault yet) and a 5% chance it's

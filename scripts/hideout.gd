@@ -206,7 +206,7 @@ func _message(text: String) -> void:
 		return
 	_message_label.text = text
 	# Fit the tape to the text (up to 800 px; longer messages wrap), centered under the bar.
-	var width := minf(HudStyle.tape_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x + 30.0, MESSAGE_MAX_WIDTH)
+	var width := minf(HudStyle.spaced_font(20).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + 30.0, MESSAGE_MAX_WIDTH)
 	_message_label.custom_minimum_size = Vector2(width, 0)
 	_message_label.offset_left = -width * 0.5
 	_message_label.offset_right = width * 0.5
@@ -275,8 +275,9 @@ func _build_top_bar() -> void:
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART  # (long ones wrap, never cut off)
 	_message_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_message_label.add_theme_font_override("font", HudStyle.tape_font())
-	_message_label.add_theme_font_size_override("font_size", 16)
+	# (the HUD's pixel font, spaced for mixed case: the tape font's letters came out unevenly spaced, owner 0.14.13)
+	_message_label.add_theme_font_override("font", HudStyle.spaced_font(20))
+	_message_label.add_theme_font_size_override("font_size", 20)
 	_message_label.add_theme_color_override("font_color", HudStyle.TAPE_INK)
 	var tape := StyleBoxFlat.new()
 	tape.bg_color = HudStyle.TAPE
