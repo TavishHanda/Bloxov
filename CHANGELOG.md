@@ -6,6 +6,12 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). -->
 
+## 0.14.1 (AI climb through windows; owner: "if it fits in seamlessly")
+- The AI climb through ground-floor windows the same way they vault fences: only when it's clearly shorter than the
+  door (it costs them about 3 m of walking), ducking through the gap, no shooting while they do. Only windows with
+  room to land on both sides count (not one with a crate right inside).
+- (A Movement follow-up, first pushed as "v0.13.11" without a version bump.) Checked against the AI's fight movement on the real map (the sideways check, several runs): no change.
+
 ## 0.14.0 (the Items update: keys, loot by place, descriptions, armor wear; owner)
 - **Keys.** The bunker under the town hall and the bank vault are locked now. Hold F at the door with its key
   anywhere on you (pockets, backpack or secure pocket) to unlock it; it opens for everyone in the raid until the
@@ -24,12 +30,6 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   in a raid is 40-100% worn; armor bought from the trader is new. Repairs come with the Economy update.
 - Fix: the AI's paths could go through a wall next to a low box against it (a safe, a bench), from one side of the
   wall to the other. They no longer do (it let them into the bank vault).
-
-## 0.13.11 (AI climb through windows; owner: "if it fits in seamlessly")
-- The AI climb through ground-floor windows the same way they vault fences: only when it's clearly shorter than the
-  door (it costs them about 3 m of walking), ducking through the gap, no shooting while they do. Only windows with
-  room to land on both sides count (not one with a crate right inside).
-- Checked against the AI's fight movement on the real map (the sideways check, several runs): no change.
 
 ## 0.13.10 (vault through windows; owner)
 - Space while walking into a window vaults you through it, in or out (on upper floors that means a drop, with fall
