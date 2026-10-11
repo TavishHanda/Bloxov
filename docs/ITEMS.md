@@ -10,14 +10,14 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Pistol (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo; attachment slots: barrel, sight | Small sidearm. Quick to aim, one shot per click. |
 | Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $2,000 | primary slot; full-auto; 20 dmg, 900 rpm, 30-round mag, smg ammo; damage drops to 70% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
 | Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $2,200 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
-| AK Rifle (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
+| Hound (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
 | Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $4,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
-| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits AK Rifle, Pistol, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
+| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Pistol, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
 | Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler; pellet_spread x0.7 | Shotgun muzzle. Keeps the pellets tighter. |
-| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits AK Rifle, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
-| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits AK Rifle, Wasp, Lancer; mag x1.5, reload x1.1 | Holds half as many rounds again. Slower to reload. |
-| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits AK Rifle, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
-| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits AK Rifle, Pistol, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
+| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
+| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits Hound, Wasp, Lancer; mag x1.5, reload x1.1 | Holds half as many rounds again. Slower to reload. |
+| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
+| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Pistol, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
 | 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits Lancer; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken | Plated vest. Stops a lot. |
@@ -28,7 +28,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $2,000 | 6×5 storage | Big army rucksack. Carry everything home. |
 | Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $2 | full stack $100 | Pistol rounds. Loaded when you reload. |
 | SMG Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $2 | full stack $180 | Small rounds for the Wasp. Loaded when you reload. |
-| Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $3 | full stack $360 | Rifle rounds for the AK. Loaded when you reload. |
+| Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $3 | full stack $360 | Rifle rounds for the Hound. Loaded when you reload. |
 | Shotgun Shells (`shells`) | Ammo | Common | 1×1 | 30 | $6 | full stack $180 | Buckshot for the Mauler. Loaded one at a time. |
 | Sniper Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $15 | full stack $450 | Long rounds for the Lancer. Loaded when you reload. |
 | Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $100 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
@@ -182,7 +182,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 
 | Place | Extra weights |
 |---|---|
-| Bunker | Lancer 6, Sniper Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, AK Rifle 8, Rifle Rounds 15 |
+| Bunker | Lancer 6, Sniper Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Rifle Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, Bunker Key 3, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
@@ -190,7 +190,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, Golden Toilet 2, epic valuable 8 |
 | Police | Mauler 10, Shotgun Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Pistol 15, Pistol Rounds 20, Bunker Key 2 |
-| GunStore | Wasp 10, Mauler 10, Lancer 4, SMG Rounds 20, Shotgun Shells 20, Sniper Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, AK Rifle 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
+| GunStore | Wasp 10, Mauler 10, Lancer 4, SMG Rounds 20, Shotgun Shells 20, Sniper Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Pistol 15, Rifle Rounds 30, Pistol Rounds 25 |
 | Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
