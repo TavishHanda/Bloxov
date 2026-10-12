@@ -14,6 +14,9 @@ var loaded := 0
 var durability := 0
 ## Weapons only (0.15.1): attachment slot -> attachment item id, e.g. {"scope": "red_dot"}.
 var attachments := {}
+## A PMC dog tag's owner (0.15.28, owner): the player it was taken off. Shown as "Name's Dog Tag".
+var label := ""
+const LABEL_MAX := 24
 
 
 func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated := false) -> void:
@@ -23,6 +26,13 @@ func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated :=
 	y = cell_y
 	rotated = is_rotated
 	durability = ItemDB.max_durability(item_id)
+
+
+## The name to show: a PMC dog tag's carries its owner's name.
+func title() -> String:
+	if label != "":
+		return "%s's Dog Tag" % label
+	return ItemDB.display_name(id)
 
 
 ## Size in cells, taking rotation into account.

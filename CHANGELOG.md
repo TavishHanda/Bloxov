@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.29 (PMC dog tag; owner asked)
+- A player killed online by another player drops their dog tag, named after them ("Tavish's Dog Tag"), in its own
+  Dog Tag slot at the top of their body's loot window. No tag if the AI (or anything else) killed them. The name
+  stays on the tag in your stash, and it sells for $2,500.
+
 ## 0.15.28 (online raid fixes; owner's playtest)
 - Online hit registration: shots at AI are checked where the AI was on your screen (like other players already
   were). Before, the server checked where the AI was right then, so shots at a moving AI (often the first few,

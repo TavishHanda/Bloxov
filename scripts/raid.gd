@@ -164,7 +164,7 @@ func _tally_loot() -> void:
 	for stack in player.inventory.all_stacks():
 		if stack in kept:
 			continue
-		loot_summary.append(ItemDB.label(stack.id, stack.count))
+		loot_summary.append(stack.title() + (" x%d" % stack.count if stack.count > 1 else ""))
 		loot_value += stack.value()
 
 

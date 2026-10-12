@@ -207,6 +207,8 @@ static func _write_stack(stack: ItemStack) -> Dictionary:
 		entry["d"] = stack.durability
 	if not stack.attachments.is_empty():
 		entry["att"] = stack.attachments.duplicate()
+	if stack.label != "":
+		entry["n"] = stack.label
 	return entry
 
 
@@ -216,6 +218,8 @@ static func _read_stack(entry: Dictionary) -> ItemStack:
 	if _is_number(entry.get("d")):
 		stack.durability = clampi(int(entry["d"]), 0, ItemDB.max_durability(stack.id))
 	stack.clean_attachments(entry.get("att"))
+	if entry.get("n") is String and stack.id == "player_tag":
+		stack.label = (entry["n"] as String).left(ItemStack.LABEL_MAX)
 	return stack
 
 

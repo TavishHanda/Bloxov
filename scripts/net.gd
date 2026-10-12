@@ -108,6 +108,8 @@ var _player_states := {}
 var _worlds := {}
 ## victim peer -> [attacker peer, server time]: who to credit when they die.
 var _last_attacker := {}
+## Players killed by another player (0.15.28): their body gets their PMC dog tag.
+var _player_kills := {}
 ## peer -> server time of their last shot (to ignore impossible fire rates).
 var _last_shot := {}
 ## peer -> [shots they can still fire right now, server time it was worked out] (0.15.28): shots can arrive
@@ -264,6 +266,8 @@ func _state(state: Array) -> void:
 	var old_flags: int = _player_states[peer][4] if _player_states.has(peer) else 0
 	var was_dead := old_flags & Hitbox.FLAG_DEAD != 0
 	_player_states[peer] = state
+	if not state[4] & Hitbox.FLAG_DEAD:
+		_player_kills.erase(peer)
 	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
 	if world != null:
 		world.record(peer, state, _now())
@@ -272,8 +276,10 @@ func _state(state: Array) -> void:
 	if state[4] & Hitbox.FLAG_DEAD and not was_dead and _last_attacker.has(peer):
 		var attacker: Array = _last_attacker[peer]
 		var window := 40.0 if old_flags & Hitbox.FLAG_DOWNED else 10.0
-		if _now() - attacker[1] < window and _peer_open(attacker[0]):
-			_kill_confirmed.rpc_id(attacker[0])
+		if _now() - attacker[1] < window:
+			_player_kills[peer] = true
+			if _peer_open(attacker[0]):
+				_kill_confirmed.rpc_id(attacker[0])
 		_last_attacker.erase(peer)
 
 
@@ -318,6 +324,17 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 			_player_fired.rpc_id(other, peer, from, noise_end, weapon, suppressed)
 	for key: Variant in targets:
 		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0])
+
+
+## True if another player killed `peer` (the body can be sent before or after the state that says they died).
+func _killed_by_player(peer: int) -> bool:
+	if _player_kills.has(peer):
+		_player_kills.erase(peer)
+		return true
+	if _last_attacker.has(peer):
+		var attacker: Array = _last_attacker[peer]
+		return _now() - attacker[1] < 40.0
+	return false
 
 
 ## Fire-rate check: a gun's rate (a bit over, for timing) refills up to a few shots of slack, one used per shot.
@@ -432,6 +449,11 @@ func _drop_items(data: Array, is_body: bool) -> void:
 		return
 	var me: Array = _player_states[peer]
 	var title: String = ("%s's Body" % matchmaker.players[peer]["name"]) if is_body else "Dropped Items"
+	if is_body and _killed_by_player(peer):
+		# Killed by another player (0.15.28, owner): "Name's Dog Tag" on the body, in its own slot.
+		var tag := ItemStack.new("player_tag")
+		tag.label = String(matchmaker.players[peer]["name"]).left(ItemStack.LABEL_MAX)
+		data.append(GridInventory.stack_data(tag))
 	var forward := Vector3(-sin(me[1]), 0, -cos(me[1]))
 	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data, is_body)
 

@@ -19,6 +19,8 @@ extends StaticBody3D
 ## Bodies' gear slots, in the same order as the player's (Inventory.SLOTS; not referenced here so the server's
 ## loot code doesn't pull in player scripts).
 const GEAR_SLOTS: Array[String] = ["primary", "secondary", "armor", "helmet", "backpack"]
+## A player killed by another player (0.15.28, owner): their body has one more slot, the PMC dog tag's.
+const TAG_SLOT := "tag"
 
 ## Pockets: the loose loot (for bodies, everything that isn't in a gear slot).
 var grid: GridInventory
@@ -60,6 +62,8 @@ func all_grids() -> Array[GridInventory]:
 	for slot in GEAR_SLOTS:
 		if gear.has(slot):
 			list.append(gear[slot])
+	if gear.has(TAG_SLOT):
+		list.append(gear[TAG_SLOT])
 	list.append(grid)
 	return list
 
@@ -69,13 +73,16 @@ func is_empty() -> bool:
 
 
 ## Gives it (empty) gear slots: it's a body.
-func add_gear_slots() -> void:
-	if not gear.is_empty():
-		return
-	for slot in GEAR_SLOTS:
-		var slot_grid := GridInventory.new(slot.capitalize(), 1, 1)
-		slot_grid.slot = slot
-		gear[slot] = slot_grid
+func add_gear_slots(with_tag := false) -> void:
+	if gear.is_empty():
+		for slot in GEAR_SLOTS:
+			var slot_grid := GridInventory.new(slot.capitalize(), 1, 1)
+			slot_grid.slot = slot
+			gear[slot] = slot_grid
+	if with_tag and not gear.has(TAG_SLOT):
+		var tag_grid := GridInventory.new("Dog Tag", 1, 1)
+		tag_grid.slot = TAG_SLOT
+		gear[TAG_SLOT] = tag_grid
 
 
 ## Everything in it, for the network: the pockets' GridInventory.to_data(), plus (bodies) each gear slot's.
@@ -96,10 +103,13 @@ static func grids_data(grids: Array[GridInventory]) -> Array:
 
 ## Replaces the contents with net_data() from the other side. Ignores anything malformed.
 func load_net_data(data: Array) -> void:
-	if data.size() == 4 and data[3] is Array and data[3].size() == GEAR_SLOTS.size():
-		add_gear_slots()
-		for i in GEAR_SLOTS.size():
-			var slot_grid: GridInventory = gear[GEAR_SLOTS[i]]
+	if data.size() == 4 and data[3] is Array and data[3].size() in [GEAR_SLOTS.size(), GEAR_SLOTS.size() + 1]:
+		var slots: Array[String] = GEAR_SLOTS.duplicate()
+		if data[3].size() > GEAR_SLOTS.size():
+			slots.append(TAG_SLOT)
+		add_gear_slots(slots.has(TAG_SLOT))
+		for i in slots.size():
+			var slot_grid: GridInventory = gear[slots[i]]
 			slot_grid.load_data(data[3][i] if data[3][i] is Array else [])
 			slot_grid.width = 1
 			slot_grid.height = 1
@@ -143,11 +153,11 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 		stack.durability = ItemDB.found_durability(stack.id)
 		return stack)
 	if body:
-		bag.add_gear_slots()
+		bag.add_gear_slots(contents.any(func(entry: Variant) -> bool: return entry is ItemStack and entry.id == "player_tag"))
 		var loose := []
 		for entry in contents:
 			var id: String = entry.id if entry is ItemStack else entry[0]
-			var slot := ItemDB.equip_slot(id)
+			var slot := TAG_SLOT if id == "player_tag" else ItemDB.equip_slot(id)
 			if slot != "" and bag.gear[slot].is_empty():
 				var slot_grid: GridInventory = bag.gear[slot]
 				if entry is ItemStack:

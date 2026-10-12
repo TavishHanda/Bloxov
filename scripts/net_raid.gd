@@ -193,8 +193,8 @@ func on_bag_removed(id: String) -> void:
 
 ## We died: everything we carried (except the secure pocket) becomes a body others can loot.
 func _drop_body() -> void:
-	# Our dog tag goes on our body (0.14.5): whoever loots it can sell it.
-	var data := [GridInventory.stack_data(ItemStack.new("player_tag"))]
+	# (our dog tag: the server adds it if another player killed us, 0.15.28)
+	var data := []
 	for slot in Inventory.SLOTS:
 		var stack := player.inventory.equipped(slot)
 		if stack != null:

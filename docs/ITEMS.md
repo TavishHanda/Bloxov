@@ -52,7 +52,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Car Battery (`battery`) | Valuable | Uncommon | 2×2 | 1 | $1,200 |  | Heavy and worth it. |
 | Novarra Badge (`novarra_badge`) | Valuable | Rare | 1×1 | 1 | $2,000 |  | A Novarran soldier's unit badge. Collectors and traders want them. |
 | Gold Watch (`gold_watch`) | Valuable | Rare | 1×1 | 1 | $2,500 |  | Somebody's pride. Now yours. |
-| PMC Dog Tag (`player_tag`) | Valuable | Rare | 1×1 | 1 | $2,500 | only from one-off finds:  | Taken off another player. Traders pay well for these. |
+| PMC Dog Tag (`player_tag`) | Valuable | Rare | 1×1 | 1 | $2,500 | only from one-off finds:  | Taken off a player you killed online. Traders pay well for these. |
 | Cash Bundle (`cash`) | Valuable | Rare | 1×1 | 1 | $3,000 |  | Old Novarran notes. Still good with the traders. |
 | Novarra Field Report (`intel_novarra`) | Valuable | Rare | 1×1 | 1 | $3,000 |  | Novarran army papers: patrols, supply runs, names. Someone will pay to read them. |
 | Hard Drive (`hard_drive`) | Valuable | Rare | 1×1 | 1 | $3,500 |  | Pulled from an office computer. Nobody wiped it. |

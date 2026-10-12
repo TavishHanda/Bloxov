@@ -18,7 +18,7 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 	mouse_filter = Control.MOUSE_FILTER_IGNORE if is_preview else Control.MOUSE_FILTER_STOP
 
 	_name_label = Label.new()
-	_name_label.text = ItemDB.display_name(stack.id)
+	_name_label.text = stack.title()
 	_name_label.add_theme_font_size_override("font_size", 12)
 	_name_label.clip_text = true
 	_name_label.position = Vector2(4, 3)
@@ -52,7 +52,7 @@ func set_tile_size(cells: Vector2i) -> void:
 func _fit_name() -> void:
 	var font := _name_label.get_theme_font("font")
 	var room := _name_label.size
-	var name := ItemDB.display_name(stack.id)
+	var name := stack.title()
 	var words := name.split(" ", false)
 	_name_label.add_theme_constant_override("line_spacing", -3)
 	for font_size in range(12, 6, -1):

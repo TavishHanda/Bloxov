@@ -2418,6 +2418,27 @@ func _section_online_loot() -> void:
 	_check(rival_body.gear["armor"].is_empty(), "a body's armor slot only takes armor")
 	c1.close_container()
 	await _frames(2)
+	# PMC dog tag (0.15.28, owner): only on a player killed by another player, named, in its own slot.
+	_check(not rival_body.gear.has(LootContainer.TAG_SLOT), "a player who wasn't killed by a player leaves no dog tag")
+	var c1_peer: int = c1.multiplayer.get_unique_id()
+	var c2_peer: int = c2.multiplayer.get_unique_id()
+	server._last_attacker[c2_peer] = [c1_peer, server._now()]
+	var bodies_before: int = got[c1]["bags"].size()
+	c2.drop_items([["bandage", 1, 0, 0, false, 0]], true)
+	await _until(func() -> bool: return got[c1]["bags"].size() > bodies_before)
+	var tagged := world.container(got[c1]["bags"].keys()[-1])
+	var tag_stack: ItemStack = tagged.gear[LootContainer.TAG_SLOT].stacks[0] if tagged != null and tagged.gear.has(LootContainer.TAG_SLOT) and not tagged.gear[LootContainer.TAG_SLOT].is_empty() else null
+	_check(tag_stack != null and tag_stack.id == "player_tag" and tag_stack.title() == "Rival's Dog Tag",
+		"killed by another player: \"Rival's Dog Tag\" in the body's own Dog Tag slot")
+	var copy := LootContainer.new()
+	copy.grid = GridInventory.new("Pockets", 4, 3)
+	copy.load_net_data(tagged.net_data())
+	_check(copy.gear.has(LootContainer.TAG_SLOT) and copy.gear[LootContainer.TAG_SLOT].stacks[0].title() == "Rival's Dog Tag"
+		and not copy.gear[LootContainer.TAG_SLOT].fits("bandage", 0, 0, false), "the tag slot and name go over the network; the slot only takes a dog tag")
+	copy.free()
+	var saved := ItemStack.new("player_tag")
+	saved.label = "Rival"
+	_check(Profile._read_stack(Profile._write_stack(saved)).title() == "Rival's Dog Tag", "a dog tag keeps its name in your stash")
 
 	# A scav's body on the server: announced to everyone.
 	var scav: Node = RaidScope.nodes(world.raid, &"enemies")[0]

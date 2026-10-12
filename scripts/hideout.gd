@@ -139,7 +139,7 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	grid.remove(stack)
 	Profile.money += price
 	Profile.stats["earned"] += price
-	_message("Sold %s for %s" % [ItemDB.label(stack.id, stack.count), ItemDB.money(price)])
+	_message("Sold %s for %s" % [stack.title() + (" x%d" % stack.count if stack.count > 1 else ""), ItemDB.money(price)])
 	Effects.sound(self, SELL_SOUND, -16.0)
 	_queue_save()
 

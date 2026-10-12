@@ -867,7 +867,7 @@ func show_info(stack: ItemStack) -> void:
 	var data := ItemDB.item(stack.id)
 	var rarity: String = data["rarity"]
 	var cells := ItemDB.size(stack.id)
-	_info_label.text = ItemDB.display_name(stack.id) + ("  x%d" % stack.count if stack.count > 1 else "")
+	_info_label.text = stack.title() + ("  x%d" % stack.count if stack.count > 1 else "")
 	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
 	var parts: PackedStringArray = [rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]
 	match ItemDB.kind(stack.id):
@@ -991,7 +991,10 @@ func _build_other_column() -> void:
 		_other_box.add_child(scroll)
 		_add_view(scroll, other)
 	elif _has_container() and not container.gear.is_empty():
-		# A body: its loadout, then its pockets (owner, 0.11.13).
+		# A body: its loadout, then its pockets (owner, 0.11.13). A player's body killed by another player: their
+		# dog tag in its own slot on top (0.15.28, owner).
+		if container.gear.has(LootContainer.TAG_SLOT):
+			_add_slot_view(_other_box, LootContainer.TAG_SLOT, Vector2i(2, 1))
 		_add_slot_rows(_other_box, _add_slot_view)
 		_other_box.add_child(_section("Pockets"))
 		_add_view(_other_box, other)
