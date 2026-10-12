@@ -357,7 +357,7 @@ KIT = {
 
 # ------------------------------------------------------------------------------------------------ decal atlas
 class Atlas:
-    """Regions of one 256 x 256 decal image (32 px/m), packed in rows."""
+    """Regions of one square decal image (32 px/m), packed in rows."""
 
     def __init__(self, size=256):
         self.c = Canvas(size, size, "black")
@@ -380,7 +380,7 @@ class Atlas:
 
 
 def gas_station_decals(rng):
-    a = Atlas()
+    a = Atlas(512)
 
     def fascia(c):        # 2 m x 1 m, repeats along the canopy edge
         c.rect(0, 0, c.w, c.h, "bone")
@@ -518,7 +518,58 @@ def gas_station_decals(rng):
         c.text(2, 6, "CLOSED", "black")
         c.rect(2, 3, c.w - 2, 4, "steel")
 
+    def magazines(c):     # 1.4 m x 1.3 m: rack of magazines and papers, a few gone
+        c.rect(0, 0, c.w, c.h, "wood_mid")
+        for row in range(3):
+            y = 3 + row * 13
+            c.rect(0, y - 2, c.w, y, "wood_dark")
+            for x in range(2, c.w - 6, 7):
+                if rng.random() < 0.75:
+                    col = rng.choice(("red", "sky_blue", "bone", "hazard_yellow", "olive_light", "extract_green"))
+                    c.rect(x, y, x + 6, y + 9, col)
+                    c.rect(x + 1, y + 6, x + 5, y + 7, "bone" if col != "bone" else "black")
+
+    def atm(c):           # 0.75 m x 1.7 m
+        c.rect(0, 0, c.w, c.h, "steel")
+        c.rect(0, c.h - 8, c.w, c.h, "sky_blue")
+        c.text(3, c.h - 7, "ATM", "bone")
+        c.rect(3, 30, c.w - 3, 42, "black")                                # smashed screen
+        for _ in range(12):
+            c.put(rng.randrange(3, c.w - 3), rng.randrange(30, 42), rng.choice(("steel_light", "steel")))
+        c.rect(4, 18, c.w - 4, 27, "iron")                                  # keypad
+        c.rect(5, 12, c.w - 5, 14, "black")                                 # card slot / cash slot
+        c.rect(3, 44, c.w - 3, 51, "bone")                                  # taped note
+        c.text(4, 45, "OUT", "red")
+
+    def clock(c):         # 0.4 m
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "iron_dark")
+        c.rect(c.w // 2, c.h // 2, c.w // 2 + 1, c.h - 3, "black")
+        c.rect(c.w // 2, c.h // 2, c.w - 4, c.h // 2 + 1, "black")
+
+    def poster(c):        # 0.6 m x 0.8 m
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.text(2, c.h - 8, "SALE", "red")
+        c.rect(2, 4, c.w - 2, 13, "red")
+        c.text(3, 6, "50%", "bone")
+
+    def banner(c):        # 2 m x 0.35 m
+        c.rect(0, 0, c.w, c.h, "red")
+        w = Canvas.text_width("COLD DRINKS", 1)
+        c.text((c.w - w) // 2, 3, "COLD DRINKS", "bone")
+
+    def wet(c):           # 0.3 m x 0.6 m
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.text(1, c.h - 7, "!", "black")
+        c.rect(1, 3, c.w - 1, 4, "black")
+
     a.add("fascia", 64, 32, fascia)
+    a.add("magazines", 45, 42, magazines)
+    a.add("atm", 24, 54, atm)
+    a.add("clock", 13, 13, clock)
+    a.add("poster", 19, 26, poster)
+    a.add("banner", 64, 11, banner)
+    a.add("wet", 10, 19, wet)
     a.add("logo", 80, 32, logo)
     a.add("pump_front", 32, 48, pump_front)
     a.add("pump_smashed", 32, 48, pump_smashed)
@@ -1053,7 +1104,39 @@ def prop_roof_ac(ctx, c, s):
     b.box((c[0], c[1] + s[1] / 2 + 0.01, c[2]), (0.7, 0.02, 0.7), style=lambda n, m, q: ("black", uv_world()))
 
 
+def prop_endcap(ctx, c, s):
+    ctx.b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else
+              (("decals", ctx.d("products")) if abs(n[1]) < 0.7 else ("metal", uv_world(2.0))))
+
+
+def prop_atm(ctx, c, s):
+    b = ctx.b
+    b.box(c, s, style=face_decal(ctx.d("atm"), "trim", "+z"))
+    b.box((c[0], c[1] + 0.05, c[2] + s[2] / 2 + 0.06), (s[0] - 0.1, 0.06, 0.12),
+          style=lambda n, m, q: ("trim_dark", uv_world()))                                 # little shelf
+
+
+def prop_coffee(ctx, c, s):
+    b = ctx.b
+    base_y = c[1] - s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("bone", uv_world()) if n[1] > 0.7 else ("wood", uv_world(2.0))))
+    top = base_y + s[1]
+    b.box((c[0], top + 0.25, c[2] - 0.2), (0.4, 0.5, 0.38), style=lambda n, m, q: None if n[1] < -0.7 else ("trim_dark", uv_world()))
+    b.box((c[0] + 0.05, top + 0.1, c[2] - 0.2), (0.3, 0.2, 0.2), style=lambda n, m, q: ("red", uv_world()))   # pot
+    for k in range(3):                                                                           # cup stacks
+        b.box((c[0], top + 0.08 + 0.0, c[2] + 0.12 + k * 0.12), (0.08, 0.16 + 0.04 * k, 0.08),
+              style=lambda n, m, q: None if n[1] < -0.7 else ("bone", uv_world()))
+
+
+def prop_magazines(ctx, c, s):
+    ctx.b.box(c, s, style=face_decal(ctx.d("magazines"), "wood", "-x"))
+
+
 PROPS = {
+    "endcap": lambda ctx, c, s, k: prop_endcap(ctx, c, s),
+    "atm": lambda ctx, c, s, k: prop_atm(ctx, c, s),
+    "coffee": lambda ctx, c, s, k: prop_coffee(ctx, c, s),
+    "magazines": lambda ctx, c, s, k: prop_magazines(ctx, c, s),
     "canopy_post": lambda ctx, c, s, k: prop_post(ctx, c, s),
     "canopy": lambda ctx, c, s, k: prop_canopy(ctx, c, s),
     "forecourt": lambda ctx, c, s, k: prop_forecourt(ctx, c, s),
@@ -1102,8 +1185,32 @@ def dress_gas_station(ctx):
     # The shop door, kicked off its hinges, lying outside.
     b.box((-8.0, 0.08, 0.6), (1.0, 0.05, 2.1), yaw=14, style=lambda n, m, q: None if n[1] < -0.7 else ("trim", uv_world(1.0)))
     b.box((-8.0, 0.106, 0.6), (0.8, 0.005, 1.8), yaw=14, style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] > 0.7 else None)
+    # Shop life (0.17, owner: "a bit more lively, not too overly filled").
+    b.box((-5.85, 0.012, 0.0), (0.9, 0.02, 2.0), style=lambda n, m, q: ("trim_dark", uv_world()) if n[1] > 0.7 else None)  # door mat
+    b.poly([(-6.34, 1.4, -2.2), (-6.34, 1.4, -2.8), (-6.34, 2.2, -2.8), (-6.34, 2.2, -2.2)], (1, 0, 0), "decals", ctx.d("poster"))
+    b.poly([(-3.0, 2.3, -4.84), (-2.6, 2.3, -4.84), (-2.6, 2.7, -4.84), (-3.0, 2.7, -4.84)], (0, 0, 1), "decals", ctx.d("clock"))
+    for nz in (1, -1):                                                                          # hanging banner
+        b.poly([(-4.4, 2.25, 0.5), (-2.4, 2.25, 0.5), (-2.4, 2.6, 0.5), (-4.4, 2.6, 0.5)], (0, 0, nz), "decals", ctx.d("banner"))
+    for x in (-4.3, -2.5):
+        b.box((x, 2.67, 0.5), (0.02, 0.15, 0.02), style=lambda n, m, q: ("black", uv_world()))
+    for sx in (-1, 1):                                                                          # wet floor sign
+        b.box((-1.9, 0.3, 2.2 + sx * 0.12), (0.3, 0.6, 0.02), pitch=sx * 12,
+              style=lambda n, m, q: ("decals", ctx.d("wet")) if abs(n[2]) > 0.7 else ("red", uv_world()))
+    b.box((-0.9, 0.17, 4.1), (0.4, 0.34, 0.32), style=lambda n, m, q: None if n[1] < -0.7 else ("red", uv_world()))   # mop bucket
+    b.box((-0.85, 0.75, 4.1), (0.04, 1.2, 0.04), pitch=-12, style=lambda n, m, q: ("wood", uv_world()))
+    b.box((-3.6, 0.1, -1.2), (0.45, 0.2, 0.32), yaw=20, style=lambda n, m, q: None if n[1] < -0.7 else ("red", uv_world()))  # dropped basket
+    for _ in range(5):                                                                          # snacks knocked off the shelf
+        x, z = rng.uniform(-4.2, -1.8), rng.uniform(-1.5, -1.25)
+        col = rng.choice(("red", "bone", "cardboard"))
+        b.box((x, 0.06, z), (0.18, 0.12, 0.1), yaw=rng.uniform(0, 90),
+              style=lambda n, m, q, col=col: None if n[1] < -0.7 else (col, uv_world(1.0)))
+    # Back room: a water heater and a stack of boxes.
+    b.box((6.0, 0.8, -4.45), (0.6, 1.6, 0.6), style=lambda n, m, q: None if n[1] < -0.7 else ("bone", uv_world()))
+    for k, (dx, dz, h) in enumerate(((0.0, 0.0, 0.0), (0.5, 0.1, 0.0), (0.2, 0.05, 0.45))):
+        b.box((1.0 + dx, 0.22 + h, 3.0 + dz), (0.5, 0.44, 0.45), yaw=k * 7,
+              style=lambda n, m, q: None if n[1] < -0.7 else ("cardboard", uv_world(1.0)))
     # Litter on the shop floor.
-    for _ in range(14):
+    for _ in range(10):
         x, z = rng.uniform(-6.2, -0.3), rng.uniform(-1.4, 2.6)
         w = rng.uniform(0.1, 0.3)
         col = rng.choice(("bone", "red", "cardboard", "bone"))

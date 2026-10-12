@@ -1,3 +1,4 @@
+@tool
 class_name BoxMap
 extends StaticBody3D
 ## A gray-box map made of plain boxes (0.10.0): walls, floors, ramps, cover. The boxes come from a generator
@@ -13,6 +14,7 @@ extends StaticBody3D
 ## generator puts things on the ground with the same split).
 ## Water (0.11.20, the creek): `water_points` is its middle line (x, water level, z); it's drawn as a see-through
 ## ribbon `water_width` wide (the banks hide its edges) and wading through it slows you down (`WADE_META`).
+## In the editor (`@tool`, World art 0.17) it only draws the mesh, so the map shows up there; nothing is saved.
 
 const STRIDE := 10
 ## Players and AI standing in water get this meta (how many water areas they're in); they move slower while it's set.
@@ -38,7 +40,9 @@ var collision_faces := PackedVector3Array()
 
 
 func _ready() -> void:
-	add_to_group(&"box_maps")
+	var editor := Engine.is_editor_hint()
+	if not editor:
+		add_to_group(&"box_maps")
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var faces := PackedVector3Array()
@@ -99,6 +103,8 @@ func _ready() -> void:
 			mesh.surface_set_material(mesh.get_surface_count() - 1, _water_material())
 		mesh_node.mesh = mesh
 		add_child(mesh_node)
+	if editor:
+		return
 	if water_points.size() >= 2:
 		add_child(_wading_area())
 	var shape := ConcavePolygonShape3D.new()

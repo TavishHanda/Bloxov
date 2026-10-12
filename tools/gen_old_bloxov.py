@@ -1704,6 +1704,10 @@ def main():
         box(75.0, 1.2, 115.6, 77.7, 2.2, 115.85, "wood", kind="cig_rack")
         box(76.1, 0, 108.5, 78.9, 1.4, 109.3, "metal", kind="shelf")
         box(76.1, 0, 106.15, 79.3, 2.1, 106.85, "metal", kind="fridge")
+        box(79.0, 0, 108.5, 79.6, 1.1, 109.3, "metal", kind="endcap")       # snacks at the end of the shelf
+        box(79.6, 0, 106.15, 80.35, 1.7, 106.8, "metal", kind="atm")
+        box(74.15, 0, 112.6, 74.75, 0.95, 113.7, "wood", kind="coffee")
+        box(79.95, 0, 113.0, 80.35, 1.3, 114.4, "metal", kind="magazines")
         # Back room: storage racks and a desk.
         box(81.3, 0, 106.15, 84.3, 2.0, 106.75, "metal", kind="rack")
         box(81.3, 0, 115.25, 84.3, 2.0, 115.85, "metal", kind="rack")
