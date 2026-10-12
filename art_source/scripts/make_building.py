@@ -41,6 +41,20 @@ BUILDING = "gas_station_town"
 EXPORT = False
 REGENERATE_TEXTURES = False
 
+# Art style knobs (0.17 style tests; the chosen look becomes the default). BLOXOV_STYLE=<name> picks one of STYLES.
+STYLES = {
+    "pixel": {},                                                        # v1: 16 px/m, some dirt
+    "flat": {"flat": True},                                             # kit surfaces one colour each (signs stay)
+    "gritty": {"dirt": 2.5, "sat": 0.6, "bright": 0.8, "grime": 0.4},   # war-torn: soot, grime, dark and dirty
+    "dusty": {"dirt": 1.5, "sat": 0.75, "tint": (1.08, 0.98, 0.82)},   # sun-bleached, dusty, warm
+    "fine": {"fine": True},                                             # twice the pixels (32 px/m grain)
+    "bold": {"outline": True, "sat": 1.25, "bright": 1.04, "dirt": 0.5},  # dark edges on every shape, punchy colour
+}
+STYLE = {"dirt": 1.0, "sat": 1.0, "bright": 1.0, "outline": False, "fine": False, "flat": False, "grime": 0.0,
+         "tint": (1.0, 1.0, 1.0)}
+STYLE.update(STYLES.get(os.environ.get("BLOXOV_STYLE", "pixel"), {}))
+TEX_DIR = os.environ.get("BLOXOV_TEX_DIR")   # style tests paint into a scratch folder instead of art_source/textures
+
 PX_PER_M = 16
 TILE_M = 4.0           # kit textures repeat every 4 m (64 px)
 DECAL_PX_PER_M = 32
@@ -101,6 +115,7 @@ class Canvas:
             self.put(x1 - 1, y, c)
 
     def noise(self, x0, y0, x1, y1, colours, chance, rng):
+        chance *= STYLE["dirt"]
         for y in range(y0, y1):
             for x in range(x0, x1):
                 if rng.random() < chance:
@@ -109,7 +124,7 @@ class Canvas:
     def blotch(self, colours, count, rng, area=None, size=(2, 5)):
         """Irregular patches (dirt, stains, chipped paint): clusters read better than single-pixel noise."""
         x0, y0, x1, y1 = area or (0, 0, self.w, self.h)
-        for _ in range(count):
+        for _ in range(round(count * STYLE["dirt"])):
             x, y, col = rng.randrange(x0, x1), rng.randrange(y0, y1), rng.choice(colours)
             for _ in range(rng.randrange(*size) ** 2 // 2 + 1):
                 if x0 <= x < x1 and y0 <= y < y1:
@@ -575,17 +590,60 @@ def read_png(path):
     return w, h, list(reversed(rows))
 
 
+def styled(canvas, rng):
+    """The canvas as RGBA rows (0-255), with the STYLE's colour, outline and fine-grain changes."""
+    w, h = canvas.w, canvas.h
+    if STYLE["flat"] and canvas.w <= 64 and canvas.h <= 64:      # kit textures (decal atlases are bigger)
+        counts = {}
+        for row in canvas.px:
+            for col in row:
+                counts[col] = counts.get(col, 0) + 1
+        main = max(counts, key=counts.get)
+        canvas = Canvas(w, h, main)
+    shade = None
+    if STYLE["grime"]:                    # big soft-edged dark patches (8 px cells)
+        cells = [[rng.random() for _ in range(w // 8 + 2)] for _ in range(h // 8 + 2)]
+        shade = [[1.0 - STYLE["grime"] * max(0.0, cells[y // 8][x // 8] * 1.6 - 0.6) for x in range(w)] for y in range(h)]
+    rows = []
+    for y in range(h):
+        row = []
+        for x in range(w):
+            r, g, b, a = rgba(canvas.px[y][x])
+            if STYLE["outline"]:
+                below, left = canvas.px[(y - 1) % h][x], canvas.px[y][(x - 1) % w]
+                if (below != canvas.px[y][x] or left != canvas.px[y][x]) and a > 0:
+                    r, g, b = r * 0.55, g * 0.55, b * 0.55
+            grey = (r + g + b) / 3
+            r, g, b = (grey + (c - grey) * STYLE["sat"] for c in (r, g, b))
+            k = STYLE["bright"] * (shade[y][x] if shade else 1.0)
+            row.append([max(0, min(255, round(c * k * t * 255))) for c, t in zip((r, g, b), STYLE["tint"])]
+                       + [round(a * 255)])
+        rows.append(row)
+    if STYLE["fine"]:                     # every pixel becomes 2 x 2 with a little grain
+        fine = []
+        for row in rows:
+            for _ in range(2):
+                line = []
+                for px in row:
+                    for _ in range(2):
+                        k = rng.uniform(0.9, 1.06)
+                        line.append([max(0, min(255, round(c * k))) for c in px[:3]] + [px[3]])
+                fine.append(line)
+        rows = fine
+    return rows
+
+
 class Texture:
     """A kit or decal image: painted (and saved) the first time, loaded from its PNG after that."""
 
     def __init__(self, name, path, painter, rng):
-        self.name, self.path = name, os.path.join(ROOT, path)
-        if os.path.exists(self.path) and not REGENERATE_TEXTURES:
+        self.name, self.path = name, os.path.join(TEX_DIR, os.path.basename(path)) if TEX_DIR else os.path.join(ROOT, path)
+        if os.path.exists(self.path) and not REGENERATE_TEXTURES and not TEX_DIR:
             self.w, self.h, rows = read_png(self.path)
         else:
             canvas = painter(rng)
-            self.w, self.h = canvas.w, canvas.h
-            rows = [[[round(v * 255) for v in rgba(col)] for col in row] for row in canvas.px]
+            rows = styled(canvas, random.Random(name))
+            self.w, self.h = len(rows[0]), len(rows)
             write_png(self.path, self.w, self.h, rows)
         with open(self.path, "rb") as f:
             self.png = f.read()
