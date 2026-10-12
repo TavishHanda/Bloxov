@@ -901,15 +901,18 @@ func _section_items() -> void:
 	for i in 300:
 		grail_rolled = grail_rolled or ItemDB._random_valuable("legendary") == "holy_grail"
 	var grails := 0
-	for i in 200:
+	for i in 1500:
 		var grail_box := LootContainer.new()
-		grail_box.name = "TownHall_Locker1"
+		grail_box.name = "Bunker_Safe1"
 		root.add_child(grail_box)
 		grails += grail_box.grid.count_of("holy_grail")
 		grail_box.free()
-	_check(not grail_rolled and grails > 10 and grails < 60 and ItemDB.value("holy_grail") > ItemDB.value("golden_toilet")
+	_check(not grail_rolled and grails >= 3 and grails < 40 and ItemDB.value("holy_grail") > ItemDB.value("golden_toilet")
+		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return n.begins_with("Bank_Safe") or n.begins_with("Bunker_Safe"))
+		and ItemDB.item("golden_toilet").get("special", false) and ItemDB.TABLE_CHANCES["safe"]["golden_toilet"] == 0.03
+		and ItemDB.TABLE_CHANCES["scav"]["backpack_small"] == 0.07
 		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return map_text.contains('name="%s"' % n)),
-		"the Holy Grail only turns up as a one-off find, in the town hall and the bank vault (%d in 200 town hall lockers)" % grails)
+		"the Holy Grail: 1%% in bank vault and bunker safes (%d in 1500); golden toilet 3%% of safes; scav backpacks 7%%" % grails)
 	tag_raider.free()
 	tag_boss.free()
 	# Loot by place: a gun store locker is mostly guns, ammo and attachments, a pharmacy crate mostly meds.
@@ -2771,6 +2774,16 @@ func _section_owner_rules() -> void:
 	inv.pockets.add("gold_watch")
 	loot_ui.quick_move(inv.pockets, inv.find("gold_watch")[1])
 	_check(inv.count_of("gold_watch") == 1 and loot_ui._info_label.text.begins_with("No room"), "putting into a full bag says \"No room\" (%s)" % loot_ui._info_label.text)
+	# 0.15.19 (owner): right-click has "Drop" (on the ground) while looting too.
+	var watch: ItemStack = inv.find("gold_watch")[1]
+	loot_ui.open_menu(inv.pockets, watch)
+	var labels := []
+	for i in loot_ui._menu.item_count:
+		labels.append(loot_ui._menu.get_item_text(i))
+	loot_ui._menu.hide()
+	loot_ui.drop_to_ground(inv.pockets, watch)
+	_check(labels.has("Drop") and labels.any(func(t: String) -> bool: return t.begins_with("Put in")) and inv.count_of("gold_watch") == 0
+		and full.grid.count_of("gold_watch") == 0, "while looting, right-click offers Drop as well as Put in (%s)" % ", ".join(labels))
 	loot_ui.close()
 	full.queue_free()  # (the medkit bag despawned by itself once emptied)
 

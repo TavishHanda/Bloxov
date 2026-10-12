@@ -16,7 +16,7 @@ const PICKUP_SOUND := preload("res://audio/mag_in.wav")
 ## Your character on the gear side (the PMC model, for now; owner: swap for new art later).
 const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
-enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL }
+enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL, GROUND }
 ## Menu ids past the actions: take attachment slot i off the gun (DETACH + i), put the attachment on your primary
 ## (ATTACH) or secondary (ATTACH + 1).
 const DETACH := 100
@@ -663,11 +663,13 @@ func open_slot_menu(slot: String) -> void:
 	_popup_menu()
 
 
-## "Put in <container/stash>" if there's another side and the item isn't already in it,
-## otherwise "Drop" (on the ground; raid only).
+## "Put in <container/stash>" if there's another side and the item isn't already in it, and "Drop" (on the
+## ground; raid only), also while looting something (0.15.19, owner).
 func _add_drop_entry(in_other_grid: bool) -> void:
 	if other_grid() != null and not in_other_grid:
 		_menu.add_item("Put in " + _other_title(), MenuAction.DROP)
+		if player != null:
+			_menu.add_item("Drop", MenuAction.GROUND)
 	elif player != null:
 		_menu.add_item("Drop", MenuAction.DROP)
 
@@ -710,6 +712,8 @@ func _on_menu(action: int) -> void:
 			split_stack(grid, stack)
 		MenuAction.DROP:
 			drop_stack(grid, stack)
+		MenuAction.GROUND:
+			drop_to_ground(grid, stack)
 	_update_labels()
 
 
@@ -725,6 +729,12 @@ func _on_slot_menu(action: int) -> void:
 	match action:
 		MenuAction.UNEQUIP:
 			unequip_to_inventory(slot)
+		MenuAction.GROUND:
+			if not inventory.can_unequip(slot):
+				_say("Empty your backpack first")
+				return
+			_drop_or_overflow(inventory.unequip(slot))
+			_after_move()
 		MenuAction.DROP:
 			if not inventory.can_unequip(slot):
 				_say("Empty your backpack first")
@@ -756,6 +766,15 @@ func split_stack(grid: GridInventory, stack: ItemStack) -> bool:
 		stack.count -= half
 		grid.changed.emit()
 	return _place_in_first(ItemStack.new(stack.id, half), candidates, shrink_original)
+
+
+## Drop on the ground, even with a container open (0.15.19, owner: a Drop option while looting).
+func drop_to_ground(grid: GridInventory, stack: ItemStack) -> void:
+	if player == null:
+		return
+	grid.remove(stack)
+	_drop_or_overflow(stack)
+	_after_move()
 
 
 ## Drop on the ground, or into the open container / stash.

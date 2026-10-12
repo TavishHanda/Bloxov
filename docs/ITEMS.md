@@ -67,8 +67,8 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Graphics Card (`gpu`) | Valuable | Epic | 2×1 | 1 | $10,000 |  | A high-end graphics card. Worth more than most guns. |
 | Diamond Ring (`diamond_ring`) | Valuable | Legendary | 1×1 | 1 | $15,000 |  | A real diamond. Someone kept it in the vault for a reason. |
 | Rare Crystal (`crystal`) | Valuable | Legendary | 1×1 | 1 | $18,000 |  | Nobody knows where these come from. Everyone wants one. |
-| Golden Toilet (`golden_toilet`) | Valuable | Legendary | 2×3 | 1 | $50,000 |  | Yes, really. |
-| Holy Grail (`holy_grail`) | Valuable | Legendary | 2×2 | 1 | $75,000 | only from one-off finds: 15% in TownHall_Locker1, 5% in Bank_Safe1 | The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault. |
+| Golden Toilet (`golden_toilet`) | Valuable | Legendary | 2×3 | 1 | $50,000 | only from one-off finds:  | Yes, really. |
+| Holy Grail (`holy_grail`) | Valuable | Legendary | 2×2 | 1 | $75,000 | only from one-off finds: 1% in Bank_Safe1, 1% in Bank_Safe2, 1% in Bunker_Safe1, 1% in Bunker_Safe2, 1% in Bunker_Safe3, 1% in Bunker_Safe4 | The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault. |
 
 Nothing wears out for now: durability (armor, helmets, keys, guns) is its own update later (owner).
 
@@ -129,7 +129,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 35% |
 | Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 26% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
-| Legendary valuable (Diamond Ring, Rare Crystal, Golden Toilet) | 13% |
+| Legendary valuable (Diamond Ring, Rare Crystal) | 13% |
 | Heavy Armor | 5% |
 | Combat Helmet | 4% |
 | Large Backpack | 3% |
@@ -188,7 +188,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
 | BigHouse1 | Diamond Ring 3, Gold Watch 20, Cash Bundle 15, Rare Crystal 3 |
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
-| BigHouse3 | Antique Vase 15, Golden Toilet 2, epic valuable 8 |
+| BigHouse3 | Antique Vase 15, epic valuable 8 |
 | Police | Mauler 10, Shotgun Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Pistol Rounds 20 |
 | GunStore | Wasp 10, Mauler 10, Lancer 4, SMG Rounds 20, Shotgun Shells 20, Sniper Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Stinger 15, Rifle Rounds 30, Pistol Rounds 25 |
 | Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |

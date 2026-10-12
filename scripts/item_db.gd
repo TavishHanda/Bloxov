@@ -123,7 +123,7 @@ const ITEMS := {
 	"diamond_ring": {"name": "Diamond Ring", "short": "Ring", "desc": "A real diamond. Someone kept it in the vault for a reason.", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 15000},
 	"vase": {"name": "Antique Vase", "desc": "Old and fragile. Don't drop it.", "kind": "valuable", "rarity": "epic", "w": 2, "h": 2, "stack": 1, "value": 9000},
 	"crystal": {"name": "Rare Crystal", "desc": "Nobody knows where these come from. Everyone wants one.", "short": "Crystal", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 18000},
-	"golden_toilet": {"name": "Golden Toilet", "desc": "Yes, really.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 3, "stack": 1, "value": 50000},
+	"golden_toilet": {"name": "Golden Toilet", "desc": "Yes, really.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 3, "stack": 1, "value": 50000, "special": true},
 	"holy_grail": {"name": "Holy Grail", "short": "Grail", "desc": "The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 2, "stack": 1, "value": 75000, "special": true},
 }
 
@@ -138,16 +138,24 @@ const LOOT_TABLES := {
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
 ## The bank vault key (0.15.18, owner): 2% on Raiders, 2% in lockers. The bunker key only ever comes off Bon.
+## 0.15.19 (owner): a scav wears a small backpack 7% of the time; the golden toilet is in 3% of safes.
 const TABLE_CHANCES := {
 	"raider": {"bank_vault_key": 0.02},
 	"locker": {"bank_vault_key": 0.02},
+	"scav": {"backpack_small": 0.07},
+	"safe": {"golden_toilet": 0.03},
 }
 
 ## One-off finds (0.14.12, owner): a chance, each raid, that this item is in that container (by its map name).
 ## "special" items never come from random rolls: only from here, or off bodies (dog tags).
+## The Holy Grail (0.15.19, owner): 1% in each safe in the bank vault and the town hall bunker, nowhere else.
 const SPECIAL_FINDS := {
-	"TownHall_Locker1": {"holy_grail": 0.15},
-	"Bank_Safe1": {"holy_grail": 0.05},   # the bank vault
+	"Bank_Safe1": {"holy_grail": 0.01},
+	"Bank_Safe2": {"holy_grail": 0.01},
+	"Bunker_Safe1": {"holy_grail": 0.01},
+	"Bunker_Safe2": {"holy_grail": 0.01},
+	"Bunker_Safe3": {"holy_grail": 0.01},
+	"Bunker_Safe4": {"holy_grail": 0.01},
 }
 
 ## Loot by place (0.14.0, MAP_PLAN.md "Loot by place"): a container tagged with one of these places (its
@@ -163,7 +171,7 @@ const PLACE_LOOT := {
 	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5},
 	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
 	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
-	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
+	"BigHouse3": {"vase": 15, "epic": 8},        # antiques
 	"Police": {"shotgun": 10, "shells": 15, "red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20},
 	"GunStore": {"smg": 10, "shotgun": 10, "sniper": 4, "smg_ammo": 20, "shells": 20, "sniper_ammo": 10, "red_dot": 10, "scope_4x": 6, "scope_8x": 2, "suppressor": 5, "choke": 6, "foregrip": 8, "ext_mag": 6, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},

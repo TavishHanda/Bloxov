@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.19 (Drop option, scav backpacks, rare loot; owner asked)
+- Right-click an item while looting (a crate, a body) now offers "Drop" (on the ground) as well as "Put in".
+- Scavs wear a small backpack 7% of the time, so their body has one to loot (the friend's backpack model comes later).
+- The golden toilet is rarer: only in safes, 3% each (it used to come from any legendary roll, about 7% of safes,
+  and the antiques house).
+- The Holy Grail is only in the bank vault and the town hall bunker: 1% in each safe there (was 15% in a town hall
+  locker and 5% in the vault).
+
 ## 0.15.18 (Playtest batch 2; owner asked)
 - Keys: the bunker key only comes off Bon now (no more in town hall or police lockers). The bank vault key: 2% on
   Raiders, 2% in lockers (was 10% Raiders, 2% crates).
