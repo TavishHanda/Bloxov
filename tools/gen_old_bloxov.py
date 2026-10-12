@@ -492,6 +492,64 @@ class Building:
         return (cx0 + cx1) / 2 + offset, y, cz0 + 0.6, 180.0
 
 
+def classroom(x0, z0, y, lab=False):
+    """A 10 x 8 m school room (World art 0.17): board and teacher's desk at the north wall, desks (or lab benches)
+    in the four corners so the cross between the doorways and the middle (AI spawn spot) stay clear."""
+    x1, z1 = x0 + 10, z0 + 8
+    mx = x0 + 5
+    box(x0 + 0.6, y + 1.0, z0 + 0.15, x0 + 3.6, y + 2.2, z0 + 0.2, "wood", solid=False, kind="chalkboard")
+    box(x0 + 1.0, y, z0 + 1.2, x0 + 2.5, y + 0.78, z0 + 2.0, "wood", kind="teacher_desk")
+    if lab:
+        for zz in (z0 + 2.0, z0 + 5.5):
+            for xa in (x0 + 1.2, mx + 1.2):
+                box(xa, y, zz, xa + 2.6, y + 0.95, zz + 0.8, "metal", kind="lab_bench")
+        return
+    for zz in (z0 + 2.4, z0 + 5.2, z0 + 6.5):
+        for xa in (x0 + 1.2, x0 + 2.7, mx + 1.4, mx + 2.9):
+            box(xa, y, zz, xa + 0.9, y + 0.75, zz + 0.55, "wood", kind="school_desk")
+
+
+def school_furniture():
+    """The school's rooms (World art 0.17). Rooms are 10 x 8 m: x 8 / 18 / 28 / 38, z 50 / 58 / 66 / 74."""
+    F = FLOOR_H
+    # Ground floor: library (under the stairs), two classrooms and a science lab, the cafeteria, the locker hall,
+    # the nurse's room, the lobby and the office.
+    box(9.6, 0, 55.6, 12.0, 1.8, 56.1, "wood", kind="bookshelf")
+    box(14.0, 0, 55.6, 16.4, 1.8, 56.1, "wood", kind="bookshelf")
+    box(14.6, 0, 56.9, 16.6, 0.75, 57.7, "wood", kind="table")
+    classroom(18, 50, 0)
+    classroom(28, 50, 0, lab=True)
+    classroom(28, 58, 0)
+    for xa in (9.0, 14.0):
+        for zz in (59.5, 63.7):
+            box(xa, 0, zz, xa + 3.0, 0.75, zz + 0.8, "wood", kind="caf_table")
+    for za, zb in ((58.1, 58.6), (65.4, 65.9)):
+        for xa, xb in ((18.3, 21.8), (24.2, 27.7)):
+            box(xa, 0, za, xb, 2.0, zb, "metal", kind="hall_lockers")
+    box(19.0, 0, 66.15, 21.6, 1.9, 66.6, "wood", kind="trophy_case")
+    box(24.8, 0, 73.2, 27.2, 0.45, 73.7, "wood", kind="hall_bench")
+    box(8.4, 0, 71.0, 10.4, 0.6, 73.6, "metal", kind="cot")
+    box(14.0, 0, 72.8, 15.5, 0.75, 73.6, "wood", kind="desk")
+    box(30.0, 0, 67.0, 31.5, 0.75, 67.9, "wood", kind="desk")
+    # Upstairs: art room, three classrooms, the computer room, the locker hall, the staff room, the store room.
+    box(10.0, F, 55.0, 12.5, F + 0.8, 56.2, "wood", kind="art_table")
+    box(14.0, F, 55.0, 16.5, F + 0.8, 56.2, "wood", kind="art_table")
+    classroom(18, 50, F)
+    classroom(28, 50, F)
+    classroom(28, 58, F)
+    classroom(8, 66, F)
+    for za, zb in ((58.15, 58.85), (65.15, 65.85)):
+        for xa, xb in ((9.0, 12.0), (14.0, 17.0)):
+            box(xa, F, za, xb, F + 0.75, zb, "wood", kind="computer_desk")
+    for za, zb in ((58.1, 58.6), (65.4, 65.9)):
+        for xa, xb in ((18.3, 21.8), (24.2, 27.7)):
+            box(xa, F, za, xb, F + 2.0, zb, "metal", kind="hall_lockers")
+    box(19.0, F, 67.0, 21.4, F + 0.75, 68.2, "wood", kind="table")
+    box(24.6, F, 66.3, 27.4, F + 0.8, 67.1, "wood", kind="sofa")
+    box(28.5, F, 66.3, 31.0, F + 2.0, 66.9, "metal", kind="rack")
+    box(34.8, F, 66.3, 37.3, F + 2.0, 66.9, "metal", kind="rack")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset)."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -1778,9 +1836,11 @@ def main():
     for x, z, yaw in ((180, 118, 90), (180, 126, 90)):
         car(x, z, yaw, "car_b")
     barrier(178, 108, 90)
-    build(Building("School", 8, 50, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="S", roof=True), [
-        ("crate", 0, 0, 0, "W", 0), ("crate", 2, 2, 0, "E", 0), ("locker", 1, 2, 1, "S", 0),
-        ("crate", 0, 1, 1, "W", 0)])
+    with modeled("school", 23.0, 62.0):   # World art 0.17
+        build(Building("School", 8, 50, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="S", roof=True), [
+            ("crate", 0, 0, 0, "W", 0), ("crate", 2, 2, 0, "E", 0), ("locker", 1, 2, 1, "S", 0),
+            ("crate", 0, 1, 1, "W", 0)])
+        school_furniture()
     box(15, 0.0, 148, 45, 0.06, 166, "pavement", solid=False)   # the shops' car park (was the sports field)
     car(22, 154, 90); car(34, 160, 90, "car_b"); car(40, 152, 270)
 

@@ -1040,12 +1040,14 @@ def shell_box(ctx, row):
         x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
         z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
         cuts = [x0] + [x for x in cfg.get("x_splits", ()) if x0 < x < x1] + [x1]
+        zcuts = [z0] + [z for z in cfg.get("z_splits", ()) if z0 < z < z1] + [z1]
+        yt, yb = c[1] + s[1] / 2, c[1] - s[1] / 2
         for a, e in zip(cuts, cuts[1:]):
-            mid = ((a + e) / 2, c[1], (z0 + z1) / 2)
-            yt, yb = c[1] + s[1] / 2, c[1] - s[1] / 2
-            b.poly([(a, yt, z0), (e, yt, z0), (e, yt, z1), (a, yt, z1)], (0, 1, 0), floor(mid), uv_world())
-            if c[1] > 0.5:
-                b.poly([(a, yb, z0), (e, yb, z0), (e, yb, z1), (a, yb, z1)], (0, -1, 0), ceiling(mid), uv_world())
+            for za, ze in zip(zcuts, zcuts[1:]):
+                mid = ((a + e) / 2, c[1], (za + ze) / 2)
+                b.poly([(a, yt, za), (e, yt, za), (e, yt, ze), (a, yt, ze)], (0, 1, 0), floor(mid), uv_world())
+                if c[1] > 0.5:
+                    b.poly([(a, yb, za), (e, yb, za), (e, yb, ze), (a, yb, ze)], (0, -1, 0), ceiling(mid), uv_world())
     elif colour == "roof":
         side = cfg.get("roof_side", "red")
         ceiling = cfg.get("ceiling", lambda m: "ceiling")
@@ -1578,8 +1580,13 @@ def shops_decals(rng):
 
 
 def _front_into(c, axis):
-    """'+z'/'-z' (or x): the side of a box against a wall that faces into the room."""
-    return ("+" if c[axis] < 0 else "-") + "xyz"[axis]
+    """'+z'/'-z' (or x): the side of a box against a wall that faces into the room (away from the nearest wall line
+    of the building's SHELLS "x_lines" / "z_lines"; the outside walls if it has none)."""
+    cfg = SHELLS.get(BUILDING_NAME[0], {})
+    fp = FOOTPRINTS[BUILDING_NAME[0]]
+    lines = cfg.get("xz"[axis // 2] + "_lines", (fp[0], fp[2]) if axis == 0 else (fp[1], fp[3]))
+    wall = min(lines, key=lambda l: abs(c[axis] - l))
+    return ("+" if c[axis] > wall else "-") + "xyz"[axis]
 
 
 def no_bottom(mat, tile=2.0):
@@ -1834,10 +1841,396 @@ FOOTPRINTS["shops"] = (-14.5, -6.5, 14.5, 6.5)
 SHELLS = {
     "shops": {
         "ext": "render", "roof_side": "render", "x_splits": SHOP_UNITS,
+        "x_lines": (-14.5,) + SHOP_UNITS + (14.5,), "z_lines": (-6.5, 6.5),
         "inner": lambda m: (("int_tile", "int_warm", "int_soot") if m[1] < 3.0 else ("int_wall", "concrete", "int_soot"))[shop_unit(m[0])],
         "floor": lambda m: (("floor_tile", "floor_wood", "floor_burnt") if m[1] < 1.5 else ("floor_wood", "concrete", "floor_burnt"))[shop_unit(m[0])],
         "ceiling": lambda m: "ceiling_soot" if shop_unit(m[0]) == 2 else "ceiling",
     },
+}
+
+
+# ------------------------------------------------------------------------------------------------ school (0.17)
+# Bloxov School (map 8-38 x 50-74, model origin map (23, 62)): 3 x 3 rooms of 10 x 8 m on two floors, a flat roof
+# with a parapet. Room (i, j): i west to east, j north to south.
+def school_room(m):
+    return max(0, min(2, int((m[0] + 15) // 10))), max(0, min(2, int((m[2] + 12) // 8)))
+
+
+SCHOOL_WALLS = {   # (floor, i, j) -> inside walls, floor
+    (0, 0, 0): ("int_warm", "carpet"), (0, 0, 1): ("int_tile", "floor_tile"), (0, 0, 2): ("int_tile", "floor_tile"),
+    (0, 2, 2): ("int_warm", "carpet"), (1, 1, 2): ("int_warm", "carpet"), (1, 0, 0): ("int_school", "floor_wood"),
+}
+
+
+def school_inner(m):
+    if m[1] > 6.0:
+        return "brick_tan"                                          # the parapet's inside
+    return SCHOOL_WALLS.get((int(m[1] >= 3.0),) + school_room(m), ("int_school", "floor_lino"))[0]
+
+
+def school_floor(m):
+    return SCHOOL_WALLS.get((int(m[1] >= 2.0),) + school_room(m), ("int_school", "floor_lino"))[1]
+
+
+def paint_int_school(rng):
+    """School corridor paint: pale green to 1.2 m with a dark rail, cream above."""
+    c = Canvas(64, 64, "bone")
+    c.rect(0, 0, 64, 19, "olive_light")
+    c.rect(0, 19, 64, 21, "olive_dark")
+    c.rect(0, 0, 64, 2, "olive_dark")
+    c.blotch(["concrete"], 6, rng, area=(0, 21, 64, 64), size=(2, 5))
+    c.blotch(["olive"], 6, rng, area=(0, 2, 64, 19), size=(2, 4))
+    return c
+
+
+def paint_floor_lino(rng):
+    """Speckled vinyl tiles (0.5 m), a few scuffs."""
+    c = Canvas(64, 64, "concrete")
+    for ty in range(8):
+        for tx in range(8):
+            col = "bone" if (tx + ty) % 2 == 0 else "concrete"
+            c.rect(tx * 8, ty * 8, tx * 8 + 8, ty * 8 + 8, col)
+            for _ in range(3):
+                c.put(tx * 8 + rng.randrange(8), ty * 8 + rng.randrange(8), "steel")
+    for y in range(64):
+        for x in range(0, 64, 8):
+            c.put(x, y, "steel_light")
+            c.put(y, x, "steel_light")
+    c.blotch(["sand"], 4, rng, size=(2, 4))
+    return c
+
+
+def paint_carpet(rng):
+    c = Canvas(64, 64, "sky_blue")
+    for y in range(64):
+        for x in range(64):
+            if (x // 2 + y // 2) % 4 == 0:
+                c.put(x, y, "iron")
+    c.blotch(["iron_dark", "steel"], 5, rng, size=(2, 5))
+    return c
+
+
+def paint_brick_tan(rng):
+    """Pale tan school brick (0.5 x 0.25 m bricks)."""
+    c = Canvas(64, 64, "concrete")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("wood_pale", "wood_pale", "sand", "wood_light", "wood_pale"))
+            x = k * 8 + off + 1
+            for xx in range(x, x + 7):
+                c.rect(xx % 64, row * 4 + 1, xx % 64 + 1, row * 4 + 4, col)
+    c.blotch(["sand", "wood_light"], 6, rng, size=(2, 4))
+    return c
+
+
+KIT.update({"int_school": paint_int_school, "floor_lino": paint_floor_lino, "carpet": paint_carpet,
+            "brick_tan": paint_brick_tan, "green": paint_flat("green_dark"), "olive_dark": paint_flat("olive_dark")})
+
+
+def school_decals(rng):
+    a = Atlas(512)
+
+    def board(c):         # 3 x 1.2 m chalkboard
+        c.rect(0, 0, c.w, c.h, "wood_mid")
+        c.rect(2, 3, c.w - 2, c.h - 2, "green_dark")
+        c.rect(2, 2, c.w - 2, 3, "wood_dark")                            # chalk tray
+        c.text(5, c.h - 9, "A+B=C", "bone")
+        c.text(5, c.h - 17, "2X+3=9", "bone")
+        c.text(5, c.h - 25, "X=3", "bone")
+        c.text(c.w - 30, c.h - 9, "TEST", "bone")
+        c.text(c.w - 30, c.h - 17, "FRI", "bone")
+        c.blotch(["olive"], 4, rng, area=(2, 3, c.w - 2, c.h - 2), size=(3, 6))   # half-wiped chalk
+
+    def locker(c):        # one school locker, 0.5 x 2.0 m
+        c.rect(0, 0, c.w, c.h, "red")
+        c.frame(0, 0, c.w, c.h, "rust")
+        for k in range(4):
+            c.rect(3, c.h - 6 - k * 2, c.w - 3, c.h - 5 - k * 2, "rust")
+        c.rect(c.w - 5, 28, c.w - 3, 34, "steel_light")
+        c.rect(3, 50, 9, 52, "bone")
+        c.blotch(["rust"], 2, rng, size=(2, 3))
+
+    def books(c):         # 1.2 x 1.8 m of bookshelf
+        c.rect(0, 0, c.w, c.h, "wood_dark")
+        for row in range(4):
+            y = 2 + row * 14
+            c.rect(0, y - 2, c.w, y, "wood")
+            x = 1
+            while x < c.w - 2:
+                w = rng.choice((2, 2, 3))
+                h = rng.randrange(8, 12)
+                if rng.random() < 0.85:
+                    c.rect(x, y, x + w, y + h, rng.choice(("red", "sky_blue", "olive", "bone", "wood_pale", "rust", "green_dark")))
+                x += w
+        c.frame(0, 0, c.w, c.h, "wood")
+
+    def trophy(c):        # 2.6 x 1.9 m trophy case
+        c.rect(0, 0, c.w, c.h, "wood_mid")
+        c.rect(3, 22, c.w - 3, c.h - 3, "iron_dark")
+        for y in (22, 38, 52):
+            c.rect(3, y, c.w - 3, y + 1, "steel_light")
+            for x in range(8, c.w - 8, 14):
+                if rng.random() < 0.75:
+                    c.rect(x, y + 1, x + 4, y + 3, "yellow_dark")
+                    c.rect(x + 1, y + 3, x + 3, y + 7, "hazard_yellow")
+                    c.rect(x - 1, y + 7, x + 5, y + 10, "hazard_yellow")
+        c.rect(c.w // 2, 22, c.w // 2 + 1, c.h - 3, "wood_mid")
+        c.frame(3, 3, c.w - 3, 19, "wood_dark")
+
+    def sign(c):          # 6 x 0.8 m over the entrance
+        c.rect(0, 0, c.w, c.h, "olive_dark")
+        c.frame(0, 0, c.w, c.h, "bone")
+        w = Canvas.text_width("BLOXOV SCHOOL", 3)
+        c.text((c.w - w) // 2, 5, "BLOXOV SCHOOL", "bone", 3)
+
+    def notice(c):        # 1.6 x 1 m cork board
+        c.rect(0, 0, c.w, c.h, "wood_light")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        for _ in range(9):
+            x, y = rng.randrange(3, c.w - 10), rng.randrange(3, c.h - 10)
+            c.rect(x, y, x + rng.randrange(6, 10), y + rng.randrange(7, 10), rng.choice(("bone", "bone", "hazard_yellow", "sky_blue")))
+            c.put(x + 2, y + 6, "red")
+
+    def poster(text, colour, ink):
+        def paint(c):     # 0.6 x 0.8 m
+            c.rect(0, 0, c.w, c.h, colour)
+            c.frame(0, 0, c.w, c.h, ink)
+            w = Canvas.text_width(text)
+            c.text((c.w - w) // 2, c.h // 2 - 2, text, ink)
+        return paint
+
+    def nurse(c):         # green cross sign (not the protected red cross)
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(c.w // 2 - 2, 3, c.w // 2 + 2, c.h - 3, "green_dark")
+        c.rect(3, c.h // 2 - 2, c.w - 3, c.h // 2 + 2, "green_dark")
+
+    def menu(c):          # 2 x 0.9 m
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "steel")
+        c.text(4, c.h - 8, "LUNCH", "hazard_yellow")
+        for k, item in enumerate(("SOUP 2", "PIZZA 3", "MILK 1")):
+            c.text(4, c.h - 16 - k * 7, item, "bone")
+
+    def graffiti(c):      # NOVA, sprayed (the other army: docs/LORE.md)
+        c.rect(0, 0, c.w, c.h, "clear")
+        w = Canvas.text_width("NOVA", 4)
+        c.text((c.w - w) // 2, 4, "NOVA", "sky_blue", 4)
+        for _ in range(5):
+            x = rng.randrange(4, c.w - 4)
+            c.rect(x, 0, x + 1, rng.randrange(2, 5), "sky_blue")
+
+    def clock(c):
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "iron_dark")
+        c.rect(c.w // 2, c.h // 2, c.w // 2 + 1, c.h - 3, "black")
+        c.rect(c.w // 2, c.h // 2, c.w - 4, c.h // 2 + 1, "black")
+
+    a.add("board", 96, 38, board)
+    a.add("locker", 16, 64, locker)
+    a.add("books", 38, 58, books)
+    a.add("trophy", 83, 61, trophy)
+    a.add("sign", 192, 26, sign)
+    a.add("notice", 51, 32, notice)
+    a.add("poster_read", 19, 26, poster("READ", "sky_blue", "bone"))
+    a.add("poster_run", 19, 26, poster("WALK", "hazard_yellow", "black"))
+    a.add("nurse", 19, 19, nurse)
+    a.add("menu", 64, 29, menu)
+    a.add("graffiti", 80, 30, graffiti)
+    a.add("clock", 13, 13, clock)
+    return a
+
+
+def prop_chalkboard(ctx, c, s):
+    ctx.b.box(c, s, style=face_decal(ctx.d("board"), "wood", _front_into(c, 2)))
+
+
+def prop_school_desk(ctx, c, s):
+    b = ctx.b
+    top = prop_table(ctx, c, s, "wood", "trim")
+    base = c[1] - s[1] / 2
+    cz = c[2] + s[2] / 2 + 0.25                                          # the chair, facing the board (north)
+    b.box((c[0], base + 0.44, cz), (0.4, 0.04, 0.38), style=no_bottom("blue", 1.0))
+    b.box((c[0], base + 0.7, cz + 0.19), (0.4, 0.34, 0.03), style=no_bottom("blue", 1.0))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * 0.17, base + 0.22, cz), (0.03, 0.44, 0.34), style=no_bottom("trim", 1.0))
+    if ctx.rng.random() < 0.4:
+        b.box((c[0] + ctx.rng.uniform(-0.2, 0.2), top + 0.01, c[2]), (0.21, 0.01, 0.3), yaw=ctx.rng.uniform(-30, 30),
+              style=no_bottom("bone", 1.0))                                  # a worksheet
+
+
+def prop_lab_bench(ctx, c, s):
+    b = ctx.b
+    b.box((c[0], c[1] - 0.03, c[2]), (s[0], s[1] - 0.06, s[2]), style=no_bottom("bone", 1.0))
+    top = c[1] + s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0] + 0.04, 0.06, s[2] + 0.04), style=no_bottom("black", 1.0))
+    b.box((c[0], top + 0.15, c[2]), (0.05, 0.3, 0.05), style=no_bottom("trim", 1.0))           # tap
+    for k, col in enumerate(("green", "blue", "bone")):
+        b.box((c[0] - 0.8 + k * 0.25, top + 0.08, c[2] + 0.1), (0.08, 0.16, 0.08), style=no_bottom(col, 1.0))
+
+
+def prop_bookshelf(ctx, c, s):
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if abs(n[2]) > 0.7 or n[1] < -0.7 else ("wood", uv_world(2.0)))
+    for zz, nz in ((c[2] - s[2] / 2, -1), (c[2] + s[2] / 2, 1)):
+        strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, zz, (0, 0, nz), "books", 1.2, "x")
+
+
+def prop_caf_table(ctx, c, s):
+    b = ctx.b
+    top = prop_table(ctx, c, s, "bone", "trim")
+    base = c[1] - s[1] / 2
+    for side in (-1, 1):
+        b.box((c[0], base + 0.45, c[2] + side * (s[2] / 2 + 0.3)), (s[0], 0.05, 0.3), style=no_bottom("red", 1.0))
+        for sx in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.2), base + 0.22, c[2] + side * (s[2] / 2 + 0.3)), (0.05, 0.44, 0.05),
+                  style=no_bottom("trim", 1.0))
+    for k in range(3):
+        if ctx.rng.random() < 0.7:
+            b.box((c[0] - 1.0 + k * 1.0, top + 0.02, c[2] + ctx.rng.uniform(-0.15, 0.15)), (0.4, 0.03, 0.3),
+                  yaw=ctx.rng.uniform(-20, 20), style=no_bottom(ctx.rng.choice(("steel_light", "olive", "red")), 1.0))
+
+
+def prop_hall_lockers(ctx, c, s):
+    b = ctx.b
+    front = _front_into(c, 2)
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("red", uv_world()))
+    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
+    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "locker", 0.5, "x")
+    if ctx.rng.random() < 0.5:                                           # one hanging open
+        x = c[0] + ctx.rng.uniform(-1.2, 1.2)
+        dz = 0.25 if front == "+z" else -0.25
+        b.box((x, c[1], z + dz), (0.03, s[1] - 0.1, 0.48), yaw=0, style=no_bottom("red", 1.0))
+
+
+def prop_trophy_case(ctx, c, s):
+    ctx.b.box(c, s, style=face_decal(ctx.d("trophy"), "wood", _front_into(c, 2)))
+
+
+def prop_hall_bench(ctx, c, s):
+    b = ctx.b
+    base = c[1] - s[1] / 2
+    b.box((c[0], base + s[1] - 0.03, c[2]), (s[0], 0.06, s[2]), style=no_bottom("wood", 1.0))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.1), base + (s[1] - 0.06) / 2, c[2]), (0.06, s[1] - 0.06, s[2] - 0.05),
+              style=no_bottom("trim", 1.0))
+
+
+def prop_cot(ctx, c, s):
+    b = ctx.b
+    base = c[1] - s[1] / 2
+    b.box((c[0], base + 0.42, c[2]), (s[0], 0.06, s[2]), style=no_bottom("trim", 1.0))
+    b.box((c[0], base + 0.52, c[2]), (s[0] - 0.1, 0.14, s[2] - 0.1), style=no_bottom("bone", 1.0))
+    b.box((c[0], base + 0.62, c[2] + s[2] / 2 - 0.3), (0.6, 0.1, 0.3), style=no_bottom("bone", 1.0))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.05), base + 0.2, c[2] + sz * (s[2] / 2 - 0.05)), (0.04, 0.4, 0.04),
+                  style=no_bottom("trim", 1.0))
+
+
+def prop_art_table(ctx, c, s):
+    top = prop_table(ctx, c, s, "bone", "trim_dark")
+    for _ in range(6):
+        col = ctx.rng.choice(("red", "blue", "yellow", "green"))
+        ctx.b.box((c[0] + ctx.rng.uniform(-1.0, 1.0), top + 0.005, c[2] + ctx.rng.uniform(-0.4, 0.4)),
+                  (ctx.rng.uniform(0.1, 0.3), 0.01, ctx.rng.uniform(0.1, 0.3)), style=no_bottom(col, 1.0))   # paint
+    ctx.b.box((c[0] + 0.6, top + 0.08, c[2]), (0.3, 0.16, 0.2), style=no_bottom("blue", 1.0))      # paint pots
+
+
+def prop_computer_desk(ctx, c, s):
+    b = ctx.b
+    top = prop_table(ctx, c, s, "bone", "trim")
+    front = _front_into(c, 2)
+    face = 1 if front == "+z" else -1
+    for k in range(2):
+        x = c[0] - s[0] / 4 + k * s[0] / 2
+        b.box((x, top + 0.2, c[2] - face * 0.08), (0.42, 0.38, 0.38),
+              style=lambda n, m, q, face=face: None if n[1] < -0.7 else (("black", uv_world()) if n[2] * face > 0.7 else ("bone", uv_world())))
+        b.box((x, top + 0.015, c[2] + face * 0.22), (0.45, 0.03, 0.15), style=no_bottom("bone", 1.0))
+
+
+def prop_sofa(ctx, c, s):
+    b = ctx.b
+    base = c[1] - s[1] / 2
+    b.box((c[0], base + 0.22, c[2]), (s[0], 0.44, s[2]), style=no_bottom("olive", 1.0))
+    front = _front_into(c, 2)
+    back = -1 if front == "+z" else 1
+    b.box((c[0], base + 0.6, c[2] + back * (s[2] / 2 - 0.1)), (s[0], 0.4, 0.2), style=no_bottom("olive_dark", 1.0))
+
+
+SCHOOL_PROPS = {
+    "chalkboard": prop_chalkboard, "teacher_desk": prop_desk, "school_desk": prop_school_desk,
+    "lab_bench": prop_lab_bench, "bookshelf": prop_bookshelf, "caf_table": prop_caf_table,
+    "hall_lockers": prop_hall_lockers, "trophy_case": prop_trophy_case, "hall_bench": prop_hall_bench,
+    "cot": prop_cot, "art_table": prop_art_table, "computer_desk": prop_computer_desk, "sofa": prop_sofa,
+}
+for _kind, _fn in SCHOOL_PROPS.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+
+
+def wall_quad(b, axis_n, at, a0, a1, y0, y1, mat, uv):
+    """A flat picture on a wall: normal along +-x or +-z (axis_n like (0, 0, 1)), plane at `at`."""
+    if axis_n[2]:
+        pts = [(a0, y0, at), (a1, y0, at), (a1, y1, at), (a0, y1, at)]
+    else:
+        pts = [(at, y0, a0), (at, y0, a1), (at, y1, a1), (at, y1, a0)]
+    b.poly(pts, axis_n, mat, uv)
+
+
+def dress_school(ctx):
+    b, rng = ctx.b, ctx.rng
+    zs = 12.15                                                            # south wall's outside face
+    # Entrance: the sign, a canopy on two posts, steps.
+    b.box((0, 3.3, zs + 0.05), (6.0, 0.8, 0.1), style=face_decal(ctx.d("sign"), "olive_dark", "+z"))
+    b.box((0, 2.7, zs + 1.2), (4.4, 0.15, 2.4), style=lambda n, m, q: ("trim_dark", uv_world()) if n[1] < 0.7 else ("roof", uv_world()))
+    for x in (-2.0, 2.0):
+        b.box((x, 1.31, zs + 2.2), (0.15, 2.62, 0.15), style=no_bottom("trim_dark", 1.0))
+    # Concrete plinth, a band at the upper floor, a coping on the parapet.
+    for y0, h, gap in ((0.0, 0.45, True), (2.85, 0.3, False)):
+        for z in (-zs - 0.03, zs + 0.03):
+            parts = ((-15.2, -1.1), (1.1, 15.2)) if gap and z > 0 else ((-15.2, 15.2),)
+            for a0, a1 in parts:
+                b.box(((a0 + a1) / 2, y0 + h / 2, z), (a1 - a0, h, 0.06), style=no_bottom("concrete", 4.0))
+        for x in (-15.18, 15.18):
+            b.box((x, y0 + h / 2, 0), (0.06, h, 24.36), style=no_bottom("concrete", 4.0))
+    for z in (-12.0, 12.0):
+        b.box((0, 7.04, z), (30.5, 0.08, 0.5), style=no_bottom("concrete", 4.0))
+    for x in (-15.0, 15.0):
+        b.box((x, 7.04, 0), (0.5, 0.08, 24.5), style=no_bottom("concrete", 4.0))
+    # Spray paint on the west end, broken glass in some windows.
+    wall_quad(b, (-1, 0, 0), -15.16, -6.0, -1.0, 0.8, 2.6, "graffiti", ctx.d("graffiti"))
+    for x in (-10.0, 10.0):
+        shards(ctx, x - 0.7, x + 0.7, 1.0, 2.2, zs - 0.15, "x", rng)
+        shards(ctx, x - 0.7, x + 0.7, 4.0, 5.2, -zs + 0.15, "x", rng)
+    # Hall (room 1,1 both floors): notice boards; lobby: posters; cafeteria menu; nurse's sign; clocks.
+    for y in (0.0, 3.0):
+        wall_quad(b, (1, 0, 0), -4.89, -3.0, -1.4, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
+        wall_quad(b, (-1, 0, 0), 4.89, 1.4, 3.0, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
+    wall_quad(b, (0, 0, -1), 11.85, 4.0, 4.6, 1.3, 2.1, "decals", ctx.d("poster_read"))
+    wall_quad(b, (0, 0, 1), 4.11, 2.4, 3.0, 1.3, 2.1, "decals", ctx.d("poster_run"))
+    wall_quad(b, (0, 0, 1), -3.89, -14.0, -12.0, 1.3, 2.2, "decals", ctx.d("menu"))
+    wall_quad(b, (1, 0, 0), -14.84, 5.0, 5.6, 1.4, 2.0, "decals", ctx.d("nurse"))
+    for x0 in (-5.0, 5.0):
+        for y in (0.0, 3.0):
+            wall_quad(b, (0, 0, 1), -11.84, x0 + 6.6, x0 + 7.0, y + 2.3, y + 2.7, "decals", ctx.d("clock"))
+    # Papers everywhere, a knocked-over chair or two.
+    for _ in range(40):
+        x, z = rng.uniform(-14.5, 14.5), rng.uniform(-11.5, 11.5)
+        y = rng.choice((0.0, 3.0)) + 0.015
+        b.box((x, y, z), (0.21, 0.005, 0.3), yaw=rng.uniform(0, 180), style=no_bottom("bone", 1.0))
+    for x, z, y in ((-1.5, -4.5, 0.0), (8.0, 1.5, 3.0)):
+        b.box((x, y + 0.2, z), (0.4, 0.04, 0.38), pitch=85, yaw=rng.uniform(0, 90), style=no_bottom("blue", 1.0))
+
+
+DECALS["school"] = school_decals
+DRESSING["school"] = dress_school
+FOOTPRINTS["school"] = (-15.0, -12.0, 15.0, 12.0)
+SHELLS["school"] = {
+    "ext": "brick_tan", "roof_side": "brick_tan", "x_splits": (-5.0, 5.0), "z_splits": (-4.0, 4.0),
+    "x_lines": (-15.0, -5.0, 5.0, 15.0), "z_lines": (-12.0, -4.0, 4.0, 12.0),
+    "inner": school_inner, "floor": school_floor,
 }
 
 
