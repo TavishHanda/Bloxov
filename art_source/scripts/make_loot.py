@@ -31,7 +31,7 @@ def loot_decals(rng):
         c.frame(0, 0, c.w, c.h, "black")
         c.frame(2, 2, c.w - 2, c.h - 11, "yellow_dark")             # gold pinstripe
         c.rect(1, c.h - 10, c.w - 1, c.h - 2, "iron_dark")          # name plate above it
-        c.rect(1, 6, 2, 10, "iron"); c.rect(1, c.h - 10, 2, c.h - 6, "iron")   # hinges
+        c.rect(1, 6, 2, 10, "iron"); c.rect(1, c.h - 16, 2, c.h - 12, "iron")   # hinges
         w = Canvas.text_width("BLOXOV")
         c.text((c.w - w) // 2, c.h - 8, "BLOXOV", "hazard_yellow")
         c.blotch(["olive", "iron_dark"], 4, rng, area=(3, 3, c.w - 3, c.h - 10))
@@ -169,7 +169,7 @@ def loot_decals(rng):
             c.text((c.w - w) // 2, 3, text, ink)
         return paint
 
-    a.add("safe", 26, 26, safe)
+    a.add("safe", 27, 26, safe)   # odd width: BLOXOV (23 px) gets a 1 px gap each side
     a.add("locker", 24, 61, locker)
     a.add("wardrobe", 32, 64, wardrobe)
     a.add("gun_cabinet", 29, 61, gun_cabinet)
