@@ -1921,7 +1921,7 @@ MAP_NAMES = {"TownHall": "TOWN HALL", "Bank": "BANK", "Offices": "OFFICES", "Gun
 
 
 # Where a name sits instead of its building's middle (so neighbours' names don't overlap): "above"/"below" it.
-MAP_NAME_SIDE = {"GunStore": "above", "Pharmacy": "below", "Diner": "above", "GasStation": "below", "Garage": "above"}
+MAP_NAME_SIDE = {"GunStore": "above", "Shops": "above", "Pharmacy": "below", "Diner": "above", "GasStation": "below", "Garage": "above"}
 
 
 def map_labels():

@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.30 (map label fix)
+- Full map (M): the SHOPS name in town sits above its building now. It was hidden under the "Town Road" extract
+  name. Found running the game through godot-mcp on the owner's PC.
+
 ## 0.15.29 (PMC dog tag; owner asked)
 - A player killed online by another player drops their dog tag, named after them ("Tavish's Dog Tag"), in its own
   Dog Tag slot at the top of their body's loot window. No tag if the AI (or anything else) killed them. The name
