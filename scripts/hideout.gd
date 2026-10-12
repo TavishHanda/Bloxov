@@ -3,18 +3,9 @@ extends Control
 ## Everything here is saved to the Profile as soon as it changes.
 
 const RAID_SCENE := "res://scenes/main.tscn"
-const BUY_MARKUP := 1.2
-## Valuables sell for full value; everything else for this fraction.
-const GEAR_SELL_RATE := 0.6
 ## Selling (0.15.18; softer and quieter in 0.15.24, owner): two quiet low notes.
 const SELL_SOUND := preload("res://audio/sell.wav")
-## [item id, amount per purchase]
-const TRADER_STOCK := [
-	["ak", 1], ["pistol", 1], ["smg", 1], ["shotgun", 1], ["sniper", 1], ["rifle_ammo", 60], ["pistol_ammo", 50],
-	["smg_ammo", 60], ["shells", 12], ["sniper_ammo", 10], ["red_dot", 1], ["scope_8x", 1], ["choke", 1], ["foregrip", 1], ["ext_mag", 1],
-	["scope_4x", 1], ["suppressor", 1], ["bandage", 1],
-	["medkit", 1], ["armor_light", 1], ["helmet_basic", 1], ["grenade", 1], ["energy_drink", 1], ["backpack_small", 1], ["backpack_medium", 1],
-]
+## The traders (0.16.0): stock, prices and levels are in Traders.
 const FREE_KIT_HINT := "Start a raid with a free pistol, 30 rounds and a bandage. Only when you carry nothing at all."
 
 var inventory: Inventory
@@ -29,6 +20,12 @@ var _message_tween: Tween
 const MESSAGE_MAX_WIDTH := 800.0
 var _online_button: Button
 var _free_kit_button: Button
+## The trader column: tabs, the open trader's name/level, and its stock.
+var _trader_tab := "guns"
+var _trader_tabs := {}
+var _trader_title: Label
+var _trader_info: Label
+var _trader_rows: VBoxContainer
 var _online_panel: PanelContainer
 var _offline_box: VBoxContainer
 var _online_box: VBoxContainer
@@ -101,16 +98,19 @@ func _process(_delta: float) -> void:
 # --- Trading -----------------------------------------------------------------------
 
 func buy_price(id: String, amount: int) -> int:
-	return ceili(ItemDB.value(id) * amount * BUY_MARKUP)
+	return Traders.buy_price(id, amount)
 
 
 func sell_price(stack: ItemStack) -> int:
-	var rate := 1.0 if ItemDB.kind(stack.id) == "valuable" else GEAR_SELL_RATE
-	return roundi(stack.value() * rate)
+	return Traders.sell_price(stack)
 
 
 ## Buys `amount` of an item into the stash. Returns true if it worked.
 func buy(id: String, amount: int) -> bool:
+	var trader := Traders.trader_for(id)
+	if trader == "" or not _unlocked(trader, id):
+		_message("%s isn't for sale yet" % ItemDB.display_name(id))
+		return false
 	var price := buy_price(id, amount)
 	if Profile.money < price:
 		_message("Not enough money for %s (%s)" % [ItemDB.display_name(id), ItemDB.money(price)])
@@ -129,8 +129,41 @@ func buy(id: String, amount: int) -> bool:
 			return false
 		price = buy_price(id, amount - left)
 	Profile.money -= price
-	_message("Bought %s for %s" % [ItemDB.display_name(id), ItemDB.money(price)])
+	var level_before := Profile.trader_level(trader)
+	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
+	if Profile.trader_level(trader) > level_before:
+		_message("%s is now level %d: new stock unlocked" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)])
+	else:
+		_message("Bought %s for %s" % [ItemDB.display_name(id), ItemDB.money(price)])
 	_queue_save()
+	_fill_trader()
+	return true
+
+
+## The trader's level is high enough for this item.
+func _unlocked(trader: String, id: String) -> bool:
+	for entry: Array in Traders.stock(trader):
+		if entry[0] == id and entry[2] <= Profile.trader_level(trader):
+			return true
+	return false
+
+
+## A stash upgrade (0.16.0, owner): more rows, bought with money. Returns true if it worked.
+func upgrade_stash() -> bool:
+	var cost := Profile.next_stash_cost()
+	if cost == 0:
+		_message("Your stash is as big as it gets")
+		return false
+	if Profile.money < cost:
+		_message("Not enough money for the stash upgrade (%s)" % ItemDB.money(cost))
+		return false
+	Profile.money -= cost
+	Profile.stash.height = maxi(Profile.stash.height, Profile.STASH_ROWS[Profile.stash_level()])
+	Profile.stash.changed.emit()
+	screen.open_stash(Profile.stash)
+	_message("Stash upgraded to %d x %d" % [Profile.stash.width, Profile.stash.height])
+	_queue_save()
+	_fill_trader()
 	return true
 
 
@@ -139,7 +172,8 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	grid.remove(stack)
 	Profile.money += price
 	Profile.stats["earned"] += price
-	_message("Sold %s for %s" % [stack.title() + (" x%d" % stack.count if stack.count > 1 else ""), ItemDB.money(price)])
+	_message("Sold %s to %s for %s" % [stack.title() + (" x%d" % stack.count if stack.count > 1 else ""),
+		Traders.LIST[Traders.buyer_for(stack.id)]["name"], ItemDB.money(price)])
 	Effects.sound(self, SELL_SOUND, -16.0)
 	_queue_save()
 
@@ -528,7 +562,7 @@ func _style_edit(edit: LineEdit) -> void:
 
 func _build_trader() -> Control:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(250, 0)
+	panel.custom_minimum_size = Vector2(280, 0)
 	LootUI.skin_panel(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -537,15 +571,28 @@ func _build_trader() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)
 	margin.add_child(box)
-	var title := Label.new()
-	title.text = "TRADER"
-	HudStyle.style_label(title, 30)
-	box.add_child(title)
-	var hint := Label.new()
-	hint.text = "Buy: goes to your stash.\nSell: right-click any item.\nValuables sell for full value,\ngear for %d%%." % roundi(GEAR_SELL_RATE * 100)
-	hint.modulate = Color(1, 1, 1, 0.65)
-	hint.add_theme_font_size_override("font_size", 12)
-	box.add_child(hint)
+	# One tab per trader (0.16.0). Short labels so they fit one row.
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 4)
+	box.add_child(tabs)
+	for trader: String in Traders.LIST:
+		var tab := Button.new()
+		tab.text = Traders.LIST[trader]["tab"]
+		tab.toggle_mode = true
+		tab.focus_mode = Control.FOCUS_NONE
+		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		LootUI.style_button(tab)
+		tab.pressed.connect(open_trader.bind(trader))
+		tabs.add_child(tab)
+		_trader_tabs[trader] = tab
+	_trader_title = Label.new()
+	HudStyle.style_label(_trader_title, 30)
+	box.add_child(_trader_title)
+	_trader_info = Label.new()
+	_trader_info.modulate = Color(1, 1, 1, 0.65)
+	_trader_info.add_theme_font_size_override("font_size", 12)
+	_trader_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_trader_info)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 4)
 	box.add_child(gap)
@@ -554,29 +601,83 @@ func _build_trader() -> Control:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 360)
+	scroll.custom_minimum_size = Vector2(0, 340)
 	scroll.scroll_deadzone = 8
 	box.add_child(scroll)
-	var rows := VBoxContainer.new()
-	rows.add_theme_constant_override("separation", 6)
-	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(rows)
-	for entry in TRADER_STOCK:
+	_trader_rows = VBoxContainer.new()
+	_trader_rows.add_theme_constant_override("separation", 6)
+	_trader_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_trader_rows)
+	_fill_trader()
+	return panel
+
+
+## Shows trader `trader`'s stock in the trader column.
+func open_trader(trader: String) -> void:
+	_trader_tab = trader
+	_fill_trader()
+
+
+func _fill_trader() -> void:
+	if _trader_rows == null:
+		return
+	var trader: String = _trader_tab
+	var info: Dictionary = Traders.LIST[trader]
+	for tab: String in _trader_tabs:
+		_trader_tabs[tab].button_pressed = tab == trader
+	var lv := Profile.trader_level(trader)
+	_trader_title.text = String(info["name"]).to_upper()
+	var lines: Array[String] = [info["about"]]
+	if Traders.max_level(trader) > 1:
+		var next := Traders.next_level_cost(trader, int(Profile.trader_spent.get(trader, 0)))
+		lines.append("Level %d/%d" % [lv, Traders.max_level(trader)] + (" · spend %s more for level %d" % [ItemDB.money(next), lv + 1] if next > 0 else ""))
+	if trader != "valuables":
+		lines.append("Buys these back for %d%%." % roundi(float(info["rate"]) * 100))
+	lines.append("Sell: right-click any item.")
+	_trader_info.text = "\n".join(lines)
+	for child in _trader_rows.get_children():
+		_trader_rows.remove_child(child)
+		child.queue_free()
+	for entry: Array in Traders.stock(trader):
 		var id: String = entry[0]
 		var amount: int = entry[1]
+		var open: bool = entry[2] <= lv
 		var row := HBoxContainer.new()
-		rows.add_child(row)
+		_trader_rows.add_child(row)
 		var item_name := Label.new()
 		item_name.text = ItemDB.label(id, amount)
 		HudStyle.style_label(item_name, 20, ItemDB.color(id))
 		item_name.add_theme_font_override("font", HudStyle.spaced_font(20))
 		item_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		item_name.modulate.a = 1.0 if open else 0.4
 		row.add_child(item_name)
 		var button := Button.new()
-		button.text = ItemDB.money(buy_price(id, amount))
+		button.text = ItemDB.money(buy_price(id, amount)) if open else "LV %d" % entry[2]
+		button.disabled = not open
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(76, 0)
+		button.custom_minimum_size = Vector2(84, 0)
 		LootUI.style_button(button)
 		button.pressed.connect(buy.bind(id, amount))
 		row.add_child(button)
-	return panel
+	# Stash upgrades are sold by the supplies trader.
+	if trader == "supplies":
+		var row := HBoxContainer.new()
+		_trader_rows.add_child(row)
+		var label := Label.new()
+		var cost := Profile.next_stash_cost()
+		label.text = "Stash upgrade (+10 rows)" if cost > 0 else "Stash: max size"
+		HudStyle.style_label(label, 20)
+		label.add_theme_font_override("font", HudStyle.spaced_font(20))
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(label)
+		if cost > 0:
+			var button := Button.new()
+			button.name = "StashUpgradeButton"
+			button.text = ItemDB.money(cost)
+			button.focus_mode = Control.FOCUS_NONE
+			button.custom_minimum_size = Vector2(84, 0)
+			LootUI.style_button(button)
+			button.pressed.connect(upgrade_stash)
+			row.add_child(button)
+
+

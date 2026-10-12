@@ -1743,6 +1743,38 @@ func _section_hideout() -> void:
 	hideout.save_now()
 	var saved_loadout: Dictionary = Profile.loadout.get("equipment", {})
 	_check(saved_loadout.has("secondary"), "hideout changes are saved to the profile")
+	# Traders (0.16.0, Economy update): levels from money spent unlock stock; each trader buys its own kind.
+	var every_item_has_buyer := ItemDB.ITEMS.keys().all(func(id: String) -> bool: return Traders.buyer_for(id) in Traders.LIST)
+	_check(every_item_has_buyer and Traders.buyer_for("gold_watch") == "valuables" and Traders.buyer_for("medkit") == "meds"
+		and Traders.buyer_for("ak") == "guns" and Traders.buyer_for("armor_light") == "supplies", "every item has a trader that buys it")
+	_check(Traders.trader_for("armor_heavy") == "" and Traders.trader_for("ak") == "guns", "heavy armor stays loot-only")
+	Profile.trader_spent = {}
+	Profile.money = 100000
+	var money2 := Profile.money
+	_check(Profile.trader_level("guns") == 1 and not hideout.buy("ak", 1) and Profile.money == money2, "a level 2 gun can't be bought at level 1")
+	Profile.trader_spent["guns"] = int(Traders.LIST["guns"]["levels"][1]["spent"]) - 1
+	_check(hideout.buy("pistol", 1) and Profile.trader_level("guns") == 2 and hideout.buy("ak", 1),
+		"spending with a trader levels them up and unlocks their stock")
+	hideout.open_trader("meds")
+	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size(),
+		"the trader tabs switch the stock shown")
+	# Stash upgrades (0.16.0): more rows for money, up to the top size.
+	Profile.stash.height = Profile.STASH_ROWS[0]
+	money = Profile.money
+	var cost := Profile.next_stash_cost()
+	_check(Profile.stash_level() == 1 and hideout.upgrade_stash() and Profile.stash.height == Profile.STASH_ROWS[1]
+		and Profile.money == money - cost, "buy a stash upgrade")
+	Profile.money = 0
+	_check(not hideout.upgrade_stash() and Profile.stash.height == Profile.STASH_ROWS[1], "no stash upgrade without the money")
+	Profile.money = 1000000
+	while Profile.next_stash_cost() > 0:
+		hideout.upgrade_stash()
+	_check(Profile.stash.height == Profile.STASH_ROWS[-1] and not hideout.upgrade_stash(), "the stash stops at its top size")
+	Profile.save_profile()
+	Profile.trader_spent = {}
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.trader_level("guns") == 2 and Profile.stash.height == Profile.STASH_ROWS[-1], "trader levels and stash size are saved")
 	hideout.queue_free()
 	await process_frame
 

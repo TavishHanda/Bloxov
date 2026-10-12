@@ -7,7 +7,12 @@ extends RefCounted
 
 const PATH := "user://profile.json"
 const VERSION := 1
-const STASH_SIZE := Vector2i(8, 30)
+## A new stash's size (0.16.0, Economy update: it was 8 x 30; older saves keep the size they had).
+const STASH_SIZE := Vector2i(8, 20)
+## Stash upgrades (0.16.0, owner: a real stash size, bigger ones bought with money): rows at each level, and what
+## each upgrade costs. Level 1 is the new stash.
+const STASH_ROWS: Array[int] = [20, 30, 40, 50]
+const STASH_UPGRADE_COST: Array[int] = [0, 25000, 60000, 120000]
 const START_MONEY := 3000
 const DEFAULT_STATS := {"raids": 0, "extracts": 0, "deaths": 0, "earned": 0}
 ## Where an unreadable save is copied before the profile is reset, so it isn't silently lost.
@@ -20,6 +25,8 @@ static var stash: GridInventory = GridInventory.new("Stash", STASH_SIZE.x, STASH
 ## Serialized Inventory (see capture_inventory). Empty = use the starting kit.
 static var loadout: Dictionary = {}
 static var stats: Dictionary = DEFAULT_STATS.duplicate()
+## Money spent with each trader (Traders.LIST id -> dollars); it sets their level.
+static var trader_spent: Dictionary = {}
 static var _loaded := false
 
 
@@ -53,6 +60,32 @@ static func load_profile() -> void:
 		for key in stats:
 			if _is_number(saved_stats.get(key)):
 				stats[key] = int(saved_stats[key])
+	trader_spent = {}
+	var saved_spent = data.get("trader_spent")
+	if saved_spent is Dictionary:
+		for key in saved_spent:
+			if key is String and _is_number(saved_spent[key]):
+				trader_spent[key] = int(saved_spent[key])
+
+
+## A trader's level (Traders.level) from what you've spent with them.
+static func trader_level(trader: String) -> int:
+	return Traders.level(trader, int(trader_spent.get(trader, 0)))
+
+
+## The stash's upgrade level (1-based): the biggest STASH_ROWS size it has reached.
+static func stash_level() -> int:
+	var reached := 1
+	for i in STASH_ROWS.size():
+		if stash.height >= STASH_ROWS[i]:
+			reached = i + 1
+	return reached
+
+
+## What the next stash upgrade costs, or 0 when it's as big as it gets.
+static func next_stash_cost() -> int:
+	var lv := stash_level()
+	return STASH_UPGRADE_COST[lv] if lv < STASH_ROWS.size() else 0
 
 
 static func _read_file() -> String:
@@ -99,6 +132,7 @@ static func reset() -> void:
 	stash = GridInventory.new("Stash", STASH_SIZE.x, STASH_SIZE.y)
 	loadout = starting_loadout()
 	stats = DEFAULT_STATS.duplicate()
+	trader_spent = {}
 
 
 static func save_profile() -> void:
@@ -109,6 +143,7 @@ static func save_profile() -> void:
 		"stash": _write_grid(stash),
 		"loadout": loadout,
 		"stats": stats,
+		"trader_spent": trader_spent,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)

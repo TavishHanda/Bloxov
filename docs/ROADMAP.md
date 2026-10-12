@@ -35,6 +35,11 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
    price: trader buy/sell prices, what's worth looting and where, money in vs. money out (sinks), and how traders and
    their stock fit in (more traders are on the wishlist). **Repairs** for worn armor and guns (a trader or repair
    kits) as a money sink. Earned money only (`STORE_RULES.md`: no real-money trading).
+   **Started 2026-10-12 as 0.16** (plan: project file `economy/plan.md`). Owner's answers: trader levels that
+   unlock gear (yes); five traders: guns, meds, supplies, valuables, and **Ming**, a gambling trader (earned
+   money only, odds shown; never the premium currency); limited stock/restocks not now (keep the idea); a real
+   stash size with upgrades bought with money (later, bigger expansions also with the premium currency, via IAP);
+   medium pace (a good kit = 2-3 normal raids); no insurance. Repairs moved to the durability update.
 8. **Then (M4, vertical slice), split into three updates (owner, 2026-10-11), in this order:**
    1. **World art:** starts with a quick **neutral lighting baseline** (less saturated, plain sun and sky; owner
       asked which comes first, 2026-10-11) and **one test building** finished under it. Models and lighting change

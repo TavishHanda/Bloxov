@@ -5,7 +5,23 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
+
+## 0.16.0 (Economy update starts: traders and stash upgrades; owner's plan)
+- The one trader is now four, each on its own tab: **Gunsmith** (guns, ammo, attachments, grenades), **Medic**
+  (bandages, medkits), **Supplier** (armor, helmets, backpacks, energy drinks, stash space) and **Fence** (buys
+  valuables and keys, sells nothing). Names are placeholders until the owner picks them.
+- **Trader levels:** spending money with a trader levels them up and unlocks more stock. Gunsmith: Stinger, Wasp,
+  Mauler, red dot, choke at level 1; Hound, rifle rounds, foregrip, extended mag, grenade at level 2 ($15,000
+  spent); Lancer, sniper rounds, scopes, suppressor at level 3 ($40,000). Medic: medkit at level 2 ($3,000).
+  Supplier: medium backpack, light armor, old helmet at level 2 ($5,000). Locked items show the level they need.
+- Selling: right-click still sells anything; it goes to the trader that buys that kind (gear 60%, valuables full
+  value, same as before).
+- **Stash upgrades:** a new stash is 8 x 20 (was 8 x 30; saved stashes keep their size). The Supplier sells
+  +10 rows for $25,000, $60,000 and $120,000, up to 8 x 50. Earned money only.
+- Prices are unchanged in this version; the price pass for "a good kit costs 2-3 raids" comes next.
+- New dev tool: `tools/economy_sim.gd` rolls the real map's loot thousands of times and prints what raids earn
+  next to what kits cost.
 
 ## 0.15.30 (map label fix)
 - Full map (M): the SHOPS name in town sits above its building now. It was hidden under the "Town Road" extract
