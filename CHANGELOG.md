@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.10 (drag items out to drop them; owner asked)
+- In a raid, dragging one of your items (or something you're wearing) out of the inventory onto empty space drops it
+  on the ground, like right-click > Drop. Letting go on or between the panels does nothing. The hideout has no
+  ground, so there the item just goes back.
+
+## 0.16.9 (scavs hit players online; owner's report)
+- Online, AI shots now actually hit players. Each player is a stand-in body on the server, and that body was paused,
+  which (Godot default) also took it out of physics, so every scav bullet passed straight through. It stays in
+  physics now. Online AI will feel a lot more dangerous: this is the intended damage, it just never landed before.
+
 ## 0.16.8 (damage numbers online; owner's report)
 - Online, damage numbers (settings toggle) now show when you hit an AI or another player, like they do solo. The
   server sends the damage with the hit confirm: an AI's real damage taken, a player's before their armor.

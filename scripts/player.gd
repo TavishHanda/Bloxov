@@ -72,6 +72,9 @@ func _ready() -> void:
 	body_shape.shape = body_shape.shape.duplicate()
 	if proxy:
 		camera.current = false
+		# Keep the body in the physics world with its processing off (0.16.9): by default a disabled body is taken out
+		# of physics, so the server's scav shots went straight through every player online.
+		disable_mode = CollisionObject3D.DISABLE_MODE_KEEP_ACTIVE
 		for node: Node in [self, gun, knife, interactor]:
 			node.process_mode = Node.PROCESS_MODE_DISABLED
 		return

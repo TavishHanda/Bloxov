@@ -2383,6 +2383,20 @@ func _section_online_ai() -> void:
 	await _until(func() -> bool: return got["hits"].size() == 1 and got["bashes"] == 1)
 	_check(got["hits"] == [15] and got["bashes"] == 1 and proxy.health.current == proxy.health.max_health,
 		"a scav's shot and bash reach the player's game (the server's copy of them never dies)")
+	# (0.16.9, owner: a friend took no damage from scav bursts online) A server scav's real shots hit the proxy.
+	var shooter: Node = scavs1[1]
+	shooter.global_position = proxy.global_position + Vector3(0, 0, 8)
+	shooter.accuracy_near = 1.0
+	shooter.accuracy_far = 1.0
+	shooter.point_blank_accuracy = 1.0
+	shooter.moving_target_penalty = 0.0
+	shooter._target = proxy
+	await _frames(2)
+	var hits_before: int = got["hits"].size()
+	for i in 5:
+		shooter._fire_at_target(8.0)
+	await _until(func() -> bool: return got["hits"].size() >= hits_before + 5)
+	_check(got["hits"].size() - hits_before == 5, "online, a server scav's shots hit the player (%d of 5)" % (got["hits"].size() - hits_before))
 
 	# Players' shots hit server scavs (and make noise they hear).
 	var target: Node3D = scavs1[0]
@@ -2988,6 +3002,21 @@ func _section_owner_rules() -> void:
 	loot_ui.drop_to_ground(inv.pockets, watch)
 	_check(labels.has("Drop") and labels.any(func(t: String) -> bool: return t.begins_with("Put in")) and inv.count_of("gold_watch") == 0
 		and full.grid.count_of("gold_watch") == 0, "while looting, right-click offers Drop as well as Put in (%s)" % ", ".join(labels))
+	# 0.16.10 (owner): drag an item out onto empty space to drop it; letting go on a panel keeps it.
+	var corner := Vector2(4, 4)
+	_check(not loot_ui._over_panels(corner) and loot_ui._over_panels(loot_ui._columns.get_global_rect().get_center()),
+		"the screen corner is empty space, the middle of the inventory isn't")
+	inv.pockets.add("gold_watch")
+	var dragged: ItemStack = inv.find("gold_watch")[1]
+	loot_ui.start_drag(inv.pockets, dragged, Vector2(GridView.CELL, GridView.CELL) * 0.5)
+	var away := InputEventMouseMotion.new()
+	away.position = root.get_screen_transform() * corner
+	away.global_position = away.position
+	Input.parse_input_event(away)
+	Input.flush_buffered_events()
+	loot_ui._update_drag()
+	loot_ui._finish_drag()
+	_check(inv.count_of("gold_watch") == 0, "dragging an item onto empty space drops it on the ground")
 	loot_ui.close()
 	full.queue_free()  # (the medkit bag despawned by itself once emptied)
 

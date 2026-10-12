@@ -594,7 +594,28 @@ func _finish_drag() -> void:
 			move_stack(stack, from, grid_view.grid, cell, rotated, cell + _grab_cell)
 	elif view is EquipSlotView and slot == "":
 		equip_from_grid(from, stack, (view as EquipSlotView).slot)
+	elif view == null and _can_drop_out(from, slot) and not _over_panels(get_global_mouse_position()):
+		# Let go on empty space, outside the inventory (owner, 0.16.10): drop it on the ground.
+		if slot != "":
+			_drop_or_overflow(inventory.unequip(slot))
+			_after_move()
+		else:
+			drop_to_ground(from, stack)
 	_refresh_views()
+
+
+## Only your own things, and only in a raid (the hideout has no ground).
+func _can_drop_out(from: GridInventory, slot: String) -> bool:
+	if player == null:
+		return false
+	if slot != "":
+		return inventory.can_unequip(slot)
+	return from != null and inventory.grids().has(from)
+
+
+## True when `pos` (screen) is on or between the inventory's panels, where letting go does nothing.
+func _over_panels(pos: Vector2) -> bool:
+	return _columns.get_global_rect().grow(12.0).has_point(pos)
 
 
 # --- Attachments (0.15.1) ---------------------------------------------------------
