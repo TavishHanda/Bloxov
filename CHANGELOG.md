@@ -7,6 +7,9 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.27 (Wasp mag; owner asked)
+- The Wasp holds 25 rounds (was 30), 35 with an extended mag (was 45).
+
 ## 0.15.26 (AI run from snipers; owner picked it)
 - An AI shot from beyond its own shooting range (about 70 m, e.g. a Lancer) that can't see the shooter runs off to
   a hidden spot farther away, then lies low for 20 s watching that way before it goes looking. If it sees you in

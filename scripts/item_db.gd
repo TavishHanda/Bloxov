@@ -43,7 +43,7 @@ const ITEMS := {
 	# "load_one" (reload is per round: "reload" seconds each, and firing stops it), "flash" (muzzle flash size),
 	# "shot_pitch"/"shot_db" (its shot sound), "cycle" ("pump"/"bolt": worked between shots, 0.15.6).
 	"smg": {"name": "Wasp", "desc": "Small and fast. Sprays at close range, weak far away.", "short": "Wasp", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 3, "h": 2, "stack": 1, "value": 2000,
-		"model": "smg", "ammo": "smg_ammo", "auto": true, "damage": 20, "head": 2.0, "rpm": 900, "mag": 30, "reload": 1.4,
+		"model": "smg", "ammo": "smg_ammo", "auto": true, "damage": 20, "head": 2.0, "rpm": 900, "mag": 25, "mag_ext": 35, "reload": 1.4,
 		"spread": 0.25, "hip_spread": 0.45, "move_spread": 0.45, "ads_time": 0.2, "ads_fov": 62.0,
 		"bloom": 0.1, "max_bloom": 1.3, "recoil": 0.7, "recoil_yaw": 0.4, "noise": 28.0, "falloff": [25.0, 50.0, 0.7], "flash": 0.8, "shot_db": -6.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
@@ -72,7 +72,7 @@ const ITEMS := {
 		"w": 1, "h": 1, "stack": 1, "value": 700, "slots": ["barrel"], "fits": ["shotgun"], "mult": {"pellet_spread": 0.85}},
 	"foregrip": {"name": "Foregrip", "short": "Grip", "desc": "Something to hold on to. Less kick.", "kind": "attachment", "rarity": "uncommon",
 		"w": 1, "h": 1, "stack": 1, "value": 800, "slots": ["grip"], "mult": {"recoil": 0.8, "recoil_yaw": 0.8}},
-	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds half as many rounds again. Slower to reload.", "kind": "attachment", "rarity": "rare",
+	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds more rounds. Slower to reload.", "kind": "attachment", "rarity": "rare",
 		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["mag"], "mult": {"mag": 1.5, "reload": 1.1}},
 	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Takes the edge off a hit.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 1500, "reduction": 0.2},
 	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 4000, "reduction": 0.4},
@@ -271,6 +271,9 @@ static func weapon_stats(stack: ItemStack) -> Dictionary:
 				stats[stat] = float(stats[stat]) * float(part["mult"][stat])
 		for stat: String in part.get("set", {}):
 			stats[stat] = part["set"][stat]
+	# (a gun's own "mag_ext" is its extended mag size, instead of half as many again: the Wasp's 35, owner 0.15.27)
+	if stats.has("mag_ext") and stack.attachments.values().has("ext_mag"):
+		stats["mag"] = stats["mag_ext"]
 	stats["mag"] = roundi(float(stats["mag"]))
 	return stats
 

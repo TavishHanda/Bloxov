@@ -1222,6 +1222,10 @@ func _section_attachments() -> void:
 	ak.attachments = {"mag": "ext_mag", "grip": "foregrip"}
 	var stats := ItemDB.weapon_stats(ak)
 	_check(int(stats["mag"]) == 45 and is_equal_approx(float(stats["recoil"]), 1.2 * 0.8), "extended mag + foregrip: 45 rounds, 20%% less kick")
+	var wasp := ItemStack.new("smg")
+	var wasp_plain := int(ItemDB.weapon_stats(wasp)["mag"])
+	wasp.attachments = {"mag": "ext_mag"}
+	_check(wasp_plain == 25 and int(ItemDB.weapon_stats(wasp)["mag"]) == 35, "the Wasp holds 25, 35 with an extended mag (0.15.27)")
 	_check(ItemDB.attachment_slot_for("pistol", "red_dot") == "sight" and ItemDB.attachment_slot_for("ak", "red_dot") == "scope"
 		and ItemDB.attachment_slot_for("pistol", "foregrip") == "" and ItemDB.attachment_slot_for("ak", "scope_8x") == "",
 		"attachments only go on the guns they fit")
