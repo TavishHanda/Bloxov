@@ -50,6 +50,8 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
       right at the start of a raid.
       **Loot spots will move and change in number (owner, 2026-10-12):** afterwards re-run `tools/economy_sim.gd`
       and re-tune prices (0.16.1 tuned them so a good kit costs about 2-3 normal raids).
+      **Secret waterfall room (owner, 2026-10-12):** a waterfall by the creek; walk through it into a hidden room
+      with a couple of safes. Build it in this map pass (count its safes in the economy re-run).
    2. **Look:** the final **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
       real models and ground textures, within what the web build supports), plus the loading screen.
    3. **Sound (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
