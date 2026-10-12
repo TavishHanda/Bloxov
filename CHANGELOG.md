@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.14 (New gun shots stay close to the original; owner: "I really like the sounds we have")
+- The Wasp, Mauler and Lancer shots from 0.15.12 are remade as small tweaks of the original shot instead of new
+  sounds: Wasp a bit shorter and lighter, Mauler a bit deeper and fuller, Lancer a bit sharper with a short echo.
+  The Hound, Stinger and every other sound are unchanged.
+
 ## 0.15.13 (PLAY in the pause menu resumes on the first click; owner: it felt unresponsive)
 - Clicking PLAY (or anywhere outside the menu) right after pressing Escape often did nothing: browsers refuse to
   give the mouse back for about a second after Escape let it go, and the game only asked once. Now it keeps asking

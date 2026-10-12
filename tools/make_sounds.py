@@ -159,7 +159,8 @@ def throw():
     return click(0.03, 3000, 150, 0.0) + [s * 0.6 for s in swing()]
 
 
-# --- Guns update (0.15.12): the new guns' own sounds. The Hound and Stinger keep shot.wav. ---
+# --- Guns update (0.15.12): the new guns' own sounds. The Hound and Stinger keep shot.wav. Owner (0.15.13): he
+# likes the game's sounds, so the new shots are small tweaks of shot(), not new sounds. ---
 
 def gunshot(seconds, crack_smooth, crack_decay, thump_from, thump_to, thump_drop, thump_decay, thump_gain, drive,
             tail=0.0, tail_decay=4.0):
@@ -179,21 +180,21 @@ def gunshot(seconds, crack_smooth, crack_decay, thump_from, thump_to, thump_drop
 
 
 def shot_wasp():
-    """SMG: short, snappy and light, little low end, so a fast burst stays a rattle."""
+    """SMG: the original shot (owner likes it), a little shorter and lighter so a fast burst stays clear."""
     random.seed(400)
-    return gunshot(0.2, 0.15, 38, 220, 90, 40, 30, 0.6, 2.4)
+    return gunshot(0.3, 0.3, 27, 115, 58, 27, 17, 1.0, 2.0)
 
 
 def shot_mauler():
-    """Shotgun: a wide, heavy boom with a lot of low end and a short rumble after it."""
+    """Shotgun: the original shot, a little deeper and fuller with a short rumble after it."""
     random.seed(401)
-    return gunshot(0.65, 0.55, 12, 90, 38, 12, 7, 1.6, 2.2, tail=1.4, tail_decay=5.0)
+    return gunshot(0.48, 0.42, 17, 105, 44, 21, 11, 1.4, 2.1, tail=0.35, tail_decay=7.0)
 
 
 def shot_lancer():
-    """Sniper: a hard, sharp crack and a long rolling echo across the map."""
+    """Sniper: the original shot, a little sharper with a short echo after it."""
     random.seed(402)
-    return gunshot(1.1, 0.05, 30, 160, 45, 20, 10, 1.1, 2.8, tail=1.6, tail_decay=2.6)
+    return gunshot(0.6, 0.28, 21, 115, 48, 23, 12, 1.25, 2.15, tail=0.45, tail_decay=4.5)
 
 
 def pump():
