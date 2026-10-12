@@ -2207,7 +2207,9 @@ func _section_pvp() -> void:
 	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": []}
 	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
 	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void: got["hits"].append([amount, headshot]))
-	c1.shot_confirmed.connect(func(headshot: bool) -> void: got["confirmed"].append(headshot))
+	c1.shot_confirmed.connect(func(headshot: bool, amount: int, _pos: Vector3) -> void:
+		got["confirmed"].append(headshot)
+		got["shown"] = got.get("shown", []) + [amount])
 	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
 	c1.go_online("localhost:19082", "Shooter")
 	c2.go_online("localhost:19082", "Target")
@@ -2236,6 +2238,7 @@ func _section_pvp() -> void:
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return not got["hits"].is_empty())
 	_check(got["hits"] == [[28, false]] and got["confirmed"] == [false], "an AK body shot hits the other player for 28 (%s)" % str(got["hits"]))
+	_check(got.get("shown", []) == [28], "online, the shooter gets the damage for their damage number (%s)" % str(got.get("shown", [])))
 	await _until(func() -> bool: return not got["heard"].is_empty())
 	_check(got["heard"] == ["ak"], "the other player hears the shot (0.15.28: %s)" % str(got["heard"]))
 	await _frames(4)
@@ -2329,7 +2332,7 @@ func _section_online_ai() -> void:
 	var got := {"hits": [], "bashes": 0, "confirmed": 0, "kills": 0, "events": []}
 	c1.got_hit.connect(func(amount: int, _from: Vector3, _h: bool) -> void: got["hits"].append(amount))
 	c1.bashed.connect(func(_a: int, _f: Vector3, _s: float, _b: float) -> void: got["bashes"] += 1)
-	c1.shot_confirmed.connect(func(_h: bool) -> void: got["confirmed"] += 1)
+	c1.shot_confirmed.connect(func(_h: bool, _amount: int, _pos: Vector3) -> void: got["confirmed"] += 1)
 	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
 	c1.enemy_event.connect(func(id: int, kind: String, pos: Vector3) -> void: got["events"].append([id, kind, pos]))
 	for c in [c1, c2]:

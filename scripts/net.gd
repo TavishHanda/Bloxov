@@ -30,7 +30,7 @@ signal notice(text: String)
 signal raid_started
 ## In a raid: another player's shot hit us (damage before our armor); our shot hit someone; we killed someone.
 signal got_hit(amount: int, from: Vector3, headshot: bool)
-signal shot_confirmed(headshot: bool)
+signal shot_confirmed(headshot: bool, amount: int, pos: Vector3)
 signal kill_confirmed
 ## A scav rifle-butted us; something a scav did that we should see/hear (RaidWorld.enemy_event kinds).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
@@ -524,6 +524,9 @@ func client_view_time_of(_peer: int) -> float:
 ## Applies a hit the server decided on: to a player (their game applies it, through their armor) or a scav.
 func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3) -> void:
 	var killed := false
+	# What the attacker's damage number shows (0.16.8, owner: none online): a scav's real damage taken; a player's
+	# before their armor (their own game applies it), at most 100.
+	var shown := mini(amount, 100)
 	if hit.has("peer"):
 		var victim: int = hit["peer"]
 		_last_attacker[victim] = [attacker, _now()]
@@ -531,10 +534,10 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3)
 			_hit.rpc_id(victim, amount, attacker_pos, hit["headshot"])
 	else:
 		var health: Node = hit["enemy"].health
-		health.take_damage(amount, attacker_pos, false, hit["headshot"])
+		shown = health.take_damage(amount, attacker_pos, false, hit["headshot"])
 		killed = health.is_dead
 	if _peer_open(attacker):
-		_hit_confirmed.rpc_id(attacker, hit["headshot"])
+		_hit_confirmed.rpc_id(attacker, hit["headshot"], shown, hit.get("end", attacker_pos))
 		if killed:
 			_kill_confirmed.rpc_id(attacker)
 
@@ -882,9 +885,9 @@ func _hit(amount: int, from: Vector3, headshot: bool) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _hit_confirmed(headshot: bool) -> void:
+func _hit_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:
 	if in_online_raid():
-		shot_confirmed.emit(headshot)
+		shot_confirmed.emit(headshot, amount, pos)
 
 
 @rpc("authority", "call_remote", "reliable")

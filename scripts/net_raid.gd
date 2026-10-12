@@ -266,8 +266,10 @@ func apply_hit(amount: int, from: Vector3, headshot: bool) -> void:
 		player.health.take_damage(amount, from, false, headshot)
 
 
-func _on_shot_confirmed(headshot: bool) -> void:
+func _on_shot_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:
 	var world := get_tree().current_scene
+	if GameSettings.damage_numbers and amount > 0:
+		Effects.damage_number(world, pos, amount, headshot)
 	Effects.sound(world, Gun.HEADSHOT_SOUND if headshot else Gun.HIT_SOUND, -3.0, 0.03)
 	player.gun.hit_confirmed.emit(false, headshot)
 
