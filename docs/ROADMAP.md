@@ -4,10 +4,10 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are (2026-10-10):** 0.10.x, the **Map & Spawn update**: Bloxov Battlegrounds (first called Old Bloxov) is in as a gray box
-(`docs/MAP_PLAN.md`), with player spawns and per-squad extracts (0.10.3). The code cleanup (0.11.0) is done; map follow-ups shipped as 0.11.x.
-Scavs 2.0 (0.12) closed at 0.12.39 (owner, 2026-10-10). Next: the Movement update (0.13). M1-M3 are done (multiplayer co-op + PvP is live).
-Art is paused: cover props (cars, square props) are built; buildings wait until the layout is proven in play.
+**Where we are (2026-10-12):** 0.16.14. Done: Map & Spawn (0.10), Scorched Earth (0.11), Scavs 2.0 (0.12), Movement
+(0.13), Items (0.14), Guns (0.15, mechanics only; gun models wait for the art updates) and Economy (0.16, closed at
+0.16.14; trader names and the owner's playtest of prices and quests still open). M1-M3 are done (co-op + PvP is live).
+Next: the M4 art updates (World art, Look, Sound), below.
 
 ### Up next, in order
 1. **Playtest the big map** (0.10 Map & Spawn, done through 0.10.3). Still untested live:
@@ -54,8 +54,8 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
       with a couple of safes. Build it in this map pass (count its safes in the economy re-run).
    2. **Look:** the final **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
       real models and ground textures, within what the web build supports), plus the loading screen.
-   3. **Sound (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
-      (`tools/make_sounds.py`): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
+   3. **Sound (owner, 2026-10-10):** only ADDING new sounds (owner, 2026-10-11: keep today's sounds,
+      at most small tweaks, never replace them): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
       (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come
       from, muffled through walls), scav and Raider voice lines, map ambience, UI sounds, and a final mix. Last, since footsteps by surface and ambience
       need the final ground and buildings.
