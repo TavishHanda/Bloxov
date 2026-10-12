@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.24 (AI shot from out of sight, softer sell sound; owner asked)
+- An AI shot by someone it can't see (too far, or hidden) gets out of the line of fire into cover first, then goes
+  looking for the shooter. Before, it walked straight at them in the open. It doesn't run away (owner, 0.12.32).
+- The sell sound is softer and quieter: two low notes instead of the bright coin ring.
+
 ## 0.15.23 (Bigger safes, patrols start differently; owner asked)
 - Safes are 4x4 (were 3x3), so a large backpack found in a safe fits instead of being rolled again.
 - AI start each raid facing a random way and wait a random 0-8 s before their first patrol stop, so they don't all

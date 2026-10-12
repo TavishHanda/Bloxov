@@ -73,6 +73,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			tactic = Tactic.NONE   # done: decide again next frame
 		return move
 	if sees:
+		_took_cover_unseen = false
 		_suppress_left = 0.0
 		_may_suppress = true
 		_last_seen = _target.global_position
@@ -168,14 +169,27 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 	return true
 
 
+## Took cover once after being shot from out of sight (reset when it sees its target again).
+var _took_cover_unseen := false
+
 ## Picks the plan, in order: lost you: pin you down (if a friend can flank) or go after you; too far: move up;
 ## you're reloading or healing: push; otherwise get to cover (sometimes flank in a lull), and only with no cover
 ## anywhere near, trade shots in the open. Badly hurt it never pushes or flanks, and it never runs away: it
 ## repositions to cover and keeps fighting (0.12.32, owner), patching up once the fight goes quiet.
 func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	_tactic_time = 0.0
+	var was_hit := _hit_since_decide
 	_hit_since_decide = false
 	if not sees:
+		# Just shot by someone it can't see (0.15.24, owner: AI hit from out of sight walked straight at the shooter
+		# in the open): first it gets out of the line of fire into cover, then goes looking (pursue / search).
+		if (_target != null and was_hit and not holds_position and not _took_cover_unseen
+				and global_position.distance_to(_target.global_position) > close_fight_range):
+			_took_cover_unseen = true
+			_try_take_cover()
+			if _cover_phase != Cover.NONE:
+				tactic = Tactic.COVER
+				return
 		if _suppress_left > 0.0 or _try_suppress():
 			tactic = Tactic.SUPPRESS
 		else:

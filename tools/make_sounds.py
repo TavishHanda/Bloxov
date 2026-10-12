@@ -218,11 +218,14 @@ def shell_in():
 
 
 def sell():
-    """Selling an item (0.15.18, owner): the item-move click, then a coin ring."""
+    """Selling an item (0.15.18; softer in 0.15.24, owner: "kinda annoying"): two quiet low notes, like coins
+    dropped in a pouch, no bright ring."""
     random.seed(511)
-    ring = [sum(math.sin(2 * math.pi * f * i / RATE) * g for f, g in ((2093, 1.0), (3136, 0.6), (4186, 0.3)))
-            * math.exp(-i / RATE * 9) * 0.6 for i in range(length(0.35))]
-    return click(0.05, 1100, 80) + silence(0.04) + ring
+    def note(freq, seconds):
+        return [math.sin(2 * math.pi * freq * i / RATE) * math.exp(-i / RATE * 22)
+                * min(1.0, i / (RATE * 0.004)) for i in range(length(seconds))]
+    thud = [x * 0.35 for x in noise(length(0.03), 0.6)]
+    return thud + note(660, 0.07) + note(880, 0.16)
 
 
 def main():
