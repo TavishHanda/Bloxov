@@ -217,6 +217,14 @@ def shell_in():
     return click(0.03, 1200, 110, 0.1) + click(0.05, 650, 70, 0.3)
 
 
+def sell():
+    """Selling an item (0.15.18, owner): the item-move click, then a coin ring."""
+    random.seed(511)
+    ring = [sum(math.sin(2 * math.pi * f * i / RATE) * g for f, g in ((2093, 1.0), (3136, 0.6), (4186, 0.3)))
+            * math.exp(-i / RATE * 9) * 0.6 for i in range(length(0.35))]
+    return click(0.05, 1100, 80) + silence(0.04) + ring
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     write("shot.wav", shot())
@@ -241,6 +249,7 @@ def main():
     write("pump.wav", pump())
     write("bolt.wav", bolt())
     write("shell_in.wav", shell_in())
+    write("sell.wav", sell())
 
 
 if __name__ == "__main__":

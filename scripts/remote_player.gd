@@ -76,6 +76,8 @@ static func capture(player: Player) -> Array:
 		flags |= FLAG_PRONE
 	if player.gun.weapon != null:
 		flags |= FLAG_ARMED
+	if player.is_low():
+		flags |= Hitbox.FLAG_LOW
 	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
 
 

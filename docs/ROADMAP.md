@@ -40,6 +40,9 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
       asked which comes first, 2026-10-11) and **one test building** finished under it. Models and lighting change
       each other, so lock the baseline and the test piece first, then model everything else against them.
       Then building models fitted to the proven layout, ground textures, props.
+      **Map pass in the same update (owner, 2026-10-12):** fill Bloxov Battlegrounds with a lot more stuff (debris,
+      wrecks, rubble, fences, clutter) so you can't snipe across the map or see lots of scavs at once, above all
+      right at the start of a raid.
    2. **Look:** the final **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
       real models and ground textures, within what the web build supports), plus the loading screen.
    3. **Sound (owner, 2026-10-10):** a full sound pass replacing the generated placeholders
@@ -48,6 +51,8 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
       from, muffled through walls), scav and Raider voice lines, map ambience, UI sounds, and a final mix. Last, since footsteps by surface and ambience
       need the final ground and buildings.
    After that M5 content (characters with perks, more traders, more maps) and the M6 public release.
+   - **Harder maps later (owner, 2026-10-12):** Bloxov Battlegrounds is the base map, so it should stay friendly to
+     new players. Harder maps come later (M5 more maps).
    - **Character prestige (owner, 2026-10-11):** play a character a lot and you can "prestige" it to unlock skill
      points that slightly boost that character's own traits (e.g. sprint 2% longer per point, up to 20%). Comes with
      the characters work. Keep the boosts small: the design doc's rule is "progression = access, not power", so

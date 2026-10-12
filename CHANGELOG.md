@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.18 (Playtest batch 2; owner asked)
+- Keys: the bunker key only comes off Bon now (no more in town hall or police lockers). The bank vault key: 2% on
+  Raiders, 2% in lockers (was 10% Raiders, 2% crates).
+- AI push you when you're under 40% health, like they do while you heal or reload (online too: your game tells the
+  server you're low).
+- Selling an item plays a sound (the item-move click and a coin ring).
+- The stash's SORT button asks first: tap once and it turns to SURE?, tap again to sort (back to SORT after 3 s).
+- The stamina bar is green when high, yellow in the middle, red near the end; running out still shows the red
+  recharge stripes.
+- Headshot damage numbers drop the "!": the colour tells them apart.
+- Removed the tree growing inside Cabin 3.
+- Scrap Metal stacks to 3.
+- Roadmap: the base map stays friendly (harder maps later), and the art update fills the map with debris and clutter
+  so you can't see or snipe lots of scavs from spawn.
+
 ## 0.15.17 (Attachment slots on equipped guns; owner asked)
 - An equipped gun's slot (Primary/Secondary) in the hideout and raid inventory shows its attachment slots along the
   bottom, each with a small picture of what's fitted (empty ones are named: SCP, BRL, GRP, MAG, SGT). Point at one

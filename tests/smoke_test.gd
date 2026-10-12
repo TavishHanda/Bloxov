@@ -876,9 +876,11 @@ func _section_items() -> void:
 	# Playtest fixes (0.14.14, owner): dog tags only come off bodies, the vault key from Raiders (10%) and crates (2%),
 	# medkits are 2x1 and stack to 3.
 	_check(not ItemDB.LOOT_TABLES.values().any(func(t: Dictionary) -> bool: return t.has("bank_vault_key"))
-		and ItemDB.TABLE_CHANCES["raider"]["bank_vault_key"] == 0.10 and ItemDB.TABLE_CHANCES["crate"]["bank_vault_key"] == 0.02
+		and ItemDB.TABLE_CHANCES["raider"]["bank_vault_key"] == 0.02 and ItemDB.TABLE_CHANCES["locker"]["bank_vault_key"] == 0.02
+		and not ItemDB.TABLE_CHANCES.has("crate") and ItemDB.max_stack("scrap") == 3
+		and not ItemDB.PLACE_LOOT.values().any(func(t: Dictionary) -> bool: return t.has("bunker_key"))
 		and ItemDB.item("dog_tag").get("special", false) and ItemDB.size("medkit") == Vector2i(2, 1) and ItemDB.item("medkit")["stack"] == 3,
-		"tags only off bodies, the vault key from Raiders and crates, medkits 2x1 stacking to 3")
+		"tags only off bodies, the bank key from Raiders and lockers (2%), the bunker key only off Bon, medkits 2x1 stacking to 3, scrap to 3")
 	# Sell items (0.14.8, owner's picks): valuables, found by place, and Bon carries the Exion Medal.
 	var sellables := ["fuel_can", "med_supplies", "novarra_badge", "hard_drive", "exion_medal", "gpu", "diamond_ring", "bolts", "wires", "gunpowder", "cpu"]
 	_check(sellables.all(func(id: String) -> bool: return ItemDB.kind(id) == "valuable" and ItemDB.description(id) != "")
@@ -1663,6 +1665,8 @@ func _section_hideout() -> void:
 	var sort_button := hideout.screen.find_child("SortButton", true, false) as Button
 	_check(sort_button != null and sort_button.custom_minimum_size.y >= 44, "the stash has a SORT button big enough to tap")
 	if sort_button != null:
+		sort_button.pressed.emit()
+		_check(sort_button.text == "SURE?" and Profile.stash.total_value() == stash_value, "SORT asks first (\"SURE?\")")
 		sort_button.pressed.emit()
 	var first: ItemStack = null
 	for stack in Profile.stash.stacks:
@@ -2654,8 +2658,10 @@ func _section_hud() -> void:
 	# Damage numbers (0.8.16): a marker the HUD draws in the pixel font (no blurry Label3D), gone after a moment.
 	Effects.damage_number(main, player.global_position + Vector3(0, 1, -3), 28, true)
 	var numbers := get_nodes_in_group(Effects.WORLD_LABELS).filter(func(n: Node) -> bool: return n.get_meta("label_kind", "") == "damage")
-	_check(numbers.size() == 1 and numbers[0].get_meta("label_text") == "28!" and not numbers[0] is Label3D,
-		"a damage number is a HUD-drawn marker (28!)")
+	_check(numbers.size() == 1 and numbers[0].get_meta("label_text") == "28" and numbers[0].get_meta("label_critical") and not numbers[0] is Label3D,
+		"a damage number is a HUD-drawn marker (a headshot: 28, its own colour, no \"!\")")
+	_check(HealthHUD.stamina_color(1.0) == HealthHUD.STAMINA_HIGH and HealthHUD.stamina_color(0.4) == HudStyle.HAZARD
+		and HealthHUD.stamina_color(0.1) == HudStyle.BLOOD, "the stamina bar goes green, yellow, red as it runs down")
 	await create_timer(Effects.DAMAGE_NUMBER_LIFE + 0.2).timeout
 	_check(get_nodes_in_group(Effects.WORLD_LABELS).filter(func(n: Node) -> bool: return n.get_meta("label_kind", "") == "damage").is_empty(),
 		"damage numbers disappear on their own")
@@ -3366,6 +3372,14 @@ func _section_teamwork() -> void:
 	player.heal_time_left = 0.0
 	var after := pusher.global_position.distance_to(player.global_position)
 	_check(before - after > 1.5, "while you heal or reload it pushes in (%.1f m -> %.1f m)" % [before, after])
+	# 0.15.18 (owner): under 40% health counts too, and a proxy (online) goes by the flag its player's game sends.
+	var real_health := player.health.current
+	pusher._target = player
+	player.health.current = 39
+	var low_pushes: bool = pusher._target_busy() and int(RemotePlayer.capture(player)[4]) & Hitbox.FLAG_LOW != 0
+	player.health.current = 41
+	_check(low_pushes and not pusher._target_busy(), "under 40% health the AI push you")
+	player.health.current = real_health
 	pusher.queue_free()
 	var bursts := load(SCAV_SCENE).instantiate() as Scav
 	var close := {}

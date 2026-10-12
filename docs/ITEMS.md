@@ -41,7 +41,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Canned Beans (`beans`) | Valuable | Common | 1×1 | 1 | $150 |  | Somebody's lunch. Traders pay for food out here. |
 | Wires (`wires`) | Valuable | Common | 1×1 | 1 | $180 |  | Copper wire stripped from a wall. Useful for fixing things. |
 | Water Bottle (`water`) | Valuable | Common | 1×1 | 1 | $200 |  | Clean water is rare out here. Traders pay for it. |
-| Scrap Metal (`scrap`) | Valuable | Common | 2×1 | 1 | $250 |  | Bent metal. Worth a little to the right buyer. |
+| Scrap Metal (`scrap`) | Valuable | Common | 2×1 | 3 | $250 |  | Bent metal. Worth a little to the right buyer. |
 | Duct Tape (`duct_tape`) | Valuable | Common | 1×1 | 1 | $300 |  | Fixes everything. Sells well. |
 | Ration Pack (`ration`) | Valuable | Uncommon | 1×1 | 1 | $700 |  | Novarran army meal. Tastes like cardboard, sells like gold. |
 | Old Phone (`phone`) | Valuable | Uncommon | 1×1 | 1 | $800 |  | Cracked screen, still works. Someone wants the parts. |
@@ -183,13 +183,13 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Place | Extra weights |
 |---|---|
 | Bunker | Lancer 6, Sniper Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Rifle Rounds 15 |
-| TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, Bunker Key 3, uncommon valuable 10 |
+| TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
 | BigHouse1 | Diamond Ring 3, Gold Watch 20, Cash Bundle 15, Rare Crystal 3 |
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, Golden Toilet 2, epic valuable 8 |
-| Police | Mauler 10, Shotgun Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Pistol Rounds 20, Bunker Key 2 |
+| Police | Mauler 10, Shotgun Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Pistol Rounds 20 |
 | GunStore | Wasp 10, Mauler 10, Lancer 4, SMG Rounds 20, Shotgun Shells 20, Sniper Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Stinger 15, Rifle Rounds 30, Pistol Rounds 25 |
 | Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |

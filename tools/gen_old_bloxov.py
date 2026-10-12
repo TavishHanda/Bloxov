@@ -537,7 +537,15 @@ def hay(x, z):
 trunks = []       # (x, z) of every tree, to keep spawns clear of them
 
 
+# The cabins' footprints (x0, z0, x1, z1, 1 m of slack): no tree grows in one (0.15.18, owner: a tree inside a cabin).
+CABINS = [(90, 288), (36, 304), (306, 166)]
+NO_TREES = [(x - 1, z - 1, x + 14, z + 11) for x, z in CABINS]
+
+
 def tree(x, z, rng):
+    if any(x0 < x < x1 and z0 < z < z1 for x0, z0, x1, z1 in NO_TREES):
+        rng.uniform(5.0, 7.5); rng.uniform(3.0, 4.6)   # (keep the rest of the woods where it was)
+        return
     trunks.append((x, z))
     h = rng.uniform(5.0, 7.5)
     with group():
@@ -1700,7 +1708,7 @@ def main():
         box(sx + 1.3, h, sz - 1.4, sx + 1.4, h + 1.0, sz + 1.4, "wood")
         obox(sx, h / 2 - 0.1, sz + 1.4 + run / 2, 2.2, 0.2, math.hypot(run, h), 0.0, "wood",
              pitch=math.degrees(math.atan2(h, run)))
-    for n, (x, y) in enumerate([(90, 288), (36, 304), (306, 166)], start=1):
+    for n, (x, y) in enumerate(CABINS, start=1):
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
               [("crate", 1, 0, 0, "E", 0)])
 

@@ -541,6 +541,16 @@ func take_bash(amount: int, from: Vector3, shove: float, aim_block: float) -> vo
 	gun.block_aim(aim_block)
 
 
+## Under 40% health (0.15.18, owner): the AI get aggressive and push you. A proxy goes by its player's game.
+const LOW_HEALTH := 0.4
+var _net_low := false
+
+func is_low() -> bool:
+	if proxy:
+		return _net_low
+	return health.current < health.max_health * LOW_HEALTH
+
+
 ## Proxy: moves this body to match a state from the player's game (RemotePlayer.capture), and makes the footstep
 ## noise their movement would (scavs on the server hear it).
 func apply_net_state(state: Array) -> void:
@@ -556,6 +566,7 @@ func apply_net_state(state: Array) -> void:
 	is_dead = flags & Hitbox.FLAG_DEAD != 0
 	extracted = flags & Hitbox.FLAG_EXTRACTED != 0
 	downed = flags & Hitbox.FLAG_DOWNED != 0
+	_net_low = flags & Hitbox.FLAG_LOW != 0
 	var low := is_crouching or downed
 	var capsule := body_shape.shape as CapsuleShape3D
 	capsule.height = prone_height if is_prone else (crouch_height if low else stand_height)

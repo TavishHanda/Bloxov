@@ -15,6 +15,8 @@ const FLAG_ARMED := 32
 const FLAG_DOWNED := 64
 ## Lying prone (0.13.6): the same lying-down boxes as downed (the crouch flag is set too).
 const FLAG_PRONE := 128
+## Under 40% health (0.15.18): the server's AI push a hurt player (Scav.LOW_HEALTH).
+const FLAG_LOW := 256
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
 const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)

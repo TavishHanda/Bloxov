@@ -6,6 +6,8 @@ const RAID_SCENE := "res://scenes/main.tscn"
 const BUY_MARKUP := 1.2
 ## Valuables sell for full value; everything else for this fraction.
 const GEAR_SELL_RATE := 0.6
+## Selling (0.15.18, owner): the item-move click and a coin ring.
+const SELL_SOUND := preload("res://audio/sell.wav")
 ## [item id, amount per purchase]
 const TRADER_STOCK := [
 	["ak", 1], ["pistol", 1], ["smg", 1], ["shotgun", 1], ["sniper", 1], ["rifle_ammo", 60], ["pistol_ammo", 50],
@@ -138,6 +140,7 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	Profile.money += price
 	Profile.stats["earned"] += price
 	_message("Sold %s for %s" % [ItemDB.label(stack.id, stack.count), ItemDB.money(price)])
+	Effects.sound(self, SELL_SOUND, -8.0)
 	_queue_save()
 
 

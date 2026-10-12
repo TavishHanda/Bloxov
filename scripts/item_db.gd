@@ -97,7 +97,7 @@ const ITEMS := {
 	"water": {"name": "Water Bottle", "short": "Water", "desc": "Clean water is rare out here. Traders pay for it.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 200},
 	"ration": {"name": "Ration Pack", "short": "Ration", "desc": "Novarran army meal. Tastes like cardboard, sells like gold.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 700},
 	"duct_tape": {"name": "Duct Tape", "desc": "Fixes everything. Sells well.", "short": "Tape", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 300},
-	"scrap": {"name": "Scrap Metal", "desc": "Bent metal. Worth a little to the right buyer.", "short": "Scrap", "kind": "valuable", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 250},
+	"scrap": {"name": "Scrap Metal", "desc": "Bent metal. Worth a little to the right buyer.", "short": "Scrap", "kind": "valuable", "rarity": "common", "w": 2, "h": 1, "stack": 3, "value": 250},
 	"phone": {"name": "Old Phone", "desc": "Cracked screen, still works. Someone wants the parts.", "short": "Phone", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 800},
 	"battery": {"name": "Car Battery", "desc": "Heavy and worth it.", "kind": "valuable", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 1200},
 	"gold_watch": {"name": "Gold Watch", "desc": "Somebody's pride. Now yours.", "short": "Watch", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2500},
@@ -137,10 +137,10 @@ const LOOT_TABLES := {
 }
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
-## The bank vault key: 10% on Raiders, 2% in crates (for now: later it goes in chests by place).
+## The bank vault key (0.15.18, owner): 2% on Raiders, 2% in lockers. The bunker key only ever comes off Bon.
 const TABLE_CHANCES := {
-	"raider": {"bank_vault_key": 0.10},
-	"crate": {"bank_vault_key": 0.02},
+	"raider": {"bank_vault_key": 0.02},
+	"locker": {"bank_vault_key": 0.02},
 }
 
 ## One-off finds (0.14.12, owner): a chance, each raid, that this item is in that container (by its map name).
@@ -158,13 +158,13 @@ const SPECIAL_FINDS := {
 const PLACE_BOOST := 3
 const PLACE_LOOT := {
 	"Bunker": {"sniper": 6, "sniper_ammo": 10, "scope_4x": 6, "scope_8x": 3, "suppressor": 5, "ext_mag": 5, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
-	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
+	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "uncommon": 10},
 	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
 	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5},
 	"BigHouse1": {"diamond_ring": 3, "gold_watch": 20, "cash": 15, "crystal": 3},        # jewellery
 	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "golden_toilet": 2, "epic": 8},        # antiques
-	"Police": {"shotgun": 10, "shells": 15, "red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20, "bunker_key": 2},
+	"Police": {"shotgun": 10, "shells": 15, "red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20},
 	"GunStore": {"smg": 10, "shotgun": 10, "sniper": 4, "smg_ammo": 20, "shells": 20, "sniper_ammo": 10, "red_dot": 10, "scope_4x": 6, "scope_8x": 2, "suppressor": 5, "choke": 6, "foregrip": 8, "ext_mag": 6, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},

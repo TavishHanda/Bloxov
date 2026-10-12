@@ -78,7 +78,7 @@ static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool
 	var marker := Node3D.new()
 	marker.name = "DamageNumber"
 	marker.set_meta("label_kind", "damage")
-	marker.set_meta("label_text", str(amount) + ("!" if critical else ""))
+	marker.set_meta("label_text", str(amount))   # (a headshot is told by its colour; no "!", 0.15.18 owner)
 	marker.set_meta("label_critical", critical)
 	marker.set_meta("label_born", Time.get_ticks_msec() / 1000.0)
 	marker.add_to_group(WORLD_LABELS)

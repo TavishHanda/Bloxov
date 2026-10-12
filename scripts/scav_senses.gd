@@ -167,9 +167,10 @@ func _hold_alert(pos: Vector3) -> void:
 		look_at(Vector3(pos.x, global_position.y, pos.z), Vector3.UP)
 
 
-## The target is reloading or healing (a moment to push).
+## The target is reloading, healing or under 40% health (a moment to push).
 func _target_busy() -> bool:
-	return _target != null and is_instance_valid(_target) and (_target.is_healing() or (_target.gun != null and _target.gun.is_reloading))
+	return _target != null and is_instance_valid(_target) and (_target.is_healing() or (_target.gun != null and _target.gun.is_reloading)
+		or _target.is_low())   # (0.15.18, owner: you're under 40% health, so they come at you)
 
 
 ## The closest player who can still be fought (co-op ready: never assumes a single player).

@@ -876,8 +876,19 @@ func _build_other_column() -> void:
 		sort_button.focus_mode = Control.FOCUS_NONE
 		sort_button.custom_minimum_size = Vector2(96, 44)
 		style_button(sort_button)
+		# First tap asks "SURE?" (0.15.18, owner), the second sorts; it goes back to SORT after 3 s.
 		sort_button.pressed.connect(func() -> void:
 			_cancel_drag()
+			if sort_button.text == "SORT":
+				sort_button.text = "SURE?"
+				style_button(sort_button, 20, HudStyle.BRASS)
+				get_tree().create_timer(3.0).timeout.connect(func() -> void:
+					if is_instance_valid(sort_button) and sort_button.text == "SURE?":
+						sort_button.text = "SORT"
+						style_button(sort_button))
+				return
+			sort_button.text = "SORT"
+			style_button(sort_button)
 			stash.sort())
 		header.add_child(sort_button)
 		_other_box.add_child(header)

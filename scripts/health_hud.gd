@@ -101,7 +101,7 @@ func _draw() -> void:
 		if player.is_exhausted:
 			HudStyle.draw_hazard(self, amount, _stamina_alpha, 6.0, _stripe, HudStyle.BLOOD)
 		else:
-			draw_rect(amount, Color(HudStyle.HAZARD, _stamina_alpha))
+			draw_rect(amount, Color(stamina_color(player.stamina / player.max_stamina), _stamina_alpha))
 	# Knocked-off cubes: a white flash, then they pop up, tumble and fade.
 	for chip in _chips:
 		var age: float = chip["age"]
@@ -123,3 +123,15 @@ func _cube(rect: Rect2, color: Color, bevel := 3.0, alpha := 1.0) -> void:
 	var hi := Color(color.lightened(0.4), alpha)
 	var dk := Color(color.darkened(0.45), alpha)
 	HudStyle.draw_block(self, rect, Color(color, alpha), hi, dk, minf(bevel, rect.size.y * 0.3), Color(0, 0, 0, 0))
+
+
+## Stamina bar colour (0.15.18, owner): green when full or high, yellow, then red near the end. (Run out and it
+## shows the red recharge stripes instead.)
+const STAMINA_HIGH := Color("6cc04a")
+
+static func stamina_color(fraction: float) -> Color:
+	if fraction > 0.6:
+		return STAMINA_HIGH
+	if fraction > 0.25:
+		return HudStyle.HAZARD
+	return HudStyle.BLOOD
