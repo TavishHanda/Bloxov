@@ -65,6 +65,14 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
      the characters work. Keep the boosts small: the design doc's rule is "progression = access, not power", so
      this is the one place a little power is earned, and only on that character.
    - **Crosshair customization (owner, 2026-10-11; later):** pick your own crosshair (style, size, color) in settings.
+   - **Skin boxes (owner, 2026-10-12; with skins and the premium currency near release, after the art updates,
+     since skins need the final character models):** a **free skin box** bought with earned money (basic skins) and
+     a **paid skin box** bought with gems (the premium currency). Rules (`STORE_RULES.md` section 5): odds shown
+     before every purchase on every platform; gems sold only through Apple IAP / Google Play Billing / Steam
+     Wallet; the rating gets "In-Game Purchases (Includes Random Items)"; a per-region switch turns paid boxes off
+     where paid loot boxes are banned (e.g. Belgium), with direct purchase instead. Design: the paid box's skins
+     never come from the free box; duplicate protection; some skins also sold directly for gems; skins are
+     cosmetic only; gems never buy Ming's boxes and never turn into earned money.
 - **Stash update (planned, before the store/Steam release; owner 2026-10-10: wait until closer to shipping, solo and
   online share one stash while we playtest):** solo and online get **separate stashes** (each with its own money,
   loadout and stats), picked with a SOLO / ONLINE switch in the hideout. Solo stays on the device and works
