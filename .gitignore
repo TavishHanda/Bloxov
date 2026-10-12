@@ -16,3 +16,4 @@ Thumbs.db
 *.uid
 assets/models/**/*_*.png
 tools/.cover_candidates.json
+__pycache__/
