@@ -384,13 +384,50 @@ def paint_int_warm(rng):
     return c
 
 
+def _soot_edge(rng, n, start, step):
+    """A wrapping random walk (one value per column), for soot lines that tile."""
+    walk = [0]
+    for _ in range(n - 1):
+        walk.append(walk[-1] + rng.choice((-step, 0, step)))
+    drift = walk[-1] / n
+    return [start + round(w - drift * k) for k, w in enumerate(walk)]
+
+
 def paint_int_soot(rng):
-    """Burned out: blackened plaster, worst near the ceiling."""
+    """Burned out: smoke-blackened from the ceiling down, in big soft bands (4 px columns, no speckle)."""
     c = Canvas(64, 64, "concrete")
-    c.blotch(["iron", "iron_dark"], 14, rng, area=(0, 20, 64, 64), size=(3, 7))
-    c.rect(0, 50, 64, 64, "iron_dark")
-    c.blotch(["black"], 12, rng, area=(0, 36, 64, 64), size=(3, 7))
-    c.blotch(["iron"], 6, rng, area=(0, 0, 64, 30), size=(2, 4))
+    top = _soot_edge(rng, 16, 34, 2)
+    for col, h in enumerate(top):
+        c.rect(col * 4, h, col * 4 + 4, 64, "iron")
+        c.rect(col * 4, h + 8, col * 4 + 4, 64, "iron_dark")
+        c.rect(col * 4, h + 18, col * 4 + 4, 64, "black")
+    c.rect(0, 0, 64, 2, "iron")                                       # scorched skirting
+    return c
+
+
+def paint_ceiling_soot(rng):
+    c = Canvas(64, 64, "iron_dark")
+    for y in range(64):
+        for x in range(64):
+            if x % 8 == 0 or y % 8 == 0:
+                c.put(x, y, "iron")
+    for x0, y0 in ((16, 24), (40, 48)):                               # panels burned through
+        c.rect(x0, y0, x0 + 8, y0 + 8, "black")
+    return c
+
+
+def paint_render(rng):
+    """Painted render (stucco) for shop fronts: pale, with a few big weathered patches."""
+    c = Canvas(64, 64, "bone")
+    for _ in range(5):
+        x, y = rng.randrange(0, 64, 4), rng.randrange(0, 64, 4)
+        w, h = rng.choice((8, 12, 16)), rng.choice((4, 8))
+        for yy in range(y, y + h):
+            for xx in range(x, x + w):
+                c.put(xx % 64, yy % 64, "concrete" if rng.random() < 0.85 else "bone")
+    for _ in range(4):                                                # rain streaks
+        x = rng.randrange(64)
+        c.rect(x, rng.randrange(20, 50), x + 1, 64, "concrete")
     return c
 
 
@@ -409,14 +446,26 @@ def paint_floor_wood(rng):
 
 
 def paint_floor_burnt(rng):
+    """Concrete with a few big soft burn patches (ragged-edged blobs that wrap), no speckle."""
     c = Canvas(64, 64, "concrete")
-    c.blotch(["iron", "iron_dark", "black"], 18, rng, size=(3, 7))
-    c.noise(0, 0, 64, 64, ["steel", "sand"], 0.05, rng)
+
+    def blob(cx, cy, r, col):
+        for y in range(cy - r - 2, cy + r + 3):
+            for x in range(cx - r - 2, cx + r + 3):
+                edge = r + ((x // 2 * 7 + y // 2 * 13) % 5 - 2) * 0.6
+                if (x - cx) ** 2 + (y - cy) ** 2 <= edge * edge:
+                    c.put(x % 64, y % 64, col)
+    for _ in range(4):
+        blob(rng.randrange(64), rng.randrange(64), rng.randrange(7, 13), "steel")
+    for _ in range(3):
+        cx, cy, r = rng.randrange(64), rng.randrange(64), rng.randrange(6, 10)
+        blob(cx, cy, r, "iron")
+        blob(cx, cy, r // 2, "iron_dark")
     return c
 
 
 KIT = {
-    "brick": paint_brick, "int_tile": paint_int_tile, "int_warm": paint_int_warm, "int_soot": paint_int_soot,
+    "brick": paint_brick, "render": paint_render, "ceiling_soot": paint_ceiling_soot, "int_tile": paint_int_tile, "int_warm": paint_int_warm, "int_soot": paint_int_soot,
     "floor_wood": paint_floor_wood, "floor_burnt": paint_floor_burnt,
     "yellow": paint_flat("hazard_yellow"), "blue": paint_flat("sky_blue"), "olive": paint_flat("olive"),
     "steel_light": paint_flat("steel_light"),
@@ -994,12 +1043,38 @@ def shell_box(ctx, row):
                 return (ceiling(m), uv_world())
             return (side, uv_world())
         b.box(c, s, row["yaw"], row["pitch"], style=style)
+    elif colour == "wood" and abs(row["pitch"]) > 10:
+        stairs(ctx, c, s, row["yaw"], row["pitch"])
     elif colour in SHELL_COLOURS:
         mat = SHELL_COLOURS[colour]
         b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: (mat, uv_world(2.0)))
     else:
         b.box(c, s, row["yaw"], row["pitch"],
               style=wall_style(ctx.footprint, cfg.get("ext", "ext_block"), cfg.get("inner")))
+
+
+def stairs(ctx, c, s, yaw, pitch):
+    """A gray-box ramp drawn as a flight of stairs (owner, 0.17). Players and AI still walk the smooth ramp: each
+    tread sits where the ramp passes through its middle, so feet are never more than half a step off."""
+    b = ctx.b
+    lo = v_add(c, rot((0, s[1] / 2, s[2] / 2), yaw, pitch))        # the ramp's top surface at its low (+z) end
+    hi = v_add(c, rot((0, s[1] / 2, -s[2] / 2), yaw, pitch))
+    run = math.hypot(hi[0] - lo[0], hi[2] - lo[2])
+    rise = hi[1] - lo[1]
+    n = max(2, round(rise / 0.2))
+    tread = run / n
+    along = rot((0, 0, 1), yaw, 0)                                 # risers face along the flight
+    for k in range(n):
+        t = (k + 0.5) / n
+        top = lo[1] + rise * t
+        h = rise / n + 0.12
+        p = (lo[0] + (hi[0] - lo[0]) * t, top - h / 2, lo[2] + (hi[2] - lo[2]) * t)
+        b.box(p, (s[0], h, tread), yaw=yaw,
+              style=lambda nn, m, q: ("wood", uv_world(1.0)) if nn[1] > 0.7 or abs(dot(nn, along)) > 0.7
+              else ("trim_dark", uv_world(1.0)))
+    for side in (-1, 1):                                           # stringers along both sides
+        sc = v_add(c, rot((side * (s[0] / 2 + 0.04), -0.05, 0), yaw, pitch))
+        b.box(sc, (0.08, 0.35, s[2]), yaw=yaw, pitch=pitch, style=lambda nn, m, q: ("trim_dark", uv_world(1.0)))
 
 
 def side_of(n):
@@ -1662,6 +1737,16 @@ def dress_shops(ctx):
     b, rng = ctx.b, ctx.rng
     zf = 6.65                                                       # the front (south) wall's outside face
     units = (-9.67, 0.0, 9.67)
+    # Each shop front in its own colour (a band behind the sign), dark pilasters between them, a coping round the top.
+    for x, col in zip(units, ("blue", "red", "trim_dark")):
+        b.box((x, 2.8, zf + 0.015), (9.4, 0.9, 0.03), style=no_bottom(col, 1.0))
+    b.box((14.665, 2.8, 0.0), (0.03, 0.9, 13.3), style=no_bottom("trim_dark", 1.0))
+    for x in (-14.5, SHOP_UNITS[0], SHOP_UNITS[1], 14.5):
+        b.box((x, 1.625, zf + 0.03), (0.4, 3.25, 0.06), style=no_bottom("trim_dark", 1.0))
+    for z in (-zf - 0.03, zf + 0.03):
+        b.box((0, 5.9, z), (29.4, 0.2, 0.06), style=no_bottom("trim_dark", 1.0))
+    for x in (-14.68, 14.68):
+        b.box((x, 5.9, 0), (0.06, 0.2, 13.3), style=no_bottom("trim_dark", 1.0))
     # Shop signs over the fronts, and the TV shop's on the road side too.
     for x, region in zip(units, ("sign_laundry", "sign_shoes", "sign_tv")):
         b.box((x, 2.75, zf + 0.04), (4.0, 0.7, 0.08), style=face_decal(ctx.d(region), "trim_dark", "+z"))
@@ -1734,10 +1819,10 @@ DRESSING["shops"] = dress_shops
 FOOTPRINTS["shops"] = (-14.5, -6.5, 14.5, 6.5)
 SHELLS = {
     "shops": {
-        "ext": "brick", "roof_side": "brick", "x_splits": SHOP_UNITS,
+        "ext": "render", "roof_side": "render", "x_splits": SHOP_UNITS,
         "inner": lambda m: (("int_tile", "int_warm", "int_soot") if m[1] < 3.0 else ("int_wall", "concrete", "int_soot"))[shop_unit(m[0])],
         "floor": lambda m: (("floor_tile", "floor_wood", "floor_burnt") if m[1] < 1.5 else ("floor_wood", "concrete", "floor_burnt"))[shop_unit(m[0])],
-        "ceiling": lambda m: "int_soot" if shop_unit(m[0]) == 2 else "ceiling",
+        "ceiling": lambda m: "ceiling_soot" if shop_unit(m[0]) == 2 else "ceiling",
     },
 }
 
