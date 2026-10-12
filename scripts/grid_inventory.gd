@@ -206,12 +206,12 @@ func load_data(data: Array) -> void:
 
 
 static func stack_data(stack: ItemStack) -> Array:
-	return [stack.id, stack.count, stack.x, stack.y, stack.rotated, stack.loaded, stack.durability, stack.attachments, stack.label]
+	return [stack.id, stack.count, stack.x, stack.y, stack.rotated, stack.loaded, stack.durability, stack.attachments, stack.label, stack.free]
 
 
 ## An ItemStack from stack_data(), or null if it isn't a real item.
 static func data_stack(entry: Variant) -> ItemStack:
-	if not (entry is Array and entry.size() in [6, 7, 8, 9] and entry[0] is String and ItemDB.ITEMS.has(entry[0])):
+	if not (entry is Array and entry.size() in [6, 7, 8, 9, 10] and entry[0] is String and ItemDB.ITEMS.has(entry[0])):
 		return null
 	var stack := ItemStack.new(entry[0], clampi(int(entry[1]), 1, ItemDB.max_stack(entry[0])), int(entry[2]), int(entry[3]), bool(entry[4]))
 	stack.loaded = maxi(int(entry[5]), 0)
@@ -221,4 +221,6 @@ static func data_stack(entry: Variant) -> ItemStack:
 		stack.clean_attachments(entry[7])
 	if entry.size() >= 9 and entry[8] is String and stack.id == "player_tag":
 		stack.label = (entry[8] as String).left(ItemStack.LABEL_MAX)
+	if entry.size() >= 10:
+		stack.free = bool(entry[9])
 	return stack

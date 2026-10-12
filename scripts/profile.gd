@@ -251,6 +251,8 @@ static func _write_stack(stack: ItemStack) -> Dictionary:
 		entry["att"] = stack.attachments.duplicate()
 	if stack.label != "":
 		entry["n"] = stack.label
+	if stack.free:
+		entry["free"] = true
 	return entry
 
 
@@ -262,6 +264,7 @@ static func _read_stack(entry: Dictionary) -> ItemStack:
 	stack.clean_attachments(entry.get("att"))
 	if entry.get("n") is String and stack.id == "player_tag":
 		stack.label = (entry["n"] as String).left(ItemStack.LABEL_MAX)
+	stack.free = entry.get("free") == true
 	return stack
 
 

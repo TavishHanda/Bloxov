@@ -1740,6 +1740,15 @@ func _section_hideout() -> void:
 	_check(hideout_inv.all_stacks().is_empty() and hideout.can_take_free_kit() and hideout.take_free_kit()
 		and hideout_inv.equipped("secondary") != null, "empty loadout: the free kit gives you a pistol")
 	_check(not hideout.can_take_free_kit(), "free kit is gone once you carry something")
+	# (0.16.5, owner) The kit's pistol sells for nothing; a bought or found one still sells. The mark is saved.
+	var kit_pistol := hideout_inv.equipped("secondary")
+	var money_kit := Profile.money
+	hideout.sell(Profile.stash, kit_pistol)   # (refused before it touches any grid)
+	_check(kit_pistol.free and hideout.sell_price(kit_pistol) == 0 and Profile.money == money_kit and hideout_inv.equipped("secondary") == kit_pistol,
+		"the free kit's pistol can't be sold for money")
+	_check(hideout.sell_price(ItemStack.new("pistol")) > 0, "a normal Stinger still sells")
+	var saved_kit := GridInventory.data_stack(GridInventory.stack_data(kit_pistol))
+	_check(saved_kit.free and Profile._read_stack(Profile._write_stack(kit_pistol)).free, "the free kit mark survives saving and the network")
 	# Online (0.16.3, owner: you couldn't go online with the free kit): TAKE FREE KIT puts it on you and stays online.
 	for loadout_grid in hideout_inv.grids():
 		for stack in loadout_grid.stacks.duplicate():

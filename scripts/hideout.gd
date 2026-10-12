@@ -188,6 +188,9 @@ func upgrade_stash() -> bool:
 
 
 func sell(grid: GridInventory, stack: ItemStack) -> void:
+	if stack.free and sell_price(stack) == 0:
+		_message("Traders won't pay for free kit gear")
+		return
 	var price := sell_price(stack)
 	grid.remove(stack)
 	Profile.money += price
@@ -210,6 +213,7 @@ func take_free_kit() -> bool:
 	if not can_take_free_kit():
 		return false
 	var pistol := ItemStack.new("pistol")
+	pistol.free = true
 	pistol.loaded = int(ItemDB.item("pistol")["mag"])
 	if not inventory.equip("secondary", pistol):
 		var spot := Profile.stash.find_spot("pistol")

@@ -868,6 +868,8 @@ func show_info(stack: ItemStack) -> void:
 	var rarity: String = data["rarity"]
 	var cells := ItemDB.size(stack.id)
 	_info_label.text = stack.title() + ("  x%d" % stack.count if stack.count > 1 else "")
+	if stack.free:
+		_info_label.text += "  (free kit: traders won't buy it)"
 	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
 	var parts: PackedStringArray = [rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]
 	match ItemDB.kind(stack.id):

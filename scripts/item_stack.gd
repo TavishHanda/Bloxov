@@ -17,6 +17,9 @@ var attachments := {}
 ## A PMC dog tag's owner (0.15.28, owner): the player it was taken off. Shown as "Name's Dog Tag".
 var label := ""
 const LABEL_MAX := 24
+## From the free kit (0.16.5, owner): worth nothing to traders, so the kit can't be sold for money. The same item
+## found or bought sells as normal. Only the kit's pistol is marked (a stack of rounds merges with others).
+var free := false
 
 
 func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated := false) -> void:
@@ -64,7 +67,7 @@ func condition() -> float:
 
 ## What it's worth: worn gear and part-used keys are worth less (30% when worn out). A gun's attachments count too.
 func value() -> int:
-	var total := roundi(ItemDB.value(id) * count * (0.3 + 0.7 * condition()))
+	var total := 0 if free else roundi(ItemDB.value(id) * count * (0.3 + 0.7 * condition()))
 	for slot: String in attachments:
 		total += ItemDB.value(attachments[slot])
 	return total
