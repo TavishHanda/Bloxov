@@ -2143,6 +2143,22 @@ func _section_net() -> void:
 	_check(not spectator.visible and ended == [true], "once they're out, back to the end-of-raid screen")
 	_check(not spectator.start(999), "nobody to watch: no spectating")
 	_check(hud.end_screen.summary().get("spectate", "x") == "" and Spectator.watchable_teammate() == 0, "offline there's nobody to spectate")
+	# 0.16.11 (owner): extracted online with a teammate still in, you can spectate them too.
+	var was := [Network.main.mode, Network.main.in_raid, raid.result, Network.main.states.get(78)]
+	Network.main.mode = Network.Mode.CLIENT
+	Network.main.in_raid = true
+	Network.main.states[78] = [mate.global_position, 0.0, 0.0, 0.0, 0]
+	raid.result = "extracted"
+	hud.end_screen.show_result(0)
+	_check(String(hud.end_screen.summary().get("spectate", "")).begins_with("SPECTATE"), "extracted online: SPECTATE your teammate still in the raid")
+	hud.end_screen.visible = false
+	Network.main.mode = was[0]
+	Network.main.in_raid = was[1]
+	raid.result = was[2]
+	if was[3] == null:
+		Network.main.states.erase(78)
+	else:
+		Network.main.states[78] = was[3]
 	player.camera.make_current()
 	net_raid.sync_remotes({})
 	Network.main.teammates = []

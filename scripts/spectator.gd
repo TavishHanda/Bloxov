@@ -1,6 +1,7 @@
 class_name Spectator
 extends Control
-## Dead in an online raid while a teammate is still in it (owner, 0.9.5): watch them instead of going straight back.
+## Dead (owner, 0.9.5) or extracted (0.16.11) in an online raid while a teammate is still in it: watch them instead of
+## going straight back.
 ## A camera follows them over the shoulder (pulled in so walls don't block it); at the top, a gunmetal plate says
 ## SPECTATING and their name, with a BACK TO HIDEOUT button under it. Once they're out (extracted, dead, left),
 ## `finished` brings the end-of-raid screen back.

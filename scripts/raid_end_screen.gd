@@ -4,7 +4,8 @@ extends Control
 ## Look (0.8.10, "Ammo Can"): a gunmetal plate with the result as a big ink stamp (green EXTRACTED, amber MISSING IN
 ## ACTION, red KILLED IN ACTION), how you got there, the loot, what it was worth on a brass tag ("KEPT", or "LOST" on
 ## a red one), your kills and profile stats as stenciled chips, and a gunmetal BACK TO HIDEOUT button.
-## Dead online with a teammate still in the raid (0.9.5): a SPECTATE <NAME> button too (see Spectator).
+## Out of an online raid (dead 0.9.5, extracted 0.16.11) with a teammate still in it: a SPECTATE <NAME> button too
+## (see Spectator).
 
 ## The player chose to watch a teammate (peer id).
 signal spectate_pressed(peer: int)
@@ -67,7 +68,8 @@ func show_result(kills: int) -> void:
 	for entry in [["KILLS", str(kills)], ["MONEY", ItemDB.money(Profile.money)], ["RAIDS", str(int(Profile.stats["raids"]))],
 			["EXTRACTS", str(int(Profile.stats["extracts"]))], ["DEATHS", str(int(Profile.stats["deaths"]))]]:
 		_chips.add_child(_chip(entry[0], entry[1]))
-	_spectate_peer = 0 if _extracted else Spectator.watchable_teammate()
+	# Extracted or dead, you can watch a teammate who's still in (extracted too since 0.16.11, owner asked).
+	_spectate_peer = Spectator.watchable_teammate()
 	_spectate.visible = _spectate_peer != 0
 	_spectate.text = "SPECTATE %s" % String(Network.main.names.get(_spectate_peer, "")).to_upper()
 	_stamp.queue_redraw()
