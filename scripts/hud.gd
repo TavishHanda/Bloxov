@@ -44,6 +44,10 @@ var _indicator_time := 0.0
 ## hint shows instead of the menu.
 var resume_pending := false
 var _resume_hint: Label
+## PLAY/click-to-resume keeps asking for the mouse until this time (msec, 0.15.13): a browser refuses it for about a
+## second after Escape let it go, so one quick click used to do nothing (owner: PLAY felt unresponsive).
+var _capture_until := 0
+var _capture_retry_at := 0
 ## LEAVE RAID (0.14.24, owner) under PLAY, and the "are you sure?" box that takes its place when pressed.
 var leave_button: Button
 var leave_confirm: VBoxContainer
@@ -66,6 +70,8 @@ func _ready() -> void:
 	damage_numbers_toggle.toggled.connect(GameSettings.set_damage_numbers)
 	lean_toggle.button_pressed = GameSettings.lean_toggle
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
+	# On press, not release: resumes the moment you click.
+	play_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	play_button.pressed.connect(_capture_mouse)
 	PauseMenuStyle.apply(menu)
 	_build_leave()
@@ -151,6 +157,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	if _capture_until != 0:
+		_retry_capture(captured)
 	var other_screen_open := loot_ui.visible or end_screen.visible
 	if captured or other_screen_open or player.controls_locked():
 		resume_pending = false
@@ -259,6 +267,18 @@ func confirm_leave() -> void:
 
 func _capture_mouse() -> void:
 	if not player.controls_locked():
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		_capture_until = Time.get_ticks_msec() + 2000
+		_capture_retry_at = Time.get_ticks_msec() + 150
+
+
+## Asks again (a few times a second) while a click to resume is still fresh and the browser hasn't given the mouse.
+func _retry_capture(captured: bool) -> void:
+	var now := Time.get_ticks_msec()
+	if captured or now > _capture_until or player.controls_locked() or loot_ui.visible or end_screen.visible:
+		_capture_until = 0
+	elif now >= _capture_retry_at:
+		_capture_retry_at = now + 150
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
