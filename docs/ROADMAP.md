@@ -78,6 +78,21 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
   server-side health/armor, carried-loadout tracking (guns, ammo, items in/out), movement sanity checks, server
   extract check, rate limits on every request, and logging/flagging suspicious players (simple kick/ban list).
   Detecting aimbots/wallhacks on the client isn't possible in a browser; the server checks above are the defense.
+- **Platform plugins (owner, 2026-10-12: "make sure we have this, we will need it"). All free and open source;
+  only the store fees cost money. Check each is still maintained and works with our Godot version when we start.**
+  - **Steam (Steam early access prep):** [GodotSteam](https://codeberg.org/godotsteam/godotsteam) for
+    achievements, the overlay, Steam login and linking a Steam account to the web account, and Steam Wallet
+    payments for the premium currency (Steam Microtransactions; Steam must use these), plus friends, invites,
+    cloud saves and leaderboards. Steam build only; the web build doesn't use it.
+  - **Android (mobile release):** the official [Google Play Billing plugin](https://github.com/godot-sdk-integrations/godot-google-play-billing)
+    (in-app purchases; Play requires its billing for digital items) and
+    [Google Play Games Services](https://github.com/godot-sdk-integrations/godot-play-game-services) (sign-in,
+    achievements, leaderboards, cloud saves). Both from the godot-sdk-integrations group.
+  - **iOS (mobile release):** [Godot Apple Plugins](https://github.com/migueldeicaza/GodotApplePlugins) (MIT):
+    StoreKit 2 (in-app purchases; Apple requires its IAP for digital items), Game Center (achievements,
+    leaderboards) and Sign in with Apple (required if we offer any other login on iOS, `STORE_RULES.md`).
+  - Purchases are always checked on our server with the store before the currency is given (see the premium
+    currency notes: ledger, no double credit, refunds).
 Parked 0.9 leftovers (teammate-down alert, squad line on the end screen, rejoin after disconnect) can slot in
 between updates. Lore is the owner's.
 
