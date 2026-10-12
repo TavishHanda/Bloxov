@@ -58,15 +58,16 @@ func find_spot(id: String) -> Array:
 
 ## Adds up to `count` of an item to existing stacks only (no new stacks). Returns how many didn't fit.
 ## `marks` (ItemStack.FREE/FOUND): free kit items (0.16.6) only stack with free kit items, so they can't be mixed into
-## sellable stacks; found-in-raid ones (0.16.13) only with found ones.
+## sellable stacks; found-in-raid ones (0.16.13) only with found ones while a quest wants them (0.17.2).
 func top_up(id: String, count: int, marks := 0) -> int:
 	var left := count
 	for stack in stacks:
 		if left <= 0:
 			break
-		if stack.id == id and stack.marks() == marks and stack.space_left() > 0:
+		if stack.stacks_with(id, marks) and stack.space_left() > 0:
 			var moved := mini(left, stack.space_left())
 			stack.count += moved
+			stack.merge_marks(marks)
 			left -= moved
 	if left < count:
 		changed.emit()
@@ -108,9 +109,10 @@ func sort() -> void:
 		var merged := false
 		if ItemDB.max_stack(stack.id) > 1:
 			for other in list:
-				if other.id == stack.id and other.marks() == stack.marks() and other.space_left() > 0:
+				if other.stacks_with(stack.id, stack.marks()) and other.space_left() > 0:
 					var moved := mini(other.space_left(), stack.count)
 					other.count += moved
+					other.merge_marks(stack.marks())
 					stack.count -= moved
 					if stack.count == 0:
 						merged = true

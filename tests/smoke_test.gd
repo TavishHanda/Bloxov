@@ -1879,7 +1879,13 @@ func _section_hideout() -> void:
 	Profile.stash.add("bandage", 1)
 	Profile.stash.add("bandage", 1, ItemStack.FOUND)
 	var bandage_stacks := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage")
-	_check(bandage_stacks.size() == 2, "found bandages don't stack with bought ones")
+	_check(bandage_stacks.size() == 2, "found bandages don't stack with bought ones (a quest wants found bandages)")
+	# 0.17.2 (owner): the found mark only matters for items an open quest wants; the rest stack with everything.
+	Profile.stash.add("pistol_ammo", 5)
+	Profile.stash.add("pistol_ammo", 5, ItemStack.FOUND)
+	var round_stacks := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "pistol_ammo")
+	_check(not Quests.wants("pistol_ammo") and Quests.wants("bandage") and round_stacks.size() == 1 and round_stacks[0].count == 10
+		and not round_stacks[0].found, "found and bought ammo stack together (no quest wants it)")
 	var crate := LootContainer.new()
 	crate.loot_table = "crate"
 	crate.min_items = 2
@@ -1890,6 +1896,12 @@ func _section_hideout() -> void:
 	hideout.open_trader("meds")
 	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size() + Quests.for_level("meds", 2).size() + 2,
 		"the trader tabs switch the stock shown, with the next level's quests on top")
+	var trader_panel := hideout._trader_title.get_parent().get_parent().get_parent() as Control
+	var widths := {}
+	for trader: String in Traders.LIST:
+		hideout.open_trader(trader)
+		widths[trader_panel.get_combined_minimum_size().x] = true
+	_check(widths.size() == 1, "the trader column is the same width for every trader (0.17.2: %s)" % str(widths.keys()))
 	# Stash upgrades (0.16.0): more rows for money, up to the top size.
 	Profile.stash.height = Profile.STASH_ROWS[0]
 	money = Profile.money
@@ -2322,6 +2334,10 @@ func _section_pvp() -> void:
 	var world: RaidWorld = server._worlds.values()[0] if not server._worlds.is_empty() else null
 	_check(world != null and world.get_node_or_null("Main/Level") != null and world.get_node_or_null("Main/Player") == null,
 		"each online raid gets its own copy of the map on the server (map only)")
+	# (Only the players' shots here: the raid's AI hitting the target made the hit list flaky.)
+	if world != null:
+		for connection in world.player_hit.get_connections():
+			world.player_hit.disconnect(connection["callable"])
 	await _frames(5)
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()

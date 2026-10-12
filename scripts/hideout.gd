@@ -695,13 +695,29 @@ func _build_trader() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.custom_minimum_size = Vector2(0, 340)
 	scroll.scroll_deadzone = 8
+	# (The bar always shows, so a short list doesn't make the column narrower; 0.17.2.)
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	box.add_child(scroll)
 	_trader_rows = VBoxContainer.new()
 	_trader_rows.add_theme_constant_override("separation", 6)
 	_trader_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_trader_rows)
 	_fill_trader()
+	_lock_trader_width.call_deferred(panel)
 	return panel
+
+
+## One width for every trader (0.17.2, owner: the column changed size when switching tabs): the widest one's.
+func _lock_trader_width(panel: Control) -> void:
+	var shown := _trader_tab
+	var widest := 0.0
+	for trader: String in Traders.LIST:
+		_trader_tab = trader
+		_fill_trader()
+		widest = maxf(widest, panel.get_combined_minimum_size().x)
+	panel.custom_minimum_size.x = widest
+	_trader_tab = shown
+	_fill_trader()
 
 
 ## The trader's quests for their next level (0.16.13), above the stock: name, what to do, progress, and a HAND IN
@@ -759,6 +775,7 @@ func _fill_quests(trader: String, lv: int) -> void:
 		level_button.name = "LevelUp"
 		level_button.focus_mode = Control.FOCUS_NONE
 		level_button.custom_minimum_size = Vector2(0, 48)
+		level_button.clip_text = true   # (never widens the column)
 		var missing := Traders.next_level_cost(trader, lv, int(Profile.trader_spent.get(trader, 0)))
 		level_button.text = "LEVEL UP TO %d" % (lv + 1) if missing <= 0 else "SPEND %s MORE TO LEVEL UP" % ItemDB.money(missing)
 		level_button.disabled = not Profile.can_level_up(trader)

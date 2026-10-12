@@ -57,6 +57,15 @@ static func open_quests() -> Array[String]:
 	return out
 
 
+## An open hand-in quest takes this item, so whether it was found in raid matters (0.17.2, owner: otherwise the mark
+## is ignored and it stacks with everything).
+static func wants(item_id: String) -> bool:
+	for id in open_quests():
+		if LIST[id]["kind"] == "hand_in" and _matches(LIST[id]["item"], item_id):
+			return true
+	return false
+
+
 static func progress(id: String) -> int:
 	return int(Profile.quest_progress.get(id, 0))
 

@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.2 (found-in-raid only for quest items, steady trader column; owner asked)
+- The found-in-raid mark now only matters for items an open quest wants (e.g. bandages for First Aid). Everything
+  else stacks together again, found or bought (ammo too); stacking a found stack with a bought one makes it unfound.
+  The "(found in raid)" note only shows on items a quest wants.
+- The trader column keeps one width for every trader (the widest one's) instead of resizing when you switch tabs;
+  its scroll bar always shows.
+- Smoke test: the PvP section ignores the raid's AI hitting the target (made it flaky).
+
 ## 0.17.1 (playtest fixes: LEVEL UP, quest tracker, damage after armor, ammo names; owner asked)
 - Traders get a **LEVEL UP** button: once a level's quests are done (and, for the Gunsmith and Supplier, its money
   spent with them), press it to level the trader up and unlock the new stock. Until the money is spent the button
