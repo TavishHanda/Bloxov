@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.25 (AI change from 0.15.24 reverted; owner)
+- Back to how AI reacted before 0.15.24 when shot by someone they can't see (the owner meant something else). The
+  softer sell sound stays.
+
 ## 0.15.24 (AI shot from out of sight, softer sell sound; owner asked)
 - An AI shot by someone it can't see (too far, or hidden) gets out of the line of fire into cover first, then goes
   looking for the shooter. Before, it walked straight at them in the open. It doesn't run away (owner, 0.12.32).

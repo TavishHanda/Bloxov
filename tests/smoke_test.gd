@@ -3837,20 +3837,6 @@ func _section_scav_looting() -> void:
 
 
 func _section_cover() -> void:
-	# 0.15.24 (owner): shot by someone it can't see, it gets into cover first instead of walking straight at them.
-	player.teleport_to(Vector3(-30, 0.1, -30))
-	var shot_at := _spawn(SCAV_SCENE, Vector3(-30, 0.1, -30) + Vector3(1, 0, 1).normalized() * 45.0) as Scav
-	shot_at.shot_damage = 0
-	shot_at.look_at(shot_at.global_position + Vector3(1, 0, 1) * 5)
-	await _frames(5)
-	shot_at.health.take_damage(10, player.global_position + Vector3(0, 1.5, 0))
-	var unseen_cover := false
-	for i in 90:
-		await physics_frame
-		unseen_cover = unseen_cover or shot_at.tactic == Scav.Tactic.COVER
-	_check(unseen_cover, "shot from out of sight, it takes cover before going after the shooter")
-	shot_at.queue_free()
-	await physics_frame
 	# Fighting comes first; in a break (nobody shooting at it for a bit) a scav ducks behind something nearby,
 	# holds a moment, then comes back out to fight. Next to the police station (walls x -20..-10, z -20..-10).
 	player.teleport_to(Vector3(-15, 0.1, 0))
