@@ -48,6 +48,7 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	Network.main.door_opened.connect(on_door_opened)
+	Network.main.player_fired.connect(on_player_fired)
 	Network.main.grenade_seen.connect(func(from: Vector3, vel: Vector3) -> void:
 		Grenade.spawn(get_parent(), from, vel, false))
 	player.health.died.connect(_drop_body)
@@ -279,3 +280,15 @@ func _on_kill_confirmed() -> void:
 
 func _on_connection_lost() -> void:
 	_lost = true
+
+
+## Another player fired (0.15.28): their gun's sound where they stand (a suppressor: quieter, carries less far)
+## and the tracer.
+func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, suppressed: bool) -> void:
+	if not ItemDB.ITEMS.has(weapon) or ItemDB.kind(weapon) != "weapon":
+		return
+	var stats := ItemDB.item(weapon)
+	var world := get_tree().current_scene
+	Effects.tracer(world, from, end)
+	Effects.sound_at(world, GunSounds.shot(weapon), from, float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0),
+		0.06, float(stats.get("shot_pitch", 1.0)), 3.0 if suppressed else 6.0)

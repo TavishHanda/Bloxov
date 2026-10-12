@@ -15,7 +15,7 @@ const TRADER_STOCK := [
 	["scope_4x", 1], ["suppressor", 1], ["bandage", 1],
 	["medkit", 1], ["armor_light", 1], ["helmet_basic", 1], ["grenade", 1], ["energy_drink", 1], ["backpack_small", 1], ["backpack_medium", 1],
 ]
-const FREE_KIT_HINT := "Free kit: pistol, 30 rounds and a bandage. Only when you own no weapon and can't afford one."
+const FREE_KIT_HINT := "Start a raid with a free pistol, 30 rounds and a bandage. Only when you carry nothing at all."
 
 var inventory: Inventory
 var screen: LootUI
@@ -144,16 +144,10 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	_queue_save()
 
 
-## True if you own any weapon (stash or loadout).
-func owns_weapon() -> bool:
-	for stack in Profile.stash.stacks + inventory.all_stacks():
-		if ItemDB.kind(stack.id) == "weapon":
-			return true
-	return false
-
-
+## The free kit (0.15.28, owner): only when your loadout is completely empty (nothing equipped, nothing in your
+## pockets, backpack or secure pocket). Your stash and money don't matter.
 func can_take_free_kit() -> bool:
-	return not owns_weapon() and Profile.money < buy_price("pistol", 1)
+	return inventory.all_stacks().is_empty()
 
 
 func take_free_kit() -> bool:
@@ -174,6 +168,13 @@ func take_free_kit() -> bool:
 	_message("Took the free kit. Good luck out there.")
 	_queue_save()
 	return true
+
+
+## START RAID WITH FREE KIT: the kit goes on you and the (solo) raid starts.
+func start_with_free_kit() -> void:
+	if take_free_kit():
+		Network.main.go_offline()
+		start_raid()
 
 
 func start_raid() -> void:
@@ -297,10 +298,10 @@ func _build_top_bar() -> void:
 	_message_label.modulate.a = 0.0  # (no message yet: hide the empty tape)
 	add_child(_message_label)
 	_free_kit_button = Button.new()
-	_free_kit_button.text = "Free kit"
+	_free_kit_button.text = "RAID WITH FREE KIT"
 	_free_kit_button.tooltip_text = FREE_KIT_HINT
 	_free_kit_button.focus_mode = Control.FOCUS_NONE
-	_free_kit_button.pressed.connect(take_free_kit)
+	_free_kit_button.pressed.connect(start_with_free_kit)
 	LootUI.style_button(_free_kit_button)
 	row.add_child(_free_kit_button)
 	var raid_button := Button.new()

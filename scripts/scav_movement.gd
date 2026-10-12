@@ -97,7 +97,9 @@ func _check_stuck(delta: float, desired: Vector3) -> void:
 	elif state == State.INVESTIGATE:
 		_set_state(State.SEARCH)
 	elif state == State.ENGAGE and not _can_see:
+		# (0.15.28, owner: lost you up close and got stuck on the way: it still hunts for you, not a quick look)
 		_set_state(State.SEARCH)
+		_start_hunt()
 
 
 ## Scav footsteps, so you can hear them coming.

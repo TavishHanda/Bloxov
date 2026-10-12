@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts",
@@ -1729,21 +1729,17 @@ func _section_hideout() -> void:
 	var part_bandages := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage" and st.space_left() > 0).size()
 	_check(Profile.stash.total_value() == stash_value and part_bandages <= 1 and first != null and GridInventory.SORT_ORDER.find(ItemDB.kind(first.id)) == best_kind,
 		"sorting the stash keeps everything, merges part stacks and puts guns and gear first (%s)" % (first.id if first != null else "-"))
-	_check(not hideout.can_take_free_kit(), "no free kit while you own a weapon")
-	# Lose every weapon and all your money.
-	for slot in ["primary", "secondary"]:
-		hideout_inv.unequip(slot)
+	_check(not hideout.can_take_free_kit(), "no free kit while you carry anything")
+	# (0.15.28, owner) Only with a completely empty loadout: nothing equipped, nothing in any pocket.
 	for loadout_grid in hideout_inv.grids():
 		for stack in loadout_grid.stacks.duplicate():
-			if ItemDB.kind(stack.id) == "weapon":
-				loadout_grid.remove(stack)
-	for stack in Profile.stash.stacks.duplicate():
-		if ItemDB.kind(stack.id) == "weapon":
-			Profile.stash.remove(stack)
-	Profile.money = 0
-	_check(hideout.can_take_free_kit() and hideout.take_free_kit() and hideout_inv.equipped("secondary") != null,
-		"broke and unarmed: the free kit gives you a pistol")
-	_check(not hideout.can_take_free_kit(), "free kit is gone once you have a weapon")
+			loadout_grid.remove(stack)
+	for slot in Inventory.SLOTS:
+		if hideout_inv.equipped(slot) != null:
+			hideout_inv.unequip(slot)
+	_check(hideout_inv.all_stacks().is_empty() and hideout.can_take_free_kit() and hideout.take_free_kit()
+		and hideout_inv.equipped("secondary") != null, "empty loadout: the free kit gives you a pistol")
+	_check(not hideout.can_take_free_kit(), "free kit is gone once you carry something")
 	hideout.save_now()
 	var saved_loadout: Dictionary = Profile.loadout.get("equipment", {})
 	_check(saved_loadout.has("secondary"), "hideout changes are saved to the profile")
@@ -2099,7 +2095,8 @@ func _section_pvp() -> void:
 	var c2 := _net_peer("PvpClient2")
 	server.start_server(19082)
 	server.matchmaker.queue_countdown = 0.2
-	var got := {"hits": [], "confirmed": [], "kills": 0}
+	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": []}
+	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
 	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void: got["hits"].append([amount, headshot]))
 	c1.shot_confirmed.connect(func(headshot: bool) -> void: got["confirmed"].append(headshot))
 	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
@@ -2130,6 +2127,8 @@ func _section_pvp() -> void:
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return not got["hits"].is_empty())
 	_check(got["hits"] == [[28, false]] and got["confirmed"] == [false], "an AK body shot hits the other player for 28 (%s)" % str(got["hits"]))
+	await _until(func() -> bool: return not got["heard"].is_empty())
+	_check(got["heard"] == ["ak"], "the other player hears the shot (0.15.28: %s)" % str(got["heard"]))
 	await _frames(4)
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
@@ -2247,6 +2246,11 @@ func _section_online_ai() -> void:
 
 	# Puppets: copies that only follow the server.
 	var net_raid := main.get_node("NetRaid") as NetRaid
+	var sounds_before := main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D).size()
+	net_raid.on_player_fired(5, Vector3(0, 1.5, -4), Vector3(0, 1.5, -20), "smg", true)
+	net_raid.on_player_fired(5, Vector3(0, 1.5, -4), Vector3(0, 1.5, -20), "not_a_gun", false)
+	_check(main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D).size() == sounds_before + 1,
+		"another player's shot plays where they stand (0.15.28)")
 	net_raid.sync_enemies(c1.enemies)
 	var puppet: Scav = net_raid.enemy_puppets.values()[0]
 	_check(net_raid.enemy_puppets.size() == 3 and puppet.puppet and puppet.is_in_group("enemies"), "the raid shows the 3 scavs as puppets")
@@ -2279,6 +2283,25 @@ func _section_online_ai() -> void:
 	c1.send_shot(eye, PackedVector3Array([(target.global_position + Vector3(0, 0.8, 0) - eye).normalized()]), "ak")
 	await _until(func() -> bool: return got["confirmed"] >= 1)
 	_check(got["confirmed"] == 1 and target.health.current < before, "a player's shot hits a server scav (%d -> %d)" % [before, target.health.current])
+	# (0.15.28) Shots at AI are checked where the shooter saw them, like players: a moving AI isn't missed.
+	var t_now: float = server._now()
+	var start := target.global_position
+	w1.enemy_history.clear()
+	w1.record_enemies(t_now - 0.3)
+	target.global_position = start + Vector3(3, 0, 0)
+	w1.record_enemies(t_now)
+	var eye2 := start + Vector3(0, 1.5, 6)
+	var aim := (start + Vector3(0, 0.8, 0) - eye2).normalized()
+	var seen_then := w1.trace_shot(c1_id, eye2, aim, 50.0, t_now - 0.3, t_now)
+	var seen_now := w1.trace_shot(c1_id, eye2, aim, 50.0, t_now, t_now)
+	_check(seen_then.get("enemy") == target and not seen_now.has("enemy") and target.global_position.is_equal_approx(start + Vector3(3, 0, 0)),
+		"a shot at a moving AI counts where the shooter saw it (then %s, now %s)" % [str(seen_then.keys()), str(seen_now.keys())])
+	target.global_position = start
+	w1.enemy_history.clear()
+	var allowed := 0
+	for i in 4:
+		allowed += 1 if server._spend_shot(777, 900.0) else 0
+	_check(allowed == 4 and not server._spend_shot(777, 900.0), "shots that arrive bunched up all count; an impossible rate doesn't")
 	var listener: Node = scavs1[1]
 	listener.set("state", Scav.State.IDLE)
 	w1.shot_noise(listener.global_position, listener.global_position, 25.0, listener.global_position + Vector3(5, 0, 0))
@@ -4332,3 +4355,33 @@ func _block(pos: Vector3, size: Vector3) -> StaticBody3D:
 	main.add_child(body)
 	body.global_position = pos
 	return body
+
+
+
+## (0.15.28, owner: hide for 5 s up close and AI went back to patrolling) An AI that loses you up close mid-fight
+## and can't get to where you were hunts for you (30 s), not a 5 s look round.
+func _section_lost_close() -> void:
+	var p := player.global_position
+	var scav := _spawn(SCAV_SCENE, p + Vector3(0, 0, 10)) as Scav
+	_face_player(scav)
+	scav.shot_damage = 0
+	scav._alert(p)
+	await _frames(60)
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(30, 4, 0.5)
+	wall.add_child(shape)
+	main.add_child(wall)
+	wall.global_position = p + Vector3(0, 2, 2)
+	for i in 600:
+		if scav.state != Scav.State.ENGAGE:
+			break
+		await physics_frame
+	var hunting := scav.state == Scav.State.SEARCH and scav._hunting
+	await create_timer(12.0).timeout
+	_check(hunting and scav.state == Scav.State.SEARCH, "lost you up close behind a wall: still hunting for you 12 s later (%s)" % Scav.State.keys()[scav.state])
+	scav.queue_free()
+	wall.queue_free()
+	await physics_frame
+

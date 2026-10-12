@@ -20,6 +20,9 @@ const MAX_REWIND := 0.5
 
 ## peer -> Array of [server seconds, state], oldest first.
 var history := {}
+## Scav/Raider instance id -> Array of [server seconds, position, yaw], oldest first (0.15.28): where each AI was
+## when the server sent it to the players, so shots at AI are checked where the shooter saw them (like players).
+var enemy_history := {}
 ## peer -> that player's proxy body (player.tscn in proxy mode).
 var proxies := {}
 ## The raid scene's root inside this world (scavs and loot bags are added under it).
@@ -177,6 +180,43 @@ func record(peer: int, state: Array, now: float) -> void:
 		list.pop_front()
 
 
+## Remembers where every AI is at server time `now` (called when the states go out to the players).
+func record_enemies(now: float) -> void:
+	var seen := {}
+	for enemy in RaidScope.nodes(raid, &"enemies"):
+		if not enemy.has_method("net_capture"):
+			continue
+		var id := enemy.get_instance_id()
+		seen[id] = true
+		if not enemy_history.has(id):
+			enemy_history[id] = []
+		var list: Array = enemy_history[id]
+		list.append([now, (enemy as Node3D).global_position, (enemy as Node3D).rotation.y])
+		while list.size() > 2 and list[0][0] < now - HISTORY:
+			list.pop_front()
+	for id in enemy_history.keys():
+		if not seen.has(id):
+			enemy_history.erase(id)
+
+
+## Where an AI was at server time `time`: [position, yaw], or [] if unknown.
+func enemy_at(id: int, time: float) -> Array:
+	var list: Array = enemy_history.get(id, [])
+	if list.is_empty():
+		return []
+	if time <= list[0][0]:
+		return [list[0][1], list[0][2]]
+	for i in range(list.size() - 1, -1, -1):
+		if list[i][0] <= time:
+			if i == list.size() - 1:
+				return [list[i][1], list[i][2]]
+			var a: Array = list[i]
+			var b: Array = list[i + 1]
+			var t: float = (time - a[0]) / maxf(b[0] - a[0], 0.0001)
+			return [(a[1] as Vector3).lerp(b[1], t), lerp_angle(a[2], b[2], t)]
+	return [list[-1][1], list[-1][2]]
+
+
 func forget(peer: int) -> void:
 	history.erase(peer)
 	close_containers(peer)
@@ -215,6 +255,25 @@ func shot_noise(from: Vector3, end: Vector3, noise: float, shooter_pos: Vector3)
 			enemy.notice_near_miss(shooter_pos)
 
 
+## Where the segment from..to first enters an AI's box shapes (its CollisionShape3D children) with its feet at
+## `feet`: {} for a miss, else {distance, headshot (the HeadShape)}.
+static func _box_trace(body: Node3D, feet: Transform3D, from: Vector3, to: Vector3) -> Dictionary:
+	var best := {}
+	for child in body.get_children():
+		var shape := child as CollisionShape3D
+		if shape == null or shape.disabled or not shape.shape is BoxShape3D:
+			continue
+		var xf := feet * shape.transform
+		var inv := xf.affine_inverse()
+		var size := (shape.shape as BoxShape3D).size
+		var hit: Variant = AABB(-size * 0.5, size).intersects_segment(inv * from, inv * to)
+		if hit != null:
+			var distance := from.distance_to(xf * (hit as Vector3))
+			if best.is_empty() or distance < best["distance"]:
+				best = {"distance": distance, "headshot": shape.name == &"HeadShape"}
+	return best
+
+
 ## A player's state at server time `time` (between the two recorded states around it), or [] if unknown.
 func state_at(peer: int, time: float) -> Array:
 	var list: Array = history.get(peer, [])
@@ -242,11 +301,12 @@ func state_at(peer: int, time: float) -> Array:
 ## {peer, headshot} for a player hit or {enemy, headshot} for a scav hit.
 func trace_shot(shooter: int, from: Vector3, dir: Vector3, max_range: float, view_time: float, now: float) -> Dictionary:
 	var to := from + dir.normalized() * max_range
-	# Map and scavs (layers 1 and 3; players are checked below, where they were on the shooter's screen).
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4)
+	var time := clampf(view_time, now - MAX_REWIND, now)
+	# The map (layer 1); players and AI are checked below, where they were on the shooter's screen (0.15.28: AI
+	# were checked where they are now, so shots at a moving AI missed online).
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
 	var wall := find_world_3d().direct_space_state.intersect_ray(query)
 	var limit := from.distance_to(wall.position) if not wall.is_empty() else max_range
-	var time := clampf(view_time, now - MAX_REWIND, now)
 	var best := {}
 	for peer in history:
 		if peer == shooter:
@@ -257,10 +317,20 @@ func trace_shot(shooter: int, from: Vector3, dir: Vector3, max_range: float, vie
 		var hit := Hitbox.trace(state, from, to)
 		if not hit.is_empty() and hit["distance"] < limit and (best.is_empty() or hit["distance"] < best["distance"]):
 			best = {"peer": peer, "headshot": hit["headshot"], "distance": hit["distance"]}
+	for enemy in RaidScope.nodes(raid, &"enemies"):
+		if not enemy.has_method("net_capture"):
+			continue
+		var body := enemy as Node3D
+		var then := enemy_at(enemy.get_instance_id(), time)
+		var at: Vector3 = then[0] if not then.is_empty() else body.global_position
+		var chest := at + Vector3(0, 1.0, 0)
+		if Geometry3D.get_closest_point_to_segment(chest, from, to).distance_to(chest) > 3.0:
+			continue
+		var feet := Transform3D(Basis(Vector3.UP, then[1] if not then.is_empty() else body.rotation.y)
+			.scaled(body.global_basis.get_scale()), at)
+		var hit := _box_trace(body, feet, from, to)
+		if not hit.is_empty() and hit["distance"] < limit and (best.is_empty() or hit["distance"] < best["distance"]):
+			best = {"enemy": enemy, "headshot": hit["headshot"], "distance": hit["distance"]}
 	var end: Vector3 = from + dir.normalized() * (best["distance"] if best.has("distance") else limit)
-	if best.is_empty() and not wall.is_empty() and wall.collider.has_method("net_capture"):
-		var body := wall.collider as CollisionObject3D
-		var shape := body.shape_owner_get_owner(body.shape_find_owner(wall.shape)) as Node
-		best = {"enemy": wall.collider, "headshot": shape != null and shape.name == &"HeadShape"}
 	best["end"] = end
 	return best

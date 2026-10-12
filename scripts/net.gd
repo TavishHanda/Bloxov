@@ -44,6 +44,8 @@ signal bag_removed(id: String)
 signal door_opened(id: String)
 ## Someone else in the raid threw a grenade (0.14.5): show it (the server's copy does the damage).
 signal grenade_seen(from: Vector3, vel: Vector3)
+## Someone else in the raid fired (0.15.28): play their shot and show the tracer (`end`: where it stopped).
+signal player_fired(peer: int, from: Vector3, end: Vector3, weapon: String, suppressed: bool)
 ## Downed (0.9.2): a teammate started or stopped holding F on us; they finished (we're back up).
 signal revive_changed(on: bool)
 signal revived
@@ -108,6 +110,9 @@ var _worlds := {}
 var _last_attacker := {}
 ## peer -> server time of their last shot (to ignore impossible fire rates).
 var _last_shot := {}
+## peer -> [shots they can still fire right now, server time it was worked out] (0.15.28): shots can arrive
+## bunched up over the internet, so the fire-rate check allows a short burst instead of a fixed gap.
+var _shot_budget := {}
 ## Reviver peer -> [downed peer, server time they started holding F].
 var _reviving := {}
 ## A revive only counts after holding this long (a little under REVIVE_TIME for lag; the test shortens it).
@@ -286,7 +291,7 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 	var stats := ItemDB.item(weapon)
 	if (world == null or me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED) or stats.get("kind") != "weapon"
 			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or dirs.is_empty() or dirs.size() > int(stats.get("pellets", 1))
-			or _now() - _last_shot.get(peer, -1.0) < 0.05):
+			or not _spend_shot(peer, float(stats.get("rpm", 600)))):
 		return
 	_last_shot[peer] = _now()
 	var targets := {}   # target key -> [hit, damage, headshot]
@@ -307,8 +312,23 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 		targets[key][0]["headshot"] = targets[key][0]["headshot"] or hit["headshot"]
 	var noise := float(stats.get("noise", 25.0)) * (float(ItemDB.item("suppressor")["mult"]["noise"]) if suppressed else 1.0)
 	world.shot_noise(from, noise_end, noise, me[0])
+	# Everyone else in the raid hears it (0.15.28, owner: other players' shots were silent).
+	for other in _raid_peers(matchmaker.players[peer]["raid"]):
+		if other != peer and _peer_open(other):
+			_player_fired.rpc_id(other, peer, from, noise_end, weapon, suppressed)
 	for key: Variant in targets:
 		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0])
+
+
+## Fire-rate check: a gun's rate (a bit over, for timing) refills up to a few shots of slack, one used per shot.
+func _spend_shot(peer: int, rpm: float) -> bool:
+	var budget: Array = _shot_budget.get(peer, [4.0, _now()])
+	var left: float = minf(budget[0] + (_now() - budget[1]) * rpm / 60.0 * 1.25, 4.0)
+	if left < 1.0:
+		_shot_budget[peer] = [left, _now()]
+		return false
+	_shot_budget[peer] = [left - 1.0, _now()]
+	return true
 
 
 ## Melee: the server checks what the knife reached (the same small fan of rays as on the player's screen).
@@ -622,6 +642,8 @@ func _process(delta: float) -> void:
 			if _player_states.has(peer):
 				shown[peer] = _player_states[peer]
 		var enemy_list: Array = _worlds[id].enemy_states() if _worlds.has(id) else []
+		if _worlds.has(id):
+			_worlds[id].record_enemies(_now())
 		for peer in matchmaker.raids[id]["players"]:
 			if _peer_open(peer):
 				_states.rpc_id(peer, shown, _now(), enemy_list)
@@ -877,6 +899,12 @@ func _bag(id: String, pos: Vector3, yaw: float, title: String, search: float) ->
 func _bag_gone(id: String) -> void:
 	if in_online_raid():
 		bag_removed.emit(id)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _player_fired(peer: int, from: Vector3, end: Vector3, weapon: String, suppressed: bool) -> void:
+	if in_online_raid():
+		player_fired.emit(peer, from, end, weapon, suppressed)
 
 
 @rpc("authority", "call_remote", "reliable")

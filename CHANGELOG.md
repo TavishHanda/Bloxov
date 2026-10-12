@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.28 (online raid fixes; owner's playtest)
+- Online hit registration: shots at AI are checked where the AI was on your screen (like other players already
+  were). Before, the server checked where the AI was right then, so shots at a moving AI (often the first few,
+  while it ran for cover) missed. Shots that arrive bunched up over the internet all count now (the fire-rate
+  check dropped some of a full-auto burst).
+- Online you hear other players shoot (their gun's own sound, quieter with a suppressor) and see the tracer.
+- AI that lose you up close and can't get to where you were now hunt for you (30 s) instead of a 5 s look round.
+- RAID WITH FREE KIT (replaces the Free kit button): starts a solo raid with a pistol, 30 rounds and a bandage.
+  Only shows when you carry nothing at all (nothing equipped, nothing in your pockets, backpack or secure pocket).
+
 ## 0.15.27 (Wasp mag; owner asked)
 - The Wasp holds 25 rounds (was 30), 35 with an extended mag (was 45).
 
