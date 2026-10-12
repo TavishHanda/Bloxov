@@ -110,3 +110,14 @@ Goal: prove the pipeline, not make a final crate.
 3. Export `crate.glb` to `assets/models/props/`.
 4. We drop it in and check: right size next to the player, front faces the right way, texture crisp (not blurry),
    looks good in the browser build. Then lock in the DECIDE items above.
+
+## Buildings (World art, 0.17)
+Buildings keep their gray box for everything that matters to play (walls, floors, furniture: collision, shots, AI
+paths), and a model draws them. In `tools/gen_old_bloxov.py`, wrap a building's boxes in
+`with modeled("<name>", x, z):` and give furniture a `kind` (`box(..., kind="shelf")`): re-running writes
+`art_source/buildings/<name>.json`. `art_source/scripts/make_building.py` builds the model from it (shared kit
+textures for walls, floors, ceilings and concrete in `art_source/textures/kit/`, one decal atlas per building for its
+signs) and exports `assets/models/buildings/<name>.glb`; it runs in Blender or plain Python. Re-run the generator
+afterwards: once the `.glb` exists, the map hides those boxes and places the model. Windows stay open holes (shots go
+through them), so broken glass is only shards in the frame. Anything that looks solid must have a box, so it collides.
+First one: the town gas station.

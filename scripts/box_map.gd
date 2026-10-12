@@ -5,7 +5,8 @@ extends StaticBody3D
 ## call, which matters on the web) and one collision shape when the raid loads. Thousands of separate CSG nodes
 ## would cost a draw call and a physics body each.
 ## Each box is STRIDE floats: center x, y, z, size x, y, z, yaw and pitch (degrees; ramps are pitched), colour
-## index (into `colors`), solid (1 = has collision, 0 = looks only: roads, tree tops, water).
+## index (into `colors`), solid (1 = has collision, 0 = looks only: roads, tree tops, water; 2 / 3 = the same but not
+## drawn, because a building model draws it: World art 0.17, see `tools/gen_old_bloxov.py` `modeled`).
 ## The ground (0.11.17, hills) is a height grid: `terrain_heights` has one height per grid point, row by row
 ## (`terrain_zs` rows of `terrain_xs` points; the spacing can vary), and `terrain_holes` lists the cells left open
 ## (the trench, the bunker ramp). Each cell is two triangles split from its north-west to its south-east corner (the
@@ -48,7 +49,13 @@ func _ready() -> void:
 				* Basis.from_scale(Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])),
 			Vector3(boxes[i], boxes[i + 1], boxes[i + 2]))
 		var colour := colors[int(boxes[i + 8])] if int(boxes[i + 8]) < colors.size() else Color.MAGENTA
-		var solid := boxes[i + 9] > 0.5
+		var flag := int(boxes[i + 9])
+		var solid := flag == 1 or flag == 2
+		if flag >= 2:
+			if solid:
+				for v in box_faces:
+					faces.append(xf * v)
+			continue
 		var normal_basis := xf.basis.inverse().transposed()
 		for v in range(0, box_faces.size(), 3):
 			var a := xf * box_faces[v]
