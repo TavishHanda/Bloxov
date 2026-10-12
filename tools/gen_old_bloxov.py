@@ -17,6 +17,7 @@ import json
 import math
 import os
 import random
+import re
 
 M = 350.0
 OUT = os.path.join(os.path.dirname(__file__), "..", "scenes", "maps", "old_bloxov.tscn")
@@ -187,6 +188,29 @@ NO_INDOOR_SPAWNS = {"Grocery"}   # rooms full of shelves
 indoor_spawns = []   # (name, x, z, zone): AI spawn spots inside buildings, in the middle of ground-floor rooms
 buildings = []
 markers = []     # (group node, name, x, y, z, metadata dict)
+
+
+# What each container looks like (World art 0.17, owner: containers fit their place): (place, loot kind) -> look,
+# a model in assets/models/loot (art_source/scripts/make_loot.py; names and sizes in scripts/loot_container.gd).
+# Places are matched without their number (BigHouse2 -> BigHouse). Only the model changes, not the loot.
+LOOT_LOOKS = {
+    "crate": {"GunStore": "weapon_case", "Checkpoint": "hard_case", "Bunker": "hard_case", "Railyard": "hard_case",
+              "Depot": "hard_case", "Pharmacy": "med_cabinet", "Grocery": "stock_boxes", "Shops": "stock_boxes",
+              "GasStationTown": "stock_boxes", "GasStation": "stock_boxes", "BigHouse": "dresser",
+              "OldHouse": "dresser", "RoadHouse": "dresser", "Farmhouse": "dresser", "Cabin": "duffel",
+              "Campsite": "duffel", "BellTower": "duffel", "Offices": "filing", "TownHall": "filing",
+              "Police": "filing", "Bank": "filing", "School": "filing", "TrainStation": "filing",
+              "JunkOffice": "filing", "Barn": "toolbox", "Shed": "toolbox", "Garage": "toolbox",
+              "Junkyard": "toolbox", "Church": "chest", "Crypt": "chest", "Diner": "kitchen"},
+    "locker": {"BigHouse": "wardrobe", "OldHouse": "wardrobe", "Farmhouse": "wardrobe", "Church": "wardrobe",
+               "GunStore": "gun_cabinet"},
+    "safe": {},
+}
+DEFAULT_LOOK = {"crate": "hard_case", "locker": "locker", "safe": "safe"}
+
+
+def loot_look(place, kind):
+    return LOOT_LOOKS[kind].get(re.sub(r"\d+$", "", place), DEFAULT_LOOK[kind])
 
 
 def add_loot(place, kind, x, z, y=0.0, yaw=0.0):
@@ -2267,7 +2291,7 @@ def write_scene(ter):
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
                 f"transform = {xform(x, y, z, yaw)}",
-                f'metadata/place = "{place}"'] + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
+                f'metadata/place = "{place}"', f'metadata/look = "{loot_look(place, kind)}"'] + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, z in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',

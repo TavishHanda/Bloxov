@@ -43,390 +43,485 @@ script = ExtResource("m_pixel")
 [node name="TownHall_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -74.25, 3.927, -32.4)
 metadata/place = "TownHall"
+metadata/look = "locker"
 
 [node name="TownHall_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.75, 3.927, -15.6)
 metadata/place = "TownHall"
+metadata/look = "filing"
 
 [node name="TownHall_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -43.7, 3.927, -28.5)
 metadata/place = "TownHall"
+metadata/look = "locker"
 
 [node name="TownHall_Crate4" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74.25, 0.927, -15.6)
 metadata/place = "TownHall"
+metadata/look = "filing"
 
 [node name="Bunker_Safe1" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -73, -3.573, -31)
 metadata/place = "Bunker"
+metadata/look = "safe"
 metadata/locked = true
 
 [node name="Bunker_Safe2" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -62, -3.573, -31)
 metadata/place = "Bunker"
+metadata/look = "safe"
 metadata/locked = true
 
 [node name="Bunker_Safe3" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -51, -3.573, -31)
 metadata/place = "Bunker"
+metadata/look = "safe"
 metadata/locked = true
 
 [node name="Bunker_Safe4" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -44.5, -3.573, -26)
 metadata/place = "Bunker"
+metadata/look = "safe"
 metadata/locked = true
 
 [node name="Bunker_Locker5" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -68, -3.573, -31)
 metadata/place = "Bunker"
+metadata/look = "locker"
 metadata/locked = true
 
 [node name="Bunker_Crate6" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -74, -3.573, -18.5)
 metadata/place = "Bunker"
+metadata/look = "hard_case"
 metadata/locked = true
 
 [node name="Bank_Safe1" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -31.7, 0.927, -38.5)
 metadata/place = "Bank"
+metadata/look = "safe"
 metadata/locked = true
 
 [node name="Bank_Safe2" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 0.927, -35.6)
 metadata/place = "Bank"
+metadata/look = "safe"
 metadata/locked = true
 
 [node name="Bank_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -46.3, 0.927, -47.6)
 metadata/place = "Bank"
+metadata/look = "locker"
 
 [node name="Bank_Crate4" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -31.7, 0.927, -60)
 metadata/place = "Bank"
+metadata/look = "filing"
 
 [node name="Offices_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -31.7, 3.927, -60)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="Offices_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -46.3, 3.927, -40)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="Offices_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -31.7, 3.927, -50)
 metadata/place = "Offices"
+metadata/look = "locker"
 
 [node name="Offices_Crate4" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -46.3, 3.927, -50)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="Offices_Crate5" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -110.3, 0.927, -40.25)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="Offices_Crate6" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -92.667, 0.927, -55.4)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="Offices_Crate7" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -100, 3.927, -55.4)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="Offices_Locker8" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -89.7, 3.927, -40.25)
 metadata/place = "Offices"
+metadata/look = "locker"
 
 [node name="Offices_Crate9" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -110.3, 3.927, -50.75)
 metadata/place = "Offices"
+metadata/look = "filing"
 
 [node name="GunStore_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -104.3, 1.378, -99)
 metadata/place = "GunStore"
+metadata/look = "gun_cabinet"
 
 [node name="GunStore_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -89.7, 1.378, -99)
 metadata/place = "GunStore"
+metadata/look = "gun_cabinet"
 
 [node name="GunStore_Crate3" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -93, 1.378, -104.4)
 metadata/place = "GunStore"
+metadata/look = "weapon_case"
 
 [node name="Pharmacy_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -84.3, 1.378, -97)
 metadata/place = "Pharmacy"
+metadata/look = "med_cabinet"
 
 [node name="Pharmacy_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -70.7, 1.378, -97)
 metadata/place = "Pharmacy"
+metadata/look = "med_cabinet"
 
 [node name="Grocery_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -46.3, 1.877, -110)
 metadata/place = "Grocery"
+metadata/look = "stock_boxes"
 
 [node name="Grocery_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -27, 1.877, -114.4)
 metadata/place = "Grocery"
+metadata/look = "stock_boxes"
 
 [node name="Grocery_Crate3" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37, 1.877, -95.6)
 metadata/place = "Grocery"
+metadata/look = "stock_boxes"
 
 [node name="Shops_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -159.3, 1.45, -48.5)
 metadata/place = "Shops"
+metadata/look = "stock_boxes"
 
 [node name="Shops_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -131.7, 1.45, -46.1)
 metadata/place = "Shops"
+metadata/look = "stock_boxes"
 
 [node name="Shops_Crate3" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -145.5, 4.45, -54.4)
 metadata/place = "Shops"
+metadata/look = "stock_boxes"
 
 [node name="Shops_Locker4" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -159.3, 4.45, -48.5)
 metadata/place = "Shops"
+metadata/look = "locker"
 
 [node name="GasStationTown_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -88.7, 0.927, -64)
 metadata/place = "GasStationTown"
+metadata/look = "stock_boxes"
 
 [node name="GasStationTown_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -100.25, 0.927, -68.4)
 metadata/place = "GasStationTown"
+metadata/look = "locker"
 
 [node name="Police_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.3, 0.927, -59.333)
 metadata/place = "Police"
+metadata/look = "locker"
 
 [node name="Police_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -3.333, 0.927, -62.4)
 metadata/place = "Police"
+metadata/look = "locker"
 
 [node name="Police_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -24.3, 3.927, -44.667)
 metadata/place = "Police"
+metadata/look = "locker"
 
 [node name="Police_Locker4" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.3, 3.927, -44.667)
 metadata/place = "Police"
+metadata/look = "locker"
 
 [node name="Police_Crate5" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0.927, -48.933)
 metadata/place = "Police"
+metadata/look = "filing"
 
 [node name="School_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -166.3, 3.574, -121)
 metadata/place = "School"
+metadata/look = "filing"
 
 [node name="School_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -137.7, 3.574, -105)
 metadata/place = "School"
+metadata/look = "filing"
 
 [node name="School_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -152, 6.574, -101.6)
 metadata/place = "School"
+metadata/look = "locker"
 
 [node name="School_Crate4" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -166.3, 6.574, -113)
 metadata/place = "School"
+metadata/look = "filing"
 
 [node name="BigHouse1_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -129.7, 6.447, -143.25)
 metadata/place = "BigHouse1"
+metadata/look = "wardrobe"
 
 [node name="BigHouse1_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -144.3, 9.447, -143.25)
 metadata/place = "BigHouse1"
+metadata/look = "dresser"
 
 [node name="BigHouse1_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -129.7, 9.447, -149.75)
 metadata/place = "BigHouse1"
+metadata/look = "wardrobe"
 
 [node name="BigHouse2_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -92.7, 5.102, -130)
 metadata/place = "BigHouse2"
+metadata/look = "wardrobe"
 
 [node name="BigHouse2_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -106.3, 8.102, -130)
 metadata/place = "BigHouse2"
+metadata/look = "dresser"
 
 [node name="BigHouse2_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -92.7, 8.102, -136)
 metadata/place = "BigHouse2"
+metadata/look = "wardrobe"
 
 [node name="BigHouse3_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -60.7, 3.583, -134)
 metadata/place = "BigHouse3"
+metadata/look = "wardrobe"
 
 [node name="BigHouse3_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -74.3, 6.583, -134)
 metadata/place = "BigHouse3"
+metadata/look = "dresser"
 
 [node name="BigHouse3_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -60.7, 6.583, -140)
 metadata/place = "BigHouse3"
+metadata/look = "wardrobe"
 
 [node name="BigHouse1_Safe4" parent="Loot" instance=ExtResource("5_safe")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -134, 9.447, -152.2)
 metadata/place = "BigHouse1"
+metadata/look = "safe"
 
 [node name="RoadHouse1_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 50.3, 0.019, -137.5)
 metadata/place = "RoadHouse1"
+metadata/look = "dresser"
 
 [node name="RoadHouse2_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 54.3, 0.385, -113.5)
 metadata/place = "RoadHouse2"
+metadata/look = "dresser"
 
 [node name="Church_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -12.5, 1.877, -146.4)
 metadata/place = "Church"
+metadata/look = "chest"
 
 [node name="Church_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -3.5, 1.877, -146.4)
 metadata/place = "Church"
+metadata/look = "wardrobe"
 
 [node name="BellTower_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -26.3, 7.877, -142)
 metadata/place = "BellTower"
+metadata/look = "duffel"
 
 [node name="Crypt_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 24.3, 1.877, -128)
 metadata/place = "Crypt"
+metadata/look = "chest"
 
 [node name="Barn_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 104.3, 0.597, -140)
 metadata/place = "Barn"
+metadata/look = "toolbox"
 
 [node name="Barn_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 81.7, 0.597, -138)
 metadata/place = "Barn"
+metadata/look = "toolbox"
 
 [node name="Farmhouse_Locker1" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 150.3, 0.597, -146)
 metadata/place = "Farmhouse"
+metadata/look = "wardrobe"
 
 [node name="Farmhouse_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 135.7, 3.597, -140)
 metadata/place = "Farmhouse"
+metadata/look = "dresser"
 
 [node name="Shed_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 73.7, 0.597, -124)
 metadata/place = "Shed"
+metadata/look = "toolbox"
 
 [node name="TrainStation_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 25.7, 0, 22)
 metadata/place = "TrainStation"
+metadata/look = "filing"
 
 [node name="TrainStation_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 62.3, 0, 22)
 metadata/place = "TrainStation"
+metadata/look = "filing"
 
 [node name="TrainStation_Locker3" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 46.4, 0, 15.6)
 metadata/place = "TrainStation"
+metadata/look = "locker"
 
 [node name="Depot_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 96, 0, 57.6)
 metadata/place = "Depot"
+metadata/look = "hard_case"
 
 [node name="Depot_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108, 0, 74.4)
 metadata/place = "Depot"
+metadata/look = "hard_case"
 
 [node name="Railyard_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -25, 0, 37.3)
 metadata/place = "Railyard"
+metadata/look = "hard_case"
 
 [node name="OldHouse1_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 21.7, -0.197, 96.5)
 metadata/place = "OldHouse1"
+metadata/look = "dresser"
 
 [node name="OldHouse1_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 32.3, 2.803, 91.5)
 metadata/place = "OldHouse1"
+metadata/look = "wardrobe"
 
 [node name="OldHouse3_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 141.7, 1.341, 72.9)
 metadata/place = "OldHouse3"
+metadata/look = "dresser"
 
 [node name="OldHouse3_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 152.3, 4.341, 65.5)
 metadata/place = "OldHouse3"
+metadata/look = "wardrobe"
 
 [node name="OldHouse6_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -10.3, 0.615, 110.9)
 metadata/place = "OldHouse6"
+metadata/look = "dresser"
 
 [node name="OldHouse7_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -26.3, 1.752, 144.5)
 metadata/place = "OldHouse7"
+metadata/look = "dresser"
 
 [node name="OldHouse7_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -15.7, 4.752, 139.5)
 metadata/place = "OldHouse7"
+metadata/look = "wardrobe"
 
 [node name="OldHouse8_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 39.7, 3.831, 148.5)
 metadata/place = "OldHouse8"
+metadata/look = "dresser"
 
 [node name="GasStation_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 123.7, -0.747, 152)
 metadata/place = "GasStation"
+metadata/look = "stock_boxes"
 
 [node name="GasStation_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 150.3, -0.747, 152)
 metadata/place = "GasStation"
+metadata/look = "locker"
 
 [node name="Diner_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 116.3, -0.747, 151)
 metadata/place = "Diner"
+metadata/look = "kitchen"
 
 [node name="Garage_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 170.3, -0.747, 154)
 metadata/place = "Garage"
+metadata/look = "toolbox"
 
 [node name="JunkOffice_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 130.5, -0.482, 90.1)
 metadata/place = "JunkOffice"
+metadata/look = "filing"
 
 [node name="Junkyard_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 153, -0.482, 99)
 metadata/place = "Junkyard"
+metadata/look = "toolbox"
 
 [node name="Junkyard_Crate2" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 137, -0.482, 107)
 metadata/place = "Junkyard"
+metadata/look = "toolbox"
 
 [node name="Junkyard_Crate3" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 168, -0.482, 107)
 metadata/place = "Junkyard"
+metadata/look = "toolbox"
 
 [node name="Checkpoint_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0.486, 0, 0.874, 0, 1, 0, -0.874, 0, 0.486, 94.605, 0.778, 102.23)
 metadata/place = "Checkpoint"
+metadata/look = "hard_case"
 
 [node name="Checkpoint_Locker2" parent="Loot" instance=ExtResource("4_locker")]
 transform = Transform3D(-0.486, 0, -0.874, 0, 1, 0, 0.874, 0, -0.486, 80.181, 0.778, 119.956)
 metadata/place = "Checkpoint"
+metadata/look = "locker"
 
 [node name="Campsite_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -108.5, -0.538, 87.5)
 metadata/place = "Campsite"
+metadata/look = "duffel"
 
 [node name="Cabin1_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -72.7, 5.951, 118)
 metadata/place = "Cabin1"
+metadata/look = "duffel"
 
 [node name="Cabin2_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -126.7, 0.699, 134)
 metadata/place = "Cabin2"
+metadata/look = "duffel"
 
 [node name="Cabin3_Crate1" parent="Loot" instance=ExtResource("3_crate")]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 143.3, 7.735, -4)
 metadata/place = "Cabin3"
+metadata/look = "duffel"
 
 [node name="Extracts" type="Node3D" parent="."]
 

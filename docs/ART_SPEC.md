@@ -121,3 +121,10 @@ signs) and exports `assets/models/buildings/<name>.glb`; it runs in Blender or p
 afterwards: once the `.glb` exists, the map hides those boxes and places the model. Windows stay open holes (shots go
 through them), so broken glass is only shards in the frame. Anything that looks solid must have a box, so it collides.
 First one: the town gas station.
+
+### Loot containers (World art, 0.17)
+Each map container has a `look` that fits its place (owner: lockers in the school, safes where they make sense, the rest
+remodelled): `LOOT_LOOKS` in `tools/gen_old_bloxov.py` picks it from (place, loot kind), `scripts/loot_container.gd`
+`LOOKS` gives its name and collision box, and `python3 art_source/scripts/make_loot.py` builds the models
+(`assets/models/loot/<look>.glb`, front facing -z, decals in `art_source/textures/loot/decals.png`). The loot inside
+still comes from the crate / locker / safe table, so the economy doesn't change.

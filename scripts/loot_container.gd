@@ -21,6 +21,18 @@ extends StaticBody3D
 const GEAR_SLOTS: Array[String] = ["primary", "secondary", "armor", "helmet", "backpack"]
 ## A player killed by another player (0.15.28, owner): their body has one more slot, the PMC dog tag's.
 const TAG_SLOT := "tag"
+## Container looks (World art 0.17, owner: containers should fit their place). The map gives a container a `look`
+## (metadata): its name, its size (the collision box; it stands on the floor, front facing -z) and its model,
+## assets/models/loot/<look>.glb (art_source/scripts/make_loot.py). What's inside still comes from `loot_table`.
+const LOOKS := {
+	"safe": ["Safe", Vector3(0.8, 0.9, 0.7)], "locker": ["Locker", Vector3(0.75, 2.0, 0.5)],
+	"wardrobe": ["Wardrobe", Vector3(1.0, 2.0, 0.55)], "gun_cabinet": ["Gun Cabinet", Vector3(0.9, 1.9, 0.45)],
+	"filing": ["Filing Cabinet", Vector3(0.5, 1.3, 0.6)], "med_cabinet": ["Medicine Cabinet", Vector3(0.8, 1.6, 0.4)],
+	"toolbox": ["Tool Chest", Vector3(0.8, 1.2, 0.5)], "dresser": ["Dresser", Vector3(1.0, 0.9, 0.5)],
+	"kitchen": ["Kitchen Cabinet", Vector3(1.0, 0.95, 0.6)], "chest": ["Old Chest", Vector3(0.9, 0.6, 0.55)],
+	"hard_case": ["Hard Case", Vector3(1.0, 0.6, 0.6)], "weapon_case": ["Weapon Case", Vector3(1.2, 0.5, 0.55)],
+	"duffel": ["Duffel Bag", Vector3(0.9, 0.4, 0.45)], "stock_boxes": ["Stock Boxes", Vector3(1.0, 0.8, 0.6)],
+}
 
 ## Pockets: the loose loot (for bodies, everything that isn't in a gear slot).
 var grid: GridInventory
@@ -30,6 +42,7 @@ var searched := false
 
 
 func _ready() -> void:
+	_apply_look()
 	add_to_group("loot_containers")
 	if grid == null:
 		grid = GridInventory.new(display_name, grid_size.x, grid_size.y)
@@ -55,6 +68,31 @@ func _ready() -> void:
 		for stack in grid.stacks:
 			stack.durability = ItemDB.found_durability(stack.id)
 			stack.found = true
+
+
+## Swaps in the model, name and collision box of this container's `look` (if the map gave it one).
+func _apply_look() -> void:
+	var look: String = get_meta("look", "")
+	if not LOOKS.has(look):
+		return
+	display_name = LOOKS[look][0]
+	var size: Vector3 = LOOKS[look][1]
+	var back := maxf(0.0, (0.6 - size.z) / 2.0)   # thin ones stand back against the wall
+	for child in get_children():
+		if child is CollisionShape3D:
+			var box := BoxShape3D.new()
+			box.size = size
+			child.shape = box
+			child.position = Vector3(0, size.y / 2.0, back)
+		else:
+			remove_child(child)
+			child.queue_free()
+	if DisplayServer.get_name() != "headless":
+		var model: Node3D = (load("res://assets/models/loot/%s.glb" % look) as PackedScene).instantiate()
+		model.name = "Model"
+		model.position.z = back
+		add_child(model)
+		PixelModel.make_crisp(model)
 
 
 ## Pockets and gear slots: gear first (so quick-moving gear into a body fills its slots before the pockets).
