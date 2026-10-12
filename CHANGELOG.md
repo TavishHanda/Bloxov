@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.14 (quest hand-in window; owner asked)
+- HAND IN on a quest opens a window: your found-in-raid items that count on the left, the trader's box on the right.
+  Tap an item to put it in the box (tap again to take it back), then HAND IN. You can hand in part of a quest
+  (e.g. 1 of 2) now and the rest later; progress is kept.
+
 ## 0.16.13 (trader quests; owner asked)
 - Trader levels now come from **quests** instead of spending (owner: "quests instead of buying items to unlock items").
   Each trader's tab lists the quests for their next level, with progress, rewards and a HAND IN button.

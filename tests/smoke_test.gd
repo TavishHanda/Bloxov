@@ -1840,8 +1840,20 @@ func _section_hideout() -> void:
 	var found_grip: ItemStack = Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "foregrip")[0]
 	_check(Profile._read_stack(Profile._write_stack(found_grip)).found and GridInventory.data_stack(GridInventory.stack_data(found_grip)).found,
 		"the found in raid mark survives saving and the network")
-	_check(hideout.hand_in("spare_parts") == 2 and Profile.stash.count_of("foregrip") == 0 and Profile.stash.count_of("red_dot") == 1
-		and Profile.trader_level("guns") == 2 and hideout.buy("ak", 1), "handing in 2 found attachments finishes the last quest: level 2, the Hound unlocks")
+	# The hand-in window (0.16.14, owner): your found items on one side, the trader's box on the other; part of a
+	# quest can be handed in now and the rest later.
+	hideout.open_hand_in("spare_parts")
+	var window: HandInWindow = hideout.hand_in_window
+	_check(window.visible and window._yours.get_child_count() == 2 and window._box.get_child_count() == 0,
+		"the hand-in window lists your 2 found attachments (not the bought red dot)")
+	window.offer(found_grip)
+	window.offer(found_grip)
+	_check(window.boxed() == 1 and window._box.get_child_count() == 1 and window._yours.get_child_count() == 1, "tap an item: one goes into the trader's box")
+	window.confirm()
+	_check(not window.visible and Quests.progress("spare_parts") == 1 and Profile.stash.count_of("foregrip") == 0
+		and Profile.stash.count_of("suppressor") == 1 and Profile.trader_level("guns") == 1, "hand in part of a quest (1/2)")
+	_check(hideout.hand_in("spare_parts") == 1 and Profile.stash.count_of("suppressor") == 0 and Profile.stash.count_of("red_dot") == 1
+		and Profile.trader_level("guns") == 2 and hideout.buy("ak", 1), "handing in the rest finishes the last quest: level 2, the Hound unlocks")
 	Profile.stash.add("bandage", 1)
 	Profile.stash.add("bandage", 1, ItemStack.FOUND)
 	var bandage_stacks := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage")

@@ -113,21 +113,39 @@ static func hand_in_count(id: String, grids: Array) -> int:
 
 ## Hands in what's still needed (or what you have of it) from `grids`. Returns how many were handed in.
 static func hand_in(id: String, grids: Array) -> int:
-	if not open_quests().has(id) or LIST[id]["kind"] != "hand_in":
-		return 0
-	var need := int(LIST[id]["count"]) - progress(id)
-	var given := 0
+	var picks := []
 	for grid: GridInventory in grids:
 		for stack: ItemStack in hand_in_stacks(id, [grid]):
-			if given >= need:
-				break
-			var take := mini(stack.count, need - given)
-			stack.count -= take
-			given += take
-			if stack.count <= 0:
-				grid.remove(stack)
-			else:
-				grid.changed.emit()
+			picks.append([grid, stack, stack.count])
+	return hand_in_picked(id, picks)
+
+
+## What's still needed for a hand-in quest.
+static func needed(id: String) -> int:
+	return int(LIST[id]["count"]) - progress(id)
+
+
+## Hands in the picked items ([[grid, stack, how many], ...]; 0.16.14, the hand-in window), up to what's still
+## needed. Part of a quest can be handed in and the rest later. Returns how many were handed in.
+static func hand_in_picked(id: String, picks: Array) -> int:
+	if not open_quests().has(id) or LIST[id]["kind"] != "hand_in":
+		return 0
+	var need := needed(id)
+	var given := 0
+	for pick: Array in picks:
+		var grid: GridInventory = pick[0]
+		var stack: ItemStack = pick[1]
+		if given >= need or not stack.found or not _matches(LIST[id]["item"], stack.id) or not grid.stacks.has(stack):
+			continue
+		var take := mini(mini(int(pick[2]), stack.count), need - given)
+		if take <= 0:
+			continue
+		stack.count -= take
+		given += take
+		if stack.count <= 0:
+			grid.remove(stack)
+		else:
+			grid.changed.emit()
 	if given > 0:
 		_advance(id, given)
 	return given

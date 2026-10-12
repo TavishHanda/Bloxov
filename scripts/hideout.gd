@@ -16,6 +16,8 @@ var _version_label: Label
 var _stats_label: Label
 ## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
 var _message_label: Label
+## The quest hand-in window (made the first time it's needed).
+var hand_in_window: HandInWindow
 var _message_tween: Tween
 const MESSAGE_MAX_WIDTH := 800.0
 var _online_button: Button
@@ -153,11 +155,29 @@ func _announce_quests() -> void:
 	_queue_save()
 
 
-## Hands in found-in-raid items for a quest (0.16.13), from your stash first, then what you're carrying.
+## Hands in every found-in-raid item a quest still needs (0.16.13), from your stash first, then what you're carrying.
 func hand_in(quest: String) -> int:
+	var level_before := Profile.trader_level(Quests.LIST[quest]["trader"])
+	return _after_hand_in(quest, Quests.hand_in(quest, _hand_in_grids()), level_before)
+
+
+## The hand-in window (0.16.14, owner): pick which found items go in the trader's box, then hand them in.
+func open_hand_in(quest: String) -> void:
+	if hand_in_window == null:
+		hand_in_window = HandInWindow.new()
+		add_child(hand_in_window)
+		hand_in_window.handed_in.connect(func(given: int) -> void:
+			_after_hand_in(hand_in_window.quest, given, int(hand_in_window.get_meta("level_before", 1))))
+	hand_in_window.set_meta("level_before", Profile.trader_level(Quests.LIST[quest]["trader"]))
+	hand_in_window.open(quest, _hand_in_grids())
+
+
+func _hand_in_grids() -> Array:
+	return [Profile.stash] + inventory.grids()
+
+
+func _after_hand_in(quest: String, given: int, level_before: int) -> int:
 	var trader: String = Quests.LIST[quest]["trader"]
-	var level_before := Profile.trader_level(trader)
-	var given := Quests.hand_in(quest, [Profile.stash] + inventory.grids())
 	if given == 0:
 		_message("Nothing found in raid to hand in for %s" % Quests.LIST[quest]["name"])
 		return 0
@@ -169,7 +189,7 @@ func hand_in(quest: String) -> int:
 			text += ". %s is now level %d" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)]
 		_message(text)
 	else:
-		_message("Handed in %d for %s" % [given, Quests.LIST[quest]["name"]])
+		_message("Handed in %d for %s (%d/%d)" % [given, Quests.LIST[quest]["name"], Quests.progress(quest), int(Quests.LIST[quest]["count"])])
 	_queue_save()
 	_refresh()
 	_fill_trader()
@@ -727,7 +747,7 @@ func _fill_quests(trader: String, lv: int) -> void:
 			button.custom_minimum_size = Vector2(84, 40)
 			button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			LootUI.style_button(button, 14)
-			button.pressed.connect(hand_in.bind(id))
+			button.pressed.connect(open_hand_in.bind(id))
 			row.add_child(button)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 6)
