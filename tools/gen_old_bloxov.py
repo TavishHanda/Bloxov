@@ -31,6 +31,7 @@ LANDING = 2.5      # flat floor at the top of a ramp (AI paths keep 0.75 m from 
 # Doorways are wide for a gray box so the AI's paths fit through (they keep 0.75 m from walls).
 DOOR_W, DOOR_H = 2.2, 2.4
 INNER_DOOR_W = 2.0
+SHOP_WIN_W, SHOP_WIN_LO, SHOP_WIN_HI = 4.0, 0.5, 2.4
 WIN_W, WIN_LO, WIN_HI = 1.4, 1.0, 2.2
 
 # ---------------------------------------------------------------------------------------------- colours
@@ -249,7 +250,7 @@ class Building:
     windows in every outside room wall, ramps (stairs) between storeys, optional flat roof you can walk on."""
 
     def __init__(self, name, x, y, w, d, floors=1, colour="wall", rooms=(2, 2), doors="S", roof=False,
-                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=()):
+                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=(), shopfronts=""):
         self.name, self.x0, self.z0, self.x1, self.z1 = name, x, y, x + w, y + d
         self.floors, self.colour, self.nx, self.nz = floors, colour, rooms[0], rooms[1]
         self.doors, self.roof, self.h = doors, roof, height
@@ -259,6 +260,9 @@ class Building:
         # War damage (owner, 0.11.6): blasts = blown-out holes in outside walls, (floor, side, k) with k the room
         # along that wall; caved = rooms (i, j) whose roof fell in. Rubble and scorch marks come with them.
         self.blasts, self.caved = set(blasts), set(caved)
+        # Shopfronts (World art 0.17, owner): on these sides every ground-floor room gets its own door and a big shop
+        # window instead of the usual window.
+        self.shopfronts = shopfronts
         self.holes = {}   # storey -> (x0, z0, x1, z1) slab hole above a ramp
         self.cw = (self.x1 - self.x0) / self.nx
         self.cd = (self.z1 - self.z0) / self.nz
@@ -315,6 +319,9 @@ class Building:
                     assert not self._ramp_blocks(f, side, cell), f"{self.name}: blast behind the stairs"
                     w = min(3.4, a1 - a0 - 0.6)
                     openings.append((mid, w, 0.0 if f == 0 else 0.5, self.h if f == self.floors - 1 else self.h - 0.6))
+                elif f == 0 and side in self.shopfronts:
+                    openings.append((mid - 1.6, SHOP_WIN_W, SHOP_WIN_LO, SHOP_WIN_HI))
+                    openings.append((mid + 2.2, DOOR_W, 0.0, DOOR_H))
                 elif f == 0 and side in self.doors and k == n // 2:
                     if self.big_doors:
                         openings.append((mid, min(4.0, a1 - a0 - 1.0), 0.0, 4.0))
@@ -1709,8 +1716,33 @@ def main():
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
     # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)
-    build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)]), [
-        ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
+    with modeled("shops", 29.5, 126.5):   # World art 0.17: laundromat (west), shoe store (middle), burned-out TV shop
+        build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)], shopfronts="S"), [
+            ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
+        # Laundromat: a double row of washers, dryers on the west wall, a folding table.
+        box(16.2, 0, 123.0, 20.8, 1.0, 124.4, "metal", kind="washers")
+        box(15.15, 0, 128.2, 15.95, 1.9, 131.6, "metal", kind="dryers")
+        box(16.6, 0, 128.6, 19.4, 0.9, 129.6, "wood", kind="fold_table")
+        # Shoe store: shoe walls, try-on benches, a display table, the till, a pile of shoeboxes, the window display.
+        box(25.2, 0, 120.15, 28.6, 2.2, 120.6, "wood", kind="shoe_wall")
+        box(30.4, 0, 120.15, 33.8, 2.2, 120.6, "wood", kind="shoe_wall")
+        box(26.4, 0, 122.6, 28.6, 0.45, 123.15, "wood", kind="bench")
+        box(30.4, 0, 122.6, 32.6, 0.45, 123.15, "wood", kind="bench")
+        box(28.2, 0, 128.8, 30.2, 0.8, 130.0, "wood", kind="shoe_table")
+        box(32.6, 0, 128.6, 34.1, 1.0, 130.8, "wood", kind="shoe_counter")
+        box(25.2, 0, 128.8, 26.0, 1.2, 129.8, "wood", kind="shoebox_stack")
+        box(26.0, 0, 131.9, 29.8, 0.4, 132.8, "wood", kind="window_display")
+        # TV shop (burned out, its roof fell in): shelves of dead TVs, a display table.
+        box(35.0, 0, 120.15, 38.4, 2.0, 120.7, "metal", kind="tv_shelf")
+        box(40.0, 0, 120.15, 43.5, 2.0, 120.7, "metal", kind="tv_shelf")
+        box(36.4, 0, 129.8, 39.0, 0.9, 131.0, "metal", kind="tv_table")
+        # Upstairs: a small flat over the laundromat, the shoe store's stock room.
+        box(16.0, 3.0, 129.6, 18.0, 3.5, 132.8, "wood", kind="bed")
+        box(20.0, 3.0, 125.0, 21.4, 3.75, 126.0, "wood", kind="table")
+        box(21.0, 3.0, 132.3, 24.0, 3.95, 132.85, "wood", kind="kitchenette")
+        box(25.2, 3.0, 132.25, 28.4, 5.0, 132.85, "metal", kind="rack")
+        box(30.6, 3.0, 132.25, 33.8, 5.0, 132.85, "metal", kind="rack")
+        box(31.0, 3.0, 124.0, 32.5, 3.75, 124.9, "wood", kind="desk")
     # modern gas station on the corner of Main Street and Old Road (owner, 0.10.1; the town house was here)
     with modeled("gas_station_town", 80.5, 111.0):   # World art 0.17: the first modeled building
         build(Building("GasStationTown", 74, 106, 13, 10, colour="wall_modern", rooms=(2, 1), doors="W"), [

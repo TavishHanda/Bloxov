@@ -346,7 +346,80 @@ def paint_glass(rng):
     return c
 
 
+def paint_brick(rng):
+    """Red brick (0.5 x 0.25 m bricks), soot and faded patches. (The concrete base is its own strip: see dress_shops.)"""
+    c = Canvas(64, 64, "concrete")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("red", "red", "rust", "red", "wood_mid"))
+            c.rect((k * 8 + off + 1) % 64, row * 4 + 1, (k * 8 + off + 1) % 64 + 7, row * 4 + 4, col)
+            if (k * 8 + off + 1) % 64 + 7 > 64:
+                c.rect(0, row * 4 + 1, (k * 8 + off + 8) % 64, row * 4 + 4, col)
+    c.blotch(["iron", "rust"], 6, rng, size=(2, 5))
+    return c
+
+
+def paint_int_tile(rng):
+    """Laundromat: white tiles to 1.25 m, a blue band, painted plaster above."""
+    c = Canvas(64, 64, "bone")
+    for y in range(20):
+        for x in range(64):
+            if x % 5 == 0 or y % 5 == 0:
+                c.put(x, y, "steel_light")
+    c.rect(0, 20, 64, 22, "sky_blue")
+    c.blotch(["concrete"], 8, rng, area=(0, 22, 64, 64), size=(2, 5))
+    c.blotch(["sand"], 4, rng, area=(0, 0, 64, 20), size=(2, 3))
+    return c
+
+
+def paint_int_warm(rng):
+    """Shoe store: dark wood panelling to 1 m, warm paint above."""
+    c = Canvas(64, 64, "wood_pale")
+    c.rect(0, 0, 64, 16, "wood_mid")
+    for x in range(0, 64, 8):
+        c.rect(x, 0, x + 1, 16, "wood_dark")
+    c.rect(0, 16, 64, 17, "wood_dark")
+    c.blotch(["wood_light", "sand"], 8, rng, area=(0, 17, 64, 64), size=(2, 5))
+    return c
+
+
+def paint_int_soot(rng):
+    """Burned out: blackened plaster, worst near the ceiling."""
+    c = Canvas(64, 64, "concrete")
+    c.blotch(["iron", "iron_dark"], 14, rng, area=(0, 20, 64, 64), size=(3, 7))
+    c.rect(0, 50, 64, 64, "iron_dark")
+    c.blotch(["black"], 12, rng, area=(0, 36, 64, 64), size=(3, 7))
+    c.blotch(["iron"], 6, rng, area=(0, 0, 64, 30), size=(2, 4))
+    return c
+
+
+def paint_floor_wood(rng):
+    c = Canvas(64, 64, "wood_light")
+    for y in range(64):
+        for x in range(64):
+            if y % 4 == 0:
+                c.put(x, y, "wood_mid")
+            elif (x + (y // 4) * 13) % 24 == 0:
+                c.put(x, y, "wood_mid")                            # plank ends
+            elif rng.random() < 0.06:
+                c.put(x, y, "wood_pale")
+    c.blotch(["wood"], 6, rng, size=(2, 5))
+    return c
+
+
+def paint_floor_burnt(rng):
+    c = Canvas(64, 64, "concrete")
+    c.blotch(["iron", "iron_dark", "black"], 18, rng, size=(3, 7))
+    c.noise(0, 0, 64, 64, ["steel", "sand"], 0.05, rng)
+    return c
+
+
 KIT = {
+    "brick": paint_brick, "int_tile": paint_int_tile, "int_warm": paint_int_warm, "int_soot": paint_int_soot,
+    "floor_wood": paint_floor_wood, "floor_burnt": paint_floor_burnt,
+    "yellow": paint_flat("hazard_yellow"), "blue": paint_flat("sky_blue"), "olive": paint_flat("olive"),
+    "steel_light": paint_flat("steel_light"),
     "ext_block": paint_ext_block, "int_wall": paint_int_wall, "floor_tile": paint_floor_tile,
     "ceiling": paint_ceiling, "roof": paint_roof, "concrete": paint_concrete, "metal": paint_metal,
     "wood": paint_wood, "canopy_ceiling": paint_canopy_ceiling, "post": paint_post, "cardboard": paint_cardboard,
@@ -867,42 +940,66 @@ class Ctx:
         return uv_fit(self.decals.regions[name], flip)
 
 
-def wall_style(fp):
-    """Building shell: outside faces painted block, inside faces plaster, openings' edges trim."""
+def wall_style(fp, ext="ext_block", inner=None, storey=3.0):
+    """Building shell: outside faces `ext`, inside faces `inner(face centre)` (plaster), openings' edges trim."""
     x0, z0, x1, z1 = fp
 
     def style(n, mid, corners):
         if abs(n[1]) > 0.7:
             if n[1] < 0 and mid[1] < 0.01:
                 return None                                   # bottom on the floor
-            if n[1] > 0 and mid[1] > 2.99:
-                return None                                   # hidden under the roof slab's top
+            if n[1] > 0 and mid[1] > storey - 0.01 and abs(mid[1] / storey - round(mid[1] / storey)) < 0.01:
+                return None                                   # hidden under a slab
             return ("trim", uv_world(1.0))
         dist = min(mid[0] - x0, x1 - mid[0], mid[2] - z0, z1 - mid[2])
         if dist < -0.05:
-            return ("ext_block", uv_world())
+            return (ext, uv_world())
         if dist > 0.05:
-            return ("int_wall", uv_world())
+            return (inner(mid) if inner else "int_wall", uv_world())
         return ("trim", uv_world(1.0))
     return style
+
+
+# Plain materials for gray-box colours that aren't walls (ramps, rails, scorch marks).
+SHELL_COLOURS = {"wood": "wood", "metal": "metal", "scorch": "black", "concrete": "concrete"}
 
 
 def shell_box(ctx, row):
     c, s = row["pos"], row["size"]
     colour = row["colour"]
     b = ctx.b
+    cfg = SHELLS.get(BUILDING_NAME[0], {})
     if colour == "slab":
-        b.box(c, s, style=lambda n, m, k: ("floor_tile", uv_world()) if n[1] > 0.7 else None)
+        floor = cfg.get("floor", lambda m: "floor_tile")
+        ceiling = cfg.get("ceiling", lambda m: "ceiling")
+        b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: None if abs(n[1]) > 0.7 else ("trim", uv_world(1.0)))
+        # Top and bottom cut where the rooms change (a different floor in each shop).
+        x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+        z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+        cuts = [x0] + [x for x in cfg.get("x_splits", ()) if x0 < x < x1] + [x1]
+        for a, e in zip(cuts, cuts[1:]):
+            mid = ((a + e) / 2, c[1], (z0 + z1) / 2)
+            yt, yb = c[1] + s[1] / 2, c[1] - s[1] / 2
+            b.poly([(a, yt, z0), (e, yt, z0), (e, yt, z1), (a, yt, z1)], (0, 1, 0), floor(mid), uv_world())
+            if c[1] > 0.5:
+                b.poly([(a, yb, z0), (e, yb, z0), (e, yb, z1), (a, yb, z1)], (0, -1, 0), ceiling(mid), uv_world())
     elif colour == "roof":
+        side = cfg.get("roof_side", "red")
+        ceiling = cfg.get("ceiling", lambda m: "ceiling")
+
         def style(n, m, k):
             if n[1] > 0.7:
                 return ("roof", uv_world())
             if n[1] < -0.7:
-                return ("ceiling", uv_world())
-            return ("red", uv_world())
-        b.box(c, s, style=style)
+                return (ceiling(m), uv_world())
+            return (side, uv_world())
+        b.box(c, s, row["yaw"], row["pitch"], style=style)
+    elif colour in SHELL_COLOURS:
+        mat = SHELL_COLOURS[colour]
+        b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: (mat, uv_world(2.0)))
     else:
-        b.box(c, s, row["yaw"], row["pitch"], style=wall_style(ctx.footprint))
+        b.box(c, s, row["yaw"], row["pitch"],
+              style=wall_style(ctx.footprint, cfg.get("ext", "ext_block"), cfg.get("inner")))
 
 
 def side_of(n):
@@ -1220,6 +1317,429 @@ def dress_gas_station(ctx):
 
 DRESSING = {"gas_station_town": dress_gas_station}
 FOOTPRINTS = {"gas_station_town": (-6.5, -5.0, 6.5, 5.0)}   # the shop's walls (x0, z0, x1, z1): outside vs inside faces
+
+
+# ------------------------------------------------------------------------------------------------ shops (0.17)
+# The Shops block on the car park (map 15-44 x 120-133, model origin map (29.5, 126.5)): a laundromat (west), a shoe
+# store (middle) and a TV shop that burned out (east, its roof fell in); a flat and a stock room upstairs.
+SHOP_UNITS = (-4.83, 4.83)          # local x of the walls between the shops
+
+
+def shop_unit(x):
+    return 0 if x < SHOP_UNITS[0] else (1 if x < SHOP_UNITS[1] else 2)
+
+
+def shops_decals(rng):
+    a = Atlas(512)
+
+    def sign(text, board, ink, scale, burnt=False):
+        def paint(c):     # 4 m x 0.75 m
+            c.rect(0, 0, c.w, c.h, board)
+            c.frame(0, 0, c.w, c.h, "iron_dark")
+            w = Canvas.text_width(text, scale)
+            c.text((c.w - w) // 2, (c.h - 5 * scale) // 2, text, ink, scale)
+            if burnt:
+                c.blotch(["black", "iron_dark"], 14, rng, size=(3, 7))
+                c.rect(c.w - 22, 0, c.w, 9, "clear")                     # a corner burned away
+            else:
+                c.blotch(["concrete"], 3, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 3))
+        return paint
+
+    def washer(c):        # 0.92 x 1.0 m
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, 0, 1, c.h, "steel_light")
+        c.rect(1, c.h - 6, c.w - 1, c.h - 1, "steel_light")              # control panel
+        c.rect(4, c.h - 4, 8, c.h - 3, "black")
+        c.put(c.w - 6, c.h - 4, "red")
+        cx, cy, r = c.w // 2, 12, 8
+        for y in range(c.h):
+            for x in range(c.w):
+                d = (x - cx) ** 2 + (y - cy) ** 2
+                if d <= r * r:
+                    c.put(x, y, "steel" if d > (r - 2) ** 2 else "sky_blue")
+        c.rect(cx - 3, cy + 1, cx + 1, cy + 3, "steel_light")              # glint
+
+    def dryer(c):         # 0.85 x 1.9 m: two stacked
+        c.rect(0, 0, c.w, c.h, "steel_light")
+        for k, base in enumerate((2, 32)):
+            c.frame(0, base - 2, c.w, base + 28, "steel")
+            cx, cy, r = c.w // 2, base + 11, 9
+            for y in range(base, base + 26):
+                for x in range(c.w):
+                    d = (x - cx) ** 2 + (y - cy) ** 2
+                    if d <= r * r:
+                        c.put(x, y, "iron" if d > (r - 2) ** 2 else "black")
+            c.rect(3, base + 23, c.w - 3, base + 25, "iron_dark")
+            if k == 1:
+                c.rect(5, base + 13, 12, base + 16, "bone")                # a sock in the window
+
+    def shoes(c):         # 1.7 x 2.2 m shoe wall
+        c.rect(0, 0, c.w, c.h, "wood_dark")
+        c.frame(0, 0, c.w, c.h, "wood_mid")
+        for row in range(5):
+            y = 4 + row * 13
+            c.rect(1, y - 1, c.w - 1, y, "wood_pale")                    # shelf edge
+            x = 3
+            while x < c.w - 8:
+                if rng.random() < 0.72:
+                    col = rng.choice(("red", "bone", "sky_blue", "black", "hazard_yellow", "olive", "steel_light"))
+                    sole = "bone" if col != "bone" else "iron"
+                    for dx in (0, 4):
+                        c.rect(x + dx, y, x + dx + 3, y + 3, col)
+                        c.rect(x + dx, y, x + dx + 3, y + 1, sole)
+                        c.put(x + dx + 2, y + 3, col)                     # heel/ankle
+                x += 10
+        c.blotch(["wood_mid"], 4, rng, size=(2, 3))
+
+    def shoe_counter(c):  # 2.2 x 1.0 m
+        c.rect(0, 0, c.w, c.h, "wood_mid")
+        c.rect(0, 0, c.w, 3, "wood_dark")
+        c.rect(0, c.h - 9, c.w, c.h - 3, "red")
+        w = Canvas.text_width("SHOES")
+        c.text((c.w - w) // 2, c.h - 8, "SHOES", "bone")
+        for x in range(6, c.w, 12):
+            c.rect(x, 3, x + 1, c.h - 9, "wood_dark")
+
+    def tvs(c):           # 1.7 x 2.0 m shelf of dead TVs
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        for row in range(3):
+            y = 3 + row * 20
+            c.rect(0, y - 2, c.w, y, "steel")
+            x = 2
+            while x < c.w - 12:
+                w = rng.choice((12, 14, 16))
+                if rng.random() < 0.8:
+                    c.rect(x, y, x + w, y + 12, rng.choice(("bone", "iron", "black")))
+                    c.rect(x + 1, y + 1, x + w - 3, y + 11, "black")
+                    if rng.random() < 0.5:                                # smashed screen
+                        for k in range(5):
+                            c.put(x + 2 + k * 2 % (w - 4), y + 2 + k, "steel_light")
+                x += w + 2
+        c.blotch(["black"], 10, rng, size=(3, 6))
+
+    def kitchen(c):       # 3 x 0.95 m
+        c.rect(0, 0, c.w, c.h, "wood_pale")
+        c.rect(0, 0, c.w, 3, "black")
+        for x0 in range(0, c.w, 16):
+            c.frame(x0, 3, x0 + 16, c.h - 2, "wood_light")
+            c.rect(x0 + 13, c.h - 10, x0 + 14, c.h - 5, "iron")
+        c.rect(32, 3, 56, c.h - 2, "steel")                               # oven
+        c.rect(35, 7, 53, 19, "black")
+        c.rect(34, c.h - 6, 54, c.h - 4, "iron_dark")
+        c.rect(0, c.h - 2, c.w, c.h, "steel_light")
+
+    def awning(c):        # 4.6 x 1.2 m
+        for x in range(c.w):
+            c.rect(x, 0, x + 1, c.h, "red" if (x // 8) % 2 == 0 else "bone")
+        for x in range(0, c.w, 8):
+            c.rect(x, 0, x + 4, 2, "red" if (x // 8) % 2 == 0 else "bone")
+        c.blotch(["sand", "rust"], 5, rng, size=(2, 4))
+
+    def poster(text, colour, ink):
+        def paint(c):     # 0.6 x 0.8 m
+            c.rect(0, 0, c.w, c.h, colour)
+            c.frame(0, 0, c.w, c.h, ink)
+            w = Canvas.text_width(text)
+            c.text((c.w - w) // 2, c.h // 2, text, ink)
+        return paint
+
+    def soot(c):          # 2 x 1.5 m see-through scorch over a window or door
+        cx = c.w // 2
+        for y in range(c.h):
+            for x in range(c.w):
+                spread = 8 + y * 0.45
+                if abs(x - cx) < spread * rng.uniform(0.7, 1.0) and rng.random() < 0.92:
+                    c.put(x, y, "black" if rng.random() < 0.6 else "iron_dark")
+                else:
+                    c.put(x, y, "clear")
+
+    def x1(c):            # graffiti: the Brotherhood's mark (lore: docs/LORE.md)
+        c.rect(0, 0, c.w, c.h, "clear")
+        for k in range(c.h - 4):
+            for t in range(4):
+                c.put(4 + k * 20 // (c.h - 4) + t, 2 + k, "red")
+                c.put(26 - k * 20 // (c.h - 4) + t, 2 + k, "red")
+        c.rect(36, 2, 40, c.h - 2, "red")
+        c.rect(33, c.h - 6, 37, c.h - 2, "red")
+        for _ in range(6):                                                # drips
+            x = rng.randrange(4, 40)
+            c.rect(x, 0, x + 1, rng.randrange(2, 5), "red")
+
+    def note(c):          # 0.3 x 0.2 m
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.text(1, 1, "OUT", "red")
+
+    a.add("sign_laundry", 128, 24, sign("LAUNDRY", "sky_blue", "bone", 3))
+    a.add("sign_shoes", 128, 24, sign("SHOES", "red", "bone", 3))
+    a.add("sign_tv", 128, 24, sign("TV RADIO", "black", "hazard_yellow", 3, burnt=True))
+    a.add("washer", 29, 32, washer)
+    a.add("dryer", 27, 61, dryer)
+    a.add("shoes", 54, 70, shoes)
+    a.add("shoe_counter", 70, 32, shoe_counter)
+    a.add("tvs", 54, 64, tvs)
+    a.add("kitchen", 96, 30, kitchen)
+    a.add("awning", 147, 38, awning)
+    a.add("poster_sale", 19, 26, poster("SALE", "hazard_yellow", "red"))
+    a.add("poster_new", 19, 26, poster("NEW", "red", "bone"))
+    a.add("poster_wash", 19, 26, poster("WASH", "sky_blue", "bone"))
+    a.add("soot", 64, 48, soot)
+    a.add("x1", 44, 32, x1)
+    a.add("note", 13, 7, note)
+    return a
+
+
+def _front_into(c, axis):
+    """'+z'/'-z' (or x): the side of a box against a wall that faces into the room."""
+    return ("+" if c[axis] < 0 else "-") + "xyz"[axis]
+
+
+def no_bottom(mat, tile=2.0):
+    return lambda n, m, q: None if n[1] < -0.7 else (mat, uv_world(tile))
+
+
+def prop_washers(ctx, c, s):
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if abs(n[2]) > 0.7 or n[1] < -0.7 else ("bone" if n[1] > 0.7 else "trim", uv_world()))
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    strip_quads(ctx, x0, x1, y0, y1, z0, (0, 0, -1), "washer", 0.92, "x")
+    strip_quads(ctx, x0, x1, y0, y1, z1, (0, 0, 1), "washer", 0.92, "x")
+    b.poly([(x0 + 1.2, y1 - 0.5, z0 - 0.005), (x0 + 1.5, y1 - 0.5, z0 - 0.005), (x0 + 1.5, y1 - 0.3, z0 - 0.005),
+            (x0 + 1.2, y1 - 0.3, z0 - 0.005)], (0, 0, -1), "decals", ctx.d("note"))         # OUT OF ORDER
+
+
+def prop_dryers(ctx, c, s):
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[0] > 0.7 or n[1] < -0.7 else ("steel_light", uv_world()))
+    strip_quads(ctx, c[2] - s[2] / 2, c[2] + s[2] / 2, y0, y1, c[0] + s[0] / 2, (1, 0, 0), "dryer", 0.85, "z")
+
+
+def prop_table(ctx, c, s, top="wood", legs="trim_dark"):
+    b = ctx.b
+    base_y = c[1] - s[1] / 2
+    b.box((c[0], base_y + s[1] - 0.025, c[2]), (s[0], 0.05, s[2]), style=lambda n, m, q: (top, uv_world(2.0)))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.06), base_y + (s[1] - 0.05) / 2, c[2] + sz * (s[2] / 2 - 0.06)),
+                  (0.05, s[1] - 0.05, 0.05), style=lambda n, m, q: (legs, uv_world()))
+    return base_y + s[1]
+
+
+def prop_fold_table(ctx, c, s):
+    top = prop_table(ctx, c, s, "bone")
+    for k, (dx, dz, col) in enumerate(((-0.6, 0.1, "blue"), (-0.2, -0.15, "bone"), (0.5, 0.05, "red"), (0.9, 0.1, "olive"))):
+        ctx.b.box((c[0] + dx, top + 0.05, c[2] + dz), (0.42, 0.1, 0.32), yaw=k * 17,
+                  style=no_bottom(col, 1.0))                                                        # folded clothes
+    ctx.b.box((c[0] + 0.1, top + 0.02 + 0.15, c[2] + 0.2), (0.5, 0.3, 0.36), style=no_bottom("bone", 1.0))   # basket
+
+
+def prop_shoe_wall(ctx, c, s):
+    b = ctx.b
+    front = _front_into(c, 2)
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("wood", uv_world(2.0)))
+    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
+    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "shoes", 1.7, "x")
+
+
+def shoe_pair(b, x, y, z, yaw, col):
+    for dx in (-0.06, 0.06):
+        p = rot((dx, 0, 0), yaw, 0)
+        b.box((x + p[0], y + 0.05, z + p[2]), (0.1, 0.1, 0.28), yaw=yaw, style=no_bottom(col, 1.0))
+        q = rot((dx, 0, 0.09), yaw, 0)
+        b.box((x + q[0], y + 0.13, z + q[2]), (0.09, 0.08, 0.1), yaw=yaw, style=no_bottom(col, 1.0))
+
+
+SHOE_COLOURS = ("red", "bone", "blue", "black", "yellow", "olive")
+
+
+def prop_bench(ctx, c, s):
+    b = ctx.b
+    base_y = c[1] - s[1] / 2
+    b.box((c[0], base_y + s[1] - 0.06, c[2]), (s[0], 0.12, s[2]), style=no_bottom("black", 1.0))   # cushion
+    b.box((c[0], base_y + (s[1] - 0.12) / 2, c[2]), (s[0] - 0.1, s[1] - 0.12, s[2] - 0.1), style=no_bottom("wood"))
+    shoe_pair(b, c[0] + 0.5, base_y, c[2] + 0.55, 10, ctx.rng.choice(SHOE_COLOURS))                # tried on, left out
+
+
+def prop_shoe_table(ctx, c, s):
+    top = prop_table(ctx, c, s, "wood")
+    rng = ctx.rng
+    for k in range(5):
+        shoe_pair(ctx.b, c[0] - s[0] / 2 + 0.3 + k * 0.36, top, c[2] + rng.uniform(-0.25, 0.25), rng.uniform(-30, 30),
+                  rng.choice(SHOE_COLOURS))
+
+
+def prop_shoe_counter(ctx, c, s):
+    b = ctx.b
+    b.box(c, s, style=face_decal(ctx.d("shoe_counter"), "wood", "-x"))
+    top = c[1] + s[1] / 2
+    b.box((c[0], top + 0.02, c[2]), (s[0] + 0.06, 0.04, s[2] + 0.06), style=no_bottom("bone", 1.0))
+    b.box((c[0] + 0.1, top + 0.15, c[2] - 0.5), (0.38, 0.22, 0.4), style=no_bottom("trim_dark", 1.0))   # till
+    for k in range(3):                                                                               # shoeboxes
+        b.box((c[0], top + 0.04 + 0.065 + k * 0.13, c[2] + 0.6), (0.22, 0.13, 0.35), yaw=k * 6,
+              style=no_bottom(("red", "blue", "bone")[k], 1.0))
+
+
+def prop_shoebox_stack(ctx, c, s):
+    b, rng = ctx.b, ctx.rng
+    base_y = c[1] - s[1] / 2
+    for col_x in (-0.18, 0.18):
+        for col_z in (-0.25, 0.25):
+            h = rng.randrange(6, 10)
+            for k in range(h):
+                b.box((c[0] + col_x, base_y + 0.065 + k * 0.13, c[2] + col_z), (0.34, 0.13, 0.22), yaw=rng.uniform(-4, 4),
+                      style=no_bottom(rng.choice(("red", "blue", "bone", "cardboard", "black")), 1.0))
+
+
+def prop_window_display(ctx, c, s):
+    b, rng = ctx.b, ctx.rng
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("bone", uv_world()) if n[1] > 0.7 else ("wood", uv_world(2.0))))
+    top = c[1] + s[1] / 2
+    for k in range(4):
+        x = c[0] - s[0] / 2 + 0.5 + k * 0.9
+        b.box((x, top + 0.15, c[2]), (0.3, 0.3, 0.3), style=no_bottom("trim", 1.0))                     # plinths
+        shoe_pair(b, x, top + 0.3, c[2], rng.uniform(-40, 40), rng.choice(SHOE_COLOURS))
+    b.poly([(c[0] + 1.3, top, c[2] + 0.3), (c[0] + 1.9, top, c[2] + 0.3), (c[0] + 1.9, top + 0.8, c[2] + 0.3),
+            (c[0] + 1.3, top + 0.8, c[2] + 0.3)], (0, 0, 1), "decals", ctx.d("poster_sale"))           # faces the street
+
+
+def prop_tv_shelf(ctx, c, s):
+    b = ctx.b
+    front = _front_into(c, 2)
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("trim_dark", uv_world(2.0)))
+    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
+    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "tvs", 1.7, "x")
+
+
+def prop_tv_table(ctx, c, s):
+    b = ctx.b
+    top = prop_table(ctx, c, s, "trim_dark", "black")
+    for k, (w, h) in enumerate(((0.7, 0.5), (0.9, 0.6), (0.5, 0.4))):
+        x = c[0] - s[0] / 2 + 0.5 + k * 0.8
+        b.box((x, top + h / 2, c[2]), (w, h, 0.45), yaw=(k - 1) * 8,
+              style=lambda n, m, q: None if n[1] < -0.7 else (("black", uv_world()) if n[2] > 0.7 else ("trim_dark", uv_world())))
+
+
+def prop_bed(ctx, c, s):
+    b = ctx.b
+    base_y = c[1] - s[1] / 2
+    b.box((c[0], base_y + 0.15, c[2]), (s[0], 0.3, s[2]), style=no_bottom("wood"))
+    b.box((c[0], base_y + 0.37, c[2]), (s[0] - 0.1, 0.14, s[2] - 0.1), style=no_bottom("bone", 1.0))
+    b.box((c[0], base_y + 0.46, c[2] - 0.35), (s[0] - 0.06, 0.06, s[2] * 0.7), yaw=3, style=no_bottom("blue", 1.0))
+    b.box((c[0], base_y + 0.5, c[2] + s[2] / 2 - 0.3), (0.7, 0.12, 0.35), style=no_bottom("bone", 1.0))
+    b.box((c[0], base_y + 0.55, c[2] + s[2] / 2 - 0.03), (s[0], 1.1, 0.06), style=no_bottom("wood"))  # headboard
+
+
+def prop_plain_table(ctx, c, s):
+    top = prop_table(ctx, c, s, "wood")
+    ctx.b.box((c[0] + 0.2, top + 0.06, c[2]), (0.09, 0.12, 0.09), style=no_bottom("red", 1.0))         # mug
+    for dx in (-0.9, 0.9):                                                                           # chairs
+        cx = c[0] + dx
+        ctx.b.box((cx, c[1] - s[1] / 2 + 0.45, c[2]), (0.42, 0.05, 0.42), style=no_bottom("wood"))
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                ctx.b.box((cx + sx * 0.18, c[1] - s[1] / 2 + 0.22, c[2] + sz * 0.18), (0.04, 0.44, 0.04),
+                          style=no_bottom("trim_dark", 1.0))
+
+
+def prop_kitchenette(ctx, c, s):
+    ctx.b.box(c, s, style=face_decal(ctx.d("kitchen"), "wood", _front_into(c, 2)))
+
+
+SHOPS_PROPS = {
+    "washers": prop_washers, "dryers": prop_dryers, "fold_table": prop_fold_table, "shoe_wall": prop_shoe_wall,
+    "bench": prop_bench, "shoe_table": prop_shoe_table, "shoe_counter": prop_shoe_counter,
+    "shoebox_stack": prop_shoebox_stack, "window_display": prop_window_display, "tv_shelf": prop_tv_shelf,
+    "tv_table": prop_tv_table, "bed": prop_bed, "table": prop_plain_table, "kitchenette": prop_kitchenette,
+}
+for _kind, _fn in SHOPS_PROPS.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+
+
+def dress_shops(ctx):
+    b, rng = ctx.b, ctx.rng
+    zf = 6.65                                                       # the front (south) wall's outside face
+    units = (-9.67, 0.0, 9.67)
+    # Shop signs over the fronts, and the TV shop's on the road side too.
+    for x, region in zip(units, ("sign_laundry", "sign_shoes", "sign_tv")):
+        b.box((x, 2.75, zf + 0.04), (4.0, 0.7, 0.08), style=face_decal(ctx.d(region), "trim_dark", "+z"))
+    b.box((14.69, 2.75, 0.0), (0.08, 0.7, 4.0), style=face_decal(ctx.d("sign_tv"), "trim_dark", "+x"))
+    # Striped awning over the shoe store window (looks only).
+    wx = units[1] - 1.6
+    b.box((wx, 2.3, zf + 0.55), (4.6, 0.04, 1.2), pitch=18,
+          style=lambda n, m, q: ("decals", ctx.d("awning")) if abs(n[1]) > 0.7 else ("red", uv_world()))
+    # A concrete base round the outside (0.45 m), not across the doors.
+    gaps = {"S": [(x + 2.2 - 1.1, x + 2.2 + 1.1) for x in units], "E": [(-1.1, 1.1)]}
+    for side, (a0, a1, fixed) in {"S": (-14.65, 14.65, zf), "N": (-14.65, 14.65, -zf), "W": (-6.65, 6.65, -14.65),
+                                  "E": (-6.65, 6.65, 14.65)}.items():
+        cuts = [a0] + [v for g in gaps.get(side, []) for v in g] + [a1]
+        for p0, p1 in zip(cuts[::2], cuts[1::2]):
+            if side in "NS":
+                b.box(((p0 + p1) / 2, 0.225, fixed), (p1 - p0, 0.45, 0.06), style=no_bottom("concrete", 4.0))
+            else:
+                b.box((fixed, 0.225, (p0 + p1) / 2), (0.06, 0.45, p1 - p0), style=no_bottom("concrete", 4.0))
+    # Broken glass left in the shop windows.
+    for x in units:
+        shards(ctx, x - 1.6 - 2.0, x - 1.6 + 2.0, 0.5, 2.4, zf - 0.15, "x", rng)
+    # Soot over the TV shop's openings, the Brotherhood's mark on the west end.
+    for x in (units[2] - 1.6, units[2] + 2.2):
+        b.poly([(x - 1.0, 2.0, zf + 0.01), (x + 1.0, 2.0, zf + 0.01), (x + 1.0, 3.5, zf + 0.01), (x - 1.0, 3.5, zf + 0.01)],
+               (0, 0, 1), "graffiti", ctx.d("soot"))
+    b.poly([(14.66, 2.0, -1.0), (14.66, 2.0, 1.0), (14.66, 3.5, 1.0), (14.66, 3.5, -1.0)], (1, 0, 0), "graffiti",
+           ctx.d("soot"))
+    b.poly([(-14.66, 0.8, 2.6), (-14.66, 0.8, 4.0), (-14.66, 1.8, 4.0), (-14.66, 1.8, 2.6)], (-1, 0, 0), "graffiti",
+           ctx.d("x1"))
+    # Posters inside.
+    b.poly([(-4.72, 1.2, -3.2), (-4.72, 1.2, -2.6), (-4.72, 2.0, -2.6), (-4.72, 2.0, -3.2)], (1, 0, 0), "decals",
+           ctx.d("poster_new"))
+    b.poly([(-4.94, 1.2, 3.0), (-4.94, 1.2, 3.6), (-4.94, 2.0, 3.6), (-4.94, 2.0, 3.0)], (-1, 0, 0), "decals",
+           ctx.d("poster_wash"))
+    # Shoe store: a mirror by the benches, shoes kicked about, a foot gauge.
+    b.box((4.71, 1.1, -3.6), (0.03, 1.7, 0.7), style=no_bottom("trim_dark", 1.0))
+    b.poly([(4.69, 0.3, -3.9), (4.69, 0.3, -3.3), (4.69, 1.9, -3.3), (4.69, 1.9, -3.9)], (-1, 0, 0), "steel_light", uv_world())
+    for _ in range(5):
+        shoe_pair(b, rng.uniform(-3.5, 2.0), 0.0, rng.uniform(-2.5, 1.5), rng.uniform(0, 360), rng.choice(SHOE_COLOURS))
+    b.box((-1.0, 0.03, -3.0), (0.25, 0.06, 0.4), style=no_bottom("trim", 1.0))
+    # Laundromat: plastic chairs, a dropped basket, a change machine.
+    for k in range(3):
+        cx = -7.8 + k * 0.6
+        b.box((cx, 0.42, 5.9), (0.45, 0.05, 0.45), style=no_bottom("yellow", 1.0))
+        b.box((cx, 0.7, 6.1), (0.45, 0.5, 0.05), style=no_bottom("yellow", 1.0))
+        for sx in (-1, 1):
+            b.box((cx + sx * 0.19, 0.2, 5.9), (0.04, 0.4, 0.4), style=no_bottom("trim_dark", 1.0))
+    b.box((-11.5, 0.15, 1.4), (0.55, 0.3, 0.4), yaw=25, style=no_bottom("blue", 1.0))
+    for _ in range(4):
+        b.box((-11.2 + rng.uniform(-0.6, 0.6), 0.02, 1.9 + rng.uniform(-0.4, 0.4)), (0.4, 0.03, 0.3),
+              yaw=rng.uniform(0, 90), style=no_bottom(rng.choice(("bone", "red", "olive")), 1.0))
+    b.box((-5.2, 0.7, -2.6), (0.4, 1.4, 0.5), style=no_bottom("steel_light", 1.0))
+    # TV shop: a TV face down on the floor, burnt rubbish.
+    b.box((7.2, 0.25, 1.5), (0.8, 0.5, 0.5), yaw=30, pitch=80, style=no_bottom("trim_dark", 1.0))
+    for _ in range(10):
+        w = rng.uniform(0.15, 0.5)
+        b.box((rng.uniform(5.5, 13.5), 0.04, rng.uniform(-4.5, 5.0)), (w, 0.05, w * rng.uniform(0.6, 1.5)),
+              yaw=rng.uniform(0, 90), style=no_bottom(rng.choice(("black", "trim_dark", "cardboard")), 1.0))
+    # Upstairs flat: a rug, a lamp; stock room: shoeboxes on the floor.
+    b.box((-11.5, 3.01, 1.5), (2.0, 0.01, 1.4), style=lambda n, m, q: ("red", uv_world()) if n[1] > 0.7 else None)
+    b.box((-13.9, 3.6, -2.0), (0.06, 1.2, 0.06), style=no_bottom("trim_dark", 1.0))
+    b.box((-13.9, 4.25, -2.0), (0.3, 0.25, 0.3), style=no_bottom("bone", 1.0))
+    for k in range(6):
+        b.box((-2.0 + k * 0.4, 3.065 + (k % 2) * 0.13, 4.8 + rng.uniform(-0.1, 0.1)), (0.34, 0.13, 0.22),
+              yaw=rng.uniform(-10, 10), style=no_bottom(rng.choice(("red", "blue", "bone", "cardboard")), 1.0))
+
+
+DECALS["shops"] = shops_decals
+DRESSING["shops"] = dress_shops
+FOOTPRINTS["shops"] = (-14.5, -6.5, 14.5, 6.5)
+SHELLS = {
+    "shops": {
+        "ext": "brick", "roof_side": "brick", "x_splits": SHOP_UNITS,
+        "inner": lambda m: (("int_tile", "int_warm", "int_soot") if m[1] < 3.0 else ("int_wall", "concrete", "int_soot"))[shop_unit(m[0])],
+        "floor": lambda m: (("floor_tile", "floor_wood", "floor_burnt") if m[1] < 1.5 else ("floor_wood", "concrete", "floor_burnt"))[shop_unit(m[0])],
+        "ceiling": lambda m: "int_soot" if shop_unit(m[0]) == 2 else "ceiling",
+    },
+}
 
 
 # ------------------------------------------------------------------------------------------------ main
