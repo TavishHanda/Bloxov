@@ -1553,7 +1553,8 @@ def main():
         box(x, 0, 72.0, x + 0.9, 1.7, 77.0, "wood")
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
-    build(Building("Shops", 13, 61, 29, 13, floors=2, rooms=(3, 1), doors="S", caved=[(2, 0)]), [
+    # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)
+    build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)]), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
     # modern gas station on the corner of Main Street and Old Road (owner, 0.10.1; the town house was here)
     with modeled("gas_station_town", 80.5, 111.0):   # World art 0.17: the first modeled building
@@ -1586,13 +1587,11 @@ def main():
     for x, z, yaw in ((180, 118, 90), (180, 126, 90)):
         car(x, z, yaw, "car_b")
     barrier(178, 108, 90)
-    build(Building("School", 15, 120, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="E", roof=True), [
+    build(Building("School", 8, 50, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="S", roof=True), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 2, 2, 0, "E", 0), ("locker", 1, 2, 1, "S", 0),
         ("crate", 0, 1, 1, "W", 0)])
-    box(15, 0.0, 148, 45, 0.04, 166, "crop", solid=False)       # sports field
-    for gx_ in (16.0, 43.0):
-        box(gx_, 0, 156.0, gx_ + 0.2, 2.4, 156.2, "metal")
-        box(gx_, 0, 158.8, gx_ + 0.2, 2.4, 159.0, "metal")
+    box(15, 0.0, 148, 45, 0.06, 166, "pavement", solid=False)   # the shops' car park (was the sports field)
+    car(22, 154, 90); car(34, 160, 90, "car_b"); car(40, 152, 270)
 
     # hillside: big houses (owner: expensive loot)
     # (0.10.1: down from 5 to 3, owner: fewer houses so the good loot isn't spread thin, and the hill has sightlines)
@@ -1797,7 +1796,7 @@ def main():
         assert not any(x0 - 3 < x < x1 + 3 and z0 - 3 < z < z1 + 3 for _, x0, z0, x1, z1 in footprints), f"Spawn{n}"
     # AI spawn spots: placeholders spread over every area (Scavs 2.0 replaces them with designated spots)
     for n, (x, z) in enumerate([
-            (106, 104), (60, 100), (140, 90), (40, 60), (90, 25), (163, 145), (30, 172), (100, 168),
+            (106, 104), (60, 100), (140, 90), (26, 110), (90, 25), (163, 145), (30, 172), (100, 168),
             (220, 42), (270, 50), (320, 45), (300, 110), (220, 196), (190, 225), (280, 245), (230, 290),
             (320, 260), (300, 312), (190, 330), (60, 250), (90, 300), (40, 330), (320, 190), (150, 250),
             # (0.11.10, owner: twice the enemies, so twice the spots: open ground 26+ m from the others, 45+ m from
@@ -1856,7 +1855,7 @@ AI_ROAMERS = 3
 SNIPER_PERCHES = [
     ("PerchPolice", 152.5, 123.0, 6.0, "W"),       # police roof, over the town core and square
     ("PerchBellTower", 150.5, 30.5, 6.0, "S"),     # the bell tower, over the north of town
-    ("PerchSchool", 42.5, 122.5, 6.0, "E"),        # school roof, over the west of town
+    ("PerchSchool", 35.5, 52.5, 6.0, "E"),        # school roof, over the west of town
     ("PerchStation", 212.0, 196.0, 3.6, "S"),      # train station roof, over the railway and the middle field
     ("PerchStand", 116.0, 266.0, 3.5, "N"),        # the hunting stand by the creek trail
 ]
