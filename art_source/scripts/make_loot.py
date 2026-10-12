@@ -29,7 +29,8 @@ def loot_decals(rng):
     def safe(c):            # 0.8 x 0.82 m
         c.rect(0, 0, c.w, c.h, "olive_dark")
         c.frame(0, 0, c.w, c.h, "black")
-        c.frame(2, 2, c.w - 2, c.h - 2, "yellow_dark")              # gold pinstripe
+        c.frame(2, 2, c.w - 2, c.h - 11, "yellow_dark")             # gold pinstripe
+        c.rect(1, c.h - 10, c.w - 1, c.h - 2, "iron_dark")          # name plate above it
         c.rect(1, 6, 2, 10, "iron"); c.rect(1, c.h - 10, 2, c.h - 6, "iron")   # hinges
         w = Canvas.text_width("BLOXOV")
         c.text((c.w - w) // 2, c.h - 8, "BLOXOV", "hazard_yellow")
