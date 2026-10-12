@@ -901,10 +901,17 @@ func _build_other_column() -> void:
 			if sort_button.text == "SORT":
 				sort_button.text = "SURE?"
 				style_button(sort_button, 20, HudStyle.BRASS)
-				get_tree().create_timer(3.0).timeout.connect(func() -> void:
-					if is_instance_valid(sort_button) and sort_button.text == "SURE?":
+				# (a Timer on the button, so it goes when the button does: a scene-tree timer outliving it errored)
+				var back := Timer.new()
+				back.one_shot = true
+				back.wait_time = 3.0
+				back.timeout.connect(func() -> void:
+					back.queue_free()
+					if sort_button.text == "SURE?":
 						sort_button.text = "SORT"
 						style_button(sort_button))
+				sort_button.add_child(back)
+				back.start()
 				return
 			sort_button.text = "SORT"
 			style_button(sort_button)

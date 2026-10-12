@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.20 (Build fix)
+- 0.15.18 and 0.15.19 didn't deploy: the SORT button's "SURE?" reset timer could fire after the stash screen was
+  gone, and the web build stops on that error. The timer now goes away with the button.
+
 ## 0.15.19 (Drop option, scav backpacks, rare loot; owner asked)
 - Right-click an item while looting (a crate, a body) now offers "Drop" (on the ground) as well as "Put in".
 - Scavs wear a small backpack 7% of the time, so their body has one to loot (the friend's backpack model comes later).
