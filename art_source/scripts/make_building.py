@@ -446,21 +446,35 @@ def paint_floor_wood(rng):
 
 
 def paint_floor_burnt(rng):
-    """Concrete with a few big soft burn patches (ragged-edged blobs that wrap), no speckle."""
-    c = Canvas(64, 64, "concrete")
+    """The shop's floor tiles, scorched: each tile darkens with how close it was to the fire (a smooth burn field
+    that wraps), a few tiles cracked or gone to bare concrete."""
+    c = Canvas(64, 64, "bone")
+    fires = [(rng.randrange(64), rng.randrange(64), rng.uniform(14, 26)) for _ in range(3)]
 
-    def blob(cx, cy, r, col):
-        for y in range(cy - r - 2, cy + r + 3):
-            for x in range(cx - r - 2, cx + r + 3):
-                edge = r + ((x // 2 * 7 + y // 2 * 13) % 5 - 2) * 0.6
-                if (x - cx) ** 2 + (y - cy) ** 2 <= edge * edge:
-                    c.put(x % 64, y % 64, col)
-    for _ in range(4):
-        blob(rng.randrange(64), rng.randrange(64), rng.randrange(7, 13), "steel")
-    for _ in range(3):
-        cx, cy, r = rng.randrange(64), rng.randrange(64), rng.randrange(6, 10)
-        blob(cx, cy, r, "iron")
-        blob(cx, cy, r // 2, "iron_dark")
+    def burn(x, y):
+        v = 0.0
+        for fx, fy, r in fires:
+            dx, dy = min(abs(x - fx), 64 - abs(x - fx)), min(abs(y - fy), 64 - abs(y - fy))
+            v = max(v, 1.0 - math.hypot(dx, dy) / r)
+        return v
+    shades = ("bone", "concrete", "steel", "iron", "iron_dark")
+    for ty in range(8):
+        for tx in range(8):
+            b_ = burn(tx * 8 + 4, ty * 8 + 4) + rng.uniform(-0.12, 0.12)
+            k = max(0, min(4, int(b_ * 5)))
+            if (tx + ty) % 2 and k == 0:
+                k = 1                                                  # the checker, like the other shops
+            gone = rng.random() < 0.06
+            c.rect(tx * 8 + 1, ty * 8 + 1, tx * 8 + 8, ty * 8 + 8, "concrete" if gone else shades[k])
+            if not gone and k >= 2 and rng.random() < 0.3:             # soot creeping over the tile edge
+                c.rect(tx * 8 + 1, ty * 8 + 1, tx * 8 + 4, ty * 8 + 4, shades[min(4, k + 1)])
+            if rng.random() < 0.12:                                    # a crack
+                for d in range(1, 7):
+                    c.put(tx * 8 + d, ty * 8 + (d if d % 3 else d - 1), "iron_dark")
+    for y in range(64):                                                # grout
+        for x in range(64):
+            if x % 8 == 0 or y % 8 == 0:
+                c.put(x, y, "iron" if burn(x, y) > 0.3 else "steel_light")
     return c
 
 
