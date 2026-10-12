@@ -67,6 +67,17 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
   moves it to another device; Steam login can be linked later), a database (Heroku's disk is wiped on restart), and the store rules on accounts
   (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
   account for solo). The current save becomes the solo stash.
+- **Online security update (before the web beta / Steam; owner 2026-10-12, from a friend's checklist):** a server
+  authority audit plus free, home-made anti-cheat (no paid anti-cheat service). Already on the server: what every
+  shot and knife hits (map blocks shots, damage from the server's weapon stats, lag compensated for players and,
+  since 0.15.28, AI), fire-rate and shot-origin checks, the AI, loot containers' rolls, grenades, doors, kill and
+  dog tag credit. Still trusting the player's game (fix these): movement and position (no speed/teleport/fly
+  checks), their own health and armor (the server can't stop god mode), which gun they fire (not checked against
+  what they carry, so ammo and gun choice are on trust), what they put into a container or drop (items could be
+  made up), extracting, and the stash/money (the Stash update moves the online stash onto the server). Plan:
+  server-side health/armor, carried-loadout tracking (guns, ammo, items in/out), movement sanity checks, server
+  extract check, rate limits on every request, and logging/flagging suspicious players (simple kick/ban list).
+  Detecting aimbots/wallhacks on the client isn't possible in a browser; the server checks above are the defense.
 Parked 0.9 leftovers (teammate-down alert, squad line on the end screen, rejoin after disconnect) can slot in
 between updates. Lore is the owner's.
 
