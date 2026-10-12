@@ -200,8 +200,10 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 
 ## The free kit (0.15.28, owner): only when your loadout is completely empty (nothing equipped, nothing in your
 ## pockets, backpack or secure pocket). Your stash and money don't matter.
+## Once per raid (0.16.4): after taking it you have to go on a raid before the next one, so it can't be sold for money
+## over and over.
 func can_take_free_kit() -> bool:
-	return inventory.all_stacks().is_empty()
+	return inventory.all_stacks().is_empty() and Profile.free_kit_raid != int(Profile.stats["raids"])
 
 
 func take_free_kit() -> bool:
@@ -219,6 +221,7 @@ func take_free_kit() -> bool:
 		var left := inventory.add(kit_item[0], kit_item[1])
 		if left > 0:
 			Profile.stash.add(kit_item[0], left)
+	Profile.free_kit_raid = int(Profile.stats["raids"])
 	_message("Took the free kit. Good luck out there.")
 	_queue_save()
 	return true

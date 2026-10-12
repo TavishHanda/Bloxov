@@ -28,6 +28,9 @@ static var loadout: Dictionary = {}
 static var stats: Dictionary = DEFAULT_STATS.duplicate()
 ## Money spent with each trader (Traders.LIST id -> dollars); it sets their level.
 static var trader_spent: Dictionary = {}
+## The raid count (stats "raids") when you last took the free kit; one free kit per raid (0.16.4, owner: taking it
+## and selling it over and over was infinite money). -1 = never taken.
+static var free_kit_raid := -1
 static var _loaded := false
 
 
@@ -61,6 +64,7 @@ static func load_profile() -> void:
 		for key in stats:
 			if _is_number(saved_stats.get(key)):
 				stats[key] = int(saved_stats[key])
+	free_kit_raid = int(data["free_kit_raid"]) if _is_number(data.get("free_kit_raid")) else -1
 	trader_spent = {}
 	var saved_spent = data.get("trader_spent")
 	if saved_spent is Dictionary:
@@ -134,6 +138,7 @@ static func reset() -> void:
 	loadout = starting_loadout()
 	stats = DEFAULT_STATS.duplicate()
 	trader_spent = {}
+	free_kit_raid = -1
 
 
 static func save_profile() -> void:
@@ -145,6 +150,7 @@ static func save_profile() -> void:
 		"loadout": loadout,
 		"stats": stats,
 		"trader_spent": trader_spent,
+		"free_kit_raid": free_kit_raid,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)

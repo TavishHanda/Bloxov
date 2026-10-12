@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.4 (free kit once per raid; owner's report)
+- The free kit can only be taken once per raid: after taking it you have to go on a raid (solo or online) before
+  you can take another. Before, you could take it, sell it and take it again for endless money.
+
 ## 0.16.3 (free kit online; owner's report)
 - Online, the free kit button reads **TAKE FREE KIT**: it puts the pistol, 30 rounds and bandage on you and you
   stay online, so you can queue with your party. Offline it's still RAID WITH FREE KIT (starts a solo raid).

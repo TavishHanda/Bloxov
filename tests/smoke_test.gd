@@ -1747,6 +1747,10 @@ func _section_hideout() -> void:
 	for slot in Inventory.SLOTS:
 		if hideout_inv.equipped(slot) != null:
 			hideout_inv.unequip(slot)
+	# (0.16.4, owner) Once per raid: emptied again right away, there's no second kit (no selling it for money forever).
+	_check(hideout_inv.all_stacks().is_empty() and not hideout.can_take_free_kit() and not hideout.take_free_kit(),
+		"no second free kit until you've been on a raid")
+	Profile.stats["raids"] += 1
 	var old_mode = Network.main.mode
 	Network.main.mode = Network.Mode.CLIENT
 	hideout._refresh()
