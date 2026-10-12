@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.16 (Playtest fixes: place loot, patrols, stash sort, drop pile; owner asked)
+- Loot by place now shows: a place's own loot counts 3x, so pharmacy crates are mostly meds, the gun store mostly
+  guns and ammo, the school mostly backpacks. Anything can still turn up anywhere. Keys aren't boosted.
+- AI patrols spread out: an AI won't pick a patrol stop another AI (outside its own group) is already heading for,
+  so they stop walking the same path in a line. Fights are unchanged.
+- The stash has a SORT button: it merges part stacks and lays everything out by kind (guns, gear, ammo, meds,
+  valuables last), big items first.
+- Dropping items one after another puts them on one "Dropped Items" pile at your feet (online too) instead of a
+  new bag each time.
+- Bolts stack to 10.
+
 ## 0.15.15 (Weaker choke; owner: the Mauler hit too hard too far with it)
 - The choke tightens the Mauler's pellets by 15% instead of 30%, so a choked Mauler stops landing nearly every
   pellet past about 15 m.

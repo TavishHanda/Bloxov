@@ -389,7 +389,11 @@ func _drop_or_overflow(stack: ItemStack) -> void:
 		Network.main.drop_items([GridInventory.stack_data(stack)])
 	elif player != null:
 		var drop_pos := player.global_position - player.global_basis.z * 0.8
-		LootContainer.spawn_bag(get_tree().current_scene, drop_pos, "Dropped Items", [stack])
+		var pile := LootContainer.pile_near(player, drop_pos)
+		if pile != null:
+			pile.add_to_pile([stack])
+		else:
+			LootContainer.spawn_bag(get_tree().current_scene, drop_pos, "Dropped Items", [stack])
 	elif stash != null:
 		stack.set_spot(Vector2i(0, stash.height), false)
 		stash.height += ItemDB.size(stack.id).y
@@ -860,7 +864,25 @@ func _build_other_column() -> void:
 	_other_panel.visible = other != null
 	if other == null:
 		return
-	_other_box.add_child(_title(_other_title().to_upper()))
+	if other == stash:
+		# Title, and a SORT button (0.15.16, owner: auto sort), big enough to tap.
+		var header := HBoxContainer.new()
+		var title := _title(_other_title().to_upper())
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		header.add_child(title)
+		var sort_button := Button.new()
+		sort_button.name = "SortButton"
+		sort_button.text = "SORT"
+		sort_button.focus_mode = Control.FOCUS_NONE
+		sort_button.custom_minimum_size = Vector2(96, 44)
+		style_button(sort_button)
+		sort_button.pressed.connect(func() -> void:
+			_cancel_drag()
+			stash.sort())
+		header.add_child(sort_button)
+		_other_box.add_child(header)
+	else:
+		_other_box.add_child(_title(_other_title().to_upper()))
 	if other == stash:
 		# The stash is tall: scroll it.
 		var scroll := ScrollContainer.new()

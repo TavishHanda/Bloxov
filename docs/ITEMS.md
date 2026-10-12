@@ -37,7 +37,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Frag Grenade (`grenade`) | Throwable | Uncommon | 1×1 | 3 | $600 |  | Pull, throw, take cover. Goes off 3 seconds after it leaves your hand. |
 | Bank Vault Key (`bank_vault_key`) | Key | Rare | 1×1 | 1 | $3,500 | opens BankVaultDoor | Opens the vault in the bank. |
 | Bunker Key (`bunker_key`) | Key | Epic | 1×1 | 1 | $6,000 | opens BunkerDoor | Opens the bunker under the town hall. Bon keeps one on him. |
-| Bolts (`bolts`) | Valuable | Common | 1×1 | 1 | $120 |  | A handful of nuts and bolts. Small, but always needed. |
+| Bolts (`bolts`) | Valuable | Common | 1×1 | 10 | $120 |  | A handful of nuts and bolts. Small, but always needed. |
 | Canned Beans (`beans`) | Valuable | Common | 1×1 | 1 | $150 |  | Somebody's lunch. Traders pay for food out here. |
 | Wires (`wires`) | Valuable | Common | 1×1 | 1 | $180 |  | Copper wire stripped from a wall. Useful for fixing things. |
 | Water Bottle (`water`) | Valuable | Common | 1×1 | 1 | $200 |  | Clean water is rare out here. Traders pay for it. |

@@ -110,7 +110,7 @@ const ITEMS := {
 	"intel_novarra": {"name": "Novarra Field Report", "short": "Report", "desc": "Novarran army papers: patrols, supply runs, names. Someone will pay to read them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"intel_exion": {"name": "Exion Orders", "short": "Orders", "desc": "Sealed orders with the Brotherhood's X1 mark. Dangerous to carry, worth a fortune.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8500},
 	"mil_chip": {"name": "Military Chip", "desc": "Exion military hardware. Very wanted.", "short": "Chip", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 7500},
-	"bolts": {"name": "Bolts", "desc": "A handful of nuts and bolts. Small, but always needed.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 120},
+	"bolts": {"name": "Bolts", "desc": "A handful of nuts and bolts. Small, but always needed.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 10, "value": 120},
 	"wires": {"name": "Wires", "desc": "Copper wire stripped from a wall. Useful for fixing things.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 180},
 	"gunpowder": {"name": "Powder Tin", "short": "Powder", "desc": "A tin of gunpowder. Keep it away from fire.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 1000},
 	"cpu": {"name": "Processor", "short": "CPU", "desc": "A computer processor. Small, light and worth a lot.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 5000},
@@ -153,6 +153,9 @@ const SPECIAL_FINDS := {
 ## Loot by place (0.14.0, MAP_PLAN.md "Loot by place"): a container tagged with one of these places (its
 ## `place` metadata) rolls from its own table plus these weights, so a gun store's lockers are mostly guns.
 ## Places not listed (shops, offices, houses, the station...) roll the plain tables: mid loot.
+## The place's weights count PLACE_BOOST times (0.15.16, owner: "pharmacy doesn't have more meds"; anything can
+## still turn up anywhere, but what fits the place is most of it). Keys aren't boosted.
+const PLACE_BOOST := 3
 const PLACE_LOOT := {
 	"Bunker": {"sniper": 6, "sniper_ammo": 10, "scope_4x": 6, "scope_8x": 3, "suppressor": 5, "ext_mag": 5, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "bunker_key": 3, "uncommon": 10},
@@ -327,10 +330,10 @@ static func found_durability(id: String) -> int:
 static func roll(table: String, place := "") -> String:
 	var weights: Dictionary = LOOT_TABLES[table]
 	if PLACE_LOOT.has(place):
-		weights = weights.merged(PLACE_LOOT[place], false)
+		weights = weights.duplicate()
 		for key in PLACE_LOOT[place]:
-			if LOOT_TABLES[table].has(key):
-				weights[key] = LOOT_TABLES[table][key] + PLACE_LOOT[place][key]
+			var extra: int = PLACE_LOOT[place][key] * (1 if ITEMS.has(key) and kind(key) == "key" else PLACE_BOOST)
+			weights[key] = weights.get(key, 0) + extra
 	var total := 0
 	for weight in weights.values():
 		total += weight

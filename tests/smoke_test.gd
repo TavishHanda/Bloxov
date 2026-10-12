@@ -884,6 +884,15 @@ func _section_items() -> void:
 	_check(sellables.all(func(id: String) -> bool: return ItemDB.kind(id) == "valuable" and ItemDB.description(id) != "")
 		and tag_boss.extra_drops.has("exion_medal") and ItemDB.PLACE_LOOT["GasStation"].has("fuel_can")
 		and ItemDB.PLACE_LOOT["Bank"].has("diamond_ring"), "the new sell items exist and are found by place")
+	# 0.15.16 (owner): bolts stack to 10; a place's loot is most of what it has (a pharmacy crate is mostly meds).
+	var heals := [0, 0]
+	for i in 400:
+		for j in 2:
+			var rolled := ItemDB.roll("crate", "Pharmacy" if j == 0 else "")
+			if ItemDB.kind(rolled) == "heal":
+				heals[j] += 1
+	_check(ItemDB.max_stack("bolts") == 10 and heals[0] > 160 and heals[0] > heals[1] * 2,
+		"bolts stack to 10, pharmacy crates are mostly meds (%d vs %d of 400)" % heals)
 	# The Holy Grail (0.14.12, owner): never from random rolls, only its one-off finds, in containers the map has.
 	var map_text := FileAccess.get_file_as_string("res://scenes/maps/old_bloxov.tscn")
 	var grail_rolled := false
@@ -1346,6 +1355,14 @@ func _section_dropped_gun() -> void:
 	var in_bag := _find_stack(bag.grid.stacks, "pistol")
 	_check(in_bag != null and in_bag.loaded == 12, "a gun dropped in a bag keeps its 12 loaded rounds (%s)" % (str(in_bag.loaded) if in_bag != null else "missing"))
 	bag.queue_free()
+	# 0.15.16 (owner: "really cluttered"): things you drop one after another go on one pile.
+	loot_ui._drop_or_overflow(ItemStack.new("phone"))
+	loot_ui._drop_or_overflow(ItemStack.new("golden_toilet"))
+	loot_ui._drop_or_overflow(ItemStack.new("battery"))
+	var piles := RaidScope.nodes(main, &"loot_containers").filter(func(c: Node) -> bool: return (c as LootContainer).display_name == "Dropped Items")
+	_check(piles.size() == 1 and (piles[0] as LootContainer).grid.stacks.size() == 3, "items you drop go on one pile (%d piles)" % piles.size())
+	for pile in piles:
+		pile.queue_free()
 
 
 func _section_heal() -> void:
@@ -1577,6 +1594,28 @@ func _section_hideout() -> void:
 	money = Profile.money
 	hideout.sell(Profile.stash, bought_pistol)
 	_check(Profile.money == money + roundi(ItemDB.value("pistol") * 0.6), "gear sells for 60%")
+	# Auto sort (0.15.16, owner): part stacks merge, guns go first, valuables last.
+	Profile.stash.add("bandage", 1)
+	var loose := ItemStack.new("bandage", 1)
+	var loose_spot := Profile.stash.find_spot("bandage")
+	if not loose_spot.is_empty():
+		loose.set_spot(Vector2i(loose_spot[0], loose_spot[1]), loose_spot[2])
+		Profile.stash.place(loose)
+	var stash_value := Profile.stash.total_value()
+	var sort_button := hideout.screen.find_child("SortButton", true, false) as Button
+	_check(sort_button != null and sort_button.custom_minimum_size.y >= 44, "the stash has a SORT button big enough to tap")
+	if sort_button != null:
+		sort_button.pressed.emit()
+	var first: ItemStack = null
+	for stack in Profile.stash.stacks:
+		if first == null or stack.y < first.y or (stack.y == first.y and stack.x < first.x):
+			first = stack
+	var best_kind := GridInventory.SORT_ORDER.size()
+	for stack in Profile.stash.stacks:
+		best_kind = mini(best_kind, GridInventory.SORT_ORDER.find(ItemDB.kind(stack.id)))
+	var part_bandages := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage" and st.space_left() > 0).size()
+	_check(Profile.stash.total_value() == stash_value and part_bandages <= 1 and first != null and GridInventory.SORT_ORDER.find(ItemDB.kind(first.id)) == best_kind,
+		"sorting the stash keeps everything, merges part stacks and puts guns and gear first (%s)" % (first.id if first != null else "-"))
 	_check(not hideout.can_take_free_kit(), "no free kit while you own a weapon")
 	# Lose every weapon and all your money.
 	for slot in ["primary", "secondary"]:
@@ -2198,9 +2237,12 @@ func _section_online_loot() -> void:
 	await _until(func() -> bool: return got[c2]["bags"].size() >= 1)
 	var drop_id: String = got[c2]["bags"].keys()[0]
 	_check(got[c1]["bags"].get(drop_id) == "Dropped Items" and got[c2]["bags"].get(drop_id) == "Dropped Items", "dropped items become a bag both players see")
+	c1.drop_items([["phone", 1, 0, 0, false, 0]])
+	await _frames(6)
+	_check(got[c2]["bags"].size() == 1, "a second drop goes on the same pile online")
 	c2.open_container(drop_id)
 	await _until(func() -> bool: return got[c2]["opened"].has(drop_id))
-	_check(got[c2]["opened"][drop_id][2].size() == 1 and got[c2]["opened"][drop_id][2][0][0] == "bandage", "the other player can loot it")
+	_check(got[c2]["opened"][drop_id][2].size() == 2 and got[c2]["opened"][drop_id][2][0][0] == "bandage", "the other player can loot it")
 	c2.update_container(drop_id, [4, 4, []])
 	await _until(func() -> bool: return got[c1]["gone"].has(drop_id))
 	await _frames(2)
@@ -3560,6 +3602,14 @@ func _section_patrol() -> void:
 		if edger._patrol_container == null and Vector2(p.x, p.z - 30).length() < 25.0 * 0.3:
 			near_middle += 1
 	_check(in_avoid == 0 and near_middle == 0, "patrol stops stay out of the zone's no-go part and round its edges (%d in it, %d in the middle)" % [in_avoid, near_middle])
+	# 0.15.16 (owner: four AI walking the same path): a patrol doesn't pick a stop another AI is already heading to.
+	var walker := _spawn(SCAV_SCENE, Vector3(0, 0.1, 30)) as Scav
+	await physics_frame
+	walker._wander_point = Vector3(0, 0, 30)
+	walker._wander_dir = Vector3.FORWARD
+	_check(edger._patrol_taken(Vector3(5, 0, 30)) and not edger._patrol_taken(Vector3(0, 0, 0)),
+		"patrols spread out: a stop near where another AI is going is taken")
+	walker.queue_free()
 	edger.queue_free()
 
 

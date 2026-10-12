@@ -166,6 +166,30 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 	return bag
 
 
+## Dropped items go on the pile already at your feet, not a new bag each time (owner, 0.15.16: "really
+## cluttered"). The "Dropped Items" bag within 2.5 m of `pos` in this raid, or null.
+static func pile_near(world: Node, pos: Vector3) -> LootContainer:
+	for node in RaidScope.nodes(world, &"loot_containers"):
+		var bag := node as LootContainer
+		if (bag != null and bag.remove_when_empty and bag.gear.is_empty() and bag.display_name == "Dropped Items"
+				and not bag.is_queued_for_deletion() and bag.global_position.distance_to(pos) < 2.5):
+			return bag
+	return null
+
+
+## Adds stacks to this bag, with more rows when they don't fit.
+func add_to_pile(contents: Array) -> void:
+	for stack: ItemStack in contents:
+		var spot := grid.find_spot(stack.id)
+		while spot.is_empty() and grid.height < 40:
+			grid.height += 1
+			spot = grid.find_spot(stack.id)
+		if spot.is_empty():
+			continue
+		stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
+		grid.place(stack)
+
+
 ## Puts `contents` into a fresh w x h grid on the bag. False if something didn't fit.
 static func _fill_bag(bag: LootContainer, bag_name: String, w: int, h: int, contents: Array) -> bool:
 	bag.grid = GridInventory.new(bag_name, w, h)

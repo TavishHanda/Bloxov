@@ -404,7 +404,7 @@ func _pick_patrol_point() -> Vector3:
 		else:
 			spot = AINav.random_point(self)
 		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 6.0 and (home_radius <= 0.0 or _in_home(spot)):
-			if _patrol_container != null or _has_cover_at(spot):
+			if (_patrol_container != null or _has_cover_at(spot)) and not _patrol_taken(spot):
 				return spot
 			if fallback == Vector3.INF:
 				fallback = spot
@@ -413,6 +413,17 @@ func _pick_patrol_point() -> Vector3:
 		return fallback
 	# No navigation map yet: somewhere a few meters ahead.
 	return global_position + _flat(-global_basis.z).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2)) * 6.0
+
+
+## Another patrolling AI (not its own group) is already heading for somewhere near `spot` (owner, 0.15.16: four AI
+## walking the same path round the depot). Picking somewhere else keeps them spread out.
+func _patrol_taken(spot: Vector3) -> bool:
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if (other != null and other != self and other.leader == null and other != leader and other.state == State.IDLE
+				and other._wander_dir != Vector3.ZERO and _flat(other._wander_point - spot).length() < 12.0):
+			return true
+	return false
 
 
 ## A trip's destination: a loot spot in another building (not in its area) within excursion_range, the bank half

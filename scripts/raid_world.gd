@@ -148,7 +148,13 @@ func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
 		var stack := GridInventory.data_stack(entry)
 		if stack != null:
 			contents.append(stack)
-	if not contents.is_empty():
+	if contents.is_empty():
+		return
+	# (onto the pile already there, unless someone has it open: 0.15.16)
+	var pile := LootContainer.pile_near(raid, pos) if not body else null
+	if pile != null and not locks.has(String(pile.name)):
+		pile.add_to_pile(contents)
+	else:
 		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body)
 
 

@@ -91,6 +91,49 @@ func place(stack: ItemStack) -> void:
 	changed.emit()
 
 
+## Auto sort (0.15.16, owner, the stash's SORT button): tops up part stacks, then lays everything out again by
+## kind (guns, gear, ammo, meds... valuables last), big items first. Adds rows if something no longer fits.
+const SORT_ORDER: Array[String] = ["weapon", "armor", "helmet", "backpack", "attachment", "ammo", "throwable", "heal",
+	"drink", "key", "valuable"]
+
+func sort() -> void:
+	var list: Array[ItemStack] = []
+	for stack in stacks:
+		var merged := false
+		if ItemDB.max_stack(stack.id) > 1:
+			for other in list:
+				if other.id == stack.id and other.space_left() > 0:
+					var moved := mini(other.space_left(), stack.count)
+					other.count += moved
+					stack.count -= moved
+					if stack.count == 0:
+						merged = true
+						break
+		if not merged:
+			list.append(stack)
+	list.sort_custom(func(a: ItemStack, b: ItemStack) -> bool:
+		var ka := SORT_ORDER.find(ItemDB.kind(a.id))
+		var kb := SORT_ORDER.find(ItemDB.kind(b.id))
+		if ka != kb:
+			return ka < kb
+		var area_a := ItemDB.size(a.id).x * ItemDB.size(a.id).y
+		var area_b := ItemDB.size(b.id).x * ItemDB.size(b.id).y
+		if area_a != area_b:
+			return area_a > area_b
+		if a.id != b.id:
+			return a.id < b.id
+		return a.count > b.count)
+	stacks.clear()
+	for stack in list:
+		var spot := find_spot(stack.id)
+		while spot.is_empty():
+			height += 1
+			spot = find_spot(stack.id)
+		stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
+		stacks.append(stack)
+	changed.emit()
+
+
 func remove(stack: ItemStack) -> void:
 	stacks.erase(stack)
 	changed.emit()
