@@ -19,15 +19,21 @@ const TABLES := {
 ## from farther, pins you down more), Stinger is careful (chases only up close, takes cover more). Hound and
 ## Lancer fight as before.
 const STYLES := {
-	"smg": {"mult": {"shot_damage": 0.75, "burst_size": 1.6, "burst_interval": 0.65, "shoot_range": 0.65, "accuracy_long": 0.7, "shot_pitch": 1.25,
+	"smg": {"mult": {"shot_damage": 0.75, "burst_size": 1.6, "burst_interval": 0.65, "shoot_range": 0.65, "accuracy_long": 0.7,
 			"push_speed": 1.12, "suppress_chance": 1.4},
-		"set": {"chase_range": 40.0}},
-	"shotgun": {"mult": {"shot_damage": 2.2, "accuracy_far": 0.6, "accuracy_long": 0.3, "shot_pitch": 0.75, "push_speed": 1.25},
+		"set": {"chase_range": 40.0, "shot_pitch": 0.95}},
+	"shotgun": {"mult": {"shot_damage": 2.2, "accuracy_far": 0.6, "accuracy_long": 0.3, "push_speed": 1.25},
 		"set": {"burst_size": 1, "burst_cooldown_min": 0.9, "burst_cooldown_max": 1.2, "shoot_range": 22.0,
-			"chase_range": 22.0, "chase_cover_chance": 0.03}},
+			"chase_range": 22.0, "chase_cover_chance": 0.03, "shot_pitch": 0.95}},
 	"pistol": {"mult": {"shot_damage": 0.8, "burst_size": 0.5, "burst_cooldown_min": 1.25, "burst_cooldown_max": 1.25, "shoot_range": 0.7, "shot_pitch": 1.1},
 		"set": {"chase_range": 15.0, "chase_cover_chance": 0.3}},
+	# (The Wasp, Mauler and Lancer have their own shot sounds, GunSounds, played near their real pitch.)
+	"sniper": {"set": {"shot_pitch": 0.95}},
 }
+
+## Guns as numbers for the network (0.15.12): the server sends each AI's gun to the puppets, so online they hold,
+## sound and shoot like the gun they really carry.
+const NET_GUNS := ["", "ak", "smg", "shotgun", "pistol", "sniper"]
 
 ## Attachments a dropped gun may come with (ScavBase.drop_part_chance: Raiders, sometimes).
 const DROP_PARTS := ["red_dot", "foregrip", "ext_mag", "suppressor", "scope_4x"]

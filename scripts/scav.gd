@@ -35,6 +35,8 @@ func _ready() -> void:
 		var gun := AILoadouts.pick(loadout)
 		AILoadouts.apply_style(self, gun)
 		weapon_drop = gun
+		shot_sound = GunSounds.shot(gun)
+		carried_gun = gun
 		if HeldGun.MODELS.has(gun):
 			held_model = gun   # (until the art pass every AI holds the AK model)
 	if held_model != "":

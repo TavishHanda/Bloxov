@@ -191,6 +191,8 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var glint := false
 ## Its shot sound (snipers: deeper, louder and heard farther than a scav's, owner: "different for sure").
 @export var shot_pitch := 0.8
+## The shot sound (its gun's: GunSounds, set from the loadout).
+var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 @export var shot_volume_db := -3.0
 @export var shot_unit_size := 6.0
 ## What the server tells players' games this is (0 scav, 1 Raider, 2 sniper, 3 boss: which puppet scene to show).
@@ -257,6 +259,8 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export_group("Look")
 ## Which gun model it holds (HeldGun.MODELS key; "" = the one drawn into its model).
 @export var held_model := ""
+## The gun it carries (from its loadout; "" = the scene's own numbers). Sent to puppets online.
+var carried_gun := ""
 @export var burst_color := Color(0.33, 0.38, 0.24)
 
 @onready var health: Health = $Health

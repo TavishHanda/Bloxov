@@ -1,7 +1,6 @@
 extends "res://scripts/scav_movement.gd"
 ## The AI in a fight: the tactics brain, cover and peeking, flanking, suppressing, shooting, melee and healing.
 
-const SHOT_SOUND := preload("res://audio/shot.wav")
 const BASH_SOUND := preload("res://audio/swing.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
 ## Of its hits on a player, this share land on the head (0.14.2: the helmet takes those, the armor the rest). The
@@ -765,7 +764,7 @@ func hit_chance(dist: float) -> float:
 func net_fired(end: Vector3) -> void:
 	var muzzle_pos := muzzle.global_position
 	Effects.tracer(get_tree().current_scene, muzzle_pos, end)
-	Effects.sound_at(get_tree().current_scene, SHOT_SOUND, muzzle_pos, shot_volume_db, 0.06, shot_pitch, shot_unit_size)
+	Effects.sound_at(get_tree().current_scene, shot_sound, muzzle_pos, shot_volume_db, 0.06, shot_pitch, shot_unit_size)
 	_muzzle_flash_time = 0.05
 
 

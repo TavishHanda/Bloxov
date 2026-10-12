@@ -10,7 +10,6 @@ extends Node3D
 
 signal hit_confirmed(killed: bool, headshot: bool)
 
-const SHOT_SOUND := preload("res://audio/shot.wav")
 const HIT_SOUND := preload("res://audio/hit.wav")
 const HEADSHOT_SOUND := preload("res://audio/headshot.wav")
 const KILL_SOUND := preload("res://audio/kill.wav")
@@ -412,7 +411,7 @@ func shoot_once() -> void:
 	if online:
 		Network.main.send_shot(from, dirs, weapon.id, weapon.attachments.values().has("suppressor"))
 
-	Effects.sound(world, SHOT_SOUND, shot_db, 0.08, shot_pitch)
+	Effects.sound(world, GunSounds.shot(weapon.id), shot_db, 0.08, shot_pitch)
 	_cycle_clicked = cycle == ""
 	_flash_left = 0.045
 	flash.visible = true
@@ -467,7 +466,7 @@ func _update_reload(delta: float) -> void:
 	_reload_left -= delta
 	if not _mag_in_played and _reload_left <= reload_time * 0.4:
 		_mag_in_played = true
-		Effects.sound(get_tree().current_scene, MAG_IN_SOUND)
+		Effects.sound(get_tree().current_scene, GunSounds.SHELL_IN if load_one else MAG_IN_SOUND)
 	if _reload_left <= 0.0 and load_one:
 		# One round in; keep going while there's room and rounds to load.
 		in_mag += player.inventory.take(ammo_id, 1)
@@ -560,9 +559,9 @@ func _update_model(delta: float) -> void:
 		else:
 			target_pos += Vector3(0, -0.03 * work, 0.02 * work)
 			target_rot += Vector3(0, 0, 0.45 * work)
-		if t > 0.5 and not _cycle_clicked:
+		if t > 0.2 and not _cycle_clicked:
 			_cycle_clicked = true
-			Effects.sound(get_tree().current_scene, MAG_IN_SOUND, -6.0, 0.05, 1.4)
+			Effects.sound(get_tree().current_scene, GunSounds.CYCLES.get(cycle, MAG_IN_SOUND), -5.0, 0.05)
 	# Raising the gun after a sprint is a bit slower than other moves.
 	# While aiming the gun follows the aim amount closely (that's already smoothed).
 	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0 + 30.0 * aim), 1.0)

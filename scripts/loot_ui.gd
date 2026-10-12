@@ -65,6 +65,8 @@ var _info_label: Label
 var _info_detail: Label
 ## The item's description line (0.14.0).
 var _info_desc: Label
+## A gun's stat bars under its details (0.15.12).
+var _stat_bars: GunStatBars
 var _doll: SubViewportContainer
 var _carried_panel: Control
 var _carried_box: VBoxContainer
@@ -772,6 +774,7 @@ func _say(text: String) -> void:
 	_info_label.remove_theme_color_override("font_color")
 	_info_detail.text = ""
 	_info_desc.text = ""
+	_stat_bars.clear()
 
 
 func show_info(stack: ItemStack) -> void:
@@ -813,6 +816,7 @@ func show_info(stack: ItemStack) -> void:
 		parts.append("Sells for %s" % ItemDB.money(price_handler.call(stack)))
 	_info_detail.text = "  ·  ".join(parts)
 	_info_desc.text = ItemDB.description(stack.id)
+	_stat_bars.show_gun(stack)
 
 
 ## Names of the guns an attachment goes on.
@@ -963,7 +967,7 @@ func _build() -> void:
 	# Details: the item under the mouse (name in its rarity color, then its stats), or messages.
 	# Empty until you point at something (owner: no placeholder text); keeps its height so nothing jumps.
 	var info_box := VBoxContainer.new()
-	info_box.custom_minimum_size = Vector2(0, 74)
+	info_box.custom_minimum_size = Vector2(0, 86)
 	info_box.add_theme_constant_override("separation", 0)
 	root.add_child(info_box)
 	_info_label = _title("", 30)
@@ -976,6 +980,8 @@ func _build() -> void:
 	_info_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_info_desc.modulate = Color(1, 1, 1, 0.55)
 	info_box.add_child(_info_desc)
+	_stat_bars = GunStatBars.new()
+	info_box.add_child(_stat_bars)
 
 	var footer := HBoxContainer.new()
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER

@@ -1294,6 +1294,34 @@ func _section_ai_loadouts() -> void:
 	_check(probe.chase_range == base_chase.chase_range and probe.shoot_range == base_range, "an AK AI fights as before")
 	probe.free()
 	base_chase.free()
+	# Each gun's sound (0.15.12) and the gun sent to puppets online.
+	probe = (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	probe.loadout = "shotgun"
+	main.add_child(probe)
+	_check(probe.carried_gun == "shotgun" and probe.shot_sound == GunSounds.shot("shotgun") and probe.shot_sound != GunSounds.DEFAULT_SHOT,
+		"a shotgun AI sounds like the Mauler")
+	probe.free()
+	var all_guns := ["sniper"]
+	for table: Dictionary in AILoadouts.TABLES.values():
+		all_guns.append_array(table.keys())
+	_check(all_guns.all(func(g: String) -> bool: return AILoadouts.NET_GUNS.has(g)), "every AI gun can be sent to puppets")
+	_check(GunSounds.shot("smg") != GunSounds.shot("sniper") and GunSounds.shot("ak") == GunSounds.DEFAULT_SHOT
+		and GunSounds.shot("pistol") == GunSounds.DEFAULT_SHOT, "the Wasp, Mauler and Lancer have their own shots; the Hound and Stinger keep theirs")
+	# Stat bars in the inventory (0.15.12).
+	var hound := ItemStack.new("ak")
+	var bare := GunStatBars.scores(ItemDB.weapon_stats(hound))
+	hound.attachments = {"grip": "foregrip", "barrel": "suppressor", "scope": "scope_4x"}
+	var dressed := GunStatBars.scores(ItemDB.weapon_stats(hound))
+	_check(dressed[3] > bare[3] and dressed[5] > bare[5] and dressed[4] < bare[4] and dressed[0] == bare[0],
+		"stat bars: a grip adds control, a suppressor quiet, a scope costs handling")
+	var mauler := GunStatBars.scores(ItemDB.item("shotgun"))
+	var lancer := GunStatBars.scores(ItemDB.item("sniper"))
+	var wasp := GunStatBars.scores(ItemDB.item("smg"))
+	_check(mauler[0] > bare[0] and lancer[2] > bare[2] and mauler[2] < wasp[2] and wasp[1] > bare[1] and lancer[3] < bare[3],
+		"stat bars compare guns: Mauler hits hardest, Lancer reaches farthest, Wasp fires fastest")
+	var choked := ItemStack.new("shotgun")
+	choked.attachments = {"barrel": "choke"}
+	_check(GunStatBars.scores(ItemDB.weapon_stats(choked))[2] > mauler[2], "a choke gives the Mauler more range")
 	# A spawned one: its gun is what it drops.
 	var scav := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	main.add_child(scav)
@@ -2060,6 +2088,11 @@ func _section_online_ai() -> void:
 	net_raid.sync_enemies(c1.enemies)
 	var puppet: Scav = net_raid.enemy_puppets.values()[0]
 	_check(net_raid.enemy_puppets.size() == 3 and puppet.puppet and puppet.is_in_group("enemies"), "the raid shows the 3 scavs as puppets")
+	var same_gun := true
+	for e: Scav in scavs1:
+		var copy: Scav = net_raid.enemy_puppets.get(e.get_instance_id())
+		same_gun = same_gun and copy != null and copy.carried_gun == e.carried_gun and copy.shot_sound == e.shot_sound and copy.shot_damage == e.shot_damage
+	_check(same_gun, "each puppet carries, sounds and shoots like its server scav's real gun")
 	var puppet_state := puppet.state
 	puppet.hear_noise(puppet.global_position, 50.0)
 	puppet.notice_near_miss(puppet.global_position)

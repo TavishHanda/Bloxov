@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.12 (Gun stats, gun sounds, online AI guns; owner picked these)
+- Gun stat bars: pointing at a gun in the inventory shows bars for damage, fire rate, range, control, handling and
+  quiet. Attachments show as a green gain or a red loss on top of the bare gun.
+- New sounds for the Wasp (short, snappy), Mauler (heavy boom), Lancer (sharp crack with a long echo), the
+  Mauler's pump and shells going in, and the Lancer's bolt. The Hound and Stinger keep their sound, and every
+  other sound is unchanged. AI with these guns use the same sounds.
+- Online, the AI now hold, sound and shoot like the gun they really carry (before, every AI looked and sounded
+  like a Hound, and their shooting numbers could differ from the server's).
+
 ## 0.15.11 (AI fight to suit their gun; owner asked)
 - Same fight brain, only how close they like to get changes with the gun:
   - Mauler AI rush you: they chase from as far as they can hit (22 m), walk in faster and hardly ever stop for cover.

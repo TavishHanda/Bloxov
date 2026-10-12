@@ -159,6 +159,63 @@ def throw():
     return click(0.03, 3000, 150, 0.0) + [s * 0.6 for s in swing()]
 
 
+# --- Guns update (0.15.12): the new guns' own sounds. The Hound and Stinger keep shot.wav. ---
+
+def gunshot(seconds, crack_smooth, crack_decay, thump_from, thump_to, thump_drop, thump_decay, thump_gain, drive,
+            tail=0.0, tail_decay=4.0):
+    """A shot: a noise crack plus a falling low thump, with an optional long echo tail of smoothed noise."""
+    n = length(seconds)
+    nz = noise(n, crack_smooth)
+    echo = noise(n, 0.9)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (thump_to + thump_from * math.exp(-t * thump_drop)) / RATE
+        crack = nz[i] * math.exp(-t * crack_decay)
+        thump = math.sin(phase) * math.exp(-t * thump_decay) * thump_gain
+        rumble = echo[i] * tail * math.exp(-t * tail_decay) * min(1.0, t * 30)
+        out.append(math.tanh((crack + thump + rumble) * drive))
+    return out
+
+
+def shot_wasp():
+    """SMG: short, snappy and light, little low end, so a fast burst stays a rattle."""
+    random.seed(400)
+    return gunshot(0.2, 0.15, 38, 220, 90, 40, 30, 0.6, 2.4)
+
+
+def shot_mauler():
+    """Shotgun: a wide, heavy boom with a lot of low end and a short rumble after it."""
+    random.seed(401)
+    return gunshot(0.65, 0.55, 12, 90, 38, 12, 7, 1.6, 2.2, tail=1.4, tail_decay=5.0)
+
+
+def shot_lancer():
+    """Sniper: a hard, sharp crack and a long rolling echo across the map."""
+    random.seed(402)
+    return gunshot(1.1, 0.05, 30, 160, 45, 20, 10, 1.1, 2.8, tail=1.6, tail_decay=2.6)
+
+
+def pump():
+    """Shotgun pump: slide back (a rattly clack), then forward (a harder one)."""
+    random.seed(403)
+    return (click(0.07, 600, 45, 0.3) + silence(0.09) + click(0.05, 900, 60, 0.2) + silence(0.02)
+            + click(0.06, 500, 55, 0.35))
+
+
+def bolt():
+    """Sniper bolt: lift, pull back, push forward, lock down."""
+    random.seed(404)
+    return (click(0.03, 1800, 120, 0.0) + silence(0.06) + click(0.07, 700, 50, 0.4) + silence(0.1)
+            + click(0.06, 850, 55, 0.35) + silence(0.05) + click(0.03, 2000, 130, 0.0))
+
+
+def shell_in():
+    """One shell pushed into the shotgun's tube."""
+    random.seed(405)
+    return click(0.03, 1200, 110, 0.1) + click(0.05, 650, 70, 0.3)
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     write("shot.wav", shot())
@@ -176,6 +233,13 @@ def main():
     write("swing.wav", swing())
     write("explosion.wav", explosion())
     write("throw.wav", throw())
+    # (New sounds go last, each with its own seed, so the ones above come out the same as before.)
+    write("shot_wasp.wav", shot_wasp())
+    write("shot_mauler.wav", shot_mauler())
+    write("shot_lancer.wav", shot_lancer())
+    write("pump.wav", pump())
+    write("bolt.wav", bolt())
+    write("shell_in.wav", shell_in())
 
 
 if __name__ == "__main__":

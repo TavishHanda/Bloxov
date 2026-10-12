@@ -211,7 +211,7 @@ func _show_message(text: String) -> void:
 		_message_left = 2.0
 
 
-## Adds, moves and removes the scav/Raider puppets to match the server's list ([id, kind, net_capture()]).
+## Adds, moves and removes the scav/Raider puppets to match the server's list ([id, kind, net_capture(), gun]).
 func sync_enemies(list: Array) -> void:
 	var seen := {}
 	for entry in list:
@@ -221,6 +221,9 @@ func sync_enemies(list: Array) -> void:
 		if puppet == null:
 			puppet = ENEMY_SCENES[clampi(entry[1], 0, ENEMY_SCENES.size() - 1)].instantiate()
 			puppet.puppet = true
+			# The gun the server's AI carries (0.15.12): the puppet holds, sounds and shoots like it.
+			var gun: int = entry[3] if entry.size() > 3 else -1
+			puppet.loadout = AILoadouts.NET_GUNS[gun] if gun >= 0 and gun < AILoadouts.NET_GUNS.size() else ""
 			puppet.name = "Enemy%d" % id
 			get_parent().add_child(puppet)
 			# Same outfit on every player's screen.
