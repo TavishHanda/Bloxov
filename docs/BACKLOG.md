@@ -52,7 +52,7 @@ Agreed order: core gameplay first (scavs next), then the co-op test (M3), then m
   on veterans, two progression systems to balance, makes characters feel the same). Revisit if the owner wants.
   Design-doc rule to keep in mind: progression = access, not power.
 - **More traders** (after the map, when there are more items/guns to sell; each trader with its own stock/rules).
-- **Walkable 3D hideout** (presentation feature, later polish; the menu hideout works until then).
+- **Walkable 3D hideout:** moved to the roadmap (owner, 2026-10-12; see ROADMAP.md, after World art).
 - **More loot and items** (content; best once combat and the map give them a purpose and a place).
 - **Food and water: MAYBE.** The design doc lists hunger/thirst as "not building" (chores in short raids).
   If it comes back, keep it light pressure (Tarkov-style), not a survival sim. Owner's call later.

@@ -66,6 +66,10 @@ Art is paused: cover props (cars, square props) are built; buildings wait until 
      points that slightly boost that character's own traits (e.g. sprint 2% longer per point, up to 20%). Comes with
      the characters work. Keep the boosts small: the design doc's rule is "progression = access, not power", so
      this is the one place a little power is earned, and only on that character.
+   - **Walkable hideout (owner, 2026-10-12; after World art, since it needs a hideout model):** open the game,
+     press PLAY, and you're standing in a 3D hideout. Walk up to the traders, the stash and a **shooting range**
+     (try guns and attachments) and use them there, or open a menu that takes you to today's hideout screen
+     (stash, loadout, traders, START RAID), which stays as the quick way to do everything. Touch-friendly on phones.
    - **Crosshair customization (owner, 2026-10-11; later):** pick your own crosshair (style, size, color) in settings.
    - **Skin boxes (owner, 2026-10-12; with skins and the premium currency near release, after the art updates,
      since skins need the final character models):** a **free skin box** bought with earned money (basic skins) and
