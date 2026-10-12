@@ -1213,6 +1213,22 @@ func _section_attachments() -> void:
 	loot_ui.detach(rifle, "scope", grid)
 	_check(rifle.attachments.is_empty() and gun.ads_time == old_ads, "all off: the gun is back to normal")
 	rifle.loaded = old_mag
+	# The equipped gun's slot shows its attachment slots; clicking one takes that attachment off (0.15.17, owner).
+	var slot_view := EquipSlotView.new("primary", inv, loot_ui, Vector2i(4, 2))
+	main.add_child(slot_view)
+	var dot_again := ItemStack.new("red_dot")
+	grid.place(dot_again)
+	loot_ui.attach_from_grid(grid, dot_again, rifle, null)
+	var rects := slot_view._part_rects()
+	_check(rects.map(func(r: Array) -> String: return r[0]) == ["scope", "barrel", "grip", "mag"], "the Hound's slot shows scope, barrel, grip and mag")
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.position = (rects[0][1] as Rect2).get_center()
+	slot_view._gui_input(click)
+	_check(rifle.attachments.is_empty() and inv.count_of("red_dot") + grid.count_of("red_dot") >= 1, "clicking the red dot's slot takes it off")
+	inv.take("red_dot", inv.count_of("red_dot"))
+	slot_view.free()
 
 
 func _section_new_guns() -> void:
@@ -1269,6 +1285,48 @@ func _section_new_guns() -> void:
 	inv.equip("primary", rifle)
 	gun.select_slot("primary")
 	_check(gun.weapon == rifle and gun.pellets == 1 and gun.load_one == false, "back to the AK")
+	# Every gun's shots land where you aim, body and head (owner asked to check the new guns' hits, 0.15.17).
+	var spare := inv.unequip("secondary")
+	var old_max := dummy_health.max_health
+	dummy_health.max_health = 100000
+	dummy_health.current = 100000
+	player.teleport_to(dummy.global_position + Vector3(0, 0, 8))
+	await _frames(3)
+	for id: String in ["pistol", "ak", "smg", "shotgun", "sniper"]:
+		var test_gun := ItemStack.new(id)
+		test_gun.loaded = 5
+		var slot := ItemDB.equip_slot(id)
+		var held := inv.unequip(slot)
+		if id == "sniper":
+			test_gun.attachments = {"scope": "scope_8x"}
+		inv.equip(slot, test_gun)
+		gun.select_slot(slot)
+		await create_timer(0.5).timeout
+		gun.base_spread_deg = 0.0
+		gun.hip_spread_deg = 0.0
+		gun.moving_spread_deg = 0.0
+		gun.pellet_spread_deg = 0.0
+		var results: Array[int] = []
+		for height: float in [1.0, 1.65]:
+			gun._flinch_spread = 0.0
+			gun._bloom = 0.0
+			_aim(dummy.global_position + Vector3(0, height, 0))
+			await physics_frame
+			var hp := dummy_health.current
+			gun.shoot_once()
+			results.append(hp - dummy_health.current)
+			await create_timer(60.0 / gun.rounds_per_minute + 0.05).timeout
+		var body := roundi(gun.damage * gun.pellets)
+		var head := roundi(gun.damage * gun.headshot_multiplier * gun.pellets)
+		_check(results == [body, head], "%s: body %d, head %d at 8 m (got %s)" % [ItemDB.display_name(id), body, head, str(results)])
+		inv.unequip(slot)
+		if held != null:
+			inv.equip(slot, held)
+	dummy_health.max_health = old_max
+	dummy_health.current = old_max
+	if spare != null:
+		inv.equip("secondary", spare)
+	gun.select_slot("primary")
 
 
 func _section_ai_loadouts() -> void:
@@ -2055,6 +2113,16 @@ func _section_pvp() -> void:
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "pistol")
 	await _until(func() -> bool: return got["hits"].size() >= 3)
 	_check(got["hits"].size() == 3 and got["hits"][2] == [17, false], "pistol body shot: 17")
+	# The new guns online (0.15.17): Wasp and Lancer body shots, a Lancer headshot.
+	var head_dir := (Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()
+	var body_dir := (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()
+	for shot: Array in [["smg", body_dir], ["sniper", body_dir], ["sniper", head_dir]]:
+		OS.delay_msec(60)
+		var n: int = got["hits"].size()
+		c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([shot[1]]), shot[0])
+		await _until(func() -> bool: return got["hits"].size() > n)
+	_check(got["hits"].slice(3, 6) == [[20, false], [90, false], [180, true]],
+		"online: Wasp body 20, Lancer body 90, Lancer headshot 180 (%s)" % str(got["hits"].slice(3, 6)))
 	# A shotgun's pellets (0.15.2): all of them that hit add up into one hit; more pellets than it fires don't count.
 	var chest := (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()
 	var too_many := PackedVector3Array()
@@ -2065,8 +2133,8 @@ func _section_pvp() -> void:
 	OS.delay_msec(60)
 	too_many.resize(8)
 	c1.send_shot(Vector3(0, 1.5, -4), too_many, "shotgun")
-	await _until(func() -> bool: return got["hits"].size() >= 4)
-	_check(got["hits"].size() == 4 and got["hits"][3] == [8 * 14, false], "8 shotgun pellets up close: one hit of 112 (%s)" % str(got["hits"]))
+	await _until(func() -> bool: return got["hits"].size() >= 7)
+	_check(got["hits"].size() == 7 and got["hits"][6] == [8 * 14, false], "8 shotgun pellets up close: one hit of 112 (%s)" % str(got["hits"]))
 	c2.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD])
 	await _until(func() -> bool: return got["kills"] == 1)
 	_check(got["kills"] == 1, "the killer is told about the kill")

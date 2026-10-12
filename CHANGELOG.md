@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.17 (Attachment slots on equipped guns; owner asked)
+- An equipped gun's slot (Primary/Secondary) in the hideout and raid inventory shows its attachment slots along the
+  bottom, each with a small picture of what's fitted (empty ones are named: SCP, BRL, GRP, MAG, SGT). Point at one
+  for its info; click or tap a fitted one to take it off. Dropping an attachment on the gun lights up the slot it
+  goes in. Guns in the inventory grids look the same as before.
+- Checked every gun's hits (owner asked): body and head shots land for the right damage in single player and
+  online; the smoke test now checks all five guns both ways.
+
 ## 0.15.16 (Playtest fixes: place loot, patrols, stash sort, drop pile; owner asked)
 - Loot by place now shows: a place's own loot counts 3x, so pharmacy crates are mostly meds, the gun store mostly
   guns and ammo, the school mostly backpacks. Anything can still turn up anywhere. Keys aren't boosted.
