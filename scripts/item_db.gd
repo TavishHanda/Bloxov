@@ -69,7 +69,7 @@ const ITEMS := {
 	"suppressor": {"name": "Suppressor", "short": "Supp", "desc": "Your shots are heard half as far. A little less kick.", "kind": "attachment", "rarity": "rare",
 		"w": 2, "h": 1, "stack": 1, "value": 1800, "slots": ["barrel"], "fits": ["pistol", "ak", "smg", "sniper"], "mult": {"noise": 0.5, "recoil": 0.9, "recoil_yaw": 0.9}},
 	"choke": {"name": "Choke", "desc": "Shotgun muzzle. Keeps the pellets tighter.", "kind": "attachment", "rarity": "uncommon",
-		"w": 1, "h": 1, "stack": 1, "value": 700, "slots": ["barrel"], "fits": ["shotgun"], "mult": {"pellet_spread": 0.7}},
+		"w": 1, "h": 1, "stack": 1, "value": 700, "slots": ["barrel"], "fits": ["shotgun"], "mult": {"pellet_spread": 0.85}},
 	"foregrip": {"name": "Foregrip", "short": "Grip", "desc": "Something to hold on to. Less kick.", "kind": "attachment", "rarity": "uncommon",
 		"w": 1, "h": 1, "stack": 1, "value": 800, "slots": ["grip"], "mult": {"recoil": 0.8, "recoil_yaw": 0.8}},
 	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds half as many rounds again. Slower to reload.", "kind": "attachment", "rarity": "rare",
