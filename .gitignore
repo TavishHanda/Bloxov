@@ -15,3 +15,4 @@ Thumbs.db
 *.import
 *.uid
 assets/models/**/*_*.png
+tools/.cover_candidates.json

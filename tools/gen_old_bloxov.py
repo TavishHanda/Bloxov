@@ -703,6 +703,56 @@ def barrels(x, z, rng):
 CLUTTER = [(rock, 5), (rubble, 3), (wreck, 3), (wrecked_truck, 1), (tank_traps, 2), (crater, 2), (barrels, 2)]
 
 
+# Sightline breakers (World art 0.17, owner: "you can spawn, go on a hill and kill a bunch of AI"): taller cover,
+# added by `cover_pass()` between the old clutter. Check with tools/sightlines.gd.
+def ruin_wall(x, z, rng, yaw=None):
+    """What's left of a wall: a jagged run of 2-3 m high pieces, sometimes with a corner."""
+    yaw = rng.uniform(0, 180) if yaw is None else yaw
+    col = rng.choice(("wall", "concrete", "wall_farm", "stone"))
+    length = rng.uniform(4.0, 7.0)
+    n = rng.randint(2, 3)
+    seg = length / n
+    for k in range(n):
+        h = rng.uniform(1.9, 3.0)
+        off = (k - (n - 1) / 2) * seg
+        obox(x + off * math.cos(math.radians(yaw)), h / 2, z - off * math.sin(math.radians(yaw)), seg, h, 0.4, yaw, col)
+    if rng.random() < 0.5:   # a corner
+        h = rng.uniform(1.9, 2.6)
+        cx, cz = x + length / 2 * math.cos(math.radians(yaw)), z - length / 2 * math.sin(math.radians(yaw))
+        side = rng.uniform(2.5, 4.0)
+        obox(cx + side / 2 * math.sin(math.radians(yaw)), h / 2, cz + side / 2 * math.cos(math.radians(yaw)), 0.4, h,
+             side, yaw, col)
+    rubble_bits = rng.randint(2, 4)
+    for _ in range(rubble_bits):
+        w = rng.uniform(0.5, 1.2)
+        obox(x + rng.uniform(-2.5, 2.5), w / 3, z + rng.uniform(-2.5, 2.5), w, w / 1.5, w, rng.uniform(0, 90), col)
+
+
+def container(x, z, rng, yaw=None):
+    """A dumped shipping container (now and then two, one on top)."""
+    yaw = rng.uniform(0, 180) if yaw is None else yaw
+    col = rng.choice(("rust", "army", "car_b", "boxcar"))
+    with group():
+        obox(x, 1.3, z, 2.4, 2.6, 6.1, yaw, col)
+        if rng.random() < 0.25:
+            obox(x + rng.uniform(-0.3, 0.3), 3.9, z + rng.uniform(-0.3, 0.3), 2.4, 2.6, 6.1, yaw + rng.uniform(-8, 8),
+                 rng.choice(("rust", "army", "car_b")))
+
+
+def berm(x, z, rng, yaw=None):
+    """A bulldozed earth bank, head high."""
+    yaw = rng.uniform(0, 180) if yaw is None else yaw
+    length = rng.uniform(7.0, 11.0)
+    for k in (-1, 0, 1):
+        off = k * length / 3
+        h = rng.uniform(1.7, 2.1) if k == 0 else rng.uniform(1.2, 1.6)
+        obox(x + off * math.cos(math.radians(yaw)), h / 2 - 0.1, z - off * math.sin(math.radians(yaw)), length / 2.4,
+             h, 2.6, yaw + rng.uniform(-6, 6), "dirt")
+
+
+COVER = [(ruin_wall, 5), (container, 2), (berm, 3), (rock, 3), (wrecked_truck, 2), (rubble, 2), (wreck, 2)]
+
+
 def _clear_of_map(x, z):
     """True if (x, z) is open grass: off roads, rail, water, yards and away from buildings, props and spawns."""
     if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 8:   # the railway
@@ -763,6 +813,87 @@ def clutter(spacing=18.0):
         if kind is not crater:   # (wrecks and rubble get a level spot on the hills; craters are dug into them)
             clutter_spots.append((x, z))
     return placed
+
+
+def cover_pass(spacing=11.0, tries=6000):
+    """More cover between the old clutter (0.17): spots on open grass, `spacing` apart, away from everything."""
+    rng = random.Random(1700)
+    placed = []
+    kinds = [k for k, w in COVER for _ in range(w)]
+    for _ in range(tries):
+        x, z = rng.uniform(0, M), rng.uniform(0, M)
+        if any(math.hypot(x - px, z - pz) < spacing for px, pz in placed) or not _clear_of_map(x, z):
+            continue
+        placed.append((x, z))
+        rng.choice(kinds)(x, z, rng)
+        clutter_spots.append((x, z))
+    return placed
+
+
+COVER_SPOTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover_spots.json")
+COVER_CANDIDATES = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cover_candidates.json")
+
+
+def _cover_checker():
+    """A looser `_clear_of_map` for sightline breakers (they may stand closer to roads and buildings), made once
+    with a grid of the props for speed."""
+    cell = 10.0
+    grid = {}
+    for b in boxes:
+        if b[4] > 0.2 and max(b[3], b[5]) < 30:
+            r = max(b[3], b[5]) / 2 + 2.5
+            bx, bz = b[0] + M / 2, b[2] + M / 2
+            for i in range(int((bx - r) // cell), int((bx + r) // cell) + 1):
+                for j in range(int((bz - r) // cell), int((bz + r) // cell) + 1):
+                    grid.setdefault((i, j), []).append((bx, bz, r))
+    flat = [(b[0] + M / 2, b[2] + M / 2, b[3] / 2 + 2, b[5] / 2 + 2) for b in boxes
+            if b[4] <= 0.06 and max(b[3], b[5]) > 8]
+
+    def ok(x, z):
+        if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 6:
+            return False
+        if any(t[0] - 3 < x < t[2] + 3 and t[1] - 3 < z < t[3] + 3 for t in TRENCHES):
+            return False
+        for points, width in roads + water:
+            for a, b in zip(points, points[1:]):
+                if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 2:
+                    return False
+        if any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for x0, z0, x1, z1 in yards):
+            return False
+        if any(x0 - 8 < x < x1 + 8 and z0 - 8 < z < z1 + 8 for _, x0, z0, x1, z1 in footprints + areas):
+            return False
+        if any(math.hypot(x - tx, z - tz) < 3 for tx, tz in trunks):
+            return False
+        if any(math.hypot(x - sx, z - sz) < 8 for _, sx, sz in player_spawns + enemy_spawns):
+            return False
+        if any(math.hypot(x - ex, z - ez) < 12 for _, _, ex, ez in extracts):
+            return False
+        if any(math.hypot(x - l[2], z - l[4]) < 5 for l in loot):
+            return False
+        if any(abs(x - fx) < hx and abs(z - fz) < hz for fx, fz, hx, hz in flat):
+            return False
+        return not any(math.hypot(x - bx, z - bz) < r for bx, bz, r in grid.get((int(x // cell), int(z // cell)), []))
+    return ok
+
+
+def planned_cover():
+    """Sightline breakers where `tools/sightlines.gd -- plan=N` found they block the most hill-to-AI views
+    (tools/cover_spots.json: [x, z, yaw] in map metres; the wall runs along yaw, across the views it blocks)."""
+    ok = _cover_checker()
+    if os.path.exists(COVER_SPOTS):
+        with open(COVER_SPOTS) as f:
+            spots = json.load(f)
+        for x, z, yaw in spots:
+            if not ok(x, z):
+                continue
+            rng = random.Random(int(x * 1000 + z))
+            kind = rng.choice((ruin_wall, ruin_wall, ruin_wall, container, berm, berm))
+            kind(x, z, rng, yaw)   # (no level pad: these stand on the hill tops, they sink into the slope instead)
+            ok = _cover_checker()   # (so the next one keeps its distance)
+    # Where the next round of cover could go (open ground on a 4 m grid), for tools/sightlines.gd.
+    free = [[x, z] for x in range(10, int(M) - 9, 4) for z in range(10, int(M) - 9, 4) if ok(x, z)]
+    with open(COVER_CANDIDATES, "w") as f:
+        json.dump(free, f)
 
 
 def trench():
@@ -1813,6 +1944,8 @@ def main():
 
     trench()
     scatter_trees(clutter())
+    cover_pass()
+    planned_cover()
     zone_spawns()
     map_labels()
     check_roads()
