@@ -1806,6 +1806,7 @@ func _section_hideout() -> void:
 	Profile.trader_spent = {}
 	Profile.quests_done = []
 	Profile.quest_progress = {}
+	Profile.trader_levels = {}
 	Profile.money = 100000
 	var money2 := Profile.money
 	_check(Profile.trader_level("guns") == 1 and not hideout.buy("ak", 1) and Profile.money == money2, "a level 2 gun can't be bought at level 1")
@@ -1853,11 +1854,38 @@ func _section_hideout() -> void:
 	_check(not window.visible and Quests.progress("spare_parts") == 1 and Profile.stash.count_of("foregrip") == 0
 		and Profile.stash.count_of("suppressor") == 1 and Profile.trader_level("guns") == 1, "hand in part of a quest (1/2)")
 	_check(hideout.hand_in("spare_parts") == 1 and Profile.stash.count_of("suppressor") == 0 and Profile.stash.count_of("red_dot") == 1
-		and Profile.trader_level("guns") == 2 and hideout.buy("ak", 1), "handing in the rest finishes the last quest: level 2, the Hound unlocks")
+		and Profile.trader_level("guns") == 1 and Profile.can_level_up("guns"), "handing in the rest finishes the last quest: the Gunsmith can level up")
+	hideout.open_trader("guns")
+	var level_button := hideout._trader_rows.get_node_or_null("LevelUp") as Button
+	_check(level_button != null and not level_button.disabled and level_button.text == "LEVEL UP TO 2", "the trader shows a LEVEL UP button (0.17.1)")
+	level_button.pressed.emit()
+	_check(Profile.trader_level("guns") == 2 and not Profile.can_level_up("guns") and hideout._message_label.text.contains("is now level 2")
+		and hideout.buy("ak", 1), "LEVEL UP: level 2, the Hound unlocks")
+	# The quest tracker in the pause menu (0.17.1): open quests with progress, and what this raid adds once out.
+	var tracker := QuestTracker.new()
+	root.add_child(tracker)
+	Quests.raid_started()
+	Quests.record_kill("sniper", "ak")
+	var no_menu := Control.new()
+	tracker.refresh(no_menu)
+	no_menu.free()
+	var tracker_text := ""
+	for label in tracker.find_children("*", "Label", true, false):
+		tracker_text += (label as Label).text + "\n"
+	_check(tracker_text.contains("OVERWATCH") and tracker_text.contains("Kill 2 snipers, then extract. +1 when you extract.") and not tracker_text.contains("ZEROING IN"),
+		"the quest tracker lists the open quests and this raid's kills (%s)" % tracker_text.replace("\n", " | "))
+	Quests.raid_started()
+	tracker.free()
 	Profile.stash.add("bandage", 1)
 	Profile.stash.add("bandage", 1, ItemStack.FOUND)
 	var bandage_stacks := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage")
-	_check(bandage_stacks.size() == 2, "found bandages don't stack with bought ones")
+	_check(bandage_stacks.size() == 2, "found bandages don't stack with bought ones (a quest wants found bandages)")
+	# 0.17.2 (owner): the found mark only matters for items an open quest wants; the rest stack with everything.
+	Profile.stash.add("pistol_ammo", 5)
+	Profile.stash.add("pistol_ammo", 5, ItemStack.FOUND)
+	var round_stacks := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "pistol_ammo")
+	_check(not Quests.wants("pistol_ammo") and Quests.wants("bandage") and round_stacks.size() == 1 and round_stacks[0].count == 10
+		and not round_stacks[0].found, "found and bought ammo stack together (no quest wants it)")
 	var crate := LootContainer.new()
 	crate.loot_table = "crate"
 	crate.min_items = 2
@@ -1868,6 +1896,12 @@ func _section_hideout() -> void:
 	hideout.open_trader("meds")
 	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size() + Quests.for_level("meds", 2).size() + 2,
 		"the trader tabs switch the stock shown, with the next level's quests on top")
+	var trader_panel := hideout._trader_title.get_parent().get_parent().get_parent() as Control
+	var widths := {}
+	for trader: String in Traders.LIST:
+		hideout.open_trader(trader)
+		widths[trader_panel.get_combined_minimum_size().x] = true
+	_check(widths.size() == 1, "the trader column is the same width for every trader (0.17.2: %s)" % str(widths.keys()))
 	# Stash upgrades (0.16.0): more rows for money, up to the top size.
 	Profile.stash.height = Profile.STASH_ROWS[0]
 	money = Profile.money
@@ -2279,10 +2313,15 @@ func _section_pvp() -> void:
 	server.matchmaker.queue_countdown = 0.2
 	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": []}
 	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
-	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void: got["hits"].append([amount, headshot]))
+	# (The target's game reports what each hit did after its armor; here, armor that takes 25% off.)
+	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void:
+		got["hits"].append([amount, headshot])
+		c2.report_damage(roundi(amount * 0.75)))
 	c1.shot_confirmed.connect(func(headshot: bool, amount: int, _pos: Vector3) -> void:
 		got["confirmed"].append(headshot)
 		got["shown"] = got.get("shown", []) + [amount])
+	c1.damage_shown.connect(func(amount: int, _headshot: bool, _pos: Vector3) -> void:
+		got["after_armor"] = got.get("after_armor", []) + [amount])
 	c1.kill_confirmed.connect(func(target: String) -> void:
 		got["kills"] += 1
 		got["target"] = target)
@@ -2295,6 +2334,10 @@ func _section_pvp() -> void:
 	var world: RaidWorld = server._worlds.values()[0] if not server._worlds.is_empty() else null
 	_check(world != null and world.get_node_or_null("Main/Level") != null and world.get_node_or_null("Main/Player") == null,
 		"each online raid gets its own copy of the map on the server (map only)")
+	# (Only the players' shots here: the raid's AI hitting the target made the hit list flaky.)
+	if world != null:
+		for connection in world.player_hit.get_connections():
+			world.player_hit.disconnect(connection["callable"])
 	await _frames(5)
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()
@@ -2313,7 +2356,9 @@ func _section_pvp() -> void:
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return not got["hits"].is_empty())
 	_check(got["hits"] == [[28, false]] and got["confirmed"] == [false], "an AK body shot hits the other player for 28 (%s)" % str(got["hits"]))
-	_check(got.get("shown", []) == [28], "online, the shooter gets the damage for their damage number (%s)" % str(got.get("shown", [])))
+	await _until(func() -> bool: return got.has("after_armor"))
+	_check(got.get("shown", []) == [0] and got.get("after_armor", []) == [21],
+		"online, the shooter's damage number is what the hit did after the target's armor (0.17.1: %s)" % str(got.get("after_armor", [])))
 	await _until(func() -> bool: return not got["heard"].is_empty())
 	_check(got["heard"] == ["ak"], "the other player hears the shot (0.15.28: %s)" % str(got["heard"]))
 	await _frames(4)

@@ -33,6 +33,25 @@ func marks() -> int:
 	return (FREE if free else 0) | (FOUND if found else 0)
 
 
+## Whether stacks of `item_id` with these marks stack together. Free kit only with free kit; the found mark only
+## matters while an open quest wants the item (0.17.2, owner: ammo and the rest stack again). Stacking a found stack
+## with an unfound one leaves it unfound (see merge_marks).
+static func stackable(item_id: String, a: int, b: int) -> bool:
+	if a & FREE != b & FREE:
+		return false
+	return a & FOUND == b & FOUND or not Quests.wants(item_id)
+
+
+## Can `other` be stacked onto this one (same item, marks that stack)?
+func stacks_with(other_id: String, other_marks: int) -> bool:
+	return other_id == id and stackable(id, marks(), other_marks)
+
+
+## Something with `other_marks` was stacked onto this: it's only found if both were.
+func merge_marks(other_marks: int) -> void:
+	found = found and other_marks & FOUND != 0
+
+
 func set_marks(value: int) -> void:
 	free = value & FREE != 0
 	found = value & FOUND != 0

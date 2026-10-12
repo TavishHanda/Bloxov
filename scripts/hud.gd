@@ -51,6 +51,8 @@ var _capture_retry_at := 0
 ## LEAVE RAID (0.14.24, owner) under PLAY, and the "are you sure?" box that takes its place when pressed.
 var leave_button: Button
 var leave_confirm: VBoxContainer
+## Open quests and progress, beside the pause menu (0.17.1).
+var quest_tracker: QuestTracker
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
 
@@ -75,6 +77,9 @@ func _ready() -> void:
 	play_button.pressed.connect(_capture_mouse)
 	PauseMenuStyle.apply(menu)
 	_build_leave()
+	quest_tracker = QuestTracker.new()
+	add_child(quest_tracker)
+	menu.visibility_changed.connect(_show_quests)
 
 	hotbar = HotbarHUD.new(player)
 	add_child(hotbar)
@@ -105,8 +110,10 @@ func _ready() -> void:
 	add_child(end_screen)
 	end_screen.spectate_pressed.connect(spectate)
 	spectator.finished.connect(func() -> void: end_screen.show_result(player.kills))
-	# Keep the pause menu on top of everything.
+	# Keep the pause menu (and the quest tracker beside it) on top of everything.
 	move_child(menu, -1)
+	move_child(quest_tracker, -1)
+	_show_quests.call_deferred()
 
 	player.health.damaged.connect(_on_player_damaged)
 	player.gun.hit_confirmed.connect(_on_hit_confirmed)
@@ -246,6 +253,13 @@ func _build_leave() -> void:
 		row.add_child(button)
 	box.add_child(leave_confirm)
 	box.move_child(leave_confirm, leave_button.get_index() + 1)
+
+
+## The quest tracker shows (freshly filled) with the pause menu.
+func _show_quests() -> void:
+	quest_tracker.visible = menu.visible
+	if menu.visible:
+		quest_tracker.refresh(menu)
 
 
 ## LEAVE RAID pressed: ask first, in case it was a misclick.

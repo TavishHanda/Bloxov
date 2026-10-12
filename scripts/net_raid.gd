@@ -39,6 +39,9 @@ func _ready() -> void:
 	Network.main.got_hit.connect(apply_hit)
 	Network.main.shot_confirmed.connect(_on_shot_confirmed)
 	Network.main.kill_confirmed.connect(_on_kill_confirmed)
+	Network.main.damage_shown.connect(func(amount: int, headshot: bool, pos: Vector3) -> void:
+		if GameSettings.damage_numbers:
+			Effects.damage_number(get_tree().current_scene, pos, amount, headshot))
 	Network.main.bashed.connect(func(amount: int, from: Vector3, shove: float, block: float) -> void:
 		if not player.controls_locked():
 			player.take_bash(amount, from, shove, block))
@@ -261,9 +264,12 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 
 ## A hit the server sent (another player's shot, or online an AI's): our armor, or on the head our helmet, applies
 ## as for any other hit.
+## What it did goes back to the server for the shooter's damage number (0.17.1).
 func apply_hit(amount: int, from: Vector3, headshot: bool) -> void:
+	var dealt := 0
 	if not player.controls_locked():
-		player.health.take_damage(amount, from, false, headshot)
+		dealt = player.health.take_damage(amount, from, false, headshot)
+	Network.main.report_damage(dealt)
 
 
 func _on_shot_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:

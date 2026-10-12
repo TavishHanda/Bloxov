@@ -185,6 +185,7 @@ func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: 
 	if target != null:
 		var moved := mini(stack.count, target.space_left())
 		target.count += moved
+		target.merge_marks(stack.marks())
 		stack.count -= moved
 		if stack.count <= 0:
 			from.remove(stack)
@@ -314,7 +315,7 @@ func _merge_target(stack: ItemStack, grid: GridInventory, cell: Vector2i) -> Ite
 	if cell.x < 0 or cell.y < 0:
 		return null
 	var target := grid.stack_at(cell)
-	if target != null and target != stack and target.id == stack.id and target.marks() == stack.marks() and target.space_left() > 0:
+	if target != null and target != stack and target.stacks_with(stack.id, stack.marks()) and target.space_left() > 0:
 		return target
 	return null
 
@@ -893,7 +894,7 @@ func show_info(stack: ItemStack) -> void:
 	_info_label.text = stack.title() + ("  x%d" % stack.count if stack.count > 1 else "")
 	if stack.free:
 		_info_label.text += "  (free kit: sells for $0)"
-	elif stack.found:
+	elif stack.found and Quests.wants(stack.id):
 		_info_label.text += "  (found in raid)"
 	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
 	var parts: PackedStringArray = [rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]

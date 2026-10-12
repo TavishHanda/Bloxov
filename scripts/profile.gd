@@ -34,6 +34,9 @@ static var free_kit_raid := -1
 ## Trader quests (0.16.13, see Quests): finished quest ids, and progress (quest id -> count) on the rest.
 static var quests_done: Array[String] = []
 static var quest_progress: Dictionary = {}
+## Each trader's level (Traders.LIST id -> level; missing = 1). It goes up when you press LEVEL UP at the trader once
+## the level's quests are done and its money spent (0.17.1, owner: a level-up button).
+static var trader_levels: Dictionary = {}
 static var _loaded := false
 
 
@@ -84,11 +87,38 @@ static func load_profile() -> void:
 		for key in saved_progress:
 			if key is String and Quests.LIST.has(key) and _is_number(saved_progress[key]):
 				quest_progress[key] = clampi(int(saved_progress[key]), 0, int(Quests.LIST[key]["count"]))
+	trader_levels = {}
+	var saved_levels = data.get("trader_levels")
+	for trader: String in Traders.LIST:
+		if saved_levels is Dictionary:
+			if _is_number(saved_levels.get(trader)):
+				trader_levels[trader] = clampi(int(saved_levels[trader]), 1, trader_level_reached(trader))
+		else:
+			# A save from before the button: keep the levels it had reached.
+			trader_levels[trader] = trader_level_reached(trader)
 
 
-## A trader's level (Traders.level) from their quests you've done and what you've spent with them.
+## A trader's level: what you've levelled them up to.
 static func trader_level(trader: String) -> int:
+	return clampi(int(trader_levels.get(trader, 1)), 1, Traders.max_level(trader))
+
+
+## The highest level a trader's quests done and money spent allow (Traders.level).
+static func trader_level_reached(trader: String) -> int:
 	return Traders.level(trader, int(trader_spent.get(trader, 0)), quests_done)
+
+
+## The next level's quests are done and its money spent: LEVEL UP can be pressed.
+static func can_level_up(trader: String) -> bool:
+	return trader_level_reached(trader) > trader_level(trader)
+
+
+## Levels a trader up by one (LEVEL UP). False if they can't yet.
+static func level_up(trader: String) -> bool:
+	if not can_level_up(trader):
+		return false
+	trader_levels[trader] = trader_level(trader) + 1
+	return true
 
 
 ## The stash's upgrade level (1-based): the biggest STASH_ROWS size it has reached.
@@ -154,6 +184,7 @@ static func reset() -> void:
 	free_kit_raid = -1
 	quests_done = []
 	quest_progress = {}
+	trader_levels = {}
 
 
 static func save_profile() -> void:
@@ -168,6 +199,7 @@ static func save_profile() -> void:
 		"free_kit_raid": free_kit_raid,
 		"quests_done": quests_done,
 		"quest_progress": quest_progress,
+		"trader_levels": trader_levels,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)
