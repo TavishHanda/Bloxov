@@ -1742,10 +1742,7 @@ func _section_hideout() -> void:
 	_check(not hideout.can_take_free_kit(), "free kit is gone once you carry something")
 	# (0.16.5, owner) The kit's pistol sells for nothing; a bought or found one still sells. The mark is saved.
 	var kit_pistol := hideout_inv.equipped("secondary")
-	var money_kit := Profile.money
-	hideout.sell(Profile.stash, kit_pistol)   # (refused before it touches any grid)
-	_check(kit_pistol.free and hideout.sell_price(kit_pistol) == 0 and Profile.money == money_kit and hideout_inv.equipped("secondary") == kit_pistol,
-		"the free kit's pistol can't be sold for money")
+	_check(kit_pistol.free and hideout.sell_price(kit_pistol) == 0, "the free kit's pistol sells for $0")
 	_check(hideout.sell_price(ItemStack.new("pistol")) > 0, "a normal Stinger still sells")
 	var saved_kit := GridInventory.data_stack(GridInventory.stack_data(kit_pistol))
 	_check(saved_kit.free and Profile._read_stack(Profile._write_stack(kit_pistol)).free, "the free kit mark survives saving and the network")
@@ -1753,6 +1750,15 @@ func _section_hideout() -> void:
 	var kit_extras := hideout_inv.all_stacks().filter(func(st: ItemStack) -> bool: return st.id in ["pistol_ammo", "bandage"])
 	_check(kit_extras.size() == 2 and kit_extras.all(func(st: ItemStack) -> bool: return st.free and hideout.sell_price(st) == 0),
 		"the free kit's rounds and bandage sell for nothing")
+	# (0.16.7, owner) Selling one still works, for $0, so you can clear free kit items out.
+	var kit_bandage: ItemStack = kit_extras.filter(func(st: ItemStack) -> bool: return st.id == "bandage")[0]
+	var bandage_grid: GridInventory = null
+	for g in hideout_inv.grids():
+		if kit_bandage in g.stacks:
+			bandage_grid = g
+	var money_kit := Profile.money
+	hideout.sell(bandage_grid, kit_bandage)
+	_check(Profile.money == money_kit and not kit_bandage in bandage_grid.stacks, "a free kit item sells for $0 (it's gone, no money)")
 	hideout_inv.add("pistol_ammo", 10)
 	var ammo_stacks := hideout_inv.all_stacks().filter(func(st: ItemStack) -> bool: return st.id == "pistol_ammo")
 	_check(ammo_stacks.size() == 2 and ammo_stacks.any(func(st: ItemStack) -> bool: return not st.free and st.count == 10)

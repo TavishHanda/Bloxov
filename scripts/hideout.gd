@@ -188,10 +188,7 @@ func upgrade_stash() -> bool:
 
 
 func sell(grid: GridInventory, stack: ItemStack) -> void:
-	if stack.free and sell_price(stack) == 0:
-		_message("Traders won't pay for free kit gear")
-		return
-	var price := sell_price(stack)
+	var price := sell_price(stack)   # (free kit items go for $0, 0.16.7: a way to clear them out)
 	grid.remove(stack)
 	Profile.money += price
 	Profile.stats["earned"] += price
