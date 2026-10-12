@@ -1858,7 +1858,13 @@ def school_room(m):
 
 SCHOOL_WALLS = {   # (floor, i, j) -> inside walls, floor
     (0, 0, 0): ("int_warm", "carpet"), (0, 0, 1): ("int_tile", "floor_tile"), (0, 0, 2): ("int_tile", "floor_tile"),
-    (0, 2, 2): ("int_warm", "carpet"), (1, 1, 2): ("int_warm", "carpet"), (1, 0, 0): ("int_school", "floor_wood"),
+    (0, 2, 2): ("int_warm", "carpet"), (1, 1, 2): ("int_warm", "carpet"),
+    # Floors (owner, 0.17): terrazzo in the halls and lobby, parquet in the classrooms, rubber in the art room;
+    # the lab and computer room keep the speckled lino.
+    (0, 1, 1): ("int_school", "terrazzo"), (1, 1, 1): ("int_school", "terrazzo"), (0, 1, 2): ("int_school", "terrazzo"),
+    (0, 1, 0): ("int_school", "parquet"), (0, 2, 1): ("int_school", "parquet"), (1, 1, 0): ("int_school", "parquet"),
+    (1, 2, 0): ("int_school", "parquet"), (1, 2, 1): ("int_school", "parquet"), (1, 0, 2): ("int_school", "parquet"),
+    (1, 0, 0): ("int_school", "rubber"),
 }
 
 
@@ -1924,7 +1930,51 @@ def paint_brick_tan(rng):
     return c
 
 
-KIT.update({"int_school": paint_int_school, "floor_lino": paint_floor_lino, "carpet": paint_carpet,
+def paint_terrazzo(rng):
+    """Speckled stone with brass divider strips every 2 m."""
+    c = Canvas(64, 64, "bone")
+    for _ in range(260):
+        x, y = rng.randrange(64), rng.randrange(64)
+        col = rng.choice(("concrete", "steel", "sand", "olive_light", "red", "sky_blue", "wood_light"))
+        c.put(x, y, col)
+        if rng.random() < 0.3:
+            c.put((x + 1) % 64, y, col)
+    for k in range(0, 64, 32):
+        c.rect(k, 0, k + 1, 64, "yellow_dark")
+        c.rect(0, k, 64, k + 1, "yellow_dark")
+    c.blotch(["sand"], 3, rng, size=(2, 4))
+    return c
+
+
+def paint_parquet(rng):
+    """Wood blocks (1 m squares of four planks), alternating direction."""
+    c = Canvas(64, 64, "wood_light")
+    for by in range(0, 64, 16):
+        for bx in range(0, 64, 16):
+            horiz = ((bx + by) // 16) % 2 == 0
+            for k in range(4):
+                col = rng.choice(("wood_light", "wood", "wood_pale"))
+                if horiz:
+                    c.rect(bx, by + k * 4, bx + 16, by + k * 4 + 4, col)
+                    c.rect(bx, by + k * 4, bx + 16, by + k * 4 + 1, "wood_mid")
+                else:
+                    c.rect(bx + k * 4, by, bx + k * 4 + 4, by + 16, col)
+                    c.rect(bx + k * 4, by, bx + k * 4 + 1, by + 16, "wood_mid")
+    c.blotch(["wood_mid"], 3, rng, size=(2, 4))                       # scuffs
+    return c
+
+
+def paint_rubber(rng):
+    """Blue speckled rubber flooring with a yellow line."""
+    c = Canvas(64, 64, "sky_blue")
+    for _ in range(500):
+        c.put(rng.randrange(64), rng.randrange(64), rng.choice(("iron", "bone", "steel_light", "iron_dark")))
+    c.rect(0, 30, 64, 32, "hazard_yellow")
+    return c
+
+
+KIT.update({"terrazzo": paint_terrazzo, "parquet": paint_parquet, "rubber": paint_rubber,
+            "int_school": paint_int_school, "floor_lino": paint_floor_lino, "carpet": paint_carpet,
             "brick_tan": paint_brick_tan, "green": paint_flat("green_dark"), "olive_dark": paint_flat("olive_dark")})
 
 
