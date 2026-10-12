@@ -73,6 +73,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			tactic = Tactic.NONE   # done: decide again next frame
 		return move
 	if sees:
+		_fled_left = 0.0
 		_suppress_left = 0.0
 		_may_suppress = true
 		_last_seen = _target.global_position
@@ -130,6 +131,12 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			_update_shooting(delta, global_position.distance_to(_suppress_at), true)
 			return Vector3.ZERO
 		Tactic.PURSUE:
+			# Ran off from a sniper it can't fight: stays hidden, watching that way, until FLEE_TIME is up.
+			if _fled_left > 0.0:
+				_fled_left -= delta
+				_face(_flat(_last_seen - global_position), delta)
+				_lost_sight_time = 0.0
+				return Vector3.ZERO
 			# Lost sight: go to where it last saw you (it doesn't know where you went), then search.
 			if _arrived(_last_seen) or _lost_sight_time > give_up_time:
 				_set_state(State.SEARCH)
@@ -168,14 +175,34 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 	return true
 
 
+## Sniped from out of its range: how long it stays hidden after running off before it goes looking (seconds).
+const FLEE_TIME := 20.0
+var _fled_left := 0.0
+
 ## Picks the plan, in order: lost you: pin you down (if a friend can flank) or go after you; too far: move up;
 ## you're reloading or healing: push; otherwise get to cover (sometimes flank in a lull), and only with no cover
 ## anywhere near, trade shots in the open. Badly hurt it never pushes or flanks, and it never runs away: it
 ## repositions to cover and keeps fighting (0.12.32, owner), patching up once the fight goes quiet.
 func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	_tactic_time = 0.0
+	var was_hit := _hit_since_decide
 	_hit_since_decide = false
 	if not sees:
+		# Sniped from beyond its own range, with no way to shoot back (0.15.26, owner): it runs off somewhere farther
+		# away that the shooter can't see, then lies low for a while (FLEE_TIME) before it goes looking.
+		if was_hit and _target != null and dist > shoot_range and not holds_position:
+			var away := _find_cover(cover_search_radius * 2.0, 8.0)
+			if away != Vector3.INF:
+				_cover_point = away
+				_cover_low = _found_low
+				_cover_phase = Cover.MOVING
+				_peeks_left = 0
+				_peek_point = global_position
+				_note_move_start()
+				_bark("cover", 0.35)
+				_fled_left = FLEE_TIME
+				tactic = Tactic.COVER
+				return
 		if _suppress_left > 0.0 or _try_suppress():
 			tactic = Tactic.SUPPRESS
 		else:

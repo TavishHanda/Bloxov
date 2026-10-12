@@ -3837,6 +3837,20 @@ func _section_scav_looting() -> void:
 
 
 func _section_cover() -> void:
+	# 0.15.26 (owner): sniped from beyond its range with no way to shoot back, it runs off and lies low.
+	player.teleport_to(Vector3(-30, 0.1, -30))
+	var sniped := _spawn(SCAV_SCENE, Vector3(-30, 0.1, -30) + Vector3(1, 0, 1).normalized() * 80.0) as Scav
+	sniped.shot_damage = 0
+	await _frames(5)
+	var sniped_from := sniped.global_position.distance_to(player.global_position)
+	sniped.health.take_damage(10, player.global_position + Vector3(0, 1.5, 0))
+	for i in 60 * 10:
+		await physics_frame
+	var sniped_to := sniped.global_position.distance_to(player.global_position)
+	_check(sniped._fled_left > 0.0 and sniped_to > sniped_from + 3.0,
+		"sniped from out of its range, it runs off and hides (%.0f m -> %.0f m)" % [sniped_from, sniped_to])
+	sniped.queue_free()
+	await physics_frame
 	# Fighting comes first; in a break (nobody shooting at it for a bit) a scav ducks behind something nearby,
 	# holds a moment, then comes back out to fight. Next to the police station (walls x -20..-10, z -20..-10).
 	player.teleport_to(Vector3(-15, 0.1, 0))
