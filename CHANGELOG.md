@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.23 (Bigger safes, patrols start differently; owner asked)
+- Safes are 4x4 (were 3x3), so a large backpack found in a safe fits instead of being rolled again.
+- AI start each raid facing a random way and wait a random 0-8 s before their first patrol stop, so they don't all
+  set off together the same way every raid. Fights are unchanged.
+
 ## 0.15.22 (Richer bank vault; owner asked, numbers ours)
 - Bank vault safes: the Holy Grail 3% each (was 1%; the bunker stays 1%), and the golden toilet about 6% each (an
   extra 3% on top of every safe's 3%).

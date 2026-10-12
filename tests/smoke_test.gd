@@ -926,7 +926,11 @@ func _section_items() -> void:
 		if safe_box.grid.stacks.is_empty():
 			empty_safes += 1
 		safe_box.free()
-	_check(empty_safes == 0, "vault safes are never empty (%d of 300)" % empty_safes)
+	var large_safe := safe_scene.instantiate() as LootContainer
+	root.add_child(large_safe)
+	var large_fits := large_safe.grid.width >= 4 and large_safe.grid.height >= 4
+	large_safe.free()
+	_check(empty_safes == 0 and large_fits, "vault safes are never empty (%d of 300), and a large backpack (4x4) fits in a safe" % empty_safes)
 	# Loot by place: a gun store locker is mostly guns, ammo and attachments, a pharmacy crate mostly meds.
 	var guns := 0
 	var meds := 0

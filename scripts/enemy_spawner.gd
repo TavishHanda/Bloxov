@@ -239,6 +239,10 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	var enemy := scene.instantiate() as Scav
 	get_parent().add_child(enemy)
 	enemy.global_position = on_floor(spot)
+	# Facing any way, and a short random wait before its first patrol stop (0.15.23, owner: the town's AI looked like
+	# they ran the same patrol every raid; they all set off at the same moment).
+	enemy.rotation.y = randf() * TAU
+	enemy._wander_time = randf_range(0.0, 8.0)
 	if zone_name != "":
 		enemy.home_center = zone.get("center", spot)
 		enemy.home_radius = float(zone.get("radius", 0.0))
