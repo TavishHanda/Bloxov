@@ -85,6 +85,18 @@ func _initialize() -> void:
 				missing.append(ItemDB.display_name(entry[0]))
 		var note := "" if missing.is_empty() else "  (loot-only: %s)" % ", ".join(missing)
 		print("  %-18s %8s  = %.1f quick raids, %.1f town loops%s" % [kit[0], ItemDB.money(cost), cost / quick, cost / loop, note])
+	print("\n== Ming's boxes (average sell value of what comes out) ==")
+	for box: String in Traders.BOXES:
+		var total := 0
+		var shop := 0
+		for i in runs * 5:
+			var id := Traders.open_box(box)
+			total += Traders.sell_price(ItemStack.new(id))
+			shop += Traders.buy_price(id, 1)
+		var price: int = Traders.BOXES[box]["price"]
+		var avg := float(total) / (runs * 5)
+		print("  %-10s %8s  sells for %s (%d%%), costs %s at a trader" % [Traders.BOXES[box]["name"], ItemDB.money(price),
+			ItemDB.money(roundi(avg)), roundi(100.0 * avg / price), ItemDB.money(roundi(float(shop) / (runs * 5)))])
 	quit()
 
 

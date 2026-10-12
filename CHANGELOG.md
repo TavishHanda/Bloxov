@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.2 (Ming's mystery boxes; owner asked)
+- New trader tab **MING**: Uncle Ming keeps the outpost entertained with mystery boxes. Pay, and one random item
+  from the box goes to your stash. Every box shows its odds before you buy.
+  - **Gun Box** $12,000: Stinger 30%, Wasp 25%, Mauler 20%, Hound 15%, Lancer 10%.
+  - **Gear Box** $10,000: light armor 30%, old helmet 25%, medium backpack 20%, large backpack 9%, heavy armor 8%,
+    combat helmet 8%.
+  - **Loot Box** $3,500: a common 30%, uncommon 30%, rare 25%, epic 12% or legendary 3% valuable.
+  On average a box gives back a little less than it costs (a money sink), but it can skip trader levels or land
+  loot-only gear.
+- Earned money only: Ming never takes the future premium currency (STORE_RULES.md section 5). Casino games
+  (blackjack, slots, coin flips) are left out on purpose, since they count as simulated gambling for age ratings.
+- The trader tabs are smaller so five fit.
+
 ## 0.16.1 (price pass; owner OK'd raising gear prices about 5x)
 - Gear costs about **5x more**: guns, attachments, ammo, meds, armor, helmets, backpacks and drinks (Hound $12,500,
   was $2,500; Lancer $22,500; bandage $500; rifle round $15). Valuables and keys keep their values, so loot stays

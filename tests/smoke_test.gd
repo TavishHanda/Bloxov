@@ -1775,6 +1775,29 @@ func _section_hideout() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.trader_level("guns") == 2 and Profile.stash.height == Profile.STASH_ROWS[-1], "trader levels and stash size are saved")
+	# Ming's mystery boxes (0.16.2, owner): earned money in, one random item from the box into the stash, odds shown.
+	var odds_ok := Traders.BOXES.keys().all(func(box: String) -> bool:
+		var sum := 0.0
+		for entry: Array in Traders.box_odds(box):
+			sum += entry[1]
+		return absf(sum - 100.0) < 0.01)
+	_check(odds_ok and Traders.BOXES.keys().all(func(box: String) -> bool:
+		return Traders.BOXES[box]["odds"].keys().all(func(key: String) -> bool:
+			return ItemDB.ITEMS.has(key) or key in ["common", "uncommon", "rare", "epic", "legendary"])),
+		"every Ming box lists real items and its odds add up to 100%")
+	Profile.money = 50000
+	money = Profile.money
+	var stash_count := Profile.stash.stacks.size()
+	var won: String = hideout.open_box("gun_box")
+	_check(won in Traders.BOXES["gun_box"]["odds"] and Profile.money == money - int(Traders.BOXES["gun_box"]["price"])
+		and Profile.stash.stacks.size() == stash_count + 1, "a Ming gun box takes its price and puts a gun in the stash (%s)" % won)
+	won = hideout.open_box("loot_box")
+	_check(won != "" and ItemDB.kind(won) == "valuable" and not ItemDB.item(won).get("special", false), "a Ming loot box gives a valuable")
+	Profile.money = 10
+	_check(hideout.open_box("gun_box") == "" and Profile.money == 10, "no Ming box without the money")
+	hideout.open_trader("ming")
+	_check(hideout._trader_title.text == "MING" and hideout._trader_rows.get_child_count() == Traders.BOXES.size() * 2,
+		"Ming's tab shows each box with its odds")
 	hideout.queue_free()
 	await process_frame
 

@@ -30,7 +30,49 @@ const LIST := {
 			{"spent": 10000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
 		]},
 	"valuables": {"name": "Fence", "tab": "LOOT", "about": "Buys valuables and keys at full value. Sells nothing.", "kinds": ["valuable", "key"], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
+	"ming": {"name": "Ming", "tab": "MING", "about": "Uncle Ming keeps the outpost entertained. Pick a box, pay, see what's inside. The odds are on every box.", "kinds": [], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
 }
+
+
+## Ming's mystery boxes (0.16.2, owner): pay earned money, get one random item from the box, with every chance
+## shown before you buy (STORE_RULES.md section 5; never the premium currency). A rarity key ("rare") means a random
+## valuable of that rarity. Each box pays back about 80% of its price on average, so it's a money sink
+## (tools/economy_sim.gd prints the numbers).
+const BOXES := {
+	"gun_box": {"name": "Gun Box", "price": 12000,
+		"odds": {"pistol": 30, "smg": 25, "shotgun": 20, "ak": 15, "sniper": 10}},
+	"gear_box": {"name": "Gear Box", "price": 10000,
+		"odds": {"armor_light": 30, "helmet_basic": 25, "backpack_medium": 20, "backpack_large": 9, "armor_heavy": 8, "helmet_good": 8}},
+	"loot_box": {"name": "Loot Box", "price": 3500,
+		"odds": {"common": 30, "uncommon": 30, "rare": 25, "epic": 12, "legendary": 3}},
+}
+
+
+## Rolls one of Ming's boxes: an item id.
+static func open_box(box: String) -> String:
+	var odds: Dictionary = BOXES[box]["odds"]
+	var total := 0
+	for weight: int in odds.values():
+		total += weight
+	var pick := randi() % total
+	for key: String in odds:
+		pick -= odds[key]
+		if pick < 0:
+			return key if ItemDB.ITEMS.has(key) else ItemDB._random_valuable(key)
+	return odds.keys()[0]
+
+
+## [[label, percent], ...] for showing a box's odds.
+static func box_odds(box: String) -> Array:
+	var odds: Dictionary = BOXES[box]["odds"]
+	var total := 0
+	for weight: int in odds.values():
+		total += weight
+	var out := []
+	for key: String in odds:
+		var label := ItemDB.display_name(key) if ItemDB.ITEMS.has(key) else "%s valuable" % key.capitalize()
+		out.append([label, 100.0 * odds[key] / total])
+	return out
 
 
 static func buy_price(id: String, amount: int) -> int:

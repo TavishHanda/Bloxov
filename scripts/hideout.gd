@@ -148,6 +148,26 @@ func _unlocked(trader: String, id: String) -> bool:
 	return false
 
 
+## Opens one of Ming's mystery boxes (0.16.2, owner): pay, and a random item from the box goes to your stash.
+## Nothing is charged if there's no room for what came out. Returns the item id, or "" if it didn't happen.
+func open_box(box: String) -> String:
+	var info: Dictionary = Traders.BOXES[box]
+	var price := int(info["price"])
+	if Profile.money < price:
+		_message("Not enough money for a %s (%s)" % [info["name"], ItemDB.money(price)])
+		return ""
+	var id := Traders.open_box(box)
+	if Profile.stash.add(id, 1) > 0:
+		_message("No room in your stash")
+		return ""
+	Profile.money -= price
+	_message("Ming: %s! You got %s (worth %s)." % [["Lucky", "Ha", "Ooh", "Not bad"].pick_random(),
+		ItemDB.display_name(id), ItemDB.money(ItemDB.value(id))])
+	Effects.sound(self, SELL_SOUND, -16.0)
+	_queue_save()
+	return id
+
+
 ## A stash upgrade (0.16.0, owner): more rows, bought with money. Returns true if it worked.
 func upgrade_stash() -> bool:
 	var cost := Profile.next_stash_cost()
@@ -562,7 +582,7 @@ func _style_edit(edit: LineEdit) -> void:
 
 func _build_trader() -> Control:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(280, 0)
+	panel.custom_minimum_size = Vector2(300, 0)
 	LootUI.skin_panel(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -581,7 +601,9 @@ func _build_trader() -> Control:
 		tab.toggle_mode = true
 		tab.focus_mode = Control.FOCUS_NONE
 		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		LootUI.style_button(tab)
+		tab.custom_minimum_size = Vector2(0, 40)   # (tall enough to tap)
+		tab.clip_text = true
+		LootUI.style_button(tab, 16)
 		tab.pressed.connect(open_trader.bind(trader))
 		tabs.add_child(tab)
 		_trader_tabs[trader] = tab
@@ -631,9 +653,10 @@ func _fill_trader() -> void:
 	if Traders.max_level(trader) > 1:
 		var next := Traders.next_level_cost(trader, int(Profile.trader_spent.get(trader, 0)))
 		lines.append("Level %d/%d" % [lv, Traders.max_level(trader)] + (" · spend %s more for level %d" % [ItemDB.money(next), lv + 1] if next > 0 else ""))
-	if trader != "valuables":
+	if trader in ["guns", "meds", "supplies"]:
 		lines.append("Buys these back for %d%%." % roundi(float(info["rate"]) * 100))
-	lines.append("Sell: right-click any item.")
+	if trader != "ming":
+		lines.append("Sell: right-click any item.")
 	_trader_info.text = "\n".join(lines)
 	for child in _trader_rows.get_children():
 		_trader_rows.remove_child(child)
@@ -659,6 +682,33 @@ func _fill_trader() -> void:
 		LootUI.style_button(button)
 		button.pressed.connect(buy.bind(id, amount))
 		row.add_child(button)
+	# Ming's boxes, each with its odds under it (shown before you buy: STORE_RULES.md section 5).
+	if trader == "ming":
+		for box: String in Traders.BOXES:
+			var row := HBoxContainer.new()
+			_trader_rows.add_child(row)
+			var label := Label.new()
+			label.text = Traders.BOXES[box]["name"]
+			HudStyle.style_label(label, 20, HudStyle.BRASS)
+			label.add_theme_font_override("font", HudStyle.spaced_font(20))
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(label)
+			var button := Button.new()
+			button.text = ItemDB.money(int(Traders.BOXES[box]["price"]))
+			button.focus_mode = Control.FOCUS_NONE
+			button.custom_minimum_size = Vector2(84, 0)
+			LootUI.style_button(button)
+			button.pressed.connect(open_box.bind(box))
+			row.add_child(button)
+			var odds := Label.new()
+			var parts: Array[String] = []
+			for entry: Array in Traders.box_odds(box):
+				parts.append("%s %s%%" % [entry[0], str(snappedf(entry[1], 0.1)).trim_suffix(".0")])
+			odds.text = "Odds: " + ", ".join(parts)
+			odds.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			odds.modulate = Color(1, 1, 1, 0.65)
+			odds.add_theme_font_size_override("font_size", 12)
+			_trader_rows.add_child(odds)
 	# Stash upgrades are sold by the supplies trader.
 	if trader == "supplies":
 		var row := HBoxContainer.new()
