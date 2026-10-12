@@ -157,6 +157,16 @@ def modeled(name, x, z):
         _model.pop()
 
 
+@contextlib.contextmanager
+def unmodeled():
+    """Boxes made in here aren't part of the building model they're inside (drawn as gray box as usual)."""
+    _model.append(None)
+    try:
+        yield
+    finally:
+        _model.pop()
+
+
 def model_path(name):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models", "buildings", name + ".glb")
 
@@ -448,13 +458,15 @@ class Building:
                      self.colour)
             if f < self.floors - 1:
                 face(0, y + self.h - 0.35, 2 * hw, 0.6)
-            for _ in range(rng.randint(5, 8)):   # chunks blown out onto the ground
-                px, pz = at(rng.uniform(-3, 3), rng.uniform(1.0, 4.5))
-                w, h, d = rng.uniform(0.4, 1.3), rng.uniform(0.2, 0.6), rng.uniform(0.4, 1.3)
-                obox(px, h / 2, pz, w, h, d, rng.uniform(0, 90), rng.choice((self.colour, "concrete", "scorch")), solid=False)
-            for sgn in (-1, 1):                    # a solid heap each side of the hole (cover)
-                px, pz = at(sgn * rng.uniform(2.6, 3.4), rng.uniform(1.4, 2.4))
-                obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour)
+            with unmodeled():   # (outside, off the building's pad: stays gray box until the ground gets its art)
+                for _ in range(rng.randint(5, 8)):   # chunks blown out onto the ground
+                    px, pz = at(rng.uniform(-3, 3), rng.uniform(1.0, 4.5))
+                    w, h, d = rng.uniform(0.4, 1.3), rng.uniform(0.2, 0.6), rng.uniform(0.4, 1.3)
+                    obox(px, h / 2, pz, w, h, d, rng.uniform(0, 90), rng.choice((self.colour, "concrete", "scorch")),
+                         solid=False)
+                for sgn in (-1, 1):                    # a solid heap each side of the hole (cover)
+                    px, pz = at(sgn * rng.uniform(2.6, 3.4), rng.uniform(1.4, 2.4))
+                    obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour)
         top = (self.floors - 1) * self.h
         for i, j in sorted(self.caved):
             cx0, cz0, cx1, cz1 = self.cell(i, j)
@@ -1762,9 +1774,20 @@ def main():
         ("locker", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0), ("crate", 1, 0, 0, "N", 0)])
     for z in (73.0, 77.0):   # display counters
         box(72.0, 0, z, 77.0, 1.0, z + 0.8, "wood")
-    build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
-        ("crate", 0, 0, 0, "W", 0), ("crate", 1, 0, 0, "E", 0)])
-    box(92.0, 0, 76.0, 96.5, 1.6, 76.8, "wood")
+    with modeled("pharmacy", 97.5, 78.0):   # World art 0.17: shop floor (east), dispensary (west)
+        build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
+            ("crate", 0, 0, 0, "W", 0), ("crate", 1, 0, 0, "E", 0)])
+        box(92.0, 0, 76.0, 96.5, 1.6, 76.8, "wood", kind="rx_shelf")
+        # Shop: two aisles of shelves, a wall of shelves, the till counter, a sunglasses stand by the door.
+        box(98.6, 0, 73.0, 99.4, 1.6, 76.4, "metal", kind="pharm_gondola")
+        box(101.0, 0, 73.0, 101.8, 1.6, 76.4, "metal", kind="pharm_gondola")
+        box(102.6, 0, 72.15, 104.8, 2.0, 72.6, "metal", kind="pharm_wall")
+        box(103.2, 0, 79.6, 104.7, 1.0, 82.0, "wood", kind="pharm_counter")
+        box(98.1, 0, 81.8, 98.7, 1.6, 82.4, "metal", kind="spinner")
+        # Dispensary: drug drawers, the prescriptions counter, the pharmacist's desk.
+        box(90.4, 0, 83.2, 93.5, 2.0, 83.85, "wood", kind="rx_drawers")
+        box(94.5, 0, 80.5, 97.0, 1.0, 81.3, "wood", kind="rx_counter")
+        box(90.4, 0, 72.4, 91.9, 0.75, 73.3, "wood", kind="desk")
     groc = build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True,
                           blasts=[(0, "E", 0)]), [
         ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 1, 0, "S", -2)])

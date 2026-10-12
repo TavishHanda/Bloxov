@@ -2284,6 +2284,251 @@ SHELLS["school"] = {
 }
 
 
+# ------------------------------------------------------------------------------------------------ pharmacy (0.17)
+# The pharmacy (map 90-105 x 72-84, model origin map (97.5, 78)): shop floor east (door south), dispensary west
+# (its north wall blown out). Local x < 0 is the dispensary.
+def paint_int_clinic(rng):
+    """Clean white walls with a mint stripe at 1 m (grubby now)."""
+    c = Canvas(64, 64, "bone")
+    c.rect(0, 15, 64, 18, "extract_green")
+    c.rect(0, 0, 64, 2, "steel")
+    c.blotch(["concrete"], 8, rng, area=(0, 18, 64, 64), size=(2, 5))
+    return c
+
+
+def paint_floor_pharm(rng):
+    """Big white tiles (1 m), the odd mint one, scuffed."""
+    c = Canvas(64, 64, "bone")
+    for ty in range(4):
+        for tx in range(4):
+            if rng.random() < 0.15:
+                c.rect(tx * 16 + 1, ty * 16 + 1, tx * 16 + 16, ty * 16 + 16, "olive_light")
+    for i in range(0, 64, 16):
+        c.rect(i, 0, i + 1, 64, "steel_light")
+        c.rect(0, i, 64, i + 1, "steel_light")
+    c.blotch(["concrete", "sand"], 6, rng, size=(2, 5))
+    return c
+
+
+KIT.update({"int_clinic": paint_int_clinic, "floor_pharm": paint_floor_pharm, "mint": paint_flat("extract_green")})
+
+
+def pharmacy_decals(rng):
+    a = Atlas(512)
+
+    def sign(c):          # 6 x 0.8 m
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "green_dark")
+        c.rect(4, 4, 22, 22, "green_dark")
+        c.rect(11, 6, 15, 20, "bone")
+        c.rect(6, 11, 20, 15, "bone")
+        w = Canvas.text_width("PHARMACY", 3)
+        c.text(28 + (c.w - 28 - w) // 2, 5, "PHARMACY", "green_dark", 3)
+        c.blotch(["concrete"], 4, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
+
+    def cross(c):         # 1 x 1 m lightbox
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        c.rect(2, 2, c.w - 2, c.h - 2, "bone")
+        c.rect(c.w // 2 - 4, 5, c.w // 2 + 4, c.h - 5, "extract_green")
+        c.rect(5, c.h // 2 - 4, c.w - 5, c.h // 2 + 4, "extract_green")
+        c.rect(c.w // 2 - 4, 5, c.w // 2 + 4, 8, "green_dark")
+
+    def meds(c):          # 1.2 x 1.6 m of shelf, part looted
+        c.rect(0, 0, c.w, c.h, "steel_light")
+        for row in range(4):
+            y = 2 + row * 12
+            c.rect(0, y - 2, c.w, y, "steel")
+            x = 1
+            while x < c.w - 3:
+                w = rng.choice((3, 4, 5))
+                if rng.random() < 0.6:
+                    col = rng.choice(("bone", "red", "sky_blue", "extract_green", "hazard_yellow", "bone"))
+                    h = rng.randrange(4, 9)
+                    c.rect(x, y, x + w, y + h, col)
+                    if h > 5:
+                        c.rect(x, y + h - 2, x + w, y + h - 1, "bone" if col != "bone" else "sky_blue")
+                x += w + 1
+
+    def drawers(c):       # 0.775 x 2 m: a column of little labelled drawers
+        c.rect(0, 0, c.w, c.h, "wood_light")
+        for y in range(2, c.h - 2, 7):
+            c.frame(1, y, c.w - 1, y + 6, "wood_mid")
+            c.rect(c.w // 2 - 3, y + 3, c.w // 2 + 3, y + 5, "bone")
+            if rng.random() < 0.25:                               # pulled out, empty
+                c.rect(2, y + 1, c.w - 2, y + 5, "black")
+
+    def counter(c):       # 2.4 x 1 m till counter front
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, 0, c.w, 3, "steel")
+        c.rect(0, c.h - 10, c.w, c.h - 4, "extract_green")
+        w = Canvas.text_width("PAY HERE")
+        c.text((c.w - w) // 2, c.h - 9, "PAY HERE", "bone")
+        c.blotch(["concrete"], 4, rng, size=(2, 4))
+
+    def rx(c):            # 2.5 x 0.4 m hanging sign
+        c.rect(0, 0, c.w, c.h, "green_dark")
+        w = Canvas.text_width("PRESCRIPTIONS")
+        c.text((c.w - w) // 2, 4, "PRESCRIPTIONS", "bone")
+
+    def glasses(c):       # 0.6 x 1.6 m sunglasses stand side
+        c.rect(0, 0, c.w, c.h, "steel_light")
+        for y in range(6, c.h - 4, 7):
+            for x in (2, 10):
+                if rng.random() < 0.6:
+                    col = rng.choice(("black", "red", "sky_blue", "iron_dark"))
+                    c.rect(x, y, x + 3, y + 2, col)
+                    c.rect(x + 4, y, x + 7, y + 2, col)
+                    c.put(x + 3, y + 1, col)
+        c.rect(0, c.h - 4, c.w, c.h, "extract_green")
+
+    def poster(lines, colour, ink):
+        def paint(c):     # 0.6 x 0.8 m
+            c.rect(0, 0, c.w, c.h, colour)
+            c.frame(0, 0, c.w, c.h, ink)
+            for k, t in enumerate(lines):
+                w = Canvas.text_width(t)
+                c.text((c.w - w) // 2, c.h - 9 - k * 7, t, ink)
+        return paint
+
+    def looted(c):        # graffiti
+        c.rect(0, 0, c.w, c.h, "clear")
+        w = Canvas.text_width("NO MEDS", 3)
+        c.text((c.w - w) // 2, 3, "NO MEDS", "red", 3)
+        for _ in range(5):
+            x = rng.randrange(3, c.w - 3)
+            c.rect(x, 0, x + 1, rng.randrange(2, 4), "red")
+
+    a.add("sign", 192, 26, sign)
+    a.add("cross", 32, 32, cross)
+    a.add("meds", 38, 51, meds)
+    a.add("drawers", 25, 64, drawers)
+    a.add("counter", 77, 32, counter)
+    a.add("rx", 80, 13, rx)
+    a.add("glasses", 19, 51, glasses)
+    a.add("poster_flu", 19, 26, poster(("FLU", "SHOTS"), "sky_blue", "bone"))
+    a.add("poster_vit", 19, 26, poster(("VITA", "MINS"), "hazard_yellow", "red"))
+    a.add("looted", 96, 22, looted)
+    return a
+
+
+def prop_gondola(ctx, c, s):
+    """Double-sided shelf along z: products on both long (x) faces."""
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if abs(n[0]) > 0.7 or n[1] < -0.7 else
+          (("mint", uv_world()) if abs(n[2]) > 0.7 else ("trim", uv_world())))
+    for xx, nx in ((c[0] - s[0] / 2, -1), (c[0] + s[0] / 2, 1)):
+        strip_quads(ctx, c[2] - s[2] / 2, c[2] + s[2] / 2, y0, y1, xx, (nx, 0, 0), "meds", 1.2, "z")
+
+
+def prop_rx_shelf(ctx, c, s):
+    """Double-sided shelf along x."""
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if abs(n[2]) > 0.7 or n[1] < -0.7 else ("wood", uv_world(2.0)))
+    for zz, nz in ((c[2] - s[2] / 2, -1), (c[2] + s[2] / 2, 1)):
+        strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, zz, (0, 0, nz), "meds", 1.2, "x")
+
+
+def prop_pharm_wall(ctx, c, s):
+    b = ctx.b
+    front = _front_into(c, 2)
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("trim", uv_world()))
+    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
+    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "meds", 1.1, "x")
+
+
+def prop_pharm_counter(ctx, c, s):
+    b = ctx.b
+    b.box(c, s, style=face_decal(ctx.d("counter"), "bone", "-x"))
+    top = c[1] + s[1] / 2
+    b.box((c[0], top + 0.02, c[2]), (s[0] + 0.06, 0.04, s[2] + 0.06), style=no_bottom("steel_light", 1.0))
+    b.box((c[0] + 0.1, top + 0.15, c[2] - 0.6), (0.38, 0.22, 0.4), style=no_bottom("trim_dark", 1.0))       # till
+    for k in range(4):                                                                                 # bags
+        b.box((c[0] + 0.2, top + 0.12, c[2] + 0.3 + k * 0.12), (0.25, 0.2, 0.02), style=no_bottom("bone", 1.0))
+
+
+def prop_spinner(ctx, c, s):
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+
+    def style(n, m, q):
+        if n[1] < -0.7:
+            return None
+        if abs(n[1]) > 0.7:
+            return ("mint", uv_world())
+        return ("decals", ctx.d("glasses"))
+    b.box((c[0], c[1] + 0.05, c[2]), (s[0], s[1] - 0.1, s[2]), yaw=20, style=style)
+    b.box((c[0], y0 + 0.05, c[2]), (0.5, 0.1, 0.5), style=no_bottom("trim_dark", 1.0))
+
+
+def prop_rx_drawers(ctx, c, s):
+    b = ctx.b
+    front = _front_into(c, 2)
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("wood", uv_world(2.0)))
+    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
+    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "drawers", 0.775, "x")
+
+
+def prop_rx_counter(ctx, c, s):
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("bone", uv_world()) if n[1] > 0.7 else ("wood", uv_world(2.0))))
+    top = c[1] + s[1] / 2
+    b.box((c[0] - 0.6, top + 0.15, c[2]), (0.4, 0.3, 0.35), style=no_bottom("bone", 1.0))              # label printer
+    for k in range(5):                                                                                 # pill bottles
+        b.box((c[0] + 0.3 + k * 0.12, top + 0.05, c[2] + ctx.rng.uniform(-0.1, 0.1)), (0.06, 0.1, 0.06),
+              style=no_bottom(("yellow", "bone")[k % 2], 1.0))
+    # The PRESCRIPTIONS sign hangs over it from the ceiling.
+    for nz in (-1, 1):
+        b.poly([(c[0] - 1.25, 2.3, c[2] + nz * 0.01), (c[0] + 1.25, 2.3, c[2] + nz * 0.01),
+                (c[0] + 1.25, 2.7, c[2] + nz * 0.01), (c[0] - 1.25, 2.7, c[2] + nz * 0.01)], (0, 0, nz), "decals", ctx.d("rx"))
+    for x in (c[0] - 1.1, c[0] + 1.1):
+        b.box((x, 2.85, c[2]), (0.02, 0.3, 0.02), style=lambda n, m, q: ("black", uv_world()))
+
+
+PHARM_PROPS = {
+    "pharm_gondola": prop_gondola, "rx_shelf": prop_rx_shelf, "pharm_wall": prop_pharm_wall,
+    "pharm_counter": prop_pharm_counter, "spinner": prop_spinner, "rx_drawers": prop_rx_drawers,
+    "rx_counter": prop_rx_counter,
+}
+for _kind, _fn in PHARM_PROPS.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+
+
+def dress_pharmacy(ctx):
+    b, rng = ctx.b, ctx.rng
+    zs = 6.15                                                            # south wall's outside face
+    # Green band and sign over the front, a cross lightbox sticking out at the corner.
+    b.box((0, 2.75, zs + 0.015), (15.3, 0.6, 0.03), style=no_bottom("green", 1.0))
+    b.box((1.5, 2.75, zs + 0.06), (6.0, 0.8, 0.08), style=face_decal(ctx.d("sign"), "trim_dark", "+z"))
+    b.box((7.9, 2.4, 5.4), (0.8, 0.05, 0.05), style=no_bottom("trim_dark", 1.0))                    # bracket
+    b.box((8.2, 2.0, 5.4), (0.12, 0.9, 0.9), style=lambda n, m, q: ("decals", ctx.d("cross")) if abs(n[0]) > 0.7
+          else ("trim_dark", uv_world()))
+    b.box((0, 0.225, zs + 0.03), (15.3, 0.45, 0.06), style=no_bottom("concrete", 4.0))
+    wall_quad(b, (-1, 0, 0), -7.66, -1.5, 1.5, 0.9, 1.6, "graffiti", ctx.d("looted"))
+    # Inside: posters, pills and boxes all over the floor (it's been looted), a dropped basket.
+    wall_quad(b, (0, 0, -1), 5.89, 1.0, 1.6, 1.2, 2.0, "decals", ctx.d("poster_flu"))
+    wall_quad(b, (1, 0, 0), 0.11, -5.0, -4.4, 1.2, 2.0, "decals", ctx.d("poster_vit"))
+    for _ in range(26):
+        x, z = rng.uniform(-7.0, 7.0), rng.uniform(-5.5, 5.5)
+        col = rng.choice(("bone", "red", "blue", "mint", "yellow", "cardboard"))
+        b.box((x, 0.04, z), (0.12, 0.08, 0.08), yaw=rng.uniform(0, 90), style=no_bottom(col, 1.0))
+    for _ in range(40):                                                  # spilled pills
+        b.box((rng.uniform(-5.5, -1.0), 0.006, rng.uniform(-1.0, 0.0)), (0.02, 0.01, 0.02), style=no_bottom("bone", 1.0))
+    b.box((2.6, 0.12, 2.0), (0.45, 0.24, 0.32), yaw=35, pitch=70, style=no_bottom("red", 1.0))
+
+
+DECALS["pharmacy"] = pharmacy_decals
+DRESSING["pharmacy"] = dress_pharmacy
+FOOTPRINTS["pharmacy"] = (-7.5, -6.0, 7.5, 6.0)
+SHELLS["pharmacy"] = {
+    "ext": "render", "roof_side": "render", "x_lines": (-7.5, 0.0, 7.5), "z_lines": (-6.0, 6.0),
+    "inner": lambda m: "int_clinic", "floor": lambda m: "floor_pharm",
+}
+
+
 # ------------------------------------------------------------------------------------------------ main
 def clear_collection(name):
     coll = bpy.data.collections.get(name)
