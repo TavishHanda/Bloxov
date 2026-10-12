@@ -29,7 +29,7 @@ const LIST := {
 			{"spent": 0, "stock": [["backpack_small", 1], ["energy_drink", 1]]},
 			{"spent": 10000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
 		]},
-	"valuables": {"name": "Fence", "tab": "LOOT", "about": "Buys valuables and keys at full value. Sells nothing.", "kinds": ["valuable", "key"], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
+	"valuables": {"name": "Supreme", "tab": "LOOT", "about": "Buys valuables and keys at full value. Sells nothing.", "kinds": ["valuable", "key"], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
 	"ming": {"name": "Ming", "tab": "MING", "about": "Uncle Ming keeps the outpost entertained. Pick a box, pay, see what's inside. The odds are on every box.", "kinds": [], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
 }
 
