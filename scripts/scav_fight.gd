@@ -50,6 +50,11 @@ var _stand_time := 0.0
 var _hit_since_decide := false
 ## Its last plan in the open was standing and shooting (so next it moves to cover: shoot first, then cover).
 var _stood_last := false
+## never_cover AI: how long this chase lasts before a break, whether it's on a break, and where it's stepping to.
+var _chase_burst := 0.0
+var _chase_break := false
+var _pausing := false
+var _reposition_to := Vector3.INF
 var _suppress_at := Vector3.ZERO
 ## Moving to cover after trading shots in the open: strafes there still shooting (0.12.37).
 var _strafe_to_cover := false
@@ -100,6 +105,11 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 			# Trades shots where it stands; the only sideways move is a quick dodge right after being hit.
 			_face(to_target, delta)
 			_update_shooting(delta, dist)
+			if _reposition_to != Vector3.INF:
+				if _arrived(_reposition_to):
+					_reposition_to = Vector3.INF
+				else:
+					return _path_velocity(_reposition_to, move_speed * push_speed)
 			if _dodge_left > 0.0 and not holds_position:
 				return _clear_of_walls(to_target.normalized().cross(Vector3.UP) * _dodge_dir * move_speed * 0.8)
 			return Vector3.ZERO
@@ -160,9 +170,12 @@ func _should_rethink(sees: bool, dist: float) -> bool:
 		Tactic.STAND:
 			return (not sees or dist > shoot_range or _can_push(dist) or _tactic_time > _stand_time
 				or (_hit_since_decide and _dodge_left <= 0.0 and _tactic_time > 1.0)
-				or (_can_chase(dist) and dist > chase_stop + 3.0))
+				or (not _pausing and _can_chase(dist) and dist > chase_stop + 3.0))
 		Tactic.CHASE:
 			# (Getting hit doesn't stop it: it keeps coming.)
+			if never_cover and _tactic_time > _chase_burst:
+				_chase_break = true
+				return true
 			return not sees or not _can_chase(dist) or dist <= chase_stop or _can_push(dist)
 		Tactic.PUSH:
 			return not sees or not _can_push(dist)
@@ -187,10 +200,13 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	_tactic_time = 0.0
 	var was_hit := _hit_since_decide
 	_hit_since_decide = false
+	_pausing = false
+	_reposition_to = Vector3.INF
 	if not sees:
+		_chase_break = false
 		# Sniped from beyond its own range, with no way to shoot back (0.15.26, owner): it runs off somewhere farther
 		# away that the shooter can't see, then lies low for a while (FLEE_TIME) before it goes looking.
-		if was_hit and _target != null and dist > shoot_range and not holds_position:
+		if was_hit and _target != null and dist > shoot_range and not holds_position and not never_cover:
 			var away := _find_cover(cover_search_radius * 2.0, 8.0)
 			if away != Vector3.INF:
 				_cover_point = away
@@ -216,6 +232,16 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		_bark("push")
 		return
 	# In range to really hurt you: mostly it comes at you (a flank in a lull still counts), sometimes cover first.
+	if _chase_break:
+		# A break between chases (never_cover AI, owner): stands and fires, or steps aside firing, then comes on.
+		_chase_break = false
+		_pausing = true
+		_stood_last = true
+		tactic = Tactic.STAND
+		_stand_time = randf_range(chase_pause_min, chase_pause_max)
+		if randf() < reposition_chance:
+			_reposition_to = _side_step(to_target)
+		return
 	if _can_chase(dist) and dist > chase_stop:
 		if _since_threat > lull_time and dist >= close_fight_range and randf() < flank_chance:
 			_try_flank(to_target, dist)
@@ -223,10 +249,11 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 				tactic = Tactic.FLANK
 				return
 			_cover_phase = Cover.NONE   # (no hidden flank spot: it took cover instead; chase or cover rolls below)
-		if randf() >= chase_cover_chance or _cover_cooldown_left > 0.0:
+		if never_cover or randf() >= chase_cover_chance or _cover_cooldown_left > 0.0:
 			if tactic != Tactic.CHASE:
 				_bark("push", 0.4)
 			tactic = Tactic.CHASE
+			_chase_burst = randf_range(chase_burst_min, chase_burst_max)
 			return
 	# Its first instinct is to shoot (0.12.36, owner: in the open they still ran first): a healthy AI that wasn't
 	# just trading shots stands and fires for a couple of seconds before it moves to cover. Badly hurt, cover first.
@@ -255,6 +282,17 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	_stand_time = randf_range(2.0, 3.0) * (0.5 if is_hurt() else 1.0)   # badly hurt: looks for cover again sooner
 
 
+## A spot a few meters to one side (and a little closer) it can walk to while firing, or INF if there's none.
+func _side_step(to_target: Vector3) -> Vector3:
+	var forward := _flat(to_target).normalized()
+	var side := forward.cross(Vector3.UP) * (1.0 if randf() < 0.5 else -1.0)
+	for s in [side, -side]:
+		var spot := AINav.closest(self, global_position + s * 4.0 + forward * 1.0)
+		if spot != Vector3.ZERO and _flat(spot - global_position).length() > 2.0:
+			return spot
+	return Vector3.INF
+
+
 ## You're reloading or healing and it's not hurt: worth rushing you.
 func _can_push(dist: float) -> bool:
 	return _target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
@@ -269,7 +307,7 @@ func _can_chase(dist: float) -> bool:
 ## cover, then just walked at him in the open). With no cover ahead it waits where it is, out of sight if it can.
 func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
 	_advance_check_left -= delta
-	if _advance_check_left <= 0.0:
+	if _advance_check_left <= 0.0 and not never_cover:
 		_advance_check_left = 0.6
 		var spot := _find_advance_cover(goal)
 		if spot != Vector3.INF:
@@ -286,7 +324,7 @@ func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
 			if _cover_phase != Cover.NONE:
 				return Vector3.ZERO
 	_face(to_goal, delta)
-	if _can_see and _lost_sight_time <= 0.0 and _no_cover_around():
+	if _can_see and _lost_sight_time <= 0.0 and (never_cover or _no_cover_around()):
 		# Out in the open with nowhere to hide: rush straight in.
 		return _path_velocity(goal, move_speed)
 	return Vector3.ZERO
@@ -333,6 +371,8 @@ func _find_advance_cover(goal: Vector3) -> Vector3:
 func _try_take_cover(radius := -1.0) -> void:
 	_strafe_to_cover = false
 	_cover_cooldown_left = cover_cooldown
+	if never_cover:
+		return
 	var spot := _find_cover(radius)
 	if spot != Vector3.INF:
 		_cover_point = spot

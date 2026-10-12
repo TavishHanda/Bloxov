@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.3 (Bon the juggernaut; owner asked)
+- Bon never takes cover: no ducking to reload or when shot, no hiding when sniped from far away, and he doesn't play
+  safe when badly hurt. He chases from 45 m (was 30), walking at you and firing, and no longer flanks.
+- He doesn't chase non-stop: after 3-5 s of chasing he stops for 1.5-2.5 s, standing and firing or (half the time)
+  stepping a few meters to one side while firing, then comes on again. His guards fight as before (cover included).
+- Smoke test: Bon never takes cover, doesn't play safe when hurt, and pauses between chases.
+
 ## 0.17.2 (found-in-raid only for quest items, steady trader column; owner asked)
 - The found-in-raid mark now only matters for items an open quest wants (e.g. bandages for First Aid). Everything
   else stacks together again, found or bought (ammo too); stacking a found stack with a bought one makes it unfound.

@@ -128,6 +128,17 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var peek_time_min := 1.5
 @export var peek_time_max := 3.0
 @export var peeks := 5
+## Never takes cover (Bon, 0.17.3, owner: "more aggro, never runs to cover"): no ducking to reload or when shot,
+## no hiding when sniped, no playing safe when hurt; it walks at you shooting. It doesn't chase non-stop though
+## (owner: "there needs to be some break"): after chase_burst_min-max seconds of chasing it stops for
+## chase_pause_min-max seconds, standing and firing or (reposition_chance of the time) stepping a few meters to one
+## side while firing, then comes on again.
+@export var never_cover := false
+@export var chase_burst_min := 3.0
+@export var chase_burst_max := 5.0
+@export var chase_pause_min := 1.5
+@export var chase_pause_max := 2.5
+@export var reposition_chance := 0.5
 
 @export_group("Teamwork")
 ## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
@@ -300,6 +311,8 @@ func _near_home(point: Vector3) -> bool:
 
 ## Below hurt_fraction (or wounded): plays safer, no pushing, flanking or chasing (0.12.32).
 func is_hurt() -> bool:
+	if never_cover:
+		return false   # (never plays safe)
 	return is_wounded() or (not health.is_dead and health.current <= health.max_health * hurt_fraction)
 
 

@@ -3693,6 +3693,29 @@ func _section_boss() -> void:
 	_check(guards[0]._near_home(trip + Vector3(5, 0, 0)), "on a trip, a fight there counts as near home (no instant walk back)")
 	the_boss._trip_point = Vector3.INF
 	far_spot.queue_free()
+	# 0.17.3 (owner: "more aggro, never runs to cover", but "there needs to be some break"): Bon never takes cover or
+	# plays safe when hurt, chases from farther, and stops for a short pause (standing or stepping aside) between chases.
+	var raider_ref := load(RAIDER_SCENE).instantiate() as Scav
+	_check(the_boss.never_cover and not raider_ref.never_cover and the_boss.chase_range > raider_ref.chase_range,
+		"Bon never takes cover and chases from farther than a Raider")
+	raider_ref.free()
+	the_boss._cover_cooldown_left = 0.0
+	the_boss._try_take_cover()
+	the_boss.health.current = 1
+	_check(the_boss._cover_phase == Scav.Cover.NONE and not the_boss.is_hurt(), "Bon doesn't run to cover or play safe when badly hurt")
+	the_boss.health.current = the_boss.health.max_health
+	var bon_to := Vector3(0, 0, 20)
+	the_boss._decide(true, bon_to, 20.0)
+	var chased := the_boss.tactic == Scav.Tactic.CHASE
+	the_boss._tactic_time = the_boss._chase_burst + 0.1
+	var breaks := the_boss._should_rethink(true, 20.0)
+	the_boss._decide(true, bon_to, 20.0)
+	var paused := the_boss.tactic == Scav.Tactic.STAND and the_boss._pausing and not the_boss._should_rethink(true, 20.0)
+	the_boss._tactic_time = the_boss._stand_time + 0.1
+	the_boss._decide(true, bon_to, 20.0)
+	_check(chased and breaks and paused and the_boss.tactic == Scav.Tactic.CHASE,
+		"Bon chases, takes a short break (stands or steps aside, firing), then chases again")
+	the_boss.tactic = Scav.Tactic.NONE
 	the_boss.get_node("Health").take_damage(10000)
 	await _frames(2)
 	_check(guards.all(func(g: Scav) -> bool: return g.home_radius == 12.0), "without the boss, the guards keep to its zone")
