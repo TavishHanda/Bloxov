@@ -26,11 +26,11 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $2,000 | 4×3 storage | A school bag. Better than pockets. |
 | Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $4,500 | 5×4 storage | Hiking pack with room for a good haul. |
 | Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $10,000 | 6×5 storage | Big army rucksack. Carry everything home. |
-| Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $10 | full stack $500 | Pistol rounds for the Stinger. Loaded when you reload. |
-| SMG Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $10 | full stack $900 | Small rounds for the Wasp. Loaded when you reload. |
-| Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $15 | full stack $1,800 | Rifle rounds for the Hound. Loaded when you reload. |
-| Shotgun Shells (`shells`) | Ammo | Common | 1×1 | 30 | $30 | full stack $900 | Buckshot for the Mauler. Loaded one at a time. |
-| Sniper Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $75 | full stack $2,250 | Long rounds for the Lancer. Loaded when you reload. |
+| Stinger Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $10 | full stack $500 | Pistol rounds for the Stinger. Loaded when you reload. |
+| Wasp Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $10 | full stack $900 | Small rounds for the Wasp. Loaded when you reload. |
+| Hound Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $15 | full stack $1,800 | Rifle rounds for the Hound. Loaded when you reload. |
+| Mauler Shells (`shells`) | Ammo | Common | 1×1 | 30 | $30 | full stack $900 | Buckshot for the Mauler. Loaded one at a time. |
+| Lancer Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $75 | full stack $2,250 | Long rounds for the Lancer. Loaded when you reload. |
 | Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $500 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
 | Medkit (`medkit`) | Healing | Uncommon | 2×1 | 3 | $2,000 | heals 70 over 4 s | Field kit. Heals a lot, takes a while. |
 | Energy Drink (`energy_drink`) | Drink | Common | 1×1 | 1 | $1,200 |  | Fills your stamina, then sprinting costs none for 10 s. |
@@ -76,24 +76,24 @@ Nothing wears out for now: durability (armor, helmets, keys, guns) is its own up
 
 Each container rolls a number of times; each roll picks from its table by weight.
 A rarity entry (e.g. *rare*) means a random **valuable** of that rarity.
-A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG Rounds 15–40, Shotgun Shells 5–12, Sniper Rounds 3–10, Bandage 1–2.
+A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp Rounds 15–40, Mauler Shells 5–12, Lancer Rounds 3–10, Bandage 1–2.
 
 ### Crate (1–3 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 25% |
+| Hound Rounds | 25% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 25% |
 | Bandage | 15% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 10% |
-| Pistol Rounds | 7% |
+| Stinger Rounds | 7% |
 | Energy Drink | 4% |
 | Medkit | 3% |
-| SMG Rounds | 3% |
-| Shotgun Shells | 3% |
+| Wasp Rounds | 3% |
+| Mauler Shells | 3% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 3% |
 | Small Backpack | 2% |
-| Sniper Rounds | 1% |
+| Lancer Rounds | 1% |
 
 ### Locker (2–4 rolls)
 
@@ -101,13 +101,13 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 |---|---|
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 17% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 12% |
-| Rifle Rounds | 10% |
+| Hound Rounds | 10% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 10% |
 | Medkit | 8% |
 | Bandage | 7% |
-| Pistol Rounds | 4% |
-| SMG Rounds | 3% |
-| Shotgun Shells | 3% |
+| Stinger Rounds | 4% |
+| Wasp Rounds | 3% |
+| Mauler Shells | 3% |
 | Stinger | 3% |
 | Energy Drink | 3% |
 | Light Armor | 3% |
@@ -117,7 +117,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Small Backpack | 2% |
 | Wasp | 1% |
 | Mauler | 1% |
-| Sniper Rounds | 1% |
+| Lancer Rounds | 1% |
 | Powder Tin | 1% |
 | Medium Backpack | 1% |
 | Novarra Field Report | 1% |
@@ -138,13 +138,13 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 29% |
+| Hound Rounds | 29% |
 | Bandage | 15% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 15% |
-| SMG Rounds | 7% |
-| Pistol Rounds | 7% |
+| Wasp Rounds | 7% |
+| Stinger Rounds | 7% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 7% |
-| Shotgun Shells | 6% |
+| Mauler Shells | 6% |
 | Medkit | 4% |
 | Energy Drink | 3% |
 | Stinger | 3% |
@@ -154,19 +154,19 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 20% |
+| Hound Rounds | 20% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
 | Bandage | 8% |
 | Medkit | 8% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
-| SMG Rounds | 7% |
+| Wasp Rounds | 7% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 7% |
-| Shotgun Shells | 5% |
+| Mauler Shells | 5% |
 | Frag Grenade | 4% |
-| Pistol Rounds | 4% |
+| Stinger Rounds | 4% |
 | Stinger | 3% |
 | Energy Drink | 3% |
-| Sniper Rounds | 2% |
+| Lancer Rounds | 2% |
 | Red Dot | 2% |
 | Foregrip | 2% |
 | Medium Backpack | 2% |
@@ -182,15 +182,15 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 
 | Place | Extra weights |
 |---|---|
-| Bunker | Lancer 6, Sniper Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Rifle Rounds 15 |
+| Bunker | Lancer 6, Lancer Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Hound Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
 | BigHouse1 | Diamond Ring 3, Gold Watch 20, Cash Bundle 15, Rare Crystal 3 |
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, epic valuable 8 |
-| Police | Mauler 10, Shotgun Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Pistol Rounds 20 |
-| GunStore | Wasp 10, Mauler 10, Lancer 4, SMG Rounds 20, Shotgun Shells 20, Sniper Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Stinger 15, Rifle Rounds 30, Pistol Rounds 25 |
+| Police | Mauler 10, Mauler Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Stinger Rounds 20 |
+| GunStore | Wasp 10, Mauler 10, Lancer 4, Wasp Rounds 20, Mauler Shells 20, Lancer Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Stinger 15, Hound Rounds 30, Stinger Rounds 25 |
 | Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |

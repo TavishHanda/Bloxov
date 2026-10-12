@@ -132,10 +132,10 @@ func buy(id: String, amount: int) -> bool:
 			return false
 		price = buy_price(id, amount - left)
 	Profile.money -= price
-	var level_before := Profile.trader_level(trader)
+	var ready_before := Profile.can_level_up(trader)
 	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
-	if Profile.trader_level(trader) > level_before:
-		_message("%s is now level %d: new stock unlocked" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)])
+	if Profile.can_level_up(trader) and not ready_before:
+		_message("Bought %s. %s can level up: press LEVEL UP" % [ItemDB.display_name(id), Traders.LIST[trader]["name"]])
 	else:
 		_message("Bought %s for %s" % [ItemDB.display_name(id), ItemDB.money(price)])
 	_queue_save()
@@ -151,7 +151,11 @@ func _announce_quests() -> void:
 	for id in Quests.just_finished:
 		parts.append("%s (+%s)" % [Quests.LIST[id]["name"], ItemDB.money(int(Quests.LIST[id]["reward"]))])
 	Quests.just_finished = []
-	_message("Quest done: " + ", ".join(parts))
+	var ready: Array[String] = []
+	for trader: String in Traders.LIST:
+		if Profile.can_level_up(trader):
+			ready.append(Traders.LIST[trader]["name"])
+	_message("Quest done: " + ", ".join(parts) + (". Ready to level up: %s" % ", ".join(ready) if not ready.is_empty() else ""))
 	_queue_save()
 
 
@@ -185,8 +189,8 @@ func _after_hand_in(quest: String, given: int, level_before: int) -> int:
 	if Quests.just_finished.has(quest):
 		Quests.just_finished.erase(quest)
 		var text := "Quest done: %s (+%s)" % [Quests.LIST[quest]["name"], ItemDB.money(int(Quests.LIST[quest]["reward"]))]
-		if Profile.trader_level(trader) > level_before:
-			text += ". %s is now level %d" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)]
+		if Profile.can_level_up(trader):
+			text += ". %s can level up: press LEVEL UP" % Traders.LIST[trader]["name"]
 		_message(text)
 	else:
 		_message("Handed in %d for %s (%d/%d)" % [given, Quests.LIST[quest]["name"], Quests.progress(quest), int(Quests.LIST[quest]["count"])])
@@ -749,9 +753,31 @@ func _fill_quests(trader: String, lv: int) -> void:
 			LootUI.style_button(button, 14)
 			button.pressed.connect(open_hand_in.bind(id))
 			row.add_child(button)
+	# Every quest done (0.17.1, owner): LEVEL UP, or what's still missing.
+	if quests.all(func(id: String) -> bool: return Profile.quests_done.has(id)):
+		var level_button := Button.new()
+		level_button.name = "LevelUp"
+		level_button.focus_mode = Control.FOCUS_NONE
+		level_button.custom_minimum_size = Vector2(0, 48)
+		var missing := Traders.next_level_cost(trader, lv, int(Profile.trader_spent.get(trader, 0)))
+		level_button.text = "LEVEL UP TO %d" % (lv + 1) if missing <= 0 else "SPEND %s MORE TO LEVEL UP" % ItemDB.money(missing)
+		level_button.disabled = not Profile.can_level_up(trader)
+		LootUI.style_button(level_button, 20, HudStyle.HAZARD if not level_button.disabled else HudStyle.FACE)
+		level_button.pressed.connect(level_up.bind(trader))
+		_trader_rows.add_child(level_button)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 6)
 	_trader_rows.add_child(gap)
+
+
+## LEVEL UP pressed (0.17.1): the trader goes up a level and the new stock unlocks.
+func level_up(trader: String) -> bool:
+	if not Profile.level_up(trader):
+		return false
+	_message("%s is now level %d: new stock unlocked" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)])
+	_queue_save()
+	_fill_trader()
+	return true
 
 
 ## Shows trader `trader`'s stock in the trader column.
@@ -771,7 +797,7 @@ func _fill_trader() -> void:
 	_trader_title.text = String(info["name"]).to_upper()
 	var lines: Array[String] = [info["about"]]
 	if Traders.max_level(trader) > 1:
-		var next := Traders.next_level_cost(trader, int(Profile.trader_spent.get(trader, 0)))
+		var next := Traders.next_level_cost(trader, lv, int(Profile.trader_spent.get(trader, 0)))
 		var line := "Level %d/%d" % [lv, Traders.max_level(trader)]
 		if lv < Traders.max_level(trader):
 			line += " · level %d: the quests below" % (lv + 1) + (" and spend %s more here" % ItemDB.money(next) if next > 0 else "")

@@ -119,9 +119,8 @@ static func max_level(trader: String) -> int:
 	return LIST[trader]["levels"].size()
 
 
-## Money still to spend for the next level (on top of its quests), or 0 at the top or when it's already spent.
-static func next_level_cost(trader: String, spent: int) -> int:
-	var lv := level(trader, spent)
+## Money still to spend for the level after `lv` (on top of its quests), or 0 at the top or when it's already spent.
+static func next_level_cost(trader: String, lv: int, spent: int) -> int:
 	if lv >= max_level(trader):
 		return 0
 	return maxi(int(LIST[trader]["levels"][lv]["spent"]) - spent, 0)

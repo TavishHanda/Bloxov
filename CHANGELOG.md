@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.1 (playtest fixes: LEVEL UP, quest tracker, damage after armor, ammo names; owner asked)
+- Traders get a **LEVEL UP** button: once a level's quests are done (and, for the Gunsmith and Supplier, its money
+  spent with them), press it to level the trader up and unlock the new stock. Until the money is spent the button
+  says how much is left. The hideout says when a trader can level up. Fixed: the "spend $X more" hint showed the
+  level 2 amount even at level 2. Old saves keep the levels they had.
+- **Quest tracker** in the pause menu: a panel beside it lists your open quests with progress, and what this raid
+  adds once you extract (e.g. "+2 when you extract").
+- Online, your damage number on another player now shows what the hit really did **after their armor** (their game
+  reports it back). Numbers on AI were already after armor, solo and online.
+- Ammo is named after its gun: Hound Rounds, Stinger Rounds, Wasp Rounds, Mauler Shells, Lancer Rounds.
+
 ## 0.17.0 (World art update starts: neutral lighting baseline)
 - New lighting for raids, the base the World art models get built against: a calmer, less saturated sky, a
   slightly warm sun with a bit more contrast, weaker blue sky light (the map no longer looks washed-out and

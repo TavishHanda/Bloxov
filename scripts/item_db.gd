@@ -21,12 +21,12 @@ const RARITY_COLORS := {
 ## (ItemStack.durability); worn items are worth less (ItemStack.value). No item has one for now (owner, 0.14.3:
 ## durability is its own update later); the code is ready for when it comes.
 const ITEMS := {
-	"rifle_ammo": {"name": "Rifle Rounds", "desc": "Rifle rounds for the Hound. Loaded when you reload.", "short": "5.45", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 15},
-	"pistol_ammo": {"name": "Pistol Rounds", "desc": "Pistol rounds for the Stinger. Loaded when you reload.", "short": "9mm", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 10},
+	"rifle_ammo": {"name": "Hound Rounds", "desc": "Rifle rounds for the Hound. Loaded when you reload.", "short": "Hound", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 15},
+	"pistol_ammo": {"name": "Stinger Rounds", "desc": "Pistol rounds for the Stinger. Loaded when you reload.", "short": "Stinger", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 10},
 	# One ammo per gun type (owner, 0.15.4: the SMG gets its own).
-	"smg_ammo": {"name": "SMG Rounds", "desc": "Small rounds for the Wasp. Loaded when you reload.", "short": "SMG", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 90, "value": 10},
-	"shells": {"name": "Shotgun Shells", "desc": "Buckshot for the Mauler. Loaded one at a time.", "short": "Shells", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 30, "value": 30},
-	"sniper_ammo": {"name": "Sniper Rounds", "desc": "Long rounds for the Lancer. Loaded when you reload.", "short": "Sniper", "kind": "ammo", "rarity": "uncommon", "w": 1, "h": 1, "stack": 30, "value": 75},
+	"smg_ammo": {"name": "Wasp Rounds", "desc": "Small rounds for the Wasp. Loaded when you reload.", "short": "Wasp", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 90, "value": 10},
+	"shells": {"name": "Mauler Shells", "desc": "Buckshot for the Mauler. Loaded one at a time.", "short": "Mauler", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 30, "value": 30},
+	"sniper_ammo": {"name": "Lancer Rounds", "desc": "Long rounds for the Lancer. Loaded when you reload.", "short": "Lancer", "kind": "ammo", "rarity": "uncommon", "w": 1, "h": 1, "stack": 30, "value": 75},
 	"ak": {"name": "Hound", "desc": "Old army rifle, full auto. Hits hard, kicks harder.", "short": "Hound", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 12500,
 		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 28, "head": 2.0, "rpm": 600, "mag": 30, "reload": 1.6,
 		"spread": 0.15, "hip_spread": 0.68, "move_spread": 0.75, "ads_time": 0.28, "ads_fov": 55.0,

@@ -31,6 +31,8 @@ signal raid_started
 ## In a raid: another player's shot hit us (damage before our armor); our shot hit someone; we killed someone.
 signal got_hit(amount: int, from: Vector3, headshot: bool)
 signal shot_confirmed(headshot: bool, amount: int, pos: Vector3)
+## The damage your hit on another player really did, after their armor (0.17.1): for the damage number.
+signal damage_shown(amount: int, headshot: bool, pos: Vector3)
 signal kill_confirmed(target: String)
 ## A scav rifle-butted us; something a scav did that we should see/hear (RaidWorld.enemy_event kinds).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
@@ -108,6 +110,9 @@ var _player_states := {}
 var _worlds := {}
 ## victim peer -> [attacker peer, server time]: who to credit when they die.
 var _last_attacker := {}
+## victim peer -> hits sent to them, oldest first: [attacker peer (0 = not a player), headshot, where] (0.17.1).
+## Their game applies each through their armor and reports what it did, so the attacker's number shows that.
+var _hits_out := {}
 ## Players killed by another player (0.15.28): their body gets their PMC dog tag.
 var _player_kills := {}
 ## peer -> server time of their last shot (to ignore impossible fire rates).
@@ -525,14 +530,14 @@ func client_view_time_of(_peer: int) -> float:
 ## Applies a hit the server decided on: to a player (their game applies it, through their armor) or a scav.
 func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3) -> void:
 	var killed := false
-	# What the attacker's damage number shows (0.16.8, owner: none online): a scav's real damage taken; a player's
-	# before their armor (their own game applies it), at most 100.
-	var shown := mini(amount, 100)
+	# What the attacker's damage number shows: a scav's real damage taken. A player's game applies the hit through
+	# their armor and reports what it did (0.17.1, owner: numbers after armor), so for them the number comes later.
+	var shown := 0
 	if hit.has("peer"):
 		var victim: int = hit["peer"]
 		_last_attacker[victim] = [attacker, _now()]
 		if _peer_open(victim):
-			_hit.rpc_id(victim, amount, attacker_pos, hit["headshot"])
+			_send_hit(victim, amount, attacker_pos, hit["headshot"], attacker, hit.get("end", attacker_pos))
 	else:
 		var health: Node = hit["enemy"].health
 		shown = health.take_damage(amount, attacker_pos, false, hit["headshot"])
@@ -560,6 +565,7 @@ func _on_peer_left(peer: int) -> void:
 		return
 	_log("%s (peer %d) went offline" % [matchmaker.players[peer]["name"], peer])
 	_player_states.erase(peer)
+	_hits_out.erase(peer)
 	_reviving.erase(peer)
 	matchmaker.remove_player(peer)
 	_flush()
@@ -604,7 +610,7 @@ func _send_raid_start(id: int) -> void:
 	_worlds[id] = world
 	world.player_hit.connect(func(peer: int, amount: int, from: Vector3, head: bool) -> void:
 		if _peer_open(peer):
-			_hit.rpc_id(peer, amount, from, head))
+			_send_hit(peer, amount, from, head, 0, Vector3.ZERO))
 	world.player_bashed.connect(func(peer: int, amount: int, from: Vector3, shove: float, block: float) -> void:
 		if _peer_open(peer):
 			_bashed.rpc_id(peer, amount, from, shove, block))
@@ -623,6 +629,7 @@ func _send_raid_start(id: int) -> void:
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
+		_hits_out.erase(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
 	for peer in raid["players"]:
 		var team: Array[int] = []
@@ -880,10 +887,46 @@ func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team
 	raid_started.emit()
 
 
+## Server: sends a hit to a player and remembers who it was from, for their report of what it did.
+func _send_hit(victim: int, amount: int, from: Vector3, headshot: bool, attacker: int, pos: Vector3) -> void:
+	var queue: Array = _hits_out.get(victim, [])
+	queue.append([attacker, headshot, pos])
+	if queue.size() > 32:
+		queue.pop_front()
+	_hits_out[victim] = queue
+	_hit.rpc_id(victim, amount, from, headshot)
+
+
 @rpc("authority", "call_remote", "reliable")
 func _hit(amount: int, from: Vector3, headshot: bool) -> void:
 	if in_online_raid():
 		got_hit.emit(amount, from, headshot)
+
+
+## Client: what the last hit the server sent really did here (after armor; 0 if none). Every hit gets a report,
+## in order, so the server can match them up.
+func report_damage(dealt: int) -> void:
+	if in_online_raid():
+		_damage_taken.rpc_id(1, dealt)
+
+
+## Server: a player says what a hit did to them; the player who shot gets it for their damage number.
+@rpc("any_peer", "call_remote", "reliable")
+func _damage_taken(dealt: int) -> void:
+	var victim := multiplayer.get_remote_sender_id()
+	var queue: Array = _hits_out.get(victim, [])
+	if mode != Mode.SERVER or queue.is_empty():
+		return
+	var sent: Array = queue.pop_front()
+	var attacker: int = sent[0]
+	if attacker != 0 and dealt > 0 and _peer_open(attacker):
+		_damage_shown.rpc_id(attacker, clampi(dealt, 0, 999), sent[1], sent[2])
+
+
+@rpc("authority", "call_remote", "reliable")
+func _damage_shown(amount: int, headshot: bool, pos: Vector3) -> void:
+	if in_online_raid():
+		damage_shown.emit(amount, headshot, pos)
 
 
 @rpc("authority", "call_remote", "reliable")

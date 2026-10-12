@@ -71,6 +71,19 @@ static func record_kill(target: String, weapon: String) -> void:
 	raid_kills.append([target, weapon])
 
 
+## What this raid adds to a quest once you get out (for the quest tracker, 0.17.1): its kills that count, or 1 for
+## an extract quest without a loot target.
+static func this_raid(id: String) -> int:
+	var quest: Dictionary = LIST[id]
+	match quest["kind"]:
+		"kill":
+			return raid_kills.filter(func(kill: Array) -> bool:
+				return kill[0] == quest["target"] and (not quest.has("weapon") or kill[1] == quest["weapon"])).size()
+		"extract":
+			return 1 if not quest.has("min_value") else 0
+	return 0
+
+
 ## The raid is over. Extracted: its kills and the extract count toward open quests.
 static func raid_ended(extracted: bool, loot_value: int) -> void:
 	just_finished = []
@@ -82,9 +95,7 @@ static func raid_ended(extracted: bool, loot_value: int) -> void:
 		var gained := 0
 		match quest["kind"]:
 			"kill":
-				for kill: Array in raid_kills:
-					if kill[0] == quest["target"] and (not quest.has("weapon") or kill[1] == quest["weapon"]):
-						gained += 1
+				gained = this_raid(id)
 			"extract":
 				if loot_value >= int(quest.get("min_value", 0)):
 					gained = 1
