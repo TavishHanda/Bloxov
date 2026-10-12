@@ -42,9 +42,14 @@ func _ready() -> void:
 		for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):
 			if randf() < ItemDB.TABLE_CHANCES[loot_table][id]:
 				grid.add(id, 1)
+		# Something rolled that's too big for this container (a large backpack in a safe) is rolled again, so a
+		# container never comes up empty (0.15.21, owner: a vault safe was empty).
 		for i in randi_range(min_items, max_items):
-			var id := ItemDB.roll(loot_table, place)
-			grid.add(id, ItemDB.roll_count(id))
+			for attempt in 10:
+				var id := ItemDB.roll(loot_table, place)
+				var count := ItemDB.roll_count(id)
+				if grid.add(id, count) < count:
+					break
 		for stack in grid.stacks:
 			stack.durability = ItemDB.found_durability(stack.id)
 

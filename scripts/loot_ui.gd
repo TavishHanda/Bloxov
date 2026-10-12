@@ -194,7 +194,7 @@ func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: 
 		_after_move()
 		return true
 	if not to.fits(stack.id, cell.x, cell.y, rotated, stack if to == from else null):
-		return _swap(stack, from, to, merge_cell, rotated)
+		return _swap(stack, from, to, merge_cell, rotated, cell)
 	if to == from:
 		stack.set_spot(cell, rotated)
 		from.changed.emit()
@@ -209,41 +209,104 @@ func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: 
 	return true
 
 
-## Dropped onto another item it doesn't merge with (owner, 0.14.16): the two swap places, if each fits in the
-## other's spot (the dragged one at the other's top-left; the other where the dragged one was, unrotated if needed).
-func _swap(stack: ItemStack, from: GridInventory, to: GridInventory, cell: Vector2i, rotated: bool) -> bool:
+## Dropped onto other items it doesn't merge with (owner, 0.14.16; 0.15.21: works the same for every item): it
+## goes where it was dropped (or where the item under the pointer starts), and whatever it covers moves out of the
+## way: to the spot it came from if it fits there, else any free space on that side, else the other side. If
+## something can't go anywhere, nothing moves.
+func _swap(stack: ItemStack, from: GridInventory, to: GridInventory, cell: Vector2i, rotated: bool, drop_cell := Vector2i(-1, -1)) -> bool:
 	if cell.x < 0 or cell.y < 0:
 		return false
 	var other := to.stack_at(cell)
 	if other == null or other == stack:
 		return false
 	var old_spot := Vector2i(stack.x, stack.y)
-	var old_rotated := stack.rotated
-	var other_spot := Vector2i(other.x, other.y)
-	var other_rotated := other.rotated
-	from.remove(stack)
-	to.remove(other)
-	if to.fits(stack.id, other_spot.x, other_spot.y, rotated):
-		stack.set_spot(other_spot, rotated)
-		to.place(stack)
-		for turn in [other_rotated, not other_rotated]:
-			if from.fits(other.id, old_spot.x, old_spot.y, turn):
-				other.set_spot(old_spot, turn)
-				from.place(other)
-				if inventory.grids().has(to) and not inventory.grids().has(from):
-					inventory.auto_bind(stack.id)
-				if inventory.grids().has(from) and not inventory.grids().has(to):
-					inventory.auto_bind(other.id)
-				_after_move()
-				return true
-		to.remove(stack)
-	# Doesn't fit: put both back.
-	stack.set_spot(old_spot, old_rotated)
-	from.place(stack)
-	to.place(other)
+	# Where it was dropped first, then anywhere else on the item under the pointer, nearest first (a grenade dropped
+	# on the front of a medkit can sit on its back half, leaving the medkit room to go where the grenade was).
+	var size := ItemDB.rotated_size(stack.id, rotated)
+	var aim := drop_cell if drop_cell.x >= 0 and drop_cell.y >= 0 else Vector2i(other.x, other.y)
+	var spots: Array[Vector2i] = [aim, Vector2i(other.x, other.y)]
+	var others: Array[Vector2i] = []
+	var area := other.rect()
+	for y in range(area.position.y - size.y + 1, area.end.y):
+		for x in range(area.position.x - size.x + 1, area.end.x):
+			others.append(Vector2i(x, y))
+	others.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return (a - aim).length_squared() < (b - aim).length_squared())
+	spots.append_array(others)
+	for spot in spots:
+		if _swap_at(stack, from, to, spot, rotated, old_spot):
+			if inventory.grids().has(to) and not inventory.grids().has(from):
+				inventory.auto_bind(stack.id)
+			_after_move()
+			return true
+	return false
+
+
+func _swap_at(stack: ItemStack, from: GridInventory, to: GridInventory, spot: Vector2i, rotated: bool, old_spot: Vector2i) -> bool:
+	var size := ItemDB.rotated_size(stack.id, rotated)
+	if spot.x < 0 or spot.y < 0 or spot.x + size.x > to.width or spot.y + size.y > to.height:
+		return false
+	var area := Rect2i(spot, size)
+	var covered: Array[ItemStack] = []
+	for other in to.stacks:
+		if other != stack and other.rect().intersects(area):
+			covered.append(other)
+	if covered.is_empty():
+		return false
+	# Remember everything, so it can all go back.
+	var before := {}
+	for item in covered + [stack]:
+		before[item] = [Vector2i(item.x, item.y), item.rotated]
+	from.stacks.erase(stack)
+	for item in covered:
+		to.stacks.erase(item)
+	var placed := true
+	if not to.fits(stack.id, spot.x, spot.y, rotated):
+		placed = false
+	else:
+		stack.set_spot(spot, rotated)
+		to.stacks.append(stack)
+	var moved: Array = []   # [item, grid]
+	if placed:
+		for item in covered:
+			var home := _make_room_for(item, from, to, old_spot)
+			if home == null:
+				placed = false
+				break
+			moved.append([item, home])
+	if not placed:
+		# Put everything back the way it was.
+		to.stacks.erase(stack)
+		for entry in moved:
+			(entry[1] as GridInventory).stacks.erase(entry[0])
+		for item in before:
+			(item as ItemStack).set_spot(before[item][0], before[item][1])
+		from.stacks.append(stack)
+		for item in covered:
+			to.stacks.append(item)
+		return false
 	from.changed.emit()
 	to.changed.emit()
-	return false
+	for entry in moved:
+		if inventory.grids().has(entry[1]) and not inventory.grids().has(to):
+			inventory.auto_bind((entry[0] as ItemStack).id)
+	return true
+
+
+## Somewhere for an item that was moved out of the way: where the dropped item came from, then any free space on
+## the side it was on, then the other side. Places it and returns that grid, or null if there's no room.
+func _make_room_for(item: ItemStack, from: GridInventory, to: GridInventory, old_spot: Vector2i) -> GridInventory:
+	for turn in [item.rotated, not item.rotated]:
+		if from.fits(item.id, old_spot.x, old_spot.y, turn):
+			item.set_spot(old_spot, turn)
+			from.stacks.append(item)
+			return from
+	for grid: GridInventory in [to, from]:
+		var free := grid.find_spot(item.id)
+		if not free.is_empty():
+			item.set_spot(Vector2i(free[0], free[1]), free[2])
+			grid.stacks.append(item)
+			return grid
+	return null
 
 
 ## The stack in `grid` at `cell` that `stack` would merge into (same item, has room), or null.

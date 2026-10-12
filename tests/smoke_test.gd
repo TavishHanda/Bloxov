@@ -915,6 +915,17 @@ func _section_items() -> void:
 		"the Holy Grail: 1%% in bank vault and bunker safes (%d in 1500); golden toilet 3%% of safes; scav backpacks 7%%" % grails)
 	tag_raider.free()
 	tag_boss.free()
+	# 0.15.21 (owner: a vault safe came up empty): a safe always has something, even when it rolls a large backpack.
+	var empty_safes := 0
+	var safe_scene := load("res://scenes/loot_safe.tscn") as PackedScene
+	for i in 300:
+		var safe_box := safe_scene.instantiate() as LootContainer
+		safe_box.set_meta("place", "Bank")
+		root.add_child(safe_box)
+		if safe_box.grid.stacks.is_empty():
+			empty_safes += 1
+		safe_box.free()
+	_check(empty_safes == 0, "vault safes are never empty (%d of 300)" % empty_safes)
 	# Loot by place: a gun store locker is mostly guns, ammo and attachments, a pharmacy crate mostly meds.
 	var guns := 0
 	var meds := 0
@@ -1105,8 +1116,36 @@ func _section_loot_ui() -> void:
 	var tape2 := ItemStack.new("duct_tape", 1, 2, 0)
 	swap_grid2.place(big)
 	swap_grid2.place(tape2)
-	_check(not loot_ui.move_stack(tape2, swap_grid2, swap_grid2, Vector2i(0, 0), false, Vector2i(0, 0))
-		and tape2.x == 2 and big.x == 0 and swap_grid2.stacks.size() == 2, "a swap that doesn't fit leaves both where they were")
+	_check(loot_ui.move_stack(tape2, swap_grid2, swap_grid2, Vector2i(0, 0), false, Vector2i(0, 0))
+		and tape2.x == 0 and big.x == 1 and swap_grid2.stacks.size() == 2, "a big item that can't take the small one's spot moves to free space")
+	# 0.15.21 (owner): every item swaps the same way, a grenade onto a medkit included, and a medkit over two
+	# bandages moves both out of the way.
+	var swap_grid3 := GridInventory.new("Swap3", 3, 1)
+	var nade := ItemStack.new("grenade", 1, 0, 0)
+	var kit := ItemStack.new("medkit", 1, 1, 0)
+	swap_grid3.place(nade)
+	swap_grid3.place(kit)
+	var nade_ok := loot_ui.move_stack(nade, swap_grid3, swap_grid3, Vector2i(1, 0), false, Vector2i(1, 0))
+	var swap_grid4 := GridInventory.new("Swap4", 3, 1)
+	var kit2 := ItemStack.new("medkit", 1, 1, 0)
+	swap_grid4.place(ItemStack.new("grenade", 1, 0, 0))
+	swap_grid4.place(kit2)
+	var pockets_test := GridInventory.new("Pockets", 2, 1)
+	var band_a := ItemStack.new("bandage", 5, 0, 0)
+	var band_b := ItemStack.new("bandage", 5, 1, 0)
+	pockets_test.place(band_a)
+	pockets_test.place(band_b)
+	var over_two := loot_ui.move_stack(kit2, swap_grid4, pockets_test, Vector2i(0, 0), false, Vector2i(0, 0))
+	_check(nade_ok and nade.x == 2 and kit.x == 0 and swap_grid3.stacks.size() == 2
+		and over_two and pockets_test.stacks == [kit2] and swap_grid4.count_of("bandage") == 10,
+		"a grenade swaps onto a medkit, and a medkit dropped on two bandages moves both out of the way (%s %d %d, %s %d %d)" % [nade_ok, nade.x, kit.x, over_two, pockets_test.stacks.size(), swap_grid4.count_of("bandage")])
+	var full_grid := GridInventory.new("Full", 2, 1)
+	var tiny := GridInventory.new("Tiny", 1, 1)
+	var nade2 := ItemStack.new("grenade", 1, 0, 0)
+	tiny.place(nade2)
+	full_grid.place(ItemStack.new("medkit", 1, 0, 0))
+	_check(not loot_ui.move_stack(nade2, tiny, full_grid, Vector2i(0, 0), false, Vector2i(0, 0))
+		and tiny.stacks == [nade2] and full_grid.count_of("medkit") == 1, "a swap with no room anywhere leaves both where they were")
 	var bandages := _find_stack(inv.all_stacks(), "bandage", 5)
 	var bandage_grid := inv.pockets if inv.pockets.stacks.has(bandages) else inv.backpack
 	_check(loot_ui.split_stack(bandage_grid, bandages) and inv.count_of("bandage") == 7 and bandages.count == 3, "split a stack of 5 into 3 + 2")
