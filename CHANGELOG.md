@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.1 (price pass; owner OK'd raising gear prices about 5x)
+- Gear costs about **5x more**: guns, attachments, ammo, meds, armor, helmets, backpacks and drinks (Hound $12,500,
+  was $2,500; Lancer $22,500; bandage $500; rifle round $15). Valuables and keys keep their values, so loot stays
+  exciting and a good kit costs about 2-3 normal raids (`tools/economy_sim.gd`). Gear you find sells for more too
+  (still 60%).
+- New profiles start with $15,000 (was $3,000). The free kit is unchanged.
+- Trader levels and stash upgrades scaled with it: Gunsmith level 2 at $40,000 spent, level 3 at $120,000; Medic
+  level 2 at $5,000; Supplier level 2 at $10,000; stash upgrades $50,000, $120,000, $250,000.
+
 ## 0.16.0 (Economy update starts: traders and stash upgrades; owner's plan)
 - The one trader is now four, each on its own tab: **Gunsmith** (guns, ammo, attachments, grenades), **Medic**
   (bandages, medkits), **Supplier** (armor, helmets, backpacks, energy drinks, stash space) and **Fence** (buys

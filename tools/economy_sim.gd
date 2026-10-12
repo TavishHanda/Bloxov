@@ -2,7 +2,8 @@ extends SceneTree
 ## Economy numbers (0.16.0, Economy update): rolls the real map's containers and the AI's body loot thousands of
 ## times with the game's own loot code, and prints what things are worth when sold, next to what kits cost.
 ## Run from the repo root: godot --headless -s tools/economy_sim.gd [-- runs=2000]
-## Sell value uses the trader's real prices (Traders.sell_price), so re-run it after any price change.
+## Sell value uses the trader's real prices (Traders.sell_price), so re-run it after any price change, and after
+## the map overhaul (owner, 2026-10-12: loot spots will move and their number will change), then re-tune prices.
 
 const MAP := "res://scenes/maps/old_bloxov.tscn"
 const BODIES := {"Scav": "res://scenes/scav.tscn", "Sniper": "res://scenes/sniper.tscn",

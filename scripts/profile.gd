@@ -12,8 +12,9 @@ const STASH_SIZE := Vector2i(8, 20)
 ## Stash upgrades (0.16.0, owner: a real stash size, bigger ones bought with money): rows at each level, and what
 ## each upgrade costs. Level 1 is the new stash.
 const STASH_ROWS: Array[int] = [20, 30, 40, 50]
-const STASH_UPGRADE_COST: Array[int] = [0, 25000, 60000, 120000]
-const START_MONEY := 3000
+const STASH_UPGRADE_COST: Array[int] = [0, 50000, 120000, 250000]
+## (0.16.1: x5 with the price pass; was $3,000.)
+const START_MONEY := 15000
 const DEFAULT_STATS := {"raids": 0, "extracts": 0, "deaths": 0, "earned": 0}
 ## Where an unreadable save is copied before the profile is reset, so it isn't silently lost.
 const BAD_PATH := "user://profile.bad.json"

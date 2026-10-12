@@ -7,11 +7,11 @@ edit the item database, then re-run the script (don't edit this file by hand).
 
 | Item | Type | Rarity | Size | Stack | Value (each) | Notes | Description |
 |---|---|---|---|---|---|---|---|
-| Stinger (`pistol`) | Weapon | Common | 2×1 | 1 | $600 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo; attachment slots: barrel, sight | Small sidearm. Quick to aim, one shot per click. |
-| Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $2,000 | primary slot; full-auto; 20 dmg, 900 rpm, 25-round mag, smg ammo; damage drops to 70% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
-| Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $2,200 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
-| Hound (`ak`) | Weapon | Uncommon | 4×2 | 1 | $2,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
-| Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $4,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
+| Stinger (`pistol`) | Weapon | Common | 2×1 | 1 | $3,000 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo; attachment slots: barrel, sight | Small sidearm. Quick to aim, one shot per click. |
+| Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $10,000 | primary slot; full-auto; 20 dmg, 900 rpm, 25-round mag, smg ammo; damage drops to 70% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
+| Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $11,000 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
+| Hound (`ak`) | Weapon | Uncommon | 4×2 | 1 | $12,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
+| Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $22,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
 | Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Stinger, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
 | Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler; pellet_spread x0.85 | Shotgun muzzle. Keeps the pellets tighter. |
 | Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
@@ -19,22 +19,22 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
 | Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Stinger, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
 | 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits Lancer; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
-| Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $1,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
-| Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $4,000 | -40% damage taken | Plated vest. Stops a lot. |
-| Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $1,000 | -25% head damage taken | Dented steel pot. Better than nothing on your head. |
-| Combat Helmet (`helmet_good`) | Helmet | Rare | 2×2 | 1 | $3,000 | -45% head damage taken | Army helmet. Takes a hit to the head well. |
-| Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $400 | 4×3 storage | A school bag. Better than pockets. |
-| Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $900 | 5×4 storage | Hiking pack with room for a good haul. |
-| Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $2,000 | 6×5 storage | Big army rucksack. Carry everything home. |
-| Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $2 | full stack $100 | Pistol rounds for the Stinger. Loaded when you reload. |
-| SMG Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $2 | full stack $180 | Small rounds for the Wasp. Loaded when you reload. |
-| Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $3 | full stack $360 | Rifle rounds for the Hound. Loaded when you reload. |
-| Shotgun Shells (`shells`) | Ammo | Common | 1×1 | 30 | $6 | full stack $180 | Buckshot for the Mauler. Loaded one at a time. |
-| Sniper Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $15 | full stack $450 | Long rounds for the Lancer. Loaded when you reload. |
-| Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $100 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
-| Medkit (`medkit`) | Healing | Uncommon | 2×1 | 3 | $400 | heals 70 over 4 s | Field kit. Heals a lot, takes a while. |
-| Energy Drink (`energy_drink`) | Drink | Common | 1×1 | 1 | $250 |  | Fills your stamina, then sprinting costs none for 10 s. |
-| Frag Grenade (`grenade`) | Throwable | Uncommon | 1×1 | 3 | $600 |  | Pull, throw, take cover. Goes off 3 seconds after it leaves your hand. |
+| Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $7,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
+| Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $20,000 | -40% damage taken | Plated vest. Stops a lot. |
+| Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $5,000 | -25% head damage taken | Dented steel pot. Better than nothing on your head. |
+| Combat Helmet (`helmet_good`) | Helmet | Rare | 2×2 | 1 | $15,000 | -45% head damage taken | Army helmet. Takes a hit to the head well. |
+| Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $2,000 | 4×3 storage | A school bag. Better than pockets. |
+| Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $4,500 | 5×4 storage | Hiking pack with room for a good haul. |
+| Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $10,000 | 6×5 storage | Big army rucksack. Carry everything home. |
+| Pistol Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $10 | full stack $500 | Pistol rounds for the Stinger. Loaded when you reload. |
+| SMG Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $10 | full stack $900 | Small rounds for the Wasp. Loaded when you reload. |
+| Rifle Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $15 | full stack $1,800 | Rifle rounds for the Hound. Loaded when you reload. |
+| Shotgun Shells (`shells`) | Ammo | Common | 1×1 | 30 | $30 | full stack $900 | Buckshot for the Mauler. Loaded one at a time. |
+| Sniper Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $75 | full stack $2,250 | Long rounds for the Lancer. Loaded when you reload. |
+| Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $500 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
+| Medkit (`medkit`) | Healing | Uncommon | 2×1 | 3 | $2,000 | heals 70 over 4 s | Field kit. Heals a lot, takes a while. |
+| Energy Drink (`energy_drink`) | Drink | Common | 1×1 | 1 | $1,200 |  | Fills your stamina, then sprinting costs none for 10 s. |
+| Frag Grenade (`grenade`) | Throwable | Uncommon | 1×1 | 3 | $3,000 |  | Pull, throw, take cover. Goes off 3 seconds after it leaves your hand. |
 | Bank Vault Key (`bank_vault_key`) | Key | Rare | 1×1 | 1 | $3,500 | opens BankVaultDoor | Opens the vault in the bank. |
 | Bunker Key (`bunker_key`) | Key | Epic | 1×1 | 1 | $6,000 | opens BunkerDoor | Opens the bunker under the town hall. Bon keeps one on him. |
 | Bolts (`bolts`) | Valuable | Common | 1×1 | 10 | $120 |  | A handful of nuts and bolts. Small, but always needed. |

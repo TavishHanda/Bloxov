@@ -16,18 +16,18 @@ const LIST := {
 		"levels": [
 			{"spent": 0, "stock": [["pistol", 1], ["smg", 1], ["shotgun", 1], ["pistol_ammo", 50], ["smg_ammo", 60],
 				["shells", 12], ["red_dot", 1], ["choke", 1]]},
-			{"spent": 15000, "stock": [["ak", 1], ["rifle_ammo", 60], ["foregrip", 1], ["ext_mag", 1], ["grenade", 1]]},
-			{"spent": 40000, "stock": [["sniper", 1], ["sniper_ammo", 10], ["scope_4x", 1], ["scope_8x", 1], ["suppressor", 1]]},
+			{"spent": 40000, "stock": [["ak", 1], ["rifle_ammo", 60], ["foregrip", 1], ["ext_mag", 1], ["grenade", 1]]},
+			{"spent": 120000, "stock": [["sniper", 1], ["sniper_ammo", 10], ["scope_4x", 1], ["scope_8x", 1], ["suppressor", 1]]},
 		]},
 	"meds": {"name": "Medic", "tab": "MEDS", "about": "Bandages and medkits.", "kinds": ["heal"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["bandage", 1]]},
-			{"spent": 3000, "stock": [["medkit", 1]]},
+			{"spent": 5000, "stock": [["medkit", 1]]},
 		]},
 	"supplies": {"name": "Supplier", "tab": "GEAR", "about": "Armor, helmets, backpacks, drinks, stash space.", "kinds": ["armor", "helmet", "backpack", "drink"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["backpack_small", 1], ["energy_drink", 1]]},
-			{"spent": 5000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
+			{"spent": 10000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
 		]},
 	"valuables": {"name": "Fence", "tab": "LOOT", "about": "Buys valuables and keys at full value. Sells nothing.", "kinds": ["valuable", "key"], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
 }
