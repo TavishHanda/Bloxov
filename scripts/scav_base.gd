@@ -132,7 +132,7 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## no hiding when sniped, no playing safe when hurt; it walks at you shooting. It doesn't chase non-stop though
 ## (owner: "there needs to be some break"): after chase_burst_min-max seconds of chasing it stops for
 ## chase_pause_min-max seconds, standing and firing or (reposition_chance of the time) stepping a few meters to one
-## side while firing, then comes on again.
+## side while firing (never just standing there: it keeps shooting), then comes on again.
 @export var never_cover := false
 @export var chase_burst_min := 3.0
 @export var chase_burst_max := 5.0

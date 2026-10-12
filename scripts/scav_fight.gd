@@ -239,6 +239,7 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 		_stood_last = true
 		tactic = Tactic.STAND
 		_stand_time = randf_range(chase_pause_min, chase_pause_max)
+		_fire_timer = minf(_fire_timer, 0.15)   # (owner: never just standing there: it opens fire right away)
 		if randf() < reposition_chance:
 			_reposition_to = _side_step(to_target)
 		return

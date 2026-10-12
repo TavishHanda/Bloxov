@@ -3711,10 +3711,11 @@ func _section_boss() -> void:
 	var breaks := the_boss._should_rethink(true, 20.0)
 	the_boss._decide(true, bon_to, 20.0)
 	var paused := the_boss.tactic == Scav.Tactic.STAND and the_boss._pausing and not the_boss._should_rethink(true, 20.0)
+	var opens_fire := the_boss._fire_timer <= 0.15
 	the_boss._tactic_time = the_boss._stand_time + 0.1
 	the_boss._decide(true, bon_to, 20.0)
-	_check(chased and breaks and paused and the_boss.tactic == Scav.Tactic.CHASE,
-		"Bon chases, takes a short break (stands or steps aside, firing), then chases again")
+	_check(chased and breaks and paused and opens_fire and the_boss.tactic == Scav.Tactic.CHASE and the_boss.flank_chance > 0.0,
+		"Bon chases, takes a short break shooting (stands or steps aside), then chases again; he still flanks")
 	the_boss.tactic = Scav.Tactic.NONE
 	the_boss.get_node("Health").take_damage(10000)
 	await _frames(2)

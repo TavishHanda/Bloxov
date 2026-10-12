@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.4 (Bon keeps shooting on his breaks, flanks again; owner asked)
+- Bon opens fire as soon as a break between chases starts and keeps firing through it (standing or stepping aside),
+  so he's never just standing there.
+- Bon flanks again (30% of lulls, as before 0.17.3). A flank that finds no hidden spot still never sends him to cover.
+
 ## 0.17.3 (Bon the juggernaut; owner asked)
 - Bon never takes cover: no ducking to reload or when shot, no hiding when sniped from far away, and he doesn't play
   safe when badly hurt. He chases from 45 m (was 30), walking at you and firing, and no longer flanks.
