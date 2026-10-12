@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update. -->
 
+## 0.15.22 (Richer bank vault; owner asked, numbers ours)
+- Bank vault safes: the Holy Grail 3% each (was 1%; the bunker stays 1%), and the golden toilet about 6% each (an
+  extra 3% on top of every safe's 3%).
+
 ## 0.15.21 (Never-empty safes, swap any item; owner reported)
 - A safe could come up empty: when it rolled something too big to fit (a large backpack is 4x4, a safe 3x3), the
   item was lost. Rolls that don't fit are rolled again, so no container is ever empty.

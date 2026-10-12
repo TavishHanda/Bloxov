@@ -148,10 +148,12 @@ const TABLE_CHANCES := {
 
 ## One-off finds (0.14.12, owner): a chance, each raid, that this item is in that container (by its map name).
 ## "special" items never come from random rolls: only from here, or off bodies (dog tags).
-## The Holy Grail (0.15.19, owner): 1% in each safe in the bank vault and the town hall bunker, nowhere else.
+## The Holy Grail (0.15.19, owner): only in the safes of the bank vault and the town hall bunker. The vault is
+## better (0.15.22, owner left the numbers to us): Grail 3% per vault safe (1% in the bunker), and a golden toilet
+## extra 3% on top of every safe's 3%, so about 6% per vault safe.
 const SPECIAL_FINDS := {
-	"Bank_Safe1": {"holy_grail": 0.01},
-	"Bank_Safe2": {"holy_grail": 0.01},
+	"Bank_Safe1": {"holy_grail": 0.03, "golden_toilet": 0.03},
+	"Bank_Safe2": {"holy_grail": 0.03, "golden_toilet": 0.03},
 	"Bunker_Safe1": {"holy_grail": 0.01},
 	"Bunker_Safe2": {"holy_grail": 0.01},
 	"Bunker_Safe3": {"holy_grail": 0.01},

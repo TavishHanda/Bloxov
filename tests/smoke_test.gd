@@ -911,6 +911,7 @@ func _section_items() -> void:
 		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return n.begins_with("Bank_Safe") or n.begins_with("Bunker_Safe"))
 		and ItemDB.item("golden_toilet").get("special", false) and ItemDB.TABLE_CHANCES["safe"]["golden_toilet"] == 0.03
 		and ItemDB.TABLE_CHANCES["scav"]["backpack_small"] == 0.07
+		and ItemDB.SPECIAL_FINDS["Bank_Safe1"]["holy_grail"] == 0.03 and ItemDB.SPECIAL_FINDS["Bank_Safe2"]["golden_toilet"] == 0.03
 		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return map_text.contains('name="%s"' % n)),
 		"the Holy Grail: 1%% in bank vault and bunker safes (%d in 1500); golden toilet 3%% of safes; scav backpacks 7%%" % grails)
 	tag_raider.free()
