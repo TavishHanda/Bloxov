@@ -222,9 +222,9 @@ func take_free_kit() -> bool:
 		pistol.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 		Profile.stash.place(pistol)
 	for kit_item in [["pistol_ammo", 30], ["bandage", 1]]:
-		var left := inventory.add(kit_item[0], kit_item[1])
+		var left := inventory.add(kit_item[0], kit_item[1], true)
 		if left > 0:
-			Profile.stash.add(kit_item[0], left)
+			Profile.stash.add(kit_item[0], left, true)
 	Profile.free_kit_raid = int(Profile.stats["raids"])
 	_message("Took the free kit. Good luck out there.")
 	_queue_save()

@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.6 (nothing in the free kit sells; owner asked)
+- The free kit's 30 rounds and bandage are marked as free kit items too, so nothing from the kit sells. They only
+  stack with other free kit items (bought or found rounds stay separate and sellable), and they keep the mark when
+  moved, split, dropped, saved, or used and cancelled.
+
 ## 0.16.5 (free kit pistol sells for nothing; owner asked)
 - The free kit's Stinger is marked as free kit gear: traders won't buy it (the item info says so). A Stinger you
   find or buy still sells as normal. The kit's 30 rounds and bandage still sell (about $480; with one kit per raid

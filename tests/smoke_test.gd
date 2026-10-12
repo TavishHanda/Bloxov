@@ -1749,6 +1749,25 @@ func _section_hideout() -> void:
 	_check(hideout.sell_price(ItemStack.new("pistol")) > 0, "a normal Stinger still sells")
 	var saved_kit := GridInventory.data_stack(GridInventory.stack_data(kit_pistol))
 	_check(saved_kit.free and Profile._read_stack(Profile._write_stack(kit_pistol)).free, "the free kit mark survives saving and the network")
+	# (0.16.6, owner: nothing in the kit sells) The rounds and bandage too, and they never mix into sellable stacks.
+	var kit_extras := hideout_inv.all_stacks().filter(func(st: ItemStack) -> bool: return st.id in ["pistol_ammo", "bandage"])
+	_check(kit_extras.size() == 2 and kit_extras.all(func(st: ItemStack) -> bool: return st.free and hideout.sell_price(st) == 0),
+		"the free kit's rounds and bandage sell for nothing")
+	hideout_inv.add("pistol_ammo", 10)
+	var ammo_stacks := hideout_inv.all_stacks().filter(func(st: ItemStack) -> bool: return st.id == "pistol_ammo")
+	_check(ammo_stacks.size() == 2 and ammo_stacks.any(func(st: ItemStack) -> bool: return not st.free and st.count == 10)
+		and ammo_stacks.any(func(st: ItemStack) -> bool: return st.free and st.count == 30), "bought rounds don't merge into free kit rounds")
+	var free_ammo: ItemStack = ammo_stacks.filter(func(st: ItemStack) -> bool: return st.free)[0]
+	var ammo_grid: GridInventory = null
+	for g in hideout_inv.grids():
+		if free_ammo in g.stacks:
+			ammo_grid = g
+	hideout.screen.quick_move(ammo_grid, free_ammo)
+	var moved_free := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "pistol_ammo" and st.free)
+	_check(not moved_free.is_empty() and hideout_inv.count_of("pistol_ammo") == 10, "free kit rounds stay free kit rounds when moved to the stash")
+	for st: ItemStack in moved_free:
+		Profile.stash.remove(st)
+	hideout_inv.take("pistol_ammo", 10)
 	# Online (0.16.3, owner: you couldn't go online with the free kit): TAKE FREE KIT puts it on you and stays online.
 	for loadout_grid in hideout_inv.grids():
 		for stack in loadout_grid.stacks.duplicate():

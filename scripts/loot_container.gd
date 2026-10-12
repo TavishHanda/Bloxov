@@ -215,7 +215,7 @@ static func _fill_bag(bag: LootContainer, bag_name: String, w: int, h: int, cont
 			var stack := entry as ItemStack
 			var spot := bag.grid.find_spot(stack.id)
 			if spot.is_empty():
-				all_fit = bag.grid.add(stack.id, stack.count) == 0 and all_fit
+				all_fit = bag.grid.add(stack.id, stack.count, stack.free) == 0 and all_fit
 			else:
 				stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 				bag.grid.place(stack)

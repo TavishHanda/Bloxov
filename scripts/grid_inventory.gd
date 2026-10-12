@@ -57,12 +57,13 @@ func find_spot(id: String) -> Array:
 
 
 ## Adds up to `count` of an item to existing stacks only (no new stacks). Returns how many didn't fit.
-func top_up(id: String, count: int) -> int:
+## `free`: free kit items (0.16.6) only stack with free kit items, so they can't be mixed into sellable stacks.
+func top_up(id: String, count: int, free := false) -> int:
 	var left := count
 	for stack in stacks:
 		if left <= 0:
 			break
-		if stack.id == id and stack.space_left() > 0:
+		if stack.id == id and stack.free == free and stack.space_left() > 0:
 			var moved := mini(left, stack.space_left())
 			stack.count += moved
 			left -= moved
@@ -72,14 +73,16 @@ func top_up(id: String, count: int) -> int:
 
 
 ## Adds `count` of an item: tops up existing stacks first, then uses free space. Returns how many didn't fit.
-func add(id: String, count := 1) -> int:
-	var left := top_up(id, count)
+func add(id: String, count := 1, free := false) -> int:
+	var left := top_up(id, count, free)
 	while left > 0:
 		var spot := find_spot(id)
 		if spot.is_empty():
 			break
 		var amount := mini(left, ItemDB.max_stack(id))
-		stacks.append(ItemStack.new(id, amount, spot[0], spot[1], spot[2]))
+		var stack := ItemStack.new(id, amount, spot[0], spot[1], spot[2])
+		stack.free = free
+		stacks.append(stack)
 		left -= amount
 	changed.emit()
 	return left
@@ -104,7 +107,7 @@ func sort() -> void:
 		var merged := false
 		if ItemDB.max_stack(stack.id) > 1:
 			for other in list:
-				if other.id == stack.id and other.space_left() > 0:
+				if other.id == stack.id and other.free == stack.free and other.space_left() > 0:
 					var moved := mini(other.space_left(), stack.count)
 					other.count += moved
 					stack.count -= moved

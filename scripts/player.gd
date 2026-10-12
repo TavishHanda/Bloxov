@@ -50,6 +50,8 @@ var _nade_phase := 0
 var _nade_time := 0.0
 var _nade_id := ""
 var _heal_grid: GridInventory
+## The item being used came from the free kit (0.16.6): a cancelled use gives back a free kit item.
+var _heal_free := false
 ## How long key 3 (or the meds slot) has been held, -1 = not held; when it switches next; whether it switched.
 var _meds_held := -1.0
 var _meds_next_switch := 0.0
@@ -209,8 +211,15 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 		_:
 			return
 	# Nothing taken = the stack is already gone (e.g. used mid-drag); don't heal for free.
-	if grid.take(stack.id, 1) == 0:
+	# (The stack you used, so a cancelled use gives back the same kind: free kit or not.)
+	if stack in grid.stacks and stack.count > 0:
+		stack.count -= 1
+		if stack.count <= 0:
+			grid.stacks.erase(stack)
+		grid.changed.emit()
+	elif grid.take(stack.id, 1) == 0:
 		return
+	_heal_free = stack.free
 	_heal_item = stack.id
 	_heal_grid = grid
 	if hand != null:
@@ -433,10 +442,10 @@ func cancel_heal() -> bool:
 	heal_time_left = 0.0
 	var left := 1
 	if _heal_grid != null:
-		left = _heal_grid.add(_heal_item, 1)
+		left = _heal_grid.add(_heal_item, 1, _heal_free)
 	for grid in inventory.grids():
 		if left > 0:
-			left = grid.add(_heal_item, left)
+			left = grid.add(_heal_item, left, _heal_free)
 	return true
 
 

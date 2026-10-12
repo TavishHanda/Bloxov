@@ -18,7 +18,8 @@ var attachments := {}
 var label := ""
 const LABEL_MAX := 24
 ## From the free kit (0.16.5, owner): worth nothing to traders, so the kit can't be sold for money. The same item
-## found or bought sells as normal. Only the kit's pistol is marked (a stack of rounds merges with others).
+## found or bought sells as normal. Free kit stacks only stack with other free kit stacks (0.16.6: the rounds and
+## bandage are marked too).
 var free := false
 
 

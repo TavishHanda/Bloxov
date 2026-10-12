@@ -314,7 +314,7 @@ func _merge_target(stack: ItemStack, grid: GridInventory, cell: Vector2i) -> Ite
 	if cell.x < 0 or cell.y < 0:
 		return null
 	var target := grid.stack_at(cell)
-	if target != null and target != stack and target.id == stack.id and target.space_left() > 0:
+	if target != null and target != stack and target.id == stack.id and target.free == stack.free and target.space_left() > 0:
 		return target
 	return null
 
@@ -346,7 +346,7 @@ func quick_move(grid: GridInventory, stack: ItemStack) -> void:
 	var left := stack.count
 	for destination in destinations:
 		if left > 0:
-			left = destination.add(stack.id, left)
+			left = destination.add(stack.id, left, stack.free)
 	if left == stack.count:
 		_no_room(to_player)
 		return
@@ -828,7 +828,9 @@ func split_stack(grid: GridInventory, stack: ItemStack) -> bool:
 	var shrink_original := func() -> void:
 		stack.count -= half
 		grid.changed.emit()
-	return _place_in_first(ItemStack.new(stack.id, half), candidates, shrink_original)
+	var piece := ItemStack.new(stack.id, half)
+	piece.free = stack.free
+	return _place_in_first(piece, candidates, shrink_original)
 
 
 ## Drop on the ground, even with a container open (0.15.19, owner: a Drop option while looting).
