@@ -338,6 +338,9 @@ func _on_died() -> void:
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])
+	for drop: Variant in drops:
+		if drop is ItemStack:
+			(drop as ItemStack).found = true   # (its gun and worn gear count as found in raid, 0.16.13)
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
 	queue_free()

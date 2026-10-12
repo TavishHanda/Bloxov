@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update. -->
 
+## 0.16.13 (trader quests; owner asked)
+- Trader levels now come from **quests** instead of spending (owner: "quests instead of buying items to unlock items").
+  Each trader's tab lists the quests for their next level, with progress, rewards and a HAND IN button.
+  - Gunsmith level 2: Zeroing In (kill 5 scavs), Spare Parts (hand in 2 attachments), Field Test (3 scav kills
+    with a Mauler), plus $15,000 spent with him. Level 3: Overwatch (2 snipers), Hard Targets (3 Raiders), Big
+    Game (Bon), plus $40,000 spent.
+  - Medic level 2: First Aid (hand in 3 bandages), House Call (extract 3 times). No money needed.
+  - Supplier level 2: Packing Up (extract with $10,000+ of loot), Scrap Run (hand in 2 armor vests or helmets),
+    plus $5,000 spent.
+  - Kills and extracts only count once you get out alive. Each quest pays $1,500-$10,000. No player-kill quests.
+- **Found in raid:** loot from containers and bodies is marked "found in raid" (shown in its info). Only found items
+  can be handed in, so buying the item doesn't work. Found stacks don't stack with bought ones.
+- Names and quest text are placeholders until the owner renames them. Levels reached by spending before this
+  update go back to level 1 until their quests are done (what you already bought stays).
+
 ## 0.16.12 (the valuables trader is Supreme; owner named it)
 - The trader who buys valuables and keys (was "Fence", a placeholder) is now called Supreme.
 

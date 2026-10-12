@@ -31,7 +31,7 @@ signal raid_started
 ## In a raid: another player's shot hit us (damage before our armor); our shot hit someone; we killed someone.
 signal got_hit(amount: int, from: Vector3, headshot: bool)
 signal shot_confirmed(headshot: bool, amount: int, pos: Vector3)
-signal kill_confirmed
+signal kill_confirmed(target: String)
 ## A scav rifle-butted us; something a scav did that we should see/hear (RaidWorld.enemy_event kinds).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
 signal enemy_event(id: int, kind: String, pos: Vector3)
@@ -279,7 +279,7 @@ func _state(state: Array) -> void:
 		if _now() - attacker[1] < window:
 			_player_kills[peer] = true
 			if _peer_open(attacker[0]):
-				_kill_confirmed.rpc_id(attacker[0])
+				_kill_confirmed.rpc_id(attacker[0], "player")
 		_last_attacker.erase(peer)
 
 
@@ -453,6 +453,7 @@ func _drop_items(data: Array, is_body: bool) -> void:
 		# Killed by another player (0.15.28, owner): "Name's Dog Tag" on the body, in its own slot.
 		var tag := ItemStack.new("player_tag")
 		tag.label = String(matchmaker.players[peer]["name"]).left(ItemStack.LABEL_MAX)
+		tag.found = true
 		data.append(GridInventory.stack_data(tag))
 	var forward := Vector3(-sin(me[1]), 0, -cos(me[1]))
 	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data, is_body)
@@ -539,7 +540,8 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3)
 	if _peer_open(attacker):
 		_hit_confirmed.rpc_id(attacker, hit["headshot"], shown, hit.get("end", attacker_pos))
 		if killed:
-			_kill_confirmed.rpc_id(attacker)
+			# (what it was, by its scene's name: scav, sniper, raider, boss; for quests, 0.16.13)
+			_kill_confirmed.rpc_id(attacker, String(hit["enemy"].scene_file_path).get_file().get_basename())
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
@@ -891,9 +893,9 @@ func _hit_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _kill_confirmed() -> void:
+func _kill_confirmed(target: String) -> void:
 	if in_online_raid():
-		kill_confirmed.emit()
+		kill_confirmed.emit(target)
 
 
 @rpc("authority", "call_remote", "reliable")

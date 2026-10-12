@@ -31,6 +31,9 @@ static var trader_spent: Dictionary = {}
 ## The raid count (stats "raids") when you last took the free kit; one free kit per raid (0.16.4, owner: taking it
 ## and selling it over and over was infinite money). -1 = never taken.
 static var free_kit_raid := -1
+## Trader quests (0.16.13, see Quests): finished quest ids, and progress (quest id -> count) on the rest.
+static var quests_done: Array[String] = []
+static var quest_progress: Dictionary = {}
 static var _loaded := false
 
 
@@ -71,11 +74,21 @@ static func load_profile() -> void:
 		for key in saved_spent:
 			if key is String and _is_number(saved_spent[key]):
 				trader_spent[key] = int(saved_spent[key])
+	quests_done = []
+	for id in _array(data.get("quests_done")):
+		if id is String and Quests.LIST.has(id) and not quests_done.has(id):
+			quests_done.append(id)
+	quest_progress = {}
+	var saved_progress = data.get("quest_progress")
+	if saved_progress is Dictionary:
+		for key in saved_progress:
+			if key is String and Quests.LIST.has(key) and _is_number(saved_progress[key]):
+				quest_progress[key] = clampi(int(saved_progress[key]), 0, int(Quests.LIST[key]["count"]))
 
 
-## A trader's level (Traders.level) from what you've spent with them.
+## A trader's level (Traders.level) from their quests you've done and what you've spent with them.
 static func trader_level(trader: String) -> int:
-	return Traders.level(trader, int(trader_spent.get(trader, 0)))
+	return Traders.level(trader, int(trader_spent.get(trader, 0)), quests_done)
 
 
 ## The stash's upgrade level (1-based): the biggest STASH_ROWS size it has reached.
@@ -139,6 +152,8 @@ static func reset() -> void:
 	stats = DEFAULT_STATS.duplicate()
 	trader_spent = {}
 	free_kit_raid = -1
+	quests_done = []
+	quest_progress = {}
 
 
 static func save_profile() -> void:
@@ -151,6 +166,8 @@ static func save_profile() -> void:
 		"stats": stats,
 		"trader_spent": trader_spent,
 		"free_kit_raid": free_kit_raid,
+		"quests_done": quests_done,
+		"quest_progress": quest_progress,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)
@@ -253,6 +270,8 @@ static func _write_stack(stack: ItemStack) -> Dictionary:
 		entry["n"] = stack.label
 	if stack.free:
 		entry["free"] = true
+	if stack.found:
+		entry["found"] = true
 	return entry
 
 
@@ -265,6 +284,7 @@ static func _read_stack(entry: Dictionary) -> ItemStack:
 	if entry.get("n") is String and stack.id == "player_tag":
 		stack.label = (entry["n"] as String).left(ItemStack.LABEL_MAX)
 	stack.free = entry.get("free") == true
+	stack.found = entry.get("found") == true
 	return stack
 
 
@@ -288,7 +308,7 @@ static func _read_grid(entries: Array, grid: GridInventory) -> void:
 			continue
 		var spot := grid.find_spot(stack.id)
 		if spot.is_empty():
-			grid.add(stack.id, stack.count)
+			grid.add(stack.id, stack.count, stack.marks())
 		else:
 			stack.x = spot[0]
 			stack.y = spot[1]

@@ -21,6 +21,21 @@ const LABEL_MAX := 24
 ## found or bought sells as normal. Free kit stacks only stack with other free kit stacks (0.16.6: the rounds and
 ## bandage are marked too).
 var free := false
+## Found in raid (0.16.13, owner): looted in a raid rather than bought or brought in. Only found items count for
+## trader quest hand-ins. Found stacks only stack with found stacks (like free kit ones), so buying can't top them up.
+var found := false
+## Both marks as one number, for adding and stacking (items only stack when their marks match).
+const FREE := 1
+const FOUND := 2
+
+
+func marks() -> int:
+	return (FREE if free else 0) | (FOUND if found else 0)
+
+
+func set_marks(value: int) -> void:
+	free = value & FREE != 0
+	found = value & FOUND != 0
 
 
 func _init(item_id: String, amount := 1, cell_x := 0, cell_y := 0, is_rotated := false) -> void:

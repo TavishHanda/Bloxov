@@ -504,7 +504,7 @@ func _handle_hits(hits: Array[Dictionary], from: Vector3) -> void:
 		var hit: Array = targets[health]
 		var headshot: bool = hit[1]
 		var dealt := health.take_damage(roundi(hit[0]), player.global_position, false, headshot)
-		player.on_hit_landed(health, hit[2], hit[3], dealt, headshot)
+		player.on_hit_landed(health, hit[2], hit[3], dealt, headshot, weapon.id if weapon != null else "")
 		if health.is_dead:
 			Effects.sound(world, KILL_SOUND, -2.0, 0.0)
 		else:

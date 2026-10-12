@@ -355,6 +355,7 @@ func _section_knife() -> void:
 		player.knife.swing()
 		await create_timer(player.knife.swing_time + 0.1).timeout
 		_check(was_idle and (not is_instance_valid(victim) or victim.health.is_dead), "backstab kills an unaware %s in one hit (%s)" % [scene.get_file().get_basename(), diag])
+		_check(Quests.raid_kills.has([scene.get_file().get_basename(), "knife"]), "the kill is noted for quests (%s with the knife)" % scene.get_file().get_basename())
 		if is_instance_valid(victim):
 			victim.queue_free()
 	player.head.rotation.x = 0.0
@@ -1803,15 +1804,58 @@ func _section_hideout() -> void:
 		and Traders.buyer_for("ak") == "guns" and Traders.buyer_for("armor_light") == "supplies", "every item has a trader that buys it")
 	_check(Traders.trader_for("armor_heavy") == "" and Traders.trader_for("ak") == "guns", "heavy armor stays loot-only")
 	Profile.trader_spent = {}
+	Profile.quests_done = []
+	Profile.quest_progress = {}
 	Profile.money = 100000
 	var money2 := Profile.money
 	_check(Profile.trader_level("guns") == 1 and not hideout.buy("ak", 1) and Profile.money == money2, "a level 2 gun can't be bought at level 1")
-	Profile.trader_spent["guns"] = int(Traders.LIST["guns"]["levels"][1]["spent"]) - 1
-	_check(hideout.buy("pistol", 1) and Profile.trader_level("guns") == 2 and hideout.buy("ak", 1),
-		"spending with a trader levels them up and unlocks their stock")
+	# Quests (0.16.13, owner): a level needs its quests done, plus (for some) money spent with the trader.
+	Profile.trader_spent["guns"] = int(Traders.LIST["guns"]["levels"][1]["spent"])
+	_check(Profile.trader_level("guns") == 1, "money alone doesn't level a trader any more")
+	Quests.raid_started()
+	for i in 5:
+		Quests.record_kill("scav", "pistol")
+	for i in 3:
+		Quests.record_kill("scav", "shotgun")
+	Quests.raid_ended(false, 0)
+	_check(Quests.progress("zeroing_in") == 0 and Quests.raid_kills.is_empty(), "kills don't count if you don't get out")
+	Quests.raid_started()
+	for i in 5:
+		Quests.record_kill("scav", "pistol")
+	for i in 3:
+		Quests.record_kill("scav", "shotgun")
+	Quests.record_kill("sniper", "pistol")
+	money2 = Profile.money
+	Quests.raid_ended(true, 0)
+	_check(Profile.quests_done.has("zeroing_in") and Profile.quests_done.has("field_test") and Quests.progress("overwatch") == 0
+		and Profile.money == money2 + 5000 and Quests.just_finished.size() == 2,
+		"extracting counts the raid's kills: two gun quests done, rewards paid, level 3 quests not open yet")
+	hideout._announce_quests()
+	_check(hideout._message_label.text.begins_with("Quest done") and Quests.just_finished.is_empty(), "the hideout says which quests the raid finished")
+	# Hand-ins take only items found in raid.
+	Profile.stash.add("red_dot", 1)
+	_check(hideout.hand_in("spare_parts") == 0 and Profile.trader_level("guns") == 1, "a bought attachment can't be handed in")
+	Profile.stash.add("foregrip", 1, ItemStack.FOUND)
+	Profile.stash.add("suppressor", 1, ItemStack.FOUND)
+	var found_grip: ItemStack = Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "foregrip")[0]
+	_check(Profile._read_stack(Profile._write_stack(found_grip)).found and GridInventory.data_stack(GridInventory.stack_data(found_grip)).found,
+		"the found in raid mark survives saving and the network")
+	_check(hideout.hand_in("spare_parts") == 2 and Profile.stash.count_of("foregrip") == 0 and Profile.stash.count_of("red_dot") == 1
+		and Profile.trader_level("guns") == 2 and hideout.buy("ak", 1), "handing in 2 found attachments finishes the last quest: level 2, the Hound unlocks")
+	Profile.stash.add("bandage", 1)
+	Profile.stash.add("bandage", 1, ItemStack.FOUND)
+	var bandage_stacks := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage")
+	_check(bandage_stacks.size() == 2, "found bandages don't stack with bought ones")
+	var crate := LootContainer.new()
+	crate.loot_table = "crate"
+	crate.min_items = 2
+	crate.max_items = 2
+	crate._ready()
+	_check(not crate.grid.stacks.is_empty() and crate.grid.stacks.all(func(st: ItemStack) -> bool: return st.found), "loot in containers is found in raid")
+	crate.free()
 	hideout.open_trader("meds")
-	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size(),
-		"the trader tabs switch the stock shown")
+	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size() + Quests.for_level("meds", 2).size() + 2,
+		"the trader tabs switch the stock shown, with the next level's quests on top")
 	# Stash upgrades (0.16.0): more rows for money, up to the top size.
 	Profile.stash.height = Profile.STASH_ROWS[0]
 	money = Profile.money
@@ -1826,6 +1870,7 @@ func _section_hideout() -> void:
 	_check(Profile.stash.height == Profile.STASH_ROWS[-1] and not hideout.upgrade_stash(), "the stash stops at its top size")
 	Profile.save_profile()
 	Profile.trader_spent = {}
+	Profile.quests_done = []
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.trader_level("guns") == 2 and Profile.stash.height == Profile.STASH_ROWS[-1], "trader levels and stash size are saved")
@@ -2226,7 +2271,9 @@ func _section_pvp() -> void:
 	c1.shot_confirmed.connect(func(headshot: bool, amount: int, _pos: Vector3) -> void:
 		got["confirmed"].append(headshot)
 		got["shown"] = got.get("shown", []) + [amount])
-	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
+	c1.kill_confirmed.connect(func(target: String) -> void:
+		got["kills"] += 1
+		got["target"] = target)
 	c1.go_online("localhost:19082", "Shooter")
 	c2.go_online("localhost:19082", "Target")
 	await _until(func() -> bool: return c1.is_client() and c2.is_client() and c1.party_code != "" and c2.party_code != "")
@@ -2319,7 +2366,7 @@ func _section_pvp() -> void:
 	_check(got["hits"].size() == 7 and got["hits"][6] == [8 * 14, false], "8 shotgun pellets up close: one hit of 112 (%s)" % str(got["hits"]))
 	c2.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD])
 	await _until(func() -> bool: return got["kills"] == 1)
-	_check(got["kills"] == 1, "the killer is told about the kill")
+	_check(got["kills"] == 1 and got.get("target") == "player", "the killer is told about the kill (and that it was a player)")
 	var net_raid := main.get_node("NetRaid") as NetRaid
 	var before := player.health.current
 	net_raid.apply_hit(28, Vector3(0, 0, -20), false)
@@ -2349,7 +2396,7 @@ func _section_online_ai() -> void:
 	c1.got_hit.connect(func(amount: int, _from: Vector3, _h: bool) -> void: got["hits"].append(amount))
 	c1.bashed.connect(func(_a: int, _f: Vector3, _s: float, _b: float) -> void: got["bashes"] += 1)
 	c1.shot_confirmed.connect(func(_h: bool, _amount: int, _pos: Vector3) -> void: got["confirmed"] += 1)
-	c1.kill_confirmed.connect(func() -> void: got["kills"] += 1)
+	c1.kill_confirmed.connect(func(_target: String) -> void: got["kills"] += 1)
 	c1.enemy_event.connect(func(id: int, kind: String, pos: Vector3) -> void: got["events"].append([id, kind, pos]))
 	for c in [c1, c2]:
 		c.go_online("localhost:19083", "AiTester")

@@ -274,8 +274,9 @@ func _on_shot_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:
 	player.gun.hit_confirmed.emit(false, headshot)
 
 
-func _on_kill_confirmed() -> void:
+func _on_kill_confirmed(target: String) -> void:
 	player.kills += 1
+	Quests.record_kill(target, player.gun.weapon.id if player.gun.weapon != null else "")
 	Effects.sound(get_tree().current_scene, Gun.KILL_SOUND, -2.0, 0.0)
 	player.gun.hit_confirmed.emit(true, false)
 

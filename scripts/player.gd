@@ -50,8 +50,8 @@ var _nade_phase := 0
 var _nade_time := 0.0
 var _nade_id := ""
 var _heal_grid: GridInventory
-## The item being used came from the free kit (0.16.6): a cancelled use gives back a free kit item.
-var _heal_free := false
+## The item being used was free kit (0.16.6) or found in raid (0.16.13): a cancelled use gives back the same kind.
+var _heal_marks := 0
 ## How long key 3 (or the meds slot) has been held, -1 = not held; when it switches next; whether it switched.
 var _meds_held := -1.0
 var _meds_next_switch := 0.0
@@ -166,13 +166,17 @@ func use_hotbar(index: int) -> void:
 
 ## Feedback for a hit the player's gun or knife landed (after the damage): damage number, sparks, kill count.
 ## `critical` = headshot or backstab (bigger damage number). The caller plays its own sound.
-func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount: int, critical: bool) -> void:
+## `weapon`: the item id it was done with ("knife" for the knife), for quests.
+func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount: int, critical: bool, weapon := "") -> void:
 	var world := get_tree().current_scene
 	if GameSettings.damage_numbers:
 		Effects.damage_number(world, pos, amount, critical)
 	Effects.impact(world, pos, normal, HIT_COLOR, 12)
 	if target_health.is_dead:
 		kills += 1
+		var victim := target_health.get_parent()
+		if victim != null and victim.scene_file_path != "":
+			Quests.record_kill(victim.scene_file_path.get_file().get_basename(), weapon)
 
 
 func _hotbar_key(event: InputEvent) -> int:
@@ -222,7 +226,7 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 		grid.changed.emit()
 	elif grid.take(stack.id, 1) == 0:
 		return
-	_heal_free = stack.free
+	_heal_marks = stack.marks()
 	_heal_item = stack.id
 	_heal_grid = grid
 	if hand != null:
@@ -445,10 +449,10 @@ func cancel_heal() -> bool:
 	heal_time_left = 0.0
 	var left := 1
 	if _heal_grid != null:
-		left = _heal_grid.add(_heal_item, 1, _heal_free)
+		left = _heal_grid.add(_heal_item, 1, _heal_marks)
 	for grid in inventory.grids():
 		if left > 0:
-			left = grid.add(_heal_item, left, _heal_free)
+			left = grid.add(_heal_item, left, _heal_marks)
 	return true
 
 

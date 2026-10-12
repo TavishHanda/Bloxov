@@ -87,6 +87,7 @@ func _ready() -> void:
 	inventory.changed.connect(_queue_save)
 	Profile.stash.changed.connect(_queue_save)
 	_refresh()
+	_announce_quests()
 
 
 func _process(_delta: float) -> void:
@@ -138,6 +139,41 @@ func buy(id: String, amount: int) -> bool:
 	_queue_save()
 	_fill_trader()
 	return true
+
+
+## Quests the last raid finished (kills and extracts count once you're out), with their rewards.
+func _announce_quests() -> void:
+	if Quests.just_finished.is_empty():
+		return
+	var parts: Array[String] = []
+	for id in Quests.just_finished:
+		parts.append("%s (+%s)" % [Quests.LIST[id]["name"], ItemDB.money(int(Quests.LIST[id]["reward"]))])
+	Quests.just_finished = []
+	_message("Quest done: " + ", ".join(parts))
+	_queue_save()
+
+
+## Hands in found-in-raid items for a quest (0.16.13), from your stash first, then what you're carrying.
+func hand_in(quest: String) -> int:
+	var trader: String = Quests.LIST[quest]["trader"]
+	var level_before := Profile.trader_level(trader)
+	var given := Quests.hand_in(quest, [Profile.stash] + inventory.grids())
+	if given == 0:
+		_message("Nothing found in raid to hand in for %s" % Quests.LIST[quest]["name"])
+		return 0
+	inventory.changed.emit()
+	if Quests.just_finished.has(quest):
+		Quests.just_finished.erase(quest)
+		var text := "Quest done: %s (+%s)" % [Quests.LIST[quest]["name"], ItemDB.money(int(Quests.LIST[quest]["reward"]))]
+		if Profile.trader_level(trader) > level_before:
+			text += ". %s is now level %d" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)]
+		_message(text)
+	else:
+		_message("Handed in %d for %s" % [given, Quests.LIST[quest]["name"]])
+	_queue_save()
+	_refresh()
+	_fill_trader()
+	return given
 
 
 ## The trader's level is high enough for this item.
@@ -219,9 +255,9 @@ func take_free_kit() -> bool:
 		pistol.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 		Profile.stash.place(pistol)
 	for kit_item in [["pistol_ammo", 30], ["bandage", 1]]:
-		var left := inventory.add(kit_item[0], kit_item[1], true)
+		var left := inventory.add(kit_item[0], kit_item[1], ItemStack.FREE)
 		if left > 0:
-			Profile.stash.add(kit_item[0], left, true)
+			Profile.stash.add(kit_item[0], left, ItemStack.FREE)
 	Profile.free_kit_raid = int(Profile.stats["raids"])
 	_message("Took the free kit. Good luck out there.")
 	_queue_save()
@@ -644,6 +680,60 @@ func _build_trader() -> Control:
 	return panel
 
 
+## The trader's quests for their next level (0.16.13), above the stock: name, what to do, progress, and a HAND IN
+## button for hand-in quests.
+func _fill_quests(trader: String, lv: int) -> void:
+	var quests := Quests.for_level(trader, lv + 1)
+	if quests.is_empty():
+		return
+	var header := Label.new()
+	header.text = "QUESTS FOR LEVEL %d" % (lv + 1)
+	HudStyle.style_label(header, 16, HudStyle.BRASS)
+	_trader_rows.add_child(header)
+	for id in quests:
+		var quest: Dictionary = Quests.LIST[id]
+		var done := Profile.quests_done.has(id)
+		var row := HBoxContainer.new()
+		_trader_rows.add_child(row)
+		var text := VBoxContainer.new()
+		text.add_theme_constant_override("separation", 0)
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(text)
+		var title := Label.new()
+		title.text = quest["name"]
+		HudStyle.style_label(title, 20)
+		title.modulate.a = 0.5 if done else 1.0
+		text.add_child(title)
+		var about := Label.new()
+		about.text = "%s  Reward %s" % [quest["text"], ItemDB.money(int(quest["reward"]))]
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		about.modulate = Color(1, 1, 1, 0.65)
+		about.add_theme_font_size_override("font_size", 12)
+		text.add_child(about)
+		var count := int(quest["count"])
+		if done or quest["kind"] != "hand_in":
+			var status := Label.new()
+			status.text = "DONE" if done else "%d/%d" % [Quests.progress(id), count]
+			HudStyle.style_label(status, 20, HudStyle.EXTRACT if done else Color.WHITE)
+			status.custom_minimum_size = Vector2(84, 0)
+			status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			row.add_child(status)
+		else:
+			var have := Quests.hand_in_count(id, [Profile.stash] + inventory.grids())
+			var button := Button.new()
+			button.text = "HAND IN %d/%d" % [Quests.progress(id), count]
+			button.tooltip_text = "Found in raid: %d" % have
+			button.focus_mode = Control.FOCUS_NONE
+			button.custom_minimum_size = Vector2(84, 40)
+			button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			LootUI.style_button(button, 14)
+			button.pressed.connect(hand_in.bind(id))
+			row.add_child(button)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 6)
+	_trader_rows.add_child(gap)
+
+
 ## Shows trader `trader`'s stock in the trader column.
 func open_trader(trader: String) -> void:
 	_trader_tab = trader
@@ -662,7 +752,10 @@ func _fill_trader() -> void:
 	var lines: Array[String] = [info["about"]]
 	if Traders.max_level(trader) > 1:
 		var next := Traders.next_level_cost(trader, int(Profile.trader_spent.get(trader, 0)))
-		lines.append("Level %d/%d" % [lv, Traders.max_level(trader)] + (" · spend %s more for level %d" % [ItemDB.money(next), lv + 1] if next > 0 else ""))
+		var line := "Level %d/%d" % [lv, Traders.max_level(trader)]
+		if lv < Traders.max_level(trader):
+			line += " · level %d: the quests below" % (lv + 1) + (" and spend %s more here" % ItemDB.money(next) if next > 0 else "")
+		lines.append(line)
 	if trader in ["guns", "meds", "supplies"]:
 		lines.append("Buys these back for %d%%." % roundi(float(info["rate"]) * 100))
 	if trader != "ming":
@@ -671,6 +764,7 @@ func _fill_trader() -> void:
 	for child in _trader_rows.get_children():
 		_trader_rows.remove_child(child)
 		child.queue_free()
+	_fill_quests(trader, lv)
 	for entry: Array in Traders.stock(trader):
 		var id: String = entry[0]
 		var amount: int = entry[1]

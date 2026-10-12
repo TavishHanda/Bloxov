@@ -54,6 +54,7 @@ func _ready() -> void:
 					break
 		for stack in grid.stacks:
 			stack.durability = ItemDB.found_durability(stack.id)
+			stack.found = true
 
 
 ## Pockets and gear slots: gear first (so quick-moving gear into a body fills its slots before the pockets).
@@ -151,6 +152,7 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 			return entry
 		var stack := ItemStack.new(entry[0], entry[1])
 		stack.durability = ItemDB.found_durability(stack.id)
+		stack.found = true
 		return stack)
 	if body:
 		bag.add_gear_slots(contents.any(func(entry: Variant) -> bool: return entry is ItemStack and entry.id == "player_tag"))
@@ -215,7 +217,7 @@ static func _fill_bag(bag: LootContainer, bag_name: String, w: int, h: int, cont
 			var stack := entry as ItemStack
 			var spot := bag.grid.find_spot(stack.id)
 			if spot.is_empty():
-				all_fit = bag.grid.add(stack.id, stack.count, stack.free) == 0 and all_fit
+				all_fit = bag.grid.add(stack.id, stack.count, stack.marks()) == 0 and all_fit
 			else:
 				stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 				bag.grid.place(stack)

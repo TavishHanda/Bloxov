@@ -57,13 +57,14 @@ func find_spot(id: String) -> Array:
 
 
 ## Adds up to `count` of an item to existing stacks only (no new stacks). Returns how many didn't fit.
-## `free`: free kit items (0.16.6) only stack with free kit items, so they can't be mixed into sellable stacks.
-func top_up(id: String, count: int, free := false) -> int:
+## `marks` (ItemStack.FREE/FOUND): free kit items (0.16.6) only stack with free kit items, so they can't be mixed into
+## sellable stacks; found-in-raid ones (0.16.13) only with found ones.
+func top_up(id: String, count: int, marks := 0) -> int:
 	var left := count
 	for stack in stacks:
 		if left <= 0:
 			break
-		if stack.id == id and stack.free == free and stack.space_left() > 0:
+		if stack.id == id and stack.marks() == marks and stack.space_left() > 0:
 			var moved := mini(left, stack.space_left())
 			stack.count += moved
 			left -= moved
@@ -73,15 +74,15 @@ func top_up(id: String, count: int, free := false) -> int:
 
 
 ## Adds `count` of an item: tops up existing stacks first, then uses free space. Returns how many didn't fit.
-func add(id: String, count := 1, free := false) -> int:
-	var left := top_up(id, count, free)
+func add(id: String, count := 1, marks := 0) -> int:
+	var left := top_up(id, count, marks)
 	while left > 0:
 		var spot := find_spot(id)
 		if spot.is_empty():
 			break
 		var amount := mini(left, ItemDB.max_stack(id))
 		var stack := ItemStack.new(id, amount, spot[0], spot[1], spot[2])
-		stack.free = free
+		stack.set_marks(marks)
 		stacks.append(stack)
 		left -= amount
 	changed.emit()
@@ -107,7 +108,7 @@ func sort() -> void:
 		var merged := false
 		if ItemDB.max_stack(stack.id) > 1:
 			for other in list:
-				if other.id == stack.id and other.free == stack.free and other.space_left() > 0:
+				if other.id == stack.id and other.marks() == stack.marks() and other.space_left() > 0:
 					var moved := mini(other.space_left(), stack.count)
 					other.count += moved
 					stack.count -= moved
@@ -209,7 +210,7 @@ func load_data(data: Array) -> void:
 
 
 static func stack_data(stack: ItemStack) -> Array:
-	return [stack.id, stack.count, stack.x, stack.y, stack.rotated, stack.loaded, stack.durability, stack.attachments, stack.label, stack.free]
+	return [stack.id, stack.count, stack.x, stack.y, stack.rotated, stack.loaded, stack.durability, stack.attachments, stack.label, stack.marks()]
 
 
 ## An ItemStack from stack_data(), or null if it isn't a real item.
@@ -225,5 +226,6 @@ static func data_stack(entry: Variant) -> ItemStack:
 	if entry.size() >= 9 and entry[8] is String and stack.id == "player_tag":
 		stack.label = (entry[8] as String).left(ItemStack.LABEL_MAX)
 	if entry.size() >= 10:
-		stack.free = bool(entry[9])
+		# (0.16.6 sent a bool: the free mark; 0.16.13 sends both marks as a number)
+		stack.set_marks(int(entry[9]) if not entry[9] is bool else (ItemStack.FREE if entry[9] else 0))
 	return stack

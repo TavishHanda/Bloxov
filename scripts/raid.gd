@@ -30,6 +30,7 @@ func _ready() -> void:
 	time_left = Network.main.raid_time_left if Network.main.in_online_raid() else raid_time
 	player.health.died.connect(_on_player_died)
 	_set_leave_warning(true)
+	Quests.raid_started()
 
 	if spawn_points != null and spawn_points.get_child_count() > 0:
 		var points := spawn_points.get_children()
@@ -151,6 +152,7 @@ func _set_leave_warning(on: bool) -> void:
 func _finish() -> void:
 	_set_leave_warning(false)
 	_tally_loot()
+	Quests.raid_ended(result == "extracted", loot_value)
 	_save_to_profile()
 	ended.emit(result)
 

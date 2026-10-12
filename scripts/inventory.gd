@@ -170,15 +170,15 @@ func use_key(stack: ItemStack) -> void:
 # --- Items -----------------------------------------------------------------------
 
 ## Adds items, filling stacks and free space across all grids. Returns how many didn't fit.
-func add(id: String, count := 1, free := false) -> int:
+func add(id: String, count := 1, marks := 0) -> int:
 	var left := count
 	# Top up existing stacks anywhere first, then free space in order.
 	for grid in grids():
 		if left > 0:
-			left = grid.top_up(id, left, free)
+			left = grid.top_up(id, left, marks)
 	for grid in grids():
 		if left > 0:
-			left = grid.add(id, left, free)
+			left = grid.add(id, left, marks)
 	if left < count:
 		auto_bind(id)
 	changed.emit()

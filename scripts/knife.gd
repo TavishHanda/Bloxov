@@ -84,7 +84,7 @@ func _strike() -> void:
 	var amount := ceili(health.current / maxf(minf(health.damage_multiplier, health.head_multiplier), 0.01)) if backstab else damage
 	var dealt := health.take_damage(amount, player.global_position)
 	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
-	player.on_hit_landed(health, target.position, target.normal, dealt, backstab)
+	player.on_hit_landed(health, target.position, target.normal, dealt, backstab, "knife")
 	Effects.sound(get_tree().current_scene, KILL_SOUND if health.is_dead else HIT_SOUND, -2.0, 0.03)
 	hit_confirmed.emit(health.is_dead, false)
 

@@ -314,7 +314,7 @@ func _merge_target(stack: ItemStack, grid: GridInventory, cell: Vector2i) -> Ite
 	if cell.x < 0 or cell.y < 0:
 		return null
 	var target := grid.stack_at(cell)
-	if target != null and target != stack and target.id == stack.id and target.free == stack.free and target.space_left() > 0:
+	if target != null and target != stack and target.id == stack.id and target.marks() == stack.marks() and target.space_left() > 0:
 		return target
 	return null
 
@@ -346,7 +346,7 @@ func quick_move(grid: GridInventory, stack: ItemStack) -> void:
 	var left := stack.count
 	for destination in destinations:
 		if left > 0:
-			left = destination.add(stack.id, left, stack.free)
+			left = destination.add(stack.id, left, stack.marks())
 	if left == stack.count:
 		_no_room(to_player)
 		return
@@ -850,7 +850,7 @@ func split_stack(grid: GridInventory, stack: ItemStack) -> bool:
 		stack.count -= half
 		grid.changed.emit()
 	var piece := ItemStack.new(stack.id, half)
-	piece.free = stack.free
+	piece.set_marks(stack.marks())
 	return _place_in_first(piece, candidates, shrink_original)
 
 
@@ -893,6 +893,8 @@ func show_info(stack: ItemStack) -> void:
 	_info_label.text = stack.title() + ("  x%d" % stack.count if stack.count > 1 else "")
 	if stack.free:
 		_info_label.text += "  (free kit: sells for $0)"
+	elif stack.found:
+		_info_label.text += "  (found in raid)"
 	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
 	var parts: PackedStringArray = [rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]
 	match ItemDB.kind(stack.id):

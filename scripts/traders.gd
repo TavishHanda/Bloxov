@@ -1,8 +1,8 @@
 class_name Traders
 extends RefCounted
 ## The hideout's traders (0.16.0, Economy update, owner): one per kind of goods, each with levels that unlock
-## better stock. A trader levels up from the money you've spent with them (Profile.trader_spent), so progress is
-## access to gear, not power. Each trader buys back its own kinds of items; valuables go to the valuables trader.
+## better stock. A trader levels up by finishing their quests for that level (0.16.13, owner: quests, see Quests) and,
+## for some levels, spending some money with them (Profile.trader_spent), so progress is access to gear, not power. Each trader buys back its own kinds of items; valuables go to the valuables trader.
 ## Names are placeholders until the owner picks them.
 
 const BUY_MARKUP := 1.2
@@ -16,18 +16,18 @@ const LIST := {
 		"levels": [
 			{"spent": 0, "stock": [["pistol", 1], ["smg", 1], ["shotgun", 1], ["pistol_ammo", 50], ["smg_ammo", 60],
 				["shells", 12], ["red_dot", 1], ["choke", 1]]},
-			{"spent": 40000, "stock": [["ak", 1], ["rifle_ammo", 60], ["foregrip", 1], ["ext_mag", 1], ["grenade", 1]]},
-			{"spent": 120000, "stock": [["sniper", 1], ["sniper_ammo", 10], ["scope_4x", 1], ["scope_8x", 1], ["suppressor", 1]]},
+			{"spent": 15000, "stock": [["ak", 1], ["rifle_ammo", 60], ["foregrip", 1], ["ext_mag", 1], ["grenade", 1]]},
+			{"spent": 40000, "stock": [["sniper", 1], ["sniper_ammo", 10], ["scope_4x", 1], ["scope_8x", 1], ["suppressor", 1]]},
 		]},
 	"meds": {"name": "Medic", "tab": "MEDS", "about": "Bandages and medkits.", "kinds": ["heal"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["bandage", 1]]},
-			{"spent": 5000, "stock": [["medkit", 1]]},
+			{"spent": 0, "stock": [["medkit", 1]]},
 		]},
 	"supplies": {"name": "Supplier", "tab": "GEAR", "about": "Armor, helmets, backpacks, drinks, stash space.", "kinds": ["armor", "helmet", "backpack", "drink"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["backpack_small", 1], ["energy_drink", 1]]},
-			{"spent": 10000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
+			{"spent": 5000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
 		]},
 	"valuables": {"name": "Supreme", "tab": "LOOT", "about": "Buys valuables and keys at full value. Sells nothing.", "kinds": ["valuable", "key"], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
 	"ming": {"name": "Ming", "tab": "MING", "about": "Uncle Ming keeps the outpost entertained. Pick a box, pay, see what's inside. The odds are on every box.", "kinds": [], "rate": 1.0, "levels": [{"spent": 0, "stock": []}]},
@@ -104,12 +104,14 @@ static func trader_for(id: String) -> String:
 
 
 ## The trader's level (1-based) after spending `spent` with them.
-static func level(trader: String, spent: int) -> int:
+## `done`: finished quest ids. Each level needs the one before it, its quests done and its money spent.
+static func level(trader: String, spent: int, done: Array = []) -> int:
 	var levels: Array = LIST[trader]["levels"]
 	var reached := 1
-	for i in levels.size():
-		if spent >= int(levels[i]["spent"]):
-			reached = i + 1
+	for i in range(1, levels.size()):
+		if spent < int(levels[i]["spent"]) or not Quests.for_level(trader, i + 1).all(func(id: String) -> bool: return done.has(id)):
+			break
+		reached = i + 1
 	return reached
 
 
@@ -117,12 +119,12 @@ static func max_level(trader: String) -> int:
 	return LIST[trader]["levels"].size()
 
 
-## Money still to spend for the next level, or 0 at the top.
+## Money still to spend for the next level (on top of its quests), or 0 at the top or when it's already spent.
 static func next_level_cost(trader: String, spent: int) -> int:
 	var lv := level(trader, spent)
 	if lv >= max_level(trader):
 		return 0
-	return int(LIST[trader]["levels"][lv]["spent"]) - spent
+	return maxi(int(LIST[trader]["levels"][lv]["spent"]) - spent, 0)
 
 
 ## [[item id, amount, level needed], ...]: everything this trader ever sells, in level order.
