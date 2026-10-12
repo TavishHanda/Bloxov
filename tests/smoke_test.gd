@@ -1740,6 +1740,22 @@ func _section_hideout() -> void:
 	_check(hideout_inv.all_stacks().is_empty() and hideout.can_take_free_kit() and hideout.take_free_kit()
 		and hideout_inv.equipped("secondary") != null, "empty loadout: the free kit gives you a pistol")
 	_check(not hideout.can_take_free_kit(), "free kit is gone once you carry something")
+	# Online (0.16.3, owner: you couldn't go online with the free kit): TAKE FREE KIT puts it on you and stays online.
+	for loadout_grid in hideout_inv.grids():
+		for stack in loadout_grid.stacks.duplicate():
+			loadout_grid.remove(stack)
+	for slot in Inventory.SLOTS:
+		if hideout_inv.equipped(slot) != null:
+			hideout_inv.unequip(slot)
+	var old_mode = Network.main.mode
+	Network.main.mode = Network.Mode.CLIENT
+	hideout._refresh()
+	_check(hideout._free_kit_button.visible and hideout._free_kit_button.text == "TAKE FREE KIT", "online, the free kit button reads TAKE FREE KIT")
+	hideout.start_with_free_kit()
+	_check(hideout_inv.equipped("secondary") != null and Network.main.is_client() and hideout.is_inside_tree(),
+		"online, the free kit goes on you and you stay online in the hideout to queue")
+	Network.main.mode = old_mode
+	hideout._refresh()
 	hideout.save_now()
 	var saved_loadout: Dictionary = Profile.loadout.get("equipment", {})
 	_check(saved_loadout.has("secondary"), "hideout changes are saved to the profile")

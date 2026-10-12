@@ -6,7 +6,7 @@ const RAID_SCENE := "res://scenes/main.tscn"
 ## Selling (0.15.18; softer and quieter in 0.15.24, owner): two quiet low notes.
 const SELL_SOUND := preload("res://audio/sell.wav")
 ## The traders (0.16.0): stock, prices and levels are in Traders.
-const FREE_KIT_HINT := "Start a raid with a free pistol, 30 rounds and a bandage. Only when you carry nothing at all."
+const FREE_KIT_HINT := "A free pistol, 30 rounds and a bandage, only when you carry nothing at all. Offline it starts a solo raid; online it goes on you so you can queue with your party."
 
 var inventory: Inventory
 var screen: LootUI
@@ -224,8 +224,12 @@ func take_free_kit() -> bool:
 	return true
 
 
-## START RAID WITH FREE KIT: the kit goes on you and the (solo) raid starts.
+## RAID WITH FREE KIT: the kit goes on you and the (solo) raid starts. Online (0.16.3, owner: you couldn't go
+## online with the free kit) it's TAKE FREE KIT: the kit goes on you and you queue with your party as usual.
 func start_with_free_kit() -> void:
+	if Network.main.is_client():
+		take_free_kit()
+		return
 	if take_free_kit():
 		Network.main.go_offline()
 		start_raid()
@@ -259,6 +263,7 @@ func _refresh() -> void:
 		int(Profile.stats["raids"]), int(Profile.stats["extracts"]), int(Profile.stats["deaths"]),
 		ItemDB.money(Profile.stash.total_value())]
 	_free_kit_button.visible = can_take_free_kit()
+	_free_kit_button.text = "TAKE FREE KIT" if Network.main.is_client() else "RAID WITH FREE KIT"
 
 
 func _message(text: String) -> void:
@@ -421,6 +426,7 @@ func _refresh_online() -> void:
 	var net := Network.main
 	var online := net.is_client()
 	_online_button.text = online_status()
+	_refresh()   # (the free kit button reads TAKE FREE KIT while online)
 	_offline_box.visible = not online
 	_online_box.visible = online
 	_connect_button.disabled = net.is_online() and not online
