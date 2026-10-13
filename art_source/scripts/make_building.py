@@ -66,7 +66,7 @@ DECAL_PX_PER_M = 32
 
 PALETTE = {
     "black": "1b1c1f", "iron_dark": "2f3236", "iron": "4b5057", "steel": "6f767d", "steel_light": "9aa1a6",
-    "concrete": "b8b4aa", "bone": "e2dccb", "wood_dark": "4a2f1b", "wood_mid": "6e4628", "wood": "8f5e34",
+    "concrete": "b8b4aa", "bone": "e2dccb", "plaster": "b1a994", "wood_dark": "4a2f1b", "wood_mid": "6e4628", "wood": "8f5e34",
     "wood_light": "b07a45", "wood_pale": "c99a5e", "rust": "8a3f1f", "red": "b03a2e", "hazard_yellow": "e8b923",
     "yellow_dark": "a8801a", "sand": "a89a6a", "olive_dark": "3d4228", "olive": "5b6236", "olive_light": "7d8450",
     "grass": "556b2f", "green_dark": "2e7d32", "extract_green": "4fd44a", "sky_blue": "3e6d8c",
@@ -442,17 +442,18 @@ def paint_ceiling_soot(rng):
 
 
 def paint_render(rng):
-    """Painted render (stucco) for shop fronts: pale, with a few big weathered patches."""
-    c = Canvas(64, 64, "bone")
-    for _ in range(5):
+    """Painted render (stucco) for shop fronts: an off-white gone grey with dirt (round 6, owner: the walls were far
+    too bright in the sun), a few big weathered patches, rain streaks and grime along the foot."""
+    c = Canvas(64, 64, "plaster")
+    for _ in range(6):
         x, y = rng.randrange(0, 64, 4), rng.randrange(0, 64, 4)
         w, h = rng.choice((8, 12, 16)), rng.choice((4, 8))
         for yy in range(y, y + h):
             for xx in range(x, x + w):
-                c.put(xx % 64, yy % 64, "concrete" if rng.random() < 0.85 else "bone")
-    for _ in range(4):                                                # rain streaks
+                c.put(xx % 64, yy % 64, "concrete" if rng.random() < 0.85 else "sand")
+    for _ in range(3):                                                # rain streaks
         x = rng.randrange(64)
-        c.rect(x, rng.randrange(20, 50), x + 1, 64, "concrete")
+        c.rect(x, rng.randrange(40, 56), x + 1, 64, "concrete")
     return c
 
 
@@ -1788,6 +1789,26 @@ def water_heater(b, x, y, z):
     b.box((x - 0.31, y + 0.65, z), (0.025, 1.1, 0.025), style=no_bottom("trim", 1.0))          # and its pipe
 
 
+def change_machine(b, x, z):
+    """A laundromat change machine against a wall, facing -x (round 6, owner: it was a plain grey box): a steel
+    cabinet on a plinth, a lit display, a bill slot, a coin cup, a red CHANGE strip and a lock."""
+    nb = lambda m: no_bottom(m, 1.0)
+    b.box((x, 0.05, z), (0.42, 0.1, 0.52), style=nb("trim_dark"))                           # plinth
+    b.box((x, 0.75, z), (0.4, 1.3, 0.5), style=nb("steel_light"))                           # cabinet
+    f = x - 0.2                                                                              # the front face
+    b.box((f - 0.015, 0.75, z), (0.03, 1.2, 0.42), style=nb("trim"))                        # door panel
+    b.box((f - 0.035, 1.28, z), (0.01, 0.12, 0.3), style=nb("red"))                         # CHANGE strip
+    b.box((f - 0.035, 1.1, z + 0.08), (0.01, 0.08, 0.16), style=nb("black"))                # display
+    b.box((f - 0.04, 1.1, z + 0.08), (0.005, 0.03, 0.1), style=nb("green"))                 # its digits
+    b.box((f - 0.04, 0.95, z + 0.08), (0.02, 0.025, 0.18), style=nb("black"))               # bill slot
+    b.box((f - 0.035, 0.95, z - 0.12), (0.01, 0.06, 0.06), style=nb("yellow"))              # button
+    b.box((f - 0.08, 0.38, z), (0.1, 0.02, 0.2), style=nb("trim_dark"))                     # coin cup floor
+    for dz in (-0.1, 0.1):
+        b.box((f - 0.08, 0.44, z + dz), (0.1, 0.12, 0.015), style=nb("trim_dark"))          # its sides
+    b.box((f - 0.13, 0.43, z), (0.01, 0.1, 0.2), style=nb("trim_dark"))                     # its lip
+    b.box((f - 0.035, 0.7, z - 0.15), (0.01, 0.05, 0.05), style=nb("steel_light"))          # lock
+
+
 def floor_lamp(b, x, y, z, rng):
     """A standard lamp (round 4, owner: it read as a pole with a box): a stepped round-ish foot, a thin pole with a
     joint, a flared fabric shade (three tiers) with the bulb showing under it, a pull chain."""
@@ -2621,7 +2642,7 @@ def dress_shops(ctx):
     for _ in range(4):
         b.box((-11.2 + rng.uniform(-0.6, 0.6), 0.02, 1.9 + rng.uniform(-0.4, 0.4)), (0.4, 0.03, 0.3),
               yaw=rng.uniform(0, 90), style=no_bottom(rng.choice(("bone", "red", "olive")), 1.0))
-    b.box((-5.2, 0.7, -2.6), (0.4, 1.4, 0.5), style=no_bottom("steel_light", 1.0))
+    change_machine(b, -5.2, -2.6)
     # TV shop: a TV face down on the floor, burnt rubbish.
     b.box((7.2, 0.25, 1.5), (0.8, 0.5, 0.5), yaw=30, pitch=80, style=no_bottom("trim_dark", 1.0))
     for _ in range(10):
@@ -4246,6 +4267,45 @@ FACTION_MARKS = {
 }
 
 
+def floor_debris(ctx, data, name):
+    """Small bits of the building lying about on every floor (round 6, owner: "add actual small bits of debris so it
+    feels like it's been bombed"): clusters of plaster and brick chips and a bit of dust, kept off furniture. Picture
+    only (no collision), so nothing about moving or the AI changes."""
+    rng = random.Random(name + "debris")
+    x0, z0, x1, z1 = FOOTPRINTS[name]
+    slabs = [r for r in data["boxes"] if r["size"][1] <= 0.35 and r["size"][0] * r["size"][2] > 4.0]
+    roof = max(r["pos"][1] + r["size"][1] / 2 for r in slabs)
+    floors = [r for r in slabs if r["pos"][1] + r["size"][1] / 2 < roof - 1.0]
+    solids = [r for r in data["boxes"] if r.get("solid", True) and r["size"][1] > 0.1 and r not in floors]
+    mats = ("concrete", "brick", SHELLS.get(name, {}).get("ext", "ext_block"), "concrete")
+
+    def free(x, y, z):
+        if not (x0 + 0.3 < x < x1 - 0.3 and z0 + 0.3 < z < z1 - 0.3):
+            return False
+        for r in solids:
+            (px, py, pz), (sx, sy, sz) = r["pos"], r["size"]
+            if py - sy / 2 < y + 1.0 and py + sy / 2 > y + 0.02 and abs(x - px) < sx / 2 + 0.15 and abs(z - pz) < sz / 2 + 0.15:
+                return False
+        return True
+    for f in floors:
+        (px, py, pz), (sx, sy, sz) = f["pos"], f["size"]
+        top = py + sy / 2
+        for _ in range(int(sx * sz / 14) + 1):
+            cx, cz = rng.uniform(px - sx / 2, px + sx / 2), rng.uniform(pz - sz / 2, pz + sz / 2)
+            if not free(cx, top, cz):
+                continue
+            for _ in range(rng.randint(3, 7)):
+                x, z = cx + rng.uniform(-0.6, 0.6), cz + rng.uniform(-0.6, 0.6)
+                if not free(x, top, z) or not (px - sx / 2 < x < px + sx / 2 and pz - sz / 2 < z < pz + sz / 2):
+                    continue
+                w, h = rng.uniform(0.05, 0.2), rng.uniform(0.03, 0.08)
+                ctx.b.box((x, top + h / 2 - 0.005, z), (w, h, w * rng.uniform(0.6, 1.3)), yaw=rng.uniform(0, 90),
+                          pitch=rng.uniform(-10, 10), style=no_bottom(rng.choice(mats), 1.0))
+            if rng.random() < 0.5:                                                   # a dust patch under them
+                ctx.b.box((cx, top + 0.004, cz), (rng.uniform(0.6, 1.1), 0.004, rng.uniform(0.5, 0.9)), yaw=rng.uniform(0, 90),
+                          style=lambda n, m, q: ("concrete", uv_world(1.0)) if n[1] > 0.7 else None)
+
+
 def faction_marks(ctx, name, openings):
     fp = FOOTPRINTS[name]
     for region, side, mid, y0 in FACTION_MARKS.get(name, ()):
@@ -4296,6 +4356,7 @@ def build(name, export):
     DRESSING[name](ctx)
     dress_openings(ctx, data.get("openings", []))
     faction_marks(ctx, name, data.get("openings", []))
+    floor_debris(ctx, data, name)
     if BAKE_LIGHT:
         bake_light.bake(ctx.b, data["boxes"])
     print(f"{name}: {sum(len(f) - 2 for f in ctx.b.faces)} triangles, "

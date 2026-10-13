@@ -268,12 +268,31 @@ def look_gun_cabinet(b, d):
 
 
 def look_filing(b, d):
-    b.box((0, 0.65, 0.0), (0.5, 1.3, 0.6), style=front(d, "filing", "steel"))
-    for k in range(4):                                                                # drawer pulls stick out
-        b.box((0, 0.22 + k * 0.3, -0.31), (0.16, 0.03, 0.03), style=solid("trim_dark"))
-    b.box((0, 0.36, -0.35), (0.44, 0.24, 0.1), style=solid("steel"))                 # bottom drawer pulled out
-    b.box((0.03, 1.31, 0.02), (0.3, 0.02, 0.4), yaw=-10, style=solid("bone"))       # papers on top
-    b.box((-0.05, 1.33, 0.0), (0.26, 0.02, 0.34), yaw=15, style=solid("bone"))
+    """Four-drawer filing cabinet (round 6, owner: the pulled-out drawer read as a grey block): a steel carcass, drawer
+    fronts standing proud with label holders and pulls, one drawer pulled out as an open tray of hanging folders."""
+    b.box((0, 0.66, 0.03), (0.5, 1.32, 0.54), style=solid("steel"))                   # carcass
+    b.box((0, 0.025, -0.24), (0.46, 0.05, 0.02), style=solid("trim_dark"))           # kick
+    rng = random.Random("filing")
+    open_k = 1
+    for k in range(4):
+        y = 0.2 + k * 0.31
+        if k == open_k:
+            b.box((0, y, -0.235), (0.42, 0.27, 0.01), style=solid("black"))          # the dark slot it came out of
+            z = -0.5                                                                  # the tray, 0.27 m out
+            b.box((0, y - 0.11, z + 0.13), (0.4, 0.02, 0.27), style=solid("steel"))   # bottom
+            for x in (-0.2, 0.2):
+                b.box((x, y - 0.03, z + 0.13), (0.015, 0.18, 0.27), style=solid("steel"))   # sides
+            for t in range(6):                                                        # hanging folders
+                b.box((rng.uniform(-0.03, 0.03), y - 0.02, z + 0.04 + t * 0.04), (0.36, 0.17 + rng.uniform(0, 0.04), 0.012),
+                      pitch=rng.uniform(-8, 8), style=solid(rng.choice(("olive", "bone", "gold", "bone"))))
+            fz = z - 0.01
+        else:
+            fz = -0.255
+        b.box((0, y, fz), (0.46, 0.28, 0.03), style=solid("steel"))                   # drawer front
+        b.box((0, y + 0.07, fz - 0.02), (0.12, 0.05, 0.01), style=solid("bone"))      # label
+        b.box((0, y - 0.03, fz - 0.03), (0.16, 0.03, 0.03), style=solid("trim_dark"))  # pull
+    b.box((0.03, 1.33, 0.02), (0.3, 0.02, 0.4), yaw=-10, style=solid("bone"))       # papers on top
+    b.box((-0.05, 1.35, 0.0), (0.26, 0.02, 0.34), yaw=15, style=solid("bone"))
 
 
 def look_med(b, d):

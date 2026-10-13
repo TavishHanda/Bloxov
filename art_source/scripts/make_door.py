@@ -61,15 +61,41 @@ def door_office(b):
 
 
 def door_school(b):
-    """School classroom door: varnished wood to go with the tan brick and parquet (round 4, owner: the green
-    didn't match), a tall narrow window, kick plate."""
-    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("wood"))
+    """School classroom door (round 6, owner's pick: a mix of the navy option and the oak, the oak a bit darker):
+    dark-stained oak with navy paint round a square wired window, a navy kick plate and push plate."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("oak_dark"))
     for sz in (-1, 1):
         z = sz * (T / 2 + 0.004)
-        b.box((0.18, 0.35, z), (0.2, 0.9, 0.008), style=solid("trim_dark"))
-        b.box((0.18, 0.35, z * 1.1), (0.14, 0.84, 0.004), style=solid("glass"))
-        b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("trim"))
+        b.box((0, 0.45, z), (0.52, 0.52, 0.008), style=solid("blue"))
+        b.box((0, 0.45, z * 1.1), (0.42, 0.42, 0.004), style=solid("glass"))
+        b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("blue"))
+        b.box((0.3, 0.02, z), (0.1, 0.3, 0.008), style=solid("trim"))
     handle(b, 0.38, -0.02, "trim")
+
+
+def door_school_mix2(b):
+    """Option (round 6): navy painted with a dark oak panel below the window and oak edges."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("blue"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.006)
+        b.box((0, 0.45, z), (0.5, 0.5, 0.012), style=solid("oak_dark"))
+        b.box((0, 0.45, z * 1.15), (0.4, 0.4, 0.004), style=solid("glass"))
+        b.box((0, -0.45, z), (0.7, 0.9, 0.012), style=solid("oak_dark"))
+        for x in (-0.47, 0.47):
+            b.box((x, 0, z), (0.04, 1.98, 0.012), style=solid("oak_dark"))
+    handle(b, 0.38, -0.02, "trim")
+
+
+def paint_oak_dark(rng):
+    """Dark-stained oak (school doors): vertical grain."""
+    c = mb.Canvas(64, 64, "wood_mid")
+    for y in range(64):
+        for x in range(64):
+            if x % 4 == 0:
+                c.put(x, y, "wood_dark")
+            elif rng.random() < 0.06:
+                c.put(x, y, "wood")
+    return c
 
 
 def door_plank(b):
@@ -134,7 +160,7 @@ def door_school_grey(b):
 
 
 # The school door options (round 5) are drawn for the owner to pick from, not built: make one the "school" look.
-OPTIONS = {"school_navy": door_school_navy, "school_red": door_school_red, "school_twotone": door_school_twotone,
+OPTIONS = {"school_mix2": door_school_mix2, "school_navy": door_school_navy, "school_red": door_school_red, "school_twotone": door_school_twotone,
            "school_grey": door_school_grey}
 LOOKS = {"wood": door_wood, "metal": door_metal, "office": door_office, "school": door_school, "plank": door_plank}
 
@@ -146,11 +172,15 @@ def main():
         textures["kit_" + kit] = Texture("kit_" + kit, os.path.join("art_source", "textures", "kit", kit + ".png"),
                                          mb.KIT[kit], random.Random(kit))
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
+    textures["kit_oak_dark"] = Texture("kit_oak_dark", os.path.join("art_source", "textures", "kit", "oak_dark.png"),
+                                       paint_oak_dark, random.Random("oak_dark"))
+    mat_info["oak_dark"] = ("kit_oak_dark", False, False)
     for name, colour in (("wood_dark", "wood_dark"), ("gold", "hazard_yellow"), ("steel", "steel")):
         textures["loot_" + name] = Texture("loot_" + name, os.path.join("art_source", "textures", "loot", name + ".png"),
                                            mb.paint_flat(colour), rng)
         mat_info[name] = ("loot_" + name, False, False)
-    for name, make in LOOKS.items():
+    looks = dict(LOOKS, **(OPTIONS if "--options" in sys.argv else {}))
+    for name, make in looks.items():
         b = Builder()
         make(b)
         mb.BUILDING_NAME[0] = "door_" + name
