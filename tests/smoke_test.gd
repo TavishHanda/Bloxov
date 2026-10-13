@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts", "mouse",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -1167,6 +1167,16 @@ func _section_loot_ui() -> void:
 	await process_frame
 	_check(not is_instance_valid(one_item_bag), "an emptied body bag despawns")
 	loot_ui.close()
+	# INVENTORY / QUESTS tabs in a raid (0.17.13, owner): the inventory key shows your quests too.
+	loot_ui.open_for(null)
+	_check(loot_ui._tabs.visible and loot_ui._columns.visible and not loot_ui.quests_shown(), "the inventory opens on its INVENTORY tab")
+	loot_ui._quests_tab.pressed.emit()
+	_check(loot_ui.quests_shown() and not loot_ui._columns.visible and loot_ui._quest_page._list.get_child_count() > 1,
+		"the QUESTS tab lists your quests")
+	loot_ui.close()
+	loot_ui.open_for(null)
+	_check(not loot_ui.quests_shown(), "it opens on the inventory again")
+	loot_ui.close()
 	inv.take("phone", 1)
 	var box := LootContainer.spawn_bag(main, player.global_position, "Test Bag", [["crystal", 1], ["rifle_ammo", 30]])
 	loot_ui.open_for(box)
@@ -1355,6 +1365,22 @@ func _section_attachments() -> void:
 	_check(rifle.attachments.is_empty() and inv.count_of("red_dot") + grid.count_of("red_dot") >= 1, "clicking the red dot's slot takes it off")
 	inv.take("red_dot", inv.count_of("red_dot"))
 	slot_view.free()
+	# Attachments on an AI's gun are found in raid, and stay found when taken off (0.17.13, owner); a bought part put
+	# on a found gun doesn't.
+	var looted := AILoadouts.dropped_gun("ak", ["scope_4x", "foregrip"], 0.0)
+	looted.mark_found()
+	var bench := GridInventory.new("Bench", 6, 4)
+	bench.place(looted)
+	loot_ui.detach(looted, "scope", bench)
+	var off := _find_stack(bench.stacks, "scope_4x")
+	_check(off != null and off.found, "a scope off a looted gun is found in raid")
+	var bought := ItemStack.new("red_dot", 1, 5, 3)
+	bench.place(bought)
+	loot_ui.attach_from_grid(bench, bought, looted, bench)
+	loot_ui.detach(looted, "scope", bench)
+	_check(not _find_stack(bench.stacks, "red_dot").found, "a bought part put on a found gun comes off unfound")
+	_check(GridInventory.data_stack(GridInventory.stack_data(looted)).found_parts == looted.found_parts
+		and Profile._read_stack(Profile._write_stack(looted)).found_parts == ["grip"], "found attachments survive saves and the network")
 
 
 func _section_new_guns() -> void:
@@ -1776,6 +1802,47 @@ func _section_profile() -> void:
 		"loading picks the newest of the file and web copies of the save")
 
 
+## Loading guns in the stash, keeping the stash's scroll, and found-in-raid attachments (0.17.13, owner).
+func _stash_tools(hideout: Node) -> void:
+	var ui: LootUI = hideout.screen
+	var stash: GridInventory = ui.stash
+	var carried: Inventory = hideout.inventory
+	# Load / unload a gun in the stash from the stash's rounds; dragging rounds onto a gun loads it too.
+	var hound := ItemStack.new("ak")
+	var spot := stash.find_spot("ak")
+	hound.set_spot(Vector2i(spot[0], spot[1]), spot[2])
+	stash.place(hound)
+	stash.add("rifle_ammo", 50)
+	var rounds_before := stash.count_of("rifle_ammo") + carried.count_of("rifle_ammo")
+	var mag := int(ItemDB.weapon_stats(hound)["mag"])
+	_check(ui.can_load(hound) and ui.load_gun(hound) == mag and hound.loaded == mag
+		and stash.count_of("rifle_ammo") + carried.count_of("rifle_ammo") == rounds_before - mag, "load a gun in the stash (%d rounds)" % hound.loaded)
+	_check(not ui.can_load(hound) and ui.unload_gun(hound, stash) and hound.loaded == 0
+		and stash.count_of("rifle_ammo") + carried.count_of("rifle_ammo") == rounds_before, "unload it: the rounds come back")
+	var loose := _find_stack(stash.stacks, "rifle_ammo")
+	ui.load_gun(hound, loose, stash)
+	_check(hound.loaded == mag, "rounds dropped onto a gun load it")
+	ui.unload_gun(hound, stash)
+	ui.open_menu(stash, hound)
+	var entries: Array[String] = []
+	for i in ui._menu.item_count:
+		entries.append(ui._menu.get_item_text(i))
+	ui._menu.hide()
+	_check(entries.has("Load"), "a gun's menu in the stash offers Load (%s)" % ", ".join(entries))
+	stash.remove(hound)
+	_check(not loot_ui.can_load(ItemStack.new("ak")), "in a raid, loading is reloading (no Load in the menu)")
+	# Re-laying the screen out (equipping, an attachment on your gun) keeps the stash where it was scrolled to.
+	await process_frame
+	var scroll := ui._stash_scroll
+	scroll.scroll_vertical = 200
+	await process_frame
+	var scrolled := scroll.scroll_vertical
+	ui._rebuild_layout()
+	await process_frame
+	await process_frame
+	_check(scrolled > 0 and ui._stash_scroll.scroll_vertical == scrolled, "the stash stays scrolled after a rebuild (%d -> %d)" % [scrolled, ui._stash_scroll.scroll_vertical])
+
+
 func _section_hideout() -> void:
 	# Hideout: loadout, buying, selling, free kit.
 	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
@@ -2036,13 +2103,17 @@ func _section_hideout() -> void:
 	var won: String = hideout.open_box("gun_box")
 	_check(won in Traders.BOXES["gun_box"]["odds"] and Profile.money == money - int(Traders.BOXES["gun_box"]["price"])
 		and Profile.stash.stacks.size() == stash_count + 1, "a Ming gun box takes its price and puts a gun in the stash (%s)" % won)
+	var won_stack := _find_stack(Profile.stash.stacks, won)
+	_check(won_stack != null and not won_stack.found, "a gambled gun isn't found in raid (0.17.13: no quest hand-ins)")
 	won = hideout.open_box("loot_box")
 	_check(won != "" and ItemDB.kind(won) == "valuable" and not ItemDB.item(won).get("special", false), "a Ming loot box gives a valuable")
+	_check(Profile.stash.stacks.all(func(s: ItemStack) -> bool: return s.id != won or not s.found), "a gambled valuable isn't found in raid")
 	Profile.money = 10
 	_check(hideout.open_box("gun_box") == "" and Profile.money == 10, "no Ming box without the money")
 	hideout.open_trader("ming")
 	_check(hideout._trader_title.text == "MING" and hideout._trader_rows.get_child_count() == Traders.BOXES.size() * 2,
 		"Ming's tab shows each box with its odds")
+	await _stash_tools(hideout)
 	hideout.queue_free()
 	await process_frame
 
@@ -2132,6 +2203,14 @@ func _section_matchmaking() -> void:
 	var wrapped := Raid.spawn_position(points, points.size() + 1, 0)
 	_check(is_equal_approx(first.distance_to(second), Raid.SQUAD_SPACING) and first.distance_to(wrapped) > 3.0
 		and Raid.spawn_position(points.duplicate(), 1, 0) == first, "spawn slots: the same point on every machine, squadmates next to each other")
+	# Every point gets used (0.17.13, owner: online, a lone squad always started at the first point): slot 0 over
+	# many raid seeds lands on each point about as often.
+	var used := {}
+	for seed_value in 400:
+		var at := Raid.spawn_position(points, 0, 0, seed_value)
+		used[at] = int(used.get(at, 0)) + 1
+	var fair := used.size() == points.size() and used.values().all(func(n: int) -> bool: return n > 400 / points.size() / 2)
+	_check(fair, "spawn points are used evenly over raids (%d points: %s)" % [points.size(), used.values()])
 	for peer in [1, 2, 3, 4, 5, 6, 7]:
 		mm.add_player(peer, "P%d" % peer)
 	_check(mm.parties.size() == 7 and mm.party_of(1)["members"] == [1], "everyone starts in a party of their own (with a code)")
@@ -3575,6 +3654,52 @@ func _section_close_range() -> void:
 	_check(gap >= pusher.min_distance - 0.3 and gap < pusher.min_distance + 2.5, "a scav that's too close backs off to about %.0f m (%.1f m)" % [pusher.min_distance, gap])
 	pusher.queue_free()
 	player.health.heal(player.health.max_health)
+
+
+func _section_leaves() -> void:
+	# Tree tops (0.17.13, owner: the AI shot through the leaves): people and bullets pass through them, but the AI
+	# can't see or shoot through them.
+	var map := BoxMap.new()
+	map.colors = PackedColorArray([Color(0.5, 0.5, 0.5), BoxMap.LEAVES_COLOUR])
+	# A tree top between the player and the scav (center xyz, size xyz, yaw, pitch, colour, solid).
+	var middle := player.global_position + Vector3(0, 1.5, -5)   # (behind the player: open road)
+	map.boxes = PackedFloat32Array([middle.x, middle.y, middle.z, 4, 3, 1, 0, 0, 1, 0])
+	main.add_child(map)
+	var scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, -10)) as Scav
+	_face_player(scav)
+	scav.set_physics_process(false)
+	scav._target = player
+	scav.accuracy_near = 1.0
+	scav.accuracy_far = 1.0
+	await physics_frame
+	await physics_frame
+	var through := get_root().get_world_3d().direct_space_state.intersect_ray(
+		PhysicsRayQueryParameters3D.create(middle + Vector3(0, 0, -3), middle + Vector3(0, 0, 3), 1 | 2 | 4))
+	_check(through.is_empty() and map.get_node_or_null("Leaves") != null, "leaves don't block people or bullets")
+	_check(scav._has_line_of_sight() and scav._leaves_in_way(), "the AI can't see you through the leaves")
+	var hp := player.health.current
+	for i in 4:
+		scav._fire_at_target(10.0)
+		scav._fire_at_point(player.global_position + Vector3(0, 1.2, 0))
+	_check(player.health.current == hp, "...or shoot you through them")
+	map.queue_free()
+	await physics_frame
+	await physics_frame
+	_check(scav._has_line_of_sight() and not scav._leaves_in_way(), "without the tree it sees you")
+	scav.queue_free()
+	player.health.heal(player.health.max_health)
+	# A dead scav's backpack: its loot hitbox is on the model (0.17.13, owner: it was off to one side).
+	var pack := (load("res://scenes/backpack_bag.tscn") as PackedScene).instantiate() as Node3D
+	main.add_child(pack)
+	var box := AABB()
+	for mesh: MeshInstance3D in pack.find_children("*", "MeshInstance3D", true, false):
+		var part := (pack.global_transform.affine_inverse() * mesh.global_transform) * mesh.get_aabb()
+		box = part if box.size == Vector3.ZERO else box.merge(part)
+	var hit_shape := pack.get_node("CollisionShape3D") as CollisionShape3D
+	var hit_box := AABB(hit_shape.position - (hit_shape.shape as BoxShape3D).size / 2, (hit_shape.shape as BoxShape3D).size)
+	_check(hit_box.grow(0.05).encloses(box) and hit_box.get_center().distance_to(box.get_center()) < 0.1,
+		"the backpack's hitbox fits the model (%s vs %s)" % [hit_box, box])
+	pack.queue_free()
 
 
 func _section_crest() -> void:

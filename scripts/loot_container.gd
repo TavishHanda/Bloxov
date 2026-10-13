@@ -225,7 +225,7 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 			return entry
 		var stack := ItemStack.new(entry[0], entry[1])
 		stack.durability = ItemDB.found_durability(stack.id)
-		stack.found = true
+		stack.mark_found()
 		return stack)
 	if body:
 		bag.add_gear_slots(contents.any(func(entry: Variant) -> bool: return entry is ItemStack and entry.id == "player_tag"))

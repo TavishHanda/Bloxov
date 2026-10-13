@@ -24,6 +24,9 @@ var free := false
 ## Found in raid (0.16.13, owner): looted in a raid rather than bought or brought in. Only found items count for
 ## trader quest hand-ins. Found stacks only stack with found stacks (like free kit ones), so buying can't top them up.
 var found := false
+## Weapons only (0.17.13, owner): the attachment slots whose part was found in raid (a scav's or Bon's gun), so it
+## comes off still found. A bought part put on a found gun stays unfound.
+var found_parts: Array[String] = []
 ## Both marks as one number, for adding and stacking (items only stack when their marks match).
 const FREE := 1
 const FOUND := 2
@@ -50,6 +53,21 @@ func stacks_with(other_id: String, other_marks: int) -> bool:
 ## Something with `other_marks` was stacked onto this: it's only found if both were.
 func merge_marks(other_marks: int) -> void:
 	found = found and other_marks & FOUND != 0
+
+
+## Looted in a raid: the item and every attachment on it count as found.
+func mark_found() -> void:
+	found = true
+	found_parts.assign(attachments.keys())
+
+
+## Keeps only found-part slots that hold an attachment (saves and network data aren't trusted).
+func clean_found_parts(data: Variant) -> void:
+	found_parts.clear()
+	if data is Array:
+		for slot: Variant in data:
+			if slot is String and attachments.has(slot) and not found_parts.has(slot):
+				found_parts.append(slot)
 
 
 func set_marks(value: int) -> void:

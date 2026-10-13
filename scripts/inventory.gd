@@ -84,20 +84,27 @@ func can_unequip(slot: String) -> bool:
 
 
 ## Puts attachment `part_id` on weapon `gun` (0.15.1) in the slot it fits. Returns the attachment it replaced
-## ("" if the slot was empty) and the rounds that no longer fit in the mag, as [old part id, spare rounds].
+## ("" if the slot was empty) and the rounds that no longer fit in the mag, as [old part id, spare rounds, old part
+## found in raid]. `part_found`: the part was found in raid (it stays found on the gun, 0.17.13).
 ## The caller takes the attachment out of wherever it was and finds a home for what comes back.
-func attach(gun: ItemStack, part_id: String) -> Array:
+func attach(gun: ItemStack, part_id: String, part_found := false) -> Array:
 	var slot := ItemDB.attachment_slot_for(gun.id, part_id)
 	var old: String = gun.attachments.get(slot, "")
+	var old_found := gun.found_parts.has(slot)
 	gun.attachments[slot] = part_id
-	return [old, _attachments_changed(gun)]
+	gun.found_parts.erase(slot)
+	if part_found:
+		gun.found_parts.append(slot)
+	return [old, _attachments_changed(gun), old_found]
 
 
-## Takes the attachment in `slot` off weapon `gun`. Returns [its id, spare rounds] like attach().
+## Takes the attachment in `slot` off weapon `gun`. Returns [its id, spare rounds, found] like attach().
 func detach(gun: ItemStack, slot: String) -> Array:
 	var old: String = gun.attachments.get(slot, "")
+	var old_found := gun.found_parts.has(slot)
 	gun.attachments.erase(slot)
-	return [old, _attachments_changed(gun)]
+	gun.found_parts.erase(slot)
+	return [old, _attachments_changed(gun), old_found]
 
 
 ## A gun's attachments changed: a smaller mag unloads what no longer fits (returned), the gun in hand updates.

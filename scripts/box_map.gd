@@ -17,6 +17,11 @@ extends StaticBody3D
 ## In the editor (`@tool`, World art 0.17) it only draws the mesh, so the map shows up there; nothing is saved.
 
 const STRIDE := 10
+## Tree tops (0.17.13, owner: the AI saw and shot through the leaves): no collision for people or bullets, but a
+## body of their own on this layer (6) that the AI's sight and shots check, so leaves hide you from the AI.
+const LEAVES_LAYER := 32
+## The generator's "leaves" colour: boxes in it without collision are tree tops (bushes are solid already).
+const LEAVES_COLOUR := Color(0.3, 0.5, 0.26)
 ## Players and AI standing in water get this meta (how many water areas they're in); they move slower while it's set.
 const WADE_META := &"wading"
 ## Wading counts from this deep (feet this far below the surface).
@@ -114,6 +119,7 @@ func _ready() -> void:
 	collider.name = "Shape"
 	collider.shape = shape
 	add_child(collider)
+	_add_leaves()
 
 
 ## The ground mesh's arrays (vertices, normals, colours, indices), or [] if the map has no height grid.
@@ -279,3 +285,32 @@ func _wading_area() -> Area3D:
 	area.body_entered.connect(func(body: Node) -> void: body.set_meta(WADE_META, int(body.get_meta(WADE_META, 0)) + 1))
 	area.body_exited.connect(func(body: Node) -> void: body.set_meta(WADE_META, maxi(int(body.get_meta(WADE_META, 0)) - 1, 0)))
 	return area
+
+
+## The tree tops' own body on LEAVES_LAYER only (nothing collides with it; only the AI's rays look for it).
+func _add_leaves() -> void:
+	var leaf_faces := PackedVector3Array()
+	var box_faces := BoxMesh.new().get_faces()
+	for i in range(0, boxes.size(), STRIDE):
+		var index := int(boxes[i + 8])
+		if int(boxes[i + 9]) != 0 or index >= colors.size() or not colors[index].is_equal_approx(LEAVES_COLOUR):
+			continue
+		var xf := Transform3D(
+			Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))
+				* Basis.from_scale(Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])),
+			Vector3(boxes[i], boxes[i + 1], boxes[i + 2]))
+		for v in box_faces:
+			leaf_faces.append(xf * v)
+	if leaf_faces.is_empty():
+		return
+	var body := StaticBody3D.new()
+	body.name = "Leaves"
+	body.collision_layer = LEAVES_LAYER
+	body.collision_mask = 0
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(leaf_faces)
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	body.add_child(collider)
+	add_child(body)

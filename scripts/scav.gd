@@ -102,7 +102,7 @@ func _physics_process(delta: float) -> void:
 	_sight_check_time -= delta
 	if _sight_check_time <= 0.0:
 		_sight_check_time = 0.1
-		_can_see = dist < sight_range and _has_line_of_sight()
+		_can_see = dist < sight_range and _has_line_of_sight() and not _leaves_in_way()
 	_unseen_time = 0.0 if _can_see else _unseen_time + delta
 
 	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).
@@ -338,7 +338,7 @@ func _on_died() -> void:
 		drops.append([id, ItemDB.roll_count(id)])
 	for drop: Variant in drops:
 		if drop is ItemStack:
-			(drop as ItemStack).found = true   # (its gun and worn gear count as found in raid, 0.16.13)
+			(drop as ItemStack).mark_found()   # (its gun, the gun's attachments and worn gear are found in raid, 0.16.13)
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	# (Scavs and snipers: their body shows as the backpack they wore, LootContainer.BACKPACK_BODIES, 0.17.12.)
 	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
@@ -414,3 +414,10 @@ func _puppet_update(delta: float) -> void:
 		_hit_flash_time = 0.08
 		_flinch_left = flinch_time
 	_update_footsteps(delta)
+
+
+## Tree tops between its eyes and yours (0.17.13, owner: the AI saw and shot through the leaves): it can't see you.
+func _leaves_in_way() -> bool:
+	var eyes := global_position + Vector3(0, 1.65, 0)
+	var query := PhysicsRayQueryParameters3D.create(eyes, _target.eye_position(), BoxMap.LEAVES_LAYER, [get_rid()])
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()

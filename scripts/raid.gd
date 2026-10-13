@@ -32,14 +32,20 @@ func _ready() -> void:
 	_set_leave_warning(true)
 	Quests.raid_started()
 
+	# Where your extracts are picked from: your squad's spawn marker online (0.17.13, owner: a duo got different
+	# extracts, because each stood a step apart and an extract right at the near-spawn limit counted for one only).
+	var extract_anchor := player.global_position
 	if spawn_points != null and spawn_points.get_child_count() > 0:
 		var points := spawn_points.get_children()
 		if Network.main.in_online_raid() and Network.main.raid_spawn.size() == 2:
 			# Online the server picks: your squad together, other squads elsewhere (0.9.5).
 			# (squadmates stand off to the side of the marker, where the hill can be higher: onto the ground)
-			player.teleport_to(BoxMap.above_ground(player, spawn_position(points, Network.main.raid_spawn[0], Network.main.raid_spawn[1]), 0.0))
+			var slot: int = Network.main.raid_spawn[0]
+			player.teleport_to(BoxMap.above_ground(player, spawn_position(points, slot, Network.main.raid_spawn[1], Network.main.raid_seed), 0.0))
+			extract_anchor = spawn_position(points, slot, 0, Network.main.raid_seed)
 		else:
 			player.teleport_to((points.pick_random() as Node3D).global_position)
+			extract_anchor = player.global_position
 		player.face_towards(Vector3.ZERO)
 
 	var extracts := get_extracts()
@@ -48,7 +54,7 @@ func _ready() -> void:
 		shuffle_seeded(extracts, Network.main.raid_seed)
 	else:
 		extracts.shuffle()
-	var open := pick_open(extracts, player.global_position, open_extract_count)
+	var open := pick_open(extracts, extract_anchor, open_extract_count)
 	for zone in extracts:
 		zone.set_open(open.has(zone))
 		zone.extracted.connect(_on_extracted)
@@ -70,11 +76,20 @@ static func pick_open(shuffled: Array[ExtractZone], spawn: Vector3, count: int) 
 	return open
 
 
-## Spawn point `slot` (Matchmaker.spawn_slots; the same on every machine: points sorted by name), and `place`
-## steps to the side of it (squadmates stand next to each other). More squads than points share one, further apart.
-static func spawn_position(points: Array, slot: int, place: int) -> Vector3:
+## Spawn point `slot` (Matchmaker.spawn_slots), and `place` steps to the side of it (squadmates stand next to each
+## other). More squads than points share one, further apart. The points are shuffled by the raid's `seed_value`
+## (the same on every machine: sorted by name first), so every point gets used (0.17.13: the slots were just
+## 0, 1, ... per squad, so a raid with one squad always started at the first point).
+static func spawn_position(points: Array, slot: int, place: int, seed_value := 0) -> Vector3:
 	var sorted := points.duplicate()
 	sorted.sort_custom(func(a: Node, b: Node) -> bool: return String(a.name) < String(b.name))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	for i in range(sorted.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var swap: Variant = sorted[i]
+		sorted[i] = sorted[j]
+		sorted[j] = swap
 	var point := sorted[slot % sorted.size()] as Node3D
 	var step := place + (slot / sorted.size()) * 3
 	# (toward the middle of the map, away from its edge walls)

@@ -309,6 +309,8 @@ static func _write_stack(stack: ItemStack) -> Dictionary:
 		entry["free"] = true
 	if stack.found:
 		entry["found"] = true
+	if not stack.found_parts.is_empty():
+		entry["fatt"] = stack.found_parts.duplicate()
 	return entry
 
 
@@ -322,6 +324,7 @@ static func _read_stack(entry: Dictionary) -> ItemStack:
 		stack.label = (entry["n"] as String).left(ItemStack.LABEL_MAX)
 	stack.free = entry.get("free") == true
 	stack.found = entry.get("found") == true
+	stack.clean_found_parts(entry.get("fatt"))
 	return stack
 
 
