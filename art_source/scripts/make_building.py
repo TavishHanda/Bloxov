@@ -188,7 +188,7 @@ FONT = {
     "N": ["#..#", "##.#", "#.##", "#..#", "#..#"], "O": [".#.", "#.#", "#.#", "#.#", ".#."],
     "P": ["##.", "#.#", "##.", "#..", "#.."], "R": ["##.", "#.#", "##.", "#.#", "#.#"],
     "S": [".##", "#..", ".#.", "..#", "##."], "T": ["###", ".#.", ".#.", ".#.", ".#."],
-    "U": ["#.#", "#.#", "#.#", "#.#", "###"], "V": ["#.#", "#.#", "#.#", "#.#", ".#."],
+    "U": ["#.#", "#.#", "#.#", "#.#", "###"], "V": ["#...#", "#...#", "#...#", ".#.#.", "..#.."],
     "W": ["#...#", "#...#", "#.#.#", "##.##", "#...#"], "Y": ["#.#", "#.#", ".#.", ".#.", ".#."],
     "X": ["#.#", "#.#", ".#.", "#.#", "#.#"], "Z": ["###", "..#", ".#.", "#..", "###"],
     "0": ["###", "#.#", "#.#", "#.#", "###"], "1": [".#", "##", ".#", ".#", ".#"],
@@ -2612,6 +2612,16 @@ def school_decals(rng):
         c.rect(3, 50, 9, 52, "bone")
         c.blotch(["rust"], 2, rng, size=(2, 3))
 
+    def locker_dent(c):   # the same locker, kicked in (round 3, owner: "a few can be dented")
+        locker(c)
+        for y in range(22, 40):
+            for x in range(3, c.w - 3):
+                d = ((x - 8) / 5.0) ** 2 + ((y - 31) / 8.0) ** 2
+                if d < 1.0:
+                    c.put(x, y, "rust" if d > 0.55 or (x + y) % 3 else "wood_dark")
+        c.rect(4, 15, 12, 16, "steel_light")                            # scratches
+        c.rect(6, 44, 13, 45, "steel_light")
+
     def books(c):         # 1.2 x 1.8 m of bookshelf
         c.rect(0, 0, c.w, c.h, "wood_dark")
         for row in range(4):
@@ -2639,11 +2649,42 @@ def school_decals(rng):
         c.rect(c.w // 2, 22, c.w // 2 + 1, c.h - 3, "wood_mid")
         c.frame(3, 3, c.w - 3, 19, "wood_dark")
 
-    def sign(c):          # 6 x 0.8 m over the entrance
+    def shield(c, x0, y0, w, h, x1_mark=False):
+        """The school crest: a blue shield, gold rim, an open book. x1_mark: the Brotherhood's X1 hidden under the
+        book, blue on blue (round 3 easter egg, owner: "hide an X1 mark in it")."""
+        top = y0 + h * 0.45
+        for y in range(y0, y0 + h):
+            hw = w / 2 if y >= top else (w / 2) * max(0.1, (y - y0 + 1) / (top - y0)) ** 0.6
+            for x in range(x0, x0 + w):
+                d = abs(x + 0.5 - (x0 + w / 2))
+                if d <= hw:
+                    c.put(x, y, "hazard_yellow" if d > hw - 1.5 or y >= y0 + h - 1 else "sky_blue")
+        bx, by = x0 + w // 2, y0 + int(h * 0.55)                        # the open book
+        bw = max(3, w // 2 - 3)
+        c.rect(bx - bw, by, bx + bw, by + max(3, h // 5), "bone")
+        c.rect(bx, by, bx + 1, by + max(3, h // 5), "wood_mid")
+        for k in range(1, max(3, h // 5) - 1, 2):
+            c.rect(bx - bw + 1, by + k, bx - 1, by + k + 1, "concrete")
+            c.rect(bx + 2, by + k, bx + bw - 1, by + k + 1, "concrete")
+        if x1_mark:
+            c.ctext(x0, x0 + w, by - 7, "X1", "steel")
+
+    def sign(c):          # 6 x 0.8 m over the entrance: the name between two crests
         c.rect(0, 0, c.w, c.h, "olive_dark")
         c.frame(0, 0, c.w, c.h, "bone")
-        w = Canvas.text_width("BLOXOV SCHOOL", 3)
         c.ctext(0, c.w, 5, "BLOXOV SCHOOL", "bone", 3)
+        for x in (2, c.w - 16):
+            shield(c, x, 3, 14, 20)
+        c.blotch(["iron_dark", "black"], 5, rng, area=(1, 1, c.w - 1, c.h - 1), size=(2, 4))   # soot, chips
+
+    def crest(c):         # 1.5 x 1.5 m plaque facing the entrance (round 3: replaces the "WALK" poster, owner)
+        c.rect(0, 0, c.w, c.h, "wood_mid")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        c.frame(2, 2, c.w - 2, c.h - 2, "yellow_dark")
+        c.ctext(0, c.w, c.h - 10, "BLOXOV", "bone")
+        shield(c, (c.w - 26) // 2, 11, 26, 26, x1_mark=True)
+        c.ctext(0, c.w, 4, "SCHOOL", "bone")
+        c.blotch(["wood_dark"], 3, rng, area=(3, 3, c.w - 3, c.h - 3), size=(1, 3))
 
     def notice(c):        # 1.6 x 1 m cork board
         c.rect(0, 0, c.w, c.h, "wood_light")
@@ -2690,12 +2731,13 @@ def school_decals(rng):
 
     a.add("board", 96, 38, board)
     a.add("locker", 16, 64, locker)
+    a.add("locker_dent", 16, 64, locker_dent)
     a.add("books", 38, 58, books)
     a.add("trophy", 83, 61, trophy)
     a.add("sign", 192, 26, sign)
     a.add("notice", 51, 32, notice)
     a.add("poster_read", 19, 26, poster("READ", "sky_blue", "bone"))
-    a.add("poster_run", 19, 26, poster("WALK", "hazard_yellow", "black"))
+    a.add("crest", 48, 48, crest)
     a.add("nurse", 19, 19, nurse)
     a.add("menu", 64, 29, menu)
     a.add("graffiti", 80, 30, graffiti)
@@ -2757,16 +2799,74 @@ def prop_caf_table(ctx, c, s):
 
 
 def prop_hall_lockers(ctx, c, s):
-    b = ctx.b
+    """A row of school lockers, 0.5 m each. Round 3 (owner): most shut, some really open (the door swung on its
+    hinge, a dark hollow inside with a few books, a bag or papers), a few dented or with the door torn off."""
+    b, rng = ctx.b, random.Random(f"lockers{c}")
     front = _front_into(c, 2)
+    f = 1 if front == "+z" else -1
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    zf, zb = c[2] + f * s[2] / 2, c[2] - f * s[2] / 2
     b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("red", uv_world()))
-    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
-    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "locker", 0.5, "x")
-    if ctx.rng.random() < 0.5:                                           # one hanging open
-        x = c[0] + ctx.rng.uniform(-1.2, 1.2)
-        dz = 0.25 if front == "+z" else -0.25
-        b.box((x, c[1], z + dz), (0.03, s[1] - 0.1, 0.48), yaw=0, style=no_bottom("red", 1.0))
+    n = max(1, round(s[0] / 0.5))
+    w = s[0] / n
+    fates = ["shut"] * n
+    slots = list(range(n))
+    rng.shuffle(slots)
+    for k, fate in zip(slots, ["open", "open", rng.choice(("open", "gone", "dent")), rng.choice(("gone", "dent", "shut"))]):
+        fates[k] = fate
+    for k in range(n):
+        xa, xb = x0 + k * w, x0 + (k + 1) * w
+        fate = fates[k]
+        if fate in ("shut", "dent"):
+            r = ctx.decals.regions["locker" if fate == "shut" else "locker_dent"]
+            b.poly([(xa, y0, zf), (xb, y0, zf), (xb, y1, zf), (xa, y1, zf)], (0, 0, f), "decals", uv_fit(r))
+            continue
+        # The hollow: a dark back, sides, roof and floor facing in, a hat shelf.
+        e = 0.015
+        zi = zb + f * 0.02
+        b.poly([(xa, y0, zi), (xb, y0, zi), (xb, y1, zi), (xa, y1, zi)], (0, 0, f), "black", uv_world(1.0))
+        for x, nx in ((xa + e, 1), (xb - e, -1)):
+            b.poly([(x, y0, zi), (x, y0, zf), (x, y1, zf), (x, y1, zi)], (nx, 0, 0), "trim_dark", uv_world(1.0))
+        for y, ny in ((y0 + 0.1, 1), (y1 - 0.05, -1)):
+            b.poly([(xa, y, zi), (xb, y, zi), (xb, y, zf), (xa, y, zf)], (0, ny, 0), "trim_dark", uv_world(1.0))
+        shelf = y1 - 0.42
+        b.box(((xa + xb) / 2, shelf, (zi + zf) / 2), (w - 2 * e, 0.02, abs(zf - zi)), style=no_bottom("trim", 1.0))
+        # What's left inside.
+        xm, zm = (xa + xb) / 2, (zi + zf) / 2
+        if rng.random() < 0.6:                                               # a stack of books on the floor
+            for t in range(rng.randrange(1, 4)):
+                b.box((xm + rng.uniform(-0.04, 0.04), y0 + 0.12 + t * 0.045, zm), (0.24, 0.04, 0.17),
+                      yaw=rng.uniform(-15, 15), style=no_bottom(rng.choice(ITEM_COLOURS[:6]), 1.0))
+        elif rng.random() < 0.7:                                             # a school bag slumped in the corner
+            col = rng.choice(("blue", "green", "olive", "red"))
+            b.box((xm, y0 + 0.28, zm), (0.3, 0.36, 0.16), yaw=rng.uniform(-10, 10), pitch=-f * 8,
+                  style=no_bottom(col, 1.0))
+            b.box((xm, y0 + 0.2, zm + f * 0.09), (0.22, 0.16, 0.03), style=no_bottom(col, 1.0))   # pocket
+        if rng.random() < 0.6:                                               # papers on the shelf
+            b.box((xm, shelf + 0.02, zm), (0.21, 0.01, 0.3), yaw=rng.uniform(-20, 20), style=no_bottom("bone", 1.0))
+        if rng.random() < 0.5:
+            b.box((xa + 0.08, shelf + 0.13, zm), (0.04, 0.22, 0.17), style=no_bottom(rng.choice(ITEM_COLOURS[:6]), 1.0))
+        hh = y1 - y0 - 0.06
+        if fate == "open":                                                   # the door swung out on its hinge
+            sgn = rng.choice((1, -1))
+            hinge = xa if sgn > 0 else xb
+            th = math.radians(rng.uniform(95, 130))
+            dx, dz = sgn * math.cos(th), f * math.sin(th)
+            out = (-f * sgn * dz, f * sgn * dx)                              # the face that showed to the hall
+            centre = (hinge + dx * w / 2, y0 + 0.03 + hh / 2, zf + dz * w / 2)
+            r = ctx.decals.regions["locker"]
+
+            def leaf_style(nrm, m, q, out=out, r=r):
+                if nrm[1] < -0.7:
+                    return None
+                if nrm[0] * out[0] + nrm[2] * out[1] > 0.7:
+                    return ("decals", uv_fit(r))
+                return ("red", uv_world(1.0))   # painted both sides
+            b.box(centre, (w - 0.02, hh, 0.02), yaw=math.degrees(math.atan2(-dz, dx)), style=leaf_style)
+        elif rng.random() < 0.6:                                             # torn off, lying in the hall
+            b.box((xa + w / 2 + rng.uniform(-0.3, 0.3), y0 + 0.012, zf + f * rng.uniform(0.5, 0.8)), (w - 0.02, 0.02, hh),
+                  yaw=rng.uniform(70, 110), style=no_bottom("red", 1.0))
 
 
 def prop_trophy_case(ctx, c, s):
@@ -3288,7 +3388,7 @@ def dress_school(ctx):
         wall_quad(b, (1, 0, 0), -4.89, -3.0, -1.4, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
         wall_quad(b, (-1, 0, 0), 4.89, 1.4, 3.0, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
     wall_quad(b, (0, 0, -1), 11.85, 4.0, 4.6, 1.3, 2.1, "decals", ctx.d("poster_read"))
-    wall_quad(b, (0, 0, 1), 4.11, 2.4, 3.0, 1.3, 2.1, "decals", ctx.d("poster_run"))
+    wall_quad(b, (0, 0, 1), 4.11, 2.1, 3.6, 0.9, 2.4, "decals", ctx.d("crest"))      # the crest, facing the doors
     wall_quad(b, (0, 0, 1), -3.89, -14.0, -12.0, 1.3, 2.2, "decals", ctx.d("menu"))
     wall_quad(b, (1, 0, 0), -14.84, 5.0, 5.6, 1.4, 2.0, "decals", ctx.d("nurse"))
     for x0 in (-5.0, 5.0):
@@ -3723,6 +3823,77 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
 BUILDING_NAME = [BUILDING]
 
 
+# ------------------------------------------------------------------------------------------------ faction marks
+# Round 3 (owner: "loved the X1 easter egg"): small sprayed X1 marks and EXION stencils on every modeled building
+# (Bloxov Battlegrounds is on the Exion side, so mostly theirs), and a very few NOVA tags. Lore: docs/LORE.md.
+
+def paint_x1(c, x0, y0, h, col, thick=3):
+    """The Brotherhood's X1: an X of two strokes and a 1 with a foot, `h` px tall, from (x0, y0) (bottom left)."""
+    xw = h * 3 // 4
+    for k in range(h):
+        for t in range(thick):
+            c.put(x0 + k * (xw - thick) // max(1, h - 1) + t, y0 + k, col)
+            c.put(x0 + xw - thick - k * (xw - thick) // max(1, h - 1) + t, y0 + k, col)
+    gx = x0 + xw + max(2, thick)
+    c.rect(gx, y0, gx + thick, y0 + h, col)
+    c.rect(gx - thick + 1, y0 + h - thick - 1, gx, y0 + h - 1, col)
+
+
+def add_faction_decals(a, rng):
+    def x1_tag(c):        # 1.25 x 0.8 m, sprayed in black, dripping
+        c.rect(0, 0, c.w, c.h, "clear")
+        paint_x1(c, 5, 4, c.h - 7, "black", 3)
+        for _ in range(3):                                                  # drips under the X's legs
+            x = rng.choice((6, 7, 20, 21, 27))
+            c.rect(x, rng.randrange(0, 3), x + 1, 5, "black")
+
+    def x1_stencil(c):    # 1.6 x 0.8 m: the mark in a square and EXION, stencilled (bridges left in the letters)
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.frame(2, 3, 24, c.h - 2, "iron_dark")
+        paint_x1(c, 6, 7, c.h - 13, "iron_dark", 2)
+        c.text(27, (c.h - 5) // 2, "EXION", "iron_dark")
+        for _ in range(int(c.w * c.h * 0.03)):                          # worn paint
+            c.put(rng.randrange(c.w), rng.randrange(c.h), "clear")
+
+    def nova_tag(c):      # 1.25 x 0.6 m, faded blue
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.ctext(0, c.w, 5, "NOVA", "sky_blue", 2)
+        for _ in range(int(c.w * c.h * 0.08)):
+            c.put(rng.randrange(c.w), rng.randrange(c.h), "clear")
+
+    a.add("x1_tag", 40, 26, x1_tag)
+    a.add("x1_stencil", 52, 26, x1_stencil)
+    a.add("nova_tag", 40, 19, nova_tag)
+
+
+# Where they go: (decal, side, centre along the wall, bottom height). Clear of every opening (checked in build).
+FACTION_MARKS = {
+    "school": [("x1_tag", "N", -5.0, 0.8), ("x1_stencil", "E", 4.0, 1.2), ("x1_tag", "S", 5.5, 0.55)],
+    "shops": [("x1_stencil", "N", -5.0, 1.1), ("x1_tag", "E", -3.8, 0.7)],
+    "gas_station_town": [("x1_stencil", "N", 0.0, 1.2), ("x1_tag", "E", 3.0, 0.7)],
+    "pharmacy": [("x1_tag", "E", 3.6, 0.8), ("nova_tag", "W", -3.8, 1.0)],
+}
+
+
+def faction_marks(ctx, name, openings):
+    fp = FOOTPRINTS[name]
+    for region, side, mid, y0 in FACTION_MARKS.get(name, ()):
+        r = ctx.decals.regions[region]
+        w = (r[2] - r[0]) * ctx.decals.c.w / 32 + 1 / 32
+        h = (r[3] - r[1]) * ctx.decals.c.h / 32 + 1 / 32
+        for o in openings:
+            assert not (o["side"] == side and abs(o["mid"] - mid) < (o["w"] + w) / 2 + 0.1
+                        and o["lo"] < y0 + h and o["hi"] > y0), f"{name}: {region} on {side} {mid} hits an opening"
+        at = {"N": fp[1] - 0.17, "S": fp[3] + 0.17, "W": fp[0] - 0.17, "E": fp[2] + 0.17}[side]
+        nrm = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        flip = False
+        if side in "NS":
+            pts = [(mid - w / 2, y0, at), (mid + w / 2, y0, at), (mid + w / 2, y0 + h, at), (mid - w / 2, y0 + h, at)]
+        else:
+            pts = [(at, y0, mid - w / 2), (at, y0, mid + w / 2), (at, y0 + h, mid + w / 2), (at, y0 + h, mid - w / 2)]
+        ctx.b.poly(pts, nrm, "graffiti", ctx.d(region, flip))
+
+
 def build(name, export):
     BUILDING_NAME[0] = name
     with open(os.path.join(ROOT, "art_source", "buildings", name + ".json")) as f:
@@ -3734,6 +3905,7 @@ def build(name, export):
                                          painter, random.Random(kit))
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
     atlas = DECALS[name](rng)
+    add_faction_decals(atlas, random.Random(name + "marks"))
     textures[name + "_decals"] = Texture(name + "_decals", os.path.join("art_source", "textures", name + "_decals.png"),
                                          lambda r: atlas.c, rng)
     mat_info["decals"] = (name + "_decals", False, False)
@@ -3751,6 +3923,7 @@ def build(name, export):
             shell_box(ctx, row)
     DRESSING[name](ctx)
     dress_openings(ctx, data.get("openings", []))
+    faction_marks(ctx, name, data.get("openings", []))
     if BAKE_LIGHT:
         bake_light.bake(ctx.b, data["boxes"])
     print(f"{name}: {sum(len(f) - 2 for f in ctx.b.faces)} triangles, "

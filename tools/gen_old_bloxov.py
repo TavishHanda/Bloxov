@@ -279,14 +279,23 @@ DOOR_LOOKS = {"GasStationTown": "metal", "GasStation": "metal", "Shops": "metal"
               "Police": "office", "Bank": "office", "TownHall": "office", "Offices": "office", "Pharmacy": "office",
               "School": "school", "Cabin": "plank", "Barn": "plank", "Shed": "plank"}
 DOOR_DEFAULT = "wood"
+# How inner doorways turn out (cumulative): ~20% no door, ~15% a leaf on the floor, ~12% hanging off, the rest work.
+DOOR_FATES = {"gone": 0.20, "fallen": 0.35, "hanging": 0.47}
 
 
 def inner_door(x, y, z, yaw, place):
     """A door in an inner doorway (World art 0.17, owner: doors to open and shut). Outside doorways stay open
     (smashed in). Doorways that already have a key door get none (see write_scene)."""
+    # Round 3 (owner: "not every doorway needs a door"): some doorways have none, some a wrecked one (lying on the
+    # floor or hanging off a hinge: scripts/door.gd `broken`), the rest work. Fixed per doorway (seeded by its place).
+    fate = random.Random(f"door{x:.1f},{y:.1f},{z:.1f}").random()
+    if fate < DOOR_FATES["gone"]:
+        return
+    broken = "fallen" if fate < DOOR_FATES["fallen"] else "hanging" if fate < DOOR_FATES["hanging"] else ""
     n = sum(1 for m in markers if m[0] == "Doors") + 1
     look = DOOR_LOOKS.get(re.sub(r"\d+$", "", place), DOOR_DEFAULT)
-    markers.append(("Doors", f"Door{n}", x, y, z, {"yaw": yaw, "width": INNER_DOOR_W, "place": place, "look": look}))
+    markers.append(("Doors", f"Door{n}", x, y, z, {"yaw": yaw, "width": INNER_DOOR_W, "place": place, "look": look,
+                                                   "broken": broken}))
 
 
 class Building:
@@ -2527,8 +2536,10 @@ def write_scene(ter):
                     continue
                 out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["swing_door"]}")]',
                         f"transform = {xform(x, y, z, meta['yaw'])}",
-                        f"size = Vector2({fmt(meta['width'])}, {fmt(DOOR_H)})", f'look = "{meta["look"]}"',
-                        f'metadata/place = "{meta["place"]}"', ""]
+                        f"size = Vector2({fmt(meta['width'])}, {fmt(DOOR_H)})", f'look = "{meta["look"]}"']
+                if meta["broken"]:
+                    out.append(f'broken = "{meta["broken"]}"')
+                out += [f'metadata/place = "{meta["place"]}"', ""]
                 continue
             if grp == "KeyDoors":   # locked doors (0.14.0): a door leaf filling the doorway, a bit wider than it
                 out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["door"]}")]',

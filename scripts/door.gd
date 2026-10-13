@@ -22,6 +22,10 @@ signal changed(state: int)
 @export var size := Vector2(2.0, 2.4)
 ## The leaf's look: "wood" or "metal" (a model in assets/models/props).
 @export var look := "wood"
+## A wrecked door (World art round 3, owner: "not every doorway needs a door"): "" works; "fallen" = its leaf
+## lies on the floor beside the doorway; "hanging" = it hangs open off one hinge. A wrecked door is only a picture:
+## no collision, no F, the AI walk straight through (tools/gen_old_bloxov.py picks which doorways get one).
+@export var broken := ""
 
 var state := 0
 var _hinges: Array[Node3D] = []
@@ -34,6 +38,9 @@ var _tween: Tween
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		_editor_preview()
+		return
+	if broken != "":
+		_build_wreck(DisplayServer.get_name() != "headless")
 		return
 	add_to_group(GROUP)
 	collision_layer = LAYER | 8   # 8: interactable (F)
@@ -75,6 +82,9 @@ func _ready() -> void:
 ## Nothing here is saved into the scene.
 func _editor_preview() -> void:
 	set_physics_process(false)
+	if broken != "":
+		_build_wreck(true)
+		return
 	var path := MODEL % look
 	if not ResourceLoader.exists(path):
 		return
@@ -88,6 +98,48 @@ func _editor_preview() -> void:
 		if side > 0:
 			model.rotation.y = PI
 		add_child(model)
+
+
+## A wrecked door's leaves: lying on the floor or hanging off a hinge (the same picture on every game: the random
+## numbers come from where the door is). Each leaf of a double door may be gone instead, but one always shows.
+func _build_wreck(with_model: bool) -> void:
+	collision_layer = 0
+	collision_mask = 0
+	set_physics_process(false)
+	var path := MODEL % look
+	if not with_model or not ResourceLoader.exists(path):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(Vector2i(roundi(position.x * 10.0), roundi(position.z * 10.0)))
+	var leaves := 2 if size.x > 1.5 else 1
+	var leaf_w := size.x / leaves
+	var keep := rng.randi_range(0, leaves - 1)
+	for k in leaves:
+		if k != keep and rng.randf() < 0.5:
+			continue                                # torn off and gone
+		var side := -1.0 if k == 0 else 1.0
+		var model: Node3D = (load(path) as PackedScene).instantiate()
+		if not Engine.is_editor_hint():
+			PixelModel.make_crisp(model)
+		var pivot := Node3D.new()
+		add_child(pivot)
+		pivot.add_child(model)
+		model.scale = Vector3(leaf_w, size.y / 2.0, 1.0)
+		if side > 0:
+			model.rotation.y = PI
+		if broken == "fallen":
+			# Flat on the floor on one side of the doorway, its top towards the room.
+			var away := 1.0 if rng.randf() < 0.5 else -1.0
+			pivot.position = Vector3(side * leaf_w * 0.5 + rng.randf_range(-0.3, 0.3), 0.03,
+				away * (size.y * 0.5 + rng.randf_range(0.15, 0.45)))
+			pivot.rotation.y = rng.randf_range(-0.35, 0.35) + (0.0 if away < 0.0 else PI)
+			model.rotation.x = -PI / 2.0
+		else:
+			# Swung open against one side, sagging off its broken top hinge.
+			pivot.position = Vector3(side * size.x * 0.5, 0.0, 0.0)
+			pivot.rotation.y = deg_to_rad(rng.randf_range(65.0, 100.0)) * (1.0 if rng.randf() < 0.5 else -1.0)
+			model.position = Vector3(-side * leaf_w * 0.5, size.y * 0.5 - 0.06, 0.0)
+			model.rotation.z = side * deg_to_rad(rng.randf_range(6.0, 13.0))
 
 
 func _physics_process(_delta: float) -> void:

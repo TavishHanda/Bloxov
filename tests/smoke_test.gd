@@ -1012,6 +1012,17 @@ func _section_doors() -> void:
 	_check(door.state == -1, "a scav walking up to a shut door opens it (away from them)")
 	scav.queue_free()
 	door.queue_free()
+	# Wrecked doors (World art round 3): only a picture, nothing to bump into or press F on.
+	var wreck: Door = (load("res://scenes/door.tscn") as PackedScene).instantiate()
+	wreck.broken = "hanging"
+	main.add_child(wreck)
+	wreck.global_position = spot + Vector3(6, 0, 0)
+	await physics_frame
+	await physics_frame
+	var through := PhysicsRayQueryParameters3D.create(mid + Vector3(6, 0, 1), mid + Vector3(6, 0, -1), 0xFFFF)
+	_check(wreck.collision_layer == 0 and not wreck.is_in_group(Door.GROUP) and space.intersect_ray(through).is_empty(),
+		"a wrecked door blocks nothing and can't be opened")
+	wreck.queue_free()
 
 
 func _section_crate_model() -> void:
@@ -2818,6 +2829,11 @@ func _section_old_bloxov() -> void:
 		return d.position.distance_to(map.get_node("KeyDoors/BankVaultDoor").position) < 1.0)
 	_check(doors.size() > 50 and doors.all(func(d: Node) -> bool: return d is Door) and clash.is_empty(),
 		"%d doors in the inner doorways, none on top of a key door (0.17)" % doors.size())
+	var wrecks := doors.filter(func(d: Door) -> bool: return d.broken != "")
+	_check(wrecks.size() > 10 and doors.size() - wrecks.size() > 50
+		and wrecks.any(func(d: Door) -> bool: return d.broken == "fallen")
+		and wrecks.any(func(d: Door) -> bool: return d.broken == "hanging"),
+		"%d of them wrecked (lying on the floor or hanging off), the rest work (round 3)" % wrecks.size())
 	var minimap: Dictionary = map.get_meta("minimap", {})
 	var names: Array = minimap.get("labels", []).map(func(l: Array) -> String: return l[0])
 	_check(minimap.get("size", 0.0) == 350.0 and minimap.get("buildings", PackedFloat32Array()).size() >= 4 * 30
