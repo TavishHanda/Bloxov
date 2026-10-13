@@ -1081,14 +1081,13 @@ func _section_characters() -> void:
 		_check(not is_instance_valid(character), "%s dies" % path.get_file())
 		_check(get_nodes_in_group("loot_containers").size() > bags_before, "%s drops a body bag" % path.get_file())
 		if path == SCAV_SCENE:
-			# 0.17.10 (owner): it drops its backpack beside the body, loot inside, with a lid that opens.
-			await _frames(2)   # (the backpack lands a frame after the body)
+			# 0.17.12 (owner): its body is the same body (loadout slots), shown as its backpack with a flap that opens.
 			var dropped: LootContainer = null
 			for node in get_nodes_in_group("loot_containers"):
-				if (node as LootContainer).display_name == LootContainer.BACKPACK_TITLE:
+				if (node as LootContainer).display_name == "Scav Body":
 					dropped = node
-			_check(dropped != null and not dropped.is_empty() and dropped.find_child("Lid", true, false) != null and dropped.find_child("Model", true, false) != null,
-				"a dead scav drops its backpack on the ground, its loot inside")
+			_check(dropped != null and dropped.gear.has("primary") and dropped.find_child("Lid", true, false) != null
+				and dropped.find_child("Model", true, false) != null, "a dead scav's body (loadout slots and all) is its backpack on the ground")
 			if dropped != null:
 				loot_ui.open_for(dropped)
 				await _frames(30)
@@ -2641,12 +2640,26 @@ func _section_online_ai() -> void:
 
 	# Players' shots hit server scavs (and make noise they hear).
 	var target: Node3D = scavs1[0]
+	# (Held still where it is, shot from whichever side has a clear line: a fighting scav can end up by a wall.)
+	target.process_mode = Node.PROCESS_MODE_DISABLED
+	w1.enemy_history.clear()   # (where it walked a moment ago doesn't count: it stands here now)
+	var side := Vector3(0, 0, 6)
+	for try_side: Vector3 in [Vector3(0, 0, 6), Vector3(0, 0, -6), Vector3(6, 0, 0), Vector3(-6, 0, 0)]:
+		var probe := PhysicsRayQueryParameters3D.create(target.global_position + try_side + Vector3(0, 1.5, 0), target.global_position + Vector3(0, 0.8, 0), 1)
+		if w1.find_world_3d().direct_space_state.intersect_ray(probe).is_empty():
+			side = try_side
+			break
 	for i in 3:
-		c1.send_state([target.global_position + Vector3(0, 0, 6), 0.0, 0.0, 0.0, 0])
+		c1.send_state([target.global_position + side, 0.0, 0.0, 0.0, 0])
 		await _frames(2)
+	# (States go unreliably: wait until the server has us standing there, or it rejects the shot's origin.)
+	var stand_at: Vector3 = target.global_position + side
+	await _until(func() -> bool:
+		c1.send_state([stand_at, 0.0, 0.0, 0.0, 0])
+		return server._player_states.has(c1_id) and (server._player_states[c1_id][0] as Vector3).distance_to(stand_at) < 0.1)
 	var before: int = target.health.current
 	OS.delay_msec(60)
-	var eye := target.global_position + Vector3(0, 1.5, 6)
+	var eye := target.global_position + side + Vector3(0, 1.5, 0)
 	c1.send_shot(eye, PackedVector3Array([(target.global_position + Vector3(0, 0.8, 0) - eye).normalized()]), "ak")
 	await _until(func() -> bool: return got["confirmed"] >= 1)
 	_check(got["confirmed"] == 1 and target.health.current < before, "a player's shot hits a server scav (%d -> %d)" % [before, target.health.current])
@@ -2657,13 +2670,14 @@ func _section_online_ai() -> void:
 	w1.record_enemies(t_now - 0.3)
 	target.global_position = start + Vector3(3, 0, 0)
 	w1.record_enemies(t_now)
-	var eye2 := start + Vector3(0, 1.5, 6)
+	var eye2 := start + side + Vector3(0, 1.5, 0)
 	var aim := (start + Vector3(0, 0.8, 0) - eye2).normalized()
 	var seen_then := w1.trace_shot(c1_id, eye2, aim, 50.0, t_now - 0.3, t_now)
 	var seen_now := w1.trace_shot(c1_id, eye2, aim, 50.0, t_now, t_now)
 	_check(seen_then.get("enemy") == target and not seen_now.has("enemy") and target.global_position.is_equal_approx(start + Vector3(3, 0, 0)),
 		"a shot at a moving AI counts where the shooter saw it (then %s, now %s)" % [str(seen_then.keys()), str(seen_now.keys())])
 	target.global_position = start
+	target.process_mode = Node.PROCESS_MODE_INHERIT
 	w1.enemy_history.clear()
 	var allowed := 0
 	for i in 4:
@@ -2808,26 +2822,35 @@ func _section_online_loot() -> void:
 	saved.label = "Rival"
 	_check(Profile._read_stack(Profile._write_stack(saved)).title() == "Rival's Dog Tag", "a dog tag keeps its name in your stash")
 
-	# A scav's body on the server: announced to everyone.
-	var scav: Node = RaidScope.nodes(world.raid, &"enemies")[0]
+	# A Raider's body on the server: announced to everyone. A scav in a backpack leaves only the backpack (0.17.12).
+	var raider: Node = null
+	var scav: Node = null
 	for enemy: Node in RaidScope.nodes(world.raid, &"enemies"):
 		if enemy.has_node("Model/Backpack"):
-			scav = enemy   # (one wearing a backpack, for the dropped-backpack check)
-	var body_name: String = scav.body_name
-	var wears_pack: bool = scav.has_node("Model/Backpack")
-	scav.health.take_damage(9999)
-	await _until(func() -> bool: return got[c1]["bags"].values().has(body_name))
-	_check(got[c1]["bags"].values().has("Scav Body") or got[c1]["bags"].values().has("Raider Body"), "a scav killed on the server leaves a body bag for everyone")
-	if wears_pack:
-		await _until(func() -> bool: return got[c2]["bags"].values().has(LootContainer.BACKPACK_TITLE))
-		var pack_id: String = got[c2]["bags"].find_key(LootContainer.BACKPACK_TITLE)
-		_check(pack_id != null, "...and its backpack on the ground next to it (0.17.10)")
+			scav = enemy
+		elif raider == null:
+			raider = enemy
+	if raider != null:
+		var body_name: String = raider.body_name
+		raider.health.take_damage(9999)
+		await _until(func() -> bool: return got[c1]["bags"].values().has(body_name))
+		_check(got[c1]["bags"].values().has(body_name), "an AI without a backpack killed on the server leaves a body for everyone")
+	_check(scav != null, "the test raid has a scav in a backpack")
+	if scav != null:
+		var bags_before: int = got[c2]["bags"].size()
+		var scav_body: String = scav.body_name
+		scav.health.take_damage(9999)
+		await _until(func() -> bool: return got[c2]["bags"].size() > bags_before)
+		await _frames(10)
+		var pack_id: Variant = got[c2]["bags"].find_key(scav_body)
+		_check(pack_id != null and scav_body in LootContainer.BACKPACK_BODIES and got[c2]["bags"].size() == bags_before + 1,
+			"a scav killed on the server leaves one body, shown as its backpack (%d new bags)" % (got[c2]["bags"].size() - bags_before))
 		if pack_id != null:
 			c1.open_container(pack_id)
 			await _until(func() -> bool: return got[c2]["lids"].has([pack_id, true]))
 			c1.close_container()
 			await _until(func() -> bool: return got[c2]["lids"].has([pack_id, false]))
-			_check(got[c2]["lids"] == [[pack_id, true], [pack_id, false]], "the other player sees its lid open and shut (0.17.10)")
+			_check(got[c2]["lids"] == [[pack_id, true], [pack_id, false]], "the other player sees its flap open and shut (0.17.10)")
 
 	# The raid on players' screens: bags appear and go with the server's.
 	var net_raid := main.get_node("NetRaid") as NetRaid

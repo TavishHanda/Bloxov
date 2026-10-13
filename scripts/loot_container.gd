@@ -20,8 +20,9 @@ extends StaticBody3D
 ## Bodies' gear slots, in the same order as the player's (Inventory.SLOTS; not referenced here so the server's
 ## loot code doesn't pull in player scripts).
 const GEAR_SLOTS: Array[String] = ["primary", "secondary", "armor", "helmet", "backpack"]
-## A dead scav's backpack (0.17.10, owner): dropped next to the body, its own model with a lid that opens.
-const BACKPACK_TITLE := "Small Backpack"
+## Bodies of AI that wear the small backpack (0.17.12, owner): the same body (loadout slots and all), shown as the
+## backpack lying on the ground, with a flap that opens.
+const BACKPACK_BODIES: Array[String] = ["Scav Body", "Sniper Body"]
 ## A player killed by another player (0.15.28, owner): their body has one more slot, the PMC dog tag's.
 const TAG_SLOT := "tag"
 ## Container looks (World art 0.17, owner: containers should fit their place). The map gives a container a `look`
@@ -211,7 +212,7 @@ func mark_searched() -> void:
 ## Drops a bag in the world holding `contents` ([id, count] pairs, or ItemStacks). Bodies and dropped items.
 ## A body (`body`) gets gear slots: the first gun/armor/backpack for each slot goes there, the rest in its pockets.
 static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Array, search := 0.0, body := false) -> LootContainer:
-	var scene := "res://scenes/backpack_bag.tscn" if bag_name == BACKPACK_TITLE else "res://scenes/loot_bag.tscn"
+	var scene := "res://scenes/backpack_bag.tscn" if bag_name in BACKPACK_BODIES else "res://scenes/loot_bag.tscn"
 	var bag := (load(scene) as PackedScene).instantiate() as LootContainer
 	bag.display_name = bag_name
 	bag.loot_table = ""
