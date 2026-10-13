@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.7 (mouse no longer stutters on fast turns; owner's friend reported it)
+- Turning the mouse fast could stutter and stop turning until you slowed down (Chrome and Firefox). A glitch
+  filter from 0.1 threw away every mouse move over 200 pixels, and a fast flick on a high-DPI mouse (raw input
+  is on) easily passes that in one frame. Now only a lone jump far bigger than the move before it is ignored
+  (the Chrome glitch it was made for), never two in a row, so real fast turns always go through.
+- Smoke test: a fast turn is used in full, a lone glitch jump is dropped, a flick from rest loses at most one move.
+
 ## 0.17.6 (scav backpack turned around; owner asked)
 - The scav backpack faced the wrong way (its back side pointed out). Turned 180 degrees so the straps sit on the scav.
 

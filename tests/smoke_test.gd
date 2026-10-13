@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts", "mouse",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -1985,6 +1985,26 @@ func _section_settings() -> void:
 	_check(AudioServer.is_bus_mute(0), "volume 0 mutes audio")
 	GameSettings.set_volume(0.5)
 	_check(not AudioServer.is_bus_mute(0) and AudioServer.get_bus_volume_db(0) < 0.0, "volume 50% lowers audio")
+
+
+func _section_mouse() -> void:
+	# 0.17.7: a fast turn (big moves that build up and keep going) must not be dropped as a glitch;
+	# a lone huge jump out of slow movement still is, but never twice in a row.
+	var t := 100000
+	var used := 0
+	for move in [20.0, 60.0, 180.0, 450.0, 900.0, 1400.0, 1200.0, 800.0, 300.0]:
+		t += 16
+		if not player.is_mouse_spike(move, t):
+			used += 1
+	_check(used == 9, "a fast turn on a high-DPI mouse is used in full (%d of 9 moves)" % used)
+	t += 16
+	_check(not player.is_mouse_spike(5.0, t), "a slow move is used")
+	t += 16
+	_check(player.is_mouse_spike(1500.0, t), "a lone huge jump out of a slow move is dropped")
+	t += 16
+	_check(not player.is_mouse_spike(1500.0, t), "a second big move in a row is used (a real flick)")
+	t += 500
+	_check(player.is_mouse_spike(900.0, t) and not player.is_mouse_spike(950.0, t + 16), "a flick from rest loses at most one move")
 
 
 func _section_ghost_stack() -> void:
