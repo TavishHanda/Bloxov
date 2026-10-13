@@ -133,13 +133,13 @@ func interact_time() -> float:
 	return 0.0 if searched else search_time
 
 
-## Swings the lid (a "Lid" child, e.g. a dropped backpack) open or shut (0.17.10, owner). Others online see it too.
+## Swings the lid (a "Lid" node, e.g. a dropped backpack) open or shut (0.17.10, owner). Others online see it too.
 func set_open(open: bool) -> void:
-	var lid := get_node_or_null("Lid") as Node3D
+	var lid := find_child("Lid", true, false) as Node3D
 	if lid == null or not lid.is_inside_tree():
 		return
 	var tween := lid.create_tween()
-	tween.tween_property(lid, "rotation:x", deg_to_rad(-110.0) if open else 0.0, 0.3 if open else 0.25) \
+	tween.tween_property(lid, "rotation:x", deg_to_rad(lid.get("open_deg") if lid.get("open_deg") != null else 110.0) if open else 0.0, 0.3 if open else 0.25) \
 		.set_trans(Tween.TRANS_BACK if open else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 

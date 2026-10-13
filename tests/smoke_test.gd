@@ -1038,15 +1038,16 @@ func _section_characters() -> void:
 			for node in get_nodes_in_group("loot_containers"):
 				if (node as LootContainer).display_name == LootContainer.BACKPACK_TITLE:
 					dropped = node
-			_check(dropped != null and not dropped.is_empty() and dropped.has_node("Lid") and dropped.has_node("Model"),
+			_check(dropped != null and not dropped.is_empty() and dropped.find_child("Lid", true, false) != null and dropped.find_child("Model", true, false) != null,
 				"a dead scav drops its backpack on the ground, its loot inside")
 			if dropped != null:
 				loot_ui.open_for(dropped)
 				await _frames(30)
-				var opened := (dropped.get_node("Lid") as Node3D).rotation.x
+				var lid := dropped.find_child("Lid", true, false) as Node3D
+				var opened := lid.rotation.x
 				loot_ui.close()
 				await _frames(30)
-				_check(opened < -1.5 and is_zero_approx((dropped.get_node("Lid") as Node3D).rotation.x),
+				_check(opened > 1.5 and is_zero_approx(lid.rotation.x),
 					"opening it swings the lid open, closing shuts it (%.2f rad open)" % opened)
 				dropped.queue_free()
 

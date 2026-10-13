@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.11 (dropped backpack lies flat, lid in the backpack's own camo; owner asked)
+- A dead scav's backpack now lies on its back on the ground instead of standing up.
+- The lid uses the backpack's own camo texture, and the grab handle sits on the lid, so it opens with it.
+
 ## 0.17.10 (scavs drop their backpack, backpack lid opens; owner asked)
 - A scav that dies drops its small backpack on the ground beside its body (on whichever side isn't against a wall).
   Its loose loot is inside the backpack now; its gun, armor and helmet stay on the body. Snipers wear one too.

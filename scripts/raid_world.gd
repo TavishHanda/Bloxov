@@ -106,7 +106,7 @@ func open_container(peer: int, id: String) -> Variant:
 		return null
 	close_containers(peer)
 	locks[id] = peer
-	if box.has_node("Lid"):
+	if box.find_child("Lid", true, false) != null:
 		lid_moved.emit(id, true)
 	return box.net_data()
 
@@ -129,7 +129,7 @@ func close_containers(peer: int) -> void:
 		if locks[id] == peer:
 			locks.erase(id)
 			var box := container(id)
-			if box != null and box.has_node("Lid"):
+			if box != null and box.find_child("Lid", true, false) != null:
 				lid_moved.emit(id, false)
 
 
