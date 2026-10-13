@@ -255,11 +255,21 @@ def _wall(a0, a1, y0, h, colour, openings, put):
 
 
 # ---------------------------------------------------------------------------------------------- buildings
+# What each building's doors look like (owner: doors fit their building): a model in assets/models/props/door_<look>.glb
+# (art_source/scripts/make_door.py). Places match without their number; anything else gets DOOR_DEFAULT.
+DOOR_LOOKS = {"GasStationTown": "metal", "GasStation": "metal", "Shops": "metal", "Grocery": "metal",
+              "GunStore": "metal", "Diner": "metal", "TrainStation": "metal", "Depot": "metal",
+              "Police": "office", "Bank": "office", "TownHall": "office", "Offices": "office", "Pharmacy": "office",
+              "School": "school", "Cabin": "plank", "Barn": "plank", "Shed": "plank"}
+DOOR_DEFAULT = "wood"
+
+
 def inner_door(x, y, z, yaw, place):
     """A door in an inner doorway (World art 0.17, owner: doors to open and shut). Outside doorways stay open
     (smashed in). Doorways that already have a key door get none (see write_scene)."""
     n = sum(1 for m in markers if m[0] == "Doors") + 1
-    markers.append(("Doors", f"Door{n}", x, y, z, {"yaw": yaw, "width": INNER_DOOR_W, "place": place}))
+    look = DOOR_LOOKS.get(re.sub(r"\d+$", "", place), DOOR_DEFAULT)
+    markers.append(("Doors", f"Door{n}", x, y, z, {"yaw": yaw, "width": INNER_DOOR_W, "place": place, "look": look}))
 
 
 class Building:
@@ -2458,7 +2468,8 @@ def write_scene(ter):
                     continue
                 out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["swing_door"]}")]',
                         f"transform = {xform(x, y, z, meta['yaw'])}",
-                        f"size = Vector2({fmt(meta['width'])}, {fmt(DOOR_H)})", f'metadata/place = "{meta["place"]}"', ""]
+                        f"size = Vector2({fmt(meta['width'])}, {fmt(DOOR_H)})", f'look = "{meta["look"]}"',
+                        f'metadata/place = "{meta["place"]}"', ""]
                 continue
             if grp == "KeyDoors":   # locked doors (0.14.0): a door leaf filling the doorway, a bit wider than it
                 out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["door"]}")]',

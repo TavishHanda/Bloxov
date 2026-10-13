@@ -47,16 +47,53 @@ def door_metal(b):
     handle(b, 0.38, -0.02, "trim")
 
 
-LOOKS = {"wood": door_wood, "metal": door_metal}
+def door_office(b):
+    """Painted office door (police, bank, town hall, offices, pharmacy): pale grey, a small window, lever handle."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("steel_light"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.004)
+        for x0, x1, y0, y1 in ((-0.22, 0.22, 0.28, 0.32), (-0.22, 0.22, 0.78, 0.82), (-0.24, -0.2, 0.28, 0.82),
+                               (0.2, 0.24, 0.28, 0.82)):
+            b.box(((x0 + x1) / 2, (y0 + y1) / 2, z), (x1 - x0, y1 - y0, 0.008), style=solid("trim_dark"))
+        b.box((0, 0.55, z * 0.9), (0.4, 0.5, 0.004), style=solid("glass"))
+        b.box((0, -0.9, z), (0.9, 0.12, 0.008), style=solid("trim"))
+    handle(b, 0.38, -0.02, "trim")
+
+
+def door_school(b):
+    """School classroom door: painted green, a tall narrow window, kick plate."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("green"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.004)
+        b.box((0.18, 0.35, z), (0.2, 0.9, 0.008), style=solid("trim_dark"))
+        b.box((0.18, 0.35, z * 1.1), (0.14, 0.84, 0.004), style=solid("glass"))
+        b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("trim"))
+    handle(b, 0.38, -0.02, "trim")
+
+
+def door_plank(b):
+    """Cabin door: vertical planks with a Z brace."""
+    for k in range(6):
+        x = -0.41 + k * 0.164
+        b.box((x, 0, 0), (0.158, 1.98, T), style=solid("wood"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.012)
+        for y in (-0.7, 0.7):
+            b.box((0, y, z), (0.9, 0.14, 0.024), style=solid("wood_dark"))
+        b.box((0, 0, z), (0.14, 1.5, 0.024), style=solid("wood_dark"))
+    handle(b, 0.38, -0.02, "black")
+
+
+LOOKS = {"wood": door_wood, "metal": door_metal, "office": door_office, "school": door_school, "plank": door_plank}
 
 
 def main():
     rng = random.Random("doors")
     textures, mat_info = {}, {}
-    for kit in ("wood", "trim", "trim_dark", "black"):
+    for kit in ("wood", "trim", "trim_dark", "black", "steel_light", "green", "glass"):
         textures["kit_" + kit] = Texture("kit_" + kit, os.path.join("art_source", "textures", "kit", kit + ".png"),
                                          mb.KIT[kit], random.Random(kit))
-        mat_info[kit] = ("kit_" + kit, False, False)
+        mat_info[kit] = ("kit_" + kit, False, kit == "glass")
     for name, colour in (("wood_dark", "wood_dark"), ("gold", "hazard_yellow"), ("steel", "steel")):
         textures["loot_" + name] = Texture("loot_" + name, os.path.join("art_source", "textures", "loot", name + ".png"),
                                            mb.paint_flat(colour), rng)
