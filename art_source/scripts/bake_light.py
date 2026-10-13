@@ -15,6 +15,7 @@ CELL = 1.0          # metres: the size of the cells big faces are cut into
 RAYS = 64           # rays per vertex (cosine-weighted over the face's hemisphere)
 REACH = 40.0        # metres: a ray that gets this far without hitting anything sees the sky
 GROUND = 0.7        # a ray that escapes downwards sees lit ground, not sky
+SHADE_KINDS = ("canopy",)   # props big enough to cast shade (the rest of the furniture is left out)
 DARK = 0.45         # vertex colour of a spot that sees no sky at all
 GAIN = 4.0          # how fast the colour rises to 1 with the share of sky seen
 
@@ -47,6 +48,8 @@ def occluders(rows):
     """Axis-aligned boxes from the gray-box rows (yawed boxes as their bounds; ramps left out)."""
     lo, hi = [], []
     for row in rows:
+        if row.get("kind") and row["kind"] not in SHADE_KINDS:
+            continue                    # furniture: its own boxes are drawn in detail, don't shade them from inside
         if abs(row.get("pitch", 0.0)) > 5:
             continue
         c, s = row["pos"], row["size"]
@@ -103,28 +106,37 @@ def _split(pts, uvs):
 
 
 def bake(builder, rows):
-    """Cuts the builder's big faces into cells and gives every vertex a colour (builder.colors, per face)."""
+    """Cuts the builder's big faces into cells and gives every vertex a colour (builder.colors, per face).
+    Faces in a group (one small item) all get the light at the item's middle."""
     lo, hi = occluders(rows)
+    groups = getattr(builder, "groups", None) or [None] * len(builder.faces)
     if not len(lo):
         builder.colors = [[(1.0, 1.0, 1.0)] * len(f) for f in builder.faces]
         return
-    faces, uvs, mats, normals, verts = [], [], [], [], []
     cache = {}
 
-    def light(p, n):
-        key = (round(p[0], 3), round(p[1], 3), round(p[2], 3), round(n[0], 2), round(n[1], 2), round(n[2], 2))
-        if key not in cache:
-            cache[key] = None
-        return key
-    # First pass: which faces need cutting (any corner short of full light).
-    corner_keys = []
-    for face, n in zip(builder.faces, builder.normals):
-        corner_keys.append([light(builder.verts[i], n) for i in face])
+    def key(p, n):
+        k = (round(p[0], 3), round(p[1], 3), round(p[2], 3), round(n[0], 2), round(n[1], 2), round(n[2], 2))
+        cache.setdefault(k, None)
+        return k
+    # The middle of each item.
+    centres = {}
+    for face, g in zip(builder.faces, groups):
+        if g is not None:
+            acc = centres.setdefault(g, [0.0, 0.0, 0.0, 0])
+            for i in face:
+                for a in range(3):
+                    acc[a] += builder.verts[i][a]
+                acc[3] += 1
+    group_key = {g: key((a[0] / a[3], a[1] / a[3], a[2] / a[3]), (0.0, 1.0, 0.0)) for g, a in centres.items()}
+    # Which faces need cutting (any corner short of full light).
+    corner_keys = [None if g is not None else [key(builder.verts[i], n) for i in face]
+                   for face, n, g in zip(builder.faces, builder.normals, groups)]
     _resolve(cache, lo, hi)
-    for face, uv, m, n, keys in zip(builder.faces, builder.uvs, builder.mats, builder.normals, corner_keys):
+    faces, uvs, mats, normals, verts, gs = [], [], [], [], [], []
+    for face, uv, m, n, g, keys in zip(builder.faces, builder.uvs, builder.mats, builder.normals, groups, corner_keys):
         pts = [builder.verts[i] for i in face]
-        lit = [cache[k] for k in keys]
-        pieces = [(pts, uv)] if min(lit) > 0.995 else _split(pts, uv)
+        pieces = [(pts, uv)] if g is not None or min(cache[k] for k in keys) > 0.995 else _split(pts, uv)
         for q, t in pieces:
             base = len(verts)
             verts += q
@@ -132,9 +144,12 @@ def bake(builder, rows):
             uvs.append(t)
             mats.append(m)
             normals.append(n)
-    keys = [[light(verts[i], n) for i in f] for f, n in zip(faces, normals)]
+            gs.append(g)
+    keys = [[group_key[g]] * len(f) if g is not None else [key(verts[i], n) for i in f]
+            for f, n, g in zip(faces, normals, gs)]
     _resolve(cache, lo, hi)
     builder.verts, builder.faces, builder.uvs, builder.mats, builder.normals = verts, faces, uvs, mats, normals
+    builder.groups = gs
     builder.colors = [[(cache[k],) * 3 for k in ks] for ks in keys]
 
 
