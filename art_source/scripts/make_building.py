@@ -29,6 +29,7 @@ import random
 import sys
 
 import json
+import re
 import struct
 import zlib
 
@@ -3571,8 +3572,62 @@ def clear_collection(name):
     return coll
 
 
-def write_glb(path, builder, textures, mat_info):
-    """The model as a .glb: one mesh, one primitive per material, flat normals, nearest-filtered textures."""
+# Kit atlas (performance, owner OK'd 2026-10-13): every tiling kit texture except glass in one 512 px image, an 8 x 8
+# grid of 64 px cells, drawn by one shader material (assets/shaders/kit_atlas.gdshader). A cell's place is kept in
+# art_source/textures/kit_atlas.json: new kit textures go on the end, so existing models keep their cells.
+ATLAS_GRID, ATLAS_CELL = 8, 64
+ATLAS_ORDER = os.path.join(ROOT, "art_source", "textures", "kit_atlas.json")
+ATLAS_PNG = os.path.join(ROOT, "assets", "textures", "kit_atlas.png")
+NOT_IN_ATLAS = ("glass",)        # see-through: its own material
+
+
+def kit_atlas():
+    """Writes the atlas image; returns {kit name: (u, v) of its cell's top-left corner}."""
+    order = json.load(open(ATLAS_ORDER)) if os.path.exists(ATLAS_ORDER) else []
+    for name in KIT:
+        if name not in order and name not in NOT_IN_ATLAS:
+            order.append(name)
+    assert len(order) <= ATLAS_GRID * ATLAS_GRID, "kit atlas full: make the grid bigger"
+    with open(ATLAS_ORDER, "w") as f:
+        json.dump(order, f, indent=0)
+    size = ATLAS_GRID * ATLAS_CELL
+    top = [[[0, 0, 0, 255] for _ in range(size)] for _ in range(size)]          # rows top-first
+    cells = {}
+    for i, name in enumerate(order):
+        path = os.path.join(TEX_DIR or os.path.join(ROOT, "art_source", "textures", "kit"), name + ".png")
+        if not os.path.exists(path):
+            continue
+        w, h, rows = read_png(path)
+        src = list(reversed(rows))
+        cx, cy = i % ATLAS_GRID, i // ATLAS_GRID
+        for y in range(ATLAS_CELL):
+            line = src[y * h // ATLAS_CELL]
+            out = top[cy * ATLAS_CELL + y]
+            for x in range(ATLAS_CELL):
+                out[cx * ATLAS_CELL + x] = list(line[x * w // ATLAS_CELL])
+        cells[name] = (cx / ATLAS_GRID, cy / ATLAS_GRID)
+    write_png(ATLAS_PNG, size, size, list(reversed(top)))
+    return cells
+
+
+def set_import_script(glb):
+    """Points the model's .import at tools/building_import.gd (it swaps in the atlas shader material)."""
+    path = glb + ".import"
+    line = 'import_script/path="res://tools/building_import.gd"'
+    if not os.path.exists(path):
+        with open(path, "w") as f:
+            f.write('[remap]\n\nimporter="scene"\n\n[params]\n\n' + line + "\n")
+        return
+    text = open(path).read()
+    if line not in text:
+        text = re.sub(r'import_script/path="[^"]*"', line, text)
+        with open(path, "w") as f:
+            f.write(text)
+
+
+def write_glb(path, builder, textures, mat_info, atlas=None):
+    """The model as a .glb: one mesh, one primitive per material, flat normals, nearest-filtered textures.
+    atlas ({kit name: cell corner}): those materials become one "kit_atlas" material, the cell corner in TEXCOORD_1."""
     blob = bytearray()
     views, accessors = [], []
 
@@ -3593,8 +3648,18 @@ def write_glb(path, builder, textures, mat_info):
         accessors.append(acc)
         return len(accessors) - 1
 
-    images, tex_index, materials = [], {}, []
+    atlas = atlas or {}
+    targets = []                                   # the glb's materials (the atlas ones merged into one)
     for mname in builder.mat_names:
+        t = "kit_atlas" if mname in atlas else mname
+        if t not in targets:
+            targets.append(t)
+    images, tex_index, materials = [], {}, []
+    for mname in targets:
+        if mname == "kit_atlas":                   # its texture comes from the shader material (import script)
+            materials.append({"name": "kit_atlas", "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1],
+                              "metallicFactor": 0.0, "roughnessFactor": 1.0}})
+            continue
         tex_name, cutout, double = mat_info[mname]
         if tex_name not in tex_index:
             images.append({"bufferView": add_view(textures[tex_name].png), "mimeType": "image/png", "name": tex_name})
@@ -3610,17 +3675,20 @@ def write_glb(path, builder, textures, mat_info):
             m["pbrMetallicRoughness"]["baseColorFactor"] = [1.0, 1.0, 1.0, 0.28]
         materials.append(m)
     prims = []
-    for mi in range(len(builder.mat_names)):
-        pos, nrm, uv, col, idx = [], [], [], [], []
+    target_of = [targets.index("kit_atlas" if m in atlas else m) for m in builder.mat_names]
+    for mi in range(len(targets)):
+        pos, nrm, uv, uv2, col, idx = [], [], [], [], [], []
         colors = getattr(builder, "colors", None) or [None] * len(builder.faces)
         for face, uvs, m, n, cs in zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors):
-            if m != mi:
+            if target_of[m] != mi:
                 continue
             base = len(pos)
+            cell = atlas.get(builder.mat_names[m], (0.0, 0.0))
             for k, (vi, t) in enumerate(zip(face, uvs)):
                 pos.append(builder.verts[vi])
                 nrm.append(n)
                 uv.append((t[0], 1.0 - t[1]))          # glTF's v points down the image
+                uv2.append(cell)
                 col.append(tuple(cs[k]) if cs else (1.0, 1.0, 1.0))
             for k in range(1, len(face) - 1):
                 idx += [base, base + k, base + k + 1]
@@ -3629,6 +3697,8 @@ def write_glb(path, builder, textures, mat_info):
         prims.append({"attributes": {"POSITION": add_accessor(pos, 5126, "VEC3", 34962, True),
                                      "NORMAL": add_accessor(nrm, 5126, "VEC3", 34962),
                                      "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
+                                     **({"TEXCOORD_1": add_accessor(uv2, 5126, "VEC2", 34962)}
+                                        if targets[mi] == "kit_atlas" else {}),
                                      **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if colors[0] else {})},
                       "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
     # Images use the alpha channel only where the material says so; gltf's alpha comes from the texture.
@@ -3683,11 +3753,13 @@ def build(name, export):
     dress_openings(ctx, data.get("openings", []))
     if BAKE_LIGHT:
         bake_light.bake(ctx.b, data["boxes"])
-    print(f"{name}: {sum(len(f) - 2 for f in ctx.b.faces)} triangles, {len(ctx.b.mat_names)} materials")
+    print(f"{name}: {sum(len(f) - 2 for f in ctx.b.faces)} triangles, "
+          f"{len({('kit_atlas' if m in KIT and m not in NOT_IN_ATLAS else m) for m in ctx.b.mat_names})} materials")
     out = os.path.join(ROOT, "assets", "models", "buildings", name + ".glb")
     if bpy is None:
         if export:
-            write_glb(out, ctx.b, textures, mat_info)
+            write_glb(out, ctx.b, textures, mat_info, atlas=kit_atlas())
+            set_import_script(out)
             print("exported", out)
         return None
     materials = {m: blender_material(m, textures[t], cut, dbl) for m, (t, cut, dbl) in mat_info.items()}
