@@ -73,6 +73,20 @@ def door_school(b):
     handle(b, 0.38, -0.02, "trim")
 
 
+def door_school_oak(b):
+    """Plain school door (owner, 2026-10-13: the school door without its navy parts): dark-stained oak, a square
+    wired window in a raised oak bead, a steel push plate. Hangs on the staff rooms (school_door_look in the gen)."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("oak_dark"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.006)
+        for x0, x1, y0, y1 in ((-0.25, 0.25, 0.17, 0.21), (-0.25, 0.25, 0.69, 0.73), (-0.25, -0.21, 0.17, 0.73),
+                               (0.21, 0.25, 0.17, 0.73)):
+            b.box(((x0 + x1) / 2, (y0 + y1) / 2, z), (x1 - x0, y1 - y0, 0.012), style=solid("wood_dark"))
+        b.box((0, 0.45, z * 0.9), (0.42, 0.52, 0.004), style=solid("glass"))
+        b.box((0.3, 0.02, z), (0.1, 0.3, 0.008), style=solid("trim"))
+    handle(b, 0.38, -0.02, "trim")
+
+
 def door_school_mix2(b):
     """Option (round 6): navy painted with a dark oak panel below the window and oak edges."""
     b.box((0, 0, 0), (0.98, 1.98, T), style=solid("blue"))
@@ -162,7 +176,8 @@ def door_school_grey(b):
 # The school door options (round 5) are drawn for the owner to pick from, not built: make one the "school" look.
 OPTIONS = {"school_mix2": door_school_mix2, "school_navy": door_school_navy, "school_red": door_school_red, "school_twotone": door_school_twotone,
            "school_grey": door_school_grey}
-LOOKS = {"wood": door_wood, "metal": door_metal, "office": door_office, "school": door_school, "plank": door_plank}
+LOOKS = {"wood": door_wood, "metal": door_metal, "office": door_office, "school": door_school, "school_oak": door_school_oak,
+         "plank": door_plank}
 
 
 def main():

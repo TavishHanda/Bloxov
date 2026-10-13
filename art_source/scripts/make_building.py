@@ -3992,6 +3992,499 @@ SHELLS["pharmacy"] = {
 }
 
 
+# ------------------------------------------------------------------------------------------------ gun store (0.17)
+# Border Arms, the gun store (map 70-86 x 70-82, model origin map (78, 76)): the shop east (door south): the till,
+# ammo shelves, a parts wall; the gun room west behind a steel door: two glass display counters, rifle racks on the
+# north wall, the gunsmith's bench. Local x < 0 is the gun room. Names on show are ours (store rules: no real brands).
+def paint_block_olive(rng):
+    """Cinder block painted army olive, a dark base band, chipped and streaked, bullet holes (it was fought over)."""
+    c = Canvas(64, 64, "olive_dark")
+    for y in range(64):
+        for x in range(64):
+            row = y // 4
+            off = 4 if row % 2 else 0
+            if y % 4 == 0 or (x + off) % 8 == 0:
+                c.put(x, y, "iron_dark")
+    c.blotch(["olive"], 8, rng, size=(2, 5))                         # paint gone chalky
+    c.blotch(["concrete"], 5, rng, size=(1, 3))                      # chipped to the block
+    c.rect(0, 0, 64, 9, "iron_dark")
+    c.rect(0, 9, 64, 10, "black")
+    c.noise(0, 0, 64, 3, ["wood_mid"], 0.25, rng)                    # splash dirt
+    for _ in range(6):                                               # rain streaks
+        x = rng.randrange(64)
+        for y in range(rng.randrange(18, 40), rng.randrange(44, 64)):
+            if rng.random() < 0.7 and c.get(x, y) == "olive_dark":
+                c.put(x, y, "iron")
+    for _ in range(4):                                               # bullet holes
+        x, y = rng.randrange(2, 62), rng.randrange(12, 60)
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            c.put(x + dx, y + dy, "steel")
+        c.put(x, y, "black")
+    return c
+
+
+def paint_int_guns(rng):
+    """Inside: dark wood panelling to 1.2 m under a rail, painted sand above, grubby."""
+    c = Canvas(64, 64, "sand")
+    for y in range(19):
+        for x in range(64):
+            c.put(x, y, "wood_dark" if x % 6 == 0 else "wood_mid")
+    c.rect(0, 19, 64, 21, "wood_dark")
+    c.rect(0, 0, 64, 2, "black")
+    c.blotch(["plaster", "concrete"], 8, rng, area=(0, 21, 64, 64), size=(2, 5))
+    return c
+
+
+def paint_floor_shop(rng):
+    """Grey sealed concrete, scuffed, a crack or two."""
+    c = Canvas(64, 64, "concrete")
+    c.noise(0, 0, 64, 64, ["steel_light"], 0.15, rng)
+    c.blotch(["steel_light", "sand"], 6, rng, size=(2, 6))
+    for _ in range(2):
+        x, y = rng.randrange(64), rng.randrange(64)
+        for _ in range(18):
+            c.put(x % 64, y % 64, "steel")
+            x += rng.choice((1, 1, 0))
+            y += rng.choice((1, 0, -1))
+    return c
+
+
+KIT.update({"block_olive": paint_block_olive, "int_guns": paint_int_guns, "floor_shop": paint_floor_shop,
+            "wood_dark": paint_flat("wood_dark"), "brass": paint_flat("yellow_dark")})
+
+
+# Gun silhouettes (side on): (along from the butt, along, up, up, material), metres. Our own guns: Hound (assault
+# rifle), Mauler (pump shotgun), Lancer (scoped bolt rifle), Wasp (SMG), Stinger (pistol, measured from the grip).
+GUN_SHAPES = {
+    "hound": [(0.0, 0.26, -0.07, 0.04, "wood"), (0.26, 0.56, -0.03, 0.06, "black"), (0.3, 0.35, -0.15, -0.03, "wood_dark"),
+              (0.42, 0.49, -0.24, -0.03, "trim_dark"), (0.56, 0.76, -0.02, 0.05, "wood"), (0.76, 0.98, 0.0, 0.03, "black"),
+              (0.93, 0.95, 0.03, 0.07, "black")],
+    "mauler": [(0.0, 0.3, -0.08, 0.04, "wood"), (0.3, 0.52, -0.03, 0.06, "black"), (0.32, 0.36, -0.12, -0.03, "black"),
+               (0.52, 1.05, 0.015, 0.05, "trim_dark"), (0.52, 0.95, -0.02, 0.015, "black"), (0.62, 0.8, -0.045, 0.03, "wood")],
+    "lancer": [(0.0, 0.32, -0.08, 0.04, "wood"), (0.32, 0.64, -0.04, 0.05, "wood"), (0.36, 0.6, 0.09, 0.14, "black"),
+               (0.42, 0.44, 0.05, 0.09, "black"), (0.54, 0.56, 0.05, 0.09, "black"), (0.64, 1.15, 0.0, 0.03, "black"),
+               (0.5, 0.53, -0.02, 0.05, "trim")],
+    "wasp": [(0.0, 0.18, -0.04, 0.03, "black"), (0.18, 0.45, -0.03, 0.06, "black"), (0.24, 0.28, -0.13, -0.03, "black"),
+             (0.33, 0.37, -0.22, -0.03, "trim_dark"), (0.45, 0.58, 0.0, 0.03, "black")],
+    "stinger": [(0.0, 0.2, 0.0, 0.035, "black"), (0.0, 0.05, -0.09, 0.0, "black"), (0.05, 0.08, -0.025, 0.0, "trim_dark")],
+}
+
+
+def gun_shape(b, kind, base, u, v, t=0.045, scale=1.0):
+    """A blocky 3D gun: `base` is the butt (the grip's back for a pistol), u the unit axis the barrel points along,
+    v its 'up' (both along x, y or z), t its thickness. One item (shares one baked light)."""
+    w = tuple(1.0 - abs(u[k]) - abs(v[k]) for k in range(3))
+    b.group = ("item", len(b.faces))
+    for a0, a1, h0, h1, mat in GUN_SHAPES[kind]:
+        am, hm = (a0 + a1) / 2 * scale, (h0 + h1) / 2 * scale
+        c = tuple(base[k] + u[k] * am + v[k] * hm for k in range(3))
+        s = tuple(abs(u[k]) * (a1 - a0) * scale + abs(v[k]) * (h1 - h0) * scale + w[k] * t for k in range(3))
+        b.box(c, s, style=lambda n, m, q, mat=mat: (mat, uv_world(1.0)))
+    b.group = None
+
+
+def stock_ammo(b, at, rng, col):
+    """A box of cartridges: body colour, a pale label band, the lid lifted on some."""
+    x, y, z = at
+    h = rng.choice((0.06, 0.08))
+    _item(b, [((x, y + h / 2, z), (0.1, h, 0.14), 0, 0), ((x, y + h * 0.55, z), (0.102, h * 0.35, 0.142), 0, 0)],
+          lambda k, n: "bone" if k == 1 and abs(n[1]) < 0.7 else col)
+    return 0.1
+
+
+def stock_ammo_can(b, at, rng, col):
+    """A steel ammo can with its carry handle and latch."""
+    x, y, z = at
+    _item(b, [((x, y + 0.09, z), (0.27, 0.18, 0.12), 0, 0), ((x, y + 0.19, z), (0.12, 0.02, 0.03), 0, 0),
+              ((x + 0.13, y + 0.14, z), (0.02, 0.06, 0.05), 0, 0)],
+          lambda k, n: "black" if k else col)
+    return 0.28
+
+
+STOCK_W.update({"stock_ammo": 0.1, "stock_ammo_can": 0.28})
+STOCK["ammo"] = [(stock_ammo, ("red", "olive", "yellow", "blue", "green", "bone", "black")),
+                 (stock_ammo, ("red", "olive", "yellow", "green")), (stock_ammo_can, ("olive", "olive_dark"))]
+
+
+def gun_store_decals(rng):
+    a = Atlas(512)
+
+    def sign(c):          # 5.4 x 0.7 m: BORDER ARMS on army olive, stencil-ish, crosshair either side
+        c.rect(0, 0, c.w, c.h, "olive_dark")
+        c.frame(0, 0, c.w, c.h, "hazard_yellow")
+        c.ctext(0, c.w, 9, "BORDER ARMS", "bone", 2)
+        c.ctext(0, c.w, 3, "GUNS - AMMO - PARTS", "hazard_yellow")
+        for cx in (12, c.w - 13):
+            cy = c.h // 2
+            c.frame(cx - 6, cy - 6, cx + 7, cy + 7, "bone")
+            c.rect(cx, cy - 9, cx + 1, cy + 10, "bone")
+            c.rect(cx - 9, cy, cx + 10, cy + 1, "bone")
+        c.blotch(["olive"], 6, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
+
+    def target(c):        # 0.6 x 0.8 m paper bullseye, shot through
+        c.rect(0, 0, c.w, c.h, "bone")
+        cx, cy = c.w // 2, c.h // 2 + 1
+        for r, col in ((8, "black"), (6, "bone"), (4, "black"), (2, "red")):
+            for y in range(c.h):
+                for x in range(c.w):
+                    if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                        c.put(x, y, col)
+        for _ in range(7):
+            c.put(cx + rng.randint(-6, 6), cy + rng.randint(-6, 6), "iron")
+
+    def poster_lancer(c):  # 1.4 x 0.6 m: NEW LANCER, the rifle drawn across it
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        c.frame(0, 0, c.w, c.h, "hazard_yellow")
+        c.ctext(0, c.w, c.h - 7, "NEW LANCER", "hazard_yellow")
+        c.rect(4, 4, 14, 8, "wood")                # stock
+        c.rect(14, 5, 24, 8, "wood")
+        c.rect(15, 9, 25, 11, "black")             # scope
+        c.rect(18, 8, 19, 9, "black")
+        c.rect(22, 8, 23, 9, "black")
+        c.rect(24, 6, 41, 7, "black")              # barrel
+
+    def rules(c):         # 0.8 x 0.6 m shop notice
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "red")
+        for k, t in enumerate(("NO", "LOADED", "GUNS")):
+            c.ctext(0, c.w, c.h - 7 - k * 6, t, "red" if k != 1 else "black")
+
+    def rifles(c):        # 1.4 x 0.3 m label over the rack
+        c.rect(0, 0, c.w, c.h, "olive_dark")
+        c.ctext(0, c.w, 2, "RIFLES", "bone")
+
+    def ammo(c):          # 1.4 x 0.3 m label over the ammo shelves
+        c.rect(0, 0, c.w, c.h, "red")
+        c.ctext(0, c.w, 2, "AMMO", "bone")
+
+    def pegboard(c):      # 2.6 x 1.4 m of brown pegboard
+        c.rect(0, 0, c.w, c.h, "wood_light")
+        for y in range(2, c.h, 4):
+            for x in range(2, c.w, 4):
+                c.put(x, y, "wood_dark")
+        c.frame(0, 0, c.w, c.h, "wood_mid")
+
+    def tools(c):         # 1.6 x 0.8 m: the gunsmith's tool board, outlines drawn round each tool
+        c.rect(0, 0, c.w, c.h, "iron")
+        for x, h in ((4, 14), (10, 18), (16, 12), (22, 16), (30, 10), (36, 18), (44, 14)):
+            if x + 2 >= c.w:
+                continue
+            c.frame(x - 1, 4, x + 3, 4 + h, "bone")
+            if rng.random() < 0.7:
+                c.rect(x, 5, x + 2, 3 + h, rng.choice(("red", "steel_light", "hazard_yellow", "black")))
+
+    def looted(c):        # graffiti
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.ctext(0, c.w, 3, "CLEANED OUT", "red", 2)
+        for _ in range(5):
+            x = rng.randrange(3, c.w - 3)
+            c.rect(x, 0, x + 1, rng.randrange(2, 4), "red")
+
+    a.add("sign", 172, 22, sign)
+    a.add("target", 19, 26, target)
+    a.add("poster_lancer", 45, 19, poster_lancer)
+    a.add("rules", 26, 19, rules)
+    a.add("rifles", 45, 10, rifles)
+    a.add("ammo", 45, 10, ammo)
+    a.add("pegboard", 83, 45, pegboard)
+    a.add("tools", 51, 26, tools)
+    a.add("looted", 96, 16, looted)
+    return a
+
+
+def glass_quad(b, pts, normal):
+    b.poly(pts, normal, "glass", uv_world(1.0))
+
+
+def prop_gun_counter(ctx, c, s):
+    """A glass display counter along x (Tavish's gun room): a dark wood base, a glass case on top with pistols on
+    green felt; the front faces the aisle. Some panes smashed and those slots emptied, shards on the floor."""
+    b, rng = ctx.b, random.Random(f"gun_counter{c}")
+    f = 1 if _front_into(c, 2) == "+z" else -1
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    zf = c[2] + f * s[2] / 2
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    yb = top - 0.3                                                       # top of the wood base
+    b.box((c[0], y0 + 0.05, c[2] - f * 0.03), (s[0] - 0.04, 0.1, s[2] - 0.06), style=no_bottom("black", 1.0))  # kick
+    b.box((c[0], (y0 + 0.1 + yb) / 2, c[2]), (s[0], yb - y0 - 0.1, s[2]), style=lambda n, m, q: None if n[1] < -0.7 else
+          (("wood", uv_world(2.0)) if side_of(n) in ("+x", "-x") else ("wood_dark", uv_world(1.0))))
+    for k in range(int(s[0] / 1.0)):                                     # raised panels on the customer's side
+        px = x0 + (k + 0.5) * s[0] / int(s[0] / 1.0)
+        b.box((px, (y0 + 0.1 + yb) / 2, zf + f * 0.01), (s[0] / int(s[0] / 1.0) - 0.16, yb - y0 - 0.3, 0.02),
+              style=no_bottom("wood", 1.0))
+    b.box((c[0], yb + 0.01, c[2]), (s[0] - 0.06, 0.02, s[2] - 0.06), style=no_bottom("green", 1.0))   # felt
+    for x in (x0 + 0.02, x1 - 0.02):                                     # case corner posts and top rails
+        for z in (z0 + 0.02, z1 - 0.02):
+            b.box((x, (yb + top) / 2, z), (0.04, top - yb, 0.04), style=no_bottom("trim", 1.0))
+    for z in (z0 + 0.02, z1 - 0.02):
+        b.box((c[0], top - 0.02, z), (s[0], 0.04, 0.04), style=no_bottom("trim", 1.0))
+    n = int(s[0] / 1.0)
+    for k in range(n):                                                   # 1 m sections of glass
+        a0, a1 = x0 + k * s[0] / n + 0.02, x0 + (k + 1) * s[0] / n - 0.02
+        smashed = rng.random() < 0.35
+        if not smashed:
+            glass_quad(b, [(a0, top, z0), (a1, top, z0), (a1, top, z1), (a0, top, z1)], (0, 1, 0))
+            glass_quad(b, [(a0, yb, zf), (a1, yb, zf), (a1, top, zf), (a0, top, zf)], (0, 0, f))
+        else:
+            for _ in range(rng.randint(4, 7)):                           # shards on the floor in front
+                b.box((rng.uniform(a0, a1), 0.006, zf + f * rng.uniform(0.1, 0.6)), (rng.uniform(0.04, 0.12), 0.008,
+                      rng.uniform(0.03, 0.08)), yaw=rng.uniform(0, 90), style=no_bottom("steel_light", 1.0))
+        glass_quad(b, [(a0, yb, zf - f * s[2]), (a1, yb, zf - f * s[2]), (a1, top, zf - f * s[2]), (a0, top, zf - f * s[2])],
+                   (0, 0, -f))
+        x = a0 + 0.12
+        while x < a1 - 0.2:                                              # pistols laid out, muzzles to the left
+            if rng.random() < (0.25 if smashed else 0.75):
+                gun_shape(b, "stinger", (x, yb + 0.035, c[2] + f * 0.12), (1, 0, 0), (0, 0, -f), t=0.03)
+            b.box((x + 0.1, yb + 0.022, c[2] - f * 0.12), (0.05, 0.004, 0.03), style=no_bottom("bone", 1.0))  # tag
+            x += 0.3
+    for x in (x0 + 0.3, x1 - 0.3):                                       # the staff side's lock tabs
+        b.box((x, yb + 0.15, zf - f * (s[2] + 0.01)), (0.04, 0.04, 0.02), style=no_bottom("yellow", 1.0))
+
+
+def prop_rifle_rack(ctx, c, s):
+    """Long guns standing on the wall behind the counter: a slat back board, a padded butt rest along the floor,
+    a top rail with a chain run through the trigger guards. About a third are gone."""
+    b, rng = ctx.b, random.Random(f"rifle_rack{c}")
+    f = 1 if _front_into(c, 2) == "+z" else -1
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    zb = c[2] - f * s[2] / 2                                             # against the wall
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 1.0, zb + f * 0.015), (s[0], 1.8, 0.03), style=no_bottom("bone", 1.0))           # back board
+    for k in range(6):                                                   # slats
+        b.box((c[0], y0 + 0.3 + k * 0.28, zb + f * 0.04), (s[0], 0.05, 0.02), style=no_bottom("trim", 1.0))
+    b.box((c[0], y0 + 0.08, zb + f * 0.2), (s[0], 0.16, 0.3), style=no_bottom("wood", 1.0))               # butt rest
+    b.box((c[0], y0 + 0.165, zb + f * 0.2), (s[0] - 0.02, 0.01, 0.28), style=no_bottom("green", 1.0))   # its pad
+    b.box((c[0], y0 + 1.0, zb + f * 0.2), (s[0], 0.04, 0.04), style=no_bottom("trim", 1.0))              # rail
+    for x in (x0 + 0.05, x1 - 0.05):
+        b.box((x, y0 + 1.0, zb + f * 0.11), (0.03, 0.04, 0.18), style=no_bottom("trim", 1.0))
+    wall_quad(b, (0, 0, f), zb + f * 0.06, c[0] - 0.7, c[0] + 0.7, y0 + 1.95, y0 + 2.25, "decals", ctx.d("rifles"))
+    x = x0 + 0.2
+    while x < x1 - 0.15:
+        if rng.random() < 0.65:
+            kind = rng.choice(("hound", "hound", "mauler", "lancer", "wasp"))
+            gun_shape(b, kind, (x, y0 + 0.17, zb + f * 0.2), (0, 1, 0), (1, 0, 0))
+        x += 0.24
+    b.box((c[0], y0 + 1.0, zb + f * 0.24), (s[0] - 0.1, 0.015, 0.015), style=no_bottom("steel_light", 1.0))  # chain
+
+
+def prop_gun_till(ctx, c, s):
+    """The shop's till counter along x: the clerk's side towards the wall. Steel top, a register (drawer out), a
+    Stinger left on the mat, boxes of rounds, a glass case of red dots and scopes set in the front."""
+    b, rng = ctx.b, random.Random(f"gun_till{c}")
+    f = 1 if _front_into(c, 2) == "+z" else -1                          # customer side
+    top = c[1] + s[1] / 2
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.05, c[2] - f * 0.03), (s[0] - 0.04, 0.1, s[2] - 0.06), style=no_bottom("black", 1.0))
+    b.box((c[0], (y0 + 0.1 + top - 0.04) / 2, c[2]), (s[0], top - y0 - 0.14, s[2]), style=lambda n, m, q:
+          None if n[1] < -0.7 else (("olive", uv_world(1.0)) if side_of(n) == ("+z" if f > 0 else "-z")
+                                    else ("wood_dark", uv_world(1.0))))
+    b.box((c[0], top - 0.02, c[2] + f * 0.03), (s[0] + 0.08, 0.04, s[2] + 0.06), style=no_bottom("trim", 1.0))
+    zf = c[2] + f * (s[2] / 2 + 0.006)
+    for k in range(2):                                                   # window boxes in the front: scopes inside
+        px = c[0] - s[0] / 4 + k * s[0] / 2
+        b.box((px, top - 0.35, zf), (s[0] / 2 - 0.2, 0.36, 0.01), style=no_bottom("trim_dark", 1.0))
+        glass_quad(b, _quad_z(px, s[0] / 4 - 0.14, top - 0.35, 0.15, zf + f * 0.006), (0, 0, f))
+        for j in range(3):
+            sx = px - 0.3 + j * 0.3
+            b.box((sx, top - 0.38, zf - f * 0.06), (0.22, 0.05, 0.05), style=no_bottom("black", 1.0))   # a scope
+            b.box((sx + 0.09, top - 0.38, zf - f * 0.06), (0.05, 0.07, 0.07), style=no_bottom("black", 1.0))
+    register(b, c[0] + s[0] / 2 - 0.45, top, c[2], -f)
+    b.box((c[0] - 0.2, top + 0.003, c[2]), (0.5, 0.006, 0.4), style=no_bottom("green", 1.0))          # counter mat
+    gun_shape(b, "stinger", (c[0] - 0.3, top + 0.02, c[2] + 0.05), (1, 0, 0), (0, 0, -1), t=0.03)
+    for k in range(rng.randint(2, 4)):
+        stock_ammo(b, (c[0] - s[0] / 2 + 0.2 + k * 0.12, top, c[2] - f * 0.1), rng, rng.choice(("red", "olive", "yellow")))
+
+
+def prop_parts_wall(ctx, c, s):
+    """Pegboard of gun parts on the wall: magazines, grips, scopes and red dots in blister packs, half of it gone."""
+    b, rng = ctx.b, random.Random(f"parts{c}")
+    f = 1 if _front_into(c, 2) == "+z" else -1
+    zb = c[2] - f * s[2] / 2
+    y0 = c[1] - s[1] / 2
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    b.box((c[0], y0 + 0.45, zb + f * (s[2] / 2)), (s[0], 0.9, s[2]), style=no_bottom("wood_dark", 1.0))   # cupboard
+    b.box((c[0], y0 + 0.92, zb + f * (s[2] / 2 + 0.02)), (s[0] + 0.04, 0.04, s[2] + 0.04), style=no_bottom("trim", 1.0))
+    for k in range(3):                                                   # cupboard doors
+        b.box((x0 + (k + 0.5) * s[0] / 3, y0 + 0.45, zb + f * (s[2] + 0.005)), (s[0] / 3 - 0.05, 0.8, 0.01),
+              style=no_bottom("wood", 1.0))
+    wall_quad(b, (0, 0, f), zb + f * 0.02, x0 + 0.05, x1 - 0.05, y0 + 1.0, y0 + 2.4, "decals", ctx.d("pegboard"))
+    for row in range(4):
+        y = y0 + 1.2 + row * 0.3
+        x = x0 + 0.2
+        while x < x1 - 0.15:
+            if rng.random() < 0.55:
+                b.box((x, y + 0.08, zb + f * 0.05), (0.01, 0.01, 0.06), style=no_bottom("trim", 1.0))      # peg
+                kind = rng.choice(("mag", "scope", "grip", "dot"))
+                b.group = ("item", len(b.faces))
+                b.box((x, y - 0.03, zb + f * 0.035), (0.14, 0.2, 0.01), style=no_bottom("bone", 1.0))     # card
+                if kind == "mag":
+                    b.box((x, y - 0.05, zb + f * 0.06), (0.05, 0.16, 0.03), style=no_bottom("black", 1.0))
+                elif kind == "scope":
+                    b.box((x, y - 0.03, zb + f * 0.065), (0.04, 0.17, 0.045), style=no_bottom("black", 1.0))
+                elif kind == "grip":
+                    b.box((x, y - 0.05, zb + f * 0.06), (0.05, 0.1, 0.035), pitch=0, style=no_bottom("olive_dark", 1.0))
+                else:
+                    b.box((x, y - 0.03, zb + f * 0.06), (0.06, 0.05, 0.04), style=no_bottom("black", 1.0))
+                    b.box((x, y - 0.03, zb + f * 0.081), (0.03, 0.03, 0.002), style=no_bottom("red", 1.0))
+                b.group = None
+            x += 0.24
+    for k in range(rng.randint(2, 3)):                                  # a few boxes of stock on the cupboard
+        stock_box(b, (x0 + 0.3 + k * 0.4, y0 + 0.94, zb + f * 0.2), rng, rng.choice(("olive", "cardboard", "red")))
+
+
+def prop_ammo_wall(ctx, c, s):
+    axis = "x" if s[0] >= s[2] else "z"
+    side = 1 if _front_into(c, 2 if axis == "x" else 0)[0] == "+" else -1
+    shelving(ctx, c, s, axis, (side,), "ammo", levels=5, frame="trim", lip="red", fill=0.6)
+    b = ctx.b
+    y1 = c[1] + s[1] / 2
+    if axis == "x":
+        at = c[2] - side * (s[2] / 2 - 0.01)
+        wall_quad(b, (0, 0, side), at, c[0] - 0.7, c[0] + 0.7, y1 + 0.15, y1 + 0.45, "decals", ctx.d("ammo"))
+    else:
+        at = c[0] - side * (s[0] / 2 - 0.01)
+        wall_quad(b, (side, 0, 0), at, c[2] - 0.7, c[2] + 0.7, y1 + 0.15, y1 + 0.45, "decals", ctx.d("ammo"))
+
+
+def prop_gunsmith_bench(ctx, c, s):
+    """The gunsmith's bench along x on a wall: a thick wood top on steel legs, a vise, a Hound stripped down, a
+    cleaning rod, an oil can, a lamp, and the tool board on the wall above."""
+    b, rng = ctx.b, random.Random(f"bench{c}")
+    f = 1 if _front_into(c, 2) == "+z" else -1
+    zb = c[2] - f * s[2] / 2
+    top = c[1] + s[1] / 2
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=no_bottom("wood", 1.0))
+    for x in (c[0] - s[0] / 2 + 0.06, c[0] + s[0] / 2 - 0.06):
+        for z in (c[2] - s[2] / 2 + 0.06, c[2] + s[2] / 2 - 0.06):
+            b.box((x, (y0 + top - 0.06) / 2, z), (0.05, top - 0.06 - y0, 0.05), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 0.2, c[2]), (s[0] - 0.1, 0.03, s[2] - 0.1), style=no_bottom("trim_dark", 1.0))    # low shelf
+    for k in range(3):
+        stock_ammo_can(b, (c[0] - 0.6 + k * 0.4, y0 + 0.215, c[2]), rng, "olive")
+    vx = c[0] + s[0] / 2 - 0.25                                          # the vise at the end
+    b.group = ("item", len(b.faces))
+    b.box((vx, top + 0.05, c[2] + f * 0.1), (0.16, 0.1, 0.2), style=no_bottom("blue", 1.0))
+    b.box((vx, top + 0.13, c[2] + f * 0.1), (0.2, 0.06, 0.04), style=no_bottom("blue", 1.0))
+    b.box((vx, top + 0.05, c[2] + f * 0.25), (0.02, 0.02, 0.18), style=no_bottom("trim", 1.0))         # handle
+    b.group = None
+    gun_shape(b, "hound", (c[0] - 0.3, top + 0.03, c[2] + f * 0.05), (1, 0, 0), (0, 0, -f))         # laid on the bench
+    b.box((c[0] + 0.55, top + 0.01, c[2] - f * 0.1), (0.6, 0.012, 0.012), style=no_bottom("brass", 1.0))   # rod
+    b.group = ("item", len(b.faces))
+    b.box((c[0] - 0.75, top + 0.07, c[2] - f * 0.12), (0.08, 0.14, 0.08), style=no_bottom("red", 1.0))   # oil can
+    b.box((c[0] - 0.75, top + 0.16, c[2] - f * 0.12), (0.015, 0.06, 0.015), style=no_bottom("trim", 1.0))
+    b.group = None
+    lx = c[0] - s[0] / 2 + 0.2                                           # desk lamp, bent over the work
+    b.group = ("item", len(b.faces))
+    b.box((lx, top + 0.015, c[2] - f * 0.1), (0.14, 0.03, 0.14), style=no_bottom("trim_dark", 1.0))
+    b.box((lx, top + 0.22, c[2] - f * 0.1), (0.02, 0.4, 0.02), style=no_bottom("trim_dark", 1.0))
+    b.box((lx + 0.12, top + 0.42, c[2] - f * 0.03), (0.22, 0.02, 0.02), style=no_bottom("trim_dark", 1.0))
+    b.box((lx + 0.24, top + 0.37, c[2] - f * 0.03), (0.12, 0.1, 0.12), style=no_bottom("yellow", 1.0))
+    b.group = None
+    wall_quad(b, (0, 0, f), zb + f * 0.01, c[0] - 0.8, c[0] + 0.8, top + 0.3, top + 1.1, "decals", ctx.d("tools"))
+
+
+def prop_ammo_cans(ctx, c, s):
+    """Military ammo cans stacked on a pallet, the top ones knocked askew, one open and empty."""
+    b, rng = ctx.b, random.Random(f"cans{c}")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.06, c[2]), (s[0], 0.12, s[2]), style=no_bottom("wood", 1.0))                 # pallet
+    along = "x" if s[0] >= s[2] else "z"
+    L = s[0] if along == "x" else s[2]
+    n = max(1, int(L / 0.3))
+    for layer in range(3):
+        for k in range(n - layer % 2):
+            if layer == 2 and rng.random() < 0.5:
+                continue
+            a = -L / 2 + (k + 0.5 + 0.5 * (layer % 2)) * L / n
+            for d in (-0.15, 0.15):
+                at = (c[0] + a, y0 + 0.12 + layer * 0.19, c[2] + d) if along == "x" else (c[0] + d, y0 + 0.12 + layer * 0.19, c[2] + a)
+                first = len(b.faces)
+                stock_ammo_can(b, at, rng, rng.choice(("olive", "olive_dark")))
+                if along == "z" or (layer == 2):
+                    _turn_faces(b, first, at, (90.0 if along == "z" else 0.0) + (rng.uniform(-15, 15) if layer == 2 else 0), False)
+
+
+GUN_PROPS = {
+    "gun_counter": prop_gun_counter, "rifle_rack": prop_rifle_rack, "gun_till": prop_gun_till,
+    "parts_wall": prop_parts_wall, "ammo_wall": prop_ammo_wall, "gunsmith_bench": prop_gunsmith_bench,
+    "ammo_cans": prop_ammo_cans,
+}
+for _kind, _fn in GUN_PROPS.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+
+
+def window_bars(b, o, fp):
+    """Steel security bars over an outside window: a frame bolted to the wall, upright bars, two cross bars."""
+    side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+    ns = side in "NS"
+    out = 1 if side in "SE" else -1
+    at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + out * 0.22
+
+    def bx(a, y, la, h, d=0.03):
+        b.box((a, y, at) if ns else (at, y, a), (la, h, d) if ns else (d, h, la), style=no_bottom("trim_dark", 1.0))
+    a0, a1 = mid - w / 2 - 0.08, mid + w / 2 + 0.08
+    for a in (a0, a1):
+        bx(a, (lo + hi) / 2, 0.05, hi - lo + 0.16, 0.05)
+    for y in (lo - 0.06, hi + 0.06, lo + (hi - lo) * 0.33, lo + (hi - lo) * 0.66):
+        bx(mid, y, a1 - a0, 0.04)
+    a = a0 + 0.12
+    while a < a1 - 0.08:
+        bx(a, (lo + hi) / 2, 0.025, hi - lo + 0.12, 0.025)
+        a += 0.13
+
+
+def dress_gun_store(ctx):
+    b, rng = ctx.b, ctx.rng
+    fp = FOOTPRINTS["gun_store"]
+    zs = fp[3] + 0.15                                                    # south wall's outside face
+    for o in ctx.data.get("openings", []):
+        if o["kind"] == "window":
+            window_bars(b, o, fp)
+    # Front: an olive band with the BORDER ARMS sign (clear of the door), a big 3D pistol hung by the door.
+    b.box((0, 2.72, zs + 0.015), (16.3, 0.5, 0.03), style=no_bottom("olive_dark", 1.0))
+    b.box((-0.2, 2.72, zs + 0.06), (5.4, 0.7, 0.08), style=face_decal(ctx.d("sign"), "trim_dark", "+z"))
+    for y in (2.3, 2.8):
+        b.box((6.4, y, zs + 0.3), (0.05, 0.05, 0.6), style=no_bottom("trim_dark", 1.0))                 # bracket
+    b.box((6.4, 2.82, zs + 0.45), (0.04, 0.04, 0.5), style=no_bottom("trim_dark", 1.0))              # hanger
+    for z in (zs + 0.3, zs + 0.6):
+        b.box((6.4, 2.71, z), (0.01, 0.22, 0.01), style=no_bottom("black", 1.0))                      # chains
+    gun_shape(b, "stinger", (6.4, 2.45, zs + 0.2), (0, 0, 1), (0, 1, 0), t=0.12, scale=4.0)        # a big 3D pistol
+    # The roll-down shutter over the door, jammed part way down (it's above head height: no collision).
+    dx0, dx1 = 2.9, 5.1
+    b.box((4.0, 2.58, zs + 0.18), (dx1 - dx0 + 0.3, 0.3, 0.3), style=no_bottom("trim", 1.0))           # roller box
+    for y in (2.15, 2.25, 2.35):
+        b.box((4.0, y + 0.04, zs + 0.06), (dx1 - dx0, 0.09, 0.03), yaw=0, pitch=0, style=no_bottom("steel_light", 1.0))
+    for x in (dx0 - 0.04, dx1 + 0.04):                                   # guide rails
+        b.box((x, 1.2, zs + 0.04), (0.06, 2.4, 0.06), style=no_bottom("trim", 1.0))
+    b.box((0, 0.225, zs + 0.03), (16.3, 0.45, 0.06), style=no_bottom("trim", 4.0))                   # plinth
+    wall_quad(b, (-1, 0, 0), fp[0] - 0.16, 1.4, 4.4, 1.2, 1.7, "graffiti", ctx.d("looted"))
+    # Inside: targets and posters on the walls, spent brass and empty boxes on the floor, a dropped Mauler.
+    wall_quad(b, (-1, 0, 0), fp[2] - 0.14, 4.3, 4.9, 1.3, 2.1, "decals", ctx.d("target"))
+    wall_quad(b, (-1, 0, 0), -0.11, 2.0, 2.6, 1.3, 2.1, "decals", ctx.d("target"))
+    wall_quad(b, (-1, 0, 0), -0.11, -4.6, -3.2, 1.4, 2.0, "decals", ctx.d("poster_lancer"))
+    wall_quad(b, (0, 0, 1), fp[1] + 0.16, 0.5, 1.3, 1.3, 1.9, "decals", ctx.d("rules"))
+    for _ in range(70):                                                  # spent casings
+        x, z = rng.uniform(-7.5, 7.5), rng.uniform(-5.5, 5.5)
+        b.box((x, 0.008, z), (0.03, 0.012, 0.012), yaw=rng.uniform(0, 180), style=no_bottom("brass", 1.0))
+    for _ in range(10):                                                  # empty ammo boxes, kicked about
+        x, z = rng.uniform(-7.0, 7.0), rng.uniform(-5.0, 5.0)
+        b.box((x, 0.03, z), (0.1, 0.06, 0.14), yaw=rng.uniform(0, 90), style=no_bottom(rng.choice(("red", "olive", "yellow")), 1.0))
+    gun_shape(b, "mauler", (-6.6, 0.025, 4.2), (1, 0, 0), (0, 0, -1))   # dropped by the bench
+    # The Brotherhood was here: a small X1 scratched into the gun room's door frame.
+    b.box((-0.11, 1.55, 1.25), (0.004, 0.12, 0.02), pitch=40, style=no_bottom("bone", 1.0))
+    b.box((-0.11, 1.55, 1.25), (0.004, 0.12, 0.02), pitch=-40, style=no_bottom("bone", 1.0))
+
+
+DECALS["gun_store"] = gun_store_decals
+DRESSING["gun_store"] = dress_gun_store
+FOOTPRINTS["gun_store"] = (-8.0, -6.0, 8.0, 6.0)
+SHELLS["gun_store"] = {
+    "ext": "block_olive", "roof_side": "block_olive", "x_lines": (-8.0, 0.0, 8.0), "z_lines": (-6.0, 6.0),
+    "inner": lambda m: "int_guns", "floor": lambda m: "floor_shop",
+}
+
+
 # ------------------------------------------------------------------------------------------------ main
 def clear_collection(name):
     coll = bpy.data.collections.get(name)
@@ -4264,6 +4757,7 @@ FACTION_MARKS = {
     "shops": [("x1_circle", "N", -5.0, 1.0), ("x1_crossed", "E", -3.8, 0.8)],
     "gas_station_town": [("x1_wings", "N", 0.0, 1.0), ("x1_tag", "E", 3.0, 0.7)],
     "pharmacy": [("x1_circle", "E", 3.6, 0.9), ("nova_tag", "W", -3.8, 1.0)],
+    "gun_store": [("x1_stencil", "N", 0.0, 1.0), ("nova_tag", "E", 3.6, 1.1)],
 }
 
 

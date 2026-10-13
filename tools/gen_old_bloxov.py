@@ -287,6 +287,17 @@ DOOR_LOOKS = {"GasStationTown": "metal", "GasStation": "metal", "Shops": "metal"
               "Police": "office", "Bank": "office", "TownHall": "office", "Offices": "office", "Pharmacy": "office",
               "School": "school", "Cabin": "plank", "Barn": "plank", "Shed": "plank"}
 DOOR_DEFAULT = "wood"
+# School doors (owner, 2026-10-13: the navy-and-oak door and a plain oak one, each where it makes sense): navy on the
+# pupils' rooms, plain oak on the staff and quiet rooms. Rooms (floor, i, j) are 10 x 8 m from map (8, 50).
+SCHOOL_OAK_ROOMS = {(0, 0, 0), (0, 0, 2), (0, 2, 2), (1, 1, 2), (1, 2, 2)}  # library, nurse, staff lounge, principal, store
+
+
+def school_door_look(x, y, z, yaw):
+    """Plain oak when either side of the doorway is a staff/quiet room, else the navy classroom door."""
+    f = int(y >= FLOOR_H - 0.5)
+    sides = ((x - 1, z), (x + 1, z)) if yaw == 90.0 else ((x, z - 1), (x, z + 1))
+    rooms = {(f, max(0, min(2, int((sx - 8) // 10))), max(0, min(2, int((sz - 50) // 8)))) for sx, sz in sides}
+    return "school_oak" if rooms & SCHOOL_OAK_ROOMS else "school"
 # How inner doorways turn out (cumulative): ~20% no door, ~15% a leaf on the floor, ~12% hanging off, the rest work.
 DOOR_FATES = {"gone": 0.20, "fallen": 0.35, "hanging": 0.47}
 
@@ -302,6 +313,8 @@ def inner_door(x, y, z, yaw, place):
     broken = "fallen" if fate < DOOR_FATES["fallen"] else "hanging" if fate < DOOR_FATES["hanging"] else ""
     n = sum(1 for m in markers if m[0] == "Doors") + 1
     look = DOOR_LOOKS.get(re.sub(r"\d+$", "", place), DOOR_DEFAULT)
+    if place == "School":
+        look = school_door_look(x, y, z, yaw)
     markers.append(("Doors", f"Door{n}", x, y, z, {"yaw": yaw, "width": INNER_DOOR_W, "place": place, "look": look,
                                                    "broken": broken}))
 
@@ -1886,10 +1899,20 @@ def main():
                    blasts=[(0, "W", 0)], caved=[(1, 1)]), [
         ("crate", 0, 1, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 0, 1, "N", 0),
         ("locker", 2, 1, 1, "E", 0), ("crate", 0, 0, 1, "W", 0)])
-    gun = build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [
-        ("locker", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0), ("crate", 1, 0, 0, "N", 0)])
-    for z in (73.0, 77.0):   # display counters
-        box(72.0, 0, z, 77.0, 1.0, z + 0.8, "wood")
+    with modeled("gun_store", 78.0, 76.0):   # World art 0.17
+        # Border Arms: the shop east (door south), the gun room west. Loot spots slid off the windows.
+        build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [
+            ("locker", 0, 0, 0, "W", -1.55), ("locker", 1, 0, 0, "E", 3.0), ("crate", 1, 0, 0, "N", -2.4)])
+        for z in (73.0, 77.0):   # glass display counters (same spots as the gray box's counters)
+            box(72.0, 0, z, 77.0, 1.0, z + 0.8, "wood", kind="gun_counter")
+        box(71.0, 0, 70.15, 72.9, 2.4, 70.55, "wood", kind="rifle_rack")        # behind the north counter
+        box(75.0, 0, 70.15, 77.6, 2.4, 70.55, "wood", kind="rifle_rack")
+        box(70.3, 0, 81.2, 72.8, 0.9, 81.85, "wood", kind="gunsmith_bench")    # gun room, south wall
+        box(75.3, 0, 81.0, 77.1, 0.7, 81.8, "metal", kind="ammo_cans")
+        box(82.9, 0, 72.4, 85.6, 1.0, 73.0, "wood", kind="gun_till")           # shop: the till, a parts wall behind
+        box(83.2, 0, 70.15, 85.8, 0.9, 70.6, "wood", kind="parts_wall")
+        box(78.3, 0, 81.35, 80.6, 1.8, 81.85, "metal", kind="ammo_wall")        # ammo shelves
+        box(78.1, 0, 77.6, 78.6, 1.8, 80.9, "metal", kind="ammo_wall")
     with modeled("pharmacy", 97.5, 78.0):   # World art 0.17: shop floor (east), dispensary (west)
         build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
             ("crate", 0, 0, 0, "W", -3.0), ("crate", 1, 0, 0, "E", -2.6, "stock_meds")])   # (off the windows)
