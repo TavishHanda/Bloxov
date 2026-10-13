@@ -311,6 +311,8 @@ def inner_door(x, y, z, yaw, place):
     if fate < DOOR_FATES["gone"]:
         return
     broken = "fallen" if fate < DOOR_FATES["fallen"] else "hanging" if fate < DOOR_FATES["hanging"] else ""
+    if broken == "hanging" and place.startswith("BigHouse"):
+        return   # (round 11, owner: a door hanging off its hinge across the hall read as a rail blocking the way in)
     n = sum(1 for m in markers if m[0] == "Doors") + 1
     look = DOOR_LOOKS.get(re.sub(r"\d+$", "", place), DOOR_DEFAULT)
     if place == "School":
@@ -703,23 +705,44 @@ def rich_house(n, x, y, w, d, who):
     with modeled(f"big_house_{n}", ox, oz):
         build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2), doors="S"), [
             ("locker", 1, 1, 0, "E", 1.9), ("crate", 0, 1, 1, "W", -1.9), ("locker", 1, 0, 1, "E", 1.9)])   # (off the windows)
-        # Ground floor. Living room (SW): sofa under the south wall, coffee table, fireplace on the west wall, TV.
-        put("house_sofa", -wx + 0.25, dz - 0.9, -q - 0.85, dz - 0.05, 0.9)
-        put("coffee_table", -wx + 0.75, dz - 2.0, -q - 1.35, dz - 1.4, 0.45)
-        put("house_rug", -wx + 0.4, dz - 2.7, -q - 0.4, dz - 0.95, 0.02, solid=False)
+        # The stairs are walled off from the den (round 11, owner: the open side "looks super off").
+        box(ox - wx, 0.0, oz + sz, ox - 0.1, F - SLAB_T, oz + sz + 0.15, "wall_rich")
         put("fireplace", -wx, 0.35, -wx + 0.55, 1.95, 1.25, colour="concrete")
         put("chimney", -hw - 0.85, 0.45, -hw - WALL_T / 2, 1.85, 2 * F + 2.4, colour="concrete")
-        put("armchair", -1.05, dz - 1.05, -0.25, dz - 0.25, 0.95)
-        put("tv_stand", -0.6, 0.4, -0.15, 1.6, 0.55)
-        # Entrance hall and dining room (SE): the table and chairs, a bench by the door; the coat wardrobe is loot.
-        put("dining_table", wx - 2.6, 0.45, wx - 0.2, 2.35, 0.9)
         put("shoe_bench", 0.35, dz - 0.45, 1.9, dz - 0.05, 0.5)
-        # Kitchen (NE): cupboards, the stove and sink along the north wall, the fridge, a table by the east window.
-        put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)   # (clear of the stairs' foot: AI paths)
         put("home_fridge", wx - 0.8, -dz, wx - 0.05, -dz + 0.7, 1.8, colour="metal")
-        put("kitchen_table", wx - 2.55, -2.15, wx - 0.45, -0.45, 0.85)
-        # Den (NW): boxes and junk under the stairs.
-        put("under_stairs", -hw + 2.9, -dz, -hw + 4.5, -dz + 0.8, 1.0)
+        # Each house its own ground floor (round 11, owner: "they all got the exact same setup, mix them up").
+        if who == "doctor":
+            # Living room (SW): sofa under the south wall, coffee table, TV; dining table by the east wall; kitchen
+            # table by the window.
+            put("house_sofa", -wx + 0.25, dz - 0.9, -q - 0.85, dz - 0.05, 0.9)
+            put("coffee_table", -wx + 0.75, dz - 2.0, -q - 1.35, dz - 1.4, 0.45)
+            put("house_rug", -wx + 0.4, dz - 2.7, -q - 0.4, dz - 0.95, 0.02, solid=False)
+            put("armchair", -1.05, dz - 1.05, -0.25, dz - 0.25, 0.95)
+            put("tv_stand", -0.6, 0.4, -0.15, 1.6, 0.55)
+            put("dining_table", wx - 2.6, 0.45, wx - 0.2, 2.35, 0.9)
+            put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)   # (clear of the stairs' foot: AI paths)
+            put("kitchen_table", wx - 2.55, -2.15, wx - 0.45, -0.45, 0.85)
+        elif who == "family":
+            # The sofa faces the fire, its back to the room; a big kitchen table in the middle of the kitchen; the
+            # dining table turned long-ways under the south window.
+            put("house_sofa", -2.9, 0.7, -2.05, 3.3, 0.9)
+            put("coffee_table", -5.2, 1.3, -4.4, 2.7, 0.45)
+            put("house_rug", -6.3, 0.6, -3.3, 3.4, 0.02, solid=False)
+            put("armchair", -wx + 0.3, dz - 1.1, -wx + 1.1, dz - 0.3, 0.95)
+            put("dining_table", q + 0.9, 1.6, wx - 0.3, 3.4, 0.9)
+            put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)
+            put("kitchen_table", q - 1.1, -3.5, q + 1.1, -2.1, 0.85)
+        else:
+            # A formal room: the sofa and two armchairs round the fire, no TV; a long dining table by the east wall; the kitchen's cupboards round the corner and its table by the hall door.
+            put("house_sofa", -wx + 1.5, dz - 0.9, -1.4, dz - 0.05, 0.9)
+            put("house_rug", -wx + 0.9, 0.5, -2.6, dz - 1.1, 0.02, solid=False)
+            put("armchair", -wx + 0.9, 2.3, -wx + 1.7, 3.1, 0.95)
+            put("armchair", -2.6, 1.2, -1.8, 2.0, 0.95)
+            put("coffee_table", -5.3, 2.0, -4.5, 3.0, 0.45)
+            put("dining_table", wx - 2.6, 0.6, wx - 0.2, 2.6, 0.9)
+            put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)
+            put("kitchen_table", wx - 1.6, -3.4, wx - 0.3, -1.0, 0.85)
         # Upstairs. Landing hall (NW): a bookcase. Bedroom (SW): the bed against the south wall. Main bedroom (NE):
         # the bed against the north wall with its night stands.
         put("wall_books", -wx + 0.2, -0.55, -q - 1.2, -0.1, 1.9, floor=1)

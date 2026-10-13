@@ -1671,6 +1671,8 @@ def dress_openings(ctx, openings):
                     _door_leaf(b, c, lw - 0.12, hh, yaw, 90, mat, rng)
                 else:                                                              # hanging open, off a hinge
                     th = math.radians(rng.uniform(70, 110))
+                    if BUILDING_NAME[0] in HOUSES:         # (round 11, owner: a leaf across the hall read as a rail
+                        th = math.radians(rng.uniform(165, 172))   # blocking the way in) folded back to the wall
                     u = (1.0, 0.0) if ns else (0.0, 1.0)                           # along the wall (x, z)
                     v = (0.0, float(out)) if ns else (float(out), 0.0)             # outwards
                     dx = sgn * math.cos(th) * u[0] - math.sin(th) * v[0]
@@ -3358,7 +3360,7 @@ def prop_sofa(ctx, c, s):
         b.box(_pos(c, k, sx * (L / 2 - 0.08), 0, -s[1] / 2 + 0.3), _sz(k, 0.16, 0.6, D), style=no_bottom(dark, 1.0))
 
 
-def kitchenette(ctx, c, s, microwave=True):
+def kitchenette(ctx, c, s, microwave=True, body="bone"):
     """Kitchen run against a wall (refine pass, was a painted box): cupboards with doors, a worktop with a sink and
     tap, a microwave and kettle, wall cupboards above."""
     b = ctx.b
@@ -3366,7 +3368,7 @@ def kitchenette(ctx, c, s, microwave=True):
     L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
     h = s[1]
     lo = -s[1] / 2
-    b.box(_pos(c, k, 0, -0.02 * f, lo + (h - 0.04) / 2), _sz(k, L, h - 0.04, D - 0.04), style=no_bottom("bone", 1.0))
+    b.box(_pos(c, k, 0, -0.02 * f, lo + (h - 0.04) / 2), _sz(k, L, h - 0.04, D - 0.04), style=no_bottom(body, 1.0))
     b.box(_pos(c, k, 0, 0, lo + h - 0.02), _sz(k, L + 0.02, 0.04, D + 0.02), style=no_bottom("black", 1.0))   # worktop
     n = max(1, round(L / 0.6))
     for i in range(n):                                                                    # door gaps and handles
@@ -3388,7 +3390,7 @@ def kitchenette(ctx, c, s, microwave=True):
         b.box(_pos(c, k, ma - 0.55, 0, lo + h + 0.1), _sz(k, 0.14, 0.2, 0.14), style=no_bottom("red", 1.0))      # kettle
     for i in range(n):                                                                    # wall cupboards
         a = -L / 2 + L * (i + 0.5) / n
-        b.box(_pos(c, k, a, -f * (D / 2 - 0.18), lo + 1.85), _sz(k, L / n - 0.02, 0.6, 0.34), style=lambda n_, m, q: ("bone", uv_world(1.0)))
+        b.box(_pos(c, k, a, -f * (D / 2 - 0.18), lo + 1.85), _sz(k, L / n - 0.02, 0.6, 0.34), style=lambda n_, m, q: (body, uv_world(1.0)))
         b.box(_pos(c, k, a + L / n * 0.3, -f * (D / 2 - 0.36), lo + 1.62), _sz(k, 0.1, 0.02, 0.02), style=no_bottom("trim", 1.0))
 
 
@@ -4916,11 +4918,18 @@ FACTION_MARKS = {
 # Local x > 0 is east, z > 0 south (the front, door in the SE room); floors 3 m.
 HOUSES = {
     "big_house_1": {"who": "doctor", "roof": "roof_slate", "shutter": "green", "paper": "paper_green",
-                    "fabric": "wine", "rug": ("wine", "bone"), "bed": "wine", "num": "3"},
+                    "fabric": "wine", "rug": ("wine", "bone"), "bed": "wine", "num": "3",
+                    # (round 11, owner: "each house needs more personality", outside and in)
+                    "ext": "house_stone", "roof_shape": "hip", "porch": "columns", "band": "bone",
+                    "floors": ("parquet", "floor_wood", "floor_kitchen"), "kitchen": "wood_dark", "lights": "chandelier"},
     "big_house_2": {"who": "family", "roof": "roof_clay", "shutter": "blue", "paper": "paper_cream",
-                    "fabric": "teal", "rug": ("teal", "yellow"), "bed": "blue", "num": "5"},
+                    "fabric": "teal", "rug": ("teal", "yellow"), "bed": "blue", "num": "5",
+                    "ext": "house_brick", "roof_shape": "gable", "porch": "wood", "band": "wood",
+                    "floors": ("floor_wood", "floor_wood", "floor_tile"), "kitchen": "blue", "lights": "lantern"},
     "big_house_3": {"who": "officer", "roof": "roof_charcoal", "shutter": "wine", "paper": "paper_blue",
-                    "fabric": "black", "rug": ("wine", "black"), "bed": "trim_dark", "num": "7"},
+                    "fabric": "black", "rug": ("wine", "black"), "bed": "trim_dark", "num": "7",
+                    "ext": "house_granite", "roof_shape": "flat", "porch": "canopy", "band": "trim_dark",
+                    "floors": ("terrazzo", "parquet", "terrazzo"), "kitchen": "trim", "lights": "bare"},
 }
 PALETTE.update({
     "hstone": "958e7f", "hstone_light": "9f9887", "hstone_dark": "877f71", "hstone_joint": "6f695c",
@@ -4928,6 +4937,8 @@ PALETTE.update({
     "charcoal_dark": "2b2c2f", "paper_green": "62785f", "paper_green_dk": "536850", "paper_cream": "c4b48c",
     "paper_cream_dk": "ad9e78", "paper_blue": "77879a", "paper_blue_dk": "66758a", "wine": "6b2a2f",
     "wine_dark": "521f24", "teal": "2f6a69", "teal_dark": "235251",
+    "hbrick": "86584a", "hbrick_dark": "754c40", "hbrick_light": "906454", "hbrick_mortar": "9a9080",
+    "granite": "7b7a75", "granite_dark": "6c6b67", "granite_light": "85847e", "granite_joint": "56554f",
 })
 
 
@@ -5010,6 +5021,40 @@ def paint_house_ceiling(rng):
     return c
 
 
+def paint_house_brick(rng):
+    """The family's house: soft red-brown brick (0.25 x 0.08 m... drawn 0.5 x 0.25), pale mortar, a few burnt
+    headers, muted for the sun (owner: masonry, not flat render)."""
+    c = Canvas(64, 64, "hbrick_mortar")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("hbrick", "hbrick", "hbrick_dark", "hbrick_light"))
+            x0 = k * 8 + off + 1
+            for xx in range(x0, x0 + 7):
+                for yy in range(row * 4 + 1, row * 4 + 4):
+                    c.put(xx % 64, yy, col)
+    c.blotch(["hbrick_dark"], 8, rng, size=(2, 5))
+    return c
+
+
+def paint_house_granite(rng):
+    """The officer's house: big rough-cut grey granite blocks (0.4 m courses), deep joints. Severe."""
+    c = Canvas(64, 64, "granite_joint")
+    for row in range(10):
+        y0 = row * 7 - 6
+        x = rng.randrange(0, 10)
+        start = x
+        while x < start + 64:
+            w = rng.randrange(10, 18)
+            col = rng.choice(("granite", "granite", "granite_dark", "granite_light"))
+            for yy in range(max(0, y0 + 1), min(64, y0 + 7)):
+                for xx in range(x + 1, x + w):
+                    c.put(xx % 64, yy, col)
+            x += w
+    c.noise(0, 0, 64, 64, ["granite_dark", "granite_light"], 0.12, rng)
+    return c
+
+
 def paint_floor_kitchen(rng):
     """Black and cream kitchen tiles (0.25 m), chipped and grubby."""
     c = Canvas(64, 64, "bone")
@@ -5027,7 +5072,8 @@ KIT.update({"house_stone": paint_house_stone, "roof_slate": _roof_tiles("slate",
             "paper_cream": _wallpaper("paper_cream", "paper_cream_dk", "sprig"),
             "paper_blue": _wallpaper("paper_blue", "paper_blue_dk", "pin"),
             "floor_kitchen": paint_floor_kitchen, "wine": paint_flat("wine"), "teal": paint_flat("teal"),
-            "wood_light": paint_flat("wood_light"), "house_ceiling": paint_house_ceiling})
+            "wood_light": paint_flat("wood_light"), "house_ceiling": paint_house_ceiling,
+            "house_brick": paint_house_brick, "house_granite": paint_house_granite})
 
 
 def house_room(m):
@@ -5047,9 +5093,10 @@ def house_inner(m):
 
 def house_floor(m):
     f, room = house_room(m)
+    ground, up, kitchen = house()["floors"]
     if (f, room) == (0, "NE"):
-        return "floor_kitchen"
-    return "parquet" if f == 0 else "floor_wood"
+        return kitchen
+    return ground if f == 0 else up
 
 
 def uv_slope(tile=2.0):
@@ -5100,6 +5147,76 @@ def hip_roof(b, fp, base, rise, over, mat):
             yaw = math.degrees(math.atan2(p[0] - a[0], p[2] - a[2]))
             pitch = math.degrees(math.atan2(a[1] - p[1], math.hypot(p[0] - a[0], p[2] - a[2])))
             b.box(mid, (0.16, 0.08, L), yaw=yaw, pitch=pitch, style=no_bottom(mat, 1.0))
+
+
+def gable_roof(b, fp, base, rise, over, mat, wall):
+    """The family's roof: a steep gable, ridge along x, the end triangles in the wall's brick with a round attic
+    vent, white barge boards along the slopes (picture only, like the hip roof)."""
+    x0, x1 = fp[0] - 0.15 - over, fp[2] + 0.15 + over
+    z0, z1 = fp[1] - 0.15 - over, fp[3] + 0.15 + over
+    cz, top, e = (z0 + z1) / 2, base + rise, 0.12
+    S = [(x0, base + e, z1), (x1, base + e, z1), (x1, top + e, cz), (x0, top + e, cz)]
+    N = [(x1, base + e, z0), (x0, base + e, z0), (x0, top + e, cz), (x1, top + e, cz)]
+    for pts in (S, N):
+        n = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[-1], pts[0])))
+        if n[1] < 0:
+            n = v_scale(n, -1)
+        b.poly(pts, n, mat, uv_slope(4.0))
+        b.poly(pts[::-1], v_scale(n, -1), "bone", uv_world(1.0))                               # underside
+    wz0, wz1 = fp[1] - 0.15, fp[3] + 0.15
+    for x, nx in ((fp[0] - 0.15, -1), (fp[2] + 0.15, 1)):                                       # gable ends
+        tri = [(x, base, wz0), (x, base, wz1), (x, top, cz)]
+        b.poly(tri if nx > 0 else tri[::-1], (nx, 0, 0), wall, uv_world(2.0))
+        b.poly(tri[::-1] if nx > 0 else tri, (-nx, 0, 0), "house_ceiling", uv_world(2.0))
+        vx = x + nx * 0.03                                                                     # round attic vent
+        for k in range(8):
+            a = k * math.pi / 4
+            _box(b, vx, base + 1.15 + 0.35 * math.sin(a), cz + 0.35 * math.cos(a), 0.06, 0.12, 0.2, "bone")
+        _box(b, vx - nx * 0.01, base + 1.15, cz, 0.04, 0.55, 0.55, "black")
+        for zz in (z0, z1):                                                                    # barge boards
+            a, p2 = (x + nx * over, top + e + 0.02, cz), (x + nx * over, base + e + 0.02, zz)
+            mid = v_scale(v_add(a, p2), 0.5)
+            L = math.dist(a, p2)
+            pitch = math.degrees(math.atan2(a[1] - p2[1], abs(p2[2] - a[2])))
+            b.box(mid, (0.06, 0.22, L), yaw=0, pitch=pitch if zz > cz else -pitch, style=_nb("bone"))
+    b.box(((x0 + x1) / 2, top + e + 0.05, cz), (x1 - x0 + 0.1, 0.12, 0.22), style=_nb(mat))     # ridge
+    for z in (z0 - 0.06, z1 + 0.06):                                                            # gutters
+        b.box(((x0 + x1) / 2, base + 0.02, z), (x1 - x0, 0.08, 0.1), style=lambda n, m, q: ("trim", uv_world(1.0)))
+    for x in (fp[0] - 0.22, fp[2] + 0.22):
+        b.box((x, base / 2, fp[3] + 0.22), (0.07, base, 0.07), style=_nb("trim"))
+
+
+def flat_roof(b, fp, base, wall, rng):
+    """The officer's roof: flat, behind a granite parapet with a dark coping, and the things a man like him keeps up
+    there: a water tank, a radio mast, a satellite dish, an air-con unit (picture only)."""
+    x0, z0, x1, z1 = fp[0] - 0.15, fp[1] - 0.15, fp[2] + 0.15, fp[3] + 0.15
+    h = 0.9
+    for (cx, cz, sx, sz) in (((x0 + x1) / 2, z0 + 0.1, x1 - x0, 0.2), ((x0 + x1) / 2, z1 - 0.1, x1 - x0, 0.2),
+                             (x0 + 0.1, (z0 + z1) / 2, 0.2, z1 - z0), (x1 - 0.1, (z0 + z1) / 2, 0.2, z1 - z0)):
+        b.box((cx, base + h / 2, cz), (sx, h, sz), style=lambda n, m, q: (wall, uv_world(2.0)))
+        b.box((cx, base + h + 0.05, cz), (sx + 0.12, 0.1, sz + 0.12), style=_nb("trim_dark"))
+    for (cx, cz, sx, sz) in (((x0 + x1) / 2, z0 - 0.04, x1 - x0 + 0.1, 0.1), ((x0 + x1) / 2, z1 + 0.04, x1 - x0 + 0.1, 0.1),
+                             (x0 - 0.04, (z0 + z1) / 2, 0.1, z1 - z0 + 0.1), (x1 + 0.04, (z0 + z1) / 2, 0.1, z1 - z0 + 0.1)):
+        b.box((cx, base - 0.12, cz), (sx, 0.24, sz), style=_nb("trim_dark"))                     # cornice
+    b.box(((x0 + x1) / 2, base + 0.005, (z0 + z1) / 2), (x1 - x0 - 0.4, 0.02, z1 - z0 - 0.4), style=_nb("rubber"))
+    tx, tz = x1 - 2.2, z0 + 2.0                                                                 # water tank on legs
+    for sx in (-0.5, 0.5):
+        for sz in (-0.5, 0.5):
+            _box(b, tx + sx, base + 0.4, tz + sz, 0.08, 0.8, 0.08, "trim_dark")
+    for k in range(3):
+        _box(b, tx, base + 1.35, tz, 1.3, 1.1, 1.3, "steel_light", yaw=k * 30)
+    _box(b, tx, base + 1.95, tz, 0.9, 0.12, 0.9, "trim", yaw=15)
+    mx, mz = x0 + 1.2, z0 + 1.2                                                                 # radio mast
+    _box(b, mx, base + 2.2, mz, 0.06, 4.4, 0.06, "trim_dark")
+    for k in range(4):
+        _box(b, mx, base + 2.2 + k * 0.6, mz, 0.9 - k * 0.15, 0.03, 0.03, "trim_dark")
+    _box(b, mx, base + 4.45, mz, 0.08, 0.1, 0.08, "red")
+    dx, dz = x1 - 1.4, z1 - 1.3                                                                 # satellite dish
+    _box(b, dx, base + 0.5, dz, 0.08, 1.0, 0.08, "trim")
+    b.box((dx, base + 1.15, dz - 0.05), (0.9, 0.9, 0.08), yaw=200, pitch=-30, style=_nb("bone"))
+    _box(b, dx + 0.1, base + 1.3, dz + 0.25, 0.04, 0.04, 0.5, "trim", pitch=-20)
+    _box(b, x0 + 3.0, base + 0.4, z1 - 1.2, 1.0, 0.8, 0.6, "steel_light")                      # air-con unit
+    _box(b, x0 + 3.0, base + 0.4, z1 - 0.89, 0.6, 0.6, 0.02, "black")
 
 
 def house_decals(rng):
@@ -5163,6 +5280,13 @@ def house_decals(rng):
         c.rect(0, 0, c.w, c.h, "iron_dark")
         c.ctext(0, c.w, 2, "NO" + hv["num"], "hazard_yellow")
     a.add("num", 15, 9, num)
+
+    def plaque(c):          # the officer's brass name plate by the door
+        c.rect(0, 0, c.w, c.h, "yellow_dark")
+        c.frame(0, 0, c.w, c.h, "iron_dark")
+        c.rect(2, 3, c.w - 2, 4, "iron_dark")
+        c.rect(3, 5, c.w - 3, 6, "iron_dark")
+    a.add("plaque", 13, 8, plaque)
 
     def certificate(c):     # framed diplomas (no words: a seal and lines)
         c.rect(0, 0, c.w, c.h, "bone")
@@ -5303,7 +5427,7 @@ def prop_house_sofa(ctx, c, s):
     hv = house()
     col = hv["fabric"]
     dark = {"wine": "wine", "teal": "teal", "black": "trim_dark"}[col]
-    _sofa(ctx, c, s, col, dark)
+    _sofa(ctx, c, s, col, dark, style=hv["who"])
     k, f = _front(c, s)
     b = ctx.b
     L = s[0] if k == 2 else s[2]
@@ -5319,10 +5443,39 @@ def prop_house_sofa(ctx, c, s):
     floor_lamp(b, p[0], y0, p[2], rng)
 
 
-def _sofa(ctx, c, s, col, dark):
+def _sofa(ctx, c, s, col, dark, style=None):
+    """A sofa: the doctor's buttoned leather chesterfield (arms as high as the back), the family's soft one with a
+    knitted throw over its back, the officer's low black one on steel legs."""
     b = ctx.b
     k, f = _front(c, s)
     L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    if style == "doctor":
+        b.box(_pos(c, k, 0, 0, -s[1] / 2 + 0.2), _sz(k, L, 0.36, D), style=_nb(dark))
+        b.box(_pos(c, k, 0, f * 0.1, -s[1] / 2 + 0.42), _sz(k, L - 0.5, 0.12, D - 0.36), style=_nb(col))
+        b.box(_pos(c, k, 0, -f * (D / 2 - 0.13), -s[1] / 2 + 0.58), _sz(k, L, 0.6, 0.26), style=_nb(col))
+        for sx in (-1, 1):
+            b.box(_pos(c, k, sx * (L / 2 - 0.13), 0, -s[1] / 2 + 0.55), _sz(k, 0.26, 0.6, D), style=_nb(col))
+            b.box(_pos(c, k, sx * (L / 2 - 0.13), 0, -s[1] / 2 + 0.88), _sz(k, 0.32, 0.12, D + 0.04), style=_nb(col))
+        for i in range(int(L / 0.25)):                                              # the buttons
+            for j in range(2):
+                p = _pos(c, k, -L / 2 + 0.25 + i * 0.25 + j * 0.12, -f * (D / 2 - 0.255), -s[1] / 2 + 0.62 + j * 0.16)
+                _box(b, p[0], p[1], p[2], 0.03, 0.03, 0.03, "black")
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                p = _pos(c, k, sx * (L / 2 - 0.08), sz * (D / 2 - 0.08), -s[1] / 2 + 0.01)
+                _box(b, p[0], p[1], p[2], 0.07, 0.04, 0.07, "brass")
+        return
+    if style == "officer":
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                p = _pos(c, k, sx * (L / 2 - 0.12), sz * (D / 2 - 0.12), -s[1] / 2 + 0.09)
+                _box(b, p[0], p[1], p[2], 0.04, 0.18, 0.04, "trim")
+        b.box(_pos(c, k, 0, 0, -s[1] / 2 + 0.27), _sz(k, L, 0.18, D), style=_nb(dark))
+        b.box(_pos(c, k, 0, f * 0.06, -s[1] / 2 + 0.4), _sz(k, L - 0.2, 0.1, D - 0.3), style=_nb(col))
+        b.box(_pos(c, k, 0, -f * (D / 2 - 0.1), -s[1] / 2 + 0.58), _sz(k, L, 0.46, 0.2), style=_nb(col))
+        for sx in (-1, 1):
+            b.box(_pos(c, k, sx * (L / 2 - 0.05), 0, -s[1] / 2 + 0.47), _sz(k, 0.1, 0.24, D), style=_nb("trim"))
+        return
     b.box(_pos(c, k, 0, 0, -s[1] / 2 + 0.12), _sz(k, L, 0.24, D), style=_nb("wood_dark"))
     n = max(2, round((L - 0.3) / 0.7))
     w = (L - 0.3) / n
@@ -5334,6 +5487,12 @@ def _sofa(ctx, c, s, col, dark):
     for sx in (-1, 1):
         b.box(_pos(c, k, sx * (L / 2 - 0.08), 0, -s[1] / 2 + 0.33), _sz(k, 0.16, 0.66, D), style=_nb(dark))
         b.box(_pos(c, k, sx * (L / 2 - 0.08), f * (D / 2 - 0.05), -s[1] / 2 + 0.05), _sz(k, 0.06, 0.1, 0.06), style=_nb("wood_dark"))
+    if style == "family":                                                           # the knitted throw
+        b.box(_pos(c, k, -L * 0.18, -f * (D / 2 - 0.1), -s[1] / 2 + 0.85), _sz(k, 0.9, 0.06, 0.4), style=_nb("yellow"))
+        b.box(_pos(c, k, -L * 0.18, -f * (D / 2 - 0.3), -s[1] / 2 + 0.66), _sz(k, 0.9, 0.36, 0.04), style=_nb("yellow"))
+        for i in range(4):
+            p = _pos(c, k, -L * 0.18 - 0.36 + i * 0.24, -f * (D / 2 - 0.32), -s[1] / 2 + 0.72)
+            _box(b, p[0], p[1], p[2], 0.1, 0.04, 0.02 if k == 2 else 0.1, "red")
 
 
 def teddy(b, x, y, z, yaw=20.0):
@@ -5462,7 +5621,7 @@ def prop_dining_table(ctx, c, s):
     tw, td = s[0] - 0.9, s[2] - 0.9
     y0 = c[1] - s[1] / 2
     top = prop_table(ctx, (c[0], y0 + 0.38, c[2]), (tw, 0.76, td), "wood_dark", "wood_dark")
-    b.box((c[0], top + 0.004, c[2]), (tw - 0.5, 0.008, 0.3), style=_nb(hv["rug"][0]))
+    b.box((c[0], top + 0.004, c[2]), (tw - 0.5, 0.008, 0.3) if tw >= td else (0.3, 0.008, td - 0.5), style=_nb(hv["rug"][0]))
     rng = random.Random(BUILDING_NAME[0] + "dine")
     seats = [(-tw / 4, -1), (tw / 4, -1), (-tw / 4, 1), (tw / 4, 1)]
     for dx, side in seats:
@@ -5501,8 +5660,9 @@ def prop_shoe_bench(ctx, c, s):
 
 
 def prop_kitchen_run(ctx, c, s):
-    """Kitchen along the wall: cupboards, the sink, a stove with its oven and hob, a kettle; dishes in the sink."""
-    kitchenette(ctx, c, s)
+    """Kitchen along the wall: cupboards, the sink, a stove with its oven and hob, a kettle; dishes in the sink.
+    Each house its own cupboards: the doctor's dark wood, the family's blue, the officer's grey steel."""
+    kitchenette(ctx, c, s, body=house()["kitchen"])
     b = ctx.b
     k, f = _front(c, s)
     L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
@@ -5671,11 +5831,26 @@ def prop_vanity(ctx, c, s):
 
 
 def prop_porch_post(ctx, c, s):
+    """Each house its own porch posts: the doctor's round white columns, the family's wooden posts with brackets,
+    the officer's thin steel ones (same size box to bump into in all three)."""
     b = ctx.b
     y0 = c[1] - s[1] / 2
-    b.box(c, s, style=_nb("bone"))
-    _box(b, c[0], y0 + 0.1, c[2], s[0] + 0.1, 0.2, s[2] + 0.1, "bone")
-    _box(b, c[0], y0 + s[1] - 0.06, c[2], s[0] + 0.1, 0.12, s[2] + 0.1, "bone")
+    style = house()["porch"]
+    if style == "columns":
+        for yaw in (0, 22.5, 45, 67.5):                                                  # round-ish shaft
+            _box(b, c[0], c[1], c[2], s[0] + 0.04, s[1], 0.12, "bone", yaw=yaw)
+        _box(b, c[0], y0 + 0.08, c[2], s[0] + 0.2, 0.16, s[2] + 0.2, "bone")              # base
+        _box(b, c[0], y0 + 0.2, c[2], s[0] + 0.12, 0.08, s[2] + 0.12, "bone", yaw=45)
+        _box(b, c[0], y0 + s[1] - 0.16, c[2], s[0] + 0.16, 0.08, s[2] + 0.16, "bone", yaw=45)   # capital
+        _box(b, c[0], y0 + s[1] - 0.06, c[2], s[0] + 0.24, 0.12, s[2] + 0.24, "bone")
+    elif style == "wood":
+        b.box(c, s, style=_nb("wood_light"))
+        _box(b, c[0], y0 + 0.1, c[2], s[0] + 0.08, 0.2, s[2] + 0.08, "wood")
+        _box(b, c[0], y0 + s[1] - 0.12, c[2], s[0] + 0.1, 0.1, s[2] + 0.1, "wood")
+        _box(b, c[0], y0 + 0.9, c[2] - 0.1, 0.03, 0.03, 0.03, "black")                   # a nail for the swing
+    else:
+        _box(b, c[0], c[1], c[2], s[0] * 0.6, s[1], s[2] * 0.6, "trim_dark")
+        _box(b, c[0], y0 + 0.03, c[2], s[0] + 0.12, 0.06, s[2] + 0.12, "trim_dark")        # base plate
 
 
 def prop_porch(ctx, c, s):
@@ -5687,9 +5862,43 @@ def prop_porch(ctx, c, s):
     b.box((c[0], y0 + 0.03, c[2] + s[2] / 2 + 0.2), (s[0] - 0.6, 0.06, 0.4), style=_nb("concrete"))   # step
     z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
     roof_y = 2.85
-    b.box((c[0], roof_y, (z0 + z1) / 2 + 0.05), (s[0] + 0.3, 0.12, s[2] + 0.25), pitch=-8,
-          style=lambda n, m, q: (hv["roof"], uv_world()) if n[1] > 0.7 else ("bone", uv_world(1.0)))
-    b.box((c[0], roof_y - 0.12, z1 + 0.02), (s[0] + 0.3, 0.16, 0.06), style=_nb("bone"))          # beam
+    style = hv["porch"]
+    if style == "canopy":                                                                # flat steel canopy
+        b.box((c[0], roof_y + 0.02, (z0 + z1) / 2 + 0.1), (s[0] + 0.6, 0.1, s[2] + 0.35), style=_nb("trim_dark"))
+        b.box((c[0], roof_y - 0.06, z1 + 0.27), (s[0] + 0.6, 0.22, 0.04), style=_nb("trim_dark"))
+        wall_quad(b, (0, 0, 1), z0 + 0.008, c[0] + 1.29, c[0] + 1.69, 1.35, 1.6, "decals", ctx.d("plaque"))
+        _box(b, c[0] + s[0] / 2 + 0.05, 2.6, z0 + 0.12, 0.12, 0.12, 0.2, "trim_dark")    # the camera on the door
+        _box(b, c[0] + s[0] / 2 + 0.05, 2.56, z0 + 0.3, 0.16, 0.12, 0.3, "bone", pitch=-15)
+        _box(b, c[0] + s[0] / 2 + 0.05, 2.53, z0 + 0.46, 0.08, 0.06, 0.02, "black", pitch=-15)
+    else:
+        b.box((c[0], roof_y, (z0 + z1) / 2 + 0.05), (s[0] + 0.3, 0.12, s[2] + 0.25), pitch=-8,
+              style=lambda n, m, q: (hv["roof"], uv_world()) if n[1] > 0.7 else ("bone", uv_world(1.0)))
+        b.box((c[0], roof_y - 0.12, z1 + 0.02), (s[0] + 0.3, 0.16, 0.06), style=_nb("bone" if style == "columns" else "wood_light"))
+    if style == "columns":                                                               # the doctor's pediment
+        zf = z1 + 0.06
+        L = s[0] + 0.4
+        tri = [(c[0] - L / 2, roof_y + 0.0, zf), (c[0] + L / 2, roof_y + 0.0, zf), (c[0], roof_y + 0.85, zf)]
+        b.poly(tri, (0, 0, 1), "bone", uv_world(1.0))
+        b.poly(tri[::-1], (0, 0, -1), "bone", uv_world(1.0))
+        for d in (-1, 1):
+            a, p2 = (c[0], roof_y + 0.9, zf), (c[0] + d * (L / 2 + 0.1), roof_y - 0.02, zf)
+            ang = math.degrees(math.atan2(a[1] - p2[1], abs(a[0] - p2[0])))
+            _box(b, (a[0] + p2[0]) / 2, (a[1] + p2[1]) / 2, zf + 0.02, 0.16, 0.1, math.dist(a, p2), "bone",
+                 yaw=90, pitch=d * ang)
+    if style == "wood":                                                                  # the porch swing, pots
+        sx = c[0] - s[0] / 2 + 0.75
+        _box(b, sx, 0.55, z0 + 0.35, 1.1, 0.06, 0.4, "wood_light")
+        _box(b, sx, 0.8, z0 + 0.17, 1.1, 0.45, 0.05, "wood_light", pitch=-10)
+        for d in (-0.5, 0.5):
+            for dz in (0.17, 0.5):
+                _box(b, sx + d, 1.7, z0 + dz, 0.015, 2.3, 0.015, "black")
+        _box(b, sx, 0.62, z0 + 0.35, 0.5, 0.08, 0.3, "yellow")                             # a cushion
+        for k, (px, col) in enumerate(((c[0] + s[0] / 2 - 0.3, "red"), (c[0] + s[0] / 2 - 0.75, "yellow"))):
+            pz = z0 + 0.3                                                                # pots by the wall
+            _box(b, px, y0 + 0.3, pz, 0.32, 0.36, 0.32, "brick")
+            _box(b, px, y0 + 0.52, pz, 0.36, 0.16, 0.36, "olive")
+            for j in range(4):
+                _box(b, px + (j % 2 - 0.5) * 0.14, y0 + 0.62, pz + (j // 2 - 0.5) * 0.14, 0.07, 0.07, 0.07, col)
     lx = c[0] - 1.35
     _box(b, lx, 2.05, z0 + 0.06, 0.14, 0.22, 0.1, "trim_dark")                                       # lamp
     _box(b, lx, 2.0, z0 + 0.1, 0.1, 0.14, 0.04, "yellow")
@@ -6095,6 +6304,41 @@ def shutters(b, o, fp, col, rng):
             b.box(cc, (sw - 0.08, 0.02, 0.012) if ns else (0.012, 0.02, sw - 0.08), style=_nb("black"))
 
 
+def window_trim(b, o, fp, who):
+    """Round each window, each house its own: the doctor's stone surrounds with a keystone and sill, the family's
+    painted wooden frames, the officer's dark steel frames with roller-shutter boxes on the ground floor."""
+    side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+    ns = side in "NS"
+    out = 1 if side in "SE" else -1
+    at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + out * 0.18
+
+    def bx(a, y, sa, sy, d=0.06, mat="bone", push=0.0):
+        c = (mid + a, y, at + out * push) if ns else (at + out * push, y, mid + a)
+        b.box(c, (sa, sy, d) if ns else (d, sy, sa), style=_nb(mat))
+    if who == "doctor":
+        for sg in (-1, 1):
+            bx(sg * (w / 2 + 0.06), (lo + hi) / 2, 0.12, hi - lo + 0.1)
+        bx(0, hi + 0.1, w + 0.36, 0.18)
+        bx(0, hi + 0.12, 0.22, 0.3, d=0.1)                                   # keystone
+        bx(0, lo - 0.05, w + 0.3, 0.1, d=0.14, push=0.04)                    # sill
+    elif who == "family":
+        col = "bone"
+        for sg in (-1, 1):
+            bx(sg * (w / 2 + 0.05), (lo + hi) / 2, 0.1, hi - lo + 0.1, mat=col)
+        bx(0, hi + 0.05, w + 0.2, 0.1, mat=col)
+        bx(0, lo - 0.04, w + 0.24, 0.08, d=0.12, mat=col, push=0.03)
+        bx(0, hi + 0.2, w + 0.5, 0.06, d=0.1, mat="wood_light", push=0.02)    # a little drip cap
+    else:
+        for sg in (-1, 1):
+            bx(sg * (w / 2 + 0.04), (lo + hi) / 2, 0.08, hi - lo + 0.08, mat="trim_dark")
+        bx(0, hi + 0.04, w + 0.16, 0.08, mat="trim_dark")
+        bx(0, lo - 0.04, w + 0.16, 0.08, d=0.1, mat="trim_dark", push=0.02)
+        if lo < 2:
+            bx(0, hi + 0.25, w + 0.2, 0.3, d=0.24, mat="steel_light", push=0.09)   # roller-shutter box
+            for sg in (-1, 1):
+                bx(sg * (w / 2 + 0.06), (lo + hi) / 2, 0.05, hi - lo, d=0.06, mat="trim", push=0.05)  # its guides
+
+
 def dress_house(ctx):
     b, rng = ctx.b, ctx.rng
     hv = house()
@@ -6104,10 +6348,31 @@ def dress_house(ctx):
     wx, dz = hw - 0.15, hd - 0.15
     q, r = hw / 2, hd / 2
     F = 3.0
-    hip_roof(b, fp, 6.0, 2.6, 0.4, hv["roof"])
+    shape = hv["roof_shape"]
+    if shape == "hip":
+        hip_roof(b, fp, 6.0, 2.6, 0.4, hv["roof"])
+    elif shape == "gable":
+        gable_roof(b, fp, 6.0, 3.1, 0.45, hv["roof"], hv["ext"])
+    else:
+        flat_roof(b, fp, 6.0, hv["ext"], rng)
     for o in ctx.data.get("openings", []):
         if o["kind"] == "window":
-            shutters(b, o, fp, hv["shutter"], random.Random(f"sh{o['side']}{o['mid']}{o['lo']}"))
+            window_trim(b, o, fp, who)
+            if who != "officer" or o["lo"] > 2:
+                shutters(b, o, fp, hv["shutter"], random.Random(f"sh{o['side']}{o['mid']}{o['lo']}"))
+            if who == "family":                                            # flower boxes on every window
+                side = o["side"]
+                ns = side in "NS"
+                out = 1 if side in "SE" else -1
+                at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + out * 0.3
+                c = (o["mid"], o["lo"] - 0.12, at) if ns else (at, o["lo"] - 0.12, o["mid"])
+                b.box(c, (o["w"] - 0.1, 0.2, 0.2) if ns else (0.2, 0.2, o["w"] - 0.1), style=_nb("yellow"))
+                frng = random.Random(f"fl{side}{o['mid']}{o['lo']}")
+                for k in range(7):
+                    a = o["mid"] - o["w"] / 2 + 0.12 + k * (o["w"] - 0.24) / 6
+                    p = (a, o["lo"] + 0.02, at) if ns else (at, o["lo"] + 0.02, a)
+                    _box(b, p[0], p[1], p[2], 0.08, 0.1, 0.08, "olive")
+                    _box(b, p[0], p[1] + 0.08, p[2], 0.09, 0.07, 0.09, frng.choice(("red", "red", "yellow", "bone", "wine")))
             if who == "doctor" and o["lo"] < 2:                            # window boxes with dead flowers
                 side = o["side"]
                 ns = side in "NS"
@@ -6119,6 +6384,14 @@ def dress_house(ctx):
                     a = o["mid"] - o["w"] / 2 + 0.12 + k * (o["w"] - 0.24) / 5
                     p = (a, o["lo"] - 0.0, at) if ns else (at, o["lo"], a)
                     _box(b, p[0], p[1], p[2], 0.08, 0.14, 0.08, rng.choice(("olive", "olive_dark", "wood")))
+    if who == "doctor":                                                    # dressed-stone corner quoins
+        for cx, cz in ((fp[0], fp[1]), (fp[0], fp[3]), (fp[2], fp[1]), (fp[2], fp[3])):
+            sx_, sz_ = (1 if cx > 0 else -1), (1 if cz > 0 else -1)
+            for k in range(11):
+                y = 0.75 + k * 0.5
+                lng = 0.7 if k % 2 else 0.4
+                _box(b, cx + sx_ * 0.17 - sx_ * lng / 2 + sx_ * 0.02, y, cz + sz_ * 0.18, lng, 0.4, 0.04, "bone")
+                _box(b, cx + sx_ * 0.18, y, cz + sz_ * 0.17 - sz_ * (1.1 - lng) / 2 + sz_ * 0.02, 0.04, 0.4, 1.1 - lng, "bone")
     # Plinth: a darker stone course round the bottom.
     for (cx, cz, sx, sz) in ((0, fp[3] + 0.17, 2 * hw + 0.38, 0.04), (0, fp[1] - 0.17, 2 * hw + 0.38, 0.04),
                              (fp[0] - 0.17, 0, 0.04, 2 * hd + 0.38), (fp[2] + 0.17, 0, 0.04, 2 * hd + 0.38)):
@@ -6126,7 +6399,29 @@ def dress_house(ctx):
     # A band between the floors.
     for (cx, cz, sx, sz) in ((0, fp[3] + 0.19, 2 * hw + 0.42, 0.06), (0, fp[1] - 0.19, 2 * hw + 0.42, 0.06),
                              (fp[0] - 0.19, 0, 0.06, 2 * hd + 0.42), (fp[2] + 0.19, 0, 0.06, 2 * hd + 0.42)):
-        b.box((cx, 3.0, cz), (sx, 0.14, sz), style=_nb("bone"))
+        b.box((cx, 3.0, cz), (sx, 0.14, sz), style=_nb(hv["band"]))
+    # Ceiling lights, each house its own: the doctor's brass chandeliers, the family's paper shades, the officer's
+    # bare steel shop lamps (picture only, above head height).
+    for (lx, lz) in ((-q, r), (q, r), (q, -r), (-q, -r + 0.6)):
+        for f, top in ((0, 2.75), (1, 5.75)):
+            lamp = hv["lights"]
+            if lamp == "chandelier":
+                _box(b, lx, top - 0.2, lz, 0.02, 0.4, 0.02, "brass")
+                _box(b, lx, top - 0.42, lz, 0.12, 0.08, 0.12, "brass")
+                for k in range(6):
+                    a = k * math.pi / 3
+                    px, pz = lx + 0.32 * math.cos(a), lz + 0.32 * math.sin(a)
+                    _box(b, (lx + px) / 2, top - 0.44, (lz + pz) / 2, 0.3, 0.02, 0.02, "brass", yaw=-math.degrees(a))
+                    _box(b, px, top - 0.4, pz, 0.05, 0.08, 0.05, "brass")
+                    _box(b, px, top - 0.32, pz, 0.03, 0.08, 0.03, "bone")
+            elif lamp == "lantern":
+                _box(b, lx, top - 0.15, lz, 0.015, 0.3, 0.015, "black")
+                for yaw in (0, 45):
+                    _box(b, lx, top - 0.45, lz, 0.4, 0.34, 0.4, "bone" if f else "paper_cream", yaw=yaw)
+            else:
+                _box(b, lx, top - 0.25, lz, 0.015, 0.5, 0.015, "black")
+                _box(b, lx, top - 0.55, lz, 0.38, 0.12, 0.38, "trim_dark", yaw=45)
+                _box(b, lx, top - 0.63, lz, 0.12, 0.06, 0.12, "bone")
     # Mailbox by the path.
     mx, mz = q + 2.5, hd + 2.6
     _box(b, mx, 0.5, mz, 0.08, 1.0, 0.08, "wood_dark")
@@ -6203,7 +6498,7 @@ FOOTPRINTS.update({"big_house_1": (-8.0, -6.5, 8.0, 6.5), "big_house_2": (-7.5, 
                    "big_house_3": (-7.5, -6.0, 7.5, 6.0)})
 for _n, _fp in list(FOOTPRINTS.items()):
     if _n in HOUSES:
-        SHELLS[_n] = {"ext": "house_stone", "roof_side": "house_stone", "x_lines": (_fp[0], 0.0, _fp[2]),
+        SHELLS[_n] = {"ext": HOUSES[_n]["ext"], "roof_side": HOUSES[_n]["ext"], "x_lines": (_fp[0], 0.0, _fp[2]),
                       "z_lines": (_fp[1], 0.0, _fp[3]), "inner": house_inner, "floor": house_floor,
                       "ceiling": lambda m: "house_ceiling", "x_splits": (0.0,), "z_splits": (0.0,)}
 FACTION_MARKS.update({"big_house_1": [("x1_tag", "E", -5.0, 3.6)], "big_house_2": [("x1_chalk", "W", -5.0, 0.8)],
