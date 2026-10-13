@@ -2591,12 +2591,26 @@ func _section_online_ai() -> void:
 
 	# Players' shots hit server scavs (and make noise they hear).
 	var target: Node3D = scavs1[0]
+	# (Held still where it is, shot from whichever side has a clear line: a fighting scav can end up by a wall.)
+	target.process_mode = Node.PROCESS_MODE_DISABLED
+	w1.enemy_history.clear()   # (where it walked a moment ago doesn't count: it stands here now)
+	var side := Vector3(0, 0, 6)
+	for try_side: Vector3 in [Vector3(0, 0, 6), Vector3(0, 0, -6), Vector3(6, 0, 0), Vector3(-6, 0, 0)]:
+		var probe := PhysicsRayQueryParameters3D.create(target.global_position + try_side + Vector3(0, 1.5, 0), target.global_position + Vector3(0, 0.8, 0), 1)
+		if w1.find_world_3d().direct_space_state.intersect_ray(probe).is_empty():
+			side = try_side
+			break
 	for i in 3:
-		c1.send_state([target.global_position + Vector3(0, 0, 6), 0.0, 0.0, 0.0, 0])
+		c1.send_state([target.global_position + side, 0.0, 0.0, 0.0, 0])
 		await _frames(2)
+	# (States go unreliably: wait until the server has us standing there, or it rejects the shot's origin.)
+	var stand_at: Vector3 = target.global_position + side
+	await _until(func() -> bool:
+		c1.send_state([stand_at, 0.0, 0.0, 0.0, 0])
+		return server._player_states.has(c1_id) and (server._player_states[c1_id][0] as Vector3).distance_to(stand_at) < 0.1)
 	var before: int = target.health.current
 	OS.delay_msec(60)
-	var eye := target.global_position + Vector3(0, 1.5, 6)
+	var eye := target.global_position + side + Vector3(0, 1.5, 0)
 	c1.send_shot(eye, PackedVector3Array([(target.global_position + Vector3(0, 0.8, 0) - eye).normalized()]), "ak")
 	await _until(func() -> bool: return got["confirmed"] >= 1)
 	_check(got["confirmed"] == 1 and target.health.current < before, "a player's shot hits a server scav (%d -> %d)" % [before, target.health.current])
@@ -2607,13 +2621,14 @@ func _section_online_ai() -> void:
 	w1.record_enemies(t_now - 0.3)
 	target.global_position = start + Vector3(3, 0, 0)
 	w1.record_enemies(t_now)
-	var eye2 := start + Vector3(0, 1.5, 6)
+	var eye2 := start + side + Vector3(0, 1.5, 0)
 	var aim := (start + Vector3(0, 0.8, 0) - eye2).normalized()
 	var seen_then := w1.trace_shot(c1_id, eye2, aim, 50.0, t_now - 0.3, t_now)
 	var seen_now := w1.trace_shot(c1_id, eye2, aim, 50.0, t_now, t_now)
 	_check(seen_then.get("enemy") == target and not seen_now.has("enemy") and target.global_position.is_equal_approx(start + Vector3(3, 0, 0)),
 		"a shot at a moving AI counts where the shooter saw it (then %s, now %s)" % [str(seen_then.keys()), str(seen_now.keys())])
 	target.global_position = start
+	target.process_mode = Node.PROCESS_MODE_INHERIT
 	w1.enemy_history.clear()
 	var allowed := 0
 	for i in 4:
