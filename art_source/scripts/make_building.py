@@ -72,6 +72,8 @@ PALETTE = {
     "grass": "556b2f", "green_dark": "2e7d32", "extract_green": "4fd44a", "sky_blue": "3e6d8c",
     # Painted render (round 8, owner: the sunny walls glared): mid-tone stucco with a fine grain, so sunlit walls stay
     # bright but show their texture instead of going flat white.
+    # Pharmacy cladding (round 8, owner: "make it look like a pharmacy", mind the sun): cool pale grey-green panels.
+    "clinic": "97a19c", "clinic_light": "a1aaa5", "clinic_seam": "68716d",
     "stucco": "9e9886", "stucco_light": "a7a18e", "stucco_dark": "938d7b", "stucco_grime": "77725f",
 }
 
@@ -3742,7 +3744,34 @@ def paint_floor_pharm(rng):
     return c
 
 
-KIT.update({"int_clinic": paint_int_clinic, "floor_pharm": paint_floor_pharm, "mint": paint_flat("extract_green")})
+def paint_clinic_panel(rng):
+    """Outside of the pharmacy (round 8, owner: "make it look like a pharmacy"): big smooth cladding panels, 1 x 2 m,
+    cool pale grey-green with dark seams and rivets, the odd panel a shade off (replaced), grime run down from the
+    joints, one panel cracked. Mid-light so the sunny side is bright, not blinding."""
+    c = Canvas(64, 64, "clinic")
+    for py in range(2):
+        for px in range(4):
+            x0, y0 = px * 16, py * 32
+            if rng.random() < 0.3:
+                c.rect(x0 + 1, y0 + 1, x0 + 16, y0 + 32, "clinic_light")
+            c.rect(x0, y0, x0 + 1, y0 + 32, "clinic_seam")                 # seams
+            c.rect(x0, y0, x0 + 16, y0 + 1, "clinic_seam")
+            for rx, ry in ((2, 3), (14, 3), (2, 29), (14, 29)):              # rivets
+                c.put(x0 + rx, y0 + ry, "steel")
+            for _ in range(2):                                              # grime from the joint above
+                gx = x0 + rng.randrange(2, 15)
+                for gy in range(y0 + rng.randrange(16, 26), y0 + 31):
+                    if rng.random() < 0.6:
+                        c.put(gx, gy, "steel_light" if rng.random() < 0.5 else "clinic_seam")
+    x, y = rng.randrange(20, 44), rng.randrange(36, 56)                      # a crack across one panel
+    for _ in range(12):
+        c.put(x % 64, y % 64, "clinic_seam")
+        x += 1
+        y += rng.choice((-1, 0, 1))
+    return c
+
+
+KIT.update({"clinic_panel": paint_clinic_panel, "int_clinic": paint_int_clinic, "floor_pharm": paint_floor_pharm, "mint": paint_flat("extract_green")})
 
 
 def pharmacy_decals(rng):
@@ -4034,7 +4063,7 @@ def dress_pharmacy(ctx):
         b.box((6.4, y, zs + 0.35), (0.05, 0.05, 0.7), style=no_bottom("trim_dark", 1.0))                 # brackets
     b.box((6.4, 2.55, zs + 0.75), (0.12, 0.9, 0.9), style=lambda n, m, q: ("decals", ctx.d("cross")) if abs(n[0]) > 0.7
           else ("trim_dark", uv_world()))
-    b.box((0, 0.225, zs + 0.03), (15.3, 0.45, 0.06), style=no_bottom("trim", 4.0))
+    b.box((0, 0.225, zs + 0.03), (15.3, 0.45, 0.06), style=no_bottom("green", 4.0))                  # green kick tiles
     wall_quad(b, (-1, 0, 0), -7.66, -1.5, 1.5, 0.9, 1.6, "graffiti", ctx.d("looted"))
     # Inside: posters, pills and boxes all over the floor (it's been looted), a dropped basket.
     wall_quad(b, (0, 0, -1), 5.89, 1.0, 1.6, 1.2, 2.0, "decals", ctx.d("poster_flu"))
@@ -4053,7 +4082,7 @@ DECALS["pharmacy"] = pharmacy_decals
 DRESSING["pharmacy"] = dress_pharmacy
 FOOTPRINTS["pharmacy"] = (-7.5, -6.0, 7.5, 6.0)
 SHELLS["pharmacy"] = {
-    "ext": "render", "roof_side": "render", "x_lines": (-7.5, 0.0, 7.5), "z_lines": (-6.0, 6.0),
+    "ext": "clinic_panel", "roof_side": "clinic_panel", "x_lines": (-7.5, 0.0, 7.5), "z_lines": (-6.0, 6.0),
     "inner": lambda m: "int_clinic", "floor": lambda m: "floor_pharm",
 }
 
