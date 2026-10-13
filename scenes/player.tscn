@@ -126,11 +126,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 cast_shadow = 0
 mesh = SubResource("FlashMesh")
 
-[node name="FlashLight" type="OmniLight3D" parent="Head/Recoil/Camera3D/Gun/Model/Muzzle/Flash"]
-light_color = Color(1, 0.8, 0.4, 1)
-light_energy = 2.0
-omni_range = 5.0
-
 [node name="PistolModel" type="Node3D" parent="Head/Recoil/Camera3D/Gun"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.17, -0.16, -0.36)
 visible = false
@@ -152,8 +147,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.12)
 [node name="FlashMesh" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/PistolModel/Muzzle/Flash"]
 cast_shadow = 0
 mesh = SubResource("FlashMesh")
-
-[node name="FlashLight" type="OmniLight3D" parent="Head/Recoil/Camera3D/Gun/PistolModel/Muzzle/Flash"]
-light_color = Color(1, 0.8, 0.4, 1)
-light_energy = 1.5
-omni_range = 4.0

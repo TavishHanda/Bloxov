@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.8 (no more hitch when shooting; owner reported stutters before/when shooting)
+- Every muzzle flash (yours and the AI's) lit up the area with a real light for a split second. The web renderer
+  has to build extra shaders for everything that light touches the first time, which froze the game for up to a
+  second on the first shots of a raid and whenever a gun fired near something new; while lit, everything near it
+  was also drawn twice. The flashes stay, without the light: smoother on phones and slow PCs too.
+- Tracers and impact puffs are now drawn once, too small to see, at raid start, so their shaders are ready before
+  the first shot instead of being built mid-fight.
+
 ## 0.17.7 (mouse no longer stutters on fast turns; owner's friend reported it)
 - Turning the mouse fast could stutter and stop turning until you slowed down (Chrome and Firefox). A glitch
   filter from 0.1 threw away every mouse move over 200 pixels, and a fast flick on a high-DPI mouse (raw input

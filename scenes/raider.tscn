@@ -86,8 +86,3 @@ script = ExtResource("4_pixel")
 [node name="FlashMesh" type="MeshInstance3D" parent="MuzzleFlash"]
 cast_shadow = 0
 mesh = SubResource("FlashMesh")
-
-[node name="FlashLight" type="OmniLight3D" parent="MuzzleFlash"]
-light_color = Color(1, 0.8, 0.4, 1)
-light_energy = 1.5
-omni_range = 4.0

@@ -83,6 +83,7 @@ func _ready() -> void:
 			node.process_mode = Node.PROCESS_MODE_DISABLED
 		return
 	_spawn_position = global_position
+	Effects.warm_up(camera)
 	hand = HandItem.new()
 	camera.add_child(hand)
 	inventory.equipment_changed.connect(_on_equipment_changed)
