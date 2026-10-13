@@ -1775,7 +1775,7 @@ def stock_tv(b, at, rng, col):
     w = rng.choice((0.42, 0.5, 0.6))
     smashed = rng.random() < 0.3
     _item(b, [((x, y + w * 0.38, z), (w, w * 0.76, 0.3), rng.uniform(-5, 5), 0)],
-          lambda k, n: ("black" if smashed else "trim") if abs(n[2]) > 0.7 else col)
+          lambda k, n: ("black" if smashed else "glass") if abs(n[2]) > 0.7 else col)
     return w
 
 
@@ -1810,7 +1810,7 @@ STOCK = {          # what each kind of shelf holds: (item, its colours)
     "cigs": [(stock_cigs, ("red", "bone", "blue", "olive", "black"))],
     "books": [(stock_book, ("red", "blue", "green", "yellow", "olive", "black", "bone", "olive_dark"))],
     "shoes": [(stock_shoes, ("red", "bone", "blue", "black", "yellow", "olive"))],
-    "tvs": [(stock_tv, ("black", "trim_dark", "steel_light"))],
+    "tvs": [(stock_tv, ("bone", "steel_light", "trim", "wood"))],
 }
 
 
@@ -2033,7 +2033,7 @@ def prop_window_display(ctx, c, s):
 def prop_tv_shelf(ctx, c, s):
     """Burned TV shop: steel shelves of old TVs, a few left."""
     side = 1 if _front_into(c, 2) == "+z" else -1
-    shelving(ctx, c, s, "x", (side,), "tvs", levels=3, frame="trim_dark", lip="black", fill=0.45)
+    shelving(ctx, c, s, "x", (side,), "tvs", levels=3, frame="metal", lip="black", fill=0.5)
 
 
 def prop_tv_table(ctx, c, s):
