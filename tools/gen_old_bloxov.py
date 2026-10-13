@@ -548,8 +548,10 @@ class Building:
                 for _ in range(rng.randint(5, 8)):   # chunks blown out onto the ground
                     px, pz = at(rng.uniform(-3, 3), rng.uniform(1.0, 4.5))
                     w, h, d = rng.uniform(0.4, 1.3), rng.uniform(0.2, 0.6), rng.uniform(0.4, 1.3)
+                    # Big chunks block you, small ones you walk over (owner, world art round 8).
+                    big = max(w, d) >= 0.9 and h >= 0.35
                     obox(px, h / 2, pz, w, h, d, rng.uniform(0, 90), rng.choice((self.colour, "concrete", "scorch")),
-                         solid=False, kind="rubble" if modeled_here else None)
+                         solid=big, kind="rubble" if modeled_here else None)
                 for sgn in (-1, 1):                    # a solid heap each side of the hole (cover)
                     px, pz = at(sgn * rng.uniform(2.6, 3.4), rng.uniform(1.4, 2.4))
                     obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour,
@@ -672,7 +674,7 @@ def school_furniture():
     box(21.2, F, 66.25, 21.6, F + 1.2, 66.65, "wood", kind="plant")
     box(24.6, F, 66.2, 27.4, F + 0.9, 67.0, "wood", kind="sofa")
     box(25.3, F, 67.6, 26.7, F + 0.45, 68.1, "wood", kind="coffee_table")
-    box(19.4, F, 71.7, 20.6, F + 0.75, 72.9, "wood", kind="lounge_table")
+    box(18.3, F, 71.4, 19.5, F + 0.75, 72.6, "wood", kind="corner_table")      # (round 8: off the filing cabinet)
     box(28.5, F, 66.3, 31.0, F + 2.0, 66.9, "metal", kind="rack")
     box(34.8, F, 66.3, 37.3, F + 2.0, 66.9, "metal", kind="rack")
 

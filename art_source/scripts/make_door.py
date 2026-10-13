@@ -26,6 +26,24 @@ def handle(b, x, y, metal):
         b.box((x - 0.05, y, sz * (T / 2 + 0.045)), (0.12, 0.025, 0.025), style=solid(metal))
 
 
+def leaf(b, mat, hole):
+    """The 0.98 x 1.98 m leaf with a window hole cut through it (round 8, owner: see-through door windows): four
+    boxes round the hole (cx, cy, w, h), and a glass pane in the middle of its thickness."""
+    cx, cy, w, h = hole
+    x0, x1, y0, y1 = -0.49, 0.49, -0.99, 0.99
+    hx0, hx1, hy0, hy1 = cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2
+    for a0, a1, c0, c1 in ((x0, hx0, y0, y1), (hx1, x1, y0, y1), (hx0, hx1, y0, hy0), (hx0, hx1, hy1, y1)):
+        b.box(((a0 + a1) / 2, (c0 + c1) / 2, 0), (a1 - a0, c1 - c0, T), style=solid(mat))
+    b.box((cx, cy, 0), (w, h, 0.004), style=solid("glass"))
+
+
+def ring(b, cx, cy, w, h, bar, z, depth, mat):
+    """A frame of four strips round a window (outer size w x h, strips `bar` wide) on the face at z."""
+    for x, y, sw, sh in ((cx, cy + h / 2 - bar / 2, w, bar), (cx, cy - h / 2 + bar / 2, w, bar),
+                         (cx - w / 2 + bar / 2, cy, bar, h - 2 * bar), (cx + w / 2 - bar / 2, cy, bar, h - 2 * bar)):
+        b.box((x, y, z), (sw, sh, depth), style=solid(mat))
+
+
 def door_wood(b):
     """Panelled wooden door: a frame of stiles and rails round four raised panels, brass handle."""
     b.box((0, 0, 0), (0.98, 1.98, T), style=solid("wood"))
@@ -39,23 +57,25 @@ def door_wood(b):
 
 def door_metal(b):
     """Steel service door: kick plate, a small wired window, steel handle."""
-    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("steel"))
+    leaf(b, "steel", (0, 0.55, 0.3, 0.38))
     for sz in (-1, 1):
         z = sz * (T / 2 + 0.004)
         b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("trim_dark"))
-        b.box((0, 0.55, z), (0.34, 0.42, 0.008), style=solid("black"))
+        ring(b, 0, 0.55, 0.36, 0.44, 0.03, z, 0.008, "trim_dark")
+    for k in (-1, 0, 1):                                                # the wire in the glass
+        b.box((k * 0.075, 0.55, 0), (0.008, 0.38, 0.008), style=solid("trim_dark"))
+    b.box((0, 0.55, 0), (0.3, 0.008, 0.008), style=solid("trim_dark"))
     handle(b, 0.38, -0.02, "trim")
 
 
 def door_office(b):
     """Painted office door (police, bank, town hall, offices, pharmacy): pale grey, a small window, lever handle."""
-    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("steel_light"))
+    leaf(b, "steel_light", (0, 0.55, 0.4, 0.46))
     for sz in (-1, 1):
         z = sz * (T / 2 + 0.004)
         for x0, x1, y0, y1 in ((-0.22, 0.22, 0.28, 0.32), (-0.22, 0.22, 0.78, 0.82), (-0.24, -0.2, 0.28, 0.82),
                                (0.2, 0.24, 0.28, 0.82)):
             b.box(((x0 + x1) / 2, (y0 + y1) / 2, z), (x1 - x0, y1 - y0, 0.008), style=solid("trim_dark"))
-        b.box((0, 0.55, z * 0.9), (0.4, 0.5, 0.004), style=solid("glass"))
         b.box((0, -0.9, z), (0.9, 0.12, 0.008), style=solid("trim"))
     handle(b, 0.38, -0.02, "trim")
 
@@ -63,11 +83,10 @@ def door_office(b):
 def door_school(b):
     """School classroom door (round 6, owner's pick: a mix of the navy option and the oak, the oak a bit darker):
     dark-stained oak with navy paint round a square wired window, a navy kick plate and push plate."""
-    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("oak_dark"))
+    leaf(b, "oak_dark", (0, 0.45, 0.42, 0.42))
     for sz in (-1, 1):
         z = sz * (T / 2 + 0.004)
-        b.box((0, 0.45, z), (0.52, 0.52, 0.008), style=solid("blue"))
-        b.box((0, 0.45, z * 1.1), (0.42, 0.42, 0.004), style=solid("glass"))
+        ring(b, 0, 0.45, 0.52, 0.52, 0.05, z, 0.008, "blue")
         b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("blue"))
         b.box((0.3, 0.02, z), (0.1, 0.3, 0.008), style=solid("trim"))
     handle(b, 0.38, -0.02, "trim")
@@ -76,13 +95,12 @@ def door_school(b):
 def door_school_oak(b):
     """Plain school door (owner, 2026-10-13: the school door without its navy parts): dark-stained oak, a square
     wired window in a raised oak bead, a steel push plate. Hangs on the staff rooms (school_door_look in the gen)."""
-    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("oak_dark"))
+    leaf(b, "oak_dark", (0, 0.45, 0.42, 0.52))
     for sz in (-1, 1):
         z = sz * (T / 2 + 0.006)
         for x0, x1, y0, y1 in ((-0.25, 0.25, 0.17, 0.21), (-0.25, 0.25, 0.69, 0.73), (-0.25, -0.21, 0.17, 0.73),
                                (0.21, 0.25, 0.17, 0.73)):
             b.box(((x0 + x1) / 2, (y0 + y1) / 2, z), (x1 - x0, y1 - y0, 0.012), style=solid("wood_dark"))
-        b.box((0, 0.45, z * 0.9), (0.42, 0.52, 0.004), style=solid("glass"))
         b.box((0.3, 0.02, z), (0.1, 0.3, 0.008), style=solid("trim"))
     handle(b, 0.38, -0.02, "trim")
 

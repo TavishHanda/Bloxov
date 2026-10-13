@@ -70,6 +70,9 @@ PALETTE = {
     "wood_light": "b07a45", "wood_pale": "c99a5e", "rust": "8a3f1f", "red": "b03a2e", "hazard_yellow": "e8b923",
     "yellow_dark": "a8801a", "sand": "a89a6a", "olive_dark": "3d4228", "olive": "5b6236", "olive_light": "7d8450",
     "grass": "556b2f", "green_dark": "2e7d32", "extract_green": "4fd44a", "sky_blue": "3e6d8c",
+    # Painted render (round 8, owner: the sunny walls glared): mid-tone stucco with a fine grain, so sunlit walls stay
+    # bright but show their texture instead of going flat white.
+    "stucco": "9e9886", "stucco_light": "a7a18e", "stucco_dark": "938d7b", "stucco_grime": "77725f",
 }
 
 
@@ -442,18 +445,36 @@ def paint_ceiling_soot(rng):
 
 
 def paint_render(rng):
-    """Painted render (stucco) for shop fronts: an off-white gone grey with dirt (round 6, owner: the walls were far
-    too bright in the sun), a few big weathered patches, rain streaks and grime along the foot."""
-    c = Canvas(64, 64, "plaster")
-    for _ in range(6):
-        x, y = rng.randrange(0, 64, 4), rng.randrange(0, 64, 4)
-        w, h = rng.choice((8, 12, 16)), rng.choice((4, 8))
+    """Painted render (stucco) for the shops and the pharmacy. Round 8 (owner: "the walls look terrible", blinding in
+    the sun): a mid-tone base so a wall in full sun is bright, not white; a fine trowel grain of three close tones
+    (reads as texture in the sun, not as patches); faint horizontal trowel sweeps; hairline cracks; rain streaks; a
+    few chips showing the block underneath."""
+    c = Canvas(64, 64, "stucco")
+    for _ in range(7):                                                # big soft patches, barely lighter or darker
+        x, y = rng.randrange(64), rng.randrange(64)
+        w, h, col = rng.randrange(8, 20), rng.randrange(5, 12), rng.choice(("stucco_light", "stucco_dark"))
         for yy in range(y, y + h):
             for xx in range(x, x + w):
-                c.put(xx % 64, yy % 64, "concrete" if rng.random() < 0.85 else "sand")
-    for _ in range(3):                                                # rain streaks
+                c.put(xx % 64, yy % 64, col)
+    c.noise(0, 0, 64, 64, ["stucco_light", "stucco_dark"], 0.06, rng)   # a light grain
+    for _ in range(5):                                                # trowel sweeps
+        y, x0 = rng.randrange(64), rng.randrange(64)
+        for k in range(rng.randrange(10, 22)):
+            c.put((x0 + k) % 64, y, "stucco_light")
+    for _ in range(3):                                                # hairline cracks
+        x, y = rng.randrange(64), rng.randrange(64)
+        for _ in range(rng.randrange(6, 14)):
+            c.put(x % 64, y % 64, "stucco_grime")
+            x += rng.choice((1, 1, 0))
+            y += rng.choice((-1, 0, 1))
+    for _ in range(5):                                                # rain streaks
         x = rng.randrange(64)
-        c.rect(x, rng.randrange(40, 56), x + 1, 64, "concrete")
+        for y in range(rng.randrange(30, 50), 64):
+            if rng.random() < 0.75:
+                c.put(x, y, "stucco_dark")
+    for _ in range(3):                                                # chips down to the block
+        x, y = rng.randrange(0, 62), rng.randrange(0, 63)
+        c.rect(x, y, x + rng.choice((2, 3)), y + 1, "steel")
     return c
 
 
@@ -1077,7 +1098,13 @@ def shell_box(ctx, row):
     colour = row["colour"]
     b = ctx.b
     cfg = SHELLS.get(BUILDING_NAME[0], {})
-    if colour == "slab":
+    if colour == "slab" and (row["yaw"] or row["pitch"]):
+        # A tilted piece of floor (caved-in debris): the floor of the room it lies in on top, broken concrete round
+        # it (round 8: it drew an unturned floor patch floating beside it).
+        floor = cfg.get("floor", lambda m: "floor_tile")
+        b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: (floor(c), uv_world()) if n[1] > 0.7 else
+              ("rubble_core", uv_world(1.0)))
+    elif colour == "slab":
         floor = cfg.get("floor", lambda m: "floor_tile")
         ceiling = cfg.get("ceiling", lambda m: "ceiling")
         b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: None if abs(n[1]) > 0.7 else ("trim", uv_world(1.0)))
@@ -1641,14 +1668,47 @@ def dress_openings(ctx, openings):
                     _door_leaf(b, c, lw - 0.12, hh, math.degrees(math.atan2(-dz, dx)), 0, mat, rng, upright=True)
 
 
+def paint_rubble_core(rng):
+    """Broken concrete (round 8, owner: rubble more 3D/textured): grey with pale aggregate and dark pits."""
+    c = Canvas(64, 64, "steel")
+    c.noise(0, 0, 64, 64, ["steel_light", "concrete"], 0.18, rng)
+    c.noise(0, 0, 64, 64, ["iron", "iron_dark"], 0.1, rng)
+    c.noise(0, 0, 64, 64, ["sand"], 0.04, rng)
+    c.blotch(["iron"], 5, rng, size=(2, 4))
+    return c
+
+
+KIT["rubble_core"] = paint_rubble_core
+
+
 def _rubble_mats():
     cfg = SHELLS.get(BUILDING_NAME[0], {})
-    return (cfg.get("ext", "ext_block"), "brick", "concrete")
+    return (cfg.get("ext", "ext_block"), "brick", "rubble_core")
 
 
 def rubble_chunk(b, at, size, rng, mats, yaw=None):
-    b.box(at, size, yaw=rng.uniform(0, 90) if yaw is None else yaw, pitch=rng.uniform(-20, 20),
-          style=no_bottom(rng.choice(mats), 1.0))
+    """A broken lump (round 8, owner: "more 3D"): the main piece shows the wall's skin on top when it's a bit of wall,
+    broken concrete on the snapped sides; bigger ones get smaller lumps stuck to them (a ragged outline) and some a
+    bent rebar poking out. Bricks (small, brick material) stay single boxes."""
+    yaw = rng.uniform(0, 90) if yaw is None else yaw
+    pitch = rng.uniform(-20, 20)
+    skin = rng.choice(mats)
+    if skin == "brick" or max(size) < 0.3:
+        b.box(at, size, yaw=yaw, pitch=pitch, style=no_bottom(skin, 1.0))
+        return
+    b.box(at, size, yaw=yaw, pitch=pitch, style=lambda n, m, q: None if n[1] < -0.7 else
+          ((skin, uv_world(2.0)) if n[1] > 0.7 else ("rubble_core", uv_world(1.0))))
+    if max(size[0], size[2]) < 0.5:
+        return
+    for _ in range(rng.randint(2, 3)):                                  # lumps stuck on: a ragged outline
+        o = rot((rng.uniform(-0.4, 0.4) * size[0], 0, rng.uniform(-0.4, 0.4) * size[2]), yaw, 0)
+        lw, lh, ld = size[0] * rng.uniform(0.3, 0.5), size[1] * rng.uniform(0.4, 0.8), size[2] * rng.uniform(0.3, 0.5)
+        b.box((at[0] + o[0], at[1] + size[1] * rng.uniform(0.1, 0.4), at[2] + o[2]), (lw, lh, ld),
+              yaw=yaw + rng.uniform(-35, 35), pitch=rng.uniform(-25, 25), style=no_bottom("rubble_core", 1.0))
+    if rng.random() < 0.5:                                              # rebar
+        o = rot((size[0] * 0.45, 0, rng.uniform(-0.3, 0.3) * size[2]), yaw, 0)
+        b.box((at[0] + o[0], at[1] + size[1] * 0.2, at[2] + o[2]), (0.5, 0.025, 0.025), yaw=yaw + rng.uniform(-30, 30),
+              pitch=rng.uniform(10, 35), style=no_bottom("trim_dark", 1.0))
 
 
 def prop_rubble(ctx, c, s, k):
@@ -1678,7 +1738,7 @@ def prop_rubble_heap(ctx, c, s, k):
                          rng, mats)
     for _ in range(10):                                                    # loose bricks round the foot
         o = rot((rng.uniform(-0.65, 0.65) * s[0], 0, rng.uniform(-0.65, 0.65) * s[2]), yaw, 0)
-        rubble_chunk(ctx.b, (c[0] + o[0], y0 + 0.04, c[2] + o[2]), (0.22, 0.07, 0.11), rng, ("brick", "concrete"))
+        rubble_chunk(ctx.b, (c[0] + o[0], y0 + 0.04, c[2] + o[2]), (0.22, 0.07, 0.11), rng, ("brick", "rubble_core"))
 
 
 PROPS_EXTRA = {"rubble": prop_rubble, "rubble_heap": prop_rubble_heap}
@@ -1747,7 +1807,7 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
                      rng, mats)
     for _ in range(14):
         a = rng.uniform(a0 - 0.3, a1 + 0.3)
-        rubble_chunk(b, P(a, lo + 0.035, -rng.uniform(0.3, 2.6)), (0.2, 0.06, 0.1), rng, ("brick", "concrete"))
+        rubble_chunk(b, P(a, lo + 0.035, -rng.uniform(0.3, 2.6)), (0.2, 0.06, 0.1), rng, ("brick", "rubble_core"))
     p0, p1 = P(a0 + 0.1, lo + 0.012, -0.25), P(a1 - 0.1, lo + 0.012, -2.2)
     b.box(((p0[0] + p1[0]) / 2, lo + 0.012, (p0[2] + p1[2]) / 2), (abs(p1[0] - p0[0]), 0.02, abs(p1[2] - p0[2])),
           style=no_bottom("concrete", 2.0))
@@ -2613,9 +2673,9 @@ def dress_shops(ctx):
         cuts = [a0] + [v for g in gaps.get(side, []) for v in g] + [a1]
         for p0, p1 in zip(cuts[::2], cuts[1::2]):
             if side in "NS":
-                b.box(((p0 + p1) / 2, 0.225, fixed), (p1 - p0, 0.45, 0.06), style=no_bottom("concrete", 4.0))
+                b.box(((p0 + p1) / 2, 0.225, fixed), (p1 - p0, 0.45, 0.06), style=no_bottom("trim", 4.0))
             else:
-                b.box((fixed, 0.225, (p0 + p1) / 2), (0.06, 0.45, p1 - p0), style=no_bottom("concrete", 4.0))
+                b.box((fixed, 0.225, (p0 + p1) / 2), (0.06, 0.45, p1 - p0), style=no_bottom("trim", 4.0))
     # Soot over the TV shop's openings, the Brotherhood's mark on the west end.
     for x in (units[2] - 1.6, units[2] + 2.2):
         b.poly([(x - 1.0, 2.0, zf + 0.01), (x + 1.0, 2.0, zf + 0.01), (x + 1.0, 3.5, zf + 0.01), (x - 1.0, 3.5, zf + 0.01)],
@@ -3447,17 +3507,22 @@ def prop_coffee_table(ctx, c, s):
     ctx.b.box((c[0] + 0.3, top + 0.05, c[2] + 0.1), (0.08, 0.1, 0.08), style=no_bottom("bone", 1.0))   # mug
 
 
-def prop_lounge_table(ctx, c, s):
-    """A square table with four chairs round it, mugs and papers."""
+def prop_lounge_table(ctx, c, s, sides=((0, 1), (0, -1), (1, 0), (-1, 0))):
+    """A square table with chairs round it (four, or the `sides` given), mugs and papers."""
     b = ctx.b
     top = prop_table(ctx, c, s, "bone", "trim")
     y0 = c[1] - s[1] / 2
-    for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+    for dx, dz in sides:
         x, z = c[0] + dx * (s[0] / 2 + 0.25), c[2] + dz * (s[2] / 2 + 0.25)
         chair(b, x, y0, z, facing_yaw(-dx, -dz), "red", "trim")
     for i in range(2):
         b.box((c[0] - 0.2 + i * 0.4, top + 0.05, c[2] + 0.15 - i * 0.3), (0.08, 0.1, 0.08), style=no_bottom(("bone", "red")[i], 1.0))
     b.box((c[0] + 0.05, top + 0.003, c[2]), (0.21, 0.005, 0.3), yaw=17, style=no_bottom("bone", 1.0))
+
+
+def prop_corner_table(ctx, c, s):
+    """The lounge table pushed into a corner (round 8, owner: it blocked the filing cabinet): no chair on the wall side."""
+    prop_lounge_table(ctx, c, s, ((0, 1), (0, -1), (1, 0)))
 
 
 def prop_reading_table(ctx, c, s):
@@ -3569,7 +3634,8 @@ SCHOOL_PROPS = {
     "kitchenette": prop_kitchenette, "sink_counter": prop_sink_counter, "home_fridge": prop_home_fridge,
     "vending": prop_vending, "file_cabinet": prop_file_cabinet, "wall_books": prop_wall_books,
     "med_cabinet": prop_med_cabinet, "art_shelf": prop_art_shelf, "plant": prop_plant, "rug": prop_rug,
-    "coffee_table": prop_coffee_table, "lounge_table": prop_lounge_table, "reading_table": prop_reading_table,
+    "coffee_table": prop_coffee_table, "lounge_table": prop_lounge_table, "corner_table": prop_corner_table,
+    "reading_table": prop_reading_table,
     "principal_desk": prop_principal_desk, "serving_counter": prop_serving_counter, "easel": prop_easel,
 }
 for _kind, _fn in SCHOOL_PROPS.items():
@@ -3968,7 +4034,7 @@ def dress_pharmacy(ctx):
         b.box((6.4, y, zs + 0.35), (0.05, 0.05, 0.7), style=no_bottom("trim_dark", 1.0))                 # brackets
     b.box((6.4, 2.55, zs + 0.75), (0.12, 0.9, 0.9), style=lambda n, m, q: ("decals", ctx.d("cross")) if abs(n[0]) > 0.7
           else ("trim_dark", uv_world()))
-    b.box((0, 0.225, zs + 0.03), (15.3, 0.45, 0.06), style=no_bottom("concrete", 4.0))
+    b.box((0, 0.225, zs + 0.03), (15.3, 0.45, 0.06), style=no_bottom("trim", 4.0))
     wall_quad(b, (-1, 0, 0), -7.66, -1.5, 1.5, 0.9, 1.6, "graffiti", ctx.d("looted"))
     # Inside: posters, pills and boxes all over the floor (it's been looted), a dropped basket.
     wall_quad(b, (0, 0, -1), 5.89, 1.0, 1.6, 1.2, 2.0, "decals", ctx.d("poster_flu"))
@@ -4767,7 +4833,9 @@ def floor_debris(ctx, data, name):
     only (no collision), so nothing about moving or the AI changes."""
     rng = random.Random(name + "debris")
     x0, z0, x1, z1 = FOOTPRINTS[name]
-    slabs = [r for r in data["boxes"] if r["size"][1] <= 0.35 and r["size"][0] * r["size"][2] > 4.0]
+    # (round 8, owner: "mistextured floors", worst on the stairs: only real level floors, not the stairs' ramps)
+    slabs = [r for r in data["boxes"] if r["size"][1] <= 0.35 and r["size"][0] * r["size"][2] > 4.0
+             and r["colour"] in ("slab", "roof") and not r["yaw"] and not r["pitch"]]
     roof = max(r["pos"][1] + r["size"][1] / 2 for r in slabs)
     floors = [r for r in slabs if r["pos"][1] + r["size"][1] / 2 < roof - 1.0]
     solids = [r for r in data["boxes"] if r.get("solid", True) and r["size"][1] > 0.1 and r not in floors]
@@ -4795,9 +4863,7 @@ def floor_debris(ctx, data, name):
                 w, h = rng.uniform(0.05, 0.2), rng.uniform(0.03, 0.08)
                 ctx.b.box((x, top + h / 2 - 0.005, z), (w, h, w * rng.uniform(0.6, 1.3)), yaw=rng.uniform(0, 90),
                           pitch=rng.uniform(-10, 10), style=no_bottom(rng.choice(mats), 1.0))
-            if rng.random() < 0.5:                                                   # a dust patch under them
-                ctx.b.box((cx, top + 0.004, cz), (rng.uniform(0.6, 1.1), 0.004, rng.uniform(0.5, 0.9)), yaw=rng.uniform(0, 90),
-                          style=lambda n, m, q: ("concrete", uv_world(1.0)) if n[1] > 0.7 else None)
+            # (round 8: no more dust patches under them: they read as floor tiles in the wrong texture)
 
 
 def faction_marks(ctx, name, openings):
