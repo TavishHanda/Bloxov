@@ -394,11 +394,15 @@ def look_laundry_cart(b, d):
             b.box((0, y, z), (0.86, 0.03, 0.03), style=solid("steel"))
         for x in (-0.42, 0.42):
             b.box((x, y, 0), (0.03, 0.03, 0.5), style=solid("steel"))
-    b.box((0, 0.55, 0), (0.8, 0.62, 0.44), style=lambda n, m, q: None if n[1] > 0.7 else ("blue", uv_world(1.0)))  # canvas
+    b.box((0, 0.55, 0), (0.8, 0.62, 0.44), style=lambda n, m, q: ("bone", uv_world(1.0)) if n[1] > 0.7 else ("blue", uv_world(1.0)))  # canvas
+    for x in (-0.41, 0.41):                                                           # the bag's rolled rim
+        b.box((x, 0.86, 0), (0.04, 0.04, 0.46), style=solid("blue"))
+    for z in (-0.23, 0.23):
+        b.box((0, 0.86, z), (0.86, 0.04, 0.04), style=solid("blue"))
     rng = random.Random("laundry")
-    for k in range(7):                                                                # the clothes heap
-        b.box((rng.uniform(-0.28, 0.28), 0.86 + rng.uniform(0, 0.08), rng.uniform(-0.14, 0.14)),
-              (rng.uniform(0.18, 0.32), 0.07, rng.uniform(0.14, 0.26)), yaw=rng.uniform(0, 180), pitch=rng.uniform(-15, 15),
+    for k in range(11):                                                               # the clothes heap
+        b.box((rng.uniform(-0.28, 0.28), 0.87 + rng.uniform(0, 0.1), rng.uniform(-0.14, 0.14)),
+              (rng.uniform(0.2, 0.34), 0.08, rng.uniform(0.14, 0.26)), yaw=rng.uniform(0, 180), pitch=rng.uniform(-15, 15),
               style=solid(rng.choice(("red", "bone", "green", "olive", "gold", "steel"))))
     b.box((-0.47, 0.75, 0), (0.04, 0.35, 0.2), pitch=10, style=solid("bone"))        # a towel over the side
 

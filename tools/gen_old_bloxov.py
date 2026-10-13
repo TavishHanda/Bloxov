@@ -608,12 +608,12 @@ def school_furniture():
     box(17.4, 0, 55.3, 17.85, 1.9, 57.2, "wood", kind="wall_books")
     box(14.2, 0, 55.6, 16.6, 1.8, 56.1, "wood", kind="bookshelf")
     box(9.6, 0, 55.3, 11.8, 0.75, 56.1, "wood", kind="reading_table")
-    box(10.0, 0, 52.5, 11.8, 0.78, 53.2, "wood", kind="desk")                  # the librarian's desk
+    box(8.4, 0, 50.15, 10.2, 0.78, 50.85, "wood", kind="desk")                 # the librarian's desk, under the landing
     classroom(18, 50, 0)
     classroom(28, 50, 0, lab=True)
     classroom(28, 58, 0)
-    box(8.3, 0, 58.2, 11.8, 0.9, 59.0, "metal", kind="serving_counter")        # cafeteria
-    for xa, zz in ((9.0, 60.0), (14.0, 59.5), (9.0, 63.7), (14.0, 63.7)):
+    box(8.3, 0, 59.3, 11.8, 0.9, 60.1, "metal", kind="serving_counter")        # cafeteria (round 5: room to walk behind)
+    for xa, zz in ((9.0, 61.6), (14.0, 59.5), (9.0, 63.7), (14.0, 63.7)):
         box(xa, 0, zz, xa + 3.0, 0.75, zz + 0.8, "wood", kind="caf_table")
     for za, zb in ((58.1, 58.6), (65.4, 65.9)):
         for xa, xb in ((18.3, 21.8), (24.2, 27.7)):
@@ -693,6 +693,13 @@ def ground(holes):
 
 roads = []        # (points, width) of every road, for the overlap check
 footprints = []   # (name, x0, z0, x1, z1) of every building
+# Buildings moved after the random scatter (trees, poles, clutter) was settled: the scatter keeps clear of where they
+# were, so moving one doesn't reshuffle the trees and cover all over the map (z offset back to the old spot).
+SCATTER_OLD_Z = {"TownHall": -4.0}   # world art round 5 (owner): the town hall moved 4 m south, away from the square
+
+
+def scatter_footprints():
+    return [(n, x0, z0 + SCATTER_OLD_Z.get(n, 0.0), x1, z1 + SCATTER_OLD_Z.get(n, 0.0)) for n, x0, z0, x1, z1 in footprints]
 labels = []       # (text, x, z, big) for the in-raid map (M)
 water = []        # (points, width) of water, for the map
 woods = []        # (x, z, radius) of tree clusters, for the map
@@ -702,8 +709,8 @@ yards = []        # (x0, z0, x1, z1) of yards, fields and paving, for the map
 TRENCHES = [(126, 172, 140, 174.4), (137.6, 172, 140, 180), (137.6, 177.6, 158, 180), (155.6, 170, 158, 180),
             (155.6, 170, 176, 172.4)]
 TRENCH_DEPTH = 1.1
-BUNKER_HOLE = (85.5, 148.0, 94.0, 150.4)   # the ramp down to the bunker, at the town hall's west end
-BUNKER = (80.0, 143.0, 132.0, 159.0)       # the bunker under the town hall
+BUNKER_HOLE = (85.5, 152.0, 94.0, 154.4)   # the ramp down to the bunker, at the town hall's west end
+BUNKER = (80.0, 147.0, 132.0, 163.0)       # the bunker under the town hall
 areas = []        # (name, x0, z0, x1, z1) of yards (junkyard, graveyard): kept off roads, buildings may stand inside
 
 
@@ -969,7 +976,7 @@ def _clear_of_map(x, z):
     for x0, z0, x1, z1 in yards:
         if x0 - 6 < x < x1 + 6 and z0 - 6 < z < z1 + 6:
             return False
-    for _, x0, z0, x1, z1 in footprints + areas:
+    for name, x0, z0, x1, z1 in scatter_footprints() + areas:
         if x0 - 12 < x < x1 + 12 and z0 - 12 < z < z1 + 12:
             return False
     if any(math.hypot(x - tx, z - tz) < 5 for tx, tz in trunks):
@@ -986,8 +993,14 @@ def _clear_of_map(x, z):
     for b in boxes:   # flat ground patches: the farm field, car parks, sports field...
         if b[4] <= 0.06 and max(b[3], b[5]) > 8 and abs(x - (b[0] + M / 2)) < b[3] / 2 + 4 and abs(z - (b[2] + M / 2)) < b[5] / 2 + 4:
             return False
+    moved = [(x0, z0, x1, z1, SCATTER_OLD_Z[n]) for n, x0, z0, x1, z1 in footprints if n in SCATTER_OLD_Z]
     for b in boxes:   # props already placed (stands, campsite, power poles, fences...)
-        if b[4] > 0.2 and max(b[3], b[5]) < 30 and math.hypot(x - (b[0] + M / 2), z - (b[2] + M / 2)) < max(b[3], b[5]) / 2 + 6:
+        bz = b[2] + M / 2
+        for x0, z0, x1, z1, dz in moved:   # (a moved building's own walls count where they were)
+            if x0 - 0.5 < b[0] + M / 2 < x1 + 0.5 and z0 - 0.5 < bz < z1 + 0.5:
+                bz += dz
+                break
+        if b[4] > 0.2 and max(b[3], b[5]) < 30 and math.hypot(x - (b[0] + M / 2), z - bz) < max(b[3], b[5]) / 2 + 6:
             return False
     return True
 
@@ -1063,7 +1076,7 @@ def _cover_checker():
                     return False
         if any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for x0, z0, x1, z1 in yards):
             return False
-        if any(x0 - 8 < x < x1 + 8 and z0 - 8 < z < z1 + 8 for _, x0, z0, x1, z1 in footprints + areas):
+        if any(x0 - 8 < x < x1 + 8 and z0 - 8 < z < z1 + 8 for _, x0, z0, x1, z1 in scatter_footprints() + areas):
             return False
         if any(math.hypot(x - tx, z - tz) < 3 for tx, tz in trunks):
             return False
@@ -1186,7 +1199,7 @@ def power_line(curve, side, width, every=34.0, skip_from=0.0):
             next_at += every
             if not (2 < px < M - 2 and 2 < pz < M - 2):
                 continue
-            if any(x0 - 2 < px < x1 + 2 and z0 - 2 < pz < z1 + 2 for _, x0, z0, x1, z1 in footprints + areas):
+            if any(x0 - 2 < px < x1 + 2 and z0 - 2 < pz < z1 + 2 for _, x0, z0, x1, z1 in scatter_footprints() + areas):
                 continue
             if math.hypot(px - 263.0, pz - 285.0) < 20:   # the checkpoint
                 continue
@@ -1823,7 +1836,7 @@ def main():
     box(118, 0, 118, 120.5, 2.6, 120.5, "car_b")           # newsstand kiosk
 
     # downtown
-    hall = build(Building("TownHall", 82, 142, 50, 18, floors=2, colour="wall_hall", rooms=(4, 2), doors="NS",
+    hall = build(Building("TownHall", 82, 146, 50, 18, floors=2, colour="wall_hall", rooms=(4, 2), doors="NS",
                           roof=True), [
         ("locker", 1, 0, 1, "N", 0), ("crate", 2, 1, 1, "S", 0), ("locker", 3, 0, 1, "E", 0),
         ("crate", 1, 1, 0, "S", 0)])
@@ -1845,18 +1858,18 @@ def main():
     box(hx1, 0, hz0 - 0.1, hx1 + 0.1, 1.0, hz1 + 0.1, "metal")
     box(hx0, 0, hz1, hx1, 1.0, hz1 + 0.1, "metal")
     # key door: the wall at x 99 between the ramp landing and the bunker rooms (locked: the bunker key, 0.14.0)
-    wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(151.0, DOOR_W, 0.0, DOOR_H)])
-    box(98.7, bunker_floor + 2.3, 150.0, 99.3, bunker_floor + 2.6, 152.0, "keydoor", solid=False)
-    markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 151.0, {"key": "bunker_key", "place": "Bunker", "yaw": 90.0, "width": DOOR_W}))
+    wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(155.0, DOOR_W, 0.0, DOOR_H)])
+    box(98.7, bunker_floor + 2.3, 154.0, 99.3, bunker_floor + 2.6, 156.0, "keydoor", solid=False)
+    markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 155.0, {"key": "bunker_key", "place": "Bunker", "yaw": 90.0, "width": DOOR_W}))
     # bunker rooms: corridor along the south, three vaults to the north
     for x in (110.0, 121.0):
         wall_z(bz0, bz1 - 5, x, bunker_floor, 3.5, "bunker", [((bz0 + bz1 - 5) / 2, INNER_DOOR_W, 0.0, DOOR_H)])
     wall_x(99.0, bx1, bz1 - 5, bunker_floor, 3.5, "bunker",
            [(104.5, INNER_DOOR_W, 0.0, DOOR_H), (115.5, INNER_DOOR_W, 0.0, DOOR_H), (126.5, INNER_DOOR_W, 0.0, DOOR_H)])
-    for x, z, yaw in ((102.0, 144.0, 180.0), (113.0, 144.0, 180.0), (124.0, 144.0, 180.0), (130.5, 149.0, 90.0)):
+    for x, z, yaw in ((102.0, 148.0, 180.0), (113.0, 148.0, 180.0), (124.0, 148.0, 180.0), (130.5, 153.0, 90.0)):
         add_loot("Bunker", "safe", x, z, y=bunker_floor, yaw=yaw)
-    add_loot("Bunker", "locker", 107.0, 144.0, y=bunker_floor, yaw=180.0)
-    add_loot("Bunker", "crate", 101.0, 156.5, y=bunker_floor)
+    add_loot("Bunker", "locker", 107.0, 148.0, y=bunker_floor, yaw=180.0)
+    add_loot("Bunker", "crate", 101.0, 160.5, y=bunker_floor)
 
     # bank with offices upstairs, one building east of the square (owner). The vault is the south-east room (1, 2),
     # only reachable from room (1, 1) through a key door (the bank vault key; the stairs are along the north wall).
@@ -1970,7 +1983,7 @@ def main():
     barrier(178, 108, 90)
     with modeled("school", 23.0, 62.0):   # World art 0.17
         build(Building("School", 8, 50, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="S", roof=True), [
-            ("crate", 0, 0, 0, "W", 1.5), ("crate", 2, 2, 0, "E", -1.4, "kitchen"), ("locker", 1, 2, 1, "S", -2.5, "filing"),
+            ("crate", 0, 0, 0, "W", -1.6), ("crate", 2, 2, 0, "E", -1.4, "kitchen"), ("locker", 1, 2, 1, "S", -2.5, "filing"),
             ("crate", 0, 1, 1, "W", -1.8)])   # library, staff lounge, principal's office, computer room (off the windows)
         school_furniture()
     box(15, 0.0, 148, 45, 0.06, 166, "pavement", solid=False)   # the shops' car park (was the sports field)
@@ -2221,19 +2234,19 @@ AI_ZONES = [
     ("Church", 180, 42, 25, 1, 0, 0.0),
     ("Woods", 75, 290, 40, 3, 0, 0.0),        # cabins, campsite, hunting stand
     ("OldHouses", 200, 300, 30, 2, 0, 1.0),   # old houses south of the railway
-    ("TownHall", 107, 151, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
+    ("TownHall", 107, 155, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
 ]
 # Parts of a zone its AI keep out of (spawns and patrols), and how far out its open-ground patrol stops sit
 # (fraction of the radius). Town (0.12.31, owner): Bon's guards hold the town hall and Raiders the bank, so the
 # town's scavs spawn and patrol away from both, more round the edges of town.
-AI_ZONE_AVOID = {"Town": [(107, 151, 30), (150, 124, 32)]}
+AI_ZONE_AVOID = {"Town": [(107, 155, 30), (150, 124, 32)]}
 AI_ZONE_EDGE = {"Town": 0.45}
 # The boss (owner: a Raider commander with guards, at the town hall + bunker, in every raid while testing; a chance
 # later): zone, guards, chance per raid.
 AI_BOSS = ("TownHall", 3, 1.0)
 # Where the boss and guards start (owner, 0.12.18: inside the town hall, then out on patrol): ground-floor room
 # centres of the hall (rooms 12.5 x 9 m), one picked per raid.
-BOSS_STARTS = [(100.75, 155.5), (113.25, 146.5), (113.25, 155.5), (125.75, 155.5)]
+BOSS_STARTS = [(100.75, 159.5), (113.25, 150.5), (113.25, 159.5), (125.75, 159.5)]
 AI_ROAMERS = 3
 # Sniper perches (Scavs 2.0, owner): high spots with a view, a sniper stays on one. 2 of them are used each raid
 # (preferring ones that don't already see a player). (name, x, z, height above the ground, which way it watches)

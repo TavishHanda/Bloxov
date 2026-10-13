@@ -85,13 +85,64 @@ def door_plank(b):
     handle(b, 0.38, -0.02, "black")
 
 
+def door_school_navy(b):
+    """Option (round 5): navy painted, a square wired window, steel kick plate and push plate."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("blue"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.004)
+        b.box((0, 0.45, z), (0.5, 0.5, 0.008), style=solid("trim"))
+        b.box((0, 0.45, z * 1.1), (0.42, 0.42, 0.004), style=solid("glass"))
+        b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("trim"))
+        b.box((0.3, 0.02, z), (0.1, 0.3, 0.008), style=solid("trim"))
+    handle(b, 0.38, -0.02, "trim")
+
+
+def door_school_red(b):
+    """Option (round 5): the classic red school door, a tall window with a white frame, a number plate."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("red"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.004)
+        b.box((0, 0.4, z), (0.34, 0.86, 0.008), style=solid("bone"))
+        b.box((0, 0.4, z * 1.1), (0.26, 0.78, 0.004), style=solid("glass"))
+        b.box((0, 0.92, z), (0.16, 0.08, 0.008), style=solid("bone"))
+        b.box((0, -0.86, z), (0.9, 0.22, 0.008), style=solid("trim"))
+    handle(b, 0.38, -0.02, "trim")
+
+
+def door_school_twotone(b):
+    """Option (round 5): wood below (two panels), cream painted above round a big window, brass handle."""
+    b.box((0, -0.45, 0), (0.98, 1.08, T), style=solid("wood"))
+    b.box((0, 0.545, 0), (0.98, 0.89, T), style=solid("bone"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.006)
+        for x0, x1 in ((-0.38, -0.04), (0.04, 0.38)):
+            b.box(((x0 + x1) / 2, -0.47, z), (x1 - x0, 0.8, 0.012), style=solid("wood_dark"))
+        b.box((0, 0.5, z * 1.05), (0.62, 0.62, 0.004), style=solid("glass"))
+        b.box((0, 0.09, z), (0.98, 0.04, 0.012), style=solid("wood_dark"))
+    handle(b, 0.38, -0.02, "gold")
+
+
+def door_school_grey(b):
+    """Option (round 5): light grey steel with a wide window across the top and a dark kick plate."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("steel_light"))
+    for sz in (-1, 1):
+        z = sz * (T / 2 + 0.004)
+        b.box((0, 0.5, z), (0.7, 0.56, 0.008), style=solid("trim_dark"))
+        b.box((0, 0.5, z * 1.1), (0.62, 0.48, 0.004), style=solid("glass"))
+        b.box((0, -0.84, z), (0.9, 0.26, 0.008), style=solid("trim_dark"))
+    handle(b, 0.38, -0.02, "trim")
+
+
+# The school door options (round 5) are drawn for the owner to pick from, not built: make one the "school" look.
+OPTIONS = {"school_navy": door_school_navy, "school_red": door_school_red, "school_twotone": door_school_twotone,
+           "school_grey": door_school_grey}
 LOOKS = {"wood": door_wood, "metal": door_metal, "office": door_office, "school": door_school, "plank": door_plank}
 
 
 def main():
     rng = random.Random("doors")
     textures, mat_info = {}, {}
-    for kit in ("wood", "trim", "trim_dark", "black", "steel_light", "green", "glass"):
+    for kit in ("wood", "trim", "trim_dark", "black", "steel_light", "green", "glass", "blue", "red", "bone"):
         textures["kit_" + kit] = Texture("kit_" + kit, os.path.join("art_source", "textures", "kit", kit + ".png"),
                                          mb.KIT[kit], random.Random(kit))
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")

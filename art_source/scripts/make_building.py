@@ -1770,6 +1770,24 @@ def _door_leaf(b, c, w, h, yaw, tilt, mat, rng, upright=False):
             b.box(p, size, yaw=yaw, style=no_bottom(mat, 1.0))
 
 
+def water_heater(b, x, y, z):
+    """A tank water heater (round 5, owner: the plain box in the gas station corner): a round-ish white tank on a
+    stand, a domed top, the pipes up to the ceiling with red and blue taps, a thermostat box and a drain tap."""
+    b.box((x, y + 0.08, z), (0.5, 0.16, 0.5), style=no_bottom("trim_dark", 1.0))                       # stand
+    for yaw in (0, 45):                                                                       # eight-sided tank
+        b.box((x, y + 0.85, z), (0.52, 1.4, 0.52), yaw=yaw, style=no_bottom("bone", 1.0))
+    for yaw in (0, 45):                                                                       # domed top
+        b.box((x, y + 1.6, z), (0.4, 0.1, 0.4), yaw=yaw, style=no_bottom("bone", 1.0))
+    for k, (dx, tap) in enumerate(((-0.1, "red"), (0.1, "blue"))):                             # hot and cold pipes
+        b.box((x + dx, y + 2.3, z), (0.05, 1.3, 0.05), style=no_bottom("trim", 1.0))
+        b.box((x + dx, y + 1.95, z + 0.05), (0.1, 0.03, 0.03), yaw=30 * (k * 2 - 1), style=no_bottom(tap, 1.0))
+    b.box((x, y + 0.45, z + 0.3), (0.16, 0.2, 0.06), style=no_bottom("steel_light", 1.0))      # thermostat
+    b.box((x, y + 0.47, z + 0.335), (0.06, 0.06, 0.01), style=no_bottom("red", 1.0))           # its dial
+    b.box((x - 0.15, y + 0.25, z + 0.3), (0.04, 0.04, 0.1), style=no_bottom("trim", 1.0))      # drain tap
+    b.box((x - 0.27, y + 1.2, z), (0.03, 0.03, 0.03), style=no_bottom("trim", 1.0))            # relief valve
+    b.box((x - 0.31, y + 0.65, z), (0.025, 1.1, 0.025), style=no_bottom("trim", 1.0))          # and its pipe
+
+
 def floor_lamp(b, x, y, z, rng):
     """A standard lamp (round 4, owner: it read as a pole with a box): a stepped round-ish foot, a thin pole with a
     joint, a flared fabric shade (three tiers) with the bulb showing under it, a pull chain."""
@@ -1831,7 +1849,7 @@ def dress_gas_station(ctx):
         b.box((x, 0.06, z), (0.18, 0.12, 0.1), yaw=rng.uniform(0, 90),
               style=lambda n, m, q, col=col: None if n[1] < -0.7 else (col, uv_world(1.0)))
     # Back room: a water heater and a stack of boxes.
-    b.box((6.0, 0.8, -4.45), (0.6, 1.6, 0.6), style=lambda n, m, q: None if n[1] < -0.7 else ("bone", uv_world()))
+    water_heater(b, 6.0, 0.0, -4.4)
     for k, (dx, dz, h) in enumerate(((0.0, 0.0, 0.0), (0.5, 0.1, 0.0), (0.2, 0.05, 0.45))):
         b.box((1.0 + dx, 0.22 + h, 3.0 + dz), (0.5, 0.44, 0.45), yaw=k * 7,
               style=lambda n, m, q: None if n[1] < -0.7 else ("cardboard", uv_world(1.0)))
@@ -2291,22 +2309,77 @@ def shelving(ctx, c, s, axis, sides, kind, levels=4, frame="metal", lip="red", f
     box((a0 + a1) / 2, y1 - 0.016, back_d, L - 0.08, 0.03, 0.05 if len(sides) == 1 else D - 0.004, frame)   # top
 
 
+def round_door(b, P, a, y, size, ring="steel_light", glass="blue", inside=None):
+    """A porthole door (washers, dryers) on a front face: P(a, y, d) maps along-the-face, height and depth out of
+    the face to model space. Blocky round: three overlapping boxes, the glass set in a little."""
+    for w, h in ((size, size * 0.72), (size * 0.72, size), (size * 0.88, size * 0.88)):
+        b.box(P(a, y, 0.03), *_face_size(P, w, h, 0.06), style=no_bottom(ring, 1.0))
+    g = size * 0.66
+    for w, h in ((g, g * 0.7), (g * 0.7, g)):
+        b.box(P(a, y, 0.065), *_face_size(P, w, h, 0.01), style=no_bottom(glass, 1.0))
+    if inside:
+        b.box(P(a - g * 0.12, y - g * 0.18, 0.072), *_face_size(P, g * 0.4, g * 0.22, 0.005), style=no_bottom(inside, 1.0))
+    b.box(P(a + size * 0.47, y, 0.07), *_face_size(P, 0.04, size * 0.3, 0.04), style=no_bottom("trim_dark", 1.0))  # handle
+
+
+def _face_size(P, w, h, d):
+    """Box size for a box w wide (along the face), h tall and d deep (out of the face), given the face's P."""
+    o, ax = P(0, 0, 0), P(1, 0, 0)
+    return ((w, h, d) if abs(ax[0] - o[0]) > 0.5 else (d, h, w)),
+
+
 def prop_washers(ctx, c, s):
+    """Back-to-back front-loaders (round 5, owner: "make dryer and washer more 3d"): a seam between machines, a
+    porthole door, a control panel along the top with a dial, a coin slot; one OUT OF ORDER."""
     b = ctx.b
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
-    b.box(c, s, style=lambda n, m, q: None if abs(n[2]) > 0.7 or n[1] < -0.7 else ("bone" if n[1] > 0.7 else "trim", uv_world()))
     x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
-    strip_quads(ctx, x0, x1, y0, y1, z0, (0, 0, -1), "washer", 0.92, "x")
-    strip_quads(ctx, x0, x1, y0, y1, z1, (0, 0, 1), "washer", 0.92, "x")
-    b.poly([(x0 + 1.2, y1 - 0.5, z0 - 0.005), (x0 + 1.5, y1 - 0.5, z0 - 0.005), (x0 + 1.5, y1 - 0.3, z0 - 0.005),
-            (x0 + 1.2, y1 - 0.3, z0 - 0.005)], (0, 0, -1), "decals", ctx.d("note"))         # OUT OF ORDER
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("bone" if abs(n[2]) > 0.7 else "trim", uv_world()))
+    n_units = max(1, round(s[0] / 0.92))
+    unit = s[0] / n_units
+    for zf, out in ((z0, -1), (z1, 1)):
+        def P(a, y, d, zf=zf, out=out):
+            return (a, y, zf + out * d)
+        for k in range(n_units):
+            a = x0 + unit * (k + 0.5)
+            round_door(b, P, a, y0 + 0.42, 0.5, inside=ctx.rng.choice(("red", "green", "bone", None)))
+            b.box(P(a - unit * 0.22, y1 - 0.12, 0.02), *_face_size(P, 0.14, 0.05, 0.04), style=no_bottom("black", 1.0))   # coin slot
+            b.box(P(a + unit * 0.25, y1 - 0.12, 0.03), *_face_size(P, 0.08, 0.08, 0.06), style=no_bottom("trim", 1.0))   # dial
+            b.box(P(a, y1 - 0.12, 0.005), *_face_size(P, unit - 0.04, 0.16, 0.01), style=no_bottom("steel_light", 1.0))  # panel
+            if k:
+                b.box(P(a - unit / 2, (y0 + y1) / 2, 0.005), *_face_size(P, 0.025, s[1], 0.012), style=no_bottom("trim_dark", 1.0))
+    for k in range(n_units):                                                                 # lids/panels on top
+        a = x0 + unit * (k + 0.5)
+        b.box((a, y1 + 0.06, (z0 + z1) / 2), (unit - 0.06, 0.12, 0.3), style=no_bottom("steel_light", 1.0))
+    b.poly([(x0 + 1.2, y1 - 0.5, z0 - 0.08), (x0 + 1.5, y1 - 0.5, z0 - 0.08), (x0 + 1.5, y1 - 0.3, z0 - 0.08),
+            (x0 + 1.2, y1 - 0.3, z0 - 0.08)], (0, 0, -1), "decals", ctx.d("note"))         # OUT OF ORDER
 
 
 def prop_dryers(ctx, c, s):
+    """Stacked dryers against the wall, facing +x (round 5, 3D): two rows of porthole doors, a lint panel and a
+    coin slot on each."""
     b = ctx.b
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
-    b.box(c, s, style=lambda n, m, q: None if n[0] > 0.7 or n[1] < -0.7 else ("steel_light", uv_world()))
-    strip_quads(ctx, c[2] - s[2] / 2, c[2] + s[2] / 2, y0, y1, c[0] + s[0] / 2, (1, 0, 0), "dryer", 0.85, "z")
+    xf = c[0] + s[0] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world()))
+
+    def P(a, y, d):
+        return (xf + d, y, a)
+    z0 = c[2] - s[2] / 2
+    n_units = max(1, round(s[2] / 0.85))
+    unit = s[2] / n_units
+    h = s[1] / 2
+    for k in range(n_units):
+        a = z0 + unit * (k + 0.5)
+        for r in range(2):
+            base = y0 + r * h
+            round_door(b, P, a, base + h * 0.45, 0.52, ring="trim", glass="black",
+                       inside="bone" if (k + r) % 3 == 0 else None)
+            b.box(P(a, base + h - 0.1, 0.01), *_face_size(P, unit - 0.06, 0.12, 0.02), style=no_bottom("trim_dark", 1.0))
+            b.box(P(a + unit * 0.3, base + h - 0.1, 0.025), *_face_size(P, 0.1, 0.04, 0.02), style=no_bottom("black", 1.0))
+        if k:
+            b.box(P(a - unit / 2, (y0 + y1) / 2, 0.005), *_face_size(P, 0.025, s[1], 0.012), style=no_bottom("trim_dark", 1.0))
+    b.box(P(c[2], y0 + h, 0.005), *_face_size(P, s[2], 0.03, 0.012), style=no_bottom("trim_dark", 1.0))   # between rows
 
 
 def prop_table(ctx, c, s, top="wood", legs="trim_dark"):
@@ -2838,12 +2911,12 @@ def school_decals(rng):
         c.rect(m - 2, 3, m + 3, c.h - 3, "green_dark")
         c.rect(3, m - 2, c.w - 3, m + 3, "green_dark")
 
-    def menu(c):          # 2 x 0.9 m
+    def menu(c):          # 2 x 1.1 m (round 5: tall enough for all three lines)
         c.rect(0, 0, c.w, c.h, "black")
         c.frame(0, 0, c.w, c.h, "steel")
         c.text(4, c.h - 8, "LUNCH", "hazard_yellow")
         for k, item in enumerate(("SOUP 2", "PIZZA 3", "MILK 1")):
-            c.text(4, c.h - 16 - k * 7, item, "bone")
+            c.text(4, c.h - 15 - k * 7, item, "bone")
 
     def graffiti(c):      # NOVA, sprayed (the other army: docs/LORE.md)
         c.rect(0, 0, c.w, c.h, "clear")
@@ -2869,7 +2942,7 @@ def school_decals(rng):
     a.add("poster_read", 19, 26, poster("READ", "sky_blue", "bone"))
     a.add("crest", 48, 48, crest)
     a.add("nurse", 19, 19, nurse)
-    a.add("menu", 64, 29, menu)
+    a.add("menu", 64, 35, menu)
     a.add("graffiti", 80, 30, graffiti)
     a.add("clock", 13, 13, clock)
 
@@ -3519,7 +3592,7 @@ def dress_school(ctx):
         wall_quad(b, (-1, 0, 0), 4.89, 1.4, 3.0, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
     wall_quad(b, (0, 0, -1), 11.85, 4.0, 4.6, 1.3, 2.1, "decals", ctx.d("poster_read"))
     wall_quad(b, (0, 0, 1), 4.11, 2.1, 3.6, 0.9, 2.4, "decals", ctx.d("crest"))      # the crest, facing the doors
-    wall_quad(b, (0, 0, 1), -3.89, -14.0, -12.0, 1.3, 2.2, "decals", ctx.d("menu"))
+    wall_quad(b, (0, 0, 1), -3.89, -14.0, -12.0, 1.25, 2.35, "decals", ctx.d("menu"))
     wall_quad(b, (1, 0, 0), -14.84, 5.0, 5.6, 1.4, 2.0, "decals", ctx.d("nurse"))
     for x0 in (-5.0, 5.0):
         for y in (0.0, 3.0):
