@@ -32,6 +32,9 @@ import json
 import struct
 import zlib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import bake_light  # noqa: E402
+
 try:
     import bpy
 except ImportError:      # plain Python: writes the .glb itself (same model, no Blender needed)
@@ -40,6 +43,7 @@ except ImportError:      # plain Python: writes the .glb itself (same model, no 
 BUILDING = "gas_station_town"
 EXPORT = False
 REGENERATE_TEXTURES = False
+BAKE_LIGHT = os.environ.get("BLOXOV_BAKE", "1") == "1"   # sky light baked into vertex colours (bake_light.py)
 
 # Art style knobs (0.17 style tests; the chosen look becomes the default). BLOXOV_STYLE=<name> picks one of STYLES.
 STYLES = {
@@ -132,10 +136,13 @@ class Canvas:
                 x += rng.choice((-1, 0, 1))
                 y += rng.choice((-1, 0, 1))
 
-    def text(self, x, y, s, c, scale=1):
-        """Pixel text (3 x 5 glyphs, 1 px apart) with its bottom-left at (x, y). Returns the width."""
+    def text(self, x, y, s, c, scale=1, wide_gap=-1):
+        """Pixel text (3 x 5 glyphs, 1 px apart) with its bottom-left at (x, y). Returns the width.
+        wide_gap: the gap after that letter is 1 px wider (ctext uses it to centre exactly)."""
         cx = x
-        for ch in s.upper():
+        for i, ch in enumerate(s.upper()):
+            if i == wide_gap + 1:
+                cx += 1
             g = FONT.get(ch)
             if g is None:
                 cx += 2 * scale
@@ -146,6 +153,17 @@ class Canvas:
                         self.rect(cx + k * scale, y + (4 - r) * scale, cx + (k + 1) * scale, y + (5 - r) * scale, c)
             cx += (len(g[0]) + 1) * scale
         return cx - x - scale
+
+    def ctext(self, x0, x1, y, s, c, scale=1):
+        """Pixel text centred between columns x0 and x1. The leftover space must split evenly (else one side
+        gets a pixel more, which shows at this size), so an odd leftover widens the middle gap by a pixel."""
+        w = Canvas.text_width(s, scale)
+        gap = -1
+        if (x1 - x0 - w) % 2:          # odd leftover: widen the middle gap a pixel so both sides match
+            if len(s) < 2:
+                raise ValueError("text %r (%d px) can't be centred in %d px" % (s, w, x1 - x0))
+            gap, w = (len(s) - 2) // 2, w + 1
+        return self.text(x0 + (x1 - x0 - w) // 2, y, s, c, scale, gap)
 
     @staticmethod
     def text_width(s, scale=1):
@@ -531,7 +549,7 @@ def gas_station_decals(rng):
         c.frame(0, 0, c.w, c.h, "iron_dark")
         c.frame(2, 2, c.w - 2, c.h - 2, "bone")
         w = Canvas.text_width("GAS", 4)
-        c.text((c.w - w) // 2, 6, "GAS", "bone", 4)
+        c.ctext(0, c.w, 6, "GAS", "bone", 4)
         c.blotch(["rust"], 3, rng, area=(3, 3, c.w - 3, c.h - 3), size=(2, 4))
 
     def pump_front(c):    # 1 m x 1.5 m
@@ -566,7 +584,7 @@ def gas_station_decals(rng):
         c.rect(0, 0, c.w, c.h, "iron_dark")
         c.rect(2, c.h - 22, c.w - 2, c.h - 2, "red")
         w = Canvas.text_width("GAS", 3)
-        c.text((c.w - w) // 2, c.h - 19, "GAS", "bone", 3)
+        c.ctext(0, c.w, c.h - 19, "GAS", "bone", 3)
         rows = (("95", "4.1_"), ("98", "_._9"), ("DSL", "3.8_"))
         for k, (fuel, price) in enumerate(rows):
             y = c.h - 34 - k * 12
@@ -579,7 +597,7 @@ def gas_station_decals(rng):
         c.rect(0, 0, c.w, c.h, "bone")
         c.frame(0, 0, c.w, c.h, "red")
         w = Canvas.text_width("MARKET 24H", 2)
-        c.text((c.w - w) // 2, 3, "MARKET 24H", "red", 2)
+        c.ctext(0, c.w, 3, "MARKET 24H", "red", 2)
         c.blotch(["concrete"], 4, rng, area=(1, 1, c.w - 1, c.h - 1), size=(2, 3))
 
     def fridge(c):        # 3 m x 2 m: three glass doors of drinks, half sold out
@@ -621,8 +639,8 @@ def gas_station_decals(rng):
             c.rect(x, 0, x + 1, c.h, "wood_mid")
         c.rect(0, 0, c.w, 3, "wood_dark")
         c.rect(30, 8, 62, 26, "bone")                                    # poster
-        c.text(33, 18, "LOTTO", "red")
-        c.text(36, 10, "WIN!", "red")
+        c.ctext(30, 62, 18, "LOTTO", "red")
+        c.ctext(30, 62, 10, "WIN!", "red")
         c.blotch(["wood_dark"], 4, rng, area=(0, 0, 28, c.h), size=(2, 4))
 
     def cigs(c):          # 2.7 m x 1 m
@@ -634,9 +652,8 @@ def gas_station_decals(rng):
 
     def ice(c):           # 1.6 m x 1 m
         c.rect(0, 0, c.w, c.h, "bone")
-        c.rect(0, c.h - 6, c.w, c.h, "sky_blue")
-        w = Canvas.text_width("ICE", 4)
-        c.text((c.w - w) // 2, 6, "ICE", "sky_blue", 4)
+        c.frame(0, 0, c.w, c.h, "steel_light")
+        c.ctext(0, c.w, 6, "ICE", "sky_blue", 4)
         c.blotch(["rust", "concrete"], 5, rng, size=(2, 4))
 
     def graffiti(c):      # 3 m x 1 m: stencil spray, black with drips
@@ -651,7 +668,7 @@ def gas_station_decals(rng):
 
     def closed(c):        # 0.6 m x 0.4 m paper notice
         c.rect(0, 0, c.w, c.h, "bone")
-        c.text(2, 6, "CLOSED", "black")
+        c.ctext(0, c.w, 6, "CLOSED", "black")
         c.rect(2, 3, c.w - 2, 4, "steel")
 
     def magazines(c):     # 1.4 m x 1.3 m: rack of magazines and papers, a few gone
@@ -668,14 +685,12 @@ def gas_station_decals(rng):
     def atm(c):           # 0.75 m x 1.7 m
         c.rect(0, 0, c.w, c.h, "steel")
         c.rect(0, c.h - 8, c.w, c.h, "sky_blue")
-        c.text(3, c.h - 7, "ATM", "bone")
+        c.ctext(0, c.w, c.h - 7, "ATM", "bone")
         c.rect(3, 30, c.w - 3, 42, "black")                                # smashed screen
         for _ in range(12):
             c.put(rng.randrange(3, c.w - 3), rng.randrange(30, 42), rng.choice(("steel_light", "steel")))
         c.rect(4, 18, c.w - 4, 27, "iron")                                  # keypad
         c.rect(5, 12, c.w - 5, 14, "black")                                 # card slot / cash slot
-        c.rect(3, 44, c.w - 3, 51, "bone")                                  # taped note
-        c.text(4, 45, "OUT", "red")
 
     def clock(c):         # 0.4 m
         c.rect(0, 0, c.w, c.h, "bone")
@@ -685,14 +700,14 @@ def gas_station_decals(rng):
 
     def poster(c):        # 0.6 m x 0.8 m
         c.rect(0, 0, c.w, c.h, "hazard_yellow")
-        c.text(2, c.h - 8, "SALE", "red")
+        c.ctext(0, c.w, c.h - 8, "SALE", "red")
         c.rect(2, 4, c.w - 2, 13, "red")
-        c.text(3, 6, "50%", "bone")
+        c.ctext(2, c.w - 2, 6, "50%", "bone")
 
     def banner(c):        # 2 m x 0.35 m
         c.rect(0, 0, c.w, c.h, "red")
         w = Canvas.text_width("COLD DRINKS", 1)
-        c.text((c.w - w) // 2, 3, "COLD DRINKS", "bone")
+        c.ctext(0, c.w, 3, "COLD DRINKS", "bone")
 
     def wet(c):           # 0.3 m x 0.6 m
         c.rect(0, 0, c.w, c.h, "hazard_yellow")
@@ -1014,6 +1029,10 @@ def wall_style(fp, ext="ext_block", inner=None, storey=3.0):
             if n[1] > 0 and mid[1] > storey - 0.01 and abs(mid[1] / storey - round(mid[1] / storey)) < 0.01:
                 return None                                   # hidden under a slab
             return ("trim", uv_world(1.0))
+        # On the outside plane and facing out (wall ends at the corners too): outside material, so corners join.
+        if ((n[0] > 0.7 and abs(mid[0] - x1) < 0.05) or (n[0] < -0.7 and abs(mid[0] - x0) < 0.05)
+                or (n[2] > 0.7 and abs(mid[2] - z1) < 0.05) or (n[2] < -0.7 and abs(mid[2] - z0) < 0.05)):
+            return (ext, uv_world())
         dist = min(mid[0] - x0, x1 - mid[0], mid[2] - z0, z1 - mid[2])
         if dist < -0.05:
             return (ext, uv_world())
@@ -1428,7 +1447,7 @@ def shops_decals(rng):
             c.rect(0, 0, c.w, c.h, board)
             c.frame(0, 0, c.w, c.h, "iron_dark")
             w = Canvas.text_width(text, scale)
-            c.text((c.w - w) // 2, (c.h - 5 * scale) // 2, text, ink, scale)
+            c.ctext(0, c.w, (c.h - 5 * scale) // 2, text, ink, scale)
             if burnt:
                 c.blotch(["black", "iron_dark"], 14, rng, size=(3, 7))
                 c.rect(c.w - 22, 0, c.w, 9, "clear")                     # a corner burned away
@@ -1487,7 +1506,7 @@ def shops_decals(rng):
         c.rect(0, 0, c.w, 3, "wood_dark")
         c.rect(0, c.h - 9, c.w, c.h - 3, "red")
         w = Canvas.text_width("SHOES")
-        c.text((c.w - w) // 2, c.h - 8, "SHOES", "bone")
+        c.ctext(0, c.w, c.h - 8, "SHOES", "bone")
         for x in range(6, c.w, 12):
             c.rect(x, 3, x + 1, c.h - 9, "wood_dark")
 
@@ -1531,7 +1550,7 @@ def shops_decals(rng):
             c.rect(0, 0, c.w, c.h, colour)
             c.frame(0, 0, c.w, c.h, ink)
             w = Canvas.text_width(text)
-            c.text((c.w - w) // 2, c.h // 2, text, ink)
+            c.ctext(0, c.w, c.h // 2, text, ink)
         return paint
 
     def soot(c):          # 2 x 1.5 m see-through scorch over a window or door
@@ -2032,7 +2051,7 @@ def school_decals(rng):
         c.rect(0, 0, c.w, c.h, "olive_dark")
         c.frame(0, 0, c.w, c.h, "bone")
         w = Canvas.text_width("BLOXOV SCHOOL", 3)
-        c.text((c.w - w) // 2, 5, "BLOXOV SCHOOL", "bone", 3)
+        c.ctext(0, c.w, 5, "BLOXOV SCHOOL", "bone", 3)
 
     def notice(c):        # 1.6 x 1 m cork board
         c.rect(0, 0, c.w, c.h, "wood_light")
@@ -2047,7 +2066,7 @@ def school_decals(rng):
             c.rect(0, 0, c.w, c.h, colour)
             c.frame(0, 0, c.w, c.h, ink)
             w = Canvas.text_width(text)
-            c.text((c.w - w) // 2, c.h // 2 - 2, text, ink)
+            c.ctext(0, c.w, c.h // 2 - 2, text, ink)
         return paint
 
     def nurse(c):         # green cross sign (not the protected red cross)
@@ -2065,7 +2084,7 @@ def school_decals(rng):
     def graffiti(c):      # NOVA, sprayed (the other army: docs/LORE.md)
         c.rect(0, 0, c.w, c.h, "clear")
         w = Canvas.text_width("NOVA", 4)
-        c.text((c.w - w) // 2, 4, "NOVA", "sky_blue", 4)
+        c.ctext(0, c.w, 4, "NOVA", "sky_blue", 4)
         for _ in range(5):
             x = rng.randrange(4, c.w - 4)
             c.rect(x, 0, x + 1, rng.randrange(2, 5), "sky_blue")
@@ -2323,7 +2342,7 @@ def pharmacy_decals(rng):
         c.rect(11, 6, 15, 20, "bone")
         c.rect(6, 11, 20, 15, "bone")
         w = Canvas.text_width("PHARMACY", 3)
-        c.text(28 + (c.w - 28 - w) // 2, 5, "PHARMACY", "green_dark", 3)
+        c.ctext(28, c.w, 5, "PHARMACY", "green_dark", 3)
         c.blotch(["concrete"], 4, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
 
     def cross(c):         # 1 x 1 m lightbox
@@ -2362,13 +2381,13 @@ def pharmacy_decals(rng):
         c.rect(0, 0, c.w, 3, "steel")
         c.rect(0, c.h - 10, c.w, c.h - 4, "extract_green")
         w = Canvas.text_width("PAY HERE")
-        c.text((c.w - w) // 2, c.h - 9, "PAY HERE", "bone")
+        c.ctext(0, c.w, c.h - 9, "PAY HERE", "bone")
         c.blotch(["concrete"], 4, rng, size=(2, 4))
 
     def rx(c):            # 2.5 x 0.4 m hanging sign
         c.rect(0, 0, c.w, c.h, "green_dark")
         w = Canvas.text_width("PRESCRIPTIONS")
-        c.text((c.w - w) // 2, 4, "PRESCRIPTIONS", "bone")
+        c.ctext(0, c.w, 4, "PRESCRIPTIONS", "bone")
 
     def glasses(c):       # 0.6 x 1.6 m sunglasses stand side
         c.rect(0, 0, c.w, c.h, "steel_light")
@@ -2387,13 +2406,13 @@ def pharmacy_decals(rng):
             c.frame(0, 0, c.w, c.h, ink)
             for k, t in enumerate(lines):
                 w = Canvas.text_width(t)
-                c.text((c.w - w) // 2, c.h - 9 - k * 7, t, ink)
+                c.ctext(0, c.w, c.h - 9 - k * 7, t, ink)
         return paint
 
     def looted(c):        # graffiti
         c.rect(0, 0, c.w, c.h, "clear")
         w = Canvas.text_width("NO MEDS", 3)
-        c.text((c.w - w) // 2, 3, "NO MEDS", "red", 3)
+        c.ctext(0, c.w, 3, "NO MEDS", "red", 3)
         for _ in range(5):
             x = rng.randrange(3, c.w - 3)
             c.rect(x, 0, x + 1, rng.randrange(2, 4), "red")
@@ -2580,22 +2599,25 @@ def write_glb(path, builder, textures, mat_info):
         materials.append(m)
     prims = []
     for mi in range(len(builder.mat_names)):
-        pos, nrm, uv, idx = [], [], [], []
-        for face, uvs, m, n in zip(builder.faces, builder.uvs, builder.mats, builder.normals):
+        pos, nrm, uv, col, idx = [], [], [], [], []
+        colors = getattr(builder, "colors", None) or [None] * len(builder.faces)
+        for face, uvs, m, n, cs in zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors):
             if m != mi:
                 continue
             base = len(pos)
-            for vi, t in zip(face, uvs):
+            for k, (vi, t) in enumerate(zip(face, uvs)):
                 pos.append(builder.verts[vi])
                 nrm.append(n)
                 uv.append((t[0], 1.0 - t[1]))          # glTF's v points down the image
+                col.append(tuple(cs[k]) if cs else (1.0, 1.0, 1.0))
             for k in range(1, len(face) - 1):
                 idx += [base, base + k, base + k + 1]
         if not idx:
             continue
         prims.append({"attributes": {"POSITION": add_accessor(pos, 5126, "VEC3", 34962, True),
                                      "NORMAL": add_accessor(nrm, 5126, "VEC3", 34962),
-                                     "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962)},
+                                     "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
+                                     **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if colors[0] else {})},
                       "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
     # Images use the alpha channel only where the material says so; gltf's alpha comes from the texture.
     gltf = {"asset": {"version": "2.0", "generator": "Bloxov make_building.py"}, "scene": 0,
@@ -2646,6 +2668,8 @@ def build(name, export):
         else:
             shell_box(ctx, row)
     DRESSING[name](ctx)
+    if BAKE_LIGHT:
+        bake_light.bake(ctx.b, data["boxes"])
     print(f"{name}: {sum(len(f) - 2 for f in ctx.b.faces)} triangles, {len(ctx.b.mat_names)} materials")
     out = os.path.join(ROOT, "assets", "models", "buildings", name + ".glb")
     if bpy is None:

@@ -33,7 +33,7 @@ def loot_decals(rng):
         c.rect(1, c.h - 10, c.w - 1, c.h - 2, "iron_dark")          # name plate above it
         c.rect(1, 6, 2, 10, "iron"); c.rect(1, c.h - 16, 2, c.h - 12, "iron")   # hinges
         w = Canvas.text_width("BLOXOV")
-        c.text((c.w - w) // 2, c.h - 8, "BLOXOV", "hazard_yellow")
+        c.ctext(0, c.w, c.h - 8, "BLOXOV", "hazard_yellow")
         c.blotch(["olive", "iron_dark"], 4, rng, area=(3, 3, c.w - 3, c.h - 10))
 
     def locker(c):          # 0.75 x 1.9 m
@@ -135,7 +135,7 @@ def loot_decals(rng):
         for x in (4, c.w - 8):
             c.rect(x, c.h - 6, x + 4, c.h - 1, "iron")                               # latches
         w = Canvas.text_width("SUPPLY")
-        c.text((c.w - w) // 2, 3, "SUPPLY", "black")
+        c.ctext(0, c.w, 3, "SUPPLY", "black")
         c.blotch(["sand", "olive_light"], 4, rng, size=(2, 3))
 
     def weapon_case(c):     # 1.15 x 0.36 m
@@ -144,7 +144,7 @@ def loot_decals(rng):
         for x in (4, c.w // 2 - 2, c.w - 8):
             c.rect(x, c.h - 6, x + 4, c.h - 1, "steel")
         w = Canvas.text_width("ARMS")
-        c.text((c.w - w) // 2, 1, "ARMS", "bone")
+        c.ctext(0, c.w, 1, "ARMS", "bone")
 
     def med(c):             # 0.8 x 1.6 m
         c.rect(0, 0, c.w, c.h, "bone")
@@ -156,7 +156,7 @@ def loot_decals(rng):
         c.rect(c.w // 2 - 3, 18, c.w // 2 - 1, 24, "steel")
         c.rect(c.w // 2 + 2, 18, c.w // 2 + 4, 24, "steel")
         w = Canvas.text_width("MED")
-        c.text((c.w - w) // 2, 28, "MED", "steel")
+        c.ctext(0, c.w, 28, "MED", "steel")
         c.blotch(["concrete", "sand"], 5, rng, size=(2, 4))
 
     def box_label(text, colour, ink):
@@ -166,7 +166,7 @@ def loot_decals(rng):
             c.rect(0, c.h - 2, c.w, c.h, "sand")                                     # tape
             c.rect(1, 2, c.w - 1, 9, colour)
             w = Canvas.text_width(text)
-            c.text((c.w - w) // 2, 3, text, ink)
+            c.ctext(0, c.w, 3, text, ink)
         return paint
 
     a.add("safe", 27, 26, safe)   # odd width: BLOXOV (23 px) gets a 1 px gap each side
