@@ -37,7 +37,7 @@
 {"pos": [-13.5, 0.8, -4.0], "size": [1.2, 1.6, 1.2], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "pump"},
 {"pos": [-13.5, 0.8, 0.0], "size": [1.2, 1.6, 1.2], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "pump"},
 {"pos": [-4.1, 0.5, 3.25], "size": [3.0, 1.0, 0.7], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "counter"},
-{"pos": [-4.15, 1.7, 4.725], "size": [2.7, 1.0, 0.25], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "cig_rack"},
+{"pos": [-1.35, 1.7, 4.725], "size": [1.9, 0.8, 0.25], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "cig_rack"},
 {"pos": [-3.0, 0.7, -2.1], "size": [2.8, 1.4, 0.8], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "shelf"},
 {"pos": [-2.8, 1.05, -4.5], "size": [3.2, 2.1, 0.7], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "fridge"},
 {"pos": [-1.2, 0.55, -2.1], "size": [0.6, 1.1, 0.8], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "endcap"},

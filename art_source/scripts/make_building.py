@@ -1094,8 +1094,40 @@ def shell_box(ctx, row):
         mat = SHELL_COLOURS[colour]
         b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: (mat, uv_world(2.0)))
     else:
-        b.box(c, s, row["yaw"], row["pitch"],
-              style=wall_style(ctx.footprint, cfg.get("ext", "ext_block"), cfg.get("inner")))
+        style = wall_style(ctx.footprint, cfg.get("ext", "ext_block"), cfg.get("inner"))
+        if row["yaw"] or row["pitch"]:
+            b.box(c, s, row["yaw"], row["pitch"], style=style)
+        else:
+            split_box(b, c, s, style, cfg.get("x_lines", ()), cfg.get("z_lines", ()), (3.0, 6.0))
+
+
+def split_box(b, c, s, style, xcuts, zcuts, ycuts):
+    """An unturned wall box whose side faces are cut where rooms and storeys change (the building's room lines),
+    so each piece takes the paint of the room it faces (a long wall face used to take one room's paint for all)."""
+    lo = [c[k] - s[k] / 2 for k in range(3)]
+    hi = [c[k] + s[k] / 2 for k in range(3)]
+    cuts = (tuple(xcuts), tuple(ycuts), tuple(zcuts))
+    for axis in range(3):
+        for sgn in (-1, 1):
+            n = [0.0, 0.0, 0.0]
+            n[axis] = float(sgn)
+            a, e = [k for k in range(3) if k != axis]
+            plane = hi[axis] if sgn > 0 else lo[axis]
+            spans = []
+            for k in (a, e):
+                edges = [lo[k]] + sorted(v for v in cuts[k] if lo[k] + 0.01 < v < hi[k] - 0.01) + [hi[k]]
+                spans.append(list(zip(edges, edges[1:])))
+            for p0, p1 in spans[0]:
+                for q0, q1 in spans[1]:
+                    corners = []
+                    for u, v in ((p0, q0), (p1, q0), (p1, q1), (p0, q1)):
+                        pt = [0.0, 0.0, 0.0]
+                        pt[axis], pt[a], pt[e] = plane, u, v
+                        corners.append(tuple(pt))
+                    mid = v_scale(v_add(corners[0], corners[2]), 0.5)
+                    got = style(tuple(n), mid, corners)
+                    if got:
+                        b.poly(corners, tuple(n), got[0], got[1])
 
 
 def stairs(ctx, c, s, yaw, pitch):
@@ -1227,10 +1259,59 @@ def prop_counter(ctx, c, s):
     b.box((c[0], c[1] + s[1] / 2 - 0.025, c[2]), (s[0] + 0.06, 0.05, s[2] + 0.06),
           style=lambda n, m, q: None if n[1] < -0.7 else ("bone", uv_world()))
     top = c[1] + s[1] / 2
-    b.box((c[0] + s[0] / 2 - 0.5, top + 0.12, c[2] + 0.05), (0.42, 0.24, 0.36),
-          style=lambda n, m, q: None if n[1] < -0.7 else ("trim_dark", uv_world()))         # till, drawer open
-    b.box((c[0] + s[0] / 2 - 0.5, top + 0.03, c[2] - 0.28), (0.36, 0.06, 0.25),
-          style=lambda n, m, q: ("black", uv_world()))
+    register(b, c[0] + s[0] / 2 - 0.5, top, c[2] + 0.08, 1)
+    card_reader(b, c[0] + s[0] / 2 - 1.05, top, c[2] - 0.2)
+    for k in range(3):                                                   # gum and candy boxes on the customer side
+        col = ("red", "yellow", "blue")[k]
+        x = c[0] - s[0] / 2 + 0.35 + k * 0.2
+        b.group = ("item", len(b.faces))
+        b.box((x, top + 0.05, c[2] - 0.18), (0.16, 0.1, 0.12), pitch=-15, style=no_bottom(col, 1.0))
+        b.group = None
+
+
+def register(b, x, top, z, face):
+    """A cash register on a counter at (x, top, z); the clerk stands on the `face` side (+1: +z). The cash drawer is
+    pulled out, empty but for a few notes; a keypad, a screen for the clerk and a small display for the customer."""
+    nb = lambda mat: no_bottom(mat, 1.0)
+    b.group = ("item", len(b.faces))
+    b.box((x, top + 0.05, z), (0.42, 0.1, 0.42), style=nb("trim_dark"))                              # drawer box
+    dz = z + face * 0.3
+    b.box((x, top + 0.05, dz), (0.38, 0.08, 0.2), style=lambda n, m, q: None if n[1] < -0.7 else
+          (("black", uv_world(1.0)) if n[1] > 0.7 else ("trim_dark", uv_world(1.0))))             # pulled out
+    for k in range(4):                                                                             # a few notes
+        if k % 2 == 0:
+            b.box((x - 0.13 + k * 0.085, top + 0.093, dz - face * 0.03), (0.07, 0.006, 0.12), style=nb("mint"))
+    b.box((x, top + 0.085, dz + face * 0.1), (0.38, 0.03, 0.02), style=nb("trim"))                   # its front lip
+    b.box((x, top + 0.16, z - face * 0.04), (0.38, 0.12, 0.3), pitch=-10 * face, style=nb("black"))  # keypad body
+    for i in range(4):                                                                             # keys
+        for j in range(3):
+            col = "red" if (i, j) == (3, 0) else ("mint" if (i, j) == (3, 2) else "bone")
+            b.box((x - 0.12 + i * 0.065, top + 0.235 - j * 0.01 * face * 0, z - face * 0.1 + face * j * 0.06),
+                  (0.045, 0.012, 0.045), pitch=-10 * face, style=nb(col))
+    b.box((x + 0.12, top + 0.3, z - face * 0.14), (0.03, 0.18, 0.03), style=nb("black"))             # screen post
+    b.box((x + 0.12, top + 0.43, z - face * 0.14), (0.26, 0.17, 0.04), pitch=8 * face, style=nb("black"))
+    b.poly(_quad_z(x + 0.12, 0.11, top + 0.43, 0.065, z - face * 0.14 + face * 0.021), (0, 0, face), "glass",
+           uv_world(1.0))                                                                          # clerk's screen
+    b.box((x - 0.14, top + 0.33, z - face * 0.16), (0.12, 0.06, 0.04), style=nb("black"))            # customer display
+    b.poly(_quad_z(x - 0.14, 0.05, top + 0.33, 0.022, z - face * 0.16 - face * 0.021), (0, 0, -face), "mint",
+           uv_world(1.0))
+    b.box((x - 0.14, top + 0.25, z - face * 0.16), (0.02, 0.1, 0.02), style=nb("black"))
+    b.box((x + 0.3, top + 0.06, z), (0.14, 0.12, 0.18), style=nb("bone"))                              # receipt printer
+    b.box((x + 0.3, top + 0.125, z + face * 0.05), (0.08, 0.004, 0.12), pitch=20, style=nb("bone"))
+    b.group = None
+
+
+def card_reader(b, x, top, z):
+    nb = lambda mat: no_bottom(mat, 1.0)
+    b.group = ("item", len(b.faces))
+    b.box((x, top + 0.04, z), (0.1, 0.08, 0.1), style=nb("trim_dark"))
+    b.box((x, top + 0.11, z), (0.09, 0.03, 0.16), pitch=25, style=nb("black"))
+    b.group = None
+
+
+def _quad_z(x, hw, y, hh, z):
+    """A rectangle facing along z: centre (x, y), half sizes hw, hh, on the plane z."""
+    return [(x - hw, y - hh, z), (x + hw, y - hh, z), (x + hw, y + hh, z), (x - hw, y + hh, z)]
 
 
 def prop_cigs(ctx, c, s):
@@ -1383,15 +1464,52 @@ def prop_atm(ctx, c, s):
 
 
 def prop_coffee(ctx, c, s):
+    """Coffee station (refine pass): a red laminate cabinet with doors, a black worktop, a two-pot brewer against
+    the wall, stacks of cups, a lid rack and a sugar box. The front faces into the shop."""
     b = ctx.b
-    base_y = c[1] - s[1] / 2
-    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("bone", uv_world()) if n[1] > 0.7 else ("wood", uv_world(2.0))))
-    top = base_y + s[1]
-    b.box((c[0], top + 0.25, c[2] - 0.2), (0.4, 0.5, 0.38), style=lambda n, m, q: None if n[1] < -0.7 else ("trim_dark", uv_world()))
-    b.box((c[0] + 0.05, top + 0.1, c[2] - 0.2), (0.3, 0.2, 0.2), style=lambda n, m, q: ("red", uv_world()))   # pot
-    for k in range(3):                                                                           # cup stacks
-        b.box((c[0], top + 0.08 + 0.0, c[2] + 0.12 + k * 0.12), (0.08, 0.16 + 0.04 * k, 0.08),
-              style=lambda n, m, q: None if n[1] < -0.7 else ("bone", uv_world()))
+    face = 1 if _front_into(c, 0) == "+x" else -1                      # the cabinet's front, along x
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    xf, xb = c[0] + face * s[0] / 2, c[0] - face * s[0] / 2
+    b.box((c[0] - face * 0.02, y0 + (s[1] - 0.04) / 2, c[2]), (s[0] - 0.04, s[1] - 0.04, s[2]), style=no_bottom("red", 1.0))
+    b.box((c[0], top - 0.02, c[2]), (s[0] + 0.02, 0.04, s[2] + 0.04), style=no_bottom("black", 1.0))     # worktop
+    for k in range(2):                                                                               # doors
+        zc = c[2] - s[2] / 4 + k * s[2] / 2
+        b.box((xf - face * 0.03, y0 + 0.47, zc), (0.012, 0.74, s[2] / 2 - 0.05), style=no_bottom("red", 1.0))
+        b.box((xf - face * 0.015, y0 + 0.7, zc + (0.17 if k == 0 else -0.17)), (0.02, 0.12, 0.025),
+              style=no_bottom("trim", 1.0))
+    b.box((xf - face * 0.03, y0 + 0.05, c[2]), (0.012, 0.1, s[2] - 0.02), style=no_bottom("black", 1.0))   # kick
+    b.box((xf - face * 0.02, y0 + 0.47, c[2]), (0.012, 0.74, 0.02), style=no_bottom("black", 1.0))        # door seam
+    nb = lambda mat: no_bottom(mat, 1.0)
+    # The brewer: a base with two warmer plates, a tower at the back, the hood over the brew basket.
+    bz = c[2] - s[2] / 2 + 0.3
+    b.group = ("item", len(b.faces))
+    b.box((xb + face * 0.2, top + 0.02, bz), (0.34, 0.04, 0.5), style=nb("black"))
+    b.box((xb + face * 0.08, top + 0.26, bz), (0.12, 0.48, 0.5), style=nb("steel_light"))
+    b.box((xb + face * 0.2, top + 0.46, bz), (0.34, 0.1, 0.5), style=nb("steel_light"))
+    b.box((xb + face * 0.22, top + 0.38, bz - 0.11), (0.16, 0.05, 0.16), style=nb("black"))           # brew basket
+    b.box((xb + face * 0.33, top + 0.38, bz - 0.11), (0.08, 0.02, 0.03), style=nb("black"))           # its handle
+    for k, dz in enumerate((-0.12, 0.12)):
+        zz = bz + dz
+        b.box((xb + face * 0.22, top + 0.045, zz), (0.15, 0.01, 0.15), style=nb("trim_dark"))          # warmer
+        b.box((xb + face * 0.22, top + 0.1, zz), (0.13, 0.1, 0.13), style=nb("black"))                # coffee in the pot
+        b.box((xb + face * 0.22, top + 0.19, zz), (0.13, 0.08, 0.13),
+              style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] < 0.7 else None)               # pot glass
+        b.box((xb + face * 0.22, top + 0.235, zz), (0.1, 0.02, 0.1), style=nb("black" if k else "mint"))   # lid
+        b.box((xb + face * 0.31, top + 0.15, zz), (0.03, 0.12, 0.03), style=nb("black"))             # handle
+    b.group = None
+    # Cups: three stacks (small, medium, large), red sleeves; a lid rack and a sugar box.
+    for k in range(3):
+        zz = c[2] + 0.08 + k * 0.13
+        h = 0.22 + 0.06 * k
+        b.group = ("item", len(b.faces))
+        b.box((c[0] - face * 0.08, top + h / 2, zz), (0.08 + 0.01 * k, h, 0.08 + 0.01 * k), style=nb("bone"))
+        b.box((c[0] - face * 0.08, top + h * 0.6, zz), (0.09 + 0.01 * k, 0.04, 0.09 + 0.01 * k), style=nb("red"))
+        b.group = None
+    b.box((c[0] + face * 0.14, top + 0.05, c[2] + 0.38), (0.16, 0.1, 0.12), style=nb("cardboard"))      # sugar packets
+    b.box((c[0] + face * 0.14, top + 0.04, c[2] + 0.16), (0.12, 0.08, 0.2), style=nb("trim_dark"))      # lid rack
+    for k in range(3):
+        b.box((c[0] + face * 0.14, top + 0.09, c[2] + 0.1 + k * 0.06), (0.1, 0.02, 0.05), style=nb("black"))
 
 
 def prop_magazines(ctx, c, s):
@@ -1811,6 +1929,8 @@ STOCK = {          # what each kind of shelf holds: (item, its colours)
     "books": [(stock_book, ("red", "blue", "green", "yellow", "olive", "black", "bone", "olive_dark"))],
     "shoes": [(stock_shoes, ("red", "bone", "blue", "black", "yellow", "olive"))],
     "tvs": [(stock_tv, ("bone", "steel_light", "trim", "wood"))],
+    "art": [(stock_jar, ("red", "yellow", "blue", "green")), (stock_box, ("bone", "cardboard", "yellow")),
+            (stock_book, ("bone", "cardboard"))],
 }
 
 
@@ -1906,7 +2026,8 @@ def shelving(ctx, c, s, axis, sides, kind, levels=4, frame="metal", lip="red", f
         sz = (la, h, ld) if axis == "x" else (ld, h, la)
         b.box(cc, sz, style=lambda n, m, q: None if skip_bottom and n[1] < -0.7 else (mat, uv_world(tile)))
     back_d = dc if len(sides) == 2 else dc - sides[0] * (D / 2 - 0.02)
-    box((a0 + a1) / 2, (y0 + y1) / 2, back_d, L, s[1], 0.03, frame, 2.0)                       # back panel
+    # The back panel and top sit between the end uprights (no faces on top of each other: they flickered).
+    box((a0 + a1) / 2, (y0 + y1 - 0.03) / 2, back_d, L - 0.08, s[1] - 0.03, 0.03, frame, 2.0)     # back panel
     for e in (a0 + 0.02, a1 - 0.02):                                                           # end uprights
         box(e, (y0 + y1) / 2, dc, 0.04, s[1], D, frame, 2.0)
     box((a0 + a1) / 2, y0 + 0.06, dc, L - 0.08, 0.12, D, "trim_dark")                          # kick plate
@@ -1923,7 +2044,7 @@ def shelving(ctx, c, s, axis, sides, kind, levels=4, frame="metal", lip="red", f
                 stock_run(ctx, a0 + 0.04, a1 - 0.04, y + 0.03, mid, axis, kind, rng, fill)
         if top_stock:
             stock_run(ctx, a0 + 0.04, a1 - 0.04, y1, mid, axis, kind, rng, fill * 0.6)
-    box((a0 + a1) / 2, y1 - 0.015, back_d, L, 0.03, 0.05 if len(sides) == 1 else D, frame)     # top
+    box((a0 + a1) / 2, y1 - 0.016, back_d, L - 0.08, 0.03, 0.05 if len(sides) == 1 else D - 0.004, frame)   # top
 
 
 def prop_washers(ctx, c, s):
@@ -2067,15 +2188,13 @@ def prop_plain_table(ctx, c, s):
                           style=no_bottom("trim_dark", 1.0))
 
 
-def prop_kitchenette(ctx, c, s):
-    ctx.b.box(c, s, style=face_decal(ctx.d("kitchen"), "wood", _front_into(c, 2)))
 
 
 SHOPS_PROPS = {
     "washers": prop_washers, "dryers": prop_dryers, "fold_table": prop_fold_table, "shoe_wall": prop_shoe_wall,
     "bench": prop_bench, "shoe_table": prop_shoe_table, "shoe_counter": prop_shoe_counter,
     "shoebox_stack": prop_shoebox_stack, "window_display": prop_window_display, "tv_shelf": prop_tv_shelf,
-    "tv_table": prop_tv_table, "bed": prop_bed, "table": prop_plain_table, "kitchenette": prop_kitchenette,
+    "tv_table": prop_tv_table, "bed": prop_bed, "table": prop_plain_table,
 }
 for _kind, _fn in SHOPS_PROPS.items():
     PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
@@ -2480,7 +2599,71 @@ def prop_hall_lockers(ctx, c, s):
 
 
 def prop_trophy_case(ctx, c, s):
-    ctx.b.box(c, s, style=face_decal(ctx.d("trophy"), "wood", _front_into(c, 2)))
+    """Trophy case (refine pass: 3D): wooden cabinet below, a glass case above with glass shelves, blue felt at the
+    back and real little trophies (cups with handles, figure trophies, plaques)."""
+    b, rng = ctx.b, random.Random(f"trophy{c}")
+    face = 1 if _front_into(c, 2) == "+z" else -1
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    zb, zf = c[2] - face * s[2] / 2, c[2] + face * s[2] / 2           # back and front planes
+    mid_z = c[2]
+    base_h = 0.62
+    b.box((c[0], y0 + base_h / 2, mid_z), (s[0], base_h, s[2]), style=no_bottom("wood", 1.0))        # cabinet
+    for k in range(2):                                                                                # its doors
+        dx = x0 + s[0] * (k + 0.5) / 2
+        b.box((dx, y0 + 0.33, zf + face * 0.006), (s[0] / 2 - 0.12, 0.42, 0.012), style=no_bottom("trim_dark", 1.0))
+        b.box((dx + (0.15 if k == 0 else -0.15) * 1, y0 + 0.36, zf + face * 0.018), (0.03, 0.12, 0.02),
+              style=no_bottom("yellow", 1.0))
+    b.box((c[0], (y0 + base_h + y1) / 2, zb + face * 0.015), (s[0], y1 - y0 - base_h, 0.03), style=no_bottom("blue", 1.0))
+    for x in (x0 + 0.03, x1 - 0.03, c[0]):                                                            # frame posts
+        b.box((x, (y0 + base_h + y1) / 2, zf - face * 0.025), (0.06 if x != c[0] else 0.04, y1 - y0 - base_h, 0.05),
+              style=no_bottom("wood", 1.0))
+    b.box((c[0], y1 - 0.04, mid_z), (s[0], 0.08, s[2]), style=lambda n, m, q: ("wood", uv_world(1.0)))  # top
+    shelves = (y0 + base_h, y0 + base_h + 0.42, y0 + base_h + 0.82)
+    depth = s[2] - 0.1
+    for k, y in enumerate(shelves):
+        if k:
+            b.box((c[0], y - 0.01, mid_z), (s[0] - 0.08, 0.02, depth), style=lambda n, m, q: ("glass", uv_world(1.0)))
+        # Trophies along the shelf, some gone (looted), a few knocked over.
+        x = x0 + 0.16
+        while x < x1 - 0.16:
+            if rng.random() < 0.8:
+                kind = rng.choice(("cup", "cup", "figure", "plaque"))
+                metal = rng.choice(("yellow", "yellow", "steel_light"))
+                zz = mid_z + face * rng.uniform(-0.04, 0.04)
+                trophy(b, x, y, zz, kind, metal, rng.uniform(0.22, 0.34), face)
+            x += rng.uniform(0.24, 0.34)
+    for k in range(2):                                                                                # glass doors
+        a, e = (x0 + 0.06, c[0] - 0.02) if k == 0 else (c[0] + 0.02, x1 - 0.06)
+        shards(ctx, a, e, y0 + base_h, y1 - 0.08, zf, "x", rng)                 # smashed in
+
+
+def trophy(b, x, y, z, kind, metal, h, face):
+    """One small trophy standing at (x, y, z), `h` tall: a dark base, then a cup with handles, a little figure on a
+    column, or a plaque (wooden board with a metal plate) facing out."""
+    b.group = ("item", len(b.faces))
+    nb = lambda mat: no_bottom(mat, 1.0)
+    if kind == "plaque":
+        b.box((x, y + h * 0.4, z - face * 0.04), (0.16, h * 0.8, 0.03), pitch=-8 * face, style=nb("wood"))
+        b.box((x, y + h * 0.42, z - face * 0.022), (0.11, h * 0.4, 0.008), pitch=-8 * face, style=nb(metal))
+        b.group = None
+        return
+    b.box((x, y + 0.03, z), (0.1, 0.06, 0.1), style=nb("black"))                                      # base
+    b.box((x, y + 0.075, z), (0.07, 0.03, 0.07), style=nb("black"))
+    if kind == "cup":
+        b.box((x, y + 0.09 + h * 0.15, z), (0.025, h * 0.3, 0.025), style=nb(metal))                   # stem
+        b.box((x, y + 0.09 + h * 0.3 + 0.01, z), (0.06, 0.02, 0.06), style=nb(metal))
+        cup_h = h * 0.45
+        b.box((x, y + 0.09 + h * 0.3 + 0.02 + cup_h / 2, z), (0.1, cup_h, 0.1), style=nb(metal))       # cup
+        for sx in (-1, 1):                                                                             # handles
+            b.box((x + sx * 0.065, y + 0.09 + h * 0.3 + 0.02 + cup_h * 0.6, z), (0.03, cup_h * 0.5, 0.015), style=nb(metal))
+    else:
+        b.box((x, y + 0.09 + h * 0.25, z), (0.045, h * 0.5, 0.045), style=nb("bone"))                 # column
+        fy = y + 0.09 + h * 0.5
+        b.box((x, fy + h * 0.12, z), (0.04, h * 0.24, 0.03), style=nb(metal))                          # body
+        b.box((x, fy + h * 0.27, z), (0.03, 0.03, 0.03), style=nb(metal))                              # head
+        b.box((x + 0.03, fy + h * 0.2, z), (0.06, 0.012, 0.012), yaw=0, pitch=0, style=nb(metal))      # arm up
+    b.group = None
 
 
 def prop_hall_bench(ctx, c, s):
@@ -2521,15 +2704,358 @@ def prop_computer_desk(ctx, c, s):
     for k in range(2):
         x = c[0] - s[0] / 4 + k * s[0] / 2
         pc(ctx, x - 0.1, top, c[2], face)
+        chair(b, x + ctx.rng.uniform(-0.1, 0.1), c[1] - s[1] / 2, c[2] + face * (s[2] / 2 + 0.3),
+              facing_yaw(0, -face) + ctx.rng.uniform(-25, 25), "black", "trim", office=True)
+
+
+# ---- furniture kit (refine pass, owner: "some of the rooms are just not furnished properly"): chairs, sofas,
+# kitchenettes, vending machines, filing cabinets, plants; shared by every building.
+def _at(x, z, yaw, ox, oz):
+    p = rot((ox, 0, oz), yaw, 0)
+    return x + p[0], z + p[2]
+
+
+def facing_yaw(dx, dz):
+    """The yaw that turns a chair (or sofa) to face along (dx, dz)."""
+    return math.degrees(math.atan2(-dx, -dz))
+
+
+def chair(b, x, y, z, yaw, seat="blue", frame="trim", office=False):
+    """A chair standing at (x, y, z) facing local -z turned by yaw. office: a swivel chair on a star base."""
+    b.group = ("item", len(b.faces))
+    nb = lambda mat: no_bottom(mat, 1.0)
+    if office:
+        b.box((x, y + 0.03, z), (0.56, 0.04, 0.06), yaw=yaw + 45, style=nb("black"))
+        b.box((x, y + 0.03, z), (0.56, 0.04, 0.06), yaw=yaw - 45, style=nb("black"))
+        b.box((x, y + 0.24, z), (0.05, 0.4, 0.05), style=nb("trim"))
+        b.box((x, y + 0.47, z), (0.48, 0.08, 0.46), yaw=yaw, style=nb(seat))
+        bx, bz = _at(x, z, yaw, 0, 0.22)
+        b.box((bx, y + 0.8, bz), (0.44, 0.5, 0.06), yaw=yaw, pitch=-6, style=nb(seat))
+        for sx in (-1, 1):
+            ax, az = _at(x, z, yaw, sx * 0.25, 0.02)
+            b.box((ax, y + 0.62, az), (0.04, 0.04, 0.32), yaw=yaw, style=nb("black"))
+    else:
+        b.box((x, y + 0.45, z), (0.42, 0.05, 0.42), yaw=yaw, style=nb(seat))
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                lx, lz = _at(x, z, yaw, sx * 0.18, sz * 0.18)
+                b.box((lx, y + 0.22, lz), (0.035, 0.44, 0.035), yaw=yaw, style=nb(frame))
+        bx, bz = _at(x, z, yaw, 0, 0.19)
+        b.box((bx, y + 0.72, bz), (0.42, 0.34, 0.04), yaw=yaw, style=nb(seat))
+    b.group = None
+
+
+def _long_axis(s):
+    return "x" if s[0] >= s[2] else "z"
+
+
+def _front(c, s):
+    """(axis index, +1/-1): which way a wall unit's front faces (into the room, across its long side)."""
+    k = 2 if _long_axis(s) == "x" else 0
+    return k, (1 if _front_into(c, k)[0] == "+" else -1)
+
+
+def _pos(c, k, along, out, y=0.0):
+    """A point `along` the unit's length and `out` towards its front (k: the front axis), y up from c."""
+    return (c[0] + along, c[1] + y, c[2] + out) if k == 2 else (c[0] + out, c[1] + y, c[2] + along)
+
+
+def _sz(k, along, h, out):
+    return (along, h, out) if k == 2 else (out, h, along)
 
 
 def prop_sofa(ctx, c, s):
+    """A sofa against the wall: base, seat cushions, back and arms (refine pass)."""
     b = ctx.b
-    base = c[1] - s[1] / 2
-    b.box((c[0], base + 0.22, c[2]), (s[0], 0.44, s[2]), style=no_bottom("olive", 1.0))
-    front = _front_into(c, 2)
-    back = -1 if front == "+z" else 1
-    b.box((c[0], base + 0.6, c[2] + back * (s[2] / 2 - 0.1)), (s[0], 0.4, 0.2), style=no_bottom("olive_dark", 1.0))
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    y0 = c[1] - s[1] / 2
+    col, dark = "olive", "olive_dark"
+    b.box(_pos(c, k, 0, 0, -s[1] / 2 + 0.12), _sz(k, L, 0.24, D), style=no_bottom(dark, 1.0))
+    n = max(2, round((L - 0.3) / 0.7))
+    w = (L - 0.3) / n
+    for i in range(n):                                                                  # seat cushions
+        a = -L / 2 + 0.15 + w * (i + 0.5)
+        b.box(_pos(c, k, a, f * 0.08, -s[1] / 2 + 0.31), _sz(k, w - 0.02, 0.14, D - 0.32), style=no_bottom(col, 1.0))
+        b.box(_pos(c, k, a, -f * (D / 2 - 0.16), -s[1] / 2 + 0.6), _sz(k, w - 0.02, 0.44, 0.18), style=no_bottom(col, 1.0))
+    b.box(_pos(c, k, 0, -f * (D / 2 - 0.06), -s[1] / 2 + 0.45), _sz(k, L, 0.9, 0.12), style=no_bottom(dark, 1.0))
+    for sx in (-1, 1):                                                                  # arms
+        b.box(_pos(c, k, sx * (L / 2 - 0.08), 0, -s[1] / 2 + 0.3), _sz(k, 0.16, 0.6, D), style=no_bottom(dark, 1.0))
+
+
+def kitchenette(ctx, c, s, microwave=True):
+    """Kitchen run against a wall (refine pass, was a painted box): cupboards with doors, a worktop with a sink and
+    tap, a microwave and kettle, wall cupboards above."""
+    b = ctx.b
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    h = s[1]
+    lo = -s[1] / 2
+    b.box(_pos(c, k, 0, -0.02 * f, lo + (h - 0.04) / 2), _sz(k, L, h - 0.04, D - 0.04), style=no_bottom("bone", 1.0))
+    b.box(_pos(c, k, 0, 0, lo + h - 0.02), _sz(k, L + 0.02, 0.04, D + 0.02), style=no_bottom("black", 1.0))   # worktop
+    n = max(1, round(L / 0.6))
+    for i in range(n):                                                                    # door gaps and handles
+        a = -L / 2 + L * (i + 0.5) / n
+        b.box(_pos(c, k, a, f * (D / 2 - 0.035), lo + 0.48), _sz(k, L / n - 0.04, h - 0.22, 0.012), style=no_bottom("steel_light", 1.0))
+        b.box(_pos(c, k, a + L / n * 0.3, f * (D / 2 - 0.02), lo + h - 0.2), _sz(k, 0.1, 0.02, 0.02), style=no_bottom("trim", 1.0))
+    b.box(_pos(c, k, 0, f * (D / 2 - 0.03), lo + 0.05), _sz(k, L - 0.02, 0.1, 0.012), style=no_bottom("black", 1.0))
+    sa = -L / 2 + min(0.6, L * 0.3)
+    b.box(_pos(c, k, sa, 0, lo + h - 0.07), _sz(k, 0.5, 0.06, D * 0.6), style=lambda n_, m, q: ("trim", uv_world(1.0)) if n_[1] > 0.7 else None)  # sink basin
+    b.box(_pos(c, k, sa, -f * (D / 2 - 0.08), lo + h + 0.12), _sz(k, 0.04, 0.24, 0.04), style=no_bottom("trim", 1.0))
+    b.box(_pos(c, k, sa, -f * (D / 2 - 0.16), lo + h + 0.23), _sz(k, 0.04, 0.03, 0.16), style=no_bottom("trim", 1.0))
+    if microwave and L > 1.2:
+        ma = L / 2 - 0.35
+        b.group = ("item", len(b.faces))
+        b.box(_pos(c, k, ma, -f * 0.03, lo + h + 0.15), _sz(k, 0.5, 0.3, 0.36), style=no_bottom("black", 1.0))
+        b.box(_pos(c, k, ma - 0.05, f * 0.151, lo + h + 0.15), _sz(k, 0.32, 0.2, 0.004), style=no_bottom("glass", 1.0))
+        b.box(_pos(c, k, ma + 0.18, f * 0.151, lo + h + 0.15), _sz(k, 0.08, 0.22, 0.004), style=no_bottom("trim", 1.0))
+        b.group = None
+        b.box(_pos(c, k, ma - 0.55, 0, lo + h + 0.1), _sz(k, 0.14, 0.2, 0.14), style=no_bottom("red", 1.0))      # kettle
+    for i in range(n):                                                                    # wall cupboards
+        a = -L / 2 + L * (i + 0.5) / n
+        b.box(_pos(c, k, a, -f * (D / 2 - 0.18), lo + 1.85), _sz(k, L / n - 0.02, 0.6, 0.34), style=lambda n_, m, q: ("bone", uv_world(1.0)))
+        b.box(_pos(c, k, a + L / n * 0.3, -f * (D / 2 - 0.36), lo + 1.62), _sz(k, 0.1, 0.02, 0.02), style=no_bottom("trim", 1.0))
+
+
+def prop_kitchenette(ctx, c, s):
+    kitchenette(ctx, c, s)
+
+
+def prop_sink_counter(ctx, c, s):
+    """Art room sink: a kitchen run without the microwave, paint pots by the tap."""
+    kitchenette(ctx, c, s, microwave=False)
+    k, f = _front(c, s)
+    L = s[0] if k == 2 else s[2]
+    for i, col in enumerate(("red", "yellow", "blue", "green")):
+        ctx.b.box(_pos(c, k, L / 2 - 0.2 - i * 0.14, 0, s[1] / 2 + 0.06), _sz(k, 0.1, 0.12, 0.1), style=no_bottom(col, 1.0))
+
+
+def prop_home_fridge(ctx, c, s):
+    """Tall fridge: two doors with handles."""
+    b = ctx.b
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    b.box(c, s, style=no_bottom("bone", 1.0))
+    lo = -s[1] / 2
+    b.box(_pos(c, k, 0, f * (D / 2 + 0.005), lo + s[1] * 0.68), _sz(k, L - 0.04, 0.012, 0.01), style=no_bottom("trim_dark", 1.0))
+    for y in (lo + s[1] * 0.85, lo + s[1] * 0.45):
+        b.box(_pos(c, k, L / 2 - 0.08, f * (D / 2 + 0.03), y), _sz(k, 0.03, 0.3, 0.04), style=no_bottom("trim", 1.0))
+    b.box(_pos(c, k, -L / 4, f * (D / 2 + 0.003), lo + s[1] * 0.8), _sz(k, 0.12, 0.16, 0.004), style=no_bottom("yellow", 1.0))  # a note
+
+
+def prop_vending(ctx, c, s):
+    """Snack vending machine: red cabinet, a glass window onto rows of snacks, a keypad and coin slot panel, the
+    pick-up flap at the bottom."""
+    b = ctx.b
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    lo = -s[1] / 2
+    b.box(c, s, style=lambda n_, m, q: None if n_[1] < -0.7 else (("black", uv_world(1.0)) if
+          (n_[2 - (0 if k == 2 else 2)] * f > 0.7) else ("red", uv_world(1.0))))
+    win_w = L * 0.68
+    wa = -L / 2 + 0.06 + win_w / 2
+    rng = random.Random(f"vend{c}")
+    for r in range(5):                                                                      # snack rows
+        y = lo + 0.55 + r * 0.26
+        b.box(_pos(c, k, wa, f * (D / 2 - 0.22), y), _sz(k, win_w, 0.02, 0.36), style=no_bottom("trim", 1.0))
+        a = wa - win_w / 2 + 0.06
+        while a < wa + win_w / 2 - 0.1:
+            if rng.random() < 0.7:
+                maker = rng.choice((stock_bag, stock_box, stock_can, stock_bottle))
+                col = rng.choice(("red", "yellow", "blue", "green", "bone", "olive"))
+                _place(maker, b, _pos(c, k, a + 0.06, f * (D / 2 - 0.12), y + 0.01), "x" if k == 2 else "z", rng, col)
+            a += 0.15
+    b.box(_pos(c, k, wa, f * (D / 2 + 0.002), lo + 1.05), _sz(k, win_w, 1.35, 0.004), style=lambda n_, m, q: ("glass", uv_world(1.0)))
+    pa = L / 2 - (L - win_w - 0.12) / 2 - 0.04                                               # side panel
+    b.box(_pos(c, k, pa, f * (D / 2 + 0.01), lo + 1.3), _sz(k, 0.16, 0.24, 0.02), style=no_bottom("trim_dark", 1.0))
+    for i in range(3):
+        for j in range(3):
+            b.box(_pos(c, k, pa - 0.05 + i * 0.05, f * (D / 2 + 0.022), lo + 1.36 - j * 0.06), _sz(k, 0.035, 0.035, 0.006),
+                  style=no_bottom("bone", 1.0))
+    b.box(_pos(c, k, pa, f * (D / 2 + 0.01), lo + 1.05), _sz(k, 0.1, 0.12, 0.02), style=no_bottom("trim", 1.0))
+    b.box(_pos(c, k, wa, f * (D / 2 + 0.01), lo + 0.22), _sz(k, win_w, 0.2, 0.02), style=no_bottom("black", 1.0))
+
+
+def prop_file_cabinet(ctx, c, s):
+    """Steel filing cabinet: four drawers with handles and label slots (one pulled out)."""
+    b = ctx.b
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    lo = -s[1] / 2
+    b.box(c, s, style=no_bottom("steel_light", 1.0))
+    n = 4
+    rng = random.Random(f"file{c}")
+    open_one = rng.randrange(n)
+    for i in range(n):
+        y = lo + s[1] * (i + 0.5) / n
+        out = 0.2 if i == open_one else 0.0
+        b.box(_pos(c, k, 0, f * (D / 2 + 0.006 + out / 2), y), _sz(k, L - 0.04, s[1] / n - 0.03, 0.012 + out), style=no_bottom("steel_light", 1.0))
+        b.box(_pos(c, k, 0, f * (D / 2 + 0.02 + out), y), _sz(k, 0.14, 0.025, 0.02), style=no_bottom("trim_dark", 1.0))
+        b.box(_pos(c, k, 0, f * (D / 2 + 0.014 + out), y + 0.07), _sz(k, 0.1, 0.04, 0.004), style=no_bottom("bone", 1.0))
+        if out:
+            for j in range(4):
+                b.box(_pos(c, k, 0, f * (D / 2 + out - 0.04 - j * 0.04), y + 0.05), _sz(k, L - 0.12, 0.2, 0.01),
+                      style=no_bottom(("olive", "bone", "yellow", "olive")[j], 1.0))
+
+
+def prop_wall_books(ctx, c, s):
+    """Bookcase against a wall: one-sided shelving full of books."""
+    k, f = _front(c, s)
+    shelving(ctx, c, s, "x" if k == 2 else "z", (f,), "books", levels=5, frame="wood", lip="wood", fill=0.75)
+
+
+def prop_med_cabinet(ctx, c, s):
+    k, f = _front(c, s)
+    shelving(ctx, c, s, "x" if k == 2 else "z", (f,), "meds", levels=5, frame="bone", lip="red", fill=0.5)
+
+
+def prop_art_shelf(ctx, c, s):
+    k, f = _front(c, s)
+    shelving(ctx, c, s, "x" if k == 2 else "z", (f,), "art", levels=4, frame="wood", lip="wood", fill=0.7)
+
+
+def prop_plant(ctx, c, s):
+    """A potted plant (dried out: olive and a few green leaves)."""
+    b = ctx.b
+    lo = c[1] - s[1] / 2
+    b.box((c[0], lo + 0.18, c[2]), (0.34, 0.36, 0.34), style=no_bottom("red", 1.0))
+    b.box((c[0], lo + 0.34, c[2]), (0.3, 0.02, 0.3), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], lo + 0.7, c[2]), (0.04, 0.7, 0.04), style=no_bottom("olive_dark", 1.0))
+    rng = random.Random(f"plant{c}")
+    for i in range(7):
+        y = lo + 0.6 + i * 0.12
+        yaw = rng.uniform(0, 360)
+        lx, lz = _at(c[0], c[2], yaw, 0, 0.16)
+        b.box((lx, y, lz), (0.12, 0.02, 0.32), yaw=yaw, pitch=rng.uniform(-30, -10),
+              style=no_bottom(rng.choice(("green", "olive", "olive")), 1.0))
+
+
+def prop_rug(ctx, c, s):
+    b = ctx.b
+    b.box((c[0], c[1] - s[1] / 2 + 0.006, c[2]), (s[0], 0.012, s[2]), style=no_bottom("bone", 1.0))
+    b.box((c[0], c[1] - s[1] / 2 + 0.008, c[2]), (s[0] - 0.2, 0.012, s[2] - 0.2), style=no_bottom("red", 1.0))
+
+
+def prop_coffee_table(ctx, c, s):
+    top = prop_table(ctx, c, s, "wood", "trim_dark")
+    for i, col in enumerate(("red", "blue")):
+        ctx.b.box((c[0] - 0.2 + i * 0.3, top + 0.005 + i * 0.01, c[2]), (0.22, 0.01, 0.3), yaw=i * 20 - 10,
+                  style=no_bottom(col, 1.0))
+    ctx.b.box((c[0] + 0.3, top + 0.05, c[2] + 0.1), (0.08, 0.1, 0.08), style=no_bottom("bone", 1.0))   # mug
+
+
+def prop_lounge_table(ctx, c, s):
+    """A square table with four chairs round it, mugs and papers."""
+    b = ctx.b
+    top = prop_table(ctx, c, s, "bone", "trim")
+    y0 = c[1] - s[1] / 2
+    for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        x, z = c[0] + dx * (s[0] / 2 + 0.25), c[2] + dz * (s[2] / 2 + 0.25)
+        chair(b, x, y0, z, facing_yaw(-dx, -dz), "red", "trim")
+    for i in range(2):
+        b.box((c[0] - 0.2 + i * 0.4, top + 0.05, c[2] + 0.15 - i * 0.3), (0.08, 0.1, 0.08), style=no_bottom(("bone", "red")[i], 1.0))
+    b.box((c[0] + 0.05, top + 0.003, c[2]), (0.21, 0.005, 0.3), yaw=17, style=no_bottom("bone", 1.0))
+
+
+def prop_reading_table(ctx, c, s):
+    """Library table: chairs along both long sides, a few open books."""
+    b = ctx.b
+    top = prop_table(ctx, c, s, "wood", "trim_dark")
+    y0 = c[1] - s[1] / 2
+    along_x = s[0] >= s[2]
+    L = s[0] if along_x else s[2]
+    n = max(1, int(L // 0.9))
+    for side in (-1, 1):
+        for i in range(n):
+            a = -L / 2 + L * (i + 0.5) / n
+            if along_x:
+                chair(b, c[0] + a, y0, c[2] + side * (s[2] / 2 + 0.25), facing_yaw(0, -side), "blue", "trim")
+            else:
+                chair(b, c[0] + side * (s[0] / 2 + 0.25), y0, c[2] + a, facing_yaw(-side, 0), "blue", "trim")
+    for i, col in enumerate(("red", "green")):
+        b.box((c[0] + (i - 0.5) * 0.6, top + 0.015, c[2] + (i - 0.5) * 0.1), (0.3, 0.03, 0.22), yaw=i * 25 - 10, style=no_bottom(col, 1.0))
+        b.box((c[0] + (i - 0.5) * 0.6, top + 0.032, c[2] + (i - 0.5) * 0.1), (0.28, 0.004, 0.2), yaw=i * 25 - 10, style=no_bottom("bone", 1.0))
+
+
+def prop_principal_desk(ctx, c, s):
+    """The principal's desk: a big wooden desk with drawer pedestals, a PC, a lamp, a nameplate and papers; a leather
+    swivel chair behind it (the wall side) and two visitor chairs in front."""
+    b = ctx.b
+    front = 1 if _front_into(c, 2) == "+z" else -1          # the visitors' side (into the room)
+    sit = -front                                              # the principal sits on the wall side
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.025, c[2]), (s[0] + 0.06, 0.05, s[2] + 0.06), style=no_bottom("wood", 1.0))
+    for sx in (-1, 1):                                                                       # pedestals
+        px = c[0] + sx * (s[0] / 2 - 0.25)
+        b.box((px, y0 + (s[1] - 0.05) / 2, c[2]), (0.48, s[1] - 0.05, s[2] - 0.04), style=no_bottom("wood", 1.0))
+        for k in range(3):
+            y = y0 + 0.14 + k * (s[1] - 0.2) / 3
+            b.box((px, y + 0.08, c[2] + sit * (s[2] / 2 - 0.015)), (0.42, (s[1] - 0.2) / 3 - 0.03, 0.012), style=no_bottom("trim_dark", 1.0))
+            b.box((px, y + 0.1, c[2] + sit * (s[2] / 2 - 0.005)), (0.12, 0.02, 0.02), style=no_bottom("yellow", 1.0))
+    b.box((c[0], y0 + s[1] * 0.55, c[2] + front * (s[2] / 2 - 0.03)), (s[0] - 0.9, s[1] * 0.75, 0.04), style=no_bottom("wood", 1.0))
+    pc(ctx, c[0] + s[0] * 0.18, top, c[2], sit)
+    b.box((c[0] - s[0] * 0.38, top + 0.01, c[2] - sit * 0.1), (0.14, 0.02, 0.14), style=no_bottom("black", 1.0))   # lamp
+    b.box((c[0] - s[0] * 0.38, top + 0.2, c[2] - sit * 0.1), (0.025, 0.36, 0.025), style=no_bottom("yellow", 1.0))
+    b.box((c[0] - s[0] * 0.38, top + 0.4, c[2] - sit * 0.03), (0.2, 0.1, 0.2), style=no_bottom("green", 1.0))
+    b.box((c[0] - s[0] * 0.12, top + 0.04, c[2] + front * (s[2] / 2 - 0.08)), (0.3, 0.07, 0.04), pitch=front * -20,
+          style=no_bottom("yellow", 1.0))                                                    # nameplate
+    for k in range(3):
+        b.box((c[0] - s[0] * 0.15 + k * 0.06, top + 0.003 + k * 0.002, c[2] + sit * 0.05), (0.21, 0.004, 0.3), yaw=k * 11 - 8,
+              style=no_bottom("bone", 1.0))
+    chair(b, c[0] + s[0] * 0.05, y0, c[2] + sit * (s[2] / 2 + 0.4), facing_yaw(0, -sit), "black", "trim", office=True)
+    for dx in (-0.55, 0.55):
+        chair(b, c[0] + dx, y0, c[2] + front * (s[2] / 2 + 0.55), facing_yaw(0, -front), "red", "wood")
+
+
+def prop_serving_counter(ctx, c, s):
+    """Cafeteria serving line: a steel counter with food wells (some still with food), a glass sneeze guard on
+    posts, the tray rail in front and a stack of trays at the end."""
+    b = ctx.b
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    lo = -s[1] / 2
+    h = s[1]
+    b.box(_pos(c, k, 0, -f * 0.1, lo + (h - 0.04) / 2), _sz(k, L, h - 0.04, D - 0.2), style=no_bottom("trim", 1.0))
+    b.box(_pos(c, k, 0, -f * 0.1, lo + h - 0.02), _sz(k, L + 0.02, 0.04, D - 0.18), style=lambda n_, m, q: ("steel_light", uv_world(1.0)))
+    rng = random.Random(f"serve{c}")
+    n = max(2, int((L - 0.6) // 0.5))
+    for i in range(n):                                                                       # food wells
+        a = -L / 2 + 0.3 + (L - 0.6) * (i + 0.5) / n
+        b.box(_pos(c, k, a, -f * 0.1, lo + h - 0.015), _sz(k, 0.4, 0.004, 0.3), style=no_bottom("black", 1.0))
+        if rng.random() < 0.5:
+            b.box(_pos(c, k, a, -f * 0.1, lo + h - 0.005), _sz(k, 0.34, 0.01, 0.24),
+                  style=no_bottom(rng.choice(("yellow", "olive", "bone", "red")), 1.0))
+    for a in (-L / 2 + 0.1, L / 2 - 0.1, 0.0):                                               # sneeze guard
+        b.box(_pos(c, k, a, f * 0.0, lo + h + 0.22), _sz(k, 0.03, 0.44, 0.03), style=no_bottom("trim", 1.0))
+    b.box(_pos(c, k, 0, f * 0.05, lo + h + 0.42), _sz(k, L - 0.1, 0.01, 0.34), style=lambda n_, m, q: ("glass", uv_world(1.0)))
+    b.box(_pos(c, k, 0, f * (D / 2 - 0.08), lo + h - 0.1), _sz(k, L, 0.03, 0.18), style=no_bottom("trim", 1.0))        # tray rail
+    for j in range(3):
+        b.box(_pos(c, k, 0, f * (D / 2 - 0.13), lo + 0.2 + j * 0.25), _sz(k, L - 0.1, 0.02, 0.02), style=no_bottom("trim", 1.0))
+    for j in range(8):                                                                       # trays
+        b.box(_pos(c, k, -L / 2 + 0.3, -f * 0.1, lo + h + 0.012 + j * 0.018), _sz(k, 0.36, 0.015, 0.28),
+              style=no_bottom(("red", "olive")[j % 2], 1.0))
+
+
+def prop_easel(ctx, c, s):
+    """A painting easel: three legs, a ledge and a canvas with a few blobs of paint."""
+    b = ctx.b
+    lo = c[1] - s[1] / 2
+    k, f = _front(c, s)
+    yaw = 0 if k == 2 else 90
+    for dx in (-0.25, 0.25):
+        x, z = _at(c[0], c[2], yaw, dx, -0.05)
+        b.box((x, lo + 0.8, z), (0.04, 1.6, 0.04), yaw=yaw, pitch=8, style=no_bottom("wood", 1.0))
+    x, z = _at(c[0], c[2], yaw, 0, -0.35 * f)
+    b.box((x, lo + 0.7, z), (0.04, 1.45, 0.04), yaw=yaw, pitch=-20 * f, style=no_bottom("wood", 1.0))
+    x, z = _at(c[0], c[2], yaw, 0, 0.04)
+    b.box((x, lo + 0.7, z), (0.6, 0.04, 0.08), yaw=yaw, style=no_bottom("wood", 1.0))
+    b.box((x, lo + 1.05, z), (0.55, 0.65, 0.03), yaw=yaw, pitch=8, style=no_bottom("bone", 1.0))
+    rng = random.Random(f"easel{c}")
+    for i in range(4):
+        dx, dy = rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2)
+        px, pz = _at(c[0], c[2], yaw, dx, 0.04 + 0.02)
+        b.box((px, lo + 1.05 + dy, pz), (0.1, 0.08, 0.01), yaw=yaw, pitch=8, style=no_bottom(rng.choice(("red", "blue", "yellow", "green")), 1.0))
 
 
 SCHOOL_PROPS = {
@@ -2537,6 +3063,11 @@ SCHOOL_PROPS = {
     "lab_bench": prop_lab_bench, "bookshelf": prop_bookshelf, "caf_table": prop_caf_table,
     "hall_lockers": prop_hall_lockers, "trophy_case": prop_trophy_case, "hall_bench": prop_hall_bench,
     "cot": prop_cot, "art_table": prop_art_table, "computer_desk": prop_computer_desk, "sofa": prop_sofa,
+    "kitchenette": prop_kitchenette, "sink_counter": prop_sink_counter, "home_fridge": prop_home_fridge,
+    "vending": prop_vending, "file_cabinet": prop_file_cabinet, "wall_books": prop_wall_books,
+    "med_cabinet": prop_med_cabinet, "art_shelf": prop_art_shelf, "plant": prop_plant, "rug": prop_rug,
+    "coffee_table": prop_coffee_table, "lounge_table": prop_lounge_table, "reading_table": prop_reading_table,
+    "principal_desk": prop_principal_desk, "serving_counter": prop_serving_counter, "easel": prop_easel,
 }
 for _kind, _fn in SCHOOL_PROPS.items():
     PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)

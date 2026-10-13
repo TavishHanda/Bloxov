@@ -543,30 +543,50 @@ def classroom(x0, z0, y, lab=False):
 
 
 def school_furniture():
-    """The school's rooms (World art 0.17). Rooms are 10 x 8 m: x 8 / 18 / 28 / 38, z 50 / 58 / 66 / 74."""
+    """The school's rooms (World art 0.17). Rooms are 10 x 8 m: x 8 / 18 / 28 / 38, z 50 / 58 / 66 / 74.
+    Furniture keeps to the room corners, so the paths between the doorways and the room middles (AI spawn spots)
+    stay clear (refine pass, owner: "some of the rooms are just not furnished properly")."""
     F = FLOOR_H
     # Ground floor: library (under the stairs), two classrooms and a science lab, the cafeteria, the locker hall,
-    # the nurse's room, the lobby and the office.
-    box(9.6, 0, 55.6, 12.0, 1.8, 56.1, "wood", kind="bookshelf")
-    box(14.0, 0, 55.6, 16.4, 1.8, 56.1, "wood", kind="bookshelf")
-    box(14.6, 0, 56.9, 16.6, 0.75, 57.7, "wood", kind="table")
+    # the nurse's room, the lobby and the staff lounge.
+    box(8.15, 0, 54.6, 8.6, 1.9, 57.7, "wood", kind="wall_books")              # library: bookcases on the walls
+    box(8.8, 0, 57.4, 11.6, 1.9, 57.85, "wood", kind="wall_books")
+    box(14.4, 0, 57.4, 17.6, 1.9, 57.85, "wood", kind="wall_books")
+    box(17.4, 0, 55.3, 17.85, 1.9, 57.2, "wood", kind="wall_books")
+    box(14.2, 0, 55.6, 16.6, 1.8, 56.1, "wood", kind="bookshelf")
+    box(9.6, 0, 55.3, 11.8, 0.75, 56.1, "wood", kind="reading_table")
+    box(10.0, 0, 52.5, 11.8, 0.78, 53.2, "wood", kind="desk")                  # the librarian's desk
     classroom(18, 50, 0)
     classroom(28, 50, 0, lab=True)
     classroom(28, 58, 0)
-    for xa in (9.0, 14.0):
-        for zz in (59.5, 63.7):
-            box(xa, 0, zz, xa + 3.0, 0.75, zz + 0.8, "wood", kind="caf_table")
+    box(8.3, 0, 58.2, 11.8, 0.9, 59.0, "metal", kind="serving_counter")        # cafeteria
+    for xa, zz in ((9.0, 60.0), (14.0, 59.5), (9.0, 63.7), (14.0, 63.7)):
+        box(xa, 0, zz, xa + 3.0, 0.75, zz + 0.8, "wood", kind="caf_table")
     for za, zb in ((58.1, 58.6), (65.4, 65.9)):
         for xa, xb in ((18.3, 21.8), (24.2, 27.7)):
             box(xa, 0, za, xb, 2.0, zb, "metal", kind="hall_lockers")
-    box(19.0, 0, 66.15, 21.6, 1.9, 66.6, "wood", kind="trophy_case")
+    box(19.0, 0, 66.15, 21.6, 1.9, 66.6, "wood", kind="trophy_case")           # lobby
     box(24.8, 0, 73.2, 27.2, 0.45, 73.7, "wood", kind="hall_bench")
-    box(8.4, 0, 71.0, 10.4, 0.6, 73.6, "metal", kind="cot")
+    box(24.6, 0, 67.6, 26.6, 0.78, 68.4, "wood", kind="desk")                  # reception
+    box(21.0, 0, 73.2, 21.4, 1.2, 73.6, "wood", kind="plant")
+    box(8.4, 0, 71.0, 10.4, 0.6, 73.6, "metal", kind="cot")                    # nurse
+    box(8.4, 0, 66.5, 10.4, 0.6, 69.0, "metal", kind="cot")
+    box(14.5, 0, 66.2, 17.0, 1.9, 66.6, "metal", kind="med_cabinet")
     box(14.0, 0, 72.8, 15.5, 0.75, 73.6, "wood", kind="desk")
-    box(30.0, 0, 67.0, 31.5, 0.75, 67.9, "wood", kind="desk")
-    # Upstairs: art room, three classrooms, the computer room, the locker hall, the staff room, the store room.
+    box(16.6, 0, 73.3, 17.15, 1.3, 73.8, "metal", kind="file_cabinet")
+    box(34.3, 0, 66.2, 36.9, 0.9, 66.8, "wood", kind="kitchenette")            # staff lounge
+    box(37.0, 0, 66.2, 37.8, 1.8, 66.9, "metal", kind="home_fridge")
+    box(28.4, 0, 66.2, 29.4, 1.8, 67.0, "metal", kind="vending")
+    box(28.5, 0, 73.0, 31.3, 0.9, 73.85, "wood", kind="sofa")
+    box(29.3, 0, 71.9, 30.7, 0.45, 72.5, "wood", kind="coffee_table")
+    box(34.8, 0, 71.8, 36.0, 0.75, 73.0, "wood", kind="lounge_table")
+    # Upstairs: art room, three classrooms, the computer room, the locker hall, the principal's office, the store room.
     box(10.0, F, 55.0, 12.5, F + 0.8, 56.2, "wood", kind="art_table")
     box(14.0, F, 55.0, 16.5, F + 0.8, 56.2, "wood", kind="art_table")
+    box(8.15, F, 53.5, 8.6, F + 1.8, 57.7, "wood", kind="art_shelf")
+    box(17.25, F, 50.3, 17.85, F + 0.9, 52.6, "wood", kind="sink_counter")
+    box(16.4, F, 56.8, 17.0, F + 1.6, 57.3, "wood", kind="easel")
+    box(9.4, F, 56.9, 10.0, F + 1.6, 57.4, "wood", kind="easel")
     classroom(18, 50, F)
     classroom(28, 50, F)
     classroom(28, 58, F)
@@ -577,8 +597,15 @@ def school_furniture():
     for za, zb in ((58.1, 58.6), (65.4, 65.9)):
         for xa, xb in ((18.3, 21.8), (24.2, 27.7)):
             box(xa, F, za, xb, F + 2.0, zb, "metal", kind="hall_lockers")
-    box(19.0, F, 67.0, 21.4, F + 0.75, 68.2, "wood", kind="table")
-    box(24.6, F, 66.3, 27.4, F + 0.8, 67.1, "wood", kind="sofa")
+    box(24.4, F, 71.5, 26.4, F + 0.78, 72.4, "wood", kind="principal_desk")    # the principal's office (owner)
+    box(23.9, F, 70.6, 27.4, F + 0.02, 73.2, "wood", solid=False, kind="rug")
+    box(24.6, F, 73.4, 27.6, F + 2.0, 73.85, "wood", kind="wall_books")
+    box(18.35, F, 66.2, 18.9, F + 1.3, 66.7, "metal", kind="file_cabinet")
+    box(19.0, F, 66.2, 19.55, F + 1.3, 66.7, "metal", kind="file_cabinet")
+    box(21.2, F, 66.25, 21.6, F + 1.2, 66.65, "wood", kind="plant")
+    box(24.6, F, 66.2, 27.4, F + 0.9, 67.0, "wood", kind="sofa")
+    box(25.3, F, 67.6, 26.7, F + 0.45, 68.1, "wood", kind="coffee_table")
+    box(19.4, F, 71.7, 20.6, F + 0.75, 72.9, "wood", kind="lounge_table")
     box(28.5, F, 66.3, 31.0, F + 2.0, 66.9, "metal", kind="rack")
     box(34.8, F, 66.3, 37.3, F + 2.0, 66.9, "metal", kind="rack")
 
@@ -1859,7 +1886,7 @@ def main():
             box(66.4, 0, z - 0.6, 67.6, 1.6, z + 0.6, "metal", kind="pump")
         # Inside (0.17: furniture, so it collides like it looks). Shop (west room): till, shelf, drinks fridges.
         box(74.9, 0, 113.9, 77.9, 1.0, 114.6, "wood", kind="counter")
-        box(75.0, 1.2, 115.6, 77.7, 2.2, 115.85, "wood", kind="cig_rack")
+        box(78.2, 1.3, 115.6, 80.1, 2.1, 115.85, "wood", kind="cig_rack")   # right of the window (owner)
         box(76.1, 0, 108.5, 78.9, 1.4, 109.3, "metal", kind="shelf")
         box(76.1, 0, 106.15, 79.3, 2.1, 106.85, "metal", kind="fridge")
         box(79.0, 0, 108.5, 79.6, 1.1, 109.3, "metal", kind="endcap")       # snacks at the end of the shelf
