@@ -188,7 +188,7 @@ FONT = {
     "N": ["#..#", "##.#", "#.##", "#..#", "#..#"], "O": [".#.", "#.#", "#.#", "#.#", ".#."],
     "P": ["##.", "#.#", "##.", "#..", "#.."], "R": ["##.", "#.#", "##.", "#.#", "#.#"],
     "S": [".##", "#..", ".#.", "..#", "##."], "T": ["###", ".#.", ".#.", ".#.", ".#."],
-    "U": ["#.#", "#.#", "#.#", "#.#", "###"], "V": ["#...#", "#...#", "#...#", ".#.#.", "..#.."],
+    "U": ["#.#", "#.#", "#.#", "#.#", "###"], "V": ["#.#", "#.#", "#.#", "#.#", ".#."],
     "W": ["#...#", "#...#", "#.#.#", "##.##", "#...#"], "Y": ["#.#", "#.#", ".#.", ".#.", ".#."],
     "X": ["#.#", "#.#", ".#.", "#.#", "#.#"], "Z": ["###", "..#", ".#.", "#..", "###"],
     "0": ["###", "#.#", "#.#", "#.#", "###"], "1": [".#", "##", ".#", ".#", ".#"],
@@ -705,11 +705,12 @@ def gas_station_decals(rng):
         c.rect(c.w // 2, c.h // 2, c.w // 2 + 1, c.h - 3, "black")
         c.rect(c.w // 2, c.h // 2, c.w - 4, c.h // 2 + 1, "black")
 
-    def poster(c):        # 0.6 m x 0.8 m
+    def poster(c):        # 0.72 m x 0.8 m (wide enough for SALE inside the frame)
         c.rect(0, 0, c.w, c.h, "hazard_yellow")
-        c.ctext(0, c.w, c.h - 8, "SALE", "red")
-        c.rect(2, 4, c.w - 2, 13, "red")
-        c.ctext(2, c.w - 2, 6, "50%", "bone")
+        c.frame(0, 0, c.w, c.h, "red")
+        c.ctext(0, c.w, c.h - 9, "SALE", "red")
+        c.rect(3, 4, c.w - 3, 13, "red")
+        c.ctext(0, c.w, 6, "-50", "bone")
 
     def banner(c):        # 2 m x 0.35 m
         c.rect(0, 0, c.w, c.h, "red")
@@ -740,7 +741,7 @@ def gas_station_decals(rng):
         c.ctext(0, c.w, 6, "WELCOME BACK", "bone", 1)
         c.blotch(["concrete", "black"], 4, rng, size=(2, 4))
     a.add("welcome", 102, 19, welcome)
-    a.add("poster", 19, 26, poster)
+    a.add("poster", 23, 26, poster)
     a.add("banner", 64, 11, banner)
     a.add("wet", 10, 19, wet)
     a.add("logo", 80, 32, logo)
@@ -1569,7 +1570,7 @@ def shards(ctx, x0, x1, y0, y1, z, axis, rng):
 
 # Openings (refine pass, owner: windows framed, some whole and some smashed; broken doors at the entrances). The
 # generator lists every outside opening of the building; every model gets the same treatment.
-ENTRANCE_DOOR = {"school": "green"}          # what the front doors are made of (else an aluminium shop door)
+ENTRANCE_DOOR = {"school": "wood"}                # what the front doors are made of (else an aluminium shop door)
 
 
 def dress_openings(ctx, openings):
@@ -1577,7 +1578,7 @@ def dress_openings(ctx, openings):
     for o in openings:
         kind, side, at, mid, w, lo, hi = o["kind"], o["side"], o["at"], o["mid"], o["w"], o["lo"], o["hi"]
         if kind == "blast":
-            continue
+            pass
         rng = random.Random(f"{BUILDING_NAME[0]}{side}{mid}{lo}")
         ns = side in "NS"
         out = 1 if side in "SE" else -1
@@ -1589,6 +1590,9 @@ def dress_openings(ctx, openings):
             b.box(P(a, y, d), (la, h, ld) if ns else (ld, h, la), style=lambda n, m, q: (mat, uv_world(1.0)))
         nrm = (0, 0, out) if ns else (out, 0, 0)
         a0, a1 = mid - w / 2, mid + w / 2
+        if kind == "blast":
+            dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng)
+            continue
         if kind in ("window", "shop_window"):
             f = 0.06
             for a in (a0 + f / 2, a1 - f / 2):                                     # frame
@@ -1601,7 +1605,7 @@ def dress_openings(ctx, openings):
                 bx(mid, (lo + hi) / 2, 0.06, 0.05, hi - lo - 2 * f, 0.07, "trim")   # mullion
                 panes = [(a0 + f, mid - 0.025), (mid + 0.025, a1 - f)]
             for p0, p1 in panes:
-                if rng.random() < 0.5:                                             # still whole
+                if rng.random() < 0.3:                     # still whole (round 4, owner: most windows smashed)
                     b.poly([P(p0, lo + f, 0.06), P(p1, lo + f, 0.06), P(p1, hi - f, 0.06), P(p0, hi - f, 0.06)], nrm,
                            "glass", uv_world(1.0))
                 else:
@@ -1621,8 +1625,8 @@ def dress_openings(ctx, openings):
                 sgn = 1 if k == 0 else -1
                 hh = hi - lo - 0.1
                 if fate < 0.6:                                                     # lying on the ground outside
-                    ang = rng.uniform(-25, 25)
-                    c = P(hinge + sgn * lw * 0.5, lo + 0.03, 1.4 + rng.uniform(0, 0.4))
+                    ang = rng.uniform(-12, 12)               # (round 4: clear of the frame and step)
+                    c = P(hinge + sgn * lw * 0.5, lo + 0.03, hh / 2 + 0.45 + rng.uniform(0, 0.4))
                     yaw = (0 if ns else 90) + ang
                     _door_leaf(b, c, lw - 0.12, hh, yaw, 90, mat, rng)
                 else:                                                              # hanging open, off a hinge
@@ -1631,9 +1635,121 @@ def dress_openings(ctx, openings):
                     v = (0.0, float(out)) if ns else (float(out), 0.0)             # outwards
                     dx = sgn * math.cos(th) * u[0] - math.sin(th) * v[0]
                     dz = sgn * math.cos(th) * u[1] - math.sin(th) * v[1]
-                    hp = P(hinge, lo + hh / 2 + 0.02, -0.15)
+                    hp = P(hinge + sgn * 0.05, lo + hh / 2 + 0.02, -0.22)   # (inside the frame, not through it)
                     c = (hp[0] + dx * lw * 0.5, hp[1], hp[2] + dz * lw * 0.5)
                     _door_leaf(b, c, lw - 0.12, hh, math.degrees(math.atan2(-dz, dx)), 0, mat, rng, upright=True)
+
+
+def _rubble_mats():
+    cfg = SHELLS.get(BUILDING_NAME[0], {})
+    return (cfg.get("ext", "ext_block"), "brick", "concrete")
+
+
+def rubble_chunk(b, at, size, rng, mats, yaw=None):
+    b.box(at, size, yaw=rng.uniform(0, 90) if yaw is None else yaw, pitch=rng.uniform(-20, 20),
+          style=no_bottom(rng.choice(mats), 1.0))
+
+
+def prop_rubble(ctx, c, s, k):
+    """A chunk of blown-out wall lying on the ground (round 4: drawn in the building's own materials)."""
+    rng = random.Random(f"rubble{c}")
+    mats = _rubble_mats()
+    yaw = ctx.row.get("yaw", 0.0)
+    rubble_chunk(ctx.b, (c[0], c[1] - s[1] * 0.15, c[2]), (s[0] * 0.8, s[1] * 0.7, s[2] * 0.8), rng, mats, yaw)
+    for _ in range(3):
+        o = rot((rng.uniform(-0.5, 0.5) * s[0], 0, rng.uniform(-0.5, 0.5) * s[2]), yaw, 0)
+        rubble_chunk(ctx.b, (c[0] + o[0], c[1] - s[1] / 2 + 0.06, c[2] + o[2]), (0.22, 0.1, 0.12), rng, mats)
+
+
+def prop_rubble_heap(ctx, c, s, k):
+    """A heap of wall rubble (the box is its collision, cover): big slabs at the bottom, chunks and bricks on top."""
+    rng = random.Random(f"heap{c}")
+    mats = _rubble_mats()
+    yaw = ctx.row.get("yaw", 0.0)
+    y0 = c[1] - s[1] / 2
+    for layer, (n, frac_h, spread) in enumerate(((5, 0.45, 0.42), (4, 0.35, 0.3), (3, 0.3, 0.18))):
+        for _ in range(n):
+            o = rot((rng.uniform(-spread, spread) * s[0], 0, rng.uniform(-spread, spread) * s[2]), yaw, 0)
+            h = s[1] * frac_h
+            y = y0 + h / 2 + layer * s[1] * 0.28
+            rubble_chunk(ctx.b, (c[0] + o[0], y, c[2] + o[2]),
+                         (rng.uniform(0.35, 0.7) * s[0] * (1 - layer * 0.25), h, rng.uniform(0.35, 0.7) * s[2] * (1 - layer * 0.25)),
+                         rng, mats)
+    for _ in range(10):                                                    # loose bricks round the foot
+        o = rot((rng.uniform(-0.65, 0.65) * s[0], 0, rng.uniform(-0.65, 0.65) * s[2]), yaw, 0)
+        rubble_chunk(ctx.b, (c[0] + o[0], y0 + 0.04, c[2] + o[2]), (0.22, 0.07, 0.11), rng, ("brick", "concrete"))
+
+
+PROPS_EXTRA = {"rubble": prop_rubble, "rubble_heap": prop_rubble_heap}
+
+
+def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
+    """A blast hole (round 4, owner: "make this wall that's broken proper"): jagged lumps of wall lining the sides and
+    top of the hole (outside skin outside, plaster in, broken brick where it snapped), scorch round it, and the wall
+    that came in lying in the room."""
+    b = ctx.b
+    cfg = SHELLS.get(BUILDING_NAME[0], {})
+    ext = cfg.get("ext", "ext_block")
+    inner = cfg.get("inner")
+    t = 0.28                                                            # just under the wall's thickness
+
+    def lump(a, y, la, h, stick):
+        """A broken piece at `a` along the wall, sticking `stick` into the hole."""
+        mid_in = P(a, y, -0.3)
+        int_mat = inner(mid_in) if inner else "int_wall"
+
+        def st(n, m, q):
+            if ns:
+                face_out = n[2] * out > 0.7
+                face_in = n[2] * out < -0.7
+            else:
+                face_out = n[0] * out > 0.7
+                face_in = n[0] * out < -0.7
+            if face_out:
+                return (ext, uv_world())
+            if face_in:
+                return (int_mat, uv_world())
+            return ("brick", uv_world(1.0))
+        c = P(a, y, 0.0)
+        b.box(c, (la, h, t) if ns else (t, h, la), style=st)
+    # Sides: a stack of lumps whose stick-out changes, so the edge is ragged.
+    for edge, sgn in ((a0, 1), (a1, -1)):
+        y = lo
+        while y < hi - 0.05:
+            h = min(rng.uniform(0.3, 0.6), hi - y)
+            stick = rng.uniform(0.06, 0.3)
+            lump(edge + sgn * (stick / 2 - 0.04), y + h / 2, stick + 0.08, h, stick)
+            y += h
+    # Top: lumps hanging down from the lintel.
+    a = a0
+    while a < a1 - 0.05:
+        la = min(rng.uniform(0.3, 0.7), a1 - a)
+        drop = rng.uniform(0.1, 0.55)
+        lump(a + la / 2, hi - drop / 2 + 0.04, la, drop + 0.08, 0)
+        a += la
+    # A bent bar of rebar poking out of the top.
+    for _ in range(2):
+        ax = rng.uniform(a0 + 0.4, a1 - 0.4)
+        b.box(P(ax, hi - 0.6, rng.uniform(-0.05, 0.05)), (0.025, 0.7, 0.025) if ns else (0.025, 0.7, 0.025),
+              yaw=rng.uniform(0, 90), pitch=rng.uniform(-30, 30), style=no_bottom("trim_dark", 1.0))
+    # Scorch round the hole, outside and in.
+    for d, nrm_out in ((0.165, out), (-0.165, -out)):
+        for sgn in (-1, 1):
+            e = a0 - 0.75 if sgn < 0 else a1 - 0.05
+            pts = [P(e, lo + 0.2, d), P(e + 0.8, lo + 0.2, d), P(e + 0.8, hi - 0.1, d), P(e, hi - 0.1, d)]
+            b.poly(pts, (0, 0, nrm_out) if ns else (nrm_out, 0, 0), "graffiti", ctx.d("blast_soot", sgn < 0))
+    # The wall that came in: slabs and chunks on the floor inside, a dust spread.
+    mats = (ext, "brick", "concrete")
+    for _ in range(9):
+        a = rng.uniform(a0 + 0.2, a1 - 0.2)
+        rubble_chunk(b, P(a, lo + 0.06, -rng.uniform(0.5, 2.0)), (rng.uniform(0.2, 0.5), 0.12, rng.uniform(0.15, 0.4)),
+                     rng, mats)
+    for _ in range(14):
+        a = rng.uniform(a0 - 0.3, a1 + 0.3)
+        rubble_chunk(b, P(a, lo + 0.035, -rng.uniform(0.3, 2.6)), (0.2, 0.06, 0.1), rng, ("brick", "concrete"))
+    p0, p1 = P(a0 + 0.1, lo + 0.012, -0.25), P(a1 - 0.1, lo + 0.012, -2.2)
+    b.box(((p0[0] + p1[0]) / 2, lo + 0.012, (p0[2] + p1[2]) / 2), (abs(p1[0] - p0[0]), 0.02, abs(p1[2] - p0[2])),
+          style=no_bottom("concrete", 2.0))
 
 
 def _door_leaf(b, c, w, h, yaw, tilt, mat, rng, upright=False):
@@ -1652,6 +1768,21 @@ def _door_leaf(b, c, w, h, yaw, tilt, mat, rng, upright=False):
             o = rot(off, yaw, 0)
             p = (c[0] + o[0], c[1] + o[1], c[2] + o[2])
             b.box(p, size, yaw=yaw, style=no_bottom(mat, 1.0))
+
+
+def floor_lamp(b, x, y, z, rng):
+    """A standard lamp (round 4, owner: it read as a pole with a box): a stepped round-ish foot, a thin pole with a
+    joint, a flared fabric shade (three tiers) with the bulb showing under it, a pull chain."""
+    for k, (w, h) in enumerate(((0.32, 0.03), (0.24, 0.03), (0.1, 0.04))):            # weighted foot
+        b.box((x, y + 0.015 + k * 0.03, z), (w, h, w), yaw=45 * (k % 2), style=no_bottom("trim_dark", 1.0))
+    b.box((x, y + 0.75, z), (0.03, 1.3, 0.03), style=no_bottom("trim", 1.0))              # pole
+    b.box((x, y + 0.75, z), (0.05, 0.05, 0.05), style=no_bottom("trim", 1.0))      # joint
+    tilt = rng.uniform(-6, 6)                                                             # knocked a bit askew
+    for k, (w, h) in enumerate(((0.46, 0.12), (0.38, 0.1), (0.3, 0.08))):                 # the shade, flaring down
+        b.box((x, y + 1.42 + k * 0.1, z), (w, h, w), yaw=0, pitch=tilt, style=lambda n, m, q: (
+            ("bone", uv_world(1.0)) if abs(n[1]) < 0.7 else ("cardboard", uv_world(1.0))))
+    b.box((x, y + 1.36, z), (0.08, 0.06, 0.08), style=no_bottom("yellow", 1.0))           # bulb
+    b.box((x + 0.1, y + 1.27, z), (0.008, 0.16, 0.008), style=no_bottom("trim", 1.0))   # pull chain
 
 
 def wet_floor_sign(ctx, x, y, z, yaw):
@@ -1684,7 +1815,7 @@ def dress_gas_station(ctx):
            ctx.d("graffiti"))
     # Shop life (0.17, owner: "a bit more lively, not too overly filled").
     b.box((-5.85, 0.012, 0.0), (0.9, 0.02, 2.0), style=lambda n, m, q: ("trim_dark", uv_world()) if n[1] > 0.7 else None)  # door mat
-    b.poly([(-6.34, 1.4, -2.2), (-6.34, 1.4, -2.8), (-6.34, 2.2, -2.8), (-6.34, 2.2, -2.2)], (1, 0, 0), "decals", ctx.d("poster"))
+    b.poly([(-6.34, 1.4, -2.14), (-6.34, 1.4, -2.86), (-6.34, 2.2, -2.86), (-6.34, 2.2, -2.14)], (1, 0, 0), "decals", ctx.d("poster"))
     b.poly([(-3.0, 2.3, -4.84), (-2.6, 2.3, -4.84), (-2.6, 2.7, -4.84), (-3.0, 2.7, -4.84)], (0, 0, 1), "decals", ctx.d("clock"))
     for nz in (1, -1):                                                                          # hanging banner
         b.poly([(-4.4, 2.25, 0.5), (-2.4, 2.25, 0.5), (-2.4, 2.6, 0.5), (-4.4, 2.6, 0.5)], (0, 0, nz), "decals", ctx.d("banner"))
@@ -2439,8 +2570,7 @@ def dress_shops(ctx):
     chair(b, -9.6, 3.0, 4.6, 180.0, "wood", "trim_dark")
     # A rug, a lamp; stock room: shoeboxes on the floor.
     b.box((-11.5, 3.01, 1.5), (2.0, 0.01, 1.4), style=lambda n, m, q: ("red", uv_world()) if n[1] > 0.7 else None)
-    b.box((-13.9, 3.6, -2.0), (0.06, 1.2, 0.06), style=no_bottom("trim_dark", 1.0))
-    b.box((-13.9, 4.25, -2.0), (0.3, 0.25, 0.3), style=no_bottom("bone", 1.0))
+    floor_lamp(b, -13.85, 3.0, -0.9, rng)
     for k in range(6):
         b.box((-2.0 + k * 0.4, 3.065 + (k % 2) * 0.13, 4.8 + rng.uniform(-0.1, 0.1)), (0.34, 0.13, 0.22),
               yaw=rng.uniform(-10, 10), style=no_bottom(rng.choice(("red", "blue", "bone", "cardboard")), 1.0))
@@ -2673,8 +2803,8 @@ def school_decals(rng):
         c.rect(0, 0, c.w, c.h, "olive_dark")
         c.frame(0, 0, c.w, c.h, "bone")
         c.ctext(0, c.w, 5, "BLOXOV SCHOOL", "bone", 3)
-        for x in (2, c.w - 16):
-            shield(c, x, 3, 14, 20)
+        for x in (3, c.w - 19):
+            shield(c, x, 3, 16, 20)
         c.blotch(["iron_dark", "black"], 5, rng, area=(1, 1, c.w - 1, c.h - 1), size=(2, 4))   # soot, chips
 
     def crest(c):         # 1.5 x 1.5 m plaque facing the entrance (round 3: replaces the "WALK" poster, owner)
@@ -3547,8 +3677,29 @@ def pharmacy_decals(rng):
     a.add("counter", 77, 32, counter)
     a.add("rx", 80, 13, rx)
     a.add("glasses", 19, 51, glasses)
-    a.add("poster_flu", 19, 26, poster(("FLU", "SHOTS"), "sky_blue", "bone"))
-    a.add("poster_vit", 19, 26, poster(("VITA", "MINS"), "hazard_yellow", "red"))
+    def poster_flu(c):    # 0.6 x 0.8 m: a syringe and FLU (round 4, owner: drawings, not text that doesn't fit)
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.frame(0, 0, c.w, c.h, "bone")
+        c.ctext(0, c.w, c.h - 9, "FLU", "bone")
+        for k in range(10):                                   # the syringe, on a slant
+            c.rect(4 + k, 4 + k, 7 + k, 7 + k, "bone")
+        c.rect(13, 13, 15, 15, "iron_dark")                   # plunger end
+        c.rect(3, 3, 4, 4, "steel_light")                     # needle
+        c.rect(6, 6, 9, 9, "red")                             # the dose
+
+    def poster_vit(c):    # 0.6 x 0.8 m: a big capsule
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.frame(0, 0, c.w, c.h, "red")
+        for y in range(3, 19):
+            for x in range(5, 14):
+                dx, dy = x - 9, (y - 10.5) if abs(y - 10.5) > 4 else 0
+                if dx * dx + dy * dy <= 16:
+                    c.put(x, y, "bone" if y >= 11 else "red")
+        c.rect(7, 13, 8, 16, "hazard_yellow")                 # a shine
+        c.ctext(0, c.w, 20, "VIT", "red")
+
+    a.add("poster_flu", 19, 26, poster_flu)
+    a.add("poster_vit", 19, 26, poster_vit)
     a.add("looted", 96, 22, looted)
     return a
 
@@ -3559,8 +3710,8 @@ def prop_gondola(ctx, c, s):
 
 
 def prop_rx_shelf(ctx, c, s):
-    """Dispensary shelf along x, both sides."""
-    shelving(ctx, c, s, "x", (1, -1), "meds", levels=4, frame="wood", lip="wood", fill=0.45)
+    """Dispensary shelf along x, both sides (round 4: white steel like the rest of the dispensary)."""
+    shelving(ctx, c, s, "x", (1, -1), "meds", levels=4, frame="steel_light", lip="mint", fill=0.45)
 
 
 def prop_pharm_wall(ctx, c, s):
@@ -3568,48 +3719,134 @@ def prop_pharm_wall(ctx, c, s):
     shelving(ctx, c, s, "x", (side,), "meds", levels=5, frame="steel_light", lip="green", fill=0.5)
 
 
+def cash_register(b, x, top, z, face_x):
+    """A 3D till: base with the cash drawer, keypad sloping up to the customer, a pole display both ways."""
+    sx = 1 if face_x > 0 else -1                                           # the customer's side (+x or -x)
+    b.box((x, top + 0.05, z), (0.36, 0.1, 0.4), style=no_bottom("trim_dark", 1.0))                    # drawer
+    b.box((x + sx * 0.18, top + 0.05, z), (0.01, 0.06, 0.3), style=no_bottom("trim", 1.0))           # drawer line
+    b.box((x - sx * 0.04, top + 0.15, z), (0.24, 0.1, 0.34), pitch=0, style=no_bottom("trim_dark", 1.0))
+    b.box((x + sx * 0.04, top + 0.21, z), (0.2, 0.02, 0.28), style=no_bottom("steel_light", 1.0))   # keys
+    for k in range(3):
+        b.box((x + sx * (0.0 + k * 0.05), top + 0.225, z), (0.02, 0.01, 0.22), style=no_bottom("black", 1.0))
+    b.box((x - sx * 0.12, top + 0.32, z), (0.03, 0.24, 0.03), style=no_bottom("trim", 1.0))         # display pole
+    b.box((x - sx * 0.12, top + 0.47, z), (0.05, 0.08, 0.2), style=lambda n, m, q: (
+        ("mint", uv_world(1.0)) if abs(n[0]) > 0.7 else ("trim_dark", uv_world(1.0))))
+
+
 def prop_pharm_counter(ctx, c, s):
-    b = ctx.b
-    b.box(c, s, style=face_decal(ctx.d("counter"), "bone", "-x"))
+    """The till counter (round 4, owner: walk behind it, a real cash register): front panel to the shop (-x) with the
+    PAY HERE band, an overhanging top, a kick recess, shelves on the staff side with bags and a basket."""
+    b, rng = ctx.b, ctx.rng
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0] + 0.03, y0 + 0.05, c[2]), (s[0] - 0.06, 0.1, s[2]), style=no_bottom("trim_dark", 1.0))   # kick recess
+    b.box((c[0], y0 + 0.1 + (s[1] - 0.14) / 2, c[2]), (s[0], s[1] - 0.14, s[2]),
+          style=lambda n, m, q: None if n[1] < -0.7 else (("decals", ctx.d("counter")) if n[0] < -0.7
+                                                          else ("bone", uv_world(1.0))))
+    b.box((c[0] - 0.04, top - 0.02, c[2]), (s[0] + 0.12, 0.04, s[2] + 0.06), style=no_bottom("mint", 1.0))  # top
+    for y in (y0 + 0.35, y0 + 0.65):                                     # staff-side shelves (open towards +x)
+        b.box((x1 + 0.005, y, c[2]), (0.01, 0.02, s[2] - 0.1), style=no_bottom("trim", 1.0))
+    cash_register(b, c[0], top, c[2] - s[2] * 0.25, -1)
+    b.box((c[0] - 0.1, top + 0.03, c[2] + 0.2), (0.08, 0.04, 0.12), style=no_bottom("black", 1.0))     # card reader
+    b.box((c[0] - 0.1, top + 0.07, c[2] + 0.2), (0.06, 0.04, 0.02), pitch=-30, style=no_bottom("mint", 1.0))
+    for k in range(5):                                                   # paper bags waiting
+        b.box((c[0] + 0.05, top + 0.13, c[2] + 0.5 + k * 0.1), (0.22, 0.22, 0.02), yaw=rng.uniform(-8, 8),
+              style=no_bottom("bone", 1.0))
+    b.box((c[0] - 0.05, top + 0.06, c[2] + 1.1), (0.16, 0.12, 0.12), style=no_bottom("red", 1.0))       # lip balm tub
+
+
+def prop_pharm_backbar(ctx, c, s):
+    """Behind the till: a low cupboard on the wall, cough syrups and pill packs on top, a shelf above."""
+    b, rng = ctx.b, ctx.rng
     top = c[1] + s[1] / 2
-    b.box((c[0], top + 0.02, c[2]), (s[0] + 0.06, 0.04, s[2] + 0.06), style=no_bottom("steel_light", 1.0))
-    b.box((c[0] + 0.1, top + 0.15, c[2] - 0.6), (0.38, 0.22, 0.4), style=no_bottom("trim_dark", 1.0))       # till
-    for k in range(4):                                                                                 # bags
-        b.box((c[0] + 0.2, top + 0.12, c[2] + 0.3 + k * 0.12), (0.25, 0.2, 0.02), style=no_bottom("bone", 1.0))
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("mint", uv_world(1.0)) if n[1] > 0.7 else ("bone", uv_world(1.0))))
+    for k in range(4):                                                   # cupboard doors (3D lines)
+        b.box((c[0] - s[0] / 2 - 0.005, c[1], c[2] - s[2] / 2 + (k + 0.5) * s[2] / 4), (0.01, s[1] - 0.15, s[2] / 4 - 0.04),
+              style=no_bottom("bone", 1.0))
+        b.box((c[0] - s[0] / 2 - 0.02, c[1] + 0.25, c[2] - s[2] / 2 + (k + 0.5) * s[2] / 4 + 0.15), (0.02, 0.1, 0.02),
+              style=no_bottom("trim", 1.0))
+    z = c[2] - s[2] / 2 + 0.15
+    while z < c[2] + s[2] / 2 - 0.1:
+        if rng.random() < 0.65:
+            stock_pills(b, (c[0], top, z), rng, rng.choice(("red", "blue", "mint", "yellow")))
+        z += 0.12
+    sy = top + 0.6                                                       # wall shelf
+    b.box((c[0] + 0.05, sy, c[2]), (0.3, 0.03, s[2]), style=no_bottom("bone", 1.0))
+    z = c[2] - s[2] / 2 + 0.12
+    while z < c[2] + s[2] / 2 - 0.1:
+        if rng.random() < 0.6:
+            stock_bottle(b, (c[0] + 0.05, sy + 0.015, z), rng, rng.choice(("red", "mint", "blue")))
+        z += 0.1
 
 
 def prop_spinner(ctx, c, s):
-    b = ctx.b
+    """Sunglasses spinner (round 4, owner: more 3D): a pole on a round foot, four arms of pegs per tier, real little
+    glasses hanging off them, a mirror strip and a sign on top."""
+    b, rng = ctx.b, ctx.rng
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
-
-    def style(n, m, q):
-        if n[1] < -0.7:
-            return None
-        if abs(n[1]) > 0.7:
-            return ("mint", uv_world())
-        return ("decals", ctx.d("glasses"))
-    b.box((c[0], c[1] + 0.05, c[2]), (s[0], s[1] - 0.1, s[2]), yaw=20, style=style)
-    b.box((c[0], y0 + 0.05, c[2]), (0.5, 0.1, 0.5), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 0.03, c[2]), (0.46, 0.06, 0.46), yaw=45, style=no_bottom("trim_dark", 1.0))          # foot
+    b.box((c[0], (y0 + y1) / 2, c[2]), (0.05, s[1] - 0.1, 0.05), style=no_bottom("trim", 1.0))              # pole
+    b.box((c[0], y1 - 0.12, c[2]), (0.3, 0.2, 0.3), yaw=20, style=lambda n, m, q: None if n[1] < -0.7 else (
+        ("mint", uv_world(1.0)) if abs(n[1]) < 0.7 else ("trim", uv_world(1.0))))                           # sign topper
+    for tier in range(4):
+        y = y0 + 0.45 + tier * 0.26
+        for arm in range(4):
+            yaw = 20 + arm * 90
+            d = rot((0.0, 0.0, 1.0), yaw, 0)
+            b.box((c[0] + d[0] * 0.12, y, c[2] + d[2] * 0.12), (0.24, 0.015, 0.015),
+                  yaw=yaw + 90, style=no_bottom("trim", 1.0))                                                # peg arm
+            if rng.random() < 0.7:                                       # a pair of sunglasses on it
+                col = rng.choice(("black", "red", "blue", "trim_dark", "yellow"))
+                gx, gz = c[0] + d[0] * 0.22, c[2] + d[2] * 0.22
+                p = rot((0.035, 0, 0), yaw + 90, 0)
+                for sgn in (-1, 1):
+                    b.box((gx + p[0] * sgn, y - 0.03, gz + p[2] * sgn), (0.05, 0.035, 0.008), yaw=yaw + 90,
+                          style=no_bottom(col, 1.0))
+    b.box((c[0], y0 + 0.3, c[2]), (0.1, 0.25, 0.1), yaw=20, style=no_bottom("steel_light", 1.0))           # mirror
 
 
 def prop_rx_drawers(ctx, c, s):
-    b = ctx.b
+    """The dispensary's medicine drawers (round 4: white steel, not wood, so it reads as a pharmacy), 3D pulls, a few
+    drawers hanging open and empty, boxes of stock on top."""
+    b, rng = ctx.b, ctx.rng
     front = _front_into(c, 2)
+    f = 1 if front == "+z" else -1
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
-    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("wood", uv_world(2.0)))
-    z = c[2] + (s[2] / 2 if front == "+z" else -s[2] / 2)
-    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, 1 if front == "+z" else -1), "drawers", 0.775, "x")
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("bone", uv_world(2.0)))
+    z = c[2] + f * s[2] / 2
+    strip_quads(ctx, c[0] - s[0] / 2, c[0] + s[0] / 2, y0, y1, z, (0, 0, f), "drawers", 0.775, "x")
+    cols = max(1, round(s[0] / 0.775))
+    for col in range(cols):
+        for row in range(8):
+            x = c[0] - s[0] / 2 + (col + 0.5) * s[0] / cols
+            y = y0 + 0.2 + row * 0.22
+            if y > y1 - 0.15:
+                continue
+            if rng.random() < 0.15:                                       # pulled out, empty
+                b.box((x, y, z + f * 0.12), (s[0] / cols - 0.06, 0.14, 0.24), style=no_bottom("trim", 1.0))
+            else:
+                b.box((x, y + 0.02, z + f * 0.015), (0.1, 0.02, 0.03), style=no_bottom("trim", 1.0))
+    for _ in range(3):
+        stock_box(b, (rng.uniform(c[0] - s[0] / 2 + 0.2, c[0] + s[0] / 2 - 0.2), y1, c[2]), rng, "mint")
 
 
 def prop_rx_counter(ctx, c, s):
-    b = ctx.b
-    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("bone", uv_world()) if n[1] > 0.7 else ("wood", uv_world(2.0))))
+    """The pharmacist's counter in the dispensary: white with a green top, a computer, prescription bags in a bin,
+    a pill counting tray and a label printer. The PRESCRIPTIONS sign hangs over it."""
+    b, rng = ctx.b, ctx.rng
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else (("mint", uv_world()) if n[1] > 0.7 else ("bone", uv_world(2.0))))
     top = c[1] + s[1] / 2
-    b.box((c[0] - 0.6, top + 0.15, c[2]), (0.4, 0.3, 0.35), style=no_bottom("bone", 1.0))              # label printer
-    for k in range(5):                                                                                 # pill bottles
-        b.box((c[0] + 0.3 + k * 0.12, top + 0.05, c[2] + ctx.rng.uniform(-0.1, 0.1)), (0.06, 0.1, 0.06),
-              style=no_bottom(("yellow", "bone")[k % 2], 1.0))
-    # The PRESCRIPTIONS sign hangs over it from the ceiling.
+    pc(ctx, c[0] - 0.7, top, c[2], 1)
+    b.box((c[0] + 0.0, top + 0.1, c[2] - 0.05), (0.4, 0.2, 0.3), style=no_bottom("bone", 1.0))         # label printer
+    b.box((c[0] + 0.0, top + 0.2, c[2] - 0.12), (0.06, 0.01, 0.1), style=no_bottom("black", 1.0))
+    b.box((c[0] + 0.5, top + 0.02, c[2]), (0.3, 0.03, 0.2), style=no_bottom("trim", 1.0))              # counting tray
+    for k in range(5):
+        b.box((c[0] + 0.42 + k * 0.04, top + 0.045, c[2] + rng.uniform(-0.05, 0.05)), (0.02, 0.01, 0.02),
+              style=no_bottom("bone", 1.0))
+    b.box((c[0] + 0.95, top + 0.12, c[2]), (0.35, 0.24, 0.3), style=no_bottom("blue", 1.0))            # bag bin
+    for k in range(4):
+        b.box((c[0] + 0.85 + k * 0.06, top + 0.27, c[2]), (0.03, 0.12, 0.2), yaw=rng.uniform(-10, 10),
+              style=no_bottom("bone", 1.0))
     for nz in (-1, 1):
         b.poly([(c[0] - 1.25, 2.3, c[2] + nz * 0.01), (c[0] + 1.25, 2.3, c[2] + nz * 0.01),
                 (c[0] + 1.25, 2.7, c[2] + nz * 0.01), (c[0] - 1.25, 2.7, c[2] + nz * 0.01)], (0, 0, nz), "decals", ctx.d("rx"))
@@ -3620,7 +3857,7 @@ def prop_rx_counter(ctx, c, s):
 PHARM_PROPS = {
     "pharm_gondola": prop_gondola, "rx_shelf": prop_rx_shelf, "pharm_wall": prop_pharm_wall,
     "pharm_counter": prop_pharm_counter, "spinner": prop_spinner, "rx_drawers": prop_rx_drawers,
-    "rx_counter": prop_rx_counter,
+    "rx_counter": prop_rx_counter, "pharm_backbar": prop_pharm_backbar,
 }
 for _kind, _fn in PHARM_PROPS.items():
     PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
@@ -3629,11 +3866,13 @@ for _kind, _fn in PHARM_PROPS.items():
 def dress_pharmacy(ctx):
     b, rng = ctx.b, ctx.rng
     zs = 6.15                                                            # south wall's outside face
-    # Green band and sign over the front, a cross lightbox sticking out at the corner.
+    # Green band and sign over the front; the cross lightbox on the front too (round 4, owner: it was round the side),
+    # sticking out from the wall so it shows down the street both ways.
     b.box((0, 2.75, zs + 0.015), (15.3, 0.6, 0.03), style=no_bottom("green", 1.0))
     b.box((1.5, 2.75, zs + 0.06), (6.0, 0.8, 0.08), style=face_decal(ctx.d("sign"), "trim_dark", "+z"))
-    b.box((7.9, 2.4, 5.4), (0.8, 0.05, 0.05), style=no_bottom("trim_dark", 1.0))                    # bracket
-    b.box((8.2, 2.0, 5.4), (0.12, 0.9, 0.9), style=lambda n, m, q: ("decals", ctx.d("cross")) if abs(n[0]) > 0.7
+    for y in (2.2, 2.9):
+        b.box((6.4, y, zs + 0.35), (0.05, 0.05, 0.7), style=no_bottom("trim_dark", 1.0))                 # brackets
+    b.box((6.4, 2.55, zs + 0.75), (0.12, 0.9, 0.9), style=lambda n, m, q: ("decals", ctx.d("cross")) if abs(n[0]) > 0.7
           else ("trim_dark", uv_world()))
     b.box((0, 0.225, zs + 0.03), (15.3, 0.45, 0.06), style=no_bottom("concrete", 4.0))
     wall_quad(b, (-1, 0, 0), -7.66, -1.5, 1.5, 0.9, 1.6, "graffiti", ctx.d("looted"))
@@ -3649,6 +3888,7 @@ def dress_pharmacy(ctx):
     b.box((2.6, 0.12, 2.0), (0.45, 0.24, 0.32), yaw=35, pitch=70, style=no_bottom("red", 1.0))
 
 
+PROPS.update({k: v for k, v in PROPS_EXTRA.items()})
 DECALS["pharmacy"] = pharmacy_decals
 DRESSING["pharmacy"] = dress_pharmacy
 FOOTPRINTS["pharmacy"] = (-7.5, -6.0, 7.5, 6.0)
@@ -3861,17 +4101,75 @@ def add_faction_decals(a, rng):
         for _ in range(int(c.w * c.h * 0.08)):
             c.put(rng.randrange(c.w), rng.randrange(c.h), "clear")
 
+    def x1_circle(c):     # 0.9 m: a red X1 in a sprayed ring, a gap where the can ran dry
+        c.rect(0, 0, c.w, c.h, "clear")
+        cx, cy = c.w / 2 - 0.5, c.h / 2 - 0.5
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - cx, y - cy)
+                ang = math.degrees(math.atan2(y - cy, x - cx))
+                if 11.5 <= d <= 14 and not 60 < ang < 85:
+                    c.put(x, y, "red")
+        paint_x1(c, 8, 8, 13, "red", 2)
+        c.rect(int(cx) - 3, 0, int(cx) - 2, 3, "red")                     # a drip off the ring
+
+    def x1_wings(c):      # 1.5 x 0.95 m: the mark over EXION, chevrons either side (unit marking, black spray, the gas station walls are pale)
+        c.rect(0, 0, c.w, c.h, "clear")
+        paint_x1(c, (c.w - 15) // 2, 12, 15, "black", 3)
+        for k in range(3):
+            for side in (-1, 1):
+                x0 = c.w // 2 + side * (12 + k * 4)
+                for t in range(5):
+                    c.put(x0 + side * t, 18 + t, "black")
+                    c.put(x0 + side * t, 18 - t, "black")
+        c.ctext(0, c.w, 3, "EXION", "black")
+
+    def x1_crossed(c):    # 1.6 x 0.8 m: someone's NOVA, crossed out in red with the X1 sprayed after it
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.text(2, 11, "NOVA", "sky_blue", 2)
+        for x in range(1, 33):                                              # the strike-through
+            c.put(x, 15 + (x % 7 == 0), "red")
+            c.put(x, 16, "red")
+        paint_x1(c, 34, 5, 16, "black", 3)
+        for _ in range(int(c.w * c.h * 0.04)):                              # NOVA's paint is old
+            x, y = rng.randrange(0, 33), rng.randrange(c.h)
+            if c.px[y][x] == "sky_blue":
+                c.put(x, y, "clear")
+
+    def x1_chalk(c):      # 0.75 x 0.55 m: a quick chalk X1 and an arrow (scouts marking the way)
+        c.rect(0, 0, c.w, c.h, "clear")
+        paint_x1(c, 2, 5, 10, "bone", 1)
+        for x in range(13, 22):
+            c.put(x, 9, "bone")
+        for t in range(1, 4):
+            c.put(21 - t, 9 + t, "bone")
+            c.put(21 - t, 9 - t, "bone")
+
+    def blast_soot(c):    # 0.8 x 2 m of scorch beside a blast hole, ragged at the far edge
+        c.rect(0, 0, c.w, c.h, "clear")
+        for y in range(c.h):
+            reach = c.w * (0.45 + 0.3 * math.sin(y * 0.21) * rng.uniform(0.6, 1.0))
+            for x in range(c.w):
+                t = (c.w - x) / reach      # 0 at the hole, 1 at the ragged far edge
+                if t < 1 and rng.random() < 0.75 * (1 - t) ** 1.5:
+                    c.put(x, y, "black" if t < 0.3 and rng.random() < 0.5 else "iron_dark")
+
+    a.add("blast_soot", 26, 64, blast_soot)
     a.add("x1_tag", 40, 26, x1_tag)
+    a.add("x1_circle", 29, 29, x1_circle)
+    a.add("x1_wings", 48, 30, x1_wings)
+    a.add("x1_crossed", 52, 26, x1_crossed)
+    a.add("x1_chalk", 24, 18, x1_chalk)
     a.add("x1_stencil", 52, 26, x1_stencil)
     a.add("nova_tag", 40, 19, nova_tag)
 
 
 # Where they go: (decal, side, centre along the wall, bottom height). Clear of every opening (checked in build).
 FACTION_MARKS = {
-    "school": [("x1_tag", "N", -5.0, 0.8), ("x1_stencil", "E", 4.0, 1.2), ("x1_tag", "S", 5.5, 0.55)],
-    "shops": [("x1_stencil", "N", -5.0, 1.1), ("x1_tag", "E", -3.8, 0.7)],
-    "gas_station_town": [("x1_stencil", "N", 0.0, 1.2), ("x1_tag", "E", 3.0, 0.7)],
-    "pharmacy": [("x1_tag", "E", 3.6, 0.8), ("nova_tag", "W", -3.8, 1.0)],
+    "school": [("x1_tag", "N", -5.0, 0.8), ("x1_stencil", "E", 4.0, 1.2), ("x1_chalk", "S", 5.5, 0.9)],
+    "shops": [("x1_circle", "N", -5.0, 1.0), ("x1_crossed", "E", -3.8, 0.8)],
+    "gas_station_town": [("x1_wings", "N", 0.0, 1.0), ("x1_tag", "E", 3.0, 0.7)],
+    "pharmacy": [("x1_circle", "E", 3.6, 0.9), ("nova_tag", "W", -3.8, 1.0)],
 }
 
 
@@ -3918,6 +4216,7 @@ def build(name, export):
         if kind:
             k = counts.get(kind, 0)
             counts[kind] = k + 1
+            ctx.row = row
             PROPS[kind](ctx, tuple(row["pos"]), tuple(row["size"]), k)
         else:
             shell_box(ctx, row)

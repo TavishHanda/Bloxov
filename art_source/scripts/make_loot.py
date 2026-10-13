@@ -171,6 +171,12 @@ def loot_decals(rng):
 
     a.add("safe", 27, 26, safe)   # odd width: BLOXOV (23 px) gets a 1 px gap each side
     a.add("locker", 24, 61, locker)
+
+    def locker_door(c):     # 0.33 x 1.74 m: one staff-locker door (the vents and handle are 3D)
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.rect(3, c.h - 24, c.w - 3, c.h - 21, "bone")                                # name tag
+        c.blotch(["steel", "iron"], 3, rng, size=(1, 3))
+    a.add("locker_door", 11, 56, locker_door)
     a.add("wardrobe", 32, 64, wardrobe)
     a.add("gun_cabinet", 29, 61, gun_cabinet)
     a.add("filing", 16, 42, filing)
@@ -184,6 +190,23 @@ def loot_decals(rng):
     a.add("weapon_case", 37, 12, weapon_case)
     a.add("box_soda", 16, 13, box_label("SODA", "red", "bone"))
     a.add("box_food", 16, 13, box_label("FOOD", "hazard_yellow", "red"))
+    a.add("box_meds", 16, 13, box_label("MEDS", "bone", "green_dark"))
+
+    def box_tv(c):          # 0.9 x 0.6 m: a flat-screen box, the set drawn on it
+        c.rect(0, 0, c.w, c.h, "wood_pale")
+        c.noise(0, 0, c.w, c.h, ["wood_light", "sand"], 0.15, rng)
+        c.rect(5, 5, c.w - 5, c.h - 3, "iron_dark")
+        c.rect(7, 7, c.w - 7, c.h - 5, "sky_blue")
+        c.rect(c.w // 2 - 2, 2, c.w // 2 + 2, 5, "iron_dark")
+        c.rect(0, 0, c.w, 2, "red")
+
+    def box_shoes(c):       # 0.35 x 0.13 m shoebox end
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, c.h - 1, c.w, c.h, "iron_dark")                                   # the lid's edge
+        c.rect(2, 1, 5, 3, "red")
+
+    a.add("box_tv", 29, 19, box_tv)
+    a.add("box_shoes", 11, 4, box_shoes)
     return a
 
 
@@ -211,8 +234,27 @@ def look_safe(b, d):
 
 
 def look_locker(b, d):
-    b.box((0, 0.95, 0.02), (0.75, 1.9, 0.48), style=front(d, "locker", "blue"))
-    b.box((0.08, 1.98, 0.05), (0.42, 0.16, 0.32), yaw=8, style=solid("cardboard"))   # a box left on top
+    """Staff locker (round 4, owner: more 3D): two doors set in a frame on a plinth, raised vent slats, handles and
+    hinges that stick out, one door dented, a box and a hard hat left on top."""
+    b.box((0, 0.05, 0.02), (0.72, 0.1, 0.44), style=solid("trim_dark"))                # plinth
+    b.box((0, 1.0, 0.04), (0.75, 1.8, 0.44), style=lambda n, m, q: None if side_of(n) in ("-y", "-z") else ("blue", uv_world(1.0)))
+    for x in (-0.36, 0.36):                                                           # frame round the doors
+        b.box((x, 1.0, -0.19), (0.03, 1.8, 0.04), style=solid("trim_dark"))
+    for y in (0.115, 1.885):
+        b.box((0, y, -0.19), (0.75, 0.03, 0.04), style=solid("trim_dark"))
+    b.box((0, 1.0, -0.19), (0.02, 1.76, 0.04), style=solid("trim_dark"))
+    for k, x in enumerate((-0.18, 0.18)):
+        b.box((x, 1.0, -0.17), (0.33, 1.74, 0.02), yaw=(3 if k else 0), style=front(d, "locker_door", "blue"))
+        for j in range(5):                                                            # vent slats
+            b.box((x, 1.72 - j * 0.045, -0.185), (0.2, 0.018, 0.012), style=solid("trim_dark"))
+        hx = x + (0.12 if k == 0 else -0.12)
+        b.box((hx, 1.05, -0.2), (0.03, 0.14, 0.03), style=solid("steel"))           # handle
+        b.box((hx, 1.05, -0.215), (0.05, 0.05, 0.01), style=solid("trim_dark"))     # lock
+        for y in (0.4, 1.6):                                                          # hinges
+            b.box((x - (0.16 if k == 0 else -0.16), y, -0.19), (0.02, 0.08, 0.03), style=solid("steel"))
+    b.box((0.1, 1.98, 0.05), (0.42, 0.16, 0.32), yaw=8, style=solid("cardboard"))   # a box left on top
+    b.box((-0.2, 1.955, 0.0), (0.24, 0.11, 0.26), style=solid("gold"))               # a hard hat
+    b.box((-0.2, 1.905, -0.06), (0.26, 0.01, 0.3), style=solid("gold"))
 
 
 def look_wardrobe(b, d):
@@ -227,6 +269,9 @@ def look_gun_cabinet(b, d):
 
 def look_filing(b, d):
     b.box((0, 0.65, 0.0), (0.5, 1.3, 0.6), style=front(d, "filing", "steel"))
+    for k in range(4):                                                                # drawer pulls stick out
+        b.box((0, 0.22 + k * 0.3, -0.31), (0.16, 0.03, 0.03), style=solid("trim_dark"))
+    b.box((0, 0.36, -0.35), (0.44, 0.24, 0.1), style=solid("steel"))                 # bottom drawer pulled out
     b.box((0.03, 1.31, 0.02), (0.3, 0.02, 0.4), yaw=-10, style=solid("bone"))       # papers on top
     b.box((-0.05, 1.33, 0.0), (0.26, 0.02, 0.34), yaw=15, style=solid("bone"))
 
@@ -300,11 +345,70 @@ def look_stock_boxes(b, d):
     b.box((-0.08, 0.6, 0.0), (0.5, 0.4, 0.5), yaw=-6, style=box_style("box_soda"))
 
 
+def _box(b, d, c, size, yaw, label, side_mat="cardboard"):
+    fit = mb.uv_fit(d.regions[label])
+    b.box(c, size, yaw=yaw, style=lambda n, m, q: None if n[1] < -0.7 else (
+        ("decals", fit) if abs(n[2]) > 0.7 else (side_mat, uv_world(1.0))))
+
+
+def look_stock_meds(b, d):
+    """Pharmacy stock: cartons with a MEDS label, one opened with pill boxes spilling."""
+    _box(b, d, (-0.24, 0.2, 0.0), (0.5, 0.4, 0.55), 0, "box_meds")
+    _box(b, d, (0.27, 0.15, 0.02), (0.44, 0.3, 0.5), 5, "box_meds")
+    _box(b, d, (-0.1, 0.58, 0.02), (0.46, 0.36, 0.48), -7, "box_meds")
+    for k in range(4):
+        b.box((0.15 + k * 0.08, 0.34, -0.05 + (k % 2) * 0.1), (0.07, 0.08, 0.05), yaw=k * 20, style=solid("bone"))
+
+
+def look_stock_tv(b, d):
+    """TV shop stock: big flat TV boxes standing and leaning, a small one in front (round 4: not soda and food)."""
+    _box(b, d, (-0.05, 0.31, 0.2), (0.92, 0.6, 0.16), 0, "box_tv")
+    _box(b, d, (0.05, 0.3, 0.0), (0.9, 0.58, 0.15), -4, "box_tv")
+    b.box((0.0, 0.25, -0.2), (0.85, 0.52, 0.14), yaw=3, pitch=-12, style=lambda n, m, q: None if n[1] < -0.7 else (
+        ("decals", mb.uv_fit(d.regions["box_tv"])) if n[2] < -0.5 else ("cardboard", uv_world(1.0))))
+
+
+def look_stock_shoes(b, d):
+    """Shoe store stock: stacks of shoeboxes (white, a few coloured), some knocked off."""
+    rng = random.Random("shoes")
+    cols = ("cardboard", "cardboard", "red", "blue", "trim_dark")
+    for sx, rows in ((-0.3, 5), (0.1, 4), (0.42, 2)):
+        for k in range(rows):
+            c = rng.choice(cols)
+            b.box((sx + rng.uniform(-0.02, 0.02), 0.065 + k * 0.13, rng.uniform(-0.05, 0.05)), (0.35, 0.13, 0.22),
+                  yaw=rng.uniform(-6, 6) + 90 * 0, style=lambda n, m, q, c=c: None if n[1] < -0.7 else (
+                      ("decals", mb.uv_fit(d.regions["box_shoes"])) if n[2] < -0.7 else (c, uv_world(1.0))))
+    b.box((0.2, 0.065, -0.3), (0.35, 0.13, 0.22), yaw=35, style=solid("red"))      # one on the floor, lid off
+    b.box((0.2, 0.16, -0.28), (0.28, 0.08, 0.1), yaw=35, style=solid("trim_dark"))  # the shoe in it
+
+
+def look_laundry_cart(b, d):
+    """Laundromat: a canvas laundry cart on castors, heaped with clothes (round 4, owner: loot in the laundromat)."""
+    for x in (-0.4, 0.4):
+        for z in (-0.22, 0.22):
+            b.box((x, 0.05, z), (0.06, 0.1, 0.06), style=solid("black"))              # castors
+            b.box((x, 0.5, z), (0.03, 0.8, 0.03), style=solid("steel"))               # frame posts
+    b.box((0, 0.13, 0), (0.86, 0.03, 0.5), style=solid("steel"))
+    for y in (0.88,):
+        for z in (-0.23, 0.23):
+            b.box((0, y, z), (0.86, 0.03, 0.03), style=solid("steel"))
+        for x in (-0.42, 0.42):
+            b.box((x, y, 0), (0.03, 0.03, 0.5), style=solid("steel"))
+    b.box((0, 0.55, 0), (0.8, 0.62, 0.44), style=lambda n, m, q: None if n[1] > 0.7 else ("blue", uv_world(1.0)))  # canvas
+    rng = random.Random("laundry")
+    for k in range(7):                                                                # the clothes heap
+        b.box((rng.uniform(-0.28, 0.28), 0.86 + rng.uniform(0, 0.08), rng.uniform(-0.14, 0.14)),
+              (rng.uniform(0.18, 0.32), 0.07, rng.uniform(0.14, 0.26)), yaw=rng.uniform(0, 180), pitch=rng.uniform(-15, 15),
+              style=solid(rng.choice(("red", "bone", "green", "olive", "gold", "steel"))))
+    b.box((-0.47, 0.75, 0), (0.04, 0.35, 0.2), pitch=10, style=solid("bone"))        # a towel over the side
+
+
 LOOKS = {
     "safe": look_safe, "locker": look_locker, "wardrobe": look_wardrobe, "gun_cabinet": look_gun_cabinet,
     "filing": look_filing, "med_cabinet": look_med, "toolbox": look_toolbox, "dresser": look_dresser,
     "kitchen": look_kitchen, "chest": look_chest, "hard_case": look_hard_case, "weapon_case": look_weapon_case,
-    "duffel": look_duffel, "stock_boxes": look_stock_boxes,
+    "duffel": look_duffel, "stock_boxes": look_stock_boxes, "stock_meds": look_stock_meds, "stock_tv": look_stock_tv,
+    "stock_shoes": look_stock_shoes, "laundry_cart": look_laundry_cart,
 }
 
 

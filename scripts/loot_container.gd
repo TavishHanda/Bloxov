@@ -35,6 +35,8 @@ const LOOKS := {
 	"kitchen": ["Kitchen Cabinet", Vector3(1.0, 0.95, 0.6)], "chest": ["Old Chest", Vector3(0.9, 0.6, 0.55)],
 	"hard_case": ["Hard Case", Vector3(1.0, 0.6, 0.6)], "weapon_case": ["Weapon Case", Vector3(1.2, 0.5, 0.55)],
 	"duffel": ["Duffel Bag", Vector3(0.9, 0.4, 0.45)], "stock_boxes": ["Stock Boxes", Vector3(1.0, 0.8, 0.6)],
+	"stock_meds": ["Medicine Boxes", Vector3(1.0, 0.8, 0.6)], "stock_tv": ["TV Boxes", Vector3(1.0, 0.65, 0.6)],
+	"stock_shoes": ["Shoe Boxes", Vector3(1.0, 0.7, 0.6)], "laundry_cart": ["Laundry Cart", Vector3(1.0, 1.0, 0.6)],
 }
 
 ## Pockets: the loose loot (for bodies, everything that isn't in a gear slot).

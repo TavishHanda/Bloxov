@@ -61,8 +61,9 @@ def door_office(b):
 
 
 def door_school(b):
-    """School classroom door: painted green, a tall narrow window, kick plate."""
-    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("green"))
+    """School classroom door: varnished wood to go with the tan brick and parquet (round 4, owner: the green
+    didn't match), a tall narrow window, kick plate."""
+    b.box((0, 0, 0), (0.98, 1.98, T), style=solid("wood"))
     for sz in (-1, 1):
         z = sz * (T / 2 + 0.004)
         b.box((0.18, 0.35, z), (0.2, 0.9, 0.008), style=solid("trim_dark"))

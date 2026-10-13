@@ -237,14 +237,22 @@ LOOT_LOOKS = {
 DEFAULT_LOOK = {"crate": "hard_case", "locker": "locker", "safe": "safe"}
 
 
-def loot_look(place, kind):
-    return LOOT_LOOKS[kind].get(re.sub(r"\d+$", "", place), DEFAULT_LOOK[kind])
+# A container's own look when its room needs one that isn't its place's (round 4, owner: containers that make sense
+# for the room: the TV shop's boxes are TVs, the laundromat has a laundry cart). Container name -> look.
+LOOK_OF = {}
 
 
-def add_loot(place, kind, x, z, y=0.0, yaw=0.0):
+def loot_look(place, kind, name=""):
+    return LOOK_OF.get(name) or LOOT_LOOKS[kind].get(re.sub(r"\d+$", "", place), DEFAULT_LOOK[kind])
+
+
+def add_loot(place, kind, x, z, y=0.0, yaw=0.0, look=None):
     """kind: crate / locker / safe (the scene's loot table; ItemDB.PLACE_LOOT adds the place's own loot, 0.14.0)."""
     n = sum(1 for l in loot if l[0].startswith(place + "_")) + 1
-    loot.append((f"{place}_{kind.capitalize()}{n}", kind, x, y, z, yaw, kind, place))
+    name = f"{place}_{kind.capitalize()}{n}"
+    if look:
+        LOOK_OF[name] = look
+    loot.append((name, kind, x, y, z, yaw, kind, place))
 
 
 # ---------------------------------------------------------------------------------------------- walls
@@ -507,25 +515,32 @@ class Building:
                 at = lambda along, off: (wx + out * off, mid + along)
                 face = lambda along, yy, w, hh: obox(wx + out * (WALL_T / 2 + 0.03), yy, mid + along, 0.04, hh, w, 0,
                                                      "scorch", solid=False)
-            # scorch round the hole (not over it), and jagged bits of wall hanging into it
+            # scorch round the hole (not over it), and jagged bits of wall hanging into it. A modeled building draws
+            # its own broken edges, scorch and rubble (round 4, owner: "make the broken wall proper"): only the rubble
+            # heaps' collision stays, under kind "rubble_heap"/"rubble" so the model draws them where they lie.
+            modeled_here = bool(_model) and _model[-1] is not None
             hw = min(3.4, (self.cw if horizontal else self.cd) - 0.6) / 2
             for sgn in (-1, 1):
-                face(sgn * (hw + 0.6), y + self.h * 0.45, 1.2, self.h * 0.8)
                 jx, jz = at(sgn * (hw - 0.3), 0)
                 jh = rng.uniform(0.25, 0.5) * self.h
+                if modeled_here:
+                    continue
+                face(sgn * (hw + 0.6), y + self.h * 0.45, 1.2, self.h * 0.8)
                 obox(jx, y + self.h - jh / 2, jz, 0.6 if horizontal else WALL_T, jh, WALL_T if horizontal else 0.6, 0,
                      self.colour)
-            if f < self.floors - 1:
+            if f < self.floors - 1 and not modeled_here:
                 face(0, y + self.h - 0.35, 2 * hw, 0.6)
-            with unmodeled():   # (outside, off the building's pad: stays gray box until the ground gets its art)
+            with (contextlib.nullcontext() if modeled_here else unmodeled()):
+                # (gray box: outside, off the building's pad, stays gray box until the ground gets its art)
                 for _ in range(rng.randint(5, 8)):   # chunks blown out onto the ground
                     px, pz = at(rng.uniform(-3, 3), rng.uniform(1.0, 4.5))
                     w, h, d = rng.uniform(0.4, 1.3), rng.uniform(0.2, 0.6), rng.uniform(0.4, 1.3)
                     obox(px, h / 2, pz, w, h, d, rng.uniform(0, 90), rng.choice((self.colour, "concrete", "scorch")),
-                         solid=False)
+                         solid=False, kind="rubble" if modeled_here else None)
                 for sgn in (-1, 1):                    # a solid heap each side of the hole (cover)
                     px, pz = at(sgn * rng.uniform(2.6, 3.4), rng.uniform(1.4, 2.4))
-                    obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour)
+                    obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour,
+                         kind="rubble_heap" if modeled_here else None)
         top = (self.floors - 1) * self.h
         for i, j in sorted(self.caved):
             cx0, cz0, cx1, cz1 = self.cell(i, j)
@@ -650,14 +665,14 @@ def school_furniture():
 
 
 def build(b, loot_spots=()):
-    """loot_spots: (kind, room i, room j, floor, wall side, offset)."""
+    """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
     buildings.append(b)
     b.build()
     b.damage_debris(random.Random(b.name))
-    for kind, i, j, floor, side, off in loot_spots:
+    for kind, i, j, floor, side, off, *look in loot_spots:
         x, y, z, yaw = b.against_wall(i, j, floor, side, off)
-        add_loot(b.name, kind, x, z, y=y, yaw=yaw)
+        add_loot(b.name, kind, x, z, y=y, yaw=yaw, look=look[0] if look else None)
     return b
 
 
@@ -1268,6 +1283,7 @@ EXTRA_PADS = [
     (124.0, 168.0, 178.0, 182.0),  # the trench
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
     (58.0, 260.0, 74.0, 274.0),    # campsite
+    (89.0, 66.0, 106.0, 72.0),     # the rubble blown out of the pharmacy's north wall (round 4: part of its model)
 ]
 
 
@@ -1863,13 +1879,15 @@ def main():
         box(72.0, 0, z, 77.0, 1.0, z + 0.8, "wood")
     with modeled("pharmacy", 97.5, 78.0):   # World art 0.17: shop floor (east), dispensary (west)
         build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
-            ("crate", 0, 0, 0, "W", 0), ("crate", 1, 0, 0, "E", 0)])
+            ("crate", 0, 0, 0, "W", -3.0), ("crate", 1, 0, 0, "E", -2.6, "stock_meds")])   # (off the windows)
         box(92.0, 0, 76.0, 96.5, 1.6, 76.8, "wood", kind="rx_shelf")
         # Shop: two aisles of shelves, a wall of shelves, the till counter, a sunglasses stand by the door.
         box(98.6, 0, 73.8, 99.4, 1.6, 77.2, "metal", kind="pharm_gondola")   # clear of the window
         box(101.0, 0, 73.8, 101.8, 1.6, 77.2, "metal", kind="pharm_gondola")
         box(102.6, 0, 72.15, 104.8, 2.0, 72.6, "metal", kind="pharm_wall")
-        box(103.2, 0, 79.6, 104.7, 1.0, 82.0, "wood", kind="pharm_counter")
+        # The till (round 4, owner: an area to walk behind): a counter facing the shop, a back bar on the wall.
+        box(102.9, 0, 79.4, 103.5, 1.0, 82.6, "wood", kind="pharm_counter")
+        box(104.4, 0, 79.8, 104.85, 0.9, 82.2, "wood", kind="pharm_backbar")
         box(98.1, 0, 81.8, 98.7, 1.6, 82.4, "metal", kind="spinner")
         # Dispensary: drug drawers, the prescriptions counter, the pharmacist's desk.
         box(90.4, 0, 83.2, 92.9, 2.0, 83.85, "wood", kind="rx_drawers")
@@ -1886,7 +1904,9 @@ def main():
     # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)
     with modeled("shops", 29.5, 126.5):   # World art 0.17: laundromat (west), shoe store (middle), burned-out TV shop
         build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)], shopfronts="S"), [
-            ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("crate", 1, 0, 1, "N", 0), ("locker", 0, 0, 1, "W", 0)])
+            ("crate", 0, 0, 0, "W", -1.5, "laundry_cart"), ("crate", 2, 0, 0, "E", 3.5, "stock_tv"),
+            ("crate", 1, 0, 1, "N", 2.2, "stock_shoes"), ("locker", 0, 0, 1, "W", -2.6, "wardrobe"),
+            ("crate", 1, 0, 0, "E", -3.5, "stock_shoes")])   # round 4: each room's own loot, off the windows
         # Laundromat: a double row of washers, dryers on the west wall, a folding table.
         box(16.2, 0, 123.0, 20.8, 1.0, 124.4, "metal", kind="washers")
         box(15.15, 0, 128.2, 15.95, 1.9, 131.6, "metal", kind="dryers")
@@ -1916,7 +1936,7 @@ def main():
     # modern gas station on the corner of Main Street and Old Road (owner, 0.10.1; the town house was here)
     with modeled("gas_station_town", 80.5, 111.0):   # World art 0.17: the first modeled building
         build(Building("GasStationTown", 74, 106, 13, 10, colour="wall_modern", rooms=(2, 1), doors="W"), [
-            ("crate", 1, 0, 0, "E", 0), ("locker", 0, 0, 0, "N", -2.5)])
+            ("crate", 1, 0, 0, "E", -2.6), ("locker", 1, 0, 0, "E", 2.6)])   # stock room: boxes, a staff locker
         for x in (63.0, 70.5):
             for z in (100.0, 112.5):
                 box(x, 0, z, x + 0.5, 4.6, z + 0.5, "wall_modern", kind="canopy_post")
@@ -1950,8 +1970,8 @@ def main():
     barrier(178, 108, 90)
     with modeled("school", 23.0, 62.0):   # World art 0.17
         build(Building("School", 8, 50, 30, 24, floors=2, colour="wall_school", rooms=(3, 3), doors="S", roof=True), [
-            ("crate", 0, 0, 0, "W", 0), ("crate", 2, 2, 0, "E", 0), ("locker", 1, 2, 1, "S", 0),
-            ("crate", 0, 1, 1, "W", 0)])
+            ("crate", 0, 0, 0, "W", 1.5), ("crate", 2, 2, 0, "E", -1.4, "kitchen"), ("locker", 1, 2, 1, "S", -2.5, "filing"),
+            ("crate", 0, 1, 1, "W", -1.8)])   # library, staff lounge, principal's office, computer room (off the windows)
         school_furniture()
     box(15, 0.0, 148, 45, 0.06, 166, "pavement", solid=False)   # the shops' car park (was the sports field)
     car(22, 154, 90); car(34, 160, 90, "car_b"); car(40, 152, 270)
@@ -2496,7 +2516,7 @@ def write_scene(ter):
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
                 f"transform = {xform(x, y, z, yaw)}",
-                f'metadata/place = "{place}"', f'metadata/look = "{loot_look(place, kind)}"'] + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
+                f'metadata/place = "{place}"', f'metadata/look = "{loot_look(place, kind, name)}"'] + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, z in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',
