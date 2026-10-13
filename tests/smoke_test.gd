@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts",
 ]
@@ -974,6 +974,44 @@ func _section_items() -> void:
 	var boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate()
 	_check(boss.extra_drops.has("bunker_key"), "Bon always carries the bunker key")
 	boss.free()
+
+
+func _section_doors() -> void:
+	# Doors (0.17): shut, they stop people and the AI's eyes but not bullets; F swings one away from you; the AI
+	# open a shut door when they walk up to it.
+	var spot := Vector3(40, 0, 60)
+	var door: Door = (load("res://scenes/door.tscn") as PackedScene).instantiate()
+	door.name = "TestDoor"
+	main.add_child(door)
+	door.global_position = spot
+	await physics_frame
+	await physics_frame
+	var space := door.get_world_3d().direct_space_state
+	var mid := spot + Vector3(-0.5, 1.2, 0)
+	var walk := PhysicsRayQueryParameters3D.create(mid + Vector3(0, 0, 1), mid + Vector3(0, 0, -1), Door.LAYER)
+	var shot := PhysicsRayQueryParameters3D.create(mid + Vector3(0, 0, 1), mid + Vector3(0, 0, -1), 1 | 4)
+	_check(space.intersect_ray(walk).get("collider") == door and space.intersect_ray(shot).is_empty(),
+		"a shut door blocks people (layer %d) but not bullets" % Door.LAYER)
+	_check(player.collision_mask & Door.LAYER != 0 and not door.is_in_group(&"nav_source"),
+		"players bump into doors; the AI's paths go through doorways")
+	_check(door.prompt() == "Open door" and not door.is_open(), "shut: [F] Open door")
+	door.use(spot + Vector3(0, 1, 2))
+	_check(door.state == 1 and door.prompt() == "Close door", "F opens it, away from you")
+	for i in 30:
+		await physics_frame
+	_check(space.intersect_ray(walk).is_empty(), "the open door lets you through")
+	var leaf: Node3D = door.get_child(0)
+	_check(door.to_local(leaf.to_global(Vector3(0.5, 0, 0))).z < -0.3, "it swung to the far side")
+	door.use(spot + Vector3(0, 1, 2))
+	_check(door.state == 0, "F again shuts it")
+	for i in 30:
+		await physics_frame
+	var scav := _spawn(SCAV_SCENE, spot + Vector3(0, 0.1, -1.0)) as Scav
+	for i in 10:
+		await physics_frame
+	_check(door.state == -1, "a scav walking up to a shut door opens it (away from them)")
+	scav.queue_free()
+	door.queue_free()
 
 
 func _section_crate_model() -> void:
@@ -2775,6 +2813,11 @@ func _section_old_bloxov() -> void:
 	_check(map.get_node_or_null("KeyDoors/BunkerDoor") is KeyDoor and map.get_node("KeyDoors/BunkerDoor").key == "bunker_key"
 		and map.get_node_or_null("KeyDoors/BankVaultDoor") is KeyDoor and map.get_node("KeyDoors/BankVaultDoor").key == "bank_vault_key",
 		"locked doors at the bunker and the bank vault, with their keys (0.14.0)")
+	var doors := map.get_node("Doors").get_children()
+	var clash := doors.filter(func(d: Node3D) -> bool:
+		return d.position.distance_to(map.get_node("KeyDoors/BankVaultDoor").position) < 1.0)
+	_check(doors.size() > 50 and doors.all(func(d: Node) -> bool: return d is Door) and clash.is_empty(),
+		"%d doors in the inner doorways, none on top of a key door (0.17)" % doors.size())
 	var minimap: Dictionary = map.get_meta("minimap", {})
 	var names: Array = minimap.get("labels", []).map(func(l: Array) -> String: return l[0])
 	_check(minimap.get("size", 0.0) == 350.0 and minimap.get("buildings", PackedFloat32Array()).size() >= 4 * 30
@@ -2867,6 +2910,14 @@ func _section_old_bloxov() -> void:
 	world.open_door("../Loot")
 	var server_door := world.raid.get_node_or_null("KeyDoors/BunkerDoor") as KeyDoor
 	_check(server_door != null and server_door.is_open and opened == ["BunkerDoor"], "the server opens a key door once and tells the raid (%s)" % [opened])
+	var swung := []
+	world.door_changed.connect(func(id: String, state: int) -> void: swung.append([id, state]))
+	world.set_door("Door1", 1)
+	world.set_door("Door1", 1)
+	world.set_door("../Loot", 1)
+	var server_swing := world.raid.get_node_or_null("Doors/Door1") as Door
+	_check(server_swing != null and server_swing.state == 1 and swung == [["Door1", 1]],
+		"the server swings a door a player opened and tells the raid once (%s)" % [swung])
 	world.throw_grenade(Vector3(0, 40, 0), Vector3.ZERO)
 	var server_nade := world.raid.get_children().filter(func(n: Node) -> bool: return n is Grenade)
 	_check(server_nade.size() == 1 and server_nade[0].deals_damage, "a player's grenade flies in the server's raid, and does the damage there")

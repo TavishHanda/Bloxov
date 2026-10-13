@@ -51,6 +51,7 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	Network.main.door_opened.connect(on_door_opened)
+	Network.main.door_state.connect(on_door_state)
 	Network.main.player_fired.connect(on_player_fired)
 	Network.main.grenade_seen.connect(func(from: Vector3, vel: Vector3) -> void:
 		Grenade.spawn(get_parent(), from, vel, false))
@@ -120,6 +121,13 @@ func on_door_opened(id: String) -> void:
 	var door := get_parent().get_node_or_null("KeyDoors/" + id) as KeyDoor
 	if door != null:
 		door.open()
+
+
+## A door in the raid swung open or shut (someone else, the AI, or the server agreeing with us).
+func on_door_state(id: String, state: int) -> void:
+	var door := get_parent().get_node_or_null("Doors/" + id) as Door
+	if door != null:
+		door.set_state(state)
 
 
 # --- Shared loot ---------------------------------------------------------------------

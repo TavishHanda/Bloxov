@@ -278,7 +278,7 @@ func _has_line_of_sight() -> bool:
 	if _target == null:
 		return false
 	var eyes := global_position + Vector3(0, 1.65, 0)
-	var query := PhysicsRayQueryParameters3D.create(eyes, _target.eye_position(), 1, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(eyes, _target.eye_position(), 1 | Door.LAYER, [get_rid()])
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
@@ -296,7 +296,7 @@ func _warn_friends() -> void:
 			continue
 		if d > buddy_hear_radius:
 			var eyes := friend.global_position + Vector3(0, 1.65, 0)
-			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1)).is_empty():
+			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1 | Door.LAYER)).is_empty():
 				continue
 		friend.notice_near_miss(_last_hit_from)
 		if not said:

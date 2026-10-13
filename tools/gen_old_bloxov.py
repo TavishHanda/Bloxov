@@ -255,6 +255,13 @@ def _wall(a0, a1, y0, h, colour, openings, put):
 
 
 # ---------------------------------------------------------------------------------------------- buildings
+def inner_door(x, y, z, yaw, place):
+    """A door in an inner doorway (World art 0.17, owner: doors to open and shut). Outside doorways stay open
+    (smashed in). Doorways that already have a key door get none (see write_scene)."""
+    n = sum(1 for m in markers if m[0] == "Doors") + 1
+    markers.append(("Doors", f"Door{n}", x, y, z, {"yaw": yaw, "width": INNER_DOOR_W, "place": place}))
+
+
 class Building:
     """A rectangular building: `floors` storeys, rooms in an nx x nz grid with doorways between all neighbours,
     windows in every outside room wall, ramps (stairs) between storeys, optional flat roof you can walk on."""
@@ -370,12 +377,16 @@ class Building:
                 op = [] if ("v", i, j) in self.solid_inner or a1 - a0 < INNER_DOOR_W + 1.6 else \
                     [((a0 + a1) / 2, INNER_DOOR_W, 0.0, DOOR_H)]
                 wall_z(a0, a1, x, y, h, self.colour, op, t=0.2)
+                if op:
+                    inner_door(x, y, (a0 + a1) / 2, 90.0, self.name)
         for j in range(1, self.nz):          # walls along x at z = z0 + j*cd
             z = self.z0 + j * self.cd
             for i in range(self.nx):
                 a0, a1 = self.x0 + i * self.cw, self.x0 + (i + 1) * self.cw
                 op = [] if ("h", i, j) in self.solid_inner else [((a0 + a1) / 2, INNER_DOOR_W, 0.0, DOOR_H)]
                 wall_x(a0 + WALL_T / 2, a1 - WALL_T / 2, z, y, h, self.colour, op, t=0.2)
+                if op:
+                    inner_door(((a0 + a1) / 2), y, z, 0.0, self.name)
 
     def _ramp(self, f, wall):
         """A ramp up from storey f to f+1 in the strip along the `wall` (N: climbs west to a landing in the north-west
@@ -2364,7 +2375,8 @@ def behind_key_door(place, x, z):
 def write_scene(ter):
     write_model_boxes(ter)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
-              "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn"}
+              "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
+              "swing_door": "res://scenes/door.tscn"}
     out = ["[gd_scene format=3]", "",
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
            '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]']
@@ -2440,6 +2452,13 @@ def write_scene(ter):
         out += [f'[node name="{g}" type="Node3D" parent="."]', ""]
         for grp, name, x, y, z, meta in markers:
             if grp != g:
+                continue
+            if grp == "Doors":      # ordinary doors (0.17): F opens and shuts them, the AI open them
+                if any(k[0] == "KeyDoors" and abs(k[2] - x) < 1.0 and abs(k[4] - z) < 1.0 for k in markers):
+                    continue
+                out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["swing_door"]}")]',
+                        f"transform = {xform(x, y, z, meta['yaw'])}",
+                        f"size = Vector2({fmt(meta['width'])}, {fmt(DOOR_H)})", f'metadata/place = "{meta["place"]}"', ""]
                 continue
             if grp == "KeyDoors":   # locked doors (0.14.0): a door leaf filling the doorway, a bit wider than it
                 out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["door"]}")]',

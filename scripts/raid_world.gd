@@ -12,7 +12,7 @@ extends SubViewport
 
 const RAID_SCENE := "res://scenes/main.tscn"
 ## The map pieces the server needs (solid things). Everything else in the raid scene is for players' screens.
-const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors"]
+const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors", "Doors"]
 const PLAYER_SCENE := "res://scenes/player.tscn"
 ## Seconds of position history kept per player, and the furthest back a shot is checked.
 const HISTORY := 1.0
@@ -39,6 +39,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## A key door was unlocked (0.14.0): Network tells everyone in the raid.
 signal door_opened(id: String)
+## A door swung open (1, -1) or shut (0) (0.17): a player asked, or the AI walked up to it. Network tells the raid.
+signal door_changed(id: String, state: int)
 
 ## Loot containers are shared: their contents live here, and one player at a time has one open
 ## (container id -> peer). Ids are the container's node name: "Crate3" under Loot, or "Bag12" for bags.
@@ -62,6 +64,12 @@ func _ready() -> void:
 			child.free()
 	raid.child_entered_tree.connect(_on_raid_child)
 	add_child(raid)
+	var doors := raid.get_node_or_null("Doors")
+	if doors != null:
+		for door in doors.get_children():
+			if door.has_signal("changed"):
+				var id := String(door.name)
+				door.changed.connect(func(state: int) -> void: door_changed.emit(id, state))
 
 
 ## Every scav the spawner adds: pass its events on. Every bag (scav bodies): name it and announce it.
@@ -136,6 +144,15 @@ func open_door(id: String) -> void:
 		return
 	door.call("open")
 	door_opened.emit(id)
+
+
+## A player opened or shut door `id` (a node under Doors). Untyped: no Door type here (see the top).
+func set_door(id: String, state: int) -> void:
+	if id.is_empty() or id.contains("/") or id.contains(".."):
+		return
+	var door := raid.get_node_or_null("Doors/" + id)
+	if door != null and door.has_method("set_state"):
+		door.call("set_state", clampi(state, -1, 1))
 
 
 ## A player threw a grenade: this raid's copy flies and does the damage (to the AI, and to players through their

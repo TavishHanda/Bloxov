@@ -17,6 +17,8 @@ signal revive_finished(peer: int)
 var target: LootContainer = null
 ## A shut key door we're looking at (instead of a container).
 var door: KeyDoor = null
+## An ordinary door we're looking at (0.17): F opens or shuts it.
+var swing_door: Door = null
 ## The container or door `progress` belongs to (looking at another one starts over).
 var _progress_target: Node = null
 ## 0..1 while holding F on an unsearched container.
@@ -42,6 +44,7 @@ func is_reviving() -> bool:
 func _physics_process(delta: float) -> void:
 	target = null
 	door = null
+	swing_door = null
 	if blocked or not Input.is_action_pressed("interact"):
 		_open_needs_release = blocked
 	var able := not blocked and not player.out_of_fight() and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
@@ -57,6 +60,12 @@ func _physics_process(delta: float) -> void:
 		door = null
 	if door != null:
 		_update_door(delta)
+		return
+	swing_door = looked_at as Door
+	if swing_door != null:
+		progress = 0.0
+		if Input.is_action_just_pressed("interact") and not _open_needs_release:
+			swing_door.use(player.global_position)
 		return
 	if target == null or not Input.is_action_pressed("interact") or _open_needs_release:
 		progress = 0.0
@@ -136,14 +145,15 @@ func _update_door(delta: float) -> void:
 		door.unlock(player.inventory)
 
 
-## The container or key door in reach under the crosshair, or null.
+## The container, key door or door in reach under the crosshair, or null.
 func _find_target() -> Node:
 	var camera := player.camera
 	var from := camera.global_position
 	var to := from - camera.global_basis.z * reach
-	# Mask: world (1) so walls block it + interactables (8).
+	# Mask: world (1) so walls block it + interactables (8; doors are on it too).
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 8, [player.get_rid()])
 	var result := player.get_world_3d().direct_space_state.intersect_ray(query)
 	if result.is_empty():
 		return null
-	return result.collider if result.collider is LootContainer or result.collider is KeyDoor else null
+	var hit: Object = result.collider
+	return hit if hit is LootContainer or hit is KeyDoor or hit is Door else null

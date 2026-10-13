@@ -44,6 +44,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## Key doors (0.14.0): someone in the raid unlocked one (its node name).
 signal door_opened(id: String)
+## Doors (0.17): one in the raid swung open (1, -1) or shut (0): its node name under Doors.
+signal door_state(id: String, state: int)
 ## Someone else in the raid threw a grenade (0.14.5): show it (the server's copy does the damage).
 signal grenade_seen(from: Vector3, vel: Vector3)
 ## Someone else in the raid fired (0.15.28): play their shot and show the tracer (`end`: where it stopped).
@@ -429,6 +431,14 @@ func _open_door(id: String) -> void:
 		world.open_door(id)
 
 
+## A player opened or shut a door (0.17): swing it here, and for everyone else in the raid.
+@rpc("any_peer", "call_remote", "reliable")
+func _use_door(id: String, state: int) -> void:
+	var world := _world_of(multiplayer.get_remote_sender_id())
+	if world != null:
+		world.set_door(id, state)
+
+
 ## A player threw a grenade: the server's copy flies and does the damage; everyone else in the raid sees it.
 @rpc("any_peer", "call_remote", "reliable")
 func _grenade(from: Vector3, vel: Vector3) -> void:
@@ -626,6 +636,9 @@ func _send_raid_start(id: int) -> void:
 	world.door_opened.connect(func(door: String) -> void:
 		for peer in _raid_peers(id):
 			_door_open.rpc_id(peer, door))
+	world.door_changed.connect(func(door: String, state: int) -> void:
+		for peer in _raid_peers(id):
+			_door_state.rpc_id(peer, door, state))
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
@@ -789,6 +802,12 @@ func send_grenade(from: Vector3, vel: Vector3) -> void:
 func open_door(id: String) -> void:
 	if in_online_raid():
 		_open_door.rpc_id(1, id)
+
+
+## We opened or shut a door (0.17).
+func use_door(id: String, state: int) -> void:
+	if in_online_raid():
+		_use_door.rpc_id(1, id, state)
 
 
 ## Items we dropped (`body` = we died: everything we carried).
@@ -987,6 +1006,12 @@ func _grenade_seen(from: Vector3, vel: Vector3) -> void:
 func _door_open(id: String) -> void:
 	if in_online_raid():
 		door_opened.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _door_state(id: String, state: int) -> void:
+	if in_online_raid():
+		door_state.emit(id, state)
 
 
 @rpc("authority", "call_remote", "reliable")
