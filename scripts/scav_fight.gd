@@ -227,6 +227,17 @@ func _decide(sees: bool, to_target: Vector3, dist: float) -> void:
 	if dist > shoot_range:
 		tactic = Tactic.ADVANCE
 		return
+	# Opening volley (0.17.9, owner): the first thing it does in a fight it can see you in is stand and shoot,
+	# before any push, flank or cover run. Badly hurt it still goes for cover first.
+	if _opening:
+		_opening = false
+		if not is_hurt():
+			_stood_last = true
+			_pausing = true   # (holds its ground for the volley even in chase range)
+			tactic = Tactic.STAND
+			_stand_time = randf_range(2.0, 3.0)
+			_fire_timer = minf(_fire_timer, aim_time)
+			return
 	if _can_push(dist):
 		tactic = Tactic.PUSH
 		_bark("push")
@@ -790,6 +801,8 @@ func _try_suppress() -> bool:
 		var ally := node as Scav
 		if ally == null or ally == self or ally.faction != faction or ally.state != State.ENGAGE or ally._target != _target:
 			continue
+		if ally._opening and ally._can_see:
+			continue   # (it's about to open fire on you: it doesn't break off to flank first)
 		if ally._suppress_left > 0.0:
 			return false   # someone already is
 		var d := ally.global_position.distance_to(global_position)

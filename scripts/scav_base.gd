@@ -336,6 +336,11 @@ func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
 
 
+## A fight just started and it hasn't fired its first volley yet: whatever it sees first, it shoots at
+## (0.17.9, owner: a Raider ran off the moment it saw him; "first instinct should always be shoot").
+var _opening := false
+
+
 func _set_state(new_state: State) -> void:
 	_hunting = false
 	tactic = Tactic.NONE
@@ -344,6 +349,7 @@ func _set_state(new_state: State) -> void:
 		_alarmed = false
 	state = new_state
 	_state_time = 0.0
+	_opening = new_state == State.ENGAGE
 	_lost_sight_time = 0.0
 
 

@@ -159,10 +159,8 @@ func _physics_process(delta: float) -> void:
 			if _state_time >= _reaction:
 				_set_state(State.ENGAGE)
 				_fire_timer = aim_time
-				# Out of range (you're far off): get to cover first. In range it shoots first and takes cover
-				# after its first burst (0.12.8, owner: far-off scavs just looked at you, then went for cover).
-				if not holds_position and dist > shoot_range and dist < INF and _cover_cooldown_left <= 0.0:
-					_try_take_cover()
+				# No running for cover on first sight, even far off (0.17.9, owner: it read as running away): in
+				# range it opens fire, out of range it moves up until it can (see _decide's opening volley).
 		State.ENGAGE:
 			# Keeps tracking you while it can see you; once it has lost you for a moment it has to re-spot you.
 			var sees := _can_see and (_lost_sight_time < maxf(reacquire_grace, track_time)

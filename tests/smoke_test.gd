@@ -3281,6 +3281,31 @@ func _section_senses() -> void:
 	_check(first_plan == Scav.Tactic.STAND and opener_shots[0] > 0 and shots_before_moving != 0,
 		"out of chase range in the open it shoots first, cover after (%d shots before moving)" % shots_before_moving)
 	opener.queue_free()
+	# 0.17.9 (owner: a Raider ran off the moment it saw him): even a Raider set to always flank, and from far off,
+	# opens fire before any flank or cover run.
+	for far in [20.0, 50.0]:
+		var raider_opener := _spawn(RAIDER_SCENE, player.global_position + Vector3(0, 0, far)) as Scav
+		_face_player(raider_opener)
+		raider_opener.shot_damage = 0
+		raider_opener.flank_chance = 1.0
+		raider_opener._since_threat = 100.0
+		var r_shots := [0]
+		raider_opener.fired.connect(func(_end: Vector3) -> void: r_shots[0] += 1)
+		await physics_frame
+		raider_opener._alert(player.global_position)
+		var ran_at := -1
+		var ran_away := false
+		for i in 60 * 8:
+			await physics_frame
+			if ran_at < 0 and raider_opener._cover_phase in [Scav.Cover.MOVING, Scav.Cover.FLANKING]:
+				ran_at = r_shots[0]
+			if raider_opener.global_position.distance_to(player.global_position) > far + 3.0:
+				ran_away = true
+			if r_shots[0] > 0 and ran_at < 0:
+				break
+		_check(r_shots[0] > 0 and ran_at != 0 and not ran_away,
+			"a Raider %d m off shoots first, never runs on first sight (%d shots, %d before a cover/flank run)" % [far, r_shots[0], ran_at])
+		raider_opener.queue_free()
 	# ...and from there it strafes to cover still shooting (0.12.37, owner), unlike other cover runs.
 	var strafer := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 40)) as Scav
 	_face_player(strafer)
@@ -3758,6 +3783,8 @@ func _section_boss() -> void:
 	_check(the_boss._cover_phase == Scav.Cover.NONE and not the_boss.is_hurt(), "Bon doesn't run to cover or play safe when badly hurt")
 	the_boss.health.current = the_boss.health.max_health
 	var bon_to := Vector3(0, 0, 20)
+	the_boss._opening = false   # (past his opening volley, 0.17.9)
+	the_boss._since_threat = 0.0   # (mid-fight, no lull: no random flank roll)
 	the_boss._decide(true, bon_to, 20.0)
 	var chased := the_boss.tactic == Scav.Tactic.CHASE
 	the_boss._tactic_time = the_boss._chase_burst + 0.1
@@ -3988,6 +4015,7 @@ func _section_teamwork() -> void:
 		s.shot_damage = 0
 		s._target = player
 		s._set_state(Scav.State.ENGAGE)
+		s._opening = false   # (mid-fight: both already opened fire, 0.17.9)
 	pinner._last_seen = player.global_position
 	pinner._can_see = false
 	pinner._lost_sight_time = 0.5
@@ -4324,7 +4352,7 @@ func _section_cover() -> void:
 	chaser.fired.connect(func(_end: Vector3) -> void: chase_shots[0] += 1)
 	var chased := false
 	var closest := 99.0
-	for i in 60 * 10:
+	for i in 60 * 13:   # (+3 s: it opens fire standing first, 0.17.9)
 		await physics_frame
 		chased = chased or chaser.tactic == Scav.Tactic.CHASE
 		closest = minf(closest, chaser.global_position.distance_to(player.global_position))

@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.9 (AI always shoot first; owner asked: a Raider ran off the moment it saw him)
+- When a fight starts, the first thing every AI (scavs, Raiders, Bon) does once it sees you is stand and open fire
+  for 2-3 seconds. Before, a Raider that spotted you after a quiet spell could roll a flank and run off to a hidden
+  spot without shooting, and one that spotted you from beyond its range ran for cover; both looked like running away.
+  Flanks, cover runs and pushes still happen, just after that opening volley. Out of range it now moves up instead.
+- A teammate that's just about to open fire on you isn't sent off to flank by another AI either.
+- Unchanged: badly hurt AI still go for cover first, and one sniped from beyond its range by someone it can't see
+  still hides (0.15.26).
+- Smoke test: a Raider set to always flank, 20 m and 50 m off, shoots before any flank or cover run.
+
 ## 0.17.8 (no more hitch when shooting; owner reported stutters before/when shooting)
 - Every muzzle flash (yours and the AI's) lit up the area with a real light for a split second. The web renderer
   has to build extra shaders for everything that light touches the first time, which froze the game for up to a
