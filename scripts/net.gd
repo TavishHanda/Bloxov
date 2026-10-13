@@ -44,6 +44,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## Key doors (0.14.0): someone in the raid unlocked one (its node name).
 signal door_opened(id: String)
+## A dropped backpack's lid opened or shut (0.17.10).
+signal lid_moved(id: String, open: bool)
 ## Someone else in the raid threw a grenade (0.14.5): show it (the server's copy does the damage).
 signal grenade_seen(from: Vector3, vel: Vector3)
 ## Someone else in the raid fired (0.15.28): play their shot and show the tracer (`end`: where it stopped).
@@ -626,6 +628,9 @@ func _send_raid_start(id: int) -> void:
 	world.door_opened.connect(func(door: String) -> void:
 		for peer in _raid_peers(id):
 			_door_open.rpc_id(peer, door))
+	world.lid_moved.connect(func(box: String, open: bool) -> void:
+		for peer in _raid_peers(id):
+			_lid_moved.rpc_id(peer, box, open))
 	var raid_names := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
@@ -987,6 +992,12 @@ func _grenade_seen(from: Vector3, vel: Vector3) -> void:
 func _door_open(id: String) -> void:
 	if in_online_raid():
 		door_opened.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _lid_moved(id: String, open: bool) -> void:
+	if in_online_raid():
+		lid_moved.emit(id, open)
 
 
 @rpc("authority", "call_remote", "reliable")

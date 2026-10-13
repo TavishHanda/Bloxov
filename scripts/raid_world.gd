@@ -39,6 +39,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## A key door was unlocked (0.14.0): Network tells everyone in the raid.
 signal door_opened(id: String)
+## A container with a lid (a dropped backpack, 0.17.10) was opened or shut: everyone sees the lid move.
+signal lid_moved(id: String, open: bool)
 
 ## Loot containers are shared: their contents live here, and one player at a time has one open
 ## (container id -> peer). Ids are the container's node name: "Crate3" under Loot, or "Bag12" for bags.
@@ -104,6 +106,8 @@ func open_container(peer: int, id: String) -> Variant:
 		return null
 	close_containers(peer)
 	locks[id] = peer
+	if box.has_node("Lid"):
+		lid_moved.emit(id, true)
 	return box.net_data()
 
 
@@ -124,6 +128,9 @@ func close_containers(peer: int) -> void:
 	for id in locks.keys():
 		if locks[id] == peer:
 			locks.erase(id)
+			var box := container(id)
+			if box != null and box.has_node("Lid"):
+				lid_moved.emit(id, false)
 
 
 ## A player unlocked key door `id` (a node under KeyDoors): open it here (shots and the AI's bodies pass) and

@@ -333,14 +333,31 @@ func _on_died() -> void:
 			drops.append([id, 1])
 	for stack in _gear:
 		drops.append(stack)
+	# A scav wearing a backpack (0.17.10, owner) drops it on the ground beside its body, its loose loot inside.
+	var pack := get_node_or_null("Model/Backpack") as Node3D
+	var pack_loot: Array = []
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
-		drops.append([id, ItemDB.roll_count(id)])
+		(pack_loot if pack != null else drops).append([id, ItemDB.roll_count(id)])
 	for drop: Variant in drops:
 		if drop is ItemStack:
 			(drop as ItemStack).found = true   # (its gun and worn gear count as found in raid, 0.16.13)
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
+	if pack != null:
+		var side := global_transform.basis.x
+		side.y = 0.0
+		var space := get_world_3d().direct_space_state
+		var spot := global_position
+		for dir: Vector3 in [side.normalized(), -side.normalized()]:
+			var waist := global_position + Vector3.UP * 0.5
+			if space.intersect_ray(PhysicsRayQueryParameters3D.create(waist, waist + dir * 1.1, 1)).is_empty():
+				spot = global_position + dir * 0.8   # (the side that isn't against a wall)
+				break
+		var ground := space.intersect_ray(PhysicsRayQueryParameters3D.create(spot + Vector3.UP, spot + Vector3.DOWN * 2.0, 1))
+		if not ground.is_empty():
+			spot = ground.position
+		LootContainer.spawn_bag(get_parent(), spot, LootContainer.BACKPACK_TITLE, pack_loot, 0.0)
 	queue_free()
 
 

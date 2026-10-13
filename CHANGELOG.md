@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.10 (scavs drop their backpack, backpack lid opens; owner asked)
+- A scav that dies drops its small backpack on the ground beside its body (on whichever side isn't against a wall).
+  Its loose loot is inside the backpack now; its gun, armor and helmet stay on the body. Snipers wear one too.
+- Opening a dropped backpack swings its lid open; leaving it (closing the screen or walking off) swings it shut.
+  Online, everyone in the raid sees the lid move. The lid is a simple placeholder piece on the current model until
+  the final backpack art.
+- Smoke test: a dead scav's backpack lies on the ground with loot in it, the lid opens and shuts, and online the
+  other player gets the backpack and sees its lid move.
+
 ## 0.17.9 (AI always shoot first; owner asked: a Raider ran off the moment it saw him)
 - When a fight starts, the first thing every AI (scavs, Raiders, Bon) does once it sees you is stand and open fire
   for 2-3 seconds. Before, a Raider that spotted you after a quiet spell could roll a flank and run off to a hidden

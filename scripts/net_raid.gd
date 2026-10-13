@@ -51,6 +51,7 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	Network.main.door_opened.connect(on_door_opened)
+	Network.main.lid_moved.connect(on_lid_moved)
 	Network.main.player_fired.connect(on_player_fired)
 	Network.main.grenade_seen.connect(func(from: Vector3, vel: Vector3) -> void:
 		Grenade.spawn(get_parent(), from, vel, false))
@@ -120,6 +121,13 @@ func on_door_opened(id: String) -> void:
 	var door := get_parent().get_node_or_null("KeyDoors/" + id) as KeyDoor
 	if door != null:
 		door.open()
+
+
+## Someone opened or shut a dropped backpack: its lid moves here too (ours already moved when we opened it).
+func on_lid_moved(id: String, open: bool) -> void:
+	var box := find_container(id)
+	if box != null:
+		box.set_open(open)
 
 
 # --- Shared loot ---------------------------------------------------------------------

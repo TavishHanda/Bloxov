@@ -1031,6 +1031,24 @@ func _section_characters() -> void:
 		await _frames(3)
 		_check(not is_instance_valid(character), "%s dies" % path.get_file())
 		_check(get_nodes_in_group("loot_containers").size() > bags_before, "%s drops a body bag" % path.get_file())
+		if path == SCAV_SCENE:
+			# 0.17.10 (owner): it drops its backpack beside the body, loot inside, with a lid that opens.
+			await _frames(2)   # (the backpack lands a frame after the body)
+			var dropped: LootContainer = null
+			for node in get_nodes_in_group("loot_containers"):
+				if (node as LootContainer).display_name == LootContainer.BACKPACK_TITLE:
+					dropped = node
+			_check(dropped != null and not dropped.is_empty() and dropped.has_node("Lid") and dropped.has_node("Model"),
+				"a dead scav drops its backpack on the ground, its loot inside")
+			if dropped != null:
+				loot_ui.open_for(dropped)
+				await _frames(30)
+				var opened := (dropped.get_node("Lid") as Node3D).rotation.x
+				loot_ui.close()
+				await _frames(30)
+				_check(opened < -1.5 and is_zero_approx((dropped.get_node("Lid") as Node3D).rotation.x),
+					"opening it swings the lid open, closing shuts it (%.2f rad open)" % opened)
+				dropped.queue_free()
 
 
 func _section_grid() -> void:
@@ -2638,7 +2656,8 @@ func _section_online_loot() -> void:
 	server.matchmaker.queue_countdown = 0.2
 	var got := {}
 	for c in [c1, c2]:
-		got[c] = {"opened": {}, "busy": [], "bags": {}, "gone": []}
+		got[c] = {"opened": {}, "busy": [], "bags": {}, "gone": [], "lids": []}
+		c.lid_moved.connect(func(id: String, open: bool) -> void: got[c]["lids"].append([id, open]))
 		c.container_opened.connect(func(id: String, data: Array) -> void: got[c]["opened"][id] = data)
 		c.container_busy.connect(func(id: String) -> void: got[c]["busy"].append(id))
 		c.bag_spawned.connect(func(id: String, _p: Vector3, _y: float, title: String, _s: float) -> void: got[c]["bags"][id] = title)
@@ -2741,10 +2760,24 @@ func _section_online_loot() -> void:
 
 	# A scav's body on the server: announced to everyone.
 	var scav: Node = RaidScope.nodes(world.raid, &"enemies")[0]
+	for enemy: Node in RaidScope.nodes(world.raid, &"enemies"):
+		if enemy.has_node("Model/Backpack"):
+			scav = enemy   # (one wearing a backpack, for the dropped-backpack check)
 	var body_name: String = scav.body_name
+	var wears_pack: bool = scav.has_node("Model/Backpack")
 	scav.health.take_damage(9999)
 	await _until(func() -> bool: return got[c1]["bags"].values().has(body_name))
 	_check(got[c1]["bags"].values().has("Scav Body") or got[c1]["bags"].values().has("Raider Body"), "a scav killed on the server leaves a body bag for everyone")
+	if wears_pack:
+		await _until(func() -> bool: return got[c2]["bags"].values().has(LootContainer.BACKPACK_TITLE))
+		var pack_id: String = got[c2]["bags"].find_key(LootContainer.BACKPACK_TITLE)
+		_check(pack_id != null, "...and its backpack on the ground next to it (0.17.10)")
+		if pack_id != null:
+			c1.open_container(pack_id)
+			await _until(func() -> bool: return got[c2]["lids"].has([pack_id, true]))
+			c1.close_container()
+			await _until(func() -> bool: return got[c2]["lids"].has([pack_id, false]))
+			_check(got[c2]["lids"] == [[pack_id, true], [pack_id, false]], "the other player sees its lid open and shut (0.17.10)")
 
 	# The raid on players' screens: bags appear and go with the server's.
 	var net_raid := main.get_node("NetRaid") as NetRaid
@@ -4197,6 +4230,7 @@ func _section_ai_lod() -> void:
 	_check(biggest_step < top_speed / 60.0 * 1.6 + 0.01,
 		"it glides smoothly between ticks (biggest step in one frame %.3f m)" % biggest_step)
 	# A noise reaches it at once and brings it back to every frame.
+	scav.noise_uncertainty = 0.0   # (a random guess right where it stands would end the walk at once)
 	scav.hear_noise(scav.global_position + Vector3(3, 0, 0), 20.0)
 	await physics_frame
 	await physics_frame
