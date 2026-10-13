@@ -6,7 +6,7 @@ const RAID_SCENE := "res://scenes/main.tscn"
 ## Selling (0.15.18; softer and quieter in 0.15.24, owner): two quiet low notes.
 const SELL_SOUND := preload("res://audio/sell.wav")
 ## The traders (0.16.0): stock, prices and levels are in Traders.
-const FREE_KIT_HINT := "A free pistol, 30 rounds and a bandage, only when you carry nothing at all. Offline it starts a solo raid; online it goes on you so you can queue with your party."
+const FREE_KIT_HINT := "A free pistol, 30 rounds, a bandage and a small backpack, only when you carry nothing at all. Offline it starts a solo raid; online it goes on you so you can queue with your party."
 
 var inventory: Inventory
 var screen: LootUI
@@ -93,9 +93,45 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	_check_tab()
 	# The online panel's status line takes no room while it has nothing to say.
 	if _online_status != null:
 		_online_status.visible = _online_status.text != ""
+
+
+## Only one tab plays (TabLock, 0.17.5): any other shows this notice over everything until the first tab closes.
+var _tab_notice: Control
+var _tab_ok := false
+
+
+func _check_tab() -> void:
+	if _tab_ok:
+		return
+	var tab := TabLock.state()
+	_tab_ok = tab == "owner"
+	if _tab_ok:
+		if _tab_notice != null:
+			_tab_notice.queue_free()
+		return
+	if _tab_notice == null:
+		_tab_notice = ColorRect.new()
+		(_tab_notice as ColorRect).color = Color(0.1, 0.11, 0.1)
+		_tab_notice.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_tab_notice.mouse_filter = Control.MOUSE_FILTER_STOP
+		var label := Label.new()
+		label.name = "TabNotice"
+		label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		HudStyle.style_label(label, 26)
+		_tab_notice.add_child(label)
+		add_child(_tab_notice)
+	_tab_notice.move_to_front()
+	(_tab_notice.get_node("TabNotice") as Label).text = "Loading..." if tab == "pending" else \
+		"Bloxov is already open in another tab.\nClose that tab and this one starts by itself."
+	if tab == "blocked" and Network.main.is_online():
+		Network.main.go_offline()
 
 
 # --- Trading -----------------------------------------------------------------------
@@ -278,6 +314,14 @@ func take_free_kit() -> bool:
 			return false
 		pistol.set_spot(Vector2i(spot[0], spot[1]), spot[2])
 		Profile.stash.place(pistol)
+	# The small backpack (0.17.5, owner): the same one scavs wear.
+	var pack := ItemStack.new("backpack_small")
+	pack.free = true
+	if not inventory.equip("backpack", pack):
+		var pack_spot := Profile.stash.find_spot("backpack_small")
+		if not pack_spot.is_empty():
+			pack.set_spot(Vector2i(pack_spot[0], pack_spot[1]), pack_spot[2])
+			Profile.stash.place(pack)
 	for kit_item in [["pistol_ammo", 30], ["bandage", 1]]:
 		var left := inventory.add(kit_item[0], kit_item[1], ItemStack.FREE)
 		if left > 0:

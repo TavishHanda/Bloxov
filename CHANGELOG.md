@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.5 (Esc closes the pause menu, $50k start, scav backpack, one tab at a time; owner asked)
+- Escape in the pause menu closes it (it did nothing before, only a click got you out). In the browser it shows
+  "Click to keep playing" (a browser only gives the mouse back on a click) and the game stays paused until then.
+  With LEAVE RAID's question open, Escape goes back to the menu.
+- New players start with $50,000 (was $15,000). Existing saves keep their own money and everything else.
+- Every scav wears the small backpack (model by the owner's friend, `assets/models/characters/scav_backpack.glb`).
+  Looks only: what scavs drop is unchanged.
+- The free kit adds a small backpack (sells for $0, like the rest of the kit).
+- Only one browser tab plays (TabLock, a Web Lock): every tab kept its own copy of the profile and saved all of it,
+  so a second tab could take the same gear into another raid and keep it if the first died, or hand a copy to
+  itself online. Any other tab now shows "Bloxov is already open in another tab", never saves, and starts by
+  itself (reading the fresh save) once the first tab closes.
+- Smoke test: scavs wear the backpack, $50k start, an old save keeps its money/stash/loadout/stats, the free kit's
+  backpack, and the tab lock off the web.
+
 ## 0.17.4 (Bon keeps shooting on his breaks, flanks again; owner asked)
 - Bon opens fire as soon as a break between chases starts and keeps firing through it (standing or stepping aside),
   so he's never just standing there.

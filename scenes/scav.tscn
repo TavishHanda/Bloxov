@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
 [ext_resource type="PackedScene" path="res://assets/models/characters/scav.glb" id="3_model"]
 [ext_resource type="Script" path="res://scripts/pixel_model.gd" id="4_pixel"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/scav_backpack.glb" id="5_backpack"]
 
 [sub_resource type="BoxShape3D" id="BodyBox"]
 size = Vector3(0.8, 1.35, 0.6)
@@ -41,6 +42,9 @@ max_health = 100
 
 [node name="Model" parent="." instance=ExtResource("3_model")]
 script = ExtResource("4_pixel")
+
+[node name="Backpack" parent="Model" instance=ExtResource("5_backpack")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0.72, 0.35)
 
 [node name="MuzzleFlash" type="Node3D" parent="."]
 

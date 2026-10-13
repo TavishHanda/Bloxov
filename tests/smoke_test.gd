@@ -1021,6 +1021,11 @@ func _section_characters() -> void:
 		_check(muzzle_local.z < -0.6 and absf(muzzle_local.y - 1.26) < 0.1,
 			"%s faces forward, gun at shoulder height (muzzle at %s)" % [character.name, muzzle_local])
 		_check(character.muzzle_flash.get_parent() == character.muzzle, "%s muzzle flash sits on the gun" % character.name)
+		if path == SCAV_SCENE:
+			# (0.17.5, owner) Every scav wears the small backpack, on its back.
+			var pack := model.get_node_or_null("Backpack") as Node3D
+			_check(pack != null and pack.visible and pack.position.z > 0.2 and pack.find_children("*", "MeshInstance3D").size() > 0,
+				"scavs wear the small backpack on their back")
 		var bags_before := get_nodes_in_group("loot_containers").size()
 		character.health.take_damage(9999)
 		await _frames(3)
@@ -1670,6 +1675,31 @@ func _section_profile() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.money == money_before and Profile.stash.count_of("gold_watch") == 1, "profile saves and loads (money + stash)")
+	# (0.17.5, owner) New players start with $50,000; a save from before keeps its own money and everything in it.
+	_check(Profile.START_MONEY == 50000, "new players start with $50,000")
+	var old_save := {"version": Profile.VERSION, "money": 1234, "stash_size": [8, 30], "saved_at": 50.0,
+		"stash": [{"id": "gold_watch", "count": 1, "x": 0, "y": 0}],
+		"loadout": {"equipment": {"primary": {"id": "ak", "count": 1, "loaded": 30}}, "pockets": [], "backpack": [], "secure": [], "hotbar": ["", "", ""]},
+		"stats": {"raids": 7, "extracts": 3, "deaths": 4, "earned": 9000}, "trader_spent": {"guns": 500}}
+	var current_file := FileAccess.get_file_as_string(Profile.PATH)
+	var file := FileAccess.open(Profile.PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(old_save))
+	file.close()
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.money == 1234 and Profile.stash.height == 30 and Profile.stash.count_of("gold_watch") == 1
+		and Profile.loadout["equipment"].has("primary") and int(Profile.stats["raids"]) == 7,
+		"an old save keeps its money, stash, loadout and stats (money %d)" % Profile.money)
+	Profile.reset()
+	_check(Profile.money == 50000, "a brand new profile gets $50,000")
+	file = FileAccess.open(Profile.PATH, FileAccess.WRITE)
+	file.store_string(current_file)
+	file.close()
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.money == money_before, "back to the test's own save")
+	# (0.17.5) One tab plays (TabLock); off the web nothing is shared, so the game always owns its saves.
+	_check(TabLock.owns(), "off the web the game always plays and saves")
 	# Web keeps a second copy in localStorage: loading takes whichever copy was saved last.
 	var older := JSON.stringify({"version": Profile.VERSION, "saved_at": 100.0})
 	var newer := JSON.stringify({"version": Profile.VERSION, "saved_at": 200.0})
@@ -1740,6 +1770,9 @@ func _section_hideout() -> void:
 			hideout_inv.unequip(slot)
 	_check(hideout_inv.all_stacks().is_empty() and hideout.can_take_free_kit() and hideout.take_free_kit()
 		and hideout_inv.equipped("secondary") != null, "empty loadout: the free kit gives you a pistol")
+	var kit_pack := hideout_inv.equipped("backpack")
+	_check(kit_pack != null and kit_pack.id == "backpack_small" and kit_pack.free and hideout.sell_price(kit_pack) == 0,
+		"the free kit includes a small backpack that sells for $0")
 	_check(not hideout.can_take_free_kit(), "free kit is gone once you carry something")
 	# (0.16.5, owner) The kit's pistol sells for nothing; a bought or found one still sells. The mark is saved.
 	var kit_pistol := hideout_inv.equipped("secondary")

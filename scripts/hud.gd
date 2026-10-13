@@ -43,6 +43,8 @@ var _indicator_time := 0.0
 ## on Escape (it only does on a click or another key), so until it's captured again a "click to keep playing"
 ## hint shows instead of the menu.
 var resume_pending := false
+## The "Click to keep playing" hint came from pressing Escape in the pause menu: the game stays paused under it.
+var _resume_from_menu := false
 var _resume_hint: Label
 ## PLAY/click-to-resume keeps asking for the mouse until this time (msec, 0.15.13): a browser refuses it for about a
 ## second after Escape let it go, so one quick click used to do nothing (owner: PLAY felt unresponsive).
@@ -131,6 +133,19 @@ func _input(event: InputEvent) -> void:
 			loot_ui.close(false)
 			resume_pending = true
 			get_viewport().set_input_as_handled()
+		elif menu.visible:
+			# Escape in the pause menu closes it (0.17.5, owner: it did nothing, only a click got you out).
+			# LEAVE RAID's question goes back to the menu first.
+			if leave_confirm != null and leave_confirm.visible:
+				cancel_leave()
+			elif OS.has_feature("web"):
+				# A browser never gives the mouse back on an Escape press, only on a click: hide the menu and
+				# show "Click to keep playing" (still paused offline until that click).
+				resume_pending = true
+				_resume_from_menu = true
+			else:
+				_capture_mouse()
+			get_viewport().set_input_as_handled()
 		elif resume_pending:
 			resume_pending = false
 			get_viewport().set_input_as_handled()
@@ -184,7 +199,9 @@ func _process(delta: float) -> void:
 	menu.visible = not captured and not other_screen_open and not player.controls_locked() and not resume_pending
 	if not menu.visible:
 		cancel_leave()
-	get_tree().paused = menu.visible and not Network.main.in_online_raid()
+	if not resume_pending:
+		_resume_from_menu = false
+	get_tree().paused = (menu.visible or _resume_from_menu) and not Network.main.in_online_raid()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
 	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
 	crosshair.reticle = player.gun.reticle() if captured and not player.out_of_fight() else ""
