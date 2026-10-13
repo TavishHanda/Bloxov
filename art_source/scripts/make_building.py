@@ -75,6 +75,9 @@ PALETTE = {
     # Pharmacy cladding (round 8, owner: "make it look like a pharmacy", mind the sun): cool pale grey-green panels.
     "clinic": "97a19c", "clinic_light": "a1aaa5", "clinic_seam": "68716d",
     "stucco": "9e9886", "stucco_light": "a7a18e", "stucco_dark": "938d7b", "stucco_grime": "77725f",
+    # Round 9 (owner picked from rendered options): pale grey brick on the pharmacy, sandstone blocks on the shops.
+    "gbrick": "a39f95", "gbrick_dark": "979388", "gbrick_light": "aca89d", "gbrick_mortar": "8c8577",
+    "sandst": "a39373", "sandst_dark": "988a6b", "sandst_light": "ad9e7f", "sandst_joint": "857a62",
 }
 
 
@@ -2737,7 +2740,7 @@ DRESSING["shops"] = dress_shops
 FOOTPRINTS["shops"] = (-14.5, -6.5, 14.5, 6.5)
 SHELLS = {
     "shops": {
-        "ext": "render", "roof_side": "render", "x_splits": SHOP_UNITS,
+        "ext": "sandstone", "roof_side": "sandstone", "x_splits": SHOP_UNITS,
         "x_lines": (-14.5,) + SHOP_UNITS + (14.5,), "z_lines": (-6.5, 6.5),
         "inner": lambda m: (("int_tile", "int_warm", "int_soot") if m[1] < 3.0 else ("int_wall", "concrete", "int_soot"))[shop_unit(m[0])],
         "floor": lambda m: (("floor_tile", "floor_wood", "floor_burnt") if m[1] < 1.5 else ("floor_wood", "concrete", "floor_burnt"))[shop_unit(m[0])],
@@ -3774,6 +3777,47 @@ def paint_clinic_panel(rng):
 KIT.update({"clinic_panel": paint_clinic_panel, "int_clinic": paint_int_clinic, "floor_pharm": paint_floor_pharm, "mint": paint_flat("extract_green")})
 
 
+def paint_grey_brick(rng):
+    """Outside of the pharmacy (round 9, owner's pick D): pale grey brick, 0.5 x 0.25 m in stretcher bond, a few
+    bricks a shade off, soot patches and rain grime run down from the courses. Mid-light for the sun."""
+    c = Canvas(64, 64, "gbrick_mortar")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("gbrick", "gbrick", "gbrick", "gbrick_dark", "gbrick_light"))
+            for x in range(k * 8 + off + 1, k * 8 + off + 8):
+                c.rect(x % 64, row * 4 + 1, x % 64 + 1, row * 4 + 4, col)
+    c.blotch(["gbrick_dark"], 6, rng, size=(2, 5))
+    for _ in range(5):                                                   # rain grime down the wall
+        gx = rng.randrange(64)
+        for gy in range(rng.randrange(0, 30), rng.randrange(36, 64)):
+            if rng.random() < 0.45:
+                c.put(gx, gy, "gbrick_mortar")
+    c.blotch(["iron"], 2, rng, size=(2, 4))                              # soot
+    return c
+
+
+def paint_sandstone(rng):
+    """Outside of the shops (round 9, owner's pick D): sandstone blocks, 1 x 0.5 m in a running bond, each block its
+    own shade with speckle, weathered joints, a few chipped corners and soot. Mid-tone for the sun."""
+    c = Canvas(64, 64, "sandst_joint")
+    for row in range(8):
+        off = 8 if row % 2 else 0
+        for k in range(5):
+            col = rng.choice(("sandst", "sandst_dark", "sandst_light"))
+            for x in range(k * 16 + off + 1, k * 16 + off + 16):
+                c.rect(x % 64, row * 8 + 1, x % 64 + 1, row * 8 + 8, col)
+    c.noise(0, 0, 64, 64, ["sandst_dark", "sandst_light"], 0.06, rng)
+    for _ in range(5):                                                   # chipped block corners
+        x, y = rng.randrange(0, 64, 16) + 1, rng.randrange(0, 64, 8) + 1
+        c.rect(x, y, x + 2, y + 2, "sandst_joint")
+    c.blotch(["iron"], 3, rng, size=(2, 4))
+    return c
+
+
+KIT.update({"grey_brick": paint_grey_brick, "sandstone": paint_sandstone})
+
+
 def pharmacy_decals(rng):
     a = Atlas(512)
 
@@ -4082,7 +4126,7 @@ DECALS["pharmacy"] = pharmacy_decals
 DRESSING["pharmacy"] = dress_pharmacy
 FOOTPRINTS["pharmacy"] = (-7.5, -6.0, 7.5, 6.0)
 SHELLS["pharmacy"] = {
-    "ext": "clinic_panel", "roof_side": "clinic_panel", "x_lines": (-7.5, 0.0, 7.5), "z_lines": (-6.0, 6.0),
+    "ext": "grey_brick", "roof_side": "grey_brick", "x_lines": (-7.5, 0.0, 7.5), "z_lines": (-6.0, 6.0),
     "inner": lambda m: "int_clinic", "floor": lambda m: "floor_pharm",
 }
 
