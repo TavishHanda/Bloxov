@@ -7,6 +7,9 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.6 (scav backpack turned around; owner asked)
+- The scav backpack faced the wrong way (its back side pointed out). Turned 180 degrees so the straps sit on the scav.
+
 ## 0.17.5 (Esc closes the pause menu, $50k start, scav backpack, one tab at a time; owner asked)
 - Escape in the pause menu closes it (it did nothing before, only a click got you out). In the browser it shows
   "Click to keep playing" (a browser only gives the mouse back on a click) and the game stays paused until then.

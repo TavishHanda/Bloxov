@@ -68,7 +68,7 @@ max_health = 100
 script = ExtResource("4_pixel")
 
 [node name="Backpack" parent="Model" instance=ExtResource("5_backpack")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0.72, 0.35)
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 0, 0.72, 0.35)
 
 [node name="MuzzleFlash" type="Node3D" parent="."]
 
