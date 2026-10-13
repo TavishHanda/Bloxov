@@ -33,6 +33,8 @@ stays_home = true
 excursions = 2
 outside_patrol = 0.35
 flank_chance = 0.3
+never_cover = true
+chase_range = 45.0
 sneak_range = 15.0
 lull_time = 1.5
 cover_cooldown = 2.0
@@ -89,8 +91,3 @@ script = ExtResource("4_pixel")
 [node name="FlashMesh" type="MeshInstance3D" parent="MuzzleFlash"]
 cast_shadow = 0
 mesh = SubResource("FlashMesh")
-
-[node name="FlashLight" type="OmniLight3D" parent="MuzzleFlash"]
-light_color = Color(1, 0.8, 0.4, 1)
-light_energy = 1.5
-omni_range = 4.0

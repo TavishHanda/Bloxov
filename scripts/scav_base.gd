@@ -128,6 +128,17 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var peek_time_min := 1.5
 @export var peek_time_max := 3.0
 @export var peeks := 5
+## Never takes cover (Bon, 0.17.3, owner: "more aggro, never runs to cover"): no ducking to reload or when shot,
+## no hiding when sniped, no playing safe when hurt; it walks at you shooting. It doesn't chase non-stop though
+## (owner: "there needs to be some break"): after chase_burst_min-max seconds of chasing it stops for
+## chase_pause_min-max seconds, standing and firing or (reposition_chance of the time) stepping a few meters to one
+## side while firing (never just standing there: it keeps shooting), then comes on again.
+@export var never_cover := false
+@export var chase_burst_min := 3.0
+@export var chase_burst_max := 5.0
+@export var chase_pause_min := 1.5
+@export var chase_pause_max := 2.5
+@export var reposition_chance := 0.5
 
 @export_group("Teamwork")
 ## Smarter fights (Scavs 2.0, owner: AI were "too dumb"). When it starts a fight it calls for help: unaware AI
@@ -300,6 +311,8 @@ func _near_home(point: Vector3) -> bool:
 
 ## Below hurt_fraction (or wounded): plays safer, no pushing, flanking or chasing (0.12.32).
 func is_hurt() -> bool:
+	if never_cover:
+		return false   # (never plays safe)
 	return is_wounded() or (not health.is_dead and health.current <= health.max_health * hurt_fraction)
 
 
@@ -323,6 +336,11 @@ func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
 
 
+## A fight just started and it hasn't fired its first volley yet: whatever it sees first, it shoots at
+## (0.17.9, owner: a Raider ran off the moment it saw him; "first instinct should always be shoot").
+var _opening := false
+
+
 func _set_state(new_state: State) -> void:
 	_hunting = false
 	tactic = Tactic.NONE
@@ -331,6 +349,7 @@ func _set_state(new_state: State) -> void:
 		_alarmed = false
 	state = new_state
 	_state_time = 0.0
+	_opening = new_state == State.ENGAGE
 	_lost_sight_time = 0.0
 
 

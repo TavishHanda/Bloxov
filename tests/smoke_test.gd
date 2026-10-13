@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "new_guns", "ai_loadouts", "mouse",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -1070,11 +1070,35 @@ func _section_characters() -> void:
 		_check(muzzle_local.z < -0.6 and absf(muzzle_local.y - 1.26) < 0.1,
 			"%s faces forward, gun at shoulder height (muzzle at %s)" % [character.name, muzzle_local])
 		_check(character.muzzle_flash.get_parent() == character.muzzle, "%s muzzle flash sits on the gun" % character.name)
+		if path == SCAV_SCENE:
+			# (0.17.5, owner) Every scav wears the small backpack, on its back.
+			var pack := model.get_node_or_null("Backpack") as Node3D
+			_check(pack != null and pack.visible and pack.position.z > 0.2 and pack.find_children("*", "MeshInstance3D").size() > 0,
+				"scavs wear the small backpack on their back")
 		var bags_before := get_nodes_in_group("loot_containers").size()
 		character.health.take_damage(9999)
 		await _frames(3)
 		_check(not is_instance_valid(character), "%s dies" % path.get_file())
 		_check(get_nodes_in_group("loot_containers").size() > bags_before, "%s drops a body bag" % path.get_file())
+		if path == SCAV_SCENE:
+			# 0.17.10 (owner): it drops its backpack beside the body, loot inside, with a lid that opens.
+			await _frames(2)   # (the backpack lands a frame after the body)
+			var dropped: LootContainer = null
+			for node in get_nodes_in_group("loot_containers"):
+				if (node as LootContainer).display_name == LootContainer.BACKPACK_TITLE:
+					dropped = node
+			_check(dropped != null and not dropped.is_empty() and dropped.find_child("Lid", true, false) != null and dropped.find_child("Model", true, false) != null,
+				"a dead scav drops its backpack on the ground, its loot inside")
+			if dropped != null:
+				loot_ui.open_for(dropped)
+				await _frames(30)
+				var lid := dropped.find_child("Lid", true, false) as Node3D
+				var opened := lid.rotation.x
+				loot_ui.close()
+				await _frames(30)
+				_check(opened > 1.5 and is_zero_approx(lid.rotation.x),
+					"opening it swings the lid open, closing shuts it (%.2f rad open)" % opened)
+				dropped.queue_free()
 
 
 func _section_grid() -> void:
@@ -1719,6 +1743,31 @@ func _section_profile() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.money == money_before and Profile.stash.count_of("gold_watch") == 1, "profile saves and loads (money + stash)")
+	# (0.17.5, owner) New players start with $50,000; a save from before keeps its own money and everything in it.
+	_check(Profile.START_MONEY == 50000, "new players start with $50,000")
+	var old_save := {"version": Profile.VERSION, "money": 1234, "stash_size": [8, 30], "saved_at": 50.0,
+		"stash": [{"id": "gold_watch", "count": 1, "x": 0, "y": 0}],
+		"loadout": {"equipment": {"primary": {"id": "ak", "count": 1, "loaded": 30}}, "pockets": [], "backpack": [], "secure": [], "hotbar": ["", "", ""]},
+		"stats": {"raids": 7, "extracts": 3, "deaths": 4, "earned": 9000}, "trader_spent": {"guns": 500}}
+	var current_file := FileAccess.get_file_as_string(Profile.PATH)
+	var file := FileAccess.open(Profile.PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(old_save))
+	file.close()
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.money == 1234 and Profile.stash.height == 30 and Profile.stash.count_of("gold_watch") == 1
+		and Profile.loadout["equipment"].has("primary") and int(Profile.stats["raids"]) == 7,
+		"an old save keeps its money, stash, loadout and stats (money %d)" % Profile.money)
+	Profile.reset()
+	_check(Profile.money == 50000, "a brand new profile gets $50,000")
+	file = FileAccess.open(Profile.PATH, FileAccess.WRITE)
+	file.store_string(current_file)
+	file.close()
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.money == money_before, "back to the test's own save")
+	# (0.17.5) One tab plays (TabLock); off the web nothing is shared, so the game always owns its saves.
+	_check(TabLock.owns(), "off the web the game always plays and saves")
 	# Web keeps a second copy in localStorage: loading takes whichever copy was saved last.
 	var older := JSON.stringify({"version": Profile.VERSION, "saved_at": 100.0})
 	var newer := JSON.stringify({"version": Profile.VERSION, "saved_at": 200.0})
@@ -1789,6 +1838,9 @@ func _section_hideout() -> void:
 			hideout_inv.unequip(slot)
 	_check(hideout_inv.all_stacks().is_empty() and hideout.can_take_free_kit() and hideout.take_free_kit()
 		and hideout_inv.equipped("secondary") != null, "empty loadout: the free kit gives you a pistol")
+	var kit_pack := hideout_inv.equipped("backpack")
+	_check(kit_pack != null and kit_pack.id == "backpack_small" and kit_pack.free and hideout.sell_price(kit_pack) == 0,
+		"the free kit includes a small backpack that sells for $0")
 	_check(not hideout.can_take_free_kit(), "free kit is gone once you carry something")
 	# (0.16.5, owner) The kit's pistol sells for nothing; a bought or found one still sells. The mark is saved.
 	var kit_pistol := hideout_inv.equipped("secondary")
@@ -2001,6 +2053,26 @@ func _section_settings() -> void:
 	_check(AudioServer.is_bus_mute(0), "volume 0 mutes audio")
 	GameSettings.set_volume(0.5)
 	_check(not AudioServer.is_bus_mute(0) and AudioServer.get_bus_volume_db(0) < 0.0, "volume 50% lowers audio")
+
+
+func _section_mouse() -> void:
+	# 0.17.7: a fast turn (big moves that build up and keep going) must not be dropped as a glitch;
+	# a lone huge jump out of slow movement still is, but never twice in a row.
+	var t := 100000
+	var used := 0
+	for move in [20.0, 60.0, 180.0, 450.0, 900.0, 1400.0, 1200.0, 800.0, 300.0]:
+		t += 16
+		if not player.is_mouse_spike(move, t):
+			used += 1
+	_check(used == 9, "a fast turn on a high-DPI mouse is used in full (%d of 9 moves)" % used)
+	t += 16
+	_check(not player.is_mouse_spike(5.0, t), "a slow move is used")
+	t += 16
+	_check(player.is_mouse_spike(1500.0, t), "a lone huge jump out of a slow move is dropped")
+	t += 16
+	_check(not player.is_mouse_spike(1500.0, t), "a second big move in a row is used (a real flick)")
+	t += 500
+	_check(player.is_mouse_spike(900.0, t) and not player.is_mouse_spike(950.0, t + 16), "a flick from rest loses at most one move")
 
 
 func _section_ghost_stack() -> void:
@@ -2634,7 +2706,8 @@ func _section_online_loot() -> void:
 	server.matchmaker.queue_countdown = 0.2
 	var got := {}
 	for c in [c1, c2]:
-		got[c] = {"opened": {}, "busy": [], "bags": {}, "gone": []}
+		got[c] = {"opened": {}, "busy": [], "bags": {}, "gone": [], "lids": []}
+		c.lid_moved.connect(func(id: String, open: bool) -> void: got[c]["lids"].append([id, open]))
 		c.container_opened.connect(func(id: String, data: Array) -> void: got[c]["opened"][id] = data)
 		c.container_busy.connect(func(id: String) -> void: got[c]["busy"].append(id))
 		c.bag_spawned.connect(func(id: String, _p: Vector3, _y: float, title: String, _s: float) -> void: got[c]["bags"][id] = title)
@@ -2737,10 +2810,24 @@ func _section_online_loot() -> void:
 
 	# A scav's body on the server: announced to everyone.
 	var scav: Node = RaidScope.nodes(world.raid, &"enemies")[0]
+	for enemy: Node in RaidScope.nodes(world.raid, &"enemies"):
+		if enemy.has_node("Model/Backpack"):
+			scav = enemy   # (one wearing a backpack, for the dropped-backpack check)
 	var body_name: String = scav.body_name
+	var wears_pack: bool = scav.has_node("Model/Backpack")
 	scav.health.take_damage(9999)
 	await _until(func() -> bool: return got[c1]["bags"].values().has(body_name))
 	_check(got[c1]["bags"].values().has("Scav Body") or got[c1]["bags"].values().has("Raider Body"), "a scav killed on the server leaves a body bag for everyone")
+	if wears_pack:
+		await _until(func() -> bool: return got[c2]["bags"].values().has(LootContainer.BACKPACK_TITLE))
+		var pack_id: String = got[c2]["bags"].find_key(LootContainer.BACKPACK_TITLE)
+		_check(pack_id != null, "...and its backpack on the ground next to it (0.17.10)")
+		if pack_id != null:
+			c1.open_container(pack_id)
+			await _until(func() -> bool: return got[c2]["lids"].has([pack_id, true]))
+			c1.close_container()
+			await _until(func() -> bool: return got[c2]["lids"].has([pack_id, false]))
+			_check(got[c2]["lids"] == [[pack_id, true], [pack_id, false]], "the other player sees its lid open and shut (0.17.10)")
 
 	# The raid on players' screens: bags appear and go with the server's.
 	var net_raid := main.get_node("NetRaid") as NetRaid
@@ -3295,6 +3382,31 @@ func _section_senses() -> void:
 	_check(first_plan == Scav.Tactic.STAND and opener_shots[0] > 0 and shots_before_moving != 0,
 		"out of chase range in the open it shoots first, cover after (%d shots before moving)" % shots_before_moving)
 	opener.queue_free()
+	# 0.17.9 (owner: a Raider ran off the moment it saw him): even a Raider set to always flank, and from far off,
+	# opens fire before any flank or cover run.
+	for far in [20.0, 50.0]:
+		var raider_opener := _spawn(RAIDER_SCENE, player.global_position + Vector3(0, 0, far)) as Scav
+		_face_player(raider_opener)
+		raider_opener.shot_damage = 0
+		raider_opener.flank_chance = 1.0
+		raider_opener._since_threat = 100.0
+		var r_shots := [0]
+		raider_opener.fired.connect(func(_end: Vector3) -> void: r_shots[0] += 1)
+		await physics_frame
+		raider_opener._alert(player.global_position)
+		var ran_at := -1
+		var ran_away := false
+		for i in 60 * 8:
+			await physics_frame
+			if ran_at < 0 and raider_opener._cover_phase in [Scav.Cover.MOVING, Scav.Cover.FLANKING]:
+				ran_at = r_shots[0]
+			if raider_opener.global_position.distance_to(player.global_position) > far + 3.0:
+				ran_away = true
+			if r_shots[0] > 0 and ran_at < 0:
+				break
+		_check(r_shots[0] > 0 and ran_at != 0 and not ran_away,
+			"a Raider %d m off shoots first, never runs on first sight (%d shots, %d before a cover/flank run)" % [far, r_shots[0], ran_at])
+		raider_opener.queue_free()
 	# ...and from there it strafes to cover still shooting (0.12.37, owner), unlike other cover runs.
 	var strafer := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 40)) as Scav
 	_face_player(strafer)
@@ -3760,6 +3872,32 @@ func _section_boss() -> void:
 	_check(guards[0]._near_home(trip + Vector3(5, 0, 0)), "on a trip, a fight there counts as near home (no instant walk back)")
 	the_boss._trip_point = Vector3.INF
 	far_spot.queue_free()
+	# 0.17.3 (owner: "more aggro, never runs to cover", but "there needs to be some break"): Bon never takes cover or
+	# plays safe when hurt, chases from farther, and stops for a short pause (standing or stepping aside) between chases.
+	var raider_ref := load(RAIDER_SCENE).instantiate() as Scav
+	_check(the_boss.never_cover and not raider_ref.never_cover and the_boss.chase_range > raider_ref.chase_range,
+		"Bon never takes cover and chases from farther than a Raider")
+	raider_ref.free()
+	the_boss._cover_cooldown_left = 0.0
+	the_boss._try_take_cover()
+	the_boss.health.current = 1
+	_check(the_boss._cover_phase == Scav.Cover.NONE and not the_boss.is_hurt(), "Bon doesn't run to cover or play safe when badly hurt")
+	the_boss.health.current = the_boss.health.max_health
+	var bon_to := Vector3(0, 0, 20)
+	the_boss._opening = false   # (past his opening volley, 0.17.9)
+	the_boss._since_threat = 0.0   # (mid-fight, no lull: no random flank roll)
+	the_boss._decide(true, bon_to, 20.0)
+	var chased := the_boss.tactic == Scav.Tactic.CHASE
+	the_boss._tactic_time = the_boss._chase_burst + 0.1
+	var breaks := the_boss._should_rethink(true, 20.0)
+	the_boss._decide(true, bon_to, 20.0)
+	var paused := the_boss.tactic == Scav.Tactic.STAND and the_boss._pausing and not the_boss._should_rethink(true, 20.0)
+	var opens_fire := the_boss._fire_timer <= 0.15
+	the_boss._tactic_time = the_boss._stand_time + 0.1
+	the_boss._decide(true, bon_to, 20.0)
+	_check(chased and breaks and paused and opens_fire and the_boss.tactic == Scav.Tactic.CHASE and the_boss.flank_chance > 0.0,
+		"Bon chases, takes a short break shooting (stands or steps aside), then chases again; he still flanks")
+	the_boss.tactic = Scav.Tactic.NONE
 	the_boss.get_node("Health").take_damage(10000)
 	await _frames(2)
 	_check(guards.all(func(g: Scav) -> bool: return g.home_radius == 12.0), "without the boss, the guards keep to its zone")
@@ -3978,6 +4116,7 @@ func _section_teamwork() -> void:
 		s.shot_damage = 0
 		s._target = player
 		s._set_state(Scav.State.ENGAGE)
+		s._opening = false   # (mid-fight: both already opened fire, 0.17.9)
 	pinner._last_seen = player.global_position
 	pinner._can_see = false
 	pinner._lost_sight_time = 0.5
@@ -4159,6 +4298,7 @@ func _section_ai_lod() -> void:
 	_check(biggest_step < top_speed / 60.0 * 1.6 + 0.01,
 		"it glides smoothly between ticks (biggest step in one frame %.3f m)" % biggest_step)
 	# A noise reaches it at once and brings it back to every frame.
+	scav.noise_uncertainty = 0.0   # (a random guess right where it stands would end the walk at once)
 	scav.hear_noise(scav.global_position + Vector3(3, 0, 0), 20.0)
 	await physics_frame
 	await physics_frame
@@ -4314,7 +4454,7 @@ func _section_cover() -> void:
 	chaser.fired.connect(func(_end: Vector3) -> void: chase_shots[0] += 1)
 	var chased := false
 	var closest := 99.0
-	for i in 60 * 10:
+	for i in 60 * 13:   # (+3 s: it opens fire standing first, 0.17.9)
 		await physics_frame
 		chased = chased or chaser.tactic == Scav.Tactic.CHASE
 		closest = minf(closest, chaser.global_position.distance_to(player.global_position))

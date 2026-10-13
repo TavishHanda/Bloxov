@@ -21,6 +21,30 @@ static func unshaded(color: Color) -> StandardMaterial3D:
 	return mat
 
 
+## Draws a tracer and a puff of impact cubes once, too small to see, right in front of `camera` (0.17.8). A shader is
+## built the first time something using it is drawn, and on the web that froze the game for a moment on the first
+## shot of a raid (or the first hit, or a kill). This builds them at raid start instead.
+static func warm_up(camera: Camera3D) -> void:
+	var holder := Node3D.new()
+	holder.name = "EffectsWarmUp"
+	holder.process_mode = Node.PROCESS_MODE_ALWAYS   # (the raid opens paused, behind the menu)
+	holder.scale = Vector3.ONE * 0.001
+	camera.add_child(holder)
+	holder.position = Vector3(0.0, 0.0, -0.5)
+	var mesh := BoxMesh.new()
+	mesh.material = unshaded(Color(1.0, 0.92, 0.55))
+	var box := MeshInstance3D.new()
+	box.mesh = mesh
+	box.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(box)
+	var particles := _cube_particles(Color(0.85, 0.8, 0.6), 0.06, 1)
+	particles.local_coords = true
+	particles.lifetime = 1.0
+	holder.add_child(particles)
+	particles.restart()
+	_free_after(holder, 0.5)
+
+
 static func tracer(world: Node, from: Vector3, to: Vector3) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in

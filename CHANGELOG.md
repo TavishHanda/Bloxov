@@ -7,6 +7,74 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.11 (dropped backpack lies flat, lid in the backpack's own camo; owner asked)
+- A dead scav's backpack now lies on its back on the ground instead of standing up.
+- The lid uses the backpack's own camo texture, and the grab handle sits on the lid, so it opens with it.
+
+## 0.17.10 (scavs drop their backpack, backpack lid opens; owner asked)
+- A scav that dies drops its small backpack on the ground beside its body (on whichever side isn't against a wall).
+  Its loose loot is inside the backpack now; its gun, armor and helmet stay on the body. Snipers wear one too.
+- Opening a dropped backpack swings its lid open; leaving it (closing the screen or walking off) swings it shut.
+  Online, everyone in the raid sees the lid move. The lid is a simple placeholder piece on the current model until
+  the final backpack art.
+- Smoke test: a dead scav's backpack lies on the ground with loot in it, the lid opens and shuts, and online the
+  other player gets the backpack and sees its lid move.
+
+## 0.17.9 (AI always shoot first; owner asked: a Raider ran off the moment it saw him)
+- When a fight starts, the first thing every AI (scavs, Raiders, Bon) does once it sees you is stand and open fire
+  for 2-3 seconds. Before, a Raider that spotted you after a quiet spell could roll a flank and run off to a hidden
+  spot without shooting, and one that spotted you from beyond its range ran for cover; both looked like running away.
+  Flanks, cover runs and pushes still happen, just after that opening volley. Out of range it now moves up instead.
+- A teammate that's just about to open fire on you isn't sent off to flank by another AI either.
+- Unchanged: badly hurt AI still go for cover first, and one sniped from beyond its range by someone it can't see
+  still hides (0.15.26).
+- Smoke test: a Raider set to always flank, 20 m and 50 m off, shoots before any flank or cover run.
+
+## 0.17.8 (no more hitch when shooting; owner reported stutters before/when shooting)
+- Every muzzle flash (yours and the AI's) lit up the area with a real light for a split second. The web renderer
+  has to build extra shaders for everything that light touches the first time, which froze the game for up to a
+  second on the first shots of a raid and whenever a gun fired near something new; while lit, everything near it
+  was also drawn twice. The flashes stay, without the light: smoother on phones and slow PCs too.
+- Tracers and impact puffs are now drawn once, too small to see, at raid start, so their shaders are ready before
+  the first shot instead of being built mid-fight.
+
+## 0.17.7 (mouse no longer stutters on fast turns; owner's friend reported it)
+- Turning the mouse fast could stutter and stop turning until you slowed down (Chrome and Firefox). A glitch
+  filter from 0.1 threw away every mouse move over 200 pixels, and a fast flick on a high-DPI mouse (raw input
+  is on) easily passes that in one frame. Now only a lone jump far bigger than the move before it is ignored
+  (the Chrome glitch it was made for), never two in a row, so real fast turns always go through.
+- Smoke test: a fast turn is used in full, a lone glitch jump is dropped, a flick from rest loses at most one move.
+
+## 0.17.6 (scav backpack turned around; owner asked)
+- The scav backpack faced the wrong way (its back side pointed out). Turned 180 degrees so the straps sit on the scav.
+
+## 0.17.5 (Esc closes the pause menu, $50k start, scav backpack, one tab at a time; owner asked)
+- Escape in the pause menu closes it (it did nothing before, only a click got you out). In the browser it shows
+  "Click to keep playing" (a browser only gives the mouse back on a click) and the game stays paused until then.
+  With LEAVE RAID's question open, Escape goes back to the menu.
+- New players start with $50,000 (was $15,000). Existing saves keep their own money and everything else.
+- Every scav wears the small backpack (model by the owner's friend, `assets/models/characters/scav_backpack.glb`).
+  Looks only: what scavs drop is unchanged.
+- The free kit adds a small backpack (sells for $0, like the rest of the kit).
+- Only one browser tab plays (TabLock, a Web Lock): every tab kept its own copy of the profile and saved all of it,
+  so a second tab could take the same gear into another raid and keep it if the first died, or hand a copy to
+  itself online. Any other tab now shows "Bloxov is already open in another tab", never saves, and starts by
+  itself (reading the fresh save) once the first tab closes.
+- Smoke test: scavs wear the backpack, $50k start, an old save keeps its money/stash/loadout/stats, the free kit's
+  backpack, and the tab lock off the web.
+
+## 0.17.4 (Bon keeps shooting on his breaks, flanks again; owner asked)
+- Bon opens fire as soon as a break between chases starts and keeps firing through it (standing or stepping aside),
+  so he's never just standing there.
+- Bon flanks again (30% of lulls, as before 0.17.3). A flank that finds no hidden spot still never sends him to cover.
+
+## 0.17.3 (Bon the juggernaut; owner asked)
+- Bon never takes cover: no ducking to reload or when shot, no hiding when sniped from far away, and he doesn't play
+  safe when badly hurt. He chases from 45 m (was 30), walking at you and firing, and no longer flanks.
+- He doesn't chase non-stop: after 3-5 s of chasing he stops for 1.5-2.5 s, standing and firing or (half the time)
+  stepping a few meters to one side while firing, then comes on again. His guards fight as before (cover included).
+- Smoke test: Bon never takes cover, doesn't play safe when hurt, and pauses between chases.
+
 ## 0.17.2 (found-in-raid only for quest items, steady trader column; owner asked)
 - The found-in-raid mark now only matters for items an open quest wants (e.g. bandages for First Aid). Everything
   else stacks together again, found or bought (ammo too); stacking a found stack with a bought one makes it unfound.

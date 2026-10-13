@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/loot_container.gd" id="1_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/scav_backpack.glb" id="2_pack"]
+[ext_resource type="Script" path="res://scripts/backpack_lid.gd" id="3_lid"]
+
+[sub_resource type="BoxShape3D" id="Box"]
+size = Vector3(0.6, 0.38, 0.78)
+
+[sub_resource type="BoxMesh" id="LidMesh"]
+size = Vector3(0.43, 0.04, 0.33)
+
+[node name="Backpack" type="StaticBody3D"]
+collision_layer = 8
+collision_mask = 0
+script = ExtResource("1_loot")
+grid_size = Vector2i(4, 3)
+display_name = "Small Backpack"
+loot_table = ""
+search_time = 0.0
+remove_when_empty = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.19, 0)
+shape = SubResource("Box")
+
+[node name="Pack" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0.19, 0.375)
+
+[node name="Model" parent="Pack" instance=ExtResource("2_pack")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 0)
+
+[node name="Lid" type="Node3D" parent="Pack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6675, 0.1875)
+script = ExtResource("3_lid")
+
+[node name="LidMesh" type="MeshInstance3D" parent="Pack/Lid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -0.165)
+mesh = SubResource("LidMesh")

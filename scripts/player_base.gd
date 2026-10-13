@@ -121,8 +121,8 @@ extends CharacterBody3D
 @export var revive_health := 30
 
 @export_group("Other")
-## Mouse movements bigger than this (in pixels, in one event) are treated as glitches and ignored.
-## Works around a Chrome bug where captured-mouse input sometimes reports a huge bogus jump.
+## A lone mouse move bigger than this (in pixels, in one event) and far bigger than the one before is treated
+## as a glitch and ignored (a Chrome bug sometimes reports a huge bogus jump). See is_mouse_spike().
 @export var max_mouse_delta := 200.0
 ## Falling below this height respawns the player.
 @export var kill_height := -20.0

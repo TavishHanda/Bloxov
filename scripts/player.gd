@@ -63,6 +63,10 @@ var _jump_cooldown_left := 0.0
 var debug_recent_dx: Array[int] = []
 var debug_max_delta := 0.0
 var debug_spikes_dropped := 0
+# Spike filter state: size and time of the last mouse move that was used, and whether the one before was dropped.
+var _last_mouse_delta := 0.0
+var _last_mouse_msec := 0
+var _dropped_last_mouse := false
 
 
 func _ready() -> void:
@@ -79,6 +83,7 @@ func _ready() -> void:
 			node.process_mode = Node.PROCESS_MODE_DISABLED
 		return
 	_spawn_position = global_position
+	Effects.warm_up(camera)
 	hand = HandItem.new()
 	camera.add_child(hand)
 	inventory.equipment_changed.connect(_on_equipment_changed)
@@ -274,7 +279,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		debug_recent_dx.append(roundi(event.screen_relative.x))
 		if debug_recent_dx.size() > 12:
 			debug_recent_dx.pop_front()
-		if delta_len > max_mouse_delta:
+		if is_mouse_spike(delta_len, Time.get_ticks_msec()):
 			debug_spikes_dropped += 1
 			return
 		# Zoomed in = slower look, so aiming feels the same at any zoom.
@@ -287,6 +292,20 @@ func _unhandled_input(event: InputEvent) -> void:
 			_recoil_debt.x = 0.0 if absf(pitch) >= absf(_recoil_debt.x) else _recoil_debt.x + pitch
 		if yaw * _recoil_debt.y < 0.0:
 			_recoil_debt.y = 0.0 if absf(yaw) >= absf(_recoil_debt.y) else _recoil_debt.y + yaw
+
+
+## Chrome sometimes reports one huge bogus jump out of nowhere. A real fast turn builds up over a few moves
+## and keeps going, so only a lone jump far bigger than the move before it is dropped, never two in a row.
+## (Before 0.17.7 every move over max_mouse_delta was dropped, which ate fast turns on high-DPI mice.)
+func is_mouse_spike(delta_len: float, now_msec: int) -> bool:
+	var before := _last_mouse_delta if now_msec - _last_mouse_msec < 100 else 0.0
+	if delta_len > maxf(max_mouse_delta, before * 4.0) and not _dropped_last_mouse:
+		_dropped_last_mouse = true
+		return true
+	_dropped_last_mouse = false
+	_last_mouse_delta = delta_len
+	_last_mouse_msec = now_msec
+	return false
 
 
 func _process(delta: float) -> void:

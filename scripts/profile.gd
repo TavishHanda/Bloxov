@@ -13,8 +13,9 @@ const STASH_SIZE := Vector2i(8, 20)
 ## each upgrade costs. Level 1 is the new stash.
 const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const STASH_UPGRADE_COST: Array[int] = [0, 50000, 120000, 250000]
-## (0.16.1: x5 with the price pass; was $3,000.)
-const START_MONEY := 15000
+## Only a brand new profile gets it: a save always keeps its own money.
+## (0.16.1: x5 with the price pass; was $3,000. 0.17.5, owner: $50,000, was $15,000.)
+const START_MONEY := 50000
 const DEFAULT_STATS := {"raids": 0, "extracts": 0, "deaths": 0, "earned": 0}
 ## Where an unreadable save is copied before the profile is reset, so it isn't silently lost.
 const BAD_PATH := "user://profile.bad.json"
@@ -46,6 +47,7 @@ static func load_profile() -> void:
 	if _loaded:
 		return
 	_loaded = true
+	TabLock.start()
 	var text := newer_save(_read_file(), _web_read())
 	if text == "":
 		reset()
@@ -188,6 +190,9 @@ static func reset() -> void:
 
 
 static func save_profile() -> void:
+	# A second browser tab never saves (TabLock): its copy of the profile is out of date.
+	if not TabLock.owns():
+		return
 	var data := {
 		"version": VERSION,
 		"money": money,

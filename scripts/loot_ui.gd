@@ -27,7 +27,15 @@ const GUN_SLOTS: Array[String] = ["primary", "secondary"]
 var player: Player
 ## Whose inventory this screen shows (the player's, or the hideout's loadout).
 var inventory: Inventory
-var container: LootContainer = null
+var container: LootContainer = null:
+	set(value):
+		if container != value:
+			# (a dropped backpack's lid opens while you're in it and shuts when you leave it, 0.17.10)
+			if is_instance_valid(container):
+				container.set_open(false)
+			if is_instance_valid(value):
+				value.set_open(true)
+		container = value
 ## Hideout: the stash shown opposite your inventory (when there's no container).
 var stash: GridInventory = null
 ## Hideout: if set, right-click offers "Sell"; called with (grid, stack).
