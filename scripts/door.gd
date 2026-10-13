@@ -1,3 +1,4 @@
+@tool
 class_name Door
 extends StaticBody3D
 ## An ordinary door in a doorway (World art 0.17, owner: "we need to add doors to the game"). Press F to open or shut
@@ -31,6 +32,9 @@ var _tween: Tween
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		_editor_preview()
+		return
 	add_to_group(GROUP)
 	collision_layer = LAYER | 8   # 8: interactable (F)
 	collision_mask = 0
@@ -65,6 +69,25 @@ func _ready() -> void:
 	sensor.body_entered.connect(_on_ai_near)
 	_place_shapes()
 	set_physics_process(false)
+
+
+## In the Godot editor (the script is @tool for this only): draw the shut leaves, so doors show in the editor too.
+## Nothing here is saved into the scene.
+func _editor_preview() -> void:
+	set_physics_process(false)
+	var path := MODEL % look
+	if not ResourceLoader.exists(path):
+		return
+	var leaves := 2 if size.x > 1.5 else 1
+	var leaf_w := size.x / leaves
+	for k in leaves:
+		var side := -1.0 if k == 0 else 1.0
+		var model: Node3D = (load(path) as PackedScene).instantiate()
+		model.scale = Vector3(leaf_w, size.y / 2.0, 1.0)
+		model.position = Vector3(side * size.x * 0.5 - side * leaf_w * 0.5, size.y * 0.5, 0)
+		if side > 0:
+			model.rotation.y = PI
+		add_child(model)
 
 
 func _physics_process(_delta: float) -> void:

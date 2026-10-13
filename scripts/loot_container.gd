@@ -1,3 +1,4 @@
+@tool
 class_name LootContainer
 extends StaticBody3D
 ## Anything you can search with E: crates, lockers, safes, bodies, dropped bags.
@@ -42,6 +43,9 @@ var searched := false
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		_editor_preview()
+		return
 	_apply_look()
 	add_to_group("loot_containers")
 	if grid == null:
@@ -93,6 +97,21 @@ func _apply_look() -> void:
 		model.position.z = back
 		add_child(model)
 		PixelModel.make_crisp(model)
+
+
+## In the Godot editor (the script is @tool for this only): show the container's real model instead of the scene's
+## default one, so the map looks in the editor the way it does in a raid. Nothing here is saved into the scene.
+func _editor_preview() -> void:
+	var look: String = get_meta("look", "")
+	if not LOOKS.has(look) or not ResourceLoader.exists("res://assets/models/loot/%s.glb" % look):
+		return
+	var back := maxf(0.0, (0.6 - (LOOKS[look][1] as Vector3).z) / 2.0)
+	for child in get_children():
+		if child is Node3D and not child is CollisionShape3D:
+			child.visible = false
+	var model: Node3D = (load("res://assets/models/loot/%s.glb" % look) as PackedScene).instantiate()
+	model.position.z = back
+	add_child(model)
 
 
 ## Pockets and gear slots: gear first (so quick-moving gear into a body fills its slots before the pockets).
