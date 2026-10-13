@@ -679,6 +679,90 @@ def school_furniture():
     box(34.8, F, 66.3, 37.3, F + 2.0, 66.9, "metal", kind="rack")
 
 
+# The rich houses on the hill (World art 0.17, owner: "similar to each other" with switches so each shows the people
+# who lived there). One shared house: living room with a fireplace (chimney up the west wall) SW, entrance hall and
+# dining room SE (front door, porch), kitchen NE, a den NW by the stairs; upstairs a landing hall NW, a bedroom SW,
+# the main bedroom NE and one more room SE. Who lived there switches the den, the SE room upstairs and the small
+# things: "doctor" (old money: library, study, the safe), "family" (young kids and a dog: playroom, nursery),
+# "officer" (an Exion officer, his wife and a teenager: trophy den, music room). Furniture keeps to the corners,
+# off the windows and doorways, so the room middles (AI spawns) and door paths stay clear.
+RICH_HOUSES = [(30, 22, 16, 13, "doctor"), (68, 36, 15, 12, "family"), (100, 32, 15, 12, "officer")]
+
+
+def rich_house(n, x, y, w, d, who):
+    hw, hd = w / 2, d / 2
+    ox, oz = x + hw, y + hd
+    F = FLOOR_H
+    wx, dz = hw - WALL_T / 2, hd - WALL_T / 2      # inside faces of the outside walls (local)
+    q, r = w / 4, d / 4                            # room middles
+    strip = -hw + WALL_T / 2 + LANDING + RAMP_L + 1.8   # east end of the stair corridor along the north wall
+    sz = -hd + WALL_T / 2 + RAMP_W                 # its south edge
+
+    def put(kind, x0, z0, x1, z1, h, floor=0, solid=True, colour="wood", y=0.0):
+        box(ox + x0, floor * F + y, oz + z0, ox + x1, floor * F + y + h, oz + z1, colour, solid=solid, kind=kind)
+    with modeled(f"big_house_{n}", ox, oz):
+        build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2), doors="S"), [
+            ("locker", 1, 1, 0, "E", 1.9), ("crate", 0, 1, 1, "W", -1.9), ("locker", 1, 0, 1, "E", 1.9)])   # (off the windows)
+        # Ground floor. Living room (SW): sofa under the south wall, coffee table, fireplace on the west wall, TV.
+        put("house_sofa", -wx + 0.25, dz - 0.9, -q - 0.85, dz - 0.05, 0.9)
+        put("coffee_table", -wx + 0.75, dz - 2.0, -q - 1.35, dz - 1.4, 0.45)
+        put("house_rug", -wx + 0.4, dz - 2.7, -q - 0.4, dz - 0.95, 0.02, solid=False)
+        put("fireplace", -wx, 0.35, -wx + 0.55, 1.95, 1.25, colour="concrete")
+        put("chimney", -hw - 0.85, 0.45, -hw - WALL_T / 2, 1.85, 2 * F + 2.4, colour="concrete")
+        put("armchair", -1.05, dz - 1.05, -0.25, dz - 0.25, 0.95)
+        put("tv_stand", -0.6, 0.4, -0.15, 1.6, 0.55)
+        # Entrance hall and dining room (SE): the table and chairs, a bench by the door; the coat wardrobe is loot.
+        put("dining_table", wx - 2.6, 0.45, wx - 0.2, 2.35, 0.9)
+        put("shoe_bench", 0.35, dz - 0.45, 1.9, dz - 0.05, 0.5)
+        # Kitchen (NE): cupboards, the stove and sink along the north wall, the fridge, a table by the east window.
+        put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)   # (clear of the stairs' foot: AI paths)
+        put("home_fridge", wx - 0.8, -dz, wx - 0.05, -dz + 0.7, 1.8, colour="metal")
+        put("kitchen_table", wx - 2.55, -2.15, wx - 0.45, -0.45, 0.85)
+        # Den (NW): boxes and junk under the stairs.
+        put("under_stairs", -hw + 2.9, -dz, -hw + 4.5, -dz + 0.8, 1.0)
+        # Upstairs. Landing hall (NW): a bookcase. Bedroom (SW): the bed against the south wall. Main bedroom (NE):
+        # the bed against the north wall with its night stands.
+        put("wall_books", -wx + 0.2, -0.55, -q - 1.2, -0.1, 1.9, floor=1)
+        put("house_bed", -2.3 if who != "doctor" else -2.4, dz - 2.0, -0.8, dz, 0.9, floor=1)
+        put("main_bed", wx - 3.1, -dz, wx - 0.5, -dz + 2.1, 1.1, floor=1)
+        if who != "doctor":   # (the doctor's safe is on that wall)
+            put("vanity", strip + 0.45, -dz, strip + 1.65, -dz + 0.5, 0.8, floor=1)
+        # Front porch: a roof on two posts over the door, a step.
+        put("porch_post", q - 1.6, hd + 1.35, q - 1.4, hd + 1.55, 2.75, colour="wood")
+        put("porch_post", q + 1.4, hd + 1.35, q + 1.6, hd + 1.55, 2.75, colour="wood")
+        put("porch", q - 1.75, hd + WALL_T / 2, q + 1.75, hd + 1.7, 0.1, solid=False, colour="concrete")
+        if who == "doctor":
+            # Library den, a grandfather clock in the hall, a study upstairs (desk under the window, bookcases).
+            put("wall_books", -wx, -dz + 0.3, -wx + 0.45, -r - 0.85, 1.9)
+            put("wall_books", -wx + 0.3, -0.55, -q - 1.2, -0.1, 1.9)
+            put("reading_chair", -wx + 0.75, -dz + 0.6, -wx + 1.65, -dz + 1.5, 1.0)
+            put("globe", -2.0, -0.6, -1.45, -0.15, 1.0)
+            put("grandfather_clock", 0.1, 0.4, 0.6, 0.9, 2.1)
+            put("study_desk", wx - 1.8, dz - 0.85, wx - 0.2, dz - 0.1, 0.78, floor=1)
+            put("wall_books", q + 1.2, 0.1, wx - 0.2, 0.55, 1.9, floor=1)
+            put("trunk", -wx + 0.05, -2.3, -wx + 0.6, -1.3, 0.55, floor=1)
+        elif who == "family":
+            # Playroom den, nursery upstairs, a little one's bedroom.
+            put("toy_chest", -wx + 0.3, -dz + 0.3, -wx + 1.2, -dz + 0.85, 0.6)
+            put("kid_table", -wx + 0.6, -1.95, -wx + 2.4, -0.35, 0.6)
+            put("rocking_horse", -2.3, -3.45, -1.4, -3.05, 0.8)
+            put("crib", wx - 1.45, dz - 0.75, wx - 0.2, dz - 0.1, 1.0, floor=1)
+            put("changing_table", wx - 1.1, 0.15, wx - 0.2, 0.75, 0.95, floor=1)
+            put("rocking_chair", 0.4, dz - 1.1, 1.15, dz - 0.3, 1.0, floor=1)
+            put("toy_chest", -2.0 - 1.0, dz - 0.6, -2.0 - 0.4, dz - 0.05, 0.55, floor=1)
+        else:
+            # Trophy den (banner, medal case, the map table, his dress uniform), music room, the teenager's room.
+            put("medal_case", -wx + 0.3, -0.55, -q - 1.2, -0.1, 1.6)
+            put("map_table", -wx + 0.9, -2.2, -wx + 2.5, -1.2, 0.85)
+            put("uniform_stand", -wx + 0.45, -dz + 0.4, -wx + 1.0, -dz + 0.95, 1.8)
+            put("piano", q + 1.3, 0.1, q + 2.9, 1.1, 1.25, floor=1)
+            put("record_cabinet", wx - 1.15, dz - 0.6, wx - 0.1, dz - 0.1, 0.85, floor=1)
+            put("guitar_stand", 0.35, dz - 0.6, 0.85, dz - 0.15, 1.1, floor=1)
+            put("teen_desk", -wx + 0.4, dz - 0.75, -wx + 1.8, dz - 0.1, 0.78, floor=1)
+            put("sewing_table", -1.6, -0.6, -0.4, -0.1, 0.8, floor=1)
+            put("flag_pole", q + 3.2, hd + 2.1, q + 3.3, hd + 2.2, 7.0, solid=False, colour="metal")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2016,10 +2100,9 @@ def main():
 
     # hillside: big houses (owner: expensive loot)
     # (0.10.1: down from 5 to 3, owner: fewer houses so the good loot isn't spread thin, and the hill has sightlines)
-    for n, (x, y, w, d) in enumerate([(30, 22, 16, 13), (68, 36, 15, 12), (100, 32, 15, 12)], start=1):
-        build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2), doors="S"), [
-            ("locker", 1, 1, 0, "E", 0), ("crate", 0, 1, 1, "W", 0), ("locker", 1, 0, 1, "E", 0)])
-    add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)
+    for n, (x, y, w, d, who) in enumerate(RICH_HOUSES, start=1):
+        rich_house(n, x, y, w, d, who)
+    add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)   # in the doctor's bedroom
 
     # street cover around town
     for x, z, yaw, col in ((44, 87, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
