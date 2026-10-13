@@ -16,7 +16,7 @@ const PICKUP_SOUND := preload("res://audio/mag_in.wav")
 ## Your character on the gear side (the PMC model, for now; owner: swap for new art later).
 const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
-enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL, GROUND }
+enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL, GROUND, LOAD, UNLOAD }
 ## Menu ids past the actions: take attachment slot i off the gun (DETACH + i), put the attachment on your primary
 ## (ATTACH) or secondary (ATTACH + 1).
 const DETACH := 100
@@ -80,6 +80,15 @@ var _carried_panel: Control
 var _carried_box: VBoxContainer
 var _footer_hint: Label
 var _close_button: Button
+## The stash's scroll box, so a rebuild (equipping, putting an attachment on your gun) keeps where you were
+## scrolled to instead of jumping back to the top (0.17.13, owner).
+var _stash_scroll: ScrollContainer
+## In a raid (0.17.13, owner): INVENTORY / QUESTS tabs (bottom left), so the inventory key also shows your quests.
+var _tabs: HBoxContainer
+var _inventory_tab: Button
+var _quests_tab: Button
+var _quest_page: QuestTracker
+var _info_box: VBoxContainer
 
 
 func _init(owner_player: Player, owner_inventory: Inventory = null) -> void:
@@ -104,6 +113,8 @@ func _on_equipment_changed() -> void:
 func open_for(target: LootContainer) -> void:
 	container = target
 	visible = true
+	_tabs.visible = player != null
+	show_quests(false)
 	if player != null:
 		player.interactor.blocked = true
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -115,7 +126,7 @@ func open_stash(stash_grid: GridInventory) -> void:
 	stash = stash_grid
 	_dim.visible = false
 	_close_button.visible = false
-	_footer_hint.text = "Drag to move/equip · R rotate · Shift+click quick-move · Right-click to sell or for options"
+	_footer_hint.text = "Drag to move/equip · Drag rounds onto a gun to load it · R rotate · Shift+click quick-move · Right-click to sell or for options"
 	open_for(null)
 
 
@@ -475,6 +486,9 @@ func _drop_or_overflow(stack: ItemStack) -> void:
 func can_drop_on_slot(slot: String) -> bool:
 	if drag_stack != null and drag_slot == "" and _fits_gun(inventory.equipped(slot), drag_stack):
 		return true
+	var gun := inventory.equipped(slot)
+	if drag_stack != null and drag_slot == "" and gun != null and ItemDB.kind(gun.id) == "weapon" and ItemDB.kind(drag_stack.id) == "ammo":
+		return str(ItemDB.item(gun.id)["ammo"]) == drag_stack.id and can_load(gun)
 	if drag_stack == null or not inventory.slot_accepts(slot, drag_stack.id):
 		return false
 	var current := inventory.equipped(slot)
@@ -533,7 +547,7 @@ func drop_cell(view: GridView) -> Vector2i:
 
 
 func can_drop_at(view: GridView, cell: Vector2i) -> bool:
-	if attach_target(view) != null:
+	if attach_target(view) != null or (drag_slot == "" and _ammo_target(view, drag_stack) != null):
 		return true
 	if drag_slot != "":
 		return _slot_item_fits(drag_slot, view.grid, cell, drag_rotated)
@@ -592,8 +606,11 @@ func _finish_drag() -> void:
 		gun = attach_target(view)
 		drag_stack = null
 		drag_from = null
+	var loading := _ammo_target(view, stack) if slot == "" else null
 	if gun != null:
 		attach_from_grid(from, stack, gun, (view as GridView).grid if view is GridView else null)
+	elif loading != null:
+		load_gun(loading, stack, from)
 	elif view is GridView:
 		var grid_view := view as GridView
 		var cell := drop_cell(grid_view)
@@ -645,6 +662,20 @@ func attach_target(view: Control) -> ItemStack:
 	return gun if _fits_gun(gun, drag_stack) else null
 
 
+## Hideout: the gun that rounds `ammo` dropped on `view` would load (0.17.13: drag rounds onto a gun), or null.
+func _ammo_target(view: Control, ammo: ItemStack) -> ItemStack:
+	if view == null or ammo == null or ItemDB.kind(ammo.id) != "ammo":
+		return null
+	var gun: ItemStack = null
+	if view is GridView:
+		gun = (view as GridView).grid.stack_at(drop_cell(view as GridView) + _grab_cell)
+	elif view is EquipSlotView:
+		gun = inventory.equipped((view as EquipSlotView).slot)
+	if gun == null or gun == ammo or ItemDB.kind(gun.id) != "weapon" or str(ItemDB.item(gun.id)["ammo"]) != ammo.id:
+		return null
+	return gun if can_load(gun) else null
+
+
 func _fits_gun(gun: ItemStack, part: ItemStack) -> bool:
 	return (gun != null and part != null and gun != part and ItemDB.kind(gun.id) == "weapon"
 		and ItemDB.attachment_slot_for(gun.id, part.id) != "")
@@ -655,7 +686,7 @@ func _fits_gun(gun: ItemStack, part: ItemStack) -> bool:
 func attach_from_grid(from: GridInventory, part: ItemStack, gun: ItemStack, gun_grid: GridInventory) -> void:
 	var spot := Vector2i(part.x, part.y)
 	from.remove(part)
-	var result := inventory.attach(gun, part.id)
+	var result := inventory.attach(gun, part.id, part.found)
 	_return_parts(result, gun.id, from if from != null else gun_grid, spot)
 	(gun_grid if gun_grid != null else from).changed.emit()
 	_say("%s on the %s" % [ItemDB.display_name(part.id), ItemDB.display_name(gun.id)])
@@ -673,12 +704,14 @@ func detach(gun: ItemStack, slot: String, gun_grid: GridInventory) -> void:
 	_after_move()
 
 
-## [attachment id or "", spare rounds] from Inventory.attach/detach: puts them in `grid` (at `cell` if it fits),
-## else anywhere of yours, else the other side, else the ground.
+## [attachment id or "", spare rounds, found] from Inventory.attach/detach: puts them in `grid` (at `cell` if it
+## fits), else anywhere of yours, else the other side, else the ground.
 func _return_parts(result: Array, gun_id: String, grid: GridInventory, cell: Vector2i) -> void:
 	var loose: Array[ItemStack] = []
 	if result[0] != "":
-		loose.append(ItemStack.new(result[0]))
+		var part := ItemStack.new(result[0])
+		part.found = result[2]   # (a part off a looted gun stays found in raid, 0.17.13)
+		loose.append(part)
 	if int(result[1]) > 0:
 		loose.append(ItemStack.new(ItemDB.item(gun_id)["ammo"], int(result[1])))
 	for stack in loose:
@@ -694,6 +727,96 @@ func _return_parts(result: Array, gun_id: String, grid: GridInventory, cell: Vec
 		candidates.append_array(other_grids())
 		if not _place_in_first(stack, candidates):
 			_drop_or_overflow(stack)
+
+
+# --- Loading guns in the hideout (0.17.13, owner: friends kept going into raids with empty guns) ------------
+
+## Hideout only: in a raid, loading goes through reloading (it takes time there).
+func can_load(gun: ItemStack) -> bool:
+	return (player == null and gun != null and ItemDB.kind(gun.id) == "weapon"
+		and gun.loaded < int(ItemDB.weapon_stats(gun)["mag"]) and _ammo_count(str(ItemDB.item(gun.id)["ammo"])) > 0)
+
+
+func can_unload(gun: ItemStack) -> bool:
+	return player == null and gun != null and ItemDB.kind(gun.id) == "weapon" and gun.loaded > 0
+
+
+## Where loading takes rounds from: the stash first (so what you carry stays as spares), then what you carry.
+func _ammo_grids() -> Array[GridInventory]:
+	var grids: Array[GridInventory] = []
+	if stash != null:
+		grids.append(stash)
+	grids.append_array(inventory.grids())
+	return grids
+
+
+func _ammo_count(ammo: String) -> int:
+	var total := 0
+	for grid in _ammo_grids():
+		total += grid.count_of(ammo)
+	return total
+
+
+## Fills `gun`'s mag from your rounds (`from_stack` first, when you dragged a stack of rounds onto it).
+## Returns how many rounds went in.
+func load_gun(gun: ItemStack, from_stack: ItemStack = null, from_grid: GridInventory = null) -> int:
+	if not can_load(gun):
+		return 0
+	var ammo := str(ItemDB.item(gun.id)["ammo"])
+	var need := int(ItemDB.weapon_stats(gun)["mag"]) - gun.loaded
+	var taken := 0
+	if from_stack != null and from_grid != null and from_stack.id == ammo and from_grid.stacks.has(from_stack):
+		taken = mini(need, from_stack.count)
+		from_stack.count -= taken
+		if from_stack.count <= 0:
+			from_grid.remove(from_stack)
+		else:
+			from_grid.changed.emit()
+	for grid in _ammo_grids():
+		if taken < need:
+			taken += grid.take(ammo, need - taken)
+	gun.loaded += taken
+	inventory.changed.emit()
+	_say("Loaded %d into the %s (%d/%d)" % [taken, ItemDB.display_name(gun.id), gun.loaded, int(ItemDB.weapon_stats(gun)["mag"])])
+	_after_move()
+	_refresh_views()
+	return taken
+
+
+## Takes the rounds out of `gun` (in `grid`, or equipped when null): next to it, else anywhere you have room
+## (what doesn't fit stays in the gun).
+## Rounds from the free kit's gun stay free kit (they sell for nothing, like the kit).
+func unload_gun(gun: ItemStack, grid: GridInventory) -> bool:
+	if not can_unload(gun):
+		return false
+	var ammo := str(ItemDB.item(gun.id)["ammo"])
+	var marks := ItemStack.FREE if gun.free else 0
+	var grids: Array[GridInventory] = []
+	if grid != null:
+		grids.append(grid)
+	for other in inventory.grids() + _ammo_grids():
+		if not grids.has(other):
+			grids.append(other)
+	var left := gun.loaded
+	for other in grids:
+		if left > 0:
+			left = other.add(ammo, left, marks)
+	if left == gun.loaded:
+		_no_room(true)
+		return false
+	gun.loaded = left   # (whatever found no room stays in the gun)
+	inventory.changed.emit()
+	_say("Unloaded the %s" % ItemDB.display_name(gun.id))
+	_after_move()
+	_refresh_views()
+	return true
+
+
+func _add_load_entries(gun: ItemStack) -> void:
+	if can_load(gun):
+		_menu.add_item("Load", MenuAction.LOAD)
+	if can_unload(gun):
+		_menu.add_item("Unload (%d)" % gun.loaded, MenuAction.UNLOAD)
 
 
 ## Menu entries to take each attachment off `gun`.
@@ -730,6 +853,7 @@ func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 	if ItemDB.equip_slot(stack.id) != "":
 		_menu.add_item("Equip", MenuAction.EQUIP)
 	if ItemDB.kind(stack.id) == "weapon":
+		_add_load_entries(stack)
 		_add_detach_entries(stack)
 	elif ItemDB.kind(stack.id) == "attachment":
 		for i in GUN_SLOTS.size():
@@ -751,6 +875,7 @@ func open_slot_menu(slot: String) -> void:
 	_menu.clear()
 	_menu.add_item("Unequip", MenuAction.UNEQUIP)
 	if ItemDB.kind(inventory.equipped(slot).id) == "weapon":
+		_add_load_entries(inventory.equipped(slot))
 		_add_detach_entries(inventory.equipped(slot))
 	_add_drop_entry(false)
 	_popup_menu()
@@ -807,6 +932,10 @@ func _on_menu(action: int) -> void:
 			drop_stack(grid, stack)
 		MenuAction.GROUND:
 			drop_to_ground(grid, stack)
+		MenuAction.LOAD:
+			load_gun(stack)
+		MenuAction.UNLOAD:
+			unload_gun(stack, grid)
 	_update_labels()
 
 
@@ -820,6 +949,10 @@ func _on_slot_menu(action: int) -> void:
 		detach(gun, ItemDB.attachment_slots(gun.id)[action - DETACH], null)
 		return
 	match action:
+		MenuAction.LOAD:
+			load_gun(inventory.equipped(slot))
+		MenuAction.UNLOAD:
+			unload_gun(inventory.equipped(slot), null)
 		MenuAction.UNEQUIP:
 			unequip_to_inventory(slot)
 		MenuAction.GROUND:
@@ -969,11 +1102,24 @@ func _clear_views() -> void:
 func _rebuild_layout() -> void:
 	if not visible:
 		return
+	var scrolled := _stash_scroll.scroll_vertical if is_instance_valid(_stash_scroll) else 0
+	_stash_scroll = null
 	_clear_views()
 	_build_other_column()
 	_build_equipment_column()
 	_build_carried_column()
 	_update_labels()
+	if _stash_scroll != null and scrolled > 0:
+		_restore_scroll.call_deferred(_stash_scroll, scrolled)
+
+
+## (The new scroll box only takes the value once its contents are laid out.)
+func _restore_scroll(scroll: ScrollContainer, value: int) -> void:
+	if not is_instance_valid(scroll):
+		return
+	await get_tree().process_frame
+	if is_instance_valid(scroll):
+		scroll.scroll_vertical = value
 
 
 ## Right column: the open container, or the stash in the hideout (hidden if neither).
@@ -1026,6 +1172,7 @@ func _build_other_column() -> void:
 		scroll.custom_minimum_size = Vector2(other.width * CELL + 14, 480)  # (fits the hideout with its hint line under it)
 		_other_box.add_child(scroll)
 		_add_view(scroll, other)
+		_stash_scroll = scroll
 	elif _has_container() and not container.gear.is_empty():
 		# A body: its loadout, then its pockets (owner, 0.11.13). A player's body killed by another player: their
 		# dog tag in its own slot on top (0.15.28, owner).
@@ -1117,6 +1264,9 @@ func _build() -> void:
 	_columns = HBoxContainer.new()
 	_columns.add_theme_constant_override("separation", 14)
 	root.add_child(_columns)
+	_quest_page = QuestTracker.new()
+	_quest_page.visible = false
+	root.add_child(_quest_page)
 	var player_panel := _panel(_columns)
 	_player_box = player_panel.get_meta("box")
 	_carried_panel = _panel(_columns)
@@ -1128,6 +1278,7 @@ func _build() -> void:
 	# Details: the item under the mouse (name in its rarity color, then its stats), or messages.
 	# Empty until you point at something (owner: no placeholder text); keeps its height so nothing jumps.
 	var info_box := VBoxContainer.new()
+	_info_box = info_box
 	info_box.custom_minimum_size = Vector2(0, 86)
 	info_box.add_theme_constant_override("separation", 0)
 	root.add_child(info_box)
@@ -1148,6 +1299,12 @@ func _build() -> void:
 	footer.alignment = BoxContainer.ALIGNMENT_CENTER
 	footer.add_theme_constant_override("separation", 16)
 	root.add_child(footer)
+	# (In the footer, so the tabs don't make the screen taller: it's already tight at 720p.)
+	_tabs = HBoxContainer.new()
+	_tabs.add_theme_constant_override("separation", 6)
+	footer.add_child(_tabs)
+	_inventory_tab = _tab_button("INVENTORY", false)
+	_quests_tab = _tab_button("QUESTS", true)
 	_footer_hint = _small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · Tab/F close · the raid doesn't pause!")
 	footer.add_child(_footer_hint)
 	_close_button = Button.new()
@@ -1160,6 +1317,42 @@ func _build() -> void:
 	_menu = PopupMenu.new()
 	_menu.id_pressed.connect(_on_menu)
 	add_child(_menu)
+
+
+## A tab button (the CLOSE button's size).
+func _tab_button(text: String, quests: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	style_button(button)
+	button.pressed.connect(show_quests.bind(quests))
+	_tabs.add_child(button)
+	return button
+
+
+## Switches between your inventory and the QUESTS tab (the quest tracker's list).
+func show_quests(quests: bool) -> void:
+	if quests:
+		_cancel_drag()
+		_quest_page.refresh(null)
+	_columns.visible = not quests
+	_info_box.visible = not quests
+	_quest_page.visible = quests
+	_mark_tab(_inventory_tab, not quests)
+	_mark_tab(_quests_tab, quests)
+
+
+## The open tab: lighter, with a brass edge. (Restyling the stylebox only: style_button again would draw the text twice.)
+func _mark_tab(button: Button, active: bool) -> void:
+	for state in ["normal", "hover"]:
+		var box := button.get_theme_stylebox(state) as StyleBoxFlat
+		if box != null:
+			box.bg_color = (HudStyle.FACE_HI if active else HudStyle.FACE).lightened(0.15 if state == "hover" else 0.0)
+			box.border_color = HudStyle.BRASS if active else Color.BLACK
+
+
+func quests_shown() -> bool:
+	return _quest_page.visible
 
 
 func _notification(what: int) -> void:

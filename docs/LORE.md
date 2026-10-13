@@ -65,6 +65,25 @@ tie back to what's written here.
     Brotherhood agent, a safe-haven quartermaster). Their **contracts are the quests**.
   - **Hideout = a REVENANT outpost** where contractors rest, gear up and train between raids.
 
+## The escape: why a REVENANT does all this (owner, 2026-10-13; planned, not in the game yet)
+- Every raid, every dollar, every trader favour and every quest is for one thing: **getting out of the war**. The
+  goal is to **craft an escape vehicle** and reach a **safe haven** (maybe a bunker) where the war can't follow.
+- The haven doesn't take just anyone: getting in **costs a lot of money**, in the story and in the game.
+- The **traders** are connected to the way out: their favours, contacts and contracts (quests) are how you get the
+  parts, the route and the way in. A long quest line leads there.
+- It's tied to the **characters**: when you extract with a character in the escape vehicle, that character earns a
+  **skill point** to **prestige**, spent on upgrading its traits (see `docs/ROADMAP.md` "Character prestige").
+- **TBD (owner):**
+  1. What the vehicle is (a truck, a boat, a helicopter, a plane...) and what it's built from.
+  2. What the safe haven is: a bunker, a city, an island? Who runs it, and is it one of the "few safe havens left"
+     above? Is the hideout one?
+  3. Which traders help, and how (one per part? one knows the route? one gets you in?).
+  4. After a character escapes: does it come back to fight again (the prestige loop), does the player keep their
+     stash, and is the escape something you do once per character or again and again?
+  5. Solo, co-op or both: does your squad escape together?
+  6. How it fits REVENANT's secret goal (ending both powers' grip): is the haven part of that, or does escaping
+     mean leaving REVENANT?
+
 ## Regions
 Each region is a part of the world the war touched, with its own maps and look. Regions open up over time; later
 ones are harder.

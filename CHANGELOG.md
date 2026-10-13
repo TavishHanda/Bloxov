@@ -7,6 +7,24 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
 
+## 0.17.13 (owner's batch: stash fixes, loading guns, leaves, spawns, quests tab)
+- **Load and unload guns in the stash:** right-click (or hold) a gun in the hideout for **Load** / **Unload**, or drag
+  rounds onto a gun. Loading takes rounds from your stash first, then what you carry. In a raid you still reload.
+- Putting an attachment on your gun (or equipping something) no longer scrolls the stash back to the top.
+- Attachments on a gun you loot from an AI (Bon's, a Raider's, a scav's) count as **found in raid**, and stay found
+  when you take them off. A bought attachment put on a found gun doesn't become found.
+- Ming's boxes were already never found in raid; the smoke test now checks it.
+- **Tree tops block the AI:** the AI can't see you or shoot you through the leaves any more. (You and your bullets
+  still pass through them, like before.)
+- **Spawns:** online, a raid with only your squad always started at the same spawn point (the slots were handed out
+  1, 2, 3... per squad, so with one squad only the first point was ever used). Now every spawn point gets used
+  evenly. Solo raids were already even (a random pick from all 8).
+- **Duo extracts:** you and your partner always get the same extracts now (they were picked from where each of you
+  stood, a step apart, so one near the limit could differ).
+- The dead scav's backpack: its loot hitbox now sits on the model (it was off to one side).
+- **QUESTS tab** on the inventory screen in a raid: press your inventory key and switch to QUESTS to see your quests.
+- Lore and roadmap: the escape vehicle, the safe haven and prestige written in as a planned later feature.
+
 ## 0.17.12 (scav body = the backpack; owner asked)
 - A dead scav (or sniper) leaves its body exactly as before (name, loadout slots, loot), only shown as its backpack
   lying on the ground; no second container any more. Raiders and Bon keep the old body bag.

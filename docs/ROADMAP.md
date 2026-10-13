@@ -66,6 +66,14 @@ Next: the M4 art updates (World art, Look, Sound), below.
      points that slightly boost that character's own traits (e.g. sprint 2% longer per point, up to 20%). Comes with
      the characters work. Keep the boosts small: the design doc's rule is "progression = access, not power", so
      this is the one place a little power is earned, and only on that character.
+   - **The escape: the long-term goal (owner, 2026-10-13; planned, not built; with the characters work, after a
+     crafting system):** the point of all the raids, money, trader favours and quests is to **craft an escape
+     vehicle** and get out of the war to a **safe haven** (maybe a bunker) that also costs a lot of money to get
+     into, in the lore and in the game. Pieces: (1) a **crafting system** (and more items to craft from); (2) a long
+     **quest line**, with the traders helping you get there (their favours and contacts); (3) the vehicle built from
+     crafted parts; (4) paying the haven's entry price; (5) a final **escape raid**: extract with that character in
+     the vehicle and the character earns a **skill point to prestige** (see Character prestige above), spent on its
+     traits. Lore: `docs/LORE.md` "The escape". Open questions for the owner are listed there.
    - **Walkable hideout (owner, 2026-10-12; after World art, since it needs a hideout model):** open the game,
      press PLAY, and you're standing in a 3D hideout. Walk up to the traders, the stash and a **shooting range**
      (try guns and attachments) and use them there, or open a menu that takes you to today's hideout screen
