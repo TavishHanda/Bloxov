@@ -559,9 +559,15 @@ class Building:
                     obox(px, 0.45, pz, rng.uniform(1.4, 2.2), 0.9, rng.uniform(1.0, 1.6), rng.uniform(0, 90), self.colour,
                          kind="rubble_heap" if modeled_here else None)
         top = (self.floors - 1) * self.h
+        modeled_here = bool(_model) and _model[-1] is not None
         for i, j in sorted(self.caved):
             cx0, cz0, cx1, cz1 = self.cell(i, j)
             cx, cz = (cx0 + cx1) / 2, (cz0 + cz1) / 2
+            if modeled_here:
+                # A modeled building draws its own wreckage for the room (owner: each caved room its own look);
+                # this marks the room (picture only, like the gray-box pieces below).
+                box(cx0, top, cz0, cx1, top + 0.05, cz1, "scorch", solid=False, kind="caved_room")
+                continue
             for _ in range(rng.randint(6, 10)):
                 w, h, d = rng.uniform(0.5, 1.6), rng.uniform(0.15, 0.5), rng.uniform(0.5, 1.6)
                 obox(cx + rng.uniform(-1.6, 1.6), top + h / 2, cz + rng.uniform(-1.6, 1.6), w, h, d, rng.uniform(0, 90),
@@ -837,7 +843,7 @@ def offices_furniture(ox, oz):
     o(1.4, 3.0, -0.55, 3.4, 5.0, -0.1, "metal", "archive_shelf")
     # Records (north-west, at the top of the stairs): cabinets on the west wall (clear of the landing), a desk pod.
     o(-10.85, 3.0, -1.9, -10.25, 4.3, -0.4, "metal", "file_cabinet")
-    o(-6.0, 3.0, -7.9, -4.3, 3.75, -6.4, "wood", "office_pod")
+    o(-6.0, 3.0, -2.1, -4.3, 3.75, -0.6, "wood", "office_pod")   # clear of the stairwell
     # Drawing office (south-west): the surveyors' drafting tables, a plan chest, crates of rock core samples.
     o(-10.5, 3.0, 1.0, -9.3, 3.95, 2.0, "wood", "drafting_table")
     o(-10.5, 3.0, 8.0, -9.3, 3.95, 9.0, "wood", "drafting_table")
