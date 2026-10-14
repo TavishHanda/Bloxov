@@ -1138,6 +1138,8 @@ def shell_box(ctx, row):
         b.box(c, s, row["yaw"], row["pitch"], style=style)
     elif colour == "wood" and abs(row["pitch"]) > 10:
         stairs(ctx, c, s, row["yaw"], row["pitch"])
+    elif colour == "metal" and BUILDING_NAME[0] in HOUSES and 0.9 < s[1] < 1.1:
+        banister(b, c, s)
     elif colour in SHELL_COLOURS:
         mat = SHELL_COLOURS[colour]
         b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: (mat, uv_world(2.0)))
@@ -1147,6 +1149,28 @@ def shell_box(ctx, row):
             b.box(c, s, row["yaw"], row["pitch"], style=style)
         else:
             split_box(b, c, s, style, cfg.get("x_lines", ()), cfg.get("z_lines", ()), (3.0, 6.0))
+
+
+def banister(b, c, s):
+    """The rail round a house's stairwell (round 11, owner: the solid rail "looks like a detached wall"): a wooden
+    handrail on turned balusters with newel posts at the ends (collision stays the gray box)."""
+    along = 0 if s[0] >= s[2] else 2
+    L = s[along]
+    y0 = c[1] - s[1] / 2
+
+    def at(a, y):
+        return (c[0] + a, y, c[2]) if along == 0 else (c[0], y, c[2] + a)
+
+    def sz(la, h, d):
+        return (la, h, d) if along == 0 else (d, h, la)
+    b.box(at(0, y0 + s[1] - 0.04), sz(L, 0.08, 0.12), style=_nb("wood_dark"))           # handrail
+    b.box(at(0, y0 + 0.06), sz(L, 0.06, 0.08), style=_nb("wood_dark"))                  # bottom rail
+    n = max(1, int(L / 0.14))
+    for k in range(n + 1):
+        a = -L / 2 + 0.06 + k * (L - 0.12) / n
+        b.box(at(a, y0 + s[1] / 2), sz(0.04, s[1] - 0.1, 0.04), style=_nb("bone"))
+    for a in (-L / 2 + 0.06, L / 2 - 0.06):                                              # newel posts
+        b.box(at(a, y0 + s[1] / 2 + 0.05), sz(0.12, s[1] + 0.1, 0.12), style=_nb("wood_dark"))
 
 
 def split_box(b, c, s, style, xcuts, zcuts, ycuts):
@@ -1697,7 +1721,8 @@ KIT["rubble_core"] = paint_rubble_core
 
 def _rubble_mats():
     cfg = SHELLS.get(BUILDING_NAME[0], {})
-    return (cfg.get("ext", "ext_block"), "brick", "rubble_core")
+    ext = cfg.get("ext", "ext_block")      # (round 11, owner: rubble should match the building, not red brick)
+    return (ext, ext, "rubble_core")
 
 
 def rubble_chunk(b, at, size, rng, mats, yaw=None):
@@ -1752,7 +1777,7 @@ def prop_rubble_heap(ctx, c, s, k):
                          rng, mats)
     for _ in range(10):                                                    # loose bricks round the foot
         o = rot((rng.uniform(-0.65, 0.65) * s[0], 0, rng.uniform(-0.65, 0.65) * s[2]), yaw, 0)
-        rubble_chunk(ctx.b, (c[0] + o[0], y0 + 0.04, c[2] + o[2]), (0.22, 0.07, 0.11), rng, ("brick", "rubble_core"))
+        rubble_chunk(ctx.b, (c[0] + o[0], y0 + 0.04, c[2] + o[2]), (0.22, 0.07, 0.11), rng, (mats[0], "rubble_core"))
 
 
 PROPS_EXTRA = {"rubble": prop_rubble, "rubble_heap": prop_rubble_heap}
@@ -1814,14 +1839,14 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
             pts = [P(e, lo + 0.2, d), P(e + 0.8, lo + 0.2, d), P(e + 0.8, hi - 0.1, d), P(e, hi - 0.1, d)]
             b.poly(pts, (0, 0, nrm_out) if ns else (nrm_out, 0, 0), "graffiti", ctx.d("blast_soot", sgn < 0))
     # The wall that came in: slabs and chunks on the floor inside, a dust spread.
-    mats = (ext, "brick", "concrete")
+    mats = (ext, ext, "concrete")
     for _ in range(9):
         a = rng.uniform(a0 + 0.2, a1 - 0.2)
         rubble_chunk(b, P(a, lo + 0.06, -rng.uniform(0.5, 2.0)), (rng.uniform(0.2, 0.5), 0.12, rng.uniform(0.15, 0.4)),
                      rng, mats)
     for _ in range(14):
         a = rng.uniform(a0 - 0.3, a1 + 0.3)
-        rubble_chunk(b, P(a, lo + 0.035, -rng.uniform(0.3, 2.6)), (0.2, 0.06, 0.1), rng, ("brick", "rubble_core"))
+        rubble_chunk(b, P(a, lo + 0.035, -rng.uniform(0.3, 2.6)), (0.2, 0.06, 0.1), rng, (ext, "rubble_core"))
     p0, p1 = P(a0 + 0.1, lo + 0.012, -0.25), P(a1 - 0.1, lo + 0.012, -2.2)
     b.box(((p0[0] + p1[0]) / 2, lo + 0.012, (p0[2] + p1[2]) / 2), (abs(p1[0] - p0[0]), 0.02, abs(p1[2] - p0[2])),
           style=no_bottom("concrete", 2.0))
@@ -6393,7 +6418,13 @@ def dress_house(ctx):
                 _box(b, cx + sx_ * 0.17 - sx_ * lng / 2 + sx_ * 0.02, y, cz + sz_ * 0.18, lng, 0.4, 0.04, "bone")
                 _box(b, cx + sx_ * 0.18, y, cz + sz_ * 0.17 - sz_ * (1.1 - lng) / 2 + sz_ * 0.02, 0.04, 0.4, 1.1 - lng, "bone")
     # Plinth: a darker stone course round the bottom.
-    for (cx, cz, sx, sz) in ((0, fp[3] + 0.17, 2 * hw + 0.38, 0.04), (0, fp[1] - 0.17, 2 * hw + 0.38, 0.04),
+    # (round 11, owner: it ran across the front door: cut round the doorway)
+    doors = [(o["mid"] - o["w"] / 2, o["mid"] + o["w"] / 2) for o in ctx.data.get("openings", [])
+             if o["kind"] != "window" and o["side"] == "S"]
+    xs = [-hw - 0.19] + [v for d in doors for v in d] + [hw + 0.19]
+    for a, e in zip(xs[::2], xs[1::2]):
+        b.box(((a + e) / 2, 0.25, fp[3] + 0.17), (e - a, 0.5, 0.04), style=_nb("concrete"))
+    for (cx, cz, sx, sz) in ((0, fp[1] - 0.17, 2 * hw + 0.38, 0.04),
                              (fp[0] - 0.17, 0, 0.04, 2 * hd + 0.38), (fp[2] + 0.17, 0, 0.04, 2 * hd + 0.38)):
         b.box((cx, 0.25, cz), (sx, 0.5, sz), style=_nb("concrete"))
     # A band between the floors.
@@ -6517,7 +6548,8 @@ def floor_debris(ctx, data, name):
     roof = max(r["pos"][1] + r["size"][1] / 2 for r in slabs)
     floors = [r for r in slabs if r["pos"][1] + r["size"][1] / 2 < roof - 1.0]
     solids = [r for r in data["boxes"] if r.get("solid", True) and r["size"][1] > 0.1 and r not in floors]
-    mats = ("concrete", "brick", SHELLS.get(name, {}).get("ext", "ext_block"), "concrete")
+    ext = SHELLS.get(name, {}).get("ext", "ext_block")
+    mats = ("concrete", ext, ext, "concrete")
 
     def free(x, y, z):
         if not (x0 + 0.3 < x < x1 - 0.3 and z0 + 0.3 < z < z1 - 0.3):
