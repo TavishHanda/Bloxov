@@ -1103,6 +1103,9 @@ def shell_box(ctx, row):
     colour = row["colour"]
     b = ctx.b
     cfg = SHELLS.get(BUILDING_NAME[0], {})
+    if BUILDING_NAME[0] == "th_vault":
+        vault_shell(ctx, row)
+        return
     if colour == "slab" and (row["yaw"] or row["pitch"]):
         # A tilted piece of floor (caved-in debris): the floor of the room it lies in on top, broken concrete round
         # it (round 8: it drew an unturned floor patch floating beside it).
@@ -1219,7 +1222,7 @@ def split_box(b, c, s, style, xcuts, zcuts, ycuts):
                         b.poly(corners, tuple(n), got[0], got[1])
 
 
-def stairs(ctx, c, s, yaw, pitch):
+def stairs(ctx, c, s, yaw, pitch, mats=("wood", "trim_dark")):
     """A gray-box ramp drawn as a flight of stairs (owner, 0.17). Players and AI still walk the smooth ramp: each
     tread sits where the ramp passes through its middle, so feet are never more than half a step off."""
     b = ctx.b
@@ -1236,11 +1239,11 @@ def stairs(ctx, c, s, yaw, pitch):
         h = rise / n + 0.12
         p = (lo[0] + (hi[0] - lo[0]) * t, top - h / 2, lo[2] + (hi[2] - lo[2]) * t)
         b.box(p, (s[0], h, tread), yaw=yaw,
-              style=lambda nn, m, q: ("wood", uv_world(1.0)) if nn[1] > 0.7 or abs(dot(nn, along)) > 0.7
-              else ("trim_dark", uv_world(1.0)))
+              style=lambda nn, m, q: (mats[0], uv_world(1.0)) if nn[1] > 0.7 or abs(dot(nn, along)) > 0.7
+              else (mats[1], uv_world(1.0)))
     for side in (-1, 1):                                           # stringers along both sides
         sc = v_add(c, rot((side * (s[0] / 2 + 0.04), -0.05, 0), yaw, pitch))
-        b.box(sc, (0.08, 0.35, s[2]), yaw=yaw, pitch=pitch, style=lambda nn, m, q: ("trim_dark", uv_world(1.0)))
+        b.box(sc, (0.08, 0.35, s[2]), yaw=yaw, pitch=pitch, style=lambda nn, m, q: (mats[1], uv_world(1.0)))
 
 
 def side_of(n):
@@ -8897,6 +8900,315 @@ SHELLS["town_hall"] = {
 FACTION_MARKS["town_hall"] = [("x1_stencil", "W", 0.6, 1.0), ("nova_tag", "E", -0.8, 1.1)]
 
 
+# ------------------------------------------------------------------------------------------------ town hall vault (0.17)
+# The bunker under the town hall (owner: "how would a town hall vault look, especially based on what we see here"):
+# the town's old civil defence shelter at the foot of the ramp, then behind the key door the strongroom: the
+# treasury (walls of safe-deposit boxes, Bon's stacked cash and gold), the records strongroom (deed cages, the
+# town charter in its case) and the lab where the ghost cloth over the ramp was made. Same walls, doors and loot
+# spots as the gray box; everything added is picture only. Model origin = the town hall's (map (107, 155)), floor
+# y -4.5, walls up to y -1 (the gray-box ceiling above stays the map's).
+VF = -4.5                                    # the vault's floor
+VC = -1.0                                    # its ceiling
+V_FP = (-27.3, -8.3, 25.3, 8.3)
+V_KEY_X = -8.0                               # the key door's wall (door at z 0)
+V_ROOM_X = (3.0, 14.0)                       # walls between the treasury, records and lab
+V_CORR_Z = 3.0                               # the corridor's wall (corridor south of it)
+V_ROOMS = {"shelter": ("concrete", "int_soot"), "corridor": ("terrazzo", "int_office_cream"),
+           "treasury": ("th_marble", "metal"), "records": ("floor_lino", "int_office_cream"),
+           "lab": ("floor_pharm", "int_clinic")}
+
+
+def vroom(x, z):
+    if x < V_KEY_X:
+        return "shelter"
+    if z > V_CORR_Z:
+        return "corridor"
+    return "treasury" if x < V_ROOM_X[0] else "records" if x < V_ROOM_X[1] else "lab"
+
+
+def vault_shell(ctx, row):
+    """Each gray-box piece painted for the room each face looks into; the ramp drawn as concrete steps."""
+    c, s, b = row["pos"], row["size"], ctx.b
+    if row["pitch"]:
+        stairs(ctx, c, s, row["yaw"], row["pitch"], mats=("concrete", "trim_dark"))
+        return
+
+    def style(n, m, q):
+        if n[1] < -0.7 or (n[1] > 0.7 and m[1] > VF + 0.1):
+            return None                                               # under the floor / hidden under the ceiling
+        p = (m[0] + n[0] * 0.2, m[2] + n[2] * 0.2)
+        if not (V_FP[0] < p[0] < V_FP[2] and V_FP[1] < p[1] < V_FP[3]):
+            return ("concrete", uv_world())                           # the earth side
+        floor, wall = V_ROOMS[vroom(*p)]
+        return (floor if n[1] > 0.7 else wall, uv_world())
+    split_box(b, c, s, style, (V_KEY_X,) + V_ROOM_X, (V_CORR_Z,), ())
+
+
+def vault_decals(rng):
+    a = Atlas(512)
+
+    def deposit(c):       # 4 x 2 m of safe-deposit boxes: brass doors in a steel frame, numbered, some prised open
+        c.rect(0, 0, c.w, c.h, "iron")
+        for j in range(8):
+            for i in range(16):
+                x, y = 1 + i * 8, 1 + j * 8
+                if rng.random() < 0.18:
+                    c.rect(x, y, x + 7, y + 7, "black")                   # forced open, emptied
+                    c.rect(x, y, x + 7, y + 1, "iron_dark")
+                    continue
+                c.rect(x, y, x + 7, y + 7, "yellow_dark")
+                c.frame(x, y, x + 7, y + 7, "rust")
+                c.put(x + 5, y + 3, "black")                              # keyholes
+                c.put(x + 1, y + 3, "black")
+                c.put(x + 3, y + 5, "bone")                               # the box number
+        c.noise(0, 0, c.w, c.h, ["iron_dark"], 0.03, rng)
+
+    def strongroom(c):    # 2.4 x 0.4 m brass plate over the key door
+        c.rect(0, 0, c.w, c.h, "yellow_dark")
+        c.frame(0, 0, c.w, c.h, "rust")
+        c.ctext(0, c.w, 4, "STRONGROOM", "black")
+
+    def shelter(c):       # 2 x 0.6 m civil defence stencil
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.ctext(0, c.w, 9, "SHELTER", "hazard_yellow")
+        c.ctext(0, c.w, 2, "CAPACITY 200", "hazard_yellow")
+
+    def plate(text):
+        def p(c):         # 1.4 x 0.3 m enamel plate over a door
+            c.rect(0, 0, c.w, c.h, "bone")
+            c.frame(0, 0, c.w, c.h, "iron_dark")
+            c.ctext(0, c.w, 2, text, "iron_dark")
+        return p
+
+    def authorised(c):    # 3.4 x 0.3 m stencil down the corridor
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.ctext(0, c.w, 2, "AUTHORISED PERSONNEL ONLY", "red")
+
+    def chalk(c):         # 2 x 1.2 m lab blackboard: the cloth's working, half rubbed out
+        c.rect(0, 0, c.w, c.h, "green_dark")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        c.text(3, c.h - 8, "TRIAL 7", "bone")
+        c.frame(4, 10, 22, 24, "bone")                                    # the cloth, rays going through it
+        for k in range(4):
+            y = 12 + k * 3
+            for x in range(0, 30, 2):
+                c.put(x, y, "bone")
+        c.text(26, 18, "PHASE", "bone")
+        for k in range(3):                                                # sums
+            c.rect(34, 4 + k * 4, 34 + 8 + 5 * k, 5 + k * 4, "bone")
+        c.text(48, 26, "OK", "red")
+        c.blotch(["green_dark"], 6, rng, size=(3, 7))                    # rubbed out
+
+    def charter(c):       # 0.6 x 0.8 m: the town's charter, browned parchment, a red wax seal
+        c.rect(0, 0, c.w, c.h, "wood_pale")
+        c.frame(0, 0, c.w, c.h, "wood_light")
+        for y in range(5, c.h - 5, 2):
+            c.rect(3, y, c.w - 3 - (y % 3), y + 1, "wood_mid")
+        c.rect(c.w // 2 - 2, 1, c.w // 2 + 2, 4, "red")
+
+    def notes(c):         # 0.6 x 0.4 m of pinned lab notes
+        c.rect(0, 0, c.w, c.h, "clear")
+        for k, (x, y) in enumerate(((0, 0), (7, 3), (13, 1))):
+            c.rect(x, y, x + 6, y + 9, "bone")
+            for r in range(3):
+                c.rect(x + 1, y + 2 + r * 2, x + 5, y + 3 + r * 2, "iron")
+            c.put(x + 3, y + 8, "red")
+
+    a.add("deposit", 129, 65, deposit)
+    a.add("strongroom", 77, 13, strongroom)
+    a.add("shelter_v", 64, 19, shelter)
+    for name in ("TREASURY", "RECORDS", "NO ENTRY"):
+        a.add(name.lower().replace(" ", "_"), 45, 10, plate(name))
+    a.add("authorised", 109, 10, authorised)
+    a.add("chalk", 64, 38, chalk)
+    a.add("charter", 19, 26, charter)
+    a.add("lab_notes", 19, 13, notes)
+    return a
+
+
+def vault_cash(b, rng, x, z, nx, nz, rows):
+    """Bon's stash: banded bricks of cash stacked on a pallet."""
+    b.box((x + nx * 0.17 - 0.08, VF + 0.06, z + nz * 0.09 - 0.04), (nx * 0.34 + 0.1, 0.12, nz * 0.18 + 0.1), style=_nb("wood"))
+    for r in range(rows):
+        for i in range(nx):
+            for j in range(nz):
+                if r == rows - 1 and rng.random() < 0.4:
+                    continue
+                p = (x + i * 0.34, VF + 0.17 + r * 0.1, z + j * 0.18)
+                b.box(p, (0.32, 0.1, 0.16), yaw=rng.uniform(-3, 3), style=_nb("green"))
+                b.box(p, (0.06, 0.102, 0.162), style=_nb("bone"))
+
+
+def vault_gold(b, x, z, nx, rows, y=VF):
+    for r in range(rows):
+        for i in range(nx - r):
+            b.box((x + i * 0.13 + r * 0.065, y + 0.03 + r * 0.06, z), (0.11, 0.06, 0.24), style=_nb("brass"))
+
+
+def dress_vault(ctx):
+    b, rng = ctx.b, random.Random("th_vault")
+
+    def pic(side, at, a0, a1, y0, y1, region, mat="decals"):
+        n = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+z": (0, 0, 1), "-z": (0, 0, -1)}[side]
+        wall_quad(b, n, at, a0, a1, y0, y1, mat, ctx.d(region))
+    # The ceiling (the gray box above is the map's): concrete, with the hole for the ramp left open.
+    hx0, hz0, hx1, hz1 = TH_HOLE
+    for x0, z0, x1, z1 in ((-27.0, -8.0, -8.15, hz0 - 0.3), (-27.0, hz1, -8.15, 8.0), (-27.0, hz0 - 0.3, hx0, hz1),
+                           (hx1, hz0 - 0.3, -8.15, hz1), (-7.85, -8.0, 25.0, 8.0)):
+        b.poly([(x0, VC, z0), (x1, VC, z0), (x1, VC, z1), (x0, VC, z1)], (0, -1, 0), "concrete", uv_world())
+    # Caged bulkhead lamps down the middle of every room, and a pipe run along the corridor.
+    for x, z in ((-24, 3.5), (-17, 4.5), (-11, -5.5), (-11, 4.5), (-2.5, -5), (8.5, -5), (19.5, -5), (-3, 5.5),
+                 (8.5, 5.5), (20, 5.5)):
+        b.box((x, VC - 0.06, z), (0.3, 0.12, 0.18), style=_solid("trim_dark"))
+        b.box((x, VC - 0.13, z), (0.24, 0.03, 0.12), style=_solid("bone"))
+    for dz in (7.6, 7.85):
+        b.box((8.5, VC - 0.2 - (dz - 7.6), dz), (33.0, 0.1, 0.1), style=_solid("steel_light" if dz < 7.7 else "red"))
+
+    # ---- the shelter (the ramp's foot): bunk frames, water drums, the stencil; the cloth's projector by the ramp
+    pic("+z", -7.84, -26.0, -24.0, VF + 1.8, VF + 2.4, "shelter_v", "graffiti")
+    pic("-z", 7.84, -20.0, -18.0, VF + 1.8, VF + 2.4, "shelter_v", "graffiti")
+    for x in (-26.2, -23.4):                                             # bunk frames along the south wall
+        for lv in (0.35, 1.25):
+            b.box((x, VF + lv, 7.35), (2.0, 0.05, 0.8), style=_solid("olive_dark"))
+            b.box((x, VF + lv + 0.06, 7.35), (1.9, 0.08, 0.7), style=_nb("olive" if lv < 1 else "bone"))
+        for sx in (-0.97, 0.97):
+            for sz in (6.98, 7.72):
+                b.box((x + sx, VF + 0.8, sz), (0.05, 1.6, 0.05), style=_nb("olive_dark"))
+    for k in range(4):                                                   # water drums
+        b.box((-15.6 + k * 0.62, VF + 0.45, 7.55), (0.56, 0.9, 0.56), style=_nb("blue" if k % 3 else "olive"))
+        b.box((-15.6 + k * 0.62, VF + 0.91, 7.55), (0.58, 0.03, 0.58), style=_nb("trim_dark"))
+    b.box((-26.75, VF + 1.6, 1.5), (0.4, 0.6, 0.6), style=_nb("bone"))  # first-aid box on the wall
+    b.box((-26.54, VF + 1.6, 1.5), (0.02, 0.3, 0.08), style=_nb("green"))
+    b.box((-26.54, VF + 1.6, 1.5), (0.02, 0.08, 0.3), style=_nb("green"))
+    # The projector that makes the cloth upstairs: a steel cabinet humming at the ramp's foot, its cable up the shaft
+    # to the studs round the hole, a dial and a blue lamp.
+    px, pz = -11.0, -6.6
+    b.box((px, VF + 0.75, pz), (1.6, 1.5, 0.9), style=_nb("metal"))
+    b.box((px, VF + 1.52, pz), (1.66, 0.04, 0.96), style=_nb("trim_dark"))
+    for k in range(3):
+        b.box((px - 0.5 + k * 0.5, VF + 1.1, pz + 0.455), (0.22, 0.22, 0.02), style=_nb("black"))
+        b.box((px - 0.5 + k * 0.5, VF + 1.12, pz + 0.47), (0.03, 0.12, 0.01), yaw=40 * (k - 1), style=_nb("bone"))
+    b.box((px + 0.55, VF + 0.6, pz + 0.455), (0.2, 0.2, 0.02), style=_nb("blue"))
+    for k in range(6):                                                   # vent slots
+        b.box((px - 0.45, VF + 0.3 + k * 0.08, pz + 0.455), (0.5, 0.03, 0.01), style=_nb("black"))
+    _beam(b, (px - 0.6, VF + 1.55, pz - 0.2), (-13.6, VC - 0.1, hz0 - 0.4), 0.06, 0.06, "black")
+    _beam(b, (-13.6, VC - 0.1, hz0 - 0.4), (hx0 + 0.4, VC - 0.1, hz0 - 0.4), 0.06, 0.06, "black")
+    # The crew's: a camp chair and an ashtray by the projector (someone watches it).
+    chair(b, -12.8, VF, -5.4, facing_yaw(1, -0.5), "olive", "trim_dark")
+    litter(b, rng, -14, -9, -7.5, -4.0, VF, 10)
+    litter(b, rng, -26, -10, 0.5, 6.5, VF, 20)
+
+    # ---- the strongroom door (the key door, x -8): a thick steel ring round it on both sides, bolts, a wheel, a plate
+    for side in (-1, 1):
+        x = V_KEY_X + side * 0.2
+        for k in range(32):
+            a = k / 32 * 2 * math.pi
+            y, z = VF + 1.35 + 1.55 * math.sin(a), 1.65 * math.cos(a)
+            if y < VF + 0.1:
+                continue
+            b.box((x, y, z), (0.12, 0.36, 0.34), pitch=-math.degrees(a), style=_solid("steel_light"))
+            if k % 4 == 0:
+                b.box((x + side * 0.07, y, z), (0.03, 0.12, 0.12), style=_nb("trim_dark"))   # bolt heads
+    pic("-x", V_KEY_X - 0.16, -1.2, 1.2, VF + 3.05, VF + 3.45, "strongroom")
+    wx, wz = V_KEY_X - 0.22, 2.4                                         # the locking wheel beside it (landing side)
+    b.box((wx, VF + 1.3, wz), (0.08, 0.14, 0.14), style=_nb("trim_dark"))
+    b.box((wx - 0.04, VF + 1.3, wz), (0.03, 0.9, 0.05), style=_nb("steel_light"))
+    for k in range(8):
+        a = k / 8 * 2 * math.pi
+        b.box((wx - 0.06, VF + 1.3 + 0.42 * math.sin(a), wz + 0.42 * math.cos(a)), (0.05, 0.18, 0.18),
+              style=_nb("steel_light"))
+    b.box((wx - 0.04, VF + 1.3, wz), (0.03, 0.05, 0.9), style=_nb("steel_light"))
+
+    # ---- the treasury (behind the door): safe-deposit walls, the counting table, Bon's cash and gold
+    pic("-z", V_CORR_Z - 0.16, -7.8, -3.8, VF + 0.2, VF + 2.2, "deposit")
+    pic("-z", V_CORR_Z - 0.16, -1.2, 2.8, VF + 0.2, VF + 2.2, "deposit")
+    pic("+x", V_KEY_X + 0.16, -7.8, -3.8, VF + 0.2, VF + 2.2, "deposit")
+    for k in range(5):                                                   # boxes pulled out and dumped on the floor
+        x, z = rng.uniform(-7, 2.4), rng.uniform(1.2, 2.6)
+        b.box((x, VF + 0.06, z), (0.24, 0.12, 0.5), yaw=rng.uniform(0, 180), style=_nb("trim_dark"))
+    papers(b, rng, -7.5, 2.5, 0.8, 2.7, VF, 18)
+    vault_cash(b, rng, -7.6, -7.7, 3, 4, 6)
+    vault_cash(b, rng, -7.6, -6.3, 3, 3, 4)
+    for k in range(3):                                                   # bags of coin slumped by the stacks
+        b.box((-6.2 + k * 0.35, VF + 0.18, -5.6 + (k % 2) * 0.2), (0.3, 0.36, 0.3), yaw=k * 25, style=_nb("cardboard"))
+    vault_gold(b, -7.5, -6.5, 5, 3)
+    vault_gold(b, -6.9, -6.15, 4, 2)
+    b.box((2.3, VF + 0.3, -7.2), (0.9, 0.04, 0.6), style=_solid("steel_light"))   # a trolley of bars and coin bags
+    b.box((2.3, VF + 0.75, -7.2), (0.9, 0.04, 0.6), style=_solid("steel_light"))
+    for sx in (-0.42, 0.42):
+        for sz in (-0.27, 0.27):
+            b.box((2.3 + sx, VF + 0.45, -7.2 + sz), (0.03, 0.9, 0.03), style=_nb("trim_dark"))
+    vault_gold(b, 1.95, -7.2, 5, 2, y=VF + 0.77)
+    for k in range(3):
+        b.box((2.0 + k * 0.28, VF + 0.42, -7.2), (0.22, 0.2, 0.22), style=_nb("cardboard"))
+    pic("-z", V_CORR_Z + 0.16, -3.2, -1.8, VF + 2.6, VF + 2.9, "treasury")    # its plate, corridor side
+
+    # ---- the records strongroom: steel mesh cages of deed boxes along the walls, the charter in a glass case
+    def cage(x0, x1, z, d, face):
+        n = int((x1 - x0) / 0.15)                                         # the cage front: bars you see through
+        for k in range(n + 1):
+            b.box((x0 + k * (x1 - x0) / n, VF + 1.2, z + face * d), (0.02, 2.4, 0.03), style=_nb("trim_dark"))
+        for y in (0.05, 1.2, 2.38):
+            b.box(((x0 + x1) / 2, VF + y, z + face * d), (x1 - x0, 0.05, 0.04), style=_solid("trim_dark"))
+        for lv in range(1, 5):
+            b.box(((x0 + x1) / 2, VF + lv * 0.5, z + face * d / 2), (x1 - x0, 0.03, d), style=_nb("steel_light"))
+            for k in range(int((x1 - x0) / 0.36)):
+                if rng.random() < 0.8:
+                    b.box((x0 + 0.2 + k * 0.36, VF + lv * 0.5 + 0.14, z + face * d / 2), (0.3, 0.25, d - 0.15),
+                          style=_nb(rng.choice(("carton", "carton", "bone", "olive"))))
+    cage(3.3, 7.2, V_CORR_Z - 0.15, 0.6, -1)
+    cage(9.8, 13.7, V_CORR_Z - 0.15, 0.6, -1)
+    cage(8.0, 13.7, -7.85, 0.6, 1)
+    b.box((4.2, VF + 0.5, -7.4), (1.6, 1.0, 0.7), style=_nb("wood_dark"))         # the charter's case
+    b.box((4.2, VF + 1.0, -7.4), (1.5, 0.02, 0.6), style=_nb("bone"))
+    b.box((4.2, VF + 1.03, -7.4), (0.6, 0.004, 0.45), style=lambda n, m, q: ("decals", ctx.d("charter")) if n[1] > 0.7 else None)
+    b.box((4.2, VF + 1.2, -7.4), (1.5, 0.4, 0.6), style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] > -0.7 else None)
+    for k in range(4):                                                   # deed boxes the crew rifled, spilled
+        x, z = rng.uniform(4, 13), rng.uniform(-6.5, 1.5)
+        b.box((x, VF + 0.13, z), (0.32, 0.26, 0.36), yaw=rng.uniform(0, 180), pitch=rng.choice((0, 90)), style=_nb("carton"))
+    papers(b, rng, 3.5, 13.5, -6.8, 2.2, VF, 30)
+    pic("-z", V_CORR_Z + 0.16, 7.8, 9.2, VF + 2.6, VF + 2.9, "records")
+
+    # ---- the lab: the cloth on its stretching frame, a workbench of instruments, sample jars, the blackboard
+    fx, fz = 16.5, V_CORR_Z - 0.4
+    for sx in (-1.5, 1.5):
+        b.box((fx + sx, VF + 1.2, fz), (0.1, 2.4, 0.1), style=_nb("steel_light"))
+    b.box((fx, VF + 2.35, fz), (3.1, 0.1, 0.1), style=_nb("steel_light"))
+    b.box((fx, VF + 0.15, fz), (3.1, 0.1, 0.1), style=_nb("steel_light"))
+    b.box((fx, VF + 1.25, fz), (2.8, 2.0, 0.02), style=lambda n, m, q: ("glass", uv_world(1.0)))  # a ghost-cloth sheet
+    b.box((fx, VF + 1.25, fz + 0.03), (2.8, 0.4, 0.004), style=_nb("red"))          # a strip of the red weave
+    for k in range(5):                                                   # emitter studs round the frame
+        b.box((fx - 1.2 + k * 0.6, VF + 2.28, fz - 0.07), (0.1, 0.06, 0.04), style=_nb("blue"))
+        b.box((fx - 1.2 + k * 0.6, VF + 0.22, fz - 0.07), (0.1, 0.06, 0.04), style=_nb("blue"))
+    b.box((24.5, VF + 0.85, 1.6), (0.8, 0.06, 2.4), style=_nb("bone"))             # the workbench
+    for sz in (0.5, 2.7):
+        b.box((24.5, VF + 0.42, sz), (0.7, 0.84, 0.06), style=_nb("trim_dark"))
+    b.box((24.6, VF + 1.05, 0.9), (0.4, 0.34, 0.4), style=_nb("metal"))            # an oscilloscope
+    b.box((24.39, VF + 1.08, 0.9), (0.01, 0.2, 0.26), style=_nb("green"))
+    for k in range(7):                                                   # sample jars
+        b.box((24.5 + rng.uniform(-0.25, 0.25), VF + 0.97, 1.5 + k * 0.17), (0.09, 0.18, 0.09),
+              style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] < 0.7 else ("black", uv_world(1.0)))
+        b.box((24.5, VF + 0.9, 1.5 + k * 0.17), (0.08, 0.04, 0.08), style=_nb(rng.choice(("red", "blue", "bone"))))
+    chair(b, 23.6, VF, 1.8, facing_yaw(1, 0), "black", "trim", office=True)
+    pic("+x", V_ROOM_X[1] + 0.16, -7.4, -5.4, VF + 1.0, VF + 2.2, "chalk")
+    pic("-x", V_FP[2] - 0.31, 1.0, 1.6, VF + 1.4, VF + 1.8, "lab_notes", "graffiti")
+    for k in range(3):                                                   # cloth offcuts on the floor
+        b.box((rng.uniform(15, 22), VF + 0.004, rng.uniform(-6, 1)), (0.5, 0.006, 0.4), yaw=rng.uniform(0, 180),
+              style=_nb("red"))
+    papers(b, rng, 15, 23.5, -6.5, 2.0, VF, 15)
+    pic("-z", V_CORR_Z + 0.16, 18.8, 20.2, VF + 2.6, VF + 2.9, "no_entry")
+    # The corridor: the warning down it, the crew's litter.
+    pic("+z", 7.84, 0.0, 3.4, VF + 1.9, VF + 2.2, "authorised", "graffiti")
+    litter(b, rng, -7.5, 24.5, 3.6, 7.5, VF, 25)
+
+
+DECALS["th_vault"] = vault_decals
+DRESSING["th_vault"] = dress_vault
+FOOTPRINTS["th_vault"] = V_FP
+SHELLS["th_vault"] = {}
+
+
+
 def floor_debris(ctx, data, name):
     """Small bits of the building lying about on every floor (round 6, owner: "add actual small bits of debris so it
     feels like it's been bombed"): clusters of plaster and brick chips and a bit of dust, kept off furniture. Picture
@@ -8906,6 +9218,8 @@ def floor_debris(ctx, data, name):
     # (round 8, owner: "mistextured floors", worst on the stairs: only real level floors, not the stairs' ramps)
     slabs = [r for r in data["boxes"] if r["size"][1] <= 0.35 and r["size"][0] * r["size"][2] > 4.0
              and r["colour"] in ("slab", "roof") and not r["yaw"] and not r["pitch"]]
+    if not slabs:
+        return                                                            # (the vault draws its own mess)
     roof = max(r["pos"][1] + r["size"][1] / 2 for r in slabs)
     floors = [r for r in slabs if r["pos"][1] + r["size"][1] / 2 < roof - 1.0]
     solids = [r for r in data["boxes"] if r.get("solid", True) and r["size"][1] > 0.1 and r not in floors]

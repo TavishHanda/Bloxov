@@ -2121,27 +2121,29 @@ def main():
             ("crate", 1, 1, 0, "S", 2.6)])
         town_hall_furniture(107.0, 155.0)
         # (no rail round the bunker's ramp hole now: a "ghost cloth" runner hides it, owner; drawn by the model)
-    # the bunker (owner: best loot, behind a key door later): ramp down from the hall's west room
-    run = hx1 - hx0
-    obox((hx0 + hx1) / 2, bunker_floor / 2 - 0.1, (hz0 + hz1) / 2, hz1 - hz0 - 0.1, 0.2, math.hypot(run, bunker_floor),
-         90.0, "concrete", pitch=math.degrees(math.atan2(-bunker_floor, run)))   # top (y 0) west, bottom east
-    bx0, bz0, bx1, bz1 = BUNKER
-    box(bx0, bunker_floor - 0.3, bz0, bx1, bunker_floor, bz1, "bunker")                 # floor
-    box(bx0 - 0.3, bunker_floor, bz0 - 0.3, bx1 + 0.3, -1.0, bz0, "bunker")              # north wall
-    box(bx0 - 0.3, bunker_floor, bz1, bx1 + 0.3, -1.0, bz1 + 0.3, "bunker")              # south wall
-    box(bx0 - 0.3, bunker_floor, bz0, bx0, -1.0, bz1, "bunker")                          # west wall
-    box(bx1, bunker_floor, bz0, bx1 + 0.3, -1.0, bz1, "bunker")                          # east wall
-    # shaft wall north of the ramp (its rail upstairs is with the hall's model)
-    box(hx0, bunker_floor, hz0 - 0.3, hx1, -1.0, hz0, "bunker")
-    # key door: the wall at x 99 between the ramp landing and the bunker rooms (locked: the bunker key, 0.14.0)
-    wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(155.0, DOOR_W, 0.0, DOOR_H)])
+    # World art 0.17: the bunker is the town hall's vault (its own model: shelter, strongroom, records, lab)
+    with modeled("th_vault", 107.0, 155.0):
+        # the bunker (owner: best loot, behind a key door later): ramp down from the hall's west room
+        run = hx1 - hx0
+        obox((hx0 + hx1) / 2, bunker_floor / 2 - 0.1, (hz0 + hz1) / 2, hz1 - hz0 - 0.1, 0.2, math.hypot(run, bunker_floor),
+             90.0, "concrete", pitch=math.degrees(math.atan2(-bunker_floor, run)))   # top (y 0) west, bottom east
+        bx0, bz0, bx1, bz1 = BUNKER
+        box(bx0, bunker_floor - 0.3, bz0, bx1, bunker_floor, bz1, "bunker")                 # floor
+        box(bx0 - 0.3, bunker_floor, bz0 - 0.3, bx1 + 0.3, -1.0, bz0, "bunker")              # north wall
+        box(bx0 - 0.3, bunker_floor, bz1, bx1 + 0.3, -1.0, bz1 + 0.3, "bunker")              # south wall
+        box(bx0 - 0.3, bunker_floor, bz0, bx0, -1.0, bz1, "bunker")                          # west wall
+        box(bx1, bunker_floor, bz0, bx1 + 0.3, -1.0, bz1, "bunker")                          # east wall
+        # shaft wall north of the ramp (its rail upstairs is with the hall's model)
+        box(hx0, bunker_floor, hz0 - 0.3, hx1, -1.0, hz0, "bunker")
+        # key door: the wall at x 99 between the ramp landing and the bunker rooms (locked: the bunker key, 0.14.0)
+        wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(155.0, DOOR_W, 0.0, DOOR_H)])
+        # bunker rooms: corridor along the south, three vaults to the north
+        for x in (110.0, 121.0):
+            wall_z(bz0, bz1 - 5, x, bunker_floor, 3.5, "bunker", [((bz0 + bz1 - 5) / 2, INNER_DOOR_W, 0.0, DOOR_H)])
+        wall_x(99.0, bx1, bz1 - 5, bunker_floor, 3.5, "bunker",
+               [(104.5, INNER_DOOR_W, 0.0, DOOR_H), (115.5, INNER_DOOR_W, 0.0, DOOR_H), (126.5, INNER_DOOR_W, 0.0, DOOR_H)])
     box(98.7, bunker_floor + 2.3, 154.0, 99.3, bunker_floor + 2.6, 156.0, "keydoor", solid=False)
     markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 155.0, {"key": "bunker_key", "place": "Bunker", "yaw": 90.0, "width": DOOR_W}))
-    # bunker rooms: corridor along the south, three vaults to the north
-    for x in (110.0, 121.0):
-        wall_z(bz0, bz1 - 5, x, bunker_floor, 3.5, "bunker", [((bz0 + bz1 - 5) / 2, INNER_DOOR_W, 0.0, DOOR_H)])
-    wall_x(99.0, bx1, bz1 - 5, bunker_floor, 3.5, "bunker",
-           [(104.5, INNER_DOOR_W, 0.0, DOOR_H), (115.5, INNER_DOOR_W, 0.0, DOOR_H), (126.5, INNER_DOOR_W, 0.0, DOOR_H)])
     for x, z, yaw in ((102.0, 148.0, 180.0), (113.0, 148.0, 180.0), (124.0, 148.0, 180.0), (130.5, 153.0, 90.0)):
         add_loot("Bunker", "safe", x, z, y=bunker_floor, yaw=yaw)
     add_loot("Bunker", "locker", 107.0, 148.0, y=bunker_floor, yaw=180.0)
