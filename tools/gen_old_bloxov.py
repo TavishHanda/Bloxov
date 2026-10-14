@@ -849,6 +849,9 @@ def offices_furniture(ox, oz):
     o(-10.5, 3.0, 8.0, -9.3, 3.95, 9.0, "wood", "drafting_table")
     o(-6.0, 3.0, 0.3, -4.2, 3.9, 1.0, "wood", "plan_chest")
     o(-5.6, 3.0, 9.45, -4.0, 3.6, 10.25, "wood", "core_boxes")
+    # Upstairs, the wall between the records room and the archive carries on past the stairwell (owner: the gap
+    # behind the stair rail looked like a missing wall). Downstairs it stays open: that's the way onto the stairs.
+    o(-3.767, 3.0, -10.35, -3.567, 6.0, -8.15, "wall", None)
 
 
 def build(b, loot_spots=()):

@@ -6929,13 +6929,38 @@ def prop_break_table(ctx, c, s):
 
 
 def prop_printer(ctx, c, s):
-    """A laser printer on its cabinet, paper jammed in the output, the tray hanging open."""
-    b = ctx.b
-    y0 = c[1] - s[1] / 2
-    b.box((c[0], y0 + 0.35, c[2]), (s[0], 0.7, s[2]), style=no_bottom("trim", 1.0))
-    b.box((c[0], y0 + 0.85, c[2]), (s[0] - 0.08, 0.3, s[2] - 0.08), style=no_bottom("steel_light", 1.0))
-    b.box((c[0] - s[0] / 2 - 0.1, y0 + 0.78, c[2]), (0.22, 0.02, 0.3), pitch=0, style=no_bottom("trim_dark", 1.0))
-    b.box((c[0] - s[0] / 2 + 0.05, y0 + 0.98, c[2]), (0.2, 0.004, 0.21), yaw=0, pitch=0, style=no_bottom("bone", 1.0))
+    """An office laser printer on its steel stand (owner: the old one "looks bad"): a two-door cabinet on a plinth,
+    the off-white printer with its output well full of sheets, a control panel with a green light, vent slots, the
+    paper cassette pulled out, a sheet jammed half out of the front and more spilled on the floor."""
+    b, rng = ctx.b, ctx.rng
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    lo = -s[1] / 2
+    ch = 0.62                                                             # the stand's height
+    b.box(_pos(c, k, 0, 0, lo + 0.03), _sz(k, L - 0.04, 0.06, D - 0.04), style=no_bottom("trim_dark", 1.0))   # plinth
+    b.box(_pos(c, k, 0, 0, lo + 0.06 + (ch - 0.06) / 2), _sz(k, L, ch - 0.06, D), style=no_bottom("steel_light", 1.0))
+    for a in (-1, 1):                                                     # its two doors, a handle each
+        b.box(_pos(c, k, a * L / 4, f * (D / 2 + 0.005), lo + 0.06 + (ch - 0.06) / 2), _sz(k, L / 2 - 0.03, ch - 0.12, 0.01),
+              style=no_bottom("trim", 1.0))
+        b.box(_pos(c, k, a * 0.04, f * (D / 2 + 0.015), lo + ch - 0.14), _sz(k, 0.015, 0.12, 0.015), style=no_bottom("black", 1.0))
+    py, ph = lo + ch, 0.34                                                # the printer
+    pl, pd = L - 0.06, D - 0.1
+    b.box(_pos(c, k, 0, -f * 0.02, py + ph / 2), _sz(k, pl, ph, pd), style=no_bottom("bone", 1.0))
+    b.box(_pos(c, k, 0, -f * 0.02, py + 0.11), _sz(k, pl + 0.01, 0.015, pd + 0.01), style=no_bottom("steel_light", 1.0))  # seam
+    b.box(_pos(c, k, -0.04, -f * 0.06, py + ph - 0.03), _sz(k, pl - 0.16, 0.07, pd - 0.22), style=no_bottom("trim_dark", 1.0))  # output well
+    for j in range(4):                                                    # sheets piled in it, the top ones askew
+        sp = no_bottom("bone", 1.0)
+        b.box(_pos(c, k, -0.04 + rng.uniform(-0.02, 0.02), -f * 0.06, py + ph + 0.008 + j * 0.006),
+              _sz(k, 0.3, 0.004, 0.22), yaw=rng.uniform(-14, 14) * j / 3, style=sp)
+    b.box(_pos(c, k, pl / 2 - 0.08, f * (pd / 2 - 0.08), py + ph + 0.01), _sz(k, 0.12, 0.03, 0.1), style=no_bottom("trim_dark", 1.0))
+    b.box(_pos(c, k, pl / 2 - 0.05, f * (pd / 2 - 0.06), py + ph + 0.028), _sz(k, 0.025, 0.01, 0.025), style=no_bottom("mint", 1.0))
+    for j in range(4):                                                    # vent slots on the side
+        b.box(_pos(c, k, -pl / 2 - 0.003, -f * (0.12 - j * 0.07), py + 0.22), _sz(k, 0.006, 0.08, 0.035), style=no_bottom("trim_dark", 1.0))
+    b.box(_pos(c, k, 0, f * (pd / 2 - 0.02 + 0.12), py + 0.05), _sz(k, pl - 0.08, 0.07, 0.24), style=no_bottom("bone", 1.0))  # cassette, out
+    b.box(_pos(c, k, 0, f * (pd / 2 - 0.02 + 0.12), py + 0.09), _sz(k, pl - 0.14, 0.012, 0.2), style=no_bottom("bone", 1.0))
+    b.box(_pos(c, k, 0, f * (pd / 2 - 0.02 + 0.245), py + 0.06), _sz(k, 0.14, 0.03, 0.01), style=no_bottom("trim_dark", 1.0))
+    b.box(_pos(c, k, 0.03, f * (pd / 2 + 0.05), py + 0.2), _sz(k, 0.21, 0.004, 0.14), pitch=0, style=no_bottom("bone", 1.0))  # jammed
+    papers(b, rng, c[0] - 0.9, c[0] + 0.9, c[2] - 0.9, c[2] + 0.9, c[1] + lo, 8)
 
 
 def prop_desk_over(ctx, c, s):
@@ -7359,34 +7384,43 @@ def caved_default(ctx, c, s):
 
 
 def caved_offices(ctx, c, s):
-    """The office's caved room: a steel roof girder came down through the suspended ceiling and crushed a desk pod
-    under a slab of roof; torn ceiling grid hangs off the walls, a light fitting dangles on its cables, insulation
-    and wet papers everywhere, a puddle where the rain gets in."""
+    """The office's caved room: a steel roof girder came down and crushed a desk pod under a slab of roof; what's
+    left of the suspended ceiling is a ragged lip round the walls, its tiles and grid bars on the floor with the
+    light fitting, roof rubble, wet papers and a puddle where the rain gets in (owner: no hanging tiles or yellow
+    insulation, they read as floating boxes)."""
     b, rng = ctx.b, random.Random("caved_offices")
     y = c[1] - s[1] / 2
     x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
     top = y + 2.75                                                        # the old ceiling height
-    _beam(b, (x0 + 0.1, top + 0.15, z0 + 2.0), (x1 - 0.1, top + 0.15, z0 + 2.0), 0.18, 0.3, "trim_dark")
-    # The other one fell: one end still on the east wall, the other on the floor (an I: web and two flanges).
+    # The ceiling's broken lip round the walls: a ragged strip of tiles in their grid, both faces drawn.
+    for side in range(4):
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        while a < a1 - 0.05:
+            L = min(rng.uniform(0.4, 1.2), a1 - a)
+            d = rng.uniform(0.15, 0.6)
+            m = a + L / 2
+            if side == 0:
+                at, sz = (m, top, z0 + d / 2), (L, 0.03, d)
+            elif side == 1:
+                at, sz = (m, top, z1 - d / 2), (L, 0.03, d)
+            elif side == 2:
+                at, sz = (x0 + d / 2, top, m), (d, 0.03, L)
+            else:
+                at, sz = (x1 - d / 2, top, m), (d, 0.03, L)
+            b.box(at, sz, style=lambda n, m_, q: ("ceiling", uv_world(1.0)))
+            a += L
+    # The girder that fell: one end still on the east wall, the other on the floor (an I: web and two flanges).
     p0, p1 = (x1 - 0.2, top + 0.1, z1 - 3.0), (x0 + 1.6, y + 0.15, z1 - 4.6)
     _beam(b, p0, p1, 0.06, 0.3, "trim_dark")
     _beam(b, (p0[0], p0[1] + 0.14, p0[2]), (p1[0], p1[1] + 0.14, p1[2]), 0.2, 0.03, "trim_dark")
     _beam(b, (p0[0], p0[1] - 0.14, p0[2]), (p1[0], p1[1] - 0.14, p1[2]), 0.2, 0.03, "trim_dark")
-    # Torn ceiling grid hanging off the walls (tiles in their T-bars, swung down at the broken edge).
-    for wall_z, sg in ((z0 + 0.1, 1), (z1 - 0.1, -1)):
-        a = x0 + 0.3
-        while a < x1 - 0.6:
-            L = rng.uniform(0.6, 1.2)
-            drop = rng.uniform(20, 65)
-            ext = rng.uniform(0.6, 1.3)
-            cz = wall_z + sg * ext / 2 * math.cos(math.radians(drop))
-            cy = top - ext / 2 * math.sin(math.radians(drop))
-            b.box((a + L / 2, cy, cz), (L - 0.04, 0.02, ext), pitch=sg * drop,
-                  style=lambda n, m, q: ("ceiling", uv_world(1.0)))
-            a += L + rng.uniform(0.0, 0.5)
-    for k in range(4):                                                    # loose tiles on the floor
-        b.box((x0 + rng.uniform(0.8, 6.0), y + 0.012, z0 + rng.uniform(1.0, 9.0)), (0.6, 0.02, 0.6), yaw=rng.uniform(0, 90),
-              pitch=rng.uniform(-8, 8), style=no_bottom("bone", 1.0))
+    # Ceiling tiles and their bent grid bars all over the floor.
+    for _ in range(14):
+        b.box((x0 + rng.uniform(0.6, s[0] - 0.6), y + 0.015, z0 + rng.uniform(0.6, s[2] - 0.6)), (0.6, 0.02, 0.6),
+              yaw=rng.uniform(0, 90), pitch=rng.uniform(-6, 6), style=no_bottom("bone", 1.0))
+    for _ in range(7):
+        b.box((x0 + rng.uniform(0.6, s[0] - 0.6), y + 0.02, z0 + rng.uniform(0.6, s[2] - 0.6)), (rng.uniform(0.8, 1.6), 0.025, 0.03),
+              yaw=rng.uniform(0, 180), pitch=rng.uniform(-5, 5), style=no_bottom("trim", 1.0))
     # A desk pod flattened under a slab of the roof.
     dx, dz = x0 + 2.2, z1 - 2.6
     b.box((dx, y + 0.18, dz), (1.7, 0.36, 1.5), yaw=8, style=no_bottom("bone", 1.0))
@@ -7395,19 +7429,16 @@ def caved_offices(ctx, c, s):
           if n[1] > 0.7 else ("rubble_core", uv_world(1.0)))
     b.box((dx + 1.2, y + 0.03, dz + 0.9), (0.52, 0.05, 0.32), yaw=40, style=no_bottom("black", 1.0))      # monitor
     chair(b, dx + 1.6, y, dz - 1.4, 120, "trim_dark", "trim", office=True)
-    # A light fitting dangling on its cables.
+    # The light fitting, down on the floor with its cables trailing.
     lx, lz = x1 - 2.2, z0 + 4.4
-    for k in (-0.5, 0.5):
-        b.box((lx + k, top - 0.45, lz), (0.012, 0.9, 0.012), style=no_bottom("black", 1.0))
-    b.box((lx, top - 1.0, lz), (1.2, 0.08, 0.3), pitch=0, yaw=0, style=no_bottom("steel_light", 1.0))
-    b.box((lx, top - 1.05, lz), (1.1, 0.02, 0.2), style=no_bottom("bone", 1.0))
-    # Insulation, rubble from the roof, a puddle.
-    for _ in range(9):
-        b.box((x0 + rng.uniform(0.5, s[0] - 0.5), y + 0.06, z0 + rng.uniform(0.5, s[2] - 0.5)), (rng.uniform(0.3, 0.7), 0.12,
-              rng.uniform(0.3, 0.6)), yaw=rng.uniform(0, 90), style=no_bottom("yellow", 1.0))
-    for _ in range(6):
+    b.box((lx, y + 0.05, lz), (1.2, 0.08, 0.3), yaw=25, pitch=4, style=no_bottom("steel_light", 1.0))
+    b.box((lx + 0.45, y + 0.006, lz - 0.5), (0.012, 0.012, 0.9), yaw=40, style=no_bottom("black", 1.0))
+    b.box((lx - 0.4, y + 0.006, lz + 0.45), (0.012, 0.012, 0.8), yaw=-10, style=no_bottom("black", 1.0))
+    # Rubble and broken slabs from the roof, wet papers, a puddle.
+    for _ in range(10):
         rubble_chunk(b, (x0 + rng.uniform(1.0, s[0] - 1.0), y, z0 + rng.uniform(1.5, s[2] - 1.5)),
-                     (rng.uniform(0.3, 0.7), rng.uniform(0.15, 0.3), rng.uniform(0.3, 0.7)), rng, ["roof", "concrete"])
+                     (rng.uniform(0.3, 0.8), rng.uniform(0.15, 0.3), rng.uniform(0.3, 0.8)), rng, ["roof", "concrete"])
+    papers(b, rng, x0 + 0.5, x1 - 0.5, z0 + 0.5, z1 - 0.5, y, 18)
     b.box((c[0] + 0.8, y + 0.006, c[2] + 0.5), (2.2, 0.004, 1.6), yaw=20, style=no_bottom("glass", 1.0))   # the puddle
 
 
