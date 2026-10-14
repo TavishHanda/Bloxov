@@ -1119,9 +1119,14 @@ def shell_box(ctx, row):
         cuts = [x0] + [x for x in cfg.get("x_splits", ()) if x0 < x < x1] + [x1]
         zcuts = [z0] + [z for z in cfg.get("z_splits", ()) if z0 < z < z1] + [z1]
         yt, yb = c[1] + s[1] / 2, c[1] - s[1] / 2
+        holes = [h for h in cfg.get("floor_holes", ()) if yt < 0.1]   # the ground floor's holes (a ramp down)
+        cuts = sorted(set(cuts + [v for h in holes for v in (h[0], h[2]) if x0 < v < x1]))
+        zcuts = sorted(set(zcuts + [v for h in holes for v in (h[1], h[3]) if z0 < v < z1]))
         for a, e in zip(cuts, cuts[1:]):
             for za, ze in zip(zcuts, zcuts[1:]):
                 mid = ((a + e) / 2, c[1], (za + ze) / 2)
+                if any(h[0] < mid[0] < h[2] and h[1] < mid[2] < h[3] for h in holes):
+                    continue
                 b.poly([(a, yt, za), (e, yt, za), (e, yt, ze), (a, yt, ze)], (0, 1, 0), floor(mid), uv_world())
                 if c[1] > 0.5:
                     b.poly([(a, yb, za), (e, yb, za), (e, yb, ze), (a, yb, ze)], (0, -1, 0), ceiling(mid), uv_world())
@@ -1129,18 +1134,28 @@ def shell_box(ctx, row):
         side = cfg.get("roof_side", "red")
         ceiling = cfg.get("ceiling", lambda m: "ceiling")
 
+        split = cfg.get("split_roof_ceiling") and not (row["yaw"] or row["pitch"])
+
         def style(n, m, k):
             if n[1] > 0.7:
                 return ("roof", uv_world())
             if n[1] < -0.7:
-                return (ceiling(m), uv_world())
+                return None if split else (ceiling(m), uv_world())
             return (side, uv_world())
         b.box(c, s, row["yaw"], row["pitch"], style=style)
+        if split:   # the ceiling under a roof piece cut where the rooms change (each room its own ceiling)
+            x0, x1, z0, z1, yb = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, c[1] - s[1] / 2
+            cuts = [x0] + [x for x in cfg.get("x_splits", ()) if x0 < x < x1] + [x1]
+            zcuts = [z0] + [z for z in cfg.get("z_splits", ()) if z0 < z < z1] + [z1]
+            for a, e in zip(cuts, cuts[1:]):
+                for za, ze in zip(zcuts, zcuts[1:]):
+                    mid = ((a + e) / 2, yb, (za + ze) / 2)
+                    b.poly([(a, yb, za), (e, yb, za), (e, yb, ze), (a, yb, ze)], (0, -1, 0), ceiling(mid), uv_world())
     elif colour == "wood" and abs(row["pitch"]) > 10:
         stairs(ctx, c, s, row["yaw"], row["pitch"])
     elif colour == "metal" and BUILDING_NAME[0] in HOUSES and 0.9 < s[1] < 1.1:
         banister(b, c, s)
-    elif colour == "metal" and BUILDING_NAME[0] == "offices" and 0.9 < s[1] < 1.1:
+    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall") and 0.9 < s[1] < 1.1:
         banister(b, c, s, rail="trim_dark", baluster="steel_light")   # a steel stairwell rail (owner: not a wall)
     elif colour in SHELL_COLOURS:
         mat = SHELL_COLOURS[colour]
@@ -7488,6 +7503,1113 @@ def caved_shops(ctx, c, s):
 
 CAVED = {"offices": caved_offices, "shops": caved_shops}
 PROPS["caved_room"] = lambda ctx, c, s, k: CAVED.get(BUILDING_NAME[0], caved_default)(ctx, c, s)
+
+
+# ------------------------------------------------------------------------------------------------ town hall (0.17)
+# Bloxov Town Hall (map 82-132 x 146-164, model origin map (107, 155)): 50 x 18 m, two storeys of 4 x 2 rooms
+# (12.5 x 9 m) and a flat roof you can walk on behind a 1 m parapet. Doors north (onto the square) and south, both in
+# the third room from the west (x 6.25). Stairs up along the north wall (landing in the north-west corner), stairs to
+# the roof along the south wall (landing in the south-east corner); the bunker's ramp goes down from the west room
+# (railed hole at x -21.5..-13, z -3..-0.6). Bon's crew hold it (the boss and his guards start in the ground-floor
+# rooms): ransacked, the council's things thrown about, the crew's own kit on top.
+TOWN_HALL_LOOKS = {   # outside wall options (owner picks one from a rendered sheet, worldart/options-town-hall.png)
+    "B": {"ext": "ashlar", "base": "ashlar_rustic", "trim": "ashlar_trim"},
+    "C": {"ext": "brick_civic", "trim": "ashlar_trim", "quoins": True, "surrounds": True},
+    "D": {"ext": "basalt", "trim": "ashlar_trim", "bands": True, "surrounds": True},
+}
+TOWN_HALL_LOOK = os.environ.get("BLOXOV_TOWN_HALL_LOOK", "B")
+
+PALETTE.update({
+    "ashl": "958c79", "ashl_dark": "897f6d", "ashl_light": "9c9483", "ashl_joint": "746c5d", "ashl_deep": "5e574b",
+    "atrim": "a8a291", "atrim_dark": "9a9483",
+    "hbr": "77503f", "hbr_dark": "6a4537", "hbr_light": "825a48", "hbr_mortar": "8c8374",
+    "bslt": "5e5f5c", "bslt_dark": "545553", "bslt_light": "686965", "bslt_joint": "434441",
+})
+
+
+def paint_ashlar(rng):
+    """Dressed limestone blocks (0.5 m courses, blocks 0.75-1.25 m), each a touch different, fine joints, grime."""
+    c = Canvas(64, 64, "ashl_joint")
+    for row in range(8):
+        x = rng.randrange(0, 10)
+        start = x
+        while x < start + 64:
+            w = rng.randrange(12, 21)
+            col = rng.choice(("ashl", "ashl", "ashl_light", "ashl_dark"))
+            for yy in range(row * 8 + 1, row * 8 + 8):
+                for xx in range(x + 1, x + w):
+                    c.put(xx % 64, yy, col)
+            x += w
+    c.noise(0, 0, 64, 64, ["ashl_dark", "ashl_light"], 0.06, rng)
+    c.blotch(["ashl_dark"], 8, rng, size=(2, 5))
+    return c
+
+
+def paint_ashlar_rustic(rng):
+    """The ground floor's rusticated stone: the same blocks with deep channelled joints, chipped edges."""
+    c = Canvas(64, 64, "ashl_deep")
+    for row in range(8):
+        x = (row % 2) * 8
+        for k in range(4):
+            col = rng.choice(("ashl", "ashl_dark", "ashl_light"))
+            c.rect((x + k * 16 + 1) % 64, row * 8 + 2, (x + k * 16 + 1) % 64 + 15, row * 8 + 8, col)
+    c.noise(0, 0, 64, 64, ["ashl_dark", "ashl_joint"], 0.08, rng)
+    return c
+
+
+def paint_ashlar_trim(rng):
+    """Pale dressed stone for cornices, bands, surrounds and quoins: big smooth blocks, faint joints."""
+    c = Canvas(64, 64, "atrim")
+    for row in range(4):
+        c.rect(0, row * 16, 64, row * 16 + 1, "atrim_dark")
+        for k in range(3):
+            c.rect((k * 24 + row * 9) % 64, row * 16, (k * 24 + row * 9) % 64 + 1, row * 16 + 16, "atrim_dark")
+    c.noise(0, 0, 64, 64, ["atrim_dark"], 0.05, rng)
+    c.blotch(["ashl_dark"], 4, rng, size=(2, 4))
+    return c
+
+
+def paint_brick_civic(rng):
+    """Red-brown civic brick (0.5 x 0.25 m drawn), pale mortar, sooted, muted for the sun."""
+    c = Canvas(64, 64, "hbr_mortar")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("hbr", "hbr", "hbr_dark", "hbr_light"))
+            c.rect(k * 8 + off + 1, row * 4 + 1, k * 8 + off + 8, row * 4 + 4, col)
+            if k * 8 + off + 8 > 64:
+                c.rect(0, row * 4 + 1, k * 8 + off + 8 - 64, row * 4 + 4, col)
+    c.blotch(["hbr_dark"], 8, rng, size=(2, 5))
+    return c
+
+
+def paint_basalt(rng):
+    """Dark grey stone in random courses (0.3-0.5 m), deep joints: severe, like a courthouse."""
+    c = Canvas(64, 64, "bslt_joint")
+    y = 0
+    while y < 64:
+        h = rng.choice((5, 6, 8)) if y + 9 < 64 else 64 - y
+        x = rng.randrange(-8, 0)
+        while x < 64:
+            w = rng.randrange(10, 19)
+            c.rect(max(0, x + 1), y + 1, min(64, x + w), min(64, y + h), rng.choice(("bslt", "bslt", "bslt_dark", "bslt_light")))
+            x += w
+        y += h
+    c.noise(0, 0, 64, 64, ["bslt_dark", "bslt_light"], 0.08, rng)
+    return c
+
+
+KIT.update({"ashlar": paint_ashlar, "ashlar_rustic": paint_ashlar_rustic, "ashlar_trim": paint_ashlar_trim,
+            "brick_civic": paint_brick_civic, "basalt": paint_basalt})
+
+TH_FP = (-25.0, -9.0, 25.0, 9.0)
+TH_DOOR_X = 6.25
+
+
+def town_hall_decals(rng):
+    a = Atlas(512)
+    STONE = "atrim"
+
+    def sign(c):          # 4.4 x 0.6 m, carved into the entablature over the north door
+        c.rect(0, 0, c.w, c.h, STONE)
+        c.noise(0, 0, c.w, c.h, ["atrim_dark"], 0.05, rng)
+        c.ctext(0, c.w, 3, "TOWN HALL", "iron_dark", 2)
+
+    def sign_s(c):        # 2.4 x 0.4 m over the south door
+        c.rect(0, 0, c.w, c.h, STONE)
+        c.ctext(0, c.w, 3, "BLOXOV", "iron_dark")
+
+    def clock(c):         # the clock face, 1.4 m: ticks, hands stopped at ten to two, a crack
+        c.rect(0, 0, c.w, c.h, STONE)
+        r0 = c.w / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x + 0.5 - r0, y + 0.5 - r0)
+                if d <= r0 - 0.5:
+                    c.put(x, y, "iron_dark" if d > r0 - 3 else "bone")
+        for k in range(12):
+            t = k * math.pi / 6
+            for rr in (r0 - 6, r0 - 5):
+                c.put(int(r0 + rr * math.sin(t)), int(r0 + rr * math.cos(t)), "black")
+        for t, ln in ((math.radians(-60), 10), (math.radians(60), 15)):
+            for k in range(ln):
+                c.put(int(r0 + k * math.sin(t)), int(r0 + k * math.cos(t)), "black")
+        for k in range(10):
+            c.put(int(r0 + 3 + k), int(r0 - 6 + k // 2), "steel")
+
+    def shield(c, x0, y0, w, h):    # the town's shield: a tower over two wavy lines (the creek)
+        for y in range(h):
+            inset = 0 if y > h // 3 else (h // 3 - y) * w // (2 * h)
+            c.rect(x0 + inset, y0 + y, x0 + w - inset, y0 + y + 1, "sky_blue")
+        cx = x0 + w // 2
+        c.rect(cx - w // 6, y0 + h // 2 - 2, cx + w // 6, y0 + h - h // 5, "bone")
+        for k in range(3):
+            c.rect(cx - w // 6 + k * w // 8, y0 + h - h // 5, cx - w // 6 + k * w // 8 + max(1, w // 14), y0 + h - h // 8, "bone")
+        for row in (h // 6, h // 3):
+            for x in range(x0 + 2, x0 + w - 2):
+                c.put(x, y0 + row + (1 if (x // 3) % 2 else 0), "bone")
+
+    def crest(c):         # 1 x 1.2 m on the wall by the door
+        c.rect(0, 0, c.w, c.h, STONE)
+        shield(c, 0, 0, c.w, c.h)
+
+    def town_flag(c):     # the town flag: blue and white bands, the shield
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.rect(0, c.h // 3, c.w, 2 * c.h // 3, "bone")
+        shield(c, c.w // 2 - 6, c.h // 2 - 7, 12, 14)
+
+    def enquiries(c):     # 2.8 x 1 m, the front of the information desk (the font has no Q)
+        c.rect(0, 0, c.w, c.h, "wood_mid")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        c.rect(14, 18, c.w - 14, 28, "wood_dark")
+        c.ctext(0, c.w, 20, "INFORMATION", "yellow_dark")
+        c.blotch(["wood_dark"], 4, rng, size=(2, 4))
+        c.rect(30, 6, 44, 7, "bone")
+
+    def cashier(c):       # 1.2 x 0.3 m
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        c.ctext(0, c.w, 2, "CASHIER", "bone")
+
+    def vote(c):          # 0.5 x 0.25 m over each booth
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.ctext(0, c.w, 1, "VOTE", "sky_blue")
+
+    def registry(c):      # 1.6 x 0.4 m brass plate by the registry office's door
+        c.rect(0, 0, c.w, c.h, "yellow_dark")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        c.ctext(0, c.w, 3, "REGISTRY", "wood_dark")
+
+    def shelter(c):       # 0.8 x 0.6 m civil defence sign by the bunker ramp: SHELTER, an arrow down
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.frame(0, 0, c.w, c.h, "black")
+        c.ctext(0, c.w, c.h - 8, "SHELTER", "black")
+        cx = c.w // 2
+        c.rect(cx - 1, 6, cx + 2, 11, "black")
+        for k in range(5):
+            c.rect(cx - 4 + k, 5 - k, cx + 5 - k, 6 - k, "black")
+
+    def keep_out(c):      # 0.9 x 0.4 m sprayed on the wall by the ramp: the crew's warning
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.ctext(0, c.w, 3, "KEEP OUT", "red")
+
+    def area_map(c):      # 2 x 0.7 m, Bon's map of the area on the council table: hills, roads, red rings, arrows
+        c.rect(0, 0, c.w, c.h, "bone")
+        for k in range(4):
+            cx, cy, r = 14 + k * 2, 11, 9 - k * 2
+            for t in range(40):
+                x, y = int(cx + r * math.cos(t * 0.16)), int(cy + r * 0.6 * math.sin(t * 0.16))
+                if 0 < x < c.w - 1 and 0 < y < c.h - 1:
+                    c.put(x, y, "olive")
+        for x in range(1, c.w - 1):
+            c.put(x, 12 + int(3 * math.sin(x * 0.12)), "iron")
+        for y in range(1, c.h - 1):
+            c.put(40 + y // 4, y, "iron")
+        for x, y in ((42, 13), (52, 6), (24, 16)):
+            c.frame(x - 3, y - 3, x + 4, y + 4, "red")
+        for k in range(8):
+            c.put(30 + k, 8 + k // 3, "red")
+
+    def bon_wall(c):      # 1.8 x 1 m: the crew's map pinned up in the mayor's office, photos and red string
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(4, 4, 40, 28, "bone")
+        for x in range(5, 40):
+            c.put(x, 15 + int(3 * math.sin(x * 0.2)), "iron")
+        for y in range(5, 28):
+            c.put(18 + y // 5, y, "iron")
+        pins = [(10, 10), (24, 22), (33, 8), (50, 24), (52, 9)]
+        for x, y in pins[3:]:
+            c.rect(x - 4, y - 4, x + 4, y + 5, "bone")
+            c.rect(x - 3, y - 2, x + 3, y + 4, "steel")
+        for (x0, y0), (x1, y1) in ((pins[0], pins[3]), (pins[1], pins[4]), (pins[2], pins[4])):
+            n = max(abs(x1 - x0), abs(y1 - y0))
+            for k in range(n):
+                c.put(x0 + (x1 - x0) * k // n, y0 + (y1 - y0) * k // n, "red")
+        for x, y in pins:
+            c.rect(x, y, x + 2, y + 2, "red")
+
+    def portrait(c, k):   # 0.6 x 0.8 m: one of the old mayors in a gilt frame (one slashed)
+        c.rect(0, 0, c.w, c.h, ("olive_dark", "wood_dark", "iron_dark", "olive_dark")[k])
+        cx = c.w // 2
+        c.rect(cx - 6, 0, cx + 6, 9, ("iron_dark", "black", "wood_dark", "iron")[k])      # coat
+        c.rect(cx - 1, 6, cx + 1, 9, "bone")
+        c.rect(cx - 3, 10, cx + 3, 17, "sand")                                            # face
+        c.rect(cx - 3, 16, cx + 3, 18, ("iron", "bone", "wood_mid", "black")[k])          # hair
+        c.rect(cx - 2, 13, cx - 1, 14, "black")
+        c.rect(cx + 1, 13, cx + 2, 14, "black")
+        if k == 1:
+            c.rect(cx - 2, 11, cx + 2, 12, "iron")                                        # a moustache
+        c.frame(0, 0, c.w, c.h, "yellow_dark")
+        if k == 2:                                                                        # slashed
+            for t in range(c.h - 6):
+                c.put(4 + t * (c.w - 8) // (c.h - 6), 3 + t, "black")
+
+    def honour(c):        # 1.2 x 1.5 m roll of honour: gold names on dark wood
+        c.rect(0, 0, c.w, c.h, "wood_dark")
+        c.frame(0, 0, c.w, c.h, "yellow_dark")
+        c.ctext(0, c.w, c.h - 9, "HONOUR", "yellow_dark")
+        for r in range(9):
+            for k in range(2):
+                w = rng.randrange(8, 15)
+                c.rect(4 + k * 18, 4 + r * 4, 4 + k * 18 + w, 5 + r * 4, "yellow_dark")
+
+    def town_plan(c):     # 2.4 x 1.4 m: the town plan in the planning office
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "black")
+        for x, y, w, h in ((8, 20, 60, 3), (36, 4, 3, 38), (12, 8, 3, 30)):
+            c.rect(x, y, x + w, y + h, "steel")
+        c.rect(30, 24, 46, 34, "sand")                                                    # the square
+        c.rect(30, 12, 46, 18, "red")                                                     # the hall
+        for _ in range(16):
+            x, y = rng.randrange(4, c.w - 8), rng.randrange(4, c.h - 8)
+            if not (28 < x < 48 and 10 < y < 36):
+                c.rect(x, y, x + 4, y + 3, "iron")
+        c.text(4, c.h - 8, "BLOXOV", "black")
+
+    def painting(c):      # 2.4 x 1.2 m in the council chamber: the valley, the creek, the first houses
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        for x in range(c.w):
+            h = 16 + int(6 * math.sin(x * 0.09)) + int(3 * math.sin(x * 0.31))
+            c.rect(x, 0, x + 1, h, "olive")
+            c.rect(x, 0, x + 1, max(1, h - 9), "olive_dark")
+        for x in range(c.w):
+            y = 5 + int(2 * math.sin(x * 0.2))
+            c.rect(x, y, x + 1, y + 2, "sky_blue")
+        for x in (20, 28, 34, 50):
+            c.rect(x, 12, x + 4, 16, "bone")
+            c.rect(x, 16, x + 4, 18, "red")
+        c.rect(40, 12, 43, 24, "bone")                                                    # the old tower
+        c.frame(0, 0, c.w, c.h, "yellow_dark")
+        c.frame(1, 1, c.w - 1, c.h - 1, "yellow_dark")
+
+    def poster(c):        # 0.6 x 0.9 m election poster, torn
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, c.h - 8, c.w, c.h, "sky_blue")
+        c.ctext(0, c.w, c.h - 7, "VOTE", "bone")
+        c.rect(5, 8, 14, 18, "sand")
+        c.rect(4, 2, 15, 8, "iron_dark")
+        c.rect(c.w - 6, 0, c.w, 6, "clear")
+
+    def notices(c):       # 1.2 x 0.8 m cork board
+        c.rect(0, 0, c.w, c.h, "wood_light")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        for k in range(6):
+            x, y = 2 + (k % 3) * 12 + rng.randrange(2), 2 + (k // 3) * 12 + rng.randrange(2)
+            c.rect(x, y, x + 9, y + 10, rng.choice(("bone", "bone", "hazard_yellow", "sky_blue")))
+            c.rect(x + 4, y + 8, x + 5, y + 9, "red")
+            for r in range(3):
+                c.rect(x + 1, y + 2 + r * 2, x + 7, y + 3 + r * 2, "steel")
+
+    def calendar(c):      # 0.4 x 0.6 m, stopped in May like everywhere else
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, c.h - 6, c.w, c.h, "red")
+        c.ctext(0, c.w, c.h - 13, "MAY", "black")
+        for r in range(4):
+            for k in range(4):
+                c.rect(1 + k * 3, 1 + r * 2, 3 + k * 3, 2 + r * 2, "steel")
+
+    def plan(c):          # a street drawing pinned to a drafting board
+        c.rect(0, 0, c.w, c.h, "bone")
+        for x in range(2, c.w - 2, 4):
+            c.rect(x, 2, x + 1, c.h - 2, "sky_blue")
+        c.rect(4, 14, c.w - 4, 18, "steel")
+        c.rect(10, 4, 14, c.h - 4, "steel")
+        c.rect(c.w - 10, 3, c.w - 3, 6, "black")
+
+    def clock_small(c):   # 0.4 m wall clock, stopped
+        c.rect(0, 0, c.w, c.h, "clear")
+        cx = c.w // 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = (x - cx + 0.5) ** 2 + (y - cx + 0.5) ** 2
+                if d <= (cx - 0.5) ** 2:
+                    c.put(x, y, "black" if d > (cx - 2) ** 2 else "bone")
+        c.rect(cx, cx, cx + 1, cx + 4, "black")
+        c.rect(cx, cx, cx + 3, cx + 1, "black")
+
+    a.add("sign", 141, 19, sign)
+    a.add("sign_s", 77, 13, sign_s)
+    a.add("clock", 45, 45, clock)
+    a.add("crest", 32, 38, crest)
+    a.add("town_flag", 27, 32, town_flag)
+    a.add("enquiries", 90, 32, enquiries)
+    a.add("cashier", 38, 10, cashier)
+    a.add("vote", 16, 8, vote)
+    a.add("registry", 51, 13, registry)
+    a.add("shelter", 26, 19, shelter)
+    a.add("keep_out", 29, 13, keep_out)
+    a.add("area_map", 64, 22, area_map)
+    a.add("bon_wall", 58, 32, bon_wall)
+    for k in range(4):
+        a.add(f"portrait{k}", 19, 26, lambda c, k=k: portrait(c, k))
+    a.add("honour", 38, 48, honour)
+    a.add("town_plan", 77, 45, town_plan)
+    a.add("painting", 77, 38, painting)
+    a.add("poster", 19, 29, poster)
+    a.add("notices", 38, 26, notices)
+    a.add("calendar", 13, 19, calendar)
+    a.add("plan", 26, 34, plan)
+    a.add("clock_small", 13, 13, clock_small)
+    return a
+
+
+PALETTE.update({
+    "oak": "6e4a2c", "oak_dark": "5a3b22", "oak_light": "7d5634", "marb_w": "b5af9f", "marb_k": "5c5d5c",
+    "marb_vein": "9a9487",
+})
+
+
+def paint_th_panel(rng):
+    """Oak panelling to 1.2 m (raised panels, a moulded rail), cream plaster above: the council's rooms."""
+    c = Canvas(64, 64, "cream")
+    c.blotch(["cream_dark"], 6, rng, area=(0, 21, 64, 64), size=(2, 5))
+    c.rect(0, 0, 64, 20, "oak_dark")
+    for k in range(4):
+        c.rect(k * 16 + 2, 3, k * 16 + 14, 17, "oak")
+        c.rect(k * 16 + 3, 4, k * 16 + 13, 16, "oak_light")
+        c.noise(k * 16 + 3, 4, k * 16 + 13, 16, ["oak"], 0.15, rng)
+    c.rect(0, 19, 64, 21, "oak_light")
+    c.rect(0, 0, 64, 2, "iron")
+    return c
+
+
+def paint_th_marble(rng):
+    """Black and white marble squares (0.5 m) laid diagonally-ish as a checker, veined, scuffed by boots."""
+    c = Canvas(64, 64, "marb_w")
+    for ty in range(8):
+        for tx in range(8):
+            if (tx + ty) % 2:
+                c.rect(tx * 8, ty * 8, tx * 8 + 8, ty * 8 + 8, "marb_k")
+    c.noise(0, 0, 64, 64, ["marb_vein"], 0.05, rng)
+    for _ in range(10):                                                   # veins
+        x, y = rng.randrange(64), rng.randrange(64)
+        for k in range(rng.randrange(4, 9)):
+            c.put((x + k) % 64, (y + k // 2) % 64, "marb_vein")
+    c.blotch(["concrete"], 4, rng, size=(2, 4))
+    return c
+
+
+KIT.update({"th_panel": paint_th_panel, "th_marble": paint_th_marble})
+
+
+def th_room(m):
+    """(storey, i, j) of a point in the town hall: i west to east, j north to south."""
+    return int(m[1] >= 3.0), max(0, min(3, int((m[0] + 25.0) // 12.5))), int(m[2] >= 0.0)
+
+
+TH_ROOMS = {   # (storey, i, j) -> inside walls, floor
+    (0, 0, 0): ("int_office_cream", "th_marble"),   # stair hall (the bunker ramp)
+    (0, 1, 0): ("int_office", "carpet_office"),     # records office
+    (0, 2, 0): ("th_panel", "th_marble"),           # foyer
+    (0, 3, 0): ("int_office_cream", "floor_lino"),  # rates office
+    (0, 0, 1): ("paper_cream", "carpet"),           # registry office
+    (0, 1, 1): ("int_office", "carpet_office"),     # town clerk
+    (0, 2, 1): ("int_wall", "floor_tile"),          # back hall (the crew's mess)
+    (0, 3, 1): ("int_office_cream", "floor_lino"),  # planning office
+    (1, 0, 0): ("th_panel", "parquet"),             # upper hall
+    (1, 1, 0): ("int_wall", "floor_lino"),          # the crew's barracks
+    (1, 2, 0): ("th_panel", "parquet"),             # council chamber
+    (1, 3, 0): ("paper_green", "parquet"),          # the mayor's office (caved in)
+    (1, 0, 1): ("int_wall", "floor_lino"),          # archive
+    (1, 1, 1): ("int_office_cream", "carpet"),      # the deputy's office (Bon's now)
+    (1, 2, 1): ("int_office", "floor_lino"),        # polling room
+    (1, 3, 1): ("int_wall", "floor_tile"),          # radio room
+}
+
+
+def th_inner(m):
+    if m[1] > 6.0:
+        return TOWN_HALL_LOOKS[TOWN_HALL_LOOK]["ext"]
+    return TH_ROOMS[th_room(m)][0]
+
+
+def th_ceiling(m):
+    """Plaster ceilings in the council's rooms, tiles in the offices."""
+    return "house_ceiling" if TH_ROOMS[th_room((m[0], m[1] - 2.0, m[2]))][0] in ("th_panel", "paper_cream", "paper_green") \
+        or th_room((m[0], m[1] - 2.0, m[2])) == (1, 1, 1) else "ceiling"
+
+
+def th_floor(m):
+    return TH_ROOMS[(int(m[1] >= 2.0),) + th_room(m)[1:]][1]
+
+
+# ---- town hall props
+def _nbw(mat):
+    return lambda n, m, q: None if n[1] < -0.7 else (mat, uv_world(1.0))
+
+
+def prop_th_info_desk(ctx, c, s):
+    """The enquiries desk: a high oak front facing the door (north) with ENQUIRIES on it, a ledge, a bell, a
+    monitor knocked over, leaflets everywhere."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], c[1], c[2]), s, style=face_decal(ctx.d("enquiries"), "wood", "-z"))
+    b.box((c[0], top + 0.02, c[2]), (s[0] + 0.1, 0.04, s[2] + 0.1), style=_solid("wood_dark"))
+    b.box((c[0] - 0.8, top + 0.06, c[2] - 0.2), (0.1, 0.06, 0.1), style=_nb("brass"))               # the bell
+    b.box((c[0] + 0.5, top + 0.05, c[2] + 0.1), (0.5, 0.06, 0.32), yaw=70, style=_nb("black"))     # monitor down
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2 - 1.5, c[2] - s[2] / 2 - 0.1, y0, 14,
+           cols=("bone", "sky", "yellow") if False else ("bone", "yellow", "blue"))
+    chair(b, c[0] + 0.4, y0, c[2] + s[2] / 2 + 0.45, facing_yaw(0, -1), "trim_dark", "trim", office=True)
+
+
+def prop_town_model(ctx, c, s):
+    """A glass case with a model of the town on it: the square and its fountain, the hall, little houses and
+    roads on green felt. One pane smashed, a few houses knocked off."""
+    b, rng = ctx.b, random.Random("town_model")
+    y0 = c[1] - s[1] / 2
+    bt = y0 + 0.75
+    b.box((c[0], y0 + 0.375, c[2]), (s[0], 0.75, s[2]), style=_nb("wood_dark"))
+    b.box((c[0], bt + 0.01, c[2]), (s[0] - 0.1, 0.02, s[2] - 0.1), style=_nb("green"))
+    b.box((c[0], bt + 0.025, c[2]), (s[0] - 0.3, 0.01, 0.12), style=_nb("concrete"))               # main street
+    b.box((c[0] - 0.3, bt + 0.025, c[2]), (0.12, 0.01, s[2] - 0.3), style=_nb("concrete"))
+    b.box((c[0] + 0.35, bt + 0.04, c[2] + 0.3), (0.7, 0.04, 0.22), style=_nb("bone"))              # the hall
+    b.box((c[0] + 0.35, bt + 0.09, c[2] + 0.2), (0.06, 0.08, 0.04), style=_nb("bone"))             # its clock
+    b.box((c[0] + 0.3, bt + 0.03, c[2] - 0.35), (0.3, 0.02, 0.3), style=_nb("concrete"))           # the square
+    b.box((c[0] + 0.3, bt + 0.05, c[2] - 0.35), (0.06, 0.04, 0.06), style=_nb("steel_light"))
+    for _ in range(14):                                                    # houses
+        x, z = c[0] + rng.uniform(-s[0] / 2 + 0.15, s[0] / 2 - 0.15), c[2] + rng.uniform(-s[2] / 2 + 0.15, s[2] / 2 - 0.15)
+        if abs(z - c[2]) < 0.12 or abs(x - (c[0] - 0.3)) < 0.12 or (x > c[0] - 0.05 and abs(z - c[2] - 0.3) < 0.2):
+            continue
+        b.box((x, bt + 0.04, z), (0.1, 0.06, 0.08), yaw=rng.choice((0, 90)), style=_nb("bone"))
+        b.box((x, bt + 0.08, z), (0.11, 0.02, 0.09), yaw=rng.choice((0, 90)), style=_nb(rng.choice(("red", "wood", "trim_dark"))))
+    for _ in range(4):                                                     # trees
+        b.box((c[0] + rng.uniform(-0.9, 0.9), bt + 0.05, c[2] + rng.uniform(-0.5, 0.5)), (0.05, 0.08, 0.05), style=_nb("olive"))
+    # the glass: three panes and the lid; the north pane is gone (shards on the floor), a house on the floor
+    gl = lambda n, m, q: ("glass", uv_world(1.0))
+    b.box((c[0], bt + 0.13, c[2] + s[2] / 2 - 0.02), (s[0] - 0.04, 0.26, 0.01), style=gl)
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.02), bt + 0.13, c[2]), (0.01, 0.26, s[2] - 0.04), style=gl)
+    b.box((c[0], bt + 0.255, c[2]), (s[0] - 0.04, 0.01, s[2] - 0.04), style=gl)
+    for _ in range(9):
+        b.box((c[0] + rng.uniform(-0.9, 0.9), y0 + 0.004, c[2] - s[2] / 2 - rng.uniform(0.1, 0.6)), (0.08, 0.005, 0.05),
+              yaw=rng.uniform(0, 180), style=_nb("glass"))
+    b.box((c[0] - 0.4, y0 + 0.03, c[2] - s[2] / 2 - 0.4), (0.1, 0.06, 0.08), yaw=30, style=_nb("bone"))
+
+
+def prop_supply_crates(ctx, c, s):
+    """The crew's supplies stacked in a corner: wooden crates, jerry cans, a sack of something."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0] - s[0] / 4, y0 + 0.3, c[2] - s[2] / 4), (s[0] / 2 - 0.05, 0.6, s[2] / 2 - 0.05), yaw=3, style=_nb("wood"))
+    b.box((c[0] - s[0] / 4, y0 + 0.75, c[2] - s[2] / 4), (s[0] / 2 - 0.15, 0.3, s[2] / 2 - 0.15), yaw=-6, style=_nb("wood_light"))
+    b.box((c[0] + s[0] / 4, y0 + 0.3, c[2] - s[2] / 4), (s[0] / 2 - 0.1, 0.6, s[2] / 2 - 0.1), style=_nb("olive"))
+    for k in range(3):                                                     # jerry cans
+        b.box((c[0] - s[0] / 2 + 0.25 + k * 0.35, y0 + 0.24, c[2] + s[2] / 4), (0.17, 0.48, 0.34), yaw=rng_yaw(k),
+              style=_nb(("red", "olive", "olive")[k]))
+    b.box((c[0] + s[0] / 4, y0 + 0.2, c[2] + s[2] / 4), (0.6, 0.4, 0.45), yaw=12, style=_nb("sand" if False else "bone"))
+
+
+def rng_yaw(k):
+    return (k * 37) % 25 - 12
+
+
+def prop_cashier_counter(ctx, c, s):
+    """The rates office counter: oak, a glass screen to the ceiling with a speaking hole and a tray slot, the till
+    smashed open; one pane shot out. The cashier's side is behind it (north)."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box(c, s, style=_nb("wood"))
+    b.box((c[0], top + 0.02, c[2]), (s[0], 0.04, s[2] + 0.1), style=_solid("wood_dark"))
+    gl = lambda n, m, q: ("glass", uv_world(1.0))
+    n = 3
+    w = s[0] / n
+    for k in range(n):
+        x = c[0] - s[0] / 2 + w * (k + 0.5)
+        b.box((x - w / 2 + 0.03, top + 0.6, c[2]), (0.05, 1.2, 0.05), style=_nb("trim_dark"))
+        if k != 1:
+            b.box((x, top + 0.65, c[2]), (w - 0.06, 1.1, 0.01), style=gl)
+        else:
+            for _ in range(5):                                              # its pane on the floor
+                b.box((x + rng.uniform(-0.6, 0.6), y0 + 0.004, c[2] + rng.uniform(0.4, 1.2)), (0.1, 0.005, 0.07),
+                      yaw=rng.uniform(0, 180), style=_nb("glass"))
+    b.box((c[0] + s[0] / 2 - 0.03, top + 0.6, c[2]), (0.05, 1.2, 0.05), style=_nb("trim_dark"))
+    b.box((c[0], top + 1.22, c[2]), (s[0], 0.06, 0.08), style=_solid("trim_dark"))
+    b.box((c[0] - 0.4, top + 1.45, c[2] + 0.04), (1.2, 0.3, 0.03), style=face_decal(ctx.d("cashier"), "trim_dark", "+z"))
+    cash_register(b, c[0] + s[0] / 2 - 0.7, top + 0.04, c[2] - 0.05, -1)
+    b.box((c[0] + s[0] / 2 - 0.7, top + 0.07, c[2] - 0.4), (0.3, 0.05, 0.3), yaw=15, style=_nb("steel_light"))  # its drawer, out
+
+
+def prop_registrar_desk(ctx, c, s):
+    """The registrar's desk for weddings: a white cloth, the register open, a pen on a chain, dead flowers."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.03, c[2]), (s[0] + 0.1, 0.06, s[2] + 0.1), style=_nb("wood_dark"))
+    b.box((c[0] + 0.05, top - 0.25, c[2]), (s[0] + 0.12, 0.44, s[2] + 0.12), style=lambda n, m, q: None if n[1] < -0.7
+          else ("bone", uv_world(1.0)))                                     # the cloth hanging down
+    for sz in (-1, 1):
+        b.box((c[0], y0 + (s[1] - 0.06) / 2, c[2] + sz * (s[2] / 2 - 0.06)), (s[0] - 0.12, s[1] - 0.06, 0.06), style=_nb("wood_dark"))
+    b.box((c[0] + 0.05, top + 0.02, c[2]), (0.35, 0.03, 0.5), style=_nb("wine"))                  # the register
+    b.box((c[0] + 0.05, top + 0.04, c[2]), (0.32, 0.01, 0.46), style=_nb("bone"))
+    b.box((c[0], top + 0.12, c[2] + 0.7), (0.1, 0.24, 0.1), style=lambda n, m, q: ("glass", uv_world(1.0)))  # vase
+    for k in range(4):
+        b.box((c[0] + rng.uniform(-0.05, 0.05), top + 0.3, c[2] + 0.7 + rng.uniform(-0.05, 0.05)), (0.02, 0.2, 0.02),
+              pitch=rng.uniform(-35, 35), style=_nb("olive_dark"))
+    chair(b, c[0] - s[0] / 2 - 0.4, y0, c[2], facing_yaw(1, 0), "wine", "wood_dark")
+
+
+def prop_flower_arch(ctx, c, s):
+    """A wedding arch against the wall: two white posts, an arc of paper flowers (half of them fallen off)."""
+    b, rng = ctx.b, random.Random("arch")
+    y0 = c[1] - s[1] / 2
+    z0, z1 = c[2] - s[2] / 2 + 0.1, c[2] + s[2] / 2 - 0.1
+    for z in (z0, z1):
+        b.box((c[0], y0 + 1.0, z), (0.08, 2.0, 0.08), style=_nb("bone"))
+    r = (z1 - z0) / 2
+    for k in range(17):
+        t = math.pi * k / 16
+        z, y = c[2] - r * math.cos(t), y0 + 2.0 + r * 0.45 * math.sin(t)
+        b.box((c[0], y, z), (0.06, 0.06, 0.25), pitch=0, style=_nb("bone"))
+        if rng.random() < 0.6:
+            b.box((c[0] + 0.03, y + 0.02, z), (0.1, 0.12, 0.12), yaw=rng.uniform(0, 90), style=_nb(rng.choice(("wine", "red", "bone", "yellow"))))
+        else:
+            b.box((c[0] + rng.uniform(0.3, 1.2), y0 + 0.04, z + rng.uniform(-0.3, 0.3)), (0.1, 0.06, 0.12),
+                  yaw=rng.uniform(0, 90), style=_nb(rng.choice(("wine", "red", "bone"))))
+
+
+def prop_chair_rows(ctx, c, s):
+    """Rows of guests' chairs facing the registrar (west), a ribbon down the aisle, petals and a dropped bouquet."""
+    b, rng = ctx.b, random.Random("rows")
+    y0 = c[1] - s[1] / 2
+    x0, x1 = c[0] - s[0] / 2 + 0.3, c[0] + s[0] / 2 - 0.3
+    for z in (c[2] - s[2] / 2 + 0.3, c[2] + s[2] / 2 - 0.3):
+        x = x0
+        while x <= x1 + 0.01:
+            if rng.random() < 0.85:
+                chair(b, x, y0, z, facing_yaw(-1, 0), "wine", "wood_dark")
+            x += 0.75
+    b.box((c[0] - s[0] / 2 + 0.4, y0 + 0.5, c[2] - s[2] / 2 + 0.3), (0.05, 0.12, 0.05), style=_nb("bone"))  # ribbon bow
+    for _ in range(25):
+        b.box((c[0] + rng.uniform(-s[0] / 2, s[0] / 2), y0 + 0.004, c[2] + rng.uniform(-s[2] / 2, s[2] / 2)), (0.04, 0.005, 0.04),
+              yaw=rng.uniform(0, 90), style=_nb(rng.choice(("wine", "red", "bone"))))
+    bx, bz = c[0] - 1.0, c[2]
+    b.box((bx, y0 + 0.06, bz), (0.12, 0.1, 0.3), yaw=40, pitch=80, style=_nb("olive_dark"))
+    b.box((bx + 0.1, y0 + 0.08, bz - 0.12), (0.22, 0.14, 0.2), yaw=40, style=_nb("bone"))
+
+
+def prop_clerk_desk(ctx, c, s):
+    prop_principal_desk(ctx, c, s)
+
+
+def prop_ballot_boxes(ctx, c, s):
+    """Grey ballot boxes from the last election, padlocked, stacked; one tipped over with its ballots spilled."""
+    b, rng = ctx.b, random.Random(f"ballot{c[0]:.1f}")
+    y0 = c[1] - s[1] / 2
+    bw = 0.5
+    k = 0
+    for row in range(int(s[1] // 0.38)):
+        for col in range(max(1, int(s[0] // (bw + 0.05)))):
+            for dep in range(max(1, int(s[2] // 0.45))):
+                if row and rng.random() < 0.3:
+                    continue
+                x = c[0] - s[0] / 2 + (col + 0.5) * s[0] / max(1, int(s[0] // (bw + 0.05)))
+                z = c[2] - s[2] / 2 + (dep + 0.5) * s[2] / max(1, int(s[2] // 0.45))
+                y = y0 + 0.18 + row * 0.37
+                yaw = rng.uniform(-6, 6)
+                b.box((x, y, z), (bw, 0.36, 0.4), yaw=yaw, style=_nb("steel_light"))
+                b.box((x, y + 0.181, z), (0.25, 0.004, 0.03), yaw=yaw, style=_nb("black"))          # the slot
+                b.box((x, y + 0.05, z + 0.205), (0.06, 0.08, 0.02), yaw=yaw, style=_nb("brass"))       # padlock
+                k += 1
+    tx, tz = c[0] - s[0] / 2 - 0.5, c[2] - 0.2
+    b.box((tx, y0 + 0.2, tz), (0.5, 0.36, 0.4), yaw=20, pitch=90, style=_nb("steel_light"))
+    papers(b, rng, tx - 0.9, tx + 0.3, tz - 0.6, tz + 0.6, y0, 22, cols=("bone", "bone", "bone"))
+
+
+def prop_card_table(ctx, c, s):
+    """The crew's card table: cards, a full ashtray, tin mugs, a bottle; two chairs, one knocked back."""
+    b, rng = ctx.b, random.Random("cards")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.025, c[2]), (s[0], 0.05, s[2]), style=_nb("green"))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.05), y0 + (s[1] - 0.05) / 2, c[2] + sz * (s[2] / 2 - 0.05)), (0.04, s[1] - 0.05, 0.04),
+                  style=_nb("trim_dark"))
+    for _ in range(12):
+        b.box((c[0] + rng.uniform(-0.5, 0.5), top + 0.003, c[2] + rng.uniform(-0.4, 0.4)), (0.06, 0.004, 0.09),
+              yaw=rng.uniform(0, 180), style=_nb(rng.choice(("bone", "bone", "red"))))
+    b.box((c[0] + 0.3, top + 0.02, c[2] - 0.3), (0.12, 0.03, 0.12), style=_nb("black"))           # ashtray
+    for k in range(3):
+        b.box((c[0] - 0.35 + k * 0.3, top + 0.05, c[2] + 0.35 - k * 0.2), (0.08, 0.1, 0.08), style=_nb("steel_light"))
+    b.box((c[0] + 0.1, top + 0.14, c[2] + 0.1), (0.07, 0.28, 0.07), style=lambda n, m, q: ("glass", uv_world(1.0)))
+    for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+        chair(b, c[0] + dx * (s[0] / 2 + 0.35), y0, c[2] + dz * (s[2] / 2 + 0.35), facing_yaw(-dx, -dz), "olive", "trim_dark")
+
+
+def prop_camp_stove(ctx, c, s):
+    """A two-burner camp stove on an ammo crate, a dented pot, a kettle, a gas bottle."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.25, c[2]), (s[0], 0.5, s[2] - 0.2), style=_nb("olive"))
+    b.box((c[0], y0 + 0.56, c[2]), (0.6, 0.12, 0.35), style=_nb("metal"))
+    b.box((c[0] - 0.15, y0 + 0.68, c[2]), (0.26, 0.14, 0.26), style=_nb("steel_light"))
+    b.box((c[0] + 0.17, y0 + 0.69, c[2]), (0.16, 0.16, 0.16), style=_nb("black"))
+    b.box((c[0] + s[0] / 2 - 0.15, y0 + 0.2, c[2] + s[2] / 2 - 0.1), (0.2, 0.4, 0.2), style=_nb("blue"))
+
+
+def prop_ammo_crates(ctx, c, s):
+    """Olive ammo crates stacked against the wall, the top one open and half empty."""
+    b, rng = ctx.b, random.Random(f"ammo{c[0]:.1f}{c[1]:.1f}")
+    y0 = c[1] - s[1] / 2
+    cw, cd, ch = 0.75, 0.45, 0.3
+    nx, nz = max(1, int(s[0] // cw)), max(1, int(s[2] // cd))
+    rows = max(1, int(s[1] // ch))
+    for r in range(rows):
+        for i in range(nx):
+            for j in range(nz):
+                if r == rows - 1 and rng.random() < 0.35:
+                    continue
+                x = c[0] - s[0] / 2 + (i + 0.5) * s[0] / nx
+                z = c[2] - s[2] / 2 + (j + 0.5) * s[2] / nz
+                yaw = rng.uniform(-5, 5)
+                b.box((x, y0 + ch * (r + 0.5), z), (cw - 0.04, ch - 0.01, cd - 0.04), yaw=yaw, style=_nb("olive"))
+                b.box((x, y0 + ch * (r + 0.5), z), (cw + 0.0, 0.05, cd), yaw=yaw, style=_nb("olive_dark"))
+    b.box((c[0] + 0.2, y0 + s[1] + 0.12, c[2] + 0.3), (cw - 0.04, 0.02, cd - 0.04), yaw=30, pitch=70, style=_nb("olive_dark"))
+
+
+def prop_council_table(ctx, c, s, k):
+    """The council's horseshoe table in three pieces (k 0 the head, 1 and 2 the arms): oak top and modesty
+    panel, chairs on the outside facing in. Bon's crew use it: a map of the area spread on the head, a radio,
+    mugs, a pistol magazine; an X1 scratched into the oak."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.03, c[2]), (s[0] + 0.06, 0.06, s[2] + 0.06), style=_nb("wood"))
+    if k == 0:
+        b.box((c[0], y0 + 0.36, c[2] + s[2] / 2 - 0.05), (s[0], 0.66, 0.06), style=_nb("oak_dark" if False else "wood_dark"))
+        for x in [c[0] - s[0] / 2 + 0.6 + t * (s[0] - 1.2) / 6 for t in range(7)]:
+            if abs(x - c[0]) < 0.3:
+                continue
+            chair(b, x, y0, c[2] - s[2] / 2 - 0.4, facing_yaw(0, 1), "wine", "wood_dark")
+        # the mayor's high-backed chair in the middle
+        b.box((c[0], y0 + 0.47, c[2] - s[2] / 2 - 0.45), (0.6, 0.1, 0.55), style=_nb("wine"))
+        b.box((c[0], y0 + 1.0, c[2] - s[2] / 2 - 0.72), (0.66, 1.3, 0.1), style=_nb("wine"))
+        b.box((c[0], y0 + 1.68, c[2] - s[2] / 2 - 0.72), (0.74, 0.12, 0.14), style=_nb("wood_dark"))
+        for sx in (-1, 1):
+            b.box((c[0] + sx * 0.3, y0 + 0.22, c[2] - s[2] / 2 - 0.45), (0.06, 0.44, 0.5), style=_nb("wood_dark"))
+        # Bon's map, pinned down with a magazine and mugs; a radio
+        b.box((c[0] + 0.2, top + 0.004, c[2] + 0.02), (2.0, 0.006, 0.7), yaw=-3,
+              style=lambda n, m, q: ("decals", ctx.d("area_map")) if n[1] > 0.7 else None)
+        b.box((c[0] + 1.25, top + 0.04, c[2] - 0.2), (0.08, 0.08, 0.08), style=_nb("steel_light"))
+        b.box((c[0] - 0.8, top + 0.04, c[2] + 0.25), (0.08, 0.08, 0.08), style=_nb("steel_light"))
+        b.box((c[0] - 0.1, top + 0.03, c[2] + 0.2), (0.04, 0.05, 0.14), yaw=30, style=_nb("black"))
+        b.box((c[0] - 2.4, top + 0.12, c[2]), (0.32, 0.22, 0.2), style=_nb("olive"))                  # radio
+        b.box((c[0] - 2.5, top + 0.4, c[2]), (0.015, 0.4, 0.015), pitch=12, style=_nb("black"))
+        b.box((c[0] + 2.6, top + 0.002, c[2] + 0.15), (0.004, 0.004, 0.12), yaw=40, style=_nb("bone"))  # X1 scratched in
+        b.box((c[0] + 2.6, top + 0.002, c[2] + 0.15), (0.004, 0.004, 0.12), yaw=-40, style=_nb("bone"))
+        b.box((c[0] + 2.69, top + 0.002, c[2] + 0.15), (0.004, 0.004, 0.12), style=_nb("bone"))
+    else:
+        sx = -1 if k == 1 else 1
+        b.box((c[0] + sx * (s[0] / 2 - 0.05), y0 + 0.36, c[2]), (0.06, 0.66, s[2]), style=_nb("wood_dark"))
+        chair(b, c[0] + sx * (s[0] / 2 + 0.4), y0, c[2] - 0.1, facing_yaw(-sx, 0), "wine", "wood_dark")
+        b.box((c[0], top + 0.005, c[2]), (0.22, 0.01, 0.3), yaw=rng.uniform(-20, 20), style=_nb("bone"))   # name card
+
+
+def prop_council_bench(ctx, c, s):
+    """A public gallery pew: seat, back, arms, in oak."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.42, c[2]), (s[0], 0.06, s[2]), style=_nb("wood"))
+    b.box((c[0], y0 + 0.75, c[2] + s[2] / 2 - 0.03), (s[0], 0.6, 0.06), style=_nb("wood"))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.03), y0 + 0.4, c[2]), (0.06, 0.8, s[2]), style=_nb("wood_dark"))
+
+
+def prop_th_flag(ctx, c, s):
+    """A flag on a brass-topped pole in a heavy stand: the town's blue and white, with the crest."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.05, c[2]), (0.4, 0.1, 0.4), style=_nb("brass"))
+    b.box((c[0], y0 + s[1] / 2, c[2]), (0.05, s[1], 0.05), style=_nb("wood_dark"))
+    b.box((c[0], y0 + s[1] + 0.06, c[2]), (0.1, 0.12, 0.1), style=_nb("brass"))
+    b.box((c[0] + 0.45, y0 + s[1] - 0.6, c[2] + 0.04), (0.85, 1.0, 0.02), yaw=0,
+          style=lambda n, m, q: ("decals", ctx.d("town_flag")) if abs(n[2]) > 0.7 else ("blue", uv_world(1.0)))
+
+
+def prop_voting_booths(ctx, c, s):
+    """Three voting booths: plywood sides, a shelf and a pencil on a string, blue curtains (one torn down)."""
+    b, rng = ctx.b, random.Random("booths")
+    y0 = c[1] - s[1] / 2
+    n = 3
+    w = s[0] / n
+    for k in range(n + 1):
+        x = c[0] - s[0] / 2 + k * w
+        b.box((x, y0 + 0.9, c[2]), (0.03, 1.8, s[2]), style=_nb("wood_light"))
+    for k in range(n):
+        x = c[0] - s[0] / 2 + (k + 0.5) * w
+        b.box((x, y0 + 1.0, c[2] - s[2] / 2 + 0.1), (w - 0.05, 0.03, 0.25), style=_nb("wood_light"))   # shelf
+        b.box((x, y0 + 1.84, c[2] + s[2] / 2), (w, 0.03, 0.03), style=_nb("trim"))                      # curtain rail
+        if k == 1:
+            b.box((x + 0.2, y0 + 0.04, c[2] + s[2] / 2 + 0.4), (0.8, 0.06, 0.6), yaw=20, style=_nb("blue"))
+        else:
+            b.box((x, y0 + 1.15, c[2] + s[2] / 2), (w - 0.1, 1.35, 0.02), style=_solid("blue"))
+        b.box((x, y0 + 1.95, c[2] - s[2] / 2 + 0.05), (0.5, 0.25, 0.02), style=face_decal(ctx.d("vote"), "bone", "+z"))
+        papers(b, rng, x - w / 2, x + w / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, y0, 4, cols=("bone",))
+
+
+def prop_counting_table(ctx, c, s):
+    """The counting table: a trestle table, ballots in heaps and bundles, tally sheets, a tipped-out box."""
+    b, rng = ctx.b, random.Random("count")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.025, c[2]), (s[0], 0.05, s[2]), style=_nb("wood_light"))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.3), y0 + (s[1] - 0.05) / 2, c[2]), (0.05, s[1] - 0.05, s[2] - 0.1), style=_nb("trim_dark"))
+    for _ in range(6):
+        b.box((c[0] + rng.uniform(-s[0] / 2 + 0.3, s[0] / 2 - 0.3), top + 0.03, c[2] + rng.uniform(-0.2, 0.2)), (0.16, 0.06, 0.22),
+              yaw=rng.uniform(-20, 20), style=_nb("bone"))
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, top, 10, cols=("bone",))
+    papers(b, rng, c[0] - s[0] / 2 - 0.3, c[0] + s[0] / 2 + 0.3, c[2] - s[2] / 2 - 1.2, c[2] - s[2] / 2, y0, 20, cols=("bone",))
+    for k in range(3):
+        chair(b, c[0] - 1.0 + k, y0, c[2] - s[2] / 2 - 0.4, facing_yaw(0, 1), "trim", "trim_dark")
+
+
+def prop_radio_table(ctx, c, s):
+    """The crew's radio post: two field radios, a headset, a car battery underneath, a log book, a map; the aerial
+    lead runs up the wall and out to the roof."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.025, c[2]), (s[0], 0.05, s[2]), style=_nb("trim_dark"))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.05), y0 + (s[1] - 0.05) / 2, c[2] + sz * (s[2] / 2 - 0.05)), (0.05, s[1] - 0.05, 0.05),
+                  style=_nb("trim_dark"))
+    for k, x in enumerate((c[0] - 0.7, c[0] + 0.3)):
+        b.box((x, top + 0.17, c[2] - 0.1), (0.5, 0.34, 0.35), style=_nb("olive"))
+        b.box((x, top + 0.22, c[2] + 0.076), (0.4, 0.18, 0.01), style=_nb("olive_dark"))
+        for d in range(3):
+            b.box((x - 0.12 + d * 0.12, top + 0.22, c[2] + 0.085), (0.05, 0.05, 0.02), style=_nb("black"))
+    b.box((c[0] + 0.9, top + 0.03, c[2] + 0.1), (0.2, 0.06, 0.08), yaw=30, style=_nb("black"))       # headset
+    b.box((c[0] + 1.1, top + 0.01, c[2] - 0.1), (0.3, 0.02, 0.4), yaw=-10, style=_nb("wine"))         # log book
+    b.box((c[0] - 0.5, y0 + 0.12, c[2]), (0.3, 0.24, 0.2), style=_nb("black"))                        # battery
+    b.box((c[0] - 1.2, top + (3.0 - s[1]) / 2 - 0.2, c[2] - s[2] / 2 + 0.02), (0.02, 3.0 - s[1] - 0.4, 0.02),
+          style=_nb("black"))                                                                       # aerial lead
+    chair(b, c[0] - 0.3, y0, c[2] + s[2] / 2 + 0.4, facing_yaw(0, -1), "olive", "trim_dark", office=True)
+
+
+def prop_generator(ctx, c, s):
+    """A small petrol generator in a tube frame, a jerry can beside it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.3, c[2]), (s[0] - 0.2, 0.5, s[2] - 0.15), style=_nb("red"))
+    b.box((c[0] + 0.2, y0 + 0.62, c[2]), (0.35, 0.14, 0.3), style=_nb("black"))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.08), y0 + 0.35, c[2] + sz * (s[2] / 2 - 0.05)), (0.03, 0.7, 0.03), style=_nb("black"))
+    b.box((c[0] - s[0] / 2 + 0.1, y0 + 0.24, c[2] + s[2] / 2 + 0.15), (0.17, 0.48, 0.34), style=_nb("olive"))
+
+
+def prop_radio_mast(ctx, c, s):
+    """The crew's radio mast on the roof: a steel pole with two crossbars, guy wires down to the parapet."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + s[1] / 2, c[2]), (0.06, s[1], 0.06), style=_nb("steel_light"))
+    b.box((c[0], y0 + 0.05, c[2]), (0.4, 0.1, 0.4), style=_nb("trim_dark"))
+    for y, w in ((y0 + s[1] - 0.3, 1.0), (y0 + s[1] - 0.9, 0.7)):
+        b.box((c[0], y, c[2]), (w, 0.03, 0.03), style=_solid("steel_light"))
+    for dx, dz in ((-1.6, -1.2), (0.0, 1.5), (-1.2, 1.4)):
+        _beam(b, (c[0], y0 + s[1] - 0.5, c[2]), (c[0] + dx, y0 + 0.9, c[2] + dz), 0.012, 0.012, "black")
+
+
+def prop_th_cot(ctx, c, s):
+    """A camp cot with a bedroll, along its long side; boots and a pack beside it."""
+    b, rng = ctx.b, random.Random(f"cot{c[0]:.1f}{c[2]:.1f}")
+    y0 = c[1] - s[1] / 2
+    lx = s[0] >= s[2]
+    L, W = (s[0], s[2]) if lx else (s[2], s[0])
+    sz = lambda l, h, w: (l, h, w) if lx else (w, h, l)
+    at = lambda a, y, w: (c[0] + a, y, c[2] + w) if lx else (c[0] + w, y, c[2] + a)
+    b.box(at(0, y0 + 0.4, 0), sz(L, 0.05, W - 0.2), style=_nb("olive"))
+    b.box(at(0.1, y0 + 0.5, 0), sz(L - 0.4, 0.12, W - 0.35), yaw=rng.uniform(-3, 3), style=_nb(rng.choice(("olive_dark", "wine", "blue"))))
+    b.box(at(L / 2 - 0.3, y0 + 0.5, 0), sz(0.35, 0.14, W - 0.4), style=_nb("bone"))
+    for sa in (-1, 1):
+        for sw in (-1, 1):
+            b.box(at(sa * (L / 2 - 0.1), y0 + 0.2, sw * (W / 2 - 0.15)), (0.04, 0.4, 0.04), style=_nb("trim_dark"))
+    b.box(at(-L / 2 + 0.4, y0 + 0.08, (W / 2 + 0.15) * rng.choice((-1, 1))), sz(0.3, 0.16, 0.12), style=_nb("black"))
+    b.box(at(-L / 2 + 0.7, y0 + 0.25, (W / 2 + 0.2) * rng.choice((-1, 1))), sz(0.4, 0.5, 0.3), yaw=rng.uniform(-20, 20),
+          style=_nb("olive"))
+
+
+PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in {
+    "th_info_desk": prop_th_info_desk, "town_model": prop_town_model, "supply_crates": prop_supply_crates,
+    "cashier_counter": prop_cashier_counter, "th_cot": prop_th_cot, "registrar_desk": prop_registrar_desk, "flower_arch": prop_flower_arch,
+    "chair_rows": prop_chair_rows, "clerk_desk": prop_clerk_desk, "ballot_boxes": prop_ballot_boxes,
+    "card_table": prop_card_table, "camp_stove": prop_camp_stove, "ammo_crates": prop_ammo_crates,
+    "council_bench": prop_council_bench, "th_flag": prop_th_flag, "voting_booths": prop_voting_booths,
+    "counting_table": prop_counting_table, "radio_table": prop_radio_table, "generator": prop_generator,
+    "radio_mast": prop_radio_mast}.items()})
+PROPS["council_table"] = prop_council_table
+
+
+def dress_town_hall(ctx):
+    b, rng = ctx.b, ctx.rng
+    look = TOWN_HALL_LOOKS[TOWN_HALL_LOOK]
+    fp = TH_FP
+    trim = look["trim"]
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def along_wall(side, y0, y1, d, mat, out=0.0, cut=True, tile=2.0):
+        """A band round the building from y0 to y1, cut round the openings it would cross."""
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + out)
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d - out, a1 + 0.15 + d + out
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if cut and o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        for s0, s1 in segs:
+            if s1 - s0 < 0.02:
+                continue
+            m = (s0 + s1) / 2
+            c = (m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m)
+            b.box(c, (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0),
+                  style=no_bottom(mat, tile) if y0 < 0.05 else st(mat, tile))
+
+    def on_wall(side, a, y, sa, sy, d, mat, push=0.0):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + push)
+        b.box((a, y, at) if ns else (at, y, a), (sa, sy, d) if ns else (d, sy, sa), style=st(mat))
+
+    # ---- outside: stone dressings (every look): plinth, string course at the upstairs floor, cornice and coping
+    for side in "NSWE":
+        if look.get("base"):                                             # the rusticated ground floor
+            along_wall(side, 0.0, 2.9, 0.05, look["base"], tile=4.0)
+        along_wall(side, 0.0, 0.5, 0.1, trim)                            # plinth
+        along_wall(side, 2.95, 3.25, 0.12, trim)                         # string course
+        if look.get("bands"):
+            along_wall(side, 0.95, 1.05, 0.06, trim)
+            along_wall(side, 3.95, 4.05, 0.06, trim)
+        along_wall(side, 6.0, 6.3, 0.1, trim)                            # cornice: a frieze band, then the drip
+        along_wall(side, 6.3, 6.45, 0.3, trim)
+        along_wall(side, 6.95, 7.08, 0.16, trim)                         # parapet coping
+    if look.get("quoins"):                                               # stone corners, long and short blocks
+        for cx in (fp[0], fp[2]):
+            for cz in (fp[1], fp[3]):
+                sx, sz = (1 if cx > 0 else -1), (1 if cz > 0 else -1)
+                for k, y in enumerate([0.5 + 0.35 * i for i in range(7)] + [3.25 + 0.35 * i for i in range(8)]):
+                    la = 0.7 if k % 2 else 0.45
+                    for along_x in (True, False):
+                        l1 = la if along_x else (1.15 - la)
+                        if along_x:
+                            b.box((cx + sx * (0.15 - l1 / 2 + 0.1), y + 0.15, cz + sz * 0.2), (l1 + 0.2, 0.3, 0.1), style=st(trim))
+                        else:
+                            b.box((cx + sx * 0.2, y + 0.15, cz + sz * (0.15 - l1 / 2 + 0.1)), (0.1, 0.3, l1 + 0.2), style=st(trim))
+    for o in opens:
+        if o["kind"] != "window":
+            continue
+        side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+        if look.get("surrounds"):
+            for sg in (-1, 1):
+                on_wall(side, mid + sg * (w / 2 + 0.08), (lo + hi) / 2, 0.16, hi - lo + 0.1, 0.06, trim)
+            on_wall(side, mid, hi + 0.12, w + 0.4, 0.22, 0.06, trim)
+            on_wall(side, mid, hi + 0.14, 0.24, 0.32, 0.1, trim)          # keystone
+        else:                                                            # a plain stone lintel
+            on_wall(side, mid, hi + 0.12, w + 0.3, 0.22, 0.06, trim)
+        on_wall(side, mid, lo - 0.05, w + 0.3, 0.1, 0.14, trim, push=0.03)    # sill
+
+    # ---- the front (north, onto the square): a stone doorcase with pilasters and an entablature, TOWN HALL cut in
+    zn = fp[1] - 0.15
+    dx = TH_DOOR_X
+    for sg in (-1, 1):
+        b.box((dx + sg * 1.6, 1.4, zn - 0.15), (0.55, 2.8, 0.3), style=no_bottom(trim, 1.0))       # pilasters
+        b.box((dx + sg * 1.6, 0.15, zn - 0.2), (0.75, 0.3, 0.4), style=no_bottom(trim, 1.0))       # their bases
+        b.box((dx + sg * 1.6, 2.75, zn - 0.2), (0.7, 0.15, 0.4), style=st(trim))                   # capitals
+    b.box((dx, 2.95, zn - 0.2), (4.6, 0.3, 0.4), style=face_decal(ctx.d("sign"), trim, "-z"))       # entablature
+    b.box((dx, 2.725, zn - 0.2), (2.6, 0.15, 0.4), style=st(trim))                                  # the lintel
+    # the clock gable on the parapet over the door, the town's crest under it on the frieze
+    yb = 6.45
+    b.box((dx, yb + 0.9, fp[1]), (3.6, 1.8, 0.3), style=st(look["ext"], 2.0))
+    for k in range(6):                                                  # stepped top
+        w = 3.8 - k * 0.55
+        b.box((dx, yb + 1.85 + k * 0.12, fp[1]), (w, 0.12, 0.4), style=st(trim))
+    b.box((dx, yb + 0.9, zn - 0.04), (1.5, 1.5, 0.06), style=face_decal(ctx.d("clock"), trim, "-z"))
+    b.box((dx, yb + 0.9, zn - 0.02), (1.7, 1.7, 0.03), style=st(trim))
+    # flag poles each side of the gable, the town's flags torn to strips
+    for sg in (-1, 1):
+        px = dx + sg * 3.0
+        b.box((px, 7.0 + 1.6, fp[1] + 0.6), (0.07, 3.2, 0.07), style=st("steel_light"))
+        b.box((px, 10.25, fp[1] + 0.6), (0.14, 0.12, 0.14), style=st("brass"))
+        for k in range(3):
+            ln = rng.uniform(0.6, 1.3)
+            b.box((px + sg * (0.05 + ln / 2), 9.9 - k * 0.22, fp[1] + 0.6), (ln, 0.2, 0.02), yaw=sg * rng.uniform(-8, 8),
+                  pitch=0, style=st(("blue", "bone", "blue")[k]))
+    # the crest hung on the wall east of the door
+    b.box((dx + 3.6, 1.9, zn - 0.03), (1.0, 1.2, 0.04), style=face_decal(ctx.d("crest"), trim, "-z"))
+
+    # ---- the back (south): a plain stone surround, BLOXOV over it, a small canopy
+    zs = fp[3] + 0.15
+    for sg in (-1, 1):
+        b.box((dx + sg * 1.25, 1.3, zs + 0.06), (0.3, 2.6, 0.12), style=no_bottom(trim, 1.0))
+    b.box((dx, 2.75, zs + 0.06), (2.8, 0.45, 0.12), style=face_decal(ctx.d("sign_s"), trim, "+z"))
+    b.box((dx, 3.6, zs + 0.7), (3.0, 0.1, 1.4), style=st("trim_dark"))
+
+    # ---- inside: pictures on the walls (graffiti = cut out, decals = solid)
+    def pic(side, at, a0, a1, y0, y1, region, mat="decals"):
+        n = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+z": (0, 0, 1), "-z": (0, 0, -1)}[side]
+        wall_quad(b, n, at, a0, a1, y0, y1, mat, ctx.d(region))
+    pic("+x", 0.12, -8.3, -7.1, 1.0, 2.5, "honour")                      # foyer
+    pic("-x", 12.38, -8.4, -7.2, 1.2, 2.0, "notices")
+    pic("-x", 12.38, -1.6, -1.0, 1.2, 2.1, "poster")
+    pic("-z", -0.12, 1.6, 2.6, 1.3, 2.5, "crest")
+    pic("+z", -8.83, 2.0, 2.4, 2.2, 2.6, "clock_small", "graffiti")
+    pic("-z", -0.12, -23.0, -22.2, 1.4, 2.0, "shelter")                  # stair hall, by the bunker ramp
+    pic("-z", -0.12, -16.6, -15.7, 1.2, 1.6, "keep_out", "graffiti")
+    pic("-z", -0.12, -10.0, -9.6, 1.3, 1.9, "calendar")                  # records
+    pic("+x", -12.38, -8.4, -7.2, 1.2, 2.0, "notices")
+    pic("+x", 12.62, -2.6, -1.4, 1.2, 2.0, "notices")                    # rates office
+    pic("+z", -8.83, 21.0, 21.4, 1.3, 1.9, "calendar")
+    pic("-x", -12.62, 6.0, 7.6, 1.9, 2.3, "registry")                    # registry office
+    pic("+z", 0.12, -16.0, -15.6, 1.3, 1.9, "calendar")
+    pic("-x", -0.12, 6.2, 7.4, 1.2, 2.0, "notices")                      # town clerk
+    pic("+x", -12.38, 1.0, 1.4, 1.3, 1.9, "calendar")
+    pic("+x", 0.12, 1.6, 2.2, 1.2, 2.1, "poster")                        # the crew's mess
+    pic("-z", 8.83, 9.0, 9.75, 1.2, 1.76, "x1_chalk", "graffiti")
+    pic("+x", 12.62, 1.0, 3.4, 1.0, 2.4, "town_plan")                    # planning office
+    for k, x in enumerate((-23.5, -22.1, -15.5, -14.1)):                  # upper hall: the old mayors
+        pic("-z", -0.12, x - 0.3, x + 0.3, 4.4, 5.2, f"portrait{k}")
+    pic("-z", -0.12, -9.2, -7.95, 4.0, 4.8, "x1_tag", "graffiti")        # barracks
+    pic("-z", -0.12, 1.0, 3.4, 4.3, 5.5, "painting")                     # council chamber
+    pic("-z", -0.12, 9.1, 10.3, 4.0, 5.5, "honour")
+    pic("+x", -12.38, 6.4, 8.2, 4.0, 5.0, "bon_wall", "graffiti")       # the deputy's office (Bon's)
+    pic("-x", -0.12, 7.0, 7.6, 4.3, 5.1, "portrait1")
+    for z in (6.0, 7.2):                                                  # polling room
+        pic("+x", 0.12, z, z + 0.6, 4.1, 5.0, "poster")
+    pic("+x", 12.62, 1.0, 2.2, 4.2, 5.0, "notices")                      # radio room
+    # ---- ransacked floors (stay out of the stairs and the bunker ramp)
+    office_mess(ctx, 0.5, 12.0, -8.5, -0.5, 0.0, 30)                      # foyer
+    office_mess(ctx, -12.0, -0.5, -8.5, -0.5, 0.0, 60, boxes=2)           # records
+    office_mess(ctx, -15.8, -13.0, -6.2, -3.5, 0.0, 8)                    # stair hall
+    office_mess(ctx, 13.0, 24.4, -8.5, -0.5, 0.0, 35, boxes=1)            # rates office
+    office_mess(ctx, -24.4, -13.0, 0.5, 5.4, 0.0, 15)                     # registry
+    office_mess(ctx, -12.0, -0.5, 0.5, 8.5, 0.0, 45, boxes=2)             # town clerk
+    office_mess(ctx, 13.0, 24.4, 0.5, 8.5, 0.0, 30)                       # planning
+    office_mess(ctx, -21.8, -13.0, -6.2, -0.5, 3.0, 15)                   # upper hall
+    office_mess(ctx, 0.5, 12.0, -5.0, -0.5, 3.0, 35)                      # council chamber
+    office_mess(ctx, -12.0, -0.5, 2.2, 7.6, 3.0, 25)                      # Bon's office
+    office_mess(ctx, -24.4, -13.0, 1.0, 8.0, 3.0, 60, boxes=7)            # archive
+    office_mess(ctx, 0.5, 12.0, 1.2, 8.5, 3.0, 25)                        # polling room
+    office_mess(ctx, 12.8, 16.0, 0.5, 8.5, 3.0, 10)                       # radio room
+    # the crew's bedrolls on the barracks floor, a washing line across the corner
+    for x, z, yaw in ((-10.8, -7.6, 90), (-9.6, -4.2, 80), (-2.2, -4.0, 95)):
+        b.box((x, 3.03, z), (0.75, 0.06, 1.9), yaw=yaw, style=_nb(rng.choice(("olive", "olive_dark", "blue"))))
+        b.box((x + 0.1, 3.07, z + 0.7), (0.5, 0.08, 0.3), yaw=yaw, style=_nb("bone"))
+    _beam(b, (-12.3, 5.2, -8.6), (-8.0, 5.1, -8.6), 0.01, 0.01, "black")
+    for k, col in enumerate(("olive", "bone", "olive_dark")):
+        b.box((-11.6 + k * 1.2, 4.75, -8.6), (0.5, 0.7, 0.02), style=_solid(col))
+    # A brotherhood calling card: a small X1 carved into the frame of Bon's door.
+    b.box((-12.38, 4.55, 3.3), (0.004, 0.12, 0.02), pitch=40, style=no_bottom("bone", 1.0))
+    b.box((-12.38, 4.55, 3.3), (0.004, 0.12, 0.02), pitch=-40, style=no_bottom("bone", 1.0))
+
+
+def caved_town_hall(ctx, c, s):
+    """The town hall's caved room, the mayor's office: a shell came through the flat roof. A slab of the roof hangs
+    from the south wall to the floor, broken concrete and bent rebar round the edge of the hole, the plaster ceiling's
+    moulded edge left round the walls, the brass chandelier smashed on the floor, the mayor's conference table
+    snapped, a portrait face up in the rain (owner: each building its own wreckage; all picture only)."""
+    b, rng = ctx.b, random.Random("caved_town_hall")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.75
+    roof = y + 3.0
+    # The ceiling's moulded edge round the walls (both faces), ragged where the rest fell.
+    for side in range(4):
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        while a < a1 - 0.05:
+            L = min(rng.uniform(0.5, 1.5), a1 - a)
+            d = rng.uniform(0.2, 0.55)
+            m = a + L / 2
+            at, sz = {0: ((m, top, z0 + d / 2), (L, 0.05, d)), 1: ((m, top, z1 - d / 2), (L, 0.05, d)),
+                      2: ((x0 + d / 2, top, m), (d, 0.05, L)), 3: ((x1 - d / 2, top, m), (d, 0.05, L))}[side]
+            b.box(at, sz, style=lambda n, m_, q: ("ceiling", uv_world(1.0)))
+            a += L
+    # Bent rebar sticking out of the roof slab's broken edge, and jagged lumps on it.
+    for side in range(4):
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        a += rng.uniform(0.1, 0.4)
+        while a < a1 - 0.1:
+            ln = rng.uniform(0.3, 0.9)
+            droop = rng.uniform(15, 70)
+            if side < 2:
+                zz = z0 if side == 0 else z1
+                sg = 1 if side == 0 else -1
+                p0 = (a, roof - 0.12, zz)
+                p1 = (a + rng.uniform(-0.1, 0.1), roof - 0.12 - ln * math.sin(math.radians(droop)), zz + sg * ln * math.cos(math.radians(droop)))
+            else:
+                xx = x0 if side == 2 else x1
+                sg = 1 if side == 2 else -1
+                p0 = (xx, roof - 0.12, a)
+                p1 = (xx + sg * ln * math.cos(math.radians(droop)), roof - 0.12 - ln * math.sin(math.radians(droop)), a + rng.uniform(-0.1, 0.1))
+            _beam(b, p0, p1, 0.02, 0.02, "rust" if False else "trim_dark")
+            a += rng.uniform(0.25, 0.6)
+    # The slab that came down, one edge still on the south wall's top, the other on the floor.
+    _beam(b, (c[0] + 1.0, roof - 0.15, z1 - 0.1), (c[0] - 0.4, y + 0.2, z1 - 3.4), 3.6, 0.25, "concrete")
+    for k in range(9):                                                    # its rebar mesh showing at the torn end
+        _beam(b, (c[0] - 2.0 + k * 0.45, y + 0.25, z1 - 3.4), (c[0] - 2.0 + k * 0.45 + rng.uniform(-0.2, 0.2), y + 0.05, z1 - 3.9),
+              0.02, 0.02, "trim_dark")
+    # The chandelier: a brass ring and its arms, flattened, glass drops scattered.
+    lx, lz = c[0] + 0.5, c[2] - 1.2
+    for k in range(8):
+        t = k * math.pi / 4
+        b.box((lx + 0.45 * math.cos(t), y + 0.04, lz + 0.45 * math.sin(t)), (0.38, 0.04, 0.05), yaw=-math.degrees(t) + 90,
+              style=_nb("brass"))
+        b.box((lx + 0.3 * math.cos(t), y + 0.06, lz + 0.3 * math.sin(t)), (0.3, 0.03, 0.03), yaw=-math.degrees(t), pitch=8,
+              style=_nb("brass"))
+    b.box((lx, y + 0.12, lz), (0.12, 0.24, 0.12), pitch=70, style=_nb("brass"))
+    b.box((lx + 0.2, y + 0.5, lz - 0.6), (0.02, 0.9, 0.02), pitch=50, style=_nb("brass"))       # its chain
+    for _ in range(20):
+        b.box((lx + rng.uniform(-1.6, 1.6), y + 0.006, lz + rng.uniform(-1.4, 1.4)), (0.05, 0.01, 0.05), yaw=rng.uniform(0, 90),
+              style=_nb("glass"))
+    # The long table snapped in the middle under the slab, chairs thrown about.
+    tx, tz = c[0] - 2.8, c[2] + 0.6
+    for sg in (-1, 1):
+        b.box((tx + sg * 1.0, y + 0.45, tz), (2.0, 0.06, 1.0), yaw=8, pitch=0, style=_nb("wood_dark"))
+        b.box((tx + sg * 1.0, y + 0.45, tz), (2.0, 0.06, 1.0), yaw=8 + sg * 2, pitch=0, style=_nb("wood_dark"))
+    b.box((tx - 1.0, y + 0.42, tz), (2.0, 0.06, 1.0), yaw=8, style=_nb("wood_dark"))
+    _beam(b, (tx, y + 0.1, tz - 0.5), (tx + 1.9, y + 0.72, tz - 0.4), 1.0, 0.06, "wood_dark")    # the broken half tipped up
+    for sx in (-1, 1):
+        b.box((tx - 1.0 + sx * 0.9, y + 0.2, tz), (0.08, 0.4, 0.8), yaw=8, style=_nb("wood_dark"))
+    for k in range(5):
+        chair(b, tx - 3.0 + k * 1.4 + rng.uniform(-0.3, 0.3), y, tz + rng.choice((-1.4, 1.5)), rng.uniform(0, 360), "wine", "wood_dark")
+    # A portrait fallen face up, the rain on it; rubble, plaster, wet papers, a puddle.
+    b.box((c[0] + 3.4, y + 0.03, c[2] + 2.4), (0.62, 0.04, 0.82), yaw=-20, style=_nb("wood_dark"))
+    b.poly([(c[0] + 3.12, y + 0.052, c[2] + 2.02), (c[0] + 3.68, y + 0.052, c[2] + 2.02),
+            (c[0] + 3.68, y + 0.052, c[2] + 2.78), (c[0] + 3.12, y + 0.052, c[2] + 2.78)], (0, 1, 0), "decals", ctx.d("portrait0"))
+    for _ in range(12):
+        rubble_chunk(b, (x0 + rng.uniform(1.0, s[0] - 1.0), y, z0 + rng.uniform(1.0, s[2] - 1.0)),
+                     (rng.uniform(0.3, 0.9), rng.uniform(0.15, 0.35), rng.uniform(0.3, 0.9)), rng, ["concrete", "roof"])
+    for _ in range(10):                                                   # plaster ceiling pieces
+        b.box((x0 + rng.uniform(0.6, s[0] - 0.6), y + 0.025, z0 + rng.uniform(0.6, s[2] - 0.6)),
+              (rng.uniform(0.4, 1.0), 0.04, rng.uniform(0.3, 0.8)), yaw=rng.uniform(0, 90), pitch=rng.uniform(-6, 6),
+              style=_nb("ceiling"))
+    papers(b, rng, x0 + 0.5, x1 - 0.5, z0 + 0.5, z1 - 0.5, y, 20)
+    b.box((c[0] - 0.5, y + 0.006, c[2] + 0.2), (2.6, 0.004, 1.8), yaw=15, style=_nb("glass"))  # the puddle
+
+
+CAVED["town_hall"] = caved_town_hall
+
+
+DECALS["town_hall"] = town_hall_decals
+DRESSING["town_hall"] = dress_town_hall
+FOOTPRINTS["town_hall"] = TH_FP
+SHELLS["town_hall"] = {
+    "ext": TOWN_HALL_LOOKS[TOWN_HALL_LOOK]["ext"], "roof_side": TOWN_HALL_LOOKS[TOWN_HALL_LOOK]["ext"],
+    "x_lines": (-25.0, -12.5, 0.0, 12.5, 25.0), "z_lines": (-9.0, 0.0, 9.0),
+    "inner": th_inner, "floor": th_floor, "ceiling": th_ceiling, "x_splits": (-12.5, 0.0, 12.5), "z_splits": (0.0,),
+    "floor_holes": [(-21.5, -3.0, -13.0, -0.6)], "split_roof_ceiling": True,
+}
+FACTION_MARKS["town_hall"] = [("x1_stencil", "W", 0.6, 1.0), ("nova_tag", "E", -0.8, 1.1)]
 
 
 def floor_debris(ctx, data, name):

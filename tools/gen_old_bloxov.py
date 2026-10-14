@@ -854,6 +854,87 @@ def offices_furniture(ox, oz):
     o(-3.767, 3.0, -10.35, -3.567, 6.0, -8.15, "wall", None)
 
 
+def town_hall_furniture(ox, oz):
+    """Bloxov Town Hall (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 12.5 x 9 m,
+    storeys 3 m). Furniture is solid like everywhere else; flags, chairs, bedrolls and the voting booths' curtains
+    are picture only. Room middles (the boss and his guards start in the ground-floor ones), doorways, the stairs'
+    feet and the bunker ramp's rail stay clear for the AI."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # Ground floor. The foyer (north middle, the front door onto the square): the enquiries desk, a glass case with a
+    # model of the town, benches, plants by the door.
+    o(8.9, 0, -2.6, 11.7, 1.05, -1.7, "wood", "th_info_desk")
+    o(9.3, 0, -8.2, 11.5, 1.0, -6.8, "wood", "town_model")
+    o(0.9, 0, -8.75, 3.5, 0.5, -8.25, "wood", "hall_bench")
+    o(0.9, 0, -0.75, 3.5, 0.5, -0.25, "wood", "hall_bench")
+    o(4.3, 0, -8.6, 4.7, 1.3, -8.2, "wood", "plant", solid=False)
+    o(7.8, 0, -8.6, 8.2, 1.3, -8.2, "wood", "plant", solid=False)
+    # Records office (north, west of the foyer): cabinets along the north wall, two desk pods.
+    for x0 in (-11.8, -10.7, -2.1, -1.0):
+        o(x0, 0, -8.85, x0 + 1.0, 1.3, -8.25, "metal", "file_cabinet")
+    o(-11.5, 0, -2.7, -9.8, 0.75, -1.2, "wood", "office_pod")
+    o(-2.7, 0, -2.7, -1.0, 0.75, -1.2, "wood", "office_pod")
+    # The stair hall (north-west): the stairs up, the bunker's ramp down; the crew's supplies in the corner.
+    o(-14.6, 0, -8.8, -12.7, 0.9, -7.5, "wood", "supply_crates")
+    # Rates office (north-east): the cashier's counter with its glass screen, the cashier's side behind it.
+    o(20.0, 0, -6.4, 24.85, 1.05, -5.8, "wood", "cashier_counter")
+    o(22.6, 0, -8.85, 23.6, 1.3, -8.25, "metal", "file_cabinet")
+    o(20.6, 0, -8.6, 21.9, 0.75, -7.6, "wood", "desk")
+    o(13.3, 0, -0.75, 16.2, 0.85, -0.25, "metal", "waiting_seats", solid=False)
+    # Registry office (south-west): the registrar's desk, rows of chairs for weddings, a flower arch.
+    o(-24.4, 0, 6.2, -23.6, 0.75, 8.2, "wood", "registrar_desk")
+    o(-24.7, 0, 5.6, -24.3, 2.4, 8.8, "wood", "flower_arch", solid=False)
+    o(-21.5, 0, 5.8, -15.5, 0.9, 8.2, "wood", "chair_rows", solid=False)
+    # Town clerk's office (south middle-west): the clerk's desk, cabinets, the ballot boxes from the last election.
+    o(-11.2, 0, 5.8, -9.4, 0.78, 6.8, "wood", "clerk_desk")
+    o(-12.35, 0, 7.0, -11.75, 1.3, 8.6, "metal", "file_cabinet")
+    o(-1.6, 0, 7.4, -0.3, 0.8, 8.7, "wood", "ballot_boxes")
+    # The back hall (south middle, the back door): Bon's crew's mess, a card table, cots, a camp stove, ammo.
+    o(1.0, 0, 6.3, 2.4, 0.75, 7.5, "wood", "card_table")
+    o(9.4, 0, 7.6, 11.6, 0.5, 8.5, "wood", "th_cot")
+    o(0.3, 0, 0.4, 1.4, 0.8, 1.4, "metal", "camp_stove")
+    o(10.6, 0, 0.35, 12.25, 0.9, 1.7, "wood", "ammo_crates")
+    # Planning office (south-east): the plan chest, drafting tables, the town plan on the wall.
+    o(13.3, 0, 0.3, 15.1, 0.9, 1.0, "wood", "plan_chest")
+    o(23.4, 0, 1.0, 24.6, 0.95, 2.0, "wood", "drafting_table")
+    o(23.4, 0, 6.9, 24.6, 0.95, 7.9, "wood", "drafting_table")
+    # Upstairs. The upper hall (north-west, the top of the stairs): benches under the old mayors' portraits.
+    o(-24.2, 3.0, -0.75, -21.2, 3.5, -0.25, "wood", "hall_bench")
+    o(-16.3, 3.0, -0.75, -13.3, 3.5, -0.25, "wood", "hall_bench")
+    # The crew's barracks (north middle-west): cots and kit.
+    o(-4.9, 3.0, -8.75, -2.9, 3.5, -7.85, "wood", "th_cot")
+    o(-2.5, 3.0, -8.75, -0.5, 3.5, -7.85, "wood", "th_cot")
+    o(-11.9, 3.0, -1.05, -9.9, 3.5, -0.15, "wood", "th_cot")
+    o(-3.0, 3.0, -1.05, -1.0, 3.5, -0.15, "wood", "th_cot")
+    # The council chamber (north middle-east): the horseshoe council table, the public benches, the flags.
+    o(2.6, 3.0, -7.6, 9.9, 3.76, -6.8, "wood", "council_table")
+    o(2.6, 3.0, -6.8, 3.4, 3.76, -5.7, "wood", "council_table")
+    o(9.1, 3.0, -6.8, 9.9, 3.76, -5.7, "wood", "council_table")
+    o(0.8, 3.0, -1.5, 4.2, 3.45, -1.0, "wood", "council_bench")
+    o(8.3, 3.0, -1.5, 11.7, 3.45, -1.0, "wood", "council_bench")
+    for x in (4.4, 8.1):
+        o(x - 0.1, 3.0, -8.6, x + 0.1, 5.4, -8.4, "metal", "th_flag", solid=False)
+    # The mayor's office (north-east) is the caved-in room. The deputy's office, Bon's now (south middle-west): the big
+    # desk, a bookcase, a sofa, a globe.
+    o(-11.0, 3.0, 1.0, -9.2, 3.78, 1.8, "wood", "manager_desk")
+    o(-3.4, 3.0, 8.2, -1.4, 5.0, 8.6, "wood", "wall_books")
+    o(-11.5, 3.0, 7.95, -9.5, 3.85, 8.75, "wood", "sofa")
+    o(-1.3, 3.0, 0.7, -0.7, 4.2, 1.3, "wood", "globe", solid=False)
+    # The archive (south-west): tall shelving along the walls, a reading table.
+    for x0, z0 in ((-24.4, 0.2), (-17.1, 0.2), (-24.4, 8.3), (-17.1, 8.3)):
+        o(x0, 3.0, z0, x0 + 4.0, 5.2, z0 + 0.5, "metal", "archive_shelf")
+    # The polling room (south middle-east): voting booths, the counting table, more ballot boxes; the crate (loot).
+    o(0.4, 3.0, 0.2, 3.6, 5.0, 1.0, "wood", "voting_booths", solid=False)
+    o(1.0, 3.0, 7.7, 4.4, 3.76, 8.5, "wood", "counting_table")
+    o(10.9, 3.0, 0.3, 12.2, 3.8, 1.6, "wood", "ballot_boxes")
+    # The radio room (south-east, the stairs to the roof): the crew's radio post, crates, a generator.
+    o(20.5, 3.0, 0.25, 23.5, 3.78, 1.05, "wood", "radio_table")
+    o(23.6, 3.0, 2.0, 24.8, 3.9, 3.2, "wood", "ammo_crates")
+    o(13.0, 3.0, 0.4, 14.0, 3.8, 1.2, "metal", "generator")
+    # On the roof: the radio's mast by the top of the stairs (picture only).
+    o(24.2, 6.0, 5.8, 24.4, 10.0, 6.0, "metal", "radio_mast", solid=False)
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2026,13 +2107,21 @@ def main():
     box(118, 0, 118, 120.5, 2.6, 120.5, "car_b")           # newsstand kiosk
 
     # downtown
-    hall = build(Building("TownHall", 82, 146, 50, 18, floors=2, colour="wall_hall", rooms=(4, 2), doors="NS",
-                          roof=True), [
-        ("locker", 1, 0, 1, "N", 0), ("crate", 2, 1, 1, "S", 0), ("locker", 3, 0, 1, "E", 0),
-        ("crate", 1, 1, 0, "S", 0)])
-    # the bunker (owner: best loot, behind a key door later): ramp down from the hall's west room
     bunker_floor = -4.5
     hx0, hz0, hx1, hz1 = bunker_hole
+    with modeled("town_hall", 107.0, 155.0):   # World art 0.17: the town hall (ransacked; Bon's crew hold it)
+        # Loot spots slid off the windows. The mayor's office (upstairs, north-east) caved in (owner: like the offices;
+        # a corner room, so the roof's cut pieces stay small and the AI spawn spots round the hall keep their room).
+        hall = build(Building("TownHall", 82, 146, 50, 18, floors=2, colour="wall_hall", rooms=(4, 2), doors="NS",
+                              roof=True, caved=[(3, 0)]), [
+            ("locker", 1, 0, 1, "N", -2.6), ("crate", 2, 1, 1, "S", 2.6), ("locker", 3, 0, 1, "E", -2.4, "wardrobe"),
+            ("crate", 1, 1, 0, "S", 2.6)])
+        town_hall_furniture(107.0, 155.0)
+        # a rail round the bunker's ramp hole (in the hall's west room)
+        box(hx0, 0, hz0 - 0.1, hx1, 1.0, hz0, "metal")
+        box(hx1, 0, hz0 - 0.1, hx1 + 0.1, 1.0, hz1 + 0.1, "metal")
+        box(hx0, 0, hz1, hx1, 1.0, hz1 + 0.1, "metal")
+    # the bunker (owner: best loot, behind a key door later): ramp down from the hall's west room
     run = hx1 - hx0
     obox((hx0 + hx1) / 2, bunker_floor / 2 - 0.1, (hz0 + hz1) / 2, hz1 - hz0 - 0.1, 0.2, math.hypot(run, bunker_floor),
          90.0, "concrete", pitch=math.degrees(math.atan2(-bunker_floor, run)))   # top (y 0) west, bottom east
@@ -2042,11 +2131,8 @@ def main():
     box(bx0 - 0.3, bunker_floor, bz1, bx1 + 0.3, -1.0, bz1 + 0.3, "bunker")              # south wall
     box(bx0 - 0.3, bunker_floor, bz0, bx0, -1.0, bz1, "bunker")                          # west wall
     box(bx1, bunker_floor, bz0, bx1 + 0.3, -1.0, bz1, "bunker")                          # east wall
-    # shaft wall north of the ramp; a rail round the hole upstairs (in the hall)
+    # shaft wall north of the ramp (its rail upstairs is with the hall's model)
     box(hx0, bunker_floor, hz0 - 0.3, hx1, -1.0, hz0, "bunker")
-    box(hx0, 0, hz0 - 0.1, hx1, 1.0, hz0, "metal")
-    box(hx1, 0, hz0 - 0.1, hx1 + 0.1, 1.0, hz1 + 0.1, "metal")
-    box(hx0, 0, hz1, hx1, 1.0, hz1 + 0.1, "metal")
     # key door: the wall at x 99 between the ramp landing and the bunker rooms (locked: the bunker key, 0.14.0)
     wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(155.0, DOOR_W, 0.0, DOOR_H)])
     box(98.7, bunker_floor + 2.3, 154.0, 99.3, bunker_floor + 2.6, 156.0, "keydoor", solid=False)
