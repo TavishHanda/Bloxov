@@ -6758,6 +6758,9 @@ def stock_ream(b, at, rng, col):
 
 
 STOCK_W.update({"stock_binder": 0.075, "stock_archive_box": 0.34, "stock_ream": 0.24})
+STOCK["stores"] = [(stock_can, ("olive", "steel_light", "olive_dark")), (stock_can, ("red", "steel_light")),
+                   (stock_box, ("olive", "cardboard", "olive_dark")), (stock_bag, ("bone", "cardboard"))]
+STOCK["water"] = [(stock_bottle, ("blue", "steel_light", "blue")), (stock_box, ("blue", "bone"))]
 STOCK["archive"] = [(stock_archive_box, ("carton", "bone", "steel_light")), (stock_archive_box, ("carton",)),
                     (stock_binder, ("red", "blue", "olive", "black", "yellow", "green"))]
 STOCK["paper"] = [(stock_ream, ("bone", "yellow", "blue")), (stock_ream, ("bone",)), (stock_box, ("bone", "blue"))]
@@ -8974,10 +8977,10 @@ def vault_decals(rng):
         c.ctext(0, c.w, 2, "CAPACITY 200", "hazard_yellow")
 
     def plate(text):
-        def p(c):         # 1.4 x 0.3 m enamel plate over a door
-            c.rect(0, 0, c.w, c.h, "bone")
-            c.frame(0, 0, c.w, c.h, "iron_dark")
-            c.ctext(0, c.w, 2, text, "iron_dark")
+        def p(c):         # a brass plate over a door, like the strongroom's
+            c.rect(0, 0, c.w, c.h, "yellow_dark")
+            c.frame(0, 0, c.w, c.h, "rust")
+            c.ctext(0, c.w, 2, text, "black")
         return p
 
     def authorised(c):    # 3.4 x 0.3 m stencil down the corridor
@@ -9019,6 +9022,7 @@ def vault_decals(rng):
     a.add("shelter_v", 64, 19, shelter)
     for name in ("TREASURY", "RECORDS", "NO ENTRY"):
         a.add(name.lower().replace(" ", "_"), 45, 10, plate(name))
+    a.add("stores", 69, 10, plate("EMERGENCY STORES"))
     a.add("authorised", 109, 10, authorised)
     a.add("chalk", 64, 38, chalk)
     a.add("charter", 19, 26, charter)
@@ -9098,26 +9102,77 @@ def dress_vault(ctx):
     litter(b, rng, -14, -9, -7.5, -4.0, VF, 10)
     litter(b, rng, -26, -10, 0.5, 6.5, VF, 20)
 
-    # ---- the strongroom door (the key door, x -8): a thick steel ring round it on both sides, bolts, a wheel, a plate
-    for side in (-1, 1):
-        x = V_KEY_X + side * 0.2
-        for k in range(32):
-            a = k / 32 * 2 * math.pi
-            y, z = VF + 1.35 + 1.55 * math.sin(a), 1.65 * math.cos(a)
-            if y < VF + 0.1:
-                continue
-            b.box((x, y, z), (0.12, 0.36, 0.34), pitch=-math.degrees(a), style=_solid("steel_light"))
-            if k % 4 == 0:
-                b.box((x + side * 0.07, y, z), (0.03, 0.12, 0.12), style=_nb("trim_dark"))   # bolt heads
+    # ---- the strongroom door (the key door, x -8): a thick steel ring round it on both sides, bolts, a wheel, a plate.
+    # (owner: "I really like the way the entrance of the vault is designed, spread it through the vault": every
+    # doorway down here gets the same ring, plate and wheel, and the corridor and shelter a riveted steel dado.)
+    def ring(axis, at, mid, r=1.65, ry=1.55, yc=1.35, wheel=None):
+        """A vault-door ring round a doorway in a wall across `axis` ("x": wall at x = at), both faces."""
+        for side in (-1, 1):
+            w = at + side * 0.2
+            for k in range(32):
+                a = k / 32 * 2 * math.pi
+                y, h = VF + yc + ry * math.sin(a), mid + r * math.cos(a)
+                if y < VF + 0.1:
+                    continue
+                if axis == "x":
+                    b.box((w, y, h), (0.12, 0.36, 0.34), pitch=-math.degrees(a), style=_solid("steel_light"))
+                    if k % 4 == 0:
+                        b.box((w + side * 0.07, y, h), (0.03, 0.12, 0.12), style=_nb("trim_dark"))   # bolt heads
+                else:
+                    b.box((h, y, w), (0.12, 0.36, 0.34), yaw=90, pitch=-math.degrees(a), style=_solid("steel_light"))
+                    if k % 4 == 0:
+                        b.box((h, y, w + side * 0.07), (0.12, 0.12, 0.03), style=_nb("trim_dark"))
+        if wheel:                                                          # the locking wheel beside it
+            sg, off = wheel
+            wa, wo = at + sg * 0.22, mid + off
+            def P(da, y, dw, sx, sy, sw):
+                if axis == "x":
+                    b.box((wa + sg * dw, VF + y, wo + da), (sw, sy, sx), style=_nb("steel_light"))
+                else:
+                    b.box((wo + da, VF + y, wa + sg * dw), (sx, sy, sw), style=_nb("steel_light"))
+            P(0, 1.3, 0.0, 0.14, 0.14, 0.08)
+            P(0, 1.3, 0.04, 0.05, 0.9, 0.03)
+            P(0, 1.3, 0.04, 0.9, 0.05, 0.03)
+            for k in range(8):
+                a = k / 8 * 2 * math.pi
+                P(0.42 * math.cos(a), 1.3 + 0.42 * math.sin(a), 0.06, 0.18, 0.18, 0.05)
+    ring("x", V_KEY_X, 0.0, wheel=(-1, 2.4))
     pic("-x", V_KEY_X - 0.16, -1.2, 1.2, VF + 3.05, VF + 3.45, "strongroom")
-    wx, wz = V_KEY_X - 0.22, 2.4                                         # the locking wheel beside it (landing side)
-    b.box((wx, VF + 1.3, wz), (0.08, 0.14, 0.14), style=_nb("trim_dark"))
-    b.box((wx - 0.04, VF + 1.3, wz), (0.03, 0.9, 0.05), style=_nb("steel_light"))
-    for k in range(8):
-        a = k / 8 * 2 * math.pi
-        b.box((wx - 0.06, VF + 1.3 + 0.42 * math.sin(a), wz + 0.42 * math.cos(a)), (0.05, 0.18, 0.18),
-              style=_nb("steel_light"))
-    b.box((wx - 0.04, VF + 1.3, wz), (0.03, 0.05, 0.9), style=_nb("steel_light"))
+    for x in (-2.5, 8.5, 19.5):                                          # the corridor's doorways
+        ring("z", V_CORR_Z, x, r=1.7, ry=1.65, yc=1.3, wheel=(1, 2.1))
+    for x in V_ROOM_X:                                                   # treasury -> records -> lab
+        ring("x", x, -2.5, r=1.7, ry=1.65, yc=1.3)
+    # The riveted steel dado down the corridor and round the shelter, cut at the doorways.
+    def dado(axis, at, a0, a1, sg):
+        for c0, c1 in ((a0, a1),):
+            L = c1 - c0
+            if L < 0.2:
+                continue
+            m = (c0 + c1) / 2
+            if axis == "z":
+                b.box((m, VF + 0.5, at + sg * 0.02), (L, 1.0, 0.04), style=_nb("metal"))
+                b.box((m, VF + 1.02, at + sg * 0.035), (L, 0.06, 0.07), style=_nb("trim_dark"))
+            else:
+                b.box((at + sg * 0.02, VF + 0.5, m), (0.04, 1.0, L), style=_nb("metal"))
+                b.box((at + sg * 0.035, VF + 1.02, m), (0.07, 0.06, L), style=_nb("trim_dark"))
+            n = int(L / 0.6)
+            for k in range(n):
+                a = c0 + 0.3 + k * L / n
+                for y in (0.12, 0.88):
+                    if axis == "z":
+                        b.box((a, VF + y, at + sg * 0.045), (0.05, 0.05, 0.02), style=_nb("trim_dark"))
+                    else:
+                        b.box((at + sg * 0.045, VF + y, a), (0.02, 0.05, 0.05), style=_nb("trim_dark"))
+    for a0, a1 in ((-7.85, -4.4), (-0.6, 6.6), (10.4, 17.6), (21.4, 25.0)):
+        dado("z", V_CORR_Z + 0.15, a0, a1, 1)
+    dado("z", 8.0, -7.85, 25.0, -1)
+    dado("x", 25.0, 3.15, 8.0, -1)
+    dado("x", V_KEY_X - 0.15, -8.0, -1.85, -1)
+    dado("x", V_KEY_X - 0.15, 1.85, 8.0, -1)
+    dado("z", -8.0, -27.0, -21.5, 1)
+    dado("z", -8.0, -13.0, -8.15, 1)
+    dado("z", 8.0, -27.0, -8.15, -1)
+    dado("x", -27.0, -8.0, 8.0, 1)
 
     # ---- the treasury (behind the door): safe-deposit walls, the counting table, Bon's cash and gold
     pic("-z", V_CORR_Z - 0.16, -7.8, -3.8, VF + 0.2, VF + 2.2, "deposit")
@@ -9141,7 +9196,7 @@ def dress_vault(ctx):
     vault_gold(b, 1.95, -7.2, 5, 2, y=VF + 0.77)
     for k in range(3):
         b.box((2.0 + k * 0.28, VF + 0.42, -7.2), (0.22, 0.2, 0.22), style=_nb("cardboard"))
-    pic("-z", V_CORR_Z + 0.16, -3.2, -1.8, VF + 2.6, VF + 2.9, "treasury")    # its plate, corridor side
+    pic("+z", V_CORR_Z + 0.16, -3.2, -1.8, VF + 3.12, VF + 3.42, "treasury")    # its plate, corridor side
 
     # ---- the records strongroom: steel mesh cages of deed boxes along the walls, the charter in a glass case
     def cage(x0, x1, z, d, face):
@@ -9150,6 +9205,13 @@ def dress_vault(ctx):
             b.box((x0 + k * (x1 - x0) / n, VF + 1.2, z + face * d), (0.02, 2.4, 0.03), style=_nb("trim_dark"))
         for y in (0.05, 1.2, 2.38):
             b.box(((x0 + x1) / 2, VF + y, z + face * d), (x1 - x0, 0.05, 0.04), style=_solid("trim_dark"))
+        for x in (x0, x1):                                                # closed at the ends (owner) and on top
+            for k in range(5):
+                b.box((x, VF + 1.2, z + face * d * k / 4), (0.03, 2.4, 0.02), style=_nb("trim_dark"))
+            for y in (0.05, 1.2, 2.38):
+                b.box((x, VF + y, z + face * d / 2), (0.04, 0.05, d), style=_solid("trim_dark"))
+        for k in range(n + 1):
+            b.box((x0 + k * (x1 - x0) / n, VF + 2.4, z + face * d / 2), (0.02, 0.02, d), style=_solid("trim_dark"))
         for lv in range(1, 5):
             b.box(((x0 + x1) / 2, VF + lv * 0.5, z + face * d / 2), (x1 - x0, 0.03, d), style=_nb("steel_light"))
             for k in range(int((x1 - x0) / 0.36)):
@@ -9167,7 +9229,7 @@ def dress_vault(ctx):
         x, z = rng.uniform(4, 13), rng.uniform(-6.5, 1.5)
         b.box((x, VF + 0.13, z), (0.32, 0.26, 0.36), yaw=rng.uniform(0, 180), pitch=rng.choice((0, 90)), style=_nb("carton"))
     papers(b, rng, 3.5, 13.5, -6.8, 2.2, VF, 30)
-    pic("-z", V_CORR_Z + 0.16, 7.8, 9.2, VF + 2.6, VF + 2.9, "records")
+    pic("+z", V_CORR_Z + 0.16, 7.8, 9.2, VF + 3.12, VF + 3.42, "records")
 
     # ---- the lab: the cloth on its stretching frame, a workbench of instruments, sample jars, the blackboard
     fx, fz = 16.5, V_CORR_Z - 0.4
@@ -9196,7 +9258,21 @@ def dress_vault(ctx):
         b.box((rng.uniform(15, 22), VF + 0.004, rng.uniform(-6, 1)), (0.5, 0.006, 0.4), yaw=rng.uniform(0, 180),
               style=_nb("red"))
     papers(b, rng, 15, 23.5, -6.5, 2.0, VF, 15)
-    pic("-z", V_CORR_Z + 0.16, 18.8, 20.2, VF + 2.6, VF + 2.9, "no_entry")
+    pic("+z", V_CORR_Z + 0.16, 18.8, 20.2, VF + 3.12, VF + 3.42, "no_entry")
+    # The corridor's west end (owner: "super empty... what else would a town have in a vault? food? water?"): the
+    # town's emergency stores, steel shelving of tinned food, water and medical boxes round the supply crate.
+    shelving(ctx, (-5.8, VF + 1.0, V_CORR_Z + 0.45), (4.0, 2.0, 0.55), "x", (1,), "stores", levels=4,
+             frame="steel_light", lip="trim_dark", fill=0.75)
+    shelving(ctx, (-5.45, VF + 1.0, 7.55), (4.7, 2.0, 0.55), "x", (-1,), "water", levels=4,
+             frame="steel_light", lip="trim_dark", fill=0.8)
+    shelving(ctx, (-7.55, VF + 1.0, 5.5), (0.55, 2.0, 2.4), "z", (1,), "meds", levels=4,
+             frame="steel_light", lip="trim_dark", fill=0.6)
+    pic("+x", V_KEY_X + 0.16, 4.4, 6.6, VF + 2.7, VF + 3.0, "stores")
+    for k in range(4):                                                   # blankets, folded, stacked by the crate
+        b.box((-4.3, VF + 0.06 + k * 0.1, 6.9), (0.6, 0.1, 0.45), yaw=k * 4, style=_nb("olive" if k % 2 else "olive_dark"))
+    # The shelter keeps its own stores too: rations on shelves along the north wall, west of the ramp.
+    shelving(ctx, (-24.2, VF + 1.0, -7.55), (5.0, 2.0, 0.55), "x", (1,), "stores", levels=4,
+             frame="olive_dark", lip="trim_dark", fill=0.6)
     # The corridor: the warning down it, the crew's litter.
     pic("+z", 7.84, 0.0, 3.4, VF + 1.9, VF + 2.2, "authorised", "graffiti")
     litter(b, rng, -7.5, 24.5, 3.6, 7.5, VF, 25)

@@ -2147,7 +2147,7 @@ def main():
     for x, z, yaw in ((102.0, 148.0, 180.0), (113.0, 148.0, 180.0), (124.0, 148.0, 180.0), (130.5, 153.0, 90.0)):
         add_loot("Bunker", "safe", x, z, y=bunker_floor, yaw=yaw)
     add_loot("Bunker", "locker", 107.0, 148.0, y=bunker_floor, yaw=180.0)
-    add_loot("Bunker", "crate", 101.0, 160.5, y=bunker_floor)
+    add_loot("Bunker", "crate", 101.0, 160.5, y=bunker_floor, yaw=-90.0)   # (faces down the corridor, owner)
 
     # bank with offices upstairs, one building east of the square (owner). The vault is the south-east room (1, 2),
     # only reachable from room (1, 1) through a key door (the bank vault key; the stairs are along the north wall).
