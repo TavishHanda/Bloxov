@@ -1158,7 +1158,7 @@ def shell_box(ctx, row):
         stairs(ctx, c, s, row["yaw"], row["pitch"])
     elif colour == "metal" and BUILDING_NAME[0] in HOUSES and 0.9 < s[1] < 1.1:
         banister(b, c, s)
-    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall") and 0.9 < s[1] < 1.1:
+    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank") and 0.9 < s[1] < 1.1:
         banister(b, c, s, rail="trim_dark", baluster="steel_light")   # a steel stairwell rail (owner: not a wall)
     elif colour in SHELL_COLOURS:
         mat = SHELL_COLOURS[colour]
@@ -6848,8 +6848,9 @@ def prop_water_cooler(ctx, c, s):
         b.box((x, y0 + 0.035, z), (0.06, 0.07, 0.06), yaw=k * 30, pitch=90 if k else 0, style=no_bottom("bone", 1.0))
 
 
-def prop_waiting_seats(ctx, c, s):
-    """A row of linked waiting-room seats on a steel beam, facing into the room (west); one seat slashed."""
+def prop_waiting_seats(ctx, c, s, sg=-1):
+    """A row of linked waiting-room seats on a steel beam, facing into the room (west, or east with sg 1); one seat
+    slashed."""
     b = ctx.b
     y0 = c[1] - s[1] / 2
     n = 3
@@ -6860,8 +6861,8 @@ def prop_waiting_seats(ctx, c, s):
     for k in range(n):
         z = c[2] - L / 2 + L * (k + 0.5) / n
         col = "olive" if k != 1 else "olive_dark"
-        b.box((c[0] - 0.03, y0 + 0.44, z), (0.46, 0.08, 0.5), style=no_bottom(col, 1.0))
-        b.box((c[0] + 0.21, y0 + 0.72, z), (0.06, 0.5, 0.5), pitch=0, style=no_bottom(col, 1.0))
+        b.box((c[0] + sg * 0.03, y0 + 0.44, z), (0.46, 0.08, 0.5), style=no_bottom(col, 1.0))
+        b.box((c[0] - sg * 0.21, y0 + 0.72, z), (0.06, 0.5, 0.5), pitch=0, style=no_bottom(col, 1.0))
     b.box((c[0] - 0.02, y0 + 0.485, c[2]), (0.3, 0.01, 0.06), yaw=30, style=no_bottom("bone", 1.0))   # stuffing out
 
 
@@ -9416,7 +9417,7 @@ def bank_decals(rng):
         c.frame(0, 0, c.w, c.h, "wood_dark")
         c.ctext(0, c.w, c.h - 8, "RATES", "hazard_yellow")
         for k, (cur, val) in enumerate((("NOVA", "1.00"), ("EXION", "0.62"), ("GOLD", "1840"))):
-            y = c.h - 16 - k * 7
+            y = c.h - 15 - k * 6
             c.text(4, y, cur, "bone")
             c.text(c.w - 4 - Canvas.text_width(val), y, val, "bone")
 
@@ -9435,19 +9436,19 @@ def bank_decals(rng):
             for k in range(ln):
                 c.put(int(r0 + k * math.sin(t)), int(r0 + k * math.cos(t)), "black")
 
-    def poster(c):        # 0.6 x 0.9 m: SAVE TODAY, a stack of coins growing
+    def poster(c):        # 0.8 x 0.9 m: SAVE TODAY, a stack of coins growing
         c.rect(0, 0, c.w, c.h, "bone")
         c.frame(0, 0, c.w, c.h, "sky_blue")
         c.ctext(0, c.w, c.h - 8, "SAVE", "sky_blue")
         c.ctext(0, c.w, c.h - 15, "TODAY", "sky_blue")
         for k, n in enumerate((2, 4, 6)):
             for j in range(n):
-                c.rect(3 + k * 5, 4 + j * 2, 7 + k * 5, 5 + j * 2, "yellow_dark")
+                c.rect(6 + k * 5, 3 + j * 2, 10 + k * 5, 4 + j * 2, "yellow_dark")
 
     a.add("name", 160, 29, name)
     a.add("rates", 51, 29, rates)
     a.add("clock", 19, 19, clock)
-    a.add("poster", 19, 29, poster)
+    a.add("poster", 26, 29, poster)
     a.add("est", 51, 13, est)
     a.add("over_door", 90, 16, over_door)
     a.add("plaque", 19, 14, plaque)
@@ -9678,7 +9679,7 @@ def prop_deposit_wall(ctx, c, s):
     b.box(c, s, style=_nb("trim"))
     # front plane
     sg = fx[0] if along == 2 else fx[1]
-    cols = max(1, int(L / 0.42))
+    cols = max(1, int(L / 0.5))
     rows = int((s[1] - 0.2) / 0.3)
     cw = L / cols
     for i in range(cols):
@@ -9696,13 +9697,8 @@ def prop_deposit_wall(ctx, c, s):
                           style=_nb("steel_light"))                                          # its tray pulled out
                 continue
             b.box((fp[0], y, fp[1]), sz, style=_nb("steel_light"))
-            for kk in (-0.06, 0.06):                                                          # two keyholes
-                kp = (fp[0] + sg * 0.012, fp[1] + kk) if along == 2 else (fp[0] + kk, fp[1] + sg * 0.012)
-                b.box((kp[0], y - 0.05, kp[1]), (0.01, 0.04, 0.025) if along == 2 else (0.025, 0.04, 0.01),
-                      style=_nb("brass"))
-            npos = (fp[0] + sg * 0.012, fp[1]) if along == 2 else (fp[0], fp[1] + sg * 0.012)
-            b.box((npos[0], y + 0.07, npos[1]), (0.01, 0.05, 0.1) if along == 2 else (0.1, 0.05, 0.01),
-                  style=_nb("bone"))
+            kp = (fp[0] + sg * 0.012, fp[1]) if along == 2 else (fp[0], fp[1] + sg * 0.012)    # the brass lock
+            b.box((kp[0], y - 0.04, kp[1]), (0.01, 0.05, 0.12) if along == 2 else (0.12, 0.05, 0.01), style=_nb("brass"))
 
 
 def prop_vault_table(ctx, c, s):
@@ -9952,7 +9948,7 @@ def dress_bank(ctx):
         b.box((-5.0, 2.38, z), (0.14, 0.06, 0.14), style=st("brass"))
     b.box((-6.4, 2.2, -4.87), (0.6, 0.6, 0.04), style=face_decal(ctx.d("clock"), "wood_dark", "+z"))
     b.box((-6.5, 1.75, 4.87), (1.6, 0.9, 0.04), style=face_decal(ctx.d("rates"), "wood_dark", "-z"))
-    b.box((-7.83, 1.6, -3.5), (0.02, 0.9, 0.6), style=face_decal(ctx.d("poster"), "bone", "+x"))
+    b.box((-7.83, 1.6, -3.5), (0.02, 0.9, 0.8), style=face_decal(ctx.d("poster"), "bone", "+x"))
 
 
 CAVED["bank"] = caved_bank
@@ -9966,6 +9962,7 @@ SHELLS["bank"] = {
     "inner": bank_inner, "floor": bank_floor, "ceiling": bank_ceiling, "x_splits": (0.0,), "z_splits": (-5.0, 5.0),
 }
 FACTION_MARKS["bank"] = [("x1_stencil", "E", 5.0, 1.0), ("nova_tag", "S", 3.0, 1.1)]
+PROPS["waiting_seats_east"] = lambda ctx, c, s, k: prop_waiting_seats(ctx, c, s, sg=1)
 
 
 
@@ -10100,3 +10097,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

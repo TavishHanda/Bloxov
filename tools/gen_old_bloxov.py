@@ -945,16 +945,20 @@ def bank_furniture(ox, oz):
     def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
         box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
     # Ground floor. The banking hall (west middle, the front door): the tellers' counter with its grilles (tellers
-    # east of it, the way through to the back office), queue posts, a slip desk; the Raiders' guard post by the door.
+    # east of it, the way through to the back office), queue posts, a slip desk, a bench; the Raiders' guard post by
+    # the door (their gun cabinet is the loot).
     o(-2.6, 0, -3.0, -1.9, 1.05, 3.0, "wood", "teller_counter")
     o(-3.6, 0, -2.5, -3.4, 1.0, 2.5, "metal", "queue_posts", solid=False)
     o(-7.6, 0, 4.35, -5.4, 1.0, 4.85, "wood", "slip_desk")
     o(-7.8, 0, 3.25, -6.6, 0.9, 4.2, "wood", "ammo_crates")
     o(-7.6, 0, -4.75, -5.4, 0.5, -4.25, "wood", "hall_bench")
-    # The stair hall (north-west): waiting seats under the stairs' landing, a plant, the Raiders' supplies.
-    o(-7.8, 0, -8.6, -7.25, 0.85, -6.0, "metal", "waiting_seats", solid=False)
+    o(-7.75, 0, -1.9, -7.35, 1.3, -1.5, "wood", "plant", solid=False)
+    # The stair hall (north-west): waiting seats facing the room, a water cooler and a plant, the enquiries desk.
+    o(-7.8, 0, -8.6, -7.25, 0.85, -6.0, "metal", "waiting_seats_east", solid=False)
     o(-7.75, 0, -5.75, -7.35, 1.3, -5.35, "wood", "plant", solid=False)
-    o(-2.9, 0, -6.0, -1.0, 0.9, -5.2, "wood", "supply_crates")
+    o(-7.8, 0, -12.2, -7.4, 1.3, -11.8, "metal", "water_cooler")
+    o(-2.9, 0, -6.6, -1.3, 0.75, -5.8, "wood", "desk")
+    o(-0.75, 0, -6.6, -0.15, 1.3, -5.6, "metal", "file_cabinet")
     # The manager's office (south-west): his desk, a bookcase, a sofa, a globe, his own safe (blown, empty).
     o(-2.6, 0, 10.8, -0.8, 0.78, 11.6, "wood", "manager_desk")
     o(-0.5, 0, 6.0, -0.1, 2.0, 8.0, "wood", "wall_books")
@@ -962,18 +966,24 @@ def bank_furniture(ox, oz):
     o(-7.6, 0, 6.0, -7.0, 1.2, 6.6, "wood", "globe", solid=False)
     o(-5.5, 0, 8.0, -2.9, 0.02, 12.2, "wood", "rug", solid=False)
     o(-1.0, 0, 14.25, -0.3, 0.8, 14.85, "metal", "small_safe")
-    # The counting room (north-east): the counting table, a cash trolley, the staff's kitchenette.
+    o(-7.75, 0, 7.4, -7.35, 1.3, 7.8, "wood", "plant", solid=False)
+    o(-6.4, 0, 14.25, -5.4, 1.3, 14.85, "metal", "file_cabinet")
+    # The counting room (north-east): counting tables, a cash trolley, shelves of cash boxes and ledgers, a cabinet.
     o(2.0, 0, -14.75, 5.6, 0.9, -13.95, "wood", "counting_table")
+    o(6.0, 0, -14.75, 7.8, 0.9, -13.95, "wood", "counting_table")
     o(6.8, 0, -8.3, 7.6, 1.0, -7.5, "metal", "cash_trolley")
-    o(5.3, 0, -5.75, 7.8, 0.9, -5.15, "wood", "kitchenette")
-    # Behind the counter (east middle): the tellers' desks, the Raiders' cots and ammo; their drill rig still aimed at
-    # the vault door (it held).
+    o(5.3, 0, -5.6, 7.8, 1.8, -5.1, "metal", "archive_shelf")
+    o(0.2, 0, -6.8, 0.8, 1.3, -5.6, "metal", "file_cabinet")
+    # Behind the counter (east middle): the tellers' desks, a cabinet, the Raiders' cots, ammo and generator; their
+    # drill rig still aimed at the vault door (it held).
     o(1.0, 0, -4.4, 2.6, 0.75, -3.6, "wood", "desk")
     o(5.4, 0, -4.4, 7.0, 0.75, -3.6, "wood", "desk")
+    o(0.2, 0, -4.8, 0.8, 1.3, -3.6, "metal", "file_cabinet")
     o(6.9, 0, 1.6, 7.8, 0.5, 3.6, "wood", "th_cot", solid=False)
     o(6.9, 0, -3.0, 7.8, 0.5, -1.0, "wood", "th_cot", solid=False)
     o(0.3, 0, 3.6, 1.6, 0.9, 4.7, "wood", "ammo_crates")
     o(3.6, 0, 3.3, 4.4, 1.4, 4.1, "metal", "drill_rig", solid=False)
+    o(5.8, 0, 3.8, 6.8, 0.8, 4.6, "metal", "generator")
     # The vault (south-east, behind the key door): safe-deposit boxes round the walls, the table in the middle, a
     # cash trolley.
     o(0.1, 0, 5.6, 0.5, 2.4, 14.4, "metal", "deposit_wall")
@@ -982,25 +992,33 @@ def bank_furniture(ox, oz):
     o(4.8, 0, 14.45, 6.6, 2.4, 14.85, "metal", "deposit_wall")
     o(3.2, 0, 9.0, 4.8, 0.9, 10.4, "metal", "vault_table")
     o(1.0, 0, 12.6, 1.8, 1.0, 13.4, "metal", "cash_trolley")
-    # Upstairs. The top of the stairs (north-west): seats for the loans office.
+    # Upstairs. The top of the stairs (north-west): seats for the loans office, a cabinet, a plant.
     o(-2.8, 3.0, -5.65, -0.5, 3.85, -5.15, "metal", "waiting_seats", solid=False)
-    # The loans office (west middle): two desks.
-    o(-2.4, 3.0, 2.6, -0.7, 3.75, 4.1, "wood", "office_pod")   # (clear of the board room's doorway)
-    o(-2.4, 3.0, -4.3, -0.7, 3.75, -2.8, "wood", "office_pod")
-    # The board room (south-west): the long table.
+    o(-7.85, 3.0, -8.4, -7.25, 4.3, -7.4, "metal", "file_cabinet")
+    o(-7.75, 3.0, -5.75, -7.35, 4.3, -5.35, "wood", "plant", solid=False)
+    # The loans office (west middle): two desks (off the walls, room for their chairs), a water cooler, a plant.
+    o(-2.6, 3.0, 1.8, -0.9, 3.75, 3.3, "wood", "office_pod")   # (clear of the board room's doorway)
+    o(-2.6, 3.0, -3.6, -0.9, 3.75, -2.1, "wood", "office_pod")
+    o(-7.8, 3.0, 4.3, -7.4, 4.3, 4.7, "metal", "water_cooler")
+    o(-0.55, 3.0, 4.35, -0.15, 4.3, 4.75, "wood", "plant", solid=False)
+    # The board room (south-west): the long table, a bookcase, a plant.
     o(-4.6, 3.0, 8.0, -3.4, 3.76, 12.0, "wood", "meeting_table")
-    # The accounts office (east middle): desks, a printer.
-    o(1.0, 3.0, -4.3, 2.7, 3.75, -2.8, "wood", "office_pod")
-    o(1.0, 3.0, 2.8, 2.7, 3.75, 4.3, "wood", "office_pod")
+    o(-0.5, 3.0, 7.0, -0.1, 5.0, 9.0, "wood", "wall_books")
+    o(-0.55, 3.0, 14.35, -0.15, 4.3, 14.75, "wood", "plant", solid=False)
+    # The accounts office (east middle): desks, a printer, cabinets.
+    o(1.0, 3.0, -3.6, 2.7, 3.75, -2.1, "wood", "office_pod")
+    o(1.0, 3.0, 2.1, 2.7, 3.75, 3.6, "wood", "office_pod")
     o(7.2, 3.0, -3.6, 7.8, 4.0, -2.8, "metal", "printer")
+    o(7.25, 3.0, -2.4, 7.85, 4.3, -1.4, "metal", "file_cabinet")
+    o(5.4, 3.0, -4.85, 6.8, 4.3, -4.25, "metal", "file_cabinet")
     # Records (north-east): shelving.
     o(2.0, 3.0, -14.6, 5.0, 5.2, -14.1, "metal", "archive_shelf")
     o(5.2, 3.0, -5.6, 7.6, 5.0, -5.1, "metal", "archive_shelf")
+    o(7.35, 3.0, -8.8, 7.85, 5.0, -6.0, "metal", "archive_shelf")
     # The security room over the vault (south-east, caved in): the camera desk, the tape rack, a cabinet.
     o(7.25, 3.0, 7.0, 7.85, 3.8, 10.0, "wood", "cctv_desk")
     o(7.35, 3.0, 11.0, 7.85, 4.8, 12.2, "metal", "tape_rack")
     o(0.3, 3.0, 13.6, 0.9, 4.3, 14.6, "metal", "file_cabinet")
-
 
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
@@ -2219,7 +2237,7 @@ def main():
         # room; the north-east one is over the stairs' corridor).
         bank = build(Building("Bank", 128, 110, 16, 30, floors=2, colour="wall_rich", rooms=(2, 3), doors="W",
                               solid_inner=[("v", 1, 2)], no_windows=[(1, 2)], caved=[(1, 2)]), [
-            ("safe", 1, 2, 0, "E", 1.5), ("safe", 1, 2, 0, "S", 0), ("locker", 0, 1, 0, "W", 0),
+            ("safe", 1, 2, 0, "E", 1.5), ("safe", 1, 2, 0, "S", 0), ("locker", 0, 1, 0, "W", 0, "gun_cabinet"),
             ("crate", 1, 0, 0, "E", -2.6)])
         for kind, i, j, side, off in (("crate", 1, 0, "E", -2.6), ("crate", 0, 2, "W", 2.6), ("locker", 1, 1, "E", 2.6),
                                       ("crate", 0, 1, "W", -2.6)):
