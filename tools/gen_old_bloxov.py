@@ -952,9 +952,9 @@ def bank_furniture(ox, oz):
     o(-7.6, 0, 4.35, -5.4, 1.0, 4.85, "wood", "slip_desk")
     o(-7.6, 0, -4.75, -5.4, 0.5, -4.25, "wood", "hall_bench")
     o(-7.75, 0, -1.9, -7.35, 1.3, -1.5, "wood", "plant", solid=False)
-    # The stair hall (north-west): a wall closes the stairs off from the room (owner), open at their foot. A
+    # The stair hall (north-west): a wall closes the stairs off from the room (owner), all the way along. A
     # waiting area: seats along the west wall and back to back in the middle, a coffee table, a cooler, plants.
-    o(-8.0, 0, -12.55, -2.6, 2.75, -12.35, "wall_rich", None)
+    o(-8.0, 0, -12.55, 0.0, 2.75, -12.35, "wall_rich", None)   # (owner: all the way; the stairs' foot is off the counting room)
     o(-7.8, 0, -10.6, -7.25, 0.85, -6.4, "metal", "waiting_seats_east", solid=False)
     o(-6.6, 0, -9.3, -5.8, 0.45, -7.7, "wood", "coffee_table")
     o(-5.2, 0, -10.2, -4.65, 0.85, -6.8, "metal", "waiting_seats", solid=False)
@@ -985,7 +985,7 @@ def bank_furniture(ox, oz):
     o(6.9, 0, 1.6, 7.8, 0.5, 3.6, "wood", "th_cot", solid=False)
     o(6.9, 0, -3.0, 7.8, 0.5, -1.0, "wood", "th_cot", solid=False)
     o(0.2, 0, 1.0, 1.15, 0.9, 2.2, "wood", "ammo_crates")
-    o(3.6, 0, 3.3, 4.4, 1.4, 4.1, "metal", "drill_rig", solid=False)
+    o(6.0, 0, 2.6, 6.8, 1.4, 3.4, "metal", "drill_rig", solid=False)   # (pushed aside, owner)
     o(5.8, 0, 3.8, 6.8, 0.8, 4.6, "metal", "generator")
     # The vault (south-east, behind the key door): safe-deposit boxes round the walls, the table in the middle, a
     # cash trolley.
@@ -996,8 +996,10 @@ def bank_furniture(ox, oz):
     o(3.2, 0, 9.0, 4.8, 0.9, 10.4, "metal", "vault_table")
     o(1.0, 0, 12.6, 1.8, 1.0, 13.4, "metal", "cash_trolley")
     # Upstairs. The top of the stairs (north-west): seats for the loans office, a cabinet, a plant.
-    o(-2.8, 3.0, -5.65, -0.5, 3.85, -5.15, "metal", "waiting_seats", solid=False)
-    o(-7.85, 3.0, -8.4, -7.25, 4.3, -7.4, "metal", "file_cabinet")
+    o(-7.8, 3.0, -9.2, -7.25, 3.85, -6.6, "metal", "waiting_seats_east", solid=False)
+    o(-0.7, 3.0, -7.2, -0.1, 4.3, -6.2, "metal", "file_cabinet")
+    # Upstairs the wall between the stairs and records runs right to the north wall (owner: you saw into records).
+    o(-0.1, 3.0, -15.0, 0.1, 6.0, -12.65, "wall_rich", None)
     o(-7.75, 3.0, -5.75, -7.35, 4.3, -5.35, "wood", "plant", solid=False)
     # The loans office (west middle): two desks (off the walls, room for their chairs), a water cooler, a plant.
     o(-2.6, 3.0, 1.8, -0.9, 3.75, 3.3, "wood", "office_pod")   # (clear of the board room's doorway)
