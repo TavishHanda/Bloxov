@@ -61,5 +61,13 @@
 "wood_light",
 "house_ceiling",
 "house_brick",
-"house_granite"
+"house_granite",
+"office_panel",
+"brick_charcoal",
+"brick_ochre",
+"stone_rough",
+"carpet_office",
+"int_office",
+"int_office_cream",
+"carton"
 ]

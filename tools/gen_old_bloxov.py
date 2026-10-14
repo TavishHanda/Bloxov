@@ -786,6 +786,65 @@ def rich_house(n, x, y, w, d, who):
             put("flag_pole", q + 3.2, hd + 2.1, q + 3.3, hd + 2.2, 7.0, solid=False, colour="metal")
 
 
+def offices_furniture(ox, oz):
+    """Bloxov Mining Co. (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 7.33 x 10.5 m,
+    storeys 3 m). Desks, cabinets and machines are solid like everywhere else; the desk pods' low partitions are
+    picture only (no new cover, owner rule). Room middles, doorways and the stairs' foot stay clear for the AI."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # Ground floor. Reception (south-east, the front door): the front desk, waiting seats, a water cooler, plants.
+    o(4.4, 0, 7.3, 6.8, 1.05, 8.0, "wood", "front_desk")
+    o(10.3, 0, 0.45, 10.7, 1.3, 0.85, "metal", "water_cooler")
+    o(10.25, 0, 1.5, 10.8, 0.85, 3.5, "metal", "waiting_seats", solid=False)
+    o(4.0, 0, 0.4, 4.4, 1.3, 0.8, "wood", "plant", solid=False)
+    o(10.3, 0, 9.7, 10.7, 1.3, 10.1, "wood", "plant", solid=False)
+    # Open office (south middle): four desk pods, filing cabinets by the back wall.
+    for x0, z0 in ((-3.2, 1.0), (1.5, 1.0), (-3.1, 7.3), (1.4, 7.3)):
+        o(x0, 0, z0, x0 + 1.7, 0.75, z0 + 1.5, "wood", "office_pod")
+    o(-3.4, 0, 9.7, -2.4, 1.3, 10.3, "metal", "file_cabinet")
+    o(2.4, 0, 9.7, 3.4, 1.3, 10.3, "metal", "file_cabinet")
+    # Copy and mail room (south-west): the photocopier, pigeonholes, a sorting table, paper stock.
+    o(-6.0, 0, 0.4, -4.9, 1.1, 1.1, "metal", "photocopier")
+    o(-4.17, 0, 7.2, -3.77, 1.8, 9.6, "wood", "pigeonholes")
+    o(-6.2, 0, 9.0, -4.4, 0.9, 9.8, "wood", "mail_table")
+    o(-10.7, 0, 1.0, -10.0, 0.9, 2.0, "wood", "paper_boxes")
+    o(-10.6, 0, 9.85, -8.4, 1.8, 10.3, "metal", "paper_shelf")
+    # Break room (north middle; the stairs' foot is its north-west corner): kitchenette, fridge, vending, a table.
+    o(-0.2, 0, -10.35, 2.6, 0.9, -9.75, "wood", "kitchenette")
+    o(2.75, 0, -10.35, 3.5, 1.8, -9.65, "metal", "home_fridge")
+    o(2.77, 0, -9.3, 3.57, 1.8, -8.4, "metal", "vending")
+    o(1.4, 0, -2.3, 2.8, 0.75, -1.3, "wood", "break_table")
+    # Accounts (north-east): filing cabinets, two desk pods, a printer.
+    o(4.0, 0, -10.35, 5.5, 1.3, -9.75, "metal", "file_cabinet")
+    o(4.2, 0, -3.4, 5.9, 0.75, -1.9, "wood", "office_pod")
+    o(8.7, 0, -3.4, 10.4, 0.75, -1.9, "wood", "office_pod")
+    o(10.25, 0, -8.6, 10.85, 1.0, -7.8, "metal", "printer")
+    # The blasted room (north-west): desks thrown over by the blast.
+    o(-9.2, 0, -2.4, -7.6, 0.75, -1.6, "wood", "desk_over")
+    o(-5.8, 0, -1.3, -4.2, 0.75, -0.5, "wood", "desk_over")
+    # Upstairs. The manager's office (south-east): big desk at the window, bookcase, sofa, trophies, a globe.
+    o(6.2, 3.0, 7.0, 8.0, 3.78, 7.8, "wood", "manager_desk")
+    o(3.77, 3.0, 7.0, 4.17, 5.0, 9.0, "wood", "wall_books")
+    o(4.0, 3.0, 0.2, 6.0, 3.85, 1.0, "wood", "sofa")
+    o(8.6, 3.0, 0.1, 10.6, 4.8, 0.55, "wood", "trophy_case")
+    o(9.9, 3.0, 1.2, 10.5, 4.2, 1.8, "wood", "globe", solid=False)
+    # Meeting room (north-east): the long table (a whiteboard and a projector screen at its ends are dressing).
+    o(5.4, 3.0, -8.8, 9.4, 3.76, -7.6, "wood", "meeting_table")
+    # Archive (north middle): tall shelving with boxes and binders, more on the south wall.
+    o(-2.85, 3.0, -9.9, -2.35, 5.2, -6.9, "metal", "archive_shelf")
+    o(2.35, 3.0, -9.9, 2.85, 5.2, -6.9, "metal", "archive_shelf")
+    o(-3.4, 3.0, -0.55, -1.4, 5.0, -0.1, "metal", "archive_shelf")
+    o(1.4, 3.0, -0.55, 3.4, 5.0, -0.1, "metal", "archive_shelf")
+    # Records (north-west, at the top of the stairs): cabinets on the west wall (clear of the landing), a desk pod.
+    o(-10.85, 3.0, -1.9, -10.25, 4.3, -0.4, "metal", "file_cabinet")
+    o(-6.0, 3.0, -7.9, -4.3, 3.75, -6.4, "wood", "office_pod")
+    # Drawing office (south-west): the surveyors' drafting tables, a plan chest, crates of rock core samples.
+    o(-10.5, 3.0, 1.0, -9.3, 3.95, 2.0, "wood", "drafting_table")
+    o(-10.5, 3.0, 8.0, -9.3, 3.95, 9.0, "wood", "drafting_table")
+    o(-6.0, 3.0, 0.3, -4.2, 3.9, 1.0, "wood", "plan_chest")
+    o(-5.6, 3.0, 9.45, -4.0, 3.6, 10.25, "wood", "core_boxes")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2004,10 +2063,13 @@ def main():
         add_loot("Offices", kind, x, z, y=y, yaw=yaw)
     box(139.0, 2.3, 129.7, 141.0, 2.6, 130.3, "keydoor", solid=False)
     markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank", "yaw": 0.0, "width": INNER_DOOR_W}))
-    build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E",
-                   blasts=[(0, "W", 0)], caved=[(1, 1)]), [
-        ("crate", 0, 1, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 0, 1, "N", 0),
-        ("locker", 2, 1, 1, "E", 0), ("crate", 0, 0, 1, "W", 0)])
+    with modeled("offices", 75.0, 129.5):   # World art 0.17: Bloxov Mining Co.'s regional office (ransacked)
+        # Loot spots slid off the windows.
+        build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E",
+                       blasts=[(0, "W", 0)], caved=[(1, 1)]), [
+            ("crate", 0, 1, 0, "W", 2.5), ("crate", 2, 0, 0, "N", 2.3), ("crate", 1, 0, 1, "N", 0),
+            ("locker", 2, 1, 1, "E", 2.6), ("crate", 0, 0, 1, "W", 2.4)])
+        offices_furniture(75.0, 129.5)
     with modeled("gun_store", 78.0, 76.0):   # World art 0.17
         # Border Arms: the shop east (door south), the gun room west. Loot spots slid off the windows.
         build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [

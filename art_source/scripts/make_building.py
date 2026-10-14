@@ -1434,11 +1434,11 @@ def prop_rack(ctx, c, s, rng):
             x += w + 0.08
 
 
-def office_desk(ctx, c, s, with_pc=True):
+def office_desk(ctx, c, s, with_pc=True, face=None):
     """Office desk (shared, refine pass): laminate top, steel legs and a modesty panel, a drawer pedestal with
-    handles; a PC on it (monitor, tower, keyboard, mouse). The chair side faces into the room."""
+    handles; a PC on it (monitor, tower, keyboard, mouse). The chair side faces into the room (or `face`: +1/-1 z)."""
     b = ctx.b
-    face = 1 if _front_into(c, 2) == "+z" else -1           # the side the person sits on
+    face = face or (1 if _front_into(c, 2) == "+z" else -1)  # the side the person sits on
     y0 = c[1] - s[1] / 2
     top = y0 + s[1]
     b.box((c[0], top - 0.02, c[2]), (s[0], 0.04, s[2]), style=lambda n, m, q: ("bone", uv_world(2.0)) if n[1] > 0.7
@@ -4672,26 +4672,36 @@ def clear_collection(name):
     return coll
 
 
-# Kit atlas (performance, owner OK'd 2026-10-13): every tiling kit texture except glass in one 512 px image, an 8 x 8
-# grid of 64 px cells, drawn by one shader material (assets/shaders/kit_atlas.gdshader). A cell's place is kept in
+# Kit atlas (performance, owner OK'd 2026-10-13): every tiling kit texture except glass in one image of 64 px cells,
+# drawn by one shader material (assets/shaders/kit_atlas.gdshader). A cell's place is kept in
 # art_source/textures/kit_atlas.json: new kit textures go on the end, so existing models keep their cells.
-ATLAS_GRID, ATLAS_CELL = 8, 64
+# Grown for the offices (0.17): the image is 16 x 8 cells (1024 x 512). The first 64 cells keep their 8 x 8 places in
+# the left half and cells 64+ fill the right half. A model's cell corner (TEXCOORD_1) is in 8 x 8 grid units
+# (cell / 8, so the right half's u runs 1.0-1.875); the shader halves u. Models exported before the grow still fit.
+ATLAS_COLS, ATLAS_ROWS, ATLAS_CELL = 16, 8, 64
 ATLAS_ORDER = os.path.join(ROOT, "art_source", "textures", "kit_atlas.json")
 ATLAS_PNG = os.path.join(ROOT, "assets", "textures", "kit_atlas.png")
 NOT_IN_ATLAS = ("glass",)        # see-through: its own material
 
 
+def atlas_cell(i):
+    """Column and row of the atlas cell for the i-th kit texture."""
+    if i < 64:
+        return i % 8, i // 8
+    return 8 + (i - 64) % 8, (i - 64) // 8
+
+
 def kit_atlas():
-    """Writes the atlas image; returns {kit name: (u, v) of its cell's top-left corner}."""
+    """Writes the atlas image; returns {kit name: (u, v) of its cell's top-left corner, in 8 x 8 grid units}."""
     order = json.load(open(ATLAS_ORDER)) if os.path.exists(ATLAS_ORDER) else []
     for name in KIT:
         if name not in order and name not in NOT_IN_ATLAS:
             order.append(name)
-    assert len(order) <= ATLAS_GRID * ATLAS_GRID, "kit atlas full: make the grid bigger"
+    assert len(order) <= ATLAS_COLS * ATLAS_ROWS, "kit atlas full: make the grid bigger"
     with open(ATLAS_ORDER, "w") as f:
         json.dump(order, f, indent=0)
-    size = ATLAS_GRID * ATLAS_CELL
-    top = [[[0, 0, 0, 255] for _ in range(size)] for _ in range(size)]          # rows top-first
+    wide, high = ATLAS_COLS * ATLAS_CELL, ATLAS_ROWS * ATLAS_CELL
+    top = [[[0, 0, 0, 255] for _ in range(wide)] for _ in range(high)]          # rows top-first
     cells = {}
     for i, name in enumerate(order):
         path = os.path.join(TEX_DIR or os.path.join(ROOT, "art_source", "textures", "kit"), name + ".png")
@@ -4699,14 +4709,14 @@ def kit_atlas():
             continue
         w, h, rows = read_png(path)
         src = list(reversed(rows))
-        cx, cy = i % ATLAS_GRID, i // ATLAS_GRID
+        cx, cy = atlas_cell(i)
         for y in range(ATLAS_CELL):
             line = src[y * h // ATLAS_CELL]
             out = top[cy * ATLAS_CELL + y]
             for x in range(ATLAS_CELL):
                 out[cx * ATLAS_CELL + x] = list(line[x * w // ATLAS_CELL])
-        cells[name] = (cx / ATLAS_GRID, cy / ATLAS_GRID)
-    write_png(ATLAS_PNG, size, size, list(reversed(top)))
+        cells[name] = (cx / 8, cy / 8)
+    write_png(ATLAS_PNG, wide, high, list(reversed(top)))
     return cells
 
 
@@ -6541,6 +6551,782 @@ for _n, _fp in list(FOOTPRINTS.items()):
                       "ceiling": lambda m: "house_ceiling", "x_splits": (0.0,), "z_splits": (0.0,)}
 FACTION_MARKS.update({"big_house_1": [("x1_tag", "E", -5.0, 3.6)], "big_house_2": [("x1_chalk", "W", -5.0, 0.8)],
                       "big_house_3": [("nova_tag", "N", 4.6, 1.0)]})
+
+
+# ------------------------------------------------------------------------------------------------ offices (0.17)
+# Bloxov Mining Co., the town's regional company office (map 64-86 x 119-140, model origin map (75, 129.5)): 22 x 21 m,
+# two storeys of 3 x 2 rooms (7.33 x 10.5 m), the front door east (reception), the stairs along the north wall.
+# Ground floor: blasted room (NW), break room (N), accounts (NE), copy and mail room (SW), open office (S), reception
+# (SE). Upstairs: records at the top of the stairs (NW), archive (N), meeting room (NE), the surveyors' drawing office
+# (SW), the caved-in room (S), the manager's office (SE). Ransacked (owner: "messy and unorganized like it's been
+# ransacked"): papers everywhere, drawers pulled out, chairs over. Name and logo are ours (store rules: no real brands).
+OFFICE_LOOKS = {   # outside wall options (owner picks one from a rendered sheet, worldart/options-offices.png)
+    "B": {"ext": "office_panel"},
+    "C": {"ext": "brick_charcoal", "bands": "concrete"},
+    "D": {"ext": "brick_ochre", "base": "stone_rough", "lintels": "concrete"},
+}
+OFFICE_LOOK = os.environ.get("BLOXOV_OFFICE_LOOK", "C")
+
+PALETTE.update({
+    "opanel": "999488", "opanel_dark": "8e897d", "opanel_light": "a29d91", "opanel_joint": "5d5a53",
+    "cbrick": "5f5e61", "cbrick_dark": "545356", "cbrick_light": "6a696b", "cbrick_mortar": "85827b",
+    "obrick": "8a7652", "obrick_dark": "7c6948", "obrick_light": "94805b", "obrick_mortar": "8a8372",
+    "rstone": "6f685d", "rstone_dark": "5f584e", "rstone_light": "7c7569", "rstone_joint": "48433c",
+    # Inside: grey-blue carpet tiles, sage office paint, cream paint.
+    "carp": "7f8790", "carp_dark": "747c86", "carp_light": "8b939b", "carton": "b39a6e", "carton_dark": "9c845b",
+    "sage": "a7ad9a", "sage_dark": "8f9584", "cream": "cfc6ad", "cream_dark": "b9b098",
+})
+
+
+def paint_office_panel(rng):
+    """Precast concrete panels, 2 x 1 m, dark joints, fine aggregate, grime runs down from a few joints."""
+    c = Canvas(64, 64, "opanel_joint")
+    for row in range(4):
+        for k in range(2):
+            col = rng.choice(("opanel", "opanel", "opanel_dark", "opanel_light"))
+            c.rect(k * 32 + 1, row * 16 + 1, k * 32 + 32, row * 16 + 16, col)
+    c.noise(0, 0, 64, 64, ["opanel_dark", "opanel_light"], 0.08, rng)
+    for _ in range(6):                                                   # grime runs down from the joints
+        x = rng.randrange(64)
+        y0 = rng.choice((15, 31, 47, 63))
+        for y in range(y0 - rng.randrange(3, 9), y0):
+            if rng.random() < 0.5:
+                c.put(x, y, "opanel_dark" if rng.random() < 0.8 else "rust")
+    c.blotch(["iron"], 2, rng, size=(2, 4))
+    return c
+
+
+def paint_brick_charcoal(rng):
+    """Dark charcoal brick (0.5 x 0.25 m, stretcher bond), light mortar so the pattern reads in the shade."""
+    c = Canvas(64, 64, "cbrick_mortar")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("cbrick", "cbrick", "cbrick_dark", "cbrick_light"))
+            for x in range(k * 8 + off + 1, k * 8 + off + 8):
+                c.rect(x % 64, row * 4 + 1, x % 64 + 1, row * 4 + 4, col)
+    c.blotch(["cbrick_dark"], 6, rng, size=(2, 5))
+    return c
+
+
+def paint_brick_ochre(rng):
+    """Ochre brick (0.5 x 0.25 m, stretcher bond), weathered, a few darker bricks."""
+    c = Canvas(64, 64, "obrick_mortar")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice(("obrick", "obrick", "obrick_dark", "obrick_light"))
+            for x in range(k * 8 + off + 1, k * 8 + off + 8):
+                c.rect(x % 64, row * 4 + 1, x % 64 + 1, row * 4 + 4, col)
+    c.blotch(["obrick_dark"], 6, rng, size=(2, 5))
+    c.blotch(["iron"], 2, rng, size=(2, 4))
+    return c
+
+
+def paint_stone_rough(rng):
+    """Rough-cut stone base course: uneven blocks in deep joints."""
+    c = Canvas(64, 64, "rstone_joint")
+    y = 0
+    while y < 64:
+        h = rng.choice((7, 8, 9)) if y + 10 < 64 else 64 - y
+        x = rng.randrange(-8, 0)
+        while x < 64:
+            w = rng.randrange(9, 17)
+            c.rect(max(0, x + 1), y + 1, min(64, x + w), min(64, y + h), rng.choice(("rstone", "rstone_dark", "rstone_light")))
+            x += w
+        y += h
+    c.noise(0, 0, 64, 64, ["rstone_dark", "rstone_light"], 0.1, rng)
+    return c
+
+
+def paint_carpet_office(rng):
+    """Office carpet tiles (0.5 m), laid with the pile turned every other tile, coffee stains and wear."""
+    c = Canvas(64, 64, "carp")
+    for ty in range(8):
+        for tx in range(8):
+            col = "carp" if (tx + ty) % 2 else "carp_dark"
+            c.rect(tx * 8, ty * 8, tx * 8 + 8, ty * 8 + 8, col)
+            c.noise(tx * 8, ty * 8, tx * 8 + 8, ty * 8 + 8, ["carp_light"], 0.12, rng)
+    c.blotch(["wood_dark"], 3, rng, size=(2, 4))                        # coffee
+    c.blotch(["carp_light"], 4, rng, size=(3, 6))                       # worn paths
+    return c
+
+
+def paint_int_office(rng):
+    """Office paint: sage green above a grey skirting, scuffed by chairs at desk height, a few marks."""
+    c = Canvas(64, 64, "sage")
+    c.rect(0, 0, 64, 2, "iron")
+    c.blotch(["sage_dark"], 8, rng, area=(0, 2, 64, 16), size=(2, 5))   # chair scuffs
+    c.blotch(["sage_dark"], 4, rng, size=(2, 4))
+    return c
+
+
+def paint_int_office_cream(rng):
+    """Cream paint with a navy rail at 1 m (reception, break room, drawing office)."""
+    c = Canvas(64, 64, "cream")
+    c.rect(0, 0, 64, 2, "iron")
+    c.rect(0, 15, 64, 17, "sky_blue")
+    c.blotch(["cream_dark"], 8, rng, size=(2, 5))
+    return c
+
+
+def paint_carton(rng):
+    """Plain brown cardboard (archive boxes, paper boxes): fibre speckle, tape strips, no print."""
+    c = Canvas(64, 64, "carton")
+    c.noise(0, 0, 64, 64, ["carton_dark"], 0.1, rng)
+    c.rect(0, 30, 64, 34, "cream")
+    c.rect(30, 0, 34, 64, "cream")
+    return c
+
+
+KIT.update({"carton": paint_carton, "office_panel": paint_office_panel, "brick_charcoal": paint_brick_charcoal,
+            "brick_ochre": paint_brick_ochre, "stone_rough": paint_stone_rough, "carpet_office": paint_carpet_office,
+            "int_office": paint_int_office, "int_office_cream": paint_int_office_cream})
+
+
+def office_room(m):
+    """(storey, i, j) of a point in the offices: i west to east, j north to south."""
+    i = 0 if m[0] < -3.67 else (1 if m[0] < 3.67 else 2)
+    return int(m[1] >= 3.0), i, int(m[2] >= 0.0)
+
+
+OFFICE_ROOMS = {   # (storey, i, j) -> inside walls, floor
+    (0, 2, 1): ("int_office_cream", "terrazzo"),          # reception
+    (0, 1, 0): ("int_office_cream", "floor_lino"),        # break room
+    (0, 0, 1): ("int_wall", "floor_lino"),                # copy and mail
+    (1, 1, 0): ("int_wall", "floor_lino"),                # archive
+    (1, 0, 1): ("int_office_cream", "floor_lino"),        # drawing office
+    (1, 2, 1): ("paper_green", "parquet"),                # the manager
+}
+
+
+def office_inner(m):
+    if m[1] > 6.0:
+        return OFFICE_LOOKS[OFFICE_LOOK]["ext"]
+    return OFFICE_ROOMS.get(office_room(m), ("int_office", "carpet_office"))[0]
+
+
+def office_floor(m):
+    return OFFICE_ROOMS.get((int(m[1] >= 2.0),) + office_room(m)[1:], ("int_office", "carpet_office"))[1]
+
+
+# ---- office stock and props
+def stock_binder(b, at, rng, col):
+    """A lever-arch binder standing on the shelf: coloured, a white label on the spine."""
+    x, y, z = at
+    _item(b, [((x, y + 0.15, z), (0.07, 0.3, 0.26), 0, 0), ((x, y + 0.2, z + 0.131), (0.05, 0.08, 0.004), 0, 0)],
+          lambda k, n: "bone" if k == 1 else col)
+    return 0.075
+
+
+def stock_archive_box(b, at, rng, col):
+    """A cardboard archive box with a lid and a hand hole."""
+    x, y, z = at
+    _item(b, [((x, y + 0.13, z), (0.32, 0.26, 0.36), rng.uniform(-4, 4), 0),
+              ((x, y + 0.27, z), (0.33, 0.03, 0.37), rng.uniform(-6, 6), 0)],
+          lambda k, n: "carton" if k == 0 or abs(n[1]) < 0.7 else col)
+    return 0.34
+
+
+def stock_ream(b, at, rng, col):
+    """A stack of paper reams in their wrappers."""
+    x, y, z = at
+    n = rng.randint(1, 4)
+    _item(b, [((x, y + 0.03 + i * 0.055, z), (0.22, 0.05, 0.3), rng.uniform(-6, 6), 0) for i in range(n)],
+          lambda k, n_: "bone" if abs(n_[1]) > 0.7 else col)
+    return 0.24
+
+
+STOCK_W.update({"stock_binder": 0.075, "stock_archive_box": 0.34, "stock_ream": 0.24})
+STOCK["archive"] = [(stock_archive_box, ("carton", "bone", "steel_light")), (stock_archive_box, ("carton",)),
+                    (stock_binder, ("red", "blue", "olive", "black", "yellow", "green"))]
+STOCK["paper"] = [(stock_ream, ("bone", "yellow", "blue")), (stock_ream, ("bone",)), (stock_box, ("bone", "blue"))]
+
+
+def papers(b, rng, x0, x1, z0, z1, y, n, cols=("bone", "bone", "bone", "yellow", "steel_light")):
+    """Loose sheets strewn about (ransacked), a few folders among them."""
+    for _ in range(n):
+        x, z = rng.uniform(x0, x1), rng.uniform(z0, z1)
+        if rng.random() < 0.12:
+            b.box((x, y + 0.008, z), (0.24, 0.012, 0.32), yaw=rng.uniform(0, 180), pitch=rng.uniform(-4, 4),
+                  style=no_bottom(rng.choice(("yellow", "blue", "red", "olive")), 1.0))
+        else:
+            b.box((x, y + 0.004, z), (0.21, 0.004, 0.3), yaw=rng.uniform(0, 180), style=no_bottom(rng.choice(cols), 1.0))
+
+
+def office_desk_chair(ctx, x, y, z, face):
+    """The desk's swivel chair, pushed back from the desk on the person's side."""
+    chair(ctx.b, x + ctx.rng.uniform(-0.15, 0.15), y, z + face * ctx.rng.uniform(0.4, 0.7),
+          facing_yaw(0, -face) + ctx.rng.uniform(-35, 35), "trim_dark", "trim", office=True)
+
+
+def prop_office_pod(ctx, c, s):
+    """Two desks back to back (z) with a low fabric partition between them (picture only, under the window line:
+    owner rule, no new cover). Ransacked: some PCs gone or knocked onto the floor, drawers out, papers everywhere."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    D = s[2] / 2
+    for face in (-1, 1):
+        dc = (c[0], c[1], c[2] + face * D / 2)
+        roll = rng.random()
+        office_desk(ctx, dc, (s[0], s[1], D), with_pc=roll < 0.55, face=face)
+        if roll >= 0.55 and roll < 0.8:                                   # the monitor knocked onto the floor
+            mx, mz = c[0] + rng.uniform(-0.5, 0.5), c[2] + face * (D + 0.45)
+            b.box((mx, y0 + 0.025, mz), (0.52, 0.04, 0.32), yaw=rng.uniform(0, 180), style=no_bottom("black", 1.0))
+        office_desk_chair(ctx, c[0] - s[0] * 0.1, y0, c[2] + face * D, face)
+        if rng.random() < 0.6:                                            # a drawer pulled out and dropped
+            dx, dz = c[0] + s[0] / 2 - 0.3 + rng.uniform(-0.2, 0.3), c[2] + face * (D + rng.uniform(0.3, 0.7))
+            b.box((dx, y0 + 0.06, dz), (0.36, 0.12, 0.45), yaw=rng.uniform(-40, 40), style=no_bottom("steel_light", 1.0))
+        papers(b, rng, c[0] - s[0] / 2 + 0.1, c[0] + s[0] / 2 - 0.1, dc[2] - D / 2 + 0.1, dc[2] + D / 2 - 0.1, top, 3)
+        papers(b, rng, c[0] - s[0] / 2 - 0.3, c[0] + s[0] / 2 + 0.3, c[2] + face * D, c[2] + face * (D + 0.9), y0, 7)
+    # The partition: a fabric screen in a steel frame on the desks' back edges.
+    b.box((c[0], top + 0.22, c[2]), (s[0] - 0.04, 0.4, 0.04), style=no_bottom("blue", 1.0))
+    b.box((c[0], top + 0.43, c[2]), (s[0], 0.03, 0.06), style=no_bottom("trim", 1.0))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.015), top + 0.22, c[2]), (0.03, 0.44, 0.06), style=no_bottom("trim", 1.0))
+    if rng.random() < 0.5:                                                # a note pinned to it
+        b.box((c[0] + rng.uniform(-0.5, 0.5), top + 0.28, c[2] + 0.025), (0.1, 0.1, 0.004), style=no_bottom("yellow", 1.0))
+
+
+def prop_front_desk(ctx, c, s):
+    """Reception counter: a high front with the company logo facing the visitors (north), a ledge, the work top
+    behind with a PC and the bell; the receptionist's chair."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    front = -1                                                            # the visitors' side
+    b.box((c[0], y0 + (s[1] - 0.05) / 2, c[2] + front * (s[2] / 2 - 0.03)), (s[0], s[1] - 0.05, 0.06),
+          style=face_decal(ctx.d("desk_front"), "wood_dark", "-z"))
+    b.box((c[0], y0 + s[1] - 0.025, c[2] + front * (s[2] / 2 - 0.12)), (s[0] + 0.06, 0.05, 0.3), style=no_bottom("wood_light", 1.0))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.03), y0 + 0.37, c[2]), (0.06, 0.74, s[2]), style=no_bottom("wood_dark", 1.0))
+    work = y0 + 0.75
+    b.box((c[0], work - 0.02, c[2] + 0.1), (s[0] - 0.1, 0.04, s[2] - 0.25), style=no_bottom("wood_light", 1.0))
+    pc(ctx, c[0] + 0.4, work, c[2] + 0.1, 1)
+    b.box((c[0] - 0.5, y0 + s[1] + 0.03, c[2] + front * 0.12), (0.1, 0.05, 0.1), style=no_bottom("brass", 1.0))   # bell
+    b.box((c[0] - 0.5, y0 + s[1] + 0.003, c[2] + front * 0.12), (0.12, 0.006, 0.12), style=no_bottom("black", 1.0))
+    b.box((c[0] - 0.75, work + 0.08, c[2] + 0.15), (0.25, 0.16, 0.2), style=no_bottom("black", 1.0))   # phone
+    office_desk_chair(ctx, c[0] + 0.3, y0, c[2] + 0.3, 1)
+    papers(b, rng, c[0] - s[0] / 2 - 0.4, c[0] + s[0] / 2 + 0.4, c[2] + 0.4, c[2] + 1.6, y0, 12)
+
+
+def prop_water_cooler(ctx, c, s):
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.47, c[2]), (0.34, 0.94, 0.34), style=no_bottom("bone", 1.0))
+    b.box((c[0], y0 + 0.97, c[2]), (0.24, 0.06, 0.24), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 1.15, c[2]), (0.26, 0.3, 0.26), style=lambda n, m, q: ("glass", uv_world(1.0)))   # the bottle (empty)
+    b.box((c[0], y0 + 1.03, c[2]), (0.1, 0.08, 0.1), style=no_bottom("blue", 1.0))
+    for k, col in enumerate(("blue", "red")):                                                        # taps
+        b.box((c[0] - 0.18, y0 + 0.75, c[2] - 0.06 + k * 0.12), (0.04, 0.05, 0.04), style=no_bottom(col, 1.0))
+    b.box((c[0] + 0.05, y0 + 0.62, c[2] + 0.19), (0.07, 0.24, 0.07), style=no_bottom("steel_light", 1.0))  # cups
+    for k in range(3):                                                                                # cups on the floor
+        x, z = c[0] - 0.4 - k * 0.15, c[2] + 0.2 * k
+        b.box((x, y0 + 0.035, z), (0.06, 0.07, 0.06), yaw=k * 30, pitch=90 if k else 0, style=no_bottom("bone", 1.0))
+
+
+def prop_waiting_seats(ctx, c, s):
+    """A row of linked waiting-room seats on a steel beam, facing into the room (west); one seat slashed."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    n = 3
+    L = s[2]
+    b.box((c[0], y0 + 0.22, c[2]), (0.08, 0.06, L), style=no_bottom("trim", 1.0))                    # beam
+    for z in (c[2] - L / 2 + 0.2, c[2] + L / 2 - 0.2):
+        b.box((c[0], y0 + 0.11, z), (0.4, 0.22, 0.05), style=no_bottom("trim", 1.0))
+    for k in range(n):
+        z = c[2] - L / 2 + L * (k + 0.5) / n
+        col = "olive" if k != 1 else "olive_dark"
+        b.box((c[0] - 0.03, y0 + 0.44, z), (0.46, 0.08, 0.5), style=no_bottom(col, 1.0))
+        b.box((c[0] + 0.21, y0 + 0.72, z), (0.06, 0.5, 0.5), pitch=0, style=no_bottom(col, 1.0))
+    b.box((c[0] - 0.02, y0 + 0.485, c[2]), (0.3, 0.01, 0.06), yaw=30, style=no_bottom("bone", 1.0))   # stuffing out
+
+
+def prop_photocopier(ctx, c, s):
+    """Photocopier: body, a lid propped open, control panel, paper trays (one pulled out), the output tray, a jam."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    h = s[1] - 0.1
+    b.box((c[0], y0 + h / 2, c[2]), (s[0], h, s[2]), style=no_bottom("steel_light", 1.0))
+    front = 1                                                             # into the room (+z)
+    for k in range(3):                                                    # trays
+        out = 0.3 if k == 1 else 0.0
+        y = y0 + 0.15 + k * 0.17
+        b.box((c[0], y, c[2] + front * (s[2] / 2 + out / 2)), (s[0] - 0.1, 0.12, 0.01 + out), style=no_bottom("trim", 1.0))
+        b.box((c[0], y + 0.03, c[2] + front * (s[2] / 2 + out + 0.01)), (0.2, 0.03, 0.02), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + h + 0.01, c[2]), (s[0] - 0.2, 0.02, s[2] - 0.15), style=lambda n, m, q: ("glass", uv_world(1.0)))
+    b.box((c[0], y0 + h + 0.25, c[2] - 0.32), (s[0] - 0.15, 0.5, 0.04), pitch=-12, style=no_bottom("steel_light", 1.0))  # lid up
+    b.box((c[0] + s[0] / 2 - 0.15, y0 + h + 0.04, c[2] + front * (s[2] / 2 - 0.12)), (0.28, 0.06, 0.18), pitch=-15,
+          style=no_bottom("trim_dark", 1.0))                              # control panel
+    b.box((c[0] + s[0] / 2 - 0.15, y0 + h + 0.08, c[2] + front * (s[2] / 2 - 0.1)), (0.05, 0.01, 0.03), style=no_bottom("red", 1.0))
+    b.box((c[0] - s[0] / 2 - 0.15, y0 + h * 0.7, c[2]), (0.3, 0.02, 0.32), pitch=0, style=no_bottom("trim", 1.0))  # output tray
+    papers(b, rng, c[0] - 1.0, c[0] + 1.0, c[2] + 0.5, c[2] + 1.6, y0, 14)
+
+
+def prop_pigeonholes(ctx, c, s):
+    """Mail pigeonholes: a wooden grid of slots, letters in some, a few tipped out."""
+    b, rng = ctx.b, ctx.rng
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    lo = -s[1] / 2
+    b.box(_pos(c, k, 0, -f * (D / 2 - 0.02), 0), _sz(k, L, s[1], 0.04), style=no_bottom("wood_dark", 1.0))   # back
+    b.box(_pos(c, k, 0, 0, lo + 0.45), _sz(k, L, 0.9, D), style=no_bottom("wood", 1.0))                    # cupboard
+    cols, rows = 6, 4
+    for r in range(rows + 1):
+        y = lo + 0.9 + r * (s[1] - 0.9) / rows
+        b.box(_pos(c, k, 0, 0, y), _sz(k, L, 0.02, D), style=no_bottom("wood_light", 1.0))
+    for i in range(cols + 1):
+        a = -L / 2 + i * L / cols
+        b.box(_pos(c, k, a, 0, lo + 0.9 + (s[1] - 0.9) / 2), _sz(k, 0.02, s[1] - 0.9, D), style=no_bottom("wood_light", 1.0))
+    for r in range(rows):
+        for i in range(cols):
+            if rng.random() < 0.45:
+                a = -L / 2 + (i + 0.5) * L / cols
+                y = lo + 0.9 + r * (s[1] - 0.9) / rows + 0.08
+                b.box(_pos(c, k, a, 0.02, y), _sz(k, L / cols - 0.08, 0.12, D - 0.12), pitch=0,
+                      style=no_bottom(rng.choice(("bone", "bone", "steel_light", "carton")), 1.0))
+    floor = c[1] - s[1] / 2
+    for _ in range(10):
+        a, out = rng.uniform(-L / 2, L / 2), f * rng.uniform(D / 2 + 0.1, D / 2 + 1.0)
+        p = _pos((c[0], floor, c[2]), k, a, out)
+        b.box((p[0], floor + 0.004, p[2]), (0.16, 0.006, 0.11), yaw=rng.uniform(0, 180), style=no_bottom("bone", 1.0))
+
+
+def prop_mail_table(ctx, c, s):
+    """Sorting table: parcels, a postal scale, mail trays, string and tape."""
+    b, rng = ctx.b, ctx.rng
+    top = prop_table(ctx, c, s, "wood_light", "trim_dark")
+    for k in range(4):
+        w, h, d = rng.uniform(0.2, 0.4), rng.uniform(0.1, 0.25), rng.uniform(0.2, 0.3)
+        b.box((c[0] - s[0] / 2 + 0.3 + k * 0.38, top + h / 2, c[2] + rng.uniform(-0.1, 0.1)), (w, h, d), yaw=rng.uniform(-15, 15),
+              style=no_bottom("carton", 1.0))
+    b.box((c[0] + s[0] / 2 - 0.25, top + 0.04, c[2]), (0.25, 0.08, 0.25), style=no_bottom("steel_light", 1.0))  # scale
+    b.box((c[0] + s[0] / 2 - 0.25, top + 0.09, c[2]), (0.2, 0.02, 0.2), style=no_bottom("trim", 1.0))
+    for k in range(2):                                                   # parcels on the floor, torn open
+        b.box((c[0] - 0.5 + k * 0.9, c[1] - s[1] / 2 + 0.1, c[2] - 0.75), (0.35, 0.2, 0.28), yaw=rng.uniform(0, 90),
+              style=no_bottom("carton", 1.0))
+
+
+def prop_paper_shelf(ctx, c, s):
+    k, f = _front(c, s)
+    shelving(ctx, c, s, "x" if k == 2 else "z", (f,), "paper", levels=4, frame="steel_light", lip="trim", fill=0.45)
+
+
+def prop_break_table(ctx, c, s):
+    """The break room table: mugs left out, a coffee pot, a pizza box, four chairs pushed about."""
+    b, rng = ctx.b, ctx.rng
+    top = prop_table(ctx, c, s, "bone", "trim")
+    y0 = c[1] - s[1] / 2
+    for k in range(3):
+        b.box((c[0] - 0.4 + k * 0.35, top + 0.05, c[2] + rng.uniform(-0.25, 0.25)), (0.08, 0.1, 0.08),
+              style=no_bottom(("red", "bone", "blue")[k], 1.0))
+    b.box((c[0] + 0.3, top + 0.025, c[2] + 0.1), (0.42, 0.05, 0.42), yaw=12, style=no_bottom("carton", 1.0))
+    b.box((c[0] - 0.1, top + 0.1, c[2] - 0.2), (0.14, 0.2, 0.14), style=no_bottom("black", 1.0))       # coffee pot
+    for dx, dz in ((-0.45, -1), (0.45, -1), (-0.45, 1), (0.45, 1)):
+        chair(b, c[0] + dx, y0, c[2] + dz * (s[2] / 2 + 0.35), facing_yaw(0, -dz), "red", "trim")
+
+
+def prop_printer(ctx, c, s):
+    """A laser printer on its cabinet, paper jammed in the output, the tray hanging open."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.35, c[2]), (s[0], 0.7, s[2]), style=no_bottom("trim", 1.0))
+    b.box((c[0], y0 + 0.85, c[2]), (s[0] - 0.08, 0.3, s[2] - 0.08), style=no_bottom("steel_light", 1.0))
+    b.box((c[0] - s[0] / 2 - 0.1, y0 + 0.78, c[2]), (0.22, 0.02, 0.3), pitch=0, style=no_bottom("trim_dark", 1.0))
+    b.box((c[0] - s[0] / 2 + 0.05, y0 + 0.98, c[2]), (0.2, 0.004, 0.21), yaw=0, pitch=0, style=no_bottom("bone", 1.0))
+
+
+def prop_desk_over(ctx, c, s):
+    """A desk thrown onto its back by the blast: the top stands up like a wall, legs and pedestal stick out, a
+    smashed monitor beside it. Same footprint as a desk (it's as solid as one)."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    f = 1 if rng.random() < 0.5 else -1
+    zt = c[2] + f * (s[2] / 2 - 0.02)
+    b.box((c[0], y0 + s[1] / 2, zt), (s[0], s[1], 0.04), style=lambda n, m, q: ("bone", uv_world(2.0)) if n[2] * f < -0.7
+          else ("trim_dark", uv_world()))                                # the top, on its edge
+    for sx in (-1, 1):                                                    # legs, now lying flat
+        b.box((c[0] + sx * (s[0] / 2 - 0.04), y0 + 0.36, c[2] - f * 0.02), (0.04, 0.68, s[2] - 0.08), style=no_bottom("steel_light", 1.0))
+    b.box((c[0] + s[0] / 2 - 0.27, y0 + 0.2, c[2] - f * 0.02), (0.4, 0.38, s[2] - 0.12), style=no_bottom("steel_light", 1.0))
+    b.box((c[0] - 0.3, y0 + 0.03, c[2] - f * (s[2] / 2 + 0.4)), (0.5, 0.05, 0.3), yaw=rng.uniform(0, 60), style=no_bottom("black", 1.0))
+    b.box((c[0] - 0.1, y0 + 0.02, c[2] - f * (s[2] / 2 + 0.6)), (0.3, 0.03, 0.2), yaw=rng.uniform(0, 90), style=no_bottom("trim_dark", 1.0))
+
+
+def prop_manager_desk(ctx, c, s):
+    prop_principal_desk(ctx, c, s)
+    b = ctx.b
+    top = c[1] + s[1] / 2
+    b.box((c[0] + s[0] * 0.35, top + 0.05, c[2] + 0.15), (0.1, 0.1, 0.1), yaw=20, style=no_bottom("bone", 1.0))    # mug
+    b.box((c[0] - s[0] * 0.05, top + 0.1, c[2] + 0.1), (0.2, 0.2, 0.03), yaw=-25, style=no_bottom("wood_dark", 1.0))  # photo
+
+
+def prop_meeting_table(ctx, c, s):
+    """The long meeting table: eight chairs round it (some shoved back, one over), notepads, a water jug, the
+    projector at one end; papers swept off onto the floor."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=no_bottom("wood_dark", 1.0))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.5), y0 + (s[1] - 0.06) / 2, c[2]), (0.12, s[1] - 0.06, s[2] - 0.4), style=no_bottom("trim_dark", 1.0))
+    for k in range(3):
+        x = c[0] - s[0] / 2 + 0.8 + k * (s[0] - 1.6) / 2
+        for dz in (-1, 1):
+            chair(b, x, y0, c[2] + dz * (s[2] / 2 + rng.uniform(0.25, 0.6)), facing_yaw(0, -dz), "trim_dark", "trim", office=True)
+            if rng.random() < 0.6:
+                b.box((x, top + 0.005, c[2] + dz * 0.3), (0.22, 0.01, 0.3), yaw=rng.uniform(-15, 15), style=no_bottom("yellow", 1.0))
+    b.box((c[0] + s[0] / 2 - 0.4, top + 0.06, c[2]), (0.3, 0.12, 0.25), style=no_bottom("steel_light", 1.0))  # projector
+    b.box((c[0] + s[0] / 2 - 0.25, top + 0.06, c[2]), (0.05, 0.07, 0.07), style=no_bottom("black", 1.0))
+    b.box((c[0] - 0.3, top + 0.12, c[2] - 0.05), (0.12, 0.24, 0.12), style=lambda n, m, q: ("glass", uv_world(1.0)))  # jug
+    papers(b, rng, c[0] - s[0] / 2 - 0.5, c[0] + s[0] / 2 + 0.5, c[2] + s[2] / 2, c[2] + s[2] / 2 + 1.4, y0, 16)
+
+
+def prop_archive_shelf(ctx, c, s):
+    """Archive shelving: boxes and binders, half of it pulled out onto the floor (searched)."""
+    k = 0 if _long_axis(s) == "z" else 2
+    axis = "z" if k == 0 else "x"
+    sides = (1, -1) if k == 0 else ((1 if _front_into(c, 2) == "+z" else -1),)
+    shelving(ctx, c, s, axis, sides, "archive", levels=5, frame="steel_light", lip="trim", fill=0.5)
+
+
+def prop_drafting_table(ctx, c, s):
+    """A surveyor's drafting table: a tilted board on a steel stand, a parallel rule, a plan pinned on, a stool."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.4, c[2]), (0.08, 0.8, 0.08), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 0.03, c[2]), (0.7, 0.06, 0.08), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 0.03, c[2]), (0.08, 0.06, 0.7), style=no_bottom("trim_dark", 1.0))
+    yaw = -90 if c[0] < 0 else 90                                         # the board faces into the room
+    b.box((c[0], y0 + 0.88, c[2]), (s[2] - 0.1, 0.03, s[0] - 0.1), yaw=yaw, pitch=-25, style=no_bottom("bone", 1.0))
+    b.box((c[0], y0 + 0.9, c[2]), (s[2] - 0.3, 0.012, s[0] - 0.35), yaw=yaw, pitch=-25,
+          style=lambda n, m, q: None if n[1] < -0.3 else ("decals", ctx.d("plan")))
+    b.box((c[0] + (0.15 if c[0] < 0 else -0.15), y0 + 0.84, c[2]), (0.02, 0.02, s[2] - 0.05), style=no_bottom("trim", 1.0))
+    chair(b, c[0] + (0.75 if c[0] < 0 else -0.75), y0, c[2], facing_yaw(-1 if c[0] < 0 else 1, 0), "black", "trim")
+    for _ in range(3):                                                    # rolled drawings dropped about
+        x, z = c[0] + rng.uniform(0.3, 1.4) * (1 if c[0] < 0 else -1), c[2] + rng.uniform(-0.8, 0.8)
+        b.box((x, y0 + 0.04, z), (0.08, 0.08, 0.7), yaw=rng.uniform(0, 180), style=no_bottom("bone", 1.0))
+
+
+def prop_plan_chest(ctx, c, s):
+    """A plan chest: wide shallow drawers for maps, two pulled out, maps spilled on the floor."""
+    b, rng = ctx.b, ctx.rng
+    y0 = c[1] - s[1] / 2
+    b.box(c, s, style=no_bottom("olive", 1.0))
+    for k in range(5):
+        y = y0 + 0.1 + k * (s[1] - 0.15) / 5
+        out = 0.4 if k in (1, 3) else 0.0
+        b.box((c[0], y + 0.07, c[2] + s[2] / 2 + out / 2), (s[0] - 0.08, 0.13, 0.012 + out), style=no_bottom("olive", 1.0))
+        b.box((c[0], y + 0.07, c[2] + s[2] / 2 + out + 0.015), (0.3, 0.03, 0.02), style=no_bottom("steel_light", 1.0))
+    for _ in range(4):
+        b.box((c[0] + rng.uniform(-1.0, 1.0), y0 + 0.004, c[2] + rng.uniform(0.9, 1.8)), (0.84, 0.004, 0.6),
+              yaw=rng.uniform(-30, 30), style=no_bottom(rng.choice(("bone", "blue", "bone")), 1.0))
+
+
+def prop_core_boxes(ctx, c, s):
+    """Wooden core trays stacked up: rows of grey rock core from the mine's test holes (the company's real work)."""
+    b, rng = ctx.b, ctx.rng
+    y = c[1] - s[1] / 2
+    while y < c[1] + s[1] / 2 - 0.1:
+        yaw = rng.uniform(-6, 6)
+        b.box((c[0], y + 0.05, c[2]), (s[0], 0.1, s[2]), yaw=yaw, style=no_bottom("wood_light", 1.0))
+        for r in range(4):
+            z = c[2] - s[2] / 2 + 0.1 + r * (s[2] - 0.2) / 3
+            b.box((c[0], y + 0.11, z), (s[0] - 0.12, 0.07, 0.07), yaw=yaw,
+                  style=no_bottom(rng.choice(("metal", "trim_dark", "concrete", "trim")), 1.0))
+        y += 0.15
+    b.box((c[0] - 0.2, c[1] - s[1] / 2 + 0.035, c[2] - 0.9), (0.5, 0.07, 0.07), yaw=40, style=no_bottom("trim_dark", 1.0))
+
+
+def prop_paper_boxes(ctx, c, s):
+    """Boxes of copier paper stacked up, the top one torn open, reams spilled."""
+    b, rng = ctx.b, ctx.rng
+    y = c[1] - s[1] / 2
+    while y < c[1] + s[1] / 2 - 0.2:
+        b.box((c[0] + rng.uniform(-0.04, 0.04), y + 0.14, c[2] + rng.uniform(-0.04, 0.04)), (s[0] - 0.08, 0.28, s[2] - 0.08),
+              yaw=rng.uniform(-6, 6), style=no_bottom("carton", 1.0))
+        y += 0.29
+    for k in range(3):
+        b.box((c[0] + 0.5 + k * 0.1, c[1] - s[1] / 2 + 0.03, c[2] + rng.uniform(-0.4, 0.4)), (0.22, 0.05, 0.3),
+              yaw=rng.uniform(0, 90), style=no_bottom("bone", 1.0))
+
+
+PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in {
+    "office_pod": prop_office_pod,
+    "paper_boxes": prop_paper_boxes, "front_desk": prop_front_desk, "water_cooler": prop_water_cooler,
+    "waiting_seats": prop_waiting_seats, "photocopier": prop_photocopier, "pigeonholes": prop_pigeonholes,
+    "mail_table": prop_mail_table, "paper_shelf": prop_paper_shelf, "break_table": prop_break_table,
+    "printer": prop_printer, "desk_over": prop_desk_over, "manager_desk": prop_manager_desk,
+    "meeting_table": prop_meeting_table, "archive_shelf": prop_archive_shelf, "drafting_table": prop_drafting_table,
+    "plan_chest": prop_plan_chest, "core_boxes": prop_core_boxes}.items()})
+
+
+def office_decals(rng):
+    a = Atlas(512)
+
+    def logo(c, x, y, s, col):            # the company mark: a pickaxe over two hills
+        for k in range(s):
+            hh = max(1, (min(k, s - 1 - k) * 2) // 3)
+            c.rect(x + k, y, x + k + 1, y + hh, col)
+        for k in range(s):                                               # the pick's handle, corner to corner
+            c.rect(x + k, y + k, x + k + 1, y + k + 2, "wood_light")
+        c.rect(x + s - 6, y + s - 2, x + s + 2, y + s, "steel_light")     # its head
+        c.rect(x + s - 2, y + s - 6, x + s, y + s + 2, "steel_light")
+
+    def sign(c):          # 5 x 0.8 m over the door: BLOXOV MINING CO.
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        c.frame(0, 0, c.w, c.h, "hazard_yellow")
+        logo(c, 4, 5, 16, "hazard_yellow")
+        c.ctext(24, c.w - 2, 13, "BLOXOV MINING CO.", "bone", 2)
+        c.ctext(24, c.w - 2, 4, "REGIONAL OFFICE", "hazard_yellow")
+        c.blotch(["iron"], 5, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
+
+    def desk_front(c):    # 2.4 x 1 m, the reception counter's front
+        c.rect(0, 0, c.w, c.h, "wood_dark")
+        c.rect(0, c.h - 3, c.w, c.h, "wood")
+        logo(c, c.w // 2 - 8, 12, 16, "hazard_yellow")
+        c.ctext(0, c.w, 4, "BLOXOV MINING", "bone")
+        c.blotch(["wood_mid"], 4, rng, size=(2, 4))
+        c.rect(50, 18, 58, 19, "bone")                                   # scratches
+        c.rect(14, 8, 20, 9, "bone")
+
+    def wall_logo(c):     # 2 x 1 m behind reception
+        c.rect(0, 0, c.w, c.h, "clear")
+        logo(c, 4, 6, 22, "hazard_yellow")
+        c.text(29, 21, "BLOXOV", "iron_dark", 1)
+        c.text(29, 14, "MINING", "iron_dark", 1)
+        c.text(29, 5, "EST 1952", "iron", 1)
+
+    def safety(c):        # 0.8 x 1 m mine safety poster
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.frame(0, 0, c.w, c.h, "black")
+        c.ctext(0, c.w, c.h - 8, "SAFETY", "black")
+        c.ctext(0, c.w, c.h - 14, "FIRST", "black")
+        c.rect(1, 7, c.w - 1, 15, "bone")
+        c.ctext(0, c.w, 9, "0 DAYS", "red")
+        c.ctext(0, c.w, 2, "SAFE", "black")
+
+    def notices(c):       # 1.2 x 0.8 m cork board
+        c.rect(0, 0, c.w, c.h, "wood_light")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        for k in range(6):
+            x, y = 2 + (k % 3) * 12 + rng.randrange(2), 2 + (k // 3) * 12 + rng.randrange(2)
+            c.rect(x, y, x + 9, y + 10, rng.choice(("bone", "bone", "hazard_yellow", "sky_blue")))
+            c.rect(x + 4, y + 8, x + 5, y + 9, "red")
+            for r in range(3):
+                c.rect(x + 1, y + 2 + r * 2, x + 7, y + 3 + r * 2, "steel")
+
+    def calendar(c):      # 0.4 x 0.6 m, stopped in May like everywhere else
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, c.h - 6, c.w, c.h, "red")
+        c.ctext(0, c.w, c.h - 13, "MAY", "black")
+        for r in range(4):
+            for k in range(4):
+                c.rect(1 + k * 3, 1 + r * 2, 3 + k * 3, 2 + r * 2, "steel")
+        c.rect(7, 3, 9, 4, "red")
+
+    def whiteboard(c):    # 2.4 x 1.2 m, a half-wiped plan, an X1 drawn over it
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "steel_light")
+        c.text(4, c.h - 9, "TARGETS", "sky_blue")
+        for k, hgt in enumerate((6, 9, 7, 13, 4)):                       # a bar chart
+            c.rect(6 + k * 6, 6, 10 + k * 6, 6 + hgt, ("sky_blue", "green_dark", "sky_blue", "red", "sky_blue")[k])
+        c.text(40, c.h - 18, "SHAFT 4", "black")
+        c.text(40, c.h - 25, "REOPEN?", "red")
+        c.blotch(["concrete"], 5, rng, area=(36, 6, c.w - 2, c.h - 2), size=(3, 6))   # wiped
+        paint_x1(c, c.w - 22, 6, 16, "red", 2)
+
+    def screen(c):        # 2 x 1.4 m projector screen
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, c.h - 2, c.w, c.h, "black")
+        c.blotch(["concrete"], 3, rng, size=(3, 6))
+
+    def mine_map(c):      # 2 x 1.2 m, the company's survey map: contours, shafts, the border
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "black")
+        for k in range(6):                                               # contour rings
+            cx, cy, r = 20 + k * 3, 18, 14 - k * 2
+            for t in range(48):
+                x = int(cx + r * math.cos(t * 0.13))
+                y = int(cy + r * 0.6 * math.sin(t * 0.13))
+                if 1 < x < c.w - 1 and 1 < y < c.h - 1:
+                    c.put(x, y, "olive")
+        for x, y in ((44, 26), (50, 12), (36, 8)):                       # shafts
+            c.rect(x, y, x + 3, y + 3, "red")
+        for x in range(2, c.w - 2, 3):                                   # the border, dashed
+            c.rect(x, 31, x + 2, 32, "black")
+        c.text(4, 33, "LEASE MAP", "black")
+
+    def painting(c):      # 1 x 0.7 m: mountains and a headframe, in a gold frame
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.frame(0, 0, c.w, c.h, "yellow_dark")
+        for x in range(1, c.w - 1):
+            h = 8 + int(5 * math.sin(x * 0.3)) + (x % 7)
+            c.rect(x, 1, x + 1, min(c.h - 2, h), "olive_dark")
+        c.rect(20, 8, 22, 18, "iron_dark")
+        c.rect(17, 16, 25, 17, "iron_dark")
+
+    def clock(c):         # 0.4 m wall clock, stopped
+        c.rect(0, 0, c.w, c.h, "clear")
+        cx = c.w // 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = (x - cx + 0.5) ** 2 + (y - cx + 0.5) ** 2
+                if d <= (cx - 0.5) ** 2:
+                    c.put(x, y, "black" if d > (cx - 2) ** 2 else "bone")
+        c.rect(cx, cx, cx + 1, cx + 4, "black")
+        c.rect(cx, cx, cx + 3, cx + 1, "black")
+
+    def plan(c):          # a survey drawing pinned to the drafting board
+        c.rect(0, 0, c.w, c.h, "bone")
+        for x in range(2, c.w - 2, 4):
+            c.rect(x, 2, x + 1, c.h - 2, "sky_blue")
+        c.rect(6, 6, c.w - 6, 8, "black")
+        c.rect(10, 8, 12, c.h - 6, "black")
+        c.rect(c.w - 10, 3, c.w - 3, 6, "black")
+
+    a.add("sign", 160, 26, sign)
+    a.add("desk_front", 77, 32, desk_front)
+    a.add("wall_logo", 64, 32, wall_logo)
+    a.add("safety", 26, 32, safety)
+    a.add("notices", 38, 26, notices)
+    a.add("calendar", 13, 19, calendar)
+    a.add("whiteboard", 77, 38, whiteboard)
+    a.add("screen", 64, 45, screen)
+    a.add("mine_map", 64, 40, mine_map)
+    a.add("painting", 32, 22, painting)
+    a.add("clock", 13, 13, clock)
+    a.add("plan", 26, 34, plan)
+    return a
+
+
+def office_mess(ctx, x0, x1, z0, z1, y, n, boxes=0):
+    """Ransacked: sheets and folders all over the floor, binders flung open, an emptied box or two."""
+    b, rng = ctx.b, ctx.rng
+    papers(b, rng, x0, x1, z0, z1, y, n)
+    for _ in range(n // 8):                                               # binders lying open
+        x, z, yaw = rng.uniform(x0, x1), rng.uniform(z0, z1), rng.uniform(0, 180)
+        col = rng.choice(("red", "blue", "olive", "black"))
+        for sg in (-1, 1):
+            px, pz = _at(x, z, yaw, sg * 0.15, 0)
+            b.box((px, y + 0.008, pz), (0.28, 0.012, 0.32), yaw=yaw, pitch=0, style=no_bottom(col, 1.0))
+    for _ in range(boxes):                                                # archive boxes tipped out
+        x, z, yaw = rng.uniform(x0, x1), rng.uniform(z0, z1), rng.uniform(0, 180)
+        b.box((x, y + 0.13, z), (0.32, 0.26, 0.36), yaw=yaw, pitch=rng.choice((0, 0, 90)), style=no_bottom("carton", 1.0))
+
+
+def dress_offices(ctx):
+    b, rng = ctx.b, ctx.rng
+    look = OFFICE_LOOKS[OFFICE_LOOK]
+    fp = FOOTPRINTS["offices"]
+    xe = fp[2] + 0.15                                                    # east wall's outside face
+    opens = ctx.data.get("openings", [])
+
+    def along_wall(side, y0, y1, d, mat, out=0.0):
+        """A band round the building from y0 to y1, cut round the openings it would cross."""
+        ns = side in "NS"
+        sg = 1 if side in "SE" else -1
+        at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * (0.15 + d / 2 + out)
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d, a1 + 0.15 + d
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        for s0, s1 in segs:
+            if s1 - s0 < 0.02:
+                continue
+            m = (s0 + s1) / 2
+            c = (m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m)
+            # Above the ground the underside shows (round 11c: bands drawn without one were see-through from below).
+            b.box(c, (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0),
+                  style=no_bottom(mat, 2.0) if y0 < 0.05 else (lambda n, m_, q: (mat, uv_world(2.0))))
+
+    # ---- outside
+    for side in "NSWE":
+        if look.get("bands"):                                            # pale bands at sill and head height
+            for f in (0, 3.0):
+                along_wall(side, f + 0.62, f + 1.0, 0.06, look["bands"])
+                along_wall(side, f + 2.2, f + 2.55, 0.06, look["bands"])
+        if look.get("base"):                                             # a stone base course to sill height
+            along_wall(side, 0.0, 0.9, 0.1, look["base"])
+        along_wall(side, 6.0, 6.25, 0.08, look.get("bands") or "trim_dark")   # coping round the roof edge
+    if look.get("lintels"):
+        for o in opens:
+            if o["kind"] != "window":
+                continue
+            ns = o["side"] in "NS"
+            sg = 1 if o["side"] in "SE" else -1
+            at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[o["side"]] + sg * 0.19
+            for y, h in ((o["hi"] + 0.1, 0.2), (o["lo"] - 0.05, 0.1)):
+                c = (o["mid"], y, at) if ns else (at, y, o["mid"])
+                b.box(c, (o["w"] + 0.3, h, 0.08) if ns else (0.08, h, o["w"] + 0.3),
+                      style=lambda n, m_, q: (look["lintels"], uv_world(1.0)))
+    # The company sign over the door, a canopy on steel rods.
+    dz = 5.25
+    b.box((xe + 0.07, 3.25, dz), (0.1, 0.8, 5.0), style=face_decal(ctx.d("sign"), "trim_dark", "+x"))
+    b.box((xe + 0.8, 2.62, dz), (1.6, 0.12, 3.0), style=no_bottom("trim_dark", 1.0))
+    b.box((xe + 0.8, 2.555, dz), (1.5, 0.01, 2.9), style=lambda n, m, q: ("steel_light", uv_world(1.0)))
+    for sz in (-1, 1):
+        b.box((xe + 0.8, 2.95, dz + sz * 1.3), (1.65, 0.03, 0.03), pitch=0, yaw=0, style=no_bottom("trim_dark", 1.0))
+        b.box((xe + 0.8, 2.85, dz + sz * 1.3), (0.03, 0.3, 0.03), style=no_bottom("trim_dark", 1.0))
+    # A noticeboard by the door (company notices, one Exion order pasted over them).
+    b.box((xe + 0.04, 1.45, 8.2), (0.06, 0.8, 1.2), style=face_decal(ctx.d("notices"), "wood_dark", "+x"))
+    for sz in (-1, 1):
+        b.box((xe + 0.05, 0.6, 8.2 + sz * 0.5), (0.05, 1.2, 0.05), style=no_bottom("trim_dark", 1.0))
+    # Welcome mat kicked aside, papers blown out of the door.
+    b.box((xe + 0.6, 0.01, dz + 0.4), (0.9, 0.02, 1.4), yaw=14, style=no_bottom("black", 1.0))
+    papers(b, rng, xe + 0.2, xe + 3.0, dz - 1.5, dz + 1.5, 0.0, 10)
+
+    # ---- inside: pictures on the walls
+    def pic(side, at, a0, a1, y0, y1, region, mat="decals"):
+        n = {"+x": (1, 0, 0), "-x": (-1, 0, 0), "+z": (0, 0, 1), "-z": (0, 0, -1)}[side]
+        wall_quad(b, n, at, a0, a1, y0, y1, mat, ctx.d(region))
+    pic("-z", 10.33, 4.3, 6.3, 1.35, 2.35, "wall_logo", "graffiti")      # reception: the logo behind the desk
+    pic("-x", 10.83, 8.4, 8.8, 2.0, 2.4, "clock", "graffiti")
+    pic("+z", 0.12, 2.0, 2.4, 1.3, 1.9, "calendar")                     # open office
+    pic("+x", -3.55, -2.8, -1.6, 1.2, 2.0, "notices")                   # break room
+    pic("-x", 3.55, -3.2, -2.4, 1.0, 2.0, "safety")
+    pic("+x", -3.55, -7.0, -6.6, 1.9, 2.3, "clock", "graffiti")
+    pic("+z", -10.33, 7.0, 7.4, 1.3, 1.9, "calendar")                   # accounts (north wall)
+    pic("+x", 3.79, -9.8, -7.4, 4.0, 5.2, "whiteboard")                 # meeting room
+    b.box((3.83, 3.98, -8.6), (0.08, 0.04, 2.3), style=no_bottom("steel_light", 1.0))   # its pen tray
+    b.box((10.8, 5.75, -8.6), (0.12, 0.12, 2.3), style=no_bottom("steel_light", 1.0))   # the screen's roller
+    pic("-x", 10.83, -9.6, -7.6, 4.2, 5.6, "screen")
+    pic("-x", -3.79, 7.0, 9.4, 4.1, 5.3, "mine_map")                    # drawing office
+    pic("+z", 0.12, 7.6, 8.6, 4.4, 5.1, "painting")                     # the manager
+    pic("-x", 10.83, 2.6, 3.0, 4.9, 5.3, "clock", "graffiti")
+    pic("+z", -8.13, -6.4, -6.0, 4.3, 4.9, "calendar")                  # records
+    # ---- ransacked floors (stay out of the stairs)
+    office_mess(ctx, 4.2, 10.5, 0.5, 6.8, 0.0, 30)                       # reception
+    office_mess(ctx, -3.3, 3.3, 0.5, 10.0, 0.0, 70, boxes=2)             # open office
+    office_mess(ctx, -10.5, -4.3, 0.5, 9.8, 0.0, 60, boxes=2)            # copy room
+    office_mess(ctx, -1.5, 3.3, -9.4, -0.5, 0.0, 15)                     # break room
+    office_mess(ctx, 4.2, 10.5, -9.6, -0.5, 0.0, 60, boxes=1)            # accounts
+    office_mess(ctx, -10.5, -4.2, -7.8, -0.5, 0.0, 25)                   # blasted room
+    office_mess(ctx, 4.2, 10.5, 0.5, 9.8, 3.0, 35)                       # the manager
+    office_mess(ctx, 4.2, 10.5, -9.8, -0.5, 3.0, 25)                     # meeting room
+    office_mess(ctx, -3.3, 3.3, -9.8, -0.6, 3.0, 50, boxes=6)            # archive
+    office_mess(ctx, -10.5, -4.2, -7.8, -0.5, 3.0, 40, boxes=2)          # records
+    office_mess(ctx, -10.5, -4.2, 0.5, 9.8, 3.0, 35)                     # drawing office
+    office_mess(ctx, -3.3, 3.3, 0.5, 9.8, 3.0, 20)                       # the caved room
+    # A brotherhood calling card: a small X1 carved into the manager's door frame.
+    b.box((3.79, 4.55, 6.25), (0.004, 0.12, 0.02), pitch=40, style=no_bottom("bone", 1.0))
+    b.box((3.79, 4.55, 6.25), (0.004, 0.12, 0.02), pitch=-40, style=no_bottom("bone", 1.0))
+
+
+DECALS["offices"] = office_decals
+DRESSING["offices"] = dress_offices
+FOOTPRINTS["offices"] = (-11.0, -10.5, 11.0, 10.5)
+SHELLS["offices"] = {
+    "ext": OFFICE_LOOKS[OFFICE_LOOK]["ext"], "roof_side": OFFICE_LOOKS[OFFICE_LOOK]["ext"],
+    "x_lines": (-11.0, -11.0 + 22 / 3, 11.0 - 22 / 3, 11.0), "z_lines": (-10.5, 0.0, 10.5),
+    "inner": office_inner, "floor": office_floor, "x_splits": (-11.0 + 22 / 3, 11.0 - 22 / 3), "z_splits": (0.0,),
+}
+FACTION_MARKS["offices"] = [("x1_stencil", "N", -2.0, 1.0), ("nova_tag", "S", -3.6, 1.1)]
 
 
 def floor_debris(ctx, data, name):
