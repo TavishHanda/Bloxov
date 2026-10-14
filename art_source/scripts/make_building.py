@@ -5222,7 +5222,7 @@ def flat_roof(b, fp, base, wall, rng):
         b.box((cx, base + h + 0.05, cz), (sx + 0.12, 0.1, sz + 0.12), style=_nb("trim_dark"))
     for (cx, cz, sx, sz) in (((x0 + x1) / 2, z0 - 0.04, x1 - x0 + 0.1, 0.1), ((x0 + x1) / 2, z1 + 0.04, x1 - x0 + 0.1, 0.1),
                              (x0 - 0.04, (z0 + z1) / 2, 0.1, z1 - z0 + 0.1), (x1 + 0.04, (z0 + z1) / 2, 0.1, z1 - z0 + 0.1)):
-        b.box((cx, base - 0.12, cz), (sx, 0.24, sz), style=_nb("trim_dark"))                     # cornice
+        b.box((cx, base - 0.12, cz), (sx, 0.24, sz), style=_solid("trim_dark"))                  # cornice
     b.box(((x0 + x1) / 2, base + 0.005, (z0 + z1) / 2), (x1 - x0 - 0.4, 0.02, z1 - z0 - 0.4), style=_nb("rubber"))
     tx, tz = x1 - 2.2, z0 + 2.0                                                                 # water tank on legs
     for sx in (-0.5, 0.5):
@@ -5437,6 +5437,11 @@ def house_decals(rng):
 # ---- house props
 def _nb(mat):
     return no_bottom(mat, 1.0)
+
+
+def _solid(mat):
+    """All six faces: for pieces seen from below (bands, lintels, canopies; no_bottom left them see-through)."""
+    return lambda n, m, q: (mat, uv_world(1.0))
 
 
 def _box(b, x, y, z, sx, sy, sz, mat, yaw=0.0, pitch=0.0):
@@ -5873,9 +5878,10 @@ def prop_porch_post(ctx, c, s):
         _box(b, c[0], y0 + 0.1, c[2], s[0] + 0.08, 0.2, s[2] + 0.08, "wood")
         _box(b, c[0], y0 + s[1] - 0.12, c[2], s[0] + 0.1, 0.1, s[2] + 0.1, "wood")
         _box(b, c[0], y0 + 0.9, c[2] - 0.1, 0.03, 0.03, 0.03, "black")                   # a nail for the swing
-    else:
-        _box(b, c[0], c[1], c[2], s[0] * 0.6, s[1], s[2] * 0.6, "trim_dark")
-        _box(b, c[0], y0 + 0.03, c[2], s[0] + 0.12, 0.06, s[2] + 0.12, "trim_dark")        # base plate
+    else:                                     # (round 11b, owner: the officer's porch back as it was)
+        b.box(c, s, style=_nb("bone"))
+        _box(b, c[0], y0 + 0.1, c[2], s[0] + 0.1, 0.2, s[2] + 0.1, "bone")
+        _box(b, c[0], y0 + s[1] - 0.06, c[2], s[0] + 0.1, 0.12, s[2] + 0.1, "bone")
 
 
 def prop_porch(ctx, c, s):
@@ -5888,9 +5894,10 @@ def prop_porch(ctx, c, s):
     z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
     roof_y = 2.85
     style = hv["porch"]
-    if style == "canopy":                                                                # flat steel canopy
-        b.box((c[0], roof_y + 0.02, (z0 + z1) / 2 + 0.1), (s[0] + 0.6, 0.1, s[2] + 0.35), style=_nb("trim_dark"))
-        b.box((c[0], roof_y - 0.06, z1 + 0.27), (s[0] + 0.6, 0.22, 0.04), style=_nb("trim_dark"))
+    if style == "canopy":                     # (round 11b, owner: back to the old porch roof; plaque and camera stay)
+        b.box((c[0], roof_y, (z0 + z1) / 2 + 0.05), (s[0] + 0.3, 0.12, s[2] + 0.25), pitch=-8,
+              style=lambda n, m, q: (hv["roof"], uv_world()) if n[1] > 0.7 else ("bone", uv_world(1.0)))
+        b.box((c[0], roof_y - 0.12, z1 + 0.02), (s[0] + 0.3, 0.16, 0.06), style=_solid("bone"))
         wall_quad(b, (0, 0, 1), z0 + 0.008, c[0] + 1.29, c[0] + 1.69, 1.35, 1.6, "decals", ctx.d("plaque"))
         _box(b, c[0] + s[0] / 2 + 0.05, 2.6, z0 + 0.12, 0.12, 0.12, 0.2, "trim_dark")    # the camera on the door
         _box(b, c[0] + s[0] / 2 + 0.05, 2.56, z0 + 0.3, 0.16, 0.12, 0.3, "bone", pitch=-15)
@@ -5898,7 +5905,7 @@ def prop_porch(ctx, c, s):
     else:
         b.box((c[0], roof_y, (z0 + z1) / 2 + 0.05), (s[0] + 0.3, 0.12, s[2] + 0.25), pitch=-8,
               style=lambda n, m, q: (hv["roof"], uv_world()) if n[1] > 0.7 else ("bone", uv_world(1.0)))
-        b.box((c[0], roof_y - 0.12, z1 + 0.02), (s[0] + 0.3, 0.16, 0.06), style=_nb("bone" if style == "columns" else "wood_light"))
+        b.box((c[0], roof_y - 0.12, z1 + 0.02), (s[0] + 0.3, 0.16, 0.06), style=_solid("bone" if style == "columns" else "wood_light"))
     if style == "columns":                                                               # the doctor's pediment
         zf = z1 + 0.06
         L = s[0] + 0.4
@@ -6339,7 +6346,7 @@ def window_trim(b, o, fp, who):
 
     def bx(a, y, sa, sy, d=0.06, mat="bone", push=0.0):
         c = (mid + a, y, at + out * push) if ns else (at + out * push, y, mid + a)
-        b.box(c, (sa, sy, d) if ns else (d, sy, sa), style=_nb(mat))
+        b.box(c, (sa, sy, d) if ns else (d, sy, sa), style=_solid(mat))
     if who == "doctor":
         for sg in (-1, 1):
             bx(sg * (w / 2 + 0.06), (lo + hi) / 2, 0.12, hi - lo + 0.1)
@@ -6430,7 +6437,7 @@ def dress_house(ctx):
     # A band between the floors.
     for (cx, cz, sx, sz) in ((0, fp[3] + 0.19, 2 * hw + 0.42, 0.06), (0, fp[1] - 0.19, 2 * hw + 0.42, 0.06),
                              (fp[0] - 0.19, 0, 0.06, 2 * hd + 0.42), (fp[2] + 0.19, 0, 0.06, 2 * hd + 0.42)):
-        b.box((cx, 3.0, cz), (sx, 0.14, sz), style=_nb(hv["band"]))
+        b.box((cx, 3.0, cz), (sx, 0.14, sz), style=_solid(hv["band"]))
     # Ceiling lights, each house its own: the doctor's brass chandeliers, the family's paper shades, the officer's
     # bare steel shop lamps (picture only, above head height).
     for (lx, lz) in ((-q, r), (q, r), (q, -r), (-q, -r + 0.6)):
