@@ -6856,10 +6856,12 @@ def prop_waiting_seats(ctx, c, s, sg=-1):
     n = 3
     L = s[2]
     b.box((c[0], y0 + 0.22, c[2]), (0.08, 0.06, L), style=no_bottom("trim", 1.0))                    # beam
-    for z in (c[2] - L / 2 + 0.2, c[2] + L / 2 - 0.2):
-        b.box((c[0], y0 + 0.11, z), (0.4, 0.22, 0.05), style=no_bottom("trim", 1.0))
+    for z in (c[2] - L / 2 + 0.2, c[2] + L / 2 - 0.2):                   # (owner: they looked like they floated)
+        b.box((c[0], y0 + 0.13, z), (0.42, 0.26, 0.06), style=no_bottom("trim", 1.0))
+        b.box((c[0], y0 + 0.015, z), (0.5, 0.03, 0.12), style=no_bottom("trim_dark", 1.0))
     for k in range(n):
         z = c[2] - L / 2 + L * (k + 0.5) / n
+        b.box((c[0] + sg * 0.03, y0 + 0.32, z), (0.3, 0.16, 0.06), style=no_bottom("trim", 1.0))
         col = "olive" if k != 1 else "olive_dark"
         b.box((c[0] + sg * 0.03, y0 + 0.44, z), (0.46, 0.08, 0.5), style=no_bottom(col, 1.0))
         b.box((c[0] - sg * 0.21, y0 + 0.72, z), (0.06, 0.5, 0.5), pitch=0, style=no_bottom(col, 1.0))
@@ -7018,12 +7020,15 @@ def prop_meeting_table(ctx, c, s):
     b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=no_bottom("wood_dark", 1.0))
     for sx in (-1, 1):
         b.box((c[0] + sx * (s[0] / 2 - 0.5), y0 + (s[1] - 0.06) / 2, c[2]), (0.12, s[1] - 0.06, s[2] - 0.4), style=no_bottom("trim_dark", 1.0))
-    for k in range(3):
-        x = c[0] - s[0] / 2 + 0.8 + k * (s[0] - 1.6) / 2
+    n = max(3, round((s[0] - 0.6) / 0.85))                                # (owner: more chairs, a real meeting room)
+    for k in range(n):
+        x = c[0] - s[0] / 2 + 0.7 + k * (s[0] - 1.4) / (n - 1)
         for dz in (-1, 1):
             chair(b, x, y0, c[2] + dz * (s[2] / 2 + rng.uniform(0.25, 0.6)), facing_yaw(0, -dz), "trim_dark", "trim", office=True)
             if rng.random() < 0.6:
                 b.box((x, top + 0.005, c[2] + dz * 0.3), (0.22, 0.01, 0.3), yaw=rng.uniform(-15, 15), style=no_bottom("yellow", 1.0))
+    for dx in (-1, 1):                                                    # one at each end
+        chair(b, c[0] + dx * (s[0] / 2 + 0.45), y0, c[2], facing_yaw(-dx, 0), "trim_dark", "trim", office=True)
     b.box((c[0] + s[0] / 2 - 0.4, top + 0.06, c[2]), (0.3, 0.12, 0.25), style=no_bottom("steel_light", 1.0))  # projector
     b.box((c[0] + s[0] / 2 - 0.25, top + 0.06, c[2]), (0.05, 0.07, 0.07), style=no_bottom("black", 1.0))
     b.box((c[0] - 0.3, top + 0.12, c[2] - 0.05), (0.12, 0.24, 0.12), style=lambda n, m, q: ("glass", uv_world(1.0)))  # jug
@@ -8234,7 +8239,7 @@ def prop_ammo_crates(ctx, c, s):
     for r in range(rows):
         for i in range(nx):
             for j in range(nz):
-                if r == rows - 1 and rng.random() < 0.35:
+                if r == rows - 1 and (i, j) != (0, 0) and rng.random() < 0.35:   # (0, 0) holds the open crate
                     continue
                 x = c[0] - s[0] / 2 + (i + 0.5) * s[0] / nx
                 z = c[2] - s[2] / 2 + (j + 0.5) * s[2] / nz

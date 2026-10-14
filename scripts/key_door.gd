@@ -1,3 +1,4 @@
+@tool
 class_name KeyDoor
 extends StaticBody3D
 ## A locked door (0.14.0: the bunker and the bank vault). Hold F with its key somewhere on you (pockets, backpack or
@@ -29,6 +30,9 @@ var _swing := -100.0
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():   # (owner: show the vault doors in the editor) the models only, shut
+		_add_models()
+		return
 	add_to_group(GROUP)
 	add_to_group(&"nav_source")
 	collision_layer = 1 | 8   # world (blocks people, bullets and the AI's paths) + interactable (F)
@@ -43,20 +47,7 @@ func _ready() -> void:
 	# (an oval opening in it) and the round door on a hinge arm, both on the side you walk up from (-z), drawn for a
 	# 2.4 m doorway and stretched to this one. It swings out towards you. The collision box above is unchanged; a
 	# second one keeps people out of the door's thickness while it's shut.
-	if DisplayServer.get_name() != "headless" and ResourceLoader.exists(FRAME_MODEL) and ResourceLoader.exists(DOOR_MODEL):
-		var sx := size.x / 2.4
-		var sy := size.y / 2.45
-		var frame: Node3D = (load(FRAME_MODEL) as PackedScene).instantiate()
-		PixelModel.make_crisp(frame)
-		frame.scale = Vector3(sx, sy, 1.0)
-		add_child(frame)
-		_hinge = Node3D.new()
-		_hinge.position = Vector3(PIN.x * sx, 0, PIN.y)
-		add_child(_hinge)
-		var door: Node3D = (load(DOOR_MODEL) as PackedScene).instantiate()
-		PixelModel.make_crisp(door)
-		door.scale = Vector3(sx, sy, 1.0)
-		_hinge.add_child(door)
+	if DisplayServer.get_name() != "headless" and _add_models():
 		_swing = SWING
 	else:
 		_build_slab()
@@ -66,6 +57,27 @@ func _ready() -> void:
 	_face.shape = face_box
 	_face.position = Vector3(0, size.y * 0.5, -0.26)
 	add_child(_face)
+
+
+## The vault door's frame and round door (on `_hinge`), drawn for a 2.4 m doorway and stretched to this one. False
+## when the models aren't there.
+func _add_models() -> bool:
+	if not (ResourceLoader.exists(FRAME_MODEL) and ResourceLoader.exists(DOOR_MODEL)):
+		return false
+	var sx := size.x / 2.4
+	var sy := size.y / 2.45
+	var frame: Node3D = (load(FRAME_MODEL) as PackedScene).instantiate()
+	PixelModel.make_crisp(frame)
+	frame.scale = Vector3(sx, sy, 1.0)
+	add_child(frame)
+	_hinge = Node3D.new()
+	_hinge.position = Vector3(PIN.x * sx, 0, PIN.y)
+	add_child(_hinge)
+	var door: Node3D = (load(DOOR_MODEL) as PackedScene).instantiate()
+	PixelModel.make_crisp(door)
+	door.scale = Vector3(sx, sy, 1.0)
+	_hinge.add_child(door)
+	return true
 
 
 ## The plain grey slab (no models: headless, where nothing is drawn anyway).
