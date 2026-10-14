@@ -787,7 +787,7 @@ def rich_house(n, x, y, w, d, who):
 
 
 def offices_furniture(ox, oz):
-    """Bloxov Mining Co. (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 7.33 x 10.5 m,
+    """Korven Engineering (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 7.33 x 10.5 m,
     storeys 3 m). Desks, cabinets and machines are solid like everywhere else; the desk pods' low partitions are
     picture only (no new cover, owner rule). Room middles, doorways and the stairs' foot stay clear for the AI."""
     def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
@@ -2063,7 +2063,7 @@ def main():
         add_loot("Offices", kind, x, z, y=y, yaw=yaw)
     box(139.0, 2.3, 129.7, 141.0, 2.6, 130.3, "keydoor", solid=False)
     markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank", "yaw": 0.0, "width": INNER_DOOR_W}))
-    with modeled("offices", 75.0, 129.5):   # World art 0.17: Bloxov Mining Co.'s regional office (ransacked)
+    with modeled("offices", 75.0, 129.5):   # World art 0.17: Korven Engineering's office (ransacked)
         # Loot spots slid off the windows.
         build(Building("Offices", 64, 119, 22, 21, floors=2, rooms=(3, 2), doors="E",
                        blasts=[(0, "W", 0)], caved=[(1, 1)]), [

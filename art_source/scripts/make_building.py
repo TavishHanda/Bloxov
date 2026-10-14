@@ -6554,7 +6554,7 @@ FACTION_MARKS.update({"big_house_1": [("x1_tag", "E", -5.0, 3.6)], "big_house_2"
 
 
 # ------------------------------------------------------------------------------------------------ offices (0.17)
-# Bloxov Mining Co., the town's regional company office (map 64-86 x 119-140, model origin map (75, 129.5)): 22 x 21 m,
+# Korven Engineering, the town's civil engineering and survey firm (map 64-86 x 119-140, model origin map (75, 129.5)): 22 x 21 m,
 # two storeys of 3 x 2 rooms (7.33 x 10.5 m), the front door east (reception), the stairs along the north wall.
 # Ground floor: blasted room (NW), break room (N), accounts (NE), copy and mail room (SW), open office (S), reception
 # (SE). Upstairs: records at the top of the stairs (NW), archive (N), meeting room (NE), the surveyors' drawing office
@@ -7023,7 +7023,7 @@ def prop_plan_chest(ctx, c, s):
 
 
 def prop_core_boxes(ctx, c, s):
-    """Wooden core trays stacked up: rows of grey rock core from the mine's test holes (the company's real work)."""
+    """Wooden core trays stacked up: rows of grey rock core from the surveyors' test holes."""
     b, rng = ctx.b, ctx.rng
     y = c[1] - s[1] / 2
     while y < c[1] + s[1] / 2 - 0.1:
@@ -7063,40 +7063,41 @@ PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in 
 def office_decals(rng):
     a = Atlas(512)
 
-    def logo(c, x, y, s, col):            # the company mark: a pickaxe over two hills
-        for k in range(s):
-            hh = max(1, (min(k, s - 1 - k) * 2) // 3)
-            c.rect(x + k, y, x + k + 1, y + hh, col)
-        for k in range(s):                                               # the pick's handle, corner to corner
-            c.rect(x + k, y + k, x + k + 1, y + k + 2, "wood_light")
-        c.rect(x + s - 6, y + s - 2, x + s + 2, y + s, "steel_light")     # its head
-        c.rect(x + s - 2, y + s - 6, x + s, y + s + 2, "steel_light")
+    def logo(c, x, y, s, col):            # the company mark: a surveyor's dividers standing on a base line
+        h = s // 2
+        for k in range(s - 3):                                           # the two legs, from the hinge down
+            dx = k * h // (s - 3)
+            c.rect(x + h - dx - 1, y + s - 3 - k, x + h - dx + 1, y + s - 2 - k, col)
+            c.rect(x + h + dx - 1, y + s - 3 - k, x + h + dx + 1, y + s - 2 - k, col)
+        c.rect(x + h - 2, y + s - 4, x + h + 2, y + s, "red")            # the hinge
+        c.rect(x + 3, y + s // 3, x + s - 3, y + s // 3 + 1, col)        # the cross bar
+        c.rect(x - 1, y, x + s + 1, y + 1, col)                          # the base line
 
-    def sign(c):          # 5 x 0.8 m over the door: BLOXOV MINING CO.
+    def sign(c):          # 5 x 0.8 m over the door: KORVEN ENGINEERING
         c.rect(0, 0, c.w, c.h, "iron_dark")
-        c.frame(0, 0, c.w, c.h, "hazard_yellow")
-        logo(c, 4, 5, 16, "hazard_yellow")
-        c.ctext(24, c.w - 2, 13, "BLOXOV MINING CO.", "bone", 2)
-        c.ctext(24, c.w - 2, 4, "REGIONAL OFFICE", "hazard_yellow")
+        c.frame(0, 0, c.w, c.h, "sky_blue")
+        logo(c, 5, 5, 16, "bone")
+        c.ctext(24, c.w - 2, 13, "KORVEN", "bone", 2)
+        c.ctext(24, c.w - 2, 4, "ENGINEERING - SURVEYS", "sky_blue")
         c.blotch(["iron"], 5, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
 
     def desk_front(c):    # 2.4 x 1 m, the reception counter's front
         c.rect(0, 0, c.w, c.h, "wood_dark")
         c.rect(0, c.h - 3, c.w, c.h, "wood")
-        logo(c, c.w // 2 - 8, 12, 16, "hazard_yellow")
-        c.ctext(0, c.w, 4, "BLOXOV MINING", "bone")
+        logo(c, c.w // 2 - 8, 13, 16, "bone")
+        c.ctext(0, c.w, 4, "KORVEN", "bone")
         c.blotch(["wood_mid"], 4, rng, size=(2, 4))
         c.rect(50, 18, 58, 19, "bone")                                   # scratches
         c.rect(14, 8, 20, 9, "bone")
 
     def wall_logo(c):     # 2 x 1 m behind reception
         c.rect(0, 0, c.w, c.h, "clear")
-        logo(c, 4, 6, 22, "hazard_yellow")
-        c.text(29, 21, "BLOXOV", "iron_dark", 1)
-        c.text(29, 14, "MINING", "iron_dark", 1)
+        logo(c, 4, 6, 22, "sky_blue")
+        c.text(29, 21, "KORVEN", "iron_dark", 1)
+        c.text(29, 14, "SURVEYS", "iron_dark", 1)
         c.text(29, 5, "EST 1952", "iron", 1)
 
-    def safety(c):        # 0.8 x 1 m mine safety poster
+    def safety(c):        # 0.8 x 1 m site safety poster
         c.rect(0, 0, c.w, c.h, "hazard_yellow")
         c.frame(0, 0, c.w, c.h, "black")
         c.ctext(0, c.w, c.h - 8, "SAFETY", "black")
@@ -7130,8 +7131,8 @@ def office_decals(rng):
         c.text(4, c.h - 9, "TARGETS", "sky_blue")
         for k, hgt in enumerate((6, 9, 7, 13, 4)):                       # a bar chart
             c.rect(6 + k * 6, 6, 10 + k * 6, 6 + hgt, ("sky_blue", "green_dark", "sky_blue", "red", "sky_blue")[k])
-        c.text(40, c.h - 18, "SHAFT 4", "black")
-        c.text(40, c.h - 25, "REOPEN?", "red")
+        c.text(40, c.h - 18, "BRIDGE 4", "black")
+        c.text(40, c.h - 25, "REDO?", "red")
         c.blotch(["concrete"], 5, rng, area=(36, 6, c.w - 2, c.h - 2), size=(3, 6))   # wiped
         paint_x1(c, c.w - 22, 6, 16, "red", 2)
 
@@ -7140,7 +7141,7 @@ def office_decals(rng):
         c.rect(0, c.h - 2, c.w, c.h, "black")
         c.blotch(["concrete"], 3, rng, size=(3, 6))
 
-    def mine_map(c):      # 2 x 1.2 m, the company's survey map: contours, shafts, the border
+    def mine_map(c):      # 2 x 1.2 m, the company's survey map: contours, test holes, the border
         c.rect(0, 0, c.w, c.h, "bone")
         c.frame(0, 0, c.w, c.h, "black")
         for k in range(6):                                               # contour rings
@@ -7150,20 +7151,20 @@ def office_decals(rng):
                 y = int(cy + r * 0.6 * math.sin(t * 0.13))
                 if 1 < x < c.w - 1 and 1 < y < c.h - 1:
                     c.put(x, y, "olive")
-        for x, y in ((44, 26), (50, 12), (36, 8)):                       # shafts
+        for x, y in ((44, 26), (50, 12), (36, 8)):                       # test holes
             c.rect(x, y, x + 3, y + 3, "red")
         for x in range(2, c.w - 2, 3):                                   # the border, dashed
             c.rect(x, 31, x + 2, 32, "black")
-        c.text(4, 33, "LEASE MAP", "black")
+        c.text(4, 33, "SITE SURVEY", "black")
 
-    def painting(c):      # 1 x 0.7 m: mountains and a headframe, in a gold frame
+    def painting(c):      # 1 x 0.7 m: mountains and a bridge pylon, in a gold frame
         c.rect(0, 0, c.w, c.h, "sky_blue")
         c.frame(0, 0, c.w, c.h, "yellow_dark")
         for x in range(1, c.w - 1):
             h = 8 + int(5 * math.sin(x * 0.3)) + (x % 7)
             c.rect(x, 1, x + 1, min(c.h - 2, h), "olive_dark")
-        c.rect(20, 8, 22, 18, "iron_dark")
-        c.rect(17, 16, 25, 17, "iron_dark")
+        c.rect(4, 9, 28, 10, "iron_dark")                                 # a bridge deck and its pylon
+        c.rect(15, 5, 17, 19, "iron_dark")
 
     def clock(c):         # 0.4 m wall clock, stopped
         c.rect(0, 0, c.w, c.h, "clear")
