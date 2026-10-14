@@ -9105,9 +9105,9 @@ def dress_vault(ctx):
     # ---- the strongroom door (the key door, x -8): a thick steel ring round it on both sides, bolts, a wheel, a plate.
     # (owner: "I really like the way the entrance of the vault is designed, spread it through the vault": every
     # doorway down here gets the same ring, plate and wheel, and the corridor and shelter a riveted steel dado.)
-    def ring(axis, at, mid, r=1.65, ry=1.55, yc=1.35, wheel=None):
+    def ring(axis, at, mid, r=1.65, ry=1.55, yc=1.35, wheel=None, sides=(-1, 1)):
         """A vault-door ring round a doorway in a wall across `axis` ("x": wall at x = at), both faces."""
-        for side in (-1, 1):
+        for side in sides:
             w = at + side * 0.2
             for k in range(32):
                 a = k / 32 * 2 * math.pi
@@ -9136,7 +9136,9 @@ def dress_vault(ctx):
             for k in range(8):
                 a = k / 8 * 2 * math.pi
                 P(0.42 * math.cos(a), 1.3 + 0.42 * math.sin(a), 0.06, 0.18, 0.18, 0.05)
-    ring("x", V_KEY_X, 0.0, wheel=(-1, 2.4))
+    # (bank thread: the key door is now the round vault door, key_door.gd, its own collar on the ramp side: the ring
+    # stays on the strongroom side only, the wheel beside it went)
+    ring("x", V_KEY_X, 0.0, sides=(1,))
     pic("-x", V_KEY_X - 0.16, -1.2, 1.2, VF + 3.05, VF + 3.45, "strongroom")
     for x in (-2.5, 8.5, 19.5):                                          # the corridor's doorways
         ring("z", V_CORR_Z, x, r=1.7, ry=1.65, yc=1.3, wheel=(1, 2.1))
@@ -9282,6 +9284,688 @@ DECALS["th_vault"] = vault_decals
 DRESSING["th_vault"] = dress_vault
 FOOTPRINTS["th_vault"] = V_FP
 SHELLS["th_vault"] = {}
+
+
+# ------------------------------------------------------------------------------------------------ bank (0.17)
+# The Bank of Bloxov (map 128-144 x 110-140, model origin map (136, 125)): 16 x 30 m, two storeys of 2 x 3 rooms
+# (8 x 10 m), a flat roof (no way up). Front door west (z 0) onto the square; the stairs up along the north wall
+# (landing at the west end). The vault is the south-east room, behind the key door at z 5 (x 4) in the wall to the
+# middle-east room. Raiders hold it: ransacked, the vault's door the one thing that held.
+BANK_LOOKS = {   # outside wall (owner picked D from worldart/options-bank.png, 2026-10-14)
+    "D": {"ext": "bank_slate", "trim": "bank_lime_trim", "base": "bank_slate_rustic", "plinth": "bank_granite_dark"},
+}
+BANK_LOOK = "D"
+
+PALETTE.update({
+    "grn_black": "4a4a4a", "grn_black_dark": "3f3f40", "grn_black_fleck": "5f5f5e",
+    "lime_trim": "ac9f84",
+    "lime_trim_dark": "a0937a",
+    "slt": "5f6a66", "slt_dark": "56605c", "slt_light": "68736e", "slt_joint": "434b48",
+    "bronze": "6b5131", "bronze_dark": "4f3b24", "bronze_light": "8a6a3f",
+})
+
+
+def _ashlar(base, dark, light, joint, rows=4, cols=2, fleck=None, rng=None):
+    """Big dressed stone blocks (1 m x 0.5 m drawn at rows=8), thin joints, the odd darker block."""
+    c = Canvas(64, 64, base)
+    bh = 64 // rows
+    bw = 64 // cols
+    for row in range(rows):
+        off = (bw // 2) if row % 2 else 0
+        for k in range(cols + 1):
+            x0 = k * bw + off - bw
+            col = rng.choice((base, base, dark, light))
+            c.rect(max(0, x0 + 1), row * bh + 1, min(64, x0 + bw), row * bh + bh, col)
+            c.rect(max(0, x0 + bw), row * bh, min(64, x0 + bw + 1), row * bh + bh, joint)
+        c.rect(0, row * bh, 64, row * bh + 1, joint)
+    if fleck:
+        c.noise(0, 0, 64, 64, [fleck, dark], 0.06, rng)
+    c.blotch([dark], 6, rng, size=(2, 5))
+    return c
+
+
+def _rustic(base, dark, light, joint, deep, rng):
+    """Rusticated stone (the ground storey of a bank): long blocks with deep, chamfered horizontal joints."""
+    c = Canvas(64, 64, base)
+    for row in range(4):
+        y = row * 16
+        off = 16 if row % 2 else 0
+        for k in range(3):
+            x0 = k * 32 + off - 32
+            col = rng.choice((base, dark, light))
+            c.rect(max(0, x0 + 2), y + 3, min(64, x0 + 32), y + 16, col)
+            c.rect(max(0, x0 + 32), y + 3, min(64, x0 + 33), y + 16, joint)
+        c.rect(0, y, 64, y + 2, deep)            # the deep groove
+        c.rect(0, y + 2, 64, y + 3, joint)       # its chamfer
+    c.noise(0, 0, 64, 64, [dark], 0.05, rng)
+    return c
+
+
+def paint_bank_granite_dark(rng):
+    c = _ashlar("grn_black", "grn_black_dark", "grn_black_fleck", "grn_black_dark", rows=4, cols=2,
+                fleck="grn_black_fleck", rng=rng)
+    return c
+
+
+def paint_bank_lime_trim(rng):
+    c = Canvas(64, 64, "lime_trim")
+    for row in range(4):
+        c.rect(0, row * 16, 64, row * 16 + 1, "lime_trim_dark")
+        for k in range(2):
+            c.rect((k * 32 + row * 11) % 64, row * 16, (k * 32 + row * 11) % 64 + 1, row * 16 + 16, "lime_trim_dark")
+    c.noise(0, 0, 64, 64, ["lime_trim_dark"], 0.05, rng)
+    return c
+
+
+def paint_bank_slate(rng):
+    return _ashlar("slt", "slt_dark", "slt_light", "slt_joint", rows=8, cols=3, rng=rng)
+
+
+def paint_bank_slate_rustic(rng):
+    return _rustic("slt", "slt_dark", "slt_light", "slt_joint", "slt_joint", rng)
+
+
+KIT.update({"bronze": paint_flat("bronze"), "bank_granite_dark": paint_bank_granite_dark,
+            "bank_lime_trim": paint_bank_lime_trim, "bank_slate": paint_bank_slate, "bank_slate_rustic": paint_bank_slate_rustic})
+
+BANK_FP = (-8.0, -15.0, 8.0, 15.0)
+BANK_ROOF = 6.0
+
+
+def bank_decals(rng):
+    a = Atlas(512)
+    look = BANK_LOOKS[BANK_LOOK]
+    STONE = "lime_trim"
+    CUT = "iron_dark"
+
+    def name(c):          # 5 x 0.9 m, cut into the attic over the cornice: the bank's name
+        c.rect(0, 0, c.w, c.h, STONE)
+        c.noise(0, 0, c.w, c.h, ["lime_trim_dark"], 0.05, rng)
+        c.ctext(0, c.w, 9, "BANK OF BLOXOV", CUT, 2)
+
+    def est(c):           # 1.6 x 0.4 m in the pediment
+        c.rect(0, 0, c.w, c.h, STONE)
+        c.ctext(0, c.w, 4, "EST 1908", CUT)
+
+    def over_door(c):     # 2.8 x 0.5 m bronze letters over the door
+        c.rect(0, 0, c.w, c.h, STONE)
+        c.ctext(0, c.w, 5, "BANK", "bronze_dark", 1)
+
+    def plaque(c):        # 0.6 x 0.45 m bronze plaque by the door: opening hours
+        c.rect(0, 0, c.w, c.h, "bronze")
+        c.frame(0, 0, c.w, c.h, "bronze_dark")
+        c.ctext(0, c.w, 9, "OPEN", "bronze_light")
+        c.ctext(0, c.w, 3, "9-4", "bronze_light")
+
+    def atm(c):           # 0.7 x 1.1 m: the cash machine's face, its screen smashed
+        c.rect(0, 0, c.w, c.h, "steel")
+        c.frame(0, 0, c.w, c.h, "iron_dark")
+        c.rect(4, 18, c.w - 4, 30, "black")
+        for k in range(8):
+            c.put(8 + k, 22 + k // 2, "steel_light")
+            c.put(14 - k // 2, 20 + k, "steel_light")
+        c.rect(5, 8, c.w - 5, 14, "iron")
+        for y in range(9, 14, 2):
+            for x in range(6, c.w - 6, 3):
+                c.put(x, y, "bone")
+        c.rect(6, 3, c.w - 6, 5, "black")
+        c.ctext(0, c.w, 31, "CASH", "bone")
+
+    def rates(c):         # 1.6 x 0.9 m: the exchange rates board in the banking hall, stopped on the last day
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        c.ctext(0, c.w, c.h - 8, "RATES", "hazard_yellow")
+        for k, (cur, val) in enumerate((("NOVA", "1.00"), ("EXION", "0.62"), ("GOLD", "1840"))):
+            y = c.h - 16 - k * 7
+            c.text(4, y, cur, "bone")
+            c.text(c.w - 4 - Canvas.text_width(val), y, val, "bone")
+
+    def clock(c):         # 0.6 m wall clock, stopped at twenty past four
+        c.rect(0, 0, c.w, c.h, "cream")
+        r0 = c.w / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x + 0.5 - r0, y + 0.5 - r0)
+                if d <= r0 - 0.5:
+                    c.put(x, y, "wood_dark" if d > r0 - 2 else "bone")
+        for k in range(12):
+            t = k * math.pi / 6
+            c.put(int(r0 + (r0 - 3.5) * math.sin(t)), int(r0 + (r0 - 3.5) * math.cos(t)), "black")
+        for t, ln in ((math.radians(125), 5), (math.radians(120), 7)):
+            for k in range(ln):
+                c.put(int(r0 + k * math.sin(t)), int(r0 + k * math.cos(t)), "black")
+
+    def poster(c):        # 0.6 x 0.9 m: SAVE TODAY, a stack of coins growing
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "sky_blue")
+        c.ctext(0, c.w, c.h - 8, "SAVE", "sky_blue")
+        c.ctext(0, c.w, c.h - 15, "TODAY", "sky_blue")
+        for k, n in enumerate((2, 4, 6)):
+            for j in range(n):
+                c.rect(3 + k * 5, 4 + j * 2, 7 + k * 5, 5 + j * 2, "yellow_dark")
+
+    a.add("name", 160, 29, name)
+    a.add("rates", 51, 29, rates)
+    a.add("clock", 19, 19, clock)
+    a.add("poster", 19, 29, poster)
+    a.add("est", 51, 13, est)
+    a.add("over_door", 90, 16, over_door)
+    a.add("plaque", 19, 14, plaque)
+    a.add("atm", 22, 35, atm)
+    return a
+
+
+def dress_bank_outside(ctx):
+    b = ctx.b
+    look = BANK_LOOKS[BANK_LOOK]
+    fp = BANK_FP
+    trim, base, plinth = look["trim"], look["base"], look["plinth"]
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def along_wall(side, y0, y1, d, mat, out=0.0, cut=True, tile=2.0, a_lim=None):
+        """A band along a wall from y0 to y1, cut round the openings it would cross."""
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + out)
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d - out, a1 + 0.15 + d + out
+        if a_lim:
+            a0, a1 = a_lim
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if cut and o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        for s0, s1 in segs:
+            if s1 - s0 < 0.02:
+                continue
+            m = (s0 + s1) / 2
+            c = (m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m)
+            b.box(c, (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0),
+                  style=no_bottom(mat, tile) if y0 < 0.05 else st(mat, tile))
+
+    def on_wall(side, a, y, sa, sy, d, mat, push=0.0, style=None):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + push)
+        b.box((a, y, at) if ns else (at, y, a), (sa, sy, d) if ns else (d, sy, sa), style=style or st(mat))
+
+    # ---- all round: a dark granite plinth, the ground storey in rusticated stone (a bank's strong base), a string
+    # course, a cornice and a low parapet round the roof (picture only: there's no way up)
+    for side in "NSWE":
+        along_wall(side, 0.0, 0.6, 0.12, plinth)
+        if base != look["ext"]:
+            along_wall(side, 0.6, 2.95, 0.04, base)
+        along_wall(side, 2.95, 3.3, 0.12, trim)
+        along_wall(side, 5.55, 5.8, 0.1, trim)
+        along_wall(side, 5.8, 6.0, 0.32, trim)                       # the cornice's drip
+        along_wall(side, 6.0, 6.75, 0.25, look["ext"], out=-0.25, cut=False)   # parapet
+        along_wall(side, 6.75, 6.87, 0.35, trim, out=-0.3, cut=False)          # its coping
+    for cx in (fp[0], fp[2]):                                           # granite corner piers up both storeys
+        for cz in (fp[1], fp[3]):
+            sx, sz = (1 if cx > 0 else -1), (1 if cz > 0 else -1)
+            b.box((cx + sx * 0.08, 3.1, cz + sz * 0.08), (0.62, 5.0, 0.62), style=st(trim))
+    for o in opens:
+        side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+        if o["kind"] != "window":
+            continue
+        for sg in (-1, 1):                                               # stone surround and a heavy hood
+            on_wall(side, mid + sg * (w / 2 + 0.1), (lo + hi) / 2, 0.2, hi - lo + 0.1, 0.08, trim)
+        on_wall(side, mid, hi + 0.14, w + 0.5, 0.24, 0.1, trim)
+        on_wall(side, mid, hi + 0.3, w + 0.7, 0.08, 0.18, trim)
+        on_wall(side, mid, lo - 0.05, w + 0.4, 0.1, 0.16, trim, push=0.03)    # sill
+        if lo < 1.5:
+            window_bars(b, o, fp)                                        # a bank: bars on every ground window
+
+    # ---- the front (west, onto the square): four granite columns flat to the wall (two storeys high), a pediment
+    # over the middle bay with the year, the name cut into the attic, bronze letters over the door
+    xw = fp[0] - 0.15
+    for z in (-6.0, -2.0, 2.0, 6.0):
+        b.box((xw - 0.18, 0.4, z), (0.5, 0.8, 0.95), style=no_bottom(plinth, 1.0))          # pedestal
+        b.box((xw - 0.16, 3.0, z), (0.36, 4.4, 0.7), style=st(trim))                         # shaft
+        for k in range(3):                                                                  # flutes
+            b.box((xw - 0.345, 3.0, z - 0.2 + k * 0.2), (0.02, 4.1, 0.06), style=st(plinth))
+        b.box((xw - 0.2, 5.3, z), (0.45, 0.25, 0.9), style=st(trim))                         # capital
+    b.box((xw - 0.3, 5.68, 0.0), (0.6, 0.25, 13.2), style=st(trim))                          # entablature
+    b.box((xw - 0.1, 6.5, 0.0), (0.4, 1.0, 9.0), style=face_decal(ctx.d("name"), trim, "-x"))   # attic, the name
+    b.box((xw - 0.12, 7.05, 0.0), (0.5, 0.1, 9.3), style=st(trim))
+    for k in range(6):                                                                      # pediment, stepped
+        wz = 3.2 - k * 0.55
+        b.box((xw - 0.08, 7.1 + k * 0.14 + 0.07, 0.0), (0.36, 0.14, wz * 2), style=st(trim))
+    b.box((xw - 0.27, 7.35, 0.0), (0.02, 0.4, 1.6), style=face_decal(ctx.d("est"), trim, "-x"))
+    b.box((xw - 0.04, 2.75, 0.0), (0.08, 0.5, 2.8), style=face_decal(ctx.d("over_door"), trim, "-x"))
+    b.box((xw - 0.05, 1.4, 1.7), (0.04, 0.45, 0.6), style=face_decal(ctx.d("plaque"), "bronze", "-x"))
+    # the cash machine set into the wall between the columns, its screen smashed
+    b.box((xw - 0.04, 1.35, -3.6), (0.12, 1.1, 0.7), style=face_decal(ctx.d("atm"), "trim", "-x"))
+    b.box((xw - 0.14, 0.82, -3.6), (0.12, 0.05, 0.6), style=st("trim_dark"))
+    b.box((xw - 0.04, 1.35, -3.6), (0.06, 1.3, 0.9), style=st("trim_dark"))
+    # an alarm bell box high on the front, a camera on its bracket at the corner (its cable cut)
+    b.box((xw - 0.1, 4.6, -12.0), (0.2, 0.5, 0.5), style=st("red"))
+    b.box((xw - 0.21, 4.6, -12.0), (0.04, 0.3, 0.3), style=st("bone"))
+    b.box((xw - 0.3, 5.25, -14.0), (0.5, 0.06, 0.06), style=st("trim_dark"))
+    b.box((xw - 0.55, 5.15, -14.0), (0.35, 0.18, 0.18), yaw=-30, pitch=-15, style=st("bone"))
+
+
+# ---- bank props
+def _into(c, s):
+    """(x, z) unit vector from a box against a wall (its thin side across the wall) into the room."""
+    axis = 0 if s[0] < s[2] else 2
+    sg = 1 if _front_into(c, axis)[0] == "+" else -1
+    return (sg, 0) if axis == 0 else (0, sg)
+
+
+def _bx(b, x, y, z, sx, sy, sz, mat, yaw=0.0, pitch=0.0, bottom=False):
+    b.box((x, y, z), (sx, sy, sz), yaw=yaw, pitch=pitch, style=_solid(mat) if bottom else _nb(mat))
+
+
+def cash_bricks(b, rng, x, y, z, nx, nz, rows, yaw=0.0, gone=0.3):
+    """Banded bricks of notes in a neat stack (some taken off the top)."""
+    for r in range(rows):
+        for i in range(nx):
+            for j in range(nz):
+                if r == rows - 1 and rng.random() < gone:
+                    continue
+                o = rot(((i - (nx - 1) / 2) * 0.17, 0, (j - (nz - 1) / 2) * 0.09), yaw, 0)
+                p = (x + o[0], y + 0.025 + r * 0.05, z + o[2])
+                b.box(p, (0.16, 0.05, 0.08), yaw=yaw + rng.uniform(-3, 3), style=_nb("green"))
+                b.box(p, (0.03, 0.052, 0.082), yaw=yaw, style=_nb("bone"))
+
+
+def money_bag(b, x, y, z, rng):
+    h = rng.uniform(0.3, 0.42)
+    _bx(b, x, y + h / 2, z, 0.3, h, 0.26, "bone", yaw=rng.uniform(0, 90))
+    _bx(b, x, y + h + 0.04, z, 0.08, 0.08, 0.08, "wood_dark")
+
+
+def prop_teller_counter(ctx, c, s):
+    """The banking hall's counter (customers west, tellers east): a panelled oak front on a dark stone plinth, a
+    marble top, brass grilles and glass to head height with a numbered window per teller, cash drawers pulled out on
+    the tellers' side; two panes shot out, one grille bent."""
+    b, rng = ctx.b, random.Random("teller")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    b.box((c[0], y0 + s[1] / 2, c[2]), (s[0], s[1], s[2]), style=_nb("wood"))
+    _bx(b, x0 - 0.01, y0 + 0.08, c[2], 0.04, 0.16, s[2], "trim_dark")                       # plinth
+    L = s[2]
+    n = 3                                                                                      # teller windows
+    w = L / n
+    for k in range(n):
+        z = c[2] - L / 2 + w * (k + 0.5)
+        for dz in (-w / 4, w / 4):                                                             # raised panels
+            _bx(b, x0 - 0.015, y0 + 0.55, z + dz, 0.03, 0.6, w / 2 - 0.12, "wood_dark")
+        _bx(b, c[0], top + 0.65, z - w / 2 + 0.03, 0.06, 1.3, 0.06, "brass")                   # brass posts
+        if k != 1:
+            b.box((c[0] - 0.05, top + 0.75, z), (0.01, 0.95, w - 0.08), style=lambda n_, m, q: ("glass", uv_world(1.0)))
+        else:
+            for _ in range(6):                                                                 # its pane on the floor
+                _bx(b, x0 - rng.uniform(0.3, 1.2), y0 + 0.004, z + rng.uniform(-0.6, 0.6), 0.1, 0.005, 0.07, "glass",
+                    yaw=rng.uniform(0, 180))
+        for g in range(7):                                                                    # the grille's bars
+            gz = z - w / 2 + 0.15 + g * (w - 0.3) / 6
+            bent = 12 if (k == 2 and 2 <= g <= 4) else 0
+            _bx(b, c[0] + 0.03, top + 1.1, gz, 0.02, 0.5, 0.02, "brass", pitch=bent)
+        _bx(b, c[0] + 0.03, top + 0.15, z, 0.03, 0.06, 0.4, "brass")                          # the money slot
+        _bx(b, c[0] - 0.03, top + 1.45, z, 0.05, 0.22, 0.3, "bone")                           # window number
+        _bx(b, c[0] - 0.06, top + 1.45, z, 0.01, 0.12, 0.05 + 0.04 * k, "black")
+        _bx(b, x1 + 0.18, top - 0.12, z + 0.2, 0.36, 0.08, 0.42, "steel_light", yaw=rng.uniform(-8, 8))   # drawer, out
+        if rng.random() < 0.6:
+            cash_bricks(b, rng, x1 + 0.6, y0, z - 0.3, 1, 1, 1)                               # notes dropped
+    _bx(b, c[0], top + 0.02, c[2], s[0] + 0.08, 0.04, L + 0.04, "th_marble")                 # marble top
+    _bx(b, c[0], top + 1.33, c[2], 0.08, 0.06, L, "brass")                                     # the rail on top
+    _bx(b, c[0] + 0.03, top + 0.65, c[2] + L / 2 - 0.03, 0.06, 1.3, 0.06, "brass")
+
+
+def prop_queue_posts(ctx, c, s):
+    """Brass queue posts with red ropes in front of the counter; two knocked over, a rope trailing."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    n = 5
+    pts = []
+    for k in range(n):
+        z = c[2] - s[2] / 2 + k * s[2] / (n - 1)
+        if k in (1, 3):                                                                        # knocked over
+            _bx(b, c[0] + 0.45, y0 + 0.05, z + 0.1, 0.95, 0.05, 0.05, "brass", yaw=20 * (k - 2))
+            _bx(b, c[0] + 0.02, y0 + 0.02, z, 0.3, 0.04, 0.3, "trim_dark")
+            pts.append(None)
+            continue
+        _bx(b, c[0], y0 + 0.02, z, 0.3, 0.04, 0.3, "trim_dark")
+        _bx(b, c[0], y0 + 0.5, z, 0.05, 0.95, 0.05, "brass")
+        _bx(b, c[0], y0 + 0.98, z, 0.08, 0.06, 0.08, "brass")
+        pts.append(z)
+    _bx(b, c[0] + 0.3, y0 + 0.02, c[2] + 0.1, 0.03, 0.03, 1.2, "red", yaw=30)                  # rope on the floor
+    zs = [p for p in pts if p is not None]
+    for a, e in zip(zs, zs[1:]):
+        if abs(e - a) < s[2] / (n - 1) + 0.01:
+            _bx(b, c[0], y0 + 0.85, (a + e) / 2, 0.03, 0.03, e - a, "red")
+
+
+def prop_slip_desk(ctx, c, s):
+    """A ledge on the wall for writing deposit slips: a marble top on brass brackets, slip trays, pens on chains,
+    slips everywhere."""
+    b, rng = ctx.b, random.Random("slips")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    _bx(b, c[0], top - 0.03, c[2], s[0], 0.06, s[2], "th_marble", bottom=True)
+    for k in (-1, 1):
+        a = (s[0] if s[0] > s[2] else s[2]) / 2 - 0.2
+        p = (c[0] + k * a, c[2]) if s[0] > s[2] else (c[0], c[2] + k * a)
+        _bx(b, p[0], (y0 + top) / 2, p[1], 0.06, top - y0 - 0.06, 0.06, "brass")
+    along = 0 if s[0] > s[2] else 2
+    for k in range(3):
+        a = -0.6 + k * 0.6
+        p = (c[0] + a, c[2]) if along == 0 else (c[0], c[2] + a)
+        _bx(b, p[0], top + 0.03, p[1], 0.3, 0.06, 0.18, "trim_dark")
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, top, 8)
+    papers(b, rng, c[0] - s[0] / 2 - 0.8, c[0] + s[0] / 2 + 0.8, c[2] - s[2] / 2 - 0.8, c[2] + s[2] / 2 + 0.8, y0, 14)
+
+
+def prop_deposit_wall(ctx, c, s):
+    """A wall of safe-deposit boxes (steel doors in a grid, two keyholes and a number each), a few drilled or pried
+    open, their trays pulled out and emptied on the floor."""
+    b, rng = ctx.b, random.Random(f"deposit{c}")
+    y0 = c[1] - s[1] / 2
+    along = 0 if s[0] > s[2] else 2
+    L = s[along]
+    d = s[2 - along]
+    fx = _into(c, s)
+    b.box(c, s, style=_nb("trim"))
+    # front plane
+    sg = fx[0] if along == 2 else fx[1]
+    cols = max(1, int(L / 0.42))
+    rows = int((s[1] - 0.2) / 0.3)
+    cw = L / cols
+    for i in range(cols):
+        for j in range(rows):
+            a = -L / 2 + cw * (i + 0.5)
+            y = y0 + 0.15 + j * 0.3 + 0.15
+            opened = rng.random() < 0.12
+            fp = (c[0] + sg * (d / 2 + 0.01), c[2] + a) if along == 2 else (c[0] + a, c[2] + sg * (d / 2 + 0.01))
+            sz = (0.02, 0.27, cw - 0.04) if along == 2 else (cw - 0.04, 0.27, 0.02)
+            if opened:
+                b.box((fp[0], y, fp[1]), sz, style=_nb("black"))                               # the empty hole
+                if rng.random() < 0.5:
+                    out = (fp[0] + sg * 0.25, fp[1]) if along == 2 else (fp[0], fp[1] + sg * 0.25)
+                    b.box((out[0], y - 0.02, out[1]), (0.5, 0.06, cw - 0.08) if along == 2 else (cw - 0.08, 0.06, 0.5),
+                          style=_nb("steel_light"))                                          # its tray pulled out
+                continue
+            b.box((fp[0], y, fp[1]), sz, style=_nb("steel_light"))
+            for kk in (-0.06, 0.06):                                                          # two keyholes
+                kp = (fp[0] + sg * 0.012, fp[1] + kk) if along == 2 else (fp[0] + kk, fp[1] + sg * 0.012)
+                b.box((kp[0], y - 0.05, kp[1]), (0.01, 0.04, 0.025) if along == 2 else (0.025, 0.04, 0.01),
+                      style=_nb("brass"))
+            npos = (fp[0] + sg * 0.012, fp[1]) if along == 2 else (fp[0], fp[1] + sg * 0.012)
+            b.box((npos[0], y + 0.07, npos[1]), (0.01, 0.05, 0.1) if along == 2 else (0.1, 0.05, 0.01),
+                  style=_nb("bone"))
+
+
+def prop_vault_table(ctx, c, s):
+    """A steel table in the vault's middle: gold bars, a cash stack, a deposit box someone was going through."""
+    b, rng = ctx.b, random.Random("vault_table")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    _bx(b, c[0], top - 0.03, c[2], s[0], 0.06, s[2], "trim", bottom=True)
+    for dx in (-1, 1):
+        for dz in (-1, 1):
+            _bx(b, c[0] + dx * (s[0] / 2 - 0.05), (y0 + top) / 2, c[2] + dz * (s[2] / 2 - 0.05), 0.06, s[1] - 0.06,
+                0.06, "trim_dark")
+    _bx(b, c[0], y0 + 0.2, c[2], s[0] - 0.1, 0.04, s[2] - 0.1, "trim_dark")
+    for r in range(3):                                                                        # gold bars
+        for i in range(4 - r):
+            _bx(b, c[0] - 0.3 + i * 0.13 + r * 0.065, top + 0.03 + r * 0.06, c[2] - 0.2, 0.11, 0.06, 0.24, "brass")
+    cash_bricks(b, rng, c[0] + 0.3, top, c[2] + 0.25, 2, 3, 3)
+    _bx(b, c[0] - 0.25, top + 0.06, c[2] + 0.3, 0.42, 0.12, 0.28, "steel_light", yaw=10)       # an open deposit tray
+    for k in range(3):
+        _bx(b, c[0] - 0.25 + rng.uniform(-0.1, 0.1), top + 0.13, c[2] + 0.3 + rng.uniform(-0.06, 0.06), 0.12, 0.02,
+            0.08, rng.choice(("bone", "brass", "red")), yaw=rng.uniform(0, 90))
+    for k in range(3):                                                                        # under it, more bars
+        _bx(b, c[0] - 0.4 + k * 0.13, y0 + 0.25, c[2], 0.11, 0.06, 0.24, "brass")
+
+
+def prop_cash_trolley(ctx, c, s):
+    """A steel cash trolley: two shelves of note bricks and money bags."""
+    b, rng = ctx.b, random.Random(f"trolley{c}")
+    y0 = c[1] - s[1] / 2
+    for dx in (-1, 1):
+        for dz in (-1, 1):
+            _bx(b, c[0] + dx * (s[0] / 2 - 0.03), y0 + s[1] / 2, c[2] + dz * (s[2] / 2 - 0.03), 0.04, s[1], 0.04, "trim_dark")
+            _bx(b, c[0] + dx * (s[0] / 2 - 0.03), y0 + 0.04, c[2] + dz * (s[2] / 2 - 0.03), 0.08, 0.08, 0.08, "black")
+    for y in (y0 + 0.2, y0 + s[1] - 0.05):
+        _bx(b, c[0], y, c[2], s[0], 0.03, s[2], "trim", bottom=True)
+    cash_bricks(b, rng, c[0], y0 + 0.215, c[2], 3, 3, 2)
+    for k in range(2):
+        money_bag(b, c[0] - 0.12 + k * 0.25, y0 + s[1] - 0.035, c[2] + rng.uniform(-0.1, 0.1), rng)
+
+
+def prop_drill_rig(ctx, c, s):
+    """The Raiders' go at the vault door: a mag drill on a tripod aimed at the door's lock, its cable to a generator,
+    spent bits on the floor, a scorch mark. The door held."""
+    b, rng = ctx.b, random.Random("drill")
+    y0 = c[1] - s[1] / 2
+    for k in range(3):                                                                        # tripod
+        a = math.radians(k * 120 + 30)
+        _bx(b, c[0] + 0.3 * math.cos(a), y0 + 0.55, c[2] + 0.3 * math.sin(a), 0.05, 1.15, 0.05, "trim_dark",
+            yaw=-math.degrees(a), pitch=15)
+    _bx(b, c[0], y0 + 1.15, c[2], 0.2, 0.12, 0.2, "trim_dark")
+    _bx(b, c[0], y0 + 1.3, c[2] + 0.15, 0.22, 0.26, 0.42, "yellow")                           # the drill body
+    _bx(b, c[0], y0 + 1.3, c[2] + 0.45, 0.06, 0.06, 0.3, "steel_light")                        # its bit
+    _bx(b, c[0] + 0.1, y0 + 1.42, c[2] - 0.05, 0.05, 0.05, 0.25, "black")
+    for k in range(5):                                                                        # broken bits
+        _bx(b, c[0] + rng.uniform(-0.6, 0.6), y0 + 0.01, c[2] + rng.uniform(0.0, 0.7), 0.02, 0.02, 0.14,
+            "steel_light", yaw=rng.uniform(0, 180))
+    _bx(b, c[0] - 0.6, y0 + 0.012, c[2] - 0.5, 0.03, 0.024, 1.4, "black", yaw=40)              # the cable
+    _bx(b, c[0] - 1.05, y0 + 0.012, c[2] - 1.3, 0.03, 0.024, 1.2, "black", yaw=10)
+
+
+def prop_counting_table(ctx, c, s):
+    """The counting room's table: a note counter, coin bags, rubber-banded stacks, a ledger."""
+    b, rng = ctx.b, random.Random("counting")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood"))
+    for dx in (-1, 1):
+        for dz in (-1, 1):
+            _bx(b, c[0] + dx * (s[0] / 2 - 0.06), (y0 + top) / 2, c[2] + dz * (s[2] / 2 - 0.06), 0.06, s[1] - 0.06,
+                0.06, "trim_dark")
+    along = 0 if s[0] > s[2] else 2
+    def P(a, out=0.0):
+        return (c[0] + a, c[2] + out) if along == 0 else (c[0] + out, c[2] + a)
+    p = P(-s[along] / 2 + 0.45)
+    _bx(b, p[0], top + 0.12, p[1], 0.35, 0.24, 0.32, "bone")                                    # note counter
+    _bx(b, p[0], top + 0.25, p[1], 0.22, 0.04, 0.12, "black")
+    p = P(0.0)
+    cash_bricks(b, rng, p[0], top, p[1], 3, 2, 2, yaw=0 if along == 0 else 90, gone=0.6)
+    for k in range(3):
+        p = P(s[along] / 2 - 0.3 - k * 0.3)
+        money_bag(b, p[0], top, p[1], rng)
+    p = P(-0.6, 0.1)
+    _bx(b, p[0], top + 0.02, p[1], 0.3, 0.03, 0.22, "red")                                      # ledger
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, top, 6)
+
+
+def prop_small_safe(ctx, c, s):
+    """The manager's own safe: a heavy little steel box, its door blown open, empty."""
+    b, rng = ctx.b, random.Random("small_safe")
+    y0 = c[1] - s[1] / 2
+    fx = _into(c, s)
+    b.box(c, s, style=_nb("trim_dark"))
+    fz = (c[0] + fx[0] * (s[0] / 2 + 0.005), c[2] + fx[1] * (s[2] / 2 + 0.005))
+    b.box((fz[0], c[1], fz[1]), (abs(fx[1]) * (s[0] - 0.1) + 0.01, s[1] - 0.1, abs(fx[0]) * (s[2] - 0.1) + 0.01),
+          style=_nb("black"))
+    hinge = (fz[0] + fx[0] * 0.2 + fx[1] * 0.25, fz[1] + fx[1] * 0.2 + fx[0] * 0.25)
+    _bx(b, hinge[0], c[1], hinge[1], 0.08 if fx[0] else s[0] - 0.1, s[1] - 0.12, s[2] - 0.1 if fx[0] else 0.08,
+        "trim_dark", yaw=35)
+    _bx(b, fz[0] + fx[0] * 0.3, y0 + 0.01, fz[1] + fx[1] * 0.3, 0.3, 0.02, 0.3, "black", yaw=20)   # scorch
+
+
+def prop_cctv_desk(ctx, c, s):
+    """The security room desk: a bank of little monitors (two smashed), a tape recorder rack, a mic."""
+    b, rng = ctx.b, random.Random("cctv")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box(c, s, style=_nb("wood"))
+    fx = _into(c, s)
+    along = 0 if s[0] > s[2] else 2
+    L = s[along]
+    back = (c[0] - fx[0] * (s[0] / 2 - 0.2), c[2] - fx[1] * (s[2] / 2 - 0.2))
+    for i in range(4):
+        for j in range(2):
+            a = -L / 2 + 0.3 + i * (L - 0.6) / 3
+            p = (back[0] + a, back[1]) if along == 0 else (back[0], back[1] + a)
+            y = top + 0.18 + j * 0.32
+            _bx(b, p[0], y, p[1], 0.34 if along == 0 else 0.3, 0.3, 0.3 if along == 0 else 0.34, "trim_dark")
+            scr = (p[0] + fx[0] * 0.151, p[1] + fx[1] * 0.151)
+            broken = (i, j) in ((1, 1), (3, 0))
+            _bx(b, scr[0], y, scr[1], 0.26 if along == 0 else 0.01, 0.22, 0.01 if along == 0 else 0.26,
+                "black" if broken else "blue")
+    p = (c[0] + fx[0] * 0.1, c[2] + fx[1] * 0.1)
+    _bx(b, p[0], top + 0.02, p[1], 0.3, 0.03, 0.15, "black")                                    # keyboard
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, top, 4)
+
+
+def prop_tape_rack(ctx, c, s):
+    """A rack of video recorders and tapes."""
+    b, rng = ctx.b, random.Random("tapes")
+    y0 = c[1] - s[1] / 2
+    b.box(c, s, style=_nb("trim_dark"))
+    fx = _into(c, s)
+    for k in range(5):
+        y = y0 + 0.2 + k * (s[1] - 0.3) / 5
+        p = (c[0] + fx[0] * (s[0] / 2 + 0.005), c[2] + fx[1] * (s[2] / 2 + 0.005))
+        _bx(b, p[0], y, p[1], 0.01 if fx[0] else s[0] - 0.1, 0.1, s[2] - 0.1 if fx[0] else 0.01, "black")
+        _bx(b, p[0] + fx[0] * 0.006, y + 0.02, p[1] + fx[1] * 0.006, 0.01 if fx[0] else 0.08, 0.02,
+            0.08 if fx[0] else 0.01, "red")
+    for k in range(6):                                                                        # tapes on the floor
+        _bx(b, c[0] + fx[0] * rng.uniform(0.4, 1.2) + rng.uniform(-0.4, 0.4), y0 + 0.012,
+            c[2] + fx[1] * rng.uniform(0.4, 1.2) + rng.uniform(-0.4, 0.4), 0.19, 0.025, 0.1, "black",
+            yaw=rng.uniform(0, 180))
+
+
+for _k, _f in {"teller_counter": prop_teller_counter, "queue_posts": prop_queue_posts, "slip_desk": prop_slip_desk,
+               "deposit_wall": prop_deposit_wall, "vault_table": prop_vault_table, "cash_trolley": prop_cash_trolley,
+               "drill_rig": prop_drill_rig, "counting_table": prop_counting_table, "small_safe": prop_small_safe,
+               "cctv_desk": prop_cctv_desk, "tape_rack": prop_tape_rack}.items():
+    PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
+
+
+def caved_bank(ctx, c, s):
+    """The bank's caved room (the security room over the vault): the roof's air-con unit came through with a slab of
+    roof and its duct, the alarm siren off the roof lies on the floor; the suspended ceiling hangs on as a ragged lip,
+    its tiles, smashed monitors and video tapes underneath; a puddle where the rain gets in."""
+    b, rng = ctx.b, random.Random("caved_bank")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.75
+    for side in range(4):                                                 # the ceiling's lip
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        while a < a1 - 0.05:
+            L = min(rng.uniform(0.4, 1.2), a1 - a)
+            d = rng.uniform(0.15, 0.5)
+            m = a + L / 2
+            at, sz = [((m, top, z0 + d / 2), (L, 0.03, d)), ((m, top, z1 - d / 2), (L, 0.03, d)),
+                      ((x0 + d / 2, top, m), (d, 0.03, L)), ((x1 - d / 2, top, m), (d, 0.03, L))][side]
+            b.box(at, sz, style=lambda n, m_, q: ("ceiling", uv_world(1.0)))
+            a += L
+    # The air-con unit, nose down on the floor, a slab of roof on it, its duct hanging from the hole.
+    ax, az = x0 + 2.4, z0 + 4.2
+    b.box((ax, y + 0.55, az), (1.3, 1.0, 0.9), yaw=18, pitch=-22, style=no_bottom("steel_light", 1.0))
+    for k in range(4):                                                    # its grille
+        b.box((ax + 0.66 * math.cos(math.radians(18)), y + 0.35 + k * 0.17, az - 0.66 * math.sin(math.radians(18))),
+              (0.02, 0.06, 0.8), yaw=18, pitch=-22, style=no_bottom("trim_dark", 1.0))
+    b.box((ax + 0.2, y + 0.75, az + 1.0), (2.6, 0.22, 2.0), yaw=-20, pitch=16,
+          style=lambda n, m, q: ("roof", uv_world(1.0)) if n[1] > 0.7 else ("rubble_core", uv_world(1.0)))
+    _beam(b, (ax + 0.4, top + 0.2, az - 0.8), (ax + 0.1, y + 1.0, az - 0.2), 0.45, 0.45, "steel_light")   # duct
+    # The roof's alarm siren, a red box, cracked open on the floor; its cable up through the hole.
+    sx, sz_ = x1 - 1.6, z1 - 2.2
+    b.box((sx, y + 0.18, sz_), (0.55, 0.36, 0.5), yaw=30, pitch=8, style=no_bottom("red", 1.0))
+    b.box((sx - 0.22, y + 0.2, sz_ - 0.2), (0.04, 0.24, 0.24), yaw=30, style=no_bottom("bone", 1.0))
+    _beam(b, (sx, y + 0.3, sz_), (sx - 0.6, top + 0.3, sz_ - 1.2), 0.025, 0.025, "black")
+    # Ceiling tiles, smashed monitors and tapes on the floor.
+    for _ in range(12):
+        b.box((x0 + rng.uniform(0.6, s[0] - 0.6), y + 0.015, z0 + rng.uniform(0.6, s[2] - 0.6)), (0.6, 0.02, 0.6),
+              yaw=rng.uniform(0, 90), pitch=rng.uniform(-6, 6), style=no_bottom("bone", 1.0))
+    for _ in range(3):
+        mx, mz = x1 - rng.uniform(1.0, 2.0), z0 + rng.uniform(1.5, 5.0)
+        b.box((mx, y + 0.12, mz), (0.34, 0.24, 0.3), yaw=rng.uniform(0, 90), pitch=rng.uniform(-80, -10),
+              style=no_bottom("trim_dark", 1.0))
+    for _ in range(8):
+        b.box((x0 + rng.uniform(1.0, s[0] - 1.0), y + 0.012, z0 + rng.uniform(1.0, s[2] - 1.0)), (0.19, 0.025, 0.1),
+              yaw=rng.uniform(0, 180), style=no_bottom("black", 1.0))
+    for _ in range(9):
+        rubble_chunk(b, (x0 + rng.uniform(1.0, s[0] - 1.0), y, z0 + rng.uniform(1.5, s[2] - 1.5)),
+                     (rng.uniform(0.3, 0.8), rng.uniform(0.15, 0.3), rng.uniform(0.3, 0.8)), rng, ["roof", "concrete"])
+    b.box((c[0] - 0.4, y + 0.006, c[2] + 0.6), (2.0, 0.004, 1.5), yaw=-15, style=no_bottom("glass", 1.0))   # puddle
+
+
+def bank_room(m):
+    """(storey, i, j) of a point in the bank: i west to east, j north to south."""
+    return int(m[1] >= 3.0), int(m[0] >= 0.0), max(0, min(2, int((m[2] + 15.0) // 10.0)))
+
+
+BANK_ROOMS = {   # (storey, i, j) -> inside walls, floor
+    (0, 0, 0): ("int_office_cream", "th_marble"),   # stair hall
+    (0, 0, 1): ("th_panel", "th_marble"),           # banking hall (the front door)
+    (0, 0, 2): ("th_panel", "carpet"),              # the manager's office
+    (0, 1, 0): ("int_office", "floor_lino"),        # staff room
+    (0, 1, 1): ("int_office_cream", "carpet_office"),   # behind the counter
+    (0, 1, 2): ("metal", "terrazzo"),               # the vault
+    (1, 0, 0): ("int_office", "carpet_office"),     # top of the stairs
+    (1, 0, 1): ("int_office", "carpet_office"),     # loans office
+    (1, 0, 2): ("th_panel", "parquet"),             # board room
+    (1, 1, 0): ("int_wall", "floor_lino"),          # records
+    (1, 1, 1): ("int_office_cream", "carpet_office"),   # accounts
+    (1, 1, 2): ("int_wall", "floor_lino"),          # security room (over the vault, caved in)
+}
+
+
+def bank_inner(m):
+    return BANK_ROOMS[bank_room(m)][0]
+
+
+def bank_floor(m):
+    return BANK_ROOMS[(int(m[1] >= 2.0),) + bank_room(m)[1:]][1]
+
+
+def bank_ceiling(m):
+    """Plaster in the banking hall, the manager's office and the board room, bare concrete in the vault."""
+    room = bank_room((m[0], m[1] - 2.0, m[2]))
+    if room == (0, 1, 2):
+        return "concrete"
+    return "house_ceiling" if BANK_ROOMS[room][0] == "th_panel" else "ceiling"
+
+
+def dress_bank(ctx):
+    dress_bank_outside(ctx)
+    b = ctx.b
+    st = lambda mat: (lambda n, m_, q: (mat, uv_world(1.0)))
+    # The banking hall: two globe lamps on rods, the stopped clock, the rates board over the slip desk, a poster.
+    for z in (-2.5, 2.5):
+        b.box((-5.0, 2.55, z), (0.03, 0.4, 0.03), style=st("brass"))
+        b.box((-5.0, 2.3, z), (0.36, 0.14, 0.36), style=st("bone"))
+        b.box((-5.0, 2.22, z), (0.26, 0.06, 0.26), style=st("bone"))
+        b.box((-5.0, 2.38, z), (0.14, 0.06, 0.14), style=st("brass"))
+    b.box((-6.4, 2.2, -4.87), (0.6, 0.6, 0.04), style=face_decal(ctx.d("clock"), "wood_dark", "+z"))
+    b.box((-6.5, 1.75, 4.87), (1.6, 0.9, 0.04), style=face_decal(ctx.d("rates"), "wood_dark", "-z"))
+    b.box((-7.83, 1.6, -3.5), (0.02, 0.9, 0.6), style=face_decal(ctx.d("poster"), "bone", "+x"))
+
+
+CAVED["bank"] = caved_bank
+DECALS["bank"] = bank_decals
+DRESSING["bank"] = dress_bank
+FOOTPRINTS["bank"] = BANK_FP
+ENTRANCE_DOOR["bank"] = "bronze"
+SHELLS["bank"] = {
+    "ext": BANK_LOOKS[BANK_LOOK]["ext"], "roof_side": BANK_LOOKS[BANK_LOOK]["ext"],
+    "x_lines": (-8.0, 0.0, 8.0), "z_lines": (-15.0, -5.0, 5.0, 15.0),
+    "inner": bank_inner, "floor": bank_floor, "ceiling": bank_ceiling, "x_splits": (0.0,), "z_splits": (-5.0, 5.0),
+}
+FACTION_MARKS["bank"] = [("x1_stencil", "E", 5.0, 1.0), ("nova_tag", "S", 3.0, 1.1)]
 
 
 

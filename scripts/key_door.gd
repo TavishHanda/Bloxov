@@ -8,6 +8,12 @@ extends StaticBody3D
 
 const GROUP := &"key_doors"
 const COLOR := Color(0.32, 0.34, 0.36)
+## The vault door's models (art_source/scripts/make_door.py) and its hinge pin (x, z) in them.
+const FRAME_MODEL := "res://assets/models/props/vault_frame.glb"
+const DOOR_MODEL := "res://assets/models/props/vault_door.glb"
+const PIN := Vector2(-1.35, -0.385)
+## How far the vault door swings open (towards the side you walk up from).
+const SWING := 100.0
 
 ## The key that opens it (an ItemDB id of kind "key" whose "door" is this node's name).
 @export var key := "bunker_key"
@@ -18,6 +24,8 @@ const COLOR := Color(0.32, 0.34, 0.36)
 var is_open := false
 var _hinge: Node3D
 var _shape: CollisionShape3D
+var _face: CollisionShape3D
+var _swing := -100.0
 
 
 func _ready() -> void:
@@ -31,6 +39,37 @@ func _ready() -> void:
 	_shape.shape = box
 	_shape.position.y = size.y * 0.5
 	add_child(_shape)
+	# World art 0.17 (bank thread, owner OK'd): a round vault door. A steel collar on the wall round the doorway
+	# (an oval opening in it) and the round door on a hinge arm, both on the side you walk up from (-z), drawn for a
+	# 2.4 m doorway and stretched to this one. It swings out towards you. The collision box above is unchanged; a
+	# second one keeps people out of the door's thickness while it's shut.
+	if DisplayServer.get_name() != "headless" and ResourceLoader.exists(FRAME_MODEL) and ResourceLoader.exists(DOOR_MODEL):
+		var sx := size.x / 2.4
+		var sy := size.y / 2.45
+		var frame: Node3D = (load(FRAME_MODEL) as PackedScene).instantiate()
+		PixelModel.make_crisp(frame)
+		frame.scale = Vector3(sx, sy, 1.0)
+		add_child(frame)
+		_hinge = Node3D.new()
+		_hinge.position = Vector3(PIN.x * sx, 0, PIN.y)
+		add_child(_hinge)
+		var door: Node3D = (load(DOOR_MODEL) as PackedScene).instantiate()
+		PixelModel.make_crisp(door)
+		door.scale = Vector3(sx, sy, 1.0)
+		_hinge.add_child(door)
+		_swing = SWING
+	else:
+		_build_slab()
+	_face = CollisionShape3D.new()
+	var face_box := BoxShape3D.new()
+	face_box.size = Vector3(size.x, size.y, 0.4)
+	_face.shape = face_box
+	_face.position = Vector3(0, size.y * 0.5, -0.26)
+	add_child(_face)
+
+
+## The plain grey slab (no models: headless, where nothing is drawn anyway).
+func _build_slab() -> void:
 	# The leaf hangs off a hinge on its left edge, so it can swing open.
 	_hinge = Node3D.new()
 	_hinge.position.x = -size.x * 0.5
@@ -89,6 +128,7 @@ func open() -> void:
 		return
 	is_open = true
 	_shape.set_deferred("disabled", true)
+	_face.set_deferred("disabled", true)
 	collision_layer = 0
 	if is_inside_tree() and _hinge != null:
-		create_tween().tween_property(_hinge, "rotation:y", deg_to_rad(-100.0), 0.6).set_trans(Tween.TRANS_SINE)
+		create_tween().tween_property(_hinge, "rotation:y", deg_to_rad(_swing), 1.4).set_trans(Tween.TRANS_SINE)

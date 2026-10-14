@@ -938,6 +938,70 @@ def town_hall_furniture(ox, oz):
     o(24.2, 6.0, 5.8, 24.4, 10.0, 6.0, "metal", "radio_mast", solid=False)
 
 
+def bank_furniture(ox, oz):
+    """The Bank of Bloxov (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 8 x 10 m,
+    storeys 3 m). Furniture is solid like everywhere else; queue posts, chairs, the drill rig and the Raiders' cots
+    are picture only. Room middles, doorways, the stairs' foot and the swing of the vault door stay clear."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # Ground floor. The banking hall (west middle, the front door): the tellers' counter with its grilles (tellers
+    # east of it, the way through to the back office), queue posts, a slip desk; the Raiders' guard post by the door.
+    o(-2.6, 0, -3.0, -1.9, 1.05, 3.0, "wood", "teller_counter")
+    o(-3.6, 0, -2.5, -3.4, 1.0, 2.5, "metal", "queue_posts", solid=False)
+    o(-7.6, 0, 4.35, -5.4, 1.0, 4.85, "wood", "slip_desk")
+    o(-7.8, 0, 3.25, -6.6, 0.9, 4.2, "wood", "ammo_crates")
+    o(-7.6, 0, -4.75, -5.4, 0.5, -4.25, "wood", "hall_bench")
+    # The stair hall (north-west): waiting seats under the stairs' landing, a plant, the Raiders' supplies.
+    o(-7.8, 0, -8.6, -7.25, 0.85, -6.0, "metal", "waiting_seats", solid=False)
+    o(-7.75, 0, -5.75, -7.35, 1.3, -5.35, "wood", "plant", solid=False)
+    o(-2.9, 0, -6.0, -1.0, 0.9, -5.2, "wood", "supply_crates")
+    # The manager's office (south-west): his desk, a bookcase, a sofa, a globe, his own safe (blown, empty).
+    o(-2.6, 0, 10.8, -0.8, 0.78, 11.6, "wood", "manager_desk")
+    o(-0.5, 0, 6.0, -0.1, 2.0, 8.0, "wood", "wall_books")
+    o(-7.8, 0, 12.0, -7.0, 0.85, 14.0, "wood", "sofa")
+    o(-7.6, 0, 6.0, -7.0, 1.2, 6.6, "wood", "globe", solid=False)
+    o(-5.5, 0, 8.0, -2.9, 0.02, 12.2, "wood", "rug", solid=False)
+    o(-1.0, 0, 14.25, -0.3, 0.8, 14.85, "metal", "small_safe")
+    # The counting room (north-east): the counting table, a cash trolley, the staff's kitchenette.
+    o(2.0, 0, -14.75, 5.6, 0.9, -13.95, "wood", "counting_table")
+    o(6.8, 0, -8.3, 7.6, 1.0, -7.5, "metal", "cash_trolley")
+    o(5.3, 0, -5.75, 7.8, 0.9, -5.15, "wood", "kitchenette")
+    # Behind the counter (east middle): the tellers' desks, the Raiders' cots and ammo; their drill rig still aimed at
+    # the vault door (it held).
+    o(1.0, 0, -4.4, 2.6, 0.75, -3.6, "wood", "desk")
+    o(5.4, 0, -4.4, 7.0, 0.75, -3.6, "wood", "desk")
+    o(6.9, 0, 1.6, 7.8, 0.5, 3.6, "wood", "th_cot", solid=False)
+    o(6.9, 0, -3.0, 7.8, 0.5, -1.0, "wood", "th_cot", solid=False)
+    o(0.3, 0, 3.6, 1.6, 0.9, 4.7, "wood", "ammo_crates")
+    o(3.6, 0, 3.3, 4.4, 1.4, 4.1, "metal", "drill_rig", solid=False)
+    # The vault (south-east, behind the key door): safe-deposit boxes round the walls, the table in the middle, a
+    # cash trolley.
+    o(0.1, 0, 5.6, 0.5, 2.4, 14.4, "metal", "deposit_wall")
+    o(7.45, 0, 5.6, 7.85, 2.4, 10.6, "metal", "deposit_wall")
+    o(0.6, 0, 14.45, 3.2, 2.4, 14.85, "metal", "deposit_wall")
+    o(4.8, 0, 14.45, 6.6, 2.4, 14.85, "metal", "deposit_wall")
+    o(3.2, 0, 9.0, 4.8, 0.9, 10.4, "metal", "vault_table")
+    o(1.0, 0, 12.6, 1.8, 1.0, 13.4, "metal", "cash_trolley")
+    # Upstairs. The top of the stairs (north-west): seats for the loans office.
+    o(-2.8, 3.0, -5.65, -0.5, 3.85, -5.15, "metal", "waiting_seats", solid=False)
+    # The loans office (west middle): two desks.
+    o(-2.4, 3.0, 2.6, -0.7, 3.75, 4.1, "wood", "office_pod")   # (clear of the board room's doorway)
+    o(-2.4, 3.0, -4.3, -0.7, 3.75, -2.8, "wood", "office_pod")
+    # The board room (south-west): the long table.
+    o(-4.6, 3.0, 8.0, -3.4, 3.76, 12.0, "wood", "meeting_table")
+    # The accounts office (east middle): desks, a printer.
+    o(1.0, 3.0, -4.3, 2.7, 3.75, -2.8, "wood", "office_pod")
+    o(1.0, 3.0, 2.8, 2.7, 3.75, 4.3, "wood", "office_pod")
+    o(7.2, 3.0, -3.6, 7.8, 4.0, -2.8, "metal", "printer")
+    # Records (north-east): shelving.
+    o(2.0, 3.0, -14.6, 5.0, 5.2, -14.1, "metal", "archive_shelf")
+    o(5.2, 3.0, -5.6, 7.6, 5.0, -5.1, "metal", "archive_shelf")
+    # The security room over the vault (south-east, caved in): the camera desk, the tape rack, a cabinet.
+    o(7.25, 3.0, 7.0, 7.85, 3.8, 10.0, "wood", "cctv_desk")
+    o(7.35, 3.0, 11.0, 7.85, 4.8, 12.2, "metal", "tape_rack")
+    o(0.3, 3.0, 13.6, 0.9, 4.3, 14.6, "metal", "file_cabinet")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2142,7 +2206,6 @@ def main():
             wall_z(bz0, bz1 - 5, x, bunker_floor, 3.5, "bunker", [((bz0 + bz1 - 5) / 2, INNER_DOOR_W, 0.0, DOOR_H)])
         wall_x(99.0, bx1, bz1 - 5, bunker_floor, 3.5, "bunker",
                [(104.5, INNER_DOOR_W, 0.0, DOOR_H), (115.5, INNER_DOOR_W, 0.0, DOOR_H), (126.5, INNER_DOOR_W, 0.0, DOOR_H)])
-    box(98.7, bunker_floor + 2.3, 154.0, 99.3, bunker_floor + 2.6, 156.0, "keydoor", solid=False)
     markers.append(("KeyDoors", "BunkerDoor", 99.0, bunker_floor, 155.0, {"key": "bunker_key", "place": "Bunker", "yaw": 90.0, "width": DOOR_W}))
     for x, z, yaw in ((102.0, 148.0, 180.0), (113.0, 148.0, 180.0), (124.0, 148.0, 180.0), (130.5, 153.0, 90.0)):
         add_loot("Bunker", "safe", x, z, y=bunker_floor, yaw=yaw)
@@ -2151,14 +2214,18 @@ def main():
 
     # bank with offices upstairs, one building east of the square (owner). The vault is the south-east room (1, 2),
     # only reachable from room (1, 1) through a key door (the bank vault key; the stairs are along the north wall).
-    bank = build(Building("Bank", 128, 110, 16, 30, floors=2, colour="wall_rich", rooms=(2, 3), doors="W",
-                          solid_inner=[("v", 1, 2)], no_windows=[(1, 2)]), [
-        ("safe", 1, 2, 0, "E", 1.5), ("safe", 1, 2, 0, "S", 0), ("locker", 0, 1, 0, "W", 0),
-        ("crate", 1, 0, 0, "E", 0)])
-    for kind, i, j, side in (("crate", 1, 0, "E"), ("crate", 0, 2, "W"), ("locker", 1, 1, "E"), ("crate", 0, 1, "W")):
-        x, y, z, yaw = bank.against_wall(i, j, 1, side)
-        add_loot("Offices", kind, x, z, y=y, yaw=yaw)
-    box(139.0, 2.3, 129.7, 141.0, 2.6, 130.3, "keydoor", solid=False)
+    with modeled("bank", 136.0, 125.0):   # World art 0.17: the Bank of Bloxov (ransacked; Raiders hold it)
+        # Loot spots slid off the windows. The security room upstairs (south-east, over the vault) caved in (a corner
+        # room; the north-east one is over the stairs' corridor).
+        bank = build(Building("Bank", 128, 110, 16, 30, floors=2, colour="wall_rich", rooms=(2, 3), doors="W",
+                              solid_inner=[("v", 1, 2)], no_windows=[(1, 2)], caved=[(1, 2)]), [
+            ("safe", 1, 2, 0, "E", 1.5), ("safe", 1, 2, 0, "S", 0), ("locker", 0, 1, 0, "W", 0),
+            ("crate", 1, 0, 0, "E", -2.6)])
+        for kind, i, j, side, off in (("crate", 1, 0, "E", -2.6), ("crate", 0, 2, "W", 2.6), ("locker", 1, 1, "E", 2.6),
+                                      ("crate", 0, 1, "W", -2.6)):
+            x, y, z, yaw = bank.against_wall(i, j, 1, side, off)
+            add_loot("Offices", kind, x, z, y=y, yaw=yaw)
+        bank_furniture(136.0, 125.0)
     markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank", "yaw": 0.0, "width": INNER_DOOR_W}))
     with modeled("offices", 75.0, 129.5):   # World art 0.17: Korven Engineering's office (ransacked)
         # Loot spots slid off the windows.

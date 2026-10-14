@@ -5,6 +5,7 @@ Writes assets/models/props/door_<look>.glb: a 1 m x 2 m leaf centred on the orig
 (door.gd stretches it to the doorway and turns it round for the second leaf of a double door).
 Uses the building kit textures (art_source/textures/kit) and the loot flat colours (art_source/textures/loot).
 """
+import math
 import os
 import random
 import sys
@@ -198,6 +199,109 @@ LOOKS = {"wood": door_wood, "metal": door_metal, "office": door_office, "school"
          "plank": door_plank}
 
 
+# ---- the vault door (World art 0.17, bank thread, owner OK'd): scripts/key_door.gd hangs it on the bunker's and
+# the bank vault's key doors. Two models, drawn for a 2.4 x 2.45 m doorway (key_door.gd scales x to its doorway), the
+# wall's middle at z 0, the side you walk up from at -z:
+#   vault_frame.glb: a steel collar on the wall round the doorway, an oval opening in it, a riveted rim, the hinges.
+#   vault_door.glb: the round door on its hinge arm, origin = the hinge pin (x -1.35, z -0.385 in frame space): the
+#   thick door, the plug that sits in the opening, the locking bolts round its edge, the wheel, the dial.
+V_AX, V_AY, V_YC = 1.18, 1.3, 1.25          # the frame's opening (half-width, half-height, middle)
+V_COLLAR = (1.5, 2.75, -0.15, -0.26)        # half-width, top, back and front faces of the collar
+V_PIN = (-1.35, -0.385)                     # the hinge pin (x, z)
+V_DOOR = (1.3, 1.38, 0.23)                  # the door: half-width, half-height, thickness
+
+
+def _ell(ax, ay, yc, y):
+    """Half-width of an oval at height y (0 outside it)."""
+    t = (y - yc) / ay
+    return ax * math.sqrt(1 - t * t) if abs(t) < 1 else 0.0
+
+
+def _rim(b, cx, cy, rx, ry, z, depth, w, mat, n=36, bolts=0, bolt_mat="trim_dark", y_min=0.03):
+    """A ring of short boxes round an oval in the plane z (a vault ring), optional bolt heads on its face."""
+    for k in range(n):
+        a = k / n * 2 * math.pi
+        x, y = cx + rx * math.cos(a), cy + ry * math.sin(a)
+        if y < y_min + w / 2:
+            continue
+        seg = 2 * math.pi * max(rx, ry) / n + 0.02
+        b.box((x, y, z), (depth, seg, w), yaw=90, pitch=-math.degrees(a), style=solid(mat))
+        if bolts and k % bolts == 0:
+            b.box((x, y, z - depth / 2 - 0.015), (0.07, 0.07, 0.03), style=solid(bolt_mat))
+
+
+def vault_frame(b):
+    hw, top, zb, zf = V_COLLAR
+    zc, d = (zb + zf) / 2, zb - zf
+    y = 0.0
+    while y < top - 0.001:                                        # the collar, cut round the opening slice by slice
+        h = min(0.1, top - y)
+        ym = y + h / 2
+        a = _ell(V_AX, V_AY, V_YC, ym)
+        if a <= 0.0:
+            b.box((0, ym, zc), (2 * hw, h, d), style=solid("trim"))
+        else:
+            for sg in (-1, 1):
+                b.box((sg * (a + hw) / 2, ym, zc), (hw - a, h, d), style=solid("trim"))
+        y += h
+    _rim(b, 0, V_YC, V_AX + 0.08, V_AY + 0.08, zf - 0.04, 0.08, 0.16, "steel_light", bolts=3)
+    _rim(b, 0, V_YC, V_AX + 0.02, V_AY + 0.02, (zb + zf) / 2, d + 0.02, 0.05, "trim_dark", n=40)   # the seat
+    for sg in (-1, 1):                                            # the collar's edge strips and corner bolts
+        b.box((sg * (hw - 0.04), top / 2, zf - 0.02), (0.08, top, 0.04), style=solid("trim_dark"))
+        for yy in (0.25, top - 0.2):
+            b.box((sg * (hw - 0.18), yy, zf - 0.02), (0.08, 0.08, 0.04), style=solid("trim_dark"))
+    b.box((0, top - 0.04, zf - 0.02), (2 * hw, 0.08, 0.04), style=solid("trim_dark"))
+    px, pz = V_PIN
+    for yy in (0.65, 1.85):                                       # the hinge knuckles on the collar
+        b.box((px, yy, (zf + pz) / 2 - 0.05), (0.26, 0.32, pz - zf + 0.2), style=solid("trim_dark"))
+        b.box((px, yy, pz), (0.12, 0.6, 0.12), style=solid("steel_light"))
+
+
+def vault_door(b):
+    px, pz = V_PIN
+    rx, ry, t = V_DOOR
+    cx = -px                                                      # the door's middle, from the pin
+    zf = -t / 2                                                   # its front face (the -z side)
+    y = 0.03
+    while y < V_YC + ry - 0.001:                                  # the door, slice by slice (flat on the floor)
+        h = min(0.08, V_YC + ry - y)
+        a = _ell(rx, ry, V_YC, y + h / 2)
+        if a > 0.0:
+            b.box((cx, y + h / 2, 0), (2 * a, h, t), style=solid("trim"))
+            p = _ell(V_AX - 0.06, V_AY - 0.06, V_YC, y + h / 2)  # the plug that sits in the frame's opening
+            if p > 0.0:
+                b.box((cx, y + h / 2, t / 2 + 0.06), (2 * p, h, 0.12), style=solid("trim_dark"))
+        y += h
+    _rim(b, cx, V_YC, rx - 0.06, ry - 0.06, zf - 0.03, 0.06, 0.1, "steel_light", bolts=2)        # rim and rivets
+    _rim(b, cx, V_YC, 0.82, 0.86, zf - 0.03, 0.06, 0.08, "steel_light", n=28)                    # inner step
+    for k in range(10):                                           # the locking bolts round the plug's edge
+        a = k / 10 * 2 * math.pi + 0.3
+        bx, by = cx + (V_AX - 0.02) * math.cos(a), V_YC + (V_AY - 0.02) * math.sin(a)
+        if by < 0.15:
+            continue
+        b.box((bx, by, t / 2 + 0.06), (0.1, 0.1, 0.3), yaw=90, pitch=-math.degrees(a), style=solid("steel_light"))
+    # the wheel: hub, three spokes with knobs, the rim
+    wz = zf - 0.16
+    b.box((cx, V_YC, zf - 0.06), (0.22, 0.22, 0.12), style=solid("trim_dark"))
+    b.box((cx, V_YC, wz), (0.16, 0.16, 0.08), style=solid("steel_light"))
+    for k in range(3):
+        a = k / 3 * 2 * math.pi + math.pi / 2
+        b.box((cx + 0.24 * math.cos(a), V_YC + 0.24 * math.sin(a), wz), (0.05, 0.05, 0.48), yaw=90,
+              pitch=-math.degrees(a), style=solid("steel_light"))
+        b.box((cx + 0.56 * math.cos(a), V_YC + 0.56 * math.sin(a), wz - 0.06), (0.08, 0.08, 0.16),
+              style=solid("trim_dark"))
+    _rim(b, cx, V_YC, 0.48, 0.48, wz, 0.06, 0.06, "steel_light", n=20, y_min=-9)
+    # the dial over the wheel, a brass maker's plate under it
+    b.box((cx, V_YC + 0.75, zf - 0.04), (0.24, 0.24, 0.08), style=solid("trim_dark"))
+    b.box((cx, V_YC + 0.75, zf - 0.09), (0.16, 0.16, 0.03), style=solid("gold"))
+    b.box((cx, V_YC + 0.84, zf - 0.11), (0.02, 0.05, 0.02), style=solid("black"))
+    b.box((cx, V_YC - 0.72, zf - 0.02), (0.5, 0.14, 0.03), style=solid("gold"))
+    # the hinge arm: two straps from the pin onto the door's face
+    for yy in (0.65, 1.85):
+        b.box((0.0, yy, 0.0), (0.16, 0.28, 0.16), style=solid("trim_dark"))
+        b.box((0.35, yy, zf - 0.05), (0.7, 0.2, 0.1), style=solid("trim_dark"))
+
+
 def main():
     rng = random.Random("doors")
     textures, mat_info = {}, {}
@@ -220,6 +324,13 @@ def main():
         out = os.path.join(mb.ROOT, "assets", "models", "props", "door_" + name + ".glb")
         mb.write_glb(out, b, textures, mat_info)
         print(f"door_{name}: {sum(len(f) - 2 for f in b.faces)} triangles -> {out}")
+    for name, make in (("vault_frame", vault_frame), ("vault_door", vault_door)):
+        b = Builder()
+        make(b)
+        mb.BUILDING_NAME[0] = name
+        out = os.path.join(mb.ROOT, "assets", "models", "props", name + ".glb")
+        mb.write_glb(out, b, textures, mat_info)
+        print(f"{name}: {sum(len(f) - 2 for f in b.faces)} triangles -> {out}")
 
 
 if __name__ == "__main__":
