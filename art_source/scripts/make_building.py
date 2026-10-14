@@ -7799,6 +7799,64 @@ def town_hall_decals(rng):
     a.add("calendar", 13, 19, calendar)
     a.add("plan", 26, 34, plan)
     a.add("clock_small", 13, 13, clock_small)
+
+    def photo(c, k):      # 0.3 x 0.4 m snapshot from home pinned over a cot: a family, a house, a dog
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(1, 3, c.w - 1, c.h - 1, ("sky_blue", "olive", "sky_blue")[k])
+        c.rect(1, 3, c.w - 1, 6, "olive")
+        if k == 0:
+            for x in (2, 5):
+                c.rect(x, 5, x + 2, 10, "wood_dark")
+            c.rect(3, 9, 5, 11, "sand")
+        elif k == 1:
+            c.rect(2, 5, 8, 9, "bone")
+            c.rect(2, 9, 8, 10, "red")
+        else:
+            c.rect(3, 5, 7, 7, "wood_mid")
+            c.rect(6, 7, 8, 8, "wood_mid")
+        c.rect(4, c.h - 1, 6, c.h, "red")
+
+    def roster(c):        # 1.5 x 0.9 m: the crew's watch roster chalked on a board
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        c.ctext(0, c.w, c.h - 8, "WATCH", "bone")
+        for r in range(4):
+            c.rect(3, 3 + r * 5, 12, 4 + r * 5, "bone")
+            for k in range(5):
+                if (r + k) % 3:
+                    c.rect(15 + k * 6, 3 + r * 5, 19 + k * 6, 4 + r * 5, "bone")
+        c.rect(15, 18, 19, 19, "red")
+
+    def tally(c):         # 1.2 x 0.5 m: the days, scratched in fives
+        c.rect(0, 0, c.w, c.h, "clear")
+        x = 2
+        for g in range(7):
+            for k in range(4 if g < 6 else 2):
+                c.rect(x + k * 2, 3, x + k * 2 + 1, 12, "iron_dark")
+            if g < 6:
+                for k in range(9):
+                    c.put(x - 1 + k, 4 + k, "iron_dark")
+            x += 11 if g % 3 < 2 else 13
+            if x > c.w - 9:
+                break
+
+    def runner(c):        # the ghost cloth: a civic runner, red with a gold border and the town's crest
+        c.rect(0, 0, c.w, c.h, "red")
+        c.frame(0, 0, c.w, c.h, "yellow_dark")
+        c.frame(2, 2, c.w - 2, c.h - 2, "yellow_dark")
+        for x in range(6, c.w - 6, 6):
+            c.put(x, 4, "yellow_dark"); c.put(x, c.h - 5, "yellow_dark")
+        cx, cy = c.w // 2, c.h // 2
+        c.rect(cx - 4, cy - 5, cx + 4, cy + 4, "yellow_dark")
+        c.rect(cx - 3, cy - 4, cx + 3, cy + 3, "rust")
+        c.rect(cx - 1, cy - 3, cx + 1, cy + 2, "bone")
+        c.noise(0, 0, c.w, c.h, ["rust"], 0.08, random.Random("runner"))
+
+    a.add("runner", 76, 24, runner)
+    for k in range(3):
+        a.add(f"photo{k}", 10, 13, lambda c, k=k: photo(c, k))
+    a.add("roster", 48, 29, roster)
+    a.add("tally", 38, 16, tally)
     return a
 
 
@@ -7936,17 +7994,78 @@ def prop_town_model(ctx, c, s):
     b.box((c[0] - 0.4, y0 + 0.03, c[2] - s[2] / 2 - 0.4), (0.1, 0.06, 0.08), yaw=30, style=_nb("bone"))
 
 
+def wood_crate(b, x, y, z, w, h, d, yaw, mat, stencil=None):
+    """A slatted wooden crate: planks with dark gaps, corner battens, a stencilled mark on the front (-z)."""
+    b.box((x, y + h / 2, z), (w, h, d), yaw=yaw, style=_nb(mat))
+    n = max(2, int(h / 0.15))
+    for k in range(1, n):                                                 # the gaps between the planks
+        b.box((x, y + k * h / n, z), (w + 0.006, 0.012, d + 0.006), yaw=yaw, style=_nb("wood_dark"))
+    for sx in (-1, 1):                                                    # corner battens front and back
+        for sz in (-1, 1):
+            px, pz = _at(x, z, yaw, sx * (w / 2 - 0.03), sz * (d / 2 + 0.005))
+            b.box((px, y + h / 2, pz), (0.06, h, 0.02), yaw=yaw, style=_nb("wood_dark"))
+    b.box((x, y + h + 0.005, z), (w - 0.1, 0.01, 0.05), yaw=yaw, style=_nb("wood_dark"))   # the lid's batten
+    if stencil:
+        px, pz = _at(x, z, yaw, 0, -(d / 2 + 0.012))
+        b.box((px, y + h * 0.55, pz), (min(0.4, w * 0.6), 0.1, 0.004), yaw=yaw, style=_nb(stencil))
+
+
+def jerry_can(b, x, y, z, yaw, mat):
+    """A 20 l jerry can: the X pressed into its side, three-bar handle, the spout's cap."""
+    b.box((x, y + 0.23, z), (0.17, 0.46, 0.34), yaw=yaw, style=_nb(mat))
+    for sx in (-1, 1):                                                    # the pressed X (two raised strips)
+        px, pz = _at(x, z, yaw, sx * 0.087, 0)
+        b.box((px, y + 0.22, pz), (0.01, 0.36, 0.04), yaw=yaw, pitch=38, style=_nb(mat))
+        b.box((px, y + 0.22, pz), (0.01, 0.36, 0.04), yaw=yaw, pitch=-38, style=_nb(mat))
+    for k in (-1, 0, 1):                                                  # handle bars
+        px, pz = _at(x, z, yaw, 0, 0.04 + k * 0.06)
+        b.box((px, y + 0.5, pz), (0.03, 0.06, 0.025), yaw=yaw, style=_nb(mat))
+    hx, hz = _at(x, z, yaw, 0, 0.04)
+    b.box((hx, y + 0.53, hz), (0.03, 0.02, 0.17), yaw=yaw, style=_nb(mat))
+    sx_, sz_ = _at(x, z, yaw, 0, -0.12)
+    b.box((sx_, y + 0.5, sz_), (0.06, 0.06, 0.06), yaw=yaw, style=_nb("metal"))
+
+
+def sack(b, x, y, z, yaw, mat="bone"):
+    """A tied sack (flour, rice): slumped, the neck tied off with string."""
+    b.box((x, y + 0.17, z), (0.5, 0.34, 0.36), yaw=yaw, style=_nb(mat))
+    b.box((x, y + 0.36, z), (0.42, 0.06, 0.3), yaw=yaw, style=_nb(mat))
+    px, pz = _at(x, z, yaw, 0.2, 0)
+    b.box((px, y + 0.42, pz), (0.1, 0.1, 0.1), yaw=yaw, style=_nb(mat))
+    b.box((px, y + 0.4, pz), (0.11, 0.02, 0.11), yaw=yaw, style=_nb("cardboard"))
+    b.box((x, y + 0.2, z - 0.181), (0.2, 0.12, 0.004), yaw=yaw, style=_nb("red"))   # the printed mark
+
+
 def prop_supply_crates(ctx, c, s):
-    """The crew's supplies stacked in a corner: wooden crates, jerry cans, a sack of something."""
+    """The crew's supplies stacked in a corner (owner: "make it more detailed"): slatted crates (one prised open,
+    tins inside), an olive ammo box, jerry cans, a sack of flour, a coil of rope, a tarp thrown over the back."""
     b = ctx.b
     y0 = c[1] - s[1] / 2
-    b.box((c[0] - s[0] / 4, y0 + 0.3, c[2] - s[2] / 4), (s[0] / 2 - 0.05, 0.6, s[2] / 2 - 0.05), yaw=3, style=_nb("wood"))
-    b.box((c[0] - s[0] / 4, y0 + 0.75, c[2] - s[2] / 4), (s[0] / 2 - 0.15, 0.3, s[2] / 2 - 0.15), yaw=-6, style=_nb("wood_light"))
-    b.box((c[0] + s[0] / 4, y0 + 0.3, c[2] - s[2] / 4), (s[0] / 2 - 0.1, 0.6, s[2] / 2 - 0.1), style=_nb("olive"))
-    for k in range(3):                                                     # jerry cans
-        b.box((c[0] - s[0] / 2 + 0.25 + k * 0.35, y0 + 0.24, c[2] + s[2] / 4), (0.17, 0.48, 0.34), yaw=rng_yaw(k),
-              style=_nb(("red", "olive", "olive")[k]))
-    b.box((c[0] + s[0] / 4, y0 + 0.2, c[2] + s[2] / 4), (0.6, 0.4, 0.45), yaw=12, style=_nb("sand" if False else "bone"))
+    x0, z0 = c[0] - s[0] / 2, c[2] - s[2] / 2
+    wood_crate(b, x0 + 0.42, y0, z0 + 0.35, 0.8, 0.6, 0.6, 3, "wood", "black")
+    wood_crate(b, x0 + 0.42, y0 + 0.6, z0 + 0.36, 0.66, 0.36, 0.5, -6, "wood_light", "red")
+    # the prised-open crate beside it: lid off and leant against it, tins inside
+    ox, oz = x0 + 1.25, z0 + 0.32
+    b.box((ox, y0 + 0.02, oz), (0.7, 0.04, 0.5), style=_nb("wood"))
+    for sx, sz, w, d in ((-1, 0, 0.03, 0.5), (1, 0, 0.03, 0.5), (0, -1, 0.7, 0.03), (0, 1, 0.7, 0.03)):
+        b.box((ox + sx * 0.335, y0 + 0.22, oz + sz * 0.235), (w, 0.44, d), style=_nb("wood"))
+    for i in range(4):
+        for j in range(3):
+            b.box((ox - 0.24 + i * 0.16, y0 + 0.33, oz - 0.14 + j * 0.14), (0.1, 0.14, 0.1), style=_nb("steel_light"))
+            b.box((ox - 0.24 + i * 0.16, y0 + 0.33, oz - 0.14 + j * 0.14), (0.102, 0.06, 0.102), style=_nb("red" if (i + j) % 2 else "olive"))
+    b.box((ox + 0.1, y0 + 0.33, oz + 0.3), (0.72, 0.62, 0.03), pitch=-14, style=_nb("wood_light"))
+    b.box((ox - 0.15, y0 + 0.45, oz + 0.315), (0.04, 0.3, 0.003), pitch=-14, style=_nb("black"))   # crowbar
+    # an olive ammo box on top of it, a tarp hanging over the back
+    b.box((x0 + 1.75, y0 + 0.13, z0 + 0.95), (0.3, 0.26, 0.16), yaw=8, style=_nb("olive"))
+    b.box((x0 + 1.75, y0 + 0.27, z0 + 0.95), (0.08, 0.02, 0.05), yaw=8, style=_nb("olive_dark"))
+    b.box((x0 + 0.42, y0 + 0.62, z0 + 0.07), (0.9, 1.2, 0.03), yaw=3, style=_nb("olive_dark"))
+    # jerry cans in a row, a flour sack, a coil of rope
+    for k, mat in enumerate(("red", "olive", "olive")):
+        jerry_can(b, x0 + 0.2 + k * 0.24, y0, c[2] + s[2] / 2 - 0.25, rng_yaw(k), mat)
+    sack(b, x0 + 1.05, y0, c[2] + s[2] / 2 - 0.27, 12)
+    for k in range(3):
+        b.box((x0 + 1.6, y0 + 0.03 + k * 0.05, c[2] + s[2] / 2 - 0.3), (0.34 - k * 0.04, 0.045, 0.34 - k * 0.04),
+              yaw=k * 20, style=_nb("cardboard"))
 
 
 def rng_yaw(k):
@@ -8115,7 +8234,35 @@ def prop_ammo_crates(ctx, c, s):
                 yaw = rng.uniform(-5, 5)
                 b.box((x, y0 + ch * (r + 0.5), z), (cw - 0.04, ch - 0.01, cd - 0.04), yaw=yaw, style=_nb("olive"))
                 b.box((x, y0 + ch * (r + 0.5), z), (cw + 0.0, 0.05, cd), yaw=yaw, style=_nb("olive_dark"))
-    b.box((c[0] + 0.2, y0 + s[1] + 0.12, c[2] + 0.3), (cw - 0.04, 0.02, cd - 0.04), yaw=30, pitch=70, style=_nb("olive_dark"))
+                for f in (-1, 1):                                          # yellow stencilled lot marks, both long sides
+                    px, pz = _at(x, z, yaw, -0.12, f * (cd / 2 - 0.015))
+                    b.box((px, y0 + ch * (r + 0.5) + 0.06, pz), (0.3, 0.05, 0.01), yaw=yaw, style=_nb("yellow"))
+                    px, pz = _at(x, z, yaw, 0.17, f * (cd / 2 - 0.015))
+                    b.box((px, y0 + ch * (r + 0.5) + 0.06, pz), (0.12, 0.05, 0.01), yaw=yaw, style=_nb("yellow"))
+                for f in (-1, 1):                                          # rope handles at the ends
+                    hx, hz = _at(x, z, yaw, f * (cw / 2 - 0.0), 0)
+                    b.box((hx, y0 + ch * (r + 0.5) + 0.02, hz), (0.03, 0.04, 0.18), yaw=yaw, style=_nb("cardboard"))
+    # (owner: the old loose lid floated) The open one sits on top of the stack: a hollow crate full of rounds in their
+    # cardboard packs and a belt hanging over the edge; its lid stands on the floor, leant against the stack's side.
+    x = c[0] - s[0] / 2 + 0.5 * s[0] / nx
+    z = c[2] - s[2] / 2 + 0.5 * s[2] / nz
+    y = y0 + ch * rows
+    b.box((x, y + 0.015, z), (cw - 0.04, 0.03, cd - 0.04), style=_nb("olive"))
+    for sx, sz, w, d in ((-1, 0, 0.03, cd - 0.04), (1, 0, 0.03, cd - 0.04), (0, -1, cw - 0.04, 0.03), (0, 1, cw - 0.04, 0.03)):
+        b.box((x + sx * (cw / 2 - 0.035), y + ch / 2, z + sz * (cd / 2 - 0.035)), (w, ch, d), style=_nb("olive"))
+    for i in range(4):                                                    # packs of rounds, the brass showing
+        for j in range(2):
+            px, pz = x - cw / 2 + 0.13 + i * 0.16, z - 0.09 + j * 0.18
+            b.box((px, y + ch - 0.09, pz), (0.14, 0.12, 0.15), style=_nb("carton" if (i + j) % 3 else "olive_dark"))
+            for k in range(3):
+                b.box((px - 0.04 + k * 0.04, y + ch - 0.02, pz), (0.022, 0.03, 0.12), style=_nb("brass"))
+    for k in range(7):                                                    # a belt of rounds over the front edge
+        t = k / 6
+        b.box((x - 0.2 + t * 0.25, y + ch - 0.01 - t * 0.25, z - cd / 2 - 0.02 - 0.03 * t), (0.035, 0.07, 0.035),
+              yaw=0, pitch=10, style=_nb("brass"))
+    lx = c[0] - s[0] / 2 - 0.05
+    b.box((lx, (cd - 0.04) / 2 + y0, c[2]), (0.03, cd - 0.04, cw - 0.04), yaw=4, style=_nb("olive"))
+    b.box((lx - 0.016, (cd - 0.04) / 2 + y0 + 0.05, c[2]), (0.004, 0.06, 0.4), yaw=4, style=_nb("yellow"))
 
 
 def prop_council_table(ctx, c, s, k):
@@ -8409,7 +8556,7 @@ def dress_town_hall(ctx):
     pic("-x", 12.38, -1.6, -1.0, 1.2, 2.1, "poster")
     pic("-z", -0.12, 1.6, 2.6, 1.3, 2.5, "crest")
     pic("+z", -8.83, 2.0, 2.4, 2.2, 2.6, "clock_small", "graffiti")
-    pic("-z", -0.12, -23.0, -22.2, 1.4, 2.0, "shelter")                  # stair hall, by the bunker ramp
+    ghost_runner(ctx)
     pic("-z", -0.12, -16.6, -15.7, 1.2, 1.6, "keep_out", "graffiti")
     pic("-z", -0.12, -10.0, -9.6, 1.3, 1.9, "calendar")                  # records
     pic("+x", -12.38, -8.4, -7.2, 1.2, 2.0, "notices")
@@ -8453,9 +8600,202 @@ def dress_town_hall(ctx):
     _beam(b, (-12.3, 5.2, -8.6), (-8.0, 5.1, -8.6), 0.01, 0.01, "black")
     for k, col in enumerate(("olive", "bone", "olive_dark")):
         b.box((-11.6 + k * 1.2, 4.75, -8.6), (0.5, 0.7, 0.02), style=_solid(col))
+    crew_life(ctx, pic)
     # A brotherhood calling card: a small X1 carved into the frame of Bon's door.
     b.box((-12.38, 4.55, 3.3), (0.004, 0.12, 0.02), pitch=40, style=no_bottom("bone", 1.0))
     b.box((-12.38, 4.55, 3.3), (0.004, 0.12, 0.02), pitch=-40, style=no_bottom("bone", 1.0))
+
+
+# ---- Bon's crew live here (owner: "make it seem like Bon and his guards actually moved in", 4 men for a while).
+# All picture only, off the paths, doorways and windows: nothing about cover or the AI changes.
+def footlocker(b, x, y, z, yaw, rng, open_=False):
+    """An olive footlocker with a stencilled lid, sometimes open with kit spilling out."""
+    b.box((x, y + 0.18, z), (0.8, 0.36, 0.45), yaw=yaw, style=_nb("olive"))
+    b.box((x, y + 0.1, z), (0.82, 0.04, 0.47), yaw=yaw, style=_nb("olive_dark"))
+    if open_:
+        lx, lz = _at(x, z, yaw, 0, -0.32)
+        b.box((lx, y + 0.5, lz), (0.8, 0.3, 0.03), yaw=yaw, pitch=-20, style=_nb("olive_dark"))
+        b.box((x, y + 0.37, z), (0.6, 0.04, 0.3), yaw=yaw, style=_nb(rng.choice(("bone", "olive_dark", "blue"))))
+
+
+def helmet(b, x, y, z, yaw):
+    b.box((x, y + 0.08, z), (0.26, 0.14, 0.3), yaw=yaw, style=_nb("olive_dark"))
+    b.box((x, y + 0.17, z), (0.2, 0.06, 0.24), yaw=yaw, style=_nb("olive_dark"))
+    b.box((x, y + 0.02, z), (0.3, 0.03, 0.34), yaw=yaw, style=_nb("olive"))
+
+
+def boots(b, x, y, z, yaw):
+    for sx in (-0.07, 0.08):
+        px, pz = _at(x, z, yaw, sx, 0)
+        b.box((px, y + 0.1, pz), (0.11, 0.2, 0.12), yaw=yaw, style=_nb("black"))
+        fx, fz = _at(x, z, yaw, sx, -0.1)
+        b.box((fx, y + 0.04, fz), (0.11, 0.08, 0.2), yaw=yaw, style=_nb("black"))
+
+
+def litter(b, rng, x0, x1, z0, z1, y, n):
+    """What men living rough leave about: empty ration tins, bottles (some on their side), butts, wrappers."""
+    for _ in range(n):
+        x, z, k = rng.uniform(x0, x1), rng.uniform(z0, z1), rng.random()
+        if k < 0.35:                                                      # a ration tin, opened
+            b.box((x, y + 0.05, z), (0.08, 0.1, 0.08), style=_nb("steel_light"))
+        elif k < 0.55:                                                    # a bottle
+            if rng.random() < 0.5:
+                b.box((x, y + 0.12, z), (0.07, 0.24, 0.07), style=lambda n_, m, q: ("glass", uv_world(1.0)))
+            else:
+                b.box((x, y + 0.035, z), (0.07, 0.07, 0.24), yaw=rng.uniform(0, 180), style=lambda n_, m, q: ("glass", uv_world(1.0)))
+        elif k < 0.8:                                                     # a wrapper
+            b.box((x, y + 0.004, z), (0.12, 0.006, 0.18), yaw=rng.uniform(0, 180), style=_nb(rng.choice(("olive", "olive_dark", "red"))))
+        else:                                                             # butts
+            for _ in range(3):
+                b.box((x + rng.uniform(-0.1, 0.1), y + 0.008, z + rng.uniform(-0.1, 0.1)), (0.02, 0.016, 0.05),
+                      yaw=rng.uniform(0, 180), style=_nb("bone"))
+
+
+def ration_stack(b, rng, x, y, z, nx, nz, rows):
+    """Stacked ration boxes (brown card, olive bands), the top row half gone."""
+    for r in range(rows):
+        for i in range(nx):
+            for j in range(nz):
+                if r == rows - 1 and rng.random() < 0.5:
+                    continue
+                c = (x + i * 0.42, y + 0.13 + r * 0.26, z + j * 0.32)
+                b.box(c, (0.4, 0.25, 0.3), yaw=rng.uniform(-4, 4), style=_nb("carton"))
+                b.box(c, (0.41, 0.06, 0.31), yaw=0, style=_nb("olive"))
+
+
+def work_lamp(b, x, y, z, yaw, cable_to=None):
+    """A site work lamp on a tripod, its cable running off across the floor (the crew's generator)."""
+    for k in range(3):
+        a = math.radians(yaw + k * 120)
+        _beam(b, (x, y + 1.5, z), (x + 0.35 * math.sin(a), y, z + 0.35 * math.cos(a)), 0.025, 0.025, "black")
+    hx, hz = _at(x, z, yaw, 0, -0.1)
+    b.box((hx, y + 1.62, hz), (0.3, 0.24, 0.12), yaw=yaw, pitch=15, style=_nb("yellow"))
+    fx, fz = _at(x, z, yaw, 0, -0.17)
+    b.box((fx, y + 1.62, fz), (0.24, 0.18, 0.01), yaw=yaw, pitch=15, style=_nb("bone"))
+    if cable_to:
+        _beam(b, (x, y + 0.01, z), (cable_to[0], y + 0.01, cable_to[1]), 0.02, 0.012, "black")
+
+
+def crew_life(ctx, pic):
+    b, rng = ctx.b, random.Random("crew_life")
+    # The barracks: each of the three guards' cots gets his footlocker, helmet, boots and a photo from home pinned
+    # over it; a rifle rack by the door, a shaving mirror and basin, a weapon-cleaning crate, the stove's kettle.
+    for k, (x, z, along_x, wall) in enumerate(((-3.9, -8.3, True, "N"), (-1.5, -8.3, True, "N"),
+                                               (-10.9, -0.6, True, "S"))):
+        footlocker(b, x + (-1.4 if k != 1 else 1.4), 3.0, z + (0.35 if wall == "N" else -0.35), 0, rng, open_=k == 1)
+        helmet(b, x + 0.5, 3.57, z, rng.uniform(0, 180))
+        boots(b, x - 0.3, 3.0, z + (0.75 if wall == "N" else -0.75), rng.uniform(-20, 20))
+        if wall == "N":
+            pic("+z", -8.83, x - 0.15, x + 0.15, 4.0, 4.4, f"photo{k}")
+        else:
+            pic("-z", -0.12, x - 0.15, x + 0.15, 4.0, 4.4, f"photo{k}")
+    b.box((-2.0, 3.55, -0.6), (1.6, 0.06, 0.7), yaw=3, style=_nb("olive_dark"))   # the fourth cot: kit dumped on it
+    b.box((-2.4, 3.7, -0.5), (0.45, 0.3, 0.3), yaw=20, style=_nb("olive"))
+    # rifle rack on the west wall (two rifles left in it)
+    b.box((-12.3, 3.9, -7.6), (0.08, 0.08, 1.6), style=_nb("wood_dark"))
+    b.box((-12.3, 3.15, -7.6), (0.2, 0.06, 1.6), style=_nb("wood_dark"))
+    for dz in (-0.45, 0.35):
+        gun_shape(b, "hound", (-12.22, 3.2, -7.6 + dz), (0, 1, 0), (1, 0, 0))
+    # shaving corner: a mirror on the wall, a basin on a crate, a towel, a water can
+    b.box((-9.0, 3.3, -8.55), (0.6, 0.6, 0.45), style=_nb("wood"))
+    b.box((-9.0, 3.65, -8.55), (0.45, 0.1, 0.35), style=_nb("steel_light"))
+    b.box((-9.0, 3.71, -8.55), (0.38, 0.01, 0.28), style=lambda n, m, q: ("glass", uv_world(1.0)))
+    b.box((-9.0, 4.55, -8.82), (0.35, 0.45, 0.02), style=_solid("glass"))
+    b.box((-8.6, 3.45, -8.32), (0.3, 0.3, 0.02), style=_nb("bone"))
+    b.box((-9.55, 3.25, -8.4), (0.2, 0.5, 0.3), style=_nb("blue"))
+    # cleaning crate: a stripped rifle on a cloth, oil can, rags
+    b.box((-7.2, 3.25, -1.0), (0.8, 0.5, 0.5), style=_nb("olive"))
+    b.box((-7.2, 3.505, -1.0), (0.7, 0.01, 0.4), style=_nb("bone"))
+    gun_shape(b, "hound", (-7.55, 3.53, -1.0), (1, 0, 0), (0, 0, -1), t=0.04, scale=0.9)
+    b.box((-6.9, 3.56, -0.85), (0.06, 0.1, 0.06), style=_nb("red"))
+    work_lamp(b, -6.3, 3.0, -7.6, 180, cable_to=(-0.3, -7.0))
+    litter(b, rng, -11.8, -0.5, -7.4, -1.6, 3.0, 40)
+    # The mess (back hall): ration boxes stacked, a heap of empties, the duty roster, the days scratched on the wall,
+    # a wash stand by the back door, water jugs.
+    ration_stack(b, rng, 2.6, 0.0, 8.2, 3, 2, 3)
+    for _ in range(30):                                                   # the empties' heap in the corner
+        x, z = 12.0 + rng.uniform(-0.4, 0.2), 2.6 + rng.uniform(-0.6, 0.5)
+        b.box((x, rng.uniform(0.04, 0.25), z), (0.08, 0.1, 0.08), yaw=rng.uniform(0, 90), pitch=rng.choice((0, 90)),
+              style=_nb("steel_light"))
+    b.box((11.9, 0.3, 1.9), (0.5, 0.6, 0.5), yaw=15, style=_nb("black"))                  # a full rubbish bag
+    pic("+x", 0.12, 5.9, 7.4, 1.2, 2.1, "roster")
+    pic("-x", 12.38, 6.4, 7.6, 1.0, 1.5, "tally", "graffiti")
+    b.box((8.3, 0.4, 8.5), (0.5, 0.8, 0.4), style=_nb("trim_dark"))                      # wash stand
+    b.box((8.3, 0.85, 8.5), (0.42, 0.1, 0.34), style=_nb("steel_light"))
+    b.box((8.3, 1.4, 8.83), (0.3, 0.4, 0.02), style=_solid("glass"))
+    for k in range(3):
+        b.box((9.0 + k * 0.32, 0.25, 8.55), (0.26, 0.5, 0.26), style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] < 0.7 else ("blue", uv_world(1.0)))
+    work_lamp(b, 5.0, 0.0, 1.0, 0, cable_to=(0.6, 0.9))
+    litter(b, rng, 0.5, 12.0, 1.0, 8.5, 0.0, 45)
+    # The front door's guard post: a chair turned to the door, a crate for a table (thermos, radio, ashtray, cards),
+    # a sign sprayed outside.
+    chair(b, 3.4, 0.0, -6.6, facing_yaw(1, -0.6), "olive", "trim_dark")
+    b.box((2.7, 0.3, -7.2), (0.6, 0.6, 0.45), style=_nb("olive"))
+    b.box((2.6, 0.72, -7.25), (0.1, 0.24, 0.1), style=_nb("green"))
+    b.box((2.85, 0.68, -7.1), (0.18, 0.16, 0.12), style=_nb("olive_dark"))
+    b.box((2.9, 0.64, -7.32), (0.1, 0.03, 0.1), style=_nb("black"))
+    litter(b, rng, 2.2, 4.4, -7.8, -5.8, 0.0, 10)
+    pic("-z", TH_FP[1] - 0.17, 2.5, 3.4, 1.2, 1.6, "keep_out", "graffiti")
+    # The stair hall's store: water jugs and jerry cans by the crates.
+    for k in range(4):
+        b.box((-15.3 + k * 0.3, 0.25, -8.6), (0.26, 0.5, 0.26), style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] < 0.7 else ("blue", uv_world(1.0)))
+    # Bon's office: his own bed (a mattress dragged in, an army blanket), his footlocker, the bottles on the desk,
+    # a crate of what they've taken from the town (watches, a gold bar, cash), his helmet on the globe's stand.
+    b.box((-0.6, 3.1, 6.8), (0.9, 0.2, 2.0), style=_nb("bone"))
+    b.box((-0.6, 3.22, 7.0), (0.92, 0.06, 1.5), yaw=4, style=_nb("olive_dark"))
+    b.box((-0.6, 3.25, 6.0), (0.5, 0.1, 0.3), style=_nb("bone"))
+    footlocker(b, -1.5, 3.0, 7.9, 90, rng, open_=True)
+    boots(b, -1.4, 3.0, 5.9, 90)
+    for k in range(3):
+        b.box((-9.6 + k * 0.15, 3.9, 1.3), (0.07, 0.24, 0.07), style=lambda n, m, q: ("glass", uv_world(1.0)))
+    b.box((-8.0, 3.25, 8.4), (0.8, 0.5, 0.5), style=_nb("wood"))
+    b.box((-8.0, 3.51, 8.4), (0.7, 0.02, 0.4), style=_nb("trim_dark"))
+    b.box((-8.15, 3.55, 8.35), (0.24, 0.06, 0.1), style=_nb("brass"))                 # gold bar
+    for k in range(4):
+        b.box((-7.8 + rng.uniform(-0.1, 0.1), 3.53, 8.3 + k * 0.06), (0.05, 0.02, 0.05), style=_nb(rng.choice(("brass", "steel_light"))))
+    b.box((-7.9, 3.54, 8.5), (0.18, 0.04, 0.1), style=_nb("green"))                    # a bundle of cash
+    helmet(b, -1.0, 4.2, 1.0, 30)
+    litter(b, rng, -11.5, -2.0, 2.2, 7.4, 3.0, 15)
+    # The radio room: the night watch's cot, a kettle on a hot plate, the radio log's mugs.
+    b.box((24.2, 3.4, 4.9), (0.8, 0.06, 1.9), style=_nb("olive"))
+    b.box((24.2, 3.47, 5.0), (0.7, 0.08, 1.6), style=_nb("olive_dark"))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((24.2 + sx * 0.32, 3.2, 4.9 + sz * 0.85), (0.04, 0.4, 0.04), style=_nb("trim_dark"))
+    b.box((23.0, 3.84, 0.65), (0.2, 0.06, 0.2), style=_nb("black"))
+    b.box((23.0, 3.94, 0.65), (0.14, 0.14, 0.14), style=_nb("steel_light"))
+    litter(b, rng, 13.0, 16.0, 1.5, 8.0, 3.0, 15)
+    # The council chamber: a lamp over the map table, the crew's litter round it.
+    work_lamp(b, 6.25, 3.0, -5.2, 180, cable_to=(12.3, -4.0))
+    litter(b, rng, 1.0, 11.5, -5.0, -1.8, 3.0, 20)
+    # The roof: a lookout's chair in the north-west corner, binoculars on the parapet, an ammo can, butts.
+    chair(b, -23.6, 6.0, -7.6, facing_yaw(0, -1), "olive", "trim_dark")
+    b.box((-23.6, 7.13, -8.9), (0.18, 0.08, 0.12), style=_nb("black"))
+    b.box((-22.9, 6.15, -8.3), (0.3, 0.3, 0.16), style=_nb("olive"))
+    litter(b, rng, -24.4, -22.5, -8.5, -6.8, 6.0, 8)
+
+# The bunker ramp hidden (owner, round v3): a red runner lies over the hole like any hall carpet, but it's a lab-made
+# "ghost cloth" from the program's experiments: you walk straight through it onto the ramp. One-sided, so from the
+# ramp you see up through it. The cloth's projector studs sit under the floor's edge round the hole (seen from below).
+TH_HOLE = (-21.5, -3.0, -13.0, -0.6)
+
+
+def ghost_runner(ctx):
+    b = ctx.b
+    x0, z0, x1, z1 = TH_HOLE
+    x0, z0, x1, z1 = x0 - 0.5, z0 - 0.35, x1 + 0.35, z1 + 0.35
+    b.poly([(x0, 0.012, z0), (x1, 0.012, z0), (x1, 0.012, z1), (x0, 0.012, z1)], (0, 1, 0), "decals", ctx.d("runner"))
+    hx0, hz0, hx1, hz1 = TH_HOLE
+    k = 0
+    x = hx0 + 0.4
+    while x < hx1 - 0.2:
+        for z in (hz0 + 0.04, hz1 - 0.04):
+            b.box((x, -0.05, z), (0.12, 0.06, 0.06), style=_nb("metal"))
+            b.box((x, -0.085, z), (0.06, 0.012, 0.03), style=_nb("sky_blue" if "sky_blue" in KIT else "blue"))
+        x += 1.2
+        k += 1
+    for z in (hz0 + 0.02, hz1 - 0.02):                                    # the studs' cable along the edge
+        b.box(((hx0 + hx1) / 2, -0.03, z), (hx1 - hx0 - 0.3, 0.02, 0.02), style=_nb("black"))
 
 
 def caved_town_hall(ctx, c, s):

@@ -311,6 +311,9 @@ def inner_door(x, y, z, yaw, place):
     if fate < DOOR_FATES["gone"]:
         return
     broken = "fallen" if fate < DOOR_FATES["fallen"] else "hanging" if fate < DOOR_FATES["hanging"] else ""
+    hx0, hz0, hx1, hz1 = BUNKER_HOLE
+    if broken and y < 1.0 and hx0 - 1 < x < hx1 + 1 and hz0 - 3 < z < hz1 + 3:
+        broken = ""   # (owner: a wrecked leaf would lie on the bunker ramp's ghost runner, floating over the hole)
     if broken == "hanging" and place.startswith("BigHouse"):
         return   # (round 11, owner: a door hanging off its hinge across the hall read as a rail blocking the way in)
     n = sum(1 for m in markers if m[0] == "Doors") + 1
@@ -886,7 +889,7 @@ def town_hall_furniture(ox, oz):
     o(-24.7, 0, 5.6, -24.3, 2.4, 8.8, "wood", "flower_arch", solid=False)
     o(-21.5, 0, 5.8, -15.5, 0.9, 8.2, "wood", "chair_rows", solid=False)
     # Town clerk's office (south middle-west): the clerk's desk, cabinets, the ballot boxes from the last election.
-    o(-11.2, 0, 5.8, -9.4, 0.78, 6.8, "wood", "clerk_desk")
+    o(-10.2, 0, 6.8, -8.4, 0.78, 7.8, "wood", "clerk_desk")   # (back from the door, owner)
     o(-12.35, 0, 7.0, -11.75, 1.3, 8.6, "metal", "file_cabinet")
     o(-1.6, 0, 7.4, -0.3, 0.8, 8.7, "wood", "ballot_boxes")
     # The back hall (south middle, the back door): Bon's crew's mess, a card table, cots, a camp stove, ammo.
@@ -2117,10 +2120,7 @@ def main():
             ("locker", 1, 0, 1, "N", -2.6), ("crate", 2, 1, 1, "S", 2.6), ("locker", 3, 0, 1, "E", -2.4, "wardrobe"),
             ("crate", 1, 1, 0, "S", 2.6)])
         town_hall_furniture(107.0, 155.0)
-        # a rail round the bunker's ramp hole (in the hall's west room)
-        box(hx0, 0, hz0 - 0.1, hx1, 1.0, hz0, "metal")
-        box(hx1, 0, hz0 - 0.1, hx1 + 0.1, 1.0, hz1 + 0.1, "metal")
-        box(hx0, 0, hz1, hx1, 1.0, hz1 + 0.1, "metal")
+        # (no rail round the bunker's ramp hole now: a "ghost cloth" runner hides it, owner; drawn by the model)
     # the bunker (owner: best loot, behind a key door later): ramp down from the hall's west room
     run = hx1 - hx0
     obox((hx0 + hx1) / 2, bunker_floor / 2 - 0.1, (hz0 + hz1) / 2, hz1 - hz0 - 0.1, 0.2, math.hypot(run, bunker_floor),
