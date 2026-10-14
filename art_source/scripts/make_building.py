@@ -7512,49 +7512,16 @@ PROPS["caved_room"] = lambda ctx, c, s, k: CAVED.get(BUILDING_NAME[0], caved_def
 # the roof along the south wall (landing in the south-east corner); the bunker's ramp goes down from the west room
 # (railed hole at x -21.5..-13, z -3..-0.6). Bon's crew hold it (the boss and his guards start in the ground-floor
 # rooms): ransacked, the council's things thrown about, the crew's own kit on top.
-TOWN_HALL_LOOKS = {   # outside wall options (owner picks one from a rendered sheet, worldart/options-town-hall.png)
-    "B": {"ext": "ashlar", "base": "ashlar_rustic", "trim": "ashlar_trim"},
+TOWN_HALL_LOOKS = {   # outside wall (owner picked C from worldart/options-town-hall.png, 2026-10-14)
     "C": {"ext": "brick_civic", "trim": "ashlar_trim", "quoins": True, "surrounds": True},
-    "D": {"ext": "basalt", "trim": "ashlar_trim", "bands": True, "surrounds": True},
 }
-TOWN_HALL_LOOK = os.environ.get("BLOXOV_TOWN_HALL_LOOK", "B")
+TOWN_HALL_LOOK = "C"
 
 PALETTE.update({
     "ashl": "958c79", "ashl_dark": "897f6d", "ashl_light": "9c9483", "ashl_joint": "746c5d", "ashl_deep": "5e574b",
     "atrim": "a8a291", "atrim_dark": "9a9483",
     "hbr": "77503f", "hbr_dark": "6a4537", "hbr_light": "825a48", "hbr_mortar": "8c8374",
-    "bslt": "5e5f5c", "bslt_dark": "545553", "bslt_light": "686965", "bslt_joint": "434441",
 })
-
-
-def paint_ashlar(rng):
-    """Dressed limestone blocks (0.5 m courses, blocks 0.75-1.25 m), each a touch different, fine joints, grime."""
-    c = Canvas(64, 64, "ashl_joint")
-    for row in range(8):
-        x = rng.randrange(0, 10)
-        start = x
-        while x < start + 64:
-            w = rng.randrange(12, 21)
-            col = rng.choice(("ashl", "ashl", "ashl_light", "ashl_dark"))
-            for yy in range(row * 8 + 1, row * 8 + 8):
-                for xx in range(x + 1, x + w):
-                    c.put(xx % 64, yy, col)
-            x += w
-    c.noise(0, 0, 64, 64, ["ashl_dark", "ashl_light"], 0.06, rng)
-    c.blotch(["ashl_dark"], 8, rng, size=(2, 5))
-    return c
-
-
-def paint_ashlar_rustic(rng):
-    """The ground floor's rusticated stone: the same blocks with deep channelled joints, chipped edges."""
-    c = Canvas(64, 64, "ashl_deep")
-    for row in range(8):
-        x = (row % 2) * 8
-        for k in range(4):
-            col = rng.choice(("ashl", "ashl_dark", "ashl_light"))
-            c.rect((x + k * 16 + 1) % 64, row * 8 + 2, (x + k * 16 + 1) % 64 + 15, row * 8 + 8, col)
-    c.noise(0, 0, 64, 64, ["ashl_dark", "ashl_joint"], 0.08, rng)
-    return c
 
 
 def paint_ashlar_trim(rng):
@@ -7583,24 +7550,7 @@ def paint_brick_civic(rng):
     return c
 
 
-def paint_basalt(rng):
-    """Dark grey stone in random courses (0.3-0.5 m), deep joints: severe, like a courthouse."""
-    c = Canvas(64, 64, "bslt_joint")
-    y = 0
-    while y < 64:
-        h = rng.choice((5, 6, 8)) if y + 9 < 64 else 64 - y
-        x = rng.randrange(-8, 0)
-        while x < 64:
-            w = rng.randrange(10, 19)
-            c.rect(max(0, x + 1), y + 1, min(64, x + w), min(64, y + h), rng.choice(("bslt", "bslt", "bslt_dark", "bslt_light")))
-            x += w
-        y += h
-    c.noise(0, 0, 64, 64, ["bslt_dark", "bslt_light"], 0.08, rng)
-    return c
-
-
-KIT.update({"ashlar": paint_ashlar, "ashlar_rustic": paint_ashlar_rustic, "ashlar_trim": paint_ashlar_trim,
-            "brick_civic": paint_brick_civic, "basalt": paint_basalt})
+KIT.update({"ashlar_trim": paint_ashlar_trim, "brick_civic": paint_brick_civic})
 
 TH_FP = (-25.0, -9.0, 25.0, 9.0)
 TH_DOOR_X = 6.25
@@ -8382,15 +8332,10 @@ def dress_town_hall(ctx):
         at = side_at(side, 0.15 + d / 2 + push)
         b.box((a, y, at) if ns else (at, y, a), (sa, sy, d) if ns else (d, sy, sa), style=st(mat))
 
-    # ---- outside: stone dressings (every look): plinth, string course at the upstairs floor, cornice and coping
+    # ---- outside: stone dressings on the brick: plinth, string course at the upstairs floor, cornice and coping
     for side in "NSWE":
-        if look.get("base"):                                             # the rusticated ground floor
-            along_wall(side, 0.0, 2.9, 0.05, look["base"], tile=4.0)
         along_wall(side, 0.0, 0.5, 0.1, trim)                            # plinth
         along_wall(side, 2.95, 3.25, 0.12, trim)                         # string course
-        if look.get("bands"):
-            along_wall(side, 0.95, 1.05, 0.06, trim)
-            along_wall(side, 3.95, 4.05, 0.06, trim)
         along_wall(side, 6.0, 6.3, 0.1, trim)                            # cornice: a frieze band, then the drip
         along_wall(side, 6.3, 6.45, 0.3, trim)
         along_wall(side, 6.95, 7.08, 0.16, trim)                         # parapet coping
