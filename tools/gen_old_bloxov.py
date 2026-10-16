@@ -373,7 +373,8 @@ class Building:
     windows in every outside room wall, ramps (stairs) between storeys, optional flat roof you can walk on."""
 
     def __init__(self, name, x, y, w, d, floors=1, colour="wall", rooms=(2, 2), doors="S", roof=False,
-                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=(), shopfronts=""):
+                 height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=(), shopfronts="",
+                 open_plan=False, roof_ramp=None, wall_openings=None):
         self.name, self.x0, self.z0, self.x1, self.z1 = name, x, y, x + w, y + d
         self.floors, self.colour, self.nx, self.nz = floors, colour, rooms[0], rooms[1]
         self.doors, self.roof, self.h = doors, roof, height
@@ -386,6 +387,10 @@ class Building:
         # Shopfronts (World art 0.17, owner): on these sides every ground-floor room gets its own door and a big shop
         # window instead of the usual window.
         self.shopfronts = shopfronts
+        # Grocery (World art 0.17): open_plan = no grid of inner walls (the building draws its own); roof_ramp "NE" =
+        # the roof stairs along the north wall, landing at the east end; wall_openings = {side: [(kind, mid, w, lo,
+        # hi)]} replaces the ground floor's made-up openings on that side (blasts included, by hand).
+        self.open_plan, self.roof_ramp, self.wall_openings = open_plan, roof_ramp, wall_openings or {}
         self.holes = {}   # storey -> (x0, z0, x1, z1) slab hole above a ramp
         self.cw = (self.x1 - self.x0) / self.nx
         self.cd = (self.z1 - self.z0) / self.nz
@@ -401,18 +406,21 @@ class Building:
         # stop at the strip, so it's a little corridor downstairs.
         self.ramps = []
         for f in range(storeys - 1):
-            self.ramps.append((f, "S" if f == self.floors - 1 else "N"))
+            self.ramps.append((f, (self.roof_ramp or "S") if f == self.floors - 1 else "N"))
         self.strips = []
         for f, wall in self.ramps:
             if wall == "N":
                 self.strips.append((self.x0, self.x0 + WALL_T / 2 + LANDING + self._ramp_len() + 1.8, self.z0, self.z0 + WALL_T / 2 + RAMP_W))
+            elif wall == "NE":
+                self.strips.append((self.x1 - WALL_T / 2 - LANDING - self._ramp_len() - 1.8, self.x1, self.z0, self.z0 + WALL_T / 2 + RAMP_W))
             else:
                 self.strips.append((self.x1 - WALL_T / 2 - LANDING - self._ramp_len() - 1.8, self.x1, self.z1 - WALL_T / 2 - RAMP_W, self.z1))
         box(self.x0, 0.0, self.z0, self.x1, 0.03, self.z1, "slab", solid=False)   # ground floor (looks only)
         for f in range(self.floors):
             y = f * self.h
             self._outer_walls(f, y)
-            self._inner_walls(y)
+            if not self.open_plan:
+                self._inner_walls(y)
         for f, wall in self.ramps:
             self._ramp(f, wall)
         for f in range(1, self.floors + 1):
@@ -432,7 +440,10 @@ class Building:
             horizontal = side in "NS"
             n = self.nx if horizontal else self.nz
             openings, kinds = [], []
-            for k in range(n):
+            for kind, mid, w, lo, hi in (self.wall_openings.get(side, ()) if f == 0 else ()):
+                openings.append((mid, w, lo, hi))
+                kinds.append(kind)
+            for k in (range(0) if f == 0 and side in self.wall_openings else range(n)):
                 cell = (k, 0 if side == "N" else self.nz - 1) if horizontal else (0 if side == "W" else self.nx - 1, k)
                 a0, a1 = (self.x0 + k * self.cw, self.x0 + (k + 1) * self.cw) if horizontal else \
                          (self.z0 + k * self.cd, self.z0 + (k + 1) * self.cd)
@@ -469,7 +480,7 @@ class Building:
         # No windows behind the ramps.
         x0, _, x1, _ = self.cell(*cell)
         for (rf, wall), (sx0, sx1, _, _) in zip(self.ramps, self.strips):
-            if side == wall and rf in (f, f - 1) and x0 < sx1 and x1 > sx0:
+            if side == wall[0] and rf in (f, f - 1) and x0 < sx1 and x1 > sx0:
                 return True
         return False
 
@@ -514,6 +525,10 @@ class Building:
             rz0 = self.z0 + WALL_T / 2
             hi_x = self.x0 + WALL_T / 2 + LANDING
             lo_x = hi_x + length
+        elif wall == "NE":
+            rz0 = self.z0 + WALL_T / 2
+            hi_x = self.x1 - WALL_T / 2 - LANDING
+            lo_x = hi_x - length
         else:
             rz0 = self.z1 - WALL_T / 2 - RAMP_W
             hi_x = self.x1 - WALL_T / 2 - LANDING
@@ -531,7 +546,7 @@ class Building:
         hx0, hx1 = min(lo_x, hi_x), max(lo_x, hi_x)
         self.holes[f + 1] = (hx0, rz0, hx1, rz1)
         # Rails round the hole upstairs (its open side and its low end), so nobody walks off the edge.
-        rail_z = rz1 + 0.05 if wall == "N" else rz0 - 0.05
+        rail_z = rz1 + 0.05 if wall[0] == "N" else rz0 - 0.05
         box(hx0, y1, rail_z - 0.05, hx1, y1 + 1.0, rail_z + 0.05, "metal")
         if wall == "N":
             box(hx1, y1, rz0, hx1 + 0.1, y1 + 1.0, rz1, "metal")
@@ -1068,6 +1083,79 @@ def bank_furniture(ox, oz):
     o(7.25, 3.0, 7.0, 7.85, 3.8, 10.0, "wood", "cctv_desk")
     o(7.35, 3.0, 11.0, 7.85, 4.8, 12.2, "metal", "tape_rack")
     o(0.3, 3.0, 13.6, 0.9, 4.3, 14.6, "metal", "file_cabinet")
+
+# The grocery store's outside openings (World art 0.17), ground floor, map coords: the glass shop front either side of
+# the entrance (south, the street), the loading door (west, Mill Lane) into the stock room, the manager's office window
+# (north), the blast hole and a window on the car park side (east).
+GROCERY_OPENINGS = {
+    "S": [("glass_front", 132.0, 6.0, 0.5, 2.4), ("glass_front", 137.0, 2.8, 0.5, 2.4), ("door", 140.0, DOOR_W, 0.0, DOOR_H),
+          ("glass_front", 143.0, 2.8, 0.5, 2.4), ("glass_front", 148.0, 6.0, 0.5, 2.4)],
+    "W": [("dock", 62.35, 2.6, 0.0, 2.5)],
+    "N": [("window", 140.75, WIN_W, WIN_LO, WIN_HI)],
+    "E": [("blast", 65.0, 3.4, 0.0, FLOOR_H), ("window", 75.0, WIN_W, WIN_LO, WIN_HI)],
+}
+
+
+def grocery_furniture(ox, oz):
+    """The grocery store (World art 0.17), in the model's own coordinates (origin map (ox, oz): the building is x -12..12,
+    z -10..10, north -z). One sales floor laid out like a real supermarket, back rooms behind a wall along the north:
+    the stock room (loading door west), the manager's office, the staff room with the stairs up to the roof (walled the
+    whole way, one way up). The three aisles keep their places (their front halves exactly; the back halves end 2 m
+    further south (1.3 m long now), leaving a walkway along the back wall). Ransacked."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # ---- Walls of the back rooms: along the back (doorways to the stock room, office and staff room; its east end
+    # was blown off by the blast at the corner), between the rooms, and along the roof stairs.
+    wall_x(ox - 11.85, ox + 10.2, oz - 5.6, 0.0, 2.75, "wall_food", [(ox - 6.0, INNER_DOOR_W, 0.0, DOOR_H),
+           (ox + 0.75, INNER_DOOR_W, 0.0, DOOR_H), (ox + 7.0, INNER_DOOR_W, 0.0, DOOR_H)], t=0.2)
+    for x in (-1.5, 3.0):
+        wall_z(oz - 9.85, oz - 5.7, ox + x, 0.0, 2.75, "wall_food", t=0.2)
+    wall_x(ox + 4.95, ox + 11.85, oz - 7.55, 0.0, 2.75, "wall_food", t=0.2)
+    for x in (-6.0, 0.75, 7.0):
+        inner_door(ox + x, 0.0, oz - 5.6, 0.0, "Grocery")
+    # ---- Sales floor. The aisles: double-sided shelving (solid, as the old gray boxes).
+    for x in (-8.0, 0.0, 8.0):
+        o(x, 0, 2.0, x + 0.9, 1.7, 7.0, "wood", "groc_gondola")
+        o(x, 0, -3.3, x + 0.9, 1.7, -2.0, "wood", "groc_gondola")
+    # Fridges along the side walls: dairy (west), drinks (east, between the blast hole and the window).
+    o(-11.85, 0, 0.0, -11.1, 2.0, 6.6, "metal", "wall_fridge")
+    o(11.1, 0, -2.6, 11.85, 2.0, 3.6, "metal", "wall_fridge")
+    # The deli and bakery counter in the north-west corner: a glass case facing the floor, the back counter on the back
+    # wall; the staff walk in from the walkway at its east end.
+    o(-10.6, 0, -2.9, -8.6, 1.15, -2.1, "metal", "deli_case")
+    o(-11.85, 0, -5.5, -10.7, 0.95, -4.9, "metal", "deli_back")
+    # Chest freezers in the cross aisle, between the aisles.
+    o(-5.0, 0, -0.5, -3.0, 0.9, 0.5, "metal", "chest_freezer")
+    o(3.0, 0, -0.5, 5.0, 0.9, 0.5, "metal", "chest_freezer")
+    # The checkouts west of the entrance (belt, till, candy rack; solid at counter height), produce stands east of it.
+    for x in (-6.7, -4.6, -2.5):
+        o(x - 0.35, 0, 7.6, x + 0.35, 0.9, 9.3, "metal", "checkout")
+    o(2.6, 0, 7.7, 4.2, 0.85, 8.9, "wood", "produce_stand")
+    o(5.4, 0, 7.7, 7.0, 0.85, 8.9, "wood", "produce_stand")
+    # ---- The stock room: pallet racking on the north wall, pallets, the pallet jack (picture only).
+    o(-10.0, 0, -9.85, -6.0, 2.6, -8.75, "metal", "pallet_rack")
+    o(-5.0, 0, -9.85, -2.0, 2.6, -8.75, "metal", "pallet_rack")
+    o(-8.0, 0, -8.0, -6.8, 1.1, -6.8, "wood", "pallet_load")
+    o(-4.2, 0, -7.6, -3.0, 0.15, -6.8, "wood", "pallet_jack", solid=False)
+    # ---- The manager's office: the desk against the east wall (the chair in front of it, off the window), the CCTV
+    # monitor on it.
+    o(1.9, 0, -8.8, 2.7, 0.76, -7.0, "wood", "manager_desk_g")
+    o(2.15, 0, -9.85, 2.85, 1.3, -9.3, "metal", "file_cabinet")
+    # ---- The staff area beside the stairs (a passage to their foot): lockers along the stair wall at the east end.
+    o(8.4, 0, -7.45, 10.4, 1.9, -7.0, "metal", "hall_lockers")
+    # ---- Loot: the same three crates (food table), each where it fits: stock boxes on a pallet in the stock room,
+    # the manager's cabinet, the deli's cupboard behind the counter.
+    add_loot("Grocery", "crate", ox - 10.5, oz - 6.3, yaw=0.0, look="stock_boxes")
+    add_loot("Grocery", "crate", ox - 0.8, oz - 8.0, yaw=-90.0, look="filing")
+    add_loot("Grocery", "crate", ox - 9.8, oz - 4.9, yaw=180.0, look="kitchen")
+    # ---- Outside: the cart corral and carts by the car park, an ice chest and a newspaper box by the door, dumpsters
+    # round the back by the loading door.
+    o(13.0, 0, 7.0, 14.6, 1.0, 9.5, "metal", "cart_corral")
+    o(3.0, 0, 10.35, 4.2, 0.9, 11.1, "metal", "ice_chest")
+    o(-3.6, 0, 10.4, -3.1, 1.1, 10.9, "metal", "news_box")
+    o(-14.4, 0, -4.0, -12.8, 1.4, -2.0, "metal", "dumpster")
+    o(-14.4, 0, -1.2, -12.8, 1.4, 0.8, "metal", "dumpster")
+
 
 def police_furniture(ox, oz):
     """Bloxov police station (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 8.67 x
@@ -2441,12 +2529,10 @@ def main():
         box(90.4, 0, 83.2, 92.9, 2.0, 83.85, "wood", kind="rx_drawers")
         box(94.5, 0, 80.5, 97.0, 1.0, 81.3, "wood", kind="rx_counter")
         box(90.4, 0, 72.4, 91.9, 0.75, 73.3, "wood", kind="desk")
-    groc = build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True,
-                          blasts=[(0, "E", 0)]), [
-        ("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "N", 0), ("crate", 1, 1, 0, "S", -2)])
-    for x in (132.0, 140.0, 148.0):  # aisles
-        box(x, 0, 63.0, x + 0.9, 1.7, 68.0, "wood")
-        box(x, 0, 72.0, x + 0.9, 1.7, 77.0, "wood")
+    with modeled("grocery", 140.0, 70.0):   # World art 0.17: a real supermarket (sales floor + back rooms)
+        build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True,
+                       blasts=[(0, "E", 0)], open_plan=True, roof_ramp="NE", wall_openings=GROCERY_OPENINGS))
+        grocery_furniture(140.0, 70.0)
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
     # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)

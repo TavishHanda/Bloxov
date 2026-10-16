@@ -172,6 +172,9 @@ class Canvas:
             if len(s) < 2:
                 raise ValueError("text %r (%d px) can't be centred in %d px" % (s, w, x1 - x0))
             gap, w = (len(s) - 2) // 2, w + 1
+            spaces = [i - 1 for i, ch in enumerate(s) if ch == " " and i > 0]
+            if spaces:     # (grocery: widen a space rather than split a word, "CANNE D FOOD")
+                gap = min(spaces, key=lambda i: abs(i - (len(s) - 2) / 2))
         return self.text(x0 + (x1 - x0 - w) // 2, y, s, c, scale, gap)
 
     @staticmethod
@@ -1158,7 +1161,7 @@ def shell_box(ctx, row):
         stairs(ctx, c, s, row["yaw"], row["pitch"])
     elif colour == "metal" and BUILDING_NAME[0] in HOUSES and 0.9 < s[1] < 1.1:
         banister(b, c, s)
-    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank", "police") and 0.9 < s[1] < 1.1:
+    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank", "police", "grocery") and 0.9 < s[1] < 1.1:
         banister(b, c, s, rail="trim_dark", baluster="steel_light")   # a steel stairwell rail (owner: not a wall)
     elif colour in SHELL_COLOURS:
         mat = SHELL_COLOURS[colour]
@@ -1685,7 +1688,7 @@ def dress_openings(ctx, openings):
                 bx(a, (lo + hi) / 2, 0.06, f, hi - lo, 0.08, "trim")
             for y in (lo + f / 2, hi - f / 2):
                 bx(mid, y, 0.06, w - 2 * f, f, 0.08, "trim")
-            bx(mid, lo - 0.04, 0.19, w + 0.1, 0.08, 0.1, "concrete")                # sill outside
+            bx(mid, lo - 0.035, 0.19, w + 0.1, 0.08, 0.1, "concrete")               # sill outside (a hair proud)
             panes = [(a0 + f, a1 - f)]
             if kind == "shop_window" or w > 2.0:
                 bx(mid, (lo + hi) / 2, 0.06, 0.05, hi - lo - 2 * f, 0.07, "trim")   # mullion
@@ -1697,9 +1700,9 @@ def dress_openings(ctx, openings):
                 else:
                     shards(ctx, p0, p1, lo + f, hi - f, at + out * 0.06, "x" if ns else "z", rng)
         elif kind in ("door", "big_door"):
-            for a in (a0 + 0.04, a1 - 0.04):                                      # door frame
+            for a in (a0 + 0.045, a1 - 0.045):                                    # door frame (off the jambs)
                 bx(a, (lo + hi) / 2, 0.0, 0.08, hi - lo, 0.32, "trim_dark")
-            bx(mid, hi - 0.04, 0.0, w, 0.08, 0.32, "trim_dark")
+            bx(mid, hi - 0.04, 0.0, w - 0.17, 0.08, 0.32, "trim_dark")              # (between the posts)
             leaves = 2 if w > 1.5 else 1
             lw = w / leaves
             mat = ENTRANCE_DOOR.get(BUILDING_NAME[0], "trim")
@@ -1712,7 +1715,7 @@ def dress_openings(ctx, openings):
                 hh = hi - lo - 0.1
                 if fate < 0.6:                                                     # lying on the ground outside
                     ang = rng.uniform(-12, 12)               # (round 4: clear of the frame and step)
-                    c = P(hinge + sgn * lw * 0.5, lo + 0.03, hh / 2 + 0.45 + rng.uniform(0, 0.4))
+                    c = P(hinge + sgn * lw * 0.5, lo + 0.03 + k * 0.012, hh / 2 + 0.45 + rng.uniform(0, 0.4))
                     yaw = (0 if ns else 90) + ang
                     _door_leaf(b, c, lw - 0.12, hh, yaw, 90, mat, rng)
                 else:                                                              # hanging open, off a hinge
@@ -1877,9 +1880,10 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
 def _door_leaf(b, c, w, h, yaw, tilt, mat, rng, upright=False):
     """A broken door leaf centred at c: frame of `mat`, its glass smashed out (a few shards left)."""
     lay = not upright
-    parts = [((0, h / 2 - 0.05, 0), (w, 0.1, 0.045)), ((0, -h / 2 + 0.12, 0), (w, 0.24, 0.045)),
+    # (grocery z-fight pass: the rails fit between the stiles; overlapping corners flickered)
+    parts = [((0, h / 2 - 0.05, 0), (w - 0.2, 0.1, 0.045)), ((0, -h / 2 + 0.12, 0), (w - 0.2, 0.24, 0.045)),
              ((-w / 2 + 0.05, 0, 0), (0.1, h, 0.045)), ((w / 2 - 0.05, 0, 0), (0.1, h, 0.045)),
-             ((0, -h * 0.05, 0), (w, 0.06, 0.04))]
+             ((0, -h * 0.05, 0), (w - 0.2, 0.06, 0.04))]
     for off, size in parts:
         if lay:
             # lying flat: local y goes along the ground (pitch -90 turns the door's up onto -z then yaw)
@@ -2443,7 +2447,7 @@ def shelving(ctx, c, s, axis, sides, kind, levels=4, frame="metal", lip="red", f
         for k in range(levels):
             y = y0 + 0.12 + span * k / levels
             box((a0 + a1) / 2, y + 0.015, mid, L - 0.08, 0.03, depth, frame)                   # shelf
-            box((a0 + a1) / 2, y + 0.03, far - side * 0.005, L - 0.08, 0.04, 0.01, lip)         # price strip
+            box((a0 + a1) / 2, y + 0.03, far + side * 0.006, L - 0.08, 0.04, 0.01, lip)         # price strip (proud)
             if k < levels:
                 stock_run(ctx, a0 + 0.04, a1 - 0.04, y + 0.03, mid, axis, kind, rng, fill)
         if top_stock:
@@ -6773,8 +6777,9 @@ STOCK["paper"] = [(stock_ream, ("bone", "yellow", "blue")), (stock_ream, ("bone"
 
 def papers(b, rng, x0, x1, z0, z1, y, n, cols=("bone", "bone", "bone", "yellow", "steel_light")):
     """Loose sheets strewn about (ransacked), a few folders among them."""
-    for _ in range(n):
+    for k in range(n):
         x, z = rng.uniform(x0, x1), rng.uniform(z0, z1)
+        y += 0.0015                                       # (each sheet on the one before: no flicker where they overlap)
         if rng.random() < 0.12:
             b.box((x, y + 0.008, z), (0.24, 0.012, 0.32), yaw=rng.uniform(0, 180), pitch=rng.uniform(-4, 4),
                   style=no_bottom(rng.choice(("yellow", "blue", "red", "olive")), 1.0))
@@ -10795,6 +10800,813 @@ SHELLS["police"] = {
     "x_splits": (-13.0 / 3, 13.0 / 3), "z_splits": (-11.0 / 3, 11.0 / 3),
 }
 FACTION_MARKS["police"] = [("x1_stencil", "E", 3.0, 1.0), ("nova_tag", "N", 6.0, 1.1)]
+
+
+# ------------------------------------------------------------------------------------------------ grocery (0.17)
+# The grocery store (map 128-152 x 60-80, model origin map (140, 70)): 24 x 20 m, one storey and a flat roof you can
+# walk on. A real supermarket: the glass shop front on the street (south) with the entrance in the middle, the sales
+# floor (three aisles, fridges down the sides, the deli in the north-west corner, freezers in the cross aisle,
+# checkouts and produce by the door), and the back rooms behind a wall along the north: the stock room (loading door
+# west, onto Mill Lane), the manager's office, the staff area with the stairs to the roof (walled, one way up). The
+# blast at the north-east corner took out the end of the back wall. Ransacked.
+GROCERY_LOOKS = {   # outside wall options (owner picks one from worldart/options-grocery.png)
+    "B": {"ext": "groc_block_pale", "trim": "concrete", "fascia": "bone", "plinth": "trim_dark", "awning": True,
+          "sign_bg": "bone", "sign_fg": "red", "sign_edge": "red"},
+    "C": {"ext": "groc_brick_tan", "trim": "groc_cream", "fascia": "groc_green", "plinth": "groc_green", "awning": False,
+          "sign_bg": "groc_green", "sign_fg": "bone", "sign_edge": "bone"},
+    "D": {"ext": "groc_block_sage", "trim": "groc_cream", "fascia": "groc_cream", "plinth": "groc_green", "awning": False,
+          "sign_bg": "groc_cream", "sign_fg": "groc_green", "sign_edge": "groc_green"},
+}
+GROCERY_LOOK = os.environ.get("BLOXOV_GROCERY_LOOK", "C")
+GROCERY_NAME = "GROCERY"          # (owner to name the store)
+
+PALETTE.update({
+    "gblock": "9a968a", "gblock_dark": "8d897d", "gblock_light": "a39f93", "gblock_joint": "7c786d",
+    "gtan": "8e7d5f", "gtan_dark": "817153", "gtan_light": "978668", "gtan_mortar": "736b5b",
+    "gsage": "7d8a72", "gsage_dark": "717e67", "gsage_light": "88957d", "gsage_joint": "626c59",
+    "ggreen": "2f5236", "ggreen_dark": "25422b", "ggreen_light": "3a6342",
+    "gcream": "a8a28e", "gcream_dark": "9b957f",
+    "glocker": "5d806a", "gfloor": "c4c1b6", "gfloor_b": "b2afa4", "gfloor_dark": "8f8c82", "gint": "b9b4a5", "gint_dark": "aaa596",
+})
+
+
+def _block(base, dark, light, joint, rng):
+    """Concrete block (0.5 x 0.25 m drawn), split-faced: coarse grain, deep joints, a few odd blocks."""
+    c = Canvas(64, 64, joint)
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice((base, base, base, dark, light))
+            x0 = k * 8 + off + 1
+            for x in range(x0, x0 + 7):
+                c.rect(x % 64, row * 4 + 1, x % 64 + 1, row * 4 + 4, col)
+            for _ in range(3):
+                c.put((x0 + rng.randrange(7)) % 64, row * 4 + 1 + rng.randrange(3), rng.choice((dark, light)))
+    c.blotch([dark], 5, rng, size=(2, 5))
+    return c
+
+
+def paint_groc_block_pale(rng):
+    return _block("gblock", "gblock_dark", "gblock_light", "gblock_joint", rng)
+
+
+def paint_groc_block_sage(rng):
+    return _block("gsage", "gsage_dark", "gsage_light", "gsage_joint", rng)
+
+
+def paint_groc_brick_tan(rng):
+    return _brick("gtan", "gtan_dark", "gtan_light", "gtan_mortar", rng, burnt="iron")
+
+
+def paint_groc_green(rng):
+    c = Canvas(64, 64, "ggreen")
+    c.noise(0, 0, 64, 64, ["ggreen_dark", "ggreen_light"], 0.06, rng)
+    c.blotch(["gcream_dark"], 3, rng, size=(2, 4))
+    return c
+
+
+def paint_groc_cream(rng):
+    c = Canvas(64, 64, "gcream")
+    c.noise(0, 0, 64, 64, ["gcream_dark"], 0.08, rng)
+    c.blotch(["stucco_grime"], 3, rng, size=(2, 5))
+    return c
+
+
+def paint_groc_floor(rng):
+    """Supermarket vinyl: 0.5 m tiles in two pale greys, specks, scuffs and dirt tracked in."""
+    c = Canvas(64, 64, "gfloor")
+    for ty in range(8):
+        for tx in range(8):
+            if (tx + ty) % 2:
+                c.rect(tx * 8, ty * 8, tx * 8 + 8, ty * 8 + 8, "gfloor_b")
+    c.noise(0, 0, 64, 64, ["gfloor_dark", "gfloor_b"], 0.06, rng)
+    c.blotch(["gfloor_dark"], 6, rng, size=(2, 5))
+    return c
+
+
+def paint_groc_int(rng):
+    """Painted block inside: big pale blocks, faint joints."""
+    c = Canvas(64, 64, "gint")
+    for row in range(8):
+        c.rect(0, row * 8, 64, row * 8 + 1, "gint_dark")
+        off = 8 if row % 2 else 0
+        for k in range(4):
+            c.rect((k * 16 + off) % 64, row * 8, (k * 16 + off) % 64 + 1, row * 8 + 8, "gint_dark")
+    c.blotch(["gint_dark"], 5, rng, size=(2, 6))
+    return c
+
+
+KIT.update({"groc_block_pale": paint_groc_block_pale, "groc_block_sage": paint_groc_block_sage,
+            "groc_brick_tan": paint_groc_brick_tan, "groc_green": paint_groc_green, "groc_cream": paint_groc_cream,
+            "groc_floor": paint_groc_floor, "groc_int": paint_groc_int, "groc_locker": paint_flat("glocker")})
+
+GROCERY_FP = (-12.0, -10.0, 12.0, 10.0)
+GROC_BACK = -5.6                     # the back rooms' wall (back rooms north of it)
+GROC_AISLES = ("CANNED FOOD", "SNACKS - CEREAL", "HOUSEHOLD")
+
+STOCK.update({
+    "pantry": [(stock_can, ("red", "blue", "green", "yellow", "bone")), (stock_jar, ("red", "green", "yellow"))],
+    "cereal": [(stock_box, ("red", "yellow", "olive", "blue", "green")), (stock_bag, ("yellow", "red", "blue"))],
+    "household": [(stock_bottle, ("bone", "blue", "mint", "yellow")), (stock_box, ("bone", "blue", "mint"))],
+    "dairy": [(stock_bottle, ("bone", "bone", "blue", "yellow")), (stock_jar, ("bone", "yellow", "mint"))],
+})
+
+
+def grocery_decals(rng):
+    a = Atlas(512)
+    look = GROCERY_LOOKS[GROCERY_LOOK]
+
+    def name(c):          # 7 x 1.1 m lightbox over the entrance
+        c.rect(0, 0, c.w, c.h, PAL_OF.get(look["sign_bg"], look["sign_bg"]))
+        c.frame(0, 0, c.w, c.h, PAL_OF.get(look["sign_edge"], look["sign_edge"]))
+        c.frame(1, 1, c.w - 1, c.h - 1, PAL_OF.get(look["sign_edge"], look["sign_edge"]))
+        c.ctext(0, c.w, 6, GROCERY_NAME, PAL_OF.get(look["sign_fg"], look["sign_fg"]), 5)
+        c.blotch(["concrete"], 5, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
+
+    def poster(text1, text2, bg, fg):
+        def p(c):         # 1 x 0.8 m window poster
+            c.rect(0, 0, c.w, c.h, bg)
+            c.frame(0, 0, c.w, c.h, fg)
+            big = 2 if Canvas.text_width(text1, 2) <= c.w - 2 else 1
+            if text2:
+                c.ctext(0, c.w, 14 if big == 2 else 15, text1, fg, big)
+                c.ctext(0, c.w, 4, text2, fg, 1)
+            else:
+                c.ctext(0, c.w, 8, text1, fg, 2)
+        return p
+
+    def aisle(n, words):
+        def p(c):         # 1.8 x 0.5 m, hanging over an aisle
+            c.rect(0, 0, c.w, c.h, "red")
+            c.rect(0, 0, c.w, 7, "bone")
+            c.ctext(0, c.w, 9, "AISLE %d" % n, "bone")
+            c.ctext(0, c.w, 1, words, "iron_dark")
+        return p
+
+    def header(words):
+        def p(c):         # 2.4 x 0.45 m department board
+            c.rect(0, 0, c.w, c.h, "ggreen")
+            c.frame(0, 0, c.w, c.h, "bone")
+            c.ctext(0, c.w, 2, words, "bone", 2)
+        return p
+
+    def lane(n):
+        def p(c):         # 0.3 m lane light
+            c.rect(0, 0, c.w, c.h, "iron_dark")
+            c.ctext(0, c.w, 2, str(n), "hazard_yellow")
+        return p
+
+    def staff(c):         # 1.2 x 0.25 m
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.ctext(0, c.w, 2, "STAFF ONLY", "red")
+
+    def deliveries(c):    # 1.6 x 0.35 m
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.frame(0, 0, c.w, c.h, "black")
+        c.ctext(0, c.w, 3, "DELIVERIES", "black")
+
+    def ice(c):           # 1.2 x 0.4 m
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.ctext(0, c.w, 3, "ICE", "bone", 1)
+
+    def news(c):          # 0.4 x 0.3 m: the paper behind the window ("WAR" headline)
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.ctext(0, c.w, 4, "WAR", "black")
+        for y in (1, 3):
+            c.rect(2, y, c.w - 2, y + 1, "steel")
+
+    def cctv(c):          # 0.44 x 0.32 m: four camera views, all snow
+        c.rect(0, 0, c.w, c.h, "black")
+        for qx in (0, 1):
+            for qy in (0, 1):
+                x0, y0 = 1 + qx * (c.w // 2), 1 + qy * (c.h // 2)
+                c.noise(x0, y0, x0 + c.w // 2 - 2, y0 + c.h // 2 - 2, ["steel", "iron", "steel_light"], 0.7, rng)
+
+    def notice(c):        # 1 x 0.7 m staff board: rota, notes
+        c.rect(0, 0, c.w, c.h, "wood_light")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        for x, y, w, h in ((2, 10, 10, 11), (14, 12, 8, 9), (24, 4, 7, 16), (3, 2, 9, 6), (14, 2, 8, 8)):
+            c.rect(x, y, x + w, y + h, "bone")
+            for k in range(1, h - 1, 2):
+                c.rect(x + 1, y + k, x + w - 1, y + k + 1, "steel")
+        c.ctext(2, 12, 15, "ROTA", "red")
+
+    def clock(c):         # 0.4 m
+        c.rect(0, 0, c.w, c.h, "black")
+        c.rect(1, 1, c.w - 1, c.h - 1, "bone")
+        m = c.w // 2
+        c.rect(m, m, m + 1, c.h - 3, "black")
+        c.rect(m, m, c.w - 4, m + 1, "black")
+
+    def deals(c):         # 3 x 0.7 m over the inside of the entrance
+        c.rect(0, 0, c.w, c.h, "red")
+        c.ctext(0, c.w, 6, "LOW PRICES EVERY DAY", "bone", 1)
+        c.ctext(0, c.w, 14, "WELCOME", "hazard_yellow", 1)
+
+    def price(c):         # 0.6 x 0.4 m shelf-end price card
+        c.rect(0, 0, c.w, c.h, "hazard_yellow")
+        c.ctext(0, c.w, 3, "$1.99", "red", 1)
+
+    def locker(c):        # one staff locker, 0.5 x 2.0 m: the store's green, a name card
+        c.rect(0, 0, c.w, c.h, "glocker")
+        c.frame(0, 0, c.w, c.h, "ggreen")
+        for k in range(4):
+            c.rect(3, c.h - 6 - k * 2, c.w - 3, c.h - 5 - k * 2, "ggreen")
+        c.rect(c.w - 5, 28, c.w - 3, 34, "steel_light")
+        c.rect(3, 50, 11, 53, "bone")
+
+    def locker_dent(c):
+        locker(c)
+        for y in range(22, 40):
+            for x in range(3, c.w - 3):
+                d = ((x - 8) / 5.0) ** 2 + ((y - 31) / 8.0) ** 2
+                if d < 1.0:
+                    c.put(x, y, "ggreen" if d > 0.55 or (x + y) % 3 else "black")
+
+    a.add("locker", 16, 64, locker)
+    a.add("locker_dent", 16, 64, locker_dent)
+    a.add("name", 224, 35, name)
+    a.add("p_sale", 32, 26, poster("SALE", "HALF OFF", "hazard_yellow", "red"))
+    a.add("p_two", 32, 26, poster("2 FOR 1", "TODAY", "red", "bone"))
+    a.add("p_fresh", 32, 26, poster("FRESH", "DAILY", "bone", "grass"))
+    a.add("p_open", 32, 26, poster("OPEN", "7 DAYS", "bone", "sky_blue"))
+    for k, words in enumerate(GROC_AISLES, start=1):
+        a.add("aisle%d" % k, 58, 16, aisle(k, words))
+    for words in ("DAIRY", "DRINKS", "DELI", "BAKERY", "PRODUCE", "FROZEN"):
+        a.add("h_" + words.lower(), 77, 14, header(words))
+    for n in (1, 2, 3):
+        a.add("lane%d" % n, 10 if n == 1 else 11, 10, lane(n))
+    a.add("staff", 38, 8, staff)
+    a.add("deliveries", 51, 11, deliveries)
+    a.add("ice", 38, 13, ice)
+    a.add("news", 13, 10, news)
+    a.add("cctv", 14, 10, cctv)
+    a.add("notice", 32, 22, notice)
+    a.add("clock", 13, 13, clock)
+    a.add("deals", 96, 22, deals)
+    def calendar(c):      # 0.5 x 0.7 m, stopped in May
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, c.h - 8, c.w, c.h, "red")
+        c.ctext(0, c.w, c.h - 7, "MAY", "bone")
+        for r in range(4):
+            for k in range(5):
+                c.rect(1 + k * 3, 2 + r * 3, 3 + k * 3, 4 + r * 3, "steel_light")
+        c.rect(7, 5, 9, 7, "red")
+
+    a.add("price", 19, 13, price)
+    a.add("calendar", 16, 22, calendar)
+    return a
+
+
+PAL_OF = {"groc_green": "ggreen", "groc_cream": "gcream"}   # kit name -> its palette colour (decals use palette names)
+
+
+# ---- the outside
+def groc_glass_front(ctx, o):
+    """A shop-front opening (south): aluminium frame with mullions every ~1.5 m, most panes smashed; posters on some
+    of the whole ones (both faces, so they don't vanish from inside)."""
+    b = ctx.b
+    mid, w, lo, hi, at = o["mid"], o["w"], o["lo"], o["hi"], o["at"]
+    rng = random.Random(f"grocfront{mid}")
+    n = max(2, round(w / 1.5))
+    a0, a1 = mid - w / 2, mid + w / 2
+    st = lambda mat: (lambda nn, m, q: (mat, uv_world(1.0)))
+    z = at + 0.06
+    f = 0.07
+    for k in range(n + 1):
+        a = a0 + f / 2 + (w - f) * k / n
+        b.box((a, (lo + hi) / 2, z), (f, hi - lo, 0.1), style=st("trim_dark"))
+    for y in (lo + f / 2, hi - f / 2):
+        b.box((mid, y, z), (w, f, 0.1), style=st("trim_dark"))
+    b.box((mid, lo - 0.035, at + 0.19), (w + 0.1, 0.08, 0.1), style=st("concrete"))
+    posters = ["p_sale", "p_two", "p_fresh", "p_open"]
+    for k in range(n):
+        p0, p1 = a0 + f + (w - f) * k / n, a0 + (w - f) * (k + 1) / n
+        if rng.random() < 0.35:
+            b.poly([(p0, lo + f, z), (p1, lo + f, z), (p1, hi - f, z), (p0, hi - f, z)], (0, 0, 1), "glass", uv_world(1.0))
+            if rng.random() < 0.6:
+                pm = (p0 + p1) / 2
+                reg = ctx.d(posters[(k + int(mid)) % len(posters)])
+                wall_quad(b, (0, 0, 1), z + 0.005, pm - 0.5, pm + 0.5, 1.1, 1.9, "decals", reg)
+                wall_quad(b, (0, 0, -1), z - 0.005, pm + 0.5, pm - 0.5, 1.1, 1.9, "decals", ctx.d("p_open"))
+        else:
+            shards(ctx, p0, p1, lo + f, hi - f, z, "x", rng)
+
+
+def groc_dock(ctx, o):
+    """The loading door (west): a steel frame, the roller shutter jammed up in its drum, rubber bumpers, a lamp, the
+    DELIVERIES sign."""
+    b = ctx.b
+    at, mid, w, hi = o["at"], o["mid"], o["w"], o["hi"]
+    st = lambda mat: (lambda nn, m, q: (mat, uv_world(1.0)))
+    x = at - 0.15
+    for sz in (-1, 1):
+        b.box((x - 0.05, hi / 2, mid + sz * (w / 2 + 0.07)), (0.12, hi, 0.12), style=st("trim_dark"))
+        b.box((x - 0.18, 0.5, mid + sz * (w / 2 + 0.2)), (0.25, 0.5, 0.3), style=st("black"))           # bumpers
+    b.box((x - 0.05, hi + 0.065, mid), (0.12, 0.12, w + 0.24), style=st("trim_dark"))
+    for k in range(4):                                                                                 # shutter slats
+        b.box((at, hi - 0.06 - k * 0.09, mid), (0.05, 0.08, w), style=st("steel_light"))
+    b.box((at + 0.33, hi + 0.15, mid), (0.36, 0.2, w + 0.3), style=no_bottom("trim", 1.0))            # drum (inside)
+    b.box((x - 0.04, 3.3, mid), (0.03, 0.35, 1.6), style=face_decal(ctx.d("deliveries"), "yellow", "-x"))
+    b.box((x - 0.2, 3.0, mid - w / 2 - 0.4), (0.3, 0.12, 0.2), style=st("trim_dark"))                  # lamp
+    b.box((x - 0.3, 2.94, mid - w / 2 - 0.4), (0.12, 0.06, 0.16), style=st("bone"))
+
+
+def shopping_cart(b, x, y, z, yaw, tipped=False, rng=None):
+    """A shopping cart (about 60 triangles): wire basket (thin steel sides), the red handle, the base frame, four
+    castors. tipped: lying on its side."""
+    first = len(b.faces)
+    b.group = ("item", len(b.faces))
+    nb = lambda mat: no_bottom(mat, 1.0)
+    P = lambda u, h, v: (x + u * math.cos(math.radians(yaw)) + v * math.sin(math.radians(yaw)), y + h,
+                         z - u * math.sin(math.radians(yaw)) + v * math.cos(math.radians(yaw)))
+    for h in (0.55, 0.72, 0.9):                                                 # the basket's wire rings
+        for v in (-0.42, 0.42):
+            b.box(P(0, h, v), (0.52, 0.02, 0.02), yaw=yaw, style=nb("steel_light"))
+        for u in (-0.26, 0.26):
+            b.box(P(u, h, 0), (0.02, 0.02, 0.86), yaw=yaw, style=nb("steel_light"))
+    for u in (-0.26, -0.09, 0.09, 0.26):                                        # uprights (ends)
+        for v in (-0.42, 0.42):
+            b.box(P(u, 0.725, v), (0.02, 0.37, 0.02), yaw=yaw, style=nb("steel_light"))
+    for v in (-0.15, 0.15):                                                     # uprights (sides)
+        for u in (-0.26, 0.26):
+            b.box(P(u, 0.725, v), (0.02, 0.37, 0.02), yaw=yaw, style=nb("steel_light"))
+    for v in (-0.3, 0.0, 0.3):                                                  # the basket floor's wires
+        b.box(P(0, 0.55, v), (0.52, 0.02, 0.02), yaw=yaw, style=nb("steel_light"))
+    b.box(P(0, 0.95, 0.5), (0.56, 0.04, 0.04), yaw=yaw, style=nb("red"))        # handle
+    for u in (-0.2, 0.2):
+        b.box(P(u, 0.3, 0.1), (0.03, 0.5, 0.03), yaw=yaw, pitch=12, style=nb("steel_light"))
+        b.box(P(u, 0.1, 0), (0.03, 0.03, 0.8), yaw=yaw, style=nb("steel_light"))
+        for v in (-0.36, 0.36):
+            b.box(P(u, 0.04, v), (0.03, 0.08, 0.08), yaw=yaw, style=nb("black"))
+    if tipped:
+        _turn_faces(b, first, (x, y, z), (rng or random).uniform(0, 180), True)
+    b.group = None
+
+
+def dress_grocery_outside(ctx):
+    b = ctx.b
+    look = GROCERY_LOOKS[GROCERY_LOOK]
+    fp = GROCERY_FP
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def along_wall(side, y0, y1, d, mat, out=0.0, cut=True, tile=2.0, a_lim=None):
+        ns = side in "NS"
+        sg = 1 if side in "SE" else -1
+        at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * (0.15 + d / 2 + out)
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a_lim or (a0 - 0.15 - d - out, a1 + 0.15 + d + out)
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if cut and o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        for s0, s1 in segs:
+            if s1 - s0 < 0.02:
+                continue
+            m = (s0 + s1) / 2
+            c = (m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m)
+            b.box(c, (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0),
+                  style=no_bottom(mat, tile) if y0 < 0.05 else st(mat, tile))
+
+    for side in "NSWE":   # (the W/E bands stop where the N/S ones cover the corners: no overlap to flicker)
+        ew = side in "WE"
+        along_wall(side, 0.0, 0.45, 0.08, look["plinth"], a_lim=(fp[1] - 0.15, fp[3] + 0.15) if ew else None)
+        along_wall(side, 3.95, 4.07, 0.3, look["trim"], out=-0.25, cut=False,
+                   a_lim=(fp[1] - 0.15 + 0.25, fp[3] + 0.15 - 0.25) if ew else None)     # the parapet's coping
+    for o in opens:
+        if o["kind"] == "glass_front":
+            groc_glass_front(ctx, o)
+        elif o["kind"] == "dock":
+            groc_dock(ctx, o)
+        elif o["kind"] == "window":
+            ns = o["side"] in "NS"
+            sg = 1 if o["side"] in "SE" else -1
+            at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[o["side"]] + sg * 0.18
+            c = (o["mid"], o["hi"] + 0.1, at) if ns else (at, o["hi"] + 0.1, o["mid"])
+            b.box(c, (o["w"] + 0.3, 0.2, 0.06) if ns else (0.06, 0.2, o["w"] + 0.3), style=st(look["trim"]))
+    # ---- The front: a fascia band over the glass, the name lightbox over the entrance standing up past the parapet,
+    # (look B) a red and white striped awning.
+    zf = fp[3] + 0.15
+    b.box((0, 2.95, zf + 0.12), (24.6, 0.8, 0.24), style=st(look["fascia"], 2.0))
+    b.box((0, 2.53, zf + 0.12), (24.6, 0.04, 0.26), style=st("trim_dark"))
+    b.box((0, 3.75, zf + 0.2), (7.2, 1.3, 0.3), style=st("trim_dark"))
+    b.box((0, 3.75, zf + 0.36), (7.0, 1.1, 0.04), style=face_decal(ctx.d("name"), "trim_dark", "+z"))
+    if look["awning"]:
+        for k in range(48):                                  # 0.5 m stripes, sloping 1.2 m out and down
+            x = -12.0 + 0.25 + k * 0.5
+            b.box((x, 2.3, zf + 0.6), (0.5, 0.04, 1.3), pitch=-20, style=st("red" if k % 2 else "bone"))
+            b.box((x, 2.03, zf + 1.22), (0.5, 0.22, 0.03), style=st("red" if k % 2 else "bone"))
+        for x in (-11.9, 11.9):
+            _beam(b, (x, 2.55, zf), (x, 2.08, zf + 1.2), 0.04, 0.04, "trim_dark")
+    # Security cameras on the front and back corners (owner, police round 4: a few on the outside).
+    for x, z, dx, dz in ((-11.45, 10.17, 0.6, 1.0), (11.45, 10.17, -0.6, 1.0),
+                         (-12.17, -5.5, -1.0, -0.6), (11.45, -10.17, -0.6, -1.0)):
+        security_camera(b, (x, 2.4, z), dx, dz)
+    # Roof: vents and a dish (small, picture only: the roof is a lookout).
+    for x, z in ((-6.0, 2.0), (6.0, 4.0), (0.0, -2.0)):
+        b.box((x, 3.15, z), (0.5, 0.3, 0.5), style=no_bottom("steel_light", 1.0))
+        b.box((x, 3.33, z), (0.6, 0.06, 0.6), style=no_bottom("trim", 1.0))
+
+
+# ---- grocery props
+def prop_groc_gondola(ctx, c, s):
+    """An aisle: double-sided shelving along z, its stock by aisle (looted, the back halves near empty)."""
+    aisle = 0 if c[0] < -4 else 1 if c[0] < 4 else 2
+    kind = ("pantry", "cereal", "household")[aisle]
+    back = c[2] < 0
+    # End caps facing the cross aisle and (front aisles) the checkouts: a short shelf across each end, stocked.
+    ends = (1,) if back else (-1, 1)
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    cz0, cz1 = z0 + (0.42 if -1 in ends else 0.0), z1 - (0.42 if 1 in ends else 0.0)
+    shelving(ctx, (c[0], c[1], (cz0 + cz1) / 2), (s[0], s[1], cz1 - cz0), "z", (1, -1), kind, levels=4,
+             frame="steel_light", lip="red", fill=0.3 if back else 0.5, seed=aisle, top_stock=not back)
+    for e in ends:
+        ez = (z1 - 0.21) if e > 0 else (z0 + 0.21)
+        shelving(ctx, (c[0], c[1] - 0.15, ez), (s[0], s[1] - 0.3, 0.42), "x", (e,), ("cereal", "pantry", "snacks")[aisle],
+                 levels=3, frame="steel_light", lip="yellow", fill=0.45, seed=aisle + 7 * e)
+    b = ctx.b
+    if not back:   # the aisle sign hanging over the south end, a price card on the end
+        z = c[2] - s[2] / 2 + 0.6
+        for sx in (-0.7, 0.7):
+            b.box((c[0] + sx, 2.62, z), (0.01, 0.26, 0.01), style=no_bottom("trim_dark", 1.0))
+        b.box((c[0], 2.3, z), (1.8, 0.5, 0.02), style=lambda n, m, q: ("decals", ctx.d("aisle%d" % (aisle + 1)))
+              if abs(n[2]) > 0.7 else ("red", uv_world(1.0)))
+        b.box((c[0], 1.55, c[2] + s[2] / 2 - 0.21), (0.4, 0.27, 0.02), style=face_decal(ctx.d("price"), "yellow", "+z"))
+        b.box((c[0], 1.405, c[2] + s[2] / 2 - 0.21), (0.03, 0.03, 0.03), style=no_bottom("trim_dark", 1.0))
+
+
+def prop_wall_fridge(ctx, c, s):
+    """A run of glass-door fridges along a side wall (along z): the cabinet, doors 0.75 m wide in alu frames (some
+    open, some smashed), shelves of drinks or milk inside, a department board over it."""
+    b, rng = ctx.b, random.Random(f"fridge{c}")
+    f = 1 if _front_into(c, 0) == "+x" else -1
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    xf, xb = (x1, x0) if f > 0 else (x0, x1)
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    kind = "dairy" if c[0] < 0 else "drinks"
+    st = lambda mat: (lambda n, m, q: (mat, uv_world(1.0)))
+    b.box(((x0 + x1) / 2, y1 - 0.12, c[2]), (s[0] - 0.01, 0.24, s[2] - 0.02), style=no_bottom("bone", 1.0))   # header
+    b.box(((x0 + x1) / 2, y0 + 0.1, c[2]), (s[0] - 0.01, 0.2, s[2] - 0.02), style=no_bottom("trim_dark", 1.0))  # base
+    for z in (z0 + 0.02, z1 - 0.02):
+        b.box(((x0 + x1) / 2, (y0 + y1) / 2 - 0.005, z), (s[0], s[1] - 0.01, 0.04), style=st("bone"))      # ends
+    b.box((xb + f * 0.03, (y0 + y1) / 2, c[2]), (0.04, s[1] - 0.4, s[2] - 0.08), style=st("steel_light"))  # back
+    for k in range(4):
+        y = y0 + 0.3 + k * 0.36
+        b.box(((x0 + x1) / 2 - f * 0.05, y, c[2]), (s[0] - 0.15, 0.02, s[2] - 0.08), style=no_bottom("steel_light", 1.0))
+        stock_run(ctx, z0 + 0.06, z1 - 0.06, y + 0.01, (x0 + x1) / 2 - f * 0.05, "z", kind, rng, fill=0.35)
+    n = max(1, round(s[2] / 0.75))
+    dw = s[2] / n
+    for k in range(n):
+        za, zb = z0 + k * dw, z0 + (k + 1) * dw
+        fate = rng.random()
+        if fate < 0.25:                                     # door hanging open
+            hx, hz = xf + f * 0.03, za + 0.03
+            _beam(b, (hx, y0 + 0.25, hz), (hx + f * dw * 0.7, y0 + 0.25, hz + dw * 0.7), 0.04, 0.04, "trim")
+            b.box((hx + f * dw * 0.35, (y0 + y1) / 2 - 0.05, hz + dw * 0.35), (0.04, s[1] - 0.5, dw - 0.05),
+                  yaw=45 * f, style=st("trim"))
+            continue
+        for zz in (za + 0.03, zb - 0.03):
+            b.box((xf, (y0 + y1) / 2 - 0.02, zz), (0.05, s[1] - 0.44, 0.05), style=st("trim"))
+        for yy in (y0 + 0.22, y1 - 0.26):
+            b.box((xf, yy, (za + zb) / 2), (0.05, 0.05, dw - 0.05), style=st("trim"))
+        b.box((xf + f * 0.04, (y0 + y1) / 2, za + 0.12), (0.03, 0.5, 0.03), style=st("black"))           # handle
+        if fate < 0.6:
+            b.poly([(xf, y0 + 0.25, za + 0.05), (xf, y0 + 0.25, zb - 0.05), (xf, y1 - 0.29, zb - 0.05),
+                    (xf, y1 - 0.29, za + 0.05)], (f, 0, 0), "glass", uv_world(1.0))
+        else:
+            shards(ctx, za + 0.05, zb - 0.05, y0 + 0.25, y1 - 0.29, xf, "z", rng)
+    hx = xf + f * 0.02
+    b.box((hx - f * 0.2, y1 + 0.3, c[2]), (0.04, 0.45, 2.4), style=face_decal(ctx.d("h_" + kind), "groc_green",
+                                                                             "+x" if f > 0 else "-x"))
+
+
+def prop_deli_case(ctx, c, s):
+    """The deli's glass counter (along x, customers on the south): steel base, a sloped glass front, trays of
+    spoiled meat and cheese, the scale and a ticket dispenser on top; DELI and BAKERY boards."""
+    b, rng = ctx.b, random.Random("deli")
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    y0 = c[1] - s[1] / 2
+    st = lambda mat: (lambda n, m, q: (mat, uv_world(1.0)))
+    b.box((c[0], y0 + 0.4, c[2]), (s[0], 0.8, s[2]), style=lambda n, m, q: None if n[1] < -0.7 else
+          (("steel_light" if n[1] > 0.7 else "bone"), uv_world(1.0)))
+    b.box((c[0], y0 + 0.1, z1 + 0.005), (s[0], 0.2, 0.01), style=st("trim_dark"))
+    for x in (x0 + 0.03, x1 - 0.03):
+        b.box((x, y0 + 0.97, c[2]), (0.04, 0.34, s[2] - 0.1), style=st("trim"))
+    b.box((c[0], y0 + 1.13, c[2] - 0.1), (s[0], 0.03, s[2] - 0.3), style=st("trim"))                   # top
+    b.poly([(x0 + 0.05, y0 + 0.8, z1 - 0.03), (x1 - 0.05, y0 + 0.8, z1 - 0.03), (x1 - 0.05, y0 + 1.12, z1 - 0.25),
+            (x0 + 0.05, y0 + 1.12, z1 - 0.25)], (0, 0.55, 0.83), "glass", uv_world(1.0))
+    for k in range(5):                                                                                  # trays
+        tx = x0 + 0.25 + k * 0.38
+        b.box((tx, y0 + 0.82, c[2]), (0.32, 0.03, 0.4), style=no_bottom("bone", 1.0))
+        for _ in range(rng.randint(0, 3)):
+            b.box((tx + rng.uniform(-0.1, 0.1), y0 + 0.86, c[2] + rng.uniform(-0.12, 0.12)), (0.1, 0.05, 0.08),
+                  yaw=rng.uniform(0, 90), style=no_bottom(rng.choice(("red", "wine", "yellow", "olive")), 1.0))
+    b.box((x1 - 0.3, y0 + 1.2, c[2] - 0.1), (0.25, 0.12, 0.25), style=no_bottom("bone", 1.0))           # scale
+    b.box((x1 - 0.3, y0 + 1.32, c[2] - 0.2), (0.2, 0.12, 0.03), style=no_bottom("black", 1.0))
+    b.box((x0 + 0.15, y0 + 1.4, c[2]), (0.12, 0.25, 0.12), style=no_bottom("red", 1.0))                 # tickets
+    for sx in (-0.8, 0.8):                                                                              # DELI board
+        b.box((c[0] + sx, 2.6, c[2] - 0.2), (0.01, 0.3, 0.01), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], 2.25, c[2] - 0.2), (2.4, 0.45, 0.03), style=lambda n, m, q: ("decals", ctx.d("h_deli"))
+          if abs(n[2]) > 0.7 else ("groc_green", uv_world(1.0)))
+
+
+def prop_deli_back(ctx, c, s):
+    """The deli's back counter on the back wall: cupboards, a steel top, the meat slicer, a bread rack beside it."""
+    b = ctx.b
+    st = lambda mat: (lambda n, m, q: (mat, uv_world(1.0)))
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], y0 + (s[1] - 0.04) / 2, c[2]), (s[0], s[1] - 0.04, s[2]), style=no_bottom("bone", 1.0))
+    b.box((c[0], top - 0.02, c[2]), (s[0] + 0.02, 0.04, s[2] + 0.02), style=no_bottom("steel_light", 1.0))
+    fz = c[2] + s[2] / 2
+    for k in range(2):
+        b.box((c[0] - s[0] / 4 + k * s[0] / 2, y0 + 0.45, fz + 0.005), (s[0] / 2 - 0.06, 0.7, 0.01), style=st("trim"))
+    b.box((c[0] - 0.1, top + 0.08, c[2]), (0.35, 0.14, 0.3), style=no_bottom("steel_light", 1.0))       # slicer
+    b.box((c[0] - 0.1, top + 0.22, c[2] + 0.02), (0.3, 0.3, 0.03), yaw=90, pitch=10, style=no_bottom("steel_light", 1.0))
+    b.box((c[0] + 0.35, top + 0.04, c[2]), (0.3, 0.06, 0.3), style=no_bottom("wood", 1.0))              # board
+    wall_quad(b, (0, 0, 1), -5.48, -11.75, -9.95, 1.6, 1.95, "decals", ctx.d("h_bakery"))
+
+
+def prop_chest_freezer(ctx, c, s):
+    """A chest freezer (along x): white body, steel rim, two sliding glass lids (one shoved open, one smashed),
+    frozen boxes inside, a FROZEN card on a stand."""
+    b, rng = ctx.b, random.Random(f"freezer{c}")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    b.box((c[0], y0 + (s[1] - 0.05) / 2, c[2]), (s[0], s[1] - 0.05, s[2]), style=lambda n, m, q: None if n[1] < -0.7
+          else ("bone", uv_world(1.0)) if n[1] < 0.7 else None)
+    for z in (c[2] - s[2] / 2 + 0.03, c[2] + s[2] / 2 - 0.03):
+        b.box((c[0], top - 0.025, z), (s[0], 0.05, 0.06), style=no_bottom("steel_light", 1.0))
+    for x in (x0 + 0.03, x1 - 0.03):
+        b.box((x, top - 0.025, c[2]), (0.06, 0.05, s[2]), style=no_bottom("steel_light", 1.0))
+    b.box((c[0], top - 0.4, c[2]), (s[0] - 0.1, 0.02, s[2] - 0.1), style=no_bottom("blue", 1.0))         # inside
+    for k in range(14):
+        b.box((rng.uniform(x0 + 0.2, x1 - 0.2), top - 0.35 + k * 0.004, rng.uniform(c[2] - 0.3, c[2] + 0.3)), (0.22, 0.08, 0.16),
+              yaw=rng.uniform(0, 90), style=no_bottom(rng.choice(("bone", "blue", "red", "yellow")), 1.0))
+    b.poly([(x0 + 0.06, top - 0.01, c[2] - s[2] / 2 + 0.06), (c[0] + 0.3, top - 0.01, c[2] - s[2] / 2 + 0.06),
+            (c[0] + 0.3, top - 0.01, c[2] + s[2] / 2 - 0.06), (x0 + 0.06, top - 0.01, c[2] + s[2] / 2 - 0.06)],
+           (0, 1, 0), "glass", uv_world(1.0))
+    b.box((c[0], top + 0.25, c[2]), (0.02, 0.5, 0.02), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], top + 0.55, c[2]), (1.2, 0.22, 0.02), style=lambda n, m, q: ("decals", ctx.d("h_frozen"))
+          if abs(n[2]) > 0.7 else ("groc_green", uv_world(1.0)))
+
+
+def prop_checkout(ctx, c, s):
+    """A checkout (along z, the cashier on the west, the customer on the east): the counter with a black belt, the
+    till at the south end, a candy rack at the north end, the lane light on its pole."""
+    b, rng = ctx.b, random.Random(f"checkout{c}")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    st = lambda mat: (lambda n, m, q: (mat, uv_world(1.0)))
+    b.box((c[0], y0 + (s[1] - 0.04) / 2, c[2] + 0.2), (s[0], s[1] - 0.04, s[2] - 0.4), style=no_bottom("bone", 1.0))
+    b.box((c[0], y0 + 0.06, c[2] + 0.2), (s[0] + 0.01, 0.12, s[2] - 0.39), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], top - 0.02, c[2] - 0.1), (s[0] - 0.12, 0.04, s[2] - 0.9), style=no_bottom("black", 1.0))    # belt
+    b.box((c[0], top - 0.02, z1 - 0.25), (s[0], 0.04, 0.5), style=no_bottom("steel_light", 1.0))            # bagging
+    cash_register(b, c[0] - 0.12, top, z1 - 0.65, 1)
+    shelving(ctx, (c[0], y0 + 0.65, z0 + 0.2), (s[0], 1.3, 0.4), "x", (-1,), "snacks", levels=3, frame="trim",
+             lip="yellow", fill=0.45, seed=int(c[0] * 10))
+    n = 1 + [-6.7, -4.6, -2.5].index(min([-6.7, -4.6, -2.5], key=lambda v: abs(v - c[0])))
+    b.box((c[0] - s[0] / 2 + 0.05, top + 0.55, z1 - 0.2), (0.05, 1.1, 0.05), style=no_bottom("trim", 1.0))
+    b.box((c[0] - s[0] / 2 + 0.05, top + 1.2, z1 - 0.2), (0.3, 0.3, 0.3),
+          style=lambda nn, m, q: ("decals", ctx.d("lane%d" % n)) if abs(nn[2]) > 0.7 or abs(nn[0]) > 0.7
+          else ("trim_dark", uv_world(1.0)))
+    for _ in range(rng.randint(1, 3)):                                                    # dropped shopping
+        maker, cols = rng.choice(STOCK["pantry"])
+        _place(maker, b, (c[0] + rng.uniform(0.5, 0.9), y0, rng.uniform(z0, z1)), "x", rng, rng.choice(cols), lying=True)
+
+
+def prop_produce_stand(ctx, c, s):
+    """A produce stand: a wooden base and two sloping bins of fruit and veg (mostly gone, the rest gone off)."""
+    b, rng = ctx.b, random.Random(f"produce{c}")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.3, c[2]), (s[0], 0.6, s[2]), style=no_bottom("wood", 1.0))
+    for sz in (-1, 1):
+        zc = c[2] + sz * s[2] / 4
+        b.box((c[0], y0 + 0.66, zc), (s[0] - 0.04, 0.04, s[2] / 2 - 0.04), pitch=-sz * 12, style=no_bottom("wood_light", 1.0))
+        for _ in range(rng.randint(8, 16)):
+            col = rng.choice(("green", "red", "yellow", "olive", "olive_dark", "wood_dark"))
+            b.box((c[0] + rng.uniform(-s[0] / 2 + 0.1, s[0] / 2 - 0.1), y0 + 0.73, zc + rng.uniform(-0.2, 0.2)),
+                  (0.08, 0.08, 0.08), yaw=rng.uniform(0, 90), style=no_bottom(col, 1.0))
+    b.box((c[0], y0 + 0.95, c[2]), (0.02, 0.6, 0.02), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 1.3, c[2]), (1.2, 0.22, 0.02), style=lambda n, m, q: ("decals", ctx.d("h_produce"))
+          if abs(n[2]) > 0.7 else ("groc_green", uv_world(1.0)))
+
+
+def prop_pallet_rack(ctx, c, s):
+    """Pallet racking along the stock room's north wall: blue uprights, orange beams, pallets of boxes on two levels
+    and the floor, gaps where they were emptied."""
+    b, rng = ctx.b, random.Random(f"rack{c}")
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    y0 = c[1] - s[1] / 2
+    st = lambda mat: (lambda n, m, q: (mat, uv_world(1.0)))
+    bays = max(1, round(s[0] / 1.4))
+    for k in range(bays + 1):
+        x = x0 + 0.04 + (s[0] - 0.08) * k / bays
+        for z in (z0 + 0.04, z1 - 0.04):
+            b.box((x, y0 + s[1] / 2, z), (0.08, s[1], 0.08), style=no_bottom("blue", 1.0))
+    for y in (1.1, 2.2):
+        for z in (z0 + 0.04, z1 - 0.04):
+            b.box((c[0], y0 + y, z), (s[0], 0.1, 0.06), style=st("red"))
+    for k in range(bays):
+        bx = x0 + (k + 0.5) * s[0] / bays
+        for y in (0.0, 1.15, 2.25):         # (the top level stays under the 2.75 m ceiling)
+            if rng.random() < 0.3:
+                continue
+            b.box((bx, y0 + y + 0.07, c[2]), (1.1, 0.14, 0.9), style=no_bottom("wood_light", 1.0))
+            h = rng.choice((0.3, 0.5, 0.7)) if y < 2 else 0.25
+            for i in range(2):
+                for j in range(2):
+                    if rng.random() < 0.25:
+                        continue
+                    b.box((bx - 0.26 + i * 0.52, y0 + y + 0.14 + h / 2, c[2] - 0.2 + j * 0.4), (0.48, h, 0.38),
+                          yaw=rng.uniform(-4, 4), style=no_bottom("carton", 1.0))
+
+
+def prop_pallet_load(ctx, c, s):
+    """A pallet of boxes left in the stock room, its plastic wrap cut open."""
+    b, rng = ctx.b, random.Random("load")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.07, c[2]), (s[0], 0.14, s[2]), style=no_bottom("wood_light", 1.0))
+    for i in range(2):
+        for j in range(2):
+            for k in range(3 if i + j < 2 else 2):
+                b.box((c[0] - 0.28 + i * 0.56, y0 + 0.14 + 0.15 + k * 0.3, c[2] - 0.28 + j * 0.56), (0.52, 0.28, 0.52),
+                      yaw=rng.uniform(-3, 3), style=no_bottom("carton", 1.0))
+    b.poly([(c[0] - 0.6, y0 + 0.2, c[2] + 0.61), (c[0] + 0.6, y0 + 0.2, c[2] + 0.61), (c[0] + 0.6, y0 + 0.7, c[2] + 0.61),
+            (c[0] - 0.6, y0 + 0.9, c[2] + 0.61)], (0, 0, 1), "glass", uv_world(1.0))
+    b.box((c[0] + 0.9, y0 + 0.15, c[2] + 0.3), (0.5, 0.3, 0.5), yaw=30, pitch=80, style=no_bottom("carton", 1.0))
+
+
+def prop_pallet_jack(ctx, c, s):
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for sx in (-0.25, 0.25):
+        b.box((c[0] + sx, y0 + 0.05, c[2]), (0.16, 0.08, s[2] - 0.1), style=no_bottom("red", 1.0))
+    b.box((c[0], y0 + 0.2, c[2] - s[2] / 2 + 0.1), (0.6, 0.35, 0.2), style=no_bottom("red", 1.0))
+    _beam(b, (c[0], y0 + 0.35, c[2] - s[2] / 2 + 0.1), (c[0], y0 + 1.1, c[2] - s[2] / 2 - 0.25), 0.05, 0.05, "black")
+    b.box((c[0], y0 + 1.12, c[2] - s[2] / 2 - 0.27), (0.35, 0.05, 0.05), style=no_bottom("black", 1.0))
+
+
+def prop_manager_desk_g(ctx, c, s):
+    """The manager's desk against the office's east wall (along z, sitting on the west side): the CCTV monitor
+    showing snow, a phone, papers, the chair."""
+    b, rng = ctx.b, random.Random("mgr")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.02, c[2]), (s[0], 0.04, s[2]), style=lambda n, m, q: ("wood", uv_world(1.0)) if n[1] > 0.7
+          else ("trim_dark", uv_world(1.0)))
+    for sz in (-1, 1):
+        b.box((c[0], y0 + (s[1] - 0.04) / 2, c[2] + sz * (s[2] / 2 - 0.04)), (s[0] - 0.08, s[1] - 0.04, 0.04),
+              style=no_bottom("wood_dark", 1.0))
+    b.box((c[0] + s[0] / 2 - 0.04, y0 + s[1] * 0.55, c[2]), (0.02, s[1] * 0.6, s[2] - 0.1), style=no_bottom("wood_dark", 1.0))
+    mx = c[0] + 0.15
+    b.box((mx, top + 0.18, c[2] - 0.3), (0.36, 0.32, 0.42), style=no_bottom("trim_dark", 1.0))          # CRT monitor
+    b.box((mx - 0.181, top + 0.2, c[2] - 0.3), (0.002, 0.24, 0.34), style=lambda n, m, q: ("decals", ctx.d("cctv")))
+    b.box((mx, top + 0.05, c[2] + 0.4), (0.18, 0.08, 0.22), style=no_bottom("black", 1.0))              # phone
+    papers(b, rng, c[0] - 0.3, c[0] + 0.2, c[2] + 0.1, c[2] + 0.7, top + 0.001, 6)
+    chair(b, c[0] - 0.85, y0, c[2] - 0.1, -90, seat="black", office=True)
+
+
+def prop_cart_corral(ctx, c, s):
+    """The cart corral in the car park: steel tube rails and a hoop at one end, carts nested inside."""
+    b = ctx.b
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    y0 = c[1] - s[1] / 2
+    for x in (x0 + 0.04, x1 - 0.04):
+        for y in (0.45, 0.95):
+            b.box((x, y0 + y, c[2]), (0.06, 0.06, s[2]), style=no_bottom("steel_light", 1.0))
+        for z in (z0 + 0.04, z1 - 0.04):
+            b.box((x, y0 + 0.5, z), (0.06, 1.0, 0.06), style=no_bottom("steel_light", 1.0))
+    b.box((c[0], y0 + 0.95, z1 - 0.04), (s[0], 0.06, 0.06), style=no_bottom("steel_light", 1.0))
+    for k in range(3):
+        shopping_cart(b, c[0] + k * 0.004, y0 + k * 0.012, z0 + 0.6 + k * 0.32, 180.0)
+
+
+def prop_ice_g(ctx, c, s):
+    """The ice chest by the door (front faces the street): ICE on the lid's front, the lid and the drain."""
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("decals", ctx.d("ice")) if n[2] > 0.7
+          else ("bone", uv_world(1.0)))
+    b.box((c[0], c[1] + s[1] / 2 + 0.02, c[2]), (s[0] + 0.04, 0.04, s[2] + 0.04), style=no_bottom("blue", 1.0))
+    b.box((c[0] + s[0] / 2 - 0.15, c[1] - s[1] / 2 + 0.1, c[2] + s[2] / 2 + 0.02), (0.06, 0.06, 0.06), style=no_bottom("trim_dark", 1.0))
+
+
+def prop_news_box(ctx, c, s):
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * 0.18, y0 + 0.2, c[2] + sz * 0.18), (0.03, 0.4, 0.03), style=no_bottom("trim_dark", 1.0))
+    b.box((c[0], y0 + 0.75, c[2]), (s[0], 0.7, s[2]), style=no_bottom("blue", 1.0))
+    b.box((c[0], y0 + 0.85, c[2] + s[2] / 2 + 0.005), (0.4, 0.3, 0.01), style=lambda n, m, q: ("decals", ctx.d("news")))
+    b.box((c[0] + 0.12, y0 + 1.03, c[2] + s[2] / 2 + 0.01), (0.06, 0.03, 0.02), style=no_bottom("steel_light", 1.0))
+
+
+def prop_dumpster(ctx, c, s):
+    """A dumpster (along z) by the loading door: green steel bin, one lid up, castors, bin bags beside it."""
+    b, rng = ctx.b, random.Random(f"dump{c}")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], y0 + 0.15 + (s[1] - 0.25) / 2, c[2]), (s[0], s[1] - 0.25, s[2]), style=no_bottom("groc_green", 1.0))
+    b.box((c[0], y0 + 0.6, c[2]), (s[0] + 0.06, 0.08, s[2] + 0.06), style=no_bottom("groc_green", 1.0))
+    for sz in (-1, 1):
+        for sx in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.15), y0 + 0.07, c[2] + sz * (s[2] / 2 - 0.15)), (0.1, 0.14, 0.1),
+                  style=no_bottom("black", 1.0))
+    b.box((c[0], top + 0.02, c[2] - s[2] / 4), (s[0] + 0.04, 0.04, s[2] / 2), style=no_bottom("black", 1.0))
+    b.box((c[0] - s[0] / 2 + 0.1, top + 0.4, c[2] + s[2] / 4), (0.04, 0.8, s[2] / 2), yaw=0, pitch=0,
+          style=lambda n, m, q: ("black", uv_world(1.0)))
+    for k in range(2):                                                                  # bin bags at its end
+        hb = 0.36 + k * 0.05
+        b.box((c[0] + rng.uniform(-0.4, 0.4), y0 + hb / 2, c[2] + s[2] / 2 + 0.35), (0.45, hb, 0.4), yaw=rng.uniform(0, 90),
+              style=no_bottom("black", 1.0))
+
+
+GROC_PROPS = {
+    "groc_gondola": prop_groc_gondola, "wall_fridge": prop_wall_fridge, "deli_case": prop_deli_case,
+    "deli_back": prop_deli_back, "chest_freezer": prop_chest_freezer, "checkout": prop_checkout,
+    "produce_stand": prop_produce_stand, "pallet_rack": prop_pallet_rack, "pallet_load": prop_pallet_load,
+    "pallet_jack": prop_pallet_jack, "manager_desk_g": prop_manager_desk_g, "cart_corral": prop_cart_corral,
+    "news_box": prop_news_box, "dumpster": prop_dumpster,
+}
+for _k, _f in GROC_PROPS.items():
+    PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
+_ICE_DEFAULT = PROPS["ice_chest"]
+PROPS["ice_chest"] = lambda ctx, c, s, k: (prop_ice_g(ctx, c, s) if BUILDING_NAME[0] == "grocery"
+                                           else _ICE_DEFAULT(ctx, c, s, k))
+
+
+def groc_room(m):
+    """Which part of the store a point is in: sales floor, stock room, office or staff area."""
+    if m[2] > GROC_BACK:
+        return "floor"
+    return "stock" if m[0] < -1.5 else "office" if m[0] < 3.0 else "staff"
+
+
+GROC_ROOMS = {"floor": ("groc_int", "groc_floor"), "stock": ("int_wall", "concrete"),
+              "office": ("int_office", "floor_lino"), "staff": ("int_wall", "floor_lino")}
+
+
+def dress_grocery(ctx):
+    dress_grocery_outside(ctx)
+    b, rng = ctx.b, random.Random("grocery dress")
+    wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
+    # Over the doors to the back: STAFF ONLY; the welcome banner inside over the entrance; a clock; the staff board.
+    for x in (-6.0, 0.75, 7.0):
+        wq((0, 0, 1), GROC_BACK + 0.101, x - 0.6, x + 0.6, 2.45, 2.7, "staff")
+    wq((0, 0, -1), 9.84, 1.5, -1.5, 2.5, 2.72, "deals")
+    wq((0, 0, 1), GROC_BACK + 0.101, 3.6, 4.0, 2.0, 2.4, "clock")
+    wq((0, 0, -1), GROC_BACK - 0.101, 5.6, 4.6, 1.3, 2.0, "notice")
+    wq((0, 0, 1), -9.84, -1.0, -0.6, 1.8, 2.2, "clock")                  # office
+    wq((-1, 0, 0), 2.89, -7.8, -8.3, 1.3, 2.0, "calendar")               # office, over the desk
+    wq((0, 0, 1), GROC_BACK + 0.101, -3.5, -2.5, 1.4, 2.2, "p_two")      # sales floor: posters on the back wall
+    wq((0, 0, 1), GROC_BACK + 0.101, 8.6, 9.6, 1.4, 2.2, "p_fresh")
+    # Strip lights under the ceiling over the sales floor (a few hanging off one end, a few down on the floor).
+    for x in (-10.0, -4.0, 2.0, 8.0):
+        for z in (-4.5, -1.0, 2.5, 6.0, 9.0):
+            fate = rng.random()
+            if fate < 0.12:
+                b.box((x + rng.uniform(-1, 1), 0.03, z + rng.uniform(-0.6, 0.6)), (1.2, 0.05, 0.15), yaw=rng.uniform(0, 90),
+                      style=no_bottom("bone", 1.0))
+            elif fate < 0.3:
+                b.box((x - 0.35, 2.45, z), (1.2, 0.05, 0.15), pitch=0, yaw=0, style=no_bottom("bone", 1.0))
+                _beam(b, (x + 0.25, 2.74, z), (x + 0.25, 2.47, z), 0.01, 0.01, "trim_dark")
+            else:
+                b.box((x, 2.72, z), (1.2, 0.05, 0.15), style=lambda n, m, q: ("bone", uv_world(1.0)))
+    # Ransacked: stock all over the floor of the aisles and by the checkouts; baskets and carts knocked about.
+    for _ in range(60):
+        x, z = rng.uniform(-11.0, 11.0), rng.uniform(-4.8, 9.3)
+        if any(abs(x - ax - 0.45) < 0.6 and lo - 0.1 < z < hi + 0.1 for ax in (-8.0, 0.0, 8.0) for lo, hi in ((2.0, 7.0), (-3.3, -2.0))):
+            continue
+        maker, cols = rng.choice(STOCK[rng.choice(("pantry", "cereal", "household", "dairy"))])
+        _place(maker, b, (x, 0.0, z), "x", rng, rng.choice(cols), lying=True)
+    for x, z, yaw, tipped in ((1.8, 8.6, 30, False), (-1.6, 5.0, 100, True), (10.0, 8.2, 200, False), (-10.6, 8.9, 250, True)):
+        shopping_cart(b, x, 0.0, z, yaw, tipped, rng)
+    for x, z in ((2.4, 9.3), (2.9, 9.35), (-7.5, 0.8)):                   # baskets
+        b.box((x, 0.12, z), (0.42, 0.24, 0.3), yaw=rng.uniform(0, 90), style=no_bottom("red", 1.0))
+    # Security cameras inside: the sales floor's corners, over the checkouts, the stock room.
+    for at, dx, dz in (((-11.65, 2.5, 9.65), 1.0, -1.0), ((11.65, 2.5, 9.65), -1.0, -1.0),
+                       ((-11.65, 2.5, -5.3), 1.0, 1.0), ((-4.6, 2.5, 9.65), 0.0, -1.0), ((-11.65, 2.5, -9.65), 1.0, 1.0)):
+        security_camera(b, at, dx, dz)
+    # Outside: carts left in the car park and by the door.
+    for x, z, yaw, tipped in ((14.2, 3.0, 70, False), (13.6, -1.0, 150, True), (-2.0, 11.8, 20, False)):
+        shopping_cart(b, x, 0.0, z, yaw, tipped, rng)
+
+
+DECALS["grocery"] = grocery_decals
+DRESSING["grocery"] = dress_grocery
+FOOTPRINTS["grocery"] = GROCERY_FP
+LOCKER_PAINT["grocery"] = "groc_locker"
+SHELLS["grocery"] = {
+    "ext": GROCERY_LOOKS[GROCERY_LOOK]["ext"], "roof_side": GROCERY_LOOKS[GROCERY_LOOK]["ext"],
+    "x_lines": (-12.0, -1.5, 3.0, 12.0), "z_lines": (-10.0, -7.55, GROC_BACK, 10.0),
+    "inner": lambda m: GROC_ROOMS[groc_room(m)][0], "floor": lambda m: GROC_ROOMS[groc_room(m)][1],
+    "x_splits": (-1.5, 3.0), "z_splits": (GROC_BACK,),
+}
+FACTION_MARKS["grocery"] = [("x1_stencil", "W", 3.0, 1.0), ("nova_tag", "N", -6.0, 1.1)]
 
 
 def floor_debris(ctx, data, name):
