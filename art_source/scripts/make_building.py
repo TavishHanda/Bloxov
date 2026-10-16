@@ -1109,6 +1109,8 @@ def shell_box(ctx, row):
     if BUILDING_NAME[0] == "th_vault":
         vault_shell(ctx, row)
         return
+    if cfg.get("row_hook") and cfg["row_hook"](ctx, row):
+        return      # (the graveyard draws its fence pieces as the churchyard wall)
     if colour == "slab" and (row["yaw"] or row["pitch"]):
         # A tilted piece of floor (caved-in debris): the floor of the room it lies in on top, broken concrete round
         # it (round 8: it drew an unturned floor patch floating beside it).
@@ -1161,7 +1163,7 @@ def shell_box(ctx, row):
                     b.poly([(a, yb, za), (e, yb, za), (e, yb, ze), (a, yb, ze)], (0, -1, 0), ceiling(mid), uv_world())
     elif colour == "wood" and abs(row["pitch"]) > 10:
         stairs(ctx, c, s, row["yaw"], row["pitch"])
-    elif colour == "metal" and BUILDING_NAME[0] in HOUSES and 0.9 < s[1] < 1.1:
+    elif colour == "metal" and (BUILDING_NAME[0] in HOUSES or BUILDING_NAME[0] == "bell_tower") and 0.9 < s[1] < 1.1:
         banister(b, c, s)
     elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank", "police", "grocery") and 0.9 < s[1] < 1.1:
         banister(b, c, s, rail="trim_dark", baluster="steel_light")   # a steel stairwell rail (owner: not a wall)
@@ -1676,10 +1678,15 @@ def shards(ctx, x0, x1, y0, y1, z, axis, rng):
 ENTRANCE_DOOR = {"school": "wood"}                # what the front doors are made of (else an aluminium shop door)
 
 
+OWN_OPENINGS = set()     # buildings that dress their own windows and doors (the bell tower: stone arches)
+
+
 def dress_openings(ctx, openings):
     b = ctx.b
     for o in openings:
         kind, side, at, mid, w, lo, hi = o["kind"], o["side"], o["at"], o["mid"], o["w"], o["lo"], o["hi"]
+        if BUILDING_NAME[0] in OWN_OPENINGS and kind in ("window", "door"):
+            continue
         if kind == "blast":
             pass
         rng = random.Random(f"{BUILDING_NAME[0]}{side}{mid}{lo}")
@@ -11817,23 +11824,32 @@ def ch_look(key):
     return CHURCH_LOOKS[CHURCH_LOOK][key]
 
 
+def _ch_glass(cols):
+    def p(c):         # one 0.3 m cell of stained glass: a diamond in a border, lead lines
+        c.rect(0, 0, c.w, c.h, cols[0])
+        m = c.w // 2
+        for y in range(c.h):
+            d = abs(y - m)
+            for x in range(c.w):
+                if abs(x - m) + d < m - 1:
+                    c.put(x, y, cols[1])
+                if abs(x - m) + d == m - 1:
+                    c.put(x, y, "sg_lead")
+        c.frame(0, 0, c.w, c.h, "sg_lead")
+        c.put(m, m, cols[2])
+    return p
+
+
+
+def add_ch_glass(a):
+    """The stained-glass cells every church-family building uses (ch_opening)."""
+    for k, cols in enumerate((("sg_blue", "sg_red", "sg_gold"), ("sg_gold", "sg_blue", "sg_red"),
+                              ("sg_green", "sg_gold", "sg_red"), ("sg_red", "sg_gold", "sg_blue"))):
+        a.add("sg%d" % k, 10, 10, _ch_glass(cols))
+
+
 def church_decals(rng):
     a = Atlas(512)
-
-    def glass(cols):
-        def p(c):         # one 0.3 m cell of stained glass: a diamond in a border, lead lines
-            c.rect(0, 0, c.w, c.h, cols[0])
-            m = c.w // 2
-            for y in range(c.h):
-                d = abs(y - m)
-                for x in range(c.w):
-                    if abs(x - m) + d < m - 1:
-                        c.put(x, y, cols[1])
-                    if abs(x - m) + d == m - 1:
-                        c.put(x, y, "sg_lead")
-            c.frame(0, 0, c.w, c.h, "sg_lead")
-            c.put(m, m, cols[2])
-        return p
 
     def board(c):         # 1.4 x 1.1 m notice board by the door
         c.rect(0, 0, c.w, c.h, "navy")
@@ -11885,9 +11901,7 @@ def church_decals(rng):
         for y in range(3, 17, 2):
             c.rect(3, y, c.w - 3 - (y % 5), y + 1, "steel")
 
-    for k, cols in enumerate((("sg_blue", "sg_red", "sg_gold"), ("sg_gold", "sg_blue", "sg_red"),
-                              ("sg_green", "sg_gold", "sg_red"), ("sg_red", "sg_gold", "sg_blue"))):
-        a.add("sg%d" % k, 10, 10, glass(cols))
+    add_ch_glass(a)
     a.add("board", 45, 35, board)
     a.add("shelter", 96, 24, shelter)
     a.add("note", 16, 13, note)
@@ -12114,7 +12128,7 @@ def church_outside(ctx):
                 b.box((sx * (X + 0.03) - sx * (0.35 if long_x else 0.2) + sx * 0.03, y + 0.24, sz * (Z + 0.03)),
                       (0.7 if long_x else 0.4, 0.46, 0.06), style=_nb(dress))
                 b.box((sx * (X + 0.03), y + 0.24, sz * (Z + 0.03) - sz * (0.2 if long_x else 0.35) + sz * 0.03),
-                      (0.06, 0.46, 0.4 if long_x else 0.7), style=_nb(dress))
+                      (0.06, 0.44, 0.4 if long_x else 0.7), style=_nb(dress))   # (a hair lower: no shared top face)
     for sx in (-1, 1):                                                         # buttress strips with set-offs
         for z in (-10.2, -5.5, -0.5, 4.3, 8.55):
             b.box((sx * (X + 0.06), 2.6, z), (0.12, 5.2, 0.55), style=lambda n, m, q: (ext, uv_world()))
@@ -12412,6 +12426,516 @@ SHELLS["church"] = {
     "x_splits": (-2.0, 2.0), "z_splits": (CH_CHANCEL, CH_PORCH),
 }
 FACTION_MARKS["church"] = [("x1_stencil", "N", -4.0, 1.0), ("nova_tag", "N", 4.2, 1.1)]
+
+
+# ------------------------------------------------------------------------------------------------ bell tower (0.17)
+# The church's bell tower (map 148-158 x 28-38, model origin map (153, 33)): 10 x 10 m, two storeys and the belfry on
+# the roof (the lookout): the ringing room downstairs (bell rope, ringers' bench, peal boards), the clock room upstairs
+# (the clock frame, rods to the faces), the bell under a stone-piered canopy with a short slate spire. Same stone as
+# the church (its look).
+TOWER_FP = (-5.0, -5.0, 5.0, 5.0)
+
+
+def bell_tower_decals(rng):
+    a = Atlas(256)
+
+    def dial(c):          # 1.6 m clock face: pale dial, hour marks, a dark ring
+        c.rect(0, 0, c.w, c.h, "clear")
+        m = (c.w - 1) / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - m, y - m)
+                if d <= m:
+                    c.put(x, y, "black" if d > m - 2 else "bone")
+        for k in range(12):
+            ang = k * math.pi / 6
+            for r in range(int(m) - 6, int(m) - 3):
+                c.put(round(m + math.cos(ang) * r), round(m + math.sin(ang) * r), "black")
+
+    def peals(c):         # 0.9 x 0.6 m peal board: gold letters on black
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "sg_gold")
+        c.ctext(0, c.w, 12, "PEALS RUNG", "sg_gold", 1)
+        for y in (3, 6, 9):
+            c.rect(4, y, c.w - 4 - (y % 4), y + 1, "bone")
+
+    def ringers(c):       # 0.6 x 0.4 m notice
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.ctext(0, c.w, 6, "RINGERS", "black", 1)
+        c.ctext(0, c.w, 0, "TUES 7PM", "red", 1)
+    a.add("dial", 51, 51, dial)
+    a.add("peals", 30, 19, peals)
+    a.add("ringers", 32, 13, ringers)
+    add_ch_glass(a)
+    return a
+
+
+def prop_belfry_pier(ctx, c, s):
+    """A stone pier at a corner of the belfry (a hair wider than the post it covers), base and capital."""
+    b = ctx.b
+    dress, ext = ch_look("dress"), ch_look("ext")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], c[1], c[2]), (s[0] + 0.1, s[1], s[2] + 0.1), style=lambda n, m, q: (ext, uv_world()))
+    b.box((c[0], y0 + 0.1, c[2]), (s[0] + 0.24, 0.2, s[2] + 0.24), style=_nb(dress))
+    b.box((c[0], y0 + s[1] - 0.12, c[2]), (s[0] + 0.24, 0.24, s[2] + 0.24), style=_solid(dress))
+
+
+def prop_belfry_canopy(ctx, c, s):
+    """The canopy over the belfry: a stone lintel all round with a shallow arch on each side between the piers,
+    boarded underside, the headstock beam the bell hangs from, and a slate spire with a cross (picture only above
+    the solid canopy slab)."""
+    b = ctx.b
+    dress, ext, roof = ch_look("dress"), ch_look("ext"), ch_look("roof")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    hx = s[0] / 2
+    b.box((c[0], c[1], c[2]), (s[0] + 0.2, s[1], s[2] + 0.2), style=lambda n, m, q: ("wood_dark", uv_world(1.0))
+          if n[1] < -0.7 else (dress, uv_world()))
+    for k in range(4):                                                        # the arches' spandrels, stepped
+        for j in range(6):
+            t = (j + 0.5) / 6
+            drop = 0.7 * (1 - math.sqrt(max(0.0, 1 - (1 - t) ** 2)))           # deeper near the piers
+            if drop < 0.03:
+                continue
+            for sg in (-1, 1):
+                along = sg * (hx - 0.4 - (t * (hx - 0.4)))
+                h = 0.15 + drop
+                if k < 2:
+                    z = (-1 if k == 0 else 1) * (hx - 0.05)
+                    b.box((along, y0 - h / 2, z), ((hx - 0.4) / 6 + 0.02, h, 0.3), style=lambda n, m, q: (ext, uv_world()))
+                else:
+                    x = (-1 if k == 2 else 1) * (hx - 0.05)
+                    b.box((x, y0 - h / 2, along), (0.3, h, (hx - 0.4) / 6 + 0.02), style=lambda n, m, q: (ext, uv_world()))
+    b.box((0, y0 - 0.12, 0), (s[0] - 0.6, 0.24, 0.3), style=_nb("wood_dark"))           # headstock beam
+    apex = top + 4.6
+    e = 0.12
+    over = 0.3
+    x0, x1 = -hx - over, hx + over
+    for side in range(4):                                                     # the spire's four faces
+        if side == 0:
+            pts = [(x0, top, x1), (x1, top, x1), (0, apex, 0)]
+        elif side == 1:
+            pts = [(x1, top, x0), (x0, top, x0), (0, apex, 0)]
+        elif side == 2:
+            pts = [(x0, top, x0), (x0, top, x1), (0, apex, 0)]
+        else:
+            pts = [(x1, top, x1), (x1, top, x0), (0, apex, 0)]
+        n = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[2], pts[0])))
+        if n[1] < 0:
+            n = v_scale(n, -1)
+        b.poly([(p[0], p[1] + e, p[2]) for p in pts], n, roof, uv_slope(4.0))
+    b.poly([(x0, top + 0.01, x0), (x1, top + 0.01, x0), (x1, top + 0.01, x1), (x0, top + 0.01, x1)], (0, -1, 0),
+           "wood_dark", uv_world(1.0))
+    b.box((0, apex + 0.3, 0), (0.08, 0.7, 0.08), style=_nb("black"))                    # cross + weathercock
+    b.box((0, apex + 0.45, 0), (0.4, 0.06, 0.06), style=_nb("black"))
+    b.box((0, apex + 0.75, 0.05), (0.06, 0.18, 0.35), style=_nb("bronze"))
+
+
+def prop_bell(ctx, c, s):
+    """The bell (bronze, mouth down) hanging from the headstock, with its wheel and the rope going down."""
+    b = ctx.b
+    top = c[1] + s[1] / 2
+    rows = [(0.36, 0.12), (0.42, 0.14), (0.48, 0.16), (0.56, 0.16), (0.66, 0.14), (0.74, 0.1)]
+    y = top - 0.25
+    for w, h in rows:
+        b.box((c[0], y - h / 2, c[2]), (w, h, w), style=lambda n, m, q: ("bronze", uv_world(1.0)))
+        y -= h
+    b.box((c[0], y - 0.03, c[2]), (0.8, 0.06, 0.8), style=_solid("bronze"))             # the lip
+    b.box((c[0], y + 0.1, c[2]), (0.08, 0.3, 0.08), style=_nb("black"))
+    b.box((c[0], top - 0.15, c[2]), (0.16, 0.2, 0.16), style=_nb("black"))             # crown
+    for k in range(10):                                                         # the wheel beside it
+        a = k * math.pi / 5
+        b.box((c[0] + 0.5, top - 0.6 + 0.5 * math.sin(a), c[2] + 0.5 * math.cos(a)), (0.05, 0.12, 0.33),
+              pitch=math.degrees(a), style=_nb("wood_dark"))
+    _beam(b, (c[0] + 0.5, top - 1.1, c[2]), (c[0] + 0.5, top - 1.6, c[2] + 0.5), 0.03, 0.03, "bone")
+
+
+def prop_ringers_bench(ctx, c, s):
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + s[1] - 0.03, c[2]), (s[0], 0.06, s[2]), style=_nb("wood"))
+    for z in (c[2] - s[2] / 2 + 0.15, c[2] + s[2] / 2 - 0.15):
+        b.box((c[0], y0 + (s[1] - 0.06) / 2, z), (s[0] - 0.05, s[1] - 0.06, 0.06), style=_nb("wood_dark"))
+    b.box((c[0] - s[0] / 2 + 0.03, y0 + 0.75, c[2]), (0.05, 0.5, s[2]), style=_nb("wood_dark"))   # back board
+
+
+def prop_bell_rope(ctx, c, s):
+    """The bell rope down through the ceiling, its striped woollen grip (the sally), the tail looped up on a hook."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], (top + y0 + 1.2) / 2, c[2]), (0.04, top - y0 - 1.2, 0.04), style=_nb("bone"))
+    for k, col in enumerate(("red", "bone", "blue", "red", "bone", "blue")):
+        b.box((c[0], y0 + 1.25 + k * 0.1, c[2]), (0.09, 0.1, 0.09), style=_nb(col))
+    b.box((c[0], y0 + 0.95, c[2]), (0.04, 0.6, 0.04), style=_nb("bone"))
+    b.box((c[0], top - 0.02, c[2]), (0.2, 0.04, 0.2), style=_nb("trim_dark"))           # the hole's guide
+
+
+def prop_clock_works(ctx, c, s):
+    """The clock: an iron frame on legs with brass wheels, the pendulum down a slot, rods out to the faces (N, S)."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.05), y0 + 0.5, c[2] + sz * (s[2] / 2 - 0.05)), (0.08, 1.0, 0.08), style=_nb("black"))
+    b.box((c[0], y0 + 1.02, c[2]), (s[0], 0.06, s[2]), style=_nb("trim_dark"))
+    for sx in (-1, 1):                                                          # the frame: open iron bars
+        for sz in (-1, 1):
+            b.box((c[0] + sx * 0.45, y0 + 1.35, c[2] + sz * 0.3), (0.05, 0.6, 0.05), style=_nb("black"))
+        b.box((c[0] + sx * 0.45, y0 + 1.65, c[2]), (0.05, 0.05, 0.65), style=_nb("black"))
+    for x, y, r in ((-0.15, 1.32, 0.25), (0.15, 1.4, 0.17), (0.0, 1.58, 0.12)):  # brass wheels, faces along x
+        b.box((c[0] + x, y0 + y, c[2] + 0.02), (r * 2, r * 2, 0.04), style=_nb("brass"))
+        b.box((c[0] + x, y0 + y, c[2] + 0.05), (0.05, 0.05, 0.08), style=_nb("black"))
+    b.box((c[0] + 0.3, y0 + 1.4, c[2] - 0.31), (0.3, 0.3, 0.02), style=face_decal(ctx.d("dial"), "black", "-z"))   # setting dial
+    b.box((c[0], y0 + 0.55, c[2]), (0.03, 0.9, 0.03), style=_nb("brass"))               # pendulum
+    b.box((c[0], y0 + 0.12, c[2]), (0.06, 0.18, 0.18), style=_nb("brass"))
+    for sz in (-1, 1):                                                          # rods to the faces
+        _beam(b, (c[0], y0 + 1.5, c[2] + sz * s[2] / 2), (c[0], y0 + 1.7, sz * 4.85), 0.03, 0.03, "black")
+        b.box((c[0], y0 + 1.7, sz * 4.8), (0.12, 0.12, 0.08), style=_nb("black"))
+
+
+for _k, _f in {"belfry_pier": prop_belfry_pier, "belfry_canopy": prop_belfry_canopy, "bell": prop_bell,
+               "ringers_bench": prop_ringers_bench, "bell_rope": prop_bell_rope, "clock_works": prop_clock_works}.items():
+    PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
+
+
+def dress_bell_tower(ctx):
+    b, rng = ctx.b, random.Random("tower")
+    ext, dress = ch_look("ext"), ch_look("dress")
+    X = 5.15
+    for o in ctx.data.get("openings", []):
+        if o["kind"] == "window":
+            ch_opening(ctx, o, 0.7, keep=0.4)
+        elif o["kind"] == "door":
+            ch_opening(ctx, o, 0.6, glass=False)
+    for sg in (-1, 1):                                                         # plinth, quoins, string course
+        b.box((sg * (X + 0.04), 0.25, 0), (0.08, 0.5, 2 * X + 0.16), style=_nb(dress))
+        b.box((sg * (X + 0.05), 3.0, 0), (0.1, 0.16, 2 * X + 0.2), style=_solid(dress))
+        if sg < 0:
+            b.box((0, 0.25, -(X + 0.04)), (2 * X + 0.16, 0.5, 0.08), style=_nb(dress))
+        else:
+            for a0, a1 in ((-X - 0.08, -1.2), (1.2, X + 0.08)):
+                b.box(((a0 + a1) / 2, 0.25, X + 0.04), (a1 - a0, 0.5, 0.08), style=_nb(dress))
+        b.box((0, 3.0, sg * (X + 0.05)), (2 * X + 0.2, 0.16, 0.1), style=_solid(dress))
+        b.box((0, 7.05, sg * (X + 0.05)), (2 * X + 0.3, 0.12, 0.3), style=_solid(dress))      # parapet coping
+        b.box((sg * (X + 0.05), 7.05, 0), (0.3, 0.12, 2 * X + 0.3), style=_solid(dress))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            for k in range(13):
+                y = 0.5 + k * 0.5
+                lx = k % 2 == 0
+                b.box((sx * (X + 0.03) - sx * (0.35 if lx else 0.2) + sx * 0.03, y + 0.24, sz * (X + 0.03)),
+                      (0.7 if lx else 0.4, 0.46, 0.06), style=_nb(dress))
+                b.box((sx * (X + 0.03), y + 0.24, sz * (X + 0.03) - sz * (0.2 if lx else 0.35) + sz * 0.03),
+                      (0.06, 0.44, 0.4 if lx else 0.7), style=_nb(dress))   # (a hair lower: no shared top face)
+    for sz in (-1, 1):                                                         # the clock faces (N and S), hands stopped
+        z = sz * (X + 0.06)
+        for k in range(20):
+            a = k * math.pi / 10
+            b.box((0.88 * math.cos(a), 4.6 + 0.88 * math.sin(a), z), (0.3, 0.3, 0.1), style=_nb(dress))
+        b.poly([(-0.8, 3.8, z + sz * 0.06), (0.8, 3.8, z + sz * 0.06), (0.8, 5.4, z + sz * 0.06), (-0.8, 5.4, z + sz * 0.06)],
+               (0, 0, sz), "graffiti", ctx.d("dial"))
+        b.box((0.2, 4.75, z + sz * 0.09), (0.45, 0.06, 0.02), yaw=0, pitch=0, style=_nb("black"))   # 4:10, hands
+        b.box((0.13, 4.95, z + sz * 0.09), (0.05, 0.75, 0.02), style=_nb("black"))
+    wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
+    wq((1, 0, 0), -4.84, -2.0, -1.1, 1.3, 1.9, "peals")
+    wq((1, 0, 0), -4.84, 1.1, 2.0, 1.3, 1.9, "peals")
+    wq((0, 0, -1), 4.84, 3.4, 2.8, 1.4, 1.8, "ringers")
+    # Ringing room: a table and chairs where the ringers sat, a tea urn; clock room: boxes of old hymn books, a
+    # broken chair; the roof: a sniper's nest (sandbags in the north-east corner, casings, a ration tin).
+    b.box((-2.8, 0.74, 2.6), (1.4, 0.05, 0.8), style=_nb("wood"))
+    for x in (-3.4, -2.2):
+        for z in (2.3, 2.9):
+            b.box((x, 0.36, z), (0.05, 0.72, 0.05), style=_nb("wood_dark"))
+    b.box((-2.5, 0.92, 2.6), (0.24, 0.32, 0.24), style=_nb("steel_light"))
+    chair(b, -2.8, 0.0, 1.8, 0, seat="wood_dark", frame="wood_dark")
+    chair(b, -1.7, 0.0, 2.6, -90, seat="wood_dark", frame="wood_dark")
+    for k, (x, z) in enumerate(((-4.4, -1.6), (-4.4, -1.0), (-3.85, -1.3))):
+        b.box((x, 3.0 + 0.2 + (0.4 if k == 2 else 0), z if k < 2 else -1.3), (0.5, 0.4, 0.5), yaw=rng.uniform(-8, 8),
+              style=_nb("carton"))
+    b.box((3.6, 3.12, -1.6), (0.45, 0.06, 0.45), yaw=30, pitch=70, style=_nb("wood_dark"))
+    for k in range(7):
+        x = 4.3 - (k % 4) * 0.55
+        z = -4.35 + (k // 4) * 0.5 if k < 4 else -4.35
+        if k >= 4:
+            x, z = 4.35, -3.8 + (k - 4) * 0.55
+        b.box((x, 6.12 + (0.2 if k in (1, 5) else 0), z), (0.55, 0.22, 0.35), yaw=90 if k >= 4 else 0, style=_nb("olive"))
+    for _ in range(9):
+        b.box((rng.uniform(2.5, 4.0), 6.01, rng.uniform(-4.2, -2.8)), (0.03, 0.02, 0.06), yaw=rng.uniform(0, 90), style=_nb("brass"))
+    b.box((3.2, 6.06, -3.4), (0.12, 0.1, 0.12), style=_nb("olive_dark"))
+    for _ in range(14):                                                        # pigeon mess and feathers up top
+        b.box((rng.uniform(-4.3, 4.3), 6.02, rng.uniform(-4.3, 1.5)), (0.12, 0.01, 0.1), style=_nb("bone"))
+
+
+DECALS["bell_tower"] = bell_tower_decals
+DRESSING["bell_tower"] = dress_bell_tower
+FOOTPRINTS["bell_tower"] = TOWER_FP
+OWN_OPENINGS.update({"bell_tower"})
+SHELLS["bell_tower"] = {
+    "ext": ch_look("ext"), "roof_side": ch_look("ext"),
+    "inner": lambda m: ch_look("ext") if m[1] > 6.0 else "ch_plaster",
+    "floor": lambda m: "ch_flags" if m[1] < 1.0 else "floor_wood", "ceiling": lambda m: "wood",
+    "x_lines": (-5.0, 5.0), "z_lines": (-5.0, 5.0),
+}
+FACTION_MARKS["bell_tower"] = [("x1_tag", "W", -3.0, 1.0)]
+
+
+# ------------------------------------------------------------------------------------------------ graveyard (0.17)
+# The churchyard (map 176-202 x 30-56, model origin map (189, 43)): the old wooden fence drawn as a low stone wall with
+# iron railings (same collision), a lychgate at the south gap and iron gates at the west one, the headstones (same
+# places and collision) in real shapes, some tipped or broken, kerbed plots, gravel paths, a row of fresh war graves
+# along the north wall, and the Harlow family crypt (dressed stone, pediment, coffin shelves inside).
+GRAVE_FP = (3.0, 0.0, 11.0, 8.0)          # the crypt's walls (the rest of the model is outdoors)
+CRYPT_NAME = "HARLOW"
+
+PALETTE.update({"gravel": "8f897c", "gravel_dark": "7a7569", "gravel_light": "a39d90",
+                "mound": "5e4a36", "mound_dark": "4f3d2c"})
+
+
+def paint_ch_gravel(rng):
+    c = Canvas(64, 64, "gravel")
+    c.noise(0, 0, 64, 64, ["gravel_dark", "gravel_light"], 0.45, rng)
+    return c
+
+
+def paint_ch_mound(rng):
+    c = Canvas(64, 64, "mound")
+    c.noise(0, 0, 64, 64, ["mound_dark", "olive_dark"], 0.3, rng)
+    return c
+
+
+KIT.update({"ch_gravel": paint_ch_gravel, "ch_mound": paint_ch_mound})
+
+
+def graveyard_decals(rng):
+    a = Atlas(256)
+
+    def stone(c):         # 0.7 x 0.5 m inscription: a cross, a name line, dates
+        c.rect(0, 0, c.w, c.h, "clear")
+        m = c.w // 2
+        c.rect(m - 1, 9, m + 1, 15, "fstone_dark")
+        c.rect(m - 3, 12, m + 3, 13, "fstone_dark")
+        c.rect(4, 5, c.w - 4, 6, "fstone_dark")
+        c.rect(7, 2, c.w - 7, 3, "fstone_dark")
+
+    def name(c):          # 2.4 x 0.3 m: the family name over the crypt door
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.ctext(0, c.w, 2, CRYPT_NAME, "fstone_dark", 1)
+    a.add("stone", 22, 16, stone)
+    a.add("name", 25, 9, name)
+    add_ch_glass(a)
+    return a
+
+
+def _along(c, yaw, t, side=0.0, y=None):
+    """A point on a fence piece: t metres along it from its middle, `side` across it."""
+    r = math.radians(yaw)
+    return (c[0] + math.sin(r) * t + math.cos(r) * side, c[1] if y is None else y, c[2] + math.cos(r) * t - math.sin(r) * side)
+
+
+def grave_wall(ctx, row):
+    """A fence piece drawn as the churchyard wall: a stone base, a coping, iron railings with spear tips on top, a
+    pier at each end (picture follows the gray box's collision: 0.15 m wide, 1.1 m high)."""
+    c, s, yaw = row["pos"], row["size"], row["yaw"]
+    if not (row["colour"] == "wood" and not row.get("kind") and 1.0 < s[1] < 1.2):
+        return False
+    b = ctx.b
+    ext, dress = ch_look("ext"), ch_look("dress")
+    y0 = c[1] - s[1] / 2
+    L = s[2]
+    b.box((c[0], y0 + 0.3, c[2]), (0.3, 0.6, L), yaw=yaw, style=lambda n, m, q: None if n[1] < -0.7 else (ext, uv_world()))
+    b.box((c[0], y0 + 0.64, c[2]), (0.36, 0.08, L + 0.02), yaw=yaw, style=_nb(dress))
+    for sg in (-1, 1):
+        b.box((c[0], y0 + 1.04, c[2]), (0.03, 0.03, L), yaw=yaw, style=_nb("black"))              # top rail
+        b.box((c[0], y0 + 0.74, c[2]), (0.03, 0.03, L), yaw=yaw, style=_nb("black"))
+    n = int(L / 0.16)
+    for k in range(n + 1):
+        t = -L / 2 + L * k / n
+        p = _along(c, yaw, t, 0.0, y0 + 0.9)
+        b.box(p, (0.025, 0.42, 0.025), yaw=yaw, style=_nb("black"))
+        b.box((p[0], y0 + 1.14, p[2]), (0.04, 0.06, 0.04), yaw=yaw + 45, style=_nb("black"))       # spear tip
+    for t in (-L / 2 + 0.2, L / 2 - 0.2):                                                         # piers
+        p = _along(c, yaw, t, 0.0, y0 + 0.6)
+        b.box(p, (0.42, 1.2, 0.42), yaw=yaw, style=lambda n, m, q: None if n[1] < -0.7 else (ext, uv_world()))
+        b.box((p[0], y0 + 1.25, p[2]), (0.5, 0.1, 0.5), yaw=yaw, style=_nb(dress))
+        b.box((p[0], y0 + 1.36, p[2]), (0.22, 0.14, 0.22), yaw=yaw + 45, style=_nb(dress))
+    return True
+
+
+def prop_headstone(ctx, c, s):
+    """A headstone in one of five shapes (rounded, cross, gabled, slab, obelisk), the inscription on its south face,
+    a kerbed plot in front (picture only); some tipped, some broken with the top lying in the grass."""
+    b = ctx.b
+    rng = random.Random(f"hs{c[0]:.2f}{c[2]:.2f}")
+    shape = rng.choice(("round", "round", "cross", "gable", "slab", "obelisk"))
+    fate = rng.random()
+    stone = rng.choice(("ch_dressed", "ch_dressed", "concrete", ch_look("dress")))
+    y0, h = c[1] - s[1] / 2, s[1]
+    tilt = rng.uniform(4, 9) * rng.choice((-1, 1)) if fate < 0.2 else 0.0
+    broken = 0.2 <= fate < 0.3
+    st = lambda n, m, q: None if n[1] < -0.7 else (stone, uv_world(1.0))
+    b.box((c[0], y0 + 0.07, c[2]), (s[0] + 0.1, 0.14, 0.42), style=st)                              # base
+    top = y0 + (h * 0.55 if broken else h)
+    body_h = top - y0 - 0.14
+    if shape == "obelisk":
+        b.box((c[0], y0 + 0.14 + body_h * 0.2, c[2]), (0.5, body_h * 0.4, 0.22), style=st)
+        b.box((c[0], y0 + 0.14 + body_h * 0.7, c[2]), (0.22, body_h * 0.6, 0.18), pitch=tilt, style=st)
+    elif shape == "cross":
+        b.box((c[0], y0 + 0.14 + body_h * 0.2, c[2]), (0.5, body_h * 0.4, 0.2), style=st)
+        b.box((c[0], y0 + 0.14 + body_h * 0.7, c[2]), (0.14, body_h * 0.6, 0.14), pitch=tilt, style=st)
+        if not broken:
+            b.box((c[0], top - 0.22, c[2]), (0.5, 0.12, 0.14), pitch=tilt, style=st)
+    else:
+        w = s[0] - 0.05 if shape != "slab" else s[0] + 0.02
+        cut = 0.12 if shape in ("round", "gable") and not broken else 0.0
+        b.box((c[0], y0 + 0.14 + (body_h - cut) / 2, c[2]), (w, body_h - cut, 0.16), pitch=tilt, style=st)
+        if cut:
+            if shape == "round":
+                for k, ww in enumerate((w * 0.8, w * 0.5)):
+                    b.box((c[0], top - cut + 0.03 + k * 0.06, c[2]), (ww, 0.06, 0.16), pitch=tilt, style=st)
+            else:
+                b.box((c[0], top - cut + 0.04, c[2]), (w * 0.7, 0.08, 0.16), pitch=tilt, style=st)
+                b.box((c[0], top - 0.03, c[2]), (w * 0.3, 0.06, 0.16), pitch=tilt, style=st)
+        if not broken and not tilt:
+            b.box((c[0], y0 + 0.14 + body_h * 0.55, c[2] + 0.081), (0.7, 0.5, 0.002), style=lambda n, m, q:
+                  ("graffiti", ctx.d("stone")) if n[2] > 0.7 else None)
+    if broken:                                                                                     # the top, in the grass
+        b.box((c[0] + rng.uniform(-0.3, 0.3), y0 + 0.08, c[2] + 0.55), (s[0] - 0.1, 0.16, h * 0.4), yaw=rng.uniform(-25, 25),
+              style=st)
+    if rng.random() < 0.6:                                                                         # kerbed plot
+        k0, k1 = c[2] + 0.22, c[2] + 1.5
+        for sx in (-1, 1):
+            b.box((c[0] + sx * 0.42, y0 + 0.06, (k0 + k1) / 2), (0.08, 0.12, k1 - k0), style=_nb(stone))
+        b.box((c[0], y0 + 0.06, k1 - 0.04), (0.92, 0.12, 0.08), style=_nb(stone))
+        b.box((c[0], y0 + 0.03, (k0 + k1) / 2), (0.76, 0.06, k1 - k0 - 0.1), style=_nb(rng.choice(("ch_gravel", "ch_mound"))))
+    if rng.random() < 0.25:                                                                        # a vase, dead flowers
+        b.box((c[0] + 0.28, y0 + 0.24, c[2] + 0.3), (0.1, 0.18, 0.1), style=_nb("bronze"))
+
+
+def prop_war_cross(ctx, c, s):
+    """A fresh war grave's wooden cross, some with a helmet hung on it and a tag."""
+    b = ctx.b
+    rng = random.Random(f"wc{c[0]:.2f}")
+    y0 = c[1] - s[1] / 2
+    lean = rng.uniform(-5, 5)
+    b.box((c[0], c[1], c[2]), (0.08, s[1], 0.06), yaw=0, pitch=0, style=_nb("wood"))
+    b.box((c[0], y0 + s[1] - 0.25, c[2]), (0.42, 0.07, 0.05), style=_nb("wood"))
+    if rng.random() < 0.5:
+        b.box((c[0], y0 + s[1] + 0.05, c[2]), (0.3, 0.14, 0.32), style=_nb("olive_dark"))          # helmet on top
+        b.box((c[0], y0 + s[1] - 0.03, c[2]), (0.34, 0.03, 0.36), style=_nb("olive_dark"))
+    b.box((c[0], y0 + s[1] - 0.45, c[2] + 0.035), (0.06, 0.04, 0.005), style=_nb("steel_light"))   # tag
+
+
+def prop_grave_mound(ctx, c, s):
+    b = ctx.b
+    rng = random.Random(f"gm{c[0]:.2f}")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.06, c[2]), (s[0], 0.12, s[2]), style=_nb("ch_mound"))
+    b.box((c[0], y0 + 0.15, c[2]), (s[0] - 0.2, 0.08, s[2] - 0.3), style=_nb("ch_mound"))
+    for _ in range(rng.randint(0, 3)):
+        b.box((c[0] + rng.uniform(-0.3, 0.3), y0 + 0.2, c[2] + rng.uniform(-0.5, 0.5)), (0.12, 0.04, 0.12),
+              yaw=rng.uniform(0, 90), style=_nb(rng.choice(("red", "yellow", "bone"))))
+
+
+def prop_coffin_shelf(ctx, c, s):
+    """The crypt's stone shelves along a wall: three tiers of niches, coffins in most, name plates, one coffin
+    pulled half out."""
+    b = ctx.b
+    rng = random.Random(f"cs{c[2]:.1f}")
+    dress = ch_look("dress")
+    y0 = c[1] - s[1] / 2
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    st = lambda n, m, q: (dress, uv_world())
+    n = 4
+    wall_side = -1 if c[2] < 4.0 else 1                                       # which side the wall is on
+    zb = c[2] + wall_side * (s[2] / 2 - 0.04)
+    b.box((c[0], c[1], zb), (s[0], s[1], 0.08), style=st)                     # back
+    for k in range(4):
+        b.box((c[0], y0 + k * 0.62 + 0.04, c[2]), (s[0], 0.08, s[2]), style=st)   # shelves
+    for k in range(n + 1):
+        b.box((x0 + 0.05 + (s[0] - 0.1) * k / n, c[1], c[2]), (0.1, s[1], s[2]), style=st)
+    for j in range(3):
+        for k in range(n):
+            cx = x0 + (k + 0.5) * s[0] / n
+            if rng.random() < 0.2:
+                continue
+            out = 0.5 if (j == 1 and k == 2) else 0.0
+            b.box((cx, y0 + j * 0.62 + 0.08 + 0.2, c[2] - wall_side * out), (s[0] / n - 0.25, 0.38, s[2] - 0.1),
+                  style=_nb("wood_dark"))
+            b.box((cx, y0 + j * 0.62 + 0.3, c[2] - wall_side * (s[2] / 2 - 0.04 + out)), (0.2, 0.1, 0.02), style=_nb("brass"))
+
+
+for _k, _f in {"headstone": prop_headstone, "war_cross": prop_war_cross, "grave_mound": prop_grave_mound,
+               "coffin_shelf": prop_coffin_shelf}.items():
+    PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
+
+
+def dress_graveyard(ctx):
+    b, rng = ctx.b, random.Random("graveyard")
+    dress = ch_look("dress")
+    for o in ctx.data.get("openings", []):
+        if o["kind"] == "door":
+            ch_opening(ctx, o, 0.6, glass=False)
+    # Gravel paths: from the lychgate up the west side, across to the west gate, and to the crypt door.
+    for x0, z0, x1, z1 in ((-6.85, -12.8, -5.35, 12.85), (-12.85, -2.3, -6.85, -1.3), (-5.35, 3.6, 2.85, 4.5)):
+        b.poly([(x0, 0.025, z0), (x1, 0.025, z0), (x1, 0.025, z1), (x0, 0.025, z1)], (0, 1, 0), "ch_gravel", uv_world())
+    # The lychgate over the south gap (x -8..-3): oak posts, a little tiled roof (picture only, up out of reach).
+    for x in (-7.8, -3.2):
+        for z in (12.75, 13.25):
+            b.box((x, 1.2, z), (0.16, 2.4, 0.16), style=_nb("wood_dark"))
+    b.box((-5.5, 2.45, 13.0), (5.0, 0.14, 0.7), style=_nb("wood_dark"))
+    for sz in (-1, 1):
+        b.poly([(-8.2, 2.5, 13.0 + sz * 0.9), (-2.8, 2.5, 13.0 + sz * 0.9), (-2.8, 3.3, 13.0), (-8.2, 3.3, 13.0)],
+               norm((0, 0.9, sz * 0.8)), ch_look("roof"), uv_slope(4.0))
+        b.poly([(-8.2, 2.48, 13.0 + sz * 0.9), (-2.8, 2.48, 13.0 + sz * 0.9), (-2.8, 3.28, 13.0), (-8.2, 3.28, 13.0)],
+               norm((0, -0.9, -sz * 0.8)), "wood_dark", uv_world(1.0))
+    # The west gate's iron leaves, swung open against the wall.
+    for z, yaw in ((-3.8, 100), (1.8, 80)):
+        for k in range(8):
+            b.box((-12.8 + k * 0.14 * math.sin(math.radians(yaw)) * 0, 0.6, z + (0.1 + k * 0.14) * (1 if z < 0 else -1)),
+                  (0.025, 1.1, 0.025), style=_nb("black"))
+        b.box((-12.8, 1.1, z + (0.55 if z < 0 else -0.55)), (0.03, 0.04, 1.1), style=_nb("black"))
+        b.box((-12.8, 0.3, z + (0.55 if z < 0 else -0.55)), (0.03, 0.04, 1.1), style=_nb("black"))
+    # The crypt: pediment over the west door with the family's name, flat pilasters, cornice, a stepped roof with an
+    # urn, the iron door hanging open, a step.
+    X0 = 2.85
+    b.box((X0 - 0.06, 2.75, 4.0), (0.12, 0.3, 2.9), style=_solid(dress))
+    b.poly([(X0 - 0.12, 2.9, 2.5), (X0 - 0.12, 2.9, 5.5), (X0 - 0.12, 3.75, 4.0)], (-1, 0, 0), dress, uv_world())
+    for sz in (-1, 1):
+        _beam(b, (X0 - 0.15, 2.95, 4.0 + sz * 1.6), (X0 - 0.15, 3.82, 4.0), 0.2, 0.14, dress)
+    b.poly([(X0 - 0.13, 2.62, 2.8), (X0 - 0.13, 2.62, 5.2), (X0 - 0.13, 2.9, 5.2), (X0 - 0.13, 2.9, 2.8)], (-1, 0, 0),
+           "graffiti", ctx.d("name"))
+    for z in (2.35, 5.65):
+        b.box((X0 - 0.05, 1.3, z), (0.12, 2.6, 0.35), style=_nb(dress))
+        b.box((X0 - 0.08, 0.1, z), (0.2, 0.2, 0.45), style=_nb(dress))
+        b.box((X0 - 0.08, 2.55, z), (0.2, 0.12, 0.45), style=_nb(dress))
+    for sx, sz, L, along in ((0, -1, 8.3, "x"), (0, 1, 8.3, "x"), (-1, 0, 8.3, "z"), (1, 0, 8.3, "z")):
+        cx = 7.0 + sx * 4.12
+        cz = 4.0 + sz * 4.12
+        b.box((cx, 3.05, cz), (L if along == "x" else 0.25, 0.18, L if along == "z" else 0.25), style=_solid(dress))
+    b.box((7.0, 3.3, 4.0), (7.0, 0.3, 7.0), style=_nb(dress))
+    b.box((7.0, 3.6, 4.0), (5.0, 0.3, 5.0), style=_nb(dress))
+    b.box((7.0, 3.95, 4.0), (0.5, 0.4, 0.5), style=_nb(dress))                                       # urn
+    b.box((7.0, 4.25, 4.0), (0.3, 0.2, 0.3), style=_nb(dress))
+    b.box((X0 - 0.3, 0.06, 4.0), (0.6, 0.12, 2.6), style=_nb(dress))                                # step
+    hx, hz = X0 + 0.05, 2.95
+    for k in range(7):                                                                               # the gate, open in
+        b.box((hx + 0.12 + k * 0.14, 1.15, hz + 0.08), (0.025, 2.2, 0.025), style=_nb("black"))
+    for y in (0.25, 1.15, 2.2):
+        b.box((hx + 0.55, y, hz + 0.08), (0.95, 0.04, 0.03), style=_nb("black"))
+    # Inside the crypt: candle stubs, a fallen wreath, dust.
+    for x, z in ((4.0, 1.2), (9.8, 6.7), (10.2, 1.3)):
+        b.box((x, 0.06, z), (0.06, 0.12, 0.06), style=_nb("bone"))
+    b.box((5.0, 0.03, 6.4), (0.5, 0.06, 0.5), yaw=20, style=_nb("olive_dark"))
+
+
+DECALS["graveyard"] = graveyard_decals
+DRESSING["graveyard"] = dress_graveyard
+FOOTPRINTS["graveyard"] = GRAVE_FP
+OWN_OPENINGS.update({"graveyard"})
+SHELLS["graveyard"] = {
+    "ext": ch_look("dress"), "roof_side": ch_look("dress"), "row_hook": grave_wall,
+    "inner": lambda m: "stone_rough", "floor": lambda m: "ch_flags", "ceiling": lambda m: "stone_rough",
+}
+FACTION_MARKS["graveyard"] = [("x1_chalk", "N", 7.0, 1.0)]
 
 
 def floor_debris(ctx, data, name):

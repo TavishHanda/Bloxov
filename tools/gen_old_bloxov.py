@@ -1209,6 +1209,33 @@ def church_furniture(ox, oz):
     o(5.9, 0, 9.3, 6.85, 0.76, 11.0, "wood", "vestry_desk")
     o(2.1, 0, 11.3, 4.3, 2.0, 11.85, "wood", "robe_rail", solid=False)
 
+def bell_tower_furniture(ox, oz):
+    """The bell tower (World art 0.17), model coordinates (origin map (ox, oz): x -5..5, z -5..5, storeys 3 m, the
+    belfry on the roof). Stairs walled the whole way (owner rule): the ground-floor flight along the north wall is
+    walled off from the ringing room up to its foot (east end), the roof flight along the south wall upstairs is
+    walled off from the clock room up to its foot (west end). Ringing room: the bell rope, the ringers' bench; clock
+    room: the clock frame in the middle, rods out to the faces on the north and south walls."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    o(-4.85, 0, -2.65, 2.05, 2.75, -2.45, "wall", None)
+    o(-2.05, 3.0, 2.45, 4.85, 5.75, 2.65, "wall", None)
+    o(-4.85, 0, -1.6, -4.4, 0.45, 1.6, "wood", "ringers_bench")
+    o(1.4, 0.0, 0.4, 1.6, 2.75, 0.6, "wood", "bell_rope", solid=False)
+    o(-0.7, 3.0, -0.45, 0.7, 4.6, 0.45, "metal", "clock_works")
+
+def graveyard_furniture(ox, oz):
+    """The graveyard (World art 0.17), model coordinates (origin map (ox, oz): the yard is x -13..13, z -13..13, the
+    crypt x 3..11, z 0..8, door west). A row of fresh war graves along the north wall (thin wooden crosses, solid so
+    nobody walks through them), the crypt's coffin shelves along its north and south walls (the middle stays clear)."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    for k in range(10):
+        x = -7.6 + k * 1.6
+        o(x - 0.05, 0, -11.85, x + 0.05, 0.95, -11.75, "wood", "war_cross")
+        o(x - 0.45, 0, -11.7, x + 0.45, 0.18, -10.35, "dirt", "grave_mound", solid=False)
+    for z0 in (0.15, 7.15):
+        o(3.4, 0, z0, 10.6, 1.9, z0 + 0.7, "stone", "coffin_shelf")
+
 def police_furniture(ox, oz):
     """Bloxov police station (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 8.67 x
     7.33 m, storeys 3 m). Overrun and ransacked. Furniture is solid like everywhere else; chairs, the mugshot
@@ -2693,24 +2720,30 @@ def main():
                        wall_openings=CHURCH_OPENINGS), [
             ("crate", 0, 0, 0, "N", -4.5, "chest"), ("locker", 0, 0, 0, "N", 4.5, "wardrobe")])
         church_furniture(167.0, 40.0)
-    tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True),
-                  [("crate", 0, 0, 2, "W", 0)])
-    for px, pz in ((148.4, 28.4), (157.6, 28.4), (148.4, 37.6), (157.6, 37.6)):  # the bell frame on the roof
-        box(px - 0.2, 6.0, pz - 0.2, px + 0.2, 9.0, pz + 0.2, "wood")
-    box(148.2, 9.0, 28.2, 157.8, 9.4, 37.8, "roof")
-    box(152.4, 7.4, 32.4, 153.6, 8.9, 33.6, "metal", solid=False)              # the bell
+    with modeled("bell_tower", 153.0, 33.0):   # World art 0.17: the church's bell tower (ringing room, clock, belfry)
+        tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True),
+                      [("crate", 0, 0, 2, "W", 0, "chest")])
+        for px, pz in ((148.4, 28.4), (157.6, 28.4), (148.4, 37.6), (157.6, 37.6)):  # the bell frame on the roof
+            box(px - 0.2, 6.0, pz - 0.2, px + 0.2, 9.0, pz + 0.2, "wood", kind="belfry_pier")
+        box(148.2, 9.0, 28.2, 157.8, 9.4, 37.8, "roof", kind="belfry_canopy")
+        box(152.4, 7.4, 32.4, 153.6, 8.9, 33.6, "metal", solid=False, kind="bell")   # the bell
+        bell_tower_furniture(153.0, 33.0)
     areas.append(("Graveyard", 176, 30, 202, 56))
-    fence([(181, 56), (176, 56), (176, 45)]); fence([(176, 39), (176, 30), (202, 30), (202, 56), (186, 56)])
-    build(Building("Crypt", 192, 43, 8, 8, colour="stone", rooms=(1, 1), doors="W"), [("crate", 0, 0, 0, "E", 0)])
-    for z in range(33, 54, 3):
-        for x in (179.0, 181.6, 184.2, 186.8, 191.0, 193.6, 196.2, 198.8):     # (a path down the middle)
-            if 188 < x + 1 and x - 1 < 202 and 41 < z + 0.5 and z - 0.5 < 53.5 and x > 189:
-                continue   # the crypt and the ground round it
-            if rng.random() < 0.25:
-                continue
-            box(x - 0.45, 0, z - 0.12, x + 0.45, rng.uniform(0.8, 1.1), z + 0.12, "stone")
-    for tx, tz in ((178, 54), (200, 32), (178, 32)):
-        tree(tx, tz, rng)
+    with modeled("graveyard", 189.0, 43.0):   # World art 0.17: churchyard wall + railings, real headstones, the crypt
+        fence([(181, 56), (176, 56), (176, 45)]); fence([(176, 39), (176, 30), (202, 30), (202, 56), (186, 56)])
+        build(Building("Crypt", 192, 43, 8, 8, colour="stone", rooms=(1, 1), doors="W", no_windows={(0, 0)}),
+              [("crate", 0, 0, 0, "E", 0, "chest")])   # (a crypt: no windows, coffin shelves on the walls)
+        for z in range(33, 54, 3):
+            for x in (179.0, 181.6, 184.2, 186.8, 191.0, 193.6, 196.2, 198.8):     # (a path down the middle)
+                if 188 < x + 1 and x - 1 < 202 and 41 < z + 0.5 and z - 0.5 < 53.5 and x > 189:
+                    continue   # the crypt and the ground round it
+                if rng.random() < 0.25:
+                    continue
+                box(x - 0.45, 0, z - 0.12, x + 0.45, rng.uniform(0.8, 1.1), z + 0.12, "stone", kind="headstone")
+        graveyard_furniture(189.0, 43.0)
+        with unmodeled():
+            for tx, tz in ((178, 54), (200, 32), (178, 32)):
+                tree(tx, tz, rng)
 
     # ===================================================================== FARM (top right)
     box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
