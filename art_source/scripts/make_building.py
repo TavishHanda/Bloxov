@@ -11836,6 +11836,15 @@ def ch_look(key):
     return CHURCH_LOOKS[CHURCH_LOOK][key]
 
 
+def ch_text(c, y, s, col, scale=1):
+    """Centred sign text that must fit (owner: every sign's words fit and are centred): 2 px clear each side,
+    1 px above and below."""
+    w = Canvas.text_width(s, scale)
+    assert w + 4 <= c.w and y >= 1 and y + 5 * scale <= c.h - 1, f"sign text {s!r} doesn't fit {c.w}x{c.h} at y {y}"
+    assert (c.w - w) % 2 == 0 or " " in s, f"{s!r} would be split mid-word to centre it in {c.w} px: change the width"
+    c.ctext(0, c.w, y, s, col, scale)
+
+
 def _ch_glass(cols):
     def p(c):         # one 0.3 m cell of stained glass: a diamond in a border, lead lines
         c.rect(0, 0, c.w, c.h, cols[0])
@@ -11863,42 +11872,42 @@ def add_ch_glass(a):
 def church_decals(rng):
     a = Atlas(512)
 
-    def board(c):         # 1.4 x 1.1 m notice board by the door
+    def board(c):         # 1.72 x 1.19 m notice board by the door
         c.rect(0, 0, c.w, c.h, "navy")
         c.frame(0, 0, c.w, c.h, "wood_dark")
-        c.ctext(0, c.w, 28, CHURCH_NAME[0], "bone", 1)
-        c.ctext(0, c.w, 21, CHURCH_NAME[1], "bone", 1)
-        c.rect(6, 18, c.w - 6, 19, "sg_gold")
-        c.ctext(0, c.w, 11, "SUNDAY 10 AM", "bone", 1)
-        c.ctext(0, c.w, 4, "ALL WELCOME", "sg_gold", 1)
+        ch_text(c, 30, CHURCH_NAME[0], "bone")
+        ch_text(c, 23, CHURCH_NAME[1], "bone")
+        c.rect(6, 19, c.w - 6, 20, "sg_gold")
+        ch_text(c, 11, "SUNDAY 10 AM", "bone")
+        ch_text(c, 3, "ALL WELCOME", "sg_gold")
 
     def shelter(c):       # 2 x 0.5 m: painted on the wall by the door in the war
         c.rect(0, 0, c.w, c.h, "clear")
-        c.ctext(0, c.w, 4, "SHELTER", "bone" if CHURCH_LOOK == "C" else "red", 2)
+        ch_text(c, 4, "SHELTER", "bone" if CHURCH_LOOK == "C" else "red", 2)
 
-    def note(c):          # 0.5 x 0.4 m paper pinned over the board
+    def note(c):          # 1 x 0.47 m paper pinned up beside the board
         c.rect(0, 0, c.w, c.h, "bone")
-        c.ctext(0, c.w, 7, "NO FOOD", "red", 1)
-        c.ctext(0, c.w, 1, "SORRY", "black", 1)
+        ch_text(c, 8, "NO FOOD", "red")
+        ch_text(c, 2, "SORRY", "black")
 
     def hymns(c):         # 0.7 x 1.0 m hymn board: numbers on slats
         c.rect(0, 0, c.w, c.h, "wood_dark")
         c.frame(0, 0, c.w, c.h, "wood")
         for k, n in enumerate(("112", "34", "407", "9")):
-            c.ctext(0, c.w, 24 - k * 7, n, "bone", 1)
+            ch_text(c, 24 - k * 7, n, "bone")
 
-    def plaque(c):        # 0.6 x 0.4 m memorial plaque
-        c.rect(0, 0, c.w, c.h, "bronze")
+    def plaque(c):        # 1.38 x 0.41 m memorial plaque: polished brass, black letters (reads in the gloom)
+        c.rect(0, 0, c.w, c.h, "sg_gold")
         c.frame(0, 0, c.w, c.h, "bronze_dark")
-        c.ctext(0, c.w, 6, "IN MEMORY", "bronze_dark", 1)
+        ch_text(c, 4, "IN MEMORY", "black")
 
     def wc(c):            # 0.8 x 0.25 m over the washroom door
         c.rect(0, 0, c.w, c.h, "bone")
-        c.ctext(0, c.w, 2, "TOILETS", "navy", 1)
+        ch_text(c, 2, "TOILETS", "navy")
 
     def vestry(c):        # 0.8 x 0.25 m over the vestry door
         c.rect(0, 0, c.w, c.h, "bone")
-        c.ctext(0, c.w, 2, "VESTRY", "wood_dark", 1)
+        ch_text(c, 2, "VESTRY", "wood_dark")
 
     def mirror(c):        # 0.5 x 0.6 m cracked mirror over the sinks
         c.rect(0, 0, c.w, c.h, "steel_light")
@@ -11909,20 +11918,20 @@ def church_decals(rng):
 
     def roster(c):        # 0.6 x 0.8 m shelter list in the porch
         c.rect(0, 0, c.w, c.h, "bone")
-        c.ctext(0, c.w, 19, "NAMES", "black", 1)
+        ch_text(c, 19, "NAMES", "black")
         for y in range(3, 17, 2):
             c.rect(3, y, c.w - 3 - (y % 5), y + 1, "steel")
 
     add_ch_glass(a)
-    a.add("board", 45, 35, board)
+    a.add("board", 55, 38, board)
     a.add("shelter", 96, 24, shelter)
-    a.add("note", 16, 13, note)
+    a.add("note", 31, 15, note)
     a.add("hymns", 23, 32, hymns)
-    a.add("plaque", 40, 13, plaque)
-    a.add("wc", 30, 8, wc)
-    a.add("vestry", 30, 8, vestry)
+    a.add("plaque", 44, 13, plaque)
+    a.add("wc", 33, 9, wc)
+    a.add("vestry", 33, 9, vestry)
     a.add("mirror", 16, 19, mirror)
-    a.add("roster", 20, 26, roster)
+    a.add("roster", 26, 26, roster)
     return a
 
 
@@ -12127,8 +12136,9 @@ def church_outside(ctx):
     b, rng = ctx.b, random.Random("church outside")
     ext, dress = ch_look("ext"), ch_look("dress")
     X, Z = 7.15, 12.15
-    for sx in (-1, 1):                                                         # plinth along the sides
-        b.box((sx * (X + 0.04), 0.25, 0), (0.08, 0.5, 2 * Z + 0.16), style=_nb(dress))
+    for sx in (-1, 1):                                                         # plinth along the sides (west: not
+        for a0, a1 in (((-Z - 0.08, -6.5), (-4.5, Z + 0.08)) if sx < 0 else ((-Z - 0.08, Z + 0.08),)):   # in the passage)
+            b.box((sx * (X + 0.04), 0.25, (a0 + a1) / 2), (0.08, 0.5, a1 - a0), style=_nb(dress))
     for sz in (-1, 1):
         for a0, a1 in (((-X - 0.08, -1.45), (1.45, X + 0.08)) if sz > 0 else ((-X - 0.08, X + 0.08),)):
             b.box(((a0 + a1) / 2, 0.25, sz * (Z + 0.04)), (a1 - a0, 0.5, 0.08), style=_nb(dress))
@@ -12143,6 +12153,8 @@ def church_outside(ctx):
                       (0.06, 0.44, 0.4 if long_x else 0.7), style=_nb(dress))   # (a hair lower: no shared top face)
     for sx in (-1, 1):                                                         # buttress strips with set-offs
         for z in (-10.2, -5.5, -0.5, 4.3, 8.55):
+            if sx < 0 and z == -5.5:                                           # (the passage to the bell tower)
+                continue
             b.box((sx * (X + 0.06), 2.6, z), (0.12, 5.2, 0.55), style=lambda n, m, q: (ext, uv_world()))
             for y in (2.6, 5.2):
                 b.box((sx * (X + 0.1), y + 0.06, z), (0.2, 0.12, 0.62), style=_nb(dress))
@@ -12158,9 +12170,9 @@ def church_outside(ctx):
         b.box((0.3 + zz * math.sin(math.radians(14)), 0.12, 13.6 + zz * math.cos(math.radians(14))), (1.0, 0.03, 0.08),
               yaw=14, style=_nb("black"))
     b.box((0, 0.02, 12.6), (3.0, 0.04, 0.8), style=_nb(dress))                             # the step
-    b.box((3.4, 1.65, Z + 0.05), (1.5, 1.2, 0.1), style=face_decal(ctx.d("board"), "wood_dark", "+z"))
-    b.box((5.2, 1.5, Z + 0.015), (0.5, 0.4, 0.01), style=face_decal(ctx.d("note"), "bone", "+z"))     # pinned up beside it
-    for x in (2.75, 4.05):
+    b.box((3.4, 1.7, Z + 0.05), (55 / 32, 38 / 32, 0.1), style=face_decal(ctx.d("board"), "wood_dark", "+z"))
+    b.box((5.6, 1.5, Z + 0.015), (31 / 32, 15 / 32, 0.01), style=face_decal(ctx.d("note"), "bone", "+z"))  # pinned up beside it
+    for x in (2.7, 4.1):
         b.box((x, 0.55, Z + 0.06), (0.08, 1.1, 0.08), style=_nb("wood_dark"))
     wall_quad(b, (0, 0, 1), Z + 0.02, -5.0, -2.0, 1.2, 1.95, "graffiti", ctx.d("shelter"))
     church_rose(ctx)
@@ -12168,26 +12180,27 @@ def church_outside(ctx):
 
 def prop_pew(ctx, c, s):
     """A pew (along x): seat, a tall back on the north side of the next pew's front... the back faces north (people sit
-    facing the altar), shaped ends, a hymn-book shelf on the back, kneeler. Some knocked askew, books on the floor."""
+    facing the altar), shaped ends, a hymn-book shelf on the back. Books on the floor."""
     b, rng = ctx.b, random.Random(f"pew{c}")
     x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
     y0 = c[1] - s[1] / 2
     wd = "wood_dark"
-    b.box((c[0], y0 + 0.45, c[2] - 0.05), (s[0] - 0.1, 0.06, 0.45), style=_nb("wood"))      # seat
-    b.box((c[0], y0 + 0.7, z1 - 0.05), (s[0] - 0.1, 0.5, 0.06), style=_nb("wood"))          # back (south side)
-    b.box((c[0], y0 + 0.93, z1 - 0.05), (s[0] - 0.1, 0.05, 0.1), style=_nb(wd))              # its top rail
-    b.box((c[0], y0 + 0.62, z1 + 0.05), (s[0] - 0.3, 0.04, 0.1), style=_nb(wd))              # book shelf behind
-    for k in range(int(s[0] / 0.45)):
+    b.box((c[0], y0 + 0.45, z1 - 0.32), (s[0] - 0.1, 0.06, 0.5), style=_nb("wood"))         # seat, up to the back
+    b.box((c[0], y0 + 0.36, z1 - 0.55), (s[0] - 0.1, 0.12, 0.04), style=_nb(wd))             # its front rail
+    b.box((c[0], y0 + 0.69, z1 - 0.05), (s[0] - 0.1, 0.42, 0.06), style=_nb("wood"))         # back (south side)
+    b.box((c[0], y0 + 0.92, z1 - 0.05), (s[0] - 0.1, 0.04, 0.1), style=_nb(wd))              # its top rail
+    b.box((c[0], y0 + 0.62, z1 + 0.04), (s[0] - 0.3, 0.03, 0.08), style=_nb(wd))             # book shelf behind
+    b.box((c[0], y0 + 0.67, z1 + 0.075), (s[0] - 0.3, 0.07, 0.01), style=_nb(wd))            # (its lip)
+    for k in range(int((s[0] - 0.4) / 0.45)):
         if rng.random() < 0.5:
-            b.box((x0 + 0.3 + k * 0.45, y0 + 0.73, z1 + 0.05), (0.14, 0.18, 0.08), style=_nb(rng.choice(("red", "wine", "blue"))))
+            b.box((x0 + 0.35 + k * 0.45, y0 + 0.705, z1 + 0.04), (0.14, 0.14, 0.05), style=_nb(rng.choice(("red", "wine", "blue"))))
     for x in (x0 + 0.04, x1 - 0.04):                                                         # shaped ends
-        b.box((x, y0 + 0.45, c[2]), (0.08, 0.9, s[2]), style=_nb(wd))
-        b.box((x, y0 + 0.93, z1 - 0.12), (0.08, 0.06, 0.24), style=_nb(wd))
-    b.box((c[0], y0 + 0.08, z0 - 0.15), (s[0] - 0.2, 0.08, 0.16), style=_nb(wd))              # kneeler rail
+        b.box((x, y0 + 0.47, z1 - 0.3), (0.08, 0.94, 0.6), style=_nb(wd))
+        b.box((x, y0 + 0.3, z1 - 0.65), (0.08, 0.6, 0.1), style=_nb(wd))                     # (the arm curls down)
     if rng.random() < 0.4:                                                                   # a hymn book dropped
-        b.box((c[0] + rng.uniform(-1, 1), y0 + 0.02, z0 - 0.4), (0.15, 0.03, 0.2), yaw=rng.uniform(0, 90), style=_nb("red"))
+        b.box((c[0] + rng.uniform(-1, 1), y0 + 0.02, z0 - 0.3), (0.15, 0.03, 0.2), yaw=rng.uniform(0, 90), style=_nb("red"))
     if rng.random() < 0.35:                                                                  # a blanket left on it
-        b.box((c[0] + rng.uniform(-0.8, 0.8), y0 + 0.5, c[2] - 0.05), (0.9, 0.04, 0.4), yaw=rng.uniform(-10, 10),
+        b.box((c[0] + rng.uniform(-0.8, 0.8), y0 + 0.5, z1 - 0.32), (0.9, 0.03, 0.4), yaw=rng.uniform(-10, 10),
               style=_nb(rng.choice(("olive", "blue", "wine"))))
 
 
@@ -12329,7 +12342,7 @@ def prop_vestry_desk(ctx, c, s):
     b.box((c[0], top + 0.035, c[2] + 0.1), (0.46, 0.03, 0.02), style=_nb("black"))
     b.box((c[0] + 0.1, top + 0.08, c[2] - 0.5), (0.3, 0.16, 0.2), style=_nb("carton"))             # candles box
     papers(b, rng, c[0] - 0.3, c[0] + 0.2, c[2] + 0.4, c[2] + 0.8, top + 0.001, 4)
-    chair(b, c[0] - 0.8, y0, c[2], -90, seat="wood_dark", frame="wood_dark")
+    chair(b, c[0] - 0.95, y0, c[2], -90, seat="wood_dark", frame="wood_dark")
 
 
 def prop_robe_rail(ctx, c, s):
@@ -12380,22 +12393,26 @@ def dress_church(ctx):
                 b.box((x, (o["lo"] + o["hi"] - 0.5) / 2, at - 0.15), (0.1, o["hi"] - o["lo"] - 0.5, 0.2), style=_nb(ch_look("dress")))
         elif o["kind"] == "church_door":
             ch_opening(ctx, o, 0.9, glass=False)
+        elif o["kind"] == "side_door":                                          # through to the bell tower's passage
+            ch_opening(ctx, o, 0.5, glass=False)
         elif o["kind"] == "small_window":
             ch_opening(ctx, o, 0.4, cell=0.2, keep=0.5, bars=False, surround=0.1)
     # Inside: the hymn board by the pulpit, memorial plaques, signs over the porch doors, the shelter's name list.
     wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
-    wq((1, 0, 0), -6.84, -5.6, -4.88, 1.6, 2.6, "hymns")
-    wq((1, 0, 0), -6.84, -1.6, -2.2, 2.2, 2.6, "plaque")
-    wq((-1, 0, 0), 6.84, 1.6, 2.2, 2.2, 2.6, "plaque")
-    wq((1, 0, 0), -1.89, 9.85, 10.65, 2.5, 2.75, "wc")                   # (on the porch side of each room)
-    wq((-1, 0, 0), 1.89, 10.65, 9.85, 2.5, 2.75, "vestry")
-    wq((0, 0, -1), 8.49, 3.6, 3.0, 1.3, 2.1, "roster")                   # on the vestry's nave side
+    wq((0, 0, 1), -11.84, -4.86, -4.14, 1.6, 2.6, "hymns")             # (over the chest: the passage door has the west wall)
+    wq((1, 0, 0), -6.84, 0.19, -1.185, 2.2, 2.6, "plaque")               # (between the lancets)
+    wq((-1, 0, 0), 6.84, -1.185, 0.19, 2.2, 2.6, "plaque")
+    wq((1, 0, 0), -1.89, 9.735, 10.765, 2.48, 2.76, "wc")                # (on the porch side of each room)
+    wq((-1, 0, 0), 1.89, 10.765, 9.735, 2.48, 2.76, "vestry")
+    wq((0, 0, -1), 8.49, 3.7, 2.9, 1.3, 2.1, "roster")                   # on the vestry's nave side
     # Shelter life: bedrolls down the side aisles (off the windows' feet, picture only), candles, jerry cans, crates.
     for sx in (-1, 1):
         for z in (-6.2, -3.6, -1.0, 1.5, 3.4, 6.0):
             if rng.random() < 0.25:
                 continue
             xc = sx * rng.uniform(5.4, 5.9)
+            if sx < 0 and z < -5:                                               # (the passage door to the bell tower)
+                continue
             b.box((xc, 0.05, z), (0.75, 0.1, 1.9), yaw=rng.uniform(-6, 6), style=_nb(rng.choice(("olive", "blue", "wine", "olive_dark"))))
             b.box((xc, 0.12, z - 0.75), (0.5, 0.12, 0.3), style=_nb("bone"))                       # pillow
             if rng.random() < 0.5:
@@ -12739,20 +12756,20 @@ def bell_tower_decals(rng):
             for r in range(int(m) - 6, int(m) - 3):
                 c.put(round(m + math.cos(ang) * r), round(m + math.sin(ang) * r), "black")
 
-    def peals(c):         # 0.9 x 0.6 m peal board: gold letters on black
+    def peals(c):         # 1.38 x 0.63 m peal board: gold letters on black
         c.rect(0, 0, c.w, c.h, "black")
         c.frame(0, 0, c.w, c.h, "sg_gold")
-        c.ctext(0, c.w, 12, "PEALS RUNG", "sg_gold", 1)
+        ch_text(c, 13, "PEALS RUNG", "sg_gold")
         for y in (3, 6, 9):
             c.rect(4, y, c.w - 4 - (y % 4), y + 1, "bone")
 
-    def ringers(c):       # 0.6 x 0.4 m notice
+    def ringers(c):       # 1.16 x 0.47 m notice
         c.rect(0, 0, c.w, c.h, "bone")
-        c.ctext(0, c.w, 6, "RINGERS", "black", 1)
-        c.ctext(0, c.w, 0, "TUES 7PM", "red", 1)
+        ch_text(c, 8, "RINGERS", "black")
+        ch_text(c, 2, "TUES 7PM", "red")
     a.add("dial", 51, 51, dial)
-    a.add("peals", 30, 19, peals)
-    a.add("ringers", 32, 13, ringers)
+    a.add("peals", 44, 20, peals)
+    a.add("ringers", 36, 15, ringers)
     add_ch_glass(a)
     return a
 
@@ -12868,19 +12885,48 @@ def prop_clock_works(ctx, c, s):
         for sz in (-1, 1):
             b.box((c[0] + sx * 0.45, y0 + 1.35, c[2] + sz * 0.3), (0.05, 0.6, 0.05), style=_nb("black"))
         b.box((c[0] + sx * 0.45, y0 + 1.65, c[2]), (0.05, 0.05, 0.65), style=_nb("black"))
-    for x, y, r in ((-0.15, 1.32, 0.25), (0.15, 1.4, 0.17), (0.0, 1.58, 0.12)):  # brass wheels, faces along x
-        b.box((c[0] + x, y0 + y, c[2] + 0.02), (r * 2, r * 2, 0.04), style=_nb("brass"))
-        b.box((c[0] + x, y0 + y, c[2] + 0.05), (0.05, 0.05, 0.08), style=_nb("black"))
+    for k, (x, y, r) in enumerate(((-0.16, 1.36, 0.28), (0.2, 1.4, 0.2), (0.02, 1.52, 0.14))):  # brass wheels, a
+        b.box((c[0] + x, y0 + y, c[2] + 0.02 + k * 0.05), (r * 2, r * 2, 0.04), style=_nb("brass"))   # layer each
+        b.box((c[0] + x, y0 + y, c[2] + 0.05 + k * 0.05), (0.05, 0.05, 0.08), style=_nb("black"))
     b.box((c[0] + 0.3, y0 + 1.4, c[2] - 0.31), (0.3, 0.3, 0.02), style=face_decal(ctx.d("dial"), "black", "-z"))   # setting dial
     b.box((c[0], y0 + 0.55, c[2]), (0.03, 0.9, 0.03), style=_nb("brass"))               # pendulum
     b.box((c[0], y0 + 0.12, c[2]), (0.06, 0.18, 0.18), style=_nb("brass"))
     for sz in (-1, 1):                                                          # rods to the faces
-        _beam(b, (c[0], y0 + 1.5, c[2] + sz * s[2] / 2), (c[0], y0 + 1.7, sz * 4.85), 0.03, 0.03, "black")
-        b.box((c[0], y0 + 1.7, sz * 4.8), (0.12, 0.12, 0.08), style=_nb("black"))
+        _beam(b, (c[0], y0 + 1.5, c[2] + sz * s[2] / 2), (c[0], y0 + 1.6, sz * 4.85), 0.03, 0.03, "black")
+        b.box((c[0], y0 + 1.6, sz * 4.8), (0.12, 0.12, 0.08), style=_nb("black"))   # (level with the hands)
+
+
+def prop_passage_wall(ctx, c, s):
+    """The covered passage from the tower to the church's west door: a stone wall, plaster inside, coping, a
+    little slit window to see out of."""
+    b, ext, dress = ctx.b, ch_look("ext"), ch_look("dress")
+    out = 1 if c[2] > 1.5 else -1                                               # which face is outside
+    b.box(c, s, style=lambda n, m, q: ("ch_plaster" if n[2] * out < -0.5 else ext, uv_world()))
+    b.box((c[0], c[1] + s[1] / 2 + 0.04, c[2]), (s[0] + 0.02, 0.08, s[2] + 0.12), style=_nb(dress))
+    b.box((c[0], c[1] - s[1] / 2 + 0.25, c[2] + out * (s[2] / 2 + 0.03)), (s[0], 0.5, 0.06), style=_nb(dress))
+
+
+def prop_passage_roof(ctx, c, s):
+    """Its roof: a flat slab under a low slate pitch, a timber ceiling inside, a lamp hook."""
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: ("wood", uv_world()) if n[1] < -0.5 else (ch_look("dress"), uv_world()))
+    top, z0, z1 = c[1] + s[1] / 2, c[2] - s[2] / 2 - 0.1, c[2] + s[2] / 2 + 0.1
+    ridge = top + 0.45
+    for sz, za in ((-1, z0), (1, z1)):                                          # slates both sides of a ridge along x
+        b.poly([(c[0] - s[0] / 2, top, za), (c[0] + s[0] / 2, top, za), (c[0] + s[0] / 2, ridge, c[2]),
+                (c[0] - s[0] / 2, ridge, c[2])], (0, 0.9, sz * 0.45), ch_look("roof"), uv_world())
+    for x in (c[0] - s[0] / 2, c[0] + s[0] / 2):                                # (end triangles, behind the walls)
+        b.poly([(x, top, z0), (x, top, z1), (x, ridge, c[2])], (1 if x > c[0] else -1, 0, 0), ch_look("dress"), uv_world())
+    b.box((c[0], 0.02, c[2]), (s[0], 0.04, s[2] - 0.4), style=_nb("ch_flags"))      # flagstones underfoot
+    for x in (c[0] - 0.45, c[0] + 0.45):                                        # ceiling joists
+        b.box((x, c[1] - s[1] / 2 - 0.06, c[2]), (0.1, 0.12, s[2]), style=_nb("wood_dark"))
+    b.box((c[0], c[1] - s[1] / 2 - 0.35, c[2]), (0.02, 0.5, 0.02), style=_nb("black"))
+    b.box((c[0], c[1] - s[1] / 2 - 0.62, c[2]), (0.18, 0.12, 0.18), style=_nb("black"))
 
 
 for _k, _f in {"belfry_pier": prop_belfry_pier, "belfry_canopy": prop_belfry_canopy, "bell": prop_bell,
-               "ringers_bench": prop_ringers_bench, "bell_rope": prop_bell_rope, "clock_works": prop_clock_works}.items():
+               "ringers_bench": prop_ringers_bench, "bell_rope": prop_bell_rope, "clock_works": prop_clock_works,
+               "passage_wall": prop_passage_wall, "passage_roof": prop_passage_roof}.items():
     PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
 
 
@@ -12894,7 +12940,8 @@ def dress_bell_tower(ctx):
         elif o["kind"] == "door":
             ch_opening(ctx, o, 0.6, glass=False)
     for sg in (-1, 1):                                                         # plinth, quoins, string course
-        b.box((sg * (X + 0.04), 0.25, 0), (0.08, 0.5, 2 * X + 0.16), style=_nb(dress))
+        for a0, a1 in (((-X - 0.08, 0.6), (2.4, X + 0.08)) if sg > 0 else ((-X - 0.08, X + 0.08),)):  # (E: passage)
+            b.box((sg * (X + 0.04), 0.25, (a0 + a1) / 2), (0.08, 0.5, a1 - a0), style=_nb(dress))
         b.box((sg * (X + 0.05), 3.0, 0), (0.1, 0.16, 2 * X + 0.2), style=_solid(dress))
         if sg < 0:
             b.box((0, 0.25, -(X + 0.04)), (2 * X + 0.16, 0.5, 0.08), style=_nb(dress))
@@ -12920,12 +12967,19 @@ def dress_bell_tower(ctx):
             b.box((0.88 * math.cos(a), 4.6 + 0.88 * math.sin(a), z), (0.3, 0.3, 0.1), style=_nb(dress))
         b.poly([(-0.8, 3.8, z + sz * 0.06), (0.8, 3.8, z + sz * 0.06), (0.8, 5.4, z + sz * 0.06), (-0.8, 5.4, z + sz * 0.06)],
                (0, 0, sz), "graffiti", ctx.d("dial"))
-        b.box((0.2, 4.75, z + sz * 0.09), (0.45, 0.06, 0.02), yaw=0, pitch=0, style=_nb("black"))   # 4:10, hands
-        b.box((0.13, 4.95, z + sz * 0.09), (0.05, 0.75, 0.02), style=_nb("black"))
+        for ang, L, w in ((125.0, 0.42, 0.07), (60.0, 0.66, 0.05)):           # stopped at 10 past 4: hour, minute
+            a = math.radians(ang)                                              # (from 12 o'clock, clockwise as seen)
+            dx = math.sin(a) * L * (1 if sz > 0 else -1)
+            tip = (dx, 4.6 + math.cos(a) * L, z + sz * 0.09)
+            ux, uy = (tip[0]) / L, (tip[1] - 4.6) / L                         # along the hand, and across it
+            px, py = -uy * w / 2, ux * w / 2
+            pts = [(px, 4.6 + py, tip[2]), (-px, 4.6 - py, tip[2]), (tip[0] - px, tip[1] - py, tip[2]), (tip[0] + px, tip[1] + py, tip[2])]
+            b.poly(pts, (0, 0, sz), "black", uv_world(1.0))
+        b.box((0, 4.6, z + sz * 0.095), (0.1, 0.1, 0.03), style=_nb("black"))                   # the boss
     wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
-    wq((1, 0, 0), -4.84, -2.0, -1.1, 1.3, 1.9, "peals")
-    wq((1, 0, 0), -4.84, 1.1, 2.0, 1.3, 1.9, "peals")
-    wq((0, 0, -1), 4.84, 3.4, 2.8, 1.4, 1.8, "ringers")
+    wq((1, 0, 0), -4.84, -2.6, -1.225, 1.3, 1.925, "peals")
+    wq((1, 0, 0), -4.84, 1.225, 2.6, 1.3, 1.925, "peals")
+    wq((0, 0, -1), 4.84, 3.6, 2.475, 1.4, 1.87, "ringers")
     # Ringing room: a table and chairs where the ringers sat, a tea urn; clock room: boxes of old hymn books, a
     # broken chair; the roof: a sniper's nest (sandbags in the north-east corner, casings, a ration tin).
     b.box((-2.8, 0.74, 2.6), (1.4, 0.05, 0.8), style=_nb("wood"))
@@ -12933,7 +12987,7 @@ def dress_bell_tower(ctx):
         for z in (2.3, 2.9):
             b.box((x, 0.36, z), (0.05, 0.72, 0.05), style=_nb("wood_dark"))
     b.box((-2.5, 0.92, 2.6), (0.24, 0.32, 0.24), style=_nb("steel_light"))
-    chair(b, -2.8, 0.0, 1.8, 0, seat="wood_dark", frame="wood_dark")
+    chair(b, -2.8, 0.0, 1.75, 180, seat="wood_dark", frame="wood_dark")
     chair(b, -1.7, 0.0, 2.6, -90, seat="wood_dark", frame="wood_dark")
     for k, (x, z) in enumerate(((-4.4, -1.6), (-4.4, -1.0), (-3.85, -1.3))):
         b.box((x, 3.0 + 0.2 + (0.4 if k == 2 else 0), z if k < 2 else -1.3), (0.5, 0.4, 0.5), yaw=rng.uniform(-8, 8),
@@ -13003,11 +13057,11 @@ def graveyard_decals(rng):
         c.rect(4, 5, c.w - 4, 6, "fstone_dark")
         c.rect(7, 2, c.w - 7, 3, "fstone_dark")
 
-    def name(c):          # 2.4 x 0.3 m: the family name over the crypt door
+    def name(c):          # 2.38 x 0.44 m: the family name over the crypt door, cut in the frieze
         c.rect(0, 0, c.w, c.h, "clear")
-        c.ctext(0, c.w, 2, CRYPT_NAME, "fstone_dark", 1)
+        ch_text(c, 2, CRYPT_NAME, "fstone_dark", 2)
     a.add("stone", 22, 16, stone)
-    a.add("name", 25, 9, name)
+    a.add("name", 76, 14, name)
     add_ch_glass(a)
     return a
 
@@ -13184,12 +13238,12 @@ def dress_graveyard(ctx):
     # The crypt: pediment over the west door with the family's name, flat pilasters, cornice, a stepped roof with an
     # urn, the iron door hanging open, a step.
     X0 = 2.85
-    b.box((X0 - 0.06, 2.75, 4.0), (0.12, 0.3, 2.9), style=_solid(dress))
-    b.poly([(X0 - 0.12, 2.9, 2.5), (X0 - 0.12, 2.9, 5.5), (X0 - 0.12, 3.75, 4.0)], (-1, 0, 0), dress, uv_world())
+    b.box((X0 - 0.06, 2.78, 4.0), (0.12, 0.46, 2.9), style=_solid(dress))                          # frieze
+    b.poly([(X0 - 0.12, 3.01, 2.5), (X0 - 0.12, 3.01, 5.5), (X0 - 0.12, 3.85, 4.0)], (-1, 0, 0), dress, uv_world())
     for sz in (-1, 1):
-        _beam(b, (X0 - 0.15, 2.95, 4.0 + sz * 1.6), (X0 - 0.15, 3.82, 4.0), 0.2, 0.14, dress)
-    b.poly([(X0 - 0.13, 2.62, 2.8), (X0 - 0.13, 2.62, 5.2), (X0 - 0.13, 2.9, 5.2), (X0 - 0.13, 2.9, 2.8)], (-1, 0, 0),
-           "graffiti", ctx.d("name"))
+        _beam(b, (X0 - 0.15, 3.06, 4.0 + sz * 1.6), (X0 - 0.15, 3.92, 4.0), 0.2, 0.14, dress)
+    b.poly([(X0 - 0.13, 2.56, 4.0 - 1.1875), (X0 - 0.13, 2.56, 4.0 + 1.1875), (X0 - 0.13, 2.9975, 4.0 + 1.1875),
+            (X0 - 0.13, 2.9975, 4.0 - 1.1875)], (-1, 0, 0), "graffiti", ctx.d("name"))
     for z in (2.35, 5.65):
         b.box((X0 - 0.05, 1.3, z), (0.12, 2.6, 0.35), style=_nb(dress))
         b.box((X0 - 0.08, 0.1, z), (0.2, 0.2, 0.45), style=_nb(dress))

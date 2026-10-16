@@ -1177,7 +1177,8 @@ def grocery_furniture(ox, oz):
 CHURCH_LANCETS = (32.0, 37.0, 42.0, 46.6)
 CHURCH_OPENINGS = {
     "S": [("church_door", 167.0, 2.4, 0.0, 3.2)],
-    "W": [("lancet", z, 1.2, 1.4, 4.6) for z in CHURCH_LANCETS] + [("small_window", 50.3, 0.8, 1.7, 2.4)],
+    "W": [("lancet", z, 1.2, 1.4, 4.6) for z in CHURCH_LANCETS] + [("small_window", 50.3, 0.8, 1.7, 2.4),
+          ("side_door", 34.5, 1.6, 0.0, DOOR_H)],          # (the covered passage from the bell tower, owner 2026-10-16)
     "E": [("lancet", z, 1.2, 1.4, 4.6) for z in CHURCH_LANCETS] + [("small_window", 50.3, 0.8, 1.5, 2.4)],
     "N": [("east_window", 167.0, 2.6, 2.4, 5.4)],
 }
@@ -2821,8 +2822,14 @@ def main():
             ("crate", 0, 0, 0, "N", -4.5, "chest"), ("locker", 0, 0, 0, "N", 4.5, "wardrobe")])
         church_furniture(167.0, 40.0)
     with modeled("bell_tower", 153.0, 33.0):   # World art 0.17: the church's bell tower (ringing room, clock, belfry)
-        tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True),
+        tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True,
+                               wall_openings={"E": [("door", 34.5, 1.6, 0.0, DOOR_H)]}),
                       [("crate", 0, 0, 2, "W", 0, "chest")])
+        # A covered passage from the ringing room to the church's west door (owner 2026-10-16: "i like it having a
+        # passage to the church a lot"), 2 m across, between the two walls' faces.
+        for z0 in (33.4, 35.4):
+            box(158.15, 0.0, z0, 159.85, 2.8, z0 + 0.2, "wall", kind="passage_wall")
+        box(158.15, 2.8, 33.4, 159.85, 3.0, 35.6, "slab", kind="passage_roof")
         for px, pz in ((148.4, 28.4), (157.6, 28.4), (148.4, 37.6), (157.6, 37.6)):  # the bell frame on the roof
             box(px - 0.2, 6.0, pz - 0.2, px + 0.2, 9.0, pz + 0.2, "wood", kind="belfry_pier")
         box(148.2, 9.0, 28.2, 157.8, 9.4, 37.8, "roof", kind="belfry_canopy")
