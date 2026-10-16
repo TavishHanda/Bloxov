@@ -11347,7 +11347,7 @@ def prop_checkout(ctx, c, s):
     cash_register(b, c[0] - 0.12, top, z1 - 0.65, 1)
     shelving(ctx, (c[0], y0 + 0.65, z0 + 0.2), (s[0], 1.3, 0.4), "x", (-1,), "snacks", levels=3, frame="trim",
              lip="yellow", fill=0.45, seed=int(c[0] * 10))
-    n = 1 + [-6.7, -4.6, -2.5].index(min([-6.7, -4.6, -2.5], key=lambda v: abs(v - c[0])))
+    n = 1 + [-7.2, -4.9, -2.6].index(min([-7.2, -4.9, -2.6], key=lambda v: abs(v - c[0])))
     b.box((c[0] - s[0] / 2 + 0.05, top + 0.55, z1 - 0.2), (0.05, 1.1, 0.05), style=no_bottom("trim", 1.0))
     b.box((c[0] - s[0] / 2 + 0.05, top + 1.2, z1 - 0.2), (0.3, 0.3, 0.3),
           style=lambda nn, m, q: ("decals", ctx.d("lane%d" % n)) if abs(nn[2]) > 0.7 or abs(nn[0]) > 0.7
@@ -11355,6 +11355,19 @@ def prop_checkout(ctx, c, s):
     for _ in range(rng.randint(1, 3)):                                                    # dropped shopping
         maker, cols = rng.choice(STOCK["pantry"])
         _place(maker, b, (c[0] + rng.uniform(0.5, 0.9), y0, rng.uniform(z0, z1)), "x", rng, rng.choice(cols), lying=True)
+
+
+def prop_cashier_spot(ctx, c, s):
+    """Where the cashier stood, west of a checkout: a black rubber mat and a stool knocked over (picture only)."""
+    b, rng = ctx.b, random.Random(f"cashier{c}")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.01, c[2]), (s[0], 0.02, s[2]), style=no_bottom("black", 1.0))
+    first = len(b.faces)
+    sx, sz = c[0] + rng.uniform(-0.1, 0.1), c[2] + rng.uniform(-0.2, 0.2)
+    b.box((sx, y0 + 0.6, sz), (0.36, 0.05, 0.36), style=no_bottom("trim_dark", 1.0))       # the seat
+    b.box((sx, y0 + 0.3, sz), (0.05, 0.55, 0.05), style=no_bottom("steel_light", 1.0))   # the post
+    b.box((sx, y0 + 0.02, sz), (0.4, 0.04, 0.4), style=no_bottom("steel_light", 1.0))    # the foot
+    _turn_faces(b, first, (sx, y0 + 0.2, sz), rng.uniform(140, 220), True)     # (lying west, off the counter)
 
 
 def prop_produce_stand(ctx, c, s):
@@ -11505,6 +11518,7 @@ def prop_dumpster(ctx, c, s):
 GROC_PROPS = {
     "groc_gondola": prop_groc_gondola, "wall_fridge": prop_wall_fridge, "deli_case": prop_deli_case,
     "deli_back": prop_deli_back, "chest_freezer": prop_chest_freezer, "checkout": prop_checkout,
+    "cashier_spot": prop_cashier_spot,
     "produce_stand": prop_produce_stand, "pallet_rack": prop_pallet_rack, "pallet_load": prop_pallet_load,
     "pallet_jack": prop_pallet_jack, "manager_desk_g": prop_manager_desk_g, "cart_corral": prop_cart_corral,
     "news_box": prop_news_box, "dumpster": prop_dumpster,
@@ -11527,6 +11541,46 @@ GROC_ROOMS = {"floor": ("groc_int", "groc_floor"), "stock": ("int_wall", "concre
               "office": ("int_office", "floor_lino"), "staff": ("int_wall", "floor_lino")}
 
 
+def groc_broken_end(ctx, rng):
+    """The back wall's east end, broken off by the blast at the corner (owner, round 2: "should be a little broken,
+    cracked up"): a ragged edge of block lumps (painted faces, grey broken core), cracks and scorch on both faces
+    running back from it, chunks of the wall on the floor in the gap. Picture only (the solid wall stops at x 9.7)."""
+    b = ctx.b
+    z, t, x0 = GROC_BACK, 0.2, 9.7
+    faces = {1: GROC_ROOMS[groc_room((10.5, 1.0, z + 1.0))][0], -1: GROC_ROOMS[groc_room((10.5, 1.0, z - 1.0))][0]}
+
+    def lump(xa, xb, y, h, dz=0.0, tt=t):
+        def st(n, m, q):
+            if abs(n[2]) > 0.7:
+                return (faces[1 if n[2] > 0 else -1], uv_world())
+            return ("concrete", uv_world(1.0))
+        b.box(((xa + xb) / 2, y + h / 2, z + dz), (xb - xa, h, tt), style=st)
+    y = 0.0
+    while y < 2.75 - 0.05:                                   # the ragged edge: lumps sticking out by different amounts
+        h = min(rng.uniform(0.25, 0.55), 2.75 - y)
+        lump(x0 - 0.02, x0 + rng.uniform(0.05, 0.5), y, h, rng.uniform(-0.015, 0.015), t - rng.uniform(0.0, 0.03))
+        y += h
+    for sg in (1, -1):                                       # cracks running back into the wall, chunks knocked out
+        face = z + sg * (t / 2 + 0.005)
+        for y0 in (0.5, 1.3, 2.1):
+            xa, ya = x0, y0 + rng.uniform(-0.2, 0.2)
+            for _ in range(3):
+                xb, yb = xa - rng.uniform(0.25, 0.5), ya + rng.uniform(-0.3, 0.3)
+                _beam(b, (xa, ya, face), (xb, yb, face), 0.035, 0.006, "black")
+                xa, ya = xb, yb
+        for _ in range(4):                                   # bare broken block where the paint came off with a chunk
+            w, h = rng.uniform(0.15, 0.35), rng.uniform(0.12, 0.3)
+            cx, cy = x0 - rng.uniform(0.1, 0.7), rng.uniform(0.3, 2.4)
+            b.box((cx, cy, z + sg * (t / 2 - 0.02)), (w, h, 0.05), style=lambda n, m, q: ("concrete", uv_world(1.0))
+                  if abs(n[2]) > 0.7 else ("rubble_core", uv_world(1.0)))
+    for _ in range(8):                                       # the rest of it, on the floor in the gap
+        rubble_chunk(b, (rng.uniform(9.9, 11.4), 0.07, z + rng.uniform(-0.9, 0.9)),
+                     (rng.uniform(0.2, 0.45), 0.14, rng.uniform(0.15, 0.3)), rng, (faces[1], "concrete", "concrete"))
+    for _ in range(12):
+        rubble_chunk(b, (rng.uniform(9.6, 11.6), 0.035, z + rng.uniform(-1.3, 1.3)), (0.18, 0.06, 0.1), rng,
+                     ("concrete", "rubble_core"))
+
+
 def dress_grocery(ctx):
     dress_grocery_outside(ctx)
     b, rng = ctx.b, random.Random("grocery dress")
@@ -11540,7 +11594,7 @@ def dress_grocery(ctx):
     wq((0, 0, 1), -9.84, -1.0, -0.6, 1.8, 2.2, "clock")                  # office
     wq((-1, 0, 0), 2.89, -7.8, -8.3, 1.3, 2.0, "calendar")               # office, over the desk
     wq((0, 0, 1), GROC_BACK + 0.101, -3.5, -2.5, 1.4, 2.2, "p_two")      # sales floor: posters on the back wall
-    wq((0, 0, 1), GROC_BACK + 0.101, 8.6, 9.6, 1.4, 2.2, "p_fresh")
+    wq((0, 0, 1), GROC_BACK + 0.101, 4.6, 5.6, 1.4, 2.2, "p_fresh")     # (off the broken end, round 2)
     # Strip lights under the ceiling over the sales floor (a few hanging off one end, a few down on the floor).
     for x in (-10.0, -4.0, 2.0, 8.0):
         for z in (-4.5, -1.0, 2.5, 6.0, 9.0):
@@ -11556,14 +11610,17 @@ def dress_grocery(ctx):
     # Ransacked: stock all over the floor of the aisles and by the checkouts; baskets and carts knocked about.
     for _ in range(60):
         x, z = rng.uniform(-11.0, 11.0), rng.uniform(-4.8, 9.3)
-        if any(abs(x - ax - 0.45) < 0.6 and lo - 0.1 < z < hi + 0.1 for ax in (-8.0, 0.0, 8.0) for lo, hi in ((2.0, 7.0), (-3.3, -2.0))):
+        if any(abs(x - ax - 0.45) < 0.6 and lo - 0.1 < z < hi + 0.1 for ax in (-8.0, 0.0, 8.0) for lo, hi in ((2.0, 5.0), (-3.3, -2.0))):
+            continue
+        if any(abs(x - cx) < 0.45 and 6.3 < z < 8.2 for cx in (-7.2, -4.9, -2.6)):
             continue
         maker, cols = rng.choice(STOCK[rng.choice(("pantry", "cereal", "household", "dairy"))])
         _place(maker, b, (x, 0.0, z), "x", rng, rng.choice(cols), lying=True)
-    for x, z, yaw, tipped in ((1.8, 8.6, 30, False), (-1.6, 5.0, 100, True), (10.0, 8.2, 200, False), (-10.6, 8.9, 250, True)):
+    for x, z, yaw, tipped in ((1.8, 8.6, 30, False), (-1.0, 3.4, 100, True), (10.0, 8.2, 200, False), (-10.6, 8.9, 250, True)):
         shopping_cart(b, x, 0.0, z, yaw, tipped, rng)
     for x, z in ((2.4, 9.3), (2.9, 9.35), (-7.5, 0.8)):                   # baskets
         b.box((x, 0.12, z), (0.42, 0.24, 0.3), yaw=rng.uniform(0, 90), style=no_bottom("red", 1.0))
+    groc_broken_end(ctx, rng)
     # Security cameras inside: the sales floor's corners, over the checkouts, the stock room.
     for at, dx, dz in (((-11.65, 2.5, 9.65), 1.0, -1.0), ((11.65, 2.5, 9.65), -1.0, -1.0),
                        ((-11.65, 2.5, -5.3), 1.0, 1.0), ((-4.6, 2.5, 9.65), 0.0, -1.0), ((-11.65, 2.5, -9.65), 1.0, 1.0)):

@@ -1096,6 +1096,9 @@ GROCERY_OPENINGS = {
 }
 
 
+GROCERY_CHECKOUTS = (-7.2, -4.9, -2.6)   # the counters' middles (model x), lane 1 in the west
+
+
 def grocery_furniture(ox, oz):
     """The grocery store (World art 0.17), in the model's own coordinates (origin map (ox, oz): the building is x -12..12,
     z -10..10, north -z). One sales floor laid out like a real supermarket, back rooms behind a wall along the north:
@@ -1106,7 +1109,7 @@ def grocery_furniture(ox, oz):
         box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
     # ---- Walls of the back rooms: along the back (doorways to the stock room, office and staff room; its east end
     # was blown off by the blast at the corner), between the rooms, and along the roof stairs.
-    wall_x(ox - 11.85, ox + 10.2, oz - 5.6, 0.0, 2.75, "wall_food", [(ox - 6.0, INNER_DOOR_W, 0.0, DOOR_H),
+    wall_x(ox - 11.85, ox + 9.7, oz - 5.6, 0.0, 2.75, "wall_food", [(ox - 6.0, INNER_DOOR_W, 0.0, DOOR_H),
            (ox + 0.75, INNER_DOOR_W, 0.0, DOOR_H), (ox + 7.0, INNER_DOOR_W, 0.0, DOOR_H)], t=0.2)
     for x in (-1.5, 3.0):
         wall_z(oz - 9.85, oz - 5.7, ox + x, 0.0, 2.75, "wall_food", t=0.2)
@@ -1114,8 +1117,9 @@ def grocery_furniture(ox, oz):
     for x in (-6.0, 0.75, 7.0):
         inner_door(ox + x, 0.0, oz - 5.6, 0.0, "Grocery")
     # ---- Sales floor. The aisles: double-sided shelving (solid, as the old gray boxes).
+    # (owner, grocery round 2: the aisles' front halves end 2 m sooner to give the checkouts room)
     for x in (-8.0, 0.0, 8.0):
-        o(x, 0, 2.0, x + 0.9, 1.7, 7.0, "wood", "groc_gondola")
+        o(x, 0, 2.0, x + 0.9, 1.7, 5.0, "wood", "groc_gondola")
         o(x, 0, -3.3, x + 0.9, 1.7, -2.0, "wood", "groc_gondola")
     # Fridges along the side walls: dairy (west), drinks (east, between the blast hole and the window).
     o(-11.85, 0, 0.0, -11.1, 2.0, 6.6, "metal", "wall_fridge")
@@ -1128,8 +1132,12 @@ def grocery_furniture(ox, oz):
     o(-5.0, 0, -0.5, -3.0, 0.9, 0.5, "metal", "chest_freezer")
     o(3.0, 0, -0.5, 5.0, 0.9, 0.5, "metal", "chest_freezer")
     # The checkouts west of the entrance (belt, till, candy rack; solid at counter height), produce stands east of it.
-    for x in (-6.7, -4.6, -2.5):
-        o(x - 0.35, 0, 7.6, x + 0.35, 0.9, 9.3, "metal", "checkout")
+    # Laid out like real lanes (owner, round 2): customers queue in the 1.4 m north of them, walk south down the lane
+    # east of each counter, pay at the till and leave along the 1.75 m walkway in front of the glass to the door; the
+    # cashier stands west of the counter by the till (a mat and a stool, picture only).
+    for x in GROCERY_CHECKOUTS:
+        o(x - 0.35, 0, 6.4, x + 0.35, 0.9, 8.1, "metal", "checkout")
+        o(x - 1.1, 0, 7.0, x - 0.4, 0.6, 8.0, "metal", "cashier_spot", solid=False)
     o(2.6, 0, 7.7, 4.2, 0.85, 8.9, "wood", "produce_stand")
     o(5.4, 0, 7.7, 7.0, 0.85, 8.9, "wood", "produce_stand")
     # ---- The stock room: pallet racking on the north wall, pallets, the pallet jack (picture only).
