@@ -150,7 +150,7 @@ class Canvas:
         wide_gap: the gap after that letter is 1 px wider (ctext uses it to centre exactly)."""
         cx = x
         for i, ch in enumerate(s.upper()):
-            if i == wide_gap + 1:
+            if wide_gap >= 0 and i == wide_gap + 1:
                 cx += 1
             g = FONT.get(ch)
             if g is None:
@@ -10343,6 +10343,10 @@ def dress_police_outside(ctx):
         z = side[0]["mid"]
         b.box((fp[0] - 0.17, 2.6, z), (0.03, 0.25, 0.8), style=face_decal(ctx.d("staff"), "bone", "-x"))
         b.box((fp[0] - 0.4, 2.95, z + 1.4), (0.35, 0.18, 0.18), yaw=200, pitch=-15, style=st("bone"))
+    # Security cameras on the corners (round 4, owner): two over the front, two over the back (the car park, later).
+    for x, z, dx, dz in ((-12.45, 11.17, 0.6, 1.0), (12.45, 11.17, -0.6, 1.0),
+                         (-12.45, -11.17, 0.6, -1.0), (12.45, -11.17, -0.6, -1.0)):
+        security_camera(b, (x, 3.1, z), dx, dz)
     # Roof: a siren on a post (picture only; the roof is a lookout). The radio mast stood over the break room and came
     # down through it (caved_police); a standing copy floated over the hole (owner, round 2).
     b.box((-11.5, 7.6, 9.6), (0.08, 1.2, 0.08), style=st("steel_light"))
@@ -10709,6 +10713,25 @@ def dress_police(ctx):
     police_life(ctx, wq)
 
 
+def security_camera(b, at, dx, dz, drop=0.35, k=1.7):
+    """A CCTV camera on a wall bracket at `at`, looking along (dx, dz) and down: an arm, the body with a sun hood, a
+    dark lens, a red light (about 50 triangles; picture only). k scales it (round 4: life size read as a dot)."""
+    L = math.hypot(dx, dz)
+    ux, uz = dx / L, dz / L
+    arm = (at[0] + ux * 0.18 * k, at[1], at[2] + uz * 0.18 * k)
+    _beam(b, at, arm, 0.04 * k, 0.04 * k, "trim_dark")
+    b.box((at[0], at[1], at[2]), (0.1 * k, 0.14 * k, 0.1 * k), style=lambda n, m, q: ("trim_dark", uv_world(1.0)))
+    back = (arm[0] - ux * 0.05 * k, arm[1] - 0.06 * k, arm[2] - uz * 0.05 * k)
+    front = (arm[0] + ux * 0.3 * k, arm[1] - 0.06 * k - drop * 0.3 * k, arm[2] + uz * 0.3 * k)
+    _beam(b, back, front, 0.13 * k, 0.12 * k, "bone")
+    _beam(b, (back[0], back[1] + 0.075 * k, back[2]), (front[0] + ux * 0.05 * k, front[1] + 0.075 * k - drop * 0.05 * k,
+          front[2] + uz * 0.05 * k), 0.16 * k, 0.02 * k, "trim")                                          # sun hood
+    _beam(b, front, (front[0] + ux * 0.03 * k, front[1] - drop * 0.03 * k, front[2] + uz * 0.03 * k), 0.09 * k,
+          0.08 * k, "black")
+    b.box((back[0] + ux * 0.08 * k, back[1] + 0.07 * k, back[2] + uz * 0.08 * k), (0.03 * k, 0.03 * k, 0.03 * k),
+          style=lambda n, m, q: ("red", uv_world(1.0)))
+
+
 def police_life(ctx, wq):
     """Round 2 (owner: "a tiny bit empty, bland", without many more triangles): flat pictures on the walls (two
     triangles each: posters, clocks, calendars, signs), the officers' jackets and caps still on their hooks, police
@@ -10733,6 +10756,11 @@ def police_life(ctx, wq):
     wq((1, 0, 0), -12.84, 5.0, 5.6, 4.1, 5.0, "recruit")                  # staff lockers
     wq((-1, 0, 0), 4.22, 10.0, 9.5, 4.2, 4.9, "calendar")                 # records
     wq((0, 0, 1), 3.78, -3.2, -2.2, 4.75, 5.05, "copier")                # records: over the photocopier
+    # Security cameras up in the corners (round 4, owner): lobby, booking, the cells, squad room, armoury, evidence.
+    for at, dx, dz in (((-4.15, 2.6, 3.95), 1.0, 1.0), ((-12.65, 2.6, -3.35), 1.0, 1.0),
+                       ((4.13, 2.6, 0.0), -1.0, 0.0), ((12.65, 2.6, 3.35), -1.0, -1.0),
+                       ((12.65, 2.6, -10.65), -1.0, 1.0), ((12.65, 5.6, 3.35), -1.0, -1.0)):
+        security_camera(b, at, dx, dz)
     # The jackets and caps on the locker room's north wall (the officers left in a hurry).
     b.box((0, 2.0, -10.82), (5.6, 0.1, 0.05), style=_nb("wood"))                                # coat rail
     for k, x in enumerate((-2.4, -1.6, -0.8, 0.8, 1.6, 2.4)):
