@@ -146,15 +146,36 @@ MODEL_JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", 
 
 
 @contextlib.contextmanager
-def modeled(name, x, z):
+def modeled(name, x, z, turned=False):
     # Until the model is exported the gray box stays visible (the .json is still written for the build script).
-    m = {"name": name, "x": x, "z": z, "boxes": [], "hide": os.path.exists(model_path(name))}
+    # turned: everything made in here is turned half round (x, z) afterwards, and the model drawn turned to match (owner,
+    # police round 3: "the entrance is facing away from the street"); its .json stays as built, the model's own frame.
+    m = {"name": name, "x": x, "z": z, "boxes": [], "hide": os.path.exists(model_path(name)), "turned": turned}
     models.append(m)
     _model.append(m)
+    counts = (len(boxes), len(markers), len(loot), len(buildings))
     try:
         yield
     finally:
         _model.pop()
+        if turned:
+            _turn_half(x, z, *counts)
+
+
+def _turn_half(x, z, nb, nm, nl, nbuild):
+    """Turns the boxes, doors and loot made since the counts half a turn round map point (x, z)."""
+    for k in range(nb, len(boxes)):
+        b = boxes[k]
+        yaw = b[6] if b[6] == 0.0 and b[7] == 0.0 else (b[6] + 180.0) % 360.0
+        boxes[k] = (2 * gx(x) - b[0], b[1], 2 * gz(z) - b[2]) + b[3:6] + (yaw,) + b[7:]
+    for k in range(nm, len(markers)):
+        g, name, mx, my, mz, meta = markers[k]
+        markers[k] = (g, name, 2 * x - mx, my, 2 * z - mz, meta)
+    for k in range(nl, len(loot)):
+        name, kind, lx, ly, lz, yaw, table, place = loot[k]
+        loot[k] = (name, kind, 2 * x - lx, ly, 2 * z - lz, (yaw + 180.0) % 360.0, table, place)
+    for b in buildings[nbuild:]:
+        b.turned_about = (x, z)   # (its rooms, strips etc. stay as built: indoor spawns turn their points)
 
 
 @contextlib.contextmanager
@@ -240,6 +261,29 @@ DEFAULT_LOOK = {"crate": "hard_case", "locker": "locker", "safe": "safe"}
 # A container's own look when its room needs one that isn't its place's (round 4, owner: containers that make sense
 # for the room: the TV shop's boxes are TVs, the laundromat has a laundry cart). Container name -> look.
 LOOK_OF = {}
+
+
+def settle_fallen_doors():
+    """A door that fell off lies flat on the floor on either side of its doorway (scripts/door.gd): where furniture
+    stands there, it would lie under or through it (owner, police round 3: the doors under the front desk), so that
+    door stays up and works instead."""
+    for k, (grp, name, x, y, z, meta) in enumerate(markers):
+        if grp != "Doors" or meta.get("broken") != "fallen":
+            continue
+        along_x = meta.get("yaw", 0.0) == 0.0          # the doorway runs along x (a wall along x)
+        for b in boxes:
+            if b[7] != 0.0 or not (0.15 < b[4] <= 2.3) or b[3] * b[5] > 8.0:
+                continue
+            if not (y - 0.05 < b[1] - b[4] / 2 < y + 0.6):
+                continue
+            bx, bz = b[0] + M / 2, b[2] + M / 2
+            ha, hw = (b[3], b[5]) if along_x else (b[5], b[3])
+            if b[6] % 180.0 != 0.0:
+                ha = hw = max(b[3], b[5])
+            da, dw = (bx - x, bz - z) if along_x else (bz - z, bx - x)
+            if abs(da) < 1.1 + ha / 2 and 0.1 - hw / 2 < abs(dw) < 2.9 + hw / 2:
+                meta["broken"] = ""
+                break
 
 
 def loot_look(place, kind, name=""):
@@ -1035,10 +1079,10 @@ def police_furniture(ox, oz):
     # Stair walls (owner, bank round: run them the full length so you can't see into rooms, one way up). Ground:
     # the stairs are walled off from the stair hall along their whole side up to the foot, and from the locker room;
     # upstairs the landing is walled off from the chief's office. The roof stairs likewise in the property store.
-    o(-13.0, 0, -8.65, -7.4, 2.75, -8.45, "wall_police", None)
+    o(-13.0, 0, -8.57, -7.4, 2.75, -8.37, "wall_police", None)
     o(-4.43, 0, -10.85, -4.23, 2.75, -8.65, "wall_police", None)
     o(-4.43, 3.0, -10.85, -4.23, 5.75, -8.65, "wall_police", None)
-    o(7.4, 3.0, 8.45, 13.0, 5.75, 8.65, "wall_police", None)
+    o(7.4, 3.0, 8.37, 13.0, 5.75, 8.57, "wall_police", None)
     o(4.23, 3.0, 8.65, 4.43, 5.75, 10.85, "wall_police", None)
     # The roof stairs' strip also cut the ground floor's lobby/interview wall (round 2, owner: "the wall here just
     # doesn't go all the way across"): close it.
@@ -1082,9 +1126,9 @@ def police_furniture(ox, oz):
     for x in (-1.45, 1.35):
         o(x, 0, 1.3, x + 0.1, 2.75, 3.57, "wall_police", None)
     # The squad room (east middle): desks, the loot crate on the east wall.
-    o(4.9, 0, -3.3, 6.6, 0.75, -1.8, "wood", "office_pod")
-    o(4.9, 0, 1.8, 6.6, 0.75, 3.3, "wood", "office_pod")
-    o(10.3, 0, -3.3, 12.0, 0.75, -1.8, "wood", "office_pod")
+    o(5.4, 0, -2.6, 7.1, 0.75, -1.1, "wood", "office_pod")
+    o(5.4, 0, 1.1, 7.1, 0.75, 2.6, "wood", "office_pod")
+    o(10.2, 0, -2.6, 11.9, 0.75, -1.1, "wood", "office_pod")
     # Dispatch (south-west): radio consoles on the north wall, filing cabinets.
     o(-12.6, 0, 4.0, -10.3, 0.8, 4.7, "wood", "dispatch_console")
     o(-6.8, 0, 4.0, -4.7, 0.8, 4.7, "wood", "dispatch_console")
@@ -1110,8 +1154,8 @@ def police_furniture(ox, oz):
     o(4.6, 3.0, -4.4, 6.9, 3.9, -3.8, "wood", "kitchenette")
     o(12.1, 3.0, -5.6, 12.8, 4.9, -4.4, "metal", "vending")
     # Detectives (west middle): two desks, filing cabinets (the case board is on the wall).
-    o(-12.3, 3.0, -3.0, -10.6, 3.75, -1.5, "wood", "office_pod")
-    o(-12.3, 3.0, 1.5, -10.6, 3.75, 3.0, "wood", "office_pod")
+    o(-12.3, 3.0, -2.75, -10.6, 3.75, -1.25, "wood", "office_pod")
+    o(-12.3, 3.0, 1.25, -10.6, 3.75, 2.75, "wood", "office_pod")
     o(-5.1, 3.0, -3.3, -4.5, 4.3, -2.7, "metal", "file_cabinet")
     # The briefing room (middle): rows of chairs facing the board on the north wall, a lectern.
     o(-3.6, 3.0, 1.4, -1.4, 3.9, 3.2, "metal", "briefing_chairs", solid=False)
@@ -2466,7 +2510,7 @@ def main():
         box(62.6, 0, 99.1, 62.9, 6.2, 99.4, "metal", kind="sign_pole")
         box(72.6, 0, 112.8, 73.4, 1.0, 114.4, "metal", kind="ice_chest")
         box(83.0, 3.0, 108.0, 84.6, 3.8, 109.2, "metal", kind="roof_ac")   # on the roof
-    with modeled("police", 163.0, 123.0):   # World art 0.17: Bloxov police station (overrun, ransacked)
+    with modeled("police", 163.0, 123.0, turned=True):   # World art 0.17: Bloxov police station (overrun, ransacked)
         # The caved room is a corner room upstairs (north-east: the other corners hold the stairs' landing and the
         # roof stairs, and the south-west one the staff lockers).
         build(Building("Police", 150, 112, 26, 22, floors=2, colour="wall_police", rooms=(3, 3), doors="WS", roof=True,
@@ -2710,6 +2754,7 @@ def main():
     zone_spawns()
     map_labels()
     check_roads()
+    settle_fallen_doors()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
 
@@ -2842,6 +2887,9 @@ def zone_spawns():
                 zone = _zone_of(cx, cz)
                 if zone is None or zone[0] == AI_BOSS[0] or (zone[4] + zone[5]) == 0:
                     continue
+                if getattr(b, "turned_about", None):
+                    cx, cz = 2 * b.turned_about[0] - cx, 2 * b.turned_about[1] - cz
+                    zone = _zone_of(cx, cz) or zone
                 rooms.append((round(cx, 1), round(cz, 1), zone[0]))
         # Half the rooms (owner, 0.12.24: 6 in a building -> 3, 2 -> 1), spread through the building; one if only one.
         keep = max(1, len(rooms) // 2) if rooms else 0
@@ -3020,7 +3068,7 @@ def write_scene(ter):
             '[node name="Models" type="Node3D" parent="Level"]', ""]
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',
-                f"transform = {xform(m['x'], m['y'], m['z'])}", 'script = ExtResource("m_pixel")', ""]
+                f"transform = {xform(m['x'], m['y'], m['z'], 180.0 if m['turned'] else 0.0)}", 'script = ExtResource("m_pixel")', ""]
     out += ['[node name="Loot" type="Node3D" parent="."]', ""]
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',

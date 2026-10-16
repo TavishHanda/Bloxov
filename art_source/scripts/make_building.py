@@ -187,7 +187,7 @@ class Canvas:
 
 
 FONT = {
-    "A": [".#.", "#.#", "###", "#.#", "#.#"], "B": ["##.", "#.#", "##.", "#.#", "##."],
+    "A": [".#.", "#.#", "###", "#.#", "#.#"], "B": ["##.", "#.#", "##.", "#.#", "##."], "J": ["..#", "..#", "..#", "#.#", ".#."],
     "C": [".##", "#..", "#..", "#..", ".##"], "D": ["##.", "#.#", "#.#", "#.#", "##."],
     "E": ["###", "#..", "##.", "#..", "###"], "F": ["###", "#..", "##.", "#..", "#.."],
     "G": [".##", "#..", "#.#", "#.#", ".##"], "H": ["#.#", "#.#", "###", "#.#", "#.#"],
@@ -1241,8 +1241,10 @@ def stairs(ctx, c, s, yaw, pitch, mats=("wood", "trim_dark")):
         b.box(p, (s[0], h, tread), yaw=yaw,
               style=lambda nn, m, q: (mats[0], uv_world(1.0)) if nn[1] > 0.7 or abs(dot(nn, along)) > 0.7
               else (mats[1], uv_world(1.0)))
-    for side in (-1, 1):                                           # stringers along both sides
-        sc = v_add(c, rot((side * (s[0] / 2 + 0.04), -0.05, 0), yaw, pitch))
+    # Stringers along both sides, just outside the treads: against a wall they sit in it (police round 3, owner:
+    # a stringer face level with the wall face flickered through it as you walked up).
+    for side in (-1, 1):
+        sc = v_add(c, rot((side * (s[0] / 2 + 0.05), -0.05, 0), yaw, pitch))
         b.box(sc, (0.08, 0.35, s[2]), yaw=yaw, pitch=pitch, style=lambda nn, m, q: (mats[1], uv_world(1.0)))
 
 
@@ -10067,8 +10069,12 @@ def police_decals(rng):
                     c.put(x, y, "sand")
         for k in range(0, 12, 2):                                           # ball tips
             c.put(int(pts[k][0]), int(pts[k][1]), "yellow_dark")
-        c.rect(11, 11, 18, 18, "navy")
-        c.ctext(11, 18, 12, "B", "sand")
+        c.rect(11, 10, 18, 19, "navy")
+        # A bold 5 x 7 B in the middle (round 3, owner: the 3 x 5 letter read as off centre)
+        for r, row in enumerate(("####.", "#...#", "#...#", "####.", "#...#", "#...#", "####.")):
+            for k, ch in enumerate(row):
+                if ch == "#":
+                    c.put(12 + k, 17 - r, "sand")
 
     def lamp(c):          # the blue lamp's glass: POLICE on all four sides
         c.rect(0, 0, c.w, c.h, "police_blue")
@@ -10077,9 +10083,9 @@ def police_decals(rng):
 
     def notice(c):        # 2.0 x 0.8 m notice case by the door: a WANTED poster with a face, a MISSING poster
         c.rect(0, 0, c.w, c.h, "wood_dark")
-        half = c.w // 2
-        for x0, x1, paper, head, word in ((2, half - 1, "bone", "black", "WANTED"),
-                                          (half + 1, c.w - 2, "paper_cream", "red", "MISSING")):
+        # Two posters with a gap between (round 3, owner: MISSING was too big for its half)
+        for x0, x1, paper, head, word in ((2, 36, "bone", "black", "WANTED"),
+                                          (40, 74, "paper_cream", "red", "MISSING")):
             c.rect(x0, 2, x1, c.h - 2, paper)
             c.ctext(x0, x1, c.h - 8, word, head)
             m = (x0 + x1) // 2
@@ -10172,12 +10178,19 @@ def police_decals(rng):
     def recruit(c):       # 0.6 x 0.9 m: a recruiting poster, the badge over JOIN
         c.rect(0, 0, c.w, c.h, "navy")
         c.frame(0, 0, c.w, c.h, "bone")
-        m = c.w // 2
-        for y in range(9, 21):
-            r = 6 - abs(y - 15) // 2
-            c.rect(m - r, y, m + r, y + 1, "sand")
-        c.rect(m - 1, 13, m + 1, 17, "navy")
-        c.ctext(0, c.w, 3, "JOIN", "bone")
+        r0, cy = c.w / 2, 18.5                                            # the badge's star (as on the front)
+        pts = [(r0 + 7.0 * (1 if k % 2 == 0 else 0.5) * math.sin(k * math.pi / 6),
+                cy + 7.0 * (1 if k % 2 == 0 else 0.5) * math.cos(k * math.pi / 6)) for k in range(12)]
+        for y in range(9, 28):
+            for x in range(c.w):
+                px, py, inside = x + 0.5, y + 0.5, False
+                for k in range(12):
+                    (ax, ay), (bx, by) = pts[k], pts[k - 1]
+                    if (ay > py) != (by > py) and px < ax + (py - ay) * (bx - ax) / (by - ay):
+                        inside = not inside
+                if inside:
+                    c.put(x, y, "sand")
+        c.ctext(0, c.w, 2, "JOIN", "bone")
 
     def clock(c):         # 0.4 m wall clock, stopped at ten to six
         c.rect(0, 0, c.w, c.h, "bone")
@@ -10226,7 +10239,7 @@ def police_decals(rng):
         c.rect(0, 0, c.w, c.h, "yellow_dark")
         c.ctext(0, c.w, 2, "CHIEF", "black")
 
-    a.add("recruit", 19, 29, recruit)
+    a.add("recruit", 20, 29, recruit)
     a.add("pclock", 13, 13, clock)
     a.add("calendar", 16, 22, calendar)
     a.add("team", 32, 19, team)
@@ -10247,7 +10260,7 @@ def police_decals(rng):
     a.add("station", 160, 16, station)
     a.add("badge", 29, 29, badge)
     a.add("lamp", 26, 9, lamp)
-    a.add("notice", 64, 26, notice)
+    a.add("notice", 76, 26, notice)
     a.add("staff", 45, 9, staff)
     return a
 
@@ -10323,7 +10336,7 @@ def dress_police_outside(ctx):
     on_wall("S", dx, 5.87, 5.0, 0.5, 0.02, trim, push=0.11, style=face_decal(ctx.d("station"), trim, "+z"))
     for k in range(2):                                                                         # steps
         b.box((dx, 0.06 + k * 0.12, zf + 0.3 + (1 - k) * 0.3), (3.2, 0.12, 0.6 + (1 - k) * 0.6), style=no_bottom("concrete", 1.0))
-    b.box((dx + 3.6, 1.5, zf + 0.04), (2.0, 0.8, 0.06), style=face_decal(ctx.d("notice"), "wood_dark", "+z"))
+    b.box((dx + 3.7, 1.5, zf + 0.04), (2.4, 0.8, 0.06), style=face_decal(ctx.d("notice"), "wood_dark", "+z"))
     # The west side door: STAFF ONLY. A camera over it, its cable cut.
     side = [o for o in opens if o["side"] == "W" and o["kind"] != "window"]
     if side:
@@ -10433,11 +10446,11 @@ def prop_mugshot_camera(ctx, c, s):
     b = ctx.b
     y0 = c[1] - s[1] / 2
     x, z = c[0], c[2] - 0.1
-    for k in range(3):
+    for k in range(3):                       # legs from the floor up to the head (round 3: they met it)
         a = math.radians(k * 120 + 15)
-        _bx(b, x + 0.22 * math.cos(a), y0 + 0.65, z + 0.22 * math.sin(a), 0.03, 1.3, 0.03, "trim_dark",
-            yaw=-math.degrees(a), pitch=12)
-    _bx(b, x, y0 + 1.33, z, 0.08, 0.08, 0.08, "trim_dark")
+        _beam(b, (x + 0.38 * math.cos(a), y0, z + 0.38 * math.sin(a)),
+              (x + 0.03 * math.cos(a), y0 + 1.36, z + 0.03 * math.sin(a)), 0.035, 0.035, "trim_dark")
+    _bx(b, x, y0 + 1.33, z, 0.1, 0.1, 0.1, "trim_dark")
     _bx(b, x, y0 + 1.47, z, 0.22, 0.18, 0.28, "black", yaw=12)
     _bx(b, x + 0.03, y0 + 1.47, z + 0.18, 0.1, 0.1, 0.1, "trim_dark", yaw=12)
     _bx(b, x, y0 + 1.58, z, 0.06, 0.06, 0.06, "bone")                                           # flash
@@ -10606,8 +10619,10 @@ def caved_police(ctx, c, s):
             a += L
     # The radio mast: foot on the floor by the west wall, leaning up and out through the hole to the north-east;
     # its rungs, a dish still bolted on, a guy wire trailing.
+    # (round 3, owner: it floated) Its top rests on the east parapet's coping, sticking out a little past it.
     p0 = (x0 + 1.4, y + 0.1, c[2] + 0.8)
-    p1 = (x1 - 1.2, top + 3.2, z0 + 1.3)
+    rest = (x1 + 0.3, y + 4.07, z0 + 2.2)                                 # the parapet top is 7 m, the floor 3 m
+    p1 = tuple(p0[i] + (rest[i] - p0[i]) * 1.12 for i in range(3))
     _beam(b, p0, p1, 0.14, 0.14, "steel_light")
     n = 9
     for k in range(1, n):
@@ -10683,7 +10698,7 @@ def dress_police(ctx):
     wq((0, 0, -1), -3.78, -12.1, -10.9, 1.3, 2.1, "duty")                 # stair hall, over the bench
     wq((0, 0, -1), 3.56, -6.35, -5.35, 0.0, 2.2, "chart")                 # booking: the height chart
     wq((0, 0, 1), 3.78, -12.45, -10.45, 1.5, 2.5, "city")                 # dispatch: the map over the console
-    wq((-1, 0, 0), 4.22, 10.2, 8.2, 1.2, 2.0, "notice")                   # lobby: wanted and missing
+    wq((-1, 0, 0), 4.22, 10.4, 8.0, 1.2, 2.0, "notice")                   # lobby: wanted and missing
     wq((-1, 0, 0), -4.44, 3.25, 1.65, 4.1, 5.1, "caseboard")              # detectives: the case board
     wq((0, 0, 1), -3.56, 1.5, 3.7, 4.05, 5.15, "brief")                   # briefing: the whiteboard
     # The cell keys board in booking, by the door to the cells: empty hooks, one ring of keys on the floor.
@@ -10700,7 +10715,7 @@ def police_life(ctx, wq):
     tape across the caved room's doors, a one-way mirror in the interview room, tally marks in the cells."""
     b = ctx.b
     wq((1, 0, 0), -12.84, -5.5, -4.9, 1.2, 2.1, "recruit")                # stair hall
-    wq((0, 0, -1), -3.78, -0.2, 0.2, 2.3, 2.7, "pclock")                  # locker room, over the door to the cells
+    wq((0, 0, -1), -3.78, 2.7, 3.1, 2.1, 2.5, "pclock")                   # locker room, over the lockers
     wq((1, 0, 0), -12.84, -3.2, -2.7, 1.3, 2.0, "calendar")               # booking, over the desk
     wq((0, 0, 1), -3.56, -3.6, -3.1, 1.2, 1.6, "tally")                   # in a north cell, over the bunk
     wq((0, 0, -1), 3.56, 2.2, 2.7, 1.1, 1.5, "tally")                     # in a south cell
@@ -10710,7 +10725,7 @@ def police_life(ctx, wq):
     wq((1, 0, 0), -12.84, 4.0, 4.6, 1.3, 2.0, "calendar")                 # dispatch
     wq((1, 0, 0), -4.22, 9.4, 10.0, 1.4, 2.3, "recruit")                  # lobby
     wq((-1, 0, 0), -4.44, -4.7, -3.9, 4.1, 4.6, "team")                   # top of the stairs: the team photo
-    wq((-1, 0, 0), -4.44, -6.93, -7.73, 5.3, 5.55, "chief")               # over the chief's door
+    wq((-1, 0, 0), -4.44, -5.71, -6.51, 5.5, 5.75, "chief")               # over the chief's door
     wq((0, 0, 1), -10.84, -0.5, 0.5, 4.2, 4.8, "team")                    # chief's office, behind the desk
     wq((1, 0, 0), -12.84, -3.3, -2.7, 4.2, 4.9, "calendar")               # detectives
     wq((1, 0, 0), -4.22, -2.5, -2.1, 5.0, 5.4, "pclock")                  # briefing
