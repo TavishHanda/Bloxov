@@ -87,5 +87,14 @@
 "groc_cream",
 "groc_floor",
 "groc_int",
-"groc_locker"
+"groc_locker",
+"ch_fieldstone",
+"ch_dressed",
+"ch_brick",
+"ch_buff",
+"ch_flint",
+"ch_lime",
+"ch_plaster",
+"ch_flags",
+"ch_tiles"
 ]

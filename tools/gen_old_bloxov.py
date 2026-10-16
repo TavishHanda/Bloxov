@@ -1165,6 +1165,50 @@ def grocery_furniture(ox, oz):
     o(-14.4, 0, -1.2, -12.8, 1.4, 0.8, "metal", "dumpster")
 
 
+# The church's outside openings (World art 0.17), map coords: the west door (south end, the street side of the
+# churchyard) under the gable, four tall lancet windows down each side of the nave, the big window over the altar
+# (north), small windows for the washroom (west) and the vestry (east) in the rooms either side of the porch.
+CHURCH_LANCETS = (32.0, 37.0, 42.0, 46.6)
+CHURCH_OPENINGS = {
+    "S": [("church_door", 167.0, 2.4, 0.0, 3.2)],
+    "W": [("lancet", z, 1.2, 1.4, 4.6) for z in CHURCH_LANCETS] + [("small_window", 50.3, 0.8, 1.7, 2.4)],
+    "E": [("lancet", z, 1.2, 1.4, 4.6) for z in CHURCH_LANCETS] + [("small_window", 50.3, 0.8, 1.5, 2.4)],
+    "N": [("east_window", 167.0, 2.6, 2.4, 5.4)],
+}
+
+
+def church_furniture(ox, oz):
+    """The parish church (World art 0.17), in the model's own coordinates (origin map (ox, oz): the church is x -7..7,
+    z -12..12, north -z, one tall room 6 m to the eaves). Laid out like a real church: the porch inside the door at the
+    south end with the washroom (west) and the vestry (east) either side of it, the nave with its pews (same places as
+    the gray boxes, an aisle down the middle), the chancel at the north end with the altar under the big window, the
+    pulpit and the lectern, the organ. War: used as a shelter, then shelled (the roof hole is picture only)."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # ---- The porch rooms (3 m tall, a flat ceiling): washroom south-west, vestry south-east, doors off the porch.
+    for x0, x1, dx in ((-6.85, -2.1, -2.0), (2.1, 6.85, 2.0)):
+        wall_x(ox + x0, ox + x1, oz + 8.6, 0.0, 3.0, "wall", t=0.2)
+        wall_z(oz + 8.5, oz + 11.85, ox + dx, 0.0, 3.0, "wall", [(oz + 10.25, INNER_DOOR_W, 0.0, DOOR_H)], t=0.2)
+        o(min(x0, dx - 0.1), 3.0, 8.5, max(x1, dx + 0.1), 3.15, 11.85, "slab", None)
+    inner_door(ox - 2.0, 0.0, oz + 10.25, 90.0, "Church")
+    inner_door(ox + 2.0, 0.0, oz + 10.25, 90.0, "Church")
+    # ---- The nave: the pews (solid as the gray boxes, an aisle down the middle), the altar.
+    for z in range(-6, 8, 3):
+        o(-4.5, 0, z, -1.0, 0.9, z + 0.8, "wood", "pew")
+        o(1.0, 0, z, 4.5, 0.9, z + 0.8, "wood", "pew")
+    o(-2.0, 0, -10.4, 2.0, 1.0, -9.0, "wood", "altar")
+    # ---- The chancel: the pulpit (west), the lectern (east), the organ against the east wall, candle stands.
+    o(-6.0, 0, -7.8, -4.8, 1.25, -6.6, "wood", "pulpit")
+    o(4.9, 0, -7.6, 5.5, 1.2, -7.0, "wood", "lectern")
+    o(5.95, 0, -6.8, 6.85, 2.4, -4.0, "wood", "organ")
+    for x in (-2.6, 2.6):
+        o(x - 0.15, 0, -9.85, x + 0.15, 1.5, -9.55, "metal", "candle_stand", solid=False)
+    # ---- The washroom (two stalls, sinks) and the vestry (robes, the parish desk, the safe-ish cupboard).
+    o(-6.85, 0, 8.7, -5.1, 2.0, 11.85, "wood", "wc_stalls", solid=False)
+    o(-4.8, 0, 8.7, -3.9, 0.9, 9.3, "metal", "wc_sinks")
+    o(5.9, 0, 9.3, 6.85, 0.76, 11.0, "wood", "vestry_desk")
+    o(2.1, 0, 11.3, 4.3, 2.0, 11.85, "wood", "robe_rail", solid=False)
+
 def police_furniture(ox, oz):
     """Bloxov police station (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 8.67 x
     7.33 m, storeys 3 m). Overrun and ransacked. Furniture is solid like everywhere else; chairs, the mugshot
@@ -2644,12 +2688,11 @@ def main():
 
     # church and graveyard, top right of town (owner, 0.10.1): a bell tower you can climb (roof lookout), pews
     # inside, headstones (low cover) and a crypt
-    build(Building("Church", 160, 28, 14, 24, colour="wall", rooms=(1, 1), doors="S", height=6.0), [
-        ("crate", 0, 0, 0, "N", -4.5), ("locker", 0, 0, 0, "N", 4.5)])
-    box(165, 0, 29.6, 169, 1.0, 31.0, "wood")                                   # altar
-    for z in range(34, 48, 3):                                                  # pews, an aisle down the middle
-        box(162.5, 0, z, 166.0, 0.9, z + 0.8, "wood")
-        box(168.0, 0, z, 171.5, 0.9, z + 0.8, "wood")
+    with modeled("church", 167.0, 40.0):   # World art 0.17: the parish church (nave, chancel, washroom, vestry)
+        build(Building("Church", 160, 28, 14, 24, colour="wall", rooms=(1, 1), doors="S", height=6.0,
+                       wall_openings=CHURCH_OPENINGS), [
+            ("crate", 0, 0, 0, "N", -4.5, "chest"), ("locker", 0, 0, 0, "N", 4.5, "wardrobe")])
+        church_furniture(167.0, 40.0)
     tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True),
                   [("crate", 0, 0, 2, "W", 0)])
     for px, pz in ((148.4, 28.4), (157.6, 28.4), (148.4, 37.6), (157.6, 37.6)):  # the bell frame on the roof
