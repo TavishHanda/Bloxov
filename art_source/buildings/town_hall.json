@@ -219,5 +219,14 @@
 {"pos": [22.0, 3.39, 0.65], "size": [3.0, 0.78, 0.8], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "radio_table"},
 {"pos": [24.2, 3.45, 2.6], "size": [1.2, 0.9, 1.2], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "ammo_crates"},
 {"pos": [13.5, 3.4, 0.8], "size": [1.0, 0.8, 0.8], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "generator"},
-{"pos": [24.3, 8.0, 5.9], "size": [0.2, 4.0, 0.2], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": false, "kind": "radio_mast"}
+{"pos": [24.3, 8.0, 5.9], "size": [0.2, 4.0, 0.2], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": false, "kind": "radio_mast"},
+{"pos": [13.088, 1.375, 6.325], "size": [0.975, 2.75, 0.15], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": null},
+{"pos": [14.0, 2.425, 6.325], "size": [0.85, 0.65, 0.15], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": null},
+{"pos": [14.787, 1.375, 6.325], "size": [0.725, 2.75, 0.15], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": null},
+{"pos": [15.075, 1.375, 7.625], "size": [0.15, 2.75, 2.45], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": null},
+{"pos": [13.175, 1.04, 6.19], "size": [0.8, 2.04, 0.04], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": false, "kind": "wc_door"},
+{"pos": [14.0, 2.4, 6.242], "size": [0.4, 0.4, 0.02], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": false, "kind": "wc_sign"},
+{"pos": [13.8, 1.375, 7.625], "size": [2.4, 2.75, 2.45], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": false, "kind": "washroom"},
+{"pos": [14.55, 0.425, 8.49], "size": [0.45, 0.85, 0.72], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": "wc_toilet"},
+{"pos": [12.825, 0.45, 7.6], "size": [0.45, 0.9, 0.5], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": "wc_sink"}
 ]}

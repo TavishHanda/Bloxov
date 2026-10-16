@@ -1068,6 +1068,7 @@ class Ctx:
         self.data, self.decals, self.footprint = data, decals, footprint
         self.b = Builder()
         self.rng = random.Random(BUILDING)
+        self.wet = []
 
     def d(self, name, flip=False):
         return uv_fit(self.decals.regions[name], flip)
@@ -1124,9 +1125,14 @@ def shell_box(ctx, row):
         # Top and bottom cut where the rooms change (a different floor in each shop).
         x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
         z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
-        cuts = [x0] + [x for x in cfg.get("x_splits", ()) if x0 < x < x1] + [x1]
-        zcuts = [z0] + [z for z in cfg.get("z_splits", ()) if z0 < z < z1] + [z1]
         yt, yb = c[1] + s[1] / 2, c[1] - s[1] / 2
+        wet = [w for w in ctx.wet if abs(w[1] - yt) < 0.3]           # washrooms on this floor (their mosaic)
+        cuts = [x0] + [x for x in cfg.get("x_splits", ()) if x0 < x < x1] + [v for w in wet for v in (w[0], w[3]) if x0 < v < x1] + [x1]
+        zcuts = [z0] + [z for z in cfg.get("z_splits", ()) if z0 < z < z1] + [v for w in wet for v in (w[2], w[5]) if z0 < v < z1] + [z1]
+        cuts, zcuts = sorted(set(cuts)), sorted(set(zcuts))
+        if wet:
+            room_floor = floor
+            floor = lambda m: "wc_floor" if any(w[0] < m[0] < w[3] and w[2] < m[2] < w[5] for w in wet) else room_floor(m)
         holes = [h for h in cfg.get("floor_holes", ()) if yt < 0.1]   # the ground floor's holes (a ramp down)
         cuts = sorted(set(cuts + [v for h in holes for v in (h[0], h[2]) if x0 < v < x1]))
         zcuts = sorted(set(zcuts + [v for h in holes for v in (h[1], h[3]) if z0 < v < z1]))
@@ -1172,10 +1178,14 @@ def shell_box(ctx, row):
         b.box(c, s, row["yaw"], row["pitch"], style=lambda n, m, k: (mat, uv_world(2.0)))
     else:
         style = wall_style(ctx.footprint, cfg.get("ext", "ext_block"), cfg.get("inner"))
+        if ctx.wet:
+            style = wet_wall_style(ctx, style)
         if row["yaw"] or row["pitch"]:
             b.box(c, s, row["yaw"], row["pitch"], style=style)
         else:
-            split_box(b, c, s, style, cfg.get("x_lines", ()), cfg.get("z_lines", ()), (3.0, 6.0))
+            wx = tuple(v for w in ctx.wet for v in (w[0], w[3]))
+            wz = tuple(v for w in ctx.wet for v in (w[2], w[5]))
+            split_box(b, c, s, style, tuple(cfg.get("x_lines", ())) + wx, tuple(cfg.get("z_lines", ())) + wz, (3.0, 6.0))
 
 
 def banister(b, c, s, rail="wood_dark", baluster="bone"):
@@ -3767,7 +3777,8 @@ def dress_school(ctx):
         wall_quad(b, (1, 0, 0), -4.89, -3.0, -1.4, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
         wall_quad(b, (-1, 0, 0), 4.89, 1.4, 3.0, y + 1.2, y + 2.2, "decals", ctx.d("notice"))
     wall_quad(b, (0, 0, -1), 11.85, 4.0, 4.6, 1.3, 2.1, "decals", ctx.d("poster_read"))
-    wall_quad(b, (0, 0, 1), 4.11, 2.1, 3.6, 0.9, 2.4, "decals", ctx.d("crest"))      # the crest, facing the doors
+    # The crest, facing the doors: between the washroom doors (it hung where the washrooms are now).
+    wall_quad(b, (0, 0, 1), 6.66, 2.55, 3.55, 0.9, 1.9, "decals", ctx.d("crest"))
     wall_quad(b, (0, 0, 1), -3.89, -14.0, -12.0, 1.25, 2.35, "decals", ctx.d("menu"))
     wall_quad(b, (1, 0, 0), -14.84, 5.0, 5.6, 1.4, 2.0, "decals", ctx.d("nurse"))
     for x0 in (-5.0, 5.0):
@@ -10788,8 +10799,9 @@ def police_life(ctx, wq):
                        ((12.65, 2.6, -10.65), -1.0, 1.0), ((12.65, 5.6, 3.35), -1.0, -1.0)):
         security_camera(b, at, dx, dz)
     # The jackets and caps on the locker room's north wall (the officers left in a hurry).
-    b.box((0, 2.0, -10.82), (5.6, 0.1, 0.05), style=_nb("wood"))                                # coat rail
-    for k, x in enumerate((-2.4, -1.6, -0.8, 0.8, 1.6, 2.4)):
+    # (west of the washroom in the room's north-east corner)
+    b.box((-1.3, 2.0, -10.82), (5.0, 0.1, 0.05), style=_nb("wood"))                             # coat rail
+    for k, x in enumerate((-3.7, -2.9, -2.1, -0.5, 0.3, 1.1)):
         b.box((x, 2.0, -10.8), (0.06, 0.04, 0.1), style=_nb("trim_dark"))                       # hook
         if k in (1, 4):
             continue
@@ -12427,6 +12439,281 @@ SHELLS["church"] = {
 }
 FACTION_MARKS["church"] = [("x1_stencil", "N", -4.0, 1.0), ("nova_tag", "N", 4.2, 1.1)]
 
+# ------------------------------------------------------------------------------------------------ washrooms (0.17)
+# Owner (2026-10-16): the town had no washrooms; add them where they fit. Gen `washroom()` closes a corner of a room
+# with thin walls and a narrow doorway (too narrow for the AI, so their paths don't change) and marks the inside with
+# a "washroom" box: here its walls get tiles and its floor a mosaic (shell_box), and the fittings draw from their own
+# boxes (wc_toilet, wc_sink, wc_urinal, wc_bath, wc_partition, wc_door, wc_sign). Every fitting faces the middle of
+# the washroom it stands in, so the gen only says where each one goes.
+def paint_wc_tile(rng):
+    """Washroom walls: small white tiles to 2 m (grout lines, a few cracked or missing), a green trim tile, pale
+    paint above. Set from the floor with uv_world's offset (the pattern is 4 m tall)."""
+    c = Canvas(64, 64, "bone")
+    for y in range(32):
+        for x in range(64):
+            if x % 4 == 0 or y % 4 == 0:
+                c.put(x, y, "concrete")
+    c.rect(0, 32, 64, 34, "green_dark")
+    c.rect(0, 0, 64, 2, "steel")
+    for _ in range(5):                                                  # missing tiles
+        x, y = rng.randrange(16) * 4, rng.randrange(1, 8) * 4
+        c.rect(x + 1, y + 1, x + 4, y + 4, "plaster")
+    for _ in range(3):                                                  # cracks
+        x, y = rng.randrange(64), rng.randrange(4, 30)
+        for k in range(9):
+            c.put((x + k) % 64, min(31, y + (k // 2) * rng.choice((1, -1)) % 3), "steel")
+    c.blotch(["sand"], 5, rng, area=(0, 2, 64, 30), size=(2, 4))         # grime
+    c.blotch(["concrete"], 6, rng, area=(0, 34, 64, 64), size=(2, 5))
+    c.blotch(["rust"], 2, rng, area=(0, 2, 64, 12), size=(1, 3))
+    return c
+
+
+def paint_wc_floor(rng):
+    """Washroom floor: little grey and white mosaic squares (1/8 m), a drain-dark patch or two, dirt."""
+    c = Canvas(64, 64, "bone")
+    for y in range(64):
+        for x in range(64):
+            if x % 2 == 0 or y % 2 == 0:
+                c.put(x, y, "concrete")
+            elif rng.random() < 0.3:
+                c.put(x, y, "steel_light")
+    c.blotch(["sand"], 6, rng, size=(2, 5))
+    c.blotch(["iron"], 2, rng, size=(1, 3))
+    return c
+
+
+KIT.update({"wc_tile": paint_wc_tile, "wc_floor": paint_wc_floor})
+
+
+def wet_rects(data):
+    """(x0, y0, z0, x1, y1, z1) inside each washroom of the building."""
+    out = []
+    for r in data["boxes"]:
+        if r.get("kind") == "washroom":
+            (px, py, pz), (sx, sy, sz) = r["pos"], r["size"]
+            out.append((px - sx / 2, py - sy / 2, pz - sz / 2, px + sx / 2, py + sy / 2, pz + sz / 2))
+    return out
+
+
+def wet_at(ctx, p):
+    """The washroom point p is in, or None."""
+    for w in getattr(ctx, "wet", ()):
+        if w[0] - 0.01 < p[0] < w[3] + 0.01 and w[1] - 0.01 < p[1] < w[4] and w[2] - 0.01 < p[2] < w[5] + 0.01:
+            return w
+    return None
+
+
+def wet_wall_style(ctx, base):
+    """Wall faces looking into a washroom take its tiles (set from its floor); the rest as before."""
+    def style(n, mid, corners):
+        if abs(n[1]) < 0.7:
+            w = wet_at(ctx, v_add(mid, v_scale(n, 0.08)))
+            if w:
+                return ("wc_tile", uv_world(TILE_M, (0.0, -w[1] / TILE_M)))
+        return base(n, mid, corners)
+    return style
+
+
+def _wc_room(ctx, c):
+    """The washroom a fitting at c stands in (its middle), or the fitting's own spot."""
+    w = wet_at(ctx, c) or wet_at(ctx, (c[0], c[1] - 0.3, c[2]))
+    return ((w[0] + w[3]) / 2, (w[2] + w[5]) / 2) if w else (c[0], c[2] + 1.0)
+
+
+def _wc_face(ctx, c, s):
+    """(fx, fz): the way a fitting faces (along its deep axis, toward the washroom's middle), and its width, depth."""
+    mx, mz = _wc_room(ctx, c)
+    if s[0] > s[2]:                     # wide along x: against a north/south wall
+        return (0, 1 if mz > c[2] else -1), s[0], s[2]
+    if s[2] > s[0]:
+        return (1 if mx > c[0] else -1, 0), s[2], s[0]
+    dx, dz = mx - c[0], mz - c[2]
+    return ((1 if dx > 0 else -1, 0) if abs(dx) > abs(dz) else (0, 1 if dz > 0 else -1)), s[0], s[2]
+
+
+def _wc_put(b, c, f, along, out, y, w, h, d, mat, bottom=False):
+    """A box at (along the wall, out from it) in a fitting's own frame: f = its facing, out from its back."""
+    ax, az = -f[1], f[0]
+    x = c[0] + ax * along + f[0] * out
+    z = c[2] + az * along + f[1] * out
+    size = (w, h, d) if f[0] == 0 else (d, h, w)
+    b.box((x, y, z), size, style=_solid(mat) if bottom else _nb(mat))
+
+
+def prop_wc_toilet(ctx, c, s):
+    """A white toilet: the cistern against the wall, the bowl and its seat (lid up), a paper roll on the wall."""
+    b = ctx.b
+    f, w, d = _wc_face(ctx, c, s)
+    y0 = c[1] - s[1] / 2
+    back = -d / 2
+    _wc_put(b, c, f, 0, back + 0.1, y0 + 0.6, 0.44, 0.4, 0.2, "bone")                  # cistern
+    _wc_put(b, c, f, 0, back + 0.1, y0 + 0.82, 0.47, 0.04, 0.23, "bone")               # its lid
+    _wc_put(b, c, f, 0.1, back + 0.1, y0 + 0.85, 0.06, 0.02, 0.04, "steel_light")     # flush button
+    _wc_put(b, c, f, 0, back + 0.36, y0 + 0.17, 0.26, 0.34, 0.34, "bone")              # pedestal
+    _wc_put(b, c, f, 0, back + 0.44, y0 + 0.37, 0.38, 0.08, 0.5, "bone")               # bowl
+    _wc_put(b, c, f, 0, back + 0.46, y0 + 0.4, 0.26, 0.012, 0.32, "trim_dark")         # water in it
+    for k in (-1, 1):                                                                    # seat ring sides
+        _wc_put(b, c, f, k * 0.16, back + 0.45, y0 + 0.425, 0.06, 0.03, 0.44, "wood_light")
+    _wc_put(b, c, f, 0, back + 0.66, y0 + 0.425, 0.38, 0.03, 0.06, "wood_light")
+    _wc_put(b, c, f, 0, back + 0.23, y0 + 0.62, 0.38, 0.4, 0.03, "wood_light")         # lid up against the cistern
+    _wc_put(b, c, f, w / 2 + 0.05, back + 0.06, y0 + 0.7, 0.04, 0.12, 0.12, "steel_light")   # roll holder
+    _wc_put(b, c, f, w / 2 + 0.05, back + 0.12, y0 + 0.66, 0.11, 0.11, 0.11, "bone")
+
+
+def prop_wc_sink(ctx, c, s):
+    """A basin on its pedestal with a tap, a cracked mirror and a soap dish above it."""
+    b = ctx.b
+    f, w, d = _wc_face(ctx, c, s)
+    y0 = c[1] - s[1] / 2
+    back = -d / 2
+    _wc_put(b, c, f, 0, back + 0.15, y0 + 0.37, 0.16, 0.74, 0.16, "bone")              # pedestal
+    _wc_put(b, c, f, 0, back + 0.23, y0 + 0.8, w - 0.04, 0.12, d - 0.02, "bone")       # basin
+    _wc_put(b, c, f, 0, back + 0.27, y0 + 0.86, w - 0.16, 0.012, d - 0.16, "trim")    # bowl inside
+    _wc_put(b, c, f, 0, back + 0.05, y0 + 0.92, 0.04, 0.1, 0.04, "steel_light")        # tap
+    _wc_put(b, c, f, 0, back + 0.1, y0 + 0.96, 0.03, 0.03, 0.12, "steel_light")
+    for k in (-1, 1):
+        _wc_put(b, c, f, k * 0.12, back + 0.05, y0 + 0.92, 0.05, 0.03, 0.05, "red" if k < 0 else "blue")
+    # The mirror (picture on the wall, a steel frame round it).
+    at = (c[0] - f[0] * (d / 2 - 0.02), c[2] - f[1] * (d / 2 - 0.02))
+    _wc_put(b, c, f, 0, back + 0.006, y0 + 1.45, 0.5, 0.66, 0.01, "trim")
+    if f[0] == 0:
+        wall_quad(b, (0, 0, f[1]), at[1], c[0] - 0.22, c[0] + 0.22, y0 + 1.15, y0 + 1.75, "decals", ctx.d("wc_mirror"))
+    else:
+        wall_quad(b, (f[0], 0, 0), at[0], c[2] - 0.22, c[2] + 0.22, y0 + 1.15, y0 + 1.75, "decals", ctx.d("wc_mirror"))
+    _wc_put(b, c, f, 0.3, back + 0.06, y0 + 1.05, 0.12, 0.03, 0.1, "steel_light")      # soap shelf
+
+
+def prop_wc_urinal(ctx, c, s):
+    """A wall urinal with its flush pipe."""
+    b = ctx.b
+    f, w, d = _wc_face(ctx, c, s)
+    y0 = c[1] - s[1] / 2
+    back = -d / 2
+    _wc_put(b, c, f, 0, back + 0.15, y0 + 0.75, 0.38, 0.6, 0.3, "bone")
+    _wc_put(b, c, f, 0, back + 0.2, y0 + 0.7, 0.26, 0.4, 0.22, "trim")                # the bowl's inside
+    _wc_put(b, c, f, 0, back + 0.04, y0 + 1.3, 0.04, 0.5, 0.04, "steel_light")         # flush pipe
+
+
+def prop_wc_bath(ctx, c, s):
+    """A bath along the wall: the tub, its rim, taps at one end, a shower curtain rail and the curtain bunched up."""
+    b = ctx.b
+    f, w, d = _wc_face(ctx, c, s)
+    y0 = c[1] - s[1] / 2
+    _wc_put(b, c, f, 0, 0, y0 + 0.25, w, 0.5, d, "bone")
+    _wc_put(b, c, f, 0, 0, y0 + 0.5, w - 0.16, 0.012, d - 0.16, "steel_light")          # the tub's inside
+    _wc_put(b, c, f, w / 2 - 0.15, -d / 2 + 0.05, y0 + 0.7, 0.12, 0.05, 0.08, "steel_light")   # taps
+    _wc_put(b, c, f, w / 2 - 0.12, -d / 2 + 0.05, y0 + 1.7, 0.08, 0.08, 0.12, "steel_light")   # shower head
+    _wc_put(b, c, f, 0, d / 2 - 0.05, y0 + 2.0, w, 0.03, 0.03, "steel_light")            # curtain rail
+    _wc_put(b, c, f, -w / 2 + 0.2, d / 2 - 0.05, y0 + 1.3, 0.3, 1.4, 0.08, "blue")   # the curtain, pushed back
+
+
+def prop_wc_partition(ctx, c, s):
+    """A cubicle wall: a laminate panel on legs off the floor, a steel cap."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    _bx(b, c[0], y0 + 0.15 + (s[1] - 0.15) / 2, c[2], s[0], s[1] - 0.15, s[2], "teal", bottom=True)
+    _bx(b, c[0], y0 + s[1] + 0.01, c[2], s[0] + 0.02, 0.02, s[2] + 0.02, "steel_light")
+    long_x = s[0] > s[2]
+    L = max(s[0], s[2])
+    for a in (-L / 2 + 0.08, L / 2 - 0.08):
+        _bx(b, c[0] + (a if long_x else 0), y0 + 0.075, c[2] + (0 if long_x else a), 0.04, 0.15, 0.04, "steel_light")
+
+
+def prop_wc_door(ctx, c, s):
+    """An open door leaf (picture only): painted, a steel kick plate and handle."""
+    b = ctx.b
+    _bx(b, c[0], c[1], c[2], s[0], s[1], s[2], "teal" if BUILDING_NAME[0] in ("school", "offices") else "wood_light")
+    long_x = s[0] > s[2]
+    L, t = max(s[0], s[2]), min(s[0], s[2])
+    for side in (-1, 1):
+        o = side * (t / 2 + 0.01)
+        for a, y, dims in ((L / 2 - 0.1, c[1] + 0.05, (0.12, 0.03, 0.03)), (0.0, c[1] - s[1] / 2 + 0.15, (L - 0.1, 0.25, 0.01))):
+            p = (c[0] + (a if long_x else o), y, c[2] + (o if long_x else a))
+            b.box(p, dims if long_x else (dims[2], dims[1], dims[0]), style=_nb("steel_light"))
+
+
+def _nearest_wet(ctx, c):
+    best = min(getattr(ctx, "wet", ()) or [None], key=lambda w: 1e9 if w is None else
+               math.hypot(c[0] - (w[0] + w[3]) / 2, c[2] - (w[2] + w[5]) / 2) + (0 if w[1] - 0.1 < c[1] < w[4] + 0.1 else 100))
+    return ((best[0] + best[3]) / 2, (best[2] + best[5]) / 2) if best else (c[0], c[2])
+
+
+def prop_wc_sign(ctx, c, s, decal="wc_sign"):
+    """The sign over a washroom door, on the outside: a man and a woman (or one of them), white on blue."""
+    mx, mz = _nearest_wet(ctx, c)
+    if s[0] > s[2]:
+        n = (0, 0, -1 if mz > c[2] else 1)
+        wall_quad(ctx.b, n, c[2], c[0] - s[0] / 2, c[0] + s[0] / 2, c[1] - s[1] / 2, c[1] + s[1] / 2, "decals", ctx.d(decal))
+    else:
+        n = (-1 if mx > c[0] else 1, 0, 0)
+        wall_quad(ctx.b, n, c[0], c[2] - s[2] / 2, c[2] + s[2] / 2, c[1] - s[1] / 2, c[1] + s[1] / 2, "decals", ctx.d(decal))
+
+
+def prop_washroom(ctx, c, s):
+    """The room itself: a ceiling lamp (its cover gone), a bin, a towel ring by the door side."""
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    _bx(b, c[0], y1 - 0.03, c[2], 0.3, 0.06, 0.3, "steel_light")
+    _bx(b, c[0], y1 - 0.08, c[2], 0.12, 0.05, 0.12, "bone")
+    x0, z0 = c[0] - s[0] / 2, c[2] - s[2] / 2
+    rng = random.Random(f"wc{c}")
+    bx = x0 + 0.25 if rng.random() < 0.5 else c[0] + s[0] / 2 - 0.25
+    b.box((bx, y0 + 0.18, z0 + 0.25), (0.26, 0.36, 0.26), yaw=rng.uniform(0, 40), style=_nb("trim_dark"))   # bin
+    b.box((bx + 0.35, y0 + 0.03, z0 + 0.35), (0.3, 0.06, 0.24), yaw=rng.uniform(0, 90), pitch=8, style=_nb("bone"))  # loo roll trail
+
+
+for _k, _f in {"wc_toilet": prop_wc_toilet, "wc_sink": prop_wc_sink, "wc_urinal": prop_wc_urinal, "wc_bath": prop_wc_bath,
+               "wc_partition": prop_wc_partition, "wc_door": prop_wc_door, "wc_sign": prop_wc_sign,
+               "washroom": prop_washroom,
+               "wc_sign_m": lambda ctx, c, s: prop_wc_sign(ctx, c, s, "wc_sign_m"),
+               "wc_sign_f": lambda ctx, c, s: prop_wc_sign(ctx, c, s, "wc_sign_f")}.items():
+    PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
+
+
+def wc_decals(a, rng):
+    """Shared decals for the washrooms (every building's atlas): the door sign and the mirror."""
+    def figure(c, x0, skirt):
+        c.rect(x0 + 1, 9, x0 + 3, 11, "bone")                           # head
+        c.rect(x0, 5, x0 + 4, 8, "bone")                                # body
+        c.rect(x0 - 1 if skirt else x0, 3, x0 + 5 if skirt else x0 + 4, 5, "bone")
+        c.rect(x0, 1, x0 + 1, 3, "bone")                                # legs
+        c.rect(x0 + 3, 1, x0 + 4, 3, "bone")
+
+    def one(skirt):       # 0.4 x 0.4 m: just the man (boys', men's) or the woman (girls', women's)
+        def paint(c):
+            c.rect(0, 0, c.w, c.h, "sky_blue")
+            c.frame(0, 0, c.w, c.h, "bone")
+            figure(c, 4, skirt)
+        return paint
+
+    def sign(c):          # 0.4 x 0.4 m: a man and a woman, white on blue
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.frame(0, 0, c.w, c.h, "bone")
+        for x0, skirt in ((2, False), (7, True)):
+            figure(c, x0, skirt)
+        c.rect(6, 2, 7, 11, "bone")                                    # the divider
+        c.blotch(["steel"], 2, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 2))
+
+    def mirror(c):        # 0.44 x 0.6 m: grey-blue glass, a reflection streak, a crack star from a hit
+        c.rect(0, 0, c.w, c.h, "steel_light")
+        for y in range(c.h):
+            for x in range(c.w):
+                if (x + y) % 9 < 2:
+                    c.put(x, y, "concrete")
+        cx, cy = rng.randrange(4, c.w - 4), rng.randrange(6, c.h - 6)
+        for ang in range(0, 360, 50):
+            dx, dy = math.cos(math.radians(ang + rng.uniform(-10, 10))), math.sin(math.radians(ang))
+            for t in range(rng.randrange(4, 9)):
+                xx, yy = int(cx + dx * t), int(cy + dy * t)
+                if 0 <= xx < c.w and 0 <= yy < c.h:
+                    c.put(xx, yy, "iron")
+        c.blotch(["sand"], 2, rng, size=(1, 2))
+    a.add("wc_sign", 13, 13, sign)
+    a.add("wc_sign_m", 13, 13, one(False))
+    a.add("wc_sign_f", 13, 13, one(True))
+    a.add("wc_mirror", 14, 19, mirror)
+
+
 
 # ------------------------------------------------------------------------------------------------ bell tower (0.17)
 # The church's bell tower (map 148-158 x 28-38, model origin map (153, 33)): 10 x 10 m, two storeys and the belfry on
@@ -13011,12 +13298,14 @@ def build(name, export):
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
     atlas = DECALS[name](rng)
     add_faction_decals(atlas, random.Random(name + "marks"))
+    wc_decals(atlas, random.Random(name + "wc"))
     textures[name + "_decals"] = Texture(name + "_decals", os.path.join("art_source", "textures", name + "_decals.png"),
                                          lambda r: atlas.c, rng)
     mat_info["decals"] = (name + "_decals", False, False)
     mat_info["graffiti"] = (name + "_decals", True, False)
 
     ctx = Ctx(data, atlas, FOOTPRINTS[name])
+    ctx.wet = wet_rects(data)
     counts = {}
     for row in data["boxes"]:
         kind = row.get("kind")

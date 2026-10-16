@@ -817,7 +817,13 @@ def rich_house(n, x, y, w, d, who):
         put("house_bed", -2.3 if who != "doctor" else -2.4, dz - 2.0, -0.8, dz, 0.9, floor=1)
         put("main_bed", wx - 3.1, -dz, wx - 0.5, -dz + 2.1, 1.1, floor=1)
         if who != "doctor":   # (the doctor's safe is on that wall)
-            put("vanity", strip + 0.45, -dz, strip + 1.65, -dz + 0.5, 0.8, floor=1)
+            put("vanity", strip + 1.6, -dz, strip + 2.7, -dz + 0.5, 0.8, floor=1)   # (east of the bathroom door)
+        # The bathroom (owner, 2026-10-16): the main bedroom's north-west corner, against the stairwell rail (it
+        # closes the gap there between the landing and the bedroom). A bath, the toilet, a basin; door on the east.
+        bx0 = strip - 1.55
+        washroom(ox, oz, bx0, -dz, bx0 + 2.45, sz - WC_T, "WSE", ("E", (sz - WC_T - dz) / 2 - 0.15, 1), y=F, fit=(
+            ("wc_bath", "N", bx0 + 0.8, 1.55, 0.7, 0.55), ("wc_sink", "N", bx0 + 2.1, 0.5, 0.45, 0.9),
+            ("wc_toilet", "S", bx0 + 0.45, 0.45, 0.72, 0.85)))
         # Front porch: a roof on two posts over the door, a step.
         put("porch_post", q - 1.6, hd + 1.35, q - 1.4, hd + 1.55, 2.75, colour="wood")
         put("porch_post", q + 1.4, hd + 1.35, q + 1.6, hd + 1.55, 2.75, colour="wood")
@@ -1144,7 +1150,7 @@ def grocery_furniture(ox, oz):
     o(-10.0, 0, -9.85, -6.0, 2.6, -8.75, "metal", "pallet_rack")
     o(-5.0, 0, -9.85, -2.0, 2.6, -8.75, "metal", "pallet_rack")
     o(-8.0, 0, -8.0, -6.8, 1.1, -6.8, "wood", "pallet_load")
-    o(-4.2, 0, -7.6, -3.0, 0.15, -6.8, "wood", "pallet_jack", solid=False)
+    o(-5.6, 0, -7.9, -4.4, 0.15, -7.1, "wood", "pallet_jack", solid=False)   # (west of the washroom)
     # ---- The manager's office: the desk against the east wall (the chair in front of it, off the window), the CCTV
     # monitor on it.
     o(1.9, 0, -8.8, 2.7, 0.76, -7.0, "wood", "manager_desk_g")
@@ -1264,6 +1270,9 @@ def police_furniture(ox, oz):
     o(1.8, 0, -4.3, 4.0, 1.9, -3.8, "metal", "hall_lockers")
     o(-3.0, 0, -5.4, -1.4, 0.45, -5.0, "wood", "hall_bench")
     o(1.4, 0, -5.4, 3.0, 0.45, -5.0, "wood", "hall_bench")
+    # The staff washroom in the locker room's north-east corner (owner, 2026-10-16).
+    washroom(ox, oz, 1.9, -10.85, 4.23, -8.6, "WS", ("S", 3.3, -1), fit=(
+        ("wc_toilet", "N", 3.55, 0.45, 0.72, 0.85), ("wc_sink", "W", -9.9, 0.5, 0.45, 0.9)))
     # The armoury (north-east): rifle racks on the south wall (mostly emptied), ammo crates and cans, the gun
     # cabinets are the loot.
     o(4.9, 0, -4.4, 7.2, 2.2, -3.8, "wood", "armoury_rack")
@@ -1344,6 +1353,72 @@ def police_furniture(ox, oz):
     o(2.0, 3.0, 4.0, 3.0, 4.3, 4.6, "metal", "file_cabinet")
     # The property store (south-east, the roof stairs): shelves of seized goods.
     o(4.8, 3.0, 4.1, 6.0, 3.8, 4.9, "wood", "paper_boxes")
+
+
+WC_T = 0.15      # a washroom's own walls
+WC_DOOR = 0.85   # its doorway (narrower than the AI's 1.5 m: their paths don't go in, so nothing about them changes)
+
+
+def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign"):
+    """A washroom in the corner of a room (World art 0.17, owner 2026-10-16: the town had none), in a model's own
+    coordinates (origin map (ox, oz)); x0..x1, z0..z1 are its inside faces, y its floor. walls: the sides ("N", "S",
+    "E", "W") that need a new thin wall (the others are the room's own walls). door: (side, centre along it, hinge):
+    the doorway in one of the new walls and the sign over it outside; the leaf (picture only) hangs on the -1/+1 side
+    (along the wall) pushed right open flat against the outside of the wall, or with -2/+2 swung into the washroom. fit: fittings, (kind, side, along, width, depth, height) against an inside wall, or (kind, (xa, za,
+    xb, zb), height). The model tiles every wall face looking in (make_building, "washroom" box)."""
+    H = FLOOR_H - SLAB_T
+
+    def o(a0, b0, c0, a1, b1, c1, kind=None, solid=True, colour="wall"):
+        box(ox + a0, y + b0, oz + c0, ox + a1, y + b1, oz + c1, colour, solid=solid, kind=kind)
+    dside, dmid, hinge = door
+    for side in walls:
+        if side in "NS":
+            a0, a1 = (x0 - WC_T if "W" in walls else x0), (x1 + WC_T if "E" in walls else x1)
+            zz = (z0 - WC_T, z0) if side == "N" else (z1, z1 + WC_T)
+            put = lambda a, b, lo, hi: o(a, lo, zz[0], b, hi, zz[1])
+        else:
+            a0, a1 = z0, z1
+            xx = (x0 - WC_T, x0) if side == "W" else (x1, x1 + WC_T)
+            put = lambda a, b, lo, hi: o(xx[0], lo, a, xx[1], hi, b)
+        if side == dside:
+            d0, d1 = dmid - WC_DOOR / 2, dmid + WC_DOOR / 2
+            put(a0, d0, 0.0, H)
+            put(d0, d1, 2.1, H)
+            put(d1, a1, 0.0, H)
+        else:
+            put(a0, a1, 0.0, H)
+    # The open leaf and the sign over the doorway (outside).
+    hs = 1 if hinge > 0 else -1
+    jamb = dmid + hs * WC_DOOR / 2 - hs * 0.04
+    edge = dmid + hs * WC_DOOR / 2
+    if dside in "NS":
+        face, into = (z0, 1) if dside == "N" else (z1, -1)
+        if abs(hinge) == 2:
+            o(jamb - 0.02, 0.02, min(face, face + into * 0.8), jamb + 0.02, 2.06, max(face, face + into * 0.8), "wc_door", solid=False)
+        else:
+            wf = face - into * (WC_T + 0.06)
+            o(min(edge, edge + hs * 0.8), 0.02, wf - 0.02, max(edge, edge + hs * 0.8), 2.06, wf + 0.02, "wc_door", solid=False)
+        out = face - into * (WC_T + 0.008)
+        o(dmid - 0.2, 2.2, out - 0.01, dmid + 0.2, 2.6, out + 0.01, sign, solid=False)
+    else:
+        face, into = (x0, 1) if dside == "W" else (x1, -1)
+        if abs(hinge) == 2:
+            o(min(face, face + into * 0.8), 0.02, jamb - 0.02, max(face, face + into * 0.8), 2.06, jamb + 0.02, "wc_door", solid=False)
+        else:
+            wf = face - into * (WC_T + 0.06)
+            o(wf - 0.02, 0.02, min(edge, edge + hs * 0.8), wf + 0.02, 2.06, max(edge, edge + hs * 0.8), "wc_door", solid=False)
+        out = face - into * (WC_T + 0.008)
+        o(out - 0.01, 2.2, dmid - 0.2, out + 0.01, 2.6, dmid + 0.2, sign, solid=False)
+    o(x0, 0.0, z0, x1, H, z1, "washroom", solid=False)
+    for f in fit:
+        kind = f[0]
+        if isinstance(f[1], tuple):
+            (xa, za, xb, zb), h = f[1], f[2]
+        else:
+            side, along, w, d, h = f[1:]
+            xa, xb, za, zb = {"N": (along - w / 2, along + w / 2, z0, z0 + d), "S": (along - w / 2, along + w / 2, z1 - d, z1),
+                              "W": (x0, x0 + d, along - w / 2, along + w / 2), "E": (x1 - d, x1, along - w / 2, along + w / 2)}[side]
+        o(xa, 0.0, za, xb, h, zb, kind)
 
 
 def build(b, loot_spots=()):
@@ -2528,6 +2603,9 @@ def main():
             ("locker", 1, 0, 1, "N", -2.6), ("crate", 2, 1, 1, "S", 2.6), ("locker", 3, 0, 1, "E", -2.4, "wardrobe"),
             ("crate", 1, 1, 0, "S", 2.6)])
         town_hall_furniture(107.0, 155.0)
+        # Washroom (owner, 2026-10-16): the planning office's south-west corner.
+        washroom(107.0, 155.0, 12.6, 6.4, 15.0, 8.85, "NE", ("N", 14.0, -1), fit=(
+            ("wc_toilet", "S", 14.55, 0.45, 0.72, 0.85), ("wc_sink", "W", 7.6, 0.5, 0.45, 0.9)))
         # (no rail round the bunker's ramp hole now: a "ghost cloth" runner hides it, owner; drawn by the model)
     # World art 0.17: the bunker is the town hall's vault (its own model: shelter, strongroom, records, lab)
     with modeled("th_vault", 107.0, 155.0):
@@ -2570,6 +2648,9 @@ def main():
             x, y, z, yaw = bank.against_wall(i, j, 1, side, off)
             add_loot("Offices", kind, x, z, y=y, yaw=yaw)
         bank_furniture(136.0, 125.0)
+        # Staff washroom (owner, 2026-10-16): the records room's south-west corner, upstairs.
+        washroom(136.0, 125.0, 0.1, -7.6, 2.5, -5.1, "NE", ("E", -6.4, -1), y=FLOOR_H, fit=(
+            ("wc_toilet", "W", -5.8, 0.45, 0.72, 0.85), ("wc_sink", "N", 0.7, 0.5, 0.45, 0.9)))
     markers.append(("KeyDoors", "BankVaultDoor", 140.0, 0.0, 130.0, {"key": "bank_vault_key", "place": "Bank", "yaw": 0.0, "width": INNER_DOOR_W}))
     with modeled("offices", 75.0, 129.5):   # World art 0.17: Korven Engineering's office (ransacked)
         # Loot spots slid off the windows.
@@ -2578,6 +2659,10 @@ def main():
             ("crate", 0, 1, 0, "W", 2.5), ("crate", 2, 0, 0, "N", 2.3), ("crate", 1, 0, 1, "N", 0),
             ("locker", 2, 1, 1, "E", 2.6), ("crate", 0, 0, 1, "W", 2.4)])
         offices_furniture(75.0, 129.5)
+        # Washroom (owner, 2026-10-16): the meeting room's south-east corner, upstairs (the room south of the
+        # archive is the caved-in one, open to the sky).
+        washroom(75.0, 129.5, 8.5, -2.45, 10.85, -0.1, "WN", ("N", 9.4, 1), y=FLOOR_H, fit=(
+            ("wc_toilet", "E", -0.6, 0.45, 0.72, 0.85), ("wc_sink", "S", 9.0, 0.5, 0.45, 0.9)))
     with modeled("gun_store", 78.0, 76.0):   # World art 0.17
         # Border Arms: the shop east (door south), the gun room west. Loot spots slid off the windows.
         build(Building("GunStore", 70, 70, 16, 12, colour="wall_guns", rooms=(2, 1), doors="S"), [
@@ -2593,6 +2678,9 @@ def main():
         box(78.3, 0, 81.35, 80.6, 1.8, 81.85, "metal", kind="ammo_wall")        # ammo shelves
         box(78.1, 0, 77.6, 78.6, 1.8, 80.9, "metal", kind="ammo_wall")
     with modeled("pharmacy", 97.5, 78.0):   # World art 0.17: shop floor (east), dispensary (west)
+        # Staff washroom (owner, 2026-10-16): the dispensary's south-east corner, behind the counter.
+        washroom(97.5, 78.0, -2.4, 3.9, -0.1, 5.85, "WN", ("W", 5.0, -1), fit=(
+            ("wc_toilet", "S", -0.6, 0.45, 0.72, 0.85), ("wc_sink", "E", 4.4, 0.5, 0.45, 0.9)))
         build(Building("Pharmacy", 90, 72, 15, 12, colour="wall_med", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
             ("crate", 0, 0, 0, "W", -3.0), ("crate", 1, 0, 0, "E", -2.6, "stock_meds")])   # (off the windows)
         box(92.0, 0, 76.0, 96.5, 1.6, 76.8, "wood", kind="rx_shelf")
@@ -2612,10 +2700,17 @@ def main():
         build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True,
                        blasts=[(0, "E", 0)], open_plan=True, roof_ramp="NE", wall_openings=GROCERY_OPENINGS))
         grocery_furniture(140.0, 70.0)
+        # Staff washroom (owner, 2026-10-16): the stock room's south-east corner (the pallet jack moved for it).
+        washroom(140.0, 70.0, -4.0, -8.0, -1.6, -5.7, "WN", ("W", -6.7, -1), fit=(
+            ("wc_toilet", "E", -7.4, 0.45, 0.72, 0.85), ("wc_sink", "S", -2.3, 0.5, 0.45, 0.9)))
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
     # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)
     with modeled("shops", 29.5, 126.5):   # World art 0.17: laundromat (west), shoe store (middle), burned-out TV shop
+        # The flat's bathroom (owner, 2026-10-16), upstairs beside the stairwell: a bath, the toilet, a basin.
+        washroom(29.5, 126.5, -7.2, -6.35, -4.93, -4.1, "WS", ("S", -5.6, -1), y=FLOOR_H, fit=(
+            ("wc_bath", "N", -6.1, 1.6, 0.7, 0.55), ("wc_toilet", "E", -5.2, 0.45, 0.72, 0.85),
+            ("wc_sink", "W", -4.8, 0.5, 0.45, 0.9)))
         build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)], shopfronts="S"), [
             ("crate", 0, 0, 0, "W", -1.5, "laundry_cart"), ("crate", 2, 0, 0, "E", 3.5, "stock_tv"),
             ("crate", 1, 0, 1, "N", 2.2, "stock_shoes"), ("locker", 0, 0, 1, "W", -2.6, "wardrobe"),
@@ -2692,6 +2787,11 @@ def main():
             ("crate", 0, 0, 0, "W", -1.6), ("crate", 2, 2, 0, "E", -1.4, "kitchen"), ("locker", 1, 2, 1, "S", -2.5, "filing"),
             ("crate", 0, 1, 1, "W", -1.8)])   # library, staff lounge, principal's office, computer room (off the windows)
         school_furniture()
+        # Washrooms (owner, 2026-10-16): boys' and girls' in the lobby's north-east corner, by the hall door.
+        washroom(23.0, 62.0, 1.2, 4.1, 2.975, 6.5, "WES", ("S", 2.1, 2), sign="wc_sign_m", fit=(
+            ("wc_toilet", "N", 2.4, 0.45, 0.72, 0.85), ("wc_sink", "W", 5.6, 0.5, 0.45, 0.9)))
+        washroom(23.0, 62.0, 3.125, 4.1, 4.9, 6.5, "S", ("S", 4.0, -2), sign="wc_sign_f", fit=(
+            ("wc_toilet", "N", 4.3, 0.45, 0.72, 0.85), ("wc_sink", "E", 5.6, 0.5, 0.45, 0.9)))
     box(15, 0.0, 148, 45, 0.06, 166, "pavement", solid=False)   # the shops' car park (was the sports field)
     car(22, 154, 90); car(34, 160, 90, "car_b"); car(40, 152, 270)
 

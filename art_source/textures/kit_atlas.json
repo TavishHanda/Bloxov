@@ -98,5 +98,7 @@
 "ch_flags",
 "ch_tiles",
 "ch_gravel",
-"ch_mound"
+"ch_mound",
+"wc_tile",
+"wc_floor"
 ]
