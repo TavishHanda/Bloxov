@@ -1158,7 +1158,7 @@ def shell_box(ctx, row):
         stairs(ctx, c, s, row["yaw"], row["pitch"])
     elif colour == "metal" and BUILDING_NAME[0] in HOUSES and 0.9 < s[1] < 1.1:
         banister(b, c, s)
-    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank") and 0.9 < s[1] < 1.1:
+    elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank", "police") and 0.9 < s[1] < 1.1:
         banister(b, c, s, rail="trim_dark", baluster="steel_light")   # a steel stairwell rail (owner: not a wall)
     elif colour in SHELL_COLOURS:
         mat = SHELL_COLOURS[colour]
@@ -3141,6 +3141,9 @@ def prop_caf_table(ctx, c, s):
                   yaw=ctx.rng.uniform(-20, 20), style=no_bottom(ctx.rng.choice(("steel_light", "olive", "red")), 1.0))
 
 
+LOCKER_PAINT = {}   # the lockers' paint (sides, open doors) where it isn't the school's red
+
+
 def prop_hall_lockers(ctx, c, s):
     """A row of school lockers, 0.5 m each. Round 3 (owner): most shut, some really open (the door swung on its
     hinge, a dark hollow inside with a few books, a bag or papers), a few dented or with the door torn off."""
@@ -3150,7 +3153,7 @@ def prop_hall_lockers(ctx, c, s):
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
     x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
     zf, zb = c[2] + f * s[2] / 2, c[2] - f * s[2] / 2
-    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else ("red", uv_world()))
+    b.box(c, s, style=lambda n, m, q: None if side_of(n) in (front, "-y") else (LOCKER_PAINT.get(BUILDING_NAME[0], "red"), uv_world()))
     n = max(1, round(s[0] / 0.5))
     w = s[0] / n
     fates = ["shut"] * n
@@ -3205,11 +3208,11 @@ def prop_hall_lockers(ctx, c, s):
                     return None
                 if nrm[0] * out[0] + nrm[2] * out[1] > 0.7:
                     return ("decals", uv_fit(r))
-                return ("red", uv_world(1.0))   # painted both sides
+                return (LOCKER_PAINT.get(BUILDING_NAME[0], "red"), uv_world(1.0))   # painted both sides
             b.box(centre, (w - 0.02, hh, 0.02), yaw=math.degrees(math.atan2(-dz, dx)), style=leaf_style)
         elif rng.random() < 0.6:                                             # torn off, lying in the hall
             b.box((xa + w / 2 + rng.uniform(-0.3, 0.3), y0 + 0.012, zf + f * rng.uniform(0.5, 0.8)), (w - 0.02, 0.02, hh),
-                  yaw=rng.uniform(70, 110), style=no_bottom("red", 1.0))
+                  yaw=rng.uniform(70, 110), style=no_bottom(LOCKER_PAINT.get(BUILDING_NAME[0], "red"), 1.0))
 
 
 def prop_trophy_case(ctx, c, s):
@@ -4435,7 +4438,7 @@ def prop_gun_counter(ctx, c, s):
         b.box((x, yb + 0.15, zf - f * (s[2] + 0.01)), (0.04, 0.04, 0.02), style=no_bottom("yellow", 1.0))
 
 
-def prop_rifle_rack(ctx, c, s):
+def prop_rifle_rack(ctx, c, s, full=0.65):
     """Long guns standing on the wall behind the counter: a slat back board, a padded butt rest along the floor,
     a top rail with a chain run through the trigger guards. About a third are gone."""
     b, rng = ctx.b, random.Random(f"rifle_rack{c}")
@@ -4454,7 +4457,7 @@ def prop_rifle_rack(ctx, c, s):
     wall_quad(b, (0, 0, f), zb + f * 0.06, c[0] - 0.7, c[0] + 0.7, y0 + 1.95, y0 + 2.25, "decals", ctx.d("rifles"))
     x = x0 + 0.2
     while x < x1 - 0.15:
-        if rng.random() < 0.65:
+        if rng.random() < full:
             kind = rng.choice(("hound", "hound", "mauler", "lancer", "wasp"))
             gun_shape(b, kind, (x, y0 + 0.17, zb + f * 0.2), (0, 1, 0), (1, 0, 0))
         x += 0.24
@@ -9969,6 +9972,658 @@ SHELLS["bank"] = {
 FACTION_MARKS["bank"] = [("x1_stencil", "E", 5.0, 1.0), ("nova_tag", "S", 3.0, 1.1)]
 PROPS["waiting_seats_east"] = lambda ctx, c, s, k: prop_waiting_seats(ctx, c, s, sg=1)
 
+
+
+# ------------------------------------------------------------------------------------------------ police (0.17)
+# Bloxov police station (map 150-176 x 112-134, model origin map (163, 123)): 26 x 22 m, two storeys of 3 x 3 rooms
+# (8.67 x 7.33 m) and a flat roof you can walk on (a lookout over the town core). Front door south (the lobby), a side
+# door west (the staff door, across the alley from the bank). Stairs up along the north wall (landing at the west
+# end), the roof stairs along the south wall upstairs (landing at the east end). The station was overrun: ransacked,
+# the armoury cleaned out, the cells thrown open; the north-east room upstairs caved in.
+POLICE_LOOKS = {   # outside wall (owner picked B from worldart/options-police.png, 2026-10-14)
+    "B": {"ext": "police_buff_brick", "trim": "police_stone", "band": "police_navy", "plinth": "police_navy"},
+}
+POLICE_LOOK = "B"
+
+PALETTE.update({
+    "pbuff": "877a60", "pbuff_dark": "7a6e55", "pbuff_light": "918468", "pbuff_mortar": "6c675c",
+    "pstone": "a29d90", "pstone_dark": "959083",
+    "navy": "2f3d56", "navy_dark": "253045", "navy_light": "3b4a66",
+    "police_blue": "3f6fb0", "police_blue_light": "7fa6dc",
+})
+
+
+def _brick(base, dark, light, mortar, rng, burnt=None):
+    """Stretcher-bond brick (0.5 x 0.25 m drawn), a few darker bricks and stains."""
+    c = Canvas(64, 64, mortar)
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for k in range(8):
+            col = rng.choice((base, base, dark, light))
+            for x in range(k * 8 + off + 1, k * 8 + off + 8):
+                c.rect(x % 64, row * 4 + 1, x % 64 + 1, row * 4 + 4, col)
+    c.blotch([dark], 6, rng, size=(2, 5))
+    if burnt:
+        c.blotch([burnt], 2, rng, size=(2, 4))
+    return c
+
+
+def paint_police_buff_brick(rng):
+    return _brick("pbuff", "pbuff_dark", "pbuff_light", "pbuff_mortar", rng, burnt="iron")
+
+
+def paint_police_stone(rng):
+    """Pale cast-stone dressings: long blocks, fine joints."""
+    c = Canvas(64, 64, "pstone")
+    for row in range(4):
+        c.rect(0, row * 16, 64, row * 16 + 1, "pstone_dark")
+        for k in range(2):
+            x = (k * 32 + row * 13) % 64
+            c.rect(x, row * 16, x + 1, row * 16 + 16, "pstone_dark")
+    c.noise(0, 0, 64, 64, ["pstone_dark"], 0.05, rng)
+    return c
+
+
+def paint_police_navy(rng):
+    """Navy gloss paint (the plinth, the doors, the sign boards), chipped to grey here and there."""
+    c = Canvas(64, 64, "navy")
+    c.noise(0, 0, 64, 64, ["navy_dark", "navy_light"], 0.06, rng)
+    c.blotch(["pbuff_mortar"], 4, rng, size=(2, 4))
+    return c
+
+
+KIT.update({"police_buff_brick": paint_police_buff_brick, "police_stone": paint_police_stone,
+            "police_navy": paint_police_navy})
+
+POLICE_FP = (-13.0, -11.0, 13.0, 11.0)
+
+
+def police_decals(rng):
+    a = Atlas(512)
+
+    def name(c):          # 4 x 0.6 m: POLICE over the door, white on navy
+        c.rect(0, 0, c.w, c.h, "navy")
+        c.frame(0, 0, c.w, c.h, "navy_light")
+        c.ctext(0, c.w, 5, "POLICE", "bone", 2)
+
+    def station(c):       # 5 x 0.5 m: the name cut into the stone band
+        c.rect(0, 0, c.w, c.h, "pstone")
+        c.noise(0, 0, c.w, c.h, ["pstone_dark"], 0.05, rng)
+        c.ctext(0, c.w, 5, "BLOXOV POLICE STATION", "iron_dark")
+
+    def badge(c):         # 0.9 m: the town police badge, a six-point star on a shield (ours)
+        c.rect(0, 0, c.w, c.h, "navy")
+        r0 = c.w / 2
+        pts = [(r0 + (r0 - 1.5) * (1 if k % 2 == 0 else 0.5) * math.sin(k * math.pi / 6),
+                r0 + (r0 - 1.5) * (1 if k % 2 == 0 else 0.5) * math.cos(k * math.pi / 6)) for k in range(12)]
+        for y in range(c.h):
+            for x in range(c.w):
+                px, py, inside = x + 0.5, y + 0.5, False
+                for k in range(12):
+                    (ax, ay), (bx, by) = pts[k], pts[k - 1]
+                    if (ay > py) != (by > py) and px < ax + (py - ay) * (bx - ax) / (by - ay):
+                        inside = not inside
+                if inside:
+                    c.put(x, y, "sand")
+        for k in range(0, 12, 2):                                           # ball tips
+            c.put(int(pts[k][0]), int(pts[k][1]), "yellow_dark")
+        c.rect(11, 11, 18, 18, "navy")
+        c.ctext(11, 18, 12, "B", "sand")
+
+    def lamp(c):          # the blue lamp's glass: POLICE on all four sides
+        c.rect(0, 0, c.w, c.h, "police_blue")
+        c.frame(0, 0, c.w, c.h, "navy_dark")
+        c.ctext(0, c.w, 3, "POLICE", "police_blue_light")
+
+    def notice(c):        # 1.0 x 0.8 m notice case by the door: WANTED and a sketch, a missing poster
+        c.rect(0, 0, c.w, c.h, "wood_dark")
+        c.rect(2, 2, 15, c.h - 2, "bone")
+        c.ctext(2, 15, c.h - 8, "WANTED", "black")
+        c.rect(5, 5, 12, 15, "paper_cream")
+        c.rect(7, 11, 10, 14, "iron")                                       # a head
+        c.rect(6, 5, 11, 10, "iron")                                        # shoulders
+        c.rect(17, 2, c.w - 2, c.h - 2, "paper_cream")
+        c.ctext(17, c.w - 2, c.h - 8, "MISSING", "red")
+        c.rect(20, 6, c.w - 5, 15, "sky_blue")
+
+    def staff(c):         # 0.8 x 0.25 m: STAFF ONLY on the side door
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.ctext(0, c.w, 2, "STAFF ONLY", "navy")
+
+    def locker(c):        # one staff locker, 0.5 x 2.0 m: grey-blue steel, a name card
+        c.rect(0, 0, c.w, c.h, "slate")
+        c.frame(0, 0, c.w, c.h, "slate_dark")
+        for k in range(4):
+            c.rect(3, c.h - 6 - k * 2, c.w - 3, c.h - 5 - k * 2, "slate_dark")
+        c.rect(c.w - 5, 28, c.w - 3, 34, "steel_light")
+        c.rect(3, 50, 11, 53, "bone")
+        c.blotch(["slate_dark"], 2, rng, size=(2, 3))
+
+    def locker_dent(c):   # the same locker, prised open with a bar
+        locker(c)
+        for y in range(22, 40):
+            for x in range(3, c.w - 3):
+                d = ((x - 8) / 5.0) ** 2 + ((y - 31) / 8.0) ** 2
+                if d < 1.0:
+                    c.put(x, y, "slate_dark" if d > 0.55 or (x + y) % 3 else "black")
+        c.rect(c.w - 6, 26, c.w - 2, 36, "steel_light")                  # the lock, bent out
+
+    def rifles(c):        # 1.4 x 0.3 m label over the rack
+        c.rect(0, 0, c.w, c.h, "navy")
+        c.ctext(0, c.w, 2, "SIGN OUT", "bone")
+
+    def duty(c):          # 1.2 x 0.8 m: the duty board, the last week's shifts, the rest wiped
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "iron")
+        c.ctext(0, c.w, c.h - 7, "DUTY", "navy")
+        for k in range(3):
+            y = c.h - 13 - k * 5
+            c.text(2, y, "D%d" % (k + 1), "black")
+            c.rect(12, y + 1, c.w - 3 - k * 6, y + 3, rng.choice(("sky_blue", "red", "black")))
+        c.blotch(["paper_cream"], 3, rng, area=(2, 2, c.w - 2, 8), size=(3, 6))
+
+    def chart(c):         # 1.0 x 2.2 m: the booking height chart (metres), black lines on white
+        c.rect(0, 0, c.w, c.h, "bone")
+        for k in range(c.h // 4):
+            y = k * 4
+            c.rect(0, y, c.w if k % 5 == 0 else 6, y + 1, "black")
+        for k, lab in ((16, "1.6"), (19, "1.9")):
+            y = round(k * 3.2)
+            c.text(c.w - 13, y + 2, lab, "black")
+
+    def caseboard(c):     # 1.6 x 1.0 m: the detectives' case board, photos and a red string between them
+        c.rect(0, 0, c.w, c.h, "carton")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        pins = [(6, 24), (20, 26), (36, 22), (44, 10), (14, 8), (28, 12)]
+        for (x0, y0), (x1, y1) in zip(pins, pins[1:] + pins[:1]):
+            for t in range(24):
+                c.put(round(x0 + (x1 - x0) * t / 23), round(y0 + (y1 - y0) * t / 23), "red")
+        for k, (x, y) in enumerate(pins):
+            c.rect(x - 3, y - 3, x + 3, y + 4, "paper_cream" if k % 2 else "bone")
+            c.rect(x - 1, y - 1, x + 2, y + 2, "iron")
+            c.put(x, y + 3, "red")
+        c.text(18, 2, "X1?", "red")
+
+    def city(c):          # 2.0 x 1.0 m: the dispatch map of Bloxov, beats outlined, pins
+        c.rect(0, 0, c.w, c.h, "paper_cream")
+        c.frame(0, 0, c.w, c.h, "wood_dark")
+        for x in (14, 30, 46):
+            c.rect(x, 2, x + 2, c.h - 2, "bone")
+        for y in (10, 22):
+            c.rect(2, y, c.w - 2, y + 2, "bone")
+        c.rect(3, 3, 13, 9, "sky_blue")
+        c.rect(48, 24, 61, 29, "green_dark")
+        for x, y in ((8, 16), (22, 26), (38, 6), (54, 14), (33, 18)):
+            c.rect(x, y, x + 2, y + 2, rng.choice(("red", "navy")))
+        c.ctext(0, c.w, c.h - 6, "BEATS", "navy")
+
+    def brief(c):         # 2.2 x 1.1 m: the briefing whiteboard, the last briefing half wiped
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "steel_light")
+        c.ctext(0, c.w, c.h - 8, "ROAD CLOSED", "red")
+        c.text(4, c.h - 16, "EVAC 0600", "navy")
+        c.text(4, c.h - 23, "ALL UNITS", "navy")
+        c.rect(44, 6, 66, 24, "paper_cream")
+        c.rect(46, 14, 64, 15, "black")
+        c.rect(54, 8, 55, 22, "black")
+        c.blotch(["paper_cream"], 4, rng, area=(2, 2, 40, 14), size=(3, 6))
+
+    a.add("duty", 38, 26, duty)
+    a.add("chart", 32, 70, chart)
+    a.add("caseboard", 51, 32, caseboard)
+    a.add("city", 64, 32, city)
+    a.add("brief", 70, 35, brief)
+    a.add("locker", 16, 64, locker)
+    a.add("locker_dent", 16, 64, locker_dent)
+    a.add("rifles", 45, 10, rifles)
+    a.add("name", 128, 19, name)
+    a.add("station", 160, 16, station)
+    a.add("badge", 29, 29, badge)
+    a.add("lamp", 26, 9, lamp)
+    a.add("notice", 32, 26, notice)
+    a.add("staff", 45, 9, staff)
+    return a
+
+
+def dress_police_outside(ctx):
+    b = ctx.b
+    look = POLICE_LOOKS[POLICE_LOOK]
+    fp = POLICE_FP
+    trim, band, plinth = look["trim"], look["band"], look["plinth"]
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def along_wall(side, y0, y1, d, mat, out=0.0, cut=True, tile=2.0):
+        """A band along a wall from y0 to y1, cut round the openings it would cross."""
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + out)
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d - out, a1 + 0.15 + d + out
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if cut and o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        for s0, s1 in segs:
+            if s1 - s0 < 0.02:
+                continue
+            m = (s0 + s1) / 2
+            c = (m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m)
+            b.box(c, (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0),
+                  style=no_bottom(mat, tile) if y0 < 0.05 else st(mat, tile))
+
+    def on_wall(side, a, y, sa, sy, d, mat, push=0.0, style=None):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + push)
+        b.box((a, y, at) if ns else (at, y, a), (sa, sy, d) if ns else (d, sy, sa), style=style or st(mat))
+
+    # ---- all round: a plinth, a band at the first floor, a stone band under the parapet, the parapet's coping
+    for side in "NSWE":
+        along_wall(side, 0.0, 0.55, 0.1, plinth)
+        along_wall(side, 2.95, 3.25, 0.08, band)
+        along_wall(side, 5.75, 6.0, 0.1, trim)
+        along_wall(side, 6.95, 7.07, 0.3, trim, out=-0.25, cut=False)
+    for o in opens:                                                        # lintels and sills, bars downstairs
+        side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+        if o["kind"] != "window":
+            continue
+        on_wall(side, mid, hi + 0.1, w + 0.3, 0.2, 0.06, trim)
+        on_wall(side, mid, lo - 0.05, w + 0.2, 0.1, 0.12, trim, push=0.02)
+        if lo < 1.5:
+            window_bars(b, o, fp)
+
+    # ---- the front (south, the lobby door): a flat concrete canopy on two steel posts, POLICE over it, the blue
+    # lamps either side, the badge over the canopy, the name in the band, a notice case, steps
+    zf = fp[3] + 0.15
+    door = [o for o in opens if o["side"] == "S" and o["kind"] != "window"]
+    dx = door[0]["mid"] if door else 0.0
+    b.box((dx, 2.75, zf + 1.0), (4.4, 0.2, 2.0), style=st("concrete"))                         # canopy
+    b.box((dx, 2.62, zf + 1.98), (4.4, 0.06, 0.06), style=st(band))
+    for sx in (-1, 1):
+        b.box((dx + sx * 2.0, 1.33, zf + 1.85), (0.12, 2.66, 0.12), style=st("steel_light"))    # its posts
+        b.box((dx + sx * 1.7, 2.3, zf + 0.12), (0.06, 0.25, 0.25), style=st("trim_dark"))       # lamp brackets
+        b.box((dx + sx * 1.7, 2.05, zf + 0.25), (0.26, 0.3, 0.26), style=face_decal(ctx.d("lamp"), "police_navy", "+z"))
+        b.box((dx + sx * 1.7, 2.24, zf + 0.25), (0.3, 0.06, 0.3), style=st("police_navy"))
+    b.box((dx, 3.15, zf + 1.98), (3.8, 0.55, 0.06), style=face_decal(ctx.d("name"), "police_navy", "+z"))
+    b.box((dx, 4.6, zf + 0.04), (0.9, 0.9, 0.06), style=face_decal(ctx.d("badge"), "police_navy", "+z"))
+    on_wall("S", dx, 5.87, 5.0, 0.5, 0.02, trim, push=0.11, style=face_decal(ctx.d("station"), trim, "+z"))
+    for k in range(2):                                                                         # steps
+        b.box((dx, 0.06 + k * 0.12, zf + 0.3 + (1 - k) * 0.3), (3.2, 0.12, 0.6 + (1 - k) * 0.6), style=no_bottom("concrete", 1.0))
+    b.box((dx + 3.1, 1.5, zf + 0.04), (1.0, 0.8, 0.06), style=face_decal(ctx.d("notice"), "wood_dark", "+z"))
+    # The west side door: STAFF ONLY. A camera over it, its cable cut.
+    side = [o for o in opens if o["side"] == "W" and o["kind"] != "window"]
+    if side:
+        z = side[0]["mid"]
+        b.box((fp[0] - 0.17, 2.6, z), (0.03, 0.25, 0.8), style=face_decal(ctx.d("staff"), "bone", "-x"))
+        b.box((fp[0] - 0.4, 2.95, z + 1.4), (0.35, 0.18, 0.18), yaw=200, pitch=-15, style=st("bone"))
+    # Roof: the radio mast, a siren on a post, an air vent (picture only; the roof is a lookout).
+    b.box((10.5, 8.5, -8.5), (0.12, 5.0, 0.12), style=st("steel_light"))
+    for k in range(4):
+        b.box((10.5, 6.6 + k * 1.2, -8.5), (0.8 - k * 0.15, 0.04, 0.04), style=st("steel_light"))
+    b.box((10.5, 6.6, -8.5), (0.6, 0.2, 0.6), style=st("concrete"))
+    b.box((-11.5, 7.6, 9.6), (0.08, 1.2, 0.08), style=st("steel_light"))
+    b.box((-11.5, 8.3, 9.6), (0.45, 0.3, 0.3), style=st("red"))
+
+
+# ---- police props
+def prop_cell_bars(ctx, c, s):
+    """A cell's barred front (along z, solid in the gen): a steel frame, round bars, cross bars; its door, swung
+    open into the cell, in the gap north of it. The bars are the solid part; the door is picture only."""
+    b = ctx.b
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    for y in (y0 + 0.04, y1 - 0.06, y0 + 1.0):
+        _bx(b, c[0], y, c[2], 0.1, 0.08 if y < y1 - 0.1 else 0.12, s[2], "trim_dark")
+    z = z0 + 0.06
+    while z < z1:
+        _bx(b, c[0], (y0 + y1) / 2, z, 0.04, s[1], 0.04, "trim_dark")
+        z += 0.14
+    # the door: hinged on the bars' north end, open 70 degrees into the cell (east)
+    w = 1.0
+    a = math.radians(70)
+    hx, hz = c[0], z0
+    mx, mz = hx + math.sin(a) * w / 2, hz - math.cos(a) * w / 2
+    yaw = math.degrees(a)
+    for y in (y0 + 0.08, y0 + 1.0, y1 - 0.4):
+        b.box((mx, y, mz), (0.06, 0.08, w), yaw=-yaw + 180, style=_nb("trim_dark"))
+    for k in range(7):
+        t = (k + 0.5) / 7 * w
+        b.box((hx + math.sin(a) * t, (y0 + y1 - 0.32) / 2, hz - math.cos(a) * t), (0.035, s[1] - 0.4, 0.035),
+              style=_nb("trim_dark"))
+    lx, lz = hx + math.sin(a) * (w - 0.08), hz - math.cos(a) * (w - 0.08)
+    _bx(b, lx, y0 + 1.05, lz, 0.14, 0.2, 0.1, "steel_light", yaw=-yaw)                          # its lock
+
+
+def prop_cell_bunk(ctx, c, s):
+    """A steel bunk on the cell's back wall: a thin blue mattress, a grey blanket kicked off."""
+    b, rng = ctx.b, random.Random(f"bunk{c}")
+    y0 = c[1] - s[1] / 2
+    _bx(b, c[0], y0 + 0.4, c[2], s[0], 0.06, s[2], "steel_light")
+    for dz in (-1, 1):
+        _bx(b, c[0] + s[0] / 2 - 0.05, y0 + 0.2, c[2] + dz * (s[2] / 2 - 0.1), 0.06, 0.4, 0.06, "trim_dark")
+    _bx(b, c[0], y0 + 0.47, c[2], s[0] - 0.08, 0.08, s[2] - 0.1, "blue")
+    _bx(b, c[0] - 0.4, y0 + 0.02, c[2] + rng.uniform(-0.4, 0.4), 0.7, 0.04, 0.9, "steel_light", yaw=rng.uniform(-30, 30))
+
+
+def prop_cell_toilet(ctx, c, s):
+    """A steel toilet and basin in one, the cell's corner."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    _bx(b, c[0], y0 + 0.2, c[2], s[0] - 0.05, 0.4, s[2] - 0.1, "steel_light")
+    _bx(b, c[0], y0 + 0.41, c[2], s[0] - 0.12, 0.02, s[2] - 0.18, "black")
+    _bx(b, c[0] + s[0] / 2 - 0.08, y0 + 0.75, c[2], 0.14, 0.7, s[2] - 0.05, "steel_light")
+    _bx(b, c[0] + s[0] / 2 - 0.2, y0 + 0.9, c[2], 0.12, 0.04, 0.22, "black")                    # the basin
+
+
+def prop_booking_desk(ctx, c, s):
+    """The booking desk (along x, staff side to the wall): a high front, a computer, the property trays, ink pad
+    and forms; a chain bolted to the front for the prisoner's cuffs."""
+    b, rng = ctx.b, random.Random("booking")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    f = 1 if _front_into(c, 2) == "+z" else -1
+    b.box((c[0], (y0 + top) / 2, c[2]), (s[0], s[1], s[2]), style=_nb("wood"))
+    _bx(b, c[0], top + 0.02, c[2], s[0] + 0.06, 0.04, s[2] + 0.06, "trim")
+    zf = c[2] + f * (s[2] / 2 + 0.01)
+    for k in range(3):                                                                          # panels
+        _bx(b, c[0] - s[0] / 3 + k * s[0] / 3, y0 + 0.55, zf, s[0] / 3 - 0.12, 0.7, 0.02, "wood_dark")
+    _bx(b, c[0] + 0.5, y0 + 0.8, zf + f * 0.03, 0.1, 0.06, 0.04, "steel_light")                 # cuff ring
+    _bx(b, c[0] + 0.5, y0 + 0.6, zf + f * 0.03, 0.03, 0.4, 0.03, "steel_light", pitch=10)
+    zb = c[2] - f * 0.1
+    _bx(b, c[0] - 0.5, top + 0.2, zb, 0.4, 0.32, 0.3, "bone")                                   # the old monitor
+    _bx(b, c[0] - 0.5, top + 0.2, zb + f * 0.151, 0.32, 0.24, 0.01, "black")
+    for k in range(2):                                                                          # property trays
+        _bx(b, c[0] + 0.3 + k * 0.42, top + 0.05, c[2] + f * 0.1, 0.38, 0.06, 0.28, "steel_light", yaw=rng.uniform(-8, 8))
+    _bx(b, c[0] + 0.3, top + 0.1, c[2] + f * 0.1, 0.12, 0.04, 0.08, "black")                     # a wallet
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, top + 0.04, 6)
+    papers(b, rng, c[0] - s[0] / 2 - 0.5, c[0] + s[0] / 2 + 0.5, c[2] + f * 0.5, c[2] + f * 1.5, y0, 8)
+
+
+def prop_mugshot_camera(ctx, c, s):
+    """The booking camera on its tripod, aimed at the height chart on the wall (south); knocked crooked."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    x, z = c[0], c[2] - 0.1
+    for k in range(3):
+        a = math.radians(k * 120 + 15)
+        _bx(b, x + 0.22 * math.cos(a), y0 + 0.65, z + 0.22 * math.sin(a), 0.03, 1.3, 0.03, "trim_dark",
+            yaw=-math.degrees(a), pitch=12)
+    _bx(b, x, y0 + 1.33, z, 0.08, 0.08, 0.08, "trim_dark")
+    _bx(b, x, y0 + 1.47, z, 0.22, 0.18, 0.28, "black", yaw=12)
+    _bx(b, x + 0.03, y0 + 1.47, z + 0.18, 0.1, 0.1, 0.1, "trim_dark", yaw=12)
+    _bx(b, x, y0 + 1.58, z, 0.06, 0.06, 0.06, "bone")                                           # flash
+
+
+def prop_fingerprint_stand(ctx, c, s):
+    """A small steel stand: ink plate, roller, a card in the clamp, a box of cards; black thumbprints all over."""
+    b, rng = ctx.b, random.Random("prints")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box(c, s, style=_nb("steel_light"))
+    _bx(b, c[0], top + 0.01, c[2] - 0.12, s[0] - 0.15, 0.02, 0.22, "black")
+    _bx(b, c[0], top + 0.03, c[2] + 0.15, 0.2, 0.03, 0.12, "bone")
+    _bx(b, c[0] + 0.1, top + 0.04, c[2] - 0.12, 0.04, 0.04, 0.14, "black")
+    for _ in range(6):
+        _bx(b, c[0] + s[0] / 2 + 0.005, y0 + rng.uniform(0.3, s[1] - 0.1), c[2] + rng.uniform(-0.25, 0.25),
+            0.005, 0.03, 0.02, "black")
+
+
+def prop_cuff_bench(ctx, c, s):
+    """A bolted steel bench along a wall with a rail of cuff rings behind it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    _bx(b, c[0], y0 + s[1] - 0.03, c[2], s[0], 0.06, s[2], "steel_light", bottom=True)
+    for dz in (-1, 1):
+        _bx(b, c[0], y0 + (s[1] - 0.06) / 2, c[2] + dz * (s[2] / 2 - 0.1), s[0] - 0.1, s[1] - 0.06, 0.05, "trim_dark")
+    wx = c[0] + (s[0] / 2 - 0.02) * (1 if _front_into(c, 0) == "-x" else -1)
+    _bx(b, wx, y0 + 0.8, c[2], 0.03, 0.04, s[2] - 0.1, "steel_light")
+    for k in range(3):
+        _bx(b, wx, y0 + 0.73, c[2] - s[2] / 3 + k * s[2] / 3, 0.02, 0.1, 0.07, "steel_light")
+
+
+def prop_custody_desk(ctx, c, s):
+    """The custody officer's desk by the cells: the cell keys board above it is empty, the log book open, a radio."""
+    b, rng = ctx.b, random.Random("custody")
+    top = prop_table(ctx, c, s, "wood", "trim_dark")
+    _bx(b, c[0], top + 0.02, c[2] + 0.2, 0.32, 0.03, 0.45, "red")                               # log book
+    _bx(b, c[0] + 0.05, top + 0.08, c[2] - 0.45, 0.08, 0.16, 0.06, "black")                     # radio
+    chair(b, c[0] + 0.7, c[1] - s[1] / 2, c[2], 90, office=True)
+    papers(b, rng, c[0] - 0.3, c[0] + 1.6, c[2] - 1.0, c[2] + 1.0, c[1] - s[1] / 2, 6)
+
+
+def prop_dispatch_console(ctx, c, s):
+    """The dispatch console along the north wall: a slanted panel of switches and lamps, two radio sets, a
+    headset, the mic on its stand, the log; one set smashed; a swivel chair."""
+    b, rng = ctx.b, random.Random(f"dispatch{c}")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box(c, s, style=_nb("trim_dark"))
+    _bx(b, c[0], top + 0.02, c[2], s[0] + 0.04, 0.04, s[2] + 0.04, "wood")
+    f = 1 if _front_into(c, 2) == "+z" else -1
+    zb = c[2] - f * (s[2] / 2 - 0.12)
+    _bx(b, c[0], top + 0.3, zb, s[0] - 0.1, 0.5, 0.22, "trim", pitch=-f * 15)                  # slanted panel
+    for k in range(int((s[0] - 0.3) / 0.12)):
+        x = c[0] - s[0] / 2 + 0.2 + k * 0.12
+        _bx(b, x, top + 0.38, zb + f * 0.12, 0.05, 0.05, 0.02, rng.choice(("red", "yellow", "green", "bone")))
+        _bx(b, x, top + 0.24, zb + f * 0.12, 0.03, 0.06, 0.02, "black")
+    for k, dx in enumerate((-0.5, 0.45)):                                                       # radio sets
+        _bx(b, c[0] + dx, top + 0.1, c[2] + f * 0.05, 0.4, 0.16, 0.3, "black" if k else "olive")
+        _bx(b, c[0] + dx, top + 0.1, c[2] + f * 0.201, 0.3, 0.08, 0.01, "green" if not k else "trim_dark")
+    _bx(b, c[0], top + 0.02, c[2] + f * 0.2, 0.2, 0.02, 0.06, "black")                          # mic base
+    _bx(b, c[0], top + 0.15, c[2] + f * 0.2, 0.02, 0.25, 0.02, "steel_light", pitch=f * 20)
+    _bx(b, c[0] + 0.15, top + 0.03, c[2] + f * 0.25, 0.2, 0.04, 0.14, "black", yaw=30)          # headset
+    chair(b, c[0], y0, c[2] + f * 0.75, 0 if f > 0 else 180, office=True)
+    papers(b, rng, c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] + f * 0.3, c[2] + f * 1.6, y0, 7)
+
+
+def prop_police_desk(ctx, c, s):
+    """The lobby's front desk: a panelled counter with a glass screen to the ceiling-ish (shot through, one pane
+    down), the speaking grille, a bell, a sign-in book; the staff side north."""
+    b, rng = ctx.b, random.Random("pdesk")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], (y0 + top) / 2, c[2]), (s[0], s[1], s[2]), style=_nb("wood"))
+    _bx(b, c[0], top + 0.02, c[2], s[0] + 0.06, 0.04, s[2] + 0.06, "trim")
+    zf = c[2] + s[2] / 2 + 0.01                                                                  # public side south
+    for k in range(3):
+        _bx(b, c[0] - s[0] / 3 + k * s[0] / 3, y0 + 0.55, zf, s[0] / 3 - 0.12, 0.7, 0.02, "police_navy")
+    zg = c[2] + 0.1
+    for k in range(3):                                                                          # glass panes
+        x = c[0] - s[0] / 3 + k * s[0] / 3
+        _bx(b, x - s[0] / 6 + 0.02, top + 0.55, zg, 0.04, 1.1, 0.04, "trim_dark")
+        if k == 1:
+            for _ in range(5):                                                                 # this one is down
+                _bx(b, x + rng.uniform(-0.4, 0.4), y0 + 0.004, zf + rng.uniform(0.3, 1.2), 0.12, 0.005, 0.08, "glass",
+                    yaw=rng.uniform(0, 180))
+            continue
+        b.box((x, top + 0.55, zg), (s[0] / 3 - 0.06, 1.05, 0.01), style=lambda n, m, q: ("glass", uv_world(1.0)))
+        _bx(b, x, top + 0.45, zg + 0.008, 0.16, 0.16, 0.01, "steel_light")                      # speaking grille
+    _bx(b, c[0], top + 1.1, zg, s[0], 0.06, 0.06, "trim_dark")
+    _bx(b, c[0] + 0.55, top + 0.05, c[2] + 0.25, 0.08, 0.06, 0.08, "brass")                      # bell
+    _bx(b, c[0] - 0.4, top + 0.03, c[2] + 0.25, 0.32, 0.03, 0.22, "red")                         # sign-in book
+    chair(b, c[0] - 0.3, y0, c[2] - 0.75, 180, office=True)
+    papers(b, rng, c[0] - s[0] / 2 - 0.3, c[0] + s[0] / 2 + 0.3, c[2] - 1.0, c[2] - 0.4, y0, 6)
+
+
+def prop_interview_table(ctx, c, s):
+    """The interview table: steel, bolted down, a cuff bar on top; a chair each side (one over), the tape
+    recorder, a desk lamp, an ashtray."""
+    b, rng = ctx.b, random.Random("interview")
+    top = prop_table(ctx, c, s, "steel_light", "trim_dark")
+    _bx(b, c[0], top + 0.04, c[2], 0.3, 0.04, 0.04, "steel_light")
+    _bx(b, c[0] - 0.5, top + 0.06, c[2] + 0.2, 0.3, 0.08, 0.2, "black")                           # tape recorder
+    _bx(b, c[0] - 0.5, top + 0.105, c[2] + 0.2, 0.2, 0.01, 0.08, "steel_light")
+    _bx(b, c[0] + 0.55, top + 0.02, c[2] + 0.2, 0.18, 0.03, 0.18, "trim_dark")                   # lamp
+    _bx(b, c[0] + 0.55, top + 0.2, c[2] + 0.2, 0.03, 0.35, 0.03, "trim_dark", pitch=20)
+    _bx(b, c[0] + 0.55, top + 0.38, c[2] + 0.1, 0.16, 0.1, 0.16, "trim_dark")
+    _bx(b, c[0] + 0.2, top + 0.015, c[2] - 0.25, 0.12, 0.02, 0.12, "steel_light")                # ashtray
+    y0 = c[1] - s[1] / 2
+    chair(b, c[0], y0, c[2] - s[2] / 2 - 0.35, 180, seat="trim_dark")
+    chair(b, c[0] - 0.4, y0, c[2] + s[2] / 2 + 0.35, 0, seat="trim_dark")
+    chair(b, c[0] + 0.4, y0, c[2] + s[2] / 2 + 0.35, 0, seat="trim_dark")
+
+
+def prop_briefing_chairs(ctx, c, s):
+    """Rows of stacking chairs facing the board on the north wall; some shoved about or knocked over."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    rows = max(1, int(s[2] / 0.85))
+    cols = max(1, int(s[0] / 0.55))
+    for r in range(rows):
+        for k in range(cols):
+            x = c[0] - s[0] / 2 + 0.3 + k * (s[0] - 0.6) / max(1, cols - 1)
+            z = c[2] - s[2] / 2 + 0.35 + r * 0.85
+            chair(b, x, y0, z, 0, seat="blue")
+
+
+def prop_lectern(ctx, c, s):
+    """A wooden lectern with the town badge, its top slanted, a clipboard."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    _bx(b, c[0], y0 + 0.04, c[2], s[0] + 0.1, 0.08, s[2] + 0.1, "wood_dark")
+    _bx(b, c[0], (y0 + top) / 2, c[2], s[0] - 0.1, s[1] - 0.1, s[2] - 0.1, "wood")
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.04, s[2]), pitch=15, style=_nb("wood_dark"))
+    _bx(b, c[0], top, c[2] + 0.02, 0.22, 0.02, 0.3, "bone", pitch=15)
+
+
+for _k, _f in {"cell_bars": prop_cell_bars, "cell_bunk": prop_cell_bunk, "cell_toilet": prop_cell_toilet,
+               "booking_desk": prop_booking_desk, "mugshot_camera": prop_mugshot_camera,
+               "fingerprint_stand": prop_fingerprint_stand, "cuff_bench": prop_cuff_bench,
+               "custody_desk": prop_custody_desk, "dispatch_console": prop_dispatch_console,
+               "police_desk": prop_police_desk, "interview_table": prop_interview_table,
+               "briefing_chairs": prop_briefing_chairs, "lectern": prop_lectern,
+               "armoury_rack": lambda ctx, c, s: prop_rifle_rack(ctx, c, s, full=0.2)}.items():
+    PROPS[_k] = (lambda f: lambda ctx, c, s, k: f(ctx, c, s))(_f)
+
+
+def caved_police(ctx, c, s):
+    """The police station's caved room (the break room under the radio mast): the mast came down through the roof
+    and lies across the room, its top still sticking up out of the hole; a slab of roof on the vending machine's
+    side, the ceiling hanging on as a ragged lip, tiles, cups and a coffee pot on the floor, a puddle."""
+    b, rng = ctx.b, random.Random("caved_police")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.75
+    for side in range(4):                                                 # the ceiling's lip
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        while a < a1 - 0.05:
+            L = min(rng.uniform(0.4, 1.2), a1 - a)
+            d = rng.uniform(0.15, 0.5)
+            m = a + L / 2
+            at, sz = [((m, top, z0 + d / 2), (L, 0.03, d)), ((m, top, z1 - d / 2), (L, 0.03, d)),
+                      ((x0 + d / 2, top, m), (d, 0.03, L)), ((x1 - d / 2, top, m), (d, 0.03, L))][side]
+            b.box(at, sz, style=lambda n, m_, q: ("ceiling", uv_world(1.0)))
+            a += L
+    # The radio mast: foot on the floor by the west wall, leaning up and out through the hole to the north-east;
+    # its rungs, a dish still bolted on, a guy wire trailing.
+    p0 = (x0 + 1.4, y + 0.1, c[2] + 0.8)
+    p1 = (x1 - 1.2, top + 3.2, z0 + 1.3)
+    _beam(b, p0, p1, 0.14, 0.14, "steel_light")
+    n = 9
+    for k in range(1, n):
+        t = k / n
+        p = tuple(p0[i] + (p1[i] - p0[i]) * t for i in range(3))
+        b.box(p, (0.7, 0.04, 0.04), yaw=rng.uniform(-10, 10), style=no_bottom("steel_light", 1.0))
+    dp = tuple(p0[i] + (p1[i] - p0[i]) * 0.55 for i in range(3))
+    b.box((dp[0], dp[1] - 0.3, dp[2] + 0.25), (0.6, 0.6, 0.08), yaw=30, pitch=-40, style=no_bottom("bone", 1.0))
+    _beam(b, (x0 + 1.6, y + 0.02, c[2] + 0.8), (x0 + 3.6, y + 0.02, z1 - 0.6), 0.02, 0.02, "black")
+    # A slab of roof down in the north-west of the room, propped on the broken roof's edge, its underside concrete.
+    b.box((x0 + 2.6, y + 0.7, z0 + 1.8), (2.4, 0.22, 2.0), yaw=15, pitch=-24,
+          style=lambda n, m, q: ("roof", uv_world(1.0)) if n[1] > 0.7 else ("rubble_core", uv_world(1.0)))
+    # Ceiling tiles, mugs, the coffee pot, rubble.
+    for _ in range(12):
+        b.box((x0 + rng.uniform(0.6, s[0] - 0.6), y + 0.015, z0 + rng.uniform(0.6, s[2] - 0.6)), (0.6, 0.02, 0.6),
+              yaw=rng.uniform(0, 90), pitch=rng.uniform(-6, 6), style=no_bottom("bone", 1.0))
+    for _ in range(6):
+        b.box((x0 + rng.uniform(0.8, 3.5), y + 0.05, z1 - rng.uniform(0.6, 2.0)), (0.08, 0.1, 0.08),
+              yaw=rng.uniform(0, 90), pitch=rng.choice((0, 90)), style=no_bottom(rng.choice(("bone", "blue", "red")), 1.0))
+    b.box((x0 + 2.0, y + 0.07, z1 - 1.2), (0.16, 0.14, 0.16), pitch=80, style=no_bottom("black", 1.0))
+    for _ in range(10):
+        rubble_chunk(b, (x0 + rng.uniform(1.0, s[0] - 1.0), y, z0 + rng.uniform(1.0, s[2] - 1.0)),
+                     (rng.uniform(0.3, 0.8), rng.uniform(0.15, 0.3), rng.uniform(0.3, 0.8)), rng, ["roof", "concrete"])
+    b.box((c[0] + 0.5, y + 0.006, c[2] + 0.4), (2.0, 0.004, 1.6), yaw=20, style=no_bottom("glass", 1.0))   # puddle
+
+
+def police_room(m):
+    """(storey, i, j) of a point in the station: i west to east, j north to south."""
+    i = 0 if m[0] < -13.0 / 3 else 1 if m[0] < 13.0 / 3 else 2
+    j = 0 if m[2] < -11.0 / 3 else 1 if m[2] < 11.0 / 3 else 2
+    return int(m[1] >= 3.0), i, j
+
+
+POLICE_ROOMS = {   # (storey, i, j) -> inside walls, floor
+    (0, 0, 0): ("int_office", "floor_lino"),        # stair hall
+    (0, 1, 0): ("int_office", "floor_lino"),        # locker room
+    (0, 2, 0): ("int_wall", "concrete"),            # armoury
+    (0, 0, 1): ("int_office", "floor_lino"),        # booking (the side door)
+    (0, 1, 1): ("int_office_cream", "floor_lino"),  # the squad room
+    (0, 2, 1): ("int_tile", "concrete"),            # the cells
+    (0, 0, 2): ("int_office", "carpet_office"),     # dispatch
+    (0, 1, 2): ("int_office_cream", "terrazzo"),    # lobby (the front door)
+    (0, 2, 2): ("int_wall", "floor_lino"),          # interview rooms
+    (1, 0, 0): ("int_office", "floor_lino"),        # top of the stairs
+    (1, 1, 0): ("th_panel", "carpet"),              # the chief's office
+    (1, 2, 0): ("int_office", "floor_lino"),        # break room (caved in)
+    (1, 0, 1): ("int_office", "carpet_office"),     # detectives
+    (1, 1, 1): ("int_office_cream", "carpet_office"),   # briefing room
+    (1, 2, 1): ("int_wall", "floor_lino"),          # evidence
+    (1, 0, 2): ("int_office", "floor_lino"),        # locker room upstairs
+    (1, 1, 2): ("int_office", "floor_lino"),        # records
+    (1, 2, 2): ("int_wall", "floor_lino"),          # property store, the roof stairs
+}
+
+
+def police_inner(m):
+    return POLICE_ROOMS[police_room(m)][0]
+
+
+def police_floor(m):
+    return POLICE_ROOMS[(int(m[1] >= 2.0),) + police_room(m)[1:]][1]
+
+
+def police_ceiling(m):
+    room = police_room((m[0], m[1] - 2.0, m[2]))
+    return "house_ceiling" if POLICE_ROOMS[room][0] == "th_panel" else "ceiling"
+
+
+def dress_police(ctx):
+    dress_police_outside(ctx)
+    b = ctx.b
+    wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
+    wq((0, 0, -1), -3.78, -12.1, -10.9, 1.3, 2.1, "duty")                 # stair hall, over the bench
+    wq((0, 0, -1), 3.56, -6.35, -5.35, 0.0, 2.2, "chart")                 # booking: the height chart
+    wq((0, 0, 1), 3.78, -12.45, -10.45, 1.5, 2.5, "city")                 # dispatch: the map over the console
+    wq((-1, 0, 0), 4.22, 10.0, 9.0, 1.2, 2.0, "notice")                   # lobby: wanted and missing
+    wq((-1, 0, 0), -4.44, 3.25, 1.65, 4.1, 5.1, "caseboard")              # detectives: the case board
+    wq((0, 0, 1), -3.56, 1.5, 3.7, 4.05, 5.15, "brief")                   # briefing: the whiteboard
+    # The cell keys board by the custody desk: a board of empty hooks, one ring of keys on the floor.
+    b.box((4.45, 1.7, -2.4), (0.03, 0.5, 0.7), style=_nb("wood"))
+    for k in range(6):
+        b.box((4.48, 1.85 - (k // 3) * 0.25, -2.65 + (k % 3) * 0.25), (0.04, 0.02, 0.02), style=_nb("brass"))
+    b.box((5.6, 0.01, -2.0), (0.12, 0.02, 0.1), yaw=30, style=_nb("brass"))
+
+
+CAVED["police"] = caved_police
+DECALS["police"] = police_decals
+DRESSING["police"] = dress_police
+FOOTPRINTS["police"] = POLICE_FP
+ENTRANCE_DOOR["police"] = "police_navy"
+LOCKER_PAINT["police"] = "police_navy"
+SHELLS["police"] = {
+    "ext": POLICE_LOOKS[POLICE_LOOK]["ext"], "roof_side": POLICE_LOOKS[POLICE_LOOK]["ext"],
+    "x_lines": (-13.0, -13.0 / 3, 13.0 / 3, 13.0), "z_lines": (-11.0, -11.0 / 3, 11.0 / 3, 11.0),
+    "inner": police_inner, "floor": police_floor, "ceiling": police_ceiling,
+    "x_splits": (-13.0 / 3, 13.0 / 3), "z_splits": (-11.0 / 3, 11.0 / 3),
+}
+FACTION_MARKS["police"] = [("x1_stencil", "E", 3.0, 1.0), ("nova_tag", "N", 6.0, 1.1)]
 
 
 def floor_debris(ctx, data, name):
