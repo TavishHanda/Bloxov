@@ -1244,11 +1244,23 @@ def stairs(ctx, c, s, yaw, pitch, mats=("wood", "trim_dark")):
         b.box(p, (s[0], h, tread), yaw=yaw,
               style=lambda nn, m, q: (mats[0], uv_world(1.0)) if nn[1] > 0.7 or abs(dot(nn, along)) > 0.7
               else (mats[1], uv_world(1.0)))
-    # Stringers along both sides, just outside the treads: against a wall they sit in it (police round 3, owner:
-    # a stringer face level with the wall face flickered through it as you walked up).
+    # Stringers along the open sides. None against a wall (police rounds 3-4, owner: a stringer face at, or a
+    # centimetre behind, the wall face flickered through it as you walked up).
     for side in (-1, 1):
-        sc = v_add(c, rot((side * (s[0] / 2 + 0.05), -0.05, 0), yaw, pitch))
+        if _wall_at(ctx, v_add(c, rot((side * (s[0] / 2 + 0.06), 0, 0), yaw, pitch))):
+            continue
+        sc = v_add(c, rot((side * (s[0] / 2 + 0.04), -0.05, 0), yaw, pitch))
         b.box(sc, (0.08, 0.35, s[2]), yaw=yaw, pitch=pitch, style=lambda nn, m, q: (mats[1], uv_world(1.0)))
+
+
+def _wall_at(ctx, p):
+    """Is point p inside a solid, upright, axis-aligned box over 1.5 m tall (a wall) of the building?"""
+    for row in ctx.data["boxes"]:
+        if not row.get("solid") or row["yaw"] or row["pitch"] or row["size"][1] < 1.5:
+            continue
+        if all(abs(p[k] - row["pos"][k]) <= row["size"][k] / 2 for k in range(3)):
+            return True
+    return False
 
 
 def side_of(n):
