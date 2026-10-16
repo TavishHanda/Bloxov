@@ -2694,7 +2694,7 @@ def main():
         box(98.1, 0, 81.8, 98.7, 1.6, 82.4, "metal", kind="spinner")
         # Dispensary: drug drawers, the prescriptions counter, the pharmacist's desk.
         box(90.4, 0, 83.2, 92.9, 2.0, 83.85, "wood", kind="rx_drawers")
-        box(94.5, 0, 80.5, 97.0, 1.0, 81.3, "wood", kind="rx_counter")
+        box(94.5, 0, 79.9, 97.0, 1.0, 80.7, "wood", kind="rx_counter")   # (0.6 m north: room to the washroom door, owner)
         box(90.4, 0, 72.4, 91.9, 0.75, 73.3, "wood", kind="desk")
     with modeled("grocery", 140.0, 70.0):   # World art 0.17: a real supermarket (sales floor + back rooms)
         build(Building("Grocery", 128, 60, 24, 20, colour="wall_food", rooms=(3, 2), doors="S", roof=True,
