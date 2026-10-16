@@ -10347,7 +10347,7 @@ def dress_police_outside(ctx):
     if side:
         z = side[0]["mid"]
         b.box((fp[0] - 0.17, 2.6, z), (0.03, 0.25, 0.8), style=face_decal(ctx.d("staff"), "bone", "-x"))
-        b.box((fp[0] - 0.4, 2.95, z + 1.4), (0.35, 0.18, 0.18), yaw=200, pitch=-15, style=st("bone"))
+        security_camera(b, (fp[0] - 0.24, 2.95, z + 1.3), -0.7, -1.0)     # (was a plain white box, owner round 5)
     # Security cameras on the corners (round 4, owner): two over the front, two over the back (the car park, later).
     for x, z, dx, dz in ((-12.45, 11.17, 0.6, 1.0), (12.45, 11.17, -0.6, 1.0),
                          (-12.45, -11.17, 0.6, -1.0), (12.45, -11.17, -0.6, -1.0)):
@@ -10809,20 +10809,14 @@ FACTION_MARKS["police"] = [("x1_stencil", "E", 3.0, 1.0), ("nova_tag", "N", 6.0,
 # checkouts and produce by the door), and the back rooms behind a wall along the north: the stock room (loading door
 # west, onto Mill Lane), the manager's office, the staff area with the stairs to the roof (walled, one way up). The
 # blast at the north-east corner took out the end of the back wall. Ransacked.
-GROCERY_LOOKS = {   # outside wall options (owner picks one from worldart/options-grocery.png)
-    "B": {"ext": "groc_block_pale", "trim": "concrete", "fascia": "bone", "plinth": "trim_dark", "awning": True,
-          "sign_bg": "bone", "sign_fg": "red", "sign_edge": "red"},
-    "C": {"ext": "groc_brick_tan", "trim": "groc_cream", "fascia": "groc_green", "plinth": "groc_green", "awning": False,
-          "sign_bg": "groc_green", "sign_fg": "bone", "sign_edge": "bone"},
-    "D": {"ext": "groc_block_sage", "trim": "groc_cream", "fascia": "groc_cream", "plinth": "groc_green", "awning": False,
+GROCERY_LOOKS = {   # owner picked D (sage block, cream sign) from worldart/options-grocery.png; B/C dropped
+    "D": {"ext": "groc_block_sage", "trim": "groc_cream", "fascia": "groc_cream", "plinth": "groc_green",
           "sign_bg": "groc_cream", "sign_fg": "groc_green", "sign_edge": "groc_green"},
 }
-GROCERY_LOOK = os.environ.get("BLOXOV_GROCERY_LOOK", "C")
-GROCERY_NAME = "GROCERY"          # (owner to name the store)
+GROCERY_LOOK = "D"
+GROCERY_NAME = "FRESHWAY"         # (owner named it, 2026-10-16)
 
 PALETTE.update({
-    "gblock": "9a968a", "gblock_dark": "8d897d", "gblock_light": "a39f93", "gblock_joint": "7c786d",
-    "gtan": "8e7d5f", "gtan_dark": "817153", "gtan_light": "978668", "gtan_mortar": "736b5b",
     "gsage": "7d8a72", "gsage_dark": "717e67", "gsage_light": "88957d", "gsage_joint": "626c59",
     "ggreen": "2f5236", "ggreen_dark": "25422b", "ggreen_light": "3a6342",
     "gcream": "a8a28e", "gcream_dark": "9b957f",
@@ -10846,16 +10840,8 @@ def _block(base, dark, light, joint, rng):
     return c
 
 
-def paint_groc_block_pale(rng):
-    return _block("gblock", "gblock_dark", "gblock_light", "gblock_joint", rng)
-
-
 def paint_groc_block_sage(rng):
     return _block("gsage", "gsage_dark", "gsage_light", "gsage_joint", rng)
-
-
-def paint_groc_brick_tan(rng):
-    return _brick("gtan", "gtan_dark", "gtan_light", "gtan_mortar", rng, burnt="iron")
 
 
 def paint_groc_green(rng):
@@ -10896,8 +10882,7 @@ def paint_groc_int(rng):
     return c
 
 
-KIT.update({"groc_block_pale": paint_groc_block_pale, "groc_block_sage": paint_groc_block_sage,
-            "groc_brick_tan": paint_groc_brick_tan, "groc_green": paint_groc_green, "groc_cream": paint_groc_cream,
+KIT.update({"groc_block_sage": paint_groc_block_sage, "groc_green": paint_groc_green, "groc_cream": paint_groc_cream,
             "groc_floor": paint_groc_floor, "groc_int": paint_groc_int, "groc_locker": paint_flat("glocker")})
 
 GROCERY_FP = (-12.0, -10.0, 12.0, 10.0)
@@ -11189,20 +11174,12 @@ def dress_grocery_outside(ctx):
             at = {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[o["side"]] + sg * 0.18
             c = (o["mid"], o["hi"] + 0.1, at) if ns else (at, o["hi"] + 0.1, o["mid"])
             b.box(c, (o["w"] + 0.3, 0.2, 0.06) if ns else (0.06, 0.2, o["w"] + 0.3), style=st(look["trim"]))
-    # ---- The front: a fascia band over the glass, the name lightbox over the entrance standing up past the parapet,
-    # (look B) a red and white striped awning.
+    # ---- The front: a fascia band over the glass, the name lightbox over the entrance standing up past the parapet.
     zf = fp[3] + 0.15
     b.box((0, 2.95, zf + 0.12), (24.6, 0.8, 0.24), style=st(look["fascia"], 2.0))
     b.box((0, 2.53, zf + 0.12), (24.6, 0.04, 0.26), style=st("trim_dark"))
     b.box((0, 3.75, zf + 0.2), (7.2, 1.3, 0.3), style=st("trim_dark"))
     b.box((0, 3.75, zf + 0.36), (7.0, 1.1, 0.04), style=face_decal(ctx.d("name"), "trim_dark", "+z"))
-    if look["awning"]:
-        for k in range(48):                                  # 0.5 m stripes, sloping 1.2 m out and down
-            x = -12.0 + 0.25 + k * 0.5
-            b.box((x, 2.3, zf + 0.6), (0.5, 0.04, 1.3), pitch=-20, style=st("red" if k % 2 else "bone"))
-            b.box((x, 2.03, zf + 1.22), (0.5, 0.22, 0.03), style=st("red" if k % 2 else "bone"))
-        for x in (-11.9, 11.9):
-            _beam(b, (x, 2.55, zf), (x, 2.08, zf + 1.2), 0.04, 0.04, "trim_dark")
     # Security cameras on the front and back corners (owner, police round 4: a few on the outside).
     for x, z, dx, dz in ((-11.45, 10.17, 0.6, 1.0), (11.45, 10.17, -0.6, 1.0),
                          (-12.17, -5.5, -1.0, -0.6), (11.45, -10.17, -0.6, -1.0)):
