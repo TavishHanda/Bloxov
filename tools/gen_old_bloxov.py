@@ -1040,6 +1040,9 @@ def police_furniture(ox, oz):
     o(-4.43, 3.0, -10.85, -4.23, 5.75, -8.65, "wall_police", None)
     o(7.4, 3.0, 8.45, 13.0, 5.75, 8.65, "wall_police", None)
     o(4.23, 3.0, 8.65, 4.43, 5.75, 10.85, "wall_police", None)
+    # The roof stairs' strip also cut the ground floor's lobby/interview wall (round 2, owner: "the wall here just
+    # doesn't go all the way across"): close it.
+    o(4.23, 0, 8.65, 4.43, 2.75, 10.85, "wall_police", None)
     # ---- Ground floor.
     # The stair hall (north-west): a bench and the duty board on the south wall, a water cooler, a plant.
     o(-12.6, 0, -4.3, -10.4, 0.5, -3.85, "wood", "hall_bench")
@@ -1048,8 +1051,8 @@ def police_furniture(ox, oz):
     # The locker room (north middle): lockers along the south wall either side of the door, benches in front.
     o(-4.0, 0, -4.3, -1.8, 1.9, -3.8, "metal", "hall_lockers")
     o(1.8, 0, -4.3, 4.0, 1.9, -3.8, "metal", "hall_lockers")
-    o(-3.8, 0, -5.4, -2.0, 0.45, -5.0, "wood", "hall_bench")
-    o(2.0, 0, -5.4, 3.8, 0.45, -5.0, "wood", "hall_bench")
+    o(-3.0, 0, -5.4, -1.4, 0.45, -5.0, "wood", "hall_bench")
+    o(1.4, 0, -5.4, 3.0, 0.45, -5.0, "wood", "hall_bench")
     # The armoury (north-east): rifle racks on the south wall (mostly emptied), ammo crates and cans, the gun
     # cabinets are the loot.
     o(4.9, 0, -4.4, 7.2, 2.2, -3.8, "wood", "armoury_rack")
@@ -1062,18 +1065,26 @@ def police_furniture(ox, oz):
     o(-6.6, 0, 1.4, -5.1, 1.6, 1.9, "metal", "mugshot_camera", solid=False)
     o(-12.6, 0, 1.9, -12.0, 1.0, 2.6, "metal", "fingerprint_stand")
     o(-5.0, 0, -3.2, -4.55, 0.5, -1.6, "wood", "cuff_bench")
-    # The squad room (middle): desks in the north corners, the loot crate in the south-west (off the door).
-    o(-3.6, 0, -3.0, -1.9, 0.75, -1.5, "wood", "office_pod")
-    o(1.9, 0, -3.0, 3.6, 0.75, -1.5, "wood", "office_pod")
-    # The cells (east middle): three cells along the east wall, barred fronts (solid) with their doors thrown open,
-    # bunks and steel toilets; the custody desk by the door.
-    for z0, z1 in ((-3.57, -1.25), (-1.15, 1.15), (1.25, 3.57)):
-        o(10.1, 0, z0 + 1.1, 10.25, 2.75, z1, "metal", "cell_bars")   # (its door, open, in the 1.1 m north of it)
-        o(12.05, 0, z0 + 0.15, 12.8, 0.5, z1 - 0.15, "metal", "cell_bunk", solid=False)
-        o(10.4, 0, z1 - 0.55, 10.85, 0.45, z1 - 0.1, "metal", "cell_toilet", solid=False)
-    for z in (-1.25, 1.15):
-        o(10.25, 0, z, 12.85, 2.75, z + 0.1, "wall_police", None)
-    o(4.7, 0, -3.2, 5.5, 0.75, -1.6, "wood", "custody_desk")
+    # The custody block (owner: lay it out like a real station): prisoners come in by the side door, are booked, then
+    # walked straight through to the cells in the middle room (no windows, no way in from the lobby). Five cells off a
+    # corridor between the booking door and the squad room: two on the north side (the locker room's door between
+    # them), three on the south. Barred fronts are solid, their doors thrown open; bunks and steel toilets.
+    for x0, x1 in ((-4.23, -1.3), (1.3, 4.23)):
+        o(x0 + 1.0, 0, -1.45, x1, 2.75, -1.3, "metal", "cell_bars")    # (its door, open, in the 1 m west of it)
+        o(x0 + 0.1, 0, -3.47, x0 + 1.95, 0.5, -2.75, "metal", "cell_bunk", solid=False)
+        o(x1 - 0.55, 0, -3.45, x1 - 0.1, 0.45, -3.0, "metal", "cell_toilet", solid=False)
+    for x in (-1.3, 1.2):
+        o(x, 0, -3.57, x + 0.1, 2.75, -1.3, "wall_police", None)
+    for x0, x1 in ((-4.23, -1.45), (-1.35, 1.35), (1.45, 4.23)):
+        o(x0 + 1.0, 0, 1.3, x1, 2.75, 1.45, "metal", "cell_bars")
+        o(x0 + 0.1, 0, 2.75, x0 + 1.95, 0.5, 3.47, "metal", "cell_bunk", solid=False)
+        o(x1 - 0.55, 0, 3.0, x1 - 0.1, 0.45, 3.45, "metal", "cell_toilet", solid=False)
+    for x in (-1.45, 1.35):
+        o(x, 0, 1.3, x + 0.1, 2.75, 3.57, "wall_police", None)
+    # The squad room (east middle): desks, the loot crate on the east wall.
+    o(4.9, 0, -3.3, 6.6, 0.75, -1.8, "wood", "office_pod")
+    o(4.9, 0, 1.8, 6.6, 0.75, 3.3, "wood", "office_pod")
+    o(10.3, 0, -3.3, 12.0, 0.75, -1.8, "wood", "office_pod")
     # Dispatch (south-west): radio consoles on the north wall, filing cabinets.
     o(-12.6, 0, 4.0, -10.3, 0.8, 4.7, "wood", "dispatch_console")
     o(-6.8, 0, 4.0, -4.7, 0.8, 4.7, "wood", "dispatch_console")
@@ -1117,7 +1128,8 @@ def police_furniture(ox, oz):
     # Records (south middle): shelves on the south wall either side of the window, a copier, cabinets.
     o(-3.9, 3.0, 10.3, -1.2, 4.8, 10.8, "metal", "archive_shelf")
     o(1.2, 3.0, 10.3, 3.9, 4.8, 10.8, "metal", "archive_shelf")
-    o(-4.2, 3.0, 9.0, -3.5, 4.1, 9.9, "metal", "photocopier")
+    o(-3.2, 3.0, 3.9, -2.2, 4.1, 4.6, "metal", "photocopier")
+    o(-4.1, 3.0, 3.9, -3.4, 3.45, 4.5, "wood", "paper_boxes", solid=False)
     o(2.0, 3.0, 4.0, 3.0, 4.3, 4.6, "metal", "file_cabinet")
     # The property store (south-east, the roof stairs): shelves of seized goods.
     o(4.8, 3.0, 4.1, 6.0, 3.8, 4.9, "wood", "paper_boxes")
@@ -2458,10 +2470,10 @@ def main():
         # The caved room is a corner room upstairs (north-east: the other corners hold the stairs' landing and the
         # roof stairs, and the south-west one the staff lockers).
         build(Building("Police", 150, 112, 26, 22, floors=2, colour="wall_police", rooms=(3, 3), doors="WS", roof=True,
-                       caved=[(2, 0)]), [
+                       caved=[(2, 0)], solid_inner=[("h", 1, 2)]), [
             ("locker", 2, 0, 0, "E", -2.3, "gun_cabinet"), ("locker", 2, 0, 0, "N", -1.7, "gun_cabinet"),
-            ("locker", 0, 2, 1, "W", 2.3), ("locker", 2, 2, 1, "E", -2.3), ("crate", 1, 1, 0, "S", -2.8)])
-        # (loot slid off the windows; the squad room's crate was in its doorway)
+            ("locker", 0, 2, 1, "W", 2.3), ("locker", 2, 2, 1, "E", -2.3), ("crate", 2, 1, 0, "E", 2.4)])
+        # (loot slid off the windows; the cells, middle, have no door to the lobby)
         police_furniture(163.0, 123.0)
     for x, z, yaw in ((180, 118, 90), (180, 126, 90)):
         car(x, z, yaw, "car_b")
