@@ -1681,14 +1681,15 @@ WC_T = 0.15      # a washroom's own walls
 WC_DOOR = 0.85   # its doorway (narrower than the AI's 1.5 m: their paths don't go in, so nothing about them changes)
 
 
-def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign"):
+def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign", h=None):
     """A washroom in the corner of a room (World art 0.17, owner 2026-10-16: the town had none), in a model's own
     coordinates (origin map (ox, oz)); x0..x1, z0..z1 are its inside faces, y its floor. walls: the sides ("N", "S",
     "E", "W") that need a new thin wall (the others are the room's own walls). door: (side, centre along it, hinge):
     the doorway in one of the new walls and the sign over it outside; the leaf (picture only) hangs on the -1/+1 side
     (along the wall) pushed right open flat against the outside of the wall, or with -2/+2 swung into the washroom. fit: fittings, (kind, side, along, width, depth, height) against an inside wall, or (kind, (xa, za,
-    xb, zb), height). The model tiles every wall face looking in (make_building, "washroom" box)."""
-    H = FLOOR_H - SLAB_T
+    xb, zb), height). The model tiles every wall face looking in (make_building, "washroom" box). h: the walls'
+    height (default a 3 m storey's, up to the slab; the station's rooms are taller)."""
+    H = h or FLOOR_H - SLAB_T
 
     def o(a0, b0, c0, a1, b1, c1, kind=None, solid=True, colour="wall"):
         box(ox + a0, y + b0, oz + c0, ox + a1, y + b1, oz + c1, colour, solid=solid, kind=kind)
@@ -1813,6 +1814,73 @@ def cabin_loft(ox, oz):
     o(-6.3, 3.0, 0.7, -5.7, 3.5, 1.3, kind="cabin_loft_stool")
     o(2.0, 3.0, -2.2, 2.8, 3.5, -1.5, kind="cabin_loft_crates")
     o(4.2, 3.0, 1.4, 5.0, 3.5, 2.1, kind="cabin_loft_crates")
+
+
+def station_furniture(ox, oz):
+    """Bloxov Station (World art 0.17) in the model's own coordinates (origin map (ox, oz); local x -19..19, z -7..7,
+    walls 3.6 m, north = Station Road, south = the platform). Room middles, doorways and the way through stay clear;
+    the waiting room's washrooms are in its north corners, the roof stairs (along the south wall of the east room,
+    rising east) are walled off from the room (owner rule), the ticket windows are drawn on the hall's east wall."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    H = 3.355                                                              # the roof slab's underside
+    # Waiting room (x -18.85..-6.43): men's and women's washrooms in the north corners, benches along the south wall
+    # (off the window), the stove on the east wall, a vending machine, the left luggage (the crate) on the west wall.
+    washroom(ox, oz, -18.85, -6.85, -15.55, -3.9, "ES", ("S", -16.4, -1), sign="wc_sign_m", h=H, fit=(
+        ("wc_toilet", "W", -6.1, 0.5, 0.65, 0.8), ("wc_urinal", "N", -17.3, 0.4, 0.35, 1.2),
+        ("wc_urinal", "N", -16.6, 0.4, 0.35, 1.2), ("wc_sink", "E", -5.0, 0.5, 0.4, 0.85)))
+    washroom(ox, oz, -9.75, -6.85, -6.43, -3.9, "WS", ("S", -8.0, 1), sign="wc_sign_f", h=H, fit=(
+        ("wc_toilet", "E", -6.1, 0.5, 0.65, 0.8), ("wc_sink", "W", -5.0, 0.5, 0.4, 0.85)))
+    o(-18.6, 0, 6.3, -14.1, 0.95, 6.85, "wood", "st_bench")
+    o(-11.2, 0, 6.3, -6.9, 0.95, 6.85, "wood", "st_bench")
+    o(-7.15, 0, 2.6, -6.43, 1.1, 3.6, "metal", "st_stove")
+    o(-15.2, 0, -6.85, -14.3, 1.85, -6.15, "metal", "vending")
+    # Booking hall (x -6.23..6.23): the ticket windows on its east wall (picture only), a bench on the west wall, the
+    # departures board hanging over the way through, the EXION checkpoint by the platform door (sandbags, a table).
+    o(6.08, 0.95, -5.3, 6.23, 2.3, -4.1, "wood", "st_ticket_window", solid=False)
+    o(6.08, 0.95, -3.3, 6.23, 2.3, -2.1, "wood", "st_ticket_window", solid=False)
+    o(-6.23, 0, 2.2, -5.7, 0.95, 5.2, "wood", "st_bench")
+    o(-1.6, 2.55, -2.2, 1.6, 3.2, -2.0, "metal", "st_departures", solid=False)
+    o(-3.1, 0, 6.2, -1.45, 0.65, 6.85, "wood", "st_sandbags")
+    o(1.45, 0, 6.2, 3.1, 0.65, 6.85, "wood", "st_sandbags")
+    o(-5.9, 0, 3.6, -5.0, 0.76, 5.3, "wood", "st_check_table")            # (in front of the bench's south end)
+    # East room (x 6.43..18.85): the ticket office behind the windows (desk along the hall wall, ticket rack on the
+    # north wall), the station master's desk, safe and key board in the north-east, parcels in the south-east by the
+    # walled-in roof stairs. The way from the hall doorway to the stairs' foot (x 9.3..11.1) stays clear.
+    o(6.43, 0, -6.0, 7.1, 1.0, -2.0, "wood", "st_ticket_desk")
+    o(7.4, 0, -6.85, 9.6, 2.2, -6.45, "wood", "st_ticket_rack")
+    o(14.6, 0, -5.4, 16.2, 0.78, -4.6, "wood", "st_master_desk")
+    o(18.15, 0, -6.6, 18.85, 0.9, -5.8, "metal", "small_safe")
+    o(16.9, 1.0, -6.85, 18.0, 1.9, -6.7, "wood", "st_key_board", solid=False)
+    o(11.6, 0, 3.75, 15.6, 2.0, 4.45, "wood", "st_parcel_shelf")
+    o(16.0, 0, 3.3, 16.9, 0.9, 4.2, "metal", "st_scale")
+    o(10.9, 0, 4.45, 18.85, H, 4.65, "wall", None)                        # the roof stairs' wall (open at the foot)
+    # Platform (x -23..27, z 8..10.6, 0.8 m up): filled to the wall along the station, a ramp up from the platform
+    # door (drawn as steps), the canopy's columns, benches against the wall, a baggage cart, nameboards at the ends.
+    o(-23.0, 0, 8.0, 27.0, 0.8, 10.6, "concrete", "st_platform")
+    o(-19.0, 0, 7.15, -1.1, 0.8, 8.0, "concrete", "st_platform")
+    o(1.1, 0, 7.15, 19.0, 0.8, 8.0, "concrete", "st_platform")
+    t = math.atan2(0.8, 1.25)        # (turned round: its low end at the door, 33 degrees)
+    obox(ox, 0.4 - 0.08 * math.cos(t), oz + 7.775 + 0.08 * math.sin(t), 2.2, 0.16, math.hypot(1.25, 0.8), 180.0, "wood",
+         pitch=math.degrees(t), kind="st_steps")
+    for x in range(-10, 15, 4):
+        o(x - 0.08, 0.8, 9.92, x + 0.08, 3.3, 10.08, "metal", "st_column")
+    o(-14.1, 0.8, 9.92, -13.9, 1.4, 10.08, "metal", "st_column_stub")   # (snapped: the west end came down)
+    # The platform canopy (owner 2026-10-17: solid, you can climb out onto it from the roof over the parapet). Its
+    # west end was blown off (owner: more war damage): the wreck lies on the platform, picture only.
+    o(-11.6, 3.3, 7.15, 17.5, 3.45, 10.75, "roof", "st_canopy")
+    o(-18.0, 0.8, 7.7, -11.8, 1.6, 10.6, "roof", "st_canopy_wreck", solid=False)
+    o(-9.2, 0.8, 7.15, -7.0, 1.75, 7.7, "wood", "st_bench")
+    o(7.0, 0.8, 7.15, 9.2, 1.75, 7.7, "wood", "st_bench")
+    o(11.6, 0.8, 8.9, 13.6, 1.5, 9.9, "wood", "st_cart")
+    o(-23.0, 0.8, 9.9, -21.0, 3.3, 10.1, "metal", "st_nameboard", solid=False)
+    o(25.0, 0.8, 9.9, 27.0, 3.3, 10.1, "metal", "st_nameboard", solid=False)
+    o(-22.0, 0.8, 8.4, -21.8, 4.0, 8.6, "metal", "st_lamp", solid=False)
+    o(25.8, 0.8, 8.4, 26.0, 4.0, 8.6, "metal", "st_lamp", solid=False)
+    # The street front: a little canopy over the door (solid like the platform's), the clock gable over it stands
+    # on the parapet (solid like it).
+    o(-1.7, 2.75, -8.45, 1.7, 2.9, -7.15, "roof", "st_porch")
+    o(-1.6, 4.6, -7.15, 1.6, 6.2, -6.85, "wall", "st_gable")
 
 
 def build(b, loot_spots=()):
@@ -2469,6 +2537,7 @@ EXTRA_PADS = [
     (61.5, 98.5, 72.5, 114.5),    # town gas station forecourt
     (295.0, 334.0, 331.0, 343.0),  # old gas station canopy
     (196.0, 204.0, 246.0, 208.0),  # station platform
+    (222.0, 184.0, 240.0, 190.0),  # the rubble blown out of the station office's street wall (World art 0.17)
     (232.0, 214.0, 292.0, 231.0),  # depot sidings
     (124.0, 168.0, 178.0, 182.0),  # the trench
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
@@ -3304,9 +3373,16 @@ def main():
     obox(250, 1.0, 90, 2.2, 2.0, 3.6, 20, "car_a")                     # tractor
 
     # ===================================================================== MIDDLE: train station + depot
-    build(Building("TrainStation", 200, 190, 38, 14, colour="wall", rooms=(3, 1), doors="SN", roof=True,
-                   height=3.6), [("crate", 0, 0, 0, "W", 0), ("crate", 2, 0, 0, "E", 0), ("locker", 1, 0, 0, "N", 0)])
-    box(196, 0, 205, 246, 0.8, 207.6, "concrete")                       # platform
+    with modeled("train_station", 219.0, 197.0):
+        # Bloxov Station (World art 0.17, plan worldart/station-plan.md): waiting room + washrooms west, booking hall
+        # in the middle (street door north, platform door south), ticket office + station master + parcels east.
+        # Same loot: the left luggage (west), the parcels (east), the luggage locker in the hall.
+        # War (owner 2026-10-17: "a bit more messed up", the bombed old part of the map): the waiting room's roof
+        # fell in, a shell blew through the office's street wall.
+        build(Building("TrainStation", 200, 190, 38, 14, colour="wall", rooms=(3, 1), doors="SN", roof=True,
+                       height=3.6, blasts=[(0, "N", 2)], caved=[(0, 0)]), [("crate", 0, 0, 0, "W", -2.6, "duffel"), ("crate", 2, 0, 0, "E", 2.4, "chest"),
+                                     ("locker", 1, 0, 0, "N", 4.6)])
+        station_furniture(219.0, 197.0)
     build(Building("Depot", 262, 232, 30, 18, colour="wall_farm", rooms=(1, 1), doors="WE", height=7.0,
                    big_doors=True, blasts=[(0, "N", 0)]), [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
     for x0, z0 in ((145, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
@@ -3522,7 +3598,7 @@ SNIPER_PERCHES = [
     ("PerchPolice", 152.5, 123.0, 6.0, "W"),       # police roof, over the town core and square
     ("PerchBellTower", 150.5, 30.5, 6.0, "S"),     # the bell tower, over the north of town
     ("PerchSchool", 35.5, 52.5, 6.0, "E"),        # school roof, over the west of town
-    ("PerchStation", 212.0, 196.0, 3.6, "S"),      # train station roof, over the railway and the middle field
+    ("PerchStation", 230.0, 196.0, 3.6, "S"),      # train station office roof (the waiting room roof is caved), over the railway and the middle field
     ("PerchStand", 116.0, 266.0, 3.5, "N"),        # the hunting stand by the creek trail
 ]
 AI_SNIPERS = 2
