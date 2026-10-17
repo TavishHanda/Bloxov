@@ -12188,7 +12188,7 @@ def prop_pew(ctx, c, s):
     b.box((c[0], y0 + 0.45, z1 - 0.32), (s[0] - 0.1, 0.06, 0.5), style=_nb("wood"))         # seat, up to the back
     b.box((c[0], y0 + 0.36, z1 - 0.55), (s[0] - 0.1, 0.12, 0.04), style=_nb(wd))             # its front rail
     b.box((c[0], y0 + 0.69, z1 - 0.05), (s[0] - 0.1, 0.42, 0.06), style=_nb("wood"))         # back (south side)
-    b.box((c[0], y0 + 0.92, z1 - 0.05), (s[0] - 0.1, 0.04, 0.1), style=_nb(wd))              # its top rail
+    b.box((c[0], y0 + 0.92, z1 - 0.05), (s[0] - 0.16, 0.04, 0.1), style=_nb(wd))             # its top rail (between the ends)
     b.box((c[0], y0 + 0.62, z1 + 0.04), (s[0] - 0.3, 0.03, 0.08), style=_nb(wd))             # book shelf behind
     b.box((c[0], y0 + 0.67, z1 + 0.075), (s[0] - 0.3, 0.07, 0.01), style=_nb(wd))            # (its lip)
     for k in range(int((s[0] - 0.4) / 0.45)):
@@ -12198,7 +12198,7 @@ def prop_pew(ctx, c, s):
         b.box((x, y0 + 0.47, z1 - 0.3), (0.08, 0.94, 0.6), style=_nb(wd))
         b.box((x, y0 + 0.3, z1 - 0.65), (0.08, 0.6, 0.1), style=_nb(wd))                     # (the arm curls down)
     if rng.random() < 0.4:                                                                   # a hymn book dropped
-        b.box((c[0] + rng.uniform(-1, 1), y0 + 0.02, z0 - 0.3), (0.15, 0.03, 0.2), yaw=rng.uniform(0, 90), style=_nb("red"))
+        b.box((c[0] + rng.uniform(-1, 1), y0 + 0.035, z0 - 0.3), (0.15, 0.03, 0.2), yaw=rng.uniform(0, 90), style=_nb("red"))
     if rng.random() < 0.35:                                                                  # a blanket left on it
         b.box((c[0] + rng.uniform(-0.8, 0.8), y0 + 0.5, z1 - 0.32), (0.9, 0.03, 0.4), yaw=rng.uniform(-10, 10),
               style=_nb(rng.choice(("olive", "blue", "wine"))))
@@ -12435,13 +12435,13 @@ def dress_church(ctx):
         x, z = rng.uniform(1.2, 5.6), rng.uniform(1.5, 5.6)
         y = 0.92 if (1.0 < x < 4.5 and any(zz - 0.1 < z < zz + 0.9 for zz in range(-6, 8, 3))) else 0.0
         if rng.random() < 0.5:
-            b.box((x, y + 0.02, z), (rng.uniform(0.2, 0.4), 0.02, rng.uniform(0.15, 0.3)), yaw=rng.uniform(0, 90),
-                  pitch=rng.uniform(-15, 15), style=_nb(ch_look("roof")))                          # tiles
+            b.box((x, y + 0.08, z), (rng.uniform(0.2, 0.4), 0.02, rng.uniform(0.15, 0.3)), yaw=rng.uniform(0, 90),
+                  pitch=rng.uniform(-15, 15), style=_nb(ch_look("roof")))                          # (clear of the floor)                          # tiles
         else:
             rubble_chunk(b, (x, y + 0.05, z), (rng.uniform(0.15, 0.35), 0.1, rng.uniform(0.1, 0.25)), rng,
                          ("wood_dark", "rubble_core"))
     _beam(b, (1.3, 0.97, 0.3), (4.3, 0.97, 0.55), 0.14, 0.14, "wood_dark")                            # a fallen rafter
-    b.box((2.0, 0.02, -0.2), (0.6, 0.02, 0.6), style=_nb("black"))
+    b.box((2.0, 0.012, -0.2), (0.6, 0.01, 0.6), style=_nb("black"))            # scorch (under the books lying on it)
 
 
 DECALS["church"] = church_decals
@@ -12770,6 +12770,12 @@ def bell_tower_decals(rng):
     a.add("dial", 51, 51, dial)
     a.add("peals", 44, 20, peals)
     a.add("ringers", 36, 15, ringers)
+
+    def clock_plate(c):   # 0.72 x 0.28 m brass plate on the clock's case (owner: "no idea what that yellow thing is")
+        c.rect(0, 0, c.w, c.h, "sg_gold")
+        c.frame(0, 0, c.w, c.h, "bronze_dark")
+        ch_text(c, 2, "CLOCK", "black")
+    a.add("clock_plate", 23, 9, clock_plate)
     add_ch_glass(a)
     return a
 
@@ -12874,25 +12880,60 @@ def prop_bell_rope(ctx, c, s):
 
 
 def prop_clock_works(ctx, c, s):
-    """The clock: an iron frame on legs with brass wheels, the pendulum down a slot, rods out to the faces (N, S)."""
+    """The tower clock, made to read as a clock at a glance (owner 2026-10-17): a wooden case with a brass CLOCK
+    plate, on it the iron movement with big toothed brass wheels, a full clock face on both ends showing the same
+    time as the faces outside (10 past 4), the pendulum swinging in the open case, the weights on chains, and the
+    rods running out to the faces on the north and south walls."""
     b = ctx.b
-    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    y0 = c[1] - s[1] / 2
+    hx, hz = s[0] / 2, s[2] / 2
+    case_h = 0.75
+    for sx in (-1, 1):                                                          # the case: corner posts, top, back
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (hx - 0.05), y0 + case_h / 2, c[2] + sz * (hz - 0.05)), (0.1, case_h, 0.1), style=_nb("wood_dark"))
+    b.box((c[0], y0 + case_h + 0.03, c[2]), (s[0], 0.06, s[2]), style=_nb("wood_dark"))
+    b.box((c[0], y0 + case_h / 2, c[2] - hz + 0.02), (s[0] - 0.2, case_h - 0.1, 0.03), style=_nb("wood"))
+    b.box((c[0], y0 + 0.55, c[2] + hz + 0.01), (23 / 32, 9 / 32, 0.02), style=face_decal(ctx.d("clock_plate"), "brass", "+z"))
+    b.box((c[0], y0 + case_h - 0.05, c[2]), (0.03, 0.05, 0.03), style=_nb("black"))   # pendulum (in the open case)
+    b.box((c[0], y0 + 0.4, c[2]), (0.02, 0.6, 0.02), style=_nb("brass"))
+    b.box((c[0], y0 + 0.12, c[2]), (0.2, 0.2, 0.05), style=_nb("brass"))                # its bob
+    top = y0 + case_h + 0.06
+    for sx in (-1, 1):                                                          # the movement: an iron frame
+        for sz in (-1, 1):
+            b.box((c[0] + sx * 0.5, top + 0.35, c[2] + sz * 0.25), (0.06, 0.7, 0.06), style=_nb("black"))
+        b.box((c[0] + sx * 0.5, top + 0.7, c[2]), (0.06, 0.06, 0.56), style=_nb("black"))
+    for sz in (-1, 1):
+        b.box((c[0], top + 0.7, c[2] + sz * 0.25), (1.06, 0.06, 0.06), style=_nb("black"))
+    for k, (x, y, r, teeth) in enumerate(((-0.2, 0.36, 0.3, 16), (0.22, 0.3, 0.2, 12), (0.18, 0.56, 0.12, 8))):
+        z = c[2] + 0.02 + k * 0.06                                               # big toothed wheels, one layer each
+        b.box((c[0] + x, top + y, z), (r * 1.6, r * 1.6, 0.04), style=_nb("brass"))
+        for t in range(teeth):
+            a = t * 2 * math.pi / teeth
+            b.box((c[0] + x + math.cos(a) * r, top + y + math.sin(a) * r, z), (0.05, 0.05, 0.035), style=_nb("brass"))
+        for t in range(4):                                                      # spokes + the axle
+            a = t * math.pi / 4
+            _beam(b, (c[0] + x - math.cos(a) * r * 0.75, top + y - math.sin(a) * r * 0.75, z + 0.025),
+                  (c[0] + x + math.cos(a) * r * 0.75, top + y + math.sin(a) * r * 0.75, z + 0.025), 0.025, 0.01, "brass")
+        b.box((c[0] + x, top + y, z + 0.03), (0.06, 0.06, 0.1), style=_nb("black"))
+    dy = top + 0.4                                                               # a clock face on each end
     for sx in (-1, 1):
-        for sz in (-1, 1):
-            b.box((c[0] + sx * (s[0] / 2 - 0.05), y0 + 0.5, c[2] + sz * (s[2] / 2 - 0.05)), (0.08, 1.0, 0.08), style=_nb("black"))
-    b.box((c[0], y0 + 1.02, c[2]), (s[0], 0.06, s[2]), style=_nb("trim_dark"))
-    for sx in (-1, 1):                                                          # the frame: open iron bars
-        for sz in (-1, 1):
-            b.box((c[0] + sx * 0.45, y0 + 1.35, c[2] + sz * 0.3), (0.05, 0.6, 0.05), style=_nb("black"))
-        b.box((c[0] + sx * 0.45, y0 + 1.65, c[2]), (0.05, 0.05, 0.65), style=_nb("black"))
-    for k, (x, y, r) in enumerate(((-0.16, 1.36, 0.28), (0.2, 1.4, 0.2), (0.02, 1.52, 0.14))):  # brass wheels, a
-        b.box((c[0] + x, y0 + y, c[2] + 0.02 + k * 0.05), (r * 2, r * 2, 0.04), style=_nb("brass"))   # layer each
-        b.box((c[0] + x, y0 + y, c[2] + 0.05 + k * 0.05), (0.05, 0.05, 0.08), style=_nb("black"))
-    b.box((c[0] + 0.3, y0 + 1.4, c[2] - 0.31), (0.3, 0.3, 0.02), style=face_decal(ctx.d("dial"), "black", "-z"))   # setting dial
-    b.box((c[0], y0 + 0.55, c[2]), (0.03, 0.9, 0.03), style=_nb("brass"))               # pendulum
-    b.box((c[0], y0 + 0.12, c[2]), (0.06, 0.18, 0.18), style=_nb("brass"))
-    for sz in (-1, 1):                                                          # rods to the faces
-        _beam(b, (c[0], y0 + 1.5, c[2] + sz * s[2] / 2), (c[0], y0 + 1.6, sz * 4.85), 0.03, 0.03, "black")
+        xf = c[0] + sx * (hx - 0.12)
+        b.box((xf, dy, c[2]), (0.04, 0.5, 0.5), style=_nb("black"))                   # backing plate, round dial
+        b.poly([(xf + sx * 0.022, dy - 0.31, c[2] - 0.31), (xf + sx * 0.022, dy - 0.31, c[2] + 0.31),
+                (xf + sx * 0.022, dy + 0.31, c[2] + 0.31), (xf + sx * 0.022, dy + 0.31, c[2] - 0.31)],
+               (sx, 0, 0), "graffiti", ctx.d("dial"))
+        for ang, L, w in ((125.0, 0.15, 0.035), (60.0, 0.24, 0.025)):        # 10 past 4, like the faces outside
+            a = math.radians(ang)
+            hz_, hy = -math.sin(a) * L * sx, math.cos(a) * L                     # (clockwise as seen from that end)
+            _beam(b, (xf + sx * 0.03, dy, c[2]), (xf + sx * 0.03, dy + hy, c[2] + hz_), w, 0.01, "black")
+        b.box((xf + sx * 0.035, dy, c[2]), (0.02, 0.04, 0.04), style=_nb("black"))
+        _beam(b, (xf, top + 0.7, c[2]), (xf, dy + 0.32, c[2]), 0.04, 0.04, "black")   # (its bracket)
+    for sz in (-1, 1):                                                           # the weights on chains
+        wz = c[2] + sz * 0.15
+        _beam(b, (c[0] - 0.35, top + 0.7, wz), (c[0] - 0.35, y0 + 0.5, wz), 0.015, 0.015, "black")
+        b.box((c[0] - 0.35, y0 + 0.35 + (0.15 if sz > 0 else 0), wz), (0.12, 0.3, 0.12), style=_nb("trim_dark"))
+    for sz in (-1, 1):                                                           # rods to the faces
+        _beam(b, (c[0], top + 0.7, c[2] + sz * 0.25), (c[0], y0 + 1.6, sz * 4.85), 0.03, 0.03, "black")
         b.box((c[0], y0 + 1.6, sz * 4.8), (0.12, 0.12, 0.08), style=_nb("black"))   # (level with the hands)
 
 
