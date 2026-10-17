@@ -1075,7 +1075,7 @@ class Ctx:
 
 
 def wall_style(fp, ext="ext_block", inner=None, storey=3.0):
-    """Building shell: outside faces `ext`, inside faces `inner(face centre)` (plaster), openings' edges trim."""
+    """Building shell: outside faces `ext` (or `ext(face centre)`: the signal box is brick below, boards above), inside faces `inner(face centre)` (plaster), openings' edges trim."""
     x0, z0, x1, z1 = fp
 
     def style(n, mid, corners):
@@ -1088,10 +1088,10 @@ def wall_style(fp, ext="ext_block", inner=None, storey=3.0):
         # On the outside plane and facing out (wall ends at the corners too): outside material, so corners join.
         if ((n[0] > 0.7 and abs(mid[0] - x1) < 0.05) or (n[0] < -0.7 and abs(mid[0] - x0) < 0.05)
                 or (n[2] > 0.7 and abs(mid[2] - z1) < 0.05) or (n[2] < -0.7 and abs(mid[2] - z0) < 0.05)):
-            return (ext, uv_world())
+            return (ext(mid) if callable(ext) else ext, uv_world())
         dist = min(mid[0] - x0, x1 - mid[0], mid[2] - z0, z1 - mid[2])
         if dist < -0.05:
-            return (ext, uv_world())
+            return (ext(mid) if callable(ext) else ext, uv_world())
         if dist > 0.05:
             m = inner(mid) if inner else "int_wall"
             return m if isinstance(m, tuple) else (m, uv_world())      # (mat, uv) for storey-high patterns
@@ -1798,6 +1798,8 @@ KIT["rubble_core"] = paint_rubble_core
 def _rubble_mats():
     cfg = SHELLS.get(BUILDING_NAME[0], {})
     ext = cfg.get("ext", "ext_block")      # (round 11, owner: rubble should match the building, not red brick)
+    if callable(ext):
+        ext = ext((0.0, 0.5, 0.0))
     return (ext, ext, "rubble_core")
 
 
@@ -1866,6 +1868,8 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
     b = ctx.b
     cfg = SHELLS.get(BUILDING_NAME[0], {})
     ext = cfg.get("ext", "ext_block")
+    if callable(ext):                                                   # (a skin by height: the hole's storey's)
+        ext = ext(P(0.5 * (a0 + a1), 0.5 * (lo + hi), 0.3))
     inner = cfg.get("inner")
     t = 0.28                                                            # just under the wall's thickness
 
@@ -17853,6 +17857,408 @@ SHELLS["depot"] = {
     "x_splits": (DP_HUT[0],), "z_splits": (DP_HUT[3],), "debris": ("concrete", st_look("ext"), "concrete", "concrete"),
 }
 FACTION_MARKS["depot"] = [("x1_stencil", "E", -5.5, 1.0), ("nova_tag", "N", 9.6, 1.1)]
+
+
+# ------------------------------------------------------------------------------------------------ signal box (0.17)
+# Bloxov Junction signal box (owner 2026-10-17, the building beside the depot), OldHouse3 at map 316-328 x 238-248,
+# origin (322, 243): local x -6..6, z -5..5, two 3 m storeys, north = the railway. The lever room upstairs (open plan,
+# its south-west quarter's roof gone, a shell through its north wall) over the locking room (east) and the lamp room
+# (west, the street door and the washroom); an outside stair up the south wall to the lever room's door. A gable
+# roof (picture only; the flat slab still collides) with its south-west half blown off. SB_LOOKS are the outside
+# options (env BLOXOV_SB_LOOK for the sheet): lower storey / upper storey / trim.
+SB_LOOKS = {
+    "B": {"low": "st_wash", "up": "st_boards", "trim": "st_green", "roof": "roof_slate"},
+    "C": {"low": "st_brick", "up": "sb_cream", "trim": "st_green", "roof": "roof_slate"},
+    "D": {"low": "st_boards", "up": "st_boards", "trim": "bone", "roof": "roof_charcoal"},
+}
+SB_LOOK = os.environ.get("BLOXOV_SB_LOOK", "B")
+SB_FP = (-6.0, -5.0, 6.0, 5.0)
+
+PALETTE.update({"sbcream": "a39a7f", "sbcream_dark": "958d73", "sbcream_shadow": "7d765f"})
+
+
+def paint_sb_cream(rng):
+    """Cream-painted boards (0.25 m) with battens, weathered."""
+    c = Canvas(64, 64, "sbcream")
+    for x in range(0, 64, 4):
+        c.rect(x, 0, x + 1, 64, "sbcream_shadow")
+    c.noise(0, 0, 64, 64, ["sbcream_dark"], 0.08, rng)
+    c.blotch(["sbcream_shadow"], 5, rng, size=(2, 4))
+    return c
+
+
+KIT.update({"sb_cream": paint_sb_cream})
+
+
+def sb_look(key):
+    return SB_LOOKS[SB_LOOK][key]
+
+
+def sb_ext(m):
+    return sb_look("low") if m[1] < 3.0 else sb_look("up")
+
+
+def sb_inner(m):
+    if m[1] > 2.95:
+        return "int_warm"                                                  # the lever room
+    return "st_wash"
+
+
+def sb_floor(m):
+    return "floor_wood" if m[1] > 1.0 or m[0] < -1.5 else "concrete"
+
+
+def sb_decals(rng):
+    a = Atlas(256)
+    paint = {"st_green": "stgreen", "bone": "bone"}[sb_look("trim")]
+    ink = "bone" if paint != "bone" else "stgreen"
+
+    def name(c):          # 3.81 x 0.44 m on the north face, over the line
+        c.rect(0, 0, c.w, c.h, paint)
+        c.frame(0, 0, c.w, c.h, ink)
+        st_text(c, 2, "BLOXOV JUNCTION", ink, 2)
+        c.blotch(["iron"], 3, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 3))
+
+    def small(key, text, w, bg, fg):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            st_text(c, 2, text, fg)
+        a.add(key, w, 9, f)
+
+    def diagram(c):       # 3.0 x 0.8 m: the track diagram (the main line, the sidings to the depot, the signals)
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "wood_mid")
+        c.rect(3, 16, c.w - 3, 17, "black")                               # the main line
+        for x0, x1, y in ((30, 62, 10), (38, 70, 5)):                     # the sidings
+            c.rect(x0 - 6, y + 3, x0, y + 4, "black")
+            for k in range(6):
+                c.put(x0 - 6 + k, 16 - k * (16 - y - 3) // 6, "black")
+            c.rect(x0, y, x1, y + 1, "black")
+        for x in (12, 26, 50, 80):                                         # signals (numbered by dots)
+            c.rect(x, 19, x + 1, 22, "black")
+            c.put(x + 1, 21, "red")
+        c.rect(70, 4, 82, 8, "red")                                        # the depot
+        c.blotch(["sand"], 3, rng, area=(1, 1, c.w - 1, c.h - 1), size=(2, 3))
+
+    def hole(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+
+    a.add("name", 122, 14, name)
+    a.add("diagram", 96, 26, diagram)
+    small("noadmit", "NO ADMITTANCE", 57, paint, ink)
+    small("bells", "BELL CODES", 41, "bone", "black")
+    small("lamps", "LAMP ROOM", 41, paint, ink)
+    a.add("hole", 4, 4, hole)
+    return a
+
+
+# ---- signal box props
+def prop_sb_stair(ctx, c, s):
+    stairs(ctx, c, s, ctx.row["yaw"], ctx.row["pitch"], mats=("wood", "trim_dark"))
+
+
+def prop_sb_landing(ctx, c, s):
+    """The stair's landing at the lever room's door: planks on beams, posts down to the ground."""
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: ("wood", uv_world()) if abs(n[1]) > 0.7 else ("trim_dark", uv_world(1.0)))
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    for x in (x0 + 0.1, x1 - 0.1):
+        _box(b, x, (c[1] - s[1] / 2) / 2, z1 - 0.1, 0.14, c[1] - s[1] / 2, 0.14, "trim_dark")
+    _beam(b, (x0 + 0.1, 0.3, z1 - 0.1), (x0 - 1.6, 1.8, z1 - 0.1), 0.1, 0.1, "trim_dark")   # (a brace to the stair)
+
+
+def prop_sb_rail(ctx, c, s):
+    """A handrail on posts (the gray box is a solid 1 m rail)."""
+    b = ctx.b
+    along = 0 if s[0] >= s[2] else 2
+    L = s[along]
+    y0 = c[1] - s[1] / 2
+    top = (L, 0.06, 0.08) if along == 0 else (0.08, 0.06, L)
+    b.box((c[0], y0 + s[1] - 0.03, c[2]), top, style=_solid(sb_look("trim")))
+    b.box((c[0], y0 + 0.5, c[2]), (L, 0.04, 0.04) if along == 0 else (0.04, 0.04, L), style=_nb(sb_look("trim")))
+    n = max(1, int(L / 1.2))
+    for k in range(n + 1):
+        a = -L / 2 + 0.04 + k * (L - 0.08) / n
+        p = (c[0] + a, y0 + s[1] / 2, c[2]) if along == 0 else (c[0], y0 + s[1] / 2, c[2] + a)
+        b.box(p, (0.05, s[1], 0.05), style=_nb(sb_look("trim")))
+    if along == 0:                                                             # the stair's own rail, down the slope
+        t = math.atan2(3.0, 4.4)
+        _beam(b, (c[0] - L / 2, 0.9, c[2]), (c[0] - L / 2 + 4.4, 3.9, c[2]), 0.06, 0.08, sb_look("trim"))
+        for k in range(1, 4):
+            x = c[0] - L / 2 + k * 1.1
+            _box(b, x, (k * 1.1 * math.tan(t) + 0.9) / 2 + 0.05, c[2], 0.05, k * 1.1 * math.tan(t) + 0.9, 0.05, sb_look("trim"))
+
+
+def prop_sb_bench(ctx, c, s):
+    """The lamp man's bench: a vice, wick trimmers, a lamp in bits."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood_dark"))
+    for dz in (-1, 1):
+        _box(b, c[0], (y0 + top) / 2 - 0.03, c[2] + dz * (s[2] / 2 - 0.08), s[0] - 0.1, top - y0 - 0.06, 0.06, "wood")
+    _box(b, c[0] + 0.05, top + 0.12, c[2] - 0.4, 0.22, 0.2, 0.2, "trim_dark")
+    _box(b, c[0], top + 0.1, c[2] + 0.2, 0.26, 0.2, 0.26, "trim_dark")
+    _box(b, c[0] + 0.1, top + 0.1, c[2] + 0.2, 0.06, 0.12, 0.12, "red")
+    _box(b, c[0] - 0.1, top + 0.03, c[2] + 0.5, 0.2, 0.04, 0.08, "steel_light", yaw=30)
+
+
+def prop_sb_lamps(ctx, c, s):
+    """Shelves of signal lamps (black cases, a round lens) against the partition."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for k in range(4):
+        y = y0 + 0.1 + k * 0.55
+        b.box((c[0], y, c[2]), (s[0], 0.04, s[2]), style=_solid("wood"))
+        if k == 3:
+            continue
+        for j in range(4):
+            z = c[2] - s[2] / 2 + 0.3 + j * (s[2] - 0.6) / 3
+            if (k + j) % 3 == 2:
+                continue
+            _box(b, c[0], y + 0.2, z, 0.3, 0.34, 0.28, "black")
+            _box(b, c[0] - 0.17, y + 0.2, z, 0.02, 0.14, 0.14, ("red", "green", "yellow")[(k + j) % 3])
+            _box(b, c[0], y + 0.4, z, 0.06, 0.06, 0.06, "black")
+    for dz in (-1, 1):
+        _box(b, c[0], c[1], c[2] + dz * (s[2] / 2 - 0.02), s[0], s[1], 0.04, "wood_dark")
+
+
+def prop_sb_locking(ctx, c, s):
+    """The interlocking under the lever frame: an iron bed of sliding bars, the lever rods going up through the
+    ceiling to the frame above."""
+    b, rng = ctx.b, random.Random("sb_locking")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], (y0 + top) / 2, c[2]), (s[0], top - y0, s[2]), style=lambda n, m, q: (None if n[1] < -0.7 else ("trim_dark", uv_world(1.0))))
+    for k in range(5):
+        _box(b, c[0], top - 0.1 - k * 0.18, c[2] + s[2] / 2 + 0.02, s[0] - 0.1, 0.05, 0.04, "steel_light")
+    n = int(s[0] / 0.25)
+    for k in range(n):
+        x = c[0] - s[0] / 2 + 0.12 + k * 0.25
+        _box(b, x, (top + 2.75) / 2, c[2] + 0.1, 0.04, 2.75 - top, 0.04, "trim_dark")         # rods to the levers
+        if rng.random() < 0.3:
+            _box(b, x, top - 0.3, c[2] + s[2] / 2 + 0.05, 0.06, 0.16, 0.04, "red")
+
+
+def prop_sb_relays(ctx, c, s):
+    """Relay racks along the south wall: grey cabinets, rows of relays behind glass, cables in bunches."""
+    b, rng = ctx.b, random.Random("sb_relays")
+    y0 = c[1] - s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
+    for k in range(int(s[0] / 1.0)):
+        x = c[0] - s[0] / 2 + 0.5 + k * 1.0
+        _box(b, x, y0 + s[1] / 2, c[2] - s[2] / 2 - 0.01, 0.9, s[1] - 0.2, 0.02, "trim")
+        for r in range(5):
+            for j in range(4):
+                if rng.random() < 0.8:
+                    _box(b, x - 0.33 + j * 0.22, y0 + 0.3 + r * 0.33, c[2] - s[2] / 2 - 0.04, 0.14, 0.2, 0.04, rng.choice(("black", "trim_dark", "wine")))
+    for _ in range(3):
+        x = rng.uniform(c[0] - s[0] / 2, c[0] + s[0] / 2)
+        _beam(b, (x, s[1] + y0, c[2]), (x + rng.uniform(-0.4, 0.4), 2.72, c[2] - 0.2), 0.08, 0.08, "black")
+
+
+def prop_sb_batteries(ctx, c, s):
+    """A shelf of big glass battery cells."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for k in range(2):
+        y = y0 + 0.05 + k * 0.6
+        b.box((c[0], y, c[2]), (s[0], 0.05, s[2]), style=_solid("wood"))
+        for j in range(4):
+            z = c[2] - s[2] / 2 + 0.3 + j * (s[2] - 0.6) / 3
+            _box(b, c[0], y + 0.22, z, 0.3, 0.38, 0.3, "glass")
+            _box(b, c[0], y + 0.18, z, 0.24, 0.26, 0.24, "wine")
+    for dz in (-1, 1):
+        _box(b, c[0], c[1], c[2] + dz * (s[2] / 2 - 0.03), s[0], s[1], 0.05, "wood_dark")
+
+
+def prop_sb_frame(ctx, c, s):
+    """The lever frame: a cast-iron base along the north wall, a row of levers (painted by what they work: red signals,
+    yellow distants, black points, blue locks, white spares), some pulled over; the block bells on top at the back."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: (None if n[1] < -0.7 else ("trim_dark", uv_world(1.0))))
+    cols = ("red", "red", "black", "yellow", "red", "black", "blue", "red", "bone", "black", "red", "yellow",
+            "black", "red", "blue", "bone", "red", "black", "red", "yellow", "black", "red", "bone", "red",
+            "black", "red", "blue", "red", "black", "yellow", "red", "bone", "red", "black")
+    n = int(s[0] / 0.25)
+    for k in range(n):
+        x = c[0] - s[0] / 2 + 0.12 + k * 0.25
+        pulled = k % 5 == 2
+        tilt = 25 if pulled else -10
+        L = 1.1
+        p0 = (x, top, c[2])
+        p1 = (x, top + L * math.cos(math.radians(tilt)), c[2] + L * math.sin(math.radians(tilt)))
+        _beam(b, p0, p1, 0.05, 0.04, cols[k % len(cols)])
+        _box(b, p1[0], p1[1] + 0.03, p1[2], 0.06, 0.08, 0.06, "steel_light")                     # the polished handle
+    _box(b, c[0], top + 0.02, c[2] + s[2] / 2 + 0.15, s[0], 0.04, 0.3, "wood_dark")              # the footboard
+    for k in range(4):                                                                           # block bells
+        _box(b, c[0] - 1.2 + k * 0.8, top + 0.6, c[2] - s[2] / 2 + 0.05, 0.4, 0.5, 0.2, "wood_dark")
+        _box(b, c[0] - 1.2 + k * 0.8, top + 0.7, c[2] - s[2] / 2 + 0.16, 0.18, 0.18, 0.02, "bone")
+
+
+def prop_sb_diagram(ctx, c, s):
+    b = ctx.b
+    _box(b, c[0], c[1], c[2] - s[2] / 2 + 0.01, s[0] + 0.08, s[1] + 0.08, 0.02, "wood_dark")
+    wall_quad(b, (0, 0, 1), c[2] - s[2] / 2 + 0.025, c[0] - 48 / 32, c[0] + 48 / 32, c[1] - 13 / 32, c[1] + 13 / 32,
+              "decals", ctx.d("diagram"))
+
+
+def prop_sb_desk(ctx, c, s):
+    """The signalman's desk: the train register open, a lamp, a mug; the bell codes card on the wall over it."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood_dark"))
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * (s[0] / 2 - 0.05), (y0 + top) / 2, c[2], 0.06, top - y0 - 0.06, s[2] - 0.06, "wood")
+    b.box((c[0] - 0.2, top + 0.025, c[2]), (0.7, 0.03, 0.45), yaw=-3, style=_nb("bone"))           # the register
+    b.box((c[0] - 0.2, top + 0.03, c[2]), (0.02, 0.04, 0.45), yaw=-3, style=_nb("black"))
+    _box(b, c[0] + 0.6, top + 0.06, c[2] - 0.1, 0.09, 0.12, 0.09, "bone")                            # mug
+    _box(b, c[0] - 0.75, top + 0.15, c[2] + 0.1, 0.12, 0.3, 0.12, "trim_dark")                      # oil lamp
+    _box(b, c[0] - 0.75, top + 0.35, c[2] + 0.1, 0.1, 0.12, 0.1, "glass")
+    wall_quad(b, (0, 0, -1), c[2] + s[2] / 2 - 0.005, c[0] - 41 / 64, c[0] + 41 / 64, top + 0.5, top + 0.5 + 9 / 32,
+              "decals", ctx.d("bells"))
+
+
+def prop_sb_chair(ctx, c, s):
+    """The signalman's chair, knocked back."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.25, c[2]), (0.45, 0.05, 0.45), yaw=20, pitch=60, style=_solid("wood"))
+    b.box((c[0] + 0.1, y0 + 0.5, c[2] + 0.35), (0.45, 0.05, 0.6), yaw=20, pitch=-10, style=_solid("wood"))
+
+
+def dress_signal_box(ctx):
+    b, rng = ctx.b, random.Random("sb_dress")
+    fp = SB_FP
+    trim, roof, low, up = sb_look("trim"), sb_look("roof"), sb_look("low"), sb_look("up")
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def on_wall(side, a, y, sa, sy, d, mat, push=0.0):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + push)
+        b.box((a, y, at) if ns else (at, y, a), (sa, sy, d) if ns else (d, sy, sa), style=st(mat))
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + push)
+        n = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, n, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    def band(side, y0, y1, d, mat):
+        ns = side in "NS"
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d, a1 + 0.15 + d
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        at = side_at(side, 0.15 + d / 2)
+        for s0, s1 in segs:
+            if s1 - s0 > 0.02:
+                m = (s0 + s1) / 2
+                b.box((m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m),
+                      (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0), style=st(mat))
+    for side in "NSWE":
+        band(side, 0.0, 0.4, 0.06, "concrete" if low != "st_brick" else "st_brick")      # plinth
+        band(side, 2.95, 3.12, 0.08, trim)                                                 # the floor line
+        band(side, 5.9, 6.0, 0.06, trim)
+    # Window frames: painted surrounds; upstairs windows get the boarded-up blind ones between them (no new views).
+    for o in opens:
+        if o["kind"] != "window":
+            continue
+        side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+        on_wall(side, mid, hi + 0.06, w + 0.2, 0.1, 0.05, trim)
+        on_wall(side, mid, lo - 0.05, w + 0.24, 0.1, 0.1, trim)
+    blind = {"N": (-0.2,), "W": (), "E": (), "S": (4.4,)}
+    for side, xs in blind.items():
+        for x in xs:
+            lo, hi, w = 4.0, 5.2, 1.4
+            on_wall(side, x, hi + 0.06, w + 0.2, 0.1, 0.05, trim)
+            on_wall(side, x, lo - 0.05, w + 0.24, 0.1, 0.1, trim)
+            on_wall(side, x, (lo + hi) / 2, w - 0.08, hi - lo - 0.08, 0.01, "black")
+            for j in range(4):
+                y = lo + 0.15 + j * 0.3 + rng.uniform(-0.04, 0.04)
+                ns = side in "NS"
+                at = side_at(side, 0.15 + 0.07)
+                b.box((x, y, at) if ns else (at, y, x), (w + 0.12, 0.18, 0.025) if ns else (0.025, 0.18, w + 0.12), style=st("wood"))
+    # The name over the line (north), NO ADMITTANCE by the stair door, LAMP ROOM over the street door.
+    on_wall("N", -3.0, 3.42, 122 / 32 + 0.1, 14 / 32 + 0.1, 0.03, "wood_dark")
+    quad("N", -3.0, 3.42 - 7 / 32, 3.42 + 7 / 32, 122 / 32, "name", push=0.035)
+    quad("S", 3.3, 4.2, 4.2 + 9 / 32, 57 / 32, "noadmit", push=0.02)
+    quad("W", 2.5, 2.52, 2.52 + 9 / 32, 41 / 32, "lamps", push=0.02)
+    # The gable roof (ridge along x at 8.0, eaves at 6.0 over a 0.4 m overhang); its south-west half is gone, the
+    # rafters there broken off.
+    x0, x1 = fp[0] - 0.55, fp[2] + 0.55
+    z0, z1 = fp[1] - 0.55, fp[3] + 0.55
+    base, top = 6.0, 8.0
+    e = 0.12
+    gone = 0.0                                                                  # the south slope west of x 0 is gone
+    for pts, keep in (([(x1, base + e, z0), (x0, base + e, z0), (x0, top + e, 0.0), (x1, top + e, 0.0)], True),
+                      ([(gone, base + e, z1), (x1, base + e, z1), (x1, top + e, 0.0), (gone, top + e, 0.0)], True)):
+        n = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[-1], pts[0])))
+        if n[1] < 0:
+            n = v_scale(n, -1)
+        b.poly(pts, n, roof, uv_slope(4.0))
+        b.poly(pts[::-1], v_scale(n, -1), "wood", uv_world(1.0))
+    for k in range(6):                                                          # broken rafters, south-west
+        x = -5.6 + k * 1.0
+        L = rng.uniform(1.2, 3.8)
+        zz = 5.55 - L * 0.97
+        _beam(b, (x, base + 0.05, 5.55), (x + rng.uniform(-0.2, 0.2), base + 0.05 + (5.55 - zz) * 2.0 / 5.55, zz), 0.1, 0.16, "wood_dark")
+    _beam(b, (gone, base + e - 0.05, z1), (gone - 1.4, base + e + 0.2, z1 - 1.2), 0.9, 0.04, roof)        # a torn edge
+    for x, nx in ((fp[0] - 0.15, -1), (fp[2] + 0.15, 1)):                         # gable ends (boards)
+        tri = [(x, base, fp[1] - 0.15), (x, base, fp[3] + 0.15), (x, top, 0.0)]
+        b.poly(tri if nx > 0 else tri[::-1], (nx, 0, 0), up, uv_world(2.0))
+        b.poly(tri[::-1] if nx > 0 else tri, (-nx, 0, 0), "wood", uv_world(2.0))
+        for zz in (z0, z1):                                                        # barge boards
+            a, p2 = (x + nx * 0.4, top + e + 0.02, 0.0), (x + nx * 0.4, base + e + 0.02, zz)
+            if x < 0 and zz > 0:
+                p2 = (p2[0], (a[1] + p2[1]) / 2 + 0.3, zz / 2)                    # (snapped)
+            _beam(b, a, p2, 0.06, 0.22, trim)
+        _box(b, x + nx * 0.45, top + 0.4, 0.0, 0.08, 0.6, 0.08, trim)              # finial
+    _box(b, (gone + x1) / 2 + 0.2, top + e + 0.05, 0.0, x1 - x0 - 0.1, 0.12, 0.22, roof)
+    # The lever room's floor is open to the sky in the south-west: rain stains, broken slates on the floor.
+    for _ in range(18):
+        _box(b, rng.uniform(-5.6, -0.3), 3.0 + 0.03, rng.uniform(0.3, 4.6), rng.uniform(0.15, 0.35), 0.03, rng.uniform(0.1, 0.25),
+             roof, yaw=rng.uniform(0, 90), pitch=rng.uniform(-8, 8))
+    # Bullet holes, mostly on the side facing the line.
+    for side, a0, a1, n in (("N", -5.8, 5.8, 30), ("E", -4.8, 4.8, 12), ("W", -4.8, 4.8, 8)):
+        for _ in range(n):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.6, 5.6)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.15 and o["lo"] - 0.1 < y < o["hi"] + 0.1 for o in opens):
+                continue
+            if abs(y - 3.05) < 0.15 or (side == "N" and abs(a + 3.0) < 2.1 and abs(y - 3.42) < 0.4):
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.13, mat="graffiti")
+
+
+for _kind, _fn in {"sb_stair": prop_sb_stair, "sb_landing": prop_sb_landing, "sb_rail": prop_sb_rail, "sb_bench": prop_sb_bench,
+                   "sb_lamps": prop_sb_lamps, "sb_locking": prop_sb_locking, "sb_relays": prop_sb_relays,
+                   "sb_batteries": prop_sb_batteries, "sb_frame": prop_sb_frame, "sb_diagram": prop_sb_diagram,
+                   "sb_desk": prop_sb_desk, "sb_chair": prop_sb_chair}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+DECALS["signal_box"] = sb_decals
+DRESSING["signal_box"] = dress_signal_box
+FOOTPRINTS["signal_box"] = SB_FP
+ENTRANCE_DOOR["signal_box"] = sb_look("trim")
+WC_MATS["signal_box"] = ("wc_tile", "wc_floor")
+SHELLS["signal_box"] = {
+    "ext": sb_ext, "roof_side": sb_look("up"), "roof_hidden": True, "inner": sb_inner, "floor": sb_floor,
+    "ceiling": lambda m: "house_ceiling", "x_lines": (-6.0, -1.5, 6.0), "z_lines": (-5.0, 5.0),
+    "x_splits": (-1.5,), "z_splits": (), "debris": ("concrete", sb_look("low"), "wood", "concrete"),
+}
+FACTION_MARKS["signal_box"] = [("x1_stencil", "N", 5.0, 0.5)]
 
 
 def floor_debris(ctx, data, name):

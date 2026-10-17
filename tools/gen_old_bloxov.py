@@ -1938,6 +1938,48 @@ def depot_furniture(ox, oz):
     o(7.6, 0, -6.4, 8.5, 0.9, -5.5, "metal", "st_scale")
 
 
+def signal_box_furniture(ox, oz):
+    """Bloxov Junction signal box (World art 0.17), in the model's own coordinates (origin map (ox, oz); local x -6..6,
+    z -5..5, two 3 m storeys, north = the railway). The outside stair runs up the south wall (rising east) to a landing
+    at the lever room's door. Downstairs: the lamp room (west, the street door, the washroom) and the locking room
+    (east) behind a partition; upstairs: the lever room, open. Room middles (the AI's spawn spots downstairs), the
+    doorways and the stair's landing stay clear."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # The outside stair: a ramp from the ground (x -4.0) up to the landing (x 0.4..2.9) at the lever room's floor,
+    # railed on the outside; posts under it.
+    t = math.atan2(FLOOR_H, RAMP_L)
+    zc = 5.15 + RAMP_W / 2
+    obox(ox - 4.0 + RAMP_L / 2 + 0.1 * math.sin(t), FLOOR_H / 2 - 0.1 * math.cos(t), oz + zc, RAMP_W, 0.2,
+         math.hypot(RAMP_L, FLOOR_H), -90.0, "wood", pitch=math.degrees(t), kind="sb_stair")
+    o(0.4, FLOOR_H - 0.2, 5.15, 2.9 + 0.1, FLOOR_H, 5.15 + RAMP_W, "wood", "sb_landing")
+    o(-4.0, FLOOR_H, 5.15 + RAMP_W, 2.9 + 0.1, FLOOR_H + 1.0, 5.15 + RAMP_W + 0.08, "metal", "sb_rail")
+    o(2.92, FLOOR_H, 5.15, 3.0, FLOOR_H + 1.0, 5.15 + RAMP_W, "metal", "sb_rail")
+    # Lamp room (x -5.85..-1.6): the washroom in the north-west corner, a workbench under the west window, signal
+    # lamps on shelves against the partition, oil drums; the crate (a toolbox) slid into the south-west corner.
+    o(-1.6, 0, -4.85, -1.4, FLOOR_H - SLAB_T, -1.5, "wall", None)          # the partition, a doorway at z -1.5..0.7
+    o(-1.6, 2.4, -1.5, -1.4, FLOOR_H - SLAB_T, 0.7, "wall", None)
+    o(-1.6, 0, 0.7, -1.4, FLOOR_H - SLAB_T, 4.85, "wall", None)
+    washroom(ox, oz, -5.85, -4.85, -4.2, -3.0, "ES", ("S", -5.0, -2), fit=(
+        ("wc_toilet", "N", -5.3, 0.5, 0.65, 0.8), ("wc_sink", "E", -4.4, 0.5, 0.4, 0.85)))
+    o(-5.85, 0, -2.4, -5.2, 0.9, -0.9, "wood", "sb_bench")
+    o(-2.15, 0, 1.4, -1.6, 1.9, 3.8, "wood", "sb_lamps")
+    o(-3.3, 0, -4.85, -2.1, 1.0, -4.25, "metal", "fuel_drums")
+    # Locking room (x -1.4..5.85): the interlocking under the lever frame along the north wall (rods up through the
+    # ceiling), relay racks along the south wall, the battery shelf.
+    o(-0.8, 0, -4.85, 4.6, 1.1, -3.9, "metal", "sb_locking")
+    o(0.0, 0, 4.3, 5.0, 2.0, 4.85, "metal", "sb_relays")
+    o(5.3, 0, 0.9, 5.85, 1.2, 3.2, "metal", "sb_batteries")
+    # Lever room (upstairs): the lever frame along the north wall (its base solid, the levers picture only), the
+    # track diagram over it, the train register desk east of the door, the stove on the west wall, a chair.
+    F = FLOOR_H
+    o(-4.5, F, -3.9, 4.0, F + 0.6, -3.1, "metal", "sb_frame")
+    o(-1.5, F + 1.75, -4.85, 1.5, F + 2.55, -4.8, "wood", "sb_diagram", solid=False)
+    o(3.2, F, 4.2, 5.2, F + 0.8, 4.85, "wood", "sb_desk")
+    o(-5.85, F, -1.6, -5.2, F + 1.1, -0.6, "metal", "st_stove")
+    o(0.6, F, -1.0, 1.1, F + 0.9, -0.5, "wood", "sb_chair", solid=False)
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2621,6 +2663,9 @@ EXTRA_PADS = [
     (222.0, 184.0, 240.0, 190.0),  # the rubble blown out of the station office's street wall (World art 0.17)
     (232.0, 214.0, 292.0, 231.0),  # depot sidings
     (270.0, 250.0, 285.0, 256.0),  # the rubble blown out of the depot's south wall (World art 0.17)
+    (316.0, 248.0, 329.0, 251.5),  # the signal box's outside stair (World art 0.17)
+    (321.0, 232.0, 330.0, 238.0),  # the rubble blown out of the signal box's north wall
+    (328.0, 237.0, 333.0, 245.0),  # and its east wall
     (124.0, 168.0, 178.0, 182.0),  # the trench
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
     (58.0, 260.0, 74.0, 274.0),    # campsite
@@ -3487,10 +3532,21 @@ def main():
               3: dict(blasts=[(0, "E", 0)], caved=[(0, 1)]),
               7: dict(blasts=[(1, "S", 0), (0, "E", 1)], caved=[(0, 1), (1, 1)]),
               8: dict(blasts=[(0, "S", 0), (0, "E", 1)], caved=[(1, 1), (0, 0)])}
-    for n, (x, y) in [(1, (196, 264)), (3, (316, 238)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
+    for n, (x, y) in [(1, (196, 264)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
         build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
                        **damage.get(n, {})),
               [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
+    with modeled("signal_box", 322.0, 243.0):
+        # The signal box (World art 0.17, owner 2026-10-17: what should the house beside the depot be): OldHouse3
+        # becomes Bloxov Junction's signal box, same size, rooms and loot (the place name stays, so the loot does).
+        # The lever room upstairs looks north over the line, reached by an outside stair up the south wall; the
+        # locking room and the lamp room downstairs. Shot up: the lever room's roof is half gone (south-west), a shell
+        # through its north wall, another through the locking room's east wall.
+        build(Building("OldHouse3", 316, 238, 12, 10, floors=2, rooms=(2, 2), doors="W", open_plan=True, stairs=False,
+                       blasts=[(0, "E", 0), (1, "N", 1)], caved=[(0, 1)], wall_openings={
+                           "S": [], ("S", 1): [("door", 323.65, DOOR_W, 0.0, DOOR_H), ("window", 318.5, WIN_W, WIN_LO, WIN_HI)]}),
+              [("crate", 0, 1, 0, "W", 0, "toolbox"), ("locker", 1, 0, 1, "E", 0, "locker")])
+        signal_box_furniture(322.0, 243.0)
     build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S",
                    blasts=[(0, "N", 0), (0, "E", 0)], caved=[(1, 0)]), [("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0)])
     for x, z in ((296.5, 336.0), (296.5, 341.5), (312.5, 341.5)):  # canopy over the pumps (its east posts blown away)
