@@ -2343,6 +2343,32 @@ def cover_pass(spacing=11.0, tries=6000):
     return placed
 
 
+# The bombed old quarter (World art 0.17, owner 2026-10-17: the bottom right "a lot more war ruined ... the old area
+# that got bombed"): more shell holes and rubble between the clutter there.
+RUIN_AREAS = [(180.0, 225.0, 350.0, 350.0), (138.0, 255.0, 180.0, 340.0)]
+RUIN = [(crater, 4), (rubble, 3), (wreck, 2), (tank_traps, 1), (barrels, 1)]
+
+
+def ruin_pass(spacing=9.0, tries=5000):
+    rng = random.Random(1017)
+    ok = _cover_checker()
+    kinds = [k for k, w in RUIN for _ in range(w)]
+    taken = list(clutter_spots) + [(x, z) for x, z, _ in craters]
+    placed = []
+    for _ in range(tries):
+        x0, z0, x1, z1 = rng.choice(RUIN_AREAS)
+        x, z = rng.uniform(x0, x1), rng.uniform(z0, z1)
+        if any(math.hypot(x - px, z - pz) < spacing for px, pz in placed + taken) or not ok(x, z):
+            continue
+        placed.append((x, z))
+        with scatter_piece(x, z):
+            kind = rng.choice(kinds)
+            kind(x, z, rng)
+            if kind is not crater:
+                clutter_spots.append((x, z))
+    return placed
+
+
 COVER_SPOTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cover_spots.json")
 COVER_CANDIDATES = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".cover_candidates.json")
 
@@ -3454,26 +3480,31 @@ def main():
     add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
 
     # ===================================================================== BOTTOM RIGHT: old houses, gas station
-    # war damage (owner, 0.11.6): most houses down here are shot up; OldHouse6 stays whole (spawn 5's cover)
-    damage = {1: dict(blasts=[(0, "S", 1), (1, "E", 1)], caved=[(1, 1)]), 3: dict(blasts=[(0, "E", 0)], caved=[(0, 1)]),
-              7: dict(blasts=[(1, "S", 0)], caved=[(0, 1)]), 8: dict(blasts=[(0, "S", 0)], caved=[(1, 1)])}
+    # war damage (owner, 0.11.6): most houses down here are shot up; OldHouse6 stays whole (spawn 5's cover).
+    # (owner 2026-10-17: the bottom right is the old quarter that got bombed, "a lot more war ruined": more holes,
+    # more roofs in)
+    damage = {1: dict(blasts=[(0, "S", 1), (1, "E", 1), (0, "W", 0)], caved=[(1, 1), (0, 1)]),
+              3: dict(blasts=[(0, "E", 0)], caved=[(0, 1)]),
+              7: dict(blasts=[(1, "S", 0), (0, "E", 1)], caved=[(0, 1), (1, 1)]),
+              8: dict(blasts=[(0, "S", 0), (0, "E", 1)], caved=[(1, 1), (0, 0)])}
     for n, (x, y) in [(1, (196, 264)), (3, (316, 238)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
         build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
                        **damage.get(n, {})),
               [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
-    build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S", blasts=[(0, "N", 0)]), [
-        ("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0)])
-    for x in (296.5, 329.5):  # canopy over the pumps
-        for z in (336.0, 341.5):
-            box(x, 0, z, x + 0.5, 4.5, z + 0.5, "metal")
-    box(296, 4.5, 335.5, 330.5, 4.9, 342.5, "wall_fuel")
+    build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S",
+                   blasts=[(0, "N", 0), (0, "E", 0)], caved=[(1, 0)]), [("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0)])
+    for x, z in ((296.5, 336.0), (296.5, 341.5), (312.5, 341.5)):  # canopy over the pumps (its east posts blown away)
+        box(x, 0, z, x + 0.5, 4.5, z + 0.5, "metal")
+    box(296, 4.5, 335.5, 313, 4.9, 342.5, "wall_fuel")
+    t = math.atan2(4.3, 17.5)                                        # the east half came down onto the forecourt
+    obox(321.75, 2.5, 339.0, 7.0, 0.4, math.hypot(17.5, 4.3), 90.0, "wall_fuel", pitch=math.degrees(t))
     for x in (302, 310, 318):
         box(x, 0, 338.2, x + 1.2, 1.6, 339.4, "metal")
     build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W",
-                   blasts=[(0, "N", 1)], caved=[(0, 0)]), [("crate", 1, 0, 0, "E", 0)])
-    build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True),
-          [("crate", 0, 0, 0, "E", 0)])
-    car(286, 300, 70, "car_b"); car(244, 268, 40, "car_a")
+                   blasts=[(0, "N", 1), (0, "S", 0)], caved=[(0, 0)]), [("crate", 1, 0, 0, "E", 0)])
+    build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True,
+                   blasts=[(0, "N", 0)], caved=[(0, 0)]), [("crate", 0, 0, 0, "E", 0)])
+    car(286, 300, 70, "rust"); car(244, 268, 40, "rust")              # (burnt out)
 
     # junkyard north of the gas station (owner, 0.10.1): a fenced yard of stacked wrecks that makes a maze, a crane,
     # a crusher and the office
@@ -3483,7 +3514,7 @@ def main():
     wall_x(jx0, jx1, jz1, 0.0, 2.4, "rust", [(330.5, 5.0, 0.0, 2.4)], t=0.2)
     wall_z(jz0, jz1, jx0, 0.0, 2.4, "rust", [(278.5, 5.0, 0.0, 2.4)], t=0.2)
     wall_z(jz0, jz1, jx1, 0.0, 2.4, "rust", t=0.2)
-    build(Building("JunkOffice", 300.5, 264.5, 10, 8, colour="wall", rooms=(1, 1), doors="S"),
+    build(Building("JunkOffice", 300.5, 264.5, 10, 8, colour="wall", rooms=(1, 1), doors="S", blasts=[(0, "E", 0)]),
           [("crate", 0, 0, 0, "N", 0)])
     for z, xs in ((270, (316, 321, 326, 336, 341)), (278, (310, 315, 330, 335, 340)), (286, (304, 309, 320, 325, 338))):
         for x in xs:
@@ -3612,6 +3643,7 @@ def main():
     scatter_trees(clutter())
     cover_pass()
     planned_cover()
+    ruin_pass()
     apply_late_turns()
     shops_frontage()
     for g in MOTEL_GHOSTS:
