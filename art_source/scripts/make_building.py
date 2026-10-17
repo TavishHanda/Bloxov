@@ -5831,8 +5831,8 @@ def farm_range(b, c, s, k, f, L, D, a):
     top = c[1] + s[1] / 2
     b.box(_pos(c, k, a, f * 0.02, 0), _sz(k, 1.0, s[1] + 0.01, D + 0.04), style=_nb("black"))
     for dd in (-0.22, 0.22):                                                          # oven and firebox doors
-        b.box(_pos(c, k, a + dd, f * (D / 2 + 0.03), -0.05), _sz(k, 0.4, 0.4, 0.02), style=_nb("trim_dark"))
-        b.box(_pos(c, k, a + dd, f * (D / 2 + 0.05), 0.08), _sz(k, 0.12, 0.03, 0.03), style=_nb("steel_light"))
+        b.box(_pos(c, k, a + dd, f * (D / 2 + 0.05), -0.05), _sz(k, 0.4, 0.4, 0.02), style=_nb("trim_dark"))
+        b.box(_pos(c, k, a + dd, f * (D / 2 + 0.08), 0.08), _sz(k, 0.12, 0.03, 0.03), style=_nb("steel_light"))
     b.box(_pos(c, k, a, f * (D / 2 + 0.03), s[1] / 2 - 0.04), _sz(k, 1.04, 0.05, 0.03), style=_nb("steel_light"))
     for dd in (-0.25, 0.0, 0.25):                                                     # lids on the hob
         p = _pos(c, k, a + dd, 0.0, s[1] / 2 + 0.012)
@@ -5853,7 +5853,7 @@ def prop_kitchen_table(ctx, c, s):
     """A small kitchen table: chairs, mugs, cereal and a high chair (family), coffee and the paper (officer)."""
     b = ctx.b
     hv = house()
-    tw, td = s[0] - 0.9, s[2] - 0.9
+    tw, td = s[0] - 0.5, s[2] - 0.5          # (owner 2026-10-17: was 0.9 in, a tiny table with things floating off it)
     y0 = c[1] - s[1] / 2
     top = prop_table(ctx, (c[0], y0 + 0.375, c[2]), (tw, 0.75, td), "bone", "wood")
     for dx, dz in ((0, -1), (0, 1), (1, 0)):
@@ -6742,10 +6742,31 @@ def dress_house(ctx):
                     _box(b, (lx + px) / 2, top - 0.44, (lz + pz) / 2, 0.3, 0.02, 0.02, "brass", yaw=-math.degrees(a))
                     _box(b, px, top - 0.4, pz, 0.05, 0.08, 0.05, "brass")
                     _box(b, px, top - 0.32, pz, 0.03, 0.08, 0.03, "bone")
-            elif lamp == "lantern":
-                _box(b, lx, top - 0.15, lz, 0.015, 0.3, 0.015, "black")
-                for yaw in (0, 45):
-                    _box(b, lx, top - 0.45, lz, 0.4, 0.34, 0.4, "bone" if f else "paper_cream", yaw=yaw)
+            elif lamp == "lantern":                                       # the farmer's wagon-wheel chandelier
+                wy, R = top - 0.5, 0.45
+                for k in range(3):                                         # three chains to a ring on the ceiling
+                    ang = k * 2 * math.pi / 3
+                    ex, ez = lx + R * 0.8 * math.cos(ang), lz + R * 0.8 * math.sin(ang)
+                    mx_, mz_ = (lx + ex) / 2, (lz + ez) / 2
+                    L = math.dist((lx, top + 0.05, lz), (ex, wy, ez))
+                    tilt = math.degrees(math.asin(R * 0.8 / L))
+                    _box(b, mx_, (top + 0.05 + wy) / 2, mz_, 0.02, L, 0.02, "trim_dark",
+                         yaw=-math.degrees(ang) + 90, pitch=tilt)
+                _box(b, lx, top + 0.02, lz, 0.14, 0.04, 0.14, "trim_dark")
+                for k in range(12):                                        # the rim
+                    ang = k * math.pi / 6
+                    _box(b, lx + R * math.cos(ang), wy, lz + R * math.sin(ang), 0.06, 0.07, 2 * R * math.sin(math.pi / 12) + 0.02,
+                         "wood_dark", yaw=-math.degrees(ang))
+                for k in range(3):                                         # spokes and the hub
+                    _box(b, lx, wy, lz, 2 * R, 0.035, 0.035, "wood", yaw=k * 60)
+                _box(b, lx, wy, lz, 0.14, 0.12, 0.14, "wood_dark")
+                for k in range(4):                                         # four lamps on the rim
+                    ang = k * math.pi / 2 + math.pi / 4
+                    px, pz = lx + R * math.cos(ang), lz + R * math.sin(ang)
+                    _box(b, px, wy + 0.06, pz, 0.08, 0.05, 0.08, "brass")
+                    _box(b, px, wy + 0.17, pz, 0.12, 0.16, 0.12, "glass")
+                    _box(b, px, wy + 0.15, pz, 0.03, 0.08, 0.03, "bone")
+                    _box(b, px, wy + 0.26, pz, 0.08, 0.03, 0.08, "brass")
             else:
                 _box(b, lx, top - 0.25, lz, 0.015, 0.5, 0.015, "black")
                 _box(b, lx, top - 0.55, lz, 0.38, 0.12, 0.38, "trim_dark", yaw=45)
@@ -14691,7 +14712,7 @@ def farm_interior(ctx):
     strip = -hw + 0.15 + 2.5 + 4.4 + 1.8
     for top in (3.0 - 0.2, 6.0 - 0.2):                                       # beams under each ceiling
         for x in (-6.0, -2.0, 2.0, 6.0):
-            z0 = sz if (top < 3 and x < strip) else -dz                      # (not over the stair hole)
+            z0 = sz + 0.1 if (top < 3 and x < strip) else -dz                # (not over the stair hole; ends in its wall)
             _box(b, x, top - 0.11, (z0 + dz) / 2, 0.26, 0.22, dz - z0, "wood")
     # A horseshoe over the front door (inside), points up for luck.
     dx = hw / 2
@@ -14699,13 +14720,15 @@ def farm_interior(ctx):
         a = math.pi * k / 6
         _box(b, dx + 0.12 * math.cos(a), 2.72 - 0.12 * math.sin(a), dz - 0.03, 0.05, 0.05, 0.02, "trim_dark")
     # County fair ribbons on the dining room wall (east, ground floor): rosettes with tails.
-    for k, col in enumerate(("blue", "red", "yellow")):
-        z = 0.8 + k * 0.45
-        for yaw in (0, 45):
-            _box(b, wx - 0.02, 1.75, z, 0.02, 0.2, 0.2, col, pitch=yaw)
-        _box(b, wx - 0.03, 1.75, z, 0.02, 0.08, 0.08, "bone")
-        for dzt in (-0.04, 0.04):
-            _box(b, wx - 0.02, 1.55, z + dzt, 0.02, 0.22, 0.05, col, pitch=dzt * 100)
+    for k, col in enumerate(("blue", "red", "yellow")):          # (on the south wall, clear of the photo)
+        x = 0.9 + k * 0.45
+        y = 2.1                                                  # (above the coat pegs by the door)
+        _box(b, x, y, dz - 0.02, 0.2, 0.2, 0.02, col)
+        _box(b, x, y, dz - 0.025, 0.24, 0.12, 0.02, col)
+        _box(b, x, y, dz - 0.025, 0.12, 0.24, 0.02, col)
+        _box(b, x, y, dz - 0.035, 0.08, 0.08, 0.02, "bone")
+        for dxt in (-0.04, 0.04):
+            _box(b, x + dxt, y - 0.2, dz - 0.02, 0.05, 0.22, 0.02, col)
     # Kitchen: an open shelf of preserves on the east wall over the table's end.
     _box(b, wx - 0.12, 1.55, -1.25, 0.22, 0.04, 1.5, "wood")                  # (clear of the window)
     for k in range(9):
@@ -14795,9 +14818,9 @@ def prop_coat_rack(ctx, c, s):
         _box(b, c[0] - s[0] / 2 + 0.1, y0 + 1.66, z, 0.12, 0.03, 0.03, "brass")
         if rng.random() < 0.75:
             col = rng.choice(("olive_dark", "wine", "blue", "wood_dark"))
-            _box(b, c[0] - s[0] / 2 + 0.17, y0 + 1.2, z, 0.14, 0.85, 0.4, col)
+            _box(b, c[0] - s[0] / 2 + 0.17 + k * 0.015, y0 + 1.2 - k * 0.02, z, 0.14, 0.85, 0.2, col)   # (no overlaps)
         elif rng.random() < 0.5:
-            _box(b, c[0] - s[0] / 2 + 0.17, y0 + 1.72, z, 0.3, 0.12, 0.3, "carton")      # a straw hat
+            _box(b, c[0] - s[0] / 2 + 0.2, y0 + 1.74, z, 0.28, 0.1, 0.2, "carton")       # a straw hat
 
 
 def prop_feed_sacks(ctx, c, s):
