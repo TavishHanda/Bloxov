@@ -72,7 +72,7 @@
 {"pos": [-3.0, 3.025, 2.5], "size": [6.0, 0.05, 5.0], "yaw": 0.0, "pitch": 0.0, "colour": "scorch", "solid": false, "kind": "caved_room"},
 {"pos": [-1.744, 1.417, 6.25], "size": [2.2, 0.2, 5.325], "yaw": -90.0, "pitch": 34.28687697720896, "colour": "wood", "solid": true, "kind": "sb_stair"},
 {"pos": [1.7, 2.9, 6.25], "size": [2.6, 0.2, 2.2], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "sb_landing"},
-{"pos": [-0.5, 3.5, 7.39], "size": [7.0, 1.0, 0.08], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "sb_rail"},
+{"pos": [1.7, 3.5, 7.39], "size": [2.6, 1.0, 0.08], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "sb_rail"},
 {"pos": [2.96, 3.5, 6.25], "size": [0.08, 1.0, 2.2], "yaw": 0.0, "pitch": 0.0, "colour": "metal", "solid": true, "kind": "sb_rail"},
 {"pos": [-1.5, 1.375, -3.175], "size": [0.2, 2.75, 3.35], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": null},
 {"pos": [-1.5, 2.575, -0.4], "size": [0.2, 0.35, 2.2], "yaw": 0.0, "pitch": 0.0, "colour": "wall", "solid": true, "kind": null},

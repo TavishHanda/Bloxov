@@ -1903,15 +1903,27 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
             stick = rng.uniform(0.06, 0.3)
             lump(edge + sgn * (stick / 2 - 0.04), y + h / 2, stick + 0.08, h, stick)
             y += h
+    # A hole high up a wall (the depot's notches, owner 2026-10-17: "floating part with floating debris"): no floor
+    # at its sill, so its bottom edge is ragged too and the wall that came in lies on the floor below; a notch
+    # through the wall top has no lintel to hang lumps from.
+    high = lo % 3.0 > 0.75                                            # (an upper storey's hole has its sill 0.5 up)
+    notch = hi >= cfg.get("wall_top", 99.0) - 0.05
+    if high:
+        a = a0
+        while a < a1 - 0.05:
+            la = min(rng.uniform(0.3, 0.7), a1 - a)
+            rise = rng.uniform(0.06, 0.35)
+            lump(a + la / 2, lo + rise / 2 - 0.04, la, rise + 0.08, 0)
+            a += la
     # Top: lumps hanging down from the lintel.
-    a = a0
+    a = a0 if not notch else a1
     while a < a1 - 0.05:
         la = min(rng.uniform(0.3, 0.7), a1 - a)
         drop = rng.uniform(0.1, 0.55)
         lump(a + la / 2, hi - drop / 2 + 0.04, la, drop + 0.08, 0)
         a += la
     # A bent bar of rebar poking out of the top.
-    for _ in range(2):
+    for _ in range(0 if notch else 2):
         ax = rng.uniform(a0 + 0.4, a1 - 0.4)
         b.box(P(ax, hi - 0.6, rng.uniform(-0.05, 0.05)), (0.025, 0.7, 0.025) if ns else (0.025, 0.7, 0.025),
               yaw=rng.uniform(0, 90), pitch=rng.uniform(-30, 30), style=no_bottom("trim_dark", 1.0))
@@ -1923,6 +1935,8 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
             b.poly(pts, (0, 0, nrm_out) if ns else (nrm_out, 0, 0), "graffiti", ctx.d("blast_soot", sgn < 0))
     # The wall that came in: slabs and chunks on the floor inside, a dust spread.
     mats = (ext, ext, "concrete")
+    if high:
+        lo = 0.0                                                        # (it fell to the floor below)
     for _ in range(9):
         a = rng.uniform(a0 + 0.2, a1 - 0.2)
         rubble_chunk(b, P(a, lo + 0.06, -rng.uniform(0.5, 2.0)), (rng.uniform(0.2, 0.5), 0.12, rng.uniform(0.15, 0.4)),
@@ -12948,27 +12962,37 @@ for _k, _f in {"wc_toilet": prop_wc_toilet, "wc_sink": prop_wc_sink, "wc_urinal"
 
 def wc_decals(a, rng):
     """Shared decals for the washrooms (every building's atlas): the door sign and the mirror."""
-    def figure(c, x0, skirt):
-        c.rect(x0 + 1, 9, x0 + 3, 11, "bone")                           # head
-        c.rect(x0, 5, x0 + 4, 8, "bone")                                # body
-        c.rect(x0 - 1 if skirt else x0, 3, x0 + 5 if skirt else x0 + 4, 5, "bone")
-        c.rect(x0, 1, x0 + 1, 3, "bone")                                # legs
-        c.rect(x0 + 3, 1, x0 + 4, 3, "bone")
+    man = ("..XXX..", "..XXX..", "..XXX..", ".......", ".XXXXX.", "XXXXXXX", "XXXXXXX", "X.XXX.X", "X.XXX.X",
+           "X.XXX.X", "X.XXX.X", "..X.X..", "..X.X..", "..X.X..", "..X.X..", "..X.X..", "..X.X..")
+    woman = ("...XXX...", "...XXX...", "...XXX...", ".........", "..XXXXX..", ".XXXXXXX.", ".XXXXXXX.", ".X.XXX.X.",
+             ".X.XXX.X.", ".X.XXX.X.", "..XXXXX..", ".XXXXXXX.", "XXXXXXXXX", "...X.X...", "...X.X...", "...X.X...",
+             "...X.X...")
 
-    def one(skirt):       # 0.4 x 0.4 m: just the man (boys', men's) or the woman (girls', women's)
-        def paint(c):
-            c.rect(0, 0, c.w, c.h, "sky_blue")
-            c.frame(0, 0, c.w, c.h, "bone")
-            figure(c, 4, skirt)
-        return paint
+    def figure(c, x0, art):           # pixel art rows top first; the figure's top row is y 20 of the 25 px sign
+        for i, row in enumerate(art):
+            for x, ch in enumerate(row):
+                if ch == "X":
+                    c.put(x0 + x, 20 - i, "bone")
 
-    def sign(c):          # 0.4 x 0.4 m: a man and a woman, white on blue
+    def plate(c):         # 0.4 x 0.4 m at 25 px (finer than the 32 px/m decals, so the figures read)
         c.rect(0, 0, c.w, c.h, "sky_blue")
         c.frame(0, 0, c.w, c.h, "bone")
-        for x0, skirt in ((2, False), (7, True)):
-            figure(c, x0, skirt)
-        c.rect(6, 2, 7, 11, "bone")                                    # the divider
-        c.blotch(["steel"], 2, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 2))
+        for _ in range(3):                                                # a few scuffs, never on a figure
+            x, y = rng.randrange(1, c.w - 1), rng.randrange(1, c.h - 1)
+            if c.get(x, y) == "sky_blue":
+                c.put(x, y, "steel")
+
+    def one(art):         # just the man (boys', men's) or the woman (girls', women's), centred
+        def paint(c):
+            plate(c)
+            figure(c, (c.w - len(art[0])) // 2, art)
+        return paint
+
+    def sign(c):          # a man and a woman, white on blue, a bar between them
+        plate(c)
+        figure(c, 3, man)
+        c.rect(12, 3, 13, 22, "bone")
+        figure(c, 14, woman)
 
     def mirror(c):        # 0.44 x 0.6 m: grey-blue glass, a reflection streak, a crack star from a hit
         c.rect(0, 0, c.w, c.h, "steel_light")
@@ -12984,9 +13008,9 @@ def wc_decals(a, rng):
                 if 0 <= xx < c.w and 0 <= yy < c.h:
                     c.put(xx, yy, "iron")
         c.blotch(["sand"], 2, rng, size=(1, 2))
-    a.add("wc_sign", 13, 13, sign)
-    a.add("wc_sign_m", 13, 13, one(False))
-    a.add("wc_sign_f", 13, 13, one(True))
+    a.add("wc_sign", 25, 25, sign)
+    a.add("wc_sign_m", 25, 25, one(man))
+    a.add("wc_sign_f", 25, 25, one(woman))
     a.add("wc_mirror", 14, 19, mirror)
 
 
@@ -17857,7 +17881,7 @@ WC_MATS["depot"] = ("wc_tile", "wc_floor")
 SHELLS["depot"] = {
     "ext": st_look("ext"), "roof_side": st_look("ext"), "inner": dp_inner, "floor": dp_floor,
     "ceiling": lambda m: "house_ceiling", "x_lines": (-15.0, DP_HUT[0], 15.0), "z_lines": (-9.0, DP_HUT[3], 9.0),
-    "x_splits": (DP_HUT[0],), "z_splits": (DP_HUT[3],), "debris": ("concrete", st_look("ext"), "concrete", "concrete"),
+    "wall_top": DP_WALL, "x_splits": (DP_HUT[0],), "z_splits": (DP_HUT[3],), "debris": ("concrete", st_look("ext"), "concrete", "concrete"),
 }
 FACTION_MARKS["depot"] = [("x1_stencil", "E", -5.5, 1.0), ("nova_tag", "N", 9.6, 1.1)]
 
@@ -17951,7 +17975,11 @@ def sb_decals(rng):
 
     a.add("name", 122, 14, name)
     a.add("diagram", 96, 26, diagram)
-    small("noadmit", "NO ADMITTANCE", 57, paint, ink)
+    def private(c):       # 1.875 x 0.4375 m over the lever room door (owner 2026-10-17: couldn't read NO ADMITTANCE)
+        c.rect(0, 0, c.w, c.h, paint)
+        c.frame(0, 0, c.w, c.h, ink)
+        st_text(c, 2, "PRIVATE", ink, 2)
+    a.add("noadmit", 60, 14, private)
     small("bells", "BELL CODES", 41, "bone", "black")
     small("lamps", "LAMP ROOM", 41, paint, ink)
     a.add("hole", 4, 4, hole)
@@ -17987,11 +18015,12 @@ def prop_sb_rail(ctx, c, s):
         a = -L / 2 + 0.04 + k * (L - 0.08) / n
         p = (c[0] + a, y0 + s[1] / 2, c[2]) if along == 0 else (c[0], y0 + s[1] / 2, c[2] + a)
         b.box(p, (0.05, s[1], 0.05), style=_nb(sb_look("trim")))
-    if along == 0:                                                             # the stair's own rail, down the slope
+    if along == 0:                                     # the stair's own rail, down the slope west of the landing
         t = math.atan2(3.0, 4.4)
-        _beam(b, (c[0] - L / 2, 0.9, c[2]), (c[0] - L / 2 + 4.4, 3.9, c[2]), 0.06, 0.08, sb_look("trim"))
+        x0 = c[0] - L / 2 - 4.4
+        _beam(b, (x0, 0.9, c[2]), (x0 + 4.4, 3.9, c[2]), 0.06, 0.08, sb_look("trim"))
         for k in range(1, 4):
-            x = c[0] - L / 2 + k * 1.1
+            x = x0 + k * 1.1
             _box(b, x, (k * 1.1 * math.tan(t) + 0.9) / 2 + 0.05, c[2], 0.05, k * 1.1 * math.tan(t) + 0.9, 0.05, sb_look("trim"))
 
 
@@ -18195,10 +18224,11 @@ def dress_signal_box(ctx):
                 ns = side in "NS"
                 at = side_at(side, 0.15 + 0.07)
                 b.box((x, y, at) if ns else (at, y, x), (w + 0.12, 0.18, 0.025) if ns else (0.025, 0.18, w + 0.12), style=st("wood"))
-    # The name over the line (north), NO ADMITTANCE by the stair door, LAMP ROOM over the street door.
+    # The name over the line (north), PRIVATE over the stair door, LAMP ROOM over the street door.
     on_wall("N", -3.0, 3.42, 122 / 32 + 0.1, 14 / 32 + 0.1, 0.03, "wood_dark")
     quad("N", -3.0, 3.42 - 7 / 32, 3.42 + 7 / 32, 122 / 32, "name", push=0.035)
-    quad("S", 3.3, 4.2, 4.2 + 9 / 32, 57 / 32, "noadmit", push=0.02)
+    on_wall("S", 1.65, 5.65, 60 / 32 + 0.1, 14 / 32 + 0.1, 0.03, "wood_dark")              # PRIVATE over the stair door
+    quad("S", 1.65, 5.65 - 7 / 32, 5.65 + 7 / 32, 60 / 32, "noadmit", push=0.035)
     quad("W", 2.5, 2.52, 2.52 + 9 / 32, 41 / 32, "lamps", push=0.02)
     # The gable roof (ridge along x at 8.0, eaves at 6.0 over a 0.4 m overhang); its south-west half is gone, the
     # rafters there broken off.
@@ -18214,23 +18244,33 @@ def dress_signal_box(ctx):
             n = v_scale(n, -1)
         b.poly(pts, n, roof, uv_slope(4.0))
         b.poly(pts[::-1], v_scale(n, -1), "wood", uv_world(1.0))
+    def ry(z):                                                                  # the roof's underside over z
+        return base + e + (z1 - abs(z)) * (top - base) / z1
+    # (owner 2026-10-17: roof pieces "floating", not touching: the rafters now sit on the wall, the torn sheet hangs
+    # off the break, the gables and the long walls are built up to meet the roof, the break has a thick edge)
+    zw = fp[3] + 0.15
     for k in range(6):                                                          # broken rafters, south-west
         x = -5.6 + k * 1.0
         L = rng.uniform(1.2, 3.8)
-        zz = 5.55 - L * 0.97
-        _beam(b, (x, base + 0.05, 5.55), (x + rng.uniform(-0.2, 0.2), base + 0.05 + (5.55 - zz) * 2.0 / 5.55, zz), 0.1, 0.16, "wood_dark")
-    _beam(b, (gone, base + e - 0.05, z1), (gone - 1.4, base + e + 0.2, z1 - 1.2), 0.9, 0.04, roof)        # a torn edge
+        zz = zw - L * 0.97
+        _beam(b, (x, base + 0.08, zw - 0.15), (x + rng.uniform(-0.2, 0.2), ry(zz) - 0.1, zz), 0.1, 0.16, "wood_dark")
+    _beam(b, (gone, ry(3.2) - 0.02, 3.2), (gone - 0.5, 4.5, 2.7), 0.9, 0.04, roof)                     # a torn sheet
+    _beam(b, (gone, base + e, z1), (gone, top + e, 0.0), 0.14, 0.12, "wood_dark")                     # the break's edge
+    for zc, x_a, x_b in ((fp[1], fp[0] - 0.15, fp[2] + 0.15), (fp[3], gone, fp[2] + 0.15)):            # wall plates
+        h = ry(abs(zc) - 0.15) - base + 0.02
+        _box(b, (x_a + x_b) / 2, base + h / 2, zc, x_b - x_a, h, 0.3, up)
     for x, nx in ((fp[0] - 0.15, -1), (fp[2] + 0.15, 1)):                         # gable ends (boards)
-        tri = [(x, base, fp[1] - 0.15), (x, base, fp[3] + 0.15), (x, top, 0.0)]
+        za, zb = fp[1] - 0.15, zw
+        tri = [(x, base, za), (x, base, zb), (x, ry(zb), zb), (x, top + e, 0.0), (x, ry(za), za)]
         b.poly(tri if nx > 0 else tri[::-1], (nx, 0, 0), up, uv_world(2.0))
         b.poly(tri[::-1] if nx > 0 else tri, (-nx, 0, 0), "wood", uv_world(2.0))
         for zz in (z0, z1):                                                        # barge boards
-            a, p2 = (x + nx * 0.4, top + e + 0.02, 0.0), (x + nx * 0.4, base + e + 0.02, zz)
             if x < 0 and zz > 0:
-                p2 = (p2[0], (a[1] + p2[1]) / 2 + 0.3, zz / 2)                    # (snapped)
+                continue                                                           # (gone with the south-west slope)
+            a, p2 = (x + nx * 0.4, top + e + 0.02, 0.0), (x + nx * 0.4, base + e + 0.02, zz)
             _beam(b, a, p2, 0.06, 0.22, trim)
         _box(b, x + nx * 0.45, top + 0.4, 0.0, 0.08, 0.6, 0.08, trim)              # finial
-    _box(b, (gone + x1) / 2 + 0.2, top + e + 0.05, 0.0, x1 - x0 - 0.1, 0.12, 0.22, roof)
+    _box(b, (x0 + x1) / 2, top + e + 0.05, 0.0, x1 - x0 - 0.1, 0.12, 0.22, roof)                       # ridge
     # The lever room's floor is open to the sky in the south-west: rain stains, broken slates on the floor.
     for _ in range(18):
         _box(b, rng.uniform(-5.6, -0.3), 3.0 + 0.03, rng.uniform(0.3, 4.6), rng.uniform(0.15, 0.35), 0.03, rng.uniform(0.1, 0.25),
@@ -18590,8 +18630,15 @@ def prop_dn_fridge(ctx, c, s):
     _box(b, c[0], (y0 + top) / 2, zf, s[0] - 0.08, s[1] - 0.12, 0.01, "trim_dark")
     for k in range(4):
         _box(b, c[0], y0 + 0.35 + k * 0.4, zf - 0.01, s[0] - 0.12, 0.02, 0.02, "steel_light")
-    b.box((c[0] - s[0] / 2 - 0.2, (y0 + top) / 2, zf - 0.25), (0.05, s[1] - 0.06, 0.55), yaw=-35, style=_solid("steel_light"))
-    _box(b, c[0] + s[0] / 2 - 0.08, 1.2, zf - 0.03, 0.03, 0.5, 0.04, "trim_dark")
+    # The door swung open on its hinges at the front-left corner (owner 2026-10-17: it floated off the fridge).
+    W, yaw = s[0] - 0.04, 100.0
+    hx, hz = c[0] - s[0] / 2 + 0.03, zf - 0.04
+    o = rot((W / 2, 0, 0), yaw, 0)
+    b.box((hx + o[0], (y0 + top) / 2, hz + o[2]), (W, s[1] - 0.06, 0.06), yaw=yaw, style=_solid("steel_light"))
+    o = rot((W - 0.1, 0, -0.04), yaw, 0)
+    b.box((hx + o[0], y0 + 1.2, hz + o[2]), (0.04, 0.5, 0.04), yaw=yaw, style=_solid("trim_dark"))      # handle
+    for y in (y0 + 0.3, top - 0.3):                                                                     # hinges
+        _box(b, hx - 0.01, y, hz + 0.02, 0.07, 0.14, 0.07, "trim_dark")
 
 
 def prop_dn_shelves(ctx, c, s):
@@ -18721,12 +18768,15 @@ def dress_diner(ctx):
         depth = 0.9
         L = w + 0.4
         out = depth if not torn else 0.45
-        cx = at + sg * out / 2
-        pos = (mid, 2.3, cx) if ns else (cx, 2.3, mid)
-        size = (L, 0.03, out / math.cos(math.radians(25))) if ns else (out / math.cos(math.radians(25)), 0.03, L)
-        b.box(pos, size, pitch=(25 if side == "N" else 0), yaw=(0 if ns else 90), style=st(awn))
-        _box(b, mid if ns else at + sg * out, 2.1 if not torn else 1.7, at + sg * out if ns else mid,      # the valance
-             L if ns else 0.02, 0.2 if not torn else 0.7, 0.02 if ns else L, awn)
+        # (owner 2026-10-17: the torn one over the kitchen window read as a loose drape: every awning now slopes from
+        # the wall to its front edge, and the valance, torn long or not, hangs from that edge)
+        y_e = 2.5 - out * 0.47
+        p0 = (mid, 2.5, at) if ns else (at, 2.5, mid)
+        p1 = (mid, y_e, at + sg * out) if ns else (at + sg * out, y_e, mid)
+        _beam(b, p0, p1, L, 0.03, awn)
+        h = 0.2 if not torn else 0.7
+        _box(b, mid if ns else at + sg * out, y_e - h / 2 + 0.01, at + sg * out if ns else mid,           # the valance
+             L if ns else 0.02, h, 0.02 if ns else L, awn)
         for e in (-1, 1):                                                          # frame arms
             a = mid + e * L / 2
             p0 = (a, 2.5, at) if ns else (at, 2.5, a)
@@ -19885,24 +19935,39 @@ def prop_jy_boom(ctx, c, s):
 
 
 def prop_jy_crusher(ctx, c, s):
-    """The car crusher: a steel chamber with its lid up on two rams, a cube of crushed cars on the bed, the control
-    box, hazard stripes."""
+    """The car crusher: a steel chamber on its bed, a press frame over it (four corner columns and a header, owner
+    2026-10-17: the lid and rams floated), two hydraulic rams down from the header to the press plate (raised), a cube
+    of crushed cars on the bed, the control box with its hoses up the frame, hazard stripes."""
     b = ctx.b
     y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
     x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
     b.box((c[0], y0 + 0.6, c[2]), (s[0], 1.2, s[2]), style=_nb("trim_dark"))                   # bed
     for z in (z0 + 0.15, z1 - 0.15):
         _box(b, c[0], y0 + 2.0, z, s[0], 1.6, 0.3, "olive_dark")                              # chamber sides
+        _box(b, c[0], y0 + 2.83, z, s[0] + 0.04, 0.06, 0.36, "trim_dark")                     # their top lip
     _box(b, x1 - 0.3, y0 + 2.0, c[2], 0.6, 1.6, s[2] - 0.6, "olive_dark")
-    for x in (x0 + 1.0, x0 + 4.0):
-        _box(b, x, top + 0.6, c[2], 0.25, 1.2, 0.25, "steel_light")                            # rams
-    b.box((c[0] - 0.5, top + 1.2, c[2]), (s[0] - 1.5, 0.3, s[2] - 0.4), pitch=0, style=_nb("olive_dark"))   # lid, up
+    head = top + 1.9                                                                         # the header's top
+    for x in (x0 + 0.2, x1 - 0.2):                                                           # press frame columns
+        for z in (z0 + 0.15, z1 - 0.15):
+            _box(b, x, (y0 + 2.8 + head) / 2, z, 0.3, head - y0 - 2.8, 0.3, "olive_dark")
+    for z in (z0 + 0.15, z1 - 0.15):                                                         # header beams
+        _box(b, c[0], head - 0.2, z, s[0], 0.4, 0.3, "olive_dark")
+    for x in (x0 + 0.2, x0 + 2.4, x1 - 2.4, x1 - 0.2):                                       # cross beams
+        _box(b, x, head - 0.2, c[2], 0.3, 0.4, s[2] - 0.6, "olive_dark")
+    plate = top + 0.75                                                                       # the press plate, raised
+    _box(b, c[0], plate, c[2], s[0] - 0.9, 0.3, s[2] - 0.75, "trim_dark")
+    for x in (x0 + 2.4, x1 - 2.4):                                                           # the rams
+        _box(b, x, head - 0.4 - 0.45, c[2], 0.42, 0.9, 0.42, "trim_dark")                      # cylinder
+        _box(b, x, (plate + head - 1.3) / 2 + 0.07, c[2], 0.2, head - 1.3 - plate - 0.14, 0.2, "steel_light")  # rod
     for k in range(3):                                                                       # crushed cubes
         _box(b, x0 + 1.4 + k * 1.6, y0 + 1.6, c[2], 1.3, 0.8, 1.6, ("wine", "police_navy", "gs_burnt")[k])
     _box(b, x0 - 0.4, y0 + 0.8, z0 + 0.6, 0.6, 1.6, 0.6, "olive_dark")                         # control box
+    _box(b, x0 - 0.4, y0 + 1.1, z0 + 0.29, 0.35, 0.25, 0.02, "steel_light")                    # its panel
+    _beam(b, (x0 - 0.3, y0 + 1.6, z0 + 0.6), (x0 + 0.05, y0 + 2.9, z0 + 0.35), 0.06, 0.06, "black")   # hoses to the frame
+    _beam(b, (x0 + 0.05, y0 + 2.9, z0 + 0.35), (x0 + 0.05, head - 0.4, z0 + 0.35), 0.06, 0.06, "black")
     for z, nz in ((z0 - 0.01, -1), (z1 + 0.01, 1)):
         wall_quad(b, (0, 0, nz), z, x0, x1, y0 + 1.0, y0 + 1.25, "decals", ctx.d("stripes"))
-    wall_quad(b, (0, 0, -1), z0 - 0.17, c[0] - 0.9, c[0] + 0.9, y0 + 2.0, y0 + 2.0 + 11 / 32, "decals", ctx.d("crusher"))
+    wall_quad(b, (0, 0, -1), z0 - 0.01, c[0] - 0.9, c[0] + 0.9, y0 + 2.0, y0 + 2.0 + 11 / 32, "decals", ctx.d("crusher"))
 
 
 def dress_junkyard(ctx):

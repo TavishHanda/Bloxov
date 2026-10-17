@@ -436,7 +436,7 @@ class Building:
 
     def __init__(self, name, x, y, w, d, floors=1, colour="wall", rooms=(2, 2), doors="S", roof=False,
                  height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=(), shopfronts="",
-                 open_plan=False, roof_ramp=None, wall_openings=None, stairs=True, spawn_spots=None):
+                 open_plan=False, roof_ramp=None, wall_openings=None, stairs=True, spawn_spots=None, walled_stairs=False):
         self.name, self.x0, self.z0, self.x1, self.z1 = name, x, y, x + w, y + d
         self.floors, self.colour, self.nx, self.nz = floors, colour, rooms[0], rooms[1]
         self.doors, self.roof, self.h = doors, roof, height
@@ -457,6 +457,11 @@ class Building:
         # stairs=False = no stairs inside (the building makes its own outside); spawn_spots = the indoor AI spawn
         # spots [(x, z)] instead of the ground-floor rooms' middles.
         self.stairs, self.spawn_spots = stairs, spawn_spots
+        # walled_stairs (World art 0.17, owner 2026-10-17: "wrap the wall around the stairs", nothing behind them): the
+        # ramp gets a wall up its open side on both storeys and across its low end upstairs instead of rails, so the
+        # stairwell is its own space, entered at its foot and left at its landing; the outside wall beside it gets no
+        # window downstairs (the space under the landing is shut in).
+        self.walled_stairs = walled_stairs
         self.holes = {}   # storey -> (x0, z0, x1, z1) slab hole above a ramp
         self.cw = (self.x1 - self.x0) / self.nx
         self.cd = (self.z1 - self.z0) / self.nz
@@ -532,7 +537,8 @@ class Building:
                     else:
                         openings.append((mid, DOOR_W, 0.0, DOOR_H))
                         kinds.append("door")
-                elif cell not in self.no_windows and a1 - a0 >= 2.6 and not self._ramp_blocks(f, side, cell):
+                elif cell not in self.no_windows and a1 - a0 >= 2.6 and not self._ramp_blocks(f, side, cell) and \
+                        not (self.walled_stairs and f == 0 and side == "W" and cell[1] == 0):
                     openings.append((mid, WIN_W, WIN_LO, WIN_HI))
                     kinds.append("window")
             for (c, w, lo, hi), kind in zip(openings, kinds):
@@ -612,6 +618,19 @@ class Building:
         # The hole upstairs is over the ramp only; the floor beyond its top end is the landing.
         hx0, hx1 = min(lo_x, hi_x), max(lo_x, hi_x)
         self.holes[f + 1] = (hx0, rz0, hx1, rz1)
+        if self.walled_stairs and wall == "N":
+            iw = 0.2
+            xs = [self.x0 + i * self.cw for i in range(1, self.nx)]           # (stop at the inner walls along z)
+
+            def run(a0, a1, ya, yb):
+                cuts = [a0] + [c for x in xs if a0 < x < a1 for c in (x - 0.1, x + 0.1)] + [a1]
+                for c0, c1 in zip(cuts[::2], cuts[1::2]):
+                    if c1 - c0 > 0.02:
+                        box(c0, ya, rz1, c1, yb, rz1 + iw, "wall")
+            run(self.x0 + WALL_T / 2, hx1 + iw, y0, y1 - SLAB_T)                 # downstairs: up its side to the foot
+            run(hx0, hx1 + iw, y1, y1 + self.h - SLAB_T)                          # upstairs: round the hole
+            box(hx1, y1, rz0, hx1 + iw, y1 + self.h - SLAB_T, rz1, "wall")
+            return
         # Rails round the hole upstairs (its open side and its low end), so nobody walks off the edge.
         rail_z = rz1 + 0.05 if wall[0] == "N" else rz0 - 0.05
         box(hx0, y1, rail_z - 0.05, hx1, y1 + 1.0, rail_z + 0.05, "metal")
@@ -1953,10 +1972,10 @@ def signal_box_furniture(ox, oz):
     obox(ox - 4.0 + RAMP_L / 2 + 0.1 * math.sin(t), FLOOR_H / 2 - 0.1 * math.cos(t), oz + zc, RAMP_W, 0.2,
          math.hypot(RAMP_L, FLOOR_H), -90.0, "wood", pitch=math.degrees(t), kind="sb_stair")
     o(0.4, FLOOR_H - 0.2, 5.15, 2.9 + 0.1, FLOOR_H, 5.15 + RAMP_W, "wood", "sb_landing")
-    o(-4.0, FLOOR_H, 5.15 + RAMP_W, 2.9 + 0.1, FLOOR_H + 1.0, 5.15 + RAMP_W + 0.08, "metal", "sb_rail")
+    o(0.4, FLOOR_H, 5.15 + RAMP_W, 2.9 + 0.1, FLOOR_H + 1.0, 5.15 + RAMP_W + 0.08, "metal", "sb_rail")   # (landing only: owner)
     o(2.92, FLOOR_H, 5.15, 3.0, FLOOR_H + 1.0, 5.15 + RAMP_W, "metal", "sb_rail")
     # Lamp room (x -5.85..-1.6): the washroom in the north-west corner, a workbench under the west window, signal
-    # lamps on shelves against the partition, oil drums; the crate (a toolbox) slid into the south-west corner.
+    # lamps on shelves against the partition, oil drums; the crate (a toolbox) against the west wall north of the street door (owner: it stuck out of the south wall).
     o(-1.6, 0, -4.85, -1.4, FLOOR_H - SLAB_T, -1.5, "wall", None)          # the partition, a doorway at z -1.5..0.7
     o(-1.6, 2.4, -1.5, -1.4, FLOOR_H - SLAB_T, 0.7, "wall", None)
     o(-1.6, 0, 0.7, -1.4, FLOOR_H - SLAB_T, 4.85, "wall", None)
@@ -1997,8 +2016,9 @@ def diner_furniture(ox, oz):
     o(-4.3, 0, 2.2, -3.4, 0.76, 3.1, "wood", "dn_table")
     o(-4.6, 0, -4.6, -3.7, 0.76, -3.7, "wood", "dn_table")
     o(-1.65, 0, 5.2, -0.85, 1.6, 5.85, "metal", "dn_jukebox")
-    washroom(ox, oz, -7.85, 3.6, -6.0, 5.85, "EN", ("N", -6.9, 2), fit=(
-        ("wc_toilet", "W", 5.2, 0.5, 0.65, 0.8), ("wc_sink", "E", 4.7, 0.5, 0.4, 0.85)))
+    # (owner 2026-10-17: the booth blocked the washroom's door: the door is on its east wall now, onto the open floor)
+    washroom(ox, oz, -7.85, 3.6, -6.0, 5.85, "EN", ("E", 4.8, -2), fit=(
+        ("wc_toilet", "W", 5.3, 0.5, 0.65, 0.8), ("wc_sink", "N", -7.3, 0.5, 0.4, 0.85)))
     # Kitchen (x 0.1..7.85).
     o(0.5, 0, 5.15, 3.0, 0.95, 5.85, "metal", "dn_range")
     o(3.3, 0, 5.25, 4.7, 0.9, 5.85, "metal", "dn_sink")
@@ -3673,14 +3693,16 @@ def main():
     # war damage (owner, 0.11.6): most houses down here are shot up; OldHouse6 stays whole (spawn 5's cover).
     # (owner 2026-10-17: the bottom right is the old quarter that got bombed, "a lot more war ruined": more holes,
     # more roofs in)
-    damage = {1: dict(blasts=[(0, "S", 1), (1, "E", 1), (0, "W", 0)], caved=[(1, 1), (0, 1)]),
+    # (owner 2026-10-17: nothing behind the stairs: 1's west shell hole is off the stairwell now, into the kitchen only)
+    damage = {1: dict(blasts=[(0, "S", 1), (1, "E", 1)], caved=[(1, 1), (0, 1)],
+                      wall_openings={"W": [("blast", 264 + 3.7, 2.1, 0.0, FLOOR_H), ("window", 264 + 7.5, WIN_W, WIN_LO, WIN_HI)]}),
               3: dict(blasts=[(0, "E", 0)], caved=[(0, 1)]),
               7: dict(blasts=[(1, "S", 0), (0, "E", 1)], caved=[(0, 1), (1, 1)]),
               8: dict(blasts=[(0, "S", 0), (0, "E", 1)], caved=[(1, 1), (0, 0)])}
     for n, (x, y) in [(1, (196, 264)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
         with modeled(f"old_house_{n}", x + 6.0, y + 5.0):     # (World art 0.17: the old quarter's houses)
             build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
-                           **damage.get(n, {})),
+                           walled_stairs=bool(n % 2), **damage.get(n, {})),
                   [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
             old_house_furniture(n, x + 6.0, y + 5.0)
     with modeled("signal_box", 322.0, 243.0):
@@ -3692,7 +3714,7 @@ def main():
         build(Building("OldHouse3", 316, 238, 12, 10, floors=2, rooms=(2, 2), doors="W", open_plan=True, stairs=False,
                        blasts=[(0, "E", 0), (1, "N", 1)], caved=[(0, 1)], wall_openings={
                            "S": [], ("S", 1): [("door", 323.65, DOOR_W, 0.0, DOOR_H), ("window", 318.5, WIN_W, WIN_LO, WIN_HI)]}),
-              [("crate", 0, 1, 0, "W", 0, "toolbox"), ("locker", 1, 0, 1, "E", 0, "locker")])
+              [("crate", 0, 1, 0, "W", -2.0, "toolbox"), ("locker", 1, 0, 1, "E", 0, "locker")])
         signal_box_furniture(322.0, 243.0)
     with modeled("gas_station", 312.0, 327.0):
         # The old gas station (World art 0.17): the shop west, the service bay east, the pumps under the canopy on
