@@ -826,7 +826,47 @@ def school_furniture():
 RICH_HOUSES = [(30, 22, 16, 13, "doctor"), (68, 36, 15, 12, "family"), (100, 32, 15, 12, "officer")]
 
 
-def rich_house(n, x, y, w, d, who):
+# The barn (World art 0.17, owner 2026-10-17 "do all the buildings in the farm"): stalls down the west side under a
+# hayloft (a ladder up, a hay door high in the west wall; BARN_LOFT, put to the owner), the tractor bay and the
+# workbench on the east side, the middle and both big doors clear. The four hay bales stay where they were (cover).
+BARN_LOFT = True
+
+
+def ladder(x, y, z, yaw, height, place):
+    """A ladder (scripts/ladder.gd, 0.13.5): foot at (x, y, z), leaning on what's behind it (-Z after `yaw`)."""
+    n = sum(1 for m in markers if m[0] == "Ladders") + 1
+    markers.append(("Ladders", f"Ladder{n}", x, y, z, {"yaw": yaw, "height": height, "place": place}))
+
+
+def farm_barn():
+    with modeled("barn", 268.0, 35.0):
+        west = [("window", 29.0, 1.0, 1.6, 2.4), ("window", 41.0, 1.0, 1.6, 2.4)]
+        if BARN_LOFT:
+            west.append(("hay_door", 35.0, 2.2, 3.5, 5.4))
+        build(Building("Barn", 256, 26, 24, 18, colour="wall_farm", rooms=(1, 1), doors="SN", height=6.0,
+                       big_doors=True, wall_openings={"W": west}), [("crate", 0, 0, 0, "E", 0), ("crate", 0, 0, 0, "W", 2)])
+        for hx, hz in ((262, 31), (262, 33.5), (274, 39), (270, 30)):
+            box(hx - 1.0, 0, hz - 0.7, hx + 1.0, 1.2, hz + 0.7, "hay", kind="hay_bales")
+        for z in (30.6, 35.0, 39.4):                                       # stalls: low board walls, gates
+            box(256.15, 0, z - 0.06, 259.7, 1.4, z + 0.06, "wood", kind="stall_wall")
+        for za, zb in ((26.15, 30.6), (30.6, 35.0), (35.0, 39.4), (39.4, 43.85)):
+            box(259.65, 0, za + 0.1, 259.75, 1.2, zb - 0.1, "wood", kind="stall_gate", solid=False)
+        box(275.6, 0, 27.4, 278.9, 2.6, 32.6, "metal", kind="farm_tractor")
+        box(279.1, 0, 37.0, 279.85, 0.92, 40.2, "wood", kind="barn_bench")
+        box(278.4, 0, 42.2, 279.8, 0.95, 43.8, "metal", kind="fuel_drums")
+        if BARN_LOFT:
+            box(256.15, 2.8, 26.15, 262.0, 3.0, 43.85, "wood", kind="loft_floor")
+            box(261.9, 3.0, 26.15, 262.0, 4.0, 34.4, "wood", kind="loft_rail")
+            box(261.9, 3.0, 35.6, 262.0, 4.0, 43.85, "wood", kind="loft_rail")
+            for z in (28.3, 41.7):
+                box(261.82, 0, z - 0.1, 262.02, 2.8, z + 0.1, "wood", kind="loft_post")
+            box(256.4, 3.0, 26.5, 258.4, 4.2, 29.0, "hay", kind="hay_bales")
+            box(256.4, 3.0, 41.0, 258.0, 3.6, 43.5, "hay", kind="hay_bales")
+            ladder(262.12, 0.0, 35.0, -90.0, 3.0, "Barn")   # (leans west, on the loft)
+
+
+def rich_house(n, x, y, w, d, who, model=None, place=None, loot=None, colour="wall_rich"):
+    """model/place/loot: the farmhouse (World art 0.17, "farmer") is the same house on the farm, its own loot."""
     hw, hd = w / 2, d / 2
     ox, oz = x + hw, y + hd
     F = FLOOR_H
@@ -837,8 +877,8 @@ def rich_house(n, x, y, w, d, who):
 
     def put(kind, x0, z0, x1, z1, h, floor=0, solid=True, colour="wood", y=0.0):
         box(ox + x0, floor * F + y, oz + z0, ox + x1, floor * F + y + h, oz + z1, colour, solid=solid, kind=kind)
-    with modeled(f"big_house_{n}", ox, oz):
-        build(Building(f"BigHouse{n}", x, y, w, d, floors=2, colour="wall_rich", rooms=(2, 2), doors="S"), [
+    with modeled(model or f"big_house_{n}", ox, oz):
+        build(Building(place or f"BigHouse{n}", x, y, w, d, floors=2, colour=colour, rooms=(2, 2), doors="S"), loot or [
             ("locker", 1, 1, 0, "E", 1.9), ("crate", 0, 1, 1, "W", -1.9), ("locker", 1, 0, 1, "E", 1.9)])   # (off the windows)
         # The stairs are walled off from the den (round 11, owner: the open side "looks super off").
         box(ox - wx, 0.0, oz + sz, ox - 0.1, F - SLAB_T, oz + sz + 0.15, "wall_rich")
@@ -868,6 +908,17 @@ def rich_house(n, x, y, w, d, who):
             put("dining_table", q + 0.9, 1.6, wx - 0.3, 3.4, 0.9)
             put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)
             put("kitchen_table", q - 1.1, -3.5, q + 1.1, -2.1, 0.85)
+        elif who == "farmer":
+            # The farm kitchen is the big room: a long table by the window, the range; the living room keeps the
+            # sofa under the window, the TV by the fire.
+            put("house_sofa", -wx + 0.25, dz - 0.9, -q - 0.85, dz - 0.05, 0.9)
+            put("coffee_table", -wx + 0.75, dz - 2.0, -q - 1.35, dz - 1.4, 0.45)
+            put("house_rug", -wx + 0.4, dz - 2.7, -q - 0.4, dz - 0.95, 0.02, solid=False)
+            put("armchair", -1.05, dz - 1.05, -0.25, dz - 0.25, 0.95)
+            put("tv_stand", -0.6, 0.4, -0.15, 1.6, 0.55)
+            put("dining_table", wx - 2.6, 0.45, wx - 0.2, 2.35, 0.9)
+            put("kitchen_run", strip + 1.2, -dz, wx - 0.85, -dz + 0.6, 0.9)
+            put("kitchen_table", wx - 1.5, -4.9, wx - 0.3, -3.0, 0.85)
         else:
             # A formal room: the sofa and two armchairs round the fire, no TV; a long dining table by the east wall; the kitchen's cupboards round the corner and its table by the hall door.
             put("house_sofa", -wx + 1.5, dz - 0.9, -1.4, dz - 0.05, 0.9)
@@ -905,6 +956,17 @@ def rich_house(n, x, y, w, d, who):
             put("study_desk", wx - 1.8, dz - 0.85, wx - 0.2, dz - 0.1, 0.78, floor=1)
             put("wall_books", q + 1.2, 0.1, wx - 0.2, 0.55, 1.9, floor=1)
             put("trunk", -wx + 0.05, -2.3, -wx + 0.6, -1.3, 0.55, floor=1)
+        elif who == "farmer":
+            # The den is the boot room and pantry: boots and coats by the wall, jars and sacks on the shelves; the
+            # kid's room upstairs (SW), the sewing and junk room (SE).
+            put("pantry_shelf", -wx + 0.3, -0.55, -q - 1.2, -0.1, 1.9)
+            put("boot_rack", -wx + 0.05, sz + 0.35, -wx + 0.5, sz + 1.85, 0.45)   # (south of the stair wall)
+            put("coat_rack", -wx + 0.05, sz + 2.05, -wx + 0.35, sz + 2.95, 1.8, solid=False)
+            put("feed_sacks", -4.4, sz + 0.2, -3.2, sz + 1.0, 0.7)
+            put("toy_chest", -2.0 - 1.0, dz - 0.6, -2.0 - 0.4, dz - 0.05, 0.55, floor=1)
+            put("sewing_table", wx - 1.7, dz - 0.75, wx - 0.2, dz - 0.15, 0.8, floor=1)
+            put("trunk", q + 1.2, 0.1, q + 2.2, 0.65, 0.55, floor=1)
+            put("junk_boxes", wx - 1.0, 0.1, wx - 0.1, 1.4, 1.2, floor=1)
         elif who == "family":
             # Playroom den, nursery upstairs, a little one's bedroom.
             put("toy_chest", -wx + 0.3, -dz + 0.3, -wx + 1.2, -dz + 0.85, 0.6)
@@ -3133,15 +3195,23 @@ def main():
 
     # ===================================================================== FARM (top right)
     box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
-    build(Building("Barn", 256, 26, 24, 18, colour="wall_farm", rooms=(1, 1), doors="SN", height=6.0,
-                   big_doors=True), [("crate", 0, 0, 0, "E", 0), ("crate", 0, 0, 0, "W", 2)])
-    for hx, hz in ((262, 31), (262, 33.5), (274, 39), (270, 30)):
-        hay(hx, hz)
-    box(282, 0, 30, 290, 12, 38, "concrete")                          # silo
-    build(Building("Farmhouse", 310, 26, 16, 12, floors=2, rooms=(2, 2), doors="S"), [
-        ("locker", 1, 0, 0, "E", 0), ("crate", 0, 1, 1, "W", 0)])
-    build(Building("Shed", 248, 46, 14, 10, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
-                   big_doors=True), [("crate", 0, 0, 0, "W", 0)])
+    farm_barn()
+    with modeled("silo", 286.0, 34.0):
+        # Round concrete silo (World art 0.17): drawn round by its model; solid as an octagon (two squares) inside it.
+        obox(286.0, 6.0, 34.0, 6.4, 12.0, 6.4, 0.0, "concrete", kind="silo")
+        obox(286.0, 6.0, 34.0, 6.4, 12.0, 6.4, 45.0, "concrete", kind="silo_part")
+    rich_house(0, 310, 26, 16, 12, "farmer", model="farmhouse", place="Farmhouse", colour="wall", loot=[
+        ("locker", 1, 0, 0, "E", 1.9), ("crate", 0, 1, 1, "W", -1.9)])   # (the wardrobe off the kitchen table)
+    with modeled("shed", 255.0, 51.0):
+        # The machine shed (World art 0.17): workbench and tool wall on the north wall, an engine on a stand, tyres,
+        # shelving, fuel drums; the middle and the big door's way in stay clear.
+        build(Building("Shed", 248, 46, 14, 10, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
+                       big_doors=True), [("crate", 0, 0, 0, "W", 0)])
+        box(249.6, 0, 46.15, 253.8, 0.92, 46.85, "wood", kind="shed_bench")
+        box(250.9, 0, 48.9, 252.1, 1.05, 49.9, "metal", kind="engine_stand")
+        box(248.25, 0, 54.4, 249.35, 1.2, 55.75, "metal", kind="tyre_stack")
+        box(252.0, 0, 55.3, 255.0, 2.0, 55.85, "metal", kind="shed_shelf")
+        box(259.3, 0, 54.6, 261.7, 0.95, 55.75, "metal", kind="fuel_drums")
     for k in range(5):   # crop rows (low cover)
         z = 50 + k * 9
         box(286, 0, z, 338, 1.0, z + 3, "crop")
@@ -3597,7 +3667,7 @@ def write_scene(ter):
     write_model_boxes(ter)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
-              "swing_door": "res://scenes/door.tscn"}
+              "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}
     out = ["[gd_scene format=3]", "",
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
            '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]']
@@ -3683,6 +3753,11 @@ def write_scene(ter):
                 if meta["broken"]:
                     out.append(f'broken = "{meta["broken"]}"')
                 out += [f'metadata/place = "{meta["place"]}"', ""]
+                continue
+            if grp == "Ladders":    # ladders (0.13.5; the barn's loft, World art 0.17)
+                out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["ladder"]}")]',
+                        f"transform = {xform(x, y, z, meta['yaw'])}", f"height = {fmt(meta['height'])}",
+                        f'metadata/place = "{meta["place"]}"', ""]
                 continue
             if grp == "KeyDoors":   # locked doors (0.14.0): a door leaf filling the doorway, a bit wider than it
                 out += [f'[node name="{name}" parent="{g}" instance=ExtResource("{ids["door"]}")]',
