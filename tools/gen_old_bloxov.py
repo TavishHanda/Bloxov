@@ -2794,14 +2794,10 @@ def main():
         washroom(29.5, 126.5, -7.2, -6.35, -4.93, -4.1, "WS", ("S", -5.6, -1), y=FLOOR_H, fit=(
             ("wc_bath", "N", -6.1, 1.6, 0.7, 0.55), ("wc_toilet", "E", -5.2, 0.45, 0.72, 0.85),
             ("wc_sink", "W", -4.8, 0.5, 0.45, 0.9)))
-        # The shops' own (owner, 2026-10-16, with the turn): the laundromat's customer toilet in its back corner by the
-        # stairs, the shoe store's staff toilet upstairs in its stock room, the TV shop's behind its counter.
-        washroom(29.5, 126.5, -14.35, -6.35, -12.15, -4.15, "ES", ("E", -5.25, 1), fit=(
-            ("wc_toilet", "W", -5.6, 0.45, 0.72, 0.85), ("wc_sink", "N", -12.9, 0.5, 0.45, 0.9)))
+        # The shoe store's staff toilet, upstairs in its stock room (owner, 2026-10-17: none downstairs in the
+        # laundromat, no room; none in the TV shop, its upstairs one was blown up).
         washroom(29.5, 126.5, -4.73, -6.35, -2.53, -4.15, "ES", ("E", -5.25, 1), y=FLOOR_H, fit=(
             ("wc_toilet", "W", -5.6, 0.45, 0.72, 0.85), ("wc_sink", "N", -3.3, 0.5, 0.45, 0.9)))
-        washroom(29.5, 126.5, 12.15, -6.35, 14.35, -4.45, "WS", ("W", -5.0, 1), fit=(
-            ("wc_toilet", "E", -5.6, 0.45, 0.72, 0.85), ("wc_sink", "N", 12.9, 0.5, 0.45, 0.9)))
         build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)], shopfronts="S"), [
             ("crate", 0, 0, 0, "W", -1.5, "laundry_cart"), ("crate", 2, 0, 0, "E", 3.5, "stock_tv"),
             ("crate", 1, 0, 1, "N", 2.2, "stock_shoes"), ("locker", 0, 0, 1, "W", -2.6, "wardrobe"),
@@ -2821,7 +2817,7 @@ def main():
         box(26.0, 0, 131.9, 29.8, 0.4, 132.8, "wood", kind="window_display")
         # TV shop (burned out, its roof fell in): shelves of dead TVs, a display table.
         box(35.0, 0, 120.15, 38.4, 2.0, 120.7, "metal", kind="tv_shelf")
-        box(39.0, 0, 120.15, 41.3, 2.0, 120.7, "metal", kind="tv_shelf")   # (shorter: the staff toilet)
+        box(40.0, 0, 120.15, 43.5, 2.0, 120.7, "metal", kind="tv_shelf")
         box(36.4, 0, 129.8, 39.0, 0.9, 131.0, "metal", kind="tv_table")
         box(42.1, 0, 122.9, 43.8, 1.0, 123.7, "metal", kind="tv_counter")
         box(34.8, 0, 131.2, 35.6, 1.1, 132.2, "metal", kind="box_stack")
