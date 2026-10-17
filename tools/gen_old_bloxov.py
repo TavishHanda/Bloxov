@@ -1835,6 +1835,69 @@ def cabin_loft(ox, oz):
     o(4.2, 3.0, 1.4, 5.0, 3.5, 2.1, kind="cabin_loft_crates")
 
 
+FC_X = -2.4        # the fisherman's cabin: the log wall between the main block (east) and the lean-to (west)
+FC_BED_Z = -1.2    # the bedroom's wall (main block, north)
+FC_WC_Z = 1.6      # the washroom's wall (lean-to, south)
+FC_RIDGE_X = 2.05  # the main block's ridge (and its front door, porch, fireplace)
+
+
+def fisher_cabin(x, y):
+    """The fisherman's cabin in the bottom-left woods (World art 0.17, owner 2026-10-17: the two cabins there alike,
+    but not like the hunter's cabin in the east woods). Cabin1's spot and size (13 x 10 m), the creek just west of it.
+    A log main block with its gable to the front (south) and a lean-to down the creek side (west): main room with the
+    fireplace (the chimney goes up through the ridge) and kitchen, the bedroom behind it, the gear room (rods, nets,
+    waders) and the washroom in the lean-to. Same one duffel."""
+    ox, oz = x + 6.5, y + 5.0
+
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    ops = {"S": [("window", ox - 4.45, 0.8, 1.5, 2.1), ("window", ox - 0.75, WIN_W, WIN_LO, WIN_HI),
+                 ("door", ox + FC_RIDGE_X, DOOR_W, 0.0, DOOR_H), ("window", ox + 5.0, WIN_W, WIN_LO, WIN_HI)],
+           "N": [("window", ox - 3.35, WIN_W, WIN_LO, WIN_HI), ("window", ox + 2.05, WIN_W, WIN_LO, WIN_HI)],
+           "E": [("window", oz + 0.5, WIN_W, WIN_LO, WIN_HI), ("window", oz - 3.05, WIN_W, WIN_LO, WIN_HI)],
+           "W": [("window", oz - 1.6, WIN_W, WIN_LO, WIN_HI), ("window", oz + 3.3, 0.8, 1.5, 2.1)]}
+    cab = Building("Cabin1", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S", open_plan=True, wall_openings=ops,
+                   spawn_spots=[(ox - 4.4, oz - 1.6), (ox + 3.6, oz + 2.2)])
+    build(cab)
+    add_loot("Cabin1", "crate", ox - 5.8, oz + 0.55, yaw=-90.0)            # the duffel, gear room by the west wall
+    H = FLOOR_H - SLAB_T
+    # Inner walls: the old log wall between the main block and the lean-to (the gear room's doorway), the bedroom's
+    # plank wall (its doorway east of the fireplace).
+    wall_z(oz - 4.85, oz + 4.85, ox + FC_X, 0.0, H, "wood", [(oz + 0.25, INNER_DOOR_W, 0.0, DOOR_H)], t=0.3)
+    inner_door(ox + FC_X, 0.0, oz + 0.25, 90.0, "Cabin1")
+    wall_x(ox + FC_X + 0.15, ox + 6.35, oz + FC_BED_Z, 0.0, H, "wood", [(ox + 4.4, INNER_DOOR_W, 0.0, DOOR_H)], t=0.2)
+    inner_door(ox + 4.4, 0.0, oz + FC_BED_Z, 0.0, "Cabin1")
+    washroom(ox, oz, -6.35, FC_WC_Z + 0.075, FC_X - 0.15, 4.85, "N", ("N", -3.4, 2), sign=None, fit=(
+        ("wc_toilet", "W", 2.6, 0.5, 0.65, 0.8), ("wc_sink", "S", -5.6, 0.5, 0.4, 0.85),
+        ("wc_bath", "E", 3.75, 0.75, 1.65, 0.6)))
+    # Main room (x -2.25..6.35, z -1.1..4.85): the stone fireplace on the bedroom wall under the ridge, the range and
+    # kitchen counter along the east wall, the table by the front window, a rocking chair at the fire.
+    o(1.15, 0, FC_BED_Z + 0.1, 2.95, 1.6, FC_BED_Z + 0.8, "stone", "fc_fireplace")
+    o(5.75, 0, 1.55, 6.35, 0.92, 4.85, "wood", "fc_kitchen")
+    o(5.55, 0, -1.1, 6.35, 1.05, -0.45, "metal", "fc_range")
+    o(-1.75, 0, 3.2, -0.25, 0.78, 4.15, "wood", "cabin_table")
+    o(-1.9, 0, 2.65, -0.1, 1.0, 3.15, "wood", "cabin_chairs", solid=False)
+    o(0.2, 0, -0.1, 0.9, 1.1, 0.7, "wood", "fc_rocker", solid=False)
+    # Bedroom (x -2.25..6.35, z -4.85..-1.3): the bed against the north wall, a wardrobe, a chest of drawers, a trunk.
+    o(-0.7, 0, -4.85, 0.9, 0.6, -2.75, "wood", "fc_bed")
+    o(-2.25, 0, -4.85, -1.65, 2.0, -3.65, "wood", "fc_wardrobe")
+    o(5.1, 0, -4.85, 6.35, 0.95, -4.35, "wood", "fc_drawers")
+    o(-2.25, 0, -2.4, -1.75, 0.55, -1.6, "wood", "cabin_trunk")
+    # Gear room (lean-to, x -6.35..-2.55, z -4.85..1.5): rods on the north wall, the tackle bench on the west wall,
+    # waders on pegs, a cooler; the duffel against the west wall by the washroom.
+    o(-6.35, 0, -4.85, -4.6, 2.1, -4.6, "wood", "fc_rod_rack", solid=False)
+    o(-6.35, 0, -4.4, -5.75, 0.9, -3.0, "wood", "fc_tackle_bench")
+    o(-2.95, 0, -4.2, -2.55, 1.8, -2.6, "wood", "fc_waders")
+    o(-5.0, 0, 0.9, -4.4, 0.5, 1.45, "wood", "fc_cooler")
+    # Outside: the porch under the front gable (deck, posts and roof picture only), a bench; the canoe on trestles
+    # and the fish drying rack on the creek side; firewood stacked against the lean-to's south wall.
+    o(-2.55, 0, 5.15, 6.65, 0.06, 7.4, "wood", "cabin_porch", solid=False)
+    o(4.6, 0.06, 5.25, 6.1, 0.5, 5.65, "wood", "cabin_bench")
+    o(-8.6, 0, -2.9, -7.4, 0.9, 2.3, "wood", "fc_canoe")
+    o(-8.7, 0, 2.9, -7.6, 1.8, 4.9, "wood", "fc_fish_rack", solid=False)
+    o(-6.3, 0, 5.15, -3.6, 1.2, 5.75, "wood", "cabin_firewood")
+
+
 def station_furniture(ox, oz):
     """Bloxov Station (World art 0.17) in the model's own coordinates (origin map (ox, oz); local x -19..19, z -7..7,
     walls 3.6 m, north = Station Road, south = the platform). Room middles, doorways and the way through stay clear;
@@ -3904,6 +3967,10 @@ def main():
                 build(cab, [("crate", 1, 0, 0, "E", 1.7)])
                 cabin_furniture(x + 6.5, y + 5.0)
                 cabin_loft(x + 6.5, y + 5.0)
+            continue
+        if n == 1:
+            with modeled("cabin_fisher", x + 6.5, y + 5.0):
+                fisher_cabin(x, y)
             continue
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
               [("crate", 1, 0, 0, "E", 0)])
