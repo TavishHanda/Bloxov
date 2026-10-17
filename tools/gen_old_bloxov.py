@@ -362,13 +362,13 @@ def add_loot(place, kind, x, z, y=0.0, yaw=0.0, look=None):
 
 
 # ---------------------------------------------------------------------------------------------- walls
-def wall_x(x0, x1, z, y0, h, colour, openings=(), t=WALL_T):
+def wall_x(x0, x1, z, y0, h, colour, openings=(), t=WALL_T, kind=None):
     """A wall along x (from x0 to x1 at depth z). openings: (centre_x, width, bottom, top)."""
-    _wall(x0, x1, y0, h, colour, openings, lambda a, b, y_lo, y_hi: box(a, y_lo, z - t / 2, b, y_hi, z + t / 2, colour))
+    _wall(x0, x1, y0, h, colour, openings, lambda a, b, y_lo, y_hi: box(a, y_lo, z - t / 2, b, y_hi, z + t / 2, colour, kind=kind))
 
 
-def wall_z(z0, z1, x, y0, h, colour, openings=(), t=WALL_T):
-    _wall(z0, z1, y0, h, colour, openings, lambda a, b, y_lo, y_hi: box(x - t / 2, y_lo, a, x + t / 2, y_hi, b, colour))
+def wall_z(z0, z1, x, y0, h, colour, openings=(), t=WALL_T, kind=None):
+    _wall(z0, z1, y0, h, colour, openings, lambda a, b, y_lo, y_hi: box(x - t / 2, y_lo, a, x + t / 2, y_hi, b, colour, kind=kind))
 
 
 def _wall(a0, a1, y0, h, colour, openings, put):
@@ -2242,11 +2242,12 @@ def bush(x, z, rng):
     box(x - s / 2, 0, z - s / 2, x + s / 2, rng.uniform(1.0, 1.5), z + s / 2, "leaves")
 
 
-def car_stack(x, z, yaw, n, rng):
+def car_stack(x, z, yaw, n, rng, kind=None):
     """Wrecked cars stacked n high (junkyard walls)."""
     with group():
         for k in range(n):
-            obox(x, 0.55 + k * 1.1, z, 1.9, 1.1, 4.2, yaw + rng.uniform(-6, 6), ("car_a", "car_b", "rust")[rng.randrange(3)])
+            obox(x, 0.55 + k * 1.1, z, 1.9, 1.1, 4.2, yaw + rng.uniform(-6, 6), ("car_a", "car_b", "rust")[rng.randrange(3)],
+                 kind=kind)
 
 
 def truck(x, z, yaw):
@@ -3683,22 +3684,24 @@ def main():
     # a crusher and the office
     jx0, jz0, jx1, jz1 = 298.0, 262.0, 346.0, 294.0
     areas.append(("Junkyard", jx0, jz0, jx1, jz1))
-    wall_x(jx0, jx1, jz0, 0.0, 2.4, "rust", [(320.0, 4.0, 0.0, 2.4)], t=0.2)
-    wall_x(jx0, jx1, jz1, 0.0, 2.4, "rust", [(330.5, 5.0, 0.0, 2.4)], t=0.2)
-    wall_z(jz0, jz1, jx0, 0.0, 2.4, "rust", [(278.5, 5.0, 0.0, 2.4)], t=0.2)
-    wall_z(jz0, jz1, jx1, 0.0, 2.4, "rust", t=0.2)
     with modeled("junk_office", 305.5, 268.5):
         # The junkyard office (World art 0.17): the yard man's hut, its door on the yard. Bombed: the roof's gone,
         # a shell through the east wall.
         build(Building("JunkOffice", 300.5, 264.5, 10, 8, colour="wall", rooms=(1, 1), doors="S", blasts=[(0, "E", 0)],
                        caved=[(0, 0)]), [("crate", 0, 0, 0, "N", 0)])
         junk_office_furniture(305.5, 268.5)
-    for z, xs in ((270, (316, 321, 326, 336, 341)), (278, (310, 315, 330, 335, 340)), (286, (304, 309, 320, 325, 338))):
-        for x in xs:
-            car_stack(x, z, 90, rng.randint(1, 3), rng)
-    box(341.2, 0, 265.2, 342.8, 12.0, 266.8, "metal")                           # crane tower and its boom
-    box(326, 11.4, 265.6, 343, 12.0, 266.4, "metal", solid=False)
-    box(304, 0, 290, 312, 3.0, 293.5, "concrete")                               # crusher
+    with modeled("junkyard", 322.0, 278.0):
+        # (World art 0.17: the fence, the wrecks, the crane and the crusher are the junkyard's model.)
+        wall_x(jx0, jx1, jz0, 0.0, 2.4, "rust", [(320.0, 4.0, 0.0, 2.4)], t=0.2, kind="jy_fence")
+        wall_x(jx0, jx1, jz1, 0.0, 2.4, "rust", [(330.5, 5.0, 0.0, 2.4)], t=0.2, kind="jy_fence")
+        wall_z(jz0, jz1, jx0, 0.0, 2.4, "rust", [(278.5, 5.0, 0.0, 2.4)], t=0.2, kind="jy_fence")
+        wall_z(jz0, jz1, jx1, 0.0, 2.4, "rust", t=0.2, kind="jy_fence")
+        for z, xs in ((270, (316, 321, 326, 336, 341)), (278, (310, 315, 330, 335, 340)), (286, (304, 309, 320, 325, 338))):
+            for x in xs:
+                car_stack(x, z, 90, rng.randint(1, 3), rng, kind="jy_car")
+        box(341.2, 0, 265.2, 342.8, 12.0, 266.8, "metal", kind="jy_crane")          # crane tower and its boom
+        box(326, 11.4, 265.6, 343, 12.0, 266.4, "metal", solid=False, kind="jy_boom")
+        box(304, 0, 290, 312, 3.0, 293.5, "concrete", kind="jy_crusher")             # crusher
     add_loot("Junkyard", "crate", 328.0, 274.0, yaw=0.0)
     add_loot("Junkyard", "crate", 312.0, 282.0, yaw=180.0)
     add_loot("Junkyard", "crate", 343.0, 282.0, yaw=90.0)

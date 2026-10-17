@@ -19732,6 +19732,206 @@ SHELLS["junk_office"] = {
 }
 
 
+# ------------------------------------------------------------------------------------------------ junkyard (0.17)
+# The junkyard's yard (bottom right, the bombed quarter): the fence, the stacked wrecks, the crane and the crusher,
+# origin (322, 278), local x -24..24, z -16..16 (the office is its own model). No walls of its own: every piece is a
+# prop over its gray box, so it collides as before.
+JY_FP = (-24.0, -16.0, 24.0, 16.0)
+JY_CAR = {"car_a": "wine", "car_b": "police_navy", "rust": "gs_burnt"}
+
+
+def jy_decals(rng):
+    a = Atlas(256)
+
+    def sized(text, scale, pad):
+        w = Canvas.text_width(text, scale) + pad
+        return w + (w - Canvas.text_width(text, scale)) % 2
+
+    def sign(key, text, bg, fg):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            c.frame(0, 0, c.w, c.h, fg)
+            mo_text(c, 3, text, fg, 1)
+            c.blotch(["rust"], 3, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 2))
+        a.add(key, sized(text, 1, 8), 11, f)
+
+    def stripes(c):         # hazard stripes for the crusher
+        for y in range(c.h):
+            for x in range(c.w):
+                c.put(x, y, "hazard_yellow" if ((x + y) // 4) % 2 else "black")
+        c.blotch(["rust", "iron_dark"], 4, rng, size=(1, 3))
+
+    def stain(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - c.w / 2, y - c.h / 2) / (c.w / 2) + rng.uniform(-0.2, 0.2)
+                if d < 0.85 and rng.random() < 0.9 - d * 0.6:
+                    c.put(x, y, "black" if d < 0.5 else "iron_dark")
+    sign("keepout", "KEEP OUT", "bone", "red")
+    sign("crusher", "DANGER", "hazard_yellow", "black")
+    a.add("stripes", 32, 8, stripes)
+    a.add("stain", 48, 48, stain)
+    return a
+
+
+def prop_jy_fence(ctx, c, s):
+    """The yard fence: rusty corrugated sheets (1 m) on posts and two rails, their tops ragged, some dented or
+    holed; barbed wire along the top."""
+    b, rng = ctx.b, random.Random(f"jy_fence{c[0]:.1f}{c[2]:.1f}")
+    along = 0 if s[0] >= s[2] else 2
+    L, t = s[along], min(s[0], s[2])
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+
+    def P(a, y, d=0.0):
+        return (c[0] + a, y, c[2] + d) if along == 0 else (c[0] + d, y, c[2] + a)
+
+    def S(la, h, d):
+        return (la, h, d) if along == 0 else (d, h, la)
+    n = max(1, int(round(L / 1.0)))
+    w = L / n
+    for k in range(n):
+        a = -L / 2 + w * (k + 0.5)
+        h = s[1] - rng.uniform(0.0, 0.3)
+        b.box(P(a, y0 + h / 2, rng.uniform(-0.03, 0.03)), S(w + 0.02, h, 0.04), pitch=0,
+              style=lambda n_, m, q: ("shed_metal", uv_world(1.0)) if abs(n_[1]) < 0.7 else ("trim_dark", uv_world(1.0)))
+    for k in range(int(L / 3.0) + 1):
+        a = -L / 2 + min(L, k * 3.0)
+        b.box(P(a, (y0 + top + 0.4) / 2, 0.08), S(0.1, top + 0.4 - y0, 0.1), style=_nb("trim_dark"))
+    for y in (0.5, 2.0):
+        b.box(P(0.0, y0 + y, 0.08), S(L, 0.08, 0.05), style=_nb("trim_dark"))
+    for y in (top + 0.15, top + 0.32):
+        b.box(P(0.0, y, 0.08), S(L, 0.015, 0.015), style=_nb("trim_dark"))
+
+
+def prop_jy_car(ctx, c, s):
+    """A wreck in the stacks: the body (its old colour under the rust), the roof crushed down, no glass, a door or
+    wheel missing; the ones higher up flatter."""
+    b = ctx.b
+    rng = random.Random(f"jy_car{c[0]:.2f}{c[1]:.2f}{c[2]:.2f}")
+    yaw = ctx.row.get("yaw", 0.0)
+    y0 = c[1] - s[1] / 2
+    col = JY_CAR.get(ctx.row["colour"], "gs_burnt")
+    if rng.random() < 0.35:
+        col = "gs_burnt"
+
+    def P(along, across, y):
+        o = rot((across, 0, along), yaw, 0)
+        return (c[0] + o[0], y0 + y, c[2] + o[2])
+    W, L = s[0] - 0.05, s[2] - 0.05
+    body = lambda n, m, q: (col, uv_world(1.0)) if n[1] > -0.7 else None
+    b.box(P(0, 0, 0.42), (W, 0.6, L), yaw=yaw, style=body)
+    crush = rng.uniform(0.15, 0.4)
+    b.box(P(0.2, 0, 0.72 + crush / 2), (W - 0.2, crush, L * 0.45), yaw=yaw, pitch=rng.uniform(-5, 5),
+          style=lambda n, m, q: (col, uv_world(1.0)) if n[1] > 0.7 else ("black", uv_world(1.0)))
+    b.box(P(-L / 2 + 0.6, 0, 0.74), (W - 0.05, 0.06, 1.1), yaw=yaw, pitch=rng.uniform(-12, 4), style=_nb(col))   # bonnet
+    for along in (-L / 2 + 0.75, L / 2 - 0.8):
+        for sx in (-1, 1):
+            if rng.random() < 0.3:
+                continue
+            b.box(P(along, sx * (W / 2 - 0.08), 0.28), (0.22, 0.5, 0.6), yaw=yaw, style=_nb("black"))
+    b.box(P(L / 2 - 0.02, 0, 0.45), (W - 0.1, 0.18, 0.06), yaw=yaw, style=_nb("trim_dark"))
+    b.box(P(-L / 2 + 0.02, 0, 0.45), (W - 0.1, 0.18, 0.06), yaw=yaw, style=_nb("steel_light"))
+
+
+def prop_jy_crane(ctx, c, s):
+    """The crane's lattice tower (faded yellow), the operator's cab and the counterweight at the top."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    h = s[0] / 2 - 0.08
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            _box(b, c[0] + sx * h, c[1], c[2] + sz * h, 0.14, s[1], 0.14, "yellow")
+    k = 0
+    y = y0 + 0.2
+    while y < top - 1.4:
+        y1 = y + 1.2
+        for face in range(4):
+            sx, sz = ((1, 0), (-1, 0), (0, 1), (0, -1))[face]
+            if sx:
+                p0, p1 = (c[0] + sx * h, y, c[2] - h), (c[0] + sx * h, y1, c[2] + h)
+                if k % 2:
+                    p0, p1 = (p0[0], y, c[2] + h), (p1[0], y1, c[2] - h)
+            else:
+                p0, p1 = (c[0] - h, y, c[2] + sz * h), (c[0] + h, y1, c[2] + sz * h)
+                if k % 2:
+                    p0, p1 = (c[0] + h, y, p0[2]), (c[0] - h, y1, p1[2])
+            _beam(b, p0, p1, 0.06, 0.06, "yellow")
+        _box(b, c[0], y1, c[2], s[0], 0.06, s[2], "yellow")
+        y, k = y1, k + 1
+    _box(b, c[0] - 1.1, top - 1.0, c[2] + 1.0, 1.4, 1.4, 1.2, "yellow")                     # cab
+    _box(b, c[0] - 1.8, top - 0.9, c[2] + 1.0, 0.02, 0.6, 1.0, "glass")
+    _box(b, c[0] + 2.2, top - 0.2, c[2], 1.6, 1.0, 1.2, "concrete")                        # counterweight
+
+
+def prop_jy_boom(ctx, c, s):
+    """The boom: a lattice girder out over the stacks, the cable down to the electromagnet, a car still hanging."""
+    b = ctx.b
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    for y in (y0 + 0.04, y1 - 0.04):
+        for dz in (-s[2] / 2 + 0.05, s[2] / 2 - 0.05):
+            _box(b, c[0], y, c[2] + dz, s[0], 0.08, 0.08, "yellow")
+    x = x0
+    k = 0
+    while x < x1 - 0.8:
+        _beam(b, (x, y0 + 0.04, c[2]), (x + 0.8, y1 - 0.04, c[2]) if k % 2 == 0 else (x + 0.8, y0 + 0.04, c[2]), 0.05, 0.05, "yellow")
+        _box(b, x, c[1], c[2], 0.06, s[1], s[2], "yellow")
+        x, k = x + 0.8, k + 1
+    hx = x0 + 3.0
+    _box(b, hx, (y0 + 6.0) / 2, c[2], 0.04, y0 - 6.0, 0.04, "trim_dark")                      # cable
+    _box(b, hx, 5.9, c[2], 1.2, 0.3, 1.2, "trim_dark")                                         # magnet
+    b.box((hx, 5.1, c[2]), (1.8, 1.0, 3.8), yaw=8, pitch=6, style=_nb("gs_burnt"))             # its car
+
+
+def prop_jy_crusher(ctx, c, s):
+    """The car crusher: a steel chamber with its lid up on two rams, a cube of crushed cars on the bed, the control
+    box, hazard stripes."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.box((c[0], y0 + 0.6, c[2]), (s[0], 1.2, s[2]), style=_nb("trim_dark"))                   # bed
+    for z in (z0 + 0.15, z1 - 0.15):
+        _box(b, c[0], y0 + 2.0, z, s[0], 1.6, 0.3, "olive_dark")                              # chamber sides
+    _box(b, x1 - 0.3, y0 + 2.0, c[2], 0.6, 1.6, s[2] - 0.6, "olive_dark")
+    for x in (x0 + 1.0, x0 + 4.0):
+        _box(b, x, top + 0.6, c[2], 0.25, 1.2, 0.25, "steel_light")                            # rams
+    b.box((c[0] - 0.5, top + 1.2, c[2]), (s[0] - 1.5, 0.3, s[2] - 0.4), pitch=0, style=_nb("olive_dark"))   # lid, up
+    for k in range(3):                                                                       # crushed cubes
+        _box(b, x0 + 1.4 + k * 1.6, y0 + 1.6, c[2], 1.3, 0.8, 1.6, ("wine", "police_navy", "gs_burnt")[k])
+    _box(b, x0 - 0.4, y0 + 0.8, z0 + 0.6, 0.6, 1.6, 0.6, "olive_dark")                         # control box
+    for z, nz in ((z0 - 0.01, -1), (z1 + 0.01, 1)):
+        wall_quad(b, (0, 0, nz), z, x0, x1, y0 + 1.0, y0 + 1.25, "decals", ctx.d("stripes"))
+    wall_quad(b, (0, 0, -1), z0 - 0.17, c[0] - 0.9, c[0] + 0.9, y0 + 2.0, y0 + 2.0 + 11 / 32, "decals", ctx.d("crusher"))
+
+
+def dress_junkyard(ctx):
+    """Oil on the ground between the stacks, tyres in heaps, loose parts; KEEP OUT on the gate."""
+    b, rng = ctx.b, random.Random("jy_dress")
+    for _ in range(10):
+        x, z = rng.uniform(-20, 20), rng.uniform(-12, 12)
+        b.poly([(x - 0.75, 0.03, z - 0.75), (x - 0.75, 0.03, z + 0.75), (x + 0.75, 0.03, z + 0.75), (x + 0.75, 0.03, z - 0.75)],
+               (0, 1, 0), "graffiti", ctx.d("stain"))
+    for x, z in ((-19.0, -4.0), (8.0, 12.5), (19.0, 3.0)):
+        for k in range(6):
+            for a in range(4):
+                _box(b, x + (k % 3) * 0.75, 0.1 + (k // 3) * 0.2, z + (k // 3) * 0.3, 0.68, 0.2, 0.26, "black", yaw=a * 45)
+    for _ in range(18):
+        _box(b, rng.uniform(-22, 22), 0.05, rng.uniform(-14, 14), rng.uniform(0.2, 0.6), 0.1, rng.uniform(0.1, 0.4),
+             rng.choice(("steel_light", "trim_dark", "gs_burnt")), yaw=rng.uniform(0, 180), pitch=rng.uniform(-10, 10))
+    r = ctx.decals.regions["keepout"]
+    w = (r[2] - r[0]) * ctx.decals.c.w / 32
+    wall_quad(b, (0, 0, -1), -16.0 - 0.06, -4.0 - w / 2 - 2.2, -4.0 + w / 2 - 2.2, 1.3, 1.3 + 11 / 32, "decals", ctx.d("keepout"))
+
+
+for _kind, _fn in {"jy_fence": prop_jy_fence, "jy_car": prop_jy_car, "jy_crane": prop_jy_crane, "jy_boom": prop_jy_boom,
+                   "jy_crusher": prop_jy_crusher}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+DECALS["junkyard"] = jy_decals
+DRESSING["junkyard"] = dress_junkyard
+FOOTPRINTS["junkyard"] = JY_FP
+
+
 def floor_debris(ctx, data, name):
     """Small bits of the building lying about on every floor (round 6, owner: "add actual small bits of debris so it
     feels like it's been bombed"): clusters of plaster and brick chips and a bit of dust, kept off furniture. Picture
