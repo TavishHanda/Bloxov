@@ -12807,7 +12807,8 @@ def _wc_put(b, c, f, along, out, y, w, h, d, mat, bottom=False):
 def prop_wc_toilet(ctx, c, s):
     """A white toilet: the cistern against the wall, the bowl and its seat (lid up), a paper roll on the wall."""
     b = ctx.b
-    f, w, d = _wc_face(ctx, c, s)
+    # (cabin round 2, owner: "it's facing the sink": a toilet is deeper than it's wide, so it faces along its long side)
+    f, d, w = _wc_face(ctx, c, (s[2], s[1], s[0]))
     y0 = c[1] - s[1] / 2
     back = -d / 2
     _wc_put(b, c, f, 0, back + 0.1, y0 + 0.6, 0.44, 0.4, 0.2, "bone")                  # cistern
@@ -15303,20 +15304,47 @@ FACTION_MARKS["shed"] = [("nova_tag", "N", -4.0, 1.0)]
 # log ends crossing at the corners, a steep tin roof (picture only, the flat slab still collides) running on over the
 # porch, the fieldstone chimney on the east gable. Inside: main room (stove, kitchen corner, table, the empty gun
 # rack, radio shelf) and the bunk room with its washroom; the owner left in a hurry. CABIN_LOOKS are the outside
-# options (worldart/options-cabin.png); the log/tin kits take their colours from the look, so switching looks means
-# deleting art_source/textures/kit/cabin_*.png first.
+# options (worldart/options-cabin.png). Owner 2026-10-17: D for the east cabin, B saved for the cabins in the
+# bottom-left woods. Each look has its own log/bark/tin kits (cabin_logs_b, cabin_logs_d...), so cabins in different
+# looks can stand on one map; CABIN_MODELS says which look each cabin model takes (BLOXOV_CABIN_LOOK overrides it, for
+# option sheets).
 CABIN_LOOKS = {
-    "B": {"log": ("a0703f", "b07e4a", "835a32", "64432a"), "chink": "9c9484", "tin": ("4c5c45", "3d4b38"), "trim": "wood_dark"},
-    "C": {"log": ("8b857a", "9a948a", "736d63", "5a554d"), "chink": "a39d90", "tin": ("7b4b32", "653d29"), "trim": "wood_dark"},
-    "D": {"log": ("5c3f2a", "6d4c33", "4b3323", "37261b"), "chink": "b0a896", "tin": ("883a2e", "703026"), "trim": "bone"},
+    "B": {"log": ("a0703f", "b07e4a", "835a32", "64432a"), "chink": "9c9484", "tin": ("4c5c45", "3d4b38"), "trim": "wood_dark",
+          "shutter": "wood_dark"},
+    "C": {"log": ("8b857a", "9a948a", "736d63", "5a554d"), "chink": "a39d90", "tin": ("7b4b32", "653d29"), "trim": "wood_dark",
+          "shutter": "wood_dark"},
+    "D": {"log": ("5c3f2a", "6d4c33", "4b3323", "37261b"), "chink": "b0a896", "tin": ("883a2e", "703026"), "trim": "bone",
+          "shutter": "wine"},
 }
-CABIN_LOOK = os.environ.get("BLOXOV_CABIN_LOOK", "B")
-CL = CABIN_LOOKS[CABIN_LOOK]
-PALETTE.update({
-    "clog": CL["log"][0], "clog_light": CL["log"][1], "clog_dark": CL["log"][2], "clog_shadow": CL["log"][3],
-    "clog_chink": CL["chink"], "ctin": CL["tin"][0], "ctin_dark": CL["tin"][1],
-})
-CAB_TRIM = CL["trim"]
+CABIN_MODELS = {"cabin_east": "D"}
+_CS = [""]                     # the palette suffix the cabin painters use right now ("_d")
+for _l, _c in CABIN_LOOKS.items():
+    _sfx = "_" + _l.lower()
+    PALETTE.update({
+        "clog" + _sfx: _c["log"][0], "clog_light" + _sfx: _c["log"][1], "clog_dark" + _sfx: _c["log"][2],
+        "clog_shadow" + _sfx: _c["log"][3], "clog_chink" + _sfx: _c["chink"], "ctin" + _sfx: _c["tin"][0],
+        "ctin_dark" + _sfx: _c["tin"][1],
+    })
+
+
+def cab_look(name=None):
+    """The look letter of a cabin model (the one being built by default)."""
+    return os.environ.get("BLOXOV_CABIN_LOOK") or CABIN_MODELS.get(name or BUILDING_NAME[0], "B")
+
+
+def ckit(kit):
+    """The current cabin's own kit of that kind: ckit("cabin_logs") -> "cabin_logs_d"."""
+    return kit + "_" + cab_look().lower()
+
+
+def cab_trim():
+    return CABIN_LOOKS[cab_look()]["trim"]
+
+
+def _cp(n):
+    return n + _CS[0]
+
+
 CAB_ROOF_T = 0.625            # tan(32 deg): the roof's pitch
 CAB_TOP = 3.0                 # wall tops (the flat slab's top)
 CAB_RIDGE = CAB_TOP + 5.15 * CAB_ROOF_T
@@ -15325,8 +15353,8 @@ CAB_RIDGE = CAB_TOP + 5.15 * CAB_ROOF_T
 def paint_cabin_logs(rng):
     """Round logs 0.25 m high (8 px at 2 m a tile): a lit top, shaded underside, pale chinking between, checks and
     knots, the odd darker log."""
-    c = Canvas(64, 64, "clog")
-    shade = {0: "clog_chink", 1: "clog_shadow", 2: "clog_dark", 3: "clog", 4: "clog", 5: "clog_light", 6: "clog_light", 7: "clog"}
+    c = Canvas(64, 64, _cp("clog"))
+    shade = {0: _cp("clog_chink"), 1: _cp("clog_shadow"), 2: _cp("clog_dark"), 3: _cp("clog"), 4: _cp("clog"), 5: _cp("clog_light"), 6: _cp("clog_light"), 7: _cp("clog")}
     for y in range(64):
         for x in range(64):
             c.put(x, y, shade[y % 8])
@@ -15335,50 +15363,60 @@ def paint_cabin_logs(rng):
         if rng.random() < 0.3:                                            # a log a shade darker
             for x in range(64):
                 for y in range(y0 + 3, y0 + 7):
-                    if c.get(x, y) == "clog_light":
-                        c.put(x, y, "clog")
-                    elif c.get(x, y) == "clog":
-                        c.put(x, y, "clog_dark")
+                    if c.get(x, y) == _cp("clog_light"):
+                        c.put(x, y, _cp("clog"))
+                    elif c.get(x, y) == _cp("clog"):
+                        c.put(x, y, _cp("clog_dark"))
         for _ in range(rng.randint(1, 2)):                                # checks (long cracks along the log)
             x, y, n = rng.randrange(64), y0 + rng.choice((3, 4, 5)), rng.randrange(6, 16)
             for k in range(n):
-                c.put((x + k) % 64, y, "clog_shadow")
+                c.put((x + k) % 64, y, _cp("clog_shadow"))
         if rng.random() < 0.6:                                            # a knot
             x = rng.randrange(1, 62)
-            c.rect(x, y0 + 3, x + 2, y0 + 5, "clog_shadow")
-            c.put(x + 2, y0 + 4, "clog_dark")
-    c.noise(0, 0, 64, 64, ["clog_dark"], 0.04, rng)
-    c.blotch(["clog_dark"], 4, rng, area=(0, 0, 64, 10), size=(2, 4))  # splash dirt low down
+            c.rect(x, y0 + 3, x + 2, y0 + 5, _cp("clog_shadow"))
+            c.put(x + 2, y0 + 4, _cp("clog_dark"))
+    c.noise(0, 0, 64, 64, [_cp("clog_dark")], 0.04, rng)
+    c.blotch([_cp("clog_dark")], 4, rng, area=(0, 0, 64, 10), size=(2, 4))  # splash dirt low down
     return c
 
 
 def paint_cabin_bark(rng):
     """The log ends' sides (corners, posts, joists): rough, no chinking."""
-    c = Canvas(64, 64, "clog")
-    c.noise(0, 0, 64, 64, ["clog_dark", "clog_light"], 0.18, rng)
+    c = Canvas(64, 64, _cp("clog"))
+    c.noise(0, 0, 64, 64, [_cp("clog_dark"), _cp("clog_light")], 0.18, rng)
     for _ in range(14):
         x, y = rng.randrange(64), rng.randrange(64)
         for k in range(rng.randrange(4, 10)):
-            c.put((x + k) % 64, y, "clog_shadow")
+            c.put((x + k) % 64, y, _cp("clog_shadow"))
     return c
 
 
 def paint_cabin_tin(rng):
     """Corrugated tin roofing: ribs every 0.19 m, faded, rust at the laps and along the bottom edge."""
-    c = Canvas(64, 64, "ctin")
+    c = Canvas(64, 64, _cp("ctin"))
     for x in range(0, 64, 3):
-        c.rect(x, 0, x + 1, 64, "ctin_dark")
-    c.rect(0, 31, 64, 32, "ctin_dark")                                    # a lap between sheets
+        c.rect(x, 0, x + 1, 64, _cp("ctin_dark"))
+    c.rect(0, 31, 64, 32, _cp("ctin_dark"))                                    # a lap between sheets
     c.blotch(["frust"], 5, rng, area=(0, 0, 64, 12), size=(2, 5))
     c.blotch(["frust"], 3, rng, area=(0, 28, 64, 34), size=(2, 4))
     c.noise(0, 0, 64, 64, ["frust"], 0.015, rng)
     return c
 
 
-KIT.update({"cabin_logs": paint_cabin_logs, "cabin_bark": paint_cabin_bark, "cabin_tin": paint_cabin_tin})
+def _cab_painter(fn, look):
+    def paint(rng):
+        _CS[0] = "_" + look.lower()
+        return fn(rng)
+    return paint
+
+
+for _l in sorted(set(CABIN_MODELS.values()) | set(filter(None, [os.environ.get("BLOXOV_CABIN_LOOK")]))):
+    for _k, _fn in (("cabin_logs", paint_cabin_logs), ("cabin_bark", paint_cabin_bark), ("cabin_tin", paint_cabin_tin)):
+        KIT[_k + "_" + _l.lower()] = _cab_painter(_fn, _l)
 
 
 def cabin_decals(rng):
+    _CS[0] = "_" + cab_look().lower()
     a = Atlas(256)
     a.add("logend", 10, 10, _cab_logend)
     a.add("map", 40, 28, lambda c: _cab_map(c, random.Random("cabmap")))
@@ -15399,7 +15437,7 @@ def _cab_logend(c):
             if d > 5.0:
                 c.put(x, y, "clear")
             elif d > 4.0:
-                c.put(x, y, "clog_shadow")
+                c.put(x, y, _cp("clog_shadow"))
             else:
                 c.put(x, y, "wood_light" if int(d * 1.6) % 2 else "wood_pale")
     c.put(4, 4, "wood_mid")
@@ -15487,9 +15525,10 @@ def _cab_hole(c):
         c.put(x, y, "wood_pale")
 
 
-def cab_log(ctx, p0, p1, r, mat="cabin_bark", ends=True):
+def cab_log(ctx, p0, p1, r, mat=None, ends=True):
     """A round log (octagon) from p0 to p1, its cut ends showing the rings."""
     b = ctx.b
+    mat = mat or ckit("cabin_bark")
     d = norm(v_sub(p1, p0))
     u = (0.0, 1.0, 0.0) if abs(d[1]) < 0.9 else (1.0, 0.0, 0.0)
     v = norm(cross(d, u))
@@ -15513,16 +15552,16 @@ def cabin_row(ctx, row):
     if row["colour"] != "wood" or row.get("kind") or row["pitch"] or row["size"][1] < 0.5:
         return False
     c, s = row["pos"], row["size"]
-    base = wall_style(ctx.footprint, "cabin_logs", lambda m: "cabin_logs")
+    base = wall_style(ctx.footprint, ckit("cabin_logs"), lambda m: ckit("cabin_logs"))
 
     def style(n, mid, corners):
         got = base(n, mid, corners)
         if got is None:
             return None
         if got[0] == "trim":
-            return ("wood_light" if abs(n[1]) < 0.7 else "cabin_bark", uv_world(1.0))
-        if got[0] == "cabin_logs":
-            return ("cabin_logs", uv_world(2.0, (0.0, 0.0625 if abs(n[0]) > 0.7 else 0.0)))
+            return ("wood_light" if abs(n[1]) < 0.7 else ckit("cabin_bark"), uv_world(1.0))
+        if got[0] == ckit("cabin_logs"):
+            return (ckit("cabin_logs"), uv_world(2.0, (0.0, 0.0625 if abs(n[0]) > 0.7 else 0.0)))
         return got
     split_box(ctx.b, c, s, wet_wall_style(ctx, style), (-6.5, 0.0, 6.5), (-5.0, 5.0), (3.0,))
     return True
@@ -15697,7 +15736,7 @@ def prop_cabin_radio_shelf(ctx, c, s):
 
 
 def prop_cabin_bunk(ctx, c, s):
-    """A two-high bunk of pine poles: straw mattresses, wool blankets (the top one dragged half off), a pillow, the
+    """A two-high bunk of pine poles: straw mattresses, wool blankets, a pillow, the
     ladder at the foot."""
     b, rng = ctx.b, random.Random("cabbunk")
     y0 = c[1] - s[1] / 2
@@ -15713,7 +15752,6 @@ def prop_cabin_bunk(ctx, c, s):
         _box(b, x0 + 0.3, y + 0.23, c[2], 0.35, 0.1, s[2] - 0.35, "bone")             # pillow (head west)
     _box(b, c[0] + 0.2, y0 + 0.555, c[2], s[0] - 0.7, 0.03, s[2] - 0.12, "wine")       # blanket, made
     b.box((c[0] + 0.25, y0 + 1.455, c[2] - 0.05), (s[0] - 0.8, 0.03, s[2] - 0.3), yaw=4, style=_solid("olive"))
-    b.box((c[0] + 0.3, y0 + 1.15, z1 + 0.04), (0.9, 0.55, 0.03), pitch=12, style=_solid("olive"))   # hanging off
     lx = x1 - 0.05                                                        # ladder at the foot
     for k in range(3):
         _box(b, lx + 0.01, y0 + 0.65 + k * 0.28, c[2], 0.04, 0.04, s[2] - 0.2, "wood")
@@ -15733,19 +15771,49 @@ def prop_cabin_cot(ctx, c, s):
         _box(b, c[0] + 0.2 + k * 0.16, y0 + 0.04, c[2] - 0.05, 0.11, 0.08, 0.28, "black")
 
 
+def _cab_coat(b, x, y, z, h, col, dark, sleeves=True, hood=False):
+    """A coat hanging off a peg on a west wall (front facing +x), its top at y: shoulders, collar, sleeves hanging at
+    its sides, a zip or button line, pockets."""
+    b.box((x + 0.06, y - 0.2, z), (0.1, 0.32, 0.42), style=_solid(col))                    # chest and shoulders
+    b.box((x + 0.06, y - 0.2 - (h - 0.3) / 2 - 0.16, z), (0.09, h - 0.3, 0.37), style=_solid(col))   # body
+    b.box((x + 0.06, y - 0.035, z), (0.11, 0.07, 0.2), style=_solid(dark))                  # collar
+    if hood:
+        b.box((x + 0.04, y - 0.1, z), (0.1, 0.24, 0.26), pitch=0.0, style=_solid(dark))
+    _box(b, x + 0.115, y - 0.2 - h / 2 + 0.15, z, 0.005, h - 0.2, 0.02, dark)               # zip / button line
+    for dz in (-0.1, 0.1):
+        _box(b, x + 0.112, y - h + 0.2, z + dz, 0.01, 0.12, 0.13, dark)                     # pockets
+    if sleeves:
+        for sg in (-1, 1):
+            b.box((x + 0.07, y - 0.12 - (h - 0.15) / 2, z + sg * 0.24), (0.08, h - 0.15, 0.08), style=_solid(col))
+            _box(b, x + 0.07, y - h + 0.03, z + sg * 0.24, 0.085, 0.05, 0.085, dark)       # cuffs
+    else:
+        for sg in (-1, 1):                                                                   # (a vest: armholes)
+            _box(b, x + 0.112, y - 0.25, z + sg * 0.17, 0.01, 0.16, 0.05, dark)
+
+
 def prop_cabin_gear(ctx, c, s):
-    """Pegs on the bunk room's west wall: a blaze-orange vest, a waxed jacket, a pack on the floor, waders."""
+    """Pegs on the bunk room's west wall: a red hunting vest, a waxed jacket, a hooded canvas coat; a pack on the
+    floor, waders standing by the wall."""
     b = ctx.b
     x = c[0] - s[0] / 2 + 0.02
     _box(b, x + 0.02, c[1] + 0.6, c[2], 0.04, 0.1, s[2], "wood_dark")    # peg rail
-    for k, (col, h) in enumerate((("red", 0.62), ("olive", 0.8), ("wood_dark", 0.7))):
+    for k, (col, dark, h, sleeves, hood) in enumerate((("red", "black", 0.6, False, False), ("olive", "olive_dark", 0.78, True, False),
+                                                       ("wood", "wood_dark", 0.72, True, True))):
         z = c[2] - s[2] / 2 + 0.2 + k * 0.4
-        _box(b, x + 0.08, c[1] + 0.62, z, 0.08, 0.04, 0.04, "wood")        # peg
-        b.box((x + 0.1, c[1] + 0.62 - h / 2, z), (0.08, h, 0.36), style=_solid(col))
-    _box(b, x + 0.22, c[1] - s[1] / 2 + 0.25, c[2] + 0.2, 0.3, 0.5, 0.4, "olive_dark")   # pack
-    _box(b, x + 0.22, c[1] - s[1] / 2 + 0.52, c[2] + 0.2, 0.32, 0.08, 0.42, "olive")
+        _box(b, x + 0.08, c[1] + 0.62, z, 0.1, 0.04, 0.04, "wood")         # peg
+        _cab_coat(b, x + 0.02, c[1] + 0.6, z, h, col, dark, sleeves, hood)
+    y0 = c[1] - s[1] / 2
+    px, pz = x + 0.24, c[2] + 0.3                                         # the pack, under the coats
+    b.box((px, y0 + 0.24, pz), (0.26, 0.48, 0.36), style=_nb("olive_dark"))
+    b.box((px + 0.02, y0 + 0.5, pz), (0.28, 0.07, 0.38), style=_nb("olive"))                 # flap
+    _box(b, px + 0.14, y0 + 0.2, pz, 0.04, 0.2, 0.24, "olive")                               # front pocket
+    for dz in (-0.1, 0.1):
+        _box(b, px - 0.135, y0 + 0.3, pz + dz, 0.02, 0.4, 0.04, "black")                     # straps
     for dz in (-0.12, 0.12):                                              # waders standing by the wall
-        _box(b, x + 0.12, c[1] - s[1] / 2 + 0.45, c[2] - s[2] / 2 + 0.15 + dz, 0.14, 0.9, 0.12, "olive_dark")
+        wz = c[2] - s[2] / 2 + 0.15 + dz
+        _box(b, x + 0.14, y0 + 0.42, wz, 0.13, 0.68, 0.12, "olive_dark")
+        _box(b, x + 0.18, y0 + 0.05, wz, 0.24, 0.1, 0.12, "black")                           # boot feet
+        _box(b, x + 0.14, y0 + 0.78, wz, 0.15, 0.05, 0.14, "olive")                           # rolled-down tops
 
 
 def prop_cabin_washstand(ctx, c, s):
@@ -15769,15 +15837,14 @@ def prop_cabin_washstand(ctx, c, s):
 
 
 def prop_cabin_porch(ctx, c, s):
-    """Plank deck on log joists, a step down at the door."""
+    """Plank deck on log joists, level with the floor inside (owner: you saw grass through the doorway)."""
     b = ctx.b
     y0 = c[1] - s[1] / 2
     top = y0 + s[1]
     b.box((c[0], top - 0.02, c[2]), (s[0], 0.04, s[2]), style=lambda n, m, q: None if n[1] < -0.7 else ("floor_wood", uv_world(2.0)))
-    b.box((c[0], (top - 0.04 + y0 - 0.3) / 2, c[2] + s[2] / 2 - 0.06), (s[0], top - 0.04 - y0 + 0.3, 0.12), style=_nb(CAB_TRIM))
+    b.box((c[0], (top - 0.04 + y0 - 0.3) / 2, c[2] + s[2] / 2 - 0.06), (s[0], top - 0.04 - y0 + 0.3, 0.12), style=_nb(cab_trim()))
     for x in (c[0] - s[0] / 2 + 0.06, c[0] + s[0] / 2 - 0.06):
-        b.box((x, (top - 0.04 + y0 - 0.3) / 2, c[2]), (0.12, top - 0.04 - y0 + 0.3, s[2]), style=_nb(CAB_TRIM))
-    b.box((3.25, y0 + 0.045, c[2] + s[2] / 2 + 0.2), (1.6, 0.09, 0.4), style=_nb("wood"))   # the step
+        b.box((x, (top - 0.04 + y0 - 0.3) / 2, c[2]), (0.12, top - 0.04 - y0 + 0.3, s[2]), style=_nb(cab_trim()))
 
 
 def prop_cabin_bench(ctx, c, s):
@@ -15800,7 +15867,7 @@ def prop_cabin_firewood(ctx, c, s):
             x = c[0] - s[0] / 2 + 0.12 + k * (s[0] - 0.24) / (per - 1)
             y = y0 + 0.09 + r * 0.17
             cab_log(ctx, (x + rng.uniform(-0.02, 0.02), y, c[2] - s[2] / 2 + 0.02 + rng.uniform(0, 0.04)),
-                    (x, y, c[2] + s[2] / 2 - 0.02), 0.08, mat="cabin_bark")
+                    (x, y, c[2] + s[2] / 2 - 0.02), 0.08, mat=ckit("cabin_bark"))
     for k in range(2):
         cab_log(ctx, (c[0] - 0.4 + k * 0.5, y0 + 0.08, c[2] + 0.5), (c[0] - 0.1 + k * 0.5, y0 + 0.08, c[2] + 0.85), 0.08)
 
@@ -15840,49 +15907,154 @@ def cabin_roof(ctx):
     for sg, eave in ((-1, -5.55), (1, 5.45)):
         top = [(xw, cab_roof_y(eave), eave), (xe, cab_roof_y(eave), eave), (xe, CAB_RIDGE, 0.0), (xw, CAB_RIDGE, 0.0)]
         n = norm((0, 1, sg * CAB_ROOF_T))
-        b.poly(top, n, "cabin_tin", uv_world(2.0))
+        b.poly(top, n, ckit("cabin_tin"), uv_world(2.0))
         under = [(p[0], p[1] - th, p[2]) for p in top]
         b.poly(under, v_scale(n, -1), "wood", uv_world(2.0))
-        b.poly([top[0], top[1], under[1], under[0]], (0, -CAB_ROOF_T, sg), CAB_TRIM, uv_world(1.0))   # eave fascia
+        b.poly([top[0], top[1], under[1], under[0]], (0, -CAB_ROOF_T, sg), cab_trim(), uv_world(1.0))   # eave fascia
         for x, nx in ((xw, -1), (xe, 1)):                                 # rake edges
             b.poly([(x, cab_roof_y(eave), eave), (x, CAB_RIDGE, 0.0), (x, CAB_RIDGE - th, 0.0), (x, cab_roof_y(eave) - th, eave)],
-                   (nx, 0, 0), CAB_TRIM, uv_world(1.0))
-            _beam(b, (x - nx * 0.02, cab_roof_y(eave) - 0.02, eave), (x - nx * 0.02, CAB_RIDGE - 0.02, 0.0), 0.06, 0.22, CAB_TRIM)
-    _beam(b, (xw - 0.05, CAB_RIDGE + 0.03, 0.0), (xe + 0.05, CAB_RIDGE + 0.03, 0.0), 0.36, 0.08, "cabin_tin")   # ridge cap
-    for x, nx in ((-6.65, -1), (6.65, 1)):                               # the log gables
-        tri = [(x, CAB_TOP, -5.15), (x, CAB_TOP, 5.15), (x, CAB_RIDGE - 0.12, 0.0)]
-        b.poly(tri, (nx, 0, 0), "cabin_logs", uv_world(2.0, (0.0, 0.0625)))
+                   (nx, 0, 0), cab_trim(), uv_world(1.0))
+            _beam(b, (x - nx * 0.02, cab_roof_y(eave) - 0.02, eave), (x - nx * 0.02, CAB_RIDGE - 0.02, 0.0), 0.06, 0.22, cab_trim())
+    _beam(b, (xw - 0.05, CAB_RIDGE + 0.03, 0.0), (xe + 0.05, CAB_RIDGE + 0.03, 0.0), 0.36, 0.08, ckit("cabin_tin"))   # ridge cap
+    for x, nx in ((-6.65, -1), (6.65, 1)):                               # the log gables, inside and out
+        win = CAB_LOFT_WINDOW if nx < 0 else None
+        for xf, nf in ((x, nx), (x - nx * 0.3, -nx)):
+            for pts in cab_gable(win):
+                b.poly([(xf, y, z) for z, y in pts], (nf, 0, 0), ckit("cabin_logs"), uv_world(2.0, (0.0, 0.0625)))
+        if win:
+            cab_loft_window(ctx, x, nx, win)
+            continue
         for dz in (-0.27, 0.27):                                          # a louvred vent up in the gable
-            _box(b, x + nx * 0.04, CAB_RIDGE - 1.6, dz, 0.06, 0.6, 0.06, CAB_TRIM)
+            _box(b, x + nx * 0.04, CAB_RIDGE - 1.6, dz, 0.06, 0.6, 0.06, cab_trim())
         for k in range(4):
             _box(b, x + nx * 0.05, CAB_RIDGE - 1.82 + k * 0.15, 0.0, 0.03, 0.12, 0.48, "wood", pitch=0.0)
-            _box(b, x + nx * 0.07, CAB_RIDGE - 1.84 + k * 0.15, 0.0, 0.05, 0.03, 0.48, CAB_TRIM)
+            _box(b, x + nx * 0.07, CAB_RIDGE - 1.84 + k * 0.15, 0.0, 0.05, 0.03, 0.48, cab_trim())
     # The porch roof, from the south eave down to the posts.
     z0, z1 = 5.45, 7.45
     y0, y1 = cab_roof_y(z0), cab_roof_y(z0) - (z1 - z0) * 0.176
     top = [(xw, y0, z0), (xe, y0, z0), (xe, y1, z1), (xw, y1, z1)]
     n = norm((0, 1, 0.176))
-    b.poly(top, n, "cabin_tin", uv_world(2.0))
+    b.poly(top, n, ckit("cabin_tin"), uv_world(2.0))
     under = [(p[0], p[1] - th, p[2]) for p in top]
     b.poly(under, v_scale(n, -1), "wood", uv_world(2.0))
-    b.poly([top[3], top[2], under[2], under[3]], (0, 0, 1), CAB_TRIM, uv_world(1.0))
+    b.poly([top[3], top[2], under[2], under[3]], (0, 0, 1), cab_trim(), uv_world(1.0))
     for x, nx in ((xw, -1), (xe, 1)):
         b.poly([top[0] if nx < 0 else top[1], top[3] if nx < 0 else top[2], under[3] if nx < 0 else under[2],
-                under[0] if nx < 0 else under[1]], (nx, 0, 0), CAB_TRIM, uv_world(1.0))
+                under[0] if nx < 0 else under[1]], (nx, 0, 0), cab_trim(), uv_world(1.0))
     py = y1 + (z1 - 7.15) * 0.176 - th
-    _beam(b, (xw + 0.1, py - 0.08, 7.15), (xe - 0.1, py - 0.08, 7.15), 0.16, 0.16, "cabin_bark")   # the beam
+    _beam(b, (xw + 0.1, py - 0.08, 7.15), (xe - 0.1, py - 0.08, 7.15), 0.16, 0.16, ckit("cabin_bark"))   # the beam
     for x in (-6.6, -2.3, 1.75, 4.6, 6.45):
-        cab_log(ctx, (x, 0.2, 7.15), (x, py - 0.16, 7.15), 0.09)
+        cab_log(ctx, (x, 0.06, 7.15), (x, py - 0.16, 7.15), 0.09)
     # Inside: plank ceiling under the slab, log joists across both rooms, a lantern hanging in each.
     yc = CAB_TOP - 0.25
-    for x0, x1 in ((-6.35, -0.1), (0.1, 6.35)):
-        b.poly([(x0, yc, -4.85), (x1, yc, -4.85), (x1, yc, 4.85), (x0, yc, 4.85)], (0, -1, 0), "wood", uv_world(2.0))
+    hx0, hz0, hx1, hz1 = CAB_HATCH
+    for x0, x1, z0, z1 in ((-6.35, hx0, -4.85, 4.85), (hx0, hx1, -4.85, hz0), (hx0, hx1, hz1, 4.85), (hx1, -0.1, -4.85, 4.85),
+                           (0.1, 6.35, -4.85, 4.85)):
+        b.poly([(x0, yc, z0), (x1, yc, z0), (x1, yc, z1), (x0, yc, z1)], (0, -1, 0), "wood", uv_world(2.0))
+    # The loft (owner 2026-10-17): plank floor on the slab round the hatch, the hatch's edges and trim, a ridge log.
+    for x0, x1, z0, z1 in ((-6.35, hx0, -4.85, 4.85), (hx0, hx1, -4.85, hz0), (hx0, hx1, hz1, 4.85), (hx1, 6.35, -4.85, 4.85)):
+        b.poly([(x0, CAB_TOP, z0), (x1, CAB_TOP, z0), (x1, CAB_TOP, z1), (x0, CAB_TOP, z1)], (0, 1, 0), "floor_wood", uv_world(2.0))
+    for p, nrm, la in (((hx0, hz0 + hz1), (1, 0, 0), hz1 - hz0), ((hx1, hz0 + hz1), (-1, 0, 0), hz1 - hz0),
+                       ((hx0 + hx1, hz0), (0, 0, 1), hx1 - hx0), ((hx0 + hx1, hz1), (0, 0, -1), hx1 - hx0)):
+        cx = p[0] if nrm[0] else p[0] / 2
+        cz = p[1] / 2 if nrm[0] else p[1]
+        b.box((cx, yc + 0.125, cz), (0.01, 0.25, la) if nrm[0] else (la, 0.25, 0.01), style=lambda n, m, q, nrm=nrm:
+              ("wood_dark", uv_world(1.0)) if dot(n, nrm) > 0.7 else None)
+    for x0, z0, x1, z1 in ((hx0 - 0.08, hz0 - 0.08, hx1 + 0.08, hz0), (hx0 - 0.08, hz1, hx1 + 0.08, hz1 + 0.08),
+                           (hx0 - 0.08, hz0, hx0, hz1), (hx1, hz0, hx1 + 0.08, hz1)):
+        b.box(((x0 + x1) / 2, yc - 0.015, (z0 + z1) / 2), (x1 - x0, 0.03, z1 - z0), style=_solid(cab_trim()))   # trim below
+        b.box(((x0 + x1) / 2, CAB_TOP + 0.015, (z0 + z1) / 2), (x1 - x0, 0.03, z1 - z0), style=_nb("wood_dark"))   # rim above
+    cab_log(ctx, (-6.35, CAB_RIDGE - 0.35, 0.0), (6.35, CAB_RIDGE - 0.35, 0.0), 0.13, ends=False)
+    for x in (-3.2, 0.0, 3.2):                                            # collar ties
+        cab_log(ctx, (x, 5.0, -1.62), (x, 5.0, 1.62), 0.07, ends=False)
     for x in (-4.3, -2.1, 2.1, 4.3):
         cab_log(ctx, (x, yc - 0.1, -4.85), (x, yc - 0.1, 4.85), 0.1, ends=False)
     for x, z in ((-2.1, 0.0), (2.1, -0.2)):
         _box(b, x, yc - 0.32, z, 0.01, 0.24, 0.01, "black")
         _box(b, x, yc - 0.52, z, 0.16, 0.2, 0.16, "trim")
         b.box((x, yc - 0.52, z), (0.11, 0.12, 0.11), style=lambda n, m, q: ("glass", uv_world(1.0)))
+
+
+CAB_HATCH = (-1.85, -2.0, -0.65, -1.0)     # the loft hatch (gen CAB_HATCH)
+CAB_LOFT_WINDOW = (-0.5, 0.5, 3.6, 4.5)     # the west gable's lookout window: z0, z1, y0, y1 (gen cabin_loft)
+
+
+def cab_gable(win=None):
+    """The gable triangle over the walls as (z, y) polygons, with a hole for a window (z0, z1, y0, y1)."""
+    top = CAB_RIDGE - 0.12
+    e = lambda y: 5.15 * (top - y) / (top - CAB_TOP)
+    if not win:
+        return [[(-5.15, CAB_TOP), (5.15, CAB_TOP), (0.0, top)]]
+    z0, z1, y0, y1 = win
+    return [[(-5.15, CAB_TOP), (5.15, CAB_TOP), (e(y0), y0), (-e(y0), y0)],
+            [(-e(y0), y0), (z0, y0), (z0, y1), (-e(y1), y1)],
+            [(z1, y0), (e(y0), y0), (e(y1), y1), (z1, y1)],
+            [(-e(y1), y1), (e(y1), y1), (0.0, top)]]
+
+
+def cab_loft_window(ctx, x, nx, win):
+    """The loft's lookout window: cut log ends round it, a plank casing and sill, its glass long gone but a few
+    shards, a sandbag on the sill inside."""
+    b = ctx.b
+    z0, z1, y0, y1 = win
+    xc = x - nx * 0.15
+    for z, nz in ((z0, 1), (z1, -1)):
+        b.poly([(x, y0, z), (x - nx * 0.3, y0, z), (x - nx * 0.3, y1, z), (x, y1, z)], (0, 0, nz), "wood_light", uv_world(1.0))
+    for y, ny in ((y0, 1), (y1, -1)):
+        b.poly([(x, y, z0), (x - nx * 0.3, y, z0), (x - nx * 0.3, y, z1), (x, y, z1)], (0, ny, 0), "wood_light", uv_world(1.0))
+    for z in (z0 - 0.05, z1 + 0.05):
+        _box(b, x + nx * 0.02, (y0 + y1) / 2, z, 0.04, y1 - y0 + 0.14, 0.1, cab_trim())
+    _box(b, x + nx * 0.02, y1 + 0.06, (z0 + z1) / 2, 0.04, 0.12, z1 - z0 + 0.2, cab_trim())
+    _box(b, x + nx * 0.05, y0 - 0.03, (z0 + z1) / 2, 0.12, 0.06, z1 - z0 + 0.2, "wood")
+    shards(ctx, z0, z1, y0, y1, x - nx * 0.1, "z", random.Random("cabloftwin"))
+    _box(b, xc - nx * 0.2, y0 + 0.08, (z0 + z1) / 2, 0.3, 0.16, 0.6, "cardboard")         # a sandbag to rest a rifle on
+
+
+def prop_cabin_knee(ctx, c, s):
+    """A plank knee wall where the loft's roof comes down low."""
+    ctx.b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("wood", uv_world(2.0)))
+    f = 1 if c[2] < 0 else -1                                             # (its face into the loft)
+    for y in (c[1] - s[1] / 2 + 0.06, c[1] + s[1] / 2 - 0.12):
+        _box(ctx.b, c[0], y, c[2] + f * (s[2] / 2 + 0.02), s[0], 0.12, 0.04, "wood_dark")   # sole and top plates
+    for x in range(-6, 7, 2):
+        _box(ctx.b, x, c[1], c[2] + f * (s[2] / 2 + 0.02), 0.08, s[1] - 0.1, 0.04, "wood_dark")   # studs
+
+
+def prop_cabin_loft_bed(ctx, c, s):
+    """A straw mattress on the loft floor, a bedroll and a rolled coat for a pillow."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    _box(b, c[0], y0 + 0.07, c[2], s[0], 0.14, s[2], "cardboard")
+    _box(b, c[0] + 0.2, y0 + 0.15, c[2], s[0] - 0.6, 0.04, s[2] - 0.1, "olive")
+    _box(b, c[0] - s[0] / 2 + 0.25, y0 + 0.2, c[2], 0.3, 0.14, s[2] - 0.3, "wood_dark")
+
+
+def prop_cabin_loft_stool(ctx, c, s):
+    """A stool at the lookout window, binoculars and a thermos on the floor by it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + s[1] - 0.03, c[2]), (0.36, 0.06, 0.36), style=_solid("wood"))
+    for dx in (-0.13, 0.13):
+        for dz in (-0.13, 0.13):
+            _box(b, c[0] + dx, y0 + (s[1] - 0.06) / 2, c[2] + dz, 0.04, s[1] - 0.06, 0.04, "wood_dark")
+    _box(b, c[0], y0 + s[1] + 0.04, c[2], 0.16, 0.08, 0.12, "black")                      # binoculars
+    _box(b, c[0] + 0.35, y0 + 0.12, c[2] + 0.1, 0.08, 0.24, 0.08, "green")                # thermos
+
+
+def prop_cabin_loft_crates(ctx, c, s):
+    """Two plank crates of odds and ends (empty: the loft has no loot), a coil of rope on top."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + s[1] / 2, c[2]), (s[0], s[1], s[2]), style=_nb("wood"))
+    for y in (y0 + 0.1, y0 + s[1] - 0.1):
+        _box(b, c[0], y, c[2], s[0] + 0.01, 0.05, s[2] + 0.01, "wood_dark")
+    _box(b, c[0], y0 + s[1] + 0.04, c[2], 0.3, 0.08, 0.3, "cardboard", yaw=20)
+
+
+PROPS["cabin_hidden"] = lambda ctx, c, s, k: None     # (the loft's collision: the roof, the gables)
+for _kind, _fn in {"cabin_knee": prop_cabin_knee, "cabin_loft_bed": prop_cabin_loft_bed,
+                   "cabin_loft_stool": prop_cabin_loft_stool, "cabin_loft_crates": prop_cabin_loft_crates}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
 
 
 def cabin_corners(ctx):
@@ -15923,15 +16095,15 @@ def cabin_openings(ctx, openings):
         a0, a1 = mid - w / 2, mid + w / 2
         if o["kind"] == "window":
             for a in (a0 - 0.04, a1 + 0.04):                              # plank casing outside
-                bx(a, (lo + hi) / 2, 0.17, 0.1, hi - lo + 0.12, 0.04, CAB_TRIM)
-            bx(mid, hi + 0.06, 0.17, w + 0.2, 0.12, 0.04, CAB_TRIM)
+                bx(a, (lo + hi) / 2, 0.17, 0.1, hi - lo + 0.12, 0.04, cab_trim())
+            bx(mid, hi + 0.06, 0.17, w + 0.2, 0.12, 0.04, cab_trim())
             bx(mid, lo - 0.04, 0.2, w + 0.2, 0.06, 0.12, "wood")          # sill
             f = 0.05
             for a in (a0 + f / 2, a1 - f / 2):                            # the sash
-                bx(a, (lo + hi) / 2, 0.0, f, hi - lo, 0.06, CAB_TRIM)
+                bx(a, (lo + hi) / 2, 0.0, f, hi - lo, 0.06, cab_trim())
             for y in (lo + f / 2, hi - f / 2, (lo + hi) / 2):
-                bx(mid, y, 0.0, w - 2 * f, f, 0.06, CAB_TRIM)
-            bx(mid, (lo + hi) / 2, 0.0, 0.04, hi - lo - 2 * f, 0.05, CAB_TRIM)
+                bx(mid, y, 0.0, w - 2 * f, f, 0.06, cab_trim())
+            bx(mid, (lo + hi) / 2, 0.0, 0.04, hi - lo - 2 * f, 0.05, cab_trim())
             for pa0, pa1 in ((a0 + f, mid - 0.02), (mid + 0.02, a1 - f)):
                 for py0, py1 in ((lo + f, (lo + hi) / 2 - 0.025), ((lo + hi) / 2 + 0.025, hi - f)):
                     if rng.random() < 0.25:
@@ -15946,9 +16118,9 @@ def cabin_openings(ctx, openings):
                 tilt = 0.0 if fate > 0.45 else sg * 9.0                   # one off its top hinge
                 c = P(sa, (lo + hi) / 2 - (0.05 if tilt else 0.0), 0.2)
                 b.box(c, (w / 2 - 0.02, hi - lo, 0.04) if ns else (0.04, hi - lo, w / 2 - 0.02), yaw=0.0,
-                      pitch=0.0, style=lambda n, m, q: ("wood_dark" if CABIN_LOOK != "D" else "wine", uv_world(1.0)))
+                      pitch=0.0, style=lambda n, m, q: (CABIN_LOOKS[cab_look()]["shutter"], uv_world(1.0)))
                 for y in (lo + 0.25, hi - 0.25):
-                    bx(sa, y, 0.225, w / 2 - 0.1, 0.1, 0.02, CAB_TRIM)
+                    bx(sa, y, 0.225, w / 2 - 0.1, 0.1, 0.02, cab_trim())
             if side == "W":                                               # boarded up from inside
                 for k, (y, tw) in enumerate(((lo + 0.15, 3), (lo + 0.55, -4), (lo + 0.95, 2))):
                     bx(mid, y, -0.2, w + 0.3, 0.16, 0.03, "wood_light", yaw=tw)
@@ -15959,6 +16131,7 @@ def cabin_openings(ctx, openings):
                 p = P(a, 0.0, 0.0)
                 cab_log(ctx, p, (p[0], hi, p[2]), 0.08, ends=False)
             cab_log(ctx, P(a0 - 0.1, hi + 0.06, 0.0), P(a1 + 0.1, hi + 0.06, 0.0), 0.09)
+            b.box(P(mid, 0.03, 0.0), (w, 0.06, 0.32) if ns else (0.32, 0.06, w), style=_nb("wood"))   # threshold board
             lw = w / 2 - 0.08
             # West leaf hanging open against the wall outside; east leaf kicked in, lying on the floor inside.
             hp = P(a0 + 0.1, 0.0, 0.25)
@@ -15986,7 +16159,7 @@ def _cab_leaf(b, c, w, h, yaw, lying):
               yaw=yaw, pitch=pitch, style=lambda n, m, q: ("wood_dark" if k % 2 else "wood", uv_world(1.0)))
     for dy in (-h / 2 + 0.3, h / 2 - 0.3):
         off = rot((0.0, dy, -0.035 if lying else 0.035), yaw, pitch)     # (lying: the ledges underneath)
-        b.box((c[0] + off[0], c[1] + off[1], c[2] + off[2]), (w - 0.06, 0.12, 0.03), yaw=yaw, pitch=pitch, style=_nb(CAB_TRIM))
+        b.box((c[0] + off[0], c[1] + off[1], c[2] + off[2]), (w - 0.06, 0.12, 0.03), yaw=yaw, pitch=pitch, style=_nb(cab_trim()))
 
 
 def dress_cabin(ctx):
@@ -16034,9 +16207,9 @@ DRESSING["cabin_east"] = dress_cabin
 FOOTPRINTS["cabin_east"] = (-6.5, -5.0, 6.5, 5.0)
 ENTRANCE_DOOR["cabin_east"] = "wood"
 OWN_OPENINGS.add("cabin_east")
-SHELLS["cabin_east"] = {"ext": "cabin_logs", "roof_hidden": True, "row_hook": cabin_row,
-                        "inner": lambda m: "wood" if m[0] < -4.3 and m[2] > 2.7 else "cabin_logs",   # (washroom: planks)
-                        "debris": ("wood_light", "cabin_bark", "wood", "wood_dark"),
+SHELLS["cabin_east"] = {"ext": "cabin_logs_" + cab_look("cabin_east").lower(), "roof_hidden": True, "row_hook": cabin_row,
+                        "inner": lambda m: "wood" if m[0] < -4.3 and m[2] > 2.7 else ckit("cabin_logs"),   # (washroom: planks)
+                        "debris": ("wood_light", "cabin_bark_" + cab_look("cabin_east").lower(), "wood", "wood_dark"),
                         "floor": lambda m: "floor_wood", "x_lines": (-6.5, 0.0, 6.5), "z_lines": (-5.0, 5.0),
                         "x_splits": (0.0,), "z_splits": ()}
 FACTION_MARKS["cabin_east"] = [("x1_chalk", "W", 2.6, 0.9)]

@@ -1771,11 +1771,48 @@ def cabin_furniture(ox, oz):
         ("wc_toilet", "W", 4.25, 0.5, 0.65, 0.8), ("wc_sink", "N", -5.75, 0.5, 0.4, 0.85)))
     # The fieldstone chimney on the east gable, outside the stove (solid like the walls; the stack is picture only).
     o(6.65, 0, -3.1, 7.75, 2.6, -1.9, "stone", "cabin_chimney")
-    # Porch along the front (picture only, on the building's flat pad): deck, posts, bench, chopping block, firewood.
-    o(-6.8, 0, 5.15, 6.8, 0.2, 7.2, "wood", "cabin_porch", solid=False)
-    o(-5.0, 0.2, 5.2, -3.4, 0.65, 5.6, "wood", "cabin_bench")
-    o(5.0, 0.2, 5.2, 6.6, 1.3, 5.75, "wood", "cabin_firewood")
-    o(4.9, 0.2, 6.3, 5.5, 0.7, 6.9, "wood", "cabin_block")
+    # Porch along the front (picture only, on the building's flat pad, level with the floor inside): deck, posts, bench,
+    # chopping block, firewood.
+    o(-6.8, 0, 5.15, 6.8, 0.06, 7.2, "wood", "cabin_porch", solid=False)
+    o(-5.0, 0.06, 5.2, -3.4, 0.51, 5.6, "wood", "cabin_bench")
+    o(5.0, 0.06, 5.2, 6.6, 1.16, 5.75, "wood", "cabin_firewood")
+    o(4.9, 0.06, 6.3, 5.5, 0.56, 6.9, "wood", "cabin_block")
+
+
+CAB_HATCH = (-1.85, -2.0, -0.65, -1.0)   # the loft hatch in the bunk room's ceiling (model-local x0, z0, x1, z1)
+CAB_PITCH = 32.0                         # the cabin's roof (make_building draws it: CAB_ROOF_T = tan 32)
+
+
+def cabin_loft(ox, oz):
+    """The east cabin's loft (owner 2026-10-17 picked "loft, no loot"): the flat roof slab is its floor, reached by a
+    ladder through a hatch in the bunk room's ceiling. The pitched roof (drawn by the model) gets collision here: its
+    two slopes, the gables (a lookout window in the west one, sill 0.6 m over the loft floor), and knee walls where
+    the roof comes down to 0.8 m, so nobody crawls into the eaves."""
+    def o(x0, y0, z0, x1, y1, z1, kind="cabin_hidden", colour="wood"):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, kind=kind)
+    t = math.tan(math.radians(CAB_PITCH))
+    for sg in (-1, 1):                    # the roof slopes: 0.2 m thick, their underside on the drawn roof's underside
+        zc = sg * 2.6
+        yc = 3.0 + (5.15 - 2.6) * t - 0.15 + 0.1 / math.cos(math.radians(CAB_PITCH))
+        obox(ox, yc, oz + zc, 14.0, 0.2, 6.4, 0.0, "wood", pitch=sg * CAB_PITCH, kind="cabin_hidden")
+    for sx in (-1, 1):                    # gables (stepped to sit inside the roof)
+        x0, x1 = (-6.65, -6.35) if sx < 0 else (6.35, 6.65)
+        if sx < 0:                        # the west one's window: z -0.5..0.5, y 3.6..4.5
+            o(x0, 3.0, -2.6, x1, 4.4, -0.5); o(x0, 3.0, 0.5, x1, 4.4, 2.6); o(x0, 3.0, -0.5, x1, 3.6, 0.5)
+            o(x0, 4.4, -1.6, x1, 5.0, -0.5); o(x0, 4.4, 0.5, x1, 5.0, 1.6); o(x0, 4.5, -0.5, x1, 5.0, 0.5)
+        else:
+            o(x0, 3.0, -2.6, x1, 4.4, 2.6); o(x0, 4.4, -1.6, x1, 5.0, 1.6)
+        o(x0, 5.0, -0.7, x1, 5.8, 0.7)
+    for sg in (-1, 1):                    # knee walls (planks, drawn)
+        z0, z1 = (-3.6, -3.5) if sg < 0 else (3.5, 3.6)
+        o(-6.35, 3.0, z0, 6.35, 3.9, z1, kind="cabin_knee")
+    ladder(ox - 1.25, 0.0, oz + CAB_HATCH[3] - 0.12, 180.0, 3.0, "Cabin3")   # (leans on the hatch's south edge)
+    # The loft's things (picture only but the crates): a straw mattress and bedroll, a stool and binoculars at the
+    # window, two crates, a coil of rope.
+    o(-5.6, 3.0, -1.6, -3.6, 3.15, -0.6, kind="cabin_loft_bed", colour="wood")
+    o(-6.3, 3.0, 0.7, -5.7, 3.5, 1.3, kind="cabin_loft_stool")
+    o(2.0, 3.0, -2.2, 2.8, 3.5, -1.5, kind="cabin_loft_crates")
+    o(4.2, 3.0, 1.4, 5.0, 3.5, 2.1, kind="cabin_loft_crates")
 
 
 def build(b, loot_spots=()):
@@ -3391,9 +3428,11 @@ def main():
             # The hunter's cabin in the east woods (World art 0.17, owner 2026-10-17): a log cabin with a porch,
             # main room (stove, kitchen corner, table) east, bunk room + washroom west. Same spot, size and duffel.
             with modeled("cabin_east", x + 6.5, y + 5.0):
-                build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
-                      [("crate", 1, 0, 0, "E", 1.7)])
+                cab = Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S")
+                cab.holes[1] = (x + 6.5 + CAB_HATCH[0], y + 5.0 + CAB_HATCH[1], x + 6.5 + CAB_HATCH[2], y + 5.0 + CAB_HATCH[3])
+                build(cab, [("crate", 1, 0, 0, "E", 1.7)])
                 cabin_furniture(x + 6.5, y + 5.0)
+                cabin_loft(x + 6.5, y + 5.0)
             continue
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
               [("crate", 1, 0, 0, "E", 0)])
