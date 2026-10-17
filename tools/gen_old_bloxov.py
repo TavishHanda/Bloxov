@@ -1745,6 +1745,39 @@ def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign")
         o(xa, 0.0, za, xb, h, zb, kind)
 
 
+def cabin_furniture(ox, oz):
+    """The hunter's log cabin in the east woods (World art 0.17), in the model's own coordinates (origin map (ox, oz),
+    local x -6.5..6.5, z -5..5, front door south in the east room). Main room east: the wood stove on the east wall
+    (the fieldstone chimney outside it), the kitchen corner, the table and chairs; bunk room west with the washroom in
+    its south-west corner. Room middles, the doorways and the way in stay clear; chairs and the porch roof are picture
+    only."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # Main room (x 0.15..6.35).
+    o(5.55, 0, -3.3, 6.35, 1.0, -1.7, "metal", "cabin_stove")             # stove on its stone hearth, east wall
+    o(4.9, 0, 4.25, 6.35, 0.92, 4.85, "wood", "cabin_kitchen")            # counter + sink + hand pump, south wall
+    o(5.75, 0, 2.9, 6.35, 1.9, 3.75, "wood", "cabin_shelf")               # shelf of tins in the corner, east wall
+    o(0.9, 0, -3.9, 2.4, 0.78, -2.9, "wood", "cabin_table")               # table (tins open, a map), off the middle
+    o(0.75, 0, -2.75, 2.55, 1.0, -2.25, "wood", "cabin_chairs", solid=False)  # its chairs (a coat over one)
+    o(0.1, 1.15, -4.3, 0.2, 1.85, -2.5, "wood", "cabin_gun_rack", solid=False)   # empty gun rack by the table
+    o(4.3, 0, -4.85, 5.5, 1.5, -4.45, "wood", "cabin_radio_shelf")        # radio, maps and lamp on a shelf
+    # Bunk room (x -6.35..-0.15): bunks along the north wall, a trunk at their foot, gear by the door.
+    o(-6.35, 0, -4.85, -4.35, 1.9, -3.95, "wood", "cabin_bunk")
+    o(-4.25, 0, -4.85, -3.7, 0.5, -3.95, "wood", "cabin_trunk")
+    o(-6.35, 0, -2.6, -5.85, 1.7, -1.4, "wood", "cabin_gear")             # pegs with jackets, boots, a pack
+    o(-2.4, 0, 4.15, -0.5, 0.45, 4.85, "wood", "cabin_cot")              # a spare cot along the south wall
+    o(-0.6, 0, -4.0, -0.1, 0.9, -3.0, "wood", "cabin_washstand")         # washstand: basin, jug, shaving mirror
+    washroom(ox, oz, -6.35, 3.0, -4.6, 4.85, "NE", ("E", 3.9, -1), sign=None, fit=(
+        ("wc_toilet", "W", 4.25, 0.5, 0.65, 0.8), ("wc_sink", "N", -5.75, 0.5, 0.4, 0.85)))
+    # The fieldstone chimney on the east gable, outside the stove (solid like the walls; the stack is picture only).
+    o(6.65, 0, -3.1, 7.75, 2.6, -1.9, "stone", "cabin_chimney")
+    # Porch along the front (picture only, on the building's flat pad): deck, posts, bench, chopping block, firewood.
+    o(-6.8, 0, 5.15, 6.8, 0.2, 7.2, "wood", "cabin_porch", solid=False)
+    o(-5.0, 0.2, 5.2, -3.4, 0.65, 5.6, "wood", "cabin_bench")
+    o(5.0, 0.2, 5.2, 6.6, 1.3, 5.75, "wood", "cabin_firewood")
+    o(4.9, 0.2, 6.3, 5.5, 0.7, 6.9, "wood", "cabin_block")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -3354,6 +3387,14 @@ def main():
         obox(sx, h / 2 - 0.1, sz + 1.4 + run / 2, 2.2, 0.2, math.hypot(run, h), 0.0, "wood",
              pitch=math.degrees(math.atan2(h, run)))
     for n, (x, y) in enumerate(CABINS, start=1):
+        if n == 3:
+            # The hunter's cabin in the east woods (World art 0.17, owner 2026-10-17): a log cabin with a porch,
+            # main room (stove, kitchen corner, table) east, bunk room + washroom west. Same spot, size and duffel.
+            with modeled("cabin_east", x + 6.5, y + 5.0):
+                build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
+                      [("crate", 1, 0, 0, "E", 1.7)])
+                cabin_furniture(x + 6.5, y + 5.0)
+            continue
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
               [("crate", 1, 0, 0, "E", 0)])
 
