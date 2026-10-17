@@ -1252,12 +1252,17 @@ def stairs(ctx, c, s, yaw, pitch, mats=("wood", "trim_dark")):
     n = max(2, round(rise / 0.2))
     tread = run / n
     along = rot((0, 0, 1), yaw, 0)                                 # risers face along the flight
+    # Treads stop 3 cm short of a wall beside them (old houses, owner 2026-10-17: their ends in the wall's face
+    # flickered through it).
+    walled = [sd for sd in (-1, 1) if _wall_at(ctx, v_add(c, rot((sd * (s[0] / 2 + 0.06), 0, 0), yaw, pitch)))]
+    width = s[0] - 0.03 * len(walled)
+    shift = rot((-0.015 * sum(walled), 0, 0), yaw, 0)
     for k in range(n):
         t = (k + 0.5) / n
         top = lo[1] + rise * t
         h = rise / n + 0.12
-        p = (lo[0] + (hi[0] - lo[0]) * t, top - h / 2, lo[2] + (hi[2] - lo[2]) * t)
-        b.box(p, (s[0], h, tread), yaw=yaw,
+        p = (lo[0] + (hi[0] - lo[0]) * t + shift[0], top - h / 2, lo[2] + (hi[2] - lo[2]) * t + shift[2])
+        b.box(p, (width, h, tread), yaw=yaw,
               style=lambda nn, m, q: (mats[0], uv_world(1.0)) if nn[1] > 0.7 or abs(dot(nn, along)) > 0.7
               else (mats[1], uv_world(1.0)))
     # Stringers along the open sides. None against a wall (police rounds 3-4, owner: a stringer face at, or a
@@ -20159,7 +20164,7 @@ OH_LOOKS = {
     "D": {"ext": {1: "house_brick", 6: "farm_siding", 7: "st_stock", 8: "barn_boards"},
           "roof": {1: "roof_clay", 6: "roof_slate", 7: "roof_charcoal", 8: "roof_slate"}},
 }
-OH_LOOK = os.environ.get("BLOXOV_OH_LOOK", "B")
+OH_LOOK = os.environ.get("BLOXOV_OH_LOOK", "C")      # (C picked by the owner, 2026-10-17)
 OH_FP = (-6.0, -5.0, 6.0, 5.0)
 OH_FLOORS = {1: 2, 6: 1, 7: 2, 8: 1}
 OH_CAVED = {1: ((1, 1), (0, 1)), 6: (), 7: ((0, 1), (1, 1)), 8: ((1, 1), (0, 0))}   # (as in the gen's damage)
@@ -20328,6 +20333,19 @@ def dress_old_house(ctx):
                 nn = v_scale(nn, -1)
             b.poly(pts, nn, roof, uv_slope(4.0))
             b.poly(pts[::-1], v_scale(nn, -1), "wood", uv_world(1.0))
+    # The long walls built up to meet the roof's underside (owner 2026-10-17: a gap between the roof and the house),
+    # under each quarter still roofed: the outside face up to the roof at the wall's outer face, the inside face up to
+    # it at the inner face.
+    for i, (xa, xb) in enumerate(((fp[0] - 0.15, 0.0), (0.0, fp[2] + 0.15))):
+        for j, sg in enumerate((-1, 1)):
+            if (i, j) in caved:
+                continue
+            zo, zi = sg * (fp[3] + 0.15), sg * (fp[3] - 0.15)
+            yo, yi = base + e + (z1 - abs(zo)) * rise, base + e + (z1 - abs(zi)) * rise
+            for zz, yy, nz, mat in ((zo, yo, sg, ext), (zi, yi, -sg, oh_inner((0.0, base - 1.0, zi)))):
+                b.poly([(xa, base - 0.02, zz), (xb, base - 0.02, zz), (xb, yy, zz), (xa, yy, zz)], (0, 0, nz), mat, uv_world())
+            b.poly([(xa, base - 0.02, zo), (xa, base - 0.02, zi), (xa, yi, zi), (xa, yo, zo)], (-1, 0, 0), ext, uv_world())
+            b.poly([(xb, base - 0.02, zo), (xb, base - 0.02, zi), (xb, yi, zi), (xb, yo, zo)], (1, 0, 0), ext, uv_world())
     # Gable ends: a whole triangle of wall, or the half still standing (a ragged step where the roof's gone).
     for x, nx, i in ((fp[0] - 0.15, -1, 0), (fp[2] + 0.15, 1, 1)):
         za, zb = fp[1] - 0.15, fp[3] + 0.15
