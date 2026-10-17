@@ -1892,7 +1892,7 @@ def dress_blast(ctx, o, P, out, ns, a0, a1, lo, hi, rng):
                 return (ext, uv_world())
             if face_in:
                 return (int_mat, uv_world())
-            return ("brick", uv_world(1.0))
+            return (cfg.get("core", "brick"), uv_world(1.0))
         c = P(a, y, 0.0)
         b.box(c, (la, h, t) if ns else (t, h, la), style=st)
     # Sides: a stack of lumps whose stick-out changes, so the edge is ragged.
@@ -18783,6 +18783,7 @@ FOOTPRINTS["diner"] = DN_FP
 ENTRANCE_DOOR["diner"] = dn_look("band")
 WC_MATS["diner"] = ("wc_tile", "wc_floor")
 SHELLS["diner"] = {
+    "core": "rubble_core",   # (the snapped edges of the shell holes)
     "ext": dn_look("ext"), "roof_side": dn_look("ext"), "inner": dn_inner, "floor": dn_floor,
     "ceiling": lambda m: "house_ceiling", "x_lines": (-8.0, 0.0, 8.0), "z_lines": (-6.0, 6.0),
     "x_splits": (0.0,), "z_splits": (), "debris": ("concrete", dn_look("ext"), "wood", "concrete"),
@@ -18853,8 +18854,8 @@ def paint_gs_burnt(rng):
 
 def paint_gs_bay(rng):
     """The service bay's floor: dark worn concrete, saw-cut joints every 2 m, oil soaked in."""
-    c = Canvas(64, 64, "steel")
-    c.noise(0, 0, 64, 64, ["iron", "concrete"], 0.12, rng)
+    c = Canvas(64, 64, "iron")
+    c.noise(0, 0, 64, 64, ["steel", "iron_dark"], 0.12, rng)
     for k in (0, 32):
         c.rect(k, 0, k + 1, 64, "iron_dark")
         c.rect(0, k, 64, k + 1, "iron_dark")
@@ -19274,11 +19275,461 @@ FOOTPRINTS["gas_station"] = GS_FP
 ENTRANCE_DOOR["gas_station"] = gs_look("band")
 WC_MATS["gas_station"] = ("wc_tile", "wc_floor")
 SHELLS["gas_station"] = {
+    "core": "brick" if "brick" in gs_look("ext") else "rubble_core",   # (the snapped edges of the shell holes)
     "ext": gs_look("ext"), "roof_side": gs_look("ext"), "inner": gs_inner, "floor": gs_floor,
     "ceiling": lambda m: "ceiling", "x_lines": (-14.0, 0.0, 14.0), "z_lines": (-7.0, 7.0),
     "x_splits": (0.0,), "z_splits": (), "debris": ("concrete", gs_look("ext"), "concrete", "shed_metal"),
 }
 FACTION_MARKS["gas_station"] = [("x1_stencil", "W", 3.6, 1.0)]
+
+
+# ------------------------------------------------------------------------------------------------ garage (0.17)
+# The repair garage on the highway (bottom right, the bombed quarter), map 332-346 x 322-336, origin (339, 329):
+# local x -7..7, z -7..7, one 4.5 m storey with its roof gone; the big door north on the highway, a side door west.
+# GR_LOOKS are the outside options (env BLOXOV_GR_LOOK for the sheet): below 1.2 m / above / trim.
+GR_LOOKS = {
+    "B": {"low": "gs_white", "up": "shed_metal", "trim": "police_navy"},
+    "C": {"low": "brick_charcoal", "up": "brick_charcoal", "trim": "trim_dark"},
+    "D": {"low": "concrete", "up": "render", "trim": "teal"},
+}
+GR_LOOK = os.environ.get("BLOXOV_GR_LOOK", "B")
+GR_FP = (-7.0, -7.0, 7.0, 7.0)
+
+
+def gr_look(key):
+    return GR_LOOKS[GR_LOOK][key]
+
+
+def gr_ext(m):
+    return gr_look("low") if m[1] < 1.2 else gr_look("up")
+
+
+def gr_decals(rng):
+    a = Atlas(256)
+    ink = {"police_navy": "navy", "trim_dark": "iron_dark", "teal": "teal"}[gr_look("trim")]
+
+    def sized(text, scale, pad):
+        w = Canvas.text_width(text, scale) + pad
+        return w + (w - Canvas.text_width(text, scale)) % 2
+
+    def sign(key, text, scale, bg, fg):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            c.frame(0, 0, c.w, c.h, fg)
+            mo_text(c, 3, text, fg, scale)
+            c.blotch(["iron", "rust"], 4, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 3))
+        a.add(key, sized(text, scale, 8), 5 * scale + 6, f)
+
+    def scorch(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        cx, cy = c.w / 2, c.h / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - cx, (y - cy) * 1.2) / (c.w / 2) + rng.uniform(-0.15, 0.15)
+                if d < 0.8 and rng.random() < (0.9 - d) * 0.9:
+                    c.put(x, y, "black" if d < 0.35 and rng.random() < 0.5 else "iron_dark")
+
+    def stain(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - c.w / 2, y - c.h / 2) / (c.w / 2) + rng.uniform(-0.2, 0.2)
+                if d < 0.85 and rng.random() < 0.9 - d * 0.6:
+                    c.put(x, y, "black" if d < 0.5 else "iron_dark")
+
+    def hole(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+
+    sign("name", "AUTO REPAIR", 2, "bone", ink)
+    sign("tyres", "TYRES", 1, ink, "bone")
+    a.add("scorch", 64, 64, scorch)
+    a.add("stain", 48, 48, stain)
+    a.add("hole", 4, 4, hole)
+    return a
+
+
+# ---- garage props
+def prop_gr_pickup(ctx, c, s):
+    """A burnt-out pickup: the cab and the bed, tyres burnt off to the rims, the bonnet up, no glass."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    W, L = s[0] - 0.1, s[2] - 0.1
+    zf = c[2] - L / 2                                                                           # the nose (north)
+    burnt = lambda n, m, q: None if n[1] < -0.7 else ("gs_burnt", uv_world(1.0))
+    b.box((c[0], y0 + 0.62, c[2]), (W, 0.5, L), style=burnt)                                    # body
+    b.box((c[0], y0 + 1.25, zf + 2.0), (W - 0.1, 0.75, 1.3), style=burnt)                       # cab
+    b.box((c[0], y0 + 1.26, zf + 2.0), (W - 0.2, 0.62, 1.32), style=_nb("black"))               # (gutted)
+    for sx in (-1, 1):                                                                          # the bed's sides
+        _box(b, c[0] + sx * (W / 2 - 0.04), y0 + 1.05, c[2] + L / 2 - 1.3, 0.06, 0.4, 2.4, "gs_burnt")
+    _box(b, c[0], y0 + 1.05, c[2] + L / 2 - 0.05, W, 0.4, 0.06, "gs_burnt")
+    b.box((c[0], y0 + 1.15, zf + 0.6), (W - 0.1, 0.05, 1.1), pitch=-50, style=_nb("gs_burnt"))  # bonnet up
+    _box(b, c[0], y0 + 0.8, zf + 0.6, W - 0.5, 0.3, 0.8, "trim_dark")                           # the engine
+    for sx in (-1, 1):
+        for z in (zf + 0.9, c[2] + L / 2 - 1.0):
+            _box(b, c[0] + sx * (W / 2 - 0.1), y0 + 0.3, z, 0.18, 0.5, 0.5, "trim_dark")        # rims
+    _box(b, c[0], y0 + 0.45, zf + 0.02, W, 0.2, 0.06, "steel_light")                             # bumper
+
+
+def prop_gr_hoist(ctx, c, s):
+    """An engine hoist: a yellow A-frame on castors, the boom out with a chain hanging."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * 0.3, y0 + 0.06, c[2], 0.08, 0.08, s[2], "yellow")
+    _box(b, c[0], y0 + 1.0, c[2] + s[2] / 2 - 0.1, 0.1, 2.0, 0.1, "yellow")
+    _beam(b, (c[0], y0 + 1.9, c[2] + s[2] / 2 - 0.1), (c[0], y0 + 2.15, c[2] - s[2] / 2 - 0.4), 0.1, 0.1, "yellow")
+    _box(b, c[0], y0 + 1.6, c[2] - s[2] / 2 - 0.35, 0.03, 1.1, 0.03, "trim_dark")
+    _box(b, c[0], y0 + 1.0, c[2] - s[2] / 2 - 0.35, 0.12, 0.12, 0.06, "trim_dark")
+
+
+def prop_gr_engine(ctx, c, s):
+    """An engine block on the floor, a pallet under it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    _box(b, c[0], y0 + 0.06, c[2], s[0], 0.12, s[2], "wood")
+    _box(b, c[0], y0 + 0.42, c[2], s[0] - 0.25, 0.6, s[2] - 0.3, "trim_dark")
+    _box(b, c[0], y0 + 0.75, c[2], s[0] - 0.45, 0.1, s[2] - 0.5, "steel_light")
+    _box(b, c[0] + s[0] / 2 - 0.1, y0 + 0.5, c[2], 0.12, 0.3, 0.3, "black")
+
+
+def prop_gr_bench(ctx, c, s):
+    """The workbench on the east wall: a vice, a grinder, tools; the pegboard over it."""
+    b, rng = ctx.b, random.Random("gr_bench")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood_dark"))
+    for sz in (-1, 1):
+        _box(b, c[0], (y0 + top) / 2, c[2] + sz * (s[2] / 2 - 0.08), s[0] - 0.1, top - y0 - 0.06, 0.08, "trim_dark")
+    _box(b, c[0], y0 + 0.25, c[2], s[0] - 0.1, 0.03, s[2] - 0.2, "wood")
+    _box(b, c[0] - 0.1, top + 0.1, c[2] - s[2] / 2 + 0.35, 0.25, 0.2, 0.2, "blue")                    # vice
+    _box(b, c[0], top + 0.12, c[2] + 0.4, 0.25, 0.24, 0.4, "olive_dark")                               # grinder
+    for _ in range(5):
+        _box(b, c[0] + rng.uniform(-0.2, 0.2), top + 0.015, c[2] + rng.uniform(-0.9, 0.9), 0.04, 0.03, 0.25, "steel_light", yaw=rng.uniform(0, 180))
+    xb = c[0] + s[0] / 2 - 0.02
+    _box(b, xb, top + 0.9, c[2], 0.02, 1.0, s[2] - 0.3, "wood_light")
+    for _ in range(9):
+        _box(b, xb - 0.02, top + rng.uniform(0.55, 1.25), c[2] + rng.uniform(-0.9, 0.9), 0.03, rng.uniform(0.2, 0.35), rng.uniform(0.05, 0.1),
+             rng.choice(("steel_light", "red", "trim_dark")))
+
+
+def prop_gr_toolchest(ctx, c, s):
+    """A red roll cab: drawers (two hanging open), chrome handles."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("red", uv_world(1.0)))
+    xf = c[0] - s[0] / 2 - 0.01
+    for k in range(6):
+        y = y0 + 0.15 + k * 0.15
+        out = 0.25 if k in (2, 4) else 0.0
+        _box(b, xf - out, y, c[2], 0.02 + out * 2 if out else 0.02, 0.12, s[2] - 0.08, "red" if not out else "trim_dark")
+        _box(b, xf - out * 2 - 0.02, y, c[2], 0.02, 0.02, s[2] * 0.6, "steel_light")
+    _box(b, c[0], top + 0.02, c[2], s[0] + 0.02, 0.04, s[2] + 0.02, "black")
+
+
+def caved_garage(ctx, c, s):
+    """The roof's gone: the truss by the door still spans the walls with a few sheets on it, the middle one snapped
+    and hanging, the back one down across the floor; corrugated sheets, purlins, scorch and oil on the floor."""
+    b, rng = ctx.b, random.Random("caved_garage")
+    y = c[1] - s[1] / 2
+    eave = 4.35
+    x0, x1 = -6.85, 6.85
+    for z, state in ((-4.0, "up"), (0.0, "snapped"), (4.0, "down")):
+        if state == "up":
+            _beam(b, (x0, eave, z), (x1, eave, z), 0.14, 0.2, "trim_dark")
+            _beam(b, (x0, eave, z), (0.0, eave + 1.4, z), 0.12, 0.18, "trim_dark")
+            _beam(b, (x1, eave, z), (0.0, eave + 1.4, z), 0.12, 0.18, "trim_dark")
+            for k in (-4.5, -2.0, 2.0, 4.5):
+                _beam(b, (k, eave, z), (k, eave + 1.4 * (1 - abs(k) / 6.85), z), 0.06, 0.06, "trim_dark")
+            for k in range(4):                                                              # sheets still on
+                xs = x0 + 0.5 + k * 1.0
+                b.box((xs, eave + 0.25 + k * 0.2, z - 0.9), (1.0, 0.03, 2.0), style=lambda n, m, q: ("shed_metal", uv_world(1.0)))
+        elif state == "snapped":
+            _beam(b, (x0, eave, z), (-1.6, eave + 1.0, z), 0.12, 0.18, "trim_dark")
+            _beam(b, (-1.6, eave + 1.0, z), (0.6, 2.4, z + 1.2), 0.12, 0.18, "trim_dark")
+            _beam(b, (x1, eave, z), (4.6, 1.0, z - 0.4), 0.12, 0.18, "trim_dark")
+        else:
+            _beam(b, (x0, eave, z), (-2.0, 0.15, z + 1.2), 0.14, 0.2, "trim_dark")
+            _beam(b, (x1, 2.6, z), (2.0, 1.32, z - 0.3), 0.14, 0.2, "trim_dark")                # resting on the pickup's bed
+    for _ in range(14):
+        b.box((rng.uniform(-6.0, 6.0), y + 0.04, rng.uniform(-6.0, 6.0)), (rng.uniform(0.9, 1.8), 0.04, rng.uniform(0.8, 1.0)),
+              yaw=rng.uniform(0, 180), pitch=rng.uniform(-8, 8), style=no_bottom("shed_metal", 1.0))
+    for _ in range(6):
+        b.box((rng.uniform(-6.0, 6.0), y + 0.07, rng.uniform(-6.0, 6.0)), (rng.uniform(1.5, 3.0), 0.08, 0.08),
+              yaw=rng.uniform(0, 180), style=no_bottom("trim_dark", 1.0))
+    for _ in range(4):
+        b.box((rng.uniform(-5.0, 5.0), y + 0.028, rng.uniform(-5.0, 5.0)), (rng.uniform(1.0, 2.2), 0.01, rng.uniform(1.0, 2.2)),
+              yaw=rng.uniform(0, 90), style=no_bottom("black", 1.0))
+    for sx, sz in ((-1.5, -3.0), (0.5, 2.5), (-4.5, 3.5)):
+        b.poly([(sx - 0.75, y + 0.034, sz - 0.75), (sx - 0.75, y + 0.034, sz + 0.75), (sx + 0.75, y + 0.034, sz + 0.75), (sx + 0.75, y + 0.034, sz - 0.75)],
+               (0, 1, 0), "graffiti", ctx.d("stain"))
+
+
+def dress_garage(ctx):
+    b, rng = ctx.b, random.Random("gr_dress")
+    fp = GR_FP
+    trim = gr_look("trim")
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        at = side_at(side, 0.15 + push)
+        n = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, n, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    def reg_w(region):
+        r = ctx.decals.regions[region]
+        return (r[2] - r[0]) * ctx.decals.c.w / 32, (r[3] - r[1]) * ctx.decals.c.h / 32
+
+    def band_run(side, y0, y1, d, mat):
+        ns = side in "NS"
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d, a1 + 0.15 + d
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        at = side_at(side, 0.15 + d / 2)
+        for s0, s1 in segs:
+            if s1 - s0 > 0.02:
+                m = (s0 + s1) / 2
+                b.box((m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m),
+                      (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0), style=st(mat))
+    for side in "NSWE":
+        band_run(side, 1.15, 1.25, 0.05, trim)
+        band_run(side, 4.3, 4.55, 0.06, trim)
+    # AUTO REPAIR over the big door, TYRES by the side door.
+    w, h = reg_w("name")
+    quad("N", 0.0, 4.02, 4.02 + h, w, "name", push=0.09)
+    w, h = reg_w("tyres")
+    quad("W", 0.2, 2.0, 2.0 + h, w, "tyres", push=0.02)
+    # The roller shutter: jammed part way down, its west end torn out of the guide and hanging.
+    door = [o for o in opens if o["kind"] == "big_door"][0]
+    at = side_at("N", -0.05)
+    for k in range(10):
+        y = door["hi"] - 0.08 - k * 0.13
+        torn = k >= 6
+        L = door["w"] - 0.05 - (0.6 * (k - 5) if torn else 0.0)
+        b.box((door["mid"] + (door["w"] - 0.05 - L) / 2, y, at - (0.03 * (k - 5) if torn else 0.0)), (L, 0.12, 0.03),
+              pitch=(-8 if torn else 0), style=lambda n, m, q: ("shed_metal", uv_world(1.0)))
+    _box(b, door["mid"], door["hi"] + 0.2, at + 0.1, door["w"] + 0.3, 0.4, 0.4, "trim_dark")         # the roll box
+    # Soot round the shell holes; bullet holes everywhere, most on the highway side.
+    for o in opens:
+        if o["kind"] == "blast":
+            ww = o["w"] + 1.2
+            quad(o["side"], o["mid"], 0.2, 0.2 + ww, ww, "scorch", push=0.1, mat="graffiti")
+    for side, a0, a1, n in (("N", -6.8, 6.8, 30), ("S", -6.8, 6.8, 14), ("E", -6.8, 6.8, 14), ("W", -6.8, 6.8, 14)):
+        for _ in range(n):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.45, 4.0)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.15 and o["lo"] - 0.1 < y < o["hi"] + 0.1 for o in opens):
+                continue
+            if 1.05 < y < 1.35:
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.12, mat="graffiti")
+
+
+for _kind, _fn in {"gr_pickup": prop_gr_pickup, "gr_hoist": prop_gr_hoist, "gr_engine": prop_gr_engine,
+                   "gr_bench": prop_gr_bench, "gr_toolchest": prop_gr_toolchest, "gr_shelves": prop_dn_shelves}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+CAVED["garage"] = caved_garage
+ROLLER_DOORS.add("garage")
+DECALS["garage"] = gr_decals
+DRESSING["garage"] = dress_garage
+FOOTPRINTS["garage"] = GR_FP
+ENTRANCE_DOOR["garage"] = gr_look("trim")
+WC_MATS["garage"] = ("wc_tile", "wc_floor")
+SHELLS["garage"] = {
+    "core": "brick" if "brick" in gr_look("up") else "rubble_core",   # (the snapped edges of the shell holes)
+    "ext": gr_ext, "roof_side": gr_look("up"), "inner": lambda m: "int_soot", "floor": lambda m: "gs_bay",
+    "ceiling": lambda m: "ceiling_soot", "x_lines": (-7.0, 7.0), "z_lines": (-7.0, 7.0),
+    "x_splits": (), "z_splits": (), "debris": ("concrete", gr_look("low"), "shed_metal", "concrete"),
+}
+FACTION_MARKS["garage"] = [("x1_stencil", "S", -4.4, 1.6)]
+
+
+# ------------------------------------------------------------------------------------------------ junkyard office (0.17)
+# The junkyard office (bottom right, the bombed quarter), map 300.5-310.5 x 264.5-272.5, origin (305.5, 268.5):
+# local x -5..5, z -4..4, one 3 m storey with its roof gone; the door south on the yard. JO_LOOKS are the outside
+# options (env BLOXOV_JO_LOOK for the sheet): the walls / the trim.
+JO_LOOKS = {
+    "B": {"ext": "shed_metal", "trim": "trim_dark"},
+    "C": {"ext": "barn_boards", "trim": "olive_dark"},
+    "D": {"ext": "gs_white", "trim": "wine"},
+}
+JO_LOOK = os.environ.get("BLOXOV_JO_LOOK", "B")
+JO_FP = (-5.0, -4.0, 5.0, 4.0)
+
+
+def jo_look(key):
+    return JO_LOOKS[JO_LOOK][key]
+
+
+def jo_decals(rng):
+    a = Atlas(256)
+
+    def sized(text, scale, pad):
+        w = Canvas.text_width(text, scale) + pad
+        return w + (w - Canvas.text_width(text, scale)) % 2
+
+    def sign(key, text, scale, bg, fg):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            mo_text(c, 3, text, fg, scale)
+            c.blotch(["iron", "rust"], 5, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 3))
+        a.add(key, sized(text, scale, 8), 5 * scale + 6, f)
+
+    def hole(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+
+    def papers(c):          # papers on the desk / the floor
+        c.rect(0, 0, c.w, c.h, "bone")
+        for y in range(2, c.h - 1, 2):
+            c.rect(2, y, c.w - 2 - rng.randint(0, 4), y + 1, "concrete")
+    sign("name", "SCRAP METAL", 2, "hazard_yellow", "black")
+    sign("office", "OFFICE", 1, "bone", "black")
+    a.add("hole", 4, 4, hole)
+    a.add("papers", 8, 11, papers)
+    return a
+
+
+def prop_jo_seat(ctx, c, s):
+    """A car's back seat for a sofa: cracked vinyl, the springs showing, an overflowing ashtray on a tyre beside it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    _box(b, c[0], y0 + 0.2, c[2] + 0.05, s[0], 0.4, s[2] - 0.1, "wood_dark")
+    _box(b, c[0], y0 + 0.43, c[2] + 0.08, s[0] - 0.05, 0.1, s[2] - 0.2, "wine")
+    b.box((c[0], y0 + 0.65, c[2] - s[2] / 2 + 0.1), (s[0] - 0.05, 0.5, 0.14), pitch=-12, style=_nb("wine"))
+    _box(b, c[0] + 0.3, y0 + 0.485, c[2] + 0.1, 0.4, 0.01, 0.25, "yellow")
+    for a in range(4):                                                                        # the tyre table
+        _box(b, c[0] + s[0] / 2 + 0.45, y0 + 0.1, c[2], 0.6 * 0.92, 0.2, 0.6 * 0.38, "black", yaw=a * 45)
+    _box(b, c[0] + s[0] / 2 + 0.45, y0 + 0.21, c[2], 0.12, 0.03, 0.12, "steel_light")
+
+
+def prop_jo_filing(ctx, c, s):
+    """Two grey filing cabinets, drawers pulled out, papers everywhere."""
+    b, rng = ctx.b, random.Random("jo_filing")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
+    zf = c[2] + s[2] / 2 + 0.01
+    for k in range(2):
+        x = c[0] - s[0] / 4 + k * s[0] / 2
+        for d in range(3):
+            y = y0 + 0.25 + d * 0.4
+            out = 0.35 if (k + d) % 2 == 0 else 0.0
+            _box(b, x, y, zf + out / 2, s[0] / 2 - 0.08, 0.34, 0.02 + out, "steel_light" if not out else "trim")
+            _box(b, x, y + 0.08, zf + out + 0.01, 0.2, 0.03, 0.02, "trim_dark")
+    for _ in range(14):
+        x, z = c[0] + rng.uniform(-1.6, 1.6), zf + rng.uniform(0.2, 1.8)
+        b.poly([(x - 0.12, 0.012, z - 0.16), (x - 0.12, 0.012, z + 0.16), (x + 0.12, 0.012, z + 0.16), (x + 0.12, 0.012, z - 0.16)],
+               (0, 1, 0), "decals", ctx.d("papers"))
+
+
+def prop_jo_desk(ctx, c, s):
+    """The yard man's desk under the west window: a phone, a ledger, a calendar; his chair knocked over."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood"))
+    for sz in (-1, 1):
+        _box(b, c[0], (y0 + top) / 2, c[2] + sz * (s[2] / 2 - 0.05), s[0] - 0.06, top - y0 - 0.06, 0.06, "wood_dark")
+    _box(b, c[0] + 0.1, top + 0.05, c[2] - 0.5, 0.22, 0.1, 0.18, "black")                          # phone
+    b.box((c[0] + 0.1, top + 0.02, c[2] + 0.2), (0.3, 0.03, 0.45), yaw=8, style=_nb("olive_dark"))   # ledger
+    _box(b, c[0] + 0.1, top + 0.03, c[2] + 0.6, 0.12, 0.04, 0.12, "steel_light")                    # ashtray
+    b.box((c[0] + s[0] / 2 + 0.45, y0 + 0.22, c[2]), (0.45, 0.05, 0.45), yaw=30, pitch=75, style=_solid("trim_dark"))
+    _box(b, c[0] + s[0] / 2 + 0.8, y0 + 0.03, c[2] + 0.1, 0.05, 0.05, 0.45, "trim", yaw=30)
+
+
+def caved_junk_office(ctx, c, s):
+    """The roof's gone: joist ends along the walls, a joist and sheets down on the floor, rain on the papers."""
+    b, rng = ctx.b, random.Random("caved_jo")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.85
+    for k in range(6):
+        x = x0 + 0.6 + k * (s[0] - 1.2) / 5
+        for ze, sg in ((z0, 1), (z1, -1)):
+            L = rng.uniform(0.2, 1.4)
+            _beam(b, (x, top + 0.08, ze), (x, top + 0.08 - L * rng.uniform(0.0, 0.3), ze + sg * L), 0.08, 0.18, "wood_dark")
+    _beam(b, (x0 + 1.6, top, z0 + 0.1), (x0 + 3.2, y + 0.1, z1 - 2.0), 0.08, 0.18, "wood_dark")
+    for _ in range(7):
+        b.box((rng.uniform(x0 + 1.0, x1 - 1.0), y + 0.04, rng.uniform(z0 + 1.0, z1 - 1.0)), (rng.uniform(0.9, 1.6), 0.04, rng.uniform(0.7, 0.9)),
+              yaw=rng.uniform(0, 180), pitch=rng.uniform(-8, 8), style=no_bottom("shed_metal", 1.0))
+    for _ in range(3):
+        b.box((rng.uniform(x0 + 1.5, x1 - 1.5), y + 0.028, rng.uniform(z0 + 1.2, z1 - 1.2)), (rng.uniform(0.8, 1.6), 0.01, rng.uniform(0.8, 1.6)),
+              yaw=rng.uniform(0, 90), style=no_bottom("black", 1.0))
+
+
+def dress_junk_office(ctx):
+    b, rng = ctx.b, random.Random("jo_dress")
+    fp = JO_FP
+    trim = jo_look("trim")
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        at = side_at(side, 0.15 + push)
+        n = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, n, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    def reg_w(region):
+        r = ctx.decals.regions[region]
+        return (r[2] - r[0]) * ctx.decals.c.w / 32, (r[3] - r[1]) * ctx.decals.c.h / 32
+    # The coping round the top, corner posts.
+    for side in "NSWE":
+        ns = side in "NS"
+        a0, a1 = (fp[0] - 0.21, fp[2] + 0.21) if ns else (fp[1] - 0.21, fp[3] + 0.21)
+        at = side_at(side, 0.15 + 0.03)
+        b.box(((a0 + a1) / 2, 2.95, at) if ns else (at, 2.95, (a0 + a1) / 2), ((a1 - a0), 0.12, 0.08) if ns else (0.08, 0.12, a1 - a0), style=st(trim))
+    for x in (fp[0] - 0.19, fp[2] + 0.19):
+        for z in (fp[1] - 0.19, fp[3] + 0.19):
+            _box(b, x, 1.5, z, 0.1, 3.0, 0.1, trim)
+    # SCRAP METAL over the door, OFFICE beside it; hubcaps nailed up on the south wall.
+    w, h = reg_w("name")
+    quad("S", 0.0, 2.45, 2.45 + h, w, "name", push=0.04)
+    w, h = reg_w("office")
+    quad("S", 2.0, 1.7, 1.7 + h, w, "office", push=0.02)
+    at = side_at("S", 0.17)
+    for k, (x, y) in enumerate(((-3.8, 2.3), (-3.1, 1.7), (-2.4, 2.2), (3.4, 2.4), (4.1, 1.9))):
+        for w_, h_ in ((0.38, 0.22), (0.22, 0.38), (0.32, 0.32)):                     # (round-ish)
+            b.box((x, y, at), (w_, h_, 0.03), style=st("steel_light"))
+        _box(b, x, y, at + 0.025, 0.12, 0.12, 0.02, "trim_dark")
+    # Bullet holes.
+    for side, a0, a1, n in (("N", -4.8, 4.8, 14), ("S", -4.8, 4.8, 10), ("E", -3.8, 3.8, 10), ("W", -3.8, 3.8, 8)):
+        for _ in range(n):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.4, 2.7)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.15 and o["lo"] - 0.1 < y < o["hi"] + 0.1 for o in opens):
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.06, mat="graffiti")
+
+
+for _kind, _fn in {"jo_seat": prop_jo_seat, "jo_filing": prop_jo_filing, "jo_desk": prop_jo_desk}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+CAVED["junk_office"] = caved_junk_office
+DECALS["junk_office"] = jo_decals
+DRESSING["junk_office"] = dress_junk_office
+FOOTPRINTS["junk_office"] = JO_FP
+ENTRANCE_DOOR["junk_office"] = jo_look("trim")
+WC_MATS["junk_office"] = ("wc_tile", "wc_floor")
+SHELLS["junk_office"] = {
+    "ext": jo_look("ext"), "roof_side": jo_look("ext"), "inner": lambda m: "int_wall", "floor": lambda m: "floor_lino",
+    "ceiling": lambda m: "ceiling_soot", "x_lines": (-5.0, 5.0), "z_lines": (-4.0, 4.0), "x_splits": (), "z_splits": (),
+    "core": "rubble_core", "debris": ("concrete", jo_look("ext"), "wood", "concrete"),
+}
 
 
 def floor_debris(ctx, data, name):

@@ -2040,6 +2040,40 @@ def gas_station_furniture(ox, oz):
         o(x, 0, 11.2, x + 1.2, 1.6, 12.4, "metal", "gs_pump")
 
 
+def garage_furniture(ox, oz):
+    """The garage (World art 0.17), in the model's own coordinates (origin map (ox, oz); local x -7..7, z -7..7, one
+    4.5 m storey, no roof left; north = the highway). A burnt pickup east of the middle, nose to the highway, the
+    engine hoist by it, an engine block on the floor; the workbench and tool chest on the east wall, tyres and drums
+    in the west corners, parts shelving on the south wall, the washroom in the north-east corner."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    o(1.9, 0, -1.0, 4.3, 1.8, 4.6, "metal", "gr_pickup")
+    o(1.0, 0, -3.0, 1.8, 2.2, -2.0, "metal", "gr_hoist")
+    o(-4.1, 0, -0.9, -3.1, 0.8, 0.1, "metal", "gr_engine")
+    o(6.1, 0, -4.1, 6.85, 0.95, -2.0, "wood", "gr_bench")
+    o(6.25, 0, 2.2, 6.85, 1.1, 3.2, "metal", "gr_toolchest")
+    o(-6.85, 0, -6.6, -6.0, 1.3, -5.0, "metal", "gs_tyres")
+    o(-6.6, 0, 5.2, -5.4, 1.0, 6.4, "metal", "fuel_drums")
+    o(-5.6, 0, 6.25, -2.0, 2.2, 6.85, "metal", "gr_shelves")
+    washroom(ox, oz, 5.0, -6.85, 6.85, -4.6, "WS", ("W", -5.75, 2), fit=(
+        ("wc_toilet", "E", -6.1, 0.5, 0.65, 0.8), ("wc_sink", "N", 5.6, 0.5, 0.4, 0.85)))
+
+
+def junk_office_furniture(ox, oz):
+    """The junkyard office (World art 0.17), in the model's own coordinates (origin map (ox, oz); local x -5..5,
+    z -4..4, one 3 m storey, its roof gone; the door south on the yard). A car's back seat for a sofa and the
+    filing cabinets along the north wall (the crate between them), the desk under the west window, a parts shelf
+    in the south-east corner, the washroom in the south-west corner."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    o(-4.6, 0, -3.85, -2.6, 0.85, -3.15, "wood", "jo_seat")
+    o(2.4, 0, -3.85, 4.2, 1.3, -3.3, "metal", "jo_filing")
+    o(-4.85, 0, -1.6, -4.05, 0.76, 0.4, "wood", "jo_desk")
+    o(4.25, 0, 1.9, 4.85, 1.8, 3.85, "metal", "gr_shelves")
+    washroom(ox, oz, -4.85, 1.7, -3.0, 3.85, "EN", ("N", -3.9, 2), fit=(
+        ("wc_toilet", "W", 3.2, 0.5, 0.65, 0.8), ("wc_sink", "S", -4.2, 0.5, 0.4, 0.85)))
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -3634,8 +3668,15 @@ def main():
                                  ("window", 282.9, WIN_W, WIN_LO, WIN_HI), ("blast", 288.0, 3.4, 0.0, FLOOR_H)]}),
               [("crate", 1, 0, 0, "E", 0)])
         diner_furniture(284.0, 326.0)
-    build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True,
-                   blasts=[(0, "N", 0)], caved=[(0, 0)]), [("crate", 0, 0, 0, "E", 0)])
+    with modeled("garage", 339.0, 329.0):
+        # The garage (World art 0.17): a repair shop, its big door now on the highway (owner rule: entrances face the
+        # street; the old west doorway stays as a side door). Bombed: the whole roof is gone, shells through the
+        # east and south walls.
+        build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="N", height=4.5, big_doors=True,
+                       blasts=[(0, "E", 0), (0, "S", 0)], caved=[(0, 0)], wall_openings={
+                           "W": [("door", 327.0, DOOR_W, 0.0, DOOR_H), ("window", 332.6, WIN_W, WIN_LO, WIN_HI)]}),
+              [("crate", 0, 0, 0, "E", 4.6)])
+        garage_furniture(339.0, 329.0)
     car(286, 300, 70, "rust"); car(244, 268, 40, "rust")              # (burnt out)
 
     # junkyard north of the gas station (owner, 0.10.1): a fenced yard of stacked wrecks that makes a maze, a crane,
@@ -3646,8 +3687,12 @@ def main():
     wall_x(jx0, jx1, jz1, 0.0, 2.4, "rust", [(330.5, 5.0, 0.0, 2.4)], t=0.2)
     wall_z(jz0, jz1, jx0, 0.0, 2.4, "rust", [(278.5, 5.0, 0.0, 2.4)], t=0.2)
     wall_z(jz0, jz1, jx1, 0.0, 2.4, "rust", t=0.2)
-    build(Building("JunkOffice", 300.5, 264.5, 10, 8, colour="wall", rooms=(1, 1), doors="S", blasts=[(0, "E", 0)]),
-          [("crate", 0, 0, 0, "N", 0)])
+    with modeled("junk_office", 305.5, 268.5):
+        # The junkyard office (World art 0.17): the yard man's hut, its door on the yard. Bombed: the roof's gone,
+        # a shell through the east wall.
+        build(Building("JunkOffice", 300.5, 264.5, 10, 8, colour="wall", rooms=(1, 1), doors="S", blasts=[(0, "E", 0)],
+                       caved=[(0, 0)]), [("crate", 0, 0, 0, "N", 0)])
+        junk_office_furniture(305.5, 268.5)
     for z, xs in ((270, (316, 321, 326, 336, 341)), (278, (310, 315, 330, 335, 340)), (286, (304, 309, 320, 325, 338))):
         for x in xs:
             car_stack(x, z, 90, rng.randint(1, 3), rng)
