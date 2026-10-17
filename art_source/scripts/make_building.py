@@ -19796,14 +19796,12 @@ CAR_BOXES = {"a": ((1.7, 0.84, 4.2), (1.6, 1.44, -0.8, 1.0)), "b": ((1.62, 0.84,
 
 
 def _car_wheels(L, W, zs, r=0.32):
-    out = []
-    a = 2 * r * 0.924 / 1.0824                                   # two squares, one turned 45: an octagon
+    out = []                                                     # (round: "wheel_x" draws a cylinder along x)
     for z in zs:
         for sx in (-1, 1):
             x = sx * (W / 2 - 0.08)
-            out += [((x, r, z), (0.22, a, a), "black", 0), ((x, r, z), (0.22, a, a), "black", 45),
-                    ((x + sx * 0.02, r, z), (0.2, 0.26, 0.26), "steel_light", 0),
-                    ((x + sx * 0.02, r, z), (0.2, 0.26, 0.26), "steel_light", 45)]
+            out += [((x, r, z), (0.22, 2 * r, 2 * r), "black", "wheel_x"),
+                    ((x + sx * 0.03, r, z), (0.2, 0.3, 0.3), "steel_light", "wheel_x")]
     return out
 
 
@@ -19858,7 +19856,7 @@ def car_parts(kind, paint):
     p += [((0, 1.53, z), (W + 0.01, 0.48, 0.14), "bone", 0) for z in (-2.1, -1.2, -0.2, 0.9, 2.0)]
     p += [((sx * (W / 2 + 0.01), 1.29, 0.05), (0.02, 0.05, L - 0.3), "steel_light", 0) for sx in (-1, 1)]
     p += [((0, 0.58, 0), (W + 0.02, 0.22, L - 2.6), "black", 0),
-          ((0, 1.05, L / 2 + 0.12), (0.62, 0.62, 0.16), "black", 45), ((0, 1.05, L / 2 + 0.15), (0.3, 0.3, 0.12), "steel_light", 45)]
+          ((0, 1.05, L / 2 + 0.1), (0.66, 0.66, 0.18), "black", "wheel_z"), ((0, 1.05, L / 2 + 0.14), (0.3, 0.3, 0.14), "steel_light", "wheel_z")]
     return p + _car_lights(L, W, 0.8) + _car_wheels(L, W, (-1.25, 1.35), r=0.34)
 
 
@@ -19887,9 +19885,39 @@ def emit_car(b, kind, paint, at, yaw=0.0, burnt=False, crushed=None, rng=None):
         wide = 1.06 if crushed else 1.0
         c2 = (c[0] * wide, max(0.01, c[1] * squash - sink), c[2])
         s2 = (s[0] * wide, max(0.02, s[1] * squash), s[2])
+        if isinstance(pitch, str):
+            _car_wheel(b, c2, s2, mat, pitch[-1], at, yaw)
+            continue
         o = rot(c2, yaw, 0)
         b.box((at[0] + o[0], at[1] + o[1], at[2] + o[2]), s2, yaw=yaw, pitch=pitch,
               style=lambda n, m, q, mat=mat: (mat, uv_world(1.0)))
+
+
+def _car_wheel(b, c, s, mat, axis, at, yaw, sides=14):
+    """A round wheel: a 14-sided cylinder along the car's x (or z: the spare on the back), centre c, size s."""
+    def world(p):
+        o = rot(p, yaw, 0)
+        return (at[0] + o[0], at[1] + o[1], at[2] + o[2])
+    ring = []
+    for k in range(sides):
+        a = 2 * math.pi * (k + 0.5) / sides
+        u, v = math.cos(a), math.sin(a)
+        ring.append((u, v))
+    if axis == "x":
+        def pt(e, u, v):
+            return (c[0] + e * s[0] / 2, c[1] + v * s[1] / 2, c[2] + u * s[2] / 2)
+        n_cap, n_side = (1, 0, 0), lambda u, v: (0, v, u)
+    else:
+        def pt(e, u, v):
+            return (c[0] + u * s[0] / 2, c[1] + v * s[1] / 2, c[2] + e * s[2] / 2)
+        n_cap, n_side = (0, 0, 1), lambda u, v: (u, v, 0)
+    uv = uv_world(1.0)
+    for e in (-1, 1):
+        b.poly([world(pt(e, u, v)) for u, v in ring], rot(tuple(e * k for k in n_cap), yaw, 0), mat, uv)
+    for k in range(sides):
+        (u0, v0), (u1, v1) = ring[k], ring[(k + 1) % sides]
+        quad = [world(pt(-1, u0, v0)), world(pt(-1, u1, v1)), world(pt(1, u1, v1)), world(pt(1, u0, v0))]
+        b.poly(quad, rot(n_side((u0 + u1) / 2, (v0 + v1) / 2), yaw, 0), mat, uv)
 
 
 CARS_DIR = os.path.join(ROOT, "assets", "models", "props", "cars")
