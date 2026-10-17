@@ -14226,8 +14226,10 @@ def prop_casino_bar(ctx, c, s):
     for _ in range(4):                                                                  # glasses, a bottle, on top
         b.box((c[0] + rng.uniform(-s[0] / 2 + 0.3, s[0] / 2 - 0.3), top + 0.06, c[2] - 0.2), (0.06, 0.12, 0.06),
               style=_nb(rng.choice(("bone", "green"))))
+    b.group = bake_light.GLOW                                                          # the neon lights itself
     wall_quad(b, (0, 0, -1), zb - 0.005, c[0] - 52 / 64, c[0] + 52 / 64, y0 + 1.95, y0 + 1.95 + 14 / 32, "decals",
               ctx.d("casino"))
+    b.group = None
 
 
 def prop_casino_counter(ctx, c, s):
@@ -14676,12 +14678,19 @@ def prop_farm_tractor(ctx, c, s):
     b.box((c[0], y0 + 2.0, zb - 1.9), (0.42, 0.04, 0.42), pitch=30, style=_nb("black"))
     b.box((c[0] + 0.25, y0 + 1.8, zf + 0.9), (0.1, 0.7, 0.1), style=_nb("black"))                 # exhaust
     for sx in (-1, 1):
-        for zc, r, w in ((zb - 1.0, 0.75, 0.45), (zf + 0.6, 0.42, 0.25)):                         # wheels
+        for zc, r, w, xo in ((zb - 1.0, 0.75, 0.45, s[0] / 2), (zf + 0.6, 0.42, 0.25, 0.85)):          # wheels (narrow front)
             for k in range(4):
-                b.box((c[0] + sx * (s[0] / 2 - w / 2), y0 + r, zc), (w, 2 * r * 0.92, 2 * r * 0.38), pitch=k * 45,
+                b.box((c[0] + sx * (xo - w / 2), y0 + r, zc), (w, 2 * r * 0.92, 2 * r * 0.38), pitch=k * 45,
                       style=_nb("black"))
-            b.box((c[0] + sx * (s[0] / 2 - w / 2 + 0.01), y0 + r, zc), (w + 0.02, r, r), pitch=45, style=_nb("yellow"))
+            b.box((c[0] + sx * (xo - w / 2 + 0.01), y0 + r, zc), (w + 0.02, r, r), pitch=45, style=_nb("yellow"))
         b.box((c[0] + sx * (s[0] / 2 - 0.25), y0 + 1.6, zb - 1.0), (0.55, 0.06, 1.3), style=_nb(body))   # mudguards
+    # Axles: the wheels sit on them (the body is narrow, the wheels far out); the front axle hangs from the bonnet.
+    for zc, r, d, xo in ((zb - 1.0, 0.75, 0.22, s[0] / 2), (zf + 0.6, 0.42, 0.16, 0.85)):
+        b.box((c[0], y0 + r, zc), (2 * xo - 0.2, d, d), style=_nb("trim_dark"))
+        for sx in (-1, 1):
+            b.box((c[0] + sx * (xo + 0.02), y0 + r, zc), (0.06, r * 0.7, r * 0.7), pitch=45, style=_nb("trim"))  # hub
+    b.box((c[0], y0 + 0.42 + (0.65 - 0.42) / 2 + 0.04, zf + 0.6), (0.3, 0.65 - 0.42 + 0.08, 0.2), style=_nb("trim_dark"))
+    b.box((c[0], y0 + 0.75 + 0.14, zb - 1.0), (1.0, 0.28, 0.5), style=_nb(body))                     # rear housing
 
 
 def prop_barn_bench(ctx, c, s):
@@ -14839,7 +14848,7 @@ def dress_silo(ctx):
                 nn = v_scale(nn, -1)
             b.poly(pts, nn, "roof" if k % 3 else "trim_dark", uv_world(2.0))
     b.box((0, H + 1.85, 0), (0.5, 0.3, 0.5), style=_nb("trim_dark"))                          # the vent on top
-    # The caged ladder up the west side (toward the barn), its maker's plate, the chute over to the barn roof.
+    # The caged ladder up the west side (toward the barn), its maker's plate, the unloading spout.
     lx = -R - 0.35
     for sz in (-0.25, 0.25):
         b.box((lx, H / 2 + 0.6, sz), (0.06, H + 1.2, 0.06), style=_nb("trim"))
@@ -14853,7 +14862,7 @@ def dress_silo(ctx):
     for sz in (-0.4, 0.4):
         b.box((lx - 0.7, (3 + H) / 2, sz), (0.03, H - 3, 0.03), style=_nb("trim"))
     wall_quad(b, (-1, 0, 0), -R - 0.02, 0.9, 1.56, 1.5, 1.78, "decals", ctx.d("plate"))
-    _beam(b, (-R + 0.3, H - 0.6, 0.0), (-R - 5.6, 7.6, 0.0), 0.5, 0.5, "trim_dark")          # chute to the barn
+    _beam(b, (-R + 0.3, H - 0.6, 0.0), (-R - 1.2, H - 1.6, 0.0), 0.5, 0.5, "trim_dark")      # the unloading spout
     b.box((0.0, 0.08, 0.0), (2 * R + 0.6, 0.16, 2 * R + 0.6), yaw=11.25, style=_nb("concrete"))   # footing
     for _ in range(5):                                                        # rust and lime streaks
         a = rng.uniform(0, 2 * math.pi)

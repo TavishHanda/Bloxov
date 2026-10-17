@@ -16,6 +16,7 @@ RAYS = 64           # rays per vertex (cosine-weighted over the face's hemispher
 REACH = 40.0        # metres: a ray that gets this far without hitting anything sees the sky
 GROUND = 0.7        # a ray that escapes downwards sees lit ground, not sky
 SHADE_KINDS = ("canopy",)   # props big enough to cast shade (the rest of the furniture is left out)
+GLOW = "glow"       # group of faces that light themselves (neon signs): always full light
 DARK = 0.45         # vertex colour of a spot that sees no sky at all
 GAIN = 4.0          # how fast the colour rises to 1 with the share of sky seen
 
@@ -122,13 +123,15 @@ def bake(builder, rows):
     # The middle of each item.
     centres = {}
     for face, g in zip(builder.faces, groups):
-        if g is not None:
+        if g is not None and g != GLOW:
             acc = centres.setdefault(g, [0.0, 0.0, 0.0, 0])
             for i in face:
                 for a in range(3):
                     acc[a] += builder.verts[i][a]
                 acc[3] += 1
     group_key = {g: key((a[0] / a[3], a[1] / a[3], a[2] / a[3]), (0.0, 1.0, 0.0)) for g, a in centres.items()}
+    group_key[GLOW] = GLOW
+    cache[GLOW] = 1.0
     # Which faces need cutting (any corner short of full light).
     corner_keys = [None if g is not None else [key(builder.verts[i], n) for i in face]
                    for face, n, g in zip(builder.faces, builder.normals, groups)]

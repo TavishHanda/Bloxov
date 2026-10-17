@@ -838,6 +838,10 @@ def ladder(x, y, z, yaw, height, place):
     markers.append(("Ladders", f"Ladder{n}", x, y, z, {"yaw": yaw, "height": height, "place": place}))
 
 
+SILO = (296.0, 30.0)          # the silo's middle (map)
+SHED_SHIFT = (2.0, 16.0)      # the machine shed, moved south from its old spot by the barn
+
+
 def farm_barn():
     with modeled("barn", 268.0, 35.0):
         west = [("window", 29.0, 1.0, 1.6, 2.4), ("window", 41.0, 1.0, 1.6, 2.4)]
@@ -3196,22 +3200,24 @@ def main():
     # ===================================================================== FARM (top right)
     box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
     farm_barn()
-    with modeled("silo", 286.0, 34.0):
+    # The silo and the shed stand well off the barn (owner, 2026-10-17: "the farm is huge").
+    with modeled("silo", SILO[0], SILO[1]):
         # Round concrete silo (World art 0.17): drawn round by its model; solid as an octagon (two squares) inside it.
-        obox(286.0, 6.0, 34.0, 6.4, 12.0, 6.4, 0.0, "concrete", kind="silo")
-        obox(286.0, 6.0, 34.0, 6.4, 12.0, 6.4, 45.0, "concrete", kind="silo_part")
+        obox(SILO[0], 6.0, SILO[1], 6.4, 12.0, 6.4, 0.0, "concrete", kind="silo")
+        obox(SILO[0], 6.0, SILO[1], 6.4, 12.0, 6.4, 45.0, "concrete", kind="silo_part")
     rich_house(0, 310, 26, 16, 12, "farmer", model="farmhouse", place="Farmhouse", colour="wall", loot=[
         ("locker", 1, 0, 0, "E", 1.9), ("crate", 0, 1, 1, "W", -1.9)])   # (the wardrobe off the kitchen table)
-    with modeled("shed", 255.0, 51.0):
+    shx, shz = SHED_SHIFT
+    with modeled("shed", 255.0 + shx, 51.0 + shz):
         # The machine shed (World art 0.17): workbench and tool wall on the north wall, an engine on a stand, tyres,
         # shelving, fuel drums; the middle and the big door's way in stay clear.
-        build(Building("Shed", 248, 46, 14, 10, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
+        build(Building("Shed", 248 + shx, 46 + shz, 14, 10, colour="wall_farm", rooms=(1, 1), doors="E", height=4.0,
                        big_doors=True), [("crate", 0, 0, 0, "W", 0)])
-        box(249.6, 0, 46.15, 253.8, 0.92, 46.85, "wood", kind="shed_bench")
-        box(250.9, 0, 48.9, 252.1, 1.05, 49.9, "metal", kind="engine_stand")
-        box(248.25, 0, 54.4, 249.35, 1.2, 55.75, "metal", kind="tyre_stack")
-        box(252.0, 0, 55.3, 255.0, 2.0, 55.85, "metal", kind="shed_shelf")
-        box(259.3, 0, 54.6, 261.7, 0.95, 55.75, "metal", kind="fuel_drums")
+        box(249.6 + shx, 0, 46.15 + shz, 253.8 + shx, 0.92, 46.85 + shz, "wood", kind="shed_bench")
+        box(250.9 + shx, 0, 48.9 + shz, 252.1 + shx, 1.05, 49.9 + shz, "metal", kind="engine_stand")
+        box(248.25 + shx, 0, 54.4 + shz, 249.35 + shx, 1.2, 55.75 + shz, "metal", kind="tyre_stack")
+        box(252.0 + shx, 0, 55.3 + shz, 255.0 + shx, 2.0, 55.85 + shz, "metal", kind="shed_shelf")
+        box(259.3 + shx, 0, 54.6 + shz, 261.7 + shx, 0.95, 55.75 + shz, "metal", kind="fuel_drums")
     for k in range(5):   # crop rows (low cover)
         z = 50 + k * 9
         box(286, 0, z, 338, 1.0, z + 3, "crop")
