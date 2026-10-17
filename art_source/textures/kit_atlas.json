@@ -100,5 +100,11 @@
 "ch_gravel",
 "ch_mound",
 "wc_tile",
-"wc_floor"
+"wc_floor",
+"mo_block",
+"mo_brick",
+"mo_split",
+"mo_carpet",
+"mo_paper",
+"mo_asphalt"
 ]

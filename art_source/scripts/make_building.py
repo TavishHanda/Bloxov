@@ -1168,7 +1168,7 @@ def shell_box(ctx, row):
                     mid = ((a + e) / 2, yb, (za + ze) / 2)
                     b.poly([(a, yb, za), (e, yb, za), (e, yb, ze), (a, yb, ze)], (0, -1, 0), ceiling(mid), uv_world())
     elif colour == "wood" and abs(row["pitch"]) > 10:
-        stairs(ctx, c, s, row["yaw"], row["pitch"])
+        stairs(ctx, c, s, row["yaw"], row["pitch"], mats=cfg.get("stair_mats", ("wood", "trim_dark")))
     elif colour == "metal" and (BUILDING_NAME[0] in HOUSES or BUILDING_NAME[0] == "bell_tower") and 0.9 < s[1] < 1.1:
         banister(b, c, s)
     elif colour == "metal" and BUILDING_NAME[0] in ("offices", "town_hall", "bank", "police", "grocery") and 0.9 < s[1] < 1.1:
@@ -13318,6 +13318,777 @@ SHELLS["graveyard"] = {
     "inner": lambda m: "stone_rough", "floor": lambda m: "ch_flags", "ceiling": lambda m: "stone_rough",
 }
 FACTION_MARKS["graveyard"] = [("x1_chalk", "N", 7.0, 1.0)]
+
+
+# ------------------------------------------------------------------------------------------------ motel (0.17)
+# The Last Stop Motel (owner 2026-10-17: the two road houses by the graveyard become one big roadside motel; model
+# origin map (216, 45), gen `motel()`). A 9 x 42 m two-storey block (x -4.5..4.5, z -21..21, north -z), the gallery
+# along its east side (x 4.65..7.5: the walkway upstairs, posts, a painted rail, the roof over it with a shingled
+# mansard), walled stairs up at both ends (z -25.4..-21, 21..25.4), the car park east of it, the big sign by the road.
+# Rooms are 5.25 m along z (cell k from z -21 + 5.25 k): 101-105 downstairs (k 0-4; 102 has a car through its front),
+# the laundry (k 5), the office (k 6-7: lobby east of the partition at x -0.4, the manager's flat west of it);
+# 201-208 upstairs. Each room: the bathroom across the back corner (north-west), a clothes rail beside it under the
+# back window, the bed against the south wall, the TV dresser opposite, a table by the front window. War: rooms used
+# as a sniper's nest (204) and a dressing station (206), mattresses stood against windows, doors kicked in.
+MOTEL_LOOKS = {   # outside options for the owner (worldart/options-motel.png); A = the gray box
+    "B": {"ext": "mo_block", "paint": "teal", "roof": "roof_charcoal", "band": "bone"},
+    "C": {"ext": "mo_brick", "paint": "bone", "roof": "roof_clay", "band": "bone"},
+    "D": {"ext": "mo_split", "paint": "wood_dark", "roof": "roof_slate", "band": "wood_light"},
+}
+MOTEL_LOOK = os.environ.get("BLOXOV_MOTEL_LOOK", "B")
+MOTEL_FP = (-4.5, -21.0, 4.5, 21.0)
+MO_CELL = 5.25
+MO_GAL = 7.5                      # the gallery's outer edge (rail)
+MO_ROOMS = [(0, k, 101 + k) for k in range(5)] + [(1, k, 201 + k) for k in range(8)]
+
+PALETTE.update({
+    "moblk": "9c9682", "moblk_dark": "8d8774", "moblk_light": "a4a08b", "moblk_joint": "86806d",
+    "mobr": "6e4a39", "mobr_dark": "5f3f31", "mobr_light": "7a5443", "mobr_mortar": "958c7c",
+    "mosp": "98896c", "mosp_dark": "877960", "mosp_light": "a49678", "mosp_joint": "7c6f57",
+    "mocarp": "4a2a2c", "mocarp_dark": "3b2123", "mocarp_gold": "8a7240", "mocarp_teal": "2f5655",
+    "mopap": "a89c80", "mopap_stripe": "978d70", "mopap_damp": "8a7f63", "mopap_rose": "9c7f74",
+    "moasph": "45464a", "moasph_dark": "38393c", "moasph_light": "56575b",
+    "neon_red": "d0402f", "neon_off": "4c3a36", "mosign": "1f4a4c", "mosign_dark": "163638",
+})
+
+
+def paint_mo_block(rng):
+    """Painted concrete block (0.5 x 0.25 m units, running bond), cream gone grubby: soot, chips, rain streaks."""
+    c = Canvas(64, 64, "moblk")
+    for row in range(16):
+        c.rect(0, row * 4, 64, row * 4 + 1, "moblk_joint")
+        off = 4 if row % 2 else 0
+        for x in range(off, 64 + 8, 8):
+            c.rect(x % 64, row * 4, x % 64 + 1, row * 4 + 4, "moblk_joint")
+    c.noise(0, 0, 64, 64, ["moblk_dark", "moblk_light"], 0.06, rng)
+    c.blotch(["moblk_dark"], 6, rng, size=(2, 5))
+    for _ in range(3):                                                  # rain streaks
+        x = rng.randrange(64)
+        c.rect(x, rng.randrange(20, 50), x + 1, 64, "moblk_dark")
+    return c
+
+
+def paint_mo_brick(rng):
+    """Brown roadside brick (running bond), worn mortar."""
+    c = Canvas(64, 64, "mobr_mortar")
+    for row in range(16):
+        off = 4 if row % 2 else 0
+        for x0 in range(-off, 64, 8):
+            col = rng.choice(("mobr", "mobr", "mobr_dark", "mobr_light"))
+            c.rect(max(0, x0 + 1), row * 4 + 1, x0 + 8, row * 4 + 4, col)
+    c.blotch(["mobr_dark"], 7, rng, size=(2, 5))
+    return c
+
+
+def paint_mo_split(rng):
+    """Tan split-face block (0.4 x 0.2 m): every block's face rough, deep joints."""
+    c = Canvas(64, 64, "mosp_joint")
+    for row in range(20):
+        y0 = row * 3 + (row * 2) // 10
+        off = 3 if row % 2 else 0
+        for x0 in range(-off, 64, 6):
+            col = rng.choice(("mosp", "mosp", "mosp_light", "mosp_dark"))
+            c.rect(max(0, x0 + 1), y0 + 1, x0 + 6, min(64, y0 + 3), col)
+    c.noise(0, 0, 64, 64, ["mosp_dark", "mosp_light"], 0.12, rng)
+    return c
+
+
+def paint_mo_carpet(rng):
+    """Motel carpet: dark wine with a small gold and teal diamond repeat, worn paths and stains."""
+    c = Canvas(64, 64, "mocarp")
+    for ty in range(8):
+        for tx in range(8):
+            cx, cy = tx * 8 + 4, ty * 8 + 4
+            for d in range(3):
+                for sx, sy in ((d, 2 - d), (-d, 2 - d), (d, d - 2), (-d, d - 2)):
+                    c.put(cx + sx, cy + sy, "mocarp_gold" if (tx + ty) % 2 else "mocarp_teal")
+            c.put(cx, cy, "mocarp_dark")
+    c.noise(0, 0, 64, 64, ["mocarp_dark"], 0.08, rng)
+    c.blotch(["mocarp_dark", "mud" if "mud" in PALETTE else "mocarp_dark"], 6, rng, size=(3, 6))
+    return c
+
+
+def paint_mo_paper(rng):
+    """Dated striped wallpaper (beige, a faint rose stripe), damp coming up from the floor, nicotine."""
+    c = Canvas(64, 64, "mopap")
+    for x in range(0, 64, 8):
+        c.rect(x, 0, x + 2, 64, "mopap_stripe")
+        c.rect(x + 4, 0, x + 5, 64, "mopap_rose")
+    c.noise(0, 0, 64, 64, ["mopap_stripe"], 0.04, rng)
+    c.blotch(["mopap_damp"], 5, rng, area=(0, 0, 64, 14), size=(3, 6))
+    return c
+
+
+def paint_mo_asphalt(rng):
+    """Car park asphalt: dark grey grain, cracks, oil."""
+    c = Canvas(64, 64, "moasph")
+    c.noise(0, 0, 64, 64, ["moasph_dark", "moasph_light"], 0.25, rng)
+    for _ in range(3):
+        x, y = rng.randrange(64), rng.randrange(64)
+        for k in range(14):
+            c.put((x + k) % 64, (y + rng.choice((0, 1, k // 3))) % 64, "black")
+    c.blotch(["moasph_dark"], 5, rng, size=(3, 6))
+    return c
+
+
+KIT.update({"mo_block": paint_mo_block, "mo_brick": paint_mo_brick, "mo_split": paint_mo_split,
+            "mo_carpet": paint_mo_carpet, "mo_paper": paint_mo_paper, "mo_asphalt": paint_mo_asphalt})
+
+
+def mo_look(key):
+    return MOTEL_LOOKS[MOTEL_LOOK][key]
+
+
+def mo_text(c, y, s, col, scale=1):
+    """Centred sign text that must fit (2 px clear each side, 1 px above and below)."""
+    w = Canvas.text_width(s, scale)
+    assert w + 4 <= c.w and y >= 1 and y + 5 * scale <= c.h - 1, f"sign text {s!r} doesn't fit {c.w}x{c.h} at y {y}"
+    assert (c.w - w) % 2 == 0 or " " in s, f"{s!r} can't be centred in {c.w} px: change the width"
+    c.ctext(0, c.w, y, s, col, scale)
+
+
+def mo_cell(k):
+    return -21.0 + k * MO_CELL
+
+
+def motel_decals(rng):
+    a = Atlas(512)
+
+    def sign(c):          # 4.375 x 2.375 m, the big roadside sign
+        c.rect(0, 0, c.w, c.h, "mosign")
+        c.frame(0, 0, c.w, c.h, "bone")
+        c.frame(2, 2, c.w - 2, c.h - 2, "mosign_dark")
+        mo_text(c, 45, "LAST STOP", "bone", 3)
+        c.rect(14, 38, c.w - 14, 40, "hazard_yellow")
+        mo_text(c, 12, "MOTEL", "neon_red", 4)
+        for x in range(6, c.w - 6, 6):                                   # bulbs round the edge (most dead)
+            for y in (5, c.h - 6):
+                c.put(x, y, "hazard_yellow" if rng.random() < 0.3 else "neon_off")
+        c.blotch(["mosign_dark"], 5, rng, area=(3, 3, c.w - 3, c.h - 3), size=(2, 4))
+
+    def vacancy(c):       # 3.0 x 0.594 m under it: NO VACANCY, half the letters dead
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "iron")
+        s, scale = "NO VACANCY", 2
+        w = Canvas.text_width(s, scale)
+        x, y = (c.w - w) // 2, 4
+        dead = {0, 1, 5, 8}
+        for i, ch in enumerate(s):
+            if ch == " ":
+                x += 2 * scale
+                continue
+            gw = c.text(x, y, ch, "neon_off" if i in dead else "neon_red", scale)
+            x += gw + scale
+
+    def office(c):        # 1.5625 x 0.4375 m blade sign
+        c.rect(0, 0, c.w, c.h, "mosign")
+        c.frame(0, 0, c.w, c.h, "bone")
+        mo_text(c, 2, "OFFICE", "bone", 2)
+
+    def office_s(c):      # 0.84 x 0.28 m over the south door
+        c.rect(0, 0, c.w, c.h, "mosign")
+        mo_text(c, 2, "OFFICE", "bone")
+
+    def laundry(c):       # 1.0 x 0.28 m
+        c.rect(0, 0, c.w, c.h, "mosign")
+        mo_text(c, 2, "LAUNDRY", "bone")
+
+    def ice(c):           # 0.47 x 0.28 m
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        mo_text(c, 2, "ICE", "bone")
+
+    def fascia(c):        # 3.875 x 0.5625 m on the mansard over the gallery
+        c.rect(0, 0, c.w, c.h, "mosign")
+        c.frame(0, 0, c.w, c.h, "bone")
+        mo_text(c, 4, "LAST STOP MOTEL", "bone", 2)
+
+    def rates(c):         # 1.47 x 0.94 m board in the lobby
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "wood_mid")
+        mo_text(c, 23, "RATES", "hazard_yellow")
+        mo_text(c, 16, "NIGHT 39", "bone")
+        mo_text(c, 9, "WEEK 199", "bone")
+        mo_text(c, 2, "CHECK OUT 11", "bone")
+
+    def painting(c):      # 0.8 x 0.5 m motel art over every dresser: hills and a sunset
+        c.rect(0, 0, c.w, c.h, "sky_blue")
+        c.rect(0, 8, c.w, c.h, "hazard_yellow")
+        c.rect(0, 11, c.w, c.h, "sky_blue")
+        c.rect(17, 9, 22, 13, "red")
+        for x in range(c.w):
+            h = 4 + int(3 * math.sin(x / 4.0)) + (x // 9) % 2
+            c.rect(x, 0, x + 1, h, "olive")
+        c.frame(0, 0, c.w, c.h, "wood_light")
+
+    def mirror(c):        # 0.6 x 0.8 m over the bathroom sink and the dressers
+        c.rect(0, 0, c.w, c.h, "steel_light")
+        c.frame(0, 0, c.w, c.h, "steel")
+        for k in range(7):
+            c.put(5 + k, 12 + k, "black")
+
+    def note(c):          # 1.0 x 0.47 m on the office window: FULL
+        c.rect(0, 0, c.w, c.h, "bone")
+        mo_text(c, 3, "FULL", "red", 2)
+
+    a.add("sign", 140, 76, sign)
+    a.add("vacancy", 96, 19, vacancy)
+    a.add("office", 50, 14, office)
+    a.add("office_s", 27, 9, office_s)
+    a.add("laundry", 32, 9, laundry)
+    a.add("ice", 15, 9, ice)
+    a.add("fascia", 124, 18, fascia)
+    a.add("rates", 47, 30, rates)
+    a.add("painting", 26, 16, painting)
+    a.add("mo_mirror", 19, 26, mirror)
+    a.add("note", 34, 14, note)
+    for _, _, num in MO_ROOMS:                                           # brass number plates by every door
+        s = str(num)
+        w = Canvas.text_width(s) + 4
+
+        def plate(c, s=s):
+            c.rect(0, 0, c.w, c.h, "bronze_dark" if "bronze_dark" in PALETTE else "wood_dark")
+            c.frame(0, 0, c.w, c.h, "hazard_yellow")
+            c.ctext(0, c.w, 2, s, "hazard_yellow")
+        a.add("n%d" % num, w, 9, plate)
+    return a
+
+
+def _mo_room(m):
+    """What a point inside the block is: 'room', 'laundry', 'lobby', 'flat' or 'gallery'."""
+    if m[0] > 4.55:
+        return "gallery"
+    if m[1] < 2.5:
+        if m[2] > 10.5:
+            return "lobby" if m[0] > -0.4 else "flat"
+        if m[2] > 5.25:
+            return "laundry"
+    return "room"
+
+
+MO_ROOM_MATS = {   # inner walls, floor, ceiling
+    "room": ("mo_paper", "mo_carpet", "ceiling"), "laundry": ("int_tile", "floor_lino", "ceiling"),
+    "lobby": ("int_warm", "floor_lino", "ceiling"), "flat": ("paper_cream", "floor_wood", "ceiling"),
+    "gallery": ("concrete", "concrete", "concrete"),
+}
+
+
+# ---- motel props
+def _mo_seed(c):
+    return random.Random("mo%.2f,%.2f,%.2f" % c)
+
+
+def prop_motel_bed(ctx, c, s, single=False):
+    """A motel double (head against the south wall, +z): base, mattress, a cover in this room's colour, pillows,
+    a padded headboard. Some stripped, some unmade, one or two with the mattress gone (stood against a window)."""
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    L, W = s[2], s[0]
+    fate = rng.random()
+    b.box((c[0], y0 + 0.15, c[2]), (W, 0.3, L - 0.08), style=_nb("wood_dark"))
+    b.box((c[0], y0 + 0.55, c[2] + L / 2 - 0.04), (W + 0.06, 1.1, 0.08), style=_nb("wood_dark"))      # headboard
+    b.box((c[0], y0 + 0.65, c[2] + L / 2 - 0.1), (W - 0.12, 0.55, 0.06), style=_nb(rng.choice(("wine", "teal", "olive"))))
+    if fate < 0.15 and not single:
+        b.box((c[0], y0 + 0.32, c[2]), (W - 0.06, 0.04, L - 0.14), style=_nb("trim_dark"))          # bare slats
+        return
+    b.box((c[0], y0 + 0.39, c[2]), (W - 0.06, 0.18, L - 0.14), style=_nb("bone"))                   # mattress
+    if fate < 0.4:
+        b.box((c[0] + 0.1, y0 + 0.485, c[2] - 0.2), (0.4, 0.01, 0.3), style=_nb("sand" if "sand" in KIT else "carton"))
+    else:
+        cover = rng.choice(("wine", "teal", "olive", "blue", "olive_dark"))
+        b.box((c[0], y0 + 0.5, c[2] - 0.25), (W, 0.05, L * 0.7), yaw=rng.uniform(-6, 6), style=_nb(cover))
+    for i in range(1 if single else 2):                                                             # pillows
+        x = c[0] if single else c[0] + (i - 0.5) * W / 2
+        b.box((x, y0 + 0.54, c[2] + L / 2 - 0.35), (W / (1 if single else 2) - 0.12, 0.12, 0.34), yaw=rng.uniform(-8, 8),
+              style=_nb("bone"))
+
+
+def prop_motel_nightstand(ctx, c, s):
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    b.box(c, s, style=_nb("wood"))
+    b.box((c[0], y0 + s[1] * 0.62, c[2] - s[2] / 2 - 0.003), (s[0] - 0.06, 0.012, 0.006), style=_nb("wood_dark"))
+    top = y0 + s[1]
+    if rng.random() < 0.5:                                                  # lamp (some knocked over)
+        if rng.random() < 0.7:
+            b.box((c[0], top + 0.12, c[2]), (0.06, 0.24, 0.06), style=_nb("brass"))
+            b.box((c[0], top + 0.32, c[2]), (0.26, 0.18, 0.26), style=_nb("bone"))
+        else:
+            b.box((c[0], top + 0.05, c[2]), (0.3, 0.1, 0.12), yaw=rng.uniform(0, 90), style=_nb("bone"))
+    else:                                                                   # the phone
+        b.box((c[0], top + 0.04, c[2]), (0.2, 0.08, 0.16), style=_nb("black"))
+        b.box((c[0], top + 0.1, c[2] + 0.02), (0.2, 0.04, 0.05), style=_nb("black"))
+
+
+def prop_motel_dresser(ctx, c, s):
+    """A long low dresser (drawers in two rows), the TV on it, a motel painting on the wall over it."""
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    b.box(c, s, style=_nb("wood"))
+    fz = c[2] + s[2] / 2
+    for i in range(3):
+        for j in range(2):
+            x = c[0] - s[0] / 2 + s[0] * (i + 0.5) / 3
+            y = y0 + 0.22 + j * 0.3
+            out = 0.15 if rng.random() < 0.2 else 0.0                        # pulled out, ransacked
+            b.box((x, y, fz + out / 2 + 0.006), (s[0] / 3 - 0.05, 0.25, 0.012 + out), style=_nb("wood_light"))
+            b.box((x, y + 0.02, fz + out + 0.02), (0.14, 0.025, 0.02), style=_nb("brass"))
+    if rng.random() < 0.8:
+        stock_tv(b, (c[0] - 0.2, y0 + s[1], c[2]), rng, "trim_dark")
+    wall_quad(b, (0, 0, 1), c[2] - s[2] / 2 + 0.005, c[0] - 0.2 - 0.4, c[0] - 0.2 + 0.4, y0 + 1.45, y0 + 1.95,
+              "decals", ctx.d("painting"))
+
+
+def prop_motel_table(ctx, c, s):
+    """A small table by the window, a chair pulled up to it, an ashtray and a can."""
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.02, c[2]), (s[0], 0.04, s[2]), style=_solid("wood_light"))
+    b.box((c[0], top - 0.02, c[2]), (s[0] * 0.75, 0.04, s[2] * 1.15), style=_nb("wood_light"))
+    b.box((c[0], y0 + (s[1] - 0.04) / 2, c[2]), (0.06, s[1] - 0.04, 0.06), style=_nb("trim_dark"))
+    b.box((c[0], y0 + 0.01, c[2]), (0.4, 0.02, 0.4), style=_nb("trim_dark"))
+    b.box((c[0] + 0.1, top + 0.015, c[2] - 0.1), (0.12, 0.03, 0.12), style=_nb("trim"))
+    if rng.random() < 0.6:
+        b.box((c[0] - 0.12, top + 0.06, c[2] + 0.1), (0.07, 0.12, 0.07), style=_nb(rng.choice(("red", "blue", "green"))))
+    chair(b, c[0] - 0.65, y0, c[2] + 0.15, -90, seat="wine", frame="trim_dark")
+
+
+def prop_motel_rail(ctx, c, s):
+    """An open clothes rail in the nook by the bathroom: two posts, a rod, a shelf for cases, a few hangers."""
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.03), y0 + s[1] / 2, c[2]), (0.04, s[1], 0.04), style=_nb("trim"))
+    b.box((c[0], y0 + 1.55, c[2]), (s[0], 0.03, 0.03), style=_nb("trim"))
+    b.box((c[0], y0 + s[1] - 0.02, c[2]), (s[0], 0.03, s[2]), style=_solid("wood_light"))
+    for i in range(rng.randint(2, 5)):
+        x = c[0] - s[0] / 2 + 0.2 + rng.uniform(0, s[0] - 0.4)
+        b.box((x, y0 + 1.5, c[2]), (0.02, 0.08, 0.38), style=_nb("wood_light"))
+        if rng.random() < 0.3:                                                 # a shirt left behind
+            b.box((x, y0 + 1.2, c[2]), (0.06, 0.6, 0.42), style=_nb(rng.choice(("blue", "bone", "olive"))))
+    if rng.random() < 0.5:                                                     # a suitcase under it
+        b.box((c[0] + rng.uniform(-0.4, 0.4), y0 + 0.12, c[2] + 0.15), (0.7, 0.24, 0.48), yaw=rng.uniform(-15, 15),
+              style=_nb(rng.choice(("black", "wine", "olive_dark"))))
+
+
+def prop_motel_sandbags(ctx, c, s):
+    """Sandbags stacked in rows, bonded like bricks."""
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    along = 0 if s[0] >= s[2] else 2
+    L, D = (s[0], s[2]) if along == 0 else (s[2], s[0])
+    rows = max(1, round(s[1] / 0.18))
+    for r in range(rows):
+        n = max(1, round(L / 0.55))
+        off = 0.275 if r % 2 else 0.0
+        for i in range(n):
+            a = -L / 2 + (i + 0.5) * L / n + (off if i < n - 1 else 0) * 0.0 + (off - 0.137 if r % 2 else 0)
+            a = max(-L / 2 + 0.26, min(L / 2 - 0.26, a))
+            p = (c[0] + a, y0 + r * s[1] / rows + s[1] / rows / 2, c[2]) if along == 0 else \
+                (c[0], y0 + r * s[1] / rows + s[1] / rows / 2, c[2] + a)
+            sz = (0.52, s[1] / rows + 0.01, D - 0.04) if along == 0 else (D - 0.04, s[1] / rows + 0.01, 0.52)
+            b.box(p, sz, yaw=rng.uniform(-4, 4), style=_nb(rng.choice(("carton", "carton", "olive"))))
+
+
+def prop_motel_cot(ctx, c, s):
+    prop_cot(ctx, c, s)
+    b = ctx.b
+    b.box((c[0] + 0.3, c[1] - s[1] / 2 + 0.6, c[2]), (0.8, 0.04, s[2] - 0.2), style=_nb("olive"))   # army blanket
+
+
+def prop_motel_aid_table(ctx, c, s):
+    """The dressing station's table: med kits (green cross), bandage rolls, bottles, a tray; IV stand by it."""
+    b, rng = ctx.b, _mo_seed(c)
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.02, c[2]), (s[0], 0.04, s[2]), style=_solid("steel_light"))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            b.box((c[0] + sx * (s[0] / 2 - 0.05), y0 + (s[1] - 0.04) / 2, c[2] + sz * (s[2] / 2 - 0.05)), (0.04, s[1] - 0.04, 0.04),
+                  style=_nb("trim"))
+    for i, x in enumerate((-0.6, 0.1)):
+        b.box((c[0] + x, top + 0.1, c[2]), (0.45, 0.2, 0.3), style=_nb("bone"))
+        b.box((c[0] + x, top + 0.12, c[2] + 0.151), (0.06, 0.14, 0.004), style=_nb("green"))
+        b.box((c[0] + x, top + 0.12, c[2] + 0.151), (0.14, 0.06, 0.004), style=_nb("green"))
+    for k in range(5):
+        b.box((c[0] + 0.5 + k * 0.08, top + 0.04, c[2] - 0.1 + (k % 2) * 0.12), (0.07, 0.08, 0.07), style=_nb("bone"))
+    for k in range(3):
+        b.box((c[0] - 0.2 + k * 0.1, top + 0.08, c[2] + 0.15), (0.05, 0.16, 0.05), style=_nb(("blue", "bone", "steel_light")[k]))
+    x, z = c[0] + s[0] / 2 + 0.3, c[2] + s[2] / 2 + 0.8                      # IV stand between the cots
+    b.box((x, y0 + 0.02, z), (0.4, 0.04, 0.06), style=_nb("trim"))
+    b.box((x, y0 + 0.02, z), (0.06, 0.04, 0.4), style=_nb("trim"))
+    b.box((x, y0 + 0.95, z), (0.03, 1.9, 0.03), style=_nb("trim"))
+    b.box((x, y0 + 1.88, z), (0.3, 0.02, 0.02), style=_nb("trim"))
+    b.box((x + 0.12, y0 + 1.72, z), (0.1, 0.18, 0.04), style=_nb("bone"))
+
+
+def prop_motel_car(ctx, c, s):
+    """The car that went through 102's front (picture over the gray-box block): a boxy old sedan, nose in the room
+    and dipped, the bonnet crumpled up, glass gone, flat tyres, bricks on the bonnet."""
+    b, rng = ctx.b, random.Random("mocar")
+    yaw = ctx.row.get("yaw", 0.0)
+    y0 = c[1] - s[1] / 2
+
+    def P(along, across, y):        # along the car (+ = its tail, out in the gallery), across, height
+        o = rot((across, 0, along), yaw, 0)
+        return (c[0] + o[0], y0 + y, c[2] + o[2])
+    body, dark = "wine", "trim_dark"
+    b.box(P(0.35, 0, 0.55), (1.86, 0.5, 3.4), yaw=yaw, style=_nb(body))                        # body (tail half)
+    b.box(P(-1.55, 0, 0.45), (1.86, 0.4, 1.2), yaw=yaw, pitch=-8, style=_nb(body))              # crumpled nose
+    b.box(P(-1.35, 0, 0.72), (1.7, 0.08, 1.1), yaw=yaw, pitch=-22, style=_nb(body))             # bonnet folded up
+    b.box(P(0.55, 0, 1.03), (1.66, 0.46, 1.9), yaw=yaw, style=lambda n, m, q: (body, uv_world(1.0)) if n[1] > 0.7
+          else ("black", uv_world(1.0)))                                                       # cabin, glass gone
+    for sa in (-1, 1):
+        b.box(P(0.55 + sa * 0.92, 0, 1.03), (1.6, 0.42, 0.08), yaw=yaw, style=_nb(body))         # pillars
+    b.box(P(2.05, 0, 0.5), (1.9, 0.18, 0.14), yaw=yaw, style=_nb("steel_light"))               # bumper
+    for sx in (-0.7, 0.7):
+        b.box(P(2.07, sx, 0.68), (0.32, 0.14, 0.04), yaw=yaw, style=_nb("red"))                # tail lights
+    for along in (-1.25, 1.35):
+        for sx in (-0.88, 0.88):
+            b.box(P(along, sx, 0.26), (0.24, 0.5, 0.62), yaw=yaw, style=_nb("black"))           # tyres
+            b.box(P(along, sx * 1.01, 0.26), (0.02, 0.24, 0.3), yaw=yaw, style=_nb("trim"))    # hubs
+    for _ in range(9):                                                   # wall on the bonnet and round the nose
+        rubble_chunk(b, P(rng.uniform(-2.2, -1.0), rng.uniform(-0.8, 0.8), 0.95 + rng.uniform(0, 0.1)),
+                     (rng.uniform(0.15, 0.35), 0.1, rng.uniform(0.1, 0.25)), rng, _rubble_mats())
+
+
+def prop_key_board(ctx, c, s):
+    """The key board behind the desk: rows of brass hooks, keys on big plastic fobs, a few gone."""
+    b, rng = ctx.b, random.Random("mokeys")
+    b.box(c, s, style=_nb("wood_dark"))
+    fx = c[0] + s[0] / 2
+    for r in range(3):
+        for i in range(6):
+            z = c[2] - s[2] / 2 + 0.2 + i * (s[2] - 0.4) / 5
+            y = c[1] + 0.25 - r * 0.28
+            b.box((fx + 0.03, y, z), (0.06, 0.015, 0.015), style=_nb("brass"))
+            if rng.random() < 0.55:
+                b.box((fx + 0.05, y - 0.05, z), (0.012, 0.07, 0.02), style=_nb("brass"))
+                b.box((fx + 0.05, y - 0.13, z), (0.02, 0.08, 0.05), style=_nb(rng.choice(("red", "blue", "green"))))
+
+
+def prop_motel_desk(ctx, c, s):
+    """The front desk: a panelled counter facing the lobby (+x), the bell, a register, the guest book, an old
+    computer behind, papers everywhere."""
+    b, rng = ctx.b, random.Random("modesk")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], y0 + (s[1] - 0.04) / 2, c[2]), (s[0], s[1] - 0.04, s[2]), style=_nb("wood"))
+    b.box((c[0] + 0.03, top - 0.02, c[2]), (s[0] + 0.12, 0.04, s[2] + 0.06), style=_solid("wood_dark"))
+    fx = c[0] + s[0] / 2 + 0.003
+    for k in range(5):
+        z = c[2] - s[2] / 2 + (k + 0.5) * s[2] / 5
+        b.box((fx, y0 + 0.5, z), (0.006, 0.7, s[2] / 5 - 0.16), style=_nb("wood_light"))
+    b.box((c[0] + 0.1, top + 0.04, c[2] - 1.0), (0.12, 0.08, 0.12), style=_nb("brass"))          # bell
+    b.box((c[0] - 0.05, top + 0.11, c[2] + 0.7), (0.4, 0.22, 0.4), style=_nb("trim_dark"))        # register
+    b.box((c[0] + 0.05, top + 0.015, c[2] - 0.2), (0.3, 0.03, 0.42), yaw=12, style=_nb("wine"))   # guest book
+    stock_tv(b, (c[0] - 0.05, top, c[2] + 1.5), random.Random(2), "bone")                          # monitor
+    for _ in range(10):                                                     # papers on the floor
+        b.box((c[0] + rng.uniform(0.6, 2.4), y0 + 0.005, c[2] + rng.uniform(-2.0, 2.0)), (0.21, 0.004, 0.3),
+              yaw=rng.uniform(0, 180), style=_nb("bone"))
+
+
+def prop_leaflet_rack(ctx, c, s):
+    """A wire rack of tourist leaflets, most taken or on the floor."""
+    b, rng = ctx.b, random.Random("moleaf")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0] + s[0] / 2 - 0.05, y0 + s[1] / 2, c[2]), (0.04, s[1], s[2]), style=_nb("trim"))
+    for r in range(4):
+        y = y0 + 0.5 + r * 0.3
+        b.box((c[0], y, c[2]), (s[0] - 0.1, 0.02, s[2]), style=_nb("trim"))
+        for i in range(4):
+            if rng.random() < 0.5:
+                z = c[2] - s[2] / 2 + 0.15 + i * (s[2] - 0.3) / 3
+                b.box((c[0] - 0.05, y + 0.11, z), (0.03, 0.2, 0.18), pitch=0, style=_nb(rng.choice(("red", "blue", "yellow", "green", "bone"))))
+    for _ in range(6):
+        b.box((c[0] - rng.uniform(0.3, 1.2), y0 + 0.005, c[2] + rng.uniform(-0.6, 0.6)), (0.2, 0.004, 0.1), yaw=rng.uniform(0, 180),
+              style=_nb(rng.choice(("red", "blue", "yellow", "bone"))))
+
+
+def prop_motel_office_desk(ctx, c, s):
+    """The manager's desk against the back wall: ledgers, a lamp, the cash box (empty), a chair."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    b.box((c[0], top - 0.025, c[2]), (s[0], 0.05, s[2]), style=_solid("wood"))
+    b.box((c[0] - s[0] / 2 + 0.25, y0 + (s[1] - 0.05) / 2, c[2] - s[2] / 2 + 0.3), (0.45, s[1] - 0.05, 0.5), style=_nb("wood"))
+    b.box((c[0] - s[0] / 2 + 0.25, y0 + (s[1] - 0.05) / 2, c[2] + s[2] / 2 - 0.3), (0.45, s[1] - 0.05, 0.5), style=_nb("wood"))
+    b.box((c[0], top + 0.04, c[2] - 0.3), (0.3, 0.08, 0.4), style=_nb("olive_dark"))
+    b.box((c[0] + 0.05, top + 0.06, c[2] + 0.3), (0.32, 0.12, 0.24), style=_nb("steel_light"))    # cash box, lid up
+    b.box((c[0] - 0.02, top + 0.18, c[2] + 0.3), (0.32, 0.02, 0.24), pitch=0, yaw=0, style=_nb("steel_light"))
+    b.box((c[0] - 0.15, top + 0.2, c[2] + 0.6), (0.04, 0.4, 0.04), style=_nb("brass"))
+    chair(b, c[0] + s[0] / 2 + 0.35, y0, c[2], 90, seat="wine", frame="trim_dark")
+
+
+def prop_ice_machine(ctx, c, s):
+    """A big steel ice machine: the bin door, a scoop on a chain, ICE on the front."""
+    b = ctx.b
+    k, f = _front(c, s)
+    L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
+    b.box(c, s, style=_nb("steel_light"))
+    lo = -s[1] / 2
+    b.box(_pos(c, k, 0, f * (D / 2 + 0.01), lo + 0.55), _sz(k, L - 0.14, 0.5, 0.02), style=_nb("trim"))
+    b.box(_pos(c, k, 0, f * (D / 2 + 0.03), lo + 0.78), _sz(k, 0.5, 0.04, 0.04), style=_nb("trim_dark"))
+    p = _pos(c, k, 0, f * (D / 2 + 0.006), lo + 1.4)
+    pts = [_pos(c, k, -0.24, f * (D / 2 + 0.006), lo + 1.26), _pos(c, k, 0.24, f * (D / 2 + 0.006), lo + 1.26),
+           _pos(c, k, 0.24, f * (D / 2 + 0.006), lo + 1.54), _pos(c, k, -0.24, f * (D / 2 + 0.006), lo + 1.54)]
+    n = [0.0, 0.0, 0.0]
+    n[k] = float(f)
+    ctx.b.poly(pts, tuple(n), "decals", ctx.d("ice"))
+    b.box(_pos(c, k, 0, 0, s[1] / 2 + 0.04), _sz(k, L, 0.08, D), style=_nb("trim"))
+
+
+def prop_motel_washers(ctx, c, s):
+    """Coin washers in a row against the wall, porthole doors facing the room (+z), one lid up."""
+    b, rng = ctx.b, random.Random("mowash")
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("bone", uv_world(1.0)))
+    n = max(1, round(s[0] / 0.9))
+    unit = s[0] / n
+    zf = c[2] + s[2] / 2
+
+    def P(a, y, d):
+        return (a, y, zf + d)
+    for i in range(n):
+        a = c[0] - s[0] / 2 + unit * (i + 0.5)
+        round_door(b, P, a, y0 + 0.45, 0.48, inside=rng.choice(("blue", "bone", None)))
+        b.box(P(a, y1 - 0.12, 0.005), *_face_size(P, unit - 0.04, 0.16, 0.01), style=_nb("steel_light"))
+        b.box(P(a + unit * 0.25, y1 - 0.12, 0.03), *_face_size(P, 0.08, 0.08, 0.06), style=_nb("trim"))
+        if i:
+            b.box(P(a - unit / 2, (y0 + y1) / 2, 0.005), *_face_size(P, 0.025, s[1], 0.012), style=_nb("trim_dark"))
+    b.box((c[0] - s[0] / 2 + 0.2, y1 + 0.12, c[2]), (0.24, 0.24, 0.3), style=_nb("blue"))       # a jug of soap
+
+
+def prop_gallery_walk(ctx, c, s):
+    """The walkway outside the ground-floor rooms: concrete with a kerb along its edge."""
+    b = ctx.b
+    yt = c[1] + s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.poly([(x0, yt, z0), (x1, yt, z0), (x1, yt, z1), (x0, yt, z1)], (0, 1, 0), "concrete", uv_world())
+    b.box((x1 - 0.1, yt + 0.04, c[2]), (0.2, 0.16, s[2]), style=_nb("concrete"))
+
+
+def prop_gallery_post(ctx, c, s):
+    """A square steel post painted the motel's colour, a base plate, a bracket under the beam."""
+    b = ctx.b
+    paint = mo_look("paint")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], c[1], c[2]), (0.14, s[1], 0.14), style=_nb(paint))
+    b.box((c[0], y0 + 0.01, c[2]), (0.24, 0.02, 0.24), style=_nb("trim_dark"))
+    b.box((c[0] - 0.15, y0 + s[1] - 0.1, c[2]), (0.3, 0.06, 0.06), pitch=0, style=_nb(paint))
+
+
+def prop_gallery_rail(ctx, c, s):
+    """The walkway's rail: a top rail, a bottom rail, thin pickets, painted (a stretch bent out by a blast)."""
+    b = ctx.b
+    paint = mo_look("paint")
+    y0 = c[1] - s[1] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.box((c[0], y0 + s[1] - 0.03, c[2]), (0.08, 0.06, s[2]), style=_solid(paint))
+    b.box((c[0], y0 + 0.1, c[2]), (0.05, 0.04, s[2]), style=_solid(paint))
+    z = z0 + 0.1
+    while z < z1 - 0.05:
+        bent = 6.0 < z < 8.0
+        b.box((c[0] + (0.06 if bent else 0), y0 + s[1] / 2, z), (0.025, s[1] - 0.1, 0.025), pitch=0,
+              style=_nb(paint))
+        z += 0.16
+
+
+def mansard(b, edge_a, edge_b, out, x_or_z, y0, mat, h=1.35, lean=0.5):
+    """A shingled mansard band along an edge: from the eaves at y0 sloping back by `lean` to y0 + h. The edge runs
+    along z (out = +-1 on x, at x = x_or_z) or along x (out on z)."""
+    L = edge_b - edge_a
+    mid = (edge_a + edge_b) / 2
+    pitch = -math.degrees(math.atan2(lean, h))
+    slope = math.hypot(lean, h)
+    if out[0]:
+        yaw = 90.0 if out[0] > 0 else -90.0
+        cen = (x_or_z - out[0] * lean / 2, y0 + h / 2, mid)
+    else:
+        yaw = 0.0 if out[1] > 0 else 180.0
+        cen = (mid, y0 + h / 2, x_or_z - out[1] * lean / 2)
+    b.box(cen, (L, slope, 0.12), yaw=yaw, pitch=pitch,
+          style=lambda n, m, q: (mat, uv_slope(2.0)) if abs(n[1]) < 0.95 and dot(n, (out[0], 0, out[1])) > 0.3 else ("trim_dark", uv_world(1.0)))
+
+
+def prop_gallery_roof(ctx, c, s):
+    """The roof over the gallery and stairs: the roof surface on top, a plain soffit underneath, the motel's
+    colour on the fascia."""
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: ("roof", uv_world()) if n[1] > 0.7 else ("concrete", uv_world()) if n[1] < -0.7
+          else (mo_look("band"), uv_world(1.0)))
+
+
+def prop_motel_lot(ctx, c, s):
+    """The car park: asphalt, painted bays along the gallery (most lines worn away), kerb stops, a drain, oil."""
+    b, rng = ctx.b, random.Random("molot")
+    yt = c[1] + s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.poly([(x0, yt, z0), (x1, yt, z0), (x1, yt, z1), (x0, yt, z1)], (0, 1, 0), "mo_asphalt", uv_world())
+    for side in (x0, x1):
+        b.box((side, yt - 0.1, c[2]), (0.02, 0.2, s[2]), style=_nb("mo_asphalt"))
+    z = z0 + 1.4
+    k = 0
+    while z < z1 - 1.0:
+        if rng.random() < 0.8:
+            L = 5.0 if rng.random() < 0.7 else rng.uniform(2.0, 4.0)
+            b.box((x0 + L / 2 + 0.1, yt + 0.003, z), (L, 0.006, 0.1), style=_nb("bone"))
+        if rng.random() < 0.7 and k % 1 == 0:
+            b.box((x0 + 0.9, yt + 0.06, z + 1.3), (0.2, 0.12, 1.6), yaw=rng.uniform(-6, 6), style=_nb("concrete"))
+        z += 2.6
+        k += 1
+    for _ in range(8):
+        b.box((rng.uniform(x0 + 1, x1 - 1), yt + 0.002, rng.uniform(z0 + 1, z1 - 1)), (rng.uniform(0.6, 1.4), 0.004,
+              rng.uniform(0.5, 1.2)), yaw=rng.uniform(0, 90), style=_nb("black"))
+
+
+def prop_motel_sign(ctx, c, s):
+    """The sign's pole: a steel column on a concrete footing, a ladder up the back."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.2, c[2]), (0.8, 0.4, 0.8), style=_nb("concrete"))
+    b.box((c[0], c[1], c[2]), (0.36, s[1], 0.36), style=_nb(mo_look("paint")))
+    for k in range(int((s[1] - 1.2) / 0.3)):
+        b.box((c[0], y0 + 1.2 + k * 0.3, c[2] + 0.3), (0.3, 0.025, 0.025), style=_nb("trim_dark"))
+    for sx in (-0.15, 0.15):
+        b.box((c[0] + sx, y0 + 0.6 + (s[1] - 1.2) / 2 + 0.6, c[2] + 0.3), (0.03, s[1] - 1.2, 0.03), style=_nb("trim_dark"))
+
+
+def prop_motel_sign_board(ctx, c, s):
+    """The sign: LAST STOP MOTEL on both faces in a painted frame, NO VACANCY hung under it (letters dead)."""
+    b = ctx.b
+    paint = mo_look("paint")
+    y0 = c[1] - s[1] / 2
+    W, H = 140 / 32, 76 / 32
+    yb = y0 + s[1] - H / 2
+    b.box((c[0], yb, c[2]), (W + 0.16, H + 0.16, 0.3), style=_nb(paint))
+    for sz in (-1, 1):
+        zf = c[2] + sz * 0.151
+        b.poly([(c[0] - W / 2, yb - H / 2, zf), (c[0] + W / 2, yb - H / 2, zf), (c[0] + W / 2, yb + H / 2, zf),
+                (c[0] - W / 2, yb + H / 2, zf)], (0, 0, sz), "decals", ctx.d("sign", sz < 0))
+    vw, vh = 96 / 32, 19 / 32
+    vy = yb - H / 2 - 0.2 - vh / 2
+    b.box((c[0], vy, c[2]), (vw + 0.1, vh + 0.1, 0.16), style=_nb("trim_dark"))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * vw * 0.35, (vy + yb - H / 2) / 2, c[2]), (0.03, 0.25, 0.03), style=_nb("trim_dark"))
+    for sz in (-1, 1):
+        zf = c[2] + sz * 0.081
+        b.poly([(c[0] - vw / 2, vy - vh / 2, zf), (c[0] + vw / 2, vy - vh / 2, zf), (c[0] + vw / 2, vy + vh / 2, zf),
+                (c[0] - vw / 2, vy + vh / 2, zf)], (0, 0, sz), "decals", ctx.d("vacancy", sz < 0))
+
+
+PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in {
+    "motel_bed": prop_motel_bed, "motel_nightstand": prop_motel_nightstand, "motel_dresser": prop_motel_dresser,
+    "motel_table": prop_motel_table, "motel_rail": prop_motel_rail, "motel_sandbags": prop_motel_sandbags,
+    "motel_cot": prop_motel_cot, "motel_aid_table": prop_motel_aid_table, "motel_car": prop_motel_car,
+    "key_board": prop_key_board, "motel_desk": prop_motel_desk, "leaflet_rack": prop_leaflet_rack,
+    "motel_office_desk": prop_motel_office_desk, "motel_cot_bed": lambda ctx, c, s: prop_motel_bed(ctx, c, s, True),
+    "ice_machine": prop_ice_machine, "motel_washers": prop_motel_washers, "gallery_walk": prop_gallery_walk,
+    "gallery_post": prop_gallery_post, "gallery_rail": prop_gallery_rail, "gallery_roof": prop_gallery_roof,
+    "motel_lot": prop_motel_lot, "motel_sign": prop_motel_sign, "motel_sign_board": prop_motel_sign_board,
+}.items()})
+
+
+def dress_motel(ctx):
+    b, rng = ctx.b, random.Random("motel dress")
+    paint, roof, band = mo_look("paint"), mo_look("roof"), mo_look("band")
+    wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
+    # ---- Roof: a shingled mansard round the top (the gallery side over the walkway, the back, the ends), the
+    # LAST STOP MOTEL panel on the front, a band under it; vents and an aerial on the flat roof behind.
+    mansard(b, -25.6, 25.6, (1, 0), 7.95, 5.6, roof)
+    mansard(b, -21.35, 21.35, (-1, 0), -4.85, 5.6, roof)
+    for sz in (-1, 1):
+        mansard(b, -5.0, 4.6, (0, sz), sz * 21.35, 5.6, roof)
+        mansard(b, 4.4, 8.1, (0, sz), sz * 25.6, 5.6, roof)
+        b.box((4.6, 6.2, sz * 23.4), (0.12, 1.2, 4.2), style=_nb(roof))                    # (behind the stair roof)
+    for x in (7.85, -4.75):
+        b.box((x, 5.55, 0), (0.12, 0.12, 51.2 if x > 0 else 42.7), style=_solid(band))
+    b.box((8.02, 6.2, 0), (0.06, 0.66, 4.0), style=_nb("trim_dark"))
+    wq((1, 0, 0), 8.06, 124 / 64, -124 / 64, 6.2 - 9 / 32, 6.2 + 9 / 32, "fascia")
+    for z in (-14.0, -3.0, 9.0):
+        b.box((-1.5, 6.25, z), (0.6, 0.5, 0.6), style=_nb("steel_light"))
+    b.box((1.0, 7.5, 12.0), (0.06, 3.0, 0.06), style=_nb("trim"))
+    b.box((1.0, 8.6, 12.0), (1.2, 0.04, 0.04), style=_nb("trim"))
+    # ---- Room fronts: a painted frame round every door, the brass number plate, a wall lamp; scorch on a few.
+    for f, k, num in MO_ROOMS:
+        c, y = mo_cell(k), f * 3.0
+        if num == 102:
+            continue
+        a0, a1 = c + 2.85, c + 4.85
+        for z in (a0 + 0.04, a1 - 0.04):
+            b.box((4.69, y + 1.2, z), (0.06, 2.4, 0.08), style=_nb(paint))
+        b.box((4.69, y + 2.44, (a0 + a1) / 2), (0.06, 0.08, 2.08), style=_nb(paint))
+        w = (Canvas.text_width(str(num)) + 4) / 32
+        wq((1, 0, 0), 4.665, c + 2.45 - w / 2, c + 2.45 + w / 2, y + 1.6, y + 1.6 + 9 / 32, "n%d" % num)
+        b.box((4.72, y + 2.25, c + 2.45), (0.12, 0.22, 0.16), style=_nb("bone"))
+        b.box((4.67, y + 2.25, c + 2.45), (0.03, 0.3, 0.22), style=_nb("trim_dark"))
+        if rng.random() < 0.25:
+            b.box((4.666, y + 1.6, c + rng.uniform(0.3, 2.3)), (0.004, rng.uniform(0.6, 1.2), rng.uniform(0.6, 1.4)),
+                  style=_nb("black"))
+    # ---- Laundry and office fronts: signs, the ice sign, the blade sign over the office door, FULL in the window.
+    wq((1, 0, 0), 4.665, 9.1 - 0.5, 9.1 + 0.5, 2.44, 2.72, "laundry")
+    wq((1, 0, 0), 4.665, 7.42, 7.89, 1.9, 2.18, "ice")
+    bw, bh = 50 / 32, 14 / 32
+    for sz in (-1, 1):
+        zf = 15.0 + sz * 0.021
+        b.poly([(4.95, 2.1, zf), (4.95 + bw, 2.1, zf), (4.95 + bw, 2.1 + bh, zf), (4.95, 2.1 + bh, zf)], (0, 0, sz),
+               "decals", ctx.d("office", sz < 0))
+    b.box((4.95 + bw / 2, 2.1 + bh / 2, 15.0), (bw + 0.06, bh + 0.06, 0.04), style=lambda n, m, q: None if abs(n[2]) > 0.7
+          else (paint, uv_world(1.0)))
+    for x in (5.3, 6.2):
+        b.box((x, 2.62, 15.0), (0.02, 0.26, 0.02), style=_nb("trim_dark"))
+    wq((0, 0, 1), 21.165, 2.0 - 27 / 64, 2.0 + 27 / 64, 2.44, 2.72, "office_s")
+    wq((-1, 0, 0), 4.34, 12.6 - 0.5, 12.6 + 0.0 - 0.03, 1.4, 1.87, "note")
+    # ---- Lobby: the rates board over the sofa, a mirror in each bathroom over the basin.
+    wq((0, 0, 1), 10.605, 2.8 - 47 / 64, 2.8 + 47 / 64, 1.3, 1.3 + 30 / 32, "rates")
+    for w in ctx.wet:
+        sinks = [r for r in ctx.data["boxes"] if r.get("kind") == "wc_sink" and w[0] - 0.01 < r["pos"][0] < w[3] + 0.01
+                 and w[2] - 0.01 < r["pos"][2] < w[5] + 0.01 and w[1] - 0.1 < r["pos"][1] < w[4]]
+        for r in sinks:
+            (px, py, pz), sx = r["pos"], r["size"]
+            if abs(px - w[3]) < 0.4:                                   # against the east wall: mirror faces -x
+                wq((-1, 0, 0), w[3] - 0.005, pz + 0.3, pz - 0.3, w[1] + 1.15, w[1] + 1.95, "mo_mirror")
+    # ---- War: a mattress stood against some front windows; the sniper's nest's mattress on its back window,
+    # casings; the gallery: litter, a shopping cart, trash bags; stair handrails.
+    for f, k, num in MO_ROOMS:
+        c, y = mo_cell(k), f * 3.0
+        if num in (102, 206):
+            continue
+        r = random.Random("momat%d" % num)
+        if num == 204 or r.random() < 0.3:
+            if num == 204:
+                b.box((-4.25, y + 1.1, c + 3.9), (0.2, 2.0, 1.45), yaw=4, style=_nb("bone"))     # (the back window)
+                for _ in range(16):
+                    b.box((r.uniform(-3.9, -3.0), y + 0.01, c + r.uniform(3.1, 4.7)), (0.03, 0.02, 0.06),
+                          yaw=r.uniform(0, 90), style=_nb("brass"))
+            else:
+                b.box((4.2, y + 1.05, c + 1.3), (0.2, 1.95, 1.45), yaw=r.uniform(-4, 4), style=_nb("bone"))
+        for _ in range(r.randint(1, 3)):                                     # towels, a bag, cans on the floor
+            b.box((r.uniform(0.5, 3.5), y + 0.02, c + r.uniform(1.0, 2.6)), (r.uniform(0.3, 0.6), 0.04, r.uniform(0.3, 0.5)),
+                  yaw=r.uniform(0, 90), style=_nb(r.choice(("bone", "bone", "olive", "black"))))
+    for z in (-17.0, -6.5, 3.4, 13.0):                                      # trash bags on the walkway
+        for y in (0.06, 3.0):
+            if rng.random() < 0.5:
+                b.box((6.9, y + 0.22, z + rng.uniform(-0.5, 0.5)), (0.5, 0.44, 0.45), yaw=rng.uniform(0, 90), style=_nb("black"))
+    shopping_cart(b, 6.4, 0.06, -10.2, 20, tipped=True, rng=random.Random(4))
+    for sz in (-1, 1):                                                      # pipe handrails in the stair walls
+        a, foot = sz * 21.0, sz * 25.4
+        for x in (4.72, 7.24):
+            p0, p1 = (x, 0.9, foot - sz * 0.2), (x, 3.9, a)
+            _beam(b, p0, p1, 0.05, 0.05, paint)
+
+
+DECALS["motel"] = motel_decals
+DRESSING["motel"] = dress_motel
+FOOTPRINTS["motel"] = MOTEL_FP
+SHELLS["motel"] = {
+    "ext": mo_look("ext"), "roof_side": mo_look("ext"), "stair_mats": ("concrete", "trim_dark"),
+    "inner": lambda m: MO_ROOM_MATS[_mo_room(m)][0] if m[0] < 4.55 else mo_look("ext"),
+    "floor": lambda m: MO_ROOM_MATS[_mo_room(m)][1], "ceiling": lambda m: MO_ROOM_MATS[_mo_room(m)][2],
+    "x_lines": (-4.5, -0.4, 4.5), "z_lines": tuple(mo_cell(k) for k in range(9)),
+    "x_splits": (-0.4, 4.5), "z_splits": tuple(mo_cell(k) for k in range(1, 8)),
+}
+FACTION_MARKS["motel"] = [("x1_tag", "W", -8.9, 0.8), ("nova_tag", "N", -2.5, 1.0)]
 
 
 def floor_debris(ctx, data, name):

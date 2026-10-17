@@ -192,7 +192,11 @@ def clear_scatter(rect):
         del anchors[b0:b1]
         for lst, (a0, a1) in zip((trunks, craters, clutter_spots, woods), rest):
             del lst[a0:a1]
+        k = scatter_pieces.index(piece)
         scatter_pieces.remove(piece)
+        # (the pieces made after it move down the lists: so a later clear finds them where they are now)
+        for n, (spot, ranges) in enumerate(scatter_pieces[k:], start=k):
+            scatter_pieces[n] = (spot, [(a - (e1 - e0), e - (e1 - e0)) for (a, e), (e0, e1) in zip(ranges, piece[1])])
 
 
 def turn_point(px, pz, x, z, deg):
@@ -304,7 +308,7 @@ LOOT_LOOKS = {
     "crate": {"GunStore": "weapon_case", "Checkpoint": "hard_case", "Bunker": "hard_case", "Railyard": "hard_case",
               "Depot": "hard_case", "Pharmacy": "med_cabinet", "Grocery": "stock_boxes", "Shops": "stock_boxes",
               "GasStationTown": "stock_boxes", "GasStation": "stock_boxes", "BigHouse": "dresser",
-              "OldHouse": "dresser", "RoadHouse": "dresser", "Farmhouse": "dresser", "Cabin": "duffel",
+              "OldHouse": "dresser", "RoadHouse": "dresser", "Motel": "dresser", "Farmhouse": "dresser", "Cabin": "duffel",
               "Campsite": "duffel", "BellTower": "duffel", "Offices": "filing", "TownHall": "filing",
               "Police": "filing", "Bank": "filing", "School": "filing", "TrainStation": "filing",
               "JunkOffice": "filing", "Barn": "toolbox", "Shed": "toolbox", "Garage": "toolbox",
@@ -432,7 +436,7 @@ class Building:
 
     def __init__(self, name, x, y, w, d, floors=1, colour="wall", rooms=(2, 2), doors="S", roof=False,
                  height=FLOOR_H, solid_inner=(), no_windows=(), big_doors=False, blasts=(), caved=(), shopfronts="",
-                 open_plan=False, roof_ramp=None, wall_openings=None):
+                 open_plan=False, roof_ramp=None, wall_openings=None, stairs=True, spawn_spots=None):
         self.name, self.x0, self.z0, self.x1, self.z1 = name, x, y, x + w, y + d
         self.floors, self.colour, self.nx, self.nz = floors, colour, rooms[0], rooms[1]
         self.doors, self.roof, self.h = doors, roof, height
@@ -449,6 +453,10 @@ class Building:
         # the roof stairs along the north wall, landing at the east end; wall_openings = {side: [(kind, mid, w, lo,
         # hi)]} replaces the ground floor's made-up openings on that side (blasts included, by hand).
         self.open_plan, self.roof_ramp, self.wall_openings = open_plan, roof_ramp, wall_openings or {}
+        # Motel (World art 0.17): wall_openings may also give an upper storey's openings, keyed (side, storey);
+        # stairs=False = no stairs inside (the building makes its own outside); spawn_spots = the indoor AI spawn
+        # spots [(x, z)] instead of the ground-floor rooms' middles.
+        self.stairs, self.spawn_spots = stairs, spawn_spots
         self.holes = {}   # storey -> (x0, z0, x1, z1) slab hole above a ramp
         self.cw = (self.x1 - self.x0) / self.nx
         self.cd = (self.z1 - self.z0) / self.nz
@@ -463,7 +471,7 @@ class Building:
         # end), the roof ramp along the south wall (landing at the east end), so they never stack. Inner walls
         # stop at the strip, so it's a little corridor downstairs.
         self.ramps = []
-        for f in range(storeys - 1):
+        for f in range(storeys - 1 if self.stairs else 0):
             self.ramps.append((f, (self.roof_ramp or "S") if f == self.floors - 1 else "N"))
         self.strips = []
         for f, wall in self.ramps:
@@ -498,10 +506,11 @@ class Building:
             horizontal = side in "NS"
             n = self.nx if horizontal else self.nz
             openings, kinds = [], []
-            for kind, mid, w, lo, hi in (self.wall_openings.get(side, ()) if f == 0 else ()):
+            own = self.wall_openings.get(side if f == 0 else (side, f))
+            for kind, mid, w, lo, hi in (own or ()):
                 openings.append((mid, w, lo, hi))
                 kinds.append(kind)
-            for k in (range(0) if f == 0 and side in self.wall_openings else range(n)):
+            for k in (range(0) if own is not None else range(n)):
                 cell = (k, 0 if side == "N" else self.nz - 1) if horizontal else (0 if side == "W" else self.nx - 1, k)
                 a0, a1 = (self.x0 + k * self.cw, self.x0 + (k + 1) * self.cw) if horizontal else \
                          (self.z0 + k * self.cd, self.z0 + (k + 1) * self.cd)
@@ -1301,6 +1310,164 @@ def graveyard_furniture(ox, oz):
     for z0 in (0.15, 7.15):
         o(3.4, 0, z0, 10.6, 1.9, z0 + 0.7, "stone", "coffin_shelf")
 
+# The Last Stop Motel (World art 0.17, owner 2026-10-17: the two road houses east of the graveyard become one big
+# roadside motel; plan worldart/motel-plan.md). A long two-storey block (map x 211.5-220.5, z 24-66) with an outside
+# gallery along its east side (walkway upstairs, railing, posts) and walled stairs up at both ends; the rooms open onto
+# the gallery and the motel's own car park by the county road. The office (front desk, lobby, the manager's flat behind
+# it) at the south end, nearest Main Street; the laundry next to it. 5 m rooms: 101-105 downstairs (102 has a car through
+# its front), 206.0-213.0 upstairs, each with its own bathroom at the back.
+MOTEL = (211.5, 24.0, 220.5, 66.0)        # the block (map x0, z0, x1, z1)
+MOTEL_O = (216.0, 45.0)                   # the model's origin
+MOTEL_CELL = 5.25                         # one room along the block
+MOTEL_GAL = 223.5                         # the gallery's outer edge (posts and rail)
+MOTEL_LOT = (223.5, 18.0, 232.5, 72.0)    # the car park
+MOTEL_CLEAR = (208.0, 15.0, 237.0, 74.0)  # the scatter cleared for it
+
+
+def motel_rooms():
+    """(storey, cell k, room number) of the guest rooms (cell k runs z 24 + 5.25 k ..)."""
+    rooms = [(0, k, 101 + n) for n, k in enumerate(range(5))]
+    rooms += [(1, k, 206.0 + k) for k in range(8)]
+    return rooms
+
+
+def motel_openings():
+    """Outside openings: per room a window and the door (a real door, `inner_door`) on the gallery side, a window at the
+    back (in the dressing nook beside the bathroom); 102's front is a hole where a car went through; the office's
+    door and windows, the end windows."""
+    x0, z0, x1, z1 = MOTEL
+    ops = {"E": [], "W": [], ("E", 1): [], ("W", 1): []}
+    for f, k, num in motel_rooms() + [(0, 5, 0)]:
+        c = z0 + k * MOTEL_CELL
+        E, W = ops["E" if f == 0 else ("E", 1)], ops["W" if f == 0 else ("W", 1)]
+        if num == 102:
+            E.append(("blast", c + 2.6, 3.4, 0.0, 2.6))
+        else:
+            E.append(("window", c + 1.3, WIN_W, WIN_LO, WIN_HI))
+            E.append(("room_door", c + 3.85, INNER_DOOR_W, 0.0, DOOR_H))
+        if num:
+            W.append(("window", c + 3.9, WIN_W, WIN_LO, WIN_HI))
+    ops["E"] += [("window", 57.6, WIN_W, WIN_LO, WIN_HI), ("door", 61.5, DOOR_W, 0.0, DOOR_H)]
+    ops["W"] += [("window", 58.3, WIN_W, WIN_LO, WIN_HI), ("window", 62.3, WIN_W, WIN_LO, WIN_HI)]
+    ops["N"] = [("window", 216.5, WIN_W, WIN_LO, WIN_HI)]
+    ops[("N", 1)] = [("window", 216.5, WIN_W, WIN_LO, WIN_HI)]
+    ops["S"] = [("door", 218.0, DOOR_W, 0.0, DOOR_H), ("window", 214.45, 0.8, 1.5, 2.1)]
+    ops[("S", 1)] = [("window", 216.5, WIN_W, WIN_LO, WIN_HI)]
+    return ops
+
+
+def motel():
+    """Builds the motel (after the scatter, like the shops' turn: see main) and its car park."""
+    x0, z0, x1, z1 = MOTEL
+    ox, oz = MOTEL_O
+    G = MOTEL_GAL
+
+    def o(a0, b0, c0, a1, b1, c1, colour, kind=None, solid=True):
+        box(a0, b0, c0, a1, b1, c1, colour, solid=solid, kind=kind)
+    spots = []
+    with modeled("motel", ox, oz):
+        m = build(Building("Motel", x0, z0, x1 - x0, z1 - z0, floors=2, colour="wall", rooms=(1, 8), doors="",
+                           open_plan=True, wall_openings=motel_openings(), stairs=False, spawn_spots=spots))
+        add_loot("Motel", "crate", 212.35, 56.5, yaw=-90.0, look="filing")             # the manager's cabinet
+        # ---- Party walls between the rooms (both storeys; downstairs the office is one, cells 6-7).
+        for k in range(1, 8):
+            z = z0 + k * MOTEL_CELL
+            for f in (0, 1):
+                if f == 0 and k == 7:
+                    continue
+                wall_x(x0 + 0.15, x1 - 0.15, z, f * FLOOR_H, FLOOR_H, "wall", t=0.2)
+        # ---- The rooms: the bathroom at the back (north half), the dressing nook beside it (rail, the back window),
+        # the bed against the south wall, the TV dresser opposite, a small table and chair by the front window.
+        for f, k, num in motel_rooms():
+            c, y = z0 + k * MOTEL_CELL, f * FLOOR_H
+            zs = c + (0.15 if k == 0 else 0.1)                    # the room's north and south inside faces
+            ze = c + MOTEL_CELL - 0.1
+            washroom(0.0, 0.0, x0 + 0.15, zs, 214.0, c + 2.45, "ES", ("E", c + 1.7, -2), y=y, sign=None, fit=(
+                ("wc_bath", "N", 212.5, 1.6, 0.72, 0.55), ("wc_toilet", "W", c + 1.75, 0.45, 0.7, 0.8),
+                ("wc_sink", "E", c + 0.75, 0.55, 0.5, 0.85)))
+            if num == 102:
+                # A car through the front (picture: nose down, the bed shoved over); solid, cover in the gallery.
+                obox(219.6, 0.6, c + 2.6, 1.9, 1.2, 4.4, 74.0, "car_a", kind="motel_car")
+                o(214.6, 0, ze - 2.1, 216.2, 0.6, ze, "wood", "motel_bed", solid=True)
+                continue
+            special = {209.0: "nest", 211.0: "aid", 103: "loot"}.get(num)
+            if special != "aid":
+                o(215.6, y, ze - 2.1, 217.2, y + 0.6, ze, "wood", "motel_bed")
+                o(214.95, y, ze - 0.45, 215.5, y + 0.55, ze, "wood", "motel_nightstand", solid=False)
+                o(217.3, y, ze - 0.45, 217.85, y + 0.55, ze, "wood", "motel_nightstand", solid=False)
+            if special == "loot":
+                add_loot("Motel", "crate", 216.4, c + 0.7, y=y, yaw=180.0, look="dresser")
+            else:
+                o(215.5, y, zs, 217.3, y + 0.8, zs + 0.5, "wood", "motel_dresser")
+            o(219.15, y, zs + 0.05, 219.85, y + 0.72, zs + 0.75, "wood", "motel_table", solid=False)
+            o(212.1, y, c + 2.62, 213.7, y + 1.7, c + 2.92, "metal", "motel_rail", solid=False)
+            if special == "nest":   # a sniper's nest on the graveyard: sandbags under the back window, a mattress
+                o(211.75, y, c + 3.1, 212.35, y + 0.75, c + 4.7, "sandbag", "motel_sandbags")
+            if special == "aid":    # a field dressing station: cots, a supply table
+                for zz in (c + 2.9, c + 4.1):
+                    o(215.2, y, zz, 217.6, y + 0.45, zz + 0.8, "metal", "motel_cot", solid=False)
+                o(215.5, y, zs, 217.3, y + 0.9, zs + 0.6, "metal", "motel_aid_table")
+            if f == 0:
+                spots.append((218.2, c + 2.4))
+            inner_door(x1, y, c + 3.85, 90.0, "Motel")
+        # ---- The laundry (downstairs, cell 5): washers along the north wall, dryers, the ice machine, a vending machine.
+        c = z0 + 5 * MOTEL_CELL
+        o(212.4, 0, c + 0.1, 216.0, 1.0, c + 0.8, "metal", "motel_washers")
+        o(x0 + 0.15, 0, c + 1.4, x0 + 0.85, 1.8, c + 3.6, "metal", "dryers")
+        o(212.2, 0, c + 4.35, 213.2, 1.8, c + 5.15, "metal", "ice_machine")
+        o(213.6, 0, c + 4.3, 214.5, 1.85, c + 5.15, "metal", "vending")
+        spots.append((217.0, c + 2.6))
+        inner_door(x1, 0.0, c + 3.85, 90.0, "Motel")
+        # ---- The office: lobby (front desk, key board behind it, sofa, leaflets, a vending machine) and the manager's
+        # flat behind it (back office, bed, kitchenette, staff washroom), through a door at the north end.
+        wall_z(55.6, z1 - 0.15, 215.6, 0.0, FLOOR_H, "wall", [(57.2, INNER_DOOR_W, 0.0, DOOR_H)], t=0.2)
+        inner_door(215.6, 0.0, 57.2, 90.0, "Motel")
+        o(216.7, 0, 59.4, 217.4, 1.05, 63.6, "wood", "motel_desk")
+        o(215.72, 1.2, 60.0, 215.76, 2.1, 62.4, "wood", "key_board", solid=False)
+        o(217.8, 0, 55.65, 219.8, 0.85, 56.5, "wood", "sofa")
+        o(219.6, 0, 63.8, 220.3, 1.6, 64.9, "metal", "leaflet_rack")
+        o(219.4, 0, 65.1, 220.3, 1.85, 65.85, "metal", "vending")
+        o(211.65, 0, 59.5, 212.45, 0.76, 61.0, "wood", "motel_office_desk")
+        o(211.65, 0, 63.7, 212.6, 0.55, 65.85, "wood", "motel_cot_bed")
+        o(214.85, 0, 59.3, 215.5, 0.9, 61.3, "wood", "kitchenette")
+        washroom(0.0, 0.0, 213.6, 64.0, 215.5, z1 - 0.15, "NW", ("N", 214.1, -2), sign=None, fit=(
+            ("wc_toilet", "S", 214.8, 0.45, 0.7, 0.8), ("wc_sink", "E", 64.8, 0.55, 0.5, 0.85)))
+        spots += [(218.5, 58.0), (213.6, 61.8)]
+        # ---- The gallery: the walkway upstairs (slab, rail), posts, the roof over it all; walled stairs at both ends
+        # (one way up each), closed underneath; sandbags on the walkway.
+        o(x1 + 0.15, 0.0, z0, G, 0.06, z1, "pavement", "gallery_walk", solid=False)
+        o(x1 + 0.15, FLOOR_H - SLAB_T, z0, G, FLOOR_H, z1, "slab")
+        o(G - 0.1, FLOOR_H, z0, G, FLOOR_H + 1.0, z1, "metal", "gallery_rail")
+        for k in range(9):
+            z = min(max(z0 + k * MOTEL_CELL, z0 + 0.1), z1 - 0.1)
+            for f in (0, 1):
+                o(G - 0.25, f * FLOOR_H, z - 0.1, G - 0.05, f * FLOOR_H + FLOOR_H - (SLAB_T if f == 0 else 0.25), z + 0.1,
+                  "wood", "gallery_post")
+        o(x1 + 0.15, 2 * FLOOR_H - SLAB_T, z0 - RAMP_L, G + 0.3, 2 * FLOOR_H, z1 + RAMP_L, "roof", "gallery_roof")
+        for sz in (-1, 1):
+            a = z0 if sz < 0 else z1                                   # where the stairs meet the walkway
+            b = a + sz * RAMP_L                                         # their foot
+            for wx0, wx1 in ((x1 - 0.15, x1 + 0.15), (G - 0.2, G)):
+                o(wx0, 0.0, min(a, b), wx1, 2 * FLOOR_H - SLAB_T, max(a, b), "wall")
+            o(x1 + 0.15, 0.0, min(a, a + sz * 0.2), G - 0.2, 2.5, max(a, a + sz * 0.2), "wall")   # closed under the top
+            slope = math.hypot(RAMP_L, FLOOR_H)
+            # (a plank pitched so its +z end is low, turned so that end points at the foot: see Building._ramp)
+            obox((x1 + G) / 2 + 0.03, FLOOR_H / 2 - 0.1, (a + b) / 2, RAMP_W, 0.2, slope, 180.0 if sz < 0 else 0.0,
+                 "wood", pitch=math.degrees(math.atan2(FLOOR_H, RAMP_L)))
+        for zz in (37.0, 50.5):
+            o(G - 0.6, FLOOR_H, zz, G - 0.1, FLOOR_H + 0.9, zz + 2.0, "sandbag", "motel_sandbags")
+        # ---- The car park (picture: asphalt, bay lines, kerb stops) and the big sign by the road.
+        lx0, lz0, lx1, lz1 = MOTEL_LOT
+        o(lx0, 0.0, lz0, lx1, 0.05, lz1, "road", "motel_lot", solid=False)
+        o(232.6, 0.0, 66.4, 233.0, 7.6, 66.8, "metal", "motel_sign")
+        o(230.5, 7.4, 66.3, 234.9, 10.6, 66.9, "metal", "motel_sign_board", solid=False)
+    m.spawn_spots = spots
+    # Parked cars (gray box, cover like any car park's), one burnt out.
+    for x, z, yaw, col in ((226.5, 27.0, 90, "car_b"), (226.8, 47.5, 95, "car_a"), (226.4, 58.0, 86, "car_b"),
+                           (230.0, 36.0, 15, "rust")):
+        car(x, z, yaw, col)
+
+
 def police_furniture(ox, oz):
     """Bloxov police station (World art 0.17), in the model's own coordinates (origin map (ox, oz), rooms 8.67 x
     7.33 m, storeys 3 m). Overrun and ransacked. Furniture is solid like everywhere else; chairs, the mugshot
@@ -1458,7 +1625,8 @@ def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign")
             wf = face - into * (WC_T + 0.06)
             o(min(edge, edge + hs * 0.8), 0.02, wf - 0.02, max(edge, edge + hs * 0.8), 2.06, wf + 0.02, "wc_door", solid=False)
         out = face - into * (WC_T + 0.008)
-        o(dmid - 0.2, 2.2, out - 0.01, dmid + 0.2, 2.6, out + 0.01, sign, solid=False)
+        if sign:
+            o(dmid - 0.2, 2.2, out - 0.01, dmid + 0.2, 2.6, out + 0.01, sign, solid=False)
     else:
         face, into = (x0, 1) if dside == "W" else (x1, -1)
         if abs(hinge) == 2:
@@ -1467,7 +1635,8 @@ def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign")
             wf = face - into * (WC_T + 0.06)
             o(wf - 0.02, 0.02, min(edge, edge + hs * 0.8), wf + 0.02, 2.06, max(edge, edge + hs * 0.8), "wc_door", solid=False)
         out = face - into * (WC_T + 0.008)
-        o(out - 0.01, 2.2, dmid - 0.2, out + 0.01, 2.6, dmid + 0.2, sign, solid=False)
+        if sign:
+            o(out - 0.01, 2.2, dmid - 0.2, out + 0.01, 2.6, dmid + 0.2, sign, solid=False)
     o(x0, 0.0, z0, x1, H, z1, "washroom", solid=False)
     for f in fit:
         kind = f[0]
@@ -1518,6 +1687,8 @@ footprints = []   # (name, x0, z0, x1, z1) of every building
 # were, so moving one doesn't reshuffle the trees and cover all over the map (z offset back to the old spot).
 SCATTER_OLD_Z = {"TownHall": -4.0}
 # Ground kept clear round a quarter-turned building (default: its footprint and 3 m round it), map x0, z0, x1, z1.
+# The two road houses' old footprints (the motel stands there now): the scatter keeps clear of them as it always has.
+MOTEL_GHOSTS = [("RoadHouse1", 214.0, 30.0, 226.0, 40.0), ("RoadHouse2", 218.0, 54.0, 230.0, 64.0)]
 SCATTER_CLEAR = {"Shops": (20, 108, 49, 144)}   # (owner, world art: the shops turned to face Old Road, front kept open)   # world art round 5 (owner): the town hall moved 4 m south, away from the square
 
 
@@ -2137,6 +2308,7 @@ EXTRA_PADS = [
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
     (58.0, 260.0, 74.0, 274.0),    # campsite
     (89.0, 66.0, 106.0, 72.0),     # the rubble blown out of the pharmacy's north wall (round 4: part of its model)
+    (220.5, 18.0, 232.5, 72.0),    # the motel's gallery, stairs and car park
 ]
 
 
@@ -2895,10 +3067,10 @@ def main():
     for x, z in ((48, 82), (88, 88), (124, 88), (147, 143), (78, 143), (126, 84)):
         dumpster(x, z)
 
-    # houses between town and farm
-    for n, (x, y) in enumerate([(214, 30), (218, 54)], start=1):
-        build(Building(f"RoadHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="S"),
-              [("crate", 1, 1, 0, "E", 0)])
+    # the Last Stop Motel between town and farm (World art 0.17: it replaced the two road houses there). It's built
+    # after the scatter (see `motel`); until then the scatter keeps clear of where the road houses stood, so it
+    # doesn't reshuffle map-wide.
+    footprints.extend(MOTEL_GHOSTS)
 
     # church and graveyard, top right of town (owner, 0.10.1): a bell tower you can climb (roof lookout), pews
     # inside, headstones (low cover) and a crypt
@@ -3116,6 +3288,10 @@ def main():
     planned_cover()
     apply_late_turns()
     shops_frontage()
+    for g in MOTEL_GHOSTS:
+        footprints.remove(g)
+    clear_scatter(MOTEL_CLEAR)
+    motel()
     zone_spawns()
     map_labels()
     check_roads()
@@ -3136,7 +3312,7 @@ AI_ZONES = [
     ("SouthEast", 305, 300, 45, 0, 2, 2.0),   # Raiders: junkyard, old gas station, diner, garage
     ("Station", 240, 220, 35, 2, 0, 1.0),     # scavs: train station and depot
     ("Farm", 285, 42, 40, 2, 0, 0.0),
-    ("RoadHouses", 222, 47, 20, 1, 0, 0.0),   # the two houses on the road between the church and the farm
+    ("RoadHouses", 222, 47, 20, 1, 0, 0.0),   # the motel on the road between the church and the farm (was two houses)
     ("Church", 180, 42, 25, 1, 0, 0.0),
     ("Woods", 75, 290, 40, 3, 0, 0.0),        # cabins, campsite, hunting stand
     ("OldHouses", 200, 300, 30, 2, 0, 1.0),   # old houses south of the railway
@@ -3241,7 +3417,11 @@ def zone_spawns():
         if b.name in NO_INDOOR_SPAWNS:
             continue
         rooms = []
-        for i in range(b.nx):
+        for cx, cz in (b.spawn_spots or ()):
+            zone = _zone_of(cx, cz)
+            if zone is not None and zone[0] != AI_BOSS[0] and (zone[4] + zone[5]) > 0:
+                rooms.append((round(cx, 1), round(cz, 1), zone[0]))
+        for i in range(0 if b.spawn_spots else b.nx):
             for j in range(b.nz):
                 x0, z0, x1, z1 = b.cell(i, j)
                 cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
