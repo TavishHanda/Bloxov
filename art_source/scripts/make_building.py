@@ -1688,6 +1688,7 @@ def shards(ctx, x0, x1, y0, y1, z, axis, rng):
 # Openings (refine pass, owner: windows framed, some whole and some smashed; broken doors at the entrances). The
 # generator lists every outside opening of the building; every model gets the same treatment.
 ENTRANCE_DOOR = {"school": "wood"}
+ROLLER_DOORS = set()                               # wide doors (> 3 m) with a roller shutter, drawn by the building: no leaves
 SLIDING_DOORS = {}                                 # big doors that slide (kind/material, trim): the farm (0.17)                # what the front doors are made of (else an aluminium shop door)
 
 
@@ -1754,6 +1755,8 @@ def dress_openings(ctx, openings):
             for a in (a0 + 0.045, a1 - 0.045):                                    # door frame (off the jambs)
                 bx(a, (lo + hi) / 2, 0.0, 0.08, hi - lo, 0.32, "trim_dark")
             bx(mid, hi - 0.04, 0.0, w - 0.17, 0.08, 0.32, "trim_dark")              # (between the posts)
+            if BUILDING_NAME[0] in ROLLER_DOORS and w > 3.0:
+                continue
             leaves = 2 if w > 1.5 else 1
             lw = w / leaves
             mat = ENTRANCE_DOOR.get(BUILDING_NAME[0], "trim")
@@ -18785,6 +18788,497 @@ SHELLS["diner"] = {
     "x_splits": (0.0,), "z_splits": (), "debris": ("concrete", dn_look("ext"), "wood", "concrete"),
 }
 FACTION_MARKS["diner"] = [("x1_stencil", "E", -3.6, 1.1)]
+
+
+# ------------------------------------------------------------------------------------------------ old gas station (0.17)
+# The old gas station on the highway (bottom right, the bombed quarter), map 298-326 x 320-334, origin (312, 327):
+# local x -14..14, z -7..7, one 3 m storey, north = the highway, south = the forecourt and the canopy (local z
+# 8.5..15.5). The shop west, the service bay east (its roof gone). GS_LOOKS are the outside options (env
+# BLOXOV_GS_LOOK for the sheet): the walls and the band colour (fascia, canopy, pump caps).
+GS_LOOKS = {
+    "B": {"ext": "gs_white", "band": "olive_dark"},
+    "C": {"ext": "brick_tan", "band": "teal"},
+    "D": {"ext": "gs_clad", "band": "wine"},
+}
+GS_LOOK = os.environ.get("BLOXOV_GS_LOOK", "B")
+GS_FP = (-14.0, -7.0, 14.0, 7.0)
+
+PALETTE.update({"gswh": "a9a79c", "gswh_dark": "97958a", "gswh_joint": "86857b",
+                "gscl": "a69f86", "gscl_dark": "8f886f", "gscl_light": "b5ae95"})
+
+
+def gs_look(key):
+    return GS_LOOKS[GS_LOOK][key]
+
+
+def paint_gs_white(rng):
+    """Painted concrete block (0.4 x 0.2 m), the paint grey with dirt, flaking to the block (row 0 is the ground)."""
+    c = Canvas(64, 64, "gswh")
+    for row in range(0, 64, 3):
+        c.rect(0, row, 64, row + 1, "gswh_joint")
+        off = 0 if (row // 3) % 2 else 3
+        for x in range(off, 64, 6):
+            c.put(x, row + 1, "gswh_joint")
+            c.put(x, row + 2, "gswh_joint")
+    c.noise(0, 0, 64, 64, ["gswh_dark"], 0.08, rng)
+    for _ in range(10):
+        x, y = rng.randint(0, 60), rng.randint(0, 46)
+        c.rect(x, y, x + rng.randint(2, 5), y + rng.randint(1, 3), "concrete")
+    c.noise(0, 0, 64, 6, ["concrete", "gswh_dark"], 0.3, rng)
+    return c
+
+
+def paint_gs_clad(rng):
+    """Cream corrugated cladding (a rib every 0.19 m), rust at the bottom and along the laps."""
+    c = Canvas(64, 64, "gscl")
+    for x in range(0, 64, 3):
+        c.rect(x, 0, x + 1, 64, "gscl_dark")
+        c.rect(x + 1, 0, x + 2, 64, "gscl_light")
+    for y in (31, 32):
+        c.rect(0, y, 64, y + 1, "gscl_dark")
+    c.noise(0, 0, 64, 8, ["rust", "gscl_dark"], 0.35, rng)
+    c.noise(0, 28, 64, 34, ["rust"], 0.15, rng)
+    c.blotch(["iron_dark"], 4, rng, size=(1, 3))
+    return c
+
+
+def paint_gs_burnt(rng):
+    """Burnt car paint: rust and black, a ghost of the old colour in patches."""
+    c = Canvas(64, 64, "iron_dark")
+    c.noise(0, 0, 64, 64, ["rust", "iron", "black"], 0.3, rng)
+    c.blotch(["black"], 8, rng, size=(3, 8))
+    c.blotch(["sky_blue"], 3, rng, size=(2, 4))
+    return c
+
+
+def paint_gs_bay(rng):
+    """The service bay's floor: dark worn concrete, saw-cut joints every 2 m, oil soaked in."""
+    c = Canvas(64, 64, "steel")
+    c.noise(0, 0, 64, 64, ["iron", "concrete"], 0.12, rng)
+    for k in (0, 32):
+        c.rect(k, 0, k + 1, 64, "iron_dark")
+        c.rect(0, k, 64, k + 1, "iron_dark")
+    c.blotch(["iron_dark", "black"], 6, rng, size=(3, 7))
+    return c
+
+
+KIT.update({"gs_white": paint_gs_white, "gs_clad": paint_gs_clad, "gs_burnt": paint_gs_burnt, "gs_bay": paint_gs_bay})
+
+
+def gs_inner(m):
+    return "int_wall" if m[0] < 0.0 else "int_soot"
+
+
+def gs_floor(m):
+    return "floor_lino" if m[0] < 0.0 else "gs_bay"
+
+
+def gs_decals(rng):
+    a = Atlas(256)
+    band = {"olive_dark": "olive_dark", "teal": "teal", "wine": "wine"}[gs_look("band")]
+
+    def sized(text, scale, pad):
+        w = Canvas.text_width(text, scale) + pad
+        return w + (w - Canvas.text_width(text, scale)) % 2
+
+    def sign(key, text, scale, bg, fg, h=None):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            c.frame(0, 0, c.w, c.h, fg)
+            mo_text(c, (c.h - 5 * scale) // 2, text, fg, scale)
+            c.blotch(["iron", "rust"], 3, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 3))
+        a.add(key, sized(text, scale, 8), h or 5 * scale + 6, f)
+
+    def pump(c):            # the pump's face: two dials stuck, a price card, the nozzle holster
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.rect(0, 0, c.w, 6, band)
+        for y in (9, 17):
+            c.rect(3, y, c.w - 3, y + 6, "black")
+            c.text(5, y + 1, "000", "hazard_yellow")
+        c.rect(4, 27, c.w - 4, 33, "wood_pale")
+        c.blotch(["iron_dark", "rust"], 4, rng, size=(1, 3))
+
+    def stain(c):           # an oil stain on the bay floor
+        c.rect(0, 0, c.w, c.h, "clear")
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - c.w / 2, y - c.h / 2) / (c.w / 2) + rng.uniform(-0.2, 0.2)
+                if d < 0.85 and rng.random() < 0.9 - d * 0.6:
+                    c.put(x, y, "black" if d < 0.5 else "iron_dark")
+
+    def scorch(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        cx, cy = c.w / 2, c.h / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - cx, (y - cy) * 1.2) / (c.w / 2) + rng.uniform(-0.15, 0.15)
+                if d < 0.8 and rng.random() < (0.9 - d) * 0.9:
+                    c.put(x, y, "black" if d < 0.35 and rng.random() < 0.5 else "iron_dark")
+
+    def hole(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+
+    sign("gas", "GAS", 4, "bone", band)
+    sign("service", "SERVICE", 2, band, "bone")
+    sign("shop", "FOOD AND DRINKS", 1, "bone", band)
+    sign("nosmoke", "NO SMOKING", 1, "red", "bone")
+    a.add("pump", 18, 36, pump)
+    a.add("stain", 48, 48, stain)
+    a.add("scorch", 64, 64, scorch)
+    a.add("hole", 4, 4, hole)
+    return a
+
+
+# ---- gas station props
+def prop_gs_counter(ctx, c, s):
+    """The counter: a wood body, a laminate top, the till (drawer out), a gum stand."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], (y0 + top - 0.05) / 2, c[2]), (s[0], top - y0 - 0.05, s[2]), style=lambda n, m, q:
+          None if n[1] < -0.7 else (("wood_dark" if n[0] < -0.5 else gs_look("band")), uv_world(1.0)))
+    b.box((c[0] + 0.03, top - 0.025, c[2]), (s[0] + 0.1, 0.05, s[2] + 0.06), style=_solid("bone"))
+    register(b, c[0], top, c[2] - s[2] / 2 + 0.6, 1)
+    for k in range(3):
+        _box(b, c[0] + 0.15, top + 0.06, c[2] + 0.4 + k * 0.25, 0.14, 0.12, 0.2, ("red", "yellow", "blue")[k], pitch=-10)
+
+
+def prop_gs_cig_rack(ctx, c, s):
+    """The cigarette rack on the wall behind the counter: rows of packs, half of them gone."""
+    b, rng = ctx.b, random.Random("gs_cig")
+    b.box(c, s, style=_nb("wood_dark"))
+    for r in range(4):
+        for j in range(int(s[2] / 0.12)):
+            if rng.random() < 0.45:
+                continue
+            _box(b, c[0] + s[0] / 2 + 0.02, c[1] - s[1] / 2 + 0.12 + r * 0.22, c[2] - s[2] / 2 + 0.08 + j * 0.12,
+                 0.06, 0.12, 0.08, rng.choice(("red", "bone", "blue", "yellow")))
+
+
+def prop_gs_shelf(ctx, c, s):
+    """A shop gondola: a pegged spine, three shelves a side, most of the stock looted; tins on the floor."""
+    b, rng = ctx.b, random.Random(f"gs_shelf{c[2]:.1f}")
+    y0 = c[1] - s[1] / 2
+    _box(b, c[0], c[1], c[2], s[0], s[1], 0.06, "steel_light")
+    _box(b, c[0], y0 + 0.07, c[2], s[0], 0.14, s[2], "trim_dark")
+    for sg in (-1, 1):
+        for r in range(3):
+            y = y0 + 0.3 + r * 0.45
+            _box(b, c[0], y, c[2] + sg * s[2] / 4, s[0], 0.03, s[2] / 2 - 0.04, "steel_light")
+            for j in range(int(s[0] / 0.2)):
+                if rng.random() < 0.6:
+                    continue
+                _box(b, c[0] - s[0] / 2 + 0.12 + j * 0.2, y + 0.1, c[2] + sg * s[2] / 4, 0.12, 0.18, 0.1,
+                     rng.choice(("red", "yellow", "blue", "bone", "green")))
+    for _ in range(5):
+        _box(b, c[0] + rng.uniform(-s[0] / 2, s[0] / 2), 0.05, c[2] + rng.choice((-1, 1)) * rng.uniform(0.6, 1.2),
+             0.12, 0.1, 0.18, rng.choice(("red", "yellow", "bone")), yaw=rng.uniform(0, 90), pitch=90)
+
+
+def prop_gs_fridges(ctx, c, s):
+    """Drinks fridges along the partition: glass doors smashed, a few bottles left."""
+    b, rng = ctx.b, random.Random("gs_fridges")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light" if n[0] > -0.5 else "trim_dark", uv_world(1.0)))
+    xf = c[0] - s[0] / 2 - 0.01
+    n = int(s[2] / 0.8)
+    for k in range(n + 1):                                                              # door frames
+        z = c[2] - s[2] / 2 + k * s[2] / n
+        _box(b, xf, c[1], z, 0.03, s[1], 0.05, "steel_light")
+    for r in range(4):
+        y = y0 + 0.3 + r * 0.42
+        _box(b, xf - 0.005, y, c[2], 0.02, 0.03, s[2], "steel_light")
+        for j in range(int(s[2] / 0.14)):
+            if rng.random() < 0.65:
+                continue
+            _box(b, xf - 0.02, y + 0.12, c[2] - s[2] / 2 + 0.08 + j * 0.14, 0.02, 0.22, 0.07, rng.choice(("green", "red", "glass", "blue")))
+    _box(b, c[0], top + 0.1, c[2], s[0], 0.2, s[2], gs_look("band"))
+    for _ in range(12):                                                                 # glass on the floor
+        _box(b, xf - rng.uniform(0.2, 1.2), 0.01, rng.uniform(c[2] - s[2] / 2, c[2] + s[2] / 2), 0.15, 0.01, 0.1, "glass", yaw=rng.uniform(0, 90))
+
+
+def prop_gs_oil_rack(ctx, c, s):
+    """A low rack of motor oil cans and antifreeze jugs."""
+    b, rng = ctx.b, random.Random("gs_oil")
+    y0 = c[1] - s[1] / 2
+    for r in range(3):
+        y = y0 + 0.05 + r * 0.42
+        b.box((c[0], y, c[2]), (s[0], 0.04, s[2]), style=_solid("steel_light"))
+        if r == 2:
+            continue
+        for j in range(int(s[0] / 0.2)):
+            if rng.random() < 0.4:
+                continue
+            _box(b, c[0] - s[0] / 2 + 0.12 + j * 0.2, y + 0.15, c[2], 0.12, 0.26, 0.2, rng.choice(("yellow", "blue", "green", "red")))
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * (s[0] / 2 - 0.02), c[1], c[2] - s[2] / 2 + 0.02, 0.03, s[1], 0.03, "steel_light")
+        _box(b, c[0] + sx * (s[0] / 2 - 0.02), c[1], c[2] + s[2] / 2 - 0.02, 0.03, s[1], 0.03, "steel_light")
+
+
+def prop_gs_car(ctx, c, s):
+    """A burnt-out car fallen off the two-post lift (it came down on its side sill, nose on the floor); the lift's
+    posts stand either side, an arm still under it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    L, W = s[0] - 0.2, 2.0 - 0.2
+    cx, cz = c[0] + 0.1, c[2]
+    tilt = 4.0
+    b.box((cx, y0 + 0.55, cz), (L, 0.6, W - 0.1), pitch=0, yaw=0, style=lambda n, m, q:
+          None if n[1] < -0.7 else (("black" if n[1] > 0.7 else "gs_burnt"), uv_world(1.0)))           # body
+    b.box((cx + 0.2, y0 + 1.05, cz), (L * 0.5, 0.45, W - 0.35), style=_nb("gs_burnt"))                  # cabin (no glass)
+    b.box((cx + 0.2, y0 + 1.06, cz), (L * 0.5 - 0.2, 0.36, W - 0.32), style=_nb("black"))
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            _box(b, cx + sx * (L / 2 - 0.7), y0 + 0.28, cz + sz * (W / 2 - 0.15), 0.5, 0.5, 0.2, "trim_dark")   # wheel hubs
+    _box(b, cx - L / 2 + 0.05, y0 + 0.5, cz, 0.1, 0.3, W - 0.3, "trim_dark")                     # bumpers
+    _box(b, cx + L / 2 - 0.05, y0 + 0.5, cz, 0.1, 0.3, W - 0.3, "trim_dark")
+    _ = tilt
+    for sz in (-1, 1):                                                                          # the lift's posts
+        z = c[2] + sz * (s[2] / 2 - 0.15)
+        _box(b, c[0], 1.5, z, 0.3, 3.0, 0.25, gs_look("band"))
+        _box(b, c[0], 0.05, z, 0.5, 0.1, 0.4, "trim_dark")
+        _beam(b, (c[0], 0.5, z), (c[0] + sz * 0.0 + 1.0, 0.45, z - sz * 0.8), 0.12, 0.1, "trim_dark")    # an arm
+    _box(b, c[0], 2.95, c[2], 0.15, 0.12, s[2], "trim_dark")                                    # the cross-beam
+
+
+def prop_gs_bench(ctx, c, s):
+    """The mechanic's bench: a vice, tools, a toolbox; the pegboard of tool outlines on the wall over it."""
+    b, rng = ctx.b, random.Random("gs_bench")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood_dark"))
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * (s[0] / 2 - 0.08), (y0 + top) / 2, c[2], 0.08, top - y0 - 0.06, s[2] - 0.1, "trim_dark")
+    _box(b, c[0], y0 + 0.25, c[2], s[0] - 0.2, 0.03, s[2] - 0.1, "wood")
+    _box(b, c[0] - s[0] / 2 + 0.4, top + 0.1, c[2] + 0.1, 0.2, 0.2, 0.25, "blue")                     # vice
+    _box(b, c[0] + 0.6, top + 0.12, c[2], 0.5, 0.24, 0.25, "red")                                     # toolbox
+    for _ in range(5):
+        _box(b, c[0] + rng.uniform(-1.2, 1.2), top + 0.015, c[2] + rng.uniform(-0.2, 0.2), 0.25, 0.03, 0.04, "steel_light", yaw=rng.uniform(0, 180))
+    zb = c[2] - s[2] / 2 + 0.02
+    _box(b, c[0], top + 0.9, zb, s[0] - 0.4, 1.0, 0.02, "wood_light")
+    for _ in range(9):
+        _box(b, c[0] + rng.uniform(-1.4, 1.4), top + rng.uniform(0.55, 1.25), zb + 0.02, rng.uniform(0.05, 0.1), rng.uniform(0.2, 0.35), 0.03,
+             rng.choice(("steel_light", "red", "trim_dark")))
+
+
+def prop_gs_tyres(ctx, c, s):
+    """A stack of tyres (and one rolled away)."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for k in range(int(s[1] / 0.22)):
+        for zz in (c[2] - s[2] / 4, c[2] + s[2] / 4):
+            for a in range(4):
+                _box(b, c[0], y0 + 0.11 + k * 0.22, zz, 0.72 * 0.92, 0.2, 0.72 * 0.38, "black", yaw=a * 45 + k * 10)
+    for a in range(4):
+        b.box((c[0] - 1.2, 0.36, c[2] + 0.6), (0.2, 0.72 * 0.92, 0.72 * 0.38), yaw=a * 0, pitch=a * 45, style=_nb("black"))
+
+
+def prop_gs_post(ctx, c, s):
+    """A canopy post: steel, clad in the band colour, a concrete foot."""
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: None if abs(n[1]) > 0.7 else (gs_look("band"), uv_world(1.0)))
+    b.box((c[0], 0.2, c[2]), (s[0] + 0.3, 0.4, s[2] + 0.3), style=_nb("concrete"))
+
+
+def _gs_canopy_style(n, m, q):
+    if n[1] > 0.7:
+        return ("roof", uv_world(2.0))
+    if n[1] < -0.7:
+        return ("canopy_ceiling", uv_world())
+    return (gs_look("band"), uv_world(1.0))
+
+
+def prop_gs_canopy(ctx, c, s):
+    """The flat half of the canopy: a deep fascia in the band colour with GAS on it, the soffit with its lights
+    (smashed), its east edge torn off where the other half came down."""
+    b, rng = ctx.b, random.Random("gs_canopy")
+    top = c[1] + s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.box((c[0], top - 0.35, c[2]), (s[0], 0.8, s[2]), style=_gs_canopy_style)
+    for z in (z0 + 1.5, c[2], z1 - 1.5):                                                        # lights
+        for k in range(5):
+            x = x0 + 1.5 + k * (s[0] - 3.0) / 4
+            if rng.random() < 0.4:
+                continue
+            _box(b, x, top - 0.77, z, 0.9, 0.04, 0.3, "bone")
+    gr = ctx.decals.regions["gas"]
+    gw = (gr[2] - gr[0]) * ctx.decals.c.w / 32
+    gh = (gr[3] - gr[1]) * ctx.decals.c.h / 32
+    yb = top - 0.35 - gh / 2
+    for zz, nz in ((z0 - 0.01, -1), (z1 + 0.01, 1)):
+        for xm in (x0 + s[0] * 0.3, ):
+            pts = [(xm - gw / 2, yb, zz), (xm + gw / 2, yb, zz), (xm + gw / 2, yb + gh, zz), (xm - gw / 2, yb + gh, zz)]
+            b.poly(pts if nz > 0 else pts, (0, 0, nz), "decals", ctx.d("gas"))
+    wall_quad(b, (-1, 0, 0), x0 - 0.01, c[2] - gw / 2, c[2] + gw / 2, yb, yb + gh, "decals", ctx.d("gas"))
+    for k in range(6):                                                                          # the torn east edge
+        z = z0 + 0.4 + k * (s[2] - 0.8) / 5
+        _beam(b, (x1, top - 0.3, z), (x1 + rng.uniform(0.3, 0.9), top - rng.uniform(0.4, 1.2), z + rng.uniform(-0.3, 0.3)), 0.08, 0.12, "trim_dark")
+
+
+def prop_gs_canopy_down(ctx, c, s):
+    """The east half of the canopy, down on the forecourt: the slab tipped from the flat half's edge to the ground,
+    its fascia crumpled, a light fitting hanging."""
+    b, rng = ctx.b, random.Random("gs_canopy_down")
+    row = ctx.row
+    b.box(c, (s[0], s[1] + 0.3, s[2]), yaw=row["yaw"], pitch=row["pitch"], style=_gs_canopy_style)
+    for k in range(4):
+        _box(b, c[0] + rng.uniform(-6, 6), 0.1, c[2] + rng.uniform(-3.6, 3.6), rng.uniform(0.8, 1.6), 0.2, 0.15,
+             gs_look("band"), yaw=rng.uniform(0, 180), pitch=rng.uniform(-10, 10))
+
+
+def prop_gs_pump(ctx, c, s, k):
+    """A pump on its island: a body with the face (dials stuck at 000), the cap in the band colour, the nozzles; the
+    one under the fallen canopy crushed."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.075, c[2]), (s[0] + 0.5, 0.15, s[2] + 1.6), style=_nb("concrete"))
+    b.box((c[0], y0 + 0.16, c[2]), (s[0] + 0.52, 0.02, s[2] + 1.62), style=lambda n, m, q: ("yellow", uv_world()) if n[1] < 0.7 else None)
+    crushed = k == 2
+    h = 0.8 if crushed else 1.42
+    bw, bd = s[0] - 0.2, s[2] - 0.3
+    b.box((c[0], y0 + 0.15 + h / 2, c[2]), (bw, h, bd), pitch=12 if crushed else 0,
+          style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light" if abs(n[0]) < 0.5 else "bone", uv_world(1.0)))
+    if not crushed:
+        for sx in (-1, 1):
+            wall_quad(b, (sx, 0, 0), c[0] + sx * (bw / 2 + 0.005), c[2] - 9 / 32, c[2] + 9 / 32, y0 + 0.5, y0 + 0.5 + 36 / 32,
+                      "decals", ctx.d("pump"))
+        _box(b, c[0], y0 + 0.15 + h + 0.05, c[2], bw + 0.08, 0.1, bd + 0.08, gs_look("band"))
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * (bw / 2 + 0.06), y0 + 0.95, c[2] + 0.25, 0.1, 0.22, 0.1, "trim_dark")
+        _box(b, c[0] + sx * (bw / 2 + 0.09), y0 + 0.6, c[2] + 0.36, 0.05, 0.6, 0.05, "black")
+
+
+def caved_gas_station(ctx, c, s):
+    """The service bay's roof fell in: the steel deck hangs on in a ragged lip round the walls with joists sticking
+    out, two joists down across the bay, roof sheets and insulation boards on the floor, oil stains, scorch."""
+    b, rng = ctx.b, random.Random("caved_gas")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.85
+    for side in range(4):
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        while a < a1 - 0.05:
+            L = min(rng.uniform(0.5, 1.6), a1 - a)
+            d = rng.uniform(0.1, 0.9)
+            m = a + L / 2
+            at, sz = {0: ((m, top, z0 + d / 2), (L, 0.06, d)), 1: ((m, top, z1 - d / 2), (L, 0.06, d)),
+                      2: ((x0 + d / 2, top, m), (d, 0.06, L)), 3: ((x1 - d / 2, top, m), (d, 0.06, L))}[side]
+            b.box(at, sz, style=lambda n, m_, q: ("ceiling_soot" if n[1] < -0.7 else "shed_metal", uv_world(1.0)))
+            a += L
+    for k in range(6):
+        z = z0 + 1.0 + k * (s[2] - 2.0) / 5
+        for xe, sg in ((x0, 1), (x1, -1)):
+            L = rng.uniform(0.3, 1.8)
+            _beam(b, (xe, top + 0.1, z), (xe + sg * L, top + 0.1 - L * rng.uniform(0.0, 0.25), z), 0.1, 0.22, "trim_dark")
+    _beam(b, (x0 + 0.1, top, z0 + 2.5), (x0 + 5.5, y + 0.12, z0 + 1.6), 0.1, 0.25, "trim_dark")       # joists down
+    _beam(b, (x1 - 0.1, top, z1 - 2.2), (x1 - 4.0, y + 0.12, z1 - 1.0), 0.1, 0.25, "trim_dark")
+    for _ in range(9):
+        b.box((rng.uniform(x0 + 1.0, x1 - 1.0), y + 0.04, rng.uniform(z0 + 1.0, z1 - 1.0)), (rng.uniform(0.8, 1.8), 0.04, rng.uniform(0.6, 1.0)),
+              yaw=rng.uniform(0, 180), pitch=rng.uniform(-6, 6), style=no_bottom(rng.choice(("shed_metal", "shed_metal", "bone")), 1.0))
+    for _ in range(4):
+        b.box((rng.uniform(x0 + 2.0, x1 - 2.0), y + 0.028, rng.uniform(z0 + 2.0, z1 - 2.0)), (rng.uniform(1.0, 2.2), 0.01, rng.uniform(1.0, 2.2)),
+              yaw=rng.uniform(0, 90), style=no_bottom("black", 1.0))
+    for k in range(3):
+        sx, sz = c[0] + rng.uniform(-4, 4), c[2] + rng.uniform(-4, 4)
+        b.poly([(sx - 0.75, y + 0.034, sz - 0.75), (sx - 0.75, y + 0.034, sz + 0.75), (sx + 0.75, y + 0.034, sz + 0.75), (sx + 0.75, y + 0.034, sz - 0.75)],
+               (0, 1, 0), "graffiti", ctx.d("stain"))
+
+
+def dress_gas_station_old(ctx):
+    b, rng = ctx.b, random.Random("gs_dress")
+    fp = GS_FP
+    band = gs_look("band")
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        at = side_at(side, 0.15 + push)
+        n = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, n, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    def reg_w(region):
+        r = ctx.decals.regions[region]
+        return (r[2] - r[0]) * ctx.decals.c.w / 32, (r[3] - r[1]) * ctx.decals.c.h / 32
+
+    def band_run(side, y0, y1, d, mat):
+        ns = side in "NS"
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d, a1 + 0.15 + d
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        at = side_at(side, 0.15 + d / 2)
+        for s0, s1 in segs:
+            if s1 - s0 > 0.02:
+                m = (s0 + s1) / 2
+                b.box((m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m),
+                      (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0), style=st(mat))
+    for side in "NSWE":
+        band_run(side, 0.0, 0.35, 0.05, "concrete")
+        band_run(side, 2.55, 3.05, 0.07, band)
+    # Signs: FOOD AND DRINKS over the highway door, SERVICE over the bay door, NO SMOKING by the pumps' door.
+    w, h = reg_w("shop")
+    quad("N", -5.0, 2.68, 2.68 + h, w, "shop", push=0.09)
+    w, h = reg_w("service")
+    quad("S", 6.5, 2.62, 2.62 + h, w, "service", push=0.09)
+    w, h = reg_w("nosmoke")
+    quad("S", -3.8, 1.6, 1.6 + h, w, "nosmoke", push=0.02)
+    # The bay's roller door, jammed half up and buckled (picture only, over the doorway's top).
+    door = [o for o in opens if o["side"] == "S" and o["kind"] == "door" and o["w"] > 3.0][0]
+    at = side_at("S", 0.05)
+    for k in range(5):
+        y = door["hi"] - 0.12 - k * 0.12
+        b.box((door["mid"] + (0.1 if k == 4 else 0.0), y, at), (door["w"] - 0.05, 0.11, 0.04), pitch=(-12 if k == 4 else 0),
+              style=st("shed_metal"))
+    # Soot round the shell holes; bullet holes, most on the highway side and the forecourt.
+    for o in opens:
+        if o["kind"] == "blast":
+            ww = o["w"] + 1.0
+            quad(o["side"], o["mid"], max(0.0, o["hi"] - ww * 0.75), o["hi"] - ww * 0.75 + ww, ww, "scorch", push=0.1, mat="graffiti")
+    for side, a0, a1, n in (("N", -13.8, 13.8, 40), ("S", -13.8, 13.8, 22), ("E", -6.8, 6.8, 10), ("W", -6.8, 6.8, 10)):
+        for _ in range(n):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.45, 2.5)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.15 and o["lo"] - 0.1 < y < o["hi"] + 0.1 for o in opens):
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.11, mat="graffiti")
+    # The forecourt: cracked concrete under the canopy, oil stains by the pumps.
+    b.box((-7.5, 0.025, 12.0), (17.5, 0.05, 8.0), style=lambda n, m, q: ("concrete", uv_world(2.0)) if n[1] > 0.7 else None)
+    for x in (-9.4, -1.4):
+        b.poly([(x - 0.75, 0.054, 13.2), (x - 0.75, 0.054, 14.7), (x + 0.75, 0.054, 14.7), (x + 0.75, 0.054, 13.2)], (0, 1, 0), "graffiti", ctx.d("stain"))
+    for _ in range(16):                                                                    # glass out front
+        _box(b, rng.uniform(-13.0, -1.0), 0.01, fp[1] - rng.uniform(0.3, 1.5), rng.uniform(0.06, 0.2), 0.01, rng.uniform(0.05, 0.15),
+             "glass", yaw=rng.uniform(0, 90))
+
+
+for _kind, _fn in {"gs_counter": prop_gs_counter, "gs_cig_rack": prop_gs_cig_rack, "gs_shelf": prop_gs_shelf,
+                   "gs_fridges": prop_gs_fridges, "gs_oil_rack": prop_gs_oil_rack, "gs_car": prop_gs_car,
+                   "gs_bench": prop_gs_bench, "gs_tyres": prop_gs_tyres, "gs_post": prop_gs_post,
+                   "gs_canopy": prop_gs_canopy, "gs_canopy_down": prop_gs_canopy_down}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+PROPS["gs_pump"] = prop_gs_pump
+CAVED["gas_station"] = caved_gas_station
+ROLLER_DOORS.add("gas_station")
+DECALS["gas_station"] = gs_decals
+DRESSING["gas_station"] = dress_gas_station_old
+FOOTPRINTS["gas_station"] = GS_FP
+ENTRANCE_DOOR["gas_station"] = gs_look("band")
+WC_MATS["gas_station"] = ("wc_tile", "wc_floor")
+SHELLS["gas_station"] = {
+    "ext": gs_look("ext"), "roof_side": gs_look("ext"), "inner": gs_inner, "floor": gs_floor,
+    "ceiling": lambda m: "ceiling", "x_lines": (-14.0, 0.0, 14.0), "z_lines": (-7.0, 7.0),
+    "x_splits": (0.0,), "z_splits": (), "debris": ("concrete", gs_look("ext"), "concrete", "shed_metal"),
+}
+FACTION_MARKS["gas_station"] = [("x1_stencil", "W", 3.6, 1.0)]
 
 
 def floor_debris(ctx, data, name):

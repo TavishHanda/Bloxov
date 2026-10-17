@@ -2007,6 +2007,39 @@ def diner_furniture(ox, oz):
     o(7.25, 0, 2.6, 7.85, 1.8, 5.0, "metal", "dn_shelves")
 
 
+def gas_station_furniture(ox, oz):
+    """The old gas station (World art 0.17), in the model's own coordinates (origin map (ox, oz); local x -14..14,
+    z -7..7, one 3 m storey; north = the highway, south = the forecourt). Shop west: the counter and till, two
+    shelves, the drinks fridges on the partition, the washroom in the south-west corner. Service bay east: a burnt
+    car fallen off the lift, the workbench, tyres, oil drums. Outside: the canopy over the pumps (its east half down
+    on the forecourt). The doorways, the room middles and the holes' ways in stay clear."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # Shop (x -13.85..-0.1).
+    o(-11.4, 0, -5.4, -10.7, 1.0, -1.6, "wood", "gs_counter")
+    o(-13.85, 1.2, -5.0, -13.6, 2.1, -2.2, "wood", "gs_cig_rack")
+    o(-8.4, 0, -1.2, -5.0, 1.4, -0.5, "metal", "gs_shelf")
+    o(-8.4, 0, 1.8, -5.0, 1.4, 2.5, "metal", "gs_shelf")
+    o(-0.75, 0, -6.85, -0.1, 2.0, -2.6, "metal", "gs_fridges")
+    o(-3.4, 0, 6.1, -1.0, 1.2, 6.85, "metal", "gs_oil_rack")
+    washroom(ox, oz, -13.85, 4.6, -12.0, 6.85, "EN", ("N", -12.9, 2), fit=(
+        ("wc_toilet", "W", 6.2, 0.5, 0.65, 0.8), ("wc_sink", "E", 5.7, 0.5, 0.4, 0.85)))
+    # Service bay (x 0.1..13.85).
+    o(4.2, 0, -1.5, 9.4, 1.3, 1.5, "rust", "gs_car")   # (the lift's posts stand inside its box)
+    o(1.0, 0, -6.85, 4.6, 0.95, -6.1, "wood", "gs_bench")
+    o(12.95, 0, -6.6, 13.85, 1.2, -4.6, "metal", "gs_tyres")
+    o(0.2, 0, 4.9, 1.4, 1.0, 6.1, "metal", "fuel_drums")
+    # Outside: the canopy over the pumps (its east posts blown away, the east half down on the forecourt).
+    for x, z in ((-15.5, 9.0), (-15.5, 14.5), (0.5, 14.5)):
+        o(x, 0, z, x + 0.5, 4.5, z + 0.5, "metal", "gs_post")
+    o(-16.0, 4.5, 8.5, 1.0, 4.9, 15.5, "wall_fuel", "gs_canopy")
+    t = math.atan2(4.3, 17.5)
+    obox(ox + 9.75, 2.5, oz + 12.0, 7.0, 0.4, math.hypot(17.5, 4.3), 90.0, "wall_fuel", pitch=math.degrees(t),
+         kind="gs_canopy_down")
+    for x in (-10.0, -2.0, 6.0):
+        o(x, 0, 11.2, x + 1.2, 1.6, 12.4, "metal", "gs_pump")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -3576,15 +3609,21 @@ def main():
                            "S": [], ("S", 1): [("door", 323.65, DOOR_W, 0.0, DOOR_H), ("window", 318.5, WIN_W, WIN_LO, WIN_HI)]}),
               [("crate", 0, 1, 0, "W", 0, "toolbox"), ("locker", 1, 0, 1, "E", 0, "locker")])
         signal_box_furniture(322.0, 243.0)
-    build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S",
-                   blasts=[(0, "N", 0), (0, "E", 0)], caved=[(1, 0)]), [("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 0)])
-    for x, z in ((296.5, 336.0), (296.5, 341.5), (312.5, 341.5)):  # canopy over the pumps (its east posts blown away)
-        box(x, 0, z, x + 0.5, 4.5, z + 0.5, "metal")
-    box(296, 4.5, 335.5, 313, 4.9, 342.5, "wall_fuel")
-    t = math.atan2(4.3, 17.5)                                        # the east half came down onto the forecourt
-    obox(321.75, 2.5, 339.0, 7.0, 0.4, math.hypot(17.5, 4.3), 90.0, "wall_fuel", pitch=math.degrees(t))
-    for x in (302, 310, 318):
-        box(x, 0, 338.2, x + 1.2, 1.6, 339.4, "metal")
+    with modeled("gas_station", 312.0, 327.0):
+        # The old gas station (World art 0.17): the shop west, the service bay east, the pumps under the canopy on
+        # the south forecourt. A shop door and windows on the highway side too (owner rule: entrances face the
+        # street). Bombed: the bay's roof gone, shells through the bay's front and east wall and the shop's back,
+        # half the canopy down on the pumps.
+        build(Building("GasStation", 298, 320, 28, 14, colour="wall_fuel", rooms=(2, 1), doors="S",
+                       blasts=[(0, "E", 0)], caved=[(1, 0)], wall_openings={
+                           "N": [("window", 300.6, WIN_W, WIN_LO, WIN_HI), ("window", 303.4, WIN_W, WIN_LO, WIN_HI),
+                                 ("door", 307.0, DOOR_W, 0.0, DOOR_H), ("window", 310.0, WIN_W, WIN_LO, WIN_HI),
+                                 ("blast", 319.5, 3.6, 0.0, FLOOR_H)],
+                           "S": [("blast", 301.6, 3.0, 0.0, FLOOR_H), ("door", 306.0, DOOR_W, 0.0, DOOR_H),
+                                 ("window", 309.6, WIN_W, WIN_LO, WIN_HI), ("door", 318.5, 4.0, 0.0, 2.8),
+                                 ("window", 323.6, WIN_W, WIN_LO, WIN_HI)]}),
+              [("crate", 0, 0, 0, "W", 0), ("locker", 1, 0, 0, "E", 4.0)])
+        gas_station_furniture(312.0, 327.0)
     with modeled("diner", 284.0, 326.0):
         # The diner (World art 0.17): the dining room west (counter, booths, the washroom), the kitchen east. Its
         # front door faces the highway (owner rule: entrances face the street; the side door stays). Bombed: the
