@@ -18261,6 +18261,532 @@ SHELLS["signal_box"] = {
 FACTION_MARKS["signal_box"] = [("x1_stencil", "N", 5.0, 0.5)]
 
 
+# ------------------------------------------------------------------------------------------------ diner (0.17)
+# The roadside diner on the highway (bottom right, the bombed quarter), map 276-292 x 320-332, origin (284, 326):
+# local x -8..8, z -6..6, one 3 m storey, north = the highway. The dining room west (counter and stools along the
+# kitchen wall, booths, the jukebox, the washroom), the kitchen east. Bombed: the dining room's roof is gone, shells
+# through the kitchen's front and the dining room's back. DINER_LOOKS are the outside options (env BLOXOV_DINER_LOOK
+# for the sheet): the skin, the stripe/fascia colour (also the vinyl inside), the awning stripe.
+DINER_LOOKS = {
+    "B": {"ext": "dn_enamel", "band": "red", "awn": "dn_awn_red"},
+    "C": {"ext": "dn_ribbed", "band": "blue", "awn": "dn_awn_blue"},
+    "D": {"ext": "dn_mint", "band": "wine", "awn": "dn_awn_wine"},
+}
+DINER_LOOK = os.environ.get("BLOXOV_DINER_LOOK", "B")
+DN_FP = (-8.0, -6.0, 8.0, 6.0)
+
+PALETTE.update({"dnen": "b3a98e", "dnen_dark": "a1977c", "dnen_seam": "7f7660",
+                "dnst": "8e9294", "dnst_dark": "73777a", "dnst_light": "a9adae",
+                "dnmint": "8fa596", "dnmint_dark": "7b9082", "dnmint_grout": "a9b2a6"})
+
+
+def dn_look(key):
+    return DINER_LOOKS[DINER_LOOK][key]
+
+
+def _dn_grime(c, rng, base):
+    """Weather (row 0 is the ground, the wall top is row 48): soot streaks down from the top, rust bleeding from the
+    joints, a dirty skirt."""
+    for _ in range(10):
+        x = rng.randint(0, 63)
+        for y in range(rng.randint(30, 44), 48):
+            if rng.random() < 0.6:
+                c.put(x, y, base)
+    c.blotch(["iron", "rust"], 4, rng, size=(1, 3))
+    c.noise(0, 0, 64, 8, ["concrete", base], 0.25, rng)
+
+
+def paint_dn_enamel(rng):
+    """Cream enamel panels (1 m x 0.75 m) with dark seams and rivets, chipped to the steel."""
+    c = Canvas(64, 64, "dnen")
+    for x in range(0, 64, 16):
+        c.rect(x, 0, x + 1, 64, "dnen_seam")
+    for y in range(0, 64, 12):
+        c.rect(0, y, 64, y + 1, "dnen_seam")
+        for x in range(3, 64, 8):
+            c.put(x, y + 2, "dnen_dark")
+    c.noise(0, 0, 64, 64, ["dnen_dark"], 0.06, rng)
+    c.blotch(["iron_dark"], 6, rng, size=(1, 2))
+    _dn_grime(c, rng, "dnen_dark")
+    return c
+
+
+def paint_dn_ribbed(rng):
+    """Ribbed stainless (a rib every 0.125 m), dulled and streaked."""
+    c = Canvas(64, 64, "dnst")
+    for x in range(0, 64, 2):
+        c.rect(x, 0, x + 1, 64, "dnst_light" if x % 4 == 0 else "dnst_dark")
+    c.noise(0, 0, 64, 64, ["dnst_dark", "dnst"], 0.08, rng)
+    _dn_grime(c, rng, "dnst_dark")
+    return c
+
+
+def paint_dn_mint(rng):
+    """Pale mint tiles (0.25 m) in light grout, some fallen off to the render."""
+    c = Canvas(64, 64, "dnmint")
+    for y in range(0, 64, 4):
+        c.rect(0, y, 64, y + 1, "dnmint_grout")
+    for x in range(0, 64, 4):
+        c.rect(x, 0, x + 1, 64, "dnmint_grout")
+    c.noise(0, 0, 64, 64, ["dnmint_dark"], 0.07, rng)
+    for _ in range(9):
+        x, y = rng.randint(0, 15) * 4, rng.randint(0, 15) * 4
+        c.rect(x + 1, y + 1, x + 4, y + 4, "concrete")
+    _dn_grime(c, rng, "dnmint_dark")
+    return c
+
+
+def _dn_awning(col):
+    def paint(rng):
+        """Awning canvas: 0.25 m stripes, faded and sooty."""
+        c = Canvas(64, 64, "bone")
+        for x in range(0, 64, 8):
+            c.rect(x, 0, x + 4, 64, col)
+        c.noise(0, 0, 64, 64, ["sand", "concrete"], 0.1, rng)
+        c.blotch(["iron_dark"], 6, rng, size=(2, 5))
+        return c
+    return paint
+
+
+def paint_dn_dining(rng):
+    """The dining room: small checker tiles to 1 m under a chrome rail, cream paint above, smoke-stained (row 0 is
+    the floor)."""
+    c = Canvas(64, 64, "cream")
+    for y in range(0, 16):
+        for x in range(64):
+            c.put(x, y, "iron_dark" if (x // 2 + y // 2) % 2 else "bone")
+    c.rect(0, 16, 64, 17, "steel_light")
+    c.noise(0, 17, 64, 64, ["cream_dark"], 0.08, rng)
+    c.blotch(["iron_dark", "concrete"], 7, rng, area=(0, 24, 64, 48), size=(2, 6))
+    return c
+
+
+def paint_dn_kitchen(rng):
+    """The kitchen: white tiles (0.25 m, pale grout) to 1.75 m under a black line, greasy paint above (row 0 is the
+    floor)."""
+    c = Canvas(64, 64, "cream")
+    c.rect(0, 0, 64, 28, "bone")
+    for y in range(0, 28, 4):
+        c.rect(0, y, 64, y + 1, "cream_dark")
+    for x in range(0, 64, 4):
+        c.rect(x, 0, x + 1, 28, "cream_dark")
+    c.rect(0, 28, 64, 29, "iron_dark")
+    c.blotch(["sand", "concrete"], 10, rng, size=(2, 5))
+    c.blotch(["iron_dark"], 4, rng, area=(0, 30, 64, 48), size=(2, 4))
+    return c
+
+
+KIT.update({"dn_enamel": paint_dn_enamel, "dn_ribbed": paint_dn_ribbed, "dn_mint": paint_dn_mint,
+            "dn_awn_red": _dn_awning("red"), "dn_awn_blue": _dn_awning("sky_blue"), "dn_awn_wine": _dn_awning("wine"),
+            "dn_dining": paint_dn_dining, "dn_kitchen": paint_dn_kitchen})
+
+
+def dn_inner(m):
+    return "dn_dining" if m[0] < 0.0 else "dn_kitchen"
+
+
+def dn_floor(m):
+    return "floor_kitchen" if m[0] < 0.0 else "floor_tile"
+
+
+def diner_decals(rng):
+    a = Atlas(256)
+    ink = {"red": "red", "blue": "sky_blue", "wine": "wine"}[dn_look("band")]
+
+    def sized(text, scale, pad):
+        w = Canvas.text_width(text, scale) + pad
+        return w + (w - Canvas.text_width(text, scale)) % 2
+
+    def roof_sign(c):       # the big DINER board on the roof
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, ink)
+        c.frame(1, 1, c.w - 1, c.h - 1, ink)
+        mo_text(c, 4, "DINER", ink, 4)
+        c.blotch(["iron", "rust"], 6, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 4))
+
+    def small(key, text, bg, fg, scale=1):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            mo_text(c, 2, text, fg, scale)
+            c.blotch(["iron_dark"], 2, rng, area=(1, 1, c.w - 1, c.h - 1), size=(1, 2))
+        a.add(key, sized(text, scale, 6), 5 * scale + 4, f)
+
+    def menu(c):            # the menu board over the counter: a list of dishes and prices, a few letters gone
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "wood_mid")
+        for k, line in enumerate(("COFFEE 1", "PIE 2", "EGGS 3", "BURGER 4")):
+            c.text(4, 3 + k * 7, line, "bone")
+        for _ in range(5):
+            c.put(rng.randint(4, c.w - 6), rng.randint(3, c.h - 4), "black")
+
+    def hole(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+
+    a.add("sign", sized("DINER", 4, 10), 30, roof_sign)
+    a.add("menu", 46, 32, menu)
+    small("open", "OPEN 24 HOURS", "bone", ink)
+    small("kitchen", "STAFF ONLY", "bone", "black")
+    def scorch(c):          # 2 x 2 m of soot round a shell hole / out of a window
+        c.rect(0, 0, c.w, c.h, "clear")
+        cx, cy = c.w / 2, c.h / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x - cx, (y - cy) * 1.2) / (c.w / 2) + rng.uniform(-0.15, 0.15)
+                if d < 0.8 and rng.random() < (0.9 - d) * 0.9:
+                    c.put(x, y, "black" if d < 0.35 and rng.random() < 0.5 else "iron_dark")
+    a.add("hole", 4, 4, hole)
+    a.add("scorch", 64, 64, scorch)
+    return a
+
+
+# ---- diner props
+def prop_dn_counter(ctx, c, s):
+    """The lunch counter: a wood body with a vinyl front and a chrome kick plate, a stainless top; the coffee pot,
+    sugar, napkins and ketchup still on it, the till at the end; the menu board on the wall behind."""
+    b, rng = ctx.b, random.Random("dn_counter")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    band = dn_look("band")
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.box((c[0], (y0 + top - 0.05) / 2, c[2]), (s[0] - 0.1, top - y0 - 0.05, s[2]), style=lambda n, m, q:
+          None if n[1] < -0.7 else (("wood_dark" if n[0] > 0.5 else band), uv_world(1.0)))
+    _box(b, x0 + 0.03, y0 + 0.08, c[2], 0.04, 0.16, s[2], "steel_light")                         # kick plate
+    _box(b, x0 + 0.03, top - 0.2, c[2], 0.04, 0.04, s[2], "steel_light")                         # chrome strip
+    b.box((c[0] - 0.05, top - 0.025, c[2]), (s[0] + 0.1, 0.05, s[2] + 0.05), style=_solid("steel_light"))
+    for z in (z0 + 0.5, z0 + 1.4, z0 + 2.3):
+        _box(b, c[0] - 0.1, top + 0.06, z, 0.1, 0.12, 0.08, "steel_light")                     # napkins
+        _box(b, c[0] - 0.1, top + 0.06, z + 0.14, 0.06, 0.12, 0.06, "glass")                   # sugar
+        _box(b, c[0] - 0.1, top + 0.08, z - 0.13, 0.05, 0.16, 0.05, "red")                     # ketchup
+    _box(b, c[0] + 0.05, top + 0.1, z1 - 0.6, 0.16, 0.2, 0.16, "glass")                          # the coffee pot
+    _box(b, c[0] + 0.05, top + 0.21, z1 - 0.6, 0.17, 0.03, 0.17, "black")
+    b.box((c[0] + 0.05, top + 0.13, z1 - 0.25), (0.4, 0.26, 0.4), yaw=4, style=_nb("trim_dark"))   # the till, drawer out
+    _box(b, c[0] - 0.12, top + 0.04, z1 - 0.25, 0.12, 0.06, 0.32, "trim_dark")
+    for _ in range(3):                                                                          # dirty cups
+        _box(b, c[0] + rng.uniform(-0.15, 0.15), top + 0.04, rng.uniform(z0 + 0.3, z1 - 1.0), 0.08, 0.08, 0.08, "bone")
+    # The menu board on the partition behind the counter (kitchen wall, west face).
+    wall_quad(b, (-1, 0, 0), -0.1 - 0.02, z0 + 1.6 - 23 / 32, z0 + 1.6 + 23 / 32, 1.8, 2.8, "decals", ctx.d("menu"))
+
+
+def prop_dn_pie_case(ctx, c, s):
+    """A glass pie case on a cabinet, the glass smashed; plates and a dome cover on the floor."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], y0 + 0.45, c[2]), (s[0], 0.9, s[2]), style=_nb("wood_dark"))
+    _box(b, c[0], top - 0.03, c[2], s[0], 0.06, s[2], "steel_light")
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            _box(b, c[0] + sx * (s[0] / 2 - 0.02), 1.15, c[2] + sz * (s[2] / 2 - 0.02), 0.03, 0.5, 0.03, "steel_light")
+    _box(b, c[0] + s[0] / 2 - 0.02, 1.15, c[2] + 0.3, 0.01, 0.45, s[2] * 0.5, "glass")                 # what's left of the glass
+    _box(b, c[0], 1.0, c[2] - 0.3, 0.6, 0.02, 0.5, "steel_light")
+    _box(b, c[0], 1.04, c[2] - 0.3, 0.4, 0.06, 0.4, "wood_light")                                     # a pie, dried up
+    for k in range(4):                                                                               # plates on the floor
+        _box(b, c[0] - 0.7 + k * 0.12, 0.012, c[2] + 0.3 - k * 0.2, 0.22, 0.02, 0.22, "bone", yaw=k * 25)
+
+
+def prop_dn_stool(ctx, c, s, k):
+    """A chrome stool with a vinyl seat; one knocked over."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    band = dn_look("band")
+    if k == 2:
+        _box(b, c[0] - 0.25, 0.14, c[2], 0.6, 0.06, 0.06, "steel_light")
+        _box(b, c[0] + 0.1, 0.18, c[2], 0.12, 0.36, 0.36, band)
+        _box(b, c[0] - 0.55, 0.02, c[2], 0.04, 0.04, 0.34, "steel_light")
+        return
+    _box(b, c[0], y0 + 0.01, c[2], 0.34, 0.02, 0.34, "steel_light")
+    _box(b, c[0], y0 + 0.35, c[2], 0.06, 0.7, 0.06, "steel_light")
+    _box(b, c[0], y0 + 0.72, c[2], 0.38, 0.08, 0.38, band, yaw=k * 17)
+
+
+def prop_dn_booth(ctx, c, s):
+    """A booth against the wall: two high-backed vinyl benches facing over a table (some seats slashed to the
+    foam), a chrome edge; the napkin holder and a plate on the table."""
+    b, rng = ctx.b, random.Random(f"dn_booth{c[2]:.1f}")
+    y0 = c[1] - s[1] / 2
+    band = dn_look("band")
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    for z, sg in ((z0, 1), (z1, -1)):
+        _box(b, c[0], y0 + 0.22, z + sg * 0.3, s[0], 0.44, 0.6, "wood_dark")                      # base
+        _box(b, c[0], y0 + 0.48, z + sg * 0.3, s[0] - 0.04, 0.08, 0.56, band)                     # seat
+        _box(b, c[0], y0 + 0.82, z + sg * 0.06, s[0] - 0.04, 0.76, 0.12, band)                    # back
+        _box(b, c[0], y0 + 1.21, z + sg * 0.06, s[0], 0.03, 0.16, "steel_light")
+        if rng.random() < 0.6:
+            _box(b, c[0] + rng.uniform(-0.3, 0.3), y0 + 0.525, z + sg * 0.3, 0.3, 0.01, 0.2, "yellow")  # foam
+    zm = c[2]
+    _box(b, x0 + 0.5, 0.74, zm, 1.0, 0.04, 0.8, "bone")                                          # table top
+    _box(b, x0 + 0.5, 0.74, zm, 1.02, 0.03, 0.82, "steel_light")
+    _box(b, x0 + 0.6, 0.36, zm, 0.08, 0.72, 0.08, "steel_light")
+    _box(b, x0 + 0.3, 0.8, zm, 0.08, 0.1, 0.1, "steel_light")
+    _box(b, x0 + 0.65, 0.77, zm + 0.15, 0.24, 0.02, 0.24, "bone")
+
+
+def prop_dn_table(ctx, c, s):
+    """A two-top table with its chairs (one knocked over)."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    _box(b, c[0], top - 0.02, c[2], s[0], 0.04, s[2], "bone")
+    _box(b, c[0], top - 0.05, c[2], s[0] + 0.02, 0.03, s[2] + 0.02, "steel_light")
+    _box(b, c[0], (y0 + top) / 2, c[2], 0.08, top - y0 - 0.06, 0.08, "steel_light")
+    _box(b, c[0], y0 + 0.01, c[2], 0.5, 0.02, 0.5, "steel_light")
+    chair(b, c[0] - s[0] / 2 - 0.35, y0, c[2], 90, dn_look("band"), "steel_light")
+    b.box((c[0] + s[0] / 2 + 0.45, y0 + 0.2, c[2] + 0.1), (0.45, 0.05, 0.45), yaw=-20, pitch=70, style=_solid(dn_look("band")))
+    b.box((c[0] + s[0] / 2 + 0.8, y0 + 0.04, c[2] + 0.2), (0.05, 0.05, 0.5), yaw=-20, style=_nb("steel_light"))
+
+
+def prop_dn_jukebox(ctx, c, s):
+    """The jukebox: an arched cabinet, a lit-up front gone dark, the glass cracked; the coin slot."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    band = dn_look("band")
+    b.box((c[0], y0 + 0.6, c[2]), (s[0], 1.2, s[2]), style=_nb("wood_dark"))
+    for k in range(4):                                                                           # the arch, stepped
+        w = s[0] * (1.0 - k * 0.18)
+        _box(b, c[0], 1.2 + k * 0.1 + 0.05, c[2], w, 0.1, s[2] - 0.04, band if k % 2 == 0 else "yellow")
+    _box(b, c[0], 0.95, c[2] - s[2] / 2 - 0.01, s[0] - 0.2, 0.4, 0.02, "glass")
+    _box(b, c[0], 0.95, c[2] - s[2] / 2 - 0.005, s[0] - 0.24, 0.36, 0.01, "black")
+    for k in range(5):
+        _box(b, c[0], 0.3 + k * 0.08, c[2] - s[2] / 2 - 0.01, s[0] - 0.1, 0.02, 0.01, "steel_light")
+
+
+def prop_dn_range(ctx, c, s):
+    """The cooking line: a griddle and a range of burners, the extract hood over them (black with grease)."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
+    _box(b, c[0] - s[0] / 4, top + 0.01, c[2], s[0] / 2 - 0.1, 0.02, s[2] - 0.1, "black")       # the griddle
+    for k in range(4):                                                                           # burners
+        _box(b, c[0] + 0.3 + (k % 2) * 0.5, top + 0.02, c[2] - 0.15 + (k // 2) * 0.3, 0.22, 0.03, 0.22, "trim_dark")
+    for k in range(4):                                                                           # knobs
+        _box(b, c[0] + 0.15 + k * 0.25, top - 0.12, c[2] - s[2] / 2 - 0.02, 0.05, 0.05, 0.04, "black")
+    _box(b, c[0] - 0.3, top + 0.08, c[2] - 0.05, 0.3, 0.14, 0.3, "trim_dark")                    # a pan
+    b.box((c[0], 2.3, c[2] + 0.05), (s[0] + 0.1, 0.5, s[2] - 0.1), style=lambda n, m, q: ("trim_dark", uv_world(1.0)))  # hood
+    _box(b, c[0], 2.6, c[2] + 0.2, 0.4, 0.4, 0.3, "trim_dark")
+
+
+def prop_dn_sink(ctx, c, s):
+    """A double stainless sink, dishes piled in it and on the drainer."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
+    for dx in (-0.3, 0.3):
+        _box(b, c[0] + dx, top + 0.005, c[2], 0.5, 0.01, s[2] - 0.2, "trim_dark")
+    for k in range(6):
+        _box(b, c[0] - 0.3, top + 0.03 + k * 0.025, c[2], 0.24, 0.02, 0.24, "bone", yaw=k * 11)
+    _box(b, c[0], top + 0.25, c[2] + s[2] / 2 - 0.08, 0.04, 0.5, 0.04, "steel_light")              # the tap
+    _box(b, c[0], top + 0.5, c[2] + s[2] / 2 - 0.2, 0.04, 0.04, 0.28, "steel_light")
+
+
+def prop_dn_fridge(ctx, c, s):
+    """A tall steel fridge, its door hanging open (picture only: the gray box stays shut), shelves empty."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
+    zf = c[2] - s[2] / 2 - 0.01
+    _box(b, c[0], (y0 + top) / 2, zf, s[0] - 0.08, s[1] - 0.12, 0.01, "trim_dark")
+    for k in range(4):
+        _box(b, c[0], y0 + 0.35 + k * 0.4, zf - 0.01, s[0] - 0.12, 0.02, 0.02, "steel_light")
+    b.box((c[0] - s[0] / 2 - 0.2, (y0 + top) / 2, zf - 0.25), (0.05, s[1] - 0.06, 0.55), yaw=-35, style=_solid("steel_light"))
+    _box(b, c[0] + s[0] / 2 - 0.08, 1.2, zf - 0.03, 0.03, 0.5, 0.04, "trim_dark")
+
+
+def prop_dn_shelves(ctx, c, s):
+    """Steel shelving: tins, pans, a sack of flour slumped on the floor."""
+    b, rng = ctx.b, random.Random(f"dn_shelves{c[2]:.1f}")
+    y0 = c[1] - s[1] / 2
+    along = 2 if s[2] > s[0] else 0
+    L = s[along]
+    for k in range(4):
+        y = y0 + 0.15 + k * 0.52
+        b.box((c[0], y, c[2]), (s[0], 0.03, s[2]), style=_solid("steel_light"))
+        n = int(L / 0.25)
+        for j in range(n):
+            if rng.random() < 0.45:
+                continue
+            a = -L / 2 + 0.12 + j * 0.25
+            px, pz = (c[0], c[2] + a) if along == 2 else (c[0] + a, c[2])
+            mat = rng.choice(("steel_light", "red", "yellow", "bone", "trim_dark"))
+            _box(b, px, y + 0.1, pz, 0.14, 0.18, 0.14, mat)
+    for sa in (-1, 1):
+        for sb in (-1, 1):
+            dx, dz = (sb * (s[0] / 2 - 0.02), sa * (L / 2 - 0.02)) if along == 2 else (sa * (L / 2 - 0.02), sb * (s[2] / 2 - 0.02))
+            _box(b, c[0] + dx, c[1], c[2] + dz, 0.03, s[1], 0.03, "steel_light")
+
+
+def caved_diner(ctx, c, s):
+    """The dining room's roof fell in: a ragged lip of ceiling round the walls with joist ends sticking out, one
+    joist leaning down from the kitchen wall; roof boards and felt on the floor, the ceiling fan down among them, a
+    scorched floor and a puddle where the rain gets in."""
+    b, rng = ctx.b, random.Random("caved_diner")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.85
+    for side in range(4):
+        a, a1 = (x0, x1) if side < 2 else (z0, z1)
+        while a < a1 - 0.05:
+            L = min(rng.uniform(0.4, 1.4), a1 - a)
+            d = rng.uniform(0.1, 0.7)
+            m = a + L / 2
+            at, sz = {0: ((m, top, z0 + d / 2), (L, 0.06, d)), 1: ((m, top, z1 - d / 2), (L, 0.06, d)),
+                      2: ((x0 + d / 2, top, m), (d, 0.06, L)), 3: ((x1 - d / 2, top, m), (d, 0.06, L))}[side]
+            b.box(at, sz, style=lambda n, m_, q: ("house_ceiling" if n[1] < -0.7 else "wood_dark", uv_world(1.0)))
+            a += L
+    for k in range(7):                                                                           # joist stubs
+        z = z0 + 0.8 + k * (s[2] - 1.6) / 6
+        L = rng.uniform(0.3, 1.5)
+        _beam(b, (x0, top + 0.08, z), (x0 + L, top + 0.08 - L * rng.uniform(0.0, 0.3), z), 0.08, 0.2, "wood_dark")
+        L = rng.uniform(0.2, 1.0)
+        _beam(b, (x1, top + 0.08, z), (x1 - L, top + 0.08 - L * rng.uniform(0.0, 0.3), z), 0.08, 0.2, "wood_dark")
+    _beam(b, (x1 - 0.05, top, z0 + 1.0), (x0 + 3.6, y + 0.1, z0 + 0.7), 0.08, 0.2, "wood_dark")    # the leaning joist
+    # Roof boards, felt and joists on the floor (kept low: you walk over them).
+    for _ in range(16):
+        b.box((rng.uniform(x0 + 1.8, x1 - 1.2), y + 0.04, rng.uniform(z0 + 1.0, z1 - 1.0)), (rng.uniform(0.6, 1.8), 0.04, 0.14),
+              yaw=rng.uniform(0, 180), pitch=rng.uniform(-6, 6), style=no_bottom(rng.choice(("wood", "wood_dark")), 1.0))
+    for _ in range(5):
+        b.box((rng.uniform(x0 + 2.0, x1 - 1.6), y + 0.03, rng.uniform(z0 + 1.0, z1 - 1.0)), (rng.uniform(0.6, 1.2), 0.03, rng.uniform(0.6, 1.0)),
+              yaw=rng.uniform(0, 90), pitch=rng.uniform(-5, 5), style=no_bottom("roof", 1.0))
+    # The ceiling fan, on the floor.
+    fx, fz = c[0] - 0.3, c[2] + 0.6
+    _box(b, fx, y + 0.08, fz, 0.22, 0.14, 0.22, "steel_light")
+    for a in (10, 100, 190, 280):
+        _box(b, fx + 0.35 * math.cos(math.radians(a)), y + 0.03, fz + 0.35 * math.sin(math.radians(a)), 0.5, 0.02, 0.12,
+             "wood_dark", yaw=-a)
+    for _ in range(6):
+        rubble_chunk(b, (rng.uniform(x0 + 2.0, x1 - 1.6), y + 0.1, rng.uniform(z0 + 1.0, z1 - 1.0)),
+                     (rng.uniform(0.2, 0.5), rng.uniform(0.1, 0.25), rng.uniform(0.2, 0.5)), rng, ("concrete", dn_look("ext")))
+    for _ in range(4):                                                                           # scorch patches
+        b.box((rng.uniform(x0 + 2.4, x1 - 2.0), y + 0.028, rng.uniform(z0 + 2.0, z1 - 2.0)), (rng.uniform(1.0, 2.0), 0.01, rng.uniform(1.0, 2.0)),
+              yaw=rng.uniform(0, 90), style=no_bottom("black", 1.0))
+    b.box((c[0] + 0.6, y + 0.032, c[2] + 1.8), (1.6, 0.01, 1.1), yaw=20, style=no_bottom("glass", 1.0))   # puddle
+
+
+def dress_diner(ctx):
+    b, rng = ctx.b, random.Random("dn_dress")
+    fp = DN_FP
+    band, ext, awn = dn_look("band"), dn_look("ext"), dn_look("awn")
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        at = side_at(side, 0.15 + push)
+        n = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, n, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    def band_run(side, y0, y1, d, mat):
+        ns = side in "NS"
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d, a1 + 0.15 + d
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        at = side_at(side, 0.15 + d / 2)
+        for s0, s1 in segs:
+            if s1 - s0 > 0.02:
+                m = (s0 + s1) / 2
+                b.box((m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m),
+                      (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0), style=st(mat))
+    # The classic stripes: a coloured band under the windows with chrome lines, the fascia along the top, the base.
+    for side in "NSWE":
+        band_run(side, 0.0, 0.3, 0.05, "concrete")
+        band_run(side, 0.78, 0.92, 0.04, band)
+        band_run(side, 0.74, 0.77, 0.05, "steel_light")
+        band_run(side, 0.93, 0.96, 0.05, "steel_light")
+        band_run(side, 2.48, 3.0, 0.06, band)
+        band_run(side, 2.45, 2.48, 0.07, "steel_light")
+    b.box(((fp[0] + fp[2]) / 2, 3.04, fp[1] - 0.24), (fp[2] - fp[0] + 0.6, 0.08, 0.12), style=st("steel_light"))
+    # The front: OPEN 24 HOURS on the fascia; torn awnings over the windows (picture only: they're above head height).
+    o24 = ctx.decals.regions["open"]
+    quad("N", -5.0, 2.62, 2.62 + 9 / 32, (o24[2] - o24[0]) * ctx.decals.c.w / 32, "open", push=0.08)
+    for o in opens:
+        if o["kind"] != "window" or o["side"] not in "NE":
+            continue
+        side, mid, w = o["side"], o["mid"], o["w"]
+        ns = side in "NS"
+        at = side_at(side, 0.15)
+        sg = -1 if side == "N" else 1
+        torn = rng.random() < 0.6
+        depth = 0.9
+        L = w + 0.4
+        out = depth if not torn else 0.45
+        cx = at + sg * out / 2
+        pos = (mid, 2.3, cx) if ns else (cx, 2.3, mid)
+        size = (L, 0.03, out / math.cos(math.radians(25))) if ns else (out / math.cos(math.radians(25)), 0.03, L)
+        b.box(pos, size, pitch=(25 if side == "N" else 0), yaw=(0 if ns else 90), style=st(awn))
+        _box(b, mid if ns else at + sg * out, 2.1 if not torn else 1.7, at + sg * out if ns else mid,      # the valance
+             L if ns else 0.02, 0.2 if not torn else 0.7, 0.02 if ns else L, awn)
+        for e in (-1, 1):                                                          # frame arms
+            a = mid + e * L / 2
+            p0 = (a, 2.5, at) if ns else (at, 2.5, a)
+            p1 = (a, 2.5 - out * 0.47, at + sg * out) if ns else (at + sg * out, 2.5 - out * 0.47, a)
+            if torn and e > 0:
+                p1 = (a, 1.6, at + sg * 0.2) if ns else (at + sg * 0.2, 1.6, a)
+            _beam(b, p0, p1, 0.03, 0.03, "trim_dark")
+    # The roof sign over the kitchen half (the dining room's roof is gone): a board on legs, its west leg buckled so
+    # it leans; bullet holes through it.
+    sg_r = ctx.decals.regions["sign"]
+    sw = (sg_r[2] - sg_r[0]) * ctx.decals.c.w / 32
+    sh = (sg_r[3] - sg_r[1]) * ctx.decals.c.h / 32
+    sx, sz = 4.0, fp[1] + 0.9
+    b.box((sx, 3.15 + 0.4 + sh / 2, sz + 0.05), (sw + 0.1, sh + 0.1, 0.08), pitch=0, yaw=0,
+          style=lambda n, m, q: (band if abs(n[2]) < 0.5 else "trim_dark", uv_world(1.0)))
+    wall_quad(b, (0, 0, -1), sz - 0.001, sx - sw / 2, sx + sw / 2, 3.55, 3.55 + sh, "decals", ctx.d("sign"))
+    for x in (sx - sw / 2 + 0.3, sx + sw / 2 - 0.3):
+        _box(b, x, 3.0 + 0.3, sz + 0.1, 0.08, 0.6, 0.08, "trim_dark")
+        _beam(b, (x, 3.05, sz + 1.2), (x, 3.6, sz + 0.12), 0.06, 0.06, "trim_dark")
+    _box(b, sx, 3.06, sz + 0.6, sw, 0.04, 0.06, "trim_dark")
+    # STAFF ONLY on the kitchen side of the partition doorway.
+    k_r = ctx.decals.regions["kitchen"]
+    kw = (k_r[2] - k_r[0]) * ctx.decals.c.w / 32
+    wall_quad(b, (1, 0, 0), 0.1 + 0.01, -1.6 - kw / 2, -1.6 + kw / 2, 1.9, 1.9 + 9 / 32, "decals", ctx.d("kitchen"))
+    # Soot round the shell holes, and blown out of a couple of windows.
+    for o in opens:
+        if o["kind"] == "blast" or (o["kind"] == "window" and o["side"] == "N" and o["mid"] > 0.0):
+            w = o["w"] + 1.0
+            quad(o["side"], o["mid"], max(0.0, o["hi"] - w * 0.75), o["hi"] - w * 0.75 + w, w, "scorch", push=0.1, mat="graffiti")
+    # Bullet holes, most on the highway side.
+    for side, a0, a1, n in (("N", -7.8, 7.8, 34), ("W", -5.8, 5.8, 10), ("E", -5.8, 5.8, 12), ("S", -7.8, 7.8, 8)):
+        for _ in range(n):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.4, 2.4)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.15 and o["lo"] - 0.1 < y < o["hi"] + 0.1 for o in opens):
+                continue
+            if 0.7 < y < 1.0:
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.11, mat="graffiti")
+    # Glass from the windows on the pavement out front.
+    for _ in range(14):
+        _box(b, rng.uniform(-7.5, 0.0), 0.01, fp[1] - rng.uniform(0.3, 1.6), rng.uniform(0.06, 0.2), 0.01, rng.uniform(0.05, 0.15),
+             "glass", yaw=rng.uniform(0, 90))
+
+
+for _kind, _fn in {"dn_counter": prop_dn_counter, "dn_pie_case": prop_dn_pie_case, "dn_booth": prop_dn_booth,
+                   "dn_table": prop_dn_table, "dn_jukebox": prop_dn_jukebox, "dn_range": prop_dn_range,
+                   "dn_sink": prop_dn_sink, "dn_fridge": prop_dn_fridge, "dn_shelves": prop_dn_shelves}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+PROPS["dn_stool"] = prop_dn_stool
+CAVED["diner"] = caved_diner
+DECALS["diner"] = diner_decals
+DRESSING["diner"] = dress_diner
+FOOTPRINTS["diner"] = DN_FP
+ENTRANCE_DOOR["diner"] = dn_look("band")
+WC_MATS["diner"] = ("wc_tile", "wc_floor")
+SHELLS["diner"] = {
+    "ext": dn_look("ext"), "roof_side": dn_look("ext"), "inner": dn_inner, "floor": dn_floor,
+    "ceiling": lambda m: "house_ceiling", "x_lines": (-8.0, 0.0, 8.0), "z_lines": (-6.0, 6.0),
+    "x_splits": (0.0,), "z_splits": (), "debris": ("concrete", dn_look("ext"), "wood", "concrete"),
+}
+FACTION_MARKS["diner"] = [("x1_stencil", "E", -3.6, 1.1)]
+
+
 def floor_debris(ctx, data, name):
     """Small bits of the building lying about on every floor (round 6, owner: "add actual small bits of debris so it
     feels like it's been bombed"): clusters of plaster and brick chips and a bit of dust, kept off furniture. Picture

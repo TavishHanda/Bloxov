@@ -127,5 +127,13 @@
 "st_banded",
 "st_stock",
 "st_wash",
-"sb_cream"
+"sb_cream",
+"dn_enamel",
+"dn_ribbed",
+"dn_mint",
+"dn_awn_red",
+"dn_awn_blue",
+"dn_awn_wine",
+"dn_dining",
+"dn_kitchen"
 ]

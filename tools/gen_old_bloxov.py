@@ -1980,6 +1980,33 @@ def signal_box_furniture(ox, oz):
     o(0.6, F, -1.0, 1.1, F + 0.9, -0.5, "wood", "sb_chair", solid=False)
 
 
+def diner_furniture(ox, oz):
+    """The diner (World art 0.17), in the model's own coordinates (origin map (ox, oz); local x -8..8, z -6..6, one
+    3 m storey; north = the highway). Dining room west: the counter and stools along the kitchen wall, booths and
+    tables, the jukebox, the washroom in the south-west corner. Kitchen east: the range and grill, the sink, the
+    fridge, shelves. The doorways, the room middles (AI spawn spots) and the holes' ways in stay clear."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    # Dining room (x -7.85..-0.1).
+    o(-1.6, 0, 1.5, -0.9, 1.05, 4.7, "wood", "dn_counter")
+    o(-1.5, 0, -3.4, -0.6, 1.4, -1.5, "metal", "dn_pie_case")
+    for z in (1.9, 2.7, 3.5, 4.3):
+        o(-2.25, 0, z - 0.2, -1.85, 0.75, z + 0.2, "metal", "dn_stool", solid=False)
+    o(-7.85, 0, -4.6, -6.3, 1.2, -1.5, "wood", "dn_booth")
+    o(-7.85, 0, 1.4, -6.3, 1.2, 3.3, "wood", "dn_booth")
+    o(-4.3, 0, 2.2, -3.4, 0.76, 3.1, "wood", "dn_table")
+    o(-4.6, 0, -4.6, -3.7, 0.76, -3.7, "wood", "dn_table")
+    o(-1.65, 0, 5.2, -0.85, 1.6, 5.85, "metal", "dn_jukebox")
+    washroom(ox, oz, -7.85, 3.6, -6.0, 5.85, "EN", ("N", -6.9, 2), fit=(
+        ("wc_toilet", "W", 5.2, 0.5, 0.65, 0.8), ("wc_sink", "E", 4.7, 0.5, 0.4, 0.85)))
+    # Kitchen (x 0.1..7.85).
+    o(0.5, 0, 5.15, 3.0, 0.95, 5.85, "metal", "dn_range")
+    o(3.3, 0, 5.25, 4.7, 0.9, 5.85, "metal", "dn_sink")
+    o(5.0, 0, 5.1, 6.1, 1.95, 5.85, "metal", "dn_fridge")
+    o(0.1, 0, -5.85, 0.75, 1.8, -2.0, "metal", "dn_shelves")
+    o(7.25, 0, 2.6, 7.85, 1.8, 5.0, "metal", "dn_shelves")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2666,6 +2693,8 @@ EXTRA_PADS = [
     (316.0, 248.0, 329.0, 251.5),  # the signal box's outside stair (World art 0.17)
     (321.0, 232.0, 330.0, 238.0),  # the rubble blown out of the signal box's north wall
     (328.0, 237.0, 333.0, 245.0),  # and its east wall
+    (284.0, 314.5, 291.5, 320.0),  # the rubble blown out of the diner's front (World art 0.17)
+    (279.5, 332.0, 284.0, 337.5),  # and its back
     (124.0, 168.0, 178.0, 182.0),  # the trench
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
     (58.0, 260.0, 74.0, 274.0),    # campsite
@@ -3556,8 +3585,16 @@ def main():
     obox(321.75, 2.5, 339.0, 7.0, 0.4, math.hypot(17.5, 4.3), 90.0, "wall_fuel", pitch=math.degrees(t))
     for x in (302, 310, 318):
         box(x, 0, 338.2, x + 1.2, 1.6, 339.4, "metal")
-    build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W",
-                   blasts=[(0, "N", 1), (0, "S", 0)], caved=[(0, 0)]), [("crate", 1, 0, 0, "E", 0)])
+    with modeled("diner", 284.0, 326.0):
+        # The diner (World art 0.17): the dining room west (counter, booths, the washroom), the kitchen east. Its
+        # front door faces the highway (owner rule: entrances face the street; the side door stays). Bombed: the
+        # dining room's roof fell in, shells through the kitchen's front and the dining room's back.
+        build(Building("Diner", 276, 320, 16, 12, colour="wall_food", rooms=(2, 1), doors="W",
+                       blasts=[(0, "N", 1), (0, "S", 0)], caved=[(0, 0)], wall_openings={
+                           "N": [("window", 277.6, WIN_W, WIN_LO, WIN_HI), ("door", 280.8, DOOR_W, 0.0, DOOR_H),
+                                 ("window", 282.9, WIN_W, WIN_LO, WIN_HI), ("blast", 288.0, 3.4, 0.0, FLOOR_H)]}),
+              [("crate", 1, 0, 0, "E", 0)])
+        diner_furniture(284.0, 326.0)
     build(Building("Garage", 332, 322, 14, 14, rooms=(1, 1), doors="W", height=4.5, big_doors=True,
                    blasts=[(0, "N", 0)], caved=[(0, 0)]), [("crate", 0, 0, 0, "E", 0)])
     car(286, 300, 70, "rust"); car(244, 268, 40, "rust")              # (burnt out)
