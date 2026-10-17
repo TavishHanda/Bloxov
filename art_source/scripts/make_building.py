@@ -1093,7 +1093,8 @@ def wall_style(fp, ext="ext_block", inner=None, storey=3.0):
         if dist < -0.05:
             return (ext, uv_world())
         if dist > 0.05:
-            return (inner(mid) if inner else "int_wall", uv_world())
+            m = inner(mid) if inner else "int_wall"
+            return m if isinstance(m, tuple) else (m, uv_world())      # (mat, uv) for storey-high patterns
         return ("trim", uv_world(1.0))
     return style
 
@@ -5199,6 +5200,8 @@ def house_room(m):
 
 def house_inner(m):
     f, room = house_room(m)
+    if house()["who"] == "farmer":                 # beadboard below a chair rail, paper above (one tile = one storey)
+        return ("farm_wain_kitchen" if (f, room) == (0, "NE") else "farm_wainscot", uv_world(3.0))
     if (f, room) == (0, "NE"):
         return "int_tile"                       # kitchen
     if (f, room) in ((1, "SW"), (1, "SE")) and house()["who"] != "doctor":
@@ -5671,6 +5674,19 @@ def prop_fireplace(ctx, c, s):
     for sx in (-1, 1):                                                                                  # fire irons
         p = _pos(c, k, sx * (L / 2 + 0.12), f * 0.15, -s[1] / 2 + 0.35)
         _box(b, p[0], p[1], p[2], 0.03, 0.7, 0.03, "trim_dark")
+    if house()["who"] == "farmer":                                                     # antlers over the mantel
+        p = _pos(c, k, 0, -f * (D / 2 - 0.05), s[1] / 2 + 0.95)
+        _box(b, p[0], p[1], p[2], *_sz(k, 0.24, 0.3, 0.04), mat="wood")
+        for sx in (-1, 1):
+            q = _pos(c, k, sx * 0.3, -f * (D / 2 - 0.09), s[1] / 2 + 1.05)            # the beam, then three tines
+            b.box(q, _sz(k, 0.44, 0.05, 0.05), style=_nb("bone"))
+            for ax, ln in ((0.2, 0.2), (0.34, 0.28), (0.5, 0.18)):
+                q = _pos(c, k, sx * ax, -f * (D / 2 - 0.09), s[1] / 2 + 1.05 + ln / 2)
+                b.box(q, _sz(k, 0.04, ln, 0.04), style=_nb("bone"))
+        q = _pos(c, k, -0.75, f * 0.35, -s[1] / 2 + 0.18)                               # a log basket
+        _box(b, q[0], q[1], q[2], 0.4, 0.34, 0.4, "wood_light")
+        for j in range(3):
+            _box(b, q[0], q[1] + 0.2, q[2] - 0.1 + j * 0.1, 0.36, 0.08, 0.08, "wood_dark")
 
 
 def prop_chimney(ctx, c, s):
@@ -5790,6 +5806,8 @@ def prop_kitchen_run(ctx, c, s):
     L, D = (s[0], s[2]) if k == 2 else (s[2], s[0])
     top = c[1] + s[1] / 2
     a = L * 0.1                                                                      # the stove, middle-ish
+    if house()["who"] == "farmer":
+        return farm_range(b, c, s, k, f, L, D, a)
     b.box(_pos(c, k, a, f * 0.01, 0), _sz(k, 0.62, s[1] + 0.005, D + 0.01), style=_nb("bone"))
     b.box(_pos(c, k, a, f * (D / 2 + 0.006), -0.05), _sz(k, 0.5, 0.42, 0.004), style=_nb("black"))   # oven door
     b.box(_pos(c, k, a, f * (D / 2 + 0.03), 0.22), _sz(k, 0.44, 0.025, 0.025), style=_nb("trim"))   # its handle
@@ -5805,6 +5823,30 @@ def prop_kitchen_run(ctx, c, s):
     for i in range(3):
         p = _pos(c, k, sa + (i - 1) * 0.08, 0, s[1] / 2 - 0.02 + i * 0.015)
         _box(b, p[0], p[1], p[2], 0.22, 0.015, 0.22, "bone", yaw=i * 20)
+
+
+def farm_range(b, c, s, k, f, L, D, a):
+    """The farmhouse's cast-iron wood range in the kitchen run: black body, nickel trim, a warming shelf, a
+    stovepipe up to the ceiling, a kettle and a skillet on the hob."""
+    top = c[1] + s[1] / 2
+    b.box(_pos(c, k, a, f * 0.02, 0), _sz(k, 1.0, s[1] + 0.01, D + 0.04), style=_nb("black"))
+    for dd in (-0.22, 0.22):                                                          # oven and firebox doors
+        b.box(_pos(c, k, a + dd, f * (D / 2 + 0.03), -0.05), _sz(k, 0.4, 0.4, 0.02), style=_nb("trim_dark"))
+        b.box(_pos(c, k, a + dd, f * (D / 2 + 0.05), 0.08), _sz(k, 0.12, 0.03, 0.03), style=_nb("steel_light"))
+    b.box(_pos(c, k, a, f * (D / 2 + 0.03), s[1] / 2 - 0.04), _sz(k, 1.04, 0.05, 0.03), style=_nb("steel_light"))
+    for dd in (-0.25, 0.0, 0.25):                                                     # lids on the hob
+        p = _pos(c, k, a + dd, 0.0, s[1] / 2 + 0.012)
+        _box(b, p[0], p[1], p[2], 0.2, 0.008, 0.2, "trim_dark")
+    b.box(_pos(c, k, a, -f * (D / 2 - 0.08), s[1] / 2 + 0.17), _sz(k, 1.0, 0.34, 0.1), style=_nb("black"))   # back
+    b.box(_pos(c, k, a, -f * (D / 2 - 0.2), s[1] / 2 + 0.36), _sz(k, 1.0, 0.04, 0.26), style=_nb("steel_light"))  # shelf
+    b.box(_pos(c, k, a + 0.3, -f * (D / 2 - 0.12), s[1] / 2 + 0.38 + 0.08), _sz(k, 0.14, 0.16, 0.14),
+          style=_nb("trim_dark"))                                                      # the pipe, elbowed into the wall
+    b.box(_pos(c, k, a + 0.3, -f * (D / 2 - 0.02), s[1] / 2 + 0.55), _sz(k, 0.14, 0.14, 0.24), style=_nb("trim_dark"))
+    p = _pos(c, k, a - 0.25, 0.0, s[1] / 2 + 0.1)                                     # the kettle
+    _box(b, p[0], p[1], p[2], 0.2, 0.16, 0.2, "steel_light")
+    _box(b, p[0], p[1] + 0.12, p[2], 0.06, 0.06, 0.06, "black")
+    p = _pos(c, k, a + 0.22, 0.0, s[1] / 2 + 0.04)                                     # the skillet
+    _box(b, p[0], p[1], p[2], 0.26, 0.04, 0.26, "black")
 
 
 def prop_kitchen_table(ctx, c, s):
@@ -5829,6 +5871,19 @@ def prop_kitchen_table(ctx, c, s):
         _box(b, c[0] + 0.25, top + 0.03, c[2] + 0.12, 0.14, 0.06, 0.14, "blue")        # bowl
     elif hv["who"] == "officer":
         _box(b, c[0] + 0.15, top + 0.004, c[2], 0.3, 0.008, 0.4, "concrete", yaw=12)    # the newspaper
+    elif hv["who"] == "farmer":
+        _box(b, c[0] + 0.1, top + 0.04, c[2] - 0.2, 0.26, 0.08, 0.26, "wood_light")      # egg basket
+        for k in range(5):
+            _box(b, c[0] + 0.03 + (k % 3) * 0.07, top + 0.1, c[2] - 0.26 + (k // 3) * 0.1, 0.05, 0.06, 0.05, "bone")
+        _box(b, c[0] - 0.1, top + 0.03, c[2] + 0.25, 0.26, 0.05, 0.26, "wood", yaw=45)    # a pie
+        _box(b, c[0] - 0.1, top + 0.06, c[2] + 0.25, 0.2, 0.02, 0.2, "yellow", yaw=45)
+        _box(b, c[0], 2.5, c[2], 0.5, 0.04, td + 0.4, "wood_dark")                      # pot rack from the ceiling
+        for dz_ in (-0.15, 0.15):
+            _box(b, c[0], 2.7, c[2] + dz_ * (td + 0.4) / 0.4, 0.02, 0.36, 0.02, "trim_dark")
+        for k in range(4):
+            z = c[2] - (td + 0.2) / 2 + k * (td + 0.2) / 3
+            _box(b, c[0], 2.38, z, 0.01, 0.2, 0.01, "trim_dark")
+            _box(b, c[0], 2.22, z, 0.22, 0.14, 0.22, "brass" if k % 2 else "trim_dark")
         _box(b, c[0] - 0.2, top + 0.09, c[2] - 0.15, 0.12, 0.18, 0.12, "trim")        # coffee pot
     else:
         _box(b, c[0] + 0.1, top + 0.08, c[2], 0.18, 0.15, 0.18, "bone")                # teapot
@@ -5884,6 +5939,17 @@ def bed(b, c, s, cover, double, rng, made=True):
     return P, S, head, L, W, y0
 
 
+def patchwork(b, P, S, head, L, W, y0, rng):
+    """A patchwork quilt over the bed's cover (the farmhouse): squares of five colours."""
+    n_al, n_ac = 5, max(3, int(W / 0.3))
+    la, wa = L * 0.72 / n_al, (W - 0.02) / n_ac
+    for i in range(n_al):
+        for j in range(n_ac):
+            p = P(-head * 0.2 - L * 0.36 + (i + 0.5) * la, -W / 2 + 0.01 + (j + 0.5) * wa, y0 + 0.5)
+            _box(b, p[0], p[1], p[2], *S(la - 0.01, 0.012, wa - 0.01),
+                 mat=rng.choice(("wine", "olive", "yellow", "blue", "bone", "red")))
+
+
 def prop_house_bed(ctx, c, s):
     """The SW bedroom upstairs: a guest double (doctor), a small one's bed with a teddy (family), the teenager's
     unmade bed (officer)."""
@@ -5892,6 +5958,8 @@ def prop_house_bed(ctx, c, s):
     who = hv["who"]
     b = ctx.b
     P, S, head, L, W, y0 = bed(b, c, s, hv["bed"] if who != "family" else "red", who == "doctor", rng, made=who != "officer")
+    if who == "farmer":
+        patchwork(b, P, S, head, L, W, y0, rng)
     if who == "family":
         p = P(head * (L / 2 - 0.45), 0.15, y0 + 0.5)
         teddy(b, p[0], p[1], p[2], 160)
@@ -5919,6 +5987,8 @@ def prop_main_bed(ctx, c, s):
     inner = (c[0], c[1], c[2])
     bs = (s[0] - 1.0, s[1], s[2])
     P, S, head, L, W, y0 = bed(b, inner, bs, hv["bed"], True, rng)
+    if hv["who"] == "farmer":
+        patchwork(b, P, S, head, L, W, y0, rng)
     for sx in (-1, 1):                                                               # night stands with lamps
         p = P(head * (L / 2 - 0.25), sx * (W / 2 + 0.27), y0)
         _box(b, p[0], y0 + 0.28, p[2], 0.44, 0.56, 0.4, "wood_dark")
@@ -6590,6 +6660,7 @@ def dress_house(ctx):
         gable_roof(b, fp, 6.0, 3.1, 0.45, hv["roof"], hv["ext"])
         if who == "farmer":
             farm_roof_extras(ctx, fp, hv)
+            farm_interior(ctx)
     else:
         flat_roof(b, fp, 6.0, hv["ext"], rng)
     for o in ctx.data.get("openings", []):
@@ -6701,7 +6772,7 @@ def dress_house(ctx):
         pic("portrait", "W", 0.65, 1.45)
     elif who == "doctor":
         pic("landscape", "W", 0.5, 1.55)
-    else:
+    elif who != "farmer":                                                 # (the farmer's antlers hang there)
         pic("photo_b", "W", 0.9, 1.5)
     pic("calendar", "w0", -0.68, 1.3)                                     # kitchen
     pic("photo_b", "N", wx - 2.25, 1.4, floor=1)                          # over the main bed
@@ -14574,6 +14645,88 @@ def paint_hay(rng):
         for k in range(rng.randint(2, 5)):
             c.put((x + k) % 64, (y + (k if rng.random() < 0.5 else 0)) % 64, col)
     return c
+
+
+def _farm_wainscot(board, board_dk, paper, paper_dk, motif):
+    """One storey (3 m = 64 px, row 0 at the floor): a skirting board, beadboard to 1 m, a chair rail, then paper."""
+    def paint(rng):
+        c = Canvas(64, 64, paper)
+        if motif == "check":                                    # little gingham check
+            for y in range(24, 64, 4):
+                for x in range(0, 64, 2):
+                    if (x // 2 + y // 4) % 2:
+                        c.rect(x, y, x + 1, y + 2, paper_dk)
+        else:                                                   # ticking stripes (pairs of thin lines)
+            for x in range(0, 64, 8):
+                c.rect(x, 24, x + 1, 62, paper_dk)
+                c.rect(x + 2, 24, x + 3, 62, paper_dk)
+        c.rect(0, 0, 64, 21, board)
+        for x in range(0, 64, 3):                               # the beads between boards
+            c.rect(x, 2, x + 1, 21, board_dk)
+        c.rect(0, 0, 64, 2, board_dk)                           # skirting
+        c.rect(0, 21, 64, 23, "wood")                           # chair rail
+        c.rect(0, 23, 64, 24, "wood_dark")
+        c.rect(0, 62, 64, 64, "bone")                           # a picture rail under the ceiling
+        c.blotch(["concrete", "sand"], 5, rng, area=(0, 24, 64, 62), size=(2, 5))
+        c.noise(0, 0, 64, 21, [board_dk], 0.04, rng)
+        return c
+    return paint
+
+
+PALETTE.update({"fwain": "6f7f62", "fwain_dk": "5b6a50", "fwain_k": "d8d2bf", "fwain_k_dk": "bdb6a1",
+                "fpaper": "cdb987", "fpaper_dk": "a8915f", "fpaper_k": "d9cfb4", "fpaper_k_dk": "c09a8a"})
+KIT.update({"farm_wainscot": _farm_wainscot("fwain", "fwain_dk", "fpaper", "fpaper_dk", "wheat"),
+            "farm_wain_kitchen": _farm_wainscot("fwain_k", "fwain_k_dk", "fpaper_k", "fpaper_k_dk", "check")})
+
+
+def farm_interior(ctx):
+    """The farmhouse's own inside (owner 2026-10-17, "make sure the interior is pazaazed up too"): beams across
+    every ceiling, a horseshoe over the front door, county fair ribbons and a jar shelf in the kitchen, braided rugs
+    upstairs, a toy tractor in the kid's room. All picture only (on walls, under ceilings, flat on floors)."""
+    b, rng = ctx.b, random.Random("farm inside")
+    fp = FOOTPRINTS[BUILDING_NAME[0]]
+    hw, hd = fp[2], fp[3]
+    wx, dz = hw - 0.15, hd - 0.15
+    sz = -hd + 0.15 + 2.2                                                    # the stair corridor's south edge
+    strip = -hw + 0.15 + 2.5 + 4.4 + 1.8
+    for top in (3.0 - 0.2, 6.0 - 0.2):                                       # beams under each ceiling
+        for x in (-6.0, -2.0, 2.0, 6.0):
+            z0 = sz if (top < 3 and x < strip) else -dz                      # (not over the stair hole)
+            _box(b, x, top - 0.11, (z0 + dz) / 2, 0.26, 0.22, dz - z0, "wood")
+    # A horseshoe over the front door (inside), points up for luck.
+    dx = hw / 2
+    for k in range(7):
+        a = math.pi * k / 6
+        _box(b, dx + 0.12 * math.cos(a), 2.72 - 0.12 * math.sin(a), dz - 0.03, 0.05, 0.05, 0.02, "trim_dark")
+    # County fair ribbons on the dining room wall (east, ground floor): rosettes with tails.
+    for k, col in enumerate(("blue", "red", "yellow")):
+        z = 0.8 + k * 0.45
+        for yaw in (0, 45):
+            _box(b, wx - 0.02, 1.75, z, 0.02, 0.2, 0.2, col, pitch=yaw)
+        _box(b, wx - 0.03, 1.75, z, 0.02, 0.08, 0.08, "bone")
+        for dzt in (-0.04, 0.04):
+            _box(b, wx - 0.02, 1.55, z + dzt, 0.02, 0.22, 0.05, col, pitch=dzt * 100)
+    # Kitchen: an open shelf of preserves on the east wall over the table's end.
+    _box(b, wx - 0.12, 1.55, -1.25, 0.22, 0.04, 1.5, "wood")                  # (clear of the window)
+    for k in range(9):
+        z = -1.9 + k * 0.16
+        col = rng.choice(("red", "wine", "yellow", "olive", "olive"))
+        _box(b, wx - 0.12, 1.65, z, 0.1, 0.16, 0.1, "glass")
+        _box(b, wx - 0.12, 1.63, z, 0.08, 0.11, 0.08, col)
+        _box(b, wx - 0.12, 1.74, z, 0.1, 0.03, 0.1, "brass")
+    # Braided rugs upstairs: by the main bed and in the kid's room (flat on the floor).
+    for (cx, cz, a, bb) in ((wx - 1.8, -dz + 2.8, 1.0, 0.65), (-1.6, 2.2, 0.8, 0.55)):
+        for i, col in enumerate(("wine", "olive", "yellow", "blue", "bone")):
+            sc = 1.0 - i * 0.18
+            for fx, fz in ((1.0, 0.6), (0.85, 0.85), (0.6, 1.0)):                # an oval from three boxes
+                _box(b, cx, 3.0 + 0.006 + i * 0.002, cz, 2 * a * sc * fx, 0.004, 2 * bb * sc * fz, col)
+    # A toy tractor on the kid's room floor.
+    tx, tz, y = -4.6, 3.6, 3.0
+    _box(b, tx, y + 0.1, tz, 0.16, 0.1, 0.3, "red")
+    _box(b, tx, y + 0.19, tz + 0.08, 0.14, 0.1, 0.12, "red")
+    for sx in (-1, 1):
+        _box(b, tx + sx * 0.1, y + 0.07, tz + 0.08, 0.04, 0.14, 0.14, "black", pitch=45)
+        _box(b, tx + sx * 0.09, y + 0.04, tz - 0.1, 0.04, 0.08, 0.08, "black", pitch=45)
 
 
 KIT.update({"farm_siding": paint_farm_siding, "barn_boards": paint_barn_boards, "shed_metal": paint_shed_metal,
