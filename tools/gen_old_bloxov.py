@@ -1322,12 +1322,14 @@ MOTEL_CELL = 5.25                         # one room along the block
 MOTEL_GAL = 223.5                         # the gallery's outer edge (posts and rail)
 MOTEL_LOT = (223.5, 18.0, 232.5, 72.0)    # the car park
 MOTEL_CLEAR = (208.0, 15.0, 237.0, 74.0)  # the scatter cleared for it
+MOTEL_CASINO = (207, 208)                 # knocked through into a back-room card room (owner 2026-10-17)
+MOTEL_LOOT_ROOMS = (103, 105, 202, 205)   # a dresser of loot (owner 2026-10-17: a few more spots, not every room)
 
 
 def motel_rooms():
     """(storey, cell k, room number) of the guest rooms (cell k runs z 24 + 5.25 k ..)."""
     rooms = [(0, k, 101 + n) for n, k in enumerate(range(5))]
-    rooms += [(1, k, 206.0 + k) for k in range(8)]
+    rooms += [(1, k, 201 + k) for k in range(8)]
     return rooms
 
 
@@ -1345,14 +1347,14 @@ def motel_openings():
         else:
             E.append(("window", c + 1.3, WIN_W, WIN_LO, WIN_HI))
             E.append(("room_door", c + 3.85, INNER_DOOR_W, 0.0, DOOR_H))
-        if num:
+        if num and num not in MOTEL_CASINO:                 # (the card room upstairs is blacked out)
             W.append(("window", c + 3.9, WIN_W, WIN_LO, WIN_HI))
     ops["E"] += [("window", 57.6, WIN_W, WIN_LO, WIN_HI), ("door", 61.5, DOOR_W, 0.0, DOOR_H)]
     ops["W"] += [("window", 58.3, WIN_W, WIN_LO, WIN_HI), ("window", 62.3, WIN_W, WIN_LO, WIN_HI)]
     ops["N"] = [("window", 216.5, WIN_W, WIN_LO, WIN_HI)]
     ops[("N", 1)] = [("window", 216.5, WIN_W, WIN_LO, WIN_HI)]
     ops["S"] = [("door", 218.0, DOOR_W, 0.0, DOOR_H), ("window", 214.45, 0.8, 1.5, 2.1)]
-    ops[("S", 1)] = [("window", 216.5, WIN_W, WIN_LO, WIN_HI)]
+    ops[("S", 1)] = []                                       # (the card room is blacked out)
     return ops
 
 
@@ -1373,7 +1375,7 @@ def motel():
         for k in range(1, 8):
             z = z0 + k * MOTEL_CELL
             for f in (0, 1):
-                if f == 0 and k == 7:
+                if k == 7:                                        # the office; the card room
                     continue
                 wall_x(x0 + 0.15, x1 - 0.15, z, f * FLOOR_H, FLOOR_H, "wall", t=0.2)
         # ---- The rooms: the bathroom at the back (north half), the dressing nook beside it (rail, the back window),
@@ -1382,15 +1384,21 @@ def motel():
             c, y = z0 + k * MOTEL_CELL, f * FLOOR_H
             zs = c + (0.15 if k == 0 else 0.1)                    # the room's north and south inside faces
             ze = c + MOTEL_CELL - 0.1
+            if num in MOTEL_CASINO:
+                inner_door(x1, y, c + 3.85, 90.0, "Motel")
+                if num == 208:
+                    continue
             washroom(0.0, 0.0, x0 + 0.15, zs, 214.0, c + 2.45, "ES", ("E", c + 1.7, -2), y=y, sign=None, fit=(
                 ("wc_bath", "N", 212.5, 1.6, 0.72, 0.55), ("wc_toilet", "W", c + 1.75, 0.45, 0.7, 0.8),
                 ("wc_sink", "E", c + 0.75, 0.55, 0.5, 0.85)))
+            if num in MOTEL_CASINO:
+                continue
             if num == 102:
                 # A car through the front (picture: nose down, the bed shoved over); solid, cover in the gallery.
                 obox(219.6, 0.6, c + 2.6, 1.9, 1.2, 4.4, 74.0, "car_a", kind="motel_car")
                 o(214.6, 0, ze - 2.1, 216.2, 0.6, ze, "wood", "motel_bed", solid=True)
                 continue
-            special = {209.0: "nest", 211.0: "aid", 103: "loot"}.get(num)
+            special = {204: "nest", 206: "aid"}.get(num, "loot" if num in MOTEL_LOOT_ROOMS else None)
             if special != "aid":
                 o(215.6, y, ze - 2.1, 217.2, y + 0.6, ze, "wood", "motel_bed")
                 o(214.95, y, ze - 0.45, 215.5, y + 0.55, ze, "wood", "motel_nightstand", solid=False)
@@ -1425,7 +1433,7 @@ def motel():
         o(216.7, 0, 59.4, 217.4, 1.05, 63.6, "wood", "motel_desk")
         o(215.72, 1.2, 60.0, 215.76, 2.1, 62.4, "wood", "key_board", solid=False)
         o(217.8, 0, 55.65, 219.8, 0.85, 56.5, "wood", "sofa")
-        o(219.6, 0, 63.8, 220.3, 1.6, 64.9, "metal", "leaflet_rack")
+        o(219.6, 0, 58.9, 220.3, 1.6, 60.0, "metal", "leaflet_rack")         # (clear of the vending machine)
         o(219.4, 0, 65.1, 220.3, 1.85, 65.85, "metal", "vending")
         o(211.65, 0, 59.5, 212.45, 0.76, 61.0, "wood", "motel_office_desk")
         o(211.65, 0, 63.7, 212.6, 0.55, 65.85, "wood", "motel_cot_bed")
@@ -1433,6 +1441,19 @@ def motel():
         washroom(0.0, 0.0, 213.6, 64.0, 215.5, z1 - 0.15, "NW", ("N", 214.1, -2), sign=None, fit=(
             ("wc_toilet", "S", 214.8, 0.45, 0.7, 0.8), ("wc_sink", "E", 64.8, 0.55, 0.5, 0.85)))
         spots += [(218.5, 58.0), (213.6, 61.8)]
+        # ---- The card room upstairs (207 + 208 knocked through, blacked-out back windows): slot machines along the
+        # back wall, a roulette table, two poker tables, the bar at the south end, the cashier's cage (a safe) in the
+        # south-west corner. Set dressing only: none of it plays (store rules: no gambling games).
+        y = FLOOR_H
+        o(211.65, y, 58.3, 212.35, y + 1.7, 63.6, "metal", "casino_slots")
+        o(215.1, y, 56.9, 217.3, y + 0.85, 57.9, "wood", "casino_roulette")
+        for px, pz in ((215.4, 61.0), (218.0, 62.3)):
+            o(px - 0.6, y, pz - 0.6, px + 0.6, y + 0.78, pz + 0.6, "wood", "casino_table")
+        o(214.2, y, 65.2, 218.6, y + 1.1, 65.85, "wood", "casino_bar")
+        o(211.65, y, 64.0, 213.6, y + 1.05, 64.3, "wood", "casino_counter")          # the cage: counters, a grille over
+        o(213.3, y, 64.3, 213.6, y + 1.05, 64.95, "wood", "casino_counter")          # them, the gate open (south-east)
+        o(211.65, y + 1.05, 64.0, 213.6, y + 2.4, z1 - 0.15, "metal", "casino_cage", solid=False)
+        add_loot("Motel", "safe", 212.2, 65.3, y=y, yaw=0.0)
         # ---- The gallery: the walkway upstairs (slab, rail), posts, the roof over it all; walled stairs at both ends
         # (one way up each), closed underneath; sandbags on the walkway.
         o(x1 + 0.15, 0.0, z0, G, 0.06, z1, "pavement", "gallery_walk", solid=False)

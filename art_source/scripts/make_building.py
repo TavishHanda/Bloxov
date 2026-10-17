@@ -13541,6 +13541,26 @@ def motel_decals(rng):
     a.add("painting", 26, 16, painting)
     a.add("mo_mirror", 19, 26, mirror)
     a.add("note", 34, 14, note)
+
+    def casino(c):        # 1.625 x 0.44 m over the card room's bar, half the tubes dead
+        c.rect(0, 0, c.w, c.h, "black")
+        c.frame(0, 0, c.w, c.h, "neon_off")
+        mo_text(c, 2, "CASINO", "neon_red", 2)
+        for x in range(c.w):                            # the S and the N dead
+            for y in range(c.h):
+                if c.get(x, y) == "neon_red" and (19 <= x < 25 or 35 <= x < 41):
+                    c.put(x, y, "neon_off")
+
+    def slot(c):          # a slot machine's reels (0.5 x 0.31 m)
+        c.rect(0, 0, c.w, c.h, "bone")
+        c.frame(0, 0, c.w, c.h, "black")
+        for i, ch in enumerate(rng.choice(("777", "7$7", "$$7", "7 $"))):
+            c.rect(1 + i * 5, 1, 5 + i * 5, c.h - 1, "bone")
+            if ch != " ":
+                c.text(2 + i * 5, 2, ch, "red")
+            c.rect(5 + i * 5, 1, 6 + i * 5, c.h - 1, "black")
+    a.add("casino", 52, 14, casino)
+    a.add("slot", 16, 10, slot)
     for _, _, num in MO_ROOMS:                                           # brass number plates by every door
         s = str(num)
         w = Canvas.text_width(s) + 4
@@ -13557,6 +13577,8 @@ def _mo_room(m):
     """What a point inside the block is: 'room', 'laundry', 'lobby', 'flat' or 'gallery'."""
     if m[0] > 4.55:
         return "gallery"
+    if m[1] > 2.5 and m[2] > 10.4 and m[0] < 4.5:
+        return "casino"
     if m[1] < 2.5:
         if m[2] > 10.5:
             return "lobby" if m[0] > -0.4 else "flat"
@@ -13568,8 +13590,9 @@ def _mo_room(m):
 MO_ROOM_MATS = {   # inner walls, floor, ceiling
     "room": ("mo_paper", "mo_carpet", "ceiling"), "laundry": ("int_tile", "floor_lino", "ceiling"),
     "lobby": ("int_warm", "floor_lino", "ceiling"), "flat": ("paper_cream", "floor_wood", "ceiling"),
-    "gallery": ("concrete", "concrete", "concrete"),
+    "gallery": ("concrete", "concrete", "concrete"), "casino": ("wine", "mo_carpet", "ceiling"),
 }
+MO_CASINO = (207, 208)
 
 
 # ---- motel props
@@ -13634,6 +13657,8 @@ def prop_motel_dresser(ctx, c, s):
             b.box((x, y + 0.02, fz + out + 0.02), (0.14, 0.025, 0.02), style=_nb("brass"))
     if rng.random() < 0.8:
         stock_tv(b, (c[0] - 0.2, y0 + s[1], c[2]), rng, "trim_dark")
+    if c[2] < -20.0:                                    # (the end rooms have a window over the dresser)
+        return
     wall_quad(b, (0, 0, 1), c[2] - s[2] / 2 + 0.005, c[0] - 0.2 - 0.4, c[0] - 0.2 + 0.4, y0 + 1.45, y0 + 1.95,
               "decals", ctx.d("painting"))
 
@@ -13911,6 +13936,80 @@ def mansard(b, edge_a, edge_b, out, x_or_z, y0, mat, h=1.35, lean=0.5):
           style=lambda n, m, q: (mat, uv_slope(2.0)) if abs(n[1]) < 0.95 and dot(n, (out[0], 0, out[1])) > 0.3 else ("trim_dark", uv_world(1.0)))
 
 
+def venetian_blind(b, o, state, rng, inset=0.2, pitch=0.06):
+    """Slatted blinds hung just inside a window (an opening from the model json): the head rail, the slats (both
+    faces, tilted half open), the bottom rail, the cord. state: down / half / up (bunched under the head) / crooked
+    (one cord gone: the bottom hangs at a slant)."""
+    side, at, mid, w, lo, hi = o["side"], o["at"], o["mid"], o["w"], o["lo"], o["hi"]
+    ns = side in "NS"
+    inn = -1 if side in "SE" else 1                     # into the building
+
+    def P(a, y, d):                                     # along the wall, height, depth into the room from the face
+        return (a, y, at + inn * d) if ns else (at + inn * d, y, a)
+    W = w + 0.06
+    d = inset
+    sz = (lambda la, h, ld: (la, h, ld)) if ns else (lambda la, h, ld: (ld, h, la))
+    b.box(P(mid, hi - 0.03, d), sz(W + 0.04, 0.06, 0.07), style=_nb("bone"))                    # head rail
+    top = hi - 0.07
+    if state == "up":
+        b.box(P(mid, top - 0.09, d), sz(W, 0.18, 0.05), style=_nb("bone"))
+        b.box(P(mid - W / 2 + 0.1, top - 0.5, d + 0.01), sz(0.01, 0.6, 0.01), style=_nb("trim"))
+        return
+    bottom = {"down": lo + 0.03, "half": (lo + hi) / 2, "crooked": lo + 0.03}[state]
+    drop = rng.uniform(0.35, 0.6) if state == "crooked" else 0.0     # how much higher the broken end hangs
+    sgn = rng.choice((-1, 1))
+    y = top - pitch / 2
+    ny = 0
+    while y > bottom + 0.02:
+        frac = (top - y) / max(0.01, top - bottom)
+        lift = drop * frac                              # the broken side's end rides up the further down a slat is
+        a0, a1 = mid - W / 2, mid + W / 2
+        ya = y + (lift if sgn < 0 else 0.0)
+        yb = y + (lift if sgn > 0 else 0.0)
+        if ya > top - 0.01 or yb > top - 0.01:
+            break
+        t = 0.025                                        # half the slat's depth, tilted half open
+        pts = [P(a0, ya - t * 0.5, d - t), P(a1, yb - t * 0.5, d - t), P(a1, yb + t * 0.5, d + t), P(a0, ya + t * 0.5, d + t)]
+        nrm = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[3], pts[0])))
+        b.poly(pts, nrm, "bone", uv_world(1.0))
+        b.poly(pts, (-nrm[0], -nrm[1], -nrm[2]), "bone", uv_world(1.0))
+        y -= pitch
+        ny += 1
+    yl = y + pitch
+    if drop and not ns:                                  # the bottom rail hanging at a slant (along z: pitch tilts it)
+        b.box(P(mid, yl + drop / 2 - 0.02, d), sz(W, 0.03, 0.05), pitch=-math.degrees(math.atan2(drop, W)) * sgn,
+              style=_nb("bone"))
+    else:
+        b.box(P(mid, yl - 0.02, d), sz(W, 0.03, 0.05), style=_nb("bone"))
+    b.box(P(mid + W / 2 - 0.08, (top + yl) / 2, d + 0.03), sz(0.008, top - yl, 0.008), style=_nb("trim"))   # the cord
+
+
+def mansard_ring(b, outline, y0, mat, h=1.35, lean=0.5):
+    """A shingled mansard all round a right-angled roof outline (x, z corners in order, at the eaves): each side
+    slopes in by `lean` to y0 + h, and the corners are mitred (each corner moves in along both its sides), so the
+    sides meet in a clean hip line instead of overlapping. The inside of the band is plain."""
+    n = len(outline)
+    area = sum(outline[i][0] * outline[(i + 1) % n][1] - outline[(i + 1) % n][0] * outline[i][1] for i in range(n))
+    sgn = 1.0 if area > 0 else -1.0
+
+    def inward(i):                       # inward normal of the side from corner i to i + 1
+        (ax, az), (bx, bz) = outline[i], outline[(i + 1) % n]
+        L = math.hypot(bx - ax, bz - az)
+        return (-(bz - az) / L * sgn, (bx - ax) / L * sgn)
+    inner = []
+    for i in range(n):
+        n0, n1 = inward(i - 1), inward(i)
+        inner.append((outline[i][0] + lean * (n0[0] + n1[0]), outline[i][1] + lean * (n0[1] + n1[1])))
+    for i in range(n):
+        j = (i + 1) % n
+        nx, nz = inward(i)
+        pts = [(outline[i][0], y0, outline[i][1]), (outline[j][0], y0, outline[j][1]),
+               (inner[j][0], y0 + h, inner[j][1]), (inner[i][0], y0 + h, inner[i][1])]
+        out = norm((-nx * h, lean, -nz * h))
+        b.poly(pts, out, mat, uv_slope(2.0))
+        b.poly(pts, (-out[0], -out[1], -out[2]), "trim_dark", uv_world(1.0))
+
+
 def prop_gallery_roof(ctx, c, s):
     """The roof over the gallery and stairs: the roof surface on top, a plain soffit underneath, the motel's
     colour on the fascia."""
@@ -13989,26 +14088,162 @@ PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in 
 }.items()})
 
 
+# ---- the card room (207 + 208 knocked through): set dressing only, nothing plays (store rules).
+def prop_casino_slots(ctx, c, s):
+    """A row of dead slot machines against the back wall, facing the room (+x): cabinet, reels, a lever."""
+    b, rng = ctx.b, random.Random("moslots")
+    y0 = c[1] - s[1] / 2
+    n = max(1, round(s[2] / 0.88))
+    unit = s[2] / n
+    fx = c[0] + s[0] / 2
+    for i in range(n):
+        z = c[2] - s[2] / 2 + unit * (i + 0.5)
+        body = rng.choice(("wine", "blue", "red", "wine"))
+        b.box((c[0], y0 + 0.55, z), (s[0], 1.1, unit - 0.06), style=_nb(body))                     # base
+        b.box((c[0] - 0.08, y0 + 1.4, z), (s[0] - 0.16, 0.6, unit - 0.1), style=_nb(body))           # head
+        b.box((c[0] - 0.05, y0 + s[1] - 0.05, z), (s[0] - 0.1, 0.1, unit - 0.06), style=_nb("brass"))
+        b.box((fx - 0.05, y0 + 1.1, z), (0.2, 0.04, unit - 0.1), style=_nb("trim_dark"))             # button ledge
+        wall_quad(b, (1, 0, 0), fx - 0.159, z + 0.25, z - 0.25, y0 + 1.3, y0 + 1.61, "decals", ctx.d("slot"))
+        if rng.random() < 0.7:
+            b.box((c[0], y0 + 1.25, z + unit / 2 - 0.02), (0.04, 0.4, 0.04), style=_nb("trim"))      # lever
+            b.box((c[0], y0 + 1.47, z + unit / 2 - 0.02), (0.08, 0.08, 0.08), style=_nb("red"))
+        if rng.random() < 0.3:                                                             # one kicked in
+            b.box((fx + 0.002, y0 + 0.55, z), (0.004, 0.5, 0.3), style=_nb("black"))
+    for _ in range(14):                                                                   # coins on the carpet
+        b.box((fx + rng.uniform(0.1, 1.2), y0 + 0.006, c[2] + rng.uniform(-s[2] / 2, s[2] / 2)), (0.03, 0.012, 0.03),
+              style=_nb("brass"))
+
+
+def _felt_table(b, c, s, top_h, rng, oval=True):
+    y0 = c[1] - s[1] / 2
+    top = y0 + top_h
+    L, D = s[0], s[2]
+    if oval:                                                       # an octagon, padded edge, green felt
+        for k, (l, d) in enumerate(((L, D * 0.6), (L * 0.6, D))):
+            b.box((c[0], top - 0.04, c[2]), (l, 0.08, d), style=_solid("wood_dark"))
+            b.box((c[0], top + 0.001, c[2]), (l - 0.12, 0.01, d - 0.12), style=_nb("green"))
+    else:
+        b.box((c[0], top - 0.04, c[2]), (L, 0.08, D), style=_solid("wood_dark"))
+        b.box((c[0], top + 0.001, c[2]), (L - 0.12, 0.01, D - 0.12), style=_nb("green"))
+    b.box((c[0], y0 + (top_h - 0.08) / 2, c[2]), (0.3, top_h - 0.08, 0.3), style=_nb("wood_dark"))
+    for _ in range(rng.randint(4, 9)):                                                     # chips and cards
+        b.box((c[0] + rng.uniform(-L / 3, L / 3), top + 0.02, c[2] + rng.uniform(-D / 3, D / 3)), (0.05, 0.03, 0.05),
+              style=_nb(rng.choice(("red", "blue", "bone", "black"))))
+    for _ in range(rng.randint(2, 5)):
+        b.box((c[0] + rng.uniform(-L / 3, L / 3), top + 0.008, c[2] + rng.uniform(-D / 3, D / 3)), (0.07, 0.004, 0.1),
+              yaw=rng.uniform(0, 180), style=_nb("bone"))
+    return top
+
+
+def prop_casino_table(ctx, c, s):
+    """A poker table (felt, chips, cards), stools round it, one knocked over."""
+    b, rng = ctx.b, _mo_seed(c)
+    _felt_table(b, c, s, s[1], rng)
+    y0 = c[1] - s[1] / 2
+    for k in range(5):
+        a = k * 72 + rng.uniform(-10, 10)
+        x, z = c[0] + math.sin(math.radians(a)) * (s[0] / 2 + 0.35), c[2] + math.cos(math.radians(a)) * (s[2] / 2 + 0.35)
+        if k == 3 and rng.random() < 0.6:
+            b.box((x, y0 + 0.2, z), (0.4, 0.4, 0.4), yaw=a, pitch=80, style=_nb("wine"))
+            continue
+        b.box((x, y0 + 0.3, z), (0.06, 0.6, 0.06), style=_nb("trim"))
+        b.box((x, y0 + 0.62, z), (0.38, 0.06, 0.38), style=_nb("wine"))
+
+
+def prop_casino_roulette(ctx, c, s):
+    """A roulette table: the betting felt, the wheel at one end (red and black pockets), the croupier's side."""
+    b, rng = ctx.b, random.Random("moroul")
+    top = _felt_table(b, c, s, s[1], rng, oval=False)
+    wx = c[0] + s[0] / 2 - 0.45
+    b.box((wx, top + 0.06, c[2]), (0.7, 0.12, 0.7), style=_nb("wood_dark"))
+    for k in range(8):
+        b.box((wx, top + 0.125, c[2]), (0.56, 0.01, 0.12), yaw=k * 22.5, style=_nb(("red", "black")[k % 2]))
+    b.box((wx, top + 0.15, c[2]), (0.12, 0.08, 0.12), style=_nb("brass"))
+    for i in range(6):                                                       # the number grid
+        for j in range(2):
+            b.box((c[0] - s[0] / 2 + 0.25 + i * 0.2, top + 0.008, c[2] - 0.15 + j * 0.3), (0.16, 0.004, 0.24),
+                  style=_nb(("red", "black")[(i + j) % 2]))
+
+
+def prop_casino_bar(ctx, c, s):
+    """The bar at the south end: a counter facing the room (-z), bottles on a shelf behind, stools, CASINO in
+    neon over it (half the tubes dead)."""
+    b, rng = ctx.b, random.Random("mobar")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    fz = c[2] - s[2] / 2
+    b.box((c[0], y0 + (s[1] - 0.05) / 2, c[2] - 0.1), (s[0], s[1] - 0.05, s[2] - 0.2), style=_nb("wood_dark"))
+    b.box((c[0], top - 0.025, c[2] - 0.12), (s[0] + 0.1, 0.05, s[2] - 0.1), style=_solid("wood"))
+    b.box((c[0], y0 + 0.1, fz - 0.02), (s[0], 0.04, 0.04), style=_nb("brass"))                  # foot rail
+    for k in range(4):
+        x = c[0] - s[0] / 2 + 0.6 + k * (s[0] - 1.2) / 3
+        b.box((x, y0 + 0.37, fz - 0.45), (0.05, 0.74, 0.05), style=_nb("trim"))
+        b.box((x, y0 + 0.76, fz - 0.45), (0.36, 0.06, 0.36), style=_nb("wine"))
+    zb = c[2] + s[2] / 2                                                               # shelf on the wall
+    b.box((c[0], y0 + 1.5, zb - 0.12), (s[0] - 0.6, 0.04, 0.22), style=_nb("wood_dark"))
+    for i in range(int((s[0] - 0.8) / 0.14)):
+        if rng.random() < 0.7:
+            b.box((c[0] - s[0] / 2 + 0.45 + i * 0.14, y0 + 1.65, zb - 0.12), (0.07, 0.26, 0.07),
+                  style=_nb(rng.choice(("green", "wine", "brass", "olive"))))
+    for _ in range(4):                                                                  # glasses, a bottle, on top
+        b.box((c[0] + rng.uniform(-s[0] / 2 + 0.3, s[0] / 2 - 0.3), top + 0.06, c[2] - 0.2), (0.06, 0.12, 0.06),
+              style=_nb(rng.choice(("bone", "green"))))
+    wall_quad(b, (0, 0, -1), zb - 0.005, c[0] - 52 / 64, c[0] + 52 / 64, y0 + 1.95, y0 + 1.95 + 14 / 32, "decals",
+              ctx.d("casino"))
+
+
+def prop_casino_counter(ctx, c, s):
+    """The cashier's cage counter: panelled wood, a worn top."""
+    b = ctx.b
+    b.box((c[0], c[1] - 0.025, c[2]), (s[0], s[1] - 0.05, s[2]), style=_nb("wood"))
+    b.box((c[0], c[1] + s[1] / 2 - 0.025, c[2]), (s[0] + 0.06, 0.05, s[2] + 0.06), style=_solid("wood_dark"))
+
+
+def prop_casino_cage(ctx, c, s):
+    """The grille over the cage's counters (north and east sides, the gate gap at the south end of the east side),
+    a pass slot, a sign of the cage's hours scratched out."""
+    b = ctx.b
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box(((x0 + x1) / 2, y1 - 0.03, z0 + 0.15), (x1 - x0, 0.06, 0.06), style=_nb("trim"))
+    b.box((x1 - 0.15, y1 - 0.03, z0 + 0.5), (0.06, 0.06, 0.7), style=_nb("trim"))
+    b.box((x1 - 0.15, (y0 + y1) / 2, z0 + 0.95), (0.06, s[1], 0.06), style=_nb("trim"))          # gate post
+    x = x0 + 0.1
+    while x < x1 - 0.05:
+        if not (x0 + 0.8 < x < x0 + 1.2 and True):                                     # (the pass slot)
+            b.box((x, (y0 + y1) / 2, z0 + 0.15), (0.02, s[1], 0.02), style=_nb("trim"))
+        else:
+            b.box((x, y0 + 0.2 + (s[1] - 0.2) / 2, z0 + 0.15), (0.02, s[1] - 0.2, 0.02), style=_nb("trim"))
+        x += 0.12
+    z = z0 + 0.27
+    while z < z0 + 0.95:
+        b.box((x1 - 0.15, (y0 + y1) / 2, z), (0.02, s[1], 0.02), style=_nb("trim"))
+        z += 0.12
+    b.box((x1 - 0.5, y0 + 0.3, z0 + 1.35), (0.04, 0.6, 0.6), yaw=70, style=_nb("trim"))           # the gate, swung open
+
+
 def dress_motel(ctx):
     b, rng = ctx.b, random.Random("motel dress")
     paint, roof, band = mo_look("paint"), mo_look("roof"), mo_look("band")
     wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
     # ---- Roof: a shingled mansard round the top (the gallery side over the walkway, the back, the ends), the
     # LAST STOP MOTEL panel on the front, a band under it; vents and an aerial on the flat roof behind.
-    mansard(b, -25.6, 25.6, (1, 0), 7.95, 5.6, roof)
-    mansard(b, -21.35, 21.35, (-1, 0), -4.85, 5.6, roof)
-    for sz in (-1, 1):
-        mansard(b, -5.0, 4.6, (0, sz), sz * 21.35, 5.6, roof)
-        mansard(b, 4.4, 8.1, (0, sz), sz * 25.6, 5.6, roof)
-        b.box((4.6, 6.2, sz * 23.4), (0.12, 1.2, 4.2), style=_nb(roof))                    # (behind the stair roof)
+    mansard_ring(b, [(-4.85, -21.35), (4.5, -21.35), (4.5, -25.55), (7.95, -25.55), (7.95, 25.55), (4.5, 25.55),
+                     (4.5, 21.35), (-4.85, 21.35)], 5.6, roof)
+    yt = 5.6 + 1.35                                                          # the flat top over the mansard
+    for x0, z0, x1, z1 in ((-4.35, -20.85, 7.45, 20.85), (5.0, -25.05, 7.45, -20.85), (5.0, 20.85, 7.45, 25.05)):
+        b.poly([(x0, yt, z0), (x1, yt, z0), (x1, yt, z1), (x0, yt, z1)], (0, 1, 0), "roof", uv_world())
     for x in (7.85, -4.75):
         b.box((x, 5.55, 0), (0.12, 0.12, 51.2 if x > 0 else 42.7), style=_solid(band))
     b.box((8.02, 6.2, 0), (0.06, 0.66, 4.0), style=_nb("trim_dark"))
+    for z in (-1.6, 1.6):                                                    # brackets back to the roof
+        b.box((7.88, 6.2, z), (0.24, 0.06, 0.06), style=_nb("trim_dark"))
     wq((1, 0, 0), 8.06, 124 / 64, -124 / 64, 6.2 - 9 / 32, 6.2 + 9 / 32, "fascia")
     for z in (-14.0, -3.0, 9.0):
-        b.box((-1.5, 6.25, z), (0.6, 0.5, 0.6), style=_nb("steel_light"))
-    b.box((1.0, 7.5, 12.0), (0.06, 3.0, 0.06), style=_nb("trim"))
-    b.box((1.0, 8.6, 12.0), (1.2, 0.04, 0.04), style=_nb("trim"))
+        b.box((-1.5, 7.2, z), (0.6, 0.5, 0.6), style=_nb("steel_light"))
+    b.box((1.0, 8.45, 12.0), (0.06, 3.0, 0.06), style=_nb("trim"))
+    b.box((1.0, 9.55, 12.0), (1.2, 0.04, 0.04), style=_nb("trim"))
     # ---- Room fronts: a painted frame round every door, the brass number plate, a wall lamp; scorch on a few.
     for f, k, num in MO_ROOMS:
         c, y = mo_cell(k), f * 3.0
@@ -14019,15 +14254,15 @@ def dress_motel(ctx):
             b.box((4.69, y + 1.2, z), (0.06, 2.4, 0.08), style=_nb(paint))
         b.box((4.69, y + 2.44, (a0 + a1) / 2), (0.06, 0.08, 2.08), style=_nb(paint))
         w = (Canvas.text_width(str(num)) + 4) / 32
-        wq((1, 0, 0), 4.665, c + 2.45 - w / 2, c + 2.45 + w / 2, y + 1.6, y + 1.6 + 9 / 32, "n%d" % num)
+        wq((1, 0, 0), 4.665, c + 2.45 + w / 2, c + 2.45 - w / 2, y + 1.6, y + 1.6 + 9 / 32, "n%d" % num)
         b.box((4.72, y + 2.25, c + 2.45), (0.12, 0.22, 0.16), style=_nb("bone"))
         b.box((4.67, y + 2.25, c + 2.45), (0.03, 0.3, 0.22), style=_nb("trim_dark"))
         if rng.random() < 0.25:
             b.box((4.666, y + 1.6, c + rng.uniform(0.3, 2.3)), (0.004, rng.uniform(0.6, 1.2), rng.uniform(0.6, 1.4)),
                   style=_nb("black"))
     # ---- Laundry and office fronts: signs, the ice sign, the blade sign over the office door, FULL in the window.
-    wq((1, 0, 0), 4.665, 9.1 - 0.5, 9.1 + 0.5, 2.44, 2.72, "laundry")
-    wq((1, 0, 0), 4.665, 7.42, 7.89, 1.9, 2.18, "ice")
+    wq((1, 0, 0), 4.665, 9.1 + 0.5, 9.1 - 0.5, 2.44, 2.72, "laundry")
+    wq((1, 0, 0), 4.665, 7.89, 7.42, 1.9, 2.18, "ice")
     bw, bh = 50 / 32, 14 / 32
     for sz in (-1, 1):
         zf = 15.0 + sz * 0.021
@@ -14048,21 +14283,25 @@ def dress_motel(ctx):
             (px, py, pz), sx = r["pos"], r["size"]
             if abs(px - w[3]) < 0.4:                                   # against the east wall: mirror faces -x
                 wq((-1, 0, 0), w[3] - 0.005, pz + 0.3, pz - 0.3, w[1] + 1.15, w[1] + 1.95, "mo_mirror")
-    # ---- War: a mattress stood against some front windows; the sniper's nest's mattress on its back window,
-    # casings; the gallery: litter, a shopping cart, trash bags; stair handrails.
+    # ---- Blinds in every window (owner 2026-10-17: real slatted blinds, not white squares): most down, some
+    # pulled up, some hanging crooked off one broken cord. The sniper's nest's are up, casings on its floor.
+    for o in ctx.data.get("openings", []):
+        if o["kind"] != "window" or o["w"] > 1.5:
+            continue
+        r = random.Random("moblind%s%.2f%.1f" % (o["side"], o["mid"], o["lo"]))
+        nest = o["side"] == "W" and o["lo"] > 3 and abs(o["mid"] - (mo_cell(3) + 3.9)) < 0.1
+        state = "up" if nest else r.choice(("down", "down", "down", "up", "crooked", "half"))
+        venetian_blind(b, o, state, r)
+    r = random.Random("monest")
+    for _ in range(16):
+        b.box((r.uniform(-3.9, -3.0), 3.01, mo_cell(3) + r.uniform(3.1, 4.7)), (0.03, 0.02, 0.06),
+              yaw=r.uniform(0, 90), style=_nb("brass"))
+    # ---- Litter in the rooms; the gallery: trash bags, a shopping cart; stair handrails.
     for f, k, num in MO_ROOMS:
         c, y = mo_cell(k), f * 3.0
-        if num in (102, 206):
+        if num in (102, 206) or num in MO_CASINO:
             continue
         r = random.Random("momat%d" % num)
-        if num == 204 or r.random() < 0.3:
-            if num == 204:
-                b.box((-4.25, y + 1.1, c + 3.9), (0.2, 2.0, 1.45), yaw=4, style=_nb("bone"))     # (the back window)
-                for _ in range(16):
-                    b.box((r.uniform(-3.9, -3.0), y + 0.01, c + r.uniform(3.1, 4.7)), (0.03, 0.02, 0.06),
-                          yaw=r.uniform(0, 90), style=_nb("brass"))
-            else:
-                b.box((4.2, y + 1.05, c + 1.3), (0.2, 1.95, 1.45), yaw=r.uniform(-4, 4), style=_nb("bone"))
         for _ in range(r.randint(1, 3)):                                     # towels, a bag, cans on the floor
             b.box((r.uniform(0.5, 3.5), y + 0.02, c + r.uniform(1.0, 2.6)), (r.uniform(0.3, 0.6), 0.04, r.uniform(0.3, 0.5)),
                   yaw=r.uniform(0, 90), style=_nb(r.choice(("bone", "bone", "olive", "black"))))
@@ -14078,6 +14317,10 @@ def dress_motel(ctx):
             _beam(b, p0, p1, 0.05, 0.05, paint)
 
 
+PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in {
+    "casino_slots": prop_casino_slots, "casino_table": prop_casino_table, "casino_roulette": prop_casino_roulette,
+    "casino_bar": prop_casino_bar, "casino_counter": prop_casino_counter, "casino_cage": prop_casino_cage,
+}.items()})
 DECALS["motel"] = motel_decals
 DRESSING["motel"] = dress_motel
 FOOTPRINTS["motel"] = MOTEL_FP
