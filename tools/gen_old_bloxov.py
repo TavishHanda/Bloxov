@@ -274,7 +274,7 @@ def write_model_boxes(ter):
         y = ter.lift(m["x"], m["z"])
         bad = [b for b, _ in m["boxes"]   # (a turned model's boxes are kept unturned, in its own frame)
                if abs(ter.lift(*turn_point(b[0] + M / 2, b[2] + M / 2, m["x"], m["z"], m["turned"])) - y) > 0.01]
-        assert not bad, f"{m['name']}: not all on one pad ({len(bad)} boxes off it)"
+        assert not bad, f"{m['name']}: not all on one pad ({len(bad)} boxes off it: {[(round(b[0] + M / 2, 1), round(b[2] + M / 2, 1)) for b in bad]})"
         m["y"] = y
         opens = []
         for o in m.get("openings", []):
@@ -1883,6 +1883,61 @@ def station_furniture(ox, oz):
     o(-1.6, 4.6, -7.15, 1.6, 6.2, -6.85, "wall", "st_gable")
 
 
+def depot_furniture(ox, oz):
+    """The goods shed (World art 0.17, owner 2026-10-17: "goods shed with a loading dock and crates", "a lot more war
+    ruined"), in the model's own coordinates (origin map (ox, oz); local x -15..15, z -9..9, walls 7 m, big doors west
+    and east at z 0, the roof gone). A track comes in through the west door along z 0 (its rails torn up outside) to
+    a buffer stop, an open wagon on it; the loading dock (1.1 m, solid) south of the track with steps at the west end
+    and a cart ramp at the east end, a hand crane on its edge, crates and sacks; the weigh office (with the staff
+    washroom) in the north-east corner, a forklift, the roof's wreckage in a heap. The doorways, the way along the
+    track, the north hole's way in and the aisle behind the dock (the south crate) stay clear."""
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+
+    def slope(x_lo, x_hi, z0, z1, rise, kind):
+        """A slab from the floor at x_lo up to `rise` at x_hi (its top surface on that line)."""
+        run = abs(x_hi - x_lo)
+        t = math.atan2(rise, run)
+        n = math.copysign(1.0, x_lo - x_hi)          # the surface's normal leans toward the low end
+        cx = (x_lo + x_hi) / 2 - 0.08 * n * math.sin(t)
+        obox(ox + cx, rise / 2 - 0.08 * math.cos(t), oz + (z0 + z1) / 2, z1 - z0, 0.16, math.hypot(run, rise),
+             90.0 if x_lo > x_hi else -90.0, "concrete", pitch=math.degrees(t), kind=kind)
+    # The track: an open wagon on it, the buffer stop at its end (the rails themselves are drawn by the model).
+    o(-8.5, 0, -1.3, -1.5, 2.3, 1.3, "wood", "dp_wagon")
+    o(11.6, 0, -1.0, 12.3, 1.1, 1.0, "metal", "dp_buffer")
+    # The loading dock, its steps (west) and cart ramp (east); the crane on its edge over the track.
+    o(-12.0, 0, 2.2, 11.0, 1.1, 6.4, "concrete", "dp_dock")
+    slope(-14.4, -12.0, 2.6, 4.2, 1.1, "st_steps")
+    slope(13.4, 11.0, 3.1, 5.5, 1.1, "dp_ramp")                            # (room at its foot for the AI)
+    o(2.3, 1.1, 2.55, 2.75, 4.4, 3.0, "metal", "dp_crane")
+    o(-10.8, 1.1, 4.4, -8.6, 2.6, 6.2, "wood", "dp_crates")
+    o(-6.8, 1.1, 4.6, -5.0, 1.9, 6.2, "wood", "dp_sacks")
+    o(5.0, 1.1, 4.0, 7.4, 2.3, 6.2, "wood", "dp_crates")
+    add_loot("Depot", "crate", ox + 9.6, oz + 5.9, y=1.1, yaw=0.0)                  # (owner: more loot spots here)
+    # North floor: crates and sacks in the north-west, the roof's wreckage, fuel drums by the west door, the forklift.
+    o(-12.6, 0, -8.7, -10.4, 1.6, -6.6, "wood", "dp_crates")
+    o(-10.0, 0, -8.7, -8.2, 0.9, -7.3, "wood", "dp_sacks")
+    o(-12.2, 0, -5.6, -8.8, 0.7, -3.2, "metal", "dp_wreck")
+    o(-14.6, 0, -3.7, -13.4, 1.0, -2.5, "metal", "fuel_drums")
+    o(3.6, 0, -7.9, 6.2, 2.2, -6.7, "metal", "dp_forklift")
+    # The weigh office (north-east corner): timber walls 3 m, a door and a window in its south wall, the scale outside it; the
+    # clerk's desk and the filing cabinet inside (a new loot spot, owner OK), the staff washroom in its corner.
+    H = 3.0
+    o(9.4, 0, -4.52, 9.55, H, -4.4, "wall", None)
+    o(9.55, 2.1, -4.52, 11.55, H, -4.4, "wall", None)                     # (a 2 m door: the AI's paths go in)
+    o(11.55, 0, -4.52, 11.95, H, -4.4, "wall", None)
+    o(11.95, 0, -4.52, 13.0, 1.0, -4.4, "wall", None)                    # (the office window, x 11.95..13.0)
+    o(11.95, 2.1, -4.52, 13.0, H, -4.4, "wall", None)
+    o(13.0, 0, -4.52, 14.85, H, -4.4, "wall", None)
+    o(9.4, 0, -8.85, 9.52, H, -4.52, "wall", None)
+    o(9.3, H, -8.85, 14.85, H + 0.12, -4.3, "wood", "dp_hut_roof")
+    o(9.52, 0, -8.85, 11.4, 0.78, -8.15, "wood", "dp_desk")
+    add_loot("Depot", "crate", ox + 12.5, oz - 8.45, yaw=180.0, look="filing")
+    washroom(ox, oz, 13.25, -8.85, 14.85, -6.95, "WS", ("S", 14.05, -2), h=H, fit=(
+        ("wc_toilet", "N", 13.7, 0.5, 0.65, 0.8), ("wc_sink", "E", -7.8, 0.5, 0.4, 0.85)))
+    o(7.6, 0, -6.4, 8.5, 0.9, -5.5, "metal", "st_scale")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2539,6 +2594,7 @@ EXTRA_PADS = [
     (196.0, 204.0, 246.0, 208.0),  # station platform
     (222.0, 184.0, 240.0, 190.0),  # the rubble blown out of the station office's street wall (World art 0.17)
     (232.0, 214.0, 292.0, 231.0),  # depot sidings
+    (270.0, 250.0, 285.0, 256.0),  # the rubble blown out of the depot's south wall (World art 0.17)
     (124.0, 168.0, 178.0, 182.0),  # the trench
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
     (58.0, 260.0, 74.0, 274.0),    # campsite
@@ -3383,8 +3439,16 @@ def main():
                        height=3.6, blasts=[(0, "N", 2)], caved=[(0, 0)]), [("crate", 0, 0, 0, "W", -2.6, "duffel"), ("crate", 2, 0, 0, "E", 2.4, "chest"),
                                      ("locker", 1, 0, 0, "N", 4.6)])
         station_furniture(219.0, 197.0)
-    build(Building("Depot", 262, 232, 30, 18, colour="wall_farm", rooms=(1, 1), doors="WE", height=7.0,
-                   big_doors=True, blasts=[(0, "N", 0)]), [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
+    with modeled("depot", 277.0, 241.0):
+        # The goods shed (World art 0.17, plan worldart/station-plan.md): bombed (owner 2026-10-17: the old part of
+        # the map that got bombed, "depot more messed up"): the roof fell in, shells holed both long walls and
+        # knocked chunks out of their tops (those are 4.2 m up and more: no new ways in).
+        build(Building("Depot", 262, 232, 30, 18, colour="wall_farm", rooms=(1, 1), doors="WE", height=7.0,
+                       big_doors=True, blasts=[(0, "N", 0), (0, "S", 0)], caved=[(0, 0)], wall_openings={
+                           "N": [("blast", 268.5, 3.8, 4.6, 7.0), ("blast", 277.0, 4.4, 0.0, 4.6)],
+                           "S": [("blast", 277.0, 3.0, 0.0, 3.4), ("blast", 285.5, 4.6, 4.2, 7.0)]}),
+              [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
+        depot_furniture(277.0, 241.0)
     for x0, z0 in ((145, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
         box(x0, 0, z0 - 1.5, x0 + 11, 3.6, z0 + 1.5, "boxcar")
     add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
@@ -3530,7 +3594,7 @@ def main():
     # AI spawn spots: placeholders spread over every area (Scavs 2.0 replaces them with designated spots)
     for n, (x, z) in enumerate([
             (106, 104), (60, 100), (140, 90), (26, 110), (90, 25), (163, 145), (30, 172), (100, 168),
-            (220, 42), (270, 50), (320, 45), (300, 110), (220, 196), (190, 225), (280, 245), (230, 290),
+            (220, 42), (270, 50), (320, 45), (300, 110), (220, 196), (190, 225), (282, 236.5), (230, 290),
             (320, 260), (300, 312), (190, 330), (60, 250), (90, 300), (40, 330), (320, 190), (150, 250),
             # (0.11.10, owner: twice the enemies, so twice the spots: open ground 26+ m from the others, 45+ m from
             # player spawns)

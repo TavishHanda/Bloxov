@@ -16233,8 +16233,12 @@ STATION_LOOKS = {
     "B": {"ext": "st_brick", "dress": "st_buff", "paint": "st_green", "base": "st_buff", "roof": "roof_slate"},
     "C": {"ext": "st_lime", "dress": "ashlar_trim", "paint": "wine", "base": "stone_rough", "roof": "roof_slate"},
     "D": {"ext": "st_boards", "dress": "bone", "paint": "bone", "base": "stone_rough", "roof": "roof_charcoal"},
+    # (owner 2026-10-17: B "is the exact same as the town hall": brick looks that read differently)
+    "E": {"ext": "st_banded", "dress": "st_buff", "paint": "st_green", "base": "st_buff", "roof": "roof_slate"},
+    "F": {"ext": "st_stock", "dress": "st_brick", "paint": "st_green", "base": "st_brick", "roof": "roof_slate"},
+    "G": {"ext": "st_wash", "dress": "st_brick", "paint": "st_green", "base": "st_brick", "roof": "roof_slate"},
 }
-STATION_LOOK = os.environ.get("BLOXOV_STATION_LOOK", "B")
+STATION_LOOK = os.environ.get("BLOXOV_STATION_LOOK", "G")   # (owner picked G, 2026-10-17)
 STATION_FP = (-19.0, -7.0, 19.0, 7.0)
 ST_TOP = 3.6                     # wall tops / the roof's top; the parapet runs on to 4.6
 ST_CEIL = 3.355                  # the roof slab's underside
@@ -16246,6 +16250,8 @@ PALETTE.update({
     "stbrd": "76836f", "stbrd_dark": "687461", "stbrd_light": "818e79", "stbrd_shadow": "56604f",
     "sttile": "4d7258", "sttile_dark": "41624b", "sttile_light": "5a8064", "stcream": "aaa186", "stcream_dark": "9b9277",
     "stq_red": "6e3a2e", "stq_dark": "4f4843", "stq_grout": "6f665a",
+    "ststock": "5f4b3d", "ststock_dark": "544235", "ststock_light": "6a5545", "ststock_mortar": "776e62",
+    "stwash": "9c9785", "stwash_dark": "8d8877", "stwash_mortar": "858070",
     "chalk": "c9c6b8", "board_black": "26302a", "stgreen": "34503b", "stgreen_dark": "2a4230",
 })
 
@@ -16328,6 +16334,39 @@ def paint_st_green(rng):
     return c
 
 
+def paint_st_banded(rng):
+    """Banded railway brick: red brick with a stripe of three buff courses every metre (Victorian polychrome)."""
+    c = paint_st_brick(rng)
+    for row in range(16):
+        if row % 4 == 1:
+            off = 4 if row % 2 else 0
+            for k in range(8):
+                col = rng.choice(("stbuff", "stbuff", "stbuff_dark", "stbuff_light"))
+                for x in range(k * 8 + off + 1, k * 8 + off + 8):
+                    c.rect(x % 64, row * 4 + 1, x % 64 + 1, row * 4 + 4, col)
+    return c
+
+
+def paint_st_stock(rng):
+    """Dark brown stock brick, sooty from the engines."""
+    return _brick("ststock", "ststock_dark", "ststock_light", "ststock_mortar", rng, burnt="iron")
+
+
+def paint_st_wash(rng):
+    """Whitewashed brick, the wash flaking off to the red brick underneath (worst low down and round the edges)."""
+    c = _brick("stwash", "stwash", "stwash_dark", "stwash_mortar", rng)
+    red = paint_st_brick(random.Random("st_wash_red"))
+    for _ in range(14):
+        w, h = rng.randint(3, 10), rng.randint(2, 6)
+        x0, y0 = rng.randint(0, 63), rng.choice((rng.randint(0, 63), rng.randint(0, 18)))
+        for y in range(y0, min(64, y0 + h)):
+            for x in range(x0, x0 + w):
+                if rng.random() < 0.85:
+                    c.put(x % 64, y, red.px[y][x % 64])
+    return c
+
+
+KIT.update({"st_banded": paint_st_banded, "st_stock": paint_st_stock, "st_wash": paint_st_wash})
 KIT.update({"st_green": paint_st_green, "st_brick": paint_st_brick, "st_buff": paint_st_buff, "st_lime": paint_st_lime, "st_boards": paint_st_boards,
             "st_dado": paint_st_dado, "st_floor": paint_st_floor})
 
@@ -17232,6 +17271,588 @@ SHELLS["train_station"] = {
     "x_splits": (-6.33, 6.33), "z_splits": (), "debris": ("concrete", st_look("ext"), "ceiling", "concrete"),
 }
 FACTION_MARKS["train_station"] = [("x1_stencil", "W", -3.6, 1.0), ("nova_tag", "E", 3.6, 1.1)]
+
+
+# ------------------------------------------------------------------------------------------------ goods shed (0.17)
+# The depot (owner 2026-10-17: "goods shed with a loading dock and crates", the bottom right "a lot more war ruined":
+# the old area that got bombed), Depot at map 262-292 x 232-250, origin (277, 241): local x -15..15, z -9..9, brick
+# walls 7 m (the station's look, so the railway's buildings match), big doors west and east at z 0. The roof fell in:
+# two trusses still stand at the east end with some of the corrugated sheets, the rest lies in a heap or hangs. A
+# track comes in through the west door (the rails torn up outside) to a buffer stop, an open wagon on it; the loading
+# dock south of it with a hand crane, crates and sacks; the weigh office with the staff washroom in the north-east.
+DEPOT_FP = (-15.0, -9.0, 15.0, 9.0)
+DP_WALL = 7.0
+DP_HUT = (9.4, -8.85, 14.85, -4.4)          # the weigh office (x0, z0, x1, z1), walls 3 m
+
+
+def dp_in_hut(m):
+    return DP_HUT[0] - 0.1 < m[0] < DP_HUT[2] + 0.1 and DP_HUT[1] - 0.1 < m[2] < DP_HUT[3] + 0.1 and m[1] < 3.05
+
+
+def dp_inner(m):
+    if dp_in_hut(m):
+        return "int_warm" if m[0] > DP_HUT[0] + 0.1 and m[2] < DP_HUT[3] - 0.1 else "st_boards"
+    return "st_wash" if m[1] < 3.0 else "st_brick"                       # whitewashed to 3 m, bare brick over it
+
+
+def dp_floor(m):
+    return "floor_wood" if m[0] > DP_HUT[0] and m[2] < DP_HUT[3] else "concrete"
+
+
+def dp_roof_y(z):
+    """The (fallen) roof's line: eaves on the long walls at 7.0, the ridge at 9.2 over z 0."""
+    return DP_WALL + 2.2 * (1.0 - min(1.0, abs(z) / 9.15))
+
+
+def depot_decals(rng):
+    a = Atlas(512)
+    paint = {"st_green": "stgreen", "wine": "wine", "bone": "bone"}[st_look("paint")]
+    ink = "bone" if paint != "bone" else "stgreen"
+
+    def goods(c):         # 2.5 x 0.75 m over each big door
+        c.rect(0, 0, c.w, c.h, paint)
+        c.frame(0, 0, c.w, c.h, ink)
+        st_text(c, 2, "GOODS", ink, 4)
+        c.blotch(["iron"], 3, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 3))
+
+    def name(c):          # 2.94 x 0.44 m on the yard side
+        c.rect(0, 0, c.w, c.h, paint)
+        c.frame(0, 0, c.w, c.h, ink)
+        st_text(c, 2, "BLOXOV GOODS", ink, 2)
+        c.blotch(["iron"], 2, rng, area=(2, 2, c.w - 2, c.h - 2), size=(2, 3))
+
+    def small(key, text, w, bg, fg):
+        def f(c):
+            c.rect(0, 0, c.w, c.h, bg)
+            st_text(c, 2, text, fg)
+        a.add(key, w, 9, f)
+
+    def tally(c):         # 1.25 x 0.94 m: the wagon tally board, the last count never finished
+        c.rect(0, 0, c.w, c.h, "board_black")
+        c.frame(0, 0, c.w, c.h, "wood_mid")
+        st_text(c, 22, "WAGONS", "chalk")
+        for row in range(3):
+            y = 15 - row * 6
+            n = (12, 9, 3)[row]
+            for k in range(n):
+                x = 4 + k * 3 + (k // 5) * 2
+                if k % 5 == 4:
+                    for j in range(5):
+                        c.put(x - 12 + j * 3, y + 1 + j // 2, "chalk")   # the gate across the five
+                else:
+                    c.rect(x, y, x + 1, y + 4, "chalk")
+        c.blotch(["iron"], 3, rng, area=(1, 1, c.w - 1, c.h - 1), size=(2, 4))
+
+    def hole(c):          # a bullet hole (cut-out)
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+
+    a.add("goods", 80, 24, goods)
+    a.add("name", 94, 14, name)
+    small("weigh", "WEIGH OFFICE", 51, paint, ink)
+    small("nosmoke", "NO SMOKING", 45, "bone", "red")
+    a.add("tally", 40, 30, tally)
+    a.add("hole", 4, 4, hole)
+    return a
+
+
+# ---- depot props
+def prop_dp_wagon(ctx, c, s):
+    """An open goods wagon on the track: plank sides on an iron frame, spoked wheels on the rails, buffers at the
+    ends, the south drop door hanging open; crates and a tarpaulin still in it, one end scorched."""
+    b, rng = ctx.b, random.Random("dp_wagon")
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    hz = s[2] / 2
+    floor = 1.12
+    for xx in (c[0] - 2.4, c[0] + 2.4):
+        b.box((xx, 0.58, c[2]), (0.09, 0.09, 1.7), style=_nb("trim_dark"))                     # axle
+        for zz in (c[2] - 0.72, c[2] + 0.72):
+            for k in range(8):                                                  # rim + spokes
+                a0, a1 = math.radians(k * 45), math.radians(k * 45 + 45)
+                _beam(b, (xx + 0.42 * math.cos(a0), 0.58 + 0.42 * math.sin(a0), zz),
+                      (xx + 0.42 * math.cos(a1), 0.58 + 0.42 * math.sin(a1), zz), 0.08, 0.09, "black")
+            for k in range(3):
+                a0 = math.radians(k * 60 + 15)
+                _beam(b, (xx + 0.38 * math.cos(a0), 0.58 + 0.38 * math.sin(a0), zz),
+                      (xx - 0.38 * math.cos(a0), 0.58 - 0.38 * math.sin(a0), zz), 0.05, 0.05, "trim_dark")
+            b.box((xx, 0.58, zz + math.copysign(0.12, zz - c[2])), (0.22, 0.22, 0.12), style=_nb("trim_dark"))  # axle box
+            b.box((xx, 0.95, zz + math.copysign(0.12, zz - c[2])), (1.4, 0.07, 0.1), style=_nb("trim_dark"))   # spring
+    for zz in (c[2] - hz + 0.2, c[2] + hz - 0.2):                                # sole bars
+        b.box((c[0], 1.0, zz), (s[0] - 0.1, 0.22, 0.12), style=_solid("trim_dark"))
+    for xx in (x0 + 0.08, x1 - 0.08):                                           # headstocks + buffers
+        b.box((xx, 1.0, c[2]), (0.16, 0.3, s[2] - 0.2), style=_solid("red"))
+        sg = 1 if xx > c[0] else -1
+        for zz in (c[2] - 0.85, c[2] + 0.85):
+            b.box((xx + sg * 0.2, 1.0, zz), (0.25, 0.1, 0.1), style=_nb("trim_dark"))
+            b.box((xx + sg * 0.34, 1.0, zz), (0.05, 0.3, 0.3), style=_solid("steel_light"))
+        b.box((xx + sg * 0.25, 1.0, c[2]), (0.2, 0.12, 0.12), style=_nb("black"))           # coupling
+    b.box((c[0], floor - 0.035, c[2]), (s[0] - 0.2, 0.07, s[2] - 0.2), style=_solid("wood_dark"))
+    sh = s[1] - floor
+    for zz, nz in ((c[2] - hz + 0.05, -1), (c[2] + hz - 0.05, 1)):              # long sides (south door open)
+        if nz < 0:
+            b.box((c[0], floor + sh / 2, zz), (s[0] - 0.2, sh, 0.08), style=_solid("wood"))
+        else:
+            for a0, a1 in ((x0 + 0.1, c[0] - 1.0), (c[0] + 1.0, x1 - 0.1)):
+                b.box(((a0 + a1) / 2, floor + sh / 2, zz), (a1 - a0, sh, 0.08), style=_solid("wood"))
+            t = math.radians(70)                                                # the drop door, hanging down
+            b.box((c[0], floor - sh / 2 * math.cos(t) + 0.02, zz + sh / 2 * math.sin(t) * 0.35),
+                  (1.95, 0.07, sh), pitch=-20, style=_solid("wood"))
+        for k in range(8):                                                      # iron strapping
+            xx = x0 + 0.15 + k * (s[0] - 0.3) / 7
+            if nz > 0 and abs(xx - c[0]) < 1.05:
+                continue
+            b.box((xx, floor + sh / 2, zz + nz * 0.05), (0.08, sh, 0.03), style=_nb("trim_dark"))
+        b.box((c[0], s[1] - 0.04, zz), (s[0] - 0.2, 0.08, 0.12), style=_solid("trim_dark"))
+    for xx in (x0 + 0.15, x1 - 0.15):                                           # ends
+        b.box((xx, floor + sh / 2, c[2]), (0.08, sh, s[2] - 0.2), style=_solid("wood"))
+        b.box((xx, s[1] - 0.04, c[2]), (0.12, 0.08, s[2] - 0.1), style=_solid("trim_dark"))
+    for k, (dx, dz, w, h) in enumerate(((-2.2, -0.4, 1.0, 0.9), (-1.0, 0.35, 0.9, 0.8), (1.6, -0.3, 1.0, 1.0))):
+        b.box((c[0] + dx, floor + h / 2, c[2] + dz), (w, h, w * 0.9), yaw=rng.uniform(-8, 8), style=_nb("wood"))
+        b.box((c[0] + dx, floor + h + 0.01, c[2] + dz), (w + 0.02, 0.02, 0.1), yaw=0, style=_nb("wood_dark"))
+    b.box((c[0] + 0.4, floor + 0.35, c[2]), (1.4, 0.7, 1.6), yaw=6, style=_nb("olive"))                 # tarpaulin
+    b.box((c[0] + 0.4, floor + 0.62, c[2] + 0.1), (1.1, 0.25, 1.2), yaw=-4, pitch=8, style=_nb("olive"))
+    for k in range(5):                                                          # the burnt west end: charred planks
+        y = floor + 0.15 + k * 0.22
+        L = rng.uniform(0.6, s[2] - 0.6)
+        b.box((x0 + 0.1, y, c[2] + rng.uniform(-0.3, 0.3)), (0.03, 0.18, L), style=_nb("wood_dark"))
+        b.box((x0 + 0.09, y + 0.05, c[2] + rng.uniform(-0.5, 0.5)), (0.03, 0.06, rng.uniform(0.1, 0.3)), style=_nb("black"))
+
+
+def prop_dp_buffer(ctx, c, s):
+    """The buffer stop at the track's end: the rails bent up into a frame, a red timber beam, two buffers."""
+    b = ctx.b
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    for zz in (c[2] - 0.72, c[2] + 0.72):
+        _beam(b, (x0 - 1.2, 0.16, zz), (x1 - 0.1, 0.95, zz), 0.08, 0.14, "trim_dark")
+        _beam(b, (x1 - 0.1, 0.0, zz), (x1 - 0.1, 1.0, zz), 0.1, 0.1, "trim_dark")
+    b.box((x0 + 0.2, 0.9, c[2]), (0.3, 0.3, s[2]), style=_solid("red"))
+    for zz in (c[2] - 0.6, c[2] + 0.6):
+        b.box((x0 + 0.0, 0.9, zz), (0.2, 0.14, 0.14), style=_nb("trim_dark"))
+        b.box((x0 - 0.12, 0.9, zz), (0.05, 0.32, 0.32), style=_solid("steel_light"))
+    b.box((x0 + 0.2, 1.06, c[2]), (0.32, 0.02, s[2] - 0.4), style=_nb("bone"))           # a white band
+
+
+def prop_dp_dock(ctx, c, s):
+    """The loading dock: brick faces, a plank deck with a yellow edge line, a timber rubbing strip along the track
+    side, a corner knocked off at the west end."""
+    b, rng = ctx.b, random.Random("dp_dock")
+    ext = st_look("ext")
+    top = c[1] + s[1] / 2
+    b.box(c, s, style=lambda n, m, q: ("floor_wood", uv_world()) if n[1] > 0.7 else (None if n[1] < -0.7 else (ext, uv_world())))
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    b.box((c[0], top + 0.01, z0 + 0.06), (s[0], 0.02, 0.12), style=_nb("concrete"))
+    b.box((c[0], top + 0.012, z0 + 0.2), (s[0] - 0.1, 0.02, 0.08), style=_nb("yellow"))
+    b.box((c[0], top - 0.12, z0 - 0.05), (s[0], 0.2, 0.1), style=_solid("wood_dark"))
+    b.box((c[0], top - 0.12, z1 + 0.04), (s[0], 0.18, 0.08), style=_solid("wood_dark"))
+    for _ in range(14):                                                          # chips off the edge, bits on the deck
+        x = rng.uniform(x0 + 0.5, x1 - 0.5)
+        _box(b, x, top + 0.03, rng.uniform(z0 + 0.3, z1 - 0.3), rng.uniform(0.08, 0.25), 0.05, rng.uniform(0.08, 0.2),
+             rng.choice(("concrete", ext, "wood_dark")), yaw=rng.uniform(0, 90))
+    for k in range(5):                                                           # the knocked-off corner's rubble
+        _box(b, x0 - 0.3 + rng.uniform(-0.2, 0.2), 0.12, z0 + 0.4 + k * 0.25, rng.uniform(0.2, 0.35), 0.2, 0.25,
+             rng.choice((ext, "concrete")), yaw=rng.uniform(0, 90))
+
+
+def prop_dp_ramp(ctx, c, s):
+    """The cart ramp down from the dock's east end: concrete with grooves across it."""
+    b = ctx.b
+    b.box(c, s, yaw=ctx.row["yaw"], pitch=ctx.row["pitch"],
+          style=lambda n, m, q: ("concrete", uv_world()) if n[1] > 0.3 else (None if n[1] < -0.3 else ("concrete", uv_world(1.0))))
+
+
+def prop_dp_crane(ctx, c, s):
+    """A hand crane on the dock's edge: an iron post, a jib out over the track, its stay, the winch, a chain with a
+    crate still hanging on the hook."""
+    b = ctx.b
+    paint = st_look("paint")
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], y0 + 0.04, c[2]), (0.7, 0.08, 0.7), style=_nb("trim_dark"))
+    for k in range(4):
+        b.box((c[0], (y0 + y1) / 2, c[2]), (0.34 * 0.92, y1 - y0 - 0.1, 0.34 * 0.38), yaw=k * 45, style=_nb(paint))
+    end = (c[0], y1 - 0.1, -0.1)
+    _beam(b, (c[0], y1 - 0.1, c[2] + 0.1), end, 0.16, 0.2, paint)                     # jib
+    _beam(b, (c[0], y0 + 1.5, c[2] - 0.15), (c[0], y1 - 0.2, 0.3), 0.1, 0.1, paint)  # stay
+    b.box((c[0] + 0.3, y0 + 1.2, c[2]), (0.3, 0.3, 0.3), style=_nb("trim_dark"))      # winch drum
+    _beam(b, (c[0] + 0.45, y0 + 1.2, c[2]), (c[0] + 0.45, y0 + 0.95, c[2] + 0.3), 0.04, 0.04, "trim_dark")
+    b.box((end[0], end[1] - 0.12, end[2]), (0.12, 0.12, 0.2), style=_solid("trim_dark"))   # pulley
+    b.box((end[0], (end[1] + 3.35) / 2 - 0.1, end[2]), (0.03, end[1] - 3.35 - 0.2, 0.03), style=_nb("black"))   # chain
+    b.box((end[0], 3.3, end[2]), (0.08, 0.14, 0.05), style=_nb("trim_dark"))          # hook
+    for zz in (end[2] - 0.3, end[2] + 0.3):                                            # slings to the crate
+        _beam(b, (end[0], 3.25, end[2]), (end[0], 3.0, zz), 0.02, 0.02, "black")
+    b.box((end[0], 2.62, end[2]), (0.8, 0.75, 0.8), yaw=12, style=_solid("wood"))
+    b.box((end[0], 2.62, end[2]), (0.82, 0.08, 0.82), yaw=12, style=_solid("wood_dark"))
+
+
+def prop_dp_crates(ctx, c, s):
+    """Freight crates stacked up, edged in darker battens, a few off the top, one broken open with straw."""
+    b, rng = ctx.b, random.Random(f"dp_crates{c}")
+    y0 = c[1] - s[1] / 2
+    nx, nz = max(1, round(s[0] / 1.05)), max(1, round(s[2] / 0.95))
+    layers = max(1, round(s[1] / 0.75))
+    cw, cd, ch = s[0] / nx, s[2] / nz, s[1] / layers
+    opened = False
+    for l in range(layers):
+        for i in range(nx):
+            for j in range(nz):
+                if l == layers - 1 and l > 0 and rng.random() < 0.35:
+                    continue
+                w, d, h = cw - 0.06, cd - 0.06, ch - 0.02
+                x, z, y = c[0] - s[0] / 2 + (i + 0.5) * cw, c[2] - s[2] / 2 + (j + 0.5) * cd, y0 + l * ch + h / 2
+                yaw = rng.uniform(-4, 4)
+                col = rng.choice(("wood", "wood", "carton"))
+                b.box((x, y, z), (w, h, d), yaw=yaw, style=_nb(col))
+                for sx in (-1, 1):                                               # the end battens
+                    b.box((x + sx * (w / 2 - 0.04) * math.cos(math.radians(yaw)), y, z - sx * (w / 2 - 0.04) * math.sin(math.radians(yaw))),
+                          (0.09, h + 0.01, d + 0.02), yaw=yaw, style=_nb("wood_dark"))
+                for sz in (-1, 1):                                               # the side battens (a frame)
+                    for yy in (y - h / 2 + 0.06, y + h / 2 - 0.06):
+                        b.box((x, yy, z + sz * d / 2),
+                              (w + 0.01, 0.1, 0.04), yaw=yaw, style=_nb("wood_dark"))
+                if l == layers - 1 and not opened and rng.random() < 0.4:
+                    opened = True
+                    b.box((x, y + h / 2 + 0.04, z), (w * 0.8, 0.08, d * 0.7), yaw=yaw + 6, style=_nb("yellow"))     # straw
+                    b.box((x + 0.25, y + h / 2 + 0.1, z + 0.3), (w, 0.04, d), yaw=yaw + 25, pitch=12, style=_solid("wood"))  # lid
+
+
+def prop_dp_sacks(ctx, c, s):
+    """Sacks of grain on a pallet, crossed layers, one burst and spilling."""
+    b, rng = ctx.b, random.Random(f"dp_sacks{c}")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + 0.07, c[2]), (s[0], 0.14, s[2]), style=_nb("wood"))
+    layers = max(1, int((s[1] - 0.14) / 0.24))
+    for l in range(layers):
+        along = l % 2 == 0
+        n = max(1, int((s[2] if along else s[0]) / 0.5))
+        for k in range(n):
+            if l == layers - 1 and rng.random() < 0.3:
+                continue
+            a = -((s[2] if along else s[0]) / 2) + (k + 0.5) * (s[2] if along else s[0]) / n
+            y = y0 + 0.14 + 0.12 + l * 0.24
+            if along:
+                for half in (-1, 1):
+                    b.box((c[0] + half * s[0] / 4, y, c[2] + a), (s[0] / 2 - 0.05, 0.22, 0.46), yaw=rng.uniform(-5, 5), style=_nb("bone"))
+            else:
+                for half in (-1, 1):
+                    b.box((c[0] + a, y, c[2] + half * s[2] / 4), (0.46, 0.22, s[2] / 2 - 0.05), yaw=rng.uniform(-5, 5), style=_nb("bone"))
+    b.box((c[0] + s[0] / 2 + 0.25, y0 + 0.01, c[2]), (0.6, 0.02, 0.9), yaw=20, style=_nb("bone"))      # the spill
+
+
+def prop_dp_wreck(ctx, c, s):
+    """The roof's west end in a heap: corrugated sheets every which way, twisted truss bits, brick off the gable."""
+    b, rng = ctx.b, random.Random("dp_wreck")
+    y0 = c[1] - s[1] / 2
+    for k in range(9):
+        b.box((c[0] + rng.uniform(-s[0] / 2 + 0.6, s[0] / 2 - 0.6), y0 + 0.08 + k * 0.06, c[2] + rng.uniform(-s[2] / 2 + 0.6, s[2] / 2 - 0.6)),
+              (1.0, 0.03, 2.4), yaw=rng.uniform(0, 180), pitch=rng.uniform(-12, 12), style=_solid("shed_metal"))
+    for _ in range(4):
+        x, z = c[0] + rng.uniform(-s[0] / 2, s[0] / 2), c[2] + rng.uniform(-s[2] / 2, s[2] / 2)
+        a = rng.uniform(0, math.pi)
+        L = rng.uniform(2.0, 3.2)
+        _beam(b, (x - math.cos(a) * L / 2, y0 + rng.uniform(0.1, 0.3), z - math.sin(a) * L / 2),
+              (x + math.cos(a) * L / 2, y0 + rng.uniform(0.5, 0.95), z + math.sin(a) * L / 2), 0.14, 0.2, "trim_dark")
+    for _ in range(10):
+        w = rng.uniform(0.2, 0.45)
+        _box(b, c[0] + rng.uniform(-s[0] / 2, s[0] / 2), y0 + w / 3, c[2] + rng.uniform(-s[2] / 2, s[2] / 2), w, w * 0.6, w * 0.8,
+             rng.choice((st_look("ext"), "concrete")), yaw=rng.uniform(0, 90), pitch=rng.uniform(-15, 15))
+
+
+def prop_dp_forklift(ctx, c, s):
+    """A rusty yellow forklift abandoned with its forks down (facing west): body, counterweight, overhead guard,
+    mast, flat tyres."""
+    b = ctx.b
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    y0 = c[1] - s[1] / 2
+    z = c[2]
+    b.box(((x0 + 0.75 + x1) / 2, y0 + 0.75, z), (x1 - x0 - 0.75, 0.75, 1.1), style=_nb("yellow"))
+    b.box((x1 - 0.22, y0 + 0.85, z), (0.4, 0.85, 1.12), style=_solid("trim_dark"))       # counterweight
+    for xx, r in ((x0 + 0.95, 0.32), (x1 - 0.55, 0.27)):
+        for zz in (z - 0.5, z + 0.5):
+            for k in range(4):
+                b.box((xx, y0 + r - 0.03, zz), (2 * r * 0.92, 2 * r * 0.38, 0.22), yaw=0, pitch=0, style=_nb("black"))
+                b.box((xx, y0 + r - 0.03, zz), (2 * r * 0.38, 2 * r * 0.92, 0.22), style=_nb("black"))
+            b.box((xx, y0 + r - 0.03, zz + math.copysign(0.115, zz - z)), (r, r, 0.01), yaw=0, style=_nb("trim"))
+    b.box((x1 - 0.75, y0 + 1.25, z), (0.45, 0.12, 0.5), style=_nb("black"))             # seat
+    b.box((x1 - 0.95, y0 + 1.45, z), (0.08, 0.45, 0.5), style=_nb("black"))
+    _beam(b, (x0 + 1.1, y0 + 1.1, z), (x0 + 1.25, y0 + 1.45, z), 0.04, 0.04, "trim_dark")
+    b.box((x0 + 1.27, y0 + 1.47, z), (0.05, 0.03, 0.32), style=_nb("black"))           # wheel
+    for xx in (x0 + 0.9, x1 - 0.5):                                                    # overhead guard
+        for zz in (z - 0.48, z + 0.48):
+            b.box((xx, y0 + 1.6, zz), (0.06, 1.15, 0.06), style=_nb("trim_dark"))
+    b.box(((x0 + 0.9 + x1 - 0.5) / 2, s[1] - 0.04 + y0, z), (x1 - x0 - 1.34, 0.06, 1.02), style=_solid("trim_dark"))
+    for k in range(4):
+        b.box(((x0 + 0.9 + x1 - 0.5) / 2, s[1] - 0.02 + y0, z - 0.36 + k * 0.24), (x1 - x0 - 1.4, 0.04, 0.04), style=_nb("trim_dark"))
+    for zz in (z - 0.35, z + 0.35):                                                    # mast + forks
+        b.box((x0 + 0.62, y0 + 1.1, zz), (0.1, 2.15, 0.1), style=_nb("trim_dark"))
+        b.box((x0 + 0.3, y0 + 0.04, zz - math.copysign(0.1, zz - z)), (0.6, 0.05, 0.12), style=_nb("trim_dark"))
+    b.box((x0 + 0.55, y0 + 0.35, z), (0.06, 0.5, 0.9), style=_nb("trim_dark"))
+    for p in ((x0 + 1.5, y0 + 0.9, z + 0.56), (x1 - 0.9, y0 + 0.6, z - 0.56), (x0 + 1.9, y0 + 1.13, z)):
+        b.box(p, (0.35, 0.25, 0.01) if abs(p[2] - z) > 0.1 else (0.4, 0.01, 0.3), style=_nb("black"))   # rust
+
+
+def prop_dp_hut_roof(ctx, c, s):
+    """The weigh office's tin roof, a sheet off the shed's roof lying across it."""
+    b = ctx.b
+    b.box(c, s, style=lambda n, m, q: ("shed_metal", uv_world(2.0)) if n[1] > 0.7 else
+          (("house_ceiling", uv_world()) if n[1] < -0.7 else ("trim_dark", uv_world(1.0))))
+    b.box((c[0] - 0.6, c[1] + s[1] / 2 + 0.12, c[2] + 0.3), (1.0, 0.03, 2.6), yaw=-20, pitch=6, style=_solid("shed_metal"))
+
+
+def prop_dp_desk(ctx, c, s):
+    """The weigh clerk's desk on the office's north wall: pedestals, an open ledger, the phone, a lamp; a stool."""
+    b = ctx.b
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b.box((c[0], top - 0.025, c[2]), (s[0], 0.05, s[2]), style=_solid("wood_dark"))
+    for sx in (-1, 1):
+        b.box((c[0] + sx * (s[0] / 2 - 0.25), (y0 + top - 0.05) / 2, c[2]), (0.45, top - y0 - 0.05, s[2] - 0.06), style=_nb("wood"))
+    b.box((c[0] - 0.15, top + 0.02, c[2] + 0.05), (0.55, 0.03, 0.4), yaw=4, style=_nb("bone"))              # ledger
+    b.box((c[0] - 0.15, top + 0.025, c[2] + 0.05), (0.02, 0.035, 0.4), yaw=4, style=_nb("wine"))
+    b.box((c[0] + 0.55, top + 0.06, c[2] - 0.1), (0.2, 0.1, 0.18), style=_nb("black"))                     # phone
+    b.box((c[0] - 0.7, top + 0.2, c[2] - 0.15), (0.03, 0.4, 0.03), style=_nb("trim_dark"))                  # lamp
+    b.box((c[0] - 0.7, top + 0.4, c[2] - 0.08), (0.18, 0.1, 0.18), pitch=20, style=_solid(st_look("paint")))
+    for p in ((0.3, 0.5), (-0.4, 0.7)):                                                                     # papers
+        b.box((c[0] + p[0], 0.004, c[2] + s[2] / 2 + p[1]), (0.21, 0.004, 0.3), yaw=p[0] * 80, style=_nb("bone"))
+    sx, sz = c[0] + 0.1, c[2] + s[2] / 2 + 0.45                                                             # stool
+    b.box((sx, 0.6, sz), (0.36, 0.05, 0.36), style=_solid("wood"))
+    for dx in (-0.14, 0.14):
+        for dz in (-0.14, 0.14):
+            b.box((sx + dx, 0.29, sz + dz), (0.04, 0.58, 0.04), style=_nb("wood_dark"))
+
+
+def dress_depot_outside(ctx):
+    b, rng = ctx.b, random.Random("dp_out")
+    fp = DEPOT_FP
+    ext, dress, paint, base = st_look("ext"), st_look("dress"), st_look("paint"), st_look("base")
+    opens = ctx.data.get("openings", [])
+    st = lambda mat, tile=1.0: (lambda n, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def along_wall(side, y0, y1, d, mat, out=0.0, tile=2.0):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + out)
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d - out, a1 + 0.15 + d + out
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        for s0, s1 in segs:
+            if s1 - s0 < 0.02:
+                continue
+            m = (s0 + s1) / 2
+            cc = (m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m)
+            b.box(cc, (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0),
+                  style=no_bottom(mat, tile) if y0 < 0.05 else st(mat, tile))
+
+    def on_wall(side, a, y, sa, sy, d, mat, push=0.0):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + d / 2 + push)
+        b.box((a, y, at) if ns else (at, y, a), (sa, sy, d) if ns else (d, sy, sa), style=st(mat))
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        ns = side in "NS"
+        at = side_at(side, 0.15 + push)
+        n = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, n, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    for side in "NSWE":
+        along_wall(side, 0.0, 0.5, 0.08, base)                                          # plinth
+        along_wall(side, 2.9, 3.05, 0.05, dress)                                        # bands
+        along_wall(side, 6.3, 6.45, 0.05, dress)
+        if side in "NS":
+            along_wall(side, 6.8, 7.0, 0.12, dress)                                     # eaves cornice
+    # Pilasters on the long walls (buff, a cap under the cornice), quoins up the corners.
+    for side in "NS":
+        for x in (-12.0, -7.0, 7.0, 12.0):
+            top = min([6.45] + [o["lo"] - 0.05 for o in opens if o["side"] == side and abs(o["mid"] - x) < o["w"] / 2 + 0.4])
+            if top < 1.0:
+                continue
+            on_wall(side, x, (0.5 + top) / 2, 0.6, top - 0.5, 0.1, dress, push=0.0)
+            if top > 6.4:
+                on_wall(side, x, 6.6, 0.75, 0.15, 0.14, dress)
+    for x, z in ((fp[0], fp[1]), (fp[2], fp[1]), (fp[0], fp[3]), (fp[2], fp[3])):
+        sx, sz = (1 if x > 0 else -1), (1 if z > 0 else -1)
+        for k in range(13):
+            y = 0.55 + k * 0.5
+            lx, lz = (0.62, 0.4) if k % 2 == 0 else (0.4, 0.62)
+            b.box((x + sx * (0.19 - lx / 2), y + 0.2, z + sz * 0.17), (lx, 0.4, 0.04), style=st(dress))
+            b.box((x + sx * 0.17, y + 0.2, z + sz * (0.19 - lz / 2)), (0.04, 0.4, lz), style=st(dress))
+    # Over the big doors: a buff lintel, the GOODS board.
+    for o in opens:
+        if o["kind"] != "big_door":
+            continue
+        on_wall(o["side"], o["mid"], o["hi"] + 0.18, o["w"] + 0.8, 0.36, 0.06, dress)
+        on_wall(o["side"], o["mid"], 4.95, 80 / 32 + 0.12, 24 / 32 + 0.12, 0.03, "wood_dark")
+        quad(o["side"], o["mid"], 4.95 - 12 / 32, 4.95 + 12 / 32, 80 / 32, "goods", push=0.035)
+    on_wall("N", 9.5, 5.35, 94 / 32 + 0.1, 14 / 32 + 0.1, 0.03, "wood_dark")
+    quad("N", 9.5, 5.35 - 7 / 32, 5.35 + 7 / 32, 94 / 32, "name", push=0.035)
+    # The gables over the end walls (the west one broken off ragged), a round vent in the east one.
+    for side, ragged in (("W", True), ("E", False)):
+        xo = side_at(side, 0.15)
+        xi = side_at(side, -0.15)
+        sg = 1 if side == "E" else -1
+        if ragged:
+            pts = [(-9.15, 7.0), (-6.5, 7.6), (-4.8, 7.25), (-2.6, 8.1), (-0.4, 7.4), (1.8, 7.7), (3.6, 7.15), (9.15, 7.0)]
+        else:
+            pts = [(-9.15, 7.0), (-4.5, dp_roof_y(-4.5)), (-1.0, dp_roof_y(-1.0)), (0.2, 8.3), (1.6, 8.6), (3.0, 7.6),
+                   (5.2, 7.5), (9.15, 7.0)]                                    # (a shell took a bite out of it)
+        for (za, ya), (zb, yb) in zip(pts, pts[1:]):
+            for xx, nx in ((xo, sg), (xi, -sg)):
+                quadp = [(xx, 7.0, za), (xx, 7.0, zb), (xx, yb, zb), (xx, ya, za)]
+                b.poly(quadp if (nx > 0) == (zb > za) else quadp[::-1], (nx, 0, 0), ext, uv_world())
+            top = [(xi, ya, za), (xi, yb, zb), (xo, yb, zb), (xo, ya, za)]
+            nrm = norm((0, zb - za, -(yb - ya)))
+            b.poly(top if sg < 0 else top[::-1], nrm, "rubble_core" if ragged else dress, uv_world(1.0))
+        if not ragged:
+            on_wall(side, -2.6, 7.7, 0.9, 0.9, 0.06, dress)
+            on_wall(side, -2.6, 7.7, 0.6, 0.6, 0.02, "trim_dark", push=0.06)
+            for k in range(4):
+                on_wall(side, -2.6, 7.5 + k * 0.13, 0.6, 0.05, 0.04, "black", push=0.06)
+    # The rails torn up outside the west door: bent ends, loose sleepers.
+    for zz in (-0.72, 0.72):
+        _beam(b, (-15.2, 0.12, zz), (-16.4, 0.5, zz + 0.2), 0.07, 0.12, "trim_dark")
+    for k in range(3):
+        b.box((-15.7 - k * 0.6, 0.06, rng.uniform(-0.3, 0.3)), (0.22, 0.12, 2.4), yaw=rng.uniform(-25, 25), style=_nb("wood_dark"))
+    # Bullet holes all over the yard side and the ends.
+    for side, a0, a1, n in (("N", -14.8, 14.8, 45), ("W", -8.8, 8.8, 20), ("E", -8.8, 8.8, 20), ("S", -14.8, 14.8, 25)):
+        for _ in range(n):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.6, 4.5)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.15 and o["lo"] - 0.1 < y < o["hi"] + 0.1 for o in opens):
+                continue
+            if side in "NS" and any(abs(a - x) < 0.4 for x in (-12.0, -7.0, 7.0, 12.0)):
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.13, mat="graffiti")
+
+
+def caved_depot(ctx, c, s):
+    """What's left of the roof: the two east trusses standing with some sheets on, the middle one bare, the next one
+    snapped and hanging off the north wall, purlins sagging; the rest is the heap on the floor (dp_wreck)."""
+    b, rng = ctx.b, random.Random("caved_depot")
+    eave, ridge = DP_WALL - 0.15, DP_WALL + 2.0
+    zi = 8.85
+
+    def ry(z):
+        return eave + (ridge - eave) * (1.0 - abs(z) / zi)
+
+    def truss(x, broken=False):
+        if broken:
+            _beam(b, (x, eave, -zi), (x, ridge, 0.0), 0.16, 0.22, "trim_dark")                # north rafter
+            _beam(b, (x, eave, -zi), (x - 0.5, 3.9, 1.6), 0.16, 0.18, "trim_dark")            # the tie, hanging
+            _beam(b, (x, ridge, 0.0), (x + 0.4, ridge - 2.2, 0.7), 0.1, 0.1, "trim_dark")     # king post, dangling
+            _beam(b, (x, ridge, 0.0), (x + 0.2, ridge - 1.2, 2.6), 0.16, 0.22, "trim_dark")   # south rafter stub
+            return
+        for sg in (-1, 1):
+            _beam(b, (x, eave, sg * zi), (x, ridge, 0.0), 0.16, 0.22, "trim_dark")
+            _beam(b, (x, eave + 0.05, 0.0), (x, ry(sg * 4.4), sg * 4.4), 0.08, 0.08, "trim_dark")
+        _beam(b, (x, eave, -zi), (x, eave, zi), 0.14, 0.18, "trim_dark")
+        _beam(b, (x, eave, 0.0), (x, ridge, 0.0), 0.08, 0.08, "trim_dark")
+    for x in (12.0, 6.0, 0.0):
+        truss(x)
+    truss(-6.0, broken=True)
+    for sg in (-1, 1):                                                                       # purlins + ridge
+        for z in (2.2, 4.4, 6.6):
+            zz = sg * z
+            x_end = -6.0 if sg < 0 and z > 3 else 0.0
+            _beam(b, (x_end, ry(zz) + 0.15, zz), (14.85, ry(zz) + 0.15, zz), 0.1, 0.12, "trim_dark")
+    _beam(b, (-6.0, ridge + 0.15, 0.0), (14.85, ridge + 0.15, 0.0), 0.12, 0.14, "trim_dark")
+    _beam(b, (-6.0, ry(-6.6) + 0.15, -6.6), (-9.0, 4.2, -5.5), 0.1, 0.12, "trim_dark")       # a purlin hanging down
+    # Corrugated sheets (1 m wide) on the purlins: most of the east bays, a few on the north slope further west.
+    for sg in (-1, 1):
+        x = 15.1
+        while x > -5.9:
+            x -= 1.0
+            keep = 0.8 if x > 6.0 else (0.35 if (x > 0.0 and sg < 0) else (0.15 if x > 0.0 else (0.3 if sg < 0 else 0.0)))
+            if rng.random() > keep:
+                continue
+            ze = sg * 9.4
+            y_top, y_eave = ridge + 0.27, ry(ze) + 0.27 - (abs(ze) - zi) * (ridge - eave) / zi
+            pts = [(x, y_top, 0.0), (x + 1.0, y_top, 0.0), (x + 1.0, y_eave, ze), (x, y_eave, ze)]
+            nrm = norm((0, abs(ze), -sg * (y_top - y_eave)))
+            up = pts if sg > 0 else pts[::-1]
+            b.poly(up, nrm, "shed_metal", uv_world(2.0))
+            b.poly(up[::-1], (-nrm[0], -nrm[1], -nrm[2]), "shed_metal", uv_world(2.0))
+    for p0, p1 in (((0.4, ridge, -2.0), (0.9, 5.4, -3.2)), ((-5.2, ry(-6.6), -6.0), (-5.6, 4.6, -4.2))):   # sheets hanging off
+        _beam(b, p0, p1, 0.95, 0.03, "shed_metal")
+
+
+def dress_depot(ctx):
+    b, rng = ctx.b, random.Random("dp_dress")
+    dress_depot_outside(ctx)
+    paint = st_look("paint")
+    # The track inside: sleepers set in the floor, the rails on them from the west door to the buffer stop.
+    x = -14.75
+    while x < 11.4:
+        b.box((x, 0.03, 0.0), (0.22, 0.06, 2.3), yaw=rng.uniform(-2, 2), style=_nb("wood_dark"))
+        x += 0.7
+    for zz in (-0.72, 0.72):
+        b.box(((-15.1 + 11.6) / 2, 0.11, zz), (26.7, 0.1, 0.07), style=_nb("steel_light"))
+        b.box(((-15.1 + 11.6) / 2, 0.065, zz), (26.7, 0.03, 0.16), style=_nb("trim_dark"))
+    # Signs: WEIGH OFFICE over the office door, NO SMOKING by the west door, the wagon tally board on the office.
+    hx0, hz0, hx1, hz1 = DP_HUT
+    wall_quad(b, (0, 0, 1), hz1 + 0.005, 10.55 - 51 / 64, 10.55 + 51 / 64, 2.3, 2.3 + 9 / 32, "decals", ctx.d("weigh"))
+    wall_quad(b, (1, 0, 0), -14.845, -5.0 - 45 / 64, -5.0 + 45 / 64, 2.2, 2.2 + 9 / 32, "decals", ctx.d("nosmoke"))
+    _box(b, hx0 - 0.02, 1.62, -6.4, 0.04, 30 / 32 + 0.08, 40 / 32 + 0.08, "wood_dark")
+    wall_quad(b, (-1, 0, 0), hx0 - 0.045, -6.4 - 20 / 32, -6.4 + 20 / 32, 1.62 - 15 / 32, 1.62 + 15 / 32, "decals", ctx.d("tally"))
+    # The office's window (south wall, x 11.95..13.0, 1.0..2.1): a green frame, the glass mostly gone.
+    for a, bb in ((11.95, 13.0),):
+        for y in (1.0, 2.1):
+            _box(b, (a + bb) / 2, y, hz1 - 0.06, bb - a + 0.1, 0.06, 0.16, paint)
+        for xx in (a, (a + bb) / 2, bb):
+            _box(b, xx, 1.55, hz1 - 0.06, 0.06, 1.1, 0.16, paint)
+        for p in ((a + 0.15, 1.2, 0.2, 0.3), (bb - 0.2, 1.9, 0.25, 0.2), ((a + bb) / 2 + 0.1, 1.15, 0.2, 0.2)):
+            _box(b, p[0], p[1], hz1 - 0.06, p[2], p[3], 0.01, "glass")
+    for _ in range(6):
+        _box(b, rng.uniform(11.95, 13.0), 0.005, hz1 + rng.uniform(0.1, 0.8), 0.1, 0.005, 0.08, "glass", yaw=rng.uniform(0, 90))
+    # The floor: puddles where the rain comes in, roof sheets and brick lying about, scorch round the north hole.
+    solids = [r for r in ctx.data["boxes"] if r.get("solid", True) and r["size"][1] > 0.1 and r["pos"][1] - r["size"][1] / 2 < 0.2]
+
+    def free(x, z, pad=0.2):
+        if not (-14.5 < x < 14.5 and -8.5 < z < 8.5) or (abs(z) < 2.2 and abs(x) > 13.0):
+            return False
+        return not any(abs(x - r["pos"][0]) < r["size"][0] / 2 + pad and abs(z - r["pos"][2]) < r["size"][2] / 2 + pad
+                       for r in solids if r["size"][0] < 25)
+    for _ in range(10):
+        x, z = rng.uniform(-14, 14), rng.uniform(-8, 8)
+        if free(x, z, 0.6) and not dp_in_hut((x, 0, z)):
+            b.box((x, 0.004, z), (rng.uniform(0.8, 2.0), 0.008, rng.uniform(0.6, 1.4)), yaw=rng.uniform(0, 90), style=_nb("trim_dark"))
+    for _ in range(12):
+        x, z = rng.uniform(-14, 14), rng.uniform(-8, 8)
+        if free(x, z, 0.5) and not dp_in_hut((x, 0, z)):
+            b.box((x, 0.03, z), (0.9, 0.025, rng.uniform(1.2, 2.2)), yaw=rng.uniform(0, 180), pitch=rng.uniform(-3, 3), style=_solid("shed_metal"))
+    for _ in range(70):
+        x, z = rng.uniform(-14.5, 14.5), rng.uniform(-8.5, 8.5)
+        if free(x, z, 0.1) and not dp_in_hut((x, 0, z)):
+            w = rng.uniform(0.08, 0.3)
+            _box(b, x, w * 0.25, z, w, w * 0.5, w * rng.uniform(0.6, 1.3), rng.choice((st_look("ext"), "concrete", "wood_dark")),
+                 yaw=rng.uniform(0, 90), pitch=rng.uniform(-10, 10))
+    b.box((0.0, 0.006, -6.6), (5.0, 0.008, 3.6), style=_nb("black"))                       # scorch by the north hole
+
+
+for _kind, _fn in {"dp_wagon": prop_dp_wagon, "dp_buffer": prop_dp_buffer, "dp_dock": prop_dp_dock, "dp_ramp": prop_dp_ramp,
+                   "dp_crane": prop_dp_crane, "dp_crates": prop_dp_crates, "dp_sacks": prop_dp_sacks, "dp_wreck": prop_dp_wreck,
+                   "dp_forklift": prop_dp_forklift, "dp_hut_roof": prop_dp_hut_roof, "dp_desk": prop_dp_desk}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+CAVED["depot"] = caved_depot
+DECALS["depot"] = depot_decals
+DRESSING["depot"] = dress_depot
+FOOTPRINTS["depot"] = DEPOT_FP
+ENTRANCE_DOOR["depot"] = st_look("paint")
+SLIDING_DOORS["depot"] = (st_look("paint"), "trim_dark")
+WC_MATS["depot"] = ("wc_tile", "wc_floor")
+SHELLS["depot"] = {
+    "ext": st_look("ext"), "roof_side": st_look("ext"), "inner": dp_inner, "floor": dp_floor,
+    "ceiling": lambda m: "house_ceiling", "x_lines": (-15.0, DP_HUT[0], 15.0), "z_lines": (-9.0, DP_HUT[3], 9.0),
+    "x_splits": (DP_HUT[0],), "z_splits": (DP_HUT[3],), "debris": ("concrete", st_look("ext"), "concrete", "concrete"),
+}
+FACTION_MARKS["depot"] = [("x1_stencil", "E", -5.5, 1.0), ("nova_tag", "N", 9.6, 1.1)]
 
 
 def floor_debris(ctx, data, name):

@@ -123,5 +123,8 @@
 "st_lime",
 "st_boards",
 "st_dado",
-"st_floor"
+"st_floor",
+"st_banded",
+"st_stock",
+"st_wash"
 ]
