@@ -19782,12 +19782,152 @@ SHELLS["junk_office"] = {
 }
 
 
+# ------------------------------------------------------------------------------------------------ cars (0.17)
+# The map's cars (owner 2026-10-17: "use all of those cars, different types throughout the map"): four types, each in
+# its own paints, plus a burnt-out wreck of each. Built by art_source/scripts/make_cars.py into
+# assets/models/props/cars/car_<type>_<paint>.glb (kit atlas only); the junkyard's stacks draw them crushed.
+# Local frame: x across, y up, z along with the front at -z, wheels on the ground at y 0.
+CAR_TYPES = {"a": "saloon", "b": "hatchback", "c": "estate", "d": "minibus"}
+CAR_PAINTS = {"a": ("wine", "sb_cream", "police_navy"), "b": ("teal", "yellow", "wine"),
+              "c": ("police_navy", "st_green", "sb_cream"), "d": ("olive", "blue", "teal")}
+# The gray box each type collides as (gen car()): body (width, height, length) and cabin (width, top, z0, z1).
+CAR_BOXES = {"a": ((1.7, 0.84, 4.2), (1.6, 1.44, -0.8, 1.0)), "b": ((1.62, 0.84, 3.7), (1.52, 1.46, -0.5, 1.75)),
+             "c": ((1.72, 0.88, 4.5), (1.62, 1.5, -0.9, 2.15)), "d": ((1.9, 2.07, 4.4), None)}
+
+
+def _car_wheels(L, W, zs, r=0.32):
+    out = []
+    a = 2 * r * 0.924 / 1.0824                                   # two squares, one turned 45: an octagon
+    for z in zs:
+        for sx in (-1, 1):
+            x = sx * (W / 2 - 0.08)
+            out += [((x, r, z), (0.22, a, a), "black", 0), ((x, r, z), (0.22, a, a), "black", 45),
+                    ((x + sx * 0.02, r, z), (0.2, 0.26, 0.26), "steel_light", 0),
+                    ((x + sx * 0.02, r, z), (0.2, 0.26, 0.26), "steel_light", 45)]
+    return out
+
+
+def _car_lights(L, W, yl, chrome=True):
+    zf, zr = -L / 2, L / 2
+    bump = "steel_light" if chrome else "trim_dark"
+    p = [((0, 0.42, zf - 0.05), (W + 0.04, 0.16, 0.12), bump, 0), ((0, 0.42, zr + 0.05), (W + 0.04, 0.16, 0.12), bump, 0),
+         ((0, yl, zf - 0.01), (W * 0.42, 0.16, 0.03), "black", 0)]                       # grille
+    for sx in (-1, 1):
+        p += [((sx * (W / 2 - 0.22), yl, zf - 0.015), (0.26, 0.16, 0.03), "bone", 0),     # headlights, indicators
+              ((sx * (W / 2 - 0.05), yl - 0.02, zf - 0.015), (0.08, 0.1, 0.03), "yellow", 0),
+              ((sx * (W / 2 - 0.2), yl, zr + 0.015), (0.3, 0.13, 0.03), "red", 0)]         # tail lights
+    p += [((0, 0.6, zr + 0.02), (0.42, 0.11, 0.02), "bone", 0), ((0, 0.6, zf - 0.11), (0.42, 0.11, 0.02), "bone", 0)]
+    return p
+
+
+def _car_cabin(z0, z1, y0, y1, W, paint, roof_z=None, pillars=()):
+    rz0, rz1 = roof_z or (z0 + 0.25, z1 - 0.2)
+    p = [((0, (y0 + y1) / 2, (z0 + z1) / 2), (W - 0.12, y1 - y0, z1 - z0), "glass", 0),
+         ((0, y1 + 0.04, (rz0 + rz1) / 2), (W - 0.1, 0.08, rz1 - rz0 + 0.1), paint, 0)]
+    p += [((0, (y0 + y1) / 2, z), (W - 0.08, y1 - y0, 0.09), paint, 0) for z in pillars]
+    p += [((0, y0 + 0.25, (z0 + z1) / 2 + 0.2), (W - 0.4, 0.4, 0.5), "trim_dark", 0)]       # seats
+    return p
+
+
+def car_parts(kind, paint):
+    """The car's boxes: [((x, y, z), (sx, sy, sz), material, pitch)], its front at -z."""
+    if kind == "a":                                       # saloon: an 80s three-box four-door, chrome trim
+        L, W = 4.2, 1.7
+        p = [((0, 0.58, 0), (W, 0.52, L), paint, 0), ((0, 0.32, 0), (W - 0.04, 0.08, L - 1.2), "black", 0),
+             ((0, 0.86, -1.45), (W - 0.02, 0.04, 1.1), paint, 0)]
+        p += _car_cabin(-0.8, 1.0, 0.84, 1.36, W, paint, pillars=(-0.75, 0.12, 0.95))
+        p += [((sx * (W / 2 + 0.01), 0.62, 0), (0.02, 0.05, L - 0.3), "steel_light", 0) for sx in (-1, 1)]
+        return p + _car_lights(L, W, 0.66) + _car_wheels(L, W, (-1.3, 1.3))
+    if kind == "b":                                       # hatchback: small two-box, black plastic bumpers
+        L, W = 3.7, 1.62
+        p = [((0, 0.58, 0), (W, 0.52, L), paint, 0), ((0, 0.32, 0), (W - 0.04, 0.08, L - 1.0), "black", 0)]
+        p += _car_cabin(-0.5, 1.75, 0.84, 1.38, W, paint, roof_z=(-0.3, 1.75), pillars=(-0.45, 0.45, 1.68))
+        p += [((sx * (W / 2 + 0.01), 0.55, 0), (0.02, 0.12, L - 0.6), "trim_dark", 0) for sx in (-1, 1)]
+        return p + _car_lights(L, W, 0.68, chrome=False) + _car_wheels(L, W, (-1.15, 1.2))
+    if kind == "c":                                       # estate: the long roof, a roof rack with a tarp bundle
+        L, W = 4.5, 1.72
+        p = [((0, 0.6, 0), (W, 0.56, L), paint, 0), ((0, 0.32, 0), (W - 0.04, 0.08, L - 1.2), "black", 0)]
+        p += _car_cabin(-0.9, 2.15, 0.88, 1.42, W, paint, roof_z=(-0.65, 2.15), pillars=(-0.85, 0.1, 1.15, 2.1))
+        p += [((0, 1.53, z), (W - 0.1, 0.05, 0.06), "trim_dark", 0) for z in (-0.4, 1.6)]
+        p += [((sx * (W / 2 - 0.1), 1.51, 0.6), (0.05, 0.05, 2.4), "trim_dark", 0) for sx in (-1, 1)]
+        p += [((0, 1.66, 0.6), (1.1, 0.22, 1.4), "olive_dark", 0)]
+        return p + _car_lights(L, W, 0.7) + _car_wheels(L, W, (-1.4, 1.45))
+    L, W = 4.4, 1.9                                       # minibus: the loaf van, two-tone, a spare on the back
+    p = [((0, 0.82, 0), (W, 0.94, L), paint, 0), ((0, 1.92, 0.05), (W, 0.3, L - 0.2), "bone", 0),
+         ((0, 0.32, 0), (W - 0.04, 0.12, L - 1.0), "black", 0), ((0, 1.53, 0.05), (W - 0.06, 0.48, L - 0.25), "glass", 0)]
+    p += [((0, 1.53, z), (W + 0.01, 0.48, 0.14), "bone", 0) for z in (-2.1, -1.2, -0.2, 0.9, 2.0)]
+    p += [((sx * (W / 2 + 0.01), 1.29, 0.05), (0.02, 0.05, L - 0.3), "steel_light", 0) for sx in (-1, 1)]
+    p += [((0, 0.58, 0), (W + 0.02, 0.22, L - 2.6), "black", 0),
+          ((0, 1.05, L / 2 + 0.12), (0.62, 0.62, 0.16), "black", 45), ((0, 1.05, L / 2 + 0.15), (0.3, 0.3, 0.12), "steel_light", 45)]
+    return p + _car_lights(L, W, 0.8) + _car_wheels(L, W, (-1.25, 1.35), r=0.34)
+
+
+def car_height(kind):
+    return max(c[1] + s[1] / 2 for c, s, _, _ in car_parts(kind, "wine"))
+
+
+def emit_car(b, kind, paint, at, yaw=0.0, burnt=False, crushed=None, rng=None):
+    """Draws a car at `at` (its wheels' ground). burnt: the paint scorched off (bare metal, soot), no glass, a wheel
+    gone, sitting low; crushed (a height): squashed to it (the junkyard's stacks), a bit wider, glass gone."""
+    rng = rng or random.Random(f"car{kind}{paint}{at}")
+    squash = crushed / car_height(kind) if crushed else 1.0
+    sink = 0.12 if burnt else 0.0
+    gone = {rng.randrange(4)} if burnt else set()
+    for i, (c, s, mat, pitch) in enumerate(car_parts(kind, paint)):
+        if (burnt or crushed) and mat == "glass":
+            continue
+        if burnt:
+            if mat in ("black", "steel_light") and c[1] < 0.4 and abs(c[0]) > 0.5 and \
+                    (int(c[2] > 0) * 2 + int(c[0] > 0)) in gone:
+                continue                                  # (a wheel gone: the car sits on that corner)
+            if mat not in ("black", "trim_dark"):
+                mat = "gs_burnt" if rng.random() < 0.8 else "trim_dark"
+        elif crushed and mat not in ("black", "trim_dark", "steel_light", "bone", "yellow", "red") and rng.random() < 0.35:
+            mat = "gs_burnt"
+        wide = 1.06 if crushed else 1.0
+        c2 = (c[0] * wide, max(0.01, c[1] * squash - sink), c[2])
+        s2 = (s[0] * wide, max(0.02, s[1] * squash), s[2])
+        o = rot(c2, yaw, 0)
+        b.box((at[0] + o[0], at[1] + o[1], at[2] + o[2]), s2, yaw=yaw, pitch=pitch,
+              style=lambda n, m, q, mat=mat: (mat, uv_world(1.0)))
+
+
+CARS_DIR = os.path.join(ROOT, "assets", "models", "props", "cars")
+
+
+def car_models():
+    """{glb name: (type, paint, burnt)}: every type in each of its paints, and burnt out."""
+    out = {}
+    for kind, paints in CAR_PAINTS.items():
+        for paint in paints:
+            out[f"car_{kind}_{paint}"] = (kind, paint, False)
+        out[f"car_{kind}_burnt"] = (kind, paints[0], True)
+    return out
+
+
+def build_cars():
+    """python3 make_building.py cars: writes every car model (kit textures only: the atlas, plus glass)."""
+    os.makedirs(CARS_DIR, exist_ok=True)
+    textures, mat_info = {}, {}
+    for kit, painter in KIT.items():
+        textures["kit_" + kit] = Texture("kit_" + kit, os.path.join("art_source", "textures", "kit", kit + ".png"),
+                                         painter, random.Random(kit))
+        mat_info[kit] = ("kit_" + kit, False, kit == "glass")
+    cells = kit_atlas()
+    for name, (kind, paint, burnt) in car_models().items():
+        b = Builder()
+        emit_car(b, kind, paint, (0.0, 0.0, 0.0), burnt=burnt, rng=random.Random(name))
+        out = os.path.join(CARS_DIR, name + ".glb")
+        write_glb(out, b, textures, mat_info, atlas=cells)
+        set_import_script(out)
+        print(f"{name}: {sum(len(f) - 2 for f in b.faces)} triangles")
+
+
 # ------------------------------------------------------------------------------------------------ junkyard (0.17)
 # The junkyard's yard (bottom right, the bombed quarter): the fence, the stacked wrecks, the crane and the crusher,
 # origin (322, 278), local x -24..24, z -16..16 (the office is its own model). No walls of its own: every piece is a
 # prop over its gray box, so it collides as before.
 JY_FP = (-24.0, -16.0, 24.0, 16.0)
-JY_CAR = {"car_a": "wine", "car_b": "police_navy", "rust": "gs_burnt"}
 
 
 def jy_decals(rng):
@@ -19855,33 +19995,12 @@ def prop_jy_fence(ctx, c, s):
 
 
 def prop_jy_car(ctx, c, s):
-    """A wreck in the stacks: the body (its old colour under the rust), the roof crushed down, no glass, a door or
-    wheel missing; the ones higher up flatter."""
-    b = ctx.b
+    """A wreck in the stacks: one of the map's four car types (owner 2026-10-17), crushed flat, in its old paint."""
     rng = random.Random(f"jy_car{c[0]:.2f}{c[1]:.2f}{c[2]:.2f}")
+    kind = rng.choice("abcd")
+    paint = rng.choice(CAR_PAINTS[kind])
     yaw = ctx.row.get("yaw", 0.0)
-    y0 = c[1] - s[1] / 2
-    col = JY_CAR.get(ctx.row["colour"], "gs_burnt")
-    if rng.random() < 0.35:
-        col = "gs_burnt"
-
-    def P(along, across, y):
-        o = rot((across, 0, along), yaw, 0)
-        return (c[0] + o[0], y0 + y, c[2] + o[2])
-    W, L = s[0] - 0.05, s[2] - 0.05
-    body = lambda n, m, q: (col, uv_world(1.0)) if n[1] > -0.7 else None
-    b.box(P(0, 0, 0.42), (W, 0.6, L), yaw=yaw, style=body)
-    crush = rng.uniform(0.15, 0.4)
-    b.box(P(0.2, 0, 0.72 + crush / 2), (W - 0.2, crush, L * 0.45), yaw=yaw, pitch=rng.uniform(-5, 5),
-          style=lambda n, m, q: (col, uv_world(1.0)) if n[1] > 0.7 else ("black", uv_world(1.0)))
-    b.box(P(-L / 2 + 0.6, 0, 0.74), (W - 0.05, 0.06, 1.1), yaw=yaw, pitch=rng.uniform(-12, 4), style=_nb(col))   # bonnet
-    for along in (-L / 2 + 0.75, L / 2 - 0.8):
-        for sx in (-1, 1):
-            if rng.random() < 0.3:
-                continue
-            b.box(P(along, sx * (W / 2 - 0.08), 0.28), (0.22, 0.5, 0.6), yaw=yaw, style=_nb("black"))
-    b.box(P(L / 2 - 0.02, 0, 0.45), (W - 0.1, 0.18, 0.06), yaw=yaw, style=_nb("trim_dark"))
-    b.box(P(-L / 2 + 0.02, 0, 0.45), (W - 0.1, 0.18, 0.06), yaw=yaw, style=_nb("steel_light"))
+    emit_car(ctx.b, kind, paint, (c[0], c[1] - s[1] / 2, c[2]), yaw=yaw, crushed=s[1], burnt=rng.random() < 0.25, rng=rng)
 
 
 def prop_jy_crane(ctx, c, s):
@@ -20363,6 +20482,9 @@ def build(name, export):
 def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     name = args[0] if args and not args[0].startswith("-") else BUILDING
+    if name == "cars":
+        build_cars()
+        return
     if bpy is None:
         build(name, True)
         return

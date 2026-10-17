@@ -2248,10 +2248,45 @@ def bezier(p0, p1, p2, p3, n=24):
 
 
 # ---------------------------------------------------------------------------------------------- props (cover)
-def car(x, z, yaw, colour="car_a"):
+# The map's cars (World art 0.17, owner 2026-10-17: "different types throughout the map"): four types, drawn by
+# assets/models/props/cars/car_<type>_<paint | burnt>.glb (art_source/scripts/make_building.py cars). Each collides
+# as boxes that fit its shape: body (width, height, length) and cabin (width, top, front z, back z; front at -z).
+CAR_TYPES = {"a": ((1.7, 0.86, 4.2), (1.6, 1.44, -0.8, 1.0)),       # saloon
+             "b": ((1.62, 0.86, 3.7), (1.52, 1.46, -0.5, 1.75)),    # hatchback
+             "c": ((1.72, 0.9, 4.5), (1.62, 1.5, -0.9, 2.15)),      # estate
+             "d": ((1.9, 2.07, 4.4), None)}                         # minibus
+CAR_PAINTS = {"a": ("wine", "sb_cream", "police_navy"), "b": ("teal", "yellow", "wine"),
+              "c": ("police_navy", "st_green", "sb_cream"), "d": ("olive", "blue", "teal")}
+cars = []         # {"glb", "anchor", "roll"}: placed by write_scene where its body box ended up
+
+
+def car_glb(name):
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models", "props", "cars", name + ".glb")
+
+
+def car(x, z, yaw, colour="car_a", roll=0.0):
+    """A car (cover). Its type and paint come from where it stands (so the map has a mix); colour "rust" = burnt out.
+    roll 90: on its side."""
+    pick = random.Random(f"car {x:.1f} {z:.1f}")
+    kind = pick.choice("abcd")
+    paint = pick.choice(CAR_PAINTS[kind])
+    glb = f"car_{kind}_{'burnt' if colour == 'rust' else paint}"
+    shown = os.path.exists(car_glb(glb))
+    (w, h, length), cab = CAR_TYPES[kind]
+    sink = 0.12 if colour == "rust" else 0.0
+    parts = [(0.0, h / 2 - sink, 0.0, w, h - sink, length)]
+    if cab:
+        cw, top, z0, z1 = cab
+        parts.append((0.0, (h + top) / 2 - sink, (z0 + z1) / 2, cw, top - h, z1 - z0))
     with group():
-        obox(x, 0.55, z, 1.9, 1.1, 4.2, yaw, colour)
-        obox(x, 1.35, z, 1.7, 0.6, 2.2, yaw, colour)
+        cars.append({"glb": glb, "anchor": _anchor[-1], "roll": roll, "at": (x, z)})
+        for px, py, pz, sx, sy, sz in parts:
+            if roll:     # (on its side, the car's left down: its height runs along -x; the body's middle at x, z)
+                px, py, sx, sy = (h - sink) / 2 - py, w / 2 + px, sy, sx
+            c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+            obox(x + px * c + pz * s, py, z - px * s + pz * c, sx, sy, sz, yaw, colour)
+            if shown:    # drawn by the model: collide only (BoxMap: 2)
+                boxes[-1] = boxes[-1][:9] + (2,)
 
 
 def dumpster(x, z, yaw=0.0):
@@ -2346,12 +2381,11 @@ def rubble(x, z, rng):
 def wreck(x, z, rng):
     """A burnt-out car, sometimes on its side."""
     yaw = rng.uniform(0, 180)
-    with group():
-        if rng.random() < 0.3:
-            obox(x, 0.95, z, 1.1, 1.9, 4.2, yaw, "rust", pitch=0.0)
-        else:
-            obox(x, 0.5, z, 1.9, 1.0, 4.2, yaw, "rust")
-            obox(x, 1.25, z, 1.7, 0.5, 2.0, yaw + rng.uniform(-4, 4), "metal")
+    if rng.random() < 0.3:
+        car(x, z, yaw, "rust", roll=90.0)
+    else:
+        rng.uniform(-4, 4)   # (keeps the rest of the scatter where it was)
+        car(x, z, yaw, "rust")
 
 
 def wrecked_truck(x, z, rng):
@@ -2477,7 +2511,14 @@ def _clear_of_map(x, z):
         if b[4] <= 0.06 and max(b[3], b[5]) > 8 and abs(x - (b[0] + M / 2)) < b[3] / 2 + 4 and abs(z - (b[2] + M / 2)) < b[5] / 2 + 4:
             return False
     moved = [(x0, z0, x1, z1, SCATTER_OLD_Z[n]) for n, x0, z0, x1, z1 in footprints if n in SCATTER_OLD_Z]
-    for b in boxes:   # props already placed (stands, campsite, power poles, fences...)
+    car_groups = {c["anchor"] for c in cars}
+    standing = set(anchors)
+    # (a car counts as the 4.2 m gray box it was before the car models: so the scatter stays where it was)
+    if any(math.hypot(x - c["at"][0], z - c["at"][1]) < 2.1 + 6 for c in cars if c["anchor"] in standing):
+        return False
+    for b, a in zip(boxes, anchors):   # props already placed (stands, campsite, power poles, fences...)
+        if a in car_groups:
+            continue
         bz = b[2] + M / 2
         for x0, z0, x1, z1, dz in moved:   # (a moved building's own walls count where they were)
             if x0 - 0.5 < b[0] + M / 2 < x1 + 0.5 and z0 - 0.5 < bz < z1 + 0.5:
@@ -2578,13 +2619,16 @@ def _cover_checker():
     with a grid of the props for speed."""
     cell = 10.0
     grid = {}
-    for b in boxes:
-        if b[4] > 0.2 and max(b[3], b[5]) < 30:
-            r = max(b[3], b[5]) / 2 + 2.5
-            bx, bz = b[0] + M / 2, b[2] + M / 2
-            for i in range(int((bx - r) // cell), int((bx + r) // cell) + 1):
-                for j in range(int((bz - r) // cell), int((bz + r) // cell) + 1):
-                    grid.setdefault((i, j), []).append((bx, bz, r))
+    car_groups = {c["anchor"] for c in cars}
+    # (a car counts as the 4.2 m gray box it was before the car models: so the scatter stays where it was)
+    props = [(b[0] + M / 2, b[2] + M / 2, max(b[3], b[5]) / 2 + 2.5) for b, a in zip(boxes, anchors)
+             if b[4] > 0.2 and max(b[3], b[5]) < 30 and a not in car_groups]
+    standing = set(anchors)
+    props += [(c["at"][0], c["at"][1], 4.6) for c in cars if c["anchor"] in standing]
+    for bx, bz, r in props:
+        for i in range(int((bx - r) // cell), int((bx + r) // cell) + 1):
+            for j in range(int((bz - r) // cell), int((bz + r) // cell) + 1):
+                grid.setdefault((i, j), []).append((bx, bz, r))
     flat = [(b[0] + M / 2, b[2] + M / 2, b[3] / 2 + 2, b[5] / 2 + 2) for b in boxes
             if b[4] <= 0.06 and max(b[3], b[5]) > 8]
 
@@ -3198,6 +3242,9 @@ def terrain():
     for b, a in zip(boxes, anchors):
         if isinstance(a, tuple) and a[0] == "g":
             group_lift[a] = min(group_lift.get(a, float("inf")), low(b))
+    for b, a in zip(boxes, anchors):     # (a car's first box is its body: the model goes where it ended up)
+        if isinstance(a, tuple) and a[0] == "g" and a not in car_at:
+            car_at[a] = (b, group_lift[a])
     out = []
     covers = []
 
@@ -3295,6 +3342,7 @@ def terrain():
 
 
 ground_y = {}
+car_at = {}       # group anchor: (its first box, the group's lift), see terrain()
 
 
 def _moved(b, dy):
@@ -4149,6 +4197,27 @@ def xform(x, y, z, yaw=0.0):
             f"{fmt(gx(x))}, {fmt(y)}, {fmt(gz(z))})")
 
 
+def car_xform(c, b, lift):
+    """Where a car's model goes: under its body box (b, after any turn), on the ground the group was lifted to."""
+    yaw = b[6]
+    if yaw == 0.0 and b[3] > b[5] and not c["roll"]:   # (an unturned box turned a quarter: its sides swapped)
+        yaw = 90.0
+    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    x, z = b[0], b[2]
+    if c["roll"]:      # Ry(yaw) * Rz(roll): the body box sits off the model's middle by its height / 2 (along -x)
+        r = math.radians(c["roll"])
+        cr, sr = math.cos(r), math.sin(r)
+        off = b[3] / 2             # (the box's x size is the car's height on its side)
+        x, z = x + off * cy, z - off * sy
+        y = lift + b[4] / 2        # (the car's half width: its side on the ground)
+        rows = ((cy * cr, -cy * sr, sy), (sr, cr, 0.0), (-sy * cr, sy * sr, cy))
+    else:
+        y = lift
+        rows = ((cy, 0.0, sy), (0.0, 1.0, 0.0), (-sy, 0.0, cy))
+    return ("Transform3D(" + ", ".join(fmt(v) for row in rows for v in row) + f", {fmt(gx(x + M / 2))}, {fmt(y)}, "
+            f"{fmt(gz(z + M / 2))})")
+
+
 def minimap_meta(ter):
     """What the in-raid map (M) draws, in map metres (x east, z south from the top-left corner)."""
     def floats(values):
@@ -4199,6 +4268,11 @@ def write_scene(ter):
         out.append('[ext_resource type="Script" path="res://scripts/pixel_model.gd" id="m_pixel"]')
     for m in shown:
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/buildings/{m["name"]}.glb" id="m_{m["name"]}"]')
+    placed = [(c, car_at[c["anchor"]]) for c in cars if c["anchor"] in car_at and os.path.exists(car_glb(c["glb"]))]
+    if placed and not shown:
+        out.append('[ext_resource type="Script" path="res://scripts/pixel_model.gd" id="m_pixel"]')
+    for glb in sorted({c["glb"] for c, _ in placed}):
+        out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
     out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
             '[node name="OldBloxov" type="Node3D"]',
             'metadata/map_name = "Bloxov Battlegrounds"',
@@ -4224,6 +4298,11 @@ def write_scene(ter):
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',
                 f"transform = {xform(m['x'], m['y'], m['z'], m['turned'])}", 'script = ExtResource("m_pixel")', ""]
+    if placed:
+        out += ['[node name="Cars" type="Node3D" parent="Level/Models"]', ""]
+    for n, (c, (b, lift)) in enumerate(placed):
+        out += [f'[node name="Car{n}" parent="Level/Models/Cars" instance=ExtResource("c_{c["glb"]}")]',
+                f"transform = {car_xform(c, b, lift)}", 'script = ExtResource("m_pixel")', ""]
     out += ['[node name="Loot" type="Node3D" parent="."]', ""]
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
