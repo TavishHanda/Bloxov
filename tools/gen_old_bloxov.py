@@ -2074,6 +2074,49 @@ def junk_office_furniture(ox, oz):
         ("wc_toilet", "W", 3.2, 0.5, 0.65, 0.8), ("wc_sink", "S", -4.2, 0.5, 0.4, 0.85)))
 
 
+def old_house_furniture(n, ox, oz):
+    """The old quarter's houses (World art 0.17), in the model's own coordinates (origin map (ox, oz); local x -6..6,
+    z -5..5, 3 m storeys; rooms NW, NE, SW, SE split at x 0 and z 0). Bombed and left: a little of each family's
+    furniture is still where it stood, clear of the room middles (AI spawns), the doorways and the shell holes.
+    The two-storey houses (1, 7) have the stairs along the north wall (foot east, top west) and their south rooms
+    upstairs open to the sky; 6 (spawn 5's cover) is whole."""
+    def o(x0, y0, z0, x1, y1, z1, kind, colour="wood", solid=True, y=0.0):
+        box(ox + x0, y + y0, oz + z0, ox + x1, y + y1, oz + z1, colour, solid=solid, kind=kind)
+    up = FLOOR_H
+    if n in (1, 7):
+        if n == 1:      # (its kitchen's west wall is blown in: the cupboards on the inside wall)
+            o(-1.9, 0, -0.7, -0.15, 0.9, -0.1, "kitchen_run")
+        else:
+            o(-5.85, 0, -2.4, -5.25, 0.9, -0.2, "kitchen_run")
+        o(5.4, 0, -4.6, 5.85, 0.5, -3.4, "shoe_bench")
+        washroom(ox, oz, 4.15, -1.75, 5.85, -0.1, "WN", ("W", -0.95, 2), fit=(
+            ("wc_toilet", "S", 5.3, 0.5, 0.65, 0.8), ("wc_sink", "E", -1.2, 0.5, 0.4, 0.85)))
+        o(-5.4, 0, 4.0, -3.4, 0.9, 4.85, "house_sofa")
+        o(-4.8, 0, 1.4, -1.4, 0.02, 3.6, "house_rug", solid=False)
+        o(-2.9, 0, 4.0, -2.1, 0.95, 4.8, "armchair")
+        if n == 1:
+            o(4.2, 0, 0.5, 5.7, 0.9, 2.0, "dining_table")
+        else:           # (its east wall is blown in)
+            o(3.0, 0, 3.7, 4.5, 0.85, 4.85, "kitchen_table")
+        o(4.3, 0, -0.95, 5.85, 0.6, -0.1, "house_bed", y=up)      # upstairs, under the roof that's left
+    elif n == 6:
+        o(-5.85, 0, -4.6, -5.25, 0.9, -0.4, "kitchen_run")
+        o(-1.9, 0, -4.6, -0.4, 0.85, -3.5, "kitchen_table")
+        o(-5.6, 0, 4.4, -4.4, 0.5, 4.85, "shoe_bench")
+        o(-1.9, 0, 0.15, -0.2, 0.9, 1.0, "house_sofa")
+        o(-1.2, 0, 3.9, -0.3, 0.95, 4.7, "armchair")
+        o(4.0, 0, -4.85, 5.85, 0.6, -3.3, "house_bed")
+        o(5.4, 0, 0.6, 5.85, 0.55, 1.8, "tv_stand")
+        washroom(ox, oz, 4.2, 3.2, 5.85, 4.85, "WN", ("W", 4.0, 2), fit=(
+            ("wc_toilet", "E", 4.2, 0.5, 0.65, 0.8), ("wc_sink", "S", 5.3, 0.5, 0.4, 0.85)))
+    elif n == 8:
+        o(5.25, 0, -4.6, 5.85, 0.9, -2.0, "kitchen_run")
+        washroom(ox, oz, 0.1, -4.85, 1.8, -3.55, "SE", ("E", -4.2, 2), fit=(
+            ("wc_toilet", "N", 0.9, 0.5, 0.65, 0.8),))
+        o(-5.6, 0, 0.3, -4.8, 0.95, 1.1, "armchair")
+        o(-1.9, 0, 0.15, -0.2, 0.6, 1.25, "house_bed")
+
+
 def build(b, loot_spots=()):
     """loot_spots: (kind, room i, room j, floor, wall side, offset[, look])."""
     footprints.append((b.name, b.x0, b.z0, b.x1, b.z1))
@@ -2763,6 +2806,11 @@ EXTRA_PADS = [
     (328.0, 237.0, 333.0, 245.0),  # and its east wall
     (284.0, 314.5, 291.5, 320.0),  # the rubble blown out of the diner's front (World art 0.17)
     (279.5, 332.0, 284.0, 337.5),  # and its back
+    (201.0, 274.0, 209.5, 279.5),  # the rubble blown out of OldHouse1's south wall (World art 0.17)
+    (190.5, 264.0, 196.0, 271.0),  # and its west wall
+    (160.0, 316.0, 166.4, 324.0),  # rubble blown out of OldHouse7's east wall (World art 0.17)
+    (148.5, 322.0, 156.0, 328.5),  # and its south wall
+    (208.0, 266.5, 213.7, 271.0),  # and OldHouse1's east wall (upstairs)
     (124.0, 168.0, 178.0, 182.0),  # the trench
     (249.0, 271.0, 277.0, 299.0),  # the checkpoint
     (58.0, 260.0, 74.0, 274.0),    # campsite
@@ -3630,9 +3678,11 @@ def main():
               7: dict(blasts=[(1, "S", 0), (0, "E", 1)], caved=[(0, 1), (1, 1)]),
               8: dict(blasts=[(0, "S", 0), (0, "E", 1)], caved=[(1, 1), (0, 0)])}
     for n, (x, y) in [(1, (196, 264)), (6, (164, 276)), (7, (148, 312)), (8, (214, 316))]:
-        build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
-                       **damage.get(n, {})),
-              [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
+        with modeled(f"old_house_{n}", x + 6.0, y + 5.0):     # (World art 0.17: the old quarter's houses)
+            build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
+                           **damage.get(n, {})),
+                  [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
+            old_house_furniture(n, x + 6.0, y + 5.0)
     with modeled("signal_box", 322.0, 243.0):
         # The signal box (World art 0.17, owner 2026-10-17: what should the house beside the depot be): OldHouse3
         # becomes Bloxov Junction's signal box, same size, rooms and loot (the place name stays, so the loot does).

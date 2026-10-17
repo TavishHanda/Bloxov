@@ -19932,6 +19932,250 @@ DRESSING["junkyard"] = dress_junkyard
 FOOTPRINTS["junkyard"] = JY_FP
 
 
+# ------------------------------------------------------------------------------------------------ old houses (0.17)
+# The old quarter's houses (bottom right, the part of town that got bombed; owner 2026-10-17: "a lot more war
+# ruined"), OldHouse1/6/7/8: 12 x 10 m, local x -6..6, z -5..5, rooms NW/NE/SW/SE split at x 0 and z 0, 3 m storeys
+# (1 and 7 have two, 6 and 8 one). A gable roof along x (picture only; the flat slabs still collide) with the
+# quarters over caved rooms blown off, their rafters broken. 6 is whole (spawn 5's cover). Families' furniture uses
+# the house props (HOUSES entries below, "farmer": the old-fashioned range, patchwork, the old folks' shoes).
+# OH_LOOKS are the outside options (env BLOXOV_OH_LOOK for the sheet): each house's walls and roof.
+OH_LOOKS = {
+    "B": {"ext": {1: "st_wash", 6: "sb_cream", 7: "render", 8: "st_wash"},
+          "roof": {1: "roof_slate", 6: "roof_clay", 7: "roof_charcoal", 8: "roof_clay"}},
+    "C": {"ext": {1: "house_stone", 6: "ch_fieldstone", 7: "house_granite", 8: "house_stone"},
+          "roof": {1: "roof_slate", 6: "roof_charcoal", 7: "roof_slate", 8: "roof_charcoal"}},
+    "D": {"ext": {1: "house_brick", 6: "farm_siding", 7: "st_stock", 8: "barn_boards"},
+          "roof": {1: "roof_clay", 6: "roof_slate", 7: "roof_charcoal", 8: "roof_slate"}},
+}
+OH_LOOK = os.environ.get("BLOXOV_OH_LOOK", "B")
+OH_FP = (-6.0, -5.0, 6.0, 5.0)
+OH_FLOORS = {1: 2, 6: 1, 7: 2, 8: 1}
+OH_CAVED = {1: ((1, 1), (0, 1)), 6: (), 7: ((0, 1), (1, 1)), 8: ((1, 1), (0, 0))}   # (as in the gen's damage)
+OH_KITCHEN = {1: "NW", 6: "NW", 7: "NW", 8: "NE"}
+OH_PEOPLE = {
+    1: {"shutter": "green", "paper": "paper_green", "fabric": "wine", "rug": ("wine", "bone"), "bed": "olive", "num": "2",
+        "kitchen": "olive"},
+    6: {"shutter": "wine", "paper": "paper_cream", "fabric": "teal", "rug": ("teal", "bone"), "bed": "wine", "num": "4",
+        "kitchen": "wood_dark"},
+    7: {"shutter": "blue", "paper": "paper_blue", "fabric": "black", "rug": ("wine", "black"), "bed": "trim_dark", "num": "6",
+        "kitchen": "blue"},
+    8: {"shutter": "olive_dark", "paper": "paper_cream", "fabric": "wine", "rug": ("wine", "bone"), "bed": "olive", "num": "8",
+        "kitchen": "wood_dark"},
+}
+
+
+def oh_n():
+    return int(BUILDING_NAME[0].rsplit("_", 1)[1])
+
+
+def oh_ext(m=None):
+    return OH_LOOKS[OH_LOOK]["ext"][oh_n()]
+
+
+def oh_room(m):
+    return ("N" if m[2] < 0 else "S") + ("W" if m[0] < 0 else "E"), (1 if m[1] > 2.95 else 0)
+
+
+def oh_inner(m):
+    room, f = oh_room(m)
+    if f == 0 and room == OH_KITCHEN[oh_n()]:
+        return "int_tile"
+    return OH_PEOPLE[oh_n()]["paper"]
+
+
+def oh_floor(m):
+    room, f = oh_room(m)
+    if f == 0 and room == OH_KITCHEN[oh_n()]:
+        return "floor_tile"
+    return "floor_wood"
+
+
+def oh_decals(rng):
+    a = house_decals(rng)
+
+    def hole(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        c.rect(1, 1, 3, 3, "black")
+        c.put(0, 1, "iron")
+        c.put(3, 2, "iron")
+    a.add("hole", 4, 4, hole)
+    return a
+
+
+def caved_old_house(ctx, c, s):
+    """A room with its roof blown off: rafter ends broken off along the walls, one rafter down across the room,
+    slates and plaster all over the floor (kept low: you walk over it), a soaked, scorched patch of floor."""
+    b, rng = ctx.b, random.Random(f"caved_oh{BUILDING_NAME[0]}{c}")
+    y = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    top = y + 2.85
+    roof = OH_LOOKS[OH_LOOK]["roof"][oh_n()]
+    for k in range(5):                                                  # joist stubs on the outer wall
+        x = x0 + 0.6 + k * (s[0] - 1.2) / 4
+        ze, sg = (z1, -1) if c[2] > 0 else (z0, 1)
+        L = rng.uniform(0.3, 1.6)
+        _beam(b, (x, top + 0.08, ze), (x, top + 0.08 - L * rng.uniform(0.0, 0.35), ze + sg * L), 0.08, 0.18, "wood_dark")
+    p0 = (x0 + rng.uniform(1.0, 2.0), top, z1 - 0.2 if c[2] > 0 else z0 + 0.2)
+    _beam(b, p0, (x1 - rng.uniform(1.2, 2.2), y + 0.1, (z0 + z1) / 2 + rng.uniform(-0.8, 0.8)), 0.1, 0.18, "wood_dark")
+    for _ in range(26):                                                 # slates
+        _box(b, rng.uniform(x0 + 0.4, x1 - 0.4), y + 0.03, rng.uniform(z0 + 0.4, z1 - 0.4), rng.uniform(0.15, 0.4), 0.03,
+             rng.uniform(0.12, 0.28), roof, yaw=rng.uniform(0, 90), pitch=rng.uniform(-8, 8))
+    for _ in range(8):                                                  # laths and boards
+        b.box((rng.uniform(x0 + 0.8, x1 - 0.8), y + 0.04, rng.uniform(z0 + 0.8, z1 - 0.8)), (rng.uniform(0.6, 1.6), 0.04, 0.1),
+              yaw=rng.uniform(0, 180), pitch=rng.uniform(-6, 6), style=no_bottom(rng.choice(("wood", "wood_dark")), 1.0))
+    for _ in range(5):
+        rubble_chunk(b, (rng.uniform(x0 + 0.8, x1 - 0.8), y + 0.08, rng.uniform(z0 + 0.8, z1 - 0.8)),
+                     (rng.uniform(0.2, 0.45), rng.uniform(0.08, 0.2), rng.uniform(0.2, 0.45)), rng, ("concrete", oh_ext()))
+    b.box((c[0] + rng.uniform(-1, 1), y + 0.026, c[2] + rng.uniform(-1, 1)), (rng.uniform(1.6, 2.6), 0.01, rng.uniform(1.4, 2.2)),
+          yaw=rng.uniform(0, 90), style=no_bottom("black", 1.0))
+
+
+def dress_old_house(ctx):
+    b, rng = ctx.b, random.Random(BUILDING_NAME[0] + "dress")
+    n = oh_n()
+    fp = OH_FP
+    ext, roof = oh_ext(), OH_LOOKS[OH_LOOK]["roof"][n]
+    pv = OH_PEOPLE[n]
+    opens = ctx.data.get("openings", [])
+    H = 3.0 * OH_FLOORS[n]
+    caved = set(OH_CAVED[n])
+    st = lambda mat, tile=1.0: (lambda n_, m_, q: (mat, uv_world(tile)))
+
+    def side_at(side, out):
+        sg = 1 if side in "SE" else -1
+        return {"N": fp[1], "S": fp[3], "W": fp[0], "E": fp[2]}[side] + sg * out
+
+    def quad(side, a, y0, y1, w, region, push=0.02, mat="decals"):
+        at = side_at(side, 0.15 + push)
+        nn = {"N": (0, 0, -1), "S": (0, 0, 1), "W": (-1, 0, 0), "E": (1, 0, 0)}[side]
+        wall_quad(b, nn, at, a - w / 2, a + w / 2, y0, y1, mat, ctx.d(region))
+
+    def band(side, y0, y1, d, mat):
+        ns = side in "NS"
+        a0, a1 = (fp[0], fp[2]) if ns else (fp[1], fp[3])
+        a0, a1 = a0 - 0.15 - d, a1 + 0.15 + d
+        cuts = sorted((o["mid"] - o["w"] / 2 - 0.02, o["mid"] + o["w"] / 2 + 0.02) for o in opens
+                      if o["side"] == side and o["lo"] < y1 and o["hi"] > y0)
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            if c0 > a:
+                segs.append((a, c0))
+            a = max(a, c1)
+        segs.append((a, a1))
+        at = side_at(side, 0.15 + d / 2)
+        for s0, s1 in segs:
+            if s1 - s0 > 0.02:
+                m = (s0 + s1) / 2
+                b.box((m, (y0 + y1) / 2, at) if ns else (at, (y0 + y1) / 2, m),
+                      (s1 - s0, y1 - y0, d) if ns else (d, y1 - y0, s1 - s0), style=st(mat))
+    for side in "NSWE":
+        band(side, 0.0, 0.35, 0.05, "concrete")                                  # plinth
+        if H > 3.0:
+            band(side, 2.95, 3.08, 0.05, "wood_dark")                             # the floor line
+    # Windows: painted frames, shutters (some hanging off, some gone); a few boarded up before they left.
+    for o in opens:
+        if o["kind"] != "window":
+            continue
+        window_trim(b, o, fp, "farmer")
+        shutters(b, o, fp, pv["shutter"], random.Random(f"oh{n}{o['side']}{o['mid']}{o['lo']}"))
+        if rng.random() < 0.3:
+            side, mid, w, lo, hi = o["side"], o["mid"], o["w"], o["lo"], o["hi"]
+            ns = side in "NS"
+            at = side_at(side, 0.2)
+            for j in range(rng.randint(1, 3)):
+                y = lo + 0.3 + j * 0.42 + rng.uniform(-0.05, 0.05)
+                b.box((mid, y, at) if ns else (at, y, mid), (w + 0.2, 0.18, 0.025) if ns else (0.025, 0.18, w + 0.2),
+                      yaw=0, pitch=0, style=st("wood"))
+    # The house number by the front door.
+    for o in opens:
+        if o["kind"] == "door":
+            quad(o["side"], o["mid"] + o["w"] / 2 + 0.35, 1.7, 1.7 + 9 / 32, 15 / 32, "num", push=0.02)
+    # The gable roof: ridge along x at H + 2, eaves at H over a 0.4 m overhang; each quarter over a caved room is
+    # gone, the rafters there broken off.
+    x0, x1 = fp[0] - 0.55, fp[2] + 0.55
+    z0, z1 = fp[1] - 0.55, fp[3] + 0.55
+    base, top, e = H, H + 2.0, 0.12
+    rise = (top - base) / (fp[3] + 0.55)
+    for i, (xa, xb) in enumerate(((x0, 0.0), (0.0, x1))):
+        for j, ze in enumerate((z0, z1)):
+            if (i, j) in caved:
+                for k in range(6):                                                 # broken rafters
+                    x = xa + 0.4 + k * (xb - xa - 0.8) / 5
+                    L = rng.uniform(0.6, 3.6)
+                    zz = ze * (1 - L / abs(ze))
+                    _beam(b, (x, base + 0.05, ze * 0.97), (x + rng.uniform(-0.25, 0.25), base + 0.05 + (abs(ze) - abs(zz)) * rise, zz),
+                          0.1, 0.16, "wood_dark")
+                for k in range(3):                                                 # torn edges of the slope
+                    xm = rng.uniform(xa + 0.6, xb - 0.6)
+                    zt = ze * rng.uniform(0.15, 0.35)
+                    _beam(b, (xm, top + e - 0.02, 0.0), (xm + rng.uniform(-0.6, 0.6), top + e - 0.02 - abs(zt) * rise, zt), 0.8, 0.04, roof)
+                continue
+            pts = [(xa, base + e, ze), (xb, base + e, ze), (xb, top + e, 0.0), (xa, top + e, 0.0)]
+            nn = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[-1], pts[0])))
+            if nn[1] < 0:
+                nn = v_scale(nn, -1)
+            b.poly(pts, nn, roof, uv_slope(4.0))
+            b.poly(pts[::-1], v_scale(nn, -1), "wood", uv_world(1.0))
+    # Gable ends: a whole triangle of wall, or the half still standing (a ragged step where the roof's gone).
+    for x, nx, i in ((fp[0] - 0.15, -1, 0), (fp[2] + 0.15, 1, 1)):
+        za, zb = fp[1] - 0.15, fp[3] + 0.15
+        keep_n, keep_s = (i, 0) not in caved, (i, 1) not in caved
+        if keep_n and keep_s:
+            tris = [[(x, base, za), (x, base, zb), (x, top, 0.0)]]
+        elif keep_n:
+            tris = [[(x, base, za), (x, base, 0.0), (x, top, 0.0)], [(x, base, 0.0), (x, base, 1.6), (x, top - 0.9, 0.0)]]
+        elif keep_s:
+            tris = [[(x, base, 0.0), (x, base, zb), (x, top, 0.0)], [(x, base, -1.6), (x, base, 0.0), (x, top - 0.9, 0.0)]]
+        else:
+            tris = [[(x, base, -1.2), (x, base, 1.4), (x, base + 0.8, 0.2)]]
+        for tri in tris:
+            b.poly(tri if nx > 0 else tri[::-1], (nx, 0, 0), ext, uv_world(2.0))
+            b.poly(tri[::-1] if nx > 0 else tri, (-nx, 0, 0), "wood", uv_world(2.0))
+        if keep_n or keep_s:
+            for zz, keep in ((z0, keep_n), (z1, keep_s)):                        # barge boards
+                if keep:
+                    _beam(b, (x + nx * 0.4, top + e + 0.02, 0.0), (x + nx * 0.4, base + e + 0.02, zz), 0.06, 0.2, "wood_dark")
+    if (0, 0) not in caved or (1, 0) not in caved:
+        xs = [0.0 if (0, 0) in caved else x0, 0.0 if (1, 0) in caved else x1]
+        _box(b, (xs[0] + xs[1]) / 2, top + e + 0.05, 0.0, xs[1] - xs[0] - 0.1, 0.12, 0.22, roof)          # ridge
+    # A brick chimney on the ridge (the kitchen's), knocked crooked on the bombed ones.
+    cx = -3.0 if OH_KITCHEN[n][1] == "W" else 3.0
+    if (0 if cx < 0 else 1, 0) not in caved:
+        lean = 0.0 if not caved else rng.uniform(4, 9)
+        b.box((cx, top + 0.6, -0.5), (0.7, 1.6, 0.6), yaw=0, pitch=lean, style=st("brick"))
+        b.box((cx, top + 1.45, -0.5), (0.85, 0.12, 0.75), yaw=0, pitch=lean, style=st("concrete"))
+    # Bullet holes all round, most on the sides facing the old front line (south and east).
+    for side, a0, a1, cnt in (("N", -5.8, 5.8, 14), ("S", -5.8, 5.8, 30), ("E", -4.8, 4.8, 24), ("W", -4.8, 4.8, 12)):
+        for _ in range(cnt):
+            a, y = rng.uniform(a0, a1), rng.uniform(0.5, H - 0.3)
+            if any(o["side"] == side and abs(o["mid"] - a) < o["w"] / 2 + 0.25 and o["lo"] - 0.2 < y < o["hi"] + 0.25 for o in opens):
+                continue
+            if abs(y - 3.0) < 0.12:
+                continue
+            quad(side, a, y, y + 0.125, 0.125, "hole", push=0.08, mat="graffiti")
+
+
+for _n in (1, 6, 7, 8):
+    _name = f"old_house_{_n}"
+    HOUSES[_name] = dict(OH_PEOPLE[_n], who="farmer", roof=OH_LOOKS[OH_LOOK]["roof"][_n], ext=OH_LOOKS[OH_LOOK]["ext"][_n],
+                         roof_shape="gable", porch="wood", band="wood", floors=("floor_wood", "floor_wood", "floor_tile"),
+                         lights="lantern")
+    CAVED[_name] = caved_old_house
+    DECALS[_name] = oh_decals
+    DRESSING[_name] = dress_old_house
+    FOOTPRINTS[_name] = OH_FP
+    ENTRANCE_DOOR[_name] = OH_PEOPLE[_n]["shutter"]
+    WC_MATS[_name] = ("wc_tile", "wc_floor")
+    SHELLS[_name] = {
+        "ext": OH_LOOKS[OH_LOOK]["ext"][_n], "roof_side": OH_LOOKS[OH_LOOK]["ext"][_n], "roof_hidden": True,
+        "inner": oh_inner, "floor": oh_floor, "ceiling": lambda m: "house_ceiling", "x_lines": (-6.0, 0.0, 6.0),
+        "z_lines": (-5.0, 0.0, 5.0), "x_splits": (0.0,), "z_splits": (0.0,), "core": "rubble_core",
+        "debris": ("concrete", OH_LOOKS[OH_LOOK]["ext"][_n], "wood", "concrete"),
+    }
+FACTION_MARKS.update({"old_house_1": [("x1_stencil", "S", -3.0, 2.6)], "old_house_7": [("nova_tag", "E", 0.0, 1.2)],
+                      "old_house_8": [("x1_chalk", "N", -3.0, 0.4)]})
+
+
 def floor_debris(ctx, data, name):
     """Small bits of the building lying about on every floor (round 6, owner: "add actual small bits of debris so it
     feels like it's been bombed"): clusters of plaster and brick chips and a bit of dust, kept off furniture. Picture
