@@ -148,9 +148,11 @@ MODEL_JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", 
 @contextlib.contextmanager
 def modeled(name, x, z, turned=False):
     # Until the model is exported the gray box stays visible (the .json is still written for the build script).
-    # turned: everything made in here is turned half round (x, z) afterwards, and the model drawn turned to match (owner,
+    # turned: everything made in here is turned round (x, z) afterwards, and the model drawn turned to match (owner,
     # police round 3: "the entrance is facing away from the street"); its .json stays as built, the model's own frame.
-    m = {"name": name, "x": x, "z": z, "boxes": [], "hide": os.path.exists(model_path(name)), "turned": turned}
+    # True = half a turn; or a yaw in degrees (90: the model's south side faces east, the shops).
+    turn = 180.0 if turned is True else float(turned or 0.0) % 360.0
+    m = {"name": name, "x": x, "z": z, "boxes": [], "hide": os.path.exists(model_path(name)), "turned": turn}
     models.append(m)
     _model.append(m)
     counts = (len(boxes), len(markers), len(loot), len(buildings))
@@ -158,24 +160,79 @@ def modeled(name, x, z, turned=False):
         yield
     finally:
         _model.pop()
-        if turned:
-            _turn_half(x, z, *counts)
+        if turn % 180.0:
+            # A quarter turn changes the building's footprint: it's turned after the random scatter (trees, clutter,
+            # cover) is settled, so the scatter doesn't reshuffle map-wide; what then stands in its way is cleared.
+            late_turns.append((x, z, turn, counts, (len(boxes), len(markers), len(loot), len(buildings))))
+        elif turn:
+            _turn(x, z, turn, counts, (len(boxes), len(markers), len(loot), len(buildings)))
 
 
-def _turn_half(x, z, nb, nm, nl, nbuild):
-    """Turns the boxes, doors and loot made since the counts half a turn round map point (x, z)."""
-    for k in range(nb, len(boxes)):
+late_turns = []   # (x, z, deg, box/marker/loot/building counts before and after) of quarter-turned models, see apply_late_turns
+
+
+def apply_late_turns(margin=3.0):
+    """Turns the quarter-turned models (see `modeled`), then drops the scatter pieces that now stand in or round them."""
+    for x, z, deg, start, end in late_turns:
+        _turn(x, z, deg, start, end)
+        for b in buildings[start[3]:end[3]]:
+            r = next(f for f in footprints if f[0] == b.name)[1:]
+            clear_scatter((r[0] - margin, r[1] - margin, r[2] + margin, r[3] + margin) if b.name not in SCATTER_CLEAR
+                          else SCATTER_CLEAR[b.name])
+
+
+def clear_scatter(rect):
+    """Drops every scatter piece (clutter, cover, trees) with a box in rect (map x0, z0, x1, z1), whole."""
+    x0, z0, x1, z1 = rect
+    for piece in reversed(scatter_pieces):
+        (b0, b1), *rest = piece[1]
+        if not any(x0 < boxes[k][0] + M / 2 < x1 and z0 < boxes[k][2] + M / 2 < z1 for k in range(b0, b1)):
+            continue
+        del boxes[b0:b1]
+        del anchors[b0:b1]
+        for lst, (a0, a1) in zip((trunks, craters, clutter_spots, woods), rest):
+            del lst[a0:a1]
+        scatter_pieces.remove(piece)
+
+
+def turn_point(px, pz, x, z, deg):
+    """(px, pz) turned `deg` (Godot yaw: 90 takes +z to +x) round (x, z)."""
+    c, s = round(math.cos(math.radians(deg)), 9), round(math.sin(math.radians(deg)), 9)
+    dx, dz = px - x, pz - z
+    return x + dx * c + dz * s, z - dx * s + dz * c
+
+
+def _turn(x, z, deg, start, end):
+    """Turns the boxes, doors, loot and buildings made between the counts `start` and `end` (each box, marker, loot,
+    building) `deg` round map point (x, z)."""
+    (nb, nm, nl, nbuild), (eb, em, el, ebuild) = start, end
+    quarter = deg % 180.0 != 0.0
+    for k in range(nb, eb):
         b = boxes[k]
-        yaw = b[6] if b[6] == 0.0 and b[7] == 0.0 else (b[6] + 180.0) % 360.0
-        boxes[k] = (2 * gx(x) - b[0], b[1], 2 * gz(z) - b[2]) + b[3:6] + (yaw,) + b[7:]
-    for k in range(nm, len(markers)):
+        bx, bz = turn_point(b[0], b[2], gx(x), gz(z), deg)
+        sx, sz = b[3], b[5]
+        if b[6] == 0.0 and b[7] == 0.0:
+            yaw = 0.0
+            if quarter:
+                sx, sz = sz, sx   # (an unturned box stays unturned: its sides swap)
+        else:
+            yaw = (b[6] + deg) % 360.0
+        boxes[k] = (bx, b[1], bz, sx, b[4], sz, yaw) + b[7:]
+    for k in range(nm, em):
         g, name, mx, my, mz, meta = markers[k]
-        markers[k] = (g, name, 2 * x - mx, my, 2 * z - mz, meta)
-    for k in range(nl, len(loot)):
+        mx, mz = turn_point(mx, mz, x, z, deg)
+        if quarter and "yaw" in meta:   # (half a turn leaves a doorway's leaf where it was: police kept that)
+            meta = dict(meta, yaw=(meta["yaw"] + deg) % 360.0)
+        markers[k] = (g, name, mx, my, mz, meta)
+    for k in range(nl, el):
         name, kind, lx, ly, lz, yaw, table, place = loot[k]
-        loot[k] = (name, kind, 2 * x - lx, ly, 2 * z - lz, (yaw + 180.0) % 360.0, table, place)
-    for b in buildings[nbuild:]:
-        b.turned_about = (x, z)   # (its rooms, strips etc. stay as built: indoor spawns turn their points)
+        lx, lz = turn_point(lx, lz, x, z, deg)
+        loot[k] = (name, kind, lx, ly, lz, (yaw + deg) % 360.0, table, place)
+    for b in buildings[nbuild:ebuild]:
+        b.turned_about = (x, z, deg)   # (its rooms, strips etc. stay as built: indoor spawns turn their points)
+        k = next(i for i, f in enumerate(footprints) if f[0] == b.name)
+        (ax, az), (bx, bz) = turn_point(b.x0, b.z0, x, z, deg), turn_point(b.x1, b.z1, x, z, deg)
+        footprints[k] = (b.name, min(ax, bx), min(az, bz), max(ax, bx), max(az, bz))
 
 
 @contextlib.contextmanager
@@ -211,7 +268,8 @@ def write_model_boxes(ter):
                  "size": [round(v, 3) for v in b[3:6]], "yaw": b[6], "pitch": b[7], "colour": names[b[8]],
                  "solid": bool(b[9]), "kind": kind} for b, kind in m["boxes"]]
         y = ter.lift(m["x"], m["z"])
-        bad = [b for b, _ in m["boxes"] if abs(ter.lift(b[0] + M / 2, b[2] + M / 2) - y) > 0.01]
+        bad = [b for b, _ in m["boxes"]   # (a turned model's boxes are kept unturned, in its own frame)
+               if abs(ter.lift(*turn_point(b[0] + M / 2, b[2] + M / 2, m["x"], m["z"], m["turned"])) - y) > 0.01]
         assert not bad, f"{m['name']}: not all on one pad ({len(bad)} boxes off it)"
         m["y"] = y
         opens = []
@@ -1434,6 +1492,11 @@ def build(b, loot_spots=()):
     return b
 
 
+def shops_frontage():
+    """The pavement in front of the shops, out to Old Road (made after the scatter, like the shops' turn)."""
+    box(36, 0.0, 112, 44.5, 0.06, 141, "pavement", solid=False)
+
+
 # ---------------------------------------------------------------------------------------------- ground
 def ground(holes):
     """The old flat grass, cut round `holes` (openings down to the bunker, the trench). Since 0.11.17 the real ground
@@ -1453,7 +1516,9 @@ roads = []        # (points, width) of every road, for the overlap check
 footprints = []   # (name, x0, z0, x1, z1) of every building
 # Buildings moved after the random scatter (trees, poles, clutter) was settled: the scatter keeps clear of where they
 # were, so moving one doesn't reshuffle the trees and cover all over the map (z offset back to the old spot).
-SCATTER_OLD_Z = {"TownHall": -4.0}   # world art round 5 (owner): the town hall moved 4 m south, away from the square
+SCATTER_OLD_Z = {"TownHall": -4.0}
+# Ground kept clear round a quarter-turned building (default: its footprint and 3 m round it), map x0, z0, x1, z1.
+SCATTER_CLEAR = {"Shops": (20, 108, 49, 144)}   # (owner, world art: the shops turned to face Old Road, front kept open)   # world art round 5 (owner): the town hall moved 4 m south, away from the square
 
 
 def scatter_footprints():
@@ -1771,6 +1836,18 @@ def bits(x, z, rng):
              rng.uniform(0.6, 2.2), rng.uniform(0, 180), rng.choice(("wood", "metal", "stone", "rust")), solid=False)
 
 
+scatter_pieces = []   # (spot, [(start, end) in boxes, trunks, craters, clutter_spots, woods]) of each scatter piece
+
+
+@contextlib.contextmanager
+def scatter_piece(x, z):
+    """Notes what the scatter piece made in here added (so `clear_scatter` can take it back out whole)."""
+    lists = (boxes, trunks, craters, clutter_spots, woods)
+    start = [len(lst) for lst in lists]
+    yield
+    scatter_pieces.append(((x, z), [(a, len(lst)) for a, lst in zip(start, lists)]))
+
+
 def clutter(spacing=18.0):
     rng = random.Random(4100)
     placed = []
@@ -1781,11 +1858,12 @@ def clutter(spacing=18.0):
             continue
         placed.append((x, z))
     for x, z in placed:
-        kind = rng.choice(kinds)
-        kind(x, z, rng)
-        bits(x, z, rng)
-        if kind is not crater:   # (wrecks and rubble get a level spot on the hills; craters are dug into them)
-            clutter_spots.append((x, z))
+        with scatter_piece(x, z):
+            kind = rng.choice(kinds)
+            kind(x, z, rng)
+            bits(x, z, rng)
+            if kind is not crater:   # (wrecks and rubble get a level spot on the hills; craters are dug into them)
+                clutter_spots.append((x, z))
     return placed
 
 
@@ -1799,8 +1877,9 @@ def cover_pass(spacing=11.0, tries=6000):
         if any(math.hypot(x - px, z - pz) < spacing for px, pz in placed) or not _clear_of_map(x, z):
             continue
         placed.append((x, z))
-        rng.choice(kinds)(x, z, rng)
-        clutter_spots.append((x, z))
+        with scatter_piece(x, z):
+            rng.choice(kinds)(x, z, rng)
+            clutter_spots.append((x, z))
     return placed
 
 
@@ -1862,7 +1941,8 @@ def planned_cover():
                 continue
             rng = random.Random(int(x * 1000 + z))
             kind = rng.choice((ruin_wall, ruin_wall, ruin_wall, container, berm, berm))
-            kind(x, z, rng, yaw)   # (no level pad: these stand on the hill tops, they sink into the slope instead)
+            with scatter_piece(x, z):
+                kind(x, z, rng, yaw)   # (no level pad: these stand on the hill tops, they sink into the slope instead)
             ok = _cover_checker()   # (so the next one keeps its distance)
     # Where the next round of cover could go (open ground on a 4 m grid), for tools/sightlines.gd.
     free = [[x, z] for x in range(10, int(M) - 9, 4) for z in range(10, int(M) - 9, 4) if ok(x, z)]
@@ -1929,16 +2009,17 @@ def scatter_trees(spots, spacing=34.0):
             continue
         placed.append((x, z))
     for x, z in placed:
-        n = rng.choice((1, 1, 1, 2))
-        dead = rng.random() < 0.6   # most trees out here are dead or burnt (owner, 0.11.8)
-        for k in range(n):
-            a = rng.uniform(0, 360)
-            r = 0.0 if k == 0 else rng.uniform(3.5, 5.0)
-            (dead_tree if dead else tree)(x + r * math.sin(math.radians(a)), z + r * math.cos(math.radians(a)), rng)
-        if not dead:
-            if rng.random() < 0.4:
-                bush(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4), rng)
-            woods.append((x, z, 2.0 + 2.0 * (n > 1)))
+        with scatter_piece(x, z):
+            n = rng.choice((1, 1, 1, 2))
+            dead = rng.random() < 0.6   # most trees out here are dead or burnt (owner, 0.11.8)
+            for k in range(n):
+                a = rng.uniform(0, 360)
+                r = 0.0 if k == 0 else rng.uniform(3.5, 5.0)
+                (dead_tree if dead else tree)(x + r * math.sin(math.radians(a)), z + r * math.cos(math.radians(a)), rng)
+            if not dead:
+                if rng.random() < 0.4:
+                    bush(x + rng.uniform(-4, 4), z + rng.uniform(-4, 4), rng)
+                woods.append((x, z, 2.0 + 2.0 * (n > 1)))
     return placed
 
 
@@ -2047,6 +2128,7 @@ HILL_CLEAR = 20.0   # hills reach full height this far from a road or the creek 
 
 # Extra flat pads (map x0, z0, x1, z1) for things that stand outside a building's footprint.
 EXTRA_PADS = [
+    (36.0, 112.0, 46.0, 141.0),    # the pavement in front of the shops (shops_frontage)
     (61.5, 98.5, 72.5, 114.5),    # town gas station forecourt
     (295.0, 334.0, 331.0, 343.0),  # old gas station canopy
     (196.0, 204.0, 246.0, 208.0),  # station platform
@@ -2473,7 +2555,7 @@ def terrain():
     boxes = out
     for x0, z0, x1, z1, top in covers:   # (no ground poking up through a floor or a yard: it flickers)
         poke = max(ter.at(x0 + (x1 - x0) * i / 12, z0 + (z1 - z0) * k / 12) for i in range(13) for k in range(13))
-        assert poke < top - 0.03, f"the ground pokes through the cover at {x0:.0f}, {z0:.0f}"
+        assert poke < top - 0.03, f"the ground pokes through the cover at {x0:.0f}, {z0:.0f} ({poke:.2f} vs {top:.2f})"
     ter.hide_under(covers)
     # the edge of the map: a wall that follows the ground
     for k in range(35):
@@ -2707,11 +2789,19 @@ def main():
     box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
     car(158, 66, 0); car(164, 74, 0, "car_b")
     # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)
-    with modeled("shops", 29.5, 126.5):   # World art 0.17: laundromat (west), shoe store (middle), burned-out TV shop
+    with modeled("shops", 29.5, 126.5, turned=90):   # World art 0.17: laundromat (west), shoe store (middle), burned-out TV shop
         # The flat's bathroom (owner, 2026-10-16), upstairs beside the stairwell: a bath, the toilet, a basin.
         washroom(29.5, 126.5, -7.2, -6.35, -4.93, -4.1, "WS", ("S", -5.6, -1), y=FLOOR_H, fit=(
             ("wc_bath", "N", -6.1, 1.6, 0.7, 0.55), ("wc_toilet", "E", -5.2, 0.45, 0.72, 0.85),
             ("wc_sink", "W", -4.8, 0.5, 0.45, 0.9)))
+        # The shops' own (owner, 2026-10-16, with the turn): the laundromat's customer toilet in its back corner by the
+        # stairs, the shoe store's staff toilet upstairs in its stock room, the TV shop's behind its counter.
+        washroom(29.5, 126.5, -14.35, -6.35, -12.15, -4.15, "ES", ("E", -5.25, 1), fit=(
+            ("wc_toilet", "W", -5.6, 0.45, 0.72, 0.85), ("wc_sink", "N", -12.9, 0.5, 0.45, 0.9)))
+        washroom(29.5, 126.5, -4.73, -6.35, -2.53, -4.15, "ES", ("E", -5.25, 1), y=FLOOR_H, fit=(
+            ("wc_toilet", "W", -5.6, 0.45, 0.72, 0.85), ("wc_sink", "N", -3.3, 0.5, 0.45, 0.9)))
+        washroom(29.5, 126.5, 12.15, -6.35, 14.35, -4.45, "WS", ("W", -5.0, 1), fit=(
+            ("wc_toilet", "E", -5.6, 0.45, 0.72, 0.85), ("wc_sink", "N", 12.9, 0.5, 0.45, 0.9)))
         build(Building("Shops", 15, 120, 29, 13, floors=2, rooms=(3, 1), doors="E", caved=[(2, 0)], shopfronts="S"), [
             ("crate", 0, 0, 0, "W", -1.5, "laundry_cart"), ("crate", 2, 0, 0, "E", 3.5, "stock_tv"),
             ("crate", 1, 0, 1, "N", 2.2, "stock_shoes"), ("locker", 0, 0, 1, "W", -2.6, "wardrobe"),
@@ -2731,7 +2821,7 @@ def main():
         box(26.0, 0, 131.9, 29.8, 0.4, 132.8, "wood", kind="window_display")
         # TV shop (burned out, its roof fell in): shelves of dead TVs, a display table.
         box(35.0, 0, 120.15, 38.4, 2.0, 120.7, "metal", kind="tv_shelf")
-        box(40.0, 0, 120.15, 43.5, 2.0, 120.7, "metal", kind="tv_shelf")
+        box(39.0, 0, 120.15, 41.3, 2.0, 120.7, "metal", kind="tv_shelf")   # (shorter: the staff toilet)
         box(36.4, 0, 129.8, 39.0, 0.9, 131.0, "metal", kind="tv_table")
         box(42.1, 0, 122.9, 43.8, 1.0, 123.7, "metal", kind="tv_counter")
         box(34.8, 0, 131.2, 35.6, 1.1, 132.2, "metal", kind="box_stack")
@@ -3028,6 +3118,8 @@ def main():
     scatter_trees(clutter())
     cover_pass()
     planned_cover()
+    apply_late_turns()
+    shops_frontage()
     zone_spawns()
     map_labels()
     check_roads()
@@ -3165,7 +3257,7 @@ def zone_spawns():
                 if zone is None or zone[0] == AI_BOSS[0] or (zone[4] + zone[5]) == 0:
                     continue
                 if getattr(b, "turned_about", None):
-                    cx, cz = 2 * b.turned_about[0] - cx, 2 * b.turned_about[1] - cz
+                    cx, cz = turn_point(cx, cz, *b.turned_about)
                     zone = _zone_of(cx, cz) or zone
                 rooms.append((round(cx, 1), round(cz, 1), zone[0]))
         # Half the rooms (owner, 0.12.24: 6 in a building -> 3, 2 -> 1), spread through the building; one if only one.
@@ -3345,7 +3437,7 @@ def write_scene(ter):
             '[node name="Models" type="Node3D" parent="Level"]', ""]
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',
-                f"transform = {xform(m['x'], m['y'], m['z'], 180.0 if m['turned'] else 0.0)}", 'script = ExtResource("m_pixel")', ""]
+                f"transform = {xform(m['x'], m['y'], m['z'], m['turned'])}", 'script = ExtResource("m_pixel")', ""]
     out += ['[node name="Loot" type="Node3D" parent="."]', ""]
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
