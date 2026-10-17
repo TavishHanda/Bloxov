@@ -949,7 +949,16 @@ def rich_house(n, x, y, w, d, who, model=None, place=None, loot=None, colour="wa
         # Front porch: a roof on two posts over the door, a step.
         put("porch_post", q - 1.6, hd + 1.35, q - 1.4, hd + 1.55, 2.75, colour="wood")
         put("porch_post", q + 1.4, hd + 1.35, q + 1.6, hd + 1.55, 2.75, colour="wood")
-        put("porch", q - 1.75, hd + WALL_T / 2, q + 1.75, hd + 1.7, 0.1, solid=False, colour="concrete")
+        if who == "farmer":
+            # The farmhouse's own front (owner, 2026-10-17: "give it some pazazz"): a veranda the whole width of
+            # the house on more posts, two rocking chairs by the living room window.
+            for px in (-hw + 0.15, -4.0, -0.75, hw - 0.15):
+                put("porch_post", px - 0.1, hd + 1.35, px + 0.1, hd + 1.55, 2.75, colour="wood")
+            put("porch", -hw - 0.1, hd + WALL_T / 2, hw + 0.1, hd + 1.7, 0.1, solid=False, colour="concrete")
+            for cx in (-6.3, -5.2):
+                put("porch_chair", cx - 0.32, hd + 0.45, cx + 0.32, hd + 1.15, 1.0)
+        else:
+            put("porch", q - 1.75, hd + WALL_T / 2, q + 1.75, hd + 1.7, 0.1, solid=False, colour="concrete")
         if who == "doctor":
             # Library den, a grandfather clock in the hall, a study upstairs (desk under the window, bookcases).
             put("wall_books", -wx, -dz + 0.3, -wx + 0.45, -r - 0.85, 1.9)

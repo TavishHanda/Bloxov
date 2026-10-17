@@ -5979,6 +5979,8 @@ def prop_porch(ctx, c, s):
     """The porch floor and step, its little roof (picture: it's above head height), a lamp, the door mat."""
     b = ctx.b
     hv = house()
+    if hv["who"] == "farmer":
+        return farm_veranda(ctx, c, s, hv)
     y0 = c[1] - s[1] / 2
     b.box((c[0], y0 + 0.06, c[2]), (s[0], 0.12, s[2]), style=_nb("concrete"))
     b.box((c[0], y0 + 0.03, c[2] + s[2] / 2 + 0.2), (s[0] - 0.6, 0.06, 0.4), style=_nb("concrete"))   # step
@@ -6031,6 +6033,115 @@ def prop_porch(ctx, c, s):
         b.poly([(c[0] + 0.6, y0 + 0.125, z0 + 0.2), (c[0] + 1.1, y0 + 0.125, z0 + 0.2),
                 (c[0] + 1.1, y0 + 0.125, z0 + 1.3), (c[0] + 0.6, y0 + 0.125, z0 + 1.3)], (0, 1, 0), "graffiti",
                uv_fit(ctx.decals.regions["hopscotch"]))
+
+
+def farm_veranda(ctx, c, s, hv):
+    """The farmhouse's veranda (owner 2026-10-17, "give it some pazazz"): plank deck the whole width of the front, a
+    lean-to roof on six posts with a fretwork valance, steps at the door, lanterns, a milk can and boots by the door,
+    a dog's bowl. The roof is picture only (above head height), like every porch roof."""
+    b, rng = ctx.b, random.Random("veranda")
+    y0 = c[1] - s[1] / 2
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    dx = FOOTPRINTS[BUILDING_NAME[0]][2] / 2                                            # the door's middle
+    b.box((c[0], y0 + 0.06, c[2]), (s[0], 0.12, s[2]), style=_nb("wood"))
+    for k in range(int(s[0] / 0.6)):                                                    # plank joints
+        _box(b, x0 + 0.3 + k * 0.6, y0 + 0.121, c[2], 0.02, 0.004, s[2] - 0.02, "wood_dark")
+    _box(b, c[0], y0 + 0.06, z1 - 0.03, s[0], 0.12, 0.06, "wood_dark")                   # edge board
+    for k, w in enumerate((1.6, 1.4)):                                                  # two steps at the door
+        _box(b, dx, y0 + 0.04 - k * 0.02, z1 + 0.2 + k * 0.35, w, 0.08 - k * 0.04, 0.4, "wood")
+    roof_y = 2.85
+    b.box((c[0], roof_y, (z0 + z1) / 2 + 0.05), (s[0] + 0.3, 0.12, s[2] + 0.3), pitch=-10,
+          style=lambda n, m, q: (hv["roof"], uv_world()) if n[1] > 0.7 else ("wood_light", uv_world(1.0)))
+    _box(b, c[0], roof_y - 0.17, z1 + 0.04, s[0] + 0.3, 0.16, 0.06, "bone")                  # fascia
+    for k in range(int(s[0] / 0.3)):                                                    # fretwork valance
+        if k % 2 == 0:
+            _box(b, x0 + 0.15 + k * 0.3, roof_y - 0.32, z1 + 0.04, 0.08, 0.14, 0.03, "bone", pitch=0)
+    _box(b, c[0], roof_y - 0.4, z1 + 0.04, s[0] + 0.1, 0.03, 0.03, "bone")
+    for lx in (dx - 1.1, -2.4):                                                         # lanterns on hooks
+        _box(b, lx, roof_y - 0.32, z0 + 0.9, 0.015, 0.3, 0.015, "black")
+        _box(b, lx, roof_y - 0.6, z0 + 0.9, 0.18, 0.26, 0.18, "trim_dark")
+        _box(b, lx, roof_y - 0.6, z0 + 0.9, 0.12, 0.18, 0.2, "yellow")
+        _box(b, lx, roof_y - 0.6, z0 + 0.9, 0.2, 0.18, 0.12, "yellow")
+    # By the door: a milk can, muddy boots; the dog's bowl at the far end.
+    mx = dx + 1.95
+    _box(b, mx, y0 + 0.12 + 0.3, z0 + 0.3, 0.32, 0.6, 0.32, "steel_light")
+    _box(b, mx, y0 + 0.12 + 0.66, z0 + 0.3, 0.2, 0.12, 0.2, "steel_light")
+    _box(b, mx, y0 + 0.12 + 0.75, z0 + 0.3, 0.24, 0.05, 0.24, "trim")
+    for k in range(2):
+        _box(b, dx - 1.05 + k * 0.16, y0 + 0.12 + 0.15, z0 + 0.25, 0.12, 0.3, 0.14, "olive_dark")
+        _box(b, dx - 1.05 + k * 0.16, y0 + 0.12 + 0.04, z0 + 0.31, 0.12, 0.08, 0.26, "olive_dark")
+    _box(b, x1 - 0.6, y0 + 0.12 + 0.04, z0 + 0.5, 0.3, 0.08, 0.3, "red")
+    _box(b, x1 - 0.6, y0 + 0.12 + 0.08, z0 + 0.5, 0.22, 0.01, 0.22, "wood_dark")
+    b.box((dx, y0 + 0.125, z0 + 0.5), (1.0, 0.012, 0.55), style=lambda n, m, q: ("decals", ctx.d("welcome")) if n[1] > 0.7 else ("wood", uv_world(1.0)))
+    wall_quad(b, (0, 0, 1), z0 + 0.005, dx + 1.25, dx + 1.73, 1.7, 1.99, "decals", ctx.d("num"))
+
+
+def prop_porch_chair(ctx, c, s):
+    """A rocking chair on the veranda, facing the yard (south)."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * 0.27, y0 + 0.06, c[2], 0.05, 0.06, s[2], "wood_dark")              # rockers
+        for dz in (-0.22, 0.2):
+            _box(b, c[0] + sx * 0.27, y0 + 0.27, c[2] + dz, 0.05, 0.38, 0.05, "wood")
+        _box(b, c[0] + sx * 0.27, y0 + 0.66, c[2] + 0.02, 0.05, 0.04, 0.48, "wood")              # arms
+    _box(b, c[0], y0 + 0.46, c[2], 0.56, 0.05, 0.46, "wood")                                    # seat
+    _box(b, c[0], y0 + 0.5, c[2], 0.44, 0.04, 0.36, "wine")                                     # cushion
+    for k in range(5):
+        _box(b, c[0] - 0.22 + k * 0.11, y0 + 0.75, c[2] - 0.24, 0.04, 0.55, 0.03, "wood", pitch=-12)  # spindles
+    _box(b, c[0], y0 + 1.0, c[2] - 0.29, 0.6, 0.06, 0.05, "wood", pitch=-12)
+
+
+def farm_roof_extras(ctx, fp, hv):
+    """Two dormers on the front slope, a rooster weathervane and lightning rods on the ridge (the farmhouse's own
+    roof line; picture only, nobody walks up there)."""
+    b = ctx.b
+    over, e = 0.45, 0.12
+    z1 = fp[3] + 0.15 + over
+    slope = 3.1 / z1                                                                    # roof rise per metre in
+    roof_at = lambda z: 6.0 + e + slope * (z1 - z)
+    zf, top, ridge = fp[3] - 0.8, 7.85, 8.45
+    zb = z1 - (top - 6.0 - e) / slope - 0.1
+    zr = z1 - (ridge - 6.0 - e) / slope - 0.1
+    for xc in (-4.0, 4.0):
+        hw_ = 1.0
+        b.box((xc, (6.0 + top) / 2, zf), (2 * hw_, top - 6.0, 0.1),
+              style=lambda n, m, q: (hv["ext"], uv_world(2.0)) if n[2] > 0.7 else None)
+        for sx in (-1, 1):
+            b.box((xc + sx * hw_, (6.0 + top) / 2, (zb + zf) / 2), (0.1, top - 6.0, zf - zb),
+                  style=lambda n, m, q: (hv["ext"], uv_world(2.0)) if abs(n[0]) > 0.7 else None)
+        tri = [(xc - hw_ - 0.05, top, zf + 0.05), (xc + hw_ + 0.05, top, zf + 0.05), (xc, ridge, zf + 0.05)]
+        b.poly(tri, (0, 0, 1), hv["ext"], uv_world(2.0))
+        for sx in (-1, 1):                                                              # its little roof
+            pts = [(xc, ridge + 0.06, zr), (xc, ridge + 0.06, zf + 0.25),
+                   (xc + sx * (hw_ + 0.25), top - 0.08, zf + 0.25), (xc + sx * (hw_ + 0.25), top - 0.08, zr)]
+            n = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[-1], pts[0])))
+            if n[1] < 0:
+                n = v_scale(n, -1)
+            b.poly(pts, n, hv["roof"], uv_slope(4.0))
+            b.poly(pts[::-1], v_scale(n, -1), "bone", uv_world(1.0))
+        # Window: a sash with four panes, a white frame, a sill.
+        _box(b, xc, 6.95 + 0.45, zf + 0.06, 0.95, 1.0, 0.04, "bone")
+        _box(b, xc, 6.95 + 0.45, zf + 0.08, 0.8, 0.85, 0.02, "black")
+        _box(b, xc, 6.95 + 0.45, zf + 0.09, 0.04, 0.85, 0.02, "bone")
+        _box(b, xc, 6.95 + 0.45, zf + 0.09, 0.8, 0.04, 0.02, "bone")
+        _box(b, xc, 6.92, zf + 0.12, 1.05, 0.05, 0.12, "bone")
+        assert roof_at(zf) < 6.92, "dormer window below the roof"
+    # The weathervane: a post on the ridge, the compass letters' arms, an arrow and a rooster on top.
+    vx, ry = 0.0, 6.0 + 3.1 + e + 0.11
+    _box(b, vx, ry + 0.6, 0.0, 0.04, 1.2, 0.04, "trim_dark")
+    for yaw in (0, 90):
+        _box(b, vx, ry + 0.75, 0.0, 0.7, 0.02, 0.02, "trim_dark", yaw=yaw)
+    _box(b, vx, ry + 1.05, 0.0, 0.8, 0.03, 0.03, "trim_dark", yaw=30)                        # arrow
+    _box(b, vx + 0.34, ry + 1.05, -0.2, 0.06, 0.14, 0.14, "trim_dark", yaw=30)
+    rooster = ((0.0, 1.28, 0.36, 0.22), (0.14, 1.45, 0.14, 0.16), (0.2, 1.55, 0.06, 0.08),
+               (-0.2, 1.38, 0.12, 0.3), (-0.04, 1.14, 0.04, 0.1))
+    for ox_, oy, w, h in rooster:
+        _box(b, vx + ox_, ry + oy, 0.0, w, h, 0.03, "trim_dark", yaw=30)
+    for lx in (-6.0, 6.0):                                                                  # lightning rods
+        _box(b, lx, ry + 0.35, 0.0, 0.025, 0.7, 0.025, "steel_light")
+        _box(b, lx, ry + 0.35, 0.0, 0.12, 0.12, 0.12, "blue")
 
 
 def prop_reading_chair(ctx, c, s):
@@ -6391,7 +6502,7 @@ HOUSE_PROPS = {
     "armchair": prop_armchair, "tv_stand": prop_tv_stand, "dining_table": prop_dining_table,
     "shoe_bench": prop_shoe_bench, "kitchen_run": prop_kitchen_run, "kitchen_table": prop_kitchen_table,
     "under_stairs": prop_under_stairs, "house_bed": prop_house_bed, "main_bed": prop_main_bed, "vanity": prop_vanity,
-    "porch_post": prop_porch_post, "porch": prop_porch, "reading_chair": prop_reading_chair, "globe": prop_globe,
+    "porch_post": prop_porch_post, "porch": prop_porch, "porch_chair": prop_porch_chair, "reading_chair": prop_reading_chair, "globe": prop_globe,
     "grandfather_clock": prop_grandfather_clock, "study_desk": prop_study_desk, "trunk": prop_trunk,
     "toy_chest": prop_toy_chest, "kid_table": prop_kid_table, "rocking_horse": prop_rocking_horse, "crib": prop_crib,
     "changing_table": prop_changing_table, "rocking_chair": prop_rocking_chair, "medal_case": prop_medal_case,
@@ -6476,6 +6587,8 @@ def dress_house(ctx):
         hip_roof(b, fp, 6.0, 2.6, 0.4, hv["roof"])
     elif shape == "gable":
         gable_roof(b, fp, 6.0, 3.1, 0.45, hv["roof"], hv["ext"])
+        if who == "farmer":
+            farm_roof_extras(ctx, fp, hv)
     else:
         flat_roof(b, fp, 6.0, hv["ext"], rng)
     for o in ctx.data.get("openings", []):
@@ -14297,9 +14410,12 @@ def dress_motel(ctx):
         wq((1, 0, 0), 4.665, c + 2.45 + w / 2, c + 2.45 - w / 2, y + 1.6, y + 1.6 + 9 / 32, "n%d" % num)
         b.box((4.72, y + 2.25, c + 2.45), (0.12, 0.22, 0.16), style=_nb("bone"))
         b.box((4.67, y + 2.25, c + 2.45), (0.03, 0.3, 0.22), style=_nb("trim_dark"))
-        if rng.random() < 0.25:
-            b.box((4.666, y + 1.6, c + rng.uniform(0.3, 2.3)), (0.004, rng.uniform(0.6, 1.2), rng.uniform(0.6, 1.4)),
-                  style=_nb("black"))
+        rng.random(), rng.uniform(0.3, 2.3), rng.uniform(0.6, 1.2), rng.uniform(0.6, 1.4)   # (was a flat black scorch:
+        # it read as a black sign over the windows, owner 2026-10-17; the draws stay so the rest keeps its layout)
+        if num == MO_CASINO[0]:                                              # the card room's neon over its door
+            b.group = bake_light.GLOW
+            wq((1, 0, 0), 4.665, (a0 + a1) / 2 + 26 / 52, (a0 + a1) / 2 - 26 / 52, y + 2.51, y + 2.51 + 14 / 52, "casino")
+            b.group = None
     # ---- Laundry and office fronts: signs, the ice sign, the blade sign over the office door, FULL in the window.
     wq((1, 0, 0), 4.665, 9.1 + 0.5, 9.1 - 0.5, 2.44, 2.72, "laundry")
     wq((1, 0, 0), 4.665, 7.89, 7.42, 1.9, 2.18, "ice")
