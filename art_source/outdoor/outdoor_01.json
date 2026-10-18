@@ -25,7 +25,7 @@
 {"kind": "lamp", "look": "c", "seed": "52.18 98.33", "boxes": [{"pos": [8.434, 3.969, -32.925], "size": [0.24, 6.0, 0.24], "yaw": 74.98, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "lamp", "look": "c", "seed": "49.15 148.06", "boxes": [{"pos": [5.403, 3.661, 16.814], "size": [0.24, 6.0, 0.24], "yaw": 102.66, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "lamp", "look": "c", "seed": "67.33 166.04", "boxes": [{"pos": [23.582, 2.316, 34.792], "size": [0.24, 6.0, 0.24], "yaw": -54.98, "pitch": 0.0, "colour": "metal", "solid": true}]},
-{"kind": "sign_stop", "look": "b", "seed": "63.04 96.05", "boxes": [{"pos": [19.293, 2.257, -35.201], "size": [0.1, 2.6, 0.1], "yaw": -14.87, "pitch": 0.0, "colour": "metal", "solid": true}]},
+{"kind": "sign_stop", "look": "c", "seed": "63.04 96.05", "boxes": [{"pos": [19.293, 2.257, -35.201], "size": [0.1, 2.6, 0.1], "yaw": -14.87, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "shelter", "look": "c", "seed": "47.00 128.00", "boxes": [{"pos": [2.45, 2.043, -3.25], "size": [4.0, 2.4, 0.1], "yaw": -90.0, "pitch": 0.0, "colour": "metal", "solid": true}, {"pos": [3.25, 3.293, -3.25], "size": [4.2, 0.1, 1.9], "yaw": -90.0, "pitch": 0.0, "colour": "metal", "solid": false}, {"pos": [3.25, 2.143, -0.85], "size": [0.1, 2.6, 0.1], "yaw": -90.0, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "bush", "look": "d", "seed": "35.09 88.96", "boxes": [{"pos": [-8.665, 2.469, -42.289], "size": [1.325, 0.751, 0.97], "yaw": 130.76, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "d", "seed": "36.44 101.09", "boxes": [{"pos": [-7.308, 1.96, -30.16], "size": [1.752, 1.352, 2.167], "yaw": 151.71, "pitch": 0.0, "colour": "leaves", "solid": true}]},

@@ -25,7 +25,7 @@
 {"kind": "lamp", "look": "c", "seed": "44.02 53.52", "boxes": [{"pos": [0.274, 6.988, 9.766], "size": [0.24, 6.0, 0.24], "yaw": 89.69, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "lamp", "look": "c", "seed": "59.47 34.35", "boxes": [{"pos": [15.721, 8.342, -9.403], "size": [0.24, 6.0, 0.24], "yaw": -131.94, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "lamp", "look": "c", "seed": "76.60 17.39", "boxes": [{"pos": [32.853, 9.649, -26.364], "size": [0.24, 6.0, 0.24], "yaw": 16.48, "pitch": 0.0, "colour": "metal", "solid": true}]},
-{"kind": "sign_dir", "look": "b", "seed": "61.85 77.77", "boxes": [{"pos": [18.102, 2.665, 34.018], "size": [0.1, 2.6, 0.1], "yaw": -147.18, "pitch": 0.0, "colour": "metal", "solid": true}]},
+{"kind": "sign_dir", "look": "c", "seed": "61.85 77.77", "boxes": [{"pos": [18.102, 2.665, 34.018], "size": [0.1, 2.6, 0.1], "yaw": -147.18, "pitch": 0.0, "colour": "metal", "solid": true}]},
 {"kind": "bush", "look": "b", "seed": "20.48 37.52", "boxes": [{"pos": [-23.267, 5.854, -6.233], "size": [1.49, 0.721, 0.983], "yaw": 165.34, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "d", "seed": "23.62 36.42", "boxes": [{"pos": [-20.133, 6.596, -7.331], "size": [1.33, 0.741, 0.911], "yaw": 162.66, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "b", "seed": "16.70 7.00", "boxes": [{"pos": [-27.053, 5.804, -36.753], "size": [1.171, 0.943, 0.867], "yaw": 130.53, "pitch": 0.0, "colour": "leaves", "solid": false}]},

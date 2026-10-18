@@ -2935,7 +2935,7 @@ def lamp_pass(every=24.0):
 # Road signs (World art 0.17, outdoor round 3): the town's name where roads come in (its crossed-out name on the back,
 # for leaving), stop signs where side roads meet a bigger one, speed limits, and finger boards at the big junctions.
 # Drawn by the outdoor kit (make_outdoor.py draw_sign) in SIGN_LOOK ("none": no signs, for the options sheet).
-SIGN_LOOK = os.environ.get("BLOXOV_SIGN_LOOK", "b")
+SIGN_LOOK = os.environ.get("BLOXOV_SIGN_LOOK", "c")   # (owner 2026-10-18 picked C for paths, poles and signs)
 SIGN_KINDS = ("sign_town", "sign_stop", "sign_speed", "sign_dir", "sign_bus")
 
 
