@@ -2524,6 +2524,28 @@ def draw_cave(b, piece, rng):
              rng.choice(mats), jitter=0.12, chamfer=0.35, taper=0.8)
 
 
+
+def draw_culvert(b, piece, rng):
+    """Where the creek leaves the map (gen culvert): a weathered concrete headwall with two box tunnels, black inside,
+    rusty grates over their mouths, boulders at its wings. Boxes in culvert()'s order: the headwall's three pieces,
+    the beam over the mouths, the tunnels' back, the two grates, the coping, then the boulders."""
+    for k, box in enumerate(piece["boxes"]):
+        s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
+        if k == 4:
+            b.box(c, s, style=flat("black", 1.0))
+        elif k in (5, 6):   # bars every 0.25 m, two rails across them
+            x0, y0, z = c[0] - s[0] / 2, c[1] - s[1] / 2, c[2]
+            n = int(s[0] / 0.25)
+            for i in range(n + 1):
+                b.box((x0 + s[0] * i / n, c[1], z), (0.05, s[1], 0.05), style=flat("dbr_rail", 1.0))
+            for yy in (y0 + 0.5, y0 + s[1] - 0.15):
+                b.box((c[0], yy, z), (s[0], 0.08, 0.1), style=flat("dbr_rail", 1.0))
+        elif k <= 7:
+            b.box(c, s, style=flat("dbr_conc", 2.0))
+        else:
+            rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, rng.choice(("dbr_mossrock", "dbr_granite")),
+                 jitter=0.12, chamfer=0.4)
+
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
@@ -2534,7 +2556,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
         "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker, "signal": draw_signal, "points": draw_points,
-        "cave": draw_cave, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
+        "cave": draw_cave, "culvert": draw_culvert, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 
 def main():

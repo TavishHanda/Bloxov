@@ -3886,6 +3886,39 @@ def waterfall():
         cave_room(CAVE_FACE, sum(CAVE_Z) / 2)
 
 
+
+# Where the creek leaves the map (outdoor step 6, owner 2026-10-18: "where it meets the end of the map isnt nice"): a
+# twin box culvert in a concrete headwall against the south edge, grates over both mouths, boulders at its wings. The
+# water runs in through the grates; nobody walks out. Map x, z; y from the water's surface there (anchor "culvert").
+CREEK_MOUTH = [(97.32, 340.55), (99.66, 344.16), (101.13, 348.2), (101.38, 350.0)]
+CULVERT_AT = (101.3, 348.5)
+CULVERT_FRONT = 347.4
+NO_TREES.append((88.0, CULVERT_FRONT - 5.0, 115.0, M))
+
+
+@debris_kind("culvert")
+def culvert(x, z):
+    f, c = CULVERT_FRONT, CULVERT_AT[0]
+    box(c - 8.0, -1.4, f, c - 3.5, 3.0, M, "concrete")          # the headwall: left, the pier, right
+    box(c - 0.4, -1.4, f, c + 0.4, 3.0, M, "concrete")
+    box(c + 3.5, -1.4, f, c + 8.0, 3.0, M, "concrete")
+    box(c - 3.5, 1.9, f, c + 3.5, 3.0, M, "concrete")           # over the two mouths
+    box(c - 3.5, -1.4, M - 1.2, c + 3.5, 1.9, M, "concrete")    # the dark back of the tunnels
+    box(c - 3.5, -0.6, f + 0.1, c - 0.4, 1.9, f + 0.3, "metal")  # the grates
+    box(c + 0.4, -0.6, f + 0.1, c + 3.5, 1.9, f + 0.3, "metal")
+    box(c - 8.4, 3.0, f - 0.3, c + 8.4, 3.25, M, "concrete")    # the coping along its top
+    # boulders piled at its wings, so it sits in the banks
+    for bx, bz, w, h, d, yaw in ((-8.6, f - 0.8, 2.6, 2.8, 2.2, 15), (-10.4, f + 0.8, 2.4, 3.6, 2.4, -20),
+                                 (-6.2, f - 1.6, 1.8, 1.5, 1.6, 40), (8.6, f - 0.8, 2.6, 3.0, 2.2, -10),
+                                 (10.4, f + 0.8, 2.4, 3.6, 2.4, 25), (6.2, f - 1.7, 1.8, 1.6, 1.5, -35)):
+        obox(c + bx, h / 2 - 0.6, bz, w, h, d, yaw, "stone")
+
+
+def creek_mouth():
+    clear_scatter((CULVERT_AT[0] - 14.0, CULVERT_FRONT - 4.0, CULVERT_AT[0] + 14.0, M))
+    with anchored(("culvert",)):
+        culvert(*CULVERT_AT)
+
 # The derailed freight train by the creek (World art 0.17, outdoor step 5; owner 2026-10-18 picked C): it came off
 # the rails just past the bridge, westbound; the locomotive slewed off and leans into the ballast, two boxcars
 # jackknifed behind it, the tanker at the back still on the rails. New cover (sightlines checked). Each car is one
@@ -4451,6 +4484,8 @@ def terrain():
             out.append(_moved(b, low(b)))
         elif a == ("cave",):
             out.append(_moved(b, cave_floor[0]))
+        elif a == ("culvert",):
+            out.append(_moved(b, ter.water_level(*CULVERT_AT)))
         elif a[0] == "cave_ramp":
             _, ax, az, bx, bz = a
             out.append(_tilted(b, cave_floor[0], ter.at(bx, bz), math.hypot(bx - ax, bz - az)))
@@ -4635,6 +4670,7 @@ def main():
     road([(196, 240), (180, 300), (160, 348)], 6)                                                      # South Lane
     # creek (shallow: walkable) and the rail bridge over it
     creek = bezier((0, 212), (60, 250), (40, 300), (110, 350), n=48)
+    creek = creek[:-4] + CREEK_MOUTH   # (its last stretch turns to run straight into the culvert at the edge)
     water.append((creek, 5.0))   # (the water itself is a surface `BoxMap` makes from `water_points`)
 
     # --- railway (west to east at y 210) with sidings to the depot
@@ -5211,6 +5247,7 @@ def main():
     derailed_train()
     signals_and_points()
     waterfall()
+    creek_mouth()
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
