@@ -8,7 +8,7 @@ AI paths don't change, but aren't drawn. It writes the pieces, grouped by map ch
 
     python3 art_source/scripts/make_outdoor.py        -> assets/models/outdoor/<chunk>.glb, then re-run the generator
 
-Kinds: wall, berm, rocks, rubble, container, truck, sandbags, barrier, tanktrap, drums, dumpster, crater, junk.
+Kinds: ruin, wall, berm, rocks, rubble, container, truck, sandbags, barrier, tanktrap, drums, dumpster, crater, junk.
 Textures: the building kit atlas (new kits dbr_*, appended to it).
 """
 import json
@@ -27,7 +27,9 @@ OUT_DIR = os.path.join(mb.ROOT, "assets", "models", "outdoor")
 # ------------------------------------------------------------------------------------------------ colours + kits
 mb.PALETTE.update({
     "grs": "6f8f4f", "grs_dk": "5e7c42", "grs_lt": "84a35d", "grs_dry": "9a9a5c",
-    "dirt1": "6c5640", "dirt2": "5c4834", "dirt3": "7c654e", "dirt_dk": "54412e", "pebble": "9b958a",
+    "dirt1": "6c5640", "dirt2": "5c4834", "dirt3": "7c654e", "dirt_dk": "54412e", "pebble": "857c6e",
+    "ground": "789e5c", "earth1": "6e5b45", "earth2": "66543f", "earth3": "75614a",
+    "scorch1": "4a433b", "scorch2": "413b34", "scorch3": "524a40",
     "gran": "5f5c57", "gran_dk": "4c4a46", "gran_lt": "726f69", "lichen": "7f8455", "moss": "5f7440",
     "slate1": "625d56", "slate2": "4f4b46", "slate_lt": "77716a",
     "cont_r": "7e3b2a", "cont_r_dk": "662f22", "cont_g": "4f5a3a", "cont_g_dk": "3f4a2e", "cont_b": "3f566b", "cont_b_dk": "324657",
@@ -52,13 +54,32 @@ def k_grass(rng):
 
 
 def k_dirt(rng):
+    """(round 2, owner: noisy: no bright specks, softer grain)"""
     c = Canvas(64, 64, "dirt1")
-    c.noise(0, 0, 64, 64, ["dirt2", "dirt3"], 0.35, rng)
-    c.blotch(["dirt_dk"], 8, rng, size=(2, 4))
-    for _ in range(40):
+    c.noise(0, 0, 64, 64, ["dirt2", "dirt3"], 0.14, rng)
+    c.blotch(["dirt2"], 8, rng, size=(4, 9))
+    c.blotch(["dirt3"], 5, rng, size=(3, 7))
+    for _ in range(10):
         x, y = rng.randrange(64), rng.randrange(64)
-        c.put(x, y, "pebble")
-        c.put(x + 1, y, "pebble")
+        c.rect(x, y, x + 2, y + 1, "pebble")
+    return c
+
+
+def k_scorch(rng):
+    """Scorched earth inside a fresh shell hole."""
+    c = Canvas(64, 64, "scorch1")
+    c.noise(0, 0, 64, 64, ["scorch2", "scorch3"], 0.1, rng)
+    c.blotch(["scorch2"], 6, rng, size=(5, 11))
+    c.blotch(["earth2"], 3, rng, size=(4, 8))
+    return c
+
+
+def k_earth(rng):
+    """Bare earth on the steep sides of banks and crater rims: calm, so it sits next to the plain ground."""
+    c = Canvas(64, 64, "earth1")
+    c.noise(0, 0, 64, 64, ["earth2", "earth3"], 0.1, rng)
+    c.blotch(["earth2"], 6, rng, size=(5, 11))
+    c.blotch(["earth3"], 4, rng, size=(4, 9))
     return c
 
 
@@ -74,9 +95,10 @@ def k_ruts(rng):
 
 def k_granite(rng):
     c = Canvas(64, 64, "gran")
-    c.noise(0, 0, 64, 64, ["gran_dk", "gran_lt"], 0.3, rng)
-    c.blotch(["lichen"], 7, rng, size=(2, 5))
-    c.blotch(["gran_dk"], 6, rng, size=(2, 5))
+    c.noise(0, 0, 64, 64, ["gran_dk", "gran_lt"], 0.12, rng)
+    c.blotch(["gran_lt"], 6, rng, size=(5, 10))
+    c.blotch(["gran_dk"], 6, rng, size=(4, 9))
+    c.blotch(["lichen"], 3, rng, size=(4, 7))
     return c
 
 
@@ -89,7 +111,7 @@ def k_slate(rng):
         c.rect(0, y, 64, min(64, y + h), rng.choice(("slate1", "slate2", "slate_lt")))
         c.rect(0, y, 64, y + 1, "slate2")
         y += h
-    c.noise(0, 0, 64, 64, ["slate2", "slate_lt"], 0.12, rng)
+    c.noise(0, 0, 64, 64, ["slate2", "slate_lt"], 0.06, rng)
     return c
 
 
@@ -176,7 +198,7 @@ def k_bags(base, dk):
 
 def k_conc(rng):
     c = Canvas(64, 64, "jb")
-    c.noise(0, 0, 64, 64, ["jb_dk", "jb_wht"], 0.15, rng)
+    c.noise(0, 0, 64, 64, ["jb_dk"], 0.08, rng)
     c.blotch(["jb_dk"], 8, rng, size=(2, 5))
     c.blotch(["dirt2"], 4, rng, area=(0, 0, 64, 10), size=(2, 4))
     return c
@@ -219,7 +241,41 @@ mb.KIT.update({
     "dbr_drum_o": k_drum("drum_o", "drum_o_dk"), "dbr_dmp_g": k_paint("dmp_g", "dmp_g_dk"),
     "dbr_dmp_b": k_paint("dmp_b", "dmp_b_dk"), "dbr_trk_o": k_paint("trk_o", "trk_o_dk", 4), "dbr_canvas": k_canvas,
     "dbr_tyre": k_tyre, "dbr_rail": k_paint("rail_r", "rail_r_dk", 10), "dbr_paper": mb.paint_flat("paper"),
+    # (round 2: banks and crater rims are shaped from the ground and coloured like it, so they blend in; the ground's
+    # own look comes in outdoor step 2 and these follow it)
+    "dbr_ground": mb.paint_flat("ground"), "dbr_earth": k_earth, "dbr_scorch": k_scorch,
 })
+
+
+# ------------------------------------------------------------------------------------------------ the ground
+# The ground's height grid (tools/gen_old_bloxov.py writes art_source/outdoor/terrain.json) and the chunk's origin, so
+# pieces fit the hills: banks and crater rims follow it, loose bits lie on it.
+TERRAIN = {}
+ORIGIN = [0.0, 0.0]
+
+
+def ground(x, z):
+    """The ground's height under chunk point (x, z) (BoxMap's triangle split: north-west to south-east)."""
+    import bisect
+    xs, zs, H = TERRAIN["xs"], TERRAIN["zs"], TERRAIN["h"]
+    wx, wz = x + ORIGIN[0], z + ORIGIN[1]
+    i = min(max(bisect.bisect_right(xs, wx) - 1, 0), len(xs) - 2)
+    j = min(max(bisect.bisect_right(zs, wz) - 1, 0), len(zs) - 2)
+    u = min(max((wx - xs[i]) / (xs[i + 1] - xs[i]), 0.0), 1.0)
+    v = min(max((wz - zs[j]) / (zs[j + 1] - zs[j]), 0.0), 1.0)
+    ha, hb, hc, hd = H[j][i], H[j][i + 1], H[j + 1][i], H[j + 1][i + 1]
+    return ha + u * (hb - ha) + v * (hd - hb) if u >= v else ha + v * (hc - ha) + u * (hd - hc)
+
+
+def on_ground(p, lift=0.0):
+    return (p[0], ground(p[0], p[2]) + lift, p[2])
+
+
+def bits(b, centre, spread, n, rng, mats, size=(0.22, 0.07, 0.11)):
+    """Broken bits lying on the ground round a point."""
+    for _ in range(n):
+        p = (centre[0] + rng.uniform(-spread, spread), 0.0, centre[2] + rng.uniform(-spread, spread))
+        mb.rubble_chunk(b, on_ground(p, size[1] / 2 - 0.01), size, rng, mats)
 
 
 # ------------------------------------------------------------------------------------------------ helpers
@@ -371,13 +427,13 @@ def wall_run(b, box, skin, rng, top_mat=None, rebar=False, posts=False, extra_t=
             f.box(c, (0.32, s[1] + 0.3, t + 0.06) if along_x else (t + 0.06, s[1] + 0.3, 0.32), style=no_bottom("concrete", 2.0))
     for _ in range(max(2, int(length))):     # broken bits at its foot (picture only: you walk over them)
         a, side = rng.uniform(-length / 2, length / 2), rng.choice((-1, 1)) * rng.uniform(t / 2 + 0.2, t / 2 + 1.2)
-        c = (a, 0.04, side) if along_x else (side, 0.04, a)
-        mb.rubble_chunk(b, f.p(*c), (0.22, 0.07, 0.11), rng, (skin, "rubble_core"))
+        c = (a, 0.0, side) if along_x else (side, 0.0, a)
+        mb.rubble_chunk(b, on_ground(f.p(*c), 0.03), (0.22, 0.07, 0.11), rng, (skin, "rubble_core"))
 
 
-def is_wall(box):
+def is_wall(box, low=1.4):
     s = box["size"]
-    return s[1] >= 1.4 and min(s[0], s[2]) <= 0.5 and abs(box["pitch"]) < 1
+    return s[1] >= low and min(s[0], s[2]) <= 0.5 and abs(box["pitch"]) < 1
 
 
 def draw_wall(b, piece, rng):
@@ -392,6 +448,64 @@ def draw_wall(b, piece, rng):
             mb.rubble_chunk(b, tuple(box["pos"]), (s[0] * 0.95, s[1] * 0.95, s[2] * 0.95), rng, (skin, skin, "rubble_core"), box["yaw"])
 
 
+# ------------------------------------------------------------------------------------------------ ruined houses
+def draped(b, f, x0, x1, z0, z1, lift, mat, step=1.0, lip=0.15, tile=2.0):
+    """A thin slab over the frame's rectangle that follows the ground `lift` above it, its edge dropping under it."""
+    nx, nz = max(1, round((x1 - x0) / step)), max(1, round((z1 - z0) / step))
+    P = [[None] * (nx + 1) for _ in range(nz + 1)]
+    for j in range(nz + 1):
+        for i in range(nx + 1):
+            p = f.p(x0 + (x1 - x0) * i / nx, 0.0, z0 + (z1 - z0) * j / nz)
+            P[j][i] = on_ground(p, lift)
+    for j in range(nz):
+        for i in range(nx):
+            q = [P[j][i], P[j][i + 1], P[j + 1][i + 1], P[j + 1][i]]
+            for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
+                n = norm(cross(v_sub(c, a), v_sub(d, a)))
+                if n[1] < 0:
+                    n = v_scale(n, -1)
+                b.poly([a, c, d], n, mat, uv_world(tile))
+    edge = [P[0][i] for i in range(nx + 1)] + [P[j][nx] for j in range(1, nz + 1)] + \
+           [P[nz][i] for i in range(nx - 1, -1, -1)] + [P[j][0] for j in range(nz - 1, 0, -1)]
+    mid = f.p((x0 + x1) / 2, 0.0, (z0 + z1) / 2)
+    for a, c in zip(edge, edge[1:] + edge[:1]):
+        q = [a, c, (c[0], c[1] - lift - lip, c[2]), (a[0], a[1] - lift - lip, a[2])]
+        n = norm((((a[0] + c[0]) / 2) - mid[0], 0.0, ((a[2] + c[2]) / 2) - mid[2]))
+        b.poly(q, n, mat, uv_world(tile))
+
+
+def draw_ruin(b, piece, rng):
+    """A shelled house (round 2, owner: "walls just standing straight up, it makes no sense"): its floor slab on the
+    ground, a corner still standing, stubs of the rest, heaps of its own fallen wall inside, charred roof timbers."""
+    look = piece["look"]
+    skin = WALL_SKIN[look]
+    for box in piece["boxes"]:
+        s = box["size"]
+        if not box["solid"] and s[1] <= 0.3:            # the floor slab
+            f = frame_of(b, box)
+            draped(b, f, -s[0] / 2, s[0] / 2, -s[2] / 2, s[2] / 2, 0.08, "concrete", tile=2.0)
+            cx, cz = box["pos"][0], box["pos"][2]
+            bits(b, (cx, 0, cz), min(s[0], s[2]) / 2 - 0.4, 14, rng, (skin, "rubble_core"))
+            for _ in range(rng.randint(2, 3)):         # roof timbers, burnt
+                b.box(on_ground((cx + rng.uniform(-1.5, 1.5), 0, cz + rng.uniform(-1.2, 1.2)), rng.uniform(0.25, 0.6)),
+                      (0.16, 0.18, rng.uniform(2.4, 3.6)), yaw=rng.uniform(0, 180), pitch=rng.uniform(-18, 18),
+                      style=flat(rng.choice(("wood_dark", "dbr_burnt")), 1.0))
+            for _ in range(4):
+                b.box(on_ground((cx + rng.uniform(-2, 2), 0, cz + rng.uniform(-1.6, 1.6)), rng.uniform(0.15, 0.4)), (0.9, 0.05, 0.6),
+                      yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("roof_clay", 1.0))
+        elif min(s[0], s[2]) <= 0.45:                   # a wall, standing or knocked down to a stub
+            wall_run(b, box, skin, rng, top_mat=skin if look != "c" else None, rebar=look == "c",
+                     extra_t=0.12 if look == "d" else 0.0, col_w=0.33 if look == "d" else 0.25)
+        elif s[1] > 2.5:                                 # the chimney stack
+            f = frame_of(b, box)
+            f.box((0, (s[1] - 0.3) / 2, 0), (s[0], s[1] + 0.3, s[2]), style=no_bottom("house_brick", 2.0))
+            for k in range(3):
+                f.box((rng.uniform(-0.25, 0.25), s[1] + 0.08, rng.uniform(-0.2, 0.2)), (0.3, 0.16, 0.25), yaw=rng.uniform(0, 30),
+                      style=no_bottom("house_brick", 1.0))
+        else:                                            # a heap of fallen wall
+            mb.rubble_chunk(b, tuple(box["pos"]), tuple(v * 0.95 for v in s), rng, (skin, skin, "rubble_core"), box["yaw"])
+
+
 # ------------------------------------------------------------------------------------------------ rubble piles
 RUBBLE_MATS = {"b": ("dbr_conc", "dbr_conc", "rubble_core"), "c": ("house_brick", "house_brick", "rubble_core"),
                "d": ("house_stone", "dbr_conc", "rubble_core")}
@@ -403,21 +517,19 @@ def draw_rubble(b, piece, rng):
     mats = RUBBLE_MATS[look]
     for box in piece["boxes"]:
         s = box["size"]
-        if is_wall(box):
+        if is_wall(box, 0.8):
             wall_run(b, box, RUBBLE_WALL[look], rng, top_mat=RUBBLE_WALL[look] if look != "b" else None, rebar=look == "b")
         else:
             mb.rubble_chunk(b, tuple(box["pos"]), tuple(v * 0.95 for v in s), rng, mats, box["yaw"])
     cx = sum(bx["pos"][0] for bx in piece["boxes"]) / len(piece["boxes"])
     cz = sum(bx["pos"][2] for bx in piece["boxes"]) / len(piece["boxes"])
-    y0 = min(bx["pos"][1] - bx["size"][1] / 2 for bx in piece["boxes"])
-    for _ in range(10):
-        mb.rubble_chunk(b, (cx + rng.uniform(-3, 3), y0 + 0.05, cz + rng.uniform(-3, 3)), (0.22, 0.07, 0.11), rng, (mats[0], "rubble_core"))
+    bits(b, (cx, 0.0, cz), 3.0, 10, rng, (mats[0], "rubble_core"))
     if look == "d":   # a house came down: roof timbers and tiles in it
         for _ in range(3):
-            b.box((cx + rng.uniform(-1.5, 1.5), y0 + rng.uniform(0.3, 0.7), cz + rng.uniform(-1.5, 1.5)), (0.16, 0.16, rng.uniform(2.0, 3.2)),
-                  yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("wood_dark", 1.0))
+            b.box(on_ground((cx + rng.uniform(-1.5, 1.5), 0, cz + rng.uniform(-1.5, 1.5)), rng.uniform(0.3, 0.7)),
+                  (0.16, 0.16, rng.uniform(2.0, 3.2)), yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("wood_dark", 1.0))
         for _ in range(4):
-            b.box((cx + rng.uniform(-2, 2), y0 + rng.uniform(0.15, 0.5), cz + rng.uniform(-2, 2)), (0.9, 0.05, 0.6),
+            b.box(on_ground((cx + rng.uniform(-2, 2), 0, cz + rng.uniform(-2, 2)), rng.uniform(0.15, 0.5)), (0.9, 0.05, 0.6),
                   yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("roof_clay", 1.0))
 
 
@@ -436,53 +548,66 @@ def draw_berm(b, piece, rng):
                     f.box(c, (s[0] / nx - 0.02, hh + 0.3, s[2] / nz - 0.02), style=lambda nn, m, q: None if nn[1] < -0.7 else
                           (("dbr_dirt", uv_world(2.0)) if nn[1] > 0.7 else ("dbr_hesco", uv_world(1.1))))
         return
+    earth_bank(b, boxes, rng)
+
+
+def earth_bank(b, boxes, rng, fall=2.2):
+    """A bulldozed bank over its gray boxes, shaped from the ground (round 2, owner: the banks didn't sit on the
+    hills and looked like loaves): it rises out of the ground round its boxes, its top just over theirs (they collide),
+    and its edges dip under the ground, so there's no seam. Plain ground colour where it's gentle, bare earth on the
+    steep sides."""
     mid = boxes[len(boxes) // 2]
     yaw = mid["yaw"]
     ox, oz = mid["pos"][0], mid["pos"][2]
     rects = []
-    for box in boxes:   # each box in the middle one's frame: (x0, x1, z0, z1, bottom, top)
+    for box in boxes:   # each box in the middle one's frame: (x0, x1, z0, z1, top)
         l = rot((box["pos"][0] - ox, 0.0, box["pos"][2] - oz), -yaw, 0.0)
-        s = box["size"]
-        rects.append((l[0] - s[0] / 2, l[0] + s[0] / 2, l[2] - s[2] / 2, l[2] + s[2] / 2,
-                      box["pos"][1] - s[1] / 2, box["pos"][1] + s[1] / 2))
-    base = min(r[4] for r in rects) - 0.3
-    x0, x1 = min(r[0] for r in rects) - 1.1, max(r[1] for r in rects) + 1.1
-    z0, z1 = min(r[2] for r in rects) - 1.1, max(r[3] for r in rects) + 1.1
+        s_ = box["size"]
+        rects.append((l[0] - s_[0] / 2, l[0] + s_[0] / 2, l[2] - s_[2] / 2, l[2] + s_[2] / 2, box["pos"][1] + s_[1] / 2))
+    x0, x1 = min(r[0] for r in rects) - fall - 0.5, max(r[1] for r in rects) + fall + 0.5
+    z0, z1 = min(r[2] for r in rects) - fall - 0.5, max(r[3] for r in rects) + fall + 0.5
     ph = (rng.uniform(0, 6), rng.uniform(0, 6))
 
+    def world(x, z):
+        p = rot((x, 0.0, z), yaw, 0.0)
+        return ox + p[0], oz + p[2]
+
     def height(x, z):
-        best = base
-        for rx0, rx1, rz0, rz1, bot, top in rects:
+        wx, wz = world(x, z)
+        g = ground(wx, wz)
+        best = g - 0.3
+        for rx0, rx1, rz0, rz1, top in rects:
             dx = max(rx0 - x, 0.0, x - rx1)
             dz = max(rz0 - z, 0.0, z - rz1)
             d = math.hypot(dx, dz)
-            # (inside: the box's top, a little rounder at its edges; outside: a slope down to the ground)
             edge = min(x - rx0, rx1 - x, z - rz0, rz1 - z)
-            y = top + 0.12 * smooth01(edge / 0.6) if d == 0 else bot + (top - bot) * (1 - smooth01(d / 1.0)) - 0.15 * smooth01(d / 1.0)
+            y = top + 0.1 * smooth01(edge / 0.8) if d == 0 else top - (top - g + 0.25) * smooth01(d / fall)
             best = max(best, y)
-        return best + 0.05 * math.sin(x * 1.7 + ph[0]) * math.sin(z * 2.3 + ph[1])
-    nx, nz = max(4, int((x1 - x0) / 0.45)), max(4, int((z1 - z0) / 0.45))
+        best += 0.05 * math.sin(x * 1.3 + ph[0]) * math.sin(z * 1.9 + ph[1])
+        return (best if best > g + 0.03 else g - 0.2), g
+    nx, nz = max(4, int((x1 - x0) / 0.5)), max(4, int((z1 - z0) / 0.5))
     xs = [x0 + (x1 - x0) * i / nx for i in range(nx + 1)]
     zs = [z0 + (z1 - z0) * j / nz for j in range(nz + 1)]
     H = [[height(x, z) for x in xs] for z in zs]
-    top_mat = "dbr_grass" if look == "b" else "dbr_ruts"
     for j in range(nz):
         for i in range(nx):
-            q = [(xs[i], H[j][i], zs[j]), (xs[i + 1], H[j][i + 1], zs[j]), (xs[i + 1], H[j + 1][i + 1], zs[j + 1]),
-                 (xs[i], H[j + 1][i], zs[j + 1])]
-            if max(p[1] for p in q) < base + 0.25:
+            hs = [H[j][i], H[j][i + 1], H[j + 1][i + 1], H[j + 1][i]]
+            if all(h <= g + 0.0 for h, g in hs):
                 continue
-            q = [v_add(rot((p[0], 0.0, p[2]), yaw, 0.0), (ox, p[1], oz)) for p in q]
+            q = [(xs[i], hs[0][0], zs[j]), (xs[i + 1], hs[1][0], zs[j]), (xs[i + 1], hs[2][0], zs[j + 1]), (xs[i], hs[3][0], zs[j + 1])]
+            q = [(world(p[0], p[2])[0], p[1], world(p[0], p[2])[1]) for p in q]
+            qn = norm(cross(v_sub(q[2], q[0]), v_sub(q[3], q[1])))   # (one colour per cell: no zigzag edges)
+            mat = "dbr_ground" if abs(qn[1]) > 0.74 else "dbr_earth"
             for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
                 n = norm(cross(v_sub(c, a), v_sub(d, a)))
                 if n[1] < 0:
                     n = v_scale(n, -1)
-                b.poly([a, c, d], n, top_mat if n[1] > 0.6 else "dbr_dirt", uv_world(2.0))
-    for _ in range(6 if look == "b" else 12):   # stones (and clods) round its foot
-        sz = rng.uniform(0.2, 0.5)
-        lx, lz = rng.uniform(x0 + 0.5, x1 - 0.5), rng.choice((z0 + 0.6, z1 - 0.6)) + rng.uniform(-0.3, 0.3)
-        c = v_add(rot((lx, 0.0, lz), yaw, 0.0), (ox, base + 0.3 + sz * 0.3, oz))
-        rock(b, c, (sz * 1.3, sz, sz), rng.uniform(0, 180), rng, "dbr_granite" if look == "b" else rng.choice(("dbr_dirt", "dbr_granite")))
+                b.poly([a, c, d], n, mat, uv_world(2.0))
+    for _ in range(5):   # a few stones at its foot
+        sz = rng.uniform(0.2, 0.45)
+        lx, lz = rng.uniform(x0 + 1.0, x1 - 1.0), rng.choice((z0 + 0.5, z1 - 0.5)) + rng.uniform(-0.3, 0.3)
+        wx, wz = world(lx, lz)
+        rock(b, (wx, ground(wx, wz) + sz * 0.3, wz), (sz * 1.3, sz, sz), rng.uniform(0, 180), rng, "dbr_granite")
 
 
 # ------------------------------------------------------------------------------------------------ rocks
@@ -501,7 +626,7 @@ def draw_rocks(b, piece, rng):
                 rock(b, (c[0], y0 + (k + 0.5) * h, c[2]), (s[0] * k_ * 1.04, h + 0.06, s[2] * k_ * 1.04), yaw + rng.uniform(-8, 8),
                      rng, "dbr_slate", jitter=0.05, chamfer=0.12, taper=0.95)
         else:
-            rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", top="dbr_grass", jitter=0.12, chamfer=0.42)
+            rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", jitter=0.12, chamfer=0.42)
 
 
 # ------------------------------------------------------------------------------------------------ containers
@@ -742,15 +867,6 @@ def draw_crater(b, piece, rng):
     cx = sum(m["pos"][0] for m in mounds) / len(mounds)
     cz = sum(m["pos"][2] for m in mounds) / len(mounds)
     R = sum(math.hypot(m["pos"][0] - cx, m["pos"][2] - cz) for m in mounds) / len(mounds)
-    ring = sorted((math.atan2(m["pos"][2] - cz, m["pos"][0] - cx), m["pos"][1] - m["size"][1] / 2) for m in mounds)
-
-    def base(a):   # the ground under the rim at angle a, between the mounds either side
-        for (a0, y0), (a1, y1) in zip(ring, ring[1:] + [(ring[0][0] + 2 * math.pi, ring[0][1])]):
-            aa = a if a >= a0 else a + 2 * math.pi
-            if a0 <= aa <= a1:
-                t = (aa - a0) / ((a1 - a0) or 1)
-                return y0 + (y1 - y0) * t
-        return ring[0][1]
     ph = (rng.uniform(0, 6), rng.uniform(0, 6))
     NA, NR = 32, 7
     r0, r1 = R - 1.2, R + 1.4
@@ -760,11 +876,11 @@ def draw_crater(b, piece, rng):
         r = r0 + (r1 - r0) * j / NR
         w = 1.0 + 0.25 * math.sin(3 * a + ph[0]) + 0.15 * math.sin(5 * a + ph[1])
         t = (r - R) / (1.2 if r < R else 1.4)
-        h = 0.62 * w * max(0.0, 1 - t * t)
+        h = 0.58 * w * max(0.0, 1 - t * t) ** 1.5
         sink = 0.45 if j == 0 else 0.15 if j == NR else 0.0
-        return (cx + r * math.cos(a), base(a) + h - sink, cz + r * math.sin(a))
-    top = {"b": "dbr_grass", "c": "dbr_burnt", "d": "dbr_grass"}[look]
-    side = {"b": "dbr_dirt", "c": "dbr_dirt", "d": "dbr_grass"}[look]
+        x, z = cx + r * math.cos(a), cz + r * math.sin(a)
+        return (x, ground(x, z) + h - sink, z)   # (round 2: the rim follows the ground and dips under it at its edges)
+    inner = "dbr_scorch" if look == "c" else "dbr_earth"
     for i in range(NA):
         for j in range(NR):
             q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)]
@@ -772,14 +888,16 @@ def draw_crater(b, piece, rng):
                 n = norm(cross(v_sub(c, a), v_sub(d, a)))
                 if n[1] < 0:
                     n = v_scale(n, -1)
-                y = (a[1] + c[1] + d[1]) / 3 - base(math.atan2(a[2] - cz, a[0] - cx))
-                b.poly([a, c, d], n, top if (n[1] > 0.8 and y > 0.3) else side, uv_world(2.0))
+                mx, mz = (a[0] + c[0] + d[0]) / 3, (a[2] + c[2] + d[2]) / 3
+                # (thrown-out earth inside and over the lip, the ground's own colour down its outside)
+                outside = math.hypot(mx - cx, mz - cz) > R + 0.35
+                b.poly([a, c, d], n, "dbr_ground" if outside and n[1] > 0.7 else inner, uv_world(2.0))
     for _ in range(7):
         a, r = rng.uniform(0, 2 * math.pi), rng.uniform(R - 0.6, R + 2.2)
-        p = (cx + r * math.cos(a), base(a) + 0.05, cz + r * math.sin(a))
-        if look == "b":     # sod clods thrown out
+        p = on_ground((cx + r * math.cos(a), 0.0, cz + r * math.sin(a)), 0.05)
+        if look == "b":     # clods thrown out
             b.box(p, (0.4, 0.14, 0.3), yaw=rng.uniform(0, 90), pitch=rng.uniform(-20, 20),
-                  style=lambda nn, m, q: ("dbr_grass" if nn[1] > 0.7 else "dbr_dirt", uv_world(1.0)))
+                  style=lambda nn, m, q: ("dbr_ground" if nn[1] > 0.7 else "dbr_earth", uv_world(1.0)))
         elif look == "c":   # shrapnel
             b.box(p, (0.3, 0.04, 0.12), yaw=rng.uniform(0, 180), pitch=rng.uniform(-30, 30), style=flat("trim_dark", 1.0))
         else:               # stones in the grass
@@ -811,7 +929,7 @@ def draw_junk(b, piece, rng):
             cyl(b, f.p(rng.uniform(-0.6, 0.6), 0.04, rng.uniform(-0.6, 0.6)), 0.04, 0.25, "green", sides=6, axis="z", yaw=rng.uniform(0, 180))
 
 
-DRAW = {"wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
+DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk}
 
@@ -825,12 +943,14 @@ def main():
                                          random.Random(kit))
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
     cells = mb.kit_atlas()
+    TERRAIN.update(json.load(open(os.path.join(JSON_DIR, "terrain.json"))))
     total = 0
     for fn in sorted(os.listdir(JSON_DIR)):
         name = fn[:-5]
-        if not fn.endswith(".json") or (names and name not in names):
+        if not fn.endswith(".json") or fn == "terrain.json" or (names and name not in names):
             continue
         data = json.load(open(os.path.join(JSON_DIR, fn)))
+        ORIGIN[:] = data["origin"]
         b = Builder()
         for piece in data["pieces"]:
             DRAW[piece["kind"]](b, piece, random.Random(f"{piece['kind']} {piece['seed']}"))

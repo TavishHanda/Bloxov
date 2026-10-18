@@ -156,13 +156,83 @@ def debris_kind(kind):
                 return fn(x, z, *args, **kw)
             debris.append({"kind": kind, "at": (x, z)})
             _debris.append(len(debris) - 1)
+            start, crater_start = len(boxes), len(craters)
             try:
-                return fn(x, z, *args, **kw)
+                result = fn(x, z, *args, **kw)
             finally:
                 _debris.pop()
+            if _scattering[0] and _overlaps_earlier(start):   # (scattered junk never lands in something else)
+                del boxes[start:]
+                del anchors[start:]
+                del craters[crater_start:]
+                debris[-1]["dropped"] = True
+            return result
         piece.__name__ = fn.__name__
         return piece
     return wrap
+
+
+# Scattered pieces (clutter, cover, ruins: `scatter_piece`) are dropped if they'd overlap something already there
+# (owner 2026-10-18: "make sure things arent over lapping"): any earlier debris piece, car, tree trunk, post or wall.
+_scattering = [0]
+_fp_index = {"upto": 0, "grid": {}}
+FP_CELL = 8.0
+FP_GAP = 0.3       # the least room between two pieces
+
+
+def _fp_corners(b, pad=0.0):
+    """A box's footprint (Godot x, z), its four corners."""
+    c, s = math.cos(math.radians(b[6])), math.sin(math.radians(b[6]))
+    hx, hz = b[3] / 2 + pad, b[5] / 2 + pad
+    return [(b[0] + u * c + v * s, b[2] - u * s + v * c) for u, v in ((-hx, -hz), (hx, -hz), (hx, hz), (-hx, hz))]
+
+
+def _fp_apart(p, q):
+    """True if two convex footprints don't overlap (separating axes)."""
+    for poly in (p, q):
+        for k in range(len(poly)):
+            ax, az = poly[k][1] - poly[k - 1][1], poly[k - 1][0] - poly[k][0]
+            a = [ax * x + az * z for x, z in p]
+            b = [ax * x + az * z for x, z in q]
+            if max(a) <= min(b) or max(b) <= min(a):
+                return True
+    return False
+
+
+def _fp_counts(b):
+    """Earlier boxes a scattered piece must keep clear of: debris, and anything solid that stands on the ground
+    (not ground covers, not tree tops)."""
+    if len(b) > 10:
+        return True
+    return bool(b[9]) and b[4] > 0.2 and b[1] + b[4] / 2 > 0.05 and b[1] - b[4] / 2 < 2.0 and max(b[3], b[5]) < 60
+
+
+def _overlaps_earlier(start):
+    grid = _fp_index["grid"]
+    for k in range(_fp_index["upto"], start):
+        b = boxes[k]
+        if not _fp_counts(b):
+            continue
+        r = math.hypot(b[3], b[5]) / 2
+        for i in range(int((b[0] - r) // FP_CELL), int((b[0] + r) // FP_CELL) + 1):
+            for j in range(int((b[2] - r) // FP_CELL), int((b[2] + r) // FP_CELL) + 1):
+                grid.setdefault((i, j), []).append(k)
+    _fp_index["upto"] = start
+    for b in boxes[start:]:
+        if b[4] <= 0.06:
+            continue
+        mine = _fp_corners(b, FP_GAP)
+        r = math.hypot(b[3], b[5]) / 2 + FP_GAP
+        seen = set()
+        for i in range(int((b[0] - r) // FP_CELL), int((b[0] + r) // FP_CELL) + 1):
+            for j in range(int((b[2] - r) // FP_CELL), int((b[2] + r) // FP_CELL) + 1):
+                for k in grid.get((i, j), ()):
+                    if k in seen:
+                        continue
+                    seen.add(k)
+                    if not _fp_apart(mine, _fp_corners(boxes[k])):
+                        return True
+    return False
 
 
 def outdoor_chunk(x, z):
@@ -2563,12 +2633,14 @@ def rock(x, z, rng):
 
 @debris_kind("rubble")
 def rubble(x, z, rng):
-    """A pile of broken concrete with a chunk of wall still standing."""
+    """A pile of broken concrete round a stub of wall."""
     for _ in range(rng.randint(4, 7)):
         w, h, d = rng.uniform(0.6, 1.8), rng.uniform(0.3, 0.9), rng.uniform(0.6, 1.8)
         obox(x + rng.uniform(-2.5, 2.5), h / 2, z + rng.uniform(-2.5, 2.5), w, h, d, rng.uniform(0, 90),
              rng.choice(("concrete", "concrete", "wall", "slab")))
-    obox(x + rng.uniform(-1, 1), 1.1, z + rng.uniform(-1, 1), rng.uniform(2.5, 4.0), 2.2, 0.3, rng.uniform(0, 180), "wall")
+    # (a stub of wall, waist high: owner 2026-10-18, no more lone walls standing up)
+    h = 1.0 + (x * 7.3 + z * 3.1) % 0.4
+    obox(x + rng.uniform(-1, 1), h / 2, z + rng.uniform(-1, 1), rng.uniform(2.5, 4.0), h, 0.3, rng.uniform(0, 180), "wall")
 
 
 def wreck(x, z, rng):
@@ -2629,28 +2701,61 @@ CLUTTER = [(rock, 5), (rubble, 3), (wreck, 3), (wrecked_truck, 1), (tank_traps, 
 
 # Sightline breakers (World art 0.17, owner: "you can spawn, go on a hill and kill a bunch of AI"): taller cover,
 # added by `cover_pass()` between the old clutter. Check with tools/sightlines.gd.
-@debris_kind("wall")
-def ruin_wall(x, z, rng, yaw=None):
-    """What's left of a wall: a jagged run of 2-3 m high pieces, sometimes with a corner."""
+def _near_buildings(x, z, reach=45.0):
+    return any(x0 - reach < x < x1 + reach and z0 - reach < z < z1 + reach for _, x0, z0, x1, z1 in footprints)
+
+
+def broken_cover(x, z, rng, yaw=None):
+    """Tall cover where a lone ruined wall stood (owner 2026-10-18: too many walls standing up on their own, "it makes
+    no sense"): near the town a shelled house's remains, out in the country a rock outcrop."""
+    (ruin if _near_buildings(x, z, 22.0) else outcrop)(x, z, rng, yaw)
+
+
+@debris_kind("ruin")
+def ruin(x, z, rng, yaw=None):
+    """What's left of a small shelled house: its floor slab, a corner still standing (full cover, the long side along
+    yaw), stubs of the other walls with a gap for the door, heaps of fallen wall inside, sometimes the chimney."""
     yaw = rng.uniform(0, 180) if yaw is None else yaw
-    col = rng.choice(("wall", "concrete", "wall_farm", "stone"))
-    length = rng.uniform(4.0, 7.0)
+    L, D = rng.uniform(6.0, 7.5), rng.uniform(4.6, 5.6)
+    c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+
+    def put(u, v, h, su, sv, colour="wall", solid=True, y0=0.0):
+        obox(x + u * c + v * s_, y0 + h / 2, z - u * s_ + v * c, su, h, sv, yaw, colour, solid=solid)
+    put(0, 0, 0.2, L, D, "concrete", solid=False)               # the floor slab
+    side = rng.choice((-1, 1))                                   # which end the standing corner is at
+    back = rng.uniform(0.55, 0.85) * L                           # the back wall, still standing from the corner
+    put(side * (L - back) / 2, -D / 2 + 0.2, rng.uniform(2.4, 3.0), back, 0.4)
+    ret = rng.uniform(0.4, 0.75) * D                             # its return along the end wall
+    put(side * (L / 2 - 0.2), -D / 2 + 0.4 + ret / 2, rng.uniform(2.1, 2.7), 0.4, ret)
+    if back < L - 0.6:                                           # the rest of the back wall: a stub
+        put(-side * back / 2, -D / 2 + 0.2, rng.uniform(0.4, 0.9), L - back - 0.3, 0.4)
+    if ret < D - 1.0:
+        put(side * (L / 2 - 0.2), D / 2 - (D - ret - 0.8) / 2 - 0.2, rng.uniform(0.3, 0.8), 0.4, D - ret - 0.8)
+    door = rng.uniform(-L / 4, L / 4)                            # the front: stubs either side of the doorway
+    for u0, u1 in ((-L / 2, door - 0.6), (door + 0.6, L / 2)):
+        if u1 - u0 > 0.5:
+            put((u0 + u1) / 2, D / 2 - 0.2, rng.uniform(0.35, 1.0), u1 - u0, 0.4)
+    put(-side * (L / 2 - 0.2), 0.2, rng.uniform(0.3, 0.7), 0.4, D - 1.4)   # the far end wall, knocked down
+    for _ in range(rng.randint(2, 4)):                           # heaps of fallen wall inside
+        w, h = rng.uniform(1.0, 2.0), rng.uniform(0.35, 0.8)
+        u, v = rng.uniform(-L / 2 + 1.2, L / 2 - 1.2), rng.uniform(-D / 2 + 1.1, D / 2 - 1.1)
+        obox(x + u * c + v * s_, h / 2, z - u * s_ + v * c, w, h, rng.uniform(0.8, 1.6), yaw + rng.uniform(-30, 30), "concrete")
+    if rng.random() < 0.35:                                      # the chimney stack, still up
+        put(side * (L / 2 - 1.4), -D / 2 + 0.55, rng.uniform(3.4, 4.2), 0.9, 0.7)
+
+
+@debris_kind("rocks")
+def outcrop(x, z, rng, yaw=None):
+    """Two or three big boulders in a row along yaw: head-high cover out in the country."""
+    yaw = rng.uniform(0, 180) if yaw is None else yaw
     n = rng.randint(2, 3)
-    seg = length / n
+    c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    u = -(n - 1) * 1.1
     for k in range(n):
-        h = rng.uniform(1.9, 3.0)
-        off = (k - (n - 1) / 2) * seg
-        obox(x + off * math.cos(math.radians(yaw)), h / 2, z - off * math.sin(math.radians(yaw)), seg, h, 0.4, yaw, col)
-    if rng.random() < 0.5:   # a corner
-        h = rng.uniform(1.9, 2.6)
-        cx, cz = x + length / 2 * math.cos(math.radians(yaw)), z - length / 2 * math.sin(math.radians(yaw))
-        side = rng.uniform(2.5, 4.0)
-        obox(cx + side / 2 * math.sin(math.radians(yaw)), h / 2, cz + side / 2 * math.cos(math.radians(yaw)), 0.4, h,
-             side, yaw, col)
-    rubble_bits = rng.randint(2, 4)
-    for _ in range(rubble_bits):
-        w = rng.uniform(0.5, 1.2)
-        obox(x + rng.uniform(-2.5, 2.5), w / 3, z + rng.uniform(-2.5, 2.5), w, w / 1.5, w, rng.uniform(0, 90), col)
+        w, h, d = rng.uniform(2.2, 3.0), rng.uniform(1.9, 2.6) if k != n // 2 or n == 2 else rng.uniform(2.3, 2.8), rng.uniform(1.8, 2.6)
+        v = rng.uniform(-0.4, 0.4)
+        obox(x + u * c + v * s_, h / 2 - 0.1, z - u * s_ + v * c, w, h, d, yaw + rng.uniform(-25, 25), "stone")
+        u += 2.2
 
 
 @debris_kind("container")
@@ -2677,7 +2782,7 @@ def berm(x, z, rng, yaw=None):
              h, 2.6, yaw + rng.uniform(-6, 6), "dirt")
 
 
-COVER = [(ruin_wall, 5), (container, 2), (berm, 3), (rock, 3), (wrecked_truck, 2), (rubble, 2), (wreck, 2)]
+COVER = [(broken_cover, 5), (container, 2), (berm, 3), (rock, 3), (wrecked_truck, 2), (rubble, 2), (wreck, 2)]
 
 
 def _clear_of_map(x, z):
@@ -2746,7 +2851,11 @@ def scatter_piece(x, z):
     """Notes what the scatter piece made in here added (so `clear_scatter` can take it back out whole)."""
     lists = (boxes, trunks, craters, clutter_spots, woods)
     start = [len(lst) for lst in lists]
-    yield
+    _scattering[0] += 1
+    try:
+        yield
+    finally:
+        _scattering[0] -= 1
     scatter_pieces.append(((x, z), [(a, len(lst)) for a, lst in zip(start, lists)]))
 
 
@@ -2871,7 +2980,7 @@ def planned_cover():
             if not ok(x, z):
                 continue
             rng = random.Random(int(x * 1000 + z))
-            kind = rng.choice((ruin_wall, ruin_wall, ruin_wall, container, berm, berm))
+            kind = rng.choice((broken_cover, broken_cover, broken_cover, container, berm, berm))
             with scatter_piece(x, z):
                 kind(x, z, rng, yaw)   # (no level pad: these stand on the hill tops, they sink into the slope instead)
             ok = _cover_checker()   # (so the next one keeps its distance)
@@ -4465,7 +4574,10 @@ def behind_key_door(place, x, z):
     return place == "Bunker" or (place == "Bank" and 136 < x < 144 and 130 < z < 140)
 
 
-def write_outdoor():
+ARMY_KINDS = ("sandbags", "tanktrap", "barrier")
+
+
+def write_outdoor(ter):
     """The outdoor debris kit's .json per chunk (see `debris_kind`), and hides the gray boxes of the chunks whose model
     exists. Returns those chunks' names."""
     names = {i: n for n, i in C.items()}
@@ -4479,8 +4591,15 @@ def write_outdoor():
         x, z = d["at"]
         chunk = outdoor_chunk(x, z)
         look = random.Random(f"debris {d['kind']} {x:.2f} {z:.2f}").choice("bcd")   # (owner: a mix of all three)
+        if d["kind"] == "berm":   # (earth banks are shaped from the ground; wire-mesh barriers only at army posts)
+            look = "d" if any(e["kind"] in ARMY_KINDS and not e.get("dropped") and
+                              math.hypot(e["at"][0] - x, e["at"][1] - z) < 30 for e in debris) else "b"
         chunks.setdefault(chunk, []).append((d["kind"], look, f"{x:.2f} {z:.2f}", ks))
     os.makedirs(OUTDOOR_JSON_DIR, exist_ok=True)
+    with open(os.path.join(OUTDOOR_JSON_DIR, "terrain.json"), "w") as f:   # (the pieces are fitted to the ground)
+        json.dump({"note": "Generated by tools/gen_old_bloxov.py: the ground's height grid (Godot x, z; split like BoxMap's "
+                   "triangles), for art_source/scripts/make_outdoor.py.", "xs": [round(gx(v), 3) for v in ter.xs],
+                   "zs": [round(gz(v), 3) for v in ter.zs], "h": [[round(h, 3) for h in row] for row in ter.h]}, f)
     shown = []
     for chunk, ps in sorted(chunks.items()):
         i, j = int(chunk[-2]), int(chunk[-1])
@@ -4494,6 +4613,7 @@ def write_outdoor():
         with open(os.path.join(OUTDOOR_JSON_DIR, chunk + ".json"), "w") as f:
             f.write('{"note": "Generated by tools/gen_old_bloxov.py: the outdoor debris pieces in this map chunk (gray boxes '
                     'in Godot space relative to the chunk\'s middle, at height 0). Drawn by art_source/scripts/make_outdoor.py.",\n'
+                    f'"origin": [{ox}, {oz}],\n'
                     '"pieces": [\n' + ",\n".join(rows) + "\n]}\n")
         if os.path.exists(outdoor_path(chunk)):
             shown.append((chunk, ox, oz))
@@ -4507,7 +4627,7 @@ def write_outdoor():
 
 def write_scene(ter):
     write_model_boxes(ter)
-    outdoor = write_outdoor()
+    outdoor = write_outdoor(ter)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
               "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}
