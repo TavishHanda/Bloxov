@@ -2746,7 +2746,7 @@ def _bush_spot(x, z):
         for a, b in zip(points, points[1:]):
             if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 3.5:
                 return False
-    for x0, z0, x1, z1 in yards:
+    for x0, z0, x1, z1 in yards + camp_rects:
         if x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2:
             return False
     for name, x0, z0, x1, z1 in scatter_footprints() + areas:
@@ -2807,6 +2807,90 @@ def truck(x, z, yaw):
 @debris_kind("sandbags")
 def sandbags(x, z, yaw, length=4.0):
     obox(x, 0.55, z, 0.7, 1.1, length, yaw, "sandbag")
+
+
+# Extract camps (World art 0.17, owner 2026-10-18: "make the extracts nicer", picked the radio mast plus "little
+# areas where the extracts are", a mix of designs): beside each extract's square (which stays clear) a tent camp, a
+# checkpoint post or a dug-in outpost under a camo net. The radio mast and the square are scenes/extract_zone.tscn.
+@debris_kind("tent")
+def tent(x, z, yaw):
+    """An army tent (its length along yaw; the open end faces yaw + 180)."""
+    obox(x, 0.8, z, 2.6, 1.6, 3.4, yaw, "army")
+
+
+@debris_kind("hut")
+def guard_hut(x, z, yaw):
+    """A checkpoint's guard hut (its door faces yaw)."""
+    obox(x, 1.25, z, 2.0, 2.5, 2.0, yaw, "army")
+
+
+@debris_kind("crates")
+def ammo_crates(x, z, yaw):
+    """A stack of army crates."""
+    with group():
+        obox(x, 0.35, z, 1.1, 0.7, 0.8, yaw, "army")
+        obox(x + 0.1, 0.92, z, 0.8, 0.45, 0.6, yaw + 12, "army")
+
+
+@debris_kind("net")
+def camo_net(x, z, yaw, w=4.4, d=4.0):
+    """A camo net on four poles (w across yaw, d along it), 2.2 m up: walk under it."""
+    with group():
+        c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        for lx, lz in ((-w / 2, -d / 2), (w / 2, -d / 2), (-w / 2, d / 2), (w / 2, d / 2)):
+            obox(x + c * lx + s_ * lz, 1.1, z - s_ * lx + c * lz, 0.12, 2.2, 0.12, yaw, "wood")
+        obox(x, 2.2, z, w, 0.05, d, yaw, "army", solid=False)
+
+
+CAMP_KINDS = ("tent", "hut", "net", "crates")
+CAMPS = {"TownRoad": "checkpoint", "Highway": "checkpoint", "FarmRoad": "outpost", "MillLane": "tents",
+         "CreekTrail": "tents", "SouthRoad": "outpost"}
+CAMP_FLIP = {"Highway"}   # (the camps on the side away from the middle: the junkyard's fence is on the other)
+camp_rects = []   # (map x0, z0, x1, z1) round each camp: gravel underfoot (write_splat)
+
+
+def extract_camps():
+    for name, _, ex, ez in extracts:
+        style = CAMPS.get(name)
+        if style is None:
+            continue
+        near = min(((_nearest_on(pts, ex, ez), pts, w) for pts, w in roads), key=lambda r: r[0][0])
+        (dist, (px, pz)), pts, width = near
+        if dist < 8.0:   # along the road's last stretch
+            k = min(range(len(pts) - 1), key=lambda i: _seg_rect_gap(pts[i], pts[i + 1], (ex, ez, ex, ez)))
+            ux, uz = pts[k + 1][0] - pts[k][0], pts[k + 1][1] - pts[k][1]
+        else:            # (no road: square to the way in from the map's edge)
+            ux, uz = M / 2 - ex, M / 2 - ez
+            ux, uz = -uz, ux
+            width = 4.0
+        ul = math.hypot(ux, uz)
+        ux, uz = ux / ul, uz / ul
+        vx, vz = -uz, ux
+        if (vx * (M / 2 - ex) + vz * (M / 2 - ez) < 0) != (name in CAMP_FLIP):   # (toward the map's middle)
+            vx, vz = -vx, -vz
+        off = (ex - px) * vx + (ez - pz) * vz if dist < 8.0 else 0.0   # (the extract's own offset off the road)
+        v0 = max(3.2, width / 2 + 1.2 - off)
+
+        def at(u, v):
+            return ex + ux * u + vx * v, ez + uz * u + vz * v
+        yu = math.degrees(math.atan2(ux, uz))   # a box's length along the road
+        yv = math.degrees(math.atan2(vx, vz))   # and across it
+        pieces = []
+        if style == "tents":
+            pieces = [(tent, 0.0, v0 + 2.4, yv), (tent, 3.6, v0 + 2.6, yv + 6), (ammo_crates, -3.0, v0 + 2.2, yu),
+                      (sandbags, -1.6, v0 + 4.8, yu, 3.0)]
+        elif style == "checkpoint":
+            pieces = [(guard_hut, -2.4, v0 + 1.4, yv + 180), (sandbags, 2.2, v0 + 0.4, yu, 3.2),
+                      (sandbags, 4.0, v0 + 2.0, yv, 2.4), (ammo_crates, -2.4, v0 + 3.6, yu + 20)]
+        else:
+            pieces = [(camo_net, 0.0, v0 + 2.6, yu), (ammo_crates, -1.0, v0 + 2.3, yu), (ammo_crates, 1.2, v0 + 3.2, yu + 30),
+                      (sandbags, 0.0, v0 + 5.4, yu + 90, 5.0), (sandbags, -3.0, v0 + 2.8, yu, 3.0)]
+        xs, zs = zip(*[at(p[1], p[2]) for p in pieces])
+        rect = (min(xs) - 4, min(zs) - 4, max(xs) + 4, max(zs) + 4)
+        clear_scatter(rect)
+        camp_rects.append(rect)
+        for fn, u, v, yaw, *rest in pieces:
+            fn(*at(u, v), yaw, *rest)
 
 
 # ---------------------------------------------------------------------------------------------- clutter (0.11.4)
@@ -4515,6 +4599,7 @@ def main():
     clear_scatter(MOTEL_CLEAR)
     motel()
     churchyard()
+    extract_camps()
     zone_spawns()
     lamp_pass()
     bush_pass()
@@ -4910,6 +4995,10 @@ def write_splat(ter):
         if c["glb"].endswith("burnt") or "rust" in c["glb"]:
             x, z = c["at"]
             stamp(2, x - 6, z - 6, x + 6, z + 6, blot(x, z, 3.2, 1.5, f"wreck {x} {z}"))
+    for x0, z0, x1, z1 in camp_rects:                          # trodden gravel round the extract camps
+        cx, cz, rx, rz = (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2 - 1.5, (z1 - z0) / 2 - 1.5
+        stamp(3, x0, z0, x1, z1, lambda x, z, cx=cx, cz=cz, rx=rx, rz=rz:
+              max(0.0, min(1.0, (1.0 - math.hypot((x - cx) / rx, (z - cz) / rz)) * 3.0 + 0.5)))
     for name, x0, z0, x1, z1 in areas:                         # the junkyard (owner 2026-10-18: junkyard ground)
         if name != "Junkyard":
             continue
@@ -4969,6 +5058,9 @@ def write_splat(ter):
 ARMY_KINDS = ("sandbags", "tanktrap", "barrier")
 
 
+bush_data = []    # (x, bottom y, z, size x, y, z, yaw, look, airy) in Godot space, for scripts/bushes.gd
+
+
 def write_outdoor(ter):
     """The outdoor debris kit's .json per chunk (see `debris_kind`), and hides the gray boxes of the chunks whose model
     exists. Returns those chunks' names."""
@@ -4989,6 +5081,11 @@ def write_outdoor(ter):
             look = "d" if any(e["kind"] in ARMY_KINDS and not e.get("dropped") and
                               math.hypot(e["at"][0] - x, e["at"][1] - z) < 30 for e in debris) else "b"
         chunks.setdefault(chunk, []).append((d["kind"], look, f"{x:.2f} {z:.2f}", ks))
+        if d["kind"] == "bush":   # (drawn by scripts/bushes.gd: owner 2026-10-18 picked C, D (airy) for some)
+            airy = random.Random(f"bush airy {x:.2f} {z:.2f}").random() < 0.3
+            for k in ks:
+                b = boxes[k]
+                bush_data.append((b[0], b[1] - b[4] / 2, b[2], b[3], b[4], b[5], b[6], "bcd".index(look), 1 if airy else 0))
     os.makedirs(OUTDOOR_JSON_DIR, exist_ok=True)
     with open(os.path.join(OUTDOOR_JSON_DIR, "terrain.json"), "w") as f:   # (the pieces are fitted to the ground)
         json.dump({"note": "Generated by tools/gen_old_bloxov.py: the ground's height grid (Godot x, z; split like BoxMap's "
@@ -5121,6 +5218,8 @@ def write_scene(ter):
     if ROAD_LOOK != "a":   # (a: the old flat colour, for the options sheets)
         out.append(f'[ext_resource type="Material" path="res://assets/materials/road_{ROAD_LOOK}.tres" id="g_road"]')
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
+    out.append('[ext_resource type="Script" path="res://scripts/bushes.gd" id="g_bushes"]')
+    out.append('[ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]')
     for rid, png in (("g_tuft_sprites", "tufts"), ("g_splat", "splat"), ("g_mask", "grass_mask")):
         out.append(f'[ext_resource type="Texture2D" path="res://assets/textures/ground/{png}.png" id="{rid}"]')
     out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
@@ -5162,6 +5261,11 @@ def write_scene(ter):
             'mask = ExtResource("g_mask")',
             f"map_origin = Vector2({fmt(-M / 2)}, {fmt(-M / 2)})",
             f"map_size = {fmt(M)}", "",
+            # the bushes (outdoor; their boxes collide and block the AI's sight, this draws them)
+            '[node name="Bushes" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_bushes")',
+            'leaves = ExtResource("g_leaves")',
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for b in bush_data for v in b) + ")", "",
             '[node name="Models" type="Node3D" parent="Level"]', ""]
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',

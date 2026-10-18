@@ -9,6 +9,7 @@ generator (tools/gen_old_bloxov.py writes assets/textures/ground/splat.png). Thi
 
     python3 art_source/scripts/make_ground.py [look]     (look: a, b, c, d or mix; default GROUND_LOOK)
 """
+import math
 import os
 import random
 import sys
@@ -150,6 +151,64 @@ def tufts(path, look):
     mb.write_png(path, 32, 16, rows)
 
 
+# The bushes' leaves (World art 0.17, owner 2026-10-18: see-through, more 3D bushes that sway; picked C, D for some):
+# scripts/bushes.gd builds every bush from many small cut-out cards. One 64 px tile per look, side by side:
+# b leafy green, c dark evergreen, d in flower, then twigs (the airy bushes show them).
+LEAF_COLOURS = {"b": ("lf1_sh", "lf1_dk", "lf1", "lf1_lt", "lf_tip1"),
+                "c": ("lf2_sh", "lf2_dk", "lf2", "lf2_lt", "lf_tip2"),
+                "d": ("lf3_dk", "lf1_dk", "lf3", "lf3_lt", "lf_tip3")}
+mb.PALETTE.update({"lf1": "4a6b35", "lf1_dk": "3a5529", "lf1_lt": "5e8040", "lf1_sh": "2c4524",
+                   "lf2": "3f5a37", "lf2_dk": "2f4529", "lf2_lt": "4f6b42", "lf2_sh": "263a22",
+                   "lf3": "4f6e38", "lf3_dk": "3e5a2b", "lf3_lt": "638545",
+                   "blossom": "d8d0c2", "blossom2": "c9a4b8", "twig": "5a4532", "twig_dk": "45352a",
+                   "lf_tip1": "7a9a52", "lf_tip2": "5f7a4c", "lf_tip3": "8a9e58"})
+
+
+def leaves(path):
+    T = 64
+    px = [[None] * (T * 4) for _ in range(T)]       # rows bottom-first; None = see-through
+    for t, look in enumerate("bcd"):
+        sh, dk, mid, lt, tip = LEAF_COLOURS[look]
+        rng = random.Random(f"leaves {look}")
+        for _ in range(430):                         # leaves packed in a round cluster, lit from above
+            a, r = rng.uniform(0, 6.283), rng.random() ** 0.5 * 29
+            x, y = int(32 + r * math.cos(a)), int(32 + r * math.sin(a))
+            up = y > 34
+            col = rng.choice((mid, lt, lt) if up else (sh, dk, dk, mid))
+            shape = ((0, 0), (1, 0), (0, 1), (1, 1), (2, 1), (1, 2)) if rng.random() < 0.5 else \
+                ((0, 0), (1, 0), (1, 1), (2, 1), (0, -1))
+            for dx, dy in shape:
+                X, Y = x + dx, y + dy
+                if 0 <= X < T and 0 <= Y < T:
+                    px[Y][t * T + X] = col
+        for _ in range(28 if look == "d" else 6):   # flowers / pale new tips
+            x, y = rng.randrange(6, 58), rng.randrange(10, 58)
+            if px[y][t * T + x] is None:
+                continue
+            col = rng.choice(("blossom", "blossom2")) if look == "d" else tip
+            for dx, dy in ((0, 0), (1, 0), (0, 1)):
+                if px[y + dy][t * T + x + dx] is not None:
+                    px[y + dy][t * T + x + dx] = col
+    rng = random.Random("twigs")                     # twigs: a few forking branches up from the bottom middle
+    for _ in range(5):
+        x, y = 32.0 + rng.uniform(-3, 3), 0.0
+        dx = rng.uniform(-0.5, 0.5)
+        while y < 60:
+            X, Y = int(x), int(y)
+            if 0 <= X < T:
+                px[Y][3 * T + X] = "twig_dk" if y < 20 else "twig"
+                if y < 14 and X + 1 < T:
+                    px[Y][3 * T + X + 1] = "twig_dk"
+            y += 1
+            x += dx
+            if rng.random() < 0.06:
+                dx = max(-0.9, min(0.9, dx + rng.uniform(-0.6, 0.6)))
+            if x < 4 or x > 60:
+                break
+    rows = [[[int(v * 255) for v in mb.rgba(c)[:3]] + [255] if c else [0, 0, 0, 0] for c in row] for row in px]
+    mb.write_png(path, T * 4, T, rows)
+
+
 def asphalt(base, dk, lt, ag, crack, cracks=5, n=128):
     """A road surface tile (128 px for 4 m): fine noise, aggregate specks, a few branching cracks."""
     def paint(rng):
@@ -231,6 +290,7 @@ def main():
             save(os.path.join(OUT, name + ".png"), painter(random.Random(name)), name)
     dither(os.path.join(OUT, "dither.png"))
     tufts(os.path.join(OUT, "tufts.png"), "c" if pick == "mix" else pick)
+    leaves(os.path.join(OUT, "leaves.png"))
     macro(os.path.join(OUT, "macro.png"))
     for look, painter in ROADS.items():
         save(os.path.join(OUT, f"road_{look}.png"), painter(random.Random(f"road {look}")), f"road {look}")

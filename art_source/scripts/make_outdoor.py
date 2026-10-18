@@ -689,9 +689,15 @@ def draw_rocks(b, piece, rng):
 
 
 # ------------------------------------------------------------------------------------------------ bushes
+BUSHES_IN_MODEL = False
+
+
 def draw_bush(b, piece, rng):
     """A bush filling its (solid) box: a big rounded body with smaller clumps bulging out of it, so it reads round
-    from every side. Looks: b leafy green, c dark evergreen (taller, pointed), d in flower."""
+    from every side. Looks: b leafy green, c dark evergreen (taller, pointed), d in flower.
+    (Since 2026-10-18 the bushes are drawn by scripts/bushes.gd instead, see-through and swaying: BUSHES_IN_MODEL.)"""
+    if not BUSHES_IN_MODEL:
+        return
     look = piece["look"]
     mat = "dbr_leaf_" + look
     for box in piece["boxes"]:
@@ -1286,12 +1292,123 @@ def draw_junk(b, piece, rng):
             cyl(b, f.p(rng.uniform(-0.6, 0.6), 0.04, rng.uniform(-0.6, 0.6)), 0.04, 0.25, "green", sides=6, axis="z", yaw=rng.uniform(0, 180))
 
 
+# ------------------------------------------------------------------------------------------------ extract camps
+# (World art 0.17, owner 2026-10-18: little camps by the extracts round the radio mast: tents, a checkpoint hut,
+# a camo net over crates; their sandbags are the kit's.) Drawn round their gray boxes, same collision.
+def draw_tent(b, piece, rng):
+    """An army ridge tent over its box: canvas down to the ground both sides, a closed back, the front open (dark
+    inside), its ridge pole and guy ropes, a bedroll inside."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    W, H, L = box["size"]
+    canvas = "dbr_canvas"
+    ridge = H + 0.25
+    for sx in (-1, 1):   # the two roof sides
+        a0, a1 = f.p(sx * (W / 2 + 0.15), -0.05, -L / 2), f.p(sx * (W / 2 + 0.15), -0.05, L / 2)
+        r0, r1 = f.p(0, ridge, -L / 2), f.p(0, ridge, L / 2)
+        tri(b, a0, a1, r1, canvas, f.p(0, H / 3, 0))
+        tri(b, a0, r1, r0, canvas, f.p(0, H / 3, 0))
+        # (the inside of the roof: dark, seen through the open front)
+        ia0, ia1 = f.p(sx * (W / 2 + 0.1), -0.05, -L / 2 + 0.05), f.p(sx * (W / 2 + 0.1), -0.05, L / 2)
+        ir0, ir1 = f.p(0, ridge - 0.06, -L / 2 + 0.05), f.p(0, ridge - 0.06, L / 2)
+        tri(b, ia0, ia1, ir1, "trim_dark", f.p(sx * 4, ridge + 3, 0))
+        tri(b, ia0, ir1, ir0, "trim_dark", f.p(sx * 4, ridge + 3, 0))
+    tri(b, f.p(-W / 2 - 0.15, -0.05, L / 2), f.p(W / 2 + 0.15, -0.05, L / 2), f.p(0, ridge, L / 2), canvas, f.p(0, H / 3, 0))   # back
+    for sx in (-1, 1):   # the front flaps, tied back
+        tri(b, f.p(sx * (W / 2 + 0.15), -0.05, -L / 2), f.p(sx * 0.45, ridge * 0.72, -L / 2 - 0.02),
+            f.p(sx * (W / 2 - 0.2), -0.05, -L / 2 - 0.25), canvas, f.p(0, H / 3, 0))
+    f.box((0, ridge + 0.03, 0), (0.07, 0.07, L + 0.5), style=flat("wood_dark", 1.0))       # ridge pole and uprights
+    for z in (-L / 2 - 0.2, L / 2 + 0.2):
+        f.box((0, ridge / 2, z), (0.07, ridge, 0.07), style=flat("wood_dark", 1.0))
+        for sx in (-1, 1):   # guy ropes to pegs
+            _rope(b, f.p(0, ridge, z), f.p(sx * 0.7, 0.02, z + (1.3 if z > 0 else -1.3)))
+    f.box((-0.5, 0.06, 0.2), (0.6, 0.12, 1.8), style=no_bottom("dbr_bag_grn", 1.0))            # a bedroll
+    f.box((0.55, 0.15, 0.9), (0.5, 0.3, 0.35), style=no_bottom("dbr_trk_o", 1.0))              # a kit box
+
+
+def _rope(b, p0, p1):
+    d = v_sub(p1, p0)
+    L = math.sqrt(dot(d, d))
+    yaw = math.degrees(math.atan2(d[0], d[2]))
+    pitch = -math.degrees(math.atan2(d[1], math.hypot(d[0], d[2])))
+    b.box(v_scale(v_add(p0, p1), 0.5), (0.03, 0.03, L), yaw=yaw, pitch=pitch, style=flat("trim_dark", 1.0))
+
+
+def draw_hut(b, piece, rng):
+    """A checkpoint guard hut: olive steel box on a step, a roof overhanging all round, a door and a window toward
+    the road (local -z), side windows, a lamp over the door, a phone box, sandbag skirt."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    W, H, D = box["size"]
+    skin = "dbr_trk_o"
+    f.box((0, 0.08, 0), (W + 0.2, 0.16, D + 0.2), style=no_bottom("dbr_conc", 2.0))             # its slab
+    f.box((0, H / 2 + 0.08, 0), (W, H - 0.25, D), style=no_bottom(skin, 2.0))
+    f.box((0, H - 0.05, 0), (W + 0.5, 0.14, D + 0.5), style=lambda n, m, q: ("trim_dark", uv_world(1.0)))   # roof
+    f.box((0, H + 0.04, 0), (W + 0.3, 0.06, D + 0.3), style=no_bottom("dbr_cont_g", 2.0))
+    f.box((-0.45, 1.05, -D / 2 - 0.01), (0.8, 1.9, 0.03), style=flat("trim_dark", 1.0))          # door
+    f.box((-0.2, 1.05, -D / 2 - 0.03), (0.06, 0.06, 0.03), style=flat("steel_light", 1.0))
+    f.box((0.5, 1.5, -D / 2 - 0.01), (0.7, 0.6, 0.03), style=flat("black", 1.0))                 # window toward the road
+    f.box((0.5, 1.18, -D / 2 - 0.1), (0.85, 0.05, 0.2), style=flat("trim_dark", 1.0))            # its sill
+    for sx in (-1, 1):
+        f.box((sx * (W / 2 + 0.01), 1.5, 0.1), (0.03, 0.55, 0.9), style=flat("black", 1.0))
+    f.box((-0.45, 2.15, -D / 2 - 0.15), (0.25, 0.12, 0.25), style=flat("steel_light", 1.0))      # lamp
+    f.box((W / 2 + 0.12, 1.2, 0.6), (0.2, 0.35, 0.25), style=no_bottom("dbr_cont_g", 1.0))       # field phone box
+    for sx in (-1, 1):   # sandbags banked against both sides, waist high
+        for k in range(3):
+            f.box((sx * (W / 2 + 0.3), 0.18 + k * 0.22, -0.55 + (k % 2) * 0.2), (0.4, 0.22, 0.62), yaw=rng.uniform(-6, 6),
+                  style=no_bottom("dbr_bag_tan", 1.0))
+            f.box((sx * (W / 2 + 0.3), 0.18 + k * 0.22, 0.25 + (k % 2) * 0.2), (0.4, 0.22, 0.62), yaw=rng.uniform(-6, 6),
+                  style=no_bottom("dbr_bag_tan", 1.0))
+
+
+def draw_crates(b, piece, rng):
+    """Army crates: olive boards, dark metal corners, rope handles, stencilled lids."""
+    for box in piece["boxes"]:
+        f = frame_of(b, box)
+        W, H, D = box["size"]
+        f.box((0, H / 2, 0), (W, H, D), style=no_bottom("dbr_trk_o", 1.0))
+        f.box((0, H + 0.01, 0), (W * 0.5, 0.01, D * 0.25), style=flat("sandstone", 1.0))   # (a stencil patch)
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                f.box((sx * (W / 2 - 0.03), H / 2, sz * (D / 2 - 0.03)), (0.07, H + 0.01, 0.07), style=no_bottom("trim_dark", 1.0))
+            f.box((sx * (W / 2 + 0.02), H * 0.62, 0), (0.04, 0.05, D * 0.35), style=flat("dbr_canvas", 1.0))
+
+
+def draw_net(b, piece, rng):
+    """A camo net on four poles: a sagging sheet of net with leafy scraps tied in, hanging down at the edges."""
+    posts = [bx for bx in piece["boxes"] if bx["solid"]]
+    net = next(bx for bx in piece["boxes"] if not bx["solid"])
+    for p in posts:
+        f = frame_of(b, p)
+        f.box((0, p["size"][1] / 2 + 0.05, 0), (0.12, p["size"][1] + 0.1, 0.12), style=no_bottom("wood_dark", 1.0))
+    f = frame_of(b, net)
+    W, _, D = net["size"]
+    top = net["pos"][1] - frame_of(b, net).at[1] + 0.15
+    N = 6
+    def P(i, j):   # the net's points: sagging between the poles
+        u, v = -W / 2 - 0.3 + (W + 0.6) * i / N, -D / 2 - 0.3 + (D + 0.6) * j / N
+        sag = 0.35 * math.sin(math.pi * i / N) * math.sin(math.pi * j / N)
+        edge = 0.45 if i in (0, N) or j in (0, N) else 0.0
+        return f.p(u, top - sag - edge + rng.uniform(-0.03, 0.03), v)
+    pts = [[P(i, j) for j in range(N + 1)] for i in range(N + 1)]
+    for i in range(N):
+        for j in range(N):
+            a, c, d, e = pts[i][j], pts[i + 1][j], pts[i + 1][j + 1], pts[i][j + 1]
+            tri(b, a, c, d, "dbr_leaf_c", v_add(a, (0, -5, 0)))
+            tri(b, a, d, e, "dbr_leaf_c", v_add(a, (0, -5, 0)))
+            tri(b, a, d, c, "dbr_canvas", v_add(a, (0, 5, 0)))   # (its underside)
+            tri(b, a, e, d, "dbr_canvas", v_add(a, (0, 5, 0)))
+    for _ in range(14):   # leafy scraps tied in
+        u, v = rng.uniform(-W / 2, W / 2), rng.uniform(-D / 2, D / 2)
+        rock(b, f.p(u, top - 0.05, v), (0.5, 0.18, 0.5), rng.uniform(0, 90), rng, "dbr_leaf_c", jitter=0.2, chamfer=0.4)
+
+
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
         "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,
         "kiosk": draw_kiosk, "lamp": draw_lamp,
-        "trench": draw_trench}
+        "trench": draw_trench, "tent": draw_tent, "hut": draw_hut, "crates": draw_crates, "net": draw_net}
 
 
 def main():

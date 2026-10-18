@@ -5,26 +5,70 @@
 [sub_resource type="BoxShape3D" id="Zone"]
 size = Vector3(4, 3, 4)
 
-[sub_resource type="StandardMaterial3D" id="PadMat"]
-albedo_color = Color(0.2, 0.9, 0.4, 1)
+[sub_resource type="StandardMaterial3D" id="PaintMat"]
+albedo_color = Color(0.32, 0.78, 0.38, 1)
+roughness = 1.0
 
 [sub_resource type="StandardMaterial3D" id="BeamMat"]
 transparency = 1
 cull_mode = 2
 shading_mode = 0
-albedo_color = Color(0.3, 1, 0.45, 0.14)
+albedo_color = Color(0.3, 1, 0.45, 0.12)
 
-[sub_resource type="BoxMesh" id="PadMesh"]
-material = SubResource("PadMat")
-size = Vector3(4, 0.1, 4)
+[sub_resource type="StandardMaterial3D" id="LampMat"]
+shading_mode = 0
+albedo_color = Color(0.45, 1, 0.5, 1)
+
+[sub_resource type="StandardMaterial3D" id="MastMat"]
+albedo_color = Color(0.33, 0.34, 0.35, 1)
+metallic = 0.0
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="BoxMat"]
+albedo_color = Color(0.3, 0.33, 0.2, 1)
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="DashX"]
+size = Vector3(0.5, 0.04, 0.16)
+
+[sub_resource type="BoxMesh" id="DashZ"]
+size = Vector3(0.16, 0.04, 0.5)
+
+[sub_resource type="BoxMesh" id="Leg"]
+material = SubResource("MastMat")
+size = Vector3(0.06, 3.1, 0.06)
+
+[sub_resource type="BoxMesh" id="Pole"]
+material = SubResource("MastMat")
+size = Vector3(0.08, 5.4, 0.08)
+
+[sub_resource type="BoxMesh" id="Arm"]
+material = SubResource("MastMat")
+size = Vector3(1.0, 0.05, 0.05)
+
+[sub_resource type="BoxMesh" id="Whip"]
+material = SubResource("MastMat")
+size = Vector3(0.025, 1.4, 0.025)
+
+[sub_resource type="BoxMesh" id="Lamp"]
+material = SubResource("LampMat")
+size = Vector3(0.24, 0.24, 0.24)
+
+[sub_resource type="BoxMesh" id="Radio"]
+material = SubResource("BoxMat")
+size = Vector3(0.6, 0.45, 0.4)
 
 [sub_resource type="CylinderMesh" id="BeamMesh"]
 material = SubResource("BeamMat")
-top_radius = 1.6
-bottom_radius = 1.6
+top_radius = 0.6
+bottom_radius = 0.6
 height = 40.0
 cap_top = false
 cap_bottom = false
+
+; The extract (World art 0.17, owner 2026-10-18 picked D: a radio beacon): a dashed square painted on the ground (the
+; zone), a radio mast on its corner with a lamp that shows green while the extract is open (red when closed) and a
+; thin beam up from it. The camp beside it is the map's (tools/gen_old_bloxov.py extract_camps).
 
 [node name="ExtractZone" type="Area3D"]
 collision_layer = 0
@@ -36,11 +80,125 @@ script = ExtResource("1_extract")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 shape = SubResource("Zone")
 
-[node name="Pad" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
-mesh = SubResource("PadMesh")
+[node name="Pad" type="Node3D" parent="."]
+
+[node name="Dash0" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.03, -2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash1" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.03, -2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash2" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.03, -2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash3" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.03, -2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash4" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.03, 2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash5" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.03, 2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash6" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.03, 2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash7" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.03, 2)
+mesh = SubResource("DashX")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash8" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, -1.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash9" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, -0.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash10" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, 0.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash11" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, 1.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash12" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, -1.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash13" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, -0.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash14" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, 0.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Dash15" type="MeshInstance3D" parent="Pad"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, 1.5)
+mesh = SubResource("DashZ")
+surface_material_override/0 = SubResource("PaintMat")
+
+[node name="Mast" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0, -1.7)
+
+[node name="Leg0" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(1, 0, 0, 0, 0.9836, 0.1803, 0, -0.1803, 0.9836, 0, 1.5, 0.28)
+mesh = SubResource("Leg")
+
+[node name="Leg1" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(-0.5, -0.1562, 0.8518, 0, 0.9836, 0.1803, -0.866, 0.0902, -0.4918, 0.2425, 1.5, -0.14)
+mesh = SubResource("Leg")
+
+[node name="Leg2" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(-0.5, 0.1562, -0.8518, 0, 0.9836, 0.1803, 0.866, 0.0902, -0.4918, -0.2425, 1.5, -0.14)
+mesh = SubResource("Leg")
+
+[node name="Pole" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 0)
+mesh = SubResource("Pole")
+
+[node name="Arm" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(0.866, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866, 0, 4.6, 0)
+mesh = SubResource("Arm")
+
+[node name="Whip" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45, 5.2, 0)
+mesh = SubResource("Whip")
+
+[node name="Radio" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(0.9397, 0, 0.342, 0, 1, 0, -0.342, 0, 0.9397, -0.55, 0.225, 0.35)
+mesh = SubResource("Radio")
+
+[node name="Lamp" type="MeshInstance3D" parent="Mast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, 0)
+cast_shadow = 0
+mesh = SubResource("Lamp")
 
 [node name="Beam" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 20, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 25.6, -1.7)
 cast_shadow = 0
 mesh = SubResource("BeamMesh")

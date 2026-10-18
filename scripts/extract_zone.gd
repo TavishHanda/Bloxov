@@ -8,7 +8,9 @@ signal extracted(zone: ExtractZone)
 @export var extract_name := "Extract"
 @export var extract_time := 7.0
 
-@onready var pad: MeshInstance3D = $Pad
+## The dashed square painted round the zone, the mast's lamp (green open, red closed) and the beam from it.
+@onready var pad: Node3D = $Pad
+@onready var lamp: MeshInstance3D = $Mast/Lamp
 @onready var beam: Node3D = $Beam
 
 var is_open := true
@@ -29,13 +31,16 @@ func _ready() -> void:
 func set_open(open: bool) -> void:
 	is_open = open
 	beam.visible = open
-	pad.material_override = null if open else _closed_pad_material()
+	var closed: Material = null if open else _closed_pad_material()
+	for dash: MeshInstance3D in pad.get_children():
+		dash.material_override = closed
+	lamp.material_override = closed
 
 
 static func _closed_pad_material() -> StandardMaterial3D:
 	if _closed_material == null:
 		_closed_material = StandardMaterial3D.new()
-		_closed_material.albedo_color = Color(0.45, 0.12, 0.1)
+		_closed_material.albedo_color = Color(0.55, 0.13, 0.1)
 	return _closed_material
 
 
