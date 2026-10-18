@@ -132,8 +132,46 @@ def _add_box(b, kind=None):
         m["boxes"].append((b, kind))
         if m["hide"]:   # drawn by the building's model: keep the collision, don't draw the box (BoxMap: 2 / 3)
             b = b[:9] + (2 if b[9] else 3,)
+    elif _debris[-1] is not None:   # a piece of the outdoor debris kit: tagged with its piece (b[10])
+        b = b + (_debris[-1],)
     boxes.append(b)
     anchors.append(_anchor[-1])
+
+
+# The outdoor debris kit (World art 0.17, outdoor step 1; owner 2026-10-18: "use a mix of all 3 [looks] ... i like the
+# variation"): every piece of outside junk made by a function marked `@debris_kind(kind)` is drawn by a model
+# (art_source/scripts/make_outdoor.py) in one of three looks, picked from where it stands. Its gray boxes still collide
+# as before (cover and AI paths don't change) but aren't drawn once the model exists. The models are one per map chunk
+# (OUTDOOR_CHUNK m square), so far-off chunks can be culled; `write_outdoor` writes their .json after the hills.
+debris = []        # {"kind", "at": (x, z)}: one per piece; its index is the tag on its boxes
+_debris = [None]
+OUTDOOR_CHUNK = 87.5
+OUTDOOR_JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "art_source", "outdoor")
+
+
+def debris_kind(kind):
+    def wrap(fn):
+        def piece(x, z, *args, **kw):
+            if _model[-1] is not None or _debris[-1] is not None:   # (part of a building's model, or of a bigger piece)
+                return fn(x, z, *args, **kw)
+            debris.append({"kind": kind, "at": (x, z)})
+            _debris.append(len(debris) - 1)
+            try:
+                return fn(x, z, *args, **kw)
+            finally:
+                _debris.pop()
+        piece.__name__ = fn.__name__
+        return piece
+    return wrap
+
+
+def outdoor_chunk(x, z):
+    n = int(M // OUTDOOR_CHUNK)
+    return f"outdoor_{min(n - 1, max(0, int(x // OUTDOOR_CHUNK)))}{min(n - 1, max(0, int(z // OUTDOOR_CHUNK)))}"
+
+
+def outdoor_path(chunk):
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models", "outdoor", chunk + ".glb")
 
 
 # Building models (World art, 0.17): boxes made inside `with modeled(name, x, z):` still collide (players, AI paths
@@ -2438,10 +2476,12 @@ def car(x, z, yaw, colour="car_a", roll=0.0):
                 boxes[-1] = boxes[-1][:9] + (2,)
 
 
+@debris_kind("dumpster")
 def dumpster(x, z, yaw=0.0):
     obox(x, 0.7, z, 2.0, 1.4, 1.2, yaw, "metal")
 
 
+@debris_kind("barrier")
 def barrier(x, z, yaw):
     obox(x, 0.45, z, 0.6, 0.9, 3.0, yaw, "concrete")
 
@@ -2497,6 +2537,7 @@ def car_stack(x, z, yaw, n, rng, kind=None):
                  kind=kind)
 
 
+@debris_kind("truck")
 def truck(x, z, yaw):
     """An army truck (checkpoint)."""
     with group():
@@ -2505,6 +2546,7 @@ def truck(x, z, yaw):
         obox(fx, 1.1, fz, 2.4, 2.2, 1.8, yaw, "army")
 
 
+@debris_kind("sandbags")
 def sandbags(x, z, yaw, length=4.0):
     obox(x, 0.55, z, 0.7, 1.1, length, yaw, "sandbag")
 
@@ -2512,12 +2554,14 @@ def sandbags(x, z, yaw, length=4.0):
 # ---------------------------------------------------------------------------------------------- clutter (0.11.4)
 # War-torn junk in the empty grass (owner, 0.11.4): rocks, rubble, wrecks, tank traps, craters. Gray boxes for
 # now; real models come later. Placed by `clutter()` in the dead areas only, away from buildings, roads and spawns.
+@debris_kind("rocks")
 def rock(x, z, rng):
     for _ in range(rng.randint(1, 3)):
         w, h, d = rng.uniform(1.4, 3.6), rng.uniform(0.8, 2.4), rng.uniform(1.4, 3.2)
         obox(x + rng.uniform(-1.5, 1.5), h / 2 - 0.1, z + rng.uniform(-1.2, 1.2), w, h, d, rng.uniform(0, 90), "stone")
 
 
+@debris_kind("rubble")
 def rubble(x, z, rng):
     """A pile of broken concrete with a chunk of wall still standing."""
     for _ in range(rng.randint(4, 7)):
@@ -2537,6 +2581,7 @@ def wreck(x, z, rng):
         car(x, z, yaw, "rust")
 
 
+@debris_kind("truck")
 def wrecked_truck(x, z, rng):
     yaw = rng.uniform(0, 180)
     with group():
@@ -2545,6 +2590,7 @@ def wrecked_truck(x, z, rng):
         obox(fx, 0.9, fz, 2.4, 1.8, 1.8, yaw + rng.uniform(-10, 10), "army", pitch=rng.uniform(-8, 0))
 
 
+@debris_kind("tanktrap")
 def tank_traps(x, z, rng):
     """A short row of steel hedgehogs."""
     yaw = rng.uniform(0, 180)
@@ -2559,6 +2605,7 @@ def tank_traps(x, z, rng):
 craters = []      # (x, z, ring radius): shell holes dug into the ground (0.11.17)
 
 
+@debris_kind("crater")
 def crater(x, z, rng):
     """A shell crater: a ring of dirt mounds round a hole in the ground (you can crouch in it)."""
     r = rng.uniform(2.5, 3.5)
@@ -2568,6 +2615,7 @@ def crater(x, z, rng):
         obox(x + r * math.sin(math.radians(a)), 0.3, z + r * math.cos(math.radians(a)), 2.4, 0.6, 1.0, a + 90, "dirt")
 
 
+@debris_kind("drums")
 def barrels(x, z, rng):
     for _ in range(rng.randint(2, 4)):
         obox(x + rng.uniform(-1.5, 1.5), 0.5, z + rng.uniform(-1.5, 1.5), 0.6, 1.0, 0.6, rng.uniform(0, 90),
@@ -2581,6 +2629,7 @@ CLUTTER = [(rock, 5), (rubble, 3), (wreck, 3), (wrecked_truck, 1), (tank_traps, 
 
 # Sightline breakers (World art 0.17, owner: "you can spawn, go on a hill and kill a bunch of AI"): taller cover,
 # added by `cover_pass()` between the old clutter. Check with tools/sightlines.gd.
+@debris_kind("wall")
 def ruin_wall(x, z, rng, yaw=None):
     """What's left of a wall: a jagged run of 2-3 m high pieces, sometimes with a corner."""
     yaw = rng.uniform(0, 180) if yaw is None else yaw
@@ -2604,6 +2653,7 @@ def ruin_wall(x, z, rng, yaw=None):
         obox(x + rng.uniform(-2.5, 2.5), w / 3, z + rng.uniform(-2.5, 2.5), w, w / 1.5, w, rng.uniform(0, 90), col)
 
 
+@debris_kind("container")
 def container(x, z, rng, yaw=None):
     """A dumped shipping container (now and then two, one on top)."""
     yaw = rng.uniform(0, 180) if yaw is None else yaw
@@ -2615,6 +2665,7 @@ def container(x, z, rng, yaw=None):
                  rng.choice(("rust", "army", "car_b")))
 
 
+@debris_kind("berm")
 def berm(x, z, rng, yaw=None):
     """A bulldozed earth bank, head high."""
     yaw = rng.uniform(0, 180) if yaw is None else yaw
@@ -2678,6 +2729,7 @@ def _clear_of_map(x, z):
     return True
 
 
+@debris_kind("junk")
 def bits(x, z, rng):
     """Small junk scattered round a clutter spot (planks, scrap, stones)."""
     for _ in range(rng.randint(2, 4)):
@@ -4413,8 +4465,49 @@ def behind_key_door(place, x, z):
     return place == "Bunker" or (place == "Bank" and 136 < x < 144 and 130 < z < 140)
 
 
+def write_outdoor():
+    """The outdoor debris kit's .json per chunk (see `debris_kind`), and hides the gray boxes of the chunks whose model
+    exists. Returns those chunks' names."""
+    names = {i: n for n, i in C.items()}
+    pieces = {}
+    for k, b in enumerate(boxes):
+        if len(b) > 10:
+            pieces.setdefault(b[10], []).append(k)
+    chunks = {}
+    for tag, ks in sorted(pieces.items()):
+        d = debris[tag]
+        x, z = d["at"]
+        chunk = outdoor_chunk(x, z)
+        look = random.Random(f"debris {d['kind']} {x:.2f} {z:.2f}").choice("bcd")   # (owner: a mix of all three)
+        chunks.setdefault(chunk, []).append((d["kind"], look, f"{x:.2f} {z:.2f}", ks))
+    os.makedirs(OUTDOOR_JSON_DIR, exist_ok=True)
+    shown = []
+    for chunk, ps in sorted(chunks.items()):
+        i, j = int(chunk[-2]), int(chunk[-1])
+        ox, oz = gx((i + 0.5) * OUTDOOR_CHUNK), gz((j + 0.5) * OUTDOOR_CHUNK)
+        rows = []
+        for kind, look, seed, ks in ps:
+            rows.append(json.dumps({"kind": kind, "look": look, "seed": seed, "boxes": [
+                {"pos": [round(boxes[k][0] - ox, 3), round(boxes[k][1], 3), round(boxes[k][2] - oz, 3)],
+                 "size": [round(v, 3) for v in boxes[k][3:6]], "yaw": round(boxes[k][6], 2), "pitch": round(boxes[k][7], 2),
+                 "colour": names[boxes[k][8]], "solid": bool(boxes[k][9])} for k in ks]}))
+        with open(os.path.join(OUTDOOR_JSON_DIR, chunk + ".json"), "w") as f:
+            f.write('{"note": "Generated by tools/gen_old_bloxov.py: the outdoor debris pieces in this map chunk (gray boxes '
+                    'in Godot space relative to the chunk\'s middle, at height 0). Drawn by art_source/scripts/make_outdoor.py.",\n'
+                    '"pieces": [\n' + ",\n".join(rows) + "\n]}\n")
+        if os.path.exists(outdoor_path(chunk)):
+            shown.append((chunk, ox, oz))
+            for _, _, _, ks in ps:
+                for k in ks:
+                    b = boxes[k]
+                    if b[9] in (0, 1):
+                        boxes[k] = b[:9] + (2 if b[9] else 3,) + b[10:]
+    return shown
+
+
 def write_scene(ter):
     write_model_boxes(ter)
+    outdoor = write_outdoor()
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
               "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}
@@ -4431,8 +4524,10 @@ def write_scene(ter):
     for m in shown:
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/buildings/{m["name"]}.glb" id="m_{m["name"]}"]')
     placed = [(c, car_at[c["anchor"]]) for c in cars if c["anchor"] in car_at and os.path.exists(car_glb(c["glb"]))]
-    if placed and not shown:
+    if (placed or outdoor) and not shown:
         out.append('[ext_resource type="Script" path="res://scripts/pixel_model.gd" id="m_pixel"]')
+    for chunk, _, _ in outdoor:
+        out.append(f'[ext_resource type="PackedScene" path="res://assets/models/outdoor/{chunk}.glb" id="o_{chunk}"]')
     for glb in sorted({c["glb"] for c, _ in placed}):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
     out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
@@ -4445,7 +4540,7 @@ def write_scene(ter):
             '[node name="Blocks" type="StaticBody3D" parent="Level"]',
             'script = ExtResource("1_boxmap")',
             "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
-            "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b) + ")",
+            "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b[:10]) + ")",
             f"terrain_colour = {C['grass']}",
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(gx(x)) for x in ter.xs) + ")",
             "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
@@ -4465,6 +4560,11 @@ def write_scene(ter):
     for n, (c, (b, lift)) in enumerate(placed):
         out += [f'[node name="Car{n}" parent="Level/Models/Cars" instance=ExtResource("c_{c["glb"]}")]',
                 f"transform = {car_xform(c, b, lift)}", 'script = ExtResource("m_pixel")', ""]
+    if outdoor:
+        out += ['[node name="Outdoor" type="Node3D" parent="Level/Models"]', ""]
+    for chunk, ox, oz in outdoor:
+        out += [f'[node name="{chunk}" parent="Level/Models/Outdoor" instance=ExtResource("o_{chunk}")]',
+                f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt(ox)}, 0, {fmt(oz)})", 'script = ExtResource("m_pixel")', ""]
     out += ['[node name="Loot" type="Node3D" parent="."]', ""]
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',

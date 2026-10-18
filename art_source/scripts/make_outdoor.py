@@ -1,0 +1,847 @@
+"""Bloxov Battlegrounds outdoor debris kit (World art 0.17, outdoor step 1; plan /mnt/project-files/notes/outdoor-plan.md).
+
+The map's outside junk was 20 kinds of gray box. Each kind is now drawn as a real piece in three looks (b, c, d), mixed
+over the map (owner 2026-10-18: "use a mix of all 3 ... i like the variation"). The generator (tools/gen_old_bloxov.py,
+`debris_kind`) tags the gray boxes of every piece and picks its look; they still collide exactly as before, so cover and
+AI paths don't change, but aren't drawn. It writes the pieces, grouped by map chunk, to art_source/outdoor/<chunk>.json
+(Godot space, relative to the chunk's origin), and this script draws each chunk's pieces round their boxes into one model:
+
+    python3 art_source/scripts/make_outdoor.py        -> assets/models/outdoor/<chunk>.glb, then re-run the generator
+
+Kinds: wall, berm, rocks, rubble, container, truck, sandbags, barrier, tanktrap, drums, dumpster, crater, junk.
+Textures: the building kit atlas (new kits dbr_*, appended to it).
+"""
+import json
+import math
+import os
+import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import make_building as mb  # noqa: E402
+from make_building import Builder, Canvas, Texture, cross, dot, no_bottom, norm, rot, uv_world, v_add, v_scale, v_sub  # noqa: E402
+
+JSON_DIR = os.path.join(mb.ROOT, "art_source", "outdoor")
+OUT_DIR = os.path.join(mb.ROOT, "assets", "models", "outdoor")
+
+# ------------------------------------------------------------------------------------------------ colours + kits
+mb.PALETTE.update({
+    "grs": "6f8f4f", "grs_dk": "5e7c42", "grs_lt": "84a35d", "grs_dry": "9a9a5c",
+    "dirt1": "6c5640", "dirt2": "5c4834", "dirt3": "7c654e", "dirt_dk": "54412e", "pebble": "9b958a",
+    "gran": "5f5c57", "gran_dk": "4c4a46", "gran_lt": "726f69", "lichen": "7f8455", "moss": "5f7440",
+    "slate1": "625d56", "slate2": "4f4b46", "slate_lt": "77716a",
+    "cont_r": "7e3b2a", "cont_r_dk": "662f22", "cont_g": "4f5a3a", "cont_g_dk": "3f4a2e", "cont_b": "3f566b", "cont_b_dk": "324657",
+    "burnt1": "3a3430", "burnt2": "2b2623", "ash": "6d6660",
+    "hes_fab": "8f8268", "hes_fab_dk": "7b6f58", "hes_wire": "5a5a52",
+    "cind": "77756f", "cind_dk": "62615c", "cind_j": "4f4e4a",
+    "sb_tan": "a08c62", "sb_tan_dk": "8a7752", "sb_grn": "5f6440", "sb_grn_dk": "4d5234", "sb_gry": "8a877c", "sb_gry_dk": "6f6c63",
+    "jb": "9c9a93", "jb_dk": "85837d", "jb_red": "8e3a2c", "jb_wht": "c2bdb0", "hz_y": "c49a2a",
+    "drum_b": "3d5470", "drum_b_dk": "2f4259", "drum_o": "56603a", "drum_o_dk": "454e2d",
+    "dmp_g": "3f5a43", "dmp_g_dk": "324835", "dmp_b": "3d4f66", "dmp_b_dk": "2f3e52",
+    "trk_o": "4f5838", "trk_o_dk": "3f472c", "trk_c": "7a7556", "trk_c_dk": "666246",
+    "rail_r": "5a3b2b", "rail_r_dk": "483023", "paper": "b9b2a0",
+})
+
+
+def k_grass(rng):
+    c = Canvas(64, 64, "grs")
+    c.noise(0, 0, 64, 64, ["grs_dk", "grs_lt"], 0.35, rng)
+    c.blotch(["grs_dry"], 4, rng, size=(2, 4))
+    c.blotch(["grs_dk"], 8, rng, size=(2, 5))
+    return c
+
+
+def k_dirt(rng):
+    c = Canvas(64, 64, "dirt1")
+    c.noise(0, 0, 64, 64, ["dirt2", "dirt3"], 0.35, rng)
+    c.blotch(["dirt_dk"], 8, rng, size=(2, 4))
+    for _ in range(40):
+        x, y = rng.randrange(64), rng.randrange(64)
+        c.put(x, y, "pebble")
+        c.put(x + 1, y, "pebble")
+    return c
+
+
+def k_ruts(rng):
+    """Bulldozed dirt: tyre-tread ridges across it."""
+    c = k_dirt(rng)
+    for y in range(0, 64, 4):
+        c.rect(0, y, 64, y + 1, "dirt_dk")
+        c.rect(0, y + 2, 64, y + 3, "dirt3")
+    c.blotch(["dirt2"], 10, rng, size=(2, 6))
+    return c
+
+
+def k_granite(rng):
+    c = Canvas(64, 64, "gran")
+    c.noise(0, 0, 64, 64, ["gran_dk", "gran_lt"], 0.3, rng)
+    c.blotch(["lichen"], 7, rng, size=(2, 5))
+    c.blotch(["gran_dk"], 6, rng, size=(2, 5))
+    return c
+
+
+def k_slate(rng):
+    """Layered rock: horizontal strata."""
+    c = Canvas(64, 64, "slate1")
+    y = 0
+    while y < 64:
+        h = rng.choice((3, 4, 5, 6))
+        c.rect(0, y, 64, min(64, y + h), rng.choice(("slate1", "slate2", "slate_lt")))
+        c.rect(0, y, 64, y + 1, "slate2")
+        y += h
+    c.noise(0, 0, 64, 64, ["slate2", "slate_lt"], 0.12, rng)
+    return c
+
+
+def k_mossrock(rng):
+    c = k_granite(rng)
+    c.blotch(["moss", "grs_dk"], 10, rng, area=(0, 40, 64, 64), size=(3, 7))
+    return c
+
+
+def k_corr(base, dk):
+    """Corrugated container steel: a rib every 4 px, rust along the bottom."""
+    def paint(rng):
+        c = Canvas(64, 64, base)
+        for x in range(0, 64, 4):
+            c.rect(x, 0, x + 1, 64, dk)
+        c.blotch(["rust"], 8, rng, area=(0, 0, 64, 20), size=(2, 5))
+        c.blotch(["rust", dk], 6, rng, size=(1, 3))
+        c.noise(0, 0, 64, 64, [dk], 0.05, rng)
+        return c
+    return paint
+
+
+def k_paint(base, dk, rust=6):
+    """Painted steel, chipped and rusty."""
+    def paint(rng):
+        c = Canvas(64, 64, base)
+        c.noise(0, 0, 64, 64, [dk], 0.1, rng)
+        c.blotch(["rust"], rust, rng, size=(1, 4))
+        c.blotch([dk], 6, rng, size=(2, 5))
+        return c
+    return paint
+
+
+def k_drum(base, dk):
+    def paint(rng):
+        c = k_paint(base, dk)(rng)
+        for y in (20, 42):
+            c.rect(0, y, 64, y + 2, dk)
+        return c
+    return paint
+
+
+def k_burnt(rng):
+    c = Canvas(64, 64, "burnt1")
+    for x in range(0, 64, 4):
+        c.rect(x, 0, x + 1, 64, "burnt2")
+    c.blotch(["rust"], 14, rng, size=(2, 6))
+    c.blotch(["ash"], 8, rng, size=(2, 5))
+    return c
+
+
+def k_hesco(rng):
+    """Earth-filled wire-mesh barrier: fabric liner behind a steel mesh."""
+    c = Canvas(64, 64, "hes_fab")
+    c.noise(0, 0, 64, 64, ["hes_fab_dk"], 0.25, rng)
+    for k in range(0, 64, 8):
+        c.rect(k, 0, k + 1, 64, "hes_wire")
+        c.rect(0, k, 64, k + 1, "hes_wire")
+    c.blotch(["dirt2"], 5, rng, area=(0, 0, 64, 14), size=(2, 5))
+    return c
+
+
+def k_cinder(rng):
+    c = Canvas(64, 64, "cind_j")
+    for row in range(8):
+        off = 8 if row % 2 else 0
+        for x in range(-16 + off, 64, 16):
+            c.rect(max(0, x + 1), row * 8 + 1, min(64, x + 16), row * 8 + 8, rng.choice(("cind", "cind", "cind_dk")))
+    c.noise(0, 0, 64, 64, ["cind_dk", "cind_j"], 0.1, rng)
+    c.blotch(["burnt1"], 5, rng, size=(2, 6))
+    return c
+
+
+def k_bags(base, dk):
+    def paint(rng):
+        c = Canvas(64, 64, base)
+        c.noise(0, 0, 64, 64, [dk], 0.25, rng)
+        for y in range(0, 64, 8):
+            c.rect(0, y, 64, y + 1, dk)
+        c.blotch(["dirt2"], 6, rng, size=(2, 5))
+        return c
+    return paint
+
+
+def k_conc(rng):
+    c = Canvas(64, 64, "jb")
+    c.noise(0, 0, 64, 64, ["jb_dk", "jb_wht"], 0.15, rng)
+    c.blotch(["jb_dk"], 8, rng, size=(2, 5))
+    c.blotch(["dirt2"], 4, rng, area=(0, 0, 64, 10), size=(2, 4))
+    return c
+
+
+def k_stripes(a, b_):
+    def paint(rng):
+        c = Canvas(64, 64, a)
+        for y in range(64):
+            for x in range(64):
+                if ((x + y) // 8) % 2:
+                    c.put(x, y, b_)
+        c.noise(0, 0, 64, 64, ["jb_dk"], 0.06, rng)
+        c.blotch(["jb", "jb_dk"], 10, rng, size=(2, 5))   # chipped paint
+        return c
+    return paint
+
+
+def k_canvas(rng):
+    c = Canvas(64, 64, "trk_c")
+    c.noise(0, 0, 64, 64, ["trk_c_dk"], 0.2, rng)
+    c.blotch(["trk_c_dk", "dirt2"], 8, rng, size=(2, 6))
+    return c
+
+
+def k_tyre(rng):
+    c = Canvas(16, 16, "black")
+    for x in range(0, 16, 3):
+        c.rect(x, 0, x + 1, 16, "iron_dark")
+    return c
+
+
+mb.KIT.update({
+    "dbr_grass": k_grass, "dbr_dirt": k_dirt, "dbr_ruts": k_ruts, "dbr_granite": k_granite, "dbr_slate": k_slate,
+    "dbr_mossrock": k_mossrock, "dbr_cont_r": k_corr("cont_r", "cont_r_dk"), "dbr_cont_g": k_paint("cont_g", "cont_g_dk", 5),
+    "dbr_cont_b": k_corr("cont_b", "cont_b_dk"), "dbr_burnt": k_burnt, "dbr_hesco": k_hesco, "dbr_cinder": k_cinder,
+    "dbr_bag_tan": k_bags("sb_tan", "sb_tan_dk"), "dbr_bag_grn": k_bags("sb_grn", "sb_grn_dk"),
+    "dbr_bag_gry": k_bags("sb_gry", "sb_gry_dk"), "dbr_conc": k_conc, "dbr_redwhite": k_stripes("jb_wht", "jb_red"),
+    "dbr_hazard": k_stripes("hz_y", "black"), "dbr_drum_b": k_drum("drum_b", "drum_b_dk"),
+    "dbr_drum_o": k_drum("drum_o", "drum_o_dk"), "dbr_dmp_g": k_paint("dmp_g", "dmp_g_dk"),
+    "dbr_dmp_b": k_paint("dmp_b", "dmp_b_dk"), "dbr_trk_o": k_paint("trk_o", "trk_o_dk", 4), "dbr_canvas": k_canvas,
+    "dbr_tyre": k_tyre, "dbr_rail": k_paint("rail_r", "rail_r_dk", 10), "dbr_paper": mb.paint_flat("paper"),
+})
+
+
+# ------------------------------------------------------------------------------------------------ helpers
+def flat(mat, tile=2.0):
+    return lambda n, m, q: (mat, uv_world(tile))
+
+
+class Frame:
+    """A piece's own frame: origin on the ground under it (world point), turned by yaw. Points and boxes are given in it."""
+
+    def __init__(self, b, at, yaw):
+        self.b, self.at, self.yaw = b, at, yaw
+
+    def p(self, x, y, z):
+        return v_add(rot((x, y, z), self.yaw, 0.0), self.at)
+
+    def box(self, c, size, yaw=0.0, pitch=0.0, style=None):
+        self.b.box(self.p(*c), size, yaw=self.yaw + yaw, pitch=pitch, style=style)
+
+
+def frame_of(b, box):
+    """The frame of a gray box: on its bottom face's middle, turned like it."""
+    (x, y, z), s = box["pos"], box["size"]
+    return Frame(b, (x, y - s[1] / 2, z), box["yaw"])
+
+
+def tri(b, a, c, d, mat, centre, tile=2.0):
+    n = norm(cross(v_sub(c, a), v_sub(d, a)))
+    if dot(n, v_sub(a, centre)) < 0:
+        n = v_scale(n, -1)
+    b.poly([a, c, d], n, mat, uv_world(tile))
+
+
+def rock(b, c, size, yaw, rng, mat, top=None, jitter=0.18, chamfer=0.32, taper=0.78):
+    """A faceted boulder filling a box (centre c, size, yaw): a chamfered box with every corner nudged, the top a bit
+    narrower, the bottom flat."""
+    hx, hy, hz = size[0] / 2, size[1] / 2, size[2] / 2
+    ch = chamfer * min(size)
+    pts = {}
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                t = taper if sy > 0 else 1.0
+                base = {"x": (sx * hx, sy * (hy - ch), sz * (hz - ch)),
+                        "y": (sx * (hx - ch), sy * hy, sz * (hz - ch)),
+                        "z": (sx * (hx - ch), sy * (hy - ch), sz * hz)}
+                for k, p in base.items():
+                    j = (rng.uniform(-jitter, jitter) * size[0], rng.uniform(-jitter, jitter) * size[1] * (0.4 if sy < 0 else 1),
+                         rng.uniform(-jitter, jitter) * size[2])
+                    q = (p[0] * t + j[0], -hy if sy < 0 else p[1] + j[1], p[2] * t + j[2])
+                    pts[(sx, sy, sz, k)] = v_add(rot(q, yaw, 0.0), c)
+
+    def face(q, m):
+        tri(b, q[0], q[1], q[2], m, c)
+        tri(b, q[0], q[2], q[3], m, c)
+    for axis in "xyz":
+        for s in (-1, 1):
+            if axis == "y" and s < 0:
+                continue
+            cs = []
+            for sa in (-1, 1):
+                for sb in (-1, 1):
+                    cs.append((s, sa, sb) if axis == "x" else (sa, s, sb) if axis == "y" else (sa, sb, s))
+            face([pts[cs[0] + (axis,)], pts[cs[1] + (axis,)], pts[cs[3] + (axis,)], pts[cs[2] + (axis,)]],
+                 top if (top and axis == "y") else mat)
+    for a1, a2 in (("x", "y"), ("y", "z"), ("x", "z")):
+        free = ({"x", "y", "z"} - {a1, a2}).pop()
+        for s1 in (-1, 1):
+            for s2 in (-1, 1):
+                if (a1 == "y" and s1 < 0) or (a2 == "y" and s2 < 0):
+                    continue
+                ks = []
+                for sf in (-1, 1):
+                    dd = {a1: s1, a2: s2, free: sf}
+                    ks.append((dd["x"], dd["y"], dd["z"]))
+                face([pts[ks[0] + (a1,)], pts[ks[1] + (a1,)], pts[ks[1] + (a2,)], pts[ks[0] + (a2,)]], mat)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            tri(b, pts[(sx, 1, sz, "x")], pts[(sx, 1, sz, "y")], pts[(sx, 1, sz, "z")], mat, c)
+
+
+def cyl(b, c, r, h, mat, sides=12, axis="y", yaw=0.0, pitch=0.0, caps=True, cap_mat=None, tile=1.0):
+    """A cylinder centred at c along its own `axis`, then turned by yaw / pitch."""
+    def P(u, v, w):
+        p = (u, w, v) if axis == "y" else (w, u, v) if axis == "x" else (u, v, w)
+        return v_add(rot(p, yaw, pitch), c)
+    ring = [(r * math.cos(2 * math.pi * k / sides), r * math.sin(2 * math.pi * k / sides)) for k in range(sides)]
+    for k in range(sides):
+        a, e = ring[k], ring[(k + 1) % sides]
+        q = [P(a[0], a[1], -h / 2), P(e[0], e[1], -h / 2), P(e[0], e[1], h / 2), P(a[0], a[1], h / 2)]
+        n = v_sub(P((a[0] + e[0]) / 2, (a[1] + e[1]) / 2, 0), c)
+        b.poly(q, norm(n), mat, uv_world(tile))
+    if caps:
+        for s in (-1, 1):
+            b.poly([P(x, y, s * h / 2) for x, y in ring], norm(v_sub(P(0, 0, s), c)), cap_mat or mat, uv_world(tile))
+
+
+def smooth01(t):
+    t = max(0.0, min(1.0, t))
+    return t * t * (3 - 2 * t)
+
+
+def local_normal(n, yaw):
+    return rot(n, -yaw, 0.0)
+
+
+# ------------------------------------------------------------------------------------------------ walls
+WALL_SKIN = {"b": "house_brick", "c": "dbr_cinder", "d": "ch_fieldstone"}
+
+
+def wall_run(b, box, skin, rng, top_mat=None, rebar=False, posts=False, extra_t=0.0, col_w=0.25):
+    """A broken wall over one gray wall box: columns `col_w` wide whose tops step up and down (broken courses), sunk a
+    little into the ground (hills), never lower than the box (it collides to its top)."""
+    s = box["size"]
+    along_x = s[0] >= s[2]
+    length, t = (s[0], s[2]) if along_x else (s[2], s[0])
+    f = frame_of(b, box)
+    n = max(1, round(length / col_w))
+    w = length / n
+    h = s[1] + rng.uniform(0.0, 0.25)
+    tm = top_mat or "rubble_core"
+    yaw = f.yaw
+
+    def style(nn, m, q):
+        if nn[1] < -0.7:
+            return None
+        if nn[1] > 0.7:
+            return tm, uv_world(1.0)
+        ln = local_normal(nn, yaw)
+        side = abs(ln[2]) > 0.7 if along_x else abs(ln[0]) > 0.7
+        return (skin, uv_world(2.0)) if side else ("rubble_core", uv_world(1.0))
+    for i in range(n):
+        h = max(s[1], min(s[1] + 0.45, h + rng.choice((-1, 0, 0, 1)) * rng.uniform(0.08, 0.3)))
+        a = -length / 2 + (i + 0.5) * w
+        size = (w, h + 0.3, t + extra_t) if along_x else (t + extra_t, h + 0.3, w)
+        c = (a, (h - 0.3) / 2, 0.0) if along_x else (0.0, (h - 0.3) / 2, a)
+        f.box(c, size, style=style)
+        if rebar and rng.random() < 0.3:
+            for dz in (-0.1, 0.1):
+                ln = rng.uniform(0.3, 0.7)
+                c2 = (a, h + ln / 2 - 0.05, dz) if along_x else (dz, h + ln / 2 - 0.05, a)
+                f.box(c2, (0.03, ln, 0.03), pitch=rng.uniform(-25, 25), style=no_bottom("trim_dark", 1.0))
+    if posts:
+        for k in range(int(length // 2.6) + 1):
+            a = -length / 2 + 0.2 + k * 2.6
+            if a > length / 2 - 0.1:
+                break
+            c = (a, (s[1] - 0.3) / 2, 0.0) if along_x else (0.0, (s[1] - 0.3) / 2, a)
+            f.box(c, (0.32, s[1] + 0.3, t + 0.06) if along_x else (t + 0.06, s[1] + 0.3, 0.32), style=no_bottom("concrete", 2.0))
+    for _ in range(max(2, int(length))):     # broken bits at its foot (picture only: you walk over them)
+        a, side = rng.uniform(-length / 2, length / 2), rng.choice((-1, 1)) * rng.uniform(t / 2 + 0.2, t / 2 + 1.2)
+        c = (a, 0.04, side) if along_x else (side, 0.04, a)
+        mb.rubble_chunk(b, f.p(*c), (0.22, 0.07, 0.11), rng, (skin, "rubble_core"))
+
+
+def is_wall(box):
+    s = box["size"]
+    return s[1] >= 1.4 and min(s[0], s[2]) <= 0.5 and abs(box["pitch"]) < 1
+
+
+def draw_wall(b, piece, rng):
+    skin = WALL_SKIN[piece["look"]]
+    look = piece["look"]
+    for box in piece["boxes"]:
+        if is_wall(box):
+            wall_run(b, box, skin, rng, top_mat=skin if look != "c" else None, rebar=look == "c", posts=look == "c",
+                     extra_t=0.12 if look == "d" else 0.0, col_w=0.33 if look == "d" else 0.25)
+        else:   # a fallen lump of it
+            s = box["size"]
+            mb.rubble_chunk(b, tuple(box["pos"]), (s[0] * 0.95, s[1] * 0.95, s[2] * 0.95), rng, (skin, skin, "rubble_core"), box["yaw"])
+
+
+# ------------------------------------------------------------------------------------------------ rubble piles
+RUBBLE_MATS = {"b": ("dbr_conc", "dbr_conc", "rubble_core"), "c": ("house_brick", "house_brick", "rubble_core"),
+               "d": ("house_stone", "dbr_conc", "rubble_core")}
+RUBBLE_WALL = {"b": "dbr_cinder", "c": "house_brick", "d": "house_stone"}
+
+
+def draw_rubble(b, piece, rng):
+    look = piece["look"]
+    mats = RUBBLE_MATS[look]
+    for box in piece["boxes"]:
+        s = box["size"]
+        if is_wall(box):
+            wall_run(b, box, RUBBLE_WALL[look], rng, top_mat=RUBBLE_WALL[look] if look != "b" else None, rebar=look == "b")
+        else:
+            mb.rubble_chunk(b, tuple(box["pos"]), tuple(v * 0.95 for v in s), rng, mats, box["yaw"])
+    cx = sum(bx["pos"][0] for bx in piece["boxes"]) / len(piece["boxes"])
+    cz = sum(bx["pos"][2] for bx in piece["boxes"]) / len(piece["boxes"])
+    y0 = min(bx["pos"][1] - bx["size"][1] / 2 for bx in piece["boxes"])
+    for _ in range(10):
+        mb.rubble_chunk(b, (cx + rng.uniform(-3, 3), y0 + 0.05, cz + rng.uniform(-3, 3)), (0.22, 0.07, 0.11), rng, (mats[0], "rubble_core"))
+    if look == "d":   # a house came down: roof timbers and tiles in it
+        for _ in range(3):
+            b.box((cx + rng.uniform(-1.5, 1.5), y0 + rng.uniform(0.3, 0.7), cz + rng.uniform(-1.5, 1.5)), (0.16, 0.16, rng.uniform(2.0, 3.2)),
+                  yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("wood_dark", 1.0))
+        for _ in range(4):
+            b.box((cx + rng.uniform(-2, 2), y0 + rng.uniform(0.15, 0.5), cz + rng.uniform(-2, 2)), (0.9, 0.05, 0.6),
+                  yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("roof_clay", 1.0))
+
+
+# ------------------------------------------------------------------------------------------------ berms
+def draw_berm(b, piece, rng):
+    boxes = piece["boxes"]
+    look = piece["look"]
+    if look == "d":   # earth-filled wire-mesh barriers filling each box
+        for box in boxes:
+            s, f = box["size"], frame_of(b, box)
+            nx, nz = max(1, round(s[0] / 1.1)), 2
+            for i in range(nx):
+                for k in range(nz):
+                    hh = s[1] - rng.uniform(0.0, 0.08)
+                    c = (-s[0] / 2 + (i + 0.5) * s[0] / nx, (hh - 0.3) / 2, -s[2] / 2 + (k + 0.5) * s[2] / nz)
+                    f.box(c, (s[0] / nx - 0.02, hh + 0.3, s[2] / nz - 0.02), style=lambda nn, m, q: None if nn[1] < -0.7 else
+                          (("dbr_dirt", uv_world(2.0)) if nn[1] > 0.7 else ("dbr_hesco", uv_world(1.1))))
+        return
+    mid = boxes[len(boxes) // 2]
+    yaw = mid["yaw"]
+    ox, oz = mid["pos"][0], mid["pos"][2]
+    rects = []
+    for box in boxes:   # each box in the middle one's frame: (x0, x1, z0, z1, bottom, top)
+        l = rot((box["pos"][0] - ox, 0.0, box["pos"][2] - oz), -yaw, 0.0)
+        s = box["size"]
+        rects.append((l[0] - s[0] / 2, l[0] + s[0] / 2, l[2] - s[2] / 2, l[2] + s[2] / 2,
+                      box["pos"][1] - s[1] / 2, box["pos"][1] + s[1] / 2))
+    base = min(r[4] for r in rects) - 0.3
+    x0, x1 = min(r[0] for r in rects) - 1.1, max(r[1] for r in rects) + 1.1
+    z0, z1 = min(r[2] for r in rects) - 1.1, max(r[3] for r in rects) + 1.1
+    ph = (rng.uniform(0, 6), rng.uniform(0, 6))
+
+    def height(x, z):
+        best = base
+        for rx0, rx1, rz0, rz1, bot, top in rects:
+            dx = max(rx0 - x, 0.0, x - rx1)
+            dz = max(rz0 - z, 0.0, z - rz1)
+            d = math.hypot(dx, dz)
+            # (inside: the box's top, a little rounder at its edges; outside: a slope down to the ground)
+            edge = min(x - rx0, rx1 - x, z - rz0, rz1 - z)
+            y = top + 0.12 * smooth01(edge / 0.6) if d == 0 else bot + (top - bot) * (1 - smooth01(d / 1.0)) - 0.15 * smooth01(d / 1.0)
+            best = max(best, y)
+        return best + 0.05 * math.sin(x * 1.7 + ph[0]) * math.sin(z * 2.3 + ph[1])
+    nx, nz = max(4, int((x1 - x0) / 0.45)), max(4, int((z1 - z0) / 0.45))
+    xs = [x0 + (x1 - x0) * i / nx for i in range(nx + 1)]
+    zs = [z0 + (z1 - z0) * j / nz for j in range(nz + 1)]
+    H = [[height(x, z) for x in xs] for z in zs]
+    top_mat = "dbr_grass" if look == "b" else "dbr_ruts"
+    for j in range(nz):
+        for i in range(nx):
+            q = [(xs[i], H[j][i], zs[j]), (xs[i + 1], H[j][i + 1], zs[j]), (xs[i + 1], H[j + 1][i + 1], zs[j + 1]),
+                 (xs[i], H[j + 1][i], zs[j + 1])]
+            if max(p[1] for p in q) < base + 0.25:
+                continue
+            q = [v_add(rot((p[0], 0.0, p[2]), yaw, 0.0), (ox, p[1], oz)) for p in q]
+            for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
+                n = norm(cross(v_sub(c, a), v_sub(d, a)))
+                if n[1] < 0:
+                    n = v_scale(n, -1)
+                b.poly([a, c, d], n, top_mat if n[1] > 0.6 else "dbr_dirt", uv_world(2.0))
+    for _ in range(6 if look == "b" else 12):   # stones (and clods) round its foot
+        sz = rng.uniform(0.2, 0.5)
+        lx, lz = rng.uniform(x0 + 0.5, x1 - 0.5), rng.choice((z0 + 0.6, z1 - 0.6)) + rng.uniform(-0.3, 0.3)
+        c = v_add(rot((lx, 0.0, lz), yaw, 0.0), (ox, base + 0.3 + sz * 0.3, oz))
+        rock(b, c, (sz * 1.3, sz, sz), rng.uniform(0, 180), rng, "dbr_granite" if look == "b" else rng.choice(("dbr_dirt", "dbr_granite")))
+
+
+# ------------------------------------------------------------------------------------------------ rocks
+def draw_rocks(b, piece, rng):
+    look = piece["look"]
+    for box in piece["boxes"]:
+        s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
+        if look == "b":
+            rock(b, c, s, yaw, rng, "dbr_granite")
+        elif look == "c":   # layered slate: stacked slabs, each a bit smaller
+            n = max(2, min(4, round(s[1] / 0.55)))
+            y0 = c[1] - s[1] / 2
+            for k in range(n):
+                h = s[1] / n
+                k_ = 1.0 - 0.12 * k
+                rock(b, (c[0], y0 + (k + 0.5) * h, c[2]), (s[0] * k_ * 1.04, h + 0.06, s[2] * k_ * 1.04), yaw + rng.uniform(-8, 8),
+                     rng, "dbr_slate", jitter=0.05, chamfer=0.12, taper=0.95)
+        else:
+            rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", top="dbr_grass", jitter=0.12, chamfer=0.42)
+
+
+# ------------------------------------------------------------------------------------------------ containers
+def container(f, rng, skin, ribs=True, holes=False, L=6.1, W=2.4, H=2.6):
+    side = lambda nn, m, q: None if nn[1] < -0.7 else (skin, uv_world(2.4))
+    f.box((0, H / 2, 0), (W - 0.08, H - 0.12, L - 0.1), style=side)
+    if ribs:
+        for s in (-1, 1):
+            for i in range(14):
+                f.box((s * (W / 2 - 0.02), H / 2, -L / 2 + 0.4 + i * (L - 0.8) / 13), (0.05, H - 0.2, 0.14), style=no_bottom(skin, 2.4))
+    for s in (-1, 1):
+        for y in (0.06, H - 0.06):
+            f.box((s * (W / 2 - 0.03), y, 0), (0.1, 0.14, L), style=no_bottom("trim_dark", 2.0))
+        for zz in (-1, 1):
+            f.box((s * (W / 2 - 0.06), H / 2, zz * (L / 2 - 0.06)), (0.14, H, 0.14), style=no_bottom("trim_dark", 2.0))
+    for zz in (-1, 1):
+        for y in (0.06, H - 0.06):
+            f.box((0, y, zz * (L / 2 - 0.03)), (W, 0.14, 0.1), style=no_bottom("trim_dark", 2.0))
+    for s in (-1, 1):   # the doors (+z): two leaves, locking bars
+        f.box((s * W / 4, H / 2, L / 2 + 0.02), (W / 2 - 0.1, H - 0.16, 0.05), style=flat(skin, 2.4))
+        for k in (0.3, 0.7):
+            f.box((s * (W / 2 - 0.06) - s * (W / 2 - 0.06) * k, H / 2, L / 2 + 0.06), (0.04, H - 0.3, 0.04), style=flat("trim_dark", 1.0))
+    if holes:   # shot up
+        for _ in range(10):
+            s = rng.choice((-1, 1))
+            f.box((s * (W / 2 + 0.005), rng.uniform(0.6, 2.2), rng.uniform(-2.6, 2.6)), (0.01, rng.uniform(0.08, 0.2), rng.uniform(0.08, 0.2)),
+                  style=flat("black", 1.0))
+
+
+def draw_container(b, piece, rng):
+    look = piece["look"]
+    for box in piece["boxes"]:
+        s = box["size"]
+        f = frame_of(b, box)
+        if look == "b":
+            container(f, rng, rng.choice(("dbr_cont_r", "dbr_cont_b")), L=s[2], W=s[0], H=s[1])
+        elif look == "c":
+            container(f, rng, "dbr_cont_g", ribs=False, L=s[2], W=s[0], H=s[1])
+        else:
+            container(f, rng, "dbr_burnt", holes=True, L=s[2], W=s[0], H=s[1])
+
+
+# ------------------------------------------------------------------------------------------------ army trucks
+def draw_truck(b, piece, rng):
+    body = max(piece["boxes"], key=lambda bx: bx["size"][2])
+    look = piece["look"]
+    f = frame_of(b, body)
+    skin = "dbr_trk_o"
+    burnt = look == "d"
+    cover = {"b": "canvas", "c": "torn", "d": "none"}[look]
+    f.box((0, 0.7, 0.6), (1.6, 0.25, 8.0), style=flat("trim_dark", 1.0))                    # chassis
+    for z in (-2.6, -1.4, 3.8):
+        for s in (-1, 1):
+            if burnt and rng.random() < 0.3:
+                cyl(b, f.p(s * 1.05, 0.3, z), 0.3, 0.3, "trim_dark", sides=10, axis="x", yaw=f.yaw)   # bare hub
+            else:
+                cyl(b, f.p(s * 1.05, 0.5, z), 0.5, 0.4, "dbr_tyre", sides=12, axis="x", yaw=f.yaw, cap_mat="trim_dark")
+    cab = "dbr_burnt" if burnt else skin
+    f.box((0, 1.55, 4.1), (2.3, 1.5, 1.8), style=no_bottom(cab, 2.0))
+    f.box((0, 1.0, 5.25), (2.2, 0.8, 0.6), style=no_bottom(cab, 2.0))                           # bonnet
+    f.box((0, 1.9, 5.01), (2.0, 0.6, 0.04), style=flat("black" if burnt else "trim_dark", 1.0))  # windscreen
+    f.box((0, 1.0, 5.56), (2.0, 0.5, 0.04), style=flat("trim_dark", 1.0))                      # grille
+    for s in (-1, 1):
+        f.box((s * 1.16, 1.95, 4.2), (0.04, 0.5, 0.9), style=flat("black" if burnt else "trim_dark", 1.0))
+    bed = "dbr_burnt" if burnt else skin
+    f.box((0, 1.0, -0.6), (2.4, 0.15, 5.6), style=no_bottom(bed, 2.0))
+    for s in (-1, 1):
+        f.box((s * 1.18, 1.45, -0.6), (0.06, 0.8, 5.6), style=flat(bed, 2.0))
+    f.box((0, 1.45, -3.38), (2.4, 0.8, 0.06), style=flat(bed, 2.0))
+    for z in (-3.2, -1.8, -0.4, 1.0, 2.2):   # canvas hoops
+        f.box((0, 2.95, z), (2.4, 0.06, 0.06), style=flat("trim_dark", 1.0))
+        for s in (-1, 1):
+            f.box((s * 1.2, 2.35, z), (0.06, 1.2, 0.06), style=flat("trim_dark", 1.0))
+    if cover == "canvas":
+        f.box((0, 2.98, -0.5), (2.5, 0.04, 5.9), style=flat("dbr_canvas", 2.0))
+        for s in (-1, 1):
+            f.box((s * 1.24, 2.35, -0.5), (0.04, 1.25, 5.9), style=flat("dbr_canvas", 2.0))
+    elif cover == "torn":
+        f.box((0, 2.98, 0.6), (2.5, 0.04, 2.4), style=flat("dbr_canvas", 2.0))
+        f.box((1.24, 2.35, 0.6), (0.04, 1.25, 2.4), style=flat("dbr_canvas", 2.0))
+        f.box((-1.3, 1.9, -1.2), (0.04, 1.4, 1.6), style=flat("dbr_canvas", 2.0))   # a flap hanging off
+    for _ in range(3 if burnt else 1):
+        mb.rubble_chunk(b, f.p(rng.uniform(-2, 2), 0.05, rng.uniform(-3, 4)), (0.3, 0.06, 0.2), rng, ("dbr_burnt", "trim_dark"))
+
+
+# ------------------------------------------------------------------------------------------------ sandbags
+SAND_MATS = {"b": ("dbr_bag_tan",), "c": ("dbr_bag_grn", "dbr_bag_grn", "dbr_bag_tan"), "d": ("dbr_bag_gry", "dbr_bag_gry", "dbr_bag_tan")}
+
+
+def draw_sandbags(b, piece, rng):
+    look = piece["look"]
+    for box in piece["boxes"]:
+        s = box["size"]
+        f = frame_of(b, box)
+        along_x = s[0] > s[2]
+        L, depth = (s[0], s[2]) if along_x else (s[2], s[0])
+        rows = max(1, round((s[1] + 0.2) / 0.21))   # (from 0.2 m under the ground: no gaps where it slopes)
+        rh = (s[1] + 0.2) / rows
+        n = max(1, round(L / 0.62))
+        bl = L / n
+
+        def at(a, d, y):
+            return (a, y, d) if along_x else (d, y, a)
+        for r in range(rows):
+            off = bl / 2 if r % 2 else 0.0
+            for i in range(n + (1 if r % 2 else 0)):
+                a = -L / 2 + bl / 2 + i * bl - off
+                w = bl if abs(a) <= L / 2 - bl / 2 + 1e-6 else bl / 2
+                a = max(-L / 2 + w / 2, min(L / 2 - w / 2, a))
+                for dd in (-depth / 4, depth / 4):
+                    size = (w - 0.03, rh + 0.02, depth / 2 - 0.02)
+                    f.box(at(a, dd + rng.uniform(-0.02, 0.02), (r + 0.5) * rh - 0.2),
+                          size if along_x else (size[2], size[1], size[0]), yaw=rng.uniform(-3, 3), style=no_bottom(rng.choice(SAND_MATS[look]), 1.0))
+        if look == "c":   # timber posts at the ends and a board across the top
+            for a in (-L / 2 + 0.1, L / 2 - 0.1):
+                f.box(at(a, depth / 2 + 0.08, (s[1] + 0.2) / 2), (0.15, s[1] + 0.2, 0.15), style=no_bottom("wood_dark", 1.0))
+        if look == "d":   # burst bags and spilled sand
+            for _ in range(max(1, int(L / 1.5))):
+                d0 = rng.choice((-1, 1)) * (depth / 2 + rng.uniform(0.2, 0.5))
+                f.box(at(rng.uniform(-L / 2, L / 2), d0, 0.05), (0.55, 0.12, 0.35) if along_x else (0.35, 0.12, 0.55),
+                      yaw=rng.uniform(-30, 30), style=no_bottom("dbr_bag_gry", 1.0))
+                f.box(at(rng.uniform(-L / 2, L / 2), d0, 0.01), (0.6, 0.04, 0.5), yaw=rng.uniform(0, 90), style=no_bottom("dbr_dirt", 1.0))
+
+
+# ------------------------------------------------------------------------------------------------ concrete barriers
+def draw_barrier(b, piece, rng):
+    skin = {"b": "dbr_conc", "c": "dbr_redwhite", "d": "dbr_hazard"}[piece["look"]]
+    for box in piece["boxes"]:
+        s = box["size"]
+        f = frame_of(b, box)
+        L, W, H = s[2], s[0], s[1]
+        k = H / 0.9
+        f.box((0, 0.04 * k, 0), (W, 0.08 * k, L), style=no_bottom("dbr_conc", 1.0))
+        f.box((0, 0.2 * k, 0), (W * 0.93, 0.24 * k, L), style=no_bottom("dbr_conc", 1.0))
+        f.box((0, 0.55 * k, 0), (W * 0.57, 0.46 * k, L),
+              style=lambda nn, m, q: None if nn[1] < -0.7 else ((skin if abs(local_normal(nn, f.yaw)[0]) > 0.5 else "dbr_conc"), uv_world(1.5)))
+        f.box((0, 0.85 * k, 0), (W * 0.37, 0.14 * k, L - 0.02), style=no_bottom("dbr_conc", 1.0))
+        for z in (-L * 0.3, L * 0.3):   # lifting loops
+            f.box((0, 0.94 * k, z), (0.05, 0.06, 0.2), style=no_bottom("trim_dark", 1.0))
+        f.box((0.1, 0.85 * k, L / 2 - 0.15), (0.25, 0.16, 0.3), style=no_bottom("rubble_core", 1.0))   # a chipped end
+        for _ in range(2):
+            mb.rubble_chunk(b, f.p(rng.uniform(-0.7, 0.7), 0.05, rng.uniform(-L / 2, L / 2)), (0.15, 0.08, 0.12), rng, ("dbr_conc", "rubble_core"))
+
+
+# ------------------------------------------------------------------------------------------------ tank traps
+def ibeam(b, c, yaw, pitch, mat, L=2.0, fl=0.2, web=0.2):
+    for s in (-1, 1):
+        b.box(v_add(c, rot((s * web / 2, 0, 0), yaw, pitch)), (0.025, fl, L), yaw=yaw, pitch=pitch, style=flat(mat, 1.0))
+    b.box(c, (web, 0.025, L), yaw=yaw, pitch=pitch, style=flat(mat, 1.0))
+
+
+def draw_tanktrap(b, piece, rng):
+    look = piece["look"]
+    hogs = []    # boxes sharing a middle make one hedgehog
+    for box in piece["boxes"]:
+        for h in hogs:
+            if math.hypot(h[0]["pos"][0] - box["pos"][0], h[0]["pos"][2] - box["pos"][2]) < 0.3:
+                h.append(box)
+                break
+        else:
+            hogs.append([box])
+    for h in hogs:
+        c = tuple(h[0]["pos"])
+        c = (c[0], c[1] + 0.02, c[2])
+        for box in h:
+            yaw, pitch, L = box["yaw"], box["pitch"], box["size"][2]
+            if look == "b":     # rusty riveted I-beams
+                ibeam(b, c, yaw, pitch, "gs_burnt", L=L)
+            elif look == "c":   # painted angle iron
+                b.box(c, (0.16, 0.025, L), yaw=yaw, pitch=pitch, style=flat("dbr_trk_o", 1.0))
+                b.box(v_add(c, rot((0.08, 0.07, 0), yaw, pitch)), (0.025, 0.16, L), yaw=yaw, pitch=pitch, style=flat("dbr_trk_o", 1.0))
+            else:               # cut railway rails
+                b.box(c, (0.14, 0.03, L), yaw=yaw, pitch=pitch, style=flat("dbr_rail", 1.0))
+                b.box(v_add(c, rot((0, 0.07, 0), yaw, pitch)), (0.025, 0.12, L), yaw=yaw, pitch=pitch, style=flat("dbr_rail", 1.0))
+                b.box(v_add(c, rot((0, 0.14, 0), yaw, pitch)), (0.07, 0.04, L), yaw=yaw, pitch=pitch, style=flat("dbr_rail", 1.0))
+        for k in range(3):   # plates at the crossing
+            b.box(c, (0.32, 0.32, 0.02), yaw=h[0]["yaw"] + k * 60, style=flat("trim_dark", 1.0))
+        if look == "d":      # barbed wire round it
+            for i in range(12):
+                a = i * 52
+                r = 0.55 + 0.15 * math.sin(i)
+                b.box((c[0] + r * math.sin(math.radians(a)), c[1] - 0.2 + 0.03 * i, c[2] + r * math.cos(math.radians(a))), (0.02, 0.02, 0.5),
+                      yaw=a + 90, pitch=rng.uniform(-20, 20), style=flat("trim_dark", 1.0))
+
+
+# ------------------------------------------------------------------------------------------------ oil drums
+DRUM_MATS = {"b": ("dbr_drum_b", "dbr_drum_b", "dbr_cont_r"), "c": ("dbr_drum_o",), "d": ("dbr_burnt",)}
+
+
+def drum(b, base, mat, yaw, tipped=False, holes=False, rng=None):
+    pitch = 90.0 if tipped else 0.0
+    c = (base[0], base[1] + (0.29 if tipped else 0.45), base[2])
+    cyl(b, c, 0.29, 0.88, mat, sides=12, yaw=yaw, pitch=pitch)
+    for w in (-0.29, 0.0, 0.29):   # rolling hoops
+        cyl(b, v_add(c, rot((0, w, 0), yaw, pitch)), 0.305, 0.03, mat, sides=12, yaw=yaw, pitch=pitch, caps=False)
+    if not tipped:
+        cyl(b, (c[0] + 0.15, base[1] + 0.9, c[2]), 0.04, 0.03, "trim_dark", sides=6)
+    if holes:
+        for _ in range(3):
+            b.box(v_add(c, rot((0.3, rng.uniform(-0.3, 0.3), 0), yaw, 0)), (0.02, 0.06, 0.06), yaw=yaw, style=flat("black", 1.0))
+
+
+def draw_drums(b, piece, rng):
+    look = piece["look"]
+    for box in piece["boxes"]:
+        s, p = box["size"], box["pos"]
+        tipped = abs(box["pitch"]) > 45
+        base = (p[0], p[1] - (0.3 if tipped else s[1] / 2), p[2])
+        drum(b, base, rng.choice(DRUM_MATS[look]), box["yaw"], tipped=tipped, holes=look == "d", rng=rng)
+
+
+# ------------------------------------------------------------------------------------------------ dumpsters
+def draw_dumpster(b, piece, rng):
+    look = piece["look"]
+    skin = {"b": "dbr_dmp_g", "c": "dbr_dmp_b", "d": "dbr_burnt"}[look]
+    for box in piece["boxes"]:
+        f = frame_of(b, box)
+        f.box((0, 0.72, 0), (1.9, 1.1, 1.1), style=no_bottom(skin, 2.0))
+        f.box((0, 0.72, 0.56), (1.94, 0.12, 0.04), style=no_bottom(skin, 2.0))
+        f.box((0, 1.24, 0.58), (1.96, 0.08, 0.08), style=no_bottom("trim_dark", 1.0))
+        for s in (-1, 1):
+            f.box((s * 0.99, 0.95, 0), (0.06, 0.12, 0.5), style=flat("trim_dark", 1.0))   # lifting pockets
+            for zz in (-0.4, 0.4):
+                cyl(b, f.p(s * 0.8, 0.09, zz), 0.08, 0.06, "black", sides=8, axis="x", yaw=f.yaw)
+        if look == "b":
+            f.box((0, 1.3, -0.02), (1.92, 0.05, 1.14), pitch=-4, style=no_bottom("trim_dark", 1.0))
+        elif look == "c":   # lid thrown open, bin bags
+            f.box((0, 1.75, -0.6), (1.92, 1.0, 0.05), pitch=-8, style=flat("trim_dark", 1.0))
+            for _ in range(2):
+                cyl(b, f.p(rng.uniform(-0.7, 0.7), 1.3, rng.uniform(-0.3, 0.3)), 0.22, 0.4, "black", sides=7)
+            cyl(b, f.p(rng.uniform(-1.4, 1.4), 0.2, 0.9), 0.2, 0.4, "black", sides=7)
+
+
+# ------------------------------------------------------------------------------------------------ craters
+def draw_crater(b, piece, rng):
+    look = piece["look"]
+    mounds = piece["boxes"]
+    cx = sum(m["pos"][0] for m in mounds) / len(mounds)
+    cz = sum(m["pos"][2] for m in mounds) / len(mounds)
+    R = sum(math.hypot(m["pos"][0] - cx, m["pos"][2] - cz) for m in mounds) / len(mounds)
+    ring = sorted((math.atan2(m["pos"][2] - cz, m["pos"][0] - cx), m["pos"][1] - m["size"][1] / 2) for m in mounds)
+
+    def base(a):   # the ground under the rim at angle a, between the mounds either side
+        for (a0, y0), (a1, y1) in zip(ring, ring[1:] + [(ring[0][0] + 2 * math.pi, ring[0][1])]):
+            aa = a if a >= a0 else a + 2 * math.pi
+            if a0 <= aa <= a1:
+                t = (aa - a0) / ((a1 - a0) or 1)
+                return y0 + (y1 - y0) * t
+        return ring[0][1]
+    ph = (rng.uniform(0, 6), rng.uniform(0, 6))
+    NA, NR = 32, 7
+    r0, r1 = R - 1.2, R + 1.4
+
+    def P(i, j):
+        a = 2 * math.pi * i / NA
+        r = r0 + (r1 - r0) * j / NR
+        w = 1.0 + 0.25 * math.sin(3 * a + ph[0]) + 0.15 * math.sin(5 * a + ph[1])
+        t = (r - R) / (1.2 if r < R else 1.4)
+        h = 0.62 * w * max(0.0, 1 - t * t)
+        sink = 0.45 if j == 0 else 0.15 if j == NR else 0.0
+        return (cx + r * math.cos(a), base(a) + h - sink, cz + r * math.sin(a))
+    top = {"b": "dbr_grass", "c": "dbr_burnt", "d": "dbr_grass"}[look]
+    side = {"b": "dbr_dirt", "c": "dbr_dirt", "d": "dbr_grass"}[look]
+    for i in range(NA):
+        for j in range(NR):
+            q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)]
+            for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
+                n = norm(cross(v_sub(c, a), v_sub(d, a)))
+                if n[1] < 0:
+                    n = v_scale(n, -1)
+                y = (a[1] + c[1] + d[1]) / 3 - base(math.atan2(a[2] - cz, a[0] - cx))
+                b.poly([a, c, d], n, top if (n[1] > 0.8 and y > 0.3) else side, uv_world(2.0))
+    for _ in range(7):
+        a, r = rng.uniform(0, 2 * math.pi), rng.uniform(R - 0.6, R + 2.2)
+        p = (cx + r * math.cos(a), base(a) + 0.05, cz + r * math.sin(a))
+        if look == "b":     # sod clods thrown out
+            b.box(p, (0.4, 0.14, 0.3), yaw=rng.uniform(0, 90), pitch=rng.uniform(-20, 20),
+                  style=lambda nn, m, q: ("dbr_grass" if nn[1] > 0.7 else "dbr_dirt", uv_world(1.0)))
+        elif look == "c":   # shrapnel
+            b.box(p, (0.3, 0.04, 0.12), yaw=rng.uniform(0, 180), pitch=rng.uniform(-30, 30), style=flat("trim_dark", 1.0))
+        else:               # stones in the grass
+            s = rng.uniform(0.2, 0.4)
+            rock(b, (p[0], p[1] + s * 0.3, p[2]), (s * 1.3, s, s), rng.uniform(0, 180), rng, "dbr_granite")
+
+
+# ------------------------------------------------------------------------------------------------ small junk
+def draw_junk(b, piece, rng):
+    look = piece["look"]
+    for box in piece["boxes"]:
+        s = box["size"]
+        f = frame_of(b, box)
+        if look == "b":     # a plank and some bricks
+            f.box((0, 0.03, 0), (0.2, 0.04, s[2]), pitch=rng.uniform(-4, 4), style=flat(rng.choice(("wood", "wood_dark", "wood_light")), 1.0))
+            for _ in range(3):
+                mb.rubble_chunk(b, f.p(rng.uniform(-0.5, 0.5), 0.04, rng.uniform(-0.6, 0.6)), (0.22, 0.07, 0.11), rng, ("house_brick", "rubble_core"))
+        elif look == "c":   # scrap: a bent sheet, a tyre, a pipe
+            if s[2] > 1.4:
+                f.box((0, 0.06, 0), (0.12, 0.12, s[2]), style=flat("trim_dark", 1.0))
+            else:
+                f.box((0, 0.08, 0), (1.1, 0.03, 0.8), pitch=rng.uniform(-12, 12), style=flat(rng.choice(("dbr_cont_r", "shed_metal", "dbr_burnt")), 1.0))
+            if rng.random() < 0.5:
+                cyl(b, f.p(rng.uniform(-0.6, 0.6), 0.11, rng.uniform(-0.6, 0.6)), 0.33, 0.22, "dbr_tyre", sides=10, cap_mat="black")
+        else:               # the town's litter: a box, papers, a bottle
+            f.box((0, 0.12, 0), (0.5, 0.25, 0.4), yaw=rng.uniform(0, 90), pitch=rng.uniform(-10, 10), style=flat("cardboard", 1.0))
+            for _ in range(3):
+                f.box((rng.uniform(-0.8, 0.8), 0.01, rng.uniform(-0.8, 0.8)), (0.25, 0.01, 0.32), yaw=rng.uniform(0, 180), style=flat("dbr_paper", 1.0))
+            cyl(b, f.p(rng.uniform(-0.6, 0.6), 0.04, rng.uniform(-0.6, 0.6)), 0.04, 0.25, "green", sides=6, axis="z", yaw=rng.uniform(0, 180))
+
+
+DRAW = {"wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
+        "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
+        "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk}
+
+
+def main():
+    names = sys.argv[1:]
+    os.makedirs(OUT_DIR, exist_ok=True)
+    textures, mat_info = {}, {}
+    for kit, painter in mb.KIT.items():
+        textures["kit_" + kit] = Texture("kit_" + kit, os.path.join("art_source", "textures", "kit", kit + ".png"), painter,
+                                         random.Random(kit))
+        mat_info[kit] = ("kit_" + kit, False, kit == "glass")
+    cells = mb.kit_atlas()
+    total = 0
+    for fn in sorted(os.listdir(JSON_DIR)):
+        name = fn[:-5]
+        if not fn.endswith(".json") or (names and name not in names):
+            continue
+        data = json.load(open(os.path.join(JSON_DIR, fn)))
+        b = Builder()
+        for piece in data["pieces"]:
+            DRAW[piece["kind"]](b, piece, random.Random(f"{piece['kind']} {piece['seed']}"))
+        out = os.path.join(OUT_DIR, name + ".glb")
+        mb.write_glb(out, b, textures, mat_info, atlas=cells)
+        mb.set_import_script(out)
+        tris = sum(len(f) - 2 for f in b.faces)
+        total += tris
+        print(f"{name}: {len(data['pieces'])} pieces, {tris} triangles")
+    print(f"outdoor total: {total} triangles")
+
+
+if __name__ == "__main__":
+    main()
