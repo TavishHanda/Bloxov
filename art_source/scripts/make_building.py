@@ -21653,7 +21653,7 @@ def prop_jy_car(ctx, c, s):
 # a the first one (a block floating beside the tower); b a real tower crane in faded yellow (counter-jib with its
 # weights, apex and tie bars, a cab under the jib, the hook trolley); c the same, rusted red; d b knocked about by the
 # war (scorched cab with its glass out, struts shot away, the jib's tip bent down).
-CRANE_LOOK = os.environ.get("BLOXOV_CRANE_LOOK", "a")
+CRANE_LOOK = os.environ.get("BLOXOV_CRANE_LOOK", "b")   # (owner 2026-10-18 picked B)
 CRANE_PAINT = {"b": "yellow", "c": "dbr_cont_r", "d": "yellow"}
 
 
