@@ -296,7 +296,8 @@ func _add_leaves() -> void:
 	var box_faces := BoxMesh.new().get_faces()
 	for i in range(0, boxes.size(), STRIDE):
 		var index := int(boxes[i + 8])
-		if int(boxes[i + 9]) != 0 or index >= colors.size() or not colors[index].is_equal_approx(LEAVES_COLOUR):
+		# (non-solid leaves: drawn here, or hidden under a model (3), like the walk-through bushes of World art 0.17)
+		if int(boxes[i + 9]) not in [0, 3] or index >= colors.size() or not colors[index].is_equal_approx(LEAVES_COLOUR):
 			continue
 		var xf := Transform3D(
 			Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))

@@ -2594,10 +2594,36 @@ def barrier(x, z, yaw):
     obox(x, 0.45, z, 0.6, 0.9, 3.0, yaw, "concrete")
 
 
+@debris_kind("planter")
 def planter(x, z):
     box(x - 1.5, 0, z - 1.0, x + 1.5, 1.0, z + 1.0, "concrete")
 
 
+@debris_kind("plaza")
+def plaza(x, z, w, d):
+    """The town square's paving (w x d m round x, z)."""
+    box(x - w / 2, 0.0, z - d / 2, x + w / 2, 0.06, z + d / 2, "pavement", solid=False)
+
+
+@debris_kind("fountain")
+def fountain(x, z):
+    box(x - 3, 0, z - 3, x + 3, 0.8, z + 3, "concrete")                 # basin
+    box(x - 0.6, 0.8, z - 0.6, x + 0.6, 2.6, z + 0.6, "concrete")       # column
+
+
+@debris_kind("statue")
+def statue(x, z):
+    box(x - 1.5, 0, z - 1.5, x + 1.5, 1.2, z + 1.5, "concrete")         # plinth
+    box(x - 0.5, 1.2, z - 0.5, x + 0.5, 4.0, z + 0.5, "metal")          # the statue
+
+
+@debris_kind("kiosk")
+def kiosk(x, z):
+    """A newsstand kiosk, 2.5 m square."""
+    box(x - 1.25, 0, z - 1.25, x + 1.25, 2.6, z + 1.25, "car_b")
+
+
+@debris_kind("stall")
 def stall(x, z, yaw=0.0):
     with group():
         obox(x, 0.55, z, 3.0, 1.1, 1.6, yaw, "wood")
@@ -2638,11 +2664,19 @@ def bush(x, z, rng):
     box(x - s / 2, 0, z - s / 2, x + s / 2, rng.uniform(1.0, 1.5), z + s / 2, "leaves")
 
 
+# Bush sizes for bush_pass (owner 2026-10-18: "some solid some not, like different sizes ... almost like more
+# foliage"): (weight, width range, height range, solid). Walk-through ones still hide you from the AI (BoxMap's leaves).
+BUSH_SIZES = [(5, (0.8, 1.5), (0.6, 1.0), False),     # shrubs
+              (3, (1.3, 2.1), (1.0, 1.4), False),     # bushes you can push through
+              (2, (1.4, 2.2), (1.0, 1.5), True),
+              (3, (2.0, 3.2), (1.5, 2.2), True)]      # big ones: cover
+
+
 @debris_kind("bush")
-def big_bush(x, z, rng):
-    sx, sz = rng.uniform(1.8, 2.9), rng.uniform(1.6, 2.6)
-    h = rng.uniform(1.3, 1.9)
-    obox(x, h / 2, z, sx, h, sz, rng.uniform(0, 180), "leaves")
+def big_bush(x, z, rng, size=None):
+    _, (w0, w1), (h0, h1), solid = size or BUSH_SIZES[-1]
+    sx, sz, h = rng.uniform(w0, w1), rng.uniform(w0, w1), rng.uniform(h0, h1)
+    obox(x, h / 2, z, sx, h, sz, rng.uniform(0, 180), "leaves", solid=solid)
 
 
 def _bush_spot(x, z):
@@ -2664,16 +2698,22 @@ def _bush_spot(x, z):
             return False
     if any(math.hypot(x - sx, z - sz) < 6 for _, sx, sz in player_spawns + enemy_spawns):
         return False
+    for b in boxes:   # flat paving (the town square, car parks, the sports field...)
+        if b[4] <= 0.06 and max(b[3], b[5]) > 8 and abs(x - (b[0] + M / 2)) < b[3] / 2 + 1.5 and abs(z - (b[2] + M / 2)) < b[5] / 2 + 1.5:
+            return False
     if any(math.hypot(x - ex, z - ez) < 10 for _, _, ex, ez in extracts):
         return False
-    return not any(math.hypot(x - l[2], z - l[4]) < 4 for l in loot)
+    if any(x0 - 4 < x < x1 + 4 and z0 - 4 < z < z1 + 4 for x0, z0, x1, z1 in NO_TREES):   # (the cabins)
+        return False
+    return not any(math.hypot(x - l[2], z - l[4]) < 6 for l in loot)
 
 
-def bush_pass(spacing=11.0, tries=3000):
-    """Big bushes on open grass (World art 0.17, outdoor step 2, owner 2026-10-18: "add some big bushes"): clumps of
-    one to three, solid like the bushes in the woods (cover)."""
+def bush_pass(spacing=8.0, tries=4000):
+    """Bushes and shrubs on open grass (World art 0.17, outdoor step 2, owner 2026-10-18: "add some big bushes", then
+    "some solid some not, like different sizes"): clumps of one to four of mixed sizes (BUSH_SIZES)."""
     _fp_index["upto"], _fp_index["grid"] = 0, {}   # (boxes were taken out since the scatter: index them afresh)
     rng = random.Random(5150)
+    sizes = [b for b in BUSH_SIZES for _ in range(b[0])]
     placed = []
     for _ in range(tries):
         x, z = rng.uniform(0, M), rng.uniform(0, M)
@@ -2681,10 +2721,13 @@ def bush_pass(spacing=11.0, tries=3000):
             continue
         placed.append((x, z))
     for x, z in placed:
-        for k in range(rng.choice((1, 1, 2, 2, 3))):
-            a, d = rng.uniform(0, 2 * math.pi), 0.0 if k == 0 else rng.uniform(2.2, 3.2)
+        for k in range(rng.choice((1, 2, 2, 3, 4))):
+            a, d = rng.uniform(0, 2 * math.pi), 0.0 if k == 0 else rng.uniform(1.8, 3.4)
+            bx, bz, size = x + math.cos(a) * d, z + math.sin(a) * d, rng.choice(sizes)
+            if k and not _bush_spot(bx, bz):   # (each bush of a clump keeps off doors and loot too)
+                continue
             with scatter_piece(x, z):
-                big_bush(x + math.cos(a) * d, z + math.sin(a) * d, rng)
+                big_bush(bx, bz, rng, size)
     return placed
 
 
@@ -3810,17 +3853,16 @@ def main():
 
     # ===================================================================== TOWN (top left)
     # town square: paving + lots of cover (owner): fountain, planters, stalls, parked cars, statue, kiosk
-    box(88, 0.0, 108, 124, 0.06, 138, "pavement", solid=False)
-    box(103, 0, 120, 109, 0.8, 126, "concrete")           # fountain basin
-    box(105.4, 0.8, 122.4, 106.6, 2.6, 123.6, "concrete")  # fountain column
+    # (World art 0.17: each piece drawn by the outdoor kit, art_source/scripts/make_outdoor.py; same boxes as before)
+    plaza(106, 123, 36, 30)
+    fountain(106, 123)
     for px, pz in ((93, 112), (119, 112), (93, 134), (119, 134), (98, 123), (114, 123)):
         planter(px, pz)
     stall(99, 115, 0); stall(106, 115, 0); stall(113, 115, 0)
     stall(100, 131, 0); stall(112, 131, 0)
     car(91, 124, 0, "car_b"); car(121, 126, 10, "car_a")
-    box(104.5, 0, 133, 107.5, 1.2, 136, "concrete")        # statue plinth
-    box(105.5, 1.2, 134, 106.5, 4.0, 135, "metal")         # statue
-    box(118, 0, 118, 120.5, 2.6, 120.5, "car_b")           # newsstand kiosk
+    statue(106, 134.5)
+    kiosk(119.25, 119.25)
 
     # downtown
     bunker_floor = -4.5

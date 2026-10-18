@@ -45,7 +45,11 @@ mb.PALETTE.update({
     # bushes (step 2, owner: "add some big bushes"): leafy green, a dark evergreen, and one in flower
     "lf1": "4a6b35", "lf1_dk": "3a5529", "lf1_lt": "5e8040", "lf1_sh": "2c4524",
     "lf2": "3f5a37", "lf2_dk": "2f4529", "lf2_lt": "4f6b42", "lf2_sh": "263a22",
-    "lf3": "4f6e38", "lf3_dk": "3e5a2b", "lf3_lt": "638545", "blossom": "d8d0c2", "blossom2": "c9a4b8",
+    "lf3": "4f6e38", "lf3_dk": "3e5a2b", "lf3_lt": "638545",
+    # the town square (World art 0.17): setts, fountain water, awnings
+    "sett1": "7c766c", "sett2": "706a61", "sett3": "857f74", "sett_j": "524d46", "sett_dk": "625c53",
+    "wat1": "4c6466", "wat2": "435a5c", "wat_lt": "5d777a", "scum": "56634a",
+    "awn_r": "8f3b32", "awn_g": "476247", "awn_b": "3e5571", "awn_w": "c9c0ab", "blossom": "d8d0c2", "blossom2": "c9a4b8",
 })
 
 
@@ -135,6 +139,30 @@ def k_leaf(base, dk, lt, sh, flowers=()):
             c.rect(x, y, x + 2, y + 1, col)
         return c
     return paint
+
+
+def k_setts(rng):
+    """Granite setts in rows (8 x 6 px stones, staggered), some darker, a few cracked or missing."""
+    c = Canvas(64, 64, "sett_j")
+    for row in range(0, 64, 6):
+        off = 4 if (row // 6) % 2 else 0
+        for col in range(-8, 64, 8):
+            x0 = col + off
+            stone = rng.choice(("sett1", "sett2", "sett3", "sett1", "sett_dk"))
+            c.rect(max(0, x0), row, min(64, x0 + 7), min(64, row + 5), stone)
+    c.noise(0, 0, 64, 64, ["sett_dk", "sett3"], 0.12, rng)
+    c.blotch(["sett_j"], 5, rng, size=(1, 3))
+    return c
+
+
+def k_water(rng):
+    c = Canvas(64, 64, "wat1")
+    c.noise(0, 0, 64, 64, ["wat2", "wat_lt"], 0.15, rng)
+    c.blotch(["scum"], 6, rng, size=(3, 7))
+    for _ in range(30):
+        x, y = rng.randrange(62), rng.randrange(64)
+        c.rect(x, y, x + 3, y + 1, "wat_lt")
+    return c
 
 
 def k_mossrock(rng):
@@ -268,6 +296,8 @@ mb.KIT.update({
     "dbr_ground": mb.paint_flat("ground"), "dbr_earth": k_earth, "dbr_scorch": k_scorch,
     "dbr_leaf_b": k_leaf("lf1", "lf1_dk", "lf1_lt", "lf1_sh"), "dbr_leaf_c": k_leaf("lf2", "lf2_dk", "lf2_lt", "lf2_sh"),
     "dbr_leaf_d": k_leaf("lf3", "lf3_dk", "lf3_lt", "lf1_sh", flowers=("blossom", "blossom2")),
+    "dbr_setts": k_setts, "dbr_water": k_water, "awn_r_flat": mb.paint_flat("awn_r"), "hz_flat": mb.paint_flat("hz_y"),
+    "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
 })
 
 
@@ -670,18 +700,181 @@ def draw_bush(b, piece, rng):
         taper = 0.55 if look == "c" else 0.8
         rock(b, (c[0], y0 + s[1] * 0.42, c[2]), (s[0] * 0.92, s[1] * 0.84, s[2] * 0.92), yaw, rng, mat,
              jitter=0.12, chamfer=0.38, taper=taper)
-        for k in range(rng.randint(4, 6)):
-            a = math.radians(yaw + k * 360 / 5 + rng.uniform(-25, 25))
+        n = 2 if s[1] < 1.05 else rng.randint(3, 4) if s[1] < 1.5 else rng.randint(4, 6)   # (small ones cheaper)
+        for k in range(n):
+            a = math.radians(yaw + k * 360 / n + rng.uniform(-25, 25))
             r = rng.uniform(0.28, 0.4)
             px, pz = math.cos(a) * s[0] * r, math.sin(a) * s[2] * r
             hh = s[1] * rng.uniform(0.45, 0.65) * (0.8 if look == "c" else 1.0)
             w = min(s[0], s[2]) * rng.uniform(0.45, 0.6)
             rock(b, (c[0] + px, y0 + hh / 2 + rng.uniform(0.0, 0.25), c[2] + pz), (w, hh, w * rng.uniform(0.8, 1.1)),
                  rng.uniform(0, 90), rng, mat, jitter=0.15, chamfer=0.4, taper=0.8)
+        if n == 2:
+            continue
         top = s[1] * (0.4 if look == "c" else 0.32)       # a crown on top
         w = min(s[0], s[2]) * (0.4 if look == "c" else 0.55)
         rock(b, (c[0] + rng.uniform(-0.15, 0.15), y0 + s[1] + 0.08 - top / 2, c[2] + rng.uniform(-0.15, 0.15)),
              (w, top, w), rng.uniform(0, 90), rng, mat, jitter=0.12, chamfer=0.42, taper=0.6 if look == "c" else 0.8)
+
+
+# ------------------------------------------------------------------------------------------------ the town square
+# (World art 0.17, owner 2026-10-18: "we gotta do the town hall, like the middle"): paving, fountain, statue, market
+# stalls, planters and a newsstand kiosk, each drawn round its old gray boxes (collision unchanged).
+def draw_plaza(b, piece, rng):
+    box = piece["boxes"][0]
+    (x, y, z), s = box["pos"], box["size"]
+    top = y + s[1] / 2
+    f = Frame(b, (x, top, z), box["yaw"])
+    W, D = s[0], s[2]
+    f.box((0, -0.15, 0), (W - 0.5, 0.3, D - 0.5), style=lambda n, m, q: ("dbr_setts", uv_world(2.0)) if n[1] > 0.7 else None)
+    kerb = lambda n, m, q: None if n[1] < -0.7 else ("stone_rough", uv_world(1.0))
+    for sx in (-1, 1):   # a kerb round the edge (down into the ground)
+        f.box((sx * (W / 2 - 0.13), -0.2, 0), (0.26, 0.44, D), style=kerb)
+        f.box((0, -0.2, sx * (D / 2 - 0.13)), (W - 0.52, 0.44, 0.26), style=kerb)
+    for _ in range(14):   # loose and broken setts, a few weeds in the joints
+        p = f.p(rng.uniform(-W / 2 + 1, W / 2 - 1), 0.03, rng.uniform(-D / 2 + 1, D / 2 - 1))
+        b.box(p, (0.25, 0.06, 0.18), yaw=rng.uniform(0, 90), style=no_bottom("dbr_setts", 1.0))
+    for _ in range(10):
+        p = f.p(rng.uniform(-W / 2 + 1, W / 2 - 1), 0.08, rng.uniform(-D / 2 + 1, D / 2 - 1))
+        b.box(p, (0.18, 0.16, 0.18), yaw=rng.uniform(0, 90), style=no_bottom("dbr_leaf_b", 1.0))
+
+
+def draw_fountain(b, piece, rng):
+    basin, column = piece["boxes"][:2]
+    f = frame_of(b, basin)
+    r, H, t = basin["size"][0] / 2, basin["size"][1], 0.42
+    side = 2 * r * math.tan(math.pi / 8)
+    for k in range(8):   # the octagonal rim, a coping on top
+        a = k * 45.0
+        c, s_ = math.cos(math.radians(a)), math.sin(math.radians(a))
+        f.box(((r - t / 2) * s_, H / 2 - 0.05, (r - t / 2) * c), (side + 0.02, H + 0.1, t), yaw=a, style=no_bottom("stone_rough", 1.0))
+        f.box(((r - t / 2) * s_, H + 0.08, (r - t / 2) * c), (side + 0.1, 0.12, t + 0.12), yaw=a, style=no_bottom("sandstone", 1.0))
+    cyl(b, f.p(0, 0.25, 0), r - t + 0.05, 0.3, "stone_rough", sides=8, cap_mat="dbr_water", yaw=f.yaw + 22.5)   # water
+    H0 = column["pos"][1] - column["size"][1] / 2 - (basin["pos"][1] - H / 2)
+    cyl(b, f.p(0, H0 * 0.5, 0), 0.62, H0 - 0.3, "sandstone", sides=8)                       # the pedestal
+    cyl(b, f.p(0, H0 + 0.35, 0), 0.42, 0.7, "sandstone", sides=8)
+    cyl(b, f.p(0, H0 + 0.8, 0), 1.2, 0.2, "sandstone", sides=10, cap_mat="dbr_water")     # the bowl
+    cyl(b, f.p(0, H0 + 0.62, 0), 0.8, 0.18, "stone_rough", sides=10)
+    cyl(b, f.p(0, H0 + 1.2, 0), 0.22, 0.6, "sandstone", sides=8)
+    cyl(b, f.p(0, H0 + 1.6, 0), 0.4, 0.12, "sandstone", sides=8)
+    cyl(b, f.p(0, H0 + 1.75, 0), 0.12, 0.25, "sandstone", sides=6)
+    if piece["look"] == "d":   # shelled: a chunk out of the rim, rubble in the water
+        bits(b, f.p(r - 0.4, 0, 0.5), 0.5, 5, rng, ("stone_rough", "rubble_core"))
+    for _ in range(4):        # litter floating in it
+        b.box(f.p(rng.uniform(-1.8, 1.8), 0.42, rng.uniform(-1.8, 1.8)), (0.25, 0.03, 0.18), yaw=rng.uniform(0, 90),
+              style=no_bottom(rng.choice(("dbr_paper", "trim_dark")), 1.0))
+
+
+def draw_statue(b, piece, rng):
+    plinth, fig = piece["boxes"][:2]
+    f = frame_of(b, plinth)
+    W, H = plinth["size"][0], plinth["size"][1]
+    f.box((0, 0.12, 0), (W, 0.24, W), style=no_bottom("stone_rough", 1.0))               # step
+    f.box((0, H / 2 + 0.05, 0), (W - 0.5, H - 0.25, W - 0.5), style=no_bottom("sandstone", 1.0))
+    f.box((0, H - 0.08, 0), (W - 0.25, 0.16, W - 0.25), style=no_bottom("sandstone", 1.0))  # cornice
+    f.box((0, H * 0.55, (W - 0.5) / 2 + 0.02), (1.0, 0.45, 0.04), style=flat("bronze", 1.0))   # plaque
+    for sx in (-1, 1):
+        for sz in (-1, 1):   # wreaths of dead flowers at the foot
+            if rng.random() < 0.5:
+                cyl(b, f.p(sx * (W / 2 + 0.3), 0.08, sz * rng.uniform(0, W / 2)), 0.3, 0.12, "wood_dark", sides=8, axis="z")
+    # The figure: a soldier in bronze (look c raises a flag; d lost its head to a shell, lying on the step)
+    g = Frame(b, f.p(0, H, 0), f.yaw)
+    br = no_bottom("bronze", 1.0)
+    g.box((0, 0.08, 0), (0.9, 0.16, 0.8), style=br)                       # base
+    for sx in (-1, 1):
+        g.box((sx * 0.16, 0.6, 0), (0.24, 0.9, 0.28), style=br)            # legs
+        g.box((sx * 0.16, 0.2, 0.06), (0.26, 0.2, 0.4), style=br)          # boots
+    g.box((0, 1.35, 0), (0.62, 0.7, 0.36), style=br)                       # torso
+    g.box((0, 1.05, 0), (0.66, 0.12, 0.4), style=br)                       # belt
+    g.box((0, 1.78, 0), (0.18, 0.12, 0.18), style=br)                      # neck
+    look = piece["look"]
+    if look != "d":
+        g.box((0, 1.97, 0), (0.3, 0.3, 0.32), style=br)                    # head
+        g.box((0, 2.14, 0), (0.42, 0.14, 0.44), style=br)                  # helmet
+    else:
+        b.box(f.p(W / 2 + 0.4, 0.15, 0.6), (0.36, 0.3, 0.4), yaw=f.yaw + 30, pitch=70, style=flat("bronze", 1.0))
+    g.box((-0.42, 1.3, 0.05), (0.18, 0.7, 0.2), style=br)                  # left arm down
+    if look == "c":
+        g.box((0.42, 1.85, 0), (0.18, 0.7, 0.2), style=br)                 # right arm up with a flag
+        cyl(b, g.p(0.42, 2.3, 0), 0.04, 1.6, "bronze", sides=6)
+        g.box((0.42, 2.85, 0.45), (0.04, 0.5, 0.85), style=flat("bronze", 1.0))
+    else:
+        g.box((0.42, 1.4, 0.15), (0.18, 0.55, 0.2), pitch=-30, style=br)   # right arm, holding the rifle across
+        g.box((0.0, 1.45, 0.3), (0.9, 0.08, 0.1), yaw=-30, style=br)
+
+
+def draw_planter(b, piece, rng):
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    W, H, D = box["size"]
+    f.box((0, H / 2, 0), (W, H, D), style=lambda n, m, q: None if n[1] < -0.7 else ("stone_rough", uv_world(1.5)) if n[1] < 0.7 else None)
+    for sx in (-1, 1):   # the lip, its top open over the soil
+        f.box((sx * (W / 2 - 0.07), H + 0.04, 0), (0.18, 0.08, D + 0.04), style=no_bottom("stone_rough", 1.0))
+        f.box((0, H + 0.04, sx * (D / 2 - 0.07)), (W - 0.32, 0.08, 0.18), style=no_bottom("stone_rough", 1.0))
+    f.box((0, H - 0.06, 0), (W - 0.2, 0.1, D - 0.2), style=no_bottom("dbr_dirt", 1.0))
+    mat = "dbr_leaf_" + piece["look"]
+    for k in range(3):   # shrubs grown wild
+        x = (k - 1) * W * 0.3 + rng.uniform(-0.15, 0.15)
+        w = rng.uniform(0.7, 0.95)
+        rock(b, f.p(x, H + 0.3, rng.uniform(-0.15, 0.15)), (w, rng.uniform(0.6, 0.9), w * 0.9), rng.uniform(0, 90), rng, mat,
+             jitter=0.12, chamfer=0.4, taper=0.75)
+
+
+def draw_stall(b, piece, rng):
+    counter, awning = piece["boxes"][0], piece["boxes"][1]
+    f = frame_of(b, counter)
+    W, H, D = counter["size"]
+    look = piece["look"]
+    f.box((0, H / 2, 0), (W, H, D), style=lambda n, m, q: None if n[1] < -0.7 else
+          (("wood_light" if n[1] > 0.7 else "wood"), uv_world(1.0)))
+    f.box((0, H + 0.03, 0.05), (W + 0.1, 0.06, D + 0.2), style=no_bottom("wood_dark", 1.0))      # the counter top
+    top = awning["pos"][1] - (counter["pos"][1] - H / 2)
+    aw = awning["size"]
+    skin = {"b": "dbr_awn_r", "c": "dbr_awn_g", "d": "dbr_awn_b"}[look]
+    torn = rng.random() < 0.4
+    f.box((0, top, 0), (aw[0], 0.05, aw[2]), pitch=-8, style=lambda n, m, q: (skin, uv_world(1.2)))
+    for k in range(9):   # the valance: a scalloped hem along the front
+        if torn and k > 5:
+            continue
+        x = -aw[0] / 2 + (k + 0.5) * aw[0] / 9
+        f.box((x, top - 0.22, aw[2] / 2 - 0.12), (aw[0] / 9 - 0.03, 0.3, 0.03), style=lambda n, m, q: (skin, uv_world(1.2)))
+    for p in piece["boxes"][2:]:   # the posts
+        lp = rot(v_sub(tuple(p["pos"]), f.at), -f.yaw, 0.0)
+        for zz in (-aw[2] / 2 + 0.15, aw[2] / 2 - 0.15):
+            f.box((lp[0], top / 2, zz), (0.1, top, 0.1), style=no_bottom("wood_dark", 1.0))
+    goods = [("crate", 0.5, 0.3, 0.4)] * 2 + [("veg", 0.35, 0.15, 0.3)] * 3
+    for _ in range(rng.randint(3, 5)):   # what's left on it: crates, spilled produce
+        kind, gx, gy, gz = rng.choice(goods)
+        x, z = rng.uniform(-W / 2 + 0.4, W / 2 - 0.4), rng.uniform(-D / 2 + 0.3, D / 2 - 0.3)
+        mat = "wood_light" if kind == "crate" else rng.choice(("dbr_leaf_b", "awn_r_flat", "hz_flat"))
+        f.box((x, H + 0.06 + gy / 2, z), (gx, gy, gz), yaw=rng.uniform(-20, 20), style=no_bottom(mat, 1.0))
+    for _ in range(2):   # and on the ground
+        f.box((rng.uniform(-W / 2, W / 2), 0.15, D / 2 + rng.uniform(0.3, 1.0)), (0.5, 0.3, 0.4), yaw=rng.uniform(0, 90),
+              pitch=rng.choice((0, 0, 90)), style=no_bottom("wood_light", 1.0))
+
+
+def draw_kiosk(b, piece, rng):
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    W, H, D = box["size"]
+    skin = {"b": "dbr_dmp_g", "c": "dbr_dmp_b", "d": "dbr_burnt"}[piece["look"]]
+    f.box((0, H / 2 - 0.15, 0), (W, H - 0.3, D), style=no_bottom(skin, 2.0))
+    f.box((0, H - 0.1, 0), (W + 0.6, 0.2, D + 0.6), style=flat("trim_dark", 1.0))                  # roof
+    f.box((0, H + 0.1, 0), (W - 0.2, 0.2, D - 0.2), style=no_bottom("trim_dark", 1.0))
+    # The hatch on the square side (south, +z): shutter rolled half up, a dark inside, a shelf of papers
+    f.box((0, 1.55, D / 2 + 0.01), (W - 0.5, 1.0, 0.02), style=flat("black", 1.0))
+    f.box((0, 2.05, D / 2 + 0.03), (W - 0.45, 0.3, 0.04), style=flat("steel_light", 1.0))
+    f.box((0, 1.05, D / 2 + 0.2), (W - 0.3, 0.06, 0.4), style=no_bottom("trim_dark", 1.0))
+    for k in range(6):
+        f.box((-W / 2 + 0.45 + k * 0.32, 1.1, D / 2 + 0.2), (0.24, 0.03, 0.32), yaw=rng.uniform(-10, 10),
+              style=no_bottom(rng.choice(("dbr_paper", "awn_r_flat", "paper_green", "dbr_paper")), 1.0))
+    for sx in (-1, 1):   # posters on the sides
+        for k in range(2):
+            f.box((sx * (W / 2 + 0.01), 1.3 + k * 0.05, -0.5 + k * 0.9), (0.02, 0.7, 0.5),
+                  style=flat(rng.choice(("dbr_paper", "awn_r_flat", "hz_flat")), 1.0))
+    for _ in range(4):   # newspapers blown about
+        b.box(f.p(rng.uniform(-2.5, 2.5), 0.02, rng.uniform(1.5, 3.5)), (0.4, 0.01, 0.3), yaw=rng.uniform(0, 180),
+              style=no_bottom("dbr_paper", 1.0))
 
 
 # ------------------------------------------------------------------------------------------------ containers
@@ -982,7 +1175,9 @@ def draw_junk(b, piece, rng):
 
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
-        "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush}
+        "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
+        "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,
+        "kiosk": draw_kiosk}
 
 
 def main():
