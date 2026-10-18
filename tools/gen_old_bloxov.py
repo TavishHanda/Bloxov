@@ -3781,6 +3781,15 @@ def track_main(x, z, x0, x1):
         box(sx, 0.0, z - 1.4, sx + 0.4, RAIL_TOP + 0.05, z + 1.4, "wood", solid=False)   # (5 cm up: no flicker)
 
 
+_LEAD_END, _LEAD_DIR = (238.0, 214.2), (0.916, 0.401)   # where the depot line splits, and its heading there
+DEPOT_SIDINGS = (
+    bezier((222.0, 210.0), (230.0, 210.0), (233.4, 212.2), _LEAD_END, n=8)[:-1] +   # (off the main line, RAIL_Z)
+    bezier(_LEAD_END, (_LEAD_END[0] + _LEAD_DIR[0] * 4, _LEAD_END[1] + _LEAD_DIR[1] * 4), (246.0, 220.0), (254.0, 220.0), n=8)
+    + [(290.0, 220.0)],
+    bezier(_LEAD_END, (_LEAD_END[0] + _LEAD_DIR[0] * 6, _LEAD_END[1] + _LEAD_DIR[1] * 6), (252.0, 228.0), (262.0, 228.0), n=10)
+    + [(290.0, 228.0)])
+
+
 @debris_kind("track")
 def track_siding(x, z, points):
     strip(points, 3.0, "rail", y=0.0, h=0.12)
@@ -3820,6 +3829,16 @@ def tanker(x, z, yaw, lean):
     obox(x, 1.8, z, 3.0, 3.6, 12.0, yaw, "boxcar")
 
 
+def clear_sidings():
+    """Drops the scatter standing on the depot sidings (owner 2026-10-18: the track should look like the rest of the
+    railway; the pieces had kept off nothing there, the sidings are flat)."""
+    for pts in DEPOT_SIDINGS:
+        for a, b in zip(pts, pts[1:]):
+            clear_scatter(None, hit=lambda bx, a=a, b=b: bx[4] > 0.06 and 210 < bx[0] + M / 2 < 296 and
+                          204 < bx[2] + M / 2 < 234 and _seg_rect_gap(a, b, (bx[0] + M / 2, bx[2] + M / 2, bx[0] + M / 2, bx[2] + M / 2)) <
+                          1.7 + math.hypot(bx[3], bx[5]) / 2)
+
+
 def derailed_train():
     made = len(boxes)
     for kind, x, z, yaw, lean in TRAIN:
@@ -3832,7 +3851,7 @@ def derailed_train():
 # scatter (clearing what stood there) so nothing else moves. A signal faces the trains it governs (its yaw: Godot, +z toward them); a points'
 # lever stands at the toe of its switch (yaw: the way the siding turns off).
 RAIL_SIGNALS = ((190.0, 213.3, -90.0), (296.0, 206.7, 90.0), (54.0, 206.7, 90.0), (116.0, 213.3, -90.0))
-RAIL_POINTS = ((232.0, 208.6, 58.0), (238.0, 208.6, 48.0))
+RAIL_POINTS = ((222.6, 208.6, 0.0), (237.6, 212.3, 0.0))
 
 
 @debris_kind("signal")
@@ -4517,7 +4536,8 @@ def main():
     # sleepers, rails; one piece per map chunk so each chunk draws its own stretch)
     for k in range(int(M // OUTDOOR_CHUNK)):
         track_main(k * OUTDOOR_CHUNK + OUTDOOR_CHUNK / 2, RY, k * OUTDOOR_CHUNK, (k + 1) * OUTDOOR_CHUNK)
-    for siding in ([(232, RY), (248, 220), (290, 220)], [(238, RY), (254, 228), (290, 228)]):
+    # (owner 2026-10-18: one line off the main line, then splitting to the two depot sidings; curved, not kinked)
+    for siding in DEPOT_SIDINGS:
         track_siding(siding[-1][0], siding[-1][1], siding)
     rail_bridge(42, RY)   # the rail bridge's deck over the creek
 
@@ -4849,9 +4869,10 @@ def main():
                            "S": [("blast", 277.0, 3.0, 0.0, 3.4), ("blast", 285.5, 4.6, 4.2, 7.0)]}),
               [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
         depot_furniture(277.0, 241.0)
-    for x0, z0 in ((145, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
+    # (the first one stood half on the old road's level crossing: moved off it, owner 2026-10-18 "more seamless")
+    for x0, z0 in ((156, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
         boxcar(x0 + 5.5, z0)
-    add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
+    add_loot("Railyard", "crate", 161.0, RY + 2.3, yaw=180.0)
 
     # ===================================================================== BOTTOM RIGHT: old houses, gas station
     # war damage (owner, 0.11.6): most houses down here are shot up; OldHouse6 stays whole (spawn 5's cover).
@@ -5084,6 +5105,7 @@ def main():
     signals_and_points()
     extract_camps()
     zone_spawns()
+    clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
     lamp_pass()
     sign_pass()
     bush_pass()

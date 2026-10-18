@@ -45,6 +45,7 @@ mb.PALETTE.update({
     # the derailed train (step 5): a maroon locomotive with a yellow stripe, tank cars black or grey
     "loco_r": "6a2a24", "loco_r_dk": "57221d", "loco_y": "b8902e", "tank_k": "2e2d2b", "tank_k_dk": "252422",
     "tank_g": "6c6d68", "tank_g_dk": "5a5b57", "placard": "c47a2a", "sig_dead": "2a2f2c",
+    "xing": "53524e", "xing_dk": "47463f",
     # bushes (step 2, owner: "add some big bushes"): leafy green, a dark evergreen, and one in flower
     "lf1": "4a6b35", "lf1_dk": "3a5529", "lf1_lt": "5e8040", "lf1_sh": "2c4524",
     "lf2": "3f5a37", "lf2_dk": "2f4529", "lf2_lt": "4f6b42", "lf2_sh": "263a22",
@@ -335,6 +336,7 @@ mb.KIT.update({
     "dbr_loco_r": k_paint("loco_r", "loco_r_dk", 5), "dbr_tank_k": k_paint("tank_k", "tank_k_dk", 8),
     "dbr_tank_g": k_paint("tank_g", "tank_g_dk", 7), "loco_y_flat": mb.paint_flat("loco_y"),
     "placard_flat": mb.paint_flat("placard"), "sig_dead": mb.paint_flat("sig_dead"),
+    "dbr_xing": k_paint("xing", "xing_dk", 2),
     "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
 })
 
@@ -1027,6 +1029,9 @@ def rough_box(b, box, mat, cell=0.3):
 
 def draw_trench(b, piece, rng):
     for box in piece["boxes"]:
+        (cx, cy, cz), (sx, sy, sz) = box["pos"], box["size"]
+        if sy > 0.5 and box["pitch"] == 0:   # a wall: its top 6 cm over the ground (level with it, the grass flickered through)
+            box = dict(box, pos=(cx, cy + 0.03, cz), size=(sx, sy + 0.06, sz))
         rough_box(b, box, "dbr_earth")
     floors = [bx for bx in piece["boxes"] if bx["size"][1] < 0.5 and bx["pitch"] == 0]
     for fl in floors:   # clods and stones on the floor, mostly along the walls
@@ -1582,19 +1587,46 @@ def draw_road_edges(b, rng):
 GAUGE = 1.435
 
 
+def _rails(f, z0, z1, flush=None):
+    """The two rails from local z0 to z1; `flush` (height over the frame): only their heads, level with a road."""
+    L, zc = z1 - z0, (z0 + z1) / 2
+    for side in (-1, 1):
+        x = side * GAUGE / 2
+        head = lambda n_, m_, q_: None if n_[1] < -0.7 else \
+            (("steel_light", uv_world(1.0)) if n_[1] > 0.7 else ("dbr_rail", uv_world(1.0)))
+        if flush is None:
+            f.box((x, 0.135, zc), (0.13, 0.03, L), style=no_bottom("dbr_rail", 1.0))          # foot
+            f.box((x, 0.19, zc), (0.025, 0.08, L), style=no_bottom("dbr_rail", 1.0))          # web
+            f.box((x, 0.245, zc), (0.07, 0.04, L), style=head)                                # head
+        else:
+            f.box((x, flush - 0.006, zc), (0.07, 0.04, L), style=head)
+
+
+def _crossing(f, z0, z1, flush):
+    """A level crossing's deck between and beside the rails: dark rubber panels level with the road, flangeways."""
+    L, zc = z1 - z0, (z0 + z1) / 2
+    y = flush + 0.012
+    inner = GAUGE / 2 - 0.12
+    f.box((0, y - 0.03, zc), (2 * inner, 0.06, L), style=no_bottom("dbr_xing", 1.0))
+    for side in (-1, 1):
+        f.box((side * (GAUGE / 2 + 0.06 + 0.3), y - 0.03, zc), (0.6, 0.06, L), style=no_bottom("dbr_xing", 1.0))
+        f.box((side * (GAUGE / 2 - 0.08), flush - 0.01, zc), (0.09, 0.02, L), style=no_bottom("black", 1.0))   # flangeway
+
+
 def _track_line(b, a, c, top, rng, ballast=True):
-    """Track from a to c (chunk points, on the bed's top `top`)."""
+    """Track from a to c (chunk points, on the bed's top `top`). Where a road crosses it (the road is above the bed)
+    the rails sink to the road's top and concrete crossing panels fill between them (owner 2026-10-18: seamless)."""
     d = v_sub(c, a)
     L = math.hypot(d[0], d[2])
     if L < 0.05:
         return
     yaw = math.degrees(math.atan2(d[0], d[2]))
     f = Frame(b, (a[0], top, a[2]), yaw)
+    road = lambda z: max(surface(*[f.p(xx, 0, z)[i] for i in (0, 2)]) for xx in (-1.2, 0.0, 1.2)) - top
     n = max(1, int(L / 0.65))
     for k in range(n):
         z = (k + 0.5) * L / n
-        p = f.p(0, 0, z)
-        if surface(p[0], p[2]) > top + 0.12:   # (under the road at the level crossing)
+        if road(z) > 0.03:   # (under the road at the level crossing)
             continue
         f.box((rng.uniform(-0.04, 0.04), 0.06, z), (2.5, 0.12, 0.24), yaw=rng.uniform(-2, 2), style=no_bottom("dbr_pole", 1.0))
     if ballast:
@@ -1602,30 +1634,86 @@ def _track_line(b, a, c, top, rng, ballast=True):
             q = [f.p(side * 1.3, 0.0, 0), f.p(side * 1.3, 0.0, L), f.p(side * 1.75, -0.2, L), f.p(side * 1.75, -0.2, 0)]
             b.poly(q, norm(rot((side * 0.4, 1.0, 0), yaw, 0.0)), "dbr_ballast", uv_world(1.0))
         b.poly([f.p(-1.3, 0.0, 0), f.p(1.3, 0.0, 0), f.p(1.3, 0.0, L), f.p(-1.3, 0.0, L)], (0, 1, 0), "dbr_ballast", uv_world(1.0))
-    for side in (-1, 1):
-        x = side * GAUGE / 2
-        f.box((x, 0.135, L / 2), (0.13, 0.03, L), style=no_bottom("dbr_rail", 1.0))          # foot
-        f.box((x, 0.19, L / 2), (0.025, 0.08, L), style=no_bottom("dbr_rail", 1.0))          # web
-        f.box((x, 0.245, L / 2), (0.07, 0.04, L), style=lambda n_, m_, q_: None if n_[1] < -0.7 else
-              (("steel_light", uv_world(1.0)) if n_[1] > 0.7 else ("dbr_rail", uv_world(1.0))))   # head
+    # rails, in runs: plain, or flush with a road where one crosses
+    step = 0.25
+    m = max(1, int(L / step))
+    flags = [road((k + 0.5) * L / m) for k in range(m)]
+    k = 0
+    while k < m:
+        over = flags[k] > 0.03
+        j = k
+        while j + 1 < m and (flags[j + 1] > 0.03) == over:
+            j += 1
+        z0, z1 = k * L / m, (j + 1) * L / m
+        if over:
+            flush = sum(flags[k:j + 1]) / (j + 1 - k)
+            _rails(f, z0, z1, flush)
+            _crossing(f, z0, z1, flush)
+        else:
+            _rails(f, z0, z1)
+        k = j + 1
+
+
+def _track_path(b, pts, rng, main_z):
+    """A curved siding along chunk points (x, top, z): one continuous ballast bed, sleepers square to the curve every
+    0.65 m (none on the main line's bed, `main_z` Godot z: its own sleepers carry both), rails in short runs."""
+    tang = []
+    for i in range(len(pts)):
+        p, q = pts[max(i - 1, 0)], pts[min(i + 1, len(pts) - 1)]
+        dx, dz = q[0] - p[0], q[2] - p[2]
+        ln = math.hypot(dx, dz) or 1.0
+        tang.append((dx / ln, dz / ln))
+    side_pt = lambda i, off, dy: (pts[i][0] + tang[i][1] * off, pts[i][1] + dy, pts[i][2] - tang[i][0] * off)
+    for i in range(len(pts) - 1):   # the bed (1 cm under the main line's, so where they meet the main's shows)
+        for o0, o1, d0, d1 in ((-1.3, 1.3, -0.01, -0.01), (1.3, 1.75, -0.01, -0.21), (-1.75, -1.3, -0.21, -0.01)):
+            q = [side_pt(i, o0, d0), side_pt(i, o1, d1), side_pt(i + 1, o1, d1), side_pt(i + 1, o0, d0)]
+            nrm = norm(cross(v_sub(q[1], q[0]), v_sub(q[3], q[0])))
+            if nrm[1] < 0:
+                nrm = v_scale(nrm, -1.0)
+            b.poly(q, nrm, "dbr_ballast", uv_world(1.0))
+    seg = [math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][2] - pts[i][2]) for i in range(len(pts) - 1)]
+    total, at, i, run = sum(seg), 0.325, 0, 0.0
+    while at < total:
+        while i < len(seg) - 1 and run + seg[i] < at:
+            run += seg[i]
+            i += 1
+        t = (at - run) / (seg[i] or 1.0)
+        p = v_add(pts[i], v_scale(v_sub(pts[i + 1], pts[i]), t))
+        at += 0.65
+        if abs(p[2] + ORIGIN[1] - main_z) < 1.5:
+            continue
+        dx, dz = pts[i + 1][0] - pts[i][0], pts[i + 1][2] - pts[i][2]
+        b.box((p[0], p[1] + 0.06, p[2]), (2.5, 0.12, 0.24), yaw=math.degrees(math.atan2(dx, dz)) + rng.uniform(-2, 2),
+              style=no_bottom("dbr_pole", 1.0))
+    for i in range(len(pts) - 1):
+        a, c = pts[i], pts[i + 1]
+        yaw = math.degrees(math.atan2(c[0] - a[0], c[2] - a[2]))
+        _rails(Frame(b, a, yaw), -0.02, seg[i] + 0.02)
+
+
+RAIL_GZ = 210.0 - 175.0   # (the main line, Godot z)
 
 
 def draw_track(b, piece, rng):
-    for box in piece["boxes"]:
-        if box["colour"] != "rail":
-            continue   # (the gray sleepers: drawn by _track_line)
+    rails = [bx for bx in piece["boxes"] if bx["colour"] == "rail"]   # (the gray sleepers: drawn by _track_line)
+    if rails and not rails[0]["size"][0] > rails[0]["size"][2]:
+        # a siding: its strip pieces (each overlaps the next by half the width, see gen strip()) joined into one path
+        pts = []
+        for box in rails:
+            (x, y, z), s = box["pos"], box["size"]
+            L = s[2] - s[0] * 0.5
+            for end in (-1, 1):
+                p = v_add((x, y, z), rot((0, s[1] / 2, end * L / 2), box["yaw"], box["pitch"]))
+                if not pts or math.hypot(p[0] - pts[-1][0], p[2] - pts[-1][2]) > 0.05:
+                    pts.append(p)
+        _track_path(b, pts, rng, RAIL_GZ)
+        return
+    for box in rails:
         (x, y, z), s = box["pos"], box["size"]
         top = y + s[1] / 2
-        yaw = box["yaw"]
-        long_x = s[0] > s[2]
-        L = s[0] if long_x else s[2]
-        if long_x:
-            a, c = (x - L / 2, 0.0, z), (x + L / 2, 0.0, z)
-        else:
-            u = rot((0, 0, L / 2), yaw, 0.0)
-            a, c = v_sub((x, 0.0, z), u), v_add((x, 0.0, z), u)
-            if box["pitch"]:   # (a siding piece tilted to the ground: lay it flat at its middle; they're short)
-                pass
+        L = s[0]
+        a, c = (x - L / 2, 0.0, z), (x + L / 2, 0.0, z)
+        long_x = True
         # (over the creek: no ballast, the sleepers lie on the bridge deck)
         cuts = [0.0, 1.0]
         wa, wc = a[0] + ORIGIN[0], c[0] + ORIGIN[0]
