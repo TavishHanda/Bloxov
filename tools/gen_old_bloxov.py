@@ -4188,8 +4188,9 @@ def main():
     add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)   # in the doctor's bedroom
 
     # street cover around town
-    for x, z, yaw, col in ((44, 85, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
-                           (57, 112, 10, "car_a"), (118, 52, 5, "car_b")):
+    # (owner 2026-10-18 picked burnt wrecks, look B, for some of the road cars: "rust" = a burnt-out shell)
+    for x, z, yaw, col in ((44, 85, 85, "car_a"), (80, 96, 72, "rust"), (125, 101, 92, "car_a"), (150, 104, 97, "rust"),
+                           (57, 112, 10, "car_a"), (118, 52, 5, "rust")):
         car(x, z, yaw, col)
     for x, z in ((48, 82), (88, 88), (124, 88), (147, 143), (78, 143), (126, 84)):
         dumpster(x, z)
