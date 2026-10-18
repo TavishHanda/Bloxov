@@ -21649,9 +21649,132 @@ def prop_jy_car(ctx, c, s):
     emit_car(ctx.b, kind, paint, (c[0], c[1] - s[1] / 2, c[2]), yaw=yaw, crushed=s[1], burnt=rng.random() < 0.25, rng=rng)
 
 
+# The junkyard crane's look (owner 2026-10-18: "the crane, there's a weird texture behind it, make it look nicer"):
+# a the first one (a block floating beside the tower); b a real tower crane in faded yellow (counter-jib with its
+# weights, apex and tie bars, a cab under the jib, the hook trolley); c the same, rusted red; d b knocked about by the
+# war (scorched cab with its glass out, struts shot away, the jib's tip bent down).
+CRANE_LOOK = os.environ.get("BLOXOV_CRANE_LOOK", "a")
+CRANE_PAINT = {"b": "yellow", "c": "dbr_cont_r", "d": "yellow"}
+
+
+def _lattice(b, p0, p1, w, h, mat, step=0.9, skip=()):
+    """A box-section lattice girder from p0 to p1 (level or sloped), w wide (z) and h deep (y): four chords and
+    zig-zag struts on its sides, top and bottom. skip: strut numbers left out (shot away)."""
+    dx, dz = p1[0] - p0[0], p1[2] - p0[2]
+    L = math.hypot(dx, dz)
+    ux, uz = dx / L, dz / L
+    nx, nz = -uz, ux
+    dy = (p1[1] - p0[1]) / L
+
+    def at(t, side, up):
+        return (p0[0] + ux * t + nx * side * w / 2, p0[1] + dy * t + up * h, p0[2] + uz * t + nz * side * w / 2)
+    for side in (-1, 1):
+        for up in (0, 1):
+            _beam(b, at(0, side, up), at(L, side, up), 0.09, 0.09, mat)
+    n = max(1, int(L / step))
+    for k in range(n):
+        if k in skip:
+            continue
+        t0, t1 = L * k / n, L * (k + 1) / n
+        for side in (-1, 1):   # the two sides: zig-zag
+            _beam(b, at(t0, side, k % 2), at(t1, side, 1 - k % 2), 0.05, 0.05, mat)
+        _beam(b, at(t0, -1, 1), at(t1, 1, 1), 0.05, 0.05, mat)   # top and bottom bracing
+        _beam(b, at(t0, 1, 0), at(t1, -1, 0), 0.05, 0.05, mat)
+        _beam(b, at(t1, -1, 0), at(t1, -1, 1), 0.05, 0.05, mat)
+        _beam(b, at(t1, 1, 0), at(t1, 1, 1), 0.05, 0.05, mat)
+
+
+def crane_new(ctx, c, s):
+    """Looks b-d: the whole crane round the tower box (the boom box only gets its hook and load, from here too)."""
+    b, look = ctx.b, CRANE_LOOK
+    paint = CRANE_PAINT[look]
+    rng = random.Random("crane")
+    y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    h = s[0] / 2 - 0.08
+    for sx in (-1, 1):           # the tower: four legs, a ring every 1.2 m, zig-zag struts on each face
+        for sz in (-1, 1):
+            _box(b, c[0] + sx * h, (y0 + top - 0.9) / 2, c[2] + sz * h, 0.14, top - 0.9 - y0, 0.14, paint)
+    _box(b, c[0], y0 + 0.2, c[2], s[0] + 0.6, 0.4, s[2] + 0.6, "concrete")   # its footing
+    k, y = 0, y0 + 0.4
+    while y < top - 1.4:
+        y1 = y + 1.2
+        for face in range(4):
+            if look == "d" and (k * 4 + face) in (9, 14, 22):
+                continue           # (shot away)
+            sx, sz = ((1, 0), (-1, 0), (0, 1), (0, -1))[face]
+            if sx:
+                p0, p1 = (c[0] + sx * h, y, c[2] - h), (c[0] + sx * h, y1, c[2] + h)
+                if k % 2:
+                    p0, p1 = (p0[0], y, c[2] + h), (p1[0], y1, c[2] - h)
+            else:
+                p0, p1 = (c[0] - h, y, c[2] + sz * h), (c[0] + h, y1, c[2] + sz * h)
+                if k % 2:
+                    p0, p1 = (c[0] + h, y, p0[2]), (c[0] - h, y1, p1[2])
+            _beam(b, p0, p1, 0.06, 0.06, paint)
+        for sx in (-1, 1):
+            _box(b, c[0] + sx * h, y1, c[2], 0.08, 0.08, s[2] - 0.1, paint)
+            _box(b, c[0], y1, c[2] + sx * h, s[0] - 0.1, 0.08, 0.08, paint)
+        y, k = y1, k + 1
+    # the slewing unit: a turntable on the tower's top, the jibs' heel on it
+    jy = top - 0.6               # (the jib's bottom chord: the boom box runs top - 0.6 .. top)
+    _box(b, c[0], jy - 0.35, c[2], s[0] + 0.3, 0.3, s[2] + 0.3, "trim_dark")
+    _box(b, c[0], jy - 0.12, c[2], s[0] + 0.5, 0.16, s[2] + 0.5, paint)
+    # the counter-jib out east, its walkway and the counterweights hanging off its end
+    ce = c[0] + 6.0
+    _lattice(b, (c[0] + 0.5, jy, c[2]), (ce, jy, c[2]), 1.0, 0.55, paint, step=1.1)
+    _box(b, (c[0] + ce) / 2 + 0.2, jy + 0.03, c[2], ce - c[0] - 0.6, 0.04, 0.9, "steel_light")
+    for k in range(3):           # three concrete slabs side by side, a lifting eye on each
+        wx = ce - 1.5 + k * 0.5
+        _box(b, wx, jy - 0.75, c[2], 0.46, 1.5, 1.3, "concrete")
+        _box(b, wx, jy + 0.06, c[2], 0.08, 0.12, 0.2, "trim_dark")
+    _box(b, ce - 2.2, jy + 0.45, c[2], 1.0, 0.8, 0.8, "metal")               # the hoist winch and its drum
+    _box(b, ce - 2.2, jy + 0.5, c[2], 0.5, 0.5, 1.0, "trim_dark")
+    # the apex over the turntable and the tie bars down to both jibs' ends
+    ax, ay = c[0], top + 3.2
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            _beam(b, (c[0] + sx * 0.6, jy + 0.55, c[2] + sz * 0.5), (ax, ay, c[2]), 0.1, 0.1, paint)
+    _box(b, ax, ay, c[2], 0.3, 0.3, 0.3, paint)
+    jib_end = c[0] - 16.0        # (the boom box's west end)
+    tip = jib_end + 3.0 if look == "d" else jib_end
+    for sz in (-1, 1):
+        _beam(b, (ax, ay, c[2] + sz * 0.12), (c[0] - 9.0, jy + 0.6, c[2] + sz * 0.3), 0.05, 0.05, "trim_dark")
+        _beam(b, (ax, ay, c[2] + sz * 0.12), (ce - 0.3, jy + 0.55, c[2] + sz * 0.45), 0.05, 0.05, "trim_dark")
+    # the cab: hung off the turntable's south side, under the jib, glass on three sides
+    cab = "dbr_burnt" if look == "d" else paint
+    cx_, cy_, cz_ = c[0] - 0.3, jy - 1.0, c[2] + s[2] / 2 + 0.85
+    _box(b, cx_, cy_, cz_, 1.5, 1.5, 1.3, cab)
+    _box(b, cx_, cy_ + 0.82, cz_, 1.6, 0.14, 1.4, "trim_dark")
+    if look != "d":
+        _box(b, cx_ - 0.76, cy_ + 0.15, cz_, 0.02, 0.8, 1.0, "glass")
+        _box(b, cx_, cy_ + 0.15, cz_ + 0.66, 1.2, 0.8, 0.02, "glass")
+    else:                         # (its glass out: dark holes)
+        _box(b, cx_ - 0.76, cy_ + 0.15, cz_, 0.02, 0.8, 1.0, "black")
+        _box(b, cx_, cy_ + 0.15, cz_ + 0.66, 1.2, 0.8, 0.02, "black")
+    _box(b, cx_ + 0.2, cy_ - 0.78, cz_, 1.9, 0.06, 1.6, "steel_light")       # its platform
+    # the jib out west (a triangle-ish lattice), bent down near its tip in look d
+    if look == "d":
+        _lattice(b, (c[0] - 0.4, jy, c[2]), (tip, jy, c[2]), 0.8, 0.6, paint, step=0.9, skip=(5, 11))
+        _lattice(b, (tip, jy, c[2]), (tip - 2.4, jy - 1.9, c[2]), 0.8, 0.6, paint, step=0.9)
+    else:
+        _lattice(b, (c[0] - 0.4, jy, c[2]), (jib_end, jy, c[2]), 0.8, 0.6, paint, step=0.9)
+        _box(b, jib_end + 0.2, jy + 0.3, c[2], 0.3, 0.7, 0.9, "dbr_redwhite")   # the tip, striped
+    # the trolley on the jib, the cable down to the magnet, a wreck still on it
+    hx = jib_end + 3.0 + (2.0 if look == "d" else 0.0)
+    _box(b, hx, jy - 0.1, c[2], 0.9, 0.25, 1.0, "trim_dark")
+    for sz in (-0.15, 0.15):
+        _box(b, hx, (jy - 0.2 + 6.05) / 2, c[2] + sz, 0.03, jy - 0.2 - 6.05, 0.03, "trim_dark")
+    _box(b, hx, 6.25, c[2], 0.5, 0.4, 0.4, paint)                            # the hook block
+    _box(b, hx, 5.9, c[2], 1.2, 0.3, 1.2, "trim_dark")                       # the magnet
+    b.box((hx, 5.1, c[2]), (1.8, 1.0, 3.8), yaw=8, pitch=6, style=_nb("gs_burnt"))   # its car
+
+
 def prop_jy_crane(ctx, c, s):
     """The crane's lattice tower (faded yellow), the operator's cab and the counterweight at the top."""
     b = ctx.b
+    if CRANE_LOOK != "a":
+        crane_new(ctx, c, s)
+        return
     y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
     h = s[0] / 2 - 0.08
     for sx in (-1, 1):
@@ -21682,6 +21805,8 @@ def prop_jy_crane(ctx, c, s):
 def prop_jy_boom(ctx, c, s):
     """The boom: a lattice girder out over the stacks, the cable down to the electromagnet, a car still hanging."""
     b = ctx.b
+    if CRANE_LOOK != "a":
+        return    # (crane_new draws it all)
     x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
     for y in (y0 + 0.04, y1 - 0.04):
