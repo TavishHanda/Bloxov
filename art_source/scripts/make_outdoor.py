@@ -2588,6 +2588,11 @@ def draw_stones(b, piece, rng):
         s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
         rock(b, c, s, yaw, rng, "dbr_granite", top="dbr_slate", jitter=0.05, chamfer=0.25, taper=0.85)
 
+
+def draw_none(b, piece, rng):
+    """Trees are drawn by scripts/trees.gd (outdoor step 7), not in the chunk models: only their boxes are kept."""
+
+
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
@@ -2598,7 +2603,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
         "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker, "signal": draw_signal, "points": draw_points,
-        "cave": draw_cave, "culvert": draw_culvert, "bank": draw_bank, "log": draw_log, "stones": draw_stones, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
+        "cave": draw_cave, "tree": draw_none, "deadtree": draw_none, "culvert": draw_culvert, "bank": draw_bank, "log": draw_log, "stones": draw_stones, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 
 def main():

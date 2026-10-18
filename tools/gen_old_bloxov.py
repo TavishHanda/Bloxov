@@ -150,7 +150,8 @@ OUTDOOR_CHUNK = 87.5
 OUTDOOR_JSON_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "art_source", "outdoor")
 
 
-def debris_kind(kind):
+def debris_kind(kind, keep=False):
+    """`keep`: never dropped by the scatter's overlap check (trees: they stay where they always were)."""
     def wrap(fn):
         def piece(x, z, *args, **kw):
             if _model[-1] is not None or _debris[-1] is not None:   # (part of a building's model, or of a bigger piece)
@@ -162,7 +163,7 @@ def debris_kind(kind):
                 result = fn(x, z, *args, **kw)
             finally:
                 _debris.pop()
-            if _scattering[0] and _overlaps_earlier(start):   # (scattered junk never lands in something else)
+            if _scattering[0] and not keep and _overlaps_earlier(start):   # (scattered junk never lands in something else)
                 del boxes[start:]
                 del anchors[start:]
                 del craters[crater_start:]
@@ -203,8 +204,8 @@ def _fp_apart(p, q):
 def _fp_counts(b):
     """Earlier boxes a scattered piece must keep clear of: debris, and anything solid that stands on the ground
     (not ground covers, not tree tops)."""
-    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS + RAIL_KINDS:   # (power lines, the railway: as before)
-        return True
+    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS + RAIL_KINDS + ("tree", "deadtree"):
+        return True   # (power lines, the railway, trees: as before, only what's solid)
     return bool(b[9]) and b[4] > 0.2 and b[1] + b[4] / 2 > 0.05 and b[1] - b[4] / 2 < 2.0 and max(b[3], b[5]) < 60
 
 
@@ -2857,7 +2858,10 @@ def in_creek(x, z, margin=0.0):
     return any(_nearest_on(pts, x, z)[0] < CREEK_BANK + margin for pts, _ in water)
 
 
+@debris_kind("tree", keep=True)
 def tree(x, z, rng):
+    """A tree (drawn by scripts/trees.gd, outdoor step 7: its kind comes from where it grows, `tree_kind`): the trunk
+    collides, the leaves box only hides you from the AI."""
     if any(x0 < x < x1 and z0 < z < z1 for x0, z0, x1, z1 in NO_TREES) or in_creek(x, z):
         rng.uniform(5.0, 7.5); rng.uniform(3.0, 4.6)   # (keep the rest of the woods where it was)
         return
@@ -3617,6 +3621,7 @@ def trench_earth(x, z):
              90.0 if lo_x > hi_x else -90.0, "earth", pitch=math.degrees(math.atan2(TRENCH_DEPTH, run)))
 
 
+@debris_kind("deadtree", keep=True)
 def dead_tree(x, z, rng):
     """A burnt, bare tree: a dark trunk (sometimes snapped off) with a few broken branches, or just a stump."""
     trunks.append((x, z))
@@ -5806,6 +5811,19 @@ ARMY_KINDS = ("sandbags", "tanktrap", "barrier")
 
 
 bush_data = []    # (x, bottom y, z, size x, y, z, yaw, look, airy) in Godot space, for scripts/bushes.gd
+tree_data = []    # (x, ground y, z, trunk height, canopy width, kind, yaw) in Godot space, for scripts/trees.gd
+TREE_LOOK = 1     # (scripts/trees.gd look: owner 2026-10-18 picked B, leaf clumps)
+
+
+def tree_kind(x, z):
+    """0 broadleaf, 1 pine, 2 birch (outdoor step 7): pines in the woods with a few birches, broadleaf trees in town
+    and on the farm with some birch, a mix out in the country."""
+    roll = random.Random(f"tree kind {x:.2f} {z:.2f}").random()
+    if any(r >= 7 and math.hypot(x - cx, z - cz) < r + 3 for cx, cz, r in woods):
+        return 1 if roll < 0.68 else 2 if roll < 0.88 else 0
+    if TOWN[0] <= x <= TOWN[2] and TOWN[1] <= z <= TOWN[3]:
+        return 0 if roll < 0.78 else 2
+    return 0 if roll < 0.55 else 2 if roll < 0.8 else 1
 
 
 def write_outdoor(ter):
@@ -5832,11 +5850,32 @@ def write_outdoor(ter):
             look = "d" if any(e["kind"] in ARMY_KINDS and not e.get("dropped") and
                               math.hypot(e["at"][0] - x, e["at"][1] - z) < 30 for e in debris) else "b"
         chunks.setdefault(chunk, []).append((d["kind"], look, f"{x:.2f} {z:.2f}", ks))
+        if d["kind"] in ("tree", "deadtree"):   # (drawn by scripts/trees.gd)
+            trunk = boxes[ks[0]]
+            s = boxes[ks[1]][3] if d["kind"] == "tree" and len(ks) > 1 else 0.0
+            kind = tree_kind(x, z) if d["kind"] == "tree" else 3
+            tree_data.append((trunk[0], trunk[1] - trunk[4] / 2, trunk[2], trunk[4], s, kind,
+                              random.Random(f"tree yaw {x:.2f} {z:.2f}").uniform(0, 360)))
         if d["kind"] == "bush":   # (drawn by scripts/bushes.gd: owner 2026-10-18 picked C, D (airy) for some)
             airy = random.Random(f"bush airy {x:.2f} {z:.2f}").random() < 0.3
             for k in ks:
                 b = boxes[k]
                 bush_data.append((b[0], b[1] - b[4] / 2, b[2], b[3], b[4], b[5], b[6], "bcd".index(look), 1 if airy else 0))
+    # ferns on the woods' floor (outdoor step 7: looks only, no boxes), clear of trunks, paths and the creek
+    rng = random.Random("ferns")
+    for cx, cz, r in woods:
+        if r < 7:
+            continue
+        for _ in range(int(r * 1.6)):
+            a, d = rng.uniform(0, 2 * math.pi), r * rng.random() ** 0.5
+            fx, fz = cx + math.cos(a) * d, cz + math.sin(a) * d
+            if in_creek(fx, fz) or ter.pad_at(fx, fz) is not None or \
+                    any(math.hypot(fx - tx, fz - tz) < 1.2 for tx, tz in trunks) or \
+                    any(_seg_rect_gap(p, q, (fx - 0.1, fz - 0.1, fx + 0.1, fz + 0.1)) < w / 2 + 1.5
+                        for pts, w in roads + paths for p, q in zip(pts, pts[1:])):
+                continue
+            tree_data.append((gx(fx), ter.lift(fx, fz) - 0.03, gz(fz), rng.uniform(0.45, 0.8), rng.uniform(1.0, 1.7), 4,
+                              rng.uniform(0, 360)))
     os.makedirs(OUTDOOR_JSON_DIR, exist_ok=True)
     with open(os.path.join(OUTDOOR_JSON_DIR, "terrain.json"), "w") as f:   # (the pieces are fitted to the ground)
         json.dump({"note": "Generated by tools/gen_old_bloxov.py: the ground's height grid (Godot x, z; split like BoxMap's "
@@ -6000,6 +6039,8 @@ def write_scene(ter):
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
     out.append('[ext_resource type="Script" path="res://scripts/bushes.gd" id="g_bushes"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]')
+    out.append('[ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]')
+    out.append('[ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]')
     for rid, png in (("g_tuft_sprites", "tufts"), ("g_splat", "splat"), ("g_mask", "grass_mask")):
         out.append(f'[ext_resource type="Texture2D" path="res://assets/textures/ground/{png}.png" id="{rid}"]')
     out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
@@ -6062,6 +6103,12 @@ def write_scene(ter):
             'script = ExtResource("g_bushes")',
             'leaves = ExtResource("g_leaves")',
             "data = PackedFloat32Array(" + ", ".join(fmt(v) for b in bush_data for v in b) + ")", "",
+            # the trees (outdoor step 7; their trunks collide and their leaves hide you from the AI, this draws them)
+            '[node name="Trees" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_trees")',
+            'sheet = ExtResource("g_tree_sheet")',
+            f"look = {TREE_LOOK}",
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for t in tree_data for v in t) + ")", "",
             '[node name="Models" type="Node3D" parent="Level"]', ""]
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',

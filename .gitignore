@@ -24,3 +24,4 @@ __pycache__/
 !assets/textures/kit_atlas.png.import
 !assets/textures/ground/*.png.import
 !assets/textures/water/*.png.import
+!assets/textures/trees/*.png.import
