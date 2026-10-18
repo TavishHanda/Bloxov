@@ -1599,11 +1599,11 @@ def station_square():
     bus_shelter(221.5, 175.5, 0)
     for x in (212.0, 226.0):   # (flanking the doors; the office's blast rubble lies east of them)
         planter(x, 187.0)
-    for x, yaw in ((204.0, 0), (234.5, 0), (216.0, 180)):
+    for x, yaw in ((204.0, 0), (231.5, 0), (216.0, 180)):
         bench(x, 180.0 if yaw == 0 else 179.0, yaw)
     for x in (199.5, 212.0, 226.0, 238.5):
         lamp(x, 178.6, 0)
-    kiosk(236.0, 174.0)
+    kiosk(236.5, 182.5, 180)                               # (on the paving, its hatch to the road)
     stall(203.0, 184.5, 0); stall(207.0, 180.5, 0); stall(213.5, 182.5, 90)
 
 
@@ -2663,9 +2663,9 @@ def statue(x, z):
 
 
 @debris_kind("kiosk")
-def kiosk(x, z):
-    """A newsstand kiosk, 2.5 m square."""
-    box(x - 1.25, 0, z - 1.25, x + 1.25, 2.6, z + 1.25, "car_b")
+def kiosk(x, z, yaw=0.0):
+    """A newsstand kiosk, 2.5 m square (its hatch faces +z at yaw 0)."""
+    obox(x, 1.3, z, 2.5, 2.6, 2.5, yaw, "car_b")
 
 
 @debris_kind("stall")

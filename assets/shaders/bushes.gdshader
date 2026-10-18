@@ -2,7 +2,7 @@
 // phones), lit as if they were the outside of one round bush (the mesh's normals point out from its middle) and
 // darker deep inside (vertex colour). They sway in the wind from the tips: COLOR.a is how far up the bush a corner is.
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, diffuse_lambert_wrap;
 
 uniform sampler2D leaves : source_color, filter_nearest_mipmap, repeat_disable;
 uniform float sway = 0.05;
@@ -21,4 +21,8 @@ void fragment() {
 	ALPHA = c.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
 	ROUGHNESS = 1.0;
+	// Godot flips the normal of a card seen from behind; undo it so every card keeps the bush's outward normal
+	// (from behind, the flipped normal pointed into the bush and the leaves went black: owner 2026-10-18).
+	NORMAL = FRONT_FACING ? NORMAL : -NORMAL;
+	BACKLIGHT = vec3(0.25);
 }

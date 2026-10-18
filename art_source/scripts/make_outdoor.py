@@ -860,24 +860,55 @@ def draw_stall(b, piece, rng):
 
 
 def draw_kiosk(b, piece, rng):
+    # (owner 2026-10-18: "make it nicer and more 3d, the roof is floating") A newsstand on a low plinth: corner posts,
+    # a two-step roof sitting right on the walls with a sign board on top, a framed hatch with the shutter rolled up
+    # under a little awning, a counter on brackets, a side door, a paper rack, posters.
     box = piece["boxes"][0]
     f = frame_of(b, box)
     W, H, D = box["size"]
-    skin = {"b": "dbr_dmp_g", "c": "dbr_dmp_b", "d": "dbr_burnt"}[piece["look"]]
-    f.box((0, H / 2 - 0.15, 0), (W, H - 0.3, D), style=no_bottom(skin, 2.0))
-    f.box((0, H - 0.1, 0), (W + 0.6, 0.2, D + 0.6), style=flat("trim_dark", 1.0))                  # roof
-    f.box((0, H + 0.1, 0), (W - 0.2, 0.2, D - 0.2), style=no_bottom("trim_dark", 1.0))
-    # The hatch on the square side (south, +z): shutter rolled half up, a dark inside, a shelf of papers
-    f.box((0, 1.55, D / 2 + 0.01), (W - 0.5, 1.0, 0.02), style=flat("black", 1.0))
-    f.box((0, 2.05, D / 2 + 0.03), (W - 0.45, 0.3, 0.04), style=flat("steel_light", 1.0))
-    f.box((0, 1.05, D / 2 + 0.2), (W - 0.3, 0.06, 0.4), style=no_bottom("trim_dark", 1.0))
-    for k in range(6):
-        f.box((-W / 2 + 0.45 + k * 0.32, 1.1, D / 2 + 0.2), (0.24, 0.03, 0.32), yaw=rng.uniform(-10, 10),
+    skin = {"b": "dbr_dmp_g", "c": "dbr_dmp_b", "d": "dbr_dmp_b"}[piece["look"]]
+    awn = {"b": "dbr_awn_r", "c": "dbr_awn_g", "d": "dbr_awn_b"}[piece["look"]]
+    base, top = 0.15, H - 0.35          # the walls run from the plinth to the roof
+    f.box((0, base / 2, 0), (W + 0.2, base, D + 0.2), style=no_bottom("concrete", 1.0))                      # plinth
+    f.box((0, (base + top) / 2, 0), (W - 0.1, top - base, D - 0.1), style=no_bottom(skin, 2.0))
+    for sx in (-1, 1):   # corner posts
+        for sz in (-1, 1):
+            f.box((sx * (W / 2 - 0.06), (base + top) / 2, sz * (D / 2 - 0.06)), (0.14, top - base, 0.14),
+                  style=no_bottom("trim_dark", 1.0))
+    f.box((0, top + 0.1, 0), (W + 0.6, 0.2, D + 0.6), style=flat("trim_dark", 1.0))                          # roof
+    f.box((0, top + 0.25, 0), (W - 0.1, 0.1, D - 0.1), style=no_bottom("trim_dark", 1.0))
+    f.box((0, top + 0.5, D / 2 - 0.25), (W - 0.3, 0.4, 0.08), style=no_bottom(awn, 1.2))                      # sign
+    f.box((0, top + 0.5, D / 2 - 0.2), (W - 0.6, 0.18, 0.02), style=flat("dbr_paper", 1.0))
+    for sx in (-1, 1):
+        f.box((sx * (W / 2 - 0.5), top + 0.32, D / 2 - 0.3), (0.06, 0.1, 0.06), style=no_bottom("trim_dark", 1.0))
+    # The hatch on the square side (south, +z): a frame round a dark inside, the shutter rolled up at the top
+    hw, y0, y1, fz = W - 0.7, 1.05, 2.05, D / 2 - 0.05
+    f.box((0, (y0 + y1) / 2, fz + 0.005), (hw, y1 - y0, 0.02), style=flat("black", 1.0))
+    for sx in (-1, 1):
+        f.box((sx * (hw / 2 + 0.05), (y0 + y1) / 2, fz + 0.04), (0.1, y1 - y0 + 0.2, 0.1), style=no_bottom("trim_dark", 1.0))
+    f.box((0, y1 + 0.12, fz + 0.08), (hw + 0.2, 0.2, 0.2), style=no_bottom("steel_light", 1.0))           # shutter roll
+    f.box((0, y0 - 0.05, fz + 0.25), (hw + 0.3, 0.06, 0.5), style=no_bottom("trim_dark", 1.0))          # counter
+    for sx in (-1, 1):
+        f.box((sx * (hw / 2 - 0.1), y0 - 0.23, fz + 0.15), (0.05, 0.3, 0.25), style=no_bottom("trim_dark", 1.0))
+    f.box((0, y1 + 0.3, fz + 0.35), (hw + 0.3, 0.04, 0.75), pitch=-14, style=lambda n, m, q: (awn, uv_world(1.2)))
+    for k in range(6):   # the papers on the counter
+        f.box((-hw / 2 + 0.2 + k * (hw - 0.4) / 5, y0 + 0.0, fz + 0.28), (0.24, 0.03, 0.32), yaw=rng.uniform(-10, 10),
               style=no_bottom(rng.choice(("dbr_paper", "awn_r_flat", "paper_green", "dbr_paper")), 1.0))
-    for sx in (-1, 1):   # posters on the sides
-        for k in range(2):
-            f.box((sx * (W / 2 + 0.01), 1.3 + k * 0.05, -0.5 + k * 0.9), (0.02, 0.7, 0.5),
-                  style=flat(rng.choice(("dbr_paper", "awn_r_flat", "hz_flat")), 1.0))
+    for k in range(3):   # magazines pegged up inside the hatch
+        f.box((-0.6 + k * 0.6, 1.65, fz + 0.025), (0.4, 0.5, 0.02), style=flat(rng.choice(("dbr_paper", "hz_flat")), 1.0))
+    # A side door (east), a paper rack (west), posters
+    f.box((W / 2 - 0.03, base + 0.95, -0.3), (0.06, 1.9, 0.8), style=no_bottom("trim_dark", 1.0))
+    f.box((W / 2 + 0.01, base + 0.95, -0.3), (0.02, 1.7, 0.65), style=flat(skin, 2.0))
+    f.box((W / 2 + 0.04, base + 0.95, -0.02), (0.05, 0.05, 0.14), style=no_bottom("steel_light", 1.0))
+    rx = -W / 2 - 0.3
+    for zz in (-0.45, 0.45):
+        f.box((rx, 0.6, zz), (0.05, 1.2, 0.05), style=no_bottom("trim_dark", 1.0))
+    for k in range(3):
+        f.box((rx - 0.05 + k * 0.03, 0.4 + k * 0.32, 0), (0.25, 0.04, 0.95), style=no_bottom("trim_dark", 1.0))
+        f.box((rx - 0.05 + k * 0.03, 0.47 + k * 0.32, 0), (0.22, 0.1, 0.85), style=no_bottom(rng.choice(("dbr_paper", "hz_flat", "awn_r_flat")), 1.0))
+    for k in range(2):
+        f.box((-0.5 + k * 0.9, 1.3 + k * 0.05, -D / 2 + 0.04), (0.5, 0.7, 0.02),
+              style=flat(rng.choice(("dbr_paper", "awn_r_flat", "hz_flat")), 1.0))
     for _ in range(4):   # newspapers blown about
         b.box(f.p(rng.uniform(-2.5, 2.5), 0.02, rng.uniform(1.5, 3.5)), (0.4, 0.01, 0.3), yaw=rng.uniform(0, 180),
               style=no_bottom("dbr_paper", 1.0))
