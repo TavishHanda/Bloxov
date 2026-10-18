@@ -877,6 +877,65 @@ def draw_kiosk(b, piece, rng):
               style=no_bottom("dbr_paper", 1.0))
 
 
+# ------------------------------------------------------------------------------------------------ the trench
+# (owner 2026-10-18: "texture that as dirt and give it like little rough mini bumps") Every face of the trench's earth
+# boxes is cut into ~0.3 m cells whose inner corners are pushed in or out a few cm (by world position, so the boxes
+# meet without gaps; their edges stay put), plus clods and stones along the floor and a few roots in the walls.
+def _bump(p, amount=0.1):
+    h = math.sin(p[0] * 12.9898 + p[1] * 78.233 + p[2] * 37.719) * 43758.5453
+    return (h - math.floor(h) - 0.5) * 2 * amount
+
+
+def rough_box(b, box, mat, cell=0.3):
+    (cx, cy, cz), (sx, sy, sz) = box["pos"], box["size"]
+    yaw, pitch = box["yaw"], box["pitch"]
+    P = lambda x, y, z: v_add(rot((x, y, z), yaw, pitch), (cx, cy, cz))
+    h = (sx / 2, sy / 2, sz / 2)
+    for axis in range(3):
+        for sgn in (-1, 1):
+            if axis == 1 and sgn < 0:
+                continue
+            u_ax, v_ax = [a for a in range(3) if a != axis]
+            nu, nv = max(1, round(2 * h[u_ax] / cell)), max(1, round(2 * h[v_ax] / cell))
+            normal = rot(tuple(float(sgn) if a == axis else 0.0 for a in range(3)), yaw, pitch)
+            grid = {}
+            for i in range(nu + 1):
+                for j in range(nv + 1):
+                    q = [0.0, 0.0, 0.0]
+                    q[axis] = sgn * h[axis]
+                    q[u_ax] = -h[u_ax] + 2 * h[u_ax] * i / nu
+                    q[v_ax] = -h[v_ax] + 2 * h[v_ax] * j / nv
+                    p = P(*q)
+                    if 0 < i < nu and 0 < j < nv:
+                        p = v_add(p, v_scale(normal, _bump(p)))
+                    grid[(i, j)] = p
+            inside = v_sub(P(0, 0, 0), v_scale(normal, 5.0))
+            for i in range(nu):
+                for j in range(nv):
+                    a, c, d, e = grid[(i, j)], grid[(i + 1, j)], grid[(i + 1, j + 1)], grid[(i, j + 1)]
+                    tri(b, a, c, d, mat, inside)
+                    tri(b, a, d, e, mat, inside)
+
+
+def draw_trench(b, piece, rng):
+    for box in piece["boxes"]:
+        rough_box(b, box, "dbr_earth")
+    floors = [bx for bx in piece["boxes"] if bx["size"][1] < 0.5 and bx["pitch"] == 0]
+    for fl in floors:   # clods and stones on the floor, mostly along the walls
+        (cx, cy, cz), (sx, sy, sz) = fl["pos"], fl["size"]
+        top = cy + sy / 2
+        for _ in range(int(sx * sz * 2.5)):
+            x = cx + rng.uniform(-sx / 2, sx / 2)
+            z = cz + rng.uniform(-sz / 2, sz / 2)
+            if sx > sz:
+                z = cz + rng.choice((-1, 1)) * rng.uniform(sz / 2 - 0.5, sz / 2 - 0.1)
+            else:
+                x = cx + rng.choice((-1, 1)) * rng.uniform(sx / 2 - 0.5, sx / 2 - 0.1)
+            w = rng.uniform(0.12, 0.3)
+            rock(b, (x, top + w * 0.25, z), (w, w * 0.6, w * rng.uniform(0.7, 1.2)), rng.uniform(0, 90), rng,
+                 rng.choice(("dbr_earth", "dbr_earth", "dbr_granite")), jitter=0.15, chamfer=0.35, taper=0.8)
+
+
 # ------------------------------------------------------------------------------------------------ street lamps
 # (outdoor step 3) Looks: b a modern steel pole with a cobra-head lamp, c an old cast-iron lantern post, d a concrete
 # pole with a curved arm and a sodium lamp. Some are bent; knocked-down ones lie in the verge.
@@ -1231,7 +1290,8 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
         "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,
-        "kiosk": draw_kiosk, "lamp": draw_lamp}
+        "kiosk": draw_kiosk, "lamp": draw_lamp,
+        "trench": draw_trench}
 
 
 def main():

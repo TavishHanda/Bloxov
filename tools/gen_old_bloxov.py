@@ -2682,7 +2682,7 @@ def big_bush(x, z, rng, size=None):
 # Street lamps (World art 0.17, outdoor step 3): along the town's roads, both sides in turn, the pole by the kerb and
 # the lamp over the road. Some are knocked down (lying in the verge: no collision) or bent. Drawn by the outdoor kit
 # (make_outdoor.py draw_lamp); their look is LAMP_LOOK (or a mix).
-LAMP_LOOK = os.environ.get("BLOXOV_LAMP_LOOK", "")
+LAMP_LOOK = os.environ.get("BLOXOV_LAMP_LOOK", "c")   # (owner 2026-10-18 picked C: old iron lanterns)
 TOWN = (0.0, 0.0, 205.0, 200.0)     # map x0, z0, x1, z1 the lamps stay in
 
 
@@ -2696,7 +2696,7 @@ def lamp(x, z, yaw, down=False):
         obox(x, 3.0, z, 0.24, 6.0, 0.24, yaw, "metal")
 
 
-def lamp_pass(every=30.0):
+def lamp_pass(every=24.0):
     if LAMP_LOOK == "none":   # (for the options sheets: the roads as they were)
         return
     _fp_index["upto"], _fp_index["grid"] = 0, {}
@@ -3168,6 +3168,14 @@ def planned_cover():
 
 def trench():
     """Floor, earth walls and two ramps for TRENCHES, with sandbags along parts of the north lip."""
+    trench_earth((TRENCHES[0][0] + TRENCHES[0][2]) / 2, (TRENCHES[0][1] + TRENCHES[0][3]) / 2)
+    for x0, x1, z in ((131, 139, 171.6), (143, 151, 177.2), (160, 168, 169.6)):   # sandbags on the north lip
+        sandbags((x0 + x1) / 2, z, 90, length=x1 - x0)
+
+
+@debris_kind("trench")
+def trench_earth(x, z):
+    """The trench's earth (drawn by the outdoor kit as rough dug dirt, owner 2026-10-18)."""
     floor = -TRENCH_DEPTH
     for x0, z0, x1, z1 in TRENCHES:
         box(x0, floor - 0.3, z0, x1, floor, z1, "earth")
@@ -3191,8 +3199,6 @@ def trench():
         run = abs(lo_x - hi_x)
         obox((hi_x + lo_x) / 2, floor / 2 - 0.1, (z0 + z1) / 2, z1 - z0, 0.2, math.hypot(run, TRENCH_DEPTH),
              90.0 if lo_x > hi_x else -90.0, "earth", pitch=math.degrees(math.atan2(TRENCH_DEPTH, run)))
-    for x0, x1, z in ((131, 139, 171.6), (143, 151, 177.2), (160, 168, 169.6)):   # sandbags on the north lip
-        sandbags((x0 + x1) / 2, z, 90, length=x1 - x0)
 
 
 def dead_tree(x, z, rng):
@@ -4762,7 +4768,7 @@ def behind_key_door(place, x, z):
 # yards and car parks). Soft values: the shader cuts them at 0.5 with a pixel dither.
 # The roads' look (outdoor step 3; assets/materials/road_<look>.tres): b worn asphalt, white lines; c dark asphalt,
 # yellow middle lines; d concrete slabs.
-ROAD_LOOK = os.environ.get("BLOXOV_ROAD_LOOK", "b")
+ROAD_LOOK = os.environ.get("BLOXOV_ROAD_LOOK", "c")   # (owner 2026-10-18 picked C)
 SPLAT_PX = 2
 SPLAT_PNG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "textures", "ground", "splat.png")
 GRASS_MASK_PNG = os.path.join(os.path.dirname(SPLAT_PNG), "grass_mask.png")

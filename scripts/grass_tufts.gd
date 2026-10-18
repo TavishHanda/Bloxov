@@ -1,10 +1,12 @@
+@tool
 extends Node3D
 ## Grass tufts and wildflowers near the camera (World art 0.17, outdoor step 2; plan in
 ## /mnt/project-files/notes/outdoor-plan.md). Looks only: no collision, at most `height` tall (well under a prone
 ## player), gone by `fade_end`. Built lazily in square chunks round the camera, a few a frame, and dropped again far off.
 ## Where they grow comes from the generator (tools/gen_old_bloxov.py): the ground's splat map (no tufts on paths,
 ## mud, gravel or heavy scorch) and grass_mask.png (none under buildings, pavement and other flat pieces).
-## Lives under the map's BoxMap (its parent) and asks it for the ground height. Skipped headless and in the editor.
+## Lives under the map's BoxMap (its parent) and asks it for the ground height. Skipped headless. In the editor
+## (owner 2026-10-18: couldn't see them in the scene) they grow round the editor's camera; nothing is saved.
 
 const CHUNK := 12.0
 const SHADER := preload("res://assets/shaders/grass_tufts.gdshader")
@@ -28,7 +30,7 @@ var _chunks := {}            # Vector2i -> MultiMeshInstance3D (null when the ch
 
 func _ready() -> void:
 	_map = get_parent() as BoxMap
-	if Engine.is_editor_hint() or DisplayServer.get_name() == "headless" or _map == null or sprites == null:
+	if DisplayServer.get_name() == "headless" or _map == null or sprites == null:
 		set_process(false)
 		return
 	_splat = splat.get_image() if splat else null
@@ -40,7 +42,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var camera := get_viewport().get_camera_3d()
+	var camera := _camera()
 	if camera == null:
 		return
 	var at := camera.global_position
@@ -62,6 +64,13 @@ func _process(_delta: float) -> void:
 			if _chunks[key]:
 				(_chunks[key] as Node).queue_free()
 			_chunks.erase(key)
+
+
+func _camera() -> Camera3D:
+	if Engine.is_editor_hint():   # (the editor's 3D view; looked up by name so exported games don't need the class)
+		var editor := Engine.get_singleton(&"EditorInterface")
+		return editor.get_editor_viewport_3d(0).get_camera_3d() if editor else null
+	return get_viewport().get_camera_3d()
 
 
 ## Two crossed quads, `height` tall, bottom on the ground; UV y 0 at the top (the shader sways those corners).
