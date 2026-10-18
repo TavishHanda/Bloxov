@@ -42,6 +42,9 @@ mb.PALETTE.update({
     "dmp_g": "3f5a43", "dmp_g_dk": "324835", "dmp_b": "3d4f66", "dmp_b_dk": "2f3e52",
     "trk_o": "4f5838", "trk_o_dk": "3f472c", "trk_c": "7a7556", "trk_c_dk": "666246",
     "rail_r": "5a3b2b", "rail_r_dk": "483023", "paper": "b9b2a0",
+    # the derailed train (step 5): a maroon locomotive with a yellow stripe, tank cars black or grey
+    "loco_r": "6a2a24", "loco_r_dk": "57221d", "loco_y": "b8902e", "tank_k": "2e2d2b", "tank_k_dk": "252422",
+    "tank_g": "6c6d68", "tank_g_dk": "5a5b57", "placard": "c47a2a",
     # bushes (step 2, owner: "add some big bushes"): leafy green, a dark evergreen, and one in flower
     "lf1": "4a6b35", "lf1_dk": "3a5529", "lf1_lt": "5e8040", "lf1_sh": "2c4524",
     "lf2": "3f5a37", "lf2_dk": "2f4529", "lf2_lt": "4f6b42", "lf2_sh": "263a22",
@@ -329,6 +332,9 @@ mb.KIT.update({
     "dbr_ballast": k_ballast, "sg_red_flat": mb.paint_flat("sg_red"),
     "dbr_pole": k_pole, "dbr_ins_g": mb.paint_flat("ins_g"), "dbr_porc": mb.paint_flat("porc"),
     "dbr_xf": k_paint("xf", "xf_dk", 3),
+    "dbr_loco_r": k_paint("loco_r", "loco_r_dk", 5), "dbr_tank_k": k_paint("tank_k", "tank_k_dk", 8),
+    "dbr_tank_g": k_paint("tank_g", "tank_g_dk", 7), "loco_y_flat": mb.paint_flat("loco_y"),
+    "placard_flat": mb.paint_flat("placard"),
     "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
 })
 
@@ -1698,6 +1704,163 @@ def draw_boxcar(b, piece, rng):
             f.box((W / 2 - 0.3, H0 + 0.3 + k * 0.38, end * (L / 2 - 0.12)), (0.4, 0.03, 0.03), style=flat("trim_dark", 1.0))
 
 
+def _bogie(f, rng, zc, axles=2, rail_mat="dbr_rail"):
+    """A truck under a car or the locomotive: frame, side frames, wheels on the rails' gauge."""
+    span = 1.8 if axles == 2 else 2.8
+    f.box((0, 0.75, zc), (2.0, 0.35, span + 0.6), style=flat("trim_dark", 1.0))
+    for side in (-1, 1):
+        f.box((side * (GAUGE / 2 + 0.12), 0.55, zc), (0.12, 0.45, span + 0.8), style=flat("trim_dark", 1.0))
+        for k in range(axles):
+            az = -span / 2 + k * span / (axles - 1)
+            cyl(f.b, f.p(side * GAUGE / 2, 0.42, zc + az), 0.42, 0.12, rail_mat, sides=10, axis="x", yaw=f.yaw)
+
+
+def _leaned(b, v0, n0, foot, yaw, lean, pivot_x):
+    """Leans what was drawn since (v0, n0) (in a frame at the origin) `lean` degrees about its length, round the
+    bottom of local x = pivot_x (that side stays on the ground, the other digs in), then turns and places it."""
+    c, s_ = math.cos(math.radians(lean)), math.sin(math.radians(lean))
+    roll = lambda q, px: (px + (q[0] - px) * c - q[1] * s_, (q[0] - px) * s_ + q[1] * c, q[2])
+    for i in range(v0, len(b.verts)):
+        b.verts[i] = v_add(rot(roll(b.verts[i], pivot_x), yaw, 0.0), foot)
+    for i in range(n0, len(b.normals)):
+        b.normals[i] = rot(roll(b.normals[i], 0.0), yaw, 0.0)
+
+
+LOCO_SKINS = {"b": "dbr_loco_r", "c": "dbr_trk_o", "d": "dbr_loco_r"}   # (d: maroon too, shot up, no stripes)
+
+
+def draw_loco(b, piece, rng):
+    """The derailed diesel: a road switcher (cab, short nose, long hood) off the rails and leaning into the ballast."""
+    box, marker = piece["boxes"][0], piece["boxes"][1]
+    look = piece["look"]
+    skin = LOCO_SKINS[look]
+    glass = "black" if look == "d" else "glass"
+    s = box["size"]
+    W, L = s[0], s[2]
+    (x, y, z) = box["pos"]
+    foot = (x, y - s[1] / 2, z)
+    v0, n0 = len(b.verts), len(b.normals)
+    f = Frame(b, (0, 0, 0), 0.0)   # (local -z: the front, toward the bridge)
+    f.box((0, 1.375, 0), (W, 0.25, L), style=flat(skin, 2.4))                                    # deck
+    if look != "d":
+        for side in (-1, 1):
+            f.box((side * (W / 2 + 0.005), 1.375, 0), (0.01, 0.12, L), style=flat("loco_y_flat", 1.0))   # sill stripe
+    for end in (-1, 1):   # pilots with hazard stripes, couplers, steps
+        f.box((0, 0.95, end * (L / 2 - 0.08)), (W - 0.1, 0.6, 0.16), style=flat("dbr_hazard", 0.6))
+        f.box((0, 0.95, end * (L / 2 + 0.25)), (0.3, 0.25, 0.5), style=flat("trim_dark", 1.0))
+        for side in (-1, 1):
+            for k in range(3):
+                f.box((side * (W / 2 - 0.3), 0.35 + k * 0.35, end * (L / 2 - 0.4)), (0.5, 0.04, 0.3), style=flat("trim_dark", 1.0))
+    for zc in (-L / 2 + 2.6, L / 2 - 2.6):
+        _bogie(f, rng, zc, axles=3)
+    f.box((0, 0.9, 0), (2.4, 0.8, 4.6), style=flat("trim_dark", 1.0))                          # fuel tank
+    f.box((0, 0.55, 0), (W - 0.9, 0.9, L - 2.4), style=flat("black", 1.0))                      # (shadowed fill)
+    for side in (-1, 1):
+        cyl(b, f.p(side * 0.9, 1.05, 0.0), 0.2, 3.0, "trim_dark", sides=8, axis="z")            # air reservoirs
+    # long hood (behind the cab), cab, short nose
+    hz0, hz1 = -3.0, L / 2 - 0.4
+    hood_c, hood_l = (hz0 + hz1) / 2, hz1 - hz0
+    f.box((0, 2.7, hood_c), (2.3, 2.4, hood_l), style=no_bottom(skin, 2.4))
+    f.box((0, 3.93, hood_c), (2.1, 0.06, hood_l - 0.2), style=flat("trim_dark", 1.0))
+    for side in (-1, 1):
+        for k in range(6):   # access doors and louvres
+            zz = hz0 + 0.9 + k * (hood_l - 1.8) / 5
+            f.box((side * 1.155, 2.6, zz), (0.01, 1.7, 0.03), style=flat("trim_dark", 1.0))
+            if k % 2:
+                for j in range(4):
+                    f.box((side * 1.157, 3.2 + j * 0.12, zz + 0.6), (0.01, 0.05, 0.8), style=flat("black", 1.0))
+        if look != "d":
+            f.box((side * 1.157, 1.75, hood_c), (0.01, 0.16, hood_l), style=flat("loco_y_flat", 1.0))
+        for k in range(8):   # walkway handrail
+            f.box((side * (W / 2 - 0.08), 2.0, -L / 2 + 0.4 + k * (L - 0.8) / 7), (0.05, 1.0, 0.05), style=flat("hz_flat", 1.0))
+        f.box((side * (W / 2 - 0.08), 2.5, 0), (0.05, 0.05, L - 0.8), style=flat("hz_flat", 1.0))
+    for zz in (hz1 - 1.3, hz1 - 3.0):   # radiator fans, exhaust stack
+        cyl(b, f.p(0, 3.98, zz), 0.55, 0.06, "black", sides=12)
+    cyl(b, f.p(0, 4.05, hz0 + 1.6), 0.18, 0.3, "trim_dark", sides=8)
+    cz0, cz1 = -5.7, hz0
+    f.box((0, 2.8, (cz0 + cz1) / 2), (W - 0.1, 2.6, cz1 - cz0), style=no_bottom(skin, 2.4))     # cab
+    f.box((0, 4.14, (cz0 + cz1) / 2), (W, 0.08, cz1 - cz0 + 0.1), style=flat("trim_dark", 1.0))
+    for xx in (-0.6, 0.6):
+        f.box((xx, 3.45, cz0 - 0.01), (0.9, 0.7, 0.02), style=flat(glass, 1.0))                   # front windows
+    for side in (-1, 1):
+        for zz in (cz0 + 0.7, cz1 - 0.7):
+            f.box((side * (W / 2 - 0.04), 3.45, zz), (0.02, 0.7, 0.9), style=flat(glass, 1.0))
+        f.box((side * (W / 2 - 0.04), 2.5, (cz0 + cz1) / 2), (0.02, 1.9, 0.6), style=flat("trim_dark", 1.0))   # door
+    nz0 = -L / 2 + 0.3
+    f.box((0, 2.25, (nz0 + cz0) / 2), (2.0, 1.5, cz0 - nz0), style=no_bottom(skin, 2.4))         # nose
+    f.box((0, 3.0, (nz0 + cz0) / 2), (1.9, 0.04, cz0 - nz0 - 0.1), style=flat("trim_dark", 1.0))
+    for xx in (-0.35, 0.35):
+        f.box((xx, 2.6, nz0 - 0.01), (0.22, 0.22, 0.03), style=flat("black" if look == "d" else "dbr_porc", 1.0))   # lights
+    f.box((0, 4.3, cz1 - 0.5), (0.5, 0.12, 0.12), style=flat("trim_dark", 1.0))                 # horn
+    if look == "d":   # burnt and shot up
+        for _ in range(16):
+            side = rng.choice((-1, 1))
+            f.box((side * 1.16, rng.uniform(1.8, 3.7), rng.uniform(hz0 + 0.5, hz1 - 0.5)),
+                  (0.01, rng.uniform(0.08, 0.22), rng.uniform(0.08, 0.22)), style=flat("black", 1.0))
+    _leaned(b, v0, n0, foot, box["yaw"], marker["yaw"], W / 2 - 0.7)
+    # where it came off: ballast thrown up on the low side, broken sleepers by the rails
+    lf = Frame(b, foot, box["yaw"])
+    for k in range(30):   # (a ridge of ballast and earth pushed up along the low side: lumps piled on each other)
+        out = rng.uniform(0, 1.0)
+        p = lf.p(-W / 2 - 0.1 - out, 0.0, -L / 2 + 0.6 + rng.uniform(0, L - 1.2))
+        h = (0.35 - 0.25 * out) * rng.uniform(0.6, 1.0)
+        b.box(on_ground(p, h / 2 - 0.08), (rng.uniform(0.35, 0.7), h + 0.16, rng.uniform(0.4, 0.8)),
+              yaw=lf.yaw + rng.uniform(0, 90), pitch=rng.uniform(-15, 15),
+              style=no_bottom(rng.choice(("dbr_ballast", "dbr_ballast", "dbr_earth")), 1.0))
+    for k in range(4):
+        p = lf.p(rng.uniform(-1.0, 1.0), 0.0, -L / 2 - 1.0 - k * 1.1)
+        b.box(on_ground(p, 0.08), (0.24, 0.12, 2.4), yaw=lf.yaw + rng.uniform(-50, 50) + 90.0,
+              pitch=rng.uniform(-8, 8), style=flat("dbr_pole", 1.0))
+    bits(b, lf.p(0, 0, -L / 2 - 2.0), 1.5, 8, rng, ("dbr_ballast", "rubble_core"))
+
+
+TANK_SKINS = {"b": "dbr_tank_k", "c": "dbr_tank_g", "d": "dbr_burnt"}
+
+
+def draw_tanker(b, piece, rng):
+    """A tank car: a long steel tank on saddles, a dome and its walkway, bogies; a hazard placard (no text)."""
+    box = piece["boxes"][0]
+    s = box["size"]
+    look = piece["look"]
+    skin = TANK_SKINS[look]
+    base = frame_of(b, box)
+    yaw = base.yaw + (90.0 if s[0] > s[2] else 0.0)   # (local z along the car)
+    L, W = max(s[0], s[2]), min(s[0], s[2])
+    f = Frame(b, base.at, yaw)
+    R, yc = 1.15, 2.35
+    f.box((0, 1.05, 0), (0.6, 0.4, L - 0.3), style=flat("trim_dark", 1.0))                    # centre sill
+    for end in (-1, 1):
+        f.box((0, 1.2, end * (L / 2 - 0.6)), (W - 0.1, 0.1, 1.2), style=flat("trim_dark", 1.0))   # end platforms
+        f.box((0, 0.95, end * (L / 2 + 0.2)), (0.3, 0.25, 0.5), style=flat("trim_dark", 1.0))      # couplers
+        f.box((0, 1.4, end * (L / 2 - 2.2)), (2.0, 0.3, 0.4), style=flat("trim_dark", 1.0))        # saddles
+        _bogie(f, rng, end * (L / 2 - 1.9))
+        for k in range(5):
+            f.box((W / 2 - 0.3, 1.4 + k * 0.4, end * (L / 2 - 0.15)), (0.4, 0.03, 0.03), style=flat("trim_dark", 1.0))
+    f.box((0, 0.6, 0), (W - 1.2, 0.7, L - 5.2), style=flat("black", 1.0))                         # (shadowed fill)
+    tl = L - 1.4
+    cyl(b, f.p(0, yc, 0), R, tl, skin, sides=16, axis="z", yaw=yaw, tile=2.4)
+    for end in (-1, 1):   # dished heads
+        cyl(b, f.p(0, yc, end * (tl / 2 + 0.1)), R * 0.85, 0.2, skin, sides=16, axis="z", yaw=yaw, tile=2.4)
+    for zz in (-tl / 2 + 0.6, -tl / 4, tl / 4, tl / 2 - 0.6):
+        cyl(b, f.p(0, yc, zz), R + 0.02, 0.07, "trim_dark", sides=16, axis="z", yaw=yaw)       # bands
+    cyl(b, f.p(0, yc + R + 0.08, 0), 0.42, 0.3, skin, sides=12, cap_mat="trim_dark")              # dome
+    f.box((0, yc + R - 0.02, 0), (1.4, 0.04, 2.2), style=flat("wood_dark", 1.0))                 # walkway
+    for side in (-1, 1):
+        f.box((side * 0.68, yc + R + 0.4, 0), (0.04, 0.04, 2.2), style=flat("trim_dark", 1.0))
+        for zz in (-1.05, 0.0, 1.05):
+            f.box((side * 0.68, yc + R + 0.2, zz), (0.04, 0.4, 0.04), style=flat("trim_dark", 1.0))
+        if look != "d":   # hazard placard (a plain diamond, no words)
+            p = f.p(side * (R + 0.01), yc, tl / 2 - 1.4)
+            b.box(p, (0.02, 0.5, 0.5), yaw=yaw, pitch=0.0, style=flat("placard_flat", 1.0))
+    for k in range(6):   # side ladder to the walkway
+        f.box((R - 0.1, 1.5 + k * 0.38, 0.0), (0.03, 0.03, 0.5), style=flat("trim_dark", 1.0))
+    if look == "d":
+        for _ in range(12):
+            a = rng.uniform(-1.2, 1.2)
+            f.box((math.sin(a) * (R + 0.005), yc + math.cos(a) * R * 0.9, rng.uniform(-tl / 2 + 0.5, tl / 2 - 0.5)),
+                  (0.02, rng.uniform(0.08, 0.2), rng.uniform(0.08, 0.2)), style=flat("black", 1.0))
+
+
 # ------------------------------------------------------------------------------------------------ containers
 def container(f, rng, skin, ribs=True, holes=False, L=6.1, W=2.4, H=2.6):
     side = lambda nn, m, q: None if nn[1] < -0.7 else (skin, uv_world(2.4))
@@ -2157,6 +2320,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "shelter": draw_shelter, "bench": draw_bench, "pole": draw_pole, "pole_snap": draw_pole_snap,
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
+        "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker,
         "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 

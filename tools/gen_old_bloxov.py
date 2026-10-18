@@ -3662,7 +3662,7 @@ def scatter_trees(spots, spacing=34.0):
 # the look POLE_LOOK ("none": the old gray boxes, for the options sheet).
 POLE_LOOK = os.environ.get("BLOXOV_POLE_LOOK", "c")
 POLE_KINDS = ("pole", "pole_snap", "wire", "wire_down")
-RAIL_KINDS = ("track", "bridge", "boxcar")
+RAIL_KINDS = ("track", "bridge", "boxcar", "loco", "wagon", "tanker")
 SNAPPED_POLES = ((183.0, 98.0), (236.0, 277.0))   # map x, z near the two shelled poles (Main Street, the old road)
 
 
@@ -3794,6 +3794,38 @@ def rail_bridge(x, z):
 @debris_kind("boxcar")
 def boxcar(x, z):
     box(x - 5.5, 0, z - 1.5, x + 5.5, 3.6, z + 1.5, "boxcar")
+
+
+# The derailed freight train by the creek (World art 0.17, outdoor step 5; owner 2026-10-18 picked C): it came off
+# the rails just past the bridge, westbound; the locomotive slewed off and leans into the ballast, two boxcars
+# jackknifed behind it, the tanker at the back still on the rails. New cover (sightlines checked). Each car is one
+# solid box like the old boxcars; a hidden marker's yaw carries the drawing's lean (BoxMap boxes can't roll).
+TRAIN = (("loco", 62.0, 214.0, 65.0, 6.0), ("wagon", 76.0, 212.0, 105.0, 0.0), ("wagon", 89.0, 210.0, 82.0, 0.0),
+         ("tanker", 101.0, 209.0, 90.0, 0.0))   # (kind, map x, z, yaw (Godot: 90 = along the track), lean)
+
+
+@debris_kind("loco")
+def locomotive(x, z, yaw, lean):
+    obox(x, 2.0, z, 3.0, 4.0, 15.0, yaw, "boxcar")
+    obox(x, 0.005, z, 0.01, 0.01, 0.01, lean, "metal", solid=False)
+
+
+@debris_kind("wagon")
+def wagon(x, z, yaw, lean):
+    obox(x, 1.8, z, 3.0, 3.6, 12.0, yaw, "boxcar")
+
+
+@debris_kind("tanker")
+def tanker(x, z, yaw, lean):
+    obox(x, 1.8, z, 3.0, 3.6, 12.0, yaw, "boxcar")
+
+
+def derailed_train():
+    made = len(boxes)
+    for kind, x, z, yaw, lean in TRAIN:
+        {"loco": locomotive, "wagon": wagon, "tanker": tanker}[kind](x, z, yaw, lean)
+    mine = [_fp_corners(b, 0.6) for b in boxes[made:] if b[9]]
+    clear_scatter(None, hit=lambda bx: bx[4] > 0.06 and any(not _fp_apart(_fp_corners(bx), m) for m in mine))
 
 
 def fence(points, h=1.1):
@@ -5022,6 +5054,7 @@ def main():
     station_square()
     churchyard()
     door_paths()
+    derailed_train()
     extract_camps()
     zone_spawns()
     lamp_pass()
