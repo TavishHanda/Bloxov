@@ -3662,7 +3662,7 @@ def scatter_trees(spots, spacing=34.0):
 # the look POLE_LOOK ("none": the old gray boxes, for the options sheet).
 POLE_LOOK = os.environ.get("BLOXOV_POLE_LOOK", "c")
 POLE_KINDS = ("pole", "pole_snap", "wire", "wire_down")
-RAIL_KINDS = ("track", "bridge", "boxcar", "loco", "wagon", "tanker")
+RAIL_KINDS = ("track", "bridge", "boxcar", "loco", "wagon", "tanker", "signal", "points")
 SNAPPED_POLES = ((183.0, 98.0), (236.0, 277.0))   # map x, z near the two shelled poles (Main Street, the old road)
 
 
@@ -3826,6 +3826,32 @@ def derailed_train():
         {"loco": locomotive, "wagon": wagon, "tanker": tanker}[kind](x, z, yaw, lean)
     mine = [_fp_corners(b, 0.6) for b in boxes[made:] if b[9]]
     clear_scatter(None, hit=lambda bx: bx[4] > 0.06 and any(not _fp_apart(_fp_corners(bx), m) for m in mine))
+
+
+# Signals and points (World art 0.17, outdoor step 5): a thin solid mast, the rest looks only; made after the
+# scatter (clearing what stood there) so nothing else moves. A signal faces the trains it governs (its yaw: Godot, +z toward them); a points'
+# lever stands at the toe of its switch (yaw: the way the siding turns off).
+RAIL_SIGNALS = ((190.0, 213.3, -90.0), (296.0, 206.7, 90.0), (54.0, 206.7, 90.0), (116.0, 213.3, -90.0))
+RAIL_POINTS = ((232.0, 208.6, 58.0), (238.0, 208.6, 48.0))
+
+
+@debris_kind("signal")
+def rail_signal(x, z, yaw):
+    obox(x, 2.6, z, 0.2, 5.2, 0.2, yaw, "metal")   # (solid, like a lamp post: the bushes keep off it)
+
+
+@debris_kind("points")
+def rail_points(x, z, yaw):
+    obox(x, 0.3, z, 0.3, 0.6, 0.3, yaw, "metal", solid=False)
+
+
+def signals_and_points():
+    for x, z, yaw in RAIL_SIGNALS:
+        clear_scatter((x - 1.5, z - 1.5, x + 1.5, z + 1.5))
+        rail_signal(x, z, yaw)
+    for x, z, yaw in RAIL_POINTS:
+        clear_scatter((x - 1.0, z - 1.0, x + 1.0, z + 1.0))
+        rail_points(x, z, yaw)
 
 
 def fence(points, h=1.1):
@@ -5055,6 +5081,7 @@ def main():
     churchyard()
     door_paths()
     derailed_train()
+    signals_and_points()
     extract_camps()
     zone_spawns()
     lamp_pass()

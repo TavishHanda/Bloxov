@@ -44,7 +44,7 @@ mb.PALETTE.update({
     "rail_r": "5a3b2b", "rail_r_dk": "483023", "paper": "b9b2a0",
     # the derailed train (step 5): a maroon locomotive with a yellow stripe, tank cars black or grey
     "loco_r": "6a2a24", "loco_r_dk": "57221d", "loco_y": "b8902e", "tank_k": "2e2d2b", "tank_k_dk": "252422",
-    "tank_g": "6c6d68", "tank_g_dk": "5a5b57", "placard": "c47a2a",
+    "tank_g": "6c6d68", "tank_g_dk": "5a5b57", "placard": "c47a2a", "sig_dead": "2a2f2c",
     # bushes (step 2, owner: "add some big bushes"): leafy green, a dark evergreen, and one in flower
     "lf1": "4a6b35", "lf1_dk": "3a5529", "lf1_lt": "5e8040", "lf1_sh": "2c4524",
     "lf2": "3f5a37", "lf2_dk": "2f4529", "lf2_lt": "4f6b42", "lf2_sh": "263a22",
@@ -334,7 +334,7 @@ mb.KIT.update({
     "dbr_xf": k_paint("xf", "xf_dk", 3),
     "dbr_loco_r": k_paint("loco_r", "loco_r_dk", 5), "dbr_tank_k": k_paint("tank_k", "tank_k_dk", 8),
     "dbr_tank_g": k_paint("tank_g", "tank_g_dk", 7), "loco_y_flat": mb.paint_flat("loco_y"),
-    "placard_flat": mb.paint_flat("placard"),
+    "placard_flat": mb.paint_flat("placard"), "sig_dead": mb.paint_flat("sig_dead"),
     "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
 })
 
@@ -1814,6 +1814,50 @@ def draw_loco(b, piece, rng):
     bits(b, lf.p(0, 0, -L / 2 - 2.0), 1.5, 8, rng, ("dbr_ballast", "rubble_core"))
 
 
+def draw_signal(b, piece, rng):
+    """A colour-light signal: a lattice-free steel mast on a concrete foot, a black target with three lamps under
+    hoods facing the trains, a ladder up to it, a relay box at its foot. War: most lamps are dead, glass smashed."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    H = box["size"][1]
+    f.box((0, 0.15, 0), (0.7, 0.4, 0.7), style=no_bottom("dbr_conc", 1.0))
+    f.box((0, 0.0, 0), (0.75, 0.3, 0.75), style=no_bottom("dbr_conc", 1.0))
+    cyl(b, f.p(0, 0.35 + (H - 1.2) / 2, 0), 0.08, H - 1.2, "trim_dark", sides=8)
+    hy = H - 0.75
+    f.box((0, hy, 0.12), (0.55, 1.25, 0.1), style=flat("black", 1.0))                       # target
+    f.box((0, hy, 0.06), (0.28, 1.0, 0.22), style=flat("trim_dark", 1.0))                    # lamp case
+    lit = rng.random() < 0.5
+    for k, col in enumerate(("sg_red_flat", "sig_dead", "sig_dead")):
+        y = hy + 0.35 - k * 0.35
+        lens = col if (k == 0 and lit) else "sig_dead"
+        cyl(b, f.p(0, y, 0.18), 0.1, 0.02, lens, sides=10, axis="z", yaw=f.yaw)
+        f.box((0, y + 0.13, 0.27), (0.26, 0.03, 0.2), style=flat("trim_dark", 1.0))          # hood
+    for k in range(int((hy - 1.2) / 0.3)):   # ladder (behind the mast)
+        f.box((0, 0.8 + k * 0.3, -0.2), (0.35, 0.03, 0.03), style=flat("trim_dark", 1.0))
+    for xx in (-0.17, 0.17):
+        f.box((xx, (hy + 0.5) / 2 + 0.3, -0.2), (0.03, hy - 0.2, 0.03), style=flat("trim_dark", 1.0))
+    f.box((0, hy - 0.72, -0.05), (0.8, 0.04, 0.45), style=flat("trim_dark", 1.0))                # platform
+    rel = f.p(0.65, 0, -0.1)
+    b.box(on_ground(rel, 0.4), (0.45, 0.8, 0.35), yaw=f.yaw, style=no_bottom("dbr_xf", 1.0))       # relay box
+
+
+def draw_points(b, piece, rng):
+    """A switch at the toe of a turnout: a ground lever with its target, the throw rod to the blades, long sleepers."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    look = piece["look"]
+    f.box((0, 0.12, 0), (0.5, 0.18, 0.35), style=no_bottom("trim_dark", 1.0))                  # base
+    lever = rng.uniform(-35, 35)
+    b.box(f.p(0.0, 0.42, 0.0), (0.05, 0.6, 0.05), yaw=f.yaw, pitch=lever, style=flat("trim_dark", 1.0))
+    b.box(f.p(0.0, 0.62, 0.0), (0.06, 0.08, 0.2), yaw=f.yaw, style=flat("hz_flat" if look != "d" else "trim_dark", 1.0))
+    cyl(b, f.p(0, 0.55, 0.0), 0.16, 0.02, "sg_red_flat" if look != "d" else "trim_dark", sides=10, axis="x", yaw=f.yaw)
+    # throw rod: from the lever across to the far rail, square to the main line (map z)
+    lf = Frame(b, f.at, 0.0)
+    lf.box((0, 0.17, 1.0), (0.06, 0.05, 2.1), style=flat("trim_dark", 1.0))
+    for k in (0.0, 0.7):   # tie plates at the switch toe
+        lf.box((k, 0.17, 1.0), (0.18, 0.02, 1.8), style=flat("dbr_rail", 1.0))
+
+
 TANK_SKINS = {"b": "dbr_tank_k", "c": "dbr_tank_g", "d": "dbr_burnt"}
 
 
@@ -2320,7 +2364,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "shelter": draw_shelter, "bench": draw_bench, "pole": draw_pole, "pole_snap": draw_pole_snap,
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
-        "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker,
+        "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker, "signal": draw_signal, "points": draw_points,
         "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 
