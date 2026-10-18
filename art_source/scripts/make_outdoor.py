@@ -49,6 +49,12 @@ mb.PALETTE.update({
     # the town square (World art 0.17): setts, fountain water, awnings
     "sett1": "7c766c", "sett2": "706a61", "sett3": "857f74", "sett_j": "524d46", "sett_dk": "625c53",
     "wat1": "4c6466", "wat2": "435a5c", "wat_lt": "5d777a", "scum": "56634a",
+    # power lines (outdoor step 4): creosoted pole wood, glass and porcelain insulators, transformer grey
+    "pole1": "5b4a3a", "pole2": "4d3f32", "pole_lt": "6b5a48", "pole_ck": "3a3027",
+    "ins_g": "5f8a7a", "ins_g_lt": "7fa898", "porc": "6e4a34", "porc_lt": "86604a", "xf": "7b8079", "xf_dk": "656a64",
+    # road signs (round 3): enamel colours, faded a little in the sun
+    "sg_red": "a3342b", "sg_yel": "d9b33a", "sg_grn": "2f6146", "sg_blue": "2f4f7a", "sg_wht": "ddd8cc",
+    "sg_blk": "26262a", "sg_wood": "6a4a2e", "sg_wood_dk": "553a23", "sg_cream": "d6c9a4",
     "awn_r": "8f3b32", "awn_g": "476247", "awn_b": "3e5571", "awn_w": "c9c0ab", "blossom": "d8d0c2", "blossom2": "c9a4b8",
 })
 
@@ -267,6 +273,19 @@ def k_stripes(a, b_):
     return paint
 
 
+def k_pole(rng):
+    """Weathered creosoted pole wood: vertical grain, cracks (checks), a few grey bleached streaks."""
+    c = Canvas(32, 64, "pole1")
+    c.noise(0, 0, 32, 64, ["pole2", "pole_lt"], 0.18, rng)
+    for _ in range(9):
+        x, y = rng.randrange(32), rng.randrange(64)
+        c.rect(x, y, x + 1, min(64, y + rng.randint(6, 20)), "pole_ck")
+    for _ in range(4):
+        x = rng.randrange(32)
+        c.rect(x, 0, x + 1, 64, "pole_lt")
+    return c
+
+
 def k_canvas(rng):
     c = Canvas(64, 64, "trk_c")
     c.noise(0, 0, 64, 64, ["trk_c_dk"], 0.2, rng)
@@ -297,6 +316,8 @@ mb.KIT.update({
     "dbr_leaf_b": k_leaf("lf1", "lf1_dk", "lf1_lt", "lf1_sh"), "dbr_leaf_c": k_leaf("lf2", "lf2_dk", "lf2_lt", "lf2_sh"),
     "dbr_leaf_d": k_leaf("lf3", "lf3_dk", "lf3_lt", "lf1_sh", flowers=("blossom", "blossom2")),
     "dbr_setts": k_setts, "dbr_water": k_water, "awn_r_flat": mb.paint_flat("awn_r"), "hz_flat": mb.paint_flat("hz_y"),
+    "dbr_pole": k_pole, "dbr_ins_g": mb.paint_flat("ins_g"), "dbr_porc": mb.paint_flat("porc"),
+    "dbr_xf": k_paint("xf", "xf_dk", 3),
     "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
 })
 
@@ -319,6 +340,30 @@ def ground(x, z):
     v = min(max((wz - zs[j]) / (zs[j + 1] - zs[j]), 0.0), 1.0)
     ha, hb, hc, hd = H[j][i], H[j][i + 1], H[j + 1][i], H[j + 1][i + 1]
     return ha + u * (hb - ha) + v * (hd - hb) if u >= v else ha + v * (hc - ha) + u * (hd - hc)
+
+
+_ROAD_GRID = {}
+
+
+def surface(x, z):
+    """The top of what's under chunk point (x, z): the ground, or a road's ribbon where it's above it."""
+    if not _ROAD_GRID:
+        for r in TERRAIN.get("roads", []):
+            p = r["points"]
+            for i in range(0, len(p) - 2, 2):
+                quad = (p[i], p[i + 1], p[i + 3], p[i + 2])
+                xs, zs = [q[0] for q in quad], [q[2] for q in quad]
+                for cx in range(int(min(xs) // 4), int(max(xs) // 4) + 1):
+                    for cz in range(int(min(zs) // 4), int(max(zs) // 4) + 1):
+                        _ROAD_GRID.setdefault((cx, cz), []).append(quad)
+        _ROAD_GRID[None] = True
+    h = ground(x, z)
+    wx, wz = x + ORIGIN[0], z + ORIGIN[1]
+    for quad in _ROAD_GRID.get((int(wx // 4), int(wz // 4)), ()):
+        sides = [(c[0] - a[0]) * (wz - a[2]) - (c[2] - a[2]) * (wx - a[0]) for a, c in zip(quad, quad[1:] + quad[:1])]
+        if all(v >= 0 for v in sides) or all(v <= 0 for v in sides):
+            h = max(h, max(q[1] for q in quad))
+    return h
 
 
 def on_ground(p, lift=0.0):
@@ -531,6 +576,15 @@ def draped(b, f, x0, x1, z0, z1, lift, mat, step=1.0, lip=0.15, tile=2.0):
         q = [a, c, (c[0], c[1] - lift - lip, c[2]), (a[0], a[1] - lift - lip, a[2])]
         n = norm((((a[0] + c[0]) / 2) - mid[0], 0.0, ((a[2] + c[2]) / 2) - mid[2]))
         b.poly(q, n, mat, uv_world(tile))
+
+
+def draw_walk(b, piece, rng):
+    """A path's slabs (round 3: paths to the doors): each a thin slab following the ground, its edge dropping into it."""
+    mat = "dbr_conc" if piece["kind"] == "walk" else "dbr_slate"
+    for box in piece["boxes"]:
+        f = frame_of(b, box)
+        w, l = box["size"][0], box["size"][2]
+        draped(b, f, -w / 2, w / 2, -l / 2, l / 2, 0.045 + rng.uniform(0, 0.012), mat, step=1.2, lip=0.1, tile=1.0)
 
 
 def draw_ruin(b, piece, rng):
@@ -1027,6 +1081,458 @@ def draw_lamp(b, piece, rng):
     lamp_parts(b, f, look, rng, bent=rng.choice((0, 0, 0, 0, 25, -20)))
 
 
+# ------------------------------------------------------------------------------------------------ power lines
+# (outdoor step 4) Looks: b a wooden pole with one crossarm and three insulators; c the same with a second, lower arm
+# carrying two telephone wires and a step-bolted, more weathered pole; d a tapered concrete pole with a steel arm.
+# A transformer hangs on some poles. Wires sag between poles (make_outdoor draws each one from the poles' markers).
+WIRES = {"b": ((-0.8, 7.74), (0.8, 7.74), (0.0, 8.2)),
+         "c": ((-0.8, 7.74), (0.8, 7.74), (0.0, 8.2), (-0.5, 6.84), (0.5, 6.84)),
+         "d": ((-0.85, 7.84), (0.85, 7.84), (0.0, 8.28))}
+
+
+def insulator(b, f, x, y, look, rng, small=False):
+    """A pin insulator standing on an arm (or the pole top) at local (x, y): stacked skirts on a steel pin."""
+    mat = "dbr_porc" if small or look == "d" else "dbr_ins_g"
+    cyl(b, f.p(x, y + 0.04, 0), 0.015, 0.08, "trim_dark", sides=4, yaw=f.yaw, caps=False)
+    for k, r in enumerate((0.07, 0.055) if small else (0.085, 0.07, 0.05)):
+        cyl(b, f.p(x, y + 0.08 + k * 0.05, 0), r, 0.045, mat, sides=6, yaw=f.yaw)
+
+
+def pole_parts(b, f, look, rng, transformer=False, top=8.0, stump=False, shaft_from=0.0):
+    """A pole in frame f (foot on the ground, local x along the arms, z along the line). top: where it ends;
+    shaft_from: where its shaft starts (a snapped pole's fallen top)."""
+    mid, ln = (shaft_from + top) / 2, top - shaft_from
+    if look == "d":
+        rock(b, f.p(0, mid, 0), (0.3 - 0.1 * shaft_from / 8, ln, 0.3 - 0.1 * shaft_from / 8), f.yaw, rng, "dbr_conc",
+             jitter=0.0, chamfer=0.08, taper=0.62 if not stump else 0.95)
+    else:
+        cyl(b, f.p(0, mid, 0), 0.15 if look == "c" else 0.14, ln, "dbr_pole", sides=8, yaw=f.yaw, tile=1.0)
+        if shaft_from == 0.0:
+            cyl(b, f.p(0, 0.25, 0), 0.165, 0.5, "dbr_earth", sides=8, yaw=f.yaw, caps=False)   # (wet, dirty foot)
+    if stump:   # splintered top
+        mat = "dbr_pole" if look != "d" else "dbr_conc"
+        for k in range(5):
+            a = k * 72 + rng.uniform(-20, 20)
+            f.box((0.08 * math.sin(math.radians(a)), top + 0.12 + rng.uniform(0, 0.15), 0.08 * math.cos(math.radians(a))),
+                  (0.06, 0.3 + rng.uniform(0, 0.2), 0.05), yaw=a, pitch=rng.uniform(-12, 12), style=flat(mat, 1.0))
+        if look == "d":
+            for k in range(3):   # (bent rebar out of the broken concrete)
+                f.box((rng.uniform(-0.08, 0.08), top + 0.25, rng.uniform(-0.08, 0.08)), (0.025, 0.5, 0.025),
+                      pitch=rng.uniform(-30, 30), yaw=rng.uniform(0, 180), style=flat("trim_dark", 1.0))
+        return
+    if look == "d":
+        f.box((0, 7.6, 0), (1.95, 0.1, 0.1), style=flat("trim_dark", 1.0))                      # steel channel arm
+        for sx in (-1, 1):
+            _rope(b, f.p(sx * 0.55, 7.55, 0.0), f.p(0, 7.1, 0.0))                                # struts
+        f.box((0, 8.0, 0), (0.12, 0.08, 0.12), style=flat("trim_dark", 1.0))
+        for x, y in ((-0.85, 7.65), (0.85, 7.65), (0.0, 8.04)):
+            insulator(b, f, x, y, look, rng)
+    else:
+        f.box((0, 7.475, 0), (1.8, 0.12, 0.13), style=flat("wood_dark", 1.0))                     # crossarm
+        for sx in (-1, 1):   # braces
+            _rope(b, f.p(sx * 0.5, 7.41, 0.09), f.p(0, 6.95, 0.09))
+        for x, y in ((-0.8, 7.535), (0.8, 7.535), (0.0, top)):
+            insulator(b, f, x, y, look, rng)
+        if look == "c":
+            f.box((0, 6.6, 0), (1.2, 0.1, 0.11), style=flat("wood_dark", 1.0))                    # telephone arm
+            for x in (-0.5, 0.5):
+                insulator(b, f, x, 6.65, look, rng, small=True)
+            if shaft_from < 2.0:
+                for k in range(9):   # step bolts
+                    f.box(((-1) ** k * 0.17, 2.6 + k * 0.45, 0.0), (0.12, 0.025, 0.025), style=flat("trim_dark", 1.0))
+                f.box((0, 1.8, 0.152), (0.14, 0.18, 0.01), style=flat("hz_flat", 1.0))            # number plate
+    if transformer:   # a pole-top transformer can on a bracket, leads up to the arm
+        z = -0.42
+        f.box((0, 6.0, -0.2), (0.12, 0.12, 0.3), style=flat("trim_dark", 1.0))
+        cyl(b, f.p(0, 6.0, z), 0.3, 0.85, "dbr_xf", sides=10, yaw=f.yaw)
+        cyl(b, f.p(0, 6.46, z), 0.32, 0.06, "dbr_xf", sides=10, yaw=f.yaw)
+        for sx in (-1, 1):
+            cyl(b, f.p(sx * 0.13, 6.56, z), 0.035, 0.14, "dbr_porc", sides=6, yaw=f.yaw)
+            _rope(b, f.p(sx * 0.13, 6.63, z), f.p(sx * 0.8, (7.62 if look != "d" else 7.72), 0.0))
+        for sx in (-1, 1):   # cooling fins
+            f.box((sx * 0.31, 5.8, z), (0.02, 0.3, 0.2), style=flat("dbr_xf", 1.0))
+
+
+def draw_pole(b, piece, rng):
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    pole_parts(b, f, piece["look"], rng, transformer=len(piece["boxes"]) > 2)
+
+
+def draw_pole_snap(b, piece, rng):
+    """A shelled pole: the stump, and the top lying toward the road with its crossarm and insulators."""
+    stump, fallen = piece["boxes"][0], piece["boxes"][1]
+    look = piece["look"]
+    f = frame_of(b, stump)
+    pole_parts(b, f, look, rng, top=2.6, stump=True)
+    (x, y, z) = stump["pos"]
+    foot = (x, y - stump["size"][1] / 2, z)
+    fall = fallen["yaw"]
+    v0, n0 = len(b.verts), len(b.normals)
+    pole_parts(b, Frame(b, (0, 0, 0), 0), look, rng, shaft_from=2.75)
+    # (lay it down: turned 90 degrees about x, so the pole runs along +z, toward the road; then turned and placed,
+    # each point on whatever is under it: ground or road)
+    lay = lambda q: (q[0], -q[2], q[1])
+    for i in range(v0, len(b.verts)):
+        q = lay(b.verts[i])
+        p = v_add(rot((q[0], q[1] + 0.15, q[2] + 0.3), fall, 0.0), (foot[0], 0.0, foot[2]))
+        b.verts[i] = (p[0], p[1] + _rest(foot, fall, q[2] + 0.3), p[2])
+    for i in range(n0, len(b.normals)):
+        b.normals[i] = rot(lay(b.normals[i]), fall, 0.0)
+    bits(b, foot, 0.5, 4, rng, ("dbr_pole" if look != "d" else "dbr_conc", "rubble_core"))
+
+
+def _rest(foot, yaw, d):
+    """The height a straight fallen pole rests at, d m along it: lying from its foot to where it lands."""
+    c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    far = max(surface(foot[0] + s_ * t, foot[2] + c * t) for t in (6.5, 7.5, 8.3))
+    near = surface(foot[0] + s_ * 3.0, foot[2] + c * 3.0)
+    t = min(max((d - 3.0) / 5.3, 0.0), 1.0)
+    return near + (far - near) * t
+
+
+def _wire_pt(marker, ox, oy, yaw=None):
+    (x, y, z), s = marker["pos"], marker["size"]
+    foot = (x, y - s[1] / 2, z)
+    return v_add(rot((ox, oy, 0.0), marker["yaw"] if yaw is None else yaw, 0.0), foot)
+
+
+def _sag_line(b, p0, p1, sag, n=10, ground_at=None, mat="trim_dark"):
+    pts = []
+    for k in range(n + 1):
+        t = k / n
+        p = v_add(p0, v_scale(v_sub(p1, p0), t))
+        p = (p[0], p[1] - 4 * sag * t * (1 - t), p[2])
+        pts.append(p)
+    for a, c in zip(pts, pts[1:]):
+        _wire_seg(b, a, c, mat)
+
+
+def _wire_seg(b, a, c, mat="trim_dark"):
+    d = v_sub(c, a)
+    L = math.sqrt(dot(d, d))
+    if L < 1e-4:
+        return
+    yaw = math.degrees(math.atan2(d[0], d[2]))
+    pitch = -math.degrees(math.atan2(d[1], math.hypot(d[0], d[2])))
+    u = v_scale(d, 1.0 / L)
+    b.box(v_scale(v_add(a, c), 0.5), (0.035, 0.035, L + 0.01), yaw=yaw, pitch=pitch,   # (no end caps: hidden)
+          style=lambda n, m, q: None if abs(dot(n, u)) > 0.9 else (mat, uv_world(1.0)))
+
+
+def draw_wire(b, piece, rng):
+    span, ma, mb_ = piece["boxes"][0], piece["boxes"][1], piece["boxes"][2]
+    for ox, oy in WIRES[piece["look"]]:
+        p0, p1 = _wire_pt(ma, ox, oy), _wire_pt(mb_, ox, oy)
+        L = math.hypot(p1[0] - p0[0], p1[2] - p0[2])
+        _sag_line(b, p0, p1, 0.022 * L + rng.uniform(-0.05, 0.1), n=12)
+
+
+def draw_wire_down(b, piece, rng):
+    """From the standing pole's arm, the wires hang down steeply, then lie in the road to the fallen top."""
+    span, ma, ms = piece["boxes"][0], piece["boxes"][1], piece["boxes"][2]
+    fall = ms["yaw"]
+    (x, y, z), s = ms["pos"], ms["size"]
+    foot = (x, y - s[1] / 2, z)
+    for ox, oy in WIRES[piece["look"]]:
+        p0 = _wire_pt(ma, ox, oy)
+        end = v_add(rot((ox, 0.0, oy + 0.3), fall, 0.0), foot)
+        end = (end[0], _rest(foot, fall, oy + 0.3) + 0.16, end[2])
+        pts, n = [], 18
+        for k in range(n + 1):
+            t = k / n
+            px, pz = p0[0] + (end[0] - p0[0]) * t, p0[2] + (end[2] - p0[2]) * t
+            lie = surface(px, pz) + 0.04 + rng.uniform(0, 0.03)
+            hy = p0[1] * (1 - t) ** 3 + end[1] * t ** 3
+            pts.append((px + rng.uniform(-0.1, 0.1) * (0 < k < n), max(lie, hy), pz + rng.uniform(-0.1, 0.1) * (0 < k < n)))
+        for a, c in zip(pts, pts[1:]):
+            _wire_seg(b, a, c)
+
+
+# ------------------------------------------------------------------------------------------------ road signs
+# (outdoor round 3) Looks: b European enamel signs (yellow town board, its name struck through on the back for
+# leaving, round speed limits, white finger boards), c North American (green town and guide signs, white speed limit
+# boards), d old and rural (painted wooden boards and fingerposts, rusty enamel). Stop signs are octagons in all three.
+# The signs' pictures are one decal atlas for every chunk (art_source/textures/outdoor_decals.png, 32 px a metre).
+DIR_NAMES = ("HILLSIDE", "CHURCH", "STATION", "JUNKYARD", "WOODS")   # (gen DIR_NAMES, in road order)
+DECALS = mb.Atlas(256)
+
+
+def _say(c, y, s, col, scale=1):
+    w = Canvas.text_width(s, scale)
+    assert w + 2 <= c.w and y >= 0 and y + 5 * scale <= c.h, f"sign text {s!r} doesn't fit {c.w}x{c.h}"
+    assert (c.w - w) % 2 == 0, f"{s!r} can't be centred in {c.w} px: change the width"
+    c.ctext(0, c.w, y, s, col, scale)
+
+
+def _fit_w(s, scale, pad):
+    """A width that centres s exactly with at least pad px each side."""
+    w = Canvas.text_width(s, scale) + 2 * pad
+    return w
+
+
+def _ring(c, col, ring, width=2):
+    r = c.w / 2
+    for y in range(c.h):
+        for x in range(c.w):
+            d = math.hypot(x + 0.5 - r, y + 0.5 - r)
+            if d > r - width - 0.3:
+                c.put(x, y, ring)
+
+
+def _rusty(c, rng, n=6):
+    c.blotch(["rust", "iron_dark"], n, rng, size=(1, 3))
+
+
+def sign_decals():
+    rng = random.Random("signs")
+    a = DECALS
+
+    def town(look, back):
+        def paint(c):
+            if look == "b":
+                c.rect(0, 0, c.w, c.h, "sg_yel")
+                c.frame(1, 1, c.w - 1, c.h - 1, "sg_blk")
+                _say(c, 6, "BLOXOV", "sg_blk", 2)
+                if back:   # (leaving: the name struck through in red)
+                    for x in range(4, c.w - 4):
+                        y = 3 + (x - 4) * (c.h - 7) // (c.w - 8)
+                        c.rect(x, y, x + 1, y + 2, "sg_red")
+            elif look == "c":
+                c.rect(0, 0, c.w, c.h, "sg_grn")
+                c.frame(1, 1, c.w - 1, c.h - 1, "sg_wht")
+                _say(c, 13, "BLOXOV", "sg_wht", 2)
+                _say(c, 4, "POP 2140", "sg_wht")
+            else:
+                c.rect(0, 0, c.w, c.h, "sg_wood")
+                for y in range(0, c.h, 6):
+                    c.rect(0, y, c.w, y + 1, "sg_wood_dk")
+                _say(c, 4, "BLOXOV", "sg_cream", 2)
+                c.blotch(["sg_wood_dk"], 6, rng, size=(1, 3))
+        return paint
+
+    for look, w, h in (("b", 54, 22), ("c", 64, 30), ("d", 54, 18)):
+        a.add(f"town_{look}", w, h, town(look, False))
+        a.add(f"town_{look}_back", w, h, town(look, True))
+
+    def stop(look):
+        def paint(c):
+            c.rect(0, 0, c.w, c.h, "sg_red")
+            c.frame(0, 0, c.w, c.h, "sg_wht")
+            _say(c, 10, "STOP", "sg_wht")
+            if look == "d":
+                _rusty(c, rng)
+        return paint
+    for look in "bcd":
+        a.add(f"stop_{look}", 25, 25, stop(look))
+
+    def speed(look, v):
+        def paint(c):
+            if look == "c":
+                c.rect(0, 0, c.w, c.h, "sg_wht")
+                c.frame(1, 1, c.w - 1, c.h - 1, "sg_blk")
+                _say(c, 25, "SPEED", "sg_blk")
+                _say(c, 18, "LIMIT", "sg_blk")
+                _say(c, 2, v, "sg_blk", 3)
+            else:
+                c.rect(0, 0, c.w, c.h, "sg_wht")
+                _ring(c, "sg_wht", "sg_red", 3)
+                _say(c, 5, v, "sg_blk", 2)
+                if look == "d":
+                    _rusty(c, rng, 8)
+        return paint
+    for look in "bcd":
+        for v in ("50", "80"):
+            a.add(f"speed_{look}_{v}", 25 if look == "c" else 22, 32 if look == "c" else 22, speed(look, v))
+
+    def finger(look, name):
+        def paint(c):
+            bg, ink = {"b": ("sg_wht", "sg_blk"), "c": ("sg_grn", "sg_wht"), "d": ("sg_wood", "sg_cream")}[look]
+            c.rect(0, 0, c.w, c.h, bg)
+            if look != "d":
+                c.frame(0, 0, c.w, c.h, ink)
+            else:
+                c.blotch(["sg_wood_dk"], 4, rng, size=(1, 2))
+            w = Canvas.text_width(name)
+            c.text(4, 3, name, ink)
+        return paint
+    def manhole(c):
+        c.rect(0, 0, c.w, c.h, "iron_dark")
+        r = c.w / 2
+        for y in range(c.h):
+            for x in range(c.w):
+                d = math.hypot(x + 0.5 - r, y + 0.5 - r)
+                if d > r - 1.5 or (abs(d - r * 0.55) < 0.6):
+                    c.put(x, y, "iron")
+                elif (x + y) % 4 == 0 and d < r * 0.5:
+                    c.put(x, y, "black")
+        c.blotch(["rust"], 3, rng, size=(1, 2))
+    a.add("manhole", 22, 22, manhole)
+
+    def drain(c):
+        c.rect(0, 0, c.w, c.h, "iron")
+        for y in range(2, c.h - 2, 3):
+            c.rect(2, y, c.w - 2, y + 2, "black")
+        c.blotch(["rust"], 2, rng, size=(1, 2))
+    a.add("drain", 14, 22, drain)
+
+    for look in "bcd":
+        for name in DIR_NAMES:
+            a.add(f"dir_{look}_{name}", Canvas.text_width(name) + 12, 11, finger(look, name))
+
+
+def _plate(b, f, c, w, h, front, back=None, back_mat="metal", t=0.03, shape=None):
+    """A sign plate in frame f at local c (w x h m, facing local +z): front/back decal regions. shape: corner points
+    (local x, y round c) of an octagon or circle instead of a rectangle."""
+    if shape is None:
+        shape = [(-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)]
+    nf = rot((0, 0, 1), f.yaw, 0.0)
+    for side, region in ((1, front), (-1, back)):
+        pts = [f.p(c[0] + x * side, c[1] + y, c[2] + side * t / 2) for x, y in shape]
+        if region:
+            b.poly(pts, v_scale(nf, side), "decals", mb.uv_fit(DECALS.regions[region]))
+        else:
+            b.poly(pts, v_scale(nf, side), back_mat, uv_world(1.0))
+    for (x0, y0), (x1, y1) in zip(shape, shape[1:] + shape[:1]):   # the edge
+        q = [f.p(c[0] + x0, c[1] + y0, c[2] - t / 2), f.p(c[0] + x1, c[1] + y1, c[2] - t / 2),
+             f.p(c[0] + x1, c[1] + y1, c[2] + t / 2), f.p(c[0] + x0, c[1] + y0, c[2] + t / 2)]
+        n = rot(norm(((x0 + x1) / 2, (y0 + y1) / 2, 0.0)), f.yaw, 0.0)
+        b.poly(q, n, back_mat, uv_world(1.0))
+
+
+def _post(b, f, look, x=0.0, h=2.6):
+    if look == "d":
+        f.box((x, h / 2, 0), (0.1, h, 0.1), style=flat("dbr_pole", 1.0))
+    elif look == "c":
+        f.box((x, h / 2, 0), (0.07, h, 0.05), style=flat("metal", 1.0))
+    else:
+        cyl(b, f.p(x, h / 2, 0), 0.04, h, "steel_light", sides=6, yaw=f.yaw)
+
+
+def _poly_shape(n, r, turn=0.0):
+    return [(r * math.cos(math.radians(turn + 360 * k / n)), r * math.sin(math.radians(turn + 360 * k / n))) for k in range(n)]
+
+
+def draw_sign(b, piece, rng):
+    kind, look = piece["kind"], piece["look"]
+    post = piece["boxes"][0]
+    f = frame_of(b, post)
+    extra = len(piece["boxes"]) - 1
+    if kind == "sign_town":
+        w, h = {"b": (1.69, 0.69), "c": (2.0, 0.94), "d": (1.69, 0.56)}[look]
+        for x in (-0.7, 0.7):   # (gen: the two posts' collision)
+            _post(b, f, look, x, 2.3 + h / 2)
+        f2 = Frame(b, f.p(0, 0, 0.06), f.yaw)
+        _plate(b, f2, (0, 2.0 + h / 2, 0), w, h, f"town_{look}", f"town_{look}_back" if look == "b" else None,
+               back_mat="metal" if look != "d" else "dbr_pole")
+    elif kind == "sign_stop":
+        _post(b, f, look)
+        f2 = Frame(b, f.p(0, 0, 0.05), f.yaw)
+        _plate(b, f2, (0, 2.2, 0), 0.78, 0.78, f"stop_{look}", shape=_poly_shape(8, 0.4, 22.5))
+    elif kind == "sign_speed":
+        v = "80" if extra else "50"
+        _post(b, f, look)
+        f2 = Frame(b, f.p(0, 0, 0.05), f.yaw)
+        if look == "c":
+            _plate(b, f2, (0, 2.1, 0), 0.78, 1.0, f"speed_c_{v}")
+        else:
+            _plate(b, f2, (0, 2.2, 0), 0.69, 0.69, f"speed_{look}_{v}", shape=_poly_shape(16, 0.345))
+    elif kind == "sign_dir":
+        name = DIR_NAMES[extra]
+        _post(b, f, look, h=2.6)
+        reg = DECALS.regions[f"dir_{look}_{name}"]
+        L = (Canvas.text_width(name) + 12) / 32.0
+        h = 11 / 32.0
+        # (local +z points up the road it names: the board runs along it from the post, its point at the far end)
+        g = Frame(b, f.at, f.yaw - 90)   # (g's +x = up the road)
+        shape = [(-0.08, -h / 2), (L - 0.16, -h / 2), (L - 0.08 + 0.0, 0.0), (L - 0.16, h / 2), (-0.08, h / 2)]
+        g.box((0, 2.75, 0), (0.12, 0.08, 0.12), style=flat("trim_dark", 1.0))
+        _plate(b, g, (0.0, 2.35, 0.0), L, h, f"dir_{look}_{name}", f"dir_{look}_{name}",
+               back_mat="metal" if look != "d" else "wood_dark", shape=shape)
+
+
+# ------------------------------------------------------------------------------------------------ kerbs, manholes, drains
+# (outdoor round 3) Along the town's roads: a concrete kerb on both edges (none at junctions, car park ways in and
+# where a door's path meets the road), iron manhole covers in the lanes and drain grates in the gutters. Drawn from
+# the road ribbons in terrain.json, each in the chunk its middle is in. Looks only (no collision).
+KERB_W, KERB_H = 0.25, 0.12
+
+
+def _chunk_has(x, z):
+    return abs(x - ORIGIN[0]) <= 43.75 and abs(z - ORIGIN[1]) <= 43.75 and \
+        (x - ORIGIN[0] < 43.75 or ORIGIN[0] + 43.75 >= 175.0) and (z - ORIGIN[1] < 43.75 or ORIGIN[1] + 43.75 >= 175.0)
+
+
+def _local(p):
+    return (p[0] - ORIGIN[0], p[1], p[2] - ORIGIN[1])
+
+
+def draw_road_edges(b, rng):
+    for road in TERRAIN.get("roads", []):
+        if not road.get("kerb"):
+            continue
+        P, F = road["points"], road["flags"]
+        n = len(P) // 2
+        for side in (0, 1):   # (left, right edge)
+            for i in range(n - 1):
+                a, c = P[2 * i + side], P[2 * i + 2 + side]
+                if F[2 * i + side] or F[2 * i + 2 + side]:
+                    continue
+                mx, mz = (a[0] + c[0]) / 2, (a[2] + c[2]) / 2
+                if not _chunk_has(mx, mz):
+                    continue
+                oa, oc = P[2 * i + 1 - side], P[2 * i + 3 - side]   # (the other edge: outward is away from it)
+                def out(p, o):
+                    dx, dz = p[0] - o[0], p[2] - o[2]
+                    ln = math.hypot(dx, dz) or 1.0
+                    return dx / ln, dz / ln
+                ua, uc = out(a, oa), out(c, oc)
+                A, C = _local(a), _local(c)
+                ia, ic = (A[0], A[1] + KERB_H, A[2]), (C[0], C[1] + KERB_H, C[2])
+                xa = (A[0] + ua[0] * KERB_W, 0.0, A[2] + ua[1] * KERB_W)
+                xc = (C[0] + uc[0] * KERB_W, 0.0, C[2] + uc[1] * KERB_W)
+                xa = (xa[0], max(A[1], ground(xa[0], xa[2])) + KERB_H, xa[2])
+                xc = (xc[0], max(C[1], ground(xc[0], xc[2])) + KERB_H, xc[2])
+                ctr = ((A[0] + C[0]) / 2, (A[1] + C[1]) / 2, (A[2] + C[2]) / 2)
+                tri(b, ia, ic, xc, "dbr_conc", (ctr[0], ctr[1] - 5, ctr[2]), tile=1.0)          # top
+                tri(b, ia, xc, xa, "dbr_conc", (ctr[0], ctr[1] - 5, ctr[2]), tile=1.0)
+                lo_a, lo_c = (A[0], A[1] - 0.06, A[2]), (C[0], C[1] - 0.06, C[2])                  # the face to the road
+                n_in = norm((-ua[0], 0.0, -ua[1]))
+                b.poly([lo_a, lo_c, ic, ia], n_in, "dbr_conc", uv_world(1.0))
+                ga, gc = (xa[0], ground(xa[0], xa[2]) - 0.15, xa[2]), (xc[0], ground(xc[0], xc[2]) - 0.15, xc[2])
+                b.poly([ga, gc, xc, xa], norm((ua[0], 0.0, ua[1])), "dbr_conc", uv_world(1.0))   # the back
+        # manholes in the lanes, drains in the gutters
+        dist, next_mh, next_dr = 0.0, 18.0, 9.0
+        for i in range(n - 1):
+            l0, r0, l1, r1 = P[2 * i], P[2 * i + 1], P[2 * i + 2], P[2 * i + 3]
+            m0 = ((l0[0] + r0[0]) / 2, (l0[2] + r0[2]) / 2)
+            m1 = ((l1[0] + r1[0]) / 2, (l1[2] + r1[2]) / 2)
+            dist += math.hypot(m1[0] - m0[0], m1[1] - m0[1])
+            if any(F[2 * i: 2 * i + 4]):
+                continue
+            if dist >= next_mh:
+                next_mh = dist + 38.0 + rng.uniform(-6, 6)
+                t = 0.5 + (1.4 / road["width"]) * (1 if (i // 7) % 2 else -1)   # (in one lane or the other)
+                p = (l0[0] + (r0[0] - l0[0]) * t, l0[1], l0[2] + (r0[2] - l0[2]) * t)
+                if _chunk_has(p[0], p[2]):
+                    q = _local(p)
+                    cyl(b, (q[0], q[1] + 0.012, q[2]), 0.36, 0.026, "trim_dark", sides=12, caps=False)
+                    b.poly([(q[0] + 0.34 * math.cos(math.radians(k * 30)), q[1] + 0.025, q[2] + 0.34 * math.sin(math.radians(k * 30)))
+                            for k in range(12)], (0, 1, 0), "decals", mb.uv_fit(DECALS.regions["manhole"]))
+            if dist >= next_dr:
+                next_dr = dist + 24.0
+                side = (i // 5) % 2
+                e, o = (l0, r0) if side == 0 else (r0, l0)
+                t = 0.32 / road["width"]
+                p = (e[0] + (o[0] - e[0]) * t, e[1], e[2] + (o[2] - e[2]) * t)
+                if _chunk_has(p[0], p[2]):
+                    q = _local(p)
+                    yaw = math.degrees(math.atan2(l1[0] - l0[0], l1[2] - l0[2]))
+                    g = Frame(b, (q[0], q[1], q[2]), yaw)
+                    g.box((0, 0.012, 0), (0.42, 0.024, 0.7), style=lambda n_, m_, q_: None if n_[1] < -0.7 else
+                          (("decals", mb.uv_fit(DECALS.regions["drain"])) if n_[1] > 0.7 else ("trim_dark", uv_world(1.0))))
+
+
 # ------------------------------------------------------------------------------------------------ containers
 def container(f, rng, skin, ribs=True, holes=False, L=6.1, W=2.4, H=2.6):
     side = lambda nn, m, q: None if nn[1] < -0.7 else (skin, uv_world(2.4))
@@ -1483,7 +1989,9 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,
         "kiosk": draw_kiosk, "lamp": draw_lamp,
         "trench": draw_trench, "tent": draw_tent, "hut": draw_hut, "crates": draw_crates, "net": draw_net,
-        "shelter": draw_shelter, "bench": draw_bench}
+        "shelter": draw_shelter, "bench": draw_bench, "pole": draw_pole, "pole_snap": draw_pole_snap,
+        "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
+        "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 
 def main():
@@ -1495,6 +2003,12 @@ def main():
                                          random.Random(kit))
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
     mat_info["ground"] = ("kit_dbr_ground", False, False)
+    sign_decals()
+    decal_png = os.path.join("art_source", "textures", "outdoor_decals.png")
+    if os.path.exists(os.path.join(mb.ROOT, decal_png)):
+        os.remove(os.path.join(mb.ROOT, decal_png))   # (painted fresh every run)
+    textures["outdoor_decals"] = Texture("outdoor_decals", decal_png, lambda r: DECALS.c, random.Random("decals"))
+    mat_info["decals"] = ("outdoor_decals", False, False)
     cells = mb.kit_atlas()
     TERRAIN.update(json.load(open(os.path.join(JSON_DIR, "terrain.json"))))
     total = 0
@@ -1507,6 +2021,8 @@ def main():
         b = Builder()
         for piece in data["pieces"]:
             DRAW[piece["kind"]](b, piece, random.Random(f"{piece['kind']} {piece['seed']}"))
+        if os.environ.get("BLOXOV_KERBS") != "0":   # (off for the options sheets' "today" pictures)
+            draw_road_edges(b, random.Random("road edges " + name))
         out = os.path.join(OUT_DIR, name + ".glb")
         mb.write_glb(out, b, textures, mat_info, atlas=cells)
         mb.set_import_script(out)

@@ -203,7 +203,7 @@ def _fp_apart(p, q):
 def _fp_counts(b):
     """Earlier boxes a scattered piece must keep clear of: debris, and anything solid that stands on the ground
     (not ground covers, not tree tops)."""
-    if len(b) > 10:
+    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS:   # (power lines: only the poles, as before)
         return True
     return bool(b[9]) and b[4] > 0.2 and b[1] + b[4] / 2 > 0.05 and b[1] - b[4] / 2 < 2.0 and max(b[3], b[5]) < 60
 
@@ -290,12 +290,16 @@ def apply_late_turns(margin=3.0):
                           else SCATTER_CLEAR[b.name])
 
 
-def clear_scatter(rect):
-    """Drops every scatter piece (clutter, cover, trees) with a box in rect (map x0, z0, x1, z1), whole."""
-    x0, z0, x1, z1 = rect
+def clear_scatter(rect, hit=None):
+    """Drops every scatter piece (clutter, cover, trees) with a box in rect (map x0, z0, x1, z1), whole; or, given
+    `hit` (a box -> bool), every piece with a box it hits."""
+    x0, z0, x1, z1 = rect or (0, 0, 0, 0)
     for piece in reversed(scatter_pieces):
         (b0, b1), *rest = piece[1]
-        if not any(x0 < boxes[k][0] + M / 2 < x1 and z0 < boxes[k][2] + M / 2 < z1 for k in range(b0, b1)):
+        if hit is not None:
+            if not any(hit(boxes[k]) for k in range(b0, b1)):
+                continue
+        elif not any(x0 < boxes[k][0] + M / 2 < x1 and z0 < boxes[k][2] + M / 2 < z1 for k in range(b0, b1)):
             continue
         del boxes[b0:b1]
         del anchors[b0:b1]
@@ -1607,6 +1611,163 @@ def station_square():
     stall(203.0, 184.5, 0); stall(207.0, 180.5, 0); stall(213.5, 182.5, 90)
 
 
+# Paths to the buildings' doors (World art 0.17, outdoor round 3; owner 2026-10-18: "a lot just have grass going to
+# them"). Every ground-floor outside door gets a path out to the nearest road, pavement or car park (from the door
+# straight out, then to it), unless it opens onto paving already or nothing is near. PATH_LOOK: "a" none (grass, as
+# before), "b" worn earth everywhere, "c" by place (concrete slabs in town, worn earth out of town), "d" paved
+# everywhere (concrete slabs in town, laid flagstones out of town). Looks only: no collision, the AI's paths don't change.
+PATH_LOOK = os.environ.get("BLOXOV_PATH_LOOK", "c")
+PATH_DOORS = ("door", "church_door", "side_door", "big_door")
+PATH_REACH = 40.0      # the furthest a door's path runs
+PATH_SKIP = {"church"}  # (has its own path: churchyard)
+door_walks = []        # (points, width, kind) of the paths made, for the options sheets
+
+
+def _door_spots():
+    """(building, x, z, outward nx, nz, door width) of every ground-floor outside door, map space, turned like its model."""
+    out = []
+    for m in models:
+        if m["name"] in PATH_SKIP:
+            continue
+        for o in m.get("openings", []):
+            if o["kind"] not in PATH_DOORS or o["lo"] > 0.3:
+                continue
+            side = o["side"]
+            if side in "NS":
+                x, z, nx, nz = o["mid"], o["at"], 0.0, (-1.0 if side == "N" else 1.0)
+            else:
+                x, z, nx, nz = o["at"], o["mid"], (-1.0 if side == "W" else 1.0), 0.0
+            if m["turned"]:
+                ex, ez = turn_point(x + nx, z + nz, m["x"], m["z"], m["turned"])
+                x, z = turn_point(x, z, m["x"], m["z"], m["turned"])
+                nx, nz = ex - x, ez - z
+            out.append((m["name"], x, z, nx, nz, o["w"]))
+    return out
+
+
+def _paving_rects():
+    """Flat paving already on the ground (pavements, car parks, the square, forecourts): map rects."""
+    out = []
+    for b in boxes:
+        if b[4] <= 0.12 and b[8] in (C["pavement"], C["lot"]) and max(b[3], b[5]) > 2.5 and b[6] % 90 == 0 \
+                and b[1] - b[4] / 2 < 0.2:
+            hx, hz = (b[3], b[5]) if b[6] % 180 == 0 else (b[5], b[3])
+            cx, cz = b[0] + M / 2, b[2] + M / 2
+            out.append((cx - hx / 2, cz - hz / 2, cx + hx / 2, cz + hz / 2))
+    return out
+
+
+@debris_kind("walk")
+def walk_slabs(x, z, points, width):
+    _walk_box(points, width, "slabs")
+
+
+@debris_kind("flags")
+def walk_flags(x, z, points, width):
+    _walk_box(points, width, "flags")
+
+
+def walk(points, width, kind):
+    """Lays a path: concrete slabs or flagstones (drawn by the outdoor kit, following the ground) on worn earth, or
+    worn earth only."""
+    paths.append((points, width * (0.85 if kind != "earth" else 1.0)))
+    door_walks.append((points, width, kind))
+    if kind != "earth":
+        (walk_slabs if kind == "slabs" else walk_flags)(points[0][0], points[0][1], points, width)
+
+
+def _walk_box(points, width, kind):
+    for (ax, az), (bx, bz) in zip(points, points[1:]):
+        ln = math.hypot(bx - ax, bz - az)
+        if ln < 0.3:
+            continue
+        tx, tz = (bx - ax) / ln, (bz - az) / ln
+        yaw = math.degrees(math.atan2(tx, tz))
+        t = 0.1
+        k = 0
+        while t < ln - 0.2:
+            if kind == "slabs":   # square concrete slabs, a thin joint between
+                step = min(width, ln - t)
+                obox(ax + tx * (t + step / 2), 0.035, az + tz * (t + step / 2), width, 0.07, step - 0.06, yaw, "slab",
+                     solid=False)
+            else:                 # flagstones, a little off line like a laid path
+                step = min(0.7 + ((k * 7.3) % 1.0) * 0.35, ln - t)
+                wob = (((k * 3.7) % 1.0) - 0.5) * 0.18
+                obox(ax + tx * (t + step / 2) - tz * wob, 0.035, az + tz * (t + step / 2) + tx * wob,
+                     width * (0.8 + ((k * 5.1) % 1.0) * 0.2), 0.07, step - 0.12, yaw + wob * 20, "slab", solid=False)
+            t += step
+            k += 1
+
+
+PATH_NARROW = ("big_house", "old_house", "cabin", "farmhouse", "shed", "motel")   # (house paths: 1.2 m)
+
+
+def door_paths():
+    if PATH_LOOK == "a":
+        return
+    paving = _paving_rects()
+    own = {n: r for n, *r in footprints}
+    left = []
+    for spot in _door_spots():
+        if not _door_path(spot, paving, own, False):
+            left.append(spot)
+    for spot in left:   # (out of town, a door with nothing near joins another door's path: the farmhouse)
+        _door_path(spot, paving, own, True)
+
+
+def _door_path(spot, paving, own, join):
+    """Lays one door's path (see door_paths); join: to another door's path instead of a road. True if laid."""
+    name, x, z, nx, nz, w = spot
+    x0, z0 = x + nx * 0.3, z + nz * 0.3   # (the doorstep)
+    if any(r[0] - 1.2 < x0 < r[2] + 1.2 and r[1] - 1.2 < z0 < r[3] + 1.2 for r in paving):
+        return True   # (opens onto paving already)
+    town = TOWN[0] < x < TOWN[2] and TOWN[1] < z < TOWN[3]
+    if join and town:
+        return False
+    # the nearest road edge or paving (out of town also a yard), from a point a little out from the door, that
+    # the path can reach without going through a building
+    x1, z1 = x0 + nx * 2.5, z0 + nz * 2.5
+    goals = []
+    for pts, rw in ([] if join else roads):
+        d, (px, pz) = _nearest_on(pts, x1, z1)
+        if d > rw / 2 + 0.2:
+            goals.append((d - rw / 2, px + (x1 - px) / d * (rw / 2 - 0.2), pz + (z1 - pz) / d * (rw / 2 - 0.2)))
+    for r in ([] if join else paving) + ([] if town else [y for y in yards if (y[2] - y[0]) * (y[3] - y[1]) < 4000]):
+        ex, ez = min(max(x1, r[0] + 0.3), r[2] - 0.3), min(max(z1, r[1] + 0.3), r[3] - 0.3)
+        goals.append((math.hypot(ex - x1, ez - z1), ex, ez))
+    if join:
+        for pts, _, _ in door_walks:
+            d, (px, pz) = _nearest_on(pts[1:], x1, z1)
+            goals.append((d, px, pz))
+    reach = PATH_REACH if town else 60.0
+    for gap, ex, ez in sorted(goals):
+        if gap > reach:
+            break
+        pts = [(x0, z0), (x1, z1), (ex, ez)]
+        if any(_seg_rect_gap(a, b, (r[0] + 0.2, r[1] + 0.2, r[2] - 0.2, r[3] - 0.2)) <= 0.0
+               for n, r in own.items() for k, (a, b) in enumerate(zip(pts, pts[1:])) if k or n != name):
+            continue   # (through a building)
+        kind = "earth" if PATH_LOOK == "b" or (PATH_LOOK == "c" and not town) else "slabs" if town else "flags"
+        width = 1.3 if kind == "earth" else 1.2 if name.startswith(PATH_NARROW) else 1.8
+        def hits(bx, w=width):
+            return bx[1] - bx[4] / 2 < 1.5 and any(_seg_rect_gap(a, b, (
+                bx[0] + M / 2 - max(bx[3], bx[5]) / 2, bx[2] + M / 2 - max(bx[3], bx[5]) / 2,
+                bx[0] + M / 2 + max(bx[3], bx[5]) / 2, bx[2] + M / 2 + max(bx[3], bx[5]) / 2)) < w / 2 + 0.2
+                for a, b in zip(pts, pts[1:]))
+        # Cover stays (the sightlines): a paved path that would run into it takes the next way out; a worn trail
+        # just goes past it. Only low junk is cleared off a path.
+        tall = [p for p in scatter_pieces if any(hits(boxes[k]) for k in range(*p[1][0])) and
+                max(boxes[k][4] for k in range(*p[1][0])) >= 0.7]
+        if tall and kind != "earth":
+            continue
+        low = [boxes[p[1][0][0]] for p in scatter_pieces if p not in tall and any(hits(boxes[k]) for k in range(*p[1][0]))]
+        for first in low:   # (by its first box: deleting pieces moves the others' indices, not their boxes)
+            clear_scatter(None, hit=lambda bx, first=first: bx is first)
+        walk(pts, width, kind)
+        return True
+    return False
+
+
 def churchyard():
     (px, z0), (_, z1) = CHURCH_PATH
     clear_scatter((px - 2.5, z0, px + 2.5, z1 + 1.0))
@@ -2771,6 +2932,111 @@ def lamp_pass(every=24.0):
             dist += seg
 
 
+# Road signs (World art 0.17, outdoor round 3): the town's name where roads come in (its crossed-out name on the back,
+# for leaving), stop signs where side roads meet a bigger one, speed limits, and finger boards at the big junctions.
+# Drawn by the outdoor kit (make_outdoor.py draw_sign) in SIGN_LOOK ("none": no signs, for the options sheet).
+SIGN_LOOK = os.environ.get("BLOXOV_SIGN_LOOK", "b")
+SIGN_KINDS = ("sign_town", "sign_stop", "sign_speed", "sign_dir", "sign_bus")
+
+
+def _sign(kind, x, z, yaw, extra=0):
+    """A sign post at (x, z), the sign facing yaw (local +z points at the traffic it's for). `extra`: the sign's
+    variant (speed: 0 = 50 in town, 1 = 80 out of town; finger board: which junction)."""
+    @debris_kind(kind)
+    def put(x, z):
+        if kind == "sign_town":   # (on two posts; the first box is the board's middle, a hidden marker)
+            c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+            obox(x, 0.005, z, 0.01, 0.01, 0.01, yaw, "metal", solid=False)
+            for d in (-0.7, 0.7):
+                obox(x + c * d, 1.4, z - s_ * d, 0.1, 2.8, 0.1, yaw, "metal")
+            return
+        obox(x, 1.3, z, 0.1, 2.6, 0.1, yaw, "metal")
+        for k in range(extra):   # (the variant, as tiny hidden markers: the drawing counts them)
+            obox(x, 0.005, z, 0.01, 0.01, 0.01, yaw, "metal", solid=False)
+    with scatter_piece(x, z):
+        put(x, z)
+
+
+def _road_point(curve, dist):
+    """The point `dist` m along a polyline and its direction."""
+    for (ax, az), (bx, bz) in zip(curve, curve[1:]):
+        ln = math.hypot(bx - ax, bz - az)
+        if dist <= ln or (bx, bz) == curve[-1]:
+            t = min(dist / ln, 1.0) if ln else 0.0
+            return ax + (bx - ax) * t, az + (bz - az) * t, (bx - ax) / ln, (bz - az) / ln
+        dist -= ln
+
+
+def _road_len(curve):
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(curve, curve[1:]))
+
+
+def _sign_at(curve, width, dist, toward, kind, extra=0, off=1.3):
+    """A sign beside a road `dist` m along it, on the right of traffic going `toward` (+1 along the curve, -1 back),
+    facing that traffic."""
+    x, z, tx, tz = _road_point(curve, dist)
+    tx, tz = tx * toward, tz * toward
+    px, pz = x - tz * (width / 2 + off), z + tx * (width / 2 + off)   # (right of travel: Godot yaw, x east, z south)
+    if any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 0.5 for pts, w in roads for a, b in zip(pts, pts[1:])):
+        return
+    if any(x0 - 1 < px < x1 + 1 and z0 - 1 < pz < z1 + 1 for _, x0, z0, x1, z1 in footprints):
+        return
+    _sign(kind, px, pz, math.degrees(math.atan2(-tx, -tz)), extra)
+
+
+DIR_NAMES = {2: "HILLSIDE", 3: "CHURCH", 5: "STATION", 6: "JUNKYARD", 7: "WOODS"}   # (road index: where it goes)
+BUS_STOPS = ((95.0, 104.5, 0.0), (47.0, 128.0, -90.0))   # map x, z, yaw (0: open to the north) of the town's stops
+
+
+def sign_pass():
+    if SIGN_LOOK == "none":
+        return
+    _fp_index["upto"], _fp_index["grid"] = 0, {}
+    x0, z0, x1, z1 = TOWN
+    for i, (curve, width) in enumerate(roads):
+        total = _road_len(curve)
+        # where a big road crosses the town's edge (not the map's): the town sign facing in-coming traffic
+        prev = None
+        d = 0.0
+        while d <= total and width >= 8:
+            x, z, _, _ = _road_point(curve, d)
+            inside = x0 < x < x1 and z0 < z < z1
+            if prev is not None and inside != prev and 3 < x < M - 3 and 3 < z < M - 3:
+                into = 1 if inside else -1   # (travelling along the curve goes into town)
+                _sign_at(curve, width, d - into * 3.0, into, "sign_town")
+                _sign_at(curve, width, d + into * 12.0, into, "sign_speed", 0)        # 50 in town
+                _sign_at(curve, width, d - into * 12.0, -into, "sign_speed", 1)       # 80 leaving it
+            prev = inside
+            d += 1.0
+        # where it ends on another road (not where one road carries on as the next): a stop sign, and a finger
+        # board naming where it goes on the far corner
+        for end, toward in ((curve[0], -1), (curve[-1], 1)):
+            on = [(k, w) for k, (pts, w) in enumerate(roads) if k != i and _nearest_on(pts, *end)[0] < w / 2 + 1.0]
+            if not on or any(math.hypot(end[0] - p[0], end[1] - p[1]) < 1.0 for k, _ in on
+                             for p in (roads[k][0][0], roads[k][0][-1])):
+                continue
+            main = on[0][1]
+            dist = (main / 2 + 2.5) if toward == -1 else total - (main / 2 + 2.5)
+            _sign_at(curve, width, dist, toward, "sign_stop", off=0.9)
+            if i in DIR_NAMES:
+                x, z, tx, tz = _road_point(curve, dist)
+                tx, tz = tx * toward, tz * toward   # (toward the junction)
+                px, pz = x + tz * (width / 2 + 1.2), z - tx * (width / 2 + 1.2)   # (the left of that traffic)
+                with scatter_piece(px, pz):
+                    _finger(px, pz, math.degrees(math.atan2(-tx, -tz)), sorted(DIR_NAMES).index(i))
+    for x, z, yaw in BUS_STOPS:
+        with scatter_piece(x, z):
+            bus_shelter(x, z, yaw)
+
+
+@debris_kind("sign_dir")
+def _finger(x, z, yaw, which):
+    """A finger board on a post: local +z (yaw) points away from the junction, up the road it names."""
+    obox(x, 1.3, z, 0.1, 2.6, 0.1, yaw, "metal")
+    for k in range(which):
+        obox(x, 0.005, z, 0.01, 0.01, 0.01, yaw, "metal", solid=False)
+
+
 def _bush_spot(x, z):
     """Grass a bush can stand on: off roads, the rail, water, yards, doorsteps, spawns, extracts and loot (closer in
     than `_clear_of_map`: bushes grow along yards and round houses; the scatter's overlap check does the rest)."""
@@ -3381,6 +3647,56 @@ def scatter_trees(spots, spacing=34.0):
     return placed
 
 
+# Power lines (World art 0.17, outdoor step 4): wooden poles with crossarms and insulators, sagging wires, a
+# transformer on some poles; two poles were shelled and snapped, their top half and wires lying across the road (looks
+# only: the stump keeps the old pole's collision). Drawn by the outdoor kit (make_outdoor.py draw_pole / draw_wire) in
+# the look POLE_LOOK ("none": the old gray boxes, for the options sheet).
+POLE_LOOK = os.environ.get("BLOXOV_POLE_LOOK", "c")
+POLE_KINDS = ("pole", "pole_snap", "wire", "wire_down")
+SNAPPED_POLES = ((183.0, 98.0), (236.0, 277.0))   # map x, z near the two shelled poles (Main Street, the old road)
+
+
+@debris_kind("pole")
+def pole(x, z, yaw, transformer=False):
+    """A pole at (x, z), its crossarm square to yaw (the line's direction)."""
+    obox(x, 4.0, z, 0.3, 8.0, 0.3, yaw, "wood")
+    obox(x, 7.475, z, 1.8, 0.15, 0.16, yaw, "wood", solid=False)
+    if transformer:
+        obox(x, 6.0, z, 0.01, 0.01, 0.01, yaw, "metal", solid=False)   # (a marker: the drawing adds the transformer)
+
+
+@debris_kind("pole_snap")
+def pole_snapped(x, z, yaw, fall):
+    """A shelled pole: a 2.6 m stump, the rest lying toward `fall` (degrees)."""
+    obox(x, 1.3, z, 0.3, 2.6, 0.3, yaw, "wood")
+    c, s_ = math.cos(math.radians(fall)), math.sin(math.radians(fall))
+    obox(x + s_ * 5.6, 0.1, z + c * 5.6, 0.3, 0.2, 5.4, fall, "wood", solid=False)   # (0.2 high: no spawn rules change)
+
+
+def _wire_ends(ax, az, ayaw, bx, bz, byaw):
+    """Hidden markers at both poles (their yaw = the pole's), so the wires meet the crossarms."""
+    obox(ax, 0.005, az, 0.01, 0.01, 0.01, ayaw, "metal", solid=False)
+    obox(bx, 0.005, bz, 0.01, 0.01, 0.01, byaw, "metal", solid=False)
+
+
+@debris_kind("wire")
+def wire_span(x, z, ax, az, ayaw, bx, bz, byaw):
+    length = math.hypot(bx - ax, bz - az)
+    with anchored(("wire", ax, az, bx, bz)):
+        obox(x, 7.3, z, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)), "metal", solid=False)
+    _wire_ends(ax, az, ayaw, bx, bz, byaw)
+
+
+@debris_kind("wire_down")
+def wire_down(x, z, ax, az, ayaw, bx, bz, fall):
+    """The wires from a standing pole (a) to a snapped one (b): hanging down and lying across the road to its top.
+    (The span's box is kept as it was, hidden: the scatter keeps off long flat boxes, so nothing else moves.)"""
+    length = math.hypot(bx - ax, bz - az)
+    with anchored(("wire", ax, az, bx, bz)):
+        obox(x, 7.3, z, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)), "metal", solid=False)
+    _wire_ends(ax, az, ayaw, bx, bz, fall)
+
+
 def power_line(curve, side, width, every=34.0, skip_from=0.0):
     """Wooden poles beside a road (on `side`: +1 right of travel, -1 left) with the wire between them. Poles skip
     spots near buildings and other roads."""
@@ -3402,18 +3718,44 @@ def power_line(curve, side, width, every=34.0, skip_from=0.0):
                 continue
             if any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 1.0 for pts, w in roads for a, b in zip(pts, pts[1:])):
                 continue
-            poles.append((px, pz))
+            poles.append((px, pz, math.degrees(math.atan2(tz * side, -tx * side))))   # (fall: toward the road)
         dist += seg
-    for px, pz in poles:
-        with group():
-            box(px - 0.15, 0, pz - 0.15, px + 0.15, 8.0, pz + 0.15, "wood")
-            box(px - 0.9, 7.4, pz - 0.08, px + 0.9, 7.55, pz + 0.08, "wood", solid=False)
-    for (ax, az), (bx, bz) in zip(poles, poles[1:]):
-        length = math.hypot(bx - ax, bz - az)
-        if length < 60:   # (a long gap means poles were skipped round a junction: no wire across it)
-            with anchored(("wire", ax, az, bx, bz)):
-                obox((ax + bx) / 2, 7.3, (az + bz) / 2, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)),
-                     "metal", solid=False)
+    if POLE_LOOK == "none":   # (the old gray boxes, for the options sheets)
+        for px, pz, _ in poles:
+            with group():
+                box(px - 0.15, 0, pz - 0.15, px + 0.15, 8.0, pz + 0.15, "wood")
+                box(px - 0.9, 7.4, pz - 0.08, px + 0.9, 7.55, pz + 0.08, "wood", solid=False)
+        for (ax, az, _), (bx, bz, _) in zip(poles, poles[1:]):
+            length = math.hypot(bx - ax, bz - az)
+            if length < 60:
+                with anchored(("wire", ax, az, bx, bz)):
+                    obox((ax + bx) / 2, 7.3, (az + bz) / 2, 0.05, 0.05, length, math.degrees(math.atan2(bx - ax, bz - az)),
+                         "metal", solid=False)
+        return
+    spans = [(a, b) for a, b in zip(poles, poles[1:]) if math.hypot(b[0] - a[0], b[1] - a[1]) < 60]
+    yaws = []   # each pole's crossarm square to the line through its neighbours (a bend's bisector)
+    for k, (px, pz, _) in enumerate(poles):
+        prev = poles[k - 1] if k and (poles[k - 1], poles[k]) in spans else poles[k]
+        nxt = poles[k + 1] if k + 1 < len(poles) and (poles[k], poles[k + 1]) in spans else poles[k]
+        if prev is nxt:
+            prev, nxt = poles[max(k - 1, 0)], poles[min(k + 1, len(poles) - 1)]
+        yaws.append(math.degrees(math.atan2(nxt[0] - prev[0], nxt[1] - prev[1])))
+    snapped = {min(range(len(poles)), key=lambda k: math.hypot(poles[k][0] - sx, poles[k][1] - sz))
+               for sx, sz in SNAPPED_POLES if min(math.hypot(p[0] - sx, p[1] - sz) for p in poles) < 3.0}
+    for k, (px, pz, fall) in enumerate(poles):
+        if k in snapped:
+            pole_snapped(px, pz, yaws[k], fall)
+        else:
+            pole(px, pz, yaws[k], transformer=random.Random(f"transformer {px:.1f} {pz:.1f}").random() < 0.3)
+    for (a, b) in spans:
+        ka, kb = poles.index(a), poles.index(b)
+        if ka in snapped and kb in snapped:
+            continue
+        if kb in snapped or ka in snapped:
+            (s, ks), (o, ko) = ((b, kb), (a, ka)) if kb in snapped else ((a, ka), (b, kb))
+            wire_down((o[0] + s[0]) / 2, (o[1] + s[1]) / 2, o[0], o[1], yaws[ko], s[0], s[1], s[2])
+        else:
+            wire_span((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, a[0], a[1], yaws[ka], b[0], b[1], yaws[kb])
 
 
 def fence(points, h=1.1):
@@ -4642,9 +4984,11 @@ def main():
     motel()
     station_square()
     churchyard()
+    door_paths()
     extract_camps()
     zone_spawns()
     lamp_pass()
+    sign_pass()
     bush_pass()
     map_labels()
     check_roads()
@@ -5120,6 +5464,10 @@ def write_outdoor(ter):
         look = random.Random(f"debris {d['kind']} {x:.2f} {z:.2f}").choice("bcd")   # (owner: a mix of all three)
         if d["kind"] == "lamp" and LAMP_LOOK:
             look = LAMP_LOOK
+        if d["kind"] in SIGN_KINDS:
+            look = SIGN_LOOK
+        if d["kind"] in POLE_KINDS:   # (one look for every pole and its wires)
+            look = POLE_LOOK
         if d["kind"] == "berm":   # (earth banks are shaped from the ground; wire-mesh barriers only at army posts)
             look = "d" if any(e["kind"] in ARMY_KINDS and not e.get("dropped") and
                               math.hypot(e["at"][0] - x, e["at"][1] - z) < 30 for e in debris) else "b"
@@ -5133,7 +5481,10 @@ def write_outdoor(ter):
     with open(os.path.join(OUTDOOR_JSON_DIR, "terrain.json"), "w") as f:   # (the pieces are fitted to the ground)
         json.dump({"note": "Generated by tools/gen_old_bloxov.py: the ground's height grid (Godot x, z; split like BoxMap's "
                    "triangles), for art_source/scripts/make_outdoor.py.", "xs": [round(gx(v), 3) for v in ter.xs],
-                   "zs": [round(gz(v), 3) for v in ter.zs], "h": [[round(h, 3) for h in row] for row in ter.h]}, f)
+                   "zs": [round(gz(v), 3) for v in ter.zs], "h": [[round(h, 3) for h in row] for row in ter.h],
+                   # (the road ribbons' sections, Godot x, height, z, left then right, per road: so things lying in
+                   # the road sit on it, not on the ground under it)
+                   "roads": _ribbon_sections(ter)}, f)
     shown = []
     for chunk, ps in sorted(chunks.items()):
         i, j = int(chunk[-2]), int(chunk[-1])
@@ -5184,6 +5535,29 @@ def road_top(ter, x, z):
                 h = _ribbon_h(ter, i, px, pz, ux / ln, uz / ln, width)
                 best = h if best is None else max(best, h)
     return best
+
+
+KERB_ROADS = (0, 2, 3, 4, 5)   # (road index: Main Street, Hill Road, Mill Lane, the old road, Station Road) in TOWN
+
+
+def _ribbon_sections(ter):
+    """Per road: its width, ribbon points and their flags (see road_ribbons), and whether it gets kerbs (in town:
+    the flag is 3 where a door's path or a car park's way in meets it, no kerb there)."""
+    pts, _, flags, counts, widths = road_ribbons(ter)
+    gaps = [p[-1] for p, _, _ in door_walks] + [p[0] for p, _ in lot_ways] + [p[-1] for p, _ in lot_ways]
+    out, k = [], 0
+    for r, (n, w) in enumerate(zip(counts, widths)):
+        fl = list(flags[k:k + 2 * n])
+        for i in range(k, k + 2 * n):
+            x, z = pts[i][0] + M / 2, pts[i][2] + M / 2
+            if fl[i - k] == 0 and any(math.hypot(x - gx_, z - gz_) < 2.2 for gx_, gz_ in gaps):
+                fl[i - k] = 3.0
+            if not (TOWN[0] < x < TOWN[2] and TOWN[1] < z < TOWN[3]):
+                fl[i - k] = max(fl[i - k], 4.0)   # (out of town: no kerb)
+        out.append({"width": w, "kerb": r in KERB_ROADS, "flags": fl,
+                    "points": [[round(v, 3) for v in pts[i]] for i in range(k, k + 2 * n)]})
+        k += 2 * n
+    return out
 
 
 def road_ribbons(ter, step=2.0):
