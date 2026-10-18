@@ -7,7 +7,7 @@ quarter, gravel on road shoulders, the railway and round buildings. Which of tho
 generator (tools/gen_old_bloxov.py writes assets/textures/ground/splat.png). This script paints the tiles (64 px for
 2 m, like the building kit) in every grass look; the picked look is copied to grass_a.png / grass_b.png:
 
-    python3 art_source/scripts/make_ground.py [look]     (look: b, c or d; default GROUND_LOOK)
+    python3 art_source/scripts/make_ground.py [look]     (look: a, b, c, d or mix; default GROUND_LOOK)
 """
 import os
 import random
@@ -19,7 +19,9 @@ from make_building import Canvas  # noqa: E402
 
 OUT = os.path.join(mb.ROOT, "assets", "textures", "ground")
 LOOKS_DIR = os.path.join(mb.ROOT, "art_source", "textures", "ground_looks")   # every look (not shipped)
-GROUND_LOOK = "c"     # the picked grass look (see LOOKS)
+GROUND_LOOK = "mix"   # the picked grass look (see LOOKS), or "mix": MIX's three tiles in the shader's gradient
+# (owner 2026-10-18: "a gradient of the 3 grass textures"): meadow, lush, then late summer, the most of the map
+MIX = (("d", "a"), ("b", "a"), ("c", "a"))
 
 mb.PALETTE.update({
     # b: lush green
@@ -192,11 +194,13 @@ def main():
         if painter:
             save(os.path.join(OUT, name + ".png"), painter(random.Random(name)), name)
     dither(os.path.join(OUT, "dither.png"))
-    tufts(os.path.join(OUT, "tufts.png"), pick)
+    tufts(os.path.join(OUT, "tufts.png"), "c" if pick == "mix" else pick)
     macro(os.path.join(OUT, "macro.png"))
-    for part in "ab":
-        with open(os.path.join(LOOKS_DIR, f"grass_{pick}_{part}.png"), "rb") as f, \
-                open(os.path.join(OUT, f"grass_{part}.png"), "wb") as g:
+    # (one look: its two tiles, the second also in grass_c's place)
+    picked = MIX if pick == "mix" else ((pick, "a"), (pick, "b"), (pick, "b"))
+    for slot, (look, part) in zip("abc", picked):
+        with open(os.path.join(LOOKS_DIR, f"grass_{look}_{part}.png"), "rb") as f, \
+                open(os.path.join(OUT, f"grass_{slot}.png"), "wb") as g:
             g.write(f.read())
     print("ground textures written, grass look", pick)
 

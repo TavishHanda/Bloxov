@@ -1,8 +1,9 @@
-[gd_resource type="ShaderMaterial" load_steps=11 format=3]
+[gd_resource type="ShaderMaterial" load_steps=12 format=3]
 
 [ext_resource type="Shader" path="res://assets/shaders/ground.gdshader" id="1_shader"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/grass_a.png" id="2_ga"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/grass_b.png" id="3_gb"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/grass_c.png" id="11_gc"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/earth.png" id="4_earth"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/mud.png" id="5_mud"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/scorch.png" id="6_scorch"]
@@ -17,6 +18,7 @@ render_priority = 0
 shader = ExtResource("1_shader")
 shader_parameter/grass_a = ExtResource("2_ga")
 shader_parameter/grass_b = ExtResource("3_gb")
+shader_parameter/grass_c = ExtResource("11_gc")
 shader_parameter/earth = ExtResource("4_earth")
 shader_parameter/mud = ExtResource("5_mud")
 shader_parameter/scorch = ExtResource("6_scorch")

@@ -42,6 +42,10 @@ mb.PALETTE.update({
     "dmp_g": "3f5a43", "dmp_g_dk": "324835", "dmp_b": "3d4f66", "dmp_b_dk": "2f3e52",
     "trk_o": "4f5838", "trk_o_dk": "3f472c", "trk_c": "7a7556", "trk_c_dk": "666246",
     "rail_r": "5a3b2b", "rail_r_dk": "483023", "paper": "b9b2a0",
+    # bushes (step 2, owner: "add some big bushes"): leafy green, a dark evergreen, and one in flower
+    "lf1": "4a6b35", "lf1_dk": "3a5529", "lf1_lt": "5e8040", "lf1_sh": "2c4524",
+    "lf2": "3f5a37", "lf2_dk": "2f4529", "lf2_lt": "4f6b42", "lf2_sh": "263a22",
+    "lf3": "4f6e38", "lf3_dk": "3e5a2b", "lf3_lt": "638545", "blossom": "d8d0c2", "blossom2": "c9a4b8",
 })
 
 
@@ -113,6 +117,24 @@ def k_slate(rng):
         y += h
     c.noise(0, 0, 64, 64, ["slate2", "slate_lt"], 0.06, rng)
     return c
+
+
+def k_leaf(base, dk, lt, sh, flowers=()):
+    """Leaves: clumps of light-catching leaves over dark gaps, pixel-crisp (64 px for 2 m like the rest of the kit)."""
+    def paint(rng):
+        c = Canvas(64, 64, base)
+        c.noise(0, 0, 64, 64, [dk, lt], 0.3, rng)
+        c.blotch([sh], 22, rng, size=(1, 3))       # gaps into the bush
+        for _ in range(90):                          # single leaves: a lit pixel over a dark one
+            x, y = rng.randrange(64), rng.randrange(64)
+            c.put(x, y, lt)
+            c.put(x, (y - 1) % 64, dk)
+        for _ in range(40 if flowers else 0):
+            x, y = rng.randrange(63), rng.randrange(63)
+            col = rng.choice(flowers)
+            c.rect(x, y, x + 2, y + 1, col)
+        return c
+    return paint
 
 
 def k_mossrock(rng):
@@ -244,6 +266,8 @@ mb.KIT.update({
     # (round 2: banks and crater rims are shaped from the ground and coloured like it, so they blend in; the ground's
     # own look comes in outdoor step 2 and these follow it)
     "dbr_ground": mb.paint_flat("ground"), "dbr_earth": k_earth, "dbr_scorch": k_scorch,
+    "dbr_leaf_b": k_leaf("lf1", "lf1_dk", "lf1_lt", "lf1_sh"), "dbr_leaf_c": k_leaf("lf2", "lf2_dk", "lf2_lt", "lf2_sh"),
+    "dbr_leaf_d": k_leaf("lf3", "lf3_dk", "lf3_lt", "lf1_sh", flowers=("blossom", "blossom2")),
 })
 
 
@@ -634,6 +658,32 @@ def draw_rocks(b, piece, rng):
             rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", jitter=0.12, chamfer=0.42)
 
 
+# ------------------------------------------------------------------------------------------------ bushes
+def draw_bush(b, piece, rng):
+    """A bush filling its (solid) box: a big rounded body with smaller clumps bulging out of it, so it reads round
+    from every side. Looks: b leafy green, c dark evergreen (taller, pointed), d in flower."""
+    look = piece["look"]
+    mat = "dbr_leaf_" + look
+    for box in piece["boxes"]:
+        s, c, yaw = box["size"], box["pos"], box["yaw"]
+        y0 = c[1] - s[1] / 2 - 0.08
+        taper = 0.55 if look == "c" else 0.8
+        rock(b, (c[0], y0 + s[1] * 0.42, c[2]), (s[0] * 0.92, s[1] * 0.84, s[2] * 0.92), yaw, rng, mat,
+             jitter=0.12, chamfer=0.38, taper=taper)
+        for k in range(rng.randint(4, 6)):
+            a = math.radians(yaw + k * 360 / 5 + rng.uniform(-25, 25))
+            r = rng.uniform(0.28, 0.4)
+            px, pz = math.cos(a) * s[0] * r, math.sin(a) * s[2] * r
+            hh = s[1] * rng.uniform(0.45, 0.65) * (0.8 if look == "c" else 1.0)
+            w = min(s[0], s[2]) * rng.uniform(0.45, 0.6)
+            rock(b, (c[0] + px, y0 + hh / 2 + rng.uniform(0.0, 0.25), c[2] + pz), (w, hh, w * rng.uniform(0.8, 1.1)),
+                 rng.uniform(0, 90), rng, mat, jitter=0.15, chamfer=0.4, taper=0.8)
+        top = s[1] * (0.4 if look == "c" else 0.32)       # a crown on top
+        w = min(s[0], s[2]) * (0.4 if look == "c" else 0.55)
+        rock(b, (c[0] + rng.uniform(-0.15, 0.15), y0 + s[1] + 0.08 - top / 2, c[2] + rng.uniform(-0.15, 0.15)),
+             (w, top, w), rng.uniform(0, 90), rng, mat, jitter=0.12, chamfer=0.42, taper=0.6 if look == "c" else 0.8)
+
+
 # ------------------------------------------------------------------------------------------------ containers
 def container(f, rng, skin, ribs=True, holes=False, L=6.1, W=2.4, H=2.6):
     side = lambda nn, m, q: None if nn[1] < -0.7 else (skin, uv_world(2.4))
@@ -932,7 +982,7 @@ def draw_junk(b, piece, rng):
 
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
-        "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk}
+        "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush}
 
 
 def main():

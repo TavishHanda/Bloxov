@@ -2632,9 +2632,60 @@ def tree(x, z, rng):
         box(x - s / 2, h - 1.0, z - s / 2, x + s / 2, h + s * 0.7, z + s / 2, "leaves", solid=False)
 
 
+@debris_kind("bush")
 def bush(x, z, rng):
     s = rng.uniform(1.4, 2.2)
     box(x - s / 2, 0, z - s / 2, x + s / 2, rng.uniform(1.0, 1.5), z + s / 2, "leaves")
+
+
+@debris_kind("bush")
+def big_bush(x, z, rng):
+    sx, sz = rng.uniform(1.8, 2.9), rng.uniform(1.6, 2.6)
+    h = rng.uniform(1.3, 1.9)
+    obox(x, h / 2, z, sx, h, sz, rng.uniform(0, 180), "leaves")
+
+
+def _bush_spot(x, z):
+    """Grass a bush can stand on: off roads, the rail, water, yards, doorsteps, spawns, extracts and loot (closer in
+    than `_clear_of_map`: bushes grow along yards and round houses; the scatter's overlap check does the rest)."""
+    if not (6 < x < M - 6 and 6 < z < M - 6) or abs(z - RAIL_Z) < 6:
+        return False
+    if any(t[0] - 4 < x < t[2] + 4 and t[1] - 4 < z < t[3] + 4 for t in TRENCHES):
+        return False
+    for points, width in roads + water + paths:
+        for a, b in zip(points, points[1:]):
+            if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 3.5:
+                return False
+    for x0, z0, x1, z1 in yards:
+        if x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2:
+            return False
+    for name, x0, z0, x1, z1 in scatter_footprints() + areas:
+        if x0 - 4 < x < x1 + 4 and z0 - 4 < z < z1 + 4:
+            return False
+    if any(math.hypot(x - sx, z - sz) < 6 for _, sx, sz in player_spawns + enemy_spawns):
+        return False
+    if any(math.hypot(x - ex, z - ez) < 10 for _, _, ex, ez in extracts):
+        return False
+    return not any(math.hypot(x - l[2], z - l[4]) < 4 for l in loot)
+
+
+def bush_pass(spacing=11.0, tries=3000):
+    """Big bushes on open grass (World art 0.17, outdoor step 2, owner 2026-10-18: "add some big bushes"): clumps of
+    one to three, solid like the bushes in the woods (cover)."""
+    _fp_index["upto"], _fp_index["grid"] = 0, {}   # (boxes were taken out since the scatter: index them afresh)
+    rng = random.Random(5150)
+    placed = []
+    for _ in range(tries):
+        x, z = rng.uniform(0, M), rng.uniform(0, M)
+        if any(math.hypot(x - px, z - pz) < spacing for px, pz in placed) or not _bush_spot(x, z):
+            continue
+        placed.append((x, z))
+    for x, z in placed:
+        for k in range(rng.choice((1, 1, 2, 2, 3))):
+            a, d = rng.uniform(0, 2 * math.pi), 0.0 if k == 0 else rng.uniform(2.2, 3.2)
+            with scatter_piece(x, z):
+                big_bush(x + math.cos(a) * d, z + math.sin(a) * d, rng)
+    return placed
 
 
 def car_stack(x, z, yaw, n, rng, kind=None):
@@ -4315,6 +4366,7 @@ def main():
     motel()
     churchyard()
     zone_spawns()
+    bush_pass()
     map_labels()
     check_roads()
     settle_fallen_doors()
