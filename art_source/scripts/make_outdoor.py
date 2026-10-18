@@ -2546,6 +2546,48 @@ def draw_culvert(b, piece, rng):
             rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, rng.choice(("dbr_mossrock", "dbr_granite")),
                  jitter=0.12, chamfer=0.4)
 
+
+def draw_bank(b, piece, rng):
+    """The creek's banks (gen bank_stretch): pebbles (small boulders, mostly sunk) and reed clumps: thin blades leaning
+    out from the clump's middle, a few with a brown seed head."""
+    for box in piece["boxes"]:
+        s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
+        if box["colour"] == "stone":
+            rock(b, c, s, yaw, rng, rng.choice(("dbr_granite", "dbr_mossrock")), jitter=0.12, chamfer=0.4)
+            continue
+        y0 = c[1] - s[1] / 2 - 0.15
+        for _ in range(rng.randint(9, 15)):
+            a, r = rng.uniform(0, 2 * math.pi), rng.uniform(0, 0.5) * min(s[0], s[2])
+            h = s[1] * rng.uniform(0.6, 1.1)
+            lean = r / max(min(s[0], s[2]) * 0.5, 0.01) * rng.uniform(6, 16)
+            bx, bz = c[0] + math.cos(a) * r, c[2] + math.sin(a) * r
+            b.box((bx, y0 + h / 2, bz), (0.035, h, 0.06), yaw=math.degrees(a) + 90, pitch=lean,
+                  style=flat(rng.choice(("dbr_grass", "dbr_grass", "dbr_leaf_b")), 1.0))
+            if rng.random() < 0.18:
+                b.box((bx, y0 + h + 0.08, bz), (0.07, 0.2, 0.07), yaw=math.degrees(a), pitch=lean, style=flat("dbr_pole", 1.0))
+
+
+def draw_log(b, piece, rng):
+    """A fallen tree on the bank: a bark-grey trunk, sawn-pale ends, a broken branch stub or two."""
+    box = piece["boxes"][0]
+    s, (x, y, z), yaw = box["size"], box["pos"], box["yaw"]
+    r = s[0] / 2
+    cyl(b, (x, y - 0.02, z), r, s[2], "dbr_pole", sides=10, axis="z", yaw=yaw, cap_mat="wood_dark")
+    for _ in range(rng.randint(1, 2)):
+        t = rng.uniform(-0.35, 0.35) * s[2]
+        side = rng.choice((-1, 1))
+        ca, sa = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        px, pz = x + sa * t + ca * side * r * 0.8, z + ca * t - sa * side * r * 0.8
+        b.box((px, y + 0.12, pz), (0.5, 0.1, 0.1), yaw=yaw + rng.uniform(-30, 30), pitch=rng.uniform(-20, 20),
+              style=flat("dbr_pole", 1.0))
+
+
+def draw_stones(b, piece, rng):
+    """Stepping stones across the creek: flat-topped boulders, their tops worn smooth."""
+    for box in piece["boxes"]:
+        s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
+        rock(b, c, s, yaw, rng, "dbr_granite", top="dbr_slate", jitter=0.05, chamfer=0.25, taper=0.85)
+
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
@@ -2556,7 +2598,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
         "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker, "signal": draw_signal, "points": draw_points,
-        "cave": draw_cave, "culvert": draw_culvert, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
+        "cave": draw_cave, "culvert": draw_culvert, "bank": draw_bank, "log": draw_log, "stones": draw_stones, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 
 def main():

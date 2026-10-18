@@ -3814,7 +3814,8 @@ def boxcar(x, z):
 # the creek; walk through it into a hidden room with a couple of safes"): the creek's source. At the head of the
 # creek the map's west edge becomes a rock cliff (owner 2026-10-18: "on the edge of the map ... instead of the wall"),
 # rising toward the border; a spring pours off its lip in front of a doorway (the falling water is drawn by
-# WaterfallSheet, no collision: you walk through it) and runs down a little stream into the creek. Inside, a rock
+# WaterfallSheet, no collision: you walk through it) off an overhang straight into the creek's head (owner
+# 2026-10-18: "the river actually goes into the waterfall"); the door opens onto the pool it falls into. Inside, a rock
 # room with two safes. The ground is cut out under the room (CAVE_HOLE); every box here stands on the ground at the
 # doorway (anchor "cave": y is from CAVE_OUTSIDE's ground, see terrain()). Map x, z; the cliff faces east.
 CAVE_Z = (215.0, 230.0)              # the cliff's north and south ends, along the map edge
@@ -3825,11 +3826,14 @@ CAVE_HOLE = (CAVE_ROOM[0], CAVE_ROOM[1], CAVE_FACE, CAVE_ROOM[3])   # (the room 
 CAVE_HEIGHT = 2.6
 CAVE_LIP = 6.5                       # the spring's lip, where the water falls from (the cliff rises behind it)
 CAVE_OUTSIDE = (CAVE_FACE + 0.4, sum(CAVE_DOOR[:2]) / 2)   # the ground the doorway opens onto (the floor's height)
-CAVE_SPLASH = (CAVE_FACE, CAVE_FACE + 0.9)   # the splash's x range at the cliff's foot
-# the stream the waterfall runs off in, down to the creek (BoxMap stream_points)
-CAVE_STREAM = [(CAVE_FACE + 1.7, 222.2), (8.8, 222.5), (9.8, 222.9), (10.8, 223.3), (11.8, 223.7)]
+CAVE_FALL = CAVE_FACE + 1.4          # where the water falls (x): off the overhang, into the creek's head
+CAVE_SPLASH = (CAVE_FALL - 0.7, CAVE_FALL + 0.7)   # the splash's x range on the water
+CAVE_STREAM = []                     # (a stream from the waterfall to the creek: none now, it falls into it)
+# the creek's head: the water starts behind the falling water, the channel deepens from there (Terrain._height)
+CREEK_HEAD = [(CAVE_FACE + 0.2, sum(CAVE_DOOR[:2]) / 2), (CAVE_FACE + 4.6, sum(CAVE_DOOR[:2]) / 2), (15.2, 224.1)]
+CREEK_HEAD_FADE = 1.2                # (m from the head to the full channel)
 NO_TREES.append((0.0, CAVE_Z[0] - 2.0, CAVE_FACE + 3.0, CAVE_Z[1] + 2.0))
-cave_floor = [0.0, 0.0]              # (the doorway's ground height and the splash's, set in terrain())
+cave_floor = [0.0, 0.0]              # (the doorway's ground height and the water's at the fall, set in terrain())
 
 
 @debris_kind("cave")
@@ -3846,6 +3850,7 @@ def cave_room(x, z):
     box(back, -0.4, rz0, rx0, CAVE_LIP + 1.6, rz1, "stone")
     box(rx0, CAVE_HEIGHT, rz0, rx1, CAVE_LIP + 0.4, rz1, "stone")                        # the roof
     box(fx - 3.4, CAVE_LIP - 0.4, z0 + 1.0, fx - 0.4, CAVE_LIP, z1 - 1.0, "stone")       # the lip on top
+    box(fx - 1.0, CAVE_LIP - 1.2, dz0 - 1.4, CAVE_FALL + 0.8, CAVE_LIP + 0.2, dz1 + 1.4, "stone")   # the overhang
     # boulders tumbled round its foot, so it reads as a rock cliff, not a block
     for bx, bz, w, h, d, yaw in ((fx + 0.6, z0 + 0.6, 1.5, 1.3, 1.6, 20), (fx - 0.6, z0 - 0.7, 2.2, 2.0, 1.8, -10),
                                  (fx + 0.5, z1 - 0.7, 1.3, 1.1, 1.4, 35), (fx - 2.5, z1 + 0.7, 2.4, 2.4, 1.8, 5),
@@ -3856,7 +3861,7 @@ def cave_room(x, z):
     box(rx0 + 2.7, 0.05, rz0 + 0.5, rx0 + 2.95, 0.4, rz0 + 0.75, "metal", solid=False)
     # the threshold: a slab from the floor out to the ground outside, tilted to meet it (terrain(): anchor
     # "cave_ramp"), so the step in is never too high for the AI's paths
-    ramp = (fx - 0.6, sum(CAVE_DOOR[:2]) / 2, fx + 1.6, sum(CAVE_DOOR[:2]) / 2)
+    ramp = (fx - 0.6, sum(CAVE_DOOR[:2]) / 2, fx + 1.1, sum(CAVE_DOOR[:2]) / 2)
     with anchored(("cave_ramp",) + ramp):
         obox((ramp[0] + ramp[2]) / 2, -0.13, ramp[1], dz1 - dz0 + 0.4, 0.3, ramp[2] - ramp[0], 90.0, "concrete")
     add_loot("Waterfall", "safe", rx0 + 0.45, rz0 + 1.8, y=0.02, yaw=-90.0)
@@ -3889,7 +3894,7 @@ def waterfall():
 
 # Where the creek leaves the map (outdoor step 6, owner 2026-10-18: "where it meets the end of the map isnt nice"): a
 # twin box culvert in a concrete headwall against the south edge, grates over both mouths, boulders at its wings. The
-# water runs in through the grates; nobody walks out. Map x, z; y from the water's surface there (anchor "culvert").
+# water runs in through the grates; nobody walks out. Map x, z; y from the water's surface there (anchor "water").
 CREEK_MOUTH = [(97.32, 340.55), (99.66, 344.16), (101.13, 348.2), (101.38, 350.0)]
 CULVERT_AT = (101.3, 348.5)
 CULVERT_FRONT = 347.4
@@ -3916,8 +3921,100 @@ def culvert(x, z):
 
 def creek_mouth():
     clear_scatter((CULVERT_AT[0] - 14.0, CULVERT_FRONT - 4.0, CULVERT_AT[0] + 14.0, M))
-    with anchored(("culvert",)):
+    with anchored(("water",) + CULVERT_AT):
         culvert(*CULVERT_AT)
+
+
+# The creek's banks (outdoor step 6): pebbles and reed clumps along the waterline (looks only), a few boulders standing
+# in the water (low cover, with foam rings: BoxMap water_rocks), fallen logs on the banks and two lines of stepping
+# stones (by the campsite, and between the two cabins). Distances are along the water line from where it starts.
+CREEK_EDGE = 3.2        # (the waterline: this far from the middle line)
+CREEK_ROCKS = ((14, -1.4, 1.2), (31, 1.1, 1.0), (49, -0.6, 1.3), (70, 1.6, 0.9), (91, -1.5, 1.1), (122, 0.9, 1.2),
+               (133, -1.2, 0.9), (150, 1.3, 1.1), (158, -0.4, 0.8))   # (distance, offset across (+ = left), size)
+CREEK_LOGS = ((40, 5.6, 5.0), (96, -6.0, 4.2), (142, 5.8, 4.6))       # (distance, offset across, length)
+CREEK_STONES = (72.5, 101.0)                                           # stepping stones across here
+water_rocks = []
+
+
+def _along(pts, dist):
+    """(x, z, direction x, direction z) at this distance along a polyline."""
+    for (ax, az), (bx, bz) in zip(pts, pts[1:]):
+        ln = math.hypot(bx - ax, bz - az)
+        if dist <= ln or (bx, bz) == pts[-1]:
+            t = min(1.0, dist / ln)
+            return ax + (bx - ax) * t, az + (bz - az) * t, (bx - ax) / ln, (bz - az) / ln
+        dist -= ln
+
+
+@debris_kind("bank")
+def bank_stretch(x, z, pts, d0, d1, rng):
+    """Pebbles and reeds along both waterlines from d0 to d1 m along the creek: looks only (no collision)."""
+    d = d0
+    while d < d1:
+        px, pz, dx, dz = _along(pts, d)
+        for side in (-1, 1):
+            nx, nz = -dz * side, dx * side
+            if rng.random() < 0.55:   # a pebble or two, half in the water
+                off = CREEK_EDGE + rng.uniform(-0.5, 0.4)
+                w = rng.uniform(0.25, 0.6)
+                obox(px + nx * off, w * 0.25 - 0.05, pz + nz * off, w, w * 0.6, w * rng.uniform(0.7, 1.0), rng.uniform(0, 180),
+                     "stone", solid=False)
+            if rng.random() < 0.3:    # a clump of reeds in the shallows
+                off = CREEK_EDGE + rng.uniform(-0.3, 0.6)
+                h = rng.uniform(0.9, 1.5)
+                obox(px + nx * off, h / 2, pz + nz * off, rng.uniform(0.6, 1.1), h, rng.uniform(0.6, 1.0), rng.uniform(0, 180),
+                     "grass", solid=False)
+        d += rng.uniform(1.6, 2.6)
+
+
+@debris_kind("rocks")
+def creek_rock(x, z, size, yaw):
+    obox(x, size * 0.45 - 0.75, z, size, size * 0.9 + 0.6, size * 0.85, yaw, "stone")
+
+
+@debris_kind("log")
+def fallen_log(x, z, length, yaw, rng):
+    obox(x, 0.2, z, 0.48, 0.48, length, yaw + rng.uniform(-12, 12), "trunk")
+
+
+@debris_kind("stones")
+def stepping_stones(x, z, dx, dz, rng):
+    """Flat-topped stones across the creek, a stride apart, just above the water (y from the water's surface)."""
+    nx, nz = -dz, dx
+    for k in range(7):
+        off = -2.85 + k * 0.95 + rng.uniform(-0.1, 0.1)
+        w = rng.uniform(0.6, 0.8)
+        obox(x + nx * off + dx * rng.uniform(-0.2, 0.2), 0.12 - 0.6, z + nz * off + dz * rng.uniform(-0.2, 0.2), w, 1.2,
+             w * rng.uniform(0.8, 1.0), rng.uniform(0, 90), "stone")
+
+
+def creek_banks():
+    pts = water[0][0][WATER_START:]
+    length = sum(math.hypot(bx - ax, bz - az) for (ax, az), (bx, bz) in zip(pts, pts[1:]))
+    rng = random.Random("creek banks")
+    near_stones = lambda d: any(abs(d - s) < 3.0 for s in CREEK_STONES)
+    for k in range(int(length // 12.0)):   # (one piece per 12 m, so each map chunk draws its own)
+        d0, d1 = k * 12.0 + 2.0, min(length - 4.0, (k + 1) * 12.0 + 2.0)
+        px, pz, _, _ = _along(pts, (d0 + d1) / 2)
+        bank_stretch(px, pz, pts, d0, d1, rng)
+    for d, off, size in CREEK_ROCKS:
+        if near_stones(d):
+            continue
+        px, pz, dx, dz = _along(pts, d)
+        x, z = px - dz * off, pz + dx * off
+        with anchored(("water", x, z)):
+            creek_rock(x, z, size, rng.uniform(0, 90))
+        water_rocks.append((gx(x), gz(z), size * 0.5))
+    for d, off, length_ in CREEK_LOGS:
+        px, pz, dx, dz = _along(pts, d)
+        x, z = px - dz * off, pz + dx * off
+        clear_scatter((x - length_ / 2 - 1, z - length_ / 2 - 1, x + length_ / 2 + 1, z + length_ / 2 + 1))
+        fallen_log(x, z, length_, math.degrees(math.atan2(dx, dz)), rng)
+    for d in CREEK_STONES:
+        px, pz, dx, dz = _along(pts, d)
+        with anchored(("water", px, pz)):
+            stepping_stones(px, pz, dx, dz, rng)
+
 
 # The derailed freight train by the creek (World art 0.17, outdoor step 5; owner 2026-10-18 picked C): it came off
 # the rails just past the bridge, westbound; the locomotive slewed off and leans into the ballast, two boxcars
@@ -4042,7 +4139,7 @@ CREEK_DEPTH = 0.9
 CREEK_BED = 1.5
 CREEK_BANK = 4.5
 WATER_DROP = 0.35
-WATER_START = 2   # the first creek point with water (the ones before run under the railway at the map edge)
+WATER_START = 0   # the first creek point with water (it starts at the waterfall, CREEK_HEAD)
 # Ground covers (building ground floors, yards, car parks: flat, looks-only boxes built from height 0) end up this far
 # above the ground, so the two never flicker against each other from far away (0.11.21; they were 3 cm up). The
 # ground under them isn't drawn where they cover it completely (`terrain_hidden`).
@@ -4317,9 +4414,9 @@ class Terrain:
         h = self._surface(x, z)
         for points, width, carve, bound in self.lines:
             if carve and bound[0] <= x <= bound[2] and bound[1] <= z <= bound[3]:
-                d, (_, pz) = _nearest_on(points, x, z)
+                d, (px, pz) = _nearest_on(points, x, z)
                 if d < CREEK_BANK:
-                    h -= CREEK_DEPTH * (1.0 - _smoothstep(CREEK_BED, CREEK_BANK, d)) * _smoothstep(212.5, 216.0, pz)
+                    h -= CREEK_DEPTH * (1.0 - _smoothstep(CREEK_BED, CREEK_BANK, d)) * _smoothstep(0.0, CREEK_HEAD_FADE, math.hypot(px - CREEK_HEAD[0][0], pz - CREEK_HEAD[0][1]))
         return h
 
     def water_level(self, x, z):
@@ -4436,9 +4533,7 @@ def terrain():
     # (the highest ground at the threshold, so walking in never steps up onto the floor)
     cave_floor[0] = max(ter.at(CAVE_OUTSIDE[0] + dx, CAVE_OUTSIDE[1] + dz) for dx in (-0.3, 0.0, 0.3) for dz in (-1.0, 0.0, 1.0))
     # (the splash lies on the threshold slab: from the floor at the door down to the ground at its end)
-    out_x = CAVE_FACE + 1.6
-    t = (sum(CAVE_SPLASH) / 2 - (CAVE_FACE - 0.6)) / (out_x - (CAVE_FACE - 0.6))
-    cave_floor[1] = cave_floor[0] + (ter.at(out_x, CAVE_OUTSIDE[1]) - cave_floor[0]) * t + 0.05
+    cave_floor[1] = ter.water_level(CAVE_FALL, CAVE_OUTSIDE[1])
 
     def low(b):   # the lowest ground under a box that isn't on a pad (so it never floats)
         p = ter.pad_at(b[0] + M / 2, b[2] + M / 2)
@@ -4484,8 +4579,8 @@ def terrain():
             out.append(_moved(b, low(b)))
         elif a == ("cave",):
             out.append(_moved(b, cave_floor[0]))
-        elif a == ("culvert",):
-            out.append(_moved(b, ter.water_level(*CULVERT_AT)))
+        elif a[0] == "water":   # (y from the water's surface there)
+            out.append(_moved(b, ter.water_level(a[1], a[2])))
         elif a[0] == "cave_ramp":
             _, ax, az, bx, bz = a
             out.append(_tilted(b, cave_floor[0], ter.at(bx, bz), math.hypot(bx - ax, bz - az)))
@@ -4670,7 +4765,7 @@ def main():
     road([(196, 240), (180, 300), (160, 348)], 6)                                                      # South Lane
     # creek (shallow: walkable) and the rail bridge over it
     creek = bezier((0, 212), (60, 250), (40, 300), (110, 350), n=48)
-    creek = creek[:-4] + CREEK_MOUTH   # (its last stretch turns to run straight into the culvert at the edge)
+    creek = CREEK_HEAD + creek[6:-4] + CREEK_MOUTH   # (its last stretch turns to run straight into the culvert at the edge)
     water.append((creek, 5.0))   # (the water itself is a surface `BoxMap` makes from `water_points`)
 
     # --- railway (west to east at y 210) with sidings to the depot
@@ -5248,6 +5343,7 @@ def main():
     signals_and_points()
     waterfall()
     creek_mouth()
+    creek_banks()
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
@@ -5625,7 +5721,6 @@ def write_splat(ter):
                 stamp(c, min(a[0], b[0]) - r, min(a[1], b[1]) - r, max(a[0], b[0]) + r, max(a[1], b[1]) + r, v)
     lines(0, paths, 0.0, 0.5)                                 # footpaths
     lines(1, water, 0.6, 2.2)                                  # mud along the creek
-    lines(1, [(CAVE_STREAM, 1.0)], 0.4, 1.3)                   # and the waterfall's stream
     lines(3, roads, 0.5, 1.3)                                  # road shoulders (under the road too: it hides it)
     stamp(3, 0, RAIL_Z - 3.2, M, RAIL_Z + 3.2, lambda x, z: max(0.0, min(1.0, (3.2 - abs(z - RAIL_Z)) / 0.8)))
     small_yards = [y for y in yards if (y[2] - y[0]) * (y[3] - y[1]) < 1500]   # (not round the farm's fields)
@@ -5940,11 +6035,13 @@ def write_scene(ter):
             "water_points = PackedVector3Array(" + ", ".join(
                 f"{fmt(gx(x))}, {fmt(ter.water_level(x, z))}, {fmt(gz(z))}" for x, z in water[0][0][WATER_START:]) + ")",
             "stream_points = PackedVector3Array(" + ", ".join(f"{fmt(x)}, {fmt(y)}, {fmt(z)}" for x, y, z in stream_line(ter)) + ")",
-            "stream_width = 1.0", "",
+            "stream_width = 1.0",
+            "water_rocks = PackedVector4Array(" + ", ".join(f"{fmt(x)}, {fmt(z)}, {fmt(r)}, 0" for x, z, r in water_rocks) + ")",
+            "",
             # the waterfall's falling water and its splash (outdoor step 6), in front of the secret room's door
             '[node name="WaterfallSheet" type="MeshInstance3D" parent="Level"]',
-            f"transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, {fmt(gx(CAVE_FACE + 0.4))}, "
-            f"{fmt(cave_floor[0] + CAVE_LIP / 2 - 0.1)}, {fmt(gz(sum(CAVE_DOOR[:2]) / 2))})",
+            f"transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, {fmt(gx(CAVE_FALL))}, "
+            f"{fmt(cave_floor[0] + CAVE_LIP - 1.1 - 2.95)}, {fmt(gz(sum(CAVE_DOOR[:2]) / 2))})",
             'mesh = ExtResource("g_fall")',
             "cast_shadow = 0", "",
             '[node name="WaterfallSplash" type="MeshInstance3D" parent="Level"]',

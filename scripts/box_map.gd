@@ -65,6 +65,8 @@ const WATER_ACROSS := 9
 ## A little stream (World art 0.17: from the waterfall down to the creek): drawn like the water, too shallow to wade.
 @export var stream_points := PackedVector3Array()
 @export var stream_width := 1.0
+## Rocks standing in the creek (Godot x, z, radius, 0): the water shader draws foam rings round them (up to 16).
+@export var water_rocks: PackedVector4Array
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
@@ -339,6 +341,12 @@ func _water_arrays(line: PackedVector3Array, width: float) -> Array:
 
 func _water_material() -> Material:
 	if water_material:
+		if not Engine.is_editor_hint() and water_material is ShaderMaterial:   # (not in the editor: it would save them)
+			var rocks: Array[Vector4] = []
+			for r in water_rocks.slice(0, 16):
+				rocks.append(r)
+			water_material.set_shader_parameter("rocks", rocks)
+			water_material.set_shader_parameter("rock_count", rocks.size())
 		return water_material
 	var material := StandardMaterial3D.new()
 	var colour := colors[water_colour] if water_colour < colors.size() else Color.MAGENTA
