@@ -52,6 +52,8 @@ mb.PALETTE.update({
     # power lines (outdoor step 4): creosoted pole wood, glass and porcelain insulators, transformer grey
     "pole1": "5b4a3a", "pole2": "4d3f32", "pole_lt": "6b5a48", "pole_ck": "3a3027",
     "ins_g": "5f8a7a", "ins_g_lt": "7fa898", "porc": "6e4a34", "porc_lt": "86604a", "xf": "7b8079", "xf_dk": "656a64",
+    # the railway (step 5): ballast, steel
+    "bal1": "6f6a62", "bal2": "5e5953", "bal3": "7f786d", "bal_dk": "4b4743", "bal_oil": "45403a",
     # road signs (round 3): enamel colours, faded a little in the sun
     "sg_red": "a3342b", "sg_yel": "d9b33a", "sg_grn": "2f6146", "sg_blue": "2f4f7a", "sg_wht": "ddd8cc",
     "sg_blk": "26262a", "sg_wood": "6a4a2e", "sg_wood_dk": "553a23", "sg_cream": "d6c9a4",
@@ -286,6 +288,14 @@ def k_pole(rng):
     return c
 
 
+def k_ballast(rng):
+    """Railway ballast: crushed grey-brown stone, oily patches."""
+    c = Canvas(64, 64, "bal1")
+    c.noise(0, 0, 64, 64, ["bal2", "bal3", "bal_dk"], 0.55, rng)
+    c.blotch(["bal_oil"], 4, rng, size=(2, 5))
+    return c
+
+
 def k_canvas(rng):
     c = Canvas(64, 64, "trk_c")
     c.noise(0, 0, 64, 64, ["trk_c_dk"], 0.2, rng)
@@ -316,6 +326,7 @@ mb.KIT.update({
     "dbr_leaf_b": k_leaf("lf1", "lf1_dk", "lf1_lt", "lf1_sh"), "dbr_leaf_c": k_leaf("lf2", "lf2_dk", "lf2_lt", "lf2_sh"),
     "dbr_leaf_d": k_leaf("lf3", "lf3_dk", "lf3_lt", "lf1_sh", flowers=("blossom", "blossom2")),
     "dbr_setts": k_setts, "dbr_water": k_water, "awn_r_flat": mb.paint_flat("awn_r"), "hz_flat": mb.paint_flat("hz_y"),
+    "dbr_ballast": k_ballast, "sg_red_flat": mb.paint_flat("sg_red"),
     "dbr_pole": k_pole, "dbr_ins_g": mb.paint_flat("ins_g"), "dbr_porc": mb.paint_flat("porc"),
     "dbr_xf": k_paint("xf", "xf_dk", 3),
     "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
@@ -1356,6 +1367,15 @@ def sign_decals():
             w = Canvas.text_width(name)
             c.text(4, 3, name, ink)
         return paint
+    def xbuck(word):
+        def paint(c):
+            c.rect(0, 0, c.w, c.h, "sg_wht")
+            c.frame(0, 0, c.w, c.h, "sg_blk")
+            _say(c, 2, word, "sg_blk")
+        return paint
+    for word in ("RAILROAD", "CROSSING"):
+        a.add(f"xbuck_{word}", 41 if word == "RAILROAD" else 42, 9, xbuck(word))
+
     def manhole(c):
         c.rect(0, 0, c.w, c.h, "iron_dark")
         r = c.w / 2
@@ -1437,6 +1457,21 @@ def draw_sign(b, piece, rng):
             _plate(b, f2, (0, 2.1, 0), 0.78, 1.0, f"speed_c_{v}")
         else:
             _plate(b, f2, (0, 2.2, 0), 0.69, 0.69, f"speed_{look}_{v}", shape=_poly_shape(16, 0.345))
+    elif kind == "sign_rail":   # a crossbuck over a pair of warning lights (look-independent: the owner's C)
+        _post(b, f, "c", h=3.4)
+        for word, roll in (("RAILROAD", 40.0), ("CROSSING", -40.0)):
+            g = Frame(b, f.p(0, 0, 0.05), f.yaw)
+            shape = [(-0.64, -0.14), (0.64, -0.14), (0.64, 0.14), (-0.64, 0.14)]
+            c_, s_ = math.cos(math.radians(roll)), math.sin(math.radians(roll))
+            shape = [(x * c_ - y * s_, x * s_ + y * c_) for x, y in shape]
+            _plate(b, Frame(b, g.p(0, 0, 0.02 if roll > 0 else 0.0), f.yaw), (0, 2.95, 0), 1.28, 0.28,
+                   f"xbuck_{word}", shape=shape)
+        f.box((0, 2.2, 0.06), (1.1, 0.08, 0.06), style=flat("trim_dark", 1.0))
+        for x in (-0.45, 0.45):
+            cyl(b, f.p(x, 2.2, 0.14), 0.15, 0.06, "black", sides=10, axis="z", yaw=f.yaw)
+            cyl(b, f.p(x, 2.2, 0.18), 0.11, 0.03, "sg_red_flat", sides=10, axis="z", yaw=f.yaw)
+            f.box((x, 2.37, 0.2), (0.32, 0.04, 0.16), style=flat("black", 1.0))   # hoods
+        f.box((0, 1.3, 0.06), (0.3, 0.4, 0.2), style=flat("trim_dark", 1.0))      # the bell box
     elif kind == "sign_dir":
         name = DIR_NAMES[extra]
         _post(b, f, look, h=2.6)
@@ -1531,6 +1566,136 @@ def draw_road_edges(b, rng):
                     g = Frame(b, (q[0], q[1], q[2]), yaw)
                     g.box((0, 0.012, 0), (0.42, 0.024, 0.7), style=lambda n_, m_, q_: None if n_[1] < -0.7 else
                           (("decals", mb.uv_fit(DECALS.regions["drain"])) if n_[1] > 0.7 else ("trim_dark", uv_world(1.0))))
+
+
+# ------------------------------------------------------------------------------------------------ the railway
+# (outdoor step 5) The track: a ballast bed, creosoted sleepers every 0.65 m, two steel rails (standard gauge) with
+# rusty sides and a bright running top. Over the creek the sleepers lie on the bridge; at the level crossing the road
+# covers it. The bridge: timber deck on two steel plate girders and concrete abutments. Boxcars: ribbed steel bodies
+# on two bogies, sliding doors, a roof walk, end ladders; looks b brown-red / blue, c army olive, d burnt out.
+GAUGE = 1.435
+
+
+def _track_line(b, a, c, top, rng, ballast=True):
+    """Track from a to c (chunk points, on the bed's top `top`)."""
+    d = v_sub(c, a)
+    L = math.hypot(d[0], d[2])
+    if L < 0.05:
+        return
+    yaw = math.degrees(math.atan2(d[0], d[2]))
+    f = Frame(b, (a[0], top, a[2]), yaw)
+    n = max(1, int(L / 0.65))
+    for k in range(n):
+        z = (k + 0.5) * L / n
+        p = f.p(0, 0, z)
+        if surface(p[0], p[2]) > top + 0.12:   # (under the road at the level crossing)
+            continue
+        f.box((rng.uniform(-0.04, 0.04), 0.06, z), (2.5, 0.12, 0.24), yaw=rng.uniform(-2, 2), style=no_bottom("dbr_pole", 1.0))
+    if ballast:
+        for side in (-1, 1):   # the bed's sloped shoulders (its top is the gray box, drawn as stone)
+            q = [f.p(side * 1.3, 0.0, 0), f.p(side * 1.3, 0.0, L), f.p(side * 1.75, -0.2, L), f.p(side * 1.75, -0.2, 0)]
+            b.poly(q, norm(rot((side * 0.4, 1.0, 0), yaw, 0.0)), "dbr_ballast", uv_world(1.0))
+        b.poly([f.p(-1.3, 0.0, 0), f.p(1.3, 0.0, 0), f.p(1.3, 0.0, L), f.p(-1.3, 0.0, L)], (0, 1, 0), "dbr_ballast", uv_world(1.0))
+    for side in (-1, 1):
+        x = side * GAUGE / 2
+        f.box((x, 0.135, L / 2), (0.13, 0.03, L), style=no_bottom("dbr_rail", 1.0))          # foot
+        f.box((x, 0.19, L / 2), (0.025, 0.08, L), style=no_bottom("dbr_rail", 1.0))          # web
+        f.box((x, 0.245, L / 2), (0.07, 0.04, L), style=lambda n_, m_, q_: None if n_[1] < -0.7 else
+              (("steel_light", uv_world(1.0)) if n_[1] > 0.7 else ("dbr_rail", uv_world(1.0))))   # head
+
+
+def draw_track(b, piece, rng):
+    for box in piece["boxes"]:
+        if box["colour"] != "rail":
+            continue   # (the gray sleepers: drawn by _track_line)
+        (x, y, z), s = box["pos"], box["size"]
+        top = y + s[1] / 2
+        yaw = box["yaw"]
+        long_x = s[0] > s[2]
+        L = s[0] if long_x else s[2]
+        if long_x:
+            a, c = (x - L / 2, 0.0, z), (x + L / 2, 0.0, z)
+        else:
+            u = rot((0, 0, L / 2), yaw, 0.0)
+            a, c = v_sub((x, 0.0, z), u), v_add((x, 0.0, z), u)
+            if box["pitch"]:   # (a siding piece tilted to the ground: lay it flat at its middle; they're short)
+                pass
+        # (over the creek: no ballast, the sleepers lie on the bridge deck)
+        cuts = [0.0, 1.0]
+        wa, wc = a[0] + ORIGIN[0], c[0] + ORIGIN[0]
+        if long_x and wa < -133.0 < wc:   # (the bridge spans map x 36..48 = Godot -139..-127)
+            cuts = [0.0, (-139.0 - wa) / (wc - wa), (-127.0 - wa) / (wc - wa), 1.0]
+        for k in range(len(cuts) - 1):
+            p0 = v_add(a, v_scale(v_sub(c, a), cuts[k]))
+            p1 = v_add(a, v_scale(v_sub(c, a), cuts[k + 1]))
+            on_bridge = len(cuts) == 4 and k == 1
+            _track_line(b, p0, p1, 0.25 if on_bridge else top, rng, ballast=not on_bridge)
+
+
+def draw_bridge(b, piece, rng):
+    box = piece["boxes"][0]
+    (x, y, z), s = box["pos"], box["size"]
+    f = frame_of(b, box)   # (local x along the track: the deck is 12 m along x, 6 m across)
+    W, D = s[0], s[2]
+    top = s[1]
+    for k in range(int(D / 0.25)):   # deck planks across the girders
+        zz = -D / 2 + 0.125 + k * 0.25
+        f.box((0, top - 0.04, zz), (W, 0.08, 0.23), style=no_bottom("wood_dark" if k % 3 else "dbr_pole", 1.0))
+    for side in (-1, 1):   # plate girders under the rails
+        f.box((0, top - 0.6, side * 0.9), (W + 0.4, 1.04, 0.04), style=flat("dbr_rail", 1.0))
+        for yy in (top - 0.1, top - 1.1):
+            f.box((0, yy, side * 0.9), (W + 0.4, 0.04, 0.4), style=flat("dbr_rail", 1.0))
+        for k in range(7):   # stiffeners
+            f.box((-W / 2 + k * W / 6, top - 0.6, side * 0.9), (0.05, 1.0, 0.25), style=flat("dbr_rail", 1.0))
+        f.box((0, top + 0.5, side * (D / 2 - 0.1)), (W, 0.06, 0.06), style=flat("trim_dark", 1.0))   # hand rail
+        for k in range(7):
+            f.box((-W / 2 + 0.05 + k * (W - 0.1) / 6, top + 0.25, side * (D / 2 - 0.1)), (0.05, 0.5, 0.05),
+                  style=flat("trim_dark", 1.0))
+    for end in (-1, 1):   # concrete abutments down into the banks
+        p = f.p(end * (W / 2 + 0.4), 0, 0)
+        g = ground(p[0], p[2])
+        h = top - 0.1 - g + 1.0
+        f.box((end * (W / 2 + 0.4), top - 0.1 - h / 2, 0), (1.0, h, D + 0.6), style=no_bottom("dbr_conc", 2.0))
+
+
+BOXCAR_SKINS = {"b": ("dbr_cont_r", "dbr_rail", "dbr_cont_b"), "c": ("dbr_cont_g",), "d": ("dbr_burnt",)}
+
+
+def draw_boxcar(b, piece, rng):
+    box = piece["boxes"][0]
+    s = box["size"]
+    look = piece["look"]
+    skin = rng.choice(BOXCAR_SKINS[look])
+    base = frame_of(b, box)
+    yaw = base.yaw + (90.0 if s[0] > s[2] else 0.0)   # (local z along the car)
+    L, W = max(s[0], s[2]), min(s[0], s[2])
+    f = Frame(b, base.at, yaw)
+    H0 = 1.1
+    body = Frame(b, f.p(0, H0, 0), yaw)
+    container(body, rng, skin, ribs=True, holes=look == "d", L=L - 0.3, W=W - 0.1, H=s[1] - H0 - 0.08)
+    f.box((0, s[1] - 0.03, 0), (W - 0.02, 0.06, L - 0.25), style=flat(skin, 2.4))               # roof
+    f.box((0, s[1] + 0.03, 0), (0.5, 0.05, L - 0.6), style=flat("wood_dark", 1.0))              # roof walk
+    for side in (-1, 1):   # sliding doors, half open on some
+        dz = rng.choice((0.0, 0.0, 0.9))
+        f.box((side * (W / 2 + 0.01), H0 + 1.15, dz), (0.06, 2.2, 1.9), style=flat(skin, 2.4))
+        f.box((side * (W / 2 + 0.05), H0 + 2.32, 0.0), (0.05, 0.08, 4.2), style=flat("trim_dark", 1.0))   # door track
+        if dz and look != "c":
+            f.box((side * (W / 2 - 0.02), H0 + 1.15, -0.95), (0.02, 2.1, 0.02), style=flat("black", 1.0))
+    # underframe: the collision box goes to the ground, so it's filled: centre sill, equipment, shadowed fill
+    f.box((0, H0 - 0.15, 0), (W - 0.2, 0.3, L - 0.2), style=flat("trim_dark", 1.0))
+    f.box((0, 0.6, 0), (W - 0.9, 0.7, L - 4.6), style=flat("black", 1.0))
+    for zz in (-1.2, 0.6):
+        cyl(b, f.p(0.5, 0.75, zz), 0.25, 1.1, "trim_dark", sides=8, axis="z", yaw=yaw)       # air tanks
+    for end in (-1, 1):   # bogies, couplers, ladders
+        zc = end * (L / 2 - 1.9)
+        f.box((0, 0.75, zc), (W - 0.6, 0.35, 2.4), style=flat("trim_dark", 1.0))
+        for side in (-1, 1):
+            f.box((side * (GAUGE / 2 + 0.12), 0.55, zc), (0.12, 0.45, 2.6), style=flat("trim_dark", 1.0))
+            for az in (-0.9, 0.9):
+                cyl(b, f.p(side * GAUGE / 2, 0.42, zc + az), 0.42, 0.12, "dbr_rail", sides=10, axis="x", yaw=yaw)
+        f.box((0, 0.95, end * (L / 2 + 0.2)), (0.3, 0.25, 0.5), style=flat("trim_dark", 1.0))
+        for k in range(6):
+            f.box((W / 2 - 0.3, H0 + 0.3 + k * 0.38, end * (L / 2 - 0.12)), (0.4, 0.03, 0.03), style=flat("trim_dark", 1.0))
 
 
 # ------------------------------------------------------------------------------------------------ containers
@@ -1991,6 +2156,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "trench": draw_trench, "tent": draw_tent, "hut": draw_hut, "crates": draw_crates, "net": draw_net,
         "shelter": draw_shelter, "bench": draw_bench, "pole": draw_pole, "pole_snap": draw_pole_snap,
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
+        "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
         "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 

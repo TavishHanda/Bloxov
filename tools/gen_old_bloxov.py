@@ -203,7 +203,7 @@ def _fp_apart(p, q):
 def _fp_counts(b):
     """Earlier boxes a scattered piece must keep clear of: debris, and anything solid that stands on the ground
     (not ground covers, not tree tops)."""
-    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS:   # (power lines: only the poles, as before)
+    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS + RAIL_KINDS:   # (power lines, the railway: as before)
         return True
     return bool(b[9]) and b[4] > 0.2 and b[1] + b[4] / 2 > 0.05 and b[1] - b[4] / 2 < 2.0 and max(b[3], b[5]) < 60
 
@@ -2936,7 +2936,7 @@ def lamp_pass(every=24.0):
 # for leaving), stop signs where side roads meet a bigger one, speed limits, and finger boards at the big junctions.
 # Drawn by the outdoor kit (make_outdoor.py draw_sign) in SIGN_LOOK ("none": no signs, for the options sheet).
 SIGN_LOOK = os.environ.get("BLOXOV_SIGN_LOOK", "c")   # (owner 2026-10-18 picked C for paths, poles and signs)
-SIGN_KINDS = ("sign_town", "sign_stop", "sign_speed", "sign_dir", "sign_bus")
+SIGN_KINDS = ("sign_town", "sign_stop", "sign_speed", "sign_dir", "sign_bus", "sign_rail")
 
 
 def _sign(kind, x, z, yaw, extra=0):
@@ -3027,6 +3027,15 @@ def sign_pass():
     for x, z, yaw in BUS_STOPS:
         with scatter_piece(x, z):
             bus_shelter(x, z, yaw)
+    for curve, width in roads:   # level crossings (outdoor step 5): a crossbuck each side of the rails, facing the traffic
+        total, d, prev = _road_len(curve), 0.0, None
+        while d <= total:
+            x, z, _, _ = _road_point(curve, d)
+            if prev is not None and (prev < RAIL_Z) != (z < RAIL_Z):
+                _sign_at(curve, width, d - 5.5, 1, "sign_rail", off=1.0)
+                _sign_at(curve, width, d + 5.5, -1, "sign_rail", off=1.0)
+            prev = z
+            d += 0.5
 
 
 @debris_kind("sign_dir")
@@ -3653,6 +3662,7 @@ def scatter_trees(spots, spacing=34.0):
 # the look POLE_LOOK ("none": the old gray boxes, for the options sheet).
 POLE_LOOK = os.environ.get("BLOXOV_POLE_LOOK", "c")
 POLE_KINDS = ("pole", "pole_snap", "wire", "wire_down")
+RAIL_KINDS = ("track", "bridge", "boxcar")
 SNAPPED_POLES = ((183.0, 98.0), (236.0, 277.0))   # map x, z near the two shelled poles (Main Street, the old road)
 
 
@@ -3756,6 +3766,34 @@ def power_line(curve, side, width, every=34.0, skip_from=0.0):
             wire_down((o[0] + s[0]) / 2, (o[1] + s[1]) / 2, o[0], o[1], yaws[ko], s[0], s[1], s[2])
         else:
             wire_span((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, a[0], a[1], yaws[ka], b[0], b[1], yaws[kb])
+
+
+# The railway (World art 0.17, outdoor step 5): same boxes as the gray box (none of them changed: the track is looks
+# only, the bridge deck and the boxcars collide as before), drawn by the outdoor kit.
+@debris_kind("track")
+def track_main(x, z, x0, x1):
+    box(x0, 0, z - 1.6, x1, RAIL_TOP, z + 1.6, "rail", solid=False)
+    for sx in range(2, int(M), 3):
+        if not x0 <= sx < x1:
+            continue
+        if any(_nearest_on(pts, sx + 0.2, z)[0] < w / 2 + 3.0 for pts, w in roads):
+            continue   # (no sleepers poking through a level crossing)
+        box(sx, 0.0, z - 1.4, sx + 0.4, RAIL_TOP + 0.05, z + 1.4, "wood", solid=False)   # (5 cm up: no flicker)
+
+
+@debris_kind("track")
+def track_siding(x, z, points):
+    strip(points, 3.0, "rail", y=0.0, h=0.12)
+
+
+@debris_kind("bridge")
+def rail_bridge(x, z):
+    box(x - 6, 0.0, z - 3, x + 6, 0.25, z + 3, "wood")
+
+
+@debris_kind("boxcar")
+def boxcar(x, z):
+    box(x - 5.5, 0, z - 1.5, x + 5.5, 3.6, z + 1.5, "boxcar")
 
 
 def fence(points, h=1.1):
@@ -4417,14 +4455,13 @@ def main():
 
     # --- railway (west to east at y 210) with sidings to the depot
     RY = RAIL_Z
-    box(0, 0, RY - 1.6, M, RAIL_TOP, RY + 1.6, "rail", solid=False)
-    for x in range(2, int(M), 3):
-        if any(_nearest_on(pts, x + 0.2, RY)[0] < w / 2 + 3.0 for pts, w in roads):
-            continue   # (no sleepers poking through a level crossing)
-        box(x, 0.0, RY - 1.4, x + 0.4, RAIL_TOP + 0.05, RY + 1.4, "wood", solid=False)   # (5 cm up: no flicker)
+    # (World art 0.17, outdoor step 5: the track drawn by the outdoor kit, make_outdoor.py draw_track: ballast,
+    # sleepers, rails; one piece per map chunk so each chunk draws its own stretch)
+    for k in range(int(M // OUTDOOR_CHUNK)):
+        track_main(k * OUTDOOR_CHUNK + OUTDOOR_CHUNK / 2, RY, k * OUTDOOR_CHUNK, (k + 1) * OUTDOOR_CHUNK)
     for siding in ([(232, RY), (248, 220), (290, 220)], [(238, RY), (254, 228), (290, 228)]):
-        strip(siding, 3.0, "rail", y=0.0, h=0.12)
-    box(36, 0.0, RY - 3, 48, 0.25, RY + 3, "wood")   # rail bridge deck over the creek
+        track_siding(siding[-1][0], siding[-1][1], siding)
+    rail_bridge(42, RY)   # the rail bridge's deck over the creek
 
     # ===================================================================== TOWN (top left)
     # town square: paving + lots of cover (owner): fountain, planters, stalls, parked cars, statue, kiosk
@@ -4755,7 +4792,7 @@ def main():
               [("crate", 0, 0, 0, "N", -6), ("crate", 0, 0, 0, "S", 6)])
         depot_furniture(277.0, 241.0)
     for x0, z0 in ((145, RY), (171, RY), (266, 220), (266, 228), (300, RY)):
-        box(x0, 0, z0 - 1.5, x0 + 11, 3.6, z0 + 1.5, "boxcar")
+        boxcar(x0 + 5.5, z0)
     add_loot("Railyard", "crate", 150.0, RY + 2.3, yaw=180.0)
 
     # ===================================================================== BOTTOM RIGHT: old houses, gas station
