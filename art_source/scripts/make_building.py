@@ -21429,8 +21429,24 @@ def _car_cabin(z0, z1, y0, y1, W, paint, roof_z=None, pillars=()):
     return p
 
 
+PALETTE.update({"carcream": "a8a084", "carcream_dark": "9d957a"})
+
+
+def paint_car_cream(rng):
+    """Cream car paint: smooth, a little faded (the cream cars borrowed the shop's painted boards and looked wooden)."""
+    c = Canvas(64, 64, "carcream")
+    c.noise(0, 0, 64, 64, ["carcream_dark"], 0.05, rng)
+    c.blotch(["carcream_dark"], 3, rng, size=(4, 8))
+    return c
+
+
+KIT.update({"car_cream": paint_car_cream})
+CAR_SKIN = {"sb_cream": "car_cream"}   # paint name (the model's file name) -> the kit it's drawn with
+
+
 def car_parts(kind, paint):
     """The car's boxes: [((x, y, z), (sx, sy, sz), material, pitch)], its front at -z."""
+    paint = CAR_SKIN.get(paint, paint)
     if kind == "a":                                       # saloon: an 80s three-box four-door, chrome trim
         L, W = 4.2, 1.7
         p = [((0, 0.58, 0), (W, 0.52, L), paint, 0), ((0, 0.32, 0), (W - 0.04, 0.08, L - 1.2), "black", 0),

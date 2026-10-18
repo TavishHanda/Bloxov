@@ -2897,7 +2897,7 @@ def cover_pass(spacing=11.0, tries=6000):
 # The bombed old quarter (World art 0.17, owner 2026-10-17: the bottom right "a lot more war ruined ... the old area
 # that got bombed"): more shell holes and rubble between the clutter there.
 RUIN_AREAS = [(180.0, 225.0, 350.0, 350.0), (138.0, 255.0, 180.0, 340.0)]
-RUIN = [(crater, 4), (rubble, 3), (wreck, 2), (tank_traps, 1), (barrels, 1)]
+RUIN = [(crater, 4), (rubble, 2), (ruin, 2), (wreck, 2), (tank_traps, 1), (barrels, 1)]
 
 
 def ruin_pass(spacing=9.0, tries=5000):
