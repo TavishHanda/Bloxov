@@ -1898,6 +1898,92 @@ def fisher_cabin(x, y):
     o(-6.3, 0, 5.15, -3.6, 1.2, 5.75, "wood", "cabin_firewood")
 
 
+TC_X = 2.4          # the trapper's cabin (mirrors the fisherman's): the log wall between the main block (west) and the lean-to
+TC_BED_Z = -1.0     # the bedrooms' wall (main block, north)
+TC_BED_X = -2.05    # the wall between the two bedrooms (under the ridge)
+TC_STORE_Z = -1.6   # the pantry's and washroom's wall (lean-to, north)
+TC_WC_X = 4.375     # the washroom's west inside face (the pantry west of it)
+
+
+def trapper_cabin(x, y):
+    """The trapper's cabin in the bottom-left woods, west of the creek (World art 0.17, owner 2026-10-17: like the
+    fisherman's cabin but laid out differently, and not like the hunter's cabin in the east woods). Cabin2's spot and
+    size (13 x 10 m). The fisherman's shape mirrored: a log main block with its gable to the front (south) and a
+    lean-to on the creek side (east), but no gable porch: the way in is the lean-to's door under a low porch roof.
+    Lean-to: the workroom (traps, pelt stretchers, the duffel), the pantry and the washroom. Main block: the main room
+    (barrel stove, kitchen, trestle table) and two small bedrooms. Outside (west): a woodshed, a sawhorse, the
+    chopping block; a raised cache on stilts behind. Same one duffel."""
+    ox, oz = x + 6.5, y + 5.0
+
+    def o(x0, y0, z0, x1, y1, z1, colour, kind, solid=True):
+        box(ox + x0, y0, oz + z0, ox + x1, y1, oz + z1, colour, solid=solid, kind=kind)
+    ops = {"S": [("window", ox - 3.5, WIN_W, WIN_LO, WIN_HI), ("window", ox - 0.6, WIN_W, WIN_LO, WIN_HI),
+                 ("door", ox + 4.45, DOOR_W, 0.0, DOOR_H)],
+           "N": [("window", ox - 3.9, WIN_W, WIN_LO, WIN_HI), ("window", ox + 1.2, WIN_W, WIN_LO, WIN_HI),
+                 ("window", ox + 5.4, 0.8, 1.5, 2.1)],
+           "E": [("window", oz + 3.4, WIN_W, WIN_LO, WIN_HI)],
+           "W": [("window", oz + 3.0, WIN_W, WIN_LO, WIN_HI)]}
+    cab = Building("Cabin2", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S", open_plan=True, wall_openings=ops,
+                   spawn_spots=[(ox - 0.8, oz + 1.6), (ox + 4.2, oz + 1.8)])
+    build(cab)
+    add_loot("Cabin2", "crate", ox + 5.8, oz + 2.0, yaw=90.0)             # the duffel, workroom by the east wall
+    H = FLOOR_H - SLAB_T
+    # Inner walls: the old log wall between the main block and the lean-to (the workroom's doorway), the bedrooms'
+    # plank wall (a doorway into each) and the plank wall between them, the pantry's plank wall (a narrow doorway).
+    wall_z(oz - 4.85, oz + 4.85, ox + TC_X, 0.0, H, "wood", [(oz + 2.2, INNER_DOOR_W, 0.0, DOOR_H)], t=0.3)
+    inner_door(ox + TC_X, 0.0, oz + 2.2, 90.0, "Cabin2")
+    wall_x(ox - 6.35, ox + TC_X - 0.15, oz + TC_BED_Z, 0.0, H, "wood",
+           [(ox - 4.4, INNER_DOOR_W, 0.0, DOOR_H), (ox + 0.15, INNER_DOOR_W, 0.0, DOOR_H)], t=0.2)
+    inner_door(ox - 4.4, 0.0, oz + TC_BED_Z, 0.0, "Cabin2")
+    inner_door(ox + 0.15, 0.0, oz + TC_BED_Z, 0.0, "Cabin2")
+    wall_z(oz - 4.85, oz + TC_BED_Z - 0.1, ox + TC_BED_X, 0.0, H, "wood", t=0.2)
+    washroom(ox, oz, TC_WC_X, -4.85, 6.35, TC_STORE_Z, "WS", ("S", 5.4, 2), sign=None, fit=(
+        ("wc_bath", "N", 5.36, 1.65, 0.75, 0.6), ("wc_toilet", "E", -2.9, 0.5, 0.65, 0.8),
+        ("wc_sink", "W", -3.3, 0.5, 0.4, 0.85)))
+    wall_x(ox + TC_X + 0.15, ox + TC_WC_X - WC_T, oz + TC_STORE_Z + WC_T / 2, 0.0, H, "wood", [(ox + 3.4, 0.9, 0.0, DOOR_H)],
+           t=WC_T)
+    # Main room (x -6.35..2.25, z -0.9..4.85): the barrel stove on the west wall (its pipe up through the roof), the
+    # woodbox, the kitchen counter in the south-west corner, the trestle table and its benches, a hutch on the
+    # bedrooms' wall between their doors.
+    o(-6.35, 0, 0.0, -5.6, 1.1, 1.0, "metal", "tc_stove")
+    o(-6.35, 0, -0.75, -5.8, 0.6, -0.2, "wood", "tc_woodbox")
+    o(-6.35, 0, 4.2, -4.45, 0.92, 4.85, "wood", "tc_kitchen")
+    o(-4.6, 0, 1.55, -2.6, 0.78, 2.35, "wood", "tc_table")
+    o(-4.5, 0, 1.0, -2.7, 0.45, 1.35, "wood", "tc_bench", solid=False)
+    o(-4.5, 0, 2.55, -2.7, 0.45, 2.9, "wood", "tc_bench", solid=False)
+    o(-3.15, 0, -0.9, -1.1, 1.9, -0.45, "wood", "tc_hutch")
+    # West bedroom (the trapper's, x -6.35..-2.15): a log bed with a fur blanket on the west wall, a nightstand, a
+    # trunk at the foot, coats and his hat on pegs on the plank wall.
+    o(-6.35, 0, -4.85, -4.95, 0.6, -2.85, "wood", "tc_bed")
+    o(-4.85, 0, -4.85, -4.35, 0.6, -4.4, "wood", "tc_stand")
+    o(-6.35, 0, -2.7, -5.75, 0.55, -1.9, "wood", "cabin_trunk")
+    o(-2.7, 0.9, -4.6, -2.15, 1.9, -2.6, "wood", "tc_pegs", solid=False)
+    # East bedroom (x -1.95..2.25): the bunk along the north wall, a footlocker, a stool with a lamp.
+    o(-1.95, 0, -4.85, 0.05, 1.9, -3.95, "wood", "cabin_bunk")
+    o(1.65, 0, -3.3, 2.25, 0.5, -2.2, "wood", "tc_footlocker")
+    o(-1.9, 0, -2.4, -1.45, 0.5, -1.95, "wood", "tc_stool", solid=False)
+    # Pantry (x 2.55..4.225, z -4.85..-1.6): shelves of jars and tins on the log wall, a barrel and sacks.
+    o(2.55, 0, -4.85, 3.0, 2.0, -2.0, "wood", "tc_pantry_shelf")
+    o(3.35, 0, -4.85, 4.225, 0.9, -4.15, "wood", "tc_sacks")
+    # Workroom (lean-to, x 2.55..6.35, z -1.45..4.85): the workbench on the east wall (traps hung over it), stretcher
+    # boards leaning on the log wall; the duffel by the bench.
+    o(5.7, 0, -0.6, 6.35, 0.95, 1.3, "wood", "tc_workbench")
+    o(2.55, 0, -1.2, 2.85, 1.7, 0.9, "wood", "tc_stretchers", solid=False)
+    # Outside: the porch along the lean-to's front (deck picture only, its roof the lean-to's run on), a bench; the
+    # woodshed, sawhorse and chopping block on the west side; the raised cache behind (its stilts and box solid, the
+    # ladder and roof picture only); a pelt rack on the creek side.
+    o(2.4, 0, 5.15, 6.95, 0.06, 7.0, "wood", "cabin_porch", solid=False)
+    o(5.75, 0.06, 5.25, 6.85, 0.5, 5.65, "wood", "cabin_bench")
+    o(-9.2, 0, -3.8, -7.4, 1.6, -0.2, "wood", "tc_woodshed")
+    o(-9.2, 0, 2.5, -7.8, 0.95, 3.3, "wood", "tc_sawhorse")
+    o(-8.1, 0, 4.2, -7.5, 0.55, 4.8, "wood", "cabin_block")
+    for lx, lz in ((-5.1, -7.8), (-3.7, -7.8), (-5.1, -6.4), (-3.7, -6.4)):
+        o(lx - 0.1, 0, lz - 0.1, lx + 0.1, 2.0, lz + 0.1, "wood", "cabin_hidden")
+    o(-5.3, 2.0, -8.0, -3.5, 3.2, -6.2, "wood", "cabin_hidden")
+    o(-5.4, 0, -8.1, -3.4, 3.7, -6.1, "wood", "tc_cache", solid=False)
+    o(6.7, 0, -0.8, 7.3, 1.9, 1.8, "wood", "tc_pelt_rack", solid=False)
+
+
 def station_furniture(ox, oz):
     """Bloxov Station (World art 0.17) in the model's own coordinates (origin map (ox, oz); local x -19..19, z -7..7,
     walls 3.6 m, north = Station Road, south = the platform). Room middles, doorways and the way through stay clear;
@@ -3971,6 +4057,10 @@ def main():
         if n == 1:
             with modeled("cabin_fisher", x + 6.5, y + 5.0):
                 fisher_cabin(x, y)
+            continue
+        if n == 2:
+            with modeled("cabin_trapper", x + 6.5, y + 5.0):
+                trapper_cabin(x, y)
             continue
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
               [("crate", 1, 0, 0, "E", 0)])

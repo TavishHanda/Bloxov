@@ -15356,7 +15356,7 @@ CABIN_LOOKS = {
     "D": {"log": ("5c3f2a", "6d4c33", "4b3323", "37261b"), "chink": "b0a896", "tin": ("883a2e", "703026"), "trim": "bone",
           "shutter": "wine"},
 }
-CABIN_MODELS = {"cabin_east": "D", "cabin_fisher": "B"}
+CABIN_MODELS = {"cabin_east": "D", "cabin_fisher": "B", "cabin_trapper": "B"}
 _CS = [""]                     # the palette suffix the cabin painters use right now ("_d")
 for _l, _c in CABIN_LOOKS.items():
     _sfx = "_" + _l.lower()
@@ -16966,6 +16966,817 @@ SHELLS["cabin_fisher"] = {"ext": "cabin_logs_" + cab_look("cabin_fisher").lower(
                           "x_splits": (FC_X,), "z_splits": ()}
 FACTION_MARKS["cabin_fisher"] = [("nova_tag", "N", 4.6, 1.0)]
 WC_MATS["cabin_fisher"] = ("wood", "floor_wood")
+
+
+# ------------------------------------------------------------------------------------------------ trapper's cabin (0.17)
+# The second cabin in the bottom-left woods, west of the creek (owner 2026-10-17: like the fisherman's cabin, but laid
+# out differently), Cabin2 at map (36, 304), origin (42.5, 309): local x -6.5..6.5, z -5..5, walls 3 m. Look B like the
+# fisherman's. His shape mirrored: the log main block (x -6.5..2.4) with its gable to the front but no porch under it,
+# the lean-to on the creek side (east), its roof run on south over a low porch and the front door (the way in is the
+# lean-to's workroom). A barrel stove's pipe through the west slope instead of a stone chimney. Rooms: main room (stove,
+# kitchen, trestle table, hutch), two small bedrooms behind it (his, and a bunk room), the workroom (traps, stretchers,
+# workbench), pantry and washroom in the lean-to. Outside: woodshed, sawhorse and chopping block (west), the raised
+# cache on stilts (behind), a pelt rack (creek side).
+TC_X, TC_BED_Z, TC_BED_X = 2.4, -1.0, -2.05   # (gen: the lean-to's log wall, the bedrooms' walls)
+TC_STORE_Z, TC_WC_X = -1.6, 4.375            # (gen: the pantry's wall, the washroom's west face)
+TC_RX = -2.05                  # the main block's ridge
+TC_HALF = 4.6                  # the main block's outside faces from the ridge (x -6.65 and 2.55)
+TC_T = 0.65                    # its roof's pitch (33 degrees), like the fisherman's
+TC_EAVE = 4.4                  # the main block's eaves (its log walls go on up past the 3 m slab, picture only)
+TC_RIDGE = TC_EAVE + TC_HALF * TC_T
+TC_LT_HI, TC_LT_T = 4.05, 0.2  # the lean-to roof: its top against the main block, its pitch
+TC_PORCH_Z = 7.0               # the porch posts' line
+TC_PIPE_X = -6.045             # the stove's pipe (gen puts the stove on the west wall at z 0..1)
+
+
+def tc_roof_y(x):
+    return TC_EAVE + (TC_HALF - abs(x - TC_RX)) * TC_T
+
+
+def tc_lt_y(x):
+    return TC_LT_HI - (x - 2.55) * TC_LT_T
+
+
+def tc_row(ctx, row):
+    """Log walls like the fisherman's, cut at this cabin's room lines; the bedroom walls and the pantry's are plank
+    partitions."""
+    if row["colour"] != "wood" or row.get("kind") or row["pitch"] or row["size"][1] < 0.5:
+        return False
+    c, s = row["pos"], row["size"]
+    plank = ((abs(c[2] - TC_BED_Z) < 0.2 or abs(c[2] - TC_STORE_Z - 0.075) < 0.1) and s[0] > s[2]) or \
+            (abs(c[0] - TC_BED_X) < 0.15 and s[2] > s[0])
+    base = wall_style(ctx.footprint, ckit("cabin_logs"), lambda m: "wood" if plank else ckit("cabin_logs"))
+
+    def style(n, mid, corners):
+        got = base(n, mid, corners)
+        if got is None:
+            return None
+        if got[0] == "trim":
+            return ("wood_light" if abs(n[1]) < 0.7 else (ckit("cabin_bark") if not plank else "wood_dark"), uv_world(1.0))
+        if got[0] == ckit("cabin_logs"):
+            return (ckit("cabin_logs"), uv_world(2.0, (0.0, 0.0625 if abs(n[0]) > 0.7 else 0.0)))
+        return got
+    split_box(ctx.b, c, s, wet_wall_style(ctx, style), (-6.5, TC_BED_X, TC_X, TC_WC_X - 0.075, 6.5),
+              (-5.0, TC_STORE_Z, TC_BED_Z, 5.0), (3.0,))
+    return True
+
+
+def trapper_decals(rng):
+    _CS[0] = "_" + cab_look().lower()
+    a = Atlas(256)
+    a.add("logend", 10, 10, _cab_logend)
+    a.add("map", 40, 28, lambda c: _tc_map(c, random.Random("tcmap")))
+    a.add("calendar", 12, 16, _tc_calendar)
+    a.add("photo", 10, 8, _tc_photo)
+    a.add("note", 10, 12, _cab_note)
+    a.add("hole", 4, 4, _cab_hole)
+    a.add("tally", 14, 10, _tc_tally)
+    return a
+
+
+def _tc_map(c, rng):
+    """His trapline: the creek down the east side, the woods, the cabin, the trail looping out and back, each set
+    marked with a cross."""
+    c.rect(0, 0, c.w, c.h, "bone")
+    c.frame(0, 0, c.w, c.h, "wood_dark")
+    for _ in range(10):
+        x, y = rng.randrange(3, c.w - 3), rng.randrange(3, c.h - 3)
+        for k in range(rng.randrange(8, 16)):
+            c.put(x, y, "grass")
+            x = min(c.w - 2, max(1, x + rng.choice((-1, 0, 1))))
+            y = min(c.h - 2, max(1, y + rng.choice((-1, 0, 1))))
+    x = 30
+    for y in range(1, c.h - 1):                                           # the creek
+        c.put(x, y, "sky_blue")
+        c.put(x + 1, y, "sky_blue")
+        if rng.random() < 0.35:
+            x = min(c.w - 3, max(26, x + rng.choice((-1, 1))))
+    c.rect(18, 13, 21, 16, "black")                                       # the cabin
+    loop = [(18, 12), (12, 8), (7, 5), (4, 10), (5, 17), (9, 22), (15, 23), (21, 21), (22, 16)]
+    for (x0, y0), (x1, y1) in zip(loop, loop[1:]):                       # the trapline (dashed)
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        for k in range(0, n, 2):
+            c.put(x0 + (x1 - x0) * k // n, y0 + (y1 - y0) * k // n, "wood_mid")
+    for x, y in loop[1:-1]:                                               # each set, a red cross
+        for d in (-1, 0, 1):
+            c.put(x + d, y + d, "red")
+            c.put(x + d, y - d, "red")
+
+
+def _tc_calendar(c):
+    c.rect(0, 0, c.w, c.h, "bone")
+    c.rect(0, 9, c.w, c.h, "sky_blue")                                    # a picture of pines in snow
+    c.rect(0, 14, c.w, c.h, "bone")
+    for x0 in (2, 6, 9):
+        for k in range(4):
+            c.rect(x0 - k // 2, 10 + k, x0 + 1 + k // 2, 11 + k, "olive_dark")
+    for y in range(1, 8, 2):
+        for x in range(1, 11, 2):
+            c.put(x, y, "steel")
+    for x, y in ((1, 1), (3, 1), (5, 1), (7, 1), (9, 1), (1, 3)):         # the days crossed off
+        c.put(x, y, "black")
+
+
+def _tc_photo(c):
+    """Two men in fur hats in front of the cabin."""
+    c.rect(0, 0, c.w, c.h, "wood_dark")
+    c.rect(1, 1, c.w - 1, c.h - 1, "bone")
+    c.rect(1, 1, c.w - 1, 3, "sky_blue")
+    c.rect(1, 3, c.w - 1, 5, "wood_mid")                                  # the cabin behind them
+    for x in (3, 6):
+        c.rect(x, 3, x + 2, 7, "olive_dark")
+        c.rect(x, 2, x + 2, 3, "wood_mid")                                # the hats
+
+
+def _tc_tally(c):
+    """The catch tally on a board by the bench: rows of strokes, five-barred."""
+    c.rect(0, 0, c.w, c.h, "wood_light")
+    c.frame(0, 0, c.w, c.h, "wood_dark")
+    for row, n in enumerate((7, 12, 4)):
+        y = 2 + row * 3
+        for k in range(n):
+            x = 1 + k + k // 5
+            if k % 5 == 4:
+                for d in range(4):
+                    c.put(x - 4 + d, y + 1 - d // 2, "black")
+            else:
+                c.rect(x, y, x + 1, y + 2, "black")
+
+
+def tc_walls(ctx):
+    """The log walls above the 3 m slab (picture only): the main block's west and east walls up to its eaves, the two
+    gables up to the ridge (a louvred vent in each), the lean-to's ends up under its roof."""
+    b = ctx.b
+    top = TC_EAVE - 0.15
+    logs = lambda nx: (ckit("cabin_logs"), uv_world(2.0, (0.0, 0.0625 if nx else 0.0)))
+    b.poly([(-6.65, 3.0, 5.15), (-6.65, 3.0, -5.15), (-6.65, top, -5.15), (-6.65, top, 5.15)], (-1, 0, 0), *logs(1))
+    b.poly([(2.55, 3.0, 5.15), (2.55, 3.0, -5.15), (2.55, top, -5.15), (2.55, top, 5.15)], (1, 0, 0), *logs(1))
+    for z, nz in ((-5.15, -1), (5.15, 1)):
+        b.poly([(-6.65, 3.0, z), (2.55, 3.0, z), (2.55, top, z), (TC_RX, TC_RIDGE - 0.15, z), (-6.65, top, z)], (0, 0, nz), *logs(0))
+        b.poly([(2.55, 3.0, z), (6.65, 3.0, z), (6.65, tc_lt_y(6.65) - 0.12, z), (2.55, tc_lt_y(2.55) - 0.12, z)],
+               (0, 0, nz), *logs(0))
+        vy = TC_RIDGE - 1.75                                              # the vent in the gable
+        for dx in (-0.32, 0.32):
+            _box(b, TC_RX + dx, vy, z + nz * 0.04, 0.06, 0.75, 0.06, cab_trim())
+        for k in range(4):
+            _box(b, TC_RX, vy - 0.28 + k * 0.18, z + nz * 0.05, 0.58, 0.14, 0.03, "wood", pitch=-nz * 30)
+        _box(b, TC_RX, vy + 0.42, z + nz * 0.05, 0.74, 0.08, 0.06, cab_trim())
+        _box(b, TC_RX, vy - 0.42, z + nz * 0.07, 0.74, 0.06, 0.1, "wood")
+
+
+def tc_corners(ctx):
+    """Log ends crossing at the corners: the main block's two west corners and the lean-to's two east ones, and the
+    old east wall's logs sticking out of the front and back walls where the lean-to was built on."""
+    r = 0.13
+    for cx, x_in, n in ((-1, -6.5, 17), (1, 6.5, 12)):
+        for cz in (-1, 1):
+            for k in range(n):                                            # north/south logs, out along x
+                y = 0.125 + 0.25 * k
+                cab_log(ctx, (cx * 6.65, y, cz * 5.0), (cx * 6.97, y, cz * 5.0), r)
+            for k in range(1, n):                                         # east/west logs, out along z
+                cab_log(ctx, (x_in, 0.25 * k, cz * 5.15), (x_in, 0.25 * k, cz * 5.47), r)
+    for cz in (-1, 1):
+        for k in range(1, 16):
+            cab_log(ctx, (TC_X, 0.25 * k, cz * 5.15), (TC_X, 0.25 * k, cz * 5.47), r)
+
+
+def tc_roof(ctx):
+    """The main block's tin roof (front gable, a short overhang), the lean-to's shallow one run on south over the
+    porch, the ridge cap, the barrel stove's pipe through the west slope; the porch posts and beam. Inside: plank
+    ceilings, log joists, a lantern in the main room and the workroom."""
+    b = ctx.b
+    z0, z1 = -5.55, 5.75
+    for xe in (TC_RX - TC_HALF - 0.4, TC_RX + TC_HALF + 0.4):
+        _fc_slope(b, TC_RX, TC_RIDGE, xe, tc_roof_y(xe), z0, z1, ckit("cabin_tin"))
+    _beam(b, (TC_RX, TC_RIDGE + 0.03, z0 - 0.05), (TC_RX, TC_RIDGE + 0.03, z1 + 0.05), 0.08, 0.36, ckit("cabin_tin"))   # ridge cap
+    lz1 = TC_PORCH_Z + 0.35
+    _fc_slope(b, 2.55, TC_LT_HI, 6.95, tc_lt_y(6.95), -5.45, lz1, ckit("cabin_tin"), th=0.12)
+    _beam(b, (2.6, TC_LT_HI + 0.02, -5.45), (2.6, TC_LT_HI + 0.02, 5.5), 0.16, 0.06, ckit("cabin_tin"))   # flashing
+    # (past the main block's front the porch roof's high edge shows: a fascia board on it)
+    b.poly([(2.55, TC_LT_HI, 5.5), (2.55, TC_LT_HI, lz1), (2.55, TC_LT_HI - 0.12, lz1), (2.55, TC_LT_HI - 0.12, 5.5)],
+           (-1, 0, 0), cab_trim(), uv_world(1.0))
+    # The stove's pipe up out of the west slope, a rain cap on it.
+    px, pz = TC_PIPE_X, 0.5
+    yr = tc_roof_y(px)
+    _beam(b, (px, 2.7, pz), (px, yr + 0.85, pz), 0.18, 0.18, "black")
+    b.box((px, yr + 0.01, pz), (0.4, 0.04, 0.4), style=_nb("trim_dark"))                       # flashing
+    b.box((px, yr + 0.98, pz), (0.4, 0.05, 0.4), style=_solid("black"))                        # rain cap
+    for dx in (-0.11, 0.11):
+        _box(b, px + dx, yr + 0.91, pz, 0.02, 0.1, 0.02, "black")
+    # The porch: two log posts at its front corners up to a beam under the roof's slope (the doorway stays clear).
+    for x in (2.75, 6.75):
+        cab_log(ctx, (x, 0.06, TC_PORCH_Z), (x, tc_lt_y(x) - 0.25, TC_PORCH_Z), 0.12)
+    cab_log(ctx, (2.55, tc_lt_y(2.55) - 0.24, TC_PORCH_Z), (6.95, tc_lt_y(6.95) - 0.24, TC_PORCH_Z), 0.11)
+    for x in (3.6, 4.65, 5.7):                                            # rafters back to the wall
+        cab_log(ctx, (x, tc_lt_y(x) - 0.2, 5.15), (x, tc_lt_y(x) - 0.2, TC_PORCH_Z), 0.07, ends=False)
+    # Inside: plank ceilings under the slab, log joists across, a lantern in the main room and the workroom.
+    yc = 2.75
+    for x0, x1 in ((-6.35, 2.25), (2.55, 6.35)):
+        b.poly([(x0, yc, -4.85), (x1, yc, -4.85), (x1, yc, 4.85), (x0, yc, 4.85)], (0, -1, 0), "wood", uv_world(2.0))
+    for z in (-3.0, 0.4, 3.3):
+        cab_log(ctx, (-6.35, yc - 0.1, z), (2.25, yc - 0.1, z), 0.1, ends=False)
+    for z in (-3.2, 0.4, 3.0):
+        cab_log(ctx, (2.55, yc - 0.1, z), (6.35, yc - 0.1, z), 0.09, ends=False)
+    for x, z in ((-2.0, 2.0), (4.4, 1.4)):
+        _box(b, x, yc - 0.32, z, 0.01, 0.24, 0.01, "black")
+        _box(b, x, yc - 0.52, z, 0.16, 0.2, 0.16, "trim")
+        b.box((x, yc - 0.52, z), (0.11, 0.12, 0.11), style=lambda n, m, q: ("glass", uv_world(1.0)))
+
+
+def prop_tc_stove(ctx, c, s):
+    """A barrel stove (an oil drum on its side on iron legs, a cast door in its front end) on a stone hearth, a tin
+    heat shield on the wall, the pipe up through the ceiling; a coffee pot on top."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0] + 0.05, y0 + 0.04, c[2]), (s[0] + 0.3, 0.08, s[2] + 0.3), style=_nb("ch_fieldstone"))   # hearth
+    wall = c[0] - s[0] / 2 + 0.005                                        # (the west wall's inside face)
+    b.box((wall + 0.02, y0 + 1.0, c[2]), (0.03, 1.8, s[2] + 0.2), style=lambda n, m, q: None if n[0] < -0.7 else ("steel_light", uv_world(1.0)))
+    for k in range(4):                                                    # the shield's seams
+        _box(b, wall + 0.04, y0 + 0.4 + k * 0.45, c[2], 0.01, 0.02, s[2] + 0.2, "trim")
+    cx, cy, R = c[0] + 0.05, y0 + 0.6, 0.27                               # the drum, along x (its door end facing east)
+    n = 10
+    for k in range(n):
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        p0 = (cy + R * math.cos(a0), c[2] + R * math.sin(a0))
+        p1 = (cy + R * math.cos(a1), c[2] + R * math.sin(a1))
+        nrm = norm((0.0, math.cos((a0 + a1) / 2), math.sin((a0 + a1) / 2)))
+        L = s[0] - 0.12
+        b.poly([(cx - L / 2, p0[0], p0[1]), (cx + L / 2, p0[0], p0[1]), (cx + L / 2, p1[0], p1[1]), (cx - L / 2, p1[0], p1[1])],
+               nrm, "trim_dark", uv_world(1.0))
+    for xe, nx in ((cx - (s[0] - 0.12) / 2, -1), (cx + (s[0] - 0.12) / 2, 1)):   # the drum's ends
+        pts = [(xe, cy + R * math.cos(2 * math.pi * k / n), c[2] + R * math.sin(2 * math.pi * k / n)) for k in range(n)]
+        b.poly(pts if nx < 0 else pts[::-1], (nx, 0, 0), "black", uv_world(1.0))
+    for dx in (-0.29, 0.0, 0.29):                                         # its rolled rims (an oil drum's), the legs
+        for k in range(n):
+            a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+            _beam(b, (cx + dx, cy + (R + 0.012) * math.cos(a0), c[2] + (R + 0.012) * math.sin(a0)),
+                  (cx + dx, cy + (R + 0.012) * math.cos(a1), c[2] + (R + 0.012) * math.sin(a1)), 0.03, 0.025, "steel_light")
+    for dx in (-0.2, 0.2):
+        for dz in (-0.2, 0.2):
+            _box(b, cx + dx, y0 + 0.2, c[2] + dz, 0.05, 0.3, 0.05, "black")
+    fx = cx + (s[0] - 0.12) / 2 + 0.01                                    # the door kit on the front end
+    _box(b, fx, cy, c[2], 0.03, 0.3, 0.32, "black")
+    _box(b, fx + 0.02, cy - 0.05, c[2], 0.01, 0.06, 0.18, "red")          # (embers through the draught slot)
+    _box(b, fx + 0.04, cy + 0.08, c[2] + 0.12, 0.05, 0.03, 0.08, "steel_light")
+    _box(b, cx - 0.05, cy + R + 0.02, c[2], 0.4, 0.03, 0.3, "black")      # the flat cooking plate on top
+    _box(b, cx + 0.14, cy + R + 0.12, c[2] - 0.05, 0.16, 0.2, 0.14, "teal")   # enamel coffee pot
+    _box(b, cx + 0.24, cy + R + 0.16, c[2] - 0.05, 0.08, 0.03, 0.03, "teal")
+    _beam(b, (TC_PIPE_X, cy + R, c[2]), (TC_PIPE_X, 2.75, c[2]), 0.18, 0.18, "black")   # the pipe, up through the roof
+    b.box((TC_PIPE_X, 2.74, c[2]), (0.36, 0.02, 0.36), style=_solid("trim_dark"))               # its ceiling plate
+
+
+def prop_tc_woodbox(ctx, c, s):
+    """A plank woodbox full of split logs by the stove, a hatchet stuck in the top one."""
+    b, rng = ctx.b, random.Random("tcwoodbox")
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + (s[1] - 0.1) / 2, c[2]), (s[0], s[1] - 0.1, s[2]), style=lambda n, m, q: None if n[1] > 0.7 else ("wood_dark", uv_world(1.0)))
+    for k in range(7):
+        cab_log(ctx, (c[0] - s[0] / 2 + 0.08 + (k % 4) * 0.13, y0 + 0.42 + (k // 4) * 0.12, c[2] - s[2] / 2 + 0.06),
+                (c[0] - s[0] / 2 + 0.08 + (k % 4) * 0.13 + rng.uniform(-0.03, 0.03), y0 + 0.42 + (k // 4) * 0.12, c[2] + s[2] / 2 - 0.06), 0.06)
+    _box(b, c[0] + 0.05, y0 + 0.62, c[2] + 0.05, 0.03, 0.1, 0.12, "steel_light")                # the hatchet
+    _beam(b, (c[0] + 0.05, y0 + 0.64, c[2] + 0.05), (c[0] + 0.3, y0 + 0.85, c[2] + 0.05), 0.035, 0.04, "wood_light")
+
+
+def prop_tc_kitchen(ctx, c, s):
+    """A dry sink and counter along the south wall (its front facing north): plank top, curtained cupboards, a tin
+    wash basin and bucket, a bread board and knife, a shelf with tins and a lamp over it, mugs on hooks."""
+    b, rng = ctx.b, random.Random("tckitchen")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    fz = c[2] - s[2] / 2                                                  # the front (facing north)
+    b.box((c[0], top - 0.03, c[2]), (s[0], 0.06, s[2] + 0.04), style=_solid("wood"))
+    b.box((c[0], y0 + (s[1] - 0.06) / 2, c[2] + 0.02), (s[0] - 0.04, s[1] - 0.06, s[2] - 0.04), style=_nb("wood_dark"))
+    for k in range(3):                                                    # curtains under it
+        x = c[0] - s[0] / 2 + (k + 0.5) * s[0] / 3
+        b.box((x, y0 + 0.43, fz - 0.005), (s[0] / 3 - 0.1, 0.72, 0.02), style=_solid("wine" if k != 1 else "bone"))
+    _box(b, c[0], top - 0.12, fz - 0.01, s[0] - 0.1, 0.03, 0.02, "trim")                        # curtain rod
+    bx = c[0] - 0.45                                                      # the basin, a bucket beside
+    b.box((bx, top + 0.07, c[2]), (0.5, 0.14, 0.4), style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
+    _box(b, bx, top + 0.141, c[2], 0.42, 0.005, 0.32, "trim")
+    b.box((c[0] + 0.15, top + 0.15, c[2] + 0.05), (0.26, 0.3, 0.26), style=_nb("trim"))
+    _box(b, c[0] + 0.15, top + 0.301, c[2] + 0.05, 0.22, 0.004, 0.22, "blue")
+    _box(b, c[0] + 0.6, top + 0.02, c[2] - 0.05, 0.35, 0.04, 0.25, "wood_light")               # bread board, loaf, knife
+    _box(b, c[0] + 0.6, top + 0.09, c[2] - 0.05, 0.22, 0.1, 0.12, "cardboard")
+    _box(b, c[0] + 0.45, top + 0.05, c[2] - 0.13, 0.18, 0.01, 0.02, "steel_light", yaw=20)
+    wz = c[2] + s[2] / 2 - 0.12                                           # the shelf on the wall over it
+    b.box((c[0] - 0.3, top + 0.8, wz), (1.2, 0.03, 0.24), style=_solid("wood"))
+    for k in range(6):
+        if rng.random() < 0.8:
+            _box(b, c[0] - 0.8 + k * 0.2, top + 0.88, wz, 0.1, 0.13, 0.1, rng.choice(("red", "olive", "yellow", "trim", "bone")))
+    _box(b, c[0] + 0.55, top + 0.62, wz + 0.04, 0.6, 0.04, 0.04, "wood_dark")                  # mug hooks
+    for k in range(3):
+        _box(b, c[0] + 0.35 + k * 0.2, top + 0.53, wz + 0.02, 0.08, 0.1, 0.08, ("bone", "teal", "bone")[k])
+
+
+def prop_tc_table(ctx, c, s):
+    """A trestle table (thick planks on two X-legs), set for two: tin plates, mugs, a pot of beans, a candle in a jar,
+    a playing-card hand left face down."""
+    b, rng = ctx.b, random.Random("tctable")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    for k in range(3):                                                    # the planks
+        _box(b, c[0], top - 0.035, c[2] - s[2] / 3 + k * s[2] / 3, s[0], 0.07, s[2] / 3 - 0.01, "wood" if k != 1 else "wood_light")
+    for dx in (-1, 1):                                                    # the X trestles, a stretcher between
+        x = c[0] + dx * (s[0] / 2 - 0.3)
+        for sg in (-1, 1):
+            b.box((x, y0 + (s[1] - 0.07) / 2, c[2]), (0.06, (s[1] - 0.07) / math.cos(math.radians(30)), 0.07), pitch=sg * 30, style=_nb("wood_dark"))
+        _box(b, x, y0 + 0.03, c[2], 0.08, 0.06, s[2] - 0.1, "wood_dark")
+    _box(b, c[0], y0 + 0.35, c[2], s[0] - 0.6, 0.06, 0.06, "wood_dark")
+    for dx, dz in ((-0.5, -0.2), (0.45, 0.2)):                            # two places
+        _box(b, c[0] + dx, top + 0.006, c[2] + dz, 0.24, 0.012, 0.24, "trim")
+        _box(b, c[0] + dx + 0.2, top + 0.05, c[2] + dz, 0.08, 0.1, 0.08, "teal")
+        _box(b, c[0] + dx, top + 0.015, c[2] + dz + 0.15, 0.015, 0.01, 0.16, "steel_light")
+    _box(b, c[0], top + 0.08, c[2], 0.22, 0.16, 0.22, "black")             # the pot of beans
+    _box(b, c[0], top + 0.161, c[2], 0.18, 0.004, 0.18, "wine")
+    _box(b, c[0] - 0.12, top + 0.17, c[2], 0.2, 0.02, 0.02, "steel_light", pitch=0.0)
+    _box(b, c[0] + 0.7, top + 0.06, c[2] - 0.25, 0.08, 0.12, 0.08, "glass")   # candle in a jar
+    _box(b, c[0] + 0.7, top + 0.04, c[2] - 0.25, 0.05, 0.08, 0.05, "bone")
+    for k in range(5):                                                    # a card hand, face down
+        _box(b, c[0] - 0.2 + k * 0.035, top + 0.004 + k * 0.001, c[2] + 0.25, 0.06, 0.004, 0.09, "wine", yaw=-20 + k * 10)
+
+
+def prop_tc_bench(ctx, c, s):
+    """A plank bench on two splayed log legs a side (picture only, like the chairs)."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box((c[0], y0 + s[1] - 0.03, c[2]), (s[0], 0.06, s[2]), style=_solid("wood_light"))
+    for dx in (-1, 1):
+        for dz in (-1, 1):
+            p = (c[0] + dx * (s[0] / 2 - 0.15), y0 + s[1] - 0.06, c[2] + dz * 0.06)
+            cab_log(ctx, p, (p[0] + dx * 0.08, y0, p[2] + dz * 0.08), 0.03, ends=False)
+
+
+def prop_tc_hutch(ctx, c, s):
+    """A plank hutch on the bedrooms' wall (front facing south): cupboard below, open shelves above with plates
+    on edge, jars, a box of shells and a tobacco tin; a lamp on the counter."""
+    b, rng = ctx.b, random.Random("tchutch")
+    y0 = c[1] - s[1] / 2
+    fz = c[2] + s[2] / 2
+    low = 0.85
+    b.box((c[0], y0 + low / 2, c[2]), (s[0], low, s[2]), style=_nb("wood"))
+    _box(b, c[0], y0 + low + 0.02, c[2] + 0.02, s[0] + 0.06, 0.04, s[2] + 0.04, "wood_dark")   # counter top
+    for k in range(2):                                                    # cupboard doors
+        _box(b, c[0] - s[0] / 4 + k * s[0] / 2, y0 + 0.42, fz + 0.005, s[0] / 2 - 0.06, 0.66, 0.02, "wood_light")
+        _box(b, c[0] - 0.06 + k * 0.12, y0 + 0.5, fz + 0.02, 0.03, 0.08, 0.02, "black")
+    hz = c[2] - s[2] / 2 + 0.13                                           # the open shelves, shallower
+    for sx in (-1, 1):
+        _box(b, c[0] + sx * (s[0] / 2 - 0.03), y0 + (low + s[1]) / 2 + 0.02, hz, 0.04, s[1] - low, 0.26, "wood")
+    b.poly([(c[0] - s[0] / 2 + 0.05, y0 + low + 0.04, hz - 0.12), (c[0] + s[0] / 2 - 0.05, y0 + low + 0.04, hz - 0.12),
+            (c[0] + s[0] / 2 - 0.05, y0 + s[1], hz - 0.12), (c[0] - s[0] / 2 + 0.05, y0 + s[1], hz - 0.12)], (0, 0, 1), "wood_dark", uv_world(1.0))
+    for k, y in enumerate((y0 + 1.25, y0 + 1.6, y0 + s[1] - 0.02)):
+        _box(b, c[0], y, hz, s[0] - 0.06, 0.03, 0.26, "wood")
+        if k == 2:
+            continue
+        for j in range(int((s[0] - 0.2) / 0.16)):
+            x = c[0] - s[0] / 2 + 0.17 + j * 0.16
+            if k == 0:
+                b.box((x, y + 0.12, hz - 0.06), (0.02, 0.22, 0.22), pitch=-10, style=_solid(("bone", "teal")[j % 2]))   # plates on edge
+            elif rng.random() < 0.7:
+                _box(b, x, y + 0.08, hz, 0.1, 0.14, 0.1, rng.choice(("glass", "yellow", "red", "olive", "bone")))
+    top = y0 + low + 0.04
+    _box(b, c[0] + 0.6, top + 0.06, c[2] + 0.08, 0.22, 0.12, 0.12, "olive_dark")               # a box of shells
+    _box(b, c[0] + 0.6, top + 0.121, c[2] + 0.08, 0.16, 0.004, 0.08, "brass")
+    _box(b, c[0] + 0.25, top + 0.02, c[2] + 0.1, 0.1, 0.04, 0.07, "red")                       # tobacco tin
+    _box(b, c[0] - 0.6, top + 0.06, c[2] + 0.05, 0.12, 0.12, 0.12, "brass")                    # oil lamp
+    b.box((c[0] - 0.6, top + 0.19, c[2] + 0.05), (0.08, 0.14, 0.08), style=lambda n, m, q: ("glass", uv_world(1.0)))
+
+
+def prop_tc_bed(ctx, c, s):
+    """A narrow log bed along the west wall (head north): log posts, a straw mattress, a fur blanket over a grey wool
+    one, a pillow; his boots under it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    x0, x1, hz, fz = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    for z, h in ((hz + 0.08, 1.05), (fz - 0.08, 0.7)):
+        for x in (x0 + 0.08, x1 - 0.08):
+            cab_log(ctx, (x, y0, z), (x, y0 + h, z), 0.07)
+        cab_log(ctx, (x0 + 0.08, y0 + h - 0.1, z), (x1 - 0.08, y0 + h - 0.1, z), 0.05, ends=False)
+    for x in (x0 + 0.08, x1 - 0.08):
+        cab_log(ctx, (x, y0 + 0.3, hz + 0.08), (x, y0 + 0.3, fz - 0.08), 0.05, ends=False)    # side rails
+    b.box((c[0], y0 + 0.42, c[2]), (s[0] - 0.2, 0.18, s[2] - 0.25), style=_nb("cardboard"))   # mattress
+    bz0, bz1 = c[2] - 0.15, fz - 0.12                                     # a cream wool trade blanket, its stripes
+    _box(b, c[0], y0 + 0.535, (bz0 + bz1) / 2, s[0] - 0.14, 0.05, bz1 - bz0, "bone")
+    for k, col in enumerate(("green", "red", "yellow", "blue")):
+        _box(b, c[0], y0 + 0.537, bz1 - 0.3 - k * 0.11, s[0] - 0.13, 0.05, 0.08, col)
+    b.box((c[0] + 0.05, y0 + 0.575, c[2] + 0.05), (s[0] - 0.45, 0.04, 0.75), yaw=8, style=_solid("cardboard"))   # a fur thrown on it
+    for k in range(4):                                                    # its ragged edges
+        _box(b, c[0] - 0.3 + k * 0.2, y0 + 0.57, c[2] + 0.43 + (k % 2) * 0.03, 0.12, 0.035, 0.08, "cardboard", yaw=k * 17)
+    _box(b, c[0], y0 + 0.58, hz + 0.35, s[0] - 0.4, 0.12, 0.34, "bone")                        # pillow
+    for dx in (-0.1, 0.1):                                                # boots under the foot
+        _box(b, c[0] + dx, y0 + 0.14, fz + 0.1, 0.12, 0.28, 0.12, "black")
+        _box(b, c[0] + dx, y0 + 0.04, fz + 0.15, 0.12, 0.08, 0.24, "black")
+
+
+def prop_tc_stand(ctx, c, s):
+    """A stump nightstand: a candle stub in a tin, a pocket watch, a book."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    cab_log(ctx, (c[0], y0, c[2]), (c[0], y0 + s[1], c[2]), min(s[0], s[2]) / 2 - 0.02)
+    top = y0 + s[1]
+    _box(b, c[0] - 0.05, top + 0.02, c[2] - 0.05, 0.12, 0.04, 0.12, "trim")
+    _box(b, c[0] - 0.05, top + 0.08, c[2] - 0.05, 0.04, 0.09, 0.04, "bone")
+    _box(b, c[0] + 0.08, top + 0.01, c[2] + 0.06, 0.06, 0.02, 0.06, "brass")
+    _box(b, c[0] + 0.02, top + 0.015, c[2] + 0.1, 0.14, 0.03, 0.1, "wine", yaw=15)
+
+
+def prop_tc_pegs(ctx, c, s):
+    """A peg rail on the plank wall (facing west): a fur hat, a heavy wool coat, a bandolier-style shell belt, a
+    pack basket hung by its straps."""
+    b = ctx.b
+    x = c[0] + s[0] / 2 - 0.02                                            # the wall face
+    y = c[1] + s[1] / 2 - 0.1
+    _box(b, x - 0.02, y, c[2], 0.04, 0.1, s[2], "wood_dark")
+    for k in range(4):
+        _box(b, x - 0.08, y + 0.02, c[2] - s[2] / 2 + 0.25 + k * 0.5, 0.1, 0.04, 0.04, "wood")
+    z = c[2] - s[2] / 2 + 0.25                                            # the coat (red and black check)
+    b.box((x - 0.08, y - 0.4, z), (0.12, 0.6, 0.45), style=_solid("wine"))
+    for k in range(3):
+        _box(b, x - 0.145, y - 0.2 - k * 0.2, z, 0.005, 0.05, 0.45, "black")
+    _box(b, x - 0.08, y - 0.85, z, 0.11, 0.35, 0.4, "wine")
+    _box(b, x - 0.1, y + 0.06, z + 0.5, 0.18, 0.16, 0.2, "wood_dark")      # the fur hat
+    _box(b, x - 0.1, y + 0.16, z + 0.5, 0.16, 0.06, 0.16, "cardboard")
+    _box(b, x - 0.05, y - 0.35, z + 1.0, 0.03, 0.7, 0.07, "cardboard", pitch=20)   # the shell belt
+    for k in range(6):
+        _box(b, x - 0.07, y - 0.15 - k * 0.1, z + 1.0 + k * 0.035, 0.02, 0.06, 0.02, "brass")
+    pz = z + 1.5                                                          # the pack basket
+    b.box((x - 0.2, y - 0.4, pz), (0.3, 0.55, 0.38), style=_nb("cardboard"))
+    for k in range(5):
+        _box(b, x - 0.351, y - 0.6 + k * 0.1, pz, 0.005, 0.02, 0.38, "wood_dark")
+    _box(b, x - 0.05, y - 0.15, pz, 0.02, 0.3, 0.05, "black")
+
+
+def prop_tc_footlocker(ctx, c, s):
+    """A painted footlocker (rope handles), a folded blanket and a harmonica on it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    b.box(c, s, style=_nb("olive_dark"))
+    for dz in (-0.3, 0.3):
+        _box(b, c[0], c[1], c[2] + dz * s[2], s[0] + 0.01, s[1] + 0.01, 0.04, "trim_dark")
+    _box(b, c[0] - s[0] / 2 - 0.01, y0 + s[1] - 0.12, c[2], 0.02, 0.06, 0.12, "brass")          # the hasp
+    top = y0 + s[1]
+    _box(b, c[0] + 0.05, top + 0.05, c[2] + 0.1, s[0] - 0.2, 0.1, 0.45, "blue")
+    _box(b, c[0], top + 0.11, c[2] - 0.3, 0.04, 0.02, 0.1, "steel_light", yaw=10)
+
+
+def prop_tc_stool(ctx, c, s):
+    """A three-legged stool, a tin lamp and a whittled bird on it."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    cab_log(ctx, (c[0], top - 0.05, c[2]), (c[0], top, c[2]), 0.18, mat="wood_light")
+    for k in range(3):
+        a = math.radians(90 + k * 120)
+        cab_log(ctx, (c[0] + 0.1 * math.cos(a), top - 0.05, c[2] + 0.1 * math.sin(a)),
+                (c[0] + 0.2 * math.cos(a), y0, c[2] + 0.2 * math.sin(a)), 0.025, ends=False)
+    _box(b, c[0] - 0.05, top + 0.08, c[2], 0.1, 0.16, 0.1, "trim")
+    b.box((c[0] - 0.05, top + 0.1, c[2]), (0.06, 0.08, 0.11), style=lambda n, m, q: ("glass", uv_world(1.0)))
+    _box(b, c[0] + 0.08, top + 0.03, c[2] + 0.05, 0.08, 0.05, 0.04, "wood_light")
+
+
+def prop_tc_pantry_shelf(ctx, c, s):
+    """Plank shelves on the pantry's log wall (front facing east): jars of preserves, tins, a flour crock, salt, a
+    coffee can, candles; strings of dried mushrooms on a nail."""
+    b, rng = ctx.b, random.Random("tcpantry")
+    y0 = c[1] - s[1] / 2
+    for dz in (-1, 1):
+        _box(b, c[0], c[1], c[2] + dz * (s[2] / 2 - 0.03), s[0], s[1], 0.04, "wood_dark")
+    for k, y in enumerate((0.1, 0.55, 1.0, 1.45, 1.9)):
+        _box(b, c[0], y0 + y, c[2], s[0], 0.03, s[2] - 0.06, "wood")
+        if k == 4:
+            continue
+        n = int((s[2] - 0.2) / 0.16)
+        for j in range(n):
+            if rng.random() < 0.25:
+                continue
+            z = c[2] - s[2] / 2 + 0.15 + j * 0.16
+            if k == 0:
+                b.box((c[0], y0 + y + 0.17, z), (0.3, 0.3, 0.14), style=_nb(rng.choice(("cardboard", "bone"))))   # sacks of flour/beans
+            else:
+                col = rng.choice(("glass", "red", "yellow", "olive", "trim", "wine", "bone"))
+                _box(b, c[0] + rng.uniform(-0.05, 0.05), y0 + y + 0.085, z, 0.1, 0.14, 0.1, col)
+    for k in range(5):                                                    # dried mushrooms on a string
+        _box(b, c[0] + 0.1, y0 + 1.85 - k * 0.07, c[2] + s[2] / 2 + 0.06, 0.05, 0.03, 0.05, "cardboard")
+
+
+def prop_tc_sacks(ctx, c, s):
+    """A water barrel (lid on, a dipper hung on it), sacks of flour and oats against the wall."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    bx = c[0] + s[0] / 2 - 0.3
+    cab_log(ctx, (bx, y0, c[2]), (bx, y0 + s[1], c[2]), 0.3, mat="wood_dark", ends=False)
+    _box(b, bx, y0 + s[1] + 0.01, c[2], 0.5, 0.02, 0.5, "wood")
+    for y in (0.15, s[1] - 0.15):
+        _box(b, bx, y0 + y, c[2], 0.6, 0.04, 0.6, "trim_dark")
+    _box(b, bx + 0.3, y0 + s[1] - 0.2, c[2], 0.02, 0.3, 0.06, "trim")       # the dipper
+    for k, (dx, h, col) in enumerate(((-0.25, 0.55, "bone"), (0.05, 0.45, "cardboard"))):
+        b.box((c[0] + dx, y0 + h / 2, c[2] - 0.05), (0.32, h, 0.28), yaw=8 * k, style=_nb(col))
+        _box(b, c[0] + dx, y0 + h + 0.03, c[2] - 0.05, 0.14, 0.06, 0.12, col)
+
+
+def prop_tc_workbench(ctx, c, s):
+    """The trapper's workbench on the east wall (front facing west): a heavy plank top on log legs, a vise, a pot of
+    trap dye, a file and wire; a pegboard of leg-hold traps on chains over it, the catch tally, a box of snares under
+    it."""
+    b, rng = ctx.b, random.Random("tcbench")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1]
+    wx = c[0] + s[0] / 2                                                  # the wall
+    b.box((c[0], top - 0.04, c[2]), (s[0], 0.08, s[2]), style=_solid("wood"))
+    for dz in (-1, 1):
+        for dx in (-1, 1):
+            cab_log(ctx, (c[0] + dx * (s[0] / 2 - 0.08), y0, c[2] + dz * (s[2] / 2 - 0.1)),
+                    (c[0] + dx * (s[0] / 2 - 0.08), top - 0.08, c[2] + dz * (s[2] / 2 - 0.1)), 0.05)
+    _box(b, c[0], y0 + 0.25, c[2], s[0] - 0.12, 0.03, s[2] - 0.2, "wood_dark")                  # shelf
+    for k in range(3):                                                    # a box of snares (wire loops), coils of wire
+        _box(b, c[0] - 0.05 + rng.uniform(-0.05, 0.05), y0 + 0.33, c[2] - 0.5 + k * 0.4, 0.22, 0.12, 0.22, "steel_light" if k != 1 else "cardboard")
+    fx = c[0] - s[0] / 2                                                  # the vise on the front edge
+    _box(b, fx + 0.1, top + 0.08, c[2] + 0.55, 0.14, 0.12, 0.12, "olive_dark")
+    _box(b, fx + 0.02, top + 0.08, c[2] + 0.55, 0.04, 0.1, 0.18, "olive_dark")
+    _box(b, fx - 0.04, top + 0.06, c[2] + 0.55, 0.12, 0.02, 0.02, "steel_light")
+    _box(b, c[0] + 0.05, top + 0.1, c[2] - 0.2, 0.2, 0.2, 0.2, "black")    # the dye pot (logwood), a stick in it
+    _box(b, c[0] + 0.05, top + 0.201, c[2] - 0.2, 0.16, 0.004, 0.16, "wood_dark")
+    _beam(b, (c[0] + 0.05, top + 0.12, c[2] - 0.2), (c[0] - 0.1, top + 0.45, c[2] - 0.12), 0.02, 0.02, "wood_light")
+    _box(b, c[0] - 0.05, top + 0.01, c[2] + 0.15, 0.03, 0.01, 0.25, "steel_light", yaw=12)     # a file
+    for k in range(2):                                                    # two traps on the bench, one set (jaws open)
+        tx, tz = c[0] - 0.05, c[2] + 0.1 - k * 0.65
+        _box(b, tx, top + 0.01, tz, 0.08, 0.02, 0.22, "trim_dark")         # the base and springs
+        _box(b, tx, top + 0.02, tz + 0.15, 0.05, 0.03, 0.1, "trim_dark")
+        if k == 0:
+            for dx in (-0.09, 0.09):                                      # jaws open flat
+                _box(b, tx + dx, top + 0.015, tz, 0.02, 0.02, 0.18, "steel_light")
+        else:
+            b.box((tx, top + 0.08, tz), (0.03, 0.14, 0.16), style=_solid("steel_light"))           # jaws shut
+    # The pegboard over it: rows of traps hanging off nails by their chains.
+    py0, py1 = top + 0.35, top + 1.35
+    b.box((wx - 0.02, (py0 + py1) / 2, c[2]), (0.03, py1 - py0, s[2] - 0.1), style=lambda n, m, q: None if n[0] > 0.7 else ("wood_light", uv_world(1.0)))
+    for row in range(2):
+        for j in range(3):
+            z = c[2] - s[2] / 2 + 0.3 + j * (s[2] - 0.7) / 2 + row * 0.12
+            y = py1 - 0.1 - row * 0.5
+            _wall_trap(b, (wx - 0.035, y + 0.05, z - 0.08), -1, axis="x")
+    wall_quad(b, (-1, 0, 0), wx - 0.04, c[2] + s[2] / 2 + 0.1, c[2] + s[2] / 2 + 0.54, top + 0.5, top + 0.8, "decals", ctx.d("tally"))
+
+
+def prop_tc_stretchers(ctx, c, s):
+    """Stretcher boards leaning on the log wall (facing east): tapered boards, three with a dried pelt drawn over
+    (fur side in, the pale skin out), a round beaver hoop with its pelt laced in, a fleshing knife on a nail."""
+    b, rng = ctx.b, random.Random("tcstretch")
+    y0 = c[1] - s[1] / 2
+    wx = c[0] - s[0] / 2                                                  # the wall
+    lean = 8.0
+    zs = [c[2] - s[2] / 2 + 0.2 + k * 0.32 for k in range(4)]
+    for k, z in enumerate(zs):
+        h = 1.25 + 0.12 * (k % 2)
+        tilt = lambda y: wx + 0.22 - (y - y0) * math.tan(math.radians(lean))
+        _beam(b, (tilt(y0) , y0, z), (tilt(y0 + h), y0 + h, z), 0.02, 0.2 - 0.02 * k, "wood_light")    # the board
+        if k < 3:                                                         # the pelt, fur out, tapering to its nose
+            fur = ("wood_dark", "cardboard", "wood_dark")[k]
+            ya, yt = y0 + 0.3, y0 + h - 0.05
+            for j in range(4):
+                t0, t1 = j / 4, (j + 1) / 4
+                p0, p1 = ya + (yt - ya) * t0, ya + (yt - ya) * t1
+                _beam(b, (tilt(p0) + 0.025, p0, z), (tilt(p1) + 0.025, p1, z), 0.04, (0.26 - 0.02 * k) * (1.0 - 0.22 * j), fur)
+            _box(b, tilt(ya) + 0.03, ya - 0.12, z, 0.03, 0.26, 0.06, fur)                      # the tail
+            _box(b, tilt(yt) + 0.03, yt - 0.02, z, 0.02, 0.03, 0.02, "black")                    # the nose
+    hz, hy = c[2] + s[2] / 2 - 0.45, y0 + 1.05                           # the beaver hoop
+    for k in range(10):
+        a0, a1 = math.radians(k * 36), math.radians((k + 1) * 36)
+        _beam(b, (wx + 0.05, hy + 0.4 * math.sin(a0), hz + 0.4 * math.cos(a0)), (wx + 0.05, hy + 0.4 * math.sin(a1), hz + 0.4 * math.cos(a1)),
+              0.03, 0.03, "wood_light")
+    b.box((wx + 0.05, hy, hz), (0.015, 0.62, 0.62), style=_solid("cardboard"))
+    for k in range(8):                                                    # the lacing
+        a = math.radians(k * 45 + 20)
+        _beam(b, (wx + 0.055, hy + 0.31 * math.sin(a), hz + 0.31 * math.cos(a)), (wx + 0.055, hy + 0.39 * math.sin(a), hz + 0.39 * math.cos(a)),
+              0.008, 0.008, "bone")
+
+
+def prop_tc_woodshed(ctx, c, s):
+    """An open woodshed against the west wall's line (picture-only roof on four posts; the stack collides): firewood
+    stacked to the box's top between the posts, a few rounds on the ground."""
+    b, rng = ctx.b, random.Random("tcwoodshed")
+    y0 = c[1] - s[1] / 2
+    x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+    hi, lo = y0 + 2.35, y0 + 2.0                                          # its roof slopes west, away from the cabin
+    for x, h in ((x0 - 0.05, lo), (x1 + 0.05, hi)):
+        for z in (z0 - 0.05, z1 + 0.05):
+            cab_log(ctx, (x, y0, z), (x, y0 + h - 0.08, z), 0.07)
+        cab_log(ctx, (x, y0 + h - 0.08, z0 - 0.25), (x, y0 + h - 0.08, z1 + 0.25), 0.06)
+    _fc_slope(b, x1 + 0.3, hi + 0.05, x0 - 0.35, lo - 0.02, z0 - 0.35, z1 + 0.35, ckit("cabin_tin"), th=0.08)
+    rows = int((s[1] - 0.05) / 0.17)
+    per = int((s[2] - 0.1) / 0.17)
+    for r in range(rows):
+        for k in range(per):
+            z = z0 + 0.12 + k * (s[2] - 0.24) / (per - 1)
+            y = y0 + 0.09 + r * 0.17
+            if r == rows - 1 and rng.random() < 0.3:
+                continue
+            cab_log(ctx, (x0 + 0.05 + rng.uniform(0, 0.08), y, z + rng.uniform(-0.02, 0.02)),
+                    (x1 - 0.05 - rng.uniform(0, 0.08), y, z + rng.uniform(-0.02, 0.02)), 0.08, mat="wood_light")
+    for k in range(3):                                                    # rounds waiting to be split
+        cab_log(ctx, (x0 + 0.4 + k * 0.55, y0, z1 + 0.6 + (k % 2) * 0.1), (x0 + 0.4 + k * 0.55, y0 + 0.4, z1 + 0.6 + (k % 2) * 0.1), 0.2)
+
+
+def prop_tc_sawhorse(ctx, c, s):
+    """A log sawhorse (X legs at both ends) with a log on it half cut through, the bucksaw left in the cut, sawdust
+    under."""
+    b, rng = ctx.b, random.Random("tcsaw")
+    y0 = c[1] - s[1] / 2
+    top = y0 + s[1] - 0.2
+    for dx in (-0.5, 0.5):                                                # the X ends (along z)
+        x = c[0] + dx * (s[0] - 0.3)
+        for sg in (-1, 1):
+            cab_log(ctx, (x, y0, c[2] - sg * 0.35), (x, top + 0.15, c[2] + sg * 0.12), 0.05)
+    cab_log(ctx, (c[0] - s[0] / 2 + 0.15, y0 + 0.35, c[2]), (c[0] + s[0] / 2 - 0.15, y0 + 0.35, c[2]), 0.04, ends=False)
+    lx0, lx1 = c[0] - s[0] / 2 - 0.2, c[0] + s[0] / 2 + 0.1
+    cab_log(ctx, (lx0, top + 0.1, c[2]), (lx1, top + 0.1, c[2]), 0.15)    # the log
+    sx = c[0] + 0.15                                                      # the bucksaw in its cut
+    _box(b, sx, top + 0.18, c[2], 0.005, 0.12, 0.6, "steel_light")
+    for dz in (-0.3, 0.3):
+        _beam(b, (sx, top + 0.12, c[2] + dz), (sx, top + 0.7, c[2] + dz * 0.8), 0.03, 0.03, "wine")
+    _beam(b, (sx, top + 0.7, c[2] - 0.24), (sx, top + 0.7, c[2] + 0.24), 0.025, 0.025, "wine")
+    for _ in range(14):
+        _box(b, c[0] + rng.uniform(-0.4, 0.6), y0 + 0.01, c[2] + rng.uniform(-0.4, 0.4), 0.08, 0.015, 0.05, "wood_light", yaw=rng.uniform(0, 180))
+
+
+def prop_tc_cache(ctx, c, s):
+    """The raised cache behind the cabin (food kept off the ground, away from animals): a plank box with a little tin
+    roof on four log stilts, tin bands round the stilts so nothing climbs, a pole ladder leaning on it (picture only:
+    the stilts and the box collide, it can't be climbed)."""
+    b = ctx.b
+    y0 = c[1] - s[1] / 2
+    floor = y0 + 2.0
+    for dx in (-0.7, 0.7):
+        for dz in (-0.7, 0.7):
+            x, z = c[0] + dx, c[2] + dz
+            cab_log(ctx, (x, y0, z), (x, floor, z), 0.1)
+            _box(b, x, y0 + 1.2, z, 0.23, 0.35, 0.23, "steel_light")      # the tin band
+    for dz in (-0.7, 0.7):
+        cab_log(ctx, (c[0] - 0.95, floor - 0.05, c[2] + dz), (c[0] + 0.95, floor - 0.05, c[2] + dz), 0.08)
+    _box(b, c[0], floor + 0.03, c[2], 1.9, 0.06, 1.9, "wood_dark")         # the floor
+    hb = 1.1                                                              # the plank box
+    b.box((c[0], floor + 0.06 + hb / 2, c[2]), (1.7, hb, 1.7), style=lambda n, m, q: None if abs(n[1]) > 0.7 else ("wood", uv_world(1.0)))
+    for k in range(5):                                                    # its battens
+        _box(b, c[0] - 0.85 + k * 0.425, floor + 0.06 + hb / 2, c[2] + 0.855, 0.06, hb, 0.02, "wood_dark")
+        _box(b, c[0] - 0.85 + k * 0.425, floor + 0.06 + hb / 2, c[2] - 0.855, 0.06, hb, 0.02, "wood_dark")
+    _box(b, c[0] + 0.25, floor + 0.55, c[2] + 0.865, 0.6, 0.7, 0.02, "wood_light")             # the little door, shut
+    _box(b, c[0] + 0.45, floor + 0.55, c[2] + 0.885, 0.1, 0.04, 0.02, "black")
+    ry = floor + 0.06 + hb
+    _fc_slope(b, c[0], ry + 0.45, c[0] - 1.15, ry - 0.05, c[2] - 1.1, c[2] + 1.1, ckit("cabin_tin"), th=0.06)
+    _fc_slope(b, c[0], ry + 0.45, c[0] + 1.15, ry - 0.05, c[2] - 1.1, c[2] + 1.1, ckit("cabin_tin"), th=0.06)
+    for z in (c[2] - 0.855, c[2] + 0.855):                                # gable ends
+        sg = 1 if z > c[2] else -1
+        b.poly([(c[0] - 0.85, ry, z), (c[0] + 0.85, ry, z), (c[0], ry + 0.42, z)][::sg], (0, 0, sg), "wood", uv_world(1.0))
+    lz = c[2] + 1.35                                                      # the pole ladder, leaning on its front
+    for dx in (-0.22, 0.22):
+        cab_log(ctx, (c[0] + 0.25 + dx, y0, lz), (c[0] + 0.25 + dx, floor + 0.3, c[2] + 0.92), 0.04)
+    for k in range(6):
+        t = (k + 1) / 7
+        y = y0 + t * (floor + 0.3 - y0)
+        z = lz + t * (c[2] + 0.92 - lz)
+        cab_log(ctx, (c[0] + 0.02, y, z), (c[0] + 0.48, y, z), 0.025, ends=False)
+
+
+def prop_tc_pelt_rack(ctx, c, s):
+    """A drying frame on the creek side: two posts and three poles, pelts on stretchers hung from them, a fur cap on
+    a post."""
+    b, rng = ctx.b, random.Random("tcrack")
+    y0 = c[1] - s[1] / 2
+    x = c[0] + 0.1
+    for z in (c[2] - s[2] / 2 + 0.1, c[2] + s[2] / 2 - 0.1):
+        cab_log(ctx, (x, y0, z), (x, y0 + s[1], z), 0.06)
+    for y in (y0 + 0.8, y0 + 1.75):
+        cab_log(ctx, (x, y, c[2] - s[2] / 2), (x, y, c[2] + s[2] / 2), 0.04)
+    for k in range(4):
+        z = c[2] - s[2] / 2 + 0.45 + k * (s[2] - 0.9) / 3
+        h = 0.75 + rng.uniform(-0.05, 0.1)
+        _beam(b, (x + 0.06, y0 + 1.75, z), (x + 0.06, y0 + 1.75 - h, z), 0.02, 0.16, "wood_light")   # the board, hung
+        fur = ("wood_dark", "cardboard")[k % 2]                           # the pelt, nose up, tail down
+        ya, yt = y0 + 1.82 - h, y0 + 1.68
+        for j in range(4):
+            p0, p1 = ya + (yt - ya) * j / 4, ya + (yt - ya) * (j + 1) / 4
+            _beam(b, (x + 0.09, p0, z), (x + 0.09, p1, z), 0.04, 0.26 * (1.0 - 0.22 * j), fur)
+        _box(b, x + 0.1, ya - 0.12, z, 0.03, 0.26, 0.06, fur)
+        _box(b, x + 0.115, yt - 0.02, z, 0.02, 0.03, 0.02, "black")
+    _box(b, x, y0 + s[1] + 0.06, c[2] + s[2] / 2 - 0.1, 0.2, 0.12, 0.2, "wood_dark")
+
+
+for _kind, _fn in {"tc_stove": prop_tc_stove, "tc_woodbox": prop_tc_woodbox, "tc_kitchen": prop_tc_kitchen,
+                   "tc_table": prop_tc_table, "tc_bench": prop_tc_bench, "tc_hutch": prop_tc_hutch, "tc_bed": prop_tc_bed,
+                   "tc_stand": prop_tc_stand, "tc_pegs": prop_tc_pegs, "tc_footlocker": prop_tc_footlocker,
+                   "tc_stool": prop_tc_stool, "tc_pantry_shelf": prop_tc_pantry_shelf, "tc_sacks": prop_tc_sacks,
+                   "tc_workbench": prop_tc_workbench, "tc_stretchers": prop_tc_stretchers, "tc_woodshed": prop_tc_woodshed,
+                   "tc_sawhorse": prop_tc_sawhorse, "tc_cache": prop_tc_cache, "tc_pelt_rack": prop_tc_pelt_rack}.items():
+    PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)
+
+
+def dress_trapper(ctx):
+    b, rng = ctx.b, random.Random("trapper dress")
+    tc_walls(ctx)
+    tc_roof(ctx)
+    tc_corners(ctx)
+    cabin_openings(ctx, ctx.data.get("openings", []), east=False)
+    # The front gable: a pair of snowshoes crossed under the vent, two traps hung on nails; by the door under the
+    # porch, a lantern hook; a few bullet holes on the back wall.
+    sy = TC_RIDGE - 3.2
+    for sg in (-1, 1):
+        _snowshoe(b, (TC_RX + sg * 0.3, sy, 5.2), sg * 22.0, scale=1.5)
+    for dx in (-1.7, 1.7):                                                # two traps on nails, on their chains
+        _wall_trap(b, (TC_RX + dx, sy + 0.45, 5.15), 1, scale=1.5)
+    _box(b, 6.0, 2.3, 5.2, 0.04, 0.04, 0.12, "black")                     # lantern hook by the door
+    _box(b, 6.0, 2.1, 5.3, 0.14, 0.2, 0.14, "trim")
+    for k in range(8):
+        x, y = rng.uniform(-6.2, 6.2), rng.uniform(0.6, 2.6)
+        if abs(x + 3.9) < 1.0 or abs(x - 1.2) < 1.0 or abs(x - 5.4) < 0.6:
+            continue
+        wall_quad(b, (0, 0, -1), -5.153, x + 0.12, x, y, y + 0.12, "graffiti", ctx.d("hole"))
+    # Main room: a hooked rug in the middle, the trapline map and calendar on the walls, a rifle rack (empty) over
+    # the hutch, snowshoes and mud from the workroom door.
+    b.box((-1.0, 0.035, 1.9), (2.2, 0.01, 1.5), style=lambda n, m, q: ("olive", uv_world(1.0)) if n[1] > 0.7 else None)
+    b.box((-1.0, 0.04, 1.9), (1.8, 0.01, 1.1), style=lambda n, m, q: ("wine", uv_world(1.0)) if n[1] > 0.7 else None)
+    b.box((-1.0, 0.045, 1.9), (1.2, 0.01, 0.5), style=lambda n, m, q: ("cardboard", uv_world(1.0)) if n[1] > 0.7 else None)
+    wall_quad(b, (0, 0, -1), 4.845, -1.4, -2.65, 1.3, 2.175, "decals", ctx.d("map"))
+    wall_quad(b, (1, 0, 0), -6.345, 1.875, 1.5, 1.35, 1.85, "decals", ctx.d("calendar"))
+    for k, y in enumerate((1.95, 2.25)):                                  # the empty rifle rack over the hutch
+        for dx in (-0.6, 0.6):
+            _box(b, -2.1 + dx, y, -0.82, 0.06, 0.08, 0.1, "wood_dark")
+    for _ in range(8):
+        x, z = rng.uniform(-0.5, 2.0), rng.uniform(1.4, 3.0)
+        _box(b, x, 0.032, z, 0.1, 0.004, 0.24, "wood_dark", yaw=90 + rng.uniform(-20, 20))
+    # Bedrooms: his photo and a note on the plank wall, a rag rug; the bunk room's jacket on a nail.
+    wall_quad(b, (0, 0, -1), -1.105, -3.0, -3.315, 1.5, 1.75, "decals", ctx.d("photo"))
+    wall_quad(b, (0, 0, -1), -1.105, -5.5, -5.815, 1.4, 1.775, "decals", ctx.d("note"))
+    b.box((-4.0, 0.035, -2.6), (1.0, 0.01, 1.6), style=lambda n, m, q: ("blue", uv_world(1.0)) if n[1] > 0.7 else None)
+    _box(b, 2.2, 1.7, -2.0, 0.04, 0.04, 0.04, "black")
+    _box(b, 2.18, 1.4, -2.0, 0.06, 0.55, 0.4, "olive")
+    # Workroom: snowshoes by the door, pelts in a bundle on the floor, a bucket; a mat at the door.
+    for dx in (2.85, 3.2):
+        _snowshoe(b, (dx, 1.4, 4.82), 0.0, nz=-1)
+    for k in range(3):
+        _box(b, 3.3 + k * 0.05, 0.05 + k * 0.03, -0.9 + k * 0.04, 0.5, 0.03, 0.35, ("cardboard", "wood_dark", "bone")[k], yaw=10 * k)
+    _box(b, 4.9, 0.15, 3.9, 0.26, 0.3, 0.26, "steel_light")
+    b.box((4.45, 0.035, 4.4), (1.4, 0.01, 0.6), style=lambda n, m, q: ("cardboard", uv_world(1.0)) if n[1] > 0.7 else None)
+    # Pantry: smoked fish and a ham on hooks off the joist, a lantern on a nail.
+    for k in range(3):
+        _box(b, 3.4 + k * 0.3, 2.55, -3.2, 0.01, 0.3, 0.01, "cardboard")
+        _box(b, 3.4 + k * 0.3, 2.3, -3.2, 0.06, 0.3, 0.12, ("wood_dark", "cardboard", "wood_dark")[k])
+
+
+def _wall_trap(b, p, nz, scale=1.0, axis="z"):
+    """A leg-hold trap hung on a wall by its chain from a nail at p: the two jaws shut in a ring, the flat spring out
+    to one side, the pan in the middle. axis "z": the wall faces +z (nz 1) or -z; "x": it faces +x or -x."""
+    def at(u, v, d=0.0):
+        u, v, d = u * scale, v * scale, nz * (0.02 + d) * scale
+        return (p[0] + u, p[1] + v, p[2] + d) if axis == "z" else (p[0] + d, p[1] + v, p[2] + u)
+
+    def bx(u, v, d, su, sv, sd, mat):
+        c = at(u, v, d)
+        sz = (su * scale, sv * scale, sd * scale) if axis == "z" else (sd * scale, sv * scale, su * scale)
+        _box(b, *c, *sz, mat)
+    bx(0.0, 0.0, 0.01, 0.03, 0.03, 0.06, "black")                         # the nail
+    for k in range(4):                                                    # the chain
+        bx(0.0, -0.04 - k * 0.045, 0.0, 0.012, 0.04, 0.012, "trim_dark")
+    cy = -0.32
+    n = 10
+    for k in range(n):                                                    # the jaws, shut (a ring)
+        a0, a1 = 2 * math.pi * k / n, 2 * math.pi * (k + 1) / n
+        _beam(b, at(0.11 * math.cos(a0), cy + 0.11 * math.sin(a0), 0.01), at(0.11 * math.cos(a1), cy + 0.11 * math.sin(a1), 0.01),
+              0.022 * scale, 0.02 * scale, "steel_light")
+    _beam(b, at(0.0, cy - 0.11, 0.015), at(0.0, cy + 0.11, 0.015), 0.02 * scale, 0.02 * scale, "trim_dark")   # the base bar
+    bx(0.0, cy, 0.02, 0.07, 0.07, 0.01, "trim_dark")                      # the pan
+    _beam(b, at(0.0, -0.21), at(0.0, -0.18), 0.02 * scale, 0.02 * scale, "trim_dark")
+    _beam(b, at(0.1, cy - 0.04), at(0.3, cy - 0.06), 0.05 * scale, 0.015 * scale, "trim_dark")   # the spring
+    _beam(b, at(0.1, cy + 0.04), at(0.3, cy - 0.02), 0.05 * scale, 0.015 * scale, "trim_dark")
+
+
+def _snowshoe(b, p, roll, nz=1, scale=1.0):
+    """A wooden snowshoe flat on a wall facing +z (nz 1) or -z: an oval frame, the tail down, rawhide lacing across,
+    turned `roll` degrees in the wall's plane."""
+    r = math.radians(roll)
+
+    def at(u, v):
+        u, v = u * scale, v * scale
+        return (p[0] + u * math.cos(r) - v * math.sin(r), p[1] + u * math.sin(r) + v * math.cos(r), p[2] + nz * 0.03)
+    w = 0.025 * scale
+    for k in range(8):
+        a0, a1 = math.radians(k * 45), math.radians((k + 1) * 45)
+        _beam(b, at(0.15 * math.cos(a0), 0.1 + 0.3 * math.sin(a0)), at(0.15 * math.cos(a1), 0.1 + 0.3 * math.sin(a1)), w, w, "wood_light")
+    _beam(b, at(0.0, -0.18), at(0.0, -0.45), w, w, "wood_light")
+    for v in (-0.05, 0.1, 0.25):
+        _beam(b, at(-0.13, v), at(0.13, v), 0.4 * w, 0.4 * w, "cardboard")
+
+
+DECALS["cabin_trapper"] = trapper_decals
+DRESSING["cabin_trapper"] = dress_trapper
+FOOTPRINTS["cabin_trapper"] = (-6.5, -5.0, 6.5, 5.0)
+ENTRANCE_DOOR["cabin_trapper"] = "wood"
+OWN_OPENINGS.add("cabin_trapper")
+SHELLS["cabin_trapper"] = {"ext": "cabin_logs_" + cab_look("cabin_trapper").lower(), "roof_hidden": True, "row_hook": tc_row,
+                           "inner": lambda m: ckit("cabin_logs"),
+                           "debris": ("wood_light", "cabin_bark_" + cab_look("cabin_trapper").lower(), "wood", "wood_dark"),
+                           "floor": lambda m: "floor_wood", "x_lines": (-6.5, TC_BED_X, TC_X, 6.5),
+                           "z_lines": (-5.0, TC_STORE_Z, TC_BED_Z, 5.0), "x_splits": (TC_X,), "z_splits": ()}
+FACTION_MARKS["cabin_trapper"] = [("x1_chalk", "W", -2.0, 1.0)]
+WC_MATS["cabin_trapper"] = ("wood", "floor_wood")
 
 
 # ------------------------------------------------------------------------------------------------ train station (0.17)
