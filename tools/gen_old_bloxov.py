@@ -4055,11 +4055,14 @@ def main():
                 cabin_loft(x + 6.5, y + 5.0)
             continue
         if n == 1:
-            with modeled("cabin_fisher", x + 6.5, y + 5.0):
+            # (owner 2026-10-18: "flip the first cabin": its porch faces north, toward the campsite and the map, not
+            # into the corner)
+            with modeled("cabin_fisher", x + 6.5, y + 5.0, turned=True):
                 fisher_cabin(x, y)
             continue
         if n == 2:
-            with modeled("cabin_trapper", x + 6.5, y + 5.0):
+            # (owner 2026-10-18: "make the second cabin face the river": turned so its front looks east at the creek)
+            with modeled("cabin_trapper", x + 6.5, y + 5.0, turned=90):
                 trapper_cabin(x, y)
             continue
         build(Building(f"Cabin{n}", x, y, 13, 10, colour="wood", rooms=(2, 1), doors="S"),
@@ -4233,6 +4236,8 @@ def zone_spawns():
             continue
         rooms = []
         for cx, cz in (b.spawn_spots or ()):
+            if getattr(b, "turned_about", None):   # (a turned building's own spots turn with it)
+                cx, cz = turn_point(cx, cz, *b.turned_about)
             zone = _zone_of(cx, cz)
             if zone is not None and zone[0] != AI_BOSS[0] and (zone[4] + zone[5]) > 0:
                 rooms.append((round(cx, 1), round(cz, 1), zone[0]))

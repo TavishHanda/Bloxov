@@ -8535,14 +8535,41 @@ def prop_card_table(ctx, c, s):
 
 
 def prop_camp_stove(ctx, c, s):
-    """A two-burner camp stove on an ammo crate, a dented pot, a kettle, a gas bottle."""
+    """A two-burner camp stove (lid up as a wind screen, side flaps out) on an ammo crate: a dented pot on one burner, a
+    kettle on the other, the hose down to a gas bottle; a tin mug and a box of matches on the crate."""
     b = ctx.b
     y0 = c[1] - s[1] / 2
-    b.box((c[0], y0 + 0.25, c[2]), (s[0], 0.5, s[2] - 0.2), style=_nb("olive"))
-    b.box((c[0], y0 + 0.56, c[2]), (0.6, 0.12, 0.35), style=_nb("metal"))
-    b.box((c[0] - 0.15, y0 + 0.68, c[2]), (0.26, 0.14, 0.26), style=_nb("steel_light"))
-    b.box((c[0] + 0.17, y0 + 0.69, c[2]), (0.16, 0.16, 0.16), style=_nb("black"))
-    b.box((c[0] + s[0] / 2 - 0.15, y0 + 0.2, c[2] + s[2] / 2 - 0.1), (0.2, 0.4, 0.2), style=_nb("blue"))
+    cw, cd = s[0], s[2] - 0.2
+    b.box((c[0], y0 + 0.25, c[2]), (cw, 0.5, cd), style=_nb("olive"))                        # the crate
+    for dx in (-0.35, 0.35):                                              # its dark bands and rope handles
+        _box(b, c[0] + dx * cw, y0 + 0.25, c[2], 0.06, 0.505, cd + 0.01, "olive_dark")
+    for sz in (-1, 1):
+        _box(b, c[0], y0 + 0.36, c[2] + sz * (cd / 2 + 0.015), 0.22, 0.03, 0.02, "cardboard")
+    _box(b, c[0], y0 + 0.505, c[2], cw - 0.04, 0.01, cd - 0.04, "olive_dark")                 # the lid's edge
+    sx, sy, sz = c[0] - 0.05, y0 + 0.51, c[2] + 0.02                     # the stove: a green steel case
+    b.box((sx, sy + 0.05, sz), (0.6, 0.1, 0.32), style=_nb("green"))
+    b.box((sx, sy + 0.25, sz - 0.17), (0.6, 0.32, 0.02), style=_solid("green"))               # the lid, up behind (wall side, -z)
+    for dx in (-1, 1):
+        b.box((sx + dx * 0.31, sy + 0.17, sz + 0.02), (0.02, 0.16, 0.3), style=_solid("green"))  # side flaps
+    _box(b, sx, sy + 0.101, sz, 0.56, 0.005, 0.28, "black")
+    for dx in (-0.15, 0.15):                                              # the burners and their grates
+        _box(b, sx + dx, sy + 0.11, sz, 0.12, 0.02, 0.12, "trim_dark")
+        for k in range(2):
+            _box(b, sx + dx, sy + 0.125, sz, 0.2 if k == 0 else 0.015, 0.012, 0.015 if k == 0 else 0.2, "steel_light")
+    _box(b, sx - 0.31, sy + 0.06, sz - 0.1, 0.04, 0.04, 0.04, "black")    # the valve knob
+    b.box((sx - 0.15, sy + 0.22, sz), (0.24, 0.18, 0.24), yaw=8, style=_nb("steel_light"))    # the dented pot
+    _box(b, sx - 0.15, sy + 0.312, sz, 0.2, 0.005, 0.2, "trim_dark", yaw=8)
+    _box(b, sx - 0.29, sy + 0.28, sz, 0.08, 0.02, 0.03, "trim_dark")
+    b.box((sx + 0.15, sy + 0.2, sz), (0.18, 0.14, 0.18), style=_nb("trim"))                  # the kettle
+    _box(b, sx + 0.15, sy + 0.29, sz, 0.04, 0.03, 0.04, "trim_dark")
+    _beam(b, (sx + 0.24, sy + 0.2, sz), (sx + 0.32, sy + 0.25, sz), 0.03, 0.03, "trim")
+    gx, gz = c[0] + s[0] / 2 - 0.15, c[2] + s[2] / 2 - 0.1               # the gas bottle and its hose
+    cab_log(ctx, (gx, y0, gz), (gx, y0 + 0.36, gz), 0.1, mat="blue", ends=False)
+    _box(b, gx, y0 + 0.36, gz, 0.14, 0.02, 0.14, "blue")
+    _box(b, gx, y0 + 0.42, gz, 0.05, 0.1, 0.05, "brass")
+    _beam(b, (gx, y0 + 0.46, gz), (sx + 0.31, sy + 0.05, sz - 0.05), 0.02, 0.02, "black")
+    _box(b, c[0] + 0.3, y0 + 0.56, c[2] - 0.12, 0.08, 0.1, 0.08, "trim")                      # a tin mug, matches
+    _box(b, c[0] + 0.34, y0 + 0.515, c[2] + 0.08, 0.1, 0.03, 0.06, "red", yaw=20)
 
 
 def prop_ammo_crates(ctx, c, s):
@@ -17191,8 +17218,11 @@ def prop_tc_stove(ctx, c, s):
     b.box((c[0] + 0.05, y0 + 0.04, c[2]), (s[0] + 0.3, 0.08, s[2] + 0.3), style=_nb("ch_fieldstone"))   # hearth
     wall = c[0] - s[0] / 2 + 0.005                                        # (the west wall's inside face)
     b.box((wall + 0.02, y0 + 1.0, c[2]), (0.03, 1.8, s[2] + 0.2), style=lambda n, m, q: None if n[0] < -0.7 else ("steel_light", uv_world(1.0)))
-    for k in range(4):                                                    # the shield's seams
-        _box(b, wall + 0.04, y0 + 0.4 + k * 0.45, c[2], 0.01, 0.02, s[2] + 0.2, "trim")
+    for k in range(9):                                                    # the shield's corrugations, its rivets
+        _box(b, wall + 0.04, y0 + 1.0, c[2] - (s[2] + 0.2) / 2 + 0.06 + k * (s[2] + 0.08) / 8, 0.015, 1.8, 0.03, "trim")
+    for y in (0.15, 1.85):
+        for k in range(4):
+            _box(b, wall + 0.05, y0 + y, c[2] - 0.45 + k * 0.3, 0.02, 0.03, 0.03, "trim_dark")
     cx, cy, R = c[0] + 0.05, y0 + 0.6, 0.27                               # the drum, along x (its door end facing east)
     n = 10
     for k in range(n):
@@ -17362,9 +17392,9 @@ def prop_tc_bed(ctx, c, s):
     for k in range(4):                                                    # its ragged edges
         _box(b, c[0] - 0.3 + k * 0.2, y0 + 0.57, c[2] + 0.43 + (k % 2) * 0.03, 0.12, 0.035, 0.08, "cardboard", yaw=k * 17)
     _box(b, c[0], y0 + 0.58, hz + 0.35, s[0] - 0.4, 0.12, 0.34, "bone")                        # pillow
-    for dx in (-0.1, 0.1):                                                # boots under the foot
-        _box(b, c[0] + dx, y0 + 0.14, fz + 0.1, 0.12, 0.28, 0.12, "black")
-        _box(b, c[0] + dx, y0 + 0.04, fz + 0.15, 0.12, 0.08, 0.24, "black")
+    for dz in (-0.1, 0.1):                                                # his boots beside it (the trunk is at its foot)
+        _box(b, x1 + 0.12, y0 + 0.14, c[2] + 0.3 + dz, 0.12, 0.28, 0.12, "black")
+        _box(b, x1 + 0.17, y0 + 0.04, c[2] + 0.3 + dz, 0.24, 0.08, 0.12, "black")
 
 
 def prop_tc_stand(ctx, c, s):
@@ -18125,23 +18155,36 @@ def prop_st_bench(ctx, c, s):
 
 
 def prop_st_stove(ctx, c, s):
-    """The waiting room's pot-bellied stove on a stone hearth, its flue up and into the wall, cold for months."""
+    """A pot-bellied stove on a stone hearth (front facing -x): splayed iron feet, the round belly with nickel
+    bands, the firebox door with its mica window and handle, the ash door below, the stepped crown, the flue up (a
+    damper on it) and back into the wall; a coal scuttle and a poker beside it. Cold for months."""
     b = ctx.b
     y0 = c[1] - s[1] / 2
     b.box((c[0], y0 + 0.03, c[2]), (s[0], 0.06, s[2]), style=_nb("stone_rough"))
-    x = c[0] - 0.05
-    for lx in (-0.18, 0.18):
-        for lz in (-0.18, 0.18):
-            b.box((x + lx, y0 + 0.13, c[2] + lz), (0.05, 0.14, 0.05), style=_nb("black"))
-    b.box((x, y0 + 0.24, c[2]), (0.5, 0.08, 0.5), style=_nb("black"))
-    b.box((x, y0 + 0.55, c[2]), (0.56, 0.55, 0.56), style=_nb("black"))                    # the belly
-    b.box((x, y0 + 0.55, c[2]), (0.62, 0.3, 0.46), style=_nb("black"))
-    b.box((x, y0 + 0.86, c[2]), (0.44, 0.08, 0.44), style=_nb("black"))
-    b.box((x - 0.29, y0 + 0.52, c[2]), (0.02, 0.2, 0.24), style=_nb("rust" if "rust" in KIT else "trim_dark"))   # door
-    b.box((x, y0 + 1.4, c[2]), (0.13, 1.0, 0.13), style=_nb("black"))                      # flue up...
-    b.box((x + (s[0] / 2 + 0.05) / 2 + 0.03, y0 + 1.95, c[2]), (s[0] / 2 + 0.11, 0.13, 0.13), style=_nb("black"))  # ...into the wall
-    b.box((x - 0.4, y0 + 0.2, c[2] + 0.3), (0.3, 0.4, 0.3), yaw=15, style=_nb("trim_dark"))  # coal scuttle
-    b.box((x - 0.4, y0 + 0.41, c[2] + 0.3), (0.24, 0.03, 0.24), yaw=15, style=_nb("black"))
+    x, z = c[0] - 0.05, c[2]
+    for k in range(4):                                                    # splayed feet
+        a = math.radians(45 + 90 * k)
+        cab_log(ctx, (x + 0.17 * math.cos(a), y0 + 0.3, z + 0.17 * math.sin(a)),
+                (x + 0.25 * math.cos(a), y0 + 0.06, z + 0.25 * math.sin(a)), 0.03, mat="black", ends=False)
+    b.box((x, y0 + 0.31, z), (0.46, 0.06, 0.46), style=_nb("black"))                        # the base
+    for ya, yb, r in ((0.34, 0.5, 0.24), (0.5, 0.78, 0.31), (0.78, 0.92, 0.25), (0.92, 1.0, 0.18)):   # the belly
+        cab_log(ctx, (x, y0 + ya, z), (x, y0 + yb, z), r, mat="trim_dark", ends=False)
+    for y, r in ((0.5, 0.315), (0.78, 0.315), (0.92, 0.255)):              # nickel bands
+        cab_log(ctx, (x, y0 + y - 0.015, z), (x, y0 + y + 0.015, z), r, mat="steel_light", ends=False)
+    _box(b, x, y0 + 1.01, z, 0.3, 0.03, 0.3, "steel_light")                # the crown's top plate
+    fx = x - 0.3                                                          # the firebox door, mica window, handle
+    _box(b, fx, y0 + 0.64, z, 0.04, 0.22, 0.24, "black")
+    _box(b, fx - 0.02, y0 + 0.66, z, 0.01, 0.1, 0.14, "wine")
+    _box(b, fx - 0.04, y0 + 0.64, z + 0.09, 0.04, 0.04, 0.04, "steel_light")
+    _box(b, x - 0.235, y0 + 0.42, z, 0.04, 0.08, 0.2, "black")             # the ash door
+    _box(b, x - 0.26, y0 + 0.42, z + 0.07, 0.03, 0.03, 0.03, "steel_light")
+    _beam(b, (x, y0 + 1.0, z), (x, y0 + 1.9, z), 0.13, 0.13, "black")      # flue up...
+    cab_log(ctx, (x, y0 + 1.35, z), (x, y0 + 1.39, z), 0.085, mat="trim_dark", ends=False)   # (its damper)
+    b.box((x + (s[0] / 2 + 0.05) / 2 + 0.03, y0 + 1.95, z), (s[0] / 2 + 0.11, 0.13, 0.13), style=_nb("black"))  # ...into the wall
+    b.box((x - 0.42, y0 + 0.2, z + 0.32), (0.3, 0.4, 0.3), yaw=15, style=_nb("trim_dark"))  # coal scuttle (coal in it)
+    b.box((x - 0.42, y0 + 0.39, z + 0.32), (0.24, 0.03, 0.24), yaw=15, style=_nb("black"))
+    _box(b, x - 0.42, y0 + 0.42, z + 0.48, 0.2, 0.03, 0.03, "steel_light", yaw=15)          # its handle
+    _beam(b, (x - 0.25, y0 + 0.06, z - 0.35), (x - 0.31, y0 + 0.8, z - 0.31), 0.025, 0.025, "black")   # a poker
 
 
 def prop_st_ticket_window(ctx, c, s, k):
@@ -20122,17 +20165,48 @@ def prop_dn_jukebox(ctx, c, s):
 
 
 def prop_dn_range(ctx, c, s):
-    """The cooking line: a griddle and a range of burners, the extract hood over them (black with grease)."""
+    """The cooking line (front facing -z): a steel range, its oven doors with handle bars and a window, the knobs,
+    a griddle (grease and a scraper on it) and four burners under cast-iron grates, a backsplash with a shelf, the
+    extract hood over it all with its filter grilles (black with grease)."""
     b = ctx.b
     y0, top = c[1] - s[1] / 2, c[1] + s[1] / 2
+    fz = c[2] - s[2] / 2
     b.box(c, s, style=lambda n, m, q: None if n[1] < -0.7 else ("steel_light", uv_world(1.0)))
-    _box(b, c[0] - s[0] / 4, top + 0.01, c[2], s[0] / 2 - 0.1, 0.02, s[2] - 0.1, "black")       # the griddle
-    for k in range(4):                                                                           # burners
-        _box(b, c[0] + 0.3 + (k % 2) * 0.5, top + 0.02, c[2] - 0.15 + (k // 2) * 0.3, 0.22, 0.03, 0.22, "trim_dark")
-    for k in range(4):                                                                           # knobs
-        _box(b, c[0] + 0.15 + k * 0.25, top - 0.12, c[2] - s[2] / 2 - 0.02, 0.05, 0.05, 0.04, "black")
-    _box(b, c[0] - 0.3, top + 0.08, c[2] - 0.05, 0.3, 0.14, 0.3, "trim_dark")                    # a pan
+    _box(b, c[0], y0 + 0.04, fz + 0.03, s[0] - 0.04, 0.08, 0.04, "black")                        # the kick plate
+    for k in range(2):                                                    # oven doors
+        dx = c[0] - s[0] / 4 + k * s[0] / 2
+        _box(b, dx, y0 + 0.42, fz - 0.01, s[0] / 2 - 0.08, 0.52, 0.02, "trim")
+        _box(b, dx, y0 + 0.47, fz - 0.022, s[0] / 2 - 0.4, 0.18, 0.005, "black")                 # window
+        _box(b, dx, y0 + 0.73, fz - 0.05, s[0] / 2 - 0.25, 0.03, 0.03, "steel_light")            # handle bar
+        for sx in (-1, 1):
+            _box(b, dx + sx * (s[0] / 4 - 0.14), y0 + 0.73, fz - 0.035, 0.02, 0.02, 0.03, "steel_light")
+    for k in range(6):                                                    # knobs on the rail
+        _box(b, c[0] - s[0] / 2 + 0.25 + k * (s[0] - 0.5) / 5, top - 0.1, fz - 0.025, 0.05, 0.05, 0.05, "black")
+    _box(b, c[0] - s[0] / 4, top + 0.01, c[2], s[0] / 2 - 0.1, 0.02, s[2] - 0.15, "black")       # the griddle
+    for k in range(3):
+        _box(b, c[0] - s[0] / 4 - 0.3 + k * 0.28, top + 0.021, c[2] + 0.05 - k * 0.06, 0.12, 0.002, 0.08, "trim_dark")
+    _box(b, c[0] - s[0] / 4 + 0.3, top + 0.03, c[2] - 0.15, 0.12, 0.01, 0.1, "steel_light", yaw=25)   # scraper
+    for k in range(4):                                                    # burners, grates over them
+        bx, bz = c[0] + 0.3 + (k % 2) * 0.5, c[2] - 0.15 + (k // 2) * 0.3
+        _box(b, bx, top + 0.015, bz, 0.18, 0.02, 0.18, "trim_dark")
+        for j in range(3):
+            _box(b, bx, top + 0.04, bz - 0.09 + j * 0.09, 0.26, 0.02, 0.02, "black")
+        for sx in (-1, 1):
+            _box(b, bx + sx * 0.12, top + 0.04, bz, 0.02, 0.02, 0.26, "black")
+    _box(b, c[0] + 0.8, top + 0.11, c[2] + 0.15, 0.28, 0.14, 0.28, "trim")                      # a stock pot
+    _box(b, c[0] + 0.3, top + 0.08, c[2] - 0.15, 0.26, 0.04, 0.26, "black")                      # a frying pan
+    _box(b, c[0] + 0.3, top + 0.08, c[2] - 0.38, 0.04, 0.03, 0.22, "black")
+    bz = c[2] + s[2] / 2 - 0.02                                           # the backsplash and its shelf
+    _box(b, c[0], top + 0.3, bz, s[0], 0.6, 0.03, "steel_light")
+    _box(b, c[0], top + 0.55, bz - 0.12, s[0], 0.03, 0.22, "steel_light")
+    for k in range(4):
+        _box(b, c[0] - 0.9 + k * 0.6, top + 0.62, bz - 0.12, 0.1, 0.12, 0.1, ("red", "yellow", "bone", "trim")[k])
     b.box((c[0], 2.3, c[2] + 0.05), (s[0] + 0.1, 0.5, s[2] - 0.1), style=lambda n, m, q: ("trim_dark", uv_world(1.0)))  # hood
+    for k in range(3):                                                    # its filter grilles
+        gx = c[0] - s[0] / 3 + k * s[0] / 3
+        _box(b, gx, 2.049, c[2] + 0.05, s[0] / 3 - 0.15, 0.005, s[2] - 0.3, "black")
+        for j in range(4):
+            _box(b, gx - (s[0] / 3 - 0.2) / 2 + j * (s[0] / 3 - 0.2) / 3, 2.045, c[2] + 0.05, 0.02, 0.005, s[2] - 0.32, "steel_light")
     _box(b, c[0], 2.6, c[2] + 0.2, 0.4, 0.4, 0.3, "trim_dark")
 
 
