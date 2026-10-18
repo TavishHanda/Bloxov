@@ -39,6 +39,11 @@ const WADE_DEPTH := 0.05
 ## The ground's material (World art 0.17, outdoor step 2: assets/materials/ground.tres, textured grass, earth, gravel);
 ## without one the ground is drawn in `terrain_colour`.
 @export var ground_material: Material
+## Roads (World art 0.17, outdoor step 3): boxes in `road_colour` are drawn with this material instead, with UVs in
+## metres in the box's own frame (x across, from the middle line; y along), and UV2 = (width, length), so the shader
+## can paint lane lines. Without one they're drawn in their colour like the rest.
+@export var road_material: Material
+@export var road_colour := -1
 @export var water_points := PackedVector3Array()
 @export var water_width := 8.0
 @export var water_colour := 0
@@ -53,6 +58,9 @@ func _ready() -> void:
 		add_to_group(&"box_maps")
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var road_tool := SurfaceTool.new()
+	road_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var road_count := 0
 	var faces := PackedVector3Array()
 	var box_faces := BoxMesh.new().get_faces()  # a 1 m cube, 36 vertices
 	for i in range(0, boxes.size(), STRIDE):
@@ -69,6 +77,9 @@ func _ready() -> void:
 					faces.append(xf * v)
 			continue
 		var normal_basis := xf.basis.inverse().transposed()
+		var road := road_material != null and int(boxes[i + 8]) == road_colour
+		if road:
+			road_count += 1
 		for v in range(0, box_faces.size(), 3):
 			var a := xf * box_faces[v]
 			var b := xf * box_faces[v + 1]
@@ -81,10 +92,18 @@ func _ready() -> void:
 			var normal := (normal_basis * local).normalized()
 			# Slightly darker sides than tops, so walls read in flat light.
 			var shade := colour.darkened(0.0 if absf(normal.y) > 0.5 else 0.12)
-			for p in [a, b, c]:
-				tool.set_color(shade)
-				tool.set_normal(normal)
-				tool.add_vertex(p)
+			if road:
+				for k in 3:
+					var unit := box_faces[v + k]
+					road_tool.set_uv(Vector2(unit.x * boxes[i + 3], unit.z * boxes[i + 5]))
+					road_tool.set_uv2(Vector2(boxes[i + 3], boxes[i + 5]))
+					road_tool.set_normal(normal)
+					road_tool.add_vertex([a, b, c][k])
+			else:
+				for p in [a, b, c]:
+					tool.set_color(shade)
+					tool.set_normal(normal)
+					tool.add_vertex(p)
 			if solid:
 				faces.append_array([a, b, c])
 	var ground := _terrain_arrays()
@@ -103,6 +122,9 @@ func _ready() -> void:
 		material.roughness = 1.0
 		tool.set_material(material)
 		var mesh := tool.commit()
+		if road_count:
+			road_tool.set_material(road_material)
+			road_tool.commit(mesh)
 		if not ground.is_empty():
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ground)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, ground_material if ground_material else material)

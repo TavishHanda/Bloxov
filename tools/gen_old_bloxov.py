@@ -2679,6 +2679,50 @@ def big_bush(x, z, rng, size=None):
     obox(x, h / 2, z, sx, h, sz, rng.uniform(0, 180), "leaves", solid=solid)
 
 
+# Street lamps (World art 0.17, outdoor step 3): along the town's roads, both sides in turn, the pole by the kerb and
+# the lamp over the road. Some are knocked down (lying in the verge: no collision) or bent. Drawn by the outdoor kit
+# (make_outdoor.py draw_lamp); their look is LAMP_LOOK (or a mix).
+LAMP_LOOK = os.environ.get("BLOXOV_LAMP_LOOK", "")
+TOWN = (0.0, 0.0, 205.0, 200.0)     # map x0, z0, x1, z1 the lamps stay in
+
+
+@debris_kind("lamp")
+def lamp(x, z, yaw, down=False):
+    """A street lamp at (x, z); yaw turns its arm (local +z) out over the road."""
+    if down:   # knocked over, lying away from the road
+        c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        obox(x - s_ * 3.0, 0.12, z - c * 3.0, 0.24, 0.24, 6.0, yaw, "metal", solid=False)
+    else:
+        obox(x, 3.0, z, 0.24, 6.0, 0.24, yaw, "metal")
+
+
+def lamp_pass(every=30.0):
+    if LAMP_LOOK == "none":   # (for the options sheets: the roads as they were)
+        return
+    _fp_index["upto"], _fp_index["grid"] = 0, {}
+    rng = random.Random(7300)
+    x0, z0, x1, z1 = TOWN
+    for curve, width in roads[:4] + roads[4:6]:
+        side, dist, next_at = 1, 0.0, every / 2
+        for (ax, az), (bx, bz) in zip(curve, curve[1:]):
+            seg = math.hypot(bx - ax, bz - az)
+            while seg > 0 and next_at <= dist + seg:
+                t = (next_at - dist) / seg
+                tx, tz = (bx - ax) / seg, (bz - az) / seg
+                px = ax + (bx - ax) * t - tz * side * (width / 2 + 1.0)
+                pz = az + (bz - az) * t + tx * side * (width / 2 + 1.0)
+                next_at += every
+                side = -side
+                if not (x0 < px < x1 and z0 < pz < z1):
+                    continue
+                if any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 0.6 for pts, w in roads for a, b in zip(pts, pts[1:])):
+                    continue   # (at a junction)
+                yaw = math.degrees(math.atan2(ax + (bx - ax) * t - px, az + (bz - az) * t - pz))   # arm toward the middle
+                with scatter_piece(px, pz):
+                    lamp(px, pz, yaw, down=rng.random() < 0.12)
+            dist += seg
+
+
 def _bush_spot(x, z):
     """Grass a bush can stand on: off roads, the rail, water, yards, doorsteps, spawns, extracts and loot (closer in
     than `_clear_of_map`: bushes grow along yards and round houses; the scatter's overlap check does the rest)."""
@@ -4408,6 +4452,7 @@ def main():
     motel()
     churchyard()
     zone_spawns()
+    lamp_pass()
     bush_pass()
     map_labels()
     check_roads()
@@ -4715,6 +4760,9 @@ def behind_key_door(place, x, z):
 # draws where, SPLAT_PX pixels per metre over the map: R worn earth (paths), G mud (the creek's banks), B scorched
 # earth (craters, burnt wrecks, the bombed quarter), A gravel (road shoulders, the railway's ballast, round buildings,
 # yards and car parks). Soft values: the shader cuts them at 0.5 with a pixel dither.
+# The roads' look (outdoor step 3; assets/materials/road_<look>.tres): b worn asphalt, white lines; c dark asphalt,
+# yellow middle lines; d concrete slabs.
+ROAD_LOOK = os.environ.get("BLOXOV_ROAD_LOOK", "b")
 SPLAT_PX = 2
 SPLAT_PNG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "textures", "ground", "splat.png")
 GRASS_MASK_PNG = os.path.join(os.path.dirname(SPLAT_PNG), "grass_mask.png")
@@ -4837,6 +4885,8 @@ def write_outdoor(ter):
         x, z = d["at"]
         chunk = outdoor_chunk(x, z)
         look = random.Random(f"debris {d['kind']} {x:.2f} {z:.2f}").choice("bcd")   # (owner: a mix of all three)
+        if d["kind"] == "lamp" and LAMP_LOOK:
+            look = LAMP_LOOK
         if d["kind"] == "berm":   # (earth banks are shaped from the ground; wire-mesh barriers only at army posts)
             look = "d" if any(e["kind"] in ARMY_KINDS and not e.get("dropped") and
                               math.hypot(e["at"][0] - x, e["at"][1] - z) < 30 for e in debris) else "b"
@@ -4898,6 +4948,8 @@ def write_scene(ter):
     for glb in sorted({c["glb"] for c, _ in placed}):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]')
+    if ROAD_LOOK != "a":   # (a: the old flat colour, for the options sheets)
+        out.append(f'[ext_resource type="Material" path="res://assets/materials/road_{ROAD_LOOK}.tres" id="g_road"]')
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
     for rid, png in (("g_tuft_sprites", "tufts"), ("g_splat", "splat"), ("g_mask", "grass_mask")):
         out.append(f'[ext_resource type="Texture2D" path="res://assets/textures/ground/{png}.png" id="{rid}"]')
@@ -4914,6 +4966,8 @@ def write_scene(ter):
             "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b[:10]) + ")",
             f"terrain_colour = {C['grass']}",
             'ground_material = ExtResource("g_ground")',
+            'road_material = ExtResource("g_road")' if ROAD_LOOK != "a" else "",
+            f"road_colour = {C['road']}",
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(gx(x)) for x in ter.xs) + ")",
             "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for row in ter.h for h in row) + ")",

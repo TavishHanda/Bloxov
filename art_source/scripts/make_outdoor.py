@@ -877,6 +877,60 @@ def draw_kiosk(b, piece, rng):
               style=no_bottom("dbr_paper", 1.0))
 
 
+# ------------------------------------------------------------------------------------------------ street lamps
+# (outdoor step 3) Looks: b a modern steel pole with a cobra-head lamp, c an old cast-iron lantern post, d a concrete
+# pole with a curved arm and a sodium lamp. Some are bent; knocked-down ones lie in the verge.
+def lamp_parts(b, f, look, rng, bent=0.0):
+    """One lamp in frame f (origin at the pole's foot, +y up the pole, +z toward the road)."""
+    if look == "b":
+        cyl(b, f.p(0, 0.15, 0), 0.2, 0.3, "trim_dark", sides=8, yaw=f.yaw)                     # base
+        cyl(b, f.p(0, 3.2, 0), 0.08, 6.1, "metal", sides=8, yaw=f.yaw)
+        f.box((0, 6.2, 0.9), (0.08, 0.08, 1.9), pitch=-6 + bent, style=flat("metal", 1.0))    # the arm
+        f.box((0, 6.28 - bent * 0.03, 1.9), (0.32, 0.14, 0.62), pitch=bent, style=flat("trim_dark", 1.0))   # the head
+        f.box((0, 6.2 - bent * 0.03, 1.92), (0.24, 0.02, 0.46), pitch=bent, style=flat("steel_light", 1.0))  # its lens
+    elif look == "c":
+        cyl(b, f.p(0, 0.35, 0), 0.2, 0.7, "trim_dark", sides=8, yaw=f.yaw)                     # fluted foot
+        cyl(b, f.p(0, 0.75, 0), 0.14, 0.1, "trim_dark", sides=8, yaw=f.yaw)
+        cyl(b, f.p(0, 2.2, 0), 0.07, 2.9, "trim_dark", sides=8, yaw=f.yaw)
+        cyl(b, f.p(0, 3.68, 0), 0.12, 0.08, "trim_dark", sides=8, yaw=f.yaw)
+        f.box((0, 3.75, 0), (0.06, 0.12, 0.7), style=flat("trim_dark", 1.0))                  # cross bar
+        f.box((0, 4.02, 0), (0.42, 0.5, 0.42), yaw=bent, style=flat("steel_light", 1.0))      # the lantern's glass
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                f.box((sx * 0.21, 4.02, sz * 0.21), (0.05, 0.54, 0.05), style=flat("trim_dark", 1.0))
+        f.box((0, 4.3, 0), (0.52, 0.08, 0.52), style=flat("trim_dark", 1.0))
+        rock(b, f.p(0, 4.45, 0), (0.42, 0.22, 0.42), f.yaw + 45, rng, "trim_dark", jitter=0.0, chamfer=0.1, taper=0.3)
+        cyl(b, f.p(0, 4.62, 0), 0.03, 0.14, "trim_dark", sides=6)
+    else:
+        rock(b, f.p(0, 3.5, 0), (0.24, 7.0, 0.24), f.yaw, rng, "dbr_conc", jitter=0.0, chamfer=0.05, taper=0.6)
+        f.box((0, 6.7, 0.5), (0.1, 0.1, 1.1), pitch=-30, style=flat("trim_dark", 1.0))        # the curved arm
+        f.box((0, 6.95, 1.35), (0.1, 0.1, 0.9), pitch=-5 + bent, style=flat("trim_dark", 1.0))
+        f.box((0, 6.86 - bent * 0.03, 1.85), (0.3, 0.18, 0.5), pitch=bent, style=flat("trim_dark", 1.0))
+        f.box((0, 6.76 - bent * 0.03, 1.87), (0.22, 0.04, 0.36), pitch=bent, style=flat("hz_flat", 1.0))   # sodium glass
+
+
+def draw_lamp(b, piece, rng):
+    box = piece["boxes"][0]
+    look = piece["look"]
+    (x, y, z), s = box["pos"], box["size"]
+    if s[1] < 1.0:   # knocked down: the pole lying along the box, its foot at the road end, a crack in the kerb
+        yaw = box["yaw"]
+        foot = v_add((x, y - s[1] / 2, z), rot((0, 0, s[2] / 2), yaw, 0.0))
+        v0, n0 = len(b.verts), len(b.normals)
+        lamp_parts(b, Frame(b, (0, 0, 0), 0), look, rng)
+        # (lay it down: turned -90 degrees about x, so the pole runs along -z, away from the road, arm up; then placed)
+        lay = lambda p: (p[0], p[2], -p[1])
+        for i in range(v0, len(b.verts)):
+            q = lay(b.verts[i])
+            b.verts[i] = v_add(rot((q[0], q[1] + 0.15, q[2]), yaw, 0.0), foot)
+        for i in range(n0, len(b.normals)):
+            b.normals[i] = rot(lay(b.normals[i]), yaw, 0.0)
+        bits(b, foot, 0.4, 3, rng, ("dbr_conc", "rubble_core"))
+        return
+    f = frame_of(b, box)
+    lamp_parts(b, f, look, rng, bent=rng.choice((0, 0, 0, 0, 25, -20)))
+
+
 # ------------------------------------------------------------------------------------------------ containers
 def container(f, rng, skin, ribs=True, holes=False, L=6.1, W=2.4, H=2.6):
     side = lambda nn, m, q: None if nn[1] < -0.7 else (skin, uv_world(2.4))
@@ -1177,7 +1231,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
         "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,
-        "kiosk": draw_kiosk}
+        "kiosk": draw_kiosk, "lamp": draw_lamp}
 
 
 def main():

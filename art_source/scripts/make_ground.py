@@ -36,6 +36,11 @@ mb.PALETTE.update({
     "gm_base": "5d4f3d", "gm_dk": "514434", "gm_lt": "685946",
     "gx_base": "4a433b", "gx_dk": "3e3832", "gx_lt": "5a5046", "gx_ash": "6d6660",
     "gg_base": "858073", "gg_dk": "6f6a5f", "gg_lt": "9b968a", "gg_dark": "5d594f",
+    # roads (outdoor step 3): b worn grey asphalt, c dark asphalt, d concrete slabs; patches darker and newer
+    "ab_base": "5b5b5d", "ab_dk": "4f4f52", "ab_lt": "6a6a6b", "ab_ag": "77767a", "ab_crack": "3c3c3f",
+    "ac_base": "45464a", "ac_dk": "3b3c40", "ac_lt": "525357", "ac_ag": "626266", "ac_crack": "2e2f32",
+    "ad_base": "8b8780", "ad_dk": "7d7972", "ad_lt": "98948c", "ad_ag": "a29e96", "ad_crack": "5f5c56",
+    "ap_base": "3f4043", "ap_dk": "37383b", "ap_lt": "4a4b4e",
 })
 
 
@@ -145,6 +150,37 @@ def tufts(path, look):
     mb.write_png(path, 32, 16, rows)
 
 
+def asphalt(base, dk, lt, ag, crack, cracks=5, n=128):
+    """A road surface tile (128 px for 4 m): fine noise, aggregate specks, a few branching cracks."""
+    def paint(rng):
+        c = Canvas(n, n, base)
+        c.noise(0, 0, n, n, [dk, lt], 0.3, rng)
+        for _ in range(n * n // 40):
+            c.put(rng.randrange(n), rng.randrange(n), ag)
+        c.blotch([dk], 10, rng, size=(4, 10))
+        for _ in range(cracks):   # a crack: a wandering line of dark pixels, sometimes forking
+            x, y = rng.randrange(n), rng.randrange(n)
+            dx, dy = rng.choice(((1, 0), (0, 1), (1, 1), (1, -1)))
+            for _ in range(rng.randrange(20, 50)):
+                c.put(x % n, y % n, crack)
+                if rng.random() < 0.35:
+                    x += rng.choice((-1, 0, 1)) if dx == 0 else 0
+                    y += rng.choice((-1, 0, 1)) if dy == 0 else 0
+                x, y = x + dx, y + dy
+                if rng.random() < 0.05:
+                    dx, dy = dy, dx
+        return c
+    return paint
+
+
+ROADS = {   # look: (surface, patch)
+    "b": asphalt("ab_base", "ab_dk", "ab_lt", "ab_ag", "ab_crack", cracks=7),
+    "c": asphalt("ac_base", "ac_dk", "ac_lt", "ac_ag", "ac_crack", cracks=3),
+    "d": asphalt("ad_base", "ad_dk", "ad_lt", "ad_ag", "ad_crack", cracks=9),
+}
+ROAD_PATCH = asphalt("ap_base", "ap_dk", "ap_lt", "ab_ag", "ac_crack", cracks=1)
+
+
 def save(path, canvas, name):
     rows = mb.styled(canvas, random.Random(name))
     mb.write_png(path, len(rows[0]), len(rows), rows)
@@ -196,6 +232,9 @@ def main():
     dither(os.path.join(OUT, "dither.png"))
     tufts(os.path.join(OUT, "tufts.png"), "c" if pick == "mix" else pick)
     macro(os.path.join(OUT, "macro.png"))
+    for look, painter in ROADS.items():
+        save(os.path.join(OUT, f"road_{look}.png"), painter(random.Random(f"road {look}")), f"road {look}")
+    save(os.path.join(OUT, "road_patch.png"), ROAD_PATCH(random.Random("road patch")), "road patch")
     # (one look: its two tiles, the second also in grass_c's place)
     picked = MIX if pick == "mix" else ((pick, "a"), (pick, "b"), (pick, "b"))
     for slot, (look, part) in zip("abc", picked):
