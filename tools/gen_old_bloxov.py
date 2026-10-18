@@ -1571,6 +1571,42 @@ old_car_park = [0, 0]   # its boxes (from, to), see the grocery
 lot_ways = []           # the car parks' ways in off the roads (points, width): no road lines across their mouths
 
 
+@debris_kind("shelter")
+def bus_shelter(x, z, yaw):
+    """A bus shelter (its open side faces yaw + 180): roof, back and end panels, a bench, the stop's sign."""
+    with group():
+        c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        obox(x + s_ * 0.8, 1.2, z + c * 0.8, 4.0, 2.4, 0.1, yaw, "metal")          # back panel
+        obox(x, 2.45, z, 4.2, 0.1, 1.9, yaw, "metal", solid=False)                   # roof
+        obox(x + c * 2.4, 1.3, z - s_ * 2.4, 0.1, 2.6, 0.1, yaw, "metal")           # the stop's sign post
+
+
+@debris_kind("bench")
+def bench(x, z, yaw):
+    obox(x, 0.25, z, 1.6, 0.5, 0.5, yaw, "wood")
+
+
+def station_square():
+    """Bloxov Station's square (World art 0.17, owner 2026-10-18: "just a road leading to the train station ... make
+    this a hub"; picked B, the station square, with some of C's market stalls; the hill levelled for it, EXTRA_PADS):
+    paving in front of the station, a drop-off with taxis where Station Road ends, a clock on a plinth, a bus
+    shelter, benches, lamps, planters by the doors, a kiosk and a few market stalls."""
+    clear_scatter((193.0, 164.0, 245.0, 190.5))
+    plaza(219.0, 183.75, 40.0, 11.5)                       # (199..239 x 178..189.5; the station's north wall at 190)
+    box(196.0, 0.0, 170.0, 216.0, 0.06, 178.0, "lot", solid=False)    # the drop-off
+    car(200.5, 174.0, 0, "car_b"); car(204.5, 174.2, 2, "car_a")       # (taxis waiting)
+    statue(229.0, 182.0)                                   # the clock
+    bus_shelter(221.5, 175.5, 0)
+    for x in (212.0, 226.0):   # (flanking the doors; the office's blast rubble lies east of them)
+        planter(x, 187.0)
+    for x, yaw in ((204.0, 0), (234.5, 0), (216.0, 180)):
+        bench(x, 180.0 if yaw == 0 else 179.0, yaw)
+    for x in (199.5, 212.0, 226.0, 238.5):
+        lamp(x, 178.6, 0)
+    kiosk(236.0, 174.0)
+    stall(203.0, 184.5, 0); stall(207.0, 180.5, 0); stall(213.5, 182.5, 90)
+
+
 def churchyard():
     (px, z0), (_, z1) = CHURCH_PATH
     clear_scatter((px - 2.5, z0, px + 2.5, z1 + 1.0))
@@ -3063,6 +3099,8 @@ def _clear_of_map(x, z):
         return False
     if any(t[0] - 6 < x < t[2] + 6 and t[1] - 6 < z < t[3] + 6 for t in TRENCHES):
         return False
+    if any(sx - 6 < x < sx + 6 and sz - 6 < z < sz + 13 for sx, sz in stand_spots):   # (the stands' ramps)
+        return False
     for points, width in roads + water:
         for a, b in zip(points, points[1:]):
             if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 6:
@@ -3218,6 +3256,8 @@ def _cover_checker():
         if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 6:
             return False
         if any(t[0] - 3 < x < t[2] + 3 and t[1] - 3 < z < t[3] + 3 for t in TRENCHES):
+            return False
+        if any(sx - 5 < x < sx + 5 and sz - 5 < z < sz + 12 for sx, sz in stand_spots):   # (the stands' ramps)
             return False
         for points, width in roads + water:
             for a, b in zip(points, points[1:]):
@@ -3403,7 +3443,7 @@ WAVES = [(20, 150, 1.0, 0.3), (110, 120, 0.8, 1.9), (65, 85, 0.45, 4.0), (160, 7
 HILLS = [
     (305, 150, 40, 9.0),    # the east woods sit on a big hill
     (334, 108, 20, 4.0),
-    (235, 150, 22, 6.0),    # a rise east of Station Road
+    (238, 146, 22, 5.0),    # a rise east of Station Road (World art 0.17: eased back off the station square)
     (252, 186, 18, 4.0),
     (150, 194, 22, 4.5),    # the field between town and the railway
     (106, 180, 16, 3.5),
@@ -3469,6 +3509,7 @@ EXTRA_PADS = [
     (58.0, 260.0, 74.0, 274.0),    # campsite
     (89.0, 66.0, 106.0, 72.0),     # the rubble blown out of the pharmacy's north wall (round 4: part of its model)
     (220.5, 18.0, 232.5, 72.0),    # the motel's gallery, stairs and car park
+    (195.0, 168.0, 243.0, 190.0),  # the station square (World art 0.17, owner 2026-10-18: level it into the hill)
 ]
 
 
@@ -4024,7 +4065,8 @@ def main():
     road([(112, 100), (118, 70), (122, 40), (138, 8)], 6)                                              # Mill Lane
     old_road = road([(60, 88), (52, 130), (64, 170), (105, 196), (150, 214), (196, 240), (236, 270), (290, 300),
                      (350, 306)], 8)   # Old Road / the highway
-    road([(186, 104), (194, 150), (214, 186)], 6)                                                      # Station Road
+    road([(186, 104), (194, 150), (206.2, 172)], 6)                                                    # Station Road
+    # (World art 0.17: it ends at the station square's drop-off now, station_square())
     road([(236, 270), (290, 258), (350, 252)], 6)                                                      # East Lane
     road([(196, 240), (180, 300), (160, 348)], 6)                                                      # South Lane
     # creek (shallow: walkable) and the rail bridge over it
@@ -4598,6 +4640,7 @@ def main():
         footprints.remove(g)
     clear_scatter(MOTEL_CLEAR)
     motel()
+    station_square()
     churchyard()
     extract_camps()
     zone_spawns()

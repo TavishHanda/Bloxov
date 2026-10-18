@@ -1403,12 +1403,56 @@ def draw_net(b, piece, rng):
         rock(b, f.p(u, top - 0.05, v), (0.5, 0.18, 0.5), rng.uniform(0, 90), rng, "dbr_leaf_c", jitter=0.2, chamfer=0.4)
 
 
+# ------------------------------------------------------------------------------------------------ the station square
+def draw_shelter(b, piece, rng):
+    """A bus shelter: steel frame, glass back and ends (cracked, one pane out), a slatted roof, a bench, the stop's
+    blue sign on its post."""
+    back = max(piece["boxes"], key=lambda bx: bx["size"][0] if bx["solid"] else 0)
+    post = min(piece["boxes"], key=lambda bx: bx["size"][0])
+    f = frame_of(b, back)
+    W = back["size"][0]
+    # (the frame's origin is the back panel's foot; the shelter's front is toward local -z)
+    for x in (-W / 2, W / 2):
+        for z in (0.0, -1.7):
+            f.box((x, 1.25, z), (0.08, 2.5, 0.08), style=flat("trim_dark", 1.0))
+    f.box((0, 2.52, -0.85), (W + 0.3, 0.08, 1.95), style=lambda n, m, q: ("trim_dark", uv_world(1.0)))
+    f.box((0, 2.45, -0.85), (W + 0.1, 0.06, 1.85), style=flat("steel_light", 1.0))
+    f.box((-W / 4, 1.25, 0.0), (W / 2 - 0.1, 2.2, 0.03), style=flat("glass", 1.0))   # glass (the right pane's out)
+    f.box((W / 4, 0.25, 0.0), (W / 2 - 0.1, 0.4, 0.03), style=flat("trim_dark", 1.0))
+    for x in (-W / 2, W / 2):
+        f.box((x, 1.25, -0.6), (0.03, 2.2, 1.0), style=flat("glass", 1.0))
+    f.box((0, 0.48, -0.35), (W - 0.6, 0.06, 0.4), style=flat("wood", 1.0))          # bench
+    for x in (-W / 2 + 0.6, W / 2 - 0.6):
+        f.box((x, 0.24, -0.35), (0.06, 0.48, 0.35), style=flat("trim_dark", 1.0))
+    for _ in range(8):   # broken glass
+        f.box((rng.uniform(0, W / 2), 0.01, rng.uniform(-1.2, 0.4)), (0.12, 0.02, 0.08), yaw=rng.uniform(0, 180), style=flat("glass", 1.0))
+    g = frame_of(b, post)
+    g.box((0, 1.3, 0), (0.08, 2.6, 0.08), style=flat("steel_light", 1.0))
+    g.box((0, 2.45, 0), (0.7, 0.7, 0.05), style=flat("dbr_cont_b", 1.0))                   # the stop's sign
+    g.box((0, 2.45, 0.03), (0.3, 0.3, 0.02), style=flat("sb_cream", 1.0))
+
+
+def draw_bench(b, piece, rng):
+    """A park bench: slatted seat and back on cast iron ends."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    W = box["size"][0]
+    for k in range(3):
+        f.box((0, 0.44, -0.12 + k * 0.12), (W, 0.04, 0.09), style=flat("wood", 1.0))
+    for k in range(2):
+        f.box((0, 0.62 + k * 0.14, 0.24), (W, 0.09, 0.03), style=flat("wood", 1.0))
+    for x in (-W / 2 + 0.12, W / 2 - 0.12):
+        f.box((x, 0.22, 0.0), (0.06, 0.44, 0.45), style=flat("trim_dark", 1.0))
+        f.box((x, 0.6, 0.25), (0.06, 0.4, 0.05), style=flat("trim_dark", 1.0))
+
+
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
         "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,
         "kiosk": draw_kiosk, "lamp": draw_lamp,
-        "trench": draw_trench, "tent": draw_tent, "hut": draw_hut, "crates": draw_crates, "net": draw_net}
+        "trench": draw_trench, "tent": draw_tent, "hut": draw_hut, "crates": draw_crates, "net": draw_net,
+        "shelter": draw_shelter, "bench": draw_bench}
 
 
 def main():
