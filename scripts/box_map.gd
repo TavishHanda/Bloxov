@@ -26,6 +26,8 @@ const LEAVES_COLOUR := Color(0.3, 0.5, 0.26)
 const WADE_META := &"wading"
 ## Wading counts from this deep (feet this far below the surface).
 const WADE_DEPTH := 0.05
+## Points across the water ribbon (so the shader knows the depth across it).
+const WATER_ACROSS := 9
 
 @export var boxes := PackedFloat32Array()
 @export var colors := PackedColorArray()
@@ -58,6 +60,8 @@ const WADE_DEPTH := 0.05
 @export var water_points := PackedVector3Array()
 @export var water_width := 8.0
 @export var water_colour := 0
+## The water's look (World art 0.17: assets/materials/water.tres); without one, a flat see-through colour.
+@export var water_material: Material
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
@@ -292,26 +296,46 @@ func _water_sides(k: int, half: float) -> Array[Vector3]:
 	return [water_points[k] + side, water_points[k] - side]
 
 
-## The water surface: one ribbon along the middle line (no overlapping pieces, so it's evenly see-through).
+## The water surface: one ribbon along the middle line (no overlapping pieces, so it's evenly see-through), a row of
+## WATER_ACROSS points across. UV: metres across from the middle line, metres downstream; UV2.x: how deep the water is
+## there (down to the ground), for the water shader's shallows and foam.
 func _water_arrays() -> Array:
 	var points := PackedVector3Array()
 	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var depths := PackedVector2Array()
 	var indices := PackedInt32Array()
+	var along := 0.0
+	var half := water_width / 2.0
 	for k in water_points.size():
-		points.append_array(_water_sides(k, water_width / 2.0))
-		normals.append_array([Vector3.UP, Vector3.UP])
+		var sides := _water_sides(k, half)
 		if k > 0:
-			var a := (k - 1) * 2
-			indices.append_array([a, a + 2, a + 1, a + 1, a + 2, a + 3])
+			along += Vector2(water_points[k].x - water_points[k - 1].x, water_points[k].z - water_points[k - 1].z).length()
+		for c in WATER_ACROSS:
+			var f := float(c) / (WATER_ACROSS - 1)
+			var p := sides[0].lerp(sides[1], f)
+			var ground := ground_height(to_global(p))
+			points.append(p)
+			normals.append(Vector3.UP)
+			uvs.append(Vector2(half * (1.0 - 2.0 * f), along))
+			depths.append(Vector2(1.0 if is_nan(ground) else to_global(p).y - ground, 0.0))
+			if k > 0 and c > 0:
+				var i := k * WATER_ACROSS + c
+				var up := i - WATER_ACROSS
+				indices.append_array([up - 1, i - 1, up, up, i - 1, i])
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = points
 	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = depths
 	arrays[Mesh.ARRAY_INDEX] = indices
 	return arrays
 
 
-func _water_material() -> StandardMaterial3D:
+func _water_material() -> Material:
+	if water_material:
+		return water_material
 	var material := StandardMaterial3D.new()
 	var colour := colors[water_colour] if water_colour < colors.size() else Color.MAGENTA
 	material.albedo_color = Color(colour.darkened(0.2), 0.82)

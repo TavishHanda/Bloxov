@@ -2852,8 +2852,13 @@ CABINS = [(90, 288), (36, 304), (306, 166)]
 NO_TREES = [(x - 1, z - 1, x + 14, z + 11) for x, z in CABINS]
 
 
+def in_creek(x, z, margin=0.0):
+    """True if (x, z) is in the creek or on its banks (World art 0.17, owner 2026-10-18: no trees in the water)."""
+    return any(_nearest_on(pts, x, z)[0] < CREEK_BANK + margin for pts, _ in water)
+
+
 def tree(x, z, rng):
-    if any(x0 < x < x1 and z0 < z < z1 for x0, z0, x1, z1 in NO_TREES):
+    if any(x0 < x < x1 and z0 < z < z1 for x0, z0, x1, z1 in NO_TREES) or in_creek(x, z):
         rng.uniform(5.0, 7.5); rng.uniform(3.0, 4.6)   # (keep the rest of the woods where it was)
         return
     trunks.append((x, z))
@@ -5751,6 +5756,7 @@ def write_scene(ter):
     out.append('[ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]')
     rib = road_ribbons(ter) if ROAD_LOOK != "a" else ([], [], [], [], [])
     out.append('[ext_resource type="Material" path="res://assets/materials/lot.tres" id="g_lot"]')
+    out.append('[ext_resource type="Material" path="res://assets/materials/water.tres" id="g_water"]')
     if ROAD_LOOK != "a":   # (a: the old flat colour, for the options sheets)
         out.append(f'[ext_resource type="Material" path="res://assets/materials/road_{ROAD_LOOK}.tres" id="g_road"]')
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
@@ -5786,6 +5792,7 @@ def write_scene(ter):
             "terrain_holes = PackedInt32Array(" + ", ".join(str(c) for c in ter.hole_cells) + ")",
             "terrain_hidden = PackedInt32Array(" + ", ".join(str(c) for c in ter.hidden_cells) + ")",
             f"water_colour = {C['water']}",
+            'water_material = ExtResource("g_water")',
             f"water_width = {fmt(2 * CREEK_BANK)}",
             "water_points = PackedVector3Array(" + ", ".join(
                 f"{fmt(gx(x))}, {fmt(ter.water_level(x, z))}, {fmt(gz(z))}" for x, z in water[0][0][WATER_START:]) + ")", "",
