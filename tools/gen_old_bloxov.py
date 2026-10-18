@@ -3752,6 +3752,7 @@ def terrain():
             car_at[a] = (b, group_lift[a])
     out = []
     covers = []
+    car_groups = {c["anchor"]: [] for c in cars}   # (their boxes in `out`, fitted to the ground after the loop)
 
     def is_cover(b, a):
         return a is None and not b[9] and b[7] == 0 and abs(b[1] - b[4] / 2) < 1e-6 and b[4] <= 0.06 + 1e-6
@@ -3780,6 +3781,8 @@ def terrain():
         elif a is None:
             out.append(_moved(b, low(b)))
         elif a[0] == "g":
+            if a in car_groups:
+                car_groups[a].append(len(out))
             out.append(_moved(b, group_lift[a]))
         elif a[0] == "wire":
             _, ax, az, bx, bz = a
@@ -3803,6 +3806,9 @@ def terrain():
                     # a level crossing: the road goes over the rails (not level with them: it would flicker)
                     piece = _moved(piece, max(0.0, RAIL_TOP + COVER_STEP - (piece[1] + piece[4] / 2)))
                 out.append(piece)
+    for a, idx in car_groups.items():
+        if a in car_at and idx:
+            fit_car(ter, a, idx, out, covers)
     boxes = out
     for x0, z0, x1, z1, top in covers:   # (no ground poking up through a floor or a yard: it flickers)
         poke = max(ter.at(x0 + (x1 - x0) * i / 12, z0 + (z1 - z0) * k / 12) for i in range(13) for k in range(13))
@@ -3847,7 +3853,46 @@ def terrain():
 
 
 ground_y = {}
-car_at = {}       # group anchor: (its first box, the group's lift), see terrain()
+car_at = {}       # group anchor: (its first box, the group's lift[, its tilt]), see terrain() and fit_car()
+
+
+def fit_car(ter, a, idx, out, covers):
+    """Sits a car on what's under its wheels (owner 2026-10-18: a car was sunk into a hill and the road): the ground,
+    a road (its ribbon is level across, at the highest ground under it) or a car park, tilted to match. Its boxes
+    pitch along their length (BoxMap boxes can't roll; the model does both)."""
+    b, _ = car_at[a]
+    if ter.pad_at(b[0] + M / 2, b[2] + M / 2) is not None:
+        return   # (on a building's floor: flat already)
+
+    def floor(x, z):
+        h = ter.at(x, z)
+        r = road_top(ter, x, z)
+        if r is not None:
+            h = max(h, r)
+        for x0, z0, x1, z1, top in covers:
+            if x0 <= x <= x1 and z0 <= z <= z1:
+                h = max(h, top)
+        return h
+    cx, cz = b[0] + M / 2, b[2] + M / 2
+    c, s = math.cos(math.radians(b[6])), math.sin(math.radians(b[6]))
+    hx, hz = b[3] / 2 * 0.85, b[5] / 2 * 0.8      # (the wheels: a little in from the body's corners)
+    pts = [(lx, lz, floor(cx + c * lx + s * lz, cz - s * lx + c * lz)) for lx, lz in ((-hx, -hz), (hx, -hz), (hx, hz), (-hx, hz))]
+    gx_ = ((pts[1][2] + pts[2][2]) - (pts[0][2] + pts[3][2])) / (4 * hx)   # rise per metre along local x
+    gz_ = ((pts[2][2] + pts[3][2]) - (pts[0][2] + pts[1][2])) / (4 * hz)   # and along local z
+    h0 = sum(p[2] for p in pts) / 4
+    # (no belly in a bump: the middle never under the ground)
+    h0 = max(h0, floor(cx, cz) - 0.15)
+    # back to map axes: local x is (c, -s), local z is (s, c)
+    ax, az = gx_ * c + gz_ * s, -gx_ * s + gz_ * c
+    lift0 = car_at[a][1]
+    for k in idx:
+        q = out[k]
+        qx, qz = q[0] + M / 2 - cx, q[2] + M / 2 - cz
+        dy = h0 + ax * qx + az * qz - lift0
+        qc, qs = math.cos(math.radians(q[6])), math.sin(math.radians(q[6]))
+        pitch = -math.degrees(math.atan(ax * qs + az * qc))   # (BoxMap pitch: + tips the box's +z end down)
+        out[k] = (q[0], q[1] + dy) + tuple(q[2:7]) + (q[7] + pitch,) + tuple(q[8:])
+    car_at[a] = (b, h0, (ax, az))
 
 
 def _moved(b, dy):
@@ -4143,7 +4188,7 @@ def main():
     add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)   # in the doctor's bedroom
 
     # street cover around town
-    for x, z, yaw, col in ((44, 87, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
+    for x, z, yaw, col in ((44, 85, 85, "car_a"), (80, 96, 72, "car_b"), (125, 101, 92, "car_a"), (150, 104, 97, "car_b"),
                            (57, 112, 10, "car_a"), (118, 52, 5, "car_b")):
         car(x, z, yaw, col)
     for x, z in ((48, 82), (88, 88), (124, 88), (147, 143), (78, 143), (126, 84)):
@@ -4720,8 +4765,9 @@ def xform(x, y, z, yaw=0.0):
             f"{fmt(gx(x))}, {fmt(y)}, {fmt(gz(z))})")
 
 
-def car_xform(c, b, lift):
-    """Where a car's model goes: under its body box (b, after any turn), on the ground the group was lifted to."""
+def car_xform(c, b, lift, tilt=(0.0, 0.0)):
+    """Where a car's model goes: under its body box (b, after any turn), on the ground the group was lifted to,
+    tilted to the ground's slope (tilt: its rise per metre east and south, see fit_car)."""
     yaw = b[6]
     if yaw == 0.0 and b[3] > b[5] and not c["roll"]:   # (an unturned box turned a quarter: its sides swapped)
         yaw = 90.0
@@ -4737,6 +4783,18 @@ def car_xform(c, b, lift):
     else:
         y = lift
         rows = ((cy, 0.0, sy), (0.0, 1.0, 0.0), (-sy, 0.0, cy))
+    if tilt != (0.0, 0.0):   # turn the car's up onto the ground's normal (about the axis between them)
+        nx, ny, nz = -tilt[0], 1.0, -tilt[1]
+        nl = math.sqrt(nx * nx + ny * ny + nz * nz)
+        nx, ny, nz = nx / nl, ny / nl, nz / nl
+        kx, kz = nz, -nx
+        kl = math.hypot(kx, kz)
+        if kl > 1e-6:
+            kx, kz = kx / kl, kz / kl
+            ca, sa = ny, kl
+            t = 1 - ca
+            rt = ((ca + kx * kx * t, -kz * sa, kx * kz * t), (kz * sa, ca, -kx * sa), (kz * kx * t, kx * sa, ca + kz * kz * t))
+            rows = tuple(tuple(sum(rt[i][k] * rows[k][j] for k in range(3)) for j in range(3)) for i in range(3))
     return ("Transform3D(" + ", ".join(fmt(v) for row in rows for v in row) + f", {fmt(gx(x + M / 2))}, {fmt(y)}, "
             f"{fmt(gz(z + M / 2))})")
 
@@ -4851,6 +4909,27 @@ def write_splat(ter):
         if c["glb"].endswith("burnt") or "rust" in c["glb"]:
             x, z = c["at"]
             stamp(2, x - 6, z - 6, x + 6, z + 6, blot(x, z, 3.2, 1.5, f"wreck {x} {z}"))
+    for name, x0, z0, x1, z1 in areas:                         # the junkyard (owner 2026-10-18: junkyard ground)
+        if name != "Junkyard":
+            continue
+        # packed gravel over the whole yard, worn dirt tracks down the lanes between the stacks and through the
+        # gates, bare dirt patches, and dark oil stains (the scorch texture) where the wrecks drip
+        stamp(3, x0 - 1.5, z0 - 1.5, x1 + 1.5, z1 + 1.5,
+              lambda x, z, r=(x0, z0, x1, z1): max(0.0, min(1.0, (1.4 - max(r[0] - x, x - r[2], r[1] - z, z - r[3], 0.0)) / 0.9)))
+        ph = random.Random("junkyard ground")
+        tracks = [([(x0 + 1, 274.0), ((x0 + x1) / 2, 274.7), (x1 - 1, 274.2)], 2.6),
+                  ([(x0 + 1, 282.0), ((x0 + x1) / 2, 281.4), (x1 - 1, 282.3)], 2.6),
+                  ([(320.0, z0), (320.5, 274.0)], 2.4), ([(330.5, z1), (330.0, 282.0)], 2.4),
+                  ([(x0, 278.5), (x0 + 6, 278.0), (x0 + 6, 282.0)], 2.2)]
+        lines(0, tracks, 0.2, 0.9)
+        for k in range(24):
+            bx_, bz_ = ph.uniform(x0 + 2, x1 - 2), ph.uniform(z0 + 2, z1 - 2)
+            br = ph.uniform(0.8, 2.4)
+            stamp(0, bx_ - br - 3, bz_ - br - 3, bx_ + br + 3, bz_ + br + 3, blot(bx_, bz_, br, 1.5, f"junk dirt {k}"))
+        for k in range(40):
+            bx_, bz_ = ph.uniform(x0 + 1.5, x1 - 1.5), ph.uniform(z0 + 1.5, z1 - 1.5)
+            br = ph.uniform(0.5, 1.4)
+            stamp(2, bx_ - br - 2, bz_ - br - 2, bx_ + br + 2, bz_ + br + 2, blot(bx_, bz_, br, 0.8, f"junk oil {k}"))
     rng = random.Random(2018)                                  # blast patches over the bombed quarter
     blasts = [(rng.uniform(a[0], a[2]), rng.uniform(a[1], a[3]), rng.uniform(3, 6)) for a in RUIN_AREAS for _ in range(8)]
     for x, z, r in blasts:
@@ -4939,6 +5018,33 @@ def write_outdoor(ter):
     return shown
 
 
+def _ribbon_h(ter, i, x, z, tx, tz, width, miter=1.0, step=2.0):
+    """The height of road i's ribbon at the section through (x, z) (direction (tx, tz))."""
+    # (level across, at the highest ground under it: the ground's grid cells bend between the samples and
+    # poked through the road's edges in steps)
+    y = 0.02 + 0.004 * (i + 1) + 0.04 + 0.002
+    h = max(ter.at(x + tx * a - tz * b * width / 2 * miter, z + tz * a + tx * b * width / 2 * miter)
+            for a in (-step / 2, 0.0, step / 2) for b in (-1.0, -0.5, 0.0, 0.5, 1.0)) + y
+    if abs(z - RAIL_Z) < 1.6 + width:   # a level crossing: over the rails, as the strips do
+        h = max(h, RAIL_TOP + COVER_STEP + 0.002)
+    return h
+
+
+def road_top(ter, x, z):
+    """The top of the road surface at (x, z), or None off the roads (the highest where roads meet)."""
+    best = None
+    for i, (curve, width) in enumerate(roads):
+        for (ax, az), (bx, bz) in zip(curve, curve[1:]):
+            ux, uz = bx - ax, bz - az
+            ln = math.hypot(ux, uz) or 1.0
+            t = max(0.0, min(ln, ((x - ax) * ux + (z - az) * uz) / ln))
+            px, pz = ax + ux / ln * t, az + uz / ln * t
+            if math.hypot(x - px, z - pz) <= width / 2 + 0.1:
+                h = _ribbon_h(ter, i, px, pz, ux / ln, uz / ln, width)
+                best = h if best is None else max(best, h)
+    return best
+
+
 def road_ribbons(ter, step=2.0):
     """The roads' surface (World art 0.17, outdoor step 3; owner: the lines were jagged and broken at every piece):
     one smooth ribbon per road for BoxMap to draw instead of its strip pieces, sections every `step` m at the strips'
@@ -4948,7 +5054,6 @@ def road_ribbons(ter, step=2.0):
     Returns (points, uvs, junction flags, sections per road, widths)."""
     pts, uvs, flags, counts, widths = [], [], [], [], []
     for i, (curve, width) in enumerate(roads):
-        y = 0.02 + 0.004 * (i + 1) + 0.04 + 0.002
         others = [(c, w) for k, (c, w) in enumerate(roads) if k != i]
         samples = []
         for (ax, az), (bx, bz) in zip(curve, curve[1:]):
@@ -4970,12 +5075,7 @@ def road_ribbons(ter, step=2.0):
                 ux, uz = samples[k + 1][0] - x, samples[k + 1][1] - z
                 ul = math.hypot(ux, uz) or 1.0
                 miter = min(1.4, 1.0 / max(0.7, (ux * tx + uz * tz) / ul))
-            # (level across, at the highest ground under it: the ground's grid cells bend between the samples and
-            # poked through the road's edges in steps)
-            h = max(ter.at(x + tx * a - tz * b * width / 2 * miter, z + tz * a + tx * b * width / 2 * miter)
-                    for a in (-step / 2, 0.0, step / 2) for b in (-1.0, -0.5, 0.0, 0.5, 1.0)) + y
-            if abs(z - RAIL_Z) < 1.6 + width:   # a level crossing: over the rails, as the strips do
-                h = max(h, RAIL_TOP + COVER_STEP + 0.002)
+            h = _ribbon_h(ter, i, x, z, tx, tz, width, miter, step)
             for side in (-1, 1):
                 px, pz = x - tz * side * width / 2 * miter, z + tx * side * width / 2 * miter
                 pts.append((gx(px), h, gz(pz)))
@@ -5067,9 +5167,9 @@ def write_scene(ter):
                 f"transform = {xform(m['x'], m['y'], m['z'], m['turned'])}", 'script = ExtResource("m_pixel")', ""]
     if placed:
         out += ['[node name="Cars" type="Node3D" parent="Level/Models"]', ""]
-    for n, (c, (b, lift)) in enumerate(placed):
+    for n, (c, (b, lift, *tilt)) in enumerate(placed):
         out += [f'[node name="Car{n}" parent="Level/Models/Cars" instance=ExtResource("c_{c["glb"]}")]',
-                f"transform = {car_xform(c, b, lift)}", 'script = ExtResource("m_pixel")', ""]
+                f"transform = {car_xform(c, b, lift, *tilt)}", 'script = ExtResource("m_pixel")', ""]
     if outdoor:
         out += ['[node name="Outdoor" type="Node3D" parent="Level/Models"]', ""]
     for chunk, ox, oz in outdoor:
