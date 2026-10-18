@@ -196,5 +196,16 @@
 "loco_y_flat",
 "placard_flat",
 "sig_dead",
-"dbr_xing"
+"dbr_xing",
+"dbr_soil",
+"dbr_wheat",
+"dbr_wheat_top",
+"dbr_maize",
+"dbr_maize_top",
+"dbr_sunfl",
+"dbr_sunfl_top",
+"dbr_burlap",
+"dbr_ash",
+"sf_y_flat",
+"sf_seed_flat"
 ]

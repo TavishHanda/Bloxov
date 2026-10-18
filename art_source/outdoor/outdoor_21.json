@@ -2,6 +2,7 @@
 "origin": [43.75, -43.75],
 "pieces": [
 {"kind": "barrier", "look": "c", "seed": "178.00 108.00", "boxes": [{"pos": [-40.75, 1.12, -23.25], "size": [0.6, 0.9, 3.0], "yaw": 90, "pitch": 0.0, "colour": "concrete", "solid": true}]},
+{"kind": "tractor", "look": "d", "seed": "250.00 90.00", "boxes": [{"pos": [31.25, 1.624, -41.25], "size": [2.2, 2.0, 3.6], "yaw": 20, "pitch": 0.0, "colour": "car_a", "solid": true}]},
 {"kind": "pole_snap", "look": "c", "seed": "183.11 98.04", "boxes": [{"pos": [-35.643, 1.532, -33.206], "size": [0.3, 2.6, 0.3], "yaw": 81.04, "pitch": 0.0, "colour": "wood", "solid": true}, {"pos": [-35.558, 0.289, -27.607], "size": [0.3, 0.2, 5.4], "yaw": 0.86, "pitch": 0.0, "colour": "wood", "solid": false}]},
 {"kind": "pole", "look": "c", "seed": "218.06 106.67", "boxes": [{"pos": [-0.691, 3.31, -24.585], "size": [0.3, 8.0, 0.3], "yaw": 136.76, "pitch": 0.0, "colour": "wood", "solid": true}, {"pos": [-0.691, 6.78, -24.585], "size": [1.8, 0.15, 0.16], "yaw": 136.76, "pitch": 0.0, "colour": "wood", "solid": false}]},
 {"kind": "wire", "look": "c", "seed": "231.27 92.62", "boxes": [{"pos": [12.515, 7.268, -38.626], "size": [0.05, 0.05, 38.553], "yaw": 136.76, "pitch": -1.95, "colour": "metal", "solid": false}, {"pos": [-0.691, -0.778, -24.585], "size": [0.01, 0.32, 0.01], "yaw": 136.76, "pitch": 0.0, "colour": "metal", "solid": false}, {"pos": [25.722, 0.534, -52.668], "size": [0.01, 0.32, 0.01], "yaw": 156.15, "pitch": 0.0, "colour": "metal", "solid": false}]},

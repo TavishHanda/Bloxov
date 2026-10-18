@@ -11,13 +11,14 @@ extends Node3D
 
 const CELL := 50.0
 const STRIDE := 7          # x, ground y, z, trunk height, canopy width, kind (0 broadleaf, 1 pine, 2 birch, 3 dead,
-                           # 4 fern: height, width), yaw
+                           # 4 fern, 5-7 crops: height, width), yaw
 const SHADER := preload("res://assets/shaders/trees.gdshader")
 const BROAD := 0
 const PINE := 1
 const BIRCH := 2
 const DEAD := 3
 const FERN := 4
+const WHEAT := 5           # (outdoor step 8: the farm's crops, 5 wheat 6 maize 7 sunflowers: height, width)
 # the texture sheet's tiles (art_source/scripts/make_trees.py): 4 x 4, (column, row)
 const CARD := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
 const BARK := [Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)]
@@ -65,6 +66,9 @@ func _tree(i: int) -> void:
 		return
 	if kind == FERN:
 		_fern(at, turn, h, s)
+		return
+	if kind >= WHEAT:
+		_crop(at, turn, h, s, Vector2i(kind - WHEAT, 3))
 		return
 	# the leaves box the generator keeps for the AI's sight: s wide, from h - 1 to h + 0.7 s
 	var tall := s * 0.7 + 1.0
@@ -351,6 +355,17 @@ func _dead(at: Vector3, turn: Basis, h: float) -> void:
 			var b := Basis(Vector3.UP, a + PI / 2)
 			_card(at, turn, p1 + Vector3(0, 0.45, 0), b.x * 0.55, Vector3(0, 0.6, 0), CARD[DEAD],
 				Vector3(0, h * 0.8, 0), Vector3(2, h * 0.3, 2), 0.0)
+
+
+func _crop(at: Vector3, turn: Basis, h: float, w: float, tile: Vector2i) -> void:
+	# A clump of crops (looks only: the field's strips keep their waist-high boxes): three crossed cards, ground to top,
+	# their tops swaying.
+	var mid := Vector3(0, h * 0.5, 0)
+	var half := Vector3(w * 0.5, h * 0.5, w * 0.5)
+	for k in 3:
+		var a := PI / 3.0 * k + _rng.randf_range(-0.2, 0.2)
+		var across := Vector3(cos(a), 0, sin(a)) * w * 0.5
+		_card(at, turn, mid + Vector3(0, -0.02, 0), across, Vector3(0, h * 0.5, 0), tile, mid, half, 1.0)
 
 
 func _fern(at: Vector3, turn: Basis, h: float, w: float) -> void:

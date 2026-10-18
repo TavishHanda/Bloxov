@@ -204,8 +204,8 @@ def _fp_apart(p, q):
 def _fp_counts(b):
     """Earlier boxes a scattered piece must keep clear of: debris, and anything solid that stands on the ground
     (not ground covers, not tree tops)."""
-    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS + RAIL_KINDS + ("tree", "deadtree"):
-        return True   # (power lines, the railway, trees: as before, only what's solid)
+    if len(b) > 10 and debris[b[10]]["kind"] not in POLE_KINDS + RAIL_KINDS + SET_KINDS + ("tree", "deadtree"):
+        return True   # (power lines, the railway, trees, the set pieces: as before, only what's solid)
     return bool(b[9]) and b[4] > 0.2 and b[1] + b[4] / 2 > 0.05 and b[1] - b[4] / 2 < 2.0 and max(b[3], b[5]) < 60
 
 
@@ -4091,7 +4091,107 @@ def signals_and_points():
 
 def fence(points, h=1.1):
     """A low wooden fence along a polyline, with a gap every so often (low cover, jumpable later)."""
+    if _model[-1] is not None:   # (the graveyard's railings: drawn by its model)
+        strip(points, 0.15, "wood", y=0.0, h=h, solid=True)
+    else:
+        farm_fence(points[0][0], points[0][1], points, h)
+
+
+@debris_kind("fence")
+def farm_fence(x, z, points, h):
+    """(Outdoor step 8: a farm fence drawn by the outdoor kit: split rails, boards or a woven stake fence.)"""
     strip(points, 0.15, "wood", y=0.0, h=h, solid=True)
+
+
+# ---------------------------------------------------------------------------------------------- set pieces (step 8)
+# (World art 0.17, outdoor step 8) The checkpoint's booth, the campsite, the hunting stands, the farm's field, fences
+# and tractor: drawn by the outdoor kit (make_outdoor.py) round the same gray boxes as before (same collision, cover
+# and AI paths). They count for the scatter's overlap check like the plain boxes they were (only what's solid).
+SET_KINDS = ("booth", "camptent", "firepit", "logseat", "stand", "crops", "fence", "farmland", "tractor", "boom", "hay")
+
+
+@debris_kind("booth")
+def guard_booth(x, z, yaw):
+    obox(x, 1.3, z, 2.6, 2.6, 2.6, yaw, "army")
+
+
+@debris_kind("camptent")
+def camp_tent(x, z, yaw):
+    obox(x, 0.6, z, 2.4, 1.2, 2.8, yaw, "army")
+    obox(x, 1.35, z, 1.2, 0.3, 2.8, yaw, "army")
+
+
+@debris_kind("firepit")
+def fire_pit(x, z):
+    """A ring of stones (four solid ones, step-over high) round the ashes."""
+    for dx, dz in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
+        box(x + dx - 0.3, 0, z + dz - 0.3, x + dx + 0.3, 0.3, z + dz + 0.3, "stone")
+
+
+@debris_kind("logseat")
+def log_seat(x, z):
+    obox(x, 0.2, z, 0.5, 0.4, 2.2, 0, "trunk")
+
+
+@debris_kind("stand")
+def hunting_stand(sx, sz):
+    """A platform 3.5 m up on four posts, rails on three sides, a ramp up the open (south) side."""
+    h, run = 3.5, 5.2
+    box(sx - 1.4, h - 0.2, sz - 1.4, sx + 1.4, h, sz + 1.4, "wood")
+    for px, pz in ((sx - 1.3, sz - 1.3), (sx + 1.3, sz - 1.3), (sx - 1.3, sz + 1.3), (sx + 1.3, sz + 1.3)):
+        box(px - 0.12, 0, pz - 0.12, px + 0.12, h - 0.2, pz + 0.12, "trunk")
+    box(sx - 1.4, h, sz - 1.4, sx + 1.4, h + 1.0, sz - 1.3, "wood")       # rails (open at the ramp)
+    box(sx - 1.4, h, sz - 1.4, sx - 1.3, h + 1.0, sz + 1.4, "wood")
+    box(sx + 1.3, h, sz - 1.4, sx + 1.4, h + 1.0, sz + 1.4, "wood")
+    obox(sx, h / 2 - 0.1, sz + 1.4 + run / 2, 2.2, 0.2, math.hypot(run, h), 0.0, "wood",
+         pitch=math.degrees(math.atan2(h, run)))
+
+
+FARM_FIELD = (282.0, 46.0, 342.0, 96.0)   # map x0, z0, x1, z1 of the ploughed field (make_outdoor draw_farmland)
+
+
+@debris_kind("farmland")
+def farmland(x, z):
+    """The farm's flat ground (its gray box is a dirt slab): the field is drawn ploughed, the yard is the ground's own
+    grass with dirt tracks (write_splat)."""
+    box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
+
+
+@debris_kind("crops")
+def crops(x, z):
+    """A strip of crops in the farm's field, waist high (low cover): wheat, maize or sunflowers by the look."""
+    box(x - 26, 0, z - 1.5, x + 26, 1.0, z + 1.5, "crop")
+
+
+@debris_kind("tractor")
+def tractor(x, z):
+    obox(x, 1.0, z, 2.2, 2.0, 3.6, 20, "car_a")
+
+
+# Made after the AI's spawn spots are picked (zone_spawns), so nothing else on the map moves for them.
+HAY_BALES = ((275.0, 57.5, 10.0), (277.6, 59.8, 55.0), (273.5, 86.0, -20.0), (339.0, 42.0, 80.0))   # map x, z, yaw
+BOOM_AT = (-1.0, -5.2)   # the checkpoint's boom gate: along the highway, out from its middle (see the checkpoint)
+checkpoint_frame = []    # (x, z, ux, uz, nx, nz, yaw) of the highway checkpoint, set where it's built
+
+
+@debris_kind("hay")
+def hay_bale(x, z, yaw):
+    """A round hay bale lying on its side (chest-high cover, outdoor step 8: the farm's field)."""
+    obox(x, 0.7, z, 1.5, 1.4, 1.5, yaw, "hay")
+
+
+@debris_kind("boom")
+def boom_gate(x, z, yaw):
+    """The checkpoint's boom gate, its arm up (picture only: a thin marker for the outdoor kit to draw round)."""
+    obox(x, 0.55, z, 0.3, 1.1, 0.3, yaw, "army", solid=False)
+
+
+def set_pieces_late():
+    for x, z, yaw in HAY_BALES:
+        assert all(math.hypot(x - sx, z - sz) > 6 for _, sx, sz in player_spawns + enemy_spawns), (x, z)
+        hay_bale(x, z, yaw)
+    cx, cz, ux, uz, nx_, nz_, yaw = checkpoint_frame[0]
+    boom_gate(cx + ux * BOOM_AT[0] + nx_ * BOOM_AT[1], cz + uz * BOOM_AT[0] + nz_ * BOOM_AT[1], yaw)
 
 
 # ---------------------------------------------------------------------------------------------- hills (0.11.17)
@@ -5065,7 +5165,7 @@ def main():
                 tree(tx, tz, rng)
 
     # ===================================================================== FARM (top right)
-    box(245, 0.0, 8, 343, 0.03, 100, "dirt", solid=False)
+    farmland(294, 54)
     farm_barn()
     # The silo and the shed stand well off the barn (owner, 2026-10-17: "the farm is huge").
     with modeled("silo", SILO[0], SILO[1]):
@@ -5086,10 +5186,9 @@ def main():
         box(252.0 + shx, 0, 55.3 + shz, 255.0 + shx, 2.0, 55.85 + shz, "metal", kind="shed_shelf")
         box(259.3 + shx, 0, 54.6 + shz, 261.7 + shx, 0.95, 55.75 + shz, "metal", kind="fuel_drums")
     for k in range(5):   # crop rows (low cover)
-        z = 50 + k * 9
-        box(286, 0, z, 338, 1.0, z + 3, "crop")
+        crops(312, 50 + k * 9 + 1.5)
     fence([(245, 8), (245, 40)]); fence([(245, 52), (245, 100), (300, 100)]); fence([(312, 100), (343, 100)])
-    obox(250, 1.0, 90, 2.2, 2.0, 3.6, 20, "car_a")                     # tractor
+    tractor(250, 90)
 
     # ===================================================================== MIDDLE: train station + depot
     with modeled("train_station", 219.0, 197.0):
@@ -5214,6 +5313,7 @@ def main():
 
     def at(s_, t_):
         return 263.0 + ux * s_ + nx_ * t_, 285.0 + uz * s_ + nz_ * t_
+    checkpoint_frame.append((263.0, 285.0, ux, uz, nx_, nz_, yaw_r))
     for s_, t_ in ((-6, -2.0), (6, 2.0)):
         barrier(*at(s_, t_), yaw_r + 90)
     for t_ in (-7.5, 7.5):
@@ -5221,7 +5321,7 @@ def main():
         sandbags(*at(-2.3, t_ * 0.85), yaw_r + 90, 2.4)
         sandbags(*at(2.3, t_ * 0.85), yaw_r + 90, 2.4)
     bx_, bz_ = at(-4, -10.5)
-    obox(bx_, 1.3, bz_, 2.6, 2.6, 2.6, yaw_r, "army")                           # guard booth
+    guard_booth(bx_, bz_, math.degrees(math.atan2(-uz, ux)))   # guard booth (a cube: turned so its door faces the road)
     truck(*at(-15, 8.5), yaw_r)
     truck(*at(13, -9.0), yaw_r + 180)
     cx_, cz_ = at(2, 10.0)
@@ -5256,24 +5356,14 @@ def main():
     # campsite by the creek (owner, 0.10.1): two tents, a fire pit with log seats, a crate
     x, z = camp
     for tx, tz, yaw in ((x - 4.0, z - 2.0, 20.0), (x + 3.5, z - 3.0, -15.0)):
-        obox(tx, 0.6, tz, 2.4, 1.2, 2.8, yaw, "army")
-        obox(tx, 1.35, tz, 1.2, 0.3, 2.8, yaw, "army")
-    for dx, dz in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
-        box(x + dx - 0.3, 0, z + 2 + dz - 0.3, x + dx + 0.3, 0.3, z + 2 + dz + 0.3, "stone")
-    obox(x - 2.6, 0.2, z + 2.0, 0.5, 0.4, 2.2, 0, "trunk"); obox(x + 2.6, 0.2, z + 2.0, 0.5, 0.4, 2.2, 0, "trunk")
+        camp_tent(tx, tz, yaw)
+    fire_pit(x, z + 2)
+    log_seat(x - 2.6, z + 2.0); log_seat(x + 2.6, z + 2.0)
     add_loot("Campsite", "crate", x + 0.5, z - 5.5, yaw=180.0)
     # hunting stands (owner, 0.10.1): a platform 3.5 m up with a ramp, one watching the Creek Trail extract
     for sx, sz in stands:
         stand_spots.append((sx, sz))
-        h, run = 3.5, 5.2
-        box(sx - 1.4, h - 0.2, sz - 1.4, sx + 1.4, h, sz + 1.4, "wood")
-        for px, pz in ((sx - 1.3, sz - 1.3), (sx + 1.3, sz - 1.3), (sx - 1.3, sz + 1.3), (sx + 1.3, sz + 1.3)):
-            box(px - 0.12, 0, pz - 0.12, px + 0.12, h - 0.2, pz + 0.12, "trunk")
-        box(sx - 1.4, h, sz - 1.4, sx + 1.4, h + 1.0, sz - 1.3, "wood")       # rails (open at the ramp)
-        box(sx - 1.4, h, sz - 1.4, sx - 1.3, h + 1.0, sz + 1.4, "wood")
-        box(sx + 1.3, h, sz - 1.4, sx + 1.4, h + 1.0, sz + 1.4, "wood")
-        obox(sx, h / 2 - 0.1, sz + 1.4 + run / 2, 2.2, 0.2, math.hypot(run, h), 0.0, "wood",
-             pitch=math.degrees(math.atan2(h, run)))
+        hunting_stand(sx, sz)
     for n, (x, y) in enumerate(CABINS, start=1):
         if n == 3:
             # The hunter's cabin in the east woods (World art 0.17, owner 2026-10-17): a log cabin with a porch,
@@ -5352,6 +5442,7 @@ def main():
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
+    set_pieces_late()
     lamp_pass()
     sign_pass()
     bush_pass()
@@ -5790,6 +5881,8 @@ def write_splat(ter):
     for bx in boxes:
         if bx[9] == 0 and bx[4] > 0.5:   # (tree tops, signs: looks-only and off the ground)
             continue
+        if len(bx) > 10 and debris[bx[10]]["kind"] == "farmland":   # (the farm's yard is grass: only its field isn't)
+            continue
         x, z = bx[0] + M / 2, bx[2] + M / 2
         if bx[1] - bx[4] / 2 > ter.at(x, z) + 0.4:
             continue
@@ -5804,6 +5897,10 @@ def write_splat(ter):
                 px = (i + 0.5) / SPLAT_PX - x
                 if abs(px * c - pz * s_) <= hx and abs(px * s_ + pz * c) <= hz:
                     free[j][i] = 0
+    x0, z0, x1, z1 = FARM_FIELD
+    for j in range(int(z0 * SPLAT_PX), int(z1 * SPLAT_PX) + 1):
+        for i in range(int(x0 * SPLAT_PX), int(x1 * SPLAT_PX) + 1):
+            free[j][i] = 0
     _png(GRASS_MASK_PNG, n, n, [bytearray(v for g in row for v in (g, g, g, 255)) for row in free])
 
 
@@ -5856,6 +5953,16 @@ def write_outdoor(ter):
             kind = tree_kind(x, z) if d["kind"] == "tree" else 3
             tree_data.append((trunk[0], trunk[1] - trunk[4] / 2, trunk[2], trunk[4], s, kind,
                               random.Random(f"tree yaw {x:.2f} {z:.2f}").uniform(0, 360)))
+        if d["kind"] == "crops":   # (outdoor step 8: clumps of crop cards over the strip, scripts/trees.gd kinds 5-7)
+            b = boxes[ks[0]]
+            crng = random.Random(f"crops {x:.2f} {z:.2f}")
+            kind, tall = {"b": (5, 1.0), "c": (6, 1.06), "d": (7, 1.02)}[look]
+            n = int(b[3] / 0.6)
+            for row in (-1.0, -0.33, 0.33, 1.0):
+                for k in range(n):
+                    tree_data.append((b[0] - b[3] / 2 + (k + crng.uniform(0.2, 0.8)) * b[3] / n, b[1] - b[4] / 2 - 0.03,
+                                      b[2] + row * 1.1 + crng.uniform(-0.15, 0.15), tall * crng.uniform(0.9, 1.04),
+                                      crng.uniform(0.8, 1.05), kind, crng.uniform(0, 360)))
         if d["kind"] == "bush":   # (drawn by scripts/bushes.gd: owner 2026-10-18 picked C, D (airy) for some)
             airy = random.Random(f"bush airy {x:.2f} {z:.2f}").random() < 0.3
             for k in ks:

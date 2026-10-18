@@ -61,6 +61,13 @@ mb.PALETTE.update({
     # road signs (round 3): enamel colours, faded a little in the sun
     "sg_red": "a3342b", "sg_yel": "d9b33a", "sg_grn": "2f6146", "sg_blue": "2f4f7a", "sg_wht": "ddd8cc",
     "sg_blk": "26262a", "sg_wood": "6a4a2e", "sg_wood_dk": "553a23", "sg_cream": "d6c9a4",
+    # set pieces (step 8): ploughed soil, wheat, maize, sunflowers, burlap, ashes
+    "soil1": "4f3c2b", "soil2": "453425", "soil_lt": "5f4a36", "soil_dk": "3a2b1f",
+    "wht1": "b8994f", "wht2": "a3853f", "wht_lt": "cdb066", "wht_dk": "8a6f34",
+    "mz1": "6f8a3c", "mz2": "5f7832", "mz_lt": "8aa04c", "mz_dry": "a39a55",
+    "sf1": "4d6a2e", "sf2": "405a26", "sf_dry": "7a6a3a", "sf_y": "d1a52c", "sf_y_dk": "b0861f", "sf_seed": "4a3523",
+    "brl1": "7d6c4c", "brl2": "6b5b3e", "brl_dk": "564830",
+    "ash1": "5d5853", "ash2": "4a4642", "ash_lt": "77716a", "ember": "6b3d24",
     "awn_r": "8f3b32", "awn_g": "476247", "awn_b": "3e5571", "awn_w": "c9c0ab", "blossom": "d8d0c2", "blossom2": "c9a4b8",
 })
 
@@ -314,6 +321,65 @@ def k_tyre(rng):
     return c
 
 
+def k_soil(rng):
+    """Ploughed field: furrows a ridge every 8 px (0.25 m), clods, a few stones."""
+    c = Canvas(64, 64, "soil1")
+    for y in range(0, 64, 8):
+        c.rect(0, y, 64, y + 2, "soil_dk")
+        c.rect(0, y + 4, 64, y + 6, "soil_lt")
+    c.noise(0, 0, 64, 64, ["soil2", "soil_dk", "soil_lt"], 0.18, rng)
+    for _ in range(10):
+        x, y = rng.randrange(64), rng.randrange(64)
+        c.rect(x, y, x + 2, y + 1, "pebble")
+    return c
+
+
+def k_stalks(base, dark, light, extra, chance=0.25):
+    """A crop's stalks seen from the side: upright streaks, dark gaps between, some lighter leaves."""
+    def paint(rng):
+        c = Canvas(64, 64, base)
+        for x in range(0, 64):
+            if rng.random() < 0.28:
+                c.rect(x, 0, x + 1, 64, dark)
+            elif rng.random() < 0.2:
+                c.rect(x, 0, x + 1, 64, light)
+        c.noise(0, 0, 64, 64, [dark, light, extra], chance, rng)
+        for _ in range(14):   # leaves crossing the stalks
+            x, y = rng.randrange(64), rng.randrange(64)
+            c.rect(x, y, min(64, x + rng.randint(3, 6)), y + 1, light)
+        return c
+    return paint
+
+
+def k_heads(base, dark, light):
+    """A crop seen from above: heads and leaf tips, dark gaps."""
+    def paint(rng):
+        c = Canvas(64, 64, dark)
+        c.noise(0, 0, 64, 64, [base, light], 0.75, rng)
+        c.blotch([dark], 10, rng, size=(1, 3))
+        return c
+    return paint
+
+
+def k_burlap(rng):
+    c = Canvas(64, 64, "brl1")
+    for y in range(0, 64, 2):
+        c.rect(0, y, 64, y + 1, "brl2")
+    for x in range(0, 64, 3):
+        c.rect(x, 0, x + 1, 64, "brl2")
+    c.noise(0, 0, 64, 64, ["brl_dk", "lf2_dk"], 0.12, rng)
+    c.blotch(["lf2", "lf2_dk", "dirt2"], 9, rng, size=(3, 8))   # (painted camo patches)
+    return c
+
+
+def k_ash(rng):
+    c = Canvas(64, 64, "ash1")
+    c.noise(0, 0, 64, 64, ["ash2", "ash_lt", "burnt2"], 0.4, rng)
+    c.blotch(["burnt2"], 6, rng, size=(3, 7))
+    c.blotch(["ember"], 3, rng, size=(1, 2))
+    return c
+
+
 mb.KIT.update({
     "dbr_grass": k_grass, "dbr_dirt": k_dirt, "dbr_ruts": k_ruts, "dbr_granite": k_granite, "dbr_slate": k_slate,
     "dbr_mossrock": k_mossrock, "dbr_cont_r": k_corr("cont_r", "cont_r_dk"), "dbr_cont_g": k_paint("cont_g", "cont_g_dk", 5),
@@ -338,6 +404,10 @@ mb.KIT.update({
     "placard_flat": mb.paint_flat("placard"), "sig_dead": mb.paint_flat("sig_dead"),
     "dbr_xing": k_paint("xing", "xing_dk", 2),
     "dbr_awn_r": k_stripes("awn_w", "awn_r"), "dbr_awn_g": k_stripes("awn_w", "awn_g"), "dbr_awn_b": k_stripes("awn_w", "awn_b"),
+    "dbr_soil": k_soil, "dbr_wheat": k_stalks("wht1", "wht_dk", "wht_lt", "wht2"), "dbr_wheat_top": k_heads("wht1", "wht_dk", "wht_lt"),
+    "dbr_maize": k_stalks("mz1", "mz2", "mz_lt", "mz_dry"), "dbr_maize_top": k_heads("mz1", "mz2", "mz_dry"),
+    "dbr_sunfl": k_stalks("sf1", "sf2", "lf1_lt", "sf_dry"), "dbr_sunfl_top": k_heads("sf1", "sf2", "sf_dry"),
+    "dbr_burlap": k_burlap, "dbr_ash": k_ash, "sf_y_flat": mb.paint_flat("sf_y"), "sf_seed_flat": mb.paint_flat("sf_seed"),
 })
 
 
@@ -1047,6 +1117,76 @@ def draw_trench(b, piece, rng):
             w = rng.uniform(0.12, 0.3)
             rock(b, (x, top + w * 0.25, z), (w, w * 0.6, w * rng.uniform(0.7, 1.2)), rng.uniform(0, 90), rng,
                  rng.choice(("dbr_earth", "dbr_earth", "dbr_granite")), jitter=0.15, chamfer=0.35, taper=0.8)
+    trench_timber(b, piece, floors, rng)
+
+
+def trench_timber(b, piece, floors, rng):
+    """(Outdoor step 8) The trench's walls held up with timber: posts every 1.6 m and planks (b), corrugated sheets (c)
+    or a mix of both (d) up to a hand below the lip, so the earth shows at the top; duckboards down the floor."""
+    def on_floor(x, z):
+        return any(abs(x - f["pos"][0]) < f["size"][0] / 2 and abs(z - f["pos"][2]) < f["size"][2] / 2 for f in floors)
+    seen = set()
+    look = piece["look"]
+    for box in piece["boxes"]:
+        (cx, cy, cz), (sx, sy, sz) = box["pos"], box["size"]
+        key = (round(cx, 2), round(cz, 2), round(sx, 2), round(sz, 2))
+        if sy < 0.5 or box["pitch"] != 0 or key in seen:
+            continue
+        seen.add(key)
+        along_x = sx > sz
+        L = sx if along_x else sz
+        sgn = 0
+        for s_ in (-1, 1):
+            px, pz = (cx, cz + s_ * 0.4) if along_x else (cx + s_ * 0.4, cz)
+            if on_floor(px, pz):
+                sgn = s_
+        if not sgn or L < 0.35:
+            continue
+        y0, y1 = cy - sy / 2 + 0.3, cy + sy / 2 - 0.16      # (the floor's top, a hand under the lip)
+        face = (cz if along_x else cx) + sgn * 0.15
+
+        def P(t, off):   # t along the wall, off out from its face into the trench
+            return (cx + t, 0.0, face + sgn * off) if along_x else (face + sgn * off, 0.0, cz + t)
+        sheets = look == "c" or (look == "d" and rng.random() < 0.5)
+        h = y1 - y0
+        if sheets:
+            n = max(1, round(L / 1.0))
+            for k in range(n):
+                t = -L / 2 + L * (k + 0.5) / n
+                p = P(t, 0.03)
+                lean = rng.uniform(-2, 2)
+                b.box((p[0], y0 + h / 2, p[2]), (L / n + 0.04 if along_x else 0.03, h, 0.03 if along_x else L / n + 0.04),
+                      pitch=lean if not along_x else 0.0, style=flat(rng.choice(("shed_metal", "shed_metal", "dbr_cont_g")), 1.0))
+        else:
+            rows = max(1, int(h / 0.21))
+            for r in range(rows):
+                p = P(rng.uniform(-0.05, 0.05), 0.03)
+                yy = y0 + (r + 0.5) * h / rows
+                b.box((p[0], yy, p[2]), (L if along_x else 0.05, h / rows - 0.025, 0.05 if along_x else L),
+                      style=flat(rng.choice(("wood", "wood", "wood_dark", "wood_light")), 1.0))
+        n = max(1, int(L / 1.6))
+        for k in range(n + 1):
+            if L < 1.2 and k > 0:
+                break
+            t = (-L / 2 + 0.1 + (L - 0.2) * k / n) if L >= 1.2 else 0.0
+            p = P(t, 0.1)
+            b.box((p[0], y0 + (h + 0.2) / 2, p[2]), (0.11, h + 0.2, 0.11), style=no_bottom("wood_dark", 1.0))
+    for fl in floors:   # duckboards: two runners, slats across every 0.3 m
+        (cx, cy, cz), (sx, sy, sz) = fl["pos"], fl["size"]
+        top = cy + sy / 2
+        along_x = sx > sz
+        L = (sx if along_x else sz) - 0.6
+        for o in (-0.28, 0.28):
+            c = (cx, top + 0.03, cz + o) if along_x else (cx + o, top + 0.03, cz)
+            b.box(c, (L, 0.06, 0.07) if along_x else (0.07, 0.06, L), style=no_bottom("wood_dark", 1.0))
+        n = int(L / 0.3)
+        for k in range(n):
+            t = -L / 2 + (k + 0.5) * L / n
+            if rng.random() < 0.06:   # (a slat gone)
+                continue
+            c = (cx + t, top + 0.075, cz) if along_x else (cx, top + 0.075, cz + t)
+            b.box(c, (0.16, 0.03, 0.75) if along_x else (0.75, 0.03, 0.16), yaw=rng.uniform(-3, 3),
+                  style=no_bottom(rng.choice(("wood", "wood_light", "wood")), 1.0))
 
 
 # ------------------------------------------------------------------------------------------------ street lamps
@@ -2589,6 +2729,297 @@ def draw_stones(b, piece, rng):
         rock(b, c, s, yaw, rng, "dbr_granite", top="dbr_slate", jitter=0.05, chamfer=0.25, taper=0.85)
 
 
+# ------------------------------------------------------------------------------------------------ set pieces (step 8)
+# (World art 0.17, outdoor step 8) The campsite, the hunting stands, the farm's field, fences and tractor, drawn round
+# the same gray boxes as before (gen SET_KINDS). The checkpoint's booth is the extract camps' guard hut.
+def _ends(box):
+    """A pitched box's two end points along its length (local z) and its length."""
+    (x, y, z), s = box["pos"], box["size"]
+    d = rot((0.0, 0.0, 1.0), box["yaw"], box["pitch"])
+    h = s[2] / 2
+    return (x - d[0] * h, y - d[1] * h, z - d[2] * h), (x + d[0] * h, y + d[1] * h, z + d[2] * h), s[2]
+
+
+def _beam(b, p0, p1, w, h, mat, tile=1.0, roll=0.0):
+    """A beam (w wide, h high) from p0 to p1."""
+    d = v_sub(p1, p0)
+    L = math.sqrt(dot(d, d))
+    yaw = math.degrees(math.atan2(d[0], d[2]))
+    pitch = -math.degrees(math.atan2(d[1], math.hypot(d[0], d[2])))
+    b.box(v_scale(v_add(p0, p1), 0.5), (w, h, L), yaw=yaw + roll, pitch=pitch, style=flat(mat, tile))
+
+
+def draw_firepit(b, piece, rng):
+    """A ring of fieldstones round grey ashes and charred logs, a cooking tripod with a pot over it, a few cans."""
+    xs = [bx["pos"][0] for bx in piece["boxes"]]
+    zs = [bx["pos"][2] for bx in piece["boxes"]]
+    c = (sum(xs) / 4, 0.0, sum(zs) / 4)
+    y0 = ground(c[0], c[2])
+    for k in range(11):   # the ring (bigger stones where the four solid ones are)
+        a = 2 * math.pi * k / 11 + rng.uniform(-0.1, 0.1)
+        r = 0.8 + rng.uniform(-0.06, 0.06)
+        s = rng.uniform(0.32, 0.46)
+        p = (c[0] + math.cos(a) * r, 0, c[2] + math.sin(a) * r)
+        rock(b, (p[0], ground(p[0], p[2]) + s * 0.3, p[2]), (s, s * 0.62, s * rng.uniform(0.8, 1.1)), math.degrees(a), rng,
+             rng.choice(("dbr_granite", "dbr_mossrock", "dbr_slate")), jitter=0.12, chamfer=0.3)
+    cyl(b, (c[0], y0 + 0.02, c[2]), 0.62, 0.05, "dbr_ash", sides=12, cap_mat="dbr_ash")
+    for k in range(4):   # charred logs in a little star
+        a = math.pi / 2 * k + rng.uniform(-0.3, 0.3)
+        p0 = (c[0] + math.cos(a) * 0.08, y0 + 0.16, c[2] + math.sin(a) * 0.08)
+        p1 = (c[0] + math.cos(a) * 0.55, y0 + 0.08, c[2] + math.sin(a) * 0.55)
+        _beam(b, p0, p1, 0.11, 0.11, "dbr_burnt")
+    top = (c[0], y0 + 1.25, c[2])
+    for k in range(3):   # the tripod and the pot on its chain
+        a = 2 * math.pi * k / 3 + 0.4
+        _beam(b, (c[0] + math.cos(a) * 0.75, y0, c[2] + math.sin(a) * 0.75), top, 0.05, 0.05, "wood_dark")
+    _beam(b, top, (c[0], y0 + 0.62, c[2]), 0.015, 0.015, "trim_dark")
+    cyl(b, (c[0], y0 + 0.47, c[2]), 0.17, 0.28, "trim_dark", sides=10, cap_mat="black")
+    for _ in range(3):   # cans by the ring
+        a = rng.uniform(0, 2 * math.pi)
+        p = (c[0] + math.cos(a) * 1.25, 0, c[2] + math.sin(a) * 1.25)
+        cyl(b, (p[0], ground(p[0], p[2]) + 0.04, p[2]), 0.04, 0.11, rng.choice(("steel_light", "dbr_cont_r", "olive")),
+            sides=6, axis=rng.choice(("y", "z")), yaw=rng.uniform(0, 180))
+
+
+def draw_logseat(b, piece, rng):
+    """A log to sit on by the fire: bark, sawn ends, a wedge under it so it doesn't roll."""
+    box = piece["boxes"][0]
+    s, (x, y, z), yaw = box["size"], box["pos"], box["yaw"]
+    y0 = y - s[1] / 2
+    cyl(b, (x, y0 + 0.21, z), 0.21, s[2], "cabin_bark_d", sides=10, axis="z", yaw=yaw, cap_mat="wood_light")
+    f = frame_of(b, box)
+    for sz in (-0.7, 0.7):
+        f.box((0.24, 0.04, sz), (0.12, 0.08, 0.2), style=no_bottom("wood", 1.0))
+
+
+def draw_stand(b, piece, rng):
+    """A hunting stand: four log legs braced crosswise, a plank deck on joists, plank rails on three sides, a cleated
+    plank ramp up the open side. Looks: b open rails; c a burlap blind round the rails and a tin roof on corner poles;
+    d cut branches tied round the rails and a camo net over it (the roof and net are picture only, over head height)."""
+    bx = piece["boxes"]
+    deck, legs, rails, ramp = bx[0], bx[1:5], bx[5:8], bx[8]
+    look = piece["look"]
+    (dx, dy, dz), ds = deck["pos"], deck["size"]
+    top = dy + ds[1] / 2
+    hw = ds[0] / 2
+    for leg in legs:   # log legs to the ground
+        (x, y, z), s = leg["pos"], leg["size"]
+        g = ground(x, z) - 0.15
+        cyl(b, (x, (g + top - 0.2) / 2, z), 0.13, top - 0.2 - g, "cabin_bark_b", sides=8, cap_mat="wood_light")
+    pts = {(round(l["pos"][0] - dx), round(l["pos"][2] - dz)): l["pos"] for l in legs}
+    corners = sorted(pts.items())
+    by = {k: v for k, v in corners}
+    sides = [((-1, -1), (1, -1)), ((-1, -1), (-1, 1)), ((1, -1), (1, 1)), ((-1, 1), (1, 1))]
+    for a, c in sides:   # X braces between the legs (the ramp side gets one rail-high brace only)
+        pa, pc = by.get(a), by.get(c)
+        if pa is None or pc is None:
+            continue
+        lo_a, lo_c = ground(pa[0], pa[2]) + 0.4, ground(pc[0], pc[2]) + 0.4
+        hi = top - 0.45
+        if a[1] == 1 and c[1] == 1:
+            _beam(b, (pa[0], hi, pa[2]), (pc[0], hi, pc[2]), 0.08, 0.14, "wood")
+            continue
+        _beam(b, (pa[0], lo_a, pa[2]), (pc[0], hi, pc[2]), 0.07, 0.07, "cabin_bark_b")
+        _beam(b, (pc[0], lo_c, pc[2]), (pa[0], hi, pa[2]), 0.07, 0.07, "cabin_bark_b")
+    f = Frame(b, (dx, top - ds[1], dz), 0.0)
+    for sx in (-1, 1):   # joists, then deck planks across them
+        f.box((sx * (hw - 0.15), 0.06, 0), (0.12, 0.12, ds[2]), style=flat("wood_dark", 1.0))
+    n = 12
+    for k in range(n):
+        z = -ds[2] / 2 + ds[2] * (k + 0.5) / n
+        f.box((rng.uniform(-0.02, 0.02), 0.15, z), (ds[0] + rng.uniform(-0.05, 0.05), 0.07, ds[2] / n - 0.02),
+              yaw=rng.uniform(-1.2, 1.2), style=flat(rng.choice(("wood", "wood", "wood_light")), 1.0))
+    # rails: uprights at the corners and middles, a top rail and a mid board
+    up = [(-hw + 0.05, -hw + 0.05), (hw - 0.05, -hw + 0.05), (-hw + 0.05, hw - 0.05), (hw - 0.05, hw - 0.05),
+          (0, -hw + 0.05), (-hw + 0.05, 0), (hw - 0.05, 0)]
+    for x, z in up:
+        f.box((x, ds[1] + 0.52, z), (0.09, 1.04, 0.09), style=flat("wood_dark", 1.0))
+    for x0, z0, x1, z1 in ((-hw, -hw + 0.05, hw, -hw + 0.05), (-hw + 0.05, -hw, -hw + 0.05, hw), (hw - 0.05, -hw, hw - 0.05, hw)):
+        for yh, hh in ((1.0, 0.1), (0.55, 0.18)):
+            if x0 == x1:
+                f.box((x0, ds[1] + yh, (z0 + z1) / 2), (0.05, hh, z1 - z0), style=flat("wood", 1.0))
+            else:
+                f.box(((x0 + x1) / 2, ds[1] + yh, z0), (x1 - x0, hh, 0.05), style=flat("wood", 1.0))
+    fl = ds[1]
+    if look == "c":   # burlap blind on the rails (outside them), tin roof on poles at the corners
+        for x0, z0, x1, z1 in ((-hw, -hw - 0.03, hw, -hw - 0.03), (-hw - 0.03, -hw, -hw - 0.03, hw), (hw + 0.03, -hw, hw + 0.03, hw)):
+            if x0 == x1:
+                f.box((x0, fl + 0.55, (z0 + z1) / 2), (0.02, 0.95, z1 - z0), style=flat("dbr_burlap", 2.0))
+            else:
+                f.box(((x0 + x1) / 2, fl + 0.55, z0), (x1 - x0, 0.95, 0.02), style=flat("dbr_burlap", 2.0))
+        for x, z in ((-hw + 0.05, -hw + 0.05), (hw - 0.05, -hw + 0.05), (-hw + 0.05, hw - 0.05), (hw - 0.05, hw - 0.05)):
+            f.box((x, fl + 1.1 + 0.5, z), (0.08, 1.05 if z < 0 else 0.85, 0.08), style=flat("wood_dark", 1.0))
+        f.box((0, fl + 2.08, 0), (ds[0] + 0.5, 0.05, ds[2] + 0.6), pitch=-7, style=_solid_tile("shed_metal"))
+    elif look == "d":   # cut branches tied round the rails, a camo net over the top
+        for _ in range(16):
+            side = rng.randrange(3)
+            t = rng.uniform(-hw, hw)
+            x, z = ((t, -hw - 0.1), (-hw - 0.1, t), (hw + 0.1, t))[side]
+            rock(b, f.p(x, fl + rng.uniform(0.45, 0.95), z), (0.55, 0.45, 0.55), rng.uniform(0, 90), rng,
+                 rng.choice(("dbr_leaf_c", "dbr_leaf_b")), jitter=0.22, chamfer=0.4)
+        N = 4
+        for i in range(N):
+            for j in range(N):
+                def P(u, v):
+                    sag = 0.12 * math.sin(math.pi * u / N) * math.sin(math.pi * v / N)
+                    return f.p(-hw - 0.2 + (ds[0] + 0.4) * u / N, fl + 2.15 - sag, -hw - 0.2 + (ds[2] + 0.4) * v / N)
+                a, c2, d2, e = P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)
+                for m, off in (("dbr_leaf_c", 5), ("dbr_canvas", -5)):
+                    tri(b, a, c2, d2, m, v_add(a, (0, -off, 0)))
+                    tri(b, a, d2, e, m, v_add(a, (0, -off, 0)))
+        for x, z in ((-hw + 0.05, -hw + 0.05), (hw - 0.05, -hw + 0.05), (-hw + 0.05, hw - 0.05), (hw - 0.05, hw - 0.05)):
+            f.box((x, fl + 1.1 + 0.5, z), (0.06, 1.1, 0.06), style=flat("cabin_bark_b", 1.0))
+    # the ramp: two stringers, cleated planks, a hand rope
+    p0, p1, L = _ends(ramp)
+    lo, hi = (p0, p1) if p0[1] < p1[1] else (p1, p0)
+    w = ramp["size"][0]
+    yaw = ramp["yaw"]
+    ca, sa = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    side = lambda p, o, dy=0.0: (p[0] + ca * o, p[1] + dy, p[2] - sa * o)
+    for o in (-w / 2 + 0.08, w / 2 - 0.08):
+        _beam(b, side(lo, o, -0.05), side(hi, o, -0.05), 0.1, 0.22, "wood_dark")
+    steps = int(L / 0.32)
+    for k in range(steps):
+        t = (k + 0.5) / steps
+        p = tuple(lo[i] + (hi[i] - lo[i]) * t for i in range(3))
+        b.box((p[0], p[1] + 0.08, p[2]), (w, 0.05, 0.22), yaw=yaw, pitch=ramp["pitch"],
+              style=flat(rng.choice(("wood", "wood_light")), 1.0))
+        if k % 2 == 0:
+            b.box((p[0], p[1] + 0.13, p[2]), (w - 0.3, 0.04, 0.05), yaw=yaw, pitch=ramp["pitch"], style=flat("wood_dark", 1.0))
+
+
+def _solid_tile(mat, tile=1.0):
+    return lambda n, m, q: (mat, uv_world(tile))
+
+
+def draw_fence(b, piece, rng):
+    """A farm fence along its strip pieces: b split rails (three, on log posts), c a board fence (four boards with
+    gaps), d a woven stake fence. Posts every 2 m, on the ground; the rails follow it."""
+    look = piece["look"]
+    for box in piece["boxes"]:
+        p0, p1, L = _ends(box)
+        n = max(1, round(L / 2.0))
+        d = v_sub(p1, p0)
+        pts = []
+        for k in range(n + 1):
+            t = k / n
+            x, z = p0[0] + d[0] * t, p0[2] + d[2] * t
+            pts.append((x, ground(x, z), z))
+        for k, p in enumerate(pts[:-1] if box is not piece["boxes"][-1] else pts):
+            if look == "b":
+                cyl(b, (p[0], p[1] + 0.55, p[2]), 0.08, 1.25, "cabin_bark_b", sides=6, cap_mat="wood_light")
+            else:
+                b.box((p[0], p[1] + 0.6, p[2]), (0.13, 1.3, 0.13), yaw=box["yaw"], style=no_bottom("wood_dark", 1.0))
+        for a, c in zip(pts, pts[1:]):
+            if look == "b":
+                for yh in (0.32, 0.68, 1.02):
+                    _beam(b, (a[0], a[1] + yh + rng.uniform(-0.03, 0.03), a[2]), (c[0], c[1] + yh + rng.uniform(-0.03, 0.03), c[2]),
+                          0.09, 0.11, "cabin_bark_b", roll=rng.uniform(-4, 4))
+            elif look == "c":
+                for yh in (0.2, 0.47, 0.74, 1.01):
+                    _beam(b, (a[0], a[1] + yh, a[2]), (c[0], c[1] + yh, c[2]), 0.04, 0.17, "barn_boards" if rng.random() < 0.85 else "wood_light")
+            else:
+                seg = v_sub(c, a)
+                m = max(2, int(math.hypot(seg[0], seg[2]) / 0.22))
+                for i in range(1, m):
+                    t = i / m
+                    q = (a[0] + seg[0] * t, a[1] + seg[1] * t, a[2] + seg[2] * t)
+                    hh = 1.0 + rng.uniform(-0.06, 0.08)
+                    b.box((q[0], q[1] + hh / 2 - 0.05, q[2]), (0.05, hh, 0.05), yaw=box["yaw"] + rng.uniform(0, 40),
+                          style=no_bottom("cabin_bark_d", 1.0))
+                for yh in (0.3, 0.62, 0.92):
+                    _beam(b, (a[0], a[1] + yh, a[2]), (c[0], c[1] + yh, c[2]), 0.08, 0.13, "dbr_pole")
+
+
+def draw_farmland(b, piece, rng):
+    """The farm's ground: the yard in the ground's own look (grass, the dirt tracks painted by the generator's splat
+    map), the field ploughed soil under the crop strips."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    f.at = (f.at[0], 0.0, f.at[2])
+    W, D = box["size"][0], box["size"][2]
+    # (the yard: the ground's own look, its shader; under it there's no ground, the farm stands on a flat pad)
+    draped(b, f, -W / 2, W / 2, -D / 2, D / 2, 0.0, GROUND, step=4.0, lip=0.3, tile=2.0)
+    # (the field: map x 282-342, z 46-96; the box's middle is map (294, 54))
+    draped(b, f, -12.0, 48.0, -8.0, 42.0, 0.035, "dbr_soil", step=2.0, lip=0.12, tile=2.0)
+
+
+CROP_LOOK = {"b": ("dbr_wheat", "dbr_wheat_top"), "c": ("dbr_maize", "dbr_maize_top"), "d": ("dbr_sunfl", "dbr_sunfl_top")}
+
+
+def draw_crops(b, piece, rng):
+    """A strip of crops: wheat (b), young maize (c) or sunflowers going over (d). The crops themselves are swaying cards
+    (scripts/trees.gd kinds 5-7, from the generator); this is the dense stand in the middle under them, about half their
+    height, so the strip reads as the solid waist-high cover its box is (the cards hide its edges)."""
+    box = piece["boxes"][0]
+    side, top = CROP_LOOK[piece["look"]]
+    (x, y, z), s = box["pos"], box["size"]
+    y0 = y - s[1] / 2
+    seg = 0.8
+    n = int(s[0] / seg)
+    style = lambda n_, m, q: None if n_[1] < -0.7 else ((top, uv_world(1.0)) if n_[1] > 0.7 else (side, uv_world(1.0)))
+    for k in range(n):
+        xc = x - s[0] / 2 + seg * (k + 0.5)
+        h = rng.uniform(0.45, 0.6)
+        b.box((xc, y0 + h / 2 - 0.05, z + rng.uniform(-0.08, 0.08)), (seg + 0.05, h + 0.1, s[2] - 1.3 + rng.uniform(-0.1, 0.1)),
+              yaw=rng.uniform(-2, 2), style=style)
+
+
+def draw_hay(b, piece, rng):
+    """A round hay bale on its side: rolled hay, a wrap of twine, loose hay round its foot."""
+    box = piece["boxes"][0]
+    (x, y, z), s_ = box["pos"], box["size"]
+    y0 = y - s_[1] / 2
+    r = s_[1] / 2
+    cyl(b, (x, y0 + r - 0.03, z), r, s_[0] - 0.05, "hay_kit", sides=12, axis="x", yaw=box["yaw"], cap_mat="hay_kit", tile=1.0)
+    for t in (-0.35, 0.0, 0.35):   # the twine
+        ca, sa = math.cos(math.radians(box["yaw"])), math.sin(math.radians(box["yaw"]))
+        cyl(b, (x + ca * t, y0 + r - 0.03, z - sa * t), r + 0.012, 0.03, "wood_light", sides=12, axis="x", yaw=box["yaw"], caps=False)
+    f = frame_of(b, box)
+    for _ in range(6):
+        f.box((rng.uniform(-1.0, 1.0), 0.02, rng.uniform(-1.0, 1.0)), (rng.uniform(0.3, 0.6), 0.04, rng.uniform(0.15, 0.3)),
+              yaw=rng.uniform(0, 180), style=no_bottom("hay_kit", 1.0))
+
+
+def draw_boom(b, piece, rng):
+    """The checkpoint's boom gate: a striped arm raised on its post (a concrete foot, a counterweight, a sign)."""
+    box = piece["boxes"][0]
+    f = frame_of(b, box)
+    f.box((0, 0.12, 0), (0.6, 0.24, 0.6), style=no_bottom("dbr_conc", 1.0))
+    f.box((0, 0.65, 0), (0.22, 0.85, 0.22), style=no_bottom("dbr_trk_o", 1.0))
+    f.box((0, 1.1, 0), (0.32, 0.18, 0.32), style=flat("trim_dark", 1.0))
+    up = 72.0
+    L = 6.0
+    a, c = math.cos(math.radians(up)), math.sin(math.radians(up))
+    p0, p1 = f.p(0, 1.1, 0.0), f.p(a * L, 1.1 + c * L, 0.0)
+    _beam(b, p0, p1, 0.12, 0.12, "dbr_redwhite", tile=1.0)
+    _beam(b, f.p(0, 1.1, 0.0), f.p(-a * 0.9, 1.1 - c * 0.9, 0.0), 0.2, 0.26, "trim_dark")   # counterweight
+    f.box((0.0, 0.7, -0.13), (0.5, 0.35, 0.03), style=flat("sg_red_flat", 1.0))        # a red "stop" board on the post
+
+
+class _Turned:
+    """A Builder seen through a turn round `pivot` (for make_building props drawn facing north)."""
+
+    def __init__(self, b, pivot, yaw):
+        self.b, self.pivot, self.yaw = b, pivot, yaw
+
+    def box(self, c, size, yaw=0.0, pitch=0.0, style=None):
+        p = v_add(rot(v_sub(c, self.pivot), self.yaw, 0.0), self.pivot)
+        self.b.box(p, size, yaw=yaw + self.yaw, pitch=pitch, style=style)
+
+
+def draw_tractor(b, piece, rng):
+    """The farm's old tractor by the field (the barn's one, make_building prop_farm_tractor), parked at an angle."""
+    box = piece["boxes"][0]
+    c, s = tuple(box["pos"]), box["size"]
+
+    class Ctx:
+        pass
+    ctx = Ctx()
+    ctx.b = _Turned(b, c, box["yaw"])
+    mb.prop_farm_tractor(ctx, c, s)
+
+
 def draw_none(b, piece, rng):
     """Trees are drawn by scripts/trees.gd (outdoor step 7), not in the chunk models: only their boxes are kept."""
 
@@ -2603,7 +3034,10 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
         "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker, "signal": draw_signal, "points": draw_points,
-        "cave": draw_cave, "tree": draw_none, "deadtree": draw_none, "culvert": draw_culvert, "bank": draw_bank, "log": draw_log, "stones": draw_stones, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
+        "cave": draw_cave, "tree": draw_none, "deadtree": draw_none, "culvert": draw_culvert, "bank": draw_bank, "log": draw_log, "stones": draw_stones, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign,
+        "booth": draw_hut, "camptent": draw_tent, "firepit": draw_firepit, "logseat": draw_logseat, "stand": draw_stand,
+        "fence": draw_fence, "farmland": draw_farmland, "crops": draw_crops, "tractor": draw_tractor,
+        "hay": draw_hay, "boom": draw_boom}
 
 
 def main():
