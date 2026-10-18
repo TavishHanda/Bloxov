@@ -278,6 +278,11 @@ def bits(b, centre, spread, n, rng, mats, size=(0.22, 0.07, 0.11)):
         mb.rubble_chunk(b, on_ground(p, size[1] / 2 - 0.01), size, rng, mats)
 
 
+# Banks and crater rims are part of the ground: their "ground" material becomes the ground's shader material
+# (assets/materials/ground.tres, outdoor step 2) on import (tools/building_import.gd), so they match it exactly.
+GROUND = "ground"
+
+
 # ------------------------------------------------------------------------------------------------ helpers
 def flat(mat, tile=2.0):
     return lambda n, m, q: (mat, uv_world(tile))
@@ -597,7 +602,7 @@ def earth_bank(b, boxes, rng, fall=2.2):
             q = [(xs[i], hs[0][0], zs[j]), (xs[i + 1], hs[1][0], zs[j]), (xs[i + 1], hs[2][0], zs[j + 1]), (xs[i], hs[3][0], zs[j + 1])]
             q = [(world(p[0], p[2])[0], p[1], world(p[0], p[2])[1]) for p in q]
             qn = norm(cross(v_sub(q[2], q[0]), v_sub(q[3], q[1])))   # (one colour per cell: no zigzag edges)
-            mat = "dbr_ground" if abs(qn[1]) > 0.74 else "dbr_earth"
+            mat = GROUND   # (step 2: drawn by the ground's own shader, slopes and all; see GROUND)
             for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
                 n = norm(cross(v_sub(c, a), v_sub(d, a)))
                 if n[1] < 0:
@@ -880,7 +885,6 @@ def draw_crater(b, piece, rng):
         sink = 0.45 if j == 0 else 0.15 if j == NR else 0.0
         x, z = cx + r * math.cos(a), cz + r * math.sin(a)
         return (x, ground(x, z) + h - sink, z)   # (round 2: the rim follows the ground and dips under it at its edges)
-    inner = "dbr_scorch" if look == "c" else "dbr_earth"
     for i in range(NA):
         for j in range(NR):
             q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)]
@@ -888,16 +892,13 @@ def draw_crater(b, piece, rng):
                 n = norm(cross(v_sub(c, a), v_sub(d, a)))
                 if n[1] < 0:
                     n = v_scale(n, -1)
-                mx, mz = (a[0] + c[0] + d[0]) / 3, (a[2] + c[2] + d[2]) / 3
-                # (thrown-out earth inside and over the lip, the ground's own colour down its outside)
-                outside = math.hypot(mx - cx, mz - cz) > R + 0.35
-                b.poly([a, c, d], n, "dbr_ground" if outside and n[1] > 0.7 else inner, uv_world(2.0))
+                b.poly([a, c, d], n, GROUND, uv_world(2.0))   # (scorched or not: the splat map says)
     for _ in range(7):
         a, r = rng.uniform(0, 2 * math.pi), rng.uniform(R - 0.6, R + 2.2)
         p = on_ground((cx + r * math.cos(a), 0.0, cz + r * math.sin(a)), 0.05)
         if look == "b":     # clods thrown out
             b.box(p, (0.4, 0.14, 0.3), yaw=rng.uniform(0, 90), pitch=rng.uniform(-20, 20),
-                  style=lambda nn, m, q: ("dbr_ground" if nn[1] > 0.7 else "dbr_earth", uv_world(1.0)))
+                  style=lambda nn, m, q: (GROUND, uv_world(1.0)))
         elif look == "c":   # shrapnel
             b.box(p, (0.3, 0.04, 0.12), yaw=rng.uniform(0, 180), pitch=rng.uniform(-30, 30), style=flat("trim_dark", 1.0))
         else:               # stones in the grass
@@ -942,6 +943,7 @@ def main():
         textures["kit_" + kit] = Texture("kit_" + kit, os.path.join("art_source", "textures", "kit", kit + ".png"), painter,
                                          random.Random(kit))
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
+    mat_info["ground"] = ("kit_dbr_ground", False, False)
     cells = mb.kit_atlas()
     TERRAIN.update(json.load(open(os.path.join(JSON_DIR, "terrain.json"))))
     total = 0

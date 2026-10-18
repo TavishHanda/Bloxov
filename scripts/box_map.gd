@@ -36,6 +36,9 @@ const WADE_DEPTH := 0.05
 @export var terrain_colour := 0
 ## Cells covered by something on top of them (building floors, yards: 0.11.21): still solid, just not drawn.
 @export var terrain_hidden := PackedInt32Array()
+## The ground's material (World art 0.17, outdoor step 2: assets/materials/ground.tres, textured grass, earth, gravel);
+## without one the ground is drawn in `terrain_colour`.
+@export var ground_material: Material
 @export var water_points := PackedVector3Array()
 @export var water_width := 8.0
 @export var water_colour := 0
@@ -102,7 +105,7 @@ func _ready() -> void:
 		var mesh := tool.commit()
 		if not ground.is_empty():
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ground)
-			mesh.surface_set_material(mesh.get_surface_count() - 1, material)
+			mesh.surface_set_material(mesh.get_surface_count() - 1, ground_material if ground_material else material)
 		if water_points.size() >= 2:
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _water_arrays())
 			mesh.surface_set_material(mesh.get_surface_count() - 1, _water_material())

@@ -1560,6 +1560,44 @@ def motel_openings():
     return ops
 
 
+# The church path and the shared car park (World art 0.17, outdoor step 2; /mnt/project-files/worldart/motel-plan.md
+# section 2, owner 2026-10-17): the grocery's car park moved from in front of the church door to behind the grocery
+# (north, off Mill Lane), shared by both; a stone path runs from the church door down the old car park's lawn to the
+# Main Street sidewalk, with a churchyard noticeboard at the street end.
+CHURCH_PATH = ((167.0, 52.4), (167.0, 98.6))     # map x, z: the church door to the sidewalk
+CAR_PARK = (130.0, 41.0, 148.0, 58.0)
+old_car_park = [0, 0]   # its boxes (from, to), see the grocery
+
+
+def churchyard():
+    (px, z0), (_, z1) = CHURCH_PATH
+    clear_scatter((px - 2.5, z0, px + 2.5, z1 + 1.0))
+    clear_scatter((CAR_PARK[0] - 1.0, CAR_PARK[1] - 1.5, CAR_PARK[2] + 1.0, CAR_PARK[3] + 1.0))
+    paths.append(([(px, z0), (px, z1)], 1.6))
+    # Flagstones (each its own slab, so they follow the hills), a little off line like a laid path.
+    z = z0 + 0.2
+    while z < z1 - 0.3:
+        wob = ((z * 7.3) % 1.0 - 0.5) * 0.16
+        long = 0.75 + (z * 3.1) % 0.3
+        box(px - 0.6 + wob, 0, z, px + 0.6 + wob, 0.07, min(z + long, z1), "slab", solid=False)
+        z += long + 0.12
+    # The noticeboard, beside the path where it meets the sidewalk.
+    with group():
+        box(px + 1.4, 0, z1 - 0.9, px + 1.55, 1.7, z1 - 0.75, "wood")
+        box(px + 2.6, 0, z1 - 0.9, px + 2.75, 1.7, z1 - 0.75, "wood")
+        box(px + 1.3, 1.0, z1 - 0.95, px + 2.85, 1.8, z1 - 0.8, "wood")
+    x0, cz0, x1, cz1 = CAR_PARK
+    box(x0, 0.0, cz0, x1, 0.06, cz1, "pavement", solid=False)
+    strip([(121.0, 49.5), (x0 + 1.0, 49.5)], 5.0, "pavement", y=0.05)    # the way in, off Mill Lane (follows the slope)
+    car(132.5, 45.0, 0); car(143.0, 52.5, 0, "car_b")
+    # (last: deleting these moves the later boxes down, which the scatter lists don't follow)
+    k0, k1 = old_car_park
+    gone = set(anchors[k0:k1])
+    del boxes[k0:k1]
+    del anchors[k0:k1]
+    cars[:] = [c for c in cars if c["anchor"] not in gone]
+
+
 def motel():
     """Builds the motel (after the scatter, like the shops' turn: see main) and its car park."""
     x0, z0, x1, z1 = MOTEL
@@ -3168,6 +3206,7 @@ HILL_CLEAR = 20.0   # hills reach full height this far from a road or the creek 
 
 # Extra flat pads (map x0, z0, x1, z1) for things that stand outside a building's footprint.
 EXTRA_PADS = [
+    (154.0, 62.0, 168.0, 80.0),    # the old grocery car park, now the church lawn (the grocery's blast debris is on it)
     (36.0, 112.0, 46.0, 141.0),    # the pavement in front of the shops (shops_frontage)
     (61.5, 98.5, 72.5, 114.5),    # town gas station forecourt
     (295.0, 334.0, 331.0, 343.0),  # old gas station canopy
@@ -3843,8 +3882,11 @@ def main():
         # Staff washroom (owner, 2026-10-16): the stock room's south-east corner (the pallet jack moved for it).
         washroom(140.0, 70.0, -4.0, -8.0, -1.6, -5.7, "WN", ("W", -6.7, -1), fit=(
             ("wc_toilet", "E", -7.4, 0.45, 0.72, 0.85), ("wc_sink", "S", -2.3, 0.5, 0.45, 0.9)))
-    box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)   # car park
+    # The old car park (taken back out by churchyard(): made here still so the scatter round it doesn't change).
+    old_car_park[0] = len(boxes)
+    box(154, 0.0, 62, 168, 0.06, 80, "pavement", solid=False)
     car(158, 66, 0); car(164, 74, 0, "car_b")
+    old_car_park[1] = len(boxes)
     # (0.17, owner: the school moved up by the hill houses and the shops down to where it was)
     with modeled("shops", 29.5, 126.5, turned=90):   # World art 0.17: laundromat (west), shoe store (middle), burned-out TV shop
         # The flat's bathroom (owner, 2026-10-16), upstairs beside the stairwell: a bath, the toilet, a basin.
@@ -4271,6 +4313,7 @@ def main():
         footprints.remove(g)
     clear_scatter(MOTEL_CLEAR)
     motel()
+    churchyard()
     zone_spawns()
     map_labels()
     check_roads()
@@ -4471,7 +4514,7 @@ def map_labels():
                    ("TOWN", 30, 104, 1), ("FARM", 312, 72, 1), ("WOODS", 72, 326, 1), ("WOODS", 300, 140, 1), ("RAILWAY", 120, 204, 1),
                    ("OLD HOUSES", 220, 300, 1)])
     yards.extend([(245, 8, 343, 100), (88, 108, 124, 138), (298, 262, 346, 294), (176, 30, 202, 56),
-                  (154, 62, 168, 80), (15, 148, 45, 166)])
+                  CAR_PARK, (15, 148, 45, 166)])   # (CAR_PARK: the grocery and church car park, churchyard)
 
 
 def _seg_rect_gap(a, b, rect):
@@ -4574,6 +4617,115 @@ def behind_key_door(place, x, z):
     return place == "Bunker" or (place == "Bank" and 136 < x < 144 and 130 < z < 140)
 
 
+# The ground's splat map (World art 0.17, outdoor step 2): what the ground shader (assets/shaders/ground.gdshader)
+# draws where, SPLAT_PX pixels per metre over the map: R worn earth (paths), G mud (the creek's banks), B scorched
+# earth (craters, burnt wrecks, the bombed quarter), A gravel (road shoulders, the railway's ballast, round buildings,
+# yards and car parks). Soft values: the shader cuts them at 0.5 with a pixel dither.
+SPLAT_PX = 2
+SPLAT_PNG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "textures", "ground", "splat.png")
+GRASS_MASK_PNG = os.path.join(os.path.dirname(SPLAT_PNG), "grass_mask.png")
+paths = []        # (points, width) of footpaths (worn earth)
+
+
+def _png(path, w, h, rows):
+    import struct
+    import zlib
+
+    def chunk(tag, data):
+        c = struct.pack(">I", len(data)) + tag + data
+        return c + struct.pack(">I", zlib.crc32(tag + data) & 0xffffffff)
+    raw = b"".join(b"\x00" + bytes(row) for row in rows)
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) +
+                chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+
+
+def write_splat(ter):
+    n = int(M * SPLAT_PX)
+    chan = [[[0.0] * n for _ in range(n)] for _ in range(4)]
+
+    def stamp(c, x0, z0, x1, z1, value):
+        """value(x, z) -> 0..1 over the map rect (max with what's there)."""
+        for j in range(max(0, int(z0 * SPLAT_PX)), min(n, int(z1 * SPLAT_PX) + 1)):
+            z = (j + 0.5) / SPLAT_PX
+            row = chan[c][j]
+            for i in range(max(0, int(x0 * SPLAT_PX)), min(n, int(x1 * SPLAT_PX) + 1)):
+                v = value((i + 0.5) / SPLAT_PX, z)
+                if v > row[i]:
+                    row[i] = v
+
+    def seg_d(x, z, a, b):
+        ax, az = a
+        dx, dz = b[0] - ax, b[1] - az
+        t = max(0.0, min(1.0, ((x - ax) * dx + (z - az) * dz) / ((dx * dx + dz * dz) or 1)))
+        return math.hypot(x - ax - t * dx, z - az - t * dz)
+
+    def lines(c, polylines, inner, outer):
+        for points, width in polylines:
+            for a, b in zip(points, points[1:]):
+                r = width / 2 + outer
+                def v(x, z, a=a, b=b, width=width):
+                    d = seg_d(x, z, a, b) - width / 2
+                    return max(0.0, min(1.0, (outer - d) / max(outer - inner, 0.01)))
+                stamp(c, min(a[0], b[0]) - r, min(a[1], b[1]) - r, max(a[0], b[0]) + r, max(a[1], b[1]) + r, v)
+    lines(0, paths, 0.0, 0.5)                                 # footpaths
+    lines(1, water, 0.6, 2.2)                                  # mud along the creek
+    lines(3, roads, 0.5, 1.3)                                  # road shoulders (under the road too: it hides it)
+    stamp(3, 0, RAIL_Z - 3.2, M, RAIL_Z + 3.2, lambda x, z: max(0.0, min(1.0, (3.2 - abs(z - RAIL_Z)) / 0.8)))
+    small_yards = [y for y in yards if (y[2] - y[0]) * (y[3] - y[1]) < 1500]   # (not round the farm's fields)
+    for x0, z0, x1, z1 in [f[1:] for f in footprints] + small_yards:   # round buildings, yards and car parks
+        stamp(3, x0 - 1.5, z0 - 1.5, x1 + 1.5, z1 + 1.5,
+              lambda x, z, r=(x0, z0, x1, z1): max(0.0, min(1.0, (1.4 - max(r[0] - x, x - r[2], r[1] - z, z - r[3], 0.0)) / 0.9)))
+    def blot(x, z, r, soft, seed):   # a ragged round patch
+        ph = random.Random(seed)
+        p1, p2 = ph.uniform(0, 6.3), ph.uniform(0, 6.3)
+
+        def v(px, pz):
+            a = math.atan2(pz - z, px - x)
+            re = r * (1 + 0.22 * math.sin(3 * a + p1) + 0.12 * math.sin(7 * a + p2))
+            return max(0.0, min(1.0, 0.5 + (re - math.hypot(px - x, pz - z)) / soft))
+        return v
+    for x, z, r in craters:                                    # scorched round shell holes
+        stamp(2, x - r - 4, z - r - 4, x + r + 4, z + r + 4, blot(x, z, r + 1.4, 2.0, f"crater {x} {z}"))
+    for c in cars:                                             # under burnt-out wrecks
+        if c["glb"].endswith("burnt") or "rust" in c["glb"]:
+            x, z = c["at"]
+            stamp(2, x - 6, z - 6, x + 6, z + 6, blot(x, z, 3.2, 1.5, f"wreck {x} {z}"))
+    rng = random.Random(2018)                                  # blast patches over the bombed quarter
+    blasts = [(rng.uniform(a[0], a[2]), rng.uniform(a[1], a[3]), rng.uniform(3, 6)) for a in RUIN_AREAS for _ in range(8)]
+    for x, z, r in blasts:
+        stamp(2, x - r * 1.5, z - r * 1.5, x + r * 1.5, z + r * 1.5, blot(x, z, r, 2.5, f"blast {x} {z}"))
+    rows = []
+    for j in range(n):
+        row = bytearray()
+        for i in range(n):
+            row += bytes(int(round(chan[c][j][i] * 255)) for c in range(4))
+        rows.append(row)
+    os.makedirs(os.path.dirname(SPLAT_PNG), exist_ok=True)
+    _png(SPLAT_PNG, n, n, rows)
+    # Where grass tufts may grow (scripts/grass_tufts.gd): not under anything standing on the ground (floors, roads,
+    # yards, debris, walls...), so none poke through. (The tufts skip paths, mud, gravel and scorch by the splat map.)
+    free = [[255] * n for _ in range(n)]
+    for bx in boxes:
+        if bx[9] == 0 and bx[4] > 0.5:   # (tree tops, signs: looks-only and off the ground)
+            continue
+        x, z = bx[0] + M / 2, bx[2] + M / 2
+        if bx[1] - bx[4] / 2 > ter.at(x, z) + 0.4:
+            continue
+        cs = _fp_corners(bx, 0.25)
+        x0, x1 = min(p[0] for p in cs) + M / 2, max(p[0] for p in cs) + M / 2
+        z0, z1 = min(p[1] for p in cs) + M / 2, max(p[1] for p in cs) + M / 2
+        c, s_ = math.cos(math.radians(bx[6])), math.sin(math.radians(bx[6]))
+        hx, hz = bx[3] / 2 + 0.25, bx[5] / 2 + 0.25
+        for j in range(max(0, int(z0 * SPLAT_PX)), min(n, int(z1 * SPLAT_PX) + 1)):
+            pz = (j + 0.5) / SPLAT_PX - z
+            for i in range(max(0, int(x0 * SPLAT_PX)), min(n, int(x1 * SPLAT_PX) + 1)):
+                px = (i + 0.5) / SPLAT_PX - x
+                if abs(px * c - pz * s_) <= hx and abs(px * s_ + pz * c) <= hz:
+                    free[j][i] = 0
+    _png(GRASS_MASK_PNG, n, n, [bytearray(v for g in row for v in (g, g, g, 255)) for row in free])
+
+
 ARMY_KINDS = ("sandbags", "tanktrap", "barrier")
 
 
@@ -4628,6 +4780,7 @@ def write_outdoor(ter):
 def write_scene(ter):
     write_model_boxes(ter)
     outdoor = write_outdoor(ter)
+    write_splat(ter)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
               "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}
@@ -4650,6 +4803,10 @@ def write_scene(ter):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/outdoor/{chunk}.glb" id="o_{chunk}"]')
     for glb in sorted({c["glb"] for c, _ in placed}):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
+    out.append('[ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]')
+    out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
+    for rid, png in (("g_tuft_sprites", "tufts"), ("g_splat", "splat"), ("g_mask", "grass_mask")):
+        out.append(f'[ext_resource type="Texture2D" path="res://assets/textures/ground/{png}.png" id="{rid}"]')
     out += ["", "; Generated by tools/gen_old_bloxov.py: edit that script and re-run it, don't edit this file.", "",
             '[node name="OldBloxov" type="Node3D"]',
             'metadata/map_name = "Bloxov Battlegrounds"',
@@ -4662,6 +4819,7 @@ def write_scene(ter):
             "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
             "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b[:10]) + ")",
             f"terrain_colour = {C['grass']}",
+            'ground_material = ExtResource("g_ground")',
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(gx(x)) for x in ter.xs) + ")",
             "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for row in ter.h for h in row) + ")",
@@ -4671,6 +4829,14 @@ def write_scene(ter):
             f"water_width = {fmt(2 * CREEK_BANK)}",
             "water_points = PackedVector3Array(" + ", ".join(
                 f"{fmt(gx(x))}, {fmt(ter.water_level(x, z))}, {fmt(gz(z))}" for x, z in water[0][0][WATER_START:]) + ")", "",
+            # grass tufts and wildflowers near the camera (outdoor step 2), where write_splat's maps say grass grows
+            '[node name="Tufts" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_tufts")',
+            'sprites = ExtResource("g_tuft_sprites")',
+            'splat = ExtResource("g_splat")',
+            'mask = ExtResource("g_mask")',
+            f"map_origin = Vector2({fmt(-M / 2)}, {fmt(-M / 2)})",
+            f"map_size = {fmt(M)}", "",
             '[node name="Models" type="Node3D" parent="Level"]', ""]
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',

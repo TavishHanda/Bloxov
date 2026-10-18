@@ -1,0 +1,26 @@
+[gd_resource type="ShaderMaterial" load_steps=11 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/ground.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/grass_a.png" id="2_ga"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/grass_b.png" id="3_gb"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/earth.png" id="4_earth"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/mud.png" id="5_mud"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/scorch.png" id="6_scorch"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/gravel.png" id="7_gravel"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/dither.png" id="8_dither"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/macro.png" id="9_macro"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/splat.png" id="10_splat"]
+
+[resource]
+resource_name = "ground"
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/grass_a = ExtResource("2_ga")
+shader_parameter/grass_b = ExtResource("3_gb")
+shader_parameter/earth = ExtResource("4_earth")
+shader_parameter/mud = ExtResource("5_mud")
+shader_parameter/scorch = ExtResource("6_scorch")
+shader_parameter/gravel = ExtResource("7_gravel")
+shader_parameter/dither = ExtResource("8_dither")
+shader_parameter/macro = ExtResource("9_macro")
+shader_parameter/splat = ExtResource("10_splat")
