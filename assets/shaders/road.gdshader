@@ -1,8 +1,10 @@
-// Roads (World art 0.17, outdoor step 3): BoxMap's road strips (scripts/box_map.gd `road_material`). Asphalt (or
-// concrete slabs) tiled by world position so the pieces of a road join up, darker patched squares here and there, and
-// lane lines painted from the strip's own UVs (x across from the middle line, y along, in metres; UV2 = width,
-// length), worn off pixel by pixel. Snapped to the art's 32 px per metre so the lines stay pixel-crisp.
+// Roads (World art 0.17, outdoor step 3): BoxMap's road ribbons (scripts/box_map.gd `road_material`). Asphalt (or
+// concrete slabs) tiled by world position, darker patched squares here and there, and lane lines painted from the
+// ribbon's UVs (x across from the middle line, y along the road, in metres; UV2.x = width), worn off pixel by pixel,
+// left out inside junctions (COLOR.r); edge lines
+// also at car parks' ways in (COLOR.g). Snapped to the art's 32 px per metre so the lines stay pixel-crisp.
 shader_type spatial;
+render_mode cull_disabled;
 
 uniform sampler2D surface : source_color, filter_nearest_mipmap, repeat_enable;
 uniform sampler2D patched : source_color, filter_nearest_mipmap, repeat_enable;
@@ -22,11 +24,9 @@ uniform float worn = 0.3;                 // how much of the paint is gone
 uniform float slab = 0.0;                 // concrete slabs this long (0: asphalt, no joints)
 
 varying vec3 world_pos;
-varying float up;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	up = (MODEL_MATRIX * vec4(NORMAL, 0.0)).y;
 }
 
 void fragment() {
@@ -35,7 +35,7 @@ void fragment() {
 	if (texture(macro, world_pos.xz / 37.0).r > patch_cut) {
 		c = texture(patched, uv).rgb;
 	}
-	if (up > 0.5) {
+	if (COLOR.r < 0.5) {
 		float u = floor(UV.x * 32.0) / 32.0;
 		float v = floor(UV.y * 32.0) / 32.0;
 		float w = UV2.x;
@@ -44,7 +44,7 @@ void fragment() {
 		vec3 lc = centre_colour;
 		if (centre_mode == 1 && abs(u) < half_w && mod(v + 500.0, dash + gap) < dash) paint = 1.0;
 		if (centre_mode == 2 && abs(abs(u) - 0.13) < half_w) paint = 1.0;
-		if (edges && w > 5.0 && abs(abs(u) - (w * 0.5 - edge_in)) < half_w) {
+		if (edges && w > 5.0 && COLOR.g < 0.3 && abs(abs(u) - (w * 0.5 - edge_in)) < half_w) {
 			paint = 1.0;
 			lc = edge_colour;
 		}
@@ -58,6 +58,5 @@ void fragment() {
 	}
 	ALBEDO = c;
 	ROUGHNESS = 0.95;
-	// (the strips' sides, where two pieces overlap a step apart: lit like the top, so the joins don't show)
 	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 }

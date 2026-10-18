@@ -39,11 +39,22 @@ const WADE_DEPTH := 0.05
 ## The ground's material (World art 0.17, outdoor step 2: assets/materials/ground.tres, textured grass, earth, gravel);
 ## without one the ground is drawn in `terrain_colour`.
 @export var ground_material: Material
-## Roads (World art 0.17, outdoor step 3): boxes in `road_colour` are drawn with this material instead, with UVs in
-## metres in the box's own frame (x across, from the middle line; y along), and UV2 = (width, length), so the shader
-## can paint lane lines. Without one they're drawn in their colour like the rest.
+## Roads (World art 0.17, outdoor step 3): drawn as one smooth ribbon per road from the generator's `road_points`
+## (two per section, left then right; `road_sections` sections per road, `road_widths` wide) with `road_material`.
+## UV = (across from the middle line, along) in metres, UV2.x = the width, COLOR.r = 1 inside a junction (no lines
+## there; `road_junctions` 1), COLOR.g = 1 at a car park's way in (no edge line there; `road_junctions` 2). The road
+## strips in `road_colour` aren't drawn then. Without a material the strips are drawn as before.
 @export var road_material: Material
 @export var road_colour := -1
+@export var road_points := PackedVector3Array()
+@export var road_uvs := PackedVector2Array()
+@export var road_junctions := PackedFloat32Array()
+@export var road_sections := PackedInt32Array()
+@export var road_widths := PackedFloat32Array()
+## Car parks (and their ways in): boxes in `lot_colour` drawn with `lot_material`, UVs in metres in the box's own
+## frame (x across from its middle, y along), UV2 = (width, length), so the shader can paint the bays.
+@export var lot_material: Material
+@export var lot_colour := -1
 @export var water_points := PackedVector3Array()
 @export var water_width := 8.0
 @export var water_colour := 0
@@ -58,9 +69,10 @@ func _ready() -> void:
 		add_to_group(&"box_maps")
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var road_tool := SurfaceTool.new()
-	road_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var road_count := 0
+	var lot_tool := SurfaceTool.new()
+	lot_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var lot_count := 0
+	var ribbons := road_material != null and not road_sections.is_empty()
 	var faces := PackedVector3Array()
 	var box_faces := BoxMesh.new().get_faces()  # a 1 m cube, 36 vertices
 	for i in range(0, boxes.size(), STRIDE):
@@ -77,9 +89,11 @@ func _ready() -> void:
 					faces.append(xf * v)
 			continue
 		var normal_basis := xf.basis.inverse().transposed()
-		var road := road_material != null and int(boxes[i + 8]) == road_colour
-		if road:
-			road_count += 1
+		if ribbons and int(boxes[i + 8]) == road_colour:
+			continue   # (drawn by the ribbons; roads have no collision)
+		var lot := lot_material != null and int(boxes[i + 8]) == lot_colour
+		if lot:
+			lot_count += 1
 		for v in range(0, box_faces.size(), 3):
 			var a := xf * box_faces[v]
 			var b := xf * box_faces[v + 1]
@@ -92,13 +106,13 @@ func _ready() -> void:
 			var normal := (normal_basis * local).normalized()
 			# Slightly darker sides than tops, so walls read in flat light.
 			var shade := colour.darkened(0.0 if absf(normal.y) > 0.5 else 0.12)
-			if road:
+			if lot:
 				for k in 3:
 					var unit := box_faces[v + k]
-					road_tool.set_uv(Vector2(unit.x * boxes[i + 3], unit.z * boxes[i + 5]))
-					road_tool.set_uv2(Vector2(boxes[i + 3], boxes[i + 5]))
-					road_tool.set_normal(normal)
-					road_tool.add_vertex([a, b, c][k])
+					lot_tool.set_uv(Vector2(unit.x * boxes[i + 3], unit.z * boxes[i + 5]))
+					lot_tool.set_uv2(Vector2(boxes[i + 3], boxes[i + 5]))
+					lot_tool.set_normal(normal)
+					lot_tool.add_vertex([a, b, c][k])
 			else:
 				for p in [a, b, c]:
 					tool.set_color(shade)
@@ -122,9 +136,11 @@ func _ready() -> void:
 		material.roughness = 1.0
 		tool.set_material(material)
 		var mesh := tool.commit()
-		if road_count:
-			road_tool.set_material(road_material)
-			road_tool.commit(mesh)
+		if lot_count:
+			lot_tool.set_material(lot_material)
+			lot_tool.commit(mesh)
+		if ribbons:
+			_road_tool().commit(mesh)
 		if not ground.is_empty():
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ground)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, ground_material if ground_material else material)
@@ -145,6 +161,26 @@ func _ready() -> void:
 	collider.shape = shape
 	add_child(collider)
 	_add_leaves()
+
+
+func _road_tool() -> SurfaceTool:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(road_material)
+	var base := 0
+	for r in road_sections.size():
+		var n := road_sections[r]
+		for k in n - 1:
+			var l0 := base + k * 2
+			# (left, right, next right; left, next right, next left)
+			for idx in [l0, l0 + 1, l0 + 3, l0, l0 + 3, l0 + 2]:
+				st.set_uv(road_uvs[idx])
+				st.set_uv2(Vector2(road_widths[r], 0.0))
+				st.set_color(Color(1.0 if road_junctions[idx] == 1.0 else 0.0, 1.0 if road_junctions[idx] == 2.0 else 0.0, 0.0, 1.0))
+				st.set_normal(Vector3.UP)
+				st.add_vertex(road_points[idx])
+		base += n * 2
+	return st
 
 
 ## The ground mesh's arrays (vertices, normals, colours, indices), or [] if the map has no height grid.

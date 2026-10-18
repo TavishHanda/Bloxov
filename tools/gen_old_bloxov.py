@@ -76,6 +76,7 @@ COLOURS = [
     ("scorch", (0.22, 0.2, 0.19)),
     ("deadwood", (0.3, 0.26, 0.22)),
     ("earth", (0.36, 0.28, 0.2)),
+    ("lot", (0.3, 0.3, 0.32)),        # car parks (World art 0.17: drawn with assets/materials/lot.tres)
 ]
 C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
@@ -1567,12 +1568,14 @@ def motel_openings():
 CHURCH_PATH = ((167.0, 52.4), (167.0, 98.6))     # map x, z: the church door to the sidewalk
 CAR_PARK = (130.0, 41.0, 148.0, 58.0)
 old_car_park = [0, 0]   # its boxes (from, to), see the grocery
+lot_ways = []           # the car parks' ways in off the roads (points, width): no road lines across their mouths
 
 
 def churchyard():
     (px, z0), (_, z1) = CHURCH_PATH
     clear_scatter((px - 2.5, z0, px + 2.5, z1 + 1.0))
     clear_scatter((CAR_PARK[0] - 1.0, CAR_PARK[1] - 1.5, CAR_PARK[2] + 1.0, CAR_PARK[3] + 1.0))
+    clear_scatter((118.0, 44.0, CAR_PARK[0] + 1.0, 55.0))   # (and the way in: owner, dirt banks across it)
     paths.append(([(px, z0), (px, z1)], 1.6))
     # Flagstones (each its own slab, so they follow the hills), a little off line like a laid path.
     z = z0 + 0.2
@@ -1587,9 +1590,15 @@ def churchyard():
         box(px + 2.6, 0, z1 - 0.9, px + 2.75, 1.7, z1 - 0.75, "wood")
         box(px + 1.3, 1.0, z1 - 0.95, px + 2.85, 1.8, z1 - 0.8, "wood")
     x0, cz0, x1, cz1 = CAR_PARK
-    box(x0, 0.0, cz0, x1, 0.06, cz1, "pavement", solid=False)
-    strip([(121.0, 49.5), (x0 + 1.0, 49.5)], 5.0, "pavement", y=0.05)    # the way in, off Mill Lane (follows the slope)
+    box(x0, 0.0, cz0, x1, 0.06, cz1, "lot", solid=False)
+    lot_ways.append(([(121.0, 49.5), (x0 + 1.0, 49.5)], 5.0))     # the way in, off Mill Lane (follows the slope)
     car(132.5, 45.0, 0); car(143.0, 52.5, 0, "car_b")
+    # The shops' car park (made with the shops): no dirt banks round it, and a way in off the road (owner, 2026-10-18).
+    clear_scatter((12.0, 144.0, 50.0, 168.0))
+    clear_scatter((44.0, 152.0, 56.0, 162.0))
+    lot_ways.append(([(44.0, 157.0), (53.5, 157.0)], 6.0))
+    for points, width in lot_ways:
+        strip(points, width, "lot", y=0.1)
     # (last: deleting these moves the later boxes down, which the scatter lists don't follow)
     k0, k1 = old_car_park
     gone = set(anchors[k0:k1])
@@ -2717,6 +2726,9 @@ def lamp_pass(every=24.0):
                     continue
                 if any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 0.6 for pts, w in roads for a, b in zip(pts, pts[1:])):
                     continue   # (at a junction)
+                if any(b[4] <= 0.06 and max(b[3], b[5]) > 8 and abs(px - (b[0] + M / 2)) < b[3] / 2 + 2.5 and
+                       abs(pz - (b[2] + M / 2)) < b[5] / 2 + 2.5 for b in boxes if b[8] == C["lot"]):
+                    continue   # (in a car park's way in)
                 yaw = math.degrees(math.atan2(ax + (bx - ax) * t - px, az + (bz - az) * t - pz))   # arm toward the middle
                 with scatter_piece(px, pz):
                     lamp(px, pz, yaw, down=rng.random() < 0.12)
@@ -4121,7 +4133,7 @@ def main():
             ("wc_toilet", "N", 2.4, 0.45, 0.72, 0.85), ("wc_sink", "W", 5.6, 0.5, 0.45, 0.9)))
         washroom(23.0, 62.0, 3.125, 4.1, 4.9, 6.5, "S", ("S", 4.0, -2), sign="wc_sign_f", fit=(
             ("wc_toilet", "N", 4.3, 0.45, 0.72, 0.85), ("wc_sink", "E", 5.6, 0.5, 0.45, 0.9)))
-    box(15, 0.0, 148, 45, 0.06, 166, "pavement", solid=False)   # the shops' car park (was the sports field)
+    box(15, 0.0, 148, 45, 0.06, 166, "lot", solid=False)   # the shops' car park (was the sports field)
     car(22, 154, 90); car(34, 160, 90, "car_b"); car(40, 152, 270)
 
     # hillside: big houses (owner: expensive loot)
@@ -4927,6 +4939,55 @@ def write_outdoor(ter):
     return shown
 
 
+def road_ribbons(ter, step=2.0):
+    """The roads' surface (World art 0.17, outdoor step 3; owner: the lines were jagged and broken at every piece):
+    one smooth ribbon per road for BoxMap to draw instead of its strip pieces, sections every `step` m at the strips'
+    height (each road a hair above the one before, like the strips), mitred at bends. Per vertex: position, (across,
+    along) in metres for the lane lines, and 1 where it's inside another road (no lines through junctions), 2 at a
+    car park's way in (no edge line).
+    Returns (points, uvs, junction flags, sections per road, widths)."""
+    pts, uvs, flags, counts, widths = [], [], [], [], []
+    for i, (curve, width) in enumerate(roads):
+        y = 0.02 + 0.004 * (i + 1) + 0.04 + 0.002
+        others = [(c, w) for k, (c, w) in enumerate(roads) if k != i]
+        samples = []
+        for (ax, az), (bx, bz) in zip(curve, curve[1:]):
+            ln = math.hypot(bx - ax, bz - az)
+            n = max(1, int(math.ceil(ln / step)))
+            for k in range(n):
+                samples.append((ax + (bx - ax) * k / n, az + (bz - az) * k / n))
+        samples.append(curve[-1])
+        dist = 0.0
+        for k, (x, z) in enumerate(samples):
+            if k:
+                dist += math.hypot(x - samples[k - 1][0], z - samples[k - 1][1])
+            p0, p1 = samples[max(0, k - 1)], samples[min(len(samples) - 1, k + 1)]
+            tx, tz = p1[0] - p0[0], p1[1] - p0[1]
+            tl = math.hypot(tx, tz) or 1.0
+            tx, tz = tx / tl, tz / tl
+            miter = 1.0
+            if 0 < k < len(samples) - 1:   # (keep the width square to each piece at a bend)
+                ux, uz = samples[k + 1][0] - x, samples[k + 1][1] - z
+                ul = math.hypot(ux, uz) or 1.0
+                miter = min(1.4, 1.0 / max(0.7, (ux * tx + uz * tz) / ul))
+            # (level across, at the highest ground under it: the ground's grid cells bend between the samples and
+            # poked through the road's edges in steps)
+            h = max(ter.at(x + tx * a - tz * b * width / 2 * miter, z + tz * a + tx * b * width / 2 * miter)
+                    for a in (-step / 2, 0.0, step / 2) for b in (-1.0, -0.5, 0.0, 0.5, 1.0)) + y
+            if abs(z - RAIL_Z) < 1.6 + width:   # a level crossing: over the rails, as the strips do
+                h = max(h, RAIL_TOP + COVER_STEP + 0.002)
+            for side in (-1, 1):
+                px, pz = x - tz * side * width / 2 * miter, z + tx * side * width / 2 * miter
+                pts.append((gx(px), h, gz(pz)))
+                uvs.append((side * width / 2, dist))
+                inside = any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 0.8 for c, w in others for a, b in zip(c, c[1:]))
+                mouth = any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 0.5 for c, w in lot_ways for a, b in zip(c, c[1:]))
+                flags.append(1.0 if inside else 2.0 if mouth else 0.0)
+        counts.append(len(samples))
+        widths.append(width)
+    return pts, uvs, flags, counts, widths
+
+
 def write_scene(ter):
     write_model_boxes(ter)
     outdoor = write_outdoor(ter)
@@ -4954,6 +5015,8 @@ def write_scene(ter):
     for glb in sorted({c["glb"] for c, _ in placed}):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]')
+    rib = road_ribbons(ter) if ROAD_LOOK != "a" else ([], [], [], [], [])
+    out.append('[ext_resource type="Material" path="res://assets/materials/lot.tres" id="g_lot"]')
     if ROAD_LOOK != "a":   # (a: the old flat colour, for the options sheets)
         out.append(f'[ext_resource type="Material" path="res://assets/materials/road_{ROAD_LOOK}.tres" id="g_road"]')
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
@@ -4974,6 +5037,13 @@ def write_scene(ter):
             'ground_material = ExtResource("g_ground")',
             'road_material = ExtResource("g_road")' if ROAD_LOOK != "a" else "",
             f"road_colour = {C['road']}",
+            'lot_material = ExtResource("g_lot")',
+            f"lot_colour = {C['lot']}",
+            "road_points = PackedVector3Array(" + ", ".join(f"{fmt(a)}, {fmt(b)}, {fmt(c)}" for a, b, c in rib[0]) + ")",
+            "road_uvs = PackedVector2Array(" + ", ".join(f"{fmt(a)}, {fmt(b)}" for a, b in rib[1]) + ")",
+            "road_junctions = PackedFloat32Array(" + ", ".join(fmt(v) for v in rib[2]) + ")",
+            "road_sections = PackedInt32Array(" + ", ".join(str(v) for v in rib[3]) + ")",
+            "road_widths = PackedFloat32Array(" + ", ".join(fmt(v) for v in rib[4]) + ")",
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(gx(x)) for x in ter.xs) + ")",
             "terrain_zs = PackedFloat32Array(" + ", ".join(fmt(gz(z)) for z in ter.zs) + ")",
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for row in ter.h for h in row) + ")",

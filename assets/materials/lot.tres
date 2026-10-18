@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/lot.gdshader" id="1_shader"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/road_c.png" id="2_surface"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/road_patch.png" id="3_patch"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/dither.png" id="4_wear"]
+[ext_resource type="Texture2D" path="res://assets/textures/ground/macro.png" id="5_macro"]
+
+[resource]
+resource_name = "lot"
+render_priority = 0
+shader = ExtResource("1_shader")
+shader_parameter/surface = ExtResource("2_surface")
+shader_parameter/patched = ExtResource("3_patch")
+shader_parameter/wear = ExtResource("4_wear")
+shader_parameter/macro = ExtResource("5_macro")
