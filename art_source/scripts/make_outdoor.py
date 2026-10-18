@@ -2443,6 +2443,87 @@ def draw_bench(b, piece, rng):
         f.box((x, 0.6, 0.25), (0.06, 0.4, 0.05), style=flat("trim_dark", 1.0))
 
 
+# ------------------------------------------------------------------------------------------------ the waterfall room
+def draw_cave(b, piece, rng):
+    """The rock knoll with the secret room behind the waterfall (gen cave_room; outdoor step 6). Its boxes come in
+    cave_room's order: floor, the cliff face (two sides and the lintel over the door), the sides and back, the roof,
+    the lip on top, the boulders round its foot, then a bedroll and a lantern. Inside, the walls are granite flush
+    with their collision (little jitter, no taper) and the floor and roof flat slabs (the roof needs its underside).
+    Outside, a skin of big overlapping boulders a little proud of the collision gives it a broken, rocky outline
+    instead of a block's; the doorway stays open behind the falling water."""
+    bx = piece["boxes"]
+    slab = lambda n, m, q: ("dbr_granite", uv_world(2.0))
+    for k, box in enumerate(bx):
+        s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
+        if k == 0:
+            b.box(c, s, style=lambda n, m, q: slab(n, m, q) if n[1] > 0.7 else None)
+        elif k == 7:
+            b.box(c, s, style=lambda n, m, q: slab(n, m, q) if n[1] < -0.7 else None)
+        elif k <= 8:
+            rock(b, c, s, yaw, rng, "dbr_granite", jitter=0.02, chamfer=0.06, taper=1.0)
+        elif box["colour"] == "stone":
+            rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", jitter=0.12, chamfer=0.4)
+        elif box["colour"] == "concrete":   # the threshold slab out of the door (only its top shows)
+            b.box(c, s, pitch=box["pitch"], style=lambda n, m, q: slab(n, m, q) if n[1] > 0.7 else None)
+        elif box["colour"] == "dirt":   # the bedroll: a rolled-out blanket with the roll at its head
+            b.box((c[0] + 0.15, c[1] - s[1] / 2 + 0.03, c[2]), (s[0] - 0.3, 0.06, s[2]), style=flat("dbr_canvas", 1.0))
+            cyl(b, (c[0] - s[0] / 2 + 0.17, c[1] - s[1] / 2 + 0.15, c[2]), 0.15, s[2], "dbr_canvas", sides=8, axis="z")
+        else:   # the lantern: base, glass, cap and handle
+            y0 = c[1] - s[1] / 2
+            b.box((c[0], y0 + 0.03, c[2]), (0.2, 0.06, 0.2), style=flat("trim_dark", 1.0))
+            b.box((c[0], y0 + 0.17, c[2]), (0.15, 0.22, 0.15), style=flat("glass", 1.0))
+            b.box((c[0], y0 + 0.31, c[2]), (0.2, 0.05, 0.2), style=flat("trim_dark", 1.0))
+            b.box((c[0], y0 + 0.37, c[2]), (0.02, 0.08, 0.14), style=flat("trim_dark", 1.0))
+    # the skin: boulders along each outside face, in tiers up to that face's height (the face side lowest first)
+    walls = bx[1:9]
+    x0 = min(w["pos"][0] - w["size"][0] / 2 for w in walls)
+    x1 = max(w["pos"][0] + w["size"][0] / 2 for w in walls)
+    z0 = min(w["pos"][2] - w["size"][2] / 2 for w in walls)
+    z1 = max(w["pos"][2] + w["size"][2] / 2 for w in walls)
+    floor = bx[0]["pos"][1] + bx[0]["size"][1] / 2
+    lintel = bx[3]   # (the doorway: under it, through the face)
+    door = [lintel["pos"][k] - lintel["size"][k] / 2 - 0.9 for k in (0, 2)] + \
+        [lintel["pos"][k] + lintel["size"][k] / 2 + 0.9 for k in (0, 2)] + [lintel["pos"][1] - lintel["size"][1] / 2]
+
+    def top_at(x, z):   # the collision's height there
+        return max([w["pos"][1] + w["size"][1] / 2 for w in walls
+                    if abs(x - w["pos"][0]) <= w["size"][0] / 2 + 0.01 and abs(z - w["pos"][2]) <= w["size"][2] / 2 + 0.01]
+                   or [floor])
+    mats = ("dbr_granite", "dbr_mossrock", "dbr_granite")
+    sides = (((x0, z0), (x0, z1), (-1, 0)), ((x0, z1), (x1, z1), (0, 1)), ((x1, z1), (x1, z0), (1, 0)),
+             ((x1, z0), (x0, z0), (0, -1)))
+    for (ax, az), (cx, cz), (nx, nz) in sides:
+        length = math.hypot(cx - ax, cz - az)
+        n = max(2, round(length / 1.7))
+        for i in range(n):
+            t = (i + 0.5) / n + rng.uniform(-0.15, 0.15) / n
+            px, pz = ax + (cx - ax) * t, az + (cz - az) * t
+            h = top_at(px - nx * 0.5, pz - nz * 0.5) - floor
+            y = floor - 0.3
+            while y < floor + h - 0.4:
+                th = min(rng.uniform(1.6, 2.6), floor + h + 0.35 - y)
+                if door[0] < px < door[2] and door[1] < pz < door[3] and y < door[4] + 0.2:
+                    y += th   # (keep the doorway open)
+                    continue
+                w = rng.uniform(1.6, 3.0)
+                d = rng.uniform(1.0, 1.8)
+                # (in reach, proud of the collision by only 0.1-0.3 m so you never sink into it; above head height
+                # up to 0.9 m, which breaks up the cliff's outline into ledges and overhangs)
+                out = rng.uniform(-0.2, 0.0) if y < floor + 2.0 else rng.uniform(0.0, 0.6)
+                yaw = math.degrees(math.atan2(nx, nz)) + rng.uniform(-28, 28)
+                rock(b, (px + nx * (out - d / 2 + 0.3), y + th / 2, pz + nz * (out - d / 2 + 0.3)), (w, th + 0.25, d),
+                     yaw, rng, rng.choice(mats), jitter=0.16, chamfer=0.34, taper=0.8)
+                y += th * rng.uniform(0.75, 0.9)
+    # a broken top: a few slabs and boulders over the roof, higher at the cliff, stepping down to the hill
+    for i in range(7):
+        tx = x0 + 0.8 + (x1 - x0 - 1.6) * rng.random()
+        tz = z0 + 0.8 + (z1 - z0 - 1.6) * rng.random()
+        top = top_at(tx, tz)
+        w = rng.uniform(1.8, 3.0)
+        rock(b, (tx, top + 0.1, tz), (w, rng.uniform(0.5, 0.9), w * rng.uniform(0.7, 1.1)), rng.uniform(0, 180), rng,
+             rng.choice(mats), jitter=0.12, chamfer=0.35, taper=0.8)
+
+
 DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
@@ -2453,7 +2534,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "wire": draw_wire, "wire_down": draw_wire_down, "walk": draw_walk, "flags": draw_walk,
         "sign_rail": draw_sign, "track": draw_track, "bridge": draw_bridge, "boxcar": draw_boxcar,
         "loco": draw_loco, "wagon": draw_boxcar, "tanker": draw_tanker, "signal": draw_signal, "points": draw_points,
-        "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
+        "cave": draw_cave, "sign_town": draw_sign, "sign_stop": draw_sign, "sign_speed": draw_sign, "sign_dir": draw_sign}
 
 
 def main():

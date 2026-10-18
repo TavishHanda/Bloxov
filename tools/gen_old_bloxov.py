@@ -3810,6 +3810,83 @@ def boxcar(x, z):
     box(x - 5.5, 0, z - 1.5, x + 5.5, 3.6, z + 1.5, "boxcar")
 
 
+# The waterfall and its secret room (World art 0.17, outdoor step 6; owner 2026-10-12, on the roadmap: "a waterfall by
+# the creek; walk through it into a hidden room with a couple of safes"): a rock knoll on the creek's east bank where
+# the hill under the fisherman's cabin comes down to the water. A spring pours off its lip in front of the doorway
+# (the falling water is drawn by WaterfallSheet, no collision: you walk through it); inside, a rock room with two
+# safes. The ground is cut out under the room (CAVE_HOLE); every box here stands on the ground at the doorway
+# (anchor "cave": y is from CAVE_OUTSIDE's ground, see terrain()). Map x, z; the cliff and its door face south, to
+# the creek's bend and the sun (facing west it stood in its own shade, one flat dark wall).
+CAVE_X = (72.0, 80.2)                # the knoll's west and east ends
+CAVE_FACE = 306.0                    # its south face, the cliff
+CAVE_DOOR = (74.6, 77.0, 2.3)        # the doorway in the cliff: x from, x to, height (wide enough for the AI)
+CAVE_ROOM = (73.6, 297.0, 78.6, 303.5)   # the room inside (x0, z0, x1, z1)
+CAVE_HOLE = (CAVE_ROOM[0], CAVE_ROOM[1], CAVE_ROOM[2], CAVE_FACE)   # (the room and the doorway through the face)
+CAVE_HEIGHT = 2.6
+CAVE_LIP = 6.0                       # the spring's lip, where the water falls from
+CAVE_OUTSIDE = (75.8, 306.4)         # the ground the doorway opens onto (the room's floor height)
+CAVE_SPLASH = (306.0, 306.9)         # the splash's z range at the cliff's foot (as wide as the falling water)
+# the stream the waterfall runs off in, down to the creek (BoxMap stream_points)
+CAVE_STREAM = [(75.8, 307.7), (75.6, 308.6), (75.1, 309.8), (74.4, 311.4), (73.9, 313.0), (73.6, 314.6)]
+NO_TREES.append((CAVE_X[0] - 3.0, CAVE_ROOM[1] - 3.5, CAVE_X[1] + 3.0, CAVE_FACE + 3.0))
+cave_floor = [0.0, 0.0]              # (the doorway's ground height and the splash's, set in terrain())
+
+
+@debris_kind("cave")
+def cave_room(x, z):
+    (x0, x1), fz, (dx0, dx1, dh) = CAVE_X, CAVE_FACE, CAVE_DOOR
+    rx0, rz0, rx1, rz1 = CAVE_ROOM
+    back = rz0 - 1.5
+    box(rx0 - 0.2, -0.4, rz0 - 0.2, rx1 + 0.2, 0.02, fz + 0.1, "stone")               # the floor, out through the door
+    box(x0, -0.4, rz1, dx0, CAVE_LIP - 0.4, fz, "stone")                                 # the cliff face, door in it
+    box(dx1, -0.4, rz1, x1, CAVE_LIP - 0.4, fz, "stone")
+    box(dx0, dh, rz1, dx1, CAVE_LIP - 0.4, fz, "stone")
+    box(x0, -0.4, back, rx0, CAVE_LIP - 1.2, rz1, "stone")                               # the sides and back
+    box(rx1, -0.4, back, x1, CAVE_LIP - 1.4, rz1, "stone")
+    box(rx0, -0.4, back, rx1, CAVE_LIP - 1.6, rz0, "stone")
+    box(rx0, CAVE_HEIGHT, rz0, rx1, CAVE_LIP - 1.6, rz1, "stone")                        # the roof
+    box(x0 + 1.0, CAVE_LIP - 0.4, fz - 3.6, x1 - 1.0, CAVE_LIP, fz - 0.4, "stone")       # the lip on top
+    # boulders tumbled round its foot (and one up on the back), so it reads as a rock outcrop, not a block
+    for bx, bz, w, h, d, yaw in ((x0 + 0.6, fz + 0.6, 1.5, 1.3, 1.6, 20), (x0 - 0.7, fz - 0.4, 1.8, 2.0, 2.2, -10),
+                                 (x1 - 0.8, fz + 0.5, 1.3, 1.1, 1.4, 35), (x1 + 0.6, fz - 2.5, 1.8, 2.4, 2.4, 5),
+                                 (x0 + 2.0, back - 0.4, 2.2, 3.2, 1.8, 15), (x0 - 0.6, fz - 6.0, 1.6, 2.6, 2.6, -5),
+                                 (x1 + 0.5, back + 1.0, 1.6, 3.0, 2.2, 10)):
+        obox(bx, h / 2 - 0.4, bz, w, h, d, yaw, "stone")
+    # inside: a bedroll and a lantern (someone hid here), the two safes against the back wall
+    box(rx0 + 0.4, 0.05, rz1 - 2.4, rx0 + 1.2, 0.2, rz1 - 0.5, "dirt", solid=False)
+    box(rx0 + 1.4, 0.05, rz1 - 2.5, rx0 + 1.65, 0.4, rz1 - 2.25, "metal", solid=False)
+    # the threshold: a slab from the floor out to the ground outside, tilted to meet it (terrain(): anchor
+    # "cave_ramp"), so the step in is never too high for the AI's paths
+    ramp = (sum(CAVE_DOOR[:2]) / 2, fz - 0.6, sum(CAVE_DOOR[:2]) / 2, fz + 1.6)
+    with anchored(("cave_ramp",) + ramp):
+        obox(ramp[0], -0.13, (ramp[1] + ramp[3]) / 2, dx1 - dx0 + 0.4, 0.3, ramp[3] - ramp[1], 0.0, "concrete")
+    add_loot("Waterfall", "safe", rx0 + 1.6, rz0 + 0.45, y=0.02, yaw=180.0)
+    add_loot("Waterfall", "safe", rx1 - 1.6, rz0 + 0.45, y=0.02, yaw=180.0)
+
+
+def stream_line(ter):
+    """The waterfall's stream as BoxMap points (Godot x, y, z), every 0.7 m and just over the highest ground across
+    it (so the ground never pokes through), ending where it runs into the creek."""
+    out = []
+    for (ax, az), (bx, bz) in zip(CAVE_STREAM, CAVE_STREAM[1:]):
+        n = max(1, round(math.hypot(bx - ax, bz - az) / 0.7))
+        for k in range(n + (1 if (bx, bz) == CAVE_STREAM[-1] else 0)):
+            x, z = ax + (bx - ax) * k / n, az + (bz - az) * k / n
+            if in_creek(x, z, -1.4):
+                return out
+            tx, tz = (bz - az), -(bx - ax)
+            ln = math.hypot(tx, tz) or 1.0
+            y = max(ter.at(x + tx / ln * d, z + tz / ln * d) for d in (-0.5, 0.0, 0.5)) + 0.04
+            out.append((gx(x), y, gz(z)))
+    return out
+
+
+def waterfall():
+    clear_scatter((CAVE_X[0] - 4.0, CAVE_ROOM[1] - 5.0, CAVE_X[1] + 4.0, CAVE_FACE + 3.0))
+    with anchored(("cave",)):
+        cave_room(sum(CAVE_X) / 2, CAVE_FACE)
+
+
 # The derailed freight train by the creek (World art 0.17, outdoor step 5; owner 2026-10-18 picked C): it came off
 # the rails just past the bridge, westbound; the locomotive slewed off and leans into the ballast, two boxcars
 # jackknifed behind it, the tanker at the back still on the rails. New cover (sightlines checked). Each car is one
@@ -4323,7 +4400,13 @@ def terrain():
     global boxes, anchors
     keep = [k for k, a in enumerate(anchors) if a != "ground"]
     boxes, anchors = [boxes[k] for k in keep], [anchors[k] for k in keep]
-    ter = Terrain([BUNKER_HOLE] + TRENCHES)
+    ter = Terrain([BUNKER_HOLE, CAVE_HOLE] + TRENCHES)
+    # (the highest ground at the threshold, so walking in never steps up onto the floor)
+    cave_floor[0] = max(ter.at(CAVE_OUTSIDE[0] + dx, CAVE_OUTSIDE[1] + dz) for dx in (-1.0, 0.0, 1.0) for dz in (-0.3, 0.0, 0.3))
+    # (the splash lies on the threshold slab: from the floor at the door down to the ground at its end)
+    out_z = CAVE_FACE + 1.6
+    t = (sum(CAVE_SPLASH) / 2 - (CAVE_FACE - 0.6)) / (out_z - (CAVE_FACE - 0.6))
+    cave_floor[1] = cave_floor[0] + (ter.at(CAVE_OUTSIDE[0], out_z) - cave_floor[0]) * t + 0.05
 
     def low(b):   # the lowest ground under a box that isn't on a pad (so it never floats)
         p = ter.pad_at(b[0] + M / 2, b[2] + M / 2)
@@ -4367,6 +4450,11 @@ def terrain():
                 covers.append((cx - hx / 2, cz - hz / 2, cx + hx / 2, cz + hz / 2, low(b) + top))
         elif a is None:
             out.append(_moved(b, low(b)))
+        elif a == ("cave",):
+            out.append(_moved(b, cave_floor[0]))
+        elif a[0] == "cave_ramp":
+            _, ax, az, bx, bz = a
+            out.append(_tilted(b, cave_floor[0], ter.at(bx, bz), math.hypot(bx - ax, bz - az)))
         elif a[0] == "g":
             if a in car_groups:
                 car_groups[a].append(len(out))
@@ -4426,7 +4514,11 @@ def terrain():
         box(x0, hall_y - 1.0, z0, x1, hall_y - 0.02, z1, "bunker")
     # containers, extracts, spawns and markers stand on the ground too
     for k, l in enumerate(loot):
-        loot[k] = l[:3] + (l[3] + ter.lift(l[2], l[4]),) + l[4:]
+        loot[k] = l[:3] + (l[3] + (cave_floor[0] if l[7] == "Waterfall" else ter.lift(l[2], l[4])),) + l[4:]
+    # (the waterfall room's roof must cover the ground cut out over it)
+    rx0, rz0, rx1, rz1 = CAVE_ROOM
+    over = max(ter.at(rx0 + (rx1 - rx0) * i / 8, rz0 + (rz1 - rz0) * k / 8) for i in range(9) for k in range(9))
+    assert over < cave_floor[0] + CAVE_LIP - 1.6 - 0.2, f"the ground pokes out over the waterfall room ({over:.2f})"
     for name, _, x, z in extracts:
         ground_y["extract", name] = ter.lift(x, z)
     for name, x, z in player_spawns:
@@ -4499,6 +4591,8 @@ def terrain_report(ter):
         for i in range(len(ter.xs) - 1):
             dx = (ter.h[j][i + 1] - ter.h[j][i]) / (ter.xs[i + 1] - ter.xs[i])
             dz = (ter.h[j + 1][i] - ter.h[j][i]) / (ter.zs[j + 1] - ter.zs[j])
+            if CAVE_X[0] <= ter.xs[i] < CAVE_X[1] and CAVE_ROOM[1] - 1.5 <= ter.zs[j] < CAVE_FACE:
+                continue   # (inside the waterfall's rock: the cut round its room)
             steep = max(steep, math.degrees(math.atan(math.hypot(dx, dz))))
     grade = 0.0
     for points, _ in roads:
@@ -5108,6 +5202,7 @@ def main():
     door_paths()
     derailed_train()
     signals_and_points()
+    waterfall()
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
@@ -5485,6 +5580,7 @@ def write_splat(ter):
                 stamp(c, min(a[0], b[0]) - r, min(a[1], b[1]) - r, max(a[0], b[0]) + r, max(a[1], b[1]) + r, v)
     lines(0, paths, 0.0, 0.5)                                 # footpaths
     lines(1, water, 0.6, 2.2)                                  # mud along the creek
+    lines(1, [(CAVE_STREAM, 1.0)], 0.4, 1.3)                   # and the waterfall's stream
     lines(3, roads, 0.5, 1.3)                                  # road shoulders (under the road too: it hides it)
     stamp(3, 0, RAIL_Z - 3.2, M, RAIL_Z + 3.2, lambda x, z: max(0.0, min(1.0, (3.2 - abs(z - RAIL_Z)) / 0.8)))
     small_yards = [y for y in yards if (y[2] - y[0]) * (y[3] - y[1]) < 1500]   # (not round the farm's fields)
@@ -5757,6 +5853,8 @@ def write_scene(ter):
     rib = road_ribbons(ter) if ROAD_LOOK != "a" else ([], [], [], [], [])
     out.append('[ext_resource type="Material" path="res://assets/materials/lot.tres" id="g_lot"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/water.tres" id="g_water"]')
+    out.append('[ext_resource type="Mesh" path="res://assets/meshes/waterfall_sheet.tres" id="g_fall"]')
+    out.append('[ext_resource type="Mesh" path="res://assets/meshes/waterfall_splash.tres" id="g_splash"]')
     if ROAD_LOOK != "a":   # (a: the old flat colour, for the options sheets)
         out.append(f'[ext_resource type="Material" path="res://assets/materials/road_{ROAD_LOOK}.tres" id="g_road"]')
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
@@ -5795,7 +5893,20 @@ def write_scene(ter):
             'water_material = ExtResource("g_water")',
             f"water_width = {fmt(2 * CREEK_BANK)}",
             "water_points = PackedVector3Array(" + ", ".join(
-                f"{fmt(gx(x))}, {fmt(ter.water_level(x, z))}, {fmt(gz(z))}" for x, z in water[0][0][WATER_START:]) + ")", "",
+                f"{fmt(gx(x))}, {fmt(ter.water_level(x, z))}, {fmt(gz(z))}" for x, z in water[0][0][WATER_START:]) + ")",
+            "stream_points = PackedVector3Array(" + ", ".join(f"{fmt(x)}, {fmt(y)}, {fmt(z)}" for x, y, z in stream_line(ter)) + ")",
+            "stream_width = 1.0", "",
+            # the waterfall's falling water and its splash (outdoor step 6), in front of the secret room's door
+            '[node name="WaterfallSheet" type="MeshInstance3D" parent="Level"]',
+            f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt(gx(sum(CAVE_DOOR[:2]) / 2))}, "
+            f"{fmt(cave_floor[0] + CAVE_LIP / 2 - 0.1)}, {fmt(gz(CAVE_FACE + 0.4))})",
+            'mesh = ExtResource("g_fall")',
+            "cast_shadow = 0", "",
+            '[node name="WaterfallSplash" type="MeshInstance3D" parent="Level"]',
+            f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt(gx(sum(CAVE_DOOR[:2]) / 2))}, {fmt(cave_floor[1])}, "
+            f"{fmt(gz(sum(CAVE_SPLASH) / 2))})",
+            'mesh = ExtResource("g_splash")',
+            "cast_shadow = 0", "",
             # grass tufts and wildflowers near the camera (outdoor step 2), where write_splat's maps say grass grows
             '[node name="Tufts" type="Node3D" parent="Level/Blocks"]',
             'script = ExtResource("g_tufts")',

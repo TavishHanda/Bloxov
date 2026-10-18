@@ -62,6 +62,9 @@ const WATER_ACROSS := 9
 @export var water_colour := 0
 ## The water's look (World art 0.17: assets/materials/water.tres); without one, a flat see-through colour.
 @export var water_material: Material
+## A little stream (World art 0.17: from the waterfall down to the creek): drawn like the water, too shallow to wade.
+@export var stream_points := PackedVector3Array()
+@export var stream_width := 1.0
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
@@ -148,9 +151,10 @@ func _ready() -> void:
 		if not ground.is_empty():
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ground)
 			mesh.surface_set_material(mesh.get_surface_count() - 1, ground_material if ground_material else material)
-		if water_points.size() >= 2:
-			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _water_arrays())
-			mesh.surface_set_material(mesh.get_surface_count() - 1, _water_material())
+		for line in [[water_points, water_width], [stream_points, stream_width]]:
+			if (line[0] as PackedVector3Array).size() >= 2:
+				mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _water_arrays(line[0], line[1]))
+				mesh.surface_set_material(mesh.get_surface_count() - 1, _water_material())
 		mesh_node.mesh = mesh
 		add_child(mesh_node)
 	if editor:
@@ -287,30 +291,30 @@ static func is_wading(body: Node) -> bool:
 	return int(body.get_meta(WADE_META, 0)) > 0
 
 
-## The water's middle line pushed out sideways (half the width each way) at point k: [left, right].
-func _water_sides(k: int, half: float) -> Array[Vector3]:
-	var a := water_points[maxi(k - 1, 0)]
-	var b := water_points[mini(k + 1, water_points.size() - 1)]
+## A water line pushed out sideways (half the width each way) at point k: [left, right].
+func _water_sides(line: PackedVector3Array, k: int, half: float) -> Array[Vector3]:
+	var a := line[maxi(k - 1, 0)]
+	var b := line[mini(k + 1, line.size() - 1)]
 	var along := Vector3(b.x - a.x, 0.0, b.z - a.z).normalized()
 	var side := Vector3(along.z, 0.0, -along.x) * half
-	return [water_points[k] + side, water_points[k] - side]
+	return [line[k] + side, line[k] - side]
 
 
-## The water surface: one ribbon along the middle line (no overlapping pieces, so it's evenly see-through), a row of
+## A water surface (the creek, the stream): one ribbon along its middle line (no overlapping pieces, so it's evenly see-through), a row of
 ## WATER_ACROSS points across. UV: metres across from the middle line, metres downstream; UV2.x: how deep the water is
 ## there (down to the ground), for the water shader's shallows and foam.
-func _water_arrays() -> Array:
+func _water_arrays(line: PackedVector3Array, width: float) -> Array:
 	var points := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var depths := PackedVector2Array()
 	var indices := PackedInt32Array()
 	var along := 0.0
-	var half := water_width / 2.0
-	for k in water_points.size():
-		var sides := _water_sides(k, half)
+	var half := width / 2.0
+	for k in line.size():
+		var sides := _water_sides(line, k, half)
 		if k > 0:
-			along += Vector2(water_points[k].x - water_points[k - 1].x, water_points[k].z - water_points[k - 1].z).length()
+			along += Vector2(line[k].x - line[k - 1].x, line[k].z - line[k - 1].z).length()
 		for c in WATER_ACROSS:
 			var f := float(c) / (WATER_ACROSS - 1)
 			var p := sides[0].lerp(sides[1], f)

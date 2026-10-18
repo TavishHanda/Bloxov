@@ -3107,6 +3107,13 @@ func _section_old_bloxov() -> void:
 	_check(unreachable.is_empty(), "every loot container can be walked to, except behind the shut key doors (wrong: %s)" % [unreachable])
 	var locked := loot.filter(func(c: Node) -> bool: return c.has_meta("locked"))
 	_check(locked.size() == 8, "8 containers behind the bunker and bank vault doors (%d)" % locked.size())
+	# The waterfall's secret room (World art 0.17): two safes behind the falling water, which has no collision (you
+	# walk through it; the reach check above walks the AI's path in through the doorway).
+	var cave := loot.filter(func(c: Node) -> bool: return String(c.get_meta("place", "")) == "Waterfall")
+	var sheet := world.raid.find_child("WaterfallSheet", true, false)
+	_check(cave.size() == 2 and cave.all(func(c: Node) -> bool: return c is LootContainer and c.get("loot_table") == "safe")
+		and sheet is MeshInstance3D and sheet.get_child_count() == 0,
+		"the waterfall room has two safes behind walk-through falling water (%d)" % cave.size())
 	# Online the server's copy of the map has the doors too; a player unlocking one opens it there and tells the raid.
 	var opened := []
 	world.door_opened.connect(func(id: String) -> void: opened.append(id))
