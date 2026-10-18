@@ -19,4 +19,6 @@ tools/.cover_candidates.json
 __pycache__/
 # Building models and the kit atlas need their import settings (post-import script swaps in the atlas material).
 !assets/models/buildings/*.glb.import
+!assets/models/outdoor/*.glb.import
+!assets/models/props/cars/*.glb.import
 !assets/textures/kit_atlas.png.import
