@@ -5,7 +5,38 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update. -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
+
+## 0.18.0 (the World art update: the whole map remodelled)
+Everything built on the World art branch since 0.17.0 goes live at once. The map's layout is the same, but every
+building and almost everything outside now has a real model instead of gray boxes.
+- **Every building modelled, inside and out (37 of them):** gas stations, shops (laundromat, shoe store, burned-out TV
+  shop, facing the street now), school, pharmacy, gun store, the rich houses on the hill, offices (Korven
+  Engineering), town hall with Bon's crew living in it and its vault under the floor, bank, police station with a
+  custody block, FreshWay grocery, church with its bell tower, graveyard and crypt, the Last Stop Motel, the farm
+  (farmhouse, barn with hayloft, silo, machine shed), three cabins in the woods, and the bombed old quarter (train
+  station, goods depot, signal box, diner, old gas station, garage, junkyard with its crane and crusher, old houses).
+  Rooms are furnished, many have washrooms, windows have glass (some smashed), and loot boxes look like what they
+  are in that room (medicine cabinets, lockers, filing cabinets, wardrobes...).
+- **Doors:** inner doorways have doors. Press F to open or shut one; the AI opens them too, and online everyone sees
+  the same door. About half the doorways have no door or a wrecked one.
+- **Outside:** textured ground (three grasses, mud, scorched earth round craters), smooth asphalt roads with lines,
+  car parks, street lamps, power lines, road signs, kerbs and paths to the doors; the town square with its fountain;
+  real trees and swaying bushes (small bushes you walk through still hide you from the AI, big ones are solid cover);
+  cars in four types, burnt wrecks, junk and ruins as real models; the railway with its bridge, boxcars and a derailed
+  train; the creek with flowing water starting at a waterfall; set pieces (checkpoint, trench, campsite, hunting
+  stands, the farm's fields, hay bales); a border fence with the land carrying on outside the map; extract points
+  marked with a camp and a radio mast.
+- **Secret room:** behind the waterfall, on the creek's east bank, there is a hidden room with safes.
+- **Cover:** about 140 new pieces of cover (ruined walls, containers, earth banks) so you can't be sniped from the
+  spawn hill across the whole map; hay bales are new cover too.
+- **Moved:** the school sits up by the hill houses, the shops took its old spot (with a car park), the town hall is
+  4 m further back. The depot has 2 more loot spots.
+- **Sky and light:** clear day with blocky pixel clouds.
+- **Speed:** far-off buildings and trees switch to simple versions and shadows are cheaper, so the new map runs about
+  40% lighter than it did before that pass. It is still heavier than the old gray-box map, so slow PCs and phones
+  may notice it.
+- No changes to guns, AI, loot tables or prices.
 
 ## 0.17.13 (owner's batch: stash fixes, loading guns, leaves, spawns, quests tab)
 - **Load and unload guns in the stash:** right-click (or hold) a gun in the hideout for **Load** / **Unload**, or drag
