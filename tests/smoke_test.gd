@@ -3086,6 +3086,14 @@ func _section_old_bloxov() -> void:
 		or NavigationServer3D.map_get_closest_point(nav_map, Vector3(-40, 0, 200)).z > 175.5
 	_check(open_edge.is_empty() and not nav_out,
 		"the map's edge still stops players and the AI all the way round (open at %s)" % [open_edge])
+	# Far view (outdoor step 10): every building model has a far version (tools/far_bake.gd; re-bake after rebuilding one).
+	var no_far := []
+	for file in DirAccess.get_files_at(FarView.MODELS):
+		if file.ends_with(".glb"):
+			var far := FarView.FAR + file.get_basename() + ".res"
+			if not FileAccess.file_exists(far):
+				no_far.append(file.get_basename())
+	_check(no_far.is_empty(), "every building has a far version (run tools/far_bake.gd for %s)" % [no_far])
 	# Nobody starts under the hills (0.12.35, owner's screenshot): squadmates stand off to the side of a spawn marker,
 	# where the slope can be higher; they're lifted onto the ground. And anyone who ends up under it gets put back on
 	# top, but not someone down in the bunker (it has its own ceiling).

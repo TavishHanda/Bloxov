@@ -5,11 +5,16 @@ extends Node3D
 ## generator (tools/gen_old_bloxov.py) keeps each tree's boxes for collision (the trunk) and the AI's sight (the leaves
 ## box, on the leaves layer), so drawing them changes nothing in a fight. Built once at load into one mesh per map
 ## square, so far squares are culled. Skipped headless.
+## Far view (outdoor step 10): each square also gets a cheap far version (plain crowns of a few cards and one leaf block,
+## no ferns), shown instead of the full trees once the square's middle is FAR_FROM away, so every tree within about
+## 75 m is always the full one. The forest outside the map (FAR_PINE, FAR_BROAD) is always drawn the cheap way.
 ##
 ## `look`: 0 A blocks (layered leafy blocks), 1 B leaf cards (clumps like the bushes), 2 C blocks with leaf cards
 ## sticking out of them.
 
 const CELL := 50.0
+const FAR_FROM := 110.0    # (metres from a square's middle to its far version; FAR_MARGIN keeps it from flickering)
+const FAR_MARGIN := 6.0
 const STRIDE := 7          # x, ground y, z, trunk height, canopy width, kind (0 broadleaf, 1 pine, 2 birch, 3 dead,
                            # 4 fern, 5-7 crops: height, width), yaw
 const SHADER := preload("res://assets/shaders/trees.gdshader")
@@ -31,6 +36,8 @@ const FILL := [Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2), Vector2i(0, 2)]
 @export var data := PackedFloat32Array()
 
 var _st: SurfaceTool
+var _origin := Vector3.ZERO   # (the square being built: trees are drawn relative to its middle)
+var _coarse := false          # (far version: leaf blocks and trunks in one piece a face)
 var _rng := RandomNumberGenerator.new()
 
 
@@ -40,29 +47,46 @@ func _ready() -> void:
 	var material := ShaderMaterial.new()
 	material.shader = SHADER
 	material.set_shader_parameter("sheet", sheet)
-	var cells := {}
+	var cells := {}   # square -> [full trees, far version]
 	for i in range(0, data.size(), STRIDE):
 		var key := Vector2i(floori(data[i] / CELL), floori(data[i + 2] / CELL))
 		if not cells.has(key):
-			var st := SurfaceTool.new()
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			cells[key] = st
-		_st = cells[key]
+			cells[key] = [SurfaceTool.new(), SurfaceTool.new()]
+			for st: SurfaceTool in cells[key]:
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		# (each square's mesh sits at its middle, so the far switch measures from there)
+		_origin = Vector3((key.x + 0.5) * CELL, 0.0, (key.y + 0.5) * CELL)
+		_st = cells[key][0]
+		_coarse = int(data[i + 5]) >= FAR_PINE
 		_tree(i)
+		_st = cells[key][1]
+		_coarse = true
+		_tree_far(i)
 	for key: Vector2i in cells:
-		var mi := MeshInstance3D.new()
-		mi.mesh = (cells[key] as SurfaceTool).commit()
-		mi.material_override = material
-		add_child(mi)
+		for far in 2:
+			var mi := MeshInstance3D.new()
+			mi.mesh = (cells[key][far] as SurfaceTool).commit()
+			if mi.mesh == null:
+				continue
+			mi.material_override = material
+			mi.position = Vector3((key.x + 0.5) * CELL, 0.0, (key.y + 0.5) * CELL)
+			if far:
+				mi.visibility_range_begin = FAR_FROM
+				mi.visibility_range_begin_margin = FAR_MARGIN
+			else:
+				mi.visibility_range_end = FAR_FROM
+				mi.visibility_range_end_margin = FAR_MARGIN
+			add_child(mi)
 
 
 func _tree(i: int) -> void:
-	var at := Vector3(data[i], data[i + 1], data[i + 2])
+	var world := Vector3(data[i], data[i + 1], data[i + 2])
+	var at := world - _origin
 	var h := data[i + 3]
 	var s := data[i + 4]
 	var kind := int(data[i + 5])
 	var turn := Basis(Vector3.UP, deg_to_rad(data[i + 6]))
-	_rng.seed = hash(Vector2(at.x, at.z))
+	_rng.seed = hash(Vector2(world.x, world.z))
 	if kind == DEAD:
 		_dead(at, turn, h)
 		return
@@ -92,6 +116,34 @@ func _tree(i: int) -> void:
 			_canopy(at, turn, mid, Vector3(s * 0.5, tall * 0.5, s * 0.5), BROAD, 5)
 
 
+func _tree_far(i: int) -> void:
+	# The same tree seen from far off (the square's far version): the same outline, a fraction of the triangles.
+	var world := Vector3(data[i], data[i + 1], data[i + 2])
+	var at := world - _origin
+	var h := data[i + 3]
+	var s := data[i + 4]
+	var kind := int(data[i + 5])
+	var turn := Basis(Vector3.UP, deg_to_rad(data[i + 6]))
+	_rng.seed = hash(Vector2(world.x, world.z))
+	match kind:
+		FERN:
+			return
+		DEAD:
+			_dead(at, turn, h)
+		PINE, FAR_PINE:
+			_far(at, turn, h, s, FAR_PINE)
+		BROAD, FAR_BROAD:
+			_far(at, turn, h, s, FAR_BROAD)
+		BIRCH:
+			var tall := s * 0.7 + 1.0
+			var lean := Vector3(_rng.randf_range(-0.3, 0.3), 0, _rng.randf_range(-0.3, 0.3))
+			_trunk(at, turn, lean, h + tall * 0.6, 0.34, 0.2, BARK[BIRCH])
+			var mid := Vector3(0, h - 1.0 + tall * 0.5, 0) + lean
+			_far_crown(at, turn, mid, Vector3(s * 0.38, tall * 0.55, s * 0.38), BIRCH, s * 0.27)
+		_:
+			_crop(at, turn, h, s, Vector2i(kind - WHEAT, 3))
+
+
 # ---------------------------------------------------------------------------------------------- canopies
 func _far(at: Vector3, turn: Basis, h: float, s: float, kind: int) -> void:
 	# A tree out past the border, seen from afar: a plain trunk, then crossed cards (three pine tiers, or one crown of
@@ -112,13 +164,17 @@ func _far(at: Vector3, turn: Basis, h: float, s: float, kind: int) -> void:
 		_trunk(at, turn, Vector3.ZERO, h * 0.75, 0.6, 0.35, BARK[BROAD])
 		var tall := s * 0.7 + 1.0
 		var mid := Vector3(0, h - 1.0 + tall * 0.5, 0)
-		var half := Vector3(s * 0.5, tall * 0.5, s * 0.5)
-		_leaf_block(at, turn, mid, half * 0.7, BROAD, mid, half, _rng.randf_range(-20, 20))
-		for k in 6:
-			var a := TAU * k / 6.0
-			var p := mid + Vector3(cos(a) * half.x * 0.6, _rng.randf_range(-0.2, 0.4) * half.y, sin(a) * half.z * 0.6)
-			var b := Basis(Vector3.UP, a + PI / 2)
-			_card(at, turn, p, b.x * s * 0.35, Vector3(0, s * 0.35, 0), CARD[BROAD], mid, half, 0.0)
+		_far_crown(at, turn, mid, Vector3(s * 0.5, tall * 0.5, s * 0.5), BROAD, s * 0.35)
+
+
+func _far_crown(at: Vector3, turn: Basis, mid: Vector3, half: Vector3, kind: int, card: float) -> void:
+	# A block of leaves with a ring of leaf cards round it.
+	_leaf_block(at, turn, mid, half * 0.7, kind, mid, half, _rng.randf_range(-20, 20))
+	for k in 6:
+		var a := TAU * k / 6.0
+		var p := mid + Vector3(cos(a) * half.x * 0.6, _rng.randf_range(-0.2, 0.4) * half.y, sin(a) * half.z * 0.6)
+		var b := Basis(Vector3.UP, a + PI / 2)
+		_card(at, turn, p, b.x * card, Vector3(0, card, 0), CARD[kind], mid, half, 0.0)
 
 
 func _canopy(at: Vector3, turn: Basis, mid: Vector3, half: Vector3, kind: int, parts: int) -> void:
@@ -235,8 +291,8 @@ func _leaf_block(at: Vector3, turn: Basis, c: Vector3, e: Vector3, kind: int, mi
 func _face(at: Vector3, turn: Basis, c: Vector3, u: Vector3, v: Vector3, tile: Vector2i, mid: Vector3,
 		half: Vector3, n: Vector3, shade: float) -> void:
 	# A face (centre, half axes), cut into pieces of at most 2 m so the 2 m tile isn't stretched.
-	var nu := maxi(1, ceili(u.length() / 1.0))
-	var nv := maxi(1, ceili(v.length() / 1.0))
+	var nu := 1 if _coarse else maxi(1, ceili(u.length() / 1.0))
+	var nv := 1 if _coarse else maxi(1, ceili(v.length() / 1.0))
 	for i in nu:
 		for j in nv:
 			var a := -1.0 + 2.0 * i / nu
@@ -245,8 +301,8 @@ func _face(at: Vector3, turn: Basis, c: Vector3, u: Vector3, v: Vector3, tile: V
 			var du := u * (2.0 / nu)
 			var dv := v * (2.0 / nv)
 			var corners := [p0, p0 + du, p0 + du + dv, p0 + dv]
-			var lu := du.length() / 2.0
-			var lv := dv.length() / 2.0
+			var lu := minf(du.length() / 2.0, 1.0)   # (a far face stretches its tile)
+			var lv := minf(dv.length() / 2.0, 1.0)
 			var o := Vector2(_rng.randf_range(0, 1.0 - minf(lu, 1.0)), _rng.randf_range(0, 1.0 - minf(lv, 1.0)))
 			var uvs := [o + Vector2(0, lv), o + Vector2(lu, lv), o + Vector2(lu, 0), o]
 			var normal := (n * 0.55 + _out(corners[0] + du * 0.5 + dv * 0.5, mid, half) * 0.45).normalized()
@@ -287,7 +343,7 @@ func _quad(at: Vector3, turn: Basis, corners: Array, uvs: Array, tile: Vector2i,
 func _trunk(at: Vector3, turn: Basis, lean: Vector3, top: float, w0: float, w1: float, tile: Vector2i,
 		from := 0.0, ragged := false) -> void:
 	# A square, tapering trunk in 1.2 m pieces (the bark tile 2 m a tile), leaning by `lean` at the top.
-	var n := maxi(1, ceili((top - from) / 1.2))
+	var n := 1 if _coarse else maxi(1, ceili((top - from) / 1.2))
 	var twist := _rng.randf() * 90.0
 	for k in n:
 		var t0 := float(k) / n
@@ -308,7 +364,7 @@ func _trunk(at: Vector3, turn: Basis, lean: Vector3, top: float, w0: float, w1: 
 			var corners := [c0 + o0 - e0, c0 + o0 + e0, c1 + o1 + e1, c1 + o1 - e1]
 			if ragged and k == n - 1 and side % 2 == 0:   # (a snapped top: one side broken off lower)
 				corners[2] -= Vector3(0, (y1 - y0) * 0.6, 0)
-			var lv := (y1 - y0) / 2.0
+			var lv := minf((y1 - y0) / 2.0, 0.95)
 			var lu := r0
 			var v0 := fmod(y0 / 2.0, 1.0 - lv)
 			var u0 := side * 0.22

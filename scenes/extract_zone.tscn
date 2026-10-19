@@ -83,81 +83,97 @@ shape = SubResource("Zone")
 [node name="Pad" type="Node3D" parent="."]
 
 [node name="Dash0" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.03, -2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash1" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.03, -2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash2" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.03, -2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash3" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.03, -2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash4" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.03, 2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash5" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 0.03, 2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash6" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.03, 2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash7" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0.03, 2)
 mesh = SubResource("DashX")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash8" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, -1.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash9" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, -0.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash10" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, 0.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash11" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.03, 1.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash12" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, -1.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash13" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, -0.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash14" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, 0.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")
 
 [node name="Dash15" type="MeshInstance3D" parent="Pad"]
+cast_shadow = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.03, 1.5)
 mesh = SubResource("DashZ")
 surface_material_override/0 = SubResource("PaintMat")

@@ -56,6 +56,9 @@
   re-run it, never the scene); `RaidMap` swaps it into `main.tscn`, whose built-in test map the smoke test uses.
   The ground has hills (0.11.17): build new pieces at height 0 with `box`/`obox` and `terrain()` lifts them onto it
   (composite props inside `with group():`); see `docs/MAP_PLAN.md` "Ground".
+- Far view (0.17 world art, outdoor step 10): buildings switch to a baked far mesh 70 m out (`scripts/far_view.gd`,
+  `assets/models/far/`), trees to cheap far cards 110 m out (`scripts/trees.gd`). After rebuilding a building model,
+  re-bake it: `xvfb-run -a godot --rendering-driver opengl3 -s tools/far_bake.gd -- <model>` (the smoke test checks one exists).
 - Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`
   group (CSG boxes + world-layer box colliders). New solid map pieces must be under `Level`/`Loot` (or in that group).
 - Seeing it: `xvfb-run -a godot --rendering-driver opengl3 -s <script>` renders real frames (screenshots via

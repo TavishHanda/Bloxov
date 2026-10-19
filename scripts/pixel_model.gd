@@ -12,6 +12,7 @@ var outfit := {}
 
 
 func _ready() -> void:
+	FarView.attach(self)
 	make_crisp(self)
 	if randomize_outfit:
 		pick_outfit()
