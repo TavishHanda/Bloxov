@@ -1,0 +1,41 @@
+[gd_scene load_steps=6 format=3]
+
+
+[sub_resource type="StandardMaterial3D" id="mat"]
+transparency = 1
+vertex_color_use_as_albedo = true
+roughness = 1.0
+
+[sub_resource type="BoxMesh" id="block"]
+material = SubResource("mat")
+size = Vector3(1, 1, 1)
+
+[sub_resource type="Curve" id="grow"]
+_data = [Vector2(0, 0.35), 0.0, 1.6, 0, 0, Vector2(1, 1), 0.4, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Gradient" id="fade"]
+offsets = PackedFloat32Array(0, 0.08, 0.5, 1)
+colors = PackedColorArray(0.12, 0.11, 0.1, 0, 0.14, 0.13, 0.12, 0.7, 0.3, 0.3, 0.3, 0.45, 0.5, 0.5, 0.5, 0)
+
+[node name="SmokeColumn" type="CPUParticles3D"]
+cast_shadow = 0
+amount = 80
+lifetime = 16.0
+preprocess = 16.0
+mesh = SubResource("block")
+emission_shape = 3
+emission_box_extents = Vector3(1.6, 0.6, 1.6)
+direction = Vector3(0, 1, 0)
+spread = 22.0
+gravity = Vector3(0.22, 0.06, 0.1)
+initial_velocity_min = 0.7
+initial_velocity_max = 1.0
+angular_velocity_min = -40.0
+angular_velocity_max = 40.0
+angle_min = -45.0
+angle_max = 45.0
+scale_amount_min = 1.8
+scale_amount_max = 3.2
+scale_amount_curve = SubResource("grow")
+color_ramp = SubResource("fade")

@@ -47,7 +47,9 @@ void fragment() {
 	// (each pixel picks one grass; near a cut the pick is dithered, so one grass thins out into the next)
 	float g = m + jitter * blend;
 	vec3 c = g < cut_ab ? texture(grass_a, uv).rgb : g < cut_bc ? texture(grass_b, uv).rgb : texture(grass_c, uv).rgb;
-	vec4 s = texture(splat, (world_pos.xz - map_origin) / map_size);
+	vec2 suv = (world_pos.xz - map_origin) / map_size;
+	// (the land outside the map, outdoor step 9: plain grass, not the edge's paint smeared outward)
+	vec4 s = (suv.x < 0.0 || suv.y < 0.0 || suv.x > 1.0 || suv.y > 1.0) ? vec4(0.0) : texture(splat, suv);
 	float steep = smoothstep(slope_earth - 0.08, slope_earth + 0.08, 1.0 - world_normal.y);
 	float j = jitter * 0.5;
 	if (s.a + j > 0.5) c = texture(gravel, uv).rgb;

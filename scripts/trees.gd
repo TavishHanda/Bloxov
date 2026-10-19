@@ -19,6 +19,8 @@ const BIRCH := 2
 const DEAD := 3
 const FERN := 4
 const WHEAT := 5           # (outdoor step 8: the farm's crops, 5 wheat 6 maize 7 sunflowers: height, width)
+const FAR_PINE := 8        # (outdoor step 9: the forest outside the map, nobody gets close: a few cards each)
+const FAR_BROAD := 9
 # the texture sheet's tiles (art_source/scripts/make_trees.py): 4 x 4, (column, row)
 const CARD := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
 const BARK := [Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)]
@@ -67,6 +69,9 @@ func _tree(i: int) -> void:
 	if kind == FERN:
 		_fern(at, turn, h, s)
 		return
+	if kind == FAR_PINE or kind == FAR_BROAD:
+		_far(at, turn, h, s, kind)
+		return
 	if kind >= WHEAT:
 		_crop(at, turn, h, s, Vector2i(kind - WHEAT, 3))
 		return
@@ -88,6 +93,34 @@ func _tree(i: int) -> void:
 
 
 # ---------------------------------------------------------------------------------------------- canopies
+func _far(at: Vector3, turn: Basis, h: float, s: float, kind: int) -> void:
+	# A tree out past the border, seen from afar: a plain trunk, then crossed cards (three pine tiers, or one crown of
+	# leaf cards and a block of leaves inside it so it doesn't read as see-through).
+	if kind == FAR_PINE:
+		_trunk(at, turn, Vector3.ZERO, h * 0.6, 0.5, 0.2, BARK[PINE])
+		var tall := s * 0.7 + 1.0
+		var base := h - 2.6
+		var top := h + tall + 0.8
+		var mid := Vector3(0, (base + top) / 2, 0)
+		var half := Vector3(s * 0.55, (top - base) / 2, s * 0.55)
+		var step := (top - base) / 3.4
+		for k in 3:
+			var r := s * 0.6 * (1.0 - k / 3.4 * 0.8)
+			_fronds(at, turn, base + k * step, r * 1.25, step * 1.6, mid, half, 2)
+		_leaf_block(at, turn, Vector3(0, base + step * 1.4, 0), Vector3(s * 0.22, step * 1.2, s * 0.22), PINE, mid, half, 0.0)
+	else:
+		_trunk(at, turn, Vector3.ZERO, h * 0.75, 0.6, 0.35, BARK[BROAD])
+		var tall := s * 0.7 + 1.0
+		var mid := Vector3(0, h - 1.0 + tall * 0.5, 0)
+		var half := Vector3(s * 0.5, tall * 0.5, s * 0.5)
+		_leaf_block(at, turn, mid, half * 0.7, BROAD, mid, half, _rng.randf_range(-20, 20))
+		for k in 6:
+			var a := TAU * k / 6.0
+			var p := mid + Vector3(cos(a) * half.x * 0.6, _rng.randf_range(-0.2, 0.4) * half.y, sin(a) * half.z * 0.6)
+			var b := Basis(Vector3.UP, a + PI / 2)
+			_card(at, turn, p, b.x * s * 0.35, Vector3(0, s * 0.35, 0), CARD[BROAD], mid, half, 0.0)
+
+
 func _canopy(at: Vector3, turn: Basis, mid: Vector3, half: Vector3, kind: int, parts: int) -> void:
 	# A rounded crown filling `half` round `mid`: one big mass and smaller ones round and on top of it.
 	var masses: Array = [[mid + Vector3(0, -half.y * 0.1, 0), half * Vector3(0.85, 0.7, 0.85)]]

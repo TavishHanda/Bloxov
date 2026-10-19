@@ -44,5 +44,12 @@
 {"kind": "bush", "look": "d", "seed": "322.84 315.06", "boxes": [{"pos": [16.589, -0.29, 8.809], "size": [1.476, 0.948, 1.107], "yaw": 158.92, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "b", "seed": "292.49 290.79", "boxes": [{"pos": [-13.757, 0.016, -15.464], "size": [1.368, 1.05, 1.891], "yaw": 49.02, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "c", "seed": "313.90 343.98", "boxes": [{"pos": [7.654, 0.048, 37.728], "size": [1.689, 1.283, 1.547], "yaw": 163.08, "pitch": 0.0, "colour": "leaves", "solid": false}]},
-{"kind": "bush", "look": "c", "seed": "315.57 341.74", "boxes": [{"pos": [9.323, 0.087, 35.491], "size": [1.82, 1.362, 1.971], "yaw": 126.62, "pitch": 0.0, "colour": "leaves", "solid": false}]}
+{"kind": "bush", "look": "c", "seed": "315.57 341.74", "boxes": [{"pos": [9.323, 0.087, 35.491], "size": [1.82, 1.362, 1.971], "yaw": 126.62, "pitch": 0.0, "colour": "leaves", "solid": false}]},
+{"kind": "skid", "look": "c", "seed": "294.77 302.37", "boxes": [{"pos": [-11.476, -0.872, -3.88], "size": [1.8, 0.42, 7.726], "yaw": 70.8, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "317.34 308.74", "boxes": [{"pos": [11.091, -1.524, 2.488], "size": [1.8, 0.42, 1.8], "yaw": 99.33, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "b", "seed": "323.21 308.31", "boxes": [{"pos": [16.962, -1.547, 2.056], "size": [1.8, 0.42, 1.8], "yaw": 169.11, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "334.11 308.81", "boxes": [{"pos": [27.864, -1.436, 2.558], "size": [1.8, 0.42, 1.8], "yaw": 2.54, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "339.18 302.37", "boxes": [{"pos": [32.929, -1.301, -3.876], "size": [1.8, 0.42, 1.8], "yaw": 23.6, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "c", "seed": "343.18 310.69", "boxes": [{"pos": [36.93, -1.284, 4.442], "size": [1.8, 0.42, 1.8], "yaw": 51.28, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "c", "seed": "286.00 300.00", "boxes": [{"pos": [-20.25, -0.484, -6.25], "size": [5.0, 0.42, 5.0], "yaw": 174.36, "pitch": 0.0, "colour": "scorch", "solid": false}]}
 ]}

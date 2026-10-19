@@ -3062,6 +3062,30 @@ func _section_old_bloxov() -> void:
 	var off_nav := spots.filter(func(p: Vector3) -> bool:
 		return NavigationServer3D.map_get_closest_point(nav_map, p).distance_to(p) > 1.5)
 	_check(off_nav.is_empty(), "every player spawn and extract is on walkable ground (%s)" % [off_nav])
+	# The map's edge (outdoor step 9): the wall is collision only now (a border fence, the land outside and its forest
+	# are looks), but it still stops everyone. Rays out across the edge at walking and jumping height hit it, and the
+	# AI's walkable area stays inside.
+	var edge_map := RaidScope.nodes(world.raid, &"box_maps")[0] as BoxMap
+	var edge_space := edge_map.get_world_3d().direct_space_state
+	var open_edge := []
+	for k in 28:
+		var t := -170.0 + k * 340.0 / 27.0
+		for out: Vector3 in [Vector3(t, 0, -175), Vector3(t, 0, 175), Vector3(-175, 0, t), Vector3(175, 0, t)]:
+			var inward := -Vector3(signf(out.x) if absf(out.x) == 175.0 else 0.0, 0, signf(out.z) if absf(out.z) == 175.0 else 0.0)
+			var from := out + inward * 4.0
+			if is_nan(edge_map.ground_height(from)):   # (over a hole: the waterfall's room, walled all round)
+				continue
+			for lift: float in [1.0, 3.5]:
+				var a := Vector3(from.x, edge_map.ground_height(from) + lift, from.z)
+				var hit := edge_space.intersect_ray(PhysicsRayQueryParameters3D.create(a, a - inward * 10.0, 1))
+				if hit.is_empty():
+					open_edge.append(Vector2(out.x, out.z))
+	var nav_out := NavigationServer3D.map_get_closest_point(nav_map, Vector3(-200, 0, 0)).x < -175.5 \
+		or NavigationServer3D.map_get_closest_point(nav_map, Vector3(200, 0, 40)).x > 175.5 \
+		or NavigationServer3D.map_get_closest_point(nav_map, Vector3(30, 0, -200)).z < -175.5 \
+		or NavigationServer3D.map_get_closest_point(nav_map, Vector3(-40, 0, 200)).z > 175.5
+	_check(open_edge.is_empty() and not nav_out,
+		"the map's edge still stops players and the AI all the way round (open at %s)" % [open_edge])
 	# Nobody starts under the hills (0.12.35, owner's screenshot): squadmates stand off to the side of a spawn marker,
 	# where the slope can be higher; they're lifted onto the ground. And anyone who ends up under it gets put back on
 	# top, but not someone down in the bunker (it has its own ceiling).

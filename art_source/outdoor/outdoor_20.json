@@ -51,5 +51,10 @@
 {"kind": "bush", "look": "b", "seed": "192.68 72.63", "boxes": [{"pos": [-26.073, 2.076, 28.88], "size": [1.277, 0.783, 1.303], "yaw": 111.02, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "d", "seed": "222.50 85.58", "boxes": [{"pos": [3.75, 0.198, 41.834], "size": [1.371, 1.26, 1.378], "yaw": 29.67, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "b", "seed": "175.47 70.97", "boxes": [{"pos": [-43.284, 2.681, 27.22], "size": [1.465, 0.934, 0.869], "yaw": 91.85, "pitch": 0.0, "colour": "leaves", "solid": false}]},
-{"kind": "bush", "look": "b", "seed": "206.48 81.39", "boxes": [{"pos": [-12.268, 1.102, 37.645], "size": [0.827, 0.931, 0.928], "yaw": 6.52, "pitch": 0.0, "colour": "leaves", "solid": false}]}
+{"kind": "bush", "look": "b", "seed": "206.48 81.39", "boxes": [{"pos": [-12.268, 1.102, 37.645], "size": [0.827, 0.931, 0.928], "yaw": 6.52, "pitch": 0.0, "colour": "leaves", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "244.33 32.54", "boxes": [{"pos": [25.582, 0.609, -11.215], "size": [1.8, 0.47, 1.8], "yaw": 307.04, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "b", "seed": "244.89 13.59", "boxes": [{"pos": [26.143, 0.609, -30.157], "size": [1.8, 0.47, 1.8], "yaw": 46.94, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "b", "seed": "243.21 8.07", "boxes": [{"pos": [24.461, 0.584, -35.679], "size": [1.8, 0.42, 1.8], "yaw": 302.84, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "b", "seed": "176.03 13.83", "boxes": [{"pos": [-42.718, 0.582, -29.92], "size": [5.0, 0.32, 5.0], "yaw": 128.29, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "c", "seed": "230.00 36.00", "boxes": [{"pos": [11.25, 0.01, -7.75], "size": [5.0, 0.32, 5.0], "yaw": 190.36, "pitch": 0.0, "colour": "scorch", "solid": false}]}
 ]}

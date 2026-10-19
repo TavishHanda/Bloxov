@@ -88,5 +88,11 @@
 {"kind": "bush", "look": "c", "seed": "257.37 309.25", "boxes": [{"pos": [38.617, 3.832, 2.997], "size": [1.132, 0.879, 1.015], "yaw": 30.54, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "d", "seed": "248.03 323.85", "boxes": [{"pos": [29.277, 5.77, 17.605], "size": [1.932, 1.115, 1.945], "yaw": 22.0, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "b", "seed": "217.91 286.87", "boxes": [{"pos": [-0.839, 1.188, -19.384], "size": [0.955, 0.951, 1.063], "yaw": 176.28, "pitch": 0.0, "colour": "leaves", "solid": false}]},
-{"kind": "bush", "look": "b", "seed": "248.87 314.72", "boxes": [{"pos": [30.12, 6.489, 8.473], "size": [1.485, 1.467, 1.613], "yaw": 68.94, "pitch": 0.0, "colour": "leaves", "solid": true}]}
+{"kind": "bush", "look": "b", "seed": "248.87 314.72", "boxes": [{"pos": [30.12, 6.489, 8.473], "size": [1.485, 1.467, 1.613], "yaw": 68.94, "pitch": 0.0, "colour": "leaves", "solid": true}]},
+{"kind": "skid", "look": "d", "seed": "252.20 281.74", "boxes": [{"pos": [33.452, 0.738, -24.511], "size": [1.8, 0.42, 9.55], "yaw": 61.37, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "d", "seed": "244.00 268.00", "boxes": [{"pos": [25.25, 0.413, -38.25], "size": [5.0, 0.42, 5.0], "yaw": 66.64, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "d", "seed": "209.00 341.01", "boxes": [{"pos": [-9.747, 3.177, 34.765], "size": [5.0, 0.32, 5.0], "yaw": 124.15, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "c", "seed": "229.85 336.42", "boxes": [{"pos": [11.104, 2.937, 30.17], "size": [5.0, 0.32, 5.0], "yaw": 141.11, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "d", "seed": "205.03 285.74", "boxes": [{"pos": [-13.718, -0.188, -20.509], "size": [5.0, 0.32, 5.0], "yaw": 217.83, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "c", "seed": "187.41 321.07", "boxes": [{"pos": [-31.345, 2.817, 14.817], "size": [5.0, 0.32, 5.0], "yaw": 126.24, "pitch": 0.0, "colour": "scorch", "solid": false}]}
 ]}

@@ -636,6 +636,7 @@ def draw_wall(b, piece, rng):
         if is_wall(box):
             wall_run(b, box, skin, rng, top_mat=skin if look != "c" else None, rebar=look == "c", posts=look == "c",
                      extra_t=0.12 if look == "d" else 0.0, col_w=0.33 if look == "d" else 0.25)
+            spray_tag(b, box, random.Random(f"tag {piece['seed']} {box['pos']}"), 0.3, 0.06 if look == "d" else 0.0)
         else:   # a fallen lump of it
             s = box["size"]
             mb.rubble_chunk(b, tuple(box["pos"]), (s[0] * 0.95, s[1] * 0.95, s[2] * 0.95), rng, (skin, skin, "rubble_core"), box["yaw"])
@@ -1319,6 +1320,7 @@ def draw_pole(b, piece, rng):
     box = piece["boxes"][0]
     f = frame_of(b, box)
     pole_parts(b, f, piece["look"], rng, transformer=len(piece["boxes"]) > 2)
+    pole_poster(b, f, piece["look"], random.Random(f"poster {piece['seed']}"))
 
 
 def draw_pole_snap(b, piece, rng):
@@ -2171,6 +2173,7 @@ def draw_container(b, piece, rng):
             container(f, rng, "dbr_cont_g", ribs=False, L=s[2], W=s[0], H=s[1])
         else:
             container(f, rng, "dbr_burnt", holes=True, L=s[2], W=s[0], H=s[1])
+        spray_tag(b, box, random.Random(f"tag {piece['seed']}"), 0.45, 0.04)
 
 
 # ------------------------------------------------------------------------------------------------ army trucks
@@ -3040,6 +3043,382 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
         "hay": draw_hay, "boom": draw_boom}
 
 
+# ------------------------------------------------------------------------------------------------ small details (step 9)
+# Litter in the gutters, tyre marks and scorch marks on the roads (pieces from the generator's street_details), posters
+# on the poles, NOVA and X1 marks sprayed on walls and containers (Bloxov Battlegrounds is Exion's side: mostly X1).
+def detail_decals():
+    a = DECALS
+    rng = random.Random("detail decals")
+
+    def x1_tag(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        mb.paint_x1(c, 5, 4, c.h - 7, "black", 3)
+        for x in (6, 20, 27):
+            c.rect(x, rng.randrange(0, 3), x + 1, 5, "black")
+
+    def nova_tag(c):
+        c.rect(0, 0, c.w, c.h, "clear")
+        _say(c, 5, "NOVA", "sg_blue", 2)
+        for _ in range(int(c.w * c.h * 0.08)):
+            c.put(rng.randrange(c.w), rng.randrange(c.h), "clear")
+
+    def poster_x1(c):     # Exion's: a black X1 on red, a black band at the foot
+        c.rect(0, 0, c.w, c.h, "sg_red")
+        c.rect(0, 0, c.w, 4, "black")
+        mb.paint_x1(c, 2, 7, 11, "black", 2)
+        c.blotch(["paper"], 3, rng, size=(1, 2))
+
+    def poster_missing(c):   # a missing person sheet: a grey photo, lines of writing
+        c.rect(0, 0, c.w, c.h, "paper")
+        c.rect(3, 9, c.w - 3, c.h - 3, "steel")
+        c.rect(5, 11, c.w - 5, c.h - 5, "iron")
+        for y in (2, 5):
+            c.rect(2, y, c.w - 2 - rng.randrange(0, 4), y + 1, "iron")
+
+    def poster_notice(c):    # an army notice: a header bar and lines
+        c.rect(0, 0, c.w, c.h, "sg_cream")
+        c.rect(0, c.h - 5, c.w, c.h, "sg_grn")
+        for y in range(3, c.h - 7, 3):
+            c.rect(2, y, c.w - 2 - rng.randrange(0, 5), y + 1, "iron")
+    a.add("tag_x1", 40, 26, x1_tag)
+    a.add("tag_nova", 40, 19, nova_tag)
+    for name, painter in (("poster_x1", poster_x1), ("poster_missing", poster_missing), ("poster_notice", poster_notice)):
+        a.add(name, 16, 22, painter)
+
+
+def _decal(b, f, c, w, h, region):
+    """A flat decal (w x h m) in frame f at local c, facing local +z."""
+    pts = [f.p(c[0] - w / 2, c[1] - h / 2, c[2]), f.p(c[0] + w / 2, c[1] - h / 2, c[2]),
+           f.p(c[0] + w / 2, c[1] + h / 2, c[2]), f.p(c[0] - w / 2, c[1] + h / 2, c[2])]
+    b.poly(pts, rot((0, 0, 1), f.yaw, 0.0), "decals_cut", mb.uv_fit(DECALS.regions[region]))
+
+
+def spray_tag(b, box, rng, chance, lift=0.0):
+    """Maybe a sprayed mark on one long side of a wall-like box (mostly X1, now and then NOVA)."""
+    if rng.random() > chance:
+        return
+    (x, y, z), s = box["pos"], box["size"]
+    if max(s[0], s[2]) < 1.8 or s[1] < 1.3:
+        return
+    along_z = s[2] >= s[0]
+    side = rng.choice((-1, 1))
+    yaw = box["yaw"] + (90 if along_z else 0) + (0 if side > 0 else 180)
+    half = (s[0] if along_z else s[2]) / 2 + lift + 0.015
+    f = Frame(b, (x, y - s[1] / 2, z), yaw)
+    nova = rng.random() < 0.25
+    w, h = (1.25, 0.6) if nova else (1.25, 0.8)
+    if h + 0.5 > s[1]:
+        return
+    f.at = f.p(0, 0, half)
+    _decal(b, f, (rng.uniform(-0.2, 0.2) * (max(s[0], s[2]) - w), 0.45 + h / 2 + rng.uniform(0, 0.3), 0.0), w, h,
+           "tag_nova" if nova else "tag_x1")
+
+
+def draw_litter(b, piece, rng):
+    """Rubbish in a gutter: papers, cans, a bottle, a crushed box."""
+    box = piece["boxes"][0]
+    x, z = box["pos"][0], box["pos"][2]
+    for _ in range(rng.randint(5, 9)):
+        px, pz = x + rng.uniform(-0.9, 0.9), z + rng.uniform(-0.9, 0.9)
+        y = surface(px, pz)
+        kind = rng.random()
+        if kind < 0.5:   # a sheet of paper, a little crumpled
+            b.box((px, y + 0.012, pz), (rng.uniform(0.2, 0.3), 0.012, rng.uniform(0.26, 0.34)), yaw=rng.uniform(0, 180),
+                  pitch=rng.uniform(-4, 4), style=no_bottom("dbr_paper", 1.0))
+        elif kind < 0.8:
+            cyl(b, (px, y + 0.035, pz), 0.035, 0.12, rng.choice(("steel_light", "dbr_cont_r", "olive")), sides=6,
+                axis="z", yaw=rng.uniform(0, 180))
+        elif kind < 0.9:
+            cyl(b, (px, y + 0.04, pz), 0.04, 0.28, "dbr_cont_g", sides=6, axis="z", yaw=rng.uniform(0, 180))
+        else:
+            b.box((px, y + 0.05, pz), (0.35, 0.1, 0.28), yaw=rng.uniform(0, 180), pitch=rng.uniform(-8, 8),
+                  style=no_bottom("carton", 1.0))
+
+
+def draw_skid(b, piece, rng):
+    """Tyre marks: two dark streaks bending a little, laid on the road."""
+    box = piece["boxes"][0]
+    (x, _, z), L, yaw = box["pos"], box["size"][2], box["yaw"]
+    f = Frame(b, (x, 0.0, z), yaw)
+    bend = rng.uniform(-0.6, 0.6)
+    n = max(2, int(L / 1.2))
+    for side in (-0.75, 0.75):
+        prev = None
+        for k in range(n + 1):
+            t = k / n
+            lx, lz = side + bend * (t - 0.5) ** 2 * 4 - bend, (t - 0.5) * L
+            p = f.p(lx, 0, lz)
+            p = (p[0], surface(p[0], p[2]) + 0.012, p[2])
+            if prev is not None:
+                d = v_sub(p, prev)
+                ax = norm((d[2], 0.0, -d[0]))
+                w = 0.11 * (1.0 - abs(t - 0.5))
+                b.poly([v_add(prev, v_scale(ax, -w)), v_add(prev, v_scale(ax, w)), v_add(p, v_scale(ax, w)), v_add(p, v_scale(ax, -w))],
+                       (0, 1, 0), "dbr_tyre", uv_world(1.0))
+            prev = p
+
+
+def draw_roadburn(b, piece, rng):
+    """A scorch mark on the road: an uneven dark blot, ash in the middle."""
+    box = piece["boxes"][0]
+    (x, _, z), r = box["pos"], box["size"][0] / 2
+    for mat, k, lift in (("dbr_scorch", 1.0, 0.008), ("dbr_burnt", 0.55, 0.011)):
+        n = 11
+        ring = []
+        for i in range(n):
+            a = 2 * math.pi * i / n
+            rr = r * k * rng.uniform(0.7, 1.0)
+            px, pz = x + math.cos(a) * rr, z + math.sin(a) * rr
+            ring.append((px, surface(px, pz) + lift, pz))
+        c = (x, surface(x, z) + lift, z)
+        for i in range(n):
+            b.poly([c, ring[i], ring[(i + 1) % n]], (0, 1, 0), mat, uv_world(2.0))
+
+
+def pole_poster(b, f, look, rng):
+    """Sometimes a poster or two pasted on a pole, at eye height."""
+    if rng.random() > 0.35:
+        return
+    r = 0.16 if look != "d" else 0.13
+    for k in range(rng.randint(1, 2)):
+        a = rng.uniform(0, 360)
+        g = Frame(b, f.at, f.yaw + a)
+        _decal(b, g, (0, 1.6 + k * 0.55 + rng.uniform(-0.1, 0.1), r), 0.48, 0.66,
+               rng.choice(("poster_x1", "poster_x1", "poster_missing", "poster_notice")))
+
+
+DRAW.update({"litter": draw_litter, "skid": draw_skid, "roadburn": draw_roadburn})
+
+# ------------------------------------------------------------------------------------------------ the border (step 9)
+# (owner 2026-10-18: "change that big grey box around the map into something different") The edge's wall is only
+# collision now; this draws what's there instead, from art_source/outdoor/border.json (tools/gen_old_bloxov.py
+# write_border): the land going on outside (hills climbing away, its forest is scripts/trees.gd's), the line itself
+# (look b a border fence: concrete posts, chain-link, barbed wire on outriggers; c a rock bank; d an army line of hesco
+# and coiled wire), signs on it, and the roads and the railway running out through closed crossings.
+BORDER = {}
+
+
+def _border_sign(c, big, small):
+    c.rect(0, 0, c.w, c.h, "sg_wht")
+    c.rect(0, c.h - 16, c.w, c.h, "sg_red")
+    c.frame(0, 0, c.w, c.h, "sg_red")
+    _say(c, c.h - 13, big, "sg_wht", 2)
+    _say(c, 4, small, "sg_blk", 2)
+
+
+def border_decals():
+    a = DECALS
+    for name, big, small in (("border_closed", "BORDER", "CLOSED"), ("border_mines", "DANGER", "MINES"),
+                             ("border_stop", "STOP", "KEEP OUT")):
+        w = max(Canvas.text_width(big, 2), Canvas.text_width(small, 2)) + 8
+        a.add(name, w, 34, lambda c, big=big, small=small: _border_sign(c, big, small))
+
+
+def k_chainlink(rng):
+    """Chain-link: galvanised wire in diamonds, see-through between (a cut-out material, not in the atlas)."""
+    c = Canvas(32, 32, "clear")
+    for y in range(32):
+        for x in range(32):
+            u, v = (x + y) % 8, (x - y) % 8
+            if u == 0 or v == 0:
+                c.put(x, y, "steel" if (x * 7 + y * 3) % 11 else "rust")
+    return c
+
+
+def _bh(x, z):
+    """The border land's height at Godot (x, z) (inside the map: the ground's)."""
+    import bisect
+    xs, zs, H = BORDER["xs"], BORDER["zs"], BORDER["h"]
+    half = BORDER["size"] / 2
+    if -half < x < half and -half < z < half:
+        return ground(x, z)
+    i = min(max(bisect.bisect_right(xs, x) - 1, 0), len(xs) - 2)
+    j = min(max(bisect.bisect_right(zs, z) - 1, 0), len(zs) - 2)
+    u = min(max((x - xs[i]) / (xs[i + 1] - xs[i]), 0.0), 1.0)
+    v = min(max((z - zs[j]) / (zs[j + 1] - zs[j]), 0.0), 1.0)
+    q = [H[j][i], H[j][i + 1], H[j + 1][i], H[j + 1][i + 1]]
+    if None in q:
+        return ground(x, z)
+    ha, hb, hc, hd = q
+    return ha + u * (hb - ha) + v * (hd - hb) if u >= v else ha + v * (hc - ha) + u * (hd - hc)
+
+
+def _border_land(b):
+    xs, zs, H = BORDER["xs"], BORDER["zs"], BORDER["h"]
+    for j in range(len(zs) - 1):
+        for i in range(len(xs) - 1):
+            q = (H[j][i], H[j][i + 1], H[j + 1][i + 1], H[j + 1][i])
+            if None in q:
+                continue
+            p = [(xs[i], q[0], zs[j]), (xs[i + 1], q[1], zs[j]), (xs[i + 1], q[2], zs[j + 1]), (xs[i], q[3], zs[j + 1])]
+            for t in ((p[0], p[1], p[2]), (p[0], p[2], p[3])):   # (split like the ground: north-west to south-east)
+                n = norm(cross(v_sub(t[2], t[0]), v_sub(t[1], t[0])))
+                b.poly(list(t), n if n[1] > 0 else v_scale(n, -1), GROUND, uv_world(2.0))
+
+
+def _ways_near(x, z, pad):
+    for ox, oz, nx, nz, w, y0, kind in BORDER["ways"]:
+        if abs((x - ox) * nz - (z - oz) * nx) < w / 2 + pad and abs((x - ox) * nx + (z - oz) * nz) < 3.0:
+            return (ox, oz, nx, nz, w, y0, kind)
+    return None
+
+
+def _skip_line(x, z):
+    """Stretches of the line with something else there: the waterfall's cliff (west) and the culvert (south)."""
+    half = BORDER["size"] / 2
+    mx, mz = x + half, z + half
+    return (mx < 1.0 and 211.0 < mz < 234.0) or (mz > BORDER["size"] - 1.0 and 91.0 < mx < 112.0)
+
+
+def _line_points(step):
+    """Points along the line just inside the edge, each with its outward normal, in runs broken by the ways out."""
+    half = BORDER["size"] / 2
+    inset = 0.3
+    runs = []
+    for ox, oz, nx, nz in ((None, -half + inset, 0, -1), (None, half - inset, 0, 1), (-half + inset, None, -1, 0),
+                           (half - inset, None, 1, 0)):
+        run = []
+        n = int((2 * half - 2 * inset) / step)
+        for k in range(n + 1):
+            t = -half + inset + k * (2 * half - 2 * inset) / n
+            x, z = (t, oz) if ox is None else (ox, t)
+            if _ways_near(x, z, 1.3) or _skip_line(x, z):
+                if len(run) > 1:
+                    runs.append(run)
+                run = []
+                continue
+            run.append(((x, ground(x, z), z), (nx, 0.0, nz)))
+        if len(run) > 1:
+            runs.append(run)
+    return runs
+
+
+def _fence_b(b, rng):
+    """A border fence: concrete posts every 3 m, chain-link 2.6 m high, an outrigger leaning out with three strands of
+    barbed wire, red and white signs on it every so often."""
+    signs = 0
+    for run in _line_points(3.0):
+        for k, (p, n) in enumerate(run):
+            yaw = math.degrees(math.atan2(n[0], n[2]))
+            f = Frame(b, (p[0], p[1] - 0.3, p[2]), yaw)
+            f.box((0, 1.55, 0), (0.16, 3.1, 0.16), style=no_bottom("dbr_conc", 1.0))
+            arm0, arm1 = f.p(0, 2.85, 0.05), f.p(0, 3.45, 0.62)
+            _beam(b, arm0, arm1, 0.05, 0.05, "steel_light")
+            if k + 1 < len(run):
+                q, _ = run[k + 1]
+                lo = 0.04
+                pts = [(p[0], p[1] + lo, p[2]), (q[0], q[1] + lo, q[2]), (q[0], q[1] + 2.6, q[2]), (p[0], p[1] + 2.6, p[2])]
+                b.poly(pts, (n[0], 0.0, n[2]), "chainlink", uv_world(0.5))
+                _beam(b, (p[0], p[1] + 2.62, p[2]), (q[0], q[1] + 2.62, q[2]), 0.05, 0.05, "steel_light")
+                g = Frame(b, (q[0], q[1] - 0.3, q[2]), yaw)
+                for t in (0.35, 0.65, 0.95):   # barbed strands along the outriggers
+                    a1 = v_add(arm0, v_scale(v_sub(arm1, arm0), t))
+                    a2 = v_add(g.p(0, 2.85, 0.05), v_scale(v_sub(g.p(0, 3.45, 0.62), g.p(0, 2.85, 0.05)), t))
+                    _beam(b, a1, a2, 0.018, 0.018, "trim_dark")
+                if k % 15 == 7:   # a sign on the mesh, facing in
+                    signs += 1
+                    mid = v_scale(v_add(p, q), 0.5)
+                    s = Frame(b, (mid[0] - n[0] * 0.04, (p[1] + q[1]) / 2, mid[2] - n[2] * 0.04), yaw + 180)
+                    name = ("border_closed", "border_stop", "border_mines")[signs % 3]
+                    rw, rh = DECALS.regions[name][2] - DECALS.regions[name][0], DECALS.regions[name][3] - DECALS.regions[name][1]
+                    _plate(b, s, (0, 1.55, 0), 0.9, 0.9 * rh / rw, name, back_mat="metal", t=0.02)
+
+
+def _fence_c(b, rng):
+    """A rock bank: the land outside rises in a rocky slope straight from the line, boulders along its foot."""
+    for run in _line_points(2.6):
+        for k, (p, n) in enumerate(run):
+            if rng.random() < 0.15:
+                continue
+            s = rng.uniform(1.4, 2.6)
+            out = rng.uniform(-0.2, 1.4)
+            c = (p[0] + n[0] * out, 0.0, p[2] + n[2] * out)
+            rock(b, (c[0], _bh(c[0], c[2]) + s * 0.25, c[2]), (s * rng.uniform(1.0, 1.5), s * rng.uniform(0.6, 1.0), s),
+                 rng.uniform(0, 90), rng, rng.choice(("dbr_granite", "dbr_mossrock", "dbr_granite", "dbr_slate")))
+            if rng.random() < 0.5:   # and higher up the slope
+                d = rng.uniform(2.5, 6.0)
+                c = (p[0] + n[0] * d, 0.0, p[2] + n[2] * d)
+                s = rng.uniform(1.2, 3.0)
+                rock(b, (c[0], _bh(c[0], c[2]) + s * 0.2, c[2]), (s * 1.3, s * 0.7, s), rng.uniform(0, 90), rng,
+                     rng.choice(("dbr_granite", "dbr_mossrock")))
+
+
+def _fence_d(b, rng):
+    """An army line: hesco bastions in a row along the line, coiled wire on stakes in front of them (outside)."""
+    for run in _line_points(1.1):
+        for k, (p, n) in enumerate(run):
+            yaw = math.degrees(math.atan2(n[0], n[2]))
+            f = Frame(b, (p[0], p[1] - 0.15, p[2]), yaw)
+            f.box((0, 0.75, 0.2), (1.05, 1.5, 1.05), yaw=rng.uniform(-1.5, 1.5), style=no_bottom("dbr_hesco", 1.0))
+            if k % 3 == 0 and k + 3 < len(run):   # a coil of wire as loops between stakes
+                q, _ = run[k + 3]
+                g = Frame(b, (q[0], q[1] - 0.15, q[2]), yaw)
+                a, c = f.p(0, 0, 1.6), g.p(0, 0, 1.6)
+                for i in range(10):
+                    t0, t1 = i / 10, (i + 1) / 10
+                    for ph in (0.0, math.pi):
+                        p0 = v_add(v_add(a, v_scale(v_sub(c, a), t0)), (0, 0.55 + 0.45 * math.sin(t0 * 6 * math.pi + ph), 0))
+                        p1 = v_add(v_add(a, v_scale(v_sub(c, a), t1)), (0, 0.55 + 0.45 * math.sin(t1 * 6 * math.pi + ph), 0))
+                        _beam(b, p0, p1, 0.02, 0.02, "trim_dark")
+                for st in (a, c):
+                    _beam(b, st, v_add(st, (0, 1.1, 0)), 0.05, 0.05, "dbr_rail")
+
+
+def _crossings(b, rng):
+    """Where a road or the railway runs out: it goes on outside, closed at the line (concrete blocks across it, a
+    boom down, a sign facing in)."""
+    for ox, oz, nx, nz, w, y0, kind in BORDER["ways"]:
+        yaw = math.degrees(math.atan2(nx, nz))
+        f = Frame(b, (ox, 0.0, oz), yaw)
+        rings = [0.0, 2.5, 6.0, 11.0, 18.0, 28.0, 42.0, 62.0, 90.0, 130.0, 185.0, 255.0]
+        if kind == "road":
+            for d0, d1 in zip(rings, rings[1:]):
+                y_0, y_1 = y0 + 0.02 * d0 + 0.05, y0 + 0.02 * d1 + 0.05
+                q = [f.p(-w / 2, 0, d0), f.p(w / 2, 0, d0), f.p(w / 2, 0, d1), f.p(-w / 2, 0, d1)]
+                q = [(q[0][0], y_0, q[0][2]), (q[1][0], y_0, q[1][2]), (q[2][0], y_1, q[2][2]), (q[3][0], y_1, q[3][2])]
+                b.poly(q, (0, 1, 0), "mo_asphalt", uv_world(4.0))
+                z = d0 + 1.0
+                while z + 3.0 < d1:   # the faded centre line, dashed
+                    a, c = f.p(-0.06, 0, z), f.p(0.06, 0, z + 3.0)
+                    ya, yc = y0 + 0.02 * z + 0.06, y0 + 0.02 * (z + 3.0) + 0.06
+                    b.poly([(a[0], ya, a[2]), (f.p(0.06, 0, z)[0], ya, f.p(0.06, 0, z)[2]), (c[0], yc, c[2]),
+                            (f.p(-0.06, 0, z + 3.0)[0], yc, f.p(-0.06, 0, z + 3.0)[2])], (0, 1, 0), "hz_flat", uv_world(1.0))
+                    z += 6.0
+            top = y0 + 0.05
+        else:
+            g = Frame(b, (ox, y0 + 0.12, oz), yaw)
+            _track_line(b, g.p(0, 0, -0.5), g.p(0, 0, 255.0), y0 + 0.12, rng)
+            top = y0 + 0.12
+        # the closure at the line: jersey blocks across, and the sign
+        n = int((w + 3.0) / 1.9)
+        for k in range(n):   # (across the whole gap in the line: it stops 1.3 m past the road's edges)
+            x = -w / 2 - 1.5 + (k + 0.5) * (w + 3.0) / n
+            g = Frame(b, (f.p(x, 0, 1.2)[0], top, f.p(x, 0, 1.2)[2]), yaw + rng.uniform(-6, 6))
+            g.box((0, 0.2, 0), (1.8, 0.4, 0.6), style=no_bottom("dbr_conc", 1.0))
+            g.box((0, 0.6, 0), (1.8, 0.4, 0.34), style=no_bottom("dbr_conc", 1.0))
+            g.box((0, 0.88, 0), (1.8, 0.16, 0.2), style=no_bottom("dbr_redwhite", 1.0))
+        s = Frame(b, (f.p(0, 0, 0.4)[0], top, f.p(0, 0, 0.4)[2]), yaw + 180)
+        for x in (-0.55, 0.55):
+            s.box((x, 1.1, 0), (0.08, 2.2, 0.08), style=no_bottom("metal", 1.0))
+        rw = DECALS.regions["border_closed"][2] - DECALS.regions["border_closed"][0]
+        rh = DECALS.regions["border_closed"][3] - DECALS.regions["border_closed"][1]
+        _plate(b, Frame(b, s.p(0, 0, 0.06), s.yaw), (0, 1.75, 0), 1.4, 1.4 * rh / rw, "border_closed", back_mat="metal")
+
+
+def border():
+    path = os.path.join(JSON_DIR, "border.json")
+    if not os.path.exists(path):
+        return None
+    BORDER.update(json.load(open(path)))
+    ORIGIN[:] = [0.0, 0.0]
+    b = Builder()
+    rng = random.Random("border")
+    _border_land(b)
+    {"b": _fence_b, "c": _fence_c, "d": _fence_d}[BORDER["look"]](b, rng)
+    _crossings(b, rng)
+    return b
+
+
 def main():
     names = sys.argv[1:]
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -3050,6 +3429,12 @@ def main():
         mat_info[kit] = ("kit_" + kit, False, kit == "glass")
     mat_info["ground"] = ("kit_dbr_ground", False, False)
     sign_decals()
+    border_decals()
+    detail_decals()
+    mat_info["decals_cut"] = ("outdoor_decals", True, False)
+    textures["kit_chainlink"] = Texture("kit_chainlink", os.path.join("art_source", "textures", "kit", "chainlink.png"),
+                                        k_chainlink, random.Random("chainlink"))
+    mat_info["chainlink"] = ("kit_chainlink", True, True)
     decal_png = os.path.join("art_source", "textures", "outdoor_decals.png")
     if os.path.exists(os.path.join(mb.ROOT, decal_png)):
         os.remove(os.path.join(mb.ROOT, decal_png))   # (painted fresh every run)
@@ -3060,7 +3445,7 @@ def main():
     total = 0
     for fn in sorted(os.listdir(JSON_DIR)):
         name = fn[:-5]
-        if not fn.endswith(".json") or fn == "terrain.json" or (names and name not in names):
+        if not fn.endswith(".json") or fn in ("terrain.json", "border.json") or (names and name not in names):
             continue
         data = json.load(open(os.path.join(JSON_DIR, fn)))
         ORIGIN[:] = data["origin"]
@@ -3075,6 +3460,15 @@ def main():
         tris = sum(len(f) - 2 for f in b.faces)
         total += tris
         print(f"{name}: {len(data['pieces'])} pieces, {tris} triangles")
+    if not names or "outdoor_border" in names:
+        b = border()
+        if b is not None:
+            out = os.path.join(OUT_DIR, "outdoor_border.glb")
+            mb.write_glb(out, b, textures, mat_info, atlas=cells)
+            mb.set_import_script(out)
+            tris = sum(len(f) - 2 for f in b.faces)
+            total += tris
+            print(f"outdoor_border: {tris} triangles")
     print(f"outdoor total: {total} triangles")
 
 

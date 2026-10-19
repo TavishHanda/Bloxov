@@ -58,5 +58,17 @@
 {"kind": "bush", "look": "c", "seed": "159.08 91.96", "boxes": [{"pos": [27.83, 1.333, -39.287], "size": [1.313, 0.931, 0.894], "yaw": 26.44, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "c", "seed": "156.47 92.42", "boxes": [{"pos": [25.217, 1.496, -38.835], "size": [1.521, 1.456, 1.703], "yaw": 102.42, "pitch": 0.0, "colour": "leaves", "solid": true}]},
 {"kind": "bush", "look": "c", "seed": "159.38 89.61", "boxes": [{"pos": [28.135, 1.846, -41.644], "size": [1.881, 1.075, 1.892], "yaw": 165.14, "pitch": 0.0, "colour": "leaves", "solid": false}]},
-{"kind": "bush", "look": "d", "seed": "156.49 90.16", "boxes": [{"pos": [25.242, 1.488, -41.086], "size": [1.037, 0.641, 1.305], "yaw": 92.96, "pitch": 0.0, "colour": "leaves", "solid": false}]}
+{"kind": "bush", "look": "d", "seed": "156.49 90.16", "boxes": [{"pos": [25.242, 1.488, -41.086], "size": [1.037, 0.641, 1.305], "yaw": 92.96, "pitch": 0.0, "colour": "leaves", "solid": false}]},
+{"kind": "litter", "look": "c", "seed": "95.72 91.58", "boxes": [{"pos": [-35.528, 0.654, -39.674], "size": [1.8, 0.42, 1.8], "yaw": 289.2, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "120.98 102.11", "boxes": [{"pos": [-10.275, 1.063, -29.14], "size": [1.8, 0.42, 1.8], "yaw": 158.12, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "124.85 91.09", "boxes": [{"pos": [-6.404, 1.291, -40.163], "size": [1.8, 0.42, 1.8], "yaw": 264.14, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "b", "seed": "130.03 100.18", "boxes": [{"pos": [-1.222, 1.179, -31.071], "size": [1.8, 0.42, 1.8], "yaw": 146.63, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "135.79 90.76", "boxes": [{"pos": [4.54, 1.219, -40.494], "size": [1.8, 0.42, 1.8], "yaw": 275.59, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "144.66 103.30", "boxes": [{"pos": [13.41, 0.91, -27.949], "size": [1.8, 0.42, 1.8], "yaw": 187.08, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "c", "seed": "150.32 104.31", "boxes": [{"pos": [19.071, 0.72, -26.936], "size": [1.8, 0.47, 1.8], "yaw": 256.46, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "c", "seed": "155.88 106.29", "boxes": [{"pos": [24.628, 0.606, -24.962], "size": [1.8, 0.42, 1.8], "yaw": 108.01, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "b", "seed": "115.52 100.73", "boxes": [{"pos": [-15.734, 0.989, -30.522], "size": [1.8, 0.42, 1.8], "yaw": 326.31, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "d", "seed": "108.93 95.94", "boxes": [{"pos": [-22.321, 1.037, -35.306], "size": [1.8, 0.42, 1.8], "yaw": 325.62, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "litter", "look": "c", "seed": "116.25 92.77", "boxes": [{"pos": [-15.002, 1.269, -38.479], "size": [1.8, 0.42, 1.8], "yaw": 330.29, "pitch": 0.0, "colour": "scorch", "solid": false}]},
+{"kind": "roadburn", "look": "c", "seed": "150.00 104.00", "boxes": [{"pos": [18.75, 0.654, -27.25], "size": [5.0, 0.42, 5.0], "yaw": 337.87, "pitch": 0.0, "colour": "scorch", "solid": false}]}
 ]}

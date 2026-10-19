@@ -4194,6 +4194,65 @@ def set_pieces_late():
     boom_gate(cx + ux * BOOM_AT[0] + nx_ * BOOM_AT[1], cz + uz * BOOM_AT[0] + nz_ * BOOM_AT[1], yaw)
 
 
+# Small details (outdoor step 9): litter by the roads in town and round the extract camps, tyre marks and scorch marks
+# on the roads, smoke rising from a few burnt-out wrecks (scenes/smoke_column.tscn). All looks only (no collision), and
+# placed last (after the bushes), so nothing else moves. Posters and NOVA / X1 marks are drawn on the poles, walls and
+# containers by art_source/scripts/make_outdoor.py itself.
+SMOKE = []        # (map x, map z) of the wrecks that smoke
+
+
+@debris_kind("litter")
+def litter(x, z, yaw):
+    obox(x, 0.01, z, 1.8, 0.02, 1.8, yaw, "scorch", solid=False)
+
+
+@debris_kind("skid")
+def skid(x, z, yaw, length):
+    obox(x, 0.01, z, 1.8, 0.02, length, yaw, "scorch", solid=False)
+
+
+@debris_kind("roadburn")
+def road_burn(x, z, yaw, size):
+    obox(x, 0.01, z, size, 0.02, size, yaw, "scorch", solid=False)
+
+
+def street_details():
+    rng = random.Random("street details")
+    camps = [(ex, ez) for _, _, ex, ez in extracts]
+    for pts, w in roads:
+        dist = 0.0
+        for (ax, az), (bx, bz) in zip(pts, pts[1:]):
+            seg = math.hypot(bx - ax, bz - az)
+            if seg < 0.01:
+                continue
+            tx, tz = (bx - ax) / seg, (bz - az) / seg
+            yaw = math.degrees(math.atan2(tx, tz))
+            t = 0.0
+            while t < seg:
+                x, z = ax + tx * t, az + tz * t
+                in_town = TOWN[0] <= x <= TOWN[2] and TOWN[1] <= z <= TOWN[3]
+                by_camp = any(math.hypot(x - cx, z - cz) < 28 for cx, cz in camps)
+                if 6 < x < M - 6 and 6 < z < M - 6:
+                    if (in_town or by_camp) and rng.random() < 0.55:   # (litter in the gutters)
+                        side = rng.choice((-1, 1))
+                        off = side * (w / 2 + rng.uniform(-0.9, 1.2))
+                        litter(x - tz * off, z + tx * off, rng.uniform(0, 360))
+                    if rng.random() < (0.05 if in_town else 0.035):   # tyre marks
+                        off = rng.uniform(-w / 4, w / 4)
+                        skid(x - tz * off, z + tx * off, yaw + rng.uniform(-8, 8), rng.uniform(6.0, 13.0))
+                    elif not in_town and rng.random() < 0.025:   # a shell's scorch on the road
+                        road_burn(x + rng.uniform(-1, 1), z + rng.uniform(-1, 1), rng.uniform(0, 360), rng.uniform(2.2, 3.6))
+                t += 7.0
+            dist += seg
+    burnt = [c["at"] for c in cars if c["glb"].endswith("burnt")]
+    for x, z in burnt:   # scorched road round the burnt wrecks
+        road_burn(x, z, rng.uniform(0, 360), 5.0)
+    # (a few of them still smoke: spread over the map, not all in one place)
+    for x, z in burnt:
+        if all(math.hypot(x - sx, z - sz) > 90 for sx, sz in SMOKE) and len(SMOKE) < 4:
+            SMOKE.append((x, z))
+
+
 # ---------------------------------------------------------------------------------------------- hills (0.11.17)
 # The ground rolls (owner, 0.11.17: "the ground is all flat, there should be hills and valleys"). How it's made:
 #  1. `base_height`: a broad rise north of town plus long, gentle waves everywhere (so roads never get steep).
@@ -4723,7 +4782,8 @@ def terrain():
         poke = max(ter.at(x0 + (x1 - x0) * i / 12, z0 + (z1 - z0) * k / 12) for i in range(13) for k in range(13))
         assert poke < top - 0.03, f"the ground pokes through the cover at {x0:.0f}, {z0:.0f} ({poke:.2f} vs {top:.2f})"
     ter.hide_under(covers)
-    # the edge of the map: a wall that follows the ground
+    # the edge of the map: a wall that follows the ground (only collision once the border's drawn: outdoor step 9)
+    edge_from = len(boxes)
     for k in range(35):
         a0, a1 = k * 10.0, k * 10.0 + 10.0
         for side in range(4):
@@ -4749,6 +4809,9 @@ def terrain():
                     box(-1, lo, a0, 0.5, hi, a1, "boundary")
             else:
                 box(M - 0.5, lo, a0, M + 1, hi, a1, "boundary")
+    if os.path.exists(BORDER_GLB):
+        for k in range(edge_from, len(boxes)):
+            boxes[k] = boxes[k][:9] + (2,) + boxes[k][10:]
     # the bunker's ceiling (the ground above it is a thin mesh now): under the hall's floor, round the ramp hole
     hall_y = ter.pad_at(BUNKER_HOLE[0], BUNKER_HOLE[1])
     bx0, bz0, bx1, bz1 = BUNKER[0] - 0.3, BUNKER[1] - 0.3, BUNKER[2] + 0.3, BUNKER[3] + 0.3
@@ -5446,6 +5509,7 @@ def main():
     lamp_pass()
     sign_pass()
     bush_pass()
+    street_details()
     map_labels()
     check_roads()
     settle_fallen_doors()
@@ -5923,6 +5987,113 @@ def tree_kind(x, z):
     return 0 if roll < 0.55 else 2 if roll < 0.8 else 1
 
 
+# The map's edge (outdoor step 9, owner 2026-10-18: "change that big grey box around the map into something different"):
+# the edge stays a wall nobody gets over, but it's only collision now (hidden), and what you see there is a border:
+# the land goes on outside (rolling hills climbing away into forest, so there's no edge to the world), a fence along
+# the line, tree lines behind it, and the roads and the railway running out through closed crossings. Drawn by
+# art_source/scripts/make_outdoor.py (border()) into assets/models/outdoor/outdoor_border.glb from
+# art_source/outdoor/border.json; the trees outside are scripts/trees.gd's (looks only, no boxes: nobody gets there).
+BORDER_LOOK = os.environ.get("BLOXOV_BORDER", "b")   # b border fence, c rock bank, d army line (hesco + wire)
+BORDER_RINGS = (0.0, 2.5, 6.0, 11.0, 18.0, 28.0, 42.0, 62.0, 90.0, 130.0, 185.0, 260.0, 380.0, 560.0)   # m out
+BORDER_GLB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models", "outdoor",
+                          "outdoor_border.glb")
+
+
+def _vnoise(x, z, size, seed):
+    """Smooth value noise in 0..1 (cells `size` m)."""
+    u, v = x / size, z / size
+    i, j = math.floor(u), math.floor(v)
+    fu, fv = u - i, v - j
+    fu, fv = fu * fu * (3 - 2 * fu), fv * fv * (3 - 2 * fv)
+
+    def r(a, b):
+        return random.Random(f"border {seed} {a} {b}").random()
+    return (r(i, j) * (1 - fu) + r(i + 1, j) * fu) * (1 - fv) + (r(i, j + 1) * (1 - fu) + r(i + 1, j + 1) * fu) * fv
+
+
+def border_ways(ter):
+    """Where roads and the railway leave the map: (edge x, edge z, out x, out z, width, height, "road"|"rail")."""
+    out = []
+    for curve, w in roads:
+        for a, b in ((curve[0], curve[1]), (curve[-1], curve[-2])):
+            x, z = a
+            for ex, ez, nx, nz in ((0.0, None, -1, 0), (M, None, 1, 0), (None, 0.0, 0, -1), (None, M, 0, 1)):
+                if (ex is not None and abs(x - ex) < 4) or (ez is not None and abs(z - ez) < 4):
+                    px, pz = (ex, z) if ex is not None else (x, ez)
+                    out.append((px, pz, nx, nz, w, ter.at(px, pz), "road"))
+    for ex, nx in ((0.0, -1), (M, 1)):
+        out.append((ex, RAIL_Z, nx, 0, 5.0, ter.at(ex, RAIL_Z), "rail"))
+    return out
+
+
+def outside_h(ter, ways, x, z):
+    """The land's height outside the map (the edge's own height at the line, then hills climbing away)."""
+    px, pz = min(max(x, 0.0), M), min(max(z, 0.0), M)
+    d = math.hypot(x - px, z - pz)
+    e = ter.at(px, pz)
+    n = _vnoise(x, z, 70.0, 1) * 0.65 + _vnoise(x, z, 26.0, 2) * 0.35
+    rise = _smoothstep(6.0, 150.0, d)
+    h = e + rise * (8.0 + 26.0 * n) + (_vnoise(x, z, 11.0, 3) - 0.5) * 2.2 * _smoothstep(4.0, 24.0, d)
+    if BORDER_LOOK == "c":   # (a rock bank: the land climbs steeply straight from the line)
+        h += 5.5 * _smoothstep(0.0, 7.0, d)
+    if x < 0 and 211.0 < z < 236.0:   # (behind the waterfall's cliff: the land is up at its top)
+        w = min(_smoothstep(211.0, 215.0, z), 1.0 - _smoothstep(232.0, 236.0, z))
+        h = max(h, e + w * (CAVE_LIP + 3.0 - e) * _smoothstep(-1.0, 3.0, d) + rise * 6.0)
+    if z > M and 84.0 < x < 119.0:    # (over the culvert: an embankment at its coping)
+        top = ter.water_level(*CULVERT_AT) + 3.25
+        w = min(_smoothstep(84.0, 90.0, x), 1.0 - _smoothstep(113.0, 119.0, x))
+        h = max(h, e + w * (top - e) * _smoothstep(-1.0, 2.0, d))
+    for ox, oz, nx, nz, w, y0, k in ways:   # (roads and the railway run out level, in a cutting through the hills)
+        along = (x - ox) * nx + (z - oz) * nz
+        across = abs((x - ox) * nz - (z - oz) * nx)
+        if along > 0.0:   # (at the line itself the land is the edge's own height: no seam with the ground)
+            m = (1.0 - _smoothstep(w / 2 + 2.0, w / 2 + 14.0 + along * 0.08, across)) * _smoothstep(0.0, 2.5, along)
+            h = h * (1 - m) + (y0 + (0.02 if k == "road" else 0.0) * along) * m
+    return h
+
+
+def write_border(ter):
+    """art_source/outdoor/border.json (the land outside, the line, the ways out) and the trees outside."""
+    ways = border_ways(ter)
+    out = [-r for r in reversed(BORDER_RINGS[1:])]
+    xs = out + list(ter.xs) + [M + r for r in BORDER_RINGS[1:]]
+    zs = out + list(ter.zs) + [M + r for r in BORDER_RINGS[1:]]
+    grid = [[round(outside_h(ter, ways, x, z), 3) if not (0 <= x <= M and 0 <= z <= M) or x in (0.0, M) or z in (0.0, M)
+             else None for x in xs] for z in zs]
+    with open(os.path.join(OUTDOOR_JSON_DIR, "border.json"), "w") as f:
+        json.dump({"note": "Generated by tools/gen_old_bloxov.py: the land outside the map (Godot x, z; heights, null "
+                   "inside the map), the ways out, for art_source/scripts/make_outdoor.py border().",
+                   "look": BORDER_LOOK, "size": M, "xs": [round(gx(v), 3) for v in xs], "zs": [round(gz(v), 3) for v in zs],
+                   "h": grid, "ways": [[round(gx(a), 3), round(gz(b), 3), nx, nz, w, round(y, 3), k]
+                                       for a, b, nx, nz, w, y, k in ways],
+                   "edge": [[round(gz(v) if s else gx(v), 3), round(ter.at(*((0.0, v) if s == 1 else (M, v) if s == 2
+                                                                            else (v, 0.0) if s == 0 else (v, M))), 3)]
+                            for s in range(4) for v in ter.xs]}, f)
+    # the tree lines outside: big trees close to the fence, cheap far ones (scripts/trees.gd kind 8) behind
+    rng = random.Random("border trees")
+
+    def clear(x, z):
+        return all(abs((x - ox) * nz - (z - oz) * nx) > w / 2 + 5.0 for ox, oz, nx, nz, w, _, _ in ways) and \
+            not (x < 0 and 205.0 < z < 240.0 and x > -20.0) and not (z > M and 80.0 < x < 123.0 and z < M + 14.0)
+    for _ in range(9000):
+        side = rng.randrange(4)
+        a = rng.uniform(-60.0, M + 60.0)
+        d = 7.0 + rng.random() ** 1.6 * 170.0
+        x, z = ((a, -d), (a, M + d), (-d, a), (M + d, a))[side]
+        if min(x, z) < -d - 0.1 or max(x, z) > M + d + 0.1 or not clear(x, z):
+            continue
+        if d > 40.0 and rng.random() < 0.35 + d / 400.0:   # (thinner far out: the far ones are bigger)
+            continue
+        y = outside_h(ter, ways, x, z) - 0.05
+        roll = rng.random()
+        if d < 26.0:
+            kind = 1 if roll < 0.6 else 0 if roll < 0.82 else 2
+            tree_data.append((gx(x), y, gz(z), rng.uniform(5.2, 7.6), rng.uniform(3.2, 4.6), kind, rng.uniform(0, 360)))
+        else:
+            tree_data.append((gx(x), y, gz(z), rng.uniform(6.0, 9.0) * (1 + d / 260.0), rng.uniform(4.0, 5.5) * (1 + d / 200.0),
+                              8 if roll < 0.75 else 9, rng.uniform(0, 360)))
+
+
 def write_outdoor(ter):
     """The outdoor debris kit's .json per chunk (see `debris_kind`), and hides the gray boxes of the chunks whose model
     exists. Returns those chunks' names."""
@@ -6112,6 +6283,9 @@ def road_ribbons(ter, step=2.0):
 def write_scene(ter):
     write_model_boxes(ter)
     outdoor = write_outdoor(ter)
+    write_border(ter)
+    if os.path.exists(BORDER_GLB):
+        outdoor.append(("outdoor_border", 0.0, 0.0))
     write_splat(ter)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
@@ -6136,6 +6310,7 @@ def write_scene(ter):
     for glb in sorted({c["glb"] for c, _ in placed}):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]')
+    out.append('[ext_resource type="PackedScene" path="res://scenes/smoke_column.tscn" id="s_smoke"]')
     rib = road_ribbons(ter) if ROAD_LOOK != "a" else ([], [], [], [], [])
     out.append('[ext_resource type="Material" path="res://assets/materials/lot.tres" id="g_lot"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/water.tres" id="g_water"]')
@@ -6235,6 +6410,9 @@ def write_scene(ter):
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
                 f"transform = {xform(x, y, z, yaw)}",
                 f'metadata/place = "{place}"', f'metadata/look = "{loot_look(place, kind, name)}"'] + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
+    for k, (x, z) in enumerate(SMOKE):
+        out += [f'[node name="Smoke{k}" parent="Level" instance=ExtResource("s_smoke")]',
+                f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt(gx(x))}, {fmt(ter.lift(x, z) + 0.8)}, {fmt(gz(z))})", ""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, z in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',

@@ -146,5 +146,6 @@
 {"kind": "bush", "look": "d", "seed": "8.13 323.76", "boxes": [{"pos": [-35.624, 1.639, 17.512], "size": [2.126, 1.737, 2.47], "yaw": 16.44, "pitch": 0.0, "colour": "leaves", "solid": true}]},
 {"kind": "bush", "look": "d", "seed": "11.20 322.77", "boxes": [{"pos": [-32.552, 1.482, 16.522], "size": [1.49, 0.635, 0.973], "yaw": 49.77, "pitch": 0.0, "colour": "leaves", "solid": false}]},
 {"kind": "bush", "look": "b", "seed": "35.98 286.76", "boxes": [{"pos": [-7.774, 0.299, -19.486], "size": [1.422, 0.65, 0.823], "yaw": 68.2, "pitch": 0.0, "colour": "leaves", "solid": false}]},
-{"kind": "bush", "look": "d", "seed": "79.39 286.00", "boxes": [{"pos": [35.642, 3.27, -20.254], "size": [1.66, 1.326, 1.411], "yaw": 162.42, "pitch": 0.0, "colour": "leaves", "solid": false}]}
+{"kind": "bush", "look": "d", "seed": "79.39 286.00", "boxes": [{"pos": [35.642, 3.27, -20.254], "size": [1.66, 1.326, 1.411], "yaw": 162.42, "pitch": 0.0, "colour": "leaves", "solid": false}]},
+{"kind": "roadburn", "look": "c", "seed": "18.27 306.68", "boxes": [{"pos": [-25.475, 3.703, 0.433], "size": [5.0, 0.32, 5.0], "yaw": 28.59, "pitch": 0.0, "colour": "scorch", "solid": false}]}
 ]}
