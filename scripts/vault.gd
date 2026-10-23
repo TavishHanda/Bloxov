@@ -167,6 +167,6 @@ static func _fits(body: CollisionObject3D, feet: Vector3, radius: float, height:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = capsule
 	query.transform = Transform3D(Basis(), feet + Vector3(0, height * 0.5 + 0.05, 0))
-	query.collision_mask = 1 | 2 | 4
+	query.collision_mask = 1 | 2 | 4 | BoxMap.BARS_LAYER   # (0.18.3: barred windows can't be climbed through)
 	query.exclude = [body.get_rid()]
 	return body.get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()

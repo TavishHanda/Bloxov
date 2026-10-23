@@ -30,6 +30,14 @@ const HIT_COLOR := Color(0.95, 0.25, 0.2)
 ## and keeping it held switches again every MEDS_REPEAT_TIME.
 const MEDS_HOLD_TIME := 0.35
 const MEDS_REPEAT_TIME := 0.5
+## Jumping (0.18.3, owner: "fix jumping, it just feels bad"): a press this long before landing still jumps, and you
+## can still jump this long after walking off an edge; ledges up to STEP_HEIGHT are stepped onto; only a landing faster
+## than SLOW_LANDING_SPEED (a drop of about 1.3 m) slows you down after.
+const JUMP_BUFFER := 0.15
+const COYOTE_TIME := 0.12
+const STEP_HEIGHT := 0.35
+const STEP_HOLD := 0.15
+const SLOW_LANDING_SPEED := 5.0
 ## On the game server, each player in a raid is a proxy: a body the AI can see, hear, shoot and bash, moved by the
 ## states their game sends (apply_net_state). No input, camera, profile or physics of its own. Set before adding.
 var proxy := false
@@ -58,6 +66,11 @@ var _meds_next_switch := 0.0
 var _meds_switched := false
 var _ground_check_left := 0.0
 var _jump_cooldown_left := 0.0
+## Jump pressed a moment before landing still jumps; walking off an edge you can still jump a moment after (0.18.3).
+var _jump_buffer_left := 0.0
+var _coyote_left := 0.0
+## Just stepped up onto a ledge: carried on level for a moment, onto it.
+var _step_hold_left := 0.0
 
 # Mouse debug stats, shown by the HUD's F3 overlay.
 var debug_recent_dx: Array[int] = []
@@ -373,24 +386,32 @@ func _physics_process(delta: float) -> void:
 		return
 	if _update_climb(delta):
 		return
-	var on_floor := is_on_floor()
+	_step_hold_left -= delta
+	var on_floor := is_on_floor() or _step_hold_left > 0.0
 	if not on_floor:
 		velocity += get_gravity() * delta
 		_fall_speed = maxf(_fall_speed, -velocity.y)
 	_jump_cooldown_left -= delta
 	_landing_left -= delta
+	_jump_buffer_left -= delta
+	_coyote_left = COYOTE_TIME if on_floor else _coyote_left - delta
 
 	var input_dir := Vector2.ZERO
 	if not controls_locked():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-		if Input.is_action_just_pressed("jump") and on_floor and not downed and not is_vaulting():
-			if input_dir.y < -0.3 and not is_prone and not is_healing() and stamina >= jump_cost and try_vault():
+		if Input.is_action_just_pressed("jump"):
+			_jump_buffer_left = JUMP_BUFFER
+		var can_jump := on_floor or (_coyote_left > 0.0 and velocity.y <= 0.0)
+		if _jump_buffer_left > 0.0 and can_jump and not downed and not is_vaulting():
+			_jump_buffer_left = 0.0
+			if on_floor and input_dir.y < -0.3 and not is_prone and not is_healing() and stamina >= jump_cost and try_vault():
 				_use_stamina(jump_cost)
 			elif is_crouching:
 				set_crouching(false)
 			elif _jump_cooldown_left <= 0.0 and stamina >= jump_cost:
 				velocity.y = jump_velocity
 				_jump_cooldown_left = jump_cooldown
+				_coyote_left = 0.0
 				_use_stamina(jump_cost)
 	_move_input = input_dir
 
@@ -415,10 +436,12 @@ func _physics_process(delta: float) -> void:
 	velocity.z = horizontal.z
 
 	move_and_slide()
+	_step_up(horizontal, delta)
 
-	# Landing.
+	# Landing (0.18.3: an ordinary jump doesn't slow you down after; a drop from higher still does).
 	if is_on_floor() and not _was_on_floor and _fall_speed > 2.0:
-		_landing_left = landing_slowdown_time
+		if _fall_speed > SLOW_LANDING_SPEED:
+			_landing_left = landing_slowdown_time
 		_landing_dip = clampf(_fall_speed * 0.02, 0.03, 0.15)
 		_play_step(4.0)
 		_make_noise(landing_noise)
@@ -444,6 +467,27 @@ func _physics_process(delta: float) -> void:
 			global_position = lifted
 			velocity = Vector3.ZERO
 			_fall_speed = 0.0
+
+
+## Walking into a low ledge (a kerb, a lump of rubble, a step up onto a slab: up to STEP_HEIGHT) steps up onto it
+## instead of stopping you dead (0.18.3, owner: "fix jumping, it just feels bad"). On the ground, walking into something:
+## if there's floor just past it no higher than a step, and room above, you're lifted onto its height and walk on.
+func _step_up(horizontal: Vector3, delta: float) -> void:
+	if not _was_on_floor or not is_on_wall() or horizontal.length() < 0.5 or is_prone:
+		return
+	var radius := (body_shape.shape as CapsuleShape3D).radius
+	var feet := global_position
+	var probe := feet + horizontal.normalized() * (radius + 0.12)
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(
+		probe + Vector3.UP * (STEP_HEIGHT + 0.05), probe + Vector3.UP * 0.02, 1, [get_rid()]))
+	if hit.is_empty() or hit["normal"].y < 0.7:
+		return
+	var rise: float = hit["position"].y - feet.y + 0.02
+	if rise > STEP_HEIGHT + 0.02 or test_move(global_transform, Vector3.UP * rise):
+		return
+	global_position.y += rise
+	velocity = Vector3(horizontal.x, 0.0, horizontal.z)
+	_step_hold_left = STEP_HOLD   # (walk on over the edge at that height, as if on the floor)
 
 
 ## A grenade out, or just thrown: the gun can't fire until the arm is back (0.14.14, owner: no shooting while throwing).

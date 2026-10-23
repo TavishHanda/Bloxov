@@ -184,6 +184,8 @@ func _physics_process(delta: float) -> void:
 		desired *= wounded_speed
 	if BoxMap.is_wading(self):   # slower through water, like players (0.11.20)
 		desired *= 0.6
+	if BoxMap.in_bush(self):     # and through bushes (0.18.3)
+		desired *= 0.7
 	_unstick_left -= delta
 	if _unstick_left > 0.0 and desired.length() > 0.5:
 		desired = _unstick_dir * desired.length()
@@ -416,8 +418,10 @@ func _puppet_update(delta: float) -> void:
 	_update_footsteps(delta)
 
 
-## Tree tops between its eyes and yours (0.17.13, owner: the AI saw and shot through the leaves): it can't see you.
+## Tree tops or a bush between its eyes and yours (0.17.13, owner: the AI saw and shot through the leaves; bushes
+## 0.18.3): it can't see you.
 func _leaves_in_way() -> bool:
 	var eyes := global_position + Vector3(0, 1.65, 0)
-	var query := PhysicsRayQueryParameters3D.create(eyes, _target.eye_position(), BoxMap.LEAVES_LAYER, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(eyes, _target.eye_position(), BoxMap.LEAVES_LAYER | BoxMap.BUSH_LAYER,
+		[get_rid()])
 	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()

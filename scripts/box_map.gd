@@ -22,6 +22,16 @@ const STRIDE := 10
 const LEAVES_LAYER := 32
 ## The generator's "leaves" colour: boxes in it without collision are tree tops (bushes are solid already).
 const LEAVES_COLOUR := Color(0.3, 0.5, 0.26)
+## Bushes (0.18.3, owner: "make them all walk-throughable ... but slows movement"; a friend: they stopped the scavs'
+## shots like walls): boxes in this colour never collide with people or bullets; the AI can't see through them
+## (a body of their own on this layer, 7, that only the AI's eyes check, not its shots), and anyone in one moves slower.
+const BUSH_COLOUR := Color(0.3, 0.5, 0.27)
+const BUSH_LAYER := 64
+## Barred and boarded-up windows (0.18.3, owner: "make sure windows that are barred up ... arent jumpable"): a box per
+## window on this layer (8) stops players (their collision mask has it) and vaulting, not bullets or eyes.
+const BARS_LAYER := 128
+## Players and AI inside a bush get this meta (how many bushes they're in); they move slower while it's set.
+const BUSH_META := &"in_bush"
 ## Players and AI standing in water get this meta (how many water areas they're in); they move slower while it's set.
 const WADE_META := &"wading"
 ## Wading counts from this deep (feet this far below the surface).
@@ -67,6 +77,15 @@ const WATER_ACROSS := 9
 @export var stream_width := 1.0
 ## Rocks standing in the creek (Godot x, z, radius, 0): the water shader draws foam rings round them (up to 16).
 @export var water_rocks: PackedVector4Array
+
+## Collision shaped like the drawing (0.18.3, owner: "match hitboxes to the models"): triangles (local space; three
+## indices into `shaped_points` each) for the outdoor pieces that aren't box-shaped (boulders, earth banks, crater
+## rims, rubble, the derailed train), from art_source/scripts/make_outdoor.py; their own boxes don't collide then.
+## Collision only, never drawn.
+## The barred windows' boxes (BARS_LAYER): x, y, z, size x, y, z, yaw (degrees) each.
+@export var bar_boxes := PackedFloat32Array()
+@export var shaped_points := PackedVector3Array()
+@export var shaped_indices := PackedInt32Array()
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
@@ -129,6 +148,8 @@ func _ready() -> void:
 					tool.add_vertex(p)
 			if solid:
 				faces.append_array([a, b, c])
+	for index in shaped_indices:
+		faces.append(shaped_points[index])
 	var ground := _terrain_arrays()
 	if not ground.is_empty():
 		var points: PackedVector3Array = ground[Mesh.ARRAY_VERTEX]
@@ -171,6 +192,7 @@ func _ready() -> void:
 	collider.shape = shape
 	add_child(collider)
 	_add_leaves()
+	_add_bars()
 
 
 func _road_tool() -> SurfaceTool:
@@ -293,6 +315,29 @@ static func is_wading(body: Node) -> bool:
 	return int(body.get_meta(WADE_META, 0)) > 0
 
 
+func _add_bars() -> void:
+	if bar_boxes.is_empty():
+		return
+	var body := StaticBody3D.new()
+	body.name = "Bars"
+	body.collision_layer = BARS_LAYER
+	body.collision_mask = 0
+	for i in range(0, bar_boxes.size(), 7):
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(bar_boxes[i + 3], bar_boxes[i + 4], bar_boxes[i + 5])
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(bar_boxes[i + 6])),
+			Vector3(bar_boxes[i], bar_boxes[i + 1], bar_boxes[i + 2]))
+		body.add_child(collider)
+	add_child(body)
+
+
+## In a bush (0.18.3): moves slower.
+static func in_bush(body: Node) -> bool:
+	return int(body.get_meta(BUSH_META, 0)) > 0
+
+
 ## A water line pushed out sideways (half the width each way) at point k: [left, right].
 func _water_sides(line: PackedVector3Array, k: int, half: float) -> Array[Vector3]:
 	var a := line[maxi(k - 1, 0)]
@@ -384,31 +429,55 @@ func _wading_area() -> Area3D:
 	return area
 
 
-## The tree tops' own body on LEAVES_LAYER only (nothing collides with it; only the AI's rays look for it).
+## The tree tops' own body on LEAVES_LAYER only (nothing collides with it; only the AI's rays look for it), and the
+## bushes' on BUSH_LAYER, plus the area that slows down whoever walks into a bush.
 func _add_leaves() -> void:
 	var leaf_faces := PackedVector3Array()
+	var bush_faces := PackedVector3Array()
+	var bush_area := Area3D.new()
+	bush_area.name = "BushArea"
+	bush_area.collision_layer = 0
+	bush_area.collision_mask = 2 | 4   # players, enemies
+	bush_area.monitorable = false
 	var box_faces := BoxMesh.new().get_faces()
 	for i in range(0, boxes.size(), STRIDE):
 		var index := int(boxes[i + 8])
 		# (non-solid leaves: drawn here, or hidden under a model (3), like the walk-through bushes of World art 0.17)
-		if int(boxes[i + 9]) not in [0, 3] or index >= colors.size() or not colors[index].is_equal_approx(LEAVES_COLOUR):
+		if int(boxes[i + 9]) not in [0, 3] or index >= colors.size():
 			continue
-		var xf := Transform3D(
-			Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))
-				* Basis.from_scale(Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])),
-			Vector3(boxes[i], boxes[i + 1], boxes[i + 2]))
+		var bush := colors[index].is_equal_approx(BUSH_COLOUR)
+		if not bush and not colors[index].is_equal_approx(LEAVES_COLOUR):
+			continue
+		var turn := Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))
+		var size := Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])
+		var at := Vector3(boxes[i], boxes[i + 1], boxes[i + 2])
+		var xf := Transform3D(turn * Basis.from_scale(size), at)
 		for v in box_faces:
-			leaf_faces.append(xf * v)
-	if leaf_faces.is_empty():
+			(bush_faces if bush else leaf_faces).append(xf * v)
+		if bush:   # (a little inside its edges: you slow down once you're in the leaves)
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(maxf(size.x - 0.3, 0.2), size.y, maxf(size.z - 0.3, 0.2))
+			var collider := CollisionShape3D.new()
+			collider.shape = shape
+			collider.transform = Transform3D(turn, at)
+			bush_area.add_child(collider)
+	for part in [[leaf_faces, "Leaves", LEAVES_LAYER], [bush_faces, "BushLeaves", BUSH_LAYER]]:
+		if (part[0] as PackedVector3Array).is_empty():
+			continue
+		var body := StaticBody3D.new()
+		body.name = part[1]
+		body.collision_layer = part[2]
+		body.collision_mask = 0
+		var shape := ConcavePolygonShape3D.new()
+		shape.backface_collision = true
+		shape.set_faces(part[0])
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		body.add_child(collider)
+		add_child(body)
+	if bush_area.get_child_count() == 0:
+		bush_area.free()
 		return
-	var body := StaticBody3D.new()
-	body.name = "Leaves"
-	body.collision_layer = LEAVES_LAYER
-	body.collision_mask = 0
-	var shape := ConcavePolygonShape3D.new()
-	shape.backface_collision = true
-	shape.set_faces(leaf_faces)
-	var collider := CollisionShape3D.new()
-	collider.shape = shape
-	body.add_child(collider)
-	add_child(body)
+	bush_area.body_entered.connect(func(body: Node) -> void: body.set_meta(BUSH_META, int(body.get_meta(BUSH_META, 0)) + 1))
+	bush_area.body_exited.connect(func(body: Node) -> void: body.set_meta(BUSH_META, maxi(int(body.get_meta(BUSH_META, 0)) - 1, 0)))
+	add_child(bush_area)

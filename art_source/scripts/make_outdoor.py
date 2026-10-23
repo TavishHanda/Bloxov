@@ -495,6 +495,43 @@ def frame_of(b, box):
     return Frame(b, (x, y - s[1] / 2, z), box["yaw"])
 
 
+# Collision shaped like the drawing (0.18.3, owner: "a lot of hitboxes are messed up like rocks ... make sure we look at
+# models and match hitboxes to them"): pieces whose drawing isn't their gray box (boulders, earth banks, crater rims,
+# rubble lumps, the leaning locomotive, the tank cars) hand the generator triangles to collide with instead of their
+# boxes, in art_source/outdoor/collision.json: {"kind seed": {"boxes": [the box numbers they replace], "tris": [x, y, z,
+# ...] (Godot space, the whole map)}}. Re-run the generator after this script so it picks them up.
+SHAPES = {}
+_SHAPE_KEY = [None]
+
+
+def shape(b, f0, box, mats=None, upto=None):
+    """Collides with the faces drawn since face f0 (up to `upto`; only those in `mats`, if given) instead of the
+    current piece's box number `box` (a list: several boxes)."""
+    entry = SHAPES.setdefault(_SHAPE_KEY[0], {"boxes": [], "tris": []})
+    for k in (box if isinstance(box, (list, tuple)) else [box]):
+        if k not in entry["boxes"]:
+            entry["boxes"].append(k)
+    keep = None if mats is None else {b.mat_index(m) for m in mats}
+    for face, m in zip(b.faces[f0:upto], b.mats[f0:upto]):
+        if keep is not None and m not in keep:
+            continue
+        pts = [b.verts[i] for i in face]
+        for k in range(1, len(pts) - 1):   # (a fan: the kit's faces are convex)
+            for p in (pts[0], pts[k], pts[k + 1]):
+                entry["tris"] += [round(p[0] + ORIGIN[0], 3), round(p[1], 3), round(p[2] + ORIGIN[1], 3)]
+
+
+def shape_boxes(parts, box, foot=None, yaw=0.0, lean=0.0, pivot_x=0.0):
+    """Collides with plain boxes (centre, size: in a frame at the origin) instead of the piece's box(es) `box`; with
+    `foot`, they're leaned and placed like `_leaned` does to a drawing."""
+    t = Builder()
+    for c, size in parts:
+        t.box(c, size, style=lambda n, m, q: ("trim", uv_world()))
+    if foot is not None:
+        _leaned(t, 0, 0, foot, yaw, lean, pivot_x)
+    shape(t, 0, box)
+
+
 def tri(b, a, c, d, mat, centre, tile=2.0):
     n = norm(cross(v_sub(c, a), v_sub(d, a)))
     if dot(n, v_sub(a, centre)) < 0:
@@ -718,12 +755,14 @@ RUBBLE_WALL = {"b": "dbr_cinder", "c": "house_brick", "d": "house_stone"}
 def draw_rubble(b, piece, rng):
     look = piece["look"]
     mats = RUBBLE_MATS[look]
-    for box in piece["boxes"]:
+    for k, box in enumerate(piece["boxes"]):
         s = box["size"]
         if is_wall(box, 0.8):
             wall_run(b, box, RUBBLE_WALL[look], rng, top_mat=RUBBLE_WALL[look] if look != "b" else None, rebar=look == "b")
         else:
+            f0 = len(b.faces)
             mb.rubble_chunk(b, tuple(box["pos"]), tuple(v * 0.95 for v in s), rng, mats, box["yaw"])
+            shape(b, f0, k, upto=f0 + 5)   # (the lump itself is tilted: collide with it, not with the level box)
     cx = sum(bx["pos"][0] for bx in piece["boxes"]) / len(piece["boxes"])
     cz = sum(bx["pos"][2] for bx in piece["boxes"]) / len(piece["boxes"])
     bits(b, (cx, 0.0, cz), 3.0, 10, rng, (mats[0], "rubble_core"))
@@ -751,10 +790,15 @@ def draw_berm(b, piece, rng):
                     f.box(c, (s[0] / nx - 0.02, hh + 0.3, s[2] / nz - 0.02), style=lambda nn, m, q: None if nn[1] < -0.7 else
                           (("dbr_dirt", uv_world(2.0)) if nn[1] > 0.7 else ("dbr_hesco", uv_world(1.1))))
         return
+    same = random.Random()
+    same.setstate(rng.getstate())
     earth_bank(b, boxes, rng)
+    t = Builder()   # (its collision, owner 0.18.3: the bank itself, not a box inside it; the same bank, coarser)
+    earth_bank(t, boxes, same, step=1.0)
+    shape(t, 0, list(range(len(boxes))), mats=(GROUND,))
 
 
-def earth_bank(b, boxes, rng, fall=2.2):
+def earth_bank(b, boxes, rng, fall=2.2, step=0.5):
     """A bulldozed bank over its gray boxes, shaped from the ground (round 2, owner: the banks didn't sit on the
     hills and looked like loaves): it rises out of the ground round its boxes, its top just over theirs (they collide),
     and its edges dip under the ground, so there's no seam. Plain ground colour where it's gentle, bare earth on the
@@ -788,7 +832,7 @@ def earth_bank(b, boxes, rng, fall=2.2):
             best = max(best, y)
         best += 0.05 * math.sin(x * 1.3 + ph[0]) * math.sin(z * 1.9 + ph[1])
         return (best if best > g + 0.03 else g - 0.2), g
-    nx, nz = max(4, int((x1 - x0) / 0.5)), max(4, int((z1 - z0) / 0.5))
+    nx, nz = max(4, int((x1 - x0) / step)), max(4, int((z1 - z0) / step))
     xs = [x0 + (x1 - x0) * i / nx for i in range(nx + 1)]
     zs = [z0 + (z1 - z0) * j / nz for j in range(nz + 1)]
     H = [[height(x, z) for x in xs] for z in zs]
@@ -816,8 +860,9 @@ def earth_bank(b, boxes, rng, fall=2.2):
 # ------------------------------------------------------------------------------------------------ rocks
 def draw_rocks(b, piece, rng):
     look = piece["look"]
-    for box in piece["boxes"]:
+    for bi, box in enumerate(piece["boxes"]):
         s, c, yaw = box["size"], tuple(box["pos"]), box["yaw"]
+        f0 = len(b.faces)
         if look == "b":
             rock(b, c, s, yaw, rng, "dbr_granite")
         elif look == "c":   # layered slate: stacked slabs, each a bit smaller
@@ -830,6 +875,7 @@ def draw_rocks(b, piece, rng):
                      rng, "dbr_slate", jitter=0.05, chamfer=0.12, taper=0.95)
         else:
             rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", jitter=0.12, chamfer=0.42)
+        shape(b, f0, bi)
 
 
 # ------------------------------------------------------------------------------------------------ bushes
@@ -2028,6 +2074,11 @@ def draw_loco(b, piece, rng):
             f.box((side * 1.16, rng.uniform(1.8, 3.7), rng.uniform(hz0 + 0.5, hz1 - 0.5)),
                   (0.01, rng.uniform(0.08, 0.22), rng.uniform(0.08, 0.22)), style=flat("black", 1.0))
     _leaned(b, v0, n0, foot, box["yaw"], marker["yaw"], W / 2 - 0.7)
+    # (its collision leans with it: the frame and bogies, the long hood, the cab and the nose; owner 0.18.3, shots hit
+    # an invisible wall over the low side)
+    shape_boxes([((0, 0.75, 0), (W - 0.4, 1.5, L - 0.2)), ((0, 2.7, hood_c), (2.3, 2.4, hood_l)),
+                 ((0, 2.8, (cz0 + cz1) / 2), (W - 0.1, 2.6, cz1 - cz0)), ((0, 2.25, (nz0 + cz0) / 2), (2.0, 1.5, cz0 - nz0))],
+                0, foot=foot, yaw=box["yaw"], lean=marker["yaw"], pivot_x=W / 2 - 0.7)
     # where it came off: ballast thrown up on the low side, broken sleepers by the rails
     lf = Frame(b, foot, box["yaw"])
     for k in range(30):   # (a ridge of ballast and earth pushed up along the low side: lumps piled on each other)
@@ -2113,6 +2164,10 @@ def draw_tanker(b, piece, rng):
     f.box((0, 0.6, 0), (W - 1.2, 0.7, L - 5.2), style=flat("black", 1.0))                         # (shadowed fill)
     tl = L - 1.4
     cyl(b, f.p(0, yc, 0), R, tl, skin, sides=16, axis="z", yaw=yaw, tile=2.4)
+    t = Builder()   # (its collision: the frame and bogies, the round tank; owner 0.18.3: not one big block)
+    Frame(t, base.at, yaw).box((0, 0.85, 0), (W - 0.4, 1.7, L - 0.2), style=flat("trim"))
+    cyl(t, f.p(0, yc, 0), R, tl, "trim", sides=12, axis="z", yaw=yaw)
+    shape(t, 0, 0)
     for end in (-1, 1):   # dished heads
         cyl(b, f.p(0, yc, end * (tl / 2 + 0.1)), R * 0.85, 0.2, skin, sides=16, axis="z", yaw=yaw, tile=2.4)
     for zz in (-tl / 2 + 0.6, -tl / 4, tl / 4, tl / 2 - 0.6):
@@ -2378,15 +2433,21 @@ def draw_crater(b, piece, rng):
     NA, NR = 32, 7
     r0, r1 = R - 1.2, R + 1.4
 
-    def P(i, j):
-        a = 2 * math.pi * i / NA
-        r = r0 + (r1 - r0) * j / NR
+    def P(i, j, na=NA, rs=None):
+        a = 2 * math.pi * i / na
+        r = r0 + (r1 - r0) * j / NR if rs is None else rs[j]
         w = 1.0 + 0.25 * math.sin(3 * a + ph[0]) + 0.15 * math.sin(5 * a + ph[1])
         t = (r - R) / (1.2 if r < R else 1.4)
         h = 0.58 * w * max(0.0, 1 - t * t) ** 1.5
-        sink = 0.45 if j == 0 else 0.15 if j == NR else 0.0
+        sink = 0.45 if j == 0 else 0.15 if j == (NR if rs is None else len(rs) - 1) else 0.0
         x, z = cx + r * math.cos(a), cz + r * math.sin(a)
         return (x, ground(x, z) + h - sink, z)   # (round 2: the rim follows the ground and dips under it at its edges)
+    # its collision (owner 0.18.3: players got stuck on the 8 mound boxes): the same rim, coarser, to walk over
+    t, rs = Builder(), (r0, R - 0.6, R, R + 0.7, r1)
+    for i in range(16):
+        for j in range(len(rs) - 1):
+            t.poly([P(i, j, 16, rs), P(i + 1, j, 16, rs), P(i + 1, j + 1, 16, rs), P(i, j + 1, 16, rs)], (0, 1, 0), "trim", uv_world())
+    shape(t, 0, list(range(len(mounds))))
     for i in range(NA):
         for j in range(NR):
             q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)]
@@ -3445,12 +3506,13 @@ def main():
     total = 0
     for fn in sorted(os.listdir(JSON_DIR)):
         name = fn[:-5]
-        if not fn.endswith(".json") or fn in ("terrain.json", "border.json") or (names and name not in names):
+        if not fn.endswith(".json") or fn in ("terrain.json", "border.json", "collision.json") or (names and name not in names):
             continue
         data = json.load(open(os.path.join(JSON_DIR, fn)))
         ORIGIN[:] = data["origin"]
         b = Builder()
         for piece in data["pieces"]:
+            _SHAPE_KEY[0] = f"{piece['kind']} {piece['seed']}"
             DRAW[piece["kind"]](b, piece, random.Random(f"{piece['kind']} {piece['seed']}"))
         if os.environ.get("BLOXOV_KERBS") != "0":   # (off for the options sheets' "today" pictures)
             draw_road_edges(b, random.Random("road edges " + name))
@@ -3470,6 +3532,12 @@ def main():
             total += tris
             print(f"outdoor_border: {tris} triangles")
     print(f"outdoor total: {total} triangles")
+    if not names:   # (only on a full run: every chunk's shapes)
+        with open(os.path.join(JSON_DIR, "collision.json"), "w") as f:
+            json.dump({"note": "Written by art_source/scripts/make_outdoor.py: collision shaped like the drawing for the "
+                       "pieces whose drawing isn't their box (read by tools/gen_old_bloxov.py).", "shapes": SHAPES}, f,
+                      separators=(",", ":"))
+        print(f"shaped collision: {len(SHAPES)} pieces, {sum(len(v['tris']) for v in SHAPES.values()) // 9} triangles")
 
 
 if __name__ == "__main__":

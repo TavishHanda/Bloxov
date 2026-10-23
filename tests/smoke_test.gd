@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "window_vault", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse",
 ]
@@ -469,7 +469,7 @@ func _section_jump() -> void:
 		await physics_frame
 		peak = maxf(peak, player.global_position.y)
 	var jump_height := peak - ground_y
-	_check(jump_height > 0.4 and jump_height < 0.9, "jump height %.2fm" % jump_height)
+	_check(jump_height > 0.85 and jump_height < 1.15, "jump height %.2fm (0.18.3: about 1 m)" % jump_height)
 
 
 ## Vaulting (0.13.0): Space while walking into waist-high cover goes over it, chest-high climbs onto it,
@@ -3184,6 +3184,15 @@ func _section_old_bloxov() -> void:
 	# Hills (0.11.17): the ground rolls, the AI can still walk from a spawn to every AI spawn point over it, and
 	# spawns and extracts stand on the ground (not floating over a hollow or buried in a hill).
 	var blocks := world.raid.get_node("Level/Blocks") as BoxMap
+	# 0.18.3 (owner: hitboxes didn't match the models; bushes stopped shots; barred windows were jumpable): boulders,
+	# banks, crater rims and the train collide as drawn, every bush is walk-through, barred windows have their boxes.
+	var solid_bushes := 0
+	for i in range(0, blocks.boxes.size(), BoxMap.STRIDE):
+		if blocks.colors[int(blocks.boxes[i + 8])].is_equal_approx(BoxMap.BUSH_COLOUR) and int(blocks.boxes[i + 9]) in [1, 2]:
+			solid_bushes += 1
+	_check(blocks.shaped_indices.size() > 3000 and blocks.bar_boxes.size() >= 7 * 10 and solid_bushes == 0,
+		"the map collides as drawn (%d shaped triangles, %d barred windows, %d solid bushes)"
+		% [blocks.shaped_indices.size() / 3, blocks.bar_boxes.size() / 7, solid_bushes])
 	var heights := blocks.terrain_heights
 	var lowest := INF
 	var highest := -INF
@@ -3709,6 +3718,65 @@ func _section_close_range() -> void:
 	_check(gap >= pusher.min_distance - 0.3 and gap < pusher.min_distance + 2.5, "a scav that's too close backs off to about %.0f m (%.1f m)" % [pusher.min_distance, gap])
 	pusher.queue_free()
 	player.health.heal(player.health.max_health)
+
+
+func _section_bushes_bars() -> void:
+	# Bushes (0.18.3, owner: all walk-through, but slower; they stopped the scavs' shots): people and bullets pass,
+	# the AI can't see through them but its shots go through; inside one you're slower. Barred windows: they stop
+	# people and vaulting, not bullets. A low ledge (0.25 m) is stepped onto without jumping.
+	var map := BoxMap.new()
+	map.colors = PackedColorArray([Color(0.5, 0.5, 0.5), BoxMap.BUSH_COLOUR])
+	var spot := Vector3(40, 0, -40)   # (the vault test's flat ground: the ledge and the bars; the bush further on)
+	var back := player.global_position
+	player.teleport_to(spot + Vector3(0, 0.1, 8))
+	await create_timer(0.2).timeout
+	var bush := player.global_position + Vector3(0, 1.0, 5)
+	map.boxes = PackedFloat32Array([bush.x, bush.y, bush.z, 4, 2, 1, 0, 0, 1, 3,
+		spot.x, 0.125, spot.z + 3.0, 3, 0.25, 2, 0, 0, 0, 1])
+	map.bar_boxes = PackedFloat32Array([spot.x + 4, 1.5, spot.z, 0.5, 1.4, 1.5, 0])
+	main.add_child(map)
+	var scav := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 10)) as Scav
+	_face_player(scav)
+	scav.set_physics_process(false)
+	scav._target = player
+	scav.accuracy_near = 1.0
+	scav.accuracy_far = 1.0
+	await physics_frame
+	await physics_frame
+	var space := (main as Node3D).get_world_3d().direct_space_state
+	var through := space.intersect_ray(PhysicsRayQueryParameters3D.create(bush + Vector3(0, 0, -3), bush + Vector3(0, 0, 3), 1 | 2 | 4))
+	_check(through.is_empty() and map.get_node_or_null("BushLeaves") != null, "bushes don't block people or bullets")
+	_check(scav._has_line_of_sight() and scav._leaves_in_way(), "the AI can't see you through a bush")
+	var hp := player.health.current
+	for i in 4:
+		scav._fire_at_target(10.0)
+	_check(player.health.current < hp, "...but its shots go through one (%d -> %d)" % [hp, player.health.current])
+	scav.queue_free()
+	player.health.heal(player.health.max_health)
+	player.teleport_to(bush + Vector3(0, -0.9, 0))
+	await create_timer(0.2).timeout
+	var slow := player._target_velocity(Vector2(0, -1)).length()
+	_check(BoxMap.in_bush(player), "standing in a bush counts as in it")
+	player.teleport_to(spot + Vector3(0, 0.1, 0))
+	await create_timer(0.2).timeout
+	var fast := player._target_velocity(Vector2(0, -1)).length()
+	_check(not BoxMap.in_bush(player) and slow < fast * 0.8, "slower in a bush (%.1f vs %.1f m/s)" % [slow, fast])
+	# Bars: bullets through, people and vaulting not.
+	var bar := spot + Vector3(4, 1.5, 0)
+	_check(space.intersect_ray(PhysicsRayQueryParameters3D.create(bar + Vector3(-2, 0, 0), bar + Vector3(2, 0, 0), 1 | 4)).is_empty(),
+		"bullets go through barred windows")
+	_check(player.test_move(player.global_transform, Vector3(5, 0, 0)), "players can't walk through barred windows")
+	# The ledge: walked onto.
+	player.rotation.y = PI
+	Input.action_press("move_forward")
+	await create_timer(1.2).timeout
+	Input.action_release("move_forward")
+	_check(player.global_position.y > 0.2 and player.global_position.z > spot.z + 2.2,
+		"a 25 cm ledge is stepped onto (at %s)" % player.global_position)
+	map.queue_free()
+	await physics_frame
+	player.teleport_to(back)
+	await create_timer(0.2).timeout
 
 
 func _section_leaves() -> void:

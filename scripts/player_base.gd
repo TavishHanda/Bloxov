@@ -17,8 +17,8 @@ extends CharacterBody3D
 @export var ground_deceleration := 20.0
 ## How much you can steer in the air (m/s per second). Low = jumps commit you.
 @export var air_control := 2.5
-## About 0.6 m high.
-@export var jump_velocity := 3.6
+## About 1 m high (0.18.3, owner: "need to actually be able to jump over stuff"; was 3.6, about 0.65 m).
+@export var jump_velocity := 4.4
 @export var jump_cooldown := 0.45
 ## Landing from a jump or fall slows you briefly.
 @export var landing_slowdown_time := 0.3
@@ -56,6 +56,8 @@ extends CharacterBody3D
 @export var crouch_speed := 2.2
 ## Wading through water (the creek, 0.11.20; owner): this fraction of the speed, and no sprinting.
 @export var wade_multiplier := 0.6
+## Pushing through a bush (0.18.3, owner: every bush walk-through, but slower): this fraction of the speed.
+@export var bush_multiplier := 0.7
 @export var stand_height := 1.8
 @export var crouch_height := 1.2
 @export var stand_eye_height := 1.6

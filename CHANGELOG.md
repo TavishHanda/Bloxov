@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.3 (Hitboxes match the map)
+- **Rocks, earth banks, crater rims, rubble and the derailed train collide as drawn**, not as the big boxes under
+  them: no more invisible walls over a rock or the leaning engine, the tank cars are round, and the hump on the road
+  by the offices is the bank itself (walk up it instead of hitting a hidden wall).
+- **Mortar craters:** you walk in and out over the rim (it was 8 blocks you got stuck on).
+- **Tree trunks** are as thick as they're drawn (shots between close trees go through the gap).
+- **Every bush is walk-through** and slows you down inside it (players and AI). Bullets go through bushes (the AI's
+  too); the AI still can't see you through one.
+- **Jumping:** about 1 m high (was 0.65 m), a press just before landing or just after stepping off an edge still
+  jumps, ordinary jumps don't slow you when you land, and low ledges (kerbs, rubble, up to 35 cm) are stepped onto.
+- **Barred windows** (gun store, bank and police ground floor, the boarded farmhouse) can't be climbed or jumped
+  through; you can still shoot through them.
+- **Waterfall:** the two stones in front of the cliff on the way in are gone.
+
 ## 0.18.2 (Gun model polish)
 - **Owner's picks:** Hound A (wood), Stinger C (tan frame, black slide), Wasp A, Mauler A (wood pump), Lancer C (olive).
 - **Real iron sights on every gun:** a rear notch with the front post sitting in it (light dots on the post, three dots on

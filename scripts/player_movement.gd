@@ -241,6 +241,8 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 	speed *= lerpf(1.0, lean_move_multiplier, absf(lean))
 	if BoxMap.is_wading(self):
 		speed *= wade_multiplier
+	if BoxMap.in_bush(self):
+		speed *= bush_multiplier
 	# Slower backwards and sideways.
 	var scaled := Vector2(input_dir.x * strafe_multiplier, input_dir.y * (backward_multiplier if input_dir.y > 0.0 else 1.0))
 	var local := Vector3(scaled.x, 0.0, scaled.y) * speed
