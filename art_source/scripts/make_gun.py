@@ -32,9 +32,9 @@ from make_building import Builder, Canvas, Texture, uv_world, uv_fit  # noqa: E4
 
 mb.REGENERATE_TEXTURES = True          # painted from fixed seeds, so they come out the same every run
 mb.PALETTE.update({"tan": "9a855c", "tan_dark": "7c6a48", "tan_light": "ad9a70", "brass": "b08a3a",
-                   "lens": "2b4a5e", "lens_light": "6f9db5", "gun_red": "8c2f25"})
+                   "lens": "2b4a5e", "lens_light": "6f9db5", "lens_dark": "1c3140", "glass": "a9c8d6", "gun_red": "8c2f25"})
 
-PICKED = {"hound": "a", "stinger": "a", "wasp": "a", "mauler": "b", "lancer": "a"}
+PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c"}   # owner, 2026-10-23
 TILE = 0.5                              # 32 px textures over 0.5 m = 64 px per meter
 OUT = os.path.join(mb.ROOT, "assets", "models", "guns")
 
@@ -75,9 +75,12 @@ def _rows(base, line, every=4, width=2):
 
 def _lens(rng):
     c = Canvas(16, 16, "lens")
-    for k in range(7):
-        c.rect(2 + k, 13 - k, 4 + k, 14 - k, "lens_light")
-    c.frame(0, 0, 16, 16, "black")
+    for y in range(16):                     # darker towards the bottom, a soft glint top left
+        for x in range(16):
+            if (x - 5) ** 2 + (y - 11) ** 2 < 10:
+                c.put(x, y, "lens_light")
+            elif y < 5:
+                c.put(x, y, "lens_dark")
     return c
 
 
@@ -108,8 +111,11 @@ MATS = {
     "brass": _tex("brass", (("yellow_dark", 0.12),)),
     "tape": _tape,
     "lens": _lens,
+    "glass": _tex("glass"),
+    "dot": _tex("bone"),
 }
-FIT = {"lens"}                          # these show their whole image on each face
+FIT = {"lens", "glass"}                 # these show their whole image on each face
+SEE_THROUGH = {"glass": 0.18}           # alpha-blended (a red dot's window: the HUD draws the dot)
 
 
 # ------------------------------------------------------------------------------------------------ geometry
@@ -159,10 +165,11 @@ class Model:
             b.poly([(x + sx * hw, y, z) for z, y in profile], (sx, 0, 0), mat, self._uv(mat))
 
     def tube(self, x, y, z0, z1, r, mat, sides=8, part="Body", ends=None):
-        """A round-ish tube along z (8 flat sides, flat on top)."""
+        """A round-ish tube along z (flat sides, flat on top)."""
         b = self._b(part)
-        ring = [(x + r * math.cos(math.radians(22.5 + 45 * k * 8 / sides)),
-                 y + r * math.sin(math.radians(22.5 + 45 * k * 8 / sides))) for k in range(sides)]
+        a0 = 90 + 180 / sides
+        ring = [(x + r * math.cos(math.radians(a0 + 360 * k / sides)),
+                 y + r * math.sin(math.radians(a0 + 360 * k / sides))) for k in range(sides)]
         for i in range(sides):
             (xa, ya), (xb, yb) = ring[i], ring[(i + 1) % sides]
             n = mb.norm(((xa + xb) / 2 - x, (ya + yb) / 2 - y, 0.0))
@@ -170,6 +177,55 @@ class Model:
         for z, sz in ((z0, -1), (z1, 1)):
             e = ends or mat
             b.poly([(px, py, z) for px, py in ring], (0, 0, sz if z1 > z0 else -sz), e, self._uv(e))
+
+    def ytube(self, x, z, y0, y1, r, mat, sides=8, part="Body"):
+        """A round-ish post standing up (turret caps, knobs)."""
+        b = self._b(part)
+        ring = [(x + r * math.cos(math.radians(22.5 + 360 * k / sides)),
+                 z + r * math.sin(math.radians(22.5 + 360 * k / sides))) for k in range(sides)]
+        for i in range(sides):
+            (xa, za), (xb, zb) = ring[i], ring[(i + 1) % sides]
+            n = mb.norm(((xa + xb) / 2 - x, 0.0, (za + zb) / 2 - z))
+            b.poly([(xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za)], n, mat, self._uv(mat))
+        b.poly([(px, y1, pz) for px, pz in ring], (0, 1, 0), mat, self._uv(mat))
+        b.poly([(px, y0, pz) for px, pz in ring], (0, -1, 0), mat, self._uv(mat))
+
+    def ring(self, x, y, z, inner, bar, depth, mat, part="Body"):
+        """A square ring round the line (x, y) with chamfered corners: an aperture, a sight hood, a red dot's window."""
+        o = inner + bar
+        for sx in (-1, 1):
+            self.box((x + sx * (inner + bar / 2), y, z), (bar, inner * 1.4, depth), mat, part=part)       # sides
+            self.box((x, y + sx * (inner + bar / 2), z), (inner * 1.4, bar, depth), mat, part=part)       # top, bottom
+            for sy in (-1, 1):                                                                             # corners
+                self.box((x + sx * (o - bar * 1.1), y + sy * (o - bar * 1.1), z), (bar * 1.6, bar * 1.6, depth),
+                         mat, part=part)
+
+    def notch(self, z, base_top, sight, mat, width=0.03, gap=0.009, depth=0.01, dots=False, base_w=None, floor_drop=0.007):
+        """A rear sight: a block up from base_top, two ears either side of a square notch whose floor is just under
+        the sight line (the front post's tip sits level with the ear tops, in the notch)."""
+        floor = sight - floor_drop
+        if floor > base_top:
+            self.box((0, (base_top + floor) / 2, z), (base_w or width, floor - base_top, depth), mat)
+        ear = (width - gap) / 2
+        for sx in (-1, 1):
+            self.box((sx * (gap + ear) / 2, (floor + sight) / 2, z), (ear, sight - floor, depth), mat)
+            if dots:
+                self.box((sx * (gap + ear) / 2, sight - 0.0035, z + depth / 2 + 0.0005), (0.003, 0.003, 0.001), "dot")
+
+    def post(self, z, base_top, sight, mat, guard="ears", width=0.005, base_w=0.02, dot=True, hood=0.0095):
+        """A front sight: a base block, a thin post to the sight line (a light dot on its back), and ears or a round hood
+        round it so it reads in the notch."""
+        stem = sight - 0.012
+        if stem > base_top:
+            self.box((0, (base_top + stem) / 2, z), (base_w, stem - base_top, 0.012), mat)
+        self.box((0, (stem + sight) / 2, z), (width, sight - stem, 0.006), mat)
+        if dot:
+            self.box((0, sight - 0.003, z + 0.0035), (0.003, 0.003, 0.001), "dot")
+        if guard == "ears":
+            for sx in (-1, 1):
+                self.box((sx * 0.012, (stem + sight + 0.003) / 2, z), (0.004, sight + 0.003 - stem, 0.012), mat)
+        elif guard == "hood":
+            self.ring(0, sight - 0.004 + (0.0095 - hood), z, hood, 0.0025, 0.014, mat)
 
     def curved(self, top, w, d, seg, angles, mat, part="Body"):
         """A curved magazine: boxes hanging from `top`, each tipped forward by its angle (degrees)."""
@@ -195,17 +251,15 @@ def hound(m, look):
     m.box((0, 0.051, 0.0), (0.06, 0.013, 0.33), metal)                            # dust cover
     m.box((0, 0, -0.2), (0.068, 0.082, 0.04), metal)                              # trunnion
     m.box((0, 0.066, -0.205), (0.05, 0.022, 0.07), metal)                         # rear sight block
-    for x in (-0.014, 0.014):
-        m.box((x, 0.083, -0.19), (0.012, 0.012, 0.02), metal)                     # notch
+    m.box((0, 0.079, -0.2), (0.026, 0.004, 0.05), metal)                          # tangent leaf
+    m.notch(-0.18, 0.077, 0.089, metal, width=0.026)
     m.box((0, 0.05, -0.31), (0.05, 0.032, 0.2), furn)                             # upper handguard (gas tube)
     m.box((0, -0.005, -0.3), (0.07, 0.066, 0.18), furn)                           # lower handguard
     m.box((0, -0.005, -0.395), (0.072, 0.068, 0.012), metal)                      # handguard cap
     m.box((0, 0.042, -0.425), (0.032, 0.036, 0.03), metal)                        # gas block
     m.box((0, 0.01, -0.45), (0.026, 0.026, 0.13), metal)                          # barrel
     m.box((0, 0.03, -0.47), (0.03, 0.04, 0.035), metal)                           # front sight block
-    m.box((0, 0.07, -0.47), (0.007, 0.04, 0.007), metal)                          # front post
-    for x in (-0.014, 0.014):
-        m.box((x, 0.064, -0.47), (0.005, 0.03, 0.012), metal)                     # post ears
+    m.post(-0.47, 0.05, 0.089, metal)                                             # front post in its ears
     m.box((0, 0.01, -0.535), (0.034, 0.034, 0.045), metal)                        # muzzle brake
     m.box((0, -0.09, 0.075), (0.034, 0.1, 0.048), grip, pitch=-18)                # pistol grip
     m.box((0, -0.06, 0.02), (0.012, 0.006, 0.09), metal)                          # trigger guard
@@ -249,8 +303,8 @@ def stinger(m, look):
     for k in range(5):                                                            # rear serrations
         m.box((0, 0.012, 0.06 + k * 0.007), (0.0335, 0.03, 0.003), "black" if slide != "black" else "park")
     m.box((0, 0.02, -0.03), (0.0335, 0.01, 0.028), "black")                       # ejection port
-    m.box((0, 0.0325, 0.088), (0.03, 0.006, 0.01), slide)                         # rear sight
-    m.box((0, 0.0325, -0.085), (0.006, 0.006, 0.008), slide)                      # front sight
+    m.notch(0.085, 0.0295, 0.0355, "black", width=0.028, gap=0.008, dots=True)    # three-dot sights
+    m.post(-0.085, 0.0295, 0.0355, "black", guard=None, width=0.006, base_w=0.008)
     m.box((0, 0.012, -0.096), (0.014, 0.014, 0.004), "blued")  # barrel end
     m.box((0, -0.017, -0.01), (0.03, 0.025, 0.17), frame)                         # frame
     m.box((0, -0.075, 0.06), (0.03, 0.105, 0.045), grip, pitch=-16)               # grip
@@ -276,15 +330,16 @@ def wasp(m, look):
     if look == "a":
         m.box((0, 0.0, 0.0), (0.054, 0.068, 0.3), "black")                        # receiver tube
         m.box((0, 0.042, 0.0), (0.03, 0.016, 0.26), "black")                      # top ridge
-        m.box((0, 0.06, 0.13), (0.03, 0.02, 0.03), "black")                       # rear drum sight
-        m.box((0, 0.074, 0.13), (0.022, 0.008, 0.016), "black")
-        m.box((0, 0.035, -0.19), (0.02, 0.05, 0.02), "black")                     # front sight tower
-        m.box((0, 0.06, -0.19), (0.026, 0.02, 0.02), "black")                     # front sight hood
-        m.box((0, 0.075, -0.19), (0.006, 0.012, 0.006), "black")
-        m.box((0, -0.018, -0.18), (0.064, 0.06, 0.13), "stipple")                 # fat handguard
-        m.box((0, 0.008, -0.27), (0.024, 0.024, 0.06), "black")                   # barrel
-        for z in (-0.285, -0.3):
-            m.box((0, 0.008, z), (0.03, 0.03, 0.006), "black")                    # barrel lugs
+        m.box((0, 0.058, 0.13), (0.03, 0.018, 0.03), "black")                     # rear drum
+        m.box((0, 0.069, 0.13), (0.012, 0.006, 0.012), "black")
+        m.ring(0, 0.08, 0.13, 0.0075, 0.003, 0.01, "black")                       # its aperture
+        m.box((0, 0.033, -0.17), (0.016, 0.05, 0.02), "black")                    # front sight tower
+        m.post(-0.17, 0.058, 0.08, "black", guard="hood")
+        m.box((0, -0.012, -0.18), (0.054, 0.05, 0.12), "stipple")                 # slim handguard
+        m.box((0, -0.012, -0.245), (0.044, 0.04, 0.012), "black")                 # its front cap
+        m.tube(0, 0.008, -0.25, -0.3, 0.009, "black")                             # barrel
+        for z in (-0.27, -0.285):
+            m.tube(0, 0.008, z, z - 0.005, 0.012, "black")                        # barrel lugs
         m.box((0.033, 0.03, -0.11), (0.012, 0.012, 0.04), "steel")                # cocking handle
         m.box((0, -0.075, 0.09), (0.034, 0.09, 0.046), "stipple", pitch=-12)      # grip
         m.box((0, -0.04, 0.06), (0.04, 0.03, 0.09), "black")                      # trigger group
@@ -350,7 +405,8 @@ def mauler(m, look):
     m.box((0.034, 0.012, 0.0), (0.004, 0.03, 0.07), "black")                      # ejection port (right)
     m.box((0, 0.028, -0.33), (0.046, 0.046, 0.5), metal)                          # barrel
     m.box((0, 0.053, -0.33), (0.012, 0.006, 0.46), metal)                         # vent rib
-    m.box((0, 0.06, -0.565), (0.014, 0.014, 0.014), "brass")                      # bead
+    m.ytube(0, -0.565, 0.056, 0.066, 0.004, "brass")                              # front bead
+    m.ytube(0, -0.3, 0.056, 0.061, 0.0025, "steel")                               # mid bead
     m.box((0, -0.028, -0.29), (0.038, 0.038, 0.42), metal)                        # magazine tube
     m.box((0, -0.028, -0.5), (0.04, 0.04, 0.012), metal)                          # tube cap
     m.box((0, -0.06, 0.045), (0.012, 0.006, 0.08), metal)                         # trigger guard
@@ -366,7 +422,8 @@ def mauler(m, look):
         m.box((-0.037, 0.005, 0.02), (0.008, 0.05, 0.11), "black")                # side saddle (left)
         for k in range(4):
             m.box((-0.045, 0.005, -0.03 + k * 0.026), (0.012, 0.046, 0.02), "shell", ends="brass")
-        m.box((0, 0.064, 0.08), (0.03, 0.02, 0.02), "black")                      # ghost ring
+        m.box((0, 0.058, 0.08), (0.03, 0.008, 0.02), "black")                     # ghost ring
+        m.ring(0, 0.069, 0.08, 0.005, 0.004, 0.012, "black")
         m.box((0, 0.052, 0.0), (0.03, 0.01, 0.14), "rail")
         m.mark("Optic", (0, 0.057, 0.0))
         m.mark("Grip", (0, -0.07, 0.125))
@@ -386,7 +443,7 @@ def mauler(m, look):
                 m.box((0, -0.03 if z < -0.1 else 0.0, z), (0.072 if z < -0.1 else 0.07, 0.064 if z < -0.1 else 0.1, 0.02), "tape")
             m.box((-0.035, -0.02, 0.3), (0.006, 0.05, 0.08), "olive_dark")        # stock pouch
     m.mark("Muzzle", (0, 0.028, -0.59))
-    m.mark("Sight", (0, 0.067, 0))
+    m.mark("Sight", (0, 0.066 if look != "b" else 0.069, 0))
     m.mark("Fore", (0, -0.06, -0.27))
 
 
@@ -401,9 +458,10 @@ def lancer(m, look):
     m.box((0, 0.012, -0.43), (0.024, 0.024, 0.5), metal)                          # long barrel
     m.box((0, -0.04, 0.03), (0.012, 0.006, 0.07), metal)                          # trigger guard
     m.box((0, -0.034, 0.005), (0.006, 0.016, 0.006), metal)
-    m.box((0, 0.055, 0.06), (0.02, 0.04, 0.012), metal)                           # rear sight
-    m.box((0, 0.06, -0.66), (0.006, 0.02, 0.008), metal)                          # front sight
-    m.box((0, 0.035, -0.66), (0.02, 0.03, 0.016), metal)
+    m.box((0, 0.028, -0.2), (0.022, 0.01, 0.05), "blued")                         # rear sight ramp on the barrel
+    m.notch(-0.19, 0.033, 0.074, "blued", width=0.03, gap=0.011, base_w=0.008, floor_drop=0.01, depth=0.006)  # leaf
+    m.box((0, 0.028, -0.645), (0.016, 0.012, 0.04), "blued")                      # front ramp
+    m.post(-0.65, 0.034, 0.074, "blued", guard="hood", base_w=0.01, hood=0.0075)
     m.part("Mag", (0, -0.03, -0.03))
     if look == "a":
         # Full wood stock running under the barrel, a sporting wrist and a long fore-end.
@@ -455,35 +513,52 @@ GUNS = {"hound": hound, "stinger": stinger, "wasp": wasp, "mauler": mauler, "lan
 
 # ------------------------------------------------------------------------------------------------ attachments
 def att_red_dot(m):
-    m.box((0, 0.006, 0), (0.032, 0.012, 0.05), "black")                           # base clamp
-    m.box((0, 0.024, 0.01), (0.03, 0.026, 0.03), "black")                         # body
-    for x in (-0.013, 0.013):
-        m.box((x, 0.045, -0.006), (0.004, 0.03, 0.006), "black")                  # hood sides
-    m.box((0, 0.061, -0.006), (0.03, 0.004, 0.006), "black")                      # hood top
-    m.box((0, 0.045, -0.006), (0.022, 0.026, 0.002), "lens")                      # glass
-    m.box((0.019, 0.026, 0.012), (0.008, 0.012, 0.012), "black")                  # brightness knob
-    m.mark("Line", (0, 0.044, 0))
+    """A small reflex sight: a clamp, a low housing and a square window with rounded corners; the glass is clear (the
+    HUD draws the dot when you aim through it)."""
+    line = 0.042
+    m.box((0, 0.005, 0), (0.034, 0.01, 0.056), "black")                           # rail clamp
+    m.box((0.019, 0.005, 0.0), (0.006, 0.012, 0.016), "steel")                    # clamp screw
+    m.box((0, 0.018, 0.006), (0.032, 0.016, 0.044), "black")                      # housing
+    m.box((0, 0.019, -0.012), (0.012, 0.006, 0.006), "shell")                     # emitter
+    m.ring(0, line, -0.006, 0.0125, 0.004, 0.012, "black")                        # window frame
+    m.box((0, line, -0.006), (0.026, 0.026, 0.001), "glass")                      # clear glass
+    m.ytube(0.022, 0.012, 0.012, 0.022, 0.005, "black")                           # brightness knob (right)
+    m.box((0.025, 0.017, 0.012), (0.002, 0.003, 0.008), "steel")                  # its grip lines
+    m.mark("Line", (0, line, 0))
 
 
 def _scope(m, length, r, bell):
-    m.box((0, 0.008, 0), (0.03, 0.016, length * 0.42), "black")                   # mount
+    """Main tube, a tapered objective bell in front and an eyepiece behind, two rings on a rail clamp, turret caps."""
+    sides = 12
+    y = 0.016 + r + 0.014
+    half = length / 2
+    m.box((0, 0.006, 0), (0.032, 0.012, length * 0.5), "black")                   # clamp base
     for z in (-length * 0.17, length * 0.17):
-        m.box((0, 0.024, z), (0.02, 0.024, 0.02), "black")                        # rings
-    y = 0.016 + r + 0.012
-    m.tube(0, y, -length * 0.3, length * 0.3, r, "black")                         # main tube
-    m.tube(0, y, -length * 0.5, -length * 0.3, bell, "black", ends="lens")        # objective bell
-    m.tube(0, y, length * 0.3, length * 0.5, r * 1.35, "black", ends="lens")      # eyepiece
-    m.box((0, y + r + 0.01, 0), (0.018, 0.02, 0.018), "black")                    # turrets
-    m.box((r + 0.01, y, 0), (0.02, 0.018, 0.018), "black")
+        m.box((0, 0.018, z), (0.018, 0.016, 0.016), "black")                      # ring posts
+        m.tube(0, y, z - 0.008, z + 0.008, r + 0.004, "park", sides=sides)        # rings
+    m.tube(0, y, -half * 0.55, half * 0.45, r, "black", sides=sides)              # main tube
+    m.tube(0, y, -half * 0.72, -half * 0.55, (r + bell) / 2, "black", sides=sides)  # taper up
+    m.tube(0, y, -half, -half * 0.72, bell, "black", sides=sides, ends="lens")    # objective bell, glass in front
+    m.tube(0, y, -half - 0.004, -half, bell * 0.92, "park", sides=sides, ends="lens")  # front ring
+    m.tube(0, y, half * 0.45, half * 0.62, r * 1.15, "black", sides=sides)        # power ring
+    for k in range(3):
+        z = half * 0.48 + k * half * 0.05
+        m.box((0, y + r * 1.15, z), (0.004, 0.002, 0.003), "steel")               # its grip marks
+    m.tube(0, y, half * 0.62, half, r * 1.4, "black", sides=sides, ends="lens")   # eyepiece
+    m.tube(0, y, half, half + 0.006, r * 1.3, "stipple", sides=sides, ends="lens")  # rubber eye cup
+    m.ytube(0, 0, y + r * 0.6, y + r + 0.012, 0.009, "black")                      # elevation turret
+    m.ytube(0, 0, y + r + 0.012, y + r + 0.016, 0.0095, "park")
+    m.box((r + 0.006, y, 0), (0.012, 0.016, 0.016), "black")                      # windage turret
+    m.box((r + 0.0135, y, 0), (0.003, 0.014, 0.014), "park")
     m.mark("Line", (0, y, 0))
 
 
 def att_scope_4x(m):
-    _scope(m, 0.2, 0.014, 0.02)
+    _scope(m, 0.2, 0.013, 0.019)
 
 
 def att_scope_8x(m):
-    _scope(m, 0.28, 0.016, 0.027)
+    _scope(m, 0.28, 0.015, 0.026)
 
 
 def att_suppressor(m):
@@ -542,6 +617,9 @@ def write_model(path, model, textures):
         images.append({"bufferView": add_view(textures[name].png), "mimeType": "image/png", "name": "gun_" + name})
         materials.append({"name": "gun_" + name, "pbrMetallicRoughness": {
             "baseColorTexture": {"index": len(images) - 1}, "metallicFactor": 0.0, "roughnessFactor": 1.0}})
+        if name in SEE_THROUGH:
+            materials[-1]["alphaMode"] = "BLEND"
+            materials[-1]["pbrMetallicRoughness"]["baseColorFactor"] = [1.0, 1.0, 1.0, SEE_THROUGH[name]]
     meshes, nodes = [], []
     for pname, (b, origin) in model.parts.items():
         if not b.faces:

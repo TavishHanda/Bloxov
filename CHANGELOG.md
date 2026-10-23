@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.2 (Gun model polish)
+- **Owner's picks:** Hound A (wood), Stinger C (tan frame, black slide), Wasp A, Mauler A (wood pump), Lancer C (olive).
+- **Real iron sights on every gun:** a rear notch with the front post sitting in it (light dots on the post, three dots on
+  the Stinger), a ring aperture on the Wasp, a hooded post and a leaf sight on the Lancer (no more square block), a
+  front and middle bead on the Mauler.
+- **Wasp:** slimmer barrel and handguard (the fat barrel is gone).
+- **Red dot remodelled:** a low housing with a clear window, so aiming shows only the red dot through clean glass.
+- **Scopes remodelled:** rounder tubes, tapered objective bells, power ring, rubber eye cup, turret caps and rings.
+
 ## 0.18.1 (Gun models)
 - **Real models for all five guns**, in first person and in everyone's hands: the Hound (wood and blued steel), the
   Stinger (black polymer pistol), the Wasp (classic SMG with steel struts), the Mauler (black pump with a side saddle
