@@ -3145,12 +3145,23 @@ func _section_old_bloxov() -> void:
 	query.start_position = start
 	query.path_search_max_polygons = 0  # (as the scavs do: a path across the whole map)
 	for c: Node3D in loot:
-		var front := c.global_position + c.global_basis.z * -1.3 + Vector3.UP * 0.4
-		query.target_position = front
-		var result := NavigationPathQueryResult3D.new()
-		NavigationServer3D.query_path(query, result)
-		var path := result.path
-		if (path.is_empty() or path[path.size() - 1].distance_to(front) > 1.3) != c.has_meta("locked"):
+		# (A searchable prop of a building's model, 0.18.4, may face any way: one of its sides will do.)
+		var size: Vector3 = c.get_meta("prop", Vector3.ZERO)
+		var fronts := [c.global_basis.z * -1.3]
+		if c.has_meta("prop"):
+			fronts = [c.global_basis.z * -(size.z / 2 + 0.6), c.global_basis.z * (size.z / 2 + 0.6),
+				c.global_basis.x * (size.x / 2 + 0.6), c.global_basis.x * -(size.x / 2 + 0.6)]
+		var reached := false
+		for offset: Vector3 in fronts:
+			var front: Vector3 = c.global_position + offset + Vector3.UP * 0.4
+			query.target_position = front
+			var result := NavigationPathQueryResult3D.new()
+			NavigationServer3D.query_path(query, result)
+			var path := result.path
+			reached = reached or not (path.is_empty() or path[path.size() - 1].distance_to(front) > (2.0 if c.has_meta("prop") else 1.3))
+		# (The east woods cabin's loft is up a ladder, which the AI doesn't climb.)
+		var loft := String(c.get_meta("place", "")) == "Cabin3" and c.global_position.y > ground_map.ground_height(c.global_position) + 2.0
+		if reached == c.has_meta("locked") and not loft:
 			unreachable.append(String(c.name))
 	_check(unreachable.is_empty(), "every loot container can be walked to, except behind the shut key doors (wrong: %s)" % [unreachable])
 	var locked := loot.filter(func(c: Node) -> bool: return c.has_meta("locked"))
@@ -3162,6 +3173,25 @@ func _section_old_bloxov() -> void:
 	_check(cave.size() == 2 and cave.all(func(c: Node) -> bool: return c is LootContainer and c.get("loot_table") == "safe")
 		and sheet is MeshInstance3D and sheet.get_child_count() == 0,
 		"the waterfall room has two safes behind walk-through falling water (%d)" % cave.size())
+	# 0.18.4 (owner: "anything that looks lootable should be lootable"): the drawers, cabinets, trunks, lockers and
+	# crates the building models draw can be searched: each rolls loot, and looking at it finds it (not the wall of
+	# the map's own box for it).
+	var props := loot.filter(func(c: Node) -> bool: return c.has_meta("prop"))
+	var not_found: Array[String] = []
+	for c: LootContainer in props:
+		var size: Vector3 = c.get_meta("prop")
+		var found := false
+		var mid: Vector3 = c.global_position + Vector3.UP * size.y * 0.6
+		# (From above, or from in front or behind: something may stand on it, a lamp, a TV, wreckage.)
+		for offset: Vector3 in [Vector3.UP * (size.y * 0.4 + 0.4), c.global_basis.z * (size.z / 2 + 0.5),
+				c.global_basis.z * -(size.z / 2 + 0.5)]:
+			var hit: Dictionary = world.raid.get_world_3d().direct_space_state.intersect_ray(
+				PhysicsRayQueryParameters3D.create(mid + offset, mid, 1 | 8))
+			found = found or (not hit.is_empty() and hit.collider == c)
+		if not found or c.grid.is_empty() or c.display_name == "Crate":
+			not_found.append(String(c.name))
+	_check(props.size() >= 100 and not_found.is_empty(),
+		"%d searchable props roll loot and are found by a look (wrong: %s)" % [props.size(), not_found])
 	# Online the server's copy of the map has the doors too; a player unlocking one opens it there and tells the raid.
 	var opened := []
 	world.door_opened.connect(func(id: String) -> void: opened.append(id))
@@ -3782,6 +3812,9 @@ func _section_bushes_bars() -> void:
 func _section_leaves() -> void:
 	# Tree tops (0.17.13, owner: the AI shot through the leaves): people and bullets pass through them, but the AI
 	# can't see or shoot through them.
+	player.global_position = Vector3(40, 0.1, -25)   # (open ground, away from the target dummy)
+	player.velocity = Vector3.ZERO
+	await physics_frame
 	var map := BoxMap.new()
 	map.colors = PackedColorArray([Color(0.5, 0.5, 0.5), BoxMap.LEAVES_COLOUR])
 	# A tree top between the player and the scav (center xyz, size xyz, yaw, pitch, colour, solid).
@@ -3798,7 +3831,7 @@ func _section_leaves() -> void:
 	await physics_frame
 	var through := get_root().get_world_3d().direct_space_state.intersect_ray(
 		PhysicsRayQueryParameters3D.create(middle + Vector3(0, 0, -3), middle + Vector3(0, 0, 3), 1 | 2 | 4))
-	_check(through.is_empty() and map.get_node_or_null("Leaves") != null, "leaves don't block people or bullets")
+	_check(through.is_empty() and map.get_node_or_null("Leaves") != null, "leaves don't block people or bullets (%s)" % [through.get("collider")])
 	_check(scav._has_line_of_sight() and scav._leaves_in_way(), "the AI can't see you through the leaves")
 	var hp := player.health.current
 	for i in 4:

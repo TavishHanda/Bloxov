@@ -81,6 +81,9 @@ func _ready() -> void:
 
 ## Swaps in the model, name and collision box of this container's `look` (if the map gave it one).
 func _apply_look() -> void:
+	if has_meta("prop"):
+		_apply_prop(get_meta("prop"))
+		return
 	var look: String = get_meta("look", "")
 	if not LOOKS.has(look):
 		return
@@ -102,6 +105,22 @@ func _apply_look() -> void:
 		model.position.z = back
 		add_child(model)
 		PixelModel.make_crisp(model)
+
+
+## A prop of a building's model you can search (0.18.4, owner: anything that looks lootable is lootable): the model
+## already draws it, so this is only its box (`prop`: its size; it stands on the floor), with no model of its own.
+## It's on the interactable layer only: the map's own box for it (if any) is what you bump into.
+func _apply_prop(size: Vector3) -> void:
+	collision_layer = 8
+	for child in get_children():
+		if child is CollisionShape3D:
+			var box := BoxShape3D.new()
+			box.size = size + Vector3(0.04, 0.02, 0.04)   # (a hair outside the model's own box, so your look ray finds it)
+			child.shape = box
+			child.position = Vector3(0, size.y / 2.0, 0)
+		else:
+			remove_child(child)
+			child.queue_free()
 
 
 ## In the Godot editor (the script is @tool for this only): show the container's real model instead of the scene's

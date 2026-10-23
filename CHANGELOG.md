@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.4 (Searchable props, better safes)
+- **Anything that looks lootable is lootable** (owner: "dont make fake loot spots"): the filing cabinets, drawers,
+  nightstands, dressers, trunks, toy chests, footlockers, lockers, tool chests, coolers, freezers, ammo crates and the
+  small safes the building models draw (104 of them) are containers now. Each is the size of the drawn piece, has no
+  model of its own, rolls light loot (1-2 things, a nightstand 1, the small safes 1 from the safe table, lockers 1-3)
+  and takes the loot of the place it's in. `tools/gen_old_bloxov.py` PROP_LOOT (box kind -> table, name, roll);
+  `LootContainer` `prop` metadata.
+- **Safes are worth opening** (friend's playtest: the waterfall, the vault and Bon's safes gave armor and a couple
+  of rare goods): a safe holds 2-3 things (was 1-2), less armor and helmets in the safe table (large backpacks, which
+  never fit, are out), and the waterfall room's safes have their own loot (gold, rings, crystals, more epic and
+  legendary). Economy sim (500 runs): safe $10.9k -> $19.6k, waterfall $22.9k -> $49.2k, bank $41.5k -> $97.5k (5
+  more containers), bunker $76k -> $107k; every container on the map $328k -> $678k (twice as many containers).
+- Smoke test: the leaves check stands the player on open ground first (it hit the target dummy depending on where
+  earlier sections left the player).
+
 ## 0.18.3 (Hitboxes match the map)
 - **Rocks, earth banks, crater rims, rubble and the derailed train collide as drawn**, not as the big boxes under
   them: no more invisible walls over a rock or the leaning engine, the tank cars are round, and the hump on the road

@@ -122,17 +122,16 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Medium Backpack | 1% |
 | Novarra Field Report | 1% |
 
-### Safe (1–2 rolls, loud to open)
+### Safe (2–3 rolls, loud to open)
 
 | Entry | Chance per roll |
 |---|---|
-| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 35% |
-| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 26% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
-| Legendary valuable (Diamond Ring, Rare Crystal) | 13% |
-| Heavy Armor | 5% |
-| Combat Helmet | 4% |
-| Large Backpack | 3% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 38% |
+| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 30% |
+| Legendary valuable (Diamond Ring, Rare Crystal) | 15% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 11% |
+| Heavy Armor | 3% |
+| Combat Helmet | 3% |
 
 ### Scav (body bag, 1–3 rolls)
 
@@ -182,6 +181,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 
 | Place | Extra weights |
 |---|---|
+| Waterfall | Gold Bar 8, Diamond Ring 5, Rare Crystal 3, epic valuable 10, legendary valuable 10 |
 | Bunker | Lancer 6, Lancer Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Hound Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |

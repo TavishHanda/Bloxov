@@ -1168,6 +1168,838 @@ transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -173.65, -0.208, 48.7)
 metadata/place = "Waterfall"
 metadata/look = "safe"
 
+[node name="TownHall_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -79.3, 0.959, -28.55)
+metadata/place = "TownHall"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="TownHall_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -78.2, 0.959, -28.55)
+metadata/place = "TownHall"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="TownHall_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -69.6, 0.959, -28.55)
+metadata/place = "TownHall"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="TownHall_Prop4" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -68.5, 0.959, -28.55)
+metadata/place = "TownHall"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="TownHall_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.65, 0.959, -28.15)
+metadata/place = "TownHall"
+display_name = "Supply Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.9, 0.9, 1.3)
+
+[node name="TownHall_Prop6" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.9, 0.959, -28.55)
+metadata/place = "TownHall"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="TownHall_Prop7" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -80.05, 0.959, -12.2)
+metadata/place = "TownHall"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1.6)
+
+[node name="TownHall_Prop8" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.575, 0.959, -18.975)
+metadata/place = "TownHall"
+display_name = "Ammo Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.65, 0.9, 1.35)
+
+[node name="TownHall_Prop9" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.8, 0.959, -19.35)
+metadata/place = "TownHall"
+display_name = "Plan Chest"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.9, 0.7)
+
+[node name="TownHall_Prop10" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.8, 3.959, -17.4)
+metadata/place = "TownHall"
+display_name = "Ammo Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.2, 0.9, 1.2)
+
+[node name="Bank_Prop1" parent="Loot" instance=ExtResource("5_safe")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.65, 0.959, -35.45)
+metadata/place = "Bank"
+display_name = "Small Safe"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.7, 0.8, 0.6)
+
+[node name="Bank_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.9, 0.959, -35.45)
+metadata/place = "Bank"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="Bank_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.5, 0.959, -56.2)
+metadata/place = "Bank"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1.2)
+
+[node name="Bank_Prop4" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.5, 0.959, -54.2)
+metadata/place = "Bank"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1.2)
+
+[node name="Bank_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.325, 0.959, -48.4)
+metadata/place = "Bank"
+display_name = "Ammo Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.95, 0.9, 1.2)
+
+[node name="Offices_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.4, 3.959, -56.7)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1)
+
+[node name="Offices_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.45, 3.959, -51.9)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1)
+
+[node name="Offices_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.9, 3.959, -54.55)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.4, 1.3, 0.6)
+
+[node name="Offices_Prop4" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.4, 3.959, -35.9)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1)
+
+[node name="Offices_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.9, 0.959, -35.5)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="Offices_Prop6" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.1, 0.959, -35.5)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="Offices_Prop7" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95.25, 0.959, -55.55)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.5, 1.3, 0.6)
+
+[node name="Offices_Prop8" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -110.55, 3.959, -46.65)
+metadata/place = "Offices"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 1.5)
+
+[node name="Offices_Prop9" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -105.1, 3.959, -44.85)
+metadata/place = "Offices"
+display_name = "Plan Chest"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.9, 0.7)
+
+[node name="GunStore_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -98.8, 1.518, -93.6)
+metadata/place = "GunStore"
+display_name = "Ammo Cans"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.7, 0.8)
+
+[node name="Pharmacy_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -83.35, 1.518, -91.475)
+metadata/place = "Pharmacy"
+display_name = "Medicine Drawers"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2.5, 2, 0.65)
+
+[node name="Grocery_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39, 1.922, -105)
+metadata/place = "Grocery"
+display_name = "Freezer"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2, 0.9, 1)
+
+[node name="Grocery_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31, 1.922, -105)
+metadata/place = "Grocery"
+display_name = "Freezer"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2, 0.9, 1)
+
+[node name="Grocery_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.5, 1.922, -114.575)
+metadata/place = "Grocery"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.7, 1.3, 0.55)
+
+[node name="Grocery_Prop4" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.6, 1.922, -112.225)
+metadata/place = "Grocery"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(2, 1.9, 0.45)
+
+[node name="Grocery_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.4, 1.922, -94.275)
+metadata/place = "Grocery"
+display_name = "Cooler"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.2, 0.9, 0.75)
+
+[node name="GasStationTown_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102, 0.959, -61.4)
+metadata/place = "GasStationTown"
+display_name = "Cooler"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.8, 1, 1.6)
+
+[node name="Police_Prop1" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -9.1, 0.959, -47.95)
+metadata/place = "Police"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(2.2, 1.9, 0.5)
+
+[node name="Police_Prop2" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -14.9, 0.959, -47.95)
+metadata/place = "Police"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(2.2, 1.9, 0.5)
+
+[node name="Police_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -17.1, 0.959, -42)
+metadata/place = "Police"
+display_name = "Ammo Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 0.9, 1.2)
+
+[node name="Police_Prop4" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -16.95, 0.959, -46.6)
+metadata/place = "Police"
+display_name = "Ammo Cans"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.7, 0.6, 1)
+
+[node name="Police_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0.3, 0.959, -62.25)
+metadata/place = "Police"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 0.7)
+
+[node name="Police_Prop6" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7.1, 0.959, -62.4)
+metadata/place = "Police"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 0.4)
+
+[node name="Police_Prop7" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -24.5, 0.959, -56.3)
+metadata/place = "Police"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 0.6)
+
+[node name="Police_Prop8" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -14.9, 3.959, -47.9)
+metadata/place = "Police"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="Police_Prop9" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7.2, 3.959, -49)
+metadata/place = "Police"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 1.3, 0.6)
+
+[node name="Police_Prop10" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -0.6, 3.959, -56.225)
+metadata/place = "Police"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(2.4, 1.9, 0.45)
+
+[node name="Police_Prop11" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -6.05, 3.959, -56.225)
+metadata/place = "Police"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(2.5, 1.9, 0.45)
+
+[node name="Police_Prop12" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -14.5, 3.959, -56.3)
+metadata/place = "Police"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 1.3, 0.6)
+
+[node name="School_Prop1" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -154.95, 3.574, -116.65)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop2" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -149.05, 3.574, -116.65)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop3" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -154.95, 3.574, -109.35)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop4" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -149.05, 3.574, -109.35)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -158.125, 3.574, -101.45)
+metadata/place = "School"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.55, 1.3, 0.5)
+
+[node name="School_Prop6" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -154.95, 6.574, -116.65)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop7" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -149.05, 6.574, -116.65)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop8" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -154.95, 6.574, -109.35)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop9" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -149.05, 6.574, -109.35)
+metadata/place = "School"
+display_name = "Lockers"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(3.5, 2, 0.5)
+
+[node name="School_Prop10" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -156.375, 6.574, -108.55)
+metadata/place = "School"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.55, 1.3, 0.5)
+
+[node name="School_Prop11" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -155.725, 6.574, -108.55)
+metadata/place = "School"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.55, 1.3, 0.5)
+
+[node name="BigHouse1_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -144.525, 9.447, -148.3)
+metadata/place = "BigHouse1"
+display_name = "Trunk"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.55, 0.55, 1)
+
+[node name="BigHouse2_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96, 8.102, -138.6)
+metadata/place = "BigHouse2"
+display_name = "Vanity"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.1, 0.8, 0.5)
+
+[node name="BigHouse2_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -106.1, 5.102, -138.275)
+metadata/place = "BigHouse2"
+display_name = "Toy Chest"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.9, 0.6, 0.55)
+
+[node name="BigHouse2_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.2, 8.102, -127.475)
+metadata/place = "BigHouse2"
+display_name = "Toy Chest"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 0.55, 0.55)
+
+[node name="BigHouse3_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -64, 6.583, -142.6)
+metadata/place = "BigHouse3"
+display_name = "Vanity"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.1, 0.8, 0.5)
+
+[node name="BigHouse3_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60.775, 6.583, -131.5)
+metadata/place = "BigHouse3"
+display_name = "Record Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.05, 0.85, 0.5)
+
+[node name="Farmhouse_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146, 3.624, -148.6)
+metadata/place = "Farmhouse"
+display_name = "Vanity"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.1, 0.8, 0.5)
+
+[node name="Farmhouse_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 140.3, 3.624, -137.475)
+metadata/place = "Farmhouse"
+display_name = "Toy Chest"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 0.55, 0.55)
+
+[node name="Farmhouse_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 148.7, 3.624, -142.625)
+metadata/place = "Farmhouse"
+display_name = "Trunk"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1, 0.55, 0.55)
+
+[node name="TrainStation_Prop1" parent="Loot" instance=ExtResource("5_safe")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.5, 0, 15.8)
+metadata/place = "TrainStation"
+display_name = "Small Safe"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.7, 0.9, 0.8)
+
+[node name="Depot_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92.3, 1.1, 71.3)
+metadata/place = "Depot"
+display_name = "Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2.2, 1.5, 1.8)
+
+[node name="Depot_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.2, 1.1, 71.1)
+metadata/place = "Depot"
+display_name = "Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2.4, 1.2, 2.2)
+
+[node name="Depot_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90.5, 0, 58.35)
+metadata/place = "Depot"
+display_name = "Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2.2, 1.6, 2.1)
+
+[node name="Garage_Prop1" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 170.55, -0.594, 156.7)
+metadata/place = "Garage"
+display_name = "Tool Chest"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(0.6, 1.1, 1)
+
+[node name="JunkOffice_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.8, -0.482, 89.925)
+metadata/place = "JunkOffice"
+display_name = "Filing Cabinet"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 1.3, 0.55)
+
+[node name="Cabin1_Prop1" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -76.55, 5.951, 122.25)
+metadata/place = "Cabin1"
+display_name = "Wardrobe"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(0.6, 2, 1.2)
+
+[node name="Cabin1_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -84.225, 5.951, 122.6)
+metadata/place = "Cabin1"
+display_name = "Drawers"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.25, 0.95, 0.5)
+
+[node name="Cabin1_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -76.5, 5.951, 120)
+metadata/place = "Cabin1"
+display_name = "Trunk"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.5, 0.55, 0.8)
+
+[node name="Cabin2_Prop1" parent="Loot" instance=ExtResource("4_locker")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -133.175, 0.553, 136.125)
+metadata/place = "Cabin2"
+display_name = "Hutch"
+min_items = 1
+max_items = 3
+metadata/prop = Vector3(2.05, 1.9, 0.45)
+
+[node name="Cabin2_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -134.8, 0.553, 140.05)
+metadata/place = "Cabin2"
+display_name = "Trunk"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 0.55, 0.8)
+
+[node name="Cabin2_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -135.25, 0.553, 132.05)
+metadata/place = "Cabin2"
+display_name = "Footlocker"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.6, 0.5, 1.1)
+
+[node name="Cabin2_Prop4" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -139.6, 0.553, 138.4)
+metadata/place = "Cabin2"
+display_name = "Cache"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(2, 3.7, 2)
+
+[node name="Cabin3_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.525, 7.735, -8.4)
+metadata/place = "Cabin3"
+display_name = "Trunk"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.55, 0.5, 0.9)
+
+[node name="Cabin3_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 139.9, 10.735, -5.85)
+metadata/place = "Cabin3"
+display_name = "Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.8, 0.5, 0.7)
+
+[node name="Cabin3_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 142.1, 10.735, -2.25)
+metadata/place = "Cabin3"
+display_name = "Crates"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(0.8, 0.5, 0.7)
+
+[node name="Motel_Prop1" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 0.1, -146.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop2" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 0.1, -146.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop3" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.4, 0.1, -150.6)
+metadata/place = "Motel"
+display_name = "Dresser"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.8, 0.5)
+
+[node name="Motel_Prop4" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 0.1, -135.575)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop5" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 0.1, -135.575)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop6" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 0.1, -130.325)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop7" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 0.1, -130.325)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop8" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.4, 0.1, -134.9)
+metadata/place = "Motel"
+display_name = "Dresser"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.8, 0.5)
+
+[node name="Motel_Prop9" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 0.1, -125.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop10" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 0.1, -125.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop11" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 3.1, -146.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop12" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 3.1, -146.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop13" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.4, 3.1, -150.6)
+metadata/place = "Motel"
+display_name = "Dresser"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.8, 0.5)
+
+[node name="Motel_Prop14" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 3.1, -140.825)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop15" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 3.1, -140.825)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop16" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 3.1, -135.575)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop17" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 3.1, -135.575)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop18" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.4, 3.1, -140.15)
+metadata/place = "Motel"
+display_name = "Dresser"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.8, 0.5)
+
+[node name="Motel_Prop19" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 3.1, -130.325)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop20" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 3.1, -130.325)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop21" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.4, 3.1, -134.9)
+metadata/place = "Motel"
+display_name = "Dresser"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.8, 0.5)
+
+[node name="Motel_Prop22" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.225, 3.1, -125.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop23" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.575, 3.1, -125.075)
+metadata/place = "Motel"
+display_name = "Nightstand"
+min_items = 1
+max_items = 1
+metadata/prop = Vector3(0.55, 0.55, 0.45)
+
+[node name="Motel_Prop24" parent="Loot" instance=ExtResource("3_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.4, 3.1, -124.35)
+metadata/place = "Motel"
+display_name = "Dresser"
+min_items = 1
+max_items = 2
+metadata/prop = Vector3(1.8, 0.9, 0.6)
+
 [node name="Smoke0" parent="Level" instance=ExtResource("s_smoke")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -95, 1.415, -79)
 
