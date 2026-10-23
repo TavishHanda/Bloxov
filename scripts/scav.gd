@@ -38,7 +38,7 @@ func _ready() -> void:
 		shot_sound = GunSounds.shot(gun)
 		carried_gun = gun
 		if HeldGun.MODELS.has(gun):
-			held_model = gun   # (until the art pass every AI holds the AK model)
+			held_model = gun
 	if held_model != "":
 		muzzle = HeldGun.show(model, held_model).get_node("Muzzle")
 	# The model is an imported .glb, so the flash lives in this scene and moves onto its muzzle here.

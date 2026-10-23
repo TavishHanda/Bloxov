@@ -75,7 +75,7 @@ static func capture(player: Player) -> Array:
 	if player.is_prone:
 		flags |= FLAG_PRONE
 	if player.gun.weapon != null:
-		flags |= FLAG_ARMED
+		flags |= FLAG_ARMED | maxi(AILoadouts.NET_GUNS.find(player.gun.weapon.id), 0) << Hitbox.GUN_SHIFT
 	if player.is_low():
 		flags |= Hitbox.FLAG_LOW
 	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
@@ -192,7 +192,10 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	model.rotation.x = lerpf(lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, -1.45, _prone), 1.5, _down)
 	# Looking up and down tilts the head (owner: the head, not the gun), limited so it stays on the shoulders.
 	head_pivot.rotation.x = clampf(pitch, -0.7, 0.7)
-	# The model's built-in rifle only shows while they hold a gun (until guns are separate models: BACKLOG).
+	# They hold the model of the gun they have out (0.18.1), and none while unarmed.
+	var gun := flags >> Hitbox.GUN_SHIFT
+	if gun > 0 and gun < AILoadouts.NET_GUNS.size():
+		gun_model = HeldGun.show(model, AILoadouts.NET_GUNS[gun])
 	gun_model.visible = flags & FLAG_ARMED != 0
 	gun_model.position = _gun_rest + (Vector3(0, 0.12, 0.08) if flags & FLAG_AIM else Vector3.ZERO)
 	gun_model.rotation.x = 1.45 * _prone   # lying prone, the gun still points ahead

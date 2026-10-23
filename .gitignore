@@ -25,3 +25,5 @@ __pycache__/
 !assets/textures/ground/*.png.import
 !assets/textures/water/*.png.import
 !assets/textures/trees/*.png.import
+# Gun look options for the owner (make_gun.py all), not used by the game
+assets/models/guns/*_[abc].glb

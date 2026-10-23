@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.1 (Gun models)
+- **Real models for all five guns**, in first person and in everyone's hands: the Hound (wood and blued steel), the
+  Stinger (black polymer pistol), the Wasp (classic SMG with steel struts), the Mauler (black pump with a side saddle
+  of shells) and the Lancer (wood army rifle). Three looks were made for each (option sheets in the project files);
+  these are the picks for now.
+- **Scavs, Raiders, Bon and other players hold the gun they actually carry** (online, the gun you have out is sent with
+  your movement, so others see a Stinger when you switch to it). Before, everyone held the same drawn-in rifle.
+- **Attachments are real models too:** red dot, 4x and 8x scopes, suppressor, choke and foregrip; the extended mag
+  stretches the gun's own magazine. Aiming lines up with each gun's own iron sights or optic.
+- Models are built by `art_source/scripts/make_gun.py` (no Blender needed); same mechanics and numbers as before.
+
 ## 0.18.0 (the World art update: the whole map remodelled)
 Everything built on the World art branch since 0.17.0 goes live at once. The map's layout is the same, but every
 building and almost everything outside now has a real model instead of gray boxes.

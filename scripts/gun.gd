@@ -157,6 +157,7 @@ func _ready() -> void:
 	_ads_positions.merge(GunViewModels.ADS)
 	for key in _models:
 		var node: Node3D = _models[key]
+		_ads_positions[key] = GunViewModels.aim_place(node, _ads_positions[key])
 		_model_rests[key] = node.position
 		_muzzle_rests[key] = (node.get_node("Muzzle") as Node3D).position
 		node.visible = false

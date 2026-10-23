@@ -17,6 +17,8 @@ const FLAG_DOWNED := 64
 const FLAG_PRONE := 128
 ## Under 40% health (0.15.18): the server's AI push a hurt player (Scav.LOW_HEALTH).
 const FLAG_LOW := 256
+## Which gun they hold (0.18.1, AILoadouts.NET_GUNS index), in the bits from here up, so their model shows it.
+const GUN_SHIFT := 10
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
 const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)

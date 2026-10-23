@@ -25,7 +25,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 Owner: before moving on to the next big thing, a polish round. Starts with:
 - **HUD** fixes (owner will say what bugs them).
 - **Inventory screen** fixes.
-- **Guns as separate models (owner, 0.7.11).** Today every character .glb has a rifle built in (`Gun` node), so
+- **Guns as separate models (owner, 0.7.11). DONE in 0.18.1** (art_source/scripts/make_gun.py, HeldGun swaps the drawn-in
+  gun at runtime; the drawn-in guns are still in the character .glbs, stripping them is optional). Old plan: Today every character .glb has a rifle built in (`Gun` node), so
   players/scavs/Raiders always look like they hold that rifle (0.7.11 hides it on unarmed players). Plan:
   - **Owner, Blender:** in pmc/scav/raider, replace the gun meshes with an empty `GunSocket` where the hands hold a
     gun (same place the `Gun` node is now: 0.10, 1.12, -0.43; barrel pointing -Z). Make each gun its own file

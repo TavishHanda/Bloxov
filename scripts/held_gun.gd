@@ -2,32 +2,41 @@ class_name HeldGun
 extends RefCounted
 ## The gun a character model holds in third person, kept apart from the model (0.15.0): character models come with
 ## a gun drawn in (a "Gun" node with a "Muzzle" empty, see art_source/scripts/make_character.py), and this swaps it
-## for the model of the gun the character actually carries. Until the art pass makes real gun models, the only one
-## is the AK drawn into the scav model (the Raider's drawn-in RPK is gone: owner, 0.15.0, "I don't want an rpk").
-## The art pass adds entries to MODELS (or separate .glb guns) and nothing else has to change.
+## for the model of the gun the character actually carries. The gun models (0.18.1) are separate .glb files made by
+## art_source/scripts/make_gun.py; first person uses the same ones (GunViewModels).
 
-## Gun model key -> [scene, path of the gun node inside it].
-const MODELS := {
-	"ak": ["res://assets/models/characters/scav.glb", "Gun"],
-}
+## Weapon item id -> its model, assets/models/guns/<name>.glb.
+const MODELS := {"ak": "hound", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer"}
 
 
-## Replaces the "Gun" node of `model` with gun model `key` (same place, same name, so `$Model/Gun/Muzzle` still
-## works). Returns the new gun node, or the old one when there's nothing to swap.
+## A new instance of weapon `id`'s model (nodes Body, Mag, Muzzle, Grip, Sight, Optic, Fore: see make_gun.py).
+static func instance(id: String) -> Node3D:
+	var art: Node3D = (load("res://assets/models/guns/%s.glb" % MODELS[id]) as PackedScene).instantiate()
+	PixelModel.make_crisp(art)
+	return art
+
+
+## Replaces the "Gun" node of `model` with weapon `key`'s model (same place, same name, held by its grip, with a
+## "Muzzle" node at its muzzle, so `$Model/Gun/Muzzle` still works). Returns the new gun node, or the old one when
+## there's nothing to swap.
 static func show(model: Node3D, key: String) -> Node3D:
 	var old := model.get_node_or_null("Gun") as Node3D
-	if old == null or not MODELS.has(key):
+	if old == null or not MODELS.has(key) or old.get_meta("gun", "") == key:
 		return old
-	var source: Node = (load(MODELS[key][0]) as PackedScene).instantiate()
-	var gun := source.get_node(MODELS[key][1] as String) as Node3D
-	source.remove_child(gun)
-	source.free()
-	gun.owner = null
+	var gun := Node3D.new()
 	gun.transform = old.transform
+	gun.visible = old.visible
+	gun.set_meta("gun", key)
 	model.remove_child(old)
 	old.free()
 	gun.name = "Gun"
 	model.add_child(gun)
-	PixelModel.make_crisp(gun)
+	var art := instance(key)
+	art.name = "Art"
+	art.position = -(art.get_node("Grip") as Node3D).position
+	gun.add_child(art)
+	var muzzle := Node3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.position = art.position + (art.get_node("Muzzle") as Node3D).position
+	gun.add_child(muzzle)
 	return gun
-

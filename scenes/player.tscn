@@ -11,43 +11,9 @@
 radius = 0.4
 height = 1.8
 
-[sub_resource type="StandardMaterial3D" id="GunDark"]
-albedo_color = Color(0.16, 0.17, 0.2, 1)
-
-[sub_resource type="StandardMaterial3D" id="GunAccent"]
-albedo_color = Color(0.95, 0.55, 0.15, 1)
-
 [sub_resource type="StandardMaterial3D" id="FlashMat"]
 shading_mode = 0
 albedo_color = Color(1, 0.85, 0.35, 1)
-
-[sub_resource type="BoxMesh" id="Receiver"]
-material = SubResource("GunDark")
-size = Vector3(0.08, 0.1, 0.36)
-
-[sub_resource type="BoxMesh" id="Barrel"]
-material = SubResource("GunDark")
-size = Vector3(0.04, 0.04, 0.26)
-
-[sub_resource type="BoxMesh" id="Mag"]
-material = SubResource("GunAccent")
-size = Vector3(0.05, 0.15, 0.07)
-
-[sub_resource type="BoxMesh" id="Stock"]
-material = SubResource("GunAccent")
-size = Vector3(0.06, 0.09, 0.16)
-
-[sub_resource type="BoxMesh" id="Sight"]
-material = SubResource("GunAccent")
-size = Vector3(0.03, 0.04, 0.06)
-
-[sub_resource type="BoxMesh" id="PistolSlide"]
-material = SubResource("GunDark")
-size = Vector3(0.045, 0.06, 0.2)
-
-[sub_resource type="BoxMesh" id="PistolGrip"]
-material = SubResource("GunAccent")
-size = Vector3(0.04, 0.11, 0.055)
 
 [sub_resource type="BoxMesh" id="FlashMesh"]
 material = SubResource("FlashMat")
@@ -91,31 +57,6 @@ script = ExtResource("3_gun")
 [node name="Model" type="Node3D" parent="Head/Recoil/Camera3D/Gun"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, -0.2, -0.42)
 
-[node name="Receiver" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-cast_shadow = 0
-mesh = SubResource("Receiver")
-
-[node name="Barrel" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.3)
-cast_shadow = 0
-mesh = SubResource("Barrel")
-
-[node name="Mag" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.11, -0.05)
-cast_shadow = 0
-mesh = SubResource("Mag")
-
-[node name="Stock" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.01, 0.25)
-cast_shadow = 0
-mesh = SubResource("Stock")
-
-[node name="Sight" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/Model"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.07, 0.02)
-cast_shadow = 0
-mesh = SubResource("Sight")
-
 [node name="Muzzle" type="Marker3D" parent="Head/Recoil/Camera3D/Gun/Model"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.45)
 
@@ -129,15 +70,6 @@ mesh = SubResource("FlashMesh")
 [node name="PistolModel" type="Node3D" parent="Head/Recoil/Camera3D/Gun"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.17, -0.16, -0.36)
 visible = false
-
-[node name="Slide" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/PistolModel"]
-cast_shadow = 0
-mesh = SubResource("PistolSlide")
-
-[node name="Grip" type="MeshInstance3D" parent="Head/Recoil/Camera3D/Gun/PistolModel"]
-transform = Transform3D(1, 0, 0, 0, 0.966, 0.259, 0, -0.259, 0.966, 0, -0.075, 0.06)
-cast_shadow = 0
-mesh = SubResource("PistolGrip")
 
 [node name="Muzzle" type="Marker3D" parent="Head/Recoil/Camera3D/Gun/PistolModel"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -0.12)

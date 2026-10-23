@@ -2372,6 +2372,22 @@ func _section_net() -> void:
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.07)
 	body.update_view(10.07, 0.016)
 	_check(body.gun_model.visible and RemotePlayer.capture(player)[4] & RemotePlayer.FLAG_ARMED, "a player holding a gun shows it")
+	# They hold the model of the gun they have out (0.18.1): the gun goes in the flags' top bits.
+	var held_index := AILoadouts.NET_GUNS.find(player.gun.weapon.id) if player.gun.weapon != null else -1
+	_check(held_index <= 0 or RemotePlayer.capture(player)[4] >> Hitbox.GUN_SHIFT == held_index, "the gun a player holds is sent with their state")
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED | AILoadouts.NET_GUNS.find("shotgun") << Hitbox.GUN_SHIFT], 10.075)
+	body.update_view(10.075, 0.016)
+	_check(body.gun_model == body.model.get_node("Gun") and body.gun_model.get_meta("gun", "") == "shotgun"
+		and body.gun_model.has_node("Art/Body") and body.gun_model.has_node("Muzzle") and body.gun_model.visible,
+		"another player holding a Mauler shows the Mauler model")
+	for id: String in HeldGun.MODELS:
+		var art := HeldGun.instance(id)
+		_check(art.has_node("Body") and art.has_node("Muzzle") and art.has_node("Grip") and art.has_node("Sight") and art.has_node("Optic"),
+			"the %s model has its parts and markers" % id)
+		art.free()
+	var view_gun := player.get_node("Head/Recoil/Camera3D/Gun")
+	for key in ["Model", "PistolModel", "SmgModel", "ShotgunModel", "SniperModel"]:
+		_check(view_gun.has_node(key + "/Art/Body"), "first person shows the real model in %s" % key)
 	# You hear other players walk (0.12.35, owner: teammates were silent online).
 	var steps_before := main.get_tree().current_scene.find_children("*", "AudioStreamPlayer3D", false, false).size()
 	for k in 40:
