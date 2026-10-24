@@ -86,6 +86,10 @@ Next: the M4 art updates (World art, Look, Sound), below.
      press PLAY, and you're standing in a 3D hideout. Walk up to the traders, the stash and a **shooting range**
      (try guns and attachments) and use them there, or open a menu that takes you to today's hideout screen
      (stash, loadout, traders, START RAID), which stays as the quick way to do everything. Touch-friendly on phones.
+   - **Animations (owner, 2026-10-24), in two parts:** (1) **first-person** animations (reload, recoil, gun sway,
+     hand movement) can come any time with or after the first-person hands (0.20.x), since they only use the hands and
+     gun models; (2) **character body** animations (walk, run, shoot as other players see you) wait until after the
+     new custom character models, because they're tied to each model's rig and would mostly need redoing.
    - **Crosshair customization (owner, 2026-10-11; later):** pick your own crosshair (style, size, color) in settings.
    - **Skin boxes (owner, 2026-10-12; with skins and the premium currency near release, after the art updates,
      since skins need the final character models):** a **free skin box** bought with earned money (basic skins) and
