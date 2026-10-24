@@ -44,6 +44,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## Key doors (0.14.0): someone in the raid unlocked one (its node name).
 signal door_opened(id: String)
+## Someone in our raid broke a window pane (0.18.8): its number in the map's BoxMap `window_panes`.
+signal window_broken(pane: int)
 ## Doors (0.17): one in the raid swung open (1, -1) or shut (0): its node name under Doors.
 signal door_state(id: String, state: int)
 ## A dropped backpack's lid opened or shut (0.17.10).
@@ -433,6 +435,14 @@ func _open_door(id: String) -> void:
 		world.open_door(id)
 
 
+## A player broke a window pane (0.18.8): break it here, and for everyone else in the raid.
+@rpc("any_peer", "call_remote", "reliable")
+func _break_window(pane: int) -> void:
+	var world := _world_of(multiplayer.get_remote_sender_id())
+	if world != null:
+		world.break_window(pane)
+
+
 ## A player opened or shut a door (0.17): swing it here, and for everyone else in the raid.
 @rpc("any_peer", "call_remote", "reliable")
 func _use_door(id: String, state: int) -> void:
@@ -638,6 +648,9 @@ func _send_raid_start(id: int) -> void:
 	world.door_opened.connect(func(door: String) -> void:
 		for peer in _raid_peers(id):
 			_door_open.rpc_id(peer, door))
+	world.window_broken.connect(func(pane: int) -> void:
+		for peer in _raid_peers(id):
+			_window_broke.rpc_id(peer, pane))
 	world.door_changed.connect(func(door: String, state: int) -> void:
 		for peer in _raid_peers(id):
 			_door_state.rpc_id(peer, door, state))
@@ -807,6 +820,12 @@ func send_grenade(from: Vector3, vel: Vector3) -> void:
 func open_door(id: String) -> void:
 	if in_online_raid():
 		_open_door.rpc_id(1, id)
+
+
+## We broke a window pane (0.18.8).
+func break_window(pane: int) -> void:
+	if in_online_raid():
+		_break_window.rpc_id(1, pane)
 
 
 ## We opened or shut a door (0.17).
@@ -1011,6 +1030,12 @@ func _grenade_seen(from: Vector3, vel: Vector3) -> void:
 func _door_open(id: String) -> void:
 	if in_online_raid():
 		door_opened.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _window_broke(pane: int) -> void:
+	if in_online_raid():
+		window_broken.emit(pane)
 
 
 @rpc("authority", "call_remote", "reliable")

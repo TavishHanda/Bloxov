@@ -39,6 +39,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## A key door was unlocked (0.14.0): Network tells everyone in the raid.
 signal door_opened(id: String)
+## A player broke a window pane (0.18.8): its number in the map's BoxMap `window_panes`.
+signal window_broken(pane: int)
 ## A door swung open (1, -1) or shut (0) (0.17): a player asked, or the AI walked up to it. Network tells the raid.
 signal door_changed(id: String, state: int)
 ## A container with a lid (a dropped backpack, 0.17.10) was opened or shut: everyone sees the lid move.
@@ -151,6 +153,14 @@ func open_door(id: String) -> void:
 		return
 	door.call("open")
 	door_opened.emit(id)
+
+
+## A player broke window pane `pane` (0.18.8): break it in this raid's map too, and tell the raid.
+func break_window(pane: int) -> void:
+	var blocks := raid.get_node_or_null("Level/Blocks")   # untyped: no BoxMap type here (see the top)
+	if blocks == null or not blocks.has_method("break_pane") or not blocks.call("break_pane", pane, true):
+		return
+	window_broken.emit(pane)
 
 
 ## A player opened or shut door `id` (a node under Doors). Untyped: no Door type here (see the top).

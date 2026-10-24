@@ -436,6 +436,7 @@ func _physics_process(delta: float) -> void:
 	velocity.z = horizontal.z
 
 	move_and_slide()
+	_break_glass()
 	_step_up(horizontal, delta)
 
 	# Landing (0.18.3: an ordinary jump doesn't slow you down after; a drop from higher still does).
@@ -472,6 +473,16 @@ func _physics_process(delta: float) -> void:
 ## Walking into a low ledge (a kerb, a lump of rubble, a step up onto a slab: up to STEP_HEIGHT) steps up onto it
 ## instead of stopping you dead (0.18.3, owner: "fix jumping, it just feels bad"). On the ground, walking into something:
 ## if there's floor just past it no higher than a step, and room above, you're lifted onto its height and walk on.
+
+## Pushing into a whole window pane breaks it (0.18.8, owner: "make windows breakable"), so you can go through it.
+func _break_glass() -> void:
+	for i in get_slide_collision_count():
+		var hit := get_slide_collision(i)
+		var body := hit.get_collider() as CollisionObject3D
+		if body != null and body.collision_layer == BoxMap.WINDOW_LAYER:
+			BoxMap.break_window_at(body, hit.get_collider_shape_index(), true)
+
+
 func _step_up(horizontal: Vector3, delta: float) -> void:
 	if not _was_on_floor or not is_on_wall() or horizontal.length() < 0.5 or is_prone:
 		return

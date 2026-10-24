@@ -51,6 +51,7 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	Network.main.door_opened.connect(on_door_opened)
+	Network.main.window_broken.connect(on_window_broken)
 	Network.main.door_state.connect(on_door_state)
 	Network.main.lid_moved.connect(on_lid_moved)
 	Network.main.player_fired.connect(on_player_fired)
@@ -122,6 +123,13 @@ func on_door_opened(id: String) -> void:
 	var door := get_parent().get_node_or_null("KeyDoors/" + id) as KeyDoor
 	if door != null:
 		door.open()
+
+
+## Someone in the raid broke a window pane (0.18.8): it's broken here too.
+func on_window_broken(pane: int) -> void:
+	var blocks := get_parent().get_node_or_null("Level/Blocks") as BoxMap
+	if blocks != null:
+		blocks.break_pane(pane)
 
 
 ## A door in the raid swung open or shut (someone else, the AI, or the server agreeing with us).

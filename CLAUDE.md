@@ -53,7 +53,9 @@
 - Collision layers: 1 world, 2 player, 3 enemies (bit value 4), 4 interactables (bit value 8), 5 doors (bit value 16,
   world-art branch), 6 tree tops (bit value 32: only the AI's sight and shots check it, `BoxMap.LEAVES_LAYER`), 7 bushes (bit
   value 64: only the AI's sight, `BoxMap.BUSH_LAYER`), 8 barred windows (bit value 128: stops players and vaulting,
-  not bullets, `BoxMap.BARS_LAYER`).
+  not bullets, `BoxMap.BARS_LAYER`), 9 glazed windows (bit value 256: stops people until the pane is broken, never
+  shots, `BoxMap.WINDOW_LAYER`; the panes still whole come from each building's `<name>_panes.json`, drawn and broken
+  by the map, and breaks are sent online by pane number).
 - Outdoor pieces that aren't box-shaped (rocks, banks, crater rims, rubble, the train) collide with triangles from
   their models (0.18.3): after changing them run the generator, `art_source/scripts/make_outdoor.py`, then the
   generator again. `tools/collision_view.gd` draws what collides over the models.

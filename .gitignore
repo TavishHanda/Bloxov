@@ -22,6 +22,7 @@ __pycache__/
 !assets/models/outdoor/*.glb.import
 !assets/models/props/cars/*.glb.import
 !assets/textures/kit_atlas.png.import
+!assets/textures/glass.png.import
 !assets/textures/ground/*.png.import
 !assets/textures/water/*.png.import
 !assets/textures/trees/*.png.import

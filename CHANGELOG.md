@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.8 (Breakable windows)
+- **Windows break** (owner): the 71 panes still glazed round the map are the map's now, not part of the building
+  models, so a shot, a vault or a shove through one breaks it, with the sound of it going (a new `audio/glass.wav`).
+  Shots were never stopped by glass and still aren't: one passing through takes the pane with it. Online, a break is
+  sent to everyone in the raid by pane number. Pipeline: `make_building.py` leaves whole panes out of the model and
+  lists them in `art_source/buildings/<name>_panes.json`; `gen_old_bloxov.py` puts them in the map (`window_panes`).
+- **What a gun is before you buy it** (owner): hovering a trader's stock row, or tapping its name on a phone, puts
+  that item's details in the panel below: the gun's slot, damage, rate of fire, magazine, stat bars and description.
+
 ## 0.18.7 (The waterfall end of the map)
 - **The waterfall room's roof and walls are fixed** (owner: "the model is messed up"): the knoll's skin boulders were
   poking in through the room's ceiling and walls as big grey spikes. No skin or top boulder reaches into the room

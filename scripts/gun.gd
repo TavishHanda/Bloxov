@@ -406,6 +406,8 @@ func shoot_once() -> void:
 				Effects.impact(world, result.position, result.normal, Player.HIT_COLOR, 12)
 			else:
 				hits.append(result)
+		# 0.18.8 (owner: "make windows breakable"): a shot through a pane breaks it and carries on.
+		BoxMap.break_window_along(self, from, end)
 		_warn_near_misses(from, end, result.get("collider"))
 		Effects.tracer(world, muzzle.global_position, end)
 	_handle_hits(hits, from)

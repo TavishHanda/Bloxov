@@ -236,6 +236,14 @@ func _after_hand_in(quest: String, given: int, level_before: int) -> int:
 	return given
 
 
+## Shows what a trader's stock item is in the details area below the screen (0.18.8), without buying it.
+func _preview(id: String, amount: int) -> void:
+	var stack := ItemStack.new(id, mini(amount, ItemDB.max_stack(id)))
+	if ItemDB.kind(id) == "weapon":
+		stack.loaded = int(ItemDB.weapon_stats(stack)["mag"])
+	screen.show_info(stack)
+
+
 ## The trader's level is high enough for this item.
 func _unlocked(trader: String, id: String) -> bool:
 	for entry: Array in Traders.stock(trader):
@@ -878,6 +886,13 @@ func _fill_trader() -> void:
 		var open: bool = entry[2] <= lv
 		var row := HBoxContainer.new()
 		_trader_rows.add_child(row)
+		# What it is, before you buy it (0.18.8, owner): hovering a row, or tapping its name on a phone, puts the
+		# item's details (a gun's type, damage, rate of fire, mag and stat bars) in the details area below.
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		row.mouse_entered.connect(_preview.bind(id, amount))
+		row.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+				_preview(id, amount))
 		var item_name := Label.new()
 		item_name.text = ItemDB.label(id, amount)
 		HudStyle.style_label(item_name, 20, ItemDB.color(id))

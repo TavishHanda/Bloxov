@@ -205,6 +205,9 @@ func try_vault() -> bool:
 	_sprinting = false
 	_play_step(2.0)
 	_make_noise(vault_noise)
+	# 0.18.8: going through a window takes the glass with you.
+	var path: PackedVector3Array = move["path"]
+	BoxMap.break_window_along(self, path[0] + Vector3.UP * 1.0, path[path.size() - 1] + Vector3.UP * 1.0)
 	return true
 
 

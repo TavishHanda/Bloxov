@@ -30,6 +30,10 @@ const BUSH_LAYER := 64
 ## Barred and boarded-up windows (0.18.3, owner: "make sure windows that are barred up ... arent jumpable"): a box per
 ## window on this layer (8) stops players (their collision mask has it) and vaulting, not bullets or eyes.
 const BARS_LAYER := 128
+## Windows still glazed (0.18.8, owner: "make windows breakable"): the map draws and collides these, not the
+## building models (art_source/buildings/<name>_panes.json). A pane is on this layer (9): it stops people until it's
+## broken, and nobody's shots (a shot passing through breaks it instead). Online, breaks are sent by pane number.
+const WINDOW_LAYER := 256
 ## Players and AI inside a bush get this meta (how many bushes they're in); they move slower while it's set.
 const BUSH_META := &"in_bush"
 ## Players and AI standing in water get this meta (how many water areas they're in); they move slower while it's set.
@@ -84,6 +88,8 @@ const WATER_ACROSS := 9
 ## Collision only, never drawn.
 ## The barred windows' boxes (BARS_LAYER): x, y, z, size x, y, z, yaw (degrees) each.
 @export var bar_boxes := PackedFloat32Array()
+## The glazed windows (WINDOW_LAYER): x, y, z, width, height, yaw (degrees) each; the pane faces along its yaw.
+@export var window_panes := PackedFloat32Array()
 @export var shaped_points := PackedVector3Array()
 @export var shaped_indices := PackedInt32Array()
 
@@ -193,6 +199,7 @@ func _ready() -> void:
 	add_child(collider)
 	_add_leaves()
 	_add_bars()
+	_add_windows()
 
 
 func _road_tool() -> SurfaceTool:
@@ -331,6 +338,118 @@ func _add_bars() -> void:
 			Vector3(bar_boxes[i], bar_boxes[i + 1], bar_boxes[i + 2]))
 		body.add_child(collider)
 	add_child(body)
+
+
+## Glazed windows (0.18.8): one body with a thin box per pane, and one mesh with all the panes still whole.
+const WINDOW_T := 0.04
+const WINDOW_MATERIAL := "res://assets/materials/glass.tres"
+const GLASS_SOUND := "res://audio/glass.wav"
+## A pane broke (its number in `window_panes`): the raid sends it to the other players.
+signal window_broken(pane: int)
+
+var _windows: StaticBody3D
+var _window_mesh: MeshInstance3D
+var _whole: Array[bool] = []
+
+
+func _add_windows() -> void:
+	if window_panes.is_empty():
+		return
+	_windows = StaticBody3D.new()
+	_windows.name = "Windows"
+	_windows.collision_layer = WINDOW_LAYER
+	_windows.collision_mask = 0
+	for i in panes():
+		_whole.append(true)
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(_pane_size(i).x, _pane_size(i).y, WINDOW_T)
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.transform = _pane_transform(i)
+		_windows.add_child(collider)
+	add_child(_windows)
+	if DisplayServer.get_name() == "headless":
+		return
+	_window_mesh = MeshInstance3D.new()
+	_window_mesh.name = "Panes"
+	add_child(_window_mesh)
+	_redraw_windows()
+
+
+func panes() -> int:
+	return window_panes.size() / 6
+
+
+func _pane_size(i: int) -> Vector2:
+	return Vector2(window_panes[i * 6 + 3], window_panes[i * 6 + 4])
+
+
+func _pane_transform(i: int) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, deg_to_rad(window_panes[i * 6 + 5])),
+		Vector3(window_panes[i * 6], window_panes[i * 6 + 1], window_panes[i * 6 + 2]))
+
+
+## Is pane `i` still whole?
+func pane_whole(i: int) -> bool:
+	return i >= 0 and i < _whole.size() and _whole[i]
+
+
+## Breaks pane `i` (a shot through it, or someone pushing into it). True if it was whole.
+func break_pane(i: int, quiet := false) -> bool:
+	if not pane_whole(i):
+		return false
+	_whole[i] = false
+	(_windows.get_child(i) as CollisionShape3D).disabled = true   # (one shape per child, in order)
+	_redraw_windows()
+	if not quiet and DisplayServer.get_name() != "headless":
+		Effects.sound_at(get_tree().current_scene, load(GLASS_SOUND), _pane_transform(i).origin, -4.0)
+	window_broken.emit(i)
+	return true
+
+
+## The panes still whole, as one mesh (rebuilt when one breaks: it happens a handful of times a raid).
+func _redraw_windows() -> void:
+	if _window_mesh == null:
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any := false
+	for i in panes():
+		if not _whole[i]:
+			continue
+		any = true
+		var xf := _pane_transform(i)
+		var size := _pane_size(i)
+		var corners := [Vector2(-0.5, -0.5), Vector2(0.5, -0.5), Vector2(0.5, 0.5), Vector2(-0.5, 0.5)]
+		st.set_normal(xf.basis.z)
+		for k in [0, 1, 2, 0, 2, 3]:
+			var c: Vector2 = corners[k]
+			st.set_uv(Vector2((c.x + 0.5) * size.x, (0.5 - c.y) * size.y))
+			st.add_vertex(xf * Vector3(c.x * size.x, c.y * size.y, 0.0))
+	st.set_material(load(WINDOW_MATERIAL))
+	_window_mesh.mesh = st.commit() if any else null
+
+
+## Breaks any pane on the way from `from` to `to` (a shot, or a vault): shots pass through, leaving it broken.
+## Returns the pane's number, or -1. `report`: tell the raid, so the other players' games break it too.
+static func break_window_along(node: Node3D, from: Vector3, to: Vector3, report := true) -> int:
+	var query := PhysicsRayQueryParameters3D.create(from, to, WINDOW_LAYER)
+	var hit := node.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return -1
+	return break_window_at(hit["collider"], hit["shape"], report)
+
+
+## Breaks the pane shape `shape_index` of a "Windows" body (from a ray or a slide collision).
+static func break_window_at(body: Object, shape_index: int, report := true) -> int:
+	var map := (body as Node).get_parent() as BoxMap if body is StaticBody3D else null
+	if map == null or shape_index < 0 or shape_index >= map.panes():
+		return -1
+	if not map.break_pane(shape_index):
+		return -1
+	if report:
+		Network.main.break_window(shape_index)
+	return shape_index
 
 
 ## In a bush (0.18.3): moves slower.

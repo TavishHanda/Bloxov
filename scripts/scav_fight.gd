@@ -764,6 +764,7 @@ func _fire_at_target(dist: float) -> void:
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 
+	BoxMap.break_window_along(self, from, end, false)   # (0.18.8: its shots break glass too, and pass through)
 	fired.emit(end)
 	net_fired(end)  # the tracer and sound still come from the gun
 

@@ -1863,6 +1863,20 @@ func _section_hideout() -> void:
 	money = Profile.money
 	hideout.sell(Profile.stash, _find_stack(Profile.stash.stacks, "gold_watch"))
 	_check(Profile.money == money + ItemDB.value("gold_watch") and Profile.stash.count_of("gold_watch") == 0, "sell a gold watch for full value")
+	# What a gun is, before you buy it (0.18.8, owner): hovering (or tapping) a stock row shows its details.
+	hideout.open_trader("guns")
+	var gun_row: Control = null
+	for row: Node in hideout._trader_rows.get_children():
+		var label := row.get_child(0) as Label if row.get_child_count() > 0 else null
+		if row is HBoxContainer and label != null and label.text == ItemDB.display_name("ak"):
+			gun_row = row
+	if gun_row != null:
+		gun_row.mouse_entered.emit()
+	_check(gun_row != null and gun_row.mouse_filter == Control.MOUSE_FILTER_STOP
+		and hideout.screen._info_label.text.contains(ItemDB.display_name("ak"))
+		and hideout.screen._info_detail.text.contains("damage") and hideout.screen._info_detail.text.contains("rpm")
+		and hideout.screen._info_desc.text == ItemDB.description("ak"),
+		"hovering a gun at the trader shows what it is before you buy it (%s)" % hideout.screen._info_detail.text)
 	money = Profile.money
 	hideout.buy("pistol", 1)
 	var bought_pistol := _find_stack(Profile.stash.stacks, "pistol")
@@ -3192,6 +3206,30 @@ func _section_old_bloxov() -> void:
 			not_found.append(String(c.name))
 	_check(props.size() >= 100 and not_found.is_empty(),
 		"%d searchable props roll loot and are found by a look (wrong: %s)" % [props.size(), not_found])
+	# Breakable windows (0.18.8, owner): the panes still glazed are the map's, not the models'; a shot through one
+	# breaks it and carries on, and a broken one no longer stops anyone.
+	var glass := world.raid.get_node("Level/Blocks") as BoxMap
+	var panes := glass.panes()
+	var pane_body := glass.get_node_or_null("Windows") as StaticBody3D
+	var pane_at := glass._pane_transform(0)
+	var ahead := pane_at.origin + pane_at.basis.z * 2.0
+	var panes_space: PhysicsDirectSpaceState3D = world.raid.get_world_3d().direct_space_state
+	var before: Dictionary = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(
+		ahead, pane_at.origin - pane_at.basis.z * 2.0, BoxMap.WINDOW_LAYER))
+	var broke := BoxMap.break_window_along(glass, ahead, pane_at.origin - pane_at.basis.z * 2.0, false)
+	var after: Dictionary = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(
+		ahead, pane_at.origin - pane_at.basis.z * 2.0, BoxMap.WINDOW_LAYER))
+	var shot_through: Dictionary = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(
+		ahead, pane_at.origin - pane_at.basis.z * 2.0, 1 | 4))
+	_check(panes >= 60 and pane_body != null and not before.is_empty() and broke == 0 and after.is_empty()
+		and not glass.pane_whole(0) and shot_through.is_empty() and glass.break_pane(0) == false,
+		"%d window panes: one breaks once, then lets you through; shots never stopped by glass" % panes)
+	# The server breaks a pane for the whole raid (online), and sends it on.
+	var broken_sent := []
+	world.window_broken.connect(func(pane: int) -> void: broken_sent.append(pane))
+	world.break_window(1)
+	world.break_window(1)
+	_check(broken_sent == [1] and not glass.pane_whole(1), "the server breaks a pane once and tells the raid (%s)" % [broken_sent])
 	# The ghost cloth over the bunker ramp (0.18.6, owner): it fades once someone goes through it.
 	var cloth := world.raid.find_child("GhostCloth", true, false) as GhostCloth
 	var walker := CharacterBody3D.new()

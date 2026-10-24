@@ -228,6 +228,26 @@ def sell():
     return thud + note(660, 0.07) + note(880, 0.16)
 
 
+def glass():
+    """A window pane going: a sharp crack, then shards tinkling down (bright clicks that thin out)."""
+    random.seed(900)
+    n = length(0.6)
+    nz = noise(n, 0.1)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        out.append(nz[i] * math.exp(-t * 55) * 0.9)
+    for k in range(22):
+        at = int(RATE * random.uniform(0.02, 0.5))
+        freq = random.uniform(2200, 5200)
+        amp = random.uniform(0.15, 0.5) * math.exp(-at / RATE * 3.0)
+        for i in range(length(0.05)):
+            if at + i >= n:
+                break
+            out[at + i] += math.sin(2 * math.pi * freq * i / RATE) * amp * math.exp(-i / RATE * 90)
+    return out
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     write("shot.wav", shot())
@@ -253,6 +273,7 @@ def main():
     write("bolt.wav", bolt())
     write("shell_in.wav", shell_in())
     write("sell.wav", sell())
+    write("glass.wav", glass())
 
 
 if __name__ == "__main__":
