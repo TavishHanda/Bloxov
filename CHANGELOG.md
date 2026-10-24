@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.7 (The waterfall end of the map)
+- **The waterfall room's roof and walls are fixed** (owner: "the model is messed up"): the knoll's skin boulders were
+  poking in through the room's ceiling and walls as big grey spikes. No skin or top boulder reaches into the room
+  now (it's thinned, then dropped), and the room's walls are drawn as plain slabs flush with their collision, so you
+  no longer stop short of a wall that looks further away.
+- **More rock at that end of the map** (owner: "that end of the map needs like some more rocks or smth to make it
+  look more natural"): six outcrops along the map's west edge north and south of the knoll, and three boulders out
+  from its foot, so the cliff reads as part of a rocky edge instead of one lump in the grass.
+
 ## 0.18.6 (The ghost cloth trips)
 - **The ghost cloth over the bunker ramp fades once someone goes through it** (owner): the first player or AI to walk
   in trips it and it's gone for the rest of the raid, so the next one in sees the ramp (and that someone's down

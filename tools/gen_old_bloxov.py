@@ -3972,10 +3972,25 @@ def stream_line(ter):
     return out
 
 
+# (0.18.7, owner: "that end of the map needs like some more rocks or smth to make it look more natural"): the knoll
+# stood alone on the edge; a broken line of outcrops runs along the map edge north (past the railway) and south of it,
+# and a few boulders lie out from its foot. (map x, z, yaw)
+EDGE_OUTCROPS = ((2.4, 199.0, 0.0), (2.0, 190.0, 8.0), (3.2, 181.0, -5.0), (2.4, 237.0, 0.0), (2.0, 246.0, -8.0),
+                 (2.8, 255.0, 5.0))
+EDGE_BOULDERS = ((9.5, 214.5), (10.5, 231.5), (6.5, 241.0))
+
+
 def waterfall():
     clear_scatter((0.0, CAVE_Z[0] - 3.0, CAVE_FACE + 4.0, CAVE_Z[1] + 3.0))
     with anchored(("cave",)):
         cave_room(CAVE_FACE, sum(CAVE_Z) / 2)
+    rng = random.Random("edge rocks")
+    for x, z, yaw in EDGE_OUTCROPS:
+        clear_scatter((x - 4.0, z - 4.5, x + 4.0, z + 4.5))
+        outcrop(x, z, rng, yaw=90.0 + yaw)
+    for x, z in EDGE_BOULDERS:
+        clear_scatter((x - 3.0, z - 3.0, x + 3.0, z + 3.0))
+        rock(x, z, rng)
 
 
 

@@ -2663,7 +2663,11 @@ def draw_cave(b, piece, rng):
             b.box(c, s, style=lambda n, m, q: slab(n, m, q) if n[1] > 0.7 else None)
         elif k == 7:
             b.box(c, s, style=lambda n, m, q: slab(n, m, q) if n[1] < -0.7 else None)
-        elif k <= 8:
+        elif k <= 6:
+            # the room's walls: plain boxes, flush with their collision (0.18.7: even a little jitter left the drawn
+            # wall inside the collision in places, so you stopped short of it)
+            b.box(c, s, style=slab)
+        elif k == 8:
             rock(b, c, s, yaw, rng, "dbr_granite", jitter=0.02, chamfer=0.06, taper=1.0)
         elif box["colour"] == "stone":
             rock(b, c, (s[0] * 1.05, s[1], s[2] * 1.05), yaw, rng, "dbr_mossrock", jitter=0.12, chamfer=0.4)
@@ -2688,6 +2692,23 @@ def draw_cave(b, piece, rng):
     lintel = bx[3]   # (the doorway: under it, through the face)
     door = [lintel["pos"][k] - lintel["size"][k] / 2 - 0.9 for k in (0, 2)] + \
         [lintel["pos"][k] + lintel["size"][k] / 2 + 0.9 for k in (0, 2)] + [lintel["pos"][1] - lintel["size"][1] / 2]
+
+    # the room inside (0.18.7, owner: the waterfall room's roof was messed up: skin boulders poked in through its
+    # walls and roof): no boulder of the skin or the top may reach into it
+    room = (bx[6]["pos"][0] + bx[6]["size"][0] / 2, bx[4]["pos"][2] + bx[4]["size"][2] / 2,
+            bx[1]["pos"][0] - bx[1]["size"][0] / 2, bx[5]["pos"][2] - bx[5]["size"][2] / 2,
+            bx[7]["pos"][1] - bx[7]["size"][1] / 2)
+
+    def pokes_in(c, size, yaw, jitter):
+        if c[1] - size[1] / 2 > room[4] + 0.15:
+            return False
+        grow = 1.0 + 2.0 * jitter
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                q = v_add(rot((sx * size[0] / 2 * grow, 0.0, sz * size[2] / 2 * grow), yaw, 0.0), c)
+                if room[0] - 0.1 < q[0] < room[2] + 0.1 and room[1] - 0.1 < q[2] < room[3] + 0.1:
+                    return True
+        return False
 
     def top_at(x, z):   # the collision's height there
         return max([w["pos"][1] + w["size"][1] / 2 for w in walls
@@ -2715,8 +2736,13 @@ def draw_cave(b, piece, rng):
                 # up to 0.9 m, which breaks up the cliff's outline into ledges and overhangs)
                 out = rng.uniform(-0.2, 0.0) if y < floor + 2.0 else rng.uniform(0.0, 0.6)
                 yaw = math.degrees(math.atan2(nx, nz)) + rng.uniform(-28, 28)
-                rock(b, (px + nx * (out - d / 2 + 0.3), y + th / 2, pz + nz * (out - d / 2 + 0.3)), (w, th + 0.25, d),
-                     yaw, rng, rng.choice(mats), jitter=0.16, chamfer=0.34, taper=0.8)
+                mat = rng.choice(mats)
+                for _ in range(5):   # (thinner, and if that's not enough, smaller, till it's clear of the room)
+                    at = (px + nx * (out - d / 2 + 0.3), y + th / 2, pz + nz * (out - d / 2 + 0.3))
+                    if not pokes_in(at, (w, th + 0.25, d), yaw, 0.16):
+                        rock(b, at, (w, th + 0.25, d), yaw, rng, mat, jitter=0.16, chamfer=0.34, taper=0.8)
+                        break
+                    d, w = d * 0.7, w * 0.85
                 y += th * rng.uniform(0.75, 0.9)
     # a broken top: a few slabs and boulders over the roof, higher at the cliff, stepping down to the hill
     for i in range(7):
@@ -2724,8 +2750,9 @@ def draw_cave(b, piece, rng):
         tz = z0 + 0.8 + (z1 - z0 - 1.6) * rng.random()
         top = top_at(tx, tz)
         w = rng.uniform(1.8, 3.0)
-        rock(b, (tx, top + 0.1, tz), (w, rng.uniform(0.5, 0.9), w * rng.uniform(0.7, 1.1)), rng.uniform(0, 180), rng,
-             rng.choice(mats), jitter=0.12, chamfer=0.35, taper=0.8)
+        size, yaw, mat = (w, rng.uniform(0.5, 0.9), w * rng.uniform(0.7, 1.1)), rng.uniform(0, 180), rng.choice(mats)
+        if not pokes_in((tx, top + 0.1, tz), size, yaw, 0.12):
+            rock(b, (tx, top + 0.1, tz), size, yaw, rng, mat, jitter=0.12, chamfer=0.35, taper=0.8)
 
 
 
