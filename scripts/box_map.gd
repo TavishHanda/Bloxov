@@ -95,6 +95,10 @@ const WATER_ACROSS := 9
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
+## Where the shaped triangles sit in `collision_faces` (corner numbers): they're wound the other way round from the
+## boxes' and the ground's, so their outsides are worked out the other way (inside_solid).
+var _shaped_from := 0
+var _shaped_to := 0
 
 
 func _ready() -> void:
@@ -154,8 +158,10 @@ func _ready() -> void:
 					tool.add_vertex(p)
 			if solid:
 				faces.append_array([a, b, c])
+	_shaped_from = faces.size()
 	for index in shaped_indices:
 		faces.append(shaped_points[index])
+	_shaped_to = faces.size()
 	var ground := _terrain_arrays()
 	if not ground.is_empty():
 		var points: PackedVector3Array = ground[Mesh.ARRAY_VERTEX]
@@ -315,6 +321,80 @@ static func above_ground(node: Node3D, pos: Vector3, margin := 0.3) -> Vector3:
 		if not hit.is_empty() and hit.collider == ground and absf((hit.position as Vector3).y - h) < 0.05:
 			return Vector3(pos.x, h + 0.1, pos.z)
 	return pos
+
+
+## Inside something solid (0.19.4, owner: a friend vaulted into a dirt bank and was stuck in it). Map collision is
+## a shell of triangles, solid from both sides, so a body that ends up inside it can't get out. Inside = the first
+## map surface straight above `point` faces up (it's seen from behind). Needs the project's Jolt ray face index.
+static func inside_solid(body: CollisionObject3D, point: Vector3) -> bool:
+	var hit := body.get_world_3d().direct_space_state.intersect_ray(
+		PhysicsRayQueryParameters3D.create(point, point + Vector3.UP * 30.0, 1, [body.get_rid()]))
+	return not hit.is_empty() and hit_from_behind(hit, Vector3.UP)
+
+
+## A body standing at `feet` is stuck inside the map's collision (0.19.4): inside something (inside_solid) and either
+## caught in its skin or walled in by it all round. (Just inside_solid isn't enough: crouched under an overhang that's
+## open to one side, the overhang is seen from behind too, but you can walk out.)
+static func stuck_inside(body: CollisionObject3D, feet: Vector3, radius: float, height: float) -> bool:
+	var chest := feet + Vector3.UP * 0.3
+	if not inside_solid(body, chest):
+		return false
+	var space := body.get_world_3d().direct_space_state
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = maxf(radius - 0.08, 0.1)
+	capsule.height = maxf(height - 0.2, capsule.radius * 2.0)
+	var overlap := PhysicsShapeQueryParameters3D.new()
+	overlap.shape = capsule
+	overlap.collision_mask = 1
+	overlap.exclude = [body.get_rid()]
+	overlap.transform = Transform3D(Basis(), feet + Vector3.UP * (height * 0.5 + 0.05))
+	if not space.intersect_shape(overlap, 1).is_empty():
+		return true
+	for k in 4:
+		var way := Vector3(cos(TAU * k / 4.0), 0.0, sin(TAU * k / 4.0))
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(chest, chest + way * 8.0, 1, [body.get_rid()]))
+		if hit.is_empty() or not hit_from_behind(hit, way):
+			return false
+	return true
+
+
+## True if a ray going `direction` that made `hit` struck a map surface from behind: it started inside something.
+static func hit_from_behind(hit: Dictionary, direction: Vector3) -> bool:
+	var map := hit.get("collider") as BoxMap
+	var face: int = hit.get("face_index", -1)
+	if map == null or face < 0 or face * 3 + 2 >= map.collision_faces.size():
+		return false
+	var a := map.collision_faces[face * 3]
+	var outside := (map.collision_faces[face * 3 + 2] - a).cross(map.collision_faces[face * 3 + 1] - a)
+	if face * 3 >= map._shaped_from and face * 3 < map._shaped_to:
+		outside = -outside
+	return (map.global_basis * outside).dot(direction) > 0.0
+
+
+## The nearest place to stand near `feet` (on a walkable top, with room for a body `radius` wide and `height` tall,
+## and not inside anything), for getting a stuck body out; `feet` itself if there's none within 5 m.
+static func free_spot(body: CollisionObject3D, feet: Vector3, radius: float, height: float) -> Vector3:
+	var space := body.get_world_3d().direct_space_state
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = radius
+	capsule.height = height
+	var fit := PhysicsShapeQueryParameters3D.new()
+	fit.shape = capsule
+	fit.collision_mask = 1 | 2 | 4 | BARS_LAYER
+	fit.exclude = [body.get_rid()]
+	for ring: float in [0.0, 0.6, 1.2, 2.0, 3.0, 4.0, 5.0]:
+		var sides := 1 if ring == 0.0 else 16
+		for k in sides:
+			var at := feet + Vector3(cos(TAU * k / sides), 0.0, sin(TAU * k / sides)) * ring
+			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 6.0, at + Vector3.DOWN * 3.0, 1,
+				[body.get_rid()]))
+			if hit.is_empty() or (hit.normal as Vector3).y < 0.7 or hit_from_behind(hit, Vector3.DOWN):
+				continue
+			var spot: Vector3 = hit.position + Vector3.UP * 0.05
+			fit.transform = Transform3D(Basis(), spot + Vector3.UP * (height * 0.5 + 0.05))
+			if space.intersect_shape(fit, 1).is_empty() and not inside_solid(body, spot + Vector3.UP * 0.3):
+				return spot
+	return feet
 
 
 ## True while `body` stands in water.

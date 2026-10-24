@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.7 (Stuck in the dirt fix)
+- **Fixed: vaulting into a dirt bank got you stuck inside it** (owner's playtest: his friend jumped at a bank by the
+  south woods and ended up inside). Map collision is a skin of triangles that stops you from both sides, and from
+  inside a bank or rock that skin looked like a top to land on, so the vault planner sent you into it. Vaults and
+  the step-up now ignore surfaces seen from behind (at that bank, 160 of 181 possible vaults used to end inside it;
+  now none do). Banks are slopes you walk up; you can still vault and climb rocks, walls and cover as before.
+- **Safeguard: stuck inside something? You're put back out.** Twice a second the player checks whether they're
+  inside the map's collision (a rock, a bank, a wall), caught in its skin or walled in by it. Two checks in a row
+  and you're moved to the nearest free spot (on top of it, or beside it, within 5 m). Crouching under an overhang
+  that's open to one side doesn't count. (`BoxMap.stuck_inside` / `free_spot`.)
+- Needs Jolt's ray face index (`physics/jolt_physics_3d/queries/enable_ray_cast_face_index` in project.godot): it
+  tells which way the triangle a ray hit faces.
+- Smoke test: the `old_bloxov` section vaults at that bank from every side; a new `stuck` section buries the player
+  in a lump and checks they get out.
+
 ## 0.19.6 (Inventory glow)
 - **New inventory and stash look** (owner: the old one looked a bit plain; picked look B, "Glow", from three options
   drawn on the real screen; the layout stays as it was). Items are dark tiles with their rarity colour rising from

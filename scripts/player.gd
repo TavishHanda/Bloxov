@@ -67,6 +67,8 @@ var _meds_held := -1.0
 var _meds_next_switch := 0.0
 var _meds_switched := false
 var _ground_check_left := 0.0
+## How many ground checks in a row found the player inside something solid (0.19.4).
+var _stuck_checks := 0
 var _jump_cooldown_left := 0.0
 ## Jump pressed a moment before landing still jumps; walking off an edge you can still jump a moment after (0.18.3).
 var _jump_buffer_left := 0.0
@@ -472,6 +474,7 @@ func _physics_process(delta: float) -> void:
 			global_position = lifted
 			velocity = Vector3.ZERO
 			_fall_speed = 0.0
+		_free_if_stuck()
 
 
 ## Walking into a low ledge (a kerb, a lump of rubble, a step up onto a slab: up to STEP_HEIGHT) steps up onto it
@@ -487,6 +490,23 @@ func _break_glass() -> void:
 			BoxMap.break_window_at(body, hit.get_collider_shape_index(), true)
 
 
+## Inside a rock, a bank or a wall for two checks running (0.19.4): put back out on the nearest free spot.
+func _free_if_stuck() -> void:
+	var capsule := body_shape.shape as CapsuleShape3D
+	if is_vaulting() or _climbing != null or not BoxMap.stuck_inside(self, global_position, capsule.radius, capsule.height):
+		_stuck_checks = 0
+		return
+	_stuck_checks += 1
+	if _stuck_checks < 2:
+		return
+	_stuck_checks = 0
+	var spot := BoxMap.free_spot(self, global_position, capsule.radius, capsule.height)
+	if spot != global_position:
+		global_position = spot
+		velocity = Vector3.ZERO
+		_fall_speed = 0.0
+
+
 func _step_up(horizontal: Vector3, delta: float) -> void:
 	if not _was_on_floor or not is_on_wall() or horizontal.length() < 0.5 or is_prone:
 		return
@@ -495,7 +515,8 @@ func _step_up(horizontal: Vector3, delta: float) -> void:
 	var probe := feet + horizontal.normalized() * (radius + 0.12)
 	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(
 		probe + Vector3.UP * (STEP_HEIGHT + 0.05), probe + Vector3.UP * 0.02, 1, [get_rid()]))
-	if hit.is_empty() or hit["normal"].y < 0.7:
+	# (0.19.4: from inside a bank, its skin looked like a step to stand on)
+	if hit.is_empty() or hit["normal"].y < 0.7 or BoxMap.hit_from_behind(hit, Vector3.DOWN):
 		return
 	var rise: float = hit["position"].y - feet.y + 0.02
 	if rise > STEP_HEIGHT + 0.02 or test_move(global_transform, Vector3.UP * rise):

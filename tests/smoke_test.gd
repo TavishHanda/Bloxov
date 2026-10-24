@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 ]
@@ -454,6 +454,29 @@ func _section_stealth() -> void:
 	await create_timer(player.stamina_regen_delay + 2.0).timeout
 	_check(player.stamina > 20.0, "stamina regenerates (%.0f)" % player.stamina)
 	player.noise_made.disconnect(on_noise)
+
+
+## Stuck inside something (0.19.4, owner: a friend vaulted into a dirt bank and couldn't get out): map collision is
+## solid from both sides, so the player checks twice a second and is put on the nearest free spot.
+func _section_stuck() -> void:
+	var spot := START_SPOT + Vector3(6, 0, 6)
+	var floor_hit := player.get_world_3d().direct_space_state.intersect_ray(
+		PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 20.0, spot + Vector3.DOWN * 20.0, 1, [player.get_rid()]))
+	var inside := Vector3(spot.x, floor_hit.position.y + 0.05, spot.z)
+	var lump := BoxMap.new()
+	lump.colors = PackedColorArray([Color.GRAY])
+	lump.boxes = PackedFloat32Array([spot.x, inside.y + 1.0, spot.z, 4, 2, 4, 0, 0, 0, 1])
+	main.add_child(lump)
+	await physics_frame
+	await physics_frame
+	_check(BoxMap.inside_solid(player, inside + Vector3.UP * 0.3) and not BoxMap.inside_solid(player, inside + Vector3(5, 0.3, 0)),
+		"a spot inside a lump counts as inside it, one beside it doesn't")
+	player.teleport_to(inside)
+	await create_timer(1.6).timeout
+	var at := player.global_position
+	_check(not BoxMap.inside_solid(player, at + Vector3.UP * 0.3) and at.distance_to(inside) < 4.0 and at.y > inside.y + 1.9,
+		"a player stuck inside it is put on a free spot nearby (on top: %s)" % at)
+	lump.queue_free()
 
 
 func _section_jump() -> void:
@@ -3354,6 +3377,38 @@ func _section_old_bloxov() -> void:
 	_check(blocks.shaped_indices.size() > 3000 and blocks.bar_boxes.size() >= 7 * 10 and solid_bushes == 0,
 		"the map collides as drawn (%d shaped triangles, %d barred windows, %d solid bushes)"
 		% [blocks.shaped_indices.size() / 3, blocks.bar_boxes.size() / 7, solid_bushes])
+	# 0.19.4 (owner: a friend vaulted into a dirt bank and was stuck inside it): no vault ends inside a bank, from any
+	# side of the one he was at, and someone inside one is found and has a free spot to be put on.
+	var vaulter := CharacterBody3D.new()
+	vaulter.collision_layer = 2
+	world.raid.add_child(vaulter)
+	await physics_frame
+	var bank := Vector3(-18.95, 0.0, 83.62)
+	var bank_space := vaulter.get_world_3d().direct_space_state
+	var vaults := 0
+	var into := 0
+	for gx in range(-14, 15):
+		for gz in range(-14, 15):
+			var at := bank + Vector3(gx, 0.0, gz) * 0.5
+			var ground_hit := bank_space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 40.0, at + Vector3.DOWN * 40.0, 1))
+			if ground_hit.is_empty() or BoxMap.inside_solid(vaulter, ground_hit.position + Vector3.UP * 0.3):
+				continue
+			vaulter.global_position = ground_hit.position
+			for k in 8:
+				var move := Vault.plan(vaulter, Vector3(cos(TAU * k / 8.0), 0.0, sin(TAU * k / 8.0)), 0.4, 1.8, 1.2, 0.7)
+				if move.is_empty():
+					continue
+				vaults += 1
+				var path: PackedVector3Array = move["path"]
+				if [0.7, 0.85, 1.0].any(func(t: float) -> bool: return BoxMap.inside_solid(vaulter, Vault.position_at(path, t) + Vector3.UP * 0.6)):
+					into += 1
+	var bank_top := bank_space.intersect_ray(PhysicsRayQueryParameters3D.create(bank + Vector3.UP * 40.0, bank, 1))
+	var buried: Vector3 = bank_top.position + Vector3.DOWN * 0.5
+	var freed := BoxMap.free_spot(vaulter, buried, 0.4, 1.8)
+	_check(into == 0 and BoxMap.inside_solid(vaulter, buried) and freed != buried
+		and not BoxMap.inside_solid(vaulter, freed + Vector3.UP * 0.3),
+		"no vault ends inside the dirt bank (%d vaults, %d inside); someone inside it gets a free spot" % [vaults, into])
+	vaulter.queue_free()
 	var heights := blocks.terrain_heights
 	var lowest := INF
 	var highest := -INF

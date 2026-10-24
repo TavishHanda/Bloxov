@@ -126,6 +126,8 @@ static func _finish(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, f
 			return {}
 		var on_top := wall + into * (radius + 0.15)
 		end = Vector3(on_top.x, top.y + 0.02, on_top.z)
+	if BoxMap.inside_solid(body, end + Vector3.UP * 0.3):
+		return {}
 	var crouch_after := false
 	if not _fits(body, end, radius, stand_height):
 		if not _fits(body, end, radius, crouch_height):
@@ -148,7 +150,12 @@ static func position_at(path: PackedVector3Array, t: float) -> Vector3:
 
 
 static func _ray(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
-	return space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [body.get_rid()]))
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [body.get_rid()]))
+	# (0.19.4, owner: vaulting into a dirt bank got you stuck in it: from inside, the bank's skin looked like a top
+	# to land on. Map collision is solid from both sides, so only its outsides count here.)
+	if not hit.is_empty() and BoxMap.hit_from_behind(hit, (to - from).normalized()):
+		return {}
+	return hit
 
 
 ## The walkable top straight down at `at` between heights `from_y` and `to_y` (null = none).
