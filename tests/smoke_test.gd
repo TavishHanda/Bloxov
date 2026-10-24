@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -5294,3 +5294,22 @@ func _section_lost_close() -> void:
 	wall.queue_free()
 	await physics_frame
 
+
+## Look update (0.19): the raid wears the current look, and every saved look (the classic one included, the owner
+## asked to keep it) loads with what a raid needs.
+func _section_look() -> void:
+	var current := load(Look.current) as Look
+	var world := main.get_node("WorldEnvironment") as WorldEnvironment
+	var sun := main.get_node("Sun") as DirectionalLight3D
+	_check(current != null and world.environment == current.environment and is_equal_approx(sun.light_energy,
+		current.sun_energy), "the raid uses the current look (%s)" % Look.current)
+	var classic := load(Look.CLASSIC) as Look
+	_check(classic != null and is_equal_approx(classic.sun_energy, 1.4) and classic.environment.sky != null,
+		"the classic look is still there to put back")
+	var bad := []
+	for dir in ["res://assets/looks/", "res://assets/looks/options/"]:
+		for file in DirAccess.get_files_at(dir):
+			var path: String = dir + file.trim_suffix(".remap")
+			if path.ends_with(".tres") and not (load(path) is Look and (load(path) as Look).environment != null):
+				bad.append(path)
+	_check(bad.is_empty(), "every saved look loads %s" % str(bad))

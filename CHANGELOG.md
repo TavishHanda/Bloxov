@@ -5,7 +5,15 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
+
+## 0.19.0 (Look update starts: the current look is saved)
+- **The Look update starts** (0.19: the final lighting, graphics settings, loading screen). First step, as the owner
+  asked: **today's look is saved** as `assets/looks/classic.tres` (sky, ambient light, colour grading, sun, cloud
+  colour), so it can always be put back. A raid now takes its lighting from a look file (`scripts/look.gd`,
+  `Look.current`), so switching looks is one line. Nothing looks different yet.
+- Four new lighting options to pick from (`assets/looks/options/`: overcast, late afternoon, muted midday, smoke
+  haze), rendered on the real map. `tools/render_views.gd -- look=<file>` renders any look.
 
 ## 0.18.12 (half the draw calls)
 - **About half the draw calls on Bloxov Battlegrounds** (owner: "the whole game just feels kinda laggy"), measured

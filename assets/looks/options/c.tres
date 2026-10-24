@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="Look" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/look.gd" id="1_1nlvu"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_c2ifk"]
+sky_top_color = Color(0.36, 0.48, 0.66, 1)
+sky_horizon_color = Color(0.86, 0.76, 0.62, 1)
+ground_bottom_color = Color(0.3, 0.29, 0.27, 1)
+ground_horizon_color = Color(0.86, 0.76, 0.62, 1)
+
+[sub_resource type="Sky" id="Sky_767h0"]
+sky_material = SubResource("ProceduralSkyMaterial_c2ifk")
+
+[sub_resource type="Environment" id="Environment_qxm6c"]
+background_mode = 2
+sky = SubResource("Sky_767h0")
+ambient_light_source = 2
+ambient_light_color = Color(0.58, 0.62, 0.72, 1)
+ambient_light_energy = 0.9
+tonemap_mode = 3
+tonemap_white = 6.0
+fog_enabled = true
+fog_light_color = Color(0.8, 0.7, 0.56, 1)
+fog_sun_scatter = 0.25
+fog_density = 0.0007
+fog_sky_affect = 0.2
+adjustment_enabled = true
+adjustment_contrast = 1.1
+adjustment_saturation = 0.8
+
+[resource]
+script = ExtResource("1_1nlvu")
+title = "Late afternoon"
+environment = SubResource("Environment_qxm6c")
+sun_transform = Transform3D(0.9961947, -0.035449352, 0.079620555, 0, 0.9135454, 0.40673664, -0.08715554, -0.4051889, 0.91006917, 0, 20, 0)
+sun_color = Color(1, 0.8, 0.6, 1)
+sun_energy = 1.55
+cloud_color = Color(1, 0.9, 0.8, 1)

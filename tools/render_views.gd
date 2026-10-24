@@ -1,6 +1,7 @@
 extends SceneTree
 # Renders a few views of Bloxov Battlegrounds with the raid lighting, for checking art and lighting changes.
 # xvfb-run -a godot --rendering-driver opengl3 -s tools/render_views.gd -- out=/tmp/shot  (writes /tmp/shot-<view>.png)
+# look=res://assets/looks/<name>.tres renders with that look instead of the current one (Look update).
 var views := [
 	["town", Vector3(-55, 15, -45), Vector3(-90, 2, -100)],
 	["street", Vector3(-115, 1.7, -82), Vector3(-85, 2, -100)],
@@ -12,8 +13,9 @@ func _initialize() -> void:
 	var out := "/tmp/shot"
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="): out = a.substr(4)
+		if a.begins_with("look="): Look.current = a.substr(5)
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
-	var keep := ["WorldEnvironment", "Sun", "Level", "Loot"]
+	var keep := ["WorldEnvironment", "Sun", "Clouds", "Level", "Loot"]
 	for c in main.get_children():
 		if not c.name in keep:
 			main.remove_child(c); c.free()

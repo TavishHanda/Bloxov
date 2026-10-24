@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="Look" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/look.gd" id="1_x5m4k"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_nit8o"]
+sky_top_color = Color(0.48, 0.54, 0.62, 1)
+sky_horizon_color = Color(0.72, 0.73, 0.73, 1)
+ground_bottom_color = Color(0.3, 0.29, 0.27, 1)
+ground_horizon_color = Color(0.72, 0.73, 0.73, 1)
+
+[sub_resource type="Sky" id="Sky_mtf4k"]
+sky_material = SubResource("ProceduralSkyMaterial_nit8o")
+
+[sub_resource type="Environment" id="Environment_r5mwu"]
+background_mode = 2
+sky = SubResource("Sky_mtf4k")
+ambient_light_source = 2
+ambient_light_color = Color(0.66, 0.68, 0.7, 1)
+ambient_light_energy = 0.85
+tonemap_mode = 3
+tonemap_white = 6.0
+fog_enabled = true
+fog_light_color = Color(0.68, 0.7, 0.71, 1)
+fog_density = 0.0009
+fog_sky_affect = 0.35
+adjustment_enabled = true
+adjustment_contrast = 1.12
+adjustment_saturation = 0.76
+
+[resource]
+script = ExtResource("1_x5m4k")
+title = "Overcast front"
+environment = SubResource("Environment_r5mwu")
+sun_transform = Transform3D(0.8660255, -0.3830221, 0.32139373, 0, 0.64278764, 0.76604444, -0.49999985, -0.663414, 0.5566705, 0, 20, 0)
+sun_color = Color(0.95, 0.94, 0.9, 1)
+sun_energy = 0.85
+cloud_color = Color(0.78, 0.79, 0.8, 1)

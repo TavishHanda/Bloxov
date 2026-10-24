@@ -11,6 +11,8 @@ extends Node3D
 ## Wind (meters a second along x).
 @export var drift := 0.6
 @export var seed_value := 7
+## Set by the raid's look (`Look.cloud_color`).
+@export var color := Color(0.97, 0.98, 1.0)
 
 var _mesh_instance: MultiMeshInstance3D
 
@@ -46,7 +48,7 @@ func _ready() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3(cube, cube * 0.6, cube)
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.97, 0.98, 1.0)
+	material.albedo_color = color
 	material.roughness = 1.0
 	material.disable_receive_shadows = true
 	box.material = material
