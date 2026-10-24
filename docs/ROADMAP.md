@@ -4,7 +4,7 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are (2026-10-12):** 0.16.14. Done: Map & Spawn (0.10), Scorched Earth (0.11), Scavs 2.0 (0.12), Movement
+**Where we are (2026-10-24):** 0.18.12: World art merged (0.18.0) plus the owner's fix list and two draw-call passes; Look is next. (Older note, 2026-10-12: 0.16.14.) Done: Map & Spawn (0.10), Scorched Earth (0.11), Scavs 2.0 (0.12), Movement
 (0.13), Items (0.14), Guns (0.15, mechanics only; gun models wait for the art updates) and Economy (0.16, closed at
 0.16.14; trader names and the owner's playtest of prices and quests still open). M1-M3 are done (co-op + PvP is live).
 Next: the M4 art updates (World art, Look, Sound), below.
@@ -54,6 +54,10 @@ Next: the M4 art updates (World art, Look, Sound), below.
       with a couple of safes. Build it in this map pass (count its safes in the economy re-run).
    2. **Look:** the final **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
       real models and ground textures, within what the web build supports), plus the loading screen.
+      **Graphics settings (owner, 2026-10-24, after the 0.18.11-0.18.12 draw-call passes):** a low/high (or
+      low/medium/high) setting: shadows on/off and distance, far-view distances, grass/bush density, render scale.
+      The next biggest cost after draw calls is triangles (~1.8M on screen in a busy view, `tools/perf_view.gd`).
+      Matters most for phones and weak laptops. Settings change looks only, never what you can see through.
    3. **Sound (owner, 2026-10-10):** only ADDING new sounds (owner, 2026-10-11: keep today's sounds,
       at most small tweaks, never replace them): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
       (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come
