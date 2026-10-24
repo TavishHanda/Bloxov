@@ -1941,8 +1941,8 @@ func _section_hideout() -> void:
 		"sorting the stash keeps everything, merges part stacks and puts guns and gear first (%s)" % (first.id if first != null else "-"))
 	# START RAID (0.18.10, owner: the game froze on the press): a loading plate goes up before the raid loads.
 	hideout._show_loading()   # (what start_raid() puts up before it loads the raid scene)
-	_check(hideout._loading != null and hideout._loading.visible and hideout._loading.get_child(0) is Label,
-		"START RAID puts a loading plate up before the raid loads")
+	_check(hideout._loading is LoadingScreen and hideout._loading.visible and hideout._loading.get_child(0) is TextureRect,
+		"START RAID puts the loading screen up before the raid loads")
 	_check(not hideout.can_take_free_kit(), "no free kit while you carry anything")
 	# (0.15.28, owner) Only with a completely empty loadout: nothing equipped, nothing in any pocket.
 	for loadout_grid in hideout_inv.grids():
@@ -5325,3 +5325,12 @@ func _section_look() -> void:
 			if path.ends_with(".tres") and not (load(path) is Look and (load(path) as Look).environment != null):
 				bad.append(path)
 	_check(bad.is_empty(), "every saved look loads %s" % str(bad))
+	# The loading screen (0.19.3): the map's picture, its name and a tip.
+	var screen := LoadingScreen.make()
+	root.add_child(screen)
+	await _frames(1)
+	var words := screen.find_children("*", "Label", true, false).map(func(l: Label) -> String: return l.text)
+	_check(load(LoadingScreen.PICTURE) is Texture2D and LoadingScreen.tip in LoadingScreen.TIPS and
+		("TIP: " + LoadingScreen.tip) in words and LoadingScreen.MAP_NAME.to_upper() in words,
+		"the loading screen shows the map, its name and a tip")
+	screen.queue_free()

@@ -20,6 +20,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_SCENE_INSTANTIATED:
 		Look.apply(self)
 		load_map(self, scene_path)
+		LoadingScreen.cover(self)
 
 
 ## Swaps the test map in `raid` for the map scene at `path`. A map's `spawner` metadata (a Dictionary of

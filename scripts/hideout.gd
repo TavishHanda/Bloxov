@@ -14,7 +14,7 @@ var screen: LootUI
 var _money_label: Label
 var _version_label: Label
 ## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
-var _loading: ColorRect
+var _loading: Control
 var _warming: Thread
 var _stats_label: Label
 ## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
@@ -368,22 +368,12 @@ func start_raid() -> void:
 	get_tree().change_scene_to_file(RAID_SCENE)
 
 
-## A full-screen plate over everything while the raid loads.
+## The loading screen (LoadingScreen, 0.19.3) over everything while the raid loads.
 func _show_loading() -> void:
 	if _loading != null:
 		return
-	_loading = ColorRect.new()
-	_loading.color = Color(0.07, 0.08, 0.09, 0.96)
-	_loading.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_loading.mouse_filter = Control.MOUSE_FILTER_STOP
+	_loading = LoadingScreen.make()
 	add_child(_loading)
-	var label := Label.new()
-	label.text = "ENTERING THE RAID"
-	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	HudStyle.style_label(label, 40, HudStyle.BRASS)
-	_loading.add_child(label)
 
 
 ## Warms the raid's map in the background while you're in the hideout, so START RAID has less to load. Only where
