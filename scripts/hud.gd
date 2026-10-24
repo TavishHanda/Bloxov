@@ -75,10 +75,12 @@ func _ready() -> void:
 	damage_numbers_toggle.toggled.connect(GameSettings.set_damage_numbers)
 	lean_toggle.button_pressed = GameSettings.lean_toggle
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
+	_build_graphics_row()
 	# On press, not release: resumes the moment you click.
 	play_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	play_button.pressed.connect(_capture_mouse)
 	PauseMenuStyle.apply(menu)
+	_show_graphics()
 	_build_leave()
 	quest_tracker = QuestTracker.new()
 	add_child(quest_tracker)
@@ -242,6 +244,50 @@ func _process(delta: float) -> void:
 
 
 ## Big buttons (touch-friendly). The confirm's LEAVE is red and never has focus, so a stray Enter/Space can't press it.
+## Graphics: LOW / MEDIUM / HIGH as three big buttons under mouse sens. (Look update 0.19; buttons, not a drop-down,
+## so it's easy on a touch screen).
+func _build_graphics_row() -> void:
+	var box := menu.get_node("Margin/VBox")
+	var row := HBoxContainer.new()
+	row.name = "GraphicsRow"
+	row.add_theme_constant_override("separation", 12)
+	var title := Label.new()
+	title.name = "Label"
+	title.text = "Graphics"
+	title.custom_minimum_size = Vector2(130, 0)
+	row.add_child(title)
+	var buttons := HBoxContainer.new()
+	buttons.name = "Buttons"
+	buttons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buttons.add_theme_constant_override("separation", 8)
+	row.add_child(buttons)
+	box.add_child(row)
+	box.move_child(row, box.get_node("SensitivityRow").get_index() + 1)
+
+
+## (Re)makes the graphics buttons, the current setting in hazard yellow.
+func _show_graphics() -> void:
+	var row := menu.get_node("Margin/VBox/GraphicsRow")
+	var title: Label = row.get_node("Label")
+	HudStyle.style_label(title, 20, HudStyle.INK_DIM)
+	title.add_theme_font_override("font", HudStyle.spaced_font(20))
+	var buttons := row.get_node("Buttons")
+	for old in buttons.get_children():
+		buttons.remove_child(old)
+		old.queue_free()
+	for quality in GameSettings.GRAPHICS_NAMES.size():
+		var button := Button.new()
+		button.name = GameSettings.GRAPHICS_NAMES[quality]
+		button.text = GameSettings.GRAPHICS_NAMES[quality].to_upper()
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(0, 40)
+		LootUI.style_button(button, 20, HudStyle.HAZARD if quality == GameSettings.graphics else HudStyle.FACE)
+		button.pressed.connect(func() -> void:
+			GameSettings.set_graphics(quality)
+			_show_graphics())
+		buttons.add_child(button)
+
+
 func _build_leave() -> void:
 	var box := play_button.get_parent()
 	leave_button = Button.new()

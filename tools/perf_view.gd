@@ -4,7 +4,7 @@ extends SceneTree
 ## triangles and frame time for each view; then, at the busiest view, how much each kind of thing costs (hidden one
 ## at a time). Frame times under xvfb are the CPU drawing (llvmpipe): compare them with each other, not with a GPU.
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --resolution 1280x720 -s tools/perf_view.gd
-## look=res://assets/looks/<name>.tres measures with that look. Not part of the smoke test.
+## look=res://assets/looks/<name>.tres measures with that look, graphics=0/1/2 with that graphics setting. Not part of the smoke test.
 
 ## Map metres (Godot + 175): the town square, the busy main street, the train station, a field looking at town.
 const SPOTS := {"square": Vector2(83, 172), "street": Vector2(60, 93), "station": Vector2(290, 290),
@@ -30,6 +30,10 @@ func _run() -> void:
 	for i in 90:
 		await process_frame
 	player = main.get_node("Player")
+	for a in OS.get_cmdline_user_args():   # (0 low, 1 medium, 2 high; after the HUD has loaded the saved settings)
+		if a.begins_with("graphics="):
+			GameSettings.graphics = int(a.substr(9))
+			GameSettings.apply_graphics()
 	var sun_light := main.get_node("Sun") as DirectionalLight3D
 	for a in OS.get_cmdline_user_args():   # (trying settings: shadow=<max metres> splits=<0 1 or 2 mode>)
 		if a.begins_with("shadow="):

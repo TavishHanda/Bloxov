@@ -35,6 +35,7 @@ static func apply(raid: Node, path: String = current) -> void:
 		sun.basis = look.sun_transform.basis
 		sun.light_color = look.sun_color
 		sun.light_energy = look.sun_energy
+		GameSettings.shadows_on(sun)
 	var clouds := raid.get_node_or_null("Clouds")
 	if clouds != null:
 		clouds.set("color", look.cloud_color)

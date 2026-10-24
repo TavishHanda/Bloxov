@@ -2172,6 +2172,18 @@ func _section_settings() -> void:
 	_check(AudioServer.is_bus_mute(0), "volume 0 mutes audio")
 	GameSettings.set_volume(0.5)
 	_check(not AudioServer.is_bus_mute(0) and AudioServer.get_bus_volume_db(0) < 0.0, "volume 50% lowers audio")
+	# Graphics (0.19): LOW drops the sun's shadows, draws 3D at a lower scale and switches buildings to their far mesh
+	# sooner; HIGH puts it all back. Three buttons in the pause menu.
+	var sun := main.get_node("Sun") as DirectionalLight3D
+	var buttons := main.get_node("HUD/Menu/Margin/VBox/GraphicsRow/Buttons")
+	_check(buttons.get_child_count() == 3, "the pause menu has LOW / MEDIUM / HIGH graphics buttons")
+	GameSettings.set_graphics(GameSettings.LOW)
+	_check(not sun.shadow_enabled and root.scaling_3d_scale < 1.0 and FarView.distance() < FarView.FROM,
+		"LOW graphics: no sun shadows, lower render scale, far meshes sooner")
+	GameSettings.set_graphics(GameSettings.HIGH)
+	_check(sun.shadow_enabled and is_equal_approx(sun.directional_shadow_max_distance, 60.0) and
+		is_equal_approx(root.scaling_3d_scale, 1.0) and is_equal_approx(FarView.distance(), FarView.FROM),
+		"HIGH graphics: shadows to 60 m, full render scale, far meshes from %d m" % FarView.FROM)
 
 
 func _section_mouse() -> void:

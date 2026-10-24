@@ -4,7 +4,7 @@ class_name FarView
 ## tools/far_bake.gd): the same outside and what shows through its windows and doors, without the rooms nobody can see
 ## from there. Up close (and from inside) it's the full model. Looks only: collision is the map's boxes.
 
-const FROM := 70.0
+const FROM := 70.0      # (on HIGH graphics; lower settings switch closer, GameSettings.FAR_SCALE)
 const MARGIN := 5.0     # (so standing right at the switch doesn't flicker between the two)
 const MODELS := "res://assets/models/buildings/"
 const FAR := "res://assets/models/far/"
@@ -20,15 +20,32 @@ static func attach(model: Node3D) -> void:
 	var full := model if model is MeshInstance3D else model.find_children("*", "MeshInstance3D", true, false).front() as MeshInstance3D
 	if full == null:
 		return
-	full.visibility_range_end = FROM
+	var from := distance()
+	full.visibility_range_end = from
 	full.visibility_range_end_margin = MARGIN
+	full.add_to_group(&"far_view_full")
 	var far := MeshInstance3D.new()
 	far.name = "Far"
 	far.mesh = load(path)
-	far.visibility_range_begin = FROM
+	far.visibility_range_begin = from
 	far.visibility_range_begin_margin = MARGIN
+	far.add_to_group(&"far_view_far")
 	if full == model:
 		model.add_child(far)
 	else:
 		full.get_parent().add_child(far)
 		far.transform = full.transform
+
+
+## Where buildings switch to their far mesh with the current graphics setting.
+static func distance() -> float:
+	return FROM * GameSettings.FAR_SCALE[GameSettings.graphics]
+
+
+## Moves every building's switch to the current graphics setting's distance (after the setting changes).
+static func refresh(tree: SceneTree) -> void:
+	var from := distance()
+	for full: GeometryInstance3D in tree.get_nodes_in_group(&"far_view_full"):
+		full.visibility_range_end = from
+	for far: GeometryInstance3D in tree.get_nodes_in_group(&"far_view_far"):
+		far.visibility_range_begin = from
