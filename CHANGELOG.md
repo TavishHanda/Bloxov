@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.12 (Free kit after a closed tab)
+- **Fixed: no free kit on a fresh visit with nothing on you** (owner: "sometimes you can't start with free kit when
+  you first open the website and have nothing in your inventory"). Closing the tab mid-raid loses your gear, as
+  meant, but the raid was only counted at the end screen, so a free kit taken before that raid still counted as
+  "already taken this raid" and the button stayed hidden. Starting a raid now frees up the next free kit. The once
+  per raid rule is unchanged (taking the kit and selling or stashing it still needs a raid before the next one).
+
 ## 0.20.11 (Brighter indoors)
 - **Indoors are easier to see** (owner: "the indoors look a little too dark sometimes ... anything black is like
   unseeable"). The late afternoon look's colour curve (ACES) crushed dark colours to black in the shade; it now uses

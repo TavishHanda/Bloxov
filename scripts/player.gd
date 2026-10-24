@@ -109,9 +109,7 @@ func _ready() -> void:
 	# Bring in the loadout from the hideout (or the starter kit on a new profile).
 	Profile.load_profile()
 	Profile.apply_inventory(inventory, Profile.loadout)
-	# Until you extract, the saved profile counts you as dead (so closing the tab mid-raid loses your gear).
-	Profile.loadout = Profile.death_loadout(Profile.loadout)
-	Profile.save_profile()
+	Profile.raid_begun()
 	health.damaged.connect(_on_damaged)
 	health.armor_hit.connect(_on_armor_hit)
 	health.died.connect(_on_died)

@@ -2043,7 +2043,11 @@ func _section_hideout() -> void:
 	# (0.16.4, owner) Once per raid: emptied again right away, there's no second kit (no selling it for money forever).
 	_check(hideout_inv.all_stacks().is_empty() and not hideout.can_take_free_kit() and not hideout.take_free_kit(),
 		"no second free kit until you've been on a raid")
-	Profile.stats["raids"] += 1
+	# (0.20.12) Starting a raid is enough: closing the tab mid-raid loses the kit but never counts the raid.
+	var kept_loadout := Profile.loadout
+	Profile.raid_begun()
+	Profile.loadout = kept_loadout
+	_check(hideout.can_take_free_kit(), "after a raid you left by closing the tab, the free kit is back")
 	var old_mode = Network.main.mode
 	Network.main.mode = Network.Mode.CLIENT
 	hideout._refresh()

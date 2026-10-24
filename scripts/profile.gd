@@ -243,6 +243,15 @@ static func starting_loadout() -> Dictionary:
 	}
 
 
+## A raid starts with your loadout on you. Until you extract, the saved profile counts you as dead (so closing the
+## tab mid-raid loses your gear). Going on the raid also frees up the next free kit (0.20.12: closing the tab mid-raid
+## never reaches the raid count, so after taking the kit and losing it that way you were left with nothing and no kit).
+static func raid_begun() -> void:
+	loadout = death_loadout(loadout)
+	free_kit_raid = -1
+	save_profile()
+
+
 ## What's left of a loadout after dying: only the secure pocket (and hotbar bindings).
 static func death_loadout(data: Dictionary) -> Dictionary:
 	return {"equipment": {}, "pockets": [], "backpack": [], "secure": data.get("secure", []), "hotbar": data.get("hotbar", ["", "", ""])}
