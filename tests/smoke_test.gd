@@ -66,8 +66,8 @@ var expected_value := 0
 func _initialize() -> void:
 	_backup_profile()
 	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
-	# it runs faster than real time; the whole test is about 200 game seconds.)
-	create_timer(300.0, true).timeout.connect(func() -> void:
+	# it runs faster than real time; the whole test is about 300 game seconds.)
+	create_timer(450.0, true).timeout.connect(func() -> void:
 		print("SMOKE TEST: TIMED OUT (a script error probably stopped the test; see errors above)")
 		_quit(1))
 	_run.call_deferred()
@@ -703,6 +703,45 @@ func _section_ladder() -> void:
 	_check(player.global_position.y < 0.3 and player.health.current == hp,
 		"backing off the top, the ladder catches you and S climbs down (y %.2f, hp %d -> %d)" % [
 		player.global_position.y, hp, player.health.current])
+	# W climbs the way you look (0.20.13): up looking ahead, down looking down.
+	player.teleport_to(spot + Vector3(0, 0.1, 1.2))
+	player.rotation.y = 0.0
+	player.head.rotation.x = 0.0
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	for i in 60:
+		await physics_frame
+	var mid := player.global_position.y
+	player.head.rotation.x = deg_to_rad(-50.0)
+	for i in 30:
+		await physics_frame
+	var lower := player.global_position.y
+	_check(mid > 1.0 and lower < mid - 0.5 and player.health.current == hp,
+		"on a ladder, W goes up looking ahead and down looking down (y %.2f -> %.2f)" % [mid, lower])
+	for i in 60 * 2:
+		await physics_frame
+		if not player.is_climbing():
+			break
+	Input.action_release("move_forward")
+	await physics_frame
+	_check(not player.is_climbing() and player.global_position.y < 0.3, "W looking down climbs off at the bottom")
+	# From the platform: turn round, look down and walk over the edge onto the ladder, then down it.
+	player.teleport_to(spot + Vector3(0, 4.1, -0.6))
+	player.rotation.y = PI   # facing +Z, out over the ladder
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	var grabbed := false
+	for i in 60 * 4:
+		await physics_frame
+		grabbed = grabbed or player.is_climbing()
+		if grabbed and not player.is_climbing():
+			break
+	Input.action_release("move_forward")
+	await create_timer(0.2).timeout
+	_check(grabbed and player.global_position.y < 0.3 and player.health.current == hp,
+		"looking down, W walks off the top onto the ladder and down it (y %.2f, hp %d -> %d)" % [
+		player.global_position.y, hp, player.health.current])
+	player.head.rotation.x = 0.0
 	ladder.queue_free()
 	block.queue_free()
 	await physics_frame

@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.13 (Natural ladders)
+- **Ladders climb the way you look** (owner: "make it so that when you are going down a ladder if u are looking down
+  and pressing W u go down and if u press W and look up u go up"). On a ladder, W goes up while you look ahead or up
+  and down while you look more than about 25° down; S does the opposite. At the top you can turn round, look down
+  and walk over the edge to get on the ladder and climb down; at the bottom, W looking down steps you off. Hanging
+  near the top with no keys held no longer pushes you back onto the floor. Same controls on a touch stick.
+
 ## 0.20.12 (Free kit after a closed tab)
 - **Fixed: no free kit on a fresh visit with nothing on you** (owner: "sometimes you can't start with free kit when
   you first open the website and have nothing in your inventory"). Closing the tab mid-raid loses your gear, as

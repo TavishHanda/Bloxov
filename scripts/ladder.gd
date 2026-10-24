@@ -1,7 +1,8 @@
 @tool
 class_name Ladder
 extends Area3D
-## A ladder (0.13.5): walk into it facing it to climb on, W/S to go up/down, Space to let go. It also catches you
+## A ladder (0.13.5): walk into it facing it to climb on (or off the top looking down), W climbs the way
+## you look (down when looking down, else up; S the other way), Space to let go. It also catches you
 ## stepping off the top or dropping past it. Players only for now (the AI don't use ladders).
 ## The origin is the foot of the ladder; it leans on whatever is behind it (-Z), climbers are on its +Z side.
 

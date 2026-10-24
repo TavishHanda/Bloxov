@@ -36,6 +36,8 @@ var _vault_exit_speed := 0.0
 ## before one can catch us again.
 var _ladders: Array[Ladder] = []
 var _ladder_grab_wait := 0.0
+## Looking further down than this (radians, about 25°), W climbs down a ladder and S up (0.20.13).
+const LADDER_LOOK_DOWN := -0.44
 var _climbed := 0.0
 var stamina := 100.0
 ## True after running out of stamina, until it recovers to `exhausted_recover_at`.
@@ -134,8 +136,10 @@ func ladder_exited(ladder: Ladder) -> void:
 		_climbing = null
 
 
-## Ladders (0.13.5): gets on one when walking into it facing it, or when dropping past it (stepping off the top);
-## then W/S climb, Space lets go, and climbing past the top steps you off onto the floor there. True while on one.
+## Ladders (0.13.5): gets on one when walking into it facing it, when walking off the top looking down, or when
+## dropping past it (stepping off the top). W climbs the way you look (0.20.13: looking down goes down, otherwise
+## up; S the other way), so a touch stick works the same as the keys. Space lets go, and climbing past the top
+## steps you off onto the floor there. True while on one.
 func _update_climb(delta: float) -> bool:
 	_ladder_grab_wait -= delta
 	var input_dir := Vector2.ZERO
@@ -147,9 +151,13 @@ func _update_climb(delta: float) -> bool:
 		var ladder := _ladders.back() as Ladder
 		var facing := -global_basis.z
 		facing = Vector3(facing.x, 0.0, facing.z).normalized()
-		var walking_in := input_dir.y < -0.3 and facing.dot(ladder.into()) > 0.5
+		var forward := input_dir.y < -0.3
+		var looking_down := head.rotation.x < LADDER_LOOK_DOWN
+		var walking_in := forward and not looking_down and facing.dot(ladder.into()) > 0.5
+		var stepping_down := forward and looking_down and is_on_floor() \
+			and global_position.y > ladder.top_y() - 0.3 and facing.dot(ladder.into()) < -0.3
 		var dropping := not is_on_floor() and velocity.y < -0.5 and global_position.y < ladder.top_y() - 0.2
-		if not walking_in and not dropping:
+		if not walking_in and not stepping_down and not dropping:
 			return false
 		_climbing = ladder
 		_sprinting = false
@@ -162,9 +170,15 @@ func _update_climb(delta: float) -> bool:
 		velocity = -ladder.into() * 2.5 + Vector3.UP * 1.5
 		return false
 	var up := -input_dir.y
+	if head.rotation.x < LADDER_LOOK_DOWN:
+		up = -up
 	var feet := global_position.y
+	# How far past the ladder's foot, toward what it leans on (climbers hang at about minus their radius).
+	var past := (global_position - ladder.global_position).dot(ladder.into())
 	velocity = Vector3(0.0, up * climb_speed, 0.0) + ladder.into() * 0.5
-	if feet > ladder.top_y() - 0.4 and up >= 0.0:
+	if up < 0.0 and past > 0.05 - (body_shape.shape as CapsuleShape3D).radius:
+		velocity -= ladder.into() * 2.0   # going down from the floor at the top: out over the ladder first
+	elif feet > ladder.top_y() - 0.4 and up > 0.0:
 		velocity += ladder.into() * 2.0   # over the top, onto the floor
 		if feet > ladder.top_y():
 			velocity.y = -1.0
@@ -178,8 +192,8 @@ func _update_climb(delta: float) -> bool:
 		WorldSounds.own(self, WorldSounds.RUNG, -8.0)
 		_make_noise(walk_noise * 0.5)
 	# Off at the bottom (on the ground, not going up) or at the top (standing on the floor up there).
-	var past := (global_position - ladder.global_position).dot(ladder.into())
-	if is_on_floor() and ((up <= 0.0 and feet < ladder.top_y() - 0.5) or past > 0.5):
+	past = (global_position - ladder.global_position).dot(ladder.into())
+	if is_on_floor() and ((up <= 0.0 and feet < ladder.top_y() - 0.5) or (up >= 0.0 and past > 0.5)):
 		_climbing = null
 		_ladder_grab_wait = 0.3
 		velocity = Vector3.ZERO
