@@ -114,26 +114,33 @@ def gz(my):
     return my - M / 2
 
 
-def box(x0, y0, z0, x1, y1, z1, colour, solid=True, kind=None):
+def box(x0, y0, z0, x1, y1, z1, colour, solid=True, kind=None, people=False):
     """Axis-aligned box from map-space corners (x/z in map meters, y = height). `kind` (inside `modeled`) tells the
     building's model what to draw there (a "pump", a "shelf"...)."""
     if x1 - x0 < 0.01 or y1 - y0 < 0.01 or z1 - z0 < 0.01:
         return
     _add_box(((x0 + x1) / 2 - M / 2, (y0 + y1) / 2, (z0 + z1) / 2 - M / 2,
-              x1 - x0, y1 - y0, z1 - z0, 0.0, 0.0, C[colour], 1 if solid else 0), kind)
+              x1 - x0, y1 - y0, z1 - z0, 0.0, 0.0, C[colour], 1 if solid else 0), kind, people)
 
 
-def obox(cx, cy, cz, sx, sy, sz, yaw, colour, solid=True, pitch=0.0, kind=None):
+def obox(cx, cy, cz, sx, sy, sz, yaw, colour, solid=True, pitch=0.0, kind=None, people=False):
     """Rotated box: centre in map space, yaw in degrees (Godot convention, around +Y)."""
-    _add_box((cx - M / 2, cy, cz - M / 2, sx, sy, sz, yaw, pitch, C[colour], 1 if solid else 0), kind)
+    _add_box((cx - M / 2, cy, cz - M / 2, sx, sy, sz, yaw, pitch, C[colour], 1 if solid else 0), kind, people)
 
 
-def _add_box(b, kind=None):
+# Open railings and bars drawn by a building's model (0.19.8, owner: "i cannot shoot through these cracks in the bus
+# stop, stuff like this needs to be fixed"): their boxes stop people (and vaulting) but not shots or eyes, like barred
+# windows. `people=True` on a box does the same. Marked 4 until the scene is written (still solid for the scatter),
+# then they go to BoxMap `bar_boxes`.
+PEOPLE_KINDS = {"gallery_rail", "loft_rail", "cell_bars"}
+
+
+def _add_box(b, kind=None, people=False):
     m = _model[-1]
     if m is not None:
         m["boxes"].append((b, kind))
         if m["hide"]:   # drawn by the building's model: keep the collision, don't draw the box (BoxMap: 2 / 3)
-            b = b[:9] + (2 if b[9] else 3,)
+            b = b[:9] + ((4 if people or kind in PEOPLE_KINDS else 2) if b[9] else 3,)
     elif _debris[-1] is not None:   # a piece of the outdoor debris kit: tagged with its piece (b[10])
         b = b + (_debris[-1],)
     boxes.append(b)
@@ -848,11 +855,11 @@ class Building:
             return
         # Rails round the hole upstairs (its open side and its low end), so nobody walks off the edge.
         rail_z = rz1 + 0.05 if wall[0] == "N" else rz0 - 0.05
-        box(hx0, y1, rail_z - 0.05, hx1, y1 + 1.0, rail_z + 0.05, "metal")
+        box(hx0, y1, rail_z - 0.05, hx1, y1 + 1.0, rail_z + 0.05, "metal", people=True)
         if wall == "N":
-            box(hx1, y1, rz0, hx1 + 0.1, y1 + 1.0, rz1, "metal")
+            box(hx1, y1, rz0, hx1 + 0.1, y1 + 1.0, rz1, "metal", people=True)
         else:
-            box(hx0 - 0.1, y1, rz0, hx0, y1 + 1.0, rz1, "metal")
+            box(hx0 - 0.1, y1, rz0, hx0, y1 + 1.0, rz1, "metal", people=True)
 
     def _slab(self, f):
         y = f * self.h
@@ -2825,7 +2832,7 @@ def road(points, width):
     return curve
 
 
-def strip(points, width, colour, y=0.02, h=0.04, solid=False):
+def strip(points, width, colour, y=0.02, h=0.04, solid=False, people=False):
     """A flat band along a polyline (roads, paths, water). Pieces overlap a little at each bend so there are no
     gaps; every other piece is a millimetre higher so the overlaps don't flicker."""
     for k, ((ax, az), (bx, bz)) in enumerate(zip(points, points[1:])):
@@ -2835,7 +2842,8 @@ def strip(points, width, colour, y=0.02, h=0.04, solid=False):
         yaw = math.degrees(math.atan2(bx - ax, bz - az))
         lift = 0.001 * (k % 2)
         with anchored(("seg", ax, az, bx, bz, width)):
-            obox((ax + bx) / 2, y + h / 2 + lift, (az + bz) / 2, width, h, length + width * 0.5, yaw, colour, solid)
+            obox((ax + bx) / 2, y + h / 2 + lift, (az + bz) / 2, width, h, length + width * 0.5, yaw, colour, solid,
+                 people=people)
 
 
 def bezier(p0, p1, p2, p3, n=24):
@@ -4209,7 +4217,7 @@ def signals_and_points():
 def fence(points, h=1.1):
     """A low wooden fence along a polyline, with a gap every so often (low cover, jumpable later)."""
     if _model[-1] is not None:   # (the graveyard's railings: drawn by its model)
-        strip(points, 0.15, "wood", y=0.0, h=h, solid=True)
+        strip(points, 0.15, "wood", y=0.0, h=h, solid=True, people=True)
     else:
         farm_fence(points[0][0], points[0][1], points, h)
 
@@ -6323,6 +6331,8 @@ def write_outdoor(ter):
                     b = boxes[k]
                     if shaped and n in shaped["boxes"]:
                         boxes[k] = b[:9] + (3,) + b[10:]
+                        if shaped.get("people"):   # (0.19.8: open frames still stop people, just not shots)
+                            bar_boxes.append((b[0], b[1], b[2], b[3], b[4], b[5], b[6]))
                     elif b[9] in (0, 1):
                         boxes[k] = b[:9] + (2 if b[9] else 3,) + b[10:]
     return shown
@@ -6455,6 +6465,10 @@ def write_scene(ter):
     if os.path.exists(BORDER_GLB):
         outdoor.append(("outdoor_border", 0.0, 0.0))
     write_splat(ter)
+    for i, b in enumerate(boxes):   # (railings and bars: people-only, see PEOPLE_KINDS)
+        if b[9] == 4:
+            bar_boxes.append(tuple(b[:7]))
+            boxes[i] = b[:9] + (3,) + b[10:]
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
               "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}

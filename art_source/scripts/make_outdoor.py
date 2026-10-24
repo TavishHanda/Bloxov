@@ -504,21 +504,39 @@ SHAPES = {}
 _SHAPE_KEY = [None]
 
 
-def shape(b, f0, box, mats=None, upto=None):
-    """Collides with the faces drawn since face f0 (up to `upto`; only those in `mats`, if given) instead of the
-    current piece's box number `box` (a list: several boxes)."""
+def shape(b, f0, box, mats=None, upto=None, skip=()):
+    """Collides with the faces drawn since face f0 (up to `upto`; only those in `mats`, if given; none in `skip`)
+    instead of the current piece's box number `box` (a list: several boxes)."""
     entry = SHAPES.setdefault(_SHAPE_KEY[0], {"boxes": [], "tris": []})
     for k in (box if isinstance(box, (list, tuple)) else [box]):
         if k not in entry["boxes"]:
             entry["boxes"].append(k)
     keep = None if mats is None else {b.mat_index(m) for m in mats}
+    drop = {b.mat_names.index(m) for m in skip if m in b.mat_names}
     for face, m in zip(b.faces[f0:upto], b.mats[f0:upto]):
-        if keep is not None and m not in keep:
+        if (keep is not None and m not in keep) or m in drop:
             continue
         pts = [b.verts[i] for i in face]
         for k in range(1, len(pts) - 1):   # (a fan: the kit's faces are convex)
             for p in (pts[0], pts[k], pts[k + 1]):
                 entry["tris"] += [round(p[0] + ORIGIN[0], 3), round(p[1], 3), round(p[2] + ORIGIN[1], 3)]
+
+
+# Shots through the gaps you can see (0.19.8, owner: "i cannot shoot through these cracks in the bus stop, stuff like
+# this needs to be fixed"): pieces that are open frames (shelters, fences, the hunting stands, market stalls, benches,
+# signs, the clock, tents) keep their gray boxes for people only (BoxMap `bar_boxes`: you still can't walk through)
+# while shots and eyes hit their drawing, glass left out (glass never stops a shot, as with windows).
+SEE_THROUGH = {"shelter", "fence", "stand", "stall", "bench", "sign_stop", "sign_town", "sign_rail", "sign_speed",
+               "sign_dir", "statue", "tent", "camptent"}
+
+
+def see_through(b, f0, piece):
+    # (floors and ramps, like a hunting stand's, keep their boxes: you walk and the AI perch on them)
+    solid = [k for k, box in enumerate(piece["boxes"]) if box["solid"] and box["size"][1] >= 0.4]
+    if not solid:
+        return
+    shape(b, f0, solid, skip=("glass",))
+    SHAPES[_SHAPE_KEY[0]]["people"] = True
 
 
 def shape_boxes(parts, box, foot=None, yaw=0.0, lean=0.0, pivot_x=0.0):
@@ -3540,7 +3558,10 @@ def main():
         b = Builder()
         for piece in data["pieces"]:
             _SHAPE_KEY[0] = f"{piece['kind']} {piece['seed']}"
+            f0 = len(b.faces)
             DRAW[piece["kind"]](b, piece, random.Random(f"{piece['kind']} {piece['seed']}"))
+            if piece["kind"] in SEE_THROUGH:
+                see_through(b, f0, piece)
         if os.environ.get("BLOXOV_KERBS") != "0":   # (off for the options sheets' "today" pictures)
             draw_road_edges(b, random.Random("road edges " + name))
         out = os.path.join(OUT_DIR, name + ".glb")

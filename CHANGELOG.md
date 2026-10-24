@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.8 (Shoot through the gaps)
+- **Shots go through the gaps you can see** (owner: "i cannot shoot through these cracks in the bus stop, stuff like
+  this needs to be fixed"). Found with a map-wide audit: rays across every collision box that a model draws, looking
+  for where nothing drawn is in the way.
+  - Bus shelters, farm fences, the hunting stands' rails, market stalls, benches, road signs, the clock and the tents:
+    shots (and eyes) now hit their drawing, so they pass through gaps, missing panes and glass (glass never stops a
+    shot, as with windows), and hit frames, posts, boards and kick plates.
+  - Open railings (galleries, the barn loft, the rails round stair holes upstairs), the graveyard railings and the
+    police cells' bars: shots and eyes pass, like barred windows.
+  - People still can't walk through any of them: their old boxes stay as people-only blockers (BoxMap `bar_boxes`).
+    Floors and ramps (the hunting stands') keep their solid boxes.
+- The AI now bumps into those people-only boxes too (including barred windows), and the navigation bake counts them,
+  so scavs walk round a fence instead of trying to squeeze through its gaps.
+- `make_outdoor.py`: `SEE_THROUGH` kinds; `gen_old_bloxov.py`: `PEOPLE_KINDS` and `people=True` boxes.
+
 ## 0.19.7 (Stuck in the dirt fix)
 - **Fixed: vaulting into a dirt bank got you stuck inside it** (owner's playtest: his friend jumped at a bank by the
   south woods and ended up inside). Map collision is a skin of triangles that stops you from both sides, and from

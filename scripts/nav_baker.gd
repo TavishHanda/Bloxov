@@ -46,6 +46,8 @@ func _add_geometry(node: Node, source: NavigationMeshSourceGeometryData3D) -> vo
 	if node is BoxMap:
 		var map := node as BoxMap
 		source.add_faces(map.collision_faces, map.global_transform)
+		if not map.people_faces.is_empty():   # (railings, fences: people-only boxes, 0.19.8)
+			source.add_faces(map.people_faces, map.global_transform)
 		return
 	if node is CSGBox3D and (node as CSGBox3D).use_collision:
 		var box := BoxMesh.new()

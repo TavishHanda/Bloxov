@@ -86,7 +86,9 @@ const WATER_ACROSS := 9
 ## indices into `shaped_points` each) for the outdoor pieces that aren't box-shaped (boulders, earth banks, crater
 ## rims, rubble, the derailed train), from art_source/scripts/make_outdoor.py; their own boxes don't collide then.
 ## Collision only, never drawn.
-## The barred windows' boxes (BARS_LAYER): x, y, z, size x, y, z, yaw (degrees) each.
+## The barred windows' boxes (BARS_LAYER): x, y, z, size x, y, z, yaw (degrees) each. They stop people (players and
+## the AI) and vaulting, never shots or eyes; since 0.19.8 also open railings, cell bars and the outdoor pieces whose
+## shots hit their drawing (shelters, fences, stands...).
 @export var bar_boxes := PackedFloat32Array()
 ## The glazed windows (WINDOW_LAYER): x, y, z, width, height, yaw (degrees) each; the pane faces along its yaw.
 @export var window_panes := PackedFloat32Array()
@@ -95,6 +97,8 @@ const WATER_ACROSS := 9
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
+## The bar boxes' triangles (local space): they stop people, so the navigation baker counts them too (0.19.8).
+var people_faces := PackedVector3Array()
 ## Where the shaped triangles sit in `collision_faces` (corner numbers): they're wound the other way round from the
 ## boxes' and the ground's, so their outsides are worked out the other way (inside_solid).
 var _shaped_from := 0
@@ -405,6 +409,7 @@ static func is_wading(body: Node) -> bool:
 func _add_bars() -> void:
 	if bar_boxes.is_empty():
 		return
+	var cube := BoxMesh.new().get_faces()
 	var body := StaticBody3D.new()
 	body.name = "Bars"
 	body.collision_layer = BARS_LAYER
@@ -417,6 +422,8 @@ func _add_bars() -> void:
 		collider.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(bar_boxes[i + 6])),
 			Vector3(bar_boxes[i], bar_boxes[i + 1], bar_boxes[i + 2]))
 		body.add_child(collider)
+		for v in cube:
+			people_faces.append(collider.transform * (v * shape.size))
 	add_child(body)
 
 
