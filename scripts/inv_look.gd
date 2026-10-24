@@ -1,7 +1,7 @@
 class_name InvLook
 extends RefCounted
 ## The inventory's look (0.19.6, "Glow", owner picked B): dark tiles with the item's rarity color rising from the
-## bottom and a thin edge, a flat dark grid with faint lines and corner dots, names in the HUD's pixel font.
+## bottom and a thin edge, a flat dark grid with faint lines and corner dots, small names in the corner.
 ## Used by ItemTile, GridView, SlotGridView and EquipSlotView.
 
 const TILE := Color("121417")
@@ -47,12 +47,13 @@ static func draw_slot(ci: CanvasItem, rect: Rect2) -> void:
 		ci.draw_rect(Rect2(p - Vector2(3, 3), Vector2(6, 6)).intersection(rect), Color(1, 1, 1, 0.12))
 
 
-## A gear slot's name (PRIMARY, Hound...) in the HUD's pixel font with a hard shadow.
+## A gear slot's text, small like the tiles' names (0.19.12, owner: the big pixel text covered the pictures): the
+## slot's name (PRIMARY...) when it's empty, the item's short name in the top-right corner when it isn't.
 static func style_slot_label(label: Label) -> void:
-	label.add_theme_font_override("font", HudStyle.spaced_font(20))
-	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	label.add_theme_font_override("font", ThemeDB.fallback_font)
+	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
+	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
 	label.add_theme_constant_override("shadow_outline_size", 0)
-	label.add_theme_constant_override("shadow_offset_x", 0)
-	label.add_theme_constant_override("shadow_offset_y", 2)
-	label.add_theme_constant_override("line_spacing", -6)
+	label.add_theme_constant_override("shadow_offset_x", 1)
+	label.add_theme_constant_override("shadow_offset_y", 1)

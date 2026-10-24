@@ -30,9 +30,9 @@ func _init(slot_name: String, owner_inventory: Inventory, owner_ui: LootUI, cell
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_label = Label.new()
 	InvLook.style_slot_label(_label)
-	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_label.position = Vector2(6, 4)
-	_label.size = Vector2(size.x - 12, size.y - 24)
+	_label.clip_text = true
+	_label.position = Vector2(4, 2)
+	_label.size = Vector2(size.x - 8, 16)
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_label)
 	_detail = Label.new()
@@ -70,11 +70,13 @@ func rebuild() -> void:
 	var stack := shown_stack()
 	if stack == null:
 		_label.text = slot.to_upper()
-		_label.modulate = Color(1, 1, 1, 0.35)
+		_label.modulate = Color(1, 1, 1, 0.45)
+		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_detail.text = ""
 	else:
-		_label.text = slot.to_upper() + "\n" + ItemDB.display_name(stack.id)
+		_label.text = ItemDB.short_name(stack.id)
 		_label.modulate = Color.WHITE
+		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		match ItemDB.kind(stack.id):
 			"weapon":
 				_detail.text = "%d/%d" % [stack.loaded, int(ItemDB.weapon_stats(stack)["mag"])]

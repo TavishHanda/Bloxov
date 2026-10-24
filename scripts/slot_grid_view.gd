@@ -32,8 +32,8 @@ func rebuild() -> void:
 		_label = Label.new()
 		_label.text = grid.slot.to_upper()
 		InvLook.style_slot_label(_label)
-		_label.modulate = Color(1, 1, 1, 0.35)
-		_label.position = Vector2(6, 4)
+		_label.modulate = Color(1, 1, 1, 0.45)
+		_label.position = Vector2(4, 2)
 		_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_label)
 	queue_redraw()
