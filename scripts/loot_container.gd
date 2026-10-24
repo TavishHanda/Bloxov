@@ -52,6 +52,7 @@ func _ready() -> void:
 		_editor_preview()
 		return
 	_apply_look()
+	PixelModel.hide_beyond(self, 100.0)
 	add_to_group("loot_containers")
 	if grid == null:
 		grid = GridInventory.new(display_name, grid_size.x, grid_size.y)

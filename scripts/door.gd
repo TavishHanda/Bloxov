@@ -15,6 +15,7 @@ const LAYER := 16
 const SWING := 95.0
 const SWING_TIME := 0.35
 const MODEL := "res://assets/models/props/door_%s.glb"
+const HIDE_BEYOND := 150.0    # metres: past this a door is a few pixels tall, not worth its draw calls
 
 ## Swung open (1 or -1: which way) or shut (0). Changed with set_state (everyone's copy agrees online).
 signal changed(state: int)
@@ -124,6 +125,7 @@ func _build_wreck(with_model: bool) -> void:
 		var pivot := Node3D.new()
 		add_child(pivot)
 		pivot.add_child(model)
+		PixelModel.hide_beyond(model, HIDE_BEYOND)
 		model.scale = Vector3(leaf_w, size.y / 2.0, 1.0)
 		if side > 0:
 			model.rotation.y = PI
@@ -172,6 +174,7 @@ func _add_leaf_model(hinge: Node3D, middle: Vector3, leaf_w: float, side: float)
 		model = mesh_instance
 	model.position = middle
 	hinge.add_child(model)
+	PixelModel.hide_beyond(model, HIDE_BEYOND)
 
 
 func is_open() -> bool:

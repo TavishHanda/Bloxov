@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.11 (fewer draw calls far out)
+- **Doors stop drawing past 150 m and loot containers past 100 m** (owner: "give my game more fps"), shadows
+  included: out there they're a few pixels tall but each cost a draw call or more. Measured on Bloxov
+  Battlegrounds (1280x720, from a fixed spawn): the busiest view went from 3,413 draw calls to 2,426 (-29%), the
+  next from 2,765 to 2,085. Web and phones are limited by draw calls, so this is where they gain most.
+  Looks only: collision, the AI and loot are unchanged. (`PixelModel.hide_beyond`.)
+
 ## 0.18.10 (START RAID doesn't look frozen)
 - **Pressing START RAID shows a loading plate** (owner: "lag when going into raid?"): the raid scene and the map take
   a couple of seconds to load and the game can't draw a frame while they do, so the hideout sat there looking dead.

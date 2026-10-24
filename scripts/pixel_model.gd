@@ -32,6 +32,14 @@ static func make_crisp(root: Node) -> void:
 				material.roughness = 1.0
 
 
+## Stops drawing every mesh under `root` (and its shadow) past `metres`: small props a few pixels tall out there
+## each cost a draw call or more (doors and loot were a quarter of the far view's draw calls, 0.18.11).
+static func hide_beyond(root: Node, metres: float) -> void:
+	for node in [root] + root.find_children("*", "GeometryInstance3D", true, false):
+		if node is GeometryInstance3D:
+			node.visibility_range_end = metres
+
+
 ## Shows one random option per outfit slot (or the given ones) and hides the rest.
 func pick_outfit(choices := {}) -> void:
 	var slots := outfit_slots()
