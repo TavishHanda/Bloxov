@@ -4,8 +4,6 @@ extends "res://scripts/player_base.gd"
 
 ## Emitted for every sound the player makes that enemies can hear (footsteps, landing).
 signal noise_made(pos: Vector3, radius: float)
-const STEP_SOUNDS: Array[AudioStream] = [
-	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 ## Energy drink (0.14.5): seconds left of its boost (stamina comes back twice as fast, sprinting uses half).
 var drink_boost_left := 0.0
 
@@ -339,7 +337,7 @@ func _update_footsteps(delta: float) -> void:
 
 
 func _play_step(volume_db: float) -> void:
-	Effects.sound(get_tree().current_scene, STEP_SOUNDS.pick_random(), volume_db, 0.1)
+	Surfaces.step(self, volume_db)
 
 
 func _make_noise(radius: float) -> void:

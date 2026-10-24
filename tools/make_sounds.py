@@ -276,5 +276,115 @@ def main():
     write("glass.wav", glass())
 
 
+# --- Sound update (0.20, owner 2026-10-24: only ADD sounds, keep today's). Each below has its own seed. ---
+
+def _env(t, attack, decay):
+    return min(1.0, t / attack) * math.exp(-t * decay) if attack > 0 else math.exp(-t * decay)
+
+
+def _highpass(xs, smooth=0.85):
+    low, out = 0.0, []
+    for x in xs:
+        low = low * smooth + x * (1 - smooth)
+        out.append(x - low)
+    return out
+
+
+def step_wood(variant):
+    """Boot on floorboards: a hollow knock (a low body and a short wooden ring), a little board creak on one variant."""
+    random.seed(1000 + variant)
+    n = length(0.2)
+    nz = noise(n, 0.4)
+    out, phase, ring = [], 0.0, 0.0
+    base = 120 + variant * 22
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (base + 50 * math.exp(-t * 50)) / RATE
+        ring += 2 * math.pi * (430 + variant * 40) / RATE
+        knock = math.sin(phase) * math.exp(-t * 38) + math.sin(ring) * 0.35 * math.exp(-t * 60)
+        out.append(knock + nz[i] * 0.35 * math.exp(-t * 70))
+    if variant == 2:
+        for i in range(length(0.12)):
+            t = i / RATE
+            k = length(0.05) + i
+            if k < n:
+                out[k] += math.sin(2 * math.pi * (300 + 900 * t) * t) * 0.12 * math.sin(math.pi * i / length(0.12))
+    return out
+
+
+def step_metal(variant):
+    """Boot on sheet metal or a metal stair: a dull thud under a short, out-of-tune ring."""
+    random.seed(1100 + variant)
+    n = length(0.4)
+    nz = noise(n, 0.3)
+    partials = [(620 + variant * 55, 1.0), (1010 + variant * 70, 0.6), (1730 + variant * 40, 0.4), (2610, 0.25)]
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (110 + 40 * math.exp(-t * 45)) / RATE
+        ring = sum(a * math.sin(2 * math.pi * f * t) * math.exp(-t * (14 + 6 * k)) for k, (f, a) in enumerate(partials))
+        out.append(math.sin(phase) * math.exp(-t * 40) + ring * 0.28 + nz[i] * 0.3 * math.exp(-t * 90))
+    return out
+
+
+def step_concrete(variant):
+    """Boot on concrete or tile: a hard, short heel click and a small thud, with a touch of grit."""
+    random.seed(1200 + variant)
+    n = length(0.13)
+    sharp = _highpass(noise(n, 0.1), 0.7)
+    grit = noise(n, 0.5)
+    out, phase = [], 0.0
+    base = 95 + variant * 15
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (base + 70 * math.exp(-t * 60)) / RATE
+        out.append(math.sin(phase) * 0.8 * math.exp(-t * 55) + sharp[i] * 0.9 * math.exp(-t * 110)
+                   + grit[i] * 0.25 * math.exp(-t * 35))
+    return out
+
+
+def step_water(variant):
+    """Wading: a slosh (soft noise that swells and fades) with a few bubbly blips."""
+    random.seed(1300 + variant)
+    n = length(0.34)
+    nz = noise(n, 0.6 + variant * 0.05)
+    out = [nz[i] * _env(i / RATE, 0.025, 9.0) for i in range(n)]
+    for _ in range(6):
+        at = int(RATE * random.uniform(0.01, 0.2))
+        f0 = random.uniform(350, 900)
+        for i in range(length(0.04)):
+            if at + i >= n:
+                break
+            t = i / RATE
+            out[at + i] += math.sin(2 * math.pi * f0 * (1 + 6 * t) * t) * 0.25 * math.exp(-t * 80)
+    return out
+
+
+def rustle(variant):
+    """Pushing through a bush: a dry leafy rustle (bright noise, crackling on and off)."""
+    random.seed(1400 + variant)
+    n = length(0.38)
+    bright = _highpass(noise(n, 0.2), 0.8)
+    out, crackle = [], 0.0
+    for i in range(n):
+        if i % 220 == 0:
+            crackle = random.uniform(0.2, 1.0)
+        t = i / n
+        out.append(bright[i] * crackle * math.sin(math.pi * t) ** 1.2)
+    return out
+
+
+def main_sound_update():
+    (OUT / "steps").mkdir(exist_ok=True)
+    for v in range(3):
+        write(f"steps/wood{v + 1}.wav", step_wood(v))
+        write(f"steps/metal{v + 1}.wav", step_metal(v))
+        write(f"steps/concrete{v + 1}.wav", step_concrete(v))
+        write(f"steps/water{v + 1}.wav", step_water(v))
+    for v in range(2):
+        write(f"steps/rustle{v + 1}.wav", rustle(v))
+
+
 if __name__ == "__main__":
     main()
+    main_sound_update()

@@ -22,8 +22,6 @@ const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
 const GROUP := &"remote_players"
 ## Their footsteps (0.12.35, owner: teammates were silent online): every stride, louder and heard farther when
 ## they sprint, barely when they crouch. Max hearing distance per pace, meters.
-const STEP_SOUNDS: Array[AudioStream] = [
-	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 const STEP_RANGE_WALK := 25.0
 const STEP_RANGE_SPRINT := 35.0
 const STEP_RANGE_CROUCH := 6.0
@@ -180,7 +178,7 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 		volume = -4.0
 		reach = STEP_RANGE_SPRINT
 		_stride_left = 1.9
-	Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, volume, 0.1, 1.0, 3.0, reach)
+	Surfaces.step(self, volume, true, 1.0, 3.0, reach)
 
 
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:

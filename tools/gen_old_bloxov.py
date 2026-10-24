@@ -290,21 +290,56 @@ def modeled(name, x, z, turned=False):
         yield
     finally:
         _model.pop()
+        m["range"] = (counts[0], len(boxes))
         if turn % 180.0:
             # A quarter turn changes the building's footprint: it's turned after the random scatter (trees, clutter,
             # cover) is settled, so the scatter doesn't reshuffle map-wide; what then stands in its way is cleared.
             late_turns.append((x, z, turn, counts, (len(boxes), len(markers), len(loot), len(buildings))))
         elif turn:
             _turn(x, z, turn, counts, (len(boxes), len(markers), len(loot), len(buildings)))
+        if not turn % 180.0:
+            _floor_rect(m)
 
 
 late_turns = []   # (x, z, deg, box/marker/loot/building counts before and after) of quarter-turned models, see apply_late_turns
 
 
+# What each building's floors sound like underfoot (Sound update 0.20.0: footsteps by surface, scripts/surfaces.gd:
+# 1 wood, 2 metal, 3 concrete/tile). Used where you stand on the ground or on a plain floor slab inside the building;
+# boxes with their own colour (wood lofts, metal) sound like that colour. Not listed = outdoors (yards).
+FLOOR_SURFACE = {
+    "barn": 1, "cabin_east": 1, "cabin_fisher": 1, "cabin_trapper": 1, "farmhouse": 1, "shed": 1, "motel": 1,
+    "signal_box": 1, "junk_office": 1, "big_house_1": 1, "big_house_2": 1, "big_house_3": 1,
+    "old_house_1": 1, "old_house_6": 1, "old_house_7": 1, "old_house_8": 1,
+    "silo": 2,
+    "bank": 3, "bell_tower": 3, "church": 3, "depot": 3, "diner": 3, "garage": 3, "gas_station": 3,
+    "gas_station_town": 3, "grocery": 3, "gun_store": 3, "offices": 3, "pharmacy": 3, "police": 3, "school": 3,
+    "shops": 3, "th_vault": 3, "town_hall": 3, "train_station": 3,
+}
+floor_rects = []   # (Godot x0, z0, x1, z1, surface) of each modeled building, from its solid boxes
+
+
+def _floor_rect(m):
+    """Notes model m's footprint (its solid boxes, as they now stand) with its floor sound, see FLOOR_SURFACE."""
+    surface = FLOOR_SURFACE.get(m["name"])
+    if surface is None:
+        return
+    xs, zs = [], []
+    for b in boxes[m["range"][0]:m["range"][1]]:
+        if b[9] in (1, 2, 4):
+            r = math.hypot(b[3], b[5]) / 2 if b[6] or b[7] else 0.0
+            xs += [b[0] - (r or b[3] / 2), b[0] + (r or b[3] / 2)]
+            zs += [b[2] - (r or b[5] / 2), b[2] + (r or b[5] / 2)]
+    if xs:
+        floor_rects.append((min(xs), min(zs), max(xs), max(zs), surface))
+
+
 def apply_late_turns(margin=3.0):
     """Turns the quarter-turned models (see `modeled`), then drops the scatter pieces that now stand in or round them."""
-    for x, z, deg, start, end in late_turns:
+    late = [m for m in models if m["turned"] % 180.0]
+    for (x, z, deg, start, end), m in zip(late_turns, late):
         _turn(x, z, deg, start, end)
+        _floor_rect(m)
         for b in buildings[start[3]:end[3]]:
             r = next(f for f in footprints if f[0] == b.name)[1:]
             clear_scatter((r[0] - margin, r[1] - margin, r[2] + margin, r[3] + margin) if b.name not in SCATTER_CLEAR
@@ -6613,6 +6648,8 @@ def write_scene(ter):
             'script = ExtResource("1_boxmap")',
             "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
             "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b[:10]) + ")",
+            "colour_names = PackedStringArray(" + ", ".join(f'"{name}"' for name, _ in COLOURS) + ")",
+            "floor_rects = PackedFloat32Array(" + ", ".join(fmt(v) for r in floor_rects for v in r) + ")",
             f"terrain_colour = {C['grass']}",
             'ground_material = ExtResource("g_ground")',
             'road_material = ExtResource("g_road")' if ROAD_LOOK != "a" else "",

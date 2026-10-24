@@ -5,7 +5,19 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
+
+## 0.20.0 (Sound update: footsteps by surface)
+- **Start of the Sound update** (owner, 2026-10-24: "let's do all this"; plan in the project files, `sound/plan.md`).
+  Every sound in the game stays as it is: this update only adds new ones.
+- **Footsteps sound like what you walk on:** wood floors (houses, cabins, barn, motel, lofts, the railway sleepers),
+  metal (cars, the silo, metal pieces), concrete and tile (roads, pavements, car parks, shops, bank, police, school,
+  town hall, station, bunker and vault), water when wading the creek, and a leafy rustle on top inside a bush.
+  Grass and dirt keep today's step. The same for scavs, Raiders and other players, so you can tell where they are.
+- How it knows: the map now lists each colour's name and each building's footprint with its floor
+  (`tools/gen_old_bloxov.py` FLOOR_SURFACE), and `BoxMap.surface_at` looks up the box under your feet (about 7
+  microseconds a step). Hearing ranges and how far the AI hears you are unchanged.
+- New sounds are made by `tools/make_sounds.py` like the old ones (`audio/steps/`); the old files come out identical.
 
 ## 0.19.13 (Dirt banks blend in)
 - **The dirt banks round the map blend into the ground** (owner: "they look super unnatural in some places"):

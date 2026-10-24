@@ -5,8 +5,6 @@ extends "res://scripts/scav_senses.gd"
 ## How far away you can hear an AI's footsteps and its callouts (0.12.32, owner: you could hear every AI on the map
 ## walking, "like 30 crunching steps"). Gunshots still carry across the map.
 const STEP_HEAR_RANGE := 30.0
-const STEP_SOUNDS: Array[AudioStream] = [
-	preload("res://audio/step1.wav"), preload("res://audio/step2.wav"), preload("res://audio/step3.wav")]
 ## Current navigation path (to _path_goal) and the waypoint it's walking to.
 var _path := PackedVector3Array()
 var _ground_check_left := randf() * 0.5
@@ -112,7 +110,7 @@ func _update_footsteps(delta: float) -> void:
 		_stride_left = 1.4
 		if _sneaking() or _net_flags & NET_SNEAK:
 			return  # sneaking up: no footstep sounds
-		Effects.sound_at(get_tree().current_scene, STEP_SOUNDS.pick_random(), global_position, -6.0, 0.1, 0.9, 2.5, STEP_HEAR_RANGE)
+		Surfaces.step(self, -6.0, true, 0.9, 2.5, STEP_HEAR_RANGE)
 
 
 ## Lost you mid-fight: start hunting around where it last saw you.

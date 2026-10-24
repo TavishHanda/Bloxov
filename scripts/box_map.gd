@@ -42,9 +42,30 @@ const WADE_META := &"wading"
 const WADE_DEPTH := 0.05
 ## Points across the water ribbon (so the shader knows the depth across it).
 const WATER_ACROSS := 9
+## What feet stand on (0.20.0): the ground (today's steps), wood, metal, concrete/tile, water.
+const SURFACE_GROUND := 0
+const SURFACE_WOOD := 1
+const SURFACE_METAL := 2
+const SURFACE_CONCRETE := 3
+const SURFACE_WATER := 4
+## Box colours with a sound of their own; the rest (slabs, walls, roofs) sound like their building, or the ground.
+const SURFACE_BY_COLOUR := {
+	"wood": SURFACE_WOOD, "rail": SURFACE_WOOD, "boxcar": SURFACE_WOOD, "deadwood": SURFACE_WOOD, "trunk": SURFACE_WOOD,
+	"metal": SURFACE_METAL, "car_a": SURFACE_METAL, "car_b": SURFACE_METAL, "rust": SURFACE_METAL,
+	"keydoor": SURFACE_METAL,
+	"road": SURFACE_CONCRETE, "pavement": SURFACE_CONCRETE, "concrete": SURFACE_CONCRETE, "bunker": SURFACE_CONCRETE,
+	"stone": SURFACE_CONCRETE, "lot": SURFACE_CONCRETE,
+}
+## Colours nobody stands on (tree tops, bushes, water, the map's edge).
+const SURFACE_SKIP := ["leaves", "bush", "water", "boundary"]
+const SURFACE_CELL := 8.0
 
 @export var boxes := PackedFloat32Array()
 @export var colors := PackedColorArray()
+## Footsteps by surface (Sound update 0.20.0, see `surface_at` and scripts/surfaces.gd): each colour's name (the
+## generator's COLOURS), and each building's footprint with its floor's sound (x0, z0, x1, z1, surface; local space).
+@export var colour_names := PackedStringArray()
+@export var floor_rects := PackedFloat32Array()
 @export var terrain_xs := PackedFloat32Array()
 @export var terrain_zs := PackedFloat32Array()
 @export var terrain_heights := PackedFloat32Array()
@@ -110,6 +131,10 @@ var _shaped_from := 0
 var _shaped_to := 0
 ## ...and the shot triangles right after them (wound like them), up to here.
 var _shots_to := 0
+## surface_at's lookup: boxes near each SURFACE_CELL square (Vector2i -> PackedInt32Array of box starts), and each
+## box's inverse transform.
+var _surface_cells := {}
+var _surface_inverse := {}
 
 
 func _ready() -> void:
@@ -220,6 +245,7 @@ func _ready() -> void:
 	_add_leaves()
 	_add_bars()
 	_add_windows()
+	_index_surfaces()
 
 
 func _road_tool() -> SurfaceTool:
@@ -319,6 +345,53 @@ func ground_height(pos: Vector3) -> float:
 	# (the same split as the triangles: north-west to south-east corner)
 	var h := ha + u * (hb - ha) + v * (hd - hb) if u >= v else ha + v * (hc - ha) + u * (hd - hc)
 	return to_global(Vector3(local.x, h, local.z)).y
+
+
+func _index_surfaces() -> void:
+	if colour_names.is_empty():
+		return
+	for i in range(0, boxes.size(), STRIDE):
+		var colour := int(boxes[i + 8])
+		if colour >= colour_names.size() or colour_names[colour] in SURFACE_SKIP:
+			continue
+		var xf := Transform3D(
+			Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))
+				* Basis.from_scale(Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])),
+			Vector3(boxes[i], boxes[i + 1], boxes[i + 2]))
+		_surface_inverse[i] = xf.affine_inverse()
+		var reach := Vector2(boxes[i + 3], boxes[i + 5]).length() / 2.0 + 0.3
+		var c0 := Vector2i(floori((boxes[i] - reach) / SURFACE_CELL), floori((boxes[i + 2] - reach) / SURFACE_CELL))
+		var c1 := Vector2i(floori((boxes[i] + reach) / SURFACE_CELL), floori((boxes[i + 2] + reach) / SURFACE_CELL))
+		for cx in range(c0.x, c1.x + 1):
+			for cz in range(c0.y, c1.y + 1):
+				var key := Vector2i(cx, cz)
+				var list: PackedInt32Array = _surface_cells.get(key, PackedInt32Array())
+				list.append(i)
+				_surface_cells[key] = list   # (packed arrays are copied: put it back)
+
+
+## What world point `feet` stands on (0.20.0): the top of a box at most a step below or above it (the highest), by
+## its colour (SURFACE_BY_COLOUR); plain floors and the ground inside a building by the building (`floor_rects`);
+## anything else the ground.
+func surface_at(feet: Vector3) -> int:
+	var local := to_local(feet)
+	var best := -INF
+	var surface := -1
+	for i in _surface_cells.get(Vector2i(floori(local.x / SURFACE_CELL), floori(local.z / SURFACE_CELL)), PackedInt32Array()):
+		var p: Vector3 = (_surface_inverse[i] as Transform3D) * local
+		if absf(p.x) > 0.5 + 0.15 / boxes[i + 3] or absf(p.z) > 0.5 + 0.15 / boxes[i + 5]:
+			continue
+		var height := p.y * boxes[i + 4] - boxes[i + 4] / 2.0   # (feet above the box's top, along the box's up)
+		if height < -0.3 or height > 0.35 or boxes[i + 1] + boxes[i + 4] / 2.0 <= best:
+			continue
+		best = boxes[i + 1] + boxes[i + 4] / 2.0
+		surface = SURFACE_BY_COLOUR.get(colour_names[int(boxes[i + 8])], -1)
+	if surface >= 0:
+		return surface
+	for r in range(0, floor_rects.size(), 5):
+		if local.x >= floor_rects[r] and local.x <= floor_rects[r + 2] and local.z >= floor_rects[r + 1] and local.z <= floor_rects[r + 3]:
+			return int(floor_rects[r + 4])
+	return SURFACE_GROUND
 
 
 ## Under the ground (0.12.35, owner's screenshot: a squadmate spawned on a slope ended up below the hills, and the

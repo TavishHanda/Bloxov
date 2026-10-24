@@ -21,6 +21,7 @@ const SECTIONS: Array[String] = [
 	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"sound",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -5302,6 +5303,46 @@ func _spawn(path: String, pos: Vector3) -> Node3D:
 ## Turns `node` (around Y only) to face the player.
 func _face_player(node: Node3D) -> void:
 	node.look_at(Vector3(player.global_position.x, node.global_position.y, player.global_position.z))
+
+
+func _section_sound() -> void:
+	# The Sound update (0.20, owner: only ADD sounds, today's stay). 0.20.0: footsteps by surface. A box's colour
+	# says what it sounds like; plain floors and the ground inside a building sound like the building's floor.
+	var map := BoxMap.new()
+	map.colors = PackedColorArray([Color.GRAY, Color.BROWN, Color.DIM_GRAY, Color.WHITE])
+	map.colour_names = PackedStringArray(["grass", "wood", "metal", "slab"])
+	var spot := Vector3(-40, 0, 40)
+	map.boxes = PackedFloat32Array([spot.x, 0.1, spot.z, 2, 0.2, 2, 0, 0, 1, 1,
+		spot.x + 4, 0.1, spot.z, 2, 0.2, 2, 0, 0, 2, 1,
+		spot.x + 8, 0.1, spot.z, 2, 0.2, 2, 0, 0, 3, 1,
+		spot.x + 12, 0.1, spot.z, 2, 0.2, 2, 30, 0, 1, 1])
+	map.floor_rects = PackedFloat32Array([spot.x + 6, spot.z - 3, spot.x + 10, spot.z + 3, Surfaces.CONCRETE])
+	main.add_child(map)
+	var at := func(dx: float, y := 0.2) -> int: return map.surface_at(spot + Vector3(dx, y, 0.3))
+	_check(at.call(0.0) == Surfaces.WOOD and at.call(4.0) == Surfaces.METAL and at.call(12.0) == Surfaces.WOOD,
+		"footsteps by surface: wood and metal boxes (a turned one too)")
+	_check(at.call(8.0) == Surfaces.CONCRETE and at.call(6.5, 0.0) == Surfaces.CONCRETE and at.call(2.0, 0.0) == Surfaces.GROUND
+		and at.call(0.0, 1.5) == Surfaces.GROUND,
+		"a plain floor and the ground in a building sound like its floor; outdoors and in mid-air, the ground")
+	var back := player.global_position
+	player.teleport_to(spot + Vector3(0, 0.3, 0))
+	await create_timer(0.3).timeout
+	_check(Surfaces.under(player) == Surfaces.WOOD, "the player standing on the wood box hears wood")
+	player.set_meta(BoxMap.WADE_META, 1)
+	_check(Surfaces.under(player) == Surfaces.WATER, "...and water while wading")
+	player.remove_meta(BoxMap.WADE_META)
+	var steps := main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer).size()
+	Surfaces.step(player, -9.0)
+	_check(main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer).size() == steps + 1,
+		"a footstep plays")
+	player.teleport_to(back)
+	map.queue_free()
+	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()
+	var blocks := real.get_node("Level/Blocks") as BoxMap
+	_check(blocks.colour_names.size() == blocks.colors.size() and blocks.floor_rects.size() >= 5 * 30,
+		"Bloxov Battlegrounds names its colours and %d buildings' floors" % (blocks.floor_rects.size() / 5))
+	real.free()
+	await create_timer(0.1).timeout
 
 
 func _check(ok: bool, what: String) -> void:
