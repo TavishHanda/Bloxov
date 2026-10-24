@@ -4898,8 +4898,14 @@ def terrain():
     hall_y = ter.pad_at(BUNKER_HOLE[0], BUNKER_HOLE[1])
     bx0, bz0, bx1, bz1 = BUNKER[0] - 0.3, BUNKER[1] - 0.3, BUNKER[2] + 0.3, BUNKER[3] + 0.3
     hx0, hz0, hx1, hz1 = BUNKER_HOLE
+    # (0.18.5, owner: the vault's ceiling glitched: the vault's model draws the ceiling at the same height, so the
+    # boxes are solid but not drawn, or the two fight over who's in front: stripes)
+    n0 = len(boxes)
     for x0, z0, x1, z1 in ((bx0, bz0, hx0, bz1), (hx1, bz0, bx1, bz1), (hx0, bz0, hx1, hz0), (hx0, hz1, hx1, bz1)):
         box(x0, hall_y - 1.0, z0, x1, hall_y - 0.02, z1, "bunker")
+    if os.path.exists(model_path("th_vault")):
+        for k in range(n0, len(boxes)):
+            boxes[k] = boxes[k][:9] + (2,) + boxes[k][10:]
     # containers, extracts, spawns and markers stand on the ground too
     for k, l in enumerate(loot):
         loot[k] = l[:3] + (l[3] + (cave_floor[0] if l[7] == "Waterfall" else ter.lift(l[2], l[4])),) + l[4:]

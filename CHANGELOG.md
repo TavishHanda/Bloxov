@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.5 (Vault ceiling)
+- **Bon's vault ceiling doesn't flicker** (owner's screenshot: stripes across the ceiling under the town hall): the
+  vault's model draws its ceiling at the same height as the map's ceiling boxes there, and the two fought over which
+  is in front. The boxes are still solid but no longer drawn.
+
 ## 0.18.4 (Searchable props, better safes)
 - **Anything that looks lootable is lootable** (owner: "dont make fake loot spots"): the filing cabinets, drawers,
   nightstands, dressers, trunks, toy chests, footlockers, lockers, tool chests, coolers, freezers, ammo crates and the
