@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.13 (Dirt banks blend in)
+- **The dirt banks round the map blend into the ground** (owner: "they look super unnatural in some places"):
+  - Shape: a rounded crest instead of a flat loaf top, a steep body that flares into a gentle grassy foot sinking
+    under the ground, and a wavering outline instead of a stretched box.
+  - Colour: smooth shading and the same hilltop/slope tint the ground uses, so there's no lighter patch, blocky
+    facets or seam where they meet the grass; bare earth only shows on the steepest part (the ground shader).
+  - Crater rims get the same smooth, ground-tinted shading.
+- **Cover is unchanged:** the crest is as high as before, the body is still too steep to walk up, collision follows
+  the new shape (the 0.19.7 "stuck after vaulting in" fix still holds, smoke test), sightline check 528 -> 523.
+- Behind the scenes: `make_building.write_glb` takes per-corner normals and colours (`Builder.poly(vnormals=, colors=)`);
+  the outdoor models and collision were rebuilt from the current map (they were a step behind 0.19.11's map).
+  `tools/hump_views.gd` renders eye-level views of chosen map spots.
 ## 0.19.12 (Gear slot text)
 - **The equipment slots' text matches the item tiles** (owner: the text there wasn't good). A filled slot shows the
   item's short name small in the top-right corner (no more big "PRIMARY / Hound" over the picture), and an empty slot

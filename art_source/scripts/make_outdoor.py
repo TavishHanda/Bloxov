@@ -812,15 +812,70 @@ def draw_berm(b, piece, rng):
     same.setstate(rng.getstate())
     earth_bank(b, boxes, rng)
     t = Builder()   # (its collision, owner 0.18.3: the bank itself, not a box inside it; the same bank, coarser)
-    earth_bank(t, boxes, same, step=1.0)
+    earth_bank(t, boxes, same, step=1.0, smooth=False)
     shape(t, 0, list(range(len(boxes))), mats=(GROUND,))
 
 
-def earth_bank(b, boxes, rng, fall=2.2, step=0.5):
+GRASS_TINT = (0.47, 0.62, 0.36)   # (the ground's grass colour, BoxMap colors[terrain_colour] = ground.gdshader tint_base)
+
+
+def ground_tint(y, slope):
+    """The colour BoxMap shades its ground with at height y and slope (rise per metre): hilltops a touch lighter,
+    hollows and slopes darker. Banks and crater rims carry it as vertex colours, so they shade like the hill they're on."""
+    if y > 0.0:
+        a = min(max(y * 0.015, 0.0), 0.12)
+        c = [v + (1.0 - v) * a for v in GRASS_TINT]
+    else:
+        a = min(max(-y * 0.04, 0.0), 0.15)
+        c = [v * (1.0 - a) for v in GRASS_TINT]
+    d = min(max(slope * 0.6, 0.0), 0.25)
+    return tuple(v * (1.0 - d) for v in c)
+
+
+def smooth_sheet(b, xs, zs, H, world, height, skip):
+    """A height field drawn smooth: per-corner normals and ground tints from the field's own slopes (so it shades
+    like the ground mesh, which is smooth too, and meets it without a seam). H[j][i] = (y, ground y)."""
+    e = 0.25
+
+    def corner(x, z):
+        dx = (height(x + e, z)[0] - height(x - e, z)[0]) / (2 * e)
+        dz = (height(x, z + e)[0] - height(x, z - e)[0]) / (2 * e)
+        return dx, dz
+    grad = {}
+    for j in range(len(zs) - 1):
+        for i in range(len(xs) - 1):
+            hs = [H[j][i], H[j][i + 1], H[j + 1][i + 1], H[j + 1][i]]
+            if skip(hs):
+                continue
+            ij = ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
+            for k in ij:
+                if k not in grad:
+                    grad[k] = corner(xs[k[0]], zs[k[1]])
+            q = [(world(xs[a], zs[c])[0], H[c][a][0], world(xs[a], zs[c])[1]) for a, c in ij]
+            ns, cs = [], []
+            for a, c in ij:   # (the slope turned into the world: the field's own frame may be turned by its yaw)
+                dx, dz = grad[(a, c)]
+                p0, p1, p2 = world(0.0, 0.0), world(1.0, 0.0), world(0.0, 1.0)
+                ux, uz = p1[0] - p0[0], p1[1] - p0[1]
+                vx, vz = p2[0] - p0[0], p2[1] - p0[1]
+                gx, gz = dx * ux + dz * vx, dx * uz + dz * vz
+                ns.append(norm((-gx, 1.0, -gz)))
+                cs.append(ground_tint(H[c][a][0], math.hypot(gx, gz)))
+            for t in ((0, 1, 2), (0, 2, 3)):
+                tri = [q[k] for k in t]
+                n = norm(cross(v_sub(tri[1], tri[0]), v_sub(tri[2], tri[0])))
+                if n[1] < 0:
+                    n = v_scale(n, -1)
+                b.poly(tri, n, GROUND, uv_world(2.0), vnormals=[ns[k] for k in t], colors=[cs[k] for k in t])
+
+
+def earth_bank(b, boxes, rng, step=0.5, smooth=True):
     """A bulldozed bank over its gray boxes, shaped from the ground (round 2, owner: the banks didn't sit on the
-    hills and looked like loaves): it rises out of the ground round its boxes, its top just over theirs (they collide),
-    and its edges dip under the ground, so there's no seam. Plain ground colour where it's gentle, bare earth on the
-    steep sides."""
+    hills and looked like loaves). 0.19.12 (owner: "they look super unnatural in some places, make them blend
+    better"): a rounded crest instead of a flat top, a steep body (still too steep to walk up, as before) that
+    flares into a gentle grassy foot sinking under the ground, a wavering outline, and smooth shading tinted like
+    the ground round it, so there's no edge or colour step where it meets the grass. Its crest is as high as its
+    boxes (they're its cover height); bare earth shows where it's steep (the ground shader)."""
     mid = boxes[len(boxes) // 2]
     yaw = mid["yaw"]
     ox, oz = mid["pos"][0], mid["pos"][2]
@@ -829,9 +884,10 @@ def earth_bank(b, boxes, rng, fall=2.2, step=0.5):
         l = rot((box["pos"][0] - ox, 0.0, box["pos"][2] - oz), -yaw, 0.0)
         s_ = box["size"]
         rects.append((l[0] - s_[0] / 2, l[0] + s_[0] / 2, l[2] - s_[2] / 2, l[2] + s_[2] / 2, box["pos"][1] + s_[1] / 2))
-    x0, x1 = min(r[0] for r in rects) - fall - 0.5, max(r[1] for r in rects) + fall + 0.5
-    z0, z1 = min(r[2] for r in rects) - fall - 0.5, max(r[3] for r in rects) + fall + 0.5
-    ph = (rng.uniform(0, 6), rng.uniform(0, 6))
+    crest, sink, reach = 0.7, 0.3, 6.5
+    x0, x1 = min(r[0] for r in rects) - reach, max(r[1] for r in rects) + reach
+    z0, z1 = min(r[2] for r in rects) - reach, max(r[3] for r in rects) + reach
+    ph = [rng.uniform(0, 6) for _ in range(4)]
 
     def world(x, z):
         p = rot((x, 0.0, z), yaw, 0.0)
@@ -840,39 +896,52 @@ def earth_bank(b, boxes, rng, fall=2.2, step=0.5):
     def height(x, z):
         wx, wz = world(x, z)
         g = ground(wx, wz)
-        best = g - 0.3
+        # (the outline wavers, so it doesn't read as a stretched box)
+        wob = 0.35 * math.sin(x * 0.55 + ph[0]) + 0.2 * math.sin(z * 0.9 + x * 0.3 + ph[1])
+        best = None
         for rx0, rx1, rz0, rz1, top in rects:
             dx = max(rx0 - x, 0.0, x - rx1)
             dz = max(rz0 - z, 0.0, z - rz1)
-            d = math.hypot(dx, dz)
-            edge = min(x - rx0, rx1 - x, z - rz0, rz1 - z)
-            y = top + 0.1 * smooth01(edge / 0.8) if d == 0 else top - (top - g + 0.25) * smooth01(d / fall)
-            best = max(best, y)
-        best += 0.05 * math.sin(x * 1.3 + ph[0]) * math.sin(z * 1.9 + ph[1])
-        return (best if best > g + 0.03 else g - 0.2), g
+            s = math.hypot(dx, dz) if dx > 0 or dz > 0 else -min(x - rx0, rx1 - x, z - rz0, rz1 - z)
+            s += wob
+            hh = max(top - g, 0.4) + sink
+            body = 1.1 * hh    # (steep: ~48 deg at its middle, too steep to walk up, like the old banks)
+            foot = body + 2.6  # (the gentle skirt)
+            t1 = (s + crest) / body
+            t2 = (s + crest) / foot
+            y = g - sink + hh * (0.84 * (1.0 - smooth01(t1)) + 0.16 * (1.0 - smooth01(t2)))
+            if best is None:
+                best = y
+            else:   # (a smooth max: no crease where two boxes' slopes meet)
+                k = 0.5
+                hk = max(k - abs(best - y), 0.0) / k
+                best = max(best, y) + hk * hk * k * 0.25
+        best += 0.06 * math.sin(x * 1.3 + ph[2]) * math.sin(z * 1.9 + ph[3])
+        return best, g
     nx, nz = max(4, int((x1 - x0) / step)), max(4, int((z1 - z0) / step))
     xs = [x0 + (x1 - x0) * i / nx for i in range(nx + 1)]
     zs = [z0 + (z1 - z0) * j / nz for j in range(nz + 1)]
     H = [[height(x, z) for x in xs] for z in zs]
-    for j in range(nz):
-        for i in range(nx):
-            hs = [H[j][i], H[j][i + 1], H[j + 1][i + 1], H[j + 1][i]]
-            if all(h <= g + 0.0 for h, g in hs):
-                continue
-            q = [(xs[i], hs[0][0], zs[j]), (xs[i + 1], hs[1][0], zs[j]), (xs[i + 1], hs[2][0], zs[j + 1]), (xs[i], hs[3][0], zs[j + 1])]
-            q = [(world(p[0], p[2])[0], p[1], world(p[0], p[2])[1]) for p in q]
-            qn = norm(cross(v_sub(q[2], q[0]), v_sub(q[3], q[1])))   # (one colour per cell: no zigzag edges)
-            mat = GROUND   # (step 2: drawn by the ground's own shader, slopes and all; see GROUND)
-            for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
-                n = norm(cross(v_sub(c, a), v_sub(d, a)))
-                if n[1] < 0:
-                    n = v_scale(n, -1)
-                b.poly([a, c, d], n, mat, uv_world(2.0))
-    for _ in range(5):   # a few stones at its foot
+    under = lambda hs: all(h < g - 0.02 for h, g in hs)   # (wholly under the ground: left out)
+    if smooth:
+        smooth_sheet(b, xs, zs, H, world, height, under)
+    else:   # (its collision: plain triangles)
+        for j in range(nz):
+            for i in range(nx):
+                ij = ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
+                if under([H[c][a] for a, c in ij]):
+                    continue
+                q = [(world(xs[a], zs[c])[0], H[c][a][0], world(xs[a], zs[c])[1]) for a, c in ij]
+                for tri in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
+                    b.poly(list(tri), (0.0, 1.0, 0.0), GROUND, uv_world(2.0))
+    for _ in range(5):   # a few stones round its foot
         sz = rng.uniform(0.2, 0.45)
-        lx, lz = rng.uniform(x0 + 1.0, x1 - 1.0), rng.choice((z0 + 0.5, z1 - 0.5)) + rng.uniform(-0.3, 0.3)
+        r = rng.choice(rects)
+        lx = rng.uniform(r[0], r[1])
+        lz = rng.choice((r[2] - 2.2, r[3] + 2.2)) + rng.uniform(-0.4, 0.4)
         wx, wz = world(lx, lz)
-        rock(b, (wx, ground(wx, wz) + sz * 0.3, wz), (sz * 1.3, sz, sz), rng.uniform(0, 180), rng, "dbr_granite")
+        y = max(height(lx, lz)[0], ground(wx, wz))
+        rock(b, (wx, y + sz * 0.25, wz), (sz * 1.3, sz, sz), rng.uniform(0, 180), rng, "dbr_granite")
 
 
 # ------------------------------------------------------------------------------------------------ rocks
@@ -2466,14 +2535,25 @@ def draw_crater(b, piece, rng):
         for j in range(len(rs) - 1):
             t.poly([P(i, j, 16, rs), P(i + 1, j, 16, rs), P(i + 1, j + 1, 16, rs), P(i, j + 1, 16, rs)], (0, 1, 0), "trim", uv_world())
     shape(t, 0, list(range(len(mounds))))
+    def shade(i, j):   # (0.19.12: smooth, tinted like the ground, so the rim melts into it; see smooth_sheet)
+        du = v_sub(P(i + 0.5, j), P(i - 0.5, j))
+        dv = v_sub(P(i, j + 0.5), P(i, j - 0.5))
+        n = norm(cross(du, dv))
+        if n[1] < 0:
+            n = v_scale(n, -1)
+        return n, ground_tint(P(i, j)[1], math.sqrt(max(1.0 - n[1] * n[1], 0.0)) / max(n[1], 0.1))
     for i in range(NA):
         for j in range(NR):
-            q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)]
-            for a, c, d in ((q[0], q[1], q[2]), (q[0], q[2], q[3])):
+            ij = ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))
+            q = [P(*k) for k in ij]
+            sh = [shade(*k) for k in ij]
+            for t in ((0, 1, 2), (0, 2, 3)):
+                a, c, d = (q[k] for k in t)
                 n = norm(cross(v_sub(c, a), v_sub(d, a)))
                 if n[1] < 0:
                     n = v_scale(n, -1)
-                b.poly([a, c, d], n, GROUND, uv_world(2.0))   # (scorched or not: the splat map says)
+                b.poly([a, c, d], n, GROUND, uv_world(2.0), vnormals=[sh[k][0] for k in t],
+                       colors=[sh[k][1] for k in t])   # (scorched or not: the splat map says)
     for _ in range(7):
         a, r = rng.uniform(0, 2 * math.pi), rng.uniform(R - 0.6, R + 2.2)
         p = on_ground((cx + r * math.cos(a), 0.0, cz + r * math.sin(a)), 0.05)

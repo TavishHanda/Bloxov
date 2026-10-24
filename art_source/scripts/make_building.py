@@ -984,11 +984,24 @@ class Builder:
             self.mat_names.append(name)
         return self.mat_names.index(name)
 
-    def poly(self, pts, normal, mat, uv):
-        """pts: corners (Godot space); turned to face `normal`. uv: a mapping, see the uv_* functions."""
+    def poly(self, pts, normal, mat, uv, vnormals=None, colors=None):
+        """pts: corners (Godot space); turned to face `normal`. uv: a mapping, see the uv_* functions.
+        vnormals / colors (optional, one per corner): smooth shading and vertex colours (the outdoor earth banks)."""
         e1, e2 = v_sub(pts[1], pts[0]), v_sub(pts[2], pts[0])
         if dot(cross(e1, e2), normal) < 0:
             pts = list(reversed(pts))
+            vnormals = list(reversed(vnormals)) if vnormals else None
+            colors = list(reversed(colors)) if colors else None
+        if vnormals:
+            if not hasattr(self, "vnormals"):
+                self.vnormals = [None] * len(self.faces)
+            self.vnormals += [None] * (len(self.faces) - len(self.vnormals))
+            self.vnormals.append([norm(tuple(n)) for n in vnormals])
+        if colors:
+            if not hasattr(self, "colors"):
+                self.colors = [None] * len(self.faces)
+            self.colors += [None] * (len(self.faces) - len(self.colors))
+            self.colors.append([tuple(c) for c in colors])
         base = len(self.verts)
         self.verts += [tuple(p) for p in pts]
         self.normals.append(norm(tuple(normal)))
@@ -4854,7 +4867,7 @@ def set_import_script(glb):
 
 
 def write_glb(path, builder, textures, mat_info, atlas=None):
-    """The model as a .glb: one mesh, one primitive per material, flat normals, nearest-filtered textures.
+    """The model as a .glb: one mesh, one primitive per material, flat normals (or the builder's vnormals), nearest-filtered textures.
     atlas ({kit name: cell corner}): those materials become one "kit_atlas" material, the cell corner in TEXCOORD_1."""
     blob = bytearray()
     views, accessors = [], []
@@ -4906,15 +4919,20 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
     target_of = [targets.index("kit_atlas" if m in atlas else m) for m in builder.mat_names]
     for mi in range(len(targets)):
         pos, nrm, uv, uv2, col, idx = [], [], [], [], [], []
-        colors = getattr(builder, "colors", None) or [None] * len(builder.faces)
-        for face, uvs, m, n, cs in zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors):
+        colors = list(getattr(builder, "colors", None) or [])
+        colors += [None] * (len(builder.faces) - len(colors))
+        vnormals = list(getattr(builder, "vnormals", None) or [])
+        vnormals += [None] * (len(builder.faces) - len(vnormals))
+        has_col = False
+        for face, uvs, m, n, cs, vns in zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors, vnormals):
             if target_of[m] != mi:
                 continue
+            has_col = has_col or bool(cs)
             base = len(pos)
             cell = atlas.get(builder.mat_names[m], (0.0, 0.0))
             for k, (vi, t) in enumerate(zip(face, uvs)):
                 pos.append(builder.verts[vi])
-                nrm.append(n)
+                nrm.append(vns[k] if vns else n)
                 uv.append((t[0], 1.0 - t[1]))          # glTF's v points down the image
                 uv2.append(cell)
                 col.append(tuple(cs[k]) if cs else (1.0, 1.0, 1.0))
@@ -4927,7 +4945,7 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
                                      "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
                                      **({"TEXCOORD_1": add_accessor(uv2, 5126, "VEC2", 34962)}
                                         if targets[mi] == "kit_atlas" else {}),
-                                     **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if colors[0] else {})},
+                                     **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if has_col else {})},
                       "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
     # Images use the alpha channel only where the material says so; gltf's alpha comes from the texture.
     gltf = {"asset": {"version": "2.0", "generator": "Bloxov make_building.py"}, "scene": 0,
