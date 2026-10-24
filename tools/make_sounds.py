@@ -553,6 +553,59 @@ def impact(kind):
             for i in range(len(sharp))]
 
 
+# 0.20.3: items and guns.
+
+def bandage():
+    """Unrolling and tearing a bandage: a few papery rips."""
+    random.seed(1800)
+    out = silence(0.9)
+    for k, at in enumerate((0.0, 0.28, 0.55)):
+        rip = _highpass(noise(length(0.18), 0.35), 0.75)
+        rip = [x * math.sin(math.pi * i / len(rip)) * (0.6 + 0.4 * random.random()) for i, x in enumerate(rip)]
+        out = _mix(out, rip, at, 0.8 + 0.1 * k)
+    return out
+
+
+def medkit():
+    """A medkit: a zip, then rustling through it."""
+    random.seed(1801)
+    zip_n = length(0.4)
+    zipper = [random.uniform(-1, 1) * (1.0 if (i // 90) % 2 else 0.25) * math.sin(math.pi * i / zip_n) for i in range(zip_n)]
+    out = _mix(_highpass(zipper, 0.6), _cloth(0.4, 0.6, 0.4), 0.45, 0.8)
+    return _mix(out, _cloth(0.3, 0.5, 0.3), 0.75, 0.6)
+
+
+def drink():
+    """An energy drink: the can cracking open with a fizz, then three gulps."""
+    random.seed(1802)
+    crack = [x * math.exp(-i / RATE * 60) for i, x in enumerate(_highpass(noise(length(0.05), 0.1), 0.5))]
+    fizz = [x * 0.3 * math.exp(-i / RATE * 6) for i, x in enumerate(_highpass(noise(length(0.4), 0.1), 0.3))]
+    out = _mix(crack, fizz, 0.02)
+    for k in range(3):
+        out = _mix(out, _thud(0.12, 260, 150, 30, 30, 0.3, 0.8, 30), 0.5 + 0.3 * k, 0.8)
+    return out
+
+
+def pin():
+    """Pulling a grenade's pin: a scrape and a bright ring."""
+    random.seed(1803)
+    scrape = [x * math.sin(math.pi * i / length(0.08)) for i, x in enumerate(_highpass(noise(length(0.08), 0.2), 0.7))]
+    ring = [math.sin(2 * math.pi * 3100 * i / RATE) * math.exp(-i / RATE * 18) * 0.5 for i in range(length(0.35))]
+    return _mix(scrape, ring, 0.07)
+
+
+def draw():
+    """Swapping guns: cloth, then the gun clacking into the hands."""
+    random.seed(1804)
+    return _mix(_cloth(0.2, 0.7, 0.3), _mix(click(0.04, 900, 70, 0.3), click(0.03, 1500, 110, 0.1), 0.05), 0.15, 0.9)
+
+
+def aim():
+    """Raising the gun to the eye: a short soft cloth rustle."""
+    random.seed(1805)
+    return _cloth(0.16, 0.8, 0.35)
+
+
 def main_sound_update():
     (OUT / "steps").mkdir(exist_ok=True)
     for v in range(3):
@@ -572,6 +625,10 @@ def main_sound_update():
         write(f"world/{name}.wav", fn())
     for kind in ("dirt", "wood", "metal", "concrete"):
         write(f"world/impact_{kind}.wav", impact(kind))
+    (OUT / "items").mkdir(exist_ok=True)
+    for name, fn in (("bandage", bandage), ("medkit", medkit), ("drink", drink), ("pin", pin), ("draw", draw),
+                     ("aim", aim)):
+        write(f"items/{name}.wav", fn())
 
 
 if __name__ == "__main__":

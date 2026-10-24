@@ -258,6 +258,8 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	heal_duration = ItemDB.item(stack.id)["use_time"]
 	heal_time_left = heal_duration
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
+	if WorldSounds.ITEMS.has(stack.id):
+		WorldSounds.own(self, WorldSounds.ITEMS[stack.id], -8.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -573,6 +575,7 @@ func toggle_grenade(id: String) -> void:
 	_nade_id = id
 	_nade_phase = 1
 	_nade_time = NADE_PULL_TIME
+	WorldSounds.own(self, WorldSounds.PIN, -10.0)
 	if hand != null:
 		hand.show_item(id)
 

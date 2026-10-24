@@ -1122,7 +1122,8 @@ func _section_characters() -> void:
 		var still_merged: int = showing_parts.call().size()
 		model.unmerge_parts()
 		await process_frame
-		_check(parts_merged <= parts_before / 2 and tris_merged == tris_before and still_merged <= parts_before / 2
+		# (about half: an odd count rounds up, e.g. 9 parts -> 5 meshes for an outfit the 0.20.3 sounds' dice landed on)
+		_check(parts_merged <= (parts_before + 1) / 2 and tris_merged == tris_before and still_merged <= (parts_before + 1) / 2
 			and showing_parts.call().size() == parts_before and model.get_node("Gun").visible,
 			"%s: its %d parts showing draw as %d meshes (same %d triangles), still after picking it again, and come apart again %s"
 			% [character.name, parts_before, parts_merged, tris_before, [tris_merged, still_merged,
@@ -5387,6 +5388,11 @@ func _section_sound() -> void:
 	_check(prone_sound == WorldSounds.PRONE and opened == WorldSounds.DOOR_OPEN and newest.call() == WorldSounds.DOOR_CLOSE,
 		"going prone rustles; a door creaks open and thuds shut")
 	door.queue_free()
+	# 0.20.3, items and guns: each gun's reload pitched its own way (today's sounds), sounds for each med and drink.
+	_check(GunSounds.reload_pitch("pistol") > GunSounds.reload_pitch("ak") and GunSounds.reload_pitch("sniper") < 1.0
+		and GunSounds.RELOAD_PITCH.keys().all(func(id: String) -> bool: return ItemDB.kind(id) == "weapon")
+		and WorldSounds.ITEMS.keys().all(func(id: String) -> bool: return ItemDB.kind(id) in ["heal", "drink"]),
+		"lighter guns reload higher, the Lancer lower; every med and the drink have a sound")
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()

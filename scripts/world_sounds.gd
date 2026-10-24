@@ -21,6 +21,13 @@ const IMPACTS: Array[AudioStream] = [preload("res://audio/world/impact_dirt.wav"
 	preload("res://audio/world/impact_metal.wav"), preload("res://audio/world/impact_concrete.wav"),
 	preload("res://audio/world/impact_dirt.wav")]
 const IMPACT_RANGE := 40.0
+## Using an item (0.20.3), by item id; today's heal sound still plays with them.
+const ITEMS := {
+	"bandage": preload("res://audio/items/bandage.wav"),
+	"medkit": preload("res://audio/items/medkit.wav"),
+	"energy_drink": preload("res://audio/items/drink.wav"),
+}
+const PIN := preload("res://audio/items/pin.wav")
 ## World sounds others make (doors): heard this far.
 const DOOR_RANGE := 30.0
 

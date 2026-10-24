@@ -191,6 +191,8 @@ func _on_equipment_changed() -> void:
 
 
 func _apply_weapon(stack: ItemStack) -> void:
+	if stack != null and weapon != null and is_inside_tree():
+		Effects.sound(get_tree().current_scene, GunSounds.DRAW, -10.0, 0.06)   # (swapping guns, 0.20.3)
 	weapon = stack
 	is_reloading = false
 	_raise_left = switch_time
@@ -255,6 +257,8 @@ func _process(delta: float) -> void:
 	_aim_block_left -= delta
 	_since_shot += delta
 	var aim_target := 1.0 if wants_aim() and not player.is_sprinting() and not is_reloading and not player.knife.is_swinging() else 0.0
+	if aim_target > 0.5 and aim == 0.0 and weapon != null:
+		Effects.sound(get_tree().current_scene, GunSounds.AIM, -14.0, 0.1)
 	aim = move_toward(aim, aim_target, delta / maxf(ads_time, 0.01))
 	_update_reload(delta)
 	_update_model(delta)
@@ -460,7 +464,7 @@ func start_reload() -> void:
 	_reload_left = reload_time
 	_mag_in_played = false
 	if not load_one:
-		Effects.sound(get_tree().current_scene, MAG_OUT_SOUND)
+		Effects.sound(get_tree().current_scene, MAG_OUT_SOUND, 0.0, 0.08, GunSounds.reload_pitch(weapon.id))
 
 
 func _update_reload(delta: float) -> void:
@@ -469,7 +473,8 @@ func _update_reload(delta: float) -> void:
 	_reload_left -= delta
 	if not _mag_in_played and _reload_left <= reload_time * 0.4:
 		_mag_in_played = true
-		Effects.sound(get_tree().current_scene, GunSounds.SHELL_IN if load_one else MAG_IN_SOUND)
+		Effects.sound(get_tree().current_scene, GunSounds.SHELL_IN if load_one else MAG_IN_SOUND, 0.0, 0.08,
+			1.0 if load_one else GunSounds.reload_pitch(weapon.id))
 	if _reload_left <= 0.0 and load_one:
 		# One round in; keep going while there's room and rounds to load.
 		in_mag += player.inventory.take(ammo_id, 1)

@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.3 (Sound update: items and guns)
+- **Each gun reloads with its own pitch:** today's mag out/in sounds, a little higher for the Stinger (pistol) and
+  Wasp, a little lower for the Lancer; the Hound as before, the Mauler's shells as before.
+- **Swapping guns** clacks the new one into your hands; **aiming down sights** makes a soft cloth rustle.
+- **Meds and drinks:** a bandage unrolls and tears, a medkit unzips and rustles, the energy drink cracks open,
+  fizzes and gets gulped. Today's heal sound still plays with them.
+- **Grenades:** a scrape and ring as the pin comes out when you get one ready (the throw sound is unchanged).
+- (There are no pills or food items in the game yet, so no sounds for them; they'll come with those items.)
+
 ## 0.20.2 (Sound update: movement and the world)
 - **Movement:** a push-off when you jump, a landing thud that's louder the further you fall, hands and boots
   scuffling over a vault, a knock on each ladder rung, a cloth thump going prone. Today's step sounds on landing,
