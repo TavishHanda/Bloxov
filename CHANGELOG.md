@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.6 (Inventory glow)
+- **New inventory and stash look** (owner: the old one looked a bit plain; picked look B, "Glow", from three options
+  drawn on the real screen; the layout stays as it was). Items are dark tiles with their rarity colour rising from
+  the bottom and a thin edge, instead of a tinted block with a thick bright border. Grids are flat and dark with faint
+  lines and a dot at each corner. Gear slots match.
+- **Bigger cells** (44 to 48 px), easier to read and to tap on a phone. The gaps between the panels are a little
+  narrower so the hideout still fits the screen with the trader open.
+- **Item names in the HUD's pixel font** (on tiles and gear slots) instead of the plain default font. A name too long
+  for a 1-cell tile squeezes its letters, and the few still too long ("Bandage") use the small plain font, so no name
+  is cut off.
+- `tools/inventory_view.gd` takes a screenshot of the hideout's inventory screen with some loot in it.
+
 ## 0.19.5 (Vault ramp gap)
 - **Fixed: a gap round the town hall's vault ramp.** Going down the ramp (once the ghost cloth had tripped), your eyes
   passed a 1 m band between the hall's floor and the vault's ceiling that had no walls, so you could see out under the

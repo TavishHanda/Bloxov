@@ -38,6 +38,8 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
   Owner likes it much more than the HUD: **change it only lightly.** Layout: gear (PMC character view + equipment
   slots) | carried (pockets, secure pocket, backpack) | container or stash (+ trader column in the hideout).
   Item details show on hover (no placeholder text: owner removed "Hover an item for details").
+  0.19.6: "Glow" look (owner picked B of 3): `scripts/inv_look.gd` draws tiles (rarity color rising from the bottom),
+  grids and gear slots; cells 48 px; names in the pixel font. `tools/inventory_view.gd` screenshots the screen.
 - **Hideout:** `scripts/hideout.gd` (top bar, stash/loadout/trader via LootUI, ONLINE panel: name + Go online,
   party code, QUEUE, Start now; the ONLINE button shows "IN QUEUE (1/2)" / "RAID IN 21s").
 - **Other screens:** pause menu (in `main.tscn` + `hud.gd`), end-of-raid screen (`scripts/raid_end_screen.gd`).

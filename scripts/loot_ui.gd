@@ -1262,7 +1262,7 @@ func _build() -> void:
 	_center.add_child(root)
 
 	_columns = HBoxContainer.new()
-	_columns.add_theme_constant_override("separation", 14)
+	_columns.add_theme_constant_override("separation", 10)
 	root.add_child(_columns)
 	_quest_page = QuestTracker.new()
 	_quest_page.visible = false
@@ -1399,12 +1399,12 @@ func _build_doll() -> SubViewportContainer:
 ## A column: a gunmetal plate (the raid HUD's "Ammo Can" look, 0.8.8) around a margin and a VBox (meta "box").
 func _panel(parent: Control) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(260, 0)
+	panel.custom_minimum_size = Vector2(240, 0)  # (260 until 0.19.6: room for the bigger cells)
 	skin_panel(panel)
 	parent.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 14)
+		margin.add_theme_constant_override("margin_" + side, 10)
 	panel.add_child(margin)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 6)

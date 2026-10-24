@@ -29,9 +29,7 @@ func _init(slot_name: String, owner_inventory: Inventory, owner_ui: LootUI, cell
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", 12)
-	_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-	_label.add_theme_constant_override("shadow_outline_size", 3)
+	InvLook.style_slot_label(_label)
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.position = Vector2(6, 4)
 	_label.size = Vector2(size.x - 12, size.y - 24)
@@ -174,22 +172,17 @@ func _draw_part_picture(part: String, rect: Rect2) -> void:
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
-	draw_rect(rect.grow(2), HudStyle.OUTLINE)
-	draw_rect(rect, GridView.BG_COLOR)
+	InvLook.draw_slot(self, rect)
 	var stack := shown_stack()
 	if stack != null:
 		var color := ItemDB.color(stack.id)
-		draw_rect(rect.grow(-2), color.darkened(0.72))
-		draw_rect(rect.grow(-2), color, false, 2.0)
+		InvLook.draw_tile(self, rect.grow(-1), color)
 		# Its picture fills the slot above the attachment slots (the name and count are drawn over it).
 		var icon := ItemIcons.get_icon(stack.id)
 		if icon != null:
 			var bottom := size.y - 4.0 - (PART_SIZE + 4.0 if not _part_rects().is_empty() else 0.0)
 			draw_texture_rect(icon, ItemIcons.fit(icon, Rect2(4, 4, size.x - 8, bottom - 4)), false)
-	else:
-		# Empty: sunk in (shadow along the top and left).
-		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 2)), Color(0, 0, 0, 0.5))
-		draw_rect(Rect2(Vector2.ZERO, Vector2(2, size.y)), Color(0, 0, 0, 0.5))
+		InvLook.draw_edge(self, rect.grow(-1), color)
 	if ui.drag_stack != null and ui.hover_view == self and ui.attach_target(self) == null:
 		draw_rect(rect, GridView.DROP_OK if ui.can_drop_on_slot(slot) else GridView.DROP_BAD)
 	if stack != null:

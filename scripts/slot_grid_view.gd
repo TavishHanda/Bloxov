@@ -31,7 +31,7 @@ func rebuild() -> void:
 	else:
 		_label = Label.new()
 		_label.text = grid.slot.to_upper()
-		_label.add_theme_font_size_override("font_size", 12)
+		InvLook.style_slot_label(_label)
 		_label.modulate = Color(1, 1, 1, 0.35)
 		_label.position = Vector2(6, 4)
 		_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -41,9 +41,6 @@ func rebuild() -> void:
 
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, custom_minimum_size)
-	draw_rect(rect.grow(2), HudStyle.OUTLINE)
-	draw_rect(rect, BG_COLOR)
-	draw_rect(Rect2(Vector2.ZERO, Vector2(rect.size.x, 2)), Color(0, 0, 0, 0.5))
-	draw_rect(Rect2(Vector2.ZERO, Vector2(2, rect.size.y)), Color(0, 0, 0, 0.5))
+	InvLook.draw_slot(self, rect)
 	if ui.drag_stack != null and ui.hover_view == self:
 		draw_rect(rect, DROP_OK if ui.can_drop_at(self, Vector2i.ZERO) else DROP_BAD)

@@ -1,7 +1,7 @@
 class_name ItemTile
 extends Control
-## An item in a grid: a block the size of the item with a rarity-colored border, its picture (ItemIcons), short name
-## and count. Items without a picture show their full name instead.
+## An item in a grid: a dark block the size of the item glowing in its rarity color (InvLook), its picture
+## (ItemIcons), short name and count. Items without a picture show their full name instead.
 ## Left-drag to move, Shift+click to quick-move, right-click for the menu.
 
 var stack: ItemStack
@@ -21,8 +21,6 @@ func _init(target: ItemStack, owner_grid: GridInventory, owner_ui: LootUI, is_pr
 	_icon = ItemIcons.get_icon(stack.id)
 
 	_name_label = Label.new()
-	_name_label.text = stack.title()
-	_name_label.add_theme_font_size_override("font_size", 12)
 	_name_label.clip_text = true
 	_name_label.position = Vector2(4, 3)
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -53,55 +51,69 @@ func set_tile_size(cells: Vector2i) -> void:
 	queue_redraw()
 
 
-## With a picture: the short name in one line along the top (11 down to 7 px), with a shadow so it reads over the art.
+## With a picture: the short name in one line along the top.
 func _fit_short_name() -> void:
-	var font := _name_label.get_theme_font("font")
-	var name := ItemDB.short_name(stack.id)
-	_name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
-	_name_label.add_theme_constant_override("shadow_outline_size", 3)
-	_name_label.text = name
-	for font_size in range(11, 6, -1):
-		_name_label.add_theme_font_size_override("font_size", font_size)
-		if font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= _name_label.size.x:
-			return
+	_pixel_name(ItemDB.short_name(stack.id))
 
 
-## The full name in the biggest font (12 down to 7) that fits the tile: on one line if it fits, else one word per
-## line (owner, 0.14.10: "Raider / Dog / Tag", not a cut-off "Raider"). (Only items without a picture.)
+## The full name, one word per line if it doesn't fit on one (owner, 0.14.10: "Raider / Dog / Tag", not a cut-off
+## "Raider"). (Only items without a picture.)
 func _fit_name() -> void:
-	var font := _name_label.get_theme_font("font")
-	var room := _name_label.size
 	var name := stack.title()
-	var words := name.split(" ", false)
-	_name_label.add_theme_constant_override("line_spacing", -3)
-	for font_size in range(12, 6, -1):
-		_name_label.add_theme_font_size_override("font_size", font_size)
-		var line_height := font.get_height(font_size)
-		if font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room.x and line_height <= room.y:
-			_name_label.text = name
-			return
-		var widest := 0.0
-		for word in words:
-			widest = maxf(widest, font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x)
-		if widest <= room.x and words.size() * (line_height - 3) + 3 <= room.y:
-			_name_label.text = "\n".join(words)
-			return
-	_name_label.text = "\n".join(words)
+	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	_pixel_name(name)
+
+
+## The name in the HUD's pixel font with a hard shadow (0.19.6): letter-spaced if it fits, else plain, else squeezed;
+## a name still too long for its tile (a 1-cell "Bandage") falls back to the small plain font, 11 down to 8 px.
+func _pixel_name(text: String) -> void:
+	var room := _name_label.size.x - 2
+	var f: Font = HudStyle.spaced_font(20)
+	var font_size := 20
+	for next: Font in [HudStyle.font(20), _tight_font(), ThemeDB.fallback_font]:
+		if f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room or _name_label.autowrap_mode != TextServer.AUTOWRAP_OFF:
+			break
+		f = next
+	if f == ThemeDB.fallback_font:
+		font_size = 11
+		while font_size > 8 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > room:
+			font_size -= 1
+	_name_label.add_theme_font_override("font", f)
+	_name_label.add_theme_font_size_override("font_size", font_size)
+	_name_label.add_theme_color_override("font_color", HudStyle.INK)
+	_name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
+	_name_label.add_theme_constant_override("shadow_outline_size", 0)
+	_name_label.add_theme_constant_override("shadow_offset_x", 0 if font_size == 20 else 1)
+	_name_label.add_theme_constant_override("shadow_offset_y", 2 if font_size == 20 else 1)
+	_name_label.add_theme_constant_override("line_spacing", -6)
+	_name_label.position = Vector2(3, -1 if font_size == 20 else 3)
+	_name_label.text = text
+
+
+static var _tight: FontVariation
+
+
+## The pixel font with its letters 1 px closer, for names that only just don't fit.
+static func _tight_font() -> FontVariation:
+	if _tight == null:
+		_tight = FontVariation.new()
+		_tight.base_font = HudStyle.font(20)
+		_tight.spacing_glyph = -1
+	return _tight
 
 
 func _draw() -> void:
 	var color := ItemDB.color(stack.id)
-	var rect := Rect2(Vector2(2, 2), size - Vector2(4, 4))
-	draw_rect(rect, color.darkened(0.72))
-	# A slight bevel inside the rarity border (lit top/left, shaded bottom/right), like the HUD's blocks.
-	var inner := rect.grow(-2)
-	draw_rect(Rect2(inner.position, Vector2(inner.size.x, 2)), Color(color, 0.22))
-	draw_rect(Rect2(inner.position, Vector2(2, inner.size.y)), Color(color, 0.22))
-	draw_rect(Rect2(Vector2(inner.position.x, inner.end.y - 2), Vector2(inner.size.x, 2)), Color(0, 0, 0, 0.3))
+	var rect := Rect2(Vector2(1, 1), size - Vector2(2, 2))
+	InvLook.draw_tile(self, rect, color)
 	if _icon != null:
-		_draw_icon(rect.grow(-2))
-	draw_rect(rect, color, false, 2.0)
-	# Wear (0.14.0): armor and keys show what's left as a bar along the bottom, green to red.
+		_draw_icon(rect.grow(-3))
+	InvLook.draw_edge(self, rect, color)
+	_draw_wear(rect.grow(-2))
+
+
+## Wear (0.14.0): armor and keys show what's left as a bar along the bottom, green to red.
+func _draw_wear(inner: Rect2) -> void:
 	if ItemDB.max_durability(stack.id) > 0:
 		var left := stack.condition()
 		var bar := Rect2(Vector2(inner.position.x + 2, inner.end.y - 6), Vector2(inner.size.x - 4, 4))

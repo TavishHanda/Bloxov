@@ -1889,6 +1889,16 @@ func _section_hideout() -> void:
 	_check(hideout_inv.equipped("primary") != null and hideout.screen.visible, "hideout shows your loadout and stash")
 	var version: String = ProjectSettings.get_setting("application/config/version")
 	_check(hideout._version_label.text == "v" + version, "hideout shows the version (%s)" % hideout._version_label.text)
+	# 0.19.6 (Glow look, bigger cells): the inventory screen with the trader column still fits the 1280 px wide screen,
+	# and a long name on a 1-cell tile ("Bandage") fits its tile instead of being cut off.
+	var columns_width: float = hideout.screen._columns.get_combined_minimum_size().x
+	_check(columns_width <= 1280.0, "the hideout's inventory columns fit the screen (%d px)" % columns_width)
+	var bandage_tile := ItemTile.new(ItemStack.new("bandage"), Profile.stash, hideout.screen)
+	var name_label: Label = bandage_tile._name_label
+	var name_width := name_label.get_theme_font("font").get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		name_label.get_theme_font_size("font_size")).x
+	_check(name_label.text == "Bandage" and name_width <= name_label.size.x, "a 1-cell tile's name fits (%d of %d px)" % [name_width, name_label.size.x])
+	bandage_tile.free()
 	hideout.go_online("  ", "Tester")
 	_check(hideout._online_status.text.contains("address") and not Network.main.is_online(), "going online needs a server address")
 	_check(hideout._online_panel != null and not hideout._online_box.visible and hideout.online_status() == "ONLINE", "the online panel starts offline")
