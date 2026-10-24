@@ -386,7 +386,7 @@ func _knife(from: Vector3, dir: Vector3) -> void:
 			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or _now() - _last_shot.get(peer, -1.0) < 0.3):
 		return
 	_last_shot[peer] = _now()
-	world.shot_noise(from, from, 4.0, me[0])
+	world.shot_noise(from, from, 4.0, me[0], false)
 	for angle in [0.0, 0.25, -0.25]:
 		var hit := world.trace_shot(peer, from, dir.normalized().rotated(Vector3.UP, angle), 2.2, client_view_time_of(peer), _now())
 		if not (hit.has("peer") or hit.has("enemy")):

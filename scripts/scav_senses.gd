@@ -3,6 +3,9 @@ extends "res://scripts/scav_base.gd"
 
 const ALERT_SOUND := preload("res://audio/alert.wav")
 const BARK_HEAR_RANGE := 50.0
+## Gunshots carry this share of their noise radius to the AI (0.20.10, owner: AI came from too far). Whether a shot
+## alarms them (alarm_noise) still uses the full radius.
+const GUNSHOT_HEARING := 0.75
 ## Callouts (0.12.12; 0.12.27, owner: cartoony gibberish, no real voice lines): barks from tools/gen_voice_placeholders.py,
 ## 3 takes per kind (audio/voice/<kind>.wav, <kind>_2.wav, <kind>_3.wav).
 const VOICE := {
@@ -38,10 +41,11 @@ const NET_AIM := 16
 
 ## Called via the "enemies" group by anything that makes noise (shots, footsteps, knife, searching).
 ## Unaware scavs walk over to investigate; scavs already fighting ignore it.
-func hear_noise(pos: Vector3, radius: float) -> void:
+func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	if puppet:
 		return
-	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > radius * hearing_mult:
+	var reach := radius * hearing_mult * (GUNSHOT_HEARING if gunshot else 1.0)
+	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > reach:
 		return
 	if stays_home and not _near_home(pos):
 		return

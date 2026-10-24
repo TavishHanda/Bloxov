@@ -4514,8 +4514,10 @@ func _section_teamwork() -> void:
 	# Gunshots carry farther and alarm it (it hurries over).
 	var listener := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
 	await physics_frame
-	listener.hear_noise(listener.global_position + Vector3(30, 0, 0), ItemDB.ITEMS["ak"]["noise"])
-	_check(listener.state == Scav.State.INVESTIGATE and listener._alarmed, "it hears an AK from 30 m and hurries toward it")
+	listener.hear_noise(listener.global_position + Vector3(30, 0, 0), ItemDB.ITEMS["ak"]["noise"], true)
+	_check(listener.state == Scav.State.IDLE, "an AK shot 30 m off is past its hearing (gunshots carry 3/4 of their noise, 0.20.10)")
+	listener.hear_noise(listener.global_position + Vector3(24, 0, 0), ItemDB.ITEMS["ak"]["noise"], true)
+	_check(listener.state == Scav.State.INVESTIGATE and listener._alarmed, "it hears an AK from 24 m and hurries toward it")
 	_check(listener.sight_range >= 75.0, "it can spot you from 75 m (players on hills)")
 	# Patrol stops in the open prefer a spot next to cover.
 	listener._set_state(Scav.State.IDLE)

@@ -280,9 +280,9 @@ func update_proxy(peer: int, state: Array) -> void:
 
 ## A player fired from `from` (noise radius `noise`): scavs in this raid hear it, notice the threat, and the ones the
 ## shot passed close to turn toward it.
-func shot_noise(from: Vector3, end: Vector3, noise: float, shooter_pos: Vector3) -> void:
+func shot_noise(from: Vector3, end: Vector3, noise: float, shooter_pos: Vector3, gunshot := true) -> void:
 	for enemy in RaidScope.nodes(raid, &"enemies"):
-		enemy.hear_noise(shooter_pos, noise)
+		enemy.hear_noise(shooter_pos, noise, gunshot)
 		enemy.notice_threat()
 		var chest: Vector3 = enemy.global_position + Vector3(0, 1.2, 0)
 		if Geometry3D.get_closest_point_to_segment(chest, from, end).distance_to(chest) <= enemy.near_miss_radius:

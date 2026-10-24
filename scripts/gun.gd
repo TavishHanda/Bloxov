@@ -434,7 +434,7 @@ func shoot_once() -> void:
 	player.add_recoil(kick.x * (1.0 - recoil_kick_fraction), kick.y)
 	player.add_kick(kick.x * recoil_kick_fraction, 0.0)
 	player.add_shake(shake)
-	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
+	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius, true])
 	RaidScope.call_all(self, &"enemies", &"notice_threat")
 
 
