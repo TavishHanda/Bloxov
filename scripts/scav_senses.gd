@@ -209,6 +209,9 @@ func notice_threat() -> void:
 
 var _glint: MeshInstance3D = null
 var _bark_left := 0.0
+## Seconds to its next mutter while wandering (0.20.4; its own dice, so the AI's other rolls don't change).
+var _mutter_left := -1.0
+static var _mutter_dice := RandomNumberGenerator.new()
 var _voice := 1.0
 ## Where the last hit on it came from (friends nearby turn that way when it dies).
 var _last_hit_from := Vector3.INF
@@ -314,29 +317,51 @@ func _bark(kind: String, chance := 1.0) -> void:
 	barked.emit(kind)
 
 
+## Chatter (Sound update 0.20.4): a line that isn't a callout (muttering on patrol, a chuckle after a kill, a
+## grenade warning). It doesn't use up the callout cooldown, so it never holds back a "spotted" or a "cover".
+func _chatter(kind: String) -> void:
+	if puppet or _bark_left > 0.0:
+		return
+	play_bark(kind)
+	barked.emit(kind)
+
+
+## Muttering is quiet and only heard close by (0.20.4).
+const MUTTER_RANGE := 20.0
+
+
 ## The callout's sound (puppets: the server's scav said it).
 func play_bark(kind: String) -> void:
-	var stream := _voice_line(kind)
+	var stream := _voice_line(kind, voice_set)
 	if stream != null and is_inside_tree():
-		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -1.0, 0.03, _voice, 8.0, BARK_HEAR_RANGE)
+		var mutter := kind == "idle"
+		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -7.0 if mutter else -1.0, 0.03,
+			_voice, 4.0 if mutter else 8.0, MUTTER_RANGE if mutter else BARK_HEAR_RANGE)
 
 
-## A random take of a callout: audio/voice/<kind>.wav, plus <kind>_2.wav, <kind>_3.wav... if they exist.
+## A random take of a callout: audio/voice/<kind>.wav, plus <kind>_2.wav, <kind>_3.wav... if they exist (a voice set:
+## audio/voice/<set>/..., falling back to everyone's).
 static var _voice_takes := {}
 
 
-static func _voice_line(kind: String) -> AudioStream:
-	if not _voice_takes.has(kind):
+static func _voice_line(kind: String, set_name := "") -> AudioStream:
+	var key := set_name + "/" + kind
+	if not _voice_takes.has(key):
 		var takes: Array[AudioStream] = []
-		if VOICE.has(kind):
+		var folder := "res://audio/voice/" + (set_name + "/" if set_name != "" else "")
+		if set_name == "" and VOICE.has(kind):
 			takes.append(VOICE[kind])
+		elif ResourceLoader.exists(folder + kind + ".wav"):
+			takes.append(load(folder + kind + ".wav"))
 		for i in range(2, 9):
-			var path := "res://audio/voice/%s_%d.wav" % [kind, i]
+			var path := "%s%s_%d.wav" % [folder, kind, i]
 			if not ResourceLoader.exists(path):
 				break
 			takes.append(load(path))
-		_voice_takes[kind] = takes
-	var options: Array[AudioStream] = _voice_takes[kind]
+		if takes.is_empty() and set_name != "":
+			return _voice_line(kind)
+		_voice_takes[key] = takes
+	var options: Array[AudioStream] = _voice_takes[key]
 	return options.pick_random() if not options.is_empty() else null
 
 

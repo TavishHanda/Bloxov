@@ -20,6 +20,11 @@ const BOUNCE := 0.35
 ## AI within this many meters hear the blast.
 @export var noise_radius := 60.0
 
+## The nearest AI within radius x WARN_REACH shouts a warning this long before the blast (Sound update 0.20.4: a
+## sound only, they don't do anything different).
+const WARN_AT := 1.6
+const WARN_REACH := 1.6
+
 var velocity := Vector3.ZERO
 var deals_damage := true
 var exploded := false
@@ -52,6 +57,8 @@ func _physics_process(delta: float) -> void:
 	if fuse <= 0.0:
 		explode()
 		return
+	if deals_damage and fuse <= WARN_AT and fuse + delta > WARN_AT:
+		_warn()
 	if _resting:
 		return
 	velocity.y -= GRAVITY * delta
@@ -87,6 +94,18 @@ func explode() -> void:
 		_hurt_around(at)
 		RaidScope.call_all(self, &"enemies", &"hear_noise", [at, noise_radius])
 	queue_free()
+
+
+func _warn() -> void:
+	var nearest: Node3D = null
+	var best := radius * WARN_REACH
+	for node in RaidScope.nodes(self, &"enemies"):
+		var d := (node as Node3D).global_position.distance_to(global_position)
+		if d < best and node.has_method(&"_chatter") and not (node.get(&"health") as Health).is_dead:
+			best = d
+			nearest = node
+	if nearest != null:
+		nearest.call(&"_chatter", "grenade")
 
 
 ## Damage for something `distance` meters from the blast.

@@ -173,6 +173,8 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## Callouts: how deep its voice is (Raiders and Bon lower) and at most one callout per this many seconds.
 @export var voice_pitch := 1.0
 @export var bark_cooldown := 4.0
+## Its own set of callouts (0.20.4): audio/voice/<voice_set>/ ("bon"); "" = everyone's.
+@export var voice_set := ""
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 ## Chasing (0.12.33, owner: "they never push when in range to actually shoot"; cover is for when it sees you but

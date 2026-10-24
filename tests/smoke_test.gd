@@ -5393,6 +5393,26 @@ func _section_sound() -> void:
 		and GunSounds.RELOAD_PITCH.keys().all(func(id: String) -> bool: return ItemDB.kind(id) == "weapon")
 		and WorldSounds.ITEMS.keys().all(func(id: String) -> bool: return ItemDB.kind(id) in ["heal", "drink"]),
 		"lighter guns reload higher, the Lancer lower; every med and the drink have a sound")
+	# 0.20.4, voices (cartoony gibberish): muttering on patrol, a chuckle after a kill, a grenade warning; Bon's own set.
+	var scav := _spawn(SCAV_SCENE, spot + Vector3(-6, 0.1, 0)) as Scav
+	scav.set_physics_process(false)
+	var said: Array[String] = []
+	scav.barked.connect(func(kind: String) -> void: said.append(kind))
+	scav._bark_left = 0.0
+	scav._chatter("idle")
+	var line: AudioStream = newest.call()
+	var grenade := Grenade.spawn(main, scav.global_position + Vector3(2, 0.3, 0), Vector3.ZERO, true)
+	grenade.fuse = Grenade.WARN_AT + 0.05
+	grenade.damage = 0
+	await create_timer(0.2).timeout
+	grenade.queue_free()
+	_check(said == ["idle", "grenade"] and line != null and line.resource_path.contains("/voice/idle")
+		and scav._bark_left <= 0.0, "the AI mutters and warns of a grenade, without using up its callout cooldown %s" % [said])
+	scav.queue_free()
+	var bon := (load(BOSS_SCENE) as PackedScene).instantiate()
+	_check(Scav._voice_line("spotted", "bon").resource_path.contains("/voice/bon/spotted") and bon.get("voice_set") == "bon",
+		"Bon has a voice of his own")
+	bon.free()
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()

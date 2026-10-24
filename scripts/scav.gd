@@ -87,6 +87,12 @@ func _physics_process(delta: float) -> void:
 	_since_threat += delta
 	_cover_cooldown_left -= delta
 	_bark_left -= delta
+	if state == State.IDLE and not holds_position and not puppet:
+		_mutter_left -= delta
+		if _mutter_left <= 0.0:
+			if _mutter_left > -1.0:   # (-1: just started, roll the first wait)
+				_chatter("idle")
+			_mutter_left = _mutter_dice.randf_range(20.0, 50.0)
 	# Crouched only while hiding at low cover (holding, or patching up there); up again to peek or move.
 	_crouched = _cover_low and state == State.ENGAGE and _cover_phase in [Cover.HOLDING, Cover.HEALING]
 

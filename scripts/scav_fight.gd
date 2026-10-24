@@ -761,6 +761,8 @@ func _fire_at_target(dist: float) -> void:
 		end = result.position
 		if result.collider == _target:
 			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
+			if _target.health.is_dead:
+				_chatter("taunt")   # (0.20.4: a smug chuckle)
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 			WorldSounds.impact(get_tree().current_scene, end, result.normal)
@@ -784,6 +786,8 @@ func _fire_at_point(point: Vector3) -> void:
 		end = result.position
 		if result.collider == _target:
 			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
+			if _target.health.is_dead:
+				_chatter("taunt")   # (0.20.4: a smug chuckle)
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 			WorldSounds.impact(get_tree().current_scene, end, result.normal)

@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.4 (Sound update: voices)
+- **New gibberish lines** (cartoony, never real words, like today's callouts; `tools/gen_voice_placeholders.py`):
+  - **Muttering:** scavs, Raiders and Bon wandering about mutter to themselves now and then (every 20-50 s), quietly
+    and only within 20 m. Snipers on their perches stay silent.
+  - **A smug chuckle** when one of them kills a player.
+  - **"Grenade!":** the nearest AI shouts a frantic warning 1.6 s before your grenade goes off. Only a sound: they
+    don't run or do anything different.
+  - None of these use up the callout cooldown, so they never hold back a "spotted" or "cover" callout.
+- **Bon has his own voice:** every callout again, deeper, slower and rougher (`audio/voice/bon/`), instead of
+  everyone's lines pitched down. Today's lines for everyone else are unchanged.
+
 ## 0.20.3 (Sound update: items and guns)
 - **Each gun reloads with its own pitch:** today's mag out/in sounds, a little higher for the Stinger (pistol) and
   Wasp, a little lower for the Lancer; the Hound as before, the Mauler's shells as before.

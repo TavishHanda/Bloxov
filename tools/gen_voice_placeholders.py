@@ -20,7 +20,15 @@ KINDS = {
     "help": ((3, 4), 1.15, 1.45, 0.12, 0.04, 1.0, "eoa"),       # "He-yo-wa-ah!": long, loud call
     "push": ((2, 3), 1.25, 1.35, 0.08, 0.02, 0.95, "uai"),      # "Bu-ga-di!": excited, fast
     "heal": ((2, 3), 0.9, 0.8, 0.12, 0.05, 0.55, "ou"),         # "Mm-mo-mu": a low mumble
+    # Sound update 0.20.4 (added after the others, so the barks above come out the same):
+    "grenade": ((3, 3), 1.5, 1.8, 0.07, 0.015, 1.0, "aei"),     # "Ga-ga-DI!": a frantic high warning
+    "taunt": ((2, 3), 1.0, 0.85, 0.13, 0.04, 0.85, "ao"),  # "Ha-ha-hoo": a smug chuckle
+    "idle": ((3, 5), 0.95, 0.9, 0.1, 0.07, 0.45, "ouea"),       # "Mm-bo-da-mu...": muttering to itself
 }
+# Bon's own voice (0.20.4, owner OK'd "Bon gets his own lower, heavier voice"): every kind again, deeper, slower and
+# rougher, in audio/voice/bon/ (scenes/boss.tscn voice_set = "bon").
+BON_BASE = 118.0
+BON_STRETCH = 1.25
 
 
 def resonate(samples, freq, bw):
@@ -84,10 +92,11 @@ def crunch(samples):
     return out
 
 
-def make(kind, spec, take, rng):
+def make(kind, spec, take, rng, base_hz=185.0, stretch=1.0, folder=""):
     (lo, hi), p0, p1, syl, gap, loud, vowels = spec
+    syl, gap = syl * stretch, gap * stretch
     count = rng.randint(lo, hi)
-    base = 185.0 * rng.uniform(0.95, 1.05)
+    base = base_hz * rng.uniform(0.95, 1.05)
     out = []
     for i in range(count):
         t0, t1 = i / count, (i + 1) / count
@@ -99,8 +108,10 @@ def make(kind, spec, take, rng):
         out += [0.0] * int(gap * RATE)
     peak = max(abs(s) for s in out) or 1.0
     out = crunch([s / peak * 0.8 * loud for s in out])
+    if folder:   # (Bon: rougher)
+        out = crunch([s * 1.6 for s in out])
     name = kind + (".wav" if take == 1 else f"_{take}.wav")
-    path = os.path.join(os.path.dirname(__file__), "..", "audio", "voice", name)
+    path = os.path.join(os.path.dirname(__file__), "..", "audio", "voice", folder, name)
     with wave.open(path, "wb") as w:
         w.setnchannels(1)
         w.setsampwidth(2)
@@ -114,3 +125,9 @@ if __name__ == "__main__":
         for take in range(1, TAKES + 1):
             make(kind, spec, take, rng)
     print("wrote", len(KINDS) * TAKES, "gibberish barks to audio/voice/")
+    os.makedirs(os.path.join(os.path.dirname(__file__), "..", "audio", "voice", "bon"), exist_ok=True)
+    bon = random.Random(72)
+    for kind, spec in KINDS.items():
+        for take in range(1, TAKES + 1):
+            make(kind, spec, take, bon, BON_BASE, BON_STRETCH, "bon")
+    print("wrote", len(KINDS) * TAKES, "of Bon's barks to audio/voice/bon/")
