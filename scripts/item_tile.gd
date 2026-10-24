@@ -51,9 +51,9 @@ func set_tile_size(cells: Vector2i) -> void:
 	queue_redraw()
 
 
-## With a picture: the short name in one line along the top.
+## With a picture: the short name in one line.
 func _fit_short_name() -> void:
-	_pixel_name(ItemDB.short_name(stack.id))
+	_small_name(ItemDB.short_name(stack.id))
 
 
 ## The full name, one word per line if it doesn't fit on one (owner, 0.14.10: "Raider / Dog / Tag", not a cut-off
@@ -61,45 +61,26 @@ func _fit_short_name() -> void:
 func _fit_name() -> void:
 	var name := stack.title()
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	_pixel_name(name)
+	_small_name(name)
 
 
-## The name in the HUD's pixel font with a hard shadow (0.19.6): letter-spaced if it fits, else plain, else squeezed;
-## a name still too long for its tile (a 1-cell "Bandage") falls back to the small plain font, 11 down to 8 px.
-func _pixel_name(text: String) -> void:
-	var room := _name_label.size.x - 2
-	var f: Font = HudStyle.spaced_font(20)
-	var font_size := 20
-	for next: Font in [HudStyle.font(20), _tight_font(), ThemeDB.fallback_font]:
-		if f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= room or _name_label.autowrap_mode != TextServer.AUTOWRAP_OFF:
-			break
-		f = next
-	if f == ThemeDB.fallback_font:
-		font_size = 11
-		while font_size > 8 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > room:
+## The name small in the top-right corner, so it hardly covers the picture (0.19.10, owner picked "top-right, no
+## strip"): the plain font at 10 px (down to 8 for long names), soft white with a 1 px shadow.
+func _small_name(text: String) -> void:
+	var f := ThemeDB.fallback_font
+	var font_size := 10
+	if _name_label.autowrap_mode == TextServer.AUTOWRAP_OFF:
+		while font_size > 8 and f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > _name_label.size.x:
 			font_size -= 1
 	_name_label.add_theme_font_override("font", f)
 	_name_label.add_theme_font_size_override("font_size", font_size)
-	_name_label.add_theme_color_override("font_color", HudStyle.INK)
-	_name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
-	_name_label.add_theme_constant_override("shadow_outline_size", 0)
-	_name_label.add_theme_constant_override("shadow_offset_x", 0 if font_size == 20 else 1)
-	_name_label.add_theme_constant_override("shadow_offset_y", 2 if font_size == 20 else 1)
-	_name_label.add_theme_constant_override("line_spacing", -6)
-	_name_label.position = Vector2(3, -1 if font_size == 20 else 3)
+	_name_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.8))
+	_name_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	_name_label.add_theme_constant_override("shadow_offset_x", 1)
+	_name_label.add_theme_constant_override("shadow_offset_y", 1)
+	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_name_label.position = Vector2(2, 2)
 	_name_label.text = text
-
-
-static var _tight: FontVariation
-
-
-## The pixel font with its letters 1 px closer, for names that only just don't fit.
-static func _tight_font() -> FontVariation:
-	if _tight == null:
-		_tight = FontVariation.new()
-		_tight.base_font = HudStyle.font(20)
-		_tight.spacing_glyph = -1
-	return _tight
 
 
 func _draw() -> void:

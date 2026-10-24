@@ -39,7 +39,8 @@ session keeps doing gameplay, multiplayer and systems. Read `CLAUDE.md` first (t
   slots) | carried (pockets, secure pocket, backpack) | container or stash (+ trader column in the hideout).
   Item details show on hover (no placeholder text: owner removed "Hover an item for details").
   0.19.6: "Glow" look (owner picked B of 3): `scripts/inv_look.gd` draws tiles (rarity color rising from the bottom),
-  grids and gear slots; cells 48 px; names in the pixel font. `tools/inventory_view.gd` screenshots the screen.
+  grids and gear slots; cells 48 px; gear slot names in the pixel font; tile names small in the top-right corner
+  (0.19.10, owner picked it over a top strip, no names, or a bottom strip). `tools/inventory_view.gd` screenshots the screen.
 - **Hideout:** `scripts/hideout.gd` (top bar, stash/loadout/trader via LootUI, ONLINE panel: name + Go online,
   party code, QUEUE, Start now; the ONLINE button shows "IN QUEUE (1/2)" / "RAID IN 21s").
 - **Other screens:** pause menu (in `main.tscn` + `hud.gd`), end-of-raid screen (`scripts/raid_end_screen.gd`).
