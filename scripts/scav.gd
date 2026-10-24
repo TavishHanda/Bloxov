@@ -17,7 +17,8 @@ var _hit_flash_time := 0.0
 ## Whether the hit-flash overlay is on right now (so the meshes are only touched when it changes).
 var _flashing := false
 var _walk_time := 0.0
-var _meshes: Array[Node] = []
+## Tests: merge the model's parts headless too (they're only merged where something is drawn).
+static var merge_headless := false
 const NET_LEAN_IN := 1
 const NET_WINDUP := 2
 const NET_LUNGE := 4
@@ -44,7 +45,7 @@ func _ready() -> void:
 	# The model is an imported .glb, so the flash lives in this scene and moves onto its muzzle here.
 	muzzle_flash.reparent(muzzle, false)
 	muzzle_flash.visible = false
-	_meshes = model.find_children("*", "GeometryInstance3D", true, false)
+	_merge_model.call_deferred()
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
 	_wear_gear()
@@ -243,7 +244,7 @@ func _process(delta: float) -> void:
 	if flashing != _flashing:
 		_flashing = flashing
 		var overlay: Material = FLASH_MATERIAL if flashing else null
-		for mesh in _meshes:
+		for mesh in model.find_children("*", "GeometryInstance3D", true, false):
 			(mesh as GeometryInstance3D).material_overlay = overlay
 var _home_return_left := 0.0
 var _wary_left := 0.0
@@ -288,6 +289,13 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 
 ## Its armor and helmet, worn (see `armor`).
 var _gear: Array[ItemStack] = []
+
+
+## One mesh per moving part instead of one per piece of clothing (0.18.12, fewer draw calls). Deferred: online, a
+## puppet's outfit is picked just after it joins the tree (and picking again re-merges anyway).
+func _merge_model() -> void:
+	if DisplayServer.get_name() != "headless" or merge_headless:
+		(model as PixelModel).merge_parts()
 
 
 func _wear_gear() -> void:

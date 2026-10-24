@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.12 (half the draw calls)
+- **About half the draw calls on Bloxov Battlegrounds** (owner: "the whole game just feels kinda laggy"), measured
+  with the new `tools/perf_view.gd` (a real raid at 1280x720, four places, eight directions each): the busiest
+  view went from 3,045 draw calls to 1,464, the main street from 2,736 to 1,349. Web and phones are held back by
+  draw calls most. Looks only: collision, the AI and loot are unchanged.
+  - Doors cast no shadow (they sit in their wall's shadow anyway; each shadow was two more draw calls).
+  - Doors and loot containers with a roof over them (inside a building) stop drawing past 40 m; outside they keep
+    0.18.11's 150 m and 100 m. From farther you'd only see them through a doorway or window.
+  - The AI's clothes are merged into one mesh per moving part (body, each leg): a scav was about 10 meshes, now 5.
+  - Sun shadows reach 60 m instead of 100 m (sharper up close, too).
+
 ## 0.18.11 (fewer draw calls far out)
 - **Doors stop drawing past 150 m and loot containers past 100 m** (owner: "give my game more fps"), shadows
   included: out there they're a few pixels tall but each cost a draw call or more. Measured on Bloxov

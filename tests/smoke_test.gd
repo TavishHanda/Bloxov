@@ -986,6 +986,12 @@ func _section_doors() -> void:
 	door.global_position = spot
 	await physics_frame
 	await physics_frame
+	# 0.18.12 (fewer draw calls): no shadow, and it stops drawing far out (sooner with a roof over both sides).
+	var leaves := door.find_children("*", "GeometryInstance3D", true, false)
+	_check(not leaves.is_empty() and leaves.all(func(node: GeometryInstance3D) -> bool:
+		return node.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and node.visibility_range_end == Door.HIDE_BEYOND)
+		and not PixelModel.roofed(door, spot + Vector3(0, 0, 1)),
+		"a door casts no shadow and stops drawing past %d m (out here, no roof)" % Door.HIDE_BEYOND)
 	var space := door.get_world_3d().direct_space_state
 	var mid := spot + Vector3(-0.5, 1.2, 0)
 	var walk := PhysicsRayQueryParameters3D.create(mid + Vector3(0, 0, 1), mid + Vector3(0, 0, -1), Door.LAYER)
@@ -1066,6 +1072,31 @@ func _section_characters() -> void:
 			model.pick_outfit()
 			tops[model.outfit["Top"]] = true
 		_check(tops.size() >= 2, "%s outfits vary (%d different tops in 12 spawns)" % [character.name, tops.size()])
+		# 0.18.12 (fewer draw calls): the parts showing merge into a mesh per moving part; picking again re-merges.
+		var showing_parts := func() -> Array:
+			return model.find_children("*", "MeshInstance3D", true, false).filter(
+				func(node: Node) -> bool: return (node as MeshInstance3D).is_visible_in_tree())
+		var parts_before: int = showing_parts.call().size()
+		var tris := func() -> int:
+			var total := 0
+			for node: MeshInstance3D in showing_parts.call():
+				total += node.mesh.surface_get_array_index_len(0) if node.mesh.surface_get_array_index_len(0) > 0 \
+					else node.mesh.surface_get_array_len(0)
+			return total
+		var tris_before: int = tris.call()
+		model.merge_parts()
+		var parts_merged: int = showing_parts.call().size()
+		var tris_merged: int = tris.call()
+		model.pick_outfit(model.outfit.duplicate())
+		await process_frame
+		var still_merged: int = showing_parts.call().size()
+		model.unmerge_parts()
+		await process_frame
+		_check(parts_merged <= parts_before / 2 and tris_merged == tris_before and still_merged <= parts_before / 2
+			and showing_parts.call().size() == parts_before and model.get_node("Gun").visible,
+			"%s: its %d parts showing draw as %d meshes (same %d triangles), still after picking it again, and come apart again %s"
+			% [character.name, parts_before, parts_merged, tris_before, [tris_merged, still_merged,
+			showing_parts.call().size(), model.get_node("Gun").visible]])
 		var muzzle_local := character.to_local(character.muzzle.global_position)
 		_check(muzzle_local.z < -0.6 and absf(muzzle_local.y - 1.26) < 0.1,
 			"%s faces forward, gun at shoulder height (muzzle at %s)" % [character.name, muzzle_local])

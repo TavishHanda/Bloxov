@@ -4,6 +4,9 @@ extends StaticBody3D
 ## Anything you can search with E: crates, lockers, safes, bodies, dropped bags.
 ## Holds a GridInventory. Rolls its contents from `loot_table` when the raid starts.
 
+## Indoors (a roof overhead), a container stops drawing this close (outside it's 100 m: 0.18.11).
+const HIDE_INDOORS := 40.0
+
 @export var display_name := "Crate"
 ## Table in ItemDB.LOOT_TABLES. Empty = starts empty (bags filled from code).
 @export var loot_table := "crate"
@@ -52,7 +55,7 @@ func _ready() -> void:
 		_editor_preview()
 		return
 	_apply_look()
-	PixelModel.hide_beyond(self, 100.0)
+	PixelModel.hide_beyond_roofed(self, 100.0, HIDE_INDOORS)
 	add_to_group("loot_containers")
 	if grid == null:
 		grid = GridInventory.new(display_name, grid_size.x, grid_size.y)

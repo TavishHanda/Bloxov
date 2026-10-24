@@ -16,6 +16,9 @@ const SWING := 95.0
 const SWING_TIME := 0.35
 const MODEL := "res://assets/models/props/door_%s.glb"
 const HIDE_BEYOND := 150.0    # metres: past this a door is a few pixels tall, not worth its draw calls
+const HIDE_INDOORS := 40.0    # ... and a door with a roof on both sides (inside a building) past this (0.18.12)
+## Where to look for a roof: a metre in front of the doorway and a metre behind it.
+const SIDES: Array[Vector3] = [Vector3(0, 0, 1), Vector3(0, 0, -1)]
 
 ## Swung open (1 or -1: which way) or shut (0). Changed with set_state (everyone's copy agrees online).
 signal changed(state: int)
@@ -42,6 +45,7 @@ func _ready() -> void:
 		return
 	if broken != "":
 		_build_wreck(DisplayServer.get_name() != "headless")
+		_draw_less()
 		return
 	add_to_group(GROUP)
 	collision_layer = LAYER | 8   # 8: interactable (F)
@@ -77,6 +81,7 @@ func _ready() -> void:
 	sensor.body_entered.connect(_on_ai_near)
 	_place_shapes()
 	set_physics_process(false)
+	_draw_less()
 
 
 ## In the Godot editor (the script is @tool for this only): draw the shut leaves, so doors show in the editor too.
@@ -125,7 +130,6 @@ func _build_wreck(with_model: bool) -> void:
 		var pivot := Node3D.new()
 		add_child(pivot)
 		pivot.add_child(model)
-		PixelModel.hide_beyond(model, HIDE_BEYOND)
 		model.scale = Vector3(leaf_w, size.y / 2.0, 1.0)
 		if side > 0:
 			model.rotation.y = PI
@@ -174,7 +178,15 @@ func _add_leaf_model(hinge: Node3D, middle: Vector3, leaf_w: float, side: float)
 		model = mesh_instance
 	model.position = middle
 	hinge.add_child(model)
-	PixelModel.hide_beyond(model, HIDE_BEYOND)
+
+
+## Fewer draw calls (0.18.12, owner: "the whole game just feels kinda laggy"): doors were the biggest share of a
+## frame's. No shadow (a door sits in its wall's shadow anyway, and each shadow is two more draw calls), and it stops
+## drawing far out, sooner inside a building.
+func _draw_less() -> void:
+	for node in find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	PixelModel.hide_beyond_roofed(self, HIDE_BEYOND, HIDE_INDOORS, SIDES)
 
 
 func is_open() -> bool:

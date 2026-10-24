@@ -71,6 +71,7 @@ light_color = Color(1, 0.93, 0.82, 1)
 light_energy = 1.4
 shadow_enabled = true
 directional_shadow_mode = 1
+directional_shadow_max_distance = 60.0
 
 [node name="Clouds" type="Node3D" parent="."]
 script = ExtResource("15_clouds")
