@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.9 (Kill feed)
+- **Kill feed** (owner): a short list top left of who killed whom, fading away after a few seconds (the last 5 at
+  most). Your kills are brass, a kill you were on the wrong end of is red. Online every player death goes to the
+  whole raid, so you see who got who; the AI's names are plain ("Scav", "Raider", "Bon") and other players' names go
+  through `NameFilter` before they're shown. Top left so it doesn't sit under the quests or the extract list.
+
 ## 0.18.8 (Breakable windows)
 - **Windows break** (owner): the 71 panes still glazed round the map are the map's now, not part of the building
   models, so a shot, a vault or a shove through one breaks it, with the sound of it going (a new `audio/glass.wav`).

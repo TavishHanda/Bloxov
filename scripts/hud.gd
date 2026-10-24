@@ -31,6 +31,7 @@ var health_hud: HealthHUD
 var ammo_hud: AmmoHUD
 var crosshair: CrosshairHUD
 var timer_hud: TimerHUD
+var kill_feed: KillFeedHUD
 var prompt_hud: PromptHUD
 var extract_hud: ExtractHUD
 var map_hud: MapHUD
@@ -93,6 +94,8 @@ func _ready() -> void:
 	add_child(crosshair)
 	timer_hud = TimerHUD.new(raid)
 	add_child(timer_hud)
+	kill_feed = KillFeedHUD.new()
+	add_child(kill_feed)
 	prompt_hud = PromptHUD.new(player)
 	add_child(prompt_hud)
 	extract_hud = ExtractHUD.new(player, raid)
@@ -121,6 +124,12 @@ func _ready() -> void:
 	player.gun.hit_confirmed.connect(_on_hit_confirmed)
 	player.knife.hit_confirmed.connect(_on_hit_confirmed)
 	player.interactor.opened.connect(_on_container_opened)
+	# The kill feed (0.18.9): our kills, and online every player death in the raid.
+	player.killed.connect(func(what: String) -> void:
+		kill_feed.add_kill("You", KillFeedHUD.display_name(what), true))
+	Network.main.kill_feed.connect(func(killer: String, victim: String, mine: bool, ours: bool) -> void:
+		kill_feed.add_kill(KillFeedHUD.display_name(killer, true) if killer != "" else "Bloxov",
+			KillFeedHUD.display_name(victim, true), mine, ours))
 	raid.ended.connect(_on_raid_ended)
 
 

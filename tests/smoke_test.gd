@@ -2540,7 +2540,7 @@ func _section_pvp() -> void:
 	var c2 := _net_peer("PvpClient2")
 	server.start_server(19082)
 	server.matchmaker.queue_countdown = 0.2
-	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": []}
+	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": [], "feed": []}
 	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
 	# (The target's game reports what each hit did after its armor; here, armor that takes 25% off.)
 	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void:
@@ -2551,6 +2551,9 @@ func _section_pvp() -> void:
 		got["shown"] = got.get("shown", []) + [amount])
 	c1.damage_shown.connect(func(amount: int, _headshot: bool, _pos: Vector3) -> void:
 		got["after_armor"] = got.get("after_armor", []) + [amount])
+	for client in [c1, c2]:
+		client.kill_feed.connect(func(killer: String, victim: String, mine: bool, ours: bool) -> void:
+			got["feed"].append(["%s>%s" % [killer, victim], mine, ours]))
 	c1.kill_confirmed.connect(func(target: String) -> void:
 		got["kills"] += 1
 		got["target"] = target)
@@ -2653,6 +2656,12 @@ func _section_pvp() -> void:
 	c2.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD])
 	await _until(func() -> bool: return got["kills"] == 1)
 	_check(got["kills"] == 1 and got.get("target") == "player", "the killer is told about the kill (and that it was a player)")
+	# The kill feed (0.18.9): everyone in the raid is told who killed whom, each from their own side.
+	await _until(func() -> bool: return got["feed"].size() >= 2)
+	var feed_lines: Array = got["feed"]
+	_check(feed_lines.size() == 2 and feed_lines[0][0] == "Shooter>Target" and feed_lines[0][1] != feed_lines[1][1]
+		and feed_lines[0][2] != feed_lines[1][2],
+		"the kill feed goes to the whole raid, marked for the killer and the one who died (%s)" % [feed_lines])
 	var net_raid := main.get_node("NetRaid") as NetRaid
 	var before := player.health.current
 	net_raid.apply_hit(28, Vector3(0, 0, -20), false)
@@ -3426,6 +3435,20 @@ func _section_hud() -> void:
 	raid.time_left = 75.2
 	_check(hud_node.timer_hud.text() == "01:16", "the raid timer shows 01:16 (%s)" % hud_node.timer_hud.text())
 	raid.time_left = old_time
+	# The kill feed (0.18.9, owner): your kills show up in it, the oldest lines drop off, and they fade away.
+	var feed: KillFeedHUD = hud_node.kill_feed
+	feed._lines.clear()   # (earlier sections shot a scav or two)
+	player.killed.emit("scav")
+	player.killed.emit("boss")
+	var two := feed.lines()
+	for i in KillFeedHUD.MOST + 2:
+		feed.add_kill("Someone", "Someone Else")
+	var most := feed.lines().size()
+	for line: Array in feed._lines:
+		line[3] = 0.01
+	feed._process(0.1)
+	_check(two == PackedStringArray(["You killed Scav", "You killed Bon"]) and most == KillFeedHUD.MOST
+		and feed.lines().is_empty(), "the kill feed shows your kills, keeps the last %d and fades them (%s)" % [KillFeedHUD.MOST, two])
 	var map_hud: MapHUD = hud_node.map_hud
 	var press := InputEventAction.new()
 	press.action = "map"

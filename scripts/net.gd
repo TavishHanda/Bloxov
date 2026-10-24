@@ -34,6 +34,9 @@ signal shot_confirmed(headshot: bool, amount: int, pos: Vector3)
 ## The damage your hit on another player really did, after their armor (0.17.1): for the damage number.
 signal damage_shown(amount: int, headshot: bool, pos: Vector3)
 signal kill_confirmed(target: String)
+## The kill feed (0.18.9): a player in our raid died. `killer` is "" when nobody gets the credit (the AI, a fall);
+## `mine` = we killed them, `ours` = we were the one who died.
+signal kill_feed(killer: String, victim: String, mine: bool, ours: bool)
 ## A scav rifle-butted us; something a scav did that we should see/hear (RaidWorld.enemy_event kinds).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
 signal enemy_event(id: int, kind: String, pos: Vector3)
@@ -287,11 +290,14 @@ func _state(state: Array) -> void:
 	if state[4] & Hitbox.FLAG_DEAD and not was_dead and _last_attacker.has(peer):
 		var attacker: Array = _last_attacker[peer]
 		var window := 40.0 if old_flags & Hitbox.FLAG_DOWNED else 10.0
+		var killer := 0
 		if _now() - attacker[1] < window:
 			_player_kills[peer] = true
-			if _peer_open(attacker[0]):
-				_kill_confirmed.rpc_id(attacker[0], "player")
+			killer = attacker[0]
+			if _peer_open(killer):
+				_kill_confirmed.rpc_id(killer, "player")
 		_last_attacker.erase(peer)
+		_tell_kill_feed(matchmaker.players[peer]["raid"], killer, peer)
 
 
 ## A player fired: the server decides what it hit (the map blocks shots; players are checked where they were on
@@ -335,6 +341,14 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 			_player_fired.rpc_id(other, peer, from, noise_end, weapon, suppressed)
 	for key: Variant in targets:
 		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0])
+
+
+## Tells everyone in raid `raid_id` that `victim` died, and who killed them (0 = nobody got the credit).
+func _tell_kill_feed(raid_id: int, killer: int, victim: int) -> void:
+	var killer_name: String = matchmaker.players[killer]["name"] if matchmaker.players.has(killer) else ""
+	var victim_name: String = matchmaker.players[victim]["name"] if matchmaker.players.has(victim) else "PMC"
+	for peer in _raid_peers(raid_id):
+		_kill_feed_line.rpc_id(peer, killer_name, victim_name, peer == killer, peer == victim)
 
 
 ## True if another player killed `peer` (the body can be sent before or after the state that says they died).
@@ -1030,6 +1044,12 @@ func _grenade_seen(from: Vector3, vel: Vector3) -> void:
 func _door_open(id: String) -> void:
 	if in_online_raid():
 		door_opened.emit(id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _kill_feed_line(killer: String, victim: String, mine: bool, ours: bool) -> void:
+	if in_online_raid():
+		kill_feed.emit(killer, victim, mine, ours)
 
 
 @rpc("authority", "call_remote", "reliable")

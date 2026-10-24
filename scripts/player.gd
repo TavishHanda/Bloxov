@@ -7,6 +7,8 @@ extends "res://scripts/player_movement.gd"
 
 ## Proxy only: a scav rifle-butted this player (the server passes it on to their game).
 signal bashed(amount: int, from: Vector3, shove: float, aim_block: float)
+## We killed something (0.18.9, the kill feed): what it was, by its scene's name ("scav", "raider", "boss"...).
+signal killed(what: String)
 
 const HURT_SOUND := preload("res://audio/hurt.wav")
 const HEAL_SOUND := preload("res://audio/mag_out.wav")
@@ -194,7 +196,9 @@ func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount:
 		kills += 1
 		var victim := target_health.get_parent()
 		if victim != null and victim.scene_file_path != "":
-			Quests.record_kill(victim.scene_file_path.get_file().get_basename(), weapon)
+			var what := victim.scene_file_path.get_file().get_basename()
+			Quests.record_kill(what, weapon)
+			killed.emit(what)
 
 
 func _hotbar_key(event: InputEvent) -> int:
