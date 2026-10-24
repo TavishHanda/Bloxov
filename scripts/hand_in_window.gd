@@ -190,6 +190,10 @@ func _tile(stack: ItemStack, count: int, action: Callable, enabled: bool) -> But
 	tile.disabled = not enabled
 	LootUI.style_button(tile, 14)
 	tile.add_theme_color_override("font_color", ItemDB.color(stack.id))
+	tile.icon = ItemIcons.get_icon(stack.id)
+	tile.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tile.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	tile.add_theme_constant_override("icon_max_width", 40)
 	tile.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tile.pressed.connect(action)
 	return tile

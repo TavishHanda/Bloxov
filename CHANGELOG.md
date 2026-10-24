@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.4 (Item pictures)
+- **Every item has a picture** (owner, like Tarkov and Arc Raiders; picked look C: a slight angle with a thin dark
+  edge so it reads on every rarity colour and on a phone). Shown in the inventory, stash and container grids, the
+  gear slots (and a gun's attachment slots), the trader's stock rows and the quest hand-in window. Tiles now show the
+  short name along the top and the count at the bottom, over the picture; a turned item's picture turns with it.
+- Guns and attachments use their real models; the other 51 items got small block models of their own
+  (`tools/item_models.gd`, no real brands). `tools/render_icons.gd` renders them all to `assets/icons/items/`
+  (88 px per grid cell); re-run it after adding an item. The smoke test checks every item has a picture of its size.
+  `tools/icon_sheet.gd` draws a sheet of tiles for comparing looks.
+
 ## 0.19.3 (Loading screen)
 - **A real loading screen** (owner picked option B, "map vista"): START RAID shows a shot of Bloxov Battlegrounds in
   the late afternoon look, the map's name, a random gameplay tip and ENTERING THE RAID. It replaces 0.18.10's plain

@@ -741,6 +741,12 @@ func _section_items() -> void:
 	# Items update (0.14.0): every item has a description; armor and keys wear.
 	var bare := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.description(id) == "")
 	_check(bare.is_empty(), "every item has a description (missing: %s)" % [bare])
+	# Item pictures (0.19.4): every item has one, the item's grid size at ItemIcons.PX per cell
+	# (xvfb-run -a godot --rendering-driver opengl3 -s tools/render_icons.gd after adding an item).
+	var no_icon := ItemDB.ITEMS.keys().filter(func(id: String) -> bool:
+		var icon := ItemIcons.get_icon(id)
+		return icon == null or Vector2i(icon.get_size()) != Vector2i(ItemDB.item(id)["w"], ItemDB.item(id)["h"]) * ItemIcons.PX)
+	_check(no_icon.is_empty(), "every item has an inventory picture of its grid size (missing or wrong: %s)" % [no_icon])
 	# Nothing wears for now (owner, 0.14.3: durability is its own update later).
 	var worn := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.max_durability(id) > 0)
 	_check(worn.is_empty(), "no item has durability yet (%s)" % [worn])
@@ -1898,7 +1904,8 @@ func _section_hideout() -> void:
 	hideout.open_trader("guns")
 	var gun_row: Control = null
 	for row: Node in hideout._trader_rows.get_children():
-		var label := row.get_child(0) as Label if row.get_child_count() > 0 else null
+		var labels := row.find_children("*", "Label", false, false)   # (after the item's picture)
+		var label := labels[0] as Label if not labels.is_empty() else null
 		if row is HBoxContainer and label != null and label.text == ItemDB.display_name("ak"):
 			gun_row = row
 	if gun_row != null:

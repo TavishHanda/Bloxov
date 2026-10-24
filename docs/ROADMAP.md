@@ -58,6 +58,10 @@ Next: the M4 art updates (World art, Look, Sound), below.
       low/medium/high) setting: shadows on/off and distance, far-view distances, grass/bush density, render scale.
       The next biggest cost after draw calls is triangles (~1.8M on screen in a busy view, `tools/perf_view.gd`).
       Matters most for phones and weak laptops. Settings change looks only, never what you can see through.
+      **Item pictures (owner, 2026-10-24, done in 0.19.4):** every item gets a small rendered picture in the inventory,
+      stash, gear slots, trader and hand-in screens, like Tarkov / Arc Raiders (look C: slight angle, dark edge).
+      Models in `tools/item_models.gd`, rendered by `tools/render_icons.gd`. Later: a wider inventory/stash restyle
+      (owner, 2026-10-24: "the whole inventory/stash look needs a bit of an update").
    3. **Sound (owner, 2026-10-10):** only ADDING new sounds (owner, 2026-10-11: keep today's sounds,
       at most small tweaks, never replace them): a sound per gun (shot, reload, empty click, distant shot), footsteps by surface
       (grass, wood, metal, concrete), directional and distance audio you can play PvP by (where shots and steps come

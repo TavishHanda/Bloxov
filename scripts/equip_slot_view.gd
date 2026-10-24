@@ -30,6 +30,8 @@ func _init(slot_name: String, owner_inventory: Inventory, owner_ui: LootUI, cell
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_label = Label.new()
 	_label.add_theme_font_size_override("font_size", 12)
+	_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+	_label.add_theme_constant_override("shadow_outline_size", 3)
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.position = Vector2(6, 4)
 	_label.size = Vector2(size.x - 12, size.y - 24)
@@ -139,6 +141,10 @@ func _draw_parts() -> void:
 
 ## A little picture of attachment `part` in `rect` (placeholder blocks, like the gun's: GunViewModels.LOOKS).
 func _draw_part_picture(part: String, rect: Rect2) -> void:
+	var icon := ItemIcons.get_icon(part)
+	if icon != null:
+		draw_texture_rect(icon, ItemIcons.fit(icon, rect.grow(-2)), false)
+		return
 	var c := rect.get_center()
 	var ink := HudStyle.INK
 	match part:
@@ -175,6 +181,11 @@ func _draw() -> void:
 		var color := ItemDB.color(stack.id)
 		draw_rect(rect.grow(-2), color.darkened(0.72))
 		draw_rect(rect.grow(-2), color, false, 2.0)
+		# Its picture fills the slot above the attachment slots (the name and count are drawn over it).
+		var icon := ItemIcons.get_icon(stack.id)
+		if icon != null:
+			var bottom := size.y - 4.0 - (PART_SIZE + 4.0 if not _part_rects().is_empty() else 0.0)
+			draw_texture_rect(icon, ItemIcons.fit(icon, Rect2(4, 4, size.x - 8, bottom - 4)), false)
 	else:
 		# Empty: sunk in (shadow along the top and left).
 		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 2)), Color(0, 0, 0, 0.5))

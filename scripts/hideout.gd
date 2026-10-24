@@ -927,6 +927,14 @@ func _fill_trader() -> void:
 		row.gui_input.connect(func(event: InputEvent) -> void:
 			if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
 				_preview(id, amount))
+		var picture := TextureRect.new()
+		picture.texture = ItemIcons.get_icon(id)
+		picture.custom_minimum_size = Vector2(56, 32)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		picture.modulate.a = 1.0 if open else 0.4
+		row.add_child(picture)
 		var item_name := Label.new()
 		item_name.text = ItemDB.label(id, amount)
 		HudStyle.style_label(item_name, 20, ItemDB.color(id))
