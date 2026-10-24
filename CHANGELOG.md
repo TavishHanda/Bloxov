@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.11 (Brighter indoors)
+- **Indoors are easier to see** (owner: "the indoors look a little too dark sometimes ... anything black is like
+  unseeable"). The late afternoon look's colour curve (ACES) crushed dark colours to black in the shade; it now uses
+  the softer Filmic curve the classic look used, with a little more fill light (ambient 0.9 -> 1.1). Outdoors (sun,
+  sky, warm colours, haze) look the same. The classic look file is untouched.
+- New tool `tools/render_indoors.gd` renders views inside buildings with any look (for checking indoor lighting).
+
 ## 0.20.10 (AI hear gunshots from less far)
 - **AI hear gunshots from a quarter less far** (owner: the range AI respond to gunshots was too high). Each gun's
   noise radius reaches the AI at 3/4: Hound 35 -> 26 m, Stinger 25 -> 19 m, Wasp 28 -> 21 m, Mauler 40 -> 30 m,

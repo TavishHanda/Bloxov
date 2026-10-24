@@ -5,6 +5,7 @@ extends Resource
 ## WorldEnvironment and Sun as it's made, so changing the look of the game = pointing `current` at another file.
 ## `classic.tres` is the look up to 0.18 (the owner asked to keep it, so it can always be put back: point `current`
 ## at CLASSIC). 0.19.1: `late_afternoon.tres` (the owner picked option C: low warm sun, light haze, less saturated).
+## 0.20.10: its tonemap is Filmic (was ACES) with a bit more ambient light, so dark colours indoors aren't crushed to black.
 ## Looks only: nothing here changes what the AI or players can see through.
 
 const CLASSIC := "res://assets/looks/classic.tres"
