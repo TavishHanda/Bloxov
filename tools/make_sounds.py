@@ -606,6 +606,100 @@ def aim():
     return _cloth(0.16, 0.8, 0.35)
 
 
+# 0.20.5: ambience. The loops' ends are crossfaded into their starts so they repeat without a seam
+# (their .import files set edit/loop_mode=2).
+
+def _seamless(xs, fade=0.5):
+    f = length(fade)
+    body = xs[:len(xs) - f]
+    for i in range(f):
+        w = i / f
+        body[i] = body[i] * w + xs[len(xs) - f + i] * (1 - w)
+    return body
+
+
+def _lowpass(xs, smooth):
+    low, out = 0.0, []
+    for x in xs:
+        low = low * smooth + x * (1 - smooth)
+        out.append(low)
+    return out
+
+
+def wind():
+    """Wind outdoors: low rushing noise that swells and drops slowly."""
+    random.seed(1900)
+    n = length(10.5)
+    air = _lowpass(noise(n, 0.97), 0.6)
+    gust = [0.55 + 0.25 * math.sin(2 * math.pi * i / n * 2 + 1.0) + 0.2 * math.sin(2 * math.pi * i / n * 5) for i in range(n)]
+    return _seamless([a * g for a, g in zip(air, gust)])
+
+
+def woods():
+    """The woods: birds chirping and trilling now and then over faint insects."""
+    random.seed(1901)
+    n = length(12.5)
+    out = [x * 0.04 * (0.6 + 0.4 * math.sin(2 * math.pi * 30 * i / RATE)) for i, x in enumerate(_highpass(noise(n, 0.1), 0.5))]
+    for _ in range(14):
+        at = random.uniform(0.0, 11.5)
+        f0 = random.uniform(2200, 4200)
+        notes = random.randint(1, 5)
+        for k in range(notes):
+            dur = random.uniform(0.04, 0.12)
+            up = random.uniform(-0.4, 0.6)
+            chirp = [math.sin(2 * math.pi * f0 * (1 + up * i / length(dur)) * i / RATE) * math.sin(math.pi * i / length(dur)) * 0.35
+                     for i in range(length(dur))]
+            out = _mix(out, chirp, at + k * (dur + 0.04))
+    return _seamless(out[:n])
+
+
+def creek():
+    """Running water: a soft babble (bubbly noise rising and falling quickly)."""
+    random.seed(1902)
+    n = length(6.5)
+    babble = _highpass(_lowpass(noise(n, 0.3), 0.5), 0.9)
+    wob = _lowpass([random.uniform(0.2, 1.0) for _ in range(n)], 0.995)
+    out = [b * w for b, w in zip(babble, wob)]
+    for _ in range(40):
+        at = random.uniform(0, 6.3)
+        f0 = random.uniform(400, 1200)
+        out = _mix(out, [math.sin(2 * math.pi * f0 * (1 + 4 * i / RATE) * i / RATE) * 0.08 * math.exp(-i / RATE * 60)
+                         for i in range(length(0.05))], at)
+    return _seamless(out[:n])
+
+
+def waterfall():
+    """The waterfall: a steady loud rush."""
+    random.seed(1903)
+    n = length(6.5)
+    rush = _lowpass(noise(n, 0.2), 0.3)
+    deep = _lowpass(noise(n, 0.9), 0.5)
+    return _seamless([r * 0.7 + d * 2.0 for r, d in zip(rush, deep)])
+
+
+def room():
+    """Room tone indoors: a faint low hum and still air."""
+    random.seed(1904)
+    n = length(6.5)
+    air = _lowpass(noise(n, 0.95), 0.8)
+    return _seamless([a * 3.0 + 0.05 * math.sin(2 * math.pi * 60 * i / RATE) for i, a in enumerate(air)])
+
+
+def rumble(variant):
+    """The war far off: a distant artillery thump rolling away (no crack: it's miles off)."""
+    random.seed(1910 + variant)
+    n = length(3.2)
+    roll = _lowpass(noise(n, 0.95), 0.7)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (35 + 25 * math.exp(-t * 4)) / RATE
+        out.append(math.sin(phase) * _env(t, 0.03, 2.5) + roll[i] * 6.0 * _env(t, 0.08, 1.4))
+    if variant == 2:   # (a second, further one)
+        out = _mix(out, [x * 0.5 for x in out[:length(2.0)]], 0.9)[:n]
+    return out
+
+
 def main_sound_update():
     (OUT / "steps").mkdir(exist_ok=True)
     for v in range(3):
@@ -629,6 +723,11 @@ def main_sound_update():
     for name, fn in (("bandage", bandage), ("medkit", medkit), ("drink", drink), ("pin", pin), ("draw", draw),
                      ("aim", aim)):
         write(f"items/{name}.wav", fn())
+    (OUT / "ambience").mkdir(exist_ok=True)
+    for name, fn in (("wind", wind), ("woods", woods), ("creek", creek), ("waterfall", waterfall), ("room", room)):
+        write(f"ambience/{name}.wav", fn())
+    for v in range(3):
+        write(f"ambience/rumble{v + 1}.wav", rumble(v))
 
 
 if __name__ == "__main__":

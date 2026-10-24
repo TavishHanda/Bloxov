@@ -44,6 +44,16 @@ static func world_bus() -> StringName:
 	return WORLD_BUS
 
 
+## A plain sound bus called `name` going to Master (made the first time; 0.20.5).
+static func bus(name: StringName) -> StringName:
+	if AudioServer.get_bus_index(name) == -1:
+		AudioServer.add_bus()
+		var index := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(index, name)
+		AudioServer.set_bus_send(index, &"Master")
+	return name
+
+
 ## Where you hear from: the camera in use (null = nobody's listening, e.g. the game server).
 static func listener(node: Node) -> Camera3D:
 	if node == null or not node.is_inside_tree():

@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.5 (Sound update: ambience)
+- **The raid has a background now** (quiet, under the game, for you only; `scripts/ambience.gd`):
+  - **Wind** outdoors, dropping low when you go inside.
+  - **Birds and insects** in the woods: louder the more trees are around you, gone in the middle of town.
+  - **The creek** babbling where it's nearest to you, and **the waterfall** rushing, heard from up to 70 m.
+  - **The war far off:** a distant artillery thump rolling in every 25-70 s (fits the lore: Novarra and Exion
+    are still fighting out there).
+  - **Room tone** indoors: a faint hum and still air.
+- Everything fades smoothly as you move between them. It all goes through its own Ambience bus, which gets its own
+  volume slider at the end of the update. The loops are set to repeat in code
+  (`Ambience.looped`: `.import` files aren't kept in git).
+
 ## 0.20.4 (Sound update: voices)
 - **New gibberish lines** (cartoony, never real words, like today's callouts; `tools/gen_voice_placeholders.py`):
   - **Muttering:** scavs, Raiders and Bon wandering about mutter to themselves now and then (every 20-50 s), quietly

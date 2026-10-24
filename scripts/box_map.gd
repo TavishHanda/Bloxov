@@ -394,6 +394,36 @@ func surface_at(feet: Vector3) -> int:
 	return SURFACE_GROUND
 
 
+## How many tree trunks stand within about `radius` m of world point `pos` (0.20.5: the woods' birds get louder).
+func trees_near(pos: Vector3, radius: float) -> int:
+	var local := to_local(pos)
+	var trunk := colour_names.find("trunk")
+	if trunk < 0:
+		return 0
+	var seen := {}
+	var r := ceili(radius / SURFACE_CELL)
+	var c := Vector2i(floori(local.x / SURFACE_CELL), floori(local.z / SURFACE_CELL))
+	for dx in range(-r, r + 1):
+		for dz in range(-r, r + 1):
+			for i in _surface_cells.get(c + Vector2i(dx, dz), PackedInt32Array()):
+				if int(boxes[i + 8]) == trunk and Vector2(boxes[i] - local.x, boxes[i + 2] - local.z).length() < radius:
+					seen[i] = true
+	return seen.size()
+
+
+## The closest point to world point `pos` on the creek or the little stream (0.20.5: where you hear running water),
+## or Vector3.INF if the map has none.
+func nearest_water(pos: Vector3) -> Vector3:
+	var local := to_local(pos)
+	var best := Vector3.INF
+	for line: PackedVector3Array in [water_points, stream_points]:
+		for k in line.size() - 1:
+			var p := Geometry3D.get_closest_point_to_segment(local, line[k], line[k + 1])
+			if best == Vector3.INF or p.distance_squared_to(local) < best.distance_squared_to(local):
+				best = p
+	return to_global(best) if best != Vector3.INF else best
+
+
 ## What a bullet hitting world point `point` (just inside the surface) hit (0.20.2): the box it's in by colour, a
 ## plain wall by its building, else the ground.
 func surface_hit(point: Vector3) -> int:

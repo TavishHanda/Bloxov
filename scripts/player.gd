@@ -91,6 +91,8 @@ func _ready() -> void:
 	# The capsule comes from player.tscn and is shared by every instance; give each player its own,
 	# so one player crouching doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
+	if not proxy:
+		Ambience.start(self)   # (0.20.5: wind, woods, water, the far-off war)
 	if proxy:
 		camera.current = false
 		# Keep the body in the physics world with its processing off (0.16.9): by default a disabled body is taken out

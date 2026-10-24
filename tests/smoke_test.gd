@@ -5413,6 +5413,23 @@ func _section_sound() -> void:
 	_check(Scav._voice_line("spotted", "bon").resource_path.contains("/voice/bon/spotted") and bon.get("voice_set") == "bon",
 		"Bon has a voice of his own")
 	bon.free()
+	# 0.20.5, ambience: wind, woods by the trees about, the creek where it's nearest, rumbles, room tone indoors.
+	var ambience := player.get_node_or_null("Ambience") as Ambience
+	_check(ambience != null and ambience._wind.playing and ambience._wind.bus == Ambience.BUS
+		and (ambience._wind.stream as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_FORWARD, "the raid has ambience: wind, looping")
+	var woods := BoxMap.new()
+	woods.colors = PackedColorArray([Color.BROWN])
+	woods.colour_names = PackedStringArray(["trunk"])
+	woods.water_points = PackedVector3Array([spot + Vector3(-20, 0, 30), spot + Vector3(20, 0, 30)])
+	var trunks := PackedFloat32Array()
+	for i in 8:
+		trunks.append_array([spot.x + i * 2.0, 2.0, spot.z + 5.0, 0.4, 4, 0.4, 0, 0, 0, 1])
+	woods.boxes = trunks
+	main.add_child(woods)
+	_check(woods.trees_near(spot, 25.0) == 8 and woods.trees_near(spot + Vector3(100, 0, 0), 25.0) == 0
+		and woods.nearest_water(spot + Vector3(3, 0, 0)).is_equal_approx(spot + Vector3(3, 0, 30)),
+		"the map tells the ambience how wooded it is round you and where the nearest water is")
+	woods.free()
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()
