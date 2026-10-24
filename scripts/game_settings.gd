@@ -7,6 +7,11 @@ const PATH := "user://settings.cfg"
 
 ## 0.0 to 1.0
 static var volume := 0.6
+## The sound mix (Sound update 0.20.7), each 0.0 to 1.0 on top of `volume`: game effects, the AI's voices, the
+## background ambience and the menus. Each is a sound bus (made by Hearing / UISounds when first used).
+static var mix := {"effects": 1.0, "voices": 1.0, "ambience": 1.0, "ui": 1.0}
+const MIX_BUSES := {"effects": &"World", "voices": &"Voices", "ambience": &"Ambience", "ui": &"UI"}
+const MIX_NAMES := {"effects": "Effects", "voices": "Voices", "ambience": "Ambience", "ui": "Menus"}
 ## Multiplier on the player's base mouse sensitivity.
 static var sensitivity := 1.0
 ## Floating damage numbers on hits (off by default: Bloxov keeps hit feedback subtle).
@@ -42,6 +47,8 @@ static func load_settings() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) == OK:
 		volume = cfg.get_value("audio", "volume", volume)
+		for key: String in mix:
+			mix[key] = clampf(float(cfg.get_value("audio", key, mix[key])), 0.0, 1.0)
 		sensitivity = cfg.get_value("controls", "sensitivity", sensitivity)
 		damage_numbers = cfg.get_value("gameplay", "damage_numbers", damage_numbers)
 		lean_toggle = cfg.get_value("controls", "lean_toggle", lean_toggle)
@@ -58,6 +65,21 @@ static func set_volume(value: float) -> void:
 	volume = clampf(value, 0.0, 1.0)
 	apply()
 	save()
+
+
+static func set_mix(key: String, value: float) -> void:
+	mix[key] = clampf(value, 0.0, 1.0)
+	apply_mix()
+	save()
+
+
+## Puts the mix on its buses (those made so far).
+static func apply_mix() -> void:
+	for key: String in mix:
+		var bus := AudioServer.get_bus_index(MIX_BUSES[key])
+		if bus >= 0:
+			AudioServer.set_bus_mute(bus, mix[key] <= 0.001)
+			AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(mix[key] * mix[key], 0.0001)))
 
 
 static func set_sensitivity(value: float) -> void:
@@ -120,11 +142,14 @@ static func apply() -> void:
 	AudioServer.set_bus_mute(bus, volume <= 0.001)
 	# Squared so the slider feels even (ears hear loudness logarithmically).
 	AudioServer.set_bus_volume_db(bus, linear_to_db(maxf(volume * volume, 0.0001)))
+	apply_mix()
 
 
 static func save() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("audio", "volume", volume)
+	for key: String in mix:
+		cfg.set_value("audio", key, mix[key])
 	cfg.set_value("controls", "sensitivity", sensitivity)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	cfg.set_value("controls", "lean_toggle", lean_toggle)

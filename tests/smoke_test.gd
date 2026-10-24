@@ -2214,6 +2214,16 @@ func _section_settings() -> void:
 	_check(AudioServer.is_bus_mute(0), "volume 0 mutes audio")
 	GameSettings.set_volume(0.5)
 	_check(not AudioServer.is_bus_mute(0) and AudioServer.get_bus_volume_db(0) < 0.0, "volume 50% lowers audio")
+	# The sound mix (0.20.7): a slider per bus under MIX, saved; 0 mutes just that bus.
+	var vbox := main.get_node("HUD/Menu/Margin/VBox")
+	_check(GameSettings.mix.keys().all(func(key: String) -> bool: return vbox.get_node_or_null("Mix_" + key) != null)
+		and vbox.get_node_or_null("VolumeRow/MixButton") != null, "MIX opens a slider for effects, voices, ambience and menus")
+	(vbox.get_node("Mix_ambience/Slider") as HSlider).value = 0.0
+	var amb := AudioServer.get_bus_index(Ambience.BUS)
+	_check(amb >= 0 and AudioServer.is_bus_mute(amb) and not AudioServer.is_bus_mute(AudioServer.get_bus_index(Hearing.WORLD_BUS)),
+		"ambience at 0 mutes only the ambience")
+	(vbox.get_node("Mix_ambience/Slider") as HSlider).value = 100.0
+	_check(not AudioServer.is_bus_mute(amb) and GameSettings.mix["ambience"] == 1.0, "...and back up")
 	# Graphics (0.19): LOW drops the sun's shadows, draws 3D at a lower scale and switches buildings to their far mesh
 	# sooner; HIGH puts it all back. Three buttons in the pause menu.
 	var sun := main.get_node("Sun") as DirectionalLight3D

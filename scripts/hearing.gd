@@ -41,6 +41,7 @@ static func world_bus() -> StringName:
 		echo.predelay_msec = 20.0
 		AudioServer.add_bus_effect(index, echo)
 		AudioServer.set_bus_effect_enabled(index, 0, indoors)
+		GameSettings.apply_mix()
 	return WORLD_BUS
 
 
@@ -51,6 +52,7 @@ static func bus(name: StringName) -> StringName:
 		var index := AudioServer.bus_count - 1
 		AudioServer.set_bus_name(index, name)
 		AudioServer.set_bus_send(index, &"Master")
+		GameSettings.apply_mix()
 	return name
 
 

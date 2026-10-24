@@ -336,7 +336,7 @@ func play_bark(kind: String) -> void:
 	if stream != null and is_inside_tree():
 		var mutter := kind == "idle"
 		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -7.0 if mutter else -1.0, 0.03,
-			_voice, 4.0 if mutter else 8.0, MUTTER_RANGE if mutter else BARK_HEAR_RANGE)
+			_voice, 4.0 if mutter else 8.0, MUTTER_RANGE if mutter else BARK_HEAR_RANGE, &"Voices")
 
 
 ## A random take of a callout: audio/voice/<kind>.wav, plus <kind>_2.wav, <kind>_3.wav... if they exist (a voice set:

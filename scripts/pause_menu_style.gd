@@ -21,8 +21,10 @@ static func apply(menu: PanelContainer) -> void:
 	version.modulate = Color.WHITE
 	var play: Button = box.get_node("PlayButton")
 	LootUI.style_button(play, 30, HudStyle.HAZARD)
-	for row_name in ["VolumeRow", "SensitivityRow"]:
-		var row := box.get_node(row_name)
+	for row_name in ["VolumeRow", "SensitivityRow", "Mix_effects", "Mix_voices", "Mix_ambience", "Mix_ui"]:
+		var row := box.get_node_or_null(row_name)
+		if row == null:
+			continue
 		var title: Label = row.get_node("Label")
 		HudStyle.style_label(title, 20, HudStyle.INK_DIM)
 		title.add_theme_font_override("font", HudStyle.spaced_font(20))

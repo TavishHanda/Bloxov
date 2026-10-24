@@ -111,6 +111,12 @@ static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool
 	marker.get_tree().create_timer(DAMAGE_NUMBER_LIFE).timeout.connect(marker.queue_free)
 
 
+## Sounds in the world playing now (sound_at), and how many before far ones are left out (0.20.7).
+static var _playing := 0
+const MAX_SOUNDS := 40
+const CROWDED_SKIP_BEYOND := 25.0
+
+
 static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
@@ -124,18 +130,21 @@ static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitt
 	audio.play()
 
 
-static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0) -> void:
+static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0, bus := &"") -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
+	var camera := Hearing.listener(world)
+	# Too much at once (0.20.7, for the web and phones): past MAX_SOUNDS playing, far-off sounds are skipped.
+	if _playing >= MAX_SOUNDS and camera and camera.global_position.distance_to(pos) > CROWDED_SKIP_BEYOND:
+		return
 	var audio := AudioStreamPlayer3D.new()
 	audio.stream = stream
 	audio.volume_db = volume_db
 	audio.unit_size = unit_size
 	audio.max_distance = max_distance   # (0 = heard from anywhere, fading with distance: gunshots)
 	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
-	audio.bus = Hearing.world_bus()
+	audio.bus = Hearing.bus(bus) if bus != &"" else Hearing.world_bus()
 	# Behind a wall (Sound update 0.20.1): muffled and a bit quieter, so you can tell it's not in plain sight.
-	var camera := Hearing.listener(world)
 	if camera and (max_distance <= 0.0 or camera.global_position.distance_to(pos) < max_distance) and Hearing.blocked(camera, pos):
 		audio.attenuation_filter_cutoff_hz = Hearing.MUFFLED_CUTOFF
 		audio.attenuation_filter_db = -40.0
@@ -143,6 +152,8 @@ static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db :
 	world.add_child(audio)
 	audio.global_position = pos
 	audio.finished.connect(audio.queue_free)
+	_playing += 1
+	audio.tree_exiting.connect(func() -> void: _playing -= 1)
 	audio.play()
 
 

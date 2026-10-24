@@ -77,6 +77,7 @@ func _ready() -> void:
 	lean_toggle.button_pressed = GameSettings.lean_toggle
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
 	_build_graphics_row()
+	_build_mix_rows()
 	# On press, not release: resumes the moment you click.
 	play_button.action_mode = BaseButton.ACTION_MODE_BUTTON_PRESS
 	play_button.pressed.connect(_capture_mouse)
@@ -247,6 +248,41 @@ func _process(delta: float) -> void:
 ## Big buttons (touch-friendly). The confirm's LEAVE is red and never has focus, so a stray Enter/Space can't press it.
 ## Graphics: LOW / MEDIUM / HIGH as three big buttons under mouse sens. (Look update 0.19; buttons, not a drop-down,
 ## so it's easy on a touch screen).
+## The sound mix (0.20.7): MIX next to Volume opens a slider each for effects, voices, ambience and menus (hidden
+## until asked for, so the menu stays short on phones).
+func _build_mix_rows() -> void:
+	var box := menu.get_node("Margin/VBox")
+	var volume_row := box.get_node("VolumeRow")
+	var at := volume_row.get_index()
+	var rows: Array[Node] = []
+	for key: String in GameSettings.mix:
+		var row := volume_row.duplicate() as HBoxContainer
+		row.name = "Mix_" + key
+		(row.get_node("Label") as Label).text = "  " + GameSettings.MIX_NAMES[key]
+		var slider := row.get_node("Slider") as HSlider
+		var value := row.get_node("Value") as Label
+		slider.value = GameSettings.mix[key] * 100.0
+		value.text = "%d%%" % roundi(slider.value)
+		slider.value_changed.connect(func(v: float) -> void:
+			GameSettings.set_mix(key, v / 100.0)
+			value.text = "%d%%" % roundi(v))
+		row.visible = false
+		at += 1
+		box.add_child(row)
+		box.move_child(row, at)
+		rows.append(row)
+	var toggle := Button.new()
+	toggle.name = "MixButton"
+	toggle.text = "MIX"
+	toggle.focus_mode = Control.FOCUS_NONE
+	toggle.custom_minimum_size = Vector2(64, 0)
+	LootUI.style_button(toggle, 18)
+	toggle.pressed.connect(func() -> void:
+		for row in rows:
+			row.visible = not row.visible)
+	volume_row.add_child(toggle)
+
+
 func _build_graphics_row() -> void:
 	var box := menu.get_node("Margin/VBox")
 	var row := HBoxContainer.new()
