@@ -7,6 +7,10 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.9 (Backpack picture)
+- **The Medium Backpack's picture is now the green camo backpack you see in the game** (owner), rendered from its real
+  model (`scav_backpack.glb`) instead of a green-and-orange block model.
+
 ## 0.19.8 (Shoot through the gaps)
 - **Shots go through the gaps you can see** (owner: "i cannot shoot through these cracks in the bus stop, stuff like
   this needs to be fixed"). Found with a map-wide audit: rays across every collision box that a model draws, looking

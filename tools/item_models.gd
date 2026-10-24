@@ -8,6 +8,9 @@ extends RefCounted
 const GUNS := {"ak": "hound", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer",
 	"red_dot": "att_red_dot", "scope_4x": "att_scope_4x", "scope_8x": "att_scope_8x", "suppressor": "att_suppressor",
 	"choke": "att_choke", "foregrip": "att_foregrip"}
+## Items shown with a model from the game itself (0.19.8, owner: the medium backpack is the green one scavs wear),
+## and how it's turned (degrees) to face the camera.
+const MODELS := {"backpack_medium": ["res://assets/models/characters/scav_backpack.glb", Vector3(0, 180, 0)]}
 
 const C := {
 	"olive": Color("5b6236"), "olive_dk": Color("3e4426"), "olive_lt": Color("78804a"), "tan": Color("9a855c"),
@@ -31,6 +34,12 @@ static func build(id: String) -> Node3D:
 		gun.rotation_degrees.y = -90.0          # muzzle to the right
 		holder.add_child(gun)
 		return holder
+	if MODELS.has(id):
+		var model := (load(MODELS[id][0]) as PackedScene).instantiate() as Node3D
+		model.rotation_degrees = MODELS[id][1]
+		var base := Node3D.new()
+		base.add_child(model)
+		return base
 	var m := Node3D.new()
 	match id:
 		"rifle_ammo": _ammo(m, "olive", "brass", 0.039, 0.0040, 5, "copper")
@@ -47,7 +56,6 @@ static func build(id: String) -> Node3D:
 		"helmet_basic": _helmet(m, "olive", "olive_dk", false)
 		"helmet_good": _helmet(m, "olive_dk", "black", true)
 		"backpack_small": _pack(m, Vector3(0.3, 0.36, 0.14), "blue", "navy", false)
-		"backpack_medium": _pack(m, Vector3(0.34, 0.46, 0.18), "green", "orange", true)
 		"backpack_large": _pack(m, Vector3(0.44, 0.5, 0.22), "olive", "olive_dk", true)
 		"grenade":
 			sphere(m, 0.032, Vector3(0, -0.01, 0), "olive", Vector3(1, 1.15, 1))
