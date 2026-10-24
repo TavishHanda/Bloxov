@@ -19,6 +19,9 @@ var list_time := 0.0
 var _slide := 0.0
 
 
+var _last_second := -1
+
+
 func _init(owner_player: Player, owner_raid: Raid) -> void:
 	player = owner_player
 	raid = owner_raid
@@ -40,6 +43,12 @@ func is_list_showing() -> bool:
 
 func _process(delta: float) -> void:
 	list_time -= delta
+	# The countdown in an open extract ticks each second, higher for the last three (0.20.6).
+	var now := status()
+	var second := ceili(now["left"]) if now.get("open", false) else -1
+	if second != _last_second and second > 0 and _last_second != -1:
+		UISounds.play(self, UISounds.BEEP_LAST if second <= 3 else UISounds.BEEP, -12.0)
+	_last_second = second
 	_slide = move_toward(_slide, 1.0 if list_time > 0.0 else 0.0, delta / 0.18)
 	queue_redraw()
 

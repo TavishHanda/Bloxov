@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.6 (Sound update: UI)
+- **Menus have sounds now**, soft and low like the sell sound (owner found a bright ring annoying), on their own UI
+  bus (`scripts/ui_sounds.gd`):
+  - A soft tick on every button, in the hideout and in the raid.
+  - Equipping gear into a slot: a cloth rustle and clack (the old move sound still plays).
+  - Buying from a trader: a few coins clinking onto the counter.
+  - Opening one of Ming's boxes: a cardboard rip and a soft rising twinkle (the old coin sound still plays too).
+  - START RAID: a radio chirp and a low drum hit.
+  - The extract countdown ticks each second, higher for the last three.
+  - The end of a raid: a soft rising chord when you extract, a low falling drone when you're killed or go missing.
+
 ## 0.20.5 (Sound update: ambience)
 - **The raid has a background now** (quiet, under the game, for you only; `scripts/ambience.gd`):
   - **Wind** outdoors, dropping low when you go inside.

@@ -42,6 +42,7 @@ func _init(owner_raid: Raid) -> void:
 
 func show_result(kills: int) -> void:
 	_extracted = raid.result == "extracted"
+	UISounds.play(self, UISounds.EXTRACTED if _extracted else UISounds.DIED, -6.0)
 	match raid.result:
 		"extracted":
 			_stamp_text = "EXTRACTED"

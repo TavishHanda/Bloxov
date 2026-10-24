@@ -352,6 +352,7 @@ func quick_move(grid: GridInventory, stack: ItemStack) -> void:
 	if to_player and slot != "" and inventory.equipped(slot) == null:
 		grid.remove(stack)
 		inventory.equip(slot, stack)
+		UISounds.play(self, UISounds.EQUIP, -10.0)
 		_after_move()
 		return
 	if ItemDB.max_stack(stack.id) == 1:
@@ -412,6 +413,7 @@ func equip_from_grid(grid: GridInventory, stack: ItemStack, slot: String) -> boo
 	inventory.equip(slot, stack)
 	if old != null:
 		_stow(old, grid, old_cell)
+	UISounds.play(self, UISounds.EQUIP, -10.0)
 	_after_move()
 	return true
 

@@ -61,6 +61,7 @@ var _max_delta_timer := 0.0
 
 
 func _ready() -> void:
+	UISounds.hook_buttons(get_tree())
 	var version := "v%s" % ProjectSettings.get_setting("application/config/version", "?")
 	menu_version.text = version
 	corner_version.text = version

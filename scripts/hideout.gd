@@ -49,6 +49,7 @@ var _save_queued := false
 
 
 func _ready() -> void:
+	UISounds.hook_buttons(get_tree())
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	# Back from an online raid: still online, in the same party (tell the server we're out of the raid).
@@ -172,6 +173,7 @@ func buy(id: String, amount: int) -> bool:
 			return false
 		price = buy_price(id, amount - left)
 	Profile.money -= price
+	UISounds.play(self, UISounds.BUY, -10.0)
 	var ready_before := Profile.can_level_up(trader)
 	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
 	if Profile.can_level_up(trader) and not ready_before:
@@ -272,6 +274,7 @@ func open_box(box: String) -> String:
 	_message("Ming: %s! You got %s (worth %s)." % [["Lucky", "Ha", "Ooh", "Not bad"].pick_random(),
 		ItemDB.display_name(id), ItemDB.money(ItemDB.value(id))])
 	Effects.sound(self, SELL_SOUND, -16.0)
+	UISounds.play(self, UISounds.BOX, -8.0)
 	_queue_save()
 	return id
 
@@ -362,6 +365,7 @@ func start_with_free_kit() -> void:
 ## (`_warm_raid`), so there's much less to wait for.
 func start_raid() -> void:
 	save_now()
+	UISounds.play(self, UISounds.START, -8.0)
 	_show_loading()
 	await get_tree().process_frame
 	await get_tree().process_frame

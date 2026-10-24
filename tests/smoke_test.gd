@@ -5430,6 +5430,16 @@ func _section_sound() -> void:
 		and woods.nearest_water(spot + Vector3(3, 0, 0)).is_equal_approx(spot + Vector3(3, 0, 30)),
 		"the map tells the ambience how wooded it is round you and where the nearest water is")
 	woods.free()
+	# 0.20.6, UI: every button clicks (on the UI bus), buying, START RAID, the end of the raid have their own.
+	var button := Button.new()
+	main.add_child(button)
+	var on_ui := func() -> Array: return root.get_children().filter(func(n: Node) -> bool:
+		return n is AudioStreamPlayer and (n as AudioStreamPlayer).bus == UISounds.BUS)
+	var ui_before: int = on_ui.call().size()
+	button.pressed.emit()
+	_check(UISounds._hooked and on_ui.call().size() == ui_before + 1 and (on_ui.call().back() as AudioStreamPlayer).stream == UISounds.CLICK,
+		"buttons click, on the UI bus (0.20.6)")
+	button.queue_free()
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()

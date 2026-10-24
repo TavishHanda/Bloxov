@@ -700,6 +700,79 @@ def rumble(variant):
     return out
 
 
+# 0.20.6: UI. Soft and low, like sell() (the owner found a bright ring annoying).
+
+def _note(freq, seconds, decay=18, attack=0.004, square=0.0):
+    out = []
+    for i in range(length(seconds)):
+        t = i / RATE
+        x = math.sin(2 * math.pi * freq * t)
+        if square:
+            x = x * (1 - square) + (1.0 if x > 0 else -1.0) * square
+        out.append(x * math.exp(-t * decay) * min(1.0, t / attack))
+    return out
+
+
+def ui_click():
+    random.seed(2000)
+    return [x * 0.6 for x in click(0.025, 1100, 160, 0.4)]
+
+
+def ui_equip():
+    random.seed(2001)
+    return _mix(_cloth(0.14, 0.75, 0.3), click(0.035, 800, 90, 0.3), 0.08, 0.8)
+
+
+def ui_buy():
+    """Buying: a couple of coins clinking down onto the counter, softly."""
+    random.seed(2002)
+    out = silence(0.4)
+    for at, f in ((0.0, 1900), (0.07, 2300), (0.15, 2100)):
+        out = _mix(out, [x * 0.35 for x in _note(f, 0.18, 35)], at)
+    return _mix(out, [x * 0.4 for x in noise(length(0.03), 0.5)], 0.0)
+
+
+def ui_box():
+    """Opening one of Ming's boxes: a cardboard rip, then a soft rising three-note twinkle."""
+    random.seed(2003)
+    rip = [x * math.sin(math.pi * i / length(0.25)) for i, x in enumerate(_highpass(noise(length(0.25), 0.4), 0.8))]
+    out = rip + silence(0.05)
+    for k, f in enumerate((523, 659, 784)):
+        out = _mix(out, [x * 0.5 for x in _note(f, 0.35, 10)], 0.28 + 0.1 * k)
+    return out
+
+
+def ui_start():
+    """START RAID: a radio chirp and a low drum hit."""
+    random.seed(2004)
+    return _mix(alert(), _thud(0.6, 110, 55, 12, 6, 0.4, 0.8, 8), 0.2, 1.4)
+
+
+def ui_beep(high):
+    return _note(1320 if high else 880, 0.09, 30, 0.003, 0.3)
+
+
+def ui_extracted():
+    """Made it out: a soft rising chord."""
+    random.seed(2005)
+    out = silence(1.2)
+    for k, f in enumerate((392, 494, 587, 784)):
+        out = _mix(out, [x * 0.35 for x in _note(f, 1.0 - 0.12 * k, 3.5, 0.02)], 0.12 * k)
+    return out
+
+
+def ui_died():
+    """Killed / missing in action: a low falling drone hit."""
+    random.seed(2006)
+    n = length(2.0)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (98 - 30 * t / 2.0) / RATE
+        out.append((math.sin(phase) + 0.4 * math.sin(phase * 1.5) + 0.25 * math.sin(phase * 2.01)) * _env(t, 0.02, 1.6))
+    return _mix(out, _thud(0.5, 90, 40, 15, 8, 0.4, 0.8, 10), 0.0, 0.8)
+
+
 def main_sound_update():
     (OUT / "steps").mkdir(exist_ok=True)
     for v in range(3):
@@ -728,6 +801,12 @@ def main_sound_update():
         write(f"ambience/{name}.wav", fn())
     for v in range(3):
         write(f"ambience/rumble{v + 1}.wav", rumble(v))
+    (OUT / "ui").mkdir(exist_ok=True)
+    for name, fn in (("click", ui_click), ("equip", ui_equip), ("buy", ui_buy), ("box", ui_box), ("start", ui_start),
+                     ("extracted", ui_extracted), ("died", ui_died)):
+        write(f"ui/{name}.wav", fn())
+    write("ui/beep.wav", ui_beep(False))
+    write("ui/beep_last.wav", ui_beep(True))
 
 
 if __name__ == "__main__":
