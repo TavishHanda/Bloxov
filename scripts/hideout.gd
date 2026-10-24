@@ -13,6 +13,9 @@ var screen: LootUI
 
 var _money_label: Label
 var _version_label: Label
+## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
+var _loading: ColorRect
+var _warming: Thread
 var _stats_label: Label
 ## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
 var _message_label: Label
@@ -73,6 +76,7 @@ func _ready() -> void:
 
 	_build_top_bar()
 	_build_online_panel()
+	_warm_raid.call_deferred()
 	var net := Network.main
 	net.raid_started.connect(start_raid)
 	net.connected.connect(func() -> void:
@@ -351,12 +355,52 @@ func start_with_free_kit() -> void:
 		start_raid()
 
 
+## START RAID (0.18.10, owner: "lag when going into raid?"): the raid scene and the map take a couple of seconds to
+## load, and the game can't draw while it does, so the screen used to sit there looking dead. Now a loading plate
+## goes up first and the load waits two frames, so it's on screen before the game stops drawing. Where the machine
+## has threads (not the web build, which is exported without them) the map is already warmed in the background
+## (`_warm_raid`), so there's much less to wait for.
 func start_raid() -> void:
 	save_now()
+	_show_loading()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	get_tree().change_scene_to_file(RAID_SCENE)
 
 
+## A full-screen plate over everything while the raid loads.
+func _show_loading() -> void:
+	if _loading != null:
+		return
+	_loading = ColorRect.new()
+	_loading.color = Color(0.07, 0.08, 0.09, 0.96)
+	_loading.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_loading.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_loading)
+	var label := Label.new()
+	label.text = "ENTERING THE RAID"
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	HudStyle.style_label(label, 40, HudStyle.BRASS)
+	_loading.add_child(label)
+
+
+## Warms the raid's map in the background while you're in the hideout, so START RAID has less to load. Only where
+## the machine has threads: without them the load would happen here on the main thread and hitch the hideout.
+func _warm_raid() -> void:
+	if not OS.has_feature("threads") or RaidMap.scene_path == "":
+		return
+	_warming = Thread.new()
+	_warming.start(func() -> void: ResourceLoader.load(RaidMap.scene_path), Thread.PRIORITY_LOW)
+
+
 # --- Saving / UI -------------------------------------------------------------------
+
+func _exit_tree() -> void:
+	if _warming != null and _warming.is_started():
+		_warming.wait_to_finish()
+
 
 func _queue_save() -> void:
 	if not _save_queued:

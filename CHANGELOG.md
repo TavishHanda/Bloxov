@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0). -->
 
+## 0.18.10 (START RAID doesn't look frozen)
+- **Pressing START RAID shows a loading plate** (owner: "lag when going into raid?"): the raid scene and the map take
+  a couple of seconds to load and the game can't draw a frame while they do, so the hideout sat there looking dead.
+  The plate goes up and gets two frames to draw before the load starts.
+- **The map is warmed in the background** while you're in the hideout, where the machine has threads, so there's
+  about a second less to wait on the press. The web build is exported without threads, so there it only gets the
+  plate (loading on the main thread there would hitch the hideout instead).
+
 ## 0.18.9 (Kill feed)
 - **Kill feed** (owner): a short list top left of who killed whom, fading away after a few seconds (the last 5 at
   most). Your kills are brass, a kill you were on the wrong end of is red. Online every player death goes to the

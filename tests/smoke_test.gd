@@ -1908,6 +1908,10 @@ func _section_hideout() -> void:
 	var part_bandages := Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bandage" and st.space_left() > 0).size()
 	_check(Profile.stash.total_value() == stash_value and part_bandages <= 1 and first != null and GridInventory.SORT_ORDER.find(ItemDB.kind(first.id)) == best_kind,
 		"sorting the stash keeps everything, merges part stacks and puts guns and gear first (%s)" % (first.id if first != null else "-"))
+	# START RAID (0.18.10, owner: the game froze on the press): a loading plate goes up before the raid loads.
+	hideout._show_loading()   # (what start_raid() puts up before it loads the raid scene)
+	_check(hideout._loading != null and hideout._loading.visible and hideout._loading.get_child(0) is Label,
+		"START RAID puts a loading plate up before the raid loads")
 	_check(not hideout.can_take_free_kit(), "no free kit while you carry anything")
 	# (0.15.28, owner) Only with a completely empty loadout: nothing equipped, nothing in any pocket.
 	for loadout_grid in hideout_inv.grids():
