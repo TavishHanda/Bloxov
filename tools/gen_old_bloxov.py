@@ -5112,6 +5112,12 @@ def main():
         box(bx1, bunker_floor, bz0, bx1 + 0.3, -1.0, bz1, "bunker")                          # east wall
         # shaft wall north of the ramp (its rail upstairs is with the hall's model)
         box(hx0, bunker_floor, hz0 - 0.3, hx1, -1.0, hz0, "bunker")
+        # the shaft's sides between the vault's ceiling (-1) and the hall's floor (0), all round the hole: without them
+        # you saw out under the whole map from the ramp once the ghost cloth tripped (0.19.4)
+        box(hx0 - 0.3, -1.0, hz0 - 0.3, hx1 + 0.3, 0.0, hz0, "bunker")                     # north
+        box(hx0 - 0.3, -1.0, hz1, hx1 + 0.3, 0.0, hz1 + 0.3, "bunker")                     # south
+        box(hx0 - 0.3, -1.0, hz0, hx0, 0.0, hz1, "bunker")                                 # west (the ramp's top)
+        box(hx1, -1.0, hz0, hx1 + 0.3, 0.0, hz1, "bunker")                                 # east (over the ramp's foot)
         # key door: the wall at x 99 between the ramp landing and the bunker rooms (locked: the bunker key, 0.14.0)
         wall_z(bz0, bz1, 99.0, bunker_floor, -1.0 - bunker_floor, "bunker", [(155.0, DOOR_W, 0.0, DOOR_H)])
         # bunker rooms: corridor along the south, three vaults to the north
