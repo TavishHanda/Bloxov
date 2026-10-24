@@ -527,7 +527,7 @@ def shape(b, f0, box, mats=None, upto=None, skip=()):
 # signs, the clock, tents) keep their gray boxes for people only (BoxMap `bar_boxes`: you still can't walk through)
 # while shots and eyes hit their drawing, glass left out (glass never stops a shot, as with windows).
 SEE_THROUGH = {"shelter", "fence", "stand", "stall", "bench", "sign_stop", "sign_town", "sign_rail", "sign_speed",
-               "sign_dir", "statue", "tent", "camptent"}
+               "sign_dir", "statue", "tent", "camptent", "truck", "tractor"}   # (trucks, tractor: 0.19.9, their windows)
 
 
 def see_through(b, f0, piece):

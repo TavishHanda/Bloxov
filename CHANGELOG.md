@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update. -->
 
+## 0.19.11 (Car windows and under tables)
+- **Shots go through car windows and under tables too** (owner picked "every visible gap works"):
+  - Street cars: the window band between the body and the roof only stops people; shots go through the windows and
+    hit the pillars, the roof and the body. Same for the trucks, the tractor and the minibus's windows all round.
+  - 100 kinds of building props (tables, desks, office pods, benches, pews, beds and cots, shelves and racks, the
+    junkyard's wrecks and fence, the forklift, the pickup, the gas station canopy, the belfry...): shots and eyes hit
+    their drawing, so they pass under tables and between legs, slats and shelves. `make_building.py` writes what
+    to hit per building (`<name>_shots.json`, `SHOT_KINDS`); props only a bit rounder than their box (toilets, sacks,
+    tyres, sofas) stay as they were.
+- **Moving is unchanged:** what shots hit is cut to the boxes that stop people (0.19.8's people-only boxes), so you
+  and the AI bump into exactly what you did before, and the AI's paths (navigation bake) use those boxes.
+- The 0.19.8 pieces (shelters, fences...) now work the same way: their shot triangles are cut to their boxes too.
+- Vaulting sees the people-only boxes, so you vault and climb onto tables, fences and the like as before.
+- Cost: about 112k more collision triangles (shots only) and a bigger map scene (2.5 MB to 6.2 MB as text).
+- Smoke test: the station square's bus shelter (missing pane, glass, kick plate) and the see-through pieces' counts.
+
 ## 0.19.10 (Item names)
 - **Item names on tiles are small and sit in the top-right corner** (owner: the text over the items bothered him; picked
   this from four options). They use the plain font at 10 px (smaller for long names) in soft white, instead of the big

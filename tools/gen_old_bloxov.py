@@ -135,12 +135,23 @@ def obox(cx, cy, cz, sx, sy, sz, yaw, colour, solid=True, pitch=0.0, kind=None, 
 PEOPLE_KINDS = {"gallery_rail", "loft_rail", "cell_bars"}
 
 
+def model_shots(name):
+    """{box number: triangles} of a model's see-through props (art_source/scripts/make_building.py SHOT_KINDS, 0.19.9):
+    their boxes only stop people; shots hit these triangles (`shot_faces`, by write_model_boxes)."""
+    path = os.path.join(MODEL_JSON_DIR, name + "_shots.json")
+    if not os.path.exists(path):
+        return {}
+    with open(path) as f:
+        return {r["box"]: r["tris"] for r in json.load(f)["shots"]}
+
+
 def _add_box(b, kind=None, people=False):
     m = _model[-1]
     if m is not None:
         m["boxes"].append((b, kind))
         if m["hide"]:   # drawn by the building's model: keep the collision, don't draw the box (BoxMap: 2 / 3)
-            b = b[:9] + ((4 if people or kind in PEOPLE_KINDS else 2) if b[9] else 3,)
+            people = people or kind in PEOPLE_KINDS or len(m["boxes"]) - 1 in m["shots"]
+            b = b[:9] + ((4 if people else 2) if b[9] else 3,)
     elif _debris[-1] is not None:   # a piece of the outdoor debris kit: tagged with its piece (b[10])
         b = b + (_debris[-1],)
     boxes.append(b)
@@ -270,7 +281,8 @@ def modeled(name, x, z, turned=False):
     # police round 3: "the entrance is facing away from the street"); its .json stays as built, the model's own frame.
     # True = half a turn; or a yaw in degrees (90: the model's south side faces east, the shops).
     turn = 180.0 if turned is True else float(turned or 0.0) % 360.0
-    m = {"name": name, "x": x, "z": z, "boxes": [], "hide": os.path.exists(model_path(name)), "turned": turn}
+    m = {"name": name, "x": x, "z": z, "boxes": [], "hide": os.path.exists(model_path(name)), "turned": turn,
+         "shots": model_shots(name)}
     models.append(m)
     _model.append(m)
     counts = (len(boxes), len(markers), len(loot), len(buildings))
@@ -406,6 +418,12 @@ def write_model_boxes(ter):
             opens.append({"kind": o["kind"], "side": o["side"], "at": round(at, 3), "mid": round(mid, 3),
                           "w": o["w"], "lo": round(o["lo"], 3), "hi": round(o["hi"], 3)})
         barred(m, opens)
+        if m["hide"]:
+            for n, tris in m["shots"].items():   # (the see-through props: what shots hit, in the map)
+                b = m["boxes"][n][0]
+                for p in clipped_to_box(tris, (b[0] - ox, b[1], b[2] - oz), b[3:6], b[6]):
+                    x, z = turn_point(ox + p[0], oz + p[2], ox, oz, m["turned"])
+                    shot_faces.extend((x, y + p[1], z))
         prop_loot(m)
         glazed(m)
         with open(os.path.join(MODEL_JSON_DIR, m["name"] + ".json"), "w") as f:
@@ -2868,6 +2886,10 @@ CAR_TYPES = {"a": ((1.7, 0.86, 4.2), (1.6, 1.44, -0.8, 1.0)),       # saloon
              "d": ((1.9, 2.07, 4.4), None)}                         # minibus
 CAR_PAINTS = {"a": ("wine", "sb_cream", "police_navy"), "b": ("teal", "yellow", "wine"),
               "c": ("police_navy", "st_green", "sb_cream"), "d": ("olive", "blue", "teal")}
+# Each car's pillars between its windows (z) and its roof (z from, to); the minibus: pillars and the window band's
+# height (y from, to). As the models draw them (art_source/scripts/make_building.py car_parts).
+CAR_GLASS = {"a": ((-0.75, 0.12, 0.95), (-0.6, 0.85)), "b": ((-0.45, 0.45, 1.68), (-0.35, 1.8)),
+             "c": ((-0.85, 0.1, 1.15, 2.1), (-0.7, 2.2)), "d": ((-2.1, -1.2, -0.2, 0.9, 2.0), (1.29, 1.77))}
 cars = []         # {"glb", "anchor", "roll"}: placed by write_scene where its body box ended up
 
 
@@ -2885,19 +2907,31 @@ def car(x, z, yaw, colour="car_a", roll=0.0):
     shown = os.path.exists(car_glb(glb))
     (w, h, length), cab = CAR_TYPES[kind]
     sink = 0.12 if colour == "rust" else 0.0
-    parts = [(0.0, h / 2 - sink, 0.0, w, h - sink, length)]
+    # (0.19.9, owner: shots through car windows too) A drawn car's window band only stops people (flag 4: BoxMap
+    # `bar_boxes`); shots hit the body, the roof and the pillars between the windows (the model's, CAR_GLASS).
+    windows = shown and not roll
+    parts = [(0.0, h / 2 - sink, 0.0, w, h - sink, length, 2)]
     if cab:
         cw, top, z0, z1 = cab
-        parts.append((0.0, (h + top) / 2 - sink, (z0 + z1) / 2, cw, top - h, z1 - z0))
+        parts.append((0.0, (h + top) / 2 - sink, (z0 + z1) / 2, cw, top - h, z1 - z0, 4 if windows else 2))
+        if windows:
+            pillars, (r0, r1) = CAR_GLASS[kind]
+            parts.append((0.0, top - 0.04 - sink, (r0 + r1) / 2, cw, 0.08, r1 - r0, 2))
+            parts += [(0.0, (h + top) / 2 - sink, pz, cw, top - h, 0.09, 2) for pz in pillars]
+    elif windows:   # (the minibus: its windows run round the body)
+        pillars, (y0, y1) = CAR_GLASS[kind]
+        parts = [(0.0, y0 / 2 - sink, 0.0, w, y0 - sink, length, 2), (0.0, (y0 + y1) / 2 - sink, 0.0, w, y1 - y0, length, 4),
+                 (0.0, (y1 + h) / 2 - sink, 0.0, w, h - y1, length, 2)]
+        parts += [(0.0, (y0 + y1) / 2 - sink, pz, w, y1 - y0, 0.14, 2) for pz in pillars]
     with group():
         cars.append({"glb": glb, "anchor": _anchor[-1], "roll": roll, "at": (x, z)})
-        for px, py, pz, sx, sy, sz in parts:
+        for px, py, pz, sx, sy, sz, flag in parts:
             if roll:     # (on its side, the car's left down: its height runs along -x; the body's middle at x, z)
                 px, py, sx, sy = (h - sink) / 2 - py, w / 2 + px, sy, sx
             c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
             obox(x + px * c + pz * s, py, z - px * s + pz * c, sx, sy, sz, yaw, colour)
-            if shown:    # drawn by the model: collide only (BoxMap: 2)
-                boxes[-1] = boxes[-1][:9] + (2,)
+            if shown:    # drawn by the model: collide only (BoxMap: 2; 4 = people only)
+                boxes[-1] = boxes[-1][:9] + (flag,)
 
 
 @debris_kind("dumpster")
@@ -6325,7 +6359,11 @@ def write_outdoor(ter):
             shown.append((chunk, ox, oz))
             for kind, _, seed, ks in ps:
                 shaped = SHAPED.get(f"{kind} {seed}")
-                if shaped:   # (collides with its drawing instead: `shaped_faces`)
+                if shaped and shaped.get("people"):   # (what shots hit, inside the boxes that stop people: 0.19.8)
+                    for n in shaped["boxes"]:
+                        b = boxes[ks[n]]
+                        shot_faces.extend(v for p in clipped_to_box(shaped["tris"], b[:3], b[3:6], b[6]) for v in p)
+                elif shaped:   # (collides with its drawing instead: `shaped_faces`)
                     shaped_faces.extend(shaped["tris"])
                 for n, k in enumerate(ks):
                     b = boxes[k]
@@ -6363,6 +6401,62 @@ def shaped_mesh():
 
 
 _shaped_cache = {}
+
+# What shots and eyes hit on the see-through pieces (0.19.8/0.19.9: shelters, fences, car windows, tables...): their
+# drawings' triangles, cut to the boxes that still stop people (BoxMap `bar_boxes`), so nobody ever bumps into them
+# and moving round them is as before. BoxMap `shot_points` / `shot_indices`; the navigation bake leaves them out.
+shot_faces = []
+
+
+def clipped_to_box(tris, c, size, yaw):
+    """The triangles (flat x, y, z list) cut to the box (centre, size, yaw in degrees), as a list of points (three a
+    triangle)."""
+    co, si = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    half = [v / 2 for v in size]
+    out = []
+    for k in range(0, len(tris), 9):
+        poly = []
+        for j in range(3):
+            dx, dy, dz = tris[k + 3 * j] - c[0], tris[k + 3 * j + 1] - c[1], tris[k + 3 * j + 2] - c[2]
+            poly.append((dx * co - dz * si, dy, dx * si + dz * co))   # (into the box's frame)
+        for axis in range(3):
+            for sign in (1, -1):
+                lim = half[axis]
+                res = []
+                for a, b in zip(poly, poly[1:] + poly[:1]):
+                    da, db = lim - sign * a[axis], lim - sign * b[axis]
+                    if da >= 0:
+                        res.append(a)
+                    if (da >= 0) != (db >= 0):
+                        t = da / (da - db)
+                        res.append(tuple(a[i] + (b[i] - a[i]) * t for i in range(3)))
+                poly = res
+                if len(poly) < 3:
+                    break
+            if len(poly) < 3:
+                break
+        if len(poly) < 3:
+            continue
+        world = [(c[0] + x * co + z * si, c[1] + y, c[2] - x * si + z * co) for x, y, z in poly]
+        for j in range(1, len(world) - 1):
+            out += [world[0], world[j], world[j + 1]]
+    return out
+
+
+def shot_mesh():
+    if "mesh" not in _shot_cache:
+        points, index, indices = [], {}, []
+        for k in range(0, len(shot_faces), 3):
+            p = tuple(fmt(v) for v in shot_faces[k:k + 3])
+            if p not in index:
+                index[p] = len(points)
+                points.append(shot_faces[k:k + 3])
+            indices.append(index[p])
+        _shot_cache["mesh"] = (points, indices)
+    return _shot_cache["mesh"]
+
+
+_shot_cache = {}
 
 
 def _ribbon_h(ter, i, x, z, tx, tz, width, miter=1.0, step=2.0):
@@ -6547,6 +6641,8 @@ def write_scene(ter):
             "bar_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in bar_boxes for v in b) + ")",
             "shaped_points = PackedVector3Array(" + ", ".join(fmt(v) for p in shaped_mesh()[0] for v in p) + ")",
             "shaped_indices = PackedInt32Array(" + ", ".join(str(i) for i in shaped_mesh()[1]) + ")",
+            "shot_points = PackedVector3Array(" + ", ".join(fmt(v) for p in shot_mesh()[0] for v in p) + ")",
+            "shot_indices = PackedInt32Array(" + ", ".join(str(i) for i in shot_mesh()[1]) + ")",
             "",
             # the waterfall's falling water and its splash (outdoor step 6), in front of the secret room's door
             '[node name="WaterfallSheet" type="MeshInstance3D" parent="Level"]',

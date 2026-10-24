@@ -94,6 +94,11 @@ const WATER_ACROSS := 9
 @export var window_panes := PackedFloat32Array()
 @export var shaped_points := PackedVector3Array()
 @export var shaped_indices := PackedInt32Array()
+## What shots and eyes hit on the see-through pieces (0.19.8, owner: "i cannot shoot through these cracks in the bus
+## stop"; 0.19.9 car windows, under tables): their drawings' triangles (like `shaped_points`), cut to their
+## `bar_boxes`, which stop people. World layer, but nobody can reach them past those boxes; not in the navigation bake.
+@export var shot_points := PackedVector3Array()
+@export var shot_indices := PackedInt32Array()
 
 ## The solid boxes' triangles (local space), for the collision shape and the navigation baker.
 var collision_faces := PackedVector3Array()
@@ -103,6 +108,8 @@ var people_faces := PackedVector3Array()
 ## boxes' and the ground's, so their outsides are worked out the other way (inside_solid).
 var _shaped_from := 0
 var _shaped_to := 0
+## ...and the shot triangles right after them (wound like them), up to here.
+var _shots_to := 0
 
 
 func _ready() -> void:
@@ -166,6 +173,9 @@ func _ready() -> void:
 	for index in shaped_indices:
 		faces.append(shaped_points[index])
 	_shaped_to = faces.size()
+	for index in shot_indices:
+		faces.append(shot_points[index])
+	_shots_to = faces.size()
 	var ground := _terrain_arrays()
 	if not ground.is_empty():
 		var points: PackedVector3Array = ground[Mesh.ARRAY_VERTEX]
@@ -370,7 +380,7 @@ static func hit_from_behind(hit: Dictionary, direction: Vector3) -> bool:
 		return false
 	var a := map.collision_faces[face * 3]
 	var outside := (map.collision_faces[face * 3 + 2] - a).cross(map.collision_faces[face * 3 + 1] - a)
-	if face * 3 >= map._shaped_from and face * 3 < map._shaped_to:
+	if face * 3 >= map._shaped_from and face * 3 < map._shots_to:
 		outside = -outside
 	return (map.global_basis * outside).dot(direction) > 0.0
 
@@ -399,6 +409,13 @@ static func free_spot(body: CollisionObject3D, feet: Vector3, radius: float, hei
 			if space.intersect_shape(fit, 1).is_empty() and not inside_solid(body, spot + Vector3.UP * 0.3):
 				return spot
 	return feet
+
+
+## `collision_faces` without the shot triangles (they're inside `people_faces`), for the navigation bake.
+func nav_faces() -> PackedVector3Array:
+	if _shots_to == _shaped_to:
+		return collision_faces
+	return collision_faces.slice(0, _shaped_to) + collision_faces.slice(_shots_to)
 
 
 ## True while `body` stands in water.

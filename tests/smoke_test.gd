@@ -3377,6 +3377,21 @@ func _section_old_bloxov() -> void:
 	_check(blocks.shaped_indices.size() > 3000 and blocks.bar_boxes.size() >= 7 * 10 and solid_bushes == 0,
 		"the map collides as drawn (%d shaped triangles, %d barred windows, %d solid bushes)"
 		% [blocks.shaped_indices.size() / 3, blocks.bar_boxes.size() / 7, solid_bushes])
+	# 0.19.8/0.19.9 (owner: "i cannot shoot through these cracks in the bus stop, stuff like this needs to be fixed"):
+	# the station square's bus shelter lets shots through its missing pane and glass, not its kick plate, and still
+	# stops people; car windows, gaps under tables and the like are the same (shot triangles inside people boxes).
+	var shelter := Vector3(221.5 - 175.0, 0.0, 175.5 - 175.0 + 0.8)
+	var shelter_space: PhysicsDirectSpaceState3D = world.raid.get_world_3d().direct_space_state
+	var shelter_floor: float = shelter_space.intersect_ray(PhysicsRayQueryParameters3D.create(
+		shelter + Vector3(0, 20, -2), shelter + Vector3(0, -20, -2), 1)).position.y
+	var through := func(x: float, h: float, mask: int) -> bool:
+		var a := Vector3(shelter.x + x, shelter_floor + h, shelter.z - 1.5)
+		return shelter_space.intersect_ray(PhysicsRayQueryParameters3D.create(a, a + Vector3(0, 0, 3), mask)).is_empty()
+	_check(through.call(1.0, 1.5, 1 | 4) and through.call(-1.0, 1.5, 1 | 4) and not through.call(1.0, 0.25, 1 | 4)
+		and not through.call(1.0, 1.5, BoxMap.BARS_LAYER) and not through.call(-1.0, 1.5, BoxMap.BARS_LAYER),
+		"the bus shelter: shots go through its missing pane and its glass, not its kick plate; people can't")
+	_check(blocks.shot_indices.size() / 3 > 50000 and blocks.bar_boxes.size() / 7 > 400,
+		"see-through pieces: %d shot triangles inside %d people-only boxes" % [blocks.shot_indices.size() / 3, blocks.bar_boxes.size() / 7])
 	# 0.19.4 (owner: a friend vaulted into a dirt bank and was stuck inside it): no vault ends inside a bank, from any
 	# side of the one he was at, and someone inside one is found and has a free spot to be put on.
 	var vaulter := CharacterBody3D.new()

@@ -150,7 +150,8 @@ static func position_at(path: PackedVector3Array, t: float) -> Vector3:
 
 
 static func _ray(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
-	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [body.get_rid()]))
+	# (0.19.8: open railings, fences, tables... stop people with their own boxes, BoxMap.BARS_LAYER, so vaults see those)
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1 | BoxMap.BARS_LAYER, [body.get_rid()]))
 	# (0.19.4, owner: vaulting into a dirt bank got you stuck in it: from inside, the bank's skin looked like a top
 	# to land on. Map collision is solid from both sides, so only its outsides count here.)
 	if not hit.is_empty() and BoxMap.hit_from_behind(hit, (to - from).normalized()):

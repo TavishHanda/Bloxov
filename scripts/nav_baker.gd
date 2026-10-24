@@ -45,7 +45,7 @@ func _bake() -> void:
 func _add_geometry(node: Node, source: NavigationMeshSourceGeometryData3D) -> void:
 	if node is BoxMap:
 		var map := node as BoxMap
-		source.add_faces(map.collision_faces, map.global_transform)
+		source.add_faces(map.nav_faces(), map.global_transform)
 		if not map.people_faces.is_empty():   # (railings, fences: people-only boxes, 0.19.8)
 			source.add_faces(map.people_faces, map.global_transform)
 		return
