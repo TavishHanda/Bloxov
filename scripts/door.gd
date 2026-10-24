@@ -19,6 +19,7 @@ const HIDE_BEYOND := 150.0    # metres: past this a door is a few pixels tall, n
 const HIDE_INDOORS := 40.0    # ... and a door with a roof on both sides (inside a building) past this (0.18.12)
 ## Where to look for a roof: a metre in front of the doorway and a metre behind it.
 const SIDES: Array[Vector3] = [Vector3(0, 0, 1), Vector3(0, 0, -1)]
+var _born_msec := Time.get_ticks_msec()
 
 ## Swung open (1 or -1: which way) or shut (0). Changed with set_state (everyone's copy agrees online).
 signal changed(state: int)
@@ -224,6 +225,9 @@ func set_state(new_state: int) -> void:
 	if new_state == state:
 		return
 	state = new_state
+	if is_inside_tree() and not Engine.is_editor_hint() and Time.get_ticks_msec() - _born_msec > 1000:   # (not as a raid loads)
+		WorldSounds.at(self, WorldSounds.DOOR_CLOSE if state == 0 else WorldSounds.DOOR_OPEN, global_position + Vector3.UP,
+			-6.0 if state == 0 else -8.0)
 	if _tween != null:
 		_tween.kill()
 	_tween = create_tween().set_parallel() if is_inside_tree() else null

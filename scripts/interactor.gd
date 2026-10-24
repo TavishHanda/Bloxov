@@ -75,6 +75,8 @@ func _physics_process(delta: float) -> void:
 		_progress_target = target
 		progress = 0.0
 	var hold_time := target.interact_time()
+	if hold_time > 0.0 and progress == 0.0:   # (0.20.2: starting a search)
+		WorldSounds.own(player, WorldSounds.SAFE if target.display_name == "Safe" else WorldSounds.RUMMAGE, -10.0)
 	if hold_time <= 0.0:
 		if Input.is_action_just_pressed("interact"):
 			opened.emit(target)
@@ -133,6 +135,8 @@ func _stop_revive() -> void:
 
 ## Holding F on a shut key door with its key on you fills the bar, then unlocks it.
 func _update_door(delta: float) -> void:
+	if Input.is_action_just_pressed("interact") and not _open_needs_release and player.inventory.key_for(String(door.name)) == null:
+		WorldSounds.own(player, WorldSounds.LOCKED, -8.0)   # (0.20.2: rattling the handle)
 	if not Input.is_action_pressed("interact") or _open_needs_release or player.inventory.key_for(String(door.name)) == null:
 		progress = 0.0
 		return

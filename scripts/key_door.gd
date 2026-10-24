@@ -129,6 +129,7 @@ func unlock(inventory: Inventory) -> bool:
 	if stack == null:
 		return false
 	inventory.use_key(stack)
+	WorldSounds.own(self, WorldSounds.UNLOCK, -6.0)
 	open()
 	Network.main.open_door(String(name))
 	return true
@@ -139,6 +140,8 @@ func open() -> void:
 	if is_open:
 		return
 	is_open = true
+	if is_inside_tree() and not Engine.is_editor_hint():
+		WorldSounds.at(self, WorldSounds.HEAVY_DOOR, global_position + Vector3.UP, -2.0, 45.0)
 	_shape.set_deferred("disabled", true)
 	_face.set_deferred("disabled", true)
 	collision_layer = 0

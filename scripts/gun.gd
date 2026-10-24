@@ -491,6 +491,7 @@ func _handle_hits(hits: Array[Dictionary], from: Vector3) -> void:
 		var health := Health.of(collider)
 		if health == null or health.is_dead:
 			Effects.impact(world, result.position, result.normal, Color(0.85, 0.8, 0.6))
+			WorldSounds.impact(world, result.position, result.normal)
 			continue
 		var headshot := false
 		if collider is CollisionObject3D:

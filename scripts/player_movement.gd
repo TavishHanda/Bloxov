@@ -73,6 +73,7 @@ func set_prone(on: bool) -> void:
 	is_crouching = true
 	_sprinting = false
 	_set_capsule()
+	WorldSounds.own(self, WorldSounds.PRONE, -8.0)
 
 
 func _set_capsule() -> void:
@@ -174,6 +175,7 @@ func _update_climb(delta: float) -> bool:
 	if _climbed > 0.6:
 		_climbed = 0.0
 		_play_step(-2.0)
+		WorldSounds.own(self, WorldSounds.RUNG, -8.0)
 		_make_noise(walk_noise * 0.5)
 	# Off at the bottom (on the ground, not going up) or at the top (standing on the floor up there).
 	var past := (global_position - ladder.global_position).dot(ladder.into())
@@ -202,6 +204,7 @@ func try_vault() -> bool:
 	velocity = Vector3.ZERO
 	_sprinting = false
 	_play_step(2.0)
+	WorldSounds.own(self, WorldSounds.VAULT, -6.0)
 	_make_noise(vault_noise)
 	# 0.18.8: going through a window takes the glass with you.
 	var path: PackedVector3Array = move["path"]

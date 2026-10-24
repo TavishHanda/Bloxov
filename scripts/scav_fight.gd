@@ -763,6 +763,7 @@ func _fire_at_target(dist: float) -> void:
 			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
+			WorldSounds.impact(get_tree().current_scene, end, result.normal)
 
 	BoxMap.break_window_along(self, from, end, false)   # (0.18.8: its shots break glass too, and pass through)
 	fired.emit(end)
@@ -785,6 +786,7 @@ func _fire_at_point(point: Vector3) -> void:
 			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
+			WorldSounds.impact(get_tree().current_scene, end, result.normal)
 	fired.emit(end)
 	net_fired(end)
 

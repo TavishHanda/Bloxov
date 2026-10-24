@@ -405,6 +405,154 @@ def snap(variant):
     return out
 
 
+# 0.20.2: movement and the world.
+
+def _thud(seconds, f_from, f_to, drop, decay, grit=0.3, grit_smooth=0.5, grit_decay=40):
+    n = length(seconds)
+    nz = noise(n, grit_smooth)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (f_to + (f_from - f_to) * math.exp(-t * drop)) / RATE
+        out.append(math.sin(phase) * math.exp(-t * decay) + nz[i] * grit * math.exp(-t * grit_decay))
+    return out
+
+
+def _cloth(seconds, smooth=0.75, peak=0.3):
+    """A cloth swish: smoothed noise swelling to `peak` (0-1 of the way) and fading."""
+    n = length(seconds)
+    nz = noise(n, smooth)
+    return [nz[i] * math.sin(math.pi * min(1.0, (i / n) / (2 * peak) if i / n < peak else 0.5 + (i / n - peak) / (2 * (1 - peak)))) for i in range(n)]
+
+
+def _creak(seconds, f0, f1, rasp=0.5):
+    """A hinge creak: a buzzy tone sliding from f0 to f1, grinding in little pulses."""
+    n = length(seconds)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / n
+        phase += 2 * math.pi * (f0 + (f1 - f0) * t) / RATE
+        pulse = 0.6 + 0.4 * math.sin(2 * math.pi * 23 * i / RATE + 3 * math.sin(i / RATE * 7))
+        buzz = math.sin(phase) + rasp * math.sin(phase * 2.01) + rasp * 0.6 * math.sin(phase * 3.03)
+        out.append(buzz * pulse * math.sin(math.pi * t) ** 0.6 * 0.5)
+    return out
+
+
+def _mix(a, b, at=0.0, gain=1.0):
+    start = length(at)
+    out = list(a) + [0.0] * max(0, start + len(b) - len(a))
+    for i, x in enumerate(b):
+        out[start + i] += x * gain
+    return out
+
+
+def jump():
+    random.seed(1700)
+    return _mix(_cloth(0.18, 0.8, 0.25), _thud(0.06, 160, 90, 50, 60, 0.4), 0.0, 0.5)
+
+
+def land():
+    random.seed(1701)
+    return _mix(_thud(0.3, 140, 45, 25, 16, 0.6, 0.6, 22), _cloth(0.15, 0.8, 0.2), 0.0, 0.4)
+
+
+def vault():
+    """Hands slapping onto the top, then a scuffle of boots and cloth over it."""
+    random.seed(1702)
+    slap = [x for x in _thud(0.05, 300, 180, 60, 80, 0.8, 0.2, 90)]
+    return _mix(_mix(slap, _cloth(0.35, 0.7, 0.4), 0.03, 0.7), _thud(0.08, 120, 80, 40, 50, 0.5), 0.25, 0.6)
+
+
+def rung():
+    """A boot on a ladder rung: a short knock with a little metal ring."""
+    random.seed(1703)
+    n = length(0.18)
+    return [x + 0.25 * math.sin(2 * math.pi * 1250 * i / RATE) * math.exp(-i / RATE * 30)
+            for i, x in enumerate(_thud(0.18, 200, 140, 60, 45, 0.3, 0.3, 80))][:n]
+
+
+def prone():
+    random.seed(1704)
+    return _mix(_cloth(0.3, 0.8, 0.3), _thud(0.2, 110, 60, 30, 25, 0.5, 0.7, 20), 0.12, 0.8)
+
+
+def door_open():
+    random.seed(1705)
+    return _mix(click(0.03, 1500, 120, 0.1), _creak(0.55, 330, 520, 0.6), 0.02, 0.8)
+
+
+def door_close():
+    random.seed(1706)
+    return _mix(_creak(0.2, 480, 380, 0.4), _mix(_thud(0.22, 150, 70, 35, 22, 0.5), click(0.03, 1800, 130, 0.0), 0.04, 0.7),
+                0.15, 1.2)
+
+
+def locked():
+    """Trying a locked door: the handle rattling against the lock."""
+    random.seed(1707)
+    out = []
+    for k in range(4):
+        out += click(0.04, 700 + k * 60, 70, 0.3) + silence(0.035)
+    return out
+
+
+def unlock():
+    """A key turning: two clicks and the bolt clunking back."""
+    random.seed(1708)
+    return click(0.025, 2600, 150, 0.0) + silence(0.12) + click(0.03, 2200, 140, 0.0) + silence(0.08) + \
+        [x * 0.9 for x in _thud(0.18, 400, 200, 50, 35, 0.6, 0.2, 60)]
+
+
+def heavy_door():
+    """The bank vault / bunker door swinging: a deep grinding rumble, then a heavy clunk."""
+    random.seed(1709)
+    n = length(1.4)
+    nz = noise(n, 0.93)
+    grind = [nz[i] * 4 * math.sin(math.pi * i / n) * (0.7 + 0.3 * math.sin(2 * math.pi * 9 * i / RATE)) for i in range(n)]
+    return _mix(_mix(grind, _creak(1.2, 70, 95, 0.9), 0.1, 0.5), _thud(0.5, 90, 40, 20, 9, 0.6, 0.6, 15), 1.3, 1.3)
+
+
+def rummage():
+    """Searching through a container: bursts of rustling and things knocking about."""
+    random.seed(1710)
+    out = silence(1.3)
+    for _ in range(9):
+        at = random.uniform(0.0, 1.1)
+        out = _mix(out, _cloth(random.uniform(0.08, 0.2), random.uniform(0.3, 0.6), 0.3), at, random.uniform(0.4, 0.9))
+    for _ in range(4):
+        at = random.uniform(0.1, 1.1)
+        out = _mix(out, _thud(0.06, random.uniform(300, 700), 200, 50, 70, 0.5, 0.2, 90), at, 0.5)
+    return out[:length(1.3)]
+
+
+def safe():
+    """Opening a safe: the dial ticking round, the handle, and the heavy door creaking open."""
+    random.seed(1711)
+    out = []
+    for k in range(8):
+        out += click(0.012, 3200, 250, 0.0) + silence(0.045 + 0.01 * (k % 3))
+    out += silence(0.1) + [x * 0.8 for x in _thud(0.12, 500, 260, 60, 45, 0.6, 0.2, 70)]
+    return _mix(out, _creak(0.5, 160, 210, 0.8), len(out) / RATE - 0.02, 0.6)
+
+
+def impact(kind):
+    """A bullet hitting: dirt (a dull puff), wood (a thock), metal (a ping), concrete (a sharp chip)."""
+    random.seed(1720 + ["dirt", "wood", "metal", "concrete"].index(kind))
+    if kind == "dirt":
+        return _thud(0.14, 160, 70, 50, 35, 0.9, 0.7, 30)
+    if kind == "wood":
+        return [x + 0.4 * math.sin(2 * math.pi * 620 * i / RATE) * math.exp(-i / RATE * 45)
+                for i, x in enumerate(_thud(0.15, 380, 220, 60, 50, 0.5, 0.3, 70))]
+    if kind == "metal":
+        n = length(0.45)
+        return [math.exp(-i / RATE * 9) * (math.sin(2 * math.pi * 2350 * i / RATE) + 0.6 * math.sin(2 * math.pi * 3710 * i / RATE)
+                + 0.3 * math.sin(2 * math.pi * 1180 * i / RATE)) * 0.5 + (0.8 * math.exp(-i / RATE * 200) * random.uniform(-1, 1))
+                for i in range(n)]
+    sharp = _highpass(noise(length(0.2), 0.1), 0.6)
+    return [sharp[i] * math.exp(-i / RATE * 45) + 0.4 * math.sin(2 * math.pi * 900 * i / RATE) * math.exp(-i / RATE * 70)
+            for i in range(len(sharp))]
+
+
 def main_sound_update():
     (OUT / "steps").mkdir(exist_ok=True)
     for v in range(3):
@@ -417,6 +565,13 @@ def main_sound_update():
     write("distant_shot.wav", distant_shot())
     for v in range(2):
         write(f"snap{v + 1}.wav", snap(v))
+    (OUT / "world").mkdir(exist_ok=True)
+    for name, fn in (("jump", jump), ("land", land), ("vault", vault), ("rung", rung), ("prone", prone),
+                     ("door_open", door_open), ("door_close", door_close), ("locked", locked), ("unlock", unlock),
+                     ("heavy_door", heavy_door), ("rummage", rummage), ("safe", safe)):
+        write(f"world/{name}.wav", fn())
+    for kind in ("dirt", "wood", "metal", "concrete"):
+        write(f"world/impact_{kind}.wav", impact(kind))
 
 
 if __name__ == "__main__":

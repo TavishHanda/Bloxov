@@ -394,6 +394,23 @@ func surface_at(feet: Vector3) -> int:
 	return SURFACE_GROUND
 
 
+## What a bullet hitting world point `point` (just inside the surface) hit (0.20.2): the box it's in by colour, a
+## plain wall by its building, else the ground.
+func surface_hit(point: Vector3) -> int:
+	var local := to_local(point)
+	for i in _surface_cells.get(Vector2i(floori(local.x / SURFACE_CELL), floori(local.z / SURFACE_CELL)), PackedInt32Array()):
+		var p: Vector3 = (_surface_inverse[i] as Transform3D) * local
+		if absf(p.x) > 0.5 + 0.1 / boxes[i + 3] or absf(p.y) > 0.5 + 0.1 / boxes[i + 4] or absf(p.z) > 0.5 + 0.1 / boxes[i + 5]:
+			continue
+		var surface: int = SURFACE_BY_COLOUR.get(colour_names[int(boxes[i + 8])], -1)
+		if surface >= 0:
+			return surface
+		for r in range(0, floor_rects.size(), 5):
+			if local.x >= floor_rects[r] and local.x <= floor_rects[r + 2] and local.z >= floor_rects[r + 1] and local.z <= floor_rects[r + 3]:
+				return int(floor_rects[r + 4])
+	return SURFACE_GROUND
+
+
 ## Under the ground (0.12.35, owner's screenshot: a squadmate spawned on a slope ended up below the hills, and the
 ## ground is solid from below too, so they were stuck there): `pos` lifted onto the ground if it's below it.
 ## Underground rooms (the bunker) have their own ceiling: only lifted when the first thing above is the ground itself.

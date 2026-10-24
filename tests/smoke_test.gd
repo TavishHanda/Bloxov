@@ -5366,6 +5366,27 @@ func _section_sound() -> void:
 	await physics_frame
 	Hearing.listen(player, 1.0)
 	_check(indoor and not Hearing.indoors, "an echo under a roof, none outdoors")
+	# 0.20.2, movement and the world: bullet impacts by surface, going prone, doors, searching.
+	_check(map.surface_hit(spot + Vector3(4.95, 0.1, 0.3)) == Surfaces.METAL and map.surface_hit(spot + Vector3(0.5, 0.15, 0.95)) == Surfaces.WOOD
+		and map.surface_hit(spot + Vector3(2, -0.5, 0)) == Surfaces.GROUND, "a bullet hitting a box: metal, wood; the ground")
+	var newest := func() -> AudioStream:
+		var all := main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer or n is AudioStreamPlayer3D)
+		return all.back().stream if not all.is_empty() else null
+	WorldSounds.impact(main, spot + Vector3(4.95, 0.1, 0.3), Vector3.RIGHT)
+	_check(newest.call() == WorldSounds.IMPACTS[Surfaces.METAL], "...and it pings off the metal one")
+	player.set_prone(true)
+	var prone_sound: AudioStream = newest.call()
+	player.set_prone(false)
+	var door: Door = (load("res://scenes/door.tscn") as PackedScene).instantiate()
+	main.add_child(door)
+	door.global_position = spot + Vector3(0, 0, 6)
+	door._born_msec -= 2000
+	door.use(spot)
+	var opened: AudioStream = newest.call()
+	door.set_state(0)
+	_check(prone_sound == WorldSounds.PRONE and opened == WorldSounds.DOOR_OPEN and newest.call() == WorldSounds.DOOR_CLOSE,
+		"going prone rustles; a door creaks open and thuds shut")
+	door.queue_free()
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()

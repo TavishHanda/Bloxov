@@ -422,6 +422,7 @@ func _physics_process(delta: float) -> void:
 			elif _jump_cooldown_left <= 0.0 and stamina >= jump_cost:
 				velocity.y = jump_velocity
 				_jump_cooldown_left = jump_cooldown
+				WorldSounds.own(self, WorldSounds.JUMP, -10.0)
 				_coyote_left = 0.0
 				_use_stamina(jump_cost)
 	_move_input = input_dir
@@ -456,6 +457,7 @@ func _physics_process(delta: float) -> void:
 			_landing_left = landing_slowdown_time
 		_landing_dip = clampf(_fall_speed * 0.02, 0.03, 0.15)
 		_play_step(4.0)
+		WorldSounds.own(self, WorldSounds.LAND, clampf(-16.0 + _fall_speed * 1.2, -14.0, 0.0))
 		_make_noise(landing_noise)
 		var dropped := _fall_speed * _fall_speed / (2.0 * get_gravity().length())
 		if dropped > safe_fall_height and not out_of_fight():
