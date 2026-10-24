@@ -236,6 +236,14 @@ func _section_ads() -> void:
 	Input.action_release("aim")
 	await create_timer(gun.ads_time + 0.2).timeout
 	_check(gun.aim == 0.0 and absf(player.camera.fov - hip_fov) < 0.5, "releasing aim goes back to hip")
+	# First-person hands (0.20.15): both hands on the gun, each forearm from its wrist towards the camera's elbows.
+	var hands := gun.model.get_node_or_null("Hands") as Node3D
+	var wrist := hands.get_node("hound_R") as Node3D if hands != null else null
+	var arm := hands.get_node("ArmR") as Node3D if hands != null else null
+	_check(hands != null and hands.visible and hands.get_node_or_null("hound_L") != null and arm != null
+		and arm.global_position.distance_to(wrist.global_position) < 0.001
+		and gun.to_local(arm.global_position - arm.global_basis.z).y < gun.to_local(arm.global_position).y,
+		"the gun is held in two hands, the forearms running down from the wrists")
 	var ak_data := ItemDB.item("ak")
 	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
 	player.teleport_to(START_SPOT)

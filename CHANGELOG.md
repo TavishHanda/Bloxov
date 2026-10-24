@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.15 (Hands on the gun)
+- **First-person hands** (owner: "add like a hand model holding the gun"; picked look B of three): black gloves with
+  knuckle pads and black sleeves. The right hand wraps the grip (trigger finger along the frame), the left holds the
+  handguard or pump with the thumb over the top, and on the pistol it cups the right hand. The forearms follow the
+  gun when you aim, sprint or reload. Made by `art_source/scripts/make_hands.py` (`assets/models/hands/hands.glb`),
+  checked with `tools/hands_view.gd`. Reloads still move the gun as before (hand animations come later, roadmap).
+- **The Mauler points straighter at the hip** (owner: it faced too far left).
 ## 0.20.14 (AI start inside buildings and patrol them)
 - **More AI start inside buildings, and they stay and patrol there** (owner: "AI's can spawn inside buildings and
   patrol around"; picked "indoor guards", same number of AI). Every ground-floor room the AI can walk into now has a

@@ -5,8 +5,9 @@ extends RefCounted
 ## of player.tscn, the others into new nodes built here; each has a "Muzzle" marker with the muzzle flash (copied from
 ## the rifle's), moved onto the model's own muzzle.
 
-## Turned a little at the hip so its side shows (the shotgun's pump), straight when aimed.
-const REST_TURN := {"shotgun": Vector3(0.0, 0.35, 0.12)}
+## Turned a little at the hip so its side shows (the shotgun's pump; less since 0.20.15, owner: it faced too far left),
+## straight when aimed.
+const REST_TURN := {"shotgun": Vector3(0.0, 0.1, 0.1)}
 ## Where each model sits at rest, and when aimed (centred; the height comes from the model's iron sights, see
 ## aim_height()). The rifle's and pistol's rest places are their nodes' in player.tscn.
 const REST := {"smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2, -0.42), "sniper": Vector3(0.22, -0.2, -0.44)}
@@ -42,7 +43,47 @@ static func build_all(gun: Node3D) -> Dictionary:
 		for mesh: GeometryInstance3D in art.find_children("*", "GeometryInstance3D", true, false):
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		(holder.get_node("Muzzle") as Node3D).position = (art.get_node("Muzzle") as Node3D).position
+		add_hands(holder, HeldGun.MODELS[WEAPONS[key]])
 	return models
+
+
+# --- Hands (0.20.15, owner: "add like a hand model holding the gun") ---------------------------------
+
+## The hands model (art_source/scripts/make_hands.py): each gun's two hands, and the forearms.
+const HANDS := "res://assets/models/hands/hands.glb"
+## Where the elbows are, in the Gun node's frame (just under and behind the camera): the forearms point at them.
+const ELBOW_R := Vector3(0.24, -0.46, 0.02)
+const ELBOW_L := Vector3(-0.14, -0.44, -0.12)
+
+
+## Puts gun `gun`'s hands (and both forearms) on first-person `holder`, as a "Hands" node lined up with its Art.
+static func add_hands(holder: Node3D, gun: String, path := HANDS) -> void:
+	var hands: Node3D = (load(path) as PackedScene).instantiate()
+	hands.name = "Hands"
+	PixelModel.make_crisp(hands)
+	for child: Node in hands.get_children():
+		if not child.name in [gun + "_R", gun + "_L", "ArmR", "ArmL"]:
+			hands.remove_child(child)
+			child.free()
+	for mesh: GeometryInstance3D in hands.find_children("*", "GeometryInstance3D", true, false):
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	holder.add_child(hands)
+	hands.set_meta("gun", gun)
+
+
+## Points the forearms of `holder`'s hands from the wrists at the elbows (`frame`: the Gun node). Call after moving it.
+static func pose_arms(holder: Node3D, frame: Node3D) -> void:
+	var hands := holder.get_node_or_null("Hands") as Node3D
+	if hands == null or not hands.is_visible_in_tree():
+		return
+	var gun: String = hands.get_meta("gun")
+	for side: String in ["R", "L"]:
+		var arm := hands.get_node("Arm" + side) as Node3D
+		var wrist := (hands.get_node(gun + "_" + side) as Node3D).global_position
+		var elbow := frame.to_global(ELBOW_R if side == "R" else ELBOW_L)
+		arm.global_position = wrist
+		if not wrist.is_equal_approx(elbow):
+			arm.look_at(elbow, frame.global_basis.x)
 
 
 ## How high the model's iron sights are (aiming puts them just under the middle of the screen).

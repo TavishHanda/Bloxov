@@ -576,5 +576,6 @@ func _update_model(delta: float) -> void:
 	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0 + 30.0 * aim), 1.0)
 	model.position = model.position.lerp(target_pos, weight)
 	model.rotation = model.rotation.lerp(target_rot, weight)
+	GunViewModels.pose_arms(model, self)
 	# Looking through a scope, the gun is out of the way (the HUD draws the scope's view).
 	model.visible = reticle() != "scope"
