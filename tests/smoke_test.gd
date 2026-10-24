@@ -3232,11 +3232,12 @@ func _section_old_bloxov() -> void:
 	var broke := BoxMap.break_window_along(glass, ahead, pane_at.origin - pane_at.basis.z * 2.0, false)
 	var after: Dictionary = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(
 		ahead, pane_at.origin - pane_at.basis.z * 2.0, BoxMap.WINDOW_LAYER))
-	var shot_through: Dictionary = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(
-		ahead, pane_at.origin - pane_at.basis.z * 2.0, 1 | 4))
+	# (Shots: the glass is only on its own layer, which no shot checks. A ray test here could meet a scav walking by.)
+	var shot_through := pane_body != null and pane_body.collision_layer == BoxMap.WINDOW_LAYER
 	_check(panes >= 60 and pane_body != null and not before.is_empty() and broke == 0 and after.is_empty()
-		and not glass.pane_whole(0) and shot_through.is_empty() and glass.break_pane(0) == false,
-		"%d window panes: one breaks once, then lets you through; shots never stopped by glass" % panes)
+		and not glass.pane_whole(0) and shot_through and glass.break_pane(0) == false,
+		"%d window panes: one breaks once, then lets you through; shots never stopped by glass (%s)" % [panes,
+		[not before.is_empty(), broke, after.is_empty(), shot_through]])
 	# The server breaks a pane for the whole raid (online), and sends it on.
 	var broken_sent := []
 	world.window_broken.connect(func(pane: int) -> void: broken_sent.append(pane))
