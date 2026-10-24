@@ -3,13 +3,14 @@ extends Resource
 ## A saved lighting look (Look update, 0.19): the sky, ambient light, colour grading and sun of a raid, in one file
 ## under assets/looks/. Every raid scene (players' games and the server's raid copies) puts `current` on its
 ## WorldEnvironment and Sun as it's made, so changing the look of the game = pointing `current` at another file.
-## `classic.tres` is the look up to 0.18 (the owner asked to keep it, so it can always be put back).
+## `classic.tres` is the look up to 0.18 (the owner asked to keep it, so it can always be put back: point `current`
+## at CLASSIC). 0.19.1: `late_afternoon.tres` (the owner picked option C: low warm sun, light haze, less saturated).
 ## Looks only: nothing here changes what the AI or players can see through.
 
 const CLASSIC := "res://assets/looks/classic.tres"
 
 ## The look every raid uses.
-static var current := CLASSIC
+static var current := "res://assets/looks/late_afternoon.tres"
 
 @export var title := ""
 @export var environment: Environment
