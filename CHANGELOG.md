@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.1 (Sound update: hearing where things are)
+- **Far-off shots roll in:** a shot more than ~45 m away now also has a dull boom with a rolling echo on top of
+  today's shot sound (full from 90 m), so you hear a fight across the map and roughly where it is.
+- **Muffled through walls:** a sound with a wall between you and it (shots, steps, voices) comes through dull and a
+  little quieter; in plain sight it sounds as before. One ray per sound.
+- **A light echo indoors:** under a roof (buildings, the bunker and vault) every sound gets a short small-room echo;
+  it's off outdoors and in the hideout.
+- **Bullets snap past:** someone else's shot that passes within 3 m of your head cracks and whizzes past (not from
+  someone right next to you: you hear their gun).
+- Today's shot, step and voice sounds are unchanged; these play on top. All game sounds now go through a `World`
+  bus (scripts/hearing.gd), ready for the volume sliders at the end of the update.
+
 ## 0.20.0 (Sound update: footsteps by surface)
 - **Start of the Sound update** (owner, 2026-10-24: "let's do all this"; plan in the project files, `sound/plan.md`).
   Every sound in the game stays as it is: this update only adds new ones.

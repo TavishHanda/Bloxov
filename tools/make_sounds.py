@@ -374,6 +374,37 @@ def rustle(variant):
     return out
 
 
+def distant_shot():
+    """A shot far off (0.20.1): a dull boom with no crack (the air ate the highs) and a long rolling echo."""
+    random.seed(1500)
+    n = length(1.6)
+    nz = noise(n, 0.9)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * (55 + 40 * math.exp(-t * 12)) / RATE
+        out.append(math.sin(phase) * math.exp(-t * 9) + nz[i] * 2.5 * _env(t, 0.01, 7))
+    for delay, gain in ((0.22, 0.45), (0.5, 0.3), (0.85, 0.18)):   # (echoes off the hills and buildings)
+        d = length(delay)
+        for i in range(n - 1, d - 1, -1):
+            out[i] += out[i - d] * gain * 0.6
+    return [math.tanh(x * 1.5) for x in out]
+
+
+def snap(variant):
+    """A bullet passing close (0.20.1): a sharp supersonic crack, then a short falling whizz."""
+    random.seed(1600 + variant)
+    n = length(0.2)
+    hiss = _highpass(noise(n, 0.3), 0.6)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        crack = (1.0 if i < length(0.0012) else -0.8 if i < length(0.0026) else 0.0)
+        whizz = hiss[i] * _env(t, 0.004, 22) * 0.6 + math.sin(2 * math.pi * (2400 - 5000 * t) * t) * 0.15 * math.exp(-t * 25)
+        out.append(crack + whizz)
+    return out
+
+
 def main_sound_update():
     (OUT / "steps").mkdir(exist_ok=True)
     for v in range(3):
@@ -383,6 +414,9 @@ def main_sound_update():
         write(f"steps/water{v + 1}.wav", step_water(v))
     for v in range(2):
         write(f"steps/rustle{v + 1}.wav", rustle(v))
+    write("distant_shot.wav", distant_shot())
+    for v in range(2):
+        write(f"snap{v + 1}.wav", snap(v))
 
 
 if __name__ == "__main__":

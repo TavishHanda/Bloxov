@@ -327,3 +327,4 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 	Effects.tracer(world, from, end)
 	Effects.sound_at(world, GunSounds.shot(weapon), from, float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0),
 		0.06, float(stats.get("shot_pitch", 1.0)), 3.0 if suppressed else 6.0)
+	Hearing.gunshot(world, from, end, float(stats.get("shot_db", -4.0)) - (12.0 if suppressed else 0.0))

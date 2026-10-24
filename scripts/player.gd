@@ -327,7 +327,12 @@ func is_mouse_spike(delta_len: float, now_msec: int) -> bool:
 	return false
 
 
+func _exit_tree() -> void:
+	Hearing.set_indoors(false)   # (the indoor echo is off outside a raid)
+
+
 func _process(delta: float) -> void:
+	Hearing.listen(self, delta)
 	recoil.rotation = recoil.rotation.lerp(Vector3.ZERO, minf(recoil_recovery * delta, 1.0))
 	_recoil_return_wait -= delta
 	if _recoil_return_wait <= 0.0 and _recoil_debt != Vector2.ZERO:

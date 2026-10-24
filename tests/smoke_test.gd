@@ -5335,6 +5335,37 @@ func _section_sound() -> void:
 	Surfaces.step(player, -9.0)
 	_check(main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer).size() == steps + 1,
 		"a footstep plays")
+	# 0.20.1, hearing where things are: a far shot rolls in as a boom too, a sound behind a wall is muffled, a bullet
+	# passing close snaps past, and there's an echo under a roof.
+	var sounds := func() -> Array: return main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D)
+	var ear := player.camera.global_position
+	var before: int = sounds.call().size()
+	Hearing.gunshot(main, ear + Vector3(0, 0, 120), ear + Vector3(1, 0, -50), -4.0)
+	var added: Array = sounds.call().slice(before)
+	_check(added.size() == 2 and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream == Hearing.DISTANT_SHOT)
+		and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream in Hearing.SNAPS),
+		"a far shot rolls in as a boom, and it snaps past when it flies by your head (0.20.1)")
+	before = sounds.call().size()
+	Hearing.gunshot(main, ear + Vector3(0, 0, 20), ear + Vector3(30, 0, 20), -4.0)
+	_check(sounds.call().size() == before, "...a near shot that goes elsewhere adds nothing (today's shot only)")
+	var wall := BoxMap.new()
+	wall.boxes = PackedFloat32Array([ear.x, 2.0, ear.z + 3.0, 6, 4, 0.3, 0, 0, 0, 1,
+		ear.x, ear.y + 3.0, ear.z, 4, 0.2, 4, 0, 0, 0, 1])
+	wall.colors = PackedColorArray([Color.GRAY])
+	main.add_child(wall)
+	await physics_frame
+	await physics_frame
+	Effects.sound_at(main, Surfaces.RUSTLES[0], ear + Vector3(0, 0, 8), 0.0)
+	Effects.sound_at(main, Surfaces.RUSTLES[0], ear + Vector3(8, 0, 0), 0.0)
+	var two: Array = sounds.call().slice(-2)
+	_check(two[0].attenuation_filter_cutoff_hz == Hearing.MUFFLED_CUTOFF and two[1].attenuation_filter_cutoff_hz > 4000.0,
+		"a sound behind a wall comes through muffled, one in plain sight doesn't")
+	Hearing.listen(player, 1.0)
+	var indoor := Hearing.indoors and AudioServer.is_bus_effect_enabled(AudioServer.get_bus_index(Hearing.WORLD_BUS), 0)
+	wall.free()
+	await physics_frame
+	Hearing.listen(player, 1.0)
+	_check(indoor and not Hearing.indoors, "an echo under a roof, none outdoors")
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()

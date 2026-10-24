@@ -848,6 +848,7 @@ func net_fired(end: Vector3) -> void:
 	var muzzle_pos := muzzle.global_position
 	Effects.tracer(get_tree().current_scene, muzzle_pos, end)
 	Effects.sound_at(get_tree().current_scene, shot_sound, muzzle_pos, shot_volume_db, 0.06, shot_pitch, shot_unit_size)
+	Hearing.gunshot(get_tree().current_scene, muzzle_pos, end, shot_volume_db)
 	_muzzle_flash_time = 0.05
 
 

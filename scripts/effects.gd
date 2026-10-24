@@ -117,6 +117,7 @@ static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitt
 	var audio := AudioStreamPlayer.new()
 	audio.stream = stream
 	audio.volume_db = volume_db
+	audio.bus = Hearing.world_bus()
 	audio.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	world.add_child(audio)
 	audio.finished.connect(audio.queue_free)
@@ -132,6 +133,13 @@ static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db :
 	audio.unit_size = unit_size
 	audio.max_distance = max_distance   # (0 = heard from anywhere, fading with distance: gunshots)
 	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
+	audio.bus = Hearing.world_bus()
+	# Behind a wall (Sound update 0.20.1): muffled and a bit quieter, so you can tell it's not in plain sight.
+	var camera := Hearing.listener(world)
+	if camera and (max_distance <= 0.0 or camera.global_position.distance_to(pos) < max_distance) and Hearing.blocked(camera, pos):
+		audio.attenuation_filter_cutoff_hz = Hearing.MUFFLED_CUTOFF
+		audio.attenuation_filter_db = -40.0
+		audio.volume_db += Hearing.MUFFLED_DB
 	world.add_child(audio)
 	audio.global_position = pos
 	audio.finished.connect(audio.queue_free)
