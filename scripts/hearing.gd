@@ -90,4 +90,4 @@ static func gunshot(world: Node, from: Vector3, end: Vector3, volume_db: float) 
 		return
 	var closest := Geometry3D.get_closest_point_to_segment(ear, from, end)
 	if closest.distance_to(ear) < SNAP_RADIUS and closest.distance_to(from) > SNAP_MIN_RANGE:
-		Effects.sound_at(world, SNAPS.pick_random(), closest, -4.0, 0.1, 1.0, 4.0, 30.0)
+		Effects.sound_at(world, SNAPS.pick_random(), closest, -8.0, 0.1, 1.0, 4.0, 30.0)

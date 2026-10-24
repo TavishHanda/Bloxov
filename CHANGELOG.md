@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.9 (Sound update: lower, softer new sounds)
+- **Bullets snapping past are lower and softer** (owner: "the bullets coming towards us are kinda high pitched"):
+  a dull crack and a low falling whoosh instead of a bright crack and whistle, and 4 dB quieter.
+- The other bright new sounds are brought down too (owner: "change a bit of those if everything is too high pitch,
+  for the new stuff only"): the metal bullet ping, the grenade pin's ring, the safe's dial ticks, the key turning,
+  the coins when buying, and the extract countdown beeps.
+- Only 0.20 sounds changed; every sound from before the Sound update (the Wasp's shot included) is untouched.
+
 ## 0.20.8 (Sound fix: no sound on the web)
 - **Fixed: the web game had no sound at all since 0.20.1** (owner: "I can't hear anything now"). The game made its
   sound buses (World, then Voices, Ambience, UI) while running; Godot 4.5's web audio puts a bus added at the end in

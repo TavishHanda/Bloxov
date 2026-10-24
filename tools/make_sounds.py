@@ -392,17 +392,18 @@ def distant_shot():
 
 
 def snap(variant):
-    """A bullet passing close (0.20.1): a sharp supersonic crack, then a short falling whizz."""
+    """A bullet passing close (0.20.1; 0.20.9, owner: "kinda high pitched"): a dull crack, then a low falling whoosh."""
     random.seed(1600 + variant)
-    n = length(0.2)
-    hiss = _highpass(noise(n, 0.3), 0.6)
-    out = []
+    n = length(0.22)
+    hiss = _lowpass(noise(n, 0.6), 0.5)
+    out, phase = [], 0.0
     for i in range(n):
         t = i / RATE
-        crack = (1.0 if i < length(0.0012) else -0.8 if i < length(0.0026) else 0.0)
-        whizz = hiss[i] * _env(t, 0.004, 22) * 0.6 + math.sin(2 * math.pi * (2400 - 5000 * t) * t) * 0.15 * math.exp(-t * 25)
+        crack = (0.6 if i < length(0.003) else -0.45 if i < length(0.006) else 0.0)
+        phase += 2 * math.pi * (700 - 1400 * t) / RATE
+        whizz = hiss[i] * _env(t, 0.006, 16) * 0.9 + math.sin(phase) * 0.12 * math.exp(-t * 22)
         out.append(crack + whizz)
-    return out
+    return _lowpass(out, 0.35)
 
 
 # 0.20.2: movement and the world.
@@ -499,7 +500,7 @@ def locked():
 def unlock():
     """A key turning: two clicks and the bolt clunking back."""
     random.seed(1708)
-    return click(0.025, 2600, 150, 0.0) + silence(0.12) + click(0.03, 2200, 140, 0.0) + silence(0.08) + \
+    return click(0.025, 1600, 150, 0.2) + silence(0.12) + click(0.03, 1400, 140, 0.2) + silence(0.08) + \
         [x * 0.9 for x in _thud(0.18, 400, 200, 50, 35, 0.6, 0.2, 60)]
 
 
@@ -530,7 +531,7 @@ def safe():
     random.seed(1711)
     out = []
     for k in range(8):
-        out += click(0.012, 3200, 250, 0.0) + silence(0.045 + 0.01 * (k % 3))
+        out += click(0.012, 2000, 250, 0.2) + silence(0.045 + 0.01 * (k % 3))
     out += silence(0.1) + [x * 0.8 for x in _thud(0.12, 500, 260, 60, 45, 0.6, 0.2, 70)]
     return _mix(out, _creak(0.5, 160, 210, 0.8), len(out) / RATE - 0.02, 0.6)
 
@@ -545,8 +546,8 @@ def impact(kind):
                 for i, x in enumerate(_thud(0.15, 380, 220, 60, 50, 0.5, 0.3, 70))]
     if kind == "metal":
         n = length(0.45)
-        return [math.exp(-i / RATE * 9) * (math.sin(2 * math.pi * 2350 * i / RATE) + 0.6 * math.sin(2 * math.pi * 3710 * i / RATE)
-                + 0.3 * math.sin(2 * math.pi * 1180 * i / RATE)) * 0.5 + (0.8 * math.exp(-i / RATE * 200) * random.uniform(-1, 1))
+        return [math.exp(-i / RATE * 9) * (math.sin(2 * math.pi * 1450 * i / RATE) + 0.6 * math.sin(2 * math.pi * 2230 * i / RATE)
+                + 0.3 * math.sin(2 * math.pi * 760 * i / RATE)) * 0.5 + (0.8 * math.exp(-i / RATE * 200) * random.uniform(-1, 1))
                 for i in range(n)]
     sharp = _highpass(noise(length(0.2), 0.1), 0.6)
     return [sharp[i] * math.exp(-i / RATE * 45) + 0.4 * math.sin(2 * math.pi * 900 * i / RATE) * math.exp(-i / RATE * 70)
@@ -590,7 +591,7 @@ def pin():
     """Pulling a grenade's pin: a scrape and a bright ring."""
     random.seed(1803)
     scrape = [x * math.sin(math.pi * i / length(0.08)) for i, x in enumerate(_highpass(noise(length(0.08), 0.2), 0.7))]
-    ring = [math.sin(2 * math.pi * 3100 * i / RATE) * math.exp(-i / RATE * 18) * 0.5 for i in range(length(0.35))]
+    ring = [math.sin(2 * math.pi * 1800 * i / RATE) * math.exp(-i / RATE * 22) * 0.4 for i in range(length(0.3))]
     return _mix(scrape, ring, 0.07)
 
 
@@ -727,7 +728,7 @@ def ui_buy():
     """Buying: a couple of coins clinking down onto the counter, softly."""
     random.seed(2002)
     out = silence(0.4)
-    for at, f in ((0.0, 1900), (0.07, 2300), (0.15, 2100)):
+    for at, f in ((0.0, 1200), (0.07, 1450), (0.15, 1320)):
         out = _mix(out, [x * 0.35 for x in _note(f, 0.18, 35)], at)
     return _mix(out, [x * 0.4 for x in noise(length(0.03), 0.5)], 0.0)
 
@@ -749,7 +750,7 @@ def ui_start():
 
 
 def ui_beep(high):
-    return _note(1320 if high else 880, 0.09, 30, 0.003, 0.3)
+    return _note(990 if high else 660, 0.09, 30, 0.003, 0.15)
 
 
 def ui_extracted():
