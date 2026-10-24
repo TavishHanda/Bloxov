@@ -4342,6 +4342,22 @@ func _section_zones() -> void:
 		var newest := get_nodes_in_group("enemies").back() as Scav
 		return newest.global_position.distance_to(indoor.global_position) < 3.0
 	_check(landed.call(1.0) and not landed.call(0.0), "a zone's AI can start inside a building (or outside)")
+	# 0.20.14 (owner): one that starts inside patrols that building's rooms.
+	indoor.set_meta("building", "TestHouse")
+	var room2 := Marker3D.new()
+	room2.position = quiet.center + Vector3(6, 0, 8)
+	room2.set_meta("zone", quiet.name)
+	room2.set_meta("indoor", true)
+	room2.set_meta("building", "TestHouse")
+	spawner.add_child(room2)
+	spawner.indoor_chance = 1.0
+	spawner._spawn(spawner.enemy_scene, quiet, false)
+	var guard := get_nodes_in_group("enemies").back() as Scav
+	guard.global_position = indoor.global_position
+	guard.indoor_patrol = 1.0
+	var stop := guard._pick_room([])
+	_check(guard.indoor_rooms.size() == 2 and stop != Vector3.ZERO and stop.distance_to(AINav.closest(guard, room2.global_position)) < 0.1,
+		"an AI that starts inside a building patrols to its other rooms")
 	for enemy in get_nodes_in_group("enemies"):
 		enemy.remove_from_group("enemies")
 		enemy.queue_free()

@@ -34,8 +34,9 @@ extends Node3D
 ## With zones: this many scavs roam the whole map instead of one zone (they start at any marker).
 @export var roamers := 0
 ## With zones: chance a zone's AI starts at one of its spots inside a building (markers with metadata `indoor`)
-## rather than outside (0.12.23, owner: some AI inside, so you have to clear buildings).
-@export_range(0.0, 1.0) var indoor_chance := 0.5
+## rather than outside (0.12.23, owner: some AI inside, so you have to clear buildings; 0.20.14: 2 in 3, and they
+## patrol that building's rooms, see Scav.indoor_rooms).
+@export_range(0.0, 1.0) var indoor_chance := 0.67
 ## Sniper scavs at the start (Scavs 2.0, owner): each on its own perch, picked from the markers with metadata
 ## `perch` (high spots: roofs, the bell tower), preferring perches no player is in sight of. They don't count
 ## toward the scav budget.
@@ -233,7 +234,8 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	var enemies := RaidScope.nodes(self, &"enemies")
 	var free := points.filter(func(m: Marker3D) -> bool:
 		return enemies.all(func(e: Node) -> bool: return (e as Node3D).global_position.distance_to(m.global_position) > 2.5))
-	var spot: Vector3 = (free if not free.is_empty() else points).pick_random().global_position
+	var picked: Marker3D = (free if not free.is_empty() else points).pick_random()
+	var spot := picked.global_position
 	if free.is_empty():
 		spot = clear_spot_near(spot, Vector3(randf_range(-2.0, 2.0), 0, randf_range(-2.0, 2.0)))
 	var enemy := scene.instantiate() as Scav
@@ -248,6 +250,8 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 		enemy.home_radius = float(zone.get("radius", 0.0))
 		enemy.home_avoid = zone.get("avoid", [])
 		enemy.home_edge = float(zone.get("edge", 0.0))
+	if picked.has_meta("building"):
+		enemy.indoor_rooms = building_rooms(String(picked.get_meta("building")))
 	if scene == raider_scene:
 		raiders_spawned += 1
 		# Sometimes a duo: a partner right next to it that follows it around.
@@ -264,6 +268,15 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	else:
 		scavs_spawned += 1
 	return true
+
+
+## The room spots (indoor markers) of the building called `building`.
+func building_rooms(building: String) -> Array[Vector3]:
+	var rooms: Array[Vector3] = []
+	for child in get_children():
+		if child is Marker3D and String(child.get_meta("building", "")) == building:
+			rooms.append((child as Marker3D).global_position)
+	return rooms
 
 
 ## A spot `offset` from `origin` (a spawn point) with room to stand: same floor, nothing in the way, a clear line

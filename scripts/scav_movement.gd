@@ -379,6 +379,10 @@ func _pick_patrol_point() -> Vector3:
 			var back := AINav.closest(self, home_center)
 			if back != Vector3.ZERO:
 				return back
+	if not indoor_rooms.is_empty() and _trip_point == Vector3.INF:
+		var stop := _pick_room(spots) if randf() < indoor_patrol else _step_out()
+		if stop != Vector3.ZERO:
+			return stop
 	_patrol_jog = randf() < jog_chance
 	# Open-ground stops prefer a spot next to a wall or other cover (0.12.7, owner: patrol behind cover, not out
 	# in the open where anyone on a hill can pick them off).
@@ -413,6 +417,59 @@ func _pick_patrol_point() -> Vector3:
 		return fallback
 	# No navigation map yet: somewhere a few meters ahead.
 	return global_position + _flat(-global_basis.z).normalized().rotated(Vector3.UP, randf_range(-1.2, 1.2)) * 6.0
+
+
+## An indoor guard's next stop in its building (0.20.14): another room, or now and then a loot spot in the building
+## (any floor: up the stairs too). It walks. ZERO if there's nowhere to go.
+func _pick_room(spots: Array[Node]) -> Vector3:
+	_patrol_jog = false
+	_patrol_container = null
+	if randf() < 0.35:
+		var inside := spots.filter(func(c: Node) -> bool:
+			var at := (c as Node3D).global_position
+			return indoor_rooms.any(func(r: Vector3) -> bool: return _flat(at - r).length() < 6.0 and absf(at.y - r.y) < 9.0))
+		if not inside.is_empty():
+			_patrol_container = inside.pick_random() as Node3D
+			var at := AINav.closest(self, _patrol_container.global_position)
+			if at != Vector3.ZERO:
+				return at
+			_patrol_container = null
+	var rooms := indoor_rooms.duplicate()
+	rooms.shuffle()
+	for room: Vector3 in rooms:
+		if _flat(room - global_position).length() < 3.0 or _room_taken(room):
+			continue
+		var at := AINav.closest(self, room)
+		if at != Vector3.ZERO:
+			return at
+	# (one room, or the others taken: a few steps round this one)
+	var near := AINav.closest(self, rooms[0] + Vector3(randf_range(-2.0, 2.0), 0.0, randf_range(-2.0, 2.0)))
+	return near if near != Vector3.ZERO and _flat(near - rooms[0]).length() < 3.0 else Vector3.ZERO
+
+
+## An indoor guard's stop outside: round its building, a few meters out (it comes back in after).
+func _step_out() -> Vector3:
+	_patrol_container = null
+	_patrol_jog = false
+	var middle := Vector3.ZERO
+	for room in indoor_rooms:
+		middle += room
+	middle /= indoor_rooms.size()
+	var reach := 0.0
+	for room in indoor_rooms:
+		reach = maxf(reach, _flat(room - middle).length())
+	var at := AINav.closest(self, middle + Vector3(reach + randf_range(6.0, 12.0), 0, 0).rotated(Vector3.UP, randf() * TAU))
+	return at if at != Vector3.ZERO and (home_radius <= 0.0 or _in_home(at)) else Vector3.ZERO
+
+
+## Another AI is already standing in or heading for that room spot.
+func _room_taken(room: Vector3) -> bool:
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if other != null and other != self and other.state == State.IDLE and (_flat(other.global_position - room).length() < 2.0
+				or (other._wander_dir != Vector3.ZERO and _flat(other._wander_point - room).length() < 2.0)):
+			return true
+	return false
 
 
 ## Another patrolling AI (not its own group) is already heading for somewhere near `spot` (owner, 0.15.16: four AI

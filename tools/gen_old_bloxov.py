@@ -12,6 +12,7 @@ Spawn points, extracts and loot spots are placeholders (owner: Scavs 2.0 and the
 """
 
 import bisect
+import collections
 import contextlib
 import json
 import math
@@ -562,7 +563,7 @@ extracts = []    # (node name, display name, x, z)
 player_spawns = []
 enemy_spawns = []
 NO_INDOOR_SPAWNS = {"Grocery"}   # rooms full of shelves
-indoor_spawns = []   # (name, x, z, zone): AI spawn spots inside buildings, in the middle of ground-floor rooms
+indoor_spawns = []   # (name, x, z, zone, building): AI spawn spots inside buildings, in the middle of ground-floor rooms
 buildings = []
 markers = []     # (group node, name, x, y, z, metadata dict)
 
@@ -5834,38 +5835,120 @@ def zone_spawns():
             need -= 1
         assert need <= 0, f"no room for AI spawn spots in zone {zname}"
     # Inside buildings too (0.12.23, owner: "don't be afraid to spawn the AI in actual buildings", so clearing a
-    # building matters): the middle of each ground-floor room of a zone's buildings, away from the stairs. The
-    # spawner uses these for about half of a zone's AI. (Only markers: no ground or props move for them.)
+    # building matters). Since 0.20.14 (owner: AI spawn inside buildings and patrol around; picked "indoor guards"):
+    # one spot in every roofed ground-floor room of every building, found from the boxes as they now stand
+    # (`building_rooms`), so the modelled buildings' own rooms count. The spawner starts about 2 in 3 of a zone's AI at
+    # one, and those AI patrol their building's rooms (markers carry `building`). (Only markers: nothing moves.)
     for b in buildings:
         if b.name in NO_INDOOR_SPAWNS:
             continue
         rooms = []
-        for cx, cz in (b.spawn_spots or ()):
-            if getattr(b, "turned_about", None):   # (a turned building's own spots turn with it)
-                cx, cz = turn_point(cx, cz, *b.turned_about)
+        for cx, cz in building_rooms(b):
             zone = _zone_of(cx, cz)
-            if zone is not None and zone[0] != AI_BOSS[0] and (zone[4] + zone[5]) > 0:
-                rooms.append((round(cx, 1), round(cz, 1), zone[0]))
-        for i in range(0 if b.spawn_spots else b.nx):
-            for j in range(b.nz):
-                x0, z0, x1, z1 = b.cell(i, j)
-                cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-                if min(x1 - x0, z1 - z0) < 3.5:
-                    continue   # too small a room
-                if any(sx0 - 1.5 < cx < sx1 + 1.5 and sz0 - 1.5 < cz < sz1 + 1.5 for sx0, sx1, sz0, sz1 in b.strips):
-                    continue   # the stairs
-                zone = _zone_of(cx, cz)
-                if zone is None or zone[0] == AI_BOSS[0] or (zone[4] + zone[5]) == 0:
-                    continue
-                if getattr(b, "turned_about", None):
-                    cx, cz = turn_point(cx, cz, *b.turned_about)
-                    zone = _zone_of(cx, cz) or zone
-                rooms.append((round(cx, 1), round(cz, 1), zone[0]))
-        # Half the rooms (owner, 0.12.24: 6 in a building -> 3, 2 -> 1), spread through the building; one if only one.
-        keep = max(1, len(rooms) // 2) if rooms else 0
-        for k in range(keep):
-            x, z, zname = rooms[k * len(rooms) // keep]
-            indoor_spawns.append((f"Indoor{len(indoor_spawns) + 1}", x, z, zname))
+            if zone is None or zone[0] == AI_BOSS[0] or (zone[4] + zone[5]) == 0 or behind_key_door(b.name, cx, cz):
+                continue
+            rooms.append((round(cx, 1), round(cz, 1), zone[0]))
+        for x, z, zname in rooms:
+            indoor_spawns.append((f"Indoor{len(indoor_spawns) + 1}", x, z, zname, b.name))
+
+
+ROOM_CELL = 0.25      # grid step of the room search (m)
+ROOM_CORE = 5         # cells (1.25 m) clear of anything solid at body height: a room's open middle; doorways are narrower
+ROOM_MIN_CORE = 8     # open-middle cells a room needs: smaller is a nook or a corridor end
+ROOM_SPLIT = 600      # a hall with this many open-middle cells (~37 m2) or more gets another spot, and so on
+
+
+def building_rooms(b):
+    """The ground-floor rooms of building b as they now stand (its own walls or its model's boxes, turned if it was):
+    [(x, z)] map points, the most open spot of each (big halls get more, spread out). A room's open middle is the
+    floor inside the footprint at least ROOM_CORE from anything solid at body height, so the narrow doorways split
+    the rooms apart (wide openings join them)."""
+    xs, zs = [b.x0, b.x1], [b.z0, b.z1]
+    if getattr(b, "turned_about", None):
+        corners = [turn_point(x, z, *b.turned_about) for x in xs for z in zs]
+        xs, zs = [c[0] for c in corners], [c[1] for c in corners]
+    pad = int(1.5 / ROOM_CELL)   # (cells round the footprint: the way in from outside)
+    x0, z0 = min(xs) - pad * ROOM_CELL, min(zs) - pad * ROOM_CELL
+    nx, nz = int((max(xs) - min(xs)) / ROOM_CELL) + 2 * pad, int((max(zs) - min(zs)) / ROOM_CELL) + 2 * pad
+    solid = [[False] * nx for _ in range(nz)]
+    for bx in boxes:
+        if bx[9] == 0:
+            continue
+        cx, cz = bx[0] + M / 2, bx[2] + M / 2
+        sx, sy, sz, yaw, pitch = bx[3], bx[4], bx[5], bx[6], bx[7]
+        half_y = sy / 2 + abs(math.sin(math.radians(pitch))) * sz / 2
+        if bx[1] - half_y > 1.8 or bx[1] + half_y < 0.25:
+            continue   # (not at body height: a floor, a roof, a shelf up high)
+        r = math.hypot(sx, sz) / 2 + ROOM_CELL
+        if cx + r < x0 or cz + r < z0 or cx - r > x0 + nx * ROOM_CELL or cz - r > z0 + nz * ROOM_CELL:
+            continue
+        c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        # (half a cell bigger, so a thin wall between two cell middles still blocks)
+        hx, hz = sx / 2 + ROOM_CELL / 2, sz / 2 + ROOM_CELL / 2
+        for j in range(max(0, int((cz - r - z0) / ROOM_CELL)), min(nz, int((cz + r - z0) / ROOM_CELL) + 1)):
+            pz = z0 + (j + 0.5) * ROOM_CELL - cz
+            for i in range(max(0, int((cx - r - x0) / ROOM_CELL)), min(nx, int((cx + r - x0) / ROOM_CELL) + 1)):
+                px = x0 + (i + 0.5) * ROOM_CELL - cx
+                if abs(px * c - pz * s_) <= hx and abs(px * s_ + pz * c) <= hz:
+                    solid[j][i] = True
+    for _, _, lx, ly, lz, _, _, _ in loot:   # (containers and searchable props stand in the way too: not boxes)
+        if ly < 1.5:
+            for j in range(max(0, int((lz - 0.9 - z0) / ROOM_CELL)), min(nz, int((lz + 0.9 - z0) / ROOM_CELL) + 1)):
+                for i in range(max(0, int((lx - 0.9 - x0) / ROOM_CELL)), min(nx, int((lx + 0.9 - x0) / ROOM_CELL) + 1)):
+                    solid[j][i] = True
+
+    def distances(blocked):   # how far each open cell is from a blocked one (in cells, 8-way)
+        far = [[0 if blocked[j][i] else 10 ** 6 for i in range(nx)] for j in range(nz)]
+        queue = collections.deque((i, j) for j in range(nz) for i in range(nx) if blocked[j][i])
+        while queue:
+            i, j = queue.popleft()
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                a, c2 = i + di, j + dj
+                if 0 <= a < nx and 0 <= c2 < nz and far[c2][a] > far[j][i] + 1:
+                    far[c2][a] = far[j][i] + 1
+                    queue.append((a, c2))
+        return far
+
+    def flood(start, ok):   # the cells joined (4-way) to `start` through cells where ok(i, j)
+        cells, queue, seen_ = [], collections.deque([start]), {start}
+        while queue:
+            a, c2 = queue.popleft()
+            cells.append((a, c2))
+            for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                p = (a + di, c2 + dj)
+                if 0 <= p[0] < nx and 0 <= p[1] < nz and p not in seen_ and ok(*p):
+                    seen_.add(p)
+                    queue.append(p)
+        return cells
+
+    # Where someone can walk in from outside (room for a body through the doorways): a room it doesn't reach is shut.
+    walk = distances(solid)
+    reach = set()
+    for j in range(nz):
+        for i in range(nx):
+            if (i in (0, nx - 1) or j in (0, nz - 1)) and walk[j][i] >= 4 and (i, j) not in reach:
+                reach.update(flood((i, j), lambda a, c2: walk[c2][a] >= 4))
+    # The rooms: the footprint's edge counts as solid (holes in the outside walls don't let a room out).
+    inside = [[solid[j][i] or not (pad <= i < nx - pad and pad <= j < nz - pad) for i in range(nx)] for j in range(nz)]
+    far = distances(inside)
+    seen = set()
+    rooms = []
+    for j in range(nz):
+        for i in range(nx):
+            if far[j][i] < ROOM_CORE or (i, j) in seen:
+                continue
+            cells = flood((i, j), lambda a, c2: far[c2][a] >= ROOM_CORE)
+            seen.update(cells)
+            if len(cells) < ROOM_MIN_CORE:
+                continue
+            mid_i, mid_j = sum(p[0] for p in cells) / len(cells), sum(p[1] for p in cells) / len(cells)
+            picks = [max(cells, key=lambda p: (far[p[1]][p[0]], -abs(p[0] - mid_i) - abs(p[1] - mid_j)))]
+            if picks[0] not in reach:
+                continue
+            while len(picks) < 1 + len(cells) // ROOM_SPLIT:   # (the next one as far as it gets from the others)
+                picks.append(max(cells, key=lambda p: min((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 for q in picks)))
+            rooms += [(x0 + (a + 0.5) * ROOM_CELL, z0 + (c2 + 0.5) * ROOM_CELL) for a, c2 in picks]
+    return rooms
 
 
 def spawner_meta(ter):
@@ -6752,10 +6835,10 @@ def write_scene(ter):
             y = ter.lift(x, z) + 0.3
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, y, z)}"]
         out += ([f'metadata/zone = "{spawn_zone[name]}"'] if name in spawn_zone else []) + [""]
-    for name, x, z, zone in indoor_spawns:   # (on the floor: 0.12.23-0.12.37 put them 1.2 m up, heads in the ceiling)
+    for name, x, z, zone, building in indoor_spawns:   # (on the floor: 0.12.23-0.12.37 put them 1.2 m up, heads in the ceiling)
         out += [f'[node name="{name}" type="Marker3D" parent="EnemySpawns"]',
                 f"transform = {xform(x, ter.lift(x, z) + 0.1, z)}", f'metadata/zone = "{zone}"',
-                "metadata/indoor = true", ""]
+                "metadata/indoor = true", f'metadata/building = "{building}"', ""]
     for i, (x, z) in enumerate(BOSS_STARTS):   # (on the hall's floor)
         out += [f'[node name="BossStart{i + 1}" type="Marker3D" parent="EnemySpawns"]',
                 f"transform = {xform(x, ter.lift(x, z) + 0.1, z)}", "metadata/boss_start = true", ""]

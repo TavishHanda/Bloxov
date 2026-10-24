@@ -165,6 +165,10 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var second_excursion_chance := 0.5
 ## Share of its open-ground patrol stops just outside its area (0.12.36, owner: guards should patrol outside too).
 @export var outside_patrol := 0.0
+## Started inside a building (0.20.14, owner: AI spawn inside buildings and patrol around): this share of its patrol
+## stops are that building's rooms (or a loot spot in it, on any floor); the rest are just outside round the
+## building, so now and then it steps out and comes back.
+@export var indoor_patrol := 0.8
 ## Scavs and Raiders are rivals (0.12.17, owner): they ignore each other, but never answer the other side's calls
 ## for help, warn it or team up with it. raider.tscn and boss.tscn are "raider".
 @export var faction := &"scav"
@@ -295,6 +299,8 @@ var home_radius := 0.0
 ## from the town hall and the bank, where Bon's guards and the Raiders are), and how far out (fraction of
 ## home_radius) its open-ground patrol stops sit (the town's scavs patrol round the edges of town).
 var home_avoid: Array = []
+## The room spots of the building it started in (the spawner's indoor markers with its `building`); empty = none.
+var indoor_rooms: Array[Vector3] = []
 ## Duo partner or boss guard: who it follows around while patrolling (null = it leads itself), and where it
 ## walks relative to them (right/back in their facing).
 var leader: Scav = null
