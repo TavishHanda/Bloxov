@@ -9139,7 +9139,8 @@ def ghost_runner(ctx):
     b = ctx.b
     x0, z0, x1, z1 = TH_HOLE
     x0, z0, x1, z1 = x0 - 0.5, z0 - 0.35, x1 + 0.35, z1 + 0.35
-    b.poly([(x0, 0.012, z0), (x1, 0.012, z0), (x1, 0.012, z1), (x0, 0.012, z1)], (0, 1, 0), "decals", ctx.d("runner"))
+    # (its own material, "runner", 0.18.6: the game hides it once someone has gone through, scripts/ghost_cloth.gd)
+    b.poly([(x0, 0.012, z0), (x1, 0.012, z0), (x1, 0.012, z1), (x0, 0.012, z1)], (0, 1, 0), "runner", ctx.d("runner"))
     hx0, hz0, hx1, hz1 = TH_HOLE
     k = 0
     x = hx0 + 0.4
@@ -22222,6 +22223,7 @@ def build(name, export):
                                          lambda r: atlas.c, rng)
     mat_info["decals"] = (name + "_decals", False, False)
     mat_info["graffiti"] = (name + "_decals", True, False)
+    mat_info["runner"] = (name + "_decals", False, False)
 
     ctx = Ctx(data, atlas, FOOTPRINTS[name])
     ctx.wet = wet_rects(data)

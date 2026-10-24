@@ -77,6 +77,7 @@
 [ext_resource type="PackedScene" path="res://assets/models/props/cars/car_d_burnt.glb" id="c_car_d_burnt"]
 [ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]
 [ext_resource type="PackedScene" path="res://scenes/smoke_column.tscn" id="s_smoke"]
+[ext_resource type="Script" path="res://scripts/ghost_cloth.gd" id="s_ghost"]
 [ext_resource type="Material" path="res://assets/materials/lot.tres" id="g_lot"]
 [ext_resource type="Material" path="res://assets/materials/water.tres" id="g_water"]
 [ext_resource type="Mesh" path="res://assets/meshes/waterfall_sheet.tres" id="g_fall"]
@@ -165,6 +166,10 @@ data = PackedFloat32Array(3, 1.922, -121, 6.177, 4.308, 0, 298.27, 25, 1.922, -1
 [node name="town_hall" parent="Level/Models" instance=ExtResource("m_town_hall")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -68, 0.959, -20)
 script = ExtResource("m_pixel")
+
+[node name="GhostCloth" type="Area3D" parent="Level/Models/town_hall"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.25, 0.5, -1.8)
+script = ExtResource("s_ghost")
 
 [node name="th_vault" parent="Level/Models" instance=ExtResource("m_th_vault")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -68, 0.959, -20)

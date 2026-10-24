@@ -3192,6 +3192,25 @@ func _section_old_bloxov() -> void:
 			not_found.append(String(c.name))
 	_check(props.size() >= 100 and not_found.is_empty(),
 		"%d searchable props roll loot and are found by a look (wrong: %s)" % [props.size(), not_found])
+	# The ghost cloth over the bunker ramp (0.18.6, owner): it fades once someone goes through it.
+	var cloth := world.raid.find_child("GhostCloth", true, false) as GhostCloth
+	var walker := CharacterBody3D.new()
+	walker.collision_layer = 2
+	var walker_shape := CollisionShape3D.new()
+	walker_shape.shape = CapsuleShape3D.new()
+	walker.add_child(walker_shape)
+	world.raid.add_child(walker)
+	walker.global_position = cloth.global_position + Vector3(0, 30, 0) if cloth != null else Vector3.ZERO
+	await physics_frame
+	await physics_frame
+	var untouched := cloth != null and not cloth.tripped and not cloth._runner().is_empty()
+	walker.global_position = cloth.global_position if cloth != null else Vector3.ZERO
+	for i in 3:
+		await physics_frame
+	var runner: Array = cloth._runner() if cloth != null else []
+	_check(untouched and cloth.tripped and runner[0].get_surface_override_material(runner[1]) != null,
+		"the ghost cloth over the bunker ramp fades once someone goes through it")
+	walker.queue_free()
 	# Online the server's copy of the map has the doors too; a player unlocking one opens it there and tells the raid.
 	var opened := []
 	world.door_opened.connect(func(id: String) -> void: opened.append(id))

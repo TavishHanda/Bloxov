@@ -6438,6 +6438,7 @@ def write_scene(ter):
         out.append(f'[ext_resource type="PackedScene" path="res://assets/models/props/cars/{glb}.glb" id="c_{glb}"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/ground.tres" id="g_ground"]')
     out.append('[ext_resource type="PackedScene" path="res://scenes/smoke_column.tscn" id="s_smoke"]')
+    out.append('[ext_resource type="Script" path="res://scripts/ghost_cloth.gd" id="s_ghost"]')
     rib = road_ribbons(ter) if ROAD_LOOK != "a" else ([], [], [], [], [])
     out.append('[ext_resource type="Material" path="res://assets/materials/lot.tres" id="g_lot"]')
     out.append('[ext_resource type="Material" path="res://assets/materials/water.tres" id="g_water"]')
@@ -6525,6 +6526,9 @@ def write_scene(ter):
     for m in shown:
         out += [f'[node name="{m["name"]}" parent="Level/Models" instance=ExtResource("m_{m["name"]}")]',
                 f"transform = {xform(m['x'], m['y'], m['z'], m['turned'])}", 'script = ExtResource("m_pixel")', ""]
+        if m["name"] == "town_hall":   # the ghost cloth over the bunker ramp fades once someone goes through (0.18.6)
+            out += ['[node name="GhostCloth" type="Area3D" parent="Level/Models/town_hall"]',
+                    "transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.25, 0.5, -1.8)", 'script = ExtResource("s_ghost")', ""]
     if placed:
         out += ['[node name="Cars" type="Node3D" parent="Level/Models"]', ""]
     for n, (c, (b, lift, *tilt)) in enumerate(placed):
