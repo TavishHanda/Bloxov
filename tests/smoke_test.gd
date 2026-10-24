@@ -5440,6 +5440,12 @@ func _section_sound() -> void:
 		and woods.nearest_water(spot + Vector3(3, 0, 0)).is_equal_approx(spot + Vector3(3, 0, 30)),
 		"the map tells the ambience how wooded it is round you and where the nearest water is")
 	woods.free()
+	# 0.20.8: the buses come from default_bus_layout.tres at start-up (none added while running: that silenced the
+	# web build), Master first.
+	_check(AudioServer.get_bus_name(0) == "Master" and AudioServer.bus_count == 5
+		and [Hearing.WORLD_BUS, &"Voices", Ambience.BUS, UISounds.BUS].all(func(b: StringName) -> bool:
+			return AudioServer.get_bus_index(b) > 0 and AudioServer.get_bus_send(AudioServer.get_bus_index(b)) == &"Master"),
+		"sound buses World, Voices, Ambience, UI from the bus layout, all into Master")
 	# 0.20.6, UI: every button clicks (on the UI bus), buying, START RAID, the end of the raid have their own.
 	var button := Button.new()
 	main.add_child(button)

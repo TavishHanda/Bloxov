@@ -25,35 +25,16 @@ static var _indoor_check_left := 0.0
 static var indoors := false
 
 
-## The game's sound bus (made the first time: World -> Master, with a small-room echo that's on only indoors).
+## The game's sound bus: World -> Master, with a small-room echo that's on only indoors. The buses are set up in
+## `default_bus_layout.tres`, loaded when the game starts (0.20.8): adding buses while the game runs silences every
+## sound on the web (Godot 4.5's web audio drops Master when a bus is added at the end).
 static func world_bus() -> StringName:
-	if AudioServer.get_bus_index(WORLD_BUS) == -1:
-		AudioServer.add_bus()
-		var index := AudioServer.bus_count - 1
-		AudioServer.set_bus_name(index, WORLD_BUS)
-		AudioServer.set_bus_send(index, &"Master")
-		var echo := AudioEffectReverb.new()
-		echo.room_size = 0.35
-		echo.damping = 0.6
-		echo.spread = 0.6
-		echo.wet = 0.12
-		echo.dry = 1.0
-		echo.predelay_msec = 20.0
-		AudioServer.add_bus_effect(index, echo)
-		AudioServer.set_bus_effect_enabled(index, 0, indoors)
-		GameSettings.apply_mix()
-	return WORLD_BUS
+	return bus(WORLD_BUS)
 
 
-## A plain sound bus called `name` going to Master (made the first time; 0.20.5).
+## Sound bus `name` (World, Voices, Ambience or UI, from default_bus_layout.tres); Master if it's missing.
 static func bus(name: StringName) -> StringName:
-	if AudioServer.get_bus_index(name) == -1:
-		AudioServer.add_bus()
-		var index := AudioServer.bus_count - 1
-		AudioServer.set_bus_name(index, name)
-		AudioServer.set_bus_send(index, &"Master")
-		GameSettings.apply_mix()
-	return name
+	return name if AudioServer.get_bus_index(name) != -1 else &"Master"
 
 
 ## Where you hear from: the camera in use (null = nobody's listening, e.g. the game server).
@@ -80,7 +61,9 @@ static func listen(node: Node3D, delta: float) -> void:
 
 static func set_indoors(inside: bool) -> void:
 	indoors = inside
-	AudioServer.set_bus_effect_enabled(AudioServer.get_bus_index(world_bus()), 0, inside)
+	var index := AudioServer.get_bus_index(WORLD_BUS)
+	if index != -1 and AudioServer.get_bus_effect_count(index) > 0:
+		AudioServer.set_bus_effect_enabled(index, 0, inside)
 
 
 ## True if a wall stands between the listener and `pos` (sounds from there come through muffled).
