@@ -2117,6 +2117,10 @@ func _section_hideout_world() -> void:
 	(shop.find_child("StashButton", true, false) as Button).pressed.emit()
 	_check(not shop.visible and world.menu_open(), "STASH & GEAR goes to the stash screen")
 	_check(world.menu._top_row.get_child(0).name == "BackToHideout", "the way back to the hideout is first on the top bar")
+	var top: HBoxContainer = world.menu._top_row
+	_check((top.get_child(top.get_child_count() - 1) as Button).text == "START RAID" and top.get_child(1).name == "Money",
+		"the top bar: back, money ... START RAID last")
+	_check(world.menu.screen.find_child("Worth", true, false) != null, "the stash shows what it's worth")
 	# The wardrobe (0.21.6, owner: character select, operators plus customizing): every part matches the model, a
 	# pick is worn and saved, and the look goes online as text.
 	var look_before: Dictionary = Profile.look.duplicate()

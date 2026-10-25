@@ -1139,9 +1139,17 @@ func _build_other_column() -> void:
 	if other == stash:
 		# Title, and a SORT button (0.15.16, owner: auto sort), big enough to tap.
 		var header := HBoxContainer.new()
-		var title := _title(_other_title().to_upper())
-		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		header.add_child(title)
+		header.add_theme_constant_override("separation", 12)
+		header.add_child(_title(_other_title().to_upper()))
+		# What it's all worth (0.21.8: moved here off the hideout's top bar).
+		var worth := Label.new()
+		worth.name = "Worth"
+		worth.text = "worth %s" % ItemDB.money(stash.total_value())
+		HudStyle.style_label(worth, 20, HudStyle.INK_DIM)
+		worth.add_theme_font_override("font", HudStyle.spaced_font(20))
+		worth.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		worth.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		header.add_child(worth)
 		var sort_button := Button.new()
 		sort_button.name = "SortButton"
 		sort_button.text = "SORT"

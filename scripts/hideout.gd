@@ -19,7 +19,6 @@ var _version_label: Label
 ## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
 var _loading: Control
 var _warming: Thread
-var _stats_label: Label
 ## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
 var _message_label: Label
 ## The quest hand-in window (made the first time it's needed).
@@ -706,7 +705,7 @@ func _refresh() -> void:
 	if _money_label == null:
 		return
 	_money_label.text = ItemDB.money(Profile.money)
-	_stats_label.text = "Raids %d · Extracts %d · Deaths %d · Stash worth %s" % [
+	_money_label.tooltip_text = "Raids %d · Extracts %d · Deaths %d · Stash worth %s" % [
 		int(Profile.stats["raids"]), int(Profile.stats["extracts"]), int(Profile.stats["deaths"]),
 		ItemDB.money(Profile.stash.total_value())]
 	_free_kit_button.visible = can_take_free_kit()
@@ -766,21 +765,23 @@ func _build_top_bar() -> void:
 	margin.add_child(row)
 	_top_row = row
 
-	var title := Label.new()
-	title.text = "BLOXOV"
-	HudStyle.style_label(title, 30)
-	row.add_child(title)
-	var place := Label.new()
-	place.text = "HIDEOUT"
-	HudStyle.style_label(place, 20, HudStyle.INK_DIM)
-	row.add_child(place)
-	# Same dim style as the version in the corner during a raid.
+	# 0.21.8 (owner: the bar got "too busy"): just the way back and your money on the left, the raid buttons on the
+	# right ending in START RAID. Your record is on the money tag's tooltip (and the stats board in the 3D hideout),
+	# the stash's worth over the stash, the version small in the bottom corner.
 	_version_label = Label.new()
+	_version_label.name = "Version"
 	_version_label.text = "v%s" % ProjectSettings.get_setting("application/config/version", "?")
-	HudStyle.style_label(_version_label, 20, Color(HudStyle.INK, 0.4))
-	row.add_child(_version_label)
+	HudStyle.style_label(_version_label, 16, Color(HudStyle.INK, 0.35))
+	_version_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_version_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_version_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_version_label.offset_right = -10
+	_version_label.offset_bottom = -6
+	_version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_version_label)
 	# Money on a brass tag.
 	_money_label = Label.new()
+	_money_label.name = "Money"
 	HudStyle.style_label(_money_label, 30, HudStyle.DEEP)
 	_money_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 	var tag := StyleBoxFlat.new()
@@ -792,16 +793,12 @@ func _build_top_bar() -> void:
 	tag.content_margin_right = 10
 	_money_label.add_theme_stylebox_override("normal", tag)
 	_money_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_money_label.mouse_filter = Control.MOUSE_FILTER_STOP   # (for its tooltip: your record)
 	row.add_child(_money_label)
-	_stats_label = Label.new()
-	HudStyle.style_label(_stats_label, 20, HudStyle.INK_DIM)
-	_stats_label.add_theme_font_override("font", HudStyle.spaced_font(20))
-	# (it takes the free space and trims itself when the bar gets full, so the buttons never get pushed off)
-	_stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_stats_label.clip_text = true
-	_stats_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_stats_label.custom_minimum_size.x = 40
-	row.add_child(_stats_label)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(gap)
 	# Messages are written on a strip of masking tape stuck under the bar (sized to the text, centered; see _message).
 	_message_label = Label.new()
 	_message_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -826,13 +823,13 @@ func _build_top_bar() -> void:
 	_message_label.add_theme_stylebox_override("normal", tape)
 	_message_label.modulate.a = 0.0  # (no message yet: hide the empty tape)
 	add_child(_message_label)
-	_free_kit_button = Button.new()
-	_free_kit_button.text = "RAID WITH FREE KIT"
-	_free_kit_button.tooltip_text = FREE_KIT_HINT
-	_free_kit_button.focus_mode = Control.FOCUS_NONE
-	_free_kit_button.pressed.connect(start_with_free_kit)
-	LootUI.style_button(_free_kit_button)
-	row.add_child(_free_kit_button)
+	_online_button = Button.new()
+	_online_button.text = "ONLINE"
+	_online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
+	_online_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(_online_button)
+	_online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
+	row.add_child(_online_button)
 	var loadouts_button := Button.new()
 	loadouts_button.name = "LoadoutsButton"
 	loadouts_button.text = "LOADOUTS"
@@ -845,6 +842,13 @@ func _build_top_bar() -> void:
 		else:
 			open_loadouts())
 	row.add_child(loadouts_button)
+	_free_kit_button = Button.new()
+	_free_kit_button.text = "RAID WITH FREE KIT"
+	_free_kit_button.tooltip_text = FREE_KIT_HINT
+	_free_kit_button.focus_mode = Control.FOCUS_NONE
+	_free_kit_button.pressed.connect(start_with_free_kit)
+	LootUI.style_button(_free_kit_button)
+	row.add_child(_free_kit_button)
 	var raid_button := Button.new()
 	raid_button.text = "START RAID"
 	raid_button.custom_minimum_size = Vector2(150, 0)
@@ -854,13 +858,6 @@ func _build_top_bar() -> void:
 		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
 		start_raid())
 	row.add_child(raid_button)
-	_online_button = Button.new()
-	_online_button.text = "ONLINE"
-	_online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
-	_online_button.focus_mode = Control.FOCUS_NONE
-	LootUI.style_button(_online_button)
-	_online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
-	row.add_child(_online_button)
 
 
 # --- Online --------------------------------------------------------------------------
