@@ -5,6 +5,9 @@ extends RefCounted
 ## that pass close snap past your head. Today's sounds play as before; these only add to them.
 
 const DISTANT_SHOT := preload("res://audio/distant_shot.wav")
+const HIT_FROM := preload("res://audio/hit_from.wav")
+## Where a hit's thwack plays: this far from your head toward the shooter (0.20.18).
+const HIT_FROM_REACH := 2.5
 const SNAPS: Array[AudioStream] = [preload("res://audio/snap1.wav"), preload("res://audio/snap2.wav")]
 ## Beyond this a shot also rolls in as a far boom (full from DISTANT_FULL m).
 const DISTANT_FROM := 45.0
@@ -91,3 +94,16 @@ static func gunshot(world: Node, from: Vector3, end: Vector3, volume_db: float) 
 	var closest := Geometry3D.get_closest_point_to_segment(ear, from, end)
 	if closest.distance_to(ear) < SNAP_RADIUS and closest.distance_to(from) > SNAP_MIN_RANGE:
 		Effects.sound_at(world, SNAPS.pick_random(), closest, -8.0, 0.1, 1.0, 4.0, 30.0)
+
+
+## You got hit by someone at `from` (0.20.18, owner: "easy to hear you are getting shot but not from where"): a
+## thwack from their side, close to your head, so you can tell which way to turn. Not for falls (no shooter).
+static func hit_from(node: Node3D, from: Vector3) -> void:
+	var camera := listener(node)
+	if camera == null:
+		return
+	var ear := camera.global_position
+	var way := from - ear
+	if Vector2(way.x, way.z).length() < 1.5:
+		return
+	Effects.sound_at(node.get_tree().current_scene, HIT_FROM, ear + way.normalized() * HIT_FROM_REACH, -3.0, 0.08, 1.0, 1.5, 10.0)

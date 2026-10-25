@@ -5428,6 +5428,10 @@ func _section_sound() -> void:
 	before = sounds.call().size()
 	Hearing.gunshot(main, ear + Vector3(0, 0, 20), ear + Vector3(30, 0, 20), -4.0)
 	_check(sounds.call().size() == before, "...a near shot that goes elsewhere adds nothing (today's shot only)")
+	Hearing.hit_from(player, ear + Vector3(20, 0, 0))
+	var thwack: AudioStreamPlayer3D = sounds.call().back()
+	_check(thwack.stream == Hearing.HIT_FROM and (thwack.global_position - ear).normalized().dot(Vector3.RIGHT) > 0.9,
+		"getting shot: a thwack from the shooter's side (0.20.18)")
 	var wall := BoxMap.new()
 	wall.boxes = PackedFloat32Array([ear.x, 2.0, ear.z + 3.0, 6, 4, 0.3, 0, 0, 0, 1,
 		ear.x, ear.y + 3.0, ear.z, 4, 0.2, 4, 0, 0, 0, 1])

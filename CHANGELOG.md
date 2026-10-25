@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.18 (Sound update: hear where you're shot from)
+- **Getting shot now tells you which way** (owner: "easy to hear you are getting shot but not from where"): with
+  today's hurt sound, a short thwack plays from the shooter's side, close to your head, so you can tell which way
+  to turn. Falls don't play it. Sound only: no new marker on screen.
+
 ## 0.20.17 (Mauler quest moved up)
 - **Field Test (kill 3 scavs with a Mauler) now unlocks Gunsmith level 3 instead of level 2** (owner). Level 2 needs
   Zeroing In and Spare Parts; level 3 needs Field Test, Overwatch, Hard Targets and Big Game. Field Test already done

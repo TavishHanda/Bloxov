@@ -774,6 +774,14 @@ def ui_died():
     return _mix(out, _thud(0.5, 90, 40, 15, 8, 0.4, 0.8, 10), 0.0, 0.8)
 
 
+def hit_from():
+    """Getting shot (0.20.18, owner: easy to hear you're hit, not from where): a short thwack played from the
+    shooter's side. Broad noise, not too bright and not too low, so your ears can place it."""
+    random.seed(2100)
+    burst = [x * math.exp(-i / RATE * 45) for i, x in enumerate(_lowpass(noise(length(0.12), 0.2), 0.3))]
+    return _mix(burst, _thud(0.12, 420, 220, 50, 40, 0.3, 0.4, 60), 0.0, 0.8)
+
+
 def main_sound_update():
     (OUT / "steps").mkdir(exist_ok=True)
     for v in range(3):
@@ -806,6 +814,7 @@ def main_sound_update():
     for name, fn in (("click", ui_click), ("equip", ui_equip), ("buy", ui_buy), ("box", ui_box), ("start", ui_start),
                      ("extracted", ui_extracted), ("died", ui_died)):
         write(f"ui/{name}.wav", fn())
+    write("hit_from.wav", hit_from())
     write("ui/beep.wav", ui_beep(False))
     write("ui/beep_last.wav", ui_beep(True))
 
