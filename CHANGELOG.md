@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.2 (Saved loadouts)
+- **Save your loadouts** (owner): LOADOUTS in the hideout menu's top bar. Put your gear on the way you like it, name
+  it and press SAVE WHAT I CARRY (up to 8 loadouts). Each saved loadout keeps where everything sits, the gun's
+  attachments and its loaded rounds.
+- **EQUIP builds one in one tap:** what you carry goes into your stash, then the loadout is taken from your stash
+  first and only what's missing is bought from the traders (at your trader levels, with earned money). Each row shows
+  what EQUIP will cost before you press it. Items the traders don't sell you (loot-only ones, or above your trader
+  level) are left out and named. Not enough money or no stash room for what you carry: nothing changes.
+- **"Buy everything new, even what's in my stash"** (owner's tick box idea): buys the whole loadout new and leaves
+  what you own in the stash. Free kit items and found-in-raid items keep their marks when a loadout takes them from
+  the stash (it takes free kit ones first and found-in-raid ones last, so quest items stay put when it can).
+
 ## 0.21.1 (Shooting range)
 - **The range is open:** walk to the bench at the mouth of the range tunnel (north of the war table) and press E.
   Pick your own loadout (a copy, attachments and all) or borrow any gun the Gunsmith sells you at your level

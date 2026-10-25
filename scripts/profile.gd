@@ -38,6 +38,8 @@ static var quest_progress: Dictionary = {}
 ## Each trader's level (Traders.LIST id -> level; missing = 1). It goes up when you press LEVEL UP at the trader once
 ## the level's quests are done and its money spent (0.17.1, owner: a level-up button).
 static var trader_levels: Dictionary = {}
+## Saved loadouts (0.21.2, owner): [{"name", "kit"}, ...], see Loadouts.
+static var loadout_presets: Array = []
 static var _loaded := false
 
 
@@ -98,6 +100,11 @@ static func load_profile() -> void:
 		else:
 			# A save from before the button: keep the levels it had reached.
 			trader_levels[trader] = trader_level_reached(trader)
+	loadout_presets = []
+	for entry in _array(data.get("presets")):
+		var preset := Loadouts.clean(entry)
+		if not preset.is_empty() and loadout_presets.size() < Loadouts.MAX:
+			loadout_presets.append(preset)
 
 
 ## A trader's level: what you've levelled them up to.
@@ -187,6 +194,7 @@ static func reset() -> void:
 	quests_done = []
 	quest_progress = {}
 	trader_levels = {}
+	loadout_presets = []
 
 
 static func save_profile() -> void:
@@ -205,6 +213,7 @@ static func save_profile() -> void:
 		"quests_done": quests_done,
 		"quest_progress": quest_progress,
 		"trader_levels": trader_levels,
+		"presets": loadout_presets,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)

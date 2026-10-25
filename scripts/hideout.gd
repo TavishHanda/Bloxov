@@ -46,6 +46,12 @@ var _queue_info: Label
 var _start_now_button: Button
 var _online_status: Label
 var _save_queued := false
+## Saved loadouts (0.21.2): the panel, its list, the name box and the BUY NEW box.
+var _loadouts_panel: PanelContainer
+var _loadout_rows: VBoxContainer
+var _loadout_name: LineEdit
+var _loadout_save_button: Button
+var _buy_new_box: CheckBox
 
 
 func _ready() -> void:
@@ -77,6 +83,7 @@ func _ready() -> void:
 
 	_build_top_bar()
 	_build_online_panel()
+	_build_loadouts_panel()
 	_warm_raid.call_deferred()
 	var net := Network.main
 	net.raid_started.connect(start_raid)
@@ -296,6 +303,279 @@ func upgrade_stash() -> bool:
 	_queue_save()
 	_fill_trader()
 	return true
+
+
+# --- Saved loadouts (0.21.2, owner) -------------------------------------------------
+## Save what you carry as a named loadout; EQUIP one later: what you carry goes to the stash, the loadout comes from
+## the stash first and only what's missing is bought (or all of it new with BUY NEW). Earned money only.
+
+## Saves what you're carrying as a new loadout. False if there's nothing on you or the list is full.
+func save_loadout(loadout_name: String) -> bool:
+	if inventory.all_stacks().is_empty():
+		_message("Put some gear on first: a loadout is what you carry")
+		return false
+	if Profile.loadout_presets.size() >= Loadouts.MAX:
+		_message("You can keep %d loadouts: delete one first" % Loadouts.MAX)
+		return false
+	var title := Loadouts.clean_name(loadout_name if loadout_name.strip_edges() != "" else "Loadout %d" % (Profile.loadout_presets.size() + 1))
+	Profile.loadout_presets.append({"name": title, "kit": Loadouts.from_inventory(inventory)})
+	_message("Saved loadout %s" % title)
+	_queue_save()
+	_fill_loadouts()
+	return true
+
+
+func delete_loadout(index: int) -> void:
+	if index < 0 or index >= Profile.loadout_presets.size():
+		return
+	var title: String = Profile.loadout_presets[index]["name"]
+	Profile.loadout_presets.remove_at(index)
+	_message("Deleted loadout %s" % title)
+	_queue_save()
+	_fill_loadouts()
+
+
+## What equipping loadout `index` would do, tried on copies of your stash and gear: Loadouts.equip's result plus
+## "cost" (what the bought items come to).
+func loadout_plan(index: int, buy_all := Loadouts.buy_new) -> Dictionary:
+	var stash_copy := GridInventory.new(Profile.stash.title, Profile.stash.width, Profile.stash.height)
+	Profile._read_grid(Profile._write_grid(Profile.stash), stash_copy)
+	var carried := Inventory.new()
+	carried._ready()
+	Profile.apply_inventory(carried, Profile.capture_inventory(inventory))
+	var plan := Loadouts.equip(Profile.loadout_presets[index]["kit"], stash_copy, carried, buy_all, _can_buy)
+	carried.free()
+	plan["cost"] = _loadout_cost(plan["bought"])
+	return plan
+
+
+func _loadout_cost(bought: Dictionary) -> int:
+	var cost := 0
+	for id: String in bought:
+		cost += buy_price(id, bought[id])
+	return cost
+
+
+## The traders sell this to you at your level.
+func _can_buy(id: String) -> bool:
+	var trader := Traders.trader_for(id)
+	return trader != "" and _unlocked(trader, id)
+
+
+## EQUIP: builds loadout `index` on you, paying for what's bought. Nothing changes if the money or the stash space
+## isn't there. Returns true if it was equipped.
+func equip_loadout(index: int, buy_all := Loadouts.buy_new) -> bool:
+	if index < 0 or index >= Profile.loadout_presets.size():
+		return false
+	var preset: Dictionary = Profile.loadout_presets[index]
+	var plan := loadout_plan(index, buy_all)
+	if plan["error"] == "stash_full":
+		_message("No room in your stash for what you're carrying: make some room first")
+		return false
+	if int(plan["cost"]) > Profile.money:
+		_message("Not enough money for %s (%s)" % [preset["name"], ItemDB.money(int(plan["cost"]))])
+		return false
+	var stash_before := Profile._write_grid(Profile.stash)
+	var carried_before := Profile.capture_inventory(inventory)
+	var done := Loadouts.equip(preset["kit"], Profile.stash, inventory, buy_all, _can_buy)
+	var cost := _loadout_cost(done["bought"])
+	if not done["ok"] or cost > Profile.money:
+		# (shouldn't happen: the plan said it works) Put everything back as it was.
+		Profile.stash.stacks.clear()
+		Profile._read_grid(stash_before, Profile.stash)
+		Profile.stash.changed.emit()
+		Profile.apply_inventory(inventory, carried_before)
+		_message("Couldn't equip %s" % preset["name"])
+		return false
+	Profile.money -= cost
+	var ready_before := {}
+	for trader: String in Traders.LIST:
+		ready_before[trader] = Profile.can_level_up(trader)
+	for id: String in done["bought"]:
+		var trader := Traders.trader_for(id)
+		Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + buy_price(id, done["bought"][id])
+	var text := "Equipped %s" % preset["name"]
+	text += " (bought %s)" % ItemDB.money(cost) if cost > 0 else " from your stash"
+	if not (done["missing"] as Array).is_empty():
+		text += ". Not sold to you, left out: " + ", ".join((done["missing"] as Array).map(func(id: String) -> String: return ItemDB.display_name(id)))
+	for trader: String in Traders.LIST:
+		if Profile.can_level_up(trader) and not ready_before[trader]:
+			text += ". %s can level up" % Traders.LIST[trader]["name"]
+	if cost > 0:
+		UISounds.play(self, UISounds.BUY, -10.0)
+	_message(text)
+	_queue_save()
+	_fill_trader()
+	_fill_loadouts()
+	return true
+
+
+func open_loadouts() -> void:
+	_online_panel.visible = false
+	_loadouts_panel.visible = true
+	_loadouts_panel.move_to_front()
+	_fill_loadouts()
+
+
+func _build_loadouts_panel() -> void:
+	_loadouts_panel = PanelContainer.new()
+	_loadouts_panel.name = "LoadoutsPanel"
+	_loadouts_panel.visible = false
+	_loadouts_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_loadouts_panel.custom_minimum_size = Vector2(600, 0)
+	_loadouts_panel.position = Vector2(-300, -260)
+	LootUI.skin_panel(_loadouts_panel)
+	add_child(_loadouts_panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 16)
+	_loadouts_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	margin.add_child(column)
+	var title := Label.new()
+	title.text = "LOADOUTS"
+	HudStyle.style_label(title, 30)
+	column.add_child(title)
+	var hint := Label.new()
+	hint.text = "Save what you're carrying, then EQUIP it again in one tap. What you carry goes to your stash; the loadout is taken from your stash first, and only what's missing is bought."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.modulate = Color(1, 1, 1, 0.7)
+	column.add_child(hint)
+	# BUY NEW (owner: "a checkmark"): the whole row is the tap target, tall enough for a finger.
+	_buy_new_box = CheckBox.new()
+	_buy_new_box.name = "BuyNew"
+	_buy_new_box.text = "Buy everything new, even what's in my stash"
+	_buy_new_box.focus_mode = Control.FOCUS_NONE
+	_buy_new_box.custom_minimum_size = Vector2(0, 44)
+	_buy_new_box.button_pressed = Loadouts.buy_new
+	_buy_new_box.add_theme_font_override("font", HudStyle.spaced_font(20))
+	_buy_new_box.add_theme_font_size_override("font_size", 20)
+	_buy_new_box.add_theme_icon_override("unchecked", _tick_box(false))
+	_buy_new_box.add_theme_icon_override("checked", _tick_box(true))
+	_buy_new_box.add_theme_constant_override("h_separation", 10)
+	_buy_new_box.toggled.connect(func(on: bool) -> void:
+		Loadouts.buy_new = on
+		_fill_loadouts())
+	column.add_child(_buy_new_box)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.scroll_deadzone = 8
+	column.add_child(scroll)
+	_loadout_rows = VBoxContainer.new()
+	_loadout_rows.add_theme_constant_override("separation", 8)
+	_loadout_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_loadout_rows)
+	var save_row := HBoxContainer.new()
+	save_row.add_theme_constant_override("separation", 8)
+	column.add_child(save_row)
+	_loadout_name = LineEdit.new()
+	_loadout_name.placeholder_text = "Name this loadout"
+	_loadout_name.max_length = Loadouts.NAME_MAX
+	_loadout_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_loadout_name.custom_minimum_size = Vector2(0, 44)
+	_style_edit(_loadout_name)
+	_loadout_name.text_submitted.connect(func(_text: String) -> void: _loadout_save_button.pressed.emit())
+	save_row.add_child(_loadout_name)
+	_loadout_save_button = Button.new()
+	_loadout_save_button.text = "SAVE WHAT I CARRY"
+	_loadout_save_button.focus_mode = Control.FOCUS_NONE
+	_loadout_save_button.custom_minimum_size = Vector2(0, 44)
+	LootUI.style_button(_loadout_save_button, 20, HudStyle.HAZARD)
+	_loadout_save_button.pressed.connect(func() -> void:
+		if save_loadout(_loadout_name.text):
+			_loadout_name.text = "")
+	save_row.add_child(_loadout_save_button)
+	var close := Button.new()
+	close.text = "CLOSE"
+	close.focus_mode = Control.FOCUS_NONE
+	close.custom_minimum_size = Vector2(0, 44)
+	LootUI.style_button(close)
+	close.pressed.connect(func() -> void: _loadouts_panel.visible = false)
+	column.add_child(close)
+
+
+## A 28 px tick box in the HUD look (the default one is too small to tap): sunk-in dark, hazard yellow when ticked.
+func _tick_box(on: bool) -> Texture2D:
+	var size := 28
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	image.fill(Color.BLACK)
+	image.fill_rect(Rect2i(2, 2, size - 4, size - 4), HudStyle.DEEP)
+	if on:
+		image.fill_rect(Rect2i(6, 6, size - 12, size - 12), HudStyle.HAZARD)
+	return ImageTexture.create_from_image(image)
+
+
+## One row per saved loadout: its name, what equipping it takes (from the stash, bought, and the price), EQUIP and
+## DELETE (tap twice, like SORT).
+func _fill_loadouts() -> void:
+	if _loadout_rows == null or not _loadouts_panel.visible:
+		return
+	for child in _loadout_rows.get_children():
+		_loadout_rows.remove_child(child)
+		child.queue_free()
+	_loadout_save_button.disabled = Profile.loadout_presets.size() >= Loadouts.MAX
+	if Profile.loadout_presets.is_empty():
+		var empty := Label.new()
+		empty.text = "No saved loadouts yet. Put your gear on, name it below and save it."
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		HudStyle.style_label(empty, 20, HudStyle.INK_DIM)
+		empty.add_theme_font_override("font", HudStyle.spaced_font(20))
+		_loadout_rows.add_child(empty)
+		return
+	for i in Profile.loadout_presets.size():
+		var preset: Dictionary = Profile.loadout_presets[i]
+		var plan := loadout_plan(i)
+		var cost := int(plan["cost"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_loadout_rows.add_child(row)
+		var text := VBoxContainer.new()
+		text.add_theme_constant_override("separation", 0)
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(text)
+		var name_label := Label.new()
+		name_label.text = preset["name"]
+		HudStyle.style_label(name_label, 20)
+		name_label.add_theme_font_override("font", HudStyle.spaced_font(20))
+		name_label.clip_text = true
+		text.add_child(name_label)
+		var about := Label.new()
+		var parts: Array[String] = ["%d items" % Loadouts.item_count(preset["kit"])]
+		parts.append("buy %s" % ItemDB.money(cost) if cost > 0 else "you have it all, nothing to buy")
+		if plan["error"] == "stash_full":
+			parts.append("no room in your stash for what you carry")
+		if not (plan["missing"] as Array).is_empty():
+			parts.append("not sold to you: " + ", ".join((plan["missing"] as Array).map(func(id: String) -> String: return ItemDB.display_name(id))))
+		about.text = " · ".join(parts)
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		about.modulate = Color(1, 1, 1, 0.65)
+		about.add_theme_font_size_override("font_size", 12)
+		text.add_child(about)
+		var equip := Button.new()
+		equip.name = "Equip%d" % i
+		equip.text = "EQUIP" if cost == 0 else "EQUIP %s" % ItemDB.money(cost)
+		equip.focus_mode = Control.FOCUS_NONE
+		equip.custom_minimum_size = Vector2(150, 44)
+		equip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		equip.disabled = cost > Profile.money or plan["error"] == "stash_full"
+		LootUI.style_button(equip, 20, HudStyle.HAZARD if not equip.disabled else HudStyle.FACE)
+		equip.pressed.connect(equip_loadout.bind(i))
+		row.add_child(equip)
+		var delete := Button.new()
+		delete.text = "DELETE"
+		delete.focus_mode = Control.FOCUS_NONE
+		delete.custom_minimum_size = Vector2(96, 44)
+		delete.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		LootUI.style_button(delete)
+		delete.pressed.connect(func() -> void:
+			if delete.text == "DELETE":
+				delete.text = "SURE?"
+				LootUI.style_button(delete, 20, HudStyle.BRASS)
+				return
+			delete_loadout(i))
+		row.add_child(delete)
 
 
 func sell(grid: GridInventory, stack: ItemStack) -> void:
@@ -522,6 +802,18 @@ func _build_top_bar() -> void:
 	_free_kit_button.pressed.connect(start_with_free_kit)
 	LootUI.style_button(_free_kit_button)
 	row.add_child(_free_kit_button)
+	var loadouts_button := Button.new()
+	loadouts_button.name = "LoadoutsButton"
+	loadouts_button.text = "LOADOUTS"
+	loadouts_button.tooltip_text = "Save what you carry as a loadout, and equip a saved one: from your stash first, the rest bought"
+	loadouts_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(loadouts_button)
+	loadouts_button.pressed.connect(func() -> void:
+		if _loadouts_panel.visible:
+			_loadouts_panel.visible = false
+		else:
+			open_loadouts())
+	row.add_child(loadouts_button)
 	var raid_button := Button.new()
 	raid_button.text = "START RAID"
 	raid_button.custom_minimum_size = Vector2(150, 0)

@@ -1963,6 +1963,93 @@ func _stash_tools(hideout: Node) -> void:
 	_check(scrolled > 0 and ui._stash_scroll.scroll_vertical == scrolled, "the stash stays scrolled after a rebuild (%d -> %d)" % [scrolled, ui._stash_scroll.scroll_vertical])
 
 
+## Saved loadouts (0.21.2, owner): save what you carry; EQUIP takes it from the stash first and buys the rest, or
+## buys everything new with BUY NEW.
+func _saved_loadouts(hideout: Node) -> void:
+	var carried: Inventory = hideout.inventory
+	var stash := Profile.stash
+	var bar := hideout.find_child("LoadoutsButton", true, false) as Button
+	_check(bar != null and bar.get_parent().get_combined_minimum_size().x + 32.0 <= 1280.0,
+		"the top bar with LOADOUTS fits the screen (%d px)" % (bar.get_parent().get_combined_minimum_size().x + 32.0))
+	Profile.loadout_presets = []
+	Profile.money = 1000000
+	Loadouts.stow_all(stash, carried)
+	stash.clear()
+	_check(not hideout.save_loadout("Empty"), "nothing carried: nothing to save")
+	var stinger := ItemStack.new("pistol")
+	stinger.attachments = {"scope": "red_dot"} if ItemDB.attachment_slot_for("pistol", "red_dot") == "scope" else {}
+	stinger.loaded = int(ItemDB.weapon_stats(stinger)["mag"])
+	carried.equip("secondary", stinger)
+	carried.equip("backpack", ItemStack.new("backpack_small"))
+	carried.add("pistol_ammo", 30)
+	carried.add("bandage", 1)
+	_check(hideout.save_loadout("  Pistol run  ") and Profile.loadout_presets.size() == 1 and Profile.loadout_presets[0]["name"] == "Pistol run",
+		"save what you carry as a loadout")
+	var parts: int = stinger.attachments.size()
+	# Everything back in the stash: EQUIP takes it all from there and costs nothing.
+	Loadouts.stow_all(stash, carried)
+	_check(carried.all_stacks().is_empty() and stash.count_of("pistol") == 1, "stowing puts what you carry in the stash")
+	var plan: Dictionary = hideout.loadout_plan(0, false)
+	_check(plan["cost"] == 0 and plan["bought"].is_empty() and plan["missing"].is_empty(), "the plan takes it all from the stash (%s)" % str(plan))
+	var money: int = Profile.money
+	_check(hideout.equip_loadout(0, false) and Profile.money == money and stash.stacks.is_empty(), "EQUIP from the stash costs nothing and empties it")
+	var gun := carried.equipped("secondary")
+	_check(gun != null and gun.attachments.size() == parts and gun.loaded == int(ItemDB.weapon_stats(gun)["mag"])
+		and carried.equipped("backpack") != null and carried.count_of("pistol_ammo") == 30 and carried.count_of("bandage") == 1,
+		"the loadout is back as saved: gun, parts, loaded rounds, backpack, ammo, bandage")
+	# BUY NEW: everything new, what you carried goes to the stash.
+	plan = hideout.loadout_plan(0, true)
+	_check(plan["cost"] > 0 and plan["bought"].get("pistol", 0) == 1 and plan["bought"].get("pistol_ammo", 0) == 30 + gun.loaded,
+		"BUY NEW prices every item, rounds in the gun too (%s)" % str(plan["bought"]))
+	money = Profile.money
+	_check(hideout.equip_loadout(0, true) and Profile.money == money - int(plan["cost"]) and stash.count_of("pistol") == 1
+		and carried.equipped("secondary") != null and carried.equipped("secondary") != gun, "BUY NEW buys it all and the old kit goes to the stash")
+	# Only what's missing is bought: lose the bandage from the stash.
+	stash.take("bandage", 1)
+	carried.take("bandage", 1)
+	plan = hideout.loadout_plan(0, false)
+	_check(plan["bought"].has("bandage") and not plan["bought"].has("pistol") and plan["bought"].get("pistol_ammo", 0) == 0,
+		"only the missing bandage is bought; the gun, pack and rounds you carry are used again (%s)" % str(plan["bought"]))
+	# Not enough money: nothing changes.
+	Profile.money = 0
+	var before := Profile.capture_inventory(carried)
+	var stash_before := stash.stacks.size()
+	_check(not hideout.equip_loadout(0, true) and Profile.capture_inventory(carried) == before and stash.stacks.size() == stash_before,
+		"no money: EQUIP changes nothing")
+	Profile.money = 1000000
+	# Free kit items keep their mark when a loadout takes them from the stash.
+	Loadouts.stow_all(stash, carried)
+	stash.clear()
+	stash.add("pistol_ammo", 60, ItemStack.FREE)
+	hideout.equip_loadout(0, false)
+	var ammo := carried.all_stacks().filter(func(st: ItemStack) -> bool: return st.id == "pistol_ammo")
+	_check(not ammo.is_empty() and ammo.all(func(st: ItemStack) -> bool: return st.free), "free kit rounds stay free kit rounds in a loadout")
+	# Loot-only items you don't have are left out, the rest is equipped.
+	carried.add("gold_watch", 1)
+	hideout.save_loadout("Watch")
+	Loadouts.stow_all(stash, carried)
+	stash.take("gold_watch", 1)
+	plan = hideout.loadout_plan(1, false)
+	_check(plan["missing"] == ["gold_watch"] and hideout.equip_loadout(1, false) and carried.equipped("secondary") != null
+		and hideout._message_label.text.contains("left out"), "a loot-only item you don't have is left out (%s)" % hideout._message_label.text)
+	# The panel: a row per loadout with EQUIP, the BUY NEW box, and the list is saved.
+	hideout.open_loadouts()
+	var equip := hideout._loadout_rows.find_child("Equip0", true, false) as Button
+	_check(hideout._loadouts_panel.visible and equip != null and equip.text == "EQUIP" and hideout._buy_new_box != null, "the LOADOUTS panel lists saved loadouts with EQUIP")
+	hideout._buy_new_box.button_pressed = true
+	equip = hideout._loadout_rows.find_child("Equip0", true, false) as Button
+	_check(Loadouts.buy_new and equip.text.begins_with("EQUIP $"), "ticking BUY NEW shows the price on EQUIP (%s)" % equip.text)
+	hideout._buy_new_box.button_pressed = false
+	hideout._loadouts_panel.visible = false
+	Profile.save_profile()
+	Profile.loadout_presets = []
+	Profile._loaded = false
+	Profile.load_profile()
+	_check(Profile.loadout_presets.size() == 2 and Profile.loadout_presets[0]["name"] == "Pistol run", "saved loadouts are kept in the profile")
+	hideout.delete_loadout(1)
+	_check(Profile.loadout_presets.size() == 1, "delete a loadout")
+
+
 func _section_hideout_world() -> void:
 	# The walkable hideout (0.21.0): the game starts in it; walk to a station, E opens the hideout menu there.
 	_check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/hideout_world.tscn", "the game starts in the walkable hideout")
@@ -2349,6 +2436,7 @@ func _section_hideout() -> void:
 	hideout.open_trader("ming")
 	_check(hideout._trader_title.text == "MING" and hideout._trader_rows.get_child_count() == Traders.BOXES.size() * 2,
 		"Ming's tab shows each box with its odds")
+	await _saved_loadouts(hideout)
 	await _stash_tools(hideout)
 	hideout.queue_free()
 	await process_frame
