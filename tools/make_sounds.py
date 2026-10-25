@@ -810,6 +810,86 @@ def main_sound_update():
     write("ui/beep_last.wav", ui_beep(True))
 
 
+# 0.21.7: the hideout's toys (owner 2026-10-25: a radio you can switch on, darts, a light switch). New sounds only.
+
+def radio():
+    """The mess's radio: a slow little tune (soft keys over a bass and a quiet beat), thin and crackly like an old
+    set's speaker. 16 s, and the tune comes back round to where it started, so it loops."""
+    random.seed(2100)
+    bar = 2.0
+    n = length(bar * 8)
+    out = [0.0] * n
+    chords = ((220.0, 261.6, 329.6), (174.6, 220.0, 261.6), (130.8, 164.8, 196.0), (196.0, 246.9, 293.7))  # Am F C G
+
+    def key(freq, at, seconds, gain):
+        start = length(at)
+        for i in range(min(length(seconds), n - start)):
+            t = i / RATE
+            x = math.sin(2 * math.pi * freq * t) + 0.3 * math.sin(4 * math.pi * freq * t) * math.exp(-t * 6)
+            out[start + i] += x * gain * min(1.0, t / 0.01) * math.exp(-t * 2.2)
+
+    melody = (659.3, 587.3, 523.3, 440.0, 523.3, 587.3, 523.3, 493.9)
+    for b in range(8):
+        root, third, fifth = chords[b % 4]
+        for f in (root, third, fifth):
+            key(f, b * bar, bar, 0.16)
+            key(f, b * bar + bar * 0.5, bar * 0.5, 0.08)
+        key(root / 2, b * bar, bar * 0.45, 0.3)                                   # bass
+        key(root / 2, b * bar + bar * 0.75, bar * 0.25, 0.22)
+        if b >= 2:
+            key(melody[b], b * bar + bar * 0.25, bar * 0.5, 0.14)
+            key(melody[(b + 3) % 8], b * bar + bar * 0.75, bar * 0.4, 0.1)
+        for beat in range(4):                                                    # kick, soft snare, hat
+            at = length(b * bar + beat * bar / 4)
+            if beat % 2 == 0:
+                for i in range(min(length(0.15), n - at)):
+                    t = i / RATE
+                    out[at + i] += math.sin(2 * math.pi * (50 + 60 * math.exp(-t * 30)) * t) * math.exp(-t * 18) * 0.45
+            else:
+                nz = noise(length(0.12), 0.5)
+                for i in range(min(len(nz), n - at)):
+                    out[at + i] += nz[i] * math.exp(-i / RATE * 30) * 0.15
+            hat = length(b * bar + beat * bar / 4 + bar / 8)
+            hz = _highpass(noise(length(0.03), 0.0), 0.5)
+            for i in range(min(len(hz), n - hat)):
+                out[hat + i] += hz[i] * math.exp(-i / RATE * 120) * 0.08
+    # The old speaker: no deep bass or bright highs, a faint hiss and crackle.
+    out = _highpass(_lowpass(out, 0.55), 0.96)
+    hiss = _highpass(noise(n, 0.3), 0.7)
+    out = [x + h * 0.015 for x, h in zip(out, hiss)]
+    for _ in range(60):
+        at = random.randrange(n - 40)
+        out[at] += random.uniform(-0.08, 0.08)
+    return out
+
+
+def radio_on():
+    """Turning the radio's knob: a click and a burst of static settling."""
+    random.seed(2101)
+    st = [x * 0.5 * math.exp(-i / RATE * 9) for i, x in enumerate(_highpass(noise(length(0.35), 0.2), 0.6))]
+    return _mix(click(0.04, 1100, 90, 0.2), st, 0.02, 0.6)
+
+
+def dart():
+    """A dart going into the board: a short dull thock."""
+    random.seed(2102)
+    return _mix(_thud(0.12, 700, 300, 40, 45, 0.5, 0.3, 80), click(0.02, 2200, 200, 0.1), 0.0, 0.4)
+
+
+def light_switch():
+    """The bunks' light switch: a heavy old toggle, clack."""
+    random.seed(2103)
+    return _mix(click(0.05, 900, 90, 0.2), click(0.04, 600, 70, 0.3), 0.03, 0.8)
+
+
+def main_hideout():
+    (OUT / "world").mkdir(exist_ok=True)
+    for name, fn in (("radio", radio), ("radio_on", radio_on),
+                     ("dart", dart), ("switch", light_switch)):
+        write(f"world/{name}.wav", fn())
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
+    main_hideout()

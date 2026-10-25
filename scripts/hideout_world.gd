@@ -14,7 +14,8 @@ const PLAYER := preload("res://scenes/player.tscn")
 const DUMMY := preload("res://scenes/target_dummy.tscn")
 ## What each station is called on the USE prompt (traders take their names from Traders.LIST).
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
-	"quests": "Quests", "stats": "Stats", "range": "Shooting range"}
+	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
+	"lights": "Lights"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
 const STATION_NOTES := {"workbench": "Crafting comes in a later update.",
 	"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
@@ -29,8 +30,11 @@ var _use_button: Button
 var _menu_button: Button
 var _crosshair: Control
 var _click_hint: Label
-## The station in reach (its Marker3D) or null.
+## The station in reach (its Marker3D) or null; with none, the seat in reach (or null).
 var station: Node3D
+var seat: Node3D
+## The radio, the seats, darts and the bunks' lights (0.21.7).
+var toys: HideoutToys
 ## At the range: you, with a gun (null while walking round), the gun picker, and the range's HUD.
 var shooter: Player
 var _picker: CanvasLayer
@@ -62,6 +66,10 @@ func _ready() -> void:
 	walker.name = "Walker"
 	add_child(walker)
 	walker.global_position = (level.get_node("Spawn") as Node3D).global_position + Vector3.UP * 0.05
+	toys = HideoutToys.new()
+	toys.name = "Toys"
+	add_child(toys)
+	toys.setup(level, walker, env)
 	_build_hud()
 	_build_range(level)
 	_build_boards(level)
@@ -137,11 +145,16 @@ func _process(_delta: float) -> void:
 		_top_up_ammo()
 		_hud.visible = false
 		return
-	station = _station_in_reach() if not menu_open() else null
-	_use_button.visible = station != null
-	_prompt.visible = station != null
+	var free := not menu_open() and not toys.busy()
+	station = _station_in_reach() if free else null
+	seat = toys.seat_in_reach() if free and station == null else null
+	_use_button.visible = station != null or seat != null or toys.busy()
+	_use_button.text = ("GET UP  (%s)" if toys.seat != null else "STOP  (%s)" if toys.darts else "USE  (%s)") % use_key()
+	_prompt.visible = station != null or seat != null
 	if station != null:
-		_prompt.text = use_key() + "   " + station_name(station.name)
+		_prompt.text = use_key() + "   " + station_label(station.name)
+	elif seat != null:
+		_prompt.text = use_key() + "   Sit down"
 	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone()
 
 
@@ -167,6 +180,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			leave_range()
 			get_viewport().set_input_as_handled()
 		return
+	if not menu_open() and toys.handle_input(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("inventory"):
 		if menu_open():
 			close_menu()
@@ -176,7 +192,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel") and not menu_open():
 		open_menu()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("interact") and station != null:
+	elif event.is_action_pressed("interact") and (station != null or seat != null):
 		use_station()
 		get_viewport().set_input_as_handled()
 
@@ -187,6 +203,7 @@ func menu_open() -> bool:
 
 ## Opens the hideout menu, on `at`'s tab if it's a trader.
 func open_menu(at := "") -> void:
+	toys.stand_up()
 	_menu_layer.visible = true
 	menu.visible = true
 	_hud.visible = false
@@ -214,7 +231,14 @@ func close_menu() -> void:
 
 
 func use_station() -> void:
+	if toys.busy():
+		toys.stand_up()
+		return
 	if station == null:
+		if seat != null:
+			toys.sit(seat)
+		return
+	if toys.use(station.name):
 		return
 	if station.name == "range":
 		enter_range()
@@ -222,6 +246,18 @@ func use_station() -> void:
 		open_menu(quest_trader())   # (the trader whose quests you're on: their screen has them, with HAND IN)
 	else:
 		open_menu(station.name)
+
+
+## The prompt for a station: its name, or what using it does.
+func station_label(id: String) -> String:
+	match id:
+		"radio":
+			return "Turn the radio " + ("off" if HideoutToys.radio_on else "on")
+		"lights":
+			return "Lights " + ("off" if HideoutToys.lights_on else "on")
+		"darts":
+			return "Play darts"
+	return station_name(id)
 
 
 func station_name(id: String) -> String:

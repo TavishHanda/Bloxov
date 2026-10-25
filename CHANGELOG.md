@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.7 (Hangout)
+- **Things to do in the mess and bunks** (owner asked for all four, for hanging round with friends late at night).
+  Just for fun: nothing here is saved or changes how you play.
+  - **The radio**: walk up to it by the couch and press F to switch it on. It plays a slow, crackly little tune
+    (a new sound) that you hear across the mess until you switch it off.
+  - **Sit down** on the couch or any mess bench: F when you're next to it. You can still look round. F, jump or
+    walking gets you up.
+  - **Darts**: a dartboard on the mess wall with a throw line on the floor. Press F at the line, then click to throw.
+    Three darts a round with real scoring (doubles, trebles, bull) and your best round. Darts land a little off
+    where you aim. F stops.
+  - **Lights off**: a switch on the wall by the bunks. The bunks go dark, but the fairy lights and the TV stay on.
+- **New washroom** (owner: "just some metal box"): a tiled shower block at the end of the bunks, with two toilet
+  cubicles, a trough sink with taps and mirrors, and two showers with curtains, towels and a mat.
+- The TV's screen sits in the TV now (it hung half below it). Notices no longer hide behind the tunnel's ribs.
+
 ## 0.21.6 (Wardrobe)
 - **The wardrobe is a character select** (owner picked operators plus customizing): walk up to it in the hideout and
   pick one of six operators (Rook, Dune, Ghost, Viper, Bishop, Hawk; placeholder names), watch them turn on a stand,

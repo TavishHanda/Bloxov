@@ -2071,7 +2071,7 @@ func _section_hideout_world() -> void:
 	var names: Array[String] = []
 	for marker: Node3D in stations:
 		names.append(String(marker.name))
-	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range"]:
+	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights"]:
 		_check(names.has(want), "the hideout has a %s station" % want)
 	# Every station stands on open floor: you can stand there without being pushed out or falling through.
 	var bad: Array[String] = []
@@ -2198,6 +2198,63 @@ func _section_hideout_world() -> void:
 	await process_frame
 	_check(not world.in_range() and world.shooter == null and walker.camera.current, "leaving the range puts you back on your feet")
 	_check(JSON.stringify(Profile.loadout) == loadout_before and Profile.stash.stacks.size() == stash_before, "the range changes nothing in your loadout or stash")
+	# The toys (0.21.7): sit on the couch, darts, the radio, the bunks' lights.
+	var toys: HideoutToys = world.toys
+	var couch: Node3D = null
+	for node: Node3D in world.get_node("Level/Seats").get_children():
+		if node.position.x < -1.4 and (couch == null or node.position.z < couch.position.z):
+			couch = node
+	var by_couch := couch.global_position + Vector3(0, -couch.global_position.y + world.global_position.y + 0.05, -1.1)
+	walker.global_position = by_couch
+	walker.rotation = Vector3(0, PI, 0)   # (facing +z, at the couch)
+	for i in 3:
+		await physics_frame
+	await process_frame
+	_check(world.seat == couch and world._prompt.text.ends_with("Sit down"), "next to the couch: F to sit down (%s)" % world._prompt.text)
+	world.use_station()
+	await physics_frame
+	var eye := walker.camera.global_position.y - couch.global_position.y
+	_check(toys.seat == couch and walker.pinned and absf(eye - HideoutToys.SEATED_EYE) < 0.05 and walker.facing().x < -0.9, "sitting on the couch, eyes %.2f m over the seat, facing the TV" % eye)
+	var use := InputEventAction.new()
+	use.action = "interact"
+	use.pressed = true
+	world._unhandled_input(use)
+	_check(toys.seat == null and not walker.pinned and walker.global_position.distance_to(by_couch) < 0.3, "F gets you up where you stood")
+	var rings: PackedFloat32Array = world.get_node("Level/Dartboard").get_meta("rings")
+	var one := Vector2(sin(deg_to_rad(18.0)), cos(deg_to_rad(18.0)))
+	_check(HideoutToys.score_at(Vector2.ZERO, rings) == [50, "BULL"] and HideoutToys.score_at(Vector2(0, 0.1), rings) == [60, "T20"]
+		and HideoutToys.score_at(Vector2(0, 0.16), rings) == [40, "D20"] and HideoutToys.score_at(Vector2(0, 0.05), rings) == [20, "20"]
+		and HideoutToys.score_at(one * 0.05, rings) == [1, "1"] and HideoutToys.score_at(-one * 0.05, rings) == [19, "19"] and HideoutToys.score_at(Vector2(0, -0.05), rings) == [3, "3"]
+		and HideoutToys.score_at(Vector2(0, 0.2), rings)[0] == 0, "dartboard scoring (bull, treble, double, wedges, off the board)")
+	toys.start_darts()
+	var board: Node3D = world.get_node("Level/Dartboard")
+	var to_board := board.global_position - walker.camera.global_position
+	walker._pitch = 0.0
+	walker.look(0.0, -atan2(to_board.y, Vector2(to_board.x, to_board.z).length()))
+	toys._dice.seed = 7
+	for k in 3:
+		toys.throw_dart()
+	var all_on := toys.round_darts.all(func(r: Array) -> bool: return int(r[0]) > 0)
+	_check(toys.darts and toys.round_darts.size() == 3 and all_on and HideoutToys.best_round == toys.round_total(), "three darts at the bull all score (%s)" % str(toys.round_darts))
+	toys.throw_dart()
+	_check(toys.round_darts.is_empty() and toys._thrown.is_empty(), "the next click pulls the darts out for a new round")
+	world._unhandled_input(use)
+	_check(not toys.darts and not walker.pinned, "F stops playing darts")
+	toys.use("radio")
+	_check(HideoutToys.radio_on and toys.radio_playing() and world.station_label("radio").ends_with("off"), "the radio switches on")
+	toys.use("radio")
+	_check(not HideoutToys.radio_on and not toys.radio_playing(), "and off again")
+	walker.global_position = Vector3(0, world.global_position.y + 0.05, 28.4)
+	toys.use("lights")
+	for i in 60:
+		await process_frame
+	var env: Environment = toys.environment
+	_check(not HideoutToys.lights_on and env.ambient_light_energy < 0.3 and toys._glows.visible, "lights off: the bunks go dark, the fairy lights stay on (%.2f)" % env.ambient_light_energy)
+	walker.global_position = spawn + Vector3.UP * 0.05
+	for i in 60:
+		await process_frame
+	_check(env.ambient_light_energy > 0.85, "back in the hall it's lit (%.2f)" % env.ambient_light_energy)
+	toys.use("lights")
 	world.queue_free()
 	for i in 5:
 		await process_frame

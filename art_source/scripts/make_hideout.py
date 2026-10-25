@@ -38,6 +38,13 @@ FIRING_BACK = 1.5                                  # the firing line stands this
 TARGETS = (10, 25, 50, 100)                        # metres from the firing line
 TARGET_U = (-2.1, -0.7, 0.7, 2.1)                  # each one in its own lane, so none hides another
 BOARD_W, BOARD_H, BOARD_Y = 3.0, 1.8, 1.65             # the quests and stats boards: width, height, middle
+# The toys in the mess and bunks (0.21.7, owner asked for all four: radio, seats, darts, a lights-off switch).
+DARTBOARD = (-4.44, 1.73, 19.1)                    # the board's face on the mess's left wall (faces +x)
+DART_RINGS = (0.012, 0.028, 0.090, 0.106, 0.152, 0.170, 0.225)   # bull, outer bull, treble in/out, double in/out, edge
+DART_LINE = -2.07                                  # the throw line (x): 2.37 m from the board, like a real oche
+RADIO = (-2.6, 24.4)
+SWITCH = (4.46, 1.3, 25.85)                        # the bunks' light switch, on the right wall
+DARK_GLOWS = []                                    # bulbs that stay lit with the lights off (the fairy lights)
 BAND = 1.2                                         # the painted band along the bottom of the concrete walls
 
 
@@ -415,7 +422,7 @@ def wall_rows(put, outline, C, f_at, base_at, tunnels, top):
 # ------------------------------------------------------------------------------------------------ layouts
 SIGNS = {"guns": "GUNSMITH", "meds": "MEDIC", "supplies": "SUPPLIER", "valuables": "SUPREME", "ming": "MING",
          "stash": "STASH", "wardrobe": "WARDROBE", "workbench": "WORKBENCH", "quests": "QUESTS", "stats": "STATS",
-         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
+         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "wc": "WASHROOM", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
 TRADERS = ("guns", "meds", "supplies", "valuables", "ming")
 TINS = ("cabin_tin_b", "shed_metal", "cabin_tin_d", "shed_metal")
 
@@ -560,9 +567,9 @@ def post_layout(rock=False):
     L.spawn = (0.0, 3.0)
     L.mess = (0.0, 19.0)
     L.bunks = (0.0, 30.0)
-    L.wc = (-4.5, 32.0, -1.2, 36.0)
+    L.wc = (-4.45, 32.4, 4.45, 35.95)                                  # the washroom: the end of the tunnel
     L.kitchen = (3.9, 22.5, 0.0)
-    L.bunk_list = [(-3.4, 27.0, 90.0), (-3.4, 29.6, 90.0), (3.4, 27.0, 90.0), (3.4, 29.6, 90.0), (3.4, 32.2, 90.0)]
+    L.bunk_list = [(-3.4, 27.0, 90.0), (-3.4, 29.6, 90.0), (3.4, 27.0, 90.0), (3.4, 29.6, 90.0)]
 
     def at(r, deg):                    # r: metres in from the wall
         a = math.radians(deg)
@@ -570,7 +577,7 @@ def post_layout(rock=False):
         return (rr * math.cos(a), rr * math.sin(a))
     L.sandbags = [(at(2.0, a - 8), at(2.0, a + 8)) for a in ((135, 225) if rock else (45, 135, 225))]
     L.duffels = [at(1.4, a) + (n,) for a, n in ((30, 4), (62, 5), (150, 3), (205, 5), (240, 4), (330, 3))]
-    L.duffels += [(-38.6, -3.4, 5), (29.6, 3.0, 4), (3.2, 34.6, 3)]
+    L.duffels += [(-38.6, -3.4, 5), (29.6, 3.0, 4)]
     L.crates = [at(2.6, 115), at(2.6, 290), (-38.0, 2.6), (29.4, -2.4)]
     L.generator = at(2.4, 315)
     L.keep_clear = []
@@ -674,7 +681,7 @@ def boxes():
             put(x0, y0, z0, x1, y0 + 1.0, z1, "counter")
     tx, tz = LAY.war_table
     put(tx - 2.7, 0.0, tz - 1.8, tx + 2.7, 1.0, tz + 1.8, "table")
-    if LAY.wc:
+    if LAY.wc and SHAPE == "cave":                                     # (the command post's is drawn by shower_block)
         x0, z0, x1, z1 = LAY.wc
         door = (x0 + x1) / 2
         put(x0 - 0.2, 0.0, z0, x0, 2.6, z1, "wc")
@@ -1039,6 +1046,83 @@ def washroom(ctx):
     b.box((door, 2.3, z0 - 0.03), (0.9, 0.6, 0.02), style=mb._solid("shed_metal"))
 
 
+def shower_block(ctx):
+    """The washroom (owner 2026-10-25: not "just some metal box"): the end of the tunnel tiled to head height, open to
+    the bunks. Two toilet cubicles in block walls with tarp curtains on the left, a long steel trough with taps and
+    shaving mirrors along the back, two showers behind a curtain on the right, towels, a drain, its own lamps."""
+    b, rng = ctx.b, random.Random("showers")
+    x0, z0, x1, z1 = LAY.wc
+    tiles = mb.uv_world(mb.TILE_M, (0.0, 0.0))
+    b.poly([(x0, 0.012, z0), (x1, 0.012, z0), (x1, 0.012, z1), (x0, 0.012, z1)], (0, 1, 0), "wc_floor", mb.uv_world(1.0))
+    b.poly([(x1, 0.0, z1), (x0, 0.0, z1), (x0, 2.1, z1), (x1, 2.1, z1)], (0, 0, -1), "wc_tile", tiles)
+    for x, n in ((x0, 1), (x1, -1)):
+        b.poly([(x, 0.0, z0), (x, 0.0, z1), (x, 2.1, z1), (x, 2.1, z0)][::n], (n, 0, 0), "wc_tile", tiles)
+    # The cubicles: block walls 2 m tall, a tarp hung across each doorway on a pipe.
+    cub_w = 1.6
+    for k in range(2):
+        za, zb = z1 - k * cub_w - cub_w, z1 - k * cub_w
+        b.box((x0 + 0.85, 1.0, za - 0.06), (1.7, 2.0, 0.12), style=mb._nb("bk_old"))   # the wall in front of each
+        block(x0 + 0.85, 0.0, za - 0.06, 1.7, 2.0, 0.12)
+        toilet(b, x0 + 0.05, (za + zb) / 2, 90.0)
+        pipe(b, (x0 + 1.7, 2.0, za), (x0 + 1.7, 2.0, zb), "bk_iron", 0.03)
+        open_part = rng.uniform(0.3, 0.6)
+        b.box((x0 + 1.72, 1.15, za + (zb - za) * open_part / 2 + 0.02), (0.02, 1.7, (zb - za) * open_part),
+              style=mb._solid("bk_tarp" if k == 0 else "olive"))
+    b.box((x0 + 1.77, 1.0, z1 - 2 * cub_w - 0.06), (0.12, 2.0, 0.12), style=mb._nb("bk_old"))
+    # The trough: a steel trough on brackets along the back, three taps, three steel mirrors, soap, a razor.
+    tx0, tx1 = x0 + 2.1, x1 - 2.3
+    tz = z1 - 0.3
+    b.box(((tx0 + tx1) / 2, 0.8, tz), (tx1 - tx0, 0.22, 0.5), style=mb._nb("metal"))
+    b.box(((tx0 + tx1) / 2, 0.915, tz + 0.02), (tx1 - tx0 - 0.1, 0.012, 0.36), style=mb._solid("trim_dark"))
+    pipe(b, (tx0, 1.3, z1 - 0.06), (tx1, 1.3, z1 - 0.06), "bk_iron", 0.04)            # the water pipe
+    for k in range(3):
+        x = tx0 + (k + 0.5) * (tx1 - tx0) / 3
+        pipe(b, (x, 1.3, z1 - 0.06), (x, 1.05, z1 - 0.2), "bk_iron", 0.025)           # a tap
+        b.box((x, 1.6, z1 - 0.02), (0.36, 0.44, 0.02), style=mb._solid("steel_light"))  # a mirror
+        b.box((x + 0.25, 0.94, tz - 0.12), (0.08, 0.04, 0.06), style=mb._nb(rng.choice(("bone", "green", "red"))))
+    for x in (tx0 + 0.1, tx1 - 0.1):
+        pipe(b, (x, 0.0, tz), (x, 0.7, tz), "bk_iron", 0.05)
+    block((tx0 + tx1) / 2, 0.0, tz, tx1 - tx0, 0.95, 0.5)
+    # The showers: two heads off a pipe, a rail and a curtain partly drawn, a drain, a mat, towels on hooks.
+    sx = x1 - 1.0
+    for k, sz in enumerate((z1 - 0.8, z1 - 2.3)):
+        pipe(b, (x1 - 0.05, 2.25, sz), (sx + 0.2, 2.25, sz), "steel_light", 0.03)
+        b.box((sx + 0.2, 2.18, sz), (0.16, 0.06, 0.16), style=mb._nb("steel_light"))
+        pipe(b, (x1 - 0.05, 1.2, sz - 0.25), (x1 - 0.05, 1.35, sz - 0.25), "steel_light", 0.04)   # the valve
+        b.box((sx + 0.2, 0.016, sz), (0.2, 0.01, 0.2), style=mb._solid("trim_dark"))  # the drain
+    pipe(b, (x1 - 2.0, 2.3, z1 - 3.1), (x1 - 2.0, 2.3, z1), "bk_iron", 0.03)          # curtain rail
+    b.box((x1 - 2.0, 1.25, z1 - 2.6), (0.02, 1.9, 1.0), style=mb._solid("blue"))
+    b.box((x1 - 2.0, 1.25, z1 - 0.5), (0.02, 1.9, 0.9), style=mb._solid("blue"))
+    b.box((x1 - 2.4, 0.016, z1 - 1.6), (0.6, 0.008, 1.0), style=mb._solid("rubber"))  # a mat
+    # A short block wall closing the showers off from the bunks, towels hung on its inside.
+    b.box((x1 - 1.4, 1.0, z0 + 0.06), (2.0, 2.0, 0.12), style=mb._nb("bk_old"))
+    block(x1 - 1.4, 0.0, z0 + 0.06, 2.0, 2.0, 0.12)
+    for k in range(3):
+        x = x1 - 0.7 - k * 0.6
+        b.box((x, 1.45, z0 + 0.15), (0.4, 0.6, 0.04), yaw=rng.uniform(-4, 4),
+              style=mb._solid(rng.choice(("bone", "olive", "blue", "red"))))
+        pipe(b, (x, 1.78, z0 + 0.12), (x, 1.78, z0 + 0.2), "bk_iron", 0.02)
+    for x in (-2.2, 2.2):                                             # its own lamps
+        pipe(b, (x, 2.6, (z0 + z1) / 2), (x, 4.6, (z0 + z1) / 2), "bk_cable", 0.015)
+        b.box((x, 2.66, (z0 + z1) / 2), (0.3, 0.07, 0.3), style=mb._solid("olive_dark"))
+        bulb(b, x, 2.6, (z0 + z1) / 2, 0.9, 3.4)
+    # A sign over it all.
+    F = Frame((0.0, z1), (1.0, 0.0), (0.0, -1.0), 0.0)
+    sign_board(ctx, F, 0.05, 2.55, "sign_wc", w=2.2, h=0.4, wires=False)
+
+
+def toilet(b, x, z, yaw):
+    """A white toilet with its back at (x, z), facing yaw (degrees, 0 = +z)."""
+    r = lambda o, s: mb.rot((s, 0, o), yaw, 0)                         # noqa: E731 (o out from the wall, s sideways)
+    for (o, s), y, size, mat in (((0.1, 0), 0.6, (0.44, 0.4, 0.2), "bone"), ((0.1, 0), 0.82, (0.47, 0.04, 0.23), "bone"),
+                                 ((0.36, 0), 0.17, (0.26, 0.34, 0.34), "bone"), ((0.44, 0), 0.37, (0.38, 0.08, 0.5), "bone"),
+                                 ((0.46, 0), 0.415, (0.26, 0.012, 0.32), "trim_dark"), ((0.45, 0), 0.43, (0.4, 0.03, 0.46), "trim_dark")):
+        p = r(o, s)
+        b.box((x + p[0], y, z + p[2]), size, yaw=yaw, style=mb._nb(mat))
+    p = r(0.4, 0)
+    block(x + p[0], 0.0, z + p[2], 0.5, 0.85, 0.8, yaw)
+
+
 def dress_props(ctx):
     """Sandbags, duffel bags, crates, drums, rocks, the generator: the stuff of a camp."""
     b, rng = ctx.b, random.Random("props")
@@ -1159,14 +1243,17 @@ def quarters(ctx):
         b.box((cx - 0.05, 0.5, zc + s), (0.6, 0.12, 0.9), yaw=rng.uniform(-4, 4), style=mb._nb("olive"))   # cushions
     block(cx, 0.0, zc, 0.9, 0.9, 2.1)
     crate(b, -2.6, 0.0, zc, 0.6, 0.38, 0.8, mat="olive_dark")                       # the table, a radio and mugs
-    b.box((-2.6, 0.5, zc + 0.2), (0.3, 0.16, 0.14), style=mb._nb("bk_iron"))
+    b.box((RADIO[0], 0.5, RADIO[1]), (0.3, 0.16, 0.14), style=mb._nb("bk_iron"))     # the radio: dial, knob, aerial
+    b.box((RADIO[0] + 0.06, 0.52, RADIO[1] - 0.075), (0.12, 0.06, 0.01), style=mb._solid("bone"))
+    b.box((RADIO[0] - 0.08, 0.5, RADIO[1] - 0.08), (0.04, 0.04, 0.03), style=mb._nb("red"))
+    pipe(b, (RADIO[0] - 0.1, 0.58, RADIO[1] + 0.03), (RADIO[0] - 0.22, 0.95, RADIO[1] + 0.05), "steel_light", 0.006)
     b.box((-2.5, 0.46, zc - 0.25), (0.08, 0.1, 0.08), style=mb._nb("red"))
     block(-2.6, 0.0, zc, 0.6, 0.45, 0.8)
     crate(b, -4.0, 0.0, zc - 0.4, 0.6, 0.7, 0.6, mat="olive")                       # the TV on crates
     crate(b, -4.0, 0.0, zc + 0.4, 0.6, 0.7, 0.6, mat="olive_dark")
     b.box((-3.95, 1.05, zc), (0.5, 0.6, 0.7), style=mb._nb("trim_dark"))
     b.group = bake_light.GLOW
-    mb._bx(b, -3.69, 0.8, zc, 0.01, 0.45, 0.56, "blue", bottom=True)
+    mb._bx(b, -3.69, 1.05, zc, 0.01, 0.42, 0.56, "blue", bottom=True)
     b.group = None
     LAMPS.append((-3.4, 1.05, zc, 0.5, 2.4))
     pipe(b, (-3.9, 1.35, zc), (-3.8, 1.75, zc - 0.25), "bk_iron", 0.01)                # rabbit ears
@@ -1183,25 +1270,32 @@ def quarters(ctx):
             duffel(b, bx, 1.71, bz + rng.uniform(-0.3, 0.3), yaw + rng.uniform(-10, 10), rng)
         p = r(0.0, -0.4)
         b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(rng.choice(("bk_tarp", "olive", "blue"))))
-    # Fairy lights zigzagging over the bunks.
-    for a, c in (((-4.2, 2.9, 25.6), (4.2, 2.9, 28.4)), ((4.2, 2.9, 28.4), (-4.2, 2.9, 31.6)), ((-4.2, 2.9, 31.6), (4.2, 2.9, 34.6))):
+    # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off).
+    n0 = len(LAMPS)
+    for a, c in (((-4.2, 2.9, 25.6), (4.2, 2.9, 28.4)), ((4.2, 2.9, 28.4), (-4.2, 2.9, 31.6))):
         string_lights(b, a, c, sag=0.35, every=0.9, strength=0.25, reach=2.2)
-    # Washing hung up across the tunnel, and a sink with a mirror outside the washroom.
+    DARK_GLOWS[:] = [lamp[:3] for lamp in LAMPS[n0:]]
+    # The dartboard on a plywood backboard, a tape line on the floor to throw from.
+    x, y, z = DARTBOARD
+    b.box((x - 0.035, y, z), (0.03, 0.62, 0.62), style=mb._nb("wood"))
+    b.box((x - 0.005, y, z), (0.03, 0.46, 0.46), style=mb._nb("black"))
+    b.poly([(x + 0.012, y - 0.225, z + 0.225), (x + 0.012, y - 0.225, z - 0.225), (x + 0.012, y + 0.225, z - 0.225),
+            (x + 0.012, y + 0.225, z + 0.225)], (1, 0, 0), "decals", ctx.d("dartboard"))
+    b.box((DART_LINE, 0.006, z), (0.05, 0.012, 0.8), style=mb._solid("yellow"))
+    # The bunks' light switch: a box on the wall, its cable up to the lamps.
+    x, y, z = SWITCH
+    b.box((x - 0.03, y, z), (0.06, 0.2, 0.12), style=mb._nb("bk_iron"))
+    b.box((x - 0.07, y + 0.03, z), (0.04, 0.03, 0.03), style=mb._nb("red"))
+    pipe(b, (x - 0.02, y + 0.1, z), (x - 0.02, 2.9, z), "bk_cable", 0.012)
+    # Washing hung up across the tunnel.
     zl = 30.9
     pipe(b, (-4.3, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)
     for k in range(7):
         x = -3.4 + k * 1.1 + rng.uniform(-0.2, 0.2)
         b.box((x, 2.0, zl), (0.5, 0.65, 0.02), yaw=rng.uniform(-6, 6),
               style=mb._solid(rng.choice(("olive", "olive_dark", "bone", "bk_tarp", "blue"))))
-    x0, z0, x1, z1 = LAY.wc
-    sx, sz = x1 + 0.6, z0 + 0.6
-    b.box((sx, 0.85, sz), (0.5, 0.12, 0.4), style=mb._nb("metal"))
-    pipe(b, (sx, 0, sz), (sx, 0.8, sz), "bk_iron", 0.06)
-    b.box((sx + 0.22, 1.5, sz), (0.02, 0.5, 0.36), style=mb._solid("steel_light"))     # the mirror
-    b.box((sx, 0.98, sz + 0.12), (0.1, 0.08, 0.06), style=mb._nb("bone"))              # soap
-    block(sx, 0.0, sz, 0.55, 0.95, 0.45)
     # Notices on the walls.
-    for bid, z, side in (("lights", 18.9, -1), ("chow", 23.6, 1), ("clean", 34.3, 1)):
+    for bid, z, side in (("lights", 23.0, -1), ("chow", 23.6, 1), ("clean", 31.7, 1)):
         t = LAY.tunnels[3]
         x = side * (t.hw - 0.02)
         F = Frame((x, z), (0.0, 1.0), (-side, 0.0), 0.0)
@@ -1290,7 +1384,10 @@ def dress(ctx):
     shooting_range(ctx)
     mess(ctx)
     bunks(ctx)
-    washroom(ctx)
+    if SHAPE == "cave":
+        washroom(ctx)
+    else:
+        shower_block(ctx)
     dress_props(ctx)
     boards(ctx)
     pillars(ctx)
@@ -1327,8 +1424,34 @@ def decals(rng):
         for _ in range(8):
             c.put(r.randrange(c.w), r.randrange(c.h), "red")
         c.frame(0, 0, c.w, c.h, "bone")
+    def dartboard(c):     # black and cream wedges, red and green rings, 20 at the top (the game paints the numbers)
+        bull, obull, t0, t1, d0, d1, edge = DART_RINGS
+        for py in range(c.h):
+            for px in range(c.w):
+                dx, dy = (px + 0.5) / c.w * 2 - 1, (py + 0.5) / c.h * 2 - 1
+                r = math.hypot(dx, dy) * edge
+                wedge = int(((math.degrees(math.atan2(dx, dy)) + 9) % 360) // 18)
+                even = wedge % 2 == 0
+                if r > edge:
+                    col = "wood"
+                elif r <= bull:
+                    col = "red"
+                elif r <= obull:
+                    col = "green_dark"
+                elif r > d1:
+                    col = "black"
+                elif t0 < r <= t1 or d0 < r <= d1:
+                    col = "red" if even else "green_dark"
+                else:
+                    col = "black" if even else "cream"
+                c.put(px, py, col)
+        for k in range(20):                                            # the wire between the wedges
+            ang = math.radians(k * 18 + 9)
+            for i in range(int(c.w * 0.04), int(c.w * 0.38)):
+                c.put(int(c.w / 2 + math.sin(ang) * i), int(c.h / 2 + math.cos(ang) * i), "steel")
     for bid, text in SIGNS.items():
         a.add("sign_" + bid, 48, 10, painted(text))
+    a.add("dartboard", 96, 96, dartboard)
     a.add("map", 92, 56, bloxov_map)
     return a
 
@@ -1379,6 +1502,26 @@ def stations():
     t = LAY.tunnels[0]
     p = t.P(0, 0, t.a0 - FIRING_BACK - 1.0)
     out.append(("range", p[0], p[2], 3.0))
+    if SHAPE != "cave":
+        out.append(("darts", DART_LINE + 0.3, DARTBOARD[2], 1.4))
+        out.append(("radio", RADIO[0], RADIO[1] + 0.95, 1.4))
+        out.append(("lights", SWITCH[0] - 0.75, SWITCH[2], 1.4))
+    return out
+
+
+def seats():
+    """Where you can sit (0.21.7): (x, y of the seat, z, the way you face as a yaw in degrees, Godot's)."""
+    if SHAPE == "cave":
+        return []
+    out = []
+    mx, mz = LAY.mess
+    for k in (-1, 0, 1):                                               # the mess benches, two places each, facing the table
+        x, z = mx + k * 0.3, mz + k * 2.2
+        for s in (-0.95, 0.95):
+            for e in (-0.6, 0.6):
+                out.append((x + e, 0.46, z - s, 180.0 if s > 0 else 0.0))
+    for e in (-0.5, 0.5):                                              # the couch, facing the TV
+        out.append((-1.55, 0.56, LAY.mess[1] + 5.2 + e, 90.0))
     return out
 
 
@@ -1427,6 +1570,28 @@ def write_level(rows):
                     'metadata/size = Vector2(%g, %g)\n'
                     % (bid, math.cos(yaw), math.sin(yaw), -math.sin(yaw), math.cos(yaw), round(x + nx * 0.05, 3),
                        round(base_y(x, z) + BOARD_Y, 3), round(z + nz * 0.05, 3), BOARD_W - 0.95, BOARD_H - 0.2))
+        f.write('\n[node name="Seats" type="Node3D" parent="."]\n')
+        for k, (x, y, z, yaw) in enumerate(seats()):                    # (a Marker3D looks down its -z: the way you face)
+            a = math.radians(yaw)
+            f.write('\n[node name="Seat%d" type="Marker3D" parent="Seats"]\n'
+                    'transform = Transform3D(%g, 0, %g, 0, 1, 0, %g, 0, %g, %g, %g, %g)\n'
+                    % (k, math.cos(a), math.sin(a), -math.sin(a), math.cos(a), round(x, 3), y, round(z, 3)))
+        if SHAPE != "cave":
+            x, y, z = DARTBOARD
+            f.write('\n[node name="Dartboard" type="Marker3D" parent="."]\n'
+                    'transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, %g, %g, %g)\n'
+                    'metadata/rings = PackedFloat32Array(%s)\n'
+                    % (x + 0.013, y, z, ", ".join("%g" % r for r in DART_RINGS)))
+            x, y, z = SWITCH
+            glows = ", ".join("%g, %g, %g" % tuple(round(v, 3) for v in g) for g in DARK_GLOWS)
+            f.write('\n[node name="Quarters" type="Marker3D" parent="."]\n'
+                    'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, %g)\n'
+                    'metadata/area = Rect2(%g, %g, %g, %g)\n'
+                    'metadata/glows = PackedVector3Array(%s)\n'
+                    'metadata/radio = Vector3(%g, 0.55, %g)\n'
+                    'metadata/tv = Vector3(-3.684, 1.05, %g)\n'
+                    % (z, -4.5, LAY.mess[1] + 3.5, 9.0, 36.0 - LAY.mess[1] - 3.5, glows, RADIO[0], RADIO[1],
+                       LAY.mess[1] + 5.2))
         for sid, x, z, reach in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'
                     'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n'
