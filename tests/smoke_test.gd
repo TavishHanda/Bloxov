@@ -2121,6 +2121,10 @@ func _section_hideout_world() -> void:
 	_check((top.get_child(top.get_child_count() - 1) as Button).text == "START RAID" and top.get_child(1).name == "Money",
 		"the top bar: back, money ... START RAID last")
 	_check(world.menu.screen.find_child("Worth", true, false) != null, "the stash shows what it's worth")
+	world.menu.screen.show_info(ItemStack.new("smg", 1))
+	var stash_root: Control = world.menu.screen._center.get_child(0)
+	_check(stash_root.get_combined_minimum_size().y <= 720.0 - world.menu.screen._center.offset_top,
+		"the stash screen fits a 720 px tall screen with a gun's stat bars showing (%d px)" % stash_root.get_combined_minimum_size().y)
 	# The wardrobe (0.21.6, owner: character select, operators plus customizing): every part matches the model, a
 	# pick is worn and saved, and the look goes online as text.
 	var look_before: Dictionary = Profile.look.duplicate()

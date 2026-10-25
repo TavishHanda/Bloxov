@@ -127,6 +127,11 @@ func open_stash(stash_grid: GridInventory) -> void:
 	_dim.visible = false
 	_close_button.visible = false
 	_footer_hint.text = "Drag to move/equip · Drag rounds onto a gun to load it · R rotate · Shift+click quick-move · Right-click to sell or for options"
+	# (0.21.8, owner: the hint line was cut off at the bottom of the screen when a gun's stat bars showed: in the
+	# hideout it's the details area's text until you point at something, and the footer row goes.)
+	_footer_hint.get_parent().visible = false
+	_say("")
+	_info_desc.text = _footer_hint.text
 	open_for(null)
 
 
