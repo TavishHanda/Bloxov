@@ -253,6 +253,16 @@ func _section_ads() -> void:
 		and arm.global_position.distance_to(wrist.global_position) < 0.001
 		and gun.to_local(arm.global_position - arm.global_basis.z).y < gun.to_local(arm.global_position).y,
 		"the gun is held in two hands, the forearms running down from the wrists")
+	# 0.21.11: in your character's jacket and gloves.
+	var sleeve_paths: Array[String] = []
+	for mesh: MeshInstance3D in arm.find_children("*", "MeshInstance3D", true, false) + ([arm] if arm is MeshInstance3D else []):
+		for i in mesh.mesh.get_surface_count():
+			var over := mesh.get_surface_override_material(i) as BaseMaterial3D
+			if over != null and over.albedo_texture != null:
+				sleeve_paths.append(over.albedo_texture.resource_path.get_file())
+	var want_sleeve := "sleeve_%s.png" % Operators.clean(Profile.look)["Top"]
+	var want_glove := "glove_%s.png" % Operators.clean(Profile.look)["Gloves"]
+	_check(sleeve_paths.has(want_sleeve) and sleeve_paths.has(want_glove), "the hands wear your character's jacket and gloves %s" % str(sleeve_paths))
 	var ak_data := ItemDB.item("ak")
 	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
 	player.teleport_to(START_SPOT)

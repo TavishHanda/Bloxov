@@ -67,8 +67,29 @@ static func add_hands(holder: Node3D, gun: String, path := HANDS) -> void:
 			child.free()
 	for mesh: GeometryInstance3D in hands.find_children("*", "GeometryInstance3D", true, false):
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	wear(hands, Profile.look)
 	holder.add_child(hands)
 	hands.set_meta("gun", gun)
+
+
+## Dresses the hands in your character's jacket and gloves (0.21.11, owner: the hands should match the character you
+## picked in the wardrobe): the sleeves and gloves get that option's texture (make_hands.py writes them).
+static func wear(hands: Node3D, look: Dictionary) -> void:
+	var outfit := Operators.clean(look)
+	var swap := {"gun_sleeve_black": "sleeve_" + String(outfit["Top"]), "gun_glove_black": "glove_" + String(outfit["Gloves"])}
+	for mesh_instance: MeshInstance3D in hands.find_children("*", "MeshInstance3D", true, false):
+		if mesh_instance.mesh == null:
+			continue
+		for i in mesh_instance.mesh.get_surface_count():
+			var material := mesh_instance.mesh.surface_get_material(i) as BaseMaterial3D
+			if material == null or not swap.has(material.resource_name):
+				continue
+			var path := "res://assets/models/hands/outfit/%s.png" % swap[material.resource_name]
+			if not ResourceLoader.exists(path):
+				continue
+			var dressed := material.duplicate() as BaseMaterial3D
+			dressed.albedo_texture = load(path)
+			mesh_instance.set_surface_override_material(i, dressed)
 
 
 ## Points the forearms of `holder`'s hands from the wrists at the elbows (`frame`: the Gun node). Call after moving it.
