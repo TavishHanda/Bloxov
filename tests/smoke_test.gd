@@ -1443,6 +1443,7 @@ func _section_attachments() -> void:
 	grid.place(dot)
 	loot_ui.attach_from_grid(grid, dot, rifle, null)
 	_check(gun.ads_time < old_ads, "a red dot aims faster")
+	_check(not gun.model.get_node("Art/Irons").visible, "a red dot replaces the iron sights on the gun (0.20.20)")
 	var scope := ItemStack.new("scope_4x", 1, 1, 0)
 	grid.place(scope)
 	loot_ui.attach_from_grid(grid, scope, rifle, null)
@@ -1457,6 +1458,7 @@ func _section_attachments() -> void:
 		"the 15 extra rounds and the mag come back")
 	loot_ui.detach(rifle, "scope", grid)
 	_check(rifle.attachments.is_empty() and gun.ads_time == old_ads, "all off: the gun is back to normal")
+	_check(gun.model.get_node("Art/Irons").visible, "optic off: the iron sights are back")
 	rifle.loaded = old_mag
 	# The equipped gun's slot shows its attachment slots; clicking one takes that attachment off (0.15.17, owner).
 	var slot_view := EquipSlotView.new("primary", inv, loot_ui, Vector2i(4, 2))
@@ -2546,7 +2548,7 @@ func _section_net() -> void:
 		"another player holding a Mauler shows the Mauler model")
 	for id: String in HeldGun.MODELS:
 		var art := HeldGun.instance(id)
-		_check(art.has_node("Body") and art.has_node("Muzzle") and art.has_node("Grip") and art.has_node("Sight") and art.has_node("Optic"),
+		_check(art.has_node("Body") and art.has_node("Irons") and art.has_node("Muzzle") and art.has_node("Grip") and art.has_node("Sight") and art.has_node("Optic"),
 			"the %s model has its parts and markers" % id)
 		art.free()
 	var view_gun := player.get_node("Head/Recoil/Camera3D/Gun")

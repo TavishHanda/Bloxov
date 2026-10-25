@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.20 (Red dot replaces the iron sights)
+- **An optic now replaces the iron sights** (owner: you could see both): with a red dot or a scope on, the gun's iron
+  sights (rear notch/aperture, front post, the Mauler's beads) are hidden, and they come back when it's taken off.
+  The gun models keep their sights in their own "Irons" part (`make_gun.py`), which `GunViewModels.dress` hides.
+  Third person is unchanged: held guns there don't show attachments yet, so they keep their iron sights.
+
 ## 0.20.19 (Sound update: shots pan to their side)
 - **You can hear which side a shot (or step, or callout) comes from** (owner: "easy to hear you are getting shot
   but not from where ... I just meant the audio itself"): sounds in the world now pan fully left/right instead of

@@ -115,6 +115,9 @@ static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_r
 	var mag := art.get_node_or_null("Mag") as Node3D
 	if mag != null:
 		mag.scale = Vector3(1, 1.5 if attachments.values().has("ext_mag") else 1.0, 1)
+	var irons := art.get_node_or_null("Irons") as Node3D
+	if irons != null:   # an optic replaces the iron sights (0.20.20): never both on the gun
+		irons.visible = not (attachments.has("scope") or attachments.has("sight"))
 	var raise := 0.0
 	for slot: String in attachments:
 		var path := "res://assets/models/guns/att_%s.glb" % attachments[slot]

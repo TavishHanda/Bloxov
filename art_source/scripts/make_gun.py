@@ -13,6 +13,7 @@ meter (seen up close), Bloxov palette.
 Model frame (Godot axes): barrel along -z, up +y, origin where the old box model's middle was, so first person keeps its
 places. Nodes in each gun .glb:
   Body      the gun                          Mag   the magazine, its origin at the top (an extended mag stretches it)
+  Irons     the iron sights (hidden while an optic is on, so the two never show together)
   Muzzle    where shots and the flash leave  Grip  where the right hand holds it (third person)
   Sight     the iron sights' line (aiming puts it just under the middle of the screen)
   Optic     where an optic's base sits       Fore  where a foregrip clamps on (guns with a grip slot)
@@ -124,7 +125,7 @@ class Model:
 
     def __init__(self, name):
         self.name = name
-        self.parts = {"Body": [Builder(), (0.0, 0.0, 0.0)]}
+        self.parts = {"Body": [Builder(), (0.0, 0.0, 0.0)], "Irons": [Builder(), (0.0, 0.0, 0.0)]}
         self.marks = {}
 
     def part(self, name, origin):
@@ -200,32 +201,34 @@ class Model:
                 self.box((x + sx * (o - bar * 1.1), y + sy * (o - bar * 1.1), z), (bar * 1.6, bar * 1.6, depth),
                          mat, part=part)
 
-    def notch(self, z, base_top, sight, mat, width=0.03, gap=0.009, depth=0.01, dots=False, base_w=None, floor_drop=0.007):
+    def notch(self, z, base_top, sight, mat, width=0.03, gap=0.009, depth=0.01, dots=False, base_w=None, floor_drop=0.007,
+              part="Irons"):
         """A rear sight: a block up from base_top, two ears either side of a square notch whose floor is just under
         the sight line (the front post's tip sits level with the ear tops, in the notch)."""
         floor = sight - floor_drop
         if floor > base_top:
-            self.box((0, (base_top + floor) / 2, z), (base_w or width, floor - base_top, depth), mat)
+            self.box((0, (base_top + floor) / 2, z), (base_w or width, floor - base_top, depth), mat, part=part)
         ear = (width - gap) / 2
         for sx in (-1, 1):
-            self.box((sx * (gap + ear) / 2, (floor + sight) / 2, z), (ear, sight - floor, depth), mat)
+            self.box((sx * (gap + ear) / 2, (floor + sight) / 2, z), (ear, sight - floor, depth), mat, part=part)
             if dots:
-                self.box((sx * (gap + ear) / 2, sight - 0.0035, z + depth / 2 + 0.0005), (0.003, 0.003, 0.001), "dot")
+                self.box((sx * (gap + ear) / 2, sight - 0.0035, z + depth / 2 + 0.0005), (0.003, 0.003, 0.001), "dot",
+                         part=part)
 
-    def post(self, z, base_top, sight, mat, guard="ears", width=0.005, base_w=0.02, dot=True, hood=0.0095):
+    def post(self, z, base_top, sight, mat, guard="ears", width=0.005, base_w=0.02, dot=True, hood=0.0095, part="Irons"):
         """A front sight: a base block, a thin post to the sight line (a light dot on its back), and ears or a round hood
         round it so it reads in the notch."""
         stem = sight - 0.012
         if stem > base_top:
-            self.box((0, (base_top + stem) / 2, z), (base_w, stem - base_top, 0.012), mat)
-        self.box((0, (stem + sight) / 2, z), (width, sight - stem, 0.006), mat)
+            self.box((0, (base_top + stem) / 2, z), (base_w, stem - base_top, 0.012), mat, part=part)
+        self.box((0, (stem + sight) / 2, z), (width, sight - stem, 0.006), mat, part=part)
         if dot:
-            self.box((0, sight - 0.003, z + 0.0035), (0.003, 0.003, 0.001), "dot")
+            self.box((0, sight - 0.003, z + 0.0035), (0.003, 0.003, 0.001), "dot", part=part)
         if guard == "ears":
             for sx in (-1, 1):
-                self.box((sx * 0.012, (stem + sight + 0.003) / 2, z), (0.004, sight + 0.003 - stem, 0.012), mat)
+                self.box((sx * 0.012, (stem + sight + 0.003) / 2, z), (0.004, sight + 0.003 - stem, 0.012), mat, part=part)
         elif guard == "hood":
-            self.ring(0, sight - 0.004 + (0.0095 - hood), z, hood, 0.0025, 0.014, mat)
+            self.ring(0, sight - 0.004 + (0.0095 - hood), z, hood, 0.0025, 0.014, mat, part=part)
 
     def curved(self, top, w, d, seg, angles, mat, part="Body"):
         """A curved magazine: boxes hanging from `top`, each tipped forward by its angle (degrees)."""
@@ -251,7 +254,7 @@ def hound(m, look):
     m.box((0, 0.051, 0.0), (0.06, 0.013, 0.33), metal)                            # dust cover
     m.box((0, 0, -0.2), (0.068, 0.082, 0.04), metal)                              # trunnion
     m.box((0, 0.066, -0.205), (0.05, 0.022, 0.07), metal)                         # rear sight block
-    m.box((0, 0.079, -0.2), (0.026, 0.004, 0.05), metal)                          # tangent leaf
+    m.box((0, 0.079, -0.2), (0.026, 0.004, 0.05), metal, part="Irons")            # tangent leaf
     m.notch(-0.18, 0.077, 0.089, metal, width=0.026)
     m.box((0, 0.05, -0.31), (0.05, 0.032, 0.2), furn)                             # upper handguard (gas tube)
     m.box((0, -0.005, -0.3), (0.07, 0.066, 0.18), furn)                           # lower handguard
@@ -331,8 +334,8 @@ def wasp(m, look):
         m.box((0, 0.0, 0.0), (0.054, 0.068, 0.3), "black")                        # receiver tube
         m.box((0, 0.042, 0.0), (0.03, 0.016, 0.26), "black")                      # top ridge
         m.box((0, 0.058, 0.13), (0.03, 0.018, 0.03), "black")                     # rear drum
-        m.box((0, 0.069, 0.13), (0.012, 0.006, 0.012), "black")
-        m.ring(0, 0.08, 0.13, 0.0075, 0.003, 0.01, "black")                       # its aperture
+        m.box((0, 0.069, 0.13), (0.012, 0.006, 0.012), "black", part="Irons")
+        m.ring(0, 0.08, 0.13, 0.0075, 0.003, 0.01, "black", part="Irons")         # its aperture
         m.box((0, 0.033, -0.17), (0.016, 0.05, 0.02), "black")                    # front sight tower
         m.post(-0.17, 0.058, 0.08, "black", guard="hood")
         m.box((0, -0.012, -0.18), (0.054, 0.05, 0.12), "stipple")                 # slim handguard
@@ -357,8 +360,8 @@ def wasp(m, look):
         m.box((0, 0.04, 0.03), (0.05, 0.01, 0.2), "park")                         # top cover
         for z in (-0.04, 0.0, 0.04):
             m.box((0, 0.046, z), (0.05, 0.004, 0.012), "black")                   # cover ribs
-        m.box((0, 0.056, 0.11), (0.03, 0.036, 0.02), "park")                      # rear sight ears
-        m.box((0, 0.056, -0.12), (0.012, 0.036, 0.016), "park")                   # front post
+        m.box((0, 0.056, 0.11), (0.03, 0.036, 0.02), "park", part="Irons")        # rear sight ears
+        m.box((0, 0.056, -0.12), (0.012, 0.036, 0.016), "park", part="Irons")     # front post
         m.box((0, 0.006, -0.17), (0.024, 0.024, 0.08), "black")                   # barrel
         m.box((0, -0.023, -0.1), (0.06, 0.03, 0.06), "black")                     # front grip plate
         m.box((0, -0.09, -0.005), (0.036, 0.12, 0.048), "stipple", pitch=-8)      # grip (mag inside)
@@ -375,8 +378,8 @@ def wasp(m, look):
     else:
         m.box((0, 0.0, 0.0), (0.056, 0.074, 0.26), "olive_dark")                  # receiver
         m.box((0, 0.043, 0.0), (0.03, 0.012, 0.3), "rail")                        # full top rail
-        m.box((0, 0.06, 0.12), (0.026, 0.024, 0.02), "black")                     # flip-up sights
-        m.box((0, 0.06, -0.13), (0.01, 0.024, 0.016), "black")
+        m.box((0, 0.06, 0.12), (0.026, 0.024, 0.02), "black", part="Irons")       # flip-up sights
+        m.box((0, 0.06, -0.13), (0.01, 0.024, 0.016), "black", part="Irons")
         m.box((0, 0.004, -0.17), (0.06, 0.066, 0.1), "olive")                     # handguard
         for x in (-0.031, 0.031):
             m.box((x, 0.004, -0.17), (0.004, 0.02, 0.08), "black")                # vents
@@ -405,8 +408,8 @@ def mauler(m, look):
     m.box((0.034, 0.012, 0.0), (0.004, 0.03, 0.07), "black")                      # ejection port (right)
     m.box((0, 0.028, -0.33), (0.046, 0.046, 0.5), metal)                          # barrel
     m.box((0, 0.053, -0.33), (0.012, 0.006, 0.46), metal)                         # vent rib
-    m.ytube(0, -0.565, 0.056, 0.066, 0.004, "brass")                              # front bead
-    m.ytube(0, -0.3, 0.056, 0.061, 0.0025, "steel")                               # mid bead
+    m.ytube(0, -0.565, 0.056, 0.066, 0.004, "brass", part="Irons")                # front bead
+    m.ytube(0, -0.3, 0.056, 0.061, 0.0025, "steel", part="Irons")                 # mid bead
     m.box((0, -0.028, -0.29), (0.038, 0.038, 0.42), metal)                        # magazine tube
     m.box((0, -0.028, -0.5), (0.04, 0.04, 0.012), metal)                          # tube cap
     m.box((0, -0.06, 0.045), (0.012, 0.006, 0.08), metal)                         # trigger guard
@@ -422,8 +425,8 @@ def mauler(m, look):
         m.box((-0.037, 0.005, 0.02), (0.008, 0.05, 0.11), "black")                # side saddle (left)
         for k in range(4):
             m.box((-0.045, 0.005, -0.03 + k * 0.026), (0.012, 0.046, 0.02), "shell", ends="brass")
-        m.box((0, 0.058, 0.08), (0.03, 0.008, 0.02), "black")                     # ghost ring
-        m.ring(0, 0.069, 0.08, 0.005, 0.004, 0.012, "black")
+        m.box((0, 0.058, 0.08), (0.03, 0.008, 0.02), "black", part="Irons")       # ghost ring
+        m.ring(0, 0.069, 0.08, 0.005, 0.004, 0.012, "black", part="Irons")
         m.box((0, 0.052, 0.0), (0.03, 0.01, 0.14), "rail")
         m.mark("Optic", (0, 0.057, 0.0))
         m.mark("Grip", (0, -0.07, 0.125))
