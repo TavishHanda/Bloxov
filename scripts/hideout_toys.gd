@@ -9,11 +9,12 @@ extends Node3D
 const RADIO_SONG := preload("res://audio/world/radio.wav")
 const RADIO_KNOB := preload("res://audio/world/radio_on.wav")
 const SWITCH_CLACK := preload("res://audio/world/switch.wav")
+## The level's materials with the bunks' lights switch in them (0.21.16).
+const ATLAS_SHADER := preload("res://assets/shaders/hideout_atlas.gdshader")
+const DECALS_SHADER := preload("res://assets/shaders/hideout_decals.gdshader")
 const DARTS_FOV := 45.0      # zoomed in a little at the line, so the board's easier to see
 const SEAT_REACH := 1.5
 const SEATED_EYE := 0.72       # how far above the seat your eyes are, sitting
-const LIGHTS_ON_ENERGY := 0.9  # (the hideout's ambient light, HideoutWorld._ready)
-const LIGHTS_OFF_ENERGY := 0.12
 const LIGHTS_FADE := 2.5       # how quickly the bunks go dark (per second)
 
 ## Left on (or off) until the game closes, like a real radio.
@@ -30,7 +31,10 @@ var darts := false
 var darts_game: DartsGame
 var _radio: AudioStreamPlayer3D
 var _area := Rect2()
-var _dark := 0.0
+## 0 = the bunks' lights on, 1 = off (fades).
+var _off := 0.0
+## The level's materials that go dark in the bunks (hideout_dark.gdshaderinc).
+var _level_materials: Array[ShaderMaterial] = []
 var _glows: MultiMeshInstance3D
 var _tv_light: OmniLight3D
 var _bunk_light: OmniLight3D
@@ -50,6 +54,7 @@ func setup(level: Node3D, who: HideoutWalker, env: Environment) -> void:
 		_area = quarters.get_meta("area")
 		_build_radio(quarters.get_meta("radio"))
 		_build_dark(quarters)
+		_darken_level(level)
 
 
 ## Sitting or playing darts: the hideout's own prompts and USE wait until you get up.
@@ -186,7 +191,7 @@ func radio_playing() -> bool:
 
 # --- The bunks' lights -----------------------------------------------------------------------
 
-## With the lights off the bunks go dark, but the fairy lights and the TV stay on.
+## With the lights off the bunks go dark (seen from anywhere, 0.21.16), but the fairy lights and the TV stay on.
 func _build_dark(quarters: Node3D) -> void:
 	var points: PackedVector3Array = quarters.get_meta("glows")
 	var multi := MultiMesh.new()
@@ -231,6 +236,26 @@ func _omni(at: Vector3, color: Color, reach: float) -> OmniLight3D:
 	return light
 
 
+## Gives the level's model materials that darken the bunks (the same look otherwise): the kit atlas and the decals.
+func _darken_level(level: Node3D) -> void:
+	for mesh: MeshInstance3D in level.find_children("*", "MeshInstance3D", true, false):
+		for k in mesh.mesh.get_surface_count():
+			var old := mesh.get_active_material(k)
+			var material := ShaderMaterial.new()
+			if old is ShaderMaterial and (old as ShaderMaterial).shader != null and (old as ShaderMaterial).shader.resource_path.ends_with("kit_atlas.gdshader"):
+				material.shader = ATLAS_SHADER
+				material.set_shader_parameter("atlas", (old as ShaderMaterial).get_shader_parameter("atlas"))
+			elif old is StandardMaterial3D and (old as StandardMaterial3D).vertex_color_use_as_albedo \
+					and (old as StandardMaterial3D).albedo_texture != null and (old as StandardMaterial3D).transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+				material.shader = DECALS_SHADER
+				material.set_shader_parameter("decals", (old as StandardMaterial3D).albedo_texture)
+			else:
+				continue
+			material.set_shader_parameter("area", Vector4(_area.position.x, _area.position.y, _area.end.x, _area.end.y))
+			mesh.set_surface_override_material(k, material)
+			_level_materials.append(material)
+
+
 func switch_lights(on: bool) -> void:
 	lights_on = on
 	var switch := get_parent().get_node_or_null("Level/Stations/lights") as Node3D
@@ -238,26 +263,17 @@ func switch_lights(on: bool) -> void:
 		-6.0, 0.05, 1.0, 3.0, 20.0)
 
 
-## How dark it is where you are now (0 = lit, 1 = the bunks with the lights off): fades as you walk in and out.
-func darkness_wanted() -> float:
-	if lights_on or _area.size == Vector2.ZERO:
-		return 0.0
-	var at := Vector2(walker.global_position.x, walker.global_position.z)
-	if at.x < _area.position.x - 0.5 or at.x > _area.end.x + 0.5:
-		return 0.0
-	return clampf((at.y - _area.position.y + 2.0) / 3.0, 0.0, 1.0)
-
-
+## The bunks go dark in the level's own materials (0.21.16), so they look dark from wherever you are: before, the whole
+## hideout's ambient light dimmed while you stood in the bunks, and walking out turned them back on.
 func _update_dark(delta: float) -> void:
-	if environment == null:
-		return
-	_dark = move_toward(_dark, darkness_wanted(), LIGHTS_FADE * delta)
-	environment.ambient_light_energy = lerpf(LIGHTS_ON_ENERGY, LIGHTS_OFF_ENERGY, _dark)
-	var on := _dark > 0.01
+	_off = move_toward(_off, 0.0 if lights_on else 1.0, LIGHTS_FADE * delta)
+	for material in _level_materials:
+		material.set_shader_parameter("lights_off", _off)
+	var on := _off > 0.01
 	if _glows != null:
 		_glows.visible = on
 		_tv_light.visible = on
 		_bunk_light.visible = on
 		var flicker := 0.85 + 0.15 * sin(Time.get_ticks_msec() * 0.011) * sin(Time.get_ticks_msec() * 0.0037)
-		_tv_light.light_energy = _dark * 0.9 * flicker
-		_bunk_light.light_energy = _dark * 0.6
+		_tv_light.light_energy = _off * 0.9 * flicker
+		_bunk_light.light_energy = _off * 0.6

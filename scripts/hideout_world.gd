@@ -79,7 +79,7 @@ func _ready() -> void:
 	add_child(_menu_layer)
 	menu = MENU.instantiate()
 	_menu_layer.add_child(menu)
-	var back: Button = menu.add_back_button("< HIDEOUT  (Tab)", "Back to walking round the hideout", close_menu)
+	var back: Button = menu.add_back_button("< HIDEOUT", "Back to walking round the hideout (Tab)", close_menu)
 	back.visible = not GameSettings.is_phone()
 	# Online (back from a raid with your party) or on a phone: start on the menu.
 	if Network.main.is_client() or GameSettings.is_phone():
@@ -234,6 +234,7 @@ func close_menu() -> void:
 	_menu_layer.visible = false
 	_hud.visible = true
 	walker.locked = false
+	menu.close_gear_warning()
 	menu.save_now()
 	fill_boards()
 
@@ -274,13 +275,20 @@ func station_name(id: String) -> String:
 	return String(STATION_NAMES.get(id, id.capitalize()))
 
 
-## The nearest station you're within reach of and roughly facing.
+## The nearest station you're within reach of and roughly facing. The small ones (radio, darts, light switch: they have
+## an "aim" point) only when you look at the thing itself (0.21.16, owner: their reach didn't match the models).
 func _station_in_reach() -> Node3D:
 	var best: Node3D = null
 	var best_d := INF
 	var at := walker.global_position
 	for node: Node in $Level/Stations.get_children():
 		var marker := node as Node3D
+		if marker.has_meta("aim"):
+			var d_aim := aim_distance(marker)
+			if d_aim < best_d:
+				best = marker
+				best_d = d_aim
+			continue
 		var to := marker.global_position - at
 		to.y = 0.0
 		var d := to.length()
@@ -291,6 +299,18 @@ func _station_in_reach() -> Node3D:
 		best = marker
 		best_d = d
 	return best
+
+
+## How far your eyes are from a small station's thing while you look at it, or INF (not looking at it, or too far).
+func aim_distance(marker: Node3D) -> float:
+	var point: Vector3 = ($Level as Node3D).to_global(marker.get_meta("aim"))
+	var eye := walker.camera.global_position
+	var to := point - eye
+	var d := to.length()
+	var along := to.dot(-walker.camera.global_basis.z)
+	if d > float(marker.get_meta("aim_reach", 2.5)) or along <= 0.0:
+		return INF
+	return d if sqrt(maxf(d * d - along * along, 0.0)) <= float(marker.get_meta("aim_radius", 0.3)) else INF
 
 
 # --- The shooting range ------------------------------------------------------------------------

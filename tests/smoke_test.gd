@@ -234,6 +234,9 @@ func _section_ads() -> void:
 	await create_timer(gun.ads_time + 0.2).timeout
 	_check(gun.aim == 1.0 and gun.is_aiming(), "holding aim fully aims in after %.2fs" % gun.ads_time)
 	_check(absf(player.camera.fov - gun.ads_fov) < 0.5 and player.camera.fov < hip_fov, "aiming zooms the camera (%.0f -> %.0f)" % [hip_fov, player.camera.fov])
+	# 0.21.16 (owner: aiming in moved your aim a little lower): the sights line up on the middle, where the shots go.
+	var sight_at := player.camera.to_local((gun.model.get_node("Art/Sight") as Node3D).global_position)
+	_check(absf(sight_at.x) < 0.001 and absf(sight_at.y) < 0.001, "aimed, the iron sights sit on the middle of the screen (%.4f, %.4f)" % [sight_at.x, sight_at.y])
 	player.rotation.y = PI
 	Input.action_press("move_forward")
 	Input.action_press("sprint")
@@ -2285,6 +2288,32 @@ func _section_hideout_world() -> void:
 	use.pressed = true
 	world._unhandled_input(use)
 	_check(toys.seat == null and not walker.pinned and walker.global_position.distance_to(by_couch) < 0.3, "F gets you up where you stood")
+	# The radio, darts and light switch are used by looking at them (0.21.16, owner: their reach felt off).
+	var aimed := {}
+	for id: String in ["radio", "darts", "lights"]:
+		var marker: Node3D = world.get_node("Level/Stations/" + id)
+		var thing: Vector3 = world.get_node("Level").to_global(marker.get_meta("aim"))
+		var stand := Vector3(marker.global_position.x, world.global_position.y + 0.05, marker.global_position.z)
+		walker.global_position = stand
+		var to := thing - walker.camera.global_position
+		walker.rotation = Vector3(0, atan2(-to.x, -to.z), 0)
+		walker.camera.rotation.x = atan2(to.y, Vector2(to.x, to.z).length())
+		for f in 2:
+			await process_frame
+		var looking: bool = world.station == marker
+		walker.rotation.y += 0.6   # (looking off to one side of it)
+		for f in 2:
+			await process_frame
+		var aside: bool = world.station == marker
+		walker.rotation.y -= 0.6
+		walker.global_position = thing + (stand - thing).normalized() * 4.0
+		walker.global_position.y = stand.y
+		for f in 2:
+			await process_frame
+		aimed[id] = [looking, aside, world.station == marker]
+	walker.camera.rotation.x = 0.0
+	_check(aimed.values().all(func(r: Array) -> bool: return r == [true, false, false]),
+		"radio, darts and lights: in reach looking at them, not looking away or 4 m off %s" % str(aimed))
 	var rings: PackedFloat32Array = world.get_node("Level/Dartboard").get_meta("rings")
 	var one := Vector2(sin(deg_to_rad(18.0)), cos(deg_to_rad(18.0)))
 	_check(DartsGame.score_at(Vector2.ZERO, rings) == [50, "BULL"] and DartsGame.score_at(Vector2(0, 0.1), rings) == [60, "T20"]
@@ -2334,12 +2363,16 @@ func _section_hideout_world() -> void:
 	toys.use("lights")
 	for i in 60:
 		await process_frame
-	var env: Environment = toys.environment
-	_check(not HideoutToys.lights_on and env.ambient_light_energy < 0.3 and toys._glows.visible, "lights off: the bunks go dark, the fairy lights stay on (%.2f)" % env.ambient_light_energy)
+	var level_materials: Array[ShaderMaterial] = toys._level_materials
+	var all_off := func() -> bool: return level_materials.all(func(m: ShaderMaterial) -> bool: return float(m.get_shader_parameter("lights_off")) > 0.99)
+	_check(not HideoutToys.lights_on and level_materials.size() >= 2 and all_off.call() and toys._glows.visible,
+		"lights off: the bunks go dark (%d level materials), the fairy lights stay on" % level_materials.size())
 	walker.global_position = spawn + Vector3.UP * 0.05
 	for i in 60:
 		await process_frame
-	_check(env.ambient_light_energy > 0.85, "back in the hall it's lit (%.2f)" % env.ambient_light_energy)
+	# (0.21.16, owner: walking out used to turn them back on) the bunks stay dark seen from out here.
+	_check(all_off.call() and toys._glows.visible and toys.environment.ambient_light_energy > 0.85,
+		"walk out to the hall: the hall's lit, the bunks stay dark")
 	toys.use("lights")
 	world.queue_free()
 	for i in 5:
@@ -2484,6 +2517,19 @@ func _section_hideout() -> void:
 	# (0.16.4, owner) Once per raid: emptied again right away, there's no second kit (no selling it for money forever).
 	_check(hideout_inv.all_stacks().is_empty() and not hideout.can_take_free_kit() and not hideout.take_free_kit(),
 		"no second free kit until you've been on a raid")
+	# (0.21.16, owner) Going in with nothing on you: a warning first, GO ANYWAY still starts it.
+	var started := [0]
+	hideout.check_gear(func() -> void: started[0] += 1)
+	var go_anyway := hideout.gear_warning.get_node("Margin/Column/Buttons/Go") as Button
+	_check(hideout.gear_warning.visible and started[0] == 0, "starting a raid with nothing on you warns first")
+	go_anyway.pressed.emit()
+	_check(not hideout.gear_warning.visible and started[0] == 1, "GO ANYWAY starts it anyway")
+	hideout.check_gear(func() -> void: started[0] += 1)
+	(hideout.gear_warning.get_node("Margin/Column/Buttons/Back") as Button).pressed.emit()
+	hideout_inv.add("bandage", 1)
+	hideout.check_gear(func() -> void: started[0] += 10)
+	_check(not hideout.gear_warning.visible and started[0] == 11, "BACK starts nothing; carrying anything at all, no warning")
+	hideout_inv.take("bandage", 1)
 	# (0.20.12) Starting a raid is enough: closing the tab mid-raid loses the kit but never counts the raid.
 	var kept_loadout := Profile.loadout
 	Profile.raid_begun()

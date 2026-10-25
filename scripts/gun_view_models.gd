@@ -14,8 +14,8 @@ const REST := {"smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2,
 const ADS := {"smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.072, -0.38), "sniper": Vector3(0, -0.084, -0.4)}
 ## View model key -> the weapon whose model it shows (HeldGun.MODELS).
 const WEAPONS := {"rifle": "ak", "pistol": "pistol", "smg": "smg", "shotgun": "shotgun", "sniper": "sniper"}
-## Aimed, the sight line sits this far under the middle of the screen.
-const SIGHT_MARGIN := 0.003
+## Aimed, the sight line runs through the middle of the screen, where the shots go (0.21.16: it sat 3 mm under it,
+## so the sights pointed a little low of the crosshair, owner).
 
 
 ## Puts the gun models into `gun` (the Gun node). Returns {key: model} for the models it adds.
@@ -115,14 +115,14 @@ static func pose_arms(holder: Node3D, frame: Node3D) -> void:
 			arm.look_at(elbow, frame.global_basis.x)
 
 
-## How high the model's iron sights are (aiming puts them just under the middle of the screen).
+## How high the model's iron sights are (aiming puts them level with the middle of the screen).
 static func sight_height(model: Node3D) -> float:
 	return (model.get_node("Art/Sight") as Node3D).position.y
 
 
 ## Where model `model` sits when aimed, from `ads` (its centred place) and its sights.
 static func aim_place(model: Node3D, ads: Vector3) -> Vector3:
-	return Vector3(ads.x, -sight_height(model) - SIGHT_MARGIN, ads.z)
+	return Vector3(ads.x, -sight_height(model), ads.z)
 
 
 # --- Attachments on the gun (0.15.6; models 0.18.1) ----------------------------------

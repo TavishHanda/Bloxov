@@ -16,7 +16,7 @@ const KILL_SOUND := preload("res://audio/kill.wav")
 const EMPTY_SOUND := preload("res://audio/empty.wav")
 const MAG_OUT_SOUND := preload("res://audio/mag_out.wav")
 const MAG_IN_SOUND := preload("res://audio/mag_in.wav")
-## Where each model sits when aimed: centered, with its sight just under the middle of the screen
+## Where each model sits when aimed: centered, with its sight line through the middle of the screen
 ## (the new guns' are in GunViewModels.ADS).
 const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0, -0.036, -0.28)}
 

@@ -15,7 +15,7 @@ places. Nodes in each gun .glb:
   Body      the gun                          Mag   the magazine, its origin at the top (an extended mag stretches it)
   Irons     the iron sights (hidden while an optic is on, so the two never show together)
   Muzzle    where shots and the flash leave  Grip  where the right hand holds it (third person)
-  Sight     the iron sights' line (aiming puts it just under the middle of the screen)
+  Sight     the iron sights' line (aiming puts it through the middle of the screen)
   Optic     where an optic's base sits       Fore  where a foregrip clamps on (guns with a grip slot)
 Attachments (att_<id>.glb): Body, origin at the base (optics: underside; barrel parts: back end; foregrip: clamp top),
 Line on optics (their sight line, above the base) and End on barrel parts (where the muzzle moves to).

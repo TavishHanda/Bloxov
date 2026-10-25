@@ -1509,6 +1509,16 @@ def stations():
     return out
 
 
+def aimed_stations():
+    """The small things you use by looking at them (0.21.16, owner: their reach felt off): id -> (the thing's middle,
+    how far round it you can look, how far from your eyes you can use it). The marker is still where darts puts you."""
+    if SHAPE == "cave":
+        return {}
+    return {"darts": ((DARTBOARD[0] + 0.01, DARTBOARD[1], DARTBOARD[2]), 0.36, 3.6),
+            "radio": ((RADIO[0] - 0.05, 0.6, RADIO[1]), 0.28, 2.4),
+            "lights": ((SWITCH[0] - 0.04, SWITCH[1] + 0.02, SWITCH[2]), 0.2, 2.2)}
+
+
 def seats():
     """Where you can sit (0.21.7): (x, y of the seat, z, the way you face as a yaw in degrees, Godot's)."""
     if SHAPE == "cave":
@@ -1592,10 +1602,15 @@ def write_level(rows):
                     'metadata/tv = Vector3(-3.684, 1.05, %g)\n'
                     % (z, -4.5, LAY.mess[1] + 3.5, 9.0, 36.0 - LAY.mess[1] - 3.5, glows, RADIO[0], RADIO[1],
                        LAY.mess[1] + 5.2))
+        aimed = aimed_stations()
         for sid, x, z, reach in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'
                     'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n'
                     'metadata/reach = %g\n' % (sid, round(x, 3), round(z, 3), round(reach, 2)))
+            if sid in aimed:
+                (ax, ay, az), radius, eye_reach = aimed[sid]
+                f.write('metadata/aim = Vector3(%g, %g, %g)\nmetadata/aim_radius = %g\nmetadata/aim_reach = %g\n'
+                        % (round(ax, 3), round(ay, 3), round(az, 3), radius, eye_reach))
 
 
 def main():

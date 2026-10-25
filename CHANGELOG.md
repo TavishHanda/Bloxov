@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.17 (Hideout and aiming fixes)
+- **Iron sights aim where the crosshair was** (owner: aiming in with the Stinger moved your aim a little lower). The
+  sights sat 3 mm under the middle of the screen, so the front post pointed slightly low of where the shots go, on
+  every gun. They now line up exactly on the middle.
+- **The bunks' lights stay off as you walk round** (owner). Before, the whole hideout dimmed only while you stood in the
+  bunks, so they lit up again when you walked out. Now the bunks themselves go dark, seen from anywhere; the fairy
+  lights and the TV still glow.
+- **The radio, darts and light switch are used by looking at them** (owner: their hitboxes felt off). Before, you had
+  to stand on an invisible spot near them; now the USE prompt shows when you look at the thing itself from up close.
+- **The < HIDEOUT button** on the menu's top bar is the same size as the other buttons (owner: it was big and
+  awkward). Tab still takes you back (it's on the button's tooltip).
+- **Going into a raid with nothing on you asks first** (owner): NO GEAR, with GO ANYWAY, TAKE FREE KIT (when you can)
+  and BACK. Also for QUEUE and START NOW online.
+
 ## 0.21.16 (Front line fixes)
 - "No Man's Land" on the main screen is cream like the BLOXOV logo (owner: the light red looked pink).
 - The website build failed: the server logged an engine error when a player left a raid (their first-person hands'

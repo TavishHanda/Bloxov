@@ -58,6 +58,9 @@ var _loadouts_panel: PanelContainer
 var _loadout_rows: VBoxContainer
 var _loadout_name: LineEdit
 var _loadout_save_button: Button
+## Going in with nothing on you (0.21.16, owner): a warning first, GO ANYWAY to raid like that. What it would start.
+var gear_warning: PanelContainer
+var _gear_warning_go := Callable()
 var _buy_new_box: CheckBox
 
 
@@ -105,6 +108,7 @@ func _ready() -> void:
 	_build_phone_nav()
 	_build_online_panel()
 	_build_loadouts_panel()
+	_build_gear_warning()
 	_warm_raid.call_deferred()
 	var net := Network.main
 	net.raid_started.connect(start_raid)
@@ -691,6 +695,89 @@ func _warm_raid() -> void:
 	_warming.start(func() -> void: ResourceLoader.load(RaidMap.scene_path), Thread.PRIORITY_LOW)
 
 
+# --- Raiding with nothing on you (0.21.16, owner: "you should get a warning but allow them to continue") ----
+
+## Runs `go` (what starts the raid or the queue), or, with nothing on you at all, asks first.
+func check_gear(go: Callable) -> void:
+	if not inventory.all_stacks().is_empty():
+		go.call()
+		return
+	_gear_warning_go = go
+	gear_warning.get_node("Margin/Column/Buttons/FreeKit").visible = can_take_free_kit()
+	gear_warning.visible = true
+
+
+func _build_gear_warning() -> void:
+	gear_warning = PanelContainer.new()
+	gear_warning.name = "GearWarning"
+	gear_warning.visible = false
+	gear_warning.set_anchors_preset(Control.PRESET_CENTER)
+	gear_warning.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	gear_warning.grow_vertical = Control.GROW_DIRECTION_BOTH
+	gear_warning.custom_minimum_size = Vector2(560, 0)
+	LootUI.skin_panel(gear_warning)
+	add_child(gear_warning)
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 18)
+	gear_warning.add_child(margin)
+	var column := VBoxContainer.new()
+	column.name = "Column"
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+	var title := Label.new()
+	title.text = "NO GEAR"
+	HudStyle.style_label(title, 30, HudStyle.HAZARD)
+	column.add_child(title)
+	var text := Label.new()
+	text.text = "You're not carrying anything: no gun, no meds, no backpack. Go into the raid anyway?"
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	HudStyle.style_label(text, 20)
+	text.add_theme_font_override("font", HudStyle.spaced_font(20))
+	column.add_child(text)
+	var buttons := HBoxContainer.new()
+	buttons.name = "Buttons"
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	buttons.add_theme_constant_override("separation", 10)
+	column.add_child(buttons)
+	var back := Button.new()
+	back.name = "Back"
+	back.text = "BACK"
+	back.custom_minimum_size = Vector2(0, 48)   # (tall enough to tap)
+	back.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(back)
+	back.pressed.connect(close_gear_warning)
+	buttons.add_child(back)
+	var kit := Button.new()
+	kit.name = "FreeKit"
+	kit.text = "TAKE FREE KIT"
+	kit.tooltip_text = FREE_KIT_HINT
+	kit.custom_minimum_size = Vector2(0, 48)
+	kit.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(kit)
+	kit.pressed.connect(func() -> void:
+		close_gear_warning()
+		take_free_kit())
+	buttons.add_child(kit)
+	var go := Button.new()
+	go.name = "Go"
+	go.text = "GO ANYWAY"
+	go.custom_minimum_size = Vector2(0, 48)
+	go.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(go, 20, HudStyle.HAZARD)
+	go.pressed.connect(func() -> void:
+		var start := _gear_warning_go
+		close_gear_warning()
+		start.call())
+	buttons.add_child(go)
+
+
+func close_gear_warning() -> void:
+	gear_warning.visible = false
+	_gear_warning_go = Callable()
+
+
 # --- Saving / UI -------------------------------------------------------------------
 
 func _exit_tree() -> void:
@@ -752,7 +839,7 @@ func add_back_button(text: String, tip: String, on_press: Callable) -> Button:
 	back.text = text
 	back.tooltip_text = tip
 	back.focus_mode = Control.FOCUS_NONE
-	LootUI.style_button(back, 24)
+	LootUI.style_button(back)   # (the other buttons' size: 0.21.16, owner: it was big and awkward)
 	back.pressed.connect(on_press)
 	_top_row.add_child(back)
 	_top_row.move_child(back, 0)
@@ -864,9 +951,9 @@ func _build_top_bar() -> void:
 	raid_button.custom_minimum_size = Vector2(150, 0)
 	raid_button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(raid_button, 30, HudStyle.HAZARD)
-	raid_button.pressed.connect(func() -> void:
+	raid_button.pressed.connect(check_gear.bind(func() -> void:
 		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
-		start_raid())
+		start_raid()))
 	row.add_child(raid_button)
 
 
@@ -1020,7 +1107,11 @@ func _build_online_panel() -> void:
 	_queue_button = Button.new()
 	_queue_button.custom_minimum_size = Vector2(0, 44)
 	LootUI.style_button(_queue_button, 30, HudStyle.HAZARD)
-	_queue_button.pressed.connect(func() -> void: Network.main.set_queued(not Network.main.queued))
+	_queue_button.pressed.connect(func() -> void:
+		if Network.main.queued:
+			Network.main.set_queued(false)
+		else:
+			check_gear(Network.main.set_queued.bind(true)))
 	_online_box.add_child(_queue_button)
 	_queue_info = Label.new()
 	_queue_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1031,7 +1122,7 @@ func _build_online_panel() -> void:
 	_start_now_button.text = "START NOW: JUST MY PARTY, NO QUEUE"
 	LootUI.style_button(_start_now_button)
 	_start_now_button.tooltip_text = "An online raid with only you (and your party). For testing."
-	_start_now_button.pressed.connect(func() -> void: Network.main.start_now())
+	_start_now_button.pressed.connect(func() -> void: check_gear(Network.main.start_now))
 	_online_box.add_child(_start_now_button)
 	var offline_button := Button.new()
 	offline_button.text = "GO OFFLINE"
