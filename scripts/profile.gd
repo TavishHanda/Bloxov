@@ -40,6 +40,8 @@ static var quest_progress: Dictionary = {}
 static var trader_levels: Dictionary = {}
 ## Saved loadouts (0.21.2, owner): [{"name", "kit"}, ...], see Loadouts.
 static var loadout_presets: Array = []
+## Your character's look (0.21.6, the wardrobe): {part: option}, see Operators.
+static var look: Dictionary = Operators.clean({})
 static var _loaded := false
 
 
@@ -105,6 +107,7 @@ static func load_profile() -> void:
 		var preset := Loadouts.clean(entry)
 		if not preset.is_empty() and loadout_presets.size() < Loadouts.MAX:
 			loadout_presets.append(preset)
+	look = Operators.clean(data.get("look"))
 
 
 ## A trader's level: what you've levelled them up to.
@@ -195,6 +198,7 @@ static func reset() -> void:
 	quest_progress = {}
 	trader_levels = {}
 	loadout_presets = []
+	look = Operators.clean({})
 
 
 static func save_profile() -> void:
@@ -214,6 +218,7 @@ static func save_profile() -> void:
 		"quest_progress": quest_progress,
 		"trader_levels": trader_levels,
 		"presets": loadout_presets,
+		"look": look,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)

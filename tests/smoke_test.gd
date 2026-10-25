@@ -2117,6 +2117,40 @@ func _section_hideout_world() -> void:
 	(shop.find_child("StashButton", true, false) as Button).pressed.emit()
 	_check(not shop.visible and world.menu_open(), "STASH & GEAR goes to the stash screen")
 	_check(world.menu._top_row.get_child(0).name == "BackToHideout", "the way back to the hideout is first on the top bar")
+	# The wardrobe (0.21.6, owner: character select, operators plus customizing): every part matches the model, a
+	# pick is worn and saved, and the look goes online as text.
+	var look_before: Dictionary = Profile.look.duplicate()
+	var pmc: Node3D = LootUI.CHARACTER_MODEL.instantiate()
+	pmc.set_script(LootUI.PIXEL_MODEL_SCRIPT)
+	var model_slots: Dictionary = (pmc as PixelModel).outfit_slots()
+	var slots_match := model_slots.size() == Operators.SLOTS.size()
+	for slot: String in Operators.SLOTS:
+		var have: Array = model_slots.get(slot, {}).keys()
+		var want: Array = (Operators.SLOTS[slot] as Array).duplicate()
+		have.sort()
+		want.sort()
+		slots_match = slots_match and have == want
+	pmc.free()
+	_check(slots_match and Operators.LIST.all(func(o: Dictionary) -> bool: return Operators.clean(o["look"]) == o["look"]),
+		"every wardrobe part and operator matches the PMC model's outfits")
+	world.close_menu()
+	walker.global_position = (world.get_node("Level/Stations/wardrobe") as Node3D).global_position + Vector3.UP * 0.1
+	for i in 3:
+		await process_frame
+	world.use_station()
+	var wardrobe: WardrobeScreen = world.menu.wardrobe
+	(wardrobe.find_child("ghost", true, false) as Button).pressed.emit()
+	var ghost_on: bool = Profile.look == Operators.by_id("ghost")["look"] and wardrobe._name.text == "GHOST"
+	wardrobe.cycle("Hat", 1)
+	_check(wardrobe.visible and ghost_on and Profile.look["Hat"] != Operators.by_id("ghost")["look"]["Hat"]
+		and wardrobe._name.text == "YOUR OWN" and world.menu.screen._doll.find_child("Character", true, false).outfit == Profile.look,
+		"the wardrobe: pick an operator, change a part, it's worn (and shows in the inventory)")
+	var sent := Operators.to_text(Profile.look)
+	_check(Operators.from_text(sent) == Profile.look and Network.main.my_look == sent
+		and Operators.from_text("99x") == Operators.clean({}), "your look goes online as short text; junk turns into a real look")
+	world.menu.change_look(look_before)
+	world.close_menu()
+	world.open_menu("guns")
 	# The quests and stats boards (0.21.4, owner): out in the hall on their own, written with your quests and record.
 	var quests_text: String = (world.boards["quests"] as Label3D).text if world.boards.has("quests") else ""
 	var stats_text: String = (world.boards["stats"] as Label3D).text if world.boards.has("stats") else ""
@@ -2682,6 +2716,8 @@ func _section_net() -> void:
 	c2.set_queued(true)
 	await _until(func() -> bool: return not log[c2].is_empty() and log[c2][-1].contains("leader"))
 	_check(log[c2][-1].contains("leader"), "the server tells a non-leader they can't queue")
+	var ghost_text := Operators.to_text(Operators.by_id("ghost")["look"])
+	c1.set_look(ghost_text)   # (the wardrobe, 0.21.6)
 	c1.set_queued(true)
 	c3.set_queued(true)
 	await _until(func() -> bool: return [c1, c2, c3].all(func(c: Network) -> bool: return c.in_raid))
@@ -2691,6 +2727,7 @@ func _section_net() -> void:
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()
 	_check(c1.teammates == [c2_id] and c3.teammates.is_empty() and c3.names.get(c1_id) == "Alpha", "Alpha and Bravo are teammates; Charlie knows their names")
+	_check(c3.looks.get(c1_id) == ghost_text and c3.looks.has(c2_id), "everyone in the raid gets Alpha's look from the wardrobe")
 	_check(c1.raid_spawn.size() == 2 and c1.raid_spawn[0] == c2.raid_spawn[0] and c1.raid_spawn[1] != c2.raid_spawn[1]
 		and c3.raid_spawn[0] != c1.raid_spawn[0], "squads spawn together, other squads elsewhere (%s %s %s)" % [c1.raid_spawn, c2.raid_spawn, c3.raid_spawn])
 
@@ -2733,8 +2770,11 @@ func _section_net() -> void:
 
 	# The raid shows other players as bodies, drawn smoothly between updates, and removes them when they leave.
 	var net_raid := main.get_node("NetRaid") as NetRaid
+	Network.main.looks[77] = ghost_text
 	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, 0]})
 	var body: RemotePlayer = net_raid.remotes.get(77)
+	Network.main.looks.erase(77)
+	_check(body != null and (body.model as PixelModel).outfit == Operators.by_id("ghost")["look"], "another player wears the look they picked")
 	_check(body != null and body.global_position.is_equal_approx(Vector3(2, 0.1, -12)) and body.collision_layer == 2, "another player appears as a body on the player layer")
 	body.set_process(false)
 	body._buffer.clear()

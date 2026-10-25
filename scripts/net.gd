@@ -96,6 +96,9 @@ var raid_time_left := RAID_TIME
 var raid_spawn: Array = []
 ## Peer id -> name, for everyone in our raid; and which of them are in our party.
 var names := {}
+## Their looks in our raid (Operators.to_text) by peer id (0.21.6), and ours as we send it.
+var looks := {}
+var my_look := ""
 var teammates: Array[int] = []
 ## The other players in our raid: their latest state (RemotePlayer.capture) by peer id, and when it arrived.
 var states := {}
@@ -220,7 +223,7 @@ func join_problem(client_version: String) -> String:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _hello(client_version: String, player_name: String) -> void:
+func _hello(client_version: String, player_name: String, look := "") -> void:
 	if mode != Mode.SERVER:
 		return
 	var peer := multiplayer.get_remote_sender_id()
@@ -230,6 +233,7 @@ func _hello(client_version: String, player_name: String) -> void:
 		_rejected.rpc_id(peer, reason)
 		return
 	matchmaker.add_player(peer, player_name)
+	matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(look))   # (only real parts get through)
 	_log("%s (peer %d) is online (%d players)" % [matchmaker.players[peer]["name"], peer, matchmaker.players.size()])
 	_welcome.rpc_id(peer)
 	_flush()
@@ -672,8 +676,10 @@ func _send_raid_start(id: int) -> void:
 		for peer in _raid_peers(id):
 			_lid_moved.rpc_id(peer, box, open))
 	var raid_names := {}
+	var raid_looks := {}
 	for peer in raid["players"]:
 		raid_names[peer] = matchmaker.players[peer]["name"]
+		raid_looks[peer] = matchmaker.players[peer].get("look", "")
 		_hits_out.erase(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
 	for peer in raid["players"]:
@@ -681,7 +687,7 @@ func _send_raid_start(id: int) -> void:
 		for other in raid["players"]:
 			if other != peer and raid["teams"][other] == raid["teams"][peer]:
 				team.append(other)
-		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []))
+		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []), raid_looks)
 
 
 func _now() -> float:
@@ -879,7 +885,21 @@ func client_view_time() -> float:
 
 
 func _on_connected(player_name: String) -> void:
-	_hello.rpc_id(1, version(), player_name)
+	_hello.rpc_id(1, version(), player_name, my_look)
+
+
+## Our look changed in the wardrobe (Operators.to_text): the server passes it on at the next raid.
+func set_look(text: String) -> void:
+	my_look = text
+	if is_client():
+		_look.rpc_id(1, text)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _look(text: String) -> void:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode == Mode.SERVER and matchmaker.players.has(peer) and text.length() <= 16:
+		matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(text))
 
 
 func _on_connection_failed() -> void:
@@ -932,8 +952,10 @@ func _queue_status(waiting: int, countdown: float) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team: Array[int], spawn: Array) -> void:
+func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team: Array[int], spawn: Array,
+		raid_looks := {}) -> void:
 	in_raid = true
+	looks = raid_looks
 	raid_spawn = spawn
 	queued = false
 	raid_seed = seed_value

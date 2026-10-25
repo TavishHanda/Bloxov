@@ -16,8 +16,7 @@ const DUMMY := preload("res://scenes/target_dummy.tscn")
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
-const STATION_NOTES := {"wardrobe": "Characters come with the character update. For now: your loadout is on the left.",
-	"workbench": "Crafting comes in a later update.",
+const STATION_NOTES := {"workbench": "Crafting comes in a later update.",
 	"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
 var walker: HideoutWalker
@@ -197,6 +196,8 @@ func open_menu(at := "") -> void:
 		menu.open_trader_screen(at)   # (walking up to a trader: their own screen, 0.21.4)
 	else:
 		menu.close_trader_screen()
+	if at == "wardrobe":
+		menu.open_wardrobe()          # (character select, 0.21.6)
 	if STATION_NOTES.has(at):
 		menu.show_message(STATION_NOTES[at])
 

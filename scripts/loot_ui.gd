@@ -1369,6 +1369,14 @@ func _notification(what: int) -> void:
 		_doll.free()
 
 
+## Puts your character in the look `look` (the wardrobe changed it).
+func show_look(look: Dictionary) -> void:
+	if _doll != null:
+		var model := _doll.find_child("Character", true, false)
+		if model != null:
+			model.pick_outfit(look)
+
+
 ## Your character, drawn by its own little camera (its own world, so it never shows up in the raid).
 ## Kept across rebuilds (only moved between layouts).
 func _build_doll() -> SubViewportContainer:
@@ -1386,6 +1394,8 @@ func _build_doll() -> SubViewportContainer:
 	model.set_script(PIXEL_MODEL_SCRIPT)
 	model.name = "Character"
 	model.rotation.y = PI + 0.5
+	model.randomize_outfit = false
+	model.pick_outfit(Profile.look)   # (your look from the wardrobe, 0.21.6)
 	view.add_child(model)
 	var camera := Camera3D.new()
 	camera.fov = 30.0

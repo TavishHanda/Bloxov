@@ -114,6 +114,10 @@ func sync_remotes(states: Dictionary) -> void:
 			remote.player_name = Network.main.names.get(peer, "")
 			remote.teammate = Network.main.teammates.has(peer)
 			get_parent().add_child(remote)
+			# Their character, as they picked it in the wardrobe (0.21.6).
+			var pixel := remote.model as PixelModel
+			if pixel != null:
+				pixel.pick_outfit(Operators.from_text(String(Network.main.looks.get(peer, ""))))
 			remotes[peer] = remote
 		remote.push_state(states[peer])
 

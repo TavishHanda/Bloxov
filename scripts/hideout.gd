@@ -14,6 +14,7 @@ var screen: LootUI
 var _money_label: Label
 var _top_row: HBoxContainer
 var trader_screen: TraderScreen
+var wardrobe: WardrobeScreen
 var _version_label: Label
 ## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
 var _loading: Control
@@ -87,6 +88,11 @@ func _ready() -> void:
 	trader_screen = TraderScreen.new(self)
 	trader_screen.visible = false
 	add_child(trader_screen)
+	wardrobe = WardrobeScreen.new()
+	wardrobe.visible = false
+	wardrobe.on_change = change_look
+	add_child(wardrobe)
+	Network.main.set_look(Operators.to_text(Profile.look))
 
 	_build_top_bar()
 	_build_online_panel()
@@ -1225,6 +1231,21 @@ func open_trader_screen(trader: String) -> void:
 
 func close_trader_screen() -> void:
 	trader_screen.visible = false
+	wardrobe.visible = false
+
+
+## The wardrobe (0.21.6): pick your operator and change their parts.
+func open_wardrobe() -> void:
+	trader_screen.visible = false
+	wardrobe.open(Profile.look)
+
+
+## The wardrobe changed your look: wear it, save it, and tell the server (online, the others see it next raid).
+func change_look(new_look: Dictionary) -> void:
+	Profile.look = new_look
+	screen.show_look(new_look)
+	Network.main.set_look(Operators.to_text(new_look))
+	_queue_save()
 
 
 func _fill_trader() -> void:
