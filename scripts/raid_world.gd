@@ -336,9 +336,9 @@ func state_at(peer: int, time: float) -> Array:
 func trace_shot(shooter: int, from: Vector3, dir: Vector3, max_range: float, view_time: float, now: float) -> Dictionary:
 	var to := from + dir.normalized() * max_range
 	var time := clampf(view_time, now - MAX_REWIND, now)
-	# The map (layer 1); players and AI are checked below, where they were on the shooter's screen (0.15.28: AI
+	# The map (layer 1) and shut doors (16, 0.21.19, owner: bullets don't go through doors); players and AI are checked below, where they were on the shooter's screen (0.15.28: AI
 	# were checked where they are now, so shots at a moving AI missed online).
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 16)
 	var wall := find_world_3d().direct_space_state.intersect_ray(query)
 	var limit := from.distance_to(wall.position) if not wall.is_empty() else max_range
 	var best := {}

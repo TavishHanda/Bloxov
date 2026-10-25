@@ -1076,7 +1076,7 @@ func _section_items() -> void:
 
 
 func _section_doors() -> void:
-	# Doors (0.17): shut, they stop people and the AI's eyes but not bullets; F swings one away from you; the AI
+	# Doors (0.17): shut, they stop people, the AI's eyes and (0.21.19, owner) bullets; F swings one away from you; the AI
 	# open a shut door when they walk up to it.
 	var spot := Vector3(40, 0, 60)
 	var door: Door = (load("res://scenes/door.tscn") as PackedScene).instantiate()
@@ -1094,9 +1094,10 @@ func _section_doors() -> void:
 	var space := door.get_world_3d().direct_space_state
 	var mid := spot + Vector3(-0.5, 1.2, 0)
 	var walk := PhysicsRayQueryParameters3D.create(mid + Vector3(0, 0, 1), mid + Vector3(0, 0, -1), Door.LAYER)
-	var shot := PhysicsRayQueryParameters3D.create(mid + Vector3(0, 0, 1), mid + Vector3(0, 0, -1), 1 | 4)
-	_check(space.intersect_ray(walk).get("collider") == door and space.intersect_ray(shot).is_empty(),
-		"a shut door blocks people (layer %d) but not bullets" % Door.LAYER)
+	# (the gun's mask; the AI's shots and the server's shot check use Door.LAYER too)
+	var shot := PhysicsRayQueryParameters3D.create(mid + Vector3(0, 0, 1), mid + Vector3(0, 0, -1), 1 | 4 | Door.LAYER)
+	_check(space.intersect_ray(walk).get("collider") == door and space.intersect_ray(shot).get("collider") == door,
+		"a shut door blocks people (layer %d) and bullets" % Door.LAYER)
 	_check(player.collision_mask & Door.LAYER != 0 and not door.is_in_group(&"nav_source"),
 		"players bump into doors; the AI's paths go through doorways")
 	_check(door.prompt() == "Open door" and not door.is_open(), "shut: [F] Open door")
@@ -1104,7 +1105,7 @@ func _section_doors() -> void:
 	_check(door.state == 1 and door.prompt() == "Close door", "F opens it, away from you")
 	for i in 30:
 		await physics_frame
-	_check(space.intersect_ray(walk).is_empty(), "the open door lets you through")
+	_check(space.intersect_ray(walk).is_empty() and space.intersect_ray(shot).is_empty(), "the open door lets you (and shots) through")
 	var leaf: Node3D = door.get_child(0)
 	_check(door.to_local(leaf.to_global(Vector3(0.5, 0, 0))).z < -0.3, "it swung to the far side")
 	door.use(spot + Vector3(0, 1, 2))

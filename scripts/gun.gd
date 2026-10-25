@@ -413,7 +413,7 @@ func shoot_once() -> void:
 	var hits: Array[Dictionary] = []
 	for dir in dirs:
 		var to := from + dir * max_range
-		var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | (2 if online else 0), [player.get_rid()])
+		var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | Door.LAYER | (2 if online else 0), [player.get_rid()])
 		var result := space.intersect_ray(query)
 		var end := to
 		if not result.is_empty():

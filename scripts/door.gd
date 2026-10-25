@@ -3,14 +3,14 @@ class_name Door
 extends StaticBody3D
 ## An ordinary door in a doorway (World art 0.17, owner: "we need to add doors to the game"). Press F to open or shut
 ## it; it swings away from whoever opens it. The AI open a shut door when they walk up to it (and leave it open).
-## Shut, it stops people and the AI's eyes, but not bullets or grenades (a thin door: shots go through).
+## Shut, it stops people, the AI's eyes and bullets (0.21.19, owner: no shooting through doors), not grenades.
 ## Online the server owns it: a player asks, the server swings its copy and tells everyone in the raid; the AI's
 ## doors open on the server the same way.
 ## Doorways stay open in the AI's navigation (the door isn't in the nav bake), so their paths go through it.
 ## Built from code: `size` is the doorway (width, height); two leaves when it's wide (a double door).
 
 const GROUP := &"doors"
-## Collision layer 5 (bit value 16): people and the AI bump into it, the AI can't see through it; bullets ignore it.
+## Collision layer 5 (bit value 16): people and the AI bump into it, the AI can't see through it, bullets stop at it.
 const LAYER := 16
 const SWING := 95.0
 const SWING_TIME := 0.35

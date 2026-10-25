@@ -700,14 +700,14 @@ func take_ai_hit(amount: int, from: Vector3, head: bool, burst: int) -> void:
 
 
 ## Whether walls (or the ground) are between an AI standing at `from` and every part of you: neither its chest nor
-## its eyes have a line to your chest or head. (Shots pass doors, glass and bars, so those don't count.)
+## its eyes have a line to your chest or head. (Shut doors count, 0.21.19; shots pass glass and bars.)
 func hidden_from(from: Vector3) -> bool:
 	var space := get_world_3d().direct_space_state
 	var chest := global_position + Vector3(0, chest_height(), 0)
 	var head := eye_position() - Vector3(0, 0.1, 0)
 	for eye in [from + Vector3(0, 1.3, 0), from + Vector3(0, 1.65, 0)]:
 		for part in [chest, head]:
-			var query := PhysicsRayQueryParameters3D.create(eye, part, 1 | BoxMap.LEAVES_LAYER, [get_rid()])
+			var query := PhysicsRayQueryParameters3D.create(eye, part, 1 | Door.LAYER | BoxMap.LEAVES_LAYER, [get_rid()])
 			if space.intersect_ray(query).is_empty():
 				return false
 	return true

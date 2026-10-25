@@ -762,7 +762,7 @@ func _fire_at_target(dist: float) -> void:
 	var from := chest_from
 	var picked := false
 	for option in [[chest_from, chest], [eyes, chest], [eyes, head]]:
-		if space.intersect_ray(PhysicsRayQueryParameters3D.create(option[0], option[1], 1 | BoxMap.LEAVES_LAYER, [get_rid()])).is_empty():
+		if space.intersect_ray(PhysicsRayQueryParameters3D.create(option[0], option[1], 1 | Door.LAYER | BoxMap.LEAVES_LAYER, [get_rid()])).is_empty():
 			from = option[0]
 			chest = option[1]
 			picked = true
@@ -788,8 +788,8 @@ func _fire_at_target(dist: float) -> void:
 	var dir := (aim_point - from).normalized()
 	var to := from + dir * (shoot_range + 20.0)
 	# Missed shots ignore the player's hitbox so a "miss" can't land by accident.
-	# (Tree tops stop the AI's shots too, 0.17.13.)
-	var mask := (1 | 2 | BoxMap.LEAVES_LAYER) if hit else (1 | BoxMap.LEAVES_LAYER)
+	# (Tree tops stop the AI's shots too, 0.17.13; and shut doors, 0.21.19.)
+	var mask := (1 | 2 | Door.LAYER | BoxMap.LEAVES_LAYER) if hit else (1 | Door.LAYER | BoxMap.LEAVES_LAYER)
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask, [get_rid()])
 	query.hit_from_inside = true
 	var result := space.intersect_ray(query)
@@ -813,7 +813,7 @@ func _fire_at_point(point: Vector3) -> void:
 	var from := global_position + Vector3(0, 1.65, 0)
 	var aim := point + Vector3(randf_range(-0.8, 0.8), randf_range(-0.4, 0.6), randf_range(-0.8, 0.8))
 	var to := from + (aim - from).normalized() * (shoot_range + 20.0)
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 2 | BoxMap.LEAVES_LAYER, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 2 | Door.LAYER | BoxMap.LEAVES_LAYER, [get_rid()])
 	query.hit_from_inside = true
 	var result := space.intersect_ray(query)
 	var end := to
