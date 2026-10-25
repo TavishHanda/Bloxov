@@ -10,7 +10,7 @@ extends Node3D
 const HIDEOUT := "res://scenes/hideout_world.tscn"
 const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
 ## Seconds for the picture to drift from one side to the other (and as long back).
-const DRIFT_SECONDS := 40.0
+const DRIFT_SECONDS := 25.0   # (0.21.21, owner: a bit faster; was 40)
 const ACCENT := Color("b03b2e")   # (PLAY)
 const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 
