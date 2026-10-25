@@ -8,14 +8,7 @@ extends Node3D
 
 const RADIO_SONG := preload("res://audio/world/radio.wav")
 const RADIO_KNOB := preload("res://audio/world/radio_on.wav")
-const DART_HIT := preload("res://audio/world/dart.wav")
 const SWITCH_CLACK := preload("res://audio/world/switch.wav")
-## The board's numbers, clockwise from the top.
-const DART_NUMBERS := [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5]
-const DARTS_PER_ROUND := 3
-## How far a dart lands from where you aim (m, the spread of a normal distribution).
-const DART_SPREAD := 0.028
-const DART_FLIGHT := 0.18      # seconds from your hand to the board
 const DARTS_FOV := 45.0      # zoomed in a little at the line, so the board's easier to see
 const SEAT_REACH := 1.5
 const SEATED_EYE := 0.72       # how far above the seat your eyes are, sitting
@@ -26,54 +19,37 @@ const LIGHTS_FADE := 2.5       # how quickly the bunks go dark (per second)
 ## Left on (or off) until the game closes, like a real radio.
 static var radio_on := false
 static var lights_on := true
-static var best_round := 0
 
 var walker: HideoutWalker
 var environment: Environment
 ## The seat you're on (its Marker3D) or null; where you stood before sitting down.
 var seat: Node3D
 var _stood_at := Vector3.ZERO
-## Playing darts (standing at the line), this round's darts (each [score, label]) and the darts in the board.
+## Playing darts (standing at the line).
 var darts := false
-var round_darts: Array = []
-var _thrown: Array[Node3D] = []
-var _dice := RandomNumberGenerator.new()
-var _board: Node3D
-var _rings := PackedFloat32Array()
+var darts_game: DartsGame
 var _radio: AudioStreamPlayer3D
 var _area := Rect2()
 var _dark := 0.0
 var _glows: MultiMeshInstance3D
 var _tv_light: OmniLight3D
 var _bunk_light: OmniLight3D
-var _hud: CanvasLayer
-var _darts_label: Label
 
 
 func setup(level: Node3D, who: HideoutWalker, env: Environment) -> void:
 	walker = who
 	environment = env
-	_board = level.get_node_or_null("Dartboard") as Node3D
-	if _board != null:
-		_rings = _board.get_meta("rings")
-		_paint_numbers()
+	var board := level.get_node_or_null("Dartboard") as Node3D
+	if board != null:
+		darts_game = DartsGame.new()
+		darts_game.name = "Darts"
+		add_child(darts_game)
+		darts_game.setup(board, who)
 	var quarters := level.get_node_or_null("Quarters") as Node3D
 	if quarters != null:
 		_area = quarters.get_meta("area")
 		_build_radio(quarters.get_meta("radio"))
 		_build_dark(quarters)
-	_hud = CanvasLayer.new()
-	_hud.layer = 3
-	_hud.visible = false
-	add_child(_hud)
-	_darts_label = Label.new()
-	_darts_label.name = "Darts"
-	_darts_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_darts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_darts_label.position = Vector2(-300, 14)
-	_darts_label.size = Vector2(600, 120)
-	HudStyle.style_label(_darts_label, 22)
-	_hud.add_child(_darts_label)
 
 
 ## Sitting or playing darts: the hideout's own prompts and USE wait until you get up.
@@ -102,12 +78,7 @@ func handle_input(event: InputEvent) -> bool:
 	if event.is_action_pressed("interact") or event.is_action_pressed("jump") or event.is_action_pressed("ui_cancel"):
 		stand_up()
 		return true
-	if darts and event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT \
-			and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or GameSettings.is_phone()):
-		throw_dart()
-		return true
-	return false
+	return darts and darts_game.handle_input(event)
 
 
 func _process(delta: float) -> void:
@@ -153,7 +124,7 @@ func stand_up() -> void:
 		seat = null
 	if darts:
 		darts = false
-		_hud.visible = false
+		darts_game.end()
 		walker.camera.fov = HideoutWalker.FOV
 	_pin(false)
 
@@ -165,141 +136,21 @@ func _pin(on: bool) -> void:
 	(walker.get_node("CollisionShape3D") as CollisionShape3D).disabled = on and seat != null
 
 
-# --- Darts -----------------------------------------------------------------------------------
+# --- Darts (scripts/darts_game.gd) -----------------------------------------------------------
 
 ## To the line, facing the board.
 func start_darts() -> void:
-	if _board == null:
+	if darts_game == null:
 		return
 	stand_up()
 	var spot := get_parent().get_node("Level/Stations/darts") as Node3D
 	walker.global_position = Vector3(spot.global_position.x, walker.global_position.y, spot.global_position.z)
-	var to := _board.global_position - walker.global_position
+	var to := darts_game.board.global_position - walker.global_position
 	walker.rotation.y = atan2(-to.x, -to.z)
 	darts = true
 	walker.camera.fov = DARTS_FOV
 	_pin(true)
-	_hud.visible = true
-	if round_darts.size() >= DARTS_PER_ROUND:
-		_new_round()
-	_show_darts()
-
-
-## Throws where you're looking (a little off, like a real throw); a fourth click pulls the darts out for a new round.
-func throw_dart() -> void:
-	if round_darts.size() >= DARTS_PER_ROUND:
-		_new_round()
-		_show_darts()
-		return
-	var camera := walker.camera
-	var from := camera.global_position
-	var dir := -camera.global_basis.z
-	var normal := _board.global_basis.z
-	var into := dir.dot(-normal)
-	var hit: Vector3
-	var landed := false
-	if into > 0.05:
-		hit = from + dir * ((_board.global_position - from).dot(normal) / dir.dot(normal))
-		hit += _board.global_basis.x * _dice.randfn(0.0, DART_SPREAD) + _board.global_basis.y * _dice.randfn(0.0, DART_SPREAD)
-		landed = hit.distance_to(_board.global_position) < 1.2
-	if not landed:   # (nowhere near: it drops under the board)
-		hit = _board.global_position + normal * 0.25 + Vector3.DOWN * (_board.global_position.y - 0.02)
-	var local := _board.to_local(hit)
-	var result := score_at(Vector2(local.x, local.y), _rings) if landed else [0, "MISS"]
-	round_darts.append(result)
-	_fly_dart(from + dir * 0.3, hit, landed)
-	if round_darts.size() == DARTS_PER_ROUND:
-		best_round = maxi(best_round, round_total())
-	_show_darts()
-
-
-## Score and label (e.g. [60, "T20"]) for a dart at `at` (m on the board's face from its middle, y up).
-static func score_at(at: Vector2, rings: PackedFloat32Array) -> Array:
-	var r := at.length()
-	if r <= rings[0]:
-		return [50, "BULL"]
-	if r <= rings[1]:
-		return [25, "25"]
-	if r > rings[5]:
-		return [0, "MISS"]
-	var wedge := int(fposmod(rad_to_deg(atan2(at.x, at.y)) + 9.0, 360.0) / 18.0) % 20
-	var number: int = DART_NUMBERS[wedge]
-	if r > rings[2] and r <= rings[3]:
-		return [number * 3, "T%d" % number]
-	if r > rings[4]:
-		return [number * 2, "D%d" % number]
-	return [number, str(number)]
-
-
-func round_total() -> int:
-	var total := 0
-	for result: Array in round_darts:
-		total += int(result[0])
-	return total
-
-
-func _new_round() -> void:
-	round_darts.clear()
-	for dart in _thrown:
-		dart.queue_free()
-	_thrown.clear()
-
-
-func _show_darts() -> void:
-	var line := ""
-	for k in DARTS_PER_ROUND:
-		line += ("   " if k > 0 else "") + (String(round_darts[k][1]) if k < round_darts.size() else "-")
-	var next := "Click: pull the darts out" if round_darts.size() >= DARTS_PER_ROUND else "Click: throw"
-	_darts_label.text = "DARTS    %s    %s: stop\n%s    =  %d\nBEST ROUND  %d" % [next, HideoutWorld.use_key(), line,
-		round_total(), best_round]
-
-
-func _fly_dart(from: Vector3, to: Vector3, landed: bool) -> void:
-	var dart := _dart_mesh()
-	add_child(dart)
-	_thrown.append(dart)
-	var point := (_board.global_basis.z * -1.0).rotated(Vector3.UP, _dice.randf_range(-0.12, 0.12))
-	dart.global_position = from
-	dart.look_at(from + point, Vector3.UP)
-	var tween := create_tween()
-	tween.tween_property(dart, "global_position", to + point * 0.02, DART_FLIGHT)
-	if landed:
-		tween.tween_callback(func() -> void: Effects.sound_at(self, DART_HIT, to, -4.0, 0.1, 1.0, 3.0, 25.0))
-	else:
-		tween.tween_callback(func() -> void: dart.rotation.x = -PI / 2.2)
-
-
-static func _dart_mesh() -> Node3D:
-	var dart := Node3D.new()
-	dart.name = "Dart"
-	for part: Array in [[Vector3(0.008, 0.008, 0.11), Vector3(0, 0, 0.05), Color(0.2, 0.2, 0.22)],
-			[Vector3(0.002, 0.03, 0.035), Vector3(0, 0, 0.11), Color(0.75, 0.15, 0.12)],
-			[Vector3(0.03, 0.002, 0.035), Vector3(0, 0, 0.11), Color(0.75, 0.15, 0.12)]]:
-		var mesh := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = part[0]
-		mesh.mesh = box
-		mesh.position = part[1]
-		mesh.material_override = Effects.unshaded(part[2])
-		dart.add_child(mesh)
-	return dart
-
-
-## The numbers round the board (white, like the wire ring on a real one).
-func _paint_numbers() -> void:
-	for k in DART_NUMBERS.size():
-		var label := Label3D.new()
-		label.text = str(DART_NUMBERS[k])
-		label.font = HudStyle.font(24)
-		label.font_size = 24
-		label.pixel_size = 0.0018
-		label.modulate = Color(0.95, 0.93, 0.85)
-		label.shaded = false
-		label.double_sided = false
-		var angle := deg_to_rad(k * 18.0)
-		var radius := (_rings[5] + _rings[6]) / 2.0
-		label.position = Vector3(sin(angle) * radius, cos(angle) * radius, 0.004)
-		_board.add_child(label)
+	darts_game.begin()
 
 
 # --- The radio -------------------------------------------------------------------------------

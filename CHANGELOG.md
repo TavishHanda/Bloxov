@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.12 (Darts night)
+- **Darts is a real mini-game now** (owner: "just click to throw, too easy... maybe play against the traders").
+  - At the line, pick PRACTICE or play one of the traders.
+  - Your aim drifts in a slow loop, like breathing, so you time your throw.
+  - Hold the mouse (or your finger) to wind up. The power bar swings up and down: let go in the green band. Too soft
+    and the dart drops low, too hard and it flies high.
+  - Against a trader: three rounds of three darts each, highest total wins. Each trader throws differently (the
+    Gunsmith and Supreme are sharp, the Medic less so, Ming goes for the bull) and has something to say when the game
+    ends. Practice keeps your best three darts.
+  - Just for fun: nothing is bet and nothing is saved.
+
 ## 0.21.11 (Matching hands)
 - **Your first-person hands match your character** (owner): the sleeves are your character's jacket (green, tan,
   multicam or black) and the gloves are theirs (green, tan or black), as picked in the wardrobe. Looks only.

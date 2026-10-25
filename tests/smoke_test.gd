@@ -2259,24 +2259,45 @@ func _section_hideout_world() -> void:
 	_check(toys.seat == null and not walker.pinned and walker.global_position.distance_to(by_couch) < 0.3, "F gets you up where you stood")
 	var rings: PackedFloat32Array = world.get_node("Level/Dartboard").get_meta("rings")
 	var one := Vector2(sin(deg_to_rad(18.0)), cos(deg_to_rad(18.0)))
-	_check(HideoutToys.score_at(Vector2.ZERO, rings) == [50, "BULL"] and HideoutToys.score_at(Vector2(0, 0.1), rings) == [60, "T20"]
-		and HideoutToys.score_at(Vector2(0, 0.16), rings) == [40, "D20"] and HideoutToys.score_at(Vector2(0, 0.05), rings) == [20, "20"]
-		and HideoutToys.score_at(one * 0.05, rings) == [1, "1"] and HideoutToys.score_at(-one * 0.05, rings) == [19, "19"] and HideoutToys.score_at(Vector2(0, -0.05), rings) == [3, "3"]
-		and HideoutToys.score_at(Vector2(0, 0.2), rings)[0] == 0, "dartboard scoring (bull, treble, double, wedges, off the board)")
+	_check(DartsGame.score_at(Vector2.ZERO, rings) == [50, "BULL"] and DartsGame.score_at(Vector2(0, 0.1), rings) == [60, "T20"]
+		and DartsGame.score_at(Vector2(0, 0.16), rings) == [40, "D20"] and DartsGame.score_at(Vector2(0, 0.05), rings) == [20, "20"]
+		and DartsGame.score_at(one * 0.05, rings) == [1, "1"] and DartsGame.score_at(-one * 0.05, rings) == [19, "19"]
+		and DartsGame.score_at(Vector2(0, -0.05), rings) == [3, "3"]
+		and DartsGame.score_at(Vector2(0, 0.2), rings)[0] == 0, "dartboard scoring (bull, treble, double, wedges, off the board)")
 	toys.start_darts()
+	var game: DartsGame = toys.darts_game
+	_check(toys.darts and game.mode == "" and game._picker.visible and game._picker.find_child("ming", true, false) != null,
+		"at the line you pick practice or a trader to play")
+	game.play("practice")
 	var board: Node3D = world.get_node("Level/Dartboard")
 	var to_board := board.global_position - walker.camera.global_position
 	walker._pitch = 0.0
 	walker.look(0.0, -atan2(to_board.y, Vector2(to_board.x, to_board.z).length()))
-	toys._dice.seed = 7
+	walker.camera.rotation = Vector3(walker._pitch, 0, 0)
+	game._dice.seed = 7
+	game.throw_dart(DartsGame.SWEET)
+	var spot_on: Array = game.turn_darts[0]
+	game.throw_dart(0.15)
+	var soft: Array = game.turn_darts[1]
+	game.throw_dart(DartsGame.SWEET)
+	_check(int(spot_on[0]) > 0 and int(game.turn_darts[2][0]) > 0, "a throw let go in the green lands where you aim (%s)" % str(spot_on))
+	_check(int(soft[0]) == 0 or str(soft[1]) in ["3", "D3", "17", "19"], "too soft and it drops low (%s)" % str(soft))
+	_check(DartsGame.best_round == game.turn_total(), "practice keeps your best three darts")
+	game._next_turn()
+	_check(game.turn_darts.is_empty() and game._thrown.is_empty(), "the darts come out for the next throw")
+	# Against a trader: you throw three, then they do, three rounds.
+	game.play("guns")
 	for k in 3:
-		toys.throw_dart()
-	var all_on := toys.round_darts.all(func(r: Array) -> bool: return int(r[0]) > 0)
-	_check(toys.darts and toys.round_darts.size() == 3 and all_on and HideoutToys.best_round == toys.round_total(), "three darts at the bull all score (%s)" % str(toys.round_darts))
-	toys.throw_dart()
-	_check(toys.round_darts.is_empty() and toys._thrown.is_empty(), "the next click pulls the darts out for a new round")
+		game.throw_dart(DartsGame.SWEET)
+	game._next_turn()
+	_check(game.turn == "them", "then the trader throws")
+	for i in 200:
+		await process_frame
+		if game.turn != "them":
+			break
+	_check(game.turn == "you" and game.round_no == 2 and game.your_total > 0, "after their three darts it's round 2 (you %d, them %d)" % [game.your_total, game.their_total])
 	world._unhandled_input(use)
-	_check(not toys.darts and not walker.pinned, "F stops playing darts")
+	_check(not toys.darts and not walker.pinned and not game.active, "F stops playing darts")
 	toys.use("radio")
 	_check(HideoutToys.radio_on and toys.radio_playing() and world.station_label("radio").ends_with("off"), "the radio switches on")
 	toys.use("radio")
