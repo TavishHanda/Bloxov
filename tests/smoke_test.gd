@@ -2068,7 +2068,27 @@ func _saved_loadouts(hideout: Node) -> void:
 
 func _section_hideout_world() -> void:
 	# The walkable hideout (0.21.0): the game starts in it; walk to a station, E opens the hideout menu there.
-	_check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/hideout_world.tscn", "the game starts in the walkable hideout")
+	# The main screen (0.21.13): the game opens on it; PLAY goes to the walkable hideout.
+	_check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/title.tscn", "the game opens on the main screen")
+	var title: TitleScreen = (load("res://scenes/title.tscn") as PackedScene).instantiate()
+	title.position = Vector3(0, -2000, 0)
+	root.add_child(title)
+	await process_frame
+	var title_buttons: Array[String] = []
+	for node: Node in title._main_box.get_children():
+		if node is Button:
+			title_buttons.append(String((node as Button).text))
+	_check(title_buttons.slice(0, 4) == ["PLAY", "OPTIONS", "PRIVACY", "CREDITS"], "main screen: PLAY, OPTIONS, PRIVACY, CREDITS %s" % str(title_buttons))
+	title._show_page("options")
+	await process_frame
+	_check(title.page_open() == "options" and title._page_body.get_child_count() >= 7, "OPTIONS shows the settings")
+	title._show_page("privacy")
+	await process_frame
+	_check(title.page_open() == "privacy" and (title._page_body.get_child(-1) as Label).text.contains("No accounts, no ads"), "PRIVACY says what's kept")
+	title._show_page("")
+	_check(title.page_open() == "", "and CLOSE closes it")
+	title.queue_free()
+	await process_frame
 	var world: Node3D = (load("res://scenes/hideout_world.tscn") as PackedScene).instantiate()
 	world.position = Vector3(0, -1000, 0)   # (well away from the raid's test map: same physics world)
 	root.add_child(world)

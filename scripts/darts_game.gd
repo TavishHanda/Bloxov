@@ -283,14 +283,14 @@ func _build_hud() -> void:
 	_score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_score.position = Vector2(-350, 12)
 	_score.size = Vector2(700, 110)
-	HudStyle.style_label(_score, 22)
+	HudStyle.style_label(_score, 20)
 	_hud.add_child(_score)
 	_say = Label.new()
 	_say.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_say.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_say.position = Vector2(-400, -140)
 	_say.size = Vector2(800, 30)
-	HudStyle.style_label(_say, 22, HudStyle.BRASS)
+	HudStyle.style_label(_say, 20, HudStyle.BRASS)
 	_hud.add_child(_say)
 	# The power bar, right of the middle: fills as you wind up, the green band is the sweet spot.
 	_bar = Control.new()
@@ -335,7 +335,7 @@ func _build_hud() -> void:
 	box.add_child(title)
 	var how := Label.new()
 	how.text = "Hold to wind up, let go in the green.\nToo soft drops low, too hard flies high."
-	HudStyle.style_label(how, 18, HudStyle.INK_DIM)
+	HudStyle.style_label(how, 20, HudStyle.INK_DIM)
 	box.add_child(how)
 	_pick_button(box, "practice", "PRACTICE")
 	for who: String in TRADERS:

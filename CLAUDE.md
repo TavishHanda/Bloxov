@@ -37,7 +37,7 @@
   One part only: add `-- section=knife,heal` (pulls in what it depends on). Only push if the tests passed
   (chain the push after the test with `&&`, never after a command that ignores failures).
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
-- Flow: `scenes/hideout_world.tscn` (main scene: walk round the hideout; Tab / E at a station opens `scenes/hideout.tscn`, the menu: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
+- Flow: `scenes/title.tscn` (main scene, 0.21.13: PLAY, OPTIONS, PRIVACY, CREDITS) -> `scenes/hideout_world.tscn` (walk round the hideout; Tab / E at a station opens `scenes/hideout.tscn`, the menu: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
   Persistent data lives in `scripts/profile.gd` (static, saved to `user://profile.json`). The inventory screen
   (`loot_ui.gd`) works with or without a player (hideout passes an `Inventory` and the stash).
 - Multiplayer (0.7.x, `docs/MULTIPLAYER_PLAN.md`): `scripts/net.gd` is the `Net` autoload; scripts use it as

@@ -104,7 +104,7 @@ func _build_hud() -> void:
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_prompt.position = Vector2(-300, -150)
 	_prompt.size = Vector2(600, 40)
-	HudStyle.style_label(_prompt, 24)
+	HudStyle.style_label(_prompt, 30)
 	_hud.add_child(_prompt)
 	_click_hint = Label.new()
 	_click_hint.text = "Click to look around"
@@ -329,11 +329,11 @@ func _build_range(level: Node3D) -> void:
 	panel.add_child(box)
 	var title := Label.new()
 	title.text = "SHOOTING RANGE"
-	HudStyle.style_label(title, 28, HudStyle.BRASS)
+	HudStyle.style_label(title, 30, HudStyle.BRASS)
 	box.add_child(title)
 	var about := Label.new()
 	about.text = "Free ammo. Borrowed guns stay at the range; nothing here changes your stash.\nTargets at 10, 25, 50 and 100 m."
-	HudStyle.style_label(about, 16)
+	HudStyle.style_label(about, 20)
 	box.add_child(about)
 	_range_button(box, "YOUR LOADOUT", "loadout", true)
 	var lv := Profile.trader_level("guns")
