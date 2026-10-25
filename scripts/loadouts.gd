@@ -148,7 +148,7 @@ static func _gear(entry: Dictionary, source: Dictionary) -> ItemStack:
 	var want := ItemStack.new(id)
 	want.clean_attachments(entry.get("att"))
 	var stack: ItemStack = null
-	if not source["buy_all"]:
+	if _from_stash(id, source):
 		stack = _best_match(stash, want)
 	if stack != null:
 		stash.remove(stack)
@@ -213,7 +213,7 @@ static func _units(id: String, amount: int, source: Dictionary) -> Array[ItemSta
 	var pieces: Array[ItemStack] = []
 	var left := amount
 	var stash: GridInventory = source["stash"]
-	if not source["buy_all"]:
+	if _from_stash(id, source):
 		var mine := stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == id)
 		mine.sort_custom(func(a: ItemStack, b: ItemStack) -> bool: return _take_order(a) < _take_order(b))
 		for stack: ItemStack in mine:
@@ -236,6 +236,12 @@ static func _units(id: String, amount: int, source: Dictionary) -> Array[ItemSta
 			pieces.append(ItemStack.new(id, size))
 			left -= size
 	return pieces
+
+
+## Take this from the stash: always, unless BUY NEW is on and the traders sell it to you (what they don't sell you
+## still comes from the stash).
+static func _from_stash(id: String, source: Dictionary) -> bool:
+	return not source["buy_all"] or not (source["can_buy"] as Callable).call(id)
 
 
 static func _take_order(stack: ItemStack) -> int:

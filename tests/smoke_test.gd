@@ -2032,6 +2032,12 @@ func _saved_loadouts(hideout: Node) -> void:
 	plan = hideout.loadout_plan(1, false)
 	_check(plan["missing"] == ["gold_watch"] and hideout.equip_loadout(1, false) and carried.equipped("secondary") != null
 		and hideout._message_label.text.contains("left out"), "a loot-only item you don't have is left out (%s)" % hideout._message_label.text)
+	# BUY NEW still takes from the stash what the traders don't sell you (0.21.3).
+	Loadouts.stow_all(stash, carried)
+	stash.add("gold_watch", 1)
+	plan = hideout.loadout_plan(1, true)
+	_check(plan["missing"].is_empty() and not plan["bought"].has("gold_watch") and plan["bought"].has("pistol"),
+		"BUY NEW takes a loot-only item from the stash and buys the rest (%s)" % str(plan))
 	# The panel: a row per loadout with EQUIP, the BUY NEW box, and the list is saved.
 	hideout.open_loadouts()
 	var equip := hideout._loadout_rows.find_child("Equip0", true, false) as Button
