@@ -151,7 +151,7 @@ func _build() -> void:
 	button.custom_minimum_size = Vector2(0, 52)
 	button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(button, 30)
-	button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/hideout.tscn"))
+	button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/hideout_world.tscn"))
 	vbox.add_child(button)
 
 

@@ -5,7 +5,23 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
+
+## 0.21.0 (The walkable hideout)
+- **The game now starts in a 3D hideout** (roadmap, owner OK'd the plan): no title screen; press play and you're
+  standing at the war table. It's a rock cave the PMCs dug concrete tunnels off (owner picked the shape from
+  sketches and renders: a cave hub with a command post's tunnels). The trader market is to the west (all five
+  traders in a row), the armory with the stash, wardrobe and workbench is east, the mess hall, bunks and washroom
+  are south, and the shooting range tunnel is north. Lit by strung bulbs and work lamps, with sandbags, green
+  duffel bags, crates, a generator and canteen tables.
+- **Walk up to a station and press E** (or tap the big USE button) to open the hideout menu there: a trader's
+  counter opens that trader. **Tab** (or the MENU button, top right) opens the menu from anywhere, and Tab or BACK TO
+  HIDEOUT closes it. The menu is today's hideout screen, unchanged (stash, loadout, traders, START RAID, online party).
+  Raids end back in the hideout.
+- Not there yet: the wardrobe (characters) and the workbench (crafting) are coming in later updates, and the range
+  opens next. Online (back from a raid with your party) and on phones, the game opens on the menu. Phones get
+  walking with the touch controls.
+- Built by `art_source/scripts/make_hideout.py` (`--shape=mix`; `cave` and `post` were the other options shown).
 
 ## 0.20.25 (Fountain fit & AI fire)
 - **Town square fountain collides like its model** (owner: "has a box hitbox, make it actually fit the model"): the

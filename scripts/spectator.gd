@@ -32,7 +32,7 @@ func _init() -> void:
 	_button.text = "BACK TO HIDEOUT"
 	_button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(_button, 20)
-	_button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/hideout.tscn"))
+	_button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/hideout_world.tscn"))
 	add_child(_button)
 
 

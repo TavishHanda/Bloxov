@@ -12,7 +12,7 @@
   Phases so far: 0.5 guns, 0.6 scavs, 0.7 multiplayer (to 0.7.11), 0.8 HUD & inventory (designer session, closed at
   0.8.16; 0.8.0-0.8.3 were first released as 0.7.12-0.7.15), 0.9 multiplayer raid flow (downed/revive, per-player extract; paused at 0.9.5), 0.10 the Map & Spawn update (Bloxov Battlegrounds, first called Old Bloxov;
   `docs/MAP_PLAN.md`, to 0.10.3), 0.11 **Scorched Earth** (owner's name: code cleanup, then the map turned war zone; closed; map follow-ups kept the 0.11.x numbers), 0.12 **Hot Zone** (Scavs 2.0; closed at 0.12.39), 0.13 **Over the Top** (Movement: vaulting, prone, ladders; to 0.13.9), 0.14 **Spoils of War** (Items: keys, loot by place), then 0.15 the **Guns** update (new guns, attachments, AI loadouts; plan in `docs/GUNS_PLAN.md`), 0.16 Economy, 0.17 World art (released as 0.18.x), 0.19 the **Look** update (lighting looks are files in
-  `assets/looks/`, `Look.current` picks one; `classic.tres` = the look up to 0.18, keep it), 0.20 the **Sound** update (only ADD sounds, today's stay; plan in project files `sound/plan.md`). A Stash update (separate solo/online
+  `assets/looks/`, `Look.current` picks one; `classic.tres` = the look up to 0.18, keep it), 0.20 the **Sound** update (only ADD sounds, today's stay; plan in project files `sound/plan.md`), 0.21 the **Hideout** update (walkable 3D hideout: `scenes/hideout_world.tscn` is the main scene, `scenes/hideout.tscn` is its menu; the cave is built by `art_source/scripts/make_hideout.py`, plan in project files `hideout/plan.md`). A Stash update (separate solo/online
   stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
   built on a branch and released as the next phase.
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read
@@ -37,7 +37,7 @@
   One part only: add `-- section=knife,heal` (pulls in what it depends on). Only push if the tests passed
   (chain the push after the test with `&&`, never after a command that ignores failures).
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
-- Flow: `scenes/hideout.tscn` (main scene: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
+- Flow: `scenes/hideout_world.tscn` (main scene: walk round the hideout; Tab / E at a station opens `scenes/hideout.tscn`, the menu: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
   Persistent data lives in `scripts/profile.gd` (static, saved to `user://profile.json`). The inventory screen
   (`loot_ui.gd`) works with or without a player (hideout passes an `Inventory` and the stash).
 - Multiplayer (0.7.x, `docs/MULTIPLAYER_PLAN.md`): `scripts/net.gd` is the `Net` autoload; scripts use it as

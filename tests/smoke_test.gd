@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "settings",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
@@ -1963,6 +1963,65 @@ func _stash_tools(hideout: Node) -> void:
 	_check(scrolled > 0 and ui._stash_scroll.scroll_vertical == scrolled, "the stash stays scrolled after a rebuild (%d -> %d)" % [scrolled, ui._stash_scroll.scroll_vertical])
 
 
+func _section_hideout_world() -> void:
+	# The walkable hideout (0.21.0): the game starts in it; walk to a station, E opens the hideout menu there.
+	_check(ProjectSettings.get_setting("application/run/main_scene") == "res://scenes/hideout_world.tscn", "the game starts in the walkable hideout")
+	var world: Node3D = (load("res://scenes/hideout_world.tscn") as PackedScene).instantiate()
+	world.position = Vector3(0, -1000, 0)   # (well away from the raid's test map: same physics world)
+	root.add_child(world)
+	for i in 30:
+		await physics_frame
+	var walker: HideoutWalker = world.walker
+	var spawn: Vector3 = (world.get_node("Level/Spawn") as Node3D).global_position
+	_check(walker.is_on_floor() and walker.global_position.distance_to(spawn) < 0.3 and not world.menu_open(), "you start on your feet at the war table, walking (menu closed)")
+	var stations: Array = world.get_node("Level/Stations").get_children()
+	var names: Array[String] = []
+	for marker: Node3D in stations:
+		names.append(String(marker.name))
+	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range"]:
+		_check(names.has(want), "the hideout has a %s station" % want)
+	# Every station stands on open floor: you can stand there without being pushed out or falling through.
+	var bad: Array[String] = []
+	for marker: Node3D in stations:
+		walker.global_position = marker.global_position + Vector3.UP * 0.1
+		walker.velocity = Vector3.ZERO
+		for i in 10:
+			await physics_frame
+		var moved := Vector2(walker.global_position.x - marker.global_position.x, walker.global_position.z - marker.global_position.z).length()
+		if moved > 0.3 or absf(walker.global_position.y - marker.global_position.y) > 0.2:
+			bad.append("%s (moved %.2f m, y %.2f)" % [marker.name, moved, walker.global_position.y - marker.global_position.y])
+	_check(bad.is_empty(), "every station stands on open floor %s" % str(bad))
+	var guns: Node3D = world.get_node("Level/Stations/guns")
+	walker.global_position = guns.global_position + Vector3.UP * 0.1
+	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)
+	for i in 3:
+		await process_frame
+	_check(world.station != null and world.station.name == "guns" and world._use_button.visible, "at the Gunsmith's counter: USE shows (%s)" % (world.station.name if world.station else "nothing"))
+	world.use_station()
+	_check(world.menu_open() and walker.locked and world.menu._trader_tab == "guns", "USE opens the hideout menu on the Gunsmith")
+	world.close_menu()
+	_check(not world.menu_open() and not walker.locked, "closing the menu goes back to walking")
+	var tab := InputEventAction.new()
+	tab.action = "inventory"
+	tab.pressed = true
+	world._unhandled_input(tab)
+	_check(world.menu_open(), "Tab opens the menu")
+	world._unhandled_input(tab)
+	_check(not world.menu_open(), "Tab again closes it")
+	# Walking: forward from the spawn for a second, and the war table stops you.
+	walker.global_position = spawn + Vector3.UP * 0.05
+	walker.rotation = Vector3.ZERO
+	Input.action_press("move_forward")
+	for i in 60:
+		await physics_frame
+	Input.action_release("move_forward")
+	var table: Vector3 = world.get_node("Level/Stations/war_table").global_position
+	_check(walker.global_position.z < spawn.z - 1.0 and walker.global_position.z > table.z + 1.5, "you walk forward and the war table stops you (z %.1f)" % (walker.global_position.z - spawn.z))
+	world.queue_free()
+	for i in 5:
+		await process_frame
+
+
 func _section_hideout() -> void:
 	# Hideout: loadout, buying, selling, free kit.
 	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
@@ -3289,7 +3348,7 @@ func _section_old_bloxov() -> void:
 	# Far view (outdoor step 10): every building model has a far version (tools/far_bake.gd; re-bake after rebuilding one).
 	var no_far := []
 	for file in DirAccess.get_files_at(FarView.MODELS):
-		if file.ends_with(".glb"):
+		if file.ends_with(".glb") and file != "hideout.glb":   # (the hideout isn't on the map: no far view)
 			var far := FarView.FAR + file.get_basename() + ".res"
 			if not FileAccess.file_exists(far):
 				no_far.append(file.get_basename())

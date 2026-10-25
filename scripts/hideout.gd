@@ -420,6 +420,11 @@ func _refresh() -> void:
 	_free_kit_button.text = "TAKE FREE KIT" if Network.main.is_client() else "RAID WITH FREE KIT"
 
 
+## A message under the top bar (the walkable hideout uses it when you use a station).
+func show_message(text: String) -> void:
+	_message(text)
+
+
 func _message(text: String) -> void:
 	if _message_label == null:
 		return

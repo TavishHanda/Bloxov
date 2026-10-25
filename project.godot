@@ -12,8 +12,8 @@ config_version=5
 
 config/name="Bloxov"
 config/description="Blocky voxel extraction shooter."
-config/version="0.20.25"
-run/main_scene="res://scenes/hideout.tscn"
+config/version="0.21.0"
+run/main_scene="res://scenes/hideout_world.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [autoload]
