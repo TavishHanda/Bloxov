@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.21 (Fix: army truck hitboxes)
+- **The green army trucks collide like they look** (owner: "you can walk inside the hood in the green military
+  trucks, gives an unfair advantage, needs to have a proper hitbox"): their old boxes stopped short of the bonnet
+  (on the wrecked ones the whole bonnet and the top of the cab had nothing) and tilted the cab in ways the model
+  never showed. Each truck now has three boxes from its model: the bed (up to its canvas, and the gap behind the
+  cab), the cab, the bonnet. Shots still hit the drawing, so they now stop on the bonnet too and still go through
+  the windows and the gap behind the cab. The scatter round the trucks is unchanged (the swap happens after it);
+  one truck by the station sidings that was only a leftover cab box (the rest cleared off the rails) is gone.
+- Cars and the farm tractor were checked: their boxes already fit their models.
 ## 0.20.20 (Red dot replaces the iron sights)
 - **An optic now replaces the iron sights** (owner: you could see both): with a red dot or a scope on, the gun's iron
   sights (rear notch/aperture, front post, the Mauler's beads) are hidden, and they come back when it's taken off.

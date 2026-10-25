@@ -2320,9 +2320,10 @@ def draw_container(b, piece, rng):
 
 # ------------------------------------------------------------------------------------------------ army trucks
 def draw_truck(b, piece, rng):
-    body = max(piece["boxes"], key=lambda bx: bx["size"][2])
+    body = max(piece["boxes"], key=lambda bx: bx["size"][2])   # (the bed: gen TRUCK_BED_Z back from the truck's middle)
     look = piece["look"]
     f = frame_of(b, body)
+    f.at = f.p(0.0, 0.0, 0.1)
     skin = "dbr_trk_o"
     burnt = look == "d"
     cover = {"b": "canvas", "c": "torn", "d": "none"}[look]

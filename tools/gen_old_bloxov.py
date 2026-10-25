@@ -3295,13 +3295,46 @@ def car_stack(x, z, yaw, n, rng, kind=None):
                  kind=kind)
 
 
+# An army truck's boxes, as art_source/scripts/make_outdoor.py draw_truck draws it (0.20.20, owner: "you can walk
+# inside the hood in the green military trucks ... needs to have a proper hitbox"): (z along the truck from its middle,
+# width, height, length). The bed (and the gap behind the cab), the cab, the bonnet. The bed is the longest: the model
+# is drawn from it (TRUCK_BED_Z back from the truck's middle). Until fit_trucks the trucks keep their old two boxes,
+# so the scatter round them (what's dropped for overlapping) stays as it was.
+TRUCK_BED_Z = -0.1
+TRUCK_PARTS = ((TRUCK_BED_Z, 2.5, 3.0, 6.6), (4.1, 2.4, 2.3, 1.8), (5.3, 2.2, 1.4, 0.6))
+
+
+def truck_boxes(x, z, yaw, old, colours):
+    """`old`: the old (body height, body length, cab offset, cab height) the scatter still sees."""
+    bh, bl, fo, fh = old
+    with group():
+        obox(x, bh / 2, z, 2.5, bh, bl, yaw, colours[0])
+        obox(x + fo * math.sin(math.radians(yaw)), fh / 2, z + fo * math.cos(math.radians(yaw)), 2.4, fh, 1.8, yaw, colours[1])
+    if len(boxes[-1]) > 10 and debris[boxes[-1][10]]["kind"] == "truck":
+        debris[boxes[-1][10]]["truck"] = colours
+
+
+def fit_trucks():
+    """Swaps the trucks' old boxes (the body, round the truck's middle, and the cab) for ones that fit the model."""
+    global boxes, anchors
+    out_b, out_a = [], []
+    for b, a in zip(boxes, anchors):
+        colours = debris[b[10]].get("truck") if len(b) > 10 else None
+        if colours is None:
+            out_b.append(b)
+            out_a.append(a)
+        elif b[5] > 2.0:   # (the body; the cab box just goes)
+            sy, cy = math.sin(math.radians(b[6])), math.cos(math.radians(b[6]))
+            for (pz, w, h, length), colour in zip(TRUCK_PARTS, colours):
+                out_b.append((b[0] + pz * sy, h / 2, b[2] + pz * cy, w, h, length, b[6], 0.0, C[colour]) + b[9:])
+                out_a.append(a)
+    boxes, anchors = out_b, out_a
+
+
 @debris_kind("truck")
 def truck(x, z, yaw):
     """An army truck (checkpoint)."""
-    with group():
-        obox(x, 1.4, z, 2.5, 2.8, 7.0, yaw, "army")
-        fx, fz = x + 4.3 * math.sin(math.radians(yaw)), z + 4.3 * math.cos(math.radians(yaw))
-        obox(fx, 1.1, fz, 2.4, 2.2, 1.8, yaw, "army")
+    truck_boxes(x, z, yaw, (2.8, 7.0, 4.3, 2.2), ("army", "army", "army"))
 
 
 @debris_kind("sandbags")
@@ -3428,10 +3461,8 @@ def wreck(x, z, rng):
 @debris_kind("truck")
 def wrecked_truck(x, z, rng):
     yaw = rng.uniform(0, 180)
-    with group():
-        obox(x, 1.3, z, 2.5, 2.6, 6.5, yaw, "rust")
-        fx, fz = x + 4.0 * math.sin(math.radians(yaw)), z + 4.0 * math.cos(math.radians(yaw))
-        obox(fx, 0.9, fz, 2.4, 1.8, 1.8, yaw + rng.uniform(-10, 10), "army", pitch=rng.uniform(-8, 0))
+    rng.uniform(-10, 10), rng.uniform(-8, 0)   # (the cab's old twist and tilt, which the model never drew: kept so the scatter after it stays put)
+    truck_boxes(x, z, yaw, (2.6, 6.5, 4.0, 1.8), ("rust", "army", "army"))
 
 
 @debris_kind("tanktrap")
@@ -5720,6 +5751,7 @@ def main():
     map_labels()
     check_roads()
     settle_fallen_doors()
+    fit_trucks()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
 
