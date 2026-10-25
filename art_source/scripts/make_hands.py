@@ -195,7 +195,7 @@ def build(look):
 
 # Your character's jacket and gloves on the hands (0.21.11, owner: "your hand model matches the character you're on"):
 # a texture per wardrobe option (scripts/operators.gd, "Top" and "Gloves"), which the game swaps onto the sleeves and
-# gloves of hands.glb. Written to assets/models/hands/outfit/<sleeve|glove>_<option>.png.
+# gloves of hands.glb. Written to assets/models/hands/outfit/<sleeve|glove>-<option>.png (a hyphen: .gitignore drops *_*.png there).
 OUTFIT = {
     "sleeve_green": MATS["sleeve_olive"], "sleeve_tan": _cloth("coyote", "coyote_dark", "coyote_light"),
     "sleeve_multicam": _camo("olive", ("olive_dark", "wood_mid", "olive_light")), "sleeve_black": MATS["sleeve_black"],
@@ -205,7 +205,7 @@ OUTFIT = {
 
 def outfit_textures():
     for name, painter in OUTFIT.items():
-        Texture("hands_" + name, os.path.join("assets", "models", "hands", "outfit", name + ".png"), painter,
+        Texture("hands_" + name, os.path.join("assets", "models", "hands", "outfit", name.replace("_", "-") + ".png"), painter,
                 random.Random("hands_" + name))
 
 

@@ -260,8 +260,8 @@ func _section_ads() -> void:
 			var over := mesh.get_surface_override_material(i) as BaseMaterial3D
 			if over != null and over.albedo_texture != null:
 				sleeve_paths.append(over.albedo_texture.resource_path.get_file())
-	var want_sleeve := "sleeve_%s.png" % Operators.clean(Profile.look)["Top"]
-	var want_glove := "glove_%s.png" % Operators.clean(Profile.look)["Gloves"]
+	var want_sleeve := "sleeve-%s.png" % Operators.clean(Profile.look)["Top"]
+	var want_glove := "glove-%s.png" % Operators.clean(Profile.look)["Gloves"]
 	_check(sleeve_paths.has(want_sleeve) and sleeve_paths.has(want_glove), "the hands wear your character's jacket and gloves %s" % str(sleeve_paths))
 	var ak_data := ItemDB.item("ak")
 	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")

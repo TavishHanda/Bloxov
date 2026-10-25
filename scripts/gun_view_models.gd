@@ -76,7 +76,7 @@ static func add_hands(holder: Node3D, gun: String, path := HANDS) -> void:
 ## picked in the wardrobe): the sleeves and gloves get that option's texture (make_hands.py writes them).
 static func wear(hands: Node3D, look: Dictionary) -> void:
 	var outfit := Operators.clean(look)
-	var swap := {"gun_sleeve_black": "sleeve_" + String(outfit["Top"]), "gun_glove_black": "glove_" + String(outfit["Gloves"])}
+	var swap := {"gun_sleeve_black": "sleeve-" + String(outfit["Top"]), "gun_glove_black": "glove-" + String(outfit["Gloves"])}
 	for mesh_instance: MeshInstance3D in hands.find_children("*", "MeshInstance3D", true, false):
 		if mesh_instance.mesh == null:
 			continue
