@@ -72,6 +72,11 @@ static func add_hands(holder: Node3D, gun: String, path := HANDS) -> void:
 	hands.set_meta("gun", gun)
 
 
+## The dressed sleeve and glove materials, shared and kept for good: one freed while its hands were being freed left
+## the renderer pointing at it (an engine error on the server when a player left, 0.21.16).
+static var _dressed := {}
+
+
 ## Dresses the hands in your character's jacket and gloves (0.21.11, owner: the hands should match the character you
 ## picked in the wardrobe): the sleeves and gloves get that option's texture (make_hands.py writes them).
 static func wear(hands: Node3D, look: Dictionary) -> void:
@@ -87,9 +92,12 @@ static func wear(hands: Node3D, look: Dictionary) -> void:
 			var path := "res://assets/models/hands/outfit/%s.png" % swap[material.resource_name]
 			if not ResourceLoader.exists(path):
 				continue
-			var dressed := material.duplicate() as BaseMaterial3D
-			dressed.albedo_texture = load(path)
-			mesh_instance.set_surface_override_material(i, dressed)
+			var key := "%s|%s" % [material.resource_path + material.resource_name, path]
+			if not _dressed.has(key):
+				var dressed := material.duplicate() as BaseMaterial3D
+				dressed.albedo_texture = load(path)
+				_dressed[key] = dressed
+			mesh_instance.set_surface_override_material(i, _dressed[key])
 
 
 ## Points the forearms of `holder`'s hands from the wrists at the elbows (`frame`: the Gun node). Call after moving it.

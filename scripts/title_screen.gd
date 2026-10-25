@@ -11,7 +11,7 @@ const HIDEOUT := "res://scenes/hideout_world.tscn"
 const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
 ## Seconds for the picture to drift from one side to the other (and as long back).
 const DRIFT_SECONDS := 40.0
-const ACCENT := Color("b03b2e")   # (PLAY and the subtitle)
+const ACCENT := Color("b03b2e")   # (PLAY)
 const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 
 ## What the privacy page says (docs/STORE_RULES.md: the stores want it reachable in the game). Keep it true: update it
@@ -128,7 +128,7 @@ func _build_ui() -> void:
 	_ui.add_child(logo)
 	var subtitle := Label.new()
 	subtitle.text = "NO MAN'S LAND"
-	HudStyle.style_label(subtitle, 30, ACCENT.lightened(0.45))
+	HudStyle.style_label(subtitle, 30, HudStyle.INK)
 	subtitle.add_theme_font_override("font", HudStyle.spaced_font(30))
 	_main_box.add_child(subtitle)
 	var gap2 := Control.new()
