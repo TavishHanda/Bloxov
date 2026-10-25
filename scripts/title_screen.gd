@@ -43,6 +43,8 @@ Pixelify Sans, by the Pixelify Sans Project Authors"""
 
 var _time := 0.0
 var _background: TextureRect
+## Where the picture's window is now (UV, for the test).
+var drift_offset := Vector2.ZERO
 var _ui: CanvasLayer
 var _main_box: VBoxContainer
 var _page: PanelContainer
@@ -65,15 +67,19 @@ func _process(delta: float) -> void:
 	_drift()
 
 
-## The picture fills the screen's height and slides across what's wider than the screen, easing at each end.
+## The picture fills the screen's height and slides across what's wider than the screen, easing at each end. It slides
+## in a shader (0.21.20, owner: the drift was choppy): a Control moved by itself snaps to whole pixels, so at a few
+## pixels a second it stepped.
 func _drift() -> void:
 	var screen := get_viewport().get_visible_rect().size
 	var picture := Vector2(BACKGROUND.get_size())
 	var fit := maxf(screen.y / picture.y, screen.x / picture.x)
-	_background.size = picture * fit
-	var spare := _background.size - screen
+	var window := screen / (picture * fit)   # (the part of the picture on screen, 0-1)
 	var along := 0.5 - 0.5 * cos(_time * PI / DRIFT_SECONDS)
-	_background.position = Vector2(-spare.x * along, -spare.y * 0.5)
+	drift_offset = Vector2((1.0 - window.x) * along, (1.0 - window.y) * 0.5)
+	var material := _background.material as ShaderMaterial
+	material.set_shader_parameter("window", window)
+	material.set_shader_parameter("offset", drift_offset)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -100,6 +106,14 @@ func _build_ui() -> void:
 	_background.texture = BACKGROUND
 	_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_background.stretch_mode = TextureRect.STRETCH_SCALE
+	_background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_background.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	var shader := Shader.new()
+	shader.code = "shader_type canvas_item;\nuniform vec2 window = vec2(1.0);\nuniform vec2 offset = vec2(0.0);\n" \
+		+ "void fragment() { COLOR = texture(TEXTURE, offset + UV * window); }"
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	_background.material = material
 	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_background)
 	var shade := ColorRect.new()   # (darker on the left, under the buttons)
