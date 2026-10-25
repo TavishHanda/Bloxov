@@ -213,9 +213,18 @@ func _section_shoot() -> void:
 
 
 func _section_reload() -> void:
+	var hand := gun.model.get_node("Hands/hound_L") as Node3D
+	var mag := gun.model.get_node("Art/Mag") as Node3D
+	var hand_rest := hand.position
+	var mag_rest := mag.position
 	gun.start_reload()
-	await create_timer(gun.reload_time + 0.3).timeout
+	# Reload animation (0.20.24): the left hand pulls the mag out partway through, both are back after.
+	await create_timer(gun.reload_time * 0.33).timeout
+	_check(hand.position.distance_to(hand_rest) > 0.05 and mag.position.distance_to(mag_rest) > 0.03,
+		"the left hand takes the mag out while reloading")
+	await create_timer(gun.reload_time * 0.67 + 0.3).timeout
 	_check(gun.in_mag == gun.mag_size and not gun.is_reloading, "reload refills the magazine")
+	_check(hand.position.is_equal_approx(hand_rest) and mag.position.is_equal_approx(mag_rest), "the hand and mag are back on the gun")
 
 
 func _section_ads() -> void:

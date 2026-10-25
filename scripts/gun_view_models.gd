@@ -139,3 +139,117 @@ static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_r
 				if end != null:
 					muzzle.position = muzzle_rest + end.position
 	return raise
+
+
+# --- Animations (0.20.24, owner: reload animations and a visual kick per shot) ------------------------
+
+## How hard each model jolts back and up when it fires. Only the model moves: aim, recoil and spread don't change.
+const KICK := {"rifle": 1.0, "pistol": 0.8, "smg": 0.65, "shotgun": 1.7, "sniper": 1.9}
+## Reloads from empty end with the gun being racked (handle, slide or bolt), pulled back this far through the reload.
+const RACK_PULL := 0.82
+## How the whole gun is held while reloading, added to its rest place and turn: brought in and rolled so the magazine
+## (or the shotgun's loading port) faces the left hand.
+const RELOAD_POSE := [Vector3(-0.07, 0.02, 0.03), Vector3(0.12, 0.12, -0.38)]
+const LOAD_ONE_POSE := [Vector3(-0.06, 0.0, 0.04), Vector3(0.1, 0.2, -0.7)]
+
+
+## The kick's offset to the model's place and turn, for kick amount `kick` (a spring, about 1 at its peak) and
+## `side` (-1..1, a little sideways roll, new each shot). Smaller when aimed.
+static func kick_offset(kick: float, side: float, aim: float) -> Array[Vector3]:
+	var k := kick * lerpf(1.0, 0.45, aim)
+	return [Vector3(0.004 * side, 0.006, 0.05) * k, Vector3(0.09, 0.02 * side, 0.05 * side) * k]
+
+
+## Poses `holder`'s left hand (and magazine, or a shell for guns loaded one round at a time) for a reload `t` of the
+## way through (0-1); `t` < 0 puts them back where they hold the gun. `empty`: the reload ends with a rack.
+static func reload_pose(holder: Node3D, t: float, empty: bool, one_at_a_time: bool) -> void:
+	var hands := holder.get_node_or_null("Hands") as Node3D
+	if hands == null:
+		return
+	var hand := hands.get_node(String(hands.get_meta("gun")) + "_L") as Node3D
+	if not hand.has_meta("rest"):
+		hand.set_meta("rest", hand.position)
+	var hand_rest: Vector3 = hand.get_meta("rest")
+	var mag := holder.get_node_or_null("Art/Mag") as Node3D
+	if mag != null and not mag.has_meta("rest"):
+		mag.set_meta("rest", mag.position)
+	var shell := hand.get_node_or_null("Shell") as Node3D
+	if t < 0.0:
+		hand.position = hand_rest
+		if mag != null:
+			mag.position = mag.get_meta("rest")
+		if shell != null:
+			shell.visible = false
+		return
+	var sight := sight_height(holder)
+	if one_at_a_time:
+		# Down to the shell pouch, then the shell goes up into the loading port under the gun.
+		var port := Vector3(0.0, -0.075, 0.03)
+		hand.position = _track([[0.0, hand_rest], [0.22, port + Vector3(-0.05, -0.16, 0.08)],
+			[0.34, port + Vector3(-0.05, -0.16, 0.08)], [0.52, port + Vector3(-0.012, -0.035, 0.04)],
+			[0.62, port + Vector3(0.0, -0.022, -0.015)], [1.0, hand_rest]], t)
+		if shell == null:
+			shell = _shell()
+			hand.add_child(shell)
+		shell.visible = t > 0.26 and t < 0.62
+		return
+	if mag == null:
+		return
+	var mag_rest: Vector3 = mag.get_meta("rest")
+	var pistol := mag_rest.z > 0.0   # the pistol's mag is in its grip, behind the trigger
+	var grab := mag_rest + (Vector3(-0.03, -0.03, 0.0) if pistol else Vector3(-0.035, -0.05, 0.0))
+	var away := grab + Vector3(-0.06, -0.3, 0.14)
+	var keys := [[0.0, hand_rest], [0.14, grab], [0.22, grab], [0.4, away], [0.47, away], [0.58, grab],
+		[0.62, grab + Vector3(0, 0.014, 0)]]
+	if empty:
+		# The rack: the hand goes over the gun, pulls back and lets go.
+		var rack := Vector3(-0.025, sight - 0.01, mag_rest.z - 0.01) if pistol else Vector3(-0.045, sight * 0.35, mag_rest.z + 0.07)
+		keys.append_array([[0.66, grab], [0.76, rack], [RACK_PULL, rack + Vector3(0, 0, 0.06)], [0.86, rack + Vector3(0, 0, 0.05)], [1.0, hand_rest]])
+	else:
+		keys.append([0.8, hand_rest])
+	hand.position = _track(keys, t)
+	mag.position = mag_rest + (hand.position - grab if t > 0.14 and t < 0.58 else Vector3.ZERO)
+
+
+## How much the whole gun bumps during a reload `t` through: the mag seating (0.6) and the rack letting go.
+static func reload_jolt(t: float, empty: bool) -> float:
+	var jolt := _bump(t, 0.6, 0.05)
+	if empty:
+		jolt += _bump(t, 0.85, 0.05)
+	return jolt
+
+
+## A shotgun shell for the left hand to load.
+static func _shell() -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.011
+	mesh.bottom_radius = 0.011
+	mesh.height = 0.06
+	mesh.radial_segments = 8
+	mesh.rings = 1
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.62, 0.12, 0.1)
+	mesh.material = mat
+	var shell := MeshInstance3D.new()
+	shell.name = "Shell"
+	shell.mesh = mesh
+	shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shell.rotation = Vector3(PI / 2.0, 0.0, 0.0)
+	shell.position = Vector3(0.012, 0.02, -0.01)
+	shell.visible = false
+	return shell
+
+
+## `keys` ([[t, place], ...], in order) at `t`, easing in and out between them.
+static func _track(keys: Array, t: float) -> Vector3:
+	if t <= keys[0][0]:
+		return keys[0][1]
+	for i in range(1, keys.size()):
+		if t <= keys[i][0]:
+			return (keys[i - 1][1] as Vector3).lerp(keys[i][1], smoothstep(keys[i - 1][0], keys[i][0], t))
+	return keys[-1][1]
+
+
+## 1 at `at`, falling to 0 `width` either side.
+static func _bump(t: float, at: float, width: float) -> float:
+	return maxf(0.0, 1.0 - absf(t - at) / width)

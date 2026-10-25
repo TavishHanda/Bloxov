@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.24 (First-person animations)
+- **Reload animations** (owner OK'd the plan: reloads plus a per-shot kick): the gun comes up and rolls toward you,
+  and the left hand pulls the magazine out, drops it out of view, brings a fresh one up and slaps it in (in time with
+  the mag-in sound). On the Stinger the mag comes out of the grip. Reloading from empty ends with the hand racking
+  the gun (handle, slide or bolt) with a click. The Mauler's left hand fetches each shell and pushes it into the
+  loading port under the gun.
+- **Kick on every shot:** the gun and hands jolt back and up, roll a little, then spring back. Heaviest on the Lancer
+  and Mauler, lightest on the Wasp; about half as much when aiming. Purely visual: aim, recoil and spread are
+  unchanged. Gun sway and bob are as before.
+- `tools/anim_view.gd` renders the reload and kick as frames for checking.
+
 ## 0.20.23 (Fix: shoot through the gaps you can see)
 - **Shots go under cars** (owner: "can you shoot under the car? ... u cant shoot through the parts u can see through.
   this type of logic should be applied to like every hitbox"): a car's body box now starts where its underside is

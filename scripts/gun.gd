@@ -145,7 +145,15 @@ var _since_shot := 99.0
 var _reload_left := 0.0
 var _mag_in_played := false
 var _flash_left := 0.0
+## The visual kick per shot (0.20.24): a spring the model jolts back on, and this shot's sideways roll.
 var _kick := 0.0
+var _kick_vel := 0.0
+var _kick_side := 0.0
+## Where the model sits before the kick (the kick goes on top, so it isn't smoothed away).
+var _base_pos := Vector3.ZERO
+var _base_rot := Vector3.ZERO
+## This reload started with an empty gun, so it ends with a rack.
+var _reload_empty := false
 var _bob_time := 0.0
 var _needs_trigger_release := true
 ## Counts down after sprinting; can't fire until it hits 0.
@@ -198,6 +206,7 @@ func _apply_weapon(stack: ItemStack) -> void:
 	_raise_left = switch_time
 	for key in _models:
 		(_models[key] as Node3D).visible = false
+		GunViewModels.reload_pose(_models[key], -1.0, false, false)
 	if stack == null:
 		model = null
 		return
@@ -210,7 +219,11 @@ func _apply_weapon(stack: ItemStack) -> void:
 	model.visible = true
 	_dress_model()
 	# Start low so the new gun visibly comes up.
-	model.position = (_model_rests[_model_key] as Vector3) + Vector3(0, -0.25, 0.05)
+	_base_pos = (_model_rests[_model_key] as Vector3) + Vector3(0, -0.25, 0.05)
+	_base_rot = model.rotation
+	_kick = 0.0
+	_kick_vel = 0.0
+	model.position = _base_pos
 
 
 ## Shows the weapon's attachments on its model (0.15.6).
@@ -424,7 +437,8 @@ func shoot_once() -> void:
 	flash.visible = true
 	flash.rotation.z = randf() * TAU
 	flash.scale = Vector3.ONE * flash_size
-	_kick = 1.0
+	_kick_vel += 28.0 * float(GunViewModels.KICK.get(_model_key, 1.0))
+	_kick_side = randf_range(-1.0, 1.0)
 	_bloom = minf(_bloom + bloom_per_shot_deg, max_bloom_deg)
 	if _since_shot > 60.0 / rounds_per_minute + 0.15:
 		_burst_shots = 0
@@ -461,6 +475,7 @@ func start_reload() -> void:
 	if weapon == null or is_reloading or in_mag >= mag_size or reserve <= 0:
 		return
 	is_reloading = true
+	_reload_empty = in_mag == 0 and not load_one
 	_reload_left = reload_time
 	_mag_in_played = false
 	if not load_one:
@@ -475,6 +490,10 @@ func _update_reload(delta: float) -> void:
 		_mag_in_played = true
 		Effects.sound(get_tree().current_scene, GunSounds.SHELL_IN if load_one else MAG_IN_SOUND, 0.0, 0.08,
 			1.0 if load_one else GunSounds.reload_pitch(weapon.id))
+	# Reloading from empty: the rack's click as the hand pulls it back (0.20.24).
+	var rack_at := reload_time * (1.0 - GunViewModels.RACK_PULL)
+	if _reload_empty and _reload_left <= rack_at and _reload_left + delta > rack_at:
+		Effects.sound(get_tree().current_scene, GunSounds.CYCLES["bolt"], -6.0, 0.05, GunSounds.reload_pitch(weapon.id) * 1.1)
 	if _reload_left <= 0.0 and load_one:
 		# One round in; keep going while there's room and rounds to load.
 		in_mag += player.inventory.take(ammo_id, 1)
@@ -527,7 +546,13 @@ func _update_model(delta: float) -> void:
 	_flash_left -= delta
 	if _flash_left <= 0.0:
 		flash.visible = false
-	_kick = move_toward(_kick, 0.0, delta * 9.0)
+	# The kick springs back, overshooting a little (small steps so a slow frame can't blow it up).
+	var left := delta
+	while left > 0.0:
+		var step := minf(left, 1.0 / 120.0)
+		_kick_vel += (-260.0 * _kick - 22.0 * _kick_vel) * step
+		_kick = clampf(_kick + _kick_vel * step, -0.6, 1.8)
+		left -= step
 
 	var speed := player.horizontal_speed() if player.is_on_floor() else 0.0
 	var sprinting := player.is_sprinting()
@@ -537,8 +562,8 @@ func _update_model(delta: float) -> void:
 
 	var ads: Vector3 = _ads_positions[_model_key] - Vector3(0, _optic_raise, 0)
 	var rest: Vector3 = (_model_rests[_model_key] as Vector3).lerp(ads, aim)
-	var target_pos := rest + bob + Vector3(0, 0, 0.07 * _kick)
-	var target_rot := Vector3(0.12 * _kick, 0, 0) + (GunViewModels.REST_TURN.get(_model_key, Vector3.ZERO) as Vector3) * (1.0 - aim)
+	var target_pos := rest + bob
+	var target_rot := (GunViewModels.REST_TURN.get(_model_key, Vector3.ZERO) as Vector3) * (1.0 - aim)
 	if player.hands_busy():
 		# Lowered out of the way while the other hand heals, drinks or holds a grenade (0.14.17).
 		target_pos += Vector3(0.04, -0.32, 0.1)
@@ -557,8 +582,9 @@ func _update_model(delta: float) -> void:
 		target_pos += Vector3(-0.03, -0.07, 0.03 + 0.02 * push)
 		target_rot += Vector3(-0.3, 0.2, 0.9)
 	elif is_reloading:
-		target_pos += Vector3(0, -0.08, 0.04)
-		target_rot += Vector3(-0.5, 0.3, 0.4)
+		var jolt := GunViewModels.reload_jolt(1.0 - _reload_left / maxf(reload_time, 0.01), _reload_empty)
+		target_pos += Vector3(0, -0.08 + 0.012 * jolt, 0.04)
+		target_rot += Vector3(-0.5 + 0.06 * jolt, 0.3, 0.4)
 	elif cycle != "" and _since_shot < 60.0 / rounds_per_minute:
 		# Working the pump or bolt between shots (0.15.6), with a click halfway.
 		var t := _since_shot / (60.0 / rounds_per_minute)
@@ -574,8 +600,14 @@ func _update_model(delta: float) -> void:
 	# Raising the gun after a sprint is a bit slower than other moves.
 	# While aiming the gun follows the aim amount closely (that's already smoothed).
 	var weight := minf(delta * (10.0 if _raise_left > 0.0 else 18.0 + 30.0 * aim), 1.0)
-	model.position = model.position.lerp(target_pos, weight)
-	model.rotation = model.rotation.lerp(target_rot, weight)
+	_base_pos = _base_pos.lerp(target_pos, weight)
+	_base_rot = _base_rot.lerp(target_rot, weight)
+	var kick := GunViewModels.kick_offset(_kick, _kick_side, aim)
+	model.position = _base_pos + kick[0]
+	model.rotation = _base_rot + kick[1]
+	# Reload animation (0.20.24): the left hand swaps the mag or loads shells; back on the gun otherwise.
+	var reload_t := 1.0 - _reload_left / maxf(reload_time, 0.01) if is_reloading and not player.hands_busy() else -1.0
+	GunViewModels.reload_pose(model, reload_t, _reload_empty, load_one)
 	GunViewModels.pose_arms(model, self)
 	# Looking through a scope, the gun is out of the way (the HUD draws the scope's view).
 	model.visible = reticle() != "scope"
