@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.15 (Front line)
+- **New main screen look** (owner picked A of four options): the town of Bloxov Battlegrounds at dusk, smoke rising,
+  drifting slowly from side to side behind the menu, with a military red PLAY button. It's a picture, not a 3D
+  scene, so the main screen is lighter on phones. Red is for the main screen only: in the game yellow still means
+  "active" and red means danger.
+
 ## 0.21.14 (Deploy fix)
 - 0.21.11 to 0.21.13 never reached the website: the hands' outfit pictures had names the repository leaves out, so
   the online build's test failed. Renamed, and the site gets the matching hands, darts night and the main screen.

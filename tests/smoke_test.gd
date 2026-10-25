@@ -2079,6 +2079,14 @@ func _section_hideout_world() -> void:
 		if node is Button:
 			title_buttons.append(String((node as Button).text))
 	_check(title_buttons.slice(0, 4) == ["PLAY", "OPTIONS", "PRIVACY", "CREDITS"], "main screen: PLAY, OPTIONS, PRIVACY, CREDITS %s" % str(title_buttons))
+	# 0.21.15: the dusk town behind it fills the screen and drifts.
+	var title_bg := title._background
+	var screen := title.get_viewport().get_visible_rect().size
+	var bg_from := title_bg.position
+	title._time = TitleScreen.DRIFT_SECONDS * 0.5
+	title._drift()
+	_check(title_bg.size.x >= screen.x - 1 and title_bg.size.y >= screen.y - 1 and title_bg.position.x < bg_from.x - 10
+		and title_bg.position.x + title_bg.size.x >= screen.x - 1, "main screen: the picture covers the screen and drifts")
 	title._show_page("options")
 	await process_frame
 	_check(title.page_open() == "options" and title._page_body.get_child_count() >= 7, "OPTIONS shows the settings")

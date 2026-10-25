@@ -26,6 +26,8 @@ __pycache__/
 !assets/textures/ground/*.png.import
 !assets/textures/water/*.png.import
 !assets/textures/trees/*.png.import
+# The main screen picture: lossy, or the web download carries it uncompressed (~7 MB).
+!assets/textures/title_dusk.jpg.import
 # Gun look options for the owner (make_gun.py all), not used by the game
 assets/models/guns/*_[abc].glb
 assets/models/hands/hands_[abc].glb

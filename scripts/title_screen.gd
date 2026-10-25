@@ -2,16 +2,17 @@ class_name TitleScreen
 extends Node3D
 ## The main screen (0.21.13, owner: "a main screen when you open the game... play/options/privacy... then when you
 ## press PLAY you go to the hideout"): the game's name over a slow look round the hideout, and PLAY, OPTIONS,
-## PRIVACY, CREDITS (QUIT on a computer build). Room is left under PLAY for signing in later (guest, email, Steam).
+## PRIVACY, CREDITS (QUIT on a computer build). 0.21.15 (owner picked look A, "Front line"): the town at dusk behind it,
+## drifting slowly side to side (a still picture, tools/render_title_bg.gd, so phones don't draw a 3D scene here), with a
+## military red PLAY. Red is for this screen only: in the game yellow stays the "active" colour and red means danger. Room is left under PLAY for signing in later (guest, email, Steam).
 ## The hideout loads in the background while you're here, so PLAY is quick.
 
-const LEVEL := preload("res://scenes/hideout/hideout_level.tscn")
 const HIDEOUT := "res://scenes/hideout_world.tscn"
-## The slow camera: round the war table at this radius and height, looking at the middle of the hall.
-const ORBIT_CENTER := Vector3(0, 1.4, -1.5)
-const ORBIT_RADIUS := 8.5
-const ORBIT_HEIGHT := 3.2
-const ORBIT_SPEED := 0.035   # radians a second
+const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
+## Seconds for the picture to drift from one side to the other (and as long back).
+const DRIFT_SECONDS := 40.0
+const ACCENT := Color("b03b2e")   # (PLAY and the subtitle)
+const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 
 ## What the privacy page says (docs/STORE_RULES.md: the stores want it reachable in the game). Keep it true: update it
 ## whenever what the game collects changes.
@@ -40,8 +41,8 @@ Jersey, by the Soft Type Project Authors (Bloxov Jersey is a modified version)
 Silkscreen, by the Silkscreen Project Authors
 Pixelify Sans, by the Pixelify Sans Project Authors"""
 
-var camera: Camera3D
-var _angle := 0.6
+var _time := 0.0
+var _background: TextureRect
 var _ui: CanvasLayer
 var _main_box: VBoxContainer
 var _page: PanelContainer
@@ -54,36 +55,25 @@ func _ready() -> void:
 	get_tree().paused = false
 	GameSettings.load_settings()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	var level: Node3D = LEVEL.instantiate()
-	level.name = "Level"
-	add_child(level)
-	var env := Environment.new()   # (the hideout's own light, HideoutWorld._ready)
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color.BLACK
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(1.0, 0.86, 0.68)
-	env.ambient_light_energy = 0.9
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	var world_env := WorldEnvironment.new()
-	world_env.environment = env
-	add_child(world_env)
-	camera = Camera3D.new()
-	camera.fov = 60.0
-	add_child(camera)
-	camera.current = true
-	_move_camera()
 	_build_ui()
+	_drift()
 	ResourceLoader.load_threaded_request(HIDEOUT)
 
 
 func _process(delta: float) -> void:
-	_angle += ORBIT_SPEED * delta
-	_move_camera()
+	_time += delta
+	_drift()
 
 
-func _move_camera() -> void:
-	var at := ORBIT_CENTER + Vector3(sin(_angle) * ORBIT_RADIUS, ORBIT_HEIGHT - ORBIT_CENTER.y, cos(_angle) * ORBIT_RADIUS)
-	camera.look_at_from_position(at, ORBIT_CENTER)
+## The picture fills the screen's height and slides across what's wider than the screen, easing at each end.
+func _drift() -> void:
+	var screen := get_viewport().get_visible_rect().size
+	var picture := Vector2(BACKGROUND.get_size())
+	var fit := maxf(screen.y / picture.y, screen.x / picture.x)
+	_background.size = picture * fit
+	var spare := _background.size - screen
+	var along := 0.5 - 0.5 * cos(_time * PI / DRIFT_SECONDS)
+	_background.position = Vector2(-spare.x * along, -spare.y * 0.5)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -105,6 +95,13 @@ func play() -> void:
 func _build_ui() -> void:
 	_ui = CanvasLayer.new()
 	add_child(_ui)
+	_background = TextureRect.new()
+	_background.name = "Background"
+	_background.texture = BACKGROUND
+	_background.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_background.stretch_mode = TextureRect.STRETCH_SCALE
+	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ui.add_child(_background)
 	var shade := ColorRect.new()   # (darker on the left, under the buttons)
 	shade.set_anchors_preset(Control.PRESET_LEFT_WIDE)
 	shade.offset_right = 460
@@ -131,13 +128,13 @@ func _build_ui() -> void:
 	_ui.add_child(logo)
 	var subtitle := Label.new()
 	subtitle.text = "NO MAN'S LAND"
-	HudStyle.style_label(subtitle, 30, HudStyle.BRASS)
+	HudStyle.style_label(subtitle, 30, ACCENT.lightened(0.45))
 	subtitle.add_theme_font_override("font", HudStyle.spaced_font(30))
 	_main_box.add_child(subtitle)
 	var gap2 := Control.new()
 	gap2.custom_minimum_size.y = 24
 	_main_box.add_child(gap2)
-	_play_button = _button("PLAY", play, 50, HudStyle.HAZARD)
+	_play_button = _button("PLAY", play, 50, ACCENT)
 	_play_button.custom_minimum_size = Vector2(340, 84)
 	# (Signing in, later: guest / email / Steam buttons go here, under PLAY.)
 	_button("OPTIONS", func() -> void: _show_page("options"))
@@ -196,17 +193,14 @@ func _build_ui() -> void:
 	scroll.add_child(_page_body)
 
 
-func _button(text: String, on_press: Callable, size := 30, color := Color(0, 0, 0, 0)) -> Button:
+func _button(text: String, on_press: Callable, size := 30, color := BUTTON_FACE) -> Button:
 	var button := Button.new()
 	button.name = text.capitalize().replace(" ", "")
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(340, 60)   # (big enough to tap)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	if color.a > 0.0:
-		LootUI.style_button(button, size, color)
-	else:
-		LootUI.style_button(button, size)
+	LootUI.style_button(button, size, color)
 	button.pressed.connect(on_press)
 	_main_box.add_child(button)
 	return button
