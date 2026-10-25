@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.23 (Fix: shoot through the gaps you can see)
+- **Shots go under cars** (owner: "can you shoot under the car? ... u cant shoot through the parts u can see through.
+  this type of logic should be applied to like every hitbox"): a car's body box now starts where its underside is
+  drawn; the gap under it only stops people, and its wheels still stop shots. Burnt cars sit lower, so their gap is
+  smaller. Added late in the generator, so nothing else on the map moved.
+- **About 55 more kinds of furniture** let shots through their gaps, like tables already did: chairs, benches,
+  stools, bunks, desks, sinks, toilets, urinals, stands, open shelves, headstones, the globe, the rocking horse...
+  (found by an audit that fires rays through every prop's box and checks them against its drawing).
+- **Outdoors:** lamp posts, oil drums, crates, the kiosk, the hut, rail signals and camo nets now stop shots only
+  where they're drawn (past a thin pole, round a drum's edge).
+
 ## 0.20.22 (Low and Medium no longer slower than High)
 - **Low and Medium graphics ran worse than High in the browser** (owner: "all my friends are getting more lag on
   medium/low compared to high"). Their lower 3D render scale (70% / 85%) made Godot copy the depth buffer at a

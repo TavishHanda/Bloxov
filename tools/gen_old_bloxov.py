@@ -2926,7 +2926,39 @@ CAR_PAINTS = {"a": ("wine", "sb_cream", "police_navy"), "b": ("teal", "yellow", 
 # height (y from, to). As the models draw them (art_source/scripts/make_building.py car_parts).
 CAR_GLASS = {"a": ((-0.75, 0.12, 0.95), (-0.6, 0.85)), "b": ((-0.45, 0.45, 1.68), (-0.35, 1.8)),
              "c": ((-0.85, 0.1, 1.15, 2.1), (-0.7, 2.2)), "d": ((-2.1, -1.2, -0.2, 0.9, 2.0), (1.29, 1.77))}
-cars = []         # {"glb", "anchor", "roll"}: placed by write_scene where its body box ended up
+# The gap under each car (0.20.23, owner: "can you shoot under the car? ... u cant shoot through the parts u can see
+# through"): its height, and the wheels (radius, z of the axles) that still stop shots there. As car_parts draws them.
+CAR_UNDER = {"a": (0.28, 0.32, (-1.3, 1.3)), "b": (0.28, 0.32, (-1.15, 1.2)), "c": (0.28, 0.32, (-1.4, 1.45)),
+             "d": (0.26, 0.34, (-1.25, 1.35))}
+cars = []         # {"glb", "anchor", "roll", "under"}: placed by write_scene where its body box ended up
+
+
+def fit_car_unders():
+    """Opens the gap under each drawn car (CAR_UNDER) to shots: its body box (the group's first) splits into the body
+    and a people-only box under it, plus its wheels. Done late, like fit_trucks, so the scatter stays as it was."""
+    global boxes, anchors
+    under = {c["anchor"]: c["under"] for c in cars if c["under"]}
+    out_b, out_a = [], []
+    for b, a in zip(boxes, anchors):
+        if a not in under:
+            out_b.append(b)
+            out_a.append(a)
+            continue
+        (kind, sink), w, length = under.pop(a), b[3], b[5]
+        yaw = b[6]
+        if yaw == 0.0 and w > length:   # (an unturned box turned a quarter: its sides swapped)
+            yaw, w, length = 90.0, length, w
+        gap, r, axles = CAR_UNDER[kind]
+        bottom, top = b[1] - b[4] / 2, b[1] + b[4] / 2
+        cut = bottom + sink / 2 + gap - sink   # (the body's bottom is half the sink under the car's ground)
+        c, s = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        parts = [(0.0, 0.0, (cut + top) / 2, w, top - cut, length, b[9]), (0.0, 0.0, (bottom + cut) / 2, w, cut - bottom, length, 4)]
+        parts += [(sx * (w / 2 - 0.11), az, bottom + sink / 2 + r - sink / 2, 0.22, 2 * r - sink, 2 * r, b[9])
+                  for az in axles for sx in (-1, 1)]
+        for px, pz, py, sx_, sy_, sz_, flag in parts:
+            out_b.append((b[0] + px * c + pz * s, py, b[2] - px * s + pz * c, sx_, sy_, sz_, yaw) + b[7:9] + (flag,) + b[10:])
+            out_a.append(a)
+    boxes, anchors = out_b, out_a
 
 
 def car_glb(name):
@@ -2960,7 +2992,7 @@ def car(x, z, yaw, colour="car_a", roll=0.0):
                  (0.0, (y1 + h) / 2 - sink, 0.0, w, h - y1, length, 2)]
         parts += [(0.0, (y0 + y1) / 2 - sink, pz, w, y1 - y0, 0.14, 2) for pz in pillars]
     with group():
-        cars.append({"glb": glb, "anchor": _anchor[-1], "roll": roll, "at": (x, z)})
+        cars.append({"glb": glb, "anchor": _anchor[-1], "roll": roll, "at": (x, z), "under": (kind, sink) if windows else None})
         for px, py, pz, sx, sy, sz, flag in parts:
             if roll:     # (on its side, the car's left down: its height runs along -x; the body's middle at x, z)
                 px, py, sx, sy = (h - sink) / 2 - py, w / 2 + px, sy, sx
@@ -5752,6 +5784,7 @@ def main():
     check_roads()
     settle_fallen_doors()
     fit_trucks()
+    fit_car_unders()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
 

@@ -22252,6 +22252,18 @@ SHOT_KINDS = {
     "shoe_bench", "shoe_table", "slip_desk", "st_bench", "st_cart", "st_check_table", "st_master_desk",
     "st_ticket_rack", "study_desk", "table", "tc_sawhorse", "tc_table", "tc_workbench", "teacher_desk", "teen_desk",
     "th_cot", "trophy_case", "vault_table"}
+# (0.20.23, owner: "u cant shoot through the parts u can see through. this type of logic should be applied to like
+# every hitbox"): the rest of the props whose box is a quarter or more open air (an audit: rays through each box
+# against its drawing), chairs, benches, stands, sinks, toilets, headstones...
+SHOT_KINDS |= {
+    "barn_bench", "boot_rack", "cabin_bunk", "cabin_gear", "cabin_kitchen", "cabin_loft_stool", "cabin_radio_shelf",
+    "cabin_shelf", "cabin_washstand", "clock_works", "dn_booth", "dn_pie_case", "dp_desk", "fc_waders", "feed_sacks",
+    "fuel_drums", "generator", "globe", "gr_bench", "gs_bench", "gs_canopy_down", "guitar_stand", "headstone",
+    "jo_desk", "leaflet_rack", "lectern", "motel_aid_table", "news_box", "pantry_shelf", "plant", "porch_chair",
+    "ringers_bench", "rocking_chair", "rocking_horse", "sb_batteries", "sb_bench", "sb_desk", "sb_lamps", "shed_bench",
+    "shoebox_stack", "spinner", "st_column_stub", "st_parcel_shelf", "st_scale", "st_stove", "tc_bed",
+    "tc_pantry_shelf", "tc_woodshed", "uniform_stand", "vanity", "vestry_desk", "wc_sink", "wc_sinks", "wc_toilet",
+    "wc_urinal"}
 SHOTS = []
 
 
