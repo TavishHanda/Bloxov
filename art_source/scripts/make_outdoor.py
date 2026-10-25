@@ -1025,6 +1025,7 @@ def draw_plaza(b, piece, rng):
 
 def draw_fountain(b, piece, rng):
     basin, column = piece["boxes"][:2]
+    f0 = len(b.faces)
     f = frame_of(b, basin)
     r, H, t = basin["size"][0] / 2, basin["size"][1], 0.42
     side = 2 * r * math.tan(math.pi / 8)
@@ -1042,6 +1043,7 @@ def draw_fountain(b, piece, rng):
     cyl(b, f.p(0, H0 + 1.2, 0), 0.22, 0.6, "sandstone", sides=8)
     cyl(b, f.p(0, H0 + 1.6, 0), 0.4, 0.12, "sandstone", sides=8)
     cyl(b, f.p(0, H0 + 1.75, 0), 0.12, 0.25, "sandstone", sides=6)
+    shape(b, f0, [0, 1])   # (0.20.25, owner: "has a box hitbox, make it actually fit the model": rim, water, tiers)
     if piece["look"] == "d":   # shelled: a chunk out of the rim, rubble in the water
         bits(b, f.p(r - 0.4, 0, 0.5), 0.5, 5, rng, ("stone_rough", "rubble_core"))
     for _ in range(4):        # litter floating in it

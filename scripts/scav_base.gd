@@ -98,10 +98,11 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## Chance each bullet hits: accuracy_near up close, accuracy_far at accuracy_range, then down to accuracy_long at
 ## shoot_range (0.12.8, owner: "at far their accuracy should be even worse ... a gradient, as they get closer it's better").
 @export var accuracy_near := 0.6
-@export var accuracy_far := 0.3
+@export var accuracy_far := 0.27
 @export var accuracy_range := 28.0
-## (0.12.9, owner: too low; scavs bottom out at about 10%. 0.13.1, owner: far range buffed to 30% / 18%.)
-@export var accuracy_long := 0.18
+## (0.12.9, owner: too low; scavs bottom out at about 10%. 0.13.1, owner: far range buffed to 30% / 18%. 0.20.25, owner:
+## "nerf the scav accuracy from far ... by like 10%, close is fine": 27% / 16%.)
+@export var accuracy_long := 0.16
 ## Accuracy lost when the player is moving fast (sprinting).
 @export var moving_target_penalty := 0.25
 ## Point blank (closer than this, meters): shots almost always hit.

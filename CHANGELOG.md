@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.25 (Fountain fit & AI fire)
+- **Town square fountain collides like its model** (owner: "has a box hitbox, make it actually fit the model"): the
+  6 m square block is gone. You and bullets now meet the octagonal rim, the water inside it, the pedestal and the
+  bowl, so the open corners are open and you can step down into the basin (make_outdoor `draw_fountain` -> shape).
+- **Scavs a little worse at range** (owner: "nerf the scav accuracy from far ... by like 10%, close is fine"): hit
+  chance 30% -> 27% at 28 m and 18% -> 16% at 70 m; 60% up close unchanged. Raiders, Bon and snipers unchanged.
+- **Raiders pause less between bursts** (owner: "shorten the raiders pause ... like bon"): 0.5-1.0 s -> 0.5-0.75 s.
+  Shot speed and burst length unchanged.
+
 ## 0.20.24 (First-person animations)
 - **Reload animations** (owner OK'd the plan: reloads plus a per-shot kick): the gun comes up and rolls toward you,
   and the left hand pulls the magazine out, drops it out of view, brings a fresh one up and slaps it in (in time with
