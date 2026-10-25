@@ -2092,6 +2092,31 @@ func _section_hideout_world() -> void:
 	_check(world.station != null and world.station.name == "guns" and world._use_button.visible, "at the Gunsmith's counter: USE shows (%s)" % (world.station.name if world.station else "nothing"))
 	world.use_station()
 	_check(world.menu_open() and walker.locked and world.menu._trader_tab == "guns", "USE opens the hideout menu on the Gunsmith")
+	# The trader's own screen (0.21.4, owner): stock as cards, buy and sell there, STASH & GEAR goes to the stash.
+	var shop: TraderScreen = world.menu.trader_screen
+	await process_frame
+	_check(shop.visible and shop.trader == "guns" and shop._name.text == "GUNSMITH" and shop._cards.get_child_count() >= 8,
+		"walking up to a trader opens their own screen, stock as cards (%d)" % shop._cards.get_child_count())
+	var money_before := Profile.money
+	Profile.money = 1000000
+	var stash_count: int = Profile.stash.stacks.size()
+	((shop._cards.get_child(0) as Control).get_child(0).get_child(2) as Button).pressed.emit()   # (the Stinger)
+	await process_frame
+	var bought := Profile.stash.stacks.size() == stash_count + 1 and shop.sellable().any(func(pair: Array) -> bool: return pair[1].id == "pistol")
+	var sell_button: Button = null
+	for row in shop._sell_rows.get_children():
+		if row is HBoxContainer and ((row as HBoxContainer).get_child(1) as Label).text.begins_with(ItemDB.display_name("pistol")):
+			sell_button = row.get_child(2) as Button
+	var found_sell := sell_button != null
+	if found_sell:
+		sell_button.pressed.emit()
+	await process_frame
+	_check(bought and found_sell and Profile.stash.stacks.size() == stash_count and Profile.money < 1000000,
+		"buy a card on the trader screen, then sell it back from the SELL list (%s)" % [[bought, found_sell, Profile.stash.stacks.size() - stash_count]])
+	Profile.money = money_before
+	(shop.find_child("StashButton", true, false) as Button).pressed.emit()
+	_check(not shop.visible and world.menu_open(), "STASH & GEAR goes to the stash screen")
+	_check(world.menu._top_row.get_child(0).name == "BackToHideout", "the way back to the hideout is first on the top bar")
 	world.close_menu()
 	_check(not world.menu_open() and not walker.locked, "closing the menu goes back to walking")
 	var tab := InputEventAction.new()

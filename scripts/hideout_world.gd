@@ -1,7 +1,7 @@
 extends Node3D
 ## The walkable hideout (0.21.0): where the game starts and where you come back to after a raid. A cave the PMCs
 ## dug tunnels off (art_source/scripts/make_hideout.py builds it): walk up to a trader's counter, the stash, the
-## wardrobe or the war table and press E (or tap USE) to open the hideout menu there. Tab or the MENU button opens
+## wardrobe or the war table and press the use key, F (or tap USE) to open the hideout menu there. Tab or the MENU button opens
 ## the menu (today's hideout screen: stash, loadout, traders, START RAID, online party) from anywhere.
 ## The shooting range (0.21.1): at its bench, pick your own loadout or borrow any gun the Gunsmith sells you, and
 ## shoot the targets at 10, 25, 50 and 100 m. Ammo is free; nothing you do there is saved.
@@ -70,17 +70,7 @@ func _ready() -> void:
 	add_child(_menu_layer)
 	menu = MENU.instantiate()
 	_menu_layer.add_child(menu)
-	var back := Button.new()
-	back.name = "BackToHideout"
-	back.text = "BACK TO HIDEOUT  (Tab)"
-	back.focus_mode = Control.FOCUS_NONE
-	back.custom_minimum_size = Vector2(260, 52)
-	back.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	back.position = Vector2(12, -64)
-	back.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	LootUI.style_button(back)
-	back.pressed.connect(close_menu)
-	_menu_layer.add_child(back)
+	var back: Button = menu.add_back_button("< HIDEOUT  (Tab)", "Back to walking round the hideout", close_menu)
 	back.visible = not GameSettings.is_phone()
 	# Online (back from a raid with your party) or on a phone: start on the menu.
 	if Network.main.is_client() or GameSettings.is_phone():
@@ -151,7 +141,7 @@ func _process(_delta: float) -> void:
 	_use_button.visible = station != null
 	_prompt.visible = station != null
 	if station != null:
-		_prompt.text = "E   " + station_name(station.name)
+		_prompt.text = use_key() + "   " + station_name(station.name)
 	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone()
 
 
@@ -203,7 +193,9 @@ func open_menu(at := "") -> void:
 	walker.locked = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if Traders.LIST.has(at):
-		menu.open_trader(at)
+		menu.open_trader_screen(at)   # (walking up to a trader: their own screen, 0.21.4)
+	else:
+		menu.close_trader_screen()
 	if STATION_NOTES.has(at):
 		menu.show_message(STATION_NOTES[at])
 
@@ -309,7 +301,7 @@ func _build_range(level: Node3D) -> void:
 	_range_hud.visible = false
 	add_child(_range_hud)
 	var info := Label.new()
-	info.text = "SHOOTING RANGE    E: change gun    Tab: leave"
+	info.text = "SHOOTING RANGE    %s: change gun    Tab: leave" % use_key()
 	info.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.position = Vector2(-300, 14)
@@ -457,3 +449,12 @@ func _on_hit_confirmed(_killed: bool, headshot: bool) -> void:
 
 func _show_last_hit() -> void:
 	_last_hit.text = "%d damage%s at %d m" % [_hit_damage, " (HEAD)" if _hit_head else "", roundi(_hit_distance)]
+
+
+## The key the use (interact) action is on, for the prompts: F today (E leans in a raid; 0.21.4, owner).
+static func use_key() -> String:
+	for event in InputMap.action_get_events("interact"):
+		if event is InputEventKey:
+			var key := event as InputEventKey
+			return OS.get_keycode_string(key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode)
+	return "F"

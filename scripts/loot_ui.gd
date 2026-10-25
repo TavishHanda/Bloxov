@@ -1031,15 +1031,23 @@ func _say(text: String) -> void:
 
 
 func show_info(stack: ItemStack) -> void:
-	var data := ItemDB.item(stack.id)
-	var rarity: String = data["rarity"]
-	var cells := ItemDB.size(stack.id)
 	_info_label.text = stack.title() + ("  x%d" % stack.count if stack.count > 1 else "")
 	if stack.free:
 		_info_label.text += "  (free kit: sells for $0)"
 	elif stack.found and Quests.wants(stack.id):
 		_info_label.text += "  (found in raid)"
 	_info_label.add_theme_color_override("font_color", ItemDB.color(stack.id))
+	_info_detail.text = details(stack, price_handler.call(stack) if price_handler.is_valid() else -1)
+	_info_desc.text = ItemDB.description(stack.id)
+	_stat_bars.show_gun(stack)
+
+
+## One line about an item: rarity, size, what it does, what it's worth (and sells for, if `sells_for` >= 0).
+## Shared with the trader screen (0.21.4).
+static func details(stack: ItemStack, sells_for := -1) -> String:
+	var data := ItemDB.item(stack.id)
+	var rarity: String = data["rarity"]
+	var cells := ItemDB.size(stack.id)
 	var parts: PackedStringArray = [rarity.capitalize(), "%d×%d" % [cells.x, cells.y]]
 	match ItemDB.kind(stack.id):
 		"heal":
@@ -1069,15 +1077,13 @@ func show_info(stack: ItemStack) -> void:
 		"backpack":
 			parts.append("%d×%d storage" % [int(data["grid"][0]), int(data["grid"][1])])
 	parts.append("Worth %s" % ItemDB.money(stack.value()) + (" (%s each)" % ItemDB.money(ItemDB.value(stack.id)) if stack.count > 1 else ""))
-	if price_handler.is_valid():
-		parts.append("Sells for %s" % ItemDB.money(price_handler.call(stack)))
-	_info_detail.text = "  ·  ".join(parts)
-	_info_desc.text = ItemDB.description(stack.id)
-	_stat_bars.show_gun(stack)
+	if sells_for >= 0:
+		parts.append("Sells for %s" % ItemDB.money(sells_for))
+	return "  ·  ".join(parts)
 
 
 ## Names of the guns an attachment goes on.
-func _guns_it_fits(part_id: String) -> PackedStringArray:
+static func _guns_it_fits(part_id: String) -> PackedStringArray:
 	var names: PackedStringArray = []
 	for id: String in ItemDB.ITEMS:
 		if ItemDB.kind(id) == "weapon" and ItemDB.attachment_slot_for(id, part_id) != "":

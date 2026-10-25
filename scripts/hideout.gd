@@ -12,6 +12,8 @@ var inventory: Inventory
 var screen: LootUI
 
 var _money_label: Label
+var _top_row: HBoxContainer
+var trader_screen: TraderScreen
 var _version_label: Label
 ## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
 var _loading: Control
@@ -80,6 +82,11 @@ func _ready() -> void:
 	screen.set_top_margin(56)
 	screen.open_stash(Profile.stash)
 	screen.add_column(_build_trader())
+	# A trader's own screen (0.21.4, owner): what you get walking up to one in the 3D hideout. The trader column
+	# beside the stash stays too.
+	trader_screen = TraderScreen.new(self)
+	trader_screen.visible = false
+	add_child(trader_screen)
 
 	_build_top_bar()
 	_build_online_panel()
@@ -722,6 +729,21 @@ func _message(text: String) -> void:
 	_message_tween.tween_property(_message_label, "modulate:a", 0.0, 0.6)
 
 
+## A button at the start of the top bar, before the title (0.21.4: the walkable hideout's way back, owner: the old
+## one in the bottom corner covered the equipment).
+func add_back_button(text: String, tip: String, on_press: Callable) -> Button:
+	var back := Button.new()
+	back.name = "BackToHideout"
+	back.text = text
+	back.tooltip_text = tip
+	back.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(back, 24)
+	back.pressed.connect(on_press)
+	_top_row.add_child(back)
+	_top_row.move_child(back, 0)
+	return back
+
+
 func _build_top_bar() -> void:
 	# Look (0.8.11, "Ammo Can"): a gunmetal strip, the pixel font, money on a brass tag, a hazard-yellow START RAID.
 	var bar := PanelContainer.new()
@@ -736,6 +758,7 @@ func _build_top_bar() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 18)
 	margin.add_child(row)
+	_top_row = row
 
 	var title := Label.new()
 	title.text = "BLOXOV"
@@ -767,10 +790,12 @@ func _build_top_bar() -> void:
 	_stats_label = Label.new()
 	HudStyle.style_label(_stats_label, 20, HudStyle.INK_DIM)
 	_stats_label.add_theme_font_override("font", HudStyle.spaced_font(20))
+	# (it takes the free space and trims itself when the bar gets full, so the buttons never get pushed off)
+	_stats_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_stats_label.clip_text = true
+	_stats_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_stats_label.custom_minimum_size.x = 40
 	row.add_child(_stats_label)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spacer)
 	# Messages are written on a strip of masking tape stuck under the bar (sized to the text, centered; see _message).
 	_message_label = Label.new()
 	_message_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
@@ -1109,19 +1134,21 @@ func _lock_trader_width(panel: Control) -> void:
 
 ## The trader's quests for their next level (0.16.13), above the stock: name, what to do, progress, and a HAND IN
 ## button for hand-in quests.
-func _fill_quests(trader: String, lv: int) -> void:
+func _fill_quests(trader: String, lv: int, into: VBoxContainer = null) -> void:
+	if into == null:
+		into = _trader_rows
 	var quests := Quests.for_level(trader, lv + 1)
 	if quests.is_empty():
 		return
 	var header := Label.new()
 	header.text = "QUESTS FOR LEVEL %d" % (lv + 1)
 	HudStyle.style_label(header, 16, HudStyle.BRASS)
-	_trader_rows.add_child(header)
+	into.add_child(header)
 	for id in quests:
 		var quest: Dictionary = Quests.LIST[id]
 		var done := Profile.quests_done.has(id)
 		var row := HBoxContainer.new()
-		_trader_rows.add_child(row)
+		into.add_child(row)
 		var text := VBoxContainer.new()
 		text.add_theme_constant_override("separation", 0)
 		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1168,10 +1195,10 @@ func _fill_quests(trader: String, lv: int) -> void:
 		level_button.disabled = not Profile.can_level_up(trader)
 		LootUI.style_button(level_button, 20, HudStyle.HAZARD if not level_button.disabled else HudStyle.FACE)
 		level_button.pressed.connect(level_up.bind(trader))
-		_trader_rows.add_child(level_button)
+		into.add_child(level_button)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 6)
-	_trader_rows.add_child(gap)
+	into.add_child(gap)
 
 
 ## LEVEL UP pressed (0.17.1): the trader goes up a level and the new stock unlocks.
@@ -1188,6 +1215,16 @@ func level_up(trader: String) -> bool:
 func open_trader(trader: String) -> void:
 	_trader_tab = trader
 	_fill_trader()
+
+
+## The trader's own full screen (0.21.4): stock as big cards, their level and quests, and what you have to sell them.
+func open_trader_screen(trader: String) -> void:
+	open_trader(trader)
+	trader_screen.open(trader)
+
+
+func close_trader_screen() -> void:
+	trader_screen.visible = false
 
 
 func _fill_trader() -> void:
@@ -1215,6 +1252,8 @@ func _fill_trader() -> void:
 		_trader_rows.remove_child(child)
 		child.queue_free()
 	_fill_quests(trader, lv)
+	if trader_screen != null and trader_screen.visible:
+		trader_screen.refresh()
 	for entry: Array in Traders.stock(trader):
 		var id: String = entry[0]
 		var amount: int = entry[1]
