@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.1 (Shooting range)
+- **The range is open:** walk to the bench at the mouth of the range tunnel (north of the war table) and press E.
+  Pick your own loadout (a copy, attachments and all) or borrow any gun the Gunsmith sells you at your level
+  (locked ones show the level they need). Targets stand at 10, 25, 50 and 100 m, each in its own lane with a
+  distance sign. Ammo is free and tops itself up, hits show the hit marker and the damage, HEAD if it was a
+  headshot, and the distance. E (or GUNS) changes gun; Tab (or LEAVE) puts you back on your feet. Nothing at the
+  range touches your stash or loadout.
+
 ## 0.21.0 (The walkable hideout)
 - **The game now starts in a 3D hideout** (roadmap, owner OK'd the plan): no title screen; press play and you're
   standing at the war table. It's a rock cave the PMCs dug concrete tunnels off (owner picked the shape from

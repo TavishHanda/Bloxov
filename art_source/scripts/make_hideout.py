@@ -36,6 +36,7 @@ for _a in sys.argv[1:]:
         SHAPE = _a.split("=", 1)[1]
 FIRING_BACK = 1.5                                  # the firing line stands this far in front of the range's mouth
 TARGETS = (10, 25, 50, 100)                        # metres from the firing line
+TARGET_U = (-2.1, -0.7, 0.7, 2.1)                  # each one in its own lane, so none hides another
 BAND = 1.2                                         # the painted band along the bottom of the concrete walls
 
 
@@ -406,7 +407,7 @@ def wall_rows(put, outline, C, f_at, base_at, tunnels, top):
 # ------------------------------------------------------------------------------------------------ layouts
 SIGNS = {"guns": "GUNSMITH", "meds": "MEDIC", "supplies": "SUPPLIER", "valuables": "SUPREME", "ming": "MING",
          "stash": "STASH", "wardrobe": "WARDROBE", "workbench": "WORKBENCH", "quests": "QUESTS", "stats": "STATS",
-         "mess": "MESS", "range": "RANGE"}
+         "mess": "MESS", "range": "RANGE", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
 TRADERS = ("guns", "meds", "supplies", "valuables", "ming")
 TINS = ("cabin_tin_b", "shed_metal", "cabin_tin_d", "shed_metal")
 
@@ -930,10 +931,12 @@ def shooting_range(ctx):
         block(p[0], 0.0, p[2], 1.6, 0.95, 0.6)
     p = t.P(0, 0, t.a1 - 1.3)
     b.box((p[0], 1.2, p[2]), (2 * t.hw, 2.4, 2.4), style=mb._nb("bk_sandbag"))                # the backstop
-    for d in TARGETS:
-        for u in (-2.0, 0.0, 2.0):
-            p = t.P(u, 0, fl + d)
-            pipe(b, (p[0], 0.0, p[2]), (p[0], 1.1, p[2]), "bk_iron", 0.08)
+    for d, u in zip(TARGETS, TARGET_U):                                # a stand and a distance sign for each target
+        p = t.P(u, 0, fl + d)
+        pipe(b, (p[0], 0.0, p[2]), (p[0], 1.1, p[2]), "bk_iron", 0.08)
+        F = Frame((p[0], p[2]), t.U, (-t.D[0], -t.D[1]), 0.0)
+        sign_board(ctx, F, 0.0, 2.25, "sign_d%d" % d, w=1.0, h=0.4, wires=False)
+        pipe(b, F.P(-0.02, 0.0, 0.6), F.P(-0.02, 2.45, 0.6), "bk_iron", 0.05)
     if SHAPE == "cave":                                                # the old mine's rails, on steel sleepers
         a = t.a0 + 0.5
         while a < t.a1 - 3.0:
@@ -1281,6 +1284,18 @@ def write_level(rows):
                 '[node name="Spawn" type="Marker3D" parent="."]\n'
                 'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n\n'
                 '[node name="Stations" type="Node3D" parent="."]\n' % (nums, sx, sz))
+        t = LAY.tunnels[0]
+        fl = t.a0 - FIRING_BACK
+        spot = t.P(0.0, 0.0, fl - 0.8)
+        yaw = math.atan2(-t.D[0], -t.D[1])                             # (a Marker3D looks down its -z: up the range)
+        f.write('\n[node name="Range" type="Node3D" parent="."]\n\n'
+                '[node name="Spot" type="Marker3D" parent="Range"]\n'
+                'transform = Transform3D(%g, 0, %g, 0, 1, 0, %g, 0, %g, %g, 0, %g)\n'
+                % (math.cos(yaw), math.sin(yaw), -math.sin(yaw), math.cos(yaw), round(spot[0], 3), round(spot[2], 3)))
+        for d, u in zip(TARGETS, TARGET_U):
+            p = t.P(u, 0.0, fl + d + 0.3)
+            f.write('\n[node name="Target%d" type="Marker3D" parent="Range"]\n'
+                    'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n' % (d, round(p[0], 3), round(p[2], 3)))
         for sid, x, z, reach in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'
                     'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n'

@@ -19,6 +19,7 @@ var _pitch := 0.0
 
 func _ready() -> void:
 	var shape := CollisionShape3D.new()
+	shape.name = "CollisionShape3D"
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.35
 	capsule.height = 1.8

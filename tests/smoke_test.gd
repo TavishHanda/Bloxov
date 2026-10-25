@@ -2017,6 +2017,30 @@ func _section_hideout_world() -> void:
 	Input.action_release("move_forward")
 	var table: Vector3 = world.get_node("Level/Stations/war_table").global_position
 	_check(walker.global_position.z < spawn.z - 1.0 and walker.global_position.z > table.z + 1.5, "you walk forward and the war table stops you (z %.1f)" % (walker.global_position.z - spawn.z))
+	# The shooting range (0.21.1): borrow a gun, free ammo, hits reported; nothing saved.
+	var loadout_before := JSON.stringify(Profile.loadout)
+	var stash_before: int = Profile.stash.stacks.size()
+	world.enter_range()
+	var picker_guns: Node = world._picker.find_child("Guns", true, false)
+	_check(world.in_range() and picker_guns.has_node("pistol") and not (picker_guns.get_node("pistol") as Button).disabled, "the range offers the guns the Gunsmith sells you")
+	world.pick_gun("pistol")
+	for i in 10:
+		await physics_frame
+	var shooter: Player = world.shooter
+	var held := shooter.inventory.equipped("secondary")
+	_check(held != null and held.id == "pistol" and shooter.inventory.count_of("pistol_ammo") >= 40 and shooter.at_range, "a borrowed Stinger with free ammo")
+	shooter.inventory.take("pistol_ammo", 1000)
+	await process_frame
+	await process_frame
+	_check(shooter.inventory.count_of("pistol_ammo") >= 40, "range ammo tops itself up")
+	var dummy: Node3D = world.get_node("Dummy10")
+	dummy.get_node("Health").take_damage(17, shooter.global_position)
+	await process_frame
+	_check(world._last_hit.text.begins_with("17 damage") and world._last_hit.text.ends_with("m"), "hits on a target show the damage and distance (%s)" % world._last_hit.text)
+	world.leave_range()
+	await process_frame
+	_check(not world.in_range() and world.shooter == null and walker.camera.current, "leaving the range puts you back on your feet")
+	_check(JSON.stringify(Profile.loadout) == loadout_before and Profile.stash.stacks.size() == stash_before, "the range changes nothing in your loadout or stash")
 	world.queue_free()
 	for i in 5:
 		await process_frame

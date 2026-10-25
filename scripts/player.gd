@@ -43,6 +43,10 @@ const SLOW_LANDING_SPEED := 5.0
 ## On the game server, each player in a raid is a proxy: a body the AI can see, hear, shoot and bash, moved by the
 ## states their game sends (apply_net_state). No input, camera, profile or physics of its own. Set before adding.
 var proxy := false
+## At the hideout's shooting range (0.21.1): no raid. Your loadout isn't loaded or wiped (the range gives you the
+## gun), nothing is saved, no ambience. Set before the player is added; the next player made starts with it off.
+static var practice := false
+var at_range := false
 ## Enemies killed this raid (gun or knife).
 var kills := 0
 ## Downed: a teammate is holding F on us (shown as a bar; the server tells us when it starts and stops).
@@ -91,7 +95,9 @@ func _ready() -> void:
 	# The capsule comes from player.tscn and is shared by every instance; give each player its own,
 	# so one player crouching doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
-	if not proxy:
+	at_range = practice
+	practice = false
+	if not proxy and not at_range:
 		Ambience.start(self)   # (0.20.5: wind, woods, water, the far-off war)
 	if proxy:
 		camera.current = false
@@ -107,9 +113,10 @@ func _ready() -> void:
 	camera.add_child(hand)
 	inventory.equipment_changed.connect(_on_equipment_changed)
 	# Bring in the loadout from the hideout (or the starter kit on a new profile).
-	Profile.load_profile()
-	Profile.apply_inventory(inventory, Profile.loadout)
-	Profile.raid_begun()
+	if not at_range:
+		Profile.load_profile()
+		Profile.apply_inventory(inventory, Profile.loadout)
+		Profile.raid_begun()
 	health.damaged.connect(_on_damaged)
 	health.armor_hit.connect(_on_armor_hit)
 	health.died.connect(_on_died)
