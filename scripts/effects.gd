@@ -114,6 +114,10 @@ static func damage_number(world: Node, pos: Vector3, amount: int, critical: bool
 ## Sounds in the world playing now (sound_at), and how many before far ones are left out (0.20.7).
 static var _playing := 0
 const MAX_SOUNDS := 40
+## How strongly a world sound pans to the side it's on (0.20.19, owner: easy to hear you're shot, not from where).
+## Godot's default (1, times the project's 0.5) only pans halfway; 2 pans fully, so a shot on your left is in your
+## left ear.
+const PANNING := 2.0
 const CROWDED_SKIP_BEYOND := 25.0
 
 
@@ -142,6 +146,7 @@ static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db :
 	audio.volume_db = volume_db
 	audio.unit_size = unit_size
 	audio.max_distance = max_distance   # (0 = heard from anywhere, fading with distance: gunshots)
+	audio.panning_strength = PANNING
 	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
 	audio.bus = Hearing.bus(bus) if bus != &"" else Hearing.world_bus()
 	# Behind a wall (Sound update 0.20.1): muffled and a bit quieter, so you can tell it's not in plain sight.

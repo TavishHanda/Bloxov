@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.19 (Sound update: shots pan to their side)
+- **You can hear which side a shot (or step, or callout) comes from** (owner: "easy to hear you are getting shot
+  but not from where ... I just meant the audio itself"): sounds in the world now pan fully left/right instead of
+  halfway, so a shot from your left is clearly in your left ear. The sounds themselves are unchanged.
+- The 0.20.18 thwack is taken out again (owner didn't want an extra sound).
+
 ## 0.20.18 (Sound update: hear where you're shot from)
 - **Getting shot now tells you which way** (owner: "easy to hear you are getting shot but not from where"): with
   today's hurt sound, a short thwack plays from the shooter's side, close to your head, so you can tell which way

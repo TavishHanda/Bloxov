@@ -646,7 +646,6 @@ func _on_damaged(amount: int, source_position: Vector3) -> void:
 	add_kick(flinch * randf_range(0.6, 1.0), flinch * randf_range(-0.7, 0.7))
 	gun.add_flinch(amount)
 	Effects.sound(get_tree().current_scene, HURT_SOUND, 0.0, 0.1)
-	Hearing.hit_from(self, source_position)
 	var push := global_position - source_position
 	push.y = 0.0
 	if push.length() > 0.01:
