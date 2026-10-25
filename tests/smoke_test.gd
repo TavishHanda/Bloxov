@@ -2278,7 +2278,7 @@ func _section_settings() -> void:
 	(vbox.get_node("Mix_ambience/Slider") as HSlider).value = 100.0
 	_check(not AudioServer.is_bus_mute(amb) and GameSettings.mix["ambience"] == 1.0, "...and back up")
 	# Graphics (0.19): LOW drops the sun's shadows, draws 3D at a lower scale and switches buildings to their far mesh
-	# sooner; HIGH puts it all back. Three buttons in the pause menu.
+	# sooner; HIGH puts it all back. Three buttons in the pause menu. (In browsers the render scale stays 1, 0.20.20.)
 	var sun := main.get_node("Sun") as DirectionalLight3D
 	var buttons := main.get_node("HUD/Menu/Margin/VBox/GraphicsRow/Buttons")
 	_check(buttons.get_child_count() == 3, "the pause menu has LOW / MEDIUM / HIGH graphics buttons")

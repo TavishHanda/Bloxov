@@ -31,7 +31,7 @@ const MEDIUM := 1
 const HIGH := 2
 const GRAPHICS_NAMES := ["Low", "Medium", "High"]
 ## Per setting (LOW, MEDIUM, HIGH): sun shadow reach in metres (0 = no shadows), shadow map size, how far out
-## buildings switch to their far mesh (times FarView.FROM), and the 3D render scale.
+## buildings switch to their far mesh (times FarView.FROM), and the 3D render scale (off the web only: render_scale()).
 const SHADOW_DISTANCE := [0.0, 40.0, 60.0]
 const SHADOW_SIZE := [1024, 2048, 4096]
 const FAR_SCALE := [0.65, 0.8, 1.0]
@@ -120,12 +120,21 @@ static func apply_graphics() -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return
-	tree.root.scaling_3d_scale = RENDER_SCALE[graphics]
+	tree.root.scaling_3d_scale = render_scale()
 	RenderingServer.directional_shadow_atlas_set_size(SHADOW_SIZE[graphics], true)
 	var raid := tree.current_scene
 	if raid != null:
 		shadows_on(raid.get_node_or_null("Sun") as DirectionalLight3D)
 	FarView.refresh(tree)
+
+
+## The 3D render scale for the graphics setting. Always 1 in browsers (and anywhere Godot runs on ANGLE): there a
+## scaled 3D picture makes Godot copy the depth buffer through the CPU every frame (ANGLE on Direct3D 11, i.e. every
+## browser on Windows), which made Low and Medium slower than High (0.20.20).
+static func render_scale() -> float:
+	if OS.has_feature("web") or RenderingServer.get_video_adapter_name().contains("ANGLE"):
+		return 1.0
+	return RENDER_SCALE[graphics]
 
 
 ## Gives `sun` the graphics setting's shadows.

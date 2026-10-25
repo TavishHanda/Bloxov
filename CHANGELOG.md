@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are). -->
 
+## 0.20.22 (Low and Medium no longer slower than High)
+- **Low and Medium graphics ran worse than High in the browser** (owner: "all my friends are getting more lag on
+  medium/low compared to high"). Their lower 3D render scale (70% / 85%) made Godot copy the depth buffer at a
+  different size every frame, which browsers on Windows (ANGLE on Direct3D 11) do through the CPU, stalling the
+  graphics card. In browsers the render scale now stays at 100% on every setting; Low and Medium still save on
+  shadows and switch buildings to their far models sooner. The downloadable builds keep the render scale.
+
 ## 0.20.21 (Fix: army truck hitboxes)
 - **The green army trucks collide like they look** (owner: "you can walk inside the hood in the green military
   trucks, gives an unfair advantage, needs to have a proper hitbox"): their old boxes stopped short of the bonnet
