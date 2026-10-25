@@ -15,6 +15,11 @@ var _money_label: Label
 var _top_row: HBoxContainer
 var trader_screen: TraderScreen
 var wardrobe: WardrobeScreen
+## Your record and jobs (0.21.10), and the phone's way round the menu's screens: phones open on the menu, so
+## everything you'd walk to in the 3D hideout has a tab there (GEAR, TRADERS, WARDROBE, RECORD).
+var record: RecordScreen
+var phone_nav: HBoxContainer
+var _nav_buttons := {}
 var _version_label: Label
 ## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
 var _loading: Control
@@ -91,9 +96,13 @@ func _ready() -> void:
 	wardrobe.visible = false
 	wardrobe.on_change = change_look
 	add_child(wardrobe)
+	record = RecordScreen.new(self)
+	record.visible = false
+	add_child(record)
 	Network.main.set_look(Operators.to_text(Profile.look))
 
 	_build_top_bar()
+	_build_phone_nav()
 	_build_online_panel()
 	_build_loadouts_panel()
 	_warm_raid.call_deferred()
@@ -118,6 +127,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_check_tab()
+	_light_nav()
 	# The online panel's status line takes no room while it has nothing to say.
 	if _online_status != null:
 		_online_status.visible = _online_status.text != ""
@@ -709,7 +719,7 @@ func _refresh() -> void:
 		int(Profile.stats["raids"]), int(Profile.stats["extracts"]), int(Profile.stats["deaths"]),
 		ItemDB.money(Profile.stash.total_value())]
 	_free_kit_button.visible = can_take_free_kit()
-	_free_kit_button.text = "TAKE FREE KIT" if Network.main.is_client() else "RAID WITH FREE KIT"
+	_free_kit_button.text = "TAKE FREE KIT" if Network.main.is_client() else "FREE KIT RAID" if GameSettings.is_phone() else "RAID WITH FREE KIT"
 
 
 ## A message under the top bar (the walkable hideout uses it when you use a station).
@@ -1222,6 +1232,7 @@ func open_trader(trader: String) -> void:
 
 ## The trader's own full screen (0.21.4): stock as big cards, their level and quests, and what you have to sell them.
 func open_trader_screen(trader: String) -> void:
+	close_trader_screen()
 	open_trader(trader)
 	trader_screen.open(trader)
 
@@ -1229,12 +1240,72 @@ func open_trader_screen(trader: String) -> void:
 func close_trader_screen() -> void:
 	trader_screen.visible = false
 	wardrobe.visible = false
+	record.visible = false
 
 
 ## The wardrobe (0.21.6): pick your operator and change their parts.
 func open_wardrobe() -> void:
-	trader_screen.visible = false
+	close_trader_screen()
 	wardrobe.open(Profile.look)
+
+
+## Your record and open jobs (0.21.10).
+func open_record() -> void:
+	close_trader_screen()
+	record.open()
+
+
+## Which of the menu's screens is showing: "gear" (stash and loadout), "traders", "wardrobe" or "record".
+func current_screen() -> String:
+	if trader_screen.visible:
+		return "traders"
+	if wardrobe.visible:
+		return "wardrobe"
+	if record.visible:
+		return "record"
+	return "gear"
+
+
+## The phone's tabs: one per screen, the one showing lit. Phones only (on a computer you walk to them), so the bar
+## stays tidy there (owner, 0.21.8).
+func _build_phone_nav() -> void:
+	phone_nav = HBoxContainer.new()
+	phone_nav.name = "PhoneNav"
+	phone_nav.add_theme_constant_override("separation", 4)
+	phone_nav.visible = GameSettings.is_phone()
+	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["wardrobe", "WARDROBE"], ["record", "RECORD"]]:
+		var id: String = spec[0]
+		var button := Button.new()
+		button.name = id
+		button.text = spec[1]
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.custom_minimum_size = Vector2(0, 44)
+		LootUI.style_button(button, 20)
+		button.pressed.connect(func() -> void: show_screen(id))
+		phone_nav.add_child(button)
+		_nav_buttons[id] = button
+	_top_row.add_child(phone_nav)
+	_top_row.move_child(phone_nav, _money_label.get_index() + 1)
+
+
+func show_screen(id: String) -> void:
+	match id:
+		"traders":
+			open_trader_screen(_trader_tab)
+		"wardrobe":
+			open_wardrobe()
+		"record":
+			open_record()
+		_:
+			close_trader_screen()
+
+
+func _light_nav() -> void:
+	if phone_nav != null and phone_nav.visible:
+		var showing := current_screen()
+		for id: String in _nav_buttons:
+			(_nav_buttons[id] as Button).button_pressed = id == showing
 
 
 ## The wardrobe changed your look: wear it, save it, and tell the server (online, the others see it next raid).

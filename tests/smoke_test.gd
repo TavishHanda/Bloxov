@@ -2121,6 +2121,25 @@ func _section_hideout_world() -> void:
 	_check((top.get_child(top.get_child_count() - 1) as Button).text == "START RAID" and top.get_child(1).name == "Money",
 		"the top bar: back, money ... START RAID last")
 	_check(world.menu.screen.find_child("Worth", true, false) != null, "the stash shows what it's worth")
+	# Phones (0.21.10): every screen you'd walk to has a tab on the menu.
+	var menu_node = world.menu
+	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 4, "the menu has phone tabs: gear, traders, wardrobe, record")
+	menu_node.show_screen("wardrobe")
+	_check(menu_node.current_screen() == "wardrobe" and menu_node.wardrobe.visible, "the WARDROBE tab opens the wardrobe")
+	menu_node.show_screen("record")
+	await process_frame
+	_check(menu_node.current_screen() == "record" and menu_node.record._stats.text.begins_with("RAIDS") and not menu_node.wardrobe.visible,
+		"the RECORD tab shows your record")
+	menu_node.show_screen("traders")
+	_check(menu_node.current_screen() == "traders" and not menu_node.record.visible, "the TRADERS tab opens a trader's screen")
+	menu_node.show_screen("gear")
+	_check(menu_node.current_screen() == "gear", "and GEAR goes back to the stash")
+	# The mouse is never grabbed with the menu up (0.21.10).
+	world.open_menu()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	await process_frame
+	_check(Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and walker.locked, "the menu lets go of the mouse")
+	world.close_menu()
 	world.menu.screen.show_info(ItemStack.new("smg", 1))
 	var stash_root: Control = world.menu.screen._center.get_child(0)
 	_check(stash_root.get_combined_minimum_size().y <= 720.0 - world.menu.screen._center.offset_top,

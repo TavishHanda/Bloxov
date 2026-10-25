@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.10 (Phone tabs, mouse fix)
+- **Everything in the 3D hideout works on phones** (owner). Phones open on the menu, so it gets four tabs on the top
+  bar: GEAR (stash and loadout), TRADERS (the traders' own screens), WARDROBE (pick and customize your operator),
+  RECORD (new: your record and every trader's open jobs, with a GO TO TRADER button for handing in). The tab you're
+  on is lit. Buttons are big enough to tap. On a computer you still walk to these, so the bar stays tidy.
+  "Raid with free kit" is shortened to FREE KIT RAID on phones so the bar fits.
+  The shooting range and the hangout toys (darts, the couch, the radio, the light switch) are for walking round,
+  so they come to phones with the touch controls.
+- **The mouse is no longer grabbed on the menu** (owner): on a first load the menu could show while you were still
+  free to walk, so a click on the stash grabbed (and hid) the mouse. It's only grabbed while walking round the
+  hideout or shooting at the range.
+
 ## 0.21.9 (Hint line fix)
 - The controls hint at the bottom of the hideout's stash screen was cut off by the bottom edge of the screen, more so
   when a gun's stat bars showed (owner). It's now shown in the details area until you point at an item, so the screen

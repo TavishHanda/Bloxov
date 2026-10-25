@@ -66,6 +66,7 @@ func _ready() -> void:
 	walker.name = "Walker"
 	add_child(walker)
 	walker.global_position = (level.get_node("Spawn") as Node3D).global_position + Vector3.UP * 0.05
+	walker.locked = true   # (until close_menu says you're walking)
 	toys = HideoutToys.new()
 	toys.name = "Toys"
 	add_child(toys)
@@ -141,6 +142,13 @@ func _process(_delta: float) -> void:
 	if TabLock.state() != "owner" and not menu_open():
 		leave_range()
 		open_menu()
+	# The mouse is only grabbed while you walk round (or shoot at the range): never with the menu up (0.21.10, owner:
+	# on a first load the menu could show before the tab check let it close, with you still free to walk, so a click
+	# on the stash grabbed the mouse).
+	if menu_open():
+		walker.locked = true
+		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if in_range():
 		_top_up_ammo()
 		_hud.visible = false
@@ -563,20 +571,7 @@ static func quest_board_text() -> String:
 
 
 static func stats_board_text() -> String:
-	var raids := int(Profile.stats["raids"])
-	var extracts := int(Profile.stats["extracts"])
-	var levels: Array[String] = []
-	for trader: String in Traders.LIST:
-		if Traders.max_level(trader) > 1:
-			levels.append("%s %d/%d" % [Traders.LIST[trader]["tab"], Profile.trader_level(trader), Traders.max_level(trader)])
-	return "\n".join([
-		"RAIDS  %d" % raids,
-		"EXTRACTED  %d   (%d%%)" % [extracts, roundi(100.0 * extracts / raids) if raids > 0 else 0],
-		"DIED  %d" % int(Profile.stats["deaths"]),
-		"EARNED  %s" % ItemDB.money(int(Profile.stats["earned"])),
-		"STASH WORTH  %s" % ItemDB.money(Profile.stash.total_value()),
-		"TRADERS  " + "   ".join(levels.slice(0, 2)),
-		"   ".join(levels.slice(2))])
+	return RecordScreen.stats_text()
 
 
 ## The trader whose quests you'd want to look at: the first one with jobs still open (the Gunsmith if none).
