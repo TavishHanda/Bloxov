@@ -16,8 +16,8 @@ const BUS := &"Ambience"
 const WIND_DB := -22.0
 const WOODS_DB := -20.0
 const ROOM_DB := -30.0
-const CREEK_DB := -12.0
-const WATERFALL_DB := -6.0
+const CREEK_DB := -26.0   # (0.20.10, owner: water "way too loud")
+const WATERFALL_DB := -20.0
 const RUMBLE_DB := -16.0
 ## Trees within WOODS_RADIUS m for the birds at full.
 const WOODS_RADIUS := 25.0
@@ -53,8 +53,8 @@ func _ready() -> void:
 	_wind = _loop(WIND)
 	_woods = _loop(WOODS)
 	_room = _loop(ROOM)
-	_creek = _loop_at(CREEK, 8.0, 40.0)
-	_waterfall = _loop_at(WATERFALL, 10.0, 70.0)
+	_creek = _loop_at(CREEK, 3.0, 22.0)
+	_waterfall = _loop_at(WATERFALL, 5.0, 45.0)
 	_waterfall.stop()   # (until the map says where it is)
 
 
