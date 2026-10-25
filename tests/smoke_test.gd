@@ -3140,7 +3140,7 @@ func _section_pvp() -> void:
 	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": [], "feed": []}
 	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
 	# (The target's game reports what each hit did after its armor; here, armor that takes 25% off.)
-	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool) -> void:
+	c2.got_hit.connect(func(amount: int, _from: Vector3, headshot: bool, _burst: int) -> void:
 		got["hits"].append([amount, headshot])
 		c2.report_damage(roundi(amount * 0.75)))
 	c1.shot_confirmed.connect(func(headshot: bool, amount: int, _pos: Vector3) -> void:
@@ -3285,7 +3285,7 @@ func _section_online_ai() -> void:
 	var c2 := _net_peer("AiClient2")
 	server.start_server(19083)
 	var got := {"hits": [], "bashes": 0, "confirmed": 0, "kills": 0, "events": []}
-	c1.got_hit.connect(func(amount: int, _from: Vector3, _h: bool) -> void: got["hits"].append(amount))
+	c1.got_hit.connect(func(amount: int, _from: Vector3, _h: bool, _b: int) -> void: got["hits"].append(amount))
 	c1.bashed.connect(func(_a: int, _f: Vector3, _s: float, _b: float) -> void: got["bashes"] += 1)
 	c1.shot_confirmed.connect(func(_h: bool, _amount: int, _pos: Vector3) -> void: got["confirmed"] += 1)
 	c1.kill_confirmed.connect(func(_target: String) -> void: got["kills"] += 1)
@@ -4947,6 +4947,31 @@ func _section_boss() -> void:
 	_check(chased and breaks and paused and opens_fire and the_boss.tactic == Scav.Tactic.CHASE and the_boss.flank_chance > 0.0,
 		"Bon chases, takes a short break shooting (stands or steps aside), then chases again; he still flanks")
 	the_boss.tactic = Scav.Tactic.NONE
+	# 0.21.18 (owner: "he can't stray too far from his guards or else this can be abused"): past 15 m from his nearest
+	# guard he won't chase or go after you farther away; back toward them he can. His and his guards' opening bursts
+	# can kill (only theirs).
+	var guards_mid := Vector3.ZERO
+	for g in guards:
+		guards_mid += g.global_position / guards.size()
+	var bon_was := the_boss.global_position
+	var out := player.global_position - guards_mid
+	out.y = 0.0
+	out = out.normalized()
+	the_boss.global_position = guards_mid + out * 25.0
+	var beyond := guards_mid + out * 45.0
+	var back := guards_mid + out * 10.0
+	var held := the_boss._strays_from_guards(beyond) and not the_boss._strays_from_guards(back)
+	the_boss.global_position = guards_mid + out * 8.0
+	var free_near := not the_boss._strays_from_guards(beyond)
+	the_boss.global_position = bon_was
+	_check(held and free_near, "Bon holds at 15 m from his guards rather than chase you farther (free closer in)")
+	the_boss._target = player
+	the_boss._opened_on = null
+	the_boss._start_burst()
+	guards[0]._target = player
+	guards[0]._opened_on = null
+	guards[0]._start_burst()
+	_check(the_boss._opening_burst == 0 and guards[0]._opening_burst == 0, "Bon's and his guards' opening bursts can kill")
 	the_boss.get_node("Health").take_damage(10000)
 	await _frames(2)
 	_check(guards.all(func(g: Scav) -> bool: return g.home_radius == 12.0), "without the boss, the guards keep to its zone")
@@ -5699,6 +5724,39 @@ func _section_raiders() -> void:
 	raider._goal = raider.global_position + Vector3(0, 0, -8)
 	_check(raider._sneaking(), "a Raider closing in moves quietly")
 	# Weapon drops (owner, 0.11.11): Raiders sometimes leave their AK in the body bag; scavs too, less often (0.15.5).
+	# 0.21.18 (owner: "a raider should not be able to kill you instantly without being able to react"): its first
+	# burst in a fight is an opening one, which kills only on a roll (20% bare, 0% in the best armor and helmet).
+	raider._target = player
+	raider._opened_on = null
+	raider._start_burst()
+	var opening := raider._opening_burst
+	raider._start_burst()
+	_check(opening > 0 and raider._opening_burst == 0, "a Raider's first burst at you is an opening one, the next isn't")
+	var keep_hp := player.health.current
+	player.health.current = 10
+	var spared := player.spares_hit(18, false, opening, 0.99)
+	var may_kill := not player.spares_hit(18, false, opening + 100000, 0.0)
+	var lands := not player.spares_hit(5, false, opening)
+	var later_kills := not player.spares_hit(18, false, 0)
+	player.health.current = keep_hp
+	var bare := player.opening_kill_chance()
+	var keep_armor := player.inventory.unequip("armor") if player.inventory.equipped("armor") != null else null
+	var keep_helmet := player.inventory.unequip("helmet") if player.inventory.equipped("helmet") != null else null
+	player.inventory.equip("armor", ItemStack.new("armor_light"))
+	var light := player.opening_kill_chance()
+	player.inventory.unequip("armor")
+	player.inventory.equip("armor", ItemStack.new("armor_heavy"))
+	player.inventory.equip("helmet", ItemStack.new("helmet_good"))
+	var full := player.opening_kill_chance()
+	player.inventory.unequip("armor")
+	player.inventory.unequip("helmet")
+	if keep_armor != null:
+		player.inventory.equip("armor", keep_armor)
+	if keep_helmet != null:
+		player.inventory.equip("helmet", keep_helmet)
+	_check(spared and may_kill and lands and later_kills, "an opening burst's killing shot misses unless its roll allows it; other hits land")
+	_check(is_equal_approx(bare, 0.2) and light < bare and light > 0.0 and is_zero_approx(full),
+		"opening-burst kill chance: %.0f%% bare, %.0f%% light armor, %.0f%% heavy armor + combat helmet" % [bare * 100, light * 100, full * 100])
 	_check(raider.weapon_drop == "ak" and raider.weapon_drop_chance > 0.0 and raider.weapon_drop_chance < 1.0, "Raiders have a chance to drop an AK")
 	_check(is_equal_approx(scav.weapon_drop_chance, 0.15), "scavs drop their gun 15% of the time (owner, 0.15.5)")
 	raider.weapon_drop_chance = 1.0
@@ -5732,6 +5790,10 @@ func _section_raiders() -> void:
 	_check(flanker._cover_phase != Scav.Cover.FLANKING, "with nowhere hidden to flank to, it doesn't run across in the open")
 	var side_wall := _block(Vector3(6, 1.5, -7), Vector3(2, 3, 2))
 	await physics_frame
+	# 0.21.18 (playtesters: shot through walls online): an AI's hit that reaches you behind a wall (the server saw you a
+	# moment late) misses.
+	_check(player.hidden_from(Vector3(12, 0.1, -4)) and not player.hidden_from(Vector3(-12, 0.1, -4)),
+		"online, an AI's hit from behind a wall misses; one with a clear line lands")
 	flanker._cover_phase = Scav.Cover.NONE
 	flanker._try_flank(player.global_position - flanker.global_position, 15.0)
 	var start := flanker.global_position

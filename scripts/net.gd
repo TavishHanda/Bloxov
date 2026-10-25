@@ -29,7 +29,8 @@ signal notice(text: String)
 ## The server put us in a raid: load it.
 signal raid_started
 ## In a raid: another player's shot hit us (damage before our armor); our shot hit someone; we killed someone.
-signal got_hit(amount: int, from: Vector3, headshot: bool)
+## (`burst`: -1 for anything but an AI's shot, else its opening-burst number or 0; see Player.take_ai_hit.)
+signal got_hit(amount: int, from: Vector3, headshot: bool, burst: int)
 signal shot_confirmed(headshot: bool, amount: int, pos: Vector3)
 ## The damage your hit on another player really did, after their armor (0.17.1): for the damage number.
 signal damage_shown(amount: int, headshot: bool, pos: Vector3)
@@ -648,9 +649,9 @@ func _send_raid_start(id: int) -> void:
 	world.name = "Raid%d" % id
 	add_child(world)
 	_worlds[id] = world
-	world.player_hit.connect(func(peer: int, amount: int, from: Vector3, head: bool) -> void:
+	world.player_hit.connect(func(peer: int, amount: int, from: Vector3, head: bool, burst: int) -> void:
 		if _peer_open(peer):
-			_send_hit(peer, amount, from, head, 0, Vector3.ZERO))
+			_send_hit(peer, amount, from, head, 0, Vector3.ZERO, burst))
 	world.player_bashed.connect(func(peer: int, amount: int, from: Vector3, shove: float, block: float) -> void:
 		if _peer_open(peer):
 			_bashed.rpc_id(peer, amount, from, shove, block))
@@ -967,19 +968,19 @@ func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team
 
 
 ## Server: sends a hit to a player and remembers who it was from, for their report of what it did.
-func _send_hit(victim: int, amount: int, from: Vector3, headshot: bool, attacker: int, pos: Vector3) -> void:
+func _send_hit(victim: int, amount: int, from: Vector3, headshot: bool, attacker: int, pos: Vector3, burst := -1) -> void:
 	var queue: Array = _hits_out.get(victim, [])
 	queue.append([attacker, headshot, pos])
 	if queue.size() > 32:
 		queue.pop_front()
 	_hits_out[victim] = queue
-	_hit.rpc_id(victim, amount, from, headshot)
+	_hit.rpc_id(victim, amount, from, headshot, burst)
 
 
 @rpc("authority", "call_remote", "reliable")
-func _hit(amount: int, from: Vector3, headshot: bool) -> void:
+func _hit(amount: int, from: Vector3, headshot: bool, burst: int) -> void:
 	if in_online_raid():
-		got_hit.emit(amount, from, headshot)
+		got_hit.emit(amount, from, headshot, burst)
 
 
 ## Client: what the last hit the server sent really did here (after armor; 0 if none). Every hit gets a report,

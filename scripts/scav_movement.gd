@@ -131,6 +131,10 @@ func _hunt(delta: float) -> Vector3:
 			if _hunt_point == Vector3.INF:
 				_hunt_pause = 1.0
 		return Vector3.ZERO
+	if _strays_from_guards(_hunt_point):
+		_hunt_point = Vector3.INF   # (Bon: not that far from his guards, 0.21.18)
+		_hunt_pause = 1.0
+		return Vector3.ZERO
 	var move := _path_velocity(_hunt_point, move_speed * investigate_speed * 1.2)
 	_face(move, delta, 5.0)
 	if _arrived(_hunt_point):
@@ -332,6 +336,31 @@ func _follower_behind(dist: float) -> bool:
 				and _flat(other.global_position - global_position).length() > dist):
 			return true
 	return false
+
+
+## Its nearest living follower (Bon's guards), or null.
+func _nearest_follower() -> Scav:
+	var best: Scav = null
+	var best_d := INF
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if other != null and other.leader == self and other.state != State.DEAD and not other.health.is_dead:
+			var d := _flat(other.global_position - global_position).length()
+			if d < best_d:
+				best_d = d
+				best = other
+	return best
+
+
+## Out past guard_leash from its nearest living guard, and going to `goal` would take it farther from them.
+func _strays_from_guards(goal: Vector3) -> bool:
+	if guard_leash <= 0.0 or not _has_followers:
+		return false
+	var guard := _nearest_follower()
+	if guard == null:
+		return false
+	var away := _flat(guard.global_position - global_position).length()
+	return away > guard_leash and _flat(goal - guard.global_position).length() > away
 
 
 ## Starts following `new_leader` (a boss's guard, a Raider's partner). Followers and their leader walk through each

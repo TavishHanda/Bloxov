@@ -673,6 +673,68 @@ func take_bash(amount: int, from: Vector3, shove: float, aim_block: float) -> vo
 	gun.block_aim(aim_block)
 
 
+## An AI's opening burst (0.21.18, owner: "a raider should not be able to kill you instantly without being able to
+## react"): bar a small chance, a shot of it that would kill you (or put you down) misses instead. The chance is
+## OPENING_KILL_CHANCE with no armor, less with armor and a helmet on (less the more worn they are), and none with
+## the best of both. Bon and his guards' bursts aren't opening ones (Scav.opening_can_kill).
+const OPENING_KILL_CHANCE := 0.2
+const FULL_ARMOR := 0.4      # (heavy armor's reduction)
+const FULL_HELMET := 0.45    # (the combat helmet's)
+const ARMOR_SHARE := 0.7     # (how much of the protection the vest gives; the helmet the rest)
+## Each opening burst's roll: true = it may kill (one roll a burst).
+var _opening_rolls := {}
+## Proxy (server): for the hit being passed on to the player's game (RaidWorld reads it), -1 if it wasn't an AI's
+## shot, else its opening-burst number (0: not an opening burst).
+var last_hit_burst := -1
+
+
+## A shot from the AI that hit (`burst`: its opening-burst number, 0 for any other burst).
+func take_ai_hit(amount: int, from: Vector3, head: bool, burst: int) -> void:
+	if proxy:
+		last_hit_burst = burst
+		health.take_damage(amount, from, false, head)   # (passed on to the player's game, which decides)
+		last_hit_burst = -1
+		return
+	if not spares_hit(amount, head, burst):
+		health.take_damage(amount, from, false, head)
+
+
+## Whether walls (or the ground) are between an AI standing at `from` and every part of you: neither its chest nor
+## its eyes have a line to your chest or head. (Shots pass doors, glass and bars, so those don't count.)
+func hidden_from(from: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var chest := global_position + Vector3(0, chest_height(), 0)
+	var head := eye_position() - Vector3(0, 0.1, 0)
+	for eye in [from + Vector3(0, 1.3, 0), from + Vector3(0, 1.65, 0)]:
+		for part in [chest, head]:
+			var query := PhysicsRayQueryParameters3D.create(eye, part, 1 | BoxMap.LEAVES_LAYER, [get_rid()])
+			if space.intersect_ray(query).is_empty():
+				return false
+	return true
+
+
+## Chance an AI's opening burst may kill you, with the armor and helmet you have on now.
+func opening_kill_chance() -> float:
+	var armor := clampf(inventory.armor_reduction() / FULL_ARMOR, 0.0, 1.0)
+	var helmet := clampf(inventory.helmet_reduction() / FULL_HELMET, 0.0, 1.0)
+	return OPENING_KILL_CHANCE * (1.0 - armor * ARMOR_SHARE - helmet * (1.0 - ARMOR_SHARE))
+
+
+## True if this hit of an opening burst would kill you (or put you down) and the burst's roll says it can't: it
+## misses instead. `roll` (tests) replaces the burst's dice the first time it's seen.
+func spares_hit(amount: int, head: bool, burst: int, roll := -1.0) -> bool:
+	if burst <= 0 or health.is_dead or health.is_downed:
+		return false
+	if not _opening_rolls.has(burst):
+		if _opening_rolls.size() > 32:
+			_opening_rolls.clear()
+		_opening_rolls[burst] = (randf() if roll < 0.0 else roll) < opening_kill_chance()
+	if _opening_rolls[burst]:
+		return false
+	var multiplier := health.head_multiplier if head else health.damage_multiplier
+	return maxi(roundi(amount * multiplier), 1) >= health.current
+
+
 ## Under 40% health (0.15.18, owner): the AI get aggressive and push you. A proxy goes by its player's game.
 const LOW_HEALTH := 0.4
 var _net_low := false

@@ -135,6 +135,13 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## chase_pause_min-max seconds, standing and firing or (reposition_chance of the time) stepping a few meters to one
 ## side while firing (never just standing there: it keeps shooting), then comes on again.
 @export var never_cover := false
+## Bon (0.21.18, owner: he mustn't stray too far from his guards, or he can be lured off alone): while any of his
+## guards are alive he won't chase, push or go after you more than this many metres from the nearest one; he stands
+## and fires from there until they catch up. 0 = no such leash.
+@export var guard_leash := 0.0
+## Its first burst in a fight may kill you outright (Bon, 0.21.18; his guards too, through their leader). Everyone
+## else's opening burst can't, bar a small chance (Player.opening_kill_chance).
+@export var opening_can_kill := false
 @export var chase_burst_min := 3.0
 @export var chase_burst_max := 5.0
 @export var chase_pause_min := 1.5
@@ -348,6 +355,8 @@ func _flat(v: Vector3) -> Vector3:
 ## A fight just started and it hasn't fired its first volley yet: whatever it sees first, it shoots at
 ## (0.17.9, owner: a Raider ran off the moment it saw him; "first instinct should always be shoot").
 var _opening := false
+## Who it has fired its opening burst at in this fight (scav_fight.gd _start_burst).
+var _opened_on: Node = null
 
 
 func _set_state(new_state: State) -> void:
@@ -359,6 +368,8 @@ func _set_state(new_state: State) -> void:
 	state = new_state
 	_state_time = 0.0
 	_opening = new_state == State.ENGAGE
+	if _opening:
+		_opened_on = null   # (a new fight: its next burst is an opening one again, scav_fight.gd)
 	_lost_sight_time = 0.0
 
 

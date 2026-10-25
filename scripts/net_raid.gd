@@ -293,9 +293,13 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 ## A hit the server sent (another player's shot, or online an AI's): our armor, or on the head our helmet, applies
 ## as for any other hit.
 ## What it did goes back to the server for the shooter's damage number (0.17.1).
-func apply_hit(amount: int, from: Vector3, headshot: bool) -> void:
+## An AI's shot (`burst` >= 0) that left the server just as you got behind something solid here misses (0.21.18,
+## playtesters: shot through walls): the server sees you a moment late, so without this you'd be hit round a corner.
+func apply_hit(amount: int, from: Vector3, headshot: bool, burst := -1) -> void:
 	var dealt := 0
-	if not player.controls_locked():
+	if burst >= 0 and player.hidden_from(from):
+		pass
+	elif not player.controls_locked() and not player.spares_hit(amount, headshot, burst):
 		dealt = player.health.take_damage(amount, from, false, headshot)
 	Network.main.report_damage(dealt)
 

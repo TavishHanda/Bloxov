@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
 
+## 0.21.18 (Fair fights: Raiders' first burst, Bon's leash, shots through walls)
+- **A Raider's first burst can't kill you outright, most of the time** (owner: "a raider should not be able to kill you
+  instantly without being able to react"). The first burst any AI fires at you in a fight rolls once: with no armor
+  it may kill you 20% of the time; armor and a helmet lower that (light vest 13%, heavy vest 6%, light vest and old
+  helmet 10%; worn gear counts for less) down to 0% with heavy armor and the combat helmet. When the roll says no,
+  a shot of that burst that would kill you (or put you down) misses instead; the rest land as usual. Every burst
+  after the first is unchanged. Bon and his guards are the exception: their first burst can kill (owner).
+- **Bon stays near his guards** (owner: he could be lured away from them). He still charges you, but once he's 15 m
+  from his nearest living guard he won't chase or go after you any farther: he stands and fires from there until
+  they catch up. With his guards dead he's free again.
+- **Online: no more AI hits through walls** (playtesters were shot through walls). The server sees you a moment
+  late, so a burst could land just after you'd stepped behind a wall on your screen. Now your game checks: if
+  there's solid wall between that AI and you (chest and head, from its chest and eyes), the hit misses.
+  (A check of the map found the walls the AI see and shoot along match the drawn ones; shut doors still let
+  bullets through, as before.)
+
 ## 0.21.17 (Hideout and aiming fixes)
 - **Iron sights aim where the crosshair was** (owner: aiming in with the Stinger moved your aim a little lower). The
   sights sat 3 mm under the middle of the screen, so the front post pointed slightly low of where the shots go, on

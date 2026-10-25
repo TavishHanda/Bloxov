@@ -153,7 +153,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 				_start_hunt()
 				_bark("lost", 0.6)
 				return Vector3.ZERO
-			if holds_position or is_hurt():   # (badly hurt: it doesn't come after you, it waits for you to show)
+			if holds_position or is_hurt() or _strays_from_guards(_last_seen):   # (badly hurt: it doesn't come after you, it waits for you to show; Bon: not away from his guards)
 				_face(_flat(_last_seen - global_position), delta)
 				return Vector3.ZERO
 			if _flat(_last_seen - global_position).length() > shoot_range:
@@ -307,17 +307,26 @@ func _side_step(to_target: Vector3) -> Vector3:
 
 ## You're reloading or healing and it's not hurt: worth rushing you.
 func _can_push(dist: float) -> bool:
-	return _target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
+	return (_target_busy() and not holds_position and not is_hurt() and dist > min_distance + 2.0
+		and not _leashed_from_target())
 
 
 ## Close enough to really hurt you, and fit and free to come after you.
 func _can_chase(dist: float) -> bool:
-	return dist <= chase_range and not holds_position and not is_hurt()
+	return dist <= chase_range and not holds_position and not is_hurt() and not _leashed_from_target()
+
+
+## Bon out at the end of his guard leash with you farther on (0.21.18): he holds there instead of coming after you.
+func _leashed_from_target() -> bool:
+	return _target != null and is_instance_valid(_target) and _strays_from_guards(_target.global_position)
 
 
 ## Too far away to shoot (e.g. you're up on a hill): it moves up cover to cover (0.12.7, owner: they went into
 ## cover, then just walked at him in the open). With no cover ahead it waits where it is, out of sight if it can.
 func _close_in(delta: float, goal: Vector3, to_goal: Vector3) -> Vector3:
+	if _strays_from_guards(goal):
+		_face(to_goal, delta)
+		return Vector3.ZERO   # (Bon: holds at his guard leash, 0.21.18)
 	_advance_check_left -= delta
 	if _advance_check_left <= 0.0 and not never_cover:
 		_advance_check_left = 0.6
@@ -690,6 +699,7 @@ func _update_shooting(delta: float, dist: float, suppressing := false) -> void:
 		return
 	if _shots_left <= 0:
 		_shots_left = _burst_length(dist)
+		_start_burst()
 	if suppressing:
 		_fire_at_point(_suppress_at + Vector3(0, 1.1, 0))
 	else:
@@ -699,6 +709,33 @@ func _update_shooting(delta: float, dist: float, suppressing := false) -> void:
 		_fire_timer = burst_interval
 	else:
 		_fire_timer = randf_range(burst_cooldown_min, burst_cooldown_max)
+
+
+## Its first burst at someone in a fight (0.21.18, owner: "a raider should not be able to kill you instantly without
+## being able to react; only Bon and his guards should"): the burst gets a number the player's side uses to keep it
+## from killing them, bar a small chance that shrinks with their armor (Player.opening_kill_chance). Later bursts,
+## and Bon's and his guards', are 0 (no such limit).
+static var _burst_numbers := 0
+var _opening_burst := 0
+
+
+func _start_burst() -> void:
+	_opening_burst = 0
+	if _opened_on != _target and not opening_can_kill and not (leader != null and is_instance_valid(leader) and leader.opening_can_kill):
+		_burst_numbers += 1
+		_opening_burst = _burst_numbers
+	_opened_on = _target
+
+
+## A shot that hit its target.
+func _hit_target() -> void:
+	var head := randf() < HEAD_HIT_CHANCE
+	if _target.has_method("take_ai_hit"):
+		_target.take_ai_hit(shot_damage, global_position, head, _opening_burst)
+	else:
+		_target.health.take_damage(shot_damage, global_position, false, head)
+	if _target.health.is_dead:
+		_chatter("taunt")   # (0.20.4: a smug chuckle)
 
 
 ## A burst's length: random, longer up close (up to burst_size + 2 inside 10 m), short taps far away.
@@ -760,9 +797,7 @@ func _fire_at_target(dist: float) -> void:
 	if not result.is_empty():
 		end = result.position
 		if result.collider == _target:
-			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
-			if _target.health.is_dead:
-				_chatter("taunt")   # (0.20.4: a smug chuckle)
+			_hit_target()
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 			WorldSounds.impact(get_tree().current_scene, end, result.normal)
@@ -785,9 +820,7 @@ func _fire_at_point(point: Vector3) -> void:
 	if not result.is_empty():
 		end = result.position
 		if result.collider == _target:
-			_target.health.take_damage(shot_damage, global_position, false, randf() < HEAD_HIT_CHANCE)
-			if _target.health.is_dead:
-				_chatter("taunt")   # (0.20.4: a smug chuckle)
+			_hit_target()
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 			WorldSounds.impact(get_tree().current_scene, end, result.normal)
