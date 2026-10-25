@@ -2137,9 +2137,9 @@ func _section_hideout() -> void:
 	Quests.record_kill("sniper", "pistol")
 	money2 = Profile.money
 	Quests.raid_ended(true, 0)
-	_check(Profile.quests_done.has("zeroing_in") and Profile.quests_done.has("field_test") and Quests.progress("overwatch") == 0
-		and Profile.money == money2 + 5000 and Quests.just_finished.size() == 2,
-		"extracting counts the raid's kills: two gun quests done, rewards paid, level 3 quests not open yet")
+	_check(Profile.quests_done.has("zeroing_in") and not Profile.quests_done.has("field_test") and Quests.progress("overwatch") == 0
+		and Quests.progress("field_test") == 0 and Profile.money == money2 + 2000 and Quests.just_finished.size() == 1,
+		"extracting counts the raid's kills: the scav quest is done and paid; level 3 quests (the Mauler one too, 0.20.17) not open yet")
 	hideout._announce_quests()
 	_check(hideout._message_label.text.begins_with("Quest done") and Quests.just_finished.is_empty(), "the hideout says which quests the raid finished")
 	# Hand-ins take only items found in raid.

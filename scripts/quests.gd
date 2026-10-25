@@ -14,7 +14,7 @@ const LIST := {
 		"kind": "kill", "target": "scav", "count": 5, "reward": 2000},
 	"spare_parts": {"trader": "guns", "level": 2, "name": "Spare Parts", "text": "Hand in 2 attachments found in raid.",
 		"kind": "hand_in", "item": "kind:attachment", "count": 2, "reward": 3000},
-	"field_test": {"trader": "guns", "level": 2, "name": "Field Test", "text": "Kill 3 scavs with a Mauler, then extract.",
+	"field_test": {"trader": "guns", "level": 3, "name": "Field Test", "text": "Kill 3 scavs with a Mauler, then extract.",
 		"kind": "kill", "target": "scav", "weapon": "shotgun", "count": 3, "reward": 3000},
 	"overwatch": {"trader": "guns", "level": 3, "name": "Overwatch", "text": "Kill 2 snipers, then extract.",
 		"kind": "kill", "target": "sniper", "count": 2, "reward": 5000},

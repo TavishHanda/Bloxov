@@ -1,4 +1,4 @@
-[gd_resource type="AudioBusLayout" load_steps=2 format=3]
+[gd_resource type="AudioBusLayout" load_steps=2 format=3 uid="uid://b20ft0efursqc"]
 
 [sub_resource type="AudioEffectReverb" id="AudioEffectReverb_echo"]
 resource_name = "Reverb"
@@ -6,7 +6,6 @@ predelay_msec = 20.0
 room_size = 0.35
 damping = 0.6
 spread = 0.6
-dry = 1.0
 wet = 0.12
 
 [resource]
