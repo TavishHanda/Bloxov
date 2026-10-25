@@ -1,3 +1,4 @@
+class_name HideoutWorld
 extends Node3D
 ## The walkable hideout (0.21.0): where the game starts and where you come back to after a raid. A cave the PMCs
 ## dug tunnels off (art_source/scripts/make_hideout.py builds it): walk up to a trader's counter, the stash, the
@@ -17,8 +18,7 @@ const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "
 ## Stations with nothing of their own yet: what the menu says when you use them.
 const STATION_NOTES := {"wardrobe": "Characters come with the character update. For now: your loadout is on the left.",
 	"workbench": "Crafting comes in a later update.",
-	"war_table": "Pick your loadout, then START RAID (or go online and queue with your party).",
-	"quests": "Quests are under each trader: pick a trader on the right."}
+	"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
 var walker: HideoutWalker
 ## Today's hideout screen, kept the whole time (hidden while you walk round).
@@ -65,6 +65,7 @@ func _ready() -> void:
 	walker.global_position = (level.get_node("Spawn") as Node3D).global_position + Vector3.UP * 0.05
 	_build_hud()
 	_build_range(level)
+	_build_boards(level)
 	_menu_layer = CanvasLayer.new()
 	_menu_layer.layer = 5
 	add_child(_menu_layer)
@@ -118,7 +119,7 @@ func _build_hud() -> void:
 	_hud.add_child(_menu_button)
 	_use_button = Button.new()
 	_use_button.name = "UseButton"
-	_use_button.text = "USE  (E)"
+	_use_button.text = "USE  (%s)" % use_key()
 	_use_button.focus_mode = Control.FOCUS_NONE
 	_use_button.custom_minimum_size = Vector2(170, 72)
 	_use_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -208,6 +209,7 @@ func close_menu() -> void:
 	_hud.visible = true
 	walker.locked = false
 	menu.save_now()
+	fill_boards()
 
 
 func use_station() -> void:
@@ -215,6 +217,8 @@ func use_station() -> void:
 		return
 	if station.name == "range":
 		enter_range()
+	elif station.name == "quests":
+		open_menu(quest_trader())   # (the trader whose quests you're on: their screen has them, with HAND IN)
 	else:
 		open_menu(station.name)
 
@@ -317,7 +321,7 @@ func _build_range(level: Node3D) -> void:
 	HudStyle.style_label(_last_hit, 20)
 	_range_hud.add_child(_last_hit)
 	# Big buttons for touch screens: change gun, leave.
-	for spec: Array in [["GUNS  (E)", Vector2(-194, 12), _show_picker], ["LEAVE  (Tab)", Vector2(-194, 80), leave_range]]:
+	for spec: Array in [["GUNS  (%s)" % use_key(), Vector2(-194, 12), _show_picker], ["LEAVE  (Tab)", Vector2(-194, 80), leave_range]]:
 		var button := Button.new()
 		button.text = spec[0]
 		button.focus_mode = Control.FOCUS_NONE
@@ -458,3 +462,90 @@ static func use_key() -> String:
 			var key := event as InputEventKey
 			return OS.get_keycode_string(key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode)
 	return "F"
+
+
+# --- The quests and stats boards (0.21.4, owner: "give it more of its own space", "stats board more visible") ---
+## Text painted on each board (Marker3Ds under Level/Boards, +z out of the board): your current quests, your record.
+var boards := {}
+
+
+func _build_boards(level: Node3D) -> void:
+	var holder := level.get_node_or_null("Boards")
+	if holder == null:
+		return
+	for marker: Node3D in holder.get_children():
+		var size: Vector2 = marker.get_meta("size", Vector2(2.3, 1.6))
+		var text := Label3D.new()
+		text.name = "Text"
+		text.font = HudStyle.font(30)
+		text.font_size = 30
+		text.pixel_size = 0.0065
+		text.modulate = HudStyle.TAPE_INK
+		text.outline_size = 0
+		text.shaded = false
+		text.double_sided = false
+		text.alpha_cut = Label3D.ALPHA_CUT_DISCARD
+		text.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		text.width = size.x / text.pixel_size
+		text.position = Vector3(-size.x / 2, size.y / 2, 0.025)   # (top left, just off the steel)
+		marker.add_child(text)
+		boards[String(marker.name)] = text
+	fill_boards()
+
+
+## Writes what's on the boards now (after a raid, a hand-in, a level up...).
+func fill_boards() -> void:
+	if boards.has("quests"):
+		(boards["quests"] as Label3D).text = quest_board_text()
+	if boards.has("stats"):
+		(boards["stats"] as Label3D).text = stats_board_text()
+
+
+## Each trader's quests for their next level, with your progress; at most 8 lines.
+static func quest_board_text() -> String:
+	var lines: Array[String] = []
+	for trader: String in Traders.LIST:
+		var lv := Profile.trader_level(trader)
+		var open := Quests.for_level(trader, lv + 1).filter(func(id: String) -> bool: return not Profile.quests_done.has(id))
+		if open.is_empty():
+			continue
+		lines.append("%s  (level %d)" % [String(Traders.LIST[trader]["name"]).to_upper(), lv + 1])
+		for id: String in open:
+			lines.append("   %s   %d/%d" % [Quests.LIST[id]["name"], Quests.progress(id), int(Quests.LIST[id]["count"])])
+	if lines.is_empty():
+		return "No jobs right now.\nEvery trader is at their top level, or ready to level up."
+	if lines.size() > 8:
+		lines.resize(7)
+		if not lines[-1].begins_with(" "):   # (no trader name with none of their quests under it)
+			lines.resize(6)
+		lines.append("   ...more at the traders")
+	return "\n".join(lines)
+
+
+static func stats_board_text() -> String:
+	var raids := int(Profile.stats["raids"])
+	var extracts := int(Profile.stats["extracts"])
+	var levels: Array[String] = []
+	for trader: String in Traders.LIST:
+		if Traders.max_level(trader) > 1:
+			levels.append("%s %d/%d" % [Traders.LIST[trader]["tab"], Profile.trader_level(trader), Traders.max_level(trader)])
+	return "\n".join([
+		"RAIDS  %d" % raids,
+		"EXTRACTED  %d   (%d%%)" % [extracts, roundi(100.0 * extracts / raids) if raids > 0 else 0],
+		"DIED  %d" % int(Profile.stats["deaths"]),
+		"EARNED  %s" % ItemDB.money(int(Profile.stats["earned"])),
+		"STASH WORTH  %s" % ItemDB.money(Profile.stash.total_value()),
+		"TRADERS  " + "   ".join(levels.slice(0, 2)),
+		"   ".join(levels.slice(2))])
+
+
+## The trader whose quests you'd want to look at: the first one with jobs still open (the Gunsmith if none).
+static func quest_trader() -> String:
+	for trader: String in Traders.LIST:
+		var lv := Profile.trader_level(trader)
+		if Quests.for_level(trader, lv + 1).any(func(id: String) -> bool: return not Profile.quests_done.has(id)):
+			return trader
+	return "guns"

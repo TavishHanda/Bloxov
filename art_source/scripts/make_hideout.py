@@ -37,6 +37,7 @@ for _a in sys.argv[1:]:
 FIRING_BACK = 1.5                                  # the firing line stands this far in front of the range's mouth
 TARGETS = (10, 25, 50, 100)                        # metres from the firing line
 TARGET_U = (-2.1, -0.7, 0.7, 2.1)                  # each one in its own lane, so none hides another
+BOARD_W, BOARD_H, BOARD_Y = 3.0, 1.8, 1.65             # the quests and stats boards: width, height, middle
 BAND = 1.2                                         # the painted band along the bottom of the concrete walls
 
 
@@ -305,12 +306,15 @@ class Tunnel:
                  ax((a_s + a1) / 2, min(ya, yb) * 0.5), mat)
             quad(b, [self.P(ua, 0, a1), self.P(ub, 0, a1), self.P(ub, yb, a1), self.P(ua, ya, a1)], ax(a1 - 2), self.wall)
         # The frame round the mouth: its face towards the hall, and its outer edge.
-        outer = self.profile(1.3)
+        # (2.4 m wide and running 2 m back into the rock: the hall's faces round the mouth are left out a whole face at
+        # a time, and the bumpy rock can sit back from the frame; narrower left gaps you could see the void through,
+        # owner 2026-10-25 "SC1")
+        outer = self.profile(2.4)
         for (p, q), (r, s) in zip(zip(prof, prof[1:]), zip(outer, outer[1:])):
             quad(b, [self.P(p[0], p[1], a_s), self.P(q[0], q[1], a_s), self.P(s[0], s[1], a_s), self.P(r[0], r[1], a_s)],
                  ax(a_s - 3), self.frame)
-            quad(b, [self.P(r[0], r[1], a_s), self.P(s[0], s[1], a_s), self.P(s[0], s[1], a_s + self.lip + 0.6),
-                     self.P(r[0], r[1], a_s + self.lip + 0.6)], ax(a_s + 0.3, 1.2), self.frame, away=True)
+            quad(b, [self.P(r[0], r[1], a_s), self.P(s[0], s[1], a_s), self.P(s[0], s[1], a_s + self.lip + 2.0),
+                     self.P(r[0], r[1], a_s + self.lip + 2.0)], ax(a_s + 0.3, 1.2), self.frame, away=True)
         if self.ribs:
             mat, every, t = self.ribs
             a = self.a0 + every
@@ -338,7 +342,7 @@ class Tunnel:
         box(-hw - 0.3, self.crown, a_s, hw + 0.3, top, a1)
 
 
-def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", floor_rings=(1.0, 0.85, 0.7, 0.55, 0.4, 0.26, 0.13)):
+def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", tunnels=(), floor_rings=(1.0, 0.85, 0.7, 0.55, 0.4, 0.26, 0.13)):
     """The hall: walls rising from `outline` (x, z, closed) and closing over as `profile` (scale toward C, y) goes up,
     bumped out (rock) by up to `amp`. Wall faces with a corner inside a tunnel's mouth are left out."""
     b = ctx.b
@@ -353,6 +357,10 @@ def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", floor_r
             n = noise(i / 3.0, k * 0.7)
             inward = min(1.0, max(0.0, (y - 2.8) / 1.5)) * 0.35
             push = amp * min(1.0, y / 1.2) * (n - inward) * max(f, 0.3)
+            for t in tunnels:                                          # the rock sits flush round a tunnel's frame
+                u, a = t.local((x, 0.0, z))
+                if a > 0 and abs(u) < t.hw + 5.0:
+                    push *= min(1.0, max(0.0, (abs(u) - t.hw - 2.0) / 3.0))
             ring.append((C[0] + dx * f + dx / ln * push, y, C[1] + dz * f + dz / ln * push))
         grid.append(ring)
     for k in range(len(profile) - 1):
@@ -407,7 +415,7 @@ def wall_rows(put, outline, C, f_at, base_at, tunnels, top):
 # ------------------------------------------------------------------------------------------------ layouts
 SIGNS = {"guns": "GUNSMITH", "meds": "MEDIC", "supplies": "SUPPLIER", "valuables": "SUPREME", "ming": "MING",
          "stash": "STASH", "wardrobe": "WARDROBE", "workbench": "WORKBENCH", "quests": "QUESTS", "stats": "STATS",
-         "mess": "MESS", "range": "RANGE", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
+         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
 TRADERS = ("guns", "meds", "supplies", "valuables", "ming")
 TINS = ("cabin_tin_b", "shed_metal", "cabin_tin_d", "shed_metal")
 
@@ -566,10 +574,13 @@ def post_layout(rock=False):
     L.crates = [at(2.6, 115), at(2.6, 290), (-38.0, 2.6), (29.4, -2.4)]
     L.generator = at(2.4, 315)
     L.keep_clear = []
+    # The quests and stats boards stand out in the hall on their own, lit, both facing where you spawn (owner
+    # 2026-10-25: the quests board was "shoved in the corner", the stats board hard to see).
     L.boards = []
-    for deg, bid in ((-113, "quests"), (-67, "stats")):
-        p = at(0.15 if not rock else 0.9, deg)
-        L.boards.append((bid, p, (-math.cos(math.radians(deg)), -math.sin(math.radians(deg)))))
+    for bid, (x, z) in (("quests", (7.4, -6.4)), ("stats", (-7.5, -7.0))):
+        dx, dz = L.spawn[0] - x, L.spawn[1] + 1.0 - z
+        ln = math.hypot(dx, dz)
+        L.boards.append((bid, (x, z), (dx / ln, dz / ln)))
     L.strings = [(20, 200, 7.0), (70, 250, 7.6), (110, 290, 7.2), (160, 340, 7.4)]
     L.work_lamps = [(2.8, -4.6, 1.1, 3.2), (-38.5, 3.2, 1.0, 3.0), (29.0, 3.0, 1.0, 3.0), (5.0, 8.5, 0.9, 3.0)]
     if rock:
@@ -701,15 +712,17 @@ def pipe(b, a, c, mat="bk_tube", t=0.05):
 
 
 def crate(b, x, y, z, sx, sy, sz, yaw=0.0, mat="olive"):
-    """A military crate: the body and a darker lid band."""
+    """A military crate: the body and a darker lid band (standing 2 cm proud of the body's top, so the two never
+    flicker through each other: owner 2026-10-25, the seats round the war table and the footlockers)."""
     b.box((x, y + sy / 2, z), (sx, sy, sz), yaw=yaw, style=mb._nb(mat))
-    b.box((x, y + sy - 0.03, z), (sx + 0.02, 0.06, sz + 0.02), yaw=yaw, style=mb._solid("olive_dark"))
+    b.box((x, y + sy - 0.02, z), (sx + 0.04, 0.08, sz + 0.04), yaw=yaw, style=mb._solid("olive_dark"))
 
 
 def drum(b, x, z, y=0.0, mat="cabin_tin_b"):
-    for yaw in (0, 45):
-        b.box((x, y + 0.45, z), (0.5, 0.9, 0.5), yaw=yaw, style=mb._nb(mat))
-    b.box((x, y + 0.91, z), (0.46, 0.02, 0.46), yaw=22.5, style=mb._solid("bk_iron"))
+    # (the second box a little shorter at both ends: same-height tops flickered)
+    b.box((x, y + 0.45, z), (0.5, 0.9, 0.5), style=mb._nb(mat))
+    b.box((x, y + 0.45, z), (0.5, 0.86, 0.5), yaw=45, style=mb._nb(mat))
+    b.box((x, y + 0.915, z), (0.46, 0.03, 0.46), yaw=22.5, style=mb._solid("bk_iron"))
 
 
 def duffel(b, x, y, z, yaw, rng):
@@ -766,7 +779,7 @@ class Frame:
 def sign_board(ctx, F, out, y, region, w=3.0, h=0.55, wires=True):
     """A sheet of tin with the bay's name painted on, facing out of the bay."""
     b = ctx.b
-    F.box(b, out - 0.02, y, 0.0, 0.03, h, w, mb._solid("shed_metal"))
+    F.box(b, out - 0.035, y, 0.0, 0.03, h, w, mb._solid("shed_metal"))      # (2 cm behind the paint)
     n = (F.n[0], 0.0, F.n[1])
     pts = [F.P(out, y - h / 2 + 0.03, -w / 2 + 0.04), F.P(out, y - h / 2 + 0.03, w / 2 - 0.04),
            F.P(out, y + h / 2 - 0.03, w / 2 - 0.04), F.P(out, y + h / 2 - 0.03, -w / 2 + 0.04)]
@@ -910,7 +923,7 @@ def war_table(ctx):
         for dz in (-1.1, 1.1):
             drum(b, tx + dx, tz + dz, mat=rng.choice(("shed_metal", "bk_iron")))
     b.box((tx, 0.94, tz), (5.2, 0.05, 3.3), style=mb._solid("metal"))
-    b.poly([(tx - 2.3, 0.97, tz - 1.4), (tx + 2.3, 0.97, tz - 1.4), (tx + 2.3, 0.97, tz + 1.4), (tx - 2.3, 0.97, tz + 1.4)],
+    b.poly([(tx - 2.3, 0.985, tz - 1.4), (tx + 2.3, 0.985, tz - 1.4), (tx + 2.3, 0.985, tz + 1.4), (tx - 2.3, 0.985, tz + 1.4)],
            (0, 1, 0), "decals", ctx.d("map"))
     for _ in range(5):                                                 # ammo tins and a radio holding the map down
         b.box((tx + rng.uniform(-2.3, 2.3), 1.05, tz + rng.choice((-1.45, 1.45))), (0.3, 0.16, 0.15),
@@ -918,6 +931,7 @@ def war_table(ctx):
     for k in range(4):                                                 # crates to sit on
         a = math.radians(30 + k * 90)
         crate(b, tx + math.cos(a) * 3.4, 0.0, tz + math.sin(a) * 2.6, 0.5, 0.45, 0.5, yaw=k * 20.0)
+        block(tx + math.cos(a) * 3.4, 0.0, tz + math.sin(a) * 2.6, 0.5, 0.5, 0.5, k * 20.0)   # (you walked through them)
 
 
 def shooting_range(ctx):
@@ -972,6 +986,9 @@ def mess(ctx):
             pipe(b, (x + o2[0] - 0.3, 0, z + o2[2]), (x + o2[0] - 0.3, 0.74, z + o2[2]), "bk_iron", 0.06)
             pipe(b, (x + o2[0] + 0.3, 0, z + o2[2]), (x + o2[0] + 0.3, 0.74, z + o2[2]), "bk_iron", 0.06)
         block(x, 0.0, z, 2.6 if yaw else 0.8, 0.78, 0.8 if yaw else 2.6)
+        for side in (-0.95, 0.95):                                     # the benches stop you too
+            off = mb.rot((side, 0, 0), yaw, 0)
+            block(x + off[0], 0.0, z + off[2], 0.3, 0.46, 2.6, yaw)
         for _ in range(3):                                             # mess tins and mugs
             o2 = mb.rot((rng.uniform(-0.25, 0.25), 0, rng.uniform(-1.1, 1.1)), yaw, 0)
             b.box((x + o2[0], 0.81, z + o2[2]), (0.14, 0.06, 0.2), yaw=rng.uniform(0, 90), style=mb._nb("metal"))
@@ -986,6 +1003,7 @@ def mess(ctx):
     pipe(b, (sx, 0.9, sz), (sx, 4.5, sz), "bk_iron", 0.1)
     b.box((sx, 0.98, sz), (0.3, 0.16, 0.3), style=mb._nb("metal"))    # a pot
     drum(b, kx - k[0] * 2.3, kz - k[2] * 2.3, mat="shed_metal")       # water
+    block(kx - k[0] * 2.3, 0.0, kz - k[2] * 2.3, 0.6, 0.95, 0.6)
     block(sx, 0.0, sz, 0.6, 1.0, 0.6)
 
 
@@ -1036,6 +1054,7 @@ def dress_props(ctx):
                   mat=rng.choice(("olive", "olive_dark", "cardboard")))
         block(cx, y, cz, 2.2, 0.8, 1.6)
         drum(b, cx + 1.5, cz + 0.3, y, mat=rng.choice(TINS))
+        block(cx + 1.5, y, cz + 0.3, 0.6, 0.95, 0.6)
     gx, gz = LAY.generator                                             # the generator, its cable off along the floor
     b.box((gx, 0.5, gz), (1.8, 1.0, 0.9), style=mb._nb("cabin_tin_d"))
     b.box((gx, 1.05, gz), (1.9, 0.1, 1.0), style=mb._solid("bk_iron"))
@@ -1076,16 +1095,118 @@ def pillars(ctx):
 
 
 def boards(ctx):
-    """The jobs board and the record wall by the range."""
-    b = ctx.b
+    """The jobs board and the record board: freestanding steel sheets on posts, a tin awning with a bulb under it,
+    the sign on top, a couple of crates in front. The hideout writes what's on them (current quests, your record)."""
+    b, rng = ctx.b, random.Random("boards")
     for bid, (x, z), (nx, nz) in LAY.boards:
         F = Frame((x, z), (-nz, nx), (nx, nz), base_y(x, z))
-        F.box(b, 0.05, 1.6, 0.0, 0.08, 1.6, 2.4, mb._solid("shed_metal"))
-        for k in range(6):                                             # pinned notes
-            F.box(b, 0.1, 1.2 + (k // 3) * 0.6, -0.8 + (k % 3) * 0.8, 0.01, 0.35, 0.28, mb._solid("bone"))
-        sign_board(ctx, F, 0.12, 2.65, "sign_" + bid, w=2.2, h=0.45, wires=False)
+        w = BOARD_W
+        F.box(b, 0.0, BOARD_Y, 0.0, 0.08, BOARD_H, w, mb._solid("shed_metal"))
+        F.box(b, -0.02, BOARD_Y, 0.0, 0.06, BOARD_H + 0.12, w + 0.12, mb._solid("bk_iron"))       # a steel rim
         for s in (-1, 1):
-            pipe(b, F.P(0.05, 0, s * 1.1), F.P(0.05, 2.9, s * 1.1), "bk_iron", 0.06)
+            pipe(b, F.P(0.0, 0, s * (w / 2 + 0.1)), F.P(0.0, 2.95, s * (w / 2 + 0.1)), "bk_iron", 0.08)
+            pipe(b, F.P(-0.6, 0, s * (w / 2 + 0.1)), F.P(0.0, 1.4, s * (w / 2 + 0.1)), "bk_iron", 0.06)  # a brace
+        F.box(b, 0.35, 2.85, 0.0, 0.9, 0.04, w + 0.6, mb._solid("cabin_tin_d"))                     # the awning
+        sign_board(ctx, F, 0.08, 3.1, "sign_" + bid, w=2.2, h=0.45, wires=False)
+        for k in range(4):                                             # a few notes pinned round the edge
+            F.box(b, 0.06, BOARD_Y + BOARD_H / 2 - 0.25 - k * 0.12 * (k % 2), (w / 2 - 0.25) * (1 if k < 2 else -1),
+                  0.01, 0.3, 0.24, mb._solid("bone"), yaw=rng.uniform(-6, 6))
+        p = F.P(0.55, 2.75, 0.0)
+        bulb(b, p[0], p[1], p[2], strength=1.0, reach=3.6)
+        for s in (-1, 1):                                              # crates to sit on, a drum with a radio
+            p = F.P(2.0, 0, s * 1.2)
+            crate(b, p[0], F.y0, p[2], 0.5, 0.45, 0.5, yaw=F.yaw + rng.uniform(-15, 15),
+                  mat=rng.choice(("olive", "olive_dark")))
+            block(p[0], F.y0, p[2], 0.5, 0.5, 0.5, F.yaw)
+        p = F.P(0.6, 0, w / 2 + 0.8)
+        drum(b, p[0], p[2], F.y0, mat="shed_metal")
+        b.box((p[0], F.y0 + 1.02, p[2]), (0.32, 0.18, 0.16), yaw=F.yaw + 20, style=mb._nb("bk_iron"))
+        block(p[0], F.y0, p[2], 0.6, 0.95, 0.6)
+        q = F.P(-0.1, 0, 0.0)
+        block(q[0], F.y0, q[2], 0.8, 3.0, w + 0.4, F.yaw)
+
+
+def quarters(ctx):
+    """The mess and bunk tunnel lived in (owner 2026-10-25: it looked "so dead and awkward"; the hideout should be fun
+    to hang round in late at night): lamps over the tables and dinner left on them, a corner with a couch and an old
+    TV, reading lamps and kit on the bunks, washing hung up, a sink by the washroom, notices on the walls."""
+    b, rng = ctx.b, random.Random("quarters")
+    mx, mz = LAY.mess
+    for k in (-1, 0, 1):                                               # a lamp over each table, the dinner left out
+        x, z = mx + k * 0.3, mz + k * 2.2
+        pipe(b, (x, 2.45, z), (x, 5.6, z), "bk_cable", 0.015)
+        b.box((x, 2.5, z), (0.34, 0.08, 0.34), style=mb._solid("olive_dark"))           # a tin shade
+        bulb(b, x, 2.42, z, 0.9, 3.4)
+        for _ in range(4):
+            px, pz = x + rng.uniform(-1.1, 1.1), z + rng.choice((-0.22, 0.22))
+            b.box((px, 0.785, pz), (0.22, 0.012, 0.22), yaw=rng.uniform(0, 90), style=mb._solid("bone"))   # a plate
+            b.box((px + 0.18, 0.83, pz), (0.08, 0.1, 0.08), style=mb._nb(rng.choice(("red", "blue", "metal"))))
+        if k == 0:                                                     # a card game, and a bottle
+            for c in range(6):
+                b.box((x + rng.uniform(-0.4, 0.4), 0.784 + c * 0.001, z + rng.uniform(-0.1, 0.1)), (0.06, 0.004, 0.09),
+                      yaw=rng.uniform(0, 180), style=mb._solid("bone"))
+            b.box((x - 0.6, 0.93, z), (0.08, 0.3, 0.08), style=mb._nb("green"))
+    # The corner: a couch facing an old TV on crates against the wall, a rug, a crate for a table.
+    zc = mz + 5.2
+    b.poly([(-4.1, 0.012, zc - 1.4), (-1.0, 0.012, zc - 1.4), (-1.0, 0.012, zc + 1.4), (-4.1, 0.012, zc + 1.4)], (0, 1, 0),
+           "carpet", mb.uv_world())
+    cx = -1.5
+    b.box((cx, 0.22, zc), (0.85, 0.44, 2.1), style=mb._nb("bk_tarp"))                  # seat
+    b.box((cx + 0.33, 0.7, zc), (0.22, 0.6, 2.1), style=mb._nb("bk_tarp"))             # back
+    for s in (-1, 1):
+        b.box((cx, 0.55, zc + s * 1.0), (0.85, 0.3, 0.18), style=mb._nb("olive_dark"))  # arms
+    for s in (-0.5, 0.5):
+        b.box((cx - 0.05, 0.5, zc + s), (0.6, 0.12, 0.9), yaw=rng.uniform(-4, 4), style=mb._nb("olive"))   # cushions
+    block(cx, 0.0, zc, 0.9, 0.9, 2.1)
+    crate(b, -2.6, 0.0, zc, 0.6, 0.38, 0.8, mat="olive_dark")                       # the table, a radio and mugs
+    b.box((-2.6, 0.5, zc + 0.2), (0.3, 0.16, 0.14), style=mb._nb("bk_iron"))
+    b.box((-2.5, 0.46, zc - 0.25), (0.08, 0.1, 0.08), style=mb._nb("red"))
+    block(-2.6, 0.0, zc, 0.6, 0.45, 0.8)
+    crate(b, -4.0, 0.0, zc - 0.4, 0.6, 0.7, 0.6, mat="olive")                       # the TV on crates
+    crate(b, -4.0, 0.0, zc + 0.4, 0.6, 0.7, 0.6, mat="olive_dark")
+    b.box((-3.95, 1.05, zc), (0.5, 0.6, 0.7), style=mb._nb("trim_dark"))
+    b.group = bake_light.GLOW
+    mb._bx(b, -3.69, 0.8, zc, 0.01, 0.45, 0.56, "blue", bottom=True)
+    b.group = None
+    LAMPS.append((-3.4, 1.05, zc, 0.5, 2.4))
+    pipe(b, (-3.9, 1.35, zc), (-3.8, 1.75, zc - 0.25), "bk_iron", 0.01)                # rabbit ears
+    pipe(b, (-3.9, 1.35, zc), (-3.8, 1.75, zc + 0.25), "bk_iron", 0.01)
+    block(-4.0, 0.0, zc, 0.7, 1.4, 1.3)
+    # The bunks: a reading lamp clipped to each, a blanket roll and kit on the top ones.
+    for bx, bz, yaw in LAY.bunk_list:
+        r = lambda x, z: mb.rot((x, 0, z), yaw, 0)                    # noqa: E731
+        p = r(0.45, 0.95)
+        bulb(b, bx + p[0], 1.3, bz + p[2], 0.45, 1.8)
+        p = r(0.0, -0.6)
+        b.box((bx + p[0], 1.82, bz + p[2]), (0.7, 0.2, 0.25), yaw=yaw, style=mb._nb(rng.choice(("bk_tarp", "olive", "red"))))
+        if rng.random() < 0.6:
+            duffel(b, bx, 1.71, bz + rng.uniform(-0.3, 0.3), yaw + rng.uniform(-10, 10), rng)
+        p = r(0.0, -0.4)
+        b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(rng.choice(("bk_tarp", "olive", "blue"))))
+    # Fairy lights zigzagging over the bunks.
+    for a, c in (((-4.2, 2.9, 25.6), (4.2, 2.9, 28.4)), ((4.2, 2.9, 28.4), (-4.2, 2.9, 31.6)), ((-4.2, 2.9, 31.6), (4.2, 2.9, 34.6))):
+        string_lights(b, a, c, sag=0.35, every=0.9, strength=0.25, reach=2.2)
+    # Washing hung up across the tunnel, and a sink with a mirror outside the washroom.
+    zl = 30.9
+    pipe(b, (-4.3, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)
+    for k in range(7):
+        x = -3.4 + k * 1.1 + rng.uniform(-0.2, 0.2)
+        b.box((x, 2.0, zl), (0.5, 0.65, 0.02), yaw=rng.uniform(-6, 6),
+              style=mb._solid(rng.choice(("olive", "olive_dark", "bone", "bk_tarp", "blue"))))
+    x0, z0, x1, z1 = LAY.wc
+    sx, sz = x1 + 0.6, z0 + 0.6
+    b.box((sx, 0.85, sz), (0.5, 0.12, 0.4), style=mb._nb("metal"))
+    pipe(b, (sx, 0, sz), (sx, 0.8, sz), "bk_iron", 0.06)
+    b.box((sx + 0.22, 1.5, sz), (0.02, 0.5, 0.36), style=mb._solid("steel_light"))     # the mirror
+    b.box((sx, 0.98, sz + 0.12), (0.1, 0.08, 0.06), style=mb._nb("bone"))              # soap
+    block(sx, 0.0, sz, 0.55, 0.95, 0.45)
+    # Notices on the walls.
+    for bid, z, side in (("lights", 18.9, -1), ("chow", 23.6, 1), ("clean", 34.3, 1)):
+        t = LAY.tunnels[3]
+        x = side * (t.hw - 0.02)
+        F = Frame((x, z), (0.0, 1.0), (-side, 0.0), 0.0)
+        b.poly([F.P(0.0, 1.55, -0.6), F.P(0.0, 1.55, 0.6), F.P(0.0, 1.8, 0.6), F.P(0.0, 1.8, -0.6)],
+               (-side, 0.0, 0.0), "decals", ctx.d("sign_" + bid))
 
 
 LAMPS = []          # (x, y, z, strength, reach) for the light bake
@@ -1127,7 +1248,6 @@ def work_lamp(b, x, z, strength=1.1, reach=3.0, y0=0.0):
 
 def lamps(ctx):
     b = ctx.b
-    LAMPS.clear()
     for a0, a1, y in LAY.strings:                                      # strings of bulbs across the hall
         string_lights(b, wall_at(y, math.radians(a0)), wall_at(y, math.radians(a1)), sag=1.0, every=1.8, strength=0.3)
     for bid, o, t, n, w, depth, y0, kind in LAY.bays:                  # a bare bulb over every bay
@@ -1157,7 +1277,8 @@ def lamps(ctx):
 
 def dress(ctx):
     L = LAY
-    dome(ctx, L.outline, L.C, L.profile, L.mats, L.amp, [t.hole for t in L.tunnels], seed="hall")
+    LAMPS.clear()
+    dome(ctx, L.outline, L.C, L.profile, L.mats, L.amp, [t.hole for t in L.tunnels], seed="hall", tunnels=L.tunnels)
     for t in L.tunnels:
         t.draw(ctx)
     if L.ledge:
@@ -1173,6 +1294,8 @@ def dress(ctx):
     dress_props(ctx)
     boards(ctx)
     pillars(ctx)
+    if SHAPE != "cave":
+        quarters(ctx)
     lamps(ctx)
 
 
@@ -1252,7 +1375,7 @@ def stations():
         out.append((bid, p[0], p[2], max(2.4, w / 2 + 0.4)))
     out.append(("war_table", LAY.war_table[0], LAY.war_table[1], 3.8))
     for bid, (x, z), (nx, nz) in LAY.boards:
-        out.append((bid, x + nx * 1.3, z + nz * 1.3, 2.0))
+        out.append((bid, x + nx * 1.3, z + nz * 1.3, 2.4))
     t = LAY.tunnels[0]
     p = t.P(0, 0, t.a0 - FIRING_BACK - 1.0)
     out.append(("range", p[0], p[2], 3.0))
@@ -1296,6 +1419,14 @@ def write_level(rows):
             p = t.P(u, 0.0, fl + d + 0.3)
             f.write('\n[node name="Target%d" type="Marker3D" parent="Range"]\n'
                     'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n' % (d, round(p[0], 3), round(p[2], 3)))
+        f.write('\n[node name="Boards" type="Node3D" parent="."]\n')
+        for bid, (x, z), (nx, nz) in LAY.boards:                       # (a Marker3D's +z out of the board's face)
+            yaw = math.atan2(nx, nz)
+            f.write('\n[node name="%s" type="Marker3D" parent="Boards"]\n'
+                    'transform = Transform3D(%g, 0, %g, 0, 1, 0, %g, 0, %g, %g, %g, %g)\n'
+                    'metadata/size = Vector2(%g, %g)\n'
+                    % (bid, math.cos(yaw), math.sin(yaw), -math.sin(yaw), math.cos(yaw), round(x + nx * 0.05, 3),
+                       round(base_y(x, z) + BOARD_Y, 3), round(z + nz * 0.05, 3), BOARD_W - 0.95, BOARD_H - 0.2))
         for sid, x, z, reach in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'
                     'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n'

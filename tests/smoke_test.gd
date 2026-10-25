@@ -2117,6 +2117,11 @@ func _section_hideout_world() -> void:
 	(shop.find_child("StashButton", true, false) as Button).pressed.emit()
 	_check(not shop.visible and world.menu_open(), "STASH & GEAR goes to the stash screen")
 	_check(world.menu._top_row.get_child(0).name == "BackToHideout", "the way back to the hideout is first on the top bar")
+	# The quests and stats boards (0.21.4, owner): out in the hall on their own, written with your quests and record.
+	var quests_text: String = (world.boards["quests"] as Label3D).text if world.boards.has("quests") else ""
+	var stats_text: String = (world.boards["stats"] as Label3D).text if world.boards.has("stats") else ""
+	_check(quests_text.contains(String(Traders.LIST[HideoutWorld.quest_trader()]["name"]).to_upper()) and stats_text.begins_with("RAIDS"),
+		"the quests board lists your quests, the stats board your record")
 	world.close_menu()
 	_check(not world.menu_open() and not walker.locked, "closing the menu goes back to walking")
 	var tab := InputEventAction.new()
