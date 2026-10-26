@@ -2215,6 +2215,21 @@ func _section_hideout_world() -> void:
 	_check(wardrobe.visible and ghost_on and Profile.look["Hat"] != Operators.by_id("ghost")["look"]["Hat"]
 		and wardrobe._name.text == "YOUR OWN" and world.menu.screen._doll.find_child("Character", true, false).outfit == Profile.look,
 		"the wardrobe: pick an operator, change a part, it's worn (and shows in the inventory)")
+	# 0.22.5 (owner): the character stands still, and click/touch-drag turns them.
+	var turn_before: float = wardrobe.model.rotation.y
+	for i in 2:
+		await process_frame
+	var still := is_equal_approx(wardrobe.model.rotation.y, turn_before)
+	var drag := InputEventMouseMotion.new()
+	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
+	drag.relative = Vector2(100, 0)
+	wardrobe._preview_input(drag)
+	var turned := not is_equal_approx(wardrobe.model.rotation.y, turn_before)
+	drag.button_mask = 0
+	var after_drag: float = wardrobe.model.rotation.y
+	wardrobe._preview_input(drag)
+	_check(still and turned and wardrobe.model.rotation.y == after_drag,
+		"the wardrobe character doesn't spin by itself; dragging turns them, moving without a press doesn't")
 	var sent := Operators.to_text(Profile.look)
 	_check(Operators.from_text(sent) == Profile.look and Network.main.my_look == sent
 		and Operators.from_text("99x") == Operators.clean({}), "your look goes online as short text; junk turns into a real look")

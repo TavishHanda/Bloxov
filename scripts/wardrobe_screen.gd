@@ -1,13 +1,13 @@
 class_name WardrobeScreen
 extends Control
 ## The wardrobe (0.21.6, owner: "wardrobe should be like character select"; picked operators AND customizing): pick an
-## operator on the left, see them turn in the middle, change any part on the right. What you pick is worn at once and
+## operator on the left, see them in the middle (drag to turn them, 0.22.5), change any part on the right. What you pick is worn at once and
 ## saved (Profile.look); online, the others in your raid see it. Looks only.
 
 const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
 const SIDE_WIDTH := 300.0
-const TURN_SPEED := 0.5   # radians a second
+const DRAG_TURN := 0.01   # radians per pixel dragged (0.22.5: the character stays still until you drag; was a constant spin)
 
 ## Called with the new look whenever it changes (the hideout saves it and tells the inventory and the server).
 var on_change: Callable
@@ -72,7 +72,7 @@ func _init() -> void:
 	middle.add_child(_name)
 	middle.add_child(_build_preview())
 	_hint = Label.new()
-	_hint.text = "Looks only: nothing here changes how you play. Others see your character online."
+	_hint.text = "Drag the character to turn them. Looks only: nothing here changes how you play. Others see your character online."
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.modulate = Color(1, 1, 1, 0.55)
 	_hint.add_theme_font_size_override("font_size", 13)
@@ -140,7 +140,9 @@ func _build_preview() -> SubViewportContainer:
 	var holder := SubViewportContainer.new()
 	holder.stretch = true
 	holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.mouse_filter = Control.MOUSE_FILTER_STOP
+	holder.mouse_default_cursor_shape = Control.CURSOR_DRAG
+	holder.gui_input.connect(_preview_input)
 	var view := SubViewport.new()
 	view.own_world_3d = true
 	view.transparent_bg = true
@@ -181,9 +183,11 @@ func _build_preview() -> SubViewportContainer:
 	return holder
 
 
-func _process(delta: float) -> void:
-	if visible and model != null:
-		model.rotation.y += TURN_SPEED * delta
+## Click (or touch) and drag on the character to turn them. Touches arrive as mouse events too (emulated), so
+## this works on phones.
+func _preview_input(event: InputEvent) -> void:
+	if model != null and event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT:
+		model.rotation.y += (event as InputEventMouseMotion).relative.x * DRAG_TURN
 
 
 ## Shows the wardrobe with `current` (your look now).
