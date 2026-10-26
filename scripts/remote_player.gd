@@ -21,10 +21,13 @@ const NECK_HEIGHT := 1.38
 const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
 const GROUP := &"remote_players"
 ## Their footsteps (0.12.35, owner: teammates were silent online): every stride, louder and heard farther when
-## they sprint, barely when they crouch. Max hearing distance per pace, meters.
-const STEP_RANGE_WALK := 25.0
-const STEP_RANGE_SPRINT := 35.0
+## they sprint, barely when they crouch. Max hearing distance per pace, meters. 0.22.3 (owner: louder, like the AI's
+## in 0.22.2): walking and sprinting 6 dB louder, fading more slowly (STEP_UNIT_SIZE, was 3) and heard 10 m farther
+## (were 25 and 35); crouching left as it was, so sneaking still works.
+const STEP_RANGE_WALK := 35.0
+const STEP_RANGE_SPRINT := 45.0
 const STEP_RANGE_CROUCH := 6.0
+const STEP_UNIT_SIZE := 4.0
 
 @onready var model: Node3D = $Model
 @onready var gun_model: Node3D = $Model/Gun
@@ -167,18 +170,20 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 	_stride_left -= speed * delta
 	if _stride_left > 0.0:
 		return
-	var volume := -9.0
+	var volume := -3.0
 	var reach := STEP_RANGE_WALK
+	var unit_size := STEP_UNIT_SIZE
 	_stride_left = 1.5
 	if flags & FLAG_CROUCH:
 		volume = -16.0
 		reach = STEP_RANGE_CROUCH
+		unit_size = 3.0
 		_stride_left = 1.1
 	elif flags & FLAG_SPRINT:
-		volume = -4.0
+		volume = 2.0
 		reach = STEP_RANGE_SPRINT
 		_stride_left = 1.9
-	Surfaces.step(self, volume, true, 1.0, 3.0, reach)
+	Surfaces.step(self, volume, true, 1.0, unit_size, reach)
 
 
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
