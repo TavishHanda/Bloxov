@@ -1,6 +1,6 @@
 """Bloxov jointed characters (0.23): the Scav, PMC and Raider on joints, so they can kneel, lie prone and crawl
 instead of squashing or tipping over stiff. Same outfit slots and skins as make_character.py, new body (look C,
-owner 2026-10-26: about 1.85 m, a bit bigger head and shoulders than real).
+owner 2026-10-26: about 1.9 m; as wide as the old models, owner: "make them a bit fatter like they were before").
 
 Run: python3 art_source/scripts/make_body.py [scav|pmc|raider ...]   (all three without arguments)
 No Blender needed (the .glb is written directly). Texture: one 128 px atlas per character, 16 px per meter,
@@ -109,17 +109,17 @@ SKINS = {
 # ---------------------------------------------------------------- body layout (meters, Blender axes)
 HIP_Z = 0.80            # hip joints
 KNEE_Z = 0.42
-LEG_X = 0.15            # hip joints out from the middle
-LEG_W = 0.24
+LEG_X = 0.19            # hip joints out from the middle
+LEG_W = 0.30
 WAIST_Z = 0.90          # the chest bends here
 SHOULDER_Z = 1.40       # top of the chest
 NECK_Z = 1.42           # the head turns here
-HEAD = 0.40             # head block, from NECK_Z + 0.03
+HEAD = 0.44             # head block, from NECK_Z + 0.03
 HEAD_Z = NECK_Z + 0.03
-TORSO_W, TORSO_D = 0.60, 0.34
-ARM_X = TORSO_W / 2 + 0.08   # shoulder joints
+TORSO_W, TORSO_D = 0.76, 0.42
+ARM_X = TORSO_W / 2 + 0.095   # shoulder joints
 ARM_Z = SHOULDER_Z - 0.08
-ARM_W = 0.15
+ARM_W = 0.18
 UPPER = 0.30            # shoulder to elbow
 FORE = 0.27             # elbow to wrist
 ELBOW_Z = ARM_Z - UPPER

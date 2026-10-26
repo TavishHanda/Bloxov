@@ -110,7 +110,7 @@ func pose(ch: Node3D, gun: Node3D, p: String) -> void:
 	if p == "prone":
 		hold_gun(ch, gun, Vector3(0.09, 0.16, neck.z - 0.12))
 	else:
-		hold_gun(ch, gun, neck + Vector3(0.14, -0.24, -0.22))
+		hold_gun(ch, gun, neck + Vector3(0.17, -0.26, -0.26))
 
 
 func _initialize() -> void:
