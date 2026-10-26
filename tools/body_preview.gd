@@ -95,11 +95,11 @@ func pose(ch: Node3D, gun: Node3D, p: String) -> void:
 			j(ch, "KneeL").rotation = deg(-84)
 			j(ch, "LegR").rotation = deg(-8)
 			j(ch, "KneeR").rotation = deg(-82)
-			hips.position.y = 0.38 * cos(deg_to_rad(8)) + 0.1
+			hips.position.y = 0.29 * cos(deg_to_rad(8)) + 0.1
 			j(ch, "Spine").rotation = deg(-12)
 			j(ch, "Neck").rotation = deg(10)
 		"prone":
-			hips.position.y = 0.2
+			hips.position.y = 0.24
 			hips.rotation = deg(-90)
 			j(ch, "Spine").rotation = deg(10)
 			j(ch, "Neck").rotation = deg(62)

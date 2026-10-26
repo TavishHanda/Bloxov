@@ -1,6 +1,6 @@
 """Bloxov jointed characters (0.23): the Scav, PMC and Raider on joints, so they can kneel, lie prone and crawl
 instead of squashing or tipping over stiff. Same outfit slots and skins as make_character.py, new body (look C,
-owner 2026-10-26: about 1.9 m; as wide as the old models, owner: "make them a bit fatter like they were before").
+owner 2026-10-26: "make it the same as before for now": the old models' sizes, ~2.05 m, just with joints).
 
 Run: python3 art_source/scripts/make_body.py [scav|pmc|raider ...]   (all three without arguments)
 No Blender needed (the .glb is written directly). Texture: one 128 px atlas per character, 16 px per meter,
@@ -107,17 +107,18 @@ SKINS = {
 }
 
 # ---------------------------------------------------------------- body layout (meters, Blender axes)
-HIP_Z = 0.80            # hip joints
-KNEE_Z = 0.42
+HIP_Z = 0.60            # hip joints
+KNEE_Z = 0.31
 LEG_X = 0.19            # hip joints out from the middle
 LEG_W = 0.30
-WAIST_Z = 0.90          # the chest bends here
-SHOULDER_Z = 1.40       # top of the chest
-NECK_Z = 1.42           # the head turns here
-HEAD = 0.44             # head block, from NECK_Z + 0.03
+WAIST_Z = 0.62          # the chest bends here
+SHOULDER_Z = 1.36       # top of the chest
+NECK_Z = 1.37           # the head turns here
+HEAD = 0.52             # head block, from NECK_Z + 0.03
 HEAD_Z = NECK_Z + 0.03
-TORSO_W, TORSO_D = 0.76, 0.42
-ARM_X = TORSO_W / 2 + 0.095   # shoulder joints
+TORSO_W, TORSO_D = 0.76, 0.44
+CHEST_Z = 0.80          # vests and rigs are placed from here
+ARM_X = TORSO_W / 2 + 0.09   # shoulder joints
 ARM_Z = SHOULDER_Z - 0.08
 ARM_W = 0.18
 UPPER = 0.30            # shoulder to elbow
@@ -376,14 +377,14 @@ def hat_box(p, skin, grow=0.03, bottom=0.78, top=0.28):
 def chest_rig(p, skin):
     """A scav-style chest rig over the top: front panel, three pouches, straps over the shoulders."""
     d = TORSO_D / 2
-    p.box((-0.26, d, WAIST_Z + 0.08), (0.26, d + 0.05, WAIST_Z + 0.32), skin)
+    p.box((-0.26, d, CHEST_Z + 0.08), (0.26, d + 0.05, CHEST_Z + 0.32), skin)
     for cx in (-0.17, 0.0, 0.17):
-        p.box((cx - 0.07, d + 0.05, WAIST_Z + 0.1), (cx + 0.07, d + 0.1, WAIST_Z + 0.28), skin)
+        p.box((cx - 0.07, d + 0.05, CHEST_Z + 0.1), (cx + 0.07, d + 0.1, CHEST_Z + 0.28), skin)
     for sx in (-1, 1):
         x0, x1 = sx * 0.1, sx * 0.18
-        p.box((x0, d, WAIST_Z + 0.32), (x1, d + 0.03, SHOULDER_Z + 0.01), skin)
+        p.box((x0, d, CHEST_Z + 0.32), (x1, d + 0.03, SHOULDER_Z + 0.01), skin)
         p.box((x0, -d - 0.02, SHOULDER_Z - 0.02), (x1, d + 0.03, SHOULDER_Z + 0.02), skin)
-        p.box((x0, -d - 0.02, WAIST_Z + 0.08), (x1, -d, SHOULDER_Z + 0.01), skin)
+        p.box((x0, -d - 0.02, CHEST_Z + 0.08), (x1, -d, SHOULDER_Z + 0.01), skin)
     return p
 
 
@@ -465,15 +466,15 @@ def build_pmc(b):
     b.finish(p, "Hat__cap_headset", "Neck")
     d = TORSO_D / 2
     for option, skin in (("tan", "carrier_tan"), ("green", "carrier_green"), ("black", "carrier_black")):
-        p = b.part().box((-TORSO_W / 2 + 0.03, -d - 0.04, WAIST_Z + 0.06), (TORSO_W / 2 - 0.03, d + 0.04, SHOULDER_Z - 0.04), skin)
+        p = b.part().box((-TORSO_W / 2 + 0.03, -d - 0.04, CHEST_Z + 0.06), (TORSO_W / 2 - 0.03, d + 0.04, SHOULDER_Z - 0.04), skin)
         for sx in (-1, 1):
             p.box((sx * 0.1, -d - 0.04, SHOULDER_Z - 0.05), (sx * 0.2, d + 0.04, SHOULDER_Z + 0.02), skin)   # straps
         for cx in (-0.16, 0.0, 0.16):
-            p.box((cx - 0.065, d + 0.04, WAIST_Z + 0.08), (cx + 0.065, d + 0.1, WAIST_Z + 0.25), skin)   # mag pouches
-        p.box((-0.1, d + 0.04, WAIST_Z + 0.27), (0.1, d + 0.08, WAIST_Z + 0.41), skin)                 # admin pouch
-        p.box((-0.17, -d - 0.09, WAIST_Z + 0.1), (0.17, -d - 0.04, WAIST_Z + 0.42), skin)              # back pouch
+            p.box((cx - 0.065, d + 0.04, CHEST_Z + 0.08), (cx + 0.065, d + 0.1, CHEST_Z + 0.25), skin)   # mag pouches
+        p.box((-0.1, d + 0.04, CHEST_Z + 0.27), (0.1, d + 0.08, CHEST_Z + 0.41), skin)                 # admin pouch
+        p.box((-0.17, -d - 0.09, CHEST_Z + 0.1), (0.17, -d - 0.04, CHEST_Z + 0.42), skin)              # back pouch
         b.finish(p, "Vest__" + option, "Spine")
-        p = b.part().box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.04), skin)
+        p = b.part().box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.06), skin)
         b.finish(p, "Vest__%s__Hips" % option, "Hips")                                                 # battle belt
 
 
@@ -505,10 +506,10 @@ def build_raider(b):
     b.empty("Hat__none", "Neck")
     d = TORSO_D / 2
     for option, skin in (("heavy_black", "heavy_black"), ("heavy_olive", "heavy_olive")):
-        p = b.part().box((-TORSO_W / 2 + 0.02, -d - 0.05, WAIST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.05, SHOULDER_Z - 0.02), skin)
+        p = b.part().box((-TORSO_W / 2 + 0.02, -d - 0.05, CHEST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.05, SHOULDER_Z - 0.02), skin)
         p.box((-0.24, -d - 0.04, SHOULDER_Z - 0.04), (0.24, d - 0.06, SHOULDER_Z + 0.06), skin)          # neck guard
         for cx in (-0.17, 0.0, 0.17):
-            p.box((cx - 0.07, d + 0.05, WAIST_Z + 0.08), (cx + 0.07, d + 0.12, WAIST_Z + 0.26), skin)
+            p.box((cx - 0.07, d + 0.05, CHEST_Z + 0.08), (cx + 0.07, d + 0.12, CHEST_Z + 0.26), skin)
         b.finish(p, "Vest__" + option, "Spine")
         for side, sx in (("L", -1), ("R", 1)):
             cx = sx * ARM_X
@@ -516,7 +517,7 @@ def build_raider(b):
             p = b.part().box((cx - a, -a, ARM_Z - 0.1), (cx + a, a, ARM_Z + ARM_W / 2 + 0.04), skin)    # shoulder armor
             b.finish(p, "Vest__%s__Arm%s" % (option, side), "Arm" + side)
         p = b.part().box((-0.14, d - 0.02, HIP_Z - 0.16), (0.14, d + 0.04, WAIST_Z), skin)               # groin flap
-        p.box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.04), skin)
+        p.box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.06), skin)
         b.finish(p, "Vest__%s__Hips" % option, "Hips")
     b.finish(chest_rig(b.part(), "canvas_black"), "Vest__rig_black", "Spine")
 
