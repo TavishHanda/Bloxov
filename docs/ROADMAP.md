@@ -108,6 +108,14 @@ Next: the M4 art updates (World art, Look, Sound), below.
   moves it to another device; Steam login can be linked later), a database (Heroku's disk is wiped on restart), and the store rules on accounts
   (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
   account for solo). The current save becomes the solo stash.
+- **Sound 2.0 (owner, 2026-10-26; after World Reacts and the character poses, before the security pass):**
+  shooter-grade hearing, built only from today's sounds (they stay as they are; no outside recordings). Each gun
+  gets near/mid/far and indoor versions made from its own shot; "through the floor" versions for above/below you,
+  slightly duller from behind; sound comes through open doors and broken windows instead of only muffled through
+  walls; footsteps and enemy shots cut through while ambience dips in a fight. Echo and muffle are baked into the
+  files, since the web skips bus effects. Footstep range and your own gun's loudness stay as today (owner).
+  Optional: a full-quality remake of today's sounds (made at 22 kHz mono now), only for the sounds the owner picks
+  after comparing old and new. Plan: project file `sound/overhaul-plan.md`.
 - **Online security update (before the web beta / Steam; owner 2026-10-12, from a friend's checklist):** a server
   authority audit plus free, home-made anti-cheat (no paid anti-cheat service). Already on the server: what every
   shot and knife hits (map blocks shots, damage from the server's weapon stats, lag compensated for players and,
