@@ -1680,6 +1680,30 @@ CHURCH_OPENINGS = {
 }
 
 
+CH_RISE, CH_OVER = 6.0, 0.35   # the church's roof as make_building.py draws it: rise eaves (6 m) to ridge, overhang
+
+
+def church_roof_solid(ox, oz):
+    """The church's pitched roof gets collision (0.22.9, owner: "You can walk through the church roof"): until now only
+    the flat slab at the eaves collided, so from the bell tower you walked about inside the drawn roof. Its two slopes
+    (their top on the tiles, over the shell hole too) and the gable ends in steps under them, all hidden."""
+    run, top = 7.15 + CH_OVER, 6.0 + CH_RISE
+    eave = 6.0 - CH_OVER * CH_RISE / 7.15
+    rise = top - eave
+    length = math.hypot(run, rise)
+    nx, ny = rise / length, run / length          # the east slope's outward normal (x, y)
+    for sx in (-1, 1):
+        obox(ox + sx * (run / 2 + 0.04 * nx), (eave + top) / 2 + 0.04 * ny, oz, 24.3, 0.2, length + 0.3, 90.0, "roof",
+             pitch=sx * math.degrees(math.atan2(rise, run)), kind="church_roof_hidden")
+    for sz in (-1, 1):
+        for k in range(12):
+            y0 = 6.0 + 0.5 * k
+            half = 7.15 * (1.0 - (y0 + 0.5 - 6.0) / CH_RISE)
+            if half > 0.1:
+                box(ox - half, y0, oz + min(sz * 12.0, sz * 12.15), ox + half, y0 + 0.5, oz + max(sz * 12.0, sz * 12.15), "wall",
+                    kind="church_roof_hidden")
+
+
 def church_furniture(ox, oz):
     """The parish church (World art 0.17), in the model's own coordinates (origin map (ox, oz): the church is x -7..7,
     z -12..12, north -z, one tall room 6 m to the eaves). Laid out like a real church: the porch inside the door at the
@@ -4503,6 +4527,28 @@ def boom_gate(x, z, yaw):
     obox(x, 0.55, z, 0.3, 1.1, 0.3, yaw, "army", solid=False)
 
 
+# Behind the town hall (0.22.9, owner: "behind the town hall is a little open, i keep seeing them roaming around there
+# and my friend keeps killing them with snipers"): Bon's crew have barricaded the hall's back lawn with shipping
+# containers, an army truck and sandbag posts, ~10 m out from the back wall, gaps left to walk through. Built after
+# the scatter (what stood there is cleared, while the scatter's lists still line up, like the motel's), before the
+# AI's spawn spots are picked (so none lands in it).
+TH_BACK_CLEAR = (78.0, 166.0, 126.0, 186.0)
+TH_BACK = (("container", 85.5, 176.5, 62.0), ("sandbags", 91.6, 179.6, 90.0), ("truck", 99.0, 180.5, 92.0),
+           ("sandbags", 106.4, 179.6, 90.0), ("container", 111.5, 178.6, 92.0), ("container", 119.6, 177.6, 84.0),
+           ("sandbags", 124.0, 173.0, 0.0))
+
+
+def town_hall_back():
+    clear_scatter(TH_BACK_CLEAR)
+    for k, (kind, x, z, yaw) in enumerate(TH_BACK):
+        if kind == "container":
+            container(x, z, random.Random(f"th back {k}"), yaw)
+        elif kind == "truck":
+            truck(x, z, yaw)
+        else:
+            sandbags(x, z, yaw)
+
+
 def set_pieces_late():
     for x, z, yaw in HAY_BALES:
         assert all(math.hypot(x - sx, z - sz) > 6 for _, sx, sz in player_spawns + enemy_spawns), (x, z)
@@ -5525,6 +5571,7 @@ def main():
                        wall_openings=CHURCH_OPENINGS), [
             ("crate", 0, 0, 0, "N", -4.5, "chest"), ("locker", 0, 0, 0, "N", 4.5, "wardrobe")])
         church_furniture(167.0, 40.0)
+        church_roof_solid(167.0, 40.0)
     with modeled("bell_tower", 153.0, 33.0):   # World art 0.17: the church's bell tower (ringing room, clock, belfry)
         tower = build(Building("BellTower", 148, 28, 10, 10, floors=2, colour="wall", rooms=(1, 1), doors="S", roof=True,
                                wall_openings={"E": [("door", 34.5, 1.6, 0.0, DOOR_H)]}),
@@ -5823,6 +5870,7 @@ def main():
     for g in MOTEL_GHOSTS:
         footprints.remove(g)
     clear_scatter(MOTEL_CLEAR)
+    town_hall_back()
     motel()
     station_square()
     churchyard()

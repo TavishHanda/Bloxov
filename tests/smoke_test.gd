@@ -3867,13 +3867,29 @@ func _section_old_bloxov() -> void:
 	await physics_frame
 	await physics_frame
 	var untouched := cloth != null and not cloth.tripped and not cloth._runner().is_empty()
+	# (0.22.9: the see-through copy goes on from the start, so tripping it never makes the renderer build a shader)
+	var ready_runner: Array = cloth._runner() if cloth != null else []
+	var faded_early: Material = ready_runner[0].get_surface_override_material(ready_runner[1]) if untouched else null
+	untouched = untouched and faded_early is BaseMaterial3D and faded_early.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA
 	walker.global_position = cloth.global_position if cloth != null else Vector3.ZERO
 	for i in 3:
 		await physics_frame
 	var runner: Array = cloth._runner() if cloth != null else []
-	_check(untouched and cloth.tripped and runner[0].get_surface_override_material(runner[1]) != null,
-		"the ghost cloth over the bunker ramp fades once someone goes through it")
+	_check(untouched and cloth.tripped and runner[0].get_surface_override_material(runner[1]) == faded_early,
+		"the ghost cloth over the bunker ramp fades once someone goes through it (same material: no hitch)")
 	walker.queue_free()
+	# The church's pitched roof collides (0.22.9, owner: "You can walk through the church roof"): a ray down on the
+	# east slope stops on the tiles (~9.7 m up), not on the flat slab at the eaves (6 m); one along the ridge stops at
+	# the north gable.
+	var church := world.raid.find_child("church", true, false) as Node3D
+	var roof_hit := {}
+	var gable_hit := {}
+	if church != null:
+		var o := church.global_position
+		roof_hit = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(o + Vector3(3, 30, 3.5), o + Vector3(3, 0.5, 3.5), 1))
+		gable_hit = panes_space.intersect_ray(PhysicsRayQueryParameters3D.create(o + Vector3(0, 8, -20), o + Vector3(0, 8, 0), 1))
+	_check(not roof_hit.is_empty() and roof_hit.position.y - church.global_position.y > 9.0 and not gable_hit.is_empty()
+		and gable_hit.position.z - church.global_position.z < -11.9, "the church roof's slopes and gable ends are solid")
 	# Online the server's copy of the map has the doors too; a player unlocking one opens it there and tells the raid.
 	var opened := []
 	world.door_opened.connect(func(id: String) -> void: opened.append(id))

@@ -16219,6 +16219,7 @@ def prop_cabin_loft_crates(ctx, c, s):
 
 
 PROPS["cabin_hidden"] = lambda ctx, c, s, k: None     # (the loft's collision: the roof, the gables)
+PROPS["church_roof_hidden"] = lambda ctx, c, s, k: None   # (the church's roof slopes and gables: collision only)
 for _kind, _fn in {"cabin_knee": prop_cabin_knee, "cabin_loft_bed": prop_cabin_loft_bed,
                    "cabin_loft_stool": prop_cabin_loft_stool, "cabin_loft_crates": prop_cabin_loft_crates}.items():
     PROPS[_kind] = (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(_fn)

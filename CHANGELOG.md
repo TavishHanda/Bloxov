@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react). -->
 
+## 0.22.9 (Back lawn, church roof, carpet hitch)
+- **Cover behind the town hall** (owner: too open, the AI roaming there got sniped). Bon's crew have barricaded
+  the back lawn about 10 m out from the hall's back wall: three shipping containers (one stacked two high), an army
+  truck and sandbag posts, with gaps to walk through. What stood there before (a ruin, a container, a tree, some
+  junk) was cleared. The map only: AI behaviour is unchanged.
+- **The church roof is solid** (owner: you could walk through it). Only a flat slab at the eaves collided, so from
+  the bell tower you could walk about inside the pitched roof. Its slopes and gable ends now collide (out of sight).
+- **No hitch when the town hall's red carpet is tripped** (owner: the game lagged for a second). Fading the runner
+  switched its material to a see-through one right then, so the renderer had to build a new shader mid-raid (worst
+  in browsers). The see-through copy now goes on at raid start, looking the same; tripping only fades it.
 ## 0.22.8 (No buzz, hear the shooter)
 - **Fixed the buzzing some players heard when a raid starts** (owner: a playtester heard it on entering a raid). The
   background loops (wind, woods, room tone, creek, waterfall) started at a random point; on the web Godot repeats a
