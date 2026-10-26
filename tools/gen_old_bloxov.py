@@ -6846,6 +6846,143 @@ def road_ribbons(ter, step=2.0):
     return pts, uvs, flags, counts, widths
 
 
+# The furniture boxes that stop players (flag 5, 0.22.0) stand on the floor under them, all the way down (0.22.7, owner:
+# "i dont want players to just keep getting randomly stuck everywhere when they walk"): a box hanging off the floor
+# (a table top, a seat, a rack's rail) caught your knees or head on its edge; now it's a plain block from the floor
+# up. One that stands under 0.5 m stays walk-through (you'd trip on it, not walk round it). tools/prop_snag_check.gd
+# walks into every one from 8 sides.
+PROP_CELL = 4.0
+
+
+def floor_grid():
+    """The solid boxes (flags 1, 2, and 4: people-only tables and desks; unpitched) by map cell, for `fit_prop` to
+    find the floor under a prop and `close_prop_gaps` the furniture next to it."""
+    grid = {}
+    for b in boxes:
+        if b[9] not in (1, 2, 4) or b[7]:
+            continue
+        r = math.hypot(b[3], b[5]) / 2
+        for cx in range(int((b[0] - r) // PROP_CELL), int((b[0] + r) // PROP_CELL) + 1):
+            for cz in range(int((b[2] - r) // PROP_CELL), int((b[2] + r) // PROP_CELL) + 1):
+                grid.setdefault((cx, cz), []).append(b)
+    return grid
+
+
+def fit_prop(b, ter, floors):
+    """Prop box b (flag 5) from the floor under its middle up to its top: (x, y, z, sx, sy, sz, yaw), or None."""
+    x, z = b[0], b[2]
+    bottom, top = b[1] - b[4] / 2, b[1] + b[4] / 2
+    floor = ter.lift(x + M / 2, z + M / 2)
+    if floor > bottom + 0.05:
+        floor = -1e9   # (the ground is above it: it's in a cellar or the bunker; their floors are boxes)
+    c, si = math.cos(math.radians(b[6])), math.sin(math.radians(b[6]))
+    for o in floors.get((int(x // PROP_CELL), int(z // PROP_CELL)), []):
+        dx, dz = x - o[0], z - o[2]
+        co, so = math.cos(math.radians(o[6])), math.sin(math.radians(o[6]))
+        lx, lz = dx * co - dz * so, dx * so + dz * co
+        o_top = o[1] + o[4] / 2
+        if abs(lx) <= o[3] / 2 and abs(lz) <= o[5] / 2 and floor < o_top <= bottom + 0.05:
+            floor = o_top
+    if floor < -1e8 or bottom - floor > 1.7 or top - floor < 0.5:
+        return None
+    return (x, (floor + top) / 2, z, b[3], top - floor, b[5], b[6])
+
+
+PROP_GAP = 0.9   # (the player is 0.8 m across: a gap narrower than this between furniture, you'd wedge into)
+
+
+def _corners(x, z, sx, sz, yaw):
+    c, si = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    return [(x + u * c + v * si, z - u * si + v * c) for u, v in ((-sx / 2, -sz / 2), (sx / 2, -sz / 2), (sx / 2, sz / 2), (-sx / 2, sz / 2))]
+
+
+def _seg_dist(a, b, c, d):
+    def pt(p, q, r):
+        qx, qz = r[0] - q[0], r[1] - q[1]
+        t = max(0.0, min(1.0, ((p[0] - q[0]) * qx + (p[1] - q[1]) * qz) / max(qx * qx + qz * qz, 1e-12)))
+        return math.hypot(p[0] - q[0] - qx * t, p[1] - q[1] - qz * t)
+    return min(pt(a, c, d), pt(b, c, d), pt(c, a, b), pt(d, a, b))
+
+
+def _inside(p, quad):
+    sign = None
+    for k in range(4):
+        a, b = quad[k], quad[(k + 1) % 4]
+        cr = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+        if abs(cr) > 1e-9:
+            if sign is None:
+                sign = cr > 0
+            elif (cr > 0) != sign:
+                return False
+    return True
+
+
+def _gap(p, q):
+    """How far apart two quads are across (0 if they touch or overlap)."""
+    if any(_inside(c, q) for c in p) or any(_inside(c, p) for c in q):
+        return 0.0
+    return min(_seg_dist(p[i], p[(i + 1) % 4], q[j], q[(j + 1) % 4]) for i in range(4) for j in range(4))
+
+
+def close_prop_gaps(props, floors):
+    """Furniture that stands closer together than the player is wide (chairs round a table, a stool by a counter)
+    becomes one block (0.22.7, owner: no getting stuck): you walk round the table and its chairs, never wedge between
+    them. A group only joins when the block isn't much bigger than what's in it (never across a room)."""
+    quads = [_corners(p[0], p[2], p[3], p[5], p[6]) for p in props]
+    lows = [p[1] - p[4] / 2 for p in props]
+    parent = list(range(len(props)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    # Furniture that's a solid box of its own (tables, desks, counters): it joins a group but keeps its own box.
+    extra = []
+    for p in props:
+        for o in floors.get((int(p[0] // PROP_CELL), int(p[2] // PROP_CELL)), []):
+            low, top = o[1] - o[4] / 2, o[1] + o[4] / 2
+            if abs(low - (p[1] - p[4] / 2)) < 0.3 and 0.5 <= top - low <= 1.6 and max(o[3], o[5]) <= 6.0 and o not in extra:
+                extra.append(o)
+    for o in extra:
+        quads.append(_corners(o[0], o[2], o[3], o[5], o[6]))
+        lows.append(o[1] - o[4] / 2)
+        parent.append(len(parent))
+    n = len(props)
+    for i in range(n):
+        for j in range(i + 1, len(quads)):
+            if abs(lows[i] - lows[j]) < 0.3 and abs(quads[i][0][0] - quads[j][0][0]) < 8 and abs(quads[i][0][1] - quads[j][0][1]) < 8 \
+                    and _gap(quads[i], quads[j]) < PROP_GAP:
+                parent[find(i)] = find(j)
+    groups = {}
+    for i in range(len(quads)):
+        groups.setdefault(find(i), []).append(i)
+    out = []
+    for members in groups.values():
+        mine = [i for i in members if i < n]
+        if not mine:
+            continue
+        if len(members) == 1:
+            out.append(props[mine[0]])
+            continue
+        xs = [c[0] for i in members for c in quads[i]]
+        zs = [c[1] for i in members for c in quads[i]]
+        area = (max(xs) - min(xs)) * (max(zs) - min(zs))
+        inside = sum(_area(quads[i]) for i in members)
+        if area > 14.0 or area > 2.2 * inside:
+            out += [props[i] for i in mine]   # (too spread out to be one block: leave them be)
+            continue
+        low = min(lows[i] for i in mine)
+        top = max(props[i][1] + props[i][4] / 2 for i in mine)
+        out.append(((min(xs) + max(xs)) / 2, (low + top) / 2, (min(zs) + max(zs)) / 2, max(xs) - min(xs), top - low,
+                    max(zs) - min(zs), 0.0))
+    return out
+
+
+def _area(q):
+    return abs(sum(q[k][0] * q[(k + 1) % 4][1] - q[(k + 1) % 4][0] * q[k][1] for k in range(4))) / 2
+
+
 def write_scene(ter):
     write_model_boxes(ter)
     outdoor = write_outdoor(ter)
@@ -6853,13 +6990,18 @@ def write_scene(ter):
     if os.path.exists(BORDER_GLB):
         outdoor.append(("outdoor_border", 0.0, 0.0))
     write_splat(ter)
+    floors = floor_grid()
     for i, b in enumerate(boxes):   # (railings and bars: people-only, see PEOPLE_KINDS; 5: players only, solid_late)
         if b[9] == 4:
             bar_boxes.append(tuple(b[:7]))
             boxes[i] = b[:9] + (3,) + b[10:]
         elif b[9] == 5:
-            prop_boxes.append(tuple(b[:7]))
+            fitted = fit_prop(b, ter, floors)
+            if fitted is not None:
+                prop_boxes.append(fitted)
             boxes[i] = b[:9] + (3,) + b[10:]
+    prop_boxes[:] = list(dict.fromkeys(prop_boxes))   # (a prop's box can come from both its kind and its drawing)
+    prop_boxes[:] = close_prop_gaps(prop_boxes, floors)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
               "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}

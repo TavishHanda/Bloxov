@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner). -->
 
+## 0.23.1 (No snagging on furniture)
+- **The furniture hitboxes from 0.22.0 can't catch or trap you** (owner: "i dont want players to just keep getting
+  randomly stuck everywhere when they walk"). A new walk test (`tools/prop_snag_check.gd`) walks a player-sized body
+  into every one from 8 sides, then checks it can walk away. Three fixes from it:
+  - every furniture box is now a plain block from the floor up: no table top, seat or rail edge hanging at knee or
+    head height to catch on;
+  - anything under 0.5 m tall stays walk-through, like small rubble and things on the ground;
+  - furniture standing closer together than a player is wide (chairs round a table, stools by a counter) is one block
+    you walk round, so there's no gap to wedge into.
+  Result: nobody gets stuck anywhere (2,248 walk-ins); the only spots that need a jump are a few where you've climbed
+  onto a desk and step off between its chairs. Every container, door and key door can still be reached (checked).
+  Still only players: shots, eyes and the AI pass through them as before.
+
 ## 0.23.0 (Proper crouch and prone)
 - **Characters have joints** (owner: crouching "just compresses" them and prone "is like you're dead"). Scavs,
   Raiders, Bon and other players are rebuilt with hips, chest, head, arms and legs that bend, keeping the old models'
