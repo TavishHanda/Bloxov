@@ -12,6 +12,12 @@ const DISTANT_FULL := 90.0
 ## A shot passing this close to your head snaps past (not from someone right next to you: you hear their gun).
 const SNAP_RADIUS := 3.0
 const SNAP_MIN_RANGE := 10.0
+const SNAP_DB := -13.0
+## The snap plays this far from your head toward the shooter.
+const SNAP_SIDE := 2.0
+## A shot that came at you: this share of the loudness it lost to distance comes back, at most AT_YOU_MAX_DB.
+const AT_YOU_GIVE_BACK := 0.5
+const AT_YOU_MAX_DB := 10.0
 ## Behind a wall: cut off the highs above this (Hz) and a little quieter.
 const MUFFLED_CUTOFF := 900.0
 const MUFFLED_DB := -5.0
@@ -90,5 +96,21 @@ static func gunshot(world: Node, from: Vector3, end: Vector3, volume_db: float) 
 		return
 	var closest := Geometry3D.get_closest_point_to_segment(ear, from, end)
 	if closest.distance_to(ear) < SNAP_RADIUS and closest.distance_to(from) > SNAP_MIN_RANGE:
-		Effects.sound_at(world, SNAPS.pick_random(), closest, -8.0, 0.1, 1.0, 4.0, 30.0)
+		# On the shooter's side of your head, and softer (0.22.8): the snap used to come from beside you and drown
+		# out where the shot came from.
+		Effects.sound_at(world, SNAPS.pick_random(), ear + ear.direction_to(from) * SNAP_SIDE, SNAP_DB, 0.1, 1.0, 4.0, 30.0)
+
+
+## Extra loudness (dB) for someone else's shot at `from` that came at you (passed within SNAP_RADIUS of your head
+## or hit you, ending at `end`), 0.22.8, owner: "hear more where u got shot from and less where the shot lands".
+## It gives back part of what the distance took off (a shot's sound is at full within `unit_size` m), so the gun
+## that's shooting at you stands out over the bullets landing around you.
+static func at_you_db(world: Node, from: Vector3, end: Vector3, unit_size: float) -> float:
+	var camera := listener(world)
+	if camera == null:
+		return 0.0
+	var ear := camera.global_position
+	if Geometry3D.get_closest_point_to_segment(ear, from, end).distance_to(ear) >= SNAP_RADIUS:
+		return 0.0
+	return clampf(linear_to_db(ear.distance_to(from) / maxf(unit_size, 0.1)) * AT_YOU_GIVE_BACK, 0.0, AT_YOU_MAX_DB)
 

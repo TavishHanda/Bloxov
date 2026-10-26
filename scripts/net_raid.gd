@@ -331,6 +331,7 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 	var stats := ItemDB.item(weapon)
 	var world := get_tree().current_scene
 	Effects.tracer(world, from, end)
-	Effects.sound_at(world, GunSounds.shot(weapon), from, float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0),
-		0.06, float(stats.get("shot_pitch", 1.0)), 3.0 if suppressed else 6.0)
+	var unit_size := 3.0 if suppressed else 6.0
+	Effects.sound_at(world, GunSounds.shot(weapon), from, float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0)
+		+ Hearing.at_you_db(world, from, end, unit_size), 0.06, float(stats.get("shot_pitch", 1.0)), unit_size)
 	Hearing.gunshot(world, from, end, float(stats.get("shot_db", -4.0)) - (12.0 if suppressed else 0.0))

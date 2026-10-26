@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react). -->
 
+## 0.22.8 (No buzz, hear the shooter)
+- **Fixed the buzzing some players heard when a raid starts** (owner: a playtester heard it on entering a raid). The
+  background loops (wind, woods, room tone, creek, waterfall) started at a random point; on the web Godot repeats a
+  loop only from where it was started, so one started near its very end repeated a few milliseconds over and over.
+  They start at the beginning now and repeat the whole sound.
+- **You hear where you're being shot from** (owner: "hear more where u got shot from and less where the shot
+  lands"): a gun shooting at you (its bullet passes within 3 m of your head or hits you) gets back half the loudness
+  distance took off it (up to +10 dB), so a far sniper is clearly heard from their side. The bullet's snap is
+  softer and now comes from the shooter's side of your head, and other people's bullets landing around you are
+  8 dB quieter. Your own shots' impacts sound as before. No sounds were replaced.
+
 ## 0.22.7 (No more ding)
 - **The lock-on ding is gone** (owner: "get rid of the ding for when scavs lock on to you, we need to really
   emphasize the footsteps and their voicelines"). Instead an AI that spots you always says its "spotted" callout

@@ -6040,6 +6040,12 @@ func _section_sound() -> void:
 	before = sounds.call().size()
 	Hearing.gunshot(main, ear + Vector3(0, 0, 20), ear + Vector3(30, 0, 20), -4.0)
 	_check(sounds.call().size() == before, "...a near shot that goes elsewhere adds nothing (today's shot only)")
+	var snap: AudioStreamPlayer3D = added.filter(func(a: AudioStreamPlayer3D) -> bool: return a.stream in Hearing.SNAPS)[0]
+	_check(snap.global_position.z > ear.z and snap.global_position.distance_to(ear) < Hearing.SNAP_SIDE + 0.1,
+		"...the snap comes from the shooter's side of your head (0.22.8)")
+	_check(Hearing.at_you_db(main, ear + Vector3(0, 0, 60), ear + Vector3(0.5, 0, -10), 6.0) > 3.0
+		and Hearing.at_you_db(main, ear + Vector3(0, 0, 60), ear + Vector3(30, 0, 60), 6.0) == 0.0,
+		"a gun shooting at you sounds louder than one shooting elsewhere at that range (0.22.8)")
 	Effects.sound_at(main, Surfaces.RUSTLES[0], ear + Vector3(5, 0, 0), 0.0)
 	_check((sounds.call().back() as AudioStreamPlayer3D).panning_strength == Effects.PANNING,
 		"sounds in the world pan fully left/right, so you hear which side they're on (0.20.19)")

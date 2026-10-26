@@ -800,7 +800,7 @@ func _fire_at_target(dist: float) -> void:
 			_hit_target()
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
-			WorldSounds.impact(get_tree().current_scene, end, result.normal)
+			WorldSounds.impact(get_tree().current_scene, end, result.normal, true)
 
 	BoxMap.break_window_along(self, from, end, false)   # (0.18.8: its shots break glass too, and pass through)
 	fired.emit(end)
@@ -823,7 +823,7 @@ func _fire_at_point(point: Vector3) -> void:
 			_hit_target()
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
-			WorldSounds.impact(get_tree().current_scene, end, result.normal)
+			WorldSounds.impact(get_tree().current_scene, end, result.normal, true)
 	fired.emit(end)
 	net_fired(end)
 
@@ -885,9 +885,11 @@ func hit_chance(dist: float) -> float:
 ## Tracer, sound and flash from the gun for a shot ending at `end` (puppets: one the server's scav fired).
 func net_fired(end: Vector3) -> void:
 	var muzzle_pos := muzzle.global_position
-	Effects.tracer(get_tree().current_scene, muzzle_pos, end)
-	Effects.sound_at(get_tree().current_scene, shot_sound, muzzle_pos, shot_volume_db, 0.06, shot_pitch, shot_unit_size)
-	Hearing.gunshot(get_tree().current_scene, muzzle_pos, end, shot_volume_db)
+	var world := get_tree().current_scene
+	Effects.tracer(world, muzzle_pos, end)
+	Effects.sound_at(world, shot_sound, muzzle_pos, shot_volume_db + Hearing.at_you_db(world, muzzle_pos, end, shot_unit_size),
+		0.06, shot_pitch, shot_unit_size)
+	Hearing.gunshot(world, muzzle_pos, end, shot_volume_db)
 	_muzzle_flash_time = 0.05
 
 

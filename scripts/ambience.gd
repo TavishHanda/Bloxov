@@ -59,7 +59,9 @@ func _ready() -> void:
 
 
 ## A copy of `stream` that repeats end to start (the files are made to loop without a seam; .import files aren't
-## kept in git, so it's set here).
+## kept in git, so it's set here). Loops always start at the beginning (0.22.8): on the web Godot repeats a loop from
+## where it was started, so one started near its end (they used to start at a random point) repeated a few
+## milliseconds over and over as a loud buzz.
 static func looped(stream: AudioStream) -> AudioStream:
 	var wav := stream as AudioStreamWAV
 	if wav == null or wav.loop_mode != AudioStreamWAV.LOOP_DISABLED:
@@ -77,7 +79,7 @@ func _loop(stream: AudioStream) -> AudioStreamPlayer:
 	player.bus = BUS
 	player.volume_linear = 0.0
 	add_child(player)
-	player.play(_dice.randf() * stream.get_length())
+	player.play()
 	return player
 
 
@@ -89,7 +91,7 @@ func _loop_at(stream: AudioStream, unit_size: float, reach: float) -> AudioStrea
 	player.max_distance = reach
 	player.top_level = true
 	add_child(player)
-	player.play(_dice.randf() * stream.get_length())
+	player.play()
 	return player
 
 
@@ -112,7 +114,7 @@ func _process(delta: float) -> void:
 			var fall := map.get_parent().get_node_or_null("WaterfallSheet") as Node3D
 			if fall:
 				_waterfall.global_position = fall.global_position
-				_waterfall.play(_dice.randf() * WATERFALL.get_length())
+				_waterfall.play()
 		var water := map.nearest_water(listener.global_position) if map else Vector3.INF
 		if water != Vector3.INF:
 			_creek.global_position = water

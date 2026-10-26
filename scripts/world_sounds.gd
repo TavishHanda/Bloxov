@@ -21,6 +21,8 @@ const IMPACTS: Array[AudioStream] = [preload("res://audio/world/impact_dirt.wav"
 	preload("res://audio/world/impact_metal.wav"), preload("res://audio/world/impact_concrete.wav"),
 	preload("res://audio/world/impact_dirt.wav")]
 const IMPACT_RANGE := 40.0
+## Someone else's bullets landing (0.22.8): this much quieter, so you hear the gun shooting at you over them.
+const OTHERS_IMPACT_DB := -8.0
 ## Using an item (0.20.3), by item id; today's heal sound still plays with them.
 const ITEMS := {
 	"bandage": preload("res://audio/items/bandage.wav"),
@@ -42,8 +44,8 @@ static func at(node: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, 
 	Effects.sound_at(node.get_tree().current_scene, stream, pos, volume_db, 0.06, 1.0, 4.0, range)
 
 
-## A bullet hitting the map at `pos` (surface facing `normal`): a sound for what it hit.
-static func impact(world: Node, pos: Vector3, normal: Vector3) -> void:
+## A bullet hitting the map at `pos` (surface facing `normal`): a sound for what it hit (`others`: not your shot).
+static func impact(world: Node, pos: Vector3, normal: Vector3, others := false) -> void:
 	if world == null:
 		return
 	var camera := Hearing.listener(world)
@@ -54,4 +56,4 @@ static func impact(world: Node, pos: Vector3, normal: Vector3) -> void:
 		surface = (map as BoxMap).surface_hit(pos - normal * 0.05)
 		if surface != BoxMap.SURFACE_GROUND:
 			break
-	Effects.sound_at(world, IMPACTS[surface], pos, -8.0, 0.12, 1.0, 3.0, IMPACT_RANGE)
+	Effects.sound_at(world, IMPACTS[surface], pos, -8.0 + (OTHERS_IMPACT_DB if others else 0.0), 0.12, 1.0, 3.0, IMPACT_RANGE)
