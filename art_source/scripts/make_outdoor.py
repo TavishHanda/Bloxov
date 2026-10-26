@@ -738,7 +738,7 @@ def draw_ruin(b, piece, rng):
     ground, a corner still standing, stubs of the rest, heaps of its own fallen wall inside, charred roof timbers."""
     look = piece["look"]
     skin = WALL_SKIN[look]
-    for box in piece["boxes"]:
+    for k, box in enumerate(piece["boxes"]):
         s = box["size"]
         if not box["solid"] and s[1] <= 0.3:            # the floor slab
             f = frame_of(b, box)
@@ -753,8 +753,13 @@ def draw_ruin(b, piece, rng):
                 b.box(on_ground((cx + rng.uniform(-2, 2), 0, cz + rng.uniform(-1.6, 1.6)), rng.uniform(0.15, 0.4)), (0.9, 0.05, 0.6),
                       yaw=rng.uniform(0, 180), pitch=rng.uniform(-20, 20), style=flat("roof_clay", 1.0))
         elif min(s[0], s[2]) <= 0.45:                   # a wall, standing or knocked down to a stub
+            f0 = len(b.faces)
             wall_run(b, box, skin, rng, top_mat=skin if look != "c" else None, rebar=look == "c",
                      extra_t=0.12 if look == "d" else 0.0, col_w=0.33 if look == "d" else 0.25)
+            # (0.22.0, World reacts: its broken top steps up past the box: collide with the wall as drawn, not the
+            # rebar sticking out of it)
+            if box["solid"]:
+                shape(b, f0, k, skip=("trim_dark",))
         elif s[1] > 2.5:                                 # the chimney stack
             f = frame_of(b, box)
             f.box((0, (s[1] - 0.3) / 2, 0), (s[0], s[1] + 0.3, s[2]), style=no_bottom("house_brick", 2.0))
@@ -3304,6 +3309,10 @@ def spray_tag(b, box, rng, chance, lift=0.0):
            "tag_nova" if nova else "tag_x1")
 
 
+KICKS = []        # (x, ground y, z in Godot space, yaw, 0 can / 1 bottle, colour) for scripts/kickables.gd
+KICK_COLOURS = {"steel_light": "9aa1a6", "dbr_cont_r": "7e3b2a", "olive": "5b6236", "dbr_cont_g": "3f6b3a"}
+
+
 def draw_litter(b, piece, rng):
     """Rubbish in a gutter: papers, cans, a bottle, a crushed box."""
     box = piece["boxes"][0]
@@ -3315,11 +3324,11 @@ def draw_litter(b, piece, rng):
         if kind < 0.5:   # a sheet of paper, a little crumpled
             b.box((px, y + 0.012, pz), (rng.uniform(0.2, 0.3), 0.012, rng.uniform(0.26, 0.34)), yaw=rng.uniform(0, 180),
                   pitch=rng.uniform(-4, 4), style=no_bottom("dbr_paper", 1.0))
-        elif kind < 0.8:
-            cyl(b, (px, y + 0.035, pz), 0.035, 0.12, rng.choice(("steel_light", "dbr_cont_r", "olive")), sides=6,
-                axis="z", yaw=rng.uniform(0, 180))
+        elif kind < 0.8:   # (0.22.0, World reacts: cans and bottles get kicked about, scripts/kickables.gd draws them)
+            colour = rng.choice(("steel_light", "dbr_cont_r", "olive"))
+            KICKS.append((px + ORIGIN[0], y, pz + ORIGIN[1], rng.uniform(0, 180), 0, KICK_COLOURS[colour]))
         elif kind < 0.9:
-            cyl(b, (px, y + 0.04, pz), 0.04, 0.28, "dbr_cont_g", sides=6, axis="z", yaw=rng.uniform(0, 180))
+            KICKS.append((px + ORIGIN[0], y, pz + ORIGIN[1], rng.uniform(0, 180), 1, KICK_COLOURS["dbr_cont_g"]))
         else:
             b.box((px, y + 0.05, pz), (0.35, 0.1, 0.28), yaw=rng.uniform(0, 180), pitch=rng.uniform(-8, 8),
                   style=no_bottom("carton", 1.0))
@@ -3667,7 +3676,9 @@ def main():
     if not names:   # (only on a full run: every chunk's shapes)
         with open(os.path.join(JSON_DIR, "collision.json"), "w") as f:
             json.dump({"note": "Written by art_source/scripts/make_outdoor.py: collision shaped like the drawing for the "
-                       "pieces whose drawing isn't their box (read by tools/gen_old_bloxov.py).", "shapes": SHAPES}, f,
+                       "pieces whose drawing isn't their box (read by tools/gen_old_bloxov.py); kicks: the cans and bottles in the "
+                       "litter (x, y, z, yaw, kind, colour), drawn by scripts/kickables.gd.", "shapes": SHAPES,
+                       "kicks": [[round(v, 3) if isinstance(v, float) else v for v in k] for k in KICKS]}, f,
                       separators=(",", ":"))
         print(f"shaped collision: {len(SHAPES)} pieces, {sum(len(v['tris']) for v in SHAPES.values()) // 9} triangles")
 

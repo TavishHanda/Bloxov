@@ -13,11 +13,14 @@ const SHADER := preload("res://assets/shaders/bushes.gdshader")
 @export var leaves: Texture2D
 @export var data := PackedFloat32Array()
 
+var _material: ShaderMaterial
+
 
 func _ready() -> void:
 	if DisplayServer.get_name() == "headless" or leaves == null:
 		return
 	var material := ShaderMaterial.new()
+	_material = material
 	material.shader = SHADER
 	material.set_shader_parameter("leaves", leaves)
 	var cells := {}
@@ -78,3 +81,9 @@ func _card(st: SurfaceTool, at: Vector3, turn: Basis, p: Vector3, ax: Vector3, a
 		st.set_normal(normal)
 		st.set_uv(uvs[k])
 		st.add_vertex(at + turn * c)
+
+
+func _process(_delta: float) -> void:
+	# (0.22.0, World reacts: the bushes part round whoever walks through them; looks only)
+	if _material != null and not Engine.is_editor_hint():
+		_material.set_shader_parameter(&"pushers", Reacts.pushers(self))

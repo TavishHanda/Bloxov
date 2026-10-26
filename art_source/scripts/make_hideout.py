@@ -345,6 +345,9 @@ class Tunnel:
         box(-hw - 0.3, -0.3, self.a0, hw + 0.3, 0.0, a1 + 0.3)
         box(-hw - 1.3, 0.0, a_s, -hw, top, a1)
         box(hw, 0.0, a_s, hw + 1.3, top, a1)
+        # (0.22.0, World reacts: the mouth's frame stands 2.4 m out from the walls; this was walk-through past 1.3 m)
+        box(-hw - 2.4, 0.0, a_s, -hw - 1.3, top, a_s + self.lip + 2.0)
+        box(hw + 1.3, 0.0, a_s, hw + 2.4, top, a_s + self.lip + 2.0)
         box(-hw - 0.3, 0.0, a1, hw + 0.3, top, a1 + 0.3)
         box(-hw - 0.3, self.crown, a_s, hw + 0.3, top, a1)
 
@@ -1066,8 +1069,8 @@ def shower_block(ctx):
         toilet(b, x0 + 0.05, (za + zb) / 2, 90.0)
         pipe(b, (x0 + 1.7, 2.0, za), (x0 + 1.7, 2.0, zb), "bk_iron", 0.03)
         open_part = rng.uniform(0.3, 0.6)
-        b.box((x0 + 1.72, 1.15, za + (zb - za) * open_part / 2 + 0.02), (0.02, 1.7, (zb - za) * open_part),
-              style=mb._solid("bk_tarp" if k == 0 else "olive"))
+        sheet((x0 + 1.72, 1.15, za + (zb - za) * open_part / 2 + 0.02), (zb - za) * open_part, 1.7, 90.0,
+              "bk_tarp" if k == 0 else "olive")
     b.box((x0 + 1.77, 1.0, z1 - 2 * cub_w - 0.06), (0.12, 2.0, 0.12), style=mb._nb("bk_old"))
     # The trough: a steel trough on brackets along the back, three taps, three steel mirrors, soap, a razor.
     tx0, tx1 = x0 + 2.1, x1 - 2.3
@@ -1091,8 +1094,8 @@ def shower_block(ctx):
         pipe(b, (x1 - 0.05, 1.2, sz - 0.25), (x1 - 0.05, 1.35, sz - 0.25), "steel_light", 0.04)   # the valve
         b.box((sx + 0.2, 0.016, sz), (0.2, 0.01, 0.2), style=mb._solid("trim_dark"))  # the drain
     pipe(b, (x1 - 2.0, 2.3, z1 - 3.1), (x1 - 2.0, 2.3, z1), "bk_iron", 0.03)          # curtain rail
-    b.box((x1 - 2.0, 1.25, z1 - 2.6), (0.02, 1.9, 1.0), style=mb._solid("blue"))
-    b.box((x1 - 2.0, 1.25, z1 - 0.5), (0.02, 1.9, 0.9), style=mb._solid("blue"))
+    sheet((x1 - 2.0, 1.25, z1 - 2.6), 1.0, 1.9, 90.0, "blue")
+    sheet((x1 - 2.0, 1.25, z1 - 0.5), 0.9, 1.9, 90.0, "blue")
     b.box((x1 - 2.4, 0.016, z1 - 1.6), (0.6, 0.008, 1.0), style=mb._solid("rubber"))  # a mat
     # A short block wall closing the showers off from the bunks, towels hung on its inside.
     b.box((x1 - 1.4, 1.0, z0 + 0.06), (2.0, 2.0, 0.12), style=mb._nb("bk_old"))
@@ -1103,9 +1106,7 @@ def shower_block(ctx):
               style=mb._solid(rng.choice(("bone", "olive", "blue", "red"))))
         pipe(b, (x, 1.78, z0 + 0.12), (x, 1.78, z0 + 0.2), "bk_iron", 0.02)
     for x in (-2.2, 2.2):                                             # its own lamps
-        pipe(b, (x, 2.6, (z0 + z1) / 2), (x, 4.6, (z0 + z1) / 2), "bk_cable", 0.015)
-        b.box((x, 2.66, (z0 + z1) / 2), (0.3, 0.07, 0.3), style=mb._solid("olive_dark"))
-        bulb(b, x, 2.6, (z0 + z1) / 2, 0.9, 3.4)
+        hang((x, 2.6, (z0 + z1) / 2), 2.0, 0.9, 3.4, shaded=True)
     # A sign over it all.
     F = Frame((0.0, z1), (1.0, 0.0), (0.0, -1.0), 0.0)
     sign_board(ctx, F, 0.05, 2.55, "sign_wc", w=2.2, h=0.4, wires=False)
@@ -1292,8 +1293,7 @@ def quarters(ctx):
     pipe(b, (-4.3, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)
     for k in range(7):
         x = -3.4 + k * 1.1 + rng.uniform(-0.2, 0.2)
-        b.box((x, 2.0, zl), (0.5, 0.65, 0.02), yaw=rng.uniform(-6, 6),
-              style=mb._solid(rng.choice(("olive", "olive_dark", "bone", "bk_tarp", "blue"))))
+        sheet((x, 2.0, zl), 0.5, 0.65, rng.uniform(-6, 6), rng.choice(("olive", "olive_dark", "bone", "bk_tarp", "blue")))
     # Notices on the walls.
     for bid, z, side in (("lights", 23.0, -1), ("chow", 23.6, 1), ("clean", 31.7, 1)):
         t = LAY.tunnels[3]
@@ -1304,6 +1304,22 @@ def quarters(ctx):
 
 
 LAMPS = []          # (x, y, z, strength, reach) for the light bake
+SWINGS = []         # (top x, y, z, cable length, shaded) of the lamps that swing (scripts/swing_lamps.gd draws them)
+CLOTH = []          # (centre, width, height, yaw, colour) of the curtains and washing that sway (scripts/cloth.gd)
+CLOTH_COLOURS = {"bk_tarp": "6b6a4c", "olive": "5b6236", "olive_dark": "3d4228", "bone": "e2dccb", "blue": "3e6d8c"}
+
+
+def hang(at, length, strength, reach, shaded=False):
+    """A lamp hanging on a cable from `length` above `at` (the bulb), that swings when knocked (0.22.0, World reacts):
+    left out of the model, drawn by scripts/swing_lamps.gd; its light is baked where it hangs still."""
+    SWINGS.append((at[0], at[1] + length, at[2], length, 1 if shaded else 0))
+    LAMPS.append((at[0], at[1] - 0.15, at[2], strength, reach))
+
+
+def sheet(c, width, height, yaw, colour):
+    """A curtain or a piece of washing hung by its top edge (0.22.0, World reacts): left out of the model, drawn by
+    scripts/cloth.gd, which sways it when someone pushes through. Never collides (it never did)."""
+    CLOTH.append((c, width, height, yaw, colour))
 
 
 def bulb(b, x, y, z, strength=0.4, reach=2.6):
@@ -1346,9 +1362,8 @@ def lamps(ctx):
         string_lights(b, wall_at(y, math.radians(a0)), wall_at(y, math.radians(a1)), sag=1.0, every=1.8, strength=0.3)
     for bid, o, t, n, w, depth, y0, kind in LAY.bays:                  # a bare bulb over every bay
         F = Frame(o, t, n, y0)
-        p = F.P(depth * 0.55, 2.9, 0.0)
-        pipe(b, p, (p[0], p[1] + (0.5 if kind == "bunker" else 1.6), p[2]), "bk_cable", 0.015)
-        bulb(b, p[0], p[1], p[2], 1.3, 2.6)
+        p = F.P(depth * 0.55, 2.45, 0.0)                               # (0.22.0: low enough to head when you jump)
+        hang(p, 0.45 + (0.5 if kind == "bunker" else 1.6), 1.3, 2.6)
     if SHAPE != "cave":                                                # a cluster of lamps hung over the war table
         tx, tz = LAY.war_table
         for k in range(5):
@@ -1535,6 +1550,20 @@ def seats():
     return out
 
 
+def cloth_rows():
+    """CLOTH for scripts/cloth.gd: centre x, y, z, width, height, yaw, light (the baked lamp light where it hangs,
+    so it matches the model round it), then its colour (r, g, b)."""
+    none = np.zeros((0, 3))
+    out = []
+    for c, w, h, yaw, colour in CLOTH:
+        a = math.radians(yaw)
+        n = (math.sin(a), 0.0, math.cos(a))
+        light = sum(lamp_shade(lamp_light([c], [d], none, none)[0]) for d in (n, tuple(-v for v in n))) / 2
+        rgb = tuple(int(CLOTH_COLOURS[colour][k:k + 2], 16) / 255.0 for k in (0, 2, 4))
+        out.append((c[0], c[1], c[2], w, h, yaw, round(light, 3), tuple(round(v, 3) for v in rgb)))
+    return out
+
+
 def write_level(rows):
     """The scene the hideout loads: a BoxMap of the boxes (collision only, the model draws them)."""
     flat = []
@@ -1546,9 +1575,11 @@ def write_level(rows):
     nums = ", ".join(("%g" % round(v, 4)) for v in flat)
     sx, sz = LAY.spawn
     with open(path, "w") as f:
-        f.write('[gd_scene load_steps=3 format=3]\n\n'
+        f.write('[gd_scene load_steps=5 format=3]\n\n'
                 '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_box"]\n'
-                '[ext_resource type="PackedScene" path="res://assets/models/buildings/hideout.glb" id="2_model"]\n\n'
+                '[ext_resource type="PackedScene" path="res://assets/models/buildings/hideout.glb" id="2_model"]\n'
+                '[ext_resource type="Script" path="res://scripts/swing_lamps.gd" id="3_swing"]\n'
+                '[ext_resource type="Script" path="res://scripts/cloth.gd" id="4_cloth"]\n\n'
                 '[node name="HideoutLevel" type="Node3D"]\n'
                 '; Generated by art_source/scripts/make_hideout.py: edit that and re-run it, never this file.\n\n'
                 '[node name="Blocks" type="StaticBody3D" parent="."]\n'
@@ -1572,6 +1603,12 @@ def write_level(rows):
             p = t.P(u, 0.0, fl + d + 0.3)
             f.write('\n[node name="Target%d" type="Marker3D" parent="Range"]\n'
                     'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n' % (d, round(p[0], 3), round(p[2], 3)))
+        f.write('\n[node name="Swings" type="Node3D" parent="."]\nscript = ExtResource("3_swing")\n'
+                'data = PackedFloat32Array(%s)\n' % ", ".join("%g" % round(v, 3) for row in SWINGS for v in row))
+        f.write('\n[node name="Cloth" type="Node3D" parent="."]\nscript = ExtResource("4_cloth")\n'
+                'data = PackedFloat32Array(%s)\ncolors = PackedColorArray(%s)\n'
+                % (", ".join("%g" % round(v, 3) for row in cloth_rows() for v in row[:-1]),
+                   ", ".join("%g, %g, %g, 1" % row[-1] for row in cloth_rows())))
         f.write('\n[node name="Boards" type="Node3D" parent="."]\n')
         for bid, (x, z), (nx, nz) in LAY.boards:                       # (a Marker3D's +z out of the board's face)
             yaw = math.atan2(nx, nz)
@@ -1637,6 +1674,9 @@ def main():
     bake_light.shade = lamp_shade
     mb.build(NAME, True)
     rows += EXTRA
+    # (0.22.0, World reacts: what the dressing draws that looks solid, make_building's SOLIDS, collides too)
+    rows += [{"pos": r["pos"], "size": r["size"], "yaw": r["yaw"], "pitch": r["pitch"], "colour": "prop", "solid": True,
+              "kind": "hd_solid"} for r in mb.SOLIDS]
     with open(os.path.join(mb.ROOT, "art_source", "buildings", NAME + ".json"), "w") as f:
         json.dump(data, f, indent=0)
     write_level(rows)

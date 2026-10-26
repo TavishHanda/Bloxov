@@ -432,6 +432,58 @@ def model_path(name):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "models", "buildings", name + ".glb")
 
 
+# Solid-looking things that had no box (0.22.0, World reacts; owner: "give solid-looking things real hitboxes",
+# found with tools/walkthrough_audit.gd). Two kinds of fix, both made late (after the scatter, like fit_trucks) so
+# nothing else on the map moves:
+# - MADE_SOLID: gray-box kinds that were picture only but look solid (furniture, racks, open stall doors).
+# - <name>_solids.json from art_source/scripts/make_building.py (SOLIDS): boxes for what a model draws without a gray
+#   box (fallen roof slabs and beams in the caved rooms, chairs, porch posts).
+# Both only stop players (flag 5, BoxMap `prop_boxes`): shots, eyes and the AI pass through them as before, and the
+# AI's navigation doesn't see them (AI locked in, owner). Rubble you step over stays picture only (owner, 0.11.6:
+# nothing blocks a doorway or loot).
+MADE_SOLID = {
+    "waiting_seats", "waiting_seats_east", "chair_rows", "briefing_chairs", "sb_chair", "cabin_chairs", "dn_stool",
+    "tc_stool", "tc_bench", "fc_rocker", "motel_table", "motel_nightstand", "motel_cot", "cell_bunk", "cell_toilet",
+    "th_cot", "globe", "voting_booths", "plant", "coat_rack", "robe_rail", "fc_fish_rack", "tc_pelt_rack",
+    "tc_stretchers", "tc_cache", "mugshot_camera", "drill_rig", "cashier_spot", "stall_gate", "wc_stalls", "wc_door",
+    "casino_cage", "motel_rail", "st_canopy_wreck",
+}
+
+
+def model_solids(name):
+    path = os.path.join(MODEL_JSON_DIR, name + "_solids.json")
+    if not os.path.exists(path):
+        return []
+    with open(path) as f:
+        return json.load(f)["solids"]
+
+
+def solid_late():
+    """MADE_SOLID kinds stop people now; each model's SOLIDS get their boxes (before terrain() lifts them)."""
+    key = lambda x, y, z, sy: (round(x, 2), round(y, 2), round(z, 2), round(sy, 2))   # noqa: E731
+    made = set()
+    for m in models:
+        if m["hide"]:
+            for b, kind in m["boxes"]:   # (kept unturned: find them where the turn put them)
+                if kind in MADE_SOLID and b[9] in (0, 3):
+                    x, z = turn_point(b[0], b[2], gx(m["x"]), gz(m["z"]), m["turned"])
+                    made.add(key(x, b[1], z, b[4]))
+    for i, b in enumerate(boxes):
+        if b[9] in (0, 3) and key(b[0], b[1], b[2], b[4]) in made:
+            boxes[i] = b[:9] + (5,) + b[10:]
+    for m in models:
+        if not m["hide"]:
+            continue
+        ox, oz = gx(m["x"]), gz(m["z"])
+        m["solids"] = model_solids(m["name"])
+        for r in m["solids"]:
+            (px, py, pz), size = r["pos"], r["size"]
+            x, z = turn_point(ox + px, oz + pz, ox, oz, m["turned"])
+            boxes.append((x, py, z, size[0], size[1], size[2], (r["yaw"] + m["turned"]) % 360.0, r["pitch"],
+                          C["wood" if r["people"] else "concrete"], 5))
+            anchors.append(None)
+
+
 def write_model_boxes(ter):
     """Also checks the whole model stands on one flat pad (the model can't bend over hills like the boxes)."""
     names = {i: n for n, i in C.items()}
@@ -475,6 +527,7 @@ def write_model_boxes(ter):
 BARRED = {"gun_store": lambda o: True, "bank": lambda o: o["lo"] < 1.5, "police": lambda o: o["lo"] < 1.5,
           "farmhouse": lambda o: o["lo"] < 2 and o["side"] in "NW"}
 bar_boxes = []   # Godot x, y, z, size x, y, z, yaw
+prop_boxes = []  # the same, for what stops players only (0.22.0, solid_late: BoxMap `prop_boxes`)
 
 
 def barred(m, opens):
@@ -5785,6 +5838,7 @@ def main():
     settle_fallen_doors()
     fit_trucks()
     fit_car_unders()
+    solid_late()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
 
@@ -6566,6 +6620,8 @@ def write_outdoor(ter):
 # pieces: run this, make_outdoor.py, then this again.
 SHAPED_JSON = os.path.join(OUTDOOR_JSON_DIR, "collision.json")
 SHAPED = json.load(open(SHAPED_JSON))["shapes"] if os.path.exists(SHAPED_JSON) else {}
+# (0.22.0, World reacts: the litter's cans and bottles, kicked about by scripts/kickables.gd; looks only)
+KICKS = json.load(open(SHAPED_JSON)).get("kicks", []) if os.path.exists(SHAPED_JSON) else []
 shaped_faces = []
 
 
@@ -6742,9 +6798,12 @@ def write_scene(ter):
     if os.path.exists(BORDER_GLB):
         outdoor.append(("outdoor_border", 0.0, 0.0))
     write_splat(ter)
-    for i, b in enumerate(boxes):   # (railings and bars: people-only, see PEOPLE_KINDS)
+    for i, b in enumerate(boxes):   # (railings and bars: people-only, see PEOPLE_KINDS; 5: players only, solid_late)
         if b[9] == 4:
             bar_boxes.append(tuple(b[:7]))
+            boxes[i] = b[:9] + (3,) + b[10:]
+        elif b[9] == 5:
+            prop_boxes.append(tuple(b[:7]))
             boxes[i] = b[:9] + (3,) + b[10:]
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
@@ -6780,6 +6839,7 @@ def write_scene(ter):
         out.append(f'[ext_resource type="Material" path="res://assets/materials/road_{ROAD_LOOK}.tres" id="g_road"]')
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
     out.append('[ext_resource type="Script" path="res://scripts/bushes.gd" id="g_bushes"]')
+    out.append('[ext_resource type="Script" path="res://scripts/kickables.gd" id="g_kicks"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]')
     out.append('[ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]')
@@ -6824,6 +6884,7 @@ def write_scene(ter):
             "water_rocks = PackedVector4Array(" + ", ".join(f"{fmt(x)}, {fmt(z)}, {fmt(r)}, 0" for x, z, r in water_rocks) + ")",
             "window_panes = PackedFloat32Array(" + ", ".join(fmt(v) for p in window_panes for v in p) + ")",
             "bar_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in bar_boxes for v in b) + ")",
+            "prop_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in prop_boxes for v in b) + ")",
             "shaped_points = PackedVector3Array(" + ", ".join(fmt(v) for p in shaped_mesh()[0] for v in p) + ")",
             "shaped_indices = PackedInt32Array(" + ", ".join(str(i) for i in shaped_mesh()[1]) + ")",
             "shot_points = PackedVector3Array(" + ", ".join(fmt(v) for p in shot_mesh()[0] for v in p) + ")",
@@ -6853,6 +6914,12 @@ def write_scene(ter):
             'script = ExtResource("g_bushes")',
             'leaves = ExtResource("g_leaves")',
             "data = PackedFloat32Array(" + ", ".join(fmt(v) for b in bush_data for v in b) + ")", "",
+            # the litter's cans and bottles (0.22.0, World reacts: kicked about, looks only; make_outdoor.py lists them)
+            '[node name="Kickables" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_kicks")',
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for k in KICKS for v in k[:5]) + ")",
+            "colors = PackedColorArray(" + ", ".join("%s, %s, %s, 1" % tuple(fmt(int(k[5][j:j + 2], 16) / 255) for j in (0, 2, 4))
+                                                     for k in KICKS) + ")", "",
             # the trees (outdoor step 7; their trunks collide and their leaves hide you from the AI, this draws them)
             '[node name="Trees" type="Node3D" parent="Level/Blocks"]',
             'script = ExtResource("g_trees")',

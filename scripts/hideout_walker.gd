@@ -36,6 +36,7 @@ func _ready() -> void:
 	add_child(camera)
 	camera.current = true
 	floor_snap_length = 0.3
+	add_to_group(Reacts.MOVER)
 
 
 func _physics_process(delta: float) -> void:

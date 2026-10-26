@@ -48,6 +48,7 @@ static func warm_up(camera: Camera3D) -> void:
 static func tracer(world: Node, from: Vector3, to: Vector3) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
+	Reacts.shot(world, from, to)   # (0.22.0: lamps and cans nearby jump; looks only)
 	var dist := from.distance_to(to)
 	if dist < 0.2:
 		return

@@ -6,6 +6,7 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 
 uniform sampler2D leaves : source_color, filter_nearest_mipmap, repeat_disable;
 uniform float sway = 0.05;
+#include "res://assets/shaders/push.gdshaderinc"
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -13,6 +14,8 @@ void vertex() {
 	float k = COLOR.a * COLOR.a;
 	VERTEX.x += sin(t + world.x * 0.35 + world.z * 0.2) * sway * k;
 	VERTEX.z += cos(t * 0.8 + world.z * 0.35) * sway * 0.7 * k;
+	// (0.22.0, World reacts: parted round whoever walks through, the top most)
+	VERTEX += push_offset(world, 1.1, TIME) * (0.35 + 0.65 * COLOR.a);
 }
 
 void fragment() {

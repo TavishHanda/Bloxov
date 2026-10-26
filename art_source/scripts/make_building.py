@@ -973,6 +973,62 @@ def face_frame(n):
     return norm(cross(v_scale(n, -1.0), up)), up
 
 
+# The caved rooms' wreckage (0.22.0, World reacts): while a CAVED function draws, WRECK holds the room's floor height
+# and every big piece it draws that reaches into body height (a slab, a beam, a tank, a bench) gets a box that's
+# solid all through (SOLIDS). Rubble lower than 0.45 m you still walk over (owner, 0.11.6: nothing blocks a doorway).
+WRECK = [None]
+
+
+def wreck_solid(center, size, yaw, pitch):
+    dims = sorted(size)
+    if dims[2] < 0.8 or dims[1] < 0.1 or dims[0] < 0.03:
+        return
+    ys = [rot((sx * size[0] / 2, sy * size[1] / 2, sz * size[2] / 2), yaw, pitch)[1] + center[1]
+          for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]
+    floor = WRECK[0]
+    if max(ys) - floor < 0.45 or min(ys) - floor > 1.7:
+        return
+    solid_box(center, size, yaw, pitch)
+
+
+# A building's dressing (its DRESSING function: furniture and clutter placed round the rooms, no gray boxes of their
+# own; 0.22.0, World reacts): every chunky box it draws that stands into body height (a cabinet, a drum, a crate, a
+# bench's seat) gets a box that's solid all through (SOLIDS), unless a solid gray box already holds it. Thin things
+# (pictures, cloth, boards, rails, legs) and floor clutter stay picture only. DRESS holds the gray boxes meanwhile.
+DRESS = [None]
+
+
+def _corners(center, size, yaw, pitch):
+    return [v_add(rot((sx * size[0] / 2, sy * size[1] / 2, sz * size[2] / 2), yaw, pitch), center)
+            for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]
+
+
+def _inside_row(p, row, pad=0.05):
+    c, s = row["pos"], row["size"]
+    d = rot(v_sub(p, c), -row.get("yaw", 0.0), 0.0) if not row.get("pitch") else None
+    if d is None:
+        return False
+    return all(abs(d[k]) <= s[k] / 2 + pad for k in range(3))
+
+
+def dress_solid(center, size, yaw, pitch):
+    dims = sorted(size)
+    post = not pitch and size[1] >= 1.5 and min(size[0], size[2]) >= 0.1          # (a post, a column)
+    if not post and (dims[0] < 0.12 or dims[1] < 0.25 or dims[2] < 0.3):
+        return
+    pts = _corners(center, size, yaw, pitch)
+    lo, hi = min(p[1] for p in pts), max(p[1] for p in pts)
+    rows = DRESS[0]
+    if any(all(_inside_row(p, r) for p in pts) for r in rows):
+        return                                                    # (a solid gray box has it already)
+    floor = max((r["pos"][1] + r["size"][1] / 2 for r in rows
+                 if r["pos"][1] + r["size"][1] / 2 <= lo + 0.1 and _inside_row((center[0], r["pos"][1], center[2]), r, 0.0)),
+                default=0.0)
+    if hi - floor < 0.45 or lo - floor > 1.7:
+        return
+    solid_box(center, size, yaw, pitch)
+
+
 class Builder:
     def __init__(self):
         self.verts, self.faces, self.uvs, self.mats, self.normals = [], [], [], [], []
@@ -1012,6 +1068,7 @@ class Builder:
 
     def box(self, center, size, yaw=0.0, pitch=0.0, style=None):
         """style(normal, face centre, corners) -> (material, uv) or None to leave the face out."""
+        f0 = len(self.faces)
         hx, hy, hz = size[0] / 2, size[1] / 2, size[2] / 2
         for axis in range(3):
             for sgn in (-1, 1):
@@ -1030,6 +1087,11 @@ class Builder:
                 got = style(n, mid, corners) if style else ("trim", uv_world())
                 if got:
                     self.poly(corners, n, got[0], got[1])
+        if len(self.faces) - f0 >= 5:          # (all round it drawn: no invisible walls from a box drawn as a panel)
+            if WRECK[0] is not None:
+                wreck_solid(center, size, yaw, pitch)
+            elif DRESS[0] is not None:
+                dress_solid(center, size, yaw, pitch)
 
     def to_object(self, name, materials, coll):
         mesh = bpy.data.meshes.new(name)
@@ -3471,6 +3533,7 @@ def chair(b, x, y, z, yaw, seat="blue", frame="trim", office=False):
     if knocked:
         _turn_faces(b, first, (x, y, z), mess.uniform(0, 180), True)
     b.group = None
+    solid_round(b, first, yaw)          # (0.22.0: chairs stop people; shots hit the drawing)
 
 
 def _long_axis(s):
@@ -7855,7 +7918,15 @@ def caved_shops(ctx, c, s):
 
 
 CAVED = {"offices": caved_offices, "shops": caved_shops}
-PROPS["caved_room"] = lambda ctx, c, s, k: CAVED.get(BUILDING_NAME[0], caved_default)(ctx, c, s)
+def caved_room(ctx, c, s, k):
+    WRECK[0] = c[1] - s[1] / 2
+    try:
+        CAVED.get(BUILDING_NAME[0], caved_default)(ctx, c, s)
+    finally:
+        WRECK[0] = None
+
+
+PROPS["caved_room"] = caved_room
 
 
 # ------------------------------------------------------------------------------------------------ town hall (0.17)
@@ -9447,12 +9518,14 @@ def dress_vault(ctx):
     pic("+z", -7.84, -26.0, -24.0, VF + 1.8, VF + 2.4, "shelter_v", "graffiti")
     pic("-z", 7.84, -20.0, -18.0, VF + 1.8, VF + 2.4, "shelter_v", "graffiti")
     for x in (-26.2, -23.4):                                             # bunk frames along the south wall
+        f0 = len(b.faces)
         for lv in (0.35, 1.25):
             b.box((x, VF + lv, 7.35), (2.0, 0.05, 0.8), style=_solid("olive_dark"))
             b.box((x, VF + lv + 0.06, 7.35), (1.9, 0.08, 0.7), style=_nb("olive" if lv < 1 else "bone"))
         for sx in (-0.97, 0.97):
             for sz in (6.98, 7.72):
                 b.box((x + sx, VF + 0.8, sz), (0.05, 1.6, 0.05), style=_nb("olive_dark"))
+        solid_round(b, f0)                                               # (0.22.0: you can't walk through a bunk)
     for k in range(4):                                                   # water drums
         b.box((-15.6 + k * 0.62, VF + 0.45, 7.55), (0.56, 0.9, 0.56), style=_nb("blue" if k % 3 else "olive"))
         b.box((-15.6 + k * 0.62, VF + 0.91, 7.55), (0.58, 0.03, 0.58), style=_nb("trim_dark"))
@@ -19712,6 +19785,7 @@ def prop_sb_frame(ctx, c, s):
             "black", "red", "blue", "bone", "red", "black", "red", "yellow", "black", "red", "bone", "red",
             "black", "red", "blue", "red", "black", "yellow", "red", "bone", "red", "black")
     n = int(s[0] / 0.25)
+    f0 = len(b.faces)
     for k in range(n):
         x = c[0] - s[0] / 2 + 0.12 + k * 0.25
         pulled = k % 5 == 2
@@ -19721,6 +19795,7 @@ def prop_sb_frame(ctx, c, s):
         p1 = (x, top + L * math.cos(math.radians(tilt)), c[2] + L * math.sin(math.radians(tilt)))
         _beam(b, p0, p1, 0.05, 0.04, cols[k % len(cols)])
         _box(b, p1[0], p1[1] + 0.03, p1[2], 0.06, 0.08, 0.06, "steel_light")                     # the polished handle
+    solid_round(b, f0)                    # (0.22.0: the levers stop people; shots go between them)
     _box(b, c[0], top + 0.02, c[2] + s[2] / 2 + 0.15, s[0], 0.04, 0.3, "wood_dark")              # the footboard
     for k in range(4):                                                                           # block bells
         _box(b, c[0] - 1.2 + k * 0.8, top + 0.6, c[2] - s[2] / 2 + 0.05, 0.4, 0.5, 0.2, "wood_dark")
@@ -22264,6 +22339,14 @@ SHOT_KINDS |= {
     "shoebox_stack", "spinner", "st_column_stub", "st_parcel_shelf", "st_scale", "st_stove", "tc_bed",
     "tc_pantry_shelf", "tc_woodshed", "uniform_stand", "vanity", "vestry_desk", "wc_sink", "wc_sinks", "wc_toilet",
     "wc_urinal"}
+# (0.22.0: the generator's MADE_SOLID kinds, picture only before, stop people now: shots hit their drawing too)
+MADE_SOLID = {
+    "waiting_seats", "waiting_seats_east", "chair_rows", "briefing_chairs", "sb_chair", "cabin_chairs", "dn_stool",
+    "tc_stool", "tc_bench", "fc_rocker", "motel_table", "motel_nightstand", "motel_cot", "cell_bunk", "cell_toilet",
+    "th_cot", "globe", "voting_booths", "plant", "coat_rack", "robe_rail", "fc_fish_rack", "tc_pelt_rack",
+    "tc_stretchers", "tc_cache", "mugshot_camera", "drill_rig", "cashier_spot", "stall_gate", "wc_stalls", "wc_door",
+    "casino_cage", "motel_rail", "st_canopy_wreck",
+}
 SHOTS = []
 
 
@@ -22279,6 +22362,54 @@ def note_shots(b, f0, box):
                 tris += [round(q[0], 3), round(q[1], 3), round(q[2], 3)]
     if tris:
         SHOTS.append({"box": box, "tris": tris})
+
+
+# Things the model draws that look solid but had no gray box of their own (0.22.0, World reacts; owner: "give
+# solid-looking things real hitboxes", found by tools/walkthrough_audit.gd): fallen roof slabs and beams, chairs,
+# racks... Written as <name>_solids.json ({"solids": [{"pos", "size", "yaw", "pitch", "people", "tris"}]}, the model's
+# own space); the generator adds a box for each (tools/gen_old_bloxov.py `model_solids`). `people`: a box that stops
+# people only (it has gaps: chairs), with its drawing as what shots hit, like SHOT_KINDS; else it's solid all through
+# (a slab, a beam). Re-run the generator after.
+SOLIDS = []
+
+
+def _tris_since(b, f0):
+    glass = b.mat_names.index("glass") if "glass" in b.mat_names else -1
+    tris = []
+    for face, m in zip(b.faces[f0:], b.mats[f0:]):
+        if m == glass:
+            continue
+        pts = [b.verts[i] for i in face]
+        for k in range(1, len(pts) - 1):
+            for q in (pts[0], pts[k], pts[k + 1]):
+                tris += [round(q[0], 3), round(q[1], 3), round(q[2], 3)]
+    return tris
+
+
+def solid_round(b, f0, yaw=0.0, low=0.0):
+    """A people-only box round what was drawn since face f0, in a frame turned by yaw (degrees); its drawing is what
+    shots hit. `low`: leave out what's lower than this over the box's bottom (feet, a star base) from the box."""
+    co, si = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    pts = [b.verts[i] for f in b.faces[f0:] for i in f]
+    if not pts:
+        return
+    loc = [(p[0] * co - p[2] * si, p[1], p[0] * si + p[2] * co) for p in pts]    # (into the turned frame)
+    lo = [min(q[k] for q in loc) for k in range(3)]
+    hi = [max(q[k] for q in loc) for k in range(3)]
+    lo[1] += low
+    mid = [(lo[k] + hi[k]) / 2 for k in range(3)]
+    size = [hi[k] - lo[k] for k in range(3)]
+    if size[1] < 0.2 or max(size[0], size[2]) < 0.2:
+        return
+    c = (mid[0] * co + mid[2] * si, mid[1], -mid[0] * si + mid[2] * co)
+    SOLIDS.append({"pos": [round(v, 3) for v in c], "size": [round(v, 3) for v in size], "yaw": round(yaw, 2),
+                   "pitch": 0.0, "people": True, "tris": _tris_since(b, f0)})
+
+
+def solid_box(c, size, yaw=0.0, pitch=0.0):
+    """A box as drawn (a slab, a beam): solid all through."""
+    SOLIDS.append({"pos": [round(v, 3) for v in c], "size": [round(v, 3) for v in size], "yaw": round(yaw, 2),
+                   "pitch": round(pitch, 2), "people": False})
 
 
 def build(name, export):
@@ -22305,6 +22436,8 @@ def build(name, export):
     ctx.wet = wet_rects(data)
     counts = {}
     SHOTS.clear()
+    SOLIDS.clear()
+    solid_rows = [r for r in data["boxes"] if r["solid"]]
     for n, row in enumerate(data["boxes"]):
         kind = row.get("kind")
         if kind:
@@ -22312,12 +22445,21 @@ def build(name, export):
             counts[kind] = k + 1
             ctx.row = row
             f0 = len(ctx.b.faces)
-            PROPS[kind](ctx, tuple(row["pos"]), tuple(row["size"]), k)
+            # (a picture-only piece's chunky parts and posts are solid too, like the dressing's: a porch's posts)
+            DRESS[0] = solid_rows if not row["solid"] and kind not in ("caved_room", "washroom") else None
+            try:
+                PROPS[kind](ctx, tuple(row["pos"]), tuple(row["size"]), k)
+            finally:
+                DRESS[0] = None
             if kind in SHOT_KINDS and row["solid"]:
                 note_shots(ctx.b, f0, n)
         else:
             shell_box(ctx, row)
-    DRESSING[name](ctx)
+    DRESS[0] = solid_rows
+    try:
+        DRESSING[name](ctx)
+    finally:
+        DRESS[0] = None
     dress_openings(ctx, data.get("openings", []))
     faction_marks(ctx, name, data.get("openings", []))
     floor_debris(ctx, data, name)
@@ -22337,6 +22479,14 @@ def build(name, export):
                     + ",\n".join(json.dumps(r, separators=(",", ":")) for r in SHOTS) + "\n]}\n")
     elif os.path.exists(shots_path):
         os.remove(shots_path)
+    solids_path = os.path.join(ROOT, "art_source", "buildings", name + "_solids.json")
+    if SOLIDS:
+        with open(solids_path, "w") as f:
+            f.write('{"note": "Generated by art_source/scripts/make_building.py: boxes for what the model draws that '
+                    'looks solid but has no gray box (SOLIDS), in the model\'s own space.",\n"solids": [\n'
+                    + ",\n".join(json.dumps(r, separators=(",", ":")) for r in SOLIDS) + "\n]}\n")
+    elif os.path.exists(solids_path):
+        os.remove(solids_path)
     out = os.path.join(ROOT, "assets", "models", "buildings", name + ".glb")
     if bpy is None:
         if export:

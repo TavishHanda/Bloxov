@@ -18,7 +18,7 @@ extends SceneTree
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
-	"movement", "stealth", "jump", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
+	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
@@ -4538,6 +4538,87 @@ func _section_bushes_bars() -> void:
 	await physics_frame
 	player.teleport_to(back)
 	await create_timer(0.2).timeout
+
+
+## The world reacts (0.22.0): hanging lamps swing when a head, a shot or a blast knocks them; cans and bottles get
+## kicked about; curtains part. All looks only, client-side: none of it runs on the game server (headless).
+func _section_reacts() -> void:
+	player.global_position = Vector3(30, 0.1, -25)   # (open ground, away from the target dummy and the map's edge)
+	player.velocity = Vector3.ZERO
+	await create_timer(0.5).timeout
+	var ground := player.global_position
+	var lamps: Node3D = load("res://scripts/swing_lamps.gd").new()
+	lamps.data = PackedFloat32Array([ground.x, ground.y + 3.2, ground.z, 1.0, 0, ground.x + 6.0, ground.y + 4.0, ground.z, 2.0, 1])
+	main.add_child(lamps)
+	_check(not lamps.is_in_group(Reacts.GROUP), "no swinging lamps on the game server (headless)")
+	lamps.queue_free()
+	lamps = load("res://scripts/swing_lamps.gd").new()
+	lamps.set_meta(&"force_reacts", true)
+	lamps.data = PackedFloat32Array([ground.x, ground.y + 3.2, ground.z, 1.0, 0, ground.x + 6.0, ground.y + 4.0, ground.z, 2.0, 1])
+	main.add_child(lamps)
+	await physics_frame
+	var rest: Vector3 = lamps.bulb_at(0)
+	for i in 30:
+		await physics_frame
+	_check(lamps.bulb_at(0).distance_to(rest) < 0.001, "a lamp hung over your head stays still while you stand under it")
+	Input.action_press("jump")
+	await physics_frame
+	await physics_frame
+	Input.action_release("jump")
+	var most := 0.0
+	for i in 40:
+		await physics_frame
+		most = maxf(most, lamps.bulb_at(0).distance_to(rest))
+	_check(most > 0.05, "jumping into a hanging lamp swings it (%.2f m)" % most)
+	var far_rest: Vector3 = lamps.bulb_at(1)
+	Reacts.shot(main, far_rest + Vector3(0, 0, -5), far_rest + Vector3(0, 0, 5))
+	for i in 20:
+		await physics_frame
+	_check(lamps.bulb_at(1).z - far_rest.z > 0.05, "a shot going past a lamp swings it the way the shot went")
+	for i in 1200:
+		await physics_frame
+	_check(lamps.bulb_at(0).distance_to(rest) < 0.01 and lamps.bulb_at(1).distance_to(far_rest) < 0.01,
+		"swinging lamps slow back to still")
+	lamps.queue_free()
+	# Cans and bottles: one at your feet's way, one off to the side for a grenade.
+	var ahead := -player.global_basis.z
+	ahead.y = 0.0
+	ahead = ahead.normalized()
+	var can_at := ground + ahead * 1.2
+	var kicks: Node3D = load("res://scripts/kickables.gd").new()
+	kicks.set_meta(&"force_reacts", true)
+	kicks.data = PackedFloat32Array([can_at.x, ground.y, can_at.z, 30.0, 0, ground.x - 5.0, ground.y, ground.z, 80.0, 1])
+	main.add_child(kicks)
+	await physics_frame
+	var bottle_start: Vector3 = kicks.pos[1]
+	Input.action_press("move_forward")
+	for i in 50:
+		await physics_frame
+	Input.action_release("move_forward")
+	_check((kicks.pos[0] - can_at).dot(ahead) > 0.4, "walking into a can kicks it the way you're going (%.2f m)" % (kicks.pos[0] - can_at).dot(ahead))
+	Reacts.blast(main, bottle_start + Vector3(1.0, 0.0, 0.0), 4.0)
+	var top := 0.0
+	for i in 20:
+		await physics_frame
+		top = maxf(top, kicks.pos[1].y - bottle_start.y)
+	_check(top > 0.3 and kicks.pos[1].x < bottle_start.x, "a blast throws a bottle up and away (%.2f m up)" % top)
+	for i in 600:
+		await physics_frame
+	_check(kicks._awake.is_empty(), "kicked cans come to rest")
+	_check(absf(kicks.pos[0].y - (ground.y + 0.035)) < 0.08 and absf(kicks.pos[1].y - (ground.y + 0.04)) < 0.08,
+		"and lie on the ground, not in it or floating (%.2f, %.2f above it)" % [kicks.pos[0].y - ground.y, kicks.pos[1].y - ground.y])
+	kicks.queue_free()
+	# Curtains: one mesh of sheets, never anything that collides.
+	var cloth: Node3D = load("res://scripts/cloth.gd").new()
+	cloth.set_meta(&"force_reacts", true)
+	cloth.data = PackedFloat32Array([ground.x, ground.y + 1.2, ground.z + 3.0, 1.0, 1.8, 90.0, 0.8])
+	cloth.colors = PackedColorArray([Color(0.3, 0.4, 0.5)])
+	main.add_child(cloth)
+	await physics_frame
+	var sheet := cloth.get_child(0) as MeshInstance3D
+	_check(sheet != null and sheet.mesh.get_faces().size() == 4 * 5 * 6, "a curtain is one hanging sheet")
+	_check(Reacts.pushers(cloth)[0].w > 0.0, "and the player pushes curtains and bushes aside")
+	cloth.queue_free()
 
 
 func _section_leaves() -> void:

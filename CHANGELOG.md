@@ -5,7 +5,31 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react). -->
+
+## 0.22.0 (World Reacts)
+- **Things that look solid are solid** (owner: "give solid-looking things real hitboxes"). A new check
+  (`tools/walkthrough_audit.gd`) walks every spot you can reach on Bloxov Battlegrounds and in the hideout and lists
+  what's drawn at body height with nothing to bump into (768 spots on the map before, 468 after; most left are
+  kerbs on banks, rolled-over wrecks and rubble you step over). From it: chairs, stools, benches, cots, bunks, tables,
+  toilets, racks, plants, globes, voting booths, the barn's stall gates, washroom stalls, the drill rig, porch posts
+  and the like now stop players, and so does the furniture knocked about in the caved-in rooms that stands
+  waist-high or more. They stop players only (a new collision layer, 10): shots, eyes and the AI pass through them
+  exactly as before, so fights and the AI are unchanged. Ruined walls outside collide as drawn (their broken tops
+  stuck up past their box). In the hideout: the tunnel mouths' concrete frames, crates and the washroom walls. Small
+  rubble under knee height, paper, timbers and rebar stay walk-over; nothing new blocks a doorway, and every
+  container, door and key door can still be reached (checked).
+- **Hanging lamps swing** in the hideout (the bulbs over the bays and the washroom's lamps hang a bit lower now, so
+  a jump heads them). Bumping one, a shot going past or a blast nearby sets it swinging; it slows back to still. The
+  light stays where it's baked.
+- **Bushes part round you** when you walk through them (and round anyone else nearby), the tops most, with a rustle
+  while you're moving. The hideout's curtains (the toilet cubicles, the showers) and the washing on the line sway
+  and get pushed aside the same way.
+- **Cans and bottles get kicked about**: the ones in the litter along the roads. Walk into one and it skitters off
+  the way you were going; a shot next to it makes it jump, a grenade throws it. They roll to a stop and lie there.
+- All of the moving things are looks only: they never collide, never block shots or sight, are never sent online
+  and the server doesn't run them (each player sees their own). Cheap: 2 draw calls for every can on the map, 4 in
+  the hideout for the lamps and curtains.
 
 ## 0.21.21 (Faster drift)
 - The main screen's town drifts a bit faster (owner): 25 seconds from side to side, was 40.

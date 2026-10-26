@@ -86,6 +86,7 @@ func explode() -> void:
 	Effects.burst(world, at + Vector3(0, 0.3, 0), Color(1.0, 0.6, 0.2))
 	Effects.burst(world, at + Vector3(0, 0.5, 0), Color(0.35, 0.33, 0.3))
 	Effects.sound_at(world, EXPLOSION_SOUND, at, 6.0, 0.05, 1.0, 14.0, 150.0)
+	Reacts.blast(world, at, radius)   # (0.22.0: lamps swing, cans fly; looks only)
 	for node in RaidScope.nodes(self, &"player"):
 		# A shake for anyone close (only the local player's camera has one that shows).
 		if node.has_method("add_shake") and (node as Node3D).global_position.distance_to(at) < radius * 2.0:

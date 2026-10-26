@@ -34,6 +34,10 @@ const BARS_LAYER := 128
 ## building models (art_source/buildings/<name>_panes.json). A pane is on this layer (9): it stops people until it's
 ## broken, and nobody's shots (a shot passing through breaks it instead). Online, breaks are sent by pane number.
 const WINDOW_LAYER := 256
+## Furniture and the like that look solid (0.22.0, World Reacts): a box each on this layer (10) stops players (their
+## collision mask has it) and vaulting, never the AI, shots or eyes, and the navigation bake leaves them out (the AI
+## moves as before). From the map generator's `prop_boxes`.
+const PROPS_LAYER := 512
 ## Players and AI inside a bush get this meta (how many bushes they're in); they move slower while it's set.
 const BUSH_META := &"in_bush"
 ## Players and AI standing in water get this meta (how many water areas they're in); they move slower while it's set.
@@ -111,6 +115,8 @@ const SURFACE_CELL := 8.0
 ## the AI) and vaulting, never shots or eyes; since 0.19.8 also open railings, cell bars and the outdoor pieces whose
 ## shots hit their drawing (shelters, fences, stands...).
 @export var bar_boxes := PackedFloat32Array()
+## Furniture and the like (PROPS_LAYER): x, y, z, size x, y, z, yaw (degrees) each. They stop players only.
+@export var prop_boxes := PackedFloat32Array()
 ## The glazed windows (WINDOW_LAYER): x, y, z, width, height, yaw (degrees) each; the pane faces along its yaw.
 @export var window_panes := PackedFloat32Array()
 @export var shaped_points := PackedVector3Array()
@@ -244,6 +250,7 @@ func _ready() -> void:
 	add_child(collider)
 	_add_leaves()
 	_add_bars()
+	_add_props()
 	_add_windows()
 	_index_surfaces()
 
@@ -561,6 +568,24 @@ func _add_bars() -> void:
 		body.add_child(collider)
 		for v in cube:
 			people_faces.append(collider.transform * (v * shape.size))
+	add_child(body)
+
+
+func _add_props() -> void:
+	if prop_boxes.is_empty():
+		return
+	var body := StaticBody3D.new()
+	body.name = "Props"
+	body.collision_layer = PROPS_LAYER
+	body.collision_mask = 0
+	for i in range(0, prop_boxes.size(), 7):
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(prop_boxes[i + 3], prop_boxes[i + 4], prop_boxes[i + 5])
+		var collider := CollisionShape3D.new()
+		collider.shape = shape
+		collider.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(prop_boxes[i + 6])),
+			Vector3(prop_boxes[i], prop_boxes[i + 1], prop_boxes[i + 2]))
+		body.add_child(collider)
 	add_child(body)
 
 

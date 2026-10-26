@@ -151,7 +151,7 @@ static func position_at(path: PackedVector3Array, t: float) -> Vector3:
 
 static func _ray(body: CollisionObject3D, space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:
 	# (0.19.8: open railings, fences, tables... stop people with their own boxes, BoxMap.BARS_LAYER, so vaults see those)
-	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1 | BoxMap.BARS_LAYER, [body.get_rid()]))
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1 | BoxMap.BARS_LAYER | BoxMap.PROPS_LAYER, [body.get_rid()]))
 	# (0.19.4, owner: vaulting into a dirt bank got you stuck in it: from inside, the bank's skin looked like a top
 	# to land on. Map collision is solid from both sides, so only its outsides count here.)
 	if not hit.is_empty() and BoxMap.hit_from_behind(hit, (to - from).normalized()):
@@ -175,6 +175,6 @@ static func _fits(body: CollisionObject3D, feet: Vector3, radius: float, height:
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = capsule
 	query.transform = Transform3D(Basis(), feet + Vector3(0, height * 0.5 + 0.05, 0))
-	query.collision_mask = 1 | 2 | 4 | BoxMap.BARS_LAYER   # (0.18.3: barred windows can't be climbed through)
+	query.collision_mask = 1 | 2 | 4 | BoxMap.BARS_LAYER | BoxMap.PROPS_LAYER   # (0.18.3: barred windows can't be climbed through)
 	query.exclude = [body.get_rid()]
 	return body.get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
