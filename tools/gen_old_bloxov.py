@@ -1068,7 +1068,9 @@ class Building:
         outer = (side == "N" and j == 0) or (side == "S" and j == self.nz - 1) or \
                 (side == "W" and i == 0) or (side == "E" and i == self.nx - 1)
         if floor == 0 and outer and side in self.doors and k == n // 2 and abs(offset) < 2.0:
-            offset = 2.4 if offset >= 0 else -2.4
+            # (but not out through the end wall: a 5 m room's 2.4 m slide put OldHouse6's dresser half outside)
+            wall_len = self.cw if horizontal else self.cd
+            offset = min(2.4, wall_len / 2 - 0.7) * (1 if offset >= 0 else -1)
         if side == "E":
             return cx1 - 0.7, y, (cz0 + cz1) / 2 + offset, 90.0
         if side == "W":
@@ -5616,7 +5618,8 @@ def main():
         with modeled(f"old_house_{n}", x + 6.0, y + 5.0):     # (World art 0.17: the old quarter's houses)
             build(Building(f"OldHouse{n}", x, y, 12, 10, floors=1 + (n % 2), rooms=(2, 2), doors="N" if n % 3 else "W",
                            walled_stairs=bool(n % 2), **damage.get(n, {})),
-                  [("crate", 0, 1, 0, "W", 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
+                  [("crate", 0, 1, 0, "W", -1.0 if n == 6 else 0)] + ([("locker", 1, 0, 1, "E", 0)] if n % 2 else []))
+            # (6's dresser slides off its west door to the room's north end: the shoe bench is at the south end)
             old_house_furniture(n, x + 6.0, y + 5.0)
     with modeled("signal_box", 322.0, 243.0):
         # The signal box (World art 0.17, owner 2026-10-17: what should the house beside the depot be): OldHouse3
