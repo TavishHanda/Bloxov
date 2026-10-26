@@ -2365,17 +2365,18 @@ func _section_hideout_world() -> void:
 	toys.use("lights")
 	for i in 60:
 		await process_frame
-	var level_materials: Array[ShaderMaterial] = toys._level_materials
-	var all_off := func() -> bool: return level_materials.all(func(m: ShaderMaterial) -> bool: return float(m.get_shader_parameter("lights_off")) > 0.99)
-	_check(not HideoutToys.lights_on and level_materials.size() >= 2 and all_off.call() and toys._glows.visible,
-		"lights off: the bunks go dark (%d level materials), the fairy lights stay on" % level_materials.size())
+	var env: Environment = toys.environment
+	_check(not HideoutToys.lights_on and env.ambient_light_energy < 0.2 and toys._glows.visible,
+		"lights off: the bunker goes dark, the fairy lights stay on (%.2f)" % env.ambient_light_energy)
 	walker.global_position = spawn + Vector3.UP * 0.05
 	for i in 60:
 		await process_frame
-	# (0.21.16, owner: walking out used to turn them back on) the bunks stay dark seen from out here.
-	_check(all_off.call() and toys._glows.visible and toys.environment.ambient_light_energy > 0.85,
-		"walk out to the hall: the hall's lit, the bunks stay dark")
+	# (0.22.1, owner) the switch is for the whole bunker: still dark out in the hall.
+	_check(env.ambient_light_energy < 0.2 and toys._glows.visible, "walk out to the hall: still dark (%.2f)" % env.ambient_light_energy)
 	toys.use("lights")
+	for i in 60:
+		await process_frame
+	_check(HideoutToys.lights_on and env.ambient_light_energy > 0.85, "lights on again: lit (%.2f)" % env.ambient_light_energy)
 	world.queue_free()
 	for i in 5:
 		await process_frame
