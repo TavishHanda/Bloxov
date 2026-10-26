@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react). -->
 
+## 0.22.6 (Every can, swinging table lamps)
+- **Shots kick every can and bottle they pass** (owner: "some are shootable but not all"): a shot only knocked a
+  can when it landed within half a metre of it, so a shot through a can into the ground behind it often missed it.
+  Now any can within a hand's width of the shot's path jumps.
+- **More of them**: the ration tins and bottles lying about in the town hall and its vault (120) and the cans and the
+  bottle on the hideout's mess tables are kickable and shootable now (366 on the map in all).
+- **The lamps over the mess tables swing** too (owner: "when u walk through nothing happens"), and walking right
+  under any hanging lamp gives it a little nudge, as if you'd brushed it. Jumping into one still knocks it hardest.
 ## 0.22.5 (Hold still)
 - **The wardrobe character stands still** (owner: it shouldn't be constantly spinning). Click and drag on them to
   turn them round; on phones, drag with a finger. The hint under the character says so.

@@ -12,6 +12,7 @@ const DAMPING := 0.55      # per second
 const MAX_TILT := 0.7      # radians
 const BUMP_REACH := 0.3    # how close (across) a head or a shot has to come to the bulb
 const GRAVITY := 9.8
+const NUDGE := 0.45        # m/s: walking under one
 
 @export var data := PackedFloat32Array()
 
@@ -22,6 +23,7 @@ var _length := PackedFloat32Array()
 var _shaded := PackedInt32Array()     # per lamp: its shade's number, or -1
 var _shade_count := 0
 var _awake := {}                    # lamps swinging now
+var _nudged := {}                   # lamp -> when someone last walked under it (msec)
 var _cables: MultiMesh
 var _bulbs: MultiMesh
 var _shades: MultiMesh
@@ -41,7 +43,7 @@ func _ready() -> void:
 		return
 	add_to_group(Reacts.GROUP)
 	_cables = _multi(Vector3(0.015, 1.0, 0.015), Color(0.13, 0.13, 0.13), n)
-	_bulbs = _multi(BULB, Color(1.0, 0.95, 0.82), n)
+	_bulbs = _multi(BULB, Color(0.886, 0.863, 0.796), n)
 	_shades = _multi(SHADE, Color(0.2, 0.22, 0.16), _shade_count)
 	for i in n:
 		_place(i)
@@ -50,7 +52,10 @@ func _ready() -> void:
 func _multi(size: Vector3, colour: Color, count: int) -> MultiMesh:
 	var mesh := BoxMesh.new()
 	mesh.size = size
-	mesh.material = Effects.unshaded(colour)
+	var material := StandardMaterial3D.new()   # (lit like the model's lamps: they dim with the light switch)
+	material.albedo_color = colour
+	material.roughness = 1.0
+	mesh.material = material
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
@@ -112,6 +117,14 @@ func _physics_process(delta: float) -> void:
 					push = Vector3(cos(a), 0.0, sin(a)) * 0.8
 				if spin[i].length() < 0.4:   # (once per bump, not every frame the head is there)
 					knock(i, push.limit_length(3.0) * 0.6)
+			elif head > p.y - 1.0 and Vector2(p.x - pos.x, p.z - pos.z).length() < 0.55:
+				# Walking right under one (owner: "when u walk through nothing happens"): a little nudge, as if you'd
+				# brushed it, once a pass.
+				var flat := Vector3((m.vel as Vector3).x, 0.0, (m.vel as Vector3).z)
+				var now := Time.get_ticks_msec()
+				if flat.length() > 1.0 and now - int(_nudged.get(i, -10000)) > 1500:
+					_nudged[i] = now
+					knock(i, flat.normalized() * NUDGE)
 	for i: int in _awake.keys():
 		var w2 := GRAVITY / maxf(_length[i], 0.2)
 		spin[i] += (-tilt[i] * w2 - spin[i] * DAMPING * 2.0) * delta

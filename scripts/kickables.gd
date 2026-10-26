@@ -1,15 +1,18 @@
 extends Node3D
-## Cans and bottles you can kick about (0.22.0, World reacts): the ones in the litter by the roads. Walk into one
-## and it skitters off the way you were going; a shot next to it or a blast sends it flying. Looks only: each client
+## Cans and bottles you can kick about (0.22.0, World reacts): the ones in the litter by the roads, the tins and
+## bottles lying about in buildings, the hideout's on its tables. Walk into one and it skitters off the way you were
+## going; a shot that passes it, or lands next to it, or a blast sends it flying. Looks only: each client
 ## kicks its own (they start in the same places and drift apart), nothing collides with them, nothing is sent online
 ## and the game server never runs this. Drawn as two MultiMeshes (cans, bottles): two draw calls for the whole map.
-## The generator (tools/gen_old_bloxov.py, from make_outdoor.py's list) writes `data`.
+## The generators write `data` (tools/gen_old_bloxov.py, from make_outdoor.py's and make_building.py's lists;
+## art_source/scripts/make_hideout.py).
 
-const STRIDE := 5          # x, ground y, z, yaw (degrees), kind (0 can, 1 bottle)
+const STRIDE := 5          # x, ground y, z, yaw (degrees), kind (0 can, 1 bottle, on their sides; 2, 3 standing)
 const RADIUS := [0.035, 0.04]
 const LENGTH := [0.12, 0.28]
 const CELL := 4.0          # the grid that finds the cans near someone
 const KICK_REACH := 0.4    # how close to a can your feet have to come
+const SHOT_REACH := 0.18   # how close a shot has to pass
 const GRAVITY := 9.8
 const WORLD_MASK := 1
 
@@ -30,14 +33,16 @@ var _meshes: Array[MultiMesh] = []
 func _ready() -> void:
 	var counts := [0, 0]
 	for i in range(0, data.size(), STRIDE):
-		var k := int(data[i + 4])
+		var k := int(data[i + 4]) % 2
+		var standing := int(data[i + 4]) >= 2
 		_kind.append(k)
 		_slot.append(counts[k])
 		counts[k] += 1
-		pos.append(Vector3(data[i], data[i + 1] + RADIUS[k], data[i + 2]))
+		pos.append(Vector3(data[i], data[i + 1] + (LENGTH[k] / 2.0 if standing else RADIUS[k]), data[i + 2]))
 		vel.append(Vector3.ZERO)
 		_spin.append(Vector3.ZERO)
-		_turn.append(Basis(Vector3.UP, deg_to_rad(data[i + 3])) * Basis(Vector3.RIGHT, PI / 2))
+		var turn := Basis(Vector3.UP, deg_to_rad(data[i + 3]))
+		_turn.append(turn if standing else turn * Basis(Vector3.RIGHT, PI / 2))
 		_file(_kind.size() - 1)
 	if not Reacts.wanted(self):
 		set_physics_process(false)
@@ -111,10 +116,18 @@ func kick(i: int, velocity: Vector3) -> void:
 
 
 func on_shot(from: Vector3, to: Vector3) -> void:
+	# Every can the shot passes (they don't stop it: looks only) or lands next to, all along its way.
 	var dir := (to - from).normalized()
-	for i in near(to, 0.5):
-		if pos[i].distance_to(to) < 0.5:
-			kick(i, Vector3(dir.x, 0.0, dir.z) * 2.5 + Vector3(randf_range(-0.6, 0.6), 2.6, randf_range(-0.6, 0.6)))
+	var steps := maxi(1, ceili(from.distance_to(to) / CELL))
+	var seen := {}
+	for s in steps + 1:
+		for i in near(from.lerp(to, float(s) / steps), CELL):
+			if seen.has(i):
+				continue
+			seen[i] = true
+			if Geometry3D.get_closest_point_to_segment(pos[i], from, to).distance_to(pos[i]) < SHOT_REACH \
+					or pos[i].distance_to(to) < 0.4:
+				kick(i, Vector3(dir.x, 0.0, dir.z) * 2.5 + Vector3(randf_range(-0.6, 0.6), 2.6, randf_range(-0.6, 0.6)))
 
 
 func on_blast(at: Vector3, radius: float) -> void:

@@ -512,6 +512,10 @@ def write_model_boxes(ter):
                 for p in clipped_to_box(tris, (b[0] - ox, b[1], b[2] - oz), b[3:6], b[6]):
                     x, z = turn_point(ox + p[0], oz + p[2], ox, oz, m["turned"])
                     shot_faces.extend((x, y + p[1], z))
+            path = os.path.join(MODEL_JSON_DIR, m["name"] + "_solids.json")
+            for kx, ky, kz, yaw, kind, colour in (json.load(open(path)).get("kicks", []) if os.path.exists(path) else []):
+                x, z = turn_point(ox + kx, oz + kz, ox, oz, m["turned"])   # (its tins and bottles: kickables.gd)
+                KICKS.append([x, y + ky, z, (yaw + m["turned"]) % 360.0, kind, colour])
         prop_loot(m)
         glazed(m)
         with open(os.path.join(MODEL_JSON_DIR, m["name"] + ".json"), "w") as f:
