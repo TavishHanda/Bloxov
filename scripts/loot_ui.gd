@@ -1410,6 +1410,9 @@ func _build_doll() -> SubViewportContainer:
 	model.randomize_outfit = false
 	model.pick_outfit(Profile.look)   # (your look from the wardrobe, 0.21.6)
 	view.add_child(model)
+	var stance := BodyPose.new(model)   # standing at ease, no gun (0.23 jointed model)
+	stance.armed = false
+	stance.update(0.0)
 	var camera := Camera3D.new()
 	camera.fov = 30.0
 	# Aimed by its transform (it isn't in the scene tree yet, so look_at() can't be used).

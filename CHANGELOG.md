@@ -5,7 +5,22 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner). -->
+
+## 0.23.0 (Proper crouch and prone)
+- **Characters have joints** (owner: crouching "just compresses" them and prone "is like you're dead"). Scavs,
+  Raiders, Bon and other players are rebuilt with hips, chest, head, arms and legs that bend, keeping the old models'
+  size and every outfit option (owner: "the same as before for now").
+- **Real poses:** walking with bending knees; crouched they kneel on one knee, and crouch-walk low; prone players lie
+  on their elbows, head up, the gun ahead in both hands, and crawl; downed players lie flat without their gun,
+  dragging themselves with one arm and holding the wound; dead players fall on their back (or stay face down if they
+  were lying already). Both hands are on the gun they hold. The wardrobe and inventory show your character at ease.
+- **Hitboxes follow the poses:** a crouched player's head box sits 20 cm forward, where the kneeling head is; a
+  kneeling scav's head box is where its head is (1.16 m up, 20 cm forward; it was 1.03 m). Prone and downed boxes
+  are unchanged (the lying model was fitted to them).
+- Each character draws as one skinned mesh (plus its gun), fewer draw calls than before.
+- Models: `art_source/scripts/make_character.py` (plain Python now), poses: `scripts/body_pose.gd`, pictures:
+  `tools/body_preview.gd`.
 
 ## 0.22.9 (Back lawn, church roof, carpet hitch)
 - **Cover behind the town hall** (owner: too open, the AI roaming there got sniped). Bon's crew have barricaded

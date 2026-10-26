@@ -1,124 +1,32 @@
 extends SceneTree
-# Preview sheet of the jointed characters (make_body.py) standing, kneeling and prone, in their real outfits.
-# xvfb-run -a godot --rendering-driver opengl3 -s tools/body_preview.gd -- dir=<folder with *_body.glb> out=<prefix>
-var dir := "res://assets/models/characters"
-var out := "/tmp/body"
+# Pictures of the jointed characters (make_character.py) in every BodyPose pose, optionally with the player hitboxes
+# as red wireframes.
+# xvfb-run -a godot --rendering-driver opengl3 -s tools/body_preview.gd -- out=/tmp/pose [boxes] [side] [poses=kneel,prone]
+# Writes <out>-<character>-<pose>.png (520 px squares).
 
-const UPPER := 0.30
-const HAND := 0.27 + 0.05
-
-
-func load_body(name: String) -> Node3D:
-	var doc := GLTFDocument.new()
-	var state := GLTFState.new()
-	doc.append_from_file(dir.path_join(name + "_body.glb"), state)
-	var scene := doc.generate_scene(state) as Node3D
-	var holder := Node3D.new()
-	holder.add_child(scene)
-	for mi in scene.find_children("*", "MeshInstance3D", true, false):
-		var m := (mi as MeshInstance3D).mesh
-		for i in m.get_surface_count():
-			var mat := m.surface_get_material(i) as BaseMaterial3D
-			if mat:
-				mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	return holder
-
-
-func pick_outfit(ch: Node3D, seed_value: int) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	var slots := {}
-	for node in ch.find_children("*__*", "Node3D", true, false):
-		var parts := String(node.name).split("__")
-		slots.get_or_add(parts[0], {}).get_or_add(parts[1], []).append(node)
-	var names := slots.keys()
-	names.sort()
-	for slot in names:
-		var options: Array = slots[slot].keys()
-		options.sort()
-		var pick: String = options[rng.randi_range(0, options.size() - 1)]
-		for option in options:
-			for node in slots[slot][option]:
-				(node as Node3D).visible = option == pick
-
-
-func j(ch: Node3D, name: String) -> Node3D:
-	return ch.find_child(name, true, false) as Node3D
-
-
-func deg(x: float, y := 0.0, z := 0.0) -> Vector3:
-	return Vector3(deg_to_rad(x), deg_to_rad(y), deg_to_rad(z))
-
-
-func limb_basis(along: Vector3, ch: Node3D) -> Basis:
-	var y := -along.normalized()
-	var ref := -ch.global_basis.z
-	if absf(y.dot(ref)) > 0.95:
-		ref = ch.global_basis.y
-	var x := y.cross(ref).normalized()
-	return Basis(x, y, x.cross(y))
-
-
-func reach(ch: Node3D, side: String, target: Vector3, pole: Vector3) -> void:
-	var sh := j(ch, "Arm" + side)
-	var el := j(ch, "Elbow" + side)
-	var a := UPPER
-	var b := HAND
-	var S := sh.global_position
-	var to := target - S
-	var d := clampf(to.length(), absf(a - b) + 0.01, a + b - 0.001)
-	var dir := to.normalized()
-	var cos_a := (a * a + d * d - b * b) / (2.0 * a * d)
-	var perp := (pole - dir * pole.dot(dir)).normalized()
-	var E := S + dir * a * cos_a + perp * a * sqrt(maxf(1.0 - cos_a * cos_a, 0.0))
-	sh.global_basis = limb_basis(E - S, ch)
-	el.global_basis = limb_basis(S + dir * d - E, ch)
-
-
-func hold_gun(ch: Node3D, gun: Node3D, grip: Vector3) -> void:
-	var g := gun.get_node("Grip") as Node3D
-	var f := gun.get_node("Fore") as Node3D
-	gun.position = grip - g.position
-	var right := ch.global_basis.x
-	reach(ch, "R", gun.global_transform * (g.position + Vector3(0, 0.03, 0)), right * 0.6 - ch.global_basis.y)
-	reach(ch, "L", gun.global_transform * (f.position + Vector3(0, -0.01, 0)), -right * 0.8 - ch.global_basis.y)
-
-
-func pose(ch: Node3D, gun: Node3D, p: String) -> void:
-	var hips := j(ch, "Hips")
-	match p:
-		"stand":
-			j(ch, "LegL").rotation = deg(6)
-			j(ch, "LegR").rotation = deg(-5)
-		"crouch":
-			j(ch, "LegL").rotation = deg(82)
-			j(ch, "KneeL").rotation = deg(-84)
-			j(ch, "LegR").rotation = deg(-8)
-			j(ch, "KneeR").rotation = deg(-82)
-			hips.position.y = 0.29 * cos(deg_to_rad(8)) + 0.1
-			j(ch, "Spine").rotation = deg(-12)
-			j(ch, "Neck").rotation = deg(10)
-		"prone":
-			hips.position.y = 0.24
-			hips.rotation = deg(-90)
-			j(ch, "Spine").rotation = deg(10)
-			j(ch, "Neck").rotation = deg(62)
-			j(ch, "LegL").rotation = deg(0, 0, -14)
-			j(ch, "LegR").rotation = deg(0, 0, 16)
-			j(ch, "KneeL").rotation = deg(-12)
-	var neck := ch.to_local(j(ch, "Neck").global_position)
-	if p == "prone":
-		hold_gun(ch, gun, Vector3(0.09, 0.16, neck.z - 0.12))
-	else:
-		hold_gun(ch, gun, neck + Vector3(0.17, -0.26, -0.26))
+const POSES := {
+	"stand": {}, "walk": {"speed": 3.0, "time": 0.35}, "kneel": {"crouch": 1.0},
+	"crouch_walk": {"crouch": 1.0, "speed": 2.0, "time": 0.35}, "prone": {"prone": 1.0},
+	"crawl": {"prone": 1.0, "speed": 1.0, "time": 0.4}, "downed": {"downed": 1.0},
+	"dead": {"dead": 1.0},
+}
+const GUNS := {"pmc": "smg", "scav": "ak", "raider": "ak"}
 
 
 func _initialize() -> void:
+	var out := "/tmp/pose"
+	var boxes := false
+	var only: Array = []
+	var side := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="):
 			out = a.substr(4)
-		elif a.begins_with("dir="):
-			dir = a.substr(4)
+		elif a == "boxes":
+			boxes = true
+		elif a == "side":
+			side = true
+		elif a.begins_with("poses="):
+			only = Array(a.substr(6).split(","))
 	var vp := SubViewport.new()
 	vp.size = Vector2i(520, 520)
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -153,50 +61,87 @@ func _initialize() -> void:
 	world.add_child(cam)
 	cam.current = true
 	await process_frame
-	# Lineup: today's models (left) next to the new ones, facing the camera.
-	vp.size = Vector2i(1400, 640)
-	var line := Node3D.new()
-	world.add_child(line)
-	var x := -3.9
-	for who in ["pmc", "scav", "raider"]:
-		var old: Node3D = (load("res://assets/models/characters/%s.glb" % who) as PackedScene).instantiate()
-		old.set_script(load("res://scripts/pixel_model.gd"))
-		line.add_child(old)
-		old.position.x = x
-		old.rotation.y = PI
-		(old as PixelModel).pick_outfit_seeded(7)
-		var nb := load_body(who)
-		pick_outfit(nb, {"pmc": 3, "scav": 5, "raider": 2}[who])
-		line.add_child(nb)
-		nb.position.x = x + 1.05
-		nb.rotation.y = PI
-		x += 2.8
-	line.rotation.y = 0.0
-	cam.look_at_from_position(Vector3(-0.2, 1.5, 7.2), Vector3(-0.2, 1.0, 0))
-	for i in 4:
-		await process_frame
-	await RenderingServer.frame_post_draw
-	vp.get_texture().get_image().save_png("%s-lineup.png" % out)
-	line.queue_free()
-	vp.size = Vector2i(520, 520)
-	var guns := {"scav": "hound", "pmc": "wasp", "raider": "hound"}
-	for who in ["pmc", "scav", "raider"]:
-		for p in ["stand", "crouch", "prone"]:
-			var ch := load_body(who)
-			pick_outfit(ch, {"pmc": 3, "scav": 5, "raider": 2}[who])
-			var gun: Node3D = (load("res://assets/models/guns/%s.glb" % guns[who]) as PackedScene).instantiate()
-			ch.add_child(gun)
-			ch.rotation.y = deg_to_rad(-35)
-			world.add_child(ch)
-			pose(ch, gun, p)
-			var local := Vector3(0, 0.95, 0) if p != "prone" else Vector3(0, 0.3, -0.35)
-			var target := ch.global_transform * local
-			var back := 6.0 if p != "prone" else 5.0
-			cam.look_at_from_position(target + Vector3(-2.2, 1.3 if p != "prone" else 2.0, -4.2).normalized() * back, target)
-			for i in 4:
+	for who: String in ["pmc", "scav", "raider"]:
+		for p: String in POSES:
+			if not only.is_empty() and not p in only:
+				continue
+			var settings: Dictionary = POSES[p]
+			var holder := Node3D.new()
+			world.add_child(holder)
+			holder.rotation.y = deg_to_rad(-35)
+			var model: Node3D = (load("res://assets/models/characters/%s.glb" % who) as PackedScene).instantiate()
+			model.set_script(load("res://scripts/pixel_model.gd"))
+			model.set("randomize_outfit", false)
+			holder.add_child(model)
+			(model as PixelModel).pick_outfit_seeded({"pmc": 3, "scav": 5, "raider": 2}[who])
+			HeldGun.show(model, GUNS[who])
+			(model as PixelModel).merge_parts()   # one skinned mesh, as in a raid
+			var pose := BodyPose.new(model)
+			pose.crouch = settings.get("crouch", 0.0)
+			pose.prone = settings.get("prone", 0.0)
+			pose.downed = settings.get("downed", 0.0)
+			pose.dead = settings.get("dead", 0.0)
+			pose.speed = settings.get("speed", 0.0)
+			model.get_node("Gun").visible = pose.downed < 0.5 and pose.dead < 0.5
+			# Run the walk cycle up to the moment wanted (a stride in mid swing).
+			var t := 0.0
+			while t < settings.get("time", 0.0) + 0.6:
+				pose.update(1.0 / 60.0)
+				t += 1.0 / 60.0
+			if boxes:
+				_boxes(holder, settings)
+			var lying: bool = pose.prone + pose.downed + pose.dead > 0.5
+			var local := Vector3(0, 0.95, 0)
+			if lying:
+				local = Vector3(0, 0.3, 0.6 if pose.dead > 0.5 else -0.8)
+			var target := holder.global_transform * local
+			var from := Vector3(-2.2, 1.3 if not lying else 2.2, -4.2).normalized() * (6.0 if not lying else 5.5)
+			if side:   # from their left, level
+				from = holder.global_basis * Vector3(-5.5, 0.8, 0.0)
+			cam.look_at_from_position(target + from, target)
+			for i in 3:
 				await process_frame
 			await RenderingServer.frame_post_draw
 			vp.get_texture().get_image().save_png("%s-%s-%s.png" % [out, who, p])
-			world.remove_child(ch)
-			ch.free()
+			holder.queue_free()
+			await process_frame
 	quit()
+
+
+## The player hitboxes (Hitbox) for this pose, as red wireframes (scavs use the same sizes standing).
+func _boxes(holder: Node3D, settings: Dictionary) -> void:
+	if settings.get("dead", 0.0) > 0.5:
+		return
+	var parts := []
+	if settings.get("prone", 0.0) + settings.get("downed", 0.0) > 0.5:
+		parts = [[Hitbox.prone_head_center(0.0), Hitbox.HEAD_SIZE], [Hitbox.DOWNED_BODY_CENTER, Hitbox.DOWNED_BODY_SIZE]]
+	else:
+		var c: float = settings.get("crouch", 0.0)
+		parts = [[Hitbox.head_center(c, 0.0), Hitbox.HEAD_SIZE], [Hitbox.body_center(c), Hitbox.body_size(c)]]
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1, 0.2, 0.2)
+	for part: Array in parts:
+		var im := ImmediateMesh.new()
+		im.surface_begin(Mesh.PRIMITIVE_LINES, mat)
+		var h: Vector3 = part[1] * 0.5
+		var c: Vector3 = part[0]
+		for a in 3:
+			for s1: float in [-1.0, 1.0]:
+				for s2: float in [-1.0, 1.0]:
+					var p0 := Vector3.ZERO
+					var p1 := Vector3.ZERO
+					var b := (a + 1) % 3
+					var d := (a + 2) % 3
+					p0[a] = -h[a]
+					p1[a] = h[a]
+					p0[b] = s1 * h[b]
+					p1[b] = s1 * h[b]
+					p0[d] = s2 * h[d]
+					p1[d] = s2 * h[d]
+					im.surface_add_vertex(c + p0)
+					im.surface_add_vertex(c + p1)
+		im.surface_end()
+		var mi := MeshInstance3D.new()
+		mi.mesh = im
+		holder.add_child(mi)

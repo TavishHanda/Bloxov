@@ -290,10 +290,10 @@ var carried_gun := ""
 
 @onready var health: Health = $Health
 @onready var model: Node3D = $Model
-@onready var leg_l: Node3D = $Model/LegL
-@onready var leg_r: Node3D = $Model/LegR
 @onready var muzzle: Node3D = $Model/Gun/Muzzle
 @onready var muzzle_flash: Node3D = $MuzzleFlash
+## Poses the jointed model (0.23): walking, kneeling behind low cover, both hands on the gun.
+var body_pose: BodyPose
 
 var state := State.IDLE
 var _state_time := 0.0

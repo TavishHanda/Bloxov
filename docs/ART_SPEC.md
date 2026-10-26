@@ -84,14 +84,18 @@ Voxel/blocky art is naturally cheap; these limits are generous on purpose.
 - Characters need the head and body as **separate meshes or bones** so the head can be the headshot zone.
 
 ### Characters and outfits
-Built by `art_source/scripts/make_character.py` (`CHARACTER = "scav"`, `"pmc"` or `"raider"`, sources
-`art_source/<name>.blend`, exports `assets/models/characters/<name>.glb`). The game relies on these names:
-- `LegL` / `LegR`: empties at the hips (0.19 m out, 0.6 m up). The walk animation swings them; pants and boots are children.
-- `Gun` with a `Muzzle` empty at the barrel tip: shots and the muzzle flash come from there.
-- Outfit parts are named `Slot__option` (`Hat__ushanka`, `Top__tracksuit_blue`), with `__L`/`__R` on the two
-  legs' parts. Every option ships in the one `.glb`; `scripts/pixel_model.gd` shows one random option per slot
-  when a character spawns. An empty named `Slot__none` makes "nothing" a choice (no hat, no vest).
-  Adding an option = one line in the script, re-run, export. New slots work without code changes.
+Built by `art_source/scripts/make_character.py` (0.23: plain Python, no Blender; `python3 art_source/scripts/make_character.py
+[scav|pmc|raider]`, writes `assets/models/characters/<name>.glb` and its atlas `art_source/textures/<name>.png`).
+The old models' sizes (owner: "the same as before"), now on joints so they can kneel, lie prone and crawl
+(`scripts/body_pose.gd` turns them). The game relies on these names:
+- Joints (empties): `Hips` > `Spine` > `Neck` (head parts), `ArmL`/`ArmR` > `ElbowL`/`ElbowR` (forearm and glove),
+  `Hips` > `LegL`/`LegR` > `KneeL`/`KneeR` (shin and boot). Limbs hang down their joint's -Y.
+- `Gun` beside `Hips` with a `Muzzle` empty: `HeldGun` swaps in the real gun, BodyPose puts it in the hands.
+- Outfit parts are named `Slot__option__Joint` (`Hat__ushanka__Neck`, `Top__tracksuit_blue__ArmL`); the parts of
+  one option on different joints share the slot and option. Every option ships in the one `.glb`;
+  `scripts/pixel_model.gd` shows one random option per slot and merges the parts showing into one skinned mesh.
+  An empty named `Slot__none` makes "nothing" a choice (no hat, no vest). Adding an option = one line in the script.
+- Check the poses with `xvfb-run -a godot --rendering-driver opengl3 -s tools/body_preview.gd -- out=/tmp/pose boxes side`.
 
 ## 8. Swapping a placeholder for a model
 Done so far: **crate** (0.3.3), see `scenes/loot_crate.tscn`: the `.glb` is instanced as a `Model` child with

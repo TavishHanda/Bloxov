@@ -35,6 +35,8 @@ const NET_CROUCH := 32
 ## Crouched behind low cover (a tent, a car, a low wall): the model and hitboxes shrink to this fraction of its
 ## height (0.12.10).
 const CROUCH_HEIGHT := 0.6
+## Where the head is while it kneels (BodyPose.KNEEL): its head hitbox moves there.
+const KNEEL_HEAD := Vector3(0, 1.16, -0.2)
 
 
 ## Standing on someone's head (another AI or a player): steps off it. Two AI that ended up in one spot used to
@@ -179,7 +181,7 @@ func _pick_hunt_point() -> Vector3:
 	return best
 
 
-## Crouching behind low cover: shorter model and hitboxes (puppets follow the server's flag).
+## Crouching behind low cover: it kneels, shorter hitboxes (puppets follow the server's flag).
 func _update_crouch(delta: float) -> void:
 	var want := (_net_flags & NET_CROUCH) != 0 if puppet else _crouched
 	var amount := move_toward(_crouch_amount, 1.0 if want else 0.0, delta * 5.0)
@@ -187,11 +189,11 @@ func _update_crouch(delta: float) -> void:
 		return
 	_crouch_amount = amount
 	var height := lerpf(1.0, CROUCH_HEIGHT, amount)
-	model.scale.y = height
 	var body := $BodyShape as CollisionShape3D
 	(body.shape as BoxShape3D).size = Vector3(_body_size.x, _body_size.y * height, _body_size.z)
 	body.position = _body_rest * height
-	($HeadShape as CollisionShape3D).position = _head_rest * height
+	# The model kneels (BodyPose.KNEEL, 0.23): the head box goes where its head is.
+	($HeadShape as CollisionShape3D).position = _head_rest.lerp(KNEEL_HEAD, amount)
 var _dodge_dir := 0.0
 
 

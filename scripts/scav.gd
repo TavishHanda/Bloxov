@@ -40,6 +40,7 @@ func _ready() -> void:
 		carried_gun = gun
 		if HeldGun.MODELS.has(gun):
 			held_model = gun
+	body_pose = BodyPose.new(model)
 	if held_model != "":
 		muzzle = HeldGun.show(model, held_model).get_node("Muzzle")
 	# The model is an imported .glb, so the flash lives in this scene and moves onto its muzzle here.
@@ -219,9 +220,6 @@ func _process(delta: float) -> void:
 		_puppet_update(delta)
 	var speed := Vector2(velocity.x, velocity.z).length()
 	_walk_time += delta * speed * 2.5
-	var swing := sin(_walk_time) * 0.6 * minf(speed / 2.0, 1.0)
-	leg_l.rotation.x = swing
-	leg_r.rotation.x = -swing
 
 	_muzzle_flash_time -= delta
 	muzzle_flash.visible = _muzzle_flash_time > 0.0
@@ -246,6 +244,9 @@ func _process(delta: float) -> void:
 	_limp = move_toward(_limp, 1.0 if is_wounded() else 0.0, delta * 3.0)
 	model.rotation.z = _limp * maxf(sin(_walk_time), 0.0) * 0.18 * minf(speed / 1.5, 1.0)
 	_update_crouch(delta)
+	body_pose.speed = speed
+	body_pose.crouch = _crouch_amount
+	body_pose.update(delta)
 	var flashing := _hit_flash_time > 0.0
 	if flashing != _flashing:
 		_flashing = flashing

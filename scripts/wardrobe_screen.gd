@@ -155,6 +155,9 @@ func _build_preview() -> SubViewportContainer:
 	model.randomize_outfit = false
 	model.rotation.y = PI + 0.4
 	view.add_child(model)
+	var stance := BodyPose.new(model)   # standing at ease, no gun (0.23 jointed model)
+	stance.armed = false
+	stance.update(0.0)
 	var stand := MeshInstance3D.new()                              # a steel plate to stand on
 	var plate := CylinderMesh.new()
 	plate.top_radius = 0.7

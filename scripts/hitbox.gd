@@ -24,6 +24,8 @@ const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
 const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)
 const HEAD_HEIGHT := 1.71
 const CROUCH_SCALE := 0.67
+## Crouched, the model kneels with its chest forward (BodyPose.KNEEL, 0.23): the head box sits this far ahead (-Z).
+const CROUCH_HEAD_FORWARD := 0.2
 ## Same as the local player (player.gd: lean_distance 0.35 m at head height): the angle the body tips by.
 const LEAN_ANGLE := 0.21
 ## Downed, the body lies face down, head forward (-Z): one long low box for the body, the head box in front.
@@ -49,7 +51,7 @@ static func body_size(crouch: float) -> Vector3:
 
 static func head_center(crouch: float, lean: float) -> Vector3:
 	var h := HEAD_HEIGHT * height_scale(crouch)
-	return Vector3(sin(lean * LEAN_ANGLE) * h, cos(lean * LEAN_ANGLE) * h, 0)
+	return Vector3(sin(lean * LEAN_ANGLE) * h, cos(lean * LEAN_ANGLE) * h, -CROUCH_HEAD_FORWARD * crouch)
 
 
 ## The tilt of a leaning body (around the feet, sideways), same as the model's.
@@ -80,7 +82,7 @@ static func trace(state: Array, from: Vector3, to: Vector3) -> Dictionary:
 		var tipped := lean_basis(state[3]).inverse()
 		local_from = tipped * local_from
 		local_to = tipped * local_to
-		parts = [[Vector3(0, HEAD_HEIGHT * height_scale(crouch), 0), HEAD_SIZE, true],
+		parts = [[Vector3(0, HEAD_HEIGHT * height_scale(crouch), -CROUCH_HEAD_FORWARD * crouch), HEAD_SIZE, true],
 			[body_center(crouch), body_size(crouch), false]]
 	for part in parts:
 		var box := AABB(part[0] - part[1] * 0.5, part[1])

@@ -1204,9 +1204,9 @@ func _section_characters() -> void:
 		_check(character.muzzle_flash.get_parent() == character.muzzle, "%s muzzle flash sits on the gun" % character.name)
 		if path == SCAV_SCENE:
 			# (0.17.5, owner) Every scav wears the small backpack, on its back.
-			var pack := model.get_node_or_null("Backpack") as Node3D
-			_check(pack != null and pack.visible and pack.position.z > 0.2 and pack.find_children("*", "MeshInstance3D").size() > 0,
-				"scavs wear the small backpack on their back")
+			var pack := model.find_child("Backpack", true, false) as Node3D
+			_check(pack != null and pack.visible and model.to_local(pack.global_position).z > 0.2 and pack.get_parent().name == &"Spine" and pack.find_children("*", "MeshInstance3D").size() > 0,
+				"scavs wear the small backpack on their back (it bends with the chest)")
 		var bags_before := get_nodes_in_group("loot_containers").size()
 		character.health.take_damage(9999)
 		await _frames(3)
@@ -2991,11 +2991,16 @@ func _section_net() -> void:
 	_check(is_equal_approx(body.global_position.x, 1.0), "between two updates the body is drawn halfway (x %.2f)" % body.global_position.x)
 	for i in 60:
 		body.update_view(10.05, 0.016)
-	_check(body.model.scale.y < 0.7 and body.head_shape.position.y < 1.2 and body.head_shape.position.x > 0.2,
+	_check(body.pose.joint("Hips").position.y < 0.4 and body.head_shape.position.y < 1.2 and body.head_shape.position.x > 0.2,
 		"a crouching, leaning player looks it (and their head hitbox moves with it)")
+	# 0.23: they kneel (not squashed), and the head box is where the model's head is.
+	var head_gap := (body.pose.joint("Neck").global_position + body.model.global_basis.y * 0.25).distance_to(body.head_shape.global_position)
+	_check(is_equal_approx(body.model.scale.y, 1.0) and head_gap < 0.3,
+		"a crouching player kneels, its head inside the head hitbox (%.2f m off)" % head_gap)
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.5, 0.0, 0], 10.06)
-	body.update_view(10.06, 0.016)
-	_check(is_equal_approx(body.head_pivot.rotation.x, 0.5) and body.head_pivot.get_child_count() >= 3 and body.gun_model.rotation.x == 0.0,
+	for i in 60:
+		body.update_view(10.06, 0.016)
+	_check(absf(body.head_pivot.rotation.x - 0.5) < 0.02 and body.head_pivot.get_child_count() >= 3 and body.gun_model.rotation.x == 0.0,
 		"looking up tilts their head, not their gun (owner)")
 	_check(not body.gun_model.visible, "an unarmed player shows no gun")
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.07)
@@ -3028,12 +3033,22 @@ func _section_net() -> void:
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DEAD], 10.1)
 	for i in 60:
 		body.update_view(10.1, 0.016)
-	_check(body.model.rotation.x > 1.3 and body.body_shape.disabled, "a dead player lies down")
+	_check(body.pose.joint("Hips").rotation.x > 1.3 and body.body_shape.disabled, "a dead player lies down")
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DOWNED], 10.2)
 	for i in 60:
 		body.update_view(10.2, 0.016)
-	_check(body.model.rotation.x < -1.3 and not body.body_shape.disabled and body.head_shape.position.z < -1.5 and body.head_shape.position.y < 0.5,
-		"a downed player lies face down (hitboxes too) and can still be shot")
+	_check(body.pose.joint("Hips").rotation.x < -1.3 and not body.body_shape.disabled and body.head_shape.position.z < -1.5 and body.head_shape.position.y < 0.5
+		and not body.gun_model.visible, "a downed player lies face down without their gun (hitboxes too) and can still be shot")
+	# Prone (0.23): lying on their elbows, head up inside the head box, the gun on the ground ahead in their hands.
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_PRONE | RemotePlayer.FLAG_CROUCH | RemotePlayer.FLAG_ARMED], 10.3)
+	for i in 60:
+		body.update_view(10.3, 0.016)
+	var head_at := body.to_local(body.pose.joint("Neck").global_position + body.model.global_basis.y * 0.0)
+	var gun_at := body.to_local(body.gun_model.global_position)
+	var hand_gap := body.pose.joint("ElbowR").global_position.distance_to(body.gun_model.global_position)
+	_check(body.gun_model.visible and gun_at.z < -1.2 and gun_at.y < 0.4 and head_at.z < -1.2 and head_at.y < 0.5
+		and body.head_shape.position.z < -1.5 and hand_gap < 0.45,
+		"a prone player lies on their elbows, the gun ahead in their hands (gun %s, neck %s)" % [gun_at, head_at])
 	_check(not body.can_be_revived(), "only teammates can revive")
 	var lying := [Vector3(0, 0, 0), 0.0, 0.0, 0.0, Hitbox.FLAG_DOWNED]
 	_check(Hitbox.trace(lying, Vector3(-3, 1.5, -0.5), Vector3(3, 1.5, -0.5)).is_empty()
@@ -3559,7 +3574,7 @@ func _section_online_loot() -> void:
 	var raider: Node = null
 	var scav: Node = null
 	for enemy: Node in RaidScope.nodes(world.raid, &"enemies"):
-		if enemy.has_node("Model/Backpack"):
+		if enemy.has_node("Model/Hips/Spine/Backpack"):
 			scav = enemy
 		elif raider == null:
 			raider = enemy

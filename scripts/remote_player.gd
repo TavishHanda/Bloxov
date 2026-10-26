@@ -2,7 +2,7 @@ class_name RemotePlayer
 extends CharacterBody3D
 ## Another player in an online raid, as this machine sees them: a body moved by the states the server relays
 ## (no camera, no input). Shows where they are and look, crouching, leaning, aiming, sprinting, walking legs,
-## lying face down and crawling when downed, and lying on their back when dead. Drawn slightly in the past (INTERP_DELAY), smoothly between the last updates,
+## lying prone on their elbows and crawling, downed (flat, dragging themselves), and lying on their back when dead. Drawn slightly in the past (INTERP_DELAY), smoothly between the last updates,
 ## so 20 updates a second look like continuous movement.
 
 ## A state is [position, yaw, pitch, lean, flags] (see capture()). Flags and hitbox sizes live in Hitbox.
@@ -16,9 +16,6 @@ const FLAG_DOWNED := Hitbox.FLAG_DOWNED
 const FLAG_PRONE := Hitbox.FLAG_PRONE
 ## How far in the past other players are drawn (two updates' worth, so there's always one to move toward).
 const INTERP_DELAY := 0.1
-## The head tilts around the neck (just below the head box). Its parts are the model's Head/Hat/Eyes/Mask nodes.
-const NECK_HEIGHT := 1.38
-const HEAD_PARTS := ["Head__", "Hat__", "Eyes__", "Mask__"]
 const GROUP := &"remote_players"
 ## Their footsteps (0.12.35, owner: teammates were silent online): every stride, louder and heard farther when
 ## they sprint, barely when they crouch. Max hearing distance per pace, meters. 0.22.3 (owner: louder, like the AI's
@@ -31,8 +28,6 @@ const STEP_UNIT_SIZE := 4.0
 
 @onready var model: Node3D = $Model
 @onready var gun_model: Node3D = $Model/Gun
-@onready var leg_l: Node3D = $Model/LegL
-@onready var leg_r: Node3D = $Model/LegR
 @onready var body_shape: CollisionShape3D = $BodyShape
 @onready var head_shape: CollisionShape3D = $HeadShape
 
@@ -44,17 +39,18 @@ var teammate := false
 var shown: Array = []
 ## [arrival seconds, state], oldest first.
 var _buffer: Array = []
-var _walk_time := 0.0
 var _stride_left := 0.0
 var _crouch := 0.0
 var _lean := 0.0
 var _down := 0.0
-## 0..1: how far they're lying face down (downed).
+## 0..1: how far they're lying prone, and downed.
 var _prone := 0.0
+var _downed := 0.0
 ## Their name tag (teammates only), turned red while they're downed.
 var _tag: Node3D
-var _gun_rest: Vector3
-## Pivot at the neck that the head parts are moved under, so looking up and down tilts the head.
+## Poses the jointed model (0.23): walking, kneeling, prone on the elbows, crawling, downed, dead.
+var pose: BodyPose
+## The neck joint: looking up and down tilts the head.
 var head_pivot: Node3D
 
 
@@ -84,14 +80,10 @@ static func capture(player: Player) -> Array:
 
 func _ready() -> void:
 	add_to_group(GROUP)
-	_gun_rest = gun_model.position
-	head_pivot = Node3D.new()
-	head_pivot.name = "HeadPivot"
-	head_pivot.position.y = NECK_HEIGHT
-	model.add_child(head_pivot)
-	for part in model.get_children():
-		if HEAD_PARTS.any(func(prefix: String) -> bool: return part.name.begins_with(prefix)):
-			part.reparent(head_pivot)
+	pose = BodyPose.new(model)
+	head_pivot = pose.joint("Neck")
+	if DisplayServer.get_name() != "headless":
+		(model as PixelModel).merge_parts.call_deferred()   # one draw call for the body (0.23)
 	# Each body gets its own shapes so crouching one doesn't shrink the others.
 	body_shape.shape = body_shape.shape.duplicate()
 	if teammate:
@@ -154,10 +146,11 @@ func update_view(time: float, delta: float) -> void:
 	_crouch = lerpf(_crouch, 1.0 if flags & FLAG_CROUCH else 0.0, step)
 	_lean = lerpf(from[3], to[3], t)
 	_down = lerpf(_down, 1.0 if flags & FLAG_DEAD else 0.0, step)
-	_prone = lerpf(_prone, 1.0 if flags & (FLAG_DOWNED | FLAG_PRONE) and not flags & FLAG_DEAD else 0.0, step)
+	_prone = lerpf(_prone, 1.0 if flags & FLAG_PRONE and not flags & (FLAG_DEAD | FLAG_DOWNED) else 0.0, step)
+	_downed = lerpf(_downed, 1.0 if flags & FLAG_DOWNED and not flags & FLAG_DEAD else 0.0, step)
 	if _tag != null:
 		_tag.set_meta("label_downed", flags & FLAG_DOWNED != 0 and not flags & FLAG_DEAD)
-		_tag.position.y = lerpf(2.25, 0.9, _prone)
+		_tag.position.y = lerpf(2.25, 0.9, maxf(_prone, _downed))
 	_pose(pitch, flags, (global_position - old_position).length() / maxf(delta, 0.001), delta)
 	var flat_speed := Vector2(global_position.x - old_position.x, global_position.z - old_position.z).length() / maxf(delta, 0.001)
 	_footsteps(flags, flat_speed, delta)
@@ -187,30 +180,27 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 
 
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
-	var height := Hitbox.height_scale(_crouch)
-	model.scale = Vector3(1.0, height, 1.0)
-	# Lean tips the whole body around the feet; the dead fall over backward. (The model faces -Z.)
+	# Lean tips the whole body around the feet. (The model faces -Z.)
 	model.rotation.z = -_lean * Hitbox.LEAN_ANGLE
-	# Negative X tips it forward (sprinting; lying face down when downed), positive backward (on its back when dead).
-	model.rotation.x = lerpf(lerpf(-0.15 if flags & FLAG_SPRINT else 0.0, -1.45, _prone), 1.5, _down)
-	# Looking up and down tilts the head (owner: the head, not the gun), limited so it stays on the shoulders.
-	head_pivot.rotation.x = clampf(pitch, -0.7, 0.7)
 	# They hold the model of the gun they have out (0.18.1), and none while unarmed.
 	var gun := flags >> Hitbox.GUN_SHIFT
 	if gun > 0 and gun < AILoadouts.NET_GUNS.size():
 		gun_model = HeldGun.show(model, AILoadouts.NET_GUNS[gun])
-	gun_model.visible = flags & FLAG_ARMED != 0
-	gun_model.position = _gun_rest + (Vector3(0, 0.12, 0.08) if flags & FLAG_AIM else Vector3.ZERO)
-	gun_model.rotation.x = 1.45 * _prone   # lying prone, the gun still points ahead
-
-	if speed > 0.3 and _down < 0.5:
-		_walk_time += delta * speed * 2.5
-	var swing := sin(_walk_time) * 0.6 * minf(speed / 2.0, 1.0)
-	leg_l.rotation.x = swing
-	leg_r.rotation.x = -swing
+	gun_model.visible = flags & FLAG_ARMED != 0 and _downed < 0.5 and _down < 0.5
+	pose.crouch = _crouch
+	pose.prone = _prone
+	pose.downed = _downed
+	pose.dead = _down
+	# Looking up and down tilts the head (owner: the head, not the gun).
+	pose.pitch = pitch
+	pose.aim = move_toward(pose.aim, 1.0 if flags & FLAG_AIM else 0.0, delta * 8.0)
+	pose.sprint = move_toward(pose.sprint, 1.0 if flags & FLAG_SPRINT else 0.0, delta * 6.0)
+	pose.armed = flags & FLAG_ARMED != 0
+	pose.speed = speed if _down < 0.5 else 0.0
+	pose.update(delta)
 	# Hitboxes follow the pose (crouched = shorter, leaning = head off to the side, downed = lying in front), same as
 	# the server's (Hitbox).
-	if _prone > 0.5:
+	if _prone > 0.5 or _downed > 0.5:
 		(body_shape.shape as BoxShape3D).size = Hitbox.DOWNED_BODY_SIZE
 		body_shape.position = Hitbox.DOWNED_BODY_CENTER
 		head_shape.position = Hitbox.prone_head_center(_lean)
