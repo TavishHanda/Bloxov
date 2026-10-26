@@ -2,9 +2,13 @@ extends "res://scripts/scav_senses.gd"
 ## How the AI gets around: navigation paths, patrols and trips, following a leader, hunting, crouching,
 ## getting unstuck, footsteps, and the level of detail for far, calm AI.
 
-## How far away you can hear an AI's footsteps and its callouts (0.12.32, owner: you could hear every AI on the map
-## walking, "like 30 crunching steps"). Gunshots still carry across the map.
-const STEP_HEAR_RANGE := 30.0
+## How far away you can hear an AI's footsteps (0.12.32, owner: you could hear every AI on the map
+## walking, "like 30 crunching steps"). Gunshots still carry across the map. 0.22.2 (owner: AI footsteps too quiet,
+## playtesters couldn't find enemies): 40 m, and louder (STEP_DB, STEP_UNIT_SIZE) so they carry out to it.
+const STEP_HEAR_RANGE := 40.0
+## How loud each AI step is (dB; was -6 before 0.22.2), and how far before it starts fading (m; was 2.5).
+const STEP_DB := 0.0
+const STEP_UNIT_SIZE := 4.0
 ## Current navigation path (to _path_goal) and the waypoint it's walking to.
 var _path := PackedVector3Array()
 var _ground_check_left := randf() * 0.5
@@ -110,7 +114,7 @@ func _update_footsteps(delta: float) -> void:
 		_stride_left = 1.4
 		if _sneaking() or _net_flags & NET_SNEAK:
 			return  # sneaking up: no footstep sounds
-		Surfaces.step(self, -6.0, true, 0.9, 2.5, STEP_HEAR_RANGE)
+		Surfaces.step(self, STEP_DB, true, 0.9, STEP_UNIT_SIZE, STEP_HEAR_RANGE)
 
 
 ## Lost you mid-fight: start hunting around where it last saw you.
