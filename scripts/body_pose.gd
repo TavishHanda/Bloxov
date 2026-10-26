@@ -3,7 +3,7 @@ extends RefCounted
 ## Poses a jointed character model (0.23, art_source/scripts/make_character.py): scavs, Raiders and other players
 ## stand, walk, kneel or crouch-walk, lie prone on their elbows and crawl, lie downed and dead, with both hands on the
 ## gun they hold. Owner (2026-10-26): crouching used to squash the whole model and prone tipped it over stiff, "like
-## you're dead". Looks only: hitboxes come from Hitbox (players) and the scav's own shapes, placed to match these poses.
+## you're dead". Looks only, but the hitboxes are fitted to these poses (measure(); Hitbox holds the players' boxes).
 ##
 ## The owner sets the inputs (crouch, prone, ...) each frame and calls update(delta). Joints are the model's nodes:
 ## Hips > Spine > Neck / ArmL > ElbowL / ArmR > ElbowR, Hips > LegL > KneeL / LegR > KneeR, and Gun beside Hips.
@@ -14,13 +14,16 @@ const JOINTS := ["Hips", "Spine", "Neck", "ArmL", "ElbowL", "ArmR", "ElbowR", "L
 const UPPER := 0.30
 const REACH := 0.33
 
-## Kneeling on the right knee, sitting back, chest forward: the head ends up near the crouched head hitbox
-## (Hitbox: 1.15 m up, a bit forward).
-const KNEEL := {"hips_pos": Vector3(0, 0.24, 0.28), "Spine": Vector3(-28, 0, 0), "Neck": Vector3(22, 0, 0),
-	"LegL": Vector3(95, 0, -4), "KneeL": Vector3(-95, 0, 0), "LegR": Vector3(-49, 0, 4), "KneeR": Vector3(-41, 0, 0)}
-## Crouched and moving: both knees deep, chest forward (the walk cycle swings the legs about this).
-const CROUCH_WALK := {"hips_pos": Vector3(0, 0.30, 0.15), "Spine": Vector3(-32, 0, 0), "Neck": Vector3(24, 0, 0),
-	"LegL": Vector3(70, 0, -6), "KneeL": Vector3(-120, 0, 0), "LegR": Vector3(70, 0, 6), "KneeR": Vector3(-120, 0, 0)}
+## Crouched (0.23): sitting back on the right heel with the left foot planted ahead, or crouch-walking low; the hips
+## are this high, and the chest leans just enough to put the middle of the head box exactly at `crouch_head` (the
+## hitbox, owner: "keep the old head height", "the hitboxes need to be precise"), right above the feet. The legs reach
+## the ground (_legs).
+const KNEEL_HIPS := 0.17
+## The middle of the head and headgear, from the neck joint (the head box's middle; make_character.py HEAD_Z, HEAD).
+const HEAD_MID := Vector3(0, 0.33, -0.037)
+## Thigh and shin (hip to knee, knee to sole).
+const THIGH := 0.29
+const SHIN := 0.31
 ## On the belly, chest up a little, head up looking ahead, legs apart; feet at the origin and the head in front, where
 ## the lying hitboxes are (Hitbox.DOWNED_*).
 const PRONE := {"hips_pos": Vector3(0, 0.22, -0.62), "hips_rot": Vector3(-90, 0, 0),
@@ -54,6 +57,8 @@ var sprint := 0.0
 var armed := true
 ## Ground speed, m/s (drives the walk and crawl).
 var speed := 0.0
+## How high the middle of the head is when crouched (players: Hitbox; a kneeling scav keeps its old 1.03 m).
+var crouch_head := Hitbox.HEAD_HEIGHT * Hitbox.CROUCH_SCALE
 
 var model: Node3D
 var _joints := {}
@@ -96,8 +101,8 @@ func update(delta: float) -> void:
 	var lying := clampf(prone + downed, 0.0, 1.0)
 	_walk += delta * speed * lerpf(2.5, 4.0, lying)
 	var pose := {}
-	var crouched := _mix(KNEEL, CROUCH_WALK, _move)
-	pose = _mix(pose, crouched, crouch * (1.0 - lying))
+	var low := crouch * (1.0 - lying)
+	pose = _mix(pose, _crouched(), low)
 	pose = _mix(pose, PRONE, prone)
 	pose = _mix(pose, DOWNED, downed)
 	pose = _mix(pose, DEAD_FACE_DOWN if _dead_face_down else DEAD, dead)
@@ -105,7 +110,7 @@ func update(delta: float) -> void:
 	var stride := sin(_walk)
 	# Walking (and crouch-walking): legs swing, the knee bends as the leg comes through.
 	var walk := minf(speed / 2.0, 1.0) * (1.0 - lying) * alive
-	var swing := stride * lerpf(34.0, 22.0, crouch) * walk
+	var swing := stride * 34.0 * walk
 	_add(pose, "LegL", Vector3(swing, 0, 0))
 	_add(pose, "LegR", Vector3(-swing, 0, 0))
 	_add(pose, "KneeL", Vector3(-maxf(-cos(_walk), 0.0) * 40.0 * walk, 0, 0))
@@ -122,17 +127,48 @@ func update(delta: float) -> void:
 	_add(pose, "KneeR", Vector3(-55.0 * right, 0, 0))
 	_add(pose, "ArmR", Vector3(stride * 15.0 * crawl * downed, 0, 0))
 	_add(pose, "ElbowR", Vector3(-maxf(stride, 0.0) * 40.0 * crawl * downed, 0, 0))
-	# Looking up and down nods the head (less when lying: the head is already up).
-	_add(pose, "Neck", Vector3(rad_to_deg(clampf(pitch, -0.7, 0.7)) * lerpf(1.0, 0.5, lying) * alive, 0, 0))
+	# Looking up and down nods the head (less when lying: the head is already up; not downed). Hitbox.parts nods the
+	# head box the same way.
+	_add(pose, "Neck", Vector3(rad_to_deg(Hitbox.nod(pitch, prone)) * (1.0 - downed) * alive, 0, 0))
 	var with_gun := armed and downed < 0.5 and dead < 0.5
 	if not with_gun:
 		# Arms hang and swing against the legs.
 		_add(pose, "ArmL", Vector3(-swing * 0.6, 0, -6.0 * (1.0 - lying)))
 		_add(pose, "ArmR", Vector3(swing * 0.6, 0, 6.0 * (1.0 - lying)))
 	_apply(pose)
+	if low > 0.0:
+		_legs(low, stride * walk)
 	var gun := model.get_node_or_null("Gun") as Node3D
 	if gun != null and with_gun:
 		_hold(gun, lying, crawl * stride)
+
+
+## The crouched pose's hips and lean (see KNEEL_HIPS): the chest leans by the angle that brings the head down to
+## crouch_head, the neck leans back as far so the head stays upright, the hips sit back so the head is over the feet.
+func _crouched() -> Dictionary:
+	var waist: Vector3 = _rest["Spine"]
+	var chest: float = (_rest["Neck"] as Vector3).y
+	var lean := acos(clampf((crouch_head - HEAD_MID.y - waist.y - KNEEL_HIPS) / chest, -1.0, 1.0))
+	return {"hips_pos": Vector3(0, KNEEL_HIPS, chest * sin(lean)), "Spine": Vector3(-rad_to_deg(lean), 0, 0),
+		"Neck": Vector3(rad_to_deg(lean), 0, 0)}
+
+
+## Crouched legs reach the ground: still, the right knee down with that foot under the seat and the left foot planted
+## ahead; moving, both feet step under the hips. Eased from standing feet by `amount`.
+func _legs(amount: float, step: float) -> void:
+	var hips := _joints["Hips"] as Node3D
+	var at := hips.position
+	for side: String in ["L", "R"]:
+		var leg := _joints["Leg" + side] as Node3D
+		var x: float = (_rest["Leg" + side] as Vector3).x
+		var stand := Vector3(x, at.y - THIGH - SHIN, at.z)
+		var kneel := Vector3(x, 0.0, at.z - 0.38) if side == "L" else Vector3(x, 0.05, at.z + 0.05)
+		var s := step if side == "L" else -step
+		var walk := Vector3(x, maxf(s, 0.0) * 0.06, at.z - 0.22 + s * 0.15)
+		var foot := stand.lerp(kneel.lerp(walk, _move), amount)
+		var pole := Vector3(0, 0.6, -1.0)
+		_two_bone(leg, _joints["Knee" + side], THIGH, SHIN, model.global_transform * foot,
+			model.global_basis * pole, leg.global_position)
 
 
 ## Puts the gun in the hands' place for this pose (level, ahead; lowered while sprinting; on the ground ahead when
@@ -153,23 +189,27 @@ func _hold(gun: Node3D, lying: float, crawl: float) -> void:
 	_reach("L", support, -side * 0.9 + below)
 
 
-## Two-bone reach: the arm of `side` turns at the shoulder and elbow so the hand is at `target` (as near as it gets),
+## The arm of `side` turns at the shoulder and elbow so the hand is at `target` (as near as it gets),
 ## the elbow toward `pole`.
 func _reach(side: String, target: Vector3, pole: Vector3) -> void:
 	var shoulder := _joints["Arm" + side] as Node3D
-	var elbow := _joints["Elbow" + side] as Node3D
-	var from := shoulder.global_position
+	_two_bone(shoulder, _joints["Elbow" + side], UPPER, REACH, target, pole, shoulder.global_position)
+
+
+## Turns `upper` (at `from`) and `lower` (lengths a and b) so the end of `lower` is at `target`, as near as it gets,
+## the middle joint toward `pole`.
+func _two_bone(upper: Node3D, lower: Node3D, a: float, b: float, target: Vector3, pole: Vector3, from: Vector3) -> void:
 	var to := target - from
 	if to.length_squared() < 0.0001:
 		return
-	var d := clampf(to.length(), absf(UPPER - REACH) + 0.01, UPPER + REACH - 0.001)
+	var d := clampf(to.length(), absf(a - b) + 0.01, a + b - 0.001)
 	var dir := to.normalized()
-	var cos_a := (UPPER * UPPER + d * d - REACH * REACH) / (2.0 * UPPER * d)
+	var cos_a := (a * a + d * d - b * b) / (2.0 * a * d)
 	var out := pole - dir * pole.dot(dir)
 	out = out.normalized() if out.length_squared() > 0.0001 else model.global_basis.y
-	var at_elbow := from + dir * UPPER * cos_a + out * UPPER * sqrt(maxf(1.0 - cos_a * cos_a, 0.0))
-	shoulder.global_basis = _limb(at_elbow - from)
-	elbow.global_basis = _limb(from + dir * d - at_elbow)
+	var middle := from + dir * a * cos_a + out * a * sqrt(maxf(1.0 - cos_a * cos_a, 0.0))
+	upper.global_basis = _limb(middle - from)
+	lower.global_basis = _limb(from + dir * d - middle)
 
 
 ## A limb's frame for one pointing along `along` (its -Y), its front kept toward the body's front.
@@ -208,3 +248,58 @@ func _mix(a: Dictionary, b: Dictionary, t: float) -> Dictionary:
 
 func _add(pose: Dictionary, key: String, angles: Vector3) -> void:
 	pose[key] = (pose.get(key, Vector3.ZERO) as Vector3) + angles
+
+
+## The hit boxes that fit this model in a pose (`settings`: crouch, prone, downed as 0 or 1), standing still and
+## looking ahead: [[center, size, headshot, pitch], ...] for the head (and headgear), the chest and the hips and legs,
+## relative to the feet, each box turned `pitch` radians about X (the chest's lean). Every outfit option counts, so
+## a box fits any outfit. Leaves the model as it was. Hitbox's numbers come from here (the smoke test checks they
+## still match); scavs measure themselves.
+func measure(settings: Dictionary) -> Array:
+	var saved := [crouch, prone, downed, dead, speed, pitch, _move]
+	crouch = settings.get("crouch", 0.0)
+	prone = settings.get("prone", 0.0)
+	downed = settings.get("downed", 0.0)
+	dead = 0.0
+	speed = 0.0
+	pitch = 0.0
+	_move = 0.0
+	update(0.0)
+	var parts := []
+	for group: Array in [[["Neck"], true], [["Spine"], false], [["Hips", "LegL", "KneeL", "LegR", "KneeR"], false]]:
+		var frame := in_model(_joints[group[0][0]])
+		# A box turned like the joint when the joint only leans about X; else upright, around everything.
+		var leans_only: bool = frame.basis.x.is_equal_approx(Vector3.RIGHT) and group[0][0] != "Hips"
+		var into := Transform3D(frame.basis, Vector3.ZERO) if leans_only else Transform3D.IDENTITY
+		var box := AABB()
+		var first := true
+		for name: String in group[0]:
+			var joint_frame := into.affine_inverse() * in_model(_joints[name])
+			for child in (_joints[name] as Node3D).get_children():
+				var part := child as MeshInstance3D
+				if part == null or part.mesh == null or not String(part.name).contains("__"):
+					continue
+				var bounds := (joint_frame * part.transform) * part.mesh.get_aabb()
+				box = bounds if first else box.merge(bounds)
+				first = false
+		var pitch_angle: float = atan2(frame.basis.y.z, frame.basis.y.y) if leans_only else 0.0
+		parts.append([into.basis * box.get_center(), box.size, group[1], pitch_angle])
+	crouch = saved[0]
+	prone = saved[1]
+	downed = saved[2]
+	dead = saved[3]
+	speed = saved[4]
+	pitch = saved[5]
+	_move = saved[6]
+	update(0.0)
+	return parts
+
+
+## A node's transform in the model's own frame (works off the tree too: the server and tools measure unparented).
+func in_model(node: Node3D) -> Transform3D:
+	var t := node.transform
+	var up := node.get_parent() as Node3D
+	while up != null and up != model:
+		t = up.transform * t
+		up = up.get_parent() as Node3D
+	return t

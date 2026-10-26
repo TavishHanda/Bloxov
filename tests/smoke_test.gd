@@ -800,7 +800,7 @@ func _section_prone() -> void:
 	await create_timer(0.6).timeout
 	var leaned := RemotePlayer.capture(player)
 	Input.action_release("lean_right")
-	_check(player.head.position.x > 0.2 and Hitbox.prone_head_center(leaned[3]).x > 0.2,
+	_check(player.head.position.x > 0.2 and Hitbox.parts(leaned[4], leaned[3], leaned[2])[0][0].x > 0.2,
 		"prone, E leans the head over (%.2f m)" % player.head.position.x)
 	# A low roof overhead: can't stand (or crouch) up.
 	var roof := StaticBody3D.new()
@@ -2993,10 +2993,22 @@ func _section_net() -> void:
 		body.update_view(10.05, 0.016)
 	_check(body.pose.joint("Hips").position.y < 0.4 and body.head_shape.position.y < 1.2 and body.head_shape.position.x > 0.2,
 		"a crouching, leaning player looks it (and their head hitbox moves with it)")
-	# 0.23: they kneel (not squashed), and the head box is where the model's head is.
-	var head_gap := (body.pose.joint("Neck").global_position + body.model.global_basis.y * 0.25).distance_to(body.head_shape.global_position)
-	_check(is_equal_approx(body.model.scale.y, 1.0) and head_gap < 0.3,
-		"a crouching player kneels, its head inside the head hitbox (%.2f m off)" % head_gap)
+	# 0.23: they kneel (not squashed), and the head box is right where the model's head is (owner: precise).
+	var head_gap := (body.pose.joint("Neck").global_transform * BodyPose.HEAD_MID).distance_to(body.head_shape.global_position)
+	_check(is_equal_approx(body.model.scale.y, 1.0) and head_gap < 0.03,
+		"a crouching player kneels, its head box on its head (%.3f m off)" % head_gap)
+	# The fitted boxes (Hitbox) still match the model in each pose (after changing the model or a pose, re-run
+	# tools/fit_hitboxes.gd and paste its numbers into hitbox.gd).
+	var off := 0.0
+	for fit: Array in [[{"crouch": 1.0}, Hitbox.CROUCH_PARTS], [{"prone": 1.0}, Hitbox.PRONE_PARTS], [{"downed": 1.0}, Hitbox.DOWNED_PARTS]]:
+		var measured := body.pose.measure(fit[0])
+		for i in measured.size():
+			var want: Array = fit[1][i]
+			off = maxf(off, maxf((measured[i][0] as Vector3).distance_to(want[0]), (measured[i][1] as Vector3).distance_to(want[1])))
+			off = maxf(off, absf(measured[i][3] - want[3]))
+	_check(off < 0.01, "the crouch, prone and downed hitboxes fit the model (%.3f m off)" % off)
+	_check(absf(Hitbox.CROUCH_PARTS[0][0].y - Hitbox.HEAD_HEIGHT * Hitbox.CROUCH_SCALE) < 0.002,
+		"a crouching player's head box keeps its old height (owner)")
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.5, 0.0, 0], 10.06)
 	for i in 60:
 		body.update_view(10.06, 0.016)
@@ -5228,8 +5240,11 @@ func _section_teamwork() -> void:
 	for i in 30:
 		await physics_frame
 	var head_down := (croucher.get_node("HeadShape") as Node3D).position.y
-	_check(croucher._crouched and head_down < head_up * 0.7 and croucher.net_capture()[2] & Scav.NET_CROUCH,
-		"behind low cover it crouches (head %.2f m -> %.2f m)" % [head_up, head_down])
+	var kneel_gap := (croucher.body_pose.joint("Neck").global_transform * BodyPose.HEAD_MID).distance_to(
+		(croucher.get_node("HeadShape") as Node3D).global_position)
+	_check(croucher._crouched and absf(head_down - head_up * Scav.CROUCH_HEIGHT) < 0.01 and kneel_gap < 0.03
+		and croucher.net_capture()[2] & Scav.NET_CROUCH,
+		"behind low cover it kneels, head box on its head at the old height (head %.2f m -> %.2f m, %.3f m off)" % [head_up, head_down, kneel_gap])
 	croucher.queue_free()
 	# 0.12.11 (owner: a friend in town had to fight 8-9 at once): only a few come over; the rest hold, on alert.
 	var crowd: Array[Scav] = []

@@ -55,9 +55,7 @@ func _ready() -> void:
 	# Its own copies of the hit shapes, so crouching this one doesn't shrink every scav.
 	for shape_node: CollisionShape3D in [$BodyShape, $HeadShape]:
 		shape_node.shape = shape_node.shape.duplicate()
-	_body_rest = ($BodyShape as CollisionShape3D).position
-	_body_size = (($BodyShape as CollisionShape3D).shape as BoxShape3D).size
-	_head_rest = ($HeadShape as CollisionShape3D).position
+	_setup_kneel()
 	if glint:
 		_make_glint()
 

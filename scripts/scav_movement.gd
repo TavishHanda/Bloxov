@@ -32,11 +32,11 @@ var _side := 1.0
 var _stride_left := 0.0
 const NET_SNEAK := 8
 const NET_CROUCH := 32
-## Crouched behind low cover (a tent, a car, a low wall): the model and hitboxes shrink to this fraction of its
-## height (0.12.10).
+## Crouched behind low cover (a tent, a car, a low wall): its head comes down to this fraction of its height
+## (0.12.10; 0.23: it kneels, and the head stays where it was, owner: "keep old head height").
 const CROUCH_HEIGHT := 0.6
-## Where the head is while it kneels (BodyPose.KNEEL): its head hitbox moves there.
-const KNEEL_HEAD := Vector3(0, 1.16, -0.2)
+## Its kneeling hitboxes, fitted to its model (BodyPose.measure, like the players' Hitbox.CROUCH_PARTS), per model.
+static var _kneel_parts := {}
 
 
 ## Standing on someone's head (another AI or a player): steps off it. Two AI that ended up in one spot used to
@@ -181,19 +181,54 @@ func _pick_hunt_point() -> Vector3:
 	return best
 
 
-## Crouching behind low cover: it kneels, shorter hitboxes (puppets follow the server's flag).
+## Crouching behind low cover: it kneels, hitboxes fitted to the kneeling model (puppets follow the server's flag).
 func _update_crouch(delta: float) -> void:
 	var want := (_net_flags & NET_CROUCH) != 0 if puppet else _crouched
 	var amount := move_toward(_crouch_amount, 1.0 if want else 0.0, delta * 5.0)
 	if amount == _crouch_amount:
 		return
+	var was_low := _crouch_amount >= 0.5
 	_crouch_amount = amount
-	var height := lerpf(1.0, CROUCH_HEIGHT, amount)
-	var body := $BodyShape as CollisionShape3D
-	(body.shape as BoxShape3D).size = Vector3(_body_size.x, _body_size.y * height, _body_size.z)
-	body.position = _body_rest * height
-	# The model kneels (BodyPose.KNEEL, 0.23): the head box goes where its head is.
-	($HeadShape as CollisionShape3D).position = _head_rest.lerp(KNEEL_HEAD, amount)
+	if (amount >= 0.5) == was_low or _kneel.is_empty():
+		return
+	var shapes: Array[CollisionShape3D] = [$HeadShape, $BodyShape, _legs_shape]
+	for i in shapes.size():
+		var shape := shapes[i]
+		if amount < 0.5:
+			shape.transform = _shape_rest[i][0]
+			(shape.shape as BoxShape3D).size = _shape_rest[i][1]
+			shape.disabled = shape == _legs_shape
+		else:
+			var part: Array = _kneel[i]
+			shape.transform = Transform3D(Basis(Vector3.RIGHT, part[3]), part[0])
+			(shape.shape as BoxShape3D).size = part[1]
+			shape.disabled = false
+
+
+## Sets up the kneeling hitboxes (from _ready, once the model and its pose are there): a third box for the hips and
+## legs, and where the boxes go.
+func _setup_kneel() -> void:
+	_legs_shape = CollisionShape3D.new()
+	_legs_shape.name = "LegsShape"
+	_legs_shape.shape = BoxShape3D.new()
+	_legs_shape.disabled = true
+	add_child(_legs_shape)
+	for shape: CollisionShape3D in [$HeadShape, $BodyShape, _legs_shape]:
+		_shape_rest.append([shape.transform, (shape.shape as BoxShape3D).size])
+	if body_pose == null or not body_pose.ok():
+		return
+	# (Bon's model is scaled up: measured in the model's frame, then scaled like it.)
+	var grow := model.scale.y
+	body_pose.crouch_head = ($HeadShape as CollisionShape3D).position.y * CROUCH_HEIGHT / grow
+	var key := "%s %.3f" % [model.scene_file_path, grow]
+	if not _kneel_parts.has(key):
+		var parts := []
+		for part: Array in body_pose.measure({"crouch": 1.0}):
+			parts.append([model.position + part[0] * grow, part[1] * grow, part[2], part[3]])
+		_kneel_parts[key] = parts
+	_kneel = _kneel_parts[key]
+
+
 var _dodge_dir := 0.0
 
 
@@ -558,9 +593,10 @@ var _hunt_pause := 0.0
 var _hunted: Array[Vector3] = []
 var _crouched := false
 var _crouch_amount := 0.0
-var _body_rest := Vector3.ZERO
-var _body_size := Vector3.ONE
-var _head_rest := Vector3.ZERO
+## Head, body and legs boxes standing ([transform, size]), and kneeling (BodyPose.measure parts).
+var _shape_rest := []
+var _kneel := []
+var _legs_shape: CollisionShape3D
 
 
 ## Level of detail (0.14.4, health check: 32 AI took ~4 ms of every frame on a fast desktop, too much for phones,

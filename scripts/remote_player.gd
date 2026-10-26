@@ -30,6 +30,8 @@ const STEP_UNIT_SIZE := 4.0
 @onready var gun_model: Node3D = $Model/Gun
 @onready var body_shape: CollisionShape3D = $BodyShape
 @onready var head_shape: CollisionShape3D = $HeadShape
+## Hips and legs, crouched or lying (standing, the body box covers them).
+@onready var legs_shape: CollisionShape3D = $LegsShape
 
 var peer_id := 0
 var player_name := ""
@@ -85,7 +87,8 @@ func _ready() -> void:
 	if DisplayServer.get_name() != "headless":
 		(model as PixelModel).merge_parts.call_deferred()   # one draw call for the body (0.23)
 	# Each body gets its own shapes so crouching one doesn't shrink the others.
-	body_shape.shape = body_shape.shape.duplicate()
+	for shape: CollisionShape3D in [body_shape, head_shape, legs_shape]:
+		shape.shape = shape.shape.duplicate()
 	if teammate:
 		# A small name tag over a teammate's head (owner: small; other players get none, PvP). Just a marker: the
 		# HUD draws it crisp in the pixel font (WorldLabelsHUD, 0.8.16).
@@ -198,21 +201,23 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	pose.armed = flags & FLAG_ARMED != 0
 	pose.speed = speed if _down < 0.5 else 0.0
 	pose.update(delta)
-	# Hitboxes follow the pose (crouched = shorter, leaning = head off to the side, downed = lying in front), same as
-	# the server's (Hitbox).
-	if _prone > 0.5 or _downed > 0.5:
-		(body_shape.shape as BoxShape3D).size = Hitbox.DOWNED_BODY_SIZE
-		body_shape.position = Hitbox.DOWNED_BODY_CENTER
-		head_shape.position = Hitbox.prone_head_center(_lean)
-		body_shape.basis = Basis()
-		head_shape.basis = Basis()
-	else:
-		# Leaning tips both boxes with the body (0.13.8), so a shoulder peeking round a corner is hittable.
-		var tilt := Hitbox.lean_basis(_lean)
-		(body_shape.shape as BoxShape3D).size = Hitbox.body_size(_crouch)
-		body_shape.position = tilt * Hitbox.body_center(_crouch)
-		head_shape.position = Hitbox.head_center(_crouch, _lean)
-		body_shape.basis = tilt
-		head_shape.basis = tilt
-	body_shape.disabled = _down > 0.5
-	head_shape.disabled = _down > 0.5
+	# Hitboxes follow the pose: the same boxes as the server's (Hitbox.parts), fitted to the model kneeling, prone and
+	# downed (0.23), tipped with a lean (0.13.8: a shoulder peeking round a corner is hittable).
+	var state := 0
+	if _crouch > 0.5:
+		state |= FLAG_CROUCH
+	if _prone > 0.5:
+		state |= FLAG_PRONE
+	if _downed > 0.5:
+		state |= FLAG_DOWNED
+	var parts := Hitbox.parts(state, _lean, pitch)
+	var shapes: Array[CollisionShape3D] = [head_shape, body_shape, legs_shape]
+	for i in shapes.size():
+		var shape := shapes[i]
+		if i >= parts.size():
+			shape.disabled = true
+			continue
+		var part: Array = parts[i]
+		shape.transform = Transform3D(part[3], part[0])
+		(shape.shape as BoxShape3D).size = part[1]
+		shape.disabled = _down > 0.5

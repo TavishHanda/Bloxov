@@ -108,16 +108,18 @@ func _initialize() -> void:
 	quit()
 
 
-## The player hitboxes (Hitbox) for this pose, as red wireframes (scavs use the same sizes standing).
+## The player hitboxes (Hitbox.parts) for this pose, as red wireframes (scavs fit theirs the same way).
 func _boxes(holder: Node3D, settings: Dictionary) -> void:
 	if settings.get("dead", 0.0) > 0.5:
 		return
-	var parts := []
-	if settings.get("prone", 0.0) + settings.get("downed", 0.0) > 0.5:
-		parts = [[Hitbox.prone_head_center(0.0), Hitbox.HEAD_SIZE], [Hitbox.DOWNED_BODY_CENTER, Hitbox.DOWNED_BODY_SIZE]]
-	else:
-		var c: float = settings.get("crouch", 0.0)
-		parts = [[Hitbox.head_center(c, 0.0), Hitbox.HEAD_SIZE], [Hitbox.body_center(c), Hitbox.body_size(c)]]
+	var flags := 0
+	if settings.get("crouch", 0.0) > 0.5:
+		flags |= Hitbox.FLAG_CROUCH
+	if settings.get("prone", 0.0) > 0.5:
+		flags |= Hitbox.FLAG_PRONE
+	if settings.get("downed", 0.0) > 0.5:
+		flags |= Hitbox.FLAG_DOWNED
+	var parts := Hitbox.parts(flags, 0.0, 0.0)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(1, 0.2, 0.2)
@@ -126,6 +128,7 @@ func _boxes(holder: Node3D, settings: Dictionary) -> void:
 		im.surface_begin(Mesh.PRIMITIVE_LINES, mat)
 		var h: Vector3 = part[1] * 0.5
 		var c: Vector3 = part[0]
+		var turn: Basis = part[3]
 		for a in 3:
 			for s1: float in [-1.0, 1.0]:
 				for s2: float in [-1.0, 1.0]:
@@ -139,8 +142,8 @@ func _boxes(holder: Node3D, settings: Dictionary) -> void:
 					p1[b] = s1 * h[b]
 					p0[d] = s2 * h[d]
 					p1[d] = s2 * h[d]
-					im.surface_add_vertex(c + p0)
-					im.surface_add_vertex(c + p1)
+					im.surface_add_vertex(c + turn * p0)
+					im.surface_add_vertex(c + turn * p1)
 		im.surface_end()
 		var mi := MeshInstance3D.new()
 		mi.mesh = im

@@ -15,9 +15,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   on their elbows, head up, the gun ahead in both hands, and crawl; downed players lie flat without their gun,
   dragging themselves with one arm and holding the wound; dead players fall on their back (or stay face down if they
   were lying already). Both hands are on the gun they hold. The wardrobe and inventory show your character at ease.
-- **Hitboxes follow the poses:** a crouched player's head box sits 20 cm forward, where the kneeling head is; a
-  kneeling scav's head box is where its head is (1.16 m up, 20 cm forward; it was 1.03 m). Prone and downed boxes
-  are unchanged (the lying model was fitted to them).
+- **Hitboxes fit the poses exactly** (owner: "the hitboxes need to be precise"). Crouched, prone and downed, a
+  player has three boxes (head, chest, hips and legs) measured off the posed model, every outfit included: the chest
+  box leans with the chest, the head box nods with the head. Standing is unchanged. The head stays at its old
+  height crouched (owner): 1.15 m for players, 1.03 m for a kneeling scav (the model leans just enough to put its
+  head there), and kneeling scavs get the same fitted boxes. `tools/fit_hitboxes.gd` re-measures them; the smoke
+  test fails if the model and the boxes drift apart.
 - Each character draws as one skinned mesh (plus its gun), fewer draw calls than before.
 - Models: `art_source/scripts/make_character.py` (plain Python now), poses: `scripts/body_pose.gd`, pictures:
   `tools/body_preview.gd`.
