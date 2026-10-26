@@ -32,7 +32,7 @@ var raid: Node
 signal player_hit(peer: int, amount: int, from: Vector3, head: bool, burst: int)
 signal player_bashed(peer: int, amount: int, from: Vector3, shove: float, aim_block: float)
 ## Something a scav did that everyone in the raid should see/hear: kind is "fired" (pos = where the shot ended),
-## "alerted", "bash" or "died" (pos = where).
+## "bark:<callout>", "bash" or "died" (pos = where).
 signal enemy_event(id: int, kind: String, pos: Vector3)
 ## Loot (0.7.9): a bag appeared (a body, dropped items) or went (emptied). Network tells everyone in the raid.
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
@@ -85,7 +85,6 @@ func _on_raid_child(node: Node) -> void:
 		return
 	var id := node.get_instance_id()
 	node.fired.connect(func(end: Vector3) -> void: enemy_event.emit(id, "fired", end))
-	node.alerted.connect(func() -> void: enemy_event.emit(id, "alerted", Vector3.ZERO))
 	node.barked.connect(func(kind: String) -> void: enemy_event.emit(id, "bark:" + kind, Vector3.ZERO))
 	node.bash_started.connect(func() -> void: enemy_event.emit(id, "bash", Vector3.ZERO))
 	node.tree_exiting.connect(func() -> void: enemy_event.emit(id, "died", node.global_position))

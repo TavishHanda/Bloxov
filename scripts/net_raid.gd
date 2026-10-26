@@ -280,8 +280,6 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 	match kind:
 		"fired":
 			puppet.net_fired(pos)
-		"alerted":
-			puppet.net_alerted()
 		"bash":
 			puppet.net_bash_started()
 		"died":

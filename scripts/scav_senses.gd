@@ -1,7 +1,6 @@
 extends "res://scripts/scav_base.gd"
 ## The AI's senses: seeing and spotting players, hearing noises, alerting and calling others, its voice.
 
-const ALERT_SOUND := preload("res://audio/alert.wav")
 const BARK_HEAR_RANGE := 50.0
 ## Gunshots carry this share of their noise radius to the AI (0.20.10, owner: AI came from too far). Whether a shot
 ## alarms them (alarm_noise) still uses the full radius.
@@ -106,7 +105,7 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 		if not _answering_call and _call_for_help(known_pos):
 			_bark("help")
 		else:
-			_bark("spotted", 0.7)
+			_bark("spotted")   # (0.22.7: every time, now that it's the only "it's seen you" sound; was 70%)
 	_reaction = reaction_time if reaction < 0.0 else reaction
 	_cover_phase = Cover.NONE
 	_spot = 0.0
@@ -114,7 +113,6 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 	_last_seen = known_pos
 	_set_state(State.ALERT)
 	alerted.emit()
-	net_alerted()
 
 
 ## A fight starts: unaware AI nearby (its zone-mates, mostly) come over to help.
@@ -311,7 +309,6 @@ func _warn_friends() -> void:
 			friend._bark("man_down")
 
 
-## Alert sound (puppets: the server's scav spotted someone).
 ## Says a callout (`chance` of it, at most one per bark_cooldown); online the server passes it on to players.
 func _bark(kind: String, chance := 1.0) -> void:
 	if puppet or _bark_left > 0.0 or randf() > chance:
@@ -334,13 +331,16 @@ func _chatter(kind: String) -> void:
 const MUTTER_RANGE := 20.0
 
 
-## The callout's sound (puppets: the server's scav said it).
+## The callout's sound (puppets: the server's scav said it). 0.22.7 (owner: no more lock-on ding, "really emphasize
+## the footsteps and their voicelines"): callouts 3 dB louder (were -1) and fading more slowly (BARK_UNIT_SIZE, was 8).
+const BARK_DB := 2.0
+const BARK_UNIT_SIZE := 10.0
 func play_bark(kind: String) -> void:
 	var stream := _voice_line(kind, voice_set)
 	if stream != null and is_inside_tree():
 		var mutter := kind == "idle"
-		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -7.0 if mutter else -1.0, 0.03,
-			_voice, 4.0 if mutter else 8.0, MUTTER_RANGE if mutter else BARK_HEAR_RANGE, &"Voices")
+		Effects.sound_at(get_tree().current_scene, stream, global_position + Vector3(0, 1.6, 0), -7.0 if mutter else BARK_DB, 0.03,
+			_voice, 4.0 if mutter else BARK_UNIT_SIZE, MUTTER_RANGE if mutter else BARK_HEAR_RANGE, &"Voices")
 
 
 ## A random take of a callout: audio/voice/<kind>.wav, plus <kind>_2.wav, <kind>_3.wav... if they exist (a voice set:
@@ -368,6 +368,3 @@ static func _voice_line(kind: String, set_name := "") -> AudioStream:
 	var options: Array[AudioStream] = _voice_takes[key]
 	return options.pick_random() if not options.is_empty() else null
 
-
-func net_alerted() -> void:
-	Effects.sound_at(get_tree().current_scene, ALERT_SOUND, global_position, -2.0, 0.05, 1.0, 6.0, BARK_HEAR_RANGE)

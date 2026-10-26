@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react). -->
 
+## 0.22.7 (No more ding)
+- **The lock-on ding is gone** (owner: "get rid of the ding for when scavs lock on to you, we need to really
+  emphasize the footsteps and their voicelines"). Instead an AI that spots you always says its "spotted" callout
+  (was 70% of the time; still at most one callout per few seconds, and one that calls for help says that instead).
+  Callouts are 3 dB louder and fade more slowly with distance. Muttering is unchanged, and no other sound is
+  replaced. Online, the server no longer sends the "alerted" event (it only played the ding). The sound file stays
+  in `audio/` in case it's wanted back.
+
 ## 0.22.6 (Every can, swinging table lamps)
 - **Shots kick every can and bottle they pass** (owner: "some are shootable but not all"): a shot only knocked a
   can when it landed within half a metre of it, so a shot through a can into the ground behind it often missed it.
