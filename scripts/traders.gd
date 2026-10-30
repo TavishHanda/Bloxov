@@ -5,7 +5,7 @@ extends RefCounted
 ## for some levels, spending some money with them (Profile.trader_spent), so progress is access to gear, not power. Each trader buys back its own kinds of items; valuables go to the valuables trader.
 ## Names (owner): Ponta (guns, 0.25.4), Big Don (supplies, 0.25.4), Supreme (valuables), Ming (boxes); the Medic's is still a placeholder.
 
-## 0.25.5 (owner): 1.56, was 1.2 (30% dearer, so a good kit takes 2-3 raids; tools/economy_sim.gd).
+## 0.25.6 (owner): 1.56, was 1.2 (30% dearer, so a good kit takes 2-3 raids; tools/economy_sim.gd).
 const BUY_MARKUP := 1.56
 ## What a trader pays for gear (guns, meds, supplies); valuables sell for full value.
 const GEAR_SELL_RATE := 0.6

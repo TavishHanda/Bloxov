@@ -1917,7 +1917,7 @@ func _section_profile() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.money == money_before and Profile.stash.count_of("gold_watch") == 1, "profile saves and loads (money + stash)")
-	# (0.17.5, owner) New players start with $65,000 (0.25.5, was $50,000); a save from before keeps its own money and everything in it.
+	# (0.17.5, owner) New players start with $65,000 (0.25.6, was $50,000); a save from before keeps its own money and everything in it.
 	_check(Profile.START_MONEY == 65000, "new players start with $65,000")
 	var old_save := {"version": Profile.VERSION, "money": 1234, "stash_size": [8, 30], "saved_at": 50.0,
 		"stash": [{"id": "gold_watch", "count": 1, "x": 0, "y": 0}],
