@@ -3,7 +3,7 @@ extends RefCounted
 ## The hideout's traders (0.16.0, Economy update, owner): one per kind of goods, each with levels that unlock
 ## better stock. A trader levels up by finishing their quests for that level (0.16.13, owner: quests, see Quests) and,
 ## for some levels, spending some money with them (Profile.trader_spent), so progress is access to gear, not power. Each trader buys back its own kinds of items; valuables go to the valuables trader.
-## Names are placeholders until the owner picks them.
+## Names (owner): Ponta (guns, 0.25.4), Big Don (supplies, 0.25.4), Supreme (valuables), Ming (boxes); the Medic's is still a placeholder.
 
 const BUY_MARKUP := 1.2
 ## What a trader pays for gear (guns, meds, supplies); valuables sell for full value.
@@ -12,7 +12,7 @@ const GEAR_SELL_RATE := 0.6
 ## id -> name, its tab label and blurb in the hideout, the kinds it buys, sell rate, and its levels. Each level: money spent to reach it, and the stock it
 ## adds ([item id, amount per purchase]). Level 1 is open from the start.
 const LIST := {
-	"guns": {"name": "Gunsmith", "tab": "GUNS", "about": "Guns, ammo, attachments, grenades.", "kinds": ["weapon", "attachment", "ammo", "throwable"], "rate": GEAR_SELL_RATE,
+	"guns": {"name": "Ponta", "tab": "GUNS", "about": "Guns, ammo, attachments, grenades.", "kinds": ["weapon", "attachment", "ammo", "throwable"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["pistol", 1], ["smg", 1], ["shotgun", 1], ["pistol_ammo", 50], ["smg_ammo", 60],
 				["shells", 12], ["red_dot", 1], ["choke", 1]]},
@@ -24,7 +24,7 @@ const LIST := {
 			{"spent": 0, "stock": [["bandage", 1]]},
 			{"spent": 0, "stock": [["medkit", 1]]},
 		]},
-	"supplies": {"name": "Supplier", "tab": "GEAR", "about": "Armor, helmets, backpacks, drinks, stash space.", "kinds": ["armor", "helmet", "backpack", "drink"], "rate": GEAR_SELL_RATE,
+	"supplies": {"name": "Big Don", "tab": "GEAR", "about": "Armor, helmets, backpacks, drinks, stash space.", "kinds": ["armor", "helmet", "backpack", "drink"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["backpack_small", 1], ["energy_drink", 1]]},
 			{"spent": 5000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},

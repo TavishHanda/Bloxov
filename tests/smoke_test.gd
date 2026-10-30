@@ -2147,13 +2147,13 @@ func _section_hideout_world() -> void:
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)
 	for i in 3:
 		await process_frame
-	_check(world.station != null and world.station.name == "guns" and world._use_button.visible, "at the Gunsmith's counter: USE shows (%s)" % (world.station.name if world.station else "nothing"))
+	_check(world.station != null and world.station.name == "guns" and world._use_button.visible, "at Ponta's counter: USE shows (%s)" % (world.station.name if world.station else "nothing"))
 	world.use_station()
-	_check(world.menu_open() and walker.locked and world.menu._trader_tab == "guns", "USE opens the hideout menu on the Gunsmith")
+	_check(world.menu_open() and walker.locked and world.menu._trader_tab == "guns", "USE opens the hideout menu on Ponta (guns)")
 	# The trader's own screen (0.21.4, owner): stock as cards, buy and sell there, STASH & GEAR goes to the stash.
 	var shop: TraderScreen = world.menu.trader_screen
 	await process_frame
-	_check(shop.visible and shop.trader == "guns" and shop._name.text == "GUNSMITH" and shop._cards.get_child_count() >= 8,
+	_check(shop.visible and shop.trader == "guns" and shop._name.text == "PONTA" and shop._cards.get_child_count() >= 8,
 		"walking up to a trader opens their own screen, stock as cards (%d)" % shop._cards.get_child_count())
 	var money_before := Profile.money
 	Profile.money = 1000000
@@ -2279,7 +2279,7 @@ func _section_hideout_world() -> void:
 	var stash_before: int = Profile.stash.stacks.size()
 	world.enter_range()
 	var picker_guns: Node = world._picker.find_child("Guns", true, false)
-	_check(world.in_range() and picker_guns.has_node("pistol") and not (picker_guns.get_node("pistol") as Button).disabled, "the range offers the guns the Gunsmith sells you")
+	_check(world.in_range() and picker_guns.has_node("pistol") and not (picker_guns.get_node("pistol") as Button).disabled, "the range offers the guns Ponta sells you")
 	world.pick_gun("pistol")
 	for i in 10:
 		await physics_frame
@@ -2636,7 +2636,7 @@ func _section_hideout() -> void:
 	_check(not window.visible and Quests.progress("spare_parts") == 1 and Profile.stash.count_of("foregrip") == 0
 		and Profile.stash.count_of("suppressor") == 1 and Profile.trader_level("guns") == 1, "hand in part of a quest (1/2)")
 	_check(hideout.hand_in("spare_parts") == 1 and Profile.stash.count_of("suppressor") == 0 and Profile.stash.count_of("red_dot") == 1
-		and Profile.trader_level("guns") == 1 and Profile.can_level_up("guns"), "handing in the rest finishes the last quest: the Gunsmith can level up")
+		and Profile.trader_level("guns") == 1 and Profile.can_level_up("guns"), "handing in the rest finishes the last quest: Ponta can level up")
 	hideout.open_trader("guns")
 	var level_button := hideout._trader_rows.get_node_or_null("LevelUp") as Button
 	_check(level_button != null and not level_button.disabled and level_button.text == "LEVEL UP TO 2", "the trader shows a LEVEL UP button (0.17.1)")

@@ -4,7 +4,7 @@ extends Node3D
 ## dug tunnels off (art_source/scripts/make_hideout.py builds it): walk up to a trader's counter, the stash, the
 ## wardrobe or the war table and press the use key, F (or tap USE) to open the hideout menu there. Tab or the MENU button opens
 ## the menu (today's hideout screen: stash, loadout, traders, START RAID, online party) from anywhere.
-## The shooting range (0.21.1): at its bench, pick your own loadout or borrow any gun the Gunsmith sells you, and
+## The shooting range (0.21.1): at its bench, pick your own loadout or borrow any gun Ponta (the guns trader) sells you, and
 ## shoot the targets at 10, 25, 50 and 100 m. Ammo is free; nothing you do there is saved.
 ## Phones open straight on the menu until the touch controls (moving with a stick) exist.
 ## A new player's first visit walks them round it (Tutorial, 0.24.0).
@@ -382,7 +382,7 @@ func _build_range(level: Node3D) -> void:
 		if ItemDB.kind(id) != "weapon":
 			continue
 		var open: bool = entry[2] <= lv
-		_range_button(box, ItemDB.label(id, 1) if open else "%s  (Gunsmith level %d)" % [ItemDB.label(id, 1), entry[2]], id, open)
+		_range_button(box, ItemDB.label(id, 1) if open else "%s  (%s level %d)" % [ItemDB.label(id, 1), Traders.LIST["guns"]["name"], entry[2]], id, open)
 	var leave := _range_button(box, "LEAVE THE RANGE  (Tab)", "", true)
 	leave.name = "LeaveRange"
 	_range_hud = CanvasLayer.new()
@@ -615,7 +615,7 @@ static func stats_board_text() -> String:
 	return RecordScreen.stats_text()
 
 
-## The trader whose quests you'd want to look at: the first one with jobs still open (the Gunsmith if none).
+## The trader whose quests you'd want to look at: the first one with jobs still open (Ponta, the guns trader, if none).
 static func quest_trader() -> String:
 	for trader: String in Traders.LIST:
 		var lv := Profile.trader_level(trader)

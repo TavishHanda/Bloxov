@@ -10,14 +10,17 @@ const BODIES := {"Scav": "res://scenes/scav.tscn", "Sniper": "res://scenes/snipe
 	"Raider": "res://scenes/raider.tscn", "Bon": "res://scenes/boss.tscn"}
 const CONTAINER_SCENES := {"3_crate": "res://scenes/loot_crate.tscn", "4_locker": "res://scenes/loot_locker.tscn",
 	"5_safe": "res://scenes/loot_safe.tscn"}
-## Kits: [name, [[item id, count], ...]]
+## Kits by tier (owner, 2026-10-30: compare a raid's haul to a bad, mid, good and really good kit): [name, [[item id, count], ...]].
+## Heavy armor, the Combat Helmet and the Large Backpack aren't sold (loot or Ming's Gear Box only): priced as if they were.
 const KITS := [
-	["Starter (Stinger)", [["pistol", 1], ["pistol_ammo", 50], ["bandage", 2]]],
-	["Wasp kit", [["smg", 1], ["smg_ammo", 90], ["bandage", 2], ["backpack_small", 1]]],
-	["Hound kit", [["ak", 1], ["rifle_ammo", 120], ["armor_light", 1], ["helmet_basic", 1], ["backpack_medium", 1], ["bandage", 2], ["medkit", 1]]],
-	["Lancer kit", [["sniper", 1], ["sniper_ammo", 20], ["scope_8x", 1], ["armor_light", 1], ["helmet_basic", 1], ["backpack_medium", 1], ["medkit", 1], ["bandage", 2]]],
-	["Kitted Hound", [["ak", 1], ["rifle_ammo", 120], ["red_dot", 1], ["foregrip", 1], ["suppressor", 1], ["ext_mag", 1], ["armor_light", 1], ["helmet_basic", 1], ["backpack_medium", 1], ["medkit", 2], ["grenade", 2]]],
+	["Bad (Stinger)", [["pistol", 1], ["pistol_ammo", 50], ["bandage", 2]]],
+	["Mid (Wasp)", [["smg", 1], ["smg_ammo", 120], ["red_dot", 1], ["armor_light", 1], ["helmet_basic", 1], ["backpack_small", 1], ["bandage", 2], ["medkit", 1]]],
+	["Good (Hound)", [["ak", 1], ["rifle_ammo", 120], ["red_dot", 1], ["foregrip", 1], ["armor_light", 1], ["helmet_basic", 1], ["backpack_medium", 1], ["bandage", 2], ["medkit", 1], ["grenade", 1]]],
+	["Really good (Hound)", [["ak", 1], ["rifle_ammo", 180], ["red_dot", 1], ["foregrip", 1], ["suppressor", 1], ["ext_mag", 1], ["armor_heavy", 1], ["helmet_good", 1], ["backpack_large", 1], ["bandage", 2], ["medkit", 2], ["grenade", 2], ["energy_drink", 1], ["pistol", 1], ["pistol_ammo", 50]]],
+	["Really good (Lancer)", [["sniper", 1], ["sniper_ammo", 30], ["scope_8x", 1], ["suppressor", 1], ["armor_heavy", 1], ["helmet_good", 1], ["backpack_large", 1], ["bandage", 2], ["medkit", 2], ["grenade", 1], ["pistol", 1], ["pistol_ammo", 50]]],
 ]
+## Room to carry loot home: pockets 4x1 + secure pocket 2x2 + the backpack's grid (item cells, shapes ignored).
+const CARRY := {"Small Backpack": 8 + 12, "Medium Backpack": 8 + 20, "Large Backpack": 8 + 30}
 
 var runs := 2000
 
@@ -75,16 +78,28 @@ func _initialize() -> void:
 	print("  Bunker run (Bunker place, + Bon kill):        %s" % ItemDB.money(roundi(by_place.get("Bunker", 0.0) + body_avg["Bon"])))
 	print("  Every unlocked container on the map:          %s" % ItemDB.money(roundi(everything)))
 	print("  (You carry out what fits: a medium backpack + pockets holds a fraction of a full loop.)")
+	print("\n== What you carry home (best value per cell first, the rest left behind) ==")
+	var unlocked := containers.filter(func(c): return not c["locked"])
+	var routes := [["Quick raid", 8, 2, 0], ["Town loop", 20, 4, 1]]
+	var carried := {}
+	for r: Array in routes:
+		for bag in CARRY:
+			var v := _carry_haul(unlocked, r[1], r[2], r[3], CARRY[bag])
+			carried["%s|%s" % [r[0], bag]] = v
+			print("  %-11s %-16s %s" % [r[0], bag, ItemDB.money(roundi(v))])
+	quick = carried["Quick raid|Medium Backpack"]
+	loop = carried["Town loop|Medium Backpack"]
+	print("  (Kits below are counted against these two with a Medium Backpack.)")
 	print("\n== Kits (buy price today) ==")
 	for kit: Array in KITS:
 		var cost := 0
 		var missing: Array[String] = []
 		for entry: Array in kit[1]:
 			cost += Traders.buy_price(entry[0], entry[1])
-			if Traders.trader_for(entry[0]) == "":
+			if not _sold(entry[0]):
 				missing.append(ItemDB.display_name(entry[0]))
 		var note := "" if missing.is_empty() else "  (loot-only: %s)" % ", ".join(missing)
-		print("  %-18s %8s  = %.1f quick raids, %.1f town loops%s" % [kit[0], ItemDB.money(cost), cost / quick, cost / loop, note])
+		print("  %-21s %8s  = %.1f quick raids, %.1f town loops%s" % [kit[0], ItemDB.money(cost), cost / quick, cost / loop, note])
 	print("\n== Ming's boxes (average sell value of what comes out) ==")
 	for box: String in Traders.BOXES:
 		var total := 0
@@ -164,3 +179,65 @@ func _avg_body(path: String) -> float:
 			total += Traders.sell_price(stack)
 	ai.free()
 	return float(total) / runs
+
+
+func _sold(id: String) -> bool:
+	for t: String in Traders.LIST:
+		for level: Dictionary in Traders.LIST[t]["levels"]:
+			for entry: Array in level["stock"]:
+				if entry[0] == id:
+					return true
+	return false
+
+
+## Average sell value of what fits in `cells` after opening `count` random unlocked containers and looting the
+## bodies, keeping the best value per cell first (a careful player; shapes and stack merging are ignored).
+func _carry_haul(unlocked: Array, count: int, scavs: int, raiders: int, cells: int) -> float:
+	var total := 0
+	var n := maxi(runs / 10, 50)
+	for i in n:
+		var found: Array = []   # [sell value, cells]
+		var picks := unlocked.duplicate()
+		picks.shuffle()
+		for c: Dictionary in picks.slice(0, count):
+			var box: LootContainer = (load(c["scene"]) as PackedScene).instantiate()
+			box.name = c["name"]
+			if c["place"] != "":
+				box.set_meta("place", c["place"])
+			box._ready()
+			for stack in box.grid.stacks:
+				found.append([Traders.sell_price(stack), stack.size().x * stack.size().y])
+			box.free()
+		for j in scavs + raiders:
+			for stack in _body_stacks(BODIES["Scav" if j < scavs else "Raider"]):
+				found.append([Traders.sell_price(stack), stack.size().x * stack.size().y])
+		found.sort_custom(func(a, b): return float(a[0]) / a[1] > float(b[0]) / b[1])
+		var room := cells
+		for f: Array in found:
+			if f[1] <= room:
+				room -= f[1]
+				total += f[0]
+	return float(total) / n
+
+
+## One body's loot as stacks (same rolls as _avg_body).
+func _body_stacks(path: String) -> Array:
+	var ai: Node = (load(path) as PackedScene).instantiate()
+	var out: Array = []
+	var gun: String = ai.weapon_drop if ai.weapon_drop != "" else AILoadouts.pick(ai.loadout)
+	if gun != "" and randf() < ai.weapon_drop_chance:
+		out.append(AILoadouts.dropped_gun(gun, ai.drop_parts, ai.drop_part_chance))
+	for id in ai.extra_drops:
+		out.append(ItemStack.new(id))
+	for id in ItemDB.TABLE_CHANCES.get(ai.loot_table, {}):
+		if randf() < ItemDB.TABLE_CHANCES[ai.loot_table][id]:
+			out.append(ItemStack.new(id))
+	for gear in [ai.armor, ai.helmet]:
+		if gear != "":
+			out.append(ItemStack.new(gear))
+	for j in randi_range(ai.min_drops, ai.max_drops):
+		var stack := ItemStack.new(ItemDB.roll(ai.loot_table))
+		stack.count = ItemDB.roll_count(stack.id)
+		out.append(stack)
+	ai.free()
+	return out
