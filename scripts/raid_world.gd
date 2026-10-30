@@ -154,6 +154,16 @@ func open_door(id: String) -> void:
 	door_opened.emit(id)
 
 
+## The key key door `id` needs ("" if there's no such door, or it's open already).
+func door_key(id: String) -> String:
+	if id.is_empty() or id.contains("/") or id.contains(".."):
+		return ""
+	var door := raid.get_node_or_null("KeyDoors/" + id)
+	if door == null or door.get("is_open") or not door.get("key") is String:
+		return ""
+	return door.get("key")
+
+
 ## A player broke window pane `pane` (0.18.8): break it in this raid's map too, and tell the raid.
 func break_window(pane: int) -> void:
 	var blocks := raid.get_node_or_null("Level/Blocks")   # untyped: no BoxMap type here (see the top)

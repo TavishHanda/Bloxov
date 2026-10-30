@@ -7,6 +7,10 @@ extends RefCounted
 ##   - Movement: how far a player may move between updates (a speed allowance that refills, with room for lag
 ##     spikes, falls, shoves and vaults) and whether they walked through a wall. A move that fails is not
 ##     taken: the server keeps the player where they were and tells their game to put them back.
+##   - What each player carries (0.25.1): their kit as the raid starts, plus what they take from containers, minus
+##     what they put in, drop, fire or throw. Firing a gun or throwing a grenade they don't have, or putting in or
+##     dropping items they never had, is refused. (What they bring in is still on trust until the online stash
+##     moves to the server in the Stash update.)
 ##   - Strikes: each thing caught adds points that fade over time; a player who keeps cheating gets kicked
 ##     (owner's call: undo + log, kick on repeats). There are no bans yet: those need accounts (Stash update).
 ## Kept free of player/gun scripts (Network is an autoload, see net.gd's top).
@@ -152,3 +156,80 @@ func forget(peer: int) -> void:
 	_buckets.erase(peer)
 	_strikes.erase(peer)
 	_moves.erase(peer)
+
+
+# --- What a player carries (0.25.1) ---------------------------------------------------
+
+## Adds up the items in stack entries (GridInventory.stack_data) into `counts` (item id -> how many): each
+## stack's count, the attachments on a gun, and the rounds loaded in it (as its ammo). Malformed entries count
+## for nothing.
+static func count_stacks(entries: Array, counts: Dictionary) -> Dictionary:
+	for entry: Variant in entries:
+		var stack := GridInventory.data_stack(entry)
+		if stack == null:
+			continue
+		counts[stack.id] = int(counts.get(stack.id, 0)) + stack.count
+		for part: Variant in stack.attachments.values():
+			counts[part] = int(counts.get(part, 0)) + 1
+		var ammo := String(ItemDB.item(stack.id).get("ammo", ""))
+		if stack.loaded > 0 and ammo != "":
+			counts[ammo] = int(counts.get(ammo, 0)) + stack.loaded
+	return counts
+
+
+## Everything in a container's net_data() (LootContainer: its grid, and a body's gear slots), counted.
+static func count_container(data: Array) -> Dictionary:
+	var counts := {}
+	if data.size() >= 3 and data[2] is Array:
+		count_stacks(data[2], counts)
+	if data.size() == 4 and data[3] is Array:
+		for slot: Variant in data[3]:
+			if slot is Array and slot.size() >= 3 and slot[2] is Array:
+				count_stacks(slot[2], counts)
+	return counts
+
+
+## A player changed a container from `before` to `after` (counted): what they took is now carried, and what they
+## put in must have been. Returns the first item they put in without carrying it ("" = fine; only then is
+## `carried` updated).
+static func move_items(carried: Dictionary, before: Dictionary, after: Dictionary) -> String:
+	var ids := before.keys()
+	for id: Variant in after:
+		if not before.has(id):
+			ids.append(id)
+	for id: Variant in ids:
+		if int(after.get(id, 0)) - int(before.get(id, 0)) > int(carried.get(id, 0)):
+			return id
+	for id: Variant in ids:
+		carried[id] = int(carried.get(id, 0)) - (int(after.get(id, 0)) - int(before.get(id, 0)))
+	return ""
+
+
+## Stack entries a player dropped (or their body), cut down to what they carry: entries they can't cover are left
+## out. What's kept comes out of `carried`. Returns [kept entries, how many were left out].
+static func take_entries(carried: Dictionary, entries: Array) -> Array:
+	var kept := []
+	var refused := 0
+	for entry: Variant in entries:
+		var counts := count_stacks([entry], {})
+		if counts.is_empty():
+			continue
+		var covered := true
+		for id: Variant in counts:
+			covered = covered and int(counts[id]) <= int(carried.get(id, 0))
+		if not covered:
+			refused += 1
+			continue
+		for id: Variant in counts:
+			carried[id] = int(carried[id]) - int(counts[id])
+		kept.append(entry)
+	return [kept, refused]
+
+
+## Takes `amount` of `id` out of `carried` (a round fired, a grenade thrown). False (and nothing taken) if they
+## don't have that many.
+static func use_item(carried: Dictionary, id: String, amount := 1) -> bool:
+	if int(carried.get(id, 0)) < amount:
+		return false
+	carried[id] = int(carried[id]) - amount
+	return true

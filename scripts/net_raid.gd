@@ -63,6 +63,7 @@ func _ready() -> void:
 	Network.main.put_back.connect(func(pos: Vector3) -> void:
 		player.global_position = pos
 		player.velocity = Vector3.ZERO)
+	_send_kit.call_deferred()
 	# Containers' contents come from the server when opened (the rolls made on this machine don't count).
 	for box in RaidScope.nodes(self, &"loot_containers"):
 		(box as LootContainer).grid.clear()
@@ -223,6 +224,14 @@ func on_bag_removed(id: String) -> void:
 	var bag := find_container(id)
 	if bag != null:
 		bag.queue_free()
+
+
+## Tells the server everything we carry as the raid starts (it counts what's ours from there, 0.25.1).
+func _send_kit() -> void:
+	var data := []
+	for stack in player.inventory.all_stacks():
+		data.append(GridInventory.stack_data(stack))
+	Network.main.send_kit(data)
 
 
 ## We died: everything we carried (except the secure pocket) becomes a body others can loot.

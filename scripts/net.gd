@@ -144,6 +144,9 @@ var guard := NetGuard.new()
 var kick_cheaters := true
 ## Peers being kicked (their requests are ignored until they're gone) -> true.
 var _kicked := {}
+## What each player in a raid carries (NetGuard.count_stacks: item id -> how many), from their kit as the raid
+## starts plus what they took, minus what they put down, fired and threw (0.25.1).
+var _carried := {}
 ## When each player was last told to go back to where the server has them (put-backs are sent at most ~3 a second).
 var _fix_sent := {}
 var _send_left := 0.0
@@ -281,6 +284,7 @@ func _start_now() -> void:
 func _leave_raid() -> void:
 	_server_call(func(peer: int) -> String:
 		_player_states.erase(peer)
+		_carried.erase(peer)
 		guard.reset_moves(peer)
 		_reviving.erase(peer)
 		matchmaker.leave_raid(peer)
@@ -391,6 +395,14 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 	if (world == null or me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED) or stats.get("kind") != "weapon"
 			or from.distance_to(me[0] + Vector3(0, 1.4, 0)) > 2.5 or dirs.is_empty() or dirs.size() > int(stats.get("pellets", 1))
 			or not _spend_shot(peer, float(stats.get("rpm", 600)))):
+		return
+	# Only a gun they carry, and only with rounds they have (0.25.1).
+	var carried: Dictionary = _carried.get(peer, {})
+	if int(carried.get(weapon, 0)) < 1:
+		_caught(peer, "item", "fired a %s they don't carry" % weapon)
+		return
+	if not NetGuard.use_item(carried, String(stats.get("ammo", ""))):
+		_caught(peer, "item", "fired a %s with no rounds" % weapon)
 		return
 	_last_shot[peer] = _now()
 	var targets := {}   # target key -> [hit, damage, headshot]
@@ -507,8 +519,19 @@ func _open_container(id: String) -> void:
 func _container_update(id: String, data: Array) -> void:
 	var peer := _sender("loot")
 	var world := _world_of(peer)
-	if world != null:
-		world.update_container(peer, id, data)
+	var box := world.container(id) if world != null else null
+	if box == null or world.locks.get(id) != peer:
+		return
+	# What they took is theirs now; what they put in has to be something they carry (0.25.1).
+	var old_data := box.net_data()
+	var before := NetGuard.count_container(old_data)
+	world.update_container(peer, id, data)
+	var after := NetGuard.count_container(box.net_data()) if is_instance_valid(box) and not box.is_queued_for_deletion() else {}
+	var made_up := NetGuard.move_items(_carried.get_or_add(peer, {}), before, after)
+	if made_up != "":
+		box.load_net_data(old_data)
+		_container_contents.rpc_id(peer, id, old_data)
+		_caught(peer, "item", "put %s they don't carry in %s" % [made_up, id])
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -522,9 +545,15 @@ func _close_container() -> void:
 ## A player unlocked a key door (their game checked and used up the key): open it here and for everyone else.
 @rpc("any_peer", "call_remote", "reliable")
 func _open_door(id: String) -> void:
-	var world := _world_of(_sender("world"))
-	if world != null:
-		world.open_door(id)
+	var peer := _sender("world")
+	var world := _world_of(peer)
+	if world == null:
+		return
+	var key := world.door_key(id)
+	if key != "" and int(_carried.get(peer, {}).get(key, 0)) < 1:
+		_caught(peer, "item", "opened %s without its key" % id)
+		return
+	world.open_door(id)
 
 
 ## A player broke a window pane (0.18.8): break it here, and for everyone else in the raid.
@@ -553,6 +582,9 @@ func _grenade(from: Vector3, vel: Vector3) -> void:
 	var me: Array = _player_states[peer]
 	if (me[0] as Vector3).distance_to(from) > 4.0:
 		return   # (not from where they are)
+	if not NetGuard.use_item(_carried.get(peer, {}), "grenade"):
+		_caught(peer, "item", "threw a grenade they don't have")
+		return
 	world.throw_grenade(from, vel)
 	for other in _raid_peers(matchmaker.players[peer]["raid"]):
 		if other != peer:
@@ -567,6 +599,11 @@ func _drop_items(data: Array, is_body: bool) -> void:
 	if world == null or not _player_states.has(peer) or data.size() > 200:
 		return
 	var me: Array = _player_states[peer]
+	# Only what they carry (0.25.1): anything else is left out.
+	var taken := NetGuard.take_entries(_carried.get_or_add(peer, {}), data)
+	data = taken[0]
+	if taken[1] > 0:
+		_caught(peer, "item", "dropped %d things they don't carry" % taken[1])
 	var title: String = ("%s's Body" % matchmaker.players[peer]["name"]) if is_body else "Dropped Items"
 	if is_body and _killed_by_player(peer):
 		# Killed by another player (0.15.28, owner): "Name's Dog Tag" on the body, in its own slot.
@@ -576,6 +613,19 @@ func _drop_items(data: Array, is_body: bool) -> void:
 		data.append(GridInventory.stack_data(tag))
 	var forward := Vector3(-sin(me[1]), 0, -cos(me[1]))
 	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data, is_body)
+
+
+## A player's kit as their raid starts (every stack they carry, GridInventory.stack_data): what the server counts as
+## theirs (0.25.1). Once per raid. Still taken on trust: the stash lives in their browser until the Stash update.
+@rpc("any_peer", "call_remote", "reliable")
+func _kit(data: Array) -> void:
+	var peer := _sender("kit")
+	if peer == 0 or matchmaker.players[peer]["raid"] == 0:
+		return
+	if _carried.has(peer) or data.size() > 300:
+		_caught(peer, "bad_data", "kit")
+		return
+	_carried[peer] = NetGuard.count_stacks(data, {})
 
 
 ## A player started (on) or stopped holding F on a downed teammate: tell the downed one (their screen shows it).
@@ -683,6 +733,7 @@ func _on_peer_left(peer: int) -> void:
 	_reviving.erase(peer)
 	_kicked.erase(peer)
 	_fix_sent.erase(peer)
+	_carried.erase(peer)
 	guard.forget(peer)
 	matchmaker.remove_player(peer)
 	_flush()
@@ -758,6 +809,7 @@ func _send_raid_start(id: int) -> void:
 		raid_names[peer] = matchmaker.players[peer]["name"]
 		raid_looks[peer] = matchmaker.players[peer].get("look", "")
 		_hits_out.erase(peer)
+		_carried.erase(peer)
 		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
 	for peer in raid["players"]:
@@ -930,6 +982,12 @@ func break_window(pane: int) -> void:
 func use_door(id: String, state: int) -> void:
 	if in_online_raid():
 		_use_door.rpc_id(1, id, state)
+
+
+## Everything we carry as the raid starts (0.25.1): the server counts it as ours.
+func send_kit(data: Array) -> void:
+	if in_online_raid():
+		_kit.rpc_id(1, data)
 
 
 ## Items we dropped (`body` = we died: everything we carried).

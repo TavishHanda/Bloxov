@@ -3274,6 +3274,18 @@ func _net_peer(branch_name: String) -> Network:
 	return net
 
 
+## Online tests (0.25.1): the server only takes shots, drops and loot moves for what a player carries, so each test
+## player says it brought plenty (every gun, rounds, grenades and the items the tests drop).
+func _send_test_kit(c: Network) -> void:
+	var kit := []
+	for id in ["ak", "pistol", "smg", "shotgun", "sniper", "phone", "gold_watch", "bunker_key"]:
+		kit.append([id, 1, 0, 0, false, 0])
+	for id in ["rifle_ammo", "pistol_ammo", "smg_ammo", "shells", "sniper_ammo", "grenade", "bandage"]:
+		for i in 4:
+			kit.append([id, ItemDB.max_stack(id), 0, 0, false, 0])
+	c.send_kit(kit)
+
+
 ## Waits until `condition` is true (checked every frame, up to ~5 s).
 func _until(condition: Callable) -> void:
 	for i in 300:
@@ -3314,6 +3326,8 @@ func _section_pvp() -> void:
 	c1.set_queued(true)
 	c2.set_queued(true)
 	await _until(func() -> bool: return c1.in_raid and c2.in_raid)
+	for c in [c1, c2]:
+		_send_test_kit(c)
 	var world: RaidWorld = server._worlds.values()[0] if not server._worlds.is_empty() else null
 	_check(world != null and world.get_node_or_null("Main/Level") != null and world.get_node_or_null("Main/Player") == null,
 		"each online raid gets its own copy of the map on the server (map only)")
@@ -3451,6 +3465,8 @@ func _section_online_ai() -> void:
 	c1.start_now()
 	c2.start_now()
 	await _until(func() -> bool: return c1.in_raid and c2.in_raid and server._worlds.size() == 2)
+	for c in [c1, c2]:
+		_send_test_kit(c)
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()
 	var w1: RaidWorld = server._worlds[server.matchmaker.players[c1_id]["raid"]]
@@ -3635,6 +3651,15 @@ func _section_anticheat() -> void:
 	_check(g.check_move(2, Vector3(5, 0, 0), 1.0, func(_a: Vector3, _b: Vector3) -> bool:
 		blocked_called.append(true)
 		return true) == "wall" and blocked_called.size() == 1, "a move through a wall is caught")
+	# What a player carries (0.25.1): counted with the gun's attachments and loaded rounds.
+	var counts := NetGuard.count_stacks([["ak", 1, 0, 0, false, 30, 0, {"scope": "red_dot"}], ["rifle_ammo", 60, 0, 0, false, 0], ["nope", 1, 0, 0, false, 0]], {})
+	_check(counts == {"ak": 1, "red_dot": 1, "rifle_ammo": 90}, "a kit is counted with the gun's attachments and loaded rounds (%s)" % counts)
+	var carried := {"bandage": 2}
+	_check(NetGuard.move_items(carried, {"phone": 1}, {}) == "" and carried == {"bandage": 2, "phone": 1}, "taking from a container adds to what you carry")
+	_check(NetGuard.move_items(carried, {}, {"bandage": 1, "gold_watch": 1}) == "gold_watch" and carried["bandage"] == 2,
+		"putting in something you don't carry is refused (and nothing changes)")
+	var kept := NetGuard.take_entries(carried, [["bandage", 1, 0, 0, false, 0], ["ak", 1, 0, 0, false, 0]])
+	_check(kept[0].size() == 1 and kept[1] == 1 and carried["bandage"] == 1, "a drop keeps only what you carry")
 	# Strikes fade; one that keeps cheating gets kicked.
 	var kick := false
 	for i in 3:
@@ -3671,6 +3696,53 @@ func _section_anticheat() -> void:
 	_check(not got["back"].is_empty() and (got["back"][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10))
 		and (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)),
 		"a teleport isn't taken: the server keeps them where they were and their game puts them back")
+	# What they carry (0.25.1): only their own gun, only rounds they have, only their own things into a crate or
+	# onto the ground, grenades and keys only if they have one.
+	server.kick_cheaters = false
+	var c1_got := {"opened": {}}
+	c1.container_opened.connect(func(box: String, data: Array) -> void: c1_got["opened"][box] = data)
+	c1.send_kit([["pistol", 1, 0, 0, false, 1], ["pistol_ammo", 1, 0, 0, false, 0], ["bandage", 1, 0, 0, false, 0]])
+	await _until(func() -> bool: return server._carried.has(id))
+	_check(server._carried.get(id, {}).get("pistol_ammo") == 2 and server._carried[id].get("pistol") == 1,
+		"the server counts the kit a player brings (the round loaded in the gun counts as a round)")
+	var muzzle := Vector3(0, 1.5, -10)
+	var strikes_before := server.guard.strike_points(id, server._now())
+	c1.send_shot(muzzle, PackedVector3Array([Vector3.FORWARD]), "ak")
+	for i in 3:
+		OS.delay_msec(200)
+		c1.send_shot(muzzle, PackedVector3Array([Vector3.FORWARD]), "pistol")
+	await _until(func() -> bool: return server.guard.strike_points(id, server._now()) > strikes_before + 5.0)
+	_check(server._carried[id]["pistol_ammo"] == 0 and server.guard.strike_points(id, server._now()) > strikes_before + 5.0,
+		"a gun they don't carry, and a third shot from two rounds, are refused")
+	var crate := world.container("Crate0")
+	var crate_before := crate.net_data()
+	c1.open_container("Crate0")
+	await _until(func() -> bool: return c1_got["opened"].has("Crate0"))
+	var stuffed: Array = c1_got["opened"]["Crate0"].duplicate(true)
+	stuffed[2] = stuffed[2].filter(func(e: Array) -> bool: return e[2] != 3 or e[3] != 2)
+	stuffed[2].append(["gold_watch", 1, 3, 2, false, 0])
+	c1_got["opened"].erase("Crate0")
+	c1.update_container("Crate0", stuffed)
+	await _until(func() -> bool: return c1_got["opened"].has("Crate0"))
+	_check(crate.net_data() == crate_before and c1_got["opened"]["Crate0"] == crate_before,
+		"putting a made-up item in a crate is undone (and the player's screen gets the real contents back)")
+	var taken: Array = crate_before.duplicate(true)
+	var took: Array = taken[2].pop_front()
+	c1.update_container("Crate0", taken)
+	await _frames(4)
+	_check(int(server._carried[id].get(took[0], 0)) >= int(took[1]), "what a player takes from a crate counts as theirs (%s)" % took[0])
+	c1.close_container()
+	var bags_before := world.raid.get_children().filter(func(n: Node) -> bool: return n is LootContainer).size()
+	c1.drop_items([["sniper", 1, 0, 0, false, 5], ["bandage", 1, 0, 0, false, 0]])
+	await _frames(6)
+	var dropped := LootContainer.pile_near(world.raid, server._player_states[id][0])
+	_check(dropped != null and dropped.grid.count_of("bandage") == 1 and dropped.grid.count_of("sniper") == 0
+		and not server._carried[id].has("sniper") and server._carried[id]["bandage"] == 0,
+		"a drop only holds what they carry: the made-up rifle is left out (%d bags before)" % bags_before)
+	strikes_before = server.guard.strike_points(id, server._now())
+	c1.send_grenade(Vector3(0, 1.5, -10), Vector3(0, 2, -5))
+	await _until(func() -> bool: return server.guard.strike_points(id, server._now()) > strikes_before + 2.5)
+	_check(server.guard.strike_points(id, server._now()) > strikes_before + 2.5, "a grenade they don't have is refused")
 	# Dead stays dead (a cheat can't get back up), and a dead body doesn't move.
 	c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
 	await _frames(4)
@@ -3678,6 +3750,7 @@ func _section_anticheat() -> void:
 	await _frames(4)
 	_check(server._player_states[id][4] & Hitbox.FLAG_DEAD and (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)),
 		"a dead player stays dead, and their body stays put")
+	server.kick_cheaters = true
 	for i in 5:
 		server._caught(id, "teleport", "test")
 	await _until(func() -> bool: return got["lost"] and not c1.is_online())
@@ -3713,6 +3786,8 @@ func _section_online_loot() -> void:
 	c1.set_queued(true)
 	c2.set_queued(true)
 	await _until(func() -> bool: return c1.in_raid and c2.in_raid)
+	for c in [c1, c2]:
+		_send_test_kit(c)
 	for i in 4:
 		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
 		c2.send_state([Vector3(2, 0.1, -10), 0.0, 0.0, 0.0, 0])
@@ -4141,6 +4216,8 @@ func _section_old_bloxov() -> void:
 	# Online the server's copy of the map has the doors too; a player unlocking one opens it there and tells the raid.
 	var opened := []
 	world.door_opened.connect(func(id: String) -> void: opened.append(id))
+	_check(world.door_key("BunkerDoor") == "bunker_key" and world.door_key("../Loot") == "",
+		"the server knows which key a door needs (it checks the player carries it, 0.25.1)")
 	world.open_door("BunkerDoor")
 	world.open_door("BunkerDoor")
 	world.open_door("../Loot")

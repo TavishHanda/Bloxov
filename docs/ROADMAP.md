@@ -128,8 +128,8 @@ Next: the M4 art updates (World art, Look, Sound), below.
   extract check, rate limits on every request, and logging/flagging suspicious players (simple kick/ban list).
   Detecting aimbots/wallhacks on the client isn't possible in a browser; the server checks above are the defense.
   **Started 0.25.0 (owner OK'd 2026-10-30):** rate limits, movement checks (speed/fly/teleport/walls; failed moves
-  are put back), dead stays dead, strikes + kick on repeats (`scripts/net_guard.gd`), Windows build in CI. Next:
-  carried-kit tracking, server-side health, extract check.
+  are put back), dead stays dead, strikes + kick on repeats (`scripts/net_guard.gd`), Windows build in CI. 0.25.1:
+  carried-kit tracking (guns, rounds, grenades, keys, crates, drops). Next: server-side health, extract check.
 - **Platform plugins (owner, 2026-10-12: "make sure we have this, we will need it"). All free and open source;
   only the store fees cost money. Check each is still maintained and works with our Godot version when we start.**
   - **Steam (Steam early access prep):** [GodotSteam](https://codeberg.org/godotsteam/godotsteam) for
