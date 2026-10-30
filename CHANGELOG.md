@@ -19,6 +19,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 - Settings now keep a second copy in the browser's localStorage too, like the profile already did.
 - PRIVACY mentions the backup file.
 
+## 0.25.5 (Dearer traders)
+- **Traders charge 30% more** (owner, after the economy check): buy prices are now 1.56x an item's value (was 1.2x).
+  Selling pays the same as before. A good Hound kit now costs about 2.2 quick raids instead of 1.7, closer to the
+  "good kit in 2-3 raids" pace.
+- **New profiles start with $65,000** (was $50,000) so a first kit still fits. Existing saves keep their own money.
+
 ## 0.25.4 (Ponta and Big Don)
 - **Trader names (owner):** the Gunsmith is now **Ponta** and the Supplier is now **Big Don**. The shooting range's
   locked guns say "Ponta level 2" and so on. The Medic keeps its placeholder name for now.

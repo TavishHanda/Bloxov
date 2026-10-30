@@ -14,8 +14,9 @@ const STASH_SIZE := Vector2i(8, 20)
 const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const STASH_UPGRADE_COST: Array[int] = [0, 50000, 120000, 250000]
 ## Only a brand new profile gets it: a save always keeps its own money.
-## (0.16.1: x5 with the price pass; was $3,000. 0.17.5, owner: $50,000, was $15,000.)
-const START_MONEY := 50000
+## (0.16.1: x5 with the price pass; was $3,000. 0.17.5, owner: $50,000, was $15,000. 0.25.5, owner: $65,000 with
+## trader prices up 30%.)
+const START_MONEY := 65000
 const DEFAULT_STATS := {"raids": 0, "extracts": 0, "deaths": 0, "earned": 0}
 ## Where an unreadable save is copied before the profile is reset, so it isn't silently lost.
 const BAD_PATH := "user://profile.bad.json"

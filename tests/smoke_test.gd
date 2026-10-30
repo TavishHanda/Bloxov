@@ -1917,8 +1917,8 @@ func _section_profile() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.money == money_before and Profile.stash.count_of("gold_watch") == 1, "profile saves and loads (money + stash)")
-	# (0.17.5, owner) New players start with $50,000; a save from before keeps its own money and everything in it.
-	_check(Profile.START_MONEY == 50000, "new players start with $50,000")
+	# (0.17.5, owner) New players start with $65,000 (0.25.5, was $50,000); a save from before keeps its own money and everything in it.
+	_check(Profile.START_MONEY == 65000, "new players start with $65,000")
 	var old_save := {"version": Profile.VERSION, "money": 1234, "stash_size": [8, 30], "saved_at": 50.0,
 		"stash": [{"id": "gold_watch", "count": 1, "x": 0, "y": 0}],
 		"loadout": {"equipment": {"primary": {"id": "ak", "count": 1, "loaded": 30}}, "pockets": [], "backpack": [], "secure": [], "hotbar": ["", "", ""]},
@@ -1933,7 +1933,7 @@ func _section_profile() -> void:
 		and Profile.loadout["equipment"].has("primary") and int(Profile.stats["raids"]) == 7,
 		"an old save keeps its money, stash, loadout and stats (money %d)" % Profile.money)
 	Profile.reset()
-	_check(Profile.money == 50000, "a brand new profile gets $50,000")
+	_check(Profile.money == 65000, "a brand new profile gets $65,000")
 	file = FileAccess.open(Profile.PATH, FileAccess.WRITE)
 	file.store_string(current_file)
 	file.close()
