@@ -79,6 +79,69 @@ jobs:
         with:
           path: build/web
 
+  # The desktop (Windows) game, for Steam later (owner, 2026-10-25: don't let the Steam build rot). Every update
+  # runs the gameplay test on Windows, exports the .exe and starts it. Runs beside the web build and doesn't hold
+  # up its deploy; a red X here means the desktop build broke. The .exe is kept for a week (Actions > Artifacts).
+  desktop:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Godot ${{ env.GODOT_VERSION }} + export templates
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_win64.exe.zip"
+          curl -fsSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          mkdir -p /c/godot
+          unzip -q godot.zip -d /c/godot
+          tpl_dir="$APPDATA/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$tpl_dir"
+          unzip -q templates.tpz "templates/windows*" "templates/version.txt" -d tpl
+          mv tpl/templates/* "$tpl_dir/"
+          rm templates.tpz
+          echo "GODOT=/c/godot/Godot_v${GODOT_VERSION}-stable_win64_console.exe" >> "$GITHUB_ENV"
+
+      - name: Import project
+        run: |
+          "$GODOT" --headless --import 2>&1 | tee import.log
+          if grep -E "SCRIPT ERROR|Parse Error|Compile Error" import.log; then
+            echo "::error::Script errors while importing on Windows (see above)"
+            exit 1
+          fi
+
+      - name: Gameplay test on Windows (tests/smoke_test.gd)
+        timeout-minutes: 6
+        run: |
+          "$GODOT" --headless --fixed-fps 60 -s tests/smoke_test.gd 2>&1 | tee test.log
+          grep -q "SMOKE TEST: PASSED" test.log
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" test.log | grep -v "still in use at exit"; then
+            echo "::error::Godot reported errors on Windows (see above)"
+            exit 1
+          fi
+
+      - name: Export the Windows game and start it (the hideout, 300 frames)
+        timeout-minutes: 4
+        run: |
+          mkdir -p build/windows
+          "$GODOT" --headless --export-release "Windows Desktop" build/windows/Bloxov.exe 2>&1 | tee export.log
+          test -f build/windows/Bloxov.exe
+          test -f build/windows/Bloxov.pck
+          # The console copy of the game prints its log here (the normal .exe has no console window).
+          build/windows/Bloxov.console.exe --headless --quit-after 300 2>&1 | tee run.log
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" run.log | grep -v "still in use at exit"; then
+            echo "::error::The exported Windows game reported errors (see above)"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bloxov-windows
+          path: build/windows
+          retention-days: 7
+
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build
