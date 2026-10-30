@@ -5,7 +5,29 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 the security update (name to come from the owner). -->
+
+## 0.25.0 (Security update: rate limits, movement checks, kicks)
+First step of the security update (owner: online play locked down before the web beta). Nothing changes how the
+game plays; this only stops things a cheat could send.
+- **Rate limits** on everything a player sends the server (moves, shots, loot, doors, grenades, revives, the
+  lobby). Each kind has an allowance well above what the game ever sends; anything over it is dropped.
+- **Movement checks.** The server now checks every move: no faster than a generous speed limit (sprint is 5.6 m/s,
+  the check allows 8 with ~1.5 s of lag-spike slack), no flying up, no teleports, no walking through walls (solid
+  map at knee, waist and head height; vaulting a low wall or crouching under something is fine). Falling is never
+  too fast, and going back to your spawn after falling out of the world is allowed. A move that fails isn't taken:
+  the server keeps you where you were (shots come from there, others see you there) and puts your game back.
+- **Dead stays dead** online: a game that says it died or extracted can't take it back in the same raid, and a
+  body doesn't move.
+- **Strikes and kicks** (owner's call: undo + log, kick on repeats). Each thing caught adds strike points that
+  fade over time (one point every 10 s); 20 points = kicked from the server with a message. An honest player with
+  a bad connection gets put back now and then and never comes close. Every catch is in the server log. No bans
+  yet: with no accounts there's nothing to ban (the Stash update brings accounts).
+- **Windows build in CI.** Every update now also runs the gameplay test on Windows, exports the Windows game
+  (.exe) and starts it, so the future Steam build can't quietly break (owner, 2026-10-25). The .exe is kept for a
+  week under the workflow run's Artifacts. It doesn't hold up the web deploy.
+- Code: `scripts/net_guard.gd` (NetGuard: rate limits, movement, strikes), `RaidWorld.blocked`, `Network.kick`;
+  smoke test section `anticheat`.
 
 ## 0.24.2 (Slower AI)
 - **AI move about 7% slower** (owner: they felt faster since the jointed characters). 0.23 didn't change how fast

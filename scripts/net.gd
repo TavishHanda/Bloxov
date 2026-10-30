@@ -61,6 +61,8 @@ signal player_fired(peer: int, from: Vector3, end: Vector3, weapon: String, supp
 ## Downed (0.9.2): a teammate started or stopped holding F on us; they finished (we're back up).
 signal revive_changed(on: bool)
 signal revived
+## The server didn't take our last moves (0.25.0): we go back to `pos`, where it has us.
+signal put_back(pos: Vector3)
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -137,6 +139,13 @@ var _shot_budget := {}
 var _reviving := {}
 ## A revive only counts after holding this long (a little under REVIVE_TIME for lag; the test shortens it).
 var revive_min_hold := REVIVE_TIME - 0.5
+## Anti-cheat (0.25.0): rate limits, movement checks, strikes (NetGuard). Players caught over and over are kicked.
+var guard := NetGuard.new()
+var kick_cheaters := true
+## Peers being kicked (their requests are ignored until they're gone) -> true.
+var _kicked := {}
+## When each player was last told to go back to where the server has them (put-backs are sent at most ~3 a second).
+var _fix_sent := {}
 var _send_left := 0.0
 var _queue_send_left := 0.0
 
@@ -202,6 +211,7 @@ func start_server(port: int) -> Error:
 	multiplayer.peer_disconnected.connect(_on_peer_left)
 	mode = Mode.SERVER
 	matchmaker.raid_time = RAID_TIME
+	guard.log_func = _log
 	_log("v%s listening on port %d" % [version(), port])
 	return OK
 
@@ -225,9 +235,9 @@ func join_problem(client_version: String) -> String:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _hello(client_version: String, player_name: String, look := "") -> void:
-	if mode != Mode.SERVER:
-		return
 	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER or _kicked.has(peer) or matchmaker.players.has(peer) or not guard.allow(peer, "lobby", _now()):
+		return
 	var reason := join_problem(client_version)
 	if reason != "":
 		_log("peer %d turned away: %s" % [peer, reason])
@@ -271,6 +281,7 @@ func _start_now() -> void:
 func _leave_raid() -> void:
 	_server_call(func(peer: int) -> String:
 		_player_states.erase(peer)
+		guard.reset_moves(peer)
 		_reviving.erase(peer)
 		matchmaker.leave_raid(peer)
 		return "")
@@ -278,16 +289,19 @@ func _leave_raid() -> void:
 
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func _state(state: Array) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if not (mode == Mode.SERVER and matchmaker.players.has(peer) and matchmaker.players[peer]["raid"] != 0
-			and is_valid_state(state)):
+	var peer := _sender("state")
+	if peer == 0 or matchmaker.players[peer]["raid"] == 0:
+		return
+	if not is_valid_state(state):
+		_caught(peer, "bad_data", "state")
 		return
 	var old_flags: int = _player_states[peer][4] if _player_states.has(peer) else 0
 	var was_dead := old_flags & Hitbox.FLAG_DEAD != 0
+	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
+	state = _checked_state(peer, state, old_flags, world)
 	_player_states[peer] = state
 	if not state[4] & Hitbox.FLAG_DEAD:
 		_player_kills.erase(peer)
-	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
 	if world != null:
 		world.record(peer, state, _now())
 		world.update_proxy(peer, state)
@@ -305,14 +319,71 @@ func _state(state: Array) -> void:
 		_tell_kill_feed(matchmaker.players[peer]["raid"], killer, peer)
 
 
+## Server: a state that passed the anti-cheat checks. Dead and extracted stay that way (until the next raid);
+## a move the player couldn't have made isn't taken: they stay where the server has them and their game is told to
+## put them back (NetGuard.check_move).
+func _checked_state(peer: int, state: Array, old_flags: int, world: RaidWorld) -> Array:
+	state = state.duplicate()
+	state[4] = int(state[4]) | (old_flags & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED))
+	if state[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED):
+		var kept: Variant = guard.position_of(peer)
+		if kept != null:
+			state[0] = kept
+		return state
+	var problem := guard.check_move(peer, state[0], _now(), world.blocked if world != null else Callable())
+	if problem == "":
+		return state
+	var kept_pos: Vector3 = guard.position_of(peer)
+	if problem != "fixing":
+		_caught(peer, problem, "%.1f m" % kept_pos.distance_to(state[0]))
+	state[0] = kept_pos
+	if _now() - float(_fix_sent.get(peer, -1.0)) > 0.3 and _peer_open(peer):
+		_fix_sent[peer] = _now()
+		_put_back.rpc_id(peer, kept_pos)
+	return state
+
+
+## Server: the player who sent the request being handled, if it's within its rate limit (NetGuard.RATES);
+## 0 = drop it (offline, not a known player, being kicked, or over the limit).
+func _sender(kind: String) -> int:
+	var peer := multiplayer.get_remote_sender_id()
+	if mode != Mode.SERVER or not matchmaker.players.has(peer) or _kicked.has(peer):
+		return 0
+	if not guard.allow(peer, kind, _now()):
+		_caught(peer, "flood", kind)
+		return 0
+	return peer
+
+
+## Server: `peer` was caught cheating (a NetGuard.STRIKES kind): logged, and kicked once it adds up.
+func _caught(peer: int, kind: String, detail: String) -> void:
+	if guard.strike(peer, kind, detail, _now()) and kick_cheaters:
+		kick(peer, "You were removed from the server for cheating.")
+
+
+## Server: tells a player why, then disconnects them (a moment later, so the message gets there first).
+func kick(peer: int, reason: String) -> void:
+	if _kicked.has(peer):
+		return
+	_kicked[peer] = true
+	var who: String = matchmaker.players[peer]["name"] if matchmaker.players.has(peer) else "?"
+	_log("KICKED %s (peer %d): %s" % [who, peer, reason])
+	if _peer_open(peer):
+		_rejected.rpc_id(peer, reason)
+	get_tree().create_timer(0.5).timeout.connect(func() -> void:
+		var ws := multiplayer.multiplayer_peer as WebSocketMultiplayerPeer
+		if ws != null and matchmaker.players.has(peer):
+			ws.disconnect_peer(peer))
+
+
 ## A player fired: the server decides what it hit (the map blocks shots; players are checked where they were on
 ## the shooter's screen at `view_time`). Damage comes from the weapon's stats, never from the shooter.
 ## `suppressed`: a suppressor on the gun, so AI hear it half as far (0.15.1). `dirs`: one per bullet, or one per
 ## pellet for a shotgun (0.15.4; at most its "pellets"); pellets that hit the same target add up into one hit.
 @rpc("any_peer", "call_remote", "reliable")
 func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: float, suppressed: bool) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if mode != Mode.SERVER or not matchmaker.players.has(peer) or not _player_states.has(peer):
+	var peer := _sender("shot")
+	if peer == 0 or not _player_states.has(peer):
 		return
 	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
 	var me: Array = _player_states[peer]
@@ -382,8 +453,8 @@ func _spend_shot(peer: int, rpm: float) -> bool:
 ## 45 damage; from behind it always kills (armor or not).
 @rpc("any_peer", "call_remote", "reliable")
 func _knife(from: Vector3, dir: Vector3) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if mode != Mode.SERVER or not matchmaker.players.has(peer) or not _player_states.has(peer):
+	var peer := _sender("knife")
+	if peer == 0 or not _player_states.has(peer):
 		return
 	var world: RaidWorld = _worlds.get(matchmaker.players[peer]["raid"])
 	var me: Array = _player_states[peer]
@@ -421,10 +492,10 @@ func _knife(from: Vector3, dir: Vector3) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _open_container(id: String) -> void:
-	var world := _world_of(multiplayer.get_remote_sender_id())
+	var peer := _sender("loot")
+	var world := _world_of(peer)
 	if world == null:
 		return
-	var peer := multiplayer.get_remote_sender_id()
 	var data: Variant = world.open_container(peer, id)
 	if data == null:
 		_container_busy.rpc_id(peer, id)
@@ -434,22 +505,24 @@ func _open_container(id: String) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _container_update(id: String, data: Array) -> void:
-	var world := _world_of(multiplayer.get_remote_sender_id())
+	var peer := _sender("loot")
+	var world := _world_of(peer)
 	if world != null:
-		world.update_container(multiplayer.get_remote_sender_id(), id, data)
+		world.update_container(peer, id, data)
 
 
 @rpc("any_peer", "call_remote", "reliable")
 func _close_container() -> void:
-	var world := _world_of(multiplayer.get_remote_sender_id())
+	var peer := _sender("loot")
+	var world := _world_of(peer)
 	if world != null:
-		world.close_containers(multiplayer.get_remote_sender_id())
+		world.close_containers(peer)
 
 
 ## A player unlocked a key door (their game checked and used up the key): open it here and for everyone else.
 @rpc("any_peer", "call_remote", "reliable")
 func _open_door(id: String) -> void:
-	var world := _world_of(multiplayer.get_remote_sender_id())
+	var world := _world_of(_sender("world"))
 	if world != null:
 		world.open_door(id)
 
@@ -457,7 +530,7 @@ func _open_door(id: String) -> void:
 ## A player broke a window pane (0.18.8): break it here, and for everyone else in the raid.
 @rpc("any_peer", "call_remote", "reliable")
 func _break_window(pane: int) -> void:
-	var world := _world_of(multiplayer.get_remote_sender_id())
+	var world := _world_of(_sender("world"))
 	if world != null:
 		world.break_window(pane)
 
@@ -465,7 +538,7 @@ func _break_window(pane: int) -> void:
 ## A player opened or shut a door (0.17): swing it here, and for everyone else in the raid.
 @rpc("any_peer", "call_remote", "reliable")
 func _use_door(id: String, state: int) -> void:
-	var world := _world_of(multiplayer.get_remote_sender_id())
+	var world := _world_of(_sender("world"))
 	if world != null:
 		world.set_door(id, state)
 
@@ -473,7 +546,7 @@ func _use_door(id: String, state: int) -> void:
 ## A player threw a grenade: the server's copy flies and does the damage; everyone else in the raid sees it.
 @rpc("any_peer", "call_remote", "reliable")
 func _grenade(from: Vector3, vel: Vector3) -> void:
-	var peer := multiplayer.get_remote_sender_id()
+	var peer := _sender("grenade")
 	var world := _world_of(peer)
 	if world == null or not _player_states.has(peer) or vel.length() > 30.0:
 		return
@@ -489,7 +562,7 @@ func _grenade(from: Vector3, vel: Vector3) -> void:
 ## A player dropped items, or died (their body holds what they carried): a bag where they are.
 @rpc("any_peer", "call_remote", "reliable")
 func _drop_items(data: Array, is_body: bool) -> void:
-	var peer := multiplayer.get_remote_sender_id()
+	var peer := _sender("drop")
 	var world := _world_of(peer)
 	if world == null or not _player_states.has(peer) or data.size() > 200:
 		return
@@ -508,8 +581,8 @@ func _drop_items(data: Array, is_body: bool) -> void:
 ## A player started (on) or stopped holding F on a downed teammate: tell the downed one (their screen shows it).
 @rpc("any_peer", "call_remote", "reliable")
 func _set_reviving(target: int, on: bool) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if mode != Mode.SERVER:
+	var peer := _sender("revive")
+	if peer == 0:
 		return
 	var started := on and can_revive(peer, target)
 	if started:
@@ -525,8 +598,8 @@ func _set_reviving(target: int, on: bool) -> void:
 ## A player held F long enough on a downed teammate: stand them back up (if it all checks out).
 @rpc("any_peer", "call_remote", "reliable")
 func _revive(target: int) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if mode != Mode.SERVER or not _reviving.has(peer):
+	var peer := _sender("revive")
+	if peer == 0 or not _reviving.has(peer):
 		return
 	var started: Array = _reviving[peer]
 	_reviving.erase(peer)
@@ -592,8 +665,8 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3)
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
 func _server_call(action: Callable) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if mode != Mode.SERVER or not matchmaker.players.has(peer):
+	var peer := _sender("lobby")
+	if peer == 0:
 		return
 	var problem: String = action.call(peer)
 	if problem != "":
@@ -608,6 +681,9 @@ func _on_peer_left(peer: int) -> void:
 	_player_states.erase(peer)
 	_hits_out.erase(peer)
 	_reviving.erase(peer)
+	_kicked.erase(peer)
+	_fix_sent.erase(peer)
+	guard.forget(peer)
 	matchmaker.remove_player(peer)
 	_flush()
 
@@ -682,6 +758,7 @@ func _send_raid_start(id: int) -> void:
 		raid_names[peer] = matchmaker.players[peer]["name"]
 		raid_looks[peer] = matchmaker.players[peer].get("look", "")
 		_hits_out.erase(peer)
+		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
 	for peer in raid["players"]:
 		var team: Array[int] = []
@@ -898,8 +975,8 @@ func set_look(text: String) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _look(text: String) -> void:
-	var peer := multiplayer.get_remote_sender_id()
-	if mode == Mode.SERVER and matchmaker.players.has(peer) and text.length() <= 16:
+	var peer := _sender("lobby")
+	if peer != 0 and text.length() <= 16:
 		matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(text))
 
 
@@ -927,8 +1004,18 @@ func _welcome() -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _rejected(reason: String) -> void:
+	var was_in_raid := in_online_raid()
 	go_offline.call_deferred()
 	connect_failed.emit(reason)
+	if was_in_raid:
+		connection_lost.emit()
+
+
+## The server didn't take a move of ours (anti-cheat, 0.25.0; a bad lag spike can do it too): back to where it has us.
+@rpc("authority", "call_remote", "reliable")
+func _put_back(pos: Vector3) -> void:
+	if in_online_raid():
+		put_back.emit(pos)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -993,9 +1080,9 @@ func report_damage(dealt: int) -> void:
 ## Server: a player says what a hit did to them; the player who shot gets it for their damage number.
 @rpc("any_peer", "call_remote", "reliable")
 func _damage_taken(dealt: int) -> void:
-	var victim := multiplayer.get_remote_sender_id()
+	var victim := _sender("report")
 	var queue: Array = _hits_out.get(victim, [])
-	if mode != Mode.SERVER or queue.is_empty():
+	if victim == 0 or queue.is_empty():
 		return
 	var sent: Array = queue.pop_front()
 	var attacker: int = sent[0]

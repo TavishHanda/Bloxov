@@ -60,6 +60,9 @@ func _ready() -> void:
 	player.health.died.connect(_drop_body)
 	Network.main.revive_changed.connect(player.set_being_revived)
 	Network.main.revived.connect(player.revive)
+	Network.main.put_back.connect(func(pos: Vector3) -> void:
+		player.global_position = pos
+		player.velocity = Vector3.ZERO)
 	# Containers' contents come from the server when opened (the rolls made on this machine don't count).
 	for box in RaidScope.nodes(self, &"loot_containers"):
 		(box as LootContainer).grid.clear()

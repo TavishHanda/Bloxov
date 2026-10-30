@@ -307,6 +307,18 @@ static func _box_trace(body: Node3D, feet: Transform3D, from: Vector3, to: Vecto
 	return best
 
 
+## True if solid map (layer 1) stands between two of a player's positions (feet) at knee, waist and head height:
+## they walked through a wall (anti-cheat, NetGuard). A low wall (vaulting) or an overhang (crouching, prone)
+## leaves one of the heights clear; doors, windows and props don't count.
+func blocked(from: Vector3, to: Vector3) -> bool:
+	var space := find_world_3d().direct_space_state
+	for height in [0.4, 1.0, 1.6]:
+		var lift := Vector3(0, height, 0)
+		if space.intersect_ray(PhysicsRayQueryParameters3D.create(from + lift, to + lift, 1)).is_empty():
+			return false
+	return true
+
+
 ## A player's state at server time `time` (between the two recorded states around it), or [] if unknown.
 func state_at(peer: int, time: float) -> Array:
 	var list: Array = history.get(peer, [])

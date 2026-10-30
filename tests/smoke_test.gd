@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -3289,6 +3289,7 @@ func _section_pvp() -> void:
 	var c1 := _net_peer("PvpClient1")
 	var c2 := _net_peer("PvpClient2")
 	server.start_server(19082)
+	server.guard.check_moves = false   # (this section puts players wherever it needs them; "anticheat" checks moves)
 	server.matchmaker.queue_countdown = 0.2
 	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": [], "feed": []}
 	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
@@ -3437,6 +3438,7 @@ func _section_online_ai() -> void:
 	var c1 := _net_peer("AiClient1")
 	var c2 := _net_peer("AiClient2")
 	server.start_server(19083)
+	server.guard.check_moves = false   # (this section puts players wherever it needs them; "anticheat" checks moves)
 	var got := {"hits": [], "bashes": 0, "confirmed": 0, "kills": 0, "events": []}
 	c1.got_hit.connect(func(amount: int, _from: Vector3, _h: bool, _b: int) -> void: got["hits"].append(amount))
 	c1.bashed.connect(func(_a: int, _f: Vector3, _s: float, _b: float) -> void: got["bashes"] += 1)
@@ -3578,6 +3580,116 @@ func _section_online_ai() -> void:
 	_check(RaidScope.nodes(main, &"enemies").is_empty(), "nothing from online raids is left in the solo raid")
 
 
+func _section_anticheat() -> void:
+	# The security update (0.25.0): the server's own checks on what players send (NetGuard).
+	var g := NetGuard.new()
+	# Rate limits: a burst up to the saved-up allowance gets through, then requests are dropped until it refills.
+	var passed := 0
+	for i in 100:
+		if g.allow(5, "grenade", 10.0):
+			passed += 1
+	_check(passed == int(NetGuard.RATES["grenade"][1]) and not g.allow(5, "grenade", 10.1) and g.allow(5, "grenade", 10.6),
+		"requests over their rate limit are dropped until the allowance refills (%d got through)" % passed)
+	_check(g.allow(6, "grenade", 10.1), "each player has their own allowance")
+	# Movement: sprinting (and a lag spike's worth more) is fine; faster, a teleport, or flying up isn't.
+	_check(g.check_move(1, Vector3(0, 0, 0), 0.0) == "", "a player's first position is taken (where they spawned)")
+	var t := 0.0
+	var pos := Vector3.ZERO
+	var ok := true
+	for i in 200:   # 10 s of sprinting, 20 updates a second
+		t += 0.05
+		pos.x += 5.6 * 0.05
+		ok = ok and g.check_move(1, pos, t) == ""
+	_check(ok, "sprinting flat out for 10 s passes the movement check")
+	t += 1.0
+	pos.x += 5.6 * 1.0
+	_check(g.check_move(1, pos, t) == "", "a 1 s lag spike's worth of sprinting in one update passes")
+	t += 0.05
+	pos.y -= 20.0
+	_check(g.check_move(1, pos, t) == "", "falling is never too fast")
+	ok = true
+	var caught := ""
+	for i in 100:   # twice sprint speed
+		t += 0.05
+		var problem := g.check_move(1, pos + Vector3(0, 0, 11.2 * 0.05 * (i + 1)), t)
+		if problem != "" and caught == "":
+			caught = problem
+	_check(caught == "speed" and (g.position_of(1) as Vector3).z < 11.2 * 5.0 - 10.0,
+		"moving at twice sprint speed is caught, and the server keeps them back (%s)" % caught)
+	t += 0.05
+	_check(g.check_move(1, pos + Vector3(0, 0, 200), t) == "fixing", "moves sent before their game took the put-back are ignored")
+	g.reset_moves(1)
+	g.check_move(1, Vector3.ZERO, t)
+	_check(g.check_move(1, Vector3(60, 0, 0), t + 0.05) == "teleport", "a teleport is caught")
+	g.reset_moves(1)
+	g.check_move(1, Vector3.ZERO, t)
+	caught = ""
+	for i in 40:   # flying straight up at 10 m/s
+		if caught == "":
+			caught = g.check_move(1, Vector3(0, 0.5 * (i + 1), 0), t + 0.05 * (i + 1))
+	_check(caught == "speed", "flying up is caught")
+	# Walls: walking through solid map is caught; vaulting a low crate isn't.
+	var blocked_called := []
+	g.reset_moves(2)
+	g.check_move(2, Vector3.ZERO, 0.0)
+	_check(g.check_move(2, Vector3(5, 0, 0), 1.0, func(_a: Vector3, _b: Vector3) -> bool:
+		blocked_called.append(true)
+		return true) == "wall" and blocked_called.size() == 1, "a move through a wall is caught")
+	# Strikes fade; one that keeps cheating gets kicked.
+	var kick := false
+	for i in 3:
+		kick = g.strike(3, "teleport", "test", 0.0) or kick
+	_check(not kick and g.strike_points(3, 100.0) < g.strike_points(3, 0.0), "strikes fade over time")
+	for i in 3:
+		kick = g.strike(3, "teleport", "test", 0.0) or kick
+	_check(kick, "a player who keeps getting caught earns a kick (%.0f points)" % g.strike_points(3, 0.0))
+
+	# Over a real connection: a teleport is undone (the server keeps them where they were and puts them back), and a
+	# player who keeps teleporting is kicked.
+	var server := _net_peer("GuardServer")
+	var c1 := _net_peer("GuardClient")
+	server.start_server(19085)
+	var got := {"back": [], "lost": false, "why": ""}
+	c1.put_back.connect(func(at: Vector3) -> void: got["back"].append(at))
+	c1.connection_lost.connect(func() -> void: got["lost"] = true)
+	c1.connect_failed.connect(func(reason: String) -> void: got["why"] = reason)
+	c1.go_online("localhost:19085", "Cheater")
+	await _until(func() -> bool: return c1.is_client() and c1.party_code != "")
+	c1.start_now()
+	await _until(func() -> bool: return c1.in_raid)
+	var id: int = c1.multiplayer.get_unique_id()
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
+		return server._player_states.has(id))
+	var world: RaidWorld = server._worlds.values()[0]
+	_check(world.blocked(Vector3(39, 0.1, 0), Vector3(42, 0.1, 0)) and not world.blocked(Vector3(-2, 0.1, -24), Vector3(2, 0.1, -24))
+		and not world.blocked(Vector3(0, 0.1, -10), Vector3(3, 0.1, -10)),
+		"the server sees walls between two positions, but not a low crate (vault) or open ground")
+	OS.delay_msec(100)
+	c1.send_state([Vector3(0, 0.1, 30), 0.0, 0.0, 0.0, 0])
+	await _until(func() -> bool: return not got["back"].is_empty())
+	_check(not got["back"].is_empty() and (got["back"][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10))
+		and (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)),
+		"a teleport isn't taken: the server keeps them where they were and their game puts them back")
+	# Dead stays dead (a cheat can't get back up), and a dead body doesn't move.
+	c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
+	await _frames(4)
+	c1.send_state([Vector3(1, 0.1, -10), 0.0, 0.0, 0.0, 0])
+	await _frames(4)
+	_check(server._player_states[id][4] & Hitbox.FLAG_DEAD and (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)),
+		"a dead player stays dead, and their body stays put")
+	for i in 5:
+		server._caught(id, "teleport", "test")
+	await _until(func() -> bool: return got["lost"] and not c1.is_online())
+	_check(got["lost"] and got["why"].contains("cheating") and not c1.is_online(), "a player caught over and over is kicked (%s)" % got["why"])
+	await _until(func() -> bool: return not server.matchmaker.players.has(id))
+	_check(not server.matchmaker.players.has(id), "the server lets go of a kicked player")
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1]:
+		n.get_parent().queue_free()
+	await _frames(2)
+
+
 func _section_online_loot() -> void:
 	# Shared loot (0.7.9): containers live on the server; one player at a time has one open; bodies (scavs and
 	# players) and dropped items are bags everyone sees.
@@ -3585,6 +3697,7 @@ func _section_online_loot() -> void:
 	var c1 := _net_peer("LootClient1")
 	var c2 := _net_peer("LootClient2")
 	server.start_server(19084)
+	server.guard.check_moves = false   # (this section puts players wherever it needs them; "anticheat" checks moves)
 	server.matchmaker.queue_countdown = 0.2
 	var got := {}
 	for c in [c1, c2]:
