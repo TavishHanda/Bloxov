@@ -42,6 +42,11 @@ static var trader_levels: Dictionary = {}
 static var loadout_presets: Array = []
 ## Your character's look (0.21.6, the wardrobe): {part: option}, see Operators.
 static var look: Dictionary = Operators.clean({})
+## The new-player tutorial (0.24.0, see Tutorial): {"step": hideout walk step (TUTORIAL_DONE = finished or skipped),
+## "tips": raid tips on, "seen": the raid tips already shown}. (Checked here, not in Tutorial: the Net autoload
+## reaches this script, and Tutorial's would pull in the player's.)
+const TUTORIAL_DONE := 99
+static var tutorial: Dictionary = fresh_tutorial()
 static var _loaded := false
 
 
@@ -108,6 +113,32 @@ static func load_profile() -> void:
 		if not preset.is_empty() and loadout_presets.size() < Loadouts.MAX:
 			loadout_presets.append(preset)
 	look = Operators.clean(data.get("look"))
+	# (a save from before the tutorial: anyone who has played already skips it, owner)
+	tutorial = clean_tutorial(data.get("tutorial"), not has_played())
+
+
+## A new profile's tutorial: not started, raid tips on.
+static func fresh_tutorial() -> Dictionary:
+	return {"step": 0, "tips": true, "seen": []}
+
+
+## A saved tutorial, checked. Missing (a save from before 0.24.0): `new_player` says whether to give it.
+static func clean_tutorial(saved, new_player: bool) -> Dictionary:
+	if not saved is Dictionary:
+		return fresh_tutorial() if new_player else {"step": TUTORIAL_DONE, "tips": false, "seen": []}
+	var step = saved.get("step")
+	var seen: Array = []
+	for id in _array(saved.get("seen")):
+		if id is String and not seen.has(id):
+			seen.append(id)
+	return {"step": clampi(int(step), 0, TUTORIAL_DONE) if _is_number(step) else TUTORIAL_DONE,
+		"tips": saved.get("tips") == true, "seen": seen}
+
+
+## Any sign of having played: a raid, money earned or spent, something in the stash, a quest or a trader level.
+static func has_played() -> bool:
+	return int(stats["raids"]) > 0 or money != START_MONEY or not stash.stacks.is_empty() or not trader_spent.is_empty() \
+		or not quests_done.is_empty() or not quest_progress.is_empty()
 
 
 ## A trader's level: what you've levelled them up to.
@@ -199,6 +230,7 @@ static func reset() -> void:
 	trader_levels = {}
 	loadout_presets = []
 	look = Operators.clean({})
+	tutorial = fresh_tutorial()
 
 
 static func save_profile() -> void:
@@ -219,6 +251,7 @@ static func save_profile() -> void:
 		"trader_levels": trader_levels,
 		"presets": loadout_presets,
 		"look": look,
+		"tutorial": tutorial,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
 	var text := JSON.stringify(data)

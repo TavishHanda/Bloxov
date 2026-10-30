@@ -30,7 +30,7 @@ static func apply(menu: PanelContainer) -> void:
 		title.add_theme_font_override("font", HudStyle.spaced_font(20))
 		HudStyle.style_label(row.get_node("Value"), 20)
 		style_slider(row.get_node("Slider"))
-	for check_name in ["DamageNumbers", "LeanToggle"]:
+	for check_name in ["DamageNumbers", "LeanToggle", "TipsToggle"]:
 		style_check(box.get_node(check_name))
 	var controls: Label = box.get_node("Controls")
 	controls.modulate = Color.WHITE

@@ -56,6 +56,8 @@ var leave_button: Button
 var leave_confirm: VBoxContainer
 ## Open quests and progress, beside the pause menu (0.17.1).
 var quest_tracker: QuestTracker
+## One-time tips for new players (0.24.0).
+var tips: RaidTips
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
 
@@ -76,6 +78,13 @@ func _ready() -> void:
 	damage_numbers_toggle.toggled.connect(GameSettings.set_damage_numbers)
 	lean_toggle.button_pressed = GameSettings.lean_toggle
 	lean_toggle.toggled.connect(GameSettings.set_lean_toggle)
+	# Raid tips for new players (0.24.0): off here or in OPTIONS.
+	var tips_toggle := lean_toggle.duplicate() as CheckBox
+	tips_toggle.name = "TipsToggle"
+	tips_toggle.text = "Raid tips"
+	tips_toggle.button_pressed = RaidTips.on()
+	tips_toggle.toggled.connect(Tutorial.set_tips)
+	lean_toggle.add_sibling(tips_toggle)
 	_build_graphics_row()
 	_build_mix_rows()
 	# On press, not release: resumes the moment you click.
@@ -106,6 +115,8 @@ func _ready() -> void:
 	add_child(extract_hud)
 	downed_hud = DownedHUD.new(player)
 	add_child(downed_hud)
+	tips = RaidTips.new(player, extract_hud)
+	add_child(tips)
 	damage_indicator.add_child(DamageArrowHUD.new())
 	world_labels = WorldLabelsHUD.new()
 	add_child(world_labels)
@@ -222,7 +233,7 @@ func _process(delta: float) -> void:
 
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
 	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
-	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud]:
+	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud, tips]:
 		element.visible = not loot_ui.visible and not end_screen.visible and not spectator.visible
 	# Spectating a teammate: their name tag stays.
 	world_labels.visible = world_labels.visible or spectator.visible

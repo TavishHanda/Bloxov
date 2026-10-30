@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "settings",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
@@ -2732,6 +2732,85 @@ func _section_hideout() -> void:
 	await _stash_tools(hideout)
 	hideout.queue_free()
 	await process_frame
+
+
+func _section_tutorial() -> void:
+	# The new-player tutorial (0.24.0): a walk round the hideout, then one-time tips in the raid.
+	var saved_tutorial: Dictionary = Profile.tutorial.duplicate(true)
+	var saved_money := Profile.money
+	_check(Profile.fresh_tutorial()["step"] == 0 and Profile.fresh_tutorial()["tips"] == true, "a new profile starts the tutorial, tips on")
+	_check(Profile.clean_tutorial(null, false)["step"] == Tutorial.DONE and Profile.clean_tutorial(null, false)["tips"] == false
+		and Profile.clean_tutorial(null, true)["step"] == 0, "a save from before it: only a new player gets it")
+	Profile.money = Profile.START_MONEY + 1
+	_check(Profile.has_played(), "someone with progress counts as having played (owner: they skip it)")
+	Profile.money = saved_money
+	Profile.tutorial = Profile.fresh_tutorial()
+	var world: HideoutWorld = (load("res://scenes/hideout_world.tscn") as PackedScene).instantiate()
+	world.position = Vector3(0, -1000, 0)
+	root.add_child(world)
+	for i in 10:
+		await physics_frame
+	var guide := world.tutorial
+	_check(guide != null and guide.step_id() == "walk" and guide._text.text.contains("WASD"), "a new player's hideout opens on step 1, keys filled in")
+	var walk := func(steps: Callable) -> void:
+		steps.call()
+		for i in 3:
+			await process_frame
+	await walk.call(func() -> void: world.walker.global_position += Vector3(4, 0, 0))
+	_check(guide.step_id() == "range" and guide.target() != null and guide.target().name == "range", "walking a few metres: next, the range (marker on it)")
+	await walk.call(func() -> void: world.enter_range())
+	await walk.call(func() -> void: world.pick_gun("loadout"))
+	_check(guide.step_id() == "shoot", "at the range: shoot")
+	await walk.call(func() -> void:
+		for i in Tutorial.HITS:
+			world.target_hit.emit())
+	_check(guide.step_id() == "leave_range", "three hits: leave the range")
+	await walk.call(func() -> void: world.leave_range())
+	_check(guide.step_id() == "gear", "then open your gear")
+	await walk.call(func() -> void: world.open_menu())
+	_check(guide.step_id() == "gear_info" and guide._card.visible, "gear open: what the loadout and stash are (card over the menu)")
+	await walk.call(func() -> void: world.close_menu())
+	await walk.call(func() -> void: world.open_menu("guns"))
+	_check(guide.step_id() == "trader_info", "a trader's screen: what traders do")
+	await walk.call(func() -> void: world.close_menu())
+	_check(guide.step_id() == "raid" and Profile.tutorial["step"] == Tutorial.DONE and not guide._skip.visible,
+		"last step, the war table: the tutorial counts as done")
+	world.queue_free()
+	await process_frame
+	world = (load("res://scenes/hideout_world.tscn") as PackedScene).instantiate()
+	world.position = Vector3(0, -1000, 0)
+	root.add_child(world)
+	await process_frame
+	_check(world.tutorial == null, "done: the next visit has no tutorial")
+	world.queue_free()
+	await process_frame
+	Tutorial.replay()
+	world = (load("res://scenes/hideout_world.tscn") as PackedScene).instantiate()
+	world.position = Vector3(0, -1000, 0)
+	root.add_child(world)
+	await process_frame
+	_check(world.tutorial != null and world.tutorial.step_id() == "walk", "REPLAY TUTORIAL starts it again")
+	world.tutorial._skip.pressed.emit()
+	_check(Profile.tutorial["step"] == Tutorial.DONE, "SKIP TUTORIAL ends it")
+	world.queue_free()
+	await process_frame
+	# Raid tips: once each, off with the switch.
+	var tips: RaidTips = main.get_node("HUD").tips
+	Profile.tutorial = Profile.fresh_tutorial()
+	tips._raid_time = 3.0
+	tips._showing = ""
+	tips._queue.clear()
+	tips._process(0.0)   # (the HUD's tips pause with the game, and the test's raid sits paused here)
+	_check(tips.showing() == "start" and tips._card.visible and RaidTips.seen("start"), "the raid's first tip: find loot, get out")
+	tips.want("start")
+	_check(not tips._queue.has("start"), "a tip comes up only once")
+	player.health.damaged.emit(5, Vector3.ZERO)
+	_check(tips._queue.has("hurt"), "getting hit queues the healing tip")
+	Tutorial.set_tips(false)
+	tips._process(0.0)
+	_check(not tips._card.visible and tips._queue.is_empty(), "tips off: none show")
+	Profile.tutorial = saved_tutorial
+	Profile.save_profile()
 
 
 func _section_settings() -> void:

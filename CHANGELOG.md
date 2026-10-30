@@ -5,7 +5,23 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open). -->
+
+## 0.24.0 (New-player tutorial)
+- **A first walk round the hideout for new players** (owner picked "hideout, then first-raid hints"). A card at the
+  top of the screen takes you through it one step at a time: walk and sprint, the shooting range (shoot the targets,
+  aim, reload), your gear (what the loadout and the stash are, and that you lose what you take in if you die), a
+  trader, and last the war table and START RAID. A marker over the next place shows where to go and how far.
+  SKIP TUTORIAL ends it at any step (Esc frees the mouse to press it). `scripts/tutorial.gd`.
+- **One-time tips in your first raids** (`scripts/raid_tips.gd`): how to get out (extracts, the map, the timer),
+  searching, healing the first time you're hit, ladders, the extract timer, and after a minute vaulting, crouching
+  and prone. Each shows once, for a few seconds under the raid timer. "Raid tips" in the pause menu and in OPTIONS
+  turns them off; REPLAY TUTORIAL in OPTIONS runs the walk and the tips again.
+- **Anyone who has already played skips it** (owner): a save with a raid, money earned or spent, anything in the
+  stash, a quest or a trader level counts as played. Phones (no walking in the hideout yet) and online players
+  coming back from a raid get only the raid tips.
+- Store rules: nothing new is sent anywhere; "tutorial done" and the tips you've seen are saved with your profile
+  on your own device. The tips name keys today and are written so touch buttons can stand in once phone controls exist.
 
 ## 0.23.4 (Motel blinds swing aside)
 - **You can climb through the motel's windows again, and their blinds swing out of your way** (owner picked "climb

@@ -276,6 +276,21 @@ func _build_options() -> void:
 		row.add_child(button)
 	_toggle("Damage numbers", GameSettings.damage_numbers, func(on: bool) -> void: GameSettings.set_damage_numbers(on))
 	_toggle("Lean: tap to toggle (off: hold)", GameSettings.lean_toggle, func(on: bool) -> void: GameSettings.set_lean_toggle(on))
+	# The new-player tutorial (0.24.0): its raid tips, and the whole thing again from the start.
+	Profile.load_profile()
+	_toggle("Raid tips", RaidTips.on(), func(on: bool) -> void: Tutorial.set_tips(on))
+	var tutorial_row := _row("Tutorial")
+	var replay := Button.new()
+	replay.name = "ReplayTutorial"
+	replay.text = "REPLAY TUTORIAL"
+	replay.focus_mode = Control.FOCUS_NONE
+	replay.custom_minimum_size = Vector2(260, 44)
+	LootUI.style_button(replay, 20)
+	replay.pressed.connect(func() -> void:
+		Tutorial.replay()
+		replay.text = "ON NEXT PLAY"
+		replay.disabled = true)
+	tutorial_row.add_child(replay)
 
 
 func _row(title: String) -> HBoxContainer:

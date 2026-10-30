@@ -7,6 +7,10 @@ extends Node3D
 ## The shooting range (0.21.1): at its bench, pick your own loadout or borrow any gun the Gunsmith sells you, and
 ## shoot the targets at 10, 25, 50 and 100 m. Ammo is free; nothing you do there is saved.
 ## Phones open straight on the menu until the touch controls (moving with a stick) exist.
+## A new player's first visit walks them round it (Tutorial, 0.24.0).
+
+## A shot hit one of the range's targets.
+signal target_hit
 
 const LEVEL := preload("res://scenes/hideout/hideout_level.tscn")
 const MENU := preload("res://scenes/hideout.tscn")
@@ -45,6 +49,8 @@ var _last_hit: Label
 var _hit_damage := 0
 var _hit_distance := 0.0
 var _hit_head := false
+## The new player's walk round (null when it isn't running).
+var tutorial: Tutorial
 
 
 func _ready() -> void:
@@ -86,6 +92,10 @@ func _ready() -> void:
 		open_menu()
 	else:
 		close_menu()
+	if Tutorial.wants_hideout():
+		tutorial = Tutorial.new(self)
+		tutorial.name = "Tutorial"
+		add_child(tutorial)
 
 
 func _build_hud() -> void:
@@ -508,6 +518,7 @@ func _on_target_hit(amount: int, _from: Vector3, dummy: Node3D) -> void:
 		dummy.global_position.z - shooter.global_position.z).length() if shooter != null else 0.0
 	_hit_head = false
 	_show_last_hit.call_deferred()
+	target_hit.emit()
 
 
 func _on_hit_confirmed(_killed: bool, headshot: bool) -> void:

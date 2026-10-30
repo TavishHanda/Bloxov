@@ -130,6 +130,11 @@ func ladder_entered(ladder: Ladder) -> void:
 	_ladders.append(ladder)
 
 
+## Next to a ladder you could climb (for the new-player tips).
+func near_ladder() -> bool:
+	return not _ladders.is_empty()
+
+
 func ladder_exited(ladder: Ladder) -> void:
 	_ladders.erase(ladder)
 	if ladder == _climbing:
