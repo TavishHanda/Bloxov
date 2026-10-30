@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 the security update (name to come from the owner). -->
 
+## 0.25.2 (Server-side health and extracts)
+- **The server keeps its own count of your health online** (stops god mode). Other players' hits come off it
+  through the best armor and helmet you carry (at full strength), and every heal you finish goes back on (only
+  with a heal you carry). Your game still runs your health exactly as before; the server's count is never lower
+  than yours (the AI's hits and falls don't count on it, and it gives you the best armor), so it can only catch a
+  game that won't go down. If its count hits 0 and your game is still up 1.5 s later, you're dead on the server:
+  your shots and looting stop counting, everyone sees you dead, and your game is told. Going down (downed) counts
+  as down; a revive puts you on 30 again. A strike, too.
+- **Extracting is checked online.** The server has to have seen you standing in an extract for its time (with
+  1.5 s and half a metre of slack for lag). A game that says it extracted anywhere else isn't believed: you're
+  still in the raid, where others can see and shoot you (no more vanishing out of a fight). A strike, too.
+- Dead or extracted players can't open or change crates and bodies online any more.
+- Code: `Network._check_health`, `_hurt`, `_healed`/`report_heal`, `_forced_dead`, `_track_extract`/`_extract_ok`,
+  `RaidWorld.extract_at` (the server's map copy keeps the extracts now). Docs: DEV_HANDOFF "Anti-cheat".
+- Store rules: the server log now records anti-cheat catches and kicks with player names; the privacy policy
+  needs a line about it before release (STORE_RULES.md updated).
+
 ## 0.25.1 (The server knows what you carry)
 - **The server keeps count of what every player carries online.** Your game tells it your kit as the raid starts;
   from then on it adds what you take from crates and bodies and takes off what you put in, drop, fire and throw.

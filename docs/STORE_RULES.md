@@ -47,7 +47,7 @@ CHANGELOG entry when a change was made for store reasons.
 ### 3. Privacy and data (Apple 5.1, Google User Data + Data safety)
 - Today: no accounts, no analytics, no ads, no tracking. Profile and settings are saved on the device only
   (`user://`). Online play sends the server the player's name and IP address (needed to connect; the server's
-  log prints names).
+  log prints names, and since 0.25.0 every anti-cheat catch and kick with the player's name).
 - **Collect only what the game needs.** No contacts, location, photos, device IDs or advertising IDs.
 - **A privacy policy is required by both stores**, as a public URL on the store listing **and** reachable inside
   the game (e.g. a "Privacy" button in the hideout/settings). It must say what is collected, why, how long it's

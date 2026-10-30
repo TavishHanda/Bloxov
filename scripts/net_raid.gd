@@ -60,6 +60,9 @@ func _ready() -> void:
 	player.health.died.connect(_drop_body)
 	Network.main.revive_changed.connect(player.set_being_revived)
 	Network.main.revived.connect(player.revive)
+	Network.main.forced_dead.connect(func() -> void:
+		if not player.health.is_dead:
+			player.health.kill())
 	Network.main.put_back.connect(func(pos: Vector3) -> void:
 		player.global_position = pos
 		player.velocity = Vector3.ZERO)

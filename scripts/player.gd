@@ -392,6 +392,7 @@ func _process(delta: float) -> void:
 				drink_boost_left = float(ItemDB.item(_heal_item)["boost_time"])
 			else:
 				health.heal(ItemDB.item(_heal_item)["heal"])
+				Network.main.report_heal(_heal_item)   # (online, the server counts it, 0.25.2)
 	_update_grenade(delta)
 	# Heal done or stopped (finished, cancelled, downed...): the hand goes back down.
 	if hand != null and hand.pose == HandItem.Pose.HELD and _nade_phase == 0 and not is_healing():

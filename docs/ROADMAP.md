@@ -129,7 +129,8 @@ Next: the M4 art updates (World art, Look, Sound), below.
   Detecting aimbots/wallhacks on the client isn't possible in a browser; the server checks above are the defense.
   **Started 0.25.0 (owner OK'd 2026-10-30):** rate limits, movement checks (speed/fly/teleport/walls; failed moves
   are put back), dead stays dead, strikes + kick on repeats (`scripts/net_guard.gd`), Windows build in CI. 0.25.1:
-  carried-kit tracking (guns, rounds, grenades, keys, crates, drops). Next: server-side health, extract check.
+  carried-kit tracking (guns, rounds, grenades, keys, crates, drops). 0.25.2: server-side health count (catches
+  god mode), extract check. Left for the Stash update: the stash/kit you bring in (still on trust), bans (need accounts).
 - **Platform plugins (owner, 2026-10-12: "make sure we have this, we will need it"). All free and open source;
   only the store fees cost money. Check each is still maintained and works with our Godot version when we start.**
   - **Steam (Steam early access prep):** [GodotSteam](https://codeberg.org/godotsteam/godotsteam) for

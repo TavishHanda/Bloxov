@@ -61,6 +61,13 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   queue, raids; pure logic), `raid_world.gd` (one SubViewport world per server raid: map, AI, proxies, shot checks,
   shared containers), `hitbox.gd` (shared player hitbox math + state flags), `net_raid.gd` (client side of a raid:
   remote players, enemy puppets, shared loot), `remote_player.gd`, `raid_scope.gd` (per-raid group lookups).
+- **Anti-cheat (0.25, security update):** `net_guard.gd` (NetGuard, pure logic: rate limits per request kind,
+  movement allowance + wall check, strikes that fade, carried-item counting). In `net.gd`: every RPC goes through
+  `_sender(kind)`; `_checked_state` (sticky dead/extracted, server health `_check_health`, extract check
+  `_extract_ok`, moves; a failed move is kept back and `_put_back` sent); `_carried` (kit + crate moves - drops -
+  shots - grenades - heals); `_health` (other players' hits through the best armor carried, + heals; 0 for
+  GOD_GRACE s while up = dead); `kick()`. Online test sections send `_send_test_kit` and turn off move checks
+  (`server.guard.check_moves = false`) when they place players freely; the `anticheat` section tests it all.
 - **Online architecture in one breath:** browsers can't host, so a headless Godot server (`--server`) runs on
   Heroku. Clients send their state 20/s + shots/knife/loot actions; the server relays states, decides hits against
   its own map copy (rewound to the shooter's view time), runs scavs against proxy bodies and forwards their hits,

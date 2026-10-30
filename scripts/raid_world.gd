@@ -12,7 +12,7 @@ extends SubViewport
 
 const RAID_SCENE := "res://scenes/main.tscn"
 ## The map pieces the server needs (solid things). Everything else in the raid scene is for players' screens.
-const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors", "Doors"]
+const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors", "Doors", "Extracts"]
 const PLAYER_SCENE := "res://scenes/player.tscn"
 ## Seconds of position history kept per player, and the furthest back a shot is checked.
 const HISTORY := 1.0
@@ -152,6 +152,23 @@ func open_door(id: String) -> void:
 		return
 	door.call("open")
 	door_opened.emit(id)
+
+
+## The extract a player standing at `pos` (feet) is in: [its node name, its extract_time], or [] for none
+## (0.25.2: the server checks a player who says they extracted really stood in one long enough).
+func extract_at(pos: Vector3) -> Array:
+	var zones := raid.get_node_or_null("Extracts")
+	if zones == null:
+		return []
+	for zone in zones.get_children():
+		var shape := zone.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		if shape == null or not shape.shape is BoxShape3D:
+			continue
+		var size := (shape.shape as BoxShape3D).size + Vector3(1.0, 2.0, 1.0)   # (a little slack for lag)
+		var local := shape.global_transform.affine_inverse() * (pos + Vector3(0, 0.9, 0))
+		if AABB(-size * 0.5, size).has_point(local):
+			return [String(zone.name), float(zone.get("extract_time"))]
+	return []
 
 
 ## The key key door `id` needs ("" if there's no such door, or it's open already).

@@ -63,6 +63,8 @@ signal revive_changed(on: bool)
 signal revived
 ## The server didn't take our last moves (0.25.0): we go back to `pos`, where it has us.
 signal put_back(pos: Vector3)
+## The server says we're dead (0.25.2: its count of our health hit 0 and we stayed up).
+signal forced_dead
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -78,6 +80,13 @@ const QUEUE_RATE := 2.0
 const REVIVE_TIME := 5.0
 ## Players online at once (in the hideout or raids). Keeps a flood of fake players from swamping the server.
 const MAX_ONLINE := 40
+## A player's health (Health.max_health) and what a revive stands them up with (PlayerBase.revive_health); kept here
+## because this autoload can't load the player scripts (the smoke test checks they match).
+const MAX_HEALTH := 100
+const REVIVE_HEALTH := 30
+## How long a player may stay up on the server's count of 0 health before it calls them dead (their game's
+## "I'm down" takes a moment to arrive; a heal they finished may still be on its way).
+const GOD_GRACE := 1.5
 
 var mode := Mode.OFFLINE
 
@@ -147,6 +156,12 @@ var _kicked := {}
 ## What each player in a raid carries (NetGuard.count_stacks: item id -> how many), from their kit as the raid
 ## starts plus what they took, minus what they put down, fired and threw (0.25.1).
 var _carried := {}
+## The server's own count of each player's health (0.25.2): [health, when it reached 0 or -1]. Only other players'
+## hits count, through the best armor and helmet they carry, and every heal they finish adds; so it's never below
+## their real health. Their game still runs their health; this only catches one that won't go down (god mode).
+var _health := {}
+## Which extract each player is standing in and since when (0.25.2): [zone name, server time].
+var _in_extract := {}
 ## When each player was last told to go back to where the server has them (put-backs are sent at most ~3 a second).
 var _fix_sent := {}
 var _send_left := 0.0
@@ -285,6 +300,8 @@ func _leave_raid() -> void:
 	_server_call(func(peer: int) -> String:
 		_player_states.erase(peer)
 		_carried.erase(peer)
+		_in_extract.erase(peer)
+		_health.erase(peer)
 		guard.reset_moves(peer)
 		_reviving.erase(peer)
 		matchmaker.leave_raid(peer)
@@ -328,7 +345,11 @@ func _state(state: Array) -> void:
 ## put them back (NetGuard.check_move).
 func _checked_state(peer: int, state: Array, old_flags: int, world: RaidWorld) -> Array:
 	state = state.duplicate()
+	if state[4] & Hitbox.FLAG_EXTRACTED and not old_flags & Hitbox.FLAG_EXTRACTED and not _extract_ok(peer, world):
+		state[4] = int(state[4]) & ~Hitbox.FLAG_EXTRACTED
 	state[4] = int(state[4]) | (old_flags & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED))
+	if not state[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED):
+		_check_health(peer, state, old_flags)
 	if state[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED):
 		var kept: Variant = guard.position_of(peer)
 		if kept != null:
@@ -336,6 +357,7 @@ func _checked_state(peer: int, state: Array, old_flags: int, world: RaidWorld) -
 		return state
 	var problem := guard.check_move(peer, state[0], _now(), world.blocked if world != null else Callable())
 	if problem == "":
+		_track_extract(peer, state[0], world)
 		return state
 	var kept_pos: Vector3 = guard.position_of(peer)
 	if problem != "fixing":
@@ -345,6 +367,59 @@ func _checked_state(peer: int, state: Array, old_flags: int, world: RaidWorld) -
 		_fix_sent[peer] = _now()
 		_put_back.rpc_id(peer, kept_pos)
 	return state
+
+
+## Server: notes which extract a player is standing in (and since when), from their checked position.
+func _track_extract(peer: int, pos: Vector3, world: RaidWorld) -> void:
+	var zone: Array = world.extract_at(pos) if world != null else []
+	if zone.is_empty():
+		_in_extract.erase(peer)
+	elif not _in_extract.has(peer) or _in_extract[peer][0] != zone[0]:
+		_in_extract[peer] = [zone[0], _now(), zone[1]]
+
+
+## Server: a player says they extracted. True if the server had them standing in an extract for about its
+## extract time (a second and a half of slack for lag); else the claim isn't taken (they're still in the raid,
+## where the others can see and shoot them) and it's a strike.
+func _extract_ok(peer: int, world: RaidWorld) -> bool:
+	var kept: Variant = guard.position_of(peer)
+	var zone: Array = _in_extract.get(peer, [])
+	var ok: bool = (world != null and kept != null and not zone.is_empty() and not world.extract_at(kept).is_empty()
+		and _now() - float(zone[1]) >= float(zone[2]) - 1.5)
+	if not ok:
+		_caught(peer, "extract", "not in an extract long enough")
+	return ok
+
+
+## Server: a player whose game stays up after the server's count of their health hit 0 (GOD_GRACE ago) is dead
+## here (sets FLAG_DEAD in `state`: their shots and loot stop counting, everyone sees them dead) and is told so.
+## Going down (downed) counts as down: their health is 0 from there until a revive.
+func _check_health(peer: int, state: Array, old_flags: int) -> void:
+	var hp: Array = _health.get_or_add(peer, [float(MAX_HEALTH), -1.0])
+	if state[4] & Hitbox.FLAG_DOWNED:
+		if not old_flags & Hitbox.FLAG_DOWNED:
+			hp[0] = minf(hp[0], 0.0)
+		hp[1] = -1.0
+	elif hp[0] > 0.0:
+		hp[1] = -1.0
+	elif hp[1] < 0.0:
+		hp[1] = _now()
+	elif _now() - hp[1] > GOD_GRACE:
+		_caught(peer, "god", "%.0f health" % hp[0])
+		state[4] = int(state[4]) | Hitbox.FLAG_DEAD
+		if _peer_open(peer):
+			_forced_dead.rpc_id(peer)
+
+
+## Server: another player's hit on `victim` (before armor) comes off the server's count of their health, through the
+## best armor (or on the head, helmet) they carry at full strength.
+func _hurt(victim: int, amount: int, head: bool) -> void:
+	var best := 0.0
+	for id: String in _carried.get(victim, {}):
+		if int(_carried[victim][id]) > 0 and ItemDB.kind(id) == ("helmet" if head else "armor"):
+			best = maxf(best, float(ItemDB.item(id).get("reduction", 0.0)))
+	var hp: Array = _health.get_or_add(victim, [float(MAX_HEALTH), -1.0])
+	hp[0] -= roundi(amount * (1.0 - best))
 
 
 ## Server: the player who sent the request being handled, if it's within its rate limit (NetGuard.RATES);
@@ -506,7 +581,7 @@ func _knife(from: Vector3, dir: Vector3) -> void:
 func _open_container(id: String) -> void:
 	var peer := _sender("loot")
 	var world := _world_of(peer)
-	if world == null:
+	if world == null or not _up(peer):
 		return
 	var data: Variant = world.open_container(peer, id)
 	if data == null:
@@ -519,7 +594,7 @@ func _open_container(id: String) -> void:
 func _container_update(id: String, data: Array) -> void:
 	var peer := _sender("loot")
 	var world := _world_of(peer)
-	var box := world.container(id) if world != null else null
+	var box := world.container(id) if world != null and _up(peer) else null
 	if box == null or world.locks.get(id) != peer:
 		return
 	# What they took is theirs now; what they put in has to be something they carry (0.25.1).
@@ -628,6 +703,20 @@ func _kit(data: Array) -> void:
 	_carried[peer] = NetGuard.count_stacks(data, {})
 
 
+## A player finished using a heal item (0.25.2): it comes off what they carry and its health goes on the server's
+## count (a heal they don't carry is refused).
+@rpc("any_peer", "call_remote", "reliable")
+func _healed(item: String) -> void:
+	var peer := _sender("use")
+	if peer == 0 or not _player_states.has(peer):
+		return
+	if not ItemDB.ITEMS.has(item) or ItemDB.kind(item) != "heal" or not NetGuard.use_item(_carried.get(peer, {}), item):
+		_caught(peer, "item", "healed with %s they don't carry" % item)
+		return
+	var hp: Array = _health.get_or_add(peer, [float(MAX_HEALTH), -1.0])
+	hp[0] = minf(hp[0] + float(ItemDB.item(item)["heal"]), float(MAX_HEALTH))
+
+
 ## A player started (on) or stopped holding F on a downed teammate: tell the downed one (their screen shows it).
 @rpc("any_peer", "call_remote", "reliable")
 func _set_reviving(target: int, on: bool) -> void:
@@ -658,6 +747,7 @@ func _revive(target: int) -> void:
 			_revive_state.rpc_id(target, false)
 		return
 	_log("%s revived %s" % [matchmaker.players[peer]["name"], matchmaker.players[target]["name"]])
+	_health[target] = [float(REVIVE_HEALTH), -1.0]
 	if _peer_open(target):
 		_revived.rpc_id(target)
 
@@ -677,6 +767,11 @@ func can_revive(peer: int, target: int) -> bool:
 	return (me[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED | Hitbox.FLAG_DOWNED) == 0
 		and them[4] & Hitbox.FLAG_DOWNED != 0 and them[4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED) == 0
 		and (me[0] as Vector3).distance_to(them[0]) < 3.5)
+
+
+## True if the server has `peer` in the raid and neither dead nor extracted.
+func _up(peer: int) -> bool:
+	return _player_states.has(peer) and not _player_states[peer][4] & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED)
 
 
 ## The raid world a player is in (null if they aren't in a raid).
@@ -700,6 +795,7 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3)
 	if hit.has("peer"):
 		var victim: int = hit["peer"]
 		_last_attacker[victim] = [attacker, _now()]
+		_hurt(victim, amount, hit["headshot"])
 		if _peer_open(victim):
 			_send_hit(victim, amount, attacker_pos, hit["headshot"], attacker, hit.get("end", attacker_pos))
 	else:
@@ -734,6 +830,8 @@ func _on_peer_left(peer: int) -> void:
 	_kicked.erase(peer)
 	_fix_sent.erase(peer)
 	_carried.erase(peer)
+	_in_extract.erase(peer)
+	_health.erase(peer)
 	guard.forget(peer)
 	matchmaker.remove_player(peer)
 	_flush()
@@ -810,6 +908,8 @@ func _send_raid_start(id: int) -> void:
 		raid_looks[peer] = matchmaker.players[peer].get("look", "")
 		_hits_out.erase(peer)
 		_carried.erase(peer)
+		_in_extract.erase(peer)
+		_health.erase(peer)
 		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
 	for peer in raid["players"]:
@@ -984,6 +1084,12 @@ func use_door(id: String, state: int) -> void:
 		_use_door.rpc_id(1, id, state)
 
 
+## We finished using a heal item (0.25.2).
+func report_heal(item: String) -> void:
+	if in_online_raid():
+		_healed.rpc_id(1, item)
+
+
 ## Everything we carry as the raid starts (0.25.1): the server counts it as ours.
 func send_kit(data: Array) -> void:
 	if in_online_raid():
@@ -1067,6 +1173,13 @@ func _rejected(reason: String) -> void:
 	connect_failed.emit(reason)
 	if was_in_raid:
 		connection_lost.emit()
+
+
+## The server counted our health at 0 and we didn't go down (0.25.2): we're dead.
+@rpc("authority", "call_remote", "reliable")
+func _forced_dead() -> void:
+	if in_online_raid():
+		forced_dead.emit()
 
 
 ## The server didn't take a move of ours (anti-cheat, 0.25.0; a bad lag spike can do it too): back to where it has us.

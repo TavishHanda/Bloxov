@@ -3734,7 +3734,8 @@ func _section_anticheat() -> void:
 	c1.close_container()
 	var bags_before := world.raid.get_children().filter(func(n: Node) -> bool: return n is LootContainer).size()
 	c1.drop_items([["sniper", 1, 0, 0, false, 5], ["bandage", 1, 0, 0, false, 0]])
-	await _frames(6)
+	await _until(func() -> bool: return LootContainer.pile_near(world.raid, server._player_states[id][0]) != null)
+	await _frames(2)
 	var dropped := LootContainer.pile_near(world.raid, server._player_states[id][0])
 	_check(dropped != null and dropped.grid.count_of("bandage") == 1 and dropped.grid.count_of("sniper") == 0
 		and not server._carried[id].has("sniper") and server._carried[id]["bandage"] == 0,
@@ -3743,6 +3744,59 @@ func _section_anticheat() -> void:
 	c1.send_grenade(Vector3(0, 1.5, -10), Vector3(0, 2, -5))
 	await _until(func() -> bool: return server.guard.strike_points(id, server._now()) > strikes_before + 2.5)
 	_check(server.guard.strike_points(id, server._now()) > strikes_before + 2.5, "a grenade they don't have is refused")
+	# Health (0.25.2): the server counts other players' hits (through the best armor carried) and finished heals; a
+	# game that stays up at 0 is dead on the server.
+	_check(Network.MAX_HEALTH == player.health.max_health and Network.REVIVE_HEALTH == player.revive_health,
+		"the server's health numbers match the player's")
+	var died := []
+	c1.forced_dead.connect(func() -> void: died.append(true))
+	server._carried[id]["bandage"] = 1   # (the kit's bandage was dropped above)
+	server._hurt(id, 90, false)
+	c1.report_heal("bandage")
+	await _until(func() -> bool: return server._health[id][0] > 10.0)
+	_check(is_equal_approx(server._health[id][0], 35.0) and int(server._carried[id].get("bandage", 0)) == 0,
+		"a finished heal goes on the server's count and comes off what they carry (%.0f)" % server._health[id][0])
+	c1.report_heal("medkit")
+	server._hurt(id, 40, false)
+	for i in 3:
+		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
+		await _frames(2)
+	_check(server._health[id][0] <= 0.0 and not server._player_states[id][4] & Hitbox.FLAG_DEAD and died.is_empty(),
+		"at 0 health their game gets a moment to say it went down (a medkit they don't carry doesn't heal)")
+	OS.delay_msec(int(Network.GOD_GRACE * 1000.0) + 100)
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
+		return not died.is_empty())
+	_check(server._player_states[id][4] & Hitbox.FLAG_DEAD and not died.is_empty(),
+		"a player who stays up with no health left is dead on the server, and their game is told")
+	server._player_states[id][4] = 0   # (back up, for the checks below)
+	server._health[id] = [100.0, -1.0]
+	# Extracting (0.25.2): only after standing in an extract for its time.
+	c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_EXTRACTED])
+	await _frames(4)
+	_check(not server._player_states[id][4] & Hitbox.FLAG_EXTRACTED, "saying you extracted away from an extract doesn't count")
+	var zone := world.raid.get_node("Extracts").get_child(0) as Node3D
+	var on_pad := zone.global_position
+	_check(world.extract_at(on_pad).size() == 2 and world.extract_at(Vector3(0, 0.1, -10)).is_empty(), "the server knows where the extracts are")
+	server.guard.reset_moves(id)
+	await _until(func() -> bool:
+		c1.send_state([on_pad, 0.0, 0.0, 0.0, 0])
+		return server._in_extract.has(id))
+	c1.send_state([on_pad, 0.0, 0.0, 0.0, Hitbox.FLAG_EXTRACTED])
+	await _frames(4)
+	_check(not server._player_states[id][4] & Hitbox.FLAG_EXTRACTED, "extracting before its timer runs out doesn't count")
+	server._in_extract[id][1] -= 10.0
+	await _until(func() -> bool:
+		c1.send_state([on_pad, 0.0, 0.0, 0.0, Hitbox.FLAG_EXTRACTED])
+		return server._player_states[id][4] & Hitbox.FLAG_EXTRACTED != 0)
+	_check(server._player_states[id][4] & Hitbox.FLAG_EXTRACTED != 0, "standing in an extract for its time, you extract")
+	await _frames(6)
+	server._player_states[id][4] = 0
+	server._in_extract.erase(id)
+	server.guard.reset_moves(id)
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
+		return (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)))
 	# Dead stays dead (a cheat can't get back up), and a dead body doesn't move.
 	c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
 	await _frames(4)
