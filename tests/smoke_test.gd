@@ -3976,6 +3976,19 @@ func _section_old_bloxov() -> void:
 	_check(through.call(1.0, 1.5, 1 | 4) and through.call(-1.0, 1.5, 1 | 4) and not through.call(1.0, 0.25, 1 | 4)
 		and not through.call(1.0, 1.5, BoxMap.BARS_LAYER) and not through.call(-1.0, 1.5, BoxMap.BARS_LAYER),
 		"the bus shelter: shots go through its missing pane and its glass, not its kick plate; people can't")
+	# 0.23.3 (owner: "u can still go through broken windows, windows with blinds ... church windows"; "You cant walk
+	# into most of the washrooms"): every window stops players (a church lancet here), a washroom door lets one in.
+	var lancet := Vector3(-15.0, 1.922 + 2.5, -143.0)
+	var lancet_ray := PhysicsRayQueryParameters3D.create(lancet + Vector3(-1, 0, 0), lancet + Vector3(1, 0, 0), BoxMap.PROPS_LAYER)
+	var wc_walk := PhysicsShapeQueryParameters3D.new()
+	wc_walk.shape = CapsuleShape3D.new()
+	(wc_walk.shape as CapsuleShape3D).radius = 0.4
+	wc_walk.collision_mask = 917   # (the player's)
+	wc_walk.transform = Transform3D(Basis(), Vector3(31.075 - 0.6, -0.127 + 0.96, 93.05))
+	wc_walk.motion = Vector3(1.1, 0, 0)
+	_check(not shelter_space.intersect_ray(lancet_ray).is_empty() and blocks.prop_boxes.size() / 7 > 700
+		and shelter_space.cast_motion(wc_walk)[0] > 0.99,
+		"windows stop players (a church lancet; %d players-only boxes), a washroom door lets one in" % (blocks.prop_boxes.size() / 7))
 	_check(blocks.shot_indices.size() / 3 > 50000 and blocks.bar_boxes.size() / 7 > 400,
 		"see-through pieces: %d shot triangles inside %d people-only boxes" % [blocks.shot_indices.size() / 3, blocks.bar_boxes.size() / 7])
 	# 0.19.4 (owner: a friend vaulted into a dirt bank and was stuck inside it): no vault ends inside a bank, from any

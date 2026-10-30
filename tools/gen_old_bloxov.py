@@ -450,6 +450,17 @@ MADE_SOLID = {
 }
 
 
+# Open washroom door leaves never join the furniture next to them into one block (0.23.3: joined to a bath or a
+# toilet, a leaf swung into the washroom shut its doorway). Found again after the scatter by footprint (the hills
+# only change heights).
+UNJOINED_KINDS = {"wc_door"}
+unjoined = set()
+
+
+def _leaf_key(b):
+    return round(b[0], 2), round(b[2], 2), round(b[4], 2)
+
+
 def model_solids(name):
     path = os.path.join(MODEL_JSON_DIR, name + "_solids.json")
     if not os.path.exists(path):
@@ -468,6 +479,8 @@ def solid_late():
                 if kind in MADE_SOLID and b[9] in (0, 3):
                     x, z = turn_point(b[0], b[2], gx(m["x"]), gz(m["z"]), m["turned"])
                     made.add(key(x, b[1], z, b[4]))
+                    if kind in UNJOINED_KINDS:
+                        unjoined.add(_leaf_key((x, b[1], z, b[3], b[4])))
     for i, b in enumerate(boxes):
         if b[9] in (0, 3) and key(b[0], b[1], b[2], b[4]) in made:
             boxes[i] = b[:9] + (5,) + b[10:]
@@ -506,6 +519,7 @@ def write_model_boxes(ter):
             opens.append({"kind": o["kind"], "side": o["side"], "at": round(at, 3), "mid": round(mid, 3),
                           "w": o["w"], "lo": round(o["lo"], 3), "hi": round(o["hi"], 3)})
         barred(m, opens)
+        shut_windows(m, opens)
         if m["hide"]:
             for n, tris in m["shots"].items():   # (the see-through props: what shots hit, in the map)
                 b = m["boxes"][n][0]
@@ -547,6 +561,30 @@ def barred(m, opens):
         sx, sz = (o["w"] + 0.1, 0.5) if ns else (0.5, o["w"] + 0.1)
         x, z = turn_point(ox + lx, oz + lz, ox, oz, m["turned"])
         bar_boxes.append((x, m["y"] + (o["lo"] + o["hi"]) / 2, z, sx, o["hi"] - o["lo"] + 0.1, sz, m["turned"]))
+
+
+# Every other window stops players too (0.23.3, owner: "u can still go through broken windows, windows with blinds,
+# windows with square like fittings in the middle, church windows, etc, like this needs to be fixed"): a box in the
+# wall's thickness over the opening, on the players-only layer (BoxMap `prop_boxes`), so shots, eyes, the AI and its
+# navigation are just as before. It sits on the inside of a whole pane (the map's, 0.18.8) so a shot still breaks it.
+# Doors, doorways, blast holes and the barn's hay door stay open.
+WINDOW_KINDS = {"window", "shop_window", "glass_front", "lancet", "small_window", "east_window"}
+window_boxes = []   # Godot x, y, z, size x, y, z, yaw (added to prop_boxes after the furniture's are fitted)
+
+
+def shut_windows(m, opens):
+    rule = BARRED.get(m["name"], lambda o: False)
+    ox, oz = gx(m["x"]), gz(m["z"])
+    for o in opens:
+        if o["kind"] not in WINDOW_KINDS or (o["kind"] == "window" and rule(o)):
+            continue
+        ns = o["side"] in "NS"
+        out = 1 if o["side"] in "SE" else -1
+        at = o["at"] - out * 0.06              # (the wall's inner 0.18 m: -0.15 .. +0.03 from its middle)
+        lx, lz = (o["mid"], at) if ns else (at, o["mid"])
+        sx, sz = (o["w"] + 0.1, 0.18) if ns else (0.18, o["w"] + 0.1)
+        x, z = turn_point(ox + lx, oz + lz, ox, oz, m["turned"])
+        window_boxes.append((x, m["y"] + (o["lo"] + o["hi"]) / 2, z, sx, o["hi"] - o["lo"] + 0.1, sz, m["turned"]))
 
 
 # Props that look like you could search them are containers (0.18.4, owner: "dont make fake loot spots. anything that
@@ -2295,7 +2333,8 @@ def police_furniture(ox, oz):
 
 
 WC_T = 0.15      # a washroom's own walls
-WC_DOOR = 0.85   # its doorway (narrower than the AI's 1.5 m: their paths don't go in, so nothing about them changes)
+WC_DOOR = 1.05   # its doorway (0.23.3, owner: "the doors need to be wider": was 0.85, the 0.8 m player caught on the
+#   jambs; still narrower than the AI's 1.5 m: their paths don't go in, so nothing about them changes)
 
 
 def washroom(ox, oz, x0, z0, x1, z1, walls, door, fit=(), y=0.0, sign="wc_sign", h=None):
@@ -2726,7 +2765,7 @@ def signal_box_furniture(ox, oz):
     o(-1.6, 0, -4.85, -1.4, FLOOR_H - SLAB_T, -1.5, "wall", None)          # the partition, a doorway at z -1.5..0.7
     o(-1.6, 2.4, -1.5, -1.4, FLOOR_H - SLAB_T, 0.7, "wall", None)
     o(-1.6, 0, 0.7, -1.4, FLOOR_H - SLAB_T, 4.85, "wall", None)
-    washroom(ox, oz, -5.85, -4.85, -4.2, -3.0, "ES", ("S", -5.0, -2), fit=(
+    washroom(ox, oz, -5.85, -4.85, -4.2, -3.0, "ES", ("S", -4.75, -2), fit=(   # (0.23.3: door east, off the bench)
         ("wc_toilet", "N", -5.3, 0.5, 0.65, 0.8), ("wc_sink", "E", -4.4, 0.5, 0.4, 0.85)))
     o(-5.85, 0, -2.4, -5.2, 0.9, -0.9, "wood", "sb_bench")
     o(-2.15, 0, 1.4, -1.6, 1.9, 3.8, "wood", "sb_lamps")
@@ -2878,8 +2917,8 @@ def old_house_furniture(n, ox, oz):
             ("wc_toilet", "E", 4.2, 0.5, 0.65, 0.8), ("wc_sink", "S", 5.3, 0.5, 0.4, 0.85)))
     elif n == 8:
         o(5.25, 0, -4.6, 5.85, 0.9, -2.0, "kitchen_run")
-        washroom(ox, oz, 0.1, -4.85, 1.8, -3.55, "SE", ("E", -4.2, 2), fit=(
-            ("wc_toilet", "N", 0.9, 0.5, 0.65, 0.8),))
+        washroom(ox, oz, 0.1, -4.85, 1.8, -3.55, "SE", ("E", -4.2, 2), fit=(   # (0.23.3: toilet on the west wall,
+            ("wc_toilet", "W", -4.2, 0.5, 0.65, 0.8),))                          # it filled the room on the north)
         o(-5.6, 0, 0.3, -4.8, 0.95, 1.1, "armchair")
         o(-1.9, 0, 0.15, -0.2, 0.6, 1.25, "house_bed")
 
@@ -5549,7 +5588,8 @@ def main():
     # (0.10.1: down from 5 to 3, owner: fewer houses so the good loot isn't spread thin, and the hill has sightlines)
     for n, (x, y, w, d, who) in enumerate(RICH_HOUSES, start=1):
         rich_house(n, x, y, w, d, who)
-    add_loot("BigHouse1", "safe", 41.0, 22.8, y=FLOOR_H, yaw=180.0)   # in the doctor's bedroom
+    # (in the doctor's bedroom; 0.23.3: 0.4 m east, it stood in the way of the bathroom door)
+    add_loot("BigHouse1", "safe", 41.4, 22.8, y=FLOOR_H, yaw=180.0)
 
     # street cover around town
     # (owner 2026-10-18 picked burnt wrecks, look B, for some of the road cars: "rust" = a burnt-out shell)
@@ -6924,10 +6964,31 @@ def _gap(p, q):
     return min(_seg_dist(p[i], p[(i + 1) % 4], q[j], q[(j + 1) % 4]) for i in range(4) for j in range(4))
 
 
+def _wall_between(a, b, low, floors):
+    """A wall (storey high, thin) stands between furniture middles a and b (0.23.3: a dining table's chairs joined the
+    toilet on the other side of the washroom wall into one block and shut its doorway)."""
+    cells = {(int(p[0] // PROP_CELL), int(p[1] // PROP_CELL)) for p in (a, b)}
+    for o in (o for cell in cells for o in floors.get(cell, [])):
+        if o[4] < 2.4 or min(o[3], o[5]) > 0.35 or abs(o[1] - o[4] / 2 - low) > 0.3:
+            continue
+        c, si = math.cos(math.radians(o[6])), math.sin(math.radians(o[6]))
+        (ua, va), (ub, vb) = [((p[0] - o[0]) * c - (p[1] - o[2]) * si, (p[0] - o[0]) * si + (p[1] - o[2]) * c) for p in (a, b)]
+        if o[3] < o[5]:   # (its own frame, u along its length)
+            (ua, va), (ub, vb), length = (va, ua), (vb, ub), o[5]
+        else:
+            length = o[3]
+        if (va > 0) == (vb > 0) or abs(va - vb) < 1e-9:
+            continue
+        u = ua + (ub - ua) * va / (va - vb)   # (where a -> b crosses its middle line)
+        if abs(u) <= length / 2:
+            return True
+    return False
+
+
 def close_prop_gaps(props, floors):
     """Furniture that stands closer together than the player is wide (chairs round a table, a stool by a counter)
     becomes one block (0.22.7, owner: no getting stuck): you walk round the table and its chairs, never wedge between
-    them. A group only joins when the block isn't much bigger than what's in it (never across a room)."""
+    them. A group only joins when the block isn't much bigger than what's in it (never across a room or a wall)."""
     quads = [_corners(p[0], p[2], p[3], p[5], p[6]) for p in props]
     lows = [p[1] - p[4] / 2 for p in props]
     parent = list(range(len(props)))
@@ -6952,7 +7013,8 @@ def close_prop_gaps(props, floors):
     for i in range(n):
         for j in range(i + 1, len(quads)):
             if abs(lows[i] - lows[j]) < 0.3 and abs(quads[i][0][0] - quads[j][0][0]) < 8 and abs(quads[i][0][1] - quads[j][0][1]) < 8 \
-                    and _gap(quads[i], quads[j]) < PROP_GAP:
+                    and _gap(quads[i], quads[j]) < PROP_GAP \
+                    and not _wall_between(quad_mid(quads[i]), quad_mid(quads[j]), lows[i], floors):
                 parent[find(i)] = find(j)
     groups = {}
     for i in range(len(quads)):
@@ -6979,6 +7041,10 @@ def close_prop_gaps(props, floors):
     return out
 
 
+def quad_mid(q):
+    return sum(p[0] for p in q) / 4, sum(p[1] for p in q) / 4
+
+
 def _area(q):
     return abs(sum(q[k][0] * q[(k + 1) % 4][1] - q[(k + 1) % 4][0] * q[k][1] for k in range(4))) / 2
 
@@ -6998,10 +7064,11 @@ def write_scene(ter):
         elif b[9] == 5:
             fitted = fit_prop(b, ter, floors)
             if fitted is not None:
-                prop_boxes.append(fitted)
+                (window_boxes if _leaf_key(b) in unjoined else prop_boxes).append(fitted)
             boxes[i] = b[:9] + (3,) + b[10:]
     prop_boxes[:] = list(dict.fromkeys(prop_boxes))   # (a prop's box can come from both its kind and its drawing)
     prop_boxes[:] = close_prop_gaps(prop_boxes, floors)
+    prop_boxes.extend(window_boxes)   # (windows and door leaves aren't furniture: never joined up)
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
               "safe": "res://scenes/loot_safe.tscn", "door": "res://scenes/key_door.tscn",
               "swing_door": "res://scenes/door.tscn", "ladder": "res://scenes/ladder.tscn"}

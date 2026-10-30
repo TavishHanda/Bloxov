@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner). -->
 
+## 0.23.3 (Windows shut, washrooms open)
+- **You can't climb or walk through windows any more** (owner: "u can still go through broken windows, windows with
+  blinds, windows with square like fittings in the middle, church windows, etc, like this needs to be fixed"). Every
+  window on Bloxov Battlegrounds now stops players: smashed ones, glazed ones (shooting the glass out still breaks
+  it, but leaves the frame shut), the motel's blinds, the framed shop and grocery fronts, the church's tall windows.
+  265 windows in all, players only: shots and anyone's eyes still go through the openings as before, and nothing
+  about the AI changes. Doorways, blast holes and the barn's hay door stay open.
+- **Washroom doors are wider** (owner: "You cant walk into most of the washrooms in the map ... the doors need to
+  be wider"): 1.05 m instead of 0.85, in all 42 washrooms (27 building models rebuilt). A walk test now gets a
+  player into every one. Fixed on the way, as they also shut a washroom: an open door leaf joined to a toilet or bath
+  as one block; furniture on both sides of a wall joined into one block through it (never now: that also clears
+  some invisible furniture blocks poking into the next room, like the motel's); a safe in front of the doctor's bathroom
+  door (0.4 m along the wall), a toilet that left no room to stand (old house 8: now on the side wall), and the
+  signal box washroom's door moved off the bench outside.
+
 ## 0.23.2 (AI stop shooting at shut doors)
 - **The AI no longer fire at a door you've shut** (owner: "the AI still tries to shoot through doors"). Since 0.21.19
   their bullets stopped at a shut door, but an AI pinning you down kept firing at the spot where it last saw you,
