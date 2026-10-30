@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open). -->
 
+## 0.24.2 (Slower AI)
+- **AI move about 7% slower** (owner: they felt faster since the jointed characters). 0.23 didn't change how fast
+  they move (same speeds, same colliders; the new walk swings the legs at the same rate as before), but they're
+  slowed anyway as asked: scavs 3.6 -> 3.35 m/s top speed, Raiders and Bon 3.9 -> 3.6. Every walk, jog, push and
+  chase is a fraction of that, so all of them drop by the same share. Nothing else about the AI changed.
+
 ## 0.24.1 (Options in the hideout)
 - **OPTIONS in the hideout menu** (owner: there was no way back to the settings once in the hideout). Next to your
   money on the top bar, away from the raid buttons: the same settings as the main screen's OPTIONS (sound, mouse,

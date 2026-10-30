@@ -8,7 +8,8 @@ extends CharacterBody3D
 enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 
 @export_group("Movement")
-@export var move_speed := 3.6
+## (0.24.2, owner: about 7% slower, was 3.6; Raiders and Bon 3.9 -> 3.6 in their scenes.)
+@export var move_speed := 3.35
 ## (0.12.7, owner: players on hills shot scavs that never noticed them: 50 m before.)
 @export var sight_range := 75.0
 ## While unaware, a scav only spots you inside this field of view (degrees); it can still hear you.
@@ -18,7 +19,7 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var give_up_time := 6.0
 
 @export_group("Patrol")
-## Unaware scavs walk between destinations at this fraction of move_speed (0.55 x 3.6 = about 2 m/s),
+## Unaware scavs walk between destinations at this fraction of move_speed (0.55 x 3.35 = about 1.8 m/s),
 ## pausing this long (seconds) at each one.
 @export var patrol_speed := 0.55
 @export var patrol_pause_min := 1.0
