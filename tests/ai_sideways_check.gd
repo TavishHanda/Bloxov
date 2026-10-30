@@ -1,6 +1,6 @@
 extends SceneTree
 ## Real-map check that AI don't run sideways in fights (0.12.28, owner: "the AI was just moving sideways again").
-## Puts the player 12-30 m from up to 14 AI on Bloxov Battlegrounds, one at a time, and measures how long each one
+## Puts the player 12-30 m from up to 14 AI on Bloxov Frontlines, one at a time, and measures how long each one
 ## moves sideways (perpendicular to where it's facing). Slow (a few minutes), so not part of the smoke test:
 ##   godot --headless --fixed-fps 60 -s tests/ai_sideways_check.gd
 ## Prints SIDEWAYS CHECK: PASSED when no AI runs sideways for 2 s or more at a time. (Before 0.12.28: up to 6.5 s.)

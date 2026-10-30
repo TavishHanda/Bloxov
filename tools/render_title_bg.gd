@@ -1,5 +1,5 @@
 extends SceneTree
-# Renders the main screen's background (0.21.15, redone 0.21.20): the town of Bloxov Battlegrounds at dusk, smoke rising, wider than
+# Renders the main screen's background (0.21.15, redone 0.21.20): the town of Bloxov Frontlines at dusk, smoke rising, wider than
 # the screen so the title screen can drift slowly across it.
 # xvfb-run -a godot --rendering-driver opengl3 -s tools/render_title_bg.gd  (writes assets/textures/title_dusk.jpg)
 const OUT := "res://assets/textures/title_dusk.jpg"

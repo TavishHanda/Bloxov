@@ -1,5 +1,5 @@
 extends SceneTree
-# Renders a few views of Bloxov Battlegrounds with the raid lighting, for checking art and lighting changes.
+# Renders a few views of Bloxov Frontlines with the raid lighting, for checking art and lighting changes.
 # xvfb-run -a godot --rendering-driver opengl3 -s tools/render_views.gd -- out=/tmp/shot  (writes /tmp/shot-<view>.png)
 # look=res://assets/looks/<name>.tres renders with that look instead of the current one (Look update).
 var views := [

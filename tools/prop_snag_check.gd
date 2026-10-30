@@ -1,6 +1,6 @@
 extends SceneTree
 ## Can players snag or get stuck on the furniture hitboxes (0.22.0 `prop_boxes`, owner 2026-10-26: "i dont want players
-## to just keep getting randomly stuck everywhere when they walk")? For every prop box on Bloxov Battlegrounds:
+## to just keep getting randomly stuck everywhere when they walk")? For every prop box on Bloxov Frontlines:
 ##  - how high it sits off the floor under it and how tall it stands (a low lip trips you, a box hanging off the floor
 ##    catches your head or feet),
 ##  - a player-sized capsule (the player's mask) is walked into it from 8 sides, then has to be able to walk away again;

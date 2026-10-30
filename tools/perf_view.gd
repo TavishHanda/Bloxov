@@ -1,5 +1,5 @@
 extends SceneTree
-## What a frame costs to draw on Bloxov Battlegrounds (0.18.12, owner: "the whole game just feels kinda laggy"). Runs a
+## What a frame costs to draw on Bloxov Frontlines (0.18.12, owner: "the whole game just feels kinda laggy"). Runs a
 ## real raid (player, AI, HUD), stands the player at a few places, turns round, and prints draw calls, objects,
 ## triangles and frame time for each view; then, at the busiest view, how much each kind of thing costs (hidden one
 ## at a time). Frame times under xvfb are the CPU drawing (llvmpipe): compare them with each other, not with a GPU.

@@ -102,7 +102,7 @@ for (x,y) in [(6,40),(6,180),(100,344),(230,344),(344,120),(344,70),(178,6),(250
 rect(5,355,50,2,"#000",stroke="none"); text(30,361,"50 m",9)
 # ---- legend
 lx=PAD+M*S+22; y=PAD+10
-o.append(f'<text x="{lx}" y="{y}" font-size="16" font-weight="bold" font-family="Arial,sans-serif">Bloxov Battlegrounds (draft 5)</text>'); y+=18
+o.append(f'<text x="{lx}" y="{y}" font-size="16" font-weight="bold" font-family="Arial,sans-serif">Bloxov Frontlines (draft 5)</text>'); y+=18
 o.append(f'<text x="{lx}" y="{y}" font-size="11" fill="#555" font-family="Arial,sans-serif">350 x 350 m, north up. Colour = loot type</text>'); y+=18
 def leg(col,label,shape="rect"):
     global y

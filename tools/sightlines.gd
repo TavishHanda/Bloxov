@@ -1,5 +1,5 @@
 extends SceneTree
-## Sightline check for Bloxov Battlegrounds (World art 0.17, owner: "you can spawn, go on a hill and kill a bunch of
+## Sightline check for Bloxov Frontlines (World art 0.17, owner: "you can spawn, go on a hill and kill a bunch of
 ## AI"). For spots on a grid over the map, counts how many points of the AI zones a standing player can see from
 ## there (within RANGE, through the real collision: ground, walls, cover). Writes a heat map (red = sees a lot) and
 ## lists the worst spots within reach of each player spawn.

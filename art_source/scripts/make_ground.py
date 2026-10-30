@@ -1,4 +1,4 @@
-"""Bloxov Battlegrounds ground textures (World art 0.17, outdoor step 2; plan /mnt/project-files/notes/outdoor-plan.md).
+"""Bloxov Frontlines ground textures (World art 0.17, outdoor step 2; plan /mnt/project-files/notes/outdoor-plan.md).
 
 The ground (BoxMap's height grid, and the outdoor kit's earth banks and crater rims) is drawn by one shader,
 assets/shaders/ground.gdshader (material assets/materials/ground.tres): grass, with two grass textures mixed in big

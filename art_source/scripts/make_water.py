@@ -1,4 +1,4 @@
-"""Bloxov Battlegrounds water texture (World art 0.17, outdoor step 6; plan /mnt/project-files/notes/outdoor-plan.md).
+"""Bloxov Frontlines water texture (World art 0.17, outdoor step 6; plan /mnt/project-files/notes/outdoor-plan.md).
 
 The creek is drawn by assets/shaders/water.gdshader (material assets/materials/water.tres). It scrolls one small
 tiling texture downstream in two layers: R and G are the ripples' slope (the surface normal, 0.5 = flat), B is a

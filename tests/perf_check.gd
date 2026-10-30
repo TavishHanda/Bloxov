@@ -1,5 +1,5 @@
 extends SceneTree
-## Measures what the AI cost per frame on Bloxov Battlegrounds (0.14.4). Runs a raid with the player at its spawn,
+## Measures what the AI cost per frame on Bloxov Frontlines (0.14.4). Runs a raid with the player at its spawn,
 ## then the same raid with the AI switched off, and prints the difference. Not part of the smoke test:
 ##   godot --headless --fixed-fps 60 -s tests/perf_check.gd
 func _initialize() -> void:

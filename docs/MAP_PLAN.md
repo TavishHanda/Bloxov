@@ -1,6 +1,6 @@
-# Map plan: Bloxov Battlegrounds (first real map)
+# Map plan: Bloxov Frontlines (first real map)
 
-Named **Bloxov Battlegrounds** by the owner on 2026-10-10 (first called "Old Bloxov"; file names keep `old_bloxov`).
+Named **Bloxov Frontlines** by the owner on 2026-10-30 (first called "Old Bloxov", then "Bloxov Battlegrounds" from 2026-10-10; file names keep `old_bloxov`).
 Agreed with the owner on 2026-10-09 (layout draft 5). Lore is the owner's; don't invent it.
 Picture: [`maps/old_bloxov_layout.png`](maps/old_bloxov_layout.png) (drawn by `maps/old_bloxov_layout.py`; edit
 the script and re-run it to change the picture). Coordinates in the script are meters, origin top-left, north up.
@@ -75,7 +75,7 @@ Spawns, extracts, loot spots and player spawns on the layout picture are **place
 - **Keys:** probably yes for the bunker and bank vault (see the thread). Locked doors only at special places.
 
 ## Phases (owner, 2026-10-09)
-- **0.10 the map:** Bloxov Battlegrounds as a walkable gray box (layout, buildings with rooms, cover, extracts, player spawns,
+- **0.10 the map:** Bloxov Frontlines as a walkable gray box (layout, buildings with rooms, cover, extracts, player spawns,
   loot spots), then iterations with the owner.
 - **Scavs 2.0 (own update):** designated AI spawn spots per area, scavs roaming their area, Raiders at hotspots,
   low-tier "scavenged" loot on scavs, new AI numbers.

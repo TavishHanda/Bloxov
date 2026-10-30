@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.3 (Bloxov Frontlines)
+- **The map is now called Bloxov Frontlines** (owner; it was Bloxov Battlegrounds). "Battlegrounds" is a trademark
+  Krafton (PUBG) has enforced, so the new name keeps the game clear of it before a public release. The loading
+  screen, the map screen (M) and every doc say the new name; file names still say `old_bloxov` and the loading
+  picture keeps its file name
+
 ## 0.25.2 (Server-side health and extracts)
 - **The server keeps its own count of your health online** (stops god mode). Other players' hits come off it
   through the best armor and helmet you carry (at full strength), and every heal you finish goes back on (only
@@ -98,7 +104,7 @@ game plays; this only stops things a cheat could send.
 ## 0.23.3 (Windows shut, washrooms open)
 - **You can't climb or walk through windows any more** (owner: "u can still go through broken windows, windows with
   blinds, windows with square like fittings in the middle, church windows, etc, like this needs to be fixed"). Every
-  window on Bloxov Battlegrounds now stops players: smashed ones, glazed ones (shooting the glass out still breaks
+  window on Bloxov Frontlines now stops players: smashed ones, glazed ones (shooting the glass out still breaks
   it, but leaves the frame shut), the motel's blinds, the framed shop and grocery fronts, the church's tall windows.
   265 windows in all, players only: shots and anyone's eyes still go through the openings as before, and nothing
   about the AI changes. Doorways, blast holes and the barn's hay door stay open.
@@ -215,7 +221,7 @@ game plays; this only stops things a cheat could send.
 
 ## 0.22.0 (World Reacts)
 - **Things that look solid are solid** (owner: "give solid-looking things real hitboxes"). A new check
-  (`tools/walkthrough_audit.gd`) walks every spot you can reach on Bloxov Battlegrounds and in the hideout and lists
+  (`tools/walkthrough_audit.gd`) walks every spot you can reach on Bloxov Frontlines and in the hideout and lists
   what's drawn at body height with nothing to bump into (768 spots on the map before, 468 after; most left are
   kerbs on banks, rolled-over wrecks and rubble you step over). From it: chairs, stools, benches, cots, bunks, tables,
   toilets, racks, plants, globes, voting booths, the barn's stall gates, washroom stalls, the drill rig, porch posts
@@ -288,7 +294,7 @@ game plays; this only stops things a cheat could send.
   jacket and gloves, since 0.21.11). The dressed hands now share one copy of each jacket and glove look.
 
 ## 0.21.15 (Front line)
-- **New main screen look** (owner picked A of four options): the town of Bloxov Battlegrounds at dusk, smoke rising,
+- **New main screen look** (owner picked A of four options): the town of Bloxov Frontlines at dusk, smoke rising,
   drifting slowly from side to side behind the menu, with a military red PLAY button. It's a picture, not a 3D
   scene, so the main screen is lighter on phones. Red is for the main screen only: in the game yellow still means
   "active" and red means danger.
@@ -752,7 +758,7 @@ game plays; this only stops things a cheat could send.
   `tools/icon_sheet.gd` draws a sheet of tiles for comparing looks.
 
 ## 0.19.3 (Loading screen)
-- **A real loading screen** (owner picked option B, "map vista"): START RAID shows a shot of Bloxov Battlegrounds in
+- **A real loading screen** (owner picked option B, "map vista"): START RAID shows a shot of Bloxov Frontlines in
   the late afternoon look, the map's name, a random gameplay tip and ENTERING THE RAID. It replaces 0.18.10's plain
   plate. The web build can't draw while the raid loads, so it's a still picture (no moving bar). The raid then
   keeps the same screen (same tip) up for its first second while it settles and fades it out, so you no longer drop
@@ -784,7 +790,7 @@ game plays; this only stops things a cheat could send.
   haze), rendered on the real map. `tools/render_views.gd -- look=<file>` renders any look.
 
 ## 0.18.12 (half the draw calls)
-- **About half the draw calls on Bloxov Battlegrounds** (owner: "the whole game just feels kinda laggy"), measured
+- **About half the draw calls on Bloxov Frontlines** (owner: "the whole game just feels kinda laggy"), measured
   with the new `tools/perf_view.gd` (a real raid at 1280x720, four places, eight directions each): the busiest
   view went from 3,045 draw calls to 1,464, the main street from 2,736 to 1,349. Web and phones are held back by
   draw calls most. Looks only: collision, the AI and loot are unchanged.
@@ -797,7 +803,7 @@ game plays; this only stops things a cheat could send.
 ## 0.18.11 (fewer draw calls far out)
 - **Doors stop drawing past 150 m and loot containers past 100 m** (owner: "give my game more fps"), shadows
   included: out there they're a few pixels tall but each cost a draw call or more. Measured on Bloxov
-  Battlegrounds (1280x720, from a fixed spawn): the busiest view went from 3,413 draw calls to 2,426 (-29%), the
+  Frontlines (1280x720, from a fixed spawn): the busiest view went from 3,413 draw calls to 2,426 (-29%), the
   next from 2,765 to 2,085. Web and phones are limited by draw calls, so this is where they gain most.
   Looks only: collision, the AI and loot are unchanged. (`PixelModel.hide_beyond`.)
 
@@ -1491,7 +1497,7 @@ building and almost everything outside now has a real model instead of gray boxe
 - **Jolt physics** (Godot's faster physics engine) replaces the old one. With every AI at full speed (big fights)
   it cut the AI's cost by about 20%; the rest of the physics got slightly slower (+0.1 ms), so it's a win in fights
   and even otherwise.
-- Measured on Bloxov Battlegrounds with 32 AI and the player at a spawn (`tests/perf_check.gd`, whole physics frame):
+- Measured on Bloxov Frontlines with 32 AI and the player at a spawn (`tests/perf_check.gd`, whole physics frame):
   **about 4.3 ms before, about 2.2 ms now**; in a fight, where every AI runs at full speed, 4.3 → 3.6 ms.
   Phones and browsers are 2-3x slower than this desktop, so it matters most there. The game server gains the same
   per raid.
@@ -1969,7 +1975,7 @@ building and almost everything outside now has a real model instead of gray boxe
 
 ## 0.12.0 (Hot Zone, the Scavs 2.0 update: AI zones and hot zones; owner)
 - **Scavs 2.0 starts** (owner, from playtests: "too easy but too many", AI roaming in weird places). AI now live
-  in **zones** on Bloxov Battlegrounds and patrol only their own zone, so you learn where to expect them:
+  in **zones** on Bloxov Frontlines and patrol only their own zone, so you learn where to expect them:
   - **Hot zones** have the most AI and most of the Raiders: the town core round the town hall, bank and square
     (hottest: 2 scavs and 3 Raiders), the rest of town (4 scavs, 1 Raider) and the bottom right round the depot,
     junkyard and old gas station (3 scavs, 2 Raiders). The train station is busy too (2 scavs)
@@ -2013,7 +2019,7 @@ building and almost everything outside now has a real model instead of gray boxe
   keep `old_bloxov`); the layout picture is redrawn
 
 ## 0.11.17 (hills and valleys; owner)
-- **The ground isn't flat any more** (owner: "there should be hills and valleys"). Bloxov Battlegrounds now rolls,
+- **The ground isn't flat any more** (owner: "there should be hills and valleys"). Bloxov Frontlines now rolls,
   about 14 m from the lowest hollow to the highest hilltop:
   - Big hills in the open: the east woods sit on the tallest one (about 11 m), and there are hills either side of
     the creek, between the old houses, in the field south of the railway and east of Station Road
@@ -2042,7 +2048,7 @@ building and almost everything outside now has a real model instead of gray boxe
     45 m), at their long-range accuracy instead of walking at you without firing
 
 ## 0.11.15 (Bloxov Battlegrounds; owner)
-- The first map is now called **Bloxov Battlegrounds** (owner; it was "Old Bloxov"). The map screen (M) shows the
+- The first map is now called **Bloxov Battlegrounds** (owner; it was "Old Bloxov"; renamed Bloxov Frontlines in 0.25.3). The map screen (M) shows the
   new name
 - Lore (owner): the two nations are **Novarra** and **Exion**; their armies, which players fight as, are
   **NOVA** and **EXION**. Bloxov sits on the border between them (`docs/LORE.md`)
@@ -2071,12 +2077,12 @@ building and almost everything outside now has a real model instead of gray boxe
   the body). Tunable per enemy: `weapon_drop` / `weapon_drop_chance` on the scene
 - Body bags grow taller when their loot wouldn't fit (an AK next to a backpack used to lose the backpack)
 
-## 0.11.10 (twice the enemies on Bloxov Battlegrounds; owner)
+## 0.11.10 (twice the enemies on Bloxov Frontlines; owner)
 - **Twice the enemies** (owner: testers found it way too easy): 24 scavs at the start (was 12), up to 30 alive at
   once (15), 64 scavs over the raid (32) and up to 16 Raiders (8): 6 at the start, then one about every 45 s from
   1:00 to 8:00. Twice the AI spawn spots too (48, the new 24 on open ground away from the others and 45+ m from
   player spawns), so they don't stack. Still placeholders until Scavs 2.0
-- Only Bloxov Battlegrounds' numbers changed (the test map keeps 3)
+- Only Bloxov Frontlines' numbers changed (the test map keeps 3)
 
 ## 0.11.9 (dead grass patches removed; Map & Spawn follow-up, owner)
 - **The dead grass patches are gone** (owner: the flat grey and green patches looked bad). Flat blocks can't sell
@@ -2166,14 +2172,14 @@ No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items updat
   (west field, the creek, the south edge twice, the east edge twice, the farm, north of town)
 
 ## 0.10.2 (the map: M, owner)
-- **Press M for the map**: Bloxov Battlegrounds from above with the names of places (bank, police, junkyard, farm...), the
+- **Press M for the map**: Bloxov Frontlines from above with the names of places (bank, police, junkyard, farm...), the
   extracts open for you this raid (green flags), your teammates (green dots) and you (a yellow arrow pointing where
   you look). It stays open while you move; M again closes it
 - **Extracts are no longer on your screen** (owner): the O list and the name tags over extracts are gone; the map is
   where you find them. "EXTRACTING" still shows while you stand in one
 - The map's drawing comes from the map generator (buildings, roads, the creek, woods, yards, place names)
 
-## 0.10.1 (Bloxov Battlegrounds: junkyard, checkpoint, church, power lines, owner)
+## 0.10.1 (Bloxov Frontlines: junkyard, checkpoint, church, power lines, owner)
 - **Fewer buildings, more places** (owner: replace rather than add, so players spread out and meet at hot spots):
   - a **junkyard** north of the gas station (fenced maze of stacked wrecks, a crane, a crusher, the office) replaces two old houses
   - a **roadblock checkpoint** across the highway west of the gas station (barrier chicane, sandbag nests, guard booth,
@@ -2188,8 +2194,8 @@ No gameplay changes. 0.11 is a cleanup pass before Scavs 2.0 and the Items updat
 - Main Street runs to the map edge again (the big house at its end is gone)
 - 95 loot spots (new places: Campsite, Junkyard, JunkOffice, Checkpoint, Church, BellTower, Crypt, GasStationTown)
 
-## 0.10.0 (the first real map: Bloxov Battlegrounds, gray box, owner)
-- **Raids now happen in Bloxov Battlegrounds**, a 350 x 350 m town (about 2:15 to walk across on a real route) laid out with the owner:
+## 0.10.0 (the first real map: Bloxov Frontlines, gray box, owner)
+- **Raids now happen in Bloxov Frontlines**, a 350 x 350 m town (about 2:15 to walk across on a real route) laid out with the owner:
   the **town** in the top left (winding Main Street, town square full of cover, gun store, pharmacy, grocery, bank,
   offices, police station, school, big houses on the hillside), the **farm** top right, the **train station and
   depot** in the middle, **old houses and the gas station** bottom right, **woods** with 3 cabins, a creek and a railway

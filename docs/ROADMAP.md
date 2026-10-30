@@ -45,7 +45,7 @@ Next: the M4 art updates (World art, Look, Sound), below.
       asked which comes first, 2026-10-11) and **one test building** finished under it. Models and lighting change
       each other, so lock the baseline and the test piece first, then model everything else against them.
       Then building models fitted to the proven layout, ground textures, props.
-      **Map pass in the same update (owner, 2026-10-12):** fill Bloxov Battlegrounds with a lot more stuff (debris,
+      **Map pass in the same update (owner, 2026-10-12):** fill Bloxov Frontlines with a lot more stuff (debris,
       wrecks, rubble, fences, clutter) so you can't snipe across the map or see lots of scavs at once, above all
       right at the start of a raid.
       **Loot spots will move and change in number (owner, 2026-10-12):** afterwards re-run `tools/economy_sim.gd`
@@ -68,7 +68,7 @@ Next: the M4 art updates (World art, Look, Sound), below.
       from, muffled through walls), scav and Raider voice lines, map ambience, UI sounds, and a final mix. Last, since footsteps by surface and ambience
       need the final ground and buildings.
    After that M5 content (characters with perks, more traders, more maps) and the M6 public release.
-   - **Harder maps later (owner, 2026-10-12):** Bloxov Battlegrounds is the base map, so it should stay friendly to
+   - **Harder maps later (owner, 2026-10-12):** Bloxov Frontlines is the base map, so it should stay friendly to
      new players. Harder maps come later (M5 more maps).
    - **Character prestige (owner, 2026-10-11):** play a character a lot and you can "prestige" it to unlock skill
      points that slightly boost that character's own traits (e.g. sprint 2% longer per point, up to 20%). Comes with
@@ -161,7 +161,7 @@ between updates. Lore is the owner's.
 ## Version phases (middle number)
 0.5 guns · 0.6 scavs · 0.7 multiplayer (0.7.0-0.7.11: connect, matchmaking, PvP, shared AI and loot) ·
 0.8 HUD & inventory (owner's designer session; started as 0.7.12-0.7.15) · 0.9 raid flow (downed/revive,
-per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Bloxov Battlegrounds) · **0.11 Scorched Earth** (cleanup, war-torn map, hills) ·
+per-player extract, spectate; paused at 0.9.5) · **0.10 Map & Spawn** (Bloxov Frontlines) · **0.11 Scorched Earth** (cleanup, war-torn map, hills) ·
 **0.12 Hot Zone** (Scavs 2.0, closed at 0.12.39) · **0.13 Over the Top** (Movement, to 0.13.9) · **0.14 Spoils of War** (Items) (the Stash update waits until closer to release).
 
 ## Rules while we go

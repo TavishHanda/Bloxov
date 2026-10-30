@@ -36,7 +36,7 @@ abandoned, and the regions still worth something are picked over by contractors.
 
 You are one of them: a **REVENANT** contractor, hired by whoever pays to pull resources out of the dead zones. Your
 first stop is **Bloxov**, a border region far from ground zero, still grounded and normal, and its first map,
-**Bloxov Battlegrounds**. The full lore lives in [`docs/LORE.md`](docs/LORE.md).
+**Bloxov Frontlines**. The full lore lives in [`docs/LORE.md`](docs/LORE.md).
 
 ---
 
@@ -69,7 +69,7 @@ first stop is **Bloxov**, a border region far from ground zero, still grounded a
   flank, chase, push and suppress, and heal when it's quiet.
 - **Raiders:** tougher, better-armed and sharper shots.
 - **Snipers** in high spots, with a scope glint that gives them away.
-- **Bon**, the boss of Bloxov Battlegrounds, holds the town hall and its bunker with his guards. He wears heavy armor
+- **Bon**, the boss of Bloxov Frontlines, holds the town hall and its bunker with his guards. He wears heavy armor
   and carries the Bunker Key, an Exion Medal and his own dog tag.
 - Everything an AI wears and carries can be looted off its body.
 
@@ -82,7 +82,7 @@ first stop is **Bloxov**, a border region far from ground zero, still grounded a
 - **Keys and locked rooms:** the Bank Vault Key and the Bunker Key open the map's two vaults.
 - Crates, lockers, safes (loud to open), loot bags and bodies, plus dog tags from Raiders, Bon and other players.
 
-### The map: Bloxov Battlegrounds
+### The map: Bloxov Frontlines
 - A 350 × 350 m war-torn town on rolling hills: Main Street and the town square, the town hall and bunker, the bank,
   a church and bell tower, the train station and depot on a railway, a farm, a junkyard, gas stations, woods cabins,
   hunting stands and a creek.
@@ -215,7 +215,7 @@ top-right corner. Every change is in [`CHANGELOG.md`](CHANGELOG.md).
 
 ```
 scenes/      .tscn scenes (hideout = main scene, raid, player, AI, containers, doors, ladder)
-scenes/maps/ generated maps (Bloxov Battlegrounds)
+scenes/maps/ generated maps (Bloxov Frontlines)
 scripts/     GDScript (player, guns, AI, inventory, profile, hideout, HUD, networking...)
 assets/      models (.glb)
 art_source/  Blender sources (ignored by Godot)
@@ -232,7 +232,7 @@ docs/        design and planning docs
 | [`LORE.md`](docs/LORE.md) | The world and story |
 | [`ROADMAP.md`](docs/ROADMAP.md) / [`BACKLOG.md`](docs/BACKLOG.md) | What's next / parked ideas |
 | [`ITEMS.md`](docs/ITEMS.md) | Every item and loot table (generated) |
-| [`MAP_PLAN.md`](docs/MAP_PLAN.md) | Bloxov Battlegrounds |
+| [`MAP_PLAN.md`](docs/MAP_PLAN.md) | Bloxov Frontlines |
 | [`SCAVS_PLAN.md`](docs/SCAVS_PLAN.md) | The AI |
 | [`MULTIPLAYER_PLAN.md`](docs/MULTIPLAYER_PLAN.md) | Online play and the server |
 | [`INVENTORY_DESIGN.md`](docs/INVENTORY_DESIGN.md), [`STASH_TRADER_PLAN.md`](docs/STASH_TRADER_PLAN.md), [`GUNS_PLAN.md`](docs/GUNS_PLAN.md) | Feature plans |

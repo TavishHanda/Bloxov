@@ -1,4 +1,4 @@
-"""Bloxov Battlegrounds outdoor debris kit (World art 0.17, outdoor step 1; plan /mnt/project-files/notes/outdoor-plan.md).
+"""Bloxov Frontlines outdoor debris kit (World art 0.17, outdoor step 1; plan /mnt/project-files/notes/outdoor-plan.md).
 
 The map's outside junk was 20 kinds of gray box. Each kind is now drawn as a real piece in three looks (b, c, d), mixed
 over the map (owner 2026-10-18: "use a mix of all 3 ... i like the variation"). The generator (tools/gen_old_bloxov.py,
@@ -3240,7 +3240,7 @@ DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_r
 
 # ------------------------------------------------------------------------------------------------ small details (step 9)
 # Litter in the gutters, tyre marks and scorch marks on the roads (pieces from the generator's street_details), posters
-# on the poles, NOVA and X1 marks sprayed on walls and containers (Bloxov Battlegrounds is Exion's side: mostly X1).
+# on the poles, NOVA and X1 marks sprayed on walls and containers (Bloxov Frontlines is Exion's side: mostly X1).
 def detail_decals():
     a = DECALS
     rng = random.Random("detail decals")

@@ -1,4 +1,4 @@
-"""Bloxov Battlegrounds tree textures (World art 0.17, outdoor step 7; plan /mnt/project-files/notes/outdoor-plan.md).
+"""Bloxov Frontlines tree textures (World art 0.17, outdoor step 7; plan /mnt/project-files/notes/outdoor-plan.md).
 
 One 256 x 256 sheet, a 4 x 4 grid of 64 px tiles (2 m a tile on the leaf cards, like the bushes' leaves.png), used by
 scripts/trees.gd and assets/shaders/trees.gdshader. Transparent pixels are cut out (alpha scissor).

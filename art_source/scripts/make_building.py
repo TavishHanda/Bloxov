@@ -5034,7 +5034,7 @@ BUILDING_NAME = [BUILDING]
 
 # ------------------------------------------------------------------------------------------------ faction marks
 # Round 3 (owner: "loved the X1 easter egg"): small sprayed X1 marks and EXION stencils on every modeled building
-# (Bloxov Battlegrounds is on the Exion side, so mostly theirs), and a very few NOVA tags. Lore: docs/LORE.md.
+# (Bloxov Frontlines is on the Exion side, so mostly theirs), and a very few NOVA tags. Lore: docs/LORE.md.
 
 def paint_x1(c, x0, y0, h, col, thick=3):
     """The Brotherhood's X1: an X of two strokes and a 1 with a foot, `h` px tall, from (x0, y0) (bottom left)."""

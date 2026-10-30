@@ -25,7 +25,7 @@ tie back to what's written here.
   whether the hideout is one.
 - Who the player is, and why they go on raids: a **REVENANT** contractor (see "REVENANT" below).
 - Scavs and Raiders: who they are in this world: **TBD**
-- **Bon** (owner, 2026-10-11): the boss of **Bloxov Battlegrounds**. In the game he holds the town hall and the
+- **Bon** (owner, 2026-10-11): the boss of **Bloxov Frontlines**. In the game he holds the town hall and the
   bunker under it with his guards, in heavy armor and a Combat Helmet, and carries the Bunker Key, an **Exion
   Medal** (a Brotherhood medal with the X1 mark, "only their best get one") and his own dog tag. Who he is and how he
   got that medal: **TBD** (owner).
@@ -92,10 +92,10 @@ ones are harder.
 - The **border region** between Novarra and Exion, where it all started.
 - The intro region: the easiest, holding a few maps.
 - Maps:
-  - **Bloxov Battlegrounds** (the current map, owner 2026-10-10; first called "Old Bloxov", and file names still
-    say `old_bloxov`). A border town, 2000s era, summer, abandoned and war-torn. Layout: `docs/MAP_PLAN.md`.
-    Before a public store/Steam release, check the name: "Battlegrounds" is a trademark PUBG's owner Krafton has
-    enforced (see `docs/STORE_RULES.md`).
+  - **Bloxov Frontlines** (the current map; first called "Old Bloxov", then "Bloxov Battlegrounds" from
+    2026-10-10, renamed by the owner on 2026-10-30 to stay clear of Krafton/PUBG's "Battlegrounds" trademark;
+    file names still say `old_bloxov`). A border town, 2000s era, summer, abandoned and war-torn. Layout:
+    `docs/MAP_PLAN.md`.
   - More Bloxov maps: **TBD** (ideas: the depot, a nearby base).
 
 ### Later regions
@@ -105,4 +105,4 @@ ones are harder.
 
 ## Names and rules to keep in mind
 - `docs/STORE_RULES.md`: no real-world countries, conflicts, hate symbols, or groups; no real brands.
-- Map names so far: Bloxov Battlegrounds. Town names: **TBD**.
+- Map names so far: Bloxov Frontlines. Town names: **TBD**.

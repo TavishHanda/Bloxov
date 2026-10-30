@@ -7,7 +7,7 @@ extends Control
 ## The picture is `tools/render_views.gd`'s "town" view with the current look, saved as a .jpg.
 
 const PICTURE := "res://assets/textures/loading_battlegrounds.jpg"
-const MAP_NAME := "Bloxov Battlegrounds"
+const MAP_NAME := "Bloxov Frontlines"
 ## How long the raid keeps it up (seconds, counted once the raid is drawing) and how long the fade takes.
 const HOLD := 0.8
 const FADE := 0.5
