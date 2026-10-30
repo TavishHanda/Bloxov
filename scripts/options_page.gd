@@ -45,6 +45,70 @@ static func build(body: VBoxContainer, on_replay := Callable()) -> void:
 		if on_replay.is_valid():
 			on_replay.call())
 	tutorial_row.add_child(replay)
+	_backup_rows(body)
+
+
+## Save backup (0.25.5): SAVE TO FILE downloads the whole save; LOAD FROM FILE reads one, says what's in it and asks
+## before replacing this one. Once loaded the screen starts over, showing the loaded save.
+static func _backup_rows(body: VBoxContainer) -> void:
+	var row := _row(body, "Save backup")
+	row.name = "BackupRow"
+	var note := Label.new()
+	note.name = "BackupNote"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = 520
+	HudStyle.style_label(note, 18)
+	note.visible = false
+	var confirm := HBoxContainer.new()
+	confirm.name = "BackupConfirm"
+	confirm.add_theme_constant_override("separation", 10)
+	confirm.visible = false
+	var show_note := func(text: String) -> void:
+		note.text = text
+		note.visible = text != ""
+		# The page scrolls: bring the note (and LOAD IT under it, the last rows) into view once they're laid out.
+		var scroll := body.get_parent() as ScrollContainer
+		if scroll != null and note.visible:
+			body.get_tree().create_timer(0.05).timeout.connect(func() -> void:
+				scroll.scroll_vertical = int(scroll.get_v_scroll_bar().max_value))
+	var package := {}
+	var save_button := _small_button(row, "SaveBackup", "SAVE TO FILE")
+	save_button.pressed.connect(func() -> void:
+		confirm.visible = false
+		SaveBackup.export_file(body, show_note))
+	var load_button := _small_button(row, "LoadBackup", "LOAD FROM FILE")
+	load_button.pressed.connect(func() -> void:
+		confirm.visible = false
+		SaveBackup.pick_file(body, func(text: String) -> void:
+			var read := SaveBackup.read(text)
+			if read.has("error"):
+				show_note.call(read["error"])
+				return
+			package.clear()
+			package.merge(read)
+			confirm.visible = true
+			show_note.call("Load this save (%s)? It replaces the progress you have now." % read["summary"])))
+	body.add_child(note)
+	body.add_child(confirm)
+	var yes := _small_button(confirm, "Yes", "LOAD IT")
+	yes.pressed.connect(func() -> void:
+		SaveBackup.apply(package)
+		body.get_tree().reload_current_scene())
+	var no := _small_button(confirm, "No", "CANCEL")
+	no.pressed.connect(func() -> void:
+		confirm.visible = false
+		show_note.call(""))
+
+
+static func _small_button(row: Control, node_name: String, text: String) -> Button:
+	var button := Button.new()
+	button.name = node_name
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(200, 44)
+	LootUI.style_button(button, 20)
+	row.add_child(button)
+	return button
 
 
 static func _row(body: VBoxContainer, title: String) -> HBoxContainer:

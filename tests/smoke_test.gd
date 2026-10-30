@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
@@ -2854,6 +2854,37 @@ func _section_settings() -> void:
 	_check(sun.shadow_enabled and is_equal_approx(sun.directional_shadow_max_distance, 60.0) and
 		is_equal_approx(root.scaling_3d_scale, 1.0) and is_equal_approx(FarView.distance(), FarView.FROM),
 		"HIGH graphics: shadows to 60 m, full render scale, far meshes from %d m" % FarView.FROM)
+
+
+func _section_backup() -> void:
+	# Save backup (0.25.5, the move to bloxov.com): the whole save as one file, and loading it back.
+	Profile.load_profile()
+	var money_before := Profile.money
+	var sens_before := GameSettings.sensitivity
+	var file_text := SaveBackup.pack()
+	var read := SaveBackup.read(file_text)
+	_check(not read.has("error") and String(read["summary"]).contains(ItemDB.money(money_before)),
+		"a backup file reads back and says what's in it (%s)" % read.get("summary", read.get("error")))
+	Profile.money = 1
+	Profile.save_profile()
+	GameSettings.set_sensitivity(2.5)
+	SaveBackup.apply(read)
+	_check(Profile.money == money_before and is_equal_approx(GameSettings.sensitivity, sens_before),
+		"loading a backup puts back the money and settings it had")
+	_check(SaveBackup.read("hello").has("error") and SaveBackup.read(JSON.stringify({"format": "bloxov-save", "profile": "{}"})).has("error")
+		and SaveBackup.read(JSON.stringify({"format": "bloxov-save", "profile": JSON.stringify({"version": 99})})).has("error"),
+		"a file that isn't a save, a damaged one or one from another version is refused")
+	# Settings in a file are JSON, and only known settings of the right type are taken.
+	var cfg := GameSettings.from_text(JSON.stringify({"controls": {"sensitivity": "fast", "lean_toggle": true}, "audio": {"volume": 1}, "junk": {"x": 1}}))
+	_check(not cfg.has_section_key("controls", "sensitivity") and cfg.get_value("controls", "lean_toggle") == true
+		and cfg.get_value("audio", "volume") is float and not cfg.has_section("junk"), "a backup's settings are type-checked")
+	# OPTIONS has SAVE TO FILE and LOAD FROM FILE.
+	var body := VBoxContainer.new()
+	root.add_child(body)
+	OptionsPage.build(body)
+	_check(body.get_node_or_null("BackupRow/SaveBackup") != null and body.get_node_or_null("BackupRow/LoadBackup") != null
+		and body.get_node_or_null("BackupConfirm/Yes") != null, "OPTIONS has save backup buttons")
+	body.queue_free()
 
 
 func _section_mouse() -> void:

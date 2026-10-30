@@ -30,6 +30,8 @@
 - Plan: `docs/ROADMAP.md` (milestones). Parked ideas/notes: `docs/BACKLOG.md`.
   Keep new code co-op-friendly: don't add new single-player assumptions (see ROADMAP rules).
 - Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
+  Moving to bloxov.com (owner is buying it): `docs/DOMAIN_MOVE.md`. Saves follow players via `web/move_in.js`
+  (on bloxov.com) and the move page `web/move/index.html` (hosted on the old site from its own repo, `bloxov-move`).
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
   Extend the smoke test when adding gameplay.
 - **Run the tests locally before every push** (the sandbox can download Godot):

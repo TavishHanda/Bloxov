@@ -4,6 +4,8 @@ extends RefCounted
 ## On web, user:// is stored in the browser, so settings survive reloads.
 
 const PATH := "user://settings.cfg"
+## The localStorage key of the web copy (0.25.5): moving to bloxov.com hands saves over through localStorage.
+const WEB_KEY := "bloxov_settings"
 
 ## 0.0 to 1.0
 static var volume := 0.6
@@ -45,7 +47,11 @@ static func load_settings() -> void:
 		return
 	_loaded = true
 	var cfg := ConfigFile.new()
-	if cfg.load(PATH) == OK:
+	var web := _web_read()
+	var from_file := cfg.load(PATH) == OK
+	if not from_file and web != "":
+		cfg = from_text(web)
+	if from_file or web != "":
 		volume = cfg.get_value("audio", "volume", volume)
 		for key: String in mix:
 			mix[key] = clampf(float(cfg.get_value("audio", key, mix[key])), 0.0, 1.0)
@@ -59,6 +65,9 @@ static func load_settings() -> void:
 	else:
 		graphics = clampi(cfg.get_value("graphics", "quality", graphics), LOW, HIGH)
 	apply()
+	# Saves from before the web copy (0.25.5) get one now, so a move to bloxov.com takes them along.
+	if from_file and web == "" and OS.has_feature("web"):
+		save()
 
 
 static func set_volume(value: float) -> void:
@@ -155,6 +164,47 @@ static func apply() -> void:
 
 
 static func save() -> void:
+	_current().save(PATH)
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("try { localStorage.setItem('%s', %s) } catch (e) {}" % [WEB_KEY, JSON.stringify(save_text())], true)
+
+
+## The settings as JSON ({section: {key: value}}, the same as settings.cfg): the web copy, and what a backup file
+## carries (SaveBackup). Not ConfigFile text: a backup can come from anywhere, and that text can build objects.
+static func save_text() -> String:
+	var cfg := _current()
+	var data := {}
+	for section in cfg.get_sections():
+		data[section] = {}
+		for key in cfg.get_section_keys(section):
+			data[section][key] = cfg.get_value(section, key)
+	return JSON.stringify(data)
+
+
+## Settings JSON (see save_text) back into a ConfigFile. Only known settings of the right type are kept, so a
+## hand-made file can't put a string where a number goes.
+static func from_text(text: String) -> ConfigFile:
+	var cfg := ConfigFile.new()
+	var json := JSON.new()
+	var data = json.data if json.parse(text) == OK else null
+	if not data is Dictionary:
+		return cfg
+	var known := _current()
+	for section in known.get_sections():
+		var values = data.get(section)
+		if not values is Dictionary:
+			continue
+		for key in known.get_section_keys(section):
+			var want = known.get_value(section, key)
+			var value = values.get(key)
+			if (want is float or want is int) and (value is float or value is int):
+				cfg.set_value(section, key, float(value) if want is float else int(value))
+			elif value != null and typeof(value) == typeof(want):
+				cfg.set_value(section, key, value)
+	return cfg
+
+
+static func _current() -> ConfigFile:
 	var cfg := ConfigFile.new()
 	cfg.set_value("audio", "volume", volume)
 	for key: String in mix:
@@ -165,4 +215,25 @@ static func save() -> void:
 	cfg.set_value("online", "server_address", server_address)
 	cfg.set_value("online", "player_name", player_name)
 	cfg.set_value("graphics", "quality", graphics)
+	return cfg
+
+
+## Swaps the settings for saved ones (JSON, see save_text) and puts them on the game. Ones the save doesn't have
+## stay as they are.
+static func replace_with(text: String) -> void:
+	var saved := from_text(text)
+	var cfg := _current()
+	for section in saved.get_sections():
+		for key in saved.get_section_keys(section):
+			cfg.set_value(section, key, saved.get_value(section, key))
 	cfg.save(PATH)
+	_loaded = false
+	load_settings()
+	save()
+
+
+static func _web_read() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var text = JavaScriptBridge.eval("(function () { try { return localStorage.getItem('%s') || '' } catch (e) { return '' } })()" % WEB_KEY, true)
+	return text if text is String else ""

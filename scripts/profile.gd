@@ -237,6 +237,11 @@ static func save_profile() -> void:
 	# A second browser tab never saves (TabLock): its copy of the profile is out of date.
 	if not TabLock.owns():
 		return
+	_write(save_text())
+
+
+## The profile as saved (JSON text): what save_profile writes, and what a backup file carries (SaveBackup).
+static func save_text() -> String:
 	var data := {
 		"version": VERSION,
 		"money": money,
@@ -254,7 +259,18 @@ static func save_profile() -> void:
 		"tutorial": tutorial,
 		"saved_at": Time.get_unix_time_from_system(),
 	}
-	var text := JSON.stringify(data)
+	return JSON.stringify(data)
+
+
+## Swaps the whole profile for a saved one (JSON text, checked by SaveBackup.read first): written to both copies
+## and loaded.
+static func replace_with(text: String) -> void:
+	_write(text)
+	_loaded = false
+	load_profile()
+
+
+static func _write(text: String) -> void:
 	var file := FileAccess.open(PATH, FileAccess.WRITE)
 	if file != null:
 		file.store_string(text)

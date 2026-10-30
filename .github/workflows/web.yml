@@ -70,6 +70,7 @@ jobs:
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html
           test -f build/web/index.html
+          cp web/move_in.js build/web/  # brings saves over from the old site on bloxov.com (see the file)
           version=$(grep -oP 'config/version="\K[^"]+' project.godot)
           echo "Building v${version}"
           python3 tools/cache_bust.py build/web "${version}-${GITHUB_SHA::8}"

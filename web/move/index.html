@@ -1,0 +1,113 @@
+<!doctype html>
+<!--
+  Bloxov's move page (0.25.5). Hosted on the OLD site, at https://tavishhanda.github.io/bloxov-move/
+  (its own small repo, TavishHanda/bloxov-move, holding just this file: see docs/DOMAIN_MOVE.md).
+  Browsers keep a site's saves to that site, so only a page on tavishhanda.github.io can read the save players made
+  on the old game page. bloxov.com sends a browser here once (web/move_in.js); this reads the old save and goes
+  straight back to bloxov.com with it. With ?download in the address it stays and offers the save as a file
+  instead (a backup that OPTIONS > LOAD FROM FILE reads).
+  It only ever sends the save to bloxov.com (fixed below), never anywhere a link asks for.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloxov: moving to bloxov.com</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #15171a; color: #e8e2d4; font: 18px/1.5 system-ui, sans-serif; text-align: center; padding: 0 16px; }
+  main { max-width: 32em; }
+  h1 { font-size: 1.6em; letter-spacing: 0.04em; margin: 0 0 0.4em; }
+  a, button { display: inline-block; margin: 0.4em; padding: 0.6em 1.2em; border: 2px solid #c9a24a; border-radius: 4px;
+    background: #2a2620; color: #f1e3bd; font: inherit; text-decoration: none; cursor: pointer; }
+  [hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>BLOXOV HAS MOVED</h1>
+  <p id="status">Bringing your save to bloxov.com...</p>
+  <p><button id="download" hidden>DOWNLOAD MY SAVE</button> <a id="go" href="https://bloxov.com/">GO TO BLOXOV.COM</a></p>
+</main>
+<script>
+(function () {
+  var TARGET = "https://bloxov.com/";
+  var status = document.getElementById("status");
+  var stay = /[?&]download\b/.test(location.search);
+
+  function stamp(text) {
+    try { var s = JSON.parse(text).saved_at; return typeof s === "number" ? s : -1; } catch (e) { return -2; }
+  }
+
+  // settings.cfg ([section] then key=value lines) as {section: {key: value}}, how the game keeps it since 0.25.5.
+  function cfgToJson(text) {
+    var out = {}, section = null;
+    text.split(/\r?\n/).forEach(function (line) {
+      var head = line.match(/^\[(\w+)\]\s*$/);
+      if (head) { section = out[head[1]] = {}; return; }
+      var pair = line.match(/^(\w+)=(.*)$/);
+      if (!section || !pair) return;
+      try { section[pair[1]] = JSON.parse(pair[2]); } catch (e) {}
+    });
+    return JSON.stringify(out);
+  }
+
+  // The game's files (user://) as the browser keeps them: IndexedDB "/userfs", store FILE_DATA, keyed by path
+  // (user:// is /userfs/godot/app_userdata/<project name>, and the project is called Bloxov).
+  function readFiles() {
+    return new Promise(function (resolve) {
+      var files = {};
+      var done = function () { resolve(files); };
+      setTimeout(done, 3000);
+      try {
+        var open = indexedDB.open("/userfs");
+        open.onerror = done;
+        open.onupgradeneeded = function () { open.transaction.abort(); };  // no database: nothing saved here
+        open.onsuccess = function () {
+          var db = open.result;
+          if (!db.objectStoreNames.contains("FILE_DATA")) { db.close(); done(); return; }
+          var store = db.transaction("FILE_DATA", "readonly").objectStore("FILE_DATA");
+          var names = ["profile.json", "settings.cfg"], left = names.length;
+          names.forEach(function (name) {
+            var get = store.get("/userfs/godot/app_userdata/Bloxov/" + name);
+            get.onsuccess = function () {
+              var entry = get.result;
+              if (entry && entry.contents) files[name] = new TextDecoder().decode(entry.contents);
+              if (--left === 0) { db.close(); done(); }
+            };
+            get.onerror = function () { if (--left === 0) { db.close(); done(); } };
+          });
+        };
+      } catch (e) { done(); }
+    });
+  }
+
+  function local(key) { try { return localStorage.getItem(key) || ""; } catch (e) { return ""; } }
+
+  readFiles().then(function (files) {
+    // The game keeps two copies of the profile; take the one saved last (like Profile.newer_save).
+    var file = files["profile.json"] || "", web = local("bloxov_profile");
+    var profile = !web ? file : !file ? web : stamp(web) > stamp(file) ? web : file;
+    var settings = local("bloxov_settings") || (files["settings.cfg"] ? cfgToJson(files["settings.cfg"]) : "");
+    var save = profile ? JSON.stringify({format: "bloxov-save", profile: profile, settings: settings}) : "";
+
+    if (stay) {
+      if (!save) { status.textContent = "There's no Bloxov save in this browser."; return; }
+      status.textContent = "Your save from the old site is ready to download. Load it in the game from OPTIONS > LOAD FROM FILE.";
+      var button = document.getElementById("download");
+      button.hidden = false;
+      button.onclick = function () {
+        var link = document.createElement("a");
+        link.href = URL.createObjectURL(new Blob([save], {type: "application/json"}));
+        link.download = "bloxov-save-old-site.json";
+        link.click();
+      };
+      return;
+    }
+    location.replace(TARGET + "#move=" + (save ? encodeURIComponent(save) : ""));
+  });
+})();
+</script>
+</body>
+</html>

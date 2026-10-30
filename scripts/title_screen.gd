@@ -19,7 +19,7 @@ const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 const PRIVACY := """WHAT BLOXOV KEEPS ABOUT YOU
 
 On this device: your progress (stash, loadout, traders, record, character) and your settings. They never leave the
-device unless you play online.
+device unless you play online. OPTIONS > SAVE TO FILE gives you a copy of them as a file to keep; it goes only to you.
 
 Online play: the server is sent the name you type and your connection's IP address, which it needs to put you in a
 raid. Other players in your raid see your name and character. Nothing is kept after the raid, apart from the

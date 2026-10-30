@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.5 (Save backups, ready for bloxov.com)
+- **Save backup in OPTIONS** (title screen and hideout): **SAVE TO FILE** downloads your whole save (stash, money,
+  loadouts, traders, quests, character, settings) as one file. **LOAD FROM FILE** reads one, says what's in it
+  (money, raids, date) and asks before it replaces your progress. Files that aren't a save, are damaged or are from
+  another save version are refused, and settings in a file are type-checked.
+- **Getting ready to move to bloxov.com** (owner: nobody loses progress). Saves in a browser belong to one site,
+  so the old address's save can't be read from bloxov.com. On bloxov.com, a browser with no save is sent once to a
+  small move page on the old site, which reads the old save and comes straight back with it. Nothing happens on
+  the current site; it only starts once the domain is set up (steps in `docs/DOMAIN_MOVE.md`).
+- Settings now keep a second copy in the browser's localStorage too, like the profile already did.
+- PRIVACY mentions the backup file.
+
 ## 0.25.4 (Ponta and Big Don)
 - **Trader names (owner):** the Gunsmith is now **Ponta** and the Supplier is now **Big Don**. The shooting range's
   locked guns say "Ponta level 2" and so on. The Medic keeps its placeholder name for now.
