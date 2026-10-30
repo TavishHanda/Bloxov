@@ -41,7 +41,7 @@ func _update_melee(delta: float, dist: float) -> void:
 		return
 	_melee_cooldown_left = melee_cooldown
 	_lunge_left = 0.15
-	if dist <= melee_range + 0.5:
+	if dist <= melee_range + 0.5 and not _door_in_way(_target.global_position + Vector3(0, 1.2, 0)):
 		_target.take_bash(melee_damage, global_position, melee_shove, melee_aim_block)
 var _tactic_time := 0.0
 ## STAND: how long it trades shots in the open before looking for cover (or a flank) again.
@@ -811,6 +811,10 @@ func _fire_at_target(dist: float) -> void:
 func _fire_at_point(point: Vector3) -> void:
 	var space := get_world_3d().direct_space_state
 	var from := global_position + Vector3(0, 1.65, 0)
+	if _door_in_way(point):
+		_suppress_left = 0.0   # (you shut a door on it: it stops pinning a door down and goes after you, 0.23.2)
+		_hold_fire()
+		return
 	var aim := point + Vector3(randf_range(-0.8, 0.8), randf_range(-0.4, 0.6), randf_range(-0.8, 0.8))
 	var to := from + (aim - from).normalized() * (shoot_range + 20.0)
 	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 2 | Door.LAYER | BoxMap.LEAVES_LAYER, [get_rid()])
@@ -828,6 +832,14 @@ func _fire_at_point(point: Vector3) -> void:
 	net_fired(end)
 
 
+## A shut door between its eyes and `point` (0.23.2, owner: the AI still tried to shoot through shut doors; their
+## shots stopped at the door since 0.21.19, but suppressing fire kept hammering the door you'd just shut).
+func _door_in_way(point: Vector3) -> bool:
+	var eyes := global_position + Vector3(0, 1.65, 0)
+	var query := PhysicsRayQueryParameters3D.create(eyes, point, Door.LAYER, [get_rid()])
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
 ## Just lost you: if another AI is fighting you too and nobody's suppressing yet, it pins you down and sends the
 ## nearest other one around to flank you. True if it's suppressing now.
 func _try_suppress() -> bool:
@@ -836,6 +848,8 @@ func _try_suppress() -> bool:
 	_may_suppress = false   # (decided once each time it loses you)
 	if randf() > suppress_chance or global_position.distance_to(_last_seen) > shoot_range * 0.8:
 		return false
+	if _door_in_way(_suppress_at + Vector3(0, 1.1, 0)):
+		return false   # (gone through a door and shut it: nothing to pin down, 0.23.2)
 	var flanker: Scav = null
 	var best := 40.0
 	for node in RaidScope.nodes(self, &"enemies"):

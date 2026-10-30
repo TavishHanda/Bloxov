@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner). -->
 
+## 0.23.2 (AI stop shooting at shut doors)
+- **The AI no longer fire at a door you've shut** (owner: "the AI still tries to shoot through doors"). Since 0.21.19
+  their bullets stopped at a shut door, but an AI pinning you down kept firing at the spot where it last saw you,
+  so going through a door and shutting it got the door hammered. Now it won't start suppressing through a shut door,
+  and stops (and comes after you instead, as it would with nobody to pin down) if you shut one mid-burst. A melee bash
+  that was already swinging when you shut the door in its face no longer lands through it.
+- Shots through walls (playtesters): checked again; AI shots and eyes stop at walls and shut doors, and online your
+  game turns a late hit from behind a wall or a shut door into a miss (0.21.18-0.21.19). No change needed.
+
 ## 0.23.1 (No snagging on furniture)
 - **The furniture hitboxes from 0.22.0 can't catch or trap you** (owner: "i dont want players to just keep getting
   randomly stuck everywhere when they walk"). A new walk test (`tools/prop_snag_check.gd`) walks a player-sized body

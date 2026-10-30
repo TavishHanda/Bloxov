@@ -1112,6 +1112,21 @@ func _section_doors() -> void:
 	_check(door.state == 0, "F again shuts it")
 	for i in 30:
 		await physics_frame
+	# 0.23.2 (owner: the AI still tried to shoot through doors): no suppressing fire at a shut door.
+	var pinner := _spawn(SCAV_SCENE, spot + Vector3(-0.5, 0.1, -8.0)) as Scav
+	await physics_frame
+	var pin_shots := [0]
+	pinner.fired.connect(func(_end: Vector3) -> void: pin_shots[0] += 1)
+	pinner._target = player
+	pinner._suppress_left = 3.0
+	pinner._suppress_at = spot + Vector3(-0.5, 0, 3.0)
+	pinner._fire_at_point(pinner._suppress_at + Vector3(0, 1.1, 0))
+	_check(pin_shots[0] == 0 and pinner._suppress_left == 0.0, "the AI don't keep firing at a door you shut")
+	pinner._suppress_left = 3.0
+	pinner._fire_at_point(spot + Vector3(-6, 1.1, -4))
+	_check(pin_shots[0] == 1, "...but still pin you down with no door in the way")
+	pinner.queue_free()
+	await physics_frame
 	var scav := _spawn(SCAV_SCENE, spot + Vector3(0, 0.1, -1.0)) as Scav
 	for i in 10:
 		await physics_frame
