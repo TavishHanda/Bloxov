@@ -530,6 +530,12 @@ def write_model_boxes(ter):
             for kx, ky, kz, yaw, kind, colour in (json.load(open(path)).get("kicks", []) if os.path.exists(path) else []):
                 x, z = turn_point(ox + kx, oz + kz, ox, oz, m["turned"])   # (its tins and bottles: kickables.gd)
                 KICKS.append([x, y + ky, z, (yaw + m["turned"]) % 360.0, kind, colour])
+            for bl in (json.load(open(path)).get("blinds", []) if os.path.exists(path) else []):
+                (bx, by, bz), inn = bl["pos"], bl["inn"]   # (its blinds that swing aside: blinds.gd)
+                x, z = turn_point(ox + bx, oz + bz, ox, oz, m["turned"])
+                yaw = ((0.0 if inn > 0 else 180.0) if bl["ns"] else (90.0 if inn > 0 else 270.0)) + m["turned"]
+                flip = (1 if inn > 0 else -1) if bl["ns"] else (-1 if inn > 0 else 1)   # (its +x, the model's way?)
+                BLINDS.append([x, y + by, z, yaw % 360.0, bl["w"], bl["len"], bl["drop"] * flip])
         prop_loot(m)
         glazed(m)
         with open(os.path.join(MODEL_JSON_DIR, m["name"] + ".json"), "w") as f:
@@ -572,11 +578,18 @@ WINDOW_KINDS = {"window", "shop_window", "glass_front", "lancet", "small_window"
 window_boxes = []   # Godot x, y, z, size x, y, z, yaw (added to prop_boxes after the furniture's are fitted)
 
 
+# Windows you can still climb through (0.23.4, owner picked "climb through, blinds swing aside"): the motel's, whose
+# blinds the game draws and swings aside (scripts/blinds.gd, from make_building.py's BLINDS).
+OPEN_WINDOWS = {"motel": lambda o: o["w"] <= 1.5}
+BLINDS = []   # x, y, z of the head rail's middle, yaw (its +z into the room), width, drop, crooked end's lift
+
+
 def shut_windows(m, opens):
     rule = BARRED.get(m["name"], lambda o: False)
+    keep = OPEN_WINDOWS.get(m["name"], lambda o: False)
     ox, oz = gx(m["x"]), gz(m["z"])
     for o in opens:
-        if o["kind"] not in WINDOW_KINDS or (o["kind"] == "window" and rule(o)):
+        if o["kind"] not in WINDOW_KINDS or (o["kind"] == "window" and (rule(o) or keep(o))):
             continue
         ns = o["side"] in "NS"
         out = 1 if o["side"] in "SE" else -1
@@ -7104,6 +7117,7 @@ def write_scene(ter):
     out.append('[ext_resource type="Script" path="res://scripts/grass_tufts.gd" id="g_tufts"]')
     out.append('[ext_resource type="Script" path="res://scripts/bushes.gd" id="g_bushes"]')
     out.append('[ext_resource type="Script" path="res://scripts/kickables.gd" id="g_kicks"]')
+    out.append('[ext_resource type="Script" path="res://scripts/blinds.gd" id="g_blinds"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]')
     out.append('[ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]')
@@ -7184,6 +7198,10 @@ def write_scene(ter):
             "data = PackedFloat32Array(" + ", ".join(fmt(v) for k in KICKS for v in k[:5]) + ")",
             "colors = PackedColorArray(" + ", ".join("%s, %s, %s, 1" % tuple(fmt(int(k[5][j:j + 2], 16) / 255) for j in (0, 2, 4))
                                                      for k in KICKS) + ")", "",
+            # the motel's blinds (0.23.4: they swing aside when someone climbs through; looks only)
+            '[node name="Blinds" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_blinds")',
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for b in BLINDS for v in b) + ")", "",
             # the trees (outdoor step 7; their trunks collide and their leaves hide you from the AI, this draws them)
             '[node name="Trees" type="Node3D" parent="Level/Blocks"]',
             'script = ExtResource("g_trees")',

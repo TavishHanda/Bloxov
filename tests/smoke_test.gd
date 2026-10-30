@@ -4706,6 +4706,33 @@ func _section_reacts() -> void:
 	_check(sheet != null and sheet.mesh.get_faces().size() == 4 * 5 * 6, "a curtain is one hanging sheet")
 	_check(Reacts.pushers(cloth)[0].w > 0.0, "and the player pushes curtains and bushes aside")
 	cloth.queue_free()
+	# Blinds (0.23.4, owner: climb through the motel's windows, the blinds swing aside): one hung across your way,
+	# its into-the-room side ahead of you.
+	var blind_at := player.global_position + ahead * 1.5
+	var blind_data := PackedFloat32Array([blind_at.x, blind_at.y + 2.2, blind_at.z, rad_to_deg(atan2(ahead.x, ahead.z)),
+		1.4, 1.8, 0.0])
+	var blinds: Node3D = load("res://scripts/blinds.gd").new()
+	blinds.data = blind_data
+	main.add_child(blinds)
+	_check(not blinds.is_in_group(Reacts.GROUP) and blinds.get_child_count() == 0, "no blinds on the game server (headless)")
+	blinds.queue_free()
+	blinds = load("res://scripts/blinds.gd").new()
+	blinds.set_meta(&"force_reacts", true)
+	blinds.data = blind_data
+	main.add_child(blinds)
+	await physics_frame
+	var swung := 0.0
+	Input.action_press("move_forward")
+	for i in 60:
+		await physics_frame
+		if absf(blinds.swing[0]) > absf(swung):
+			swung = blinds.swing[0]
+	Input.action_release("move_forward")
+	_check(swung < -0.6, "walking through blinds swings them up and away from you (%.2f rad)" % swung)
+	for i in 300:
+		await physics_frame
+	_check(absf(blinds.swing[0]) < 0.01, "and they settle back after")
+	blinds.queue_free()
 
 
 func _section_leaves() -> void:

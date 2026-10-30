@@ -58,7 +58,7 @@
   value 64: only the AI's sight, `BoxMap.BUSH_LAYER`), 8 barred windows (bit value 128: stops players and vaulting,
   not bullets, `BoxMap.BARS_LAYER`), 9 glazed windows (bit value 256: stops people until the pane is broken, never
   shots, `BoxMap.WINDOW_LAYER`; the panes still whole come from each building's `<name>_panes.json`, drawn and broken
-  by the map, and breaks are sent online by pane number), 10 props (bit value 512: furniture and the like, and every window since 0.23.3 (gen `shut_windows`), stops players and vaulting only, never the AI,
+  by the map, and breaks are sent online by pane number), 10 props (bit value 512: furniture and the like, and every window since 0.23.3 (gen `shut_windows`; the motel's stay open, their blinds swing aside: `scripts/blinds.gd`), stops players and vaulting only, never the AI,
   shots or eyes, not in the nav bake, `BoxMap.PROPS_LAYER`, map flag 5 -> `prop_boxes`, 0.22.0).
 - Outdoor pieces that aren't box-shaped (rocks, banks, crater rims, rubble, the train) collide with triangles from
   their models (0.18.3): after changing them run the generator, `art_source/scripts/make_outdoor.py`, then the
