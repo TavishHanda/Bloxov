@@ -2792,6 +2792,20 @@ func _section_tutorial() -> void:
 	_check(world.tutorial != null and world.tutorial.step_id() == "walk", "REPLAY TUTORIAL starts it again")
 	world.tutorial._skip.pressed.emit()
 	_check(Profile.tutorial["step"] == Tutorial.DONE, "SKIP TUTORIAL ends it")
+	# OPTIONS in the hideout menu (0.24.1): the main screen's settings; REPLAY TUTORIAL starts it there and then.
+	await process_frame
+	world.open_menu()
+	var options_button: Button = world.menu._top_row.get_node("OptionsButton")
+	options_button.pressed.emit()
+	await process_frame
+	var rows: Node = world.menu._options_scroll.get_child(0)
+	_check(world.menu.options_window.visible and rows.get_child_count() >= 7, "OPTIONS in the hideout menu shows the settings (%d rows)" % rows.get_child_count())
+	var replay_button: Button = rows.find_child("ReplayTutorial", true, false)
+	replay_button.pressed.emit()
+	await process_frame
+	_check(not world.menu.options_window.visible and not world.menu_open() and world.tutorial != null
+		and not world.tutorial.is_queued_for_deletion() and world.tutorial.step_id() == "walk",
+		"REPLAY TUTORIAL from the hideout's OPTIONS: back to walking, on step 1")
 	world.queue_free()
 	await process_frame
 	# Raid tips: once each, off with the switch.

@@ -92,10 +92,19 @@ func _ready() -> void:
 		open_menu()
 	else:
 		close_menu()
-	if Tutorial.wants_hideout():
-		tutorial = Tutorial.new(self)
-		tutorial.name = "Tutorial"
-		add_child(tutorial)
+	menu.replay_tutorial.connect(start_tutorial)
+	start_tutorial()
+
+
+## The new player's walk round, if it's due (REPLAY TUTORIAL in OPTIONS starts it again here, back to walking).
+func start_tutorial() -> void:
+	if not Tutorial.wants_hideout() or (tutorial != null and not tutorial.is_queued_for_deletion()):
+		return
+	tutorial = Tutorial.new(self)
+	tutorial.name = "Tutorial"
+	add_child(tutorial)
+	if menu_open():
+		close_menu()
 
 
 func _build_hud() -> void:
@@ -245,6 +254,7 @@ func close_menu() -> void:
 	_hud.visible = true
 	walker.locked = false
 	menu.close_gear_warning()
+	menu.close_options()
 	menu.save_now()
 	fill_boards()
 

@@ -8,6 +8,9 @@ const SELL_SOUND := preload("res://audio/sell.wav")
 ## The traders (0.16.0): stock, prices and levels are in Traders.
 const FREE_KIT_HINT := "A free pistol, 30 rounds, a bandage and a small backpack, only when you carry nothing at all. Offline it starts a solo raid; online it goes on you so you can queue with your party."
 
+## REPLAY TUTORIAL in the OPTIONS window (the walkable hideout starts it there and then).
+signal replay_tutorial
+
 var inventory: Inventory
 var screen: LootUI
 
@@ -21,6 +24,9 @@ var record: RecordScreen
 var phone_nav: HBoxContainer
 var _nav_buttons := {}
 var _version_label: Label
+## OPTIONS (0.24.1): the main screen's settings, in a window over the menu.
+var options_window: PanelContainer
+var _options_scroll: ScrollContainer
 ## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
 var _loading: Control
 var _warming: Thread
@@ -892,6 +898,21 @@ func _build_top_bar() -> void:
 	_money_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_money_label.mouse_filter = Control.MOUSE_FILTER_STOP   # (for its tooltip: your record)
 	row.add_child(_money_label)
+	# OPTIONS with the money, away from the raid buttons (0.24.1, owner: no way back to the settings once in the
+	# hideout). Settings, not an action, so it sits on the quiet left side.
+	var options_button := Button.new()
+	options_button.name = "OptionsButton"
+	options_button.text = "OPTIONS"
+	options_button.tooltip_text = "Sound, mouse, graphics, raid tips, replay the tutorial"
+	options_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(options_button)
+	options_button.pressed.connect(func() -> void:
+		if options_window.visible:
+			close_options()
+		else:
+			open_options())
+	row.add_child(options_button)
+	_build_options_window()
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -955,6 +976,63 @@ func _build_top_bar() -> void:
 		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
 		start_raid()))
 	row.add_child(raid_button)
+
+
+func _build_options_window() -> void:
+	options_window = PanelContainer.new()
+	options_window.name = "Options"
+	LootUI.skin_panel(options_window)
+	options_window.set_anchors_preset(Control.PRESET_CENTER)
+	options_window.custom_minimum_size = Vector2(760, 560)
+	options_window.position = Vector2(-380, -260)
+	options_window.visible = false
+	add_child(options_window)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 20)
+	options_window.add_child(margin)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	margin.add_child(box)
+	var head := HBoxContainer.new()
+	box.add_child(head)
+	var title := Label.new()
+	title.text = "OPTIONS"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	HudStyle.style_label(title, 40)
+	head.add_child(title)
+	var close := Button.new()
+	close.text = "CLOSE"
+	close.focus_mode = Control.FOCUS_NONE
+	close.custom_minimum_size = Vector2(120, 44)
+	LootUI.style_button(close, 20)
+	close.pressed.connect(close_options)
+	head.add_child(close)
+	_options_scroll = ScrollContainer.new()
+	_options_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_options_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(_options_scroll)
+
+
+## Opens OPTIONS, its rows filled fresh (so they show the settings as they are now).
+func open_options() -> void:
+	var scroll := _options_scroll
+	for child in scroll.get_children():
+		scroll.remove_child(child)
+		child.queue_free()
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 14)
+	scroll.add_child(body)
+	OptionsPage.build(body, func() -> void:
+		close_options()
+		replay_tutorial.emit())
+	options_window.visible = true
+	options_window.move_to_front()
+
+
+func close_options() -> void:
+	options_window.visible = false
 
 
 # --- Online --------------------------------------------------------------------------

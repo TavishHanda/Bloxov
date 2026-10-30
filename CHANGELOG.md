@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open). -->
 
+## 0.24.1 (Options in the hideout)
+- **OPTIONS in the hideout menu** (owner: there was no way back to the settings once in the hideout). Next to your
+  money on the top bar, away from the raid buttons: the same settings as the main screen's OPTIONS (sound, mouse,
+  graphics, damage numbers, lean, raid tips) in a window over the menu. REPLAY TUTORIAL there drops you straight
+  back into the hideout on step 1. Esc while walking round opens the menu, so it's two presses from anywhere.
+  Both screens build their settings from one place now (`scripts/options_page.gd`).
+
 ## 0.24.0 (New-player tutorial)
 - **A first walk round the hideout for new players** (owner picked "hideout, then first-raid hints"). A card at the
   top of the screen takes you through it one step at a time: walk and sprint, the shooting range (shoot the targets,
