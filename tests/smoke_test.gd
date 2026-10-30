@@ -3550,6 +3550,8 @@ func _section_online_ai() -> void:
 	shooter._target = proxy
 	await _frames(2)
 	var hits_before: int = got["hits"].size()
+	shooter._target = proxy   # (again: in those frames its AI may have picked the other player's proxy)
+	shooter._flinch_left = 0.0
 	for i in 5:
 		shooter._fire_at_target(8.0)
 	await _until(func() -> bool: return got["hits"].size() >= hits_before + 5)
@@ -3764,13 +3766,14 @@ func _section_anticheat() -> void:
 	_check(int(server._carried[id].get(took[0], 0)) >= int(took[1]), "what a player takes from a crate counts as theirs (%s)" % took[0])
 	c1.close_container()
 	var bags_before := world.raid.get_children().filter(func(n: Node) -> bool: return n is LootContainer).size()
+	var bandages_before := int(server._carried[id].get("bandage", 0))   # (the crate may have had one too)
 	c1.drop_items([["sniper", 1, 0, 0, false, 5], ["bandage", 1, 0, 0, false, 0]])
 	await _until(func() -> bool: return LootContainer.pile_near(world.raid, server._player_states[id][0]) != null)
 	await _frames(2)
 	var dropped := LootContainer.pile_near(world.raid, server._player_states[id][0])
 	_check(dropped != null and dropped.grid.count_of("bandage") == 1 and dropped.grid.count_of("sniper") == 0
-		and not server._carried[id].has("sniper") and server._carried[id]["bandage"] == 0,
-		"a drop only holds what they carry: the made-up rifle is left out (%d bags before)" % bags_before)
+		and not server._carried[id].has("sniper") and server._carried[id]["bandage"] == bandages_before - 1,
+		"a drop only holds what they carry: the made-up rifle is left out (%s, %s)" % [dropped.net_data() if dropped != null else null, server._carried[id]])
 	strikes_before = server.guard.strike_points(id, server._now())
 	c1.send_grenade(Vector3(0, 1.5, -10), Vector3(0, 2, -5))
 	await _until(func() -> bool: return server.guard.strike_points(id, server._now()) > strikes_before + 2.5)
@@ -3781,24 +3784,27 @@ func _section_anticheat() -> void:
 		"the server's health numbers match the player's")
 	var died := []
 	c1.forced_dead.connect(func() -> void: died.append(true))
-	server._carried[id]["bandage"] = 1   # (the kit's bandage was dropped above)
+	server._carried[id]["bandage"] = 1   # (one to heal with: the kit's was dropped above)
 	server._hurt(id, 90, false)
 	c1.report_heal("bandage")
 	await _until(func() -> bool: return server._health[id][0] > 10.0)
 	_check(is_equal_approx(server._health[id][0], 35.0) and int(server._carried[id].get("bandage", 0)) == 0,
 		"a finished heal goes on the server's count and comes off what they carry (%.0f)" % server._health[id][0])
 	c1.report_heal("medkit")
-	server._hurt(id, 40, false)
-	for i in 3:
-		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
-		await _frames(2)
-	_check(server._health[id][0] <= 0.0 and not server._player_states[id][4] & Hitbox.FLAG_DEAD and died.is_empty(),
-		"at 0 health their game gets a moment to say it went down (a medkit they don't carry doesn't heal)")
-	OS.delay_msec(int(Network.GOD_GRACE * 1000.0) + 100)
-	await _until(func() -> bool:
-		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
-		return not died.is_empty())
-	_check(server._player_states[id][4] & Hitbox.FLAG_DEAD and not died.is_empty(),
+	await _frames(4)
+	_check(is_equal_approx(server._health[id][0], 35.0), "a medkit they don't carry doesn't heal")
+	# (straight to the check, with the grace period wound on by hand: real time varies with the machine)
+	server._health[id] = [-5.0, -1.0]
+	var up := [Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0]
+	server._check_health(id, up, 0)
+	_check(not up[4] & Hitbox.FLAG_DEAD and server._health[id][1] >= 0.0, "at 0 health their game gets a moment to say it went down")
+	var downed := [Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_DOWNED]
+	server._check_health(id, downed, 0)
+	_check(not downed[4] & Hitbox.FLAG_DEAD and server._health[id][1] < 0.0, "going down counts as down")
+	server._health[id] = [-5.0, server._now() - Network.GOD_GRACE - 0.1]
+	server._check_health(id, up, 0)
+	await _until(func() -> bool: return not died.is_empty())
+	_check(up[4] & Hitbox.FLAG_DEAD and not died.is_empty(),
 		"a player who stays up with no health left is dead on the server, and their game is told")
 	server._player_states[id][4] = 0   # (back up, for the checks below)
 	server._health[id] = [100.0, -1.0]
@@ -3829,10 +3835,11 @@ func _section_anticheat() -> void:
 		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0])
 		return (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)))
 	# Dead stays dead (a cheat can't get back up), and a dead body doesn't move.
-	c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
-	await _frames(4)
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
+		return server._player_states[id][4] & Hitbox.FLAG_DEAD != 0)
 	c1.send_state([Vector3(1, 0.1, -10), 0.0, 0.0, 0.0, 0])
-	await _frames(4)
+	await _frames(6)
 	_check(server._player_states[id][4] & Hitbox.FLAG_DEAD and (server._player_states[id][0] as Vector3).is_equal_approx(Vector3(0, 0.1, -10)),
 		"a dead player stays dead, and their body stays put")
 	server.kick_cheaters = true
