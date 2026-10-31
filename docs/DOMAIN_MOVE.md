@@ -67,6 +67,5 @@ Then add these records at the registrar (delete any other A/AAAA/CNAME records o
    `https://bloxov.com/` with your stash and settings.
 
 Nothing else in the game needs changing: the server address is separate (Heroku) and doesn't check the site.
-One small follow-up for the dev session after the switch: the link-preview tags (`og:url`, `og:image`,
-`twitter:image` in the Web preset's head include, `export_presets.cfg`) point at `https://tavishhanda.github.io/Bloxov/`;
-change them to `https://bloxov.com/` (the old address redirects, but link previews are more reliable without it).
+The link-preview tags (`og:url`, `og:image`, `twitter:image` in the Web preset's head include, `export_presets.cfg`)
+point at `https://bloxov.com/` (0.25.8).
