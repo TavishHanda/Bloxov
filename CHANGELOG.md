@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.7 (Bloxov loading screen)
+- **The web page loads as Bloxov, not Godot:** while the game downloads you see the BLOXOV / NO MAN'S LAND logo over
+  the title screen's dusk view with a red pixel progress bar, instead of the Godot logo. The desktop build shows the
+  same splash.
+- **Bloxov icon:** the browser tab (and phone home screen) icon is a pixel "B" instead of the Godot robot.
+- **Link previews:** pasting the game's link in Discord (or X, Facebook, iMessage) now shows a 1200x630 Bloxov picture
+  with the name and a one-line description. The pictures come from `tools/make_web_branding.py`.
+
 ## 0.25.6 (Dearer traders)
 - **Traders charge 30% more** (owner, after the economy check): buy prices are now 1.56x an item's value (was 1.2x).
   Selling pays the same as before. A good Hound kit now costs about 2.2 quick raids instead of 1.7, closer to the
