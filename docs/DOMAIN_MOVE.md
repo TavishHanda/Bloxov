@@ -69,3 +69,8 @@ Then add these records at the registrar (delete any other A/AAAA/CNAME records o
 Nothing else in the game needs changing: the server address is separate (Heroku) and doesn't check the site.
 The link-preview tags (`og:url`, `og:image`, `twitter:image` in the Web preset's head include, `export_presets.cfg`)
 point at `https://bloxov.com/` (0.25.8).
+
+## Status
+Done 2026-10-31: bloxov.com bought (Cloudflare, DNS only), verified on GitHub, custom domain set on the Bloxov repo,
+HTTPS on, move page live at https://tavishhanda.github.io/bloxov-move/. Checked with a real browser against the
+live sites: a save on the old site followed the old link to https://bloxov.com/.
