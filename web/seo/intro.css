@@ -1,0 +1,6 @@
+#intro{position:absolute;z-index:1;top:0;left:0;right:0;margin:0 auto;max-width:640px;padding:10px 16px 12px;box-sizing:border-box;text-align:center;color:#efe6c4;background:rgba(18,20,23,.78);border-bottom:2px solid #d33b2c;font-family:'Noto Sans','Droid Sans',Arial,sans-serif;line-height:1.35;}
+#intro h1{margin:0 0 4px;font-size:18px;letter-spacing:.04em;text-transform:uppercase;}
+#intro p{margin:0 0 6px;font-size:13px;}
+#intro ul{margin:0;padding:0;list-style:none;font-size:12px;color:#c9c0a0;}
+#intro li{display:inline-block;margin:0 6px;}
+#intro li:before{content:"\25AA  ";color:#d33b2c;}

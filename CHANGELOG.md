@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.10 (Findable on search)
+- **The loading screen says what the game is:** a short intro (name, one line about the game, five features) sits at
+  the top while the game downloads and goes away when it starts. It's real text in the page, so search engines can
+  read it (the game itself is just a picture to them).
+- **Tab title** is now "Bloxov: No Man's Land – Free Browser Extraction Shooter" and stays that way once the game starts.
+- **For search engines:** `robots.txt`, `sitemap.xml` (for Google Search Console), a canonical link to
+  `https://bloxov.com/`, and schema.org VideoGame data (free, plays in the browser, solo and online). All added to
+  the web build by `tools/web_seo.py`; the intro text lives in `web/seo/`.
+
 ## 0.25.9 (Tab icon fix)
 - The browser tab now shows the pixel "B" right away. Browsers keep tab icons cached much longer than other files,
   so anyone who opened the game before 0.25.7 kept seeing Godot's icon until the game finished loading. The icon

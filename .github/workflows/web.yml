@@ -72,6 +72,7 @@ jobs:
           test -f build/web/index.html
           cp -r web/brand build/web/  # link preview picture (og:image in the head include)
           cp web/move_in.js build/web/  # brings saves over from the old site on bloxov.com (see the file)
+          python3 tools/web_seo.py build/web  # search: tab title, intro on the loading screen, robots.txt, sitemap.xml
           version=$(grep -oP 'config/version="\K[^"]+' project.godot)
           echo "Building v${version}"
           python3 tools/cache_bust.py build/web "${version}-${GITHUB_SHA::8}"
