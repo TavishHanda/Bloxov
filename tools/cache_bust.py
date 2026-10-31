@@ -5,12 +5,15 @@ file names, so players could keep getting an old game after an update. This scri
   1. renames index.pck (the game data) to index-<version>.pck and points the loader at it,
   2. adds ?v=<version> to the engine script URL,
   3. writes version.txt and injects a tiny check into index.html that reloads the page
-     (with ?v=<version>, which bypasses the cached HTML) when a newer build is deployed.
+     (with ?v=<version>, which bypasses the cached HTML) when a newer build is deployed,
+  4. adds ?v=<version> to the tab icon links and writes favicon.ico, so browsers drop an old cached
+     icon (browsers keep tab icons far longer than other files: players kept seeing Godot's icon).
 
 Usage: python3 tools/cache_bust.py build/web <version>
 """
 import json
 import re
+import struct
 import sys
 from pathlib import Path
 
@@ -26,6 +29,13 @@ fetch("version.txt", {cache: "no-store"}).then(function (r) { return r.ok ? r.te
 }).catch(function () {});
 </script>
 """
+
+
+def png_to_ico(png: bytes) -> bytes:
+    """An .ico holding one PNG (allowed since Windows Vista; every browser reads it)."""
+    width, height = struct.unpack(">II", png[16:24])
+    entry = struct.pack("<BBBBHHII", width % 256, height % 256, 0, 0, 1, 32, len(png), 6 + 16)
+    return struct.pack("<HHH", 0, 1, 1) + entry + png
 
 
 def main(build_dir: str, version: str) -> None:
@@ -49,6 +59,11 @@ def main(build_dir: str, version: str) -> None:
 
     html = html.replace(match.group(1), json.dumps(config))
     html = html.replace(f'src="{executable}.js"', f'src="{executable}.js?v={version}"')
+    for icon in (f"{executable}.icon.png", f"{executable}.apple-touch-icon.png"):
+        html = html.replace(f'href="{icon}"', f'href="{icon}?v={version}"')
+    png = web / f"{executable}.icon.png"
+    if png.exists():
+        (web / "favicon.ico").write_bytes(png_to_ico(png.read_bytes()))
     html = html.replace("</head>", CHECK % version + "</head>", 1)
     html_path.write_text(html)
     (web / "version.txt").write_text(version + "\n")
