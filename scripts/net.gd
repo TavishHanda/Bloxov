@@ -76,6 +76,8 @@ const RAID_TIME := 600.0
 const SEND_RATE := 20.0
 ## Queue status updates per second (to players in the hideout).
 const QUEUE_RATE := 2.0
+## Seconds between player-count lines in the server log (0.25.13, owner: "how can I inspect my player count").
+const STATS_EVERY := 300.0
 ## Seconds a teammate holds F to revive a downed player (owner, 0.9.2).
 const REVIVE_TIME := 5.0
 ## Players online at once (in the hideout or raids). Keeps a flood of fake players from swamping the server.
@@ -166,6 +168,8 @@ var _in_extract := {}
 var _fix_sent := {}
 var _send_left := 0.0
 var _queue_send_left := 0.0
+var _stats_left := STATS_EVERY
+var _last_stats := ""
 
 
 func _enter_tree() -> void:
@@ -939,6 +943,14 @@ func _process(delta: float) -> void:
 			for peer in _worlds[id].history.keys():
 				if not matchmaker.raids[id]["players"].has(peer):
 					_worlds[id].forget(peer)
+	_stats_left -= delta
+	if _stats_left <= 0.0:
+		_stats_left = STATS_EVERY
+		# Quiet when nobody's been on since the last line (keeps the log short).
+		var line := matchmaker.stats_line()
+		if not matchmaker.players.is_empty() or line != _last_stats:
+			_log(line)
+		_last_stats = line
 	_queue_send_left -= delta
 	if _queue_send_left <= 0.0:
 		_queue_send_left = 1.0 / QUEUE_RATE

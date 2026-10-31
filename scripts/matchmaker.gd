@@ -36,12 +36,29 @@ var changed_parties := {}
 var _clock := 0.0
 var _next_raid_id := 1
 
+## Counts for the owner's player-count line in the server log (0.25.13; Network logs stats_line() every few
+## minutes). Counts only: no names, no addresses. They start over when the server restarts (Heroku: daily).
+var stats_joins := 0
+var stats_raids := 0
+var stats_peak := 0
+
 
 func add_player(peer: int, player_name: String) -> void:
 	# Store rules: only clean names reach other players (docs/STORE_RULES.md).
 	player_name = NameFilter.clean(player_name, "Player %d" % (peer % 1000))
 	players[peer] = {"name": player_name, "party": "", "raid": 0}
 	_new_party(peer)
+	stats_joins += 1
+	stats_peak = maxi(stats_peak, players.size())
+
+
+## The player-count line for the server log: who's online now, and totals since the server started.
+func stats_line() -> String:
+	var in_raids := 0
+	for id in raids:
+		in_raids += raids[id]["players"].size()
+	return "stats: %d online (%d in the hideout, %d in %d raids) | since start: peak %d, %d joins, %d raids" % [
+		players.size(), players.size() - in_raids, in_raids, raids.size(), stats_peak, stats_joins, stats_raids]
 
 
 func remove_player(peer: int) -> void:
@@ -184,6 +201,7 @@ func _start_raid(codes: Array) -> int:
 			players[peer]["raid"] = id
 	raid["spawns"] = spawn_slots(teams, raid["seed"])
 	raids[id] = raid
+	stats_raids += 1
 	return id
 
 

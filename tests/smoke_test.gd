@@ -2988,6 +2988,10 @@ func _section_matchmaking() -> void:
 	mm.tick(28.5)
 	var started := mm.tick(1.0)
 	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
+	# Player-count line for the server log (0.25.13): counts only, no names.
+	var stats := mm.stats_line()
+	_check(stats.contains("7 online (4 in the hideout, 3 in 1 raids)") and stats.contains("peak 7, 7 joins, 1 raids")
+		and not stats.contains("P1"), "the server log's player count adds up (%s)" % stats)
 	var raid: Dictionary = mm.raids[started[0]]
 	_check(raid["teams"][1] == raid["teams"][2] and raid["teams"][1] != raid["teams"][3], "the duo are teammates, the solo isn't")
 	_check(mm.join_party(4, code1).contains("full") and mm.set_queued(1, true).contains("back from"), "no joining or queueing a party that's in a raid")
