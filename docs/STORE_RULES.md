@@ -46,7 +46,9 @@ CHANGELOG entry when a change was made for store reasons.
 - Name tags or anything showing names to strangers: also needs report/block first.
 
 ### 3. Privacy and data (Apple 5.1, Google User Data + Data safety)
-- Today: no accounts, no analytics, no ads, no tracking. Profile and settings are saved on the device only
+- Today: no accounts, no ads, no tracking. The only analytics: since 0.25.14 the web page on bloxov.com loads
+  Cloudflare Web Analytics (cookieless visit counts, token in `html/head_include` of the Web preset). It's web only:
+  never put it in phone or desktop builds (it would need the store data forms and a privacy manifest). Profile and settings are saved on the device only
   (`user://`). Online play sends the server the player's name and IP address (needed to connect; the server's
   log prints names, and since 0.25.0 every anti-cheat catch and kick with the player's name).
 - **Collect only what the game needs.** No contacts, location, photos, device IDs or advertising IDs.
@@ -145,7 +147,7 @@ allowed on all three platforms if it follows these rules:
 ## Current status (audit 2026-10-10, v0.11.5)
 
 Fine as is: age-appropriate blocky violence with generic weapon and item names, fictional enemies, no real money,
-no ads, no accounts, no analytics, data saved on the device, encrypted connection to the server, names only visible
+no ads, no accounts, no analytics in the app (the website has cookieless visit counts), data saved on the device, encrypted connection to the server, names only visible
 to party members, offline solo play works without the server.
 
 Fixed in 0.11.5: player names are now filtered on the server (odd characters dropped, rude/hateful names

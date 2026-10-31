@@ -25,7 +25,10 @@ Online play: the server is sent the name you type and your connection's IP addre
 raid. Other players in your raid see your name and character. Nothing is kept after the raid, apart from the
 server's short log.
 
-No accounts, no ads, no analytics, no tracking, and nothing is sold or shared. The server is hosted by Heroku.
+On bloxov.com only: Cloudflare Web Analytics counts visits to the page (which page, browser, country, how fast it
+loaded). It uses no cookies and keeps nothing that identifies you. The phone and computer versions don't have it.
+
+No accounts, no ads, no tracking across other sites or apps, and nothing is sold. The server is hosted by Heroku.
 
 To delete everything: clear this site's data in your browser (or uninstall the game)."""
 
