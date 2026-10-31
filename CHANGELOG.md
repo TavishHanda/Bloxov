@@ -7,6 +7,11 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.16 (Signs that spilled over)
+- Sign check (owner): the bank's cash machine had the top of CASH cut off, and the calendars in the offices and the
+  town hall had MAY written over the days. Both moved to fit. The medicine boxes in loot spots said MEDS, one letter
+  too wide for the box (the M and S were cut off); they say MED now.
+
 ## 0.25.15 (Top bunk and sign lettering)
 - Hideout: you can jump up onto a top bunk (owner asked, just for fun). The far bunk on the right has a footlocker
   and two stacked ammo crates at its foot as steps; the bunks now collide up to the top mattress so you stand on it.

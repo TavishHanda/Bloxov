@@ -7575,7 +7575,7 @@ def office_decals(rng):
     def calendar(c):      # 0.4 x 0.6 m, stopped in May like everywhere else
         c.rect(0, 0, c.w, c.h, "bone")
         c.rect(0, c.h - 6, c.w, c.h, "red")
-        c.ctext(0, c.w, c.h - 13, "MAY", "black")
+        c.ctext(0, c.w, max(8, (c.h - 3) // 2), "MAY", "black")   # (between the days and the red top: 0.25.16, it overlapped the days)
         for r in range(4):
             for k in range(4):
                 c.rect(1 + k * 3, 1 + r * 2, 3 + k * 3, 2 + r * 2, "steel")
@@ -8174,7 +8174,7 @@ def town_hall_decals(rng):
     def calendar(c):      # 0.4 x 0.6 m, stopped in May like everywhere else
         c.rect(0, 0, c.w, c.h, "bone")
         c.rect(0, c.h - 6, c.w, c.h, "red")
-        c.ctext(0, c.w, c.h - 13, "MAY", "black")
+        c.ctext(0, c.w, max(8, (c.h - 3) // 2), "MAY", "black")   # (between the days and the red top: 0.25.16, it overlapped the days)
         for r in range(4):
             for k in range(4):
                 c.rect(1 + k * 3, 1 + r * 2, 3 + k * 3, 2 + r * 2, "steel")
@@ -9856,7 +9856,7 @@ def bank_decals(rng):
             for x in range(6, c.w - 6, 3):
                 c.put(x, y, "bone")
         c.rect(6, 3, c.w - 6, 5, "black")
-        c.ctext(0, c.w, 31, "CASH", "bone")
+        c.ctext(0, c.w, 29, "CASH", "bone")                       # (0.25.16: its top row was cut off at 31)
 
     def rates(c):         # 1.6 x 0.9 m: the exchange rates board in the banking hall, stopped on the last day
         c.rect(0, 0, c.w, c.h, "black")

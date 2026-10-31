@@ -190,7 +190,7 @@ def loot_decals(rng):
     a.add("weapon_case", 37, 12, weapon_case)
     a.add("box_soda", 16, 13, box_label("SODA", "red", "bone"))
     a.add("box_food", 16, 13, box_label("FOOD", "hazard_yellow", "red"))
-    a.add("box_meds", 16, 13, box_label("MEDS", "bone", "green_dark"))
+    a.add("box_meds", 16, 13, box_label("MED", "bone", "green_dark"))
 
     def box_tv(c):          # 0.9 x 0.6 m: a flat-screen box, the set drawn on it
         c.rect(0, 0, c.w, c.h, "wood_pale")
