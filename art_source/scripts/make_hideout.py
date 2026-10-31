@@ -44,6 +44,8 @@ DART_RINGS = (0.012, 0.028, 0.090, 0.106, 0.152, 0.170, 0.225)   # bull, outer b
 DART_LINE = -2.07                                  # the throw line (x): 2.37 m from the board, like a real oche
 RADIO = (-2.6, 24.4)
 SWITCH = (4.46, 1.3, 25.85)                        # the bunks' light switch, on the right wall
+BUNK_TOP = 1.71                                    # the top bunk's mattress: what you stand on up there
+CLIMB_BUNK = (3.4, 29.6)                           # the bunk with steps up to it (0.25.15)
 DARK_GLOWS = []                                    # bulbs that stay lit with the lights off (the fairy lights)
 BAND = 1.2                                         # the painted band along the bottom of the concrete walls
 
@@ -1030,7 +1032,20 @@ def bunks(ctx):
             for dz in (-1.0, 1.0):
                 p = r(dx, dz)
                 pipe(b, (bx + p[0], 0, bz + p[2]), (bx + p[0], 2.2, bz + p[2]))
-        block(bx, 0.0, bz, 0.9, 2.2, 2.0, yaw)
+        # (0.25.15, owner: "make sure we can jump on the top bunk"): the bunk collides up to its top mattress, so you
+        # can stand up there; the posts above it don't (5 cm tubes)
+        block(bx, 0.0, bz, 0.9, BUNK_TOP, 2.0, yaw)
+        if (bx, bz) == CLIMB_BUNK:
+            # Two jumps' worth of steps at its foot (the hideout's walker jumps ~1 m, no climbing): a footlocker, then
+            # two ammo crates stacked, then the top bunk.
+            p = r(0.0, -1.3)
+            for k, (sx, sy) in enumerate(((0.6, 0.55), (0.56, 0.55))):
+                crate(b, bx + p[0], k * 0.55, bz + p[2], sx, sy, 0.56, yaw=yaw + (0.0, 4.0)[k], mat="olive")
+            block(bx + p[0], 0.0, bz + p[2], 0.6, 1.12, 0.6, yaw)
+            p = r(0.0, -1.95)
+            crate(b, bx + p[0], 0.0, bz + p[2], 0.6, 0.44, 0.56, yaw=yaw, mat="olive")   # the footlocker
+            block(bx + p[0], 0.0, bz + p[2], 0.6, 0.46, 0.6, yaw)
+            continue
         p = r(0.0, -1.35)
         crate(b, bx + p[0], 0.0, bz + p[2], 0.5, 0.4, 0.4, yaw=yaw, mat="olive")   # a footlocker
 

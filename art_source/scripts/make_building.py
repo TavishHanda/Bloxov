@@ -164,17 +164,15 @@ class Canvas:
         return cx - x - scale
 
     def ctext(self, x0, x1, y, s, c, scale=1):
-        """Pixel text centred between columns x0 and x1. The leftover space must split evenly (else one side
-        gets a pixel more, which shows at this size), so an odd leftover widens the middle gap by a pixel."""
+        """Pixel text centred between columns x0 and x1. When the leftover space is odd, a space between words
+        is widened a pixel so both sides match; with no space the text sits a pixel left of centre. (A gap is never
+        widened inside a word: owner 0.25.15, the hideout's "ST ASH", "WARD ROBE" read as weird pixel gaps.)"""
         w = Canvas.text_width(s, scale)
         gap = -1
-        if (x1 - x0 - w) % 2:          # odd leftover: widen the middle gap a pixel so both sides match
-            if len(s) < 2:
-                raise ValueError("text %r (%d px) can't be centred in %d px" % (s, w, x1 - x0))
-            gap, w = (len(s) - 2) // 2, w + 1
+        if (x1 - x0 - w) % 2:
             spaces = [i - 1 for i, ch in enumerate(s) if ch == " " and i > 0]
             if spaces:     # (grocery: widen a space rather than split a word, "CANNE D FOOD")
-                gap = min(spaces, key=lambda i: abs(i - (len(s) - 2) / 2))
+                gap, w = min(spaces, key=lambda i: abs(i - (len(s) - 2) / 2)), w + 1
         return self.text(x0 + (x1 - x0 - w) // 2, y, s, c, scale, gap)
 
     @staticmethod

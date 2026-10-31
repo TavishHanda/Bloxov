@@ -2142,6 +2142,27 @@ func _section_hideout_world() -> void:
 		if moved > 0.3 or absf(walker.global_position.y - marker.global_position.y) > 0.2:
 			bad.append("%s (moved %.2f m, y %.2f)" % [marker.name, moved, walker.global_position.y - marker.global_position.y])
 	_check(bad.is_empty(), "every station stands on open floor %s" % str(bad))
+	# The top bunk (0.25.15, owner: "make sure we can jump on the top bunk"): walk at it from the aisle, jumping, up
+	# the footlocker and the crates onto the mattress.
+	walker.global_position = world.global_position + Vector3(0.4, 0.05, 29.6)
+	walker.rotation = Vector3(0, -PI / 2, 0)   # (facing east, at the bunk with the steps)
+	walker.velocity = Vector3.ZERO
+	for i in 10:
+		await physics_frame
+	Input.action_press("move_forward")
+	for i in 70:
+		if walker.is_on_floor() and i % 10 == 0:
+			Input.action_press("jump")
+		else:
+			Input.action_release("jump")
+		await physics_frame
+	Input.action_release("move_forward")
+	Input.action_release("jump")
+	for i in 40:
+		await physics_frame
+	var on_bunk := walker.global_position - world.global_position
+	_check(walker.is_on_floor() and absf(on_bunk.y - 1.71) < 0.05 and on_bunk.x > 2.5,
+		"jump up the steps onto the top bunk (%s)" % on_bunk)
 	var guns: Node3D = world.get_node("Level/Stations/guns")
 	walker.global_position = guns.global_position + Vector3.UP * 0.1
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)

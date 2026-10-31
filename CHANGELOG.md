@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.15 (Top bunk and sign lettering)
+- Hideout: you can jump up onto a top bunk (owner asked, just for fun). The far bunk on the right has a footlocker
+  and two stacked ammo crates at its foot as steps; the bunks now collide up to the top mattress so you stand on it.
+- Signs: no more stray gaps inside words. To centre text exactly, the sign painter used to widen one gap in the
+  middle of a word ("ST ASH", "WARD ROBE", "SUPP LIER", "CANNE D FOOD"); now it widens a space between words, or
+  sits the text half a pixel off centre. Every sign was repainted: the hideout, 34 map buildings and the loot boxes
+  ("SO DA", "ME DS"). Only the sign pictures changed, nothing moved.
+
 ## 0.25.14 (Website visit counts)
 - Owner asked to see how many people visit. The web page on bloxov.com now loads Cloudflare Web Analytics, which
   is free and cookieless: visits, pages, browsers, countries and load times, with nothing that identifies a player.
