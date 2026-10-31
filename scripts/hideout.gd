@@ -862,6 +862,9 @@ func _build_top_bar() -> void:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)
 	margin.add_theme_constant_override("margin_right", 16)
+	# The buttons sit inside the plate's bevel (its light top edge is 3 px), not over it (0.25.11, owner).
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", 4)
 	bar.add_child(margin)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 18)
