@@ -21,6 +21,35 @@ static var _last: Dictionary = {}       # instance id -> last position (for the 
 static var _pushers := PackedVector4Array()
 
 
+## A material is built the first time it's drawn (on the web that's a little freeze, 0.17.8). Draws a speck of `mesh`
+## with `material` in front of the camera for a moment, a few frames after `node` comes in (the raid's camera comes in
+## after the map), so it's built at raid start, not when you first see the thing (0.28.0: flags, crows).
+static func warm_up(node: Node, mesh: Mesh, material: Material) -> void:
+	for _k in 3:
+		if not is_instance_valid(node) or not node.is_inside_tree():
+			return
+		await node.get_tree().process_frame
+	if not is_instance_valid(node) or not node.is_inside_tree():
+		return
+	var camera := node.get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var speck := MeshInstance3D.new()
+	speck.mesh = mesh
+	speck.material_override = material
+	speck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	speck.scale = Vector3.ONE * 0.001
+	camera.add_child(speck)
+	speck.position = Vector3(0.0, 0.0, -0.5)
+	var timer := Timer.new()   # (a Timer on the speck: nothing is left waiting on it if the camera goes first)
+	timer.wait_time = 0.5
+	timer.one_shot = true
+	timer.autostart = true
+	timer.process_mode = Node.PROCESS_MODE_ALWAYS   # (the raid opens paused, behind the menu)
+	timer.timeout.connect(speck.queue_free)
+	speck.add_child(timer)
+
+
 ## Whether reactions run here: never on the game server (headless), unless a test asks for them.
 static func wanted(node: Node) -> bool:
 	return DisplayServer.get_name() != "headless" or bool(node.get_meta(&"force_reacts", false))

@@ -7,6 +7,27 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.0 (The world comes alive)
+A new update (owner: "anything that should have some sort of animation/life we need to give it", and it should be its
+own update). Everything here is looks only: hitboxes, shots, the AI and how the game plays don't change, nothing is
+sent online and the game server draws none of it. It's cheap on phones: the wind is in shaders, the moving parts are
+a handful of small models.
+- **Weathervane:** the rooster on the farmhouse roof turns with the wind, wandering slowly and twitching in gusts.
+- **Clocks:** the grandfather clock's pendulum swings again (it used to be stopped), a rod and a bob behind the glass,
+  and so does the bell tower clock's. Close up you hear it tick and tock (a new sound; no sound was replaced).
+- **Porch swing:** the swing on the brick house's porch sways on its chains.
+- **Cranes:** the junkyard crane's magnet and the car on it, and the depot's hand crane and its crate, sway a little.
+- **Wind:** power lines swing gently between the poles (most in the middle), tent canvas ripples, and the camo nets
+  lift and ripple, least where they're tied to their poles.
+- **Wrecks:** the four burning wrecks that smoke now glow at the bottom and throw up embers.
+- **Crows:** small flocks circle high over the farm's field, the churchyard and the junkyard, flapping and gliding.
+- **Blowing leaves and paper:** a few dead leaves tumble along the wind wherever you are outside, with scraps of paper
+  in town; they stop while you're under a roof.
+- How it's built: make_building.py takes moving parts out of a building's model into their own small models
+  (`assets/models/movers/`, "movers" in `<name>_solids.json`, drawn by `scripts/movers.gd`); swaying outdoor faces are a
+  second atlas material (`kit_sway`, `assets/shaders/kit_sway.gdshader`); crows `scripts/birds.gd`, leaves and paper
+  `scripts/drift.gd`. New shaders are drawn once at raid start so nothing stutters the first time you see them.
+
 ## 0.27.2 (Poster look)
 - The owner's favourite picture (brag.jpg, now kept as `art_source/brag.jpg`) is the game's poster: owner, "use the
   brag.jpg for like our main screens like posters title screen etc, i like that picture a lot".

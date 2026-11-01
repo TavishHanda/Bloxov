@@ -540,6 +540,10 @@ def write_model_boxes(ter):
                 (fx, fy, fz) = fl["hoist"]   # (its flags, waving: flags.gd; they fly out along the model's -x)
                 x, z = turn_point(ox + fx, oz + fz, ox, oz, m["turned"])
                 FLAGS.append(([x, y + fy, z, (m["turned"] + 180.0) % 360.0, fl["w"], fl["h"]], fl["image"]))
+            for mv in (json.load(open(path)).get("movers", []) if os.path.exists(path) else []):
+                (px, py, pz) = mv["pivot"]   # (its moving parts, round their pivots: movers.gd)
+                x, z = turn_point(ox + px, oz + pz, ox, oz, m["turned"])
+                MOVERS.append(([x, y + py, z, m["turned"] % 360.0] + mv["axis"] + [MOVER_KINDS[mv["kind"]]], mv["model"]))
         prop_loot(m)
         glazed(m)
         with open(os.path.join(MODEL_JSON_DIR, m["name"] + ".json"), "w") as f:
@@ -599,6 +603,10 @@ OPENED = collections.Counter()   # building -> plain windows left open (printed 
 def plain_window(m, i, o):
     share = WINDOW_AUDIT.get(m["name"], {}).get(str(i))
     return o["kind"] == "window" and share is not None and share < BLOCKED
+MOVERS = []   # ([x, y, z of the pivot, yaw, axis x, y, z (model space), kind], model) (0.28.0, movers.gd)
+MOVER_KINDS = {"vane": 0, "pendulum": 1, "swing": 2, "hook": 3}
+CROWS = [(312.0, 71.0, 6), (196.0, 52.0, 4),
+         (330.0, 285.0, 4)]   # map x, z, birds (0.28.0: over the farm's field, the churchyard, the junkyard)
 FLAGS = []    # ([x, y, z of the hoist's top corner, yaw (its +x flies out), width, height], picture) (0.26.1)
 BLINDS = []   # x, y, z of the head rail's middle, yaw (its +z into the room), width, drop, crooked end's lift
 
@@ -7219,6 +7227,9 @@ def write_scene(ter):
     out.append('[ext_resource type="Script" path="res://scripts/kickables.gd" id="g_kicks"]')
     out.append('[ext_resource type="Script" path="res://scripts/blinds.gd" id="g_blinds"]')
     out.append('[ext_resource type="Script" path="res://scripts/flags.gd" id="g_flags"]')
+    out.append('[ext_resource type="Script" path="res://scripts/movers.gd" id="g_movers"]')
+    out.append('[ext_resource type="Script" path="res://scripts/birds.gd" id="g_birds"]')
+    out.append('[ext_resource type="Script" path="res://scripts/drift.gd" id="g_drift"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]')
     out.append('[ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]')
@@ -7308,6 +7319,11 @@ def write_scene(ter):
             'script = ExtResource("g_flags")',
             "data = PackedFloat32Array(" + ", ".join(fmt(v) for f, _ in FLAGS for v in f) + ")",
             "pictures = PackedStringArray(" + ", ".join('"%s"' % p for _, p in FLAGS) + ")", "",
+            # the moving parts of buildings (0.28.0: weathervane, pendulums, porch swing, crane hooks; looks only)
+            '[node name="Movers" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_movers")',
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for f, _ in MOVERS for v in f) + ")",
+            "models = PackedStringArray(" + ", ".join('"%s"' % p for _, p in MOVERS) + ")", "",
             # the trees (outdoor step 7; their trunks collide and their leaves hide you from the AI, this draws them)
             '[node name="Trees" type="Node3D" parent="Level/Blocks"]',
             'script = ExtResource("g_trees")',
@@ -7339,6 +7355,12 @@ def write_scene(ter):
     for k, (x, z) in enumerate(SMOKE):
         out += [f'[node name="Smoke{k}" parent="Level" instance=ExtResource("s_smoke")]',
                 f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt(gx(x))}, {fmt(ter.lift(x, z) + 0.8)}, {fmt(gz(z))})", ""]
+    # Crows circling over the farm's field, the churchyard and the junkyard; paper and leaves blowing round the camera,
+    # paper only in town (0.28.0, owner: give the world some life; looks only).
+    out += ['[node name="Birds" type="Node3D" parent="Level"]', 'script = ExtResource("g_birds")',
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for x, z, n in CROWS for v in (gx(x), ter.lift(x, z), gz(z), n)) + ")", "",
+            '[node name="Drift" type="Node3D" parent="Level"]', 'script = ExtResource("g_drift")',
+            f"town = Rect2({fmt(gx(TOWN[0]))}, {fmt(gz(TOWN[1]))}, {fmt(TOWN[2] - TOWN[0])}, {fmt(TOWN[3] - TOWN[1])})", ""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, z in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',

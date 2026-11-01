@@ -4958,10 +4958,16 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
         t = "kit_atlas" if mname in atlas else mname
         if t not in targets:
             targets.append(t)
+    # Faces that sway in the wind (0.28.0, make_outdoor.py SWAY: wires, tent canvas, camo nets): a second atlas
+    # material, "kit_sway" (tools/building_import.gd gives it assets/materials/kit_sway.tres); each corner's vertex
+    # colour is how far it sways (r: the slow sway, g: the quick ripple), not light.
+    sway = getattr(builder, "sway", None) or {}
+    if sway:
+        targets.append("kit_sway")
     images, tex_index, materials = [], {}, []
     for mname in targets:
-        if mname == "kit_atlas":                   # its texture comes from the shader material (import script)
-            materials.append({"name": "kit_atlas", "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1],
+        if mname in ("kit_atlas", "kit_sway"):     # its texture comes from the shader material (import script)
+            materials.append({"name": mname, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1],
                               "metallicFactor": 0.0, "roughnessFactor": 1.0}})
             continue
         tex_name, cutout, double = mat_info[mname]
@@ -4987,8 +4993,14 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
         vnormals = list(getattr(builder, "vnormals", None) or [])
         vnormals += [None] * (len(builder.faces) - len(vnormals))
         has_col = False
-        for face, uvs, m, n, cs, vns in zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors, vnormals):
-            if target_of[m] != mi:
+        for fi, (face, uvs, m, n, cs, vns) in enumerate(zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors,
+                                                             vnormals)):
+            if fi in sway:
+                assert builder.mat_names[m] in atlas, f"swaying {builder.mat_names[m]}: only kit (atlas) materials sway"
+                if targets[mi] != "kit_sway":
+                    continue
+                cs = [(r, g, 0.0) for r, g in sway[fi]]
+            elif target_of[m] != mi:
                 continue
             has_col = has_col or bool(cs)
             base = len(pos)
@@ -5007,7 +5019,7 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
                                      "NORMAL": add_accessor(nrm, 5126, "VEC3", 34962),
                                      "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
                                      **({"TEXCOORD_1": add_accessor(uv2, 5126, "VEC2", 34962)}
-                                        if targets[mi] == "kit_atlas" else {}),
+                                        if targets[mi] in ("kit_atlas", "kit_sway") else {}),
                                      **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if has_col else {})},
                       "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
     # Images use the alpha channel only where the material says so; gltf's alpha comes from the texture.
@@ -6201,12 +6213,14 @@ def prop_porch(ctx, c, s):
                  yaw=90, pitch=d * ang)
     if style == "wood":                                                                  # the porch swing, pots
         sx = c[0] - s[0] / 2 + 0.75
+        f0 = len(b.faces)   # (0.28.0: it sways a little on its chains, from the porch ceiling)
         _box(b, sx, 0.55, z0 + 0.35, 1.1, 0.06, 0.4, "wood_light")
         _box(b, sx, 0.8, z0 + 0.17, 1.1, 0.45, 0.05, "wood_light", pitch=-10)
         for d in (-0.5, 0.5):
             for dz in (0.17, 0.5):
                 _box(b, sx + d, 1.7, z0 + dz, 0.015, 2.3, 0.015, "black")
         _box(b, sx, 0.62, z0 + 0.35, 0.5, 0.08, 0.3, "yellow")                             # a cushion
+        mover(b, "swing", f0, (sx, 2.85, z0 + 0.335), (1.0, 0.0, 0.0))
         for k, (px, col) in enumerate(((c[0] + s[0] / 2 - 0.3, "red"), (c[0] + s[0] / 2 - 0.75, "yellow"))):
             pz = z0 + 0.3                                                                # pots by the wall
             _box(b, px, y0 + 0.3, pz, 0.32, 0.36, 0.32, "brick")
@@ -6322,12 +6336,14 @@ def farm_roof_extras(ctx, fp, hv):
     _box(b, vx, ry + 0.6, 0.0, 0.04, 1.2, 0.04, "trim_dark")
     for yaw in (0, 90):
         _box(b, vx, ry + 0.75, 0.0, 0.7, 0.02, 0.02, "trim_dark", yaw=yaw)
+    f0 = len(b.faces)   # (0.28.0: the arrow and the rooster turn in the wind, the post and compass arms stay)
     _box(b, vx, ry + 1.05, 0.0, 0.8, 0.03, 0.03, "trim_dark", yaw=30)                        # arrow
     _box(b, vx + 0.34, ry + 1.05, -0.2, 0.06, 0.14, 0.14, "trim_dark", yaw=30)
     rooster = ((0.0, 1.28, 0.36, 0.22), (0.14, 1.45, 0.14, 0.16), (0.2, 1.55, 0.06, 0.08),
                (-0.2, 1.38, 0.12, 0.3), (-0.04, 1.14, 0.04, 0.1))
     for ox_, oy, w, h in rooster:
         _box(b, vx + ox_, ry + oy, 0.0, w, h, 0.03, "trim_dark", yaw=30)
+    mover(b, "vane", f0, (vx, ry + 1.05, 0.0), (0.0, 1.0, 0.0))
     for lx in (-6.0, 6.0):                                                                  # lightning rods
         _box(b, lx, ry + 0.35, 0.0, 0.025, 0.7, 0.025, "steel_light")
         _box(b, lx, ry + 0.35, 0.0, 0.12, 0.12, 0.12, "blue")
@@ -6365,9 +6381,14 @@ def prop_grandfather_clock(ctx, c, s):
     hand = _pos(c, k, 0, f * (D / 2 + 0.01), 0)
     b.box((hand[0], y0 + 1.94, hand[2]), _sz(k, 0.015, 0.1, 0.006), style=_nb("black"))
     b.box((hand[0], y0 + 1.9, hand[2]), _sz(k, 0.08, 0.015, 0.006), style=_nb("black"))
-    win = _pos(c, k, 0, f * (s[2 if k == 2 else 0] / 2 - 0.035), 0)
+    win = _pos(c, k, 0, f * (s[2 if k == 2 else 0] / 2 - 0.012), 0)   # (0.28.0: out a little, the pendulum behind it)
     b.box((win[0], y0 + 1.1, win[2]), _sz(k, 0.26, 0.9, 0.006), style=_nb("glass"))
-    b.box((win[0], y0 + 0.85, win[2]), _sz(k, 0.12, 0.12, 0.02), style=_nb("brass"))   # the pendulum, stopped
+    # The pendulum (0.28.0: it swings again, a rod and a bob behind the glass; it was a bob, stopped).
+    pend = _pos(c, k, 0, f * (s[2 if k == 2 else 0] / 2 - 0.026), 0)   # (between the case and the glass)
+    f0 = len(b.faces)
+    b.box((pend[0], y0 + 1.2, pend[2]), _sz(k, 0.02, 0.62, 0.01), style=_nb("brass"))
+    b.box((pend[0], y0 + 0.85, pend[2]), _sz(k, 0.12, 0.12, 0.02), style=_nb("brass"))
+    mover(b, "pendulum", f0, (pend[0], y0 + 1.5, pend[2]), (0.0, 0.0, 1.0) if k == 2 else (1.0, 0.0, 0.0))
 
 
 def prop_study_desk(ctx, c, s):
@@ -13311,8 +13332,10 @@ def prop_clock_works(ctx, c, s):
     b.box((c[0], y0 + case_h / 2, c[2] - hz + 0.02), (s[0] - 0.2, case_h - 0.1, 0.03), style=_nb("wood"))
     b.box((c[0], y0 + 0.55, c[2] + hz + 0.01), (23 / 32, 9 / 32, 0.02), style=face_decal(ctx.d("clock_plate"), "brass", "+z"))
     b.box((c[0], y0 + case_h - 0.05, c[2]), (0.03, 0.05, 0.03), style=_nb("black"))   # pendulum (in the open case)
+    f0 = len(b.faces)   # (0.28.0: the rod and bob swing)
     b.box((c[0], y0 + 0.4, c[2]), (0.02, 0.6, 0.02), style=_nb("brass"))
     b.box((c[0], y0 + 0.12, c[2]), (0.2, 0.2, 0.05), style=_nb("brass"))                # its bob
+    mover(b, "pendulum", f0, (c[0], y0 + 0.7, c[2]), (0.0, 0.0, 1.0))
     top = y0 + case_h + 0.06
     for sx in (-1, 1):                                                          # the movement: an iron frame
         for sz in (-1, 1):
@@ -19187,12 +19210,14 @@ def prop_dp_crane(ctx, c, s):
     b.box((c[0] + 0.3, y0 + 1.2, c[2]), (0.3, 0.3, 0.3), style=_nb("trim_dark"))      # winch drum
     _beam(b, (c[0] + 0.45, y0 + 1.2, c[2]), (c[0] + 0.45, y0 + 0.95, c[2] + 0.3), 0.04, 0.04, "trim_dark")
     b.box((end[0], end[1] - 0.12, end[2]), (0.12, 0.12, 0.2), style=_solid("trim_dark"))   # pulley
+    f0 = len(b.faces)   # (0.28.0: the chain and the crate on it sway a little)
     b.box((end[0], (end[1] + 3.35) / 2 - 0.1, end[2]), (0.03, end[1] - 3.35 - 0.2, 0.03), style=_nb("black"))   # chain
     b.box((end[0], 3.3, end[2]), (0.08, 0.14, 0.05), style=_nb("trim_dark"))          # hook
     for zz in (end[2] - 0.3, end[2] + 0.3):                                            # slings to the crate
         _beam(b, (end[0], 3.25, end[2]), (end[0], 3.0, zz), 0.02, 0.02, "black")
     b.box((end[0], 2.62, end[2]), (0.8, 0.75, 0.8), yaw=12, style=_solid("wood"))
     b.box((end[0], 2.62, end[2]), (0.82, 0.08, 0.82), yaw=12, style=_solid("wood_dark"))
+    mover(b, "hook", f0, (end[0], end[1] - 0.2, end[2]))
 
 
 def prop_dp_crates(ctx, c, s):
@@ -21872,11 +21897,13 @@ def crane_new(ctx, c, s):
     # the trolley on the jib, the cable down to the magnet, a wreck still on it
     hx = jib_end + 3.0 + (2.0 if look == "d" else 0.0)
     _box(b, hx, jy - 0.1, c[2], 0.9, 0.25, 1.0, "trim_dark")
+    f0 = len(b.faces)   # (0.28.0: the cables, magnet and car sway a little under the trolley)
     for sz in (-0.15, 0.15):
         _box(b, hx, (jy - 0.2 + 6.05) / 2, c[2] + sz, 0.03, jy - 0.2 - 6.05, 0.03, "trim_dark")
     _box(b, hx, 6.25, c[2], 0.5, 0.4, 0.4, paint)                            # the hook block
     _box(b, hx, 5.9, c[2], 1.2, 0.3, 1.2, "trim_dark")                       # the magnet
     b.box((hx, 5.1, c[2]), (1.8, 1.0, 3.8), yaw=8, pitch=6, style=_nb("gs_burnt"))   # its car
+    mover(b, "hook", f0, (hx, jy - 0.2, c[2]))
 
 
 def prop_jy_crane(ctx, c, s):
@@ -22405,6 +22432,54 @@ BLINDS = []
 # flying out along the model's -x, width, height, and the decal painted again as assets/textures/flags/<name>_<k>.png;
 # in <name>_solids.json "flags".
 FLAGS = []
+# Parts the game moves (0.28.0, owner: "anything that should have some sort of animation/life we need to give it"): a
+# weathervane, a pendulum, a porch swing, a crane's hook and what hangs off it. Drawn as usual (so their solids and
+# shot faces are measured as before), then taken out of the model after the light bake and written as their own little
+# model round their pivot (assets/models/movers/<name>_<k>.glb); in <name>_solids.json "movers"; scripts/movers.gd.
+MOVERS = []
+
+
+def mover(b, kind, f0, pivot, axis=(0.0, 0.0, 1.0)):
+    """The faces drawn since f0 move as one `kind` ("vane", "pendulum", "swing", "hook") round `pivot` (model space),
+    swinging (or turning, a vane) about `axis`."""
+    tag = ("mover", len(MOVERS))   # (as one item: the bake lights it all alike and doesn't cut its faces up)
+    for i in range(f0, len(b.faces)):
+        b.groups[i] = tag
+    MOVERS.append({"kind": kind, "tag": tag, "pivot": [round(v, 3) for v in pivot], "axis": [round(v, 3) for v in axis]})
+
+
+def split_movers(b, name, textures, mat_info):
+    """Takes MOVERS' faces out of `b` (after the bake: they keep its light) into their own models; returns their rows."""
+    rows, gone = [], set()
+    folder = os.path.join(ROOT, "assets", "models", "movers")
+    for k, m in enumerate(MOVERS):
+        part = Builder()
+        part.colors = []
+        colors = getattr(b, "colors", None) or []
+        for fi in [i for i, g in enumerate(b.groups) if g == m["tag"]]:
+            base = len(part.verts)
+            part.verts += [tuple(v_sub(b.verts[i], m["pivot"])) for i in b.faces[fi]]
+            part.faces.append(list(range(base, base + len(b.faces[fi]))))
+            part.uvs.append(b.uvs[fi])
+            part.normals.append(b.normals[fi])
+            part.mats.append(part.mat_index(b.mat_names[b.mats[fi]]))
+            part.groups.append(None)
+            part.colors.append(colors[fi] if fi < len(colors) else None)
+            gone.add(fi)
+        os.makedirs(folder, exist_ok=True)
+        out = os.path.join(folder, "%s_%d.glb" % (name, k))
+        write_glb(out, part, textures, mat_info, atlas=kit_atlas())
+        set_import_script(out)
+        rows.append({"kind": m["kind"], "pivot": m["pivot"], "axis": m["axis"],
+                     "model": "res://assets/models/movers/%s_%d.glb" % (name, k)})
+    if gone:
+        keep = [i for i in range(len(b.faces)) if i not in gone]
+        for attr in ("faces", "uvs", "mats", "normals", "groups", "colors", "vnormals"):
+            vals = getattr(b, attr, None)
+            if vals:
+                vals += [None] * (len(b.faces) - len(vals))
+                setattr(b, attr, [vals[i] for i in keep])
+    return rows
 
 
 def _tris_since(b, f0):
@@ -22474,6 +22549,7 @@ def build(name, export):
     KICKS.clear()
     BLINDS.clear()
     FLAGS.clear()
+    MOVERS.clear()
     solid_rows = [r for r in data["boxes"] if r["solid"]]
     for n, row in enumerate(data["boxes"]):
         kind = row.get("kind")
@@ -22502,6 +22578,7 @@ def build(name, export):
     floor_debris(ctx, data, name)
     if BAKE_LIGHT:
         bake_light.bake(ctx.b, data["boxes"])
+    mover_rows = split_movers(ctx.b, name, textures, mat_info)
     print(f"{name}: {sum(len(f) - 2 for f in ctx.b.faces)} triangles, "
           f"{len({('kit_atlas' if m in KIT and m not in NOT_IN_ATLAS else m) for m in ctx.b.mat_names})} materials")
     with open(os.path.join(ROOT, "art_source", "buildings", name + "_panes.json"), "w") as f:
@@ -22525,13 +22602,14 @@ def build(name, export):
         fl["image"] = "res://assets/textures/flags/%s_%d.png" % (name, k)
         os.makedirs(os.path.join(ROOT, "assets", "textures", "flags"), exist_ok=True)
         write_png(os.path.join(ROOT, "assets", "textures", "flags", "%s_%d.png" % (name, k)), len(rows[0]), len(rows), rows)
-    if SOLIDS or KICKS or BLINDS or FLAGS:
+    if SOLIDS or KICKS or BLINDS or FLAGS or mover_rows:
         with open(solids_path, "w") as f:
             f.write('{"note": "Generated by art_source/scripts/make_building.py: boxes for what the model draws that '
                     'looks solid but has no gray box (SOLIDS), and the tins and bottles to kick (KICKS), in the model\'s '
                     'own space.",\n"kicks": ' + json.dumps([[round(v, 3) if isinstance(v, float) else v for v in k] for k in KICKS])
                     + (',\n"blinds": [\n' + ",\n".join(json.dumps(r) for r in BLINDS) + "\n]" if BLINDS else "")
                     + (',\n"flags": [\n' + ",\n".join(json.dumps(r) for r in FLAGS) + "\n]" if FLAGS else "")
+                    + (',\n"movers": [\n' + ",\n".join(json.dumps(r) for r in mover_rows) + "\n]" if mover_rows else "")
                     + ',\n"solids": [\n' + ",\n".join(json.dumps(r, separators=(",", ":")) for r in SOLIDS) + "\n]}\n")
     elif os.path.exists(solids_path):
         os.remove(solids_path)

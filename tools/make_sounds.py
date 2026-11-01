@@ -1062,8 +1062,32 @@ def main_bunker():
         write(f"ambience/bunker_tick{v + 1}.wav", bunker_tick(v))
 
 
+# --- World life (0.28.0, owner: give the world some life; new sounds only). ---
+
+def clock_tick(variant):
+    """A grandfather clock's tick (0) or tock (1): a small dry wooden knock with a short metal click on top."""
+    random.seed(2800 + variant)
+    n = length(0.09)
+    body = 900 if variant == 0 else 760
+    grit = _highpass(noise(n, 0.2), 0.7)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        knock = math.sin(2 * math.pi * body * t) * math.exp(-t * 90) * 0.7
+        ring = math.sin(2 * math.pi * body * 3.7 * t) * math.exp(-t * 160) * 0.35
+        out.append(knock + ring + grit[i] * math.exp(-t * 260) * 0.5)
+    return out
+
+
+def main_life():
+    (OUT / "world").mkdir(exist_ok=True)
+    for v in range(2):
+        write(f"world/clock_tick{v + 1}.wav", clock_tick(v))
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
     main_hideout()
     main_bunker()
+    main_life()

@@ -1525,12 +1525,29 @@ def _wire_seg(b, a, c, mat="trim_dark"):
           style=lambda n, m, q: None if abs(dot(n, u)) > 0.9 else (mat, uv_world(1.0)))
 
 
+# What sways in the wind (0.28.0, owner: give the world some life): (first face, last face + 1, corner -> (sway,
+# ripple)) of the chunk being drawn; mb.write_glb draws them with the wind shader (assets/shaders/kit_sway.gdshader).
+# Their collision is untouched (the faces stay in the chunk).
+SWAY = []
+
+
+def sways(b, f0, weight):
+    SWAY.append((f0, len(b.faces), weight))
+
+
 def draw_wire(b, piece, rng):
     span, ma, mb_ = piece["boxes"][0], piece["boxes"][1], piece["boxes"][2]
     for ox, oy in WIRES[piece["look"]]:
         p0, p1 = _wire_pt(ma, ox, oy), _wire_pt(mb_, ox, oy)
         L = math.hypot(p1[0] - p0[0], p1[2] - p0[2])
+        f0 = len(b.faces)
         _sag_line(b, p0, p1, 0.022 * L + rng.uniform(-0.05, 0.1), n=12)
+        if L > 1.0:   # (0.28.0: the span swings a little, most in the middle, not at the poles)
+            def along(v, p0=p0, p1=p1, L=L):
+                t = ((v[0] - p0[0]) * (p1[0] - p0[0]) + (v[2] - p0[2]) * (p1[2] - p0[2])) / (L * L)
+                t = min(1.0, max(0.0, t))
+                return (min(1.0, 4 * t * (1 - t) * min(1.0, L / 30.0)), 0.0)
+            sways(b, f0, along)
 
 
 def draw_wire_down(b, piece, rng):
@@ -2611,6 +2628,7 @@ def draw_tent(b, piece, rng):
     W, H, L = box["size"]
     canvas = "dbr_canvas"
     ridge = H + 0.25
+    f0_canvas = len(b.faces)
     for sx in (-1, 1):   # the two roof sides
         a0, a1 = f.p(sx * (W / 2 + 0.15), -0.05, -L / 2), f.p(sx * (W / 2 + 0.15), -0.05, L / 2)
         r0, r1 = f.p(0, ridge, -L / 2), f.p(0, ridge, L / 2)
@@ -2625,6 +2643,9 @@ def draw_tent(b, piece, rng):
     for sx in (-1, 1):   # the front flaps, tied back
         tri(b, f.p(sx * (W / 2 + 0.15), -0.05, -L / 2), f.p(sx * 0.45, ridge * 0.72, -L / 2 - 0.02),
             f.p(sx * (W / 2 - 0.2), -0.05, -L / 2 - 0.25), canvas, f.p(0, H / 3, 0))
+    # (0.28.0: the canvas ripples in the wind, tied down at the ground and the ridge; the dark inside goes with it)
+    lo, hi = f.p(0, -0.05, 0)[1], f.p(0, ridge, 0)[1]
+    sways(b, f0_canvas, lambda v: (0.0, math.sin(math.pi * min(1.0, max(0.0, (v[1] - lo) / (hi - lo)))) * 0.7))
     f.box((0, ridge + 0.03, 0), (0.07, 0.07, L + 0.5), style=flat("wood_dark", 1.0))       # ridge pole and uprights
     for z in (-L / 2 - 0.2, L / 2 + 0.2):
         f.box((0, ridge / 2, z), (0.07, ridge, 0.07), style=flat("wood_dark", 1.0))
@@ -2699,6 +2720,7 @@ def draw_net(b, piece, rng):
         edge = 0.45 if i in (0, N) or j in (0, N) else 0.0
         return f.p(u, top - sag - edge + rng.uniform(-0.03, 0.03), v)
     pts = [[P(i, j) for j in range(N + 1)] for i in range(N + 1)]
+    f0 = len(b.faces)
     for i in range(N):
         for j in range(N):
             a, c, d, e = pts[i][j], pts[i + 1][j], pts[i + 1][j + 1], pts[i][j + 1]
@@ -2709,6 +2731,10 @@ def draw_net(b, piece, rng):
     for _ in range(14):   # leafy scraps tied in
         u, v = rng.uniform(-W / 2, W / 2), rng.uniform(-D / 2, D / 2)
         rock(b, f.p(u, top - 0.05, v), (0.5, 0.18, 0.5), rng.uniform(0, 90), rng, "dbr_leaf_c", jitter=0.2, chamfer=0.4)
+    # (0.28.0: the net and its scraps lift and ripple in the wind, least where it's tied to the poles)
+    feet = [frame_of(b, p).p(0, 0, 0) for p in posts]
+    sways(b, f0, lambda v: (0.25 * min(1.0, min(math.hypot(v[0] - q[0], v[2] - q[2]) for q in feet) / 2.5),
+                            0.6 * min(1.0, min(math.hypot(v[0] - q[0], v[2] - q[2]) for q in feet) / 1.5)))
 
 
 # ------------------------------------------------------------------------------------------------ the station square
@@ -3649,6 +3675,7 @@ def main():
         data = json.load(open(os.path.join(JSON_DIR, fn)))
         ORIGIN[:] = data["origin"]
         b = Builder()
+        SWAY.clear()
         for piece in data["pieces"]:
             _SHAPE_KEY[0] = f"{piece['kind']} {piece['seed']}"
             f0 = len(b.faces)
@@ -3657,6 +3684,7 @@ def main():
                 see_through(b, f0, piece)
         if os.environ.get("BLOXOV_KERBS") != "0":   # (off for the options sheets' "today" pictures)
             draw_road_edges(b, random.Random("road edges " + name))
+        b.sway = {fi: [weight(b.verts[i]) for i in b.faces[fi]] for f0, f1, weight in SWAY for fi in range(f0, f1)}
         out = os.path.join(OUT_DIR, name + ".glb")
         mb.write_glb(out, b, textures, mat_info, atlas=cells)
         mb.set_import_script(out)

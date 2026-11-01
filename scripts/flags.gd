@@ -32,7 +32,8 @@ func _ready() -> void:
 		mi.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(d[3])), Vector3(d[0], d[1], d[2]))
 		add_child(mi)
 	if n > 0:
-		_warm_up()
+		var first := get_child(0) as MeshInstance3D
+		Reacts.warm_up(self, first.mesh, first.material_override)
 
 
 ## One flag's flat sheet: from the pole (x 0) out along +x, from its top edge (y 0) down. Its picture reads the right
@@ -55,21 +56,3 @@ static func sheet(w: float, h: float) -> ArrayMesh:
 				st.add_index(k)
 	return st.commit()
 
-
-## The flag's shader is built the first time it's drawn (on the web that's a little freeze, 0.17.8): draw a speck of
-## it in front of the camera once, at raid start, instead of when you first walk into sight of a flag.
-func _warm_up() -> void:
-	for _k in 3:   # (the raid's camera comes in after the map)
-		await get_tree().process_frame
-	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
-	var first := get_child(0) as MeshInstance3D if get_child_count() > 0 else null
-	if camera == null or first == null:
-		return
-	var speck := MeshInstance3D.new()
-	speck.mesh = first.mesh
-	speck.material_override = first.material_override
-	speck.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	speck.scale = Vector3.ONE * 0.001
-	camera.add_child(speck)
-	speck.position = Vector3(0.0, 0.0, -0.5)
-	get_tree().create_timer(0.5, true, false, true).timeout.connect(speck.queue_free)

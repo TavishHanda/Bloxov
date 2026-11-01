@@ -88,6 +88,9 @@
 [ext_resource type="Script" path="res://scripts/kickables.gd" id="g_kicks"]
 [ext_resource type="Script" path="res://scripts/blinds.gd" id="g_blinds"]
 [ext_resource type="Script" path="res://scripts/flags.gd" id="g_flags"]
+[ext_resource type="Script" path="res://scripts/movers.gd" id="g_movers"]
+[ext_resource type="Script" path="res://scripts/birds.gd" id="g_birds"]
+[ext_resource type="Script" path="res://scripts/drift.gd" id="g_drift"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]
 [ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]
 [ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]
@@ -177,6 +180,11 @@ data = PackedFloat32Array(41.5, 2.23, -150.8, 0, 1.46, 1.1, -0.547, 39.45, 2.13,
 script = ExtResource("g_flags")
 data = PackedFloat32Array(-60.54, 10.513, -128.85, 180, 1.8, 1.36)
 pictures = PackedStringArray("res://assets/textures/flags/big_house_3_0.png")
+
+[node name="Movers" type="Node3D" parent="Level/Blocks"]
+script = ExtResource("g_movers")
+data = PackedFloat32Array(-136.65, 7.947, -145.626, 0, 0, 0, 1, 1, -96.75, 7.952, -126.515, 0, 1, 0, 0, 2, -22, 5.622, -142, 0, 0, 0, 1, 1, 143, 11.004, -143, 0, 0, 1, 0, 0, 104.525, 4.1, 65.9, 0, 0, 0, 1, 3, 154, 10.718, 91, 0, 0, 0, 1, 3)
+models = PackedStringArray("res://assets/models/movers/big_house_1_0.glb", "res://assets/models/movers/big_house_2_0.glb", "res://assets/models/movers/bell_tower_0.glb", "res://assets/models/movers/farmhouse_0.glb", "res://assets/models/movers/depot_0.glb", "res://assets/models/movers/junkyard_0.glb")
 
 [node name="Trees" type="Node3D" parent="Level/Blocks"]
 script = ExtResource("g_trees")
@@ -2103,6 +2111,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.386, 2.978, -15.239)
 
 [node name="Smoke3" parent="Level" instance=ExtResource("s_smoke")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -97.446, 1.057, 43.585)
+
+[node name="Birds" type="Node3D" parent="Level"]
+script = ExtResource("g_birds")
+data = PackedFloat32Array(137, 0.624, -104, 6, 21, 1.922, -123, 4, 155, -0.482, 110, 4)
+
+[node name="Drift" type="Node3D" parent="Level"]
+script = ExtResource("g_drift")
+town = Rect2(-175, -175, 205, 200)
 
 [node name="Extracts" type="Node3D" parent="."]
 

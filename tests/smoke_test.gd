@@ -5626,6 +5626,46 @@ func _section_reacts() -> void:
 		"a flag is one waving sheet with its picture")
 	_check(not flags.find_children("*", "CollisionObject3D", true, false), "and nothing on it collides")
 	flags.queue_free()
+	# Moving parts (0.28.0, owner: give the world some life): a clock's pendulum swings and ticks near you, nothing on
+	# it collides, and the game server draws none of it.
+	var mover_data := PackedFloat32Array([ground.x, ground.y + 1.5, ground.z + 2.0, 0.0, 0.0, 0.0, 1.0, 1.0])
+	var movers: Node3D = load("res://scripts/movers.gd").new()
+	movers.data = mover_data
+	movers.models = PackedStringArray(["res://assets/models/movers/big_house_1_0.glb"])
+	main.add_child(movers)
+	_check(movers.get_child_count() == 0, "no moving parts on the game server (headless)")
+	movers.queue_free()
+	movers = load("res://scripts/movers.gd").new()
+	movers.set_meta(&"force_reacts", true)
+	movers.data = mover_data
+	movers.models = PackedStringArray(["res://assets/models/movers/big_house_1_0.glb"])
+	main.add_child(movers)
+	var swung_to := 0.0
+	for _k in 40:
+		await physics_frame
+		swung_to = maxf(swung_to, absf(movers.parts[0].basis.x.y))
+	_check(movers.parts[0].get_child_count() == 2 and swung_to > 0.01,
+		"a clock's pendulum swings (%.3f) and has its tick" % swung_to)
+	_check(not movers.find_children("*", "CollisionObject3D", true, false), "and nothing that moves collides")
+	movers.queue_free()
+	# Crows and blowing leaves: drawn only on players' screens, nothing on them collides.
+	var birds: Node3D = load("res://scripts/birds.gd").new()
+	birds.set_meta(&"force_reacts", true)
+	birds.data = PackedFloat32Array([ground.x, ground.y, ground.z, 5.0])
+	main.add_child(birds)
+	await physics_frame
+	var crows := birds.get_node_or_null("Crows") as MultiMeshInstance3D
+	_check(crows != null and crows.multimesh.instance_count == 5
+		and birds.positions[0].y > ground.y + 15.0, "crows circle high over their spot")
+	birds.queue_free()
+	var drift: Node3D = load("res://scripts/drift.gd").new()
+	drift.set_meta(&"force_reacts", true)
+	main.add_child(drift)
+	await physics_frame
+	_check(drift.leaves != null and not drift.find_children("*", "CollisionObject3D", true, false),
+		"leaves blow about, and nothing on them collides")
+	drift.queue_free()
+	_check(load("res://assets/materials/kit_sway.tres") is ShaderMaterial, "wires, tents and nets have their wind material")
 
 
 func _section_leaves() -> void:
