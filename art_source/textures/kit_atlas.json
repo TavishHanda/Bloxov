@@ -227,5 +227,15 @@
 "hd_tiles",
 "hd_felt",
 "hd_vinyl",
-"hd_ceiling"
+"hd_ceiling",
+"hd_crate",
+"hd_crate_dk",
+"hd_band",
+"hd_canvas",
+"hd_canvas_dk",
+"hd_mattress",
+"hd_pillow",
+"hd_steel",
+"hd_slats",
+"hd_cushion"
 ]

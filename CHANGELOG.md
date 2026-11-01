@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.5 (Hideout: texture and life)
+Owner: "things to sit on, lights, etc are just so bland we need to give it more texture and life in the hideout too".
+- The cave's furniture had flat colours. Now: crates are painted planks with nails, chips and a steel-clasped lid band;
+  the mess benches are worn wooden slats; tables, worktops and the war table's door are scratched sheet steel with
+  rivets; mattresses are striped ticking with buttons, pillows striped cream; the couch is canvas and worn upholstery;
+  duffels and bags are stitched canvas; pipes, drums, rails and scaffold are rusty black iron. Same colours as before,
+  now with a surface (no extra materials: it's all one picture).
+- Lamps: every bulb sits in a black socket; the tunnels' bulbs have wire cages; the lamps over the war table have green
+  enamel shades; the work lamps have a guard over the glass, a handle and a cable.
+- A little life (looks only, never on the server, `scripts/hideout_life.gd`): steam off the stove's pot and its fire
+  flickering through the vents, dust drifting in the light over the war table, and the TV shows a changing picture
+  instead of one blue glow.
 ## 0.28.4 (Sign backs read the right way round)
 - Owner: "need to make sure back of signs are flipped". The Last Stop Motel's road sign, its NO VACANCY board and the
   OFFICE blade sign over the motel office read backwards from behind. Their back faces mirrored the picture on top

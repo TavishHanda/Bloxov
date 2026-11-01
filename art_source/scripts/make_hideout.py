@@ -310,6 +310,197 @@ mb.KIT.update({"hd_tin_red": paint_hd_tin("hd_red"), "hd_tin_teal": paint_hd_tin
                "hd_vinyl": paint_hd_vinyl, "hd_ceiling": paint_hd_ceiling})
 
 
+# The cave's furniture (0.28.5, owner: "things to sit on, lights, etc are just so bland we need to give it more
+# texture and life"): the crates, benches, tables, mattresses, couch and iron had flat colours. These are 1 m tiles
+# (props are mapped at a metre: 64 px a metre), worn the way the rest of the hideout is.
+mb.PALETTE.update({"hd_ol_hi": "666d3e", "hd_ol_lo": "50572f", "hd_old_hi": "464b2e", "hd_old_lo": "343822",
+                   "hd_steel_hi": "848b91", "hd_steel_lo": "5f656b", "hd_tick": "4a5136", "hd_tick_lo": "2f331f",
+                   "hd_pillow": "d8d1bd", "hd_pillow_lo": "c4bca5", "hd_stain": "a99e7e"})
+
+
+def paint_hd_crate(base, hi, lo):
+    """Painted plank crates: 12 cm boards with dark seams, each board a shade off, a nail at each end, the paint
+    chipped to the wood and rubbed pale on the edges, a grain line or two showing through."""
+    def f(rng):
+        c = mb.Canvas(64, 64, base)
+        for j in range(8):
+            tone = rng.choice((base, base, hi, lo))
+            y0 = j * 8
+            c.rect(0, y0 + 1, 64, y0 + 8, tone)
+            c.rect(0, y0, 64, y0 + 1, "hd_old_lo" if base == "olive" else "charcoal_dark")
+            for _ in range(2):                                         # grain through the paint
+                y = y0 + rng.randrange(2, 7)
+                x = rng.randrange(64)
+                for k in range(rng.randrange(6, 18)):
+                    c.put((x + k) % 64, y, lo if tone != lo else base)
+            for x in (3, 34):                                          # nails
+                c.put(x, y0 + 4, "iron_dark")
+                if rng.random() < 0.5:
+                    c.put(x, y0 + 3, "rust")
+        c.noise(0, 0, 64, 64, [hi, lo], 0.05, rng)
+        c.blotch(["wood_mid", "wood"], 7, rng, size=(1, 3))           # chipped to the wood
+        c.blotch([hi], 5, rng, size=(2, 5))                            # rubbed pale
+        return c
+    return f
+
+
+def paint_hd_band(rng):
+    """A crate's lid band: dark olive, a steel clasp every 25 cm, scuffed."""
+    c = mb.Canvas(64, 64, "olive_dark")
+    c.noise(0, 0, 64, 64, ["hd_old_hi", "hd_old_lo"], 0.15, rng)
+    for x0 in range(6, 64, 16):
+        c.rect(x0, 0, x0 + 3, 64, "steel")
+        for y in range(0, 64, 4):
+            c.put(x0 + 1, y, "steel_light")
+            c.put(x0 + 2, y + 1, "iron")
+    c.blotch(["rust"], 3, rng, size=(1, 2))
+    return c
+
+
+def paint_hd_canvas(base, hi, lo):
+    """Army canvas: a fine weave, a stitched seam every 50 cm, creases and stains (duffels, the couch's arms)."""
+    def f(rng):
+        c = mb.Canvas(64, 64, base)
+        for y in range(64):
+            for x in range(64):
+                if (x + y) % 2 == 0 and rng.random() < 0.35:
+                    c.put(x, y, hi if (x // 2 + y) % 3 else lo)
+        for x0 in (15, 47):                                            # seams, stitched
+            for y in range(64):
+                c.put(x0, y, lo)
+                if y % 3 == 0:
+                    c.put(x0 + 1, y, "hd_stain")
+        for _ in range(5):                                             # creases
+            x, y = rng.randrange(64), rng.randrange(64)
+            for k in range(rng.randrange(4, 10)):
+                c.put((x + k) % 64, (y + k // 2) % 64, lo)
+        c.blotch([lo, "mound"], 4, rng, size=(2, 6))
+        return c
+    return f
+
+
+def paint_hd_mattress(rng):
+    """An army mattress: olive ticking with narrow stripes, a button every 25 cm, a piped edge, a few stains."""
+    c = mb.Canvas(64, 64, "hd_tick")
+    for x in range(64):
+        if x % 6 in (0, 1):
+            for y in range(64):
+                c.put(x, y, "olive_dark")
+    c.noise(0, 0, 64, 64, ["hd_tick_lo", "hd_ol_lo"], 0.05, rng)
+    for y in range(8, 64, 16):
+        for x in range(8, 64, 16):
+            c.put(x, y, "hd_tick_lo")
+            c.put(x + 1, y, "hd_tick_lo")
+    c.blotch(["hd_stain", "mound"], 3, rng, size=(2, 6))
+    return c
+
+
+def paint_hd_pillow(rng):
+    """A pillow: cream with faint blue-grey stripes, a sweat stain."""
+    c = mb.Canvas(64, 64, "hd_pillow")
+    for x in range(64):
+        if x % 8 == 0:
+            for y in range(64):
+                c.put(x, y, "hd_pillow_lo")
+    c.noise(0, 0, 64, 64, ["hd_pillow_lo"], 0.06, rng)
+    c.blotch(["paper_cream", "hd_stain"], 3, rng, size=(3, 7))
+    return c
+
+
+def paint_hd_steel(rng):
+    """Old sheet steel (the tables, worktops, the war table's door): brushed streaks, scratches, dents, rivets at the
+    sheets' edges every 50 cm, spots of rust."""
+    c = mb.Canvas(64, 64, "steel")
+    for y in range(64):                                                # brushed
+        if rng.random() < 0.35:
+            x = rng.randrange(64)
+            for k in range(rng.randrange(8, 30)):
+                c.put((x + k) % 64, y, rng.choice(("hd_steel_hi", "hd_steel_lo")))
+    for _ in range(9):                                                 # scratches
+        x, y = rng.randrange(64), rng.randrange(64)
+        dx, dy = rng.choice(((1, 1), (1, -1), (2, 1), (1, 2)))
+        for k in range(rng.randrange(4, 12)):
+            c.put((x + k * dx) % 64, (y + k * dy) % 64, "steel_light")
+    for x0 in (0, 32):                                                 # sheet seams and rivets
+        for y in range(64):
+            c.put(x0, y, "iron")
+        for y in range(4, 64, 8):
+            c.put(x0 + 2, y, "steel_light")
+            c.put(x0 + 2, y - 1, "iron_dark")
+    c.blotch(["hd_steel_lo", "iron"], 5, rng, size=(2, 4))             # dents, grime
+    c.blotch(["rust"], 3, rng, size=(1, 2))
+    return c
+
+
+def paint_hd_slats(rng):
+    """Worn wooden slats (the mess benches): 8 cm boards, gaps between, grain, rubbed pale where people sit."""
+    c = mb.Canvas(64, 64, "wood_dark")
+    for i in range(8):
+        x0 = i * 8
+        tone = rng.choice(("wood_mid", "wood_dark", "wood_dark"))
+        c.rect(x0 + 1, 0, x0 + 8, 64, tone)
+        c.rect(x0, 0, x0 + 1, 64, "wood_dark")
+        for _ in range(3):
+            x = x0 + rng.randrange(2, 7)
+            y = rng.randrange(64)
+            for k in range(rng.randrange(8, 24)):
+                c.put(x, (y + k) % 64, "wood_mid" if tone == "wood_dark" else "wood_dark")
+        if rng.random() < 0.6:                                         # a knot
+            c.put(x0 + rng.randrange(2, 7), rng.randrange(64), "wood_dark")
+    c.blotch(["wood"], 6, rng, size=(2, 6))
+    c.noise(0, 0, 64, 64, ["wood_dark"], 0.03, rng)
+    return c
+
+
+def paint_hd_iron(rng):
+    """Black iron (pipes, drums, scaffold, rails): mottled, rust coming through and running down."""
+    c = mb.Canvas(64, 64, "iron")
+    c.noise(0, 0, 64, 64, ["iron_dark"], 0.12, rng)
+    for _ in range(6):
+        x, y = rng.randrange(64), rng.randrange(64)
+        c.put(x, y, "rust")
+        for k in range(rng.randrange(2, 9)):
+            if rng.random() < 0.75:
+                c.put(x, (y - 1 - k) % 64, "rust")
+    c.blotch(["rust", "iron_dark"], 4, rng, size=(1, 3))
+    return c
+
+
+def paint_hd_tube(rng):
+    c = mb.Canvas(64, 64, "steel")
+    c.noise(0, 0, 64, 64, ["hd_steel_lo", "hd_steel_hi"], 0.1, rng)
+    c.blotch(["rust"], 2, rng, size=(1, 2))
+    return c
+
+
+def paint_hd_cushion(rng):
+    """The couch's cushions: worn olive upholstery, piped seams, creases, a cigarette burn."""
+    c = mb.Canvas(64, 64, "olive")
+    c.noise(0, 0, 64, 64, ["hd_ol_hi", "hd_ol_lo"], 0.3, rng)
+    for x0 in (0, 31):
+        for y in range(64):
+            c.put(x0, y, "olive_dark")
+    for _ in range(6):
+        x, y = rng.randrange(64), rng.randrange(64)
+        for k in range(rng.randrange(4, 9)):
+            c.put((x + k) % 64, (y + k % 3) % 64, "hd_ol_lo")
+    c.blotch(["olive_light"], 4, rng, size=(3, 7))                    # sat shiny
+    c.put(rng.randrange(64), rng.randrange(64), "charcoal_dark")
+    return c
+
+
+mb.KIT.update({"hd_crate": paint_hd_crate("olive", "hd_ol_hi", "hd_ol_lo"),
+               "hd_crate_dk": paint_hd_crate("olive_dark", "hd_old_hi", "hd_old_lo"),
+               "hd_band": paint_hd_band, "hd_canvas": paint_hd_canvas("olive", "hd_ol_hi", "hd_ol_lo"),
+               "hd_canvas_dk": paint_hd_canvas("olive_dark", "hd_old_hi", "hd_old_lo"),
+               "hd_mattress": paint_hd_mattress, "hd_pillow": paint_hd_pillow, "hd_steel": paint_hd_steel,
+               "hd_slats": paint_hd_slats, "hd_cushion": paint_hd_cushion,
+               "bk_iron": paint_hd_iron, "bk_tube": paint_hd_tube})
+# Which flat colour turns into which: crates, bags and the like keep their colour, now with a surface.
+CRATE_TEX = {"olive": "hd_crate", "olive_dark": "hd_crate_dk"}
+BAG_TEX = {"olive": "hd_canvas", "olive_dark": "hd_canvas_dk"}
+
+
 def paint_hd_door(rng):
     """A leaf of the hangout's sliding doors (scripts/hideout_doors.gd stretches it over a 1.2 x 2.08 m leaf): a steel
     frame, teal tin, a round porthole lit from the room behind, a red stripe, a steel pull and a kick plate."""
@@ -401,6 +592,7 @@ def write_door_texture(rows_):
         mb.write_png(os.path.join(mb.ROOT, "assets", "textures", "hangout_secret.png"), len(rows[0]), len(rows), rows)
 
 
+LIFE = {}           # (0.28.5) where scripts/hideout_life.gd puts the stove's steam and fire, the dust, the TV
 DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
 
 
@@ -1107,8 +1299,8 @@ def pipe(b, a, c, mat="bk_tube", t=0.05):
 def crate(b, x, y, z, sx, sy, sz, yaw=0.0, mat="olive"):
     """A military crate: the body and a darker lid band (standing 2 cm proud of the body's top, so the two never
     flicker through each other: owner 2026-10-25, the seats round the war table and the footlockers)."""
-    b.box((x, y + sy / 2, z), (sx, sy, sz), yaw=yaw, style=mb._nb(mat))
-    b.box((x, y + sy - 0.02, z), (sx + 0.04, 0.08, sz + 0.04), yaw=yaw, style=mb._solid("olive_dark"))
+    b.box((x, y + sy / 2, z), (sx, sy, sz), yaw=yaw, style=mb._nb(CRATE_TEX.get(mat, mat)))
+    b.box((x, y + sy - 0.02, z), (sx + 0.04, 0.08, sz + 0.04), yaw=yaw, style=mb._solid("hd_band"))
 
 
 def drum(b, x, z, y=0.0, mat="cabin_tin_b"):
@@ -1120,7 +1312,7 @@ def drum(b, x, z, y=0.0, mat="cabin_tin_b"):
 
 def duffel(b, x, y, z, yaw, rng):
     """A green army duffel bag lying on its side: an octagonal roll, a strap, darker ends."""
-    mat = rng.choice(("olive", "olive_dark", "bk_tarp"))
+    mat = BAG_TEX.get(*[rng.choice(("olive", "olive_dark", "bk_tarp"))] * 2)
     ln, r = rng.uniform(0.8, 1.0), rng.uniform(0.17, 0.22)
     b.box((x, y + r * 0.7, z), (r * 2.0, r * 1.4, ln), yaw=yaw, style=mb._nb(mat))
     b.box((x, y + r, z), (r * 1.4, r * 2.0, ln - 0.08), yaw=yaw, style=mb._nb(mat))
@@ -1244,9 +1436,9 @@ def bay(ctx, rng, i, entry):
             crate(b, p[0], y0, p[2], 0.6, 0.85, ww - 0.04, yaw=F.yaw + rng.uniform(-3, 3),
                   mat=rng.choice(("olive", "olive_dark")))
             k += ww
-        F.box(b, fx, 0.94, 0.0, 0.8, 0.04, w - 0.8, mb._solid("metal"))
+        F.box(b, fx, 0.94, 0.0, 0.8, 0.04, w - 0.8, mb._solid("hd_steel"))
         for y in (0.0, 0.9, 1.8):                                     # steel racking at the back, stocked
-            F.box(b, 0.4, y + 0.86, mid, 0.7, 0.04, w - 1.0, mb._solid("metal"))
+            F.box(b, 0.4, y + 0.86, mid, 0.7, 0.04, w - 1.0, mb._solid("hd_steel"))
             for k in range(3):
                 if rng.random() < 0.85:
                     p = F.P(0.4, y + 0.88, (k - 1) * (w - 1.4) / 3 + rng.uniform(-0.15, 0.15))
@@ -1272,14 +1464,14 @@ def bay(ctx, rng, i, entry):
         pipe(b, F.P(0.6, 1.9, -w / 2 + 0.7), F.P(0.6, 1.9, w / 2 - 0.7))
         k = -w / 2 + 1.0
         while k < w / 2 - 0.9:                                        # jackets, smocks and rigs on hangers
-            F.box(b, 0.6, 1.4, k, 0.5, 0.9, 0.12, mb._nb(rng.choice(("olive", "olive_dark", "bk_tarp", "bk_cable"))),
+            F.box(b, 0.6, 1.4, k, 0.5, 0.9, 0.12, mb._nb(BAG_TEX.get(*[rng.choice(("olive", "olive_dark", "bk_tarp", "bk_cable"))] * 2)),
                   yaw=rng.uniform(-8, 8))
             k += rng.uniform(0.25, 0.4)
         F.box(b, depth - 1.2, 1.2, w / 2 - 0.6, 0.04, 1.0, 0.45, mb._solid("blue"))            # a mirror on a stand
         pipe(b, F.P(depth - 1.2, 0, w / 2 - 0.6), F.P(depth - 1.2, 0.7, w / 2 - 0.6))
         block(*F.P(0.6, 0, 0.0), 0.7, 1.9, w - 1.2, F.yaw)
     elif bid == "workbench":
-        F.box(b, 0.5, 0.9, 0.0, 0.9, 0.06, min(3.2, w - 0.8), mb._solid("metal"))
+        F.box(b, 0.5, 0.9, 0.0, 0.9, 0.06, min(3.2, w - 0.8), mb._solid("hd_steel"))
         for al in (-1.4, 1.4):
             for out in (0.1, 0.9):
                 pipe(b, F.P(out, 0, al), F.P(out, 0.88, al), "bk_iron", 0.06)
@@ -1325,7 +1517,7 @@ def war_table(ctx):
     for dx in (-2.0, 2.0):
         for dz in (-1.1, 1.1):
             drum(b, tx + dx, tz + dz, mat=rng.choice(("shed_metal", "bk_iron")))
-    b.box((tx, 0.94, tz), (5.2, 0.05, 3.3), style=mb._solid("metal"))
+    b.box((tx, 0.94, tz), (5.2, 0.05, 3.3), style=mb._solid("hd_steel"))
     b.poly([(tx - 2.3, 0.985, tz - 1.4), (tx + 2.3, 0.985, tz - 1.4), (tx + 2.3, 0.985, tz + 1.4), (tx - 2.3, 0.985, tz + 1.4)],
            (0, 1, 0), "decals", ctx.d("map"))
     for _ in range(5):                                                 # ammo tins and a radio holding the map down
@@ -1345,7 +1537,7 @@ def shooting_range(ctx):
     for u, w in ((-2.0, 1.6), (0.0, 1.6), (2.0, 1.6)):
         p = t.P(u, 0, fl)
         b.box((p[0], 0.45, p[2]), (w, 0.9, 0.6), yaw=t.yaw(), style=mb._nb("bk_sandbag"))
-        b.box((p[0], 0.93, p[2]), (w + 0.1, 0.05, 0.7), yaw=t.yaw(), style=mb._solid("metal"))
+        b.box((p[0], 0.93, p[2]), (w + 0.1, 0.05, 0.7), yaw=t.yaw(), style=mb._solid("hd_steel"))
         block(p[0], 0.0, p[2], w, 0.95, 0.6, t.yaw())
     p = t.P(0, 0, t.a1 - 1.3)
     b.box((p[0], 1.2, p[2]), (2 * t.hw, 2.4, 2.4), style=mb._nb("bk_sandbag"))                # the backstop
@@ -1378,10 +1570,10 @@ def mess(ctx):
             x, z, yaw = mx + k * 2.6, mz, 0.0
         else:
             x, z, yaw = mx + k * 0.3, mz + k * 2.2, 90.0
-        b.box((x, 0.76, z), (0.8, 0.04, 2.6), yaw=yaw, style=mb._solid("metal"))
+        b.box((x, 0.76, z), (0.8, 0.04, 2.6), yaw=yaw, style=mb._solid("hd_steel"))
         for s in (-0.95, 0.95):
             off = mb.rot((s, 0, 0), yaw, 0)
-            b.box((x + off[0], 0.44, z + off[2]), (0.3, 0.04, 2.6), yaw=yaw, style=mb._solid("metal"))
+            b.box((x + off[0], 0.44, z + off[2]), (0.3, 0.04, 2.6), yaw=yaw, style=mb._solid("hd_slats"))
             for e in (-1.1, 1.1):
                 o2 = mb.rot((s, 0, e), yaw, 0)
                 pipe(b, (x + o2[0], 0, z + o2[2]), (x + o2[0], 0.42, z + o2[2]), "bk_iron", 0.05)
@@ -1398,7 +1590,7 @@ def mess(ctx):
             b.box((x + o2[0], 0.81, z + o2[2]), (0.14, 0.06, 0.2), yaw=rng.uniform(0, 90), style=mb._nb("metal"))
     kx, kz, kyaw = LAY.kitchen
     k = mb.rot((0, 0, 1.0), kyaw, 0)
-    b.box((kx, 0.85, kz), (0.8, 0.04, 2.6), yaw=kyaw, style=mb._solid("metal"))
+    b.box((kx, 0.85, kz), (0.8, 0.04, 2.6), yaw=kyaw, style=mb._solid("hd_steel"))
     for e in (-1.0, 1.0):
         crate(b, kx + k[0] * e, 0.0, kz + k[2] * e, 0.7, 0.83, 0.6, yaw=kyaw, mat="olive_dark")
     block(kx, 0.0, kz, 0.8, 0.9, 2.6, kyaw)
@@ -1406,6 +1598,8 @@ def mess(ctx):
     drum(b, sx, sz, mat="bk_iron")                                     # the stove, its pipe up into the rock
     pipe(b, (sx, 0.9, sz), (sx, 4.5, sz), "bk_iron", 0.1)
     b.box((sx, 0.98, sz), (0.3, 0.16, 0.3), style=mb._nb("metal"))    # a pot
+    LIFE["steam"] = (sx, 1.07, sz)                                     # (0.28.5: steam off it, the fire's glow under it)
+    LIFE["fire"] = (sx, 0.12, sz)
     drum(b, kx - k[0] * 2.3, kz - k[2] * 2.3, mat="shed_metal")       # water
     block(kx - k[0] * 2.3, 0.0, kz - k[2] * 2.3, 0.6, 0.95, 0.6)
     block(sx, 0.0, sz, 0.6, 1.0, 0.6)
@@ -1417,9 +1611,9 @@ def bunks(ctx):
     for bx, bz, yaw in LAY.bunk_list:
         r = lambda x, z: mb.rot((x, 0, z), yaw, 0)                    # noqa: E731
         for y in (0.45, 1.65):
-            b.box((bx, y, bz), (0.9, 0.12, 2.0), yaw=yaw, style=mb._nb("olive_dark"))
+            b.box((bx, y, bz), (0.9, 0.12, 2.0), yaw=yaw, style=mb._nb("hd_mattress"))
             p = r(0, 0.6)
-            b.box((bx + p[0], y + 0.13, bz + p[2]), (0.5, 0.12, 0.35), yaw=yaw + rng.uniform(-8, 8), style=mb._nb("bone"))
+            b.box((bx + p[0], y + 0.13, bz + p[2]), (0.5, 0.12, 0.35), yaw=yaw + rng.uniform(-8, 8), style=mb._nb("hd_pillow"))
         for dx in (-0.45, 0.45):
             for dz in (-1.0, 1.0):
                 p = r(dx, dz)
@@ -1641,12 +1835,12 @@ def quarters(ctx):
     b.poly([(-4.1, 0.012, zc - 1.4), (-1.0, 0.012, zc - 1.4), (-1.0, 0.012, zc + 1.4), (-4.1, 0.012, zc + 1.4)], (0, 1, 0),
            "carpet", mb.uv_world())
     cx = -1.5
-    b.box((cx, 0.22, zc), (0.85, 0.44, 2.1), style=mb._nb("bk_tarp"))                  # seat
-    b.box((cx + 0.33, 0.7, zc), (0.22, 0.6, 2.1), style=mb._nb("bk_tarp"))             # back
+    b.box((cx, 0.22, zc), (0.85, 0.44, 2.1), style=mb._nb("hd_canvas"))                # seat
+    b.box((cx + 0.33, 0.7, zc), (0.22, 0.6, 2.1), style=mb._nb("hd_cushion"))          # back
     for s in (-1, 1):
-        b.box((cx, 0.55, zc + s * 1.0), (0.85, 0.3, 0.18), style=mb._nb("olive_dark"))  # arms
+        b.box((cx, 0.55, zc + s * 1.0), (0.85, 0.3, 0.18), style=mb._nb("hd_canvas_dk"))  # arms
     for s in (-0.5, 0.5):
-        b.box((cx - 0.05, 0.5, zc + s), (0.6, 0.12, 0.9), yaw=rng.uniform(-4, 4), style=mb._nb("olive"))   # cushions
+        b.box((cx - 0.05, 0.5, zc + s), (0.6, 0.12, 0.9), yaw=rng.uniform(-4, 4), style=mb._nb("hd_cushion"))   # cushions
     block(cx, 0.0, zc, 0.9, 0.9, 2.1)
     crate(b, -2.6, 0.0, zc, 0.6, 0.38, 0.8, mat="olive_dark")                       # the table, a radio and mugs
     b.box((RADIO[0], 0.5, RADIO[1]), (0.3, 0.16, 0.14), style=mb._nb("bk_iron"))     # the radio: dial, knob, aerial
@@ -1671,11 +1865,11 @@ def quarters(ctx):
         p = r(0.45, 0.95)
         bulb(b, bx + p[0], 1.3, bz + p[2], 0.45, 1.8)
         p = r(0.0, -0.6)
-        b.box((bx + p[0], 1.82, bz + p[2]), (0.7, 0.2, 0.25), yaw=yaw, style=mb._nb(rng.choice(("bk_tarp", "olive", "red"))))
+        b.box((bx + p[0], 1.82, bz + p[2]), (0.7, 0.2, 0.25), yaw=yaw, style=mb._nb(BAG_TEX.get(*[rng.choice(("bk_tarp", "olive", "red"))] * 2)))
         if rng.random() < 0.6:
             duffel(b, bx, 1.71, bz + rng.uniform(-0.3, 0.3), yaw + rng.uniform(-10, 10), rng)
         p = r(0.0, -0.4)
-        b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(rng.choice(("bk_tarp", "olive", "blue"))))
+        b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(BAG_TEX.get(*[rng.choice(("bk_tarp", "olive", "blue"))] * 2)))
     # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off).
     n0 = len(LAMPS)
     for a, c in (((-4.44, 2.9, 25.6), (4.44, 2.9, 28.4)), ((4.44, 2.9, 28.4), (-4.44, 2.9, 31.6))):   # wall to wall
@@ -2158,10 +2352,22 @@ def sheet(c, width, height, yaw, colour):
     CLOTH.append((c, width, height, yaw, colour))
 
 
-def bulb(b, x, y, z, strength=0.4, reach=2.6):
+def bulb(b, x, y, z, strength=0.4, reach=2.6, cage=False, shade=None):
+    """A bulb in a black socket (0.28.5: they were bare cubes); `cage` puts a wire guard round it (the tunnels'),
+    `shade` an enamel shade over it in that colour (the war table's)."""
     b.group = bake_light.GLOW
-    mb._bx(b, x, y - 0.06, z, 0.08, 0.1, 0.08, "bone", bottom=True)
+    mb._bx(b, x, y - 0.07, z, 0.08, 0.1, 0.08, "bone", bottom=True)
+    b.box((x, y - 0.11, z), (0.05, 0.03, 0.05), style=mb._solid("bone"))      # (the round of the glass)
     b.group = None
+    b.box((x, y - 0.005, z), (0.06, 0.05, 0.06), style=mb._solid("bk_cable"))
+    if cage:
+        for yaw in (0.0, 90.0):
+            b.box((x, y - 0.09, z), (0.15, 0.12, 0.008), yaw=yaw + 45.0, style=mb._nb("trim_dark"))
+        b.box((x, y - 0.155, z), (0.1, 0.008, 0.1), yaw=45.0, style=mb._solid("trim_dark"))
+    if shade:
+        b.box((x, y - 0.02, z), (0.34, 0.03, 0.34), style=mb._solid(shade))
+        b.box((x, y + 0.03, z), (0.2, 0.07, 0.2), style=mb._solid(shade))
+        b.box((x, y - 0.045, z), (0.36, 0.015, 0.36), style=mb._solid("bone"))   # the white rim
     LAMPS.append((x, y - 0.15, z, strength, reach))
 
 
@@ -2191,6 +2397,14 @@ def work_lamp(b, x, z, strength=1.1, reach=3.0, y0=0.0):
     b.group = bake_light.GLOW
     mb._bx(b, x, y0 + 1.8, z + 0.11, 0.28, 0.22, 0.01, "bone", bottom=True)
     b.group = None
+    # (0.28.5) a wire guard over the glass, a handle and a cable down the leg
+    for k in (-0.08, 0.0, 0.08):
+        b.box((x + k, y0 + 1.8, z + 0.125), (0.012, 0.26, 0.012), style=mb._nb("bk_cable"))
+    b.box((x, y0 + 1.8, z + 0.125), (0.32, 0.012, 0.012), style=mb._nb("bk_cable"))
+    b.box((x, y0 + 2.0, z), (0.2, 0.03, 0.04), style=mb._nb("bk_cable"))
+    for k in (-0.09, 0.09):
+        b.box((x + k, y0 + 1.97, z), (0.03, 0.05, 0.04), style=mb._nb("bk_cable"))
+    pipe(b, (x, y0 + 1.66, z - 0.1), (x + 0.3, y0, z - 0.25), "bk_cable", 0.015)
     LAMPS.append((x, y0 + 1.8, z, strength, reach))
 
 
@@ -2208,10 +2422,12 @@ def lamps(ctx):
             a = 2 * math.pi * k / 5
             p = (tx + math.cos(a) * 1.6, 4.2, tz + math.sin(a) * 1.2)
             pipe(b, p, (tx, 7.5, tz), "bk_cable", 0.015)
-            bulb(b, p[0], p[1], p[2], 0.9, 3.6)
+            bulb(b, p[0], p[1], p[2], 0.9, 3.6, shade="green")
         # ... from a steel ring, on a chain of cable up into the rock of the crown (0.26.1: it ended in the air)
         b.box((tx, 7.5, tz), (0.16, 0.06, 0.16), style=mb._nb("bk_iron"))
         pipe(b, (tx, 7.5, tz), (tx, LAY.crown + 0.5, tz), "bk_cable", 0.025)
+    if SHAPE != "cave":
+        LIFE["dust"] = (LAY.war_table[0], 3.0, LAY.war_table[1])     # (0.28.5: dust drifting in the lamps' light)
     for x, z, s, r in LAY.work_lamps:
         work_lamp(b, x, z, s, r, base_y(x, z))
     for t in LAY.tunnels:                                              # bulbs down each tunnel's crown
@@ -2220,7 +2436,7 @@ def lamps(ctx):
         while a < t.a1 - 1.0:
             p = t.P(0, t.crown - 0.35, a)
             pipe(b, p, t.P(0, t.crown, a), "bk_cable", 0.015)
-            bulb(b, p[0], p[1], p[2], 1.1 if t.name == "range" else 0.9, 2.8)
+            bulb(b, p[0], p[1], p[2], 1.1 if t.name == "range" else 0.9, 2.8, cage=True)
             a += every
         pipe(b, t.P(0, t.crown - 0.06, t.a0), t.P(0, t.crown - 0.06, t.a1 - 1.0), "bk_cable", 0.03)
 
@@ -2228,6 +2444,7 @@ def lamps(ctx):
 def dress(ctx):
     L = LAY
     LAMPS.clear()
+    LIFE.clear()
     dome(ctx, L.outline, L.C, L.profile, L.mats, L.amp, [t.hole for t in L.tunnels], seed="hall", tunnels=L.tunnels)
     for t in L.tunnels:
         t.draw(ctx)
@@ -2445,13 +2662,14 @@ def write_level(rows):
     nums = ", ".join(("%g" % round(v, 4)) for v in flat)
     sx, sz = LAY.spawn
     with open(path, "w") as f:
-        f.write('[gd_scene load_steps=7 format=3]\n\n'
+        f.write('[gd_scene load_steps=8 format=3]\n\n'
                 '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_box"]\n'
                 '[ext_resource type="PackedScene" path="res://assets/models/buildings/hideout.glb" id="2_model"]\n'
                 '[ext_resource type="Script" path="res://scripts/swing_lamps.gd" id="3_swing"]\n'
                 '[ext_resource type="Script" path="res://scripts/cloth.gd" id="4_cloth"]\n'
                 '[ext_resource type="Script" path="res://scripts/kickables.gd" id="5_kicks"]\n'
-                '[ext_resource type="Script" path="res://scripts/hideout_doors.gd" id="6_doors"]\n\n'
+                '[ext_resource type="Script" path="res://scripts/hideout_doors.gd" id="6_doors"]\n'
+                '[ext_resource type="Script" path="res://scripts/hideout_life.gd" id="7_life"]\n\n'
                 '[node name="HideoutLevel" type="Node3D"]\n'
                 '; Generated by art_source/scripts/make_hideout.py: edit that and re-run it, never this file.\n\n'
                 '[node name="Blocks" type="StaticBody3D" parent="."]\n'
@@ -2517,6 +2735,11 @@ def write_level(rows):
                     'metadata/tv = Vector3(-3.684, 1.05, %g)\n'
                     % (z, -4.5, LAY.mess[1] + 3.5, 9.0, 36.0 - LAY.mess[1] - 3.5, glows, RADIO[0], RADIO[1],
                        LAY.mess[1] + 5.2))
+            LIFE["tv"] = (-3.678, 1.05, LAY.mess[1] + 5.2)
+        if LIFE:
+            f.write('\n[node name="Life" type="Node3D" parent="."]\nscript = ExtResource("7_life")\n')
+            for key in sorted(LIFE):
+                f.write('metadata/%s = Vector3(%g, %g, %g)\n' % ((key,) + tuple(round(v, 3) for v in LIFE[key])))
         if LAY.hang:
             jx, jz = LAY.hang.jukebox
             f.write('\n[node name="Hangout" type="Marker3D" parent="."]\n'

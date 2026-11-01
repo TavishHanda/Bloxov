@@ -5697,6 +5697,28 @@ func _section_reacts() -> void:
 	_check(drift.leaves != null and not drift.find_children("*", "CollisionObject3D", true, false),
 		"leaves blow about, and nothing on them collides")
 	drift.queue_free()
+	# The hideout's life (0.28.5): steam, the stove's fire, the TV's picture, dust. None on a headless run.
+	var life: Node3D = load("res://scripts/hideout_life.gd").new()
+	for key: StringName in [&"steam", &"fire", &"tv", &"dust"]:
+		life.set_meta(key, ground + Vector3(0, 1, 0))
+	main.add_child(life)
+	_check(life.get_child_count() == 0, "no hideout steam or dust on a headless run")
+	life.queue_free()
+	life = load("res://scripts/hideout_life.gd").new()
+	life.set_meta(&"force_reacts", true)
+	for key: StringName in [&"steam", &"fire", &"tv", &"dust"]:
+		life.set_meta(key, ground + Vector3(0, 1, 0))
+	main.add_child(life)
+	await physics_frame
+	_check(life.steam != null and life.dust != null and life.glows.size() == 8
+		and not life.find_children("*", "CollisionObject3D", true, false),
+		"the hideout has steam, the stove's fire, the TV's picture and dust, and none of it collides")
+	life.queue_free()
+	var hideout_level := (load("res://scenes/hideout/hideout_level.tscn") as PackedScene).instantiate()
+	var level_life := hideout_level.get_node_or_null("Life")
+	_check(level_life != null and level_life.has_meta(&"steam") and level_life.has_meta(&"tv"),
+		"the hideout says where its steam and TV are")
+	hideout_level.free()
 	_check(load("res://assets/materials/kit_sway.tres") is ShaderMaterial, "wires, tents and nets have their wind material")
 
 
