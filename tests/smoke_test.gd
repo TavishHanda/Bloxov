@@ -3197,6 +3197,15 @@ func _section_net() -> void:
 	var head_gap := (body.pose.joint("Neck").global_transform * BodyPose.HEAD_MID).distance_to(body.head_shape.global_position)
 	_check(is_equal_approx(body.model.scale.y, 1.0) and head_gap < 0.03,
 		"a crouching player kneels, its head box on its head (%.3f m off)" % head_gap)
+	# 0.25.22 (owner: "my legs turned backwards"): legs bent to kneel keep their front to the front, and standing up
+	# again leaves them that way.
+	var shin_front := body.model.global_basis.inverse() * body.pose.joint("KneeL").global_basis.z
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, 0], 10.055)
+	for i in 120:
+		body.update_view(10.055, 0.016)
+	var stood_front := body.model.global_basis.inverse() * body.pose.joint("KneeL").global_basis.z
+	_check(shin_front.z > 0.5 and stood_front.z > 0.9,
+		"kneeling and after standing up, their legs face forward (%.2f, %.2f)" % [shin_front.z, stood_front.z])
 	# The fitted boxes (Hitbox) still match the model in each pose (after changing the model or a pose, re-run
 	# tools/fit_hitboxes.gd and paste its numbers into hitbox.gd).
 	var off := 0.0
@@ -3207,7 +3216,7 @@ func _section_net() -> void:
 			off = maxf(off, maxf((measured[i][0] as Vector3).distance_to(want[0]), (measured[i][1] as Vector3).distance_to(want[1])))
 			off = maxf(off, absf(measured[i][3] - want[3]))
 	_check(off < 0.01, "the crouch, prone and downed hitboxes fit the model (%.3f m off)" % off)
-	_check(absf(Hitbox.CROUCH_PARTS[0][0].y - Hitbox.HEAD_HEIGHT * Hitbox.CROUCH_SCALE) < 0.002,
+	_check(absf(Hitbox.CROUCH_PARTS[0][0].y - Hitbox.CROUCH_HEAD) < 0.002,
 		"a crouching player's head box keeps its old height (owner)")
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.5, 0.0, 0], 10.06)
 	for i in 60:
@@ -3249,6 +3258,24 @@ func _section_net() -> void:
 	_check(body.gun_model == body.model.get_node("Gun") and body.gun_model.get_meta("gun", "") == "shotgun"
 		and body.gun_model.has_node("Art/Body") and body.gun_model.has_node("Muzzle") and body.gun_model.visible,
 		"another player holding a Mauler shows the Mauler model")
+	# 0.25.22 (owner: "the heads are kinda too big"): smaller heads, and the standing head box shrank onto them.
+	var stand_gap := (body.pose.joint("Neck").global_transform * BodyPose.HEAD_MID).distance_to(body.head_shape.global_position)
+	_check(stand_gap < 0.08 and (body.head_shape.shape as BoxShape3D).size.is_equal_approx(Hitbox.HEAD_SIZE) and Hitbox.HEAD_SIZE.x < 0.6,
+		"a standing player's head box sits on their (smaller) head (%.3f m off)" % stand_gap)
+	# Shot (0.25.22, owner: "give the model like a flinch"): the chest jolts away from the shot and settles again.
+	var chest_before := body.pose.joint("Spine").rotation
+	body.flinch(Vector3(0, 0, 1))
+	var jolted := 0.0
+	for i in 8:
+		body.update_view(10.075, 0.016)
+		jolted = maxf(jolted, body.pose.joint("Spine").rotation.distance_to(chest_before))
+	for i in 90:
+		body.update_view(10.075, 0.016)
+	var settled: float = body.pose._flinch.length()
+	_check(jolted > 0.08 and settled < 0.01, "a player who's shot flinches, then settles (%.2f rad, then %.3f)" % [jolted, settled])
+	player._hurt_at = Time.get_ticks_msec() / 1000.0
+	_check(RemotePlayer.capture(player)[4] & Hitbox.FLAG_HIT != 0, "being hit is sent online, so everyone sees the flinch")
+	player._hurt_at = -10.0
 	for id: String in HeldGun.MODELS:
 		var art := HeldGun.instance(id)
 		_check(art.has_node("Body") and art.has_node("Irons") and art.has_node("Muzzle") and art.has_node("Grip") and art.has_node("Sight") and art.has_node("Optic"),
@@ -3272,22 +3299,39 @@ func _section_net() -> void:
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_DOWNED], 10.2)
 	for i in 60:
 		body.update_view(10.2, 0.016)
-	_check(body.pose.joint("Hips").rotation.x < -1.3 and not body.body_shape.disabled and body.head_shape.position.z < -1.5 and body.head_shape.position.y < 0.5
+	_check(body.pose.joint("Hips").rotation.x < -1.3 and not body.body_shape.disabled and body.head_shape.position.z < -0.55 and body.head_shape.position.y < 0.5
 		and not body.gun_model.visible, "a downed player lies face down without their gun (hitboxes too) and can still be shot")
 	# Prone (0.23): lying on their elbows, head up inside the head box, the gun on the ground ahead in their hands.
+	# 0.25.22 (owner): going down, the legs never sink into the ground.
+	var sole_low := 1.0
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_PRONE | RemotePlayer.FLAG_CROUCH | RemotePlayer.FLAG_ARMED], 10.3)
 	for i in 60:
 		body.update_view(10.3, 0.016)
+		for side: String in ["L", "R"]:
+			var sole := body.to_local(body.pose.joint("Knee" + side).global_transform * Vector3(0, -BodyPose.SHIN, 0))
+			sole_low = minf(sole_low, sole.y)
+	_check(sole_low > -0.03, "going prone, their feet stay above the ground (lowest %.2f m)" % sole_low)
 	var head_at := body.to_local(body.pose.joint("Neck").global_position + body.model.global_basis.y * 0.0)
 	var gun_at := body.to_local(body.gun_model.global_position)
 	var hand_gap := body.pose.joint("ElbowR").global_position.distance_to(body.gun_model.global_position)
-	_check(body.gun_model.visible and gun_at.z < -1.2 and gun_at.y < 0.4 and head_at.z < -1.2 and head_at.y < 0.5
-		and body.head_shape.position.z < -1.5 and hand_gap < 0.45,
+	_check(body.gun_model.visible and gun_at.z < -0.5 and gun_at.y < 0.4 and head_at.z < -0.3 and head_at.y < 0.5
+		and body.head_shape.position.z < -0.5 and hand_gap < 0.45,
 		"a prone player lies on their elbows, the gun ahead in their hands (gun %s, neck %s)" % [gun_at, head_at])
+	# 0.25.22 (owner: turning while prone swung the body round "absolutely crazy"): the lying body is centred on the
+	# player, so it turns about its middle.
+	var ends := [body.head_shape.position.z, body.legs_shape.position.z]
+	_check(ends[0] < -0.4 and ends[1] > 0.4 and absf(ends[0] + ends[1]) < 0.3,
+		"a prone body is centred on the player, so it turns about its middle (head %.2f, legs %.2f)" % ends)
+	# Turning on the spot moves the knees (a crawl step), not a frozen body.
+	var knee_before := body.pose.joint("LegL").rotation
+	for k in 20:
+		body.push_state([Vector3(2, 0.1, -12), 0.15 * (k + 1), 0.0, 0.0, RemotePlayer.FLAG_PRONE | RemotePlayer.FLAG_CROUCH | RemotePlayer.FLAG_ARMED], 10.3 + 0.016 * (k + 1))
+		body.update_view(10.3 + 0.016 * (k + 1), 0.016)
+	_check(not body.pose.joint("LegL").rotation.is_equal_approx(knee_before), "turning while prone shuffles the legs")
 	_check(not body.can_be_revived(), "only teammates can revive")
 	var lying := [Vector3(0, 0, 0), 0.0, 0.0, 0.0, Hitbox.FLAG_DOWNED]
 	_check(Hitbox.trace(lying, Vector3(-3, 1.5, -0.5), Vector3(3, 1.5, -0.5)).is_empty()
-		and Hitbox.trace(lying, Vector3(0, 3, -1.7), Vector3(0, -1, -1.7)).get("headshot") == true,
+		and Hitbox.trace(lying, Vector3(0, 3, -0.75), Vector3(0, -1, -0.75)).get("headshot") == true,
 		"the server's downed hitbox: low to the ground, head in front")
 	net_raid.sync_remotes({})
 	await _frames(1)

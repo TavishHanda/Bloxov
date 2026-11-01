@@ -17,39 +17,44 @@ const FLAG_DOWNED := 64
 const FLAG_PRONE := 128
 ## Under 40% health (0.15.18): the server's AI push a hurt player (Scav.LOW_HEALTH).
 const FLAG_LOW := 256
+## Just hit (0.25.22): set for a moment after taking damage, so everyone sees the body flinch.
+const FLAG_HIT := 512
 ## Which gun they hold (0.18.1, AILoadouts.NET_GUNS index), in the bits from here up, so their model shows it.
 const GUN_SHIFT := 10
 
 const BODY_SIZE := Vector3(0.8, 1.35, 0.6)
-const HEAD_SIZE := Vector3(0.62, 0.72, 0.62)
-const HEAD_HEIGHT := 1.71
-## Crouched, the middle of the head box is this much lower (owner: keep the old head height).
-const CROUCH_SCALE := 0.67
+## The head and headgear, standing (0.25.22: smaller with the heads, owner: "heads are kinda too big"; was 0.62 x 0.72
+## at 1.71 m).
+const HEAD_SIZE := Vector3(0.53, 0.61, 0.53)
+const HEAD_HEIGHT := 1.66
+## Crouched, the middle of the head box is this high (owner: keep the old head height, 1.71 x 0.67).
+const CROUCH_HEAD := 1.146
 ## Same as the local player (player.gd: lean_distance 0.35 m at head height): the angle the body tips by.
 const LEAN_ANGLE := 0.21
-## Where a teammate reaches to revive a downed player (their middle).
-const DOWNED_BODY_CENTER := Vector3(0, 0.22, -0.68)
+## Where a teammate reaches to revive a downed player (their middle: lying bodies are centred on where the player
+## is, 0.25.22).
+const DOWNED_BODY_CENTER := Vector3(0, 0.22, 0.27)
 
 ## Crouched, prone and downed (0.23, owner: "the hitboxes need to be precise"): boxes fitted to the jointed model in
 ## that pose (BodyPose.measure on the PMC model, every outfit; the smoke test checks they still fit). Each part is
 ## [center, size, headshot, pitch]: relative to the feet before turning by yaw, the box turned `pitch` radians about X
 ## (a leaning chest). Head, chest, then hips and legs. The neck is where the head nods from (nod()).
 const CROUCH_PARTS := [
-	[Vector3(0.000, 1.146, -0.037), Vector3(0.640, 0.620, 0.665), true, 0.000],
-	[Vector3(0.000, 0.500, 0.203), Vector3(0.760, 0.830, 0.630), false, -0.584],
-	[Vector3(0.000, 0.130, 0.264), Vector3(0.780, 0.607, 0.759), false, 0.000]
+	[Vector3(0.000, 1.146, -0.032), Vector3(0.544, 0.527, 0.565), true, 0.000],
+	[Vector3(0.000, 0.526, 0.158), Vector3(0.760, 0.830, 0.630), false, -0.449],
+	[Vector3(0.000, 0.160, 0.149), Vector3(0.780, 0.547, 0.814), false, 0.000]
 ]
-const CROUCH_NECK := Vector3(0.000, 0.816, 0.000)
+const CROUCH_NECK := Vector3(0.000, 0.865, 0.000)
 const PRONE_PARTS := [
-	[Vector3(0.000, 0.503, -1.563), Vector3(0.640, 0.620, 0.665), true, -0.436],
-	[Vector3(0.000, 0.215, -1.015), Vector3(0.760, 0.830, 0.630), false, -1.571],
-	[Vector3(0.000, 0.220, -0.350), Vector3(0.943, 0.460, 0.700), false, 0.000]
+	[Vector3(0.000, 0.461, -0.587), Vector3(0.544, 0.527, 0.565), true, -0.436],
+	[Vector3(0.000, 0.215, -0.065), Vector3(0.760, 0.830, 0.630), false, -1.571],
+	[Vector3(0.000, 0.220, 0.600), Vector3(0.943, 0.460, 0.700), false, 0.000]
 ]
-const PRONE_NECK := Vector3(0.000, 0.220, -1.390)
+const PRONE_NECK := Vector3(0.000, 0.220, -0.440)
 const DOWNED_PARTS := [
-	[Vector3(-0.053, 0.261, -1.719), Vector3(0.928, 0.977, 0.744), true, 0.000],
-	[Vector3(-0.026, 0.215, -1.014), Vector3(0.816, 0.630, 0.881), false, 0.000],
-	[Vector3(-0.081, 0.184, -0.317), Vector3(1.066, 0.531, 0.767), false, 0.000]
+	[Vector3(-0.053, 0.255, -0.719), Vector3(0.788, 0.830, 0.633), true, 0.000],
+	[Vector3(-0.026, 0.215, -0.064), Vector3(0.816, 0.630, 0.881), false, 0.000],
+	[Vector3(-0.081, 0.184, 0.633), Vector3(1.066, 0.531, 0.767), false, 0.000]
 ]
 
 

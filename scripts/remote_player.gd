@@ -64,6 +64,9 @@ var _tag: Node3D
 var pose: BodyPose
 ## The neck joint: looking up and down tilts the head.
 var head_pivot: Node3D
+var _was_hit := false
+## When they last flinched (seconds), so one hit doesn't show twice (our confirmed shot, then their state saying so).
+var _flinched_at := -10.0
 
 
 ## What other players need to draw us.
@@ -87,6 +90,8 @@ static func capture(player: Player) -> Array:
 		flags |= FLAG_ARMED | maxi(AILoadouts.NET_GUNS.find(player.gun.weapon.id), 0) << Hitbox.GUN_SHIFT
 	if player.is_low():
 		flags |= Hitbox.FLAG_LOW
+	if player.hurt_flash():
+		flags |= Hitbox.FLAG_HIT
 	# The lean as far as it really went (0.25.19): next to a wall the head only moves as far as there's room
 	# (_update_lean), so the body others see, and its hitboxes, tip only that far, never into the wall.
 	var lean := clampf(player.head.position.x / player.lean_distance, -1.0, 1.0) if player.lean_distance > 0.0 else 0.0
@@ -113,6 +118,16 @@ func _ready() -> void:
 		tag.position.y = 2.25
 		add_child(tag)
 		_tag = tag
+
+
+## They were hit (0.25.22, owner: "when u shoot them give the model like a flinch"): the body jolts away from the shot
+## and springs back. Looks only. `travel`: the way the bullet went (world), or zero for a hit from who knows where.
+func flinch(travel: Vector3) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _flinched_at < 0.35:
+		return
+	_flinched_at = now
+	pose.flinch(model.global_basis.inverse() * travel)
 
 
 ## Downed and a teammate: we can revive them.
@@ -152,8 +167,10 @@ func update_view(time: float, delta: float) -> void:
 	var from: Array = a[1]
 	var to: Array = b[1]
 	var old_position := global_position
+	var old_yaw := rotation.y
 	global_position = (from[0] as Vector3).lerp(to[0], t)
 	rotation.y = lerp_angle(from[1], to[1], t)
+	pose.turn = angle_difference(old_yaw, rotation.y) / maxf(delta, 0.001)
 	var pitch := lerpf(from[2], to[2], t)
 	shown = to
 	var flags: int = to[4]
@@ -167,6 +184,10 @@ func update_view(time: float, delta: float) -> void:
 	if _tag != null:
 		_tag.set_meta("label_downed", flags & FLAG_DOWNED != 0 and not flags & FLAG_DEAD)
 		_tag.position.y = lerpf(2.25, 0.9, maxf(_prone, _downed))
+	# Just hit (their game says so, 0.25.22): they flinch, unless we already showed it when our own shot landed.
+	if flags & Hitbox.FLAG_HIT and not _was_hit:
+		flinch(Vector3.ZERO)
+	_was_hit = flags & Hitbox.FLAG_HIT != 0
 	_pose(pitch, flags, (global_position - old_position).length() / maxf(delta, 0.001), delta)
 	var flat_speed := Vector2(global_position.x - old_position.x, global_position.z - old_position.z).length() / maxf(delta, 0.001)
 	_footsteps(flags, flat_speed, delta)

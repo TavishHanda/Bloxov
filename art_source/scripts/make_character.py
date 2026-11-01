@@ -118,6 +118,10 @@ WAIST_Z = 0.62          # the chest bends here
 SHOULDER_Z = 1.36       # top of the chest
 NECK_Z = 1.37           # the head turns here
 HEAD = 0.52             # head block, from NECK_Z + 0.03
+# 0.25.22 (owner: "the heads are kinda too big, maybe reduce size a bit"): everything on the Neck joint (head,
+# hats, helmets, gaiters) is written this much smaller, around the neck joint, so it still sits on the shoulders.
+# The head hitboxes shrank with it (Hitbox.HEAD_*, the HeadShape of each character scene, BodyPose.HEAD_MID).
+HEAD_SCALE = 0.85
 HEAD_Z = NECK_Z + 0.03
 TORSO_W, TORSO_D = 0.76, 0.44
 CHEST_Z = 0.80          # vests and rigs are placed from here
@@ -566,13 +570,14 @@ def write_glb(path, body, png):
             nodes[index[parent]]["children"].append(index[name])
     for name, joint, part in body.parts:
         origin = JOINTS[joint][1]
+        grow = HEAD_SCALE if joint == "Neck" else 1.0
         node = {"name": name}
         if part is not None:
             pos, nrm, uv, idx = [], [], [], []
             for corners, n, uvs in part.quads:
                 base = len(pos)
                 for c, t in zip(corners, uvs):
-                    pos.append(gl(mb.v_sub(c, origin)))
+                    pos.append(gl(tuple(v * grow for v in mb.v_sub(c, origin))))
                     nrm.append(gl(n))
                     uv.append(t)
                 idx += [base, base + 1, base + 2, base, base + 2, base + 3]

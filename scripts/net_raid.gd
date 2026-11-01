@@ -319,6 +319,19 @@ func apply_hit(amount: int, from: Vector3, headshot: bool, burst := -1) -> void:
 
 func _on_shot_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:
 	var world := get_tree().current_scene
+	# The player we hit flinches right away (0.25.22), before their own state says so.
+	var hit_body: RemotePlayer = null
+	var nearest := 1.2
+	for body: RemotePlayer in remotes.values():
+		var off := body.global_position - pos if is_instance_valid(body) else Vector3.INF
+		var flat := Vector2(off.x, off.z).length()
+		if flat < nearest and absf(off.y) < 2.2:
+			nearest = flat
+			hit_body = body
+	if hit_body != null:
+		var travel := pos - player.global_position
+		travel.y = 0.0
+		hit_body.flinch(travel.normalized())
 	if GameSettings.damage_numbers and amount > 0:
 		Effects.damage_number(world, pos, amount, headshot)
 	Effects.sound(world, Gun.HEADSHOT_SOUND if headshot else Gun.HIT_SOUND, -3.0, 0.03)

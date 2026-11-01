@@ -7,6 +7,27 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.22 (Bodies that move)
+Other players (and the AI) as you see them, owner's list: "super static", "stiff", prone "really weird".
+- Turning round while prone no longer swings the whole body round the feet: lying bodies (prone, downed, dead face
+  down) are centred on where the player is and turn about their middle. The prone and downed hitboxes moved with them
+  (the head is now about 0.6 m ahead of the player's spot instead of 1.6 m).
+- Going prone, the legs no longer sink into the ground and pop back up: a foot that would go under the floor bends at
+  the knee and stays on top.
+- Legs facing backwards (owner's screenshot): after crouching, a body's legs were drawn turned half round, boots to
+  the back. Fixed (the arms had the same flip).
+- Heads are 15% smaller on every character (owner: "heads are kinda too big"). Head hitboxes shrank to match: standing
+  0.53 x 0.61 m at 1.66 m (was 0.62 x 0.72 at 1.71), crouched still at the old height. This makes headshots a little
+  harder, on players and the AI alike.
+- Prone, the gun is out ahead by the head in both hands (it lay hidden under the chin).
+- Walking and running move the whole body: the hips dip and sway with each step, hips and shoulders twist, sprinting
+  leans in with bigger strides and higher knees, the gun bobs, crouch-walking takes real steps, crawling wiggles the
+  hips and rolls the shoulders, standing still breathes, and turning on the spot steps the feet round.
+- Getting shot makes the body flinch away from the shot and spring back. The shooter sees it the moment the server
+  confirms the hit; everyone else sees it from the hit player's own game (a new "just hit" bit in their state).
+- Looks only otherwise: nothing about how anyone moves or shoots changed. `tools/remote_view.gd` renders another
+  player in motion for checking.
+
 ## 0.25.21 (Old house roofs)
 - The bombed old houses (1, 7 and 8 in the old quarter): standing in an upstairs room whose roof was blown off and
   looking up, the torn roof flaps and the chimney's bottom looked like they floated in the air (owner). Each flap now

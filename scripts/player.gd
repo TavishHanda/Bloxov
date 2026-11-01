@@ -648,6 +648,7 @@ func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
 
 
 func _on_damaged(amount: int, source_position: Vector3) -> void:
+	_hurt_at = Time.get_ticks_msec() / 1000.0
 	add_shake(0.55)
 	# Flinch: getting shot throws your aim off and loosens your next shots.
 	var flinch := flinch_deg * clampf(amount / 25.0, 0.4, 2.0)
@@ -744,6 +745,13 @@ func is_low() -> bool:
 	if proxy:
 		return _net_low
 	return health.current < health.max_health * LOW_HEALTH
+
+
+## Hit in the last moment (0.25.22): sent online so other players see the body flinch (Hitbox.FLAG_HIT).
+var _hurt_at := -10.0
+
+func hurt_flash() -> bool:
+	return Time.get_ticks_msec() / 1000.0 - _hurt_at < 0.25
 
 
 ## Proxy: moves this body to match a state from the player's game (RemotePlayer.capture), and makes the footstep
