@@ -4657,9 +4657,9 @@ func _section_old_bloxov() -> void:
 	wc_walk.collision_mask = 917   # (the player's)
 	wc_walk.transform = Transform3D(Basis(), Vector3(31.075 - 0.6, -0.127 + 0.96, 93.05))
 	wc_walk.motion = Vector3(1.1, 0, 0)
-	_check(not shelter_space.intersect_ray(lancet_ray).is_empty() and blocks.prop_boxes.size() / 7 > 700
+	_check(not shelter_space.intersect_ray(lancet_ray).is_empty() and blocks.prop_boxes.size() / 7 > 500
 		and shelter_space.cast_motion(wc_walk)[0] > 0.99,
-		"windows stop players (a church lancet; %d players-only boxes), a washroom door lets one in" % (blocks.prop_boxes.size() / 7))
+		"shut windows stop players (a church lancet; %d players-only boxes), a washroom door lets one in" % (blocks.prop_boxes.size() / 7))
 	_check(blocks.shot_indices.size() / 3 > 50000 and blocks.bar_boxes.size() / 7 > 400,
 		"see-through pieces: %d shot triangles inside %d people-only boxes" % [blocks.shot_indices.size() / 3, blocks.bar_boxes.size() / 7])
 	# 0.19.4 (owner: a friend vaulted into a dirt bank and was stuck inside it): no vault ends inside a bank, from any
@@ -4693,6 +4693,32 @@ func _section_old_bloxov() -> void:
 	_check(into == 0 and BoxMap.inside_solid(vaulter, buried) and freed != buried
 		and not BoxMap.inside_solid(vaulter, freed + Vector3.UP * 0.3),
 		"no vault ends inside the dirt bank (%d vaults, %d inside); someone inside it gets a free spot" % [vaults, into])
+	# Plain windows open again (0.25.33, owner picked "open plain windows too"; online you only jumped at them): you
+	# vault in and out through one of the school's, while a cabin's cross-barred sash and an old house's boarded-up
+	# window still stop you (tools/window_audit.gd decides which are plain).
+	var window_vault := func(sill: Vector3, outward: Vector3, from_outside: bool) -> bool:
+		var stand := sill + outward * (0.85 if from_outside else -0.85)
+		var sill_floor := bank_space.intersect_ray(PhysicsRayQueryParameters3D.create(stand + Vector3.UP * 0.3, stand + Vector3.DOWN * 3.0, 1))
+		if sill_floor.is_empty():
+			return false
+		vaulter.global_position = sill_floor.position
+		var move := Vault.plan(vaulter, -outward if from_outside else outward, 0.4, 1.8, 1.2, 0.7)
+		if move.is_empty() or not move["over"]:
+			return false
+		var end: Vector3 = (move["path"] as PackedVector3Array)[2]
+		return (end - sill).dot(outward) * (-1.0 if from_outside else 1.0) > 0.3
+	var shut_at := func(sill: Vector3, outward: Vector3) -> bool:
+		var mid := sill + Vector3.UP * 0.6
+		return not bank_space.intersect_ray(PhysicsRayQueryParameters3D.create(mid + outward * 0.5, mid - outward * 0.5, BoxMap.PROPS_LAYER)).is_empty()
+	var school_sill := Vector3(-142.0, 4.574, -101.0)
+	var cabin_sill := Vector3(-75.15, 6.951, 123.0)
+	var boarded_sill := Vector3(21.0, 0.873, 96.5)
+	_check(window_vault.call(school_sill, Vector3(0, 0, 1), true) and window_vault.call(school_sill, Vector3(0, 0, 1), false)
+		and not shut_at.call(school_sill, Vector3(0, 0, 1)),
+		"a plain window (the school's) is open: vault in through it and back out")
+	_check(shut_at.call(cabin_sill, Vector3(0, 0, 1)) and not window_vault.call(cabin_sill, Vector3(0, 0, 1), true)
+		and shut_at.call(boarded_sill, Vector3(-1, 0, 0)) and not window_vault.call(boarded_sill, Vector3(-1, 0, 0), true),
+		"a cabin's barred sash and a boarded-up window stay shut")
 	vaulter.queue_free()
 	var heights := blocks.terrain_heights
 	var lowest := INF

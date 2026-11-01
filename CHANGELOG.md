@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.35 (Climb through windows again)
+Owner: "Vaulting through windows is not working properly now" (online: "i could not vault through the window at all,
+i just jumped"); picked "open plain windows too".
+- **Plain windows are open to climb through again**: 178 windows in 25 buildings (houses, the school, the town hall,
+  the offices, shops, the police and bank upstairs, and so on). Jump at one while walking into it and you vault
+  through; a pane still glazed breaks as you go. Since 0.23.3 every window but the motel's stopped players, so Space
+  at one just jumped, offline and online alike.
+- Still shut (99): anything with something across it (boarded-up windows, the cabins' cross-barred sashes, the bell
+  tower's stone tracery, a sign over the glass), barred windows, shop fronts, glass fronts and the church's windows.
+  A new tool, `tools/window_audit.gd`, casts rays through every window of every building model and writes what's in
+  the way to `art_source/buildings/window_audit.json`; the map generator opens a window only when under 15% of it is
+  covered (and keeps any window the audit hasn't measured shut). Re-run it after rebuilding a building model.
+- Shots, eyes, the AI and its navigation are as before (window boxes only ever stopped players). The server's
+  movement check lets these vaults through (checked in a test online raid).
+- Smoke test: on the real map, a vault in and back out through one of the school's windows; a cabin's window and a
+  boarded-up one stay shut.
+
 ## 0.25.34 (Hangout doors)
 Owner: "add doors? custom nice doors they can open... make sure textures don't glitch".
 - Both of the hangout's doorways (into the snack bar and the booth room) have a pair of sliding doors: teal tin

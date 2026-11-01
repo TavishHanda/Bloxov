@@ -581,6 +581,20 @@ window_boxes = []   # Godot x, y, z, size x, y, z, yaw (added to prop_boxes afte
 # Windows you can still climb through (0.23.4, owner picked "climb through, blinds swing aside"): the motel's, whose
 # blinds the game draws and swings aside (scripts/blinds.gd, from make_building.py's BLINDS).
 OPEN_WINDOWS = {"motel": lambda o: o["w"] <= 1.5}
+# Plain windows open again too (0.25.33, owner picked "open plain windows too"): a "window" opening with nothing drawn
+# across it. tools/window_audit.gd measures that on each model (art_source/buildings/window_audit.json: the share of
+# rays through the window's middle that hit the model); under BLOCKED % it's open. Boarded-up ones, the cabins' cross-
+# barred sashes, the bell tower's tracery and signs over the glass stay shut, and so do shop fronts, glass fronts and
+# the church's windows (other kinds), barred windows (BARRED) and any window the audit hasn't measured yet.
+BLOCKED = 15
+WINDOW_AUDIT_PATH = os.path.join(MODEL_JSON_DIR, "window_audit.json")
+WINDOW_AUDIT = json.load(open(WINDOW_AUDIT_PATH))["windows"] if os.path.exists(WINDOW_AUDIT_PATH) else {}
+OPENED = collections.Counter()   # building -> plain windows left open (printed at the end)
+
+
+def plain_window(m, i, o):
+    share = WINDOW_AUDIT.get(m["name"], {}).get(str(i))
+    return o["kind"] == "window" and share is not None and share < BLOCKED
 BLINDS = []   # x, y, z of the head rail's middle, yaw (its +z into the room), width, drop, crooked end's lift
 
 
@@ -588,8 +602,11 @@ def shut_windows(m, opens):
     rule = BARRED.get(m["name"], lambda o: False)
     keep = OPEN_WINDOWS.get(m["name"], lambda o: False)
     ox, oz = gx(m["x"]), gz(m["z"])
-    for o in opens:
+    for i, o in enumerate(opens):
         if o["kind"] not in WINDOW_KINDS or (o["kind"] == "window" and (rule(o) or keep(o))):
+            continue
+        if plain_window(m, i, o):
+            OPENED[m["name"]] += 1
             continue
         ns = o["side"] in "NS"
         out = 1 if o["side"] in "SE" else -1
@@ -6024,6 +6041,7 @@ def main():
     solid_late()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
+    print(f"plain windows open to climb through: {sum(OPENED.values())} in {len(OPENED)} buildings; {len(window_boxes)} windows shut")
 
 
 # AI zones (Scavs 2.0, owner 2026-10-10): each AI patrols only its own zone, so players learn where AI is.
