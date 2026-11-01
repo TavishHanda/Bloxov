@@ -87,6 +87,7 @@
 [ext_resource type="Script" path="res://scripts/bushes.gd" id="g_bushes"]
 [ext_resource type="Script" path="res://scripts/kickables.gd" id="g_kicks"]
 [ext_resource type="Script" path="res://scripts/blinds.gd" id="g_blinds"]
+[ext_resource type="Script" path="res://scripts/flags.gd" id="g_flags"]
 [ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]
 [ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]
 [ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]
@@ -171,6 +172,11 @@ colors = PackedColorArray(0.247, 0.42, 0.227, 1, 0.494, 0.231, 0.165, 1, 0.494, 
 [node name="Blinds" type="Node3D" parent="Level/Blocks"]
 script = ExtResource("g_blinds")
 data = PackedFloat32Array(41.5, 2.23, -150.8, 0, 1.46, 1.1, -0.547, 39.45, 2.13, -109.2, 180, 0.86, 0.5, -0.496, 36.7, 2.23, -147.1, 90, 1.46, 1.1, 0, 36.7, 2.23, -141.85, 90, 1.46, 1.1, -0.383, 36.7, 2.23, -136.6, 90, 1.46, 1.1, 0, 36.7, 2.23, -131.35, 90, 1.46, 1.1, 0, 36.7, 2.23, -126.1, 90, 1.46, 1.1, 0, 36.7, 2.23, -116.7, 90, 1.46, 1.1, -0.53, 36.7, 2.23, -112.7, 90, 1.46, 0.53, 0, 45.3, 2.23, -149.7, 270, 1.46, 1.1, 0, 45.3, 2.23, -139.2, 270, 1.46, 1.1, 0, 45.3, 2.23, -133.95, 270, 1.46, 1.1, 0, 45.3, 2.23, -128.7, 270, 1.46, 1.1, 0, 45.3, 2.23, -123.45, 270, 1.46, 1.1, 0, 45.3, 2.23, -117.4, 270, 1.46, 1.1, 0, 41.5, 5.23, -150.8, 0, 1.46, 1.1, 0, 36.7, 5.23, -147.1, 90, 1.46, 1.1, 0.413, 36.7, 5.23, -141.85, 90, 1.46, 1.1, 0, 36.7, 5.23, -136.6, 90, 1.46, 0.53, 0, 36.7, 5.23, -120.85, 90, 1.46, 1.1, 0.494, 45.3, 5.23, -149.7, 270, 1.46, 1.1, 0, 45.3, 5.23, -144.45, 270, 1.46, 1.1, 0.419, 45.3, 5.23, -139.2, 270, 1.46, 1.1, -0.528, 45.3, 5.23, -133.95, 270, 1.46, 1.1, -0.403, 45.3, 5.23, -128.7, 270, 1.46, 1.1, 0, 45.3, 5.23, -123.45, 270, 1.46, 1.1, 0, 45.3, 5.23, -118.2, 270, 1.46, 1.1, -0.377, 45.3, 5.23, -112.95, 270, 1.46, 1.1, 0)
+
+[node name="Flags" type="Node3D" parent="Level/Blocks"]
+script = ExtResource("g_flags")
+data = PackedFloat32Array(-60.54, 10.513, -128.85, 180, 1.8, 1.36)
+pictures = PackedStringArray("res://assets/textures/flags/big_house_3_0.png")
 
 [node name="Trees" type="Node3D" parent="Level/Blocks"]
 script = ExtResource("g_trees")

@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.27.1 (The officer's flag waves)
+- The Exion flag on the officer's house (the big house on the hill) waved about as much as a sheet of plywood (owner:
+  "that flag should have like kinda a waving animation instead of being stiff"). It now ripples in the wind: waves
+  run out from the pole and grow toward the torn end, with slow gusts, and it sags a little when the wind drops.
+  Done in a shader (scripts/flags.gd, assets/shaders/flag.gdshader), so it costs about nothing on phones.
+- Its torn edge was on the pole side; it's now the loose end, where a flag actually frays.
+- Looks only: nothing about shooting, hitboxes or the AI changes, and the game server doesn't draw it.
+- For later flags: make_building.py lists a flag's cloth in the building's `_solids.json` ("flags") instead of
+  drawing it in the model, and the generator places it.
+
 ## 0.27.0 (Durability)
 The Durability update. Owner picked trader repairs (no repair-kit items).
 - Guns wear: each shot takes 1 point (Hound 1200, Stinger 800, Wasp 1500, Mauler 300, Lancer 250). Below 60% a

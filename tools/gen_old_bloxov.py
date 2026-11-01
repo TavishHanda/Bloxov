@@ -536,6 +536,10 @@ def write_model_boxes(ter):
                 yaw = ((0.0 if inn > 0 else 180.0) if bl["ns"] else (90.0 if inn > 0 else 270.0)) + m["turned"]
                 flip = (1 if inn > 0 else -1) if bl["ns"] else (-1 if inn > 0 else 1)   # (its +x, the model's way?)
                 BLINDS.append([x, y + by, z, yaw % 360.0, bl["w"], bl["len"], bl["drop"] * flip])
+            for fl in (json.load(open(path)).get("flags", []) if os.path.exists(path) else []):
+                (fx, fy, fz) = fl["hoist"]   # (its flags, waving: flags.gd; they fly out along the model's -x)
+                x, z = turn_point(ox + fx, oz + fz, ox, oz, m["turned"])
+                FLAGS.append(([x, y + fy, z, (m["turned"] + 180.0) % 360.0, fl["w"], fl["h"]], fl["image"]))
         prop_loot(m)
         glazed(m)
         with open(os.path.join(MODEL_JSON_DIR, m["name"] + ".json"), "w") as f:
@@ -595,6 +599,7 @@ OPENED = collections.Counter()   # building -> plain windows left open (printed 
 def plain_window(m, i, o):
     share = WINDOW_AUDIT.get(m["name"], {}).get(str(i))
     return o["kind"] == "window" and share is not None and share < BLOCKED
+FLAGS = []    # ([x, y, z of the hoist's top corner, yaw (its +x flies out), width, height], picture) (0.26.1)
 BLINDS = []   # x, y, z of the head rail's middle, yaw (its +z into the room), width, drop, crooked end's lift
 
 
@@ -7213,6 +7218,7 @@ def write_scene(ter):
     out.append('[ext_resource type="Script" path="res://scripts/bushes.gd" id="g_bushes"]')
     out.append('[ext_resource type="Script" path="res://scripts/kickables.gd" id="g_kicks"]')
     out.append('[ext_resource type="Script" path="res://scripts/blinds.gd" id="g_blinds"]')
+    out.append('[ext_resource type="Script" path="res://scripts/flags.gd" id="g_flags"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/ground/leaves.png" id="g_leaves"]')
     out.append('[ext_resource type="Script" path="res://scripts/trees.gd" id="g_trees"]')
     out.append('[ext_resource type="Texture2D" path="res://assets/textures/trees/trees.png" id="g_tree_sheet"]')
@@ -7297,6 +7303,11 @@ def write_scene(ter):
             '[node name="Blinds" type="Node3D" parent="Level/Blocks"]',
             'script = ExtResource("g_blinds")',
             "data = PackedFloat32Array(" + ", ".join(fmt(v) for b in BLINDS for v in b) + ")", "",
+            # the flags (0.26.1, owner: "that flag should have like kinda a waving animation"; looks only)
+            '[node name="Flags" type="Node3D" parent="Level/Blocks"]',
+            'script = ExtResource("g_flags")',
+            "data = PackedFloat32Array(" + ", ".join(fmt(v) for f, _ in FLAGS for v in f) + ")",
+            "pictures = PackedStringArray(" + ", ".join('"%s"' % p for _, p in FLAGS) + ")", "",
             # the trees (outdoor step 7; their trunks collide and their leaves hide you from the AI, this draws them)
             '[node name="Trees" type="Node3D" parent="Level/Blocks"]',
             'script = ExtResource("g_trees")',

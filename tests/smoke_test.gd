@@ -5606,6 +5606,26 @@ func _section_reacts() -> void:
 		await physics_frame
 	_check(absf(blinds.swing[0]) < 0.01, "and they settle back after")
 	blinds.queue_free()
+	# Flags (0.26.1, owner: the flag should wave instead of being stiff): one waving sheet per flag, never on the game
+	# server, never anything that collides.
+	var flag_data := PackedFloat32Array([ground.x, ground.y + 6.0, ground.z + 4.0, 90.0, 1.8, 1.36])
+	var flags: Node3D = load("res://scripts/flags.gd").new()
+	flags.data = flag_data
+	flags.pictures = PackedStringArray(["res://assets/textures/flags/big_house_3_0.png"])
+	main.add_child(flags)
+	_check(flags.get_child_count() == 0, "no flags on the game server (headless)")
+	flags.queue_free()
+	flags = load("res://scripts/flags.gd").new()
+	flags.set_meta(&"force_reacts", true)
+	flags.data = flag_data
+	flags.pictures = PackedStringArray(["res://assets/textures/flags/big_house_3_0.png"])
+	main.add_child(flags)
+	var cloth_flag := flags.get_child(0) as MeshInstance3D
+	_check(cloth_flag != null and cloth_flag.mesh.get_faces().size() == 3 * 2 * 18 * 4
+		and (cloth_flag.material_override as ShaderMaterial).get_shader_parameter(&"picture") is Texture2D,
+		"a flag is one waving sheet with its picture")
+	_check(not flags.find_children("*", "CollisionObject3D", true, false), "and nothing on it collides")
+	flags.queue_free()
 
 
 func _section_leaves() -> void:
