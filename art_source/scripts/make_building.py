@@ -22173,7 +22173,11 @@ def dress_old_house(ctx):
                 for k in range(3):                                                 # torn edges of the slope
                     xm = rng.uniform(xa + 0.6, xb - 0.6)
                     zt = ze * rng.uniform(0.15, 0.35)
-                    _beam(b, (xm, top + e - 0.02, 0.0), (xm + rng.uniform(-0.6, 0.6), top + e - 0.02 - abs(zt) * rise, zt), 0.8, 0.04, roof)
+                    xt = xm + rng.uniform(-0.6, 0.6)
+                    _beam(b, (xm, top + e - 0.02, 0.0), (xt, top + e - 0.02 - abs(zt) * rise, zt), 0.8, 0.04, roof)
+                    # (0.25.18, owner: the flaps looked like they floated from inside: a rafter stub under each one,
+                    # hung off the ridge beam, so they read as still nailed on)
+                    _beam(b, (xm, top + e - 0.12, 0.0), (xt, top + e - 0.12 - abs(zt) * rise, zt * 0.95), 0.09, 0.14, "wood_dark")
                 continue
             pts = [(xa, base + e, ze), (xb, base + e, ze), (xb, top + e, 0.0), (xa, top + e, 0.0)]
             nn = norm(cross(v_sub(pts[1], pts[0]), v_sub(pts[-1], pts[0])))
@@ -22216,12 +22220,21 @@ def dress_old_house(ctx):
     if (0, 0) not in caved or (1, 0) not in caved:
         xs = [0.0 if (0, 0) in caved else x0, 0.0 if (1, 0) in caved else x1]
         _box(b, (xs[0] + xs[1]) / 2, top + e + 0.05, 0.0, xs[1] - xs[0] - 0.1, 0.12, 0.22, roof)          # ridge
+    # The ridge beam under the ridge (0.25.18, owner: from a caved room the roof's torn edge was a paper-thin line in
+    # the air): a solid timber along every half of the ridge that still has a slope on either side.
+    for i, (xa, xb) in enumerate(((x0, 0.0), (0.0, x1))):
+        if caved and ((i, 0) not in caved or (i, 1) not in caved):
+            _box(b, (xa + xb) / 2, top - 0.08, 0.0, xb - xa - 0.1, 0.26, 0.2, "wood_dark")
     # A brick chimney on the ridge (the kitchen's), knocked crooked on the bombed ones.
     cx = -3.0 if OH_KITCHEN[n][1] == "W" else 3.0
     if (0 if cx < 0 else 1, 0) not in caved:
         lean = 0.0 if not caved else rng.uniform(4, 9)
         b.box((cx, top + 0.6, -0.5), (0.7, 1.6, 0.6), yaw=0, pitch=lean, style=st("brick"))
         b.box((cx, top + 1.45, -0.5), (0.85, 0.12, 0.75), yaw=0, pitch=lean, style=st("concrete"))
+        # (0.25.18, owner: from a caved room you see up into the attic, where only the chimney's bottom poked through
+        # the boards like a floating brick tile: the stack now goes all the way down to the attic floor)
+        if caved:
+            b.box((cx, (base + top) / 2, -0.5), (0.62, top - base, 0.52), style=st("brick"))
     # Bullet holes all round, most on the sides facing the old front line (south and east).
     for side, a0, a1, cnt in (("N", -5.8, 5.8, 14), ("S", -5.8, 5.8, 30), ("E", -4.8, 4.8, 24), ("W", -4.8, 4.8, 12)):
         for _ in range(cnt):
