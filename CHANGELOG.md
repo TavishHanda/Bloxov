@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.27 (Map pass: cover and field crates)
+- The roadmap's map pass, finished (owner said yes). Most of it was already in from the World art update; a check of
+  the map (`tools/sightlines.gd`) found the open hill east of the depot was now the spot that saw the most AI ground
+  (111 AI spawn points), so about 70 more pieces of cover went in where they cut the most long views: ruined walls,
+  berms, containers and rocks. The east hill now sees 90, and the map's score (each player spawn's worst nearby spot,
+  lower is better) went from 534 to 505. Roads, buildings and the layout are unchanged. The hunting stands and the
+  climbable roofs keep their views (sniper perches on purpose).
+- 10 army crates out in the countryside (owner: loot out there too, but the good loot stays in town): by the hunting
+  stands, the derailed train, the east hill and some wrecked trucks and tank traps. They roll a new "field" table:
+  only ammo, bandages, energy drinks, food and scrap (about $640 a crate; a town crate is about $2,000). None within
+  30 m of a player spawn or 25 m of an extract.
+- `tools/sightlines.gd -- plan=N hot=70` also plans cover for any spot that sees a lot, not just ones near spawns.
+  The economy sim counts the field crates on their own; raid hauls and kit prices are unchanged (no price change).
+
 ## 0.25.26 (Prone stays out of walls)
 - Prone (owner picked it): the whole lying body now collides, head to boots, so you can't crawl or turn with your head
   or legs in a wall (others used to see a prone head poking out the far side of thin walls, and could shoot it). You

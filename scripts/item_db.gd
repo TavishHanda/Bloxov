@@ -131,6 +131,9 @@ const ITEMS := {
 const LOOT_TABLES := {
 	"crate": {"smg_ammo": 3, "shells": 3, "sniper_ammo": 1, "energy_drink": 5, "pistol_ammo": 8, "backpack_small": 2, "rifle_ammo": 30, "bandage": 18, "medkit": 4, "common": 30, "uncommon": 12, "rare": 3},
 	"locker": {"smg": 2, "shotgun": 2, "smg_ammo": 5, "shells": 5, "sniper_ammo": 2, "gunpowder": 2, "grenade": 3, "energy_drink": 4, "intel_novarra": 1, "pistol": 5, "armor_light": 4, "helmet_basic": 4, "backpack_small": 3, "backpack_medium": 2, "pistol_ammo": 6, "rifle_ammo": 15, "bandage": 10, "medkit": 12, "common": 18, "uncommon": 25, "rare": 15, "epic": 4},
+	# Field caches (0.25.17 map pass, owner: loot out in the countryside, but only cheap stuff; the good loot stays in
+	# the town): ammo, meds, food and scrap, never guns, gear or anything past common.
+	"field": {"rifle_ammo": 30, "pistol_ammo": 12, "smg_ammo": 6, "shells": 6, "bandage": 20, "energy_drink": 6, "beans": 8, "water": 8, "scrap": 6, "bolts": 5},
 	"safe": {"armor_heavy": 3, "helmet_good": 3, "uncommon": 12, "rare": 40, "epic": 32, "legendary": 16},
 	"scav": {"smg_ammo": 10, "shells": 8, "energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
 	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},

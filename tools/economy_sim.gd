@@ -44,11 +44,11 @@ func _initialize() -> void:
 		var key: String = c["place"] if c["place"] != "" else "(no place)"
 		by_place[key] = by_place.get(key, 0.0) + avg
 		place_counts[key] = place_counts.get(key, 0) + 1
-		if not c["locked"]:
-			open_total += avg
+		if not c["locked"] and c["table"] != "field":   # (the cheap field caches are counted on their own: a raid
+			open_total += avg                             # through town doesn't pass them, so the kit numbers stay as before)
 			open_count += 1
 	print("== Per container type (unlocked, all places) ==")
-	for kind in ["crate", "locker", "safe"]:
+	for kind in ["crate", "locker", "safe", "field"]:
 		var total := 0.0
 		var count := 0
 		for c: Dictionary in containers:
@@ -79,7 +79,7 @@ func _initialize() -> void:
 	print("  Every unlocked container on the map:          %s" % ItemDB.money(roundi(everything)))
 	print("  (You carry out what fits: a medium backpack + pockets holds a fraction of a full loop.)")
 	print("\n== What you carry home (best value per cell first, the rest left behind) ==")
-	var unlocked := containers.filter(func(c): return not c["locked"])
+	var unlocked := containers.filter(func(c): return not c["locked"] and c["table"] != "field")
 	var routes := [["Quick raid", 8, 2, 0], ["Town loop", 20, 4, 1]]
 	var carried := {}
 	for r: Array in routes:
@@ -136,6 +136,8 @@ func _map_containers() -> Array:
 				current["place"] = line.get_slice('"', 1)
 			elif line.begins_with("metadata/locked"):
 				current["locked"] = line.contains("true")
+			elif line.begins_with("loot_table"):   # (a table other than the scene's own: the field caches)
+				current["table"] = line.get_slice('"', 1)
 	if not current.is_empty():
 		out.append(current)
 	return out
@@ -149,6 +151,7 @@ func _avg_container(c: Dictionary) -> float:
 		box.name = c["name"]
 		if c["place"] != "":
 			box.set_meta("place", c["place"])
+		box.loot_table = c["table"]
 		box._ready()   # rolls the loot, exactly like a raid (outside the tree, so nothing else runs)
 		for stack in box.grid.stacks:
 			total += Traders.sell_price(stack)

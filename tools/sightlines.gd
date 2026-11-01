@@ -7,6 +7,8 @@ extends SceneTree
 ##   godot --headless -s tools/sightlines.gd -- plan=40                 also picks 40 more spots for sightline
 ##       breakers (from tools/.cover_candidates.json, which tools/gen_old_bloxov.py writes) and adds them to
 ##       tools/cover_spots.json; re-run the generator to place them, then this again to check.
+##   godot --headless -s tools/sightlines.gd -- plan=40 hot=70   also counts the views from any spot that sees at least
+##       70 AI zone points, wherever it is (the map pass, 0.25.17: the open east hill is far from every spawn)
 
 const STEP := 8.0          # metres between checked spots
 const TARGET_STEP := 10.0  # metres between AI zone points
@@ -19,7 +21,10 @@ const SPAWN_REACH := 70.0  # how far from a spawn counts as "right at the start"
 func _initialize() -> void:
 	var out := "/tmp/sight"
 	var plan := 0
+	var hot := 0
 	for a in OS.get_cmdline_user_args():
+		if a.begins_with("hot="):
+			hot = int(a.substr(4))
 		if a.begins_with("out="):
 			out = a.substr(4)
 		if a.begins_with("plan="):
@@ -105,13 +110,13 @@ func _initialize() -> void:
 	img.resize(700, 700, Image.INTERPOLATE_NEAREST)
 	img.save_png(out + ".png")
 	if plan > 0:
-		_plan(space, spots, spawns, targets, plan)
+		_plan(space, spots, spawns, targets, plan, hot)
 	quit()
 
 
 ## Greedy: the candidate spot whose 2.5 m high, 5 m wide breaker would cut the most views from the spots near the
 ## player spawns, then the next best of the views left over, and so on.
-func _plan(space: PhysicsDirectSpaceState3D, spots: Array, spawns: Array[Vector3], targets: Array[Vector3], count: int) -> void:
+func _plan(space: PhysicsDirectSpaceState3D, spots: Array, spawns: Array[Vector3], targets: Array[Vector3], count: int, hot := 0) -> void:
 	var cands: Array = JSON.parse_string(FileAccess.get_file_as_string("res://tools/.cover_candidates.json"))
 	var cpos: Array[Vector3] = []
 	var cell := {}
@@ -130,7 +135,7 @@ func _plan(space: PhysicsDirectSpaceState3D, spots: Array, spawns: Array[Vector3
 	for s in spots:
 		if s[0] < 20:
 			continue
-		var near := false
+		var near: bool = hot > 0 and s[0] >= hot
 		for sp in spawns:
 			if Vector2(s[1].x - sp.x, s[1].z - sp.z).length() <= SPAWN_REACH:
 				near = true

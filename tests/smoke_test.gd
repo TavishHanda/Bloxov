@@ -4395,6 +4395,14 @@ func _section_old_bloxov() -> void:
 	_check(cave.size() == 2 and cave.all(func(c: Node) -> bool: return c is LootContainer and c.get("loot_table") == "safe")
 		and sheet is MeshInstance3D and sheet.get_child_count() == 0,
 		"the waterfall room has two safes behind walk-through falling water (%d)" % cave.size())
+	# Field caches (map pass 0.25.17, owner: loot out in the countryside, but only cheap stuff): army crates out of
+	# town rolling the "field" table, which holds only ammo, meds, food and common scrap (no guns, gear or valuables).
+	var field := loot.filter(func(c: Node) -> bool: return String(c.get_meta("place", "")) == "Field")
+	var cheap := ItemDB.LOOT_TABLES["field"].keys().all(func(id: String) -> bool:
+		var it := ItemDB.item(id)
+		return ItemDB.ITEMS.has(id) and (it["kind"] in ["ammo", "heal", "drink"] or it["kind"] == "valuable" and it["rarity"] == "common"))
+	_check(field.size() >= 8 and field.all(func(c: Node) -> bool: return c is LootContainer and c.get("loot_table") == "field") and cheap,
+		"%d field caches out in the countryside, rolling only cheap loot (ammo, meds, food, scrap)" % field.size())
 	# 0.18.4 (owner: "anything that looks lootable should be lootable"): the drawers, cabinets, trunks, lockers and
 	# crates the building models draw can be searched: each rolls loot, and looking at it finds it (not the wall of
 	# the map's own box for it).

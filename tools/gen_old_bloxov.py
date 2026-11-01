@@ -736,13 +736,14 @@ def prop_lines(name, kind, place):
             f"metadata/prop = Vector3({fmt(size[0])}, {fmt(size[1])}, {fmt(size[2])})"]
 
 
-def add_loot(place, kind, x, z, y=0.0, yaw=0.0, look=None):
-    """kind: crate / locker / safe (the scene's loot table; ItemDB.PLACE_LOOT adds the place's own loot, 0.14.0)."""
+def add_loot(place, kind, x, z, y=0.0, yaw=0.0, look=None, table=None):
+    """kind: crate / locker / safe (the scene's loot table; ItemDB.PLACE_LOOT adds the place's own loot, 0.14.0).
+    table: another ItemDB.LOOT_TABLES table than the scene's own (the field caches' "field")."""
     n = sum(1 for l in loot if l[0].startswith(place + "_")) + 1
     name = f"{place}_{kind.capitalize()}{n}"
     if look:
         LOOK_OF[name] = look
-    loot.append((name, kind, x, y, z, yaw, kind, place))
+    loot.append((name, kind, x, y, z, yaw, table or kind, place))
 
 
 # ---------------------------------------------------------------------------------------------- walls
@@ -3628,6 +3629,7 @@ def wreck(x, z, rng):
 @debris_kind("truck")
 def wrecked_truck(x, z, rng):
     yaw = rng.uniform(0, 180)
+    truck_wrecks.append((x, z))
     rng.uniform(-10, 10), rng.uniform(-8, 0)   # (the cab's old twist and tilt, which the model never drew: kept so the scatter after it stays put)
     truck_boxes(x, z, yaw, (2.6, 6.5, 4.0, 1.8), ("rust", "army", "army"))
 
@@ -3636,6 +3638,7 @@ def wrecked_truck(x, z, rng):
 def tank_traps(x, z, rng):
     """A short row of steel hedgehogs."""
     yaw = rng.uniform(0, 180)
+    truck_wrecks.append((x, z))
     for k in range(rng.randint(2, 4)):
         tx = x + (k - 1.5) * 3.0 * math.cos(math.radians(yaw))
         tz = z - (k - 1.5) * 3.0 * math.sin(math.radians(yaw))
@@ -4599,6 +4602,77 @@ def town_hall_back():
             truck(x, z, yaw)
         else:
             sandbags(x, z, yaw)
+
+
+truck_wrecks = []   # (map x, z) of every wrecked truck and tank trap row the scatter placed, for field_caches()
+# Field caches (map pass 0.25.17, owner: some loot out in the countryside, but only cheap stuff; the good loot stays in
+# the town): army crates by the hunting stands, the trench, the derailed train, the open east hill and a few wrecked
+# trucks and tank traps out of town, rolled from ItemDB's "field" table (ammo, meds, food, scrap). Placed last (after the bushes and
+# the details), each on the nearest free spot, so nothing else on the map moves (the ground gets a small level pad).
+FIELD_CACHE_SPOTS = [(147.0, 168.0), (82.0, 205.0), (238.0, 150.0)]   # trench lip, derailed train, east hill
+FIELD_TRUCKS = 10    # how many wrecked trucks / tank traps get one (spread out, away from buildings)
+
+
+def field_caches():
+    solid = [(b[0] + M / 2, b[2] + M / 2, b[3] / 2 + 0.9, b[5] / 2 + 0.9, b[6]) for b in boxes
+             if b[4] > 0.15 and max(b[3], b[5]) < 60]
+
+    def free(x, z):
+        if not (10 < x < M - 10 and 10 < z < M - 10):
+            return False
+        for bx, bz, hx, hz, yaw in solid:
+            if abs(x - bx) > hx + hz or abs(z - bz) > hx + hz:
+                continue
+            c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+            dx, dz = x - bx, z - bz
+            if abs(dx * c - dz * s_) < hx and abs(dx * s_ + dz * c) < hz:
+                return False
+        for points, width in roads + water:
+            for a, b in zip(points, points[1:]):
+                if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 1.5:
+                    return False
+        if any(x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2 for _, x0, z0, x1, z1 in footprints):
+            return False
+        if any(math.hypot(x - tx, z - tz) < 1.5 for tx, tz in trunks):
+            return False
+        if any(math.hypot(x - l[2], z - l[4]) < 15 for l in loot):
+            return False
+        if any(math.hypot(x - sx, z - sz) < 6 for _, sx, sz in enemy_spawns):
+            return False
+        if any(math.hypot(x - sx, z - sz) < 30 for _, sx, sz in player_spawns):   # (not free loot at the start)
+            return False
+        if any(math.hypot(x - ex, z - ez) < 25 for _, _, ex, ez in extracts):   # (not a reason to camp an extract)
+            return False
+        return True   # (the ground is levelled under every outside container: Terrain's small pads)
+
+    def near_free(x, z):
+        for r in (1.5, 2.5, 3.5, 4.5, 6.0):
+            for k in range(12):
+                a = k * math.tau / 12
+                px, pz = x + r * math.cos(a), z + r * math.sin(a)
+                if free(px, pz):
+                    return px, pz, math.degrees(math.atan2(x - px, z - pz))   # (faces the thing it lies by)
+        return None
+
+    spots = list(FIELD_CACHE_SPOTS) + [s for s in stand_spots]
+    # (only pieces still standing: the scatter drops some that would overlap, and clear_scatter() others)
+    standing = [t for t in truck_wrecks if any(math.hypot(t[0] - b[0], t[1] - b[1]) < 3.5 for b in solid)]
+    out_of_town = [t for t in standing if not any(x0 - 25 < t[0] < x1 + 25 and z0 - 25 < t[1] < z1 + 25
+                                                     for _, x0, z0, x1, z1 in footprints)]
+    for _ in range(FIELD_TRUCKS):   # farthest from the spots so far, so they spread over the map
+        if not out_of_town:
+            break
+        t = max(out_of_town, key=lambda t: min(math.hypot(t[0] - x, t[1] - z) for x, z in spots))
+        out_of_town.remove(t)
+        spots.append(t)
+    placed = 0
+    for x, z in spots:
+        at = near_free(x, z)
+        if at:
+            add_loot("Field", "crate", round(at[0], 2), round(at[1], 2), yaw=round(at[2]), table="field")
+            placed += 1
+            print(f"  field cache at ({at[0]:.0f}, {at[1]:.0f})")
+    print(f"field caches: {placed} of {len(spots)}")
 
 
 def set_pieces_late():
@@ -5941,6 +6015,7 @@ def main():
     sign_pass()
     bush_pass()
     street_details()
+    field_caches()
     map_labels()
     check_roads()
     settle_fallen_doors()
@@ -6012,6 +6087,8 @@ def _zone_of(x, z):
 def _zone_spot_ok(x, z, taken):
     """Open, walkable ground for an AI spawn: off buildings, water, rail, props and trees, apart from other spots."""
     if not (8 < x < M - 8 and 8 < z < M - 8) or abs(z - 210.0) < 5:
+        return False
+    if any(math.hypot(x - hx, z - hz) < 7 for hx, hz, _ in HAY_BALES):   # (placed later, set_pieces_late)
         return False
     for points, width in water:
         for a, b in zip(points, points[1:]):
@@ -7229,7 +7306,7 @@ def write_scene(ter):
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
                 f"transform = {xform(x, y, z, yaw)}",
-                f'metadata/place = "{place}"'] + prop_lines(name, kind, place) + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
+                f'metadata/place = "{place}"'] + ([f'loot_table = "{table}"'] if table != kind else []) + prop_lines(name, kind, place) + (["metadata/locked = true"] if behind_key_door(place, x, z) else []) + [""]
     for k, (x, z) in enumerate(SMOKE):
         out += [f'[node name="Smoke{k}" parent="Level" instance=ExtResource("s_smoke")]',
                 f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt(gx(x))}, {fmt(ter.lift(x, z) + 0.8)}, {fmt(gz(z))})", ""]

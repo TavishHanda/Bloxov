@@ -52,6 +52,8 @@ Next: the M4 art updates (World art, Look, Sound), below.
       and re-tune prices (0.16.1 tuned them so a good kit costs about 2-3 normal raids).
       **Secret waterfall room (owner, 2026-10-12):** a waterfall by the creek; walk through it into a hidden room
       with a couple of safes. Build it in this map pass (count its safes in the economy re-run).
+      **Done 0.25.27:** cover pass on the hot spots (sightlines 534 -> 505), 10 cheap "field" crates out of town,
+      economy sim re-run (no price change needed). The layout itself waits for the owner's later rework.
    2. **Look:** the final **lighting overhaul** (owner, 2026-10-10: today's look is too saturated; tune it once, against the
       real models and ground textures, within what the web build supports), plus the loading screen.
       **Graphics settings (owner, 2026-10-24, after the 0.18.11-0.18.12 draw-call passes):** a low/high (or

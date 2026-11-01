@@ -122,6 +122,21 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Medium Backpack | 1% |
 | Novarra Field Report | 1% |
 
+### Field ()
+
+| Entry | Chance per roll |
+|---|---|
+| Hound Rounds | 28% |
+| Bandage | 19% |
+| Stinger Rounds | 11% |
+| Canned Beans | 7% |
+| Water Bottle | 7% |
+| Wasp Rounds | 6% |
+| Mauler Shells | 6% |
+| Energy Drink | 6% |
+| Scrap Metal | 6% |
+| Bolts | 5% |
+
 ### Safe (2–3 rolls, loud to open)
 
 | Entry | Chance per roll |
