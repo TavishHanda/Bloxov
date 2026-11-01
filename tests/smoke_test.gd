@@ -2265,11 +2265,46 @@ func _section_hideout_world() -> void:
 			% [leg[3], walker.global_position - den])
 	# Their sliding doors (0.25.34): open as you come up to them, shut again once you've gone.
 	var doors := world.get_node("Level/Doors")
-	_check(doors.data.size() == 14 and doors.is_open(1), "the booth room's sliding doors opened as you walked through")
+	_check(doors.data.size() == 27 and doors.is_open(1), "the booth room's sliding doors opened as you walked through")
 	walker.global_position = den + Vector3(-2.5, 0.05, 0.6)
 	for i in 60:
 		await physics_frame
 	_check(doors.amount[0] == 0.0 and doors.amount[1] == 0.0, "and the hangout's doors slide shut behind you (%s)" % doors.amount)
+	# The hidden door (0.25.35): the armory's end wall slides aside as you walk up, and back once you've gone.
+	_check(doors.amount[2] == 0.0, "the hidden door at the armory's end is shut while you're down here")
+	# The loft (0.25.35): up the stairs from the games room. (Plan south is the hideout's -x, its west -z.)
+	walker.global_position = den + Vector3(-4.6, 0.05, -4.2)
+	walker.rotation = Vector3(0.0, -PI / 2, 0.0)
+	walker.velocity = Vector3.ZERO
+	for i in 5:
+		await physics_frame
+	Input.action_press("move_forward")
+	for i in 400:
+		await physics_frame
+		if walker.global_position.x > den.x + 3.4:
+			break
+	Input.action_release("move_forward")
+	for i in 10:
+		await physics_frame
+	_check(walker.is_on_floor() and absf(walker.global_position.y - (den.y + 3.6)) < 0.1 and walker.global_position.x > den.x + 3.4,
+		"walk up the stairs into the hangout's loft (%s)" % (walker.global_position - den))
+	# And back up the passage (owner, 0.25.34: "you get stuck on the stairs"): through the hidden door to the armory.
+	walker.global_position = den + Vector3(-3.0, 0.05, 0.0)
+	walker.rotation = Vector3(0.0, PI / 2, 0.0)
+	walker.velocity = Vector3.ZERO
+	for i in 5:
+		await physics_frame
+	var armory_end: float = stash_spot.global_position.x + 8.0
+	Input.action_press("move_forward")
+	var opened := false
+	for i in 900:
+		await physics_frame
+		opened = opened or doors.is_open(2)
+		if walker.global_position.x < armory_end:
+			break
+	Input.action_release("move_forward")
+	_check(walker.global_position.x < armory_end and opened and absf(walker.global_position.y - world.global_position.y) < 0.1,
+		"walk back up the passage stairs, the hidden door sliding open (%s, door %s, opened %s)" % [walker.global_position - world.global_position, doors.amount, opened])
 	var guns: Node3D = world.get_node("Level/Stations/guns")
 	walker.global_position = guns.global_position + Vector3.UP * 0.1
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)

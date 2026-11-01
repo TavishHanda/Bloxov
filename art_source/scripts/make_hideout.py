@@ -284,9 +284,30 @@ def paint_hd_vinyl(rng):
     return c
 
 
+mb.PALETTE.update({"hd_ceil": "cfc6ad", "hd_ceil_hi": "e2dccb", "hd_ceil_lo": "a89f88", "hd_ceil_dk": "857d69"})
+
+
+def paint_hd_ceiling(rng):
+    """Pressed tin ceiling tiles, 50 cm, painted cream: a raised rim lit on one side, a boss in the middle, the paint
+    yellowed and flaking here and there."""
+    c = mb.Canvas(64, 64, "hd_ceil")
+    for i in range(8):
+        for j in range(8):
+            x0, y0 = i * 8, j * 8
+            c.rect(x0, y0, x0 + 8, y0 + 1, "hd_ceil_hi")
+            c.rect(x0, y0, x0 + 1, y0 + 8, "hd_ceil_hi")
+            c.rect(x0, y0 + 7, x0 + 8, y0 + 8, "hd_ceil_dk")
+            c.rect(x0 + 7, y0, x0 + 8, y0 + 8, "hd_ceil_dk")
+            c.rect(x0 + 3, y0 + 3, x0 + 5, y0 + 5, "hd_ceil_lo")
+            c.put(x0 + 3, y0 + 3, "hd_ceil_hi")
+    c.noise(0, 0, 64, 64, ["hd_ceil_lo"], 0.04, rng)
+    c.blotch(["hd_ceil_lo", "steel"], 4, rng, size=(1, 3))
+    return c
+
+
 mb.KIT.update({"hd_tin_red": paint_hd_tin("hd_red"), "hd_tin_teal": paint_hd_tin("hd_teal"),
                "hd_tin_yellow": paint_hd_tin("hd_yel"), "hd_tiles": paint_hd_tiles, "hd_felt": paint_hd_felt,
-               "hd_vinyl": paint_hd_vinyl})
+               "hd_vinyl": paint_hd_vinyl, "hd_ceiling": paint_hd_ceiling})
 
 
 def paint_hd_door(rng):
@@ -318,9 +339,20 @@ def paint_hd_door(rng):
     return c
 
 
+def paint_hd_secret(rng):
+    """The hidden door into the passage (0.25.35): the armory's own concrete, 2.5 x 2.9 m at the kit's 16 px a metre."""
+    big = paint_bk_old(rng)
+    c = mb.Canvas(40, 46, "bk_old")
+    for y in range(46):
+        for x in range(40):
+            c.put(x, y, big.px[y + 9][x + 12])
+    return c
+
+
 def write_door_texture():
-    rows = mb.styled(paint_hd_door(random.Random("door")), random.Random("hangout_door"))
-    mb.write_png(os.path.join(mb.ROOT, "assets", "textures", "hangout_door.png"), len(rows[0]), len(rows), rows)
+    for name, painter in (("hangout_door", paint_hd_door), ("hangout_secret", paint_hd_secret)):
+        rows = mb.styled(painter(random.Random(name)), random.Random(name))
+        mb.write_png(os.path.join(mb.ROOT, "assets", "textures", name + ".png"), len(rows[0]), len(rows), rows)
 
 
 DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
@@ -503,7 +535,8 @@ class Tunnel:
         def box(u0, y0, a0, u1, y1, a1_, kind=None):
             p, q = self.P(u0, y0, a0), self.P(u1, y1, a1_)
             put(min(p[0], q[0]), y0, min(p[2], q[2]), max(p[0], q[0]), y1, max(p[2], q[2]), kind=kind)
-        box(-hw - 0.3, -0.3, self.a0, hw + 0.3, 0.0, a1 + 0.3)
+        box(-hw - 0.3, -0.3, self.a0, hw + 0.3, 0.0, a1 + (0.0 if self.into is not None and self.into.drop else 0.3))
+        # (0.25.35: not on into a sloping passage: its 0.1 m lip over the slope stopped you walking back up)
         box(-hw - 1.3, 0.0, a_s, -hw, top, a1)
         box(hw, 0.0, a_s, hw + 1.3, top, a1)
         # (0.22.0, World reacts: the mouth's frame stands 2.4 m out from the walls; this was walk-through past 1.3 m)
@@ -673,7 +706,11 @@ def cave_layout():
 # The den is drawn as it was built, round its own middle with the passage coming in from +z (H's "plan" frame), then
 # turned and lowered into place (H.w): its passage runs on from the armory's end.
 HANG_R = 8.0                                       # the den's radius, on average (0.25.26: was 6.6, and squarish)
-HANG_CROWN = 6.0
+HANG_CROWN = 8.5                                   # (the rock over it all; 0.25.35: room for the loft)
+CEIL = 3.4                                         # the ground floor's ceiling (0.25.35, owner: "make the roof match
+UP = 3.6                                           # the room, I hate how it's cavey"), the loft's floor, its ceiling
+UP_TOP = 6.2
+HOLE = (-4.8, -2.8, -3.6, 3.6)                     # the stairwell up to the loft (x0, z0, x1, z1, plan frame)
 HANG_DEPTH = 4.5                                   # how far below the hall the den's floor is
 CRACK_LEN = 13.0                                   # from the armory's end wall to where the den's wall would be
 
@@ -742,6 +779,7 @@ def hangout_layout(rt):
     H.outline_w = [(w((x, 0, z))[0], w((x, 0, z))[2]) for x, z in H.outline]
     cx, cz = H.C
     H.wall_r = lambda a: radius(a) * H.f_at(2.6) - 0.4                # the tin walls' inside, at angle a
+    H.up_r = lambda a: radius(a) * H.f_at(UP_TOP + 0.2) - 0.4          # ... and the loft's
     H.table = (cx - 1.2, cz + 0.8)                 # the pool table, long side across the den
     H.jukebox = (cx - H.wall_r(math.pi) + 0.45, cz)    # against the west wall, facing east
     H.booth = (cx + H.wall_r(0.0) - 2.4, cz)       # the round booth's middle, in the east nook
@@ -932,6 +970,18 @@ def boxes():
             put(*args, **kw)
             place_row(rows[-1])
         wall_rows(put_den, H.outline, H.C, H.f_at, lambda x, z: 0.0, [Mouth], H.crown)
+        # The loft's floor (0.25.35): four slabs round the stairwell (they shade the light bake), and the stairs.
+        x0h, z0h, x1h, z1h = HOLE
+        E = 12.0
+        S = H.crack.a0 - 0.2                                           # (not out over the passage: you'd hit your head)
+        for a, b_ in (((-E, -E), (E, z0h)), ((-E, z1h), (E, S)), ((-E, z0h), (x0h, z1h)), ((x1h, z0h), (E, z1h))):
+            solid(H.C[0] + a[0], UP - 0.2, H.C[1] + a[1], H.C[0] + b_[0], UP, H.C[1] + b_[1])
+            place_row(rows[-1])
+        sx = (x0h + x1h) / 2
+        c, sz, yaw, pitch = ramp((sx, z1h), (sx, z0h), UP, x1h - x0h - 0.1)
+        rows.append({"pos": list(c), "size": list(sz), "yaw": yaw, "pitch": pitch, "colour": "stairs", "solid": True,
+                     "kind": "hd_solid"})
+        place_row(rows[-1])
         rows.extend(H.down.slope_rows())
     if LAY.ledge:
         for (xa, za), (xb, zb) in zip(LAY.ledge, LAY.ledge[1:]):
@@ -1613,7 +1663,9 @@ def hangout(ctx):
     hi, lo = t.P(0, 0, t.a1 - 0.3), t.P(0, 0, t.a0 + 0.4)
     c, sz, yaw, pitch = ramp((lo[0], lo[2]), (hi[0], hi[2]), hi[1] - lo[1], 2 * t.hw - 0.1)
     step = (hi[1] - lo[1]) / max(2, round((hi[1] - lo[1]) / 0.2))      # (half a step up: each tread's back edge
+    n_solid = len(mb.SOLIDS)
     mb.stairs(ctx, (c[0], c[1] + lo[1] + step / 2, c[2]), sz, yaw, pitch, mats=("bk_grate", "bk_iron"))  # meets the floor)
+    del mb.SOLIDS[n_solid:]        # (0.25.35: the bottom treads got boxes of their own, and you stuck on them)
     for f in (0.2, 0.55, 0.88):
         a = t.a0 + (t.a1 - t.a0) * f
         p = t.P(0, t.crown - 0.35, a)
@@ -1649,8 +1701,8 @@ def den(ctx):
         mb._bx(b, x, y, z, sx, sy, sz, mat, yaw=yaw, bottom=True)
         b.group = None
 
-    # The walls: tin sheets painted red, teal and yellow round the room to head height, a steel trim along the top
-    # and a strip of light behind it; the rock carries on above. (Left open at the crack.)
+    # The walls: tin sheets painted red, teal and yellow round the room up to the ceiling, a strip of light along
+    # them at head height, a kick plate. (Left open at the crack.)
     M = len(H.outline)
     cols = ("hd_tin_red", "hd_tin_teal", "hd_tin_yellow", "hd_tin_teal")
     for k in range(M):
@@ -1665,13 +1717,14 @@ def den(ctx):
         ln = math.hypot(qb[0] - qa[0], qb[1] - qa[1]) + 0.04
         yaw = math.degrees(math.atan2(qb[0] - qa[0], qb[1] - qa[1]))
         c = ((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2)
-        b.box((c[0], 1.25, c[1]), (0.04, 2.5, ln), yaw=yaw, style=_kit(cols[k // 6 % 4]))
-        b.box((c[0], 2.53, c[1]), (0.12, 0.08, ln), yaw=yaw, style=mb._solid("bk_iron"))
+        b.box((c[0], CEIL / 2, c[1]), (0.04, CEIL + 0.02, ln), yaw=yaw, style=_kit(cols[k // 6 % 4]))
+        b.box((c[0], 2.53, c[1]), (0.1, 0.06, ln), yaw=yaw, style=mb._solid("bk_iron"))
         b.box((c[0], 0.08, c[1]), (0.08, 0.16, ln), yaw=yaw, style=mb._solid("bk_iron"))       # a kick plate
         if k % 2 == 0:
             ix, iz = cx + (c[0] - cx) * 0.985, cz + (c[1] - cz) * 0.985
             glow(ix, 2.46, iz, 0.03, 0.03, ln, ("teal", "red")[k // 2 % 2], yaw)
-        block(c[0], 0.0, c[1], 0.2, 2.5, ln, yaw)
+        block(c[0], 0.0, c[1], 0.2, CEIL, ln, yaw)
+
     def at(ang, r, y=0.0):                                             # a point r out from the middle at angle ang
         return (cx + math.cos(ang) * r, y, cz + math.sin(ang) * r)
 
@@ -1703,7 +1756,7 @@ def den(ctx):
         b.box((bx, 0.74, bz), (0.06, 0.06, 0.06), yaw=rng.uniform(0, 90), style=mb._nb(col))
     pipe(b, (tx + 0.2, 0.75, tz + 0.3), (tx + 1.5, 0.78, tz + 0.75), "steel_light", 0.012)     # a cue left on the table
     block(tx, 0.0, tz, L, 0.8, W)
-    hang((tx, 2.3, tz), HANG_CROWN - 0.4 - 2.3, 1.2, 3.2, shaded=True)
+    hang((tx, 2.3, tz), CEIL - 2.3, 1.2, 3.2, shaded=True)
     # The bar: a curve round the north wall, tin front with a light strip under the steel top, stools along it,
     # curved shelves of snacks behind, the glowing SNACKS sign over them.
     north = -math.pi / 2
@@ -1798,22 +1851,22 @@ def den(ctx):
                 for e in (-ln - 0.12, ln + 0.12):                       # its brackets on the wall
                     q = (rail[0] + dx * e, rail[1] + dz * e)
                     b.box((q[0] - nx * 0.05, 2.17, q[1] - nz * 0.05), (0.1, 0.1, 0.05), yaw=yaw, style=mb._solid("bk_iron"))
-                b.box((m[0], 2.3, m[1]), (0.14, 0.4, ln + 0.02), yaw=yaw, style=_kit(mat))
-                block(m[0], 2.1, m[1], 0.2, 0.4, ln, yaw)
+                b.box((m[0], (2.1 + CEIL) / 2, m[1]), (0.14, CEIL - 2.1, ln + 0.02), yaw=yaw, style=_kit(mat))
+                block(m[0], 2.1, m[1], 0.2, CEIL - 2.1, ln, yaw)
                 for e in (a0_, a1_):                                   # steel posts either side
                     q = (x + dx * e, z + dz * e)
                     b.box((q[0], 1.25, q[1]), (0.16, 2.5, 0.08), yaw=yaw, style=mb._solid("bk_iron"))
                 continue
-            b.box((m[0], 1.25, m[1]), (0.12, 2.5, ln), yaw=yaw, style=_kit(mat))
-            b.box((m[0], 2.53, m[1]), (0.18, 0.08, ln + 0.02), yaw=yaw, style=mb._solid("bk_iron"))
+            b.box((m[0], CEIL / 2, m[1]), (0.12, CEIL, ln), yaw=yaw, style=_kit(mat))
+            b.box((m[0], 2.53, m[1]), (0.16, 0.06, ln + 0.02), yaw=yaw, style=mb._solid("bk_iron"))
             b.box((m[0], 0.08, m[1]), (0.16, 0.16, ln), yaw=yaw, style=mb._solid("bk_iron"))
-            block(m[0], 0.0, m[1], 0.2, 2.5, ln, yaw)
+            block(m[0], 0.0, m[1], 0.2, CEIL, ln, yaw)
     ZB, XB = cz - 3.2, cx + 4.6                                        # the bar room's wall (z), the booth room's (x)
     west, east = edge(cx, ZB, -1.0, 0.0), edge(cx, ZB, 1.0, 0.0)
     partition(cx, ZB, 1.0, 0.0, -west, east, [(0.0, 2.4)], "hd_tin_yellow")
     south = edge(XB, ZB, 0.0, 1.0)
     partition(XB, ZB, 0.0, 1.0, 0.1, south, [(cz - ZB, 1.8)], "hd_tin_red")
-    hang((cx - 3.0, 2.3, cz - 1.2), HANG_CROWN - 0.4 - 2.3, 0.8, 3.0)   # (the games room gets a second lamp)
+    hang((cx - 2.6, 2.3, cz - 1.4), CEIL - 2.3, 0.8, 3.0)               # (the games room gets a second lamp)
     # Arcade cabinets along the booth room's wall, facing into the games room, screens lit.
     for k, z_ in enumerate((ZB + 1.0, cz + 1.7, cz + 2.6, cz + 3.5)):
         ax_, az_ = XB - 0.65, z_
@@ -1861,23 +1914,147 @@ def den(ctx):
     block(ux, 0.0, uz, 0.6, 0.9, 0.6)
     for k in range(2):
         KICKS.append((ux - 0.1 + k * 0.2, 0.9, uz - 0.1, 0.0, 2, KICK_COLOURS[("red", "metal")[k]]))
-    hang((ux, 2.2, uz), HANG_CROWN - 0.6 - 2.2, 0.9, 3.0, shaded=True)
+    hang((ux, 2.2, uz), CEIL - 2.2, 0.9, 3.0, shaded=True)
     # Cues in a rack on the west wall, by the jukebox.
     for k in range(3):
         p = at(math.pi - 0.35, H.wall_r(math.pi - 0.35) - 0.08)
         z = p[2] + k * 0.25
         pipe(b, (p[0] + 0.15, 0.05, z), (p[0], 1.45, z), "steel_light", 0.012)
     # String lights zigzagging over it all, and a mirror ball over the middle.
-    def wall(ang, y):
-        r = H.radius(ang) * H.f_at(y) - 0.5
-        return (cx + math.cos(ang) * r, y, cz + math.sin(ang) * r)
-    for a0, a1 in ((200, 340), (340, 160), (160, 20), (20, 200)):
-        string_lights(b, wall(math.radians(a0), 3.6), wall(math.radians(a1), 3.6), sag=0.8, every=1.2, strength=0.25,
-                      reach=2.4)
-    mx_, mz_ = cx - 1.6, cz + 2.6
-    pipe(b, (mx_, 3.5, mz_), (mx_, HANG_CROWN - 0.3, mz_), "bk_cable", 0.015)
+    # (under the ceiling now, in the games room only)
+    string_lights(b, (cx - 3.4, 3.3, cz + 4.4), (cx + 4.4, 3.3, cz - 2.9), sag=0.4, every=1.2, strength=0.25, reach=2.4)
+    string_lights(b, (cx - 3.2, 3.3, cz - 2.9), (cx + 4.4, 3.3, cz + 4.0), sag=0.4, every=1.2, strength=0.25, reach=2.4)
+    mx_, mz_ = cx + 1.6, cz + 2.6
+    pipe(b, (mx_, 3.0, mz_), (mx_, CEIL, mz_), "bk_cable", 0.015)
     for k in range(3):
-        b.box((mx_, 3.38, mz_), (0.2, 0.2, 0.2), yaw=k * 30, pitch=0, style=mb._solid("steel_light"))
+        b.box((mx_, 2.88, mz_), (0.2, 0.2, 0.2), yaw=k * 30, pitch=0, style=mb._solid("steel_light"))
+    loft(ctx, glow)
+
+
+def loft(ctx, glow):
+    """The ceiling over the den's rooms, and the loft over them (0.25.35, owner: "make the roof match the room...
+    maybe even a second floor??"): a movie room up steel stairs from the games room, a screen, couches, beanbags and
+    a table football game. The rock dome is still there above it all, but you no longer see it."""
+    b, rng = ctx.b, random.Random("loft")
+    H = LAY.hang
+    cx, cz = H.C
+    x0h, z0h, x1h, z1h = HOLE
+    T = 0.4
+    R = max(H.wall_r(2 * math.pi * k / 48) for k in range(48)) + 0.8
+    n = int(R / T) + 1
+
+    def inside(x, z, r_at, pad):
+        return math.hypot(x - cx, z - cz) < r_at(math.atan2(z - cz, x - cx)) + pad
+
+    def strips(y, normal, mat, r_at, pad, uv):
+        """Flat cells over the room (out under its walls), cut round the stairwell, merged into strips."""
+        for j in range(-n, n):
+            za = cz + j * T
+            run = None
+            for i in range(-n, n + 1):
+                xa = cx + i * T
+                ok = i < n and not (x0h - 1e-6 <= xa + T / 2 <= x1h + 1e-6 and z0h - 1e-6 <= za + T / 2 <= z1h + 1e-6) \
+                    and any(inside(xa + dx, za + dz, r_at, pad) for dx in (0, T) for dz in (0, T))
+                if ok and run is None:
+                    run = xa
+                elif not ok and run is not None:
+                    b.poly([(run, y, za), (xa, y, za), (xa, y, za + T), (run, y, za + T)], normal, mat, uv)
+                    run = None
+    strips(CEIL, (0, -1, 0), "hd_ceiling", H.wall_r, 0.3, mb.uv_world())
+    strips(UP, (0, 1, 0), "carpet", H.up_r, 0.3, mb.uv_world())
+    strips(UP_TOP, (0, -1, 0), "hd_ceiling", H.up_r, 0.3, mb.uv_world())
+    # The stairwell's sides (the floor's edge, steel) and a rail round it upstairs, open where the stairs come up.
+    for (xa, za), (xb, zb), nn in ((((x0h, z0h), (x1h, z0h), (0, 0, 1))), (((x1h, z0h), (x1h, z1h), (-1, 0, 0))),
+                                   (((x1h, z1h), (x0h, z1h), (0, 0, -1))), (((x0h, z1h), (x0h, z0h), (1, 0, 0)))):
+        b.poly([(xa, CEIL, za), (xb, CEIL, zb), (xb, UP, zb), (xa, UP, za)], nn, "bk_iron", mb.uv_world(1.0))
+    for (xa, za), (xb, zb) in (((x0h, z0h), (x0h, z1h)), ((x1h, z0h), (x1h, z1h)), ((x0h, z1h), (x1h, z1h))):
+        pipe(b, (xa, UP + 1.0, za), (xb, UP + 1.0, zb), "steel_light", 0.05)
+        pipe(b, (xa, UP + 0.5, za), (xb, UP + 0.5, zb), "steel_light", 0.03)
+        ln = math.hypot(xb - xa, zb - za)
+        for k in range(int(ln / 1.2) + 2):
+            t = min(1.0, k * 1.2 / ln)
+            pipe(b, (xa + (xb - xa) * t, UP, za + (zb - za) * t), (xa + (xb - xa) * t, UP + 1.0, za + (zb - za) * t),
+                 "steel_light", 0.04)
+        block((xa + xb) / 2, UP, (za + zb) / 2, max(0.1, abs(xb - xa)), 1.05, max(0.1, abs(zb - za)))
+    # The stairs up, steel, from the games room's south end to the loft (you walk the smooth ramp under them;
+    # their treads have no boxes of their own, or you'd catch on them).
+    sx = (x0h + x1h) / 2
+    c, sz, yaw, pitch = ramp((sx, z1h), (sx, z0h), UP, x1h - x0h - 0.1)
+    step = UP / max(2, round(UP / 0.2))
+    n_solid = len(mb.SOLIDS)
+    mb.stairs(ctx, (c[0], c[1] + step / 2, c[2]), sz, yaw, pitch, mats=("bk_grate", "bk_iron"))
+    del mb.SOLIDS[n_solid:]
+    for x in (x0h + 0.05, x1h - 0.05):
+        pipe(b, (x, 0.95, z1h), (x, UP + 0.95, z0h), "steel_light", 0.04)
+        pipe(b, (x, 0.0, z1h), (x, 0.95, z1h), "steel_light", 0.04)
+    # The loft's walls: tin again, ceiling to floor, a light strip along them.
+    cols = ("hd_tin_teal", "hd_tin_red", "hd_tin_yellow", "hd_tin_red")
+    M = 72
+    for k in range(M):
+        a0, a1 = 2 * math.pi * k / M, 2 * math.pi * (k + 1) / M
+        qa = (cx + math.cos(a0) * (H.up_r(a0) + 0.05), cz + math.sin(a0) * (H.up_r(a0) + 0.05))
+        qb = (cx + math.cos(a1) * (H.up_r(a1) + 0.05), cz + math.sin(a1) * (H.up_r(a1) + 0.05))
+        ln = math.hypot(qb[0] - qa[0], qb[1] - qa[1]) + 0.04
+        yaw = math.degrees(math.atan2(qb[0] - qa[0], qb[1] - qa[1]))
+        m = ((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2)
+        b.box((m[0], (UP + UP_TOP) / 2, m[1]), (0.04, UP_TOP - UP + 0.02, ln), yaw=yaw, style=_kit(cols[k // 6 % 4]))
+        b.box((m[0], UP + 0.08, m[1]), (0.08, 0.16, ln), yaw=yaw, style=mb._solid("bk_iron"))
+        if k % 2 == 0:
+            ix, iz = cx + (m[0] - cx) * 0.985, cz + (m[1] - cz) * 0.985
+            glow(ix, UP + 2.2, iz, 0.03, 0.03, ln, ("red", "teal")[k // 2 % 2], yaw)
+        block(m[0], UP, m[1], 0.2, UP_TOP - UP, ln, yaw)
+    # The movie room: a big screen on the north wall (lit, the film's on), a projector on the ceiling, two couches
+    # facing it on a rug, beanbags in front, a table football game at the back.
+    north = -math.pi / 2
+    # (flat against the curved wall: as far back as its ends let it go)
+    rr = min(H.up_r(a) * -math.sin(a) for a in (north + 0.01 * k for k in range(-60, 61))
+             if abs(H.up_r(a) * math.cos(a)) <= 2.4) - 0.12
+    sxz = (cx, cz - rr)
+    b.box((sxz[0], UP + 1.55, sxz[1] + 0.05), (4.6, 2.5, 0.08), style=mb._solid("black"))
+    glow(sxz[0], UP + 1.55, sxz[1] + 0.1, 4.3, 2.25, 0.02, "bone")
+    for x, y, col, w, h in ((-1.2, 1.0, "blue", 1.9, 0.9), (0.9, 0.9, "olive", 2.2, 0.7), (0.0, 1.8, "yellow", 0.6, 0.6),
+                            (-1.4, 2.25, "teal", 1.2, 0.4)):          # (a picture on it: the film's on)
+        glow(sxz[0] + x, UP + y, sxz[1] + 0.12, w, h, 0.01, col)
+    LAMPS.append((sxz[0], UP + 1.6, sxz[1] + 1.2, 0.8, 3.6))
+    px, pz = cx + 0.4, cz + 0.4
+    b.box((px, UP_TOP - 0.25, pz), (0.4, 0.18, 0.45), style=mb._nb("black"))
+    pipe(b, (px, UP_TOP - 0.16, pz), (px, UP_TOP, pz), "bk_iron", 0.04)
+    glow(px, UP_TOP - 0.25, pz - 0.23, 0.12, 0.12, 0.02, "bone")
+    rug = [(cx - 1.6, UP + 0.012, cz - 2.6), (cx + 2.6, UP + 0.012, cz - 2.6), (cx + 2.6, UP + 0.012, cz + 1.6),
+           (cx - 1.6, UP + 0.012, cz + 1.6)]
+    b.poly(rug, (0, 1, 0), "olive_dark", mb.uv_world())
+    for row_z, col in ((cz - 1.3, "hd_vinyl"), (cz + 0.7, "hd_vinyl")):
+        ux = cx + 0.5
+        b.box((ux, UP + 0.22, row_z), (2.4, 0.44, 0.85), style=_kit(col))
+        b.box((ux, UP + 0.7, row_z + 0.33), (2.4, 0.6, 0.22), style=_kit(col))
+        for e in (-1, 1):
+            b.box((ux + e * 1.15, UP + 0.55, row_z), (0.18, 0.3, 0.85), style=mb._nb("bk_iron"))
+        for e in (-0.55, 0.55):
+            b.box((ux + e, UP + 0.5, row_z - 0.05), (0.9, 0.12, 0.6), yaw=rng.uniform(-3, 3), style=mb._nb("red"))
+            H.seat_list.append((ux + e, UP + 0.56, row_z + 0.05, 0.0))
+        block(ux, UP, row_z, 2.45, 1.0, 0.9)
+    for k, (bx, bz, col) in enumerate(((cx - 1.0, cz - 3.4, "red"), (cx + 0.6, cz - 3.6, "yellow"),
+                                       (cx + 2.0, cz - 3.3, "teal"))):
+        b.box((bx, UP + 0.2, bz), (0.75, 0.4, 0.75), yaw=rng.uniform(0, 90), style=mb._nb(col))
+        b.box((bx, UP + 0.45, bz + 0.15), (0.55, 0.3, 0.3), yaw=rng.uniform(-15, 15), style=mb._nb(col))
+        block(bx, UP, bz, 0.7, 0.5, 0.7)
+    fx, fz = cx + 2.6, cz + 3.0                                        # the table football game
+    b.box((fx, UP + 0.55, fz), (1.2, 0.3, 0.75), style=mb._nb("blue"))
+    b.box((fx, UP + 0.705, fz), (1.1, 0.012, 0.65), style=_kit("hd_felt", 2.0))
+    for e in (-1, 1):
+        for f in (-1, 1):
+            pipe(b, (fx + e * 0.5, UP, fz + f * 0.3), (fx + e * 0.5, UP + 0.4, fz + f * 0.3), "bk_iron", 0.07)
+    for k in range(6):
+        x = fx - 0.45 + k * 0.18
+        pipe(b, (x, UP + 0.78, fz - 0.55), (x, UP + 0.78, fz + 0.55), "steel_light", 0.02)
+        for m_ in range(2 + k % 2):
+            b.box((x, UP + 0.74, fz - 0.2 + m_ * 0.2), (0.04, 0.1, 0.04), style=mb._nb(("red", "blue")[k % 2]))
+        b.box((x, UP + 0.78, fz + 0.6 * (1 if k % 2 else -1)), (0.05, 0.05, 0.1), style=mb._nb("black"))
+    block(fx, UP, fz, 1.2, 0.85, 0.8)
+    hang((cx + 0.5, UP + 2.2, cz - 0.3), UP_TOP - UP - 2.2, 0.7, 3.0, shaded=True)
+    hang((fx, UP + 2.2, fz), UP_TOP - UP - 2.2, 0.7, 2.6, shaded=True)
+    string_lights(b, (cx - 3.0, UP_TOP - 0.25, cz - 4.0), (cx + 4.0, UP_TOP - 0.25, cz + 3.6), sag=0.3, every=1.2,
+                  strength=0.2, reach=2.2)
 
 
 def hang(at, length, strength, reach, shaded=False):
@@ -2153,6 +2330,16 @@ def cloth_rows():
     return out
 
 
+def door_rows():
+    """For scripts/hideout_doors.gd: the rooms' tin doors, and the hidden one at the armory's end (0.25.35)."""
+    out = [(x, -HANG_DEPTH, z, ln, 2.08, yaw, 1.0, 2.0, 0.0) for x, z, ln, yaw in DOORS]
+    if LAY.hang:
+        rt = LAY.tunnels[2]
+        p = rt.P(0.0, 0.0, rt.a1)
+        out.append((p[0], 0.0, p[2], 2.5, 2.9, rt.yaw(), 1.0, 1.0, 1.0))      # (slides towards the duffels: clear)
+    return out
+
+
 def write_level(rows):
     """The scene the hideout loads: a BoxMap of the boxes (collision only, the model draws them)."""
     flat = []
@@ -2205,8 +2392,7 @@ def write_level(rows):
                 % (", ".join("%g" % round(v, 3) for row in cloth_rows() for v in row[:-1]),
                    ", ".join("%g, %g, %g, 1" % row[-1] for row in cloth_rows())))
         f.write('\n[node name="Doors" type="Node3D" parent="."]\nscript = ExtResource("6_doors")\n'
-                'data = PackedFloat32Array(%s)\n' % ", ".join("%g" % round(v, 3) for x, z, ln, yaw in DOORS
-                                                              for v in (x, -HANG_DEPTH, z, ln, 2.08, yaw, 1.0)))
+                'data = PackedFloat32Array(%s)\n' % ", ".join("%g" % round(v, 3) for row in door_rows() for v in row))
         f.write('\n[node name="Boards" type="Node3D" parent="."]\n')
         for bid, (x, z), (nx, nz) in LAY.boards:                       # (a Marker3D's +z out of the board's face)
             yaw = math.atan2(nx, nz)

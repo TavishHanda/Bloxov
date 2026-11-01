@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.36 (Hangout loft and hidden door)
+Owner: "you get stuck on the stairs", "make the roof match the room, I hate how it's cavey... maybe even a second
+floor??", "a door that kinda blends in that auto opens to make it more hidden, but I like the spot".
+- Stuck on the passage stairs, fixed (two causes): the bottom treads had collision boxes of their own you caught on,
+  and walking back up, the armory's floor stuck out 0.1 m over the top of the slope. You walk a smooth slope both ways.
+- The rooms have a ceiling now: cream pressed-tin tiles at 3.4 m, the tin walls going all the way up to it, string
+  lights and lamps hung under it. No more rock overhead.
+- A second floor: steel stairs from the games room go up to a movie loft, with a big screen (the film's on), a
+  projector, two couches you can sit on, beanbags, a table football game and its own lamps. The stairwell has a rail.
+- The way in is hidden: the armory's end wall is a concrete door painted like the wall round it. It slides aside
+  with a heavy rumble as you walk up, from either side, and shuts again behind you. Same spot as before.
+
 ## 0.25.35 (Climb through windows again)
 Owner: "Vaulting through windows is not working properly now" (online: "i could not vault through the window at all,
 i just jumped"); picked "open plain windows too".
