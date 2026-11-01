@@ -708,8 +708,27 @@ func check_gear(go: Callable) -> void:
 	if not inventory.all_stacks().is_empty():
 		go.call()
 		return
+	_ask_before(go, "NO GEAR", "You're not carrying anything: no gun, no meds, no backpack. Go into the raid anyway?",
+		"GO ANYWAY", can_take_free_kit())
+
+
+## START RAID (solo) asks "are you sure?" first (0.25.20, owner: in case of a misclick). With nothing on you, the
+## NO GEAR warning asks instead (one question, not two).
+func confirm_raid(go: Callable) -> void:
+	if inventory.all_stacks().is_empty():
+		check_gear(go)
+		return
+	_ask_before(go, "START RAID?", "Head out on a solo raid against the AI with this loadout?", "START RAID", false)
+
+
+## Shows the ask-first panel: `go` runs only if they press the hazard button.
+func _ask_before(go: Callable, title: String, text: String, go_text: String, free_kit: bool) -> void:
 	_gear_warning_go = go
-	gear_warning.get_node("Margin/Column/Buttons/FreeKit").visible = can_take_free_kit()
+	var column := gear_warning.get_node("Margin/Column")
+	(column.get_node("Title") as Label).text = title
+	(column.get_node("Text") as Label).text = text
+	(column.get_node("Buttons/Go") as Button).text = go_text
+	column.get_node("Buttons/FreeKit").visible = free_kit
 	gear_warning.visible = true
 
 
@@ -733,10 +752,12 @@ func _build_gear_warning() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 	var title := Label.new()
+	title.name = "Title"
 	title.text = "NO GEAR"
 	HudStyle.style_label(title, 30, HudStyle.HAZARD)
 	column.add_child(title)
 	var text := Label.new()
+	text.name = "Text"
 	text.text = "You're not carrying anything: no gun, no meds, no backpack. Go into the raid anyway?"
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	HudStyle.style_label(text, 20)
@@ -975,7 +996,7 @@ func _build_top_bar() -> void:
 	raid_button.custom_minimum_size = Vector2(150, 0)
 	raid_button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(raid_button, 30, HudStyle.HAZARD)
-	raid_button.pressed.connect(check_gear.bind(func() -> void:
+	raid_button.pressed.connect(confirm_raid.bind(func() -> void:
 		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
 		start_raid()))
 	row.add_child(raid_button)

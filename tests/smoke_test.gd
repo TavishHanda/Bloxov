@@ -2606,7 +2606,20 @@ func _section_hideout() -> void:
 	hideout_inv.add("bandage", 1)
 	hideout.check_gear(func() -> void: started[0] += 10)
 	_check(not hideout.gear_warning.visible and started[0] == 11, "BACK starts nothing; carrying anything at all, no warning")
+	# (0.25.20, owner) START RAID asks "are you sure?" first; BACK starts nothing, START RAID starts it.
+	var ask: Node = hideout.gear_warning.get_node("Margin/Column")
+	hideout.confirm_raid(func() -> void: started[0] += 100)
+	_check(hideout.gear_warning.visible and started[0] == 11 and (ask.get_node("Title") as Label).text == "START RAID?"
+		and not ask.get_node("Buttons/FreeKit").visible, "START RAID asks first")
+	(ask.get_node("Buttons/Back") as Button).pressed.emit()
+	_check(not hideout.gear_warning.visible and started[0] == 11, "BACK on the START RAID ask starts nothing")
+	hideout.confirm_raid(func() -> void: started[0] += 100)
+	(ask.get_node("Buttons/Go") as Button).pressed.emit()
+	_check(not hideout.gear_warning.visible and started[0] == 111, "pressing START RAID on the ask starts it")
 	hideout_inv.take("bandage", 1)
+	hideout.confirm_raid(func() -> void: started[0] += 1000)
+	_check((ask.get_node("Title") as Label).text == "NO GEAR" and started[0] == 111, "with nothing on you, START RAID asks NO GEAR instead")
+	hideout.close_gear_warning()
 	# (0.20.12) Starting a raid is enough: closing the tab mid-raid loses the kit but never counts the raid.
 	var kept_loadout := Profile.loadout
 	Profile.raid_begun()

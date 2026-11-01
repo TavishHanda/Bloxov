@@ -20,11 +20,15 @@ const GROUP := &"remote_players"
 ## Their footsteps (0.12.35, owner: teammates were silent online): every stride, louder and heard farther when
 ## they sprint, barely when they crouch. Max hearing distance per pace, meters. 0.22.3 (owner: louder, like the AI's
 ## in 0.22.2): walking and sprinting 6 dB louder, fading more slowly (STEP_UNIT_SIZE, was 3) and heard 10 m farther
-## (were 25 and 35); crouching left as it was, so sneaking still works.
-const STEP_RANGE_WALK := 35.0
-const STEP_RANGE_SPRINT := 45.0
+## (were 25 and 35); crouching left as it was, so sneaking still works. 0.25.20 (owner: "still really hard to hear
+## others' footsteps"): they were 3 dB quieter than the AI's; now walking +3 dB and sprinting +6 dB (were -3 and +2),
+## fading more slowly (STEP_UNIT_SIZE 6, was 4) and heard 10 m farther (were 35 and 45). Crouching still as it was.
+const STEP_RANGE_WALK := 45.0
+const STEP_RANGE_SPRINT := 55.0
 const STEP_RANGE_CROUCH := 6.0
-const STEP_UNIT_SIZE := 4.0
+const STEP_UNIT_SIZE := 6.0
+const STEP_DB_WALK := 3.0
+const STEP_DB_SPRINT := 6.0
 ## The gun reaches this far ahead of the body's middle (BodyPose holding it); a wall closer than that tucks it in.
 const GUN_REACH := 0.95
 ## Over this much less room the gun goes from held out to fully tucked (the body itself keeps 0.4 m off walls).
@@ -175,7 +179,7 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 	_stride_left -= speed * delta
 	if _stride_left > 0.0:
 		return
-	var volume := -3.0
+	var volume := STEP_DB_WALK
 	var reach := STEP_RANGE_WALK
 	var unit_size := STEP_UNIT_SIZE
 	_stride_left = 1.5
@@ -185,7 +189,7 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 		unit_size = 3.0
 		_stride_left = 1.1
 	elif flags & FLAG_SPRINT:
-		volume = 2.0
+		volume = STEP_DB_SPRINT
 		reach = STEP_RANGE_SPRINT
 		_stride_left = 1.9
 	Surfaces.step(self, volume, true, 1.0, unit_size, reach)
