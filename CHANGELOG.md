@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.38 (Quieter hideout ambience that doesn't loop)
+- The hideout's background sound was too loud and you could hear it loop (owner). Its room tone was one 6-second
+  clip on repeat; it's now three quiet layers (the still air, the vents, a faint hum of lights and a far generator),
+  each a different length so they don't line up for many minutes, and each drifting slowly up and down in loudness
+  and pitch at random. Over that, every 4-14 s one of eight little sounds plays at a random pitch and loudness: water
+  dripping, a pipe ticking or groaning, something metal set down far off, the vents drawing harder (never the same one
+  twice running), and sometimes grit trickles from the roof after the war rumbles overhead. All of it is about 5 dB
+  quieter than before, and the rumbles 4 dB quieter. New sounds only: the raid's ambience is unchanged.
 ## 0.25.37 (Hangout smoothing)
 Owner: "a gap on the roof showing the cave" over the loft stairs, "I can sit on snack bar chairs from upstairs",
 "my head is going through walls and roofs", "lower the noise of the new door... make [its texture] match a bit more".

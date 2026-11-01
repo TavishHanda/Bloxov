@@ -11,6 +11,19 @@ const WATERFALL := preload("res://audio/ambience/waterfall.wav")
 const ROOM := preload("res://audio/ambience/room.wav")
 const RUMBLES: Array[AudioStream] = [preload("res://audio/ambience/rumble1.wav"), preload("res://audio/ambience/rumble2.wav"),
 	preload("res://audio/ambience/rumble3.wav")]
+## The hideout's own (0.25.38, owner: too loud and the loop could be heard): three quiet beds of different lengths,
+## each drifting up and down at random, and little one-off sounds now and then (drips, pipe ticks, a creak...).
+const BUNKER_BEDS: Array[AudioStream] = [preload("res://audio/ambience/bunker_air.wav"),
+	preload("res://audio/ambience/bunker_vent.wav"), preload("res://audio/ambience/bunker_hum.wav")]
+const BUNKER_BED_DB: Array[float] = [-31.0, -35.0, -34.0]
+const BUNKER_BITS: Array[AudioStream] = [preload("res://audio/ambience/bunker_drip1.wav"),
+	preload("res://audio/ambience/bunker_drip2.wav"), preload("res://audio/ambience/bunker_drip3.wav"),
+	preload("res://audio/ambience/bunker_tick1.wav"), preload("res://audio/ambience/bunker_tick2.wav"),
+	preload("res://audio/ambience/bunker_creak.wav"), preload("res://audio/ambience/bunker_clank.wav"),
+	preload("res://audio/ambience/bunker_breath.wav")]
+const BUNKER_BIT_DB: Array[float] = [-31.0, -31.0, -31.0, -27.0, -27.0, -33.0, -29.0, -33.0]
+const BUNKER_DUST := preload("res://audio/ambience/bunker_dust.wav")
+const BUNKER_DUST_DB := -30.0
 const BUS := &"Ambience"
 ## Loudness (dB) of each at full: quiet, under the game.
 const WIND_DB := -22.0
@@ -26,8 +39,8 @@ const CHECK_EVERY := 0.25
 const FADE := 1.5   # (dB-ish per second of linear fade, see _fade)
 ## Underground in the hideout (0.25.22, owner: "really quiet"): the room tone a little louder than a raid's indoors,
 ## and the war overhead dulled by the earth.
-const BUNKER_ROOM_DB := -24.0
-const BUNKER_RUMBLE_DB := -22.0
+## (0.25.38: the room tone there is now BUNKER_BEDS, and the war a little quieter.)
+const BUNKER_RUMBLE_DB := -26.0
 
 var listener: Node3D
 ## True in the hideout: only the room tone and the far-off war (no wind, birds or water down there).
@@ -42,6 +55,14 @@ var _waterfall_placed := false
 var _woods_level := 0.0
 var _rumble_left := 0.0
 var _dice := RandomNumberGenerator.new()
+## The hideout's beds, the loudness (linear) and pitch each is drifting toward, and when each picks a new one.
+var _beds: Array[AudioStreamPlayer] = []
+var _bed_target: Array[float] = []
+var _bed_pitch: Array[float] = []
+var _bed_left: Array[float] = []
+var _bit_left := 0.0
+var _last_bit := -1
+var _dust_left := -1.0
 
 
 ## Starts the ambience for `who` (the local player) in their raid.
@@ -73,6 +94,15 @@ func _ready() -> void:
 	_waterfall.stop()   # (until the map says where it is)
 	if bunker:
 		_creek.stop()
+		_room.stop()
+		_bit_left = _dice.randf_range(3.0, 8.0)
+		for i in BUNKER_BEDS.size():
+			var bed := _loop(BUNKER_BEDS[i])
+			bed.pitch_scale = _dice.randf_range(0.95, 1.05)
+			_beds.append(bed)
+			_bed_target.append(0.0)
+			_bed_pitch.append(bed.pitch_scale)
+			_bed_left.append(0.0)
 
 
 ## A copy of `stream` that repeats end to start (the files are made to loop without a seam; .import files aren't
@@ -120,8 +150,9 @@ func _map() -> BoxMap:
 
 func _process(delta: float) -> void:
 	if bunker:
-		_fade(_room, db_to_linear(BUNKER_ROOM_DB), delta)
-		_rumbles(delta, BUNKER_RUMBLE_DB, 0.7)
+		_bunker(delta)
+		if _rumbles(delta, BUNKER_RUMBLE_DB, 0.7):
+			_dust_left = _dice.randf_range(0.6, 1.5) if _dice.randf() < 0.6 else -1.0
 		return
 	if listener == null or not listener.is_inside_tree():
 		return
@@ -148,8 +179,46 @@ func _process(delta: float) -> void:
 	_rumbles(delta, RUMBLE_DB, 0.8)
 
 
+## The hideout's sound (0.25.38): each bed drifts slowly toward its own random loudness and pitch, picked anew every
+## 6-16 s, so the three never sound the same twice; and every 4-14 s one of the little sounds (never the same one
+## twice running), at a random pitch and loudness. Some rumbles shake a little dust down after them.
+func _bunker(delta: float) -> void:
+	for i in _beds.size():
+		_bed_left[i] -= delta
+		if _bed_left[i] <= 0.0:
+			_bed_left[i] = _dice.randf_range(6.0, 16.0)
+			_bed_target[i] = db_to_linear(BUNKER_BED_DB[i] + _dice.randf_range(-5.0, 1.5))
+			_bed_pitch[i] = _dice.randf_range(0.94, 1.06)
+		_fade(_beds[i], _bed_target[i], delta * 0.15)
+		_beds[i].pitch_scale = move_toward(_beds[i].pitch_scale, _bed_pitch[i], delta * 0.006)
+	_bit_left -= delta
+	if _bit_left <= 0.0:
+		_bit_left = _dice.randf_range(4.0, 14.0)
+		var pick := _dice.randi() % BUNKER_BITS.size()
+		if pick == _last_bit:
+			pick = (pick + 1 + _dice.randi() % (BUNKER_BITS.size() - 1)) % BUNKER_BITS.size()
+		_last_bit = pick
+		_one_shot(BUNKER_BITS[pick], BUNKER_BIT_DB[pick] + _dice.randf_range(-5.0, 1.0), _dice.randf_range(0.85, 1.15))
+	if _dust_left > 0.0:
+		_dust_left -= delta
+		if _dust_left <= 0.0:
+			_one_shot(BUNKER_DUST, BUNKER_DUST_DB + _dice.randf_range(-4.0, 1.0), _dice.randf_range(0.9, 1.1))
+
+
+func _one_shot(stream: AudioStream, db: float, pitch: float) -> void:
+	var player := AudioStreamPlayer.new()
+	player.stream = stream
+	player.bus = BUS
+	player.volume_db = db
+	player.pitch_scale = pitch
+	add_child(player)
+	player.finished.connect(player.queue_free)
+	player.play()
+
+
 ## Now and then, the war rumbling far off (`db` loud, pitched from `low_pitch` to 1.1: lower sounds farther/deeper).
-func _rumbles(delta: float, db: float, low_pitch: float) -> void:
+## True when one started this frame.
+func _rumbles(delta: float, db: float, low_pitch: float) -> bool:
 	_rumble_left -= delta
 	if _rumble_left <= 0.0:
 		_rumble_left = _dice.randf_range(25.0, 70.0)
@@ -161,6 +230,8 @@ func _rumbles(delta: float, db: float, low_pitch: float) -> void:
 		add_child(rumble)
 		rumble.finished.connect(rumble.queue_free)
 		rumble.play()
+		return true
+	return false
 
 
 ## Moves `player`'s loudness toward `target` (linear), smoothly.
