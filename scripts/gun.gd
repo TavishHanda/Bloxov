@@ -118,10 +118,8 @@ var reserve: int:
 	get:
 		return player.inventory.count_of(ammo_id) if player != null else 0
 var is_reloading := false
-## Worn guns jam (0.27.0, the Durability update; chance: ItemDB.jam_chance). A jam clicks and takes JAM_CLEAR_TIME
-## to clear by itself (no extra button, so it works the same on touch). Each shot wears the gun 1 point.
-const JAM_CLEAR_TIME := 0.9
-var _jam_left := 0.0
+## Gun wear (0.27.0, the Durability update): each shot wears the gun 1 point, and a worn gun spreads more
+## (ItemDB.wear_spread; 0.28.1, owner: no jams, they "take away from the arcade style").
 ## 0 = hip, 1 = fully aimed down sights. Moves smoothly between them.
 var aim := 0.0
 
@@ -207,7 +205,6 @@ func _apply_weapon(stack: ItemStack) -> void:
 		Effects.sound(get_tree().current_scene, GunSounds.DRAW, -10.0, 0.06)   # (swapping guns, 0.20.3)
 	weapon = stack
 	is_reloading = false
-	_jam_left = 0.0
 	_raise_left = switch_time
 	for key in _models:
 		(_models[key] as Node3D).visible = false
@@ -270,10 +267,6 @@ func _apply_stats(stack: ItemStack) -> Dictionary:
 
 func _process(delta: float) -> void:
 	_cooldown -= delta
-	if _jam_left > 0.0:
-		_jam_left -= delta
-		if _jam_left <= 0.0 and weapon != null:
-			Effects.sound(get_tree().current_scene, MAG_IN_SOUND, -6.0)
 	_bloom = move_toward(_bloom, 0.0, bloom_recovery_deg * delta)
 	_flinch_spread = move_toward(_flinch_spread, 0.0, flinch_recovery_deg * delta)
 	_aim_block_left -= delta
@@ -315,12 +308,9 @@ func _process(delta: float) -> void:
 	var trigger := Input.is_action_pressed("shoot") if auto else Input.is_action_just_pressed("shoot")
 	# Loading shells one at a time, you can fire whatever's in already (it stops loading).
 	var loading_ok := not is_reloading or (load_one and in_mag > 0)
-	if trigger and _cooldown <= 0.0 and loading_ok and is_ready_to_fire() and not is_jammed():
+	if trigger and _cooldown <= 0.0 and loading_ok and is_ready_to_fire():
 		if in_mag > 0:
-			if randf() < ItemDB.jam_chance(weapon.condition()):
-				jam()
-			else:
-				shoot_once()
+			shoot_once()
 		elif Input.is_action_just_pressed("shoot"):
 			Effects.sound(get_tree().current_scene, EMPTY_SOUND)
 			start_reload()
@@ -344,7 +334,8 @@ func current_spread() -> float:
 	var spread := spread_for(aim, moving, player.is_crouching, not player.is_on_floor())
 	if player.is_prone:
 		spread *= prone_spread_multiplier
-	return spread + _bloom * lerpf(1.0, ads_bloom_multiplier, aim) + _flinch_spread
+	spread += _bloom * lerpf(1.0, ads_bloom_multiplier, aim) + _flinch_spread
+	return spread * (ItemDB.wear_spread(weapon) if weapon != null else 1.0)
 
 
 ## Called when the player gets shot.
@@ -396,19 +387,6 @@ func reticle() -> String:
 		if part.has("reticle"):
 			return part["reticle"]
 	return ""
-
-
-func is_jammed() -> bool:
-	return _jam_left > 0.0
-
-
-## The gun jammed: a click, no shot, no round used; it clears itself after JAM_CLEAR_TIME.
-func jam() -> void:
-	_jam_left = JAM_CLEAR_TIME
-	is_reloading = false
-	_needs_trigger_release = true
-	Effects.sound(get_tree().current_scene, EMPTY_SOUND)
-	Effects.sound(get_tree().current_scene, MAG_OUT_SOUND, -8.0)
 
 
 ## False while sprinting and for `raise_time` after.
@@ -499,7 +477,7 @@ func _warn_near_misses(from: Vector3, end: Vector3, hit: Variant) -> void:
 
 
 func start_reload() -> void:
-	if weapon == null or is_jammed() or is_reloading or in_mag >= mag_size or reserve <= 0:
+	if weapon == null or is_reloading or in_mag >= mag_size or reserve <= 0:
 		return
 	is_reloading = true
 	_reload_empty = in_mag == 0 and not load_one

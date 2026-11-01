@@ -18,7 +18,7 @@ const RARITY_COLORS := {
 ## w/h: size in grid cells (before rotation). stack: how many fit in one cell stack. value: price of ONE (new).
 ## desc: the line the inventory shows about it.
 ## durability (0.27.0, the Durability update): armor points (hits wear it down, worn armor protects less), a gun's
-## shots (each shot wears it 1, a worn gun jams: jam_chance) or a key's uses. Each item keeps its own
+## shots (each shot wears it 1, a worn gun spreads more: wear_spread) or a key's uses. Each item keeps its own
 ## (ItemStack.durability); worn items are worth less (ItemStack.value). Ponta and Big Don repair guns and armor
 ## (Traders.repair_price, owner: trader repairs, no kits); keys can't be repaired.
 const ITEMS := {
@@ -336,17 +336,14 @@ static func wear(stack: ItemStack, damage: int) -> void:
 	stack.durability = maxi(stack.durability - lost, 0)
 
 
-## Worn guns jam (0.27.0): below JAM_START condition each trigger pull may jam instead of firing (Gun.jam), up to
-## JAM_MAX at worn out.
-const JAM_START := 0.6
-const JAM_MAX := 0.05
+## A worn gun is a bit less accurate (0.28.1, owner: replaces 0.27.0's jams, which didn't fit the arcade style):
+## its spread grows with wear, up to WORN_SPREAD more when worn out. It always fires.
+const WORN_SPREAD := 0.2
 
 
-## Chance a trigger pull jams with a gun this worn (1 = new, 0 = worn out).
-static func jam_chance(condition: float) -> float:
-	if condition >= JAM_START:
-		return 0.0
-	return JAM_MAX * (1.0 - condition / JAM_START)
+## What a gun's spread is multiplied by for its wear (1 = new, 1 + WORN_SPREAD = worn out; 1 for anything that doesn't wear).
+static func wear_spread(stack: ItemStack) -> float:
+	return 1.0 + WORN_SPREAD * (1.0 - stack.condition())
 
 
 ## Durability of one found in a raid: armor and guns turn up worn (40-100%), keys with all their uses.

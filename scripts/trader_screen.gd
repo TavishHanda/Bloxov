@@ -198,7 +198,7 @@ func _build_sell() -> Control:
 	_sell_title = Label.new()
 	HudStyle.style_label(_sell_title, 20, HudStyle.BRASS)
 	box.add_child(_sell_title)
-	box.add_child(_small("What you have that they buy, from your stash and what you carry (not what you wear)."))
+	box.add_child(_small("Repair: worn gear, what you wear too. Sell: what you have that they buy, from your stash and what you carry (not what you wear)."))
 	_sell_rows = _scroll(box)
 	return parts[0]
 

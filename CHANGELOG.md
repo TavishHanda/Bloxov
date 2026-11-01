@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.1 (No more jams)
+Owner: jams "take away from the arcade style of bloxov"; picked "a bit less accurate" instead.
+- Worn guns never jam now. Instead a worn gun spreads more, growing with wear up to 20% more when worn out. It
+  always fires. The inventory shows it ("Condition 40% (+12% spread)"). Wear per shot and repairs are unchanged.
+- The trader screen's note says the repair list includes what you wear.
+
 ## 0.28.0 (The world comes alive)
 A new update (owner: "anything that should have some sort of animation/life we need to give it", and it should be its
 own update). Everything here is looks only: hitboxes, shots, the AI and how the game plays don't change, nothing is

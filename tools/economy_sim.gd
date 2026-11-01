@@ -116,13 +116,12 @@ func _initialize() -> void:
 		else:
 			for i in (HEAD_HITS_PER_RAID if ItemDB.kind(id) == "helmet" else BODY_HITS_PER_RAID):
 				ItemDB.wear(stack, 25)
-		var raids_to_jam := ceilf(most * (1.0 - ItemDB.JAM_START) / int(SHOTS_PER_RAID.get(id, 100))) if ItemDB.kind(id) == "weapon" else 0.0
 		var half := ItemStack.new(id)
 		half.durability = most / 2
 		print("  %-14s %4d pts  one raid's wear: %3d%% left, repair %7s (%.1f%% of a new one)%s  · from half: %s" % [ItemDB.display_name(id), most,
 			roundi(stack.condition() * 100.0), ItemDB.money(Traders.repair_price(stack)),
 			100.0 * Traders.repair_price(stack) / Traders.buy_price(id, 1),
-			"  jams after ~%d raids" % raids_to_jam if raids_to_jam > 0 else "", ItemDB.money(Traders.repair_price(half))])
+			"", ItemDB.money(Traders.repair_price(half))])
 	print("\n== Ming's boxes (average sell value of what comes out) ==")
 	for box: String in Traders.BOXES:
 		var total := 0

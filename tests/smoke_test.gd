@@ -210,17 +210,14 @@ func _section_shoot() -> void:
 	gun.shoot_once()
 	var expected := roundi(gun.damage * gun.headshot_multiplier)
 	_check(before - dummy_health.current == expected, "headshot deals %d damage (got %d)" % [expected, before - dummy_health.current])
-	# Gun wear (0.27.0): each shot wears the gun 1; past 60% left a trigger pull may jam (up to 5% worn out), the gun
-	# says JAMMED, then clears by itself.
+	# Gun wear (0.27.0): each shot wears the gun 1. A worn gun spreads more, up to 20% worn out, and never jams
+	# (0.28.1, owner: jams didn't fit the arcade style).
 	_check(gun.weapon.durability == ItemDB.max_durability(gun.weapon.id) - 2, "each shot wears the gun 1 point (%d left)" % gun.weapon.durability)
-	_check(ItemDB.jam_chance(1.0) == 0.0 and ItemDB.jam_chance(0.6) == 0.0 and is_equal_approx(ItemDB.jam_chance(0.0), 0.05)
-		and ItemDB.jam_chance(0.3) > 0.0, "a gun only jams once it's worn below 60%, up to 5% a shot worn out")
-	var mag_before := gun.in_mag
-	gun.jam()
-	gun.start_reload()
-	_check(gun.is_jammed() and not gun.is_reloading and gun.in_mag == mag_before, "a jam uses no round and stops a reload")
-	await create_timer(Gun.JAM_CLEAR_TIME + 0.1).timeout
-	_check(not gun.is_jammed(), "the jam clears by itself")
+	gun.weapon.durability = ItemDB.max_durability(gun.weapon.id)
+	var new_spread := gun.current_spread()
+	gun.weapon.durability = 0
+	_check(is_equal_approx(gun.current_spread(), new_spread * 1.2) and not gun.has_method("jam"),
+		"a worn-out gun spreads 20%% more (%.5f vs %.5f) and never jams" % [gun.current_spread(), new_spread])
 	gun.weapon.durability = ItemDB.max_durability(gun.weapon.id)
 
 

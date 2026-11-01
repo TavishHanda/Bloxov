@@ -1078,7 +1078,7 @@ static func details(stack: ItemStack, sells_for := -1) -> String:
 			parts.append("%s · %d damage · %d rpm · %d-round mag · %d loaded" % [str(data["slot"]).capitalize(), int(data["damage"]),
 				int(data["rpm"]), int(ItemDB.weapon_stats(stack)["mag"]), stack.loaded])
 			if ItemDB.max_durability(stack.id) > 0:
-				parts.append("Condition %d%%" % roundi(stack.condition() * 100.0) + (" (jams)" if ItemDB.jam_chance(stack.condition()) > 0.0 else ""))
+				parts.append("Condition %d%%" % roundi(stack.condition() * 100.0) + (" (+%d%% spread)" % roundi((ItemDB.wear_spread(stack) - 1.0) * 100.0) if stack.condition() < 0.98 else ""))
 			var on: PackedStringArray = []
 			for slot: String in stack.attachments:
 				on.append(ItemDB.display_name(stack.attachments[slot]))

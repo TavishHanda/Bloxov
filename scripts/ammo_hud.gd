@@ -2,8 +2,7 @@ class_name AmmoHUD
 extends Control
 ## Bottom-right ammo (0.8.4, "Ammo Can"): a gunmetal plate with the loaded count big on the left and, on the right,
 ## the magazine as a row of brass cartridges (spent ones are empty sockets) over the reserve. Low on rounds =
-## yellow, empty = red. Reloading: the cartridges fill back up and a strip of tape says so (and "JAMMED" while a
-## worn gun's jam clears, 0.27.0).
+## yellow, empty = red. Reloading: the cartridges fill back up and a strip of tape says so.
 ## Unarmed: a smaller plate with the knife and "Unarmed".
 
 const PLATE_SIZE := Vector2(206, 50)
@@ -31,7 +30,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	var reloading := player.gun.weapon != null and (player.gun.is_reloading or player.gun.is_jammed())
+	var reloading := player.gun.weapon != null and player.gun.is_reloading
 	_reload_tape = move_toward(_reload_tape, 1.0 if reloading else 0.0, delta / 0.12)
 	queue_redraw()
 
@@ -83,8 +82,6 @@ func _draw() -> void:
 	# Reserve under the cartridges.
 	HudStyle.draw_text(self, "/ %d" % gun.reserve, Vector2(RIGHT_COLUMN, 41), 20, HudStyle.INK_DIM)
 	if _reload_tape > 0.0:
-		# A worn gun's jam (0.27.0) shows on the same strip of tape while it clears.
-		var word := "JAMMED" if gun.is_jammed() else "RELOADING"
-		var tape_w := HudStyle.tape_width(word, 14)
+		var tape_w := HudStyle.tape_width("RELOADING", 14)
 		var rect := Rect2(Vector2(PLATE_SIZE.x - tape_w - 6, -24 + 6.0 * (1.0 - _reload_tape)), Vector2(tape_w, 20))
-		HudStyle.draw_tape(self, rect, word, -2.5, _reload_tape, 14)
+		HudStyle.draw_tape(self, rect, "RELOADING", -2.5, _reload_tape, 14)
