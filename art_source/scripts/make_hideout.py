@@ -635,8 +635,8 @@ def cave_layout():
 # with steel stairs runs down into the rock to the den, HANG_DEPTH below the hall.
 # The den is drawn as it was built, round its own middle with the passage coming in from +z (H's "plan" frame), then
 # turned and lowered into place (H.w): its passage runs on from the armory's end.
-HANG_R = 6.6                                       # the den's radius (rock bumps out from it between the four sides)
-HANG_CROWN = 5.2
+HANG_R = 8.0                                       # the den's radius, on average (0.25.26: was 6.6, and squarish)
+HANG_CROWN = 6.0
 HANG_DEPTH = 4.5                                   # how far below the hall the den's floor is
 CRACK_LEN = 13.0                                   # from the armory's end wall to where the den's wall would be
 
@@ -652,7 +652,20 @@ def hangout_layout(rt):
     H.mats = ("bk_rock", "bk_rock", 99.0, "bk_ground")
     H.amp = 1.0
     rock = ("bk_rock", "bk_rock", "bk_ground", "bk_rock")
-    a0, a1 = math.sqrt(HANG_R * HANG_R - 1.0), CRACK_LEN + HANG_R
+    jit = random.Random("hangout")
+    bumps = [jit.uniform(-0.35, 0.35) for _ in range(20)]
+
+    def radius(a):
+        """0.25.26 (owner: "less of a square... I hate when things are fully cubes", "a bit bigger"): an uneven round
+        room, lobed, with a nook bulging out to the east for the couch."""
+        k = (a / (2 * math.pi) * 20) % 20
+        i = int(k)
+        j = bumps[i] * (1 - (k - i)) + bumps[(i + 1) % 20] * (k - i)
+        return (HANG_R + 1.8 * max(0.0, math.cos(a)) ** 4 + 0.7 * math.sin(3 * a + 0.9) + 0.35 * math.sin(5 * a + 2.1)
+                + j)
+    H.radius = radius
+    r_in = radius(math.pi / 2)                     # where the passage comes in
+    a0, a1 = math.sqrt(r_in * r_in - 1.0), CRACK_LEN + r_in
 
     def passage(O, D):
         t = Tunnel("crack", O, D, a0, a1, 1.0, 2.0, 2.6, 0.4, rock)
@@ -677,18 +690,9 @@ def hangout_layout(rt):
     def wn(n):                                     # a direction, turned the same way
         return (n[0] * cy + n[2] * sy, n[1], -n[0] * sy + n[2] * cy)
     H.w, H.wn = w, wn
-    jit = random.Random("hangout")
-    bumps = [jit.uniform(-0.4, 0.4) for _ in range(16)]
-
-    def radius(a):
-        k = (a / (2 * math.pi) * 16) % 16
-        i = int(k)
-        j = bumps[i] * (1 - (k - i)) + bumps[(i + 1) % 16] * (k - i)
-        return HANG_R + (1.4 + j) * abs(math.sin(2 * a)) ** 1.3
-    H.radius = radius
     pts = []
-    for k in range(64):
-        a = 2 * math.pi * k / 64
+    for k in range(96):
+        a = 2 * math.pi * k / 96
         p = (H.C[0] + radius(a) * math.cos(a), H.C[1] + radius(a) * math.sin(a))
         u, al = crack.local((p[0], 0, p[1]))
         if not (abs(u) < crack.hw + 0.3 and al > 0):
@@ -700,9 +704,11 @@ def hangout_layout(rt):
     H.outline = [p for k, p in enumerate(pts) if math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]) > 0.05]
     H.outline_w = [(w((x, 0, z))[0], w((x, 0, z))[2]) for x, z in H.outline]
     cx, cz = H.C
-    H.table = (cx, cz - 0.6)                       # the pool table, long side across the den
-    H.jukebox = (cx - 5.0, cz - 1.0)               # against the west wall, facing east
-    H.couch = (cx + 4.4, cz - 0.6)                 # against the east wall, facing the table
+    H.wall_r = lambda a: radius(a) * H.f_at(2.6) - 0.4                # the tin walls' inside, at angle a
+    H.table = (cx - 0.6, cz + 0.4)                 # the pool table, long side across the den
+    H.jukebox = (cx - H.wall_r(math.pi) + 0.45, cz)    # against the west wall, facing east
+    H.booth = (cx + H.wall_r(0.0) - 2.4, cz)       # the round booth's middle, in the east nook
+    H.seat_list = []                               # (x, y, z, yaw) in the plan frame: den() fills it
     return H
 
 
@@ -1620,30 +1626,38 @@ def den(ctx):
         ln = math.hypot(qb[0] - qa[0], qb[1] - qa[1]) + 0.04
         yaw = math.degrees(math.atan2(qb[0] - qa[0], qb[1] - qa[1]))
         c = ((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2)
-        b.box((c[0], 1.25, c[1]), (0.04, 2.5, ln), yaw=yaw, style=_kit(cols[k // 4 % 4]))
+        b.box((c[0], 1.25, c[1]), (0.04, 2.5, ln), yaw=yaw, style=_kit(cols[k // 6 % 4]))
         b.box((c[0], 2.53, c[1]), (0.12, 0.08, ln), yaw=yaw, style=mb._solid("bk_iron"))
         b.box((c[0], 0.08, c[1]), (0.08, 0.16, ln), yaw=yaw, style=mb._solid("bk_iron"))       # a kick plate
         if k % 2 == 0:
             ix, iz = cx + (c[0] - cx) * 0.985, cz + (c[1] - cz) * 0.985
             glow(ix, 2.46, iz, 0.03, 0.03, ln, ("teal", "red")[k // 2 % 2], yaw)
         block(c[0], 0.0, c[1], 0.2, 2.5, ln, yaw)
-    # The floor: black and white tiles.
-    R0 = HANG_R * H.f_at(0.1) - 0.5
-    b.poly([(cx - R0, 0.004, cz - R0), (cx + R0, 0.004, cz - R0), (cx + R0, 0.004, cz + R0), (cx - R0, 0.004, cz + R0)],
-           (0, 1, 0), "hd_tiles", mb.uv_world())
-    # The pool table: a steel frame with green tarp stretched over it for felt, pockets, the balls left out.
+    def at(ang, r, y=0.0):                                             # a point r out from the middle at angle ang
+        return (cx + math.cos(ang) * r, y, cz + math.sin(ang) * r)
+
+    def yaw_at(ang):                                                   # a box's yaw: its x out from the middle, z round
+        return -math.degrees(ang)
+
+    # The floor: black and white tiles, out to the walls whatever their shape.
+    for k in range(M):
+        pa, pb = H.outline[k], H.outline[(k + 1) % M]
+        f = H.f_at(0.1) - 0.1
+        b.poly([(cx, 0.004, cz), (cx + (pa[0] - cx) * f, 0.004, cz + (pa[1] - cz) * f),
+                (cx + (pb[0] - cx) * f, 0.004, cz + (pb[1] - cz) * f)], (0, 1, 0), "hd_tiles", mb.uv_world())
+    # The pool table: a steel frame with felt, red rails, pockets, the balls left out.
     tx, tz = H.table
     L, W = 2.4, 1.3
     b.box((tx, 0.62, tz), (L, 0.16, W), style=mb._nb("bk_iron"))
     b.box((tx, 0.705, tz), (L - 0.2, 0.012, W - 0.2), style=_kit("hd_felt", 2.0))
-    for s in (-1, 1):
-        b.box((tx, 0.74, tz + s * (W / 2 - 0.05)), (L, 0.07, 0.1), style=mb._nb("red"))
-        b.box((tx + s * (L / 2 - 0.05), 0.74, tz), (0.1, 0.07, W), style=mb._nb("red"))
+    for s_ in (-1, 1):
+        b.box((tx, 0.74, tz + s_ * (W / 2 - 0.05)), (L, 0.07, 0.1), style=mb._nb("red"))
+        b.box((tx + s_ * (L / 2 - 0.05), 0.74, tz), (0.1, 0.07, W), style=mb._nb("red"))
         for e in (-1, 1):
-            pipe(b, (tx + s * (L / 2 - 0.15), 0, tz + e * (W / 2 - 0.15)), (tx + s * (L / 2 - 0.15), 0.56, tz + e * (W / 2 - 0.15)),
+            pipe(b, (tx + s_ * (L / 2 - 0.15), 0, tz + e * (W / 2 - 0.15)), (tx + s_ * (L / 2 - 0.15), 0.56, tz + e * (W / 2 - 0.15)),
                  "bk_iron", 0.08)
-            mb._bx(b, tx + s * (L / 2 - 0.1), 0.712, tz + e * (W / 2 - 0.1), 0.09, 0.01, 0.09, "black", bottom=True)
-        mb._bx(b, tx, 0.712, tz + s * (W / 2 - 0.1), 0.09, 0.01, 0.09, "black", bottom=True)
+            mb._bx(b, tx + s_ * (L / 2 - 0.1), 0.712, tz + e * (W / 2 - 0.1), 0.09, 0.01, 0.09, "black", bottom=True)
+        mb._bx(b, tx, 0.712, tz + s_ * (W / 2 - 0.1), 0.09, 0.01, 0.09, "black", bottom=True)
     for k, col in enumerate(("bone", "red", "yellow", "blue", "black", "red", "yellow", "green", "blue")):
         bx = tx + (0.6 if k == 0 else -0.35 - (k % 3) * 0.09 + rng.uniform(-0.25, 0.1))
         bz = tz + (0.0 if k == 0 else rng.uniform(-0.45, 0.45))
@@ -1651,61 +1665,84 @@ def den(ctx):
     pipe(b, (tx + 0.2, 0.75, tz + 0.3), (tx + 1.5, 0.78, tz + 0.75), "steel_light", 0.012)     # a cue left on the table
     block(tx, 0.0, tz, L, 0.8, W)
     hang((tx, 2.3, tz), HANG_CROWN - 0.4 - 2.3, 1.2, 3.2, shaded=True)
-    # The bar along the north wall: a tin front with a light strip under the steel top, stools, shelves of snacks
-    # behind, the glowing SNACKS sign over it.
-    bz = cz - 3.4
-    b.box((cx, 0.5, bz), (4.6, 1.0, 0.12), style=_kit("hd_tin_red"))
-    b.box((cx, 0.55, bz - 0.35), (4.6, 1.1, 0.6), style=mb._nb("bk_iron"))
-    b.box((cx, 1.12, bz - 0.25), (4.8, 0.05, 0.8), style=mb._solid("steel_light"))
-    glow(cx, 1.05, bz + 0.1, 4.5, 0.03, 0.03, "yellow")
-    block(cx, 0.0, bz - 0.25, 4.8, 1.15, 0.8)
-    for k in range(4):                                                 # stools
-        x = cx - 1.8 + k * 1.2
-        pipe(b, (x, 0.0, bz + 0.6), (x, 0.7, bz + 0.6), "steel_light", 0.05)
-        b.box((x, 0.72, bz + 0.6), (0.36, 0.06, 0.36), yaw=45, style=mb._nb("red"))
-        b.box((x, 0.04, bz + 0.6), (0.34, 0.02, 0.34), yaw=45, style=mb._solid("bk_iron"))
-    sz_ = cz - 4.9                                                     # the shelves behind it
-    for y in (1.2, 1.7):
-        b.box((cx, y, sz_), (3.6, 0.04, 0.3), style=mb._solid("bk_iron"))
-        x = cx - 1.7                                                   # (snacks, not drinks: owner 2026-11-01, store rules)
-        while x < cx + 1.6:
-            kind = rng.choice(("can", "can", "bag", "box"))
-            col = rng.choice(("red", "blue", "yellow", "teal", "bone"))
-            if kind == "can":                                          # a few cans of soda
-                for k in range(rng.randint(2, 3)):
-                    b.box((x + k * 0.08, y + 0.08, sz_), (0.065, 0.12, 0.065), style=mb._nb(col))
-                x += 0.08 * 3 + 0.06
-            elif kind == "bag":                                        # a bag of chips, leaning
-                b.box((x + 0.08, y + 0.13, sz_), (0.16, 0.22, 0.05), yaw=rng.uniform(-10, 10), style=mb._nb(col))
-                x += 0.24
-            else:                                                      # a box of candy bars
-                b.box((x + 0.1, y + 0.07, sz_), (0.2, 0.1, 0.14), style=mb._nb(col))
-                x += 0.26
-    for x in (cx - 1.8, cx + 1.8):
-        pipe(b, (x, 0.0, sz_), (x, 2.0, sz_), "bk_iron", 0.05)
-    block(cx, 0.0, sz_, 3.7, 2.0, 0.4)
-    F = Frame((cx, cz - 5.2), (1.0, 0.0), (0.0, 1.0), 0.0)
-    b.box((cx, 2.25, cz - 5.25), (1.9, 0.62, 0.06), style=mb._solid("black"))
+    # The bar: a curve round the north wall, tin front with a light strip under the steel top, stools along it,
+    # curved shelves of snacks behind, the glowing SNACKS sign over them.
+    north = -math.pi / 2
+    rb = H.wall_r(north) - 1.9                                         # (the bar's front; behind it is outwards)
+    n = 9
+    span = 0.34
+    for k in range(n):
+        ang = north - span + 2 * span * (k + 0.5) / n
+        seg = 2 * rb * math.sin(span / n) + 0.03
+        p = at(ang, rb)
+        b.box((p[0], 0.5, p[2]), (0.12, 1.0, seg), yaw=yaw_at(ang), style=_kit("hd_tin_red"))
+        q = at(ang, rb + 0.35)
+        b.box((q[0], 0.55, q[2]), (0.6, 1.1, seg + 0.04), yaw=yaw_at(ang), style=mb._nb("bk_iron"))
+        q = at(ang, rb + 0.25)
+        b.box((q[0], 1.12, q[2]), (0.8, 0.05, seg + 0.08), yaw=yaw_at(ang), style=mb._solid("steel_light"))
+        q = at(ang, rb - 0.1)
+        glow(q[0], 1.05, q[2], 0.03, 0.03, seg, "yellow", yaw_at(ang))
+        q = at(ang, rb + 0.25)
+        block(q[0], 0.0, q[2], 0.8, 1.15, seg + 0.05, yaw_at(ang))
+    for k in range(5):                                                 # stools
+        ang = north - span * 0.8 + 2 * span * 0.8 * k / 4
+        p = at(ang, rb - 0.65)
+        pipe(b, (p[0], 0.0, p[2]), (p[0], 0.7, p[2]), "steel_light", 0.05)
+        b.box((p[0], 0.72, p[2]), (0.36, 0.06, 0.36), yaw=45, style=mb._nb("red"))
+        b.box((p[0], 0.04, p[2]), (0.34, 0.02, 0.34), yaw=45, style=mb._solid("bk_iron"))
+        H.seat_list.append((p[0], 0.76, p[2], math.degrees(math.atan2(-math.cos(ang), -math.sin(ang)))))   # (facing the bar)
+    rs = H.wall_r(north) - 0.3                                         # the shelves behind it
+    for k in range(7):
+        ang = north - 0.26 + 0.52 * (k + 0.5) / 7
+        seg = 2 * rs * math.sin(0.26 / 7)
+        for y in (1.2, 1.7):
+            p = at(ang, rs, y)
+            b.box(p, (0.3, 0.04, seg + 0.02), yaw=yaw_at(ang), style=mb._solid("bk_iron"))
+            x = -seg / 2 + 0.03                                        # (snacks, not drinks: owner 2026-11-01, store rules)
+            while x < seg / 2 - 0.1:
+                kind = rng.choice(("can", "can", "bag", "box"))
+                col = rng.choice(("red", "blue", "yellow", "teal", "bone"))
+                tan = (-math.sin(ang), math.cos(ang))
+                q = (p[0] + tan[0] * x, p[2] + tan[1] * x)
+                if kind == "can":
+                    b.box((q[0], y + 0.08, q[1]), (0.065, 0.12, 0.065), style=mb._nb(col))
+                    x += 0.1
+                elif kind == "bag":
+                    b.box((q[0], y + 0.13, q[1]), (0.05, 0.22, 0.16), yaw=yaw_at(ang) + rng.uniform(-10, 10), style=mb._nb(col))
+                    x += 0.22
+                else:
+                    b.box((q[0], y + 0.07, q[1]), (0.14, 0.1, 0.2), yaw=yaw_at(ang), style=mb._nb(col))
+                    x += 0.24
+        p = at(ang, rs)
+        block(p[0], 0.0, p[2], 0.4, 2.0, seg + 0.02, yaw_at(ang))
+    for ang in (north - 0.26, north + 0.26):
+        p = at(ang, rs)
+        pipe(b, (p[0], 0.0, p[2]), (p[0], 2.0, p[2]), "bk_iron", 0.05)
+    sp = at(north, rs - 0.05)                                          # the sign, over the shelves
+    b.box((sp[0], 2.25, sp[2] - 0.05), (1.9, 0.62, 0.06), style=mb._solid("black"))
+    F = Frame((sp[0], sp[2]), (1.0, 0.0), (0.0, 1.0), 0.0)
     b.group = bake_light.GLOW
     b.poly([F.P(0.0, 2.0, -0.85), F.P(0.0, 2.0, 0.85), F.P(0.0, 2.5, 0.85), F.P(0.0, 2.5, -0.85)], (0, 0, 1), "decals",
            ctx.d("neon_bar"))
     b.group = None
-    LAMPS.append((cx, 2.2, cz - 4.8, 0.5, 2.6))
-    # Two arcade cabinets on the south-east side, screens lit.
-    for k, (ax_, az_) in enumerate(((cx + 3.7, cz + 2.4), (cx + 2.6, cz + 3.3))):
-        ang = math.atan2(cx - ax_, cz - az_)                           # facing the middle
-        yaw = math.degrees(ang)
-        f = (math.sin(ang), math.cos(ang))
-        b.box((ax_, 0.9, az_), (0.7, 1.8, 0.7), yaw=yaw, style=mb._nb(("blue", "black")[k]))
-        glow(ax_ + f[0] * 0.365, 1.3, az_ + f[1] * 0.365, 0.5, 0.4, 0.02, ("teal", "green")[k], yaw)
-        glow(ax_ + f[0] * 0.365, 1.68, az_ + f[1] * 0.365, 0.6, 0.14, 0.02, "yellow", yaw)
+    LAMPS.append((sp[0], 2.2, sp[2] + 0.4, 0.5, 2.6))
+    LAMPS.append(at(north, rb - 0.8, 2.2) + (0.5, 3.0))
+    # Arcade cabinets in pairs, angled against the wall either side of the passage, screens lit.
+    for k, ang in enumerate((0.85, 1.08, 2.06, 2.29)):
+        ax_, _, az_ = at(ang, H.wall_r(ang) - 0.55)
+        face = math.atan2(cx - ax_, cz - az_)                          # facing the middle
+        yaw = math.degrees(face)
+        f = (math.sin(face), math.cos(face))
+        b.box((ax_, 0.9, az_), (0.7, 1.8, 0.7), yaw=yaw, style=mb._nb(("blue", "black", "red", "teal")[k]))
+        glow(ax_ + f[0] * 0.365, 1.3, az_ + f[1] * 0.365, 0.5, 0.4, 0.02, ("teal", "green", "yellow", "red")[k], yaw)
+        glow(ax_ + f[0] * 0.365, 1.68, az_ + f[1] * 0.365, 0.6, 0.14, 0.02, ("yellow", "yellow", "teal", "bone")[k], yaw)
         b.box((ax_ + f[0] * 0.42, 0.95, az_ + f[1] * 0.42), (0.6, 0.06, 0.3), yaw=yaw, style=mb._nb("black"))
-        for s in (-0.15, 0.12):                                        # stick and buttons
-            pipe(b, (ax_ + f[0] * 0.48 + f[1] * s, 0.98, az_ + f[1] * 0.48 - f[0] * s),
-                 (ax_ + f[0] * 0.48 + f[1] * s, 1.05, az_ + f[1] * 0.48 - f[0] * s), ("red", "yellow")[s > 0], 0.03)
+        for s_ in (-0.15, 0.12):                                       # stick and buttons
+            pipe(b, (ax_ + f[0] * 0.48 + f[1] * s_, 0.98, az_ + f[1] * 0.48 - f[0] * s_),
+                 (ax_ + f[0] * 0.48 + f[1] * s_, 1.05, az_ + f[1] * 0.48 - f[0] * s_), ("red", "yellow")[s_ > 0], 0.03)
         block(ax_, 0.0, az_, 0.75, 1.8, 0.75, yaw)
         LAMPS.append((ax_ + f[0] * 0.6, 1.3, az_ + f[1] * 0.6, 0.35, 1.8))
-    # The jukebox: red and chrome, its front lit.
+    # The jukebox: red tin and chrome, its front lit, on the west wall.
     jx, jz = H.jukebox
     b.box((jx, 0.7, jz), (0.55, 1.4, 0.9), style=_kit("hd_tin_red", 2.0))
     b.box((jx + 0.02, 1.42, jz), (0.5, 0.12, 0.84), style=mb._nb("steel_light"))
@@ -1713,36 +1750,47 @@ def den(ctx):
     b.box((jx + 0.285, 0.45, jz), (0.01, 0.3, 0.6), style=mb._solid("bk_grate"))
     block(jx, 0.0, jz, 0.55, 1.45, 0.9)
     LAMPS.append((jx + 0.5, 0.95, jz, 0.6, 2.4))
-    # The couch along the east wall on a rug, a crate for a table, cans.
-    ux, uz = H.couch
-    b.poly([(ux - 1.6, 0.012, uz - 1.5), (ux + 0.4, 0.012, uz - 1.5), (ux + 0.4, 0.012, uz + 1.5), (ux - 1.6, 0.012, uz + 1.5)],
-           (0, 1, 0), "carpet", mb.uv_world())
-    b.box((ux, 0.22, uz), (0.85, 0.44, 2.1), style=_kit("hd_vinyl"))
-    b.box((ux + 0.33, 0.7, uz), (0.22, 0.6, 2.1), style=_kit("hd_vinyl"))
-    for s in (-1, 1):
-        b.box((ux, 0.55, uz + s * 1.0), (0.85, 0.3, 0.18), style=mb._nb("bk_iron"))
-    for s in (-0.5, 0.5):
-        b.box((ux - 0.05, 0.5, uz + s), (0.6, 0.12, 0.9), yaw=rng.uniform(-4, 4), style=mb._nb("yellow"))
-    block(ux, 0.0, uz, 0.9, 0.9, 2.1)
-    crate(b, ux - 1.0, 0.0, uz, 0.6, 0.38, 0.8, mat="olive_dark")
-    block(ux - 1.0, 0.0, uz, 0.6, 0.42, 0.8)
+    # The booth: a round couch in the east nook, open towards the table, round a drum for a table on a round rug.
+    ux, uz = H.booth
+    rug = [(ux + math.cos(2 * math.pi * k / 24) * 2.1, 0.012, uz + math.sin(2 * math.pi * k / 24) * 2.1) for k in range(24)]
+    for k in range(24):
+        b.poly([(ux, 0.012, uz), rug[k], rug[(k + 1) % 24]], (0, 1, 0), "carpet", mb.uv_world())
+    rc = 1.55
+    nseg = 9
+    for k in range(nseg):                                              # from north-west round the east to south-west
+        ang = -1.95 + 3.9 * (k + 0.5) / nseg
+        seg = 2 * rc * math.sin(3.9 / nseg / 2) + 0.06
+        p = (ux + math.cos(ang) * rc, uz + math.sin(ang) * rc)
+        y_ = -math.degrees(ang)
+        b.box((p[0], 0.22, p[1]), (0.7, 0.44, seg), yaw=y_, style=_kit("hd_vinyl"))
+        q = (ux + math.cos(ang) * (rc + 0.3), uz + math.sin(ang) * (rc + 0.3))
+        b.box((q[0], 0.72, q[1]), (0.18, 0.6, seg + 0.05), yaw=y_, style=_kit("hd_vinyl"))
+        b.box((p[0], 0.5, p[1]), (0.6, 0.12, seg - 0.04), yaw=y_ + rng.uniform(-3, 3), style=mb._nb("yellow"))
+        block(p[0], 0.0, p[1], 0.85, 1.0, seg, y_)
+        if k % 2 == 1:
+            H.seat_list.append((p[0] - math.cos(ang) * 0.05, 0.56, p[1] - math.sin(ang) * 0.05,
+                                math.degrees(math.atan2(math.cos(ang), math.sin(ang)))))
+    drum(b, ux, uz, mat="cabin_tin_d")
+    block(ux, 0.0, uz, 0.6, 0.9, 0.6)
     for k in range(2):
-        KICKS.append((ux - 1.1 + k * 0.2, 0.42, uz - 0.1, 0.0, 2, KICK_COLOURS[("red", "metal")[k]]))
-    # Cues in a rack on the west wall.
+        KICKS.append((ux - 0.1 + k * 0.2, 0.9, uz - 0.1, 0.0, 2, KICK_COLOURS[("red", "metal")[k]]))
+    hang((ux, 2.2, uz), HANG_CROWN - 0.6 - 2.2, 0.9, 3.0, shaded=True)
+    # Cues in a rack on the west wall, by the jukebox.
     for k in range(3):
-        z = cz + 1.4 + k * 0.25
-        pipe(b, (cx - 5.6, 0.05, z), (cx - 5.75, 1.45, z), "steel_light", 0.012)
+        p = at(math.pi - 0.35, H.wall_r(math.pi - 0.35) - 0.08)
+        z = p[2] + k * 0.25
+        pipe(b, (p[0] + 0.15, 0.05, z), (p[0], 1.45, z), "steel_light", 0.012)
     # String lights zigzagging over it all, and a mirror ball over the middle.
     def wall(ang, y):
         r = H.radius(ang) * H.f_at(y) - 0.5
         return (cx + math.cos(ang) * r, y, cz + math.sin(ang) * r)
-    for a0, a1 in ((200, 340), (340, 160), (160, 20)):
-        string_lights(b, wall(math.radians(a0), 3.4), wall(math.radians(a1), 3.4), sag=0.8, every=1.2, strength=0.25,
+    for a0, a1 in ((200, 340), (340, 160), (160, 20), (20, 200)):
+        string_lights(b, wall(math.radians(a0), 3.6), wall(math.radians(a1), 3.6), sag=0.8, every=1.2, strength=0.25,
                       reach=2.4)
-    mx_, mz_ = cx - 1.6, cz + 2.4
-    pipe(b, (mx_, 3.3, mz_), (mx_, HANG_CROWN - 0.3, mz_), "bk_cable", 0.015)
+    mx_, mz_ = cx - 1.6, cz + 2.6
+    pipe(b, (mx_, 3.5, mz_), (mx_, HANG_CROWN - 0.3, mz_), "bk_cable", 0.015)
     for k in range(3):
-        b.box((mx_, 3.18, mz_), (0.2, 0.2, 0.2), yaw=k * 30, pitch=0, style=mb._solid("steel_light"))
+        b.box((mx_, 3.38, mz_), (0.2, 0.2, 0.2), yaw=k * 30, pitch=0, style=mb._solid("steel_light"))
 
 
 def hang(at, length, strength, reach, shaded=False):
@@ -1997,10 +2045,8 @@ def seats():
     for e in (-0.5, 0.5):                                              # the couch, facing the TV
         out.append((-1.55, 0.56, LAY.mess[1] + 5.2 + e, 90.0))
     H = LAY.hang
-    if H:                                                              # the hangout's couch, facing the pool table
-        den = [(H.couch[0] - 0.05, 0.56, H.couch[1] + e, 90.0) for e in (-0.5, 0.5)]
-        den += [(H.C[0] - 1.8 + k * 1.2, 0.76, H.C[1] - 3.4 + 0.6, 0.0) for k in range(4)]     # the bar stools
-        for x, y, z, yaw in den:
+    if H:                                                              # the hangout's booth and bar stools
+        for x, y, z, yaw in H.seat_list:
             p = H.w((x, y, z))
             out.append((p[0], round(p[1], 3), p[2], yaw + H.turn))
     return out

@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.32 (Rounder hangout)
+Owner: "make it less of a square... I hate when things are fully cubes, feel free to make it a bit bigger too".
+- The lounge is bigger (about 8 m from the middle to the walls, was 6.6) and no longer a rounded square: an uneven,
+  lobed round room with a nook bulging out on the far side, the tin walls and tiled floor following its shape.
+- The snack bar curves round the wall, with five stools and curved shelves behind it.
+- The couch is now a round booth in the nook, round a drum table on a round rug, with its own lamp.
+- Four arcade cabinets (was two), angled in pairs either side of the stairs; the room is a little taller.
+
 ## 0.25.31 (Prone on slopes)
 - Prone and downed players on a slope lie along the ground (owner: "why are the legs gone when proning"). The lying
   body used to stay level, so on a hill half of it, usually the legs, sank into the ground. It now tilts with the ground
@@ -36,6 +44,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 - Sounds: the same sounds as before, timed to each reload; the Lancer's bolt clicks as it opens and closes.
 - The gun models gained a "Bolt" part (Hound and Wasp handles, the Stinger's slide, the Lancer's bolt; make_gun.py),
   so it can move. They look the same. `tools/reload_view.gd` renders each reload in the real raid scene.
+
 ## 0.25.28 (Hideout sound, backstabs, range guns)
 - The hideout was really quiet (owner). You now hear your footsteps as you walk round it (the raid's steps on
   concrete, as loud and as often, and a thud when you land a jump), a low bunker room tone, and the war rumbling far
@@ -46,7 +55,6 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   (a Raider in light armor is left on 20). Same online.
 - Shooting range: the Hound and Lancer stayed locked after you levelled Ponta up (owner). The range's gun list was made
   once, when the hideout opened; it's now checked each time you step up to the bench.
->>>>>>> Stashed changes
 
 ## 0.25.27 (Map pass: cover and field crates)
 - The roadmap's map pass, finished (owner said yes). Most of it was already in from the World art update; a check of
