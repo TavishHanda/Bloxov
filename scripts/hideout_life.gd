@@ -10,6 +10,7 @@ const TV := preload("res://assets/shaders/tv_picture.gdshader")
 var steam: CPUParticles3D
 var dust: CPUParticles3D
 var glows: Array[MeshInstance3D] = []
+var pictures: Array[MeshInstance3D] = []   # the TV's and the projector screen's
 
 
 func _ready() -> void:
@@ -28,22 +29,31 @@ func _ready() -> void:
 			ash.position = (get_meta(&"ash") as Vector3) + Vector3.UP * 0.036
 			ash.rotation.y = turn
 	if has_meta(&"tv"):
-		var screen := MeshInstance3D.new()   # (a quad over the model's glowing screen, facing out into the room)
-		var quad := QuadMesh.new()
-		quad.size = Vector2(0.54, 0.4)
-		screen.mesh = quad
-		var picture := ShaderMaterial.new()
-		picture.shader = TV
-		screen.material_override = picture
-		screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		screen.rotation.y = PI * 0.5
-		add_child(screen)
-		screen.position = get_meta(&"tv")
-		Reacts.warm_up(self, quad, picture)
+		_picture(get_meta(&"tv"), Vector2(0.54, 0.4), Vector3.RIGHT)
+	if has_meta(&"screen"):   # (0.28.9, owner: the fun room's projector screen "the same as the tv")
+		_picture(get_meta(&"screen"), Vector2(4.3, 2.25), get_meta(&"screen_dir", Vector3.BACK))
 	if has_meta(&"dust"):
 		dust = _dust(get_meta(&"dust"))
 	if not glows.is_empty():
 		Reacts.warm_up(self, glows[0].mesh, glows[0].material_override)
+
+
+## A changing picture (assets/shaders/tv_picture.gdshader) on a quad over a glowing screen, facing `out`.
+func _picture(at: Vector3, size: Vector2, out: Vector3) -> MeshInstance3D:
+	var screen := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = size
+	screen.mesh = quad
+	var picture := ShaderMaterial.new()
+	picture.shader = TV
+	screen.material_override = picture
+	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	screen.rotation.y = atan2(out.x, out.z)
+	add_child(screen)
+	screen.position = at
+	pictures.append(screen)
+	Reacts.warm_up(self, quad, picture)
+	return screen
 
 
 func _glow(size: Vector3, colour: Color, strength: float) -> MeshInstance3D:

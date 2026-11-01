@@ -5739,8 +5739,9 @@ func _section_reacts() -> void:
 	_check(level_signs != null and level_signs.models.size() == 5 and level_signs.data.size() == 5 * 8,
 		"the hideout's five trader signs hang from the roof and swing")
 	var level_life := hideout_level.get_node_or_null("Life")
-	_check(level_life != null and level_life.has_meta(&"steam") and level_life.has_meta(&"tv"),
-		"the hideout says where its steam and TV are")
+	_check(level_life != null and level_life.has_meta(&"steam") and level_life.has_meta(&"tv")
+		and level_life.has_meta(&"screen"),
+		"the hideout says where its steam, TV and projector screen are")
 	hideout_level.free()
 	_check(load("res://assets/materials/kit_sway.tres") is ShaderMaterial, "wires, tents and nets have their wind material")
 

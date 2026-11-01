@@ -8,7 +8,7 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 void fragment() {
 	float scene = floor(TIME * 0.7);
 	vec2 cell = floor(UV * vec2(6.0, 5.0));
-	float sky = step(0.55 + 0.2 * hash(vec2(scene, 3.0)), UV.y);                  // a horizon in each picture
+	float sky = step(0.55 + 0.2 * hash(vec2(scene, 3.0)), 1.0 - UV.y);   // a horizon in each picture (a quad's UV.y runs down)
 	vec3 top = vec3(0.35 + 0.3 * hash(vec2(scene, 1.0)), 0.5 + 0.3 * hash(vec2(scene, 2.0)), 0.85);
 	vec3 low = vec3(0.25 + 0.35 * hash(vec2(scene, 4.0)), 0.3 + 0.35 * hash(vec2(scene, 5.0)), 0.15 + 0.25 * hash(vec2(scene, 6.0)));
 	vec3 picture = mix(low, top, sky) * (0.8 + 0.3 * hash(cell + scene));

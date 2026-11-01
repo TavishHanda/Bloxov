@@ -2047,6 +2047,9 @@ def hangout(ctx):
     marks = (len(b.verts), len(b.faces), len(LAMPS), len(SWINGS), len(KICKS), len(EXTRA), len(mb.SOLIDS), len(CLOTH))
     DOORS.clear()
     den(ctx)
+    if "screen" in LIFE:
+        LIFE["screen"] = H.w(LIFE["screen"])
+        LIFE["screen_dir"] = H.wn((0.0, 0.0, 1.0))
     DOORS[:] = [H.w((x, 0.0, z))[::2] + (ln, yaw + H.turn) for x, z, ln, yaw in DOORS]
     b.verts[marks[0]:] = [H.w(v) for v in b.verts[marks[0]:]]
     b.normals[marks[1]:] = [H.wn(n) for n in b.normals[marks[1]:]]
@@ -2385,9 +2388,9 @@ def loft(ctx, glow):
     sxz = (cx, cz - rr)
     b.box((sxz[0], UP + 1.55, sxz[1] + 0.05), (4.6, 2.5, 0.08), style=mb._solid("black"))
     glow(sxz[0], UP + 1.55, sxz[1] + 0.1, 4.3, 2.25, 0.02, "bone")
-    for x, y, col, w, h in ((-1.2, 1.0, "blue", 1.9, 0.9), (0.9, 0.9, "olive", 2.2, 0.7), (0.0, 1.8, "yellow", 0.6, 0.6),
-                            (-1.4, 2.25, "teal", 1.2, 0.4)):          # (a picture on it: the film's on)
-        glow(sxz[0] + x, UP + y, sxz[1] + 0.12, w, h, 0.01, col)
+    # (0.28.9, owner: "make the projector in the fun room the same as the tv": the film is scripts/hideout_life.gd's
+    # moving picture now, in place of four painted boxes)
+    LIFE["screen"] = (sxz[0], UP + 1.55, sxz[1] + 0.115)
     LAMPS.append((sxz[0], UP + 1.6, sxz[1] + 1.2, 0.8, 3.6))
     px, pz = cx + 0.4, cz + 0.4
     b.box((px, UP_TOP - 0.25, pz), (0.4, 0.18, 0.45), style=mb._nb("black"))
