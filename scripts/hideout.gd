@@ -27,9 +27,9 @@ var _version_label: Label
 ## OPTIONS (0.24.1): the main screen's settings, in a window over the menu.
 var options_window: PanelContainer
 var _options_scroll: ScrollContainer
-## The loading plate over the screen while the raid loads, and the thread warming the map up before that.
+## The loading plate over the screen while the raid loads, and the map being warmed up before that.
 var _loading: Control
-var _warming: Thread
+var _warming := ""  # the map being warmed in the background, if any
 ## Messages (bought, sold, no room...) show under the top bar so long ones aren't cut off, then fade.
 var _message_label: Label
 ## The quest hand-in window (made the first time it's needed).
@@ -723,8 +723,10 @@ func _show_loading() -> void:
 func _warm_raid() -> void:
 	if not OS.has_feature("threads") or RaidMap.scene_path == "":
 		return
-	_warming = Thread.new()
-	_warming.start(func() -> void: ResourceLoader.load(RaidMap.scene_path), Thread.PRIORITY_LOW)
+	# Godot's own background loader, not a Thread of ours: waiting on our own thread when you left the hideout
+	# before the map had loaded (START RAID in the first second or two, or quitting) could lock the game up.
+	_warming = RaidMap.scene_path
+	ResourceLoader.load_threaded_request(_warming)
 
 
 # --- Raiding with nothing on you (0.21.16, owner: "you should get a warning but allow them to continue") ----
@@ -839,8 +841,10 @@ func close_gear_warning() -> void:
 # --- Saving / UI -------------------------------------------------------------------
 
 func _exit_tree() -> void:
-	if _warming != null and _warming.is_started():
-		_warming.wait_to_finish()
+	# Done: let it go (as before, nothing holds on to it). Still loading: leave it be, never wait here; the raid's
+	# own load of the same map picks it up.
+	if _warming != "" and ResourceLoader.load_threaded_get_status(_warming) == ResourceLoader.THREAD_LOAD_LOADED:
+		ResourceLoader.load_threaded_get(_warming)
 
 
 func _queue_save() -> void:

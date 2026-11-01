@@ -5,7 +5,18 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
+
+## 0.29.0 (Engine update: Godot 4.7)
+- The game moves from Godot 4.5.1 to Godot 4.7.2, the newest stable version (owner: being outdated would hurt later
+  work). Built and checked on its own branch first: every test section passes on both versions with the same
+  results, and screenshots of the map, indoors, first-person hands and the inventory match the old ones.
+- Godot 4.7 now builds distance versions (LODs) of the big building meshes, which 4.5 couldn't, so far-off buildings
+  draw fewer triangles. The web download is about 7 MB bigger for it.
+- Fixed (was in 4.5.1 too, desktop only, never on the web): leaving the hideout within a second or two of entering it
+  (START RAID straight away, or quitting) could freeze the game. The map now warms up with Godot's own background
+  loader, which never makes the game wait on it.
+- CI, the server image (Dockerfile) and the docs use Godot 4.7.2.
 
 ## 0.28.12 (Fights stop flooding)
 Owner: a friend fighting scavs and raiders in a house near the church had AI "flooding in all across town"; fights

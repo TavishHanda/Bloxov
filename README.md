@@ -4,7 +4,7 @@
 
 [![Build and deploy](https://github.com/TavishHanda/Bloxov/actions/workflows/web.yml/badge.svg)](https://github.com/TavishHanda/Bloxov/actions/workflows/web.yml)
 ![Version](https://img.shields.io/badge/version-0.14.21-informational)
-![Godot](https://img.shields.io/badge/Godot-4.5-478cbf?logo=godotengine&logoColor=white)
+![Godot](https://img.shields.io/badge/Godot-4.7-478cbf?logo=godotengine&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-web-success)
 
 ### ▶ [Play it in your browser](https://tavishhanda.github.io/Bloxov/)
@@ -154,10 +154,10 @@ crossplay and shared progress with the web), then **mobile**. Details: [`docs/RO
 
 ## Development
 
-Built with **Godot 4.5** in **GDScript**, using the Compatibility renderer so it runs in browsers.
+Built with **Godot 4.7** in **GDScript**, using the Compatibility renderer so it runs in browsers.
 
 ### Run it locally
-1. Download **Godot 4.5** (standard, *not* .NET) from https://godotengine.org/download
+1. Download **Godot 4.7** (standard, *not* .NET) from https://godotengine.org/download
 2. In Godot: **Import** → pick this folder's `project.godot`
 3. Press **F5**
 
