@@ -92,6 +92,7 @@ func _ready() -> void:
 	screen = LootUI.new(null, inventory)
 	screen.sell_handler = sell
 	screen.price_handler = sell_price
+	screen.repair_handler = repair
 	add_child(screen)
 	screen.set_top_margin(56)
 	screen.open_stash(Profile.stash)
@@ -608,6 +609,30 @@ func _fill_loadouts() -> void:
 				return
 			delete_loadout(i))
 		row.add_child(delete)
+
+
+## Repairs a worn gun (Ponta) or armor/helmet (Big Don) back to new (0.27.0, owner: trader repairs). `grid` is
+## where it sits, or null for one equipped. The money counts as spent with that trader. Returns true if it worked.
+func repair(grid: GridInventory, stack: ItemStack) -> bool:
+	if not Traders.can_repair(stack):
+		return false
+	var price := Traders.repair_price(stack)
+	var trader := Traders.repairer_for(stack.id)
+	if Profile.money < price:
+		_message("Not enough money to repair %s (%s)" % [stack.title(), ItemDB.money(price)])
+		return false
+	Profile.money -= price
+	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
+	stack.durability = ItemDB.max_durability(stack.id)
+	UISounds.play(self, UISounds.BUY, -10.0)
+	_message("%s repaired %s for %s" % [Traders.LIST[trader]["name"], stack.title(), ItemDB.money(price)])
+	if grid != null:
+		grid.changed.emit()
+	else:
+		inventory.changed.emit()
+	_queue_save()
+	_fill_trader()
+	return true
 
 
 func sell(grid: GridInventory, stack: ItemStack) -> void:

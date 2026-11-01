@@ -16,7 +16,7 @@ const PICKUP_SOUND := preload("res://audio/mag_in.wav")
 ## Your character on the gear side (the PMC model, for now; owner: swap for new art later).
 const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
-enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL, GROUND, LOAD, UNLOAD }
+enum MenuAction { USE, SPLIT, DROP, EQUIP, UNEQUIP, BIND, UNBIND, SELL, GROUND, LOAD, UNLOAD, REPAIR }
 ## Menu ids past the actions: take attachment slot i off the gun (DETACH + i), put the attachment on your primary
 ## (ATTACH) or secondary (ATTACH + 1).
 const DETACH := 100
@@ -42,6 +42,8 @@ var stash: GridInventory = null
 var sell_handler: Callable
 ## Hideout: returns the sell price of a stack (for the menu label).
 var price_handler: Callable
+## Hideout: if set, worn guns and armor get "Repair for $X" (0.27.0); called with (grid or null if equipped, stack).
+var repair_handler: Callable
 
 ## The stack being dragged (stays in its grid until dropped), where it came from, and its rotation.
 var drag_stack: ItemStack = null
@@ -870,6 +872,7 @@ func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 	if stack.count > 1:
 		_menu.add_item("Split", MenuAction.SPLIT)
 	_add_drop_entry(other_grids().has(grid))
+	_add_repair_entry(stack)
 	if sell_handler.is_valid():
 		_menu.add_item("Sell for %s" % ItemDB.money(price_handler.call(stack)), MenuAction.SELL)
 	_popup_menu()
@@ -884,8 +887,16 @@ func open_slot_menu(slot: String) -> void:
 	if ItemDB.kind(inventory.equipped(slot).id) == "weapon":
 		_add_load_entries(inventory.equipped(slot))
 		_add_detach_entries(inventory.equipped(slot))
+	_add_repair_entry(inventory.equipped(slot))
 	_add_drop_entry(false)
 	_popup_menu()
+
+
+## "Repair for $X" (hideout only, 0.27.0) on a worn gun, armor or helmet.
+func _add_repair_entry(stack: ItemStack) -> void:
+	if repair_handler.is_valid() and Traders.can_repair(stack):
+		_menu.add_item("Repair for %s (%s)" % [ItemDB.money(Traders.repair_price(stack)),
+			Traders.LIST[Traders.repairer_for(stack.id)]["name"]], MenuAction.REPAIR)
 
 
 ## "Put in <container/stash>" if there's another side and the item isn't already in it, and "Drop" (on the
@@ -930,6 +941,8 @@ func _on_menu(action: int) -> void:
 			inventory.unbind(stack.id)
 		MenuAction.SELL:
 			sell_handler.call(grid, stack)
+		MenuAction.REPAIR:
+			repair_handler.call(grid, stack)
 		MenuAction.USE:
 			if player != null:
 				player.use_item(grid, stack)
@@ -960,6 +973,8 @@ func _on_slot_menu(action: int) -> void:
 			load_gun(inventory.equipped(slot))
 		MenuAction.UNLOAD:
 			unload_gun(inventory.equipped(slot), null)
+		MenuAction.REPAIR:
+			repair_handler.call(null, inventory.equipped(slot))
 		MenuAction.UNEQUIP:
 			unequip_to_inventory(slot)
 		MenuAction.GROUND:
@@ -1062,6 +1077,8 @@ static func details(stack: ItemStack, sells_for := -1) -> String:
 		"weapon":
 			parts.append("%s · %d damage · %d rpm · %d-round mag · %d loaded" % [str(data["slot"]).capitalize(), int(data["damage"]),
 				int(data["rpm"]), int(ItemDB.weapon_stats(stack)["mag"]), stack.loaded])
+			if ItemDB.max_durability(stack.id) > 0:
+				parts.append("Condition %d%%" % roundi(stack.condition() * 100.0) + (" (jams)" if ItemDB.jam_chance(stack.condition()) > 0.0 else ""))
 			var on: PackedStringArray = []
 			for slot: String in stack.attachments:
 				on.append(ItemDB.display_name(stack.attachments[slot]))

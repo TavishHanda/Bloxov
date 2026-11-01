@@ -17,9 +17,10 @@ const RARITY_COLORS := {
 ##       stamina boost for "boost_time" seconds), "helmet" (Helmet slot; "reduction" applies to hits on the head), "key" (opens the key door named by "door"; carry it anywhere on you)
 ## w/h: size in grid cells (before rotation). stack: how many fit in one cell stack. value: price of ONE (new).
 ## desc: the line the inventory shows about it.
-## durability: armor points (hits wear it down, worn armor protects less) or a key's uses. Each item keeps its own
-## (ItemStack.durability); worn items are worth less (ItemStack.value). No item has one for now (owner, 0.14.3:
-## durability is its own update later); the code is ready for when it comes.
+## durability (0.27.0, the Durability update): armor points (hits wear it down, worn armor protects less), a gun's
+## shots (each shot wears it 1, a worn gun jams: jam_chance) or a key's uses. Each item keeps its own
+## (ItemStack.durability); worn items are worth less (ItemStack.value). Ponta and Big Don repair guns and armor
+## (Traders.repair_price, owner: trader repairs, no kits); keys can't be repaired.
 const ITEMS := {
 	"rifle_ammo": {"name": "Hound Rounds", "desc": "Rifle rounds for the Hound. Loaded when you reload.", "short": "Hound", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 120, "value": 15},
 	"pistol_ammo": {"name": "Stinger Rounds", "desc": "Pistol rounds for the Stinger. Loaded when you reload.", "short": "Stinger", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 50, "value": 10},
@@ -27,12 +28,12 @@ const ITEMS := {
 	"smg_ammo": {"name": "Wasp Rounds", "desc": "Small rounds for the Wasp. Loaded when you reload.", "short": "Wasp", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 90, "value": 10},
 	"shells": {"name": "Mauler Shells", "desc": "Buckshot for the Mauler. Loaded one at a time.", "short": "Mauler", "kind": "ammo", "rarity": "common", "w": 1, "h": 1, "stack": 30, "value": 30},
 	"sniper_ammo": {"name": "Lancer Rounds", "desc": "Long rounds for the Lancer. Loaded when you reload.", "short": "Lancer", "kind": "ammo", "rarity": "uncommon", "w": 1, "h": 1, "stack": 30, "value": 75},
-	"ak": {"name": "Hound", "desc": "Old army rifle, full auto. Hits hard, kicks harder.", "short": "Hound", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 12500,
+	"ak": {"name": "Hound", "desc": "Old army rifle, full auto. Hits hard, kicks harder.", "short": "Hound", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 12500, "durability": 1200,
 		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 28, "head": 2.0, "rpm": 600, "mag": 30, "reload": 1.6,
 		"spread": 0.15, "hip_spread": 0.68, "move_spread": 0.75, "ads_time": 0.28, "ads_fov": 55.0,
 		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.2, "recoil_yaw": 0.45, "noise": 35.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
-	"pistol": {"name": "Stinger", "desc": "Small sidearm. Quick to aim, one shot per click.", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 3000,
+	"pistol": {"name": "Stinger", "desc": "Small sidearm. Quick to aim, one shot per click.", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 3000, "durability": 800,
 		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 17, "head": 2.5, "rpm": 360, "mag": 12, "reload": 1.2,
 		"spread": 0.3, "hip_spread": 0.5, "move_spread": 0.5, "ads_time": 0.16, "ads_fov": 66.0,
 		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0,
@@ -42,17 +43,17 @@ const ITEMS := {
 	# once, each doing "damage"), "falloff" [from m, to m, damage multiplier at the far end and beyond],
 	# "load_one" (reload is per round: "reload" seconds each, and firing stops it), "flash" (muzzle flash size),
 	# "shot_pitch"/"shot_db" (its shot sound), "cycle" ("pump"/"bolt": worked between shots, 0.15.6).
-	"smg": {"name": "Wasp", "desc": "Small and fast. Sprays at close range, weak far away.", "short": "Wasp", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 3, "h": 2, "stack": 1, "value": 10000,
+	"smg": {"name": "Wasp", "desc": "Small and fast. Sprays at close range, weak far away.", "short": "Wasp", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 3, "h": 2, "stack": 1, "value": 10000, "durability": 1500,
 		"model": "smg", "ammo": "smg_ammo", "auto": true, "damage": 20, "head": 2.0, "rpm": 900, "mag": 25, "mag_ext": 35, "reload": 1.4,
 		"spread": 0.25, "hip_spread": 0.45, "move_spread": 0.45, "ads_time": 0.2, "ads_fov": 62.0,
 		"bloom": 0.1, "max_bloom": 1.3, "recoil": 0.7, "recoil_yaw": 0.4, "noise": 28.0, "falloff": [25.0, 50.0, 0.7], "flash": 0.8, "shot_db": -6.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
-	"shotgun": {"name": "Mauler", "desc": "Pump shotgun. Deadly up close, useless far away. Loads one shell at a time.", "short": "Mauler", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 1, "stack": 1, "value": 11000,
+	"shotgun": {"name": "Mauler", "desc": "Pump shotgun. Deadly up close, useless far away. Loads one shell at a time.", "short": "Mauler", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 1, "stack": 1, "value": 11000, "durability": 300,
 		"model": "shotgun", "ammo": "shells", "auto": false, "damage": 14, "head": 1.5, "rpm": 70, "mag": 6, "reload": 0.45, "load_one": true, "cycle": "pump",
 		"pellets": 8, "pellet_spread": 3.0, "spread": 0.3, "hip_spread": 0.6, "move_spread": 0.6, "ads_time": 0.3, "ads_fov": 62.0,
 		"bloom": 0.0, "max_bloom": 0.0, "recoil": 4.0, "recoil_yaw": 0.6, "noise": 40.0, "falloff": [12.0, 30.0, 0.4], "flash": 1.6, "shot_db": -1.0,
 		"slots": ["barrel", "grip", "sight"]},
-	"sniper": {"name": "Lancer", "desc": "Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip.", "short": "Lancer", "kind": "weapon", "slot": "primary", "rarity": "rare", "w": 5, "h": 1, "stack": 1, "value": 22500,
+	"sniper": {"name": "Lancer", "desc": "Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip.", "short": "Lancer", "kind": "weapon", "slot": "primary", "rarity": "rare", "w": 5, "h": 1, "stack": 1, "value": 22500, "durability": 250,
 		"model": "sniper", "ammo": "sniper_ammo", "auto": false, "cycle": "bolt", "damage": 90, "head": 2.0, "rpm": 40, "mag": 5, "reload": 2.4,
 		"spread": 0.03, "hip_spread": 3.0, "move_spread": 1.5, "ads_time": 0.4, "ads_fov": 45.0,
 		"bloom": 0.0, "max_bloom": 0.0, "recoil": 5.0, "recoil_yaw": 0.5, "noise": 60.0, "flash": 1.4, "shot_db": -1.0,
@@ -74,12 +75,12 @@ const ITEMS := {
 		"w": 1, "h": 1, "stack": 1, "value": 800, "slots": ["grip"], "mult": {"recoil": 0.8, "recoil_yaw": 0.8}},
 	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds more rounds. Slower to reload.", "kind": "attachment", "rarity": "rare",
 		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["mag"], "mult": {"mag": 1.5, "reload": 1.1}},
-	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Takes the edge off a hit.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 7500, "reduction": 0.2},
-	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 20000, "reduction": 0.4},
+	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Takes the edge off a hit.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 7500, "durability": 60, "reduction": 0.2},
+	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 20000, "durability": 120, "reduction": 0.4},
 	"helmet_basic": {"name": "Old Helmet", "short": "Old Helm", "desc": "Dented steel pot. Better than nothing on your head.",
-		"kind": "helmet", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 5000, "reduction": 0.25},
+		"kind": "helmet", "rarity": "uncommon", "w": 2, "h": 2, "stack": 1, "value": 5000, "durability": 40, "reduction": 0.25},
 	"helmet_good": {"name": "Combat Helmet", "short": "Combat", "desc": "Army helmet. Takes a hit to the head well.",
-		"kind": "helmet", "rarity": "rare", "w": 2, "h": 2, "stack": 1, "value": 15000, "reduction": 0.45},
+		"kind": "helmet", "rarity": "rare", "w": 2, "h": 2, "stack": 1, "value": 15000, "durability": 80, "reduction": 0.45},
 	"backpack_small": {"name": "Small Backpack", "desc": "A school bag. Better than pockets.", "short": "Sm Pack", "kind": "backpack", "rarity": "common", "w": 3, "h": 3, "stack": 1, "value": 2000, "grid": [4, 3]},
 	"backpack_medium": {"name": "Medium Backpack", "desc": "Hiking pack with room for a good haul.", "short": "Md Pack", "kind": "backpack", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 4500, "grid": [5, 4]},
 	"backpack_large": {"name": "Large Backpack", "desc": "Big army rucksack. Carry everything home.", "short": "Lg Pack", "kind": "backpack", "rarity": "rare", "w": 4, "h": 4, "stack": 1, "value": 10000, "grid": [6, 5]},
@@ -90,9 +91,9 @@ const ITEMS := {
 	"bandage": {"name": "Bandage", "desc": "Stops the bleeding. Quick to use.", "kind": "heal", "rarity": "common", "w": 1, "h": 1, "stack": 5, "value": 500, "heal": 25, "use_time": 2.0},
 	"medkit": {"name": "Medkit", "desc": "Field kit. Heals a lot, takes a while.", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 1, "stack": 3, "value": 2000, "heal": 70, "use_time": 4.0},
 	"bunker_key": {"name": "Bunker Key", "short": "Bunker", "desc": "Opens the bunker under the town hall. Bon keeps one on him.",
-		"kind": "key", "door": "BunkerDoor", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 6000},
+		"kind": "key", "door": "BunkerDoor", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 6000, "durability": 3},
 	"bank_vault_key": {"name": "Bank Vault Key", "short": "Vault", "desc": "Opens the vault in the bank.",
-		"kind": "key", "door": "BankVaultDoor", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500},
+		"kind": "key", "door": "BankVaultDoor", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500, "durability": 5},
 	"beans": {"name": "Canned Beans", "desc": "Somebody's lunch. Traders pay for food out here.", "short": "Beans", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 150},
 	"water": {"name": "Water Bottle", "short": "Water", "desc": "Clean water is rare out here. Traders pay for it.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 200},
 	"ration": {"name": "Ration Pack", "short": "Ration", "desc": "Novarran army meal. Tastes like cardboard, sells like gold.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 700},
@@ -335,10 +336,23 @@ static func wear(stack: ItemStack, damage: int) -> void:
 	stack.durability = maxi(stack.durability - lost, 0)
 
 
-## Durability of one found in a raid: armor turns up worn (40-100%), keys with all their uses.
+## Worn guns jam (0.27.0): below JAM_START condition each trigger pull may jam instead of firing (Gun.jam), up to
+## JAM_MAX at worn out.
+const JAM_START := 0.6
+const JAM_MAX := 0.05
+
+
+## Chance a trigger pull jams with a gun this worn (1 = new, 0 = worn out).
+static func jam_chance(condition: float) -> float:
+	if condition >= JAM_START:
+		return 0.0
+	return JAM_MAX * (1.0 - condition / JAM_START)
+
+
+## Durability of one found in a raid: armor and guns turn up worn (40-100%), keys with all their uses.
 static func found_durability(id: String) -> int:
 	var most := max_durability(id)
-	if kind(id) in ["armor", "helmet"]:
+	if kind(id) in ["armor", "helmet", "weapon"]:
 		return randi_range(ceili(most * 0.4), most)
 	return most
 

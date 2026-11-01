@@ -23,6 +23,10 @@ const KITS := [
 const CARRY := {"Small Backpack": 8 + 12, "Medium Backpack": 8 + 20, "Large Backpack": 8 + 30}
 
 var runs := 2000
+## Repairs: a rough raid's wear (0.27.0).
+const SHOTS_PER_RAID := {"ak": 120, "smg": 150, "pistol": 40, "shotgun": 30, "sniper": 20}
+const BODY_HITS_PER_RAID := 4
+const HEAD_HITS_PER_RAID := 1
 
 
 func _initialize() -> void:
@@ -100,6 +104,25 @@ func _initialize() -> void:
 				missing.append(ItemDB.display_name(entry[0]))
 		var note := "" if missing.is_empty() else "  (loot-only: %s)" % ", ".join(missing)
 		print("  %-21s %8s  = %.1f quick raids, %.1f town loops%s" % [kit[0], ItemDB.money(cost), cost / quick, cost / loop, note])
+	print("\n== Repairs (0.27.0, Durability update: back to new at Ponta / Big Don) ==")
+	print("  Assumed per raid: shots fired %s, %d body hits and %d head hit taken (25 damage each)." % [SHOTS_PER_RAID, BODY_HITS_PER_RAID, HEAD_HITS_PER_RAID])
+	for id: String in ItemDB.ITEMS:
+		var most := ItemDB.max_durability(id)
+		if Traders.repairer_for(id) == "" or most <= 0:
+			continue
+		var stack := ItemStack.new(id)
+		if ItemDB.kind(id) == "weapon":
+			stack.durability = maxi(most - int(SHOTS_PER_RAID.get(id, 100)), 0)
+		else:
+			for i in (HEAD_HITS_PER_RAID if ItemDB.kind(id) == "helmet" else BODY_HITS_PER_RAID):
+				ItemDB.wear(stack, 25)
+		var raids_to_jam := ceilf(most * (1.0 - ItemDB.JAM_START) / int(SHOTS_PER_RAID.get(id, 100))) if ItemDB.kind(id) == "weapon" else 0.0
+		var half := ItemStack.new(id)
+		half.durability = most / 2
+		print("  %-14s %4d pts  one raid's wear: %3d%% left, repair %7s (%.1f%% of a new one)%s  · from half: %s" % [ItemDB.display_name(id), most,
+			roundi(stack.condition() * 100.0), ItemDB.money(Traders.repair_price(stack)),
+			100.0 * Traders.repair_price(stack) / Traders.buy_price(id, 1),
+			"  jams after ~%d raids" % raids_to_jam if raids_to_jam > 0 else "", ItemDB.money(Traders.repair_price(half))])
 	print("\n== Ming's boxes (average sell value of what comes out) ==")
 	for box: String in Traders.BOXES:
 		var total := 0

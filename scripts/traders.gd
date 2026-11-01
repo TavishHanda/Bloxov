@@ -85,6 +85,30 @@ static func sell_price(stack: ItemStack) -> int:
 	return roundi(stack.value() * float(LIST[buyer_for(stack.id)]["rate"]))
 
 
+## Repairs (0.27.0, the Durability update; owner picked trader repairs, no kits): Ponta fixes guns, Big Don armor
+## and helmets, back to new for 60% of the value the wear took off. That's exactly what fixing it adds to its sell
+## price, so buying worn gear, repairing and selling never makes money. Keys can't be repaired. Earned money only.
+const REPAIR_RATE := 0.6
+const REPAIRERS := {"weapon": "guns", "armor": "supplies", "helmet": "supplies"}
+
+
+## The trader that repairs this item ("" if nobody does).
+static func repairer_for(id: String) -> String:
+	return REPAIRERS.get(ItemDB.kind(id), "")
+
+
+## What repairing this stack back to new costs (0 if it isn't worn or can't be repaired). Free kit gear is free to fix.
+static func repair_price(stack: ItemStack) -> int:
+	if repairer_for(stack.id) == "" or stack.condition() >= 1.0 or stack.free:
+		return 0
+	return maxi(ceili(ItemDB.value(stack.id) * 0.7 * (1.0 - stack.condition()) * REPAIR_RATE), 1)
+
+
+## Whether this stack is worn and someone can repair it.
+static func can_repair(stack: ItemStack) -> bool:
+	return stack != null and repairer_for(stack.id) != "" and stack.condition() < 1.0
+
+
 ## The trader that buys this item back.
 static func buyer_for(id: String) -> String:
 	var kind := ItemDB.kind(id)

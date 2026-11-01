@@ -5,7 +5,25 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
+
+## 0.27.0 (Durability)
+The Durability update. Owner picked trader repairs (no repair-kit items).
+- Guns wear: each shot takes 1 point (Hound 1200, Stinger 800, Wasp 1500, Mauler 300, Lancer 250). Below 60% a
+  trigger pull can jam, up to 5% a shot when worn out: a click, "JAMMED" on the ammo plate, and it clears itself in
+  0.9 s (no extra button, so it works the same on phones). No round is lost.
+- Armor and helmets wear again (the 0.14 code, switched on): Light Armor 60, Heavy Armor 120, Old Helmet 40, Combat
+  Helmet 80. Each hit wears off the part it stops; worn gear stops less. A bar on the item shows what's left.
+- Keys have uses: bunker key 3, bank vault key 5; the last use uses it up. Keys can't be repaired.
+- Guns, armor and helmets found in a raid (crates, bodies) turn up worn, 40-100%. Bought ones are new. Your saved
+  gear from before this update counts as new.
+- Worn gear is worth less (as armor already was): 30% of its value when worn out.
+- Repairs: Ponta fixes guns, Big Don armor and helmets, back to new. A REPAIR list sits above the SELL list on their
+  screen (equipped gear included), and right-clicking a worn item in the hideout offers "Repair for $X". It costs 60%
+  of the value the wear took off, which is exactly what repairing adds to its sell price, so repairing to sell never
+  pays. The money counts as spent with that trader. Repairing never lowers an item's max (owner can change that).
+- AI guns don't wear or jam (AI behaviour stays as it is).
+- tools/economy_sim.gd prints repair costs per raid; smoke test checks wear, jams, key uses and repair prices.
 
 ## 0.26.1 (Hideout lights hung from the roof)
 Owner: the lights in the middle of the hideout are "not even attached to the roof".

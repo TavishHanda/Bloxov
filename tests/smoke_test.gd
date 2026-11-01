@@ -210,6 +210,18 @@ func _section_shoot() -> void:
 	gun.shoot_once()
 	var expected := roundi(gun.damage * gun.headshot_multiplier)
 	_check(before - dummy_health.current == expected, "headshot deals %d damage (got %d)" % [expected, before - dummy_health.current])
+	# Gun wear (0.27.0): each shot wears the gun 1; past 60% left a trigger pull may jam (up to 5% worn out), the gun
+	# says JAMMED, then clears by itself.
+	_check(gun.weapon.durability == ItemDB.max_durability(gun.weapon.id) - 2, "each shot wears the gun 1 point (%d left)" % gun.weapon.durability)
+	_check(ItemDB.jam_chance(1.0) == 0.0 and ItemDB.jam_chance(0.6) == 0.0 and is_equal_approx(ItemDB.jam_chance(0.0), 0.05)
+		and ItemDB.jam_chance(0.3) > 0.0, "a gun only jams once it's worn below 60%, up to 5% a shot worn out")
+	var mag_before := gun.in_mag
+	gun.jam()
+	gun.start_reload()
+	_check(gun.is_jammed() and not gun.is_reloading and gun.in_mag == mag_before, "a jam uses no round and stops a reload")
+	await create_timer(Gun.JAM_CLEAR_TIME + 0.1).timeout
+	_check(not gun.is_jammed(), "the jam clears by itself")
+	gun.weapon.durability = ItemDB.max_durability(gun.weapon.id)
 
 
 func _section_reload() -> void:
@@ -903,9 +915,12 @@ func _section_items() -> void:
 		var icon := ItemIcons.get_icon(id)
 		return icon == null or Vector2i(icon.get_size()) != Vector2i(ItemDB.item(id)["w"], ItemDB.item(id)["h"]) * ItemIcons.PX)
 	_check(no_icon.is_empty(), "every item has an inventory picture of its grid size (missing or wrong: %s)" % [no_icon])
-	# Nothing wears for now (owner, 0.14.3: durability is its own update later).
-	var worn := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.max_durability(id) > 0)
-	_check(worn.is_empty(), "no item has durability yet (%s)" % [worn])
+	# The Durability update (0.27.0): guns, armor and helmets wear, keys have uses (bunker 3, vault 5, owner).
+	var wears := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.max_durability(id) > 0)
+	var should_wear := ItemDB.ITEMS.keys().filter(func(id: String) -> bool: return ItemDB.kind(id) in ["weapon", "armor", "helmet", "key"])
+	_check(wears.size() == should_wear.size() and wears.all(func(id: String) -> bool: return should_wear.has(id)),
+		"every gun, armor, helmet and key wears, nothing else (%s)" % [wears])
+	_check(ItemDB.max_durability("bunker_key") == 3 and ItemDB.max_durability("bank_vault_key") == 5, "bunker key 3 uses, vault key 5")
 	# Armor protects the body, a helmet the head (0.14.2).
 	var inv := player.inventory
 	var old_armor := inv.unequip("armor") if inv.equipped("armor") != null else null
@@ -916,13 +931,22 @@ func _section_items() -> void:
 	inv.equip("helmet", helm)
 	var hp := player.health.current
 	player.health.take_damage(30)
-	player.health.take_damage(30)
-	_check(player.health.current == hp - 48 and is_equal_approx(player.health.damage_multiplier, 0.8),
-		"light armor takes 20%% off body hits, and doesn't wear (%d HP lost)" % (hp - player.health.current))
+	_check(player.health.current == hp - 24, "light armor takes 20%% off body hits (%d HP lost)" % (hp - player.health.current))
+	_check(vest.durability == 54 and is_equal_approx(player.health.damage_multiplier, 1.0 - 0.2 * 54.0 / 60.0),
+		"the hit wore it down (the part it stopped, 6 points) and now it stops a bit less (%d left)" % vest.durability)
+	# Repairs (0.27.0, owner: trader repairs): Big Don fixes armor back to new for 60%% of the value the wear took.
+	_check(Traders.repairer_for("armor_light") == "supplies" and Traders.repairer_for("ak") == "guns" and Traders.repairer_for("bunker_key") == "",
+		"Big Don repairs armor and helmets, Ponta guns; keys can't be repaired")
+	var lost_value := ItemDB.value("armor_light") - vest.value()
+	_check(Traders.repair_price(vest) == ceili(lost_value * Traders.REPAIR_RATE) and Traders.repair_price(ItemStack.new("armor_light")) == 0,
+		"a repair costs 60%% of the value lost (%s), a new one nothing" % ItemDB.money(Traders.repair_price(vest)))
+	var worn_sells := Traders.sell_price(vest)
+	var fixed_copy := ItemStack.new("armor_light")
+	_check(Traders.sell_price(fixed_copy) - worn_sells <= Traders.repair_price(vest), "repairing then selling never makes money")
 	hp = player.health.current
 	player.health.take_damage(40, Vector3.ZERO, false, true)
-	_check(player.health.current == hp - 30 and is_equal_approx(player.health.head_multiplier, 0.75),
-		"the old helmet takes 25% off head hits")
+	_check(player.health.current == hp - 30 and helm.durability == 30 and is_equal_approx(player.health.head_multiplier, 1.0 - 0.25 * 30.0 / 40.0),
+		"the old helmet takes 25%% off head hits and wears from them (%d, %d left)" % [hp - player.health.current, helm.durability])
 	inv.unequip("helmet")
 	_check(player.health.head_multiplier == 1.0 and Scav.HEAD_HIT_CHANCE > 0.0, "no helmet: head hits get through (AI land some hits on the head)")
 	inv.unequip("armor")
@@ -1127,7 +1151,12 @@ func _section_items() -> void:
 	inv.add("bank_vault_key")
 	var key := inv.key_for("BankVaultDoor")
 	_check(key != null and door.prompt(inv) == "Unlock with Bank Vault Key", "with the key on you: [F] Unlock")
-	_check(door.unlock(inv) and door.is_open and inv.key_for("BankVaultDoor") == key, "unlocking opens it; the key is kept (no uses for now)")
+	_check(door.unlock(inv) and door.is_open and inv.key_for("BankVaultDoor") == key and key.durability == 4,
+		"unlocking opens it and uses one of the key's 5 uses (%d left)" % key.durability)
+	key.durability = 1
+	inv.use_key(key)
+	_check(inv.count_of("bank_vault_key") == 0 and inv.key_for("BankVaultDoor") == null, "the key's last use: it's gone")
+	inv.add("bank_vault_key")
 	await physics_frame
 	await physics_frame
 	_check(space.intersect_ray(through).is_empty(), "the open door lets you through")
@@ -3563,8 +3592,10 @@ func _section_net() -> void:
 		_check(view_gun.has_node(key + "/Art/Body"), "first person shows the real model in %s" % key)
 	# You hear other players walk (0.12.35, owner: teammates were silent online).
 	var steps_before := main.get_tree().current_scene.find_children("*", "AudioStreamPlayer3D", false, false).size()
+	# (near you wherever earlier sections left you: the extract test sends you to a random extract)
+	var near := Vector3(player.global_position.x, 0.0, player.global_position.z)
 	for k in 40:
-		body.push_state([Vector3(2 + 0.08 * (k + 1), 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.08 + 0.016 * k)
+		body.push_state([near + Vector3(2 + 0.08 * (k + 1), 0.1, 2), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.08 + 0.016 * k)
 		body.update_view(10.08 + 0.016 * k, 0.016)
 	var steps_after := main.get_tree().current_scene.find_children("*", "AudioStreamPlayer3D", false, false).size()
 	_check(steps_after > steps_before, "another player walking makes footstep sounds (%d)" % (steps_after - steps_before))
@@ -3947,8 +3978,9 @@ func _section_online_ai() -> void:
 	# Puppets: copies that only follow the server.
 	var net_raid := main.get_node("NetRaid") as NetRaid
 	var sounds_before := main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D).size()
-	net_raid.on_player_fired(5, Vector3(0, 1.5, -4), Vector3(0, 1.5, -20), "smg", true)
-	net_raid.on_player_fired(5, Vector3(0, 1.5, -4), Vector3(0, 1.5, -20), "not_a_gun", false)
+	var near_you := Vector3(player.global_position.x, 0.0, player.global_position.z)   # (wherever the extract test left you)
+	net_raid.on_player_fired(5, near_you + Vector3(0, 1.5, 4), near_you + Vector3(0, 1.5, 20), "smg", true)
+	net_raid.on_player_fired(5, near_you + Vector3(0, 1.5, 4), near_you + Vector3(0, 1.5, 20), "not_a_gun", false)
 	_check(main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D).size() == sounds_before + 1,
 		"another player's shot plays where they stand (0.15.28)")
 	net_raid.sync_enemies(c1.enemies)

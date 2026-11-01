@@ -40,6 +40,8 @@ Next: the M4 art updates (World art, Look, Sound), below.
    money only, odds shown; never the premium currency); limited stock/restocks not now (keep the idea); a real
    stash size with upgrades bought with money (later, bigger expansions also with the premium currency, via IAP);
    medium pace (a good kit = 2-3 normal raids); no insurance. Repairs moved to the durability update.
+   **Durability update built as 0.27 (2026-11-01):** guns, armor and helmets wear, keys have uses (bunker 3, vault 5);
+   owner picked **trader repairs** (Ponta guns, Big Don armor/helmets; no repair kits), back to new, max never drops.
 8. **Then (M4, vertical slice), split into three updates (owner, 2026-10-11), in this order:**
    1. **World art:** starts with a quick **neutral lighting baseline** (less saturated, plain sun and sky; owner
       asked which comes first, 2026-10-11) and **one test building** finished under it. Models and lighting change

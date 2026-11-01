@@ -163,7 +163,7 @@ func key_for(door: String) -> ItemStack:
 ## Uses up one use of a key; a key with none left is gone.
 func use_key(stack: ItemStack) -> void:
 	if ItemDB.max_durability(stack.id) == 0:
-		return   # (keys don't wear for now)
+		return
 	stack.durability -= 1
 	for grid in grids():
 		if grid.stacks.has(stack):

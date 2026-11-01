@@ -3,7 +3,7 @@ extends Control
 ## A trader's own screen (0.21.4, owner: "if you click on a trader in the hideout it gives a separate traders screen").
 ## Walking up to a trader in the 3D hideout opens it; the trader column beside the stash stays as it was.
 ## Left: who they are, their level and quests. Middle: their stock as big cards (hover one for its details).
-## Right: what you have that they buy, with a SELL button each. Buying, selling and quests go through the hideout menu
+## Right: worn gear they repair, with a REPAIR button each (0.27.0), then what you have that they buy, with a SELL button each. Buying, selling and quests go through the hideout menu
 ## (`hideout`), the same as the trader column.
 
 const CARD_SIZE := Vector2(150, 150)
@@ -362,48 +362,75 @@ func sellable() -> Array:
 	return found
 
 
+## Worn things this trader repairs (0.27.0): equipped first (grid null), then stash, pockets, backpack.
+func repairable() -> Array:
+	var found := []
+	for slot: String in Inventory.SLOTS:
+		var stack: ItemStack = hideout.inventory.equipped(slot)
+		if Traders.can_repair(stack) and Traders.repairer_for(stack.id) == trader:
+			found.append([null, stack])
+	for grid: GridInventory in [Profile.stash] + hideout.inventory.grids():
+		for stack: ItemStack in grid.stacks:
+			if Traders.can_repair(stack) and Traders.repairer_for(stack.id) == trader:
+				found.append([grid, stack])
+	return found
+
+
 func _fill_sell() -> void:
 	for child in _sell_rows.get_children():
 		_sell_rows.remove_child(child)
 		child.queue_free()
 	var info: Dictionary = Traders.LIST[trader]
 	_sell_title.text = "SELL TO %s" % String(info["name"]).to_upper()
+	var worn := repairable()
+	if not worn.is_empty():
+		var header := _small("Repair (back to new):")
+		HudStyle.style_label(header, 20, HudStyle.BRASS)
+		_sell_rows.add_child(header)
+		for pair: Array in worn:
+			_add_row(pair[0], pair[1], true)
+		_sell_rows.add_child(_small("Sell:"))
 	var items := sellable()
 	if items.is_empty():
 		_sell_rows.add_child(_small("Nothing they buy right now." if not (info["kinds"] as Array).is_empty()
 			else "%s doesn't buy anything." % info["name"]))
 		return
 	for pair: Array in items:
-		var grid: GridInventory = pair[0]
-		var stack: ItemStack = pair[1]
-		var row := HBoxContainer.new()
-		row.mouse_filter = Control.MOUSE_FILTER_STOP
-		row.mouse_entered.connect(_show_details.bind(stack))
-		_sell_rows.add_child(row)
-		var picture := TextureRect.new()
-		picture.texture = ItemIcons.get_icon(stack.id)
-		picture.custom_minimum_size = Vector2(48, 28)
-		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(picture)
-		var label := Label.new()
-		label.text = stack.title() + (" x%d" % stack.count if stack.count > 1 else "")
-		HudStyle.style_label(label, 20, ItemDB.color(stack.id))
-		label.add_theme_font_override("font", HudStyle.spaced_font(20))
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.clip_text = true
-		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(label)
-		var button := Button.new()
-		button.text = ItemDB.money(Traders.sell_price(stack))
-		button.tooltip_text = "Sell"
-		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(84, 36)
-		LootUI.style_button(button, 20, HudStyle.EXTRACT)
-		button.pressed.connect(func() -> void:
-			if grid.stacks.has(stack):
-				hideout.sell(grid, stack)
-			refresh())
-		row.add_child(button)
+		_add_row(pair[0], pair[1], false)
+
+
+## One row: the item and a SELL button, or (`repair`) a REPAIR button. `grid` null = equipped.
+func _add_row(grid: GridInventory, stack: ItemStack, repair: bool) -> void:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.mouse_entered.connect(_show_details.bind(stack))
+	_sell_rows.add_child(row)
+	var picture := TextureRect.new()
+	picture.texture = ItemIcons.get_icon(stack.id)
+	picture.custom_minimum_size = Vector2(48, 28)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(picture)
+	var label := Label.new()
+	label.text = stack.title() + (" x%d" % stack.count if stack.count > 1 else "") + ("  %d%%" % roundi(stack.condition() * 100.0) if repair else "")
+	HudStyle.style_label(label, 20, ItemDB.color(stack.id))
+	label.add_theme_font_override("font", HudStyle.spaced_font(20))
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.clip_text = true
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(label)
+	var button := Button.new()
+	button.text = ItemDB.money(Traders.repair_price(stack) if repair else Traders.sell_price(stack))
+	button.tooltip_text = "Repair" if repair else "Sell"
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(84, 36)
+	LootUI.style_button(button, 20, HudStyle.BRASS if repair else HudStyle.EXTRACT)
+	button.pressed.connect(func() -> void:
+		if repair:
+			hideout.repair(grid, stack)
+		elif grid.stacks.has(stack):
+			hideout.sell(grid, stack)
+		refresh())
+	row.add_child(button)
