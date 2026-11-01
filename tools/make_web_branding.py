@@ -3,6 +3,7 @@
 Run from the repo root: python3 tools/make_web_branding.py  (add --icons for only the web/brand icon sizes)
 - assets/textures/boot_splash.png  shown while the game downloads (the poster, art_source/brag.jpg) (project setting application/boot_splash/image)
 - assets/icons/bloxov_icon.png     game icon, the web export makes the favicon from it (config/icon)
+- assets/textures/title_text.png   the main screen's name block (BLOXOV, bar, NO MAN'S LAND, gold line), 1080p size
 - web/brand/preview.png            1200x630 crop of the poster, Discord etc. show for a pasted link (og:image, CI copies it)
 - web/brand/icon-48/96/192.png + favicon.ico   the icon at sizes Google search accepts (square, a multiple of
                                    48 px; the 256 px game icon isn't), linked from the page by tools/web_seo.py
@@ -16,9 +17,11 @@ BLOOD = (211, 59, 44)
 SHADOW = (0, 0, 0)
 LOGO_FONT = "assets/fonts/BloxovJersey25-Regular.ttf"
 SUB_FONT = "assets/fonts/BloxovJersey15-Regular.ttf"
+POSTER_FONT = "assets/fonts/Silkscreen-Bold.ttf"   # (the poster's wide lettering, drawn at 8 px = its pixel grid)
+GOLD = (226, 168, 62)
 
 
-def pixel_text(text, font_path, size, scale, colour, spacing=0, shadow=True):
+def pixel_text(text, font_path, size, scale, colour, spacing=0, shadow=True, shadow_dy=2):
     """Crisp pixel text: drawn at the font's own size without smoothing, then blown up `scale` times."""
     font = ImageFont.truetype(font_path, size)
     widths = [font.getbbox(c)[2] if c != " " else size // 3 for c in text]
@@ -28,7 +31,7 @@ def pixel_text(text, font_path, size, scale, colour, spacing=0, shadow=True):
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.fontmode = "1"
-    passes = [((0, 2), SHADOW + (200,)), ((0, 0), colour + (255,))] if shadow else [((0, 0), colour + (255,))]
+    passes = [((0, shadow_dy), SHADOW + (200,)), ((0, 0), colour + (255,))] if shadow else [((0, 0), colour + (255,))]
     for (ox, oy), col in passes:
         x = 1
         for c, cw in zip(text, widths):
@@ -83,11 +86,35 @@ def poster(size):
     return src.crop((left, top, left + tw, top + th))
 
 
+def title_text():
+    """The main screen's name block, lettered like the poster (0.28.2): BLOXOV, the red bar, NO MAN'S LAND and the gold
+    line, crisp pixels at the poster's 1080p size on a clear background. The title screen shows it as one picture scaled
+    to the screen, so the letters keep even pixels on every screen (Labels drawn at an odd scale went uneven on the web)."""
+    logo = pixel_text("BLOXOV", LOGO_FONT, 50, 6, INK)
+    sub = pixel_text("NO MAN'S LAND", POSTER_FONT, 8, 6, INK, spacing=1, shadow_dy=1)
+    tag = pixel_text("A BLOCKY FIRST-PERSON EXTRACTION SHOOTER", POSTER_FONT, 8, 4, GOLD, spacing=1, shadow_dy=1)
+    bar_w, bar_h = logo.width + 300, 14
+    rows = [(logo, 44), (None, 62), (sub, 46), (tag, 0)]
+    w = max(bar_w, tag.width)
+    h = sum((r.height if r else bar_h) + gap for r, gap in rows)
+    block = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    y = 0
+    for r, gap in rows:
+        if r is None:
+            ImageDraw.Draw(block).rectangle(((w - bar_w) // 2, y, (w + bar_w) // 2 - 1, y + bar_h - 1), fill=BLOOD)
+            y += bar_h + gap
+        else:
+            block.alpha_composite(r, ((w - r.width) // 2, y))
+            y += r.height + gap
+    return block
+
+
 def main():
     # Splash: the web page shows it while the game downloads. Link preview: 1200x630 is what Discord, X and Facebook
     # expect. Both are the poster since 0.27.2 (before: the dusk view with the logo drawn here, backdrop()/logo_block()).
     poster((1280, 720)).save("assets/textures/boot_splash.png", optimize=True)
     poster((1200, 630)).save("web/brand/preview.png", optimize=True)
+    title_text().save("assets/textures/title_text.png", optimize=True)
 
     # Icon: a big "B" on the dark HUD colour with the red bar under it.
     icon = Image.new("RGBA", (256, 256), DEEP + (255,))

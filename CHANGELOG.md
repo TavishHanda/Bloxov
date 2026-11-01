@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.2 (Main screen lettering fixed)
+- The 0.27.2 main screen's lettering looked off (owner: "the text looks off and everything"): NO MAN'S LAND and the
+  gold line were game text drawn at an odd scale, so their pixels came out uneven on the web, spaced too wide, and the
+  gold line ran nearly edge to edge.
+- The name, red bar, NO MAN'S LAND and gold line are now one picture lettered like the poster
+  (`assets/textures/title_text.png`, made by `tools/make_web_branding.py`), shown at the screen's size: even pixels on
+  every screen, tighter spacing, the poster's proportions, and a little more room above PLAY.
+
 ## 0.28.1 (No more jams)
 Owner: jams "take away from the arcade style of bloxov"; picked "a bit less accurate" instead.
 - Worn guns never jam now. Instead a worn gun spreads more, growing with wear up to 20% more when worn out. It

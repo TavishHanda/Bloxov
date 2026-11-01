@@ -12,7 +12,7 @@ const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
 ## Seconds for the picture to drift from one side to the other (and as long back).
 const DRIFT_SECONDS := 25.0   # (0.21.21, owner: a bit faster; was 40)
 const ACCENT := Color("b03b2e")   # (PLAY)
-const LOGO_SCALE := 3.0
+const NAME_BLOCK := preload("res://assets/textures/title_text.png")
 const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 
 ## What the privacy page says (docs/STORE_RULES.md: the stores want it reachable in the game). Keep it true: update it
@@ -140,41 +140,20 @@ func _build_ui() -> void:
 	_main_box.add_theme_constant_override("separation", 12)
 	_main_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_poster.add_child(_main_box)
-	# The name, the pixel font drawn twice over (its pixels stay square): a Control holds its scaled size in the list.
-	var logo := Label.new()
-	logo.name = "Logo"
-	logo.text = "BLOXOV"
-	HudStyle.style_label(logo, 50)
-	logo.add_theme_constant_override("shadow_offset_y", 3)
-	logo.scale = Vector2(LOGO_SCALE, LOGO_SCALE)
-	var logo_holder := Control.new()
-	logo_holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	logo_holder.add_child(logo)
-	_main_box.add_child(logo_holder)
-	var logo_size := logo.get_combined_minimum_size()   # (measured once it's in the tree, with its font)
-	logo_holder.custom_minimum_size = logo_size * LOGO_SCALE
-	var bar := ColorRect.new()
-	bar.color = HudStyle.BLOOD
-	bar.custom_minimum_size = Vector2(logo_size.x * LOGO_SCALE + 60, 8)
-	bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_main_box.add_child(bar)
-	var gap1 := Control.new()
-	gap1.custom_minimum_size.y = 10
-	_main_box.add_child(gap1)
-	var subtitle := Label.new()
-	subtitle.text = "NO MAN'S LAND"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	HudStyle.style_label(subtitle, 32, HudStyle.INK)
-	_poster_font(subtitle, 32, 3)
-	_main_box.add_child(subtitle)
-	var tagline := Label.new()
-	tagline.text = "A BLOCKY FIRST-PERSON EXTRACTION SHOOTER"
-	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	HudStyle.style_label(tagline, 24, HudStyle.BRASS)
-	_poster_font(tagline, 24, 3)
-	_main_box.add_child(tagline)
+	# The name block (0.28.2, owner: the live lettering "looks off"): one picture lettered like the poster by
+	# tools/make_web_branding.py at 1080p size, shown at the screen's scale, so its pixels stay even on every screen.
+	var name_block := TextureRect.new()
+	name_block.name = "Logo"
+	name_block.texture = NAME_BLOCK
+	name_block.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	name_block.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	name_block.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	name_block.custom_minimum_size = Vector2(NAME_BLOCK.get_size()) * (720.0 / 1080.0)
+	name_block.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	name_block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_main_box.add_child(name_block)
 	var gap2 := Control.new()
-	gap2.custom_minimum_size.y = 14
+	gap2.custom_minimum_size.y = 26
 	_main_box.add_child(gap2)
 	_play_button = _button("PLAY", play, 46, ACCENT)
 	_play_button.custom_minimum_size = Vector2(340, 76)
@@ -238,15 +217,6 @@ func _build_ui() -> void:
 	_page_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_body.add_theme_constant_override("separation", 14)
 	scroll.add_child(_page_body)
-
-
-## The poster's wide lettering (Silkscreen, spaced out), for NO MAN'S LAND and the gold line.
-func _poster_font(label: Label, size: int, spacing: int) -> void:
-	var f := FontVariation.new()
-	f.base_font = HudStyle.label_font()
-	f.spacing_glyph = spacing
-	label.add_theme_font_override("font", f)
-	label.add_theme_font_size_override("font_size", size)
 
 
 func _button(text: String, on_press: Callable, size := 26, color := BUTTON_FACE) -> Button:
