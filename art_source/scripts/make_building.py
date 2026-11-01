@@ -7576,10 +7576,11 @@ def office_decals(rng):
         c.rect(0, 0, c.w, c.h, "bone")
         c.rect(0, c.h - 6, c.w, c.h, "red")
         c.ctext(0, c.w, max(8, (c.h - 3) // 2), "MAY", "black")   # (between the days and the red top: 0.25.16, it overlapped the days)
+        o = (c.w - 13) // 2
         for r in range(4):
             for k in range(4):
-                c.rect(1 + k * 3, 1 + r * 2, 3 + k * 3, 2 + r * 2, "steel")
-        c.rect(7, 3, 9, 4, "red")
+                c.rect(o + 1 + k * 3, 1 + r * 2, o + 3 + k * 3, 2 + r * 2, "steel")
+        c.rect(o + 7, 3, o + 9, 4, "red")
 
     def whiteboard(c):    # 2.4 x 1.2 m, a half-wiped plan, an X1 drawn over it
         c.rect(0, 0, c.w, c.h, "bone")
@@ -7646,7 +7647,7 @@ def office_decals(rng):
     a.add("wall_logo", 64, 32, wall_logo)
     a.add("safety", 26, 32, safety)
     a.add("notices", 38, 26, notices)
-    a.add("calendar", 13, 19, calendar)
+    a.add("calendar", 15, 19, calendar)  # (0.25.18: wider, the text touched the edges; owner)
     a.add("whiteboard", 77, 38, whiteboard)
     a.add("screen", 64, 45, screen)
     a.add("mine_map", 64, 40, mine_map)
@@ -7744,11 +7745,11 @@ def dress_offices(ctx):
         wall_quad(b, n, at, a0, a1, y0, y1, mat, ctx.d(region))
     pic("-z", 10.33, 4.3, 6.3, 1.35, 2.35, "wall_logo", "graffiti")      # reception: the logo behind the desk
     pic("-x", 10.83, 8.4, 8.8, 2.0, 2.4, "clock", "graffiti")
-    pic("+z", 0.12, 2.0, 2.4, 1.3, 1.9, "calendar")                     # open office
+    pic("+z", 0.12, 1.97, 2.43, 1.3, 1.9, "calendar")                     # open office
     pic("+x", -3.55, -2.8, -1.6, 1.2, 2.0, "notices")                   # break room
     pic("-x", 3.55, -3.2, -2.4, 1.0, 2.0, "safety")
     pic("+x", -3.55, -7.0, -6.6, 1.9, 2.3, "clock", "graffiti")
-    pic("+z", -10.33, 7.0, 7.4, 1.3, 1.9, "calendar")                   # accounts (north wall)
+    pic("+z", -10.33, 6.97, 7.43, 1.3, 1.9, "calendar")                   # accounts (north wall)
     pic("+x", 3.79, -9.8, -7.4, 4.0, 5.2, "whiteboard")                 # meeting room
     b.box((3.83, 3.98, -8.6), (0.08, 0.04, 2.3), style=no_bottom("steel_light", 1.0))   # its pen tray
     b.box((10.8, 5.75, -8.6), (0.12, 0.12, 2.3), style=no_bottom("steel_light", 1.0))   # the screen's roller
@@ -7756,7 +7757,7 @@ def dress_offices(ctx):
     pic("-x", -3.79, 7.0, 9.4, 4.1, 5.3, "mine_map")                    # drawing office
     pic("+x", 3.79, 1.6, 2.6, 4.3, 5.0, "painting")                     # the manager (west wall, clear of the door)
     pic("-x", 10.83, 2.6, 3.0, 4.9, 5.3, "clock", "graffiti")
-    pic("+z", -8.13, -6.4, -6.0, 4.3, 4.9, "calendar")                  # records
+    pic("+z", -8.13, -6.43, -5.97, 4.3, 4.9, "calendar")                  # records
     # ---- ransacked floors (stay out of the stairs)
     office_mess(ctx, 4.2, 10.5, 0.5, 6.8, 0.0, 30)                       # reception
     office_mess(ctx, -3.3, 3.3, 0.5, 10.0, 0.0, 70, boxes=2)             # open office
@@ -8175,9 +8176,10 @@ def town_hall_decals(rng):
         c.rect(0, 0, c.w, c.h, "bone")
         c.rect(0, c.h - 6, c.w, c.h, "red")
         c.ctext(0, c.w, max(8, (c.h - 3) // 2), "MAY", "black")   # (between the days and the red top: 0.25.16, it overlapped the days)
+        o = (c.w - 13) // 2
         for r in range(4):
             for k in range(4):
-                c.rect(1 + k * 3, 1 + r * 2, 3 + k * 3, 2 + r * 2, "steel")
+                c.rect(o + 1 + k * 3, 1 + r * 2, o + 3 + k * 3, 2 + r * 2, "steel")
 
     def plan(c):          # a street drawing pinned to a drafting board
         c.rect(0, 0, c.w, c.h, "bone")
@@ -8205,10 +8207,10 @@ def town_hall_decals(rng):
     a.add("town_flag", 27, 32, town_flag)
     a.add("enquiries", 90, 32, enquiries)
     a.add("cashier", 38, 10, cashier)
-    a.add("vote", 16, 8, vote)
+    a.add("vote", 19, 8, vote)  # (0.25.18: wider, the text touched the edges; owner)
     a.add("registry", 51, 13, registry)
     a.add("shelter", 26, 19, shelter)
-    a.add("keep_out", 29, 13, keep_out)
+    a.add("keep_out", 33, 13, keep_out)  # (0.25.18: wider, the text touched the edges; owner)
     a.add("area_map", 64, 22, area_map)
     a.add("bon_wall", 58, 32, bon_wall)
     for k in range(4):
@@ -8218,7 +8220,7 @@ def town_hall_decals(rng):
     a.add("painting", 77, 38, painting)
     a.add("poster", 19, 29, poster)
     a.add("notices", 38, 26, notices)
-    a.add("calendar", 13, 19, calendar)
+    a.add("calendar", 15, 19, calendar)  # (0.25.18: wider, the text touched the edges; owner)
     a.add("plan", 26, 34, plan)
     a.add("clock_small", 13, 13, clock_small)
 
@@ -8790,7 +8792,7 @@ def prop_voting_booths(ctx, c, s):
             b.box((x + 0.2, y0 + 0.04, c[2] + s[2] / 2 + 0.4), (0.8, 0.06, 0.6), yaw=20, style=_nb("blue"))
         else:
             b.box((x, y0 + 1.15, c[2] + s[2] / 2), (w - 0.1, 1.35, 0.02), style=_solid("blue"))
-        b.box((x, y0 + 1.95, c[2] - s[2] / 2 + 0.05), (0.5, 0.25, 0.02), style=face_decal(ctx.d("vote"), "bone", "+z"))
+        b.box((x, y0 + 1.95, c[2] - s[2] / 2 + 0.05), (0.6, 0.25, 0.02), style=face_decal(ctx.d("vote"), "bone", "+z"))
         papers(b, rng, x - w / 2, x + w / 2, c[2] - s[2] / 2, c[2] + s[2] / 2, y0, 4, cols=("bone",))
 
 
@@ -9006,13 +9008,13 @@ def dress_town_hall(ctx):
     pic("-z", -0.12, 1.6, 2.6, 1.3, 2.5, "crest")
     pic("+z", -8.83, 2.0, 2.4, 2.2, 2.6, "clock_small", "graffiti")
     ghost_runner(ctx)
-    pic("-z", -0.12, -16.6, -15.7, 1.2, 1.6, "keep_out", "graffiti")
-    pic("-z", -0.12, -10.0, -9.6, 1.3, 1.9, "calendar")                  # records
+    pic("-z", -0.12, -16.665, -15.635, 1.2, 1.6, "keep_out", "graffiti")
+    pic("-z", -0.12, -10.03, -9.57, 1.3, 1.9, "calendar")                  # records
     pic("+x", -12.38, -8.4, -7.2, 1.2, 2.0, "notices")
     pic("+x", 12.62, -2.6, -1.4, 1.2, 2.0, "notices")                    # rates office
-    pic("+z", -8.83, 21.0, 21.4, 1.3, 1.9, "calendar")
+    pic("+z", -8.83, 20.97, 21.43, 1.3, 1.9, "calendar")
     pic("-x", -12.62, 6.0, 7.6, 1.9, 2.3, "registry")                    # registry office
-    pic("+z", 0.12, -16.0, -15.6, 1.3, 1.9, "calendar")
+    pic("+z", 0.12, -16.03, -15.57, 1.3, 1.9, "calendar")
     pic("-x", -0.12, 6.2, 7.4, 1.2, 2.0, "notices")                      # town clerk
     pic("+x", -12.38, 1.0, 1.4, 1.3, 1.9, "calendar")
     pic("+x", 0.12, 1.6, 2.2, 1.2, 2.1, "poster")                        # the crew's mess
@@ -9185,7 +9187,7 @@ def crew_life(ctx, pic):
     b.box((2.85, 0.68, -7.1), (0.18, 0.16, 0.12), style=_nb("olive_dark"))
     b.box((2.9, 0.64, -7.32), (0.1, 0.03, 0.1), style=_nb("black"))
     litter(b, rng, 2.2, 4.4, -7.8, -5.8, 0.0, 10)
-    pic("-z", TH_FP[1] - 0.17, 2.5, 3.4, 1.2, 1.6, "keep_out", "graffiti")
+    pic("-z", TH_FP[1] - 0.17, 2.435, 3.465, 1.2, 1.6, "keep_out", "graffiti")
     # The stair hall's store: water jugs and jerry cans by the crates.
     for k in range(4):
         b.box((-15.3 + k * 0.3, 0.25, -8.6), (0.26, 0.5, 0.26), style=lambda n, m, q: ("glass", uv_world(1.0)) if n[1] < 0.7 else ("blue", uv_world(1.0)))
@@ -11344,7 +11346,7 @@ def grocery_decals(rng):
         def p(c):         # 1 x 0.8 m window poster
             c.rect(0, 0, c.w, c.h, bg)
             c.frame(0, 0, c.w, c.h, fg)
-            big = 2 if Canvas.text_width(text1, 2) <= c.w - 2 else 1
+            big = 2 if Canvas.text_width(text1, 2) <= c.w - 6 else 1
             if text2:
                 c.ctext(0, c.w, 14 if big == 2 else 15, text1, fg, big)
                 c.ctext(0, c.w, 4, text2, fg, 1)
@@ -11402,11 +11404,12 @@ def grocery_decals(rng):
     def notice(c):        # 1 x 0.7 m staff board: rota, notes
         c.rect(0, 0, c.w, c.h, "wood_light")
         c.frame(0, 0, c.w, c.h, "wood_dark")
-        for x, y, w, h in ((2, 10, 10, 11), (14, 12, 8, 9), (24, 4, 7, 16), (3, 2, 9, 6), (14, 2, 8, 8)):
+        # (0.25.18: ROTA has its own note; it was written over the others)
+        for x, y, w, h in ((2, 9, 17, 11), (21, 9, 9, 11), (3, 2, 8, 5), (13, 2, 7, 5), (22, 2, 8, 5)):
             c.rect(x, y, x + w, y + h, "bone")
-            for k in range(1, h - 1, 2):
+            for k in range(1, h - (7 if (x, y) == (2, 9) else 1), 2):
                 c.rect(x + 1, y + k, x + w - 1, y + k + 1, "steel")
-        c.ctext(2, 12, 15, "ROTA", "red")
+        c.ctext(2, 19, 14, "ROTA", "red")
 
     def clock(c):         # 0.4 m
         c.rect(0, 0, c.w, c.h, "black")
@@ -11443,17 +11446,17 @@ def grocery_decals(rng):
     a.add("locker", 16, 64, locker)
     a.add("locker_dent", 16, 64, locker_dent)
     a.add("name", 224, 35, name)
-    a.add("p_sale", 32, 26, poster("SALE", "HALF OFF", "hazard_yellow", "red"))
-    a.add("p_two", 32, 26, poster("2 FOR 1", "TODAY", "red", "bone"))
-    a.add("p_fresh", 32, 26, poster("FRESH", "DAILY", "bone", "grass"))
-    a.add("p_open", 32, 26, poster("OPEN", "7 DAYS", "bone", "sky_blue"))
+    a.add("p_sale", 36, 26, poster("SALE", "HALF OFF", "hazard_yellow", "red"))
+    a.add("p_two", 36, 26, poster("2 FOR 1", "TODAY", "red", "bone"))
+    a.add("p_fresh", 36, 26, poster("FRESH", "DAILY", "bone", "grass"))
+    a.add("p_open", 36, 26, poster("OPEN", "7 DAYS", "bone", "sky_blue"))
     for k, words in enumerate(GROC_AISLES, start=1):
         a.add("aisle%d" % k, 58, 16, aisle(k, words))
     for words in ("DAIRY", "DRINKS", "DELI", "BAKERY", "PRODUCE", "FROZEN"):
         a.add("h_" + words.lower(), 77, 14, header(words))
     for n in (1, 2, 3):
         a.add("lane%d" % n, 10 if n == 1 else 11, 10, lane(n))
-    a.add("staff", 38, 8, staff)
+    a.add("staff", 42, 8, staff)  # (0.25.18: wider, the text touched the edges; owner)
     a.add("deliveries", 51, 11, deliveries)
     a.add("ice", 38, 13, ice)
     a.add("news", 13, 10, news)
@@ -11504,8 +11507,8 @@ def groc_glass_front(ctx, o):
             if rng.random() < 0.6:
                 pm = (p0 + p1) / 2
                 reg = ctx.d(posters[(k + int(mid)) % len(posters)])
-                wall_quad(b, (0, 0, 1), z + 0.005, pm - 0.5, pm + 0.5, 1.1, 1.9, "decals", reg)
-                wall_quad(b, (0, 0, -1), z - 0.005, pm + 0.5, pm - 0.5, 1.1, 1.9, "decals", ctx.d("p_open"))
+                wall_quad(b, (0, 0, 1), z + 0.005, pm - 0.5625, pm + 0.5625, 1.1, 1.9, "decals", reg)  # (0.25.18: 36 px)
+                wall_quad(b, (0, 0, -1), z - 0.005, pm + 0.5625, pm - 0.5625, 1.1, 1.9, "decals", ctx.d("p_open"))
         else:
             shards(ctx, p0, p1, lo + f, hi - f, z, "x", rng)
 
@@ -12019,7 +12022,7 @@ def dress_grocery(ctx):
     wq = lambda n, at, a0, a1, y0, y1, reg: wall_quad(b, n, at, a0, a1, y0, y1, "decals", ctx.d(reg))
     # Over the doors to the back: STAFF ONLY; the welcome banner inside over the entrance; a clock; the staff board.
     for x in (-6.0, 0.75, 7.0):
-        wq((0, 0, 1), GROC_BACK + 0.101, x - 0.6, x + 0.6, 2.45, 2.7, "staff")
+        wq((0, 0, 1), GROC_BACK + 0.101, x - 0.66, x + 0.66, 2.45, 2.7, "staff")
     wq((0, 0, -1), 9.84, 1.5, -1.5, 2.5, 2.72, "deals")
     wq((0, 0, 1), GROC_BACK + 0.101, 3.6, 4.0, 2.0, 2.4, "clock")
     wq((0, 0, -1), GROC_BACK - 0.101, 5.6, 4.6, 1.3, 2.0, "notice")

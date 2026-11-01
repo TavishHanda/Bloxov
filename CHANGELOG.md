@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.18 (Wider signs)
+- The signs whose words touched or ran off their edges got wider boards (owner picked wider over shorter words):
+  the town hall's VOTE signs over the booths and the KEEP OUT sprayed by the bunker ramp, the grocery's STAFF ONLY
+  signs and its window posters (SALE / HALF OFF now sits inside the frame), the calendars in the offices and the town
+  hall, and the FOOD, SODA and MEDS labels on loot boxes (MEDS is back). The grocery's staff board has ROTA on its
+  own note instead of written over the others.
+
 ## 0.25.17 (The hangout)
 - Hideout: a secret room (owner picked it from four). Walk down the shooting range (there's now a gap at the east end
   of the firing line) to the 100 m end: past the backstop the end wall has split, and a narrow crack in the rock leads
