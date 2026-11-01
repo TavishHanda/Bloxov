@@ -435,7 +435,8 @@ def model_path(name):
 # Solid-looking things that had no box (0.22.0, World reacts; owner: "give solid-looking things real hitboxes",
 # found with tools/walkthrough_audit.gd). Two kinds of fix, both made late (after the scatter, like fit_trucks) so
 # nothing else on the map moves:
-# - MADE_SOLID: gray-box kinds that were picture only but look solid (furniture, racks, open stall doors).
+# - MADE_SOLID: gray-box kinds that were picture only but look solid (furniture, racks). (Stall gates left it at 0.28.4: the barn model gives
+#   each one a box round its gate as drawn, swung open, instead of one across the stall's whole front.)
 # - <name>_solids.json from art_source/scripts/make_building.py (SOLIDS): boxes for what a model draws without a gray
 #   box (fallen roof slabs and beams in the caved rooms, chairs, porch posts).
 # Both only stop players (flag 5, BoxMap `prop_boxes`): shots, eyes and the AI pass through them as before, and the
@@ -445,7 +446,7 @@ MADE_SOLID = {
     "waiting_seats", "waiting_seats_east", "chair_rows", "briefing_chairs", "sb_chair", "cabin_chairs", "dn_stool",
     "tc_stool", "tc_bench", "fc_rocker", "motel_table", "motel_nightstand", "motel_cot", "cell_bunk", "cell_toilet",
     "th_cot", "globe", "voting_booths", "plant", "coat_rack", "robe_rail", "fc_fish_rack", "tc_pelt_rack",
-    "tc_stretchers", "tc_cache", "mugshot_camera", "drill_rig", "cashier_spot", "stall_gate", "wc_stalls", "wc_door",
+    "tc_stretchers", "tc_cache", "mugshot_camera", "drill_rig", "cashier_spot", "wc_stalls", "wc_door",
     "casino_cage", "motel_rail", "st_canopy_wreck",
 }
 
@@ -5765,9 +5766,13 @@ def main():
     farm_barn()
     # The silo and the shed stand well off the barn (owner, 2026-10-17: "the farm is huge").
     with modeled("silo", SILO[0], SILO[1]):
-        # Round concrete silo (World art 0.17): drawn round by its model; solid as an octagon (two squares) inside it.
-        obox(SILO[0], 6.0, SILO[1], 6.4, 12.0, 6.4, 0.0, "concrete", kind="silo")
-        obox(SILO[0], 6.0, SILO[1], 6.4, 12.0, 6.4, 45.0, "concrete", kind="silo_part")
+        # Round concrete silo (World art 0.17): drawn round by its model (3.5 m across the middle); solid as an
+        # octagon just inside it. (0.28.4, owner: "check the whole farm": it was two squares, whose eight corners
+        # stuck a metre out of the round wall as invisible walls. Four bars at 45 degrees make a true octagon.)
+        oct_a = 3.3                                    # (the middle to a flat side; its corners reach 3.57 m)
+        oct_s = 2 * oct_a * math.tan(math.radians(22.5))
+        for k, yaw in enumerate((0.0, 45.0, 90.0, 135.0)):
+            obox(SILO[0], 6.0, SILO[1], 2 * oct_a, 12.0, oct_s, yaw, "concrete", kind="silo" if k == 0 else "silo_part")
     rich_house(0, 310, 26, 16, 12, "farmer", model="farmhouse", place="Farmhouse", colour="wall", loot=[
         ("locker", 1, 0, 0, "E", 1.9), ("crate", 0, 1, 1, "W", -1.9)])   # (the wardrobe off the kitchen table)
     shx, shz = SHED_SHIFT

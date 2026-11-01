@@ -15152,10 +15152,14 @@ def prop_stall_gate(ctx, c, s):
     dx, dz = math.sin(math.radians(ang)), math.cos(math.radians(ang))
     mid = (hinge[0] + dx * L / 2, hinge[1] + dz * L / 2)
     yaw = math.degrees(math.atan2(dx, dz))
+    f0 = len(b.faces)
     for y in (0.35, 0.75, 1.15):
         b.box((mid[0], y0 + y, mid[1]), (0.05, 0.08, L), yaw=yaw, style=_nb("wood_light"))
     for t in (-0.5, 0.5):
         b.box((hinge[0] + dx * L * (0.5 + t), y0 + 0.6, hinge[1] + dz * L * (0.5 + t)), (0.06, 1.2, 0.06), style=_nb("wood_light"))
+    # (0.28.4, owner: "the stables that are open are closed": the gray box shut the whole stall front while the gate is
+    # drawn swung open into the aisle. Now the gate as drawn stops people and the stall's opening is open.)
+    solid_round(b, f0, yaw)
     b.box((c[0], y0 + 0.8, c[2] - s[2] / 2 + 0.03), (0.14, 1.6, 0.14), style=_nb("wood_dark"))      # gate post
 
 
