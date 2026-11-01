@@ -5694,13 +5694,35 @@ func _section_reacts() -> void:
 	_check(crows != null and crows.multimesh.instance_count == 5
 		and birds.positions[0].y > ground.y + 15.0, "crows circle high over their spot")
 	birds.queue_free()
+	# Leaves (0.28.10, owner: "make sure they actually come down from trees"): only from a leafy tree near you.
+	var leaf_place := Node3D.new()
+	main.add_child(leaf_place)
+	var leaf_trees: Node3D = load("res://scripts/trees.gd").new()
+	leaf_trees.data = PackedFloat32Array([ground.x + 5.0, ground.y, ground.z, 4.0, 4.0, 1, 0.0])   # a pine
+	leaf_place.add_child(leaf_trees)
 	var drift: Node3D = load("res://scripts/drift.gd").new()
 	drift.set_meta(&"force_reacts", true)
-	main.add_child(drift)
+	leaf_place.add_child(drift)
 	await physics_frame
-	_check(drift.leaves != null and not drift.find_children("*", "CollisionObject3D", true, false),
-		"leaves blow about, and nothing on them collides")
-	drift.queue_free()
+	await physics_frame
+	_check(drift.leaves != null and drift.crowns.is_empty() and not drift.drop_leaf(ground),
+		"no leaves where there's no leafy tree (pines don't drop them)")
+	leaf_place.queue_free()
+	await physics_frame
+	leaf_place = Node3D.new()
+	main.add_child(leaf_place)
+	leaf_trees = load("res://scripts/trees.gd").new()
+	leaf_trees.data = PackedFloat32Array([ground.x + 5.0, ground.y, ground.z, 4.0, 4.0, 0, 0.0])   # a broadleaf
+	leaf_place.add_child(leaf_trees)
+	drift = load("res://scripts/drift.gd").new()
+	drift.set_meta(&"force_reacts", true)
+	leaf_place.add_child(drift)
+	await physics_frame
+	await physics_frame
+	_check(drift.crowns.size() == 1 and drift.drop_leaf(ground) and not drift.drop_leaf(ground + Vector3(200, 0, 0))
+		and not drift.find_children("*", "CollisionObject3D", true, false),
+		"a leaf comes down off a leafy tree near you, none far from the trees, and nothing on them collides")
+	leaf_place.queue_free()
 	# The hideout's life (0.28.5): steam, the stove's fire, the TV's picture, dust. None on a headless run.
 	var life: Node3D = load("res://scripts/hideout_life.gd").new()
 	for key: StringName in [&"steam", &"fire", &"tv", &"dust"]:

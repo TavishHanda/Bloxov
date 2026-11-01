@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.10 (Leaves come off the trees)
+Owner: the falling leaves "look really bad and show up way too often ... make them look more like leaves ... and make
+sure they actually come down from trees".
+- No more leaves blowing past out of nowhere wherever you are outside. Now and then (one every 4 to 10 seconds) a leaf
+  comes loose from a leafy tree within 30 m of you (broadleaf and birch; pines and dead trees don't drop any) and
+  flutters down: a little pointed leaf with a stalk, in autumn browns, yellows and a faded green, swinging side to side
+  and rocking as it falls, then lying on the ground a few seconds. Away from the trees, none. Paper in town is as
+  before. Looks only, never on the server (`scripts/drift.gd`).
+
 ## 0.28.9 (Fun room film)
 - Owner: "make the projector in the fun room the same as the tv". The movie room's screen shows the TV's changing
   picture now (`scripts/hideout_life.gd`), in place of four painted boxes. The TV's picture was upside down (sky at the
