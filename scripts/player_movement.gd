@@ -44,6 +44,15 @@ var stamina := 100.0
 var is_exhausted := false
 var _stamina_delay_left := 0.0
 var _stride_left := 0.0
+## The lying body's collision (set_lying), made the first time it's needed.
+var _lying_shape: CollisionShape3D
+## Front of the head to the boots, lying prone (Hitbox.PRONE_PARTS, BodyPose.LIE_HIPS_Z), meters along -Z.
+const LYING_FRONT := -0.87
+const LYING_BACK := 0.95
+const LYING_RADIUS := 0.18
+## The middle of the lying capsule: its underside 0.36 m off the ground, so hills don't catch it (on the real map that
+## made 4% of open spots no-lie facing uphill; at this height almost none), its top at the head's.
+const LYING_HEIGHT := 0.54
 ## Leaning stops this far short of a wall at the side (the middle of the head to the wall: half the head hitbox).
 const LEAN_HEAD_ROOM := 0.32
 
@@ -73,6 +82,8 @@ func set_prone(on: bool) -> void:
 		if is_prone:
 			set_crouching(true)
 		return
+	if not lying_room():
+		return   # (0.25.26: no room ahead and behind for the lying body; stays as it was)
 	is_prone = true
 	is_crouching = true
 	_sprinting = false
@@ -84,6 +95,37 @@ func _set_capsule() -> void:
 	var capsule := body_shape.shape as CapsuleShape3D
 	capsule.height = prone_height if is_prone else (crouch_height if is_crouching else stand_height)
 	body_shape.position.y = capsule.height * 0.5
+	set_lying(is_prone)
+
+
+## Prone (0.25.26, owner picked it): the lying body collides too, a capsule from the head to the boots
+## (LYING_FRONT..LYING_BACK, where Hitbox.PRONE_PARTS are), held off the ground so crawling over bumps and
+## up gentle slopes isn't caught on them. Before, only the upright capsule at the player's middle collided, and the
+## head and legs others see lay inside or through walls.
+func set_lying(on: bool) -> void:
+	if _lying_shape == null:
+		var capsule := CapsuleShape3D.new()
+		capsule.radius = LYING_RADIUS
+		capsule.height = LYING_BACK - LYING_FRONT
+		_lying_shape = CollisionShape3D.new()
+		_lying_shape.name = "LyingShape"
+		_lying_shape.shape = capsule
+		# The capsule's length (its Y) along the body (Z).
+		_lying_shape.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5),
+			Vector3(0, LYING_HEIGHT, (LYING_FRONT + LYING_BACK) * 0.5))
+		add_child(_lying_shape)
+	_lying_shape.disabled = not on
+
+
+## Whether the lying body fits here, facing this way.
+func lying_room() -> bool:
+	set_lying(false)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = _lying_shape.shape
+	query.transform = global_transform * _lying_shape.transform
+	query.collision_mask = collision_mask & ~4   # (other bodies don't count: they get out of the way)
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func teleport_to(pos: Vector3) -> void:
@@ -311,7 +353,7 @@ func _update_lean(delta: float) -> void:
 	# far as it really went (RemotePlayer.capture): a head poking out the far side of a wall gave you away.
 	var reach := lean_distance
 	if absf(lean) > 0.01:
-		var from := global_transform * Vector3(0, head.position.y, 0)
+		var from := global_transform * Vector3(0, head.position.y, head.position.z)
 		var side := global_basis.x * signf(lean)
 		var query := PhysicsRayQueryParameters3D.create(from, from + side * (lean_distance + LEAN_HEAD_ROOM), 1, [get_rid()])
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)

@@ -817,6 +817,47 @@ func _section_prone() -> void:
 	await physics_frame
 	player.set_prone(false)
 	_check(not player.is_prone and not player.is_crouching, "Z again stands you up")
+	# 0.25.26 (owner picked it): the lying body collides and the eyes are in its head, so a prone player's head never
+	# lies through a wall. A wall 0.6 m ahead: no room to lie down facing it.
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	wall_shape.shape = BoxShape3D.new()
+	(wall_shape.shape as BoxShape3D).size = Vector3(4, 3, 0.3)
+	wall.add_child(wall_shape)
+	main.add_child(wall)
+	var facing := -player.global_basis.z
+	wall.global_position = player.global_position + facing * 0.75 + Vector3(0, 1.5, 0)
+	wall.look_at(wall.global_position + facing)
+	await physics_frame
+	player.set_prone(true)
+	_check(not player.is_prone, "no lying down with a wall right ahead (no room for the body)")
+	# Further back there's room; crawling at the wall stops the head short of it, and the eyes are in the head.
+	player.teleport_to(player.global_position - facing * 2.0)
+	await physics_frame
+	player.set_prone(true)
+	Input.action_press("move_forward")
+	await create_timer(2.5).timeout
+	Input.action_release("move_forward")
+	await create_timer(0.3).timeout
+	var wall_face := wall.global_position - facing * 0.15
+	var head_front: Vector3 = player.global_position + facing * -player.LYING_FRONT
+	var gap := (wall_face - head_front).dot(facing)
+	var eye_ahead := (player.head.global_position - player.global_position).dot(facing)
+	_check(player.is_prone and gap > -0.02 and gap < 0.2, "crawling into a wall, the lying head stops at it (%.2f m off)" % gap)
+	_check(absf(eye_ahead + Player.prone_eye_z()) < 0.05, "prone, your eyes are in your head, %.2f m ahead of your middle" % eye_ahead)
+	# Turning sideways next to it: the body is pushed clear instead of swinging through.
+	player.rotation.y += PI * 0.5
+	await create_timer(0.4).timeout
+	var clear := true
+	for z: float in [player.LYING_FRONT, 0.0, player.LYING_BACK]:
+		var point: Vector3 = player.global_position + player.global_basis.z * z
+		if (point - wall_face).dot(facing) > 0.05:
+			clear = false
+	_check(clear, "turning prone beside a wall keeps the body out of it")
+	wall.queue_free()
+	player.set_prone(false)
+	await physics_frame
+	_check(not player.is_prone and (player.get_node("LyingShape") as CollisionShape3D).disabled, "standing up turns the lying body's collision off")
 
 
 func _section_containers() -> void:
@@ -6690,6 +6731,10 @@ func _section_sound() -> void:
 		return all.back().stream if not all.is_empty() else null
 	WorldSounds.impact(main, spot + Vector3(4.95, 0.1, 0.3), Vector3.RIGHT)
 	_check(newest.call() == WorldSounds.IMPACTS[Surfaces.METAL], "...and it pings off the metal one")
+	for turn in 4:   # (face where there's room to lie down: 0.25.26)
+		if player.lying_room():
+			break
+		player.rotation.y += PI * 0.5
 	player.set_prone(true)
 	var prone_sound: AudioStream = newest.call()
 	player.set_prone(false)

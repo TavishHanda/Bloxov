@@ -202,6 +202,11 @@ func eye_height() -> float:
 
 
 ## Where the player's eyes actually are (includes leaning). Enemies check line of sight to this.
+## How far ahead of the player's middle the eyes are lying prone: in the lying body's head (Hitbox.PRONE_PARTS).
+static func prone_eye_z() -> float:
+	return (Hitbox.PRONE_PARTS[0][0] as Vector3).z
+
+
 func eye_position() -> Vector3:
 	return head.global_position
 

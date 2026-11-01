@@ -363,6 +363,8 @@ func _process(delta: float) -> void:
 		if downed:
 			eye = downed_eye_height
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
+		# Prone, the eyes are in the lying body's head (0.25.26, owner): where others see it, ahead of your middle.
+		head.position.z = lerpf(head.position.z, prone_eye_z() if is_prone else 0.0, minf(delta * 10.0, 1.0))
 	_update_lean(delta)
 	if _meds_held >= 0.0:
 		if out_of_fight():
@@ -777,7 +779,8 @@ func apply_net_state(state: Array) -> void:
 	var eye := downed_eye_height if downed else (crouch_eye_height if is_crouching else stand_eye_height)
 	if is_prone:
 		eye = prone_eye_height
-	head.position = Vector3(lean * lean_distance, eye, 0)
+	head.position = Vector3(lean * lean_distance, eye, prone_eye_z() if is_prone else 0.0)
+	set_lying(is_prone)
 	velocity = Vector3(moved * Network.SEND_RATE, 0, 0)
 	if is_crouching or out_of_fight():
 		return
@@ -800,6 +803,7 @@ func _on_downed() -> void:
 	var capsule := body_shape.shape as CapsuleShape3D
 	capsule.height = crouch_height
 	body_shape.position.y = capsule.height * 0.5
+	set_lying(false)
 	gun.visible = false
 
 

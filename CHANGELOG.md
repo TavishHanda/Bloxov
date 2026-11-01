@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.26 (Prone stays out of walls)
+- Prone (owner picked it): the whole lying body now collides, head to boots, so you can't crawl or turn with your head
+  or legs in a wall (others used to see a prone head poking out the far side of thin walls, and could shoot it). You
+  only lie down where there's room for your body; with a wall right ahead you stay as you were.
+- Prone, your eyes are now in your lying body's head (0.59 m ahead of your middle), so you see from where others see
+  you. Hitboxes unchanged.
+
 ## 0.25.25 (Hangout down below)
 Owner: "the hideout can be a bit closer, so it's easier to find, then make a tunnel to it that goes deeper
 underground", and "I like the colour but it looks so flat".
