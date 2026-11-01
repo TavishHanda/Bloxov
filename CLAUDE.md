@@ -2,7 +2,7 @@
 
 **New dev session? Read `docs/DEV_HANDOFF.md` first** (owner, state, code map, workflow, gotchas, next work).
 
-- Godot 4.5, GDScript, Compatibility renderer (web is the main target). Design doc: `docs/GAME_DESIGN.md`.
+- Godot 4.7, GDScript, Compatibility renderer (web is the main target). Design doc: `docs/GAME_DESIGN.md`.
 - **Versioning:** every change bumps `config/version` in `project.godot` and adds a `CHANGELOG.md` entry.
   A new roadmap phase bumps the middle number (0.2.x → 0.3.0); anything else bumps the last (0.2.3 → 0.2.4).
   Docs/CI-only changes don't bump. Start the commit message with the version (`v0.2.4: ...`).
@@ -17,7 +17,9 @@
   swinging lamps, bushes/curtains parting, kickable cans; never synced, never on the server; closed at 0.22.9). 0.23 **jointed characters** (real kneel/prone/crawl/downed poses, `scripts/body_pose.gd`; models from `art_source/scripts/make_character.py`; crouch/prone/downed hitboxes are measured off the posed model: after changing either, run `tools/fit_hitboxes.gd` and paste into `hitbox.gd`, the smoke test checks they match). 0.24 the **new-player tutorial** (`scripts/tutorial.gd`: a step-by-step walk round the hideout for new profiles only, `Profile.tutorial`; `scripts/raid_tips.gd`: one-time raid tips; anyone with progress skips it, owner). 0.25 **Checkpoint** (the security update: server checks moves, carried items, health and extracts, rate limits, kicks on repeats; `scripts/net_guard.gd`; Windows build tested in CI). 0.26 **Keybinds** (rebinding in OPTIONS, `scripts/keybinds.gd`, saved in the settings; show keys with `Keybinds.name_of`/`cap`, never hard-coded letters; the web build refuses Ctrl, owner). 0.27 **Durability** (guns, armor, helmets wear, keys have uses; worn guns spread more, `ItemDB.wear_spread` (no jams since 0.28.1, owner: not arcade); repairs
   are trader-only, owner: `Traders.repair_price`, Ponta guns, Big Don armor). 0.28 **The world comes alive** (looks-only motion: moving building parts
   go through make_building `mover()` -> `assets/models/movers/`, `scripts/movers.gd`; outdoor faces that sway use make_outdoor
-  `sways()` -> the `kit_sway` material; also `scripts/flags.gd`, `birds.gd`, `drift.gd`). A Stash update (separate solo/online
+  `sways()` -> the `kit_sway` material; also `scripts/flags.gd`, `birds.gd`, `drift.gd`). 0.29 the **Engine update** (Godot 4.5.1 -> 4.7.2; 4.7 builds
+  LODs for the big building meshes, so the pck is ~7 MB bigger; the hideout warms the raid map with
+  `ResourceLoader.load_threaded_request`, never a Thread it waits on). A Stash update (separate solo/online
   stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
   built on a branch and released as the next phase.
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read
@@ -38,7 +40,7 @@
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
   Extend the smoke test when adding gameplay.
 - **Run the tests locally before every push** (the sandbox can download Godot):
-  `curl -L -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.5.1-stable/Godot_v4.5.1-stable_linux.x86_64.zip`,
+  `curl -L -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip`,
   unzip, then from the repo root: `godot --headless --import` and `godot --headless --fixed-fps 60 -s tests/smoke_test.gd`
   (~1 s; must print `SMOKE TEST: PASSED` with no `SCRIPT ERROR`). Don't push untested code to find out from CI.
   One part only: add `-- section=knife,heal` (pulls in what it depends on). Only push if the tests passed

@@ -101,7 +101,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   every push redeploys both.
 - Heroku: app `bloxov-server`, one Basic dyno (flat ~$7/month, covered by the owner's student credit; usage can't
   spike: one dyno, `MAX_ONLINE` 40, `Matchmaker.MAX_RAIDS` 4). Kill switch: Heroku → Resources → turn the dyno off.
-  The Docker image (`Dockerfile`, `heroku.yml`) downloads Godot 4.5.1 and imports the project at build time.
+  The Docker image (`Dockerfile`, `heroku.yml`) downloads Godot 4.7.2 and imports the project at build time.
 - No database yet: stash/progress live in each player's browser; the server keeps nothing permanent.
 - Sandbox notes: Docker works after `dockerd &` (apt inside containers has no network: copy the local Godot binary
   in for tests). The sandbox can't reach the Heroku server directly (proxy); the owner's own test is the proof.

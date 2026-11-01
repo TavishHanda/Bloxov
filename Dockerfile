@@ -2,7 +2,7 @@
 # Built and deployed to Fly.io by .github/workflows/web.yml after the tests pass.
 FROM debian:bookworm-slim
 
-ARG GODOT_VERSION=4.5.1
+ARG GODOT_VERSION=4.7.2
 RUN apt-get update \
 	&& apt-get install -y --no-install-recommends ca-certificates curl unzip libfontconfig1 \
 	&& curl -fsSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip" \
