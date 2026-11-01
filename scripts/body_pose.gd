@@ -217,6 +217,8 @@ func _flinch_spring(delta: float) -> void:
 ## Feet never go through the ground (0.25.22, owner: going prone the legs vanished, then popped back): a leg whose
 ## sole would be under the floor bends at the knee to keep it on top, as when someone drops to their knees.
 func _ground_feet() -> void:
+	if not model.is_inside_tree():   # (the server and tools measure unparented: nothing to stand on there)
+		return
 	var to_model := model.global_transform.affine_inverse()
 	for side: String in ["L", "R"]:
 		var leg := _joints["Leg" + side] as Node3D
