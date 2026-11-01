@@ -12,6 +12,7 @@ const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
 ## Seconds for the picture to drift from one side to the other (and as long back).
 const DRIFT_SECONDS := 25.0   # (0.21.21, owner: a bit faster; was 40)
 const ACCENT := Color("b03b2e")   # (PLAY)
+const LOGO_SCALE := 3.0
 const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 
 ## What the privacy page says (docs/STORE_RULES.md: the stores want it reachable in the game). Keep it true: update it
@@ -50,6 +51,9 @@ var _background: TextureRect
 var drift_offset := Vector2.ZERO
 var _ui: CanvasLayer
 var _main_box: VBoxContainer
+## The OPTIONS / PRIVACY / CREDITS (/ QUIT) row under PLAY.
+var _row: HBoxContainer
+var _poster: CenterContainer
 var _page: PanelContainer
 var _page_title: Label
 var _page_body: VBoxContainer
@@ -119,41 +123,67 @@ func _build_ui() -> void:
 	_background.material = material
 	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_background)
-	var shade := ColorRect.new()   # (darker on the left, under the buttons)
-	shade.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	shade.offset_right = 460
-	shade.color = Color(0, 0, 0, 0.45)
+	# 0.27.2 (owner: "use the brag.jpg for like our main screens... i like that picture a lot"): laid out like that poster,
+	# the picture darkened warm, the name big in the middle, the red bar, NO MAN'S LAND and the gold line under it, and the
+	# buttons below. Drawn live (not the poster itself) so it fits any screen shape.
+	var shade := ColorRect.new()
+	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shade.color = Color(0.07, 0.03, 0.02, 0.55)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(shade)
-	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	margin.offset_right = 520
-	margin.add_theme_constant_override("margin_left", 60)
-	margin.add_theme_constant_override("margin_top", 168)
-	margin.add_theme_constant_override("margin_bottom", 40)
-	_ui.add_child(margin)
+	_poster = CenterContainer.new()
+	_poster.name = "Poster"
+	_poster.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_poster.offset_bottom = -20
+	_ui.add_child(_poster)
 	_main_box = VBoxContainer.new()
 	_main_box.add_theme_constant_override("separation", 12)
-	margin.add_child(_main_box)
-	# The name, the pixel font drawn three times over (its pixels stay square), outside the list so it can be big.
+	_main_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_poster.add_child(_main_box)
+	# The name, the pixel font drawn twice over (its pixels stay square): a Control holds its scaled size in the list.
 	var logo := Label.new()
 	logo.name = "Logo"
 	logo.text = "BLOXOV"
 	HudStyle.style_label(logo, 50)
-	logo.position = Vector2(54, 40)
-	logo.scale = Vector2(3, 3)
-	_ui.add_child(logo)
+	logo.add_theme_constant_override("shadow_offset_y", 3)
+	logo.scale = Vector2(LOGO_SCALE, LOGO_SCALE)
+	var logo_holder := Control.new()
+	logo_holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	logo_holder.add_child(logo)
+	_main_box.add_child(logo_holder)
+	var logo_size := logo.get_combined_minimum_size()   # (measured once it's in the tree, with its font)
+	logo_holder.custom_minimum_size = logo_size * LOGO_SCALE
+	var bar := ColorRect.new()
+	bar.color = HudStyle.BLOOD
+	bar.custom_minimum_size = Vector2(logo_size.x * LOGO_SCALE + 60, 8)
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_main_box.add_child(bar)
+	var gap1 := Control.new()
+	gap1.custom_minimum_size.y = 10
+	_main_box.add_child(gap1)
 	var subtitle := Label.new()
 	subtitle.text = "NO MAN'S LAND"
-	HudStyle.style_label(subtitle, 30, HudStyle.INK)
-	subtitle.add_theme_font_override("font", HudStyle.spaced_font(30))
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	HudStyle.style_label(subtitle, 32, HudStyle.INK)
+	_poster_font(subtitle, 32, 3)
 	_main_box.add_child(subtitle)
+	var tagline := Label.new()
+	tagline.text = "A BLOCKY FIRST-PERSON EXTRACTION SHOOTER"
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	HudStyle.style_label(tagline, 24, HudStyle.BRASS)
+	_poster_font(tagline, 24, 3)
+	_main_box.add_child(tagline)
 	var gap2 := Control.new()
-	gap2.custom_minimum_size.y = 24
+	gap2.custom_minimum_size.y = 14
 	_main_box.add_child(gap2)
-	_play_button = _button("PLAY", play, 50, ACCENT)
-	_play_button.custom_minimum_size = Vector2(340, 84)
+	_play_button = _button("PLAY", play, 46, ACCENT)
+	_play_button.custom_minimum_size = Vector2(340, 76)
+	_play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	# (Signing in, later: guest / email / Steam buttons go here, under PLAY.)
+	_row = HBoxContainer.new()
+	_row.add_theme_constant_override("separation", 12)
+	_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_main_box.add_child(_row)
 	_button("OPTIONS", func() -> void: _show_page("options"))
 	_button("PRIVACY", func() -> void: _show_page("privacy"))
 	_button("CREDITS", func() -> void: _show_page("credits"))
@@ -174,9 +204,9 @@ func _build_ui() -> void:
 	_page.name = "Page"
 	LootUI.skin_panel(_page)
 	_page.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_page.offset_left = 560
-	_page.offset_top = 60
-	_page.offset_right = -40
+	_page.offset_left = 80
+	_page.offset_top = 50
+	_page.offset_right = -80
 	_page.offset_bottom = -50
 	_page.visible = false
 	_ui.add_child(_page)
@@ -210,22 +240,31 @@ func _build_ui() -> void:
 	scroll.add_child(_page_body)
 
 
-func _button(text: String, on_press: Callable, size := 30, color := BUTTON_FACE) -> Button:
+## The poster's wide lettering (Silkscreen, spaced out), for NO MAN'S LAND and the gold line.
+func _poster_font(label: Label, size: int, spacing: int) -> void:
+	var f := FontVariation.new()
+	f.base_font = HudStyle.label_font()
+	f.spacing_glyph = spacing
+	label.add_theme_font_override("font", f)
+	label.add_theme_font_size_override("font_size", size)
+
+
+func _button(text: String, on_press: Callable, size := 26, color := BUTTON_FACE) -> Button:
 	var button := Button.new()
 	button.name = text.capitalize().replace(" ", "")
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(340, 60)   # (big enough to tap)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.custom_minimum_size = Vector2(190, 56)   # (big enough to tap)
 	LootUI.style_button(button, size, color)
 	button.pressed.connect(on_press)
-	_main_box.add_child(button)
+	(_main_box if _row == null else _row).add_child(button)
 	return button
 
 
 ## Shows page `id` ("options", "privacy", "credits"), or closes it ("").
 func _show_page(id: String) -> void:
 	_page.visible = id != ""
+	_poster.visible = id == ""   # (the page sits where the name and buttons were)
 	for child in _page_body.get_children():
 		child.queue_free()
 	match id:

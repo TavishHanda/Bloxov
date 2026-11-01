@@ -1,9 +1,9 @@
 """Makes the web page's Bloxov pictures: the loading-screen splash, the icon (favicon) and the link preview.
 
 Run from the repo root: python3 tools/make_web_branding.py  (add --icons for only the web/brand icon sizes)
-- assets/textures/boot_splash.png  shown while the game downloads (project setting application/boot_splash/image)
+- assets/textures/boot_splash.png  shown while the game downloads (the poster, art_source/brag.jpg) (project setting application/boot_splash/image)
 - assets/icons/bloxov_icon.png     game icon, the web export makes the favicon from it (config/icon)
-- web/brand/preview.png            1200x630 picture Discord etc. show for a pasted link (og:image, CI copies it)
+- web/brand/preview.png            1200x630 crop of the poster, Discord etc. show for a pasted link (og:image, CI copies it)
 - web/brand/icon-48/96/192.png + favicon.ico   the icon at sizes Google search accepts (square, a multiple of
                                    48 px; the 256 px game icon isn't), linked from the page by tools/web_seo.py
 Pixel fonts are drawn 1:1 then scaled up with nearest-neighbour, like the title screen's logo.
@@ -69,17 +69,25 @@ def centred(bg, block, y_shift=0):
     return bg
 
 
-def main():
-    # Splash: the web page shows it centred over the dark background while the game downloads.
-    splash = backdrop((1280, 720), 0.45)
-    centred(splash, logo_block(3), -30).convert("RGB").save("assets/textures/boot_splash.png")
+POSTER = "art_source/brag.jpg"   # (0.27.2, owner's favourite picture: "use the brag.jpg for... posters title screen etc")
 
-    # Link preview (1200x630 is what Discord, X and Facebook expect).
-    prev = backdrop((1200, 630), 0.5)
-    centred(prev, logo_block(3), -40)
-    tag = pixel_text("BLOCKY EXTRACTION SHOOTER  -  PLAY FREE IN YOUR BROWSER", SUB_FONT, 30, 1, INK, spacing=2)
-    prev.alpha_composite(tag, ((prev.width - tag.width) // 2, 500))
-    prev.convert("RGB").save("web/brand/preview.png")
+
+def poster(size):
+    """The poster (art_source/brag.jpg, 1920x1080), scaled to cover `size` and cropped from the middle."""
+    src = Image.open(POSTER).convert("RGB")
+    tw, th = size
+    k = max(tw / src.width, th / src.height)
+    src = src.resize((round(src.width * k), round(src.height * k)), Image.LANCZOS)
+    left = (src.width - tw) // 2
+    top = (src.height - th) // 2
+    return src.crop((left, top, left + tw, top + th))
+
+
+def main():
+    # Splash: the web page shows it while the game downloads. Link preview: 1200x630 is what Discord, X and Facebook
+    # expect. Both are the poster since 0.27.2 (before: the dusk view with the logo drawn here, backdrop()/logo_block()).
+    poster((1280, 720)).save("assets/textures/boot_splash.png", optimize=True)
+    poster((1200, 630)).save("web/brand/preview.png", optimize=True)
 
     # Icon: a big "B" on the dark HUD colour with the red bar under it.
     icon = Image.new("RGBA", (256, 256), DEEP + (255,))

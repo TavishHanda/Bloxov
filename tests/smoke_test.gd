@@ -2186,7 +2186,7 @@ func _section_hideout_world() -> void:
 	root.add_child(title)
 	await process_frame
 	var title_buttons: Array[String] = []
-	for node: Node in title._main_box.get_children():
+	for node: Node in title._main_box.find_children("*", "Button", true, false):
 		if node is Button:
 			title_buttons.append(String((node as Button).text))
 	_check(title_buttons.slice(0, 4) == ["PLAY", "OPTIONS", "PRIVACY", "CREDITS"], "main screen: PLAY, OPTIONS, PRIVACY, CREDITS %s" % str(title_buttons))
