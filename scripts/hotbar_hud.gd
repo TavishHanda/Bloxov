@@ -155,7 +155,7 @@ func _draw() -> void:
 		var rect := slot_rect(i)
 		var active := i == held
 		var state: String = info["state"]
-		var key := "V" if i - 2 == Inventory.KNIFE_KEY else str(i + 1)
+		var key := Keybinds.cap(slot_action(i))
 		var count: String = info["count"]
 		# Icon area above the count (the whole slot when there's no count); count area along the bottom.
 		var icon_box := Rect2(rect.position + Vector2(0, 4), Vector2(SLOT_SIZE.x, 26 if count != "" else SLOT_SIZE.y - 8))
@@ -209,6 +209,13 @@ func _draw() -> void:
 		var over := slot_rect(_switch_slot)
 		var x := clampf(over.get_center().x - width * 0.5, 0.0, size.x - width)
 		HudStyle.draw_tape(self, Rect2(Vector2(x, over.position.y - 26 + drop), Vector2(width, 20)), _switch_text, -2.0, alpha, 14)
+
+
+## The action that picks slot `i` (its key is drawn in the corner): 1-2 guns, then hotbar_3/4, the knife on melee.
+static func slot_action(i: int) -> String:
+	if i < 2:
+		return "weapon_%d" % (i + 1)
+	return "melee" if i - 2 == Inventory.KNIFE_KEY else "hotbar_%d" % (i + 1)
 
 
 ## A faint picture of what goes in an empty slot (1 rifle, 2 pistol, 4-5 a grenade).

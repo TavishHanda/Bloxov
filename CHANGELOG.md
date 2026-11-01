@@ -5,7 +5,23 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS). -->
+
+## 0.26.0 (Keybinds)
+The Keybinds update (owner: its own small update before Steam). Owner on Ctrl: "on web build dont allow ctrl, cuz u
+literally cant crouch and walk then".
+- OPTIONS has a Controls list (main screen and the hideout menu): every action with the key it's on. Click one, press
+  the new key or mouse button (mouse 4/5 and the middle button work too); Escape or clicking elsewhere cancels.
+  RESET KEYS puts the defaults back. Saved with your settings, and a save backup carries them.
+- Taking a key another action had swaps them, so nothing is ever left without a key ("Reload moved to G").
+- In the browser Ctrl can't be bound: holding it while walking on W is Ctrl+W, which closes the tab, and a web page
+  can't stop that. It will work in the Steam version. Also never: Escape, the Windows/Cmd key, the mouse wheel, F3
+  and F4 (the game's own), and in the browser F11/F12. Checked in a web export: the game swallows every other key
+  (F5, Ctrl+R and Tab don't reach the browser).
+- Everything that shows a key follows your keys: the [F] prompt, the map and extract key caps, the hotbar slot
+  numbers, the hideout's MENU/LEAVE buttons, the tutorial and raid tips, the inventory hint. Key caps fit any key
+  (TAB, SPC, M4).
+- Phones: no change (touch controls don't use keys; the list is hidden there).
 
 ## 0.25.38 (Quieter hideout ambience that doesn't loop)
 - The hideout's background sound was too loud and you could hear it loop (owner). Its room tone was one 6-second

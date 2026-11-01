@@ -28,6 +28,8 @@ static func build(body: VBoxContainer, on_replay := Callable()) -> void:
 		row.add_child(button)
 	_toggle(body, "Damage numbers", GameSettings.damage_numbers, func(on: bool) -> void: GameSettings.set_damage_numbers(on))
 	_toggle(body, "Lean: tap to toggle (off: hold)", GameSettings.lean_toggle, func(on: bool) -> void: GameSettings.set_lean_toggle(on))
+	if not GameSettings.is_phone():
+		_key_rows(body)
 	# The new-player tutorial (0.24.0): its raid tips, and the whole thing again from the start.
 	Profile.load_profile()
 	_toggle(body, "Raid tips", RaidTips.on(), func(on: bool) -> void: Tutorial.set_tips(on))
@@ -98,6 +100,103 @@ static func _backup_rows(body: VBoxContainer) -> void:
 	no.pressed.connect(func() -> void:
 		confirm.visible = false
 		show_note.call(""))
+
+
+## Controls (0.26.0, Keybinds update): a button per action showing its key; click it, then press the new key or mouse
+## button (Escape cancels). A key another action had swaps over. Not on phones (touch controls have their own layout).
+static func _key_rows(body: VBoxContainer) -> void:
+	var heading := _row(body, "Controls")
+	heading.name = "KeysHeading"
+	var reset := _small_button(heading, "ResetKeys", "RESET KEYS")
+	var note := Label.new()
+	note.name = "KeysNote"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size.x = 520
+	HudStyle.style_label(note, 18)
+	note.visible = false
+	var buttons := {}
+	var refresh := func() -> void:
+		for action: String in buttons:
+			(buttons[action] as Button).text = Keybinds.name_of(action).to_upper()
+	var catcher := KeyCatcher.new()
+	body.tree_exiting.connect(catcher.queue_free)
+	for row: Array in Keybinds.ACTIONS:
+		var action: String = row[0]
+		if action == "":
+			var group := Label.new()
+			group.text = String(row[1]).to_upper()
+			HudStyle.style_label(group, 18)
+			group.modulate = Color(1, 1, 1, 0.6)
+			body.add_child(group)
+			continue
+		var line := _row(body, "  " + String(row[1]))
+		line.name = "Key_" + action
+		var button := _small_button(line, "Bind", "")
+		button.custom_minimum_size.x = 220
+		buttons[action] = button
+		button.pressed.connect(func() -> void:
+			refresh.call()
+			button.text = "PRESS A KEY..."
+			note.visible = false
+			catcher.listen(button, func(event: InputEvent) -> void:
+				if event != null:
+					var result := Keybinds.bind(action, event)
+					note.text = result["note"]
+					note.visible = note.text != ""
+					# Right under the row that was changed, where the eyes are (the list is long).
+					body.move_child(note, line.get_index() + 1)
+				refresh.call()))
+	body.add_child(note)
+	reset.pressed.connect(func() -> void:
+		catcher.stop()
+		Keybinds.reset_all()
+		note.text = "Every key is back to the default."
+		note.visible = true
+		body.move_child(note, heading.get_index() + 1)
+		refresh.call())
+	refresh.call()
+
+
+## Waits for the next key or mouse button press on `button`'s behalf and hands it over (null = cancelled). Sits last
+## under the window's root so it hears the press before the screens do (Tab would open the bag otherwise). Escape
+## cancels; so does a left click anywhere but the waiting button (that click still goes through), so clicking
+## another row or RESET doesn't bind the left mouse button by accident. Left-click the waiting button to bind it.
+class KeyCatcher extends Node:
+	var _done := Callable()
+	var _button: Control
+
+	func listen(button: Control, done: Callable) -> void:
+		stop()
+		_done = done
+		_button = button
+		if not is_inside_tree():
+			button.get_tree().root.add_child(self)
+		else:
+			get_parent().move_child(self, -1)
+
+	func stop() -> void:
+		if _done.is_valid():
+			var done := _done
+			_done = Callable()
+			done.call(null)
+
+	func _input(event: InputEvent) -> void:
+		if not _done.is_valid() or event.is_echo() or not event.is_pressed():
+			return
+		if not (event is InputEventKey or event is InputEventMouseButton):
+			return
+		var mouse := event as InputEventMouseButton
+		if mouse != null and mouse.button_index == MOUSE_BUTTON_LEFT and not (is_instance_valid(_button)
+				and _button.get_global_rect().has_point(_button.get_global_mouse_position())):
+			stop()
+			return
+		get_viewport().set_input_as_handled()
+		var done := _done
+		_done = Callable()
+		if event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_ESCAPE:
+			done.call(null)
+		else:
+			done.call(event)
 
 
 static func _small_button(row: Control, node_name: String, text: String) -> Button:

@@ -104,7 +104,9 @@ func _draw() -> void:
 	HudStyle.draw_plate(self, frame)
 	var title: String = raid.get_parent().get_meta("map_name", "MAP").to_upper() if raid.get_parent() != null else "MAP"
 	HudStyle.draw_label(self, title, frame.position + Vector2(12, HudStyle.centered_baseline(19, 8, HudStyle.label_font())), HudStyle.INK_DIM)
-	HudStyle.draw_keycap(self, Rect2(frame.position + Vector2(frame.size.x - 12 - 18, 10), Vector2(18, 18)), "M")
+	var cap := Keybinds.cap("map")
+	var cap_w := HudStyle.keycap_width(cap, 18)
+	HudStyle.draw_keycap(self, Rect2(frame.position + Vector2(frame.size.x - 12 - cap_w, 10), Vector2(cap_w, 18)), cap)
 	draw_rect(rect, GRASS)
 	if _relief != null:
 		draw_texture_rect(_relief, rect, false)

@@ -52,19 +52,9 @@ static func set_tips(on: bool) -> void:
 	Profile.save_profile()
 
 
-## The key an action is on, as shown to the player ("F", "Shift", "Right mouse").
+## The key an action is on, as shown to the player ("F", "Shift", "Right mouse"; rebindable since 0.26.0).
 static func key(action: String) -> String:
-	for event in InputMap.action_get_events(action):
-		if event is InputEventKey:
-			var k := event as InputEventKey
-			return OS.get_keycode_string(k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode)
-		if event is InputEventMouseButton:
-			match (event as InputEventMouseButton).button_index:
-				MOUSE_BUTTON_LEFT:
-					return "Left mouse"
-				MOUSE_BUTTON_RIGHT:
-					return "Right mouse"
-	return "?"
+	return Keybinds.name_of(action)
 
 
 ## `text` with {move}, {use} and the like swapped for the keys they're on.

@@ -27,15 +27,15 @@ func current() -> Dictionary:
 	var interactor := player.interactor
 	if interactor.revive_target != null:
 		var revive := interactor.revive_progress if interactor.revive_progress > 0.0 else -1.0
-		return {"text": "REVIVE", "key": "F", "progress": revive, "bar": HudStyle.LIFE}
+		return {"text": "REVIVE", "key": Keybinds.cap("interact"), "progress": revive, "bar": HudStyle.LIFE}
 	if interactor.door != null:
 		var unlocking := interactor.progress if interactor.progress > 0.0 else -1.0
-		return {"text": interactor.door.prompt(player.inventory).to_upper(), "key": "F", "progress": unlocking, "bar": HudStyle.BRASS}
+		return {"text": interactor.door.prompt(player.inventory).to_upper(), "key": Keybinds.cap("interact"), "progress": unlocking, "bar": HudStyle.BRASS}
 	if interactor.swing_door != null:
-		return {"text": interactor.swing_door.prompt().to_upper(), "key": "F", "progress": -1.0, "bar": HudStyle.BRASS}
+		return {"text": interactor.swing_door.prompt().to_upper(), "key": Keybinds.cap("interact"), "progress": -1.0, "bar": HudStyle.BRASS}
 	if interactor.target != null:
 		var progress := interactor.progress if interactor.progress > 0.0 else -1.0
-		return {"text": interactor.target.prompt().to_upper(), "key": "F", "progress": progress, "bar": HudStyle.BRASS}
+		return {"text": interactor.target.prompt().to_upper(), "key": Keybinds.cap("interact"), "progress": progress, "bar": HudStyle.BRASS}
 	return {}
 
 
@@ -49,11 +49,11 @@ func _draw() -> void:
 		return
 	var text: String = info["text"]
 	var text_w := HudStyle.text_width(text, 20) - 1.0
-	var lead := 22.0
+	var lead := 22.0 if info["key"] == "" else HudStyle.keycap_width(info["key"], 22.0)
 	var width := 6.0 + lead + 9.0 + text_w + 12.0
 	var rect := Rect2(Vector2(roundf(size.x * 0.5 - width * 0.5), roundf(size.y * 0.5 + BELOW_CENTER)), Vector2(width, PLATE_H))
 	HudStyle.draw_plate(self, rect)
-	var lead_box := Rect2(rect.position + Vector2(6, 5), Vector2(lead, lead))
+	var lead_box := Rect2(rect.position + Vector2(6, 5), Vector2(lead, 22.0))
 	if info["key"] == "":
 		var cross := HudStyle.icon_size(HudStyle.MED, 3)
 		HudStyle.draw_icon(self, HudStyle.MED, (lead_box.get_center() - cross * 0.5).round(), 3, HudStyle.BLOOD)

@@ -1,6 +1,6 @@
 class_name GameSettings
 extends RefCounted
-## Player settings (volume, mouse sensitivity, damage numbers, graphics), saved to user://settings.cfg.
+## Player settings (volume, mouse sensitivity, damage numbers, graphics, rebound keys), saved to user://settings.cfg.
 ## On web, user:// is stored in the browser, so settings survive reloads.
 
 const PATH := "user://settings.cfg"
@@ -60,6 +60,12 @@ static func load_settings() -> void:
 		lean_toggle = cfg.get_value("controls", "lean_toggle", lean_toggle)
 		server_address = cfg.get_value("online", "server_address", server_address)
 		player_name = cfg.get_value("online", "player_name", player_name)
+		# Rebound controls (0.26.0).
+		var codes := {}
+		if cfg.has_section("keys"):
+			for action in cfg.get_section_keys("keys"):
+				codes[action] = cfg.get_value("keys", action)
+		Keybinds.load_saved(codes)
 	if not cfg.has_section_key("graphics", "quality"):
 		graphics = LOW if is_phone() else HIGH
 	else:
@@ -215,6 +221,9 @@ static func _current() -> ConfigFile:
 	cfg.set_value("online", "server_address", server_address)
 	cfg.set_value("online", "player_name", player_name)
 	cfg.set_value("graphics", "quality", graphics)
+	var codes := Keybinds.saved()
+	for action: String in codes:
+		cfg.set_value("keys", action, codes[action])
 	return cfg
 
 

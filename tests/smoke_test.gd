@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "keybinds",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
@@ -3148,6 +3148,77 @@ func _section_backup() -> void:
 	_check(body.get_node_or_null("BackupRow/SaveBackup") != null and body.get_node_or_null("BackupRow/LoadBackup") != null
 		and body.get_node_or_null("BackupConfirm/Yes") != null, "OPTIONS has save backup buttons")
 	body.queue_free()
+
+
+func _section_keybinds() -> void:
+	# Rebinding (0.26.0, Keybinds update): one key per action, saved with the settings, swaps on a clash.
+	Keybinds.reset_all()
+	_check(Keybinds.name_of("interact") == "F" and Keybinds.cap("inventory") == "TAB" and Keybinds.cap("jump") == "SPC"
+		and Keybinds.name_of("aim") == "Right mouse", "default keys read off the input map (F, TAB, SPC, Right mouse)")
+	var g := InputEventKey.new()
+	g.physical_keycode = KEY_G
+	_check(Keybinds.bind("interact", g)["ok"] and Keybinds.name_of("interact") == "G", "use can be put on G")
+	var press := InputEventKey.new()
+	press.physical_keycode = KEY_G
+	press.pressed = true
+	press.shift_pressed = true
+	_check(press.is_action_pressed("interact"), "G works as use, even with Shift held (sprinting)")
+	var r := InputEventKey.new()
+	r.physical_keycode = KEY_R
+	var swap := Keybinds.bind("interact", r)
+	_check(Keybinds.name_of("interact") == "R" and Keybinds.name_of("reload") == "G" and String(swap["note"]).contains("Reload"),
+		"taking reload's key swaps reload onto the old one (%s)" % swap["note"])
+	var ctrl := InputEventKey.new()
+	ctrl.physical_keycode = KEY_CTRL
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	var esc := InputEventKey.new()
+	esc.physical_keycode = KEY_ESCAPE
+	var mouse4 := InputEventMouseButton.new()
+	mouse4.button_index = MOUSE_BUTTON_XBUTTON1
+	_check(Keybinds.refusal(ctrl, true) != "" and Keybinds.refusal(ctrl, false) == "" and Keybinds.refusal(esc, false) != ""
+		and Keybinds.refusal(wheel, false) != "" and Keybinds.refusal(mouse4, true) == "",
+		"Ctrl is refused in the browser only; Escape and the wheel never; mouse 4 is fine")
+	_check(Keybinds.bind("crouch", mouse4)["ok"] and Keybinds.cap("crouch") == "M4", "crouch on mouse 4 (key cap M4)")
+	# Saved with the settings, and a hand-made file can't double keys up or sneak in refused ones.
+	var text := GameSettings.save_text()
+	Keybinds.reset_all()
+	GameSettings.replace_with(text)
+	_check(Keybinds.name_of("interact") == "R" and Keybinds.name_of("reload") == "G" and Keybinds.cap("crouch") == "M4",
+		"rebound keys come back from the saved settings")
+	Keybinds.load_saved({"jump": "key:%d" % KEY_ESCAPE, "map": "key:%d" % KEY_R, "extracts": 5, "sprint": "junk"})
+	_check(Keybinds.name_of("jump") == "Space" and Keybinds.name_of("map") == "M" and Keybinds.name_of("extracts") == "O"
+		and Keybinds.name_of("sprint") == "Shift", "bad or doubled saved keys fall back to the defaults")
+	# Key caps fit any key; the hotbar shows the keys its slots are on.
+	_check(HudStyle.keycap_width("F", 22) == 22.0 and HudStyle.keycap_width("TAB", 22) > 22.0, "key caps widen for longer names")
+	_check(HotbarHUD.slot_action(0) == "weapon_1" and HotbarHUD.slot_action(2) == "hotbar_3"
+		and HotbarHUD.slot_action(2 + Inventory.KNIFE_KEY) == "melee", "hotbar slots map to their actions")
+	# OPTIONS: a row per action; click its button, press a key.
+	Keybinds.reset_all()
+	var body := VBoxContainer.new()
+	root.add_child(body)
+	OptionsPage.build(body)
+	var button := body.get_node_or_null("Key_heal/Bind") as Button
+	_check(button != null and button.text == "H" and body.get_node_or_null("KeysHeading/ResetKeys") != null,
+		"OPTIONS lists the controls with their keys and RESET KEYS")
+	if button != null:
+		button.pressed.emit()
+		_check(button.text == "PRESS A KEY...", "clicking a control waits for a key")
+		var j := InputEventKey.new()
+		j.physical_keycode = KEY_J
+		j.pressed = true
+		root.push_input(j)
+		_check(Keybinds.name_of("heal") == "J" and button.text == "J", "pressing J puts heal on J")
+		button.pressed.emit()
+		var cancel := InputEventKey.new()
+		cancel.physical_keycode = KEY_ESCAPE
+		cancel.pressed = true
+		root.push_input(cancel)
+		_check(Keybinds.name_of("heal") == "J" and button.text == "J", "Escape cancels without changing it")
+		(body.get_node("KeysHeading/ResetKeys") as Button).pressed.emit()
+		_check(Keybinds.name_of("heal") == "H" and button.text == "H", "RESET KEYS puts the defaults back")
+	body.queue_free()
+	Keybinds.reset_all()
 
 
 func _section_mouse() -> void:

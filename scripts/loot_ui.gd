@@ -1326,7 +1326,7 @@ func _build() -> void:
 	footer.add_child(_tabs)
 	_inventory_tab = _tab_button("INVENTORY", false)
 	_quests_tab = _tab_button("QUESTS", true)
-	_footer_hint = _small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · Tab/F close · the raid doesn't pause!")
+	_footer_hint = _small("Drag to move/equip · R rotate · Shift+click quick-move · Right-click for options · %s/%s close · the raid doesn't pause!" % [Keybinds.name_of("inventory"), Keybinds.name_of("interact")])
 	footer.add_child(_footer_hint)
 	_close_button = Button.new()
 	_close_button.text = "CLOSE"

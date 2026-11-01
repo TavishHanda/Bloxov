@@ -79,6 +79,46 @@ const KEY_GLYPHS := {
 	"H": ["#.#", "#.#", "###", "#.#", "#.#"],
 	"A": [".#.", "#.#", "###", "#.#", "#.#"],
 	"M": ["#.#", "###", "###", "#.#", "#.#"],
+	# The rest of the letters and numbers, and a few signs (Keybinds update 0.26.0: any key can be on a key cap).
+	"0": [".#.", "#.#", "#.#", "#.#", ".#."],
+	"7": ["###", "..#", ".#.", ".#.", ".#."],
+	"8": [".#.", "#.#", ".#.", "#.#", ".#."],
+	"9": [".#.", "#.#", ".##", "..#", "##."],
+	"B": ["##.", "#.#", "##.", "#.#", "##."],
+	"C": [".##", "#..", "#..", "#..", ".##"],
+	"D": ["##.", "#.#", "#.#", "#.#", "##."],
+	"E": ["###", "#..", "##.", "#..", "###"],
+	"G": [".##", "#..", "#.#", "#.#", ".##"],
+	"I": ["###", ".#.", ".#.", ".#.", "###"],
+	"J": ["..#", "..#", "..#", "#.#", ".#."],
+	"K": ["#.#", "#.#", "##.", "#.#", "#.#"],
+	"L": ["#..", "#..", "#..", "#..", "###"],
+	"N": ["##.", "#.#", "#.#", "#.#", "#.#"],
+	"P": ["##.", "#.#", "##.", "#..", "#.."],
+	"Q": [".#.", "#.#", "#.#", "##.", ".##"],
+	"R": ["##.", "#.#", "##.", "#.#", "#.#"],
+	"S": [".##", "#..", ".#.", "..#", "##."],
+	"T": ["###", ".#.", ".#.", ".#.", ".#."],
+	"U": ["#.#", "#.#", "#.#", "#.#", "###"],
+	"W": ["#.#", "#.#", "###", "###", "#.#"],
+	"X": ["#.#", "#.#", ".#.", "#.#", "#.#"],
+	"Y": ["#.#", "#.#", ".#.", ".#.", ".#."],
+	"Z": ["###", "..#", ".#.", "#..", "###"],
+	"-": ["...", "...", "###", "...", "..."],
+	"=": ["...", "###", "...", "###", "..."],
+	"/": ["..#", "..#", ".#.", "#..", "#.."],
+	"\\": ["#..", "#..", ".#.", "..#", "..#"],
+	"[": ["##.", "#..", "#..", "#..", "##."],
+	"]": [".##", "..#", "..#", "..#", ".##"],
+	",": ["...", "...", "...", ".#.", "#.."],
+	".": ["...", "...", "...", "...", ".#."],
+	";": ["...", ".#.", "...", ".#.", "#.."],
+	"'": [".#.", ".#.", "...", "...", "..."],
+	"`": ["#..", ".#.", "...", "...", "..."],
+	"^": [".#.", "#.#", "...", "...", "..."],
+	"<": ["..#", ".#.", "#..", ".#.", "..#"],
+	">": ["#..", ".#.", "..#", ".#.", "#.."],
+	" ": [".", ".", ".", ".", "."],
 }
 
 static var _fonts := {}
@@ -259,17 +299,36 @@ static func draw_text(ci: CanvasItem, text: String, pos: Vector2, size: int, col
 	ci.draw_string(f, pos, text, h_align, width, size, color)
 
 
-## A key name ("1".."6", "V", "F", "O", "H") in the hand-drawn key glyphs, `px` per pixel, top-left at `pos`.
+## A key name ("1", "F", "TAB", "SPC") in the hand-drawn key glyphs, `px` per pixel, top-left at `pos`. Letters
+## sit 1 glyph-pixel apart.
 static func draw_key(ci: CanvasItem, key: String, pos: Vector2, color: Color, px := 1.0, shadow := true) -> void:
-	var rows: Array = KEY_GLYPHS.get(key, KEY_GLYPHS["F"])
-	draw_icon(ci, rows, pos, px, color, Color(0, 0, 0, 0.8) if shadow else Color(0, 0, 0, 0))
+	var x := 0.0
+	for letter in key:
+		var rows: Array = KEY_GLYPHS.get(letter, KEY_GLYPHS["F"])
+		draw_icon(ci, rows, pos + Vector2(x, 0), px, color, Color(0, 0, 0, 0.8) if shadow else Color(0, 0, 0, 0))
+		x += (String(rows[0]).length() + 1) * px
+
+
+## The size `draw_key` draws `key` at.
+static func key_size(key: String, px := 1.0) -> Vector2:
+	var width := -1.0
+	for letter in key:
+		width += String(KEY_GLYPHS.get(letter, KEY_GLYPHS["F"])[0]).length() + 1
+	return Vector2(maxf(width, 0.0), 5) * px
+
+
+## How wide a key cap `height` tall has to be for `key` (square for one letter, longer for "TAB").
+static func keycap_width(key: String, height: float) -> float:
+	var px := maxf(floorf((height - 8.0) / 5.0), 1.0)
+	return maxf(height, key_size(key, px).x + 8.0)
 
 
 ## A key cap: a small cream beveled block with the key's glyph centered on it (for "[F] Search"-style prompts).
+## Size the rect with keycap_width.
 static func draw_keycap(ci: CanvasItem, rect: Rect2, key: String) -> void:
 	draw_block(ci, rect, INK, Color.WHITE, INK.darkened(0.45), 2.0)
 	var px := maxf(floorf((rect.size.y - 8.0) / 5.0), 1.0)
-	var glyph := Vector2(3, 5) * px
+	var glyph := key_size(key, px)
 	draw_key(ci, key, (rect.get_center() - glyph * 0.5 - Vector2(0, 1)).round(), DEEP, px, false)
 
 

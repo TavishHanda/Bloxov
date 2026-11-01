@@ -88,7 +88,9 @@ func _draw_list() -> void:
 	HudStyle.draw_plate(self, rect)
 	# Header: EXTRACTS and the O key cap, over a groove.
 	HudStyle.draw_label(self, "EXTRACTS", rect.position + Vector2(12, HudStyle.centered_baseline(15, 8, HudStyle.label_font())), HudStyle.INK_DIM)
-	HudStyle.draw_keycap(self, Rect2(rect.position + Vector2(LIST_WIDTH - 12 - 18, 6), Vector2(18, 18)), "O")
+	var cap := Keybinds.cap("extracts")
+	var cap_w := HudStyle.keycap_width(cap, 18)
+	HudStyle.draw_keycap(self, Rect2(rect.position + Vector2(LIST_WIDTH - 12 - cap_w, 6), Vector2(cap_w, 18)), cap)
 	draw_rect(Rect2(rect.position + Vector2(8, 29), Vector2(LIST_WIDTH - 16, 1)), HudStyle.FACE_DK)
 	draw_rect(Rect2(rect.position + Vector2(8, 30), Vector2(LIST_WIDTH - 16, 1)), HudStyle.FACE_HI)
 	for i in rows.size():

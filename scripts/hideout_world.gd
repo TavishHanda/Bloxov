@@ -89,7 +89,7 @@ func _ready() -> void:
 	add_child(_menu_layer)
 	menu = MENU.instantiate()
 	_menu_layer.add_child(menu)
-	var back: Button = menu.add_back_button("< HIDEOUT", "Back to walking round the hideout (Tab)", close_menu)
+	var back: Button = menu.add_back_button("< HIDEOUT", "Back to walking round the hideout (%s)" % menu_key(), close_menu)
 	back.visible = not GameSettings.is_phone()
 	# Online (back from a raid with your party) or on a phone: start on the menu.
 	if Network.main.is_client() or GameSettings.is_phone():
@@ -140,7 +140,7 @@ func _build_hud() -> void:
 	# Big buttons for touch screens (and the mouse): MENU always, USE when something is in reach.
 	_menu_button = Button.new()
 	_menu_button.name = "MenuButton"
-	_menu_button.text = "MENU  (Tab)"
+	_menu_button.text = "MENU  (%s)" % menu_key()
 	_menu_button.focus_mode = Control.FOCUS_NONE
 	_menu_button.custom_minimum_size = Vector2(170, 56)
 	_menu_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -390,14 +390,14 @@ func _build_range(level: Node3D) -> void:
 			continue
 		_range_guns.append([_range_button(box, "", id, false), id, int(entry[2])])
 	_refresh_range_guns()
-	var leave := _range_button(box, "LEAVE THE RANGE  (Tab)", "", true)
+	var leave := _range_button(box, "LEAVE THE RANGE  (%s)" % menu_key(), "", true)
 	leave.name = "LeaveRange"
 	_range_hud = CanvasLayer.new()
 	_range_hud.layer = 3
 	_range_hud.visible = false
 	add_child(_range_hud)
 	var info := Label.new()
-	info.text = "SHOOTING RANGE    %s: change gun    Tab: leave" % use_key()
+	info.text = "SHOOTING RANGE    %s: change gun    %s: leave" % [use_key(), menu_key()]
 	info.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info.position = Vector2(-300, 14)
@@ -413,7 +413,7 @@ func _build_range(level: Node3D) -> void:
 	HudStyle.style_label(_last_hit, 20)
 	_range_hud.add_child(_last_hit)
 	# Big buttons for touch screens: change gun, leave.
-	for spec: Array in [["GUNS  (%s)" % use_key(), Vector2(-194, 12), _show_picker], ["LEAVE  (Tab)", Vector2(-194, 80), leave_range]]:
+	for spec: Array in [["GUNS  (%s)" % use_key(), Vector2(-194, 12), _show_picker], ["LEAVE  (%s)" % menu_key(), Vector2(-194, 80), leave_range]]:
 		var button := Button.new()
 		button.text = spec[0]
 		button.focus_mode = Control.FOCUS_NONE
@@ -561,13 +561,14 @@ func _show_last_hit() -> void:
 	_last_hit.text = "%d damage%s at %d m" % [_hit_damage, " (HEAD)" if _hit_head else "", roundi(_hit_distance)]
 
 
-## The key the use (interact) action is on, for the prompts: F today (E leans in a raid; 0.21.4, owner).
+## The key the use (interact) action is on, for the prompts: F by default (E leans in a raid; 0.21.4, owner).
 static func use_key() -> String:
-	for event in InputMap.action_get_events("interact"):
-		if event is InputEventKey:
-			var key := event as InputEventKey
-			return OS.get_keycode_string(key.physical_keycode if key.physical_keycode != KEY_NONE else key.keycode)
-	return "F"
+	return Keybinds.name_of("interact")
+
+
+## The key the inventory action is on (Tab by default): it opens and closes the hideout menu.
+static func menu_key() -> String:
+	return Keybinds.name_of("inventory")
 
 
 # --- The quests and stats boards (0.21.4, owner: "give it more of its own space", "stats board more visible") ---
