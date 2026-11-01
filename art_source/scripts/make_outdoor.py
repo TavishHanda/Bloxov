@@ -3172,21 +3172,9 @@ CROP_LOOK = {"b": ("dbr_wheat", "dbr_wheat_top"), "c": ("dbr_maize", "dbr_maize_
 
 
 def draw_crops(b, piece, rng):
-    """A strip of crops: wheat (b), young maize (c) or sunflowers going over (d). The crops themselves are swaying cards
-    (scripts/trees.gd kinds 5-7, from the generator); this is the dense stand in the middle under them, about half their
-    height, so the strip reads as the solid waist-high cover its box is (the cards hide its edges)."""
-    box = piece["boxes"][0]
-    side, top = CROP_LOOK[piece["look"]]
-    (x, y, z), s = box["pos"], box["size"]
-    y0 = y - s[1] / 2
-    seg = 0.8
-    n = int(s[0] / seg)
-    style = lambda n_, m, q: None if n_[1] < -0.7 else ((top, uv_world(1.0)) if n_[1] > 0.7 else (side, uv_world(1.0)))
-    for k in range(n):
-        xc = x - s[0] / 2 + seg * (k + 0.5)
-        h = rng.uniform(0.45, 0.6)
-        b.box((xc, y0 + h / 2 - 0.05, z + rng.uniform(-0.08, 0.08)), (seg + 0.05, h + 0.1, s[2] - 1.3 + rng.uniform(-0.1, 0.1)),
-              yaw=rng.uniform(-2, 2), style=style)
+    """A strip of crops: wheat (b), young maize (c) or sunflowers going over (d), drawn as swaying cards by
+    scripts/trees.gd (kinds 5-7, from the generator). (0.28.7, owner: the crops are walk-through like bushes and part
+    round you, so the solid-looking stand that used to fill the strip under the cards is gone: nothing drawn here.)"""
 
 
 def draw_hay(b, piece, rng):

@@ -4586,8 +4586,10 @@ def farmland(x, z):
 
 @debris_kind("crops")
 def crops(x, z):
-    """A strip of crops in the farm's field, waist high (low cover): wheat, maize or sunflowers by the look."""
-    box(x - 26, 0, z - 1.5, x + 26, 1.0, z + 1.5, "crop")
+    """A strip of crops in the farm's field, waist high: wheat, maize or sunflowers by the look. (0.28.7, owner: "make
+    it like bushes, we can walk through it, slows down movement": walk-through like a bush, hides you from the AI,
+    parts round you; BoxMap.CROP_COLOUR. Solid low cover before.)"""
+    box(x - 26, 0, z - 1.5, x + 26, 1.0, z + 1.5, "crop", solid=False)
 
 
 @debris_kind("tractor")
@@ -6764,8 +6766,8 @@ def write_outdoor(ter):
             b = boxes[ks[0]]
             crng = random.Random(f"crops {x:.2f} {z:.2f}")
             kind, tall = {"b": (5, 1.0), "c": (6, 1.06), "d": (7, 1.02)}[look]
-            n = int(b[3] / 0.6)
-            for row in (-1.0, -0.33, 0.33, 1.0):
+            n = int(b[3] / 0.45)   # (0.28.7: denser, now there's no solid stand under them to fill the strip)
+            for row in (-1.0, -0.6, -0.2, 0.2, 0.6, 1.0):
                 for k in range(n):
                     tree_data.append((b[0] - b[3] / 2 + (k + crng.uniform(0.2, 0.8)) * b[3] / n, b[1] - b[4] / 2 - 0.03,
                                       b[2] + row * 1.1 + crng.uniform(-0.15, 0.15), tall * crng.uniform(0.9, 1.04),

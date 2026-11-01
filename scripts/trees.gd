@@ -36,6 +36,7 @@ const FILL := [Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2), Vector2i(0, 2)]
 @export var data := PackedFloat32Array()
 
 var _st: SurfaceTool
+var _material: ShaderMaterial
 var _origin := Vector3.ZERO   # (the square being built: trees are drawn relative to its middle)
 var _coarse := false          # (far version: leaf blocks and trunks in one piece a face)
 var _rng := RandomNumberGenerator.new()
@@ -45,6 +46,7 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless" or sheet == null:
 		return
 	var material := ShaderMaterial.new()
+	_material = material
 	material.shader = SHADER
 	material.set_shader_parameter("sheet", sheet)
 	var cells := {}   # square -> [full trees, far version]
@@ -471,3 +473,9 @@ func _fern(at: Vector3, turn: Basis, h: float, w: float) -> void:
 		var across := out.cross(Vector3.UP).normalized() * w * 0.16
 		var ay := tip * 0.5
 		_card(at, turn, ay + Vector3(0, 0.02, 0), across, ay, Vector2i(3, 2), mid, half, 0.0)
+
+
+func _process(_delta: float) -> void:
+	# (0.28.7, owner: the crops move out of the way like the bushes; looks only)
+	if _material != null and not Engine.is_editor_hint():
+		_material.set_shader_parameter(&"pushers", Reacts.pushers(self))

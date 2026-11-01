@@ -4836,12 +4836,16 @@ func _section_old_bloxov() -> void:
 	# 0.18.3 (owner: hitboxes didn't match the models; bushes stopped shots; barred windows were jumpable): boulders,
 	# banks, crater rims and the train collide as drawn, every bush is walk-through, barred windows have their boxes.
 	var solid_bushes := 0
+	var crop_strips := 0
 	for i in range(0, blocks.boxes.size(), BoxMap.STRIDE):
-		if blocks.colors[int(blocks.boxes[i + 8])].is_equal_approx(BoxMap.BUSH_COLOUR) and int(blocks.boxes[i + 9]) in [1, 2]:
+		var leafy: Color = blocks.colors[int(blocks.boxes[i + 8])]   # (0.28.7: the farm's crops are bushes too)
+		if (leafy.is_equal_approx(BoxMap.BUSH_COLOUR) or leafy.is_equal_approx(BoxMap.CROP_COLOUR)) and int(blocks.boxes[i + 9]) in [1, 2]:
 			solid_bushes += 1
-	_check(blocks.shaped_indices.size() > 3000 and blocks.bar_boxes.size() >= 7 * 10 and solid_bushes == 0,
-		"the map collides as drawn (%d shaped triangles, %d barred windows, %d solid bushes)"
-		% [blocks.shaped_indices.size() / 3, blocks.bar_boxes.size() / 7, solid_bushes])
+		elif leafy.is_equal_approx(BoxMap.CROP_COLOUR):
+			crop_strips += 1
+	_check(blocks.shaped_indices.size() > 3000 and blocks.bar_boxes.size() >= 7 * 10 and solid_bushes == 0 and crop_strips >= 5,
+		"the map collides as drawn (%d shaped triangles, %d barred windows, %d solid bushes, %d walk-through crop strips)"
+		% [blocks.shaped_indices.size() / 3, blocks.bar_boxes.size() / 7, solid_bushes, crop_strips])
 	# 0.19.8/0.19.9 (owner: "i cannot shoot through these cracks in the bus stop, stuff like this needs to be fixed"):
 	# the station square's bus shelter lets shots through its missing pane and glass, not its kick plate, and still
 	# stops people; car windows, gaps under tables and the like are the same (shot triangles inside people boxes).

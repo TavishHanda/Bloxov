@@ -27,6 +27,9 @@ const LEAVES_COLOUR := Color(0.3, 0.5, 0.26)
 ## (a body of their own on this layer, 7, that only the AI's eyes check, not its shots), and anyone in one moves slower.
 const BUSH_COLOUR := Color(0.3, 0.5, 0.27)
 const BUSH_LAYER := 64
+## The farm field's crop strips (0.28.7, owner: "make it like bushes, we can walk through it, slows down movement"):
+## boxes in this colour that don't collide are bushes in every way (the AI can't see through, you move slower).
+const CROP_COLOUR := Color(0.72, 0.68, 0.38)
 ## Barred and boarded-up windows (0.18.3, owner: "make sure windows that are barred up ... arent jumpable"): a box per
 ## window on this layer (8) stops players (their collision mask has it) and vaulting, not bullets or eyes.
 const BARS_LAYER := 128
@@ -813,7 +816,7 @@ func _add_leaves() -> void:
 		# (non-solid leaves: drawn here, or hidden under a model (3), like the walk-through bushes of World art 0.17)
 		if int(boxes[i + 9]) not in [0, 3] or index >= colors.size():
 			continue
-		var bush := colors[index].is_equal_approx(BUSH_COLOUR)
+		var bush := colors[index].is_equal_approx(BUSH_COLOUR) or colors[index].is_equal_approx(CROP_COLOUR)
 		if not bush and not colors[index].is_equal_approx(LEAVES_COLOUR):
 			continue
 		var turn := Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))

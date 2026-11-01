@@ -7,6 +7,7 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 
 uniform sampler2D sheet : source_color, filter_nearest_mipmap, repeat_disable;
 uniform float sway = 0.08;
+#include "res://assets/shaders/push.gdshaderinc"
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -14,6 +15,10 @@ void vertex() {
 	float k = COLOR.a;
 	VERTEX.x += sin(t + world.x * 0.21 + world.z * 0.13) * sway * k;
 	VERTEX.z += cos(t * 0.8 + world.z * 0.21) * sway * 0.7 * k;
+	// (0.28.7: the farm's crops, the sheet's bottom row, part round whoever walks through them; looks only)
+	if (UV.y > 0.75) {
+		VERTEX += push_offset(world, 0.9, TIME) * (0.25 + 0.75 * k);
+	}
 }
 
 void fragment() {

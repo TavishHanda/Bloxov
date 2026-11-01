@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.7 (Walk through the crops)
+- Owner: "for the farm field, make it like bushes, we can walk through it, slows down movement ... also make that
+  physics moving out of the way too". The five crop strips (wheat, maize, sunflowers) are walk-through now: you move
+  slower in them, the AI can't see you through them, and the stalks part round whoever walks through, like the
+  bushes. Like bushes they no longer stop bullets (they were solid waist-high cover before).
+- The solid-looking block under the stalks is gone and the stalks are denser, so walking in doesn't clip through it.
+
 ## 0.28.6 (Farm hitboxes: barn stalls and the silo)
 - Owner: "inside the barn the little stables that are opened are closed ... lowkey check whole farm". Each stall's gate
   is drawn swung open into the aisle, but an invisible wall closed the stall's whole front and the gate itself had no
