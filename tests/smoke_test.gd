@@ -5612,7 +5612,7 @@ func _section_reacts() -> void:
 	main.add_child(cloth)
 	await physics_frame
 	var sheet := cloth.get_child(0) as MeshInstance3D
-	_check(sheet != null and sheet.mesh.get_faces().size() == 4 * 5 * 6, "a curtain is one hanging sheet")
+	_check(sheet != null and sheet.mesh.get_faces().size() == 8 * 5 * 6, "a curtain is one hanging sheet")
 	_check(Reacts.pushers(cloth)[0].w > 0.0, "and the player pushes curtains and bushes aside")
 	cloth.queue_free()
 	# Blinds (0.23.4, owner: climb through the motel's windows, the blinds swing aside): one hung across your way,
@@ -5714,11 +5714,30 @@ func _section_reacts() -> void:
 		life.set_meta(key, ground + Vector3(0, 1, 0))
 	main.add_child(life)
 	await physics_frame
-	_check(life.steam != null and life.dust != null and life.glows.size() == 8
+	_check(life.steam != null and life.dust != null and life.glows.size() == 1
 		and not life.find_children("*", "CollisionObject3D", true, false),
 		"the hideout has steam, the stove's fire, the TV's picture and dust, and none of it collides")
 	life.queue_free()
+	# The hideout's hanging signs (0.28.8, owner: "they should like move if u run into them"): knocked, they swing back.
+	var hung: Node3D = load("res://scripts/hanging_signs.gd").new()
+	hung.set_meta(&"force_reacts", true)
+	hung.data = PackedFloat32Array([ground.x, ground.y + 6.0, ground.z, 1.0, 0.0, 3.0, 1.5, 0.3])
+	hung.models = PackedStringArray(["res://assets/models/movers/hideout_0.glb"])
+	main.add_child(hung)
+	await physics_frame
+	hung.knock(0, Vector3(0.0, 0.0, 1.5))
+	var sign_swung := 0.0
+	for i in 30:
+		await physics_frame
+		sign_swung = maxf(sign_swung, absf(hung.swing[0]))
+	_check(hung.parts.size() == 1 and sign_swung > 0.05 and sign_swung <= 0.22
+		and not hung.find_children("*", "CollisionObject3D", true, false),
+		"a hanging sign swings when knocked (%.2f rad), not too far, and nothing on it collides" % sign_swung)
+	hung.queue_free()
 	var hideout_level := (load("res://scenes/hideout/hideout_level.tscn") as PackedScene).instantiate()
+	var level_signs := hideout_level.get_node_or_null("Signs")
+	_check(level_signs != null and level_signs.models.size() == 5 and level_signs.data.size() == 5 * 8,
+		"the hideout's five trader signs hang from the roof and swing")
 	var level_life := hideout_level.get_node_or_null("Life")
 	_check(level_life != null and level_life.has_meta(&"steam") and level_life.has_meta(&"tv"),
 		"the hideout says where its steam and TV are")

@@ -6,7 +6,7 @@ extends Node3D
 
 const STRIDE := 7          # centre x, y, z, width, height, yaw (degrees), baked light
 const SHADER := preload("res://assets/shaders/cloth.gdshader")
-const ACROSS := 4          # quads across a sheet
+const ACROSS := 8          # quads across a sheet (0.28.8: 4 -> 8, so it can part round you)
 const DOWN := 5            # quads down it
 
 @export var data := PackedFloat32Array()
@@ -47,6 +47,7 @@ func _sheet(st: SurfaceTool, i: int) -> void:
 				var g: Vector2 = corners[k]
 				var down := g.y / DOWN
 				st.set_color(Color(c.r * light, c.g * light, c.b * light, down))
+				st.set_uv(Vector2(g.x / ACROSS * w, down * h))   # (metres: the fabric's weave, 0.28.8)
 				st.set_normal(normal)
 				st.add_vertex(centre + turn * Vector3((g.x / ACROSS - 0.5) * w, h / 2.0 - down * h, 0.0))
 

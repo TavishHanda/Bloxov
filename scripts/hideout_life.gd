@@ -17,15 +17,16 @@ func _ready() -> void:
 		return
 	if has_meta(&"steam"):
 		steam = _steam(get_meta(&"steam"))
-	if has_meta(&"fire"):
-		var at: Vector3 = get_meta(&"fire")
-		for k in 8:   # two vents on each flat of the drum (its middles are behind the other square's corners)
-			var turn := (k / 2) * PI * 0.5
-			var side := Vector3.RIGHT.rotated(Vector3.UP, turn)
-			var along := Vector3.BACK.rotated(Vector3.UP, turn) * (0.17 if k % 2 else -0.17)
-			var glow := _glow(Vector3(0.006, 0.06, 0.08), Color(1.0, 0.42, 0.1), 1.2)
-			glow.position = at + side * 0.253 + along + Vector3.UP * 0.1
-			glow.rotation.y = turn
+	if has_meta(&"fire"):   # (0.28.8: the stove's door, its fire showing between the grate's bars, and the ash door's crack)
+		var dir: Vector3 = get_meta(&"fire_dir", Vector3.LEFT)
+		var turn := atan2(dir.z, -dir.x) if absf(dir.x) > 0.001 or absf(dir.z) > 0.001 else 0.0
+		var fire := _glow(Vector3(0.006, 0.16, 0.17), Color(1.0, 0.42, 0.1), 1.3)
+		fire.position = get_meta(&"fire")
+		fire.rotation.y = turn
+		if has_meta(&"ash"):
+			var ash := _glow(Vector3(0.006, 0.012, 0.15), Color(1.0, 0.3, 0.06), 0.8)
+			ash.position = (get_meta(&"ash") as Vector3) + Vector3.UP * 0.036
+			ash.rotation.y = turn
 	if has_meta(&"tv"):
 		var screen := MeshInstance3D.new()   # (a quad over the model's glowing screen, facing out into the room)
 		var quad := QuadMesh.new()

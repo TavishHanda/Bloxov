@@ -455,7 +455,7 @@ def paint_hd_slats(rng):
 def paint_hd_iron(rng):
     """Black iron (pipes, drums, scaffold, rails): mottled, rust coming through and running down."""
     c = mb.Canvas(64, 64, "iron")
-    c.noise(0, 0, 64, 64, ["iron_dark"], 0.12, rng)
+    c.noise(0, 0, 64, 64, ["iron_dark"], 0.07, rng)
     for _ in range(6):
         x, y = rng.randrange(64), rng.randrange(64)
         c.put(x, y, "rust")
@@ -489,6 +489,29 @@ def paint_hd_cushion(rng):
     return c
 
 
+def paint_hd_castiron(rng):
+    """Cast iron (the stove): near-black, a soft grain, rubbed to grey on the edges, a little rust."""
+    c = mb.Canvas(64, 64, "charcoal")
+    c.noise(0, 0, 64, 64, ["charcoal_dark", "iron_dark"], 0.18, rng)
+    c.blotch(["iron"], 5, rng, size=(2, 5))
+    c.blotch(["rust"], 2, rng, size=(1, 2))
+    return c
+
+
+def paint_hd_log(rng):
+    """A split log seen from the side: bark on part of it, the pale split face, the rings at the ends."""
+    c = mb.Canvas(64, 64, "wood")
+    for y in range(64):
+        for x in range(64):
+            if (x + (y // 4) * 3) % 16 < 3:
+                c.put(x, y, "wood_mid")
+    c.rect(0, 40, 64, 64, "wood_dark")                                 # the bark
+    c.noise(0, 40, 64, 64, ["charcoal_dark", "wood_mid"], 0.3, rng)
+    c.blotch(["wood_light", "wood_pale"], 6, rng, area=(0, 0, 64, 40), size=(2, 5))
+    return c
+
+
+mb.KIT.update({"hd_castiron": paint_hd_castiron, "hd_log": paint_hd_log})
 mb.KIT.update({"hd_crate": paint_hd_crate("olive", "hd_ol_hi", "hd_ol_lo"),
                "hd_crate_dk": paint_hd_crate("olive_dark", "hd_old_hi", "hd_old_lo"),
                "hd_band": paint_hd_band, "hd_canvas": paint_hd_canvas("olive", "hd_ol_hi", "hd_ol_lo"),
@@ -592,6 +615,7 @@ def write_door_texture(rows_):
         mb.write_png(os.path.join(mb.ROOT, "assets", "textures", "hangout_secret.png"), len(rows[0]), len(rows), rows)
 
 
+HANG_SIGNS = []     # (0.28.8) the bays' hanging signs for scripts/hanging_signs.gd: pivot, axis x, z, length, half w, h
 LIFE = {}           # (0.28.5) where scripts/hideout_life.gd puts the stove's steam and fire, the dust, the TV
 DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
 
@@ -1372,16 +1396,32 @@ class Frame:
 
 
 def sign_board(ctx, F, out, y, region, w=3.0, h=0.55, wires=True):
-    """A sheet of tin with the bay's name painted on, facing out of the bay."""
+    """A sheet of tin with the bay's name painted on, facing out of the bay. With `wires` it hangs on two cables from
+    the roof and swings (0.28.8, owner: "these signs arent even attached properly", "they should like move if u run
+    into them"): taken out of the model as a mover, swung by scripts/hanging_signs.gd."""
     b = ctx.b
+    f0 = len(b.faces)
     F.box(b, out - 0.035, y, 0.0, 0.03, h, w, mb._solid("shed_metal"))      # (2 cm behind the paint)
     n = (F.n[0], 0.0, F.n[1])
     pts = [F.P(out, y - h / 2 + 0.03, -w / 2 + 0.04), F.P(out, y - h / 2 + 0.03, w / 2 - 0.04),
            F.P(out, y + h / 2 - 0.03, w / 2 - 0.04), F.P(out, y + h / 2 - 0.03, -w / 2 + 0.04)]
     b.poly(pts, n, "decals", ctx.d(region))
     if wires:
+        tops = []
         for s in (-1, 1):
-            pipe(b, F.P(out, y + h / 2, s * w * 0.4), F.P(out, y + 1.2, s * w * 0.3), "bk_cable", 0.015)
+            low = F.P(out - 0.02, y + h / 2, s * w * 0.4)
+            top = F.P(out - 0.02, y + 1.2, s * w * 0.36)
+            roof = tunnel_roof(top[0], top[2])
+            if roof is not None:
+                top = (top[0], roof - 0.03, top[2])                # (up to the arch: they ended in the air)
+            pipe(b, (low[0], low[1] - 0.04, low[2]), top, "bk_cable", 0.015)
+            b.box((low[0], low[1] + 0.01, low[2]), (0.05, 0.05, 0.05), style=mb._nb("bk_iron"))   # a clip on the tin
+            tops.append(top)
+        pivot = tuple((tops[0][k] + tops[1][k]) / 2 for k in range(3))
+        mb.mover(b, "sign", f0, pivot, (F.t[0], 0.0, F.t[1]))
+        HANG_SIGNS.append(pivot + (F.t[0], F.t[1], round(pivot[1] - (F.y0 + y), 3), w / 2, h / 2))
+        for top in tops:
+            hook(b, top)                                           # (the eyes in the rock stay put)
 
 
 # ------------------------------------------------------------------------------------------------ the bays
@@ -1406,7 +1446,7 @@ def bay(ctx, rng, i, entry):
     if kind == "tin":
         for s in (-1, 1):
             tin_side(b, F, rng, s * w / 2, depth, mat)
-        sign_board(ctx, F, depth + 0.3, 3.1, "sign_" + bid, w=min(3.4, w - 0.6))
+        sign_board(ctx, F, depth + 0.3, 2.95, "sign_" + bid, w=min(3.4, w - 0.6))   # (0.28.8: a jump heads it)
     elif kind == "cage":
         for s in (-1, 1):                                             # mesh panels on tubes
             for out in (0.1, depth):
@@ -1595,14 +1635,83 @@ def mess(ctx):
         crate(b, kx + k[0] * e, 0.0, kz + k[2] * e, 0.7, 0.83, 0.6, yaw=kyaw, mat="olive_dark")
     block(kx, 0.0, kz, 0.8, 0.9, 2.6, kyaw)
     sx, sz = kx + k[0] * 2.3, kz + k[2] * 2.3
-    drum(b, sx, sz, mat="bk_iron")                                     # the stove, its pipe up into the rock
-    pipe(b, (sx, 0.9, sz), (sx, 4.5, sz), "bk_iron", 0.1)
-    b.box((sx, 0.98, sz), (0.3, 0.16, 0.3), style=mb._nb("metal"))    # a pot
-    LIFE["steam"] = (sx, 1.07, sz)                                     # (0.28.5: steam off it, the fire's glow under it)
-    LIFE["fire"] = (sx, 0.12, sz)
+    stove(b, sx, sz, rng)
     drum(b, kx - k[0] * 2.3, kz - k[2] * 2.3, mat="shed_metal")       # water
     block(kx - k[0] * 2.3, 0.0, kz - k[2] * 2.3, 0.6, 0.95, 0.6)
-    block(sx, 0.0, sz, 0.6, 1.0, 0.6)
+    block(sx, 0.0, sz, 0.7, 1.0, 0.7)
+
+
+def prism(b, x, z, rings, mat, sides=10, turn=0.0):
+    """A round thing as flat sides: `rings` is [(y, radius), ...] from the bottom up; capped top and bottom."""
+    def ring(y, r):
+        return [(x + r * math.cos(turn + 2 * math.pi * (k + 0.5) / sides), y,
+                 z + r * math.sin(turn + 2 * math.pi * (k + 0.5) / sides)) for k in range(sides)]
+    for (y0, r0), (y1, r1) in zip(rings, rings[1:]):
+        lo, hi = ring(y0, r0), ring(y1, r1)
+        for k in range(sides):
+            a = turn + 2 * math.pi * (k + 1) / sides
+            slope = (r0 - r1) / max(1e-6, y1 - y0)
+            n = mb.norm((math.cos(a), slope, math.sin(a)))
+            b.poly([lo[k], lo[(k + 1) % sides], hi[(k + 1) % sides], hi[k]], n, mat, mb.uv_world(1.0))
+    b.poly(list(reversed(ring(*rings[0]))), (0, -1, 0), mat, mb.uv_world(1.0))
+    b.poly(ring(*rings[-1]), (0, 1, 0), mat, mb.uv_world(1.0))
+
+
+def stove(b, x, z, rng):
+    """The mess's wood stove (0.28.8, owner: the drum "just looks bad"): a cast-iron pot-belly on four legs, a door
+    with a grate the fire shows through, a hob ring on top with the pot and a kettle, the flue up into the rock with a
+    damper, a bucket of ash and a pile of split logs beside it."""
+    face = mb.norm((-1.0, 0.0, 0.0))                                   # (its door faces into the room)
+    side = (-face[2], 0.0, face[0])
+    for dx, dz in ((-0.2, -0.2), (0.2, -0.2), (-0.2, 0.2), (0.2, 0.2)):   # legs, splayed feet
+        b.box((x + dx, 0.07, z + dz), (0.07, 0.14, 0.07), style=mb._nb("hd_castiron"))
+        b.box((x + dx * 1.1, 0.015, z + dz * 1.1), (0.1, 0.03, 0.1), style=mb._nb("hd_castiron"))
+    prism(b, x, z, [(0.14, 0.27), (0.2, 0.29), (0.32, 0.34), (0.55, 0.35), (0.72, 0.31), (0.8, 0.27)], "hd_castiron")
+    for y in (0.18, 0.78):                                             # the bands round it
+        prism(b, x, z, [(y - 0.02, 0.3 if y < 0.5 else 0.285), (y + 0.02, 0.3 if y < 0.5 else 0.285)], "bk_iron")
+    prism(b, x, z, [(0.8, 0.32), (0.85, 0.32)], "hd_castiron")         # the hob
+    prism(b, x, z, [(0.85, 0.2), (0.865, 0.2)], "bk_iron", sides=8)    # its ring
+    d = lambda o, y, a: (x + face[0] * o + side[0] * a, y, z + face[2] * o + side[2] * a)   # noqa: E731
+    yaw = math.degrees(math.atan2(face[0], face[2]))
+    b.box(d(0.34, 0.46, 0.0), (0.26, 0.24, 0.03), yaw=yaw, style=mb._nb("hd_castiron"))     # the door
+    for a in (-0.06, 0.0, 0.06):                                       # its grate (the fire shows between the bars)
+        b.box(d(0.36, 0.46, a), (0.025, 0.16, 0.012), yaw=yaw, style=mb._nb("bk_iron"))
+    b.box(d(0.365, 0.46, 0.15), (0.03, 0.05, 0.04), yaw=yaw, style=mb._nb("bk_iron"))      # the latch
+    b.box(d(0.385, 0.46, 0.16), (0.015, 0.015, 0.06), yaw=yaw, style=mb._nb("hd_steel"))   # its handle
+    b.box(d(0.31, 0.22, 0.0), (0.18, 0.06, 0.03), yaw=yaw, style=mb._nb("hd_castiron"))     # the ash door
+    LIFE["fire"] = d(0.357, 0.46, 0.0)                                 # (scripts/hideout_life.gd: the fire behind the bars)
+    LIFE["ash"] = d(0.327, 0.22, 0.0)
+    LIFE["fire_dir"] = face
+    # The flue: out of the back of the top, a damper, a bend and up into the rock.
+    fx, fz = x - face[0] * 0.12, z - face[2] * 0.12
+    prism(b, fx, fz, [(0.86, 0.075), (2.2, 0.075)], "bk_iron", sides=8)
+    prism(b, fx, fz, [(1.35, 0.085), (1.39, 0.085)], "hd_castiron", sides=8)                 # the damper's collar
+    b.box((fx + side[0] * 0.1, 1.37, fz + side[2] * 0.1), (0.02, 0.02, 0.12), yaw=yaw + 90, style=mb._nb("hd_steel"))
+    prism(b, fx, fz, [(2.2, 0.09), (2.26, 0.09)], "hd_castiron", sides=8)
+    prism(b, fx, fz, [(2.26, 0.075), (4.6, 0.075)], "bk_iron", sides=8)
+    # On the hob: the pot (steaming) and a kettle.
+    px, pz = x + side[0] * 0.1, z + side[2] * 0.1
+    prism(b, px, pz, [(0.865, 0.12), (1.03, 0.12)], "metal", sides=8)
+    prism(b, px, pz, [(1.03, 0.125), (1.045, 0.125)], "bk_iron", sides=8)
+    LIFE["steam"] = (px, 1.06, pz)
+    kx, kz = x - side[0] * 0.13 + face[0] * 0.08, z - side[2] * 0.13 + face[2] * 0.08
+    prism(b, kx, kz, [(0.865, 0.08), (0.97, 0.09), (1.0, 0.06)], "hd_steel", sides=8)
+    pipe(b, (kx + face[0] * 0.08, 0.94, kz + face[2] * 0.08), (kx + face[0] * 0.15, 0.99, kz + face[2] * 0.15), "hd_steel", 0.02)
+    pipe(b, (kx - side[0] * 0.05, 1.04, kz - side[2] * 0.05), (kx + side[0] * 0.05, 1.04, kz + side[2] * 0.05), "bk_cable", 0.015)
+    # Beside it: a bucket of ash with a poker, and split logs stacked against the wall.
+    bx, bz = x + side[0] * 0.55 + face[0] * 0.05, z + side[2] * 0.55 + face[2] * 0.05
+    prism(b, bx, bz, [(0.0, 0.13), (0.3, 0.16)], "shed_metal", sides=8)
+    prism(b, bx, bz, [(0.27, 0.15), (0.275, 0.15)], "bk_old_ceiling", sides=8)
+    pipe(b, (bx, 0.2, bz), (bx - face[0] * 0.1 + side[0] * 0.05, 0.78, bz - face[2] * 0.1 + side[2] * 0.05), "bk_iron", 0.018)
+    lx, lz = x - side[0] * 0.6 - face[0] * 0.05, z - side[2] * 0.6 - face[2] * 0.05
+    for row in range(3):
+        for k in range(3 - row):
+            o = (k - (2 - row) / 2) * 0.15
+            c = (lx + face[0] * o, 0.065 + row * 0.12, lz + face[2] * o)
+            b.box(c, (0.12, 0.12, 0.42 + rng.uniform(-0.04, 0.04)), yaw=yaw + 90 + rng.uniform(-6, 6),
+                  style=mb._nb(rng.choice(("hd_log", "hd_log", "wood_dark"))))
+    block(bx, 0.0, bz, 0.34, 0.3, 0.34)
+    block(lx, 0.0, lz, 0.46, 0.36, 0.5)
 
 
 def bunks(ctx):
@@ -2445,6 +2554,7 @@ def dress(ctx):
     L = LAY
     LAMPS.clear()
     LIFE.clear()
+    HANG_SIGNS.clear()
     dome(ctx, L.outline, L.C, L.profile, L.mats, L.amp, [t.hole for t in L.tunnels], seed="hall", tunnels=L.tunnels)
     for t in L.tunnels:
         t.draw(ctx)
@@ -2662,14 +2772,15 @@ def write_level(rows):
     nums = ", ".join(("%g" % round(v, 4)) for v in flat)
     sx, sz = LAY.spawn
     with open(path, "w") as f:
-        f.write('[gd_scene load_steps=8 format=3]\n\n'
+        f.write('[gd_scene load_steps=9 format=3]\n\n'
                 '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_box"]\n'
                 '[ext_resource type="PackedScene" path="res://assets/models/buildings/hideout.glb" id="2_model"]\n'
                 '[ext_resource type="Script" path="res://scripts/swing_lamps.gd" id="3_swing"]\n'
                 '[ext_resource type="Script" path="res://scripts/cloth.gd" id="4_cloth"]\n'
                 '[ext_resource type="Script" path="res://scripts/kickables.gd" id="5_kicks"]\n'
                 '[ext_resource type="Script" path="res://scripts/hideout_doors.gd" id="6_doors"]\n'
-                '[ext_resource type="Script" path="res://scripts/hideout_life.gd" id="7_life"]\n\n'
+                '[ext_resource type="Script" path="res://scripts/hideout_life.gd" id="7_life"]\n'
+                '[ext_resource type="Script" path="res://scripts/hanging_signs.gd" id="8_signs"]\n\n'
                 '[node name="HideoutLevel" type="Node3D"]\n'
                 '; Generated by art_source/scripts/make_hideout.py: edit that and re-run it, never this file.\n\n'
                 '[node name="Blocks" type="StaticBody3D" parent="."]\n'
@@ -2736,6 +2847,14 @@ def write_level(rows):
                     % (z, -4.5, LAY.mess[1] + 3.5, 9.0, 36.0 - LAY.mess[1] - 3.5, glows, RADIO[0], RADIO[1],
                        LAY.mess[1] + 5.2))
             LIFE["tv"] = (-3.678, 1.05, LAY.mess[1] + 5.2)
+        solids = os.path.join(mb.ROOT, "art_source", "buildings", NAME + "_solids.json")
+        signs = [m for m in json.load(open(solids)).get("movers", []) if m["kind"] == "sign"]
+        assert len(signs) == len(HANG_SIGNS), "a sign mover for every hanging sign"
+        if HANG_SIGNS:
+            f.write('\n[node name="Signs" type="Node3D" parent="."]\nscript = ExtResource("8_signs")\n'
+                    'data = PackedFloat32Array(%s)\nmodels = PackedStringArray(%s)\n'
+                    % (", ".join("%g" % round(v, 3) for row in HANG_SIGNS for v in row),
+                       ", ".join('"%s"' % m["model"] for m in signs)))
         if LIFE:
             f.write('\n[node name="Life" type="Node3D" parent="."]\nscript = ExtResource("7_life")\n')
             for key in sorted(LIFE):
