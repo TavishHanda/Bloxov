@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.11 (Station beam fixed)
+Owner: in the train station's waiting room "theres a wood beam near the door from the explosion, its hitbox is really
+off blocking you from going through the door properly".
+- Fallen beams and roof slabs that lie tilted now block only where they're drawn. Their block used to be as long as
+  the whole piece stood upright, so the beam leaning down from the waiting room's ceiling stuck out right into the
+  doorway to the booking hall. Now only the low stretch of a tilted piece (lower than your head) blocks you, over the
+  floor it actually covers; you walk under the high end. The doorway is clear.
+- Same fix everywhere else on the map with tilted wreckage (caved rooms in other buildings, the station's fallen
+  slabs and the platform's wrecked canopy): their blocks now match the drawing. Shots, eyes and the AI are unchanged
+  (these blocks only ever stopped players).
+
 ## 0.28.10 (Leaves come off the trees)
 Owner: the falling leaves "look really bad and show up way too often ... make them look more like leaves ... and make
 sure they actually come down from trees".

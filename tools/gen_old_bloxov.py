@@ -7051,9 +7051,52 @@ def fit_prop(b, ter, floors):
         o_top = o[1] + o[4] / 2
         if abs(lx) <= o[3] / 2 and abs(lz) <= o[5] / 2 and floor < o_top <= bottom + 0.05:
             floor = o_top
+    if b[7]:
+        return _fit_tilted(b, floor)
     if floor < -1e8 or bottom - floor > 1.7 or top - floor < 0.5:
         return None
     return (x, (floor + top) / 2, z, b[3], top - floor, b[5], b[6])
+
+
+PROP_HEAD = 1.8   # (the player's height, scenes/player.tscn: a tilted piece higher than this you walk under)
+
+
+def _clip(poly, k, cut, keep_below):
+    """Convex polygon poly (points (v, h)) cut by the line p[k] == cut, keeping the side below (or above) it."""
+    out = []
+    for i in range(len(poly)):
+        p, q = poly[i], poly[(i + 1) % len(poly)]
+        pin, qin = (p[k] <= cut) == keep_below, (q[k] <= cut) == keep_below
+        if pin:
+            out.append(p)
+        if pin != qin:
+            t = (cut - p[k]) / (q[k] - p[k])
+            out.append((p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t))
+    return out
+
+
+def _fit_tilted(b, floor):
+    """A tilted prop box (a fallen beam or roof slab leaning down, 0.28.11, owner: the station's fallen beam blocked
+    the waiting room's doorway): the block covers only the floor under the stretch of it that's lower than the
+    player's head (higher up you walk under it), up to the piece's top over that stretch; before, it was a block as
+    long as the whole piece standing upright. The tilt (make_building `rot`) is round the box's own x after its yaw,
+    so in the yaw's frame its side view is a rectangle turned by the pitch."""
+    cp, sp = math.cos(math.radians(b[7])), math.sin(math.radians(b[7]))
+    side = [(y * sp + z * cp, b[1] + y * cp - z * sp) for y, z in   # (along its yaw, height) round its middle
+            ((-b[4] / 2, -b[5] / 2), (b[4] / 2, -b[5] / 2), (b[4] / 2, b[5] / 2), (-b[4] / 2, b[5] / 2))]
+    if floor < -1e8 or min(p[1] for p in side) - floor > 1.7:
+        return None
+    low = _clip(_clip(side, 1, floor, False), 1, floor + PROP_HEAD, True)   # (the stretch you can't walk under)
+    if not low:
+        return None
+    v_lo, v_hi = min(p[0] for p in low), max(p[0] for p in low)
+    over = _clip(_clip(side, 0, v_lo, False), 0, v_hi, True)                  # (all of it over that floor)
+    top = max(p[1] for p in over) if over else floor
+    if top - floor < 0.5 or v_hi - v_lo < 0.05:
+        return None
+    vm = (v_lo + v_hi) / 2
+    si, c = math.sin(math.radians(b[6])), math.cos(math.radians(b[6]))
+    return (b[0] + vm * si, (floor + top) / 2, b[2] + vm * c, b[3], top - floor, v_hi - v_lo, b[6])
 
 
 PROP_GAP = 0.9   # (the player is 0.8 m across: a gap narrower than this between furniture, you'd wedge into)
