@@ -2129,7 +2129,7 @@ func _section_hideout_world() -> void:
 	var names: Array[String] = []
 	for marker: Node3D in stations:
 		names.append(String(marker.name))
-	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights"]:
+	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox"]:
 		_check(names.has(want), "the hideout has a %s station" % want)
 	# Every station stands on open floor: you can stand there without being pushed out or falling through.
 	var bad: Array[String] = []
@@ -2163,6 +2163,25 @@ func _section_hideout_world() -> void:
 	var on_bunk := walker.global_position - world.global_position
 	_check(walker.is_on_floor() and absf(on_bunk.y - 1.71) < 0.05 and on_bunk.x > 2.5,
 		"jump up the steps onto the top bunk (%s)" % on_bunk)
+	# The hangout (0.25.17): through the gap at the east end of the firing line, and from the range's far end through
+	# the crack into the den.
+	var den: Vector3 = (world.get_node("Level/Hangout") as Node3D).global_position
+	var line: Vector3 = (world.get_node("Level/Range/Spot") as Node3D).global_position
+	for leg: Array in [[line + Vector3(2.6, 0.05, 1.0), line.z - 2.0], [Vector3(den.x, line.y + 0.05, den.z + 16.0), den.z + 2.0]]:
+		walker.global_position = leg[0]
+		walker.rotation = Vector3.ZERO   # (facing north, down the range)
+		walker.velocity = Vector3.ZERO
+		for i in 5:
+			await physics_frame
+		Input.action_press("move_forward")
+		for i in 360:
+			await physics_frame
+			if walker.global_position.z < leg[1]:
+				break
+		Input.action_release("move_forward")
+		_check(walker.global_position.z < leg[1] and walker.is_on_floor(), "walk %s (%s)"
+			% ["past the firing line by the east wall" if leg[1] > den.z + 10.0 else "from the range's end through the crack into the hangout",
+			walker.global_position - world.global_position])
 	var guns: Node3D = world.get_node("Level/Stations/guns")
 	walker.global_position = guns.global_position + Vector3.UP * 0.1
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)
@@ -2412,6 +2431,10 @@ func _section_hideout_world() -> void:
 	_check(HideoutToys.radio_on and toys.radio_playing() and world.station_label("radio").ends_with("off"), "the radio switches on")
 	toys.use("radio")
 	_check(not HideoutToys.radio_on and not toys.radio_playing(), "and off again")
+	toys.use("jukebox")
+	_check(HideoutToys.jukebox_on and toys.jukebox_playing() and world.station_label("jukebox").ends_with("off"), "the hangout's jukebox switches on")
+	toys.use("jukebox")
+	_check(not HideoutToys.jukebox_on and not toys.jukebox_playing(), "and off again")
 	walker.global_position = Vector3(0, world.global_position.y + 0.05, 28.4)
 	toys.use("lights")
 	for i in 60:

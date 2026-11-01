@@ -882,10 +882,60 @@ def light_switch():
     return _mix(click(0.05, 900, 90, 0.2), click(0.04, 600, 70, 0.3), 0.03, 0.8)
 
 
+def jukebox():
+    """The hangout's jukebox (0.25.17): brighter and quicker than the mess radio, a bouncy major tune over a walking
+    bass and a backbeat, through a bigger speaker. 16 s at 120 bpm, and it loops."""
+    random.seed(2104)
+    bar = 2.0
+    n = length(bar * 8)
+    out = [0.0] * n
+    chords = ((261.6, 329.6, 392.0), (220.0, 261.6, 329.6), (174.6, 220.0, 261.6), (196.0, 246.9, 293.7))  # C Am F G
+
+    def note(freq, at, seconds, gain, bright=0.5, decay=3.0):
+        start = length(at)
+        for i in range(min(length(seconds), n - start)):
+            t = i / RATE
+            x = math.sin(2 * math.pi * freq * t) + bright * math.sin(4 * math.pi * freq * t) * math.exp(-t * 4)
+            x += 0.2 * bright * math.sin(6 * math.pi * freq * t) * math.exp(-t * 8)
+            out[start + i] += x * gain * min(1.0, t / 0.005) * math.exp(-t * decay)
+
+    melody = ((659.3, 784.0, 659.3, 587.3), (523.3, 587.3, 659.3, 523.3), (523.3, 440.0, 523.3, 587.3),
+              (587.3, 659.3, 587.3, 493.9))
+    for b in range(8):
+        root, third, fifth = chords[b % 4]
+        for k in range(4):                                                       # stabs on the off-beats
+            for f in (root, third, fifth):
+                note(f, b * bar + k * bar / 4 + bar / 8, bar / 8, 0.07, 0.8, 9.0)
+        walk = (root / 2, third / 2, fifth / 2, third / 2)                       # the walking bass
+        for k, f in enumerate(walk):
+            note(f, b * bar + k * bar / 4, bar / 4, 0.32, 0.3, 4.0)
+        if b >= 2:
+            for k, f in enumerate(melody[b % 4]):
+                note(f, b * bar + k * bar / 4, bar / 4 * (1.6 if k == 3 else 0.9), 0.11, 0.6, 3.5)
+        for beat in range(4):                                                    # kick, snare on 2 and 4, hats
+            at = length(b * bar + beat * bar / 4)
+            if beat % 2 == 0:
+                for i in range(min(length(0.15), n - at)):
+                    t = i / RATE
+                    out[at + i] += math.sin(2 * math.pi * (55 + 70 * math.exp(-t * 30)) * t) * math.exp(-t * 16) * 0.5
+            else:
+                nz = noise(length(0.14), 0.4)
+                for i in range(min(len(nz), n - at)):
+                    out[at + i] += nz[i] * math.exp(-i / RATE * 24) * 0.22
+            for half in (0.0, 0.5):
+                hat = length(b * bar + (beat + half) * bar / 4)
+                hz = _highpass(noise(length(0.03), 0.0), 0.5)
+                for i in range(min(len(hz), n - hat)):
+                    out[hat + i] += hz[i] * math.exp(-i / RATE * 140) * 0.07
+    out = _highpass(_lowpass(out, 0.35), 0.985)                                 # a jukebox speaker: fuller than the radio
+    peak = max(abs(x) for x in out) or 1.0
+    return [x / peak * 0.8 for x in out]
+
+
 def main_hideout():
     (OUT / "world").mkdir(exist_ok=True)
     for name, fn in (("radio", radio), ("radio_on", radio_on),
-                     ("dart", dart), ("switch", light_switch)):
+                     ("dart", dart), ("switch", light_switch), ("jukebox", jukebox)):
         write(f"world/{name}.wav", fn())
 
 

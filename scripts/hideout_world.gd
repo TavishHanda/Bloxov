@@ -19,7 +19,7 @@ const DUMMY := preload("res://scenes/target_dummy.tscn")
 ## What each station is called on the USE prompt (traders take their names from Traders.LIST).
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
-	"lights": "Lights"}
+	"lights": "Lights", "jukebox": "Jukebox"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
 const STATION_NOTES := {"workbench": "Crafting comes in a later update.",
 	"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
@@ -284,6 +284,8 @@ func station_label(id: String) -> String:
 			return "Turn the radio " + ("off" if HideoutToys.radio_on else "on")
 		"lights":
 			return "Lights " + ("off" if HideoutToys.lights_on else "on")
+		"jukebox":
+			return "Turn the jukebox " + ("off" if HideoutToys.jukebox_on else "on")
 		"darts":
 			return "Play darts"
 	return station_name(id)

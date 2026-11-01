@@ -8,6 +8,8 @@ extends Node3D
 
 const RADIO_SONG := preload("res://audio/world/radio.wav")
 const RADIO_KNOB := preload("res://audio/world/radio_on.wav")
+## The hangout's jukebox (0.25.17): its own tune, made by tools/make_sounds.py like the radio's.
+const JUKEBOX_SONG := preload("res://audio/world/jukebox.wav")
 const SWITCH_CLACK := preload("res://audio/world/switch.wav")
 const DARTS_FOV := 45.0      # zoomed in a little at the line, so the board's easier to see
 const SEAT_REACH := 1.5
@@ -19,6 +21,7 @@ const LIGHTS_FADE := 2.5       # how quickly the bunks go dark (per second)
 ## Left on (or off) until the game closes, like a real radio.
 static var radio_on := false
 static var lights_on := true
+static var jukebox_on := false
 
 var walker: HideoutWalker
 var environment: Environment
@@ -29,6 +32,7 @@ var _stood_at := Vector3.ZERO
 var darts := false
 var darts_game: DartsGame
 var _radio: AudioStreamPlayer3D
+var _jukebox: AudioStreamPlayer3D
 var _area := Rect2()
 ## 0 = the lights on, 1 = off (fades).
 var _off := 0.0
@@ -51,6 +55,9 @@ func setup(level: Node3D, who: HideoutWalker, env: Environment) -> void:
 		_area = quarters.get_meta("area")
 		_build_radio(quarters.get_meta("radio"))
 		_build_dark(quarters)
+	var den := level.get_node_or_null("Hangout") as Node3D
+	if den != null:
+		_jukebox = _music(den.get_meta("jukebox"), JUKEBOX_SONG, -6.0, 3.0, 24.0, jukebox_on)
 
 
 ## Sitting or playing darts: the hideout's own prompts and USE wait until you get up.
@@ -65,6 +72,8 @@ func use(id: String) -> bool:
 			switch_radio(not radio_on)
 		"lights":
 			switch_lights(not lights_on)
+		"jukebox":
+			switch_jukebox(not jukebox_on)
 		"darts":
 			start_darts()
 		_:
@@ -183,6 +192,37 @@ func switch_radio(on: bool) -> void:
 
 func radio_playing() -> bool:
 	return _radio != null and _radio.playing
+
+
+# --- The hangout's jukebox (0.25.17) -----------------------------------------------------------
+
+func _music(at: Vector3, song: AudioStream, db: float, unit: float, reach: float, on: bool) -> AudioStreamPlayer3D:
+	var player := AudioStreamPlayer3D.new()
+	player.stream = Ambience.looped(song)
+	player.volume_db = db
+	player.unit_size = unit
+	player.max_distance = reach
+	player.bus = Hearing.world_bus()
+	add_child(player)
+	player.global_position = at
+	if on:
+		player.play()
+	return player
+
+
+func switch_jukebox(on: bool) -> void:
+	jukebox_on = on
+	if _jukebox == null:
+		return
+	Effects.sound_at(self, SWITCH_CLACK, _jukebox.global_position, -12.0, 0.05, 1.0, 3.0, 20.0)
+	if on:
+		_jukebox.play()
+	else:
+		_jukebox.stop()
+
+
+func jukebox_playing() -> bool:
+	return _jukebox != null and _jukebox.playing
 
 
 # --- The bunks' lights -----------------------------------------------------------------------
