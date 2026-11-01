@@ -1146,6 +1146,8 @@ class Ctx:
         self.wet = []
 
     def d(self, name, flip=False):
+        # uv_fit already reads right from whichever side a face points (face_frame); flip only for pictures that
+        # should mirror (soot). Never flip the back of a two-sided sign: its text reads backwards (0.28.4).
         return uv_fit(self.decals.regions[name], flip)
 
 
@@ -14509,7 +14511,7 @@ def prop_motel_sign_board(ctx, c, s):
     for sz in (-1, 1):
         zf = c[2] + sz * 0.151
         b.poly([(c[0] - W / 2, yb - H / 2, zf), (c[0] + W / 2, yb - H / 2, zf), (c[0] + W / 2, yb + H / 2, zf),
-                (c[0] - W / 2, yb + H / 2, zf)], (0, 0, sz), "decals", ctx.d("sign", sz < 0))
+                (c[0] - W / 2, yb + H / 2, zf)], (0, 0, sz), "decals", ctx.d("sign"))
     vw, vh = 96 / 32, 19 / 32
     vy = yb - H / 2 - 0.2 - vh / 2
     b.box((c[0], vy, c[2]), (vw + 0.1, vh + 0.1, 0.16), style=_nb("trim_dark"))
@@ -14518,7 +14520,7 @@ def prop_motel_sign_board(ctx, c, s):
     for sz in (-1, 1):
         zf = c[2] + sz * 0.081
         b.poly([(c[0] - vw / 2, vy - vh / 2, zf), (c[0] + vw / 2, vy - vh / 2, zf), (c[0] + vw / 2, vy + vh / 2, zf),
-                (c[0] - vw / 2, vy + vh / 2, zf)], (0, 0, sz), "decals", ctx.d("vacancy", sz < 0))
+                (c[0] - vw / 2, vy + vh / 2, zf)], (0, 0, sz), "decals", ctx.d("vacancy"))
 
 
 PROPS.update({k: (lambda fn: lambda ctx, c, s, k: fn(ctx, c, s))(v) for k, v in {
@@ -14717,7 +14719,7 @@ def dress_motel(ctx):
     for sz in (-1, 1):
         zf = 15.0 + sz * 0.021
         b.poly([(4.95, 2.1, zf), (4.95 + bw, 2.1, zf), (4.95 + bw, 2.1 + bh, zf), (4.95, 2.1 + bh, zf)], (0, 0, sz),
-               "decals", ctx.d("office", sz < 0))
+               "decals", ctx.d("office"))
     b.box((4.95 + bw / 2, 2.1 + bh / 2, 15.0), (bw + 0.06, bh + 0.06, 0.04), style=lambda n, m, q: None if abs(n[2]) > 0.7
           else (paint, uv_world(1.0)))
     for x in (5.3, 6.2):
