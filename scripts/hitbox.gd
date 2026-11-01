@@ -31,6 +31,11 @@ const HEAD_HEIGHT := 1.66
 const CROUCH_HEAD := 1.146
 ## Same as the local player (player.gd: lean_distance 0.35 m at head height): the angle the body tips by.
 const LEAN_ANGLE := 0.21
+## Lying on a slope (ground_tilt): the ground is measured this far ahead and behind the middle, and this far to each
+## side; tilted no more than this (radians, about 26 degrees; sideways 60% of it).
+const TILT_REACH := 0.8
+const TILT_SIDE := 0.3
+const MAX_TILT := 0.45
 ## Where a teammate reaches to revive a downed player (their middle: lying bodies are centred on where the player
 ## is, 0.25.22).
 const DOWNED_BODY_CENTER := Vector3(0, 0.22, 0.27)
@@ -100,17 +105,48 @@ static func parts(flags: int, lean: float, pitch: float) -> Array:
 	return out
 
 
+## How a lying (prone or downed) body tilts to lie on the ground under it (0.25.31, owner: prone legs were "gone": on
+## a slope the level body sank into the hill). Measured from the map (layer 1) under the head end, the feet end and
+## both sides, in the body's own frame (before turning by yaw), about the player's spot. The model and the hitboxes
+## (other players' games and the server alike) both tilt by it, so they still match. Identity when not lying.
+static func ground_tilt(space: PhysicsDirectSpaceState3D, state: Array) -> Basis:
+	var flags: int = state[4]
+	if space == null or flags & (FLAG_PRONE | FLAG_DOWNED) == 0 or flags & (FLAG_DEAD | FLAG_EXTRACTED):
+		return Basis.IDENTITY
+	var at: Vector3 = state[0]
+	var turn := Basis(Vector3.UP, state[1])
+	var front := _ground_at(space, at, turn, Vector3(0, 0, -TILT_REACH))
+	var back := _ground_at(space, at, turn, Vector3(0, 0, TILT_REACH))
+	var right := _ground_at(space, at, turn, Vector3(TILT_SIDE, 0, 0))
+	var left := _ground_at(space, at, turn, Vector3(-TILT_SIDE, 0, 0))
+	var pitch := clampf(atan2(front - back, TILT_REACH * 2.0), -MAX_TILT, MAX_TILT)
+	var roll := clampf(atan2(right - left, TILT_SIDE * 2.0), -MAX_TILT * 0.6, MAX_TILT * 0.6)
+	return Basis(Vector3.RIGHT, pitch) * Basis(Vector3.BACK, roll)
+
+
+## How high the ground is (relative to the player's spot) at `offset` in the body's frame; 0 where there's none or
+## where what's there is too high to be ground (a wall or a crate beside them).
+static func _ground_at(space: PhysicsDirectSpaceState3D, at: Vector3, turn: Basis, offset: Vector3) -> float:
+	var spot := at + turn * offset
+	var query := PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 0.6, spot + Vector3.DOWN * 1.2, 1)
+	var hit := space.intersect_ray(query)
+	if hit.is_empty() or (hit.position as Vector3).y - at.y > 0.55:
+		return 0.0
+	return (hit.position as Vector3).y - at.y
+
+
 ## The tilt of a leaning body (around the feet, sideways), same as the model's.
 static func lean_basis(lean: float) -> Basis:
 	return Basis(Vector3.BACK, -lean * LEAN_ANGLE)
 
 
 ## Where the segment from..to first enters this player's boxes: {} for a miss, else {distance, headshot}.
-static func trace(state: Array, from: Vector3, to: Vector3) -> Dictionary:
+## `tilt`: ground_tilt() for a lying player (the server works it out from its own copy of the map).
+static func trace(state: Array, from: Vector3, to: Vector3, tilt := Basis.IDENTITY) -> Dictionary:
 	var flags: int = state[4]
 	if flags & (FLAG_DEAD | FLAG_EXTRACTED):
 		return {}
-	var feet := Transform3D(Basis(Vector3.UP, state[1]), state[0])
+	var feet := Transform3D(Basis(Vector3.UP, state[1]) * tilt, state[0])
 	var local_from := feet.affine_inverse() * from
 	var local_to := feet.affine_inverse() * to
 	var best := {}

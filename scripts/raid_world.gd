@@ -386,7 +386,7 @@ func trace_shot(shooter: int, from: Vector3, dir: Vector3, max_range: float, vie
 		var state := state_at(peer, time)
 		if state.is_empty():
 			continue
-		var hit := Hitbox.trace(state, from, to)
+		var hit := Hitbox.trace(state, from, to, Hitbox.ground_tilt(find_world_3d().direct_space_state, state))
 		if not hit.is_empty() and hit["distance"] < limit and (best.is_empty() or hit["distance"] < best["distance"]):
 			best = {"peer": peer, "headshot": hit["headshot"], "distance": hit["distance"]}
 	for enemy in RaidScope.nodes(raid, &"enemies"):

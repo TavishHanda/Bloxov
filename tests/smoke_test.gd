@@ -3430,6 +3430,32 @@ func _section_net() -> void:
 	var ends := [body.head_shape.position.z, body.legs_shape.position.z]
 	_check(ends[0] < -0.4 and ends[1] > 0.4 and absf(ends[0] + ends[1]) < 0.3,
 		"a prone body is centred on the player, so it turns about its middle (head %.2f, legs %.2f)" % ends)
+	# 0.25.31 (owner: prone legs "gone"): on a slope the lying body lies along the ground instead of sinking into it,
+	# and its hitboxes tilt the same way here and on the server.
+	var ramp := StaticBody3D.new()
+	var ramp_shape := CollisionShape3D.new()
+	ramp_shape.shape = BoxShape3D.new()
+	(ramp_shape.shape as BoxShape3D).size = Vector3(6, 1, 6)
+	ramp.add_child(ramp_shape)
+	main.add_child(ramp)
+	ramp.global_transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(15.0)), Vector3(300, -0.5, 300))
+	await main.get_tree().physics_frame
+	var on_ramp := [Vector3(300, 0, 300), 0.0, 0.0, 0.0, Hitbox.FLAG_PRONE | Hitbox.FLAG_CROUCH | Hitbox.FLAG_ARMED]
+	body._buffer.clear()
+	for k in 60:
+		body.push_state(on_ramp, 11.0 + 0.016 * k)
+		body.update_view(11.0 + 0.016 * k, 0.016)
+	var tilt := Hitbox.ground_tilt(main.get_world_3d().direct_space_state, on_ramp)
+	var tilt_deg := rad_to_deg(tilt.get_euler().x)
+	var head_mid := body.head_shape.global_position
+	var down_shot := Hitbox.trace(on_ramp, head_mid + Vector3.UP * 3.0, head_mid + Vector3.DOWN * 3.0, tilt)
+	_check(absf(absf(tilt_deg) - 15.0) < 3.0 and body.model.global_basis.y.angle_to(Vector3.UP) > deg_to_rad(10.0)
+		and down_shot.get("headshot") == true,
+		"prone on a slope, the body and its hitboxes lie along the ground, the server's too (%.1f deg)" % tilt_deg)
+	ramp.free()
+	body._buffer.clear()
+	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_PRONE | RemotePlayer.FLAG_CROUCH | RemotePlayer.FLAG_ARMED], 10.3)
+	body.update_view(10.3, 0.016)
 	# Turning on the spot moves the knees (a crawl step), not a frozen body.
 	var knee_before := body.pose.joint("LegL").rotation
 	for k in 20:

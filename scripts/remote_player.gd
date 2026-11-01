@@ -65,6 +65,8 @@ var pose: BodyPose
 ## The neck joint: looking up and down tilts the head.
 var head_pivot: Node3D
 var _was_hit := false
+## How the lying body is tilted to the ground right now (eased in as they lie down).
+var _tilt := Basis.IDENTITY
 ## When they last flinched (seconds), so one hit doesn't show twice (our confirmed shot, then their state saying so).
 var _flinched_at := -10.0
 
@@ -217,8 +219,22 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 
 
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
-	# Lean tips the whole body around the feet. (The model faces -Z.)
-	model.rotation.z = -_lean * Hitbox.LEAN_ANGLE
+	# Lean tips the whole body around the feet. (The model faces -Z.) Lying down, the body lies along the slope of the
+	# ground (0.25.31), as its hitboxes do here and on the server (Hitbox.ground_tilt).
+	var hit_flags := 0
+	if _crouch > 0.5:
+		hit_flags |= FLAG_CROUCH
+	if _prone > 0.5:
+		hit_flags |= FLAG_PRONE
+	if _downed > 0.5:
+		hit_flags |= FLAG_DOWNED
+	var lying := clampf(_prone + _downed, 0.0, 1.0)
+	var tilt := Basis.IDENTITY
+	if lying > 0.01 and is_inside_tree():
+		var on := FLAG_DOWNED if _downed > _prone else FLAG_PRONE
+		tilt = Hitbox.ground_tilt(get_world_3d().direct_space_state, [global_position, rotation.y, 0.0, 0.0, on])
+	_tilt = Basis(Quaternion.IDENTITY.slerp(tilt.get_rotation_quaternion(), lying))
+	model.basis = _tilt * Basis(Vector3.BACK, -_lean * Hitbox.LEAN_ANGLE)
 	# They hold the model of the gun they have out (0.18.1), and none while unarmed.
 	var gun := flags >> Hitbox.GUN_SHIFT
 	if gun > 0 and gun < AILoadouts.NET_GUNS.size():
@@ -241,14 +257,8 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	pose.update(delta)
 	# Hitboxes follow the pose: the same boxes as the server's (Hitbox.parts), fitted to the model kneeling, prone and
 	# downed (0.23), tipped with a lean (0.13.8: a shoulder peeking round a corner is hittable).
-	var state := 0
-	if _crouch > 0.5:
-		state |= FLAG_CROUCH
-	if _prone > 0.5:
-		state |= FLAG_PRONE
-	if _downed > 0.5:
-		state |= FLAG_DOWNED
-	var parts := Hitbox.parts(state, _lean, pitch)
+	var parts := Hitbox.parts(hit_flags, _lean, pitch)
+	var box_tilt := tilt if hit_flags & (FLAG_PRONE | FLAG_DOWNED) else Basis.IDENTITY
 	var shapes: Array[CollisionShape3D] = [head_shape, body_shape, legs_shape]
 	for i in shapes.size():
 		var shape := shapes[i]
@@ -256,7 +266,7 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 			shape.disabled = true
 			continue
 		var part: Array = parts[i]
-		shape.transform = Transform3D(part[3], part[0])
+		shape.transform = Transform3D(box_tilt, Vector3.ZERO) * Transform3D(part[3], part[0])
 		(shape.shape as BoxShape3D).size = part[1]
 		shape.disabled = _down > 0.5
 
