@@ -5,10 +5,11 @@ extends CharacterBody3D
 ## player.gd (class Player: input, the per-frame update, items and the hotbar, damage, online).
 
 @export_group("Movement")
-## Meters per second. For reference, a real jog is ~3, a run ~5.
-@export var walk_speed := 3.4
+## Meters per second. For reference, a real jog is ~3, a run ~5. 0.25.30 (owner: "moves too fast"): about 8% slower
+## (were 3.4 and 5.6), still a little quicker than scavs (3.35 since 0.24.2).
+@export var walk_speed := 3.1
 ## Sprint only works moving forward, and lowers your gun.
-@export var sprint_speed := 5.6
+@export var sprint_speed := 5.15
 ## Speed multipliers when walking backwards / sideways.
 @export var backward_multiplier := 0.7
 @export var strafe_multiplier := 0.85

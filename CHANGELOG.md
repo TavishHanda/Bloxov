@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.30 (Steadier pace, free kit fix)
+- You move about 8% slower (owner: "the character moves too fast"): walking 3.1 m/s (was 3.4), sprinting 5.15 m/s
+  (was 5.6), in raids and the hideout. Your speeds hadn't changed since 0.13.5; it felt faster because the AI got 7%
+  slower in 0.24.2. You're still a little quicker than scavs (3.35 m/s). Crouch, prone and ladders unchanged.
+- The free kit no longer goes missing when something is in your secure pocket (owner: the button sometimes didn't
+  show with nothing on you). The secure pocket survives death, so anyone keeping something in it never got the kit
+  back. Now only what's equipped, in your pockets and in your backpack counts (once per raid as before).
+
 ## 0.25.29 (Every gun its own reload)
 - Each gun now reloads its own way in first person (owner: "the sniper has the pistol reload"). Before, every
   magazine gun shared one mag swap, and in the game the gun turned so far over that the hands and mag were out of view.

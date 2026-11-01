@@ -621,12 +621,13 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	_queue_save()
 
 
-## The free kit (0.15.28, owner): only when your loadout is completely empty (nothing equipped, nothing in your
-## pockets, backpack or secure pocket). Your stash and money don't matter.
+## The free kit (0.15.28, owner): only when your loadout is empty (nothing equipped, nothing in your pockets or
+## backpack). Your stash and money don't matter, and since 0.25.30 neither does the secure pocket (owner: it survives
+## death, so anyone keeping something in it never got the kit back).
 ## Once per raid (0.16.4): after taking it you have to go on a raid before the next one, so it can't be sold for money
 ## over and over.
 func can_take_free_kit() -> bool:
-	return inventory.all_stacks().is_empty() and Profile.free_kit_raid != int(Profile.stats["raids"])
+	return _no_gear() and Profile.free_kit_raid != int(Profile.stats["raids"])
 
 
 func take_free_kit() -> bool:
@@ -705,7 +706,7 @@ func _warm_raid() -> void:
 
 ## Runs `go` (what starts the raid or the queue), or, with nothing on you at all, asks first.
 func check_gear(go: Callable) -> void:
-	if not inventory.all_stacks().is_empty():
+	if not _no_gear():
 		go.call()
 		return
 	_ask_before(go, "NO GEAR", "You're not carrying anything: no gun, no meds, no backpack. Go into the raid anyway?",
@@ -715,10 +716,15 @@ func check_gear(go: Callable) -> void:
 ## START RAID (solo) asks "are you sure?" first (0.25.20, owner: in case of a misclick). With nothing on you, the
 ## NO GEAR warning asks instead (one question, not two).
 func confirm_raid(go: Callable) -> void:
-	if inventory.all_stacks().is_empty():
+	if _no_gear():
 		check_gear(go)
 		return
 	_ask_before(go, "START RAID?", "Head out on a solo raid against the AI with this loadout?", "START RAID", false)
+
+
+## Nothing on you but what's in the secure pocket (if anything).
+func _no_gear() -> bool:
+	return inventory.all_stacks().size() == inventory.secure.stacks.size()
 
 
 ## Shows the ask-first panel: `go` runs only if they press the hazard button.

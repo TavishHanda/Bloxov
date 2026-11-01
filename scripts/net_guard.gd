@@ -46,7 +46,7 @@ const STRIKES := {
 	"extract": 4.0,     # said they extracted away from an open extract
 }
 
-## Movement allowance: refills at MOVE_SPEED m/s up to MOVE_SLACK m (sprint is 5.6 m/s; the slack covers a
+## Movement allowance: refills at MOVE_SPEED m/s up to MOVE_SLACK m (sprint is 5.15 m/s; the slack covers a
 ## lag spike of ~1.5 s, a shove, a vault). Upward the same with CLIMB_* (jumps, ladders, stairs, hills); falling
 ## is free. A move over TELEPORT m is a bigger strike.
 const MOVE_SPEED := 8.0

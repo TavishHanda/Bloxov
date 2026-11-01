@@ -3,8 +3,8 @@ extends CharacterBody3D
 ## You in the walkable hideout (0.21.0): walk, sprint, jump and look round. No gun, no health, no inventory: the
 ## hideout is safe, and everything you'd do there opens the hideout menu. Same speeds and feel as in a raid.
 
-const WALK_SPEED := 3.4
-const SPRINT_SPEED := 5.6
+const WALK_SPEED := 3.1
+const SPRINT_SPEED := 5.15
 const JUMP_VELOCITY := 4.4
 const ACCELERATION := 16.0
 const DECELERATION := 20.0

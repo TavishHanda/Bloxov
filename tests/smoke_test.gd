@@ -2723,6 +2723,11 @@ func _section_hideout() -> void:
 	hideout.confirm_raid(func() -> void: started[0] += 1000)
 	_check((ask.get_node("Title") as Label).text == "NO GEAR" and started[0] == 111, "with nothing on you, START RAID asks NO GEAR instead")
 	hideout.close_gear_warning()
+	# (0.25.30, owner) The secure pocket doesn't count: it survives death, so it'd keep the free kit away forever.
+	hideout_inv.secure.add("bandage", 1)
+	_check(hideout._no_gear() and hideout.can_take_free_kit() == (Profile.free_kit_raid != int(Profile.stats["raids"])),
+		"something in the secure pocket alone doesn't hide the free kit")
+	hideout_inv.secure.take("bandage", 1)
 	# (0.20.12) Starting a raid is enough: closing the tab mid-raid loses the kit but never counts the raid.
 	var kept_loadout := Profile.loadout
 	Profile.raid_begun()
@@ -4021,9 +4026,10 @@ func _section_anticheat() -> void:
 	await _until(func() -> bool: return server._health[id][0] > 10.0)
 	_check(is_equal_approx(server._health[id][0], 35.0) and int(server._carried[id].get("bandage", 0)) == 0,
 		"a finished heal goes on the server's count and comes off what they carry (%.0f)" % server._health[id][0])
+	server._carried[id]["medkit"] = 0   # (the one taken from the crate above: not carried any more, whatever the timing)
 	c1.report_heal("medkit")
 	await _frames(4)
-	_check(is_equal_approx(server._health[id][0], 35.0), "a medkit they don't carry doesn't heal")
+	_check(is_equal_approx(server._health[id][0], 35.0), "a medkit they don't carry doesn't heal (%.0f)" % server._health[id][0])
 	# (straight to the check, with the grace period wound on by hand: real time varies with the machine)
 	server._health[id] = [-5.0, -1.0]
 	var up := [Vector3(0, 0.1, -10), 0.0, 0.0, 0.0, 0]
