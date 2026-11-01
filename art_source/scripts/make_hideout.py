@@ -207,6 +207,93 @@ def paint_bk_ground(rng):
 mb.KIT["bk_ground"] = paint_bk_ground
 
 
+# The hangout's lounge (0.25.23, owner: "I like the colour but it looks so flat"): painted corrugated tin, worn
+# chequered tiles, felt and vinyl, in place of flat colours.
+mb.PALETTE.update({"hd_red": "b03a2e", "hd_red_hi": "c24a3c", "hd_red_lo": "8e2d24",
+                   "hd_teal": "2f6a69", "hd_teal_hi": "3b7c7a", "hd_teal_lo": "245453",
+                   "hd_yel": "d9a823", "hd_yel_hi": "e8b923", "hd_yel_lo": "b38a1c",
+                   "hd_tile_w": "e2dccb", "hd_tile_w2": "d6cfbc", "hd_tile_k": "1f2023", "hd_tile_k2": "2a2b2f",
+                   "hd_grout": "8d877a", "hd_grime": "6f6a5f", "hd_felt": "2f6b3a", "hd_felt_lo": "285c32",
+                   "hd_felt_hi": "377a43", "hd_vinyl": "2f6a69", "hd_vinyl_lo": "245453", "hd_vinyl_hi": "3f807e"})
+
+
+def paint_hd_tin(paint):
+    """Corrugated tin painted one colour: ribs every 25 cm, a seam and rivets every metre, the paint chipped to bare
+    steel, rust running down from the rivets, scuffs."""
+    def f(rng):
+        c = mb.Canvas(64, 64, paint)
+        for x in range(64):
+            tone = {0: paint + "_hi", 2: paint + "_lo"}.get(x % 4)
+            if tone:
+                for y in range(64):
+                    c.put(x, y, tone)
+        c.noise(0, 0, 64, 64, [paint + "_lo", paint + "_hi"], 0.06, rng)
+        for x0 in range(0, 64, 16):                                    # the sheets' overlaps, with rivets
+            for y in range(64):
+                c.put(x0, y, "iron_dark")
+            for y in range(3, 64, 10):
+                c.put(x0 + 1, y, "steel_light")
+                for k in range(rng.randrange(0, 7)):                   # rust running down
+                    if y + 1 + k < 64 and rng.random() < 0.8:
+                        c.put(x0 + 1, y + 1 + k, "rust")
+        c.blotch(["steel", "iron"], 9, rng, size=(1, 3))               # chipped to bare metal
+        c.blotch(["rust"], 3, rng, size=(1, 2))
+        c.blotch([paint + "_lo"], 6, rng, size=(2, 5))                 # scuffs
+        return c
+    return f
+
+
+def paint_hd_tiles(rng):
+    """Black and white tiles, 50 cm, grouted; each a shade off, a few cracked or chipped, trodden grime."""
+    c = mb.Canvas(64, 64, "hd_grout")
+    for i in range(8):
+        for j in range(8):
+            white = (i + j) % 2 == 0
+            col = rng.choice(["hd_tile_w", "hd_tile_w", "hd_tile_w2"] if white else ["hd_tile_k", "hd_tile_k", "hd_tile_k2"])
+            c.rect(i * 8 + 1, j * 8 + 1, i * 8 + 8, j * 8 + 8, col)
+            if rng.random() < 0.12:                                    # a crack across it
+                y = j * 8 + rng.randrange(2, 7)
+                for x in range(i * 8 + 1, i * 8 + 8):
+                    c.put(x, min(j * 8 + 7, max(j * 8 + 1, y)), "hd_grout")
+                    y += rng.choice((-1, 0, 0, 1))
+            if rng.random() < 0.15:                                    # a chipped corner
+                c.put(i * 8 + 1 + rng.choice((0, 6)), j * 8 + 1 + rng.choice((0, 6)), "hd_grime")
+    c.noise(0, 0, 64, 64, ["hd_grime"], 0.03, rng)
+    c.blotch(["hd_grime", "hd_grout"], 5, rng, size=(2, 6))
+    return c
+
+
+def paint_hd_felt(rng):
+    c = mb.Canvas(64, 64, "hd_felt")
+    c.noise(0, 0, 64, 64, ["hd_felt_lo", "hd_felt_hi"], 0.25, rng)
+    c.blotch(["hd_felt_lo"], 3, rng, size=(3, 6))                      # worn patches
+    return c
+
+
+def paint_hd_vinyl(rng):
+    """Tufted vinyl: a button every 25 cm, creases out from them, cracked here and there."""
+    c = mb.Canvas(64, 64, "hd_vinyl")
+    c.noise(0, 0, 64, 64, ["hd_vinyl_hi", "hd_vinyl_lo"], 0.12, rng)
+    for y in range(2, 64, 16):
+        for x in range(2 + (8 if (y // 16) % 2 else 0), 64, 16):
+            c.put(x, y, "hd_vinyl_lo")
+            for d in (1, 2):
+                for dx, dy in ((d, d), (-d, d), (d, -d), (-d, -d)):
+                    c.put((x + dx) % 64, (y + dy) % 64, "hd_vinyl_lo" if d == 1 else "hd_vinyl_hi")
+    c.blotch(["bone"], 2, rng, size=(1, 2))
+    return c
+
+
+mb.KIT.update({"hd_tin_red": paint_hd_tin("hd_red"), "hd_tin_teal": paint_hd_tin("hd_teal"),
+               "hd_tin_yellow": paint_hd_tin("hd_yel"), "hd_tiles": paint_hd_tiles, "hd_felt": paint_hd_felt,
+               "hd_vinyl": paint_hd_vinyl})
+
+
+def _kit(mat, tile=mb.TILE_M):
+    """A box style: every face but the bottom in a kit texture at `tile` metres."""
+    return lambda n, m, q: None if n[1] < -0.7 else (mat, mb.uv_world(tile))
+
+
 # ------------------------------------------------------------------------------------------------ shapes
 def vault_y(x, half, spring, crown):
     t = max(0.0, 1.0 - (x / half) ** 2)
@@ -274,9 +361,14 @@ class Tunnel:
         self.ribs = ribs
         self.open_end = False      # no wall at a1 (0.25.17: the range's end opens into the crack to the hangout)
         self.into = None           # a narrower tunnel carrying on from a1: the end wall is a ring round it
+        self.drop = 0.0            # how far below the hall its a0 end is (0.25.23: the way down to the hangout)
+
+    def off(self, a):
+        """How far the floor sits below the hall's at a: the floor slopes evenly from -drop at a0 up to 0 at a1."""
+        return -self.drop * (self.a1 - a) / (self.a1 - self.a0) if self.drop else 0.0
 
     def P(self, u, y, a):
-        return (self.O[0] + self.D[0] * a + self.U[0] * u, y, self.O[1] + self.D[1] * a + self.U[1] * u)
+        return (self.O[0] + self.D[0] * a + self.U[0] * u, y + self.off(a), self.O[1] + self.D[1] * a + self.U[1] * u)
 
     def local(self, p):
         dx, dz = p[0] - self.O[0], p[2] - self.O[1]
@@ -292,7 +384,7 @@ class Tunnel:
     def hole(self, p):
         """Is p inside the tunnel's mouth (where the hall's wall is left out)?"""
         u, a = self.local(p)
-        return abs(u) < self.hw - 0.01 and p[1] < self.arch(u) - 0.01 and self.a0 - 6.0 < a < self.a0 + 2.0
+        return abs(u) < self.hw - 0.01 and p[1] - self.off(a) < self.arch(u) - 0.01 and self.a0 - 6.0 < a < self.a0 + 2.0
 
     def profile(self, out=0.0):
         """The tunnel's outline across (u, y), pushed `out` outwards."""
@@ -352,6 +444,21 @@ class Tunnel:
                              self.P(p[0], p[1], a + 0.12)], ax(a, 1.5), mat)
                 a += every
 
+    def slope_rows(self):
+        """Collision for a sloping tunnel (drop): its floor (a ramp), walls and roof as boxes tilted along it."""
+        hw, a_s, a1 = self.hw, self.a0 - self.lip, self.a1
+        run = a1 - a_s
+        yaw = math.degrees(math.atan2(-self.D[0], -self.D[1]))
+        pitch = math.degrees(math.atan2(self.drop, a1 - self.a0))
+        length = run / math.cos(math.radians(pitch)) + 0.6
+        out = []
+        for u0, y0, u1, y1 in ((-hw - 0.3, -0.3, hw + 0.3, 0.0), (-hw - 1.3, -0.3, -hw, self.crown + 0.6),
+                               (hw, -0.3, hw + 1.3, self.crown + 0.6), (-hw - 0.3, self.crown, hw + 0.3, self.crown + 0.4)):
+            c = self.P((u0 + u1) / 2, (y0 + y1) / 2, (a_s + a1) / 2)
+            out.append({"pos": list(c), "size": [u1 - u0, (y1 - y0) / math.cos(math.radians(pitch)), length], "yaw": yaw,
+                        "pitch": pitch, "colour": "stairs", "solid": True, "kind": "hd_solid"})
+        return out
+
     def rows(self, put):
         hw, a_s, a1 = self.hw, self.a0 - self.lip, self.a1
         top = self.crown + 0.3
@@ -374,6 +481,13 @@ class Tunnel:
             box(-hw - 0.3, 0.0, a1, us[0], top, a1 + 0.3)
             box(us[1], 0.0, a1, hw + 0.3, top, a1 + 0.3)
             box(us[0], o.crown, a1, us[1], top, a1 + 0.3)
+
+
+def place_row(r):
+    """Move a box row drawn in the hangout's plan frame to where the hangout is."""
+    H = LAY.hang
+    r["pos"] = list(H.w(r["pos"]))
+    r["yaw"] = r["yaw"] + H.turn
 
 
 def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", tunnels=(), floor_rings=(1.0, 0.85, 0.7, 0.55, 0.4, 0.26, 0.13)):
@@ -516,20 +630,21 @@ def cave_layout():
 
 
 # The hangout (0.25.17, owner picked it from four secret rooms: "a crack at the 100 m end opens onto a flooded mine
-# hangout: pool table, jukebox"): past the range's backstop the end wall has split open; a narrow crack in the rock
-# leads on to an old mine working the PMCs turned into a den. One end of the firing line is a step short of the wall,
-# so you can walk down the range at all.
-HANG_X = 1.8                                       # the crack's middle, across the range (the range's u, east of centre)
+# hangout: pool table, jukebox"). 0.25.23 (owner: "the hideout can be a bit closer, so it's easier to find, then make
+# a tunnel to it that goes deeper underground"): the armory's end wall has split open instead, and a narrow passage
+# with steel stairs runs down into the rock to the den, HANG_DEPTH below the hall.
+# The den is drawn as it was built, round its own middle with the passage coming in from +z (H's "plan" frame), then
+# turned and lowered into place (H.w): its passage runs on from the armory's end.
 HANG_R = 6.6                                       # the den's radius (rock bumps out from it between the four sides)
 HANG_CROWN = 5.2
-CRACK_LEN = 6.0                                    # from the range's end wall to where the den's wall would be
+HANG_DEPTH = 4.5                                   # how far below the hall the den's floor is
+CRACK_LEN = 13.0                                   # from the armory's end wall to where the den's wall would be
 
 
 def hangout_layout(rt):
-    """The crack (a narrow rock tunnel) and the den (a small cave like the hall), north of the range's end."""
+    """The passage (a narrow rock tunnel, sloping down) and the den (a small cave like the hall), past rt's end."""
     H = Layout()
-    end = rt.P(HANG_X, 0.0, rt.a1)
-    H.C = (end[0], end[2] - CRACK_LEN - HANG_R)
+    H.C = (0.0, 0.0)                               # (plan frame)
     phis = (0, 0.09, 0.19, 0.3, 0.42, 0.55, 0.68, 0.82, 0.96, 1.1, 1.24, 1.36, 1.47)
     H.crown = HANG_CROWN
     H.profile = [(math.cos(p) ** 0.6, HANG_CROWN * math.sin(p)) for p in phis]
@@ -537,12 +652,31 @@ def hangout_layout(rt):
     H.mats = ("bk_rock", "bk_rock", 99.0, "bk_ground")
     H.amp = 1.0
     rock = ("bk_rock", "bk_rock", "bk_ground", "bk_rock")
-    crack = Tunnel("crack", H.C, (0.0, 1.0), math.sqrt(HANG_R * HANG_R - 0.64), CRACK_LEN + HANG_R, 0.8, 2.0, 2.5, 0.4,
-                   rock)
-    crack.lip = crack.a0 * (1.0 - H.f_at(crack.crown + 1.3)) + 0.6
-    crack.open_end = True
-    rt.open_end, rt.into = True, crack
+    a0, a1 = math.sqrt(HANG_R * HANG_R - 1.0), CRACK_LEN + HANG_R
+
+    def passage(O, D):
+        t = Tunnel("crack", O, D, a0, a1, 1.0, 2.0, 2.6, 0.4, rock)
+        t.lip = t.a0 * (1.0 - H.f_at(t.crown + 1.3)) + 0.6
+        t.open_end = True
+        return t
+    crack = passage(H.C, (0.0, 1.0))               # (plan frame, flat: what the den is cut round)
     H.crack = crack
+    # Where it goes: the den's middle a1 on past rt's end, the plan frame turned so its -z runs along rt.
+    end = rt.P(0.0, 0.0, rt.a1)
+    H.Cw = (end[0] + rt.D[0] * a1, end[2] + rt.D[1] * a1)
+    H.turn = math.degrees(math.atan2(-rt.D[0], -rt.D[1]))
+    H.down = passage(H.Cw, (-rt.D[0], -rt.D[1]))   # the real one, sloping up from the den to rt's end
+    H.down.drop = HANG_DEPTH
+    rt.open_end, rt.into = True, H.down
+    cy, sy = math.cos(math.radians(H.turn)), math.sin(math.radians(H.turn))
+
+    def w(p):                                      # a plan-frame point (x, y, z) where it ends up
+        x, y, z = p[0] - H.C[0], p[1], p[2] - H.C[1]
+        return (H.Cw[0] + x * cy + z * sy, y - HANG_DEPTH, H.Cw[1] - x * sy + z * cy)
+
+    def wn(n):                                     # a direction, turned the same way
+        return (n[0] * cy + n[2] * sy, n[1], -n[0] * sy + n[2] * cy)
+    H.w, H.wn = w, wn
     jit = random.Random("hangout")
     bumps = [jit.uniform(-0.4, 0.4) for _ in range(16)]
 
@@ -564,6 +698,7 @@ def hangout_layout(rt):
         pts.append((p[0], p[2]))
     pts.sort(key=lambda p: math.atan2(p[1] - H.C[1], p[0] - H.C[0]))
     H.outline = [p for k, p in enumerate(pts) if math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]) > 0.05]
+    H.outline_w = [(w((x, 0, z))[0], w((x, 0, z))[2]) for x, z in H.outline]
     cx, cz = H.C
     H.table = (cx, cz - 0.6)                       # the pool table, long side across the den
     H.jukebox = (cx - 5.0, cz - 1.0)               # against the west wall, facing east
@@ -615,7 +750,7 @@ def post_layout(rock=False):
     if rock:                           # the concrete mouths stand out of the rock as far as the cave curves in over them
         for t in L.tunnels:
             t.lip = t.a0 * (1.0 - L.f_at(t.crown + 1.3)) + 0.6
-    L.hang = hangout_layout(L.tunnels[0]) if rock else None
+    L.hang = hangout_layout(L.tunnels[2]) if rock else None
     # the circle, with a straight chord across each tunnel's mouth (corners every half metre)
     pts = []
     for k in range(96 if not rock else 120):
@@ -739,17 +874,22 @@ def boxes():
     for t in LAY.tunnels:
         t.rows(put)
     H = getattr(LAY, "hang", None)
-    if H:                                                              # the hangout: its floor, walls and the crack
-        hx = [p[0] for p in H.outline]
-        hz = [p[1] for p in H.outline]
-        solid(min(hx) - 2, -0.3, min(hz) - 2, max(hx) + 2, 0.0, max(hz) + 2)
-        class Mouth:                                                   # (the crack's mouth, a little wider: the wall
+    if H:                                                              # the hangout: its floor, walls and the passage
+        hx = [p[0] for p in H.outline_w]
+        hz = [p[1] for p in H.outline_w]
+        solid(min(hx) - 2, -HANG_DEPTH - 0.3, min(hz) - 2, max(hx) + 2, -HANG_DEPTH, max(hz) + 2)
+
+        class Mouth:                                                   # (the passage's mouth, a little wider: the wall
             @staticmethod                                              # either side of it slants and blocked the way)
             def hole(p):
                 u, a = H.crack.local(p)
                 return abs(u) < H.crack.hw + 1.0 and H.crack.a0 - 6.0 < a < H.crack.a0 + 2.0
-        wall_rows(put, H.outline, H.C, H.f_at, lambda x, z: 0.0, [Mouth], H.crown)
-        H.crack.rows(put)
+
+        def put_den(*args, **kw):                                      # (drawn in the plan frame, moved into place)
+            put(*args, **kw)
+            place_row(rows[-1])
+        wall_rows(put_den, H.outline, H.C, H.f_at, lambda x, z: 0.0, [Mouth], H.crown)
+        rows.extend(H.down.slope_rows())
     if LAY.ledge:
         for (xa, za), (xb, zb) in zip(LAY.ledge, LAY.ledge[1:]):
             solid(min(xs) - 2, 0.0, za, (xa + xb) / 2, LAY.ledge_y, zb)
@@ -1041,26 +1181,14 @@ def shooting_range(ctx):
     b = ctx.b
     t = LAY.tunnels[0]
     fl = t.a0 - FIRING_BACK
-    # The firing line: sandbag rests, a steel top. (0.25.17: the east one is shorter, leaving a gap by the wall you
-    # can walk through, down the range to the hangout.)
-    for u, w in ((-2.0, 1.6), (0.0, 1.6), (1.7, 1.0) if LAY.hang else (2.0, 1.6)):
+    # The firing line: sandbag rests, a steel top.
+    for u, w in ((-2.0, 1.6), (0.0, 1.6), (2.0, 1.6)):
         p = t.P(u, 0, fl)
         b.box((p[0], 0.45, p[2]), (w, 0.9, 0.6), yaw=t.yaw(), style=mb._nb("bk_sandbag"))
         b.box((p[0], 0.93, p[2]), (w + 0.1, 0.05, 0.7), yaw=t.yaw(), style=mb._solid("metal"))
         block(p[0], 0.0, p[2], w, 0.95, 0.6, t.yaw())
-    if LAY.hang:                                                       # the backstop stops short of the crack
-        u0, u1 = -t.hw, HANG_X - LAY.hang.crack.hw - 0.15
-        p = t.P((u0 + u1) / 2, 0, t.a1 - 1.3)
-        b.box((p[0], 1.2, p[2]), (u1 - u0, 2.4, 2.4), yaw=t.yaw(), style=mb._nb("bk_sandbag"))
-        block(p[0], 0.0, p[2], u1 - u0, 2.4, 2.4, t.yaw())
-        rng = random.Random("backstop")
-        for k in range(4):                                             # bags fallen off its end
-            p = t.P(u1 + rng.uniform(0.1, 0.5), 0, t.a1 - 1.3 + rng.uniform(-1.2, 1.2))
-            b.box((p[0], 0.15 + (0.3 if k == 3 else 0.0), p[2]), (0.6, 0.3, 0.4), yaw=rng.uniform(0, 180),
-                  style=mb._nb("bk_sandbag"))
-    else:
-        p = t.P(0, 0, t.a1 - 1.3)
-        b.box((p[0], 1.2, p[2]), (2 * t.hw, 2.4, 2.4), style=mb._nb("bk_sandbag"))            # the backstop
+    p = t.P(0, 0, t.a1 - 1.3)
+    b.box((p[0], 1.2, p[2]), (2 * t.hw, 2.4, 2.4), style=mb._nb("bk_sandbag"))                # the backstop
     for d, u in zip(TARGETS, TARGET_U):                                # a stand and a distance sign for each target
         p = t.P(u, 0, fl + d)
         pipe(b, (p[0], 0.0, p[2]), (p[0], 1.1, p[2]), "bk_iron", 0.08)
@@ -1434,14 +1562,42 @@ def hangout(ctx):
     but walled in to head height with painted tin, a black and white tiled floor, a snack bar with stools, a
     glowing SNACKS sign, two arcade cabinets, the pool table under its lamp, the jukebox, a couch on a rug, string lights.
     No wood (owner): steel, tin and tarp. Glowing bits are baked bright (bake_light.GLOW)."""
+    b = ctx.b
+    H = LAY.hang
+    t = H.down
+    t.draw(ctx)
+    # Steel stairs down the passage (you walk the smooth ramp under them), bulbs along its roof.
+    hi, lo = t.P(0, 0, t.a1 - 0.3), t.P(0, 0, t.a0 + 0.4)
+    c, sz, yaw, pitch = ramp((lo[0], lo[2]), (hi[0], hi[2]), hi[1] - lo[1], 2 * t.hw - 0.1)
+    step = (hi[1] - lo[1]) / max(2, round((hi[1] - lo[1]) / 0.2))      # (half a step up: each tread's back edge
+    mb.stairs(ctx, (c[0], c[1] + lo[1] + step / 2, c[2]), sz, yaw, pitch, mats=("bk_grate", "bk_iron"))  # meets the floor)
+    for f in (0.2, 0.55, 0.88):
+        a = t.a0 + (t.a1 - t.a0) * f
+        p = t.P(0, t.crown - 0.35, a)
+        pipe(b, p, t.P(0, t.crown, a), "bk_cable", 0.015)
+        bulb(b, p[0], p[1], p[2], 0.6, 2.6)
+    pipe(b, t.P(0, t.crown - 0.06, t.a0), t.P(0, t.crown - 0.06, t.a1), "bk_cable", 0.03)
+    # The den: drawn in its plan frame, then moved (turned and lowered) into place with all it adds to the lists.
+    marks = (len(b.verts), len(b.faces), len(LAMPS), len(SWINGS), len(KICKS), len(EXTRA), len(mb.SOLIDS), len(CLOTH))
+    den(ctx)
+    b.verts[marks[0]:] = [H.w(v) for v in b.verts[marks[0]:]]
+    b.normals[marks[1]:] = [H.wn(n) for n in b.normals[marks[1]:]]
+    vn = getattr(b, "vnormals", None)
+    if vn:
+        vn[marks[1]:] = [[H.wn(n) for n in row] if row else row for row in vn[marks[1]:]]
+    LAMPS[marks[2]:] = [H.w(l[:3]) + tuple(l[3:]) for l in LAMPS[marks[2]:]]
+    SWINGS[marks[3]:] = [H.w(l[:3]) + tuple(l[3:]) for l in SWINGS[marks[3]:]]
+    KICKS[marks[4]:] = [H.w(k[:3]) + (k[3] + H.turn,) + tuple(k[4:]) for k in KICKS[marks[4]:]]
+    for r in EXTRA[marks[5]:] + mb.SOLIDS[marks[6]:]:
+        place_row(r)
+    CLOTH[marks[7]:] = [(H.w(c),) + tuple(c_[1:3]) + (c_[3] + H.turn,) + tuple(c_[4:]) for c_ in CLOTH[marks[7]:] for c in [c_[0]]]
+
+
+def den(ctx):
     b, rng = ctx.b, random.Random("den")
     H = LAY.hang
     dome(ctx, H.outline, H.C, H.profile, H.mats, H.amp, [H.crack.hole], seed="hangout", tunnels=[H.crack])
-    H.crack.draw(ctx)
     cx, cz = H.C
-    p = H.crack.P(0, 2.2, (H.crack.a0 + H.crack.a1) / 2)               # one dim bulb in the crack
-    pipe(b, p, (p[0], 2.5, p[2]), "bk_cable", 0.015)
-    bulb(b, p[0], p[1], p[2], 0.35, 2.2)
 
     def glow(x, y, z, sx, sy, sz, mat, yaw=0.0):
         b.group = bake_light.GLOW
@@ -1451,7 +1607,7 @@ def hangout(ctx):
     # The walls: tin sheets painted red, teal and yellow round the room to head height, a steel trim along the top
     # and a strip of light behind it; the rock carries on above. (Left open at the crack.)
     M = len(H.outline)
-    cols = ("red", "teal", "yellow", "teal")
+    cols = ("hd_tin_red", "hd_tin_teal", "hd_tin_yellow", "hd_tin_teal")
     for k in range(M):
         pa, pb = H.outline[k], H.outline[(k + 1) % M]
         mx, mz = (pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2
@@ -1464,7 +1620,7 @@ def hangout(ctx):
         ln = math.hypot(qb[0] - qa[0], qb[1] - qa[1]) + 0.04
         yaw = math.degrees(math.atan2(qb[0] - qa[0], qb[1] - qa[1]))
         c = ((qa[0] + qb[0]) / 2, (qa[1] + qb[1]) / 2)
-        b.box((c[0], 1.25, c[1]), (0.04, 2.5, ln), yaw=yaw, style=mb._solid(cols[k // 4 % 4]))
+        b.box((c[0], 1.25, c[1]), (0.04, 2.5, ln), yaw=yaw, style=_kit(cols[k // 4 % 4]))
         b.box((c[0], 2.53, c[1]), (0.12, 0.08, ln), yaw=yaw, style=mb._solid("bk_iron"))
         b.box((c[0], 0.08, c[1]), (0.08, 0.16, ln), yaw=yaw, style=mb._solid("bk_iron"))       # a kick plate
         if k % 2 == 0:
@@ -1474,23 +1630,12 @@ def hangout(ctx):
     # The floor: black and white tiles.
     R0 = HANG_R * H.f_at(0.1) - 0.5
     b.poly([(cx - R0, 0.004, cz - R0), (cx + R0, 0.004, cz - R0), (cx + R0, 0.004, cz + R0), (cx - R0, 0.004, cz + R0)],
-           (0, 1, 0), "bone", mb.uv_world())
-    T = 0.6
-    n = int(R0 / T) + 1
-    for i in range(-n, n):
-        for j in range(-n, n):
-            if (i + j) % 2:
-                continue
-            x0, z0 = cx + i * T, cz + j * T
-            if math.hypot(x0 + T / 2 - cx, z0 + T / 2 - cz) > R0 - 0.3:
-                continue
-            b.poly([(x0, 0.008, z0), (x0 + T, 0.008, z0), (x0 + T, 0.008, z0 + T), (x0, 0.008, z0 + T)], (0, 1, 0),
-                   "black", mb.uv_world())
+           (0, 1, 0), "hd_tiles", mb.uv_world())
     # The pool table: a steel frame with green tarp stretched over it for felt, pockets, the balls left out.
     tx, tz = H.table
     L, W = 2.4, 1.3
     b.box((tx, 0.62, tz), (L, 0.16, W), style=mb._nb("bk_iron"))
-    b.box((tx, 0.705, tz), (L - 0.2, 0.012, W - 0.2), style=mb._solid("green"))
+    b.box((tx, 0.705, tz), (L - 0.2, 0.012, W - 0.2), style=_kit("hd_felt", 2.0))
     for s in (-1, 1):
         b.box((tx, 0.74, tz + s * (W / 2 - 0.05)), (L, 0.07, 0.1), style=mb._nb("red"))
         b.box((tx + s * (L / 2 - 0.05), 0.74, tz), (0.1, 0.07, W), style=mb._nb("red"))
@@ -1509,7 +1654,7 @@ def hangout(ctx):
     # The bar along the north wall: a tin front with a light strip under the steel top, stools, shelves of snacks
     # behind, the glowing SNACKS sign over it.
     bz = cz - 3.4
-    b.box((cx, 0.5, bz), (4.6, 1.0, 0.12), style=mb._nb("red"))
+    b.box((cx, 0.5, bz), (4.6, 1.0, 0.12), style=_kit("hd_tin_red"))
     b.box((cx, 0.55, bz - 0.35), (4.6, 1.1, 0.6), style=mb._nb("bk_iron"))
     b.box((cx, 1.12, bz - 0.25), (4.8, 0.05, 0.8), style=mb._solid("steel_light"))
     glow(cx, 1.05, bz + 0.1, 4.5, 0.03, 0.03, "yellow")
@@ -1562,7 +1707,7 @@ def hangout(ctx):
         LAMPS.append((ax_ + f[0] * 0.6, 1.3, az_ + f[1] * 0.6, 0.35, 1.8))
     # The jukebox: red and chrome, its front lit.
     jx, jz = H.jukebox
-    b.box((jx, 0.7, jz), (0.55, 1.4, 0.9), style=mb._nb("red"))
+    b.box((jx, 0.7, jz), (0.55, 1.4, 0.9), style=_kit("hd_tin_red", 2.0))
     b.box((jx + 0.02, 1.42, jz), (0.5, 0.12, 0.84), style=mb._nb("steel_light"))
     glow(jx + 0.28, 0.95, jz, 0.01, 0.5, 0.6, "yellow")
     b.box((jx + 0.285, 0.45, jz), (0.01, 0.3, 0.6), style=mb._solid("bk_grate"))
@@ -1572,8 +1717,8 @@ def hangout(ctx):
     ux, uz = H.couch
     b.poly([(ux - 1.6, 0.012, uz - 1.5), (ux + 0.4, 0.012, uz - 1.5), (ux + 0.4, 0.012, uz + 1.5), (ux - 1.6, 0.012, uz + 1.5)],
            (0, 1, 0), "carpet", mb.uv_world())
-    b.box((ux, 0.22, uz), (0.85, 0.44, 2.1), style=mb._nb("teal"))
-    b.box((ux + 0.33, 0.7, uz), (0.22, 0.6, 2.1), style=mb._nb("teal"))
+    b.box((ux, 0.22, uz), (0.85, 0.44, 2.1), style=_kit("hd_vinyl"))
+    b.box((ux + 0.33, 0.7, uz), (0.22, 0.6, 2.1), style=_kit("hd_vinyl"))
     for s in (-1, 1):
         b.box((ux, 0.55, uz + s * 1.0), (0.85, 0.3, 0.18), style=mb._nb("bk_iron"))
     for s in (-0.5, 0.5):
@@ -1821,7 +1966,8 @@ def stations():
         out.append(("lights", SWITCH[0] - 0.75, SWITCH[2], 1.4))
     if LAY.hang:
         jx, jz = LAY.hang.jukebox
-        out.append(("jukebox", jx + 1.0, jz, 1.4))
+        p = LAY.hang.w((jx + 1.0, 0.0, jz))
+        out.append(("jukebox", p[0], p[2], 1.4))
     return out
 
 
@@ -1833,7 +1979,8 @@ def aimed_stations():
     return {"darts": ((DARTBOARD[0] + 0.01, DARTBOARD[1], DARTBOARD[2]), 0.36, 3.6),
             "radio": ((RADIO[0] - 0.05, 0.6, RADIO[1]), 0.28, 2.4),
             "lights": ((SWITCH[0] - 0.04, SWITCH[1] + 0.02, SWITCH[2]), 0.2, 2.2),
-            **({"jukebox": ((LAY.hang.jukebox[0] + 0.28, 0.95, LAY.hang.jukebox[1]), 0.45, 2.6)} if LAY.hang else {})}
+            **({"jukebox": (LAY.hang.w((LAY.hang.jukebox[0] + 0.28, 0.95, LAY.hang.jukebox[1])), 0.45, 2.6)}
+               if LAY.hang else {})}
 
 
 def seats():
@@ -1849,11 +1996,13 @@ def seats():
                 out.append((x + e, 0.46, z - s, 180.0 if s > 0 else 0.0))
     for e in (-0.5, 0.5):                                              # the couch, facing the TV
         out.append((-1.55, 0.56, LAY.mess[1] + 5.2 + e, 90.0))
-    if LAY.hang:                                                       # the hangout's couch, facing the pool table
-        for e in (-0.5, 0.5):
-            out.append((LAY.hang.couch[0] - 0.05, 0.56, LAY.hang.couch[1] + e, 90.0))
-        for k in range(4):                                             # the bar stools, facing the bar
-            out.append((LAY.hang.C[0] - 1.8 + k * 1.2, 0.76, LAY.hang.C[1] - 3.4 + 0.6, 0.0))
+    H = LAY.hang
+    if H:                                                              # the hangout's couch, facing the pool table
+        den = [(H.couch[0] - 0.05, 0.56, H.couch[1] + e, 90.0) for e in (-0.5, 0.5)]
+        den += [(H.C[0] - 1.8 + k * 1.2, 0.76, H.C[1] - 3.4 + 0.6, 0.0) for k in range(4)]     # the bar stools
+        for x, y, z, yaw in den:
+            p = H.w((x, y, z))
+            out.append((p[0], round(p[1], 3), p[2], yaw + H.turn))
     return out
 
 
@@ -1954,9 +2103,10 @@ def write_level(rows):
         if LAY.hang:
             jx, jz = LAY.hang.jukebox
             f.write('\n[node name="Hangout" type="Marker3D" parent="."]\n'
-                    'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n'
-                    'metadata/jukebox = Vector3(%g, 0.95, %g)\n'
-                    % (round(LAY.hang.C[0], 3), round(LAY.hang.C[1], 3), round(jx + 0.3, 3), round(jz, 3)))
+                    'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, %g, %g)\n'
+                    'metadata/jukebox = Vector3(%g, %g, %g)\n'
+                    % ((round(LAY.hang.Cw[0], 3), -HANG_DEPTH, round(LAY.hang.Cw[1], 3))
+                       + tuple(round(v, 3) for v in LAY.hang.w((jx + 0.3, 0.95, jz)))))
         aimed = aimed_stations()
         for sid, x, z, reach in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'
@@ -1979,8 +2129,8 @@ def main():
             xs.append(p[0])
             zs.append(p[2])
     if LAY.hang:
-        xs += [p[0] - 2.0 for p in LAY.hang.outline] + [p[0] + 2.0 for p in LAY.hang.outline]
-        zs += [p[1] - 2.0 for p in LAY.hang.outline]
+        xs += [p[0] - 2.0 for p in LAY.hang.outline_w] + [p[0] + 2.0 for p in LAY.hang.outline_w]
+        zs += [p[1] - 2.0 for p in LAY.hang.outline_w] + [p[1] + 2.0 for p in LAY.hang.outline_w]
     mb.FOOTPRINTS[NAME] = (min(xs) - 1, min(zs) - 1, max(xs) + 1, max(zs) + 1)
     mb.SHELLS[NAME] = {"row_hook": lambda ctx, row: True}       # the dressing draws the shell, not the boxes
     mb.DECALS[NAME] = decals

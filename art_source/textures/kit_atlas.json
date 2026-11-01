@@ -220,5 +220,11 @@
 "bk_grate",
 "bk_rock",
 "bk_ground",
-"bk_band"
+"bk_band",
+"hd_tin_red",
+"hd_tin_teal",
+"hd_tin_yellow",
+"hd_tiles",
+"hd_felt",
+"hd_vinyl"
 ]

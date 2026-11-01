@@ -2163,25 +2163,25 @@ func _section_hideout_world() -> void:
 	var on_bunk := walker.global_position - world.global_position
 	_check(walker.is_on_floor() and absf(on_bunk.y - 1.71) < 0.05 and on_bunk.x > 2.5,
 		"jump up the steps onto the top bunk (%s)" % on_bunk)
-	# The hangout (0.25.17): through the gap at the east end of the firing line, and from the range's far end through
-	# the crack into the den.
+	# The hangout (0.25.17; 0.25.23: off the armory's end, down a sloping passage with stairs, 4.5 m below the hall):
+	# walk from the stash's tunnel down into the den.
 	var den: Vector3 = (world.get_node("Level/Hangout") as Node3D).global_position
-	var line: Vector3 = (world.get_node("Level/Range/Spot") as Node3D).global_position
-	for leg: Array in [[line + Vector3(2.6, 0.05, 1.0), line.z - 2.0], [Vector3(den.x, line.y + 0.05, den.z + 16.0), den.z + 2.0]]:
-		walker.global_position = leg[0]
-		walker.rotation = Vector3.ZERO   # (facing north, down the range)
-		walker.velocity = Vector3.ZERO
-		for i in 5:
-			await physics_frame
-		Input.action_press("move_forward")
-		for i in 360:
-			await physics_frame
-			if walker.global_position.z < leg[1]:
-				break
-		Input.action_release("move_forward")
-		_check(walker.global_position.z < leg[1] and walker.is_on_floor(), "walk %s (%s)"
-			% ["past the firing line by the east wall" if leg[1] > den.z + 10.0 else "from the range's end through the crack into the hangout",
-			walker.global_position - world.global_position])
+	var stash_spot: Node3D = world.get_node("Level/Stations/stash")
+	walker.global_position = Vector3(stash_spot.global_position.x + 3.0, world.global_position.y + 0.05, den.z)
+	walker.rotation = Vector3(0.0, -PI / 2, 0.0)   # (facing east, along the armory to its end)
+	walker.velocity = Vector3.ZERO
+	for i in 5:
+		await physics_frame
+	Input.action_press("move_forward")
+	for i in 900:
+		await physics_frame
+		if walker.global_position.x > den.x - 2.0:
+			break
+	Input.action_release("move_forward")
+	for i in 20:
+		await physics_frame
+	_check(walker.global_position.x > den.x - 2.0 and walker.is_on_floor() and absf(walker.global_position.y - den.y) < 0.2,
+		"walk from the armory down the passage into the hangout (%s, den at %s)" % [walker.global_position - world.global_position, den - world.global_position])
 	var guns: Node3D = world.get_node("Level/Stations/guns")
 	walker.global_position = guns.global_position + Vector3.UP * 0.1
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)
