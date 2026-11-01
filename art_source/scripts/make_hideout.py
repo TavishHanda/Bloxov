@@ -630,6 +630,8 @@ def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", tunnels
                     push *= min(1.0, max(0.0, (abs(u) - t.hw - 2.0) / 3.0))
             ring.append((C[0] + dx * f + dx / ln * push, y, C[1] + dz * f + dz / ln * push))
         grid.append(ring)
+    if seed == "hall":                                                 # (0.26.1: wall_at hangs things on it)
+        HALL[:] = [grid, [y for _, y in profile], C]
     for k in range(len(profile) - 1):
         for i in range(M):
             j = (i + 1) % M
@@ -1143,8 +1145,18 @@ def sandbag_wall(b, a, c, h=1.0, t=0.7):
 
 
 def wall_at(y, ang):
-    """A point on the hall's wall at height y, in the direction `ang` (radians) from the middle."""
+    """A point on the hall's wall at height y, in the direction `ang` (radians) from the middle. Once the hall is
+    drawn, it's on its rock as drawn, bumps and all (0.26.1: the strings of bulbs ended in the air off the wall)."""
     C = LAY.C
+    if HALL:
+        grid, ys, C = HALL
+        i = min(range(len(grid[0])), key=lambda i: abs(math.remainder(
+            math.atan2(grid[0][i][2] - C[1], grid[0][i][0] - C[0]) - ang, 2 * math.pi)))
+        k = max(0, min(len(ys) - 2, max(j for j in range(len(ys)) if ys[j] <= y)))
+        t = (y - ys[k]) / (ys[k + 1] - ys[k])
+        p = [grid[k][i][n] + (grid[k + 1][i][n] - grid[k][i][n]) * t for n in range(3)]
+        ln = math.hypot(p[0] - C[0], p[2] - C[1])
+        return (p[0] - (p[0] - C[0]) / ln * 0.03, y, p[2] - (p[2] - C[1]) / ln * 0.03)
     best = min(LAY.outline, key=lambda p: abs(math.remainder(math.atan2(p[1] - C[1], p[0] - C[0]) - ang, 2 * math.pi)))
     f = LAY.f_at(y) - 0.04
     return (C[0] + (best[0] - C[0]) * f, y, C[1] + (best[1] - C[1]) * f)
@@ -1663,7 +1675,7 @@ def quarters(ctx):
         b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(rng.choice(("bk_tarp", "olive", "blue"))))
     # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off).
     n0 = len(LAMPS)
-    for a, c in (((-4.2, 2.9, 25.6), (4.2, 2.9, 28.4)), ((4.2, 2.9, 28.4), (-4.2, 2.9, 31.6))):
+    for a, c in (((-4.44, 2.9, 25.6), (4.44, 2.9, 28.4)), ((4.44, 2.9, 28.4), (-4.44, 2.9, 31.6))):   # wall to wall
         string_lights(b, a, c, sag=0.35, every=0.9, strength=0.25, reach=2.2)
     DARK_GLOWS[:] = [lamp[:3] for lamp in LAMPS[n0:]]
     # The dartboard on a plywood backboard, a tape line on the floor to throw from.
@@ -1694,6 +1706,7 @@ def quarters(ctx):
 
 
 LAMPS = []          # (x, y, z, strength, reach) for the light bake
+HALL = []           # the hall's rock as dome() drew it: [rings of points, their heights, the middle]
 SWINGS = []         # (top x, y, z, cable length, shaded) of the lamps that swing (scripts/swing_lamps.gd draws them)
 CLOTH = []          # (centre, width, height, yaw, colour) of the curtains and washing that sway (scripts/cloth.gd)
 KICKS = []          # (x, y, z, yaw, kind, colour) of the cans and bottles you can knock about (scripts/kickables.gd)
@@ -1974,8 +1987,10 @@ def den(ctx):
         pipe(b, (p[0] + 0.15, 0.05, z), (p[0], 1.45, z), "steel_light", 0.012)
     # String lights zigzagging over it all, and a mirror ball over the middle.
     # (under the ceiling now, in the games room only)
-    string_lights(b, (cx - 3.4, 3.3, cz + 4.4), (cx + 4.4, 3.3, cz - 2.9), sag=0.4, every=1.2, strength=0.25, reach=2.4)
-    string_lights(b, (cx - 3.2, 3.3, cz - 2.9), (cx + 4.4, 3.3, cz + 4.0), sag=0.4, every=1.2, strength=0.25, reach=2.4)
+    string_lights(b, (cx - 3.4, CEIL - 0.04, cz + 4.4), (cx + 4.4, CEIL - 0.04, cz - 2.9), sag=0.5, every=1.2,
+                  strength=0.25, reach=2.4)                            # (0.26.1: fixed to the ceiling, were 10 cm off)
+    string_lights(b, (cx - 3.2, CEIL - 0.04, cz - 2.9), (cx + 4.4, CEIL - 0.04, cz + 4.0), sag=0.5, every=1.2,
+                  strength=0.25, reach=2.4)
     mx_, mz_ = cx + 1.6, cz + 2.6
     pipe(b, (mx_, 3.0, mz_), (mx_, CEIL, mz_), "bk_cable", 0.015)
     for k in range(3):
@@ -2105,15 +2120,33 @@ def loft(ctx, glow):
     block(fx, UP, fz, 1.2, 0.85, 0.8)
     hang((cx + 0.5, UP + 2.2, cz - 0.3), UP_TOP - UP - 2.2, 0.7, 3.0, shaded=True)
     hang((fx, UP + 2.2, fz), UP_TOP - UP - 2.2, 0.7, 2.6, shaded=True)
-    string_lights(b, (cx - 3.0, UP_TOP - 0.25, cz - 4.0), (cx + 4.0, UP_TOP - 0.25, cz + 3.6), sag=0.3, every=1.2,
+    string_lights(b, (cx - 3.0, UP_TOP - 0.04, cz - 4.0), (cx + 4.0, UP_TOP - 0.04, cz + 3.6), sag=0.5, every=1.2,
                   strength=0.2, reach=2.2)
 
 
 def hang(at, length, strength, reach, shaded=False):
     """A lamp hanging on a cable from `length` above `at` (the bulb), that swings when knocked (0.22.0, World reacts):
-    left out of the model, drawn by scripts/swing_lamps.gd; its light is baked where it hangs still."""
+    left out of the model, drawn by scripts/swing_lamps.gd; its light is baked where it hangs still. Under a tunnel's
+    arch the cable runs on up to it (0.26.1, owner: lamps "not even attached to the roof")."""
+    roof = tunnel_roof(at[0], at[2])
+    if roof is not None and roof > at[1] + length:
+        length = roof - at[1]
     SWINGS.append((at[0], at[1] + length, at[2], length, 1 if shaded else 0))
     LAMPS.append((at[0], at[1] - 0.15, at[2], strength, reach))
+
+
+def tunnel_roof(x, z):
+    """The height of the arch over (x, z) if it's in one of the hall's tunnels, else None."""
+    for t in LAY.tunnels:
+        u, a = t.local((x, 0.0, z))
+        if abs(u) < t.hw and t.a0 - t.lip < a < t.a1:
+            return t.arch(u) + t.off(a)
+    return None
+
+
+def hook(b, p):
+    """A steel eye where a cable is fixed to the rock or a wall."""
+    b.box(p, (0.07, 0.07, 0.07), style=mb._nb("bk_iron"))
 
 
 def sheet(c, width, height, yaw, colour):
@@ -2130,7 +2163,9 @@ def bulb(b, x, y, z, strength=0.4, reach=2.6):
 
 
 def string_lights(b, a, c, sag=0.6, every=1.4, strength=0.4, reach=2.6):
-    """Bulbs on a cable strung from a to c, sagging in the middle."""
+    """Bulbs on a cable strung from a to c, sagging in the middle, fixed at both ends."""
+    hook(b, a)
+    hook(b, c)
     d = mb.v_sub(c, a)
     ln = math.sqrt(mb.dot(d, d))
     n = max(2, int(ln / every))
@@ -2171,6 +2206,9 @@ def lamps(ctx):
             p = (tx + math.cos(a) * 1.6, 4.2, tz + math.sin(a) * 1.2)
             pipe(b, p, (tx, 7.5, tz), "bk_cable", 0.015)
             bulb(b, p[0], p[1], p[2], 0.9, 3.6)
+        # ... from a steel ring, on a chain of cable up into the rock of the crown (0.26.1: it ended in the air)
+        b.box((tx, 7.5, tz), (0.16, 0.06, 0.16), style=mb._nb("bk_iron"))
+        pipe(b, (tx, 7.5, tz), (tx, LAY.crown + 0.5, tz), "bk_cable", 0.025)
     for x, z, s, r in LAY.work_lamps:
         work_lamp(b, x, z, s, r, base_y(x, z))
     for t in LAY.tunnels:                                              # bulbs down each tunnel's crown
