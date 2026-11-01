@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.34 (Hangout doors)
+Owner: "add doors? custom nice doors they can open... make sure textures don't glitch".
+- Both of the hangout's doorways (into the snack bar and the booth room) have a pair of sliding doors: teal tin
+  leaves in a steel frame, a lit round porthole, a red stripe, a pull and a kick plate, hung on a steel track over
+  the doorway. They slide apart on their own as you walk up (no button, so it works the same on phones) and close
+  behind you, with the door sounds.
+- The leaves hang a few centimetres in front of the wall, never in its face, so nothing flickers as they slide.
+  Looks only and hideout only (`scripts/hideout_doors.gd`); nothing is sent online.
+
 ## 0.25.33 (Hangout rooms)
 Owner: "having rooms as well? making it sectioned makes it feel cozy almost".
 - The lounge is split into three rooms by painted tin walls with doorways (steel posts, a header overhead): the snack

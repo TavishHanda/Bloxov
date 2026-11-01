@@ -289,6 +289,43 @@ mb.KIT.update({"hd_tin_red": paint_hd_tin("hd_red"), "hd_tin_teal": paint_hd_tin
                "hd_vinyl": paint_hd_vinyl})
 
 
+def paint_hd_door(rng):
+    """A leaf of the hangout's sliding doors (scripts/hideout_doors.gd stretches it over a 1.2 x 2.08 m leaf): a steel
+    frame, teal tin, a round porthole lit from the room behind, a red stripe, a steel pull and a kick plate."""
+    c = mb.Canvas(24, 34, "hd_teal")
+    for x in range(24):
+        tone = {0: "hd_teal_hi", 2: "hd_teal_lo"}.get(x % 4)
+        if tone:
+            for y in range(34):
+                c.put(x, y, tone)
+    c.rect(0, 22, 24, 24, "hd_red")
+    c.rect(0, 0, 24, 2, "iron_dark")
+    c.rect(0, 32, 24, 34, "iron_dark")
+    c.rect(0, 0, 2, 34, "iron_dark")
+    c.rect(22, 0, 24, 34, "iron_dark")
+    c.rect(2, 28, 22, 32, "steel")                                     # the kick plate
+    for x in range(3, 22, 3):
+        c.put(x, 30, "steel_light")
+    for y in range(3, 16):                                             # the porthole: a steel ring round lit glass
+        for x in range(4, 20):
+            d = math.hypot(x + 0.5 - 12, y + 0.5 - 9)
+            if d < 3.6:
+                c.put(x, y, "bone" if (x - y) % 5 == 0 else "hazard_yellow")
+            elif d < 5.0:
+                c.put(x, y, "steel_light" if y < 9 else "steel")
+    c.rect(19, 14, 21, 21, "steel_light")                              # the pull, by the meeting edge
+    c.blotch(["steel", "rust"], 3, rng, area=(2, 2, 22, 28), size=(1, 2))
+    return c
+
+
+def write_door_texture():
+    rows = mb.styled(paint_hd_door(random.Random("door")), random.Random("hangout_door"))
+    mb.write_png(os.path.join(mb.ROOT, "assets", "textures", "hangout_door.png"), len(rows[0]), len(rows), rows)
+
+
+DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
+
+
 def _kit(mat, tile=mb.TILE_M):
     """A box style: every face but the bottom in a kit texture at `tile` metres."""
     return lambda n, m, q: None if n[1] < -0.7 else (mat, mb.uv_world(tile))
@@ -1585,7 +1622,9 @@ def hangout(ctx):
     pipe(b, t.P(0, t.crown - 0.06, t.a0), t.P(0, t.crown - 0.06, t.a1), "bk_cable", 0.03)
     # The den: drawn in its plan frame, then moved (turned and lowered) into place with all it adds to the lists.
     marks = (len(b.verts), len(b.faces), len(LAMPS), len(SWINGS), len(KICKS), len(EXTRA), len(mb.SOLIDS), len(CLOTH))
+    DOORS.clear()
     den(ctx)
+    DOORS[:] = [H.w((x, 0.0, z))[::2] + (ln, yaw + H.turn) for x, z, ln, yaw in DOORS]
     b.verts[marks[0]:] = [H.w(v) for v in b.verts[marks[0]:]]
     b.normals[marks[1]:] = [H.wn(n) for n in b.normals[marks[1]:]]
     vn = getattr(b, "vnormals", None)
@@ -1752,6 +1791,13 @@ def den(ctx):
             ln = a1_ - a0_
             m = (x + dx * (a0_ + a1_) / 2, z + dz * (a0_ + a1_) / 2)
             if door:                                                   # the header over the doorway
+                nx, nz = -dz, dx                                       # (the games room's side: the doors hang there)
+                DOORS.append((m[0], m[1], ln, math.degrees(math.atan2(-dz, dx))))
+                rail = (m[0] + nx * 0.15, m[1] + nz * 0.15)
+                b.box((rail[0], 2.17, rail[1]), (0.05, 0.06, 2 * ln + 0.3), yaw=yaw, style=mb._solid("bk_iron"))
+                for e in (-ln - 0.12, ln + 0.12):                       # its brackets on the wall
+                    q = (rail[0] + dx * e, rail[1] + dz * e)
+                    b.box((q[0] - nx * 0.05, 2.17, q[1] - nz * 0.05), (0.1, 0.1, 0.05), yaw=yaw, style=mb._solid("bk_iron"))
                 b.box((m[0], 2.3, m[1]), (0.14, 0.4, ln + 0.02), yaw=yaw, style=_kit(mat))
                 block(m[0], 2.1, m[1], 0.2, 0.4, ln, yaw)
                 for e in (a0_, a1_):                                   # steel posts either side
@@ -1770,7 +1816,7 @@ def den(ctx):
     hang((cx - 3.0, 2.3, cz - 1.2), HANG_CROWN - 0.4 - 2.3, 0.8, 3.0)   # (the games room gets a second lamp)
     # Arcade cabinets along the booth room's wall, facing into the games room, screens lit.
     for k, z_ in enumerate((ZB + 1.0, cz + 1.7, cz + 2.6, cz + 3.5)):
-        ax_, az_ = XB - 0.5, z_
+        ax_, az_ = XB - 0.65, z_
         face = -math.pi / 2                                            # facing west
         yaw = math.degrees(face)
         f = (math.sin(face), math.cos(face))
@@ -2118,12 +2164,13 @@ def write_level(rows):
     nums = ", ".join(("%g" % round(v, 4)) for v in flat)
     sx, sz = LAY.spawn
     with open(path, "w") as f:
-        f.write('[gd_scene load_steps=6 format=3]\n\n'
+        f.write('[gd_scene load_steps=7 format=3]\n\n'
                 '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_box"]\n'
                 '[ext_resource type="PackedScene" path="res://assets/models/buildings/hideout.glb" id="2_model"]\n'
                 '[ext_resource type="Script" path="res://scripts/swing_lamps.gd" id="3_swing"]\n'
                 '[ext_resource type="Script" path="res://scripts/cloth.gd" id="4_cloth"]\n'
-                '[ext_resource type="Script" path="res://scripts/kickables.gd" id="5_kicks"]\n\n'
+                '[ext_resource type="Script" path="res://scripts/kickables.gd" id="5_kicks"]\n'
+                '[ext_resource type="Script" path="res://scripts/hideout_doors.gd" id="6_doors"]\n\n'
                 '[node name="HideoutLevel" type="Node3D"]\n'
                 '; Generated by art_source/scripts/make_hideout.py: edit that and re-run it, never this file.\n\n'
                 '[node name="Blocks" type="StaticBody3D" parent="."]\n'
@@ -2157,6 +2204,9 @@ def write_level(rows):
                 'data = PackedFloat32Array(%s)\ncolors = PackedColorArray(%s)\n'
                 % (", ".join("%g" % round(v, 3) for row in cloth_rows() for v in row[:-1]),
                    ", ".join("%g, %g, %g, 1" % row[-1] for row in cloth_rows())))
+        f.write('\n[node name="Doors" type="Node3D" parent="."]\nscript = ExtResource("6_doors")\n'
+                'data = PackedFloat32Array(%s)\n' % ", ".join("%g" % round(v, 3) for x, z, ln, yaw in DOORS
+                                                              for v in (x, -HANG_DEPTH, z, ln, 2.08, yaw, 1.0)))
         f.write('\n[node name="Boards" type="Node3D" parent="."]\n')
         for bid, (x, z), (nx, nz) in LAY.boards:                       # (a Marker3D's +z out of the board's face)
             yaw = math.atan2(nx, nz)
@@ -2228,6 +2278,7 @@ def main():
         os.remove(decal_png)                                        # (painted fresh: its regions move as signs change)
     with open(os.path.join(mb.ROOT, "art_source", "buildings", NAME + ".json"), "w") as f:
         json.dump(data, f, indent=0)
+    write_door_texture()
     bake_light.sky = lamp_light
     bake_light.shade = lamp_shade
     mb.build(NAME, True)

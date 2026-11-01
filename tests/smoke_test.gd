@@ -2263,6 +2263,13 @@ func _section_hideout_world() -> void:
 		Input.action_release("move_forward")
 		_check((walker.global_position - goal).dot(leg[2].normalized()) > 0.0, "walk through the hangout's doorway into %s (%s)"
 			% [leg[3], walker.global_position - den])
+	# Their sliding doors (0.25.34): open as you come up to them, shut again once you've gone.
+	var doors := world.get_node("Level/Doors")
+	_check(doors.data.size() == 14 and doors.is_open(1), "the booth room's sliding doors opened as you walked through")
+	walker.global_position = den + Vector3(-2.5, 0.05, 0.6)
+	for i in 60:
+		await physics_frame
+	_check(doors.amount[0] == 0.0 and doors.amount[1] == 0.0, "and the hangout's doors slide shut behind you (%s)" % doors.amount)
 	var guns: Node3D = world.get_node("Level/Stations/guns")
 	walker.global_position = guns.global_position + Vector3.UP * 0.1
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)
