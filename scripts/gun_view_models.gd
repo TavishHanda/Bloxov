@@ -174,12 +174,13 @@ static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_r
 
 ## How hard each model jolts back and up when it fires. Only the model moves: aim, recoil and spread don't change.
 const KICK := {"rifle": 1.0, "pistol": 0.8, "smg": 0.65, "shotgun": 1.7, "sniper": 1.9}
-## Reloads from empty end with the gun being racked (handle, slide or bolt), pulled back this far through the reload.
-const RACK_PULL := 0.82
-## How the whole gun is held while reloading, added to its rest place and turn: brought in and rolled so the magazine
-## (or the shotgun's loading port) faces the left hand.
-const RELOAD_POSE := [Vector3(-0.07, 0.02, 0.03), Vector3(0.12, 0.12, -0.38)]
-const LOAD_ONE_POSE := [Vector3(-0.06, 0.0, 0.04), Vector3(0.1, 0.2, -0.7)]
+
+## Each view model's own reload (0.25.29, owner: the Lancer had the same reload as the pistol): "rock" (the Hound: the
+## mag rocks out and back in, the handle on its right is racked), "slap" (the Wasp: the cocking handle is locked back,
+## the mag swapped, the handle slapped home), "drop" (the Stinger: the mag drops out of the grip, a new one goes in from
+## below, the slide is racked), "bolt" (the Lancer: the bolt turns up and back, rounds are pushed in from the top, the
+## bolt goes home), "shells" (the Mauler: a shell at a time into the port underneath).
+const RELOAD_STYLE := {"rifle": "rock", "smg": "slap", "pistol": "drop", "sniper": "bolt", "shotgun": "shells"}
 
 
 ## The kick's offset to the model's place and turn, for kick amount `kick` (a spring, about 1 at its peak) and
@@ -189,63 +190,212 @@ static func kick_offset(kick: float, side: float, aim: float) -> Array[Vector3]:
 	return [Vector3(0.004 * side, 0.006, 0.05) * k, Vector3(0.09, 0.02 * side, 0.05 * side) * k]
 
 
-## Poses `holder`'s left hand (and magazine, or a shell for guns loaded one round at a time) for a reload `t` of the
-## way through (0-1); `t` < 0 puts them back where they hold the gun. `empty`: the reload ends with a rack.
-static func reload_pose(holder: Node3D, t: float, empty: bool, one_at_a_time: bool) -> void:
+## When view model `key`'s reload sounds play, as [t, sound] in order (`t`: how far through, 0-1): "out" the mag
+## released (or the Lancer's bolt drawn back), "in" the mag going in (the rounds, a shell), "click" a handle, slide or
+## bolt being worked. `empty`: reloading from empty (the gun is racked at the end).
+static func reload_sounds(key: String, empty: bool) -> Array:
+	match RELOAD_STYLE.get(key, "rock"):
+		"shells":
+			return [[0.6, "in"]]
+		"bolt":
+			return [[0.17, "click"], [0.25, "out"], [0.54, "in"], [0.86, "click"]]
+		"slap":
+			if empty:
+				return [[0.0, "out"], [0.16, "click"], [0.66, "in"], [0.82, "click"]]
+			return [[0.0, "out"], [0.6, "in"]]
+		"drop":
+			return [[0.0, "out"], [0.52, "in"]] + ([[0.82, "click"]] if empty else [])
+	return [[0.0, "out"], [0.62, "in"]] + ([[0.84, "click"]] if empty else [])
+
+
+## How much the whole gun bumps `t` through a reload: as the mag (or rounds) go in and the gun is worked.
+static func reload_jolt(key: String, t: float, empty: bool) -> float:
+	var jolt := 0.0
+	for sound: Array in reload_sounds(key, empty):
+		if sound[1] != "out":
+			jolt += _bump(t, sound[0], 0.05)
+	return jolt
+
+
+## How the whole gun is held `t` through a reload of view model `key`, added to where it sits and how it's turned:
+## brought in and rolled so the magazine (the Lancer's bolt, the Mauler's loading port) faces the hand working it.
+static func reload_hold(key: String, t: float, empty: bool) -> Array[Vector3]:
+	var jolt := reload_jolt(key, t, empty)
+	match RELOAD_STYLE.get(key, "rock"):
+		"shells":
+			var push := sin(clampf(t, 0.0, 1.0) * PI)
+			return [Vector3(-0.06, 0.0, 0.04 + 0.02 * push), Vector3(0.1, 0.2, -0.7)]
+		"drop":
+			return [Vector3(-0.07, 0.07 + 0.01 * jolt, 0.02), Vector3(0.3 + 0.06 * jolt, 0.15, -0.35)]
+		"bolt":
+			return [Vector3(-0.07, 0.02 + 0.01 * jolt, 0.03), Vector3(0.12 + 0.06 * jolt, 0.12, -0.38)]
+		"slap":
+			return [Vector3(-0.07, 0.02 + 0.01 * jolt, 0.03), Vector3(0.12 + 0.06 * jolt, 0.12, -0.38)]
+	return [Vector3(-0.07, 0.02 + 0.01 * jolt, 0.03), Vector3(0.12 + 0.06 * jolt, 0.12, -0.38)]
+
+
+## Poses `holder`'s hands, magazine and bolt (handle, slide) `t` through a reload (0-1) of view model `key`; `t` < 0
+## puts them all back where they are when holding the gun. `empty`: reloading from empty (the gun is racked).
+static func reload_pose(holder: Node3D, key: String, t: float, empty: bool) -> void:
 	var hands := holder.get_node_or_null("Hands") as Node3D
 	if hands == null:
 		return
-	var hand := hands.get_node(String(hands.get_meta("gun")) + "_L") as Node3D
-	if not hand.has_meta("rest"):
-		hand.set_meta("rest", hand.position)
-	var hand_rest: Vector3 = hand.get_meta("rest")
+	var gun := String(hands.get_meta("gun"))
+	var left := hands.get_node(gun + "_L") as Node3D
+	var right := hands.get_node(gun + "_R") as Node3D
 	var mag := holder.get_node_or_null("Art/Mag") as Node3D
-	if mag != null and not mag.has_meta("rest"):
-		mag.set_meta("rest", mag.position)
-	var shell := hand.get_node_or_null("Shell") as Node3D
+	var bolt := holder.get_node_or_null("Art/Bolt") as Node3D
+	var irons := holder.get_node_or_null("Art/Irons") as Node3D
+	for node: Node3D in [left, right, mag, bolt, irons]:
+		if node == null:
+			continue
+		if not node.has_meta("rest"):
+			node.set_meta("rest", node.position)
+			node.set_meta("rest_turn", node.rotation)
+		node.position = node.get_meta("rest")
+		node.rotation = node.get_meta("rest_turn")
+	if mag != null:
+		mag.visible = true
+	for extra: String in ["Shell", "Rounds"]:
+		var node := left.get_node_or_null(extra) as Node3D
+		if node != null:
+			node.visible = false
 	if t < 0.0:
-		hand.position = hand_rest
-		if mag != null:
-			mag.position = mag.get_meta("rest")
-		if shell != null:
-			shell.visible = false
 		return
-	var sight := sight_height(holder)
-	if one_at_a_time:
-		# Down to the shell pouch, then the shell goes up into the loading port under the gun.
-		var port := Vector3(0.0, -0.075, 0.03)
-		hand.position = _track([[0.0, hand_rest], [0.22, port + Vector3(-0.05, -0.16, 0.08)],
-			[0.34, port + Vector3(-0.05, -0.16, 0.08)], [0.52, port + Vector3(-0.012, -0.035, 0.04)],
-			[0.62, port + Vector3(0.0, -0.022, -0.015)], [1.0, hand_rest]], t)
-		if shell == null:
-			shell = _shell()
-			hand.add_child(shell)
-		shell.visible = t > 0.26 and t < 0.62
-		return
-	if mag == null:
-		return
+	match RELOAD_STYLE.get(key, "rock"):
+		"shells":
+			_reload_shells(left, t)
+		"bolt":
+			if bolt != null:
+				_reload_bolt(left, right, bolt, t)
+		_:
+			if mag == null:
+				return
+			match RELOAD_STYLE.get(key, "rock"):
+				"slap":
+					_reload_slap(left, mag, bolt, t, empty)
+				"drop":
+					_reload_drop(left, mag, [bolt, irons], sight_height(holder), t, empty)
+				_:
+					_reload_rock(left, mag, bolt, t, empty)
+
+
+## The Hound: the left hand rocks the curved mag forward out of the gun, hooks a new one in and rocks it back; from
+## empty it reaches under to the handle on the right and racks it.
+static func _reload_rock(left: Node3D, mag: Node3D, bolt: Node3D, t: float, empty: bool) -> void:
+	var hand_rest: Vector3 = left.get_meta("rest")
 	var mag_rest: Vector3 = mag.get_meta("rest")
-	var pistol := mag_rest.z > 0.0   # the pistol's mag is in its grip, behind the trigger
-	var grab := mag_rest + (Vector3(-0.03, -0.03, 0.0) if pistol else Vector3(-0.035, -0.05, 0.0))
+	var grab := mag_rest + Vector3(-0.035, -0.05, 0.0)
+	var tip := Vector3(0.0, -0.02, -0.035)
 	var away := grab + Vector3(-0.06, -0.3, 0.14)
-	var keys := [[0.0, hand_rest], [0.14, grab], [0.22, grab], [0.4, away], [0.47, away], [0.58, grab],
-		[0.62, grab + Vector3(0, 0.014, 0)]]
-	if empty:
-		# The rack: the hand goes over the gun, pulls back and lets go.
-		var rack := Vector3(-0.025, sight - 0.01, mag_rest.z - 0.01) if pistol else Vector3(-0.045, sight * 0.35, mag_rest.z + 0.07)
-		keys.append_array([[0.66, grab], [0.76, rack], [RACK_PULL, rack + Vector3(0, 0, 0.06)], [0.86, rack + Vector3(0, 0, 0.05)], [1.0, hand_rest]])
+	var keys := [[0.0, hand_rest], [0.12, grab], [0.18, grab], [0.27, grab + tip], [0.4, away], [0.47, away],
+		[0.55, grab + tip], [0.62, grab]]
+	if empty and bolt != null:
+		var rack: Vector3 = (bolt.get_meta("rest") as Vector3) + Vector3(0.025, -0.035, 0.0)
+		keys.append_array([[0.68, grab + Vector3(0.02, 0.0, -0.02)], [0.76, rack], [0.82, rack + Vector3(0, 0, 0.1)],
+			[0.86, rack + Vector3(0.01, -0.015, 0.11)], [1.0, hand_rest]])
+		bolt.position.z += _trackf([[0.76, 0.0], [0.82, 0.1], [0.84, 0.1], [0.86, 0.0]], t)
 	else:
 		keys.append([0.8, hand_rest])
-	hand.position = _track(keys, t)
-	mag.position = mag_rest + (hand.position - grab if t > 0.14 and t < 0.58 else Vector3.ZERO)
+	left.position = _track(keys, t)
+	if t > 0.12 and t < 0.62:
+		mag.position = mag_rest + left.position - grab
+		mag.rotation.x = _trackf([[0.18, 0.0], [0.27, 0.55], [0.55, 0.55], [0.62, 0.0]], t)
 
 
-## How much the whole gun bumps during a reload `t` through: the mag seating (0.6) and the rack letting go.
-static func reload_jolt(t: float, empty: bool) -> float:
-	var jolt := _bump(t, 0.6, 0.05)
+## The Wasp: from empty the cocking handle is pulled back and locked up first; the mag comes straight down and a new one
+## goes in; then the handle is slapped down and snaps home.
+static func _reload_slap(left: Node3D, mag: Node3D, bolt: Node3D, t: float, empty: bool) -> void:
+	var hand_rest: Vector3 = left.get_meta("rest")
+	var mag_rest: Vector3 = mag.get_meta("rest")
+	var grab := mag_rest + Vector3(-0.035, -0.05, 0.0)
+	var away := grab + Vector3(-0.06, -0.3, 0.14)
+	var cocked := empty and bolt != null
+	var s := 0.18 if cocked else 0.0   # when the mag swap starts
+	var keys := [[0.0, hand_rest]]
+	var hold := Vector3.ZERO
+	if cocked:
+		hold = (bolt.get_meta("rest") as Vector3) + Vector3(-0.005, 0.035, 0.0)   # over the top onto the handle
+		keys.append_array([[0.1, hold], [0.16, hold + Vector3(0, 0, 0.08)], [0.2, hold + Vector3(0, 0.012, 0.08)]])
+	keys.append_array([[s + 0.14, grab], [s + 0.2, grab], [s + 0.36, away], [s + 0.42, away], [s + 0.52, grab],
+		[s + 0.56, grab + Vector3(0, 0.014, 0)]])
+	if cocked:
+		keys.append_array([[0.76, hold + Vector3(0.0, 0.06, 0.07)], [0.81, hold + Vector3(0, 0.0, 0.08)],
+			[0.86, hold + Vector3(0.0, -0.01, 0.0)], [1.0, hand_rest]])
+		bolt.position += Vector3(0.0, _trackf([[0.16, 0.0], [0.2, 0.01], [0.81, 0.01], [0.83, 0.0]], t),
+			_trackf([[0.1, 0.0], [0.16, 0.08], [0.81, 0.08], [0.83, 0.0]], t))
+	else:
+		keys.append([0.8, hand_rest])
+	left.position = _track(keys, t)
+	if t > s + 0.14 and t < s + 0.52:
+		mag.position = mag_rest + left.position - grab
+
+
+## The Stinger: the mag drops out of the grip, the left hand brings a new one up into it from below and palms it home;
+## from empty it then racks the slide over the top. `slide`: the slide and the sights on it.
+static func _reload_drop(left: Node3D, mag: Node3D, slide: Array, sight: float, t: float, empty: bool) -> void:
+	var hand_rest: Vector3 = left.get_meta("rest")
+	var mag_rest: Vector3 = mag.get_meta("rest")
+	var hold := mag_rest + Vector3(-0.01, -0.05, 0.0)    # cupping the mag's base
+	var pouch := mag_rest + Vector3(-0.09, -0.3, 0.12)
+	var down_grip := Vector3(0.0, -0.96, 0.28)          # the grip leans back 16 degrees
+	var keys := [[0.0, hand_rest], [0.14, pouch], [0.26, pouch], [0.42, hold + down_grip * 0.075], [0.5, hold],
+		[0.54, hold + Vector3(0, 0.012, 0)], [0.58, hold]]
 	if empty:
-		jolt += _bump(t, 0.85, 0.05)
-	return jolt
+		var rack := Vector3(-0.025, sight - 0.01, mag_rest.z - 0.01)
+		keys.append_array([[0.66, hold + Vector3(-0.02, 0.04, 0.0)], [0.74, rack], [0.8, rack + Vector3(0, 0, 0.045)],
+			[0.84, rack + Vector3(0, 0.01, 0.05)], [1.0, hand_rest]])
+		var back := _trackf([[0.74, 0.0], [0.8, 0.03], [0.81, 0.03], [0.83, 0.0]], t)
+		for node: Node3D in slide:
+			if node != null:
+				node.position.z += back
+	else:
+		keys.append([0.78, hand_rest])
+	left.position = _track(keys, t)
+	if t < 0.26:
+		# The old mag falls out of the grip, gone once it's out of sight.
+		var fall := clampf((t - 0.03) / 0.17, 0.0, 1.0)
+		mag.position = mag_rest + down_grip * 0.4 * fall * fall
+		mag.visible = t < 0.2
+	elif t < 0.5:
+		mag.position = mag_rest + left.position - hold
+
+
+## The Lancer: the right hand turns the bolt up and draws it back, the left pushes rounds down into the open action, the
+## right runs the bolt home and goes back to the grip.
+static func _reload_bolt(left: Node3D, right: Node3D, bolt: Node3D, t: float) -> void:
+	var lift := _trackf([[0.1, 0.0], [0.17, 1.1], [0.8, 1.1], [0.86, 0.0]], t)
+	bolt.rotation.z = lift
+	bolt.position.z += _trackf([[0.17, 0.0], [0.25, 0.075], [0.72, 0.075], [0.8, 0.0]], t)
+	var knob := bolt.position + Vector3(0.058, -0.008, 0.0).rotated(Vector3.BACK, lift)
+	var on_knob := knob + Vector3(0.015, -0.015, 0.035)
+	right.position = (right.get_meta("rest") as Vector3).lerp(on_knob,
+		_trackf([[0.02, 0.0], [0.1, 1.0], [0.86, 1.0], [0.96, 0.0]], t))
+	var hand_rest: Vector3 = left.get_meta("rest")
+	var pouch := hand_rest + Vector3(-0.06, -0.25, 0.22)
+	var top := Vector3(-0.04, 0.035, 0.09)   # over the open action
+	var push := Vector3(0.0, -0.025, 0.0)
+	left.position = _track([[0.0, hand_rest], [0.2, hand_rest], [0.3, pouch], [0.36, pouch], [0.44, top],
+		[0.48, top + push], [0.51, top], [0.54, top + push], [0.6, top + Vector3(0, 0.02, 0)], [0.72, hand_rest]], t)
+	var rounds := left.get_node_or_null("Rounds") as Node3D
+	if rounds == null:
+		rounds = _rounds()
+		left.add_child(rounds)
+	rounds.visible = t > 0.33 and t < 0.56
+
+
+## The Mauler: down to the shell pouch, then the shell goes up into the loading port under the gun.
+static func _reload_shells(left: Node3D, t: float) -> void:
+	var hand_rest: Vector3 = left.get_meta("rest")
+	var port := Vector3(0.0, -0.075, 0.03)
+	left.position = _track([[0.0, hand_rest], [0.22, port + Vector3(-0.05, -0.16, 0.08)],
+		[0.34, port + Vector3(-0.05, -0.16, 0.08)], [0.52, port + Vector3(-0.012, -0.035, 0.04)],
+		[0.62, port + Vector3(0.0, -0.022, -0.015)], [1.0, hand_rest]], t)
+	var shell := left.get_node_or_null("Shell") as Node3D
+	if shell == null:
+		shell = _shell()
+		left.add_child(shell)
+	shell.visible = t > 0.26 and t < 0.62
 
 
 ## A shotgun shell for the left hand to load.
@@ -267,6 +417,41 @@ static func _shell() -> MeshInstance3D:
 	shell.position = Vector3(0.012, 0.02, -0.01)
 	shell.visible = false
 	return shell
+
+
+## Two rifle rounds lying along the barrel, for the left hand to push into the Lancer.
+static func _rounds() -> Node3D:
+	var rounds := Node3D.new()
+	rounds.name = "Rounds"
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.69, 0.54, 0.23)
+	for k in 2:
+		var mesh := CylinderMesh.new()
+		mesh.top_radius = 0.005
+		mesh.bottom_radius = 0.0065
+		mesh.height = 0.08
+		mesh.radial_segments = 6
+		mesh.rings = 1
+		mesh.material = mat
+		var round_mesh := MeshInstance3D.new()
+		round_mesh.mesh = mesh
+		round_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		round_mesh.rotation = Vector3(PI / 2.0, 0.0, 0.0)
+		round_mesh.position = Vector3(0.006 * (k * 2 - 1), -0.01 * k, 0.0)
+		rounds.add_child(round_mesh)
+	rounds.position = Vector3(0.02, -0.015, 0.0)
+	rounds.visible = false
+	return rounds
+
+
+## `keys` ([[t, value], ...], in order) at `t`, easing in and out between them (a number).
+static func _trackf(keys: Array, t: float) -> float:
+	if t <= keys[0][0]:
+		return keys[0][1]
+	for i in range(1, keys.size()):
+		if t <= keys[i][0]:
+			return lerpf(keys[i - 1][1], keys[i][1], smoothstep(keys[i - 1][0], keys[i][0], t))
+	return keys[-1][1]
 
 
 ## `keys` ([[t, place], ...], in order) at `t`, easing in and out between them.

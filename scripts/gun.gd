@@ -143,7 +143,7 @@ var _aim_block_left := 0.0
 var _burst_shots := 0
 var _since_shot := 99.0
 var _reload_left := 0.0
-var _mag_in_played := false
+var _reload_t := 0.0   # how far through the reload (or this shell) it was last frame, for its sounds
 var _flash_left := 0.0
 ## The visual kick per shot (0.20.24): a spring the model jolts back on, and this shot's sideways roll.
 var _kick := 0.0
@@ -206,7 +206,7 @@ func _apply_weapon(stack: ItemStack) -> void:
 	_raise_left = switch_time
 	for key in _models:
 		(_models[key] as Node3D).visible = false
-		GunViewModels.reload_pose(_models[key], -1.0, false, false)
+		GunViewModels.reload_pose(_models[key], key, -1.0, false)
 	if stack == null:
 		model = null
 		return
@@ -477,32 +477,41 @@ func start_reload() -> void:
 	is_reloading = true
 	_reload_empty = in_mag == 0 and not load_one
 	_reload_left = reload_time
-	_mag_in_played = false
-	if not load_one:
-		Effects.sound(get_tree().current_scene, MAG_OUT_SOUND, 0.0, 0.08, GunSounds.reload_pitch(weapon.id))
+	_reload_t = -1.0
+	_reload_sounds(0.0)
 
 
 func _update_reload(delta: float) -> void:
 	if not is_reloading:
 		return
 	_reload_left -= delta
-	if not _mag_in_played and _reload_left <= reload_time * 0.4:
-		_mag_in_played = true
-		Effects.sound(get_tree().current_scene, GunSounds.SHELL_IN if load_one else MAG_IN_SOUND, 0.0, 0.08,
-			1.0 if load_one else GunSounds.reload_pitch(weapon.id))
-	# Reloading from empty: the rack's click as the hand pulls it back (0.20.24).
-	var rack_at := reload_time * (1.0 - GunViewModels.RACK_PULL)
-	if _reload_empty and _reload_left <= rack_at and _reload_left + delta > rack_at:
-		Effects.sound(get_tree().current_scene, GunSounds.CYCLES["bolt"], -6.0, 0.05, GunSounds.reload_pitch(weapon.id) * 1.1)
+	_reload_sounds(1.0 - _reload_left / maxf(reload_time, 0.01))
 	if _reload_left <= 0.0 and load_one:
 		# One round in; keep going while there's room and rounds to load.
 		in_mag += player.inventory.take(ammo_id, 1)
 		is_reloading = in_mag < mag_size and reserve > 0
 		_reload_left = reload_time
-		_mag_in_played = false
+		_reload_t = -1.0
 	elif _reload_left <= 0.0:
 		in_mag += player.inventory.take(ammo_id, mag_size - in_mag)
 		is_reloading = false
+
+
+## Plays the reload's sounds (GunViewModels.reload_sounds: each gun's own, 0.25.29) between last frame and `t` through.
+func _reload_sounds(t: float) -> void:
+	var pitch := GunSounds.reload_pitch(weapon.id)
+	for sound: Array in GunViewModels.reload_sounds(_model_key, _reload_empty):
+		if sound[0] <= _reload_t or sound[0] > t:
+			continue
+		match sound[1]:
+			"out":
+				Effects.sound(get_tree().current_scene, MAG_OUT_SOUND, 0.0, 0.08, pitch)
+			"in":
+				Effects.sound(get_tree().current_scene, GunSounds.SHELL_IN if load_one else MAG_IN_SOUND, 0.0, 0.08,
+					1.0 if load_one else pitch)
+			"click":
+				Effects.sound(get_tree().current_scene, GunSounds.CYCLES["bolt"], -6.0, 0.05, pitch * 1.1)
+	_reload_t = t
 
 
 ## What this shot's bullets (or pellets) hit: puffs on the world, damage on whatever has health. Pellets that hit
@@ -576,15 +585,11 @@ func _update_model(delta: float) -> void:
 		# Gun drops out of the way while the knife swings.
 		target_pos += Vector3(0.05, -0.16, 0.05)
 		target_rot += Vector3(-0.4, -0.3, 0.0)
-	elif is_reloading and load_one:
-		# Shells go in one at a time: the gun rolls over, a little push per shell.
-		var push := sin(clampf(1.0 - _reload_left / maxf(reload_time, 0.01), 0.0, 1.0) * PI)
-		target_pos += Vector3(-0.03, -0.07, 0.03 + 0.02 * push)
-		target_rot += Vector3(-0.3, 0.2, 0.9)
 	elif is_reloading:
-		var jolt := GunViewModels.reload_jolt(1.0 - _reload_left / maxf(reload_time, 0.01), _reload_empty)
-		target_pos += Vector3(0, -0.08 + 0.012 * jolt, 0.04)
-		target_rot += Vector3(-0.5 + 0.06 * jolt, 0.3, 0.4)
+		# Each gun holds it its own way (0.25.29): the Mauler rolls over for its shells, the Lancer shows its bolt.
+		var hold := GunViewModels.reload_hold(_model_key, 1.0 - _reload_left / maxf(reload_time, 0.01), _reload_empty)
+		target_pos += hold[0]
+		target_rot += hold[1]
 	elif cycle != "" and _since_shot < 60.0 / rounds_per_minute:
 		# Working the pump or bolt between shots (0.15.6), with a click halfway.
 		var t := _since_shot / (60.0 / rounds_per_minute)
@@ -605,9 +610,9 @@ func _update_model(delta: float) -> void:
 	var kick := GunViewModels.kick_offset(_kick, _kick_side, aim)
 	model.position = _base_pos + kick[0]
 	model.rotation = _base_rot + kick[1]
-	# Reload animation (0.20.24): the left hand swaps the mag or loads shells; back on the gun otherwise.
+	# Reload animation (0.20.24; each gun its own since 0.25.29): the hands swap the mag, work the bolt or load shells.
 	var reload_t := 1.0 - _reload_left / maxf(reload_time, 0.01) if is_reloading and not player.hands_busy() else -1.0
-	GunViewModels.reload_pose(model, reload_t, _reload_empty, load_one)
+	GunViewModels.reload_pose(model, _model_key, reload_t, _reload_empty)
 	GunViewModels.pose_arms(model, self)
 	# Looking through a scope, the gun is out of the way (the HUD draws the scope's view).
 	model.visible = reticle() != "scope"

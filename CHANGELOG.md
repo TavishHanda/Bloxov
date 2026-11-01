@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.29 (Every gun its own reload)
+- Each gun now reloads its own way in first person (owner: "the sniper has the pistol reload"). Before, every
+  magazine gun shared one mag swap, and in the game the gun turned so far over that the hands and mag were out of view.
+  - **Hound:** the left hand rocks the curved mag forward out of the gun, hooks the new one in and rocks it home; from
+    empty it reaches under to the handle on the right and racks it.
+  - **Wasp:** from empty the cocking handle is pulled back and locked up first, the mag swapped, then the handle is
+    slapped down; otherwise a straight mag swap.
+  - **Stinger:** the gun tips up, the mag drops out of the grip, the left hand brings a new one up from below and palms
+    it in; from empty it racks the slide (the slide moves).
+  - **Lancer:** bolt-action: the right hand turns the bolt up and draws it back, the left pushes rounds down into the
+    open action, then the bolt goes home and the hand goes back to the grip.
+  - **Mauler:** shells one at a time as before, now with the gun rolled so the loading port shows.
+- Sounds: the same sounds as before, timed to each reload; the Lancer's bolt clicks as it opens and closes.
+- The gun models gained a "Bolt" part (Hound and Wasp handles, the Stinger's slide, the Lancer's bolt; make_gun.py),
+  so it can move. They look the same. `tools/reload_view.gd` renders each reload in the real raid scene.
 ## 0.25.28 (Hideout sound, backstabs, range guns)
 - The hideout was really quiet (owner). You now hear your footsteps as you walk round it (the raid's steps on
   concrete, as loud and as often, and a thud when you land a jump), a low bunker room tone, and the war rumbling far

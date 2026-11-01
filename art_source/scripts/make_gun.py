@@ -13,6 +13,7 @@ meter (seen up close), Bloxov palette.
 Model frame (Godot axes): barrel along -z, up +y, origin where the old box model's middle was, so first person keeps its
 places. Nodes in each gun .glb:
   Body      the gun                          Mag   the magazine, its origin at the top (an extended mag stretches it)
+  Bolt      what's racked on a reload: the charging/cocking handle, the pistol's slide, the Lancer's bolt
   Irons     the iron sights (hidden while an optic is on, so the two never show together)
   Muzzle    where shots and the flash leave  Grip  where the right hand holds it (third person)
   Sight     the iron sights' line (aiming puts it through the middle of the screen)
@@ -268,7 +269,8 @@ def hound(m, look):
     m.box((0, -0.06, 0.02), (0.012, 0.006, 0.09), metal)                          # trigger guard
     m.box((0, -0.053, -0.025), (0.012, 0.016, 0.006), metal)
     m.box((0, -0.052, 0.015), (0.006, 0.016, 0.006), metal)                       # trigger
-    m.box((0.044, 0.02, -0.1), (0.024, 0.012, 0.014), "steel")                    # charging handle
+    m.part("Bolt", (0.044, 0.02, -0.1))                                           # (racked in first person)
+    m.box((0.044, 0.02, -0.1), (0.024, 0.012, 0.014), "steel", part="Bolt")       # charging handle
     m.box((0.035, 0.024, 0.04), (0.004, 0.02, 0.14), metal)                       # selector lever
     stock = [(0.175, 0.035), (0.175, -0.045), (0.40, -0.085), (0.40, 0.0)]
     m.prism(stock, 0.026, furn)
@@ -302,10 +304,11 @@ def stinger(m, look):
     slide = {"a": "black", "b": "steel", "c": "black"}[look]
     frame = {"a": "black", "b": "steel", "c": "tan"}[look]
     grip = {"a": "stipple", "b": "wood", "c": "tan"}[look]
-    m.box((0, 0.012, 0.0), (0.032, 0.035, 0.19), slide)                           # slide
+    m.part("Bolt", (0, 0.012, 0.0))                                               # the slide (racked in first person)
+    m.box((0, 0.012, 0.0), (0.032, 0.035, 0.19), slide, part="Bolt")              # slide
     for k in range(5):                                                            # rear serrations
-        m.box((0, 0.012, 0.06 + k * 0.007), (0.0335, 0.03, 0.003), "black" if slide != "black" else "park")
-    m.box((0, 0.02, -0.03), (0.0335, 0.01, 0.028), "black")                       # ejection port
+        m.box((0, 0.012, 0.06 + k * 0.007), (0.0335, 0.03, 0.003), "black" if slide != "black" else "park", part="Bolt")
+    m.box((0, 0.02, -0.03), (0.0335, 0.01, 0.028), "black", part="Bolt")          # ejection port
     m.notch(0.085, 0.0295, 0.0355, "black", width=0.028, gap=0.008, dots=True)    # three-dot sights
     m.post(-0.085, 0.0295, 0.0355, "black", guard=None, width=0.006, base_w=0.008)
     m.box((0, 0.012, -0.096), (0.014, 0.014, 0.004), "blued")  # barrel end
@@ -343,7 +346,8 @@ def wasp(m, look):
         m.tube(0, 0.008, -0.25, -0.3, 0.009, "black")                             # barrel
         for z in (-0.27, -0.285):
             m.tube(0, 0.008, z, z - 0.005, 0.012, "black")                        # barrel lugs
-        m.box((0.033, 0.03, -0.11), (0.012, 0.012, 0.04), "steel")                # cocking handle
+        m.part("Bolt", (0.033, 0.03, -0.11))
+        m.box((0.033, 0.03, -0.11), (0.012, 0.012, 0.04), "steel", part="Bolt")   # cocking handle
         m.box((0, -0.075, 0.09), (0.034, 0.09, 0.046), "stipple", pitch=-12)      # grip
         m.box((0, -0.04, 0.06), (0.04, 0.03, 0.09), "black")                      # trigger group
         m.box((0, -0.055, 0.04), (0.01, 0.006, 0.05), "black")                    # guard
@@ -366,7 +370,8 @@ def wasp(m, look):
         m.box((0, -0.023, -0.1), (0.06, 0.03, 0.06), "black")                     # front grip plate
         m.box((0, -0.09, -0.005), (0.036, 0.12, 0.048), "stipple", pitch=-8)      # grip (mag inside)
         m.box((0, -0.05, -0.05), (0.01, 0.006, 0.05), "park")                     # guard
-        m.box((0.032, 0.03, 0.06), (0.008, 0.014, 0.03), "steel")                 # bolt knob
+        m.part("Bolt", (0.032, 0.03, 0.06))
+        m.box((0.032, 0.03, 0.06), (0.008, 0.014, 0.03), "steel", part="Bolt")    # bolt knob
         for x in (-0.026, 0.026):
             m.box((x, -0.005, 0.22), (0.006, 0.016, 0.17), "park")                # folding stock arms
         m.box((0, -0.02, 0.305), (0.058, 0.07, 0.012), "park")
@@ -387,7 +392,8 @@ def wasp(m, look):
         m.box((0, 0.006, -0.285), (0.03, 0.03, 0.025), "black")                   # flash hider
         m.box((0, -0.078, 0.08), (0.034, 0.09, 0.044), "olive", pitch=-15)        # grip
         m.box((0, -0.05, 0.03), (0.01, 0.006, 0.06), "olive_dark")                # guard
-        m.box((0.034, 0.03, 0.09), (0.01, 0.012, 0.03), "black")                  # charging handle
+        m.part("Bolt", (0.034, 0.03, 0.09))
+        m.box((0.034, 0.03, 0.09), (0.01, 0.012, 0.03), "black", part="Bolt")     # charging handle
         stock = [(0.13, 0.03), (0.13, -0.03), (0.33, -0.05), (0.33, 0.03)]       # skeleton stock
         m.prism(stock, 0.02, "olive_dark")
         m.box((0, -0.01, 0.335), (0.05, 0.085, 0.014), "black")
@@ -455,9 +461,10 @@ def lancer(m, look):
     metal = {"a": "blued", "b": "black", "c": "park"}[look]
     m.box((0, 0.012, 0.0), (0.05, 0.05, 0.3), metal)                              # receiver (round-ish action)
     m.box((0, 0.012, 0.0), (0.056, 0.036, 0.3), metal)
-    m.box((0, 0.012, 0.12), (0.03, 0.03, 0.06), "steel")                          # bolt shroud
-    m.box((0.035, 0.012, 0.09), (0.04, 0.008, 0.008), "steel")                    # bolt handle
-    m.box((0.058, 0.004, 0.09), (0.016, 0.016, 0.016), "steel" if look != "b" else "black")
+    m.part("Bolt", (0, 0.012, 0.09))                                              # turns up and slides back (first person)
+    m.box((0, 0.012, 0.12), (0.03, 0.03, 0.06), "steel", part="Bolt")             # bolt shroud
+    m.box((0.035, 0.012, 0.09), (0.04, 0.008, 0.008), "steel", part="Bolt")       # bolt handle
+    m.box((0.058, 0.004, 0.09), (0.016, 0.016, 0.016), "steel" if look != "b" else "black", part="Bolt")
     m.box((0, 0.012, -0.43), (0.024, 0.024, 0.5), metal)                          # long barrel
     m.box((0, -0.04, 0.03), (0.012, 0.006, 0.07), metal)                          # trigger guard
     m.box((0, -0.034, 0.005), (0.006, 0.016, 0.006), metal)

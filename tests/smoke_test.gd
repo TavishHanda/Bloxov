@@ -225,6 +225,22 @@ func _section_reload() -> void:
 	await create_timer(gun.reload_time * 0.67 + 0.3).timeout
 	_check(gun.in_mag == gun.mag_size and not gun.is_reloading, "reload refills the magazine")
 	_check(hand.position.is_equal_approx(hand_rest) and mag.position.is_equal_approx(mag_rest), "the hand and mag are back on the gun")
+	# Each gun its own reload (0.25.29): the Lancer's bolt turns up and back and the right hand works it, the Stinger's
+	# mag drops out of the grip; everything is back in place after.
+	var sniper := gun._models["sniper"] as Node3D
+	var bolt := sniper.get_node("Art/Bolt") as Node3D
+	var right := sniper.get_node("Hands/lancer_R") as Node3D
+	var right_rest := right.position
+	GunViewModels.reload_pose(sniper, "sniper", 0.4, false)
+	_check(bolt.rotation.z > 1.0 and bolt.position.z > (bolt.get_meta("rest") as Vector3).z + 0.05
+		and right.position.distance_to(right_rest) > 0.03, "the Lancer reloads by working its bolt")
+	GunViewModels.reload_pose(sniper, "sniper", -1.0, false)
+	_check(bolt.rotation.is_zero_approx() and right.position.is_equal_approx(right_rest), "the Lancer's bolt and hand go back")
+	var pistol := gun._models["pistol"] as Node3D
+	var pistol_mag := pistol.get_node("Art/Mag") as Node3D
+	GunViewModels.reload_pose(pistol, "pistol", 0.15, true)
+	_check(pistol_mag.position.y < (pistol_mag.get_meta("rest") as Vector3).y - 0.1, "the Stinger's mag drops out of the grip")
+	GunViewModels.reload_pose(pistol, "pistol", -1.0, false)
 
 
 func _section_ads() -> void:
