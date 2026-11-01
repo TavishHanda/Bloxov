@@ -21,6 +21,10 @@ const REACH := 0.33
 const KNEEL_HIPS := 0.17
 ## The middle of the head and headgear, from the neck joint (the head box's middle; make_character.py HEAD_Z, HEAD).
 const HEAD_MID := Vector3(0, 0.33, -0.037)
+## Tucked (see `tuck`): the grip this far from the neck, close in front of the chest, and the muzzle raised this much
+## (radians), so nothing reaches past the front of the body's collision (0.4 m).
+const TUCK_GRIP := Vector3(0.15, -0.36, -0.12)
+const TUCK_RAISE := 1.2
 ## Thigh and shin (hip to knee, knee to sole).
 const THIGH := 0.29
 const SHIN := 0.31
@@ -53,6 +57,9 @@ var dead := 0.0
 var pitch := 0.0
 var aim := 0.0
 var sprint := 0.0
+## 0..1: a wall right in front, so the gun is pulled in and raised to the chest instead of poking through it (0.25.19,
+## owner: other players saw a body's arms and gun stick through a pillar). Looks only: shots come from the eyes.
+var tuck := 0.0
 ## Holding a gun (shown and in both hands); else the arms hang and swing.
 var armed := true
 ## Ground speed, m/s (drives the walk and crawl).
@@ -115,7 +122,7 @@ func update(delta: float) -> void:
 	_add(pose, "LegR", Vector3(-swing, 0, 0))
 	_add(pose, "KneeL", Vector3(-maxf(-cos(_walk), 0.0) * 40.0 * walk, 0, 0))
 	_add(pose, "KneeR", Vector3(-maxf(cos(_walk), 0.0) * 40.0 * walk, 0, 0))
-	_add(pose, "Spine", Vector3(-10.0 * sprint * (1.0 - crouch), 0, 0))
+	_add(pose, "Spine", Vector3(-10.0 * sprint * (1.0 - crouch) * (1.0 - tuck), 0, 0))
 	# Crawling: each knee in turn draws up along the ground (the leg rolls out so the knee bends sideways, not up);
 	# downed, the reaching arm pulls.
 	var crawl := minf(speed / 0.6, 1.0) * lying * alive
@@ -179,7 +186,12 @@ func _hold(gun: Node3D, lying: float, crawl: float) -> void:
 	up += Vector3(-0.02, -0.12, 0.08) * sprint * (1.0 - aim)
 	var down := Vector3(0.24, 0.2, neck.z + 0.02 + crawl * 0.08)
 	var grip := up.lerp(down, lying)
-	gun.transform = Transform3D(Basis(Vector3.RIGHT, -0.45 * sprint * (1.0 - aim) * (1.0 - lying)), grip)
+	var raise := -0.45 * sprint * (1.0 - aim)
+	var tucked := tuck * (1.0 - lying)
+	if tucked > 0.0:
+		grip = grip.lerp(neck + TUCK_GRIP, tucked)
+		raise = lerpf(raise, TUCK_RAISE, tucked)
+	gun.transform = Transform3D(Basis(Vector3.RIGHT, raise * (1.0 - lying)), grip)
 	var side := model.global_basis.x
 	var below := -model.global_basis.y
 	var hand := gun.global_transform * Vector3(0, 0.03, 0)

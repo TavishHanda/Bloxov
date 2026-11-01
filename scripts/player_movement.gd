@@ -44,6 +44,8 @@ var stamina := 100.0
 var is_exhausted := false
 var _stamina_delay_left := 0.0
 var _stride_left := 0.0
+## Leaning stops this far short of a wall at the side (the middle of the head to the wall: half the head hitbox).
+const LEAN_HEAD_ROOM := 0.32
 
 
 func set_crouching(crouch: bool) -> void:
@@ -304,15 +306,17 @@ func lean_input() -> int:
 
 func _update_lean(delta: float) -> void:
 	lean = move_toward(lean, float(lean_input()), delta * lean_speed * 0.5)
-	# Don't push the camera into a wall: lean only as far as there's room.
+	# Don't push the camera into a wall: lean only as far as there's room. 0.25.19: room for the whole head (half the
+	# head hitbox, 0.31 m, was 0.2), since other players see the head where the camera is and the lean goes online as
+	# far as it really went (RemotePlayer.capture): a head poking out the far side of a wall gave you away.
 	var reach := lean_distance
 	if absf(lean) > 0.01:
 		var from := global_transform * Vector3(0, head.position.y, 0)
 		var side := global_basis.x * signf(lean)
-		var query := PhysicsRayQueryParameters3D.create(from, from + side * (lean_distance + 0.2), 1, [get_rid()])
+		var query := PhysicsRayQueryParameters3D.create(from, from + side * (lean_distance + LEAN_HEAD_ROOM), 1, [get_rid()])
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)
 		if not hit.is_empty():
-			reach = maxf(from.distance_to(hit.position) - 0.2, 0.0)
+			reach = maxf(from.distance_to(hit.position) - LEAN_HEAD_ROOM, 0.0)
 	head.position.x = lerpf(head.position.x, lean * reach, minf(delta * 20.0, 1.0))
 
 

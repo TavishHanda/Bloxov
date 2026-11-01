@@ -3205,6 +3205,29 @@ func _section_net() -> void:
 	body.push_state([Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, RemotePlayer.FLAG_ARMED], 10.07)
 	body.update_view(10.07, 0.016)
 	_check(body.gun_model.visible and RemotePlayer.capture(player)[4] & RemotePlayer.FLAG_ARMED, "a player holding a gun shows it")
+	# 0.25.19 (owner: arms and gun stuck through a pillar): right up against a wall the gun is pulled in and raised,
+	# nothing past the front of their body's collision; back out in the open it's held out again.
+	var muzzle_z := func() -> float: return body.to_local(body.gun_model.get_node("Muzzle").global_position).z
+	for i in 30:
+		body.update_view(10.07, 0.016)
+	var held_out: float = muzzle_z.call()
+	var pillar := StaticBody3D.new()
+	var pillar_shape := CollisionShape3D.new()
+	pillar_shape.shape = BoxShape3D.new()
+	(pillar_shape.shape as BoxShape3D).size = Vector3(0.3, 3, 0.3)
+	pillar.add_child(pillar_shape)
+	main.add_child(pillar)
+	pillar.global_position = body.global_position + Vector3(0, 1.5, -0.55)   # its face 0.4 m ahead, where the body stops
+	await physics_frame
+	for i in 60:
+		body.update_view(10.07, 0.016)
+	var tucked: float = muzzle_z.call()
+	pillar.free()
+	await physics_frame
+	for i in 60:
+		body.update_view(10.07, 0.016)
+	_check(held_out < -0.7 and tucked > -0.42 and muzzle_z.call() < -0.7,
+		"against a wall another player's gun is tucked in, not through it (muzzle %.2f m ahead, %.2f in the open)" % [-tucked, -held_out])
 	# They hold the model of the gun they have out (0.18.1): the gun goes in the flags' top bits.
 	var held_index := AILoadouts.NET_GUNS.find(player.gun.weapon.id) if player.gun.weapon != null else -1
 	_check(held_index <= 0 or RemotePlayer.capture(player)[4] >> Hitbox.GUN_SHIFT == held_index, "the gun a player holds is sent with their state")
@@ -6206,6 +6229,17 @@ func _section_lean() -> void:
 	Input.action_release("lean_left")
 	var head_x := player.head.global_position.x
 	_check(head_x < 9.25 - 0.1, "leaning into a wall stops short of it (head at x %.2f, wall at 9.25)" % head_x)
+	# ...and other players see the lean as far as it really went (0.25.19): their body and hitboxes don't tip into it.
+	player.teleport_to(Vector3(8.6, 0.1, 15))   # right against it
+	await physics_frame
+	Input.action_press("lean_left")
+	await create_timer(0.5).timeout
+	var sent := RemotePlayer.capture(player)
+	Input.action_release("lean_left")
+	var head_box: Vector3 = Basis(Vector3.UP, sent[1]) * (Hitbox.parts(sent[4], sent[3], sent[2])[0][0] as Vector3)
+	var head_side: float = sent[0].x + head_box.x + Hitbox.HEAD_SIZE.x * 0.5
+	_check(player.lean < -0.9 and absf(sent[3]) < 0.7 and head_side < 9.02,
+		"leaning at a wall, others see you lean only as far as there's room (lean %.2f, head box's side at x %.2f, wall 9.0)" % [sent[3], head_side])
 
 
 func _section_hurt() -> void:

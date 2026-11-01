@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.19 (No poking through walls)
+- Online (owner: standing at a pillar, a friend saw their arms and body stick right through it): against a wall,
+  other players' guns are pulled in and raised to the chest instead of reaching through it (the arms and gun used to
+  reach 0.5 m past the body's collision). Looks only: your shots still come from your eyes.
+- Leaning at a wall: others now see you lean only as far as you really did. Your camera already stopped short of the
+  wall, but your body (and its hitboxes) tipped all the way, so your head showed on the far side. Your own lean now
+  stops with room for the whole head (0.32 m from the wall, was 0.2).
+
 ## 0.25.18 (Wider signs)
 - The signs whose words touched or ran off their edges got wider boards (owner picked wider over shorter words):
   the town hall's VOTE signs over the booths and the KEEP OUT sprayed by the bunker ramp, the grocery's STAFF ONLY

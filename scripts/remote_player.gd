@@ -25,6 +25,12 @@ const STEP_RANGE_WALK := 35.0
 const STEP_RANGE_SPRINT := 45.0
 const STEP_RANGE_CROUCH := 6.0
 const STEP_UNIT_SIZE := 4.0
+## The gun reaches this far ahead of the body's middle (BodyPose holding it); a wall closer than that tucks it in.
+const GUN_REACH := 0.95
+## Over this much less room the gun goes from held out to fully tucked (the body itself keeps 0.4 m off walls).
+const TUCK_SPAN := 0.4
+## What the wall check sees: what stops players (Player collision_mask, without other bodies).
+const WALL_MASK := 1 | Door.LAYER | BoxMap.BARS_LAYER | BoxMap.WINDOW_LAYER | BoxMap.PROPS_LAYER
 
 @onready var model: Node3D = $Model
 @onready var gun_model: Node3D = $Model/Gun
@@ -77,7 +83,10 @@ static func capture(player: Player) -> Array:
 		flags |= FLAG_ARMED | maxi(AILoadouts.NET_GUNS.find(player.gun.weapon.id), 0) << Hitbox.GUN_SHIFT
 	if player.is_low():
 		flags |= Hitbox.FLAG_LOW
-	return [player.global_position, player.rotation.y, player.head.rotation.x, player.lean, flags]
+	# The lean as far as it really went (0.25.19): next to a wall the head only moves as far as there's room
+	# (_update_lean), so the body others see, and its hitboxes, tip only that far, never into the wall.
+	var lean := clampf(player.head.position.x / player.lean_distance, -1.0, 1.0) if player.lean_distance > 0.0 else 0.0
+	return [player.global_position, player.rotation.y, player.head.rotation.x, lean, flags]
 
 
 func _ready() -> void:
@@ -199,6 +208,10 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	pose.aim = move_toward(pose.aim, 1.0 if flags & FLAG_AIM else 0.0, delta * 8.0)
 	pose.sprint = move_toward(pose.sprint, 1.0 if flags & FLAG_SPRINT else 0.0, delta * 6.0)
 	pose.armed = flags & FLAG_ARMED != 0
+	var tuck := 0.0
+	if pose.armed and _prone < 0.5 and _downed < 0.5 and _down < 0.5:
+		tuck = clampf((GUN_REACH - _room_ahead()) / TUCK_SPAN, 0.0, 1.0)
+	pose.tuck = move_toward(pose.tuck, tuck, delta * 6.0)
 	pose.speed = speed if _down < 0.5 else 0.0
 	pose.update(delta)
 	# Hitboxes follow the pose: the same boxes as the server's (Hitbox.parts), fitted to the model kneeling, prone and
@@ -221,3 +234,21 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 		shape.transform = Transform3D(part[3], part[0])
 		(shape.shape as BoxShape3D).size = part[1]
 		shape.disabled = _down > 0.5
+
+
+## How far ahead the nearest wall is at gun height (0.25.19): two rays, down the middle and down the gun's side, so a
+## thin pillar is seen too. GUN_REACH when nothing is that close.
+func _room_ahead() -> float:
+	if not is_inside_tree():
+		return GUN_REACH
+	var space := get_world_3d().direct_space_state
+	var forward := -model.global_basis.z.normalized()
+	var height := lerpf(1.15, 0.65, _crouch)
+	var room := GUN_REACH
+	for x: float in [0.0, 0.15]:
+		var from := model.global_transform * Vector3(x, height, 0.0)
+		var query := PhysicsRayQueryParameters3D.create(from, from + forward * GUN_REACH, WALL_MASK, [get_rid()])
+		var hit := space.intersect_ray(query)
+		if not hit.is_empty():
+			room = minf(room, from.distance_to(hit.position))
+	return room
