@@ -2,11 +2,26 @@
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://bloxov.com/#org",
+      "name": "Bloxov",
+      "url": "https://bloxov.com/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://bloxov.com/brand/icon-192.png",
+        "width": 192,
+        "height": 192
+      }
+    },
+    {
       "@type": "WebSite",
       "@id": "https://bloxov.com/#website",
       "name": "Bloxov",
       "alternateName": "Bloxov: No Man's Land",
-      "url": "https://bloxov.com/"
+      "url": "https://bloxov.com/",
+      "publisher": {
+        "@id": "https://bloxov.com/#org"
+      }
     },
     {
       "@type": "VideoGame",
@@ -16,11 +31,19 @@
       "url": "https://bloxov.com/",
       "image": "https://bloxov.com/brand/preview.png",
       "description": "A free blocky extraction shooter you play in your browser. Drop into a war zone, loot what you can and get out alive.",
-      "genre": ["Extraction shooter", "First-person shooter", "Action"],
+      "genre": [
+        "Extraction shooter",
+        "First-person shooter",
+        "Action"
+      ],
       "gamePlatform": "Web browser",
       "applicationCategory": "GameApplication",
       "operatingSystem": "Any (plays in a web browser)",
-      "playMode": ["SinglePlayer", "MultiPlayer", "CoOp"],
+      "playMode": [
+        "SinglePlayer",
+        "MultiPlayer",
+        "CoOp"
+      ],
       "inLanguage": "en",
       "isAccessibleForFree": true,
       "offers": {
@@ -29,6 +52,9 @@
         "priceCurrency": "USD",
         "availability": "https://schema.org/InStock",
         "url": "https://bloxov.com/"
+      },
+      "publisher": {
+        "@id": "https://bloxov.com/#org"
       }
     }
   ]

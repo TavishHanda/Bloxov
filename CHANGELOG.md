@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.23 (Icon on Google)
+- Google showed a plain globe next to bloxov.com instead of the Bloxov "B" (owner: "looks really unprofessional").
+  Google only uses a site icon that is square and a multiple of 48 px, and ours was 256 px. The page now links the
+  "B" at 48, 96 and 192 px (`web/brand/icon-*.png`), the tab icon is the 192 px one, and `/favicon.ico` holds 16, 32
+  and 48 px. The search data also names Bloxov as the publisher with the icon as its logo. Google picks the new icon
+  up the next time it re-reads the page (days to a few weeks). Website only; the game is unchanged.
+
 ## 0.25.22 (Bodies that move)
 Other players (and the AI) as you see them, owner's list: "super static", "stiff", prone "really weird".
 - Turning round while prone no longer swings the whole body round the feet: lying bodies (prone, downed, dead face

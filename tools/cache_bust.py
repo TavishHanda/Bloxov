@@ -62,7 +62,7 @@ def main(build_dir: str, version: str) -> None:
     for icon in (f"{executable}.icon.png", f"{executable}.apple-touch-icon.png"):
         html = html.replace(f'href="{icon}"', f'href="{icon}?v={version}"')
     png = web / f"{executable}.icon.png"
-    if png.exists():
+    if png.exists() and not (web / "favicon.ico").exists():  # web_seo.py writes a proper multi-size one
         (web / "favicon.ico").write_bytes(png_to_ico(png.read_bytes()))
     html = html.replace("</head>", CHECK % version + "</head>", 1)
     html_path.write_text(html)

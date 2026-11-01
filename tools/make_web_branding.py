@@ -1,9 +1,11 @@
 """Makes the web page's Bloxov pictures: the loading-screen splash, the icon (favicon) and the link preview.
 
-Run from the repo root: python3 tools/make_web_branding.py
+Run from the repo root: python3 tools/make_web_branding.py  (add --icons for only the web/brand icon sizes)
 - assets/textures/boot_splash.png  shown while the game downloads (project setting application/boot_splash/image)
 - assets/icons/bloxov_icon.png     game icon, the web export makes the favicon from it (config/icon)
 - web/brand/preview.png            1200x630 picture Discord etc. show for a pasted link (og:image, CI copies it)
+- web/brand/icon-48/96/192.png + favicon.ico   the icon at sizes Google search accepts (square, a multiple of
+                                   48 px; the 256 px game icon isn't), linked from the page by tools/web_seo.py
 Pixel fonts are drawn 1:1 then scaled up with nearest-neighbour, like the title screen's logo.
 """
 from PIL import Image, ImageDraw, ImageEnhance, ImageFont
@@ -87,7 +89,19 @@ def main():
     icon.alpha_composite(b, ((256 - b.width) // 2, (232 - b.height) // 2))
     d.rectangle((48, 210, 207, 221), fill=BLOOD)
     icon.save("assets/icons/bloxov_icon.png")
+    search_icons(icon)
+
+
+def search_icons(icon):
+    """Google only shows a site icon that is square and a multiple of 48 px (0.25.22)."""
+    for size in (48, 96, 192):
+        icon.resize((size, size), Image.LANCZOS).save("web/brand/icon-%d.png" % size)
+    icon.save("web/brand/favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if sys.argv[1:] == ["--icons"]:  # just the icon sizes, from the saved game icon
+        search_icons(Image.open("assets/icons/bloxov_icon.png").convert("RGBA"))
+    else:
+        main()
