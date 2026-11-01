@@ -43,12 +43,18 @@ const NET_AIM := 16
 func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	if puppet:
 		return
+	var loud := gunshot or radius >= alarm_noise
+	if loud:
+		FightBudget.stir(self, pos)
 	var reach := radius * hearing_mult * (GUNSHOT_HEARING if gunshot else 1.0)
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or global_position.distance_to(pos) > reach:
 		return
 	if stays_home and not _near_home(pos):
 		return
 	if radius >= alarm_noise and not _is_responding() and _responders() >= max_responders:
+		_hold_alert(pos)
+		return
+	if loud and not _is_responding() and not FightBudget.take(self, pos):
 		_hold_alert(pos)
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -135,7 +141,7 @@ func answer_call(pos: Vector3) -> void:
 		return
 	if stays_home and not _near_home(pos):
 		return
-	if not _is_responding() and _responders() >= max_responders:
+	if not _is_responding() and (_responders() >= max_responders or not FightBudget.take(self, pos)):
 		_hold_alert(pos)
 		return
 	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -303,6 +309,9 @@ func _warn_friends() -> void:
 			var eyes := friend.global_position + Vector3(0, 1.65, 0)
 			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1 | Door.LAYER)).is_empty():
 				continue
+		if not FightBudget.take(self, _last_hit_from):
+			friend._hold_alert(_last_hit_from)   # (the fight has pulled in enough: it watches that way, 0.28.11)
+			continue
 		friend.notice_near_miss(_last_hit_from)
 		if not said:
 			said = true

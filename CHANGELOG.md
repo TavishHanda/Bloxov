@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs). -->
 
+## 0.28.12 (Fights stop flooding)
+Owner: a friend fighting scavs and raiders in a house near the church had AI "flooding in all across town"; fights
+drawing others in is good, but there needs to be a limit. The old cap (at most 4 heading over at once) only counted AI
+while they walked over, so once they arrived the next 4 set off, and each arrival called for help again, chaining
+outward. Now each fight (a spot, 50 m round) pulls in at most 6 AI from elsewhere in total, whether they heard the
+shots, were called over or saw a buddy drop; any more go on alert where they are, looking toward it. After 45 s with no
+gunfire there the fight is forgotten and can draw 6 again (owner picked 6 and 45 s). AI that see you still fight you.
+Numbers in `scripts/fight_budget.gd` (`BUDGET`, `QUIET_RESET`, `RADIUS`). Smoke test checks it.
+
 ## 0.28.11 (Station beam fixed)
 Owner: in the train station's waiting room "theres a wood beam near the door from the explosion, its hitbox is really
 off blocking you from going through the door properly".

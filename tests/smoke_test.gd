@@ -6221,6 +6221,7 @@ func _section_teamwork() -> void:
 	for s: Scav in [caller, buddy, far_away]:
 		s.shot_damage = 0
 	await physics_frame
+	FightBudget.reset(player)   # (earlier checks fought near here)
 	caller._alert(player.global_position)
 	_check(buddy.state == Scav.State.INVESTIGATE and buddy._answering_call and far_away.state == Scav.State.IDLE,
 		"a scav that starts a fight calls nearby AI over (they jog toward it); AI far off don't hear it")
@@ -6335,6 +6336,7 @@ func _section_teamwork() -> void:
 		"behind low cover it kneels, head box on its head at the old height (head %.2f m -> %.2f m, %.3f m off)" % [head_up, head_down, kneel_gap])
 	croucher.queue_free()
 	# 0.12.11 (owner: a friend in town had to fight 8-9 at once): only a few come over; the rest hold, on alert.
+	FightBudget.reset(player)
 	var crowd: Array[Scav] = []
 	for i in 7:
 		var c := _spawn(SCAV_SCENE, Vector3(-10 + i * 3.0, 0.1, 30)) as Scav
@@ -6350,6 +6352,31 @@ func _section_teamwork() -> void:
 		"a gunshot brings at most %d over; the other %d go on alert where they are" % [coming.size(), holding.size()])
 	for c in crowd:
 		c.queue_free()
+	await physics_frame
+	# 0.28.11 (owner: AI kept flooding in from all across town to one house fight): one fight pulls in at most
+	# FightBudget.BUDGET from elsewhere in total, not just at once; after QUIET_RESET s of quiet there it's full again.
+	FightBudget.reset(player)
+	var fight_at := Vector3(0, 0, 0)
+	for i in FightBudget.BUDGET:
+		FightBudget.take(player, fight_at)
+	var late := _spawn(SCAV_SCENE, Vector3(5, 0.1, 15)) as Scav
+	late._wander_time = 99.0
+	late._wander_dir = Vector3.ZERO
+	await physics_frame
+	late.hear_noise(fight_at + Vector3(3, 0, 0), ItemDB.ITEMS["ak"]["noise"], true)
+	var held := late.state == Scav.State.SEARCH and not late._is_responding()
+	late._set_state(Scav.State.IDLE)
+	late.answer_call(fight_at)
+	held = held and late.state == Scav.State.SEARCH
+	var far_ok := FightBudget.take(player, fight_at + Vector3(FightBudget.RADIUS + 10.0, 0, 0))
+	for f: Dictionary in player.get_viewport().get_meta(&"fight_budget"):
+		f["last"] = float(f["last"]) - FightBudget.QUIET_RESET - 1.0
+	late._set_state(Scav.State.IDLE)
+	late.hear_noise(fight_at, ItemDB.ITEMS["ak"]["noise"], true)
+	_check(held and far_ok and late._is_responding(),
+		"a fight that already pulled in %d holds the next one on alert (shot or call), a fight elsewhere has its own, and after %d s of quiet it draws again" % [FightBudget.BUDGET, int(FightBudget.QUIET_RESET)])
+	late.queue_free()
+	FightBudget.reset(player)
 	await physics_frame
 	# 0.12.12 callouts: it says what it's doing (once per few seconds at most).
 	var talker := _spawn(SCAV_SCENE, Vector3(10, 0.1, 30)) as Scav
