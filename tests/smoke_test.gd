@@ -2245,6 +2245,24 @@ func _section_hideout_world() -> void:
 		await physics_frame
 	_check(walker.global_position.x > den.x - 2.0 and walker.is_on_floor() and absf(walker.global_position.y - den.y) < 0.2,
 		"walk from the armory down the passage into the hangout (%s, den at %s)" % [walker.global_position - world.global_position, den - world.global_position])
+	# Its rooms (0.25.33): through the doorway north into the snack bar, and east into the booth room. (The den is
+	# drawn turned: its north is the hideout's +x, its east +z.)
+	for leg: Array in [[Vector3(den.x - 2.5, den.y + 0.05, den.z + 0.6), -PI / 2, Vector3(4.7, 0, 0), "the snack bar"],
+			[Vector3(den.x, den.y + 0.05, den.z + 2.5), PI, Vector3(0, 0, 5.6), "the booth room"]]:
+		walker.global_position = leg[0]
+		walker.rotation = Vector3(0.0, leg[1], 0.0)
+		walker.velocity = Vector3.ZERO
+		for i in 5:
+			await physics_frame
+		Input.action_press("move_forward")
+		var goal: Vector3 = den + leg[2]
+		for i in 300:
+			await physics_frame
+			if (walker.global_position - goal).dot(leg[2].normalized()) > 0.0:
+				break
+		Input.action_release("move_forward")
+		_check((walker.global_position - goal).dot(leg[2].normalized()) > 0.0, "walk through the hangout's doorway into %s (%s)"
+			% [leg[3], walker.global_position - den])
 	var guns: Node3D = world.get_node("Level/Stations/guns")
 	walker.global_position = guns.global_position + Vector3.UP * 0.1
 	walker.rotation = Vector3.ZERO   # (facing north, at the counter: the market's north side)

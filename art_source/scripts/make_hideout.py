@@ -705,7 +705,7 @@ def hangout_layout(rt):
     H.outline_w = [(w((x, 0, z))[0], w((x, 0, z))[2]) for x, z in H.outline]
     cx, cz = H.C
     H.wall_r = lambda a: radius(a) * H.f_at(2.6) - 0.4                # the tin walls' inside, at angle a
-    H.table = (cx - 0.6, cz + 0.4)                 # the pool table, long side across the den
+    H.table = (cx - 1.2, cz + 0.8)                 # the pool table, long side across the den
     H.jukebox = (cx - H.wall_r(math.pi) + 0.45, cz)    # against the west wall, facing east
     H.booth = (cx + H.wall_r(0.0) - 2.4, cz)       # the round booth's middle, in the east nook
     H.seat_list = []                               # (x, y, z, yaw) in the plan frame: den() fills it
@@ -1727,10 +1727,51 @@ def den(ctx):
     b.group = None
     LAMPS.append((sp[0], 2.2, sp[2] + 0.4, 0.5, 2.6))
     LAMPS.append(at(north, rb - 0.8, 2.2) + (0.5, 3.0))
-    # Arcade cabinets in pairs, angled against the wall either side of the passage, screens lit.
-    for k, ang in enumerate((0.85, 1.08, 2.06, 2.29)):
-        ax_, _, az_ = at(ang, H.wall_r(ang) - 0.55)
-        face = math.atan2(cx - ax_, cz - az_)                          # facing the middle
+    # Rooms (0.25.33, owner: "having rooms as well? making it sectioned makes it feel cozy"): tin partitions with
+    # doorways split the den into the snack bar (north), the booth room (east nook) and the games room between.
+    def edge(x, z, dx, dz):                                            # from (x, z) along (dx, dz) to the tin wall
+        t = 0.0
+        while t < 20.0:
+            px, pz = x + dx * t, z + dz * t
+            if math.hypot(px - cx, pz - cz) > H.wall_r(math.atan2(pz - cz, px - cx)) + 0.05:
+                return t
+            t += 0.05
+        return t
+
+    def partition(x, z, dx, dz, t0, t1, doors, mat):
+        """A tin wall from t0 to t1 along (dx, dz) from (x, z), open at each door (centre t, width), a header over it."""
+        yaw = math.degrees(math.atan2(dx, dz))
+        cuts = sorted((d - w / 2, d + w / 2) for d, w in doors)
+        spans, a = [], t0
+        for d0, d1 in cuts:
+            spans.append((a, d0, False))
+            spans.append((d0, d1, True))
+            a = d1
+        spans.append((a, t1, False))
+        for a0_, a1_, door in spans:
+            ln = a1_ - a0_
+            m = (x + dx * (a0_ + a1_) / 2, z + dz * (a0_ + a1_) / 2)
+            if door:                                                   # the header over the doorway
+                b.box((m[0], 2.3, m[1]), (0.14, 0.4, ln + 0.02), yaw=yaw, style=_kit(mat))
+                block(m[0], 2.1, m[1], 0.2, 0.4, ln, yaw)
+                for e in (a0_, a1_):                                   # steel posts either side
+                    q = (x + dx * e, z + dz * e)
+                    b.box((q[0], 1.25, q[1]), (0.16, 2.5, 0.08), yaw=yaw, style=mb._solid("bk_iron"))
+                continue
+            b.box((m[0], 1.25, m[1]), (0.12, 2.5, ln), yaw=yaw, style=_kit(mat))
+            b.box((m[0], 2.53, m[1]), (0.18, 0.08, ln + 0.02), yaw=yaw, style=mb._solid("bk_iron"))
+            b.box((m[0], 0.08, m[1]), (0.16, 0.16, ln), yaw=yaw, style=mb._solid("bk_iron"))
+            block(m[0], 0.0, m[1], 0.2, 2.5, ln, yaw)
+    ZB, XB = cz - 3.2, cx + 4.6                                        # the bar room's wall (z), the booth room's (x)
+    west, east = edge(cx, ZB, -1.0, 0.0), edge(cx, ZB, 1.0, 0.0)
+    partition(cx, ZB, 1.0, 0.0, -west, east, [(0.0, 2.4)], "hd_tin_yellow")
+    south = edge(XB, ZB, 0.0, 1.0)
+    partition(XB, ZB, 0.0, 1.0, 0.1, south, [(cz - ZB, 1.8)], "hd_tin_red")
+    hang((cx - 3.0, 2.3, cz - 1.2), HANG_CROWN - 0.4 - 2.3, 0.8, 3.0)   # (the games room gets a second lamp)
+    # Arcade cabinets along the booth room's wall, facing into the games room, screens lit.
+    for k, z_ in enumerate((ZB + 1.0, cz + 1.7, cz + 2.6, cz + 3.5)):
+        ax_, az_ = XB - 0.5, z_
+        face = -math.pi / 2                                            # facing west
         yaw = math.degrees(face)
         f = (math.sin(face), math.cos(face))
         b.box((ax_, 0.9, az_), (0.7, 1.8, 0.7), yaw=yaw, style=mb._nb(("blue", "black", "red", "teal")[k]))
