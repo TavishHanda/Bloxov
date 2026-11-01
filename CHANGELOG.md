@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks). -->
 
+## 0.25.37 (Hangout smoothing)
+Owner: "a gap on the roof showing the cave" over the loft stairs, "I can sit on snack bar chairs from upstairs",
+"my head is going through walls and roofs", "lower the noise of the new door... make [its texture] match a bit more".
+- The loft's ceiling now runs over the stairwell too: no more cave showing above the stairs.
+- Seats and E stations only work on your own floor (station markers carry their floor height now; a seat has to be
+  between 0.4 m under and 1.4 m over your feet, a station within 1.5 m).
+- The loft has a solid ceiling (a jump used to put your head through it), and the passage's roof box sits as low as
+  the arch is near its walls, so a jump there no longer pokes your eyes through the rock.
+- The hidden door is much quieter (-20 dB, was -8), and its picture is now the exact concrete of the wall behind it,
+  lined up with the wall's board marks and darkened by the same baked lamp light; its edges sit in shadow.
+- Smoke test: a jump in the loft stops at the ceiling; no seat or station downstairs is in reach from the loft.
+
 ## 0.25.36 (Hangout loft and hidden door)
 Owner: "you get stuck on the stairs", "make the roof match the room, I hate how it's cavey... maybe even a second
 floor??", "a door that kinda blends in that auto opens to make it more hidden, but I like the spot".

@@ -16,6 +16,7 @@ const LEVEL := preload("res://scenes/hideout/hideout_level.tscn")
 const MENU := preload("res://scenes/hideout.tscn")
 const PLAYER := preload("res://scenes/player.tscn")
 const DUMMY := preload("res://scenes/target_dummy.tscn")
+const FLOOR_GAP := 1.5     # (0.25.37) how far over or under you a station can be and still be on your floor
 ## What each station is called on the USE prompt (traders take their names from Traders.LIST).
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
@@ -315,6 +316,8 @@ func _station_in_reach() -> Node3D:
 				best_d = d_aim
 			continue
 		var to := marker.global_position - at
+		if absf(to.y) > FLOOR_GAP:
+			continue                       # (0.25.37: another floor, over or under you)
 		to.y = 0.0
 		var d := to.length()
 		if d > float(marker.get_meta("reach", 2.5)) or d >= best_d:

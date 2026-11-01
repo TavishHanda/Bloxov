@@ -13,6 +13,7 @@ const THICK := [0.04, 0.12]
 const AHEAD := [0.1, 0.1]    # how far in front of the wall's middle the leaves hang (from its face: 4 cm or more)
 const OPEN_NEAR := 2.3       # metres from the doorway: open
 const SLIDE_TIME := [0.45, 0.8]
+const EDGE_SHADE := [1.0, 0.3]   # (0.25.37: the hidden door's edges caught the lamp and gave it away: in shadow)
 const TEXTURES := [preload("res://assets/textures/hangout_door.png"), preload("res://assets/textures/hangout_secret.png")]
 const OPEN_SOUND := preload("res://audio/world/door_open.wav")
 const SHUT_SOUND := preload("res://audio/world/door_close.wav")
@@ -39,8 +40,9 @@ func _ready() -> void:
 		material.albedo_texture = t
 		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		material.roughness = 0.9
+		material.vertex_color_use_as_albedo = true
 		materials.append(material)
-	materials[1].albedo_color = Color(0.66, 0.65, 0.62)   # (the wall round it is in the lamps' shade: match it)
+	materials[1].roughness = 1.0   # (its picture has the wall's baked lamp light in it, 0.25.37: lit like the wall)
 	for i in n:
 		var d := data.slice(i * STRIDE, i * STRIDE + STRIDE)
 		var middle := Vector3(d[0], d[1], d[2])
@@ -68,7 +70,7 @@ func _ready() -> void:
 			shape.position.y = height * 0.5
 			body.add_child(shape)
 			var mesh := MeshInstance3D.new()
-			mesh.mesh = _leaf_mesh(leaf_w, height, thick, side > 0.0)
+			mesh.mesh = _leaf_mesh(leaf_w, height, thick, side > 0.0, EDGE_SHADE[look])
 			mesh.material_override = materials[look]
 			body.add_child(mesh)
 			var shut := middle + ahead + (basis.x * side * width * 0.25 if count == 2 else Vector3.ZERO)
@@ -79,13 +81,13 @@ func _ready() -> void:
 		var sound := AudioStreamPlayer3D.new()
 		sound.position = middle + Vector3.UP * 1.2
 		sound.bus = &"SFX" if AudioServer.get_bus_index(&"SFX") >= 0 else &"Master"
-		sound.volume_db = -8.0
+		sound.volume_db = -8.0 if look == 0 else -20.0   # (0.25.37, owner: "lower the noise of the new door")
 		add_child(sound)
 		_sounds.append(sound)
 
 
 ## A leaf: a box, its two faces the whole picture (the tin doors' pull side mirrored), the edges in the frame's colour.
-func _leaf_mesh(w: float, h: float, thick: float, mirror: bool) -> ArrayMesh:
+func _leaf_mesh(w: float, h: float, thick: float, mirror: bool, edge_shade: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var x0 := -w * 0.5
@@ -102,6 +104,7 @@ func _leaf_mesh(w: float, h: float, thick: float, mirror: bool) -> ArrayMesh:
 			uvs = [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
 		var order := [0, 1, 2, 0, 2, 3] if face == 0 else [0, 2, 1, 0, 3, 2]
 		for k: int in order:
+			st.set_color(Color.WHITE)
 			st.set_normal(n)
 			st.set_uv(uvs[k])
 			st.add_vertex(corners[k])
@@ -112,6 +115,7 @@ func _leaf_mesh(w: float, h: float, thick: float, mirror: bool) -> ArrayMesh:
 		[Vector3(x0, 0, -t), Vector3(x1, 0, -t), Vector3(x1, 0, t), Vector3(x0, 0, t), Vector3.DOWN]]
 	for q: Array in sides:
 		for k: int in [0, 1, 2, 0, 2, 3]:
+			st.set_color(Color(edge_shade, edge_shade, edge_shade))
 			st.set_normal(q[4])
 			st.set_uv(edge_uv)
 			st.add_vertex(q[k])

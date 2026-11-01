@@ -339,20 +339,66 @@ def paint_hd_door(rng):
     return c
 
 
-def paint_hd_secret(rng):
-    """The hidden door into the passage (0.25.35): the armory's own concrete, 2.5 x 2.9 m at the kit's 16 px a metre."""
-    big = paint_bk_old(rng)
-    c = mb.Canvas(40, 46, "bk_old")
-    for y in range(46):
-        for x in range(40):
-            c.put(x, y, big.px[y + 9][x + 12])
-    return c
+SECRET_W, SECRET_H = 2.5, 2.9
 
 
-def write_door_texture():
-    for name, painter in (("hangout_door", paint_hd_door), ("hangout_secret", paint_hd_secret)):
-        rows = mb.styled(painter(random.Random(name)), random.Random(name))
-        mb.write_png(os.path.join(mb.ROOT, "assets", "textures", name + ".png"), len(rows[0]), len(rows), rows)
+def secret_texture(rows_):
+    """The hidden door into the passage (0.25.35; 0.25.37, owner: "i dont like its texture, make it match a bit more"):
+    the very pixels of the armory's end wall behind it, lined up the way the wall's world-mapped concrete runs, so
+    while it's shut its board marks and stains carry straight on across it, and darkened by the same baked lamp light
+    the wall gets (the door has no vertex colours: it's drawn white). Rows bottom-first, like write_png's."""
+    w, h, wall = mb.read_png(os.path.join(mb.ROOT, "art_source", "textures", "kit", "bk_old.png"))
+    rt = LAY.tunnels[2]
+    m = rt.P(0.0, 0.0, rt.a1)
+    yaw = math.radians(rt.yaw())
+    bx = (math.cos(yaw), -math.sin(yaw))                               # the leaf's own x (Godot's turn about y)
+    bz = (math.sin(yaw), math.cos(yaw))
+    ahead = 0.1 + 0.06 - 0.02                                          # (hideout_doors.gd: AHEAD + THICK / 2 - 0.02)
+    right = (-rt.D[1], rt.D[0])                                        # the end wall's u (mb.face_frame, facing back)
+    cols, rows_n = int(SECRET_W * 16), int(SECRET_H * 16)
+    # The wall's light on a grid every half metre (what the bake gives its vertices), blended between.
+    lo, hi = bake_light.occluders(rows_)
+    gu, gv = int(SECRET_W / 0.5) + 1, int(SECRET_H / 0.5) + 1
+    pts = [(m[0] + bx[0] * (SECRET_W / 2 - i * 0.5), j * 0.5 * SECRET_H / (gv - 1) / 0.5, m[2] + bx[1] * (SECRET_W / 2 - i * 0.5))
+           for j in range(gv) for i in range(gu)]
+    light = [lamp_shade(v) for v in lamp_light(pts, [(-rt.D[0], 0.0, -rt.D[1])] * len(pts), lo, hi)]
+
+    def lit(x, y):
+        fx, fy = min(gu - 1.001, x * 2), min(gv - 1.001, y / (SECRET_H / (gv - 1)))
+        i, j = int(fx), int(fy)
+        tx, ty = fx - i, fy - j
+        g = [light[jj * gu + ii] for jj, ii in ((j, i), (j, i + 1), (j + 1, i), (j + 1, i + 1))]
+        return (g[0] * (1 - tx) + g[1] * tx) * (1 - ty) + (g[2] * (1 - tx) + g[3] * tx) * ty
+
+    def to_lin(c):
+        c /= 255.0
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    def to_srgb(c):
+        c = 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
+        return max(0, min(255, round(c * 255)))
+    out = []
+    for r in range(rows_n):                                            # (the leaf shows the picture's top row at its
+        hgt = (rows_n - r - 0.5) / 16                                  # foot: see _leaf_mesh)
+        row = []
+        for x in range(cols):
+            lx = SECRET_W / 2 - (x + 0.5) / 16                         # (one leaf sliding +x: drawn mirrored)
+            px = m[0] + bx[0] * lx + bz[0] * ahead
+            pz = m[2] + bx[1] * lx + bz[1] * ahead
+            u = px * right[0] + pz * right[1]
+            c = wall[int(math.floor(hgt * 16)) % h][int(math.floor(u * 16)) % w]
+            k = lit((x + 0.5) / 16, hgt)
+            row.append([to_srgb(to_lin(c[0]) * k), to_srgb(to_lin(c[1]) * k), to_srgb(to_lin(c[2]) * k), 255])
+        out.append(row)
+    return out
+
+
+def write_door_texture(rows_):
+    rows = mb.styled(paint_hd_door(random.Random("hangout_door")), random.Random("hangout_door"))
+    mb.write_png(os.path.join(mb.ROOT, "assets", "textures", "hangout_door.png"), len(rows[0]), len(rows), rows)
+    if LAY.hang:
+        rows = secret_texture(rows_)
+        mb.write_png(os.path.join(mb.ROOT, "assets", "textures", "hangout_secret.png"), len(rows[0]), len(rows), rows)
 
 
 DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
@@ -521,8 +567,11 @@ class Tunnel:
         pitch = math.degrees(math.atan2(self.drop, a1 - self.a0))
         length = run / math.cos(math.radians(pitch)) + 0.6
         out = []
+        # (0.25.37: the roof's box no higher than the arch is over you when you're against a wall, or a jump put
+        # your eyes through its sides)
+        roof = self.arch(hw - 0.4) - 0.05
         for u0, y0, u1, y1 in ((-hw - 0.3, -0.3, hw + 0.3, 0.0), (-hw - 1.3, -0.3, -hw, self.crown + 0.6),
-                               (hw, -0.3, hw + 1.3, self.crown + 0.6), (-hw - 0.3, self.crown, hw + 0.3, self.crown + 0.4)):
+                               (hw, -0.3, hw + 1.3, self.crown + 0.6), (-hw - 0.3, roof, hw + 0.3, self.crown + 0.4)):
             c = self.P((u0 + u1) / 2, (y0 + y1) / 2, (a_s + a1) / 2)
             out.append({"pos": list(c), "size": [u1 - u0, (y1 - y0) / math.cos(math.radians(pitch)), length], "yaw": yaw,
                         "pitch": pitch, "colour": "stairs", "solid": True, "kind": "hd_solid"})
@@ -977,6 +1026,9 @@ def boxes():
         for a, b_ in (((-E, -E), (E, z0h)), ((-E, z1h), (E, S)), ((-E, z0h), (x0h, z1h)), ((x1h, z0h), (E, z1h))):
             solid(H.C[0] + a[0], UP - 0.2, H.C[1] + a[1], H.C[0] + b_[0], UP, H.C[1] + b_[1])
             place_row(rows[-1])
+        # Its ceiling (0.25.37, owner: "my head is going through walls and roofs"): a jump up there reached it.
+        solid(H.C[0] - E, UP_TOP, H.C[1] - E, H.C[0] + E, UP_TOP + 0.3, H.C[1] + S)
+        place_row(rows[-1])
         sx = (x0h + x1h) / 2
         c, sz, yaw, pitch = ramp((sx, z1h), (sx, z0h), UP, x1h - x0h - 0.1)
         rows.append({"pos": list(c), "size": list(sz), "yaw": yaw, "pitch": pitch, "colour": "stairs", "solid": True,
@@ -1946,14 +1998,14 @@ def loft(ctx, glow):
     def inside(x, z, r_at, pad):
         return math.hypot(x - cx, z - cz) < r_at(math.atan2(z - cz, x - cx)) + pad
 
-    def strips(y, normal, mat, r_at, pad, uv):
-        """Flat cells over the room (out under its walls), cut round the stairwell, merged into strips."""
+    def strips(y, normal, mat, r_at, pad, uv, hole=True):
+        """Flat cells over the room (out under its walls), cut round the stairwell (hole), merged into strips."""
         for j in range(-n, n):
             za = cz + j * T
             run = None
             for i in range(-n, n + 1):
                 xa = cx + i * T
-                ok = i < n and not (x0h - 1e-6 <= xa + T / 2 <= x1h + 1e-6 and z0h - 1e-6 <= za + T / 2 <= z1h + 1e-6) \
+                ok = i < n and not (hole and x0h - 1e-6 <= xa + T / 2 <= x1h + 1e-6 and z0h - 1e-6 <= za + T / 2 <= z1h + 1e-6) \
                     and any(inside(xa + dx, za + dz, r_at, pad) for dx in (0, T) for dz in (0, T))
                 if ok and run is None:
                     run = xa
@@ -1962,7 +2014,7 @@ def loft(ctx, glow):
                     run = None
     strips(CEIL, (0, -1, 0), "hd_ceiling", H.wall_r, 0.3, mb.uv_world())
     strips(UP, (0, 1, 0), "carpet", H.up_r, 0.3, mb.uv_world())
-    strips(UP_TOP, (0, -1, 0), "hd_ceiling", H.up_r, 0.3, mb.uv_world())
+    strips(UP_TOP, (0, -1, 0), "hd_ceiling", H.up_r, 0.3, mb.uv_world(), hole=False)   # (0.25.37: over the stairs too)
     # The stairwell's sides (the floor's edge, steel) and a rail round it upstairs, open where the stairs come up.
     for (xa, za), (xb, zb), nn in ((((x0h, z0h), (x1h, z0h), (0, 0, 1))), (((x1h, z0h), (x1h, z1h), (-1, 0, 0))),
                                    (((x1h, z1h), (x0h, z1h), (0, 0, -1))), (((x0h, z1h), (x0h, z0h), (1, 0, 0)))):
@@ -2260,12 +2312,13 @@ def lamp_shade(v):
 
 # ------------------------------------------------------------------------------------------------ output
 def stations():
-    """Where you can press E (USE): (id, x, z, reach). The hideout opens the menu on that station."""
+    """Where you can press E (USE): (id, x, z, reach, floor y). The hideout opens the menu on that station; you have
+    to be on its floor (0.25.37: the snack bar's things worked from the loft over them)."""
     out = []
     for bid, o, t, n, w, depth, y0, kind in LAY.bays:
         F = Frame(o, t, n, y0)
         p = F.P(depth + 0.7, 0, 0.0)
-        out.append((bid, p[0], p[2], max(2.4, w / 2 + 0.4)))
+        out.append((bid, p[0], p[2], max(2.4, w / 2 + 0.4), y0))
     out.append(("war_table", LAY.war_table[0], LAY.war_table[1], 3.8))
     for bid, (x, z), (nx, nz) in LAY.boards:
         out.append((bid, x + nx * 1.3, z + nz * 1.3, 2.4))
@@ -2279,8 +2332,8 @@ def stations():
     if LAY.hang:
         jx, jz = LAY.hang.jukebox
         p = LAY.hang.w((jx + 1.0, 0.0, jz))
-        out.append(("jukebox", p[0], p[2], 1.4))
-    return out
+        out.append(("jukebox", p[0], p[2], 1.4, -HANG_DEPTH))
+    return [o if len(o) == 5 else o + (0.0,) for o in out]
 
 
 def aimed_stations():
@@ -2336,7 +2389,7 @@ def door_rows():
     if LAY.hang:
         rt = LAY.tunnels[2]
         p = rt.P(0.0, 0.0, rt.a1)
-        out.append((p[0], 0.0, p[2], 2.5, 2.9, rt.yaw(), 1.0, 1.0, 1.0))      # (slides towards the duffels: clear)
+        out.append((p[0], 0.0, p[2], SECRET_W, SECRET_H, rt.yaw(), 1.0, 1.0, 1.0))      # (slides towards the duffels: clear)
     return out
 
 
@@ -2431,10 +2484,10 @@ def write_level(rows):
                     % ((round(LAY.hang.Cw[0], 3), -HANG_DEPTH, round(LAY.hang.Cw[1], 3))
                        + tuple(round(v, 3) for v in LAY.hang.w((jx + 0.3, 0.95, jz)))))
         aimed = aimed_stations()
-        for sid, x, z, reach in stations():
+        for sid, x, z, reach, y in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'
-                    'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n'
-                    'metadata/reach = %g\n' % (sid, round(x, 3), round(z, 3), round(reach, 2)))
+                    'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, %g, %g)\n'
+                    'metadata/reach = %g\n' % (sid, round(x, 3), round(y, 3), round(z, 3), round(reach, 2)))
             if sid in aimed:
                 (ax, ay, az), radius, eye_reach = aimed[sid]
                 f.write('metadata/aim = Vector3(%g, %g, %g)\nmetadata/aim_radius = %g\nmetadata/aim_reach = %g\n'
@@ -2464,10 +2517,10 @@ def main():
         os.remove(decal_png)                                        # (painted fresh: its regions move as signs change)
     with open(os.path.join(mb.ROOT, "art_source", "buildings", NAME + ".json"), "w") as f:
         json.dump(data, f, indent=0)
-    write_door_texture()
     bake_light.sky = lamp_light
     bake_light.shade = lamp_shade
     mb.build(NAME, True)
+    write_door_texture(rows)                                        # (after the build: it needs the lamps)
     rows += EXTRA
     # (0.22.0, World reacts: what the dressing draws that looks solid, make_building's SOLIDS, collides too)
     rows += [{"pos": r["pos"], "size": r["size"], "yaw": r["yaw"], "pitch": r["pitch"], "colour": "prop", "solid": True,

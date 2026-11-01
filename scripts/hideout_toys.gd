@@ -110,6 +110,8 @@ func seat_in_reach() -> Node3D:
 	for node: Node in level.get_node("Seats").get_children():
 		var marker := node as Node3D
 		var to := marker.global_position - walker.global_position
+		if to.y < -0.4 or to.y > 1.4:
+			continue                       # (0.25.37, owner: "i can sit on snack bar chairs from upstairs")
 		to.y = 0.0
 		var d := to.length()
 		if d < best_d and (d < 0.5 or walker.facing().dot(to / d) > 0.3):

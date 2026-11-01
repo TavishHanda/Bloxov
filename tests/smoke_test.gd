@@ -2288,6 +2288,32 @@ func _section_hideout_world() -> void:
 		await physics_frame
 	_check(walker.is_on_floor() and absf(walker.global_position.y - (den.y + 3.6)) < 0.1 and walker.global_position.x > den.x + 3.4,
 		"walk up the stairs into the hangout's loft (%s)" % (walker.global_position - den))
+	# (0.25.37, owner: "my head is going through walls and roofs"): a jump up there stops at the ceiling...
+	Input.action_press("jump")
+	await physics_frame
+	Input.action_release("jump")
+	var jump_top := walker.global_position.y
+	for i in 60:
+		await physics_frame
+		jump_top = maxf(jump_top, walker.global_position.y)
+	_check(jump_top - den.y < 6.2 - 1.8 + 0.03, "a jump in the loft stops at its ceiling (feet up to %.2f)" % (jump_top - den.y))
+	# ... and "i can sit on snack bar chairs from upstairs": nothing downstairs is in reach from up here.
+	var toys_: HideoutToys = world.toys
+	var tried := 0
+	for node: Node in world.get_node("Level/Seats").get_children():
+		var seat_at := (node as Node3D).global_position
+		if seat_at.y > den.y + 1.5 or Vector2(seat_at.x - den.x, seat_at.z - den.z).length() > 12.0:
+			continue
+		walker.global_position = Vector3(seat_at.x, den.y + 3.65, seat_at.z)
+		walker.velocity = Vector3.ZERO
+		for i in 3:
+			await physics_frame
+		if walker.global_position.y < den.y + 3.0:
+			continue                            # (over the stairwell)
+		tried += 1
+		_check(toys_.seat_in_reach() == null and world._station_in_reach() == null,
+			"the seat under you downstairs (%s) is out of reach from the loft" % (seat_at - den))
+	_check(tried >= 4, "checked the hangout's seats from the loft (%d)" % tried)
 	# And back up the passage (owner, 0.25.34: "you get stuck on the stairs"): through the hidden door to the armory.
 	walker.global_position = den + Vector3(-3.0, 0.05, 0.0)
 	walker.rotation = Vector3(0.0, PI / 2, 0.0)
