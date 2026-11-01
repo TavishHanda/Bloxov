@@ -11,6 +11,9 @@ const HIT_SOUND := preload("res://audio/hit.wav")
 const KILL_SOUND := preload("res://audio/kill.wav")
 
 @export var damage := 45
+## A stab in the back: a set amount (0.25.22, owner; it used to be whatever it took to kill, which showed as ~10k on the
+## range's dummy). Armor takes its share as with any hit. Online the server uses the same number (Net._knife).
+@export var backstab_damage := 100
 @export var reach := 2.2
 ## Seconds from pressing V until the blade connects, and the whole swing (you can't shoot until it ends).
 @export var windup := 0.12
@@ -80,8 +83,7 @@ func _strike() -> void:
 	var health: Health = target.health
 	var victim: Node3D = target.node
 	var backstab := _is_behind(victim)
-	# A backstab always kills, armor or not (enough damage to get through the armor multiplier).
-	var amount := ceili(health.current / maxf(minf(health.damage_multiplier, health.head_multiplier), 0.01)) if backstab else damage
+	var amount := backstab_damage if backstab else damage
 	var dealt := health.take_damage(amount, player.global_position)
 	RaidScope.call_all(self, &"enemies", &"hear_noise", [player.global_position, noise_radius])
 	player.on_hit_landed(health, target.position, target.normal, dealt, backstab, "knife")

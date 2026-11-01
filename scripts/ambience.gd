@@ -24,8 +24,14 @@ const WOODS_RADIUS := 25.0
 const WOODS_FULL := 12
 const CHECK_EVERY := 0.25
 const FADE := 1.5   # (dB-ish per second of linear fade, see _fade)
+## Underground in the hideout (0.25.22, owner: "really quiet"): the room tone a little louder than a raid's indoors,
+## and the war overhead dulled by the earth.
+const BUNKER_ROOM_DB := -24.0
+const BUNKER_RUMBLE_DB := -22.0
 
 var listener: Node3D
+## True in the hideout: only the room tone and the far-off war (no wind, birds or water down there).
+var bunker := false
 var _wind: AudioStreamPlayer
 var _woods: AudioStreamPlayer
 var _room: AudioStreamPlayer
@@ -47,6 +53,15 @@ static func start(who: Node3D) -> Ambience:
 	return ambience
 
 
+## The hideout's background sound (0.25.22): the bunker's room tone and the war rumbling far overhead now and then.
+static func start_bunker(parent: Node) -> Ambience:
+	var ambience := Ambience.new()
+	ambience.name = "Ambience"
+	ambience.bunker = true
+	parent.add_child(ambience)
+	return ambience
+
+
 func _ready() -> void:
 	Hearing.bus(BUS)
 	_rumble_left = _dice.randf_range(15.0, 40.0)
@@ -56,6 +71,8 @@ func _ready() -> void:
 	_creek = _loop_at(CREEK, 3.0, 22.0)
 	_waterfall = _loop_at(WATERFALL, 5.0, 45.0)
 	_waterfall.stop()   # (until the map says where it is)
+	if bunker:
+		_creek.stop()
 
 
 ## A copy of `stream` that repeats end to start (the files are made to loop without a seam; .import files aren't
@@ -102,6 +119,10 @@ func _map() -> BoxMap:
 
 
 func _process(delta: float) -> void:
+	if bunker:
+		_fade(_room, db_to_linear(BUNKER_ROOM_DB), delta)
+		_rumbles(delta, BUNKER_RUMBLE_DB, 0.7)
+		return
 	if listener == null or not listener.is_inside_tree():
 		return
 	var indoors := Hearing.indoors
@@ -124,14 +145,19 @@ func _process(delta: float) -> void:
 	_fade(_room, db_to_linear(ROOM_DB) if indoors else 0.0, delta)
 	_creek.volume_db = CREEK_DB - (8.0 if indoors else 0.0)
 	_waterfall.volume_db = WATERFALL_DB - (8.0 if indoors else 0.0)
+	_rumbles(delta, RUMBLE_DB, 0.8)
+
+
+## Now and then, the war rumbling far off (`db` loud, pitched from `low_pitch` to 1.1: lower sounds farther/deeper).
+func _rumbles(delta: float, db: float, low_pitch: float) -> void:
 	_rumble_left -= delta
 	if _rumble_left <= 0.0:
 		_rumble_left = _dice.randf_range(25.0, 70.0)
 		var rumble := AudioStreamPlayer.new()
 		rumble.stream = RUMBLES[_dice.randi() % RUMBLES.size()]
 		rumble.bus = BUS
-		rumble.volume_db = RUMBLE_DB + _dice.randf_range(-4.0, 2.0)
-		rumble.pitch_scale = _dice.randf_range(0.8, 1.1)
+		rumble.volume_db = db + _dice.randf_range(-4.0, 2.0)
+		rumble.pitch_scale = _dice.randf_range(low_pitch, 1.1)
 		add_child(rumble)
 		rumble.finished.connect(rumble.queue_free)
 		rumble.play()

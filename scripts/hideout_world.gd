@@ -43,6 +43,8 @@ var toys: HideoutToys
 var shooter: Player
 var _picker: CanvasLayer
 var _range_hud: CanvasLayer
+## The range's borrowable guns: [button, item id, Ponta level needed].
+var _range_guns: Array = []
 var _ammo_hud: AmmoHUD
 var _crosshair_hud: CrosshairHUD
 var _last_hit: Label
@@ -73,6 +75,7 @@ func _ready() -> void:
 	add_child(walker)
 	walker.global_position = (level.get_node("Spawn") as Node3D).global_position + Vector3.UP * 0.05
 	walker.locked = true   # (until close_menu says you're walking)
+	Ambience.start_bunker(self)   # (0.25.22: the room tone and the war far overhead)
 	toys = HideoutToys.new()
 	toys.name = "Toys"
 	add_child(toys)
@@ -378,13 +381,12 @@ func _build_range(level: Node3D) -> void:
 	HudStyle.style_label(about, 20)
 	box.add_child(about)
 	_range_button(box, "YOUR LOADOUT", "loadout", true)
-	var lv := Profile.trader_level("guns")
 	for entry: Array in Traders.stock("guns"):
 		var id: String = entry[0]
 		if ItemDB.kind(id) != "weapon":
 			continue
-		var open: bool = entry[2] <= lv
-		_range_button(box, ItemDB.label(id, 1) if open else "%s  (%s level %d)" % [ItemDB.label(id, 1), Traders.LIST["guns"]["name"], entry[2]], id, open)
+		_range_guns.append([_range_button(box, "", id, false), id, int(entry[2])])
+	_refresh_range_guns()
 	var leave := _range_button(box, "LEAVE THE RANGE  (Tab)", "", true)
 	leave.name = "LeaveRange"
 	_range_hud = CanvasLayer.new()
@@ -420,6 +422,18 @@ func _build_range(level: Node3D) -> void:
 		_range_hud.add_child(button)
 
 
+## Opens the guns Ponta's level allows. Checked each time the picker comes up (0.25.22): the list used to be made
+## once, when the hideout opened, so a level claimed afterwards (LEVEL UP in the menu) left the Hound and Lancer
+## locked at the range until you went on a raid and back (owner).
+func _refresh_range_guns() -> void:
+	var lv := Profile.trader_level("guns")
+	for gun: Array in _range_guns:
+		var button: Button = gun[0]
+		var open: bool = gun[2] <= lv
+		button.disabled = not open
+		button.text = ItemDB.label(gun[1], 1) if open else "%s  (%s level %d)" % [ItemDB.label(gun[1], 1), Traders.LIST["guns"]["name"], gun[2]]
+
+
 func _range_button(box: Container, text: String, gun: String, open: bool) -> Button:
 	var button := Button.new()
 	button.text = text
@@ -444,6 +458,7 @@ func enter_range() -> void:
 
 
 func _show_picker() -> void:
+	_refresh_range_guns()
 	_picker.visible = true
 	_range_hud.visible = false
 	if shooter != null:

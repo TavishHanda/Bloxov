@@ -383,10 +383,16 @@ func _section_knife() -> void:
 		await create_timer(0.2).timeout
 		var was_idle := victim.state == Scav.State.IDLE
 		var diag := "state %d, behind %s" % [victim.state, player.knife._is_behind(victim)]
+		# A backstab is a set 100 (0.25.22, owner), through the victim's armor like any hit: it kills a bare scav, an
+		# armored Raider is left standing.
+		var want_hp := victim.health.current - maxi(roundi(player.knife.backstab_damage * victim.health.damage_multiplier), 1)
 		player.knife.swing()
 		await create_timer(player.knife.swing_time + 0.1).timeout
-		_check(was_idle and (not is_instance_valid(victim) or victim.health.is_dead), "backstab kills an unaware %s in one hit (%s)" % [scene.get_file().get_basename(), diag])
-		_check(Quests.raid_kills.has([scene.get_file().get_basename(), "knife"]), "the kill is noted for quests (%s with the knife)" % scene.get_file().get_basename())
+		var hp_left := victim.health.current if is_instance_valid(victim) else 0
+		_check(was_idle and maxi(want_hp, 0) == maxi(hp_left, 0) and (want_hp > 0) != (not is_instance_valid(victim) or victim.health.is_dead),
+			"a backstab does %d to an unaware %s (hp %d left, want %d; %s)" % [player.knife.backstab_damage, scene.get_file().get_basename(), hp_left, want_hp, diag])
+		if want_hp <= 0:
+			_check(Quests.raid_kills.has([scene.get_file().get_basename(), "knife"]), "the kill is noted for quests (%s with the knife)" % scene.get_file().get_basename())
 		if is_instance_valid(victim):
 			victim.queue_free()
 	player.head.rotation.x = 0.0
@@ -2378,6 +2384,46 @@ func _section_hideout_world() -> void:
 	world.leave_range()
 	await process_frame
 	_check(not world.in_range() and world.shooter == null and walker.camera.current, "leaving the range puts you back on your feet")
+	# A Ponta level claimed with the hideout already open unlocks its guns at the range (0.25.22, owner: the Hound
+	# and Lancer stayed locked).
+	var levels_before: Dictionary = Profile.trader_levels.duplicate()
+	Profile.trader_levels["guns"] = 1
+	world.enter_range()
+	_check((picker_guns.get_node("ak") as Button).disabled and (picker_guns.get_node("sniper") as Button).disabled, "at Ponta level 1 the Hound and Lancer are locked at the range")
+	world.leave_range()
+	Profile.trader_levels["guns"] = Traders.max_level("guns")
+	world.enter_range()
+	_check(not (picker_guns.get_node("ak") as Button).disabled and not (picker_guns.get_node("sniper") as Button).disabled, "levelling Ponta up opens the Hound and Lancer at the range")
+	world.pick_gun("sniper")
+	await physics_frame
+	var lancer: ItemStack = (world.shooter as Player).inventory.equipped("primary")
+	_check(lancer != null and lancer.id == "sniper", "a borrowed Lancer in your hands")
+	world.leave_range()
+	await process_frame
+	Profile.trader_levels = levels_before
+	# Sound (0.25.22, owner: "really quiet"): footsteps as you walk, the bunker's ambience, the radio heard all over.
+	var ambience := world.get_node_or_null("Ambience") as Ambience
+	_check(ambience != null and ambience.bunker, "the hideout has its own ambience (room tone, the war overhead)")
+	_check(world.toys._radio.max_distance == 0.0, "the radio is heard all over the hideout")
+	var walk_from := walker.global_position
+	var most_steps := 0
+	for yaw: float in [0.0, PI / 2.0, PI, -PI / 2.0]:   # (from the war table, the clearest way out)
+		walker.global_position = spawn + Vector3.UP * 0.05
+		walker.rotation = Vector3(0.0, yaw, 0.0)
+		walker.velocity = Vector3.ZERO
+		for i in 5:
+			await physics_frame
+		var steps_before: int = walker.steps_taken
+		Input.action_press("move_forward")
+		for i in 90:
+			await physics_frame
+		Input.action_release("move_forward")
+		most_steps = maxi(most_steps, walker.steps_taken - steps_before)
+	_check(most_steps >= 2, "walking round the hideout makes footsteps (%d in 1.5 s)" % most_steps)
+	walker.global_position = walk_from
+	walker.velocity = Vector3.ZERO
+	for i in 3:
+		await physics_frame
 	_check(JSON.stringify(Profile.loadout) == loadout_before and Profile.stash.stacks.size() == stash_before, "the range changes nothing in your loadout or stash")
 	# The toys (0.21.7): sit on the couch, darts, the radio, the bunks' lights.
 	var toys: HideoutToys = world.toys

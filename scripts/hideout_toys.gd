@@ -18,6 +18,7 @@ const LIGHTS_ON_ENERGY := 0.9  # (the hideout's ambient light, HideoutWorld._rea
 const LIGHTS_OFF_ENERGY := 0.12
 const LIGHTS_FADE := 2.5       # how quickly the bunks go dark (per second)
 
+const RADIO_UNIT_SIZE := 5.0
 ## Left on (or off) until the game closes, like a real radio.
 static var radio_on := false
 static var lights_on := true
@@ -169,9 +170,11 @@ func _build_radio(at: Vector3) -> void:
 	_radio = AudioStreamPlayer3D.new()
 	_radio.name = "Radio"
 	_radio.stream = Ambience.looped(RADIO_SONG)
+	# Heard all over the hideout while it plays (0.25.22, owner), loudest by the radio, fading gently as you walk
+	# away (it used to stop 22 m off): about 20 dB down at the far end of the hub, 26 at the range's far targets.
 	_radio.volume_db = -8.0
-	_radio.unit_size = 2.5
-	_radio.max_distance = 22.0
+	_radio.unit_size = RADIO_UNIT_SIZE
+	_radio.max_distance = 0.0   # (no limit)
 	_radio.bus = Hearing.world_bus()
 	add_child(_radio)
 	_radio.global_position = at

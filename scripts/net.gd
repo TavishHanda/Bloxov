@@ -574,8 +574,7 @@ func _knife(from: Vector3, dir: Vector3) -> void:
 		var backstab := facing.normalized().dot(to_attacker.normalized()) < -0.3
 		var amount := 45
 		if backstab:
-			# Enough to get through any armor (the victim's game applies theirs; a scav's is its damage multiplier).
-			amount = 1000 if hit.has("peer") else ceili(hit["enemy"].health.current / maxf(minf(hit["enemy"].health.damage_multiplier, hit["enemy"].health.head_multiplier), 0.01))
+			amount = 100   # (a set amount, 0.25.22, owner: as Knife.backstab_damage; armor applies as with any hit)
 		hit["headshot"] = backstab
 		_damage(peer, hit, amount, me[0])
 		return
