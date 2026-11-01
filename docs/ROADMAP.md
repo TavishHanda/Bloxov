@@ -112,6 +112,13 @@ Next: the M4 art updates (World art, Look, Sound), below.
   moves it to another device; Steam login can be linked later), a database (Heroku's disk is wiped on restart), and the store rules on accounts
   (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
   account for solo). The current save becomes the solo stash.
+- **Shared hideouts (owner, 2026-11-01; later, "when it's the right time"):** when you're in someone's lobby you can
+  walk round their hideout together (or they visit yours). Needs the hideout to run online like a small raid world
+  (players' positions synced, the stations stay each player's own), so it fits after the Stash update's accounts.
+- **Hideout customizing (owner, 2026-11-01; later):** players change their hideout (furniture, posters, lights,
+  trophies from raids). What you've placed is saved with the online stash on the server (the Stash update), so it
+  shows the same on every device and to visitors. Store rules: anything other players see that players can write
+  goes through `NameFilter`; any bought decorations follow the gems rules above.
 - **Sound 2.0 (owner, 2026-10-26; after World Reacts and the character poses, before the security pass):**
   shooter-grade hearing, built only from today's sounds (they stay as they are; no outside recordings). Each gun
   gets near/mid/far and indoor versions made from its own shot; "through the floor" versions for above/below you,

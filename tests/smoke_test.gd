@@ -2231,6 +2231,41 @@ func _section_hideout_world() -> void:
 		if moved > 0.3 or absf(walker.global_position.y - marker.global_position.y) > 0.2:
 			bad.append("%s (moved %.2f m, y %.2f)" % [marker.name, moved, walker.global_position.y - marker.global_position.y])
 	_check(bad.is_empty(), "every station stands on open floor %s" % str(bad))
+	# Crouch and prone in the hideout (0.28.3, owner): the raid's keys, lower and slower; jump stands you up.
+	walker.global_position = spawn + Vector3.UP * 0.05
+	walker.velocity = Vector3.ZERO
+	for i in 5:
+		await physics_frame
+	Input.action_press("crouch")
+	await physics_frame
+	await physics_frame
+	Input.action_release("crouch")
+	var crouched := walker.is_crouching and not walker.is_prone
+	Input.action_press("prone")
+	await physics_frame
+	await physics_frame
+	Input.action_release("prone")
+	for i in 30:
+		await physics_frame
+	var prone_eye := walker.camera.position.y
+	_check(crouched and walker.is_prone and prone_eye < 0.6, "you can crouch and go prone in the hideout (eye %.2f m)" % prone_eye)
+	Input.action_press("jump")
+	await physics_frame
+	Input.action_release("jump")
+	await physics_frame
+	_check(not walker.is_prone and not walker.is_crouching, "and jump stands you back up")
+	# The corner pillars (0.28.3, owner: "i wanna make sure we can get behind them"): open floor behind each.
+	var behind_bad: Array[String] = []
+	for p: Vector2 in [Vector2(7.4, 7.4), Vector2(-8.4, -9.4)]:
+		var out := p + p.normalized() * 2.6
+		walker.global_position = world.global_position + Vector3(out.x, 0.1, out.y)
+		walker.velocity = Vector3.ZERO
+		for i in 10:
+			await physics_frame
+		var at := Vector2(walker.global_position.x, walker.global_position.z) - Vector2(world.global_position.x, world.global_position.z)
+		if at.distance_to(out) > 0.3:
+			behind_bad.append(str(p))
+	_check(behind_bad.is_empty(), "there's open floor behind the corner pillars %s" % str(behind_bad))
 	# The top bunk (0.25.15, owner: "make sure we can jump on the top bunk"): walk at it from the aisle, jumping, up
 	# the footlocker and the crates onto the mattress.
 	walker.global_position = world.global_position + Vector3(0.4, 0.05, 29.6)

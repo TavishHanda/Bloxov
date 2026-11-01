@@ -851,7 +851,9 @@ def post_layout(rock=False):
         L.f_at = lambda y: math.cos(math.asin(min(0.999, y / crown))) ** 0.6
         L.mats = ("bk_rock", "bk_rock", 99.0, "bk_ground")
         L.amp = 1.6
-        L.pillars = [(8.6, 8.6, 1.2), (-8.8, -8.4, 1.1)]
+        # (0.28.3, owner: "the stone pillars in the corner, i wanna make sure we can get behind them ... just for fun
+        # roaming around": in off the tunnel mouths, so there's a way round them)
+        L.pillars = [(7.4, 7.4, 1.2), (-8.4, -9.4, 1.1)]
     else:
         walls = [(1.0, y) for y in (0.0, 0.6, 1.2, 1.8, 2.4, 3.2, 4.0, spring)]
         phis = (0.12, 0.25, 0.4, 0.55, 0.7, 0.85, 1.0, 1.15, 1.3, 1.45)
@@ -926,7 +928,8 @@ def post_layout(rock=False):
         a = math.radians(deg)
         rr = radius(a) * (L.f_at(1.5) if rock else 1.0) - r
         return (rr * math.cos(a), rr * math.sin(a))
-    L.sandbags = [(at(2.0, a - 8), at(2.0, a + 8)) for a in ((135, 225) if rock else (45, 135, 225))]
+    # (0.28.3: none behind the pillar at 225 degrees any more, so you can get round it)
+    L.sandbags = [(at(2.0, a - 8), at(2.0, a + 8)) for a in ((135,) if rock else (45, 135, 225))]
     L.duffels = [at(1.4, a) + (n,) for a, n in ((30, 4), (62, 5), (150, 3), (205, 5), (240, 4), (330, 3))]
     L.duffels += [(-38.6, -3.4, 5), (29.6, 3.0, 4)]
     L.crates = [at(2.6, 115), at(2.6, 290), (-38.0, 2.6), (29.4, -2.4)]

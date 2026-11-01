@@ -122,6 +122,7 @@ func seat_in_reach() -> Node3D:
 
 func sit(on: Node3D) -> void:
 	stand_up()
+	walker.straighten()   # (0.28.3: sitting down from a crouch or prone, you sit up straight)
 	seat = on
 	_stood_at = walker.global_position
 	_pin(true)
@@ -157,6 +158,7 @@ func start_darts() -> void:
 		return
 	stand_up()
 	var spot := get_parent().get_node("Level/Stations/darts") as Node3D
+	walker.straighten()   # (0.28.3: you stand at the line to throw)
 	walker.global_position = Vector3(spot.global_position.x, walker.global_position.y, spot.global_position.z)
 	var to := darts_game.board.global_position - walker.global_position
 	walker.rotation.y = atan2(-to.x, -to.z)
