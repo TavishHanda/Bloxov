@@ -40,6 +40,8 @@
   Moving to bloxov.com (owner is buying it): `docs/DOMAIN_MOVE.md`. Saves follow players via `web/move_in.js`
   (on bloxov.com) and the move page `web/move/index.html` (hosted on the old site from its own repo, `bloxov-move`).
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
+  The web export is split into content-named packs the browser keeps across updates (0.29.6, `tools/split_pck.py` via
+  `cache_bust.py`; `scripts/web_packs.gd` mounts them and must stay the FIRST autoload, referencing no game scripts).
   Extend the smoke test when adding gameplay.
 - **Run the tests locally before every push** (the sandbox can download Godot):
   `curl -L -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip`,
