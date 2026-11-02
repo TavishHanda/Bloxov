@@ -620,7 +620,7 @@ static func quest_board_text() -> String:
 		var open := Quests.for_level(trader, lv + 1).filter(func(id: String) -> bool: return not Profile.quests_done.has(id))
 		if open.is_empty():
 			continue
-		lines.append("%s  (level %d)" % [String(Traders.LIST[trader]["name"]).to_upper(), lv + 1])
+		lines.append("%s  (level %d)" % [Traders.title(trader).to_upper(), lv + 1])
 		for id: String in open:
 			lines.append("   %s   %d/%d" % [Quests.LIST[id]["name"], Quests.progress(id), int(Quests.LIST[id]["count"])])
 	if lines.is_empty():

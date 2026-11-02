@@ -217,7 +217,7 @@ func refresh() -> void:
 		_tabs[id].button_pressed = id == trader
 	var lv: int = Profile.trader_level(trader)
 	var top_level := Traders.max_level(trader)
-	_name.text = String(info["name"]).to_upper()
+	_name.text = Traders.title(trader).to_upper()
 	_about.text = info["about"]
 	for pip in _pips.get_children():
 		pip.queue_free()
@@ -381,7 +381,7 @@ func _fill_sell() -> void:
 		_sell_rows.remove_child(child)
 		child.queue_free()
 	var info: Dictionary = Traders.LIST[trader]
-	_sell_title.text = "SELL TO %s" % String(info["name"]).to_upper()
+	_sell_title.text = "SELL TO %s" % Traders.title(trader).to_upper()
 	var worn := repairable()
 	if not worn.is_empty():
 		var header := _small("Repair (back to new):")
@@ -393,7 +393,7 @@ func _fill_sell() -> void:
 	var items := sellable()
 	if items.is_empty():
 		_sell_rows.add_child(_small("Nothing they buy right now." if not (info["kinds"] as Array).is_empty()
-			else "%s doesn't buy anything." % info["name"]))
+			else "%s doesn't buy anything." % Traders.title(trader)))
 		return
 	for pair: Array in items:
 		_add_row(pair[0], pair[1], false)

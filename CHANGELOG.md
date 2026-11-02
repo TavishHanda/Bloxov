@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.7 (The Big Don)
+Owner: the supplies trader goes by "THE BIG DON" now. His trader screen title, the "SELL TO" header, the quest
+board and quest tracker, and messages (bought, sold, repaired, level up) say "The Big Don". Short trader tabs,
+buttons and lists keep "BIG DON" so they still fit on phones. `Traders.title(id)` gives the long name (a trader's
+`"title"`, else its `"name"`).
+
 ## 0.29.6 (Updates download only what changed)
 Owner: loading is slow, first of all the first load. Every update made every player download the whole game again
 (~107 MB, ~60 MB compressed): the game data was one big pack renamed each update, and GitHub Pages gives every file

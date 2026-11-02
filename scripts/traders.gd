@@ -3,7 +3,7 @@ extends RefCounted
 ## The hideout's traders (0.16.0, Economy update, owner): one per kind of goods, each with levels that unlock
 ## better stock. A trader levels up by finishing their quests for that level (0.16.13, owner: quests, see Quests) and,
 ## for some levels, spending some money with them (Profile.trader_spent), so progress is access to gear, not power. Each trader buys back its own kinds of items; valuables go to the valuables trader.
-## Names (owner): Ponta (guns, 0.25.4), Big Don (supplies, 0.25.4), Supreme (valuables), Ming (boxes); the Medic's is still a placeholder.
+## Names (owner): Ponta (guns, 0.25.4), Big Don (supplies, 0.25.4; "The Big Don" on his screen and in his lines since 0.29.7), Supreme (valuables), Ming (boxes); the Medic's is still a placeholder.
 
 ## 0.25.6 (owner): 1.56, was 1.2 (30% dearer, so a good kit takes 2-3 raids; tools/economy_sim.gd).
 const BUY_MARKUP := 1.56
@@ -25,7 +25,7 @@ const LIST := {
 			{"spent": 0, "stock": [["bandage", 1]]},
 			{"spent": 0, "stock": [["medkit", 1]]},
 		]},
-	"supplies": {"name": "Big Don", "tab": "GEAR", "about": "Armor, helmets, backpacks, drinks, stash space.", "kinds": ["armor", "helmet", "backpack", "drink"], "rate": GEAR_SELL_RATE,
+	"supplies": {"name": "Big Don", "title": "The Big Don", "tab": "GEAR", "about": "Armor, helmets, backpacks, drinks, stash space.", "kinds": ["armor", "helmet", "backpack", "drink"], "rate": GEAR_SELL_RATE,
 		"levels": [
 			{"spent": 0, "stock": [["backpack_small", 1], ["energy_drink", 1]]},
 			{"spent": 5000, "stock": [["backpack_medium", 1], ["armor_light", 1], ["helmet_basic", 1]]},
@@ -74,6 +74,12 @@ static func box_odds(box: String) -> Array:
 		var label := ItemDB.display_name(key) if ItemDB.ITEMS.has(key) else "%s valuable" % key.capitalize()
 		out.append([label, 100.0 * odds[key] / total])
 	return out
+
+
+## The name a trader goes by on their own screen and in messages and quest lines (0.29.7, owner): "title" when it has
+## one ("The Big Don"), else "name". Tabs, buttons and lists keep the short "name" so they fit on phones.
+static func title(id: String) -> String:
+	return String(LIST[id].get("title", LIST[id]["name"]))
 
 
 static func buy_price(id: String, amount: int) -> int:

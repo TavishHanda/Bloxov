@@ -88,7 +88,7 @@ func refresh() -> void:
 		row.add_theme_constant_override("separation", 10)
 		_jobs.add_child(row)
 		var title := Label.new()
-		title.text = "%s  (for level %d)" % [String(Traders.LIST[trader]["name"]).to_upper(), Profile.trader_level(trader) + 1]
+		title.text = "%s  (for level %d)" % [Traders.title(trader).to_upper(), Profile.trader_level(trader) + 1]
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		HudStyle.style_label(title, 20, HudStyle.BRASS)
 		row.add_child(title)

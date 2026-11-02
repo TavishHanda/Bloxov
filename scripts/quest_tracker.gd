@@ -35,7 +35,7 @@ func refresh(menu: Control) -> void:
 	var open := Quests.open_quests()
 	for trader: String in Traders.LIST:
 		if Profile.can_level_up(trader):
-			_list.add_child(_label("%s can level up: press LEVEL UP at the trader." % Traders.LIST[trader]["name"], 15, HudStyle.EXTRACT))
+			_list.add_child(_label("%s can level up: press LEVEL UP at the trader." % Traders.title(trader), 15, HudStyle.EXTRACT))
 	if open.is_empty():
 		_list.add_child(_label("No open quests right now.", 15, HudStyle.INK_DIM))
 	for id in open:
@@ -55,7 +55,7 @@ func refresh(menu: Control) -> void:
 		var count: Label = row.get_child(1)
 		count.custom_minimum_size.x = 0
 		count.autowrap_mode = TextServer.AUTOWRAP_OFF
-		var about := "%s: %s" % [Traders.LIST[quest["trader"]]["name"], quest["text"]]
+		var about := "%s: %s" % [Traders.title(quest["trader"]), quest["text"]]
 		var pending := Quests.this_raid(id)
 		if pending > 0:
 			about += " +%d when you extract." % pending

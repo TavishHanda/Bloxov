@@ -217,7 +217,7 @@ func buy(id: String, amount: int) -> bool:
 	var ready_before := Profile.can_level_up(trader)
 	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
 	if Profile.can_level_up(trader) and not ready_before:
-		_message("Bought %s. %s can level up: press LEVEL UP" % [ItemDB.display_name(id), Traders.LIST[trader]["name"]])
+		_message("Bought %s. %s can level up: press LEVEL UP" % [ItemDB.display_name(id), Traders.title(trader)])
 	else:
 		_message("Bought %s for %s" % [ItemDB.display_name(id), ItemDB.money(price)])
 	_queue_save()
@@ -272,7 +272,7 @@ func _after_hand_in(quest: String, given: int, level_before: int) -> int:
 		Quests.just_finished.erase(quest)
 		var text := "Quest done: %s (+%s)" % [Quests.LIST[quest]["name"], ItemDB.money(int(Quests.LIST[quest]["reward"]))]
 		if Profile.can_level_up(trader):
-			text += ". %s can level up: press LEVEL UP" % Traders.LIST[trader]["name"]
+			text += ". %s can level up: press LEVEL UP" % Traders.title(trader)
 		_message(text)
 	else:
 		_message("Handed in %d for %s (%d/%d)" % [given, Quests.LIST[quest]["name"], Quests.progress(quest), int(Quests.LIST[quest]["count"])])
@@ -433,7 +433,7 @@ func equip_loadout(index: int, buy_all := Loadouts.buy_new) -> bool:
 		text += ". Not sold to you, left out: " + ", ".join((done["missing"] as Array).map(func(id: String) -> String: return ItemDB.display_name(id)))
 	for trader: String in Traders.LIST:
 		if Profile.can_level_up(trader) and not ready_before[trader]:
-			text += ". %s can level up" % Traders.LIST[trader]["name"]
+			text += ". %s can level up" % Traders.title(trader)
 	if cost > 0:
 		UISounds.play(self, UISounds.BUY, -10.0)
 	_message(text)
@@ -625,7 +625,7 @@ func repair(grid: GridInventory, stack: ItemStack) -> bool:
 	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
 	stack.durability = ItemDB.max_durability(stack.id)
 	UISounds.play(self, UISounds.BUY, -10.0)
-	_message("%s repaired %s for %s" % [Traders.LIST[trader]["name"], stack.title(), ItemDB.money(price)])
+	_message("%s repaired %s for %s" % [Traders.title(trader), stack.title(), ItemDB.money(price)])
 	if grid != null:
 		grid.changed.emit()
 	else:
@@ -641,7 +641,7 @@ func sell(grid: GridInventory, stack: ItemStack) -> void:
 	Profile.money += price
 	Profile.stats["earned"] += price
 	_message("Sold %s to %s for %s" % [stack.title() + (" x%d" % stack.count if stack.count > 1 else ""),
-		Traders.LIST[Traders.buyer_for(stack.id)]["name"], ItemDB.money(price)])
+		Traders.title(Traders.buyer_for(stack.id)), ItemDB.money(price)])
 	Effects.sound(self, SELL_SOUND, -16.0)
 	_queue_save()
 
@@ -1446,7 +1446,7 @@ func _fill_quests(trader: String, lv: int, into: VBoxContainer = null) -> void:
 func level_up(trader: String) -> bool:
 	if not Profile.level_up(trader):
 		return false
-	_message("%s is now level %d: new stock unlocked" % [Traders.LIST[trader]["name"], Profile.trader_level(trader)])
+	_message("%s is now level %d: new stock unlocked" % [Traders.title(trader), Profile.trader_level(trader)])
 	_queue_save()
 	_fill_trader()
 	return true
@@ -1552,7 +1552,7 @@ func _fill_trader() -> void:
 	for tab: String in _trader_tabs:
 		_trader_tabs[tab].button_pressed = tab == trader
 	var lv := Profile.trader_level(trader)
-	_trader_title.text = String(info["name"]).to_upper()
+	_trader_title.text = Traders.title(trader).to_upper()
 	var lines: Array[String] = [info["about"]]
 	if Traders.max_level(trader) > 1:
 		var next := Traders.next_level_cost(trader, lv, int(Profile.trader_spent.get(trader, 0)))
