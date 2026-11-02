@@ -251,6 +251,7 @@ func _process(delta: float) -> void:
 	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud, tips]:
 		element.visible = not loot_ui.visible and not end_screen.visible and not spectator.visible
 	tips.visible = tips.visible and not touch.editing
+	_scale_for_phone()
 	# Spectating a teammate: their name tag stays.
 	world_labels.visible = world_labels.visible or spectator.visible
 	timer_hud.visible = not end_screen.visible
@@ -396,6 +397,21 @@ func _show_quests() -> void:
 	quest_tracker.visible = menu.visible
 	if menu.visible:
 		quest_tracker.refresh(menu)
+
+
+## Small phone screens shrink the whole HUD (it's laid out for a 720-high screen): the hotbar, health and ammo grow
+## back by the touch buttons' amount (TouchControls.size_boost, 1 on computers), each from its own corner.
+func _scale_for_phone() -> void:
+	var boost := TouchControls.size_boost()
+	for element: Control in [hotbar, health_hud, ammo_hud]:
+		if not is_equal_approx(element.scale.x, boost):
+			element.scale = Vector2(boost, boost)
+		var corner := Vector2(element.size.x * 0.5, element.size.y)
+		if element == health_hud:
+			corner.x = 0.0
+		elif element == ammo_hud:
+			corner.x = element.size.x
+		element.pivot_offset = corner
 
 
 ## The pause menu's touch settings, under the other checkboxes: aim while FIRE is held, the lean buttons, and

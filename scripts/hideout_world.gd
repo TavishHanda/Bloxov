@@ -6,7 +6,8 @@ extends Node3D
 ## the menu (today's hideout screen: stash, loadout, traders, START RAID, online party) from anywhere.
 ## The shooting range (0.21.1): at its bench, pick your own loadout or borrow any gun Ponta (the guns trader) sells you, and
 ## shoot the targets at 10, 25, 50 and 100 m. Ammo is free; nothing you do there is saved.
-## Phones open straight on the menu until the touch controls (moving with a stick) exist.
+## Touch screens walk round with a stick and look by dragging (HideoutTouch, 0.29.10; phones opened straight on the
+## menu before that).
 ## A new player's first visit walks them round it (Tutorial, 0.24.0).
 
 ## A shot hit one of the range's targets.
@@ -35,6 +36,9 @@ var _use_button: Button
 var _menu_button: Button
 var _crosshair: Control
 var _click_hint: Label
+## Touch controls for walking round, and the range's (the raid's controls, for the shooter).
+var touch: HideoutTouch
+var _range_touch: TouchControls
 ## The station in reach (its Marker3D) or null; with none, the seat in reach (or null).
 var station: Node3D
 var seat: Node3D
@@ -91,10 +95,9 @@ func _ready() -> void:
 	add_child(_menu_layer)
 	menu = MENU.instantiate()
 	_menu_layer.add_child(menu)
-	var back: Button = menu.add_back_button("< HIDEOUT", "Back to walking round the hideout (%s)" % menu_key(), close_menu)
-	back.visible = not GameSettings.is_phone()
-	# Online (back from a raid with your party) or on a phone: start on the menu.
-	if Network.main.is_client() or GameSettings.is_phone():
+	menu.add_back_button("< HIDEOUT", "Back to walking round the hideout (%s)" % menu_key(), close_menu)
+	# Online (back from a raid with your party): start on the menu.
+	if Network.main.is_client():
 		open_menu()
 	else:
 		close_menu()
@@ -139,6 +142,9 @@ func _build_hud() -> void:
 	_click_hint.size = Vector2(400, 30)
 	HudStyle.style_label(_click_hint, 20)
 	_hud.add_child(_click_hint)
+	touch = HideoutTouch.new(walker)
+	touch.toys = toys
+	_hud.add_child(touch)
 	# Big buttons for touch screens (and the mouse): MENU always, USE when something is in reach.
 	_menu_button = Button.new()
 	_menu_button.name = "MenuButton"
@@ -160,6 +166,7 @@ func _build_hud() -> void:
 	LootUI.style_button(_use_button)
 	_use_button.pressed.connect(use_station)
 	_hud.add_child(_use_button)
+	touch.blockers = [_menu_button, _use_button]
 
 
 func _process(_delta: float) -> void:
@@ -174,6 +181,8 @@ func _process(_delta: float) -> void:
 		walker.locked = true
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	touch.walking = not menu_open() and not in_range()
+	TouchInput.screen_free = in_range() and not _picker.visible and not menu_open()
 	if in_range():
 		_top_up_ammo()
 		_hud.visible = false
@@ -183,12 +192,16 @@ func _process(_delta: float) -> void:
 	seat = toys.seat_in_reach() if free and station == null else null
 	_use_button.visible = station != null or seat != null or toys.busy()
 	_use_button.text = ("GET UP  (%s)" if toys.seat != null else "STOP  (%s)" if toys.darts else "USE  (%s)") % use_key()
+	_menu_button.text = "MENU  (%s)" % menu_key()
+	if TouchInput.active:   # (touch: the buttons are the keys)
+		_use_button.text = _use_button.text.get_slice(" ", 0)
+		_menu_button.text = "MENU"
 	_prompt.visible = station != null or seat != null
 	if station != null:
 		_prompt.text = use_key() + "   " + station_label(station.name)
 	elif seat != null:
 		_prompt.text = use_key() + "   Sit down"
-	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone()
+	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not TouchInput.active
 
 
 func _input(event: InputEvent) -> void:
@@ -200,7 +213,7 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("interact") or event.is_action_pressed("ui_cancel"):
 		_show_picker()
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone():
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not TouchInput.active and not GameSettings.is_phone():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		return
@@ -254,7 +267,7 @@ func open_menu(at := "") -> void:
 
 ## Back to walking round.
 func close_menu() -> void:
-	if GameSettings.is_phone() or TabLock.state() != "owner":
+	if TabLock.state() != "owner":
 		return
 	_menu_layer.visible = false
 	_hud.visible = true
@@ -487,6 +500,9 @@ func pick_gun(gun: String) -> void:
 		_range_hud.add_child(_ammo_hud)
 		_crosshair_hud = CrosshairHUD.new()
 		_range_hud.add_child(_crosshair_hud)
+		_range_touch = TouchControls.new(shooter, null)
+		_range_touch.on_pause = _show_picker
+		_range_hud.add_child(_range_touch)
 		shooter.gun.hit_confirmed.connect(_on_hit_confirmed)
 	shooter.process_mode = Node.PROCESS_MODE_INHERIT
 	shooter.camera.current = true
@@ -502,7 +518,7 @@ func pick_gun(gun: String) -> void:
 	_picker.visible = false
 	_range_hud.visible = true
 	_last_hit.text = ""
-	if not GameSettings.is_phone():
+	if not GameSettings.is_phone() and not TouchInput.active:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -513,6 +529,7 @@ func leave_range() -> void:
 		shooter = null
 		_ammo_hud.queue_free()
 		_crosshair_hud.queue_free()
+		_range_touch.queue_free()
 	_picker.visible = false
 	_range_hud.visible = false
 	walker.visible = true
@@ -539,7 +556,7 @@ func _top_up_ammo() -> void:
 		if ammo != "" and have < want:
 			inv.add(ammo, want - have)
 	if _crosshair_hud != null:
-		var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+		var captured := TouchInput.playing()
 		_crosshair_hud.show_crosshair = captured and not shooter.gun.is_aiming()
 		_crosshair_hud.reticle = shooter.gun.reticle() if captured else ""
 

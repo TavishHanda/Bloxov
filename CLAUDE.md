@@ -27,7 +27,8 @@
 - **Touch controls** (0.29.9, `scripts/touch_controls.gd`, state/settings in `scripts/touch_input.gd`): on phones always,
   on computers after the first touch. Buttons send the same input actions as keys (`InputEventAction`); code that
   asked "is the mouse captured?" to mean "playing" asks `TouchInput.playing()` instead. New raid controls need a touch
-  button or a spot in the ITEM wheel. `tools/touch_view.gd` takes screenshots.
+  button or a spot in the ITEM wheel. The hideout walk has its own (`scripts/hideout_touch.gd`, 0.29.10).
+  `tools/touch_view.gd` takes screenshots.
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read
   `docs/STORE_RULES.md` and check every change against it (violence/age rating, player-made text, privacy/data,
   accounts, real-money purchases and loot odds, ads, no downloaded code). Anything that would break a rule gets

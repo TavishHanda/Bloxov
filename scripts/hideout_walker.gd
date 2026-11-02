@@ -176,7 +176,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var motion := (event as InputEventMouseMotion).relative * BASE_SENSITIVITY * GameSettings.sensitivity
 		look(motion.x, motion.y)
 	elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
-			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone():
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone() and not TouchInput.active:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 

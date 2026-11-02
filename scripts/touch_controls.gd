@@ -50,7 +50,10 @@ const WHEEL_BUTTON := 44.0
 const TAP_TIME := 0.08
 
 var player: Player
+## The raid HUD (null at the hideout's shooting range: no hotbar, BAG or MAP there).
 var hud: Node
+## Called by the pause button instead of pausing, if set (the range: back to its gun picker).
+var on_pause := Callable()
 ## Laying out the buttons (from the pause menu): drag to move, the bar at the top resizes / hides.
 var editing := false
 var _edit_selected := ""
@@ -140,7 +143,7 @@ func button_shown(id: String) -> bool:
 		return false
 	var group: String = BUTTONS[id]["group"]
 	if group == "top":
-		return true
+		return hud != null or id == "pause"
 	if player.downed:
 		return false   # (downed: you can only look round and crawl)
 	match id:
@@ -221,7 +224,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _finger_down(index: int, pos: Vector2) -> void:
-	if hud.hotbar.slot_at(pos) >= 0:
+	if hud != null and hud.hotbar.slot_at(pos) >= 0:
 		return   # (the hotbar takes its own taps)
 	if _wheel_open:
 		var picked := _wheel_at(pos)
@@ -256,7 +259,10 @@ func _finger_down(index: int, pos: Vector2) -> void:
 		"lean_left", "lean_right":
 			_tap(id)
 		"pause":
-			TouchInput.paused = true
+			if on_pause.is_valid():
+				on_pause.call_deferred()
+			else:
+				TouchInput.paused = true
 		"bag":
 			_tap("inventory")
 		"map":
