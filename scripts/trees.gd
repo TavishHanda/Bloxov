@@ -39,6 +39,14 @@ const FILL := [Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2), Vector2i(0, 2)]
 @export var sheet: Texture2D
 @export var look := 0
 @export var data := PackedFloat32Array()
+## The map's tree list as its own file (0.29.8: written by the generator beside the map, `<map>_trees.tres`, with
+## `data` and `look` as metadata), so the hideout can build the trees before the raid without loading the map.
+@export var source: Resource
+
+## Trees already built this session, ready to show (0.29.8): key_of(data, look) -> [[mesh, square middle, far], ...].
+## Built in the hideout (`prebuild`, a bit each frame) or by the first raid; later raids reuse them.
+static var _built_sets := {}
+static var _builders := {}   # key -> a detached builder (this script) part-way through, from `prebuild`
 
 # The mesh being built (0.29.3, faster loading: plain arrays with an index, four corners a quad, instead of a
 # SurfaceTool's six vertices a quad; the same triangles, built about twice as fast)
@@ -51,47 +59,122 @@ var _material: ShaderMaterial
 var _origin := Vector3.ZERO   # (the square being built: trees are drawn relative to its middle)
 var _coarse := false          # (far version: leaf blocks and trunks in one piece a face)
 var _rng := RandomNumberGenerator.new()
+# Where a build is (it can stop after any tree and carry on later, 0.29.8)
+var _cells := {}              # square -> its trees (data indices, in order)
+var _squares: Array = []
+var _square := 0
+var _far_pass := 0
+var _next := 0
+var _made: Array = []          # [[mesh, square middle, far], ...]
 
 
 func _ready() -> void:
+	if source != null and data.is_empty():
+		data = source.get_meta(&"data", PackedFloat32Array())
 	if DisplayServer.get_name() == "headless" or sheet == null:
 		return
 	var material := ShaderMaterial.new()
 	_material = material
 	material.shader = SHADER
 	material.set_shader_parameter("sheet", sheet)
-	var cells := {}   # square -> its trees (data indices, in order)
+	var key := key_of(data, look)
+	if not _built_sets.has(key):
+		var builder: Node = _builders.get(key)
+		if builder == null:
+			builder = self
+			_start()
+		builder.call(&"_build_until", 0)   # (finishes what the hideout didn't get to)
+		_built_sets[key] = builder.get(&"_made")
+		_builders.erase(key)
+		if builder != self:
+			builder.free()
+	for part: Array in _built_sets[key]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[0]
+		mi.material_override = material
+		mi.position = part[1]
+		if part[2]:
+			mi.visibility_range_begin = FAR_FROM
+			mi.visibility_range_begin_margin = FAR_MARGIN
+		else:
+			mi.visibility_range_end = FAR_FROM
+			mi.visibility_range_end_margin = FAR_MARGIN
+		add_child(mi)
+
+
+static func key_of(trees: PackedFloat32Array, tree_look: int) -> String:
+	return "%d:%d:%d" % [hash(trees), trees.size(), tree_look]
+
+
+## Builds the trees listed in `file` (a map's `_trees.tres`) for a coming raid, for about `budget_usec` per call
+## (0.29.8, owner: build the trees while you're in the hideout). Returns true once there's nothing left to do.
+static func prebuild(file: String, budget_usec: int) -> bool:
+	if DisplayServer.get_name() == "headless" or file == "" or not ResourceLoader.exists(file):
+		return true
+	var list := load(file)
+	var trees: PackedFloat32Array = list.get_meta(&"data", PackedFloat32Array())
+	var tree_look: int = list.get_meta(&"look", 0)
+	var key := key_of(trees, tree_look)
+	if _built_sets.has(key) or trees.is_empty():
+		return true
+	var builder: Node = _builders.get(key)
+	if builder == null:
+		builder = (load("res://scripts/trees.gd") as GDScript).new()
+		builder.set(&"data", trees)
+		builder.set(&"look", tree_look)
+		builder.call(&"_start")
+		_builders[key] = builder
+	if not builder.call(&"_build_until", Time.get_ticks_usec() + budget_usec):
+		return false
+	_built_sets[key] = builder.get(&"_made")
+	_builders.erase(key)
+	builder.free()
+	return true
+
+
+func _start() -> void:
+	_cells = {}
 	for i in range(0, data.size(), STRIDE):
 		var key := Vector2i(floori(data[i] / CELL), floori(data[i + 2] / CELL))
-		if not cells.has(key):
-			cells[key] = []
-		(cells[key] as Array).append(i)
-	for key: Vector2i in cells:
+		if not _cells.has(key):
+			_cells[key] = []
+		(_cells[key] as Array).append(i)
+	_squares = _cells.keys()
+	_square = 0
+	_far_pass = 0
+	_next = 0
+	_made = []
+	_begin()
+
+
+## Builds trees until the clock passes `deadline` (Time.get_ticks_usec(); 0 = all of them), square by square, each
+## square's full trees then its far version. True once every square is built.
+func _build_until(deadline: int) -> bool:
+	while _square < _squares.size():
+		var key: Vector2i = _squares[_square]
 		# (each square's mesh sits at its middle, so the far switch measures from there)
 		_origin = Vector3((key.x + 0.5) * CELL, 0.0, (key.y + 0.5) * CELL)
-		for far in 2:
-			_begin()
-			for i: int in cells[key]:
-				if far:
-					_coarse = true
-					_tree_far(i)
-				else:
-					_coarse = int(data[i + 5]) >= FAR_PINE
-					_tree(i)
-			var mesh := _commit()
-			if mesh == null:
-				continue
-			var mi := MeshInstance3D.new()
-			mi.mesh = mesh
-			mi.material_override = material
-			mi.position = _origin
-			if far:
-				mi.visibility_range_begin = FAR_FROM
-				mi.visibility_range_begin_margin = FAR_MARGIN
+		var list: Array = _cells[key]
+		while _next < list.size():
+			var i: int = list[_next]
+			if _far_pass:
+				_coarse = true
+				_tree_far(i)
 			else:
-				mi.visibility_range_end = FAR_FROM
-				mi.visibility_range_end_margin = FAR_MARGIN
-			add_child(mi)
+				_coarse = int(data[i + 5]) >= FAR_PINE
+				_tree(i)
+			_next += 1
+			if deadline > 0 and Time.get_ticks_usec() > deadline:
+				return false
+		var mesh := _commit()
+		if mesh != null:
+			_made.append([mesh, _origin, _far_pass == 1])
+		_next = 0
+		_far_pass += 1
+		if _far_pass == 2:
+			_far_pass = 0
+			_square += 1
+	return true
 
 
 func _begin() -> void:

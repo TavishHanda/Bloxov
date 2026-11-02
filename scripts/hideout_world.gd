@@ -59,6 +59,7 @@ var tutorial: Tutorial
 func _ready() -> void:
 	get_tree().paused = false
 	ShaderWarm.start(get_tree())   # (carries on from the title screen; 0.29.5)
+	add_child(preload("res://scripts/tree_prebuild.gd").new())   # (the raid's trees, a bit each frame; 0.29.8)
 	var level: Node3D = LEVEL.instantiate()
 	level.name = "Level"
 	add_child(level)

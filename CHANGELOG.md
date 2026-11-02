@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.8 (Trees built while you're in the hideout)
+Owner, after the loading fixes: "if we can build the trees faster then yeah do that". The raid no longer builds the
+map's 8,089 trees while it loads (~1.3-1.9 s natively, more on the web): the hideout builds them a few milliseconds
+each frame while you're there (`scripts/tree_prebuild.gd`, ~8 s of hideout time natively), and the raid only puts
+them in place (~7 ms). Leave sooner and the raid finishes the rest; later raids in the same session reuse them.
+- The map's tree list is now its own small file, `scenes/maps/old_bloxov_trees.tres`, written by the generator
+  beside the map (the hideout reads it without loading the whole map).
+- The exact same trees: checked vertex by vertex against 0.29.2's (`tools/tree_probe.gd` builds them both ways).
+
 ## 0.29.7 (The Big Don)
 Owner: the supplies trader goes by "THE BIG DON" now. His trader screen title, the "SELL TO" header, the quest
 board and quest tracker, and messages (bought, sold, repaired, level up) say "The Big Don". Short trader tabs,

@@ -4605,6 +4605,13 @@ func _section_old_bloxov() -> void:
 	_check(minimap.get("size", 0.0) == 350.0 and minimap.get("buildings", PackedFloat32Array()).size() >= 4 * 30
 		and names.has("BANK") and names.has("TOWN HALL") and minimap.get("roads", []).size() >= 5,
 		"the map (M) has Bloxov Frontlines' buildings, roads and place names (%d names)" % names.size())
+	# The trees' list is a file of its own (0.29.8), so the hideout can build them before the raid.
+	var map_trees := map.find_child("Trees", true, false)
+	var tree_list := load(MAP.get_basename() + "_trees.tres")
+	_check(map_trees != null and map_trees.get(&"source") == tree_list
+		and (tree_list.get_meta(&"data", PackedFloat32Array()) as PackedFloat32Array).size() > 7 * 1000
+		and tree_list.get_meta(&"look", -1) == map_trees.get(&"look"),
+		"the map's trees come from their own list file, which the hideout builds them from")
 	var spots: Array[Vector3] = []
 	for node in map.get_node("PlayerSpawns").get_children() + map.get_node("Extracts").get_children():
 		spots.append((node as Node3D).position)
