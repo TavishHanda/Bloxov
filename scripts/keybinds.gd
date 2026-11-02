@@ -176,10 +176,28 @@ static func label(action: String) -> String:
 	return action
 
 
-## The key an action is on, as shown to the player ("F", "Shift", "Right mouse").
+## The key an action is on, as shown to the player ("F", "Shift", "Right mouse"). With the touch controls on
+## (0.29.9), the on-screen button that does it instead ("USE", "BAG").
 static func name_of(action: String) -> String:
+	if TouchInput.active and TOUCH_NAMES.has(action):
+		return TOUCH_NAMES[action]
+	return key_of(action)
+
+
+## The key an action is on, never a touch button (the rebinding list).
+static func key_of(action: String) -> String:
 	var text := code(action)
 	return key_name(text) if text != "" else "?"
+
+
+## What the touch controls call each action (prompts and tips name these instead of keys).
+const TOUCH_NAMES := {
+	"move_forward": "the stick", "move_back": "", "move_left": "", "move_right": "", "sprint": "the stick pushed to the edge",
+	"jump": "JUMP", "crouch": "CROUCH", "prone": "holding CROUCH", "lean_left": "LEAN", "lean_right": "LEAN",
+	"shoot": "FIRE", "aim": "AIM", "reload": "RELOAD", "melee": "KNIFE", "weapon_1": "1", "weapon_2": "2",
+	"hotbar_3": "3", "hotbar_4": "4", "heal": "ITEM", "interact": "USE", "inventory": "BAG", "map": "MAP",
+	"extracts": "MAP",
+}
 
 
 ## A code's name ("F", "Shift", "Mouse 4").
@@ -206,6 +224,8 @@ static func key_name(text: String) -> String:
 
 ## A short upper-case name for key caps on the HUD ("F", "TAB", "SHIFT", "M4").
 static func cap(action: String) -> String:
+	if TouchInput.active and action in ["interact", "map", "extracts"]:
+		return TOUCH_NAMES[action]
 	var text := code(action)
 	var event := code_event(text)
 	if event is InputEventMouseButton:

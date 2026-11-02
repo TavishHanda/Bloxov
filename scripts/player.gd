@@ -20,6 +20,9 @@ const THROW_COOLDOWN := 1.0
 ## The gun can't fire for this long after a throw, and you can't throw this soon after a shot (owner 0.14.14).
 const THROW_BUSY := 0.6
 const THROW_AFTER_SHOT := 0.3
+## Touch look speed (radians per pixel of finger drag at 1x sensitivity, 0.29.9): a drag across a 720 px high
+## screen turns about 125 degrees.
+const TOUCH_LOOK := 0.003
 ## Grenade in hand (0.14.17, owner): key 4 pulls it out (this long), click throws it (after a short wind-up),
 ## key 4 again puts it away.
 const NADE_PULL_TIME := 0.45
@@ -296,7 +299,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		set_crouching(is_prone or not is_crouching)
 	elif event.is_action_pressed("prone"):
 		set_prone(not is_prone)
-	elif GameSettings.lean_toggle and (event.is_action_pressed("lean_left") or event.is_action_pressed("lean_right")):
+	elif (GameSettings.lean_toggle or TouchInput.active) and (event.is_action_pressed("lean_left") or event.is_action_pressed("lean_right")):
 		var dir := -1 if event.is_action_pressed("lean_left") else 1
 		_lean_toggled = 0 if _lean_toggled == dir else dir
 	elif event.is_action_pressed("ui_cancel"):
@@ -312,14 +315,23 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		# Zoomed in = slower look, so aiming feels the same at any zoom.
 		var sens := mouse_sensitivity * GameSettings.sensitivity * camera.fov / base_fov
-		var yaw: float = -event.screen_relative.x * sens
-		var pitch: float = -event.screen_relative.y * sens
-		_look(pitch, yaw)
-		# Pulling against recoil pays it off, so it won't also return on its own.
-		if pitch * _recoil_debt.x < 0.0:
-			_recoil_debt.x = 0.0 if absf(pitch) >= absf(_recoil_debt.x) else _recoil_debt.x + pitch
-		if yaw * _recoil_debt.y < 0.0:
-			_recoil_debt.y = 0.0 if absf(yaw) >= absf(_recoil_debt.y) else _recoil_debt.y + yaw
+		look_by(-event.screen_relative.y * sens, -event.screen_relative.x * sens)
+
+
+## Turns the view (radians), like moving the mouse: pulling against recoil pays it off.
+func look_by(pitch: float, yaw: float) -> void:
+	_look(pitch, yaw)
+	# Pulling against recoil pays it off, so it won't also return on its own.
+	if pitch * _recoil_debt.x < 0.0:
+		_recoil_debt.x = 0.0 if absf(pitch) >= absf(_recoil_debt.x) else _recoil_debt.x + pitch
+	if yaw * _recoil_debt.y < 0.0:
+		_recoil_debt.y = 0.0 if absf(yaw) >= absf(_recoil_debt.y) else _recoil_debt.y + yaw
+
+
+## A finger dragged `delta` (screen pixels) on the look side of a touch screen. Zoomed in = slower, like the mouse.
+func touch_look(delta: Vector2) -> void:
+	var sens := TOUCH_LOOK * GameSettings.sensitivity * camera.fov / base_fov
+	look_by(-delta.y * sens, -delta.x * sens)
 
 
 ## Chrome sometimes reports one huge bogus jump out of nowhere. A real fast turn builds up over a few moves
@@ -620,7 +632,7 @@ func _update_grenade(delta: float) -> void:
 			if _nade_time <= 0.0:
 				_nade_phase = 2
 		2:
-			if Input.is_action_just_pressed("shoot") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not interactor.blocked:
+			if Input.is_action_just_pressed("shoot") and TouchInput.playing() and not interactor.blocked:
 				throw_held_grenade()
 		3:
 			if _nade_time <= 0.0:

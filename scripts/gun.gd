@@ -287,14 +287,14 @@ func _process(delta: float) -> void:
 		_needs_trigger_release = true
 		return
 	# Quick melee works with or without a gun; it cancels a reload (no rounds lost).
-	if Input.is_action_just_pressed("melee") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and player.knife.swing():
+	if Input.is_action_just_pressed("melee") and TouchInput.playing() and player.knife.swing():
 		is_reloading = false
 	if weapon == null:
 		return
 	if player.knife.is_swinging():
 		_needs_trigger_release = true
 		return
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if not TouchInput.playing():
 		# Don't fire on the click that captures the mouse.
 		_needs_trigger_release = true
 		return

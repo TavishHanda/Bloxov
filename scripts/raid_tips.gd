@@ -14,6 +14,11 @@ const TIPS := {
 	"moves": "{jump} vaults low walls and climbs ledges. {crouch} crouches, {prone} goes prone: harder to see and hit.",
 	"extract": "Stay in the extract until its timer runs out to get out with everything you carry.",
 }
+## The same tips worded for the touch controls (0.29.9), where they differ.
+const TOUCH_TIPS := {
+	"start": "Find loot, then get out at an open extract (green beam). MAP shows them. Still here when time runs out? You lose what you brought.",
+	"hurt": "You're hit. Tap ITEM and pick a bandage or medkit to heal (it takes a few seconds), or tap the meds slot.",
+}
 const SHOW_TIME := 9.0
 ## When the movement tip comes up (seconds into the raid), if nothing else is showing.
 const MOVES_AT := 60.0
@@ -102,5 +107,5 @@ func _process(delta: float) -> void:
 		_showing = _queue.pop_front()
 		_left = SHOW_TIME
 		(Profile.tutorial["seen"] as Array).append(_showing)   # (saved with the raid's result)
-		_text.text = Tutorial.keys(String(TIPS[_showing]))
+		_text.text = Tutorial.keys(String(TOUCH_TIPS.get(_showing, TIPS[_showing]) if TouchInput.active else TIPS[_showing]))
 	_card.visible = _showing != ""

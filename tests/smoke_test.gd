@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "keybinds",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -7475,3 +7475,151 @@ func _section_look() -> void:
 		("TIP: " + LoadingScreen.tip) in words and LoadingScreen.MAP_NAME.to_upper() in words,
 		"the loading screen shows the map, its name and a tip")
 	screen.queue_free()
+
+
+## A touch at `pos` on the HUD (events arrive in window pixels, which the window's stretch scales).
+func _touch_event(index: int, pos: Vector2, pressed: bool) -> void:
+	var event := InputEventScreenTouch.new()
+	event.index = index
+	event.position = root.get_final_transform() * pos
+	event.pressed = pressed
+	Input.parse_input_event(event)
+
+
+func _drag_event(index: int, pos: Vector2, relative: Vector2) -> void:
+	var event := InputEventScreenDrag.new()
+	event.index = index
+	event.position = root.get_final_transform() * pos
+	event.relative = root.get_final_transform().basis_xform(relative)
+	Input.parse_input_event(event)
+
+
+func _section_touch() -> void:
+	# Touch controls (0.29.9): off until the screen is touched, then a stick, look drag and buttons that send the
+	# same actions the keys do. Desktop play doesn't change.
+	var touch: TouchControls = main.get_node("HUD").touch
+	touch.process_mode = Node.PROCESS_MODE_ALWAYS   # (the test turns the HUD off)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	TouchInput.layout = {}
+	TouchInput.set_active(false)
+	_check(not TouchInput.active and not TouchInput.playing(), "touch controls start off on a computer")
+	_check(Keybinds.name_of("interact") == Keybinds.key_of("interact"), "prompts name keys without touch")
+	_touch_event(0, Vector2(20, 20), true)
+	_touch_event(0, Vector2(20, 20), false)
+	await _frames(2)
+	_check(TouchInput.active, "touching the screen turns the touch controls on")
+	_check(Keybinds.name_of("interact") == "USE" and Keybinds.cap("interact") == "USE", "with touch, prompts say USE")
+	TouchInput.paused = false
+	TouchInput.screen_free = true
+	await _frames(2)
+	_check(TouchInput.playing() and touch.visible, "touch: playing without a captured mouse")
+	_check(not Input.emulate_mouse_from_touch, "while playing, touches aren't copied as mouse clicks")
+	# A touch on the look side doesn't fire (it used to arrive as a left click too).
+	var look_at := Vector2(touch.size.x * 0.55, touch.size.y * 0.3)
+	var yaw := player.rotation.y
+	_touch_event(1, look_at, true)
+	await _frames(1)
+	_drag_event(1, look_at + Vector2(60, 0), Vector2(60, 0))
+	await _frames(2)
+	_check(not Input.is_action_pressed("shoot"), "a look touch doesn't press FIRE")
+	_check(absf(angle_difference(player.rotation.y, yaw)) > 0.05, "dragging on the right turns the view")
+	_touch_event(1, look_at + Vector2(60, 0), false)
+	# The stick: thumb down on the left, pushed up = forward.
+	var start := player.global_position
+	var stick := Vector2(touch.size.x * 0.15, touch.size.y * 0.7)
+	_touch_event(2, stick, true)
+	await _frames(1)
+	_drag_event(2, stick + Vector2(0, -80), Vector2(0, -80))
+	await _frames(3)
+	_check(Input.get_action_strength("move_forward") > 0.9 and not Input.is_action_pressed("sprint"), "the stick pushes forward")
+	for i in 30:
+		await physics_frame
+	_check(player.global_position.distance_to(start) > 0.5, "the stick walks the player (%.2f m)" % player.global_position.distance_to(start))
+	_drag_event(2, stick + Vector2(0, -120), Vector2(0, -40))
+	await _frames(4)
+	_check(Input.is_action_pressed("sprint"), "the stick pushed past the edge sprints")
+	_touch_event(2, stick + Vector2(0, -120), false)
+	await _frames(2)
+	_check(not Input.is_action_pressed("move_forward") and not Input.is_action_pressed("sprint"), "letting go of the stick stops")
+	await _reset()
+	# FIRE: holding it shoots and (auto-aim on) aims down sights.
+	TouchInput.auto_ads = true
+	gun.in_mag = gun.mag_size
+	await _frames(30)
+	var mag := gun.in_mag
+	_touch_event(3, touch.button_center("fire"), true)
+	await _frames(20)
+	_check(Input.is_action_pressed("shoot") and Input.is_action_pressed("aim"), "holding FIRE shoots and aims")
+	_check(gun.in_mag < mag, "FIRE fires the gun (%d -> %d)" % [mag, gun.in_mag])
+	_touch_event(3, touch.button_center("fire"), false)
+	await _frames(2)
+	_check(not Input.is_action_pressed("shoot") and not Input.is_action_pressed("aim"), "letting go of FIRE stops")
+	# AIM taps on and off.
+	_touch_event(4, touch.button_center("aim"), true)
+	_touch_event(4, touch.button_center("aim"), false)
+	await _frames(2)
+	_check(Input.is_action_pressed("aim"), "AIM tapped on")
+	_touch_event(4, touch.button_center("aim"), true)
+	_touch_event(4, touch.button_center("aim"), false)
+	await _frames(2)
+	_check(not Input.is_action_pressed("aim"), "AIM tapped off")
+	# CROUCH: tap crouches, hold goes prone.
+	_touch_event(5, touch.button_center("crouch"), true)
+	_touch_event(5, touch.button_center("crouch"), false)
+	await _frames(10)
+	_check(player.is_crouching and not player.is_prone, "CROUCH tapped crouches")
+	_touch_event(5, touch.button_center("crouch"), true)
+	await _frames(int(TouchControls.PRONE_HOLD * 60.0) + 10)
+	_touch_event(5, touch.button_center("crouch"), false)
+	await _frames(10)
+	_check(player.is_prone, "CROUCH held goes prone")
+	await _reset()
+	player.set_prone(false)
+	player.set_crouching(false)
+	await _frames(30)
+	# ITEM: the wheel lists meds, drinks, grenades and the knife; picking a med heals.
+	inv.add("medkit", 1)
+	_touch_event(6, touch.button_center("item"), true)
+	_touch_event(6, touch.button_center("item"), false)
+	await _frames(2)
+	var ids := touch.wheel_items().map(func(entry: Dictionary) -> String: return entry["id"])
+	_check(touch._wheel_open and ids.has("medkit") and ids.back() == "knife", "ITEM opens the wheel (%s)" % str(ids))
+	player.health.take_damage(30)
+	_touch_event(7, touch.wheel_spot(ids.find("medkit")), true)
+	_touch_event(7, touch.wheel_spot(ids.find("medkit")), false)
+	await _frames(2)
+	_check(player.is_healing() and not touch._wheel_open, "picking a med on the wheel uses it")
+	player.cancel_heal()
+	player.heal_time_left = 0.0
+	# Hotbar slots take taps: slot 2 is the sidearm.
+	var hud_bar: HotbarHUD = main.get_node("HUD").hotbar
+	# The pause button: the menu's turn (nothing plays).
+	_touch_event(8, touch.button_center("pause"), true)
+	_touch_event(8, touch.button_center("pause"), false)
+	await _frames(2)
+	_check(TouchInput.paused and not TouchInput.playing(), "the pause button pauses")
+	TouchInput.paused = false
+	# Moved / resized / hidden buttons survive a save.
+	touch._set_spot("fire", Vector2(touch.size.x * 0.5, touch.size.y * 0.5))
+	TouchInput.layout["fire"]["scale"] = 1.4
+	TouchInput.layout["jump"] = {"x": 0.5, "y": 0.5, "scale": 1.0, "hidden": true}
+	var saved := TouchInput.layout_text()
+	TouchInput.load_layout(saved)
+	_check(is_equal_approx(float(TouchInput.layout["fire"]["x"]), 0.5) and is_equal_approx(touch.button_radius("fire"), 60.0 * 1.4)
+		and not touch.button_shown("jump"), "the touch layout saves (moved, resized, hidden)")
+	_check(GameSettings.from_text(GameSettings.save_text()).get_value("touch", "layout", "") == saved, "the layout is in the settings")
+	TouchInput.layout = {}
+	# A real mouse click: back to mouse and keyboard.
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.device = 0
+	Input.parse_input_event(click)
+	click = click.duplicate()
+	click.pressed = false
+	Input.parse_input_event(click)
+	await _frames(3)
+	_check(not TouchInput.active and Input.emulate_mouse_from_touch, "a mouse click turns the touch controls off")
+	_check(hud_bar.slot_at(Vector2(-100, -100)) == -1, "no hotbar slot off screen")
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	touch.process_mode = Node.PROCESS_MODE_INHERIT

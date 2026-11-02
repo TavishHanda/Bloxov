@@ -7,6 +7,8 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
 - **Touch controls (owner, 2026-10-11: the mobile release is very important to them):** before the phone release,
   on-screen buttons for everything the keyboard does: jump/vault, crouch, prone, lean, climb (ladders), interact,
   inventory, meds. Keep every new control touch-friendly from now on.
+  **Raid touch controls done (0.29.9, `scripts/touch_controls.gd`).** Still to do: walking round the hideout by touch
+  (phones open straight on the menu), scaling the rest of the HUD up on small phones.
 - **Weight (owner undecided, 2026-10-11):** heavy loads slowing you and draining stamina. Ask again with Items.
 - **Movement:** 0.3.1 (speed, sprint pose, raise time, jumps) and 0.3.2 (footsteps/noise, crouch, stamina) done.
   Later: vaulting, fall damage, stairs/ladders, real arms/sprint animation once there are models.

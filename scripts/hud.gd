@@ -38,6 +38,10 @@ var map_hud: MapHUD
 var world_labels: WorldLabelsHUD
 var downed_hud: DownedHUD
 var spectator: Spectator
+## On-screen controls for touch screens (0.29.9; hidden until the screen is touched, always on phones).
+var touch: TouchControls
+## The pause menu's touch settings (only shown with the touch controls on).
+var _touch_rows: Array[Control] = []
 
 var _indicator_time := 0.0
 ## Escape closed the inventory (0.13.9): back to playing, not the pause menu. A browser won't take the mouse back
@@ -130,6 +134,10 @@ func _ready() -> void:
 	add_child(end_screen)
 	end_screen.spectate_pressed.connect(spectate)
 	spectator.finished.connect(func() -> void: end_screen.show_result(player.kills))
+	touch = TouchControls.new(player, self)
+	add_child(touch)
+	move_child(touch, loot_ui.get_index())   # (under the inventory and end screens)
+	_build_touch_rows()
 	# Keep the pause menu (and the quest tracker beside it) on top of everything.
 	move_child(menu, -1)
 	move_child(quest_tracker, -1)
@@ -178,7 +186,7 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
 		if loot_ui.visible:
 			loot_ui.close()
-		elif Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not player.out_of_fight():
+		elif TouchInput.playing() and not player.out_of_fight():
 			loot_ui.open_for(null)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") and loot_ui.visible:
@@ -202,7 +210,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	# Playing: the mouse is captured, or with touch controls, the pause button wasn't pressed.
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or (TouchInput.active and not TouchInput.paused)
 	if _capture_until != 0:
 		_retry_capture(captured)
 	var other_screen_open := loot_ui.visible or end_screen.visible
@@ -220,12 +229,18 @@ func _process(delta: float) -> void:
 		_resume_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_resume_hint)
 	_resume_hint.visible = resume_pending
-	menu.visible = not captured and not other_screen_open and not player.controls_locked() and not resume_pending
+	TouchInput.screen_free = captured and not other_screen_open and not player.controls_locked() and not touch.editing
+	menu.visible = not captured and not other_screen_open and not player.controls_locked() and not resume_pending and not touch.editing
+	for row in _touch_rows:
+		row.visible = TouchInput.active
+	# (the keyboard list and hold-or-tap lean are for keys: the touch rows take their place)
+	lean_toggle.visible = not TouchInput.active
+	menu.get_node("Margin/VBox/Controls").visible = not TouchInput.active
 	if not menu.visible:
 		cancel_leave()
 	if not resume_pending:
 		_resume_from_menu = false
-	get_tree().paused = (menu.visible or _resume_from_menu) and not Network.main.in_online_raid()
+	get_tree().paused = (menu.visible or _resume_from_menu or touch.editing) and not Network.main.in_online_raid()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
 	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
 	crosshair.reticle = player.gun.reticle() if captured and not player.out_of_fight() else ""
@@ -235,6 +250,7 @@ func _process(delta: float) -> void:
 	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
 	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud, tips]:
 		element.visible = not loot_ui.visible and not end_screen.visible and not spectator.visible
+	tips.visible = tips.visible and not touch.editing
 	# Spectating a teammate: their name tag stays.
 	world_labels.visible = world_labels.visible or spectator.visible
 	timer_hud.visible = not end_screen.visible
@@ -382,6 +398,57 @@ func _show_quests() -> void:
 		quest_tracker.refresh(menu)
 
 
+## The pause menu's touch settings, under the other checkboxes: aim while FIRE is held, the lean buttons, and
+## TOUCH LAYOUT (move, resize and hide the buttons). Only shown while the touch controls are on.
+func _build_touch_rows() -> void:
+	var auto_ads := lean_toggle.duplicate() as CheckBox
+	auto_ads.name = "TouchAutoAim"
+	auto_ads.text = "Aim while holding FIRE (touch)"
+	auto_ads.button_pressed = TouchInput.auto_ads
+	auto_ads.toggled.connect(func(on: bool) -> void:
+		TouchInput.auto_ads = on
+		GameSettings.save())
+	var anchor: Control = menu.get_node("Margin/VBox/TipsToggle")
+	anchor.add_sibling(auto_ads)
+	var lean_row := HBoxContainer.new()
+	lean_row.name = "TouchLean"
+	lean_row.add_theme_constant_override("separation", 8)
+	var lean_label := Label.new()
+	lean_label.text = "Lean buttons"
+	HudStyle.style_label(lean_label, 20, HudStyle.INK_DIM)
+	lean_row.add_child(lean_label)
+	var lean_buttons: Array[Button] = []
+	for i in 3:
+		var button := Button.new()
+		button.text = ["OFF", "NEAR COVER", "ALWAYS"][i]
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		LootUI.style_button(button, 18)
+		lean_buttons.append(button)
+		lean_row.add_child(button)
+	var show_lean := func() -> void:
+		for i in 3:
+			lean_buttons[i].set_pressed_no_signal(int(TouchInput.lean) == i)
+	for i in 3:
+		lean_buttons[i].pressed.connect(func() -> void:
+			TouchInput.lean = i as TouchInput.Lean
+			GameSettings.save()
+			show_lean.call())
+	show_lean.call()
+	auto_ads.add_sibling(lean_row)
+	var layout_button := Button.new()
+	layout_button.name = "TouchLayout"
+	layout_button.text = "TOUCH LAYOUT"
+	layout_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(layout_button, 20)
+	layout_button.pressed.connect(touch.start_edit)
+	lean_row.add_sibling(layout_button)
+	_touch_rows = [auto_ads, lean_row, layout_button]
+	for row in _touch_rows:
+		row.visible = false
+
+
 ## LEAVE RAID pressed: ask first, in case it was a misclick.
 func ask_leave() -> void:
 	leave_button.visible = false
@@ -400,6 +467,12 @@ func confirm_leave() -> void:
 
 
 func _capture_mouse() -> void:
+	if TouchInput.active:
+		# Touch: no mouse to take, just play on.
+		if not touch.editing:
+			TouchInput.paused = false
+			resume_pending = false
+		return
 	if not player.controls_locked():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		_capture_until = Time.get_ticks_msec() + 2000

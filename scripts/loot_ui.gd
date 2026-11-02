@@ -157,7 +157,7 @@ func close(recapture := true) -> void:
 	_clear_views()
 	if player != null:
 		player.interactor.blocked = false
-		if recapture and not player.controls_locked():
+		if recapture and not player.controls_locked() and not TouchInput.active:   # (touch: no mouse to take)
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 

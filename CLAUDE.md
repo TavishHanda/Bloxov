@@ -24,6 +24,10 @@
   `xvfb-run -a godot --rendering-driver opengl3 -s tools/gen_shader_warm.gd` after adding materials or new kinds of things to them). A Stash update (separate solo/online
   stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
   built on a branch and released as the next phase.
+- **Touch controls** (0.29.9, `scripts/touch_controls.gd`, state/settings in `scripts/touch_input.gd`): on phones always,
+  on computers after the first touch. Buttons send the same input actions as keys (`InputEventAction`); code that
+  asked "is the mouse captured?" to mean "playing" asks `TouchInput.playing()` instead. New raid controls need a touch
+  button or a spot in the ITEM wheel. `tools/touch_view.gd` takes screenshots.
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read
   `docs/STORE_RULES.md` and check every change against it (violence/age rating, player-made text, privacy/data,
   accounts, real-money purchases and loot odds, ads, no downloaded code). Anything that would break a rule gets

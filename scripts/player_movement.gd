@@ -341,7 +341,7 @@ func _update_camera_motion(delta: float, shake: float) -> void:
 func lean_input() -> int:
 	if out_of_fight() or _sprinting:
 		return 0
-	if GameSettings.lean_toggle:
+	if GameSettings.lean_toggle or TouchInput.active:   # (touch lean buttons tap on / off, 0.29.9)
 		return _lean_toggled
 	return int(Input.is_action_pressed("lean_right")) - int(Input.is_action_pressed("lean_left"))
 
