@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.12 (Sharp loading screen)
+- Owner: the loading screen's text looked low quality. The web page showed the poster with its lettering baked in,
+  shrunk to the boot splash's 1280 px and then stretched back up by the browser, so it went soft twice. The page now
+  shows the full-size poster with the lettering painted out (`web/brand/splash.jpg`, a smaller download than before)
+  and lays BLOXOV, the red bar, NO MAN'S LAND and the gold line over it as a vector picture
+  (`web/brand/splash_text.svg`), so the text stays pixel-sharp at any window size and on high-DPI screens. Same
+  layout and look; made by `tools/make_web_branding.py --splash`, swapped in by `tools/web_seo.py`.
+- The loading bar sits just under the gold line instead of over it on wide windows.
+
 ## 0.29.11 (Touch: walking and looking at once no longer jumps)
 - Owner, on a phone: walking with the stick while dragging to look made the view freak out. The browser build works
   out each finger's movement against the wrong finger when two are down (Godot 4.7's web touch code keeps the last

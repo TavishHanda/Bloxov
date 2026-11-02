@@ -11,11 +11,17 @@ Godot's page is just a canvas, so search engines see almost nothing on it. This 
   6. gives search the site icon at sizes Google accepts (0.25.22): links web/brand/icon-48/96/192.png, swaps
      Godot's 256 px tab icon for the 192 px one and puts the 16/32/48 px favicon.ico at the site root
      (made by tools/make_web_branding.py; CI copies web/brand before this runs).
+  7. (0.29.12) sharpens the loading screen: Godot's splash is the poster shrunk to the boot splash's 1280 px, which
+     the browser stretches back up, so its lettering went soft. The page shows the full-size poster with the
+     lettering painted out (web/brand/splash.jpg) and the lettering as a vector picture over it
+     (web/brand/splash_text.svg), fitted the same way so they line up; both from tools/make_web_branding.py.
 
 Usage: python3 tools/web_seo.py build/web
 """
 import datetime
+import hashlib
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -34,6 +40,23 @@ def replace_once(html: str, old: str, new: str) -> str:
     if html.count(old) != 1:
         sys.exit("web_seo: expected exactly one %r in index.html" % old)
     return html.replace(old, new)
+
+
+def sharp_splash(html: str) -> str:
+    """Point the loading screen at the full-size poster and lay the lettering over it (7. above). Both pictures are
+    16:9 with the same fit (Godot's fullsize--true class plus the head include's cover rule), so they line up."""
+    def url(name: str) -> str:   # (?h=: a changed picture is a new address, so no browser shows a stale one)
+        return "brand/%s?h=%s" % (name, hashlib.sha256((SRC / "brand" / name).read_bytes()).hexdigest()[:10])
+    start = html.find('<img id="status-splash"')
+    end = html.find(">", start)
+    if start < 0 or end < 0 or html.count('<img id="status-splash"') != 1:
+        sys.exit("web_seo: the splash <img> not found in index.html")
+    tag = html[start:end + 1]
+    new = re.sub(r'src="[^"]*"', 'src="%s"' % url("splash.jpg"), tag)
+    if new == tag:
+        sys.exit("web_seo: the splash <img> has no src")
+    title = '<img id="status-title" src="%s" alt="Bloxov: No Man\'s Land">' % url("splash_text.svg")
+    return html[:start] + new + "\n" + title + html[end + 1:]
 
 
 def main(build_dir: str) -> None:
@@ -59,6 +82,7 @@ def main(build_dir: str) -> None:
     html = html[:start] + head + html[end + len("</title>"):]
     intro = (SRC / "seo" / "intro.html").read_text(encoding="utf-8").strip()
     html = replace_once(html, '<div id="status">', '<div id="status">\n' + intro)
+    html = sharp_splash(html)
     html_path.write_text(html, encoding="utf-8")
 
     shutil.copy(SRC / "robots.txt", web / "robots.txt")

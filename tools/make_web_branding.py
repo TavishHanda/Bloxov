@@ -1,9 +1,13 @@
 """Makes the web page's Bloxov pictures: the loading-screen splash, the icon (favicon) and the link preview.
 
-Run from the repo root: python3 tools/make_web_branding.py  (add --icons for only the web/brand icon sizes)
+Run from the repo root: python3 tools/make_web_branding.py  (add --icons for only the web/brand icon sizes, --splash
+for only the web loading screen)
 - assets/textures/boot_splash.png  shown while the game downloads (the poster, art_source/brag.jpg) (project setting application/boot_splash/image)
 - assets/icons/bloxov_icon.png     game icon, the web export makes the favicon from it (config/icon)
 - assets/textures/title_text.png   the main screen's name block (BLOXOV, bar, NO MAN'S LAND, gold line), 1080p size
+- web/brand/splash.jpg + splash_text.svg   the web page's loading screen (0.29.12): the poster with its lettering
+                                   painted out, full size, and the lettering as a vector picture laid over it, so the
+                                   text stays sharp at any size (tools/web_seo.py swaps them in for Godot's splash)
 - web/brand/preview.png            1200x630 crop of the poster, Discord etc. show for a pasted link (og:image, CI copies it)
 - web/brand/icon-48/96/192.png + favicon.ico   the icon at sizes Google search accepts (square, a multiple of
                                    48 px; the 256 px game icon isn't), linked from the page by tools/web_seo.py
@@ -86,6 +90,89 @@ def poster(size):
     return src.crop((left, top, left + tw, top + th))
 
 
+# The poster's lettering (0.29.12), measured off brag.jpg: text, font, font size, pixel size, top-left of the letters
+# in the 1920x1080 poster, colour, shadow offset (in the letters' pixels). Drawn with the fonts' own spacing.
+POSTER_TEXT = [
+    ("BLOXOV", LOGO_FONT, 50, 6, (615, 355), INK, 2),
+    ("NO MAN'S LAND", POSTER_FONT, 8, 6, (711, 634), INK, 1),
+    ("A BLOCKY FIRST-PERSON EXTRACTION SHOOTER", POSTER_FONT, 8, 5, (325, 841), GOLD, 1),
+]
+POSTER_BAR = (460, 555, 1000, 17)   # (x, y, width, height of the red bar)
+SHADOW_ALPHA = 0.78
+
+
+def glyph_grid(text, font_path, size):
+    """The text's pixels at the font's own size (no smoothing), cropped to the letters: rows of True/False."""
+    font = ImageFont.truetype(font_path, size)
+    img = Image.new("L", (round(font.getlength(text)) + size * 2, size * 3), 0)
+    d = ImageDraw.Draw(img)
+    d.fontmode = "1"
+    d.text((size, size), text, font=font, fill=255)
+    img = img.crop(img.getbbox())
+    return [[img.getpixel((x, y)) > 0 for x in range(img.width)] for y in range(img.height)]
+
+
+def runs_path(grid, unit, ox, oy, dx=0, dy=0):
+    """An SVG path of the grid's set pixels, one rectangle per run along a row, in poster pixels."""
+    out = []
+    for y, row in enumerate(grid):
+        x = 0
+        while x < len(row):
+            if row[x]:
+                start = x
+                while x < len(row) and row[x]:
+                    x += 1
+                out.append("M%d %dh%dv%dh-%dz" % (ox + (start + dx) * unit, oy + (y + dy) * unit,
+                                                  (x - start) * unit, unit, (x - start) * unit))
+            else:
+                x += 1
+    return "".join(out)
+
+
+def splash_text_svg():
+    """The loading screen's lettering as a 1920x1080 vector picture (0.29.12, owner: the loading screen text looked low
+    quality: it was baked into the poster, shrunk to 1280 px for the boot splash, then stretched back up by the browser).
+    The web page lays it over the poster with the same fit, so it lines up and stays sharp at any screen size."""
+    shadows, inks = [], []
+    for text, font, size, unit, (x, y), colour, off in POSTER_TEXT:
+        grid = glyph_grid(text, font, size)
+        shadows.append(runs_path(grid, unit, x, y, off, off))
+        inks.append('<path fill="#%02x%02x%02x" d="%s"/>' % (colour + (runs_path(grid, unit, x, y),)))
+    bx, by, bw, bh = POSTER_BAR
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" '
+            'shape-rendering="crispEdges">\n<path fill="#000" fill-opacity="%s" d="%s"/>\n%s\n'
+            '<rect x="%d" y="%d" width="%d" height="%d" fill="#%02x%02x%02x"/>\n</svg>\n'
+            % (SHADOW_ALPHA, "".join(shadows), "\n".join(inks), bx, by, bw, bh, *BLOOD))
+
+
+def splash_background():
+    """The poster with its baked-in lettering painted out (needs OpenCV: pip install opencv-python-headless), full
+    size, for the web page's loading screen under splash_text_svg()."""
+    import cv2
+    import numpy as np
+    mask = Image.new("L", (1920, 1080), 0)
+    d = ImageDraw.Draw(mask)
+    for text, font, size, unit, (x, y), _colour, off in POSTER_TEXT:
+        for gy, row in enumerate(glyph_grid(text, font, size)):
+            for gx, on in enumerate(row):
+                if on:
+                    d.rectangle((x + gx * unit, y + gy * unit, x + (gx + off + 1) * unit - 1,
+                                 y + (gy + off + 1) * unit - 1), fill=255)
+    bx, by, bw, bh = POSTER_BAR
+    d.rectangle((bx, by, bx + bw - 1, by + bh - 1), fill=255)
+    mask = np.asarray(mask)
+    mask = cv2.dilate(mask, np.ones((7, 7), np.uint8))   # (the JPEG's smudge round each letter)
+    src = cv2.imread(POSTER)
+    clean = cv2.inpaint(src, mask, 6, cv2.INPAINT_TELEA)
+    return Image.fromarray(cv2.cvtColor(clean, cv2.COLOR_BGR2RGB))
+
+
+def make_splash():
+    with open("web/brand/splash_text.svg", "w", encoding="utf-8") as f:
+        f.write(splash_text_svg())
+    splash_background().save("web/brand/splash.jpg", quality=92, optimize=True, progressive=True)
+
+
 def title_text():
     """The main screen's name block, lettered like the poster (0.28.2): BLOXOV, the red bar, NO MAN'S LAND and the gold
     line, crisp pixels at the poster's 1080p size on a clear background. The title screen shows it as one picture scaled
@@ -115,6 +202,7 @@ def main():
     poster((1280, 720)).save("assets/textures/boot_splash.png", optimize=True)
     poster((1200, 630)).save("web/brand/preview.png", optimize=True)
     title_text().save("assets/textures/title_text.png", optimize=True)
+    make_splash()
 
     # Icon: a big "B" on the dark HUD colour with the red bar under it.
     icon = Image.new("RGBA", (256, 256), DEEP + (255,))
@@ -138,5 +226,7 @@ if __name__ == "__main__":
     import sys
     if sys.argv[1:] == ["--icons"]:  # just the icon sizes, from the saved game icon
         search_icons(Image.open("assets/icons/bloxov_icon.png").convert("RGBA"))
+    elif sys.argv[1:] == ["--splash"]:  # just the web loading screen (web/brand/splash.jpg + splash_text.svg)
+        make_splash()
     else:
         main()
