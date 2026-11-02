@@ -2214,6 +2214,36 @@ func _section_hideout_world() -> void:
 	var walker: HideoutWalker = world.walker
 	var spawn: Vector3 = (world.get_node("Level/Spawn") as Node3D).global_position
 	_check(walker.is_on_floor() and walker.global_position.distance_to(spawn) < 0.3 and not world.menu_open(), "you start on your feet at the war table, walking (menu closed)")
+	# Touch (0.29.10): the stick walks you round the hideout, a drag on the right turns you, MENU opens the menu.
+	TouchInput.set_active(true)
+	var htouch: HideoutTouch = world.touch
+	await _frames(2)
+	_check(htouch.visible and not Input.emulate_mouse_from_touch and world._menu_button.text == "MENU", "touch: the hideout's stick and look show")
+	var hstick := Vector2(htouch.size.x * 0.15, htouch.size.y * 0.7)
+	var hfrom := walker.global_position
+	var hyaw := walker.rotation.y
+	_touch_event(0, hstick, true)
+	await _frames(1)
+	_drag_event(0, hstick + Vector2(0, -80), Vector2(0, -80))
+	var hlook := Vector2(htouch.size.x * 0.6, htouch.size.y * 0.4)
+	_touch_event(1, hlook, true)
+	await _frames(1)
+	_drag_event(1, hlook + Vector2(40, 0), Vector2(40, 0))
+	for i in 30:
+		await physics_frame
+	_check(walker.global_position.distance_to(hfrom) > 0.4 and absf(angle_difference(walker.rotation.y, hyaw)) > 0.05,
+		"touch: the stick walks you and a drag turns you (%.2f m)" % walker.global_position.distance_to(hfrom))
+	_touch_event(0, hstick, false)
+	_touch_event(1, hlook, false)
+	await _frames(3)
+	_check(not Input.is_action_pressed("move_forward"), "touch: letting go stops")
+	TouchInput.set_active(false)
+	await _frames(2)
+	_check(Input.emulate_mouse_from_touch, "touch off: back to normal clicks")
+	walker.global_position = spawn
+	walker.velocity = Vector3.ZERO
+	for i in 10:
+		await physics_frame
 	var stations: Array = world.get_node("Level/Stations").get_children()
 	var names: Array[String] = []
 	for marker: Node3D in stations:

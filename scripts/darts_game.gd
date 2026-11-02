@@ -115,7 +115,7 @@ func play(who: String) -> void:
 	turn_darts.clear()
 	_clear_board()
 	_say.text = "" if who == "practice" else "%s: \"%s\"" % [trader_name(who), "Three rounds. Highest total wins."]
-	if not GameSettings.is_phone():
+	if not GameSettings.is_phone() and not TouchInput.active:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_show_score()
 
@@ -133,7 +133,7 @@ func handle_input(event: InputEvent) -> bool:
 	var button := event as InputEventMouseButton
 	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
 		return false
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone():
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not GameSettings.is_phone() and not TouchInput.active:
 		return false   # (that click grabs the mouse first)
 	if button.pressed:
 		if turn == "over":
@@ -367,7 +367,7 @@ func _show_score() -> void:
 	var line := ""
 	for k in DARTS_PER_TURN:
 		line += ("   " if k > 0 else "") + (String(turn_darts[k][1]) if k < turn_darts.size() else "-")
-	var click := "Click" if not GameSettings.is_phone() else "Tap"
+	var click := "Click" if not GameSettings.is_phone() and not TouchInput.active else "THROW"
 	var key := HideoutWorld.use_key()
 	if mode == "practice":
 		var next := "%s: pull the darts out" % click if turn_darts.size() >= DARTS_PER_TURN else "Hold, let go in the green"
