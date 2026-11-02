@@ -117,7 +117,7 @@ static func _key_rows(body: VBoxContainer) -> void:
 	var buttons := {}
 	var refresh := func() -> void:
 		for action: String in buttons:
-			(buttons[action] as Button).text = Keybinds.name_of(action).to_upper()
+			(buttons[action] as Button).text = Keybinds.key_of(action).to_upper()
 	var catcher := KeyCatcher.new()
 	body.tree_exiting.connect(catcher.queue_free)
 	for row: Array in Keybinds.ACTIONS:

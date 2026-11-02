@@ -7,6 +7,29 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.9 (Touch controls)
+Owner: build the mobile controls now, so they're ready (and work on touch screens in the browser). Follows the
+mobile plan the owner OK'd: every feature kept, buttons merged. Mouse and keyboard play doesn't change at all.
+- On phones the touch controls are always on. On a computer they turn on the first time the screen is touched and
+  off again with a mouse click or a key (touch-screen laptops work either way). `scripts/touch_controls.gd`,
+  settings and on/off state in `scripts/touch_input.gd`.
+- Left thumb: a stick that appears where you put it down; push it past the edge going forward to sprint.
+  Right thumb: drag anywhere to look (holding FIRE looks too, so you can aim while shooting).
+- Six fight buttons: FIRE (hold; also aims down sights while held, can be turned off), AIM (tap on/off, CANCEL
+  while a heal can be stopped), RELOAD, JUMP (vaults, climbs and lets go of ladders where it can), CROUCH (tap;
+  hold = prone), ITEM (a quick wheel of every med, drink and grenade you carry, plus the knife).
+- Only when they apply: USE (hold to search, open, unlock or revive) and LEAN left/right (next to cover by
+  default; "always" or "off" in the pause menu). The hotbar slots take taps too: guns, meds, quick item, knife.
+- Top edge: pause, BAG (inventory) and MAP (the full map, which shows the extracts).
+- Pause menu (touch only): "Aim while holding FIRE", lean buttons, and TOUCH LAYOUT: drag any button to move it,
+  make it bigger or smaller, or hide it; saved with the settings. On small phone screens the buttons are drawn
+  bigger so they stay a comfortable thumb size.
+- Prompts and raid tips name the touch buttons instead of keys while touch is on ("USE", "BAG").
+- Checked: smoke test section `touch`, and a real web export in Chromium with a phone's touch screen and a
+  touch laptop (walk, look with a second finger while walking, fire, pause). Screenshots: `tools/touch_view.gd`.
+- Not yet: the hideout walk still opens straight on the menu on phones (moving round the hideout by touch is next),
+  and the rest of the HUD (hotbar, health, ammo) isn't scaled up for small phones yet.
+
 ## 0.29.8 (Trees built while you're in the hideout)
 Owner, after the loading fixes: "if we can build the trees faster then yeah do that". The raid no longer builds the
 map's 8,089 trees while it loads (~1.3-1.9 s natively, more on the web): the hideout builds them a few milliseconds

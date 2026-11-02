@@ -27,6 +27,8 @@ var _switch_left := 0.0
 var _switch_slot := -1
 ## The touch (finger index) holding the meds slot, -1 = none.
 var _meds_touch := -1
+## Slots held by a finger: [action, finger index] (let go when the finger lifts).
+var _tapped: Array = []
 
 
 func _init(owner_player: Player) -> void:
@@ -60,21 +62,48 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## Touch screens: tap the meds slot to use it, hold it to switch meds (same as key 3).
+## Touch screens: tap a slot to pick it (the same as its key: guns, quick item, knife); the meds slot uses its med on
+## a quick tap and switches it while held (like key 3).
 func _input(event: InputEvent) -> void:
 	if not event is InputEventScreenTouch:
 		return
 	var touch := event as InputEventScreenTouch
 	if touch.pressed and _meds_touch == -1:
-		var local := get_global_transform_with_canvas().affine_inverse() * touch.position
-		if is_visible_in_tree() and slot_rect(2 + Inventory.MEDS_KEY).has_point(local):
+		var slot := slot_at(touch.position)
+		if slot == 2 + Inventory.MEDS_KEY:
 			_meds_touch = touch.index
 			player.meds_press()
+			get_viewport().set_input_as_handled()
+		elif slot >= 0 and TouchInput.active and TouchInput.playing():
+			var action := InputEventAction.new()
+			action.action = slot_action(slot)
+			action.pressed = true
+			Input.parse_input_event(action)
+			_tapped.append([slot_action(slot), touch.index])
 			get_viewport().set_input_as_handled()
 	elif not touch.pressed and touch.index == _meds_touch:
 		_meds_touch = -1
 		player.meds_release()
 		get_viewport().set_input_as_handled()
+	elif not touch.pressed:
+		for entry: Array in _tapped.duplicate():
+			if entry[1] == touch.index:
+				_tapped.erase(entry)
+				var action := InputEventAction.new()
+				action.action = entry[0]
+				action.pressed = false
+				Input.parse_input_event(action)
+
+
+## The slot under a screen position (-1 = none), while the hotbar shows.
+func slot_at(screen_pos: Vector2) -> int:
+	if not is_visible_in_tree():
+		return -1
+	var local := get_global_transform_with_canvas().affine_inverse() * screen_pos
+	for i in SLOTS:
+		if slot_rect(i).grow(4).has_point(local):
+			return i
+	return -1
 
 
 ## Holding 3 switched meds: the new pick on tape over the meds slot.

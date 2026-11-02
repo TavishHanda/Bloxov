@@ -58,6 +58,10 @@ static func load_settings() -> void:
 		sensitivity = cfg.get_value("controls", "sensitivity", sensitivity)
 		damage_numbers = cfg.get_value("gameplay", "damage_numbers", damage_numbers)
 		lean_toggle = cfg.get_value("controls", "lean_toggle", lean_toggle)
+		# Touch controls (0.29.9).
+		TouchInput.auto_ads = cfg.get_value("touch", "auto_ads", TouchInput.auto_ads)
+		TouchInput.lean = clampi(int(cfg.get_value("touch", "lean", TouchInput.lean)), 0, 2) as TouchInput.Lean
+		TouchInput.load_layout(str(cfg.get_value("touch", "layout", "")))
 		server_address = cfg.get_value("online", "server_address", server_address)
 		player_name = cfg.get_value("online", "player_name", player_name)
 		# Rebound controls (0.26.0).
@@ -218,6 +222,9 @@ static func _current() -> ConfigFile:
 	cfg.set_value("controls", "sensitivity", sensitivity)
 	cfg.set_value("gameplay", "damage_numbers", damage_numbers)
 	cfg.set_value("controls", "lean_toggle", lean_toggle)
+	cfg.set_value("touch", "auto_ads", TouchInput.auto_ads)
+	cfg.set_value("touch", "lean", int(TouchInput.lean))
+	cfg.set_value("touch", "layout", TouchInput.layout_text())
 	cfg.set_value("online", "server_address", server_address)
 	cfg.set_value("online", "player_name", player_name)
 	cfg.set_value("graphics", "quality", graphics)
