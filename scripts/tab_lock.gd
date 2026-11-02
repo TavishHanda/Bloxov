@@ -19,14 +19,24 @@ static func start() -> void:
 	if (window.bloxovTab) return;
 	if (!navigator.locks) { window.bloxovTab = 'owner'; return; }
 	window.bloxovTab = 'pending';
-	setTimeout(function () { if (window.bloxovTab === 'pending') window.bloxovTab = 'blocked'; }, %d);
+	setTimeout(function () {
+		if (window.bloxovTab !== 'pending') return;
+		// Blocked only if our request is really still waiting (0.29.4). The game can hold the page busy for seconds
+		// right after asking (loading the hideout), so this timer and the lock's answer both run late, timer first:
+		// the lone tab took itself for blocked and reloaded, again and again on a slow first load.
+		navigator.locks.query().then(function (s) {
+			if (window.bloxovTab !== 'pending') return;
+			var waiting = (s.pending || []).some(function (l) { return l.name === '%s'; });
+			if (waiting) window.bloxovTab = 'blocked';
+		}).catch(function () { if (window.bloxovTab === 'pending') window.bloxovTab = 'blocked'; });
+	}, %d);
 	navigator.locks.request('%s', function () {
 		var was = window.bloxovTab;
 		window.bloxovTab = 'owner';
 		if (was === 'blocked') location.reload();
 		return new Promise(function () {});
 	});
-})()""" % [WAIT_MS, LOCK_NAME], true)
+})()""" % [LOCK_NAME, WAIT_MS, LOCK_NAME], true)
 
 
 ## "owner" (this tab plays), "pending" (still asking) or "blocked" (the game is open in another tab).

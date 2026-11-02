@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.4 (No more reloading on a slow first load)
+Found while measuring a real web build for the loading fixes: on a slow load the page reloaded itself right after
+the hideout appeared, back to the title screen, and could do it again and again. The one-tab check (TabLock, 0.17.5)
+gives the browser 1.5 s to grant this tab the game; loading the hideout keeps the page busy longer than that, so the
+timer and the browser's answer both ran late, the timer first, and the only open tab decided another tab had the
+game and reloaded. Now the timer asks the browser whether this tab's request is really still waiting before calling
+it blocked. A second tab still waits behind the notice as before.
+
 ## 0.29.3 (Faster raid loading, part 1)
 Owner: "everything is really slow ... loading into raid". The first of a few loading fixes (the shader side is being
 done separately). Looks and gameplay are unchanged.
