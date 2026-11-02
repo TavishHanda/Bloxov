@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.11 (Touch: walking and looking at once no longer jumps)
+- Owner, on a phone: walking with the stick while dragging to look made the view freak out. The browser build works
+  out each finger's movement against the wrong finger when two are down (Godot 4.7's web touch code keeps the last
+  positions by order in the event, not by finger), so the look finger's moves were measured from the stick thumb.
+  The touch controls (raid and hideout) now track each finger's last position themselves, and a single jump bigger
+  than a quarter of the screen is ignored.
+
 ## 0.29.10 (Touch controls: the hideout, and a bigger HUD on phones)
 Owner: "finish mobile for now". The two things 0.29.9 left:
 - Walking round the hideout by touch (`scripts/hideout_touch.gd`): the same stick and look drag as the raid, JUMP

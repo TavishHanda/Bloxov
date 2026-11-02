@@ -64,6 +64,12 @@ var _hide_button: Button
 
 ## finger index -> what it's doing: "stick", "look" or a button id.
 var _fingers := {}
+## finger index -> where it was last (look fingers): the turn is worked out from these, not the event's own
+## "relative", which a phone browser gets wrong with two fingers down (0.29.11, owner: walking and looking at once
+## made the view jump about).
+var _last_at := {}
+## A look finger moving further than this (fraction of the screen height) in one event is a glitch, not a swipe.
+const LOOK_JUMP := 0.25
 var _stick_origin := Vector2.ZERO
 var _stick_at := Vector2.ZERO
 var _stick := Vector2.ZERO
@@ -220,7 +226,7 @@ func _input(event: InputEvent) -> void:
 			_finger_up(touch.index, touch.position)
 	elif event is InputEventScreenDrag:
 		var drag := event as InputEventScreenDrag
-		_finger_moved(drag.index, drag.position, drag.relative)
+		_finger_moved(drag.index, drag.position)
 
 
 func _finger_down(index: int, pos: Vector2) -> void:
@@ -241,8 +247,10 @@ func _finger_down(index: int, pos: Vector2) -> void:
 			_stick_at = pos
 		elif not _fingers.values().has("look"):
 			_fingers[index] = "look"
+			_last_at[index] = pos
 		return
 	_fingers[index] = id
+	_last_at[index] = pos
 	get_viewport().set_input_as_handled()
 	if HOLD_ACTIONS.has(id):
 		_send(HOLD_ACTIONS[id], true)
@@ -274,6 +282,7 @@ func _finger_up(index: int, pos: Vector2) -> void:
 		return
 	var id: String = _fingers[index]
 	_fingers.erase(index)
+	_last_at.erase(index)
 	match id:
 		"stick":
 			_stick = Vector2.ZERO
@@ -292,7 +301,7 @@ func _finger_up(index: int, pos: Vector2) -> void:
 		_send(HOLD_ACTIONS[id], false)
 
 
-func _finger_moved(index: int, pos: Vector2, relative: Vector2) -> void:
+func _finger_moved(index: int, pos: Vector2) -> void:
 	if not _fingers.has(index):
 		return
 	var id: String = _fingers[index]
@@ -303,7 +312,10 @@ func _finger_moved(index: int, pos: Vector2, relative: Vector2) -> void:
 		_stick = raw.limit_length(1.0)
 	elif id == "look" or id == "fire":
 		# (in screen-height terms, so a phone and a tablet turn the same for the same swipe)
-		player.touch_look(relative * 720.0 / maxf(size.y, 1.0))
+		var moved := pos - (_last_at.get(index, pos) as Vector2)
+		_last_at[index] = pos
+		if moved.length() < size.y * LOOK_JUMP:
+			player.touch_look(moved * 720.0 / maxf(size.y, 1.0))
 
 
 func _process(delta: float) -> void:
@@ -408,6 +420,7 @@ func _release_all() -> void:
 		if HOLD_ACTIONS.has(id):
 			_send(HOLD_ACTIONS[id], false)
 	_fingers.clear()
+	_last_at.clear()
 	for action: String in _taps:
 		_send(action, false)
 	_taps.clear()
