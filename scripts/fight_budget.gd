@@ -10,7 +10,7 @@ extends RefCounted
 ## loud happened near it for QUIET_RESET seconds. AI that see you fight you whatever the budget.
 ## One ledger per raid (kept on the raid's viewport: the server runs several raids at once).
 
-const BUDGET := 6
+const BUDGET := 4
 const QUIET_RESET := 45.0
 const RADIUS := 50.0
 const _META := &"fight_budget"
