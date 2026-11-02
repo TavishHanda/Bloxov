@@ -22126,6 +22126,30 @@ def caved_old_house(ctx, c, s):
                      (rng.uniform(0.2, 0.45), rng.uniform(0.08, 0.2), rng.uniform(0.2, 0.45)), rng, ("concrete", oh_ext()))
     b.box((c[0] + rng.uniform(-1, 1), y + 0.026, c[2] + rng.uniform(-1, 1)), (rng.uniform(1.6, 2.6), 0.01, rng.uniform(1.4, 2.2)),
           yaw=rng.uniform(0, 90), style=no_bottom("black", 1.0))
+    # Boards, slates and plaster down along the side where the roof tore off the next room's (0.29.2, owner: the hole
+    # read as a missing roof, not a bombed one; the torn roof edge itself is drawn by dress_old_house).
+    i, j = (0 if c[0] < 0 else 1), (0 if c[2] < 0 else 1)
+    caved = set(OH_CAVED[oh_n()])
+    edges = []
+    if (i, 1 - j) not in caved:
+        edges.append(("z", z0 if j == 1 else z1, 1 if j == 1 else -1, x0, x1))
+    if (1 - i, j) not in caved:
+        edges.append(("x", x0 if i == 1 else x1, 1 if i == 1 else -1, z0, z1))
+
+    def at(axis, e, a, d, h):
+        return (a, h, e + d) if axis == "z" else (e + d, h, a)
+    for axis, e, sg, a0, a1 in edges:
+        for k in range(9):
+            a, d = rng.uniform(a0 + 0.5, a1 - 0.5), sg * rng.uniform(0.3, 1.4)
+            if k < 4:
+                b.box(at(axis, e, a, d, y + 0.04), (rng.uniform(0.6, 1.4), 0.03, rng.uniform(0.12, 0.25)), yaw=rng.uniform(0, 180),
+                      pitch=rng.uniform(-6, 6), style=no_bottom(rng.choice(("wood", "wood_dark")), 1.0))
+            elif k < 7:
+                _box(b, *at(axis, e, a, d, y + 0.03), rng.uniform(0.15, 0.4), 0.03, rng.uniform(0.12, 0.28), roof,
+                     yaw=rng.uniform(0, 90), pitch=rng.uniform(-8, 8))
+            else:
+                rubble_chunk(b, at(axis, e, a, d, y + 0.07), (rng.uniform(0.2, 0.4), rng.uniform(0.06, 0.15),
+                             rng.uniform(0.2, 0.4)), rng, ("concrete", oh_ext()))
 
 
 def dress_old_house(ctx):
@@ -22218,6 +22242,26 @@ def dress_old_house(ctx):
                 nn = v_scale(nn, -1)
             b.poly(pts, nn, roof, uv_slope(4.0))
             b.poly(pts[::-1], v_scale(nn, -1), "wood", uv_world(1.0))
+    # The torn edge (0.29.2, owner: from inside, the roof stopped in a clean line at the ridge and read as missing, not
+    # bombed): along every roofed quarter whose other half is gone, the blown-off slope's rafters hang snapped off the
+    # ridge and battens dangle.
+    trng = random.Random(BUILDING_NAME[0] + "torn")
+    for i, (xa, xb) in enumerate(((x0, 0.0), (0.0, x1))):
+        for j, ze in enumerate((z0, z1)):
+            if (i, j) in caved or (i, 1 - j) not in caved:
+                continue
+            sg_gone = 1 if j == 0 else -1                                   # towards the blown-off slope
+            sg_here = -sg_gone
+            for k in range(5):                                              # snapped rafters off the ridge beam
+                x = xa + 0.5 + k * (xb - xa - 1.0) / 4 + trng.uniform(-0.2, 0.2)
+                L, ang = trng.uniform(0.5, 1.7), math.radians(trng.uniform(15, 65))
+                _beam(b, (x, top - 0.1, 0.0), (x + trng.uniform(-0.3, 0.3), top - 0.1 - L * math.sin(ang), sg_gone * L * math.cos(ang)),
+                      0.09, 0.15, "wood_dark")
+            for k in range(3):                                              # battens hanging off
+                x = trng.uniform(xa + 0.5, xb - 0.5)
+                L = trng.uniform(0.7, 1.6)
+                _beam(b, (x, top - 0.05, sg_gone * 0.08), (x + trng.uniform(-0.3, 0.3), top - 0.05 - L, sg_gone * trng.uniform(0.1, 0.5)),
+                      0.07, 0.025, "wood")
     # The long walls built up to meet the roof's underside (owner 2026-10-17: a gap between the roof and the house),
     # under each quarter still roofed: the outside face up to the roof at the wall's outer face, the inside face up to
     # it at the inner face.
