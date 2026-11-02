@@ -3178,6 +3178,18 @@ func _section_settings() -> void:
 	_check(sun.shadow_enabled and is_equal_approx(sun.directional_shadow_max_distance, 60.0) and
 		is_equal_approx(root.scaling_3d_scale, 1.0) and is_equal_approx(FarView.distance(), FarView.FROM),
 		"HIGH graphics: shadows to 60 m, full render scale, far meshes from %d m" % FarView.FROM)
+	# Shader warm-up (0.29.5): the stand-in lists tools/gen_shader_warm.gd makes load, each stand-in has a material,
+	# and nothing starts on a headless run (or a server).
+	var counts := []
+	for path in ShaderWarm.LISTS:
+		var list: Node = (load(path) as PackedScene).instantiate() if ResourceLoader.exists(path) else null
+		counts.append(list.get_children().filter(func(c: Node) -> bool:
+			return c is GeometryInstance3D and (c as GeometryInstance3D).material_override != null).size() if list else 0)
+		if list:
+			list.free()
+		ShaderWarm.start(self)
+	_check(counts[0] >= 20 and counts[1] >= 5 and root.get_node_or_null("ShaderWarm") == null,
+		"the raid's and hideout's shaders are listed for building early (%s), not on headless runs" % str(counts))
 
 
 func _section_backup() -> void:

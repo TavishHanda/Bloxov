@@ -1,0 +1,524 @@
+[gd_scene format=4]
+
+[ext_resource type="Shader" path="res://assets/shaders/bushes.gdshader" id="1_ajkx0"]
+[ext_resource type="Shader" path="res://assets/shaders/crow.gdshader" id="2_63sbo"]
+[ext_resource type="Shader" path="res://assets/shaders/flag.gdshader" id="3_eoaut"]
+[ext_resource type="Shader" path="res://assets/shaders/grass_tufts.gdshader" id="4_prrql"]
+[ext_resource type="Shader" path="res://assets/shaders/ground.gdshader" id="5_j52kw"]
+[ext_resource type="Shader" path="res://assets/shaders/kit_atlas.gdshader" id="6_iau26"]
+[ext_resource type="Shader" path="res://assets/shaders/kit_sway.gdshader" id="7_hkn33"]
+[ext_resource type="Shader" path="res://assets/shaders/lot.gdshader" id="8_k583a"]
+[ext_resource type="Shader" path="res://assets/shaders/road.gdshader" id="9_y3rwg"]
+[ext_resource type="Shader" path="res://assets/shaders/trees.gdshader" id="10_k8sqk"]
+[ext_resource type="Shader" path="res://assets/shaders/water.gdshader" id="11_r57b8"]
+[ext_resource type="Shader" path="res://assets/shaders/waterfall.gdshader" id="12_at06h"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jctcf"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.35, 1)
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_870k5"]
+_surfaces = [{
+"aabb": AABB(-1, -1, 0, 2, 2, 1e-05),
+"attribute_data": PackedByteArray("/////wAAAAAAAIA/AAAAAAAAgD//////AACAPwAAgD8AAIA/AACAP/////8AAAA/AAAAAAAAAD8AAAAA"),
+"format": 34359738431,
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 3,
+"vertex_data": PackedByteArray("AACAvwAAgL8AAAAAAACAPwAAgL8AAAAAAAAAAAAAgD8AAAAA/3//f////7//f/9/////v/9//3////+/")
+}]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lgwji"]
+shading_mode = 0
+albedo_color = Color(0.85, 0.22, 0.06, 1)
+
+[sub_resource type="MultiMesh" id="MultiMesh_lm3od"]
+transform_format = 1
+use_colors = true
+use_custom_data = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_iobks"]
+albedo_color = Color(0.15, 0.13, 0.1, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fuwa7"]
+albedo_color = Color(0.82, 0.8, 0.72, 1)
+
+[sub_resource type="MultiMesh" id="MultiMesh_mrl6o"]
+transform_format = 1
+use_colors = true
+use_custom_data = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_qyfjc"]
+albedo_color = Color(1, 0.9, 0.8, 1)
+disable_receive_shadows = true
+
+[sub_resource type="MultiMesh" id="MultiMesh_qp432"]
+transform_format = 1
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="Image" id="Image_ap8ob"]
+data = {
+"data": PackedByteArray("/////w=="),
+"format": "RGBA8",
+"height": 1,
+"mipmaps": false,
+"width": 1
+}
+
+[sub_resource type="ImageTexture" id="ImageTexture_5cihw"]
+image = SubResource("Image_ap8ob")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_yn5vn"]
+resource_name = "scav_mat"
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+texture_repeat = false
+metadata/_gltf_primary_texture_coord = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5luv7"]
+resource_name = "gun_bakelite"
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+metadata/_gltf_primary_texture_coord = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_76lt7"]
+resource_name = "decals"
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sehbp"]
+vertex_color_use_as_albedo = true
+roughness = 0.2
+
+[sub_resource type="MultiMesh" id="MultiMesh_cxwqa"]
+transform_format = 1
+use_colors = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hebbd"]
+resource_name = "decals"
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_se7y0"]
+vertex_color_use_as_albedo = true
+vertex_color_is_srgb = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_chwlt"]
+resource_name = "Webbing.004"
+cull_mode = 2
+albedo_color = Color(0.26666668, 0.28627458, 0.18823534, 1)
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_n57lu"]
+cull_mode = 2
+albedo_color = Color(0.886, 0.863, 0.796, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_t3p6l"]
+resource_name = "Webbing.007"
+cull_mode = 2
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+metadata/_gltf_primary_texture_coord = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_x43qg"]
+cull_mode = 2
+vertex_color_use_as_albedo = true
+
+[sub_resource type="MultiMesh" id="MultiMesh_ac7w2"]
+transform_format = 1
+use_colors = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_m2qbg"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(1, 0.98, 0.8, 1)
+albedo_texture = SubResource("ImageTexture_5cihw")
+billboard_mode = 1
+billboard_keep_scale = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_oxvhd"]
+transparency = 1
+albedo_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sdutl"]
+transparency = 1
+vertex_color_use_as_albedo = true
+
+[sub_resource type="MultiMesh" id="MultiMesh_mwqtn"]
+transform_format = 1
+use_colors = true
+use_custom_data = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s47hs"]
+resource_name = "runner"
+transparency = 1
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xopsq"]
+transparency = 1
+cull_mode = 2
+shading_mode = 0
+albedo_color = Color(0.3, 1, 0.45, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kt3ws"]
+resource_name = "glass"
+transparency = 1
+cull_mode = 2
+albedo_color = Color(1, 1, 1, 0.28)
+albedo_texture = SubResource("ImageTexture_5cihw")
+roughness = 0.6
+texture_filter = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xkx01"]
+resource_name = "decals_cut"
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mke0a"]
+resource_name = "decals_cut"
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6oknt"]
+resource_name = "chainlink"
+transparency = 2
+alpha_scissor_threshold = 0.5
+alpha_antialiasing_mode = 0
+cull_mode = 2
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_juh6a"]
+resource_name = "glass"
+transparency = 4
+cull_mode = 2
+albedo_color = Color(1, 1, 1, 0.28)
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+metadata/_gltf_primary_texture_coord = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_6se7k"]
+resource_name = "glass"
+transparency = 4
+cull_mode = 2
+albedo_color = Color(1, 1, 1, 0.28)
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kgmht"]
+resource_name = "glass"
+transparency = 4
+cull_mode = 2
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 0.28)
+albedo_texture = SubResource("ImageTexture_5cihw")
+texture_filter = 2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qjbnq"]
+render_priority = 0
+shader = ExtResource("1_ajkx0")
+shader_parameter/sway = 0.05
+shader_parameter/pushers = PackedVector4Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fkycj"]
+render_priority = 0
+shader = ExtResource("2_63sbo")
+shader_parameter/colour = Color(0.05, 0.05, 0.06, 1)
+
+[sub_resource type="MultiMesh" id="MultiMesh_7ye7g"]
+transform_format = 1
+use_custom_data = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1h4nj"]
+render_priority = 0
+shader = ExtResource("3_eoaut")
+shader_parameter/width = 1.8
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fadqm"]
+render_priority = 0
+shader = ExtResource("4_prrql")
+shader_parameter/fade_start = 26.0
+shader_parameter/fade_end = 36.0
+shader_parameter/sway = 0.04
+shader_parameter/shade = 0.8
+
+[sub_resource type="MultiMesh" id="MultiMesh_ue6gj"]
+transform_format = 1
+use_custom_data = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_d7frs"]
+render_priority = 0
+shader = ExtResource("5_j52kw")
+shader_parameter/map_origin = Vector2(-175, -175)
+shader_parameter/map_size = 350.0
+shader_parameter/tile = 2.0
+shader_parameter/patch_size = 140.0
+shader_parameter/cut_ab = 0.36
+shader_parameter/cut_bc = 0.5
+shader_parameter/blend = 0.22
+shader_parameter/slope_earth = 0.36
+shader_parameter/tint_base = Vector3(0.47, 0.62, 0.36)
+shader_parameter/untinted = 0.93
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ew81a"]
+render_priority = 0
+shader = ExtResource("6_iau26")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lfdin"]
+render_priority = 0
+shader = ExtResource("7_hkn33")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pmqy7"]
+render_priority = 0
+shader = ExtResource("8_k583a")
+shader_parameter/tile = 4.0
+shader_parameter/patch_cut = 0.74
+shader_parameter/paint = Color(0.86, 0.85, 0.8, 1)
+shader_parameter/line_w = 0.12
+shader_parameter/bay = 2.6
+shader_parameter/depth = 5.0
+shader_parameter/worn = 0.3
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_q20pl"]
+render_priority = 0
+shader = ExtResource("9_y3rwg")
+shader_parameter/tile = 4.0
+shader_parameter/patch_cut = 0.74
+shader_parameter/centre_colour = Color(0.85, 0.83, 0.76, 1)
+shader_parameter/edge_colour = Color(0.85, 0.83, 0.76, 1)
+shader_parameter/centre_mode = 1
+shader_parameter/edges = true
+shader_parameter/line_w = 0.12
+shader_parameter/dash = 3.0
+shader_parameter/gap = 6.0
+shader_parameter/edge_in = 0.35
+shader_parameter/worn = 0.3
+shader_parameter/slab = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ixptx"]
+render_priority = 0
+shader = ExtResource("10_k8sqk")
+shader_parameter/sway = 0.08
+shader_parameter/pushers = PackedVector4Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_idc75"]
+render_priority = 0
+shader = ExtResource("11_r57b8")
+shader_parameter/pixel = 1.0
+shader_parameter/deep = Color(0.08, 0.22, 0.27, 1)
+shader_parameter/shallow = Color(0.3, 0.46, 0.4, 1)
+shader_parameter/sky = Color(0.62, 0.74, 0.86, 1)
+shader_parameter/foam_colour = Color(0.86, 0.89, 0.88, 1)
+shader_parameter/alpha_edge = 0.25
+shader_parameter/alpha_deep = 0.88
+shader_parameter/sky_mix = 0.55
+shader_parameter/flow = 0.7
+shader_parameter/tile = 2.0
+shader_parameter/ripple = 0.6
+shader_parameter/foam = 1.0
+shader_parameter/flecks = 1.0
+shader_parameter/full_depth = 0.5
+shader_parameter/foam_band = 0.14
+shader_parameter/rocks = PackedVector4Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+shader_parameter/rock_count = 0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s7tce"]
+render_priority = 0
+shader = ExtResource("12_at06h")
+shader_parameter/size = Vector2(2.6, 6)
+shader_parameter/splash = 0.0
+shader_parameter/water = Color(0.3, 0.5, 0.55, 1)
+shader_parameter/foam = Color(0.88, 0.92, 0.93, 1)
+shader_parameter/land = Vector2(0.5, 0.3)
+shader_parameter/speed = 2.4
+
+[node name="RaidWarm" type="Node3D" unique_id=931878149]
+
+[node name="W000" type="MeshInstance3D" parent="." unique_id=66461204]
+material_override = SubResource("StandardMaterial3D_jctcf")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W001" type="MultiMeshInstance3D" parent="." unique_id=611311328]
+material_override = SubResource("StandardMaterial3D_lgwji")
+multimesh = SubResource("MultiMesh_lm3od")
+
+[node name="W002" type="MeshInstance3D" parent="." unique_id=1538086457]
+material_override = SubResource("StandardMaterial3D_iobks")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W003" type="MultiMeshInstance3D" parent="." unique_id=1149189098]
+material_override = SubResource("StandardMaterial3D_fuwa7")
+multimesh = SubResource("MultiMesh_mrl6o")
+
+[node name="W004" type="MultiMeshInstance3D" parent="." unique_id=1117559607]
+material_override = SubResource("StandardMaterial3D_qyfjc")
+multimesh = SubResource("MultiMesh_qp432")
+
+[node name="W005" type="MeshInstance3D" parent="." unique_id=926298405]
+material_override = SubResource("StandardMaterial3D_yn5vn")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W006" type="MeshInstance3D" parent="." unique_id=1179977924]
+material_override = SubResource("StandardMaterial3D_5luv7")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W007" type="MeshInstance3D" parent="." unique_id=1662764053]
+material_override = SubResource("StandardMaterial3D_76lt7")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W008" type="MultiMeshInstance3D" parent="." unique_id=231694764]
+material_override = SubResource("StandardMaterial3D_sehbp")
+multimesh = SubResource("MultiMesh_cxwqa")
+
+[node name="W009" type="MeshInstance3D" parent="." unique_id=1562239431]
+material_override = SubResource("StandardMaterial3D_hebbd")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W010" type="MeshInstance3D" parent="." unique_id=875721501]
+material_override = SubResource("StandardMaterial3D_se7y0")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W011" type="MeshInstance3D" parent="." unique_id=2124116401]
+material_override = SubResource("StandardMaterial3D_chwlt")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W012" type="MeshInstance3D" parent="." unique_id=2094894267]
+material_override = SubResource("StandardMaterial3D_n57lu")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W013" type="MeshInstance3D" parent="." unique_id=291299261]
+material_override = SubResource("StandardMaterial3D_t3p6l")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W014" type="MultiMeshInstance3D" parent="." unique_id=921223530]
+material_override = SubResource("StandardMaterial3D_x43qg")
+multimesh = SubResource("MultiMesh_ac7w2")
+
+[node name="W015" type="MeshInstance3D" parent="." unique_id=147846671]
+material_override = SubResource("StandardMaterial3D_m2qbg")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W016" type="MeshInstance3D" parent="." unique_id=1288826931]
+material_override = SubResource("StandardMaterial3D_oxvhd")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W017" type="MultiMeshInstance3D" parent="." unique_id=765302414]
+material_override = SubResource("StandardMaterial3D_sdutl")
+multimesh = SubResource("MultiMesh_mwqtn")
+
+[node name="W018" type="MeshInstance3D" parent="." unique_id=1673290410]
+material_override = SubResource("StandardMaterial3D_s47hs")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W019" type="MeshInstance3D" parent="." unique_id=927708136]
+material_override = SubResource("StandardMaterial3D_xopsq")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W020" type="MeshInstance3D" parent="." unique_id=2093436701]
+material_override = SubResource("StandardMaterial3D_kt3ws")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W021" type="MeshInstance3D" parent="." unique_id=358718103]
+material_override = SubResource("StandardMaterial3D_xkx01")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W022" type="MeshInstance3D" parent="." unique_id=714509301]
+material_override = SubResource("StandardMaterial3D_mke0a")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W023" type="MeshInstance3D" parent="." unique_id=1045258690]
+material_override = SubResource("StandardMaterial3D_6oknt")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W024" type="MeshInstance3D" parent="." unique_id=2137327557]
+material_override = SubResource("StandardMaterial3D_juh6a")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W025" type="MeshInstance3D" parent="." unique_id=1142499138]
+material_override = SubResource("StandardMaterial3D_6se7k")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W026" type="MeshInstance3D" parent="." unique_id=771707987]
+material_override = SubResource("StandardMaterial3D_kgmht")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W027" type="MeshInstance3D" parent="." unique_id=1934443870]
+material_override = SubResource("ShaderMaterial_qjbnq")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W028" type="MultiMeshInstance3D" parent="." unique_id=1242125288]
+material_override = SubResource("ShaderMaterial_fkycj")
+multimesh = SubResource("MultiMesh_7ye7g")
+
+[node name="W029" type="MeshInstance3D" parent="." unique_id=174770460]
+material_override = SubResource("ShaderMaterial_1h4nj")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W030" type="MultiMeshInstance3D" parent="." unique_id=1032479527]
+material_override = SubResource("ShaderMaterial_fadqm")
+multimesh = SubResource("MultiMesh_ue6gj")
+
+[node name="W031" type="MeshInstance3D" parent="." unique_id=86385943]
+material_override = SubResource("ShaderMaterial_d7frs")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W032" type="MeshInstance3D" parent="." unique_id=917702791]
+material_override = SubResource("ShaderMaterial_ew81a")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W033" type="MeshInstance3D" parent="." unique_id=839785371]
+material_override = SubResource("ShaderMaterial_lfdin")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W034" type="MeshInstance3D" parent="." unique_id=2123327313]
+material_override = SubResource("ShaderMaterial_pmqy7")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W035" type="MeshInstance3D" parent="." unique_id=2018861875]
+material_override = SubResource("ShaderMaterial_q20pl")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W036" type="MeshInstance3D" parent="." unique_id=1347394219]
+material_override = SubResource("ShaderMaterial_ixptx")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W037" type="MeshInstance3D" parent="." unique_id=1897632811]
+material_override = SubResource("ShaderMaterial_idc75")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W038" type="MeshInstance3D" parent="." unique_id=1920348908]
+material_override = SubResource("ShaderMaterial_s7tce")
+mesh = SubResource("ArrayMesh_870k5")

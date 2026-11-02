@@ -67,6 +67,7 @@ func _ready() -> void:
 	_build_ui()
 	_drift()
 	ResourceLoader.load_threaded_request(HIDEOUT)
+	ShaderWarm.start(get_tree())   # builds the raid's shaders while you're here (0.29.5)
 
 
 func _process(delta: float) -> void:

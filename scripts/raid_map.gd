@@ -18,6 +18,7 @@ const ENEMY_SPAWNS := "EnemySpawns"
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_SCENE_INSTANTIATED:
+		ShaderWarm.stop()   # (the raid builds whatever is left itself)
 		Look.apply(self)
 		load_map(self, scene_path)
 		LoadingScreen.cover(self)

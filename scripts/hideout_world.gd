@@ -58,6 +58,7 @@ var tutorial: Tutorial
 
 func _ready() -> void:
 	get_tree().paused = false
+	ShaderWarm.start(get_tree())   # (carries on from the title screen; 0.29.5)
 	var level: Node3D = LEVEL.instantiate()
 	level.name = "Level"
 	add_child(level)

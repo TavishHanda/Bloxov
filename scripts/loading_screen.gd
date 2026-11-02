@@ -25,6 +25,10 @@ const TIPS := [
 	"Bandages stop bleeding. Heal up in cover before you push.",
 ]
 
+## The browser key remembering which Godot version this browser has built the raid's shaders for (0.29.5): until
+## then the first raid takes long, so the loading screen says it's a one-time setup instead of looking stuck.
+const SETUP_KEY := "bloxov_shaders_built"
+
 ## The tip picked for this load, so the raid shows the same one the hideout did.
 static var tip := ""
 
@@ -110,6 +114,13 @@ func _ready() -> void:
 	HudStyle.style_label(tip_label, 22, HudStyle.INK, false)
 	tip_label.add_theme_font_override("font", HudStyle.tape_font())
 	column.add_child(tip_label)
+	if first_setup():
+		var setup := Label.new()
+		setup.text = "FIRST-TIME SETUP: GETTING THE GRAPHICS READY. ONLY SLOW THE FIRST TIME."
+		setup.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		setup.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		HudStyle.style_label(setup, 18, HudStyle.INK, false)
+		column.add_child(setup)
 	var entering := Label.new()
 	entering.text = "ENTERING THE RAID..."
 	entering.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -125,8 +136,26 @@ func _fade_out() -> void:
 	for i in 3:   # (the first frames after a load take long; start the clock once frames are coming)
 		await tree.process_frame
 	await tree.create_timer(HOLD, true, false, true).timeout
+	_setup_done()
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, FADE)
 	await tween.finished
 	tip = ""
 	get_parent().queue_free()
+
+
+## True in a browser that hasn't loaded a raid on this Godot version yet (its shaders aren't built and kept yet).
+static func first_setup() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var seen = JavaScriptBridge.eval("(function () { try { return localStorage.getItem('%s') || '' } catch (e) { return '' } })()" % SETUP_KEY, true)
+	return str(seen) != _engine_version()
+
+
+static func _setup_done() -> void:
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("try { localStorage.setItem('%s', '%s') } catch (e) {}" % [SETUP_KEY, _engine_version()], true)
+
+
+static func _engine_version() -> String:
+	return Engine.get_version_info().string
