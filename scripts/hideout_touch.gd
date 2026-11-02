@@ -19,6 +19,8 @@ var walking := false
 ## The hideout's own buttons (USE, MENU): touches on them are theirs, not the stick's or the look's.
 var blockers: Array[Control] = []
 var _fingers := {}
+## finger index -> where it was last (the look finger: see TouchControls._last_at).
+var _last_at := {}
 var _stick_origin := Vector2.ZERO
 var _stick := Vector2.ZERO
 var _sprinting := false
@@ -101,7 +103,11 @@ func _input(event: InputEvent) -> void:
 			_sprinting = raw.length() > TouchControls.SPRINT_PAST and raw.y < -0.5 * raw.length()
 			_stick = raw.limit_length(1.0)
 		elif _fingers[drag.index] == "look":
-			var turn := drag.relative * 720.0 / maxf(size.y, 1.0) * Player.TOUCH_LOOK * GameSettings.sensitivity
+			var moved := drag.position - (_last_at.get(drag.index, drag.position) as Vector2)
+			_last_at[drag.index] = drag.position
+			if moved.length() >= size.y * TouchControls.LOOK_JUMP:
+				return
+			var turn := moved * 720.0 / maxf(size.y, 1.0) * Player.TOUCH_LOOK * GameSettings.sensitivity
 			walker.look(turn.x, turn.y)
 
 
@@ -125,6 +131,7 @@ func _finger_down(index: int, pos: Vector2) -> void:
 		_stick_origin = pos
 	elif not _fingers.values().has("look"):
 		_fingers[index] = "look"
+		_last_at[index] = pos
 
 
 func _finger_up(index: int) -> void:
@@ -132,6 +139,7 @@ func _finger_up(index: int) -> void:
 		return
 	var id: String = _fingers[index]
 	_fingers.erase(index)
+	_last_at.erase(index)
 	if id == "stick":
 		_stick = Vector2.ZERO
 		_sprinting = false
@@ -207,6 +215,7 @@ func _press(action: String, strength: float) -> void:
 
 func _release_all() -> void:
 	_fingers.clear()
+	_last_at.clear()
 	for action: String in _taps:
 		_send(action, false)
 	_taps.clear()
