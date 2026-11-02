@@ -8,8 +8,14 @@ extends NavigationRegion3D
 signal baked
 
 const SOURCE_GROUP := &"nav_source"
+## Baked ahead of time (0.29.3, faster loading: the real map's bake took ~1.3 s on every raid, longer on the web and on
+## the server): `tools/nav_bake.gd` saves the bake as PREBAKED_DIR/<fingerprint>.res, the fingerprint being the
+## source geometry's. A raid whose geometry matches loads that; anything else (the test map, a map changed since)
+## bakes here as before, so a stale file only costs time, never a wrong mesh.
+const PREBAKED_DIR := "res://assets/nav/"
 
 var is_baked := false
+var source_key := ""   # (this raid's geometry fingerprint: tools/nav_bake.gd saves the bake under it)
 
 
 func _ready() -> void:
@@ -33,11 +39,28 @@ func _bake() -> void:
 	var source := NavigationMeshSourceGeometryData3D.new()
 	for node in RaidScope.nodes(self, SOURCE_GROUP):
 		_add_geometry(node, source)
-	NavigationServer3D.bake_from_source_geometry_data(navigation_mesh, source)
+	source_key = fingerprint(navigation_mesh, source)
+	var prebaked := PREBAKED_DIR + source_key + ".res"
+	if ResourceLoader.exists(prebaked):
+		navigation_mesh = load(prebaked) as NavigationMesh
+	else:
+		NavigationServer3D.bake_from_source_geometry_data(navigation_mesh, source)
 	# Hand the freshly baked polygons to the navigation server (the map picks them up on its next sync).
 	NavigationServer3D.region_set_navigation_mesh(get_rid(), navigation_mesh)
 	is_baked = true
 	baked.emit()
+
+
+## What a bake is made from: the settings and every face (so the same geometry always gives the same name).
+static func fingerprint(mesh: NavigationMesh, source: NavigationMeshSourceGeometryData3D) -> String:
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_MD5)
+	ctx.update(var_to_bytes([mesh.cell_size, mesh.cell_height, mesh.agent_radius, mesh.agent_height,
+		mesh.agent_max_climb, mesh.agent_max_slope]))
+	if source.has_data():   # (hashing nothing is an error)
+		ctx.update(source.get_vertices().to_byte_array())
+		ctx.update(source.get_indices().to_byte_array())
+	return ctx.finish().hex_encode()
 
 
 ## Adds solid boxes under `node`: CSG boxes with collision, box colliders on the world layer, and gray-box maps

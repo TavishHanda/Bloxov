@@ -146,6 +146,32 @@ var _surface_cells := {}
 var _surface_inverse := {}
 
 
+## The map's triangle shape, shared by every raid running the same map at once (0.29.3: building it takes ~0.5 s,
+## and the server runs several raids in one process; each raid started used to stall all of them while it built its
+## own). Held weakly: once no raid uses it, it goes.
+static var _shapes := {}   # faces fingerprint -> WeakRef to its ConcavePolygonShape3D
+
+
+static func _shared_shape(faces: PackedVector3Array) -> ConcavePolygonShape3D:
+	var key := _fingerprint(faces)
+	var held: WeakRef = _shapes.get(key)
+	var shape: ConcavePolygonShape3D = held.get_ref() if held != null else null
+	if shape == null:
+		shape = ConcavePolygonShape3D.new()
+		shape.backface_collision = true
+		shape.set_faces(faces)
+		_shapes[key] = weakref(shape)
+	return shape
+
+
+static func _fingerprint(faces: PackedVector3Array) -> String:
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_MD5)
+	if not faces.is_empty():   # (hashing nothing is an error)
+		ctx.update(faces.to_byte_array())
+	return ctx.finish().hex_encode()
+
+
 func _ready() -> void:
 	var editor := Engine.is_editor_hint()
 	if not editor:
@@ -244,10 +270,8 @@ func _ready() -> void:
 		return
 	if water_points.size() >= 2:
 		add_child(_wading_area())
-	var shape := ConcavePolygonShape3D.new()
-	shape.backface_collision = true
-	shape.set_faces(faces)
 	var collider := CollisionShape3D.new()
+	var shape := _shared_shape(faces)
 	collider.name = "Shape"
 	collider.shape = shape
 	add_child(collider)

@@ -29,13 +29,24 @@ const FAR_BROAD := 9
 # the texture sheet's tiles (art_source/scripts/make_trees.py): 4 x 4, (column, row)
 const CARD := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
 const BARK := [Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)]
+# a card's whole tile, as _quad clamps it (uv (0, 1), (1, 1), (1, 0), (0, 0))
+const CARD_UV0 := Vector2(0.004, 0.996)
+const CARD_UV1 := Vector2(0.996, 0.996)
+const CARD_UV2 := Vector2(0.996, 0.004)
+const CARD_UV3 := Vector2(0.004, 0.004)
 const FILL := [Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2), Vector2i(0, 2)]
 
 @export var sheet: Texture2D
 @export var look := 0
 @export var data := PackedFloat32Array()
 
-var _st: SurfaceTool
+# The mesh being built (0.29.3, faster loading: plain arrays with an index, four corners a quad, instead of a
+# SurfaceTool's six vertices a quad; the same triangles, built about twice as fast)
+var _v := PackedVector3Array()
+var _n := PackedVector3Array()
+var _uv := PackedVector2Array()
+var _col := PackedColorArray()
+var _idx := PackedInt32Array()
 var _material: ShaderMaterial
 var _origin := Vector3.ZERO   # (the square being built: trees are drawn relative to its middle)
 var _coarse := false          # (far version: leaf blocks and trunks in one piece a face)
@@ -49,29 +60,31 @@ func _ready() -> void:
 	_material = material
 	material.shader = SHADER
 	material.set_shader_parameter("sheet", sheet)
-	var cells := {}   # square -> [full trees, far version]
+	var cells := {}   # square -> its trees (data indices, in order)
 	for i in range(0, data.size(), STRIDE):
 		var key := Vector2i(floori(data[i] / CELL), floori(data[i + 2] / CELL))
 		if not cells.has(key):
-			cells[key] = [SurfaceTool.new(), SurfaceTool.new()]
-			for st: SurfaceTool in cells[key]:
-				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			cells[key] = []
+		(cells[key] as Array).append(i)
+	for key: Vector2i in cells:
 		# (each square's mesh sits at its middle, so the far switch measures from there)
 		_origin = Vector3((key.x + 0.5) * CELL, 0.0, (key.y + 0.5) * CELL)
-		_st = cells[key][0]
-		_coarse = int(data[i + 5]) >= FAR_PINE
-		_tree(i)
-		_st = cells[key][1]
-		_coarse = true
-		_tree_far(i)
-	for key: Vector2i in cells:
 		for far in 2:
-			var mi := MeshInstance3D.new()
-			mi.mesh = (cells[key][far] as SurfaceTool).commit()
-			if mi.mesh == null:
+			_begin()
+			for i: int in cells[key]:
+				if far:
+					_coarse = true
+					_tree_far(i)
+				else:
+					_coarse = int(data[i + 5]) >= FAR_PINE
+					_tree(i)
+			var mesh := _commit()
+			if mesh == null:
 				continue
+			var mi := MeshInstance3D.new()
+			mi.mesh = mesh
 			mi.material_override = material
-			mi.position = Vector3((key.x + 0.5) * CELL, 0.0, (key.y + 0.5) * CELL)
+			mi.position = _origin
 			if far:
 				mi.visibility_range_begin = FAR_FROM
 				mi.visibility_range_begin_margin = FAR_MARGIN
@@ -79,6 +92,48 @@ func _ready() -> void:
 				mi.visibility_range_end = FAR_FROM
 				mi.visibility_range_end_margin = FAR_MARGIN
 			add_child(mi)
+
+
+func _begin() -> void:
+	_v = PackedVector3Array()
+	_n = PackedVector3Array()
+	_uv = PackedVector2Array()
+	_col = PackedColorArray()
+	_idx = PackedInt32Array()
+
+
+func _commit() -> ArrayMesh:
+	if _v.is_empty():
+		return null
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = _v
+	arrays[Mesh.ARRAY_NORMAL] = _n
+	arrays[Mesh.ARRAY_TEX_UV] = _uv
+	arrays[Mesh.ARRAY_COLOR] = _col
+	arrays[Mesh.ARRAY_INDEX] = _idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_begin()
+	return mesh
+
+
+## A vertex (`at + turn * c`, already worked out), and after every fourth, the quad's two triangles (0 1 2, 0 2 3).
+func _corner(p: Vector3, normal: Vector3, uv: Vector2, color: Color) -> void:
+	_v.append(p)
+	_n.append(normal)
+	_uv.append(uv)
+	_col.append(color)
+
+
+func _quad_done() -> void:
+	var b := _v.size() - 4
+	_idx.append(b)
+	_idx.append(b + 1)
+	_idx.append(b + 2)
+	_idx.append(b)
+	_idx.append(b + 2)
+	_idx.append(b + 3)
 
 
 func _tree(i: int) -> void:
@@ -313,14 +368,42 @@ func _face(at: Vector3, turn: Basis, c: Vector3, u: Vector3, v: Vector3, tile: V
 
 func _card(at: Vector3, turn: Basis, p: Vector3, ax: Vector3, ay: Vector3, tile: Vector2i, mid: Vector3,
 		half: Vector3, flat: float) -> void:
-	var corners := [p - ax - ay, p + ax - ay, p + ax + ay, p - ax + ay]
-	var uvs := [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+	# (written out corner by corner, the hottest part of the build: the same numbers as one _quad call with the card's
+	# corners p - ax - ay, p + ax - ay, p + ax + ay, p - ax + ay and its whole tile)
 	var out := _out(p, mid, half)
 	var r := clampf(((p - mid) / half).length(), 0.0, 1.0)
 	var shade := (0.6 + 0.4 * r) * (0.85 + 0.15 * clampf((p.y - mid.y) / half.y * 0.5 + 0.5, 0.0, 1.0))
 	if flat > 0.0:
 		shade = maxf(shade, 0.85)
-	_quad(at, turn, corners, uvs, tile, out, shade, mid, half)
+	var nrm := turn * out
+	var t := Vector2(tile)
+	var bottom := mid.y - half.y
+	var height := 2.0 * half.y
+	var c := p - ax - ay
+	var move := clampf((c.y - bottom) / height, 0.0, 1.0)
+	_v.append(at + turn * c)
+	_uv.append((t + CARD_UV0) / 4.0)
+	_col.append(Color(shade, shade, shade, move * move))
+	c = p + ax - ay
+	move = clampf((c.y - bottom) / height, 0.0, 1.0)
+	_v.append(at + turn * c)
+	_uv.append((t + CARD_UV1) / 4.0)
+	_col.append(Color(shade, shade, shade, move * move))
+	c = p + ax + ay
+	move = clampf((c.y - bottom) / height, 0.0, 1.0)
+	_v.append(at + turn * c)
+	_uv.append((t + CARD_UV2) / 4.0)
+	_col.append(Color(shade, shade, shade, move * move))
+	c = p - ax + ay
+	move = clampf((c.y - bottom) / height, 0.0, 1.0)
+	_v.append(at + turn * c)
+	_uv.append((t + CARD_UV3) / 4.0)
+	_col.append(Color(shade, shade, shade, move * move))
+	_n.append(nrm)
+	_n.append(nrm)
+	_n.append(nrm)
+	_n.append(nrm)
+	_quad_done()
 
 
 func _out(p: Vector3, mid: Vector3, half: Vector3) -> Vector3:
@@ -330,15 +413,20 @@ func _out(p: Vector3, mid: Vector3, half: Vector3) -> Vector3:
 
 func _quad(at: Vector3, turn: Basis, corners: Array, uvs: Array, tile: Vector2i, normal: Vector3, shade: float,
 		mid: Vector3, half: Vector3) -> void:
-	for k: int in [0, 1, 2, 0, 2, 3]:
+	var nrm := turn * normal
+	var t := Vector2(tile)
+	var bottom := mid.y - half.y
+	var height := 2.0 * half.y
+	for k in 4:
 		var c: Vector3 = corners[k]
 		var uv: Vector2 = uvs[k]
 		# (sways more toward the crown's top and edges; nothing below its bottom moves)
-		var move := clampf((c.y - (mid.y - half.y)) / (2.0 * half.y), 0.0, 1.0)
-		_st.set_color(Color(shade, shade, shade, move * move))
-		_st.set_normal(turn * normal)
-		_st.set_uv((Vector2(tile) + uv.clamp(Vector2(0.004, 0.004), Vector2(0.996, 0.996))) / 4.0)
-		_st.add_vertex(at + turn * c)
+		var move := clampf((c.y - bottom) / height, 0.0, 1.0)
+		_v.append(at + turn * c)
+		_n.append(nrm)
+		_uv.append((t + uv.clamp(Vector2(0.004, 0.004), Vector2(0.996, 0.996))) / 4.0)
+		_col.append(Color(shade, shade, shade, move * move))
+	_quad_done()
 
 
 # ---------------------------------------------------------------------------------------------- trunks
@@ -372,23 +460,23 @@ func _trunk(at: Vector3, turn: Basis, lean: Vector3, top: float, w0: float, w1: 
 			var u0 := side * 0.22
 			var uvs := [Vector2(u0, v0 + lv), Vector2(u0 + lu, v0 + lv), Vector2(u0 + lu, v0), Vector2(u0, v0)]
 			var shade := 0.72 + 0.28 * clampf(y0 / 2.5, 0.0, 1.0)
-			for q: int in [0, 1, 2, 0, 2, 3]:
-				_st.set_color(Color(shade, shade, shade, 0.0))
-				_st.set_normal(turn * a.z)
+			var nrm := turn * a.z
+			for q in 4:
 				var uv: Vector2 = uvs[q]
-				_st.set_uv((Vector2(tile) + uv.clamp(Vector2(0.004, 0.004), Vector2(0.996, 0.996))) / 4.0)
-				_st.add_vertex(at + turn * corners[q])
+				_corner(at + turn * (corners[q] as Vector3), nrm,
+					(Vector2(tile) + uv.clamp(Vector2(0.004, 0.004), Vector2(0.996, 0.996))) / 4.0,
+					Color(shade, shade, shade, 0.0))
+			_quad_done()
 	if ragged:
 		return
 	var top_c := lean + Vector3(0, top, 0)   # (a cap, in case the top is seen)
 	var r := w1 / 2.0
 	var b := Basis(Vector3.UP, deg_to_rad(twist))
 	var cap := [top_c + (-b.x - b.z) * r, top_c + (b.x - b.z) * r, top_c + (b.x + b.z) * r, top_c + (-b.x + b.z) * r]
-	for q: int in [0, 1, 2, 0, 2, 3]:
-		_st.set_color(Color(0.8, 0.8, 0.8, 0.0))
-		_st.set_normal(turn * Vector3.UP)
-		_st.set_uv((Vector2(tile) + Vector2(0.1, 0.1)) / 4.0)
-		_st.add_vertex(at + turn * (cap[q] as Vector3))
+	for q in 4:
+		_corner(at + turn * (cap[q] as Vector3), turn * Vector3.UP, (Vector2(tile) + Vector2(0.1, 0.1)) / 4.0,
+			Color(0.8, 0.8, 0.8, 0.0))
+	_quad_done()
 
 
 func _branches(at: Vector3, turn: Basis, y: float, w: float, n: int, tile: Vector2i, reach: float) -> void:
@@ -416,13 +504,13 @@ func _limb(at: Vector3, turn: Basis, p0: Vector3, p1: Vector3, w: float, tile: V
 		var corners := [p0 + e - e2, p0 + e + e2, p1 + (e + e2) * 0.6, p1 + (e - e2) * 0.6]
 		var lv := minf(d.length() / 2.0, 0.95)
 		var uvs := [Vector2(0.3, lv), Vector2(0.3 + w / 2.0, lv), Vector2(0.3 + w / 2.0, 0), Vector2(0.3, 0)]
-		for q: int in [0, 1, 2, 0, 2, 3]:
+		var nrm := turn * e.normalized()
+		for q in 4:
 			var c: Vector3 = corners[q]
-			_st.set_color(Color(0.85, 0.85, 0.85, sway * float(q != 0 and q != 1)))
-			_st.set_normal(turn * e.normalized())
 			var uv: Vector2 = uvs[q]
-			_st.set_uv((Vector2(tile) + uv.clamp(Vector2(0.004, 0.004), Vector2(0.996, 0.996))) / 4.0)
-			_st.add_vertex(at + turn * c)
+			_corner(at + turn * c, nrm, (Vector2(tile) + uv.clamp(Vector2(0.004, 0.004), Vector2(0.996, 0.996))) / 4.0,
+				Color(0.85, 0.85, 0.85, sway * float(q != 0 and q != 1)))
+		_quad_done()
 
 
 func _dead(at: Vector3, turn: Basis, h: float) -> void:

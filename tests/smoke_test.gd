@@ -4627,6 +4627,13 @@ func _section_old_bloxov() -> void:
 	var off_nav := spots.filter(func(p: Vector3) -> bool:
 		return NavigationServer3D.map_get_closest_point(nav_map, p).distance_to(p) > 1.5)
 	_check(off_nav.is_empty(), "every player spawn and extract is on walkable ground (%s)" % [off_nav])
+	# Loading faster (0.29.3): the real map's navigation is baked ahead and loaded, not baked at the start of every raid,
+	# and raids running the same map at once (the server) share its triangle shape.
+	_check(ResourceLoader.exists(NavBaker.PREBAKED_DIR + nav.source_key + ".res"),
+		"the map's enemy navigation is baked ahead (after changing the map, run: godot --headless -s tools/nav_bake.gd)")
+	var shared_map := RaidScope.nodes(world.raid, &"box_maps")[0] as BoxMap
+	_check(BoxMap._shared_shape(shared_map.collision_faces) == (shared_map.get_node("Shape") as CollisionShape3D).shape,
+		"...and a second raid on the same map would share its collision shape, not build its own")
 	# The map's edge (outdoor step 9): the wall is collision only now (a border fence, the land outside and its forest
 	# are looks), but it still stops everyone. Rays out across the edge at walking and jumping height hit it, and the
 	# AI's walkable area stays inside.

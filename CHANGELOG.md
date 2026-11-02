@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.3 (Faster raid loading, part 1)
+Owner: "everything is really slow ... loading into raid". The first of a few loading fixes (the shader side is being
+done separately). Looks and gameplay are unchanged.
+- The map's trees (8,089 of them) are built when a raid loads. That now takes about half as long: the meshes are
+  built straight into arrays with four corners a quad, not through a SurfaceTool with six. The exact same trees
+  (checked vertex by vertex with `tools/tree_probe.gd`). Measured 2.8 s -> 1.3 s natively; the web is slower, so it
+  saves more there.
+- The enemy navigation is baked ahead instead of at the start of every raid (~1.3 s, on the server too):
+  `tools/nav_bake.gd` saves it in `assets/nav/` under a fingerprint of the map's geometry, and a raid whose geometry
+  matches loads it (~0.2 s). A map changed without re-baking just bakes at the start as before; the smoke test
+  says so.
+- Raids running the same map at once (the server) share the map's triangle collision shape instead of each building
+  its own (~0.5 s, which stalled every raid on the server while a new one started).
+- Raid scene setup measured 6.2 s -> 2.4 s (xvfb, warm shaders). New measuring tools: `tools/load_probe.gd` (each load
+  step), `ready_probe.gd` (slowest nodes), `spike_probe.gd` (slow frames walking the map), `shader_probe.gd`
+  (distinct shaders a scene uses).
+
 ## 0.29.2 (Bombed roofs look bombed)
 Owner, playing 0.29.0: from inside Old House 7 "the roof is broken, you can see through it". Not a bug: the house's south
 half has had its roof blown in since the World art update, but from the rooms that still have a roof it ended in a clean
