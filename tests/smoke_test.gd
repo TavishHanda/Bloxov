@@ -7553,7 +7553,14 @@ func _section_touch() -> void:
 	await _frames(2)
 	_check(not Input.is_action_pressed("shoot"), "a look touch doesn't press FIRE")
 	_check(absf(angle_difference(player.rotation.y, yaw)) > 0.05, "dragging on the right turns the view")
-	_touch_event(1, look_at + Vector2(60, 0), false)
+	# 0.29.11: the turn comes from the finger's own positions, not the event's relative (a phone browser measures
+	# it from the wrong finger when two are down).
+	yaw = player.rotation.y
+	_drag_event(1, look_at + Vector2(70, 0), Vector2(-900, 400))
+	await _frames(3)
+	var turned := absf(angle_difference(player.rotation.y, yaw))
+	_check(turned > 0.001 and turned < 0.1 and player.rotation.y < yaw, "a look drag turns by how far the finger moved, not a bad relative (%.3f)" % turned)
+	_touch_event(1, look_at + Vector2(70, 0), false)
 	# The stick: thumb down on the left, pushed up = forward.
 	var start := player.global_position
 	var stick := Vector2(touch.size.x * 0.15, touch.size.y * 0.7)
