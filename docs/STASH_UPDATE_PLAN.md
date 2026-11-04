@@ -13,14 +13,29 @@ items marked **Proposed** are my recommendation; items in §15 marked still open
 **Decisions recorded 2026-11-04** (the owner answered the first round):
 - **PvE is offline solo now; online co-op PvE is a later option.** Add the `mode` field now so it can come later.
 - **PvP keeps the AI** (PvPvE, as today).
-- **PvP starts with its own separate starter kit**, not the solo one. The contents are proposed in §4.6 and need a
-  final yes on the numbers.
+- **PvP starts with its own separate starter kit**, not the solo one. The contents are in §4.6; the only open number is
+  how many of the three Hound sets also get armor, helmet and a medium backpack.
 - **Economy is per-stash; look and tutorial are account-wide.** Money, stash, loadout, stats, traders, quests, levels
   and presets are separate; the character look and the tutorial are shared.
 - **Online needs a real account; PvE needs none.** PvE stays local and accountless forever. PvP requires signing in.
 - **Credentials can be linked, and only one session is active at a time.** The base credential is a username and
   password; email is **optional**; Steam links later. §8 explains the model and why the device secret became a
   remember-me token instead of an identity.
+
+**Decisions recorded 2026-11-04 (second round):**
+- **Reconnect window: yes, 2 minutes.** Disconnecting does not instantly kill the player; the body stays in the raid
+  for 2 minutes and the same account can resume. After that it resolves as death.
+- **Server crash: restore the pre-raid loadout.** If the restore ever proves unreliable, fall back to resolving it as
+  `left` (gear lost) rather than leaving the profile stuck.
+- **Account deletion: 30-day grace.** Sessions are revoked immediately, the stash is inaccessible during the grace,
+  and the player can cancel by signing in. Hard delete after 30 days.
+- **Bans: yes.** 24 hours, then 7 days, then permanent.
+- **Names: display name is changeable and non-unique.** The username stays the immutable login handle.
+- **No playtester grant.** The current stash becomes the solo stash; PvP starts fresh for everyone.
+- **Online export: yes.** Read-only JSON download, no import.
+- **Hosting cost: approved.**
+- **Release shape: incremental 0.31.x.** Phase 1 can ship early; Phase 2 is 0.31.0.
+- **Starter kit: A plus 5 bandages and 2 medkits.** The number of "ready kits" is still being priced (§4.6).
 
 ---
 
@@ -169,32 +184,55 @@ That is the whole update. Everything below is detail.
   > fresh with a starter kit."
 - This is the single most important message in the update. Playtesters must not think their stash was wiped.
 
-### 4.6 The PvP starter kit (decided: separate; contents proposed)
+### 4.6 The PvP starter kit (decided: separate; contents)
 
 **Decided 2026-11-04: PvP starts with its own kit, not the solo one.** The point is that PvP starts poorer and tenser
 than PvE, so the first good extract matters. The solo kit stays exactly as it is (Hound AK, medium backpack, 60 rifle
 rounds, a bandage).
 
-**Proposed PvP kit** — the same "free kit" the hideout already gives a player with nothing (so the items and numbers
-already exist), plus a small wallet:
+**Decided 2026-11-04 — the A list plus meds:**
 
 | Item | Count | Why |
 | --- | --- | --- |
-| Stinger pistol (`pistol`), loaded | 1 (12 rounds in it) | a real gun, but a weak one |
-| Stinger rounds (`pistol_ammo`) | 30 | enough for a fight, not a war |
-| Bandage | 1 | one mistake is survivable |
-| Small backpack (`backpack_small`) | 1 | somewhere to put the first haul |
-| Money | **$20,000** (proposed) | buys a Hound (AK) or armor and meds, not both |
+| Hound (`ak`), loaded | 3 | one ready, two spare, so losing a gun does not end the session |
+| Stinger (`pistol`), loaded | 5 | sidearm plus spares |
+| Red Dot (`red_dot`) | 3 | one per Hound |
+| Foregrip (`foregrip`) | 3 | one per Hound |
+| Extended Mag (`ext_mag`) | 3 | one per Hound |
+| Suppressor (`suppressor`) | 1 | a nice find to use or keep |
+| Hound Rounds (`rifle_ammo`) | 360 | three magazines per Hound |
+| Stinger Rounds (`pistol_ammo`) | 250 | five magazines |
+| Bandage | 5 | |
+| Medkit | 2 | |
+| Energy Drink | 3 | |
+| Small Backpack (`backpack_small`) | 1 | |
+| Light Armor (`armor_light`) | see below | |
+| Old Helmet (`helmet_basic`) | see below | |
+| Medium Backpack (`backpack_medium`) | see below | |
+| Money | **$50,000** | the buffer that lets a bad raid be rebuilt |
 
-- The pistol, rounds, bandage and small backpack are exactly `hideout.gd`'s free kit (`take_free_kit`), so there is no
-  new item or art work.
-- **$20,000** is the number to argue about. The Hound's base value is $12,500 and traders mark it up, so $20,000 buys
-  a rifle and a little ammo, or a pistol kit with armor and meds. $10,000 makes the first raid a real gamble; $35,000
-  is close to the solo start and defeats the point. **My pick: $20,000, tune after the first PvP playtest.**
-- The PvP free kit (when a player has nothing at all) should follow the same rule as solo: one per raid, only when
-  empty, and it cannot be sold for profit (the `free` flag already exists on `ItemStack`).
-- If the owner wants the PvP kit to be a *scav* fantasy instead, the alternative is a knife or a shotgun; say so and
-  I will price it. The pistol version is the least new work and the easiest to reason about.
+**The ready-kit question.** "3 ready kits" means each Hound set also gets light armor, an old helmet and a medium
+backpack. Priced with the game's own `Traders.buy_price` (1.56× value):
+
+| Ready kits | Gear cost | With $50k | Cells used | Quick raids of value |
+| --- | --- | --- | --- | --- |
+| **1 (recommended)** | $154,128 | $204,128 | 90 | 6.8 |
+| 2 | $180,648 | $230,648 | 112 | 7.6 |
+| 3 | $207,168 | $257,168 | 134 | 8.5 |
+
+For comparison, the economy sim's "really good" kit is $125,112, and a quick raid brings home about $30,200. Three
+ready kits is roughly twice the best kit the sim models, uses 134 of the 160 starting stash cells before any loot, and
+makes armor disposable. **My pick: one ready kit.** The player still has three Hounds and five Stingers, so they can
+lose two raids without going naked, and the $50k rebuys armor and meds. Two is defensible; three is too much.
+
+- **Every starter item carries the `free` flag** (`ItemStack.FREE`), so it cannot be sold to a trader. Otherwise a
+  fresh account is a ~$75k payday. The $50k cash is the only spendable money.
+- **The one-time starter kit is separate from the repeatable free kit.** The free kit stays as today (Stinger, 30
+  rounds, bandage, small backpack), still one per raid, only when empty, and still unsellable.
+- **Trader side effect:** $50k spent at Ponta reaches level 3 (the threshold is $40k), unlocking the Lancer, 4x/8x
+  scopes and suppressor. If that feels too fast, lower the cash to ~$30k; the gear is the part that matters.
+- **Stash space:** the online stash starts at 8x20 (160 cells). One ready kit leaves about 102 free cells after
+  equipping, which fits a quick raid's haul (~$30k). Three ready kits leave 58, which is tight on the first raid.
 
 ---
 
@@ -360,7 +398,7 @@ create index sessions_account on sessions (account_id);
 create table profiles (
   account_id      uuid primary key references accounts(id) on delete cascade,
   revision        bigint not null default 1,
-  money           bigint not null default 20000,  -- PvP starting money (§4.6); the game server sends the real fresh profile
+  money           bigint not null default 50000,  -- PvP starting money (§4.6); the game server sends the real fresh profile
   stash_size      int[] not null default '{8,20}',
   stash           jsonb not null default '[]',
   loadout         jsonb not null default '{}',
@@ -541,15 +579,19 @@ Start with A; move to B only if cheating shows up in playtests.
 
 ### 7.6 Disconnects, crashes and orphans
 
-- **Player disconnects mid-raid:** the raid result is `left`/`killed`; gear is lost, as today. The client is told
-  before it can leave ("Leaving loses your gear").
-- **Reconnect window (later, optional):** keep the body and the profile `in_raid` for ~2 minutes; if the same account
-  reconnects, resume. This is a real UX win but needs a resume path in `net_raid.gd` and the matchmaker. **Proposed:
-  not in 0.31.0.**
+- **Player disconnects mid-raid:** the server keeps the body for the 2-minute reconnect window (§7.6), then resolves
+  the result as `left`/`killed`; gear is lost. The client is told before it can leave ("Leaving loses your gear").
+- **Reconnect window (decided 2026-11-04: yes, 2 minutes):** keep the body and the profile `in_raid` for **2
+  minutes**; if the same account reconnects, resume. This needs a resume path in `net_raid.gd` and the matchmaker.
+  The body stays lootable while the player is away, so reconnecting is a risk, not a free save. If the window
+  expires, the server resolves it as death.
 - **Server crash / Heroku restart:** on boot, the game server has a new boot id. Any profile with `raid_state =
   'in_raid'` and a `raid_id` from a previous boot is an orphan.
-  - **Proposed policy:** restore `raid_snapshot` (the pre-raid loadout) and mark the result `crash`. The player did
-    nothing wrong, and the alternative (losing gear to a Heroku restart) is the kind of thing that makes people quit.
+  - **Decided 2026-11-04: restore `raid_snapshot`** (the pre-raid loadout) and mark the result `crash`. The player
+    did nothing wrong, and the alternative (losing gear to a Heroku restart) is the kind of thing that makes people
+    quit.
+  - **Fallback:** if restoring ever proves unreliable, resolve the orphan as `left` (gear lost) instead of leaving
+    the profile stuck in `in_raid`. Never leave an account unable to start a raid.
   - The stash is unchanged during a raid, so only the loadout needs restoring. Loot from the crashed raid is lost,
     which is fine.
   - A player who disconnects and never reconnects is **not** a crash: the server saw them leave, so it resolved as
@@ -652,12 +694,15 @@ owner asked for: PvE stays accountless, PvP gets a real account.
   goes: the online stash, money, loadout, stats, traders, quests, presets, the account, its sessions and any linked
   credentials.
 - The solo profile is not touched. Say so on the same screen.
-- The API deletes in one transaction. The client clears `session.json` and the online cache and returns to PvE.
+- The API marks the account deleted in one transaction; the hard delete runs after the grace period.
 - **Store rule:** deletion must be available **inside the game** (Apple 5.1.1(v), Google's account deletion policy).
   A web deletion link is also required by Google; add a page under `web/` in the launch phase.
-- **Proposed:** immediate hard delete, with a warning that Heroku's database backups may keep a copy for a few days.
-  A 30-day grace period is friendlier but conflicts with "delete" in the store rules unless it is clearly a
-  deactivation. Ask the owner.
+- **Decided 2026-11-04: a 30-day grace period.** Deleting sets `deleted_at`, revokes every session and every linked
+  credential immediately, and makes the stash inaccessible. Signing in during the grace shows one screen only:
+  "This account is scheduled for deletion on <date>." with **CANCEL DELETION**; the stash is not shown. A daily job
+  hard-deletes `profiles`, `raid_results`, `sessions`, `credentials` and the `accounts` row after 30 days, in one
+  transaction. The store text must say 30 days, how to cancel, and that Heroku's backups may keep a copy for a few
+  days after that. The solo profile is never part of it.
 
 ### 8.7 Names
 
@@ -758,8 +803,9 @@ stashes:
 
 - **A backup is solo-only.** `pack()` writes the solo profile + settings; `apply()` restores the solo profile + settings
   and never the online profile.
-- The online profile can be **exported** (read-only JSON, for transparency) but **not imported** by the player. An
-  import would be an obvious cheat vector; a support tool can do it server-side if ever needed.
+- **Decided 2026-11-04: yes.** The online profile can be **exported** as a read-only JSON file (stash, money, loadout,
+  stats, traders, quests, presets) but **not imported** by the player. An import would be an obvious cheat vector; a
+  support tool can do it server-side if ever needed. The export is the "download my data" path for privacy requests.
 - Add a line to the backup UI: "This file is your PvE stash. PvP is saved on the server."
 - Test: restoring a backup while in PvP does not change the online stash, and does not leave the UI showing stale
   online data.
@@ -789,7 +835,7 @@ stashes:
 - **PvP, reconnecting:** the last profile stays visible, read-only, with a banner and a RETRY button. Economy actions
   are disabled. Do not fall back to solo.
 - **Account panel** (from the ONLINE panel): username, display name, **sign out**, **sign out everywhere**, **new
-  recovery code**, delete account, export online data (later), link Steam (later).
+  recovery code**, delete account, export online data, link Steam (later).
 
 ### 10.2 The raid
 
@@ -878,7 +924,7 @@ release. **Do not bump `project.godot` for docs-only steps.**
 - L4 option A (validate the final inventory against `_carried`) or B (report every item-state change).
 - Bans by account with escalation.
 - The orphan/crash policy and the "Saving…" flow.
-- Optional: the reconnect window.
+- The 2-minute reconnect window (decided).
 - Tests: fabricated extract inventory, item duplication, banned login, crash restore, disconnect = death.
 - **Exit:** the online economy is closed-loop; the owner can ban an account.
 
@@ -991,7 +1037,7 @@ how the existing in-process `net`/`pvp` tests keep working without a database.
 | **Two sessions** | Duplication across tabs/devices | One active session, revision checks, take-over flow |
 | **SaveBackup** | A restore could wipe the online stash | Solo-only backups; online export is read-only; test it |
 | **Store/privacy** | Accounts change what is collected | Update the privacy page, the Apple label, the Google form, deletion, the web link; do it before launch |
-| **PvE feels worthless** | Players may resent a separate online stash | Say it clearly; maybe a one-time playtester grant (owner decision); keep PvE fully playable |
+| **PvE feels worthless** | Players may resent a separate online stash | Say it clearly; no playtester grant (decided); keep PvE fully playable |
 | **Name confusion** | Duplicate names in the kill feed | Discriminator later; `NameFilter` now |
 | **Account loss** | A forgotten password with no recovery code and no email | Say so at sign-up; recovery code; optional email later; Steam linking later |
 | **Server crash** | Gear lost through no fault of the player | Restore the pre-raid snapshot; mark the result `crash` |
@@ -1026,8 +1072,8 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 
 1. **PvE scope:** offline solo now; online co-op PvE is a later option. Add the `mode` field now so it can come later.
 2. **PvP content:** keep the AI (PvPvE, as today).
-3. **PvP starter kit:** a **separate** kit, not the solo one. The contents are proposed in §4.6; the $20,000 needs a
-   final yes.
+3. **PvP starter kit:** a **separate** kit, not the solo one. Contents in §4.6: the A list plus 5 bandages and 2
+   medkits; the number of ready kits is the last number to settle.
 4. **Per-stash vs account-wide:** money, stash, loadout, stats, traders, quests, levels and presets are **per-stash**;
    look and tutorial are **account-wide**.
 5. **Online accounts:** PvE stays **completely accountless**. PvP requires a **real account** — no silent device
@@ -1038,37 +1084,26 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 7. **Sessions:** **one active session per account.** A second sign-in offers TAKE OVER HERE.
 8. **The device secret is gone.** It became a remember-me session token: revocable, expiring, and never the identity.
    The transfer code is gone with it; moving devices is just signing in.
+9. **Reconnect window:** yes, **2 minutes**. The body stays lootable; expiry resolves as death.
+10. **Server crash:** **restore the pre-raid loadout** and mark it `crash`. If the restore proves unreliable, resolve
+    it as `left` (gear lost) instead of leaving the account stuck.
+11. **Account deletion:** **30-day grace**, cancellable by signing in; sessions and stash access are cut immediately;
+    hard delete after 30 days.
+12. **Bans:** **yes.** 24 hours, then 7 days, then permanent.
+13. **Names:** `username` is the immutable login handle; `display_name` is changeable and **not unique**.
+14. **Playtesters:** **no grant.** The current stash becomes the solo stash; PvP starts fresh for everyone.
+15. **Online export:** **yes**, read-only JSON; **no import**.
+16. **Hosting cost:** **approved** (Heroku Postgres on top of the dyno).
+17. **Release shape:** **incremental 0.31.x.** Phase 1 can ship early; Phase 2 is 0.31.0.
 
-### Still open (answer before Phase 2)
+### Still open
 
-1. **PvP kit numbers:** confirm the pistol + 30 rounds + bandage + small backpack + **$20,000**, or give different
-   numbers. *My pick: keep it and tune after the first PvP playtest.*
-2. **Disconnect mid-raid:** lose the gear (today's behavior), or allow a short reconnect window?
-   *My pick: lose it in 0.31.0 with a clear warning; add a ~2-minute reconnect window later if playtests show it
-   matters.*
-3. **Server crash mid-raid:** restore the pre-raid loadout, or lose it like a death?
-   *My pick: restore it. A Heroku restart is not the player's fault, and losing gear to it is the kind of thing that
-   makes people quit.*
-4. **Account deletion:** immediate hard delete, or a 30-day grace period?
-   *My pick: immediate, with a typed confirmation and a note that database backups may keep a copy for a few days.
-   A grace period reads like "deactivation" to the stores.*
-5. **Bans:** do you want them now, and what escalation?
-   *My pick: 24 hours, then 7 days, then permanent, stored on the account. Be aware a banned player can make a new
-   account until Steam linking exists.*
-6. **Names:** username is the immutable login handle; should the **display name** stay changeable, and are duplicates
-   fine?
-   *My pick: changeable display name, duplicates allowed; add a discriminator later if the kill feed gets confusing.*
-7. **Existing playtesters:** confirm the current stash becomes the solo stash and PvP starts fresh. Do you want a
-   one-time thank-you grant for playtesters (server-side, not a copy of the solo stash)?
-   *My pick: no copy; a small one-time PvP grant is a nice gesture if you want one.*
-8. **Online export:** should players be able to download their online stash as a file (read-only)?
-   *My pick: yes, for transparency; no import (it is a cheat vector).*
-9. **Hosting cost:** are you OK with Heroku Postgres (roughly $5-9/month on top of the dyno)? The sidecar avoids a
-   second dyno.
-   *My pick: sidecar + the smallest Postgres plan that has room for backups; confirm the student credit covers it.*
-10. **Release shape:** one big 0.31.0, or incremental 0.31.x releases behind a flag?
-    *My pick: incremental. Phase 1 (the switch) can ship early; Phase 2 (the real online stash) is 0.31.0; the rest
-    follows.*
+1. **Starter kit ready-kit count:** A plus 5 bandages and 2 medkits is settled. Whether the kit carries one, two or
+   three sets of light armor, old helmet and medium backpack is being priced in §4.6.
+   *My pick: one ready kit, three Hound rifles and five Stinger pistols total. Three full ready kits is too much.*
+2. **Inactive account cleanup:** never delete, or delete after 12 months with no `last_seen_at` (with a warning when
+   there is a verified email)?
+   *My pick: never auto-delete for now; revisit before launch.*
 
 ---
 
