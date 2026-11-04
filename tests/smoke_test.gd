@@ -2595,20 +2595,18 @@ func _section_hideout_world() -> void:
 	world.leave_range()
 	await process_frame
 	Profile.trader_levels = levels_before
-	# Sound (0.25.22, owner: "really quiet"): footsteps as you walk, the bunker's ambience, the radio heard all over.
+	# Sound (0.30.2, owner: the hideout sounded like the ocean and had random noises): a steady bunker room tone.
 	var ambience := world.get_node_or_null("Ambience") as Ambience
-	_check(ambience != null and ambience.bunker, "the hideout has its own ambience (room tone, the war overhead)")
-	# (0.25.38, owner: too loud, the loop could be heard) three beds of different lengths drifting at random, bits now and then.
+	_check(ambience != null and ambience.bunker, "the hideout has its own ambience (a steady bunker room tone)")
 	_check(ambience._beds.size() == 3 and not ambience._room.playing and ambience._beds.all(func(b: AudioStreamPlayer) -> bool: return b.playing),
 		"the hideout's room tone is three layered beds, not the raid's one short loop")
 	var lens: Array[float] = []
 	for b: AudioStreamPlayer in ambience._beds:
 		lens.append(snappedf(b.stream.get_length(), 0.1))
 	_check(lens[0] != lens[1] and lens[1] != lens[2] and lens[0] != lens[2], "...each a different length, so they don't line up")
-	ambience._bit_left = 0.0
 	var kids_before := ambience.get_child_count()
 	ambience._bunker(0.016)
-	_check(ambience.get_child_count() == kids_before + 1 and ambience._bit_left >= 4.0, "...and a little sound plays now and then")
+	_check(ambience.get_child_count() == kids_before, "...and no random one-off noises")
 	_check(ambience._bed_target.all(func(t: float) -> bool: return t <= db_to_linear(-29.0)), "...all of it quiet")
 	_check(world.toys._radio.max_distance == 0.0, "the radio is heard all over the hideout")
 	var walk_from := walker.global_position

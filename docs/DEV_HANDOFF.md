@@ -60,10 +60,11 @@ standing rules) and you're caught up. Where this file and the code disagree, the
 - **Sound:** `gun_sounds.gd` (per-gun shot streams and the near/mid/far/room/floor/behind choice), `effects.gd`
   `sound()`/`sound_at()`/`shot_at()` (2D/3D playback, the 40-sound cap), `hearing.gd` (what is in the way: wall, floor,
   door, whole pane or opening; distant boom, snap, indoor flag, bus helpers), `surfaces.gd` (footsteps by surface),
-  `world_sounds.gd`, `ambience.gd`, `ui_sounds.gd`. Buses live in `default_bus_layout.tres` and are never added at
-  runtime (web loses Master); `game_settings.gd` owns the bus volumes. One-shot files come from `tools/make_sounds.py`
-  (22 kHz mono); shot variants from `tools/make_sound_variants.py` (baked so web and desktop match). Sound 2.0's plan
-  and file list: `docs/SOUND_2_PLAN.md`.
+  `world_sounds.gd`, `ambience.gd` (raid wind/woods/water and the hideout's steady bunker beds), `ui_sounds.gd`. Buses
+  live in `default_bus_layout.tres` and are never added at runtime (web loses Master); `game_settings.gd` owns the bus
+  volumes. One-shot files come from `tools/make_sounds.py` (22 kHz mono); shot variants from
+  `tools/make_sound_variants.py` (baked so web and desktop match). Sound 2.0's plan and file list:
+  `docs/SOUND_2_PLAN.md`.
 - **Online:** `net.gd` (`Net` autoload, used as `Network.main`; client + server RPCs), `matchmaker.gd` (parties,
   queue, raids; pure logic), `raid_world.gd` (one SubViewport world per server raid: map, AI, proxies, shot checks,
   shared containers), `hitbox.gd` (shared player hitbox math + state flags), `net_raid.gd` (client side of a raid:

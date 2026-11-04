@@ -82,7 +82,7 @@ func _ready() -> void:
 	add_child(walker)
 	walker.global_position = (level.get_node("Spawn") as Node3D).global_position + Vector3.UP * 0.05
 	walker.locked = true   # (until close_menu says you're walking)
-	Ambience.start_bunker(self)   # (0.25.22: the room tone and the war far overhead)
+	Ambience.start_bunker(self)   # (0.30.2: the bunker's steady room tone)
 	toys = HideoutToys.new()
 	toys.name = "Toys"
 	add_child(toys)

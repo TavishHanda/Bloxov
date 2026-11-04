@@ -1,7 +1,8 @@
 # Sound 2.0 (0.30.x): plan
 
-Status: **steps 1 and 2 shipped** (0.30.0 variants and selector, 0.30.1 occlusion/floor/behind). Still to build:
-0.30.2 (ambience ducking, routing); 0.30.3 (hi-fi) is optional. This is the last unbuilt M4 (vertical slice) item.
+Status: **steps 1, 2 and the hideout ambience shipped** (0.30.0 variants and selector, 0.30.1 occlusion/floor/behind,
+0.30.2 a steady bunker room tone). Still to build: 0.30.3 (ambience ducking, routing); 0.30.4 (hi-fi) is optional.
+This is the last unbuilt M4 (vertical slice) item.
 Written 2026-11-04 for a dev session that has not seen the 0.20 Sound update being built; everything it needs is in
 here and in the files it names. The owner's brief is the "Sound 2.0" entry in `docs/ROADMAP.md`; this file turns it
 into work.
@@ -233,14 +234,24 @@ touches gameplay, so no proposal is needed per step; the owner has already asked
    probe camera high above the map (the player drifts, and the fan is sensitive to that); the older lost-close AI
    check now builds its wall between the actual player and scav positions, so neither flakes.
 
-**0.30.2 - ambience ducking and routing**
-8. `Hearing.fight_left`, `Hearing.heard_shot(world, pos)`; call it from the three shot paths.
-9. `Ambience` duck ramp; footstep dip.
-10. Route `movers.gd` and `hideout_doors.gd` from the nonexistent `SFX` bus to `World`.
-11. Tests: a near shot sets the duck, a far one does not; the ambience target is lower while ducked and back after
+**0.30.2 - the hideout's bunker ambience (shipped)**
+8. Remade the three beds in `tools/make_sounds.py`: `bunker_air` is a steady deep room rumble with no surf-like
+   swell, `bunker_vent` is a steady low fan rumble with no hiss or breathing, and `bunker_hum` is a steady 50 Hz
+   electrical hum with no chug. Same 22 kHz mono format; the beds keep their -31/-35/-34 dB levels.
+9. `scripts/ambience.gd`: fixed bed levels and pitches (no random drift), and removed every one-off (drips, ticks,
+   creaks, clanks, vent breaths, dust and the occasional war rumble). The three different lengths still keep the loop
+   from lining up.
+10. Deleted the nine unused one-off WAVs and their generator functions. The smoke test now checks that `_bunker()`
+    adds no children (no random noises) and that all three beds are still playing and quiet.
+
+**0.30.3 - ambience ducking and routing**
+11. `Hearing.fight_left`, `Hearing.heard_shot(world, pos)`; call it from the three shot paths.
+12. `Ambience` duck ramp; footstep dip.
+13. Route `movers.gd` and `hideout_doors.gd` from the nonexistent `SFX` bus to `World`.
+14. Tests: a near shot sets the duck, a far one does not; the ambience target is lower while ducked and back after
     ~4 s of simulated frames; clock ticks and hideout doors are on the World bus; still no extra buses.
 
-**0.30.3 - optional hi-fi pass**, only if the owner asks after listening.
+**0.30.4 - optional hi-fi pass**, only if the owner asks after listening.
 
 ## 5. Verification
 
@@ -292,5 +303,5 @@ desktop and web (baked only); (5) duck at -5 dB. Still open: (2) and (6).
 3. ~~**Travel delay.**~~ **No baked delay** — every variant starts with the shot, so the tracer and the impact stay in
    sync.
 4. ~~**Desktop bus reverb.**~~ **Match** — baked room tails only; the web and desktop hear the same thing.
-5. ~~**Ducking strength.**~~ **-5 dB**, as planned; tune by ear after 0.30.2.
+5. ~~**Ducking strength.**~~ **-5 dB**, as planned; tune by ear after 0.30.3.
 6. **Hi-fi pass.** After the variants, do you want the 44.1 kHz remakes, and for which sounds?

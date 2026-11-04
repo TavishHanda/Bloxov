@@ -634,6 +634,12 @@ def _lowpass(xs, smooth):
     return out
 
 
+def _centred(xs):
+    """`xs` with its average removed, so a deep rumble does not carry a DC offset into the loop."""
+    mean = sum(xs) / max(1, len(xs))
+    return [x - mean for x in xs]
+
+
 def wind():
     """Wind outdoors: low rushing noise that swells and drops slowly."""
     random.seed(1900)
@@ -946,127 +952,50 @@ def main_hideout():
         write(f"world/{name}.wav", fn())
 
 
-# 0.25.38: the hideout's ambience, remade so it doesn't loop audibly (owner: too loud, "you can kinda hear the loop").
-# Three quiet beds of different lengths (so they line up again only after many minutes) that the game fades up and
-# down slowly and at random, plus little one-off sounds (drips, pipe ticks and creaks, a far clank, dust falling, a
-# breath of the vents) played at random times, pitches and loudness. room.wav stays for the raid's indoors.
+# 0.30.2: the hideout's ambience, remade as a steady underground bunker (owner: it sounded like the ocean, and the
+# random one-off noises had to go). Three quiet beds of different lengths (so they line up again only after many
+# minutes): a deep room rumble, a low ventilation rumble and an electrical hum. No drips, ticks, creaks, clanks,
+# vent breaths, dust or war rumbles. room.wav stays for the raid's indoors.
 
 def bunker_air():
-    """The bunker's still air: a deep, soft rush, rising and falling unevenly."""
+    """The bunker's deep room tone: a steady low rumble, no surf-like swell."""
     random.seed(2300)
-    n = length(11.3)
-    air = _lowpass(noise(n, 0.97), 0.85)
-    swell = _lowpass([random.uniform(0.5, 1.0) for _ in range(n)], 0.9995)
-    return _seamless([a * w for a, w in zip(air, swell)], 1.5)
+    n = length(13.7)
+    air = _centred(_lowpass(noise(n, 0.97), 0.88))
+    deep = _centred(_lowpass(noise(n, 0.99), 0.99))
+    return _seamless([a * 2.0 + d * 2.0 for a, d in zip(air, deep)], 1.5)
 
 
 def bunker_vent():
-    """The vents: a faint airy hiss that breathes."""
+    """The ventilation: a steady low fan rumble, no hiss and no breathing."""
     random.seed(2301)
     n = length(14.7)
-    hiss = _highpass(_lowpass(noise(n, 0.4), 0.6), 0.97)
-    breath = [0.6 + 0.25 * math.sin(2 * math.pi * i / n * 3 + 0.7) + 0.15 * math.sin(2 * math.pi * i / n * 7) for i in range(n)]
-    return _seamless([h * b for h, b in zip(hiss, breath)], 1.5)
+    fan = _lowpass(noise(n, 0.9), 0.65)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        out.append(fan[i] * 5.0 + 0.12 * math.sin(2 * math.pi * 96.0 * t))
+    return _seamless(out, 1.5)
 
 
 def bunker_hum():
-    """The lights and the generator far down a tunnel: a low hum that beats slowly, under a soft chug."""
+    """The lights and the generator: a steady 50 Hz hum with its harmonics, no chug."""
     random.seed(2302)
     n = length(8.9)
     out = []
     for i in range(n):
         t = i / RATE
-        beat = 0.7 + 0.3 * math.sin(2 * math.pi * t / n * RATE * 2)
-        chug = 0.75 + 0.25 * math.sin(2 * math.pi * 6.3 * t) ** 2
-        out.append((math.sin(2 * math.pi * 55 * t) + 0.5 * math.sin(2 * math.pi * 110.4 * t)
-                    + 0.15 * math.sin(2 * math.pi * 165.9 * t)) * beat * chug)
-    rough = _lowpass(noise(n, 0.9), 0.7)
-    return _seamless([o * 0.3 + r * 2.0 for o, r in zip(out, rough)], 1.5)
-
-
-def bunker_drip(variant):
-    """A drop of water falling into a puddle somewhere: a short wet plink with a little ring after it."""
-    random.seed(2310 + variant)
-    n = length(0.9)
-    f0 = (900, 1250, 700)[variant]
-    out, phase = [], 0.0
-    for i in range(n):
-        t = i / RATE
-        phase += 2 * math.pi * f0 * (1 + 0.8 * (1 - math.exp(-t * 40))) / RATE
-        out.append(math.sin(phase) * math.exp(-t * 28) * min(1.0, t * 800))
-    echo = [x * 0.25 for x in out[:length(0.5)]]
-    return _mix(out, echo, 0.13)[:n]
-
-
-def bunker_tick(variant):
-    """Metal cooling or settling: one or two small dull ticks off a pipe."""
-    random.seed(2320 + variant)
-    out = silence(0.6)
-    for k in range(1 + variant):
-        hit = [x * (0.6 + 0.4 * k) for x in click(0.06, 1800 + 500 * variant, 70, 0.4)]
-        out = _mix(out, hit, k * random.uniform(0.15, 0.3))
-    return _lowpass(out, 0.3)
-
-
-def bunker_creak():
-    """A long pipe groaning as it shifts: a slow wavering metal tone, rough, far off."""
-    random.seed(2330)
-    n = length(2.2)
-    out, phase = [], 0.0
-    grit = noise(n, 0.6)
-    for i in range(n):
-        t = i / RATE
-        phase += 2 * math.pi * (180 + 40 * math.sin(t * 2.3) + 15 * math.sin(t * 9)) / RATE
-        x = math.sin(phase) + 0.4 * math.sin(phase * 2.01) + grit[i] * 0.5
-        out.append(x * math.sin(math.pi * t / 2.2) ** 2 * (0.7 + 0.3 * math.sin(t * 31)))
-    return _lowpass(out, 0.6)
-
-
-def bunker_clank():
-    """Something metal set down far down a tunnel: a dull clank that echoes away."""
-    random.seed(2340)
-    n = length(2.0)
-    hit = [x for x in tone((210, 340, 515), 0.6, 9)]
-    hit = _mix(hit, click(0.05, 900, 60, 0.3), 0.0, 1.5)
-    out = list(hit) + [0.0] * (n - len(hit))
-    for k, at in enumerate((0.19, 0.41, 0.67)):
-        out = _mix(out, [x * 0.35 / (k + 1) for x in hit], at)[:n]
-    return _lowpass(out, 0.75)
-
-
-def bunker_dust():
-    """Grit trickling down from the roof (after the war shakes it): a soft sandy patter that thins out."""
-    random.seed(2350)
-    n = length(2.6)
-    out = [0.0] * n
-    for _ in range(260):
-        at = int(n * random.random() ** 1.6)
-        amp = random.uniform(0.1, 0.6) * (1 - at / n)
-        for i in range(min(length(0.006), n - at)):
-            out[at + i] += random.uniform(-1, 1) * amp * math.exp(-i / RATE * 900)
-    hiss = _highpass(noise(n, 0.3), 0.8)
-    out = [o + h * 0.05 * (1 - i / n) for i, (o, h) in enumerate(zip(out, hiss))]
-    return _lowpass(out, 0.45)
-
-
-def bunker_breath():
-    """The vents drawing harder for a moment: a slow soft whoosh."""
-    random.seed(2360)
-    n = length(3.5)
-    air = _lowpass(_highpass(noise(n, 0.5), 0.9), 0.5)
-    return [a * math.sin(math.pi * i / n) ** 2 for i, a in enumerate(air)]
+        beat = 0.95 + 0.05 * math.sin(2 * math.pi * 0.1 * t)
+        out.append((math.sin(2 * math.pi * 50.0 * t) + 0.45 * math.sin(2 * math.pi * 100.0 * t)
+                    + 0.12 * math.sin(2 * math.pi * 150.0 * t)) * beat)
+    rough = _lowpass(noise(n, 0.97), 0.9)
+    return _seamless([o * 0.6 + r * 0.8 for o, r in zip(out, rough)], 1.5)
 
 
 def main_bunker():
     (OUT / "ambience").mkdir(exist_ok=True)
-    for name, fn in (("bunker_air", bunker_air), ("bunker_vent", bunker_vent), ("bunker_hum", bunker_hum),
-                     ("bunker_creak", bunker_creak), ("bunker_clank", bunker_clank), ("bunker_dust", bunker_dust),
-                     ("bunker_breath", bunker_breath)):
+    for name, fn in (("bunker_air", bunker_air), ("bunker_vent", bunker_vent), ("bunker_hum", bunker_hum)):
         write(f"ambience/{name}.wav", fn())
-    for v in range(3):
-        write(f"ambience/bunker_drip{v + 1}.wav", bunker_drip(v))
-    for v in range(2):
-        write(f"ambience/bunker_tick{v + 1}.wav", bunker_tick(v))
 
 
 # --- World life (0.28.0, owner: give the world some life; new sounds only). ---
