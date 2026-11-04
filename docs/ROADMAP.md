@@ -116,7 +116,9 @@ update (0.29). M1-M3 are done (co-op + PvP is live).
   identity (owner chose a **device account**: made silently on the device, no email or login, a transfer code
   moves it to another device; Steam login can be linked later), a database (Heroku's disk is wiped on restart), and the store rules on accounts
   (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
-  account for solo). The current save becomes the solo stash.
+  account for solo). The current save becomes the solo stash. **Plan: `docs/STASH_UPDATE_PLAN.md`** (the PvE/PvP split,
+  the device account, the companion API and Postgres schema, the four levels of server authority, migration, phases,
+  tests, risks and the open questions the owner still needs to answer).
 - **Shared hideouts (owner, 2026-11-01; later, "when it's the right time"):** when you're in someone's lobby you can
   walk round their hideout together (or they visit yours). Needs the hideout to run online like a small raid world
   (players' positions synced, the stations stay each player's own), so it fits after the Stash update's accounts.
