@@ -1763,7 +1763,8 @@ func _section_ai_loadouts() -> void:
 		all_guns.append_array(table.keys())
 	_check(all_guns.all(func(g: String) -> bool: return AILoadouts.NET_GUNS.has(g)), "every AI gun can be sent to puppets")
 	_check(GunSounds.shot("smg") != GunSounds.shot("sniper") and GunSounds.shot("ak") == GunSounds.DEFAULT_SHOT
-		and GunSounds.shot("pistol") == GunSounds.DEFAULT_SHOT, "the Wasp, Mauler and Lancer have their own shots; the Hound and Stinger keep theirs")
+		and GunSounds.shot("pistol") == GunSounds.PISTOL_SHOT and GunSounds.PISTOL_SHOT != GunSounds.DEFAULT_SHOT,
+		"the Wasp, Mauler, Lancer and Stinger have their own shots; the Hound keeps the original (0.30.0)")
 	# Stat bars in the inventory (0.15.12).
 	var hound := ItemStack.new("ak")
 	var bare := GunStatBars.scores(ItemDB.weapon_stats(hound))
@@ -7255,6 +7256,25 @@ func _section_sound() -> void:
 	Surfaces.step(player, -9.0)
 	_check(main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer).size() == steps + 1,
 		"a footstep plays")
+	# Sound 2.0 (0.30.0): the same shot at distance and indoors, made from the gun's own file; up close it is still
+	# today's sound, and the pistol is no longer the Hound's shot.
+	_check(GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR) == GunSounds.DEFAULT_SHOT
+		and GunSounds.shot_for("ak", 30.0, GunSounds.Place.OUTDOOR) == GunSounds.VARIANTS["default"]["mid"]
+		and GunSounds.shot_for("ak", 80.0, GunSounds.Place.OUTDOOR) == GunSounds.VARIANTS["default"]["far"]
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.ROOM) == GunSounds.VARIANTS["default"]["room"]
+		and GunSounds.shot_for("ak", 30.0, GunSounds.Place.ROOM) == GunSounds.VARIANTS["default"]["room_far"],
+		"a shot changes with distance and indoors, and up close it is today's sound (0.30.0)")
+	_check(GunSounds.shot("pistol") == GunSounds.PISTOL_SHOT and GunSounds.PISTOL_SHOT != GunSounds.DEFAULT_SHOT
+		and GunSounds.shot_for("pistol", 30.0, GunSounds.Place.OUTDOOR) == GunSounds.VARIANTS["pistol"]["mid"],
+		"the Stinger has its own shot now (0.30.0)")
+	var all_guns := ["ak", "pistol", "smg", "shotgun", "sniper"]
+	var complete := GunSounds.VARIANTS.size() == 5
+	for id in all_guns:
+		for place in [GunSounds.Place.OUTDOOR, GunSounds.Place.ROOM]:
+			for d in [5.0, 30.0, 80.0]:
+				var variant := GunSounds.shot_for(id, d, place) as AudioStreamWAV
+				complete = complete and variant != null and variant.data.size() > 0
+	_check(complete, "every gun has a shot at every distance, indoors and out, with no missing files")
 	# 0.20.1, hearing where things are: a far shot rolls in as a boom too, a sound behind a wall is muffled, a bullet
 	# passing close snaps past, and there's an echo under a roof.
 	var sounds := func() -> Array: return main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D)

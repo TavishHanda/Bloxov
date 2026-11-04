@@ -1,8 +1,10 @@
 # Sound 2.0 (0.30.0): plan
 
-Status: **planned, nothing built.** This is the last unbuilt M4 (vertical slice) item. Written 2026-11-04 for a dev
-session that has not seen the 0.20 Sound update being built; everything it needs is in here and in the files it names.
-The owner's brief is the "Sound 2.0" entry in `docs/ROADMAP.md`; this file turns it into work.
+Status: **step 1 (0.30.0) shipped** - the variant files, the selector and the Stinger's own shot. Still to build:
+0.30.1 (occlusion, through-the-floor and behind variants) and 0.30.2 (ambience ducking, routing); 0.30.3 (hi-fi) is
+optional. This is the last unbuilt M4 (vertical slice) item. Written 2026-11-04 for a dev session that has not seen the
+0.20 Sound update being built; everything it needs is in here and in the files it names. The owner's brief is the
+"Sound 2.0" entry in `docs/ROADMAP.md`; this file turns it into work.
 
 Read first: `CLAUDE.md` (rules), `docs/DEV_HANDOFF.md` §3 code map and §6 gotchas, `docs/CLAUDE_HANDOFF.md` (how the
 owner works). Nothing here changes gameplay: it is all sound.
@@ -79,9 +81,10 @@ They should use `World` (the same bus as every other world sound).
 
 ### 3.1 Variants, all made from the existing file
 
-Generate one set per **base sound** (not per gun, since ak and pistol share one today). Seven files per base, one of
-which is the base itself, so 6 new + 1 existing = 7. Four bases -> **24 new files**, about 0.5 s each (roughly
-0.6 MB raw, a few hundred KB in the web build).
+Generate one set per **base sound**. There are five now (the pistol got its own in 0.30.0; before that it shared the
+Hound's `shot.wav`). Seven variants per base, one of which is the base itself, so 6 new + 1 existing = 7 -> **30 new
+files** when all are built, about 0.5-1.1 s each (roughly 0.8 MB raw, a few hundred KB in the web build). Step 1
+(0.30.0) builds the four distance/room ones (20 files); `floor` and `behind` come with 0.30.1.
 
 | Variant | Made by | Heard when |
 |---|---|---|
@@ -203,13 +206,14 @@ sounds and a mix-review session. Do not start it before step 3 has shipped.
 Each step is independently shippable, gets its own version, `CHANGELOG.md` line and owner listen-check. Nothing here
 touches gameplay, so no proposal is needed per step; the owner has already asked for the feature.
 
-**0.30.0 - the variant files and the selector**
-1. `tools/make_sound_variants.py` + the 24 files in `audio/guns/`.
-2. `scripts/gun_sounds.gd`: the base table (today's streams) + `VARIANTS`, `Place`/`Block` enums, `shot_for()`.
-3. Wire `gun.gd`, `scav_fight.gd`, `net_raid.gd` to `shot_for()`; distance/volume maths unchanged.
-4. Smoke test: every gun × every band × both places × every block returns a non-null stream; the returned stream
-   changes at 20 m and 50 m; indoors picks a `room` stream; the base stream is still used up close (today's sound is
-   not lost). No audio device needed.
+**0.30.0 - the variant files and the selector (shipped)**
+1. `tools/make_sound_variants.py` + the 20 distance/room files in `audio/guns/` (4 per base × 5 bases), and
+   `audio/shot_pistol.wav` from `main_pistol()` in `tools/make_sounds.py`.
+2. `scripts/gun_sounds.gd`: the base table (today's streams) + `VARIANTS`, `Place`, `shot_for()`.
+3. Wired `gun.gd`, `scav_fight.gd`, `net_raid.gd` to `shot_for()`; distance/volume maths unchanged. `Block` and the
+   `floor`/`behind` variants were left to 0.30.1 so no file is unused.
+4. Smoke test: every gun × every band × both places returns a real stream; the stream changes at 20 m and 50 m;
+   indoors picks a `room` stream; up close it is still today's file; the Stinger no longer shares the Hound's shot.
 
 **0.30.1 - occlusion, floor, behind (the hearing part)**
 5. `Hearing.block_of()` with the wider mask, classification and the five-ray fan; `blocked()` stays as a wrapper.
@@ -266,16 +270,14 @@ the owner can judge without playing a raid. It is a tool scene like `tools/rende
 
 ## 7. Decisions only the owner can make
 
-Answer these after hearing step 1; each one changes the work above.
+**Answered 2026-11-04:** (1) the Stinger gets its own shot — built in 0.30.0; (3) no baked travel delay; (4) match
+desktop and web (baked only); (5) duck at -5 dB. Still open: (2) and (6).
 
-1. **The Stinger's own shot.** Today the pistol reuses the Hound's `shot.wav`. The design doc wants every gun
-   recognisable with your eyes closed; a dedicated pistol shot is an add-on to this update. Yes/no?
+1. ~~**The Stinger's own shot.**~~ **Yes** — done in 0.30.0 (`shot_pistol.wav` + its variants).
 2. **How muffled is "through a wall"?** The baked wall variant can be anything from "clearly quieter and distant" to
    "almost silent". Start at today's -5 dB / 900 Hz and tune by ear.
-3. **Travel delay.** A 50 m shot takes ~0.15 s to reach you. Bake that delay into `far` (realistic, but the tracer and
-   the impact arrive first) or keep every variant on the same beat (arcade, matches what you see)? Recommended: no
-   delay.
-4. **Desktop bus reverb.** Baked room tails make web and desktop match, which is fair for PvP. Keep the extra desktop
-   reverb on top, or turn it off so both platforms sound identical? Recommended: off.
-5. **Ducking strength.** -5 dB is a guess; anywhere from -3 (subtle) to -8 (cinematic) is on the table.
+3. ~~**Travel delay.**~~ **No baked delay** — every variant starts with the shot, so the tracer and the impact stay in
+   sync.
+4. ~~**Desktop bus reverb.**~~ **Match** — baked room tails only; the web and desktop hear the same thing.
+5. ~~**Ducking strength.**~~ **-5 dB**, as planned; tune by ear after 0.30.2.
 6. **Hi-fi pass.** After the variants, do you want the 44.1 kHz remakes, and for which sounds?

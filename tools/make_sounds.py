@@ -197,6 +197,13 @@ def shot_lancer():
     return gunshot(0.6, 0.28, 21, 115, 48, 23, 12, 1.25, 2.15, tail=0.45, tail_decay=4.5)
 
 
+def shot_pistol():
+    """Pistol (Sound 2.0, 0.30.0, owner: each gun recognisable by sound): shorter and brighter than the rifle, with
+    less thump, so the Stinger is not the Hound at the same volume any more."""
+    random.seed(405)
+    return gunshot(0.24, 0.15, 34, 140, 75, 32, 24, 0.8, 2.2)
+
+
 def pump():
     """Shotgun pump: slide back (a rattly clack), then forward (a harder one)."""
     random.seed(403)
@@ -1085,9 +1092,16 @@ def main_life():
         write(f"world/clock_tick{v + 1}.wav", clock_tick(v))
 
 
+def main_pistol():
+    """0.30.0: the pistol's own shot (the Stinger used to share the Hound's file). Written on its own so re-running it
+    does not rewrite any of the sounds that were already in the game."""
+    write("shot_pistol.wav", shot_pistol())
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
     main_hideout()
     main_bunker()
     main_life()
+    main_pistol()

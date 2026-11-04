@@ -901,7 +901,11 @@ func net_fired(end: Vector3) -> void:
 	var muzzle_pos := muzzle.global_position
 	var world := get_tree().current_scene
 	Effects.tracer(world, muzzle_pos, end)
-	Effects.sound_at(world, shot_sound, muzzle_pos, shot_volume_db + Hearing.at_you_db(world, muzzle_pos, end, shot_unit_size),
+	var camera := Hearing.listener(world)
+	var heard := camera.global_position.distance_to(muzzle_pos) if camera else 0.0
+	var place := GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR
+	Effects.sound_at(world, GunSounds.shot_for(carried_gun, heard, place), muzzle_pos,
+		shot_volume_db + Hearing.at_you_db(world, muzzle_pos, end, shot_unit_size),
 		0.06, shot_pitch, shot_unit_size)
 	Hearing.gunshot(world, muzzle_pos, end, shot_volume_db)
 	_muzzle_flash_time = 0.05
