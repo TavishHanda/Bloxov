@@ -35,7 +35,8 @@ items marked **Proposed** are my recommendation; items in §15 marked still open
 - **Online export: yes.** Read-only JSON download, no import.
 - **Hosting cost: approved.**
 - **Release shape: incremental 0.31.x.** Phase 1 can ship early; Phase 2 is 0.31.0.
-- **Starter kit: A plus 5 bandages and 2 medkits.** The number of "ready kits" is still being priced (§4.6).
+- **Starter kit: the A list plus 5 bandages and 2 medkits, with one ready kit** (one set of light armor, an old helmet
+  and a medium backpack). §4.6 has the contents and the pricing.
 
 ---
 
@@ -184,7 +185,7 @@ That is the whole update. Everything below is detail.
   > fresh with a starter kit."
 - This is the single most important message in the update. Playtesters must not think their stash was wiped.
 
-### 4.6 The PvP starter kit (decided: separate; contents)
+### 4.6 The PvP starter kit (decided)
 
 **Decided 2026-11-04: PvP starts with its own kit, not the solo one.** The point is that PvP starts poorer and tenser
 than PvE, so the first good extract matters. The solo kit stays exactly as it is (Hound AK, medium backpack, 60 rifle
@@ -211,19 +212,19 @@ rounds, a bandage).
 | Medium Backpack (`backpack_medium`) | see below | |
 | Money | **$50,000** | the buffer that lets a bad raid be rebuilt |
 
-**The ready-kit question.** "3 ready kits" means each Hound set also gets light armor, an old helmet and a medium
-backpack. Priced with the game's own `Traders.buy_price` (1.56× value):
+**Ready kits: decided one.** Each Hound set can also get light armor, an old helmet and a medium backpack. The
+alternatives were priced with the game's own `Traders.buy_price` (1.56× value) and rejected:
 
 | Ready kits | Gear cost | With $50k | Cells used | Quick raids of value |
 | --- | --- | --- | --- | --- |
-| **1 (recommended)** | $154,128 | $204,128 | 90 | 6.8 |
-| 2 | $180,648 | $230,648 | 112 | 7.6 |
-| 3 | $207,168 | $257,168 | 134 | 8.5 |
+| **1 (decided)** | $154,128 | $204,128 | 90 | 6.8 |
+| 2 (rejected) | $180,648 | $230,648 | 112 | 7.6 |
+| 3 (rejected) | $207,168 | $257,168 | 134 | 8.5 |
 
 For comparison, the economy sim's "really good" kit is $125,112, and a quick raid brings home about $30,200. Three
 ready kits is roughly twice the best kit the sim models, uses 134 of the 160 starting stash cells before any loot, and
-makes armor disposable. **My pick: one ready kit.** The player still has three Hounds and five Stingers, so they can
-lose two raids without going naked, and the $50k rebuys armor and meds. Two is defensible; three is too much.
+makes armor disposable. **One ready kit** keeps the three Hounds and five Stingers as the "lose two, still fight"
+buffer, and the $50k rebuys armor and meds.
 
 - **Every starter item carries the `free` flag** (`ItemStack.FREE`), so it cannot be sold to a trader. Otherwise a
   fresh account is a ~$75k payday. The $50k cash is the only spendable money.
@@ -1072,8 +1073,8 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 
 1. **PvE scope:** offline solo now; online co-op PvE is a later option. Add the `mode` field now so it can come later.
 2. **PvP content:** keep the AI (PvPvE, as today).
-3. **PvP starter kit:** a **separate** kit, not the solo one. Contents in §4.6: the A list plus 5 bandages and 2
-   medkits; the number of ready kits is the last number to settle.
+3. **PvP starter kit:** a **separate** kit, not the solo one. Contents in §4.6: the A list plus 5 bandages, 2 medkits
+   and **one ready kit** (one light armor, one old helmet, one medium backpack).
 4. **Per-stash vs account-wide:** money, stash, loadout, stats, traders, quests, levels and presets are **per-stash**;
    look and tutorial are **account-wide**.
 5. **Online accounts:** PvE stays **completely accountless**. PvP requires a **real account** — no silent device
@@ -1098,10 +1099,7 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 
 ### Still open
 
-1. **Starter kit ready-kit count:** A plus 5 bandages and 2 medkits is settled. Whether the kit carries one, two or
-   three sets of light armor, old helmet and medium backpack is being priced in §4.6.
-   *My pick: one ready kit, three Hound rifles and five Stinger pistols total. Three full ready kits is too much.*
-2. **Inactive account cleanup:** never delete, or delete after 12 months with no `last_seen_at` (with a warning when
+1. **Inactive account cleanup:** never delete, or delete after 12 months with no `last_seen_at` (with a warning when
    there is a verified email)?
    *My pick: never auto-delete for now; revisit before launch.*
 
