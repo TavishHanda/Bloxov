@@ -27,6 +27,10 @@ var _kind := PackedInt32Array()
 var _phase := PackedFloat32Array()
 var _tick: Array[AudioStreamPlayer3D] = []
 var _beat := PackedInt32Array()
+## The movers' own clock (0.29.14). It used to be the wall clock (Time.get_ticks_msec), so opening the menu in a raid
+## stopped the drawing but not the time: everything jumped to a new phase when you came back. The smoke test also
+## sampled it over a fixed number of frames, which are not real time, so the pendulum check failed at random.
+var _t := 0.0
 
 
 func _ready() -> void:
@@ -61,8 +65,9 @@ func _ready() -> void:
 		_tick.append(tick)
 
 
-func _process(_delta: float) -> void:
-	var t := Time.get_ticks_msec() / 1000.0
+func _process(delta: float) -> void:
+	_t += delta
+	var t := _t
 	var camera := get_viewport().get_camera_3d()
 	var eye := camera.global_position if camera else Vector3.ZERO
 	for i in parts.size():

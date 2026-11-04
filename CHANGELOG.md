@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.29.14 (Moving parts on the game's clock)
+- Fix: the moving parts (clock pendulums, weathervanes, the porch swing, crane hooks) ran on the wall clock while the
+  game's own time stopped behind the pause menu, so they jumped to a new position when you closed the menu. They now
+  run on the game's clock like everything else.
+- The smoke test's pendulum check sampled a fixed number of frames instead of real time; because the test runs faster
+  than real time it caught the pendulum at the bottom of its swing and failed at random (seen while re-checking 0.29.13).
+  It passes every run now.
+
 ## 0.29.13 (Housekeeping)
 - `brag-output/` (the local capture/recording scratch folder: reels, screenshots, temp userdata) is ignored by git
   instead of showing up as untracked.
