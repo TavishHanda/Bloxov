@@ -1,7 +1,8 @@
 # Claude Code context handoff
 
 What the owner's Claude Code sessions knew that isn't written down in the repo. Recovered on 2026-11-04 from
-`%USERPROFILE%\.claude\projects\C--Users-tavis-OneDrive-Documents-GitHub-Bloxov\`: five sessions from 2026-10-07 to
+Claude Code's session store (`~/.claude/projects/<project path, with separators as dashes>`, found on the owner's PC):
+five sessions from 2026-10-07 to
 2026-11-01, 53.7 MB of transcripts, about 122 KB once tool output is stripped out. The raw transcripts stayed off the
 repo; this file is the digest.
 
@@ -107,7 +108,7 @@ loading, shaders and draw calls:
 
 ## Environment facts worth keeping
 
-- Local Godot for testing: `C:\Users\tavis\Downloads\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe`.
+- Local Godot for testing: `%USERPROFILE%\Downloads\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe`.
   The previous sessions ran `--headless --import` and the smoke test from here.
 - Local Blender: `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe`.
 - `docs/ROADMAP.md`'s "Where we are" line is stale (it still says 0.18.12). `CHANGELOG.md` and `project.godot` are the
