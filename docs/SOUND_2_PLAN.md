@@ -1,8 +1,16 @@
 # Sound 2.0 (0.30.x): plan
 
-Status: **steps 1, 2 and the hideout ambience shipped** (0.30.0 variants and selector, 0.30.1 occlusion/floor/behind,
-0.30.2 a steady bunker room tone). Still to build: 0.30.3 (ambience ducking, routing); 0.30.4 (hi-fi) is optional.
-This is the last unbuilt M4 (vertical slice) item.
+Status: **Sound 2.0 is built** (0.30.0 variants and selector, 0.30.1 occlusion/floor/behind, 0.30.2 a steady bunker
+room tone, 0.30.3 ambience ducking and the two missing-bus fixes). Only 0.30.4 (the optional hi-fi pass) is left, and
+it waits for the owner to pick sounds after listening. This was the last unbuilt M4 (vertical slice) item.
+
+Where things stand for the next session:
+- **0.30.0-0.30.3 are shipped.** Do not re-open their decisions without the owner asking.
+- **0.30.2 (hideout bunker ambience) is awaiting the owner's listen-check.** If they ask for changes, tune the three
+  beds in `tools/make_sounds.py` and/or their levels in `scripts/ambience.gd`; keep the "no random one-offs" rule.
+- **0.30.4 (hi-fi) is optional and not started.** Only build it for the sounds the owner picks after comparing old and
+  new; do not start it unprompted.
+
 Written 2026-11-04 for a dev session that has not seen the 0.20 Sound update being built; everything it needs is in
 here and in the files it names. The owner's brief is the "Sound 2.0" entry in `docs/ROADMAP.md`; this file turns it
 into work.
@@ -192,11 +200,11 @@ until someone checks them on a phone.
 Do not write bus volumes; `game_settings.gd` owns them. Scale the ambience players instead:
 
 - `Hearing` keeps a static `fight_left` timer (real seconds, decremented by delta). Any gunshot the player can hear
-  within 50 m sets it to 4 s; the existing call sites already know the distance.
+  within 50 m sets it to 4 s; the call sites pass the shot's position and `heard_shot` checks the distance.
 - `scripts/ambience.gd` multiplies every bed's target by `db_to_linear(duck_db)`, where `duck_db` ramps to
   **-5 dB** over 0.25 s while `fight_left > 0` and back afterwards. Rumbles and one-off bits keep their own levels.
-- Enemy footsteps within 8 m (the `Surfaces.step(..., at_body = false)` path) add a **-2.5 dB, 0.4 s** dip on top, so
-  someone walking up behind you is audible over the wind.
+- Enemy footsteps within 8 m (the `Surfaces.step(..., at_body = true)` path: someone else's steps, not your own) add a
+  **-2.5 dB, 0.4 s** dip on top, so someone walking up behind you is audible over the wind.
 - This is delta-driven, so it is deterministic in tests and pauses with the menu.
 
 ### 3.6 The optional hi-fi remake (phase 4, owner decides)
@@ -244,14 +252,23 @@ touches gameplay, so no proposal is needed per step; the owner has already asked
 10. Deleted the nine unused one-off WAVs and their generator functions. The smoke test now checks that `_bunker()`
     adds no children (no random noises) and that all three beds are still playing and quiet.
 
-**0.30.3 - ambience ducking and routing**
-11. `Hearing.fight_left`, `Hearing.heard_shot(world, pos)`; call it from the three shot paths.
-12. `Ambience` duck ramp; footstep dip.
-13. Route `movers.gd` and `hideout_doors.gd` from the nonexistent `SFX` bus to `World`.
-14. Tests: a near shot sets the duck, a far one does not; the ambience target is lower while ducked and back after
-    ~4 s of simulated frames; clock ticks and hideout doors are on the World bus; still no extra buses.
+**0.30.3 - ambience ducking and routing (shipped)**
+11. `Hearing.fight_left` / `Hearing.step_left` with `heard_shot(world, pos)`, `heard_step(world, pos)`, `tick(delta)`
+    and `reset_duck()`; `tick` runs from `Hearing.listen`, and `reset_duck` from `Player._exit_tree`. The three shot
+    paths call `heard_shot` (`gun.gd` for your own, `scav_fight.gd` for a scav's, `net_raid.gd` for another player's).
+12. `Ambience` duck ramp: `DUCK_DB = -5.0`, `DUCK_RAMP = 0.25`, `STEP_DUCK_DB = -2.5`; `_duck()` ramps `_duck_db` at
+    20 dB/s and the raid beds (wind, woods, room, creek, waterfall) multiply their target by `db_to_linear(_duck_db)`.
+    Rumbles keep their own level and the hideout's bunker beds never duck.
+13. `Surfaces.step` calls `heard_step` on the `at_body` path (someone else's steps), so a close enemy dips the
+    ambience. The plan's older wording said `at_body = false`; that is the player's own steps and would pump on every
+    step, so the implemented meaning is the one that matches "someone walking up behind you".
+14. `movers.gd` (clock ticks) and `hideout_doors.gd` (the hangout's sliding doors) use `Hearing.world_bus()` instead of
+    the nonexistent `SFX`; no bus was added.
+15. Tests: a near shot sets the duck and a far one does not; the duck reaches -5 dB and is back after ~4 s of simulated
+    frames; a close enemy step dips it and a far one does not; clock ticks and hideout doors are on the World bus; there
+    is no `SFX` bus.
 
-**0.30.4 - optional hi-fi pass**, only if the owner asks after listening.
+**0.30.4 - optional hi-fi pass**, only if the owner asks after listening. Not started.
 
 ## 5. Verification
 

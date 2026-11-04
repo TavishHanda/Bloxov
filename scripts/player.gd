@@ -350,6 +350,7 @@ func is_mouse_spike(delta_len: float, now_msec: int) -> bool:
 
 func _exit_tree() -> void:
 	Hearing.set_indoors(false)   # (the indoor echo is off outside a raid)
+	Hearing.reset_duck()         # (and no fight carries over into the hideout)
 
 
 func _process(delta: float) -> void:

@@ -45,9 +45,17 @@ const WORLD_BUS := &"World"
 const INDOOR_CHECK := 0.3
 ## Indoors = a roof within this many meters above your head.
 const ROOF_REACH := 12.0
+## A fight ducks the ambience (0.30.3): a shot you can hear within FIGHT_RANGE m keeps it down for FIGHT_TIME s.
+## Someone else's footsteps within STEP_RANGE m add a shorter dip on top.
+const FIGHT_RANGE := 50.0
+const FIGHT_TIME := 4.0
+const STEP_RANGE := 8.0
+const STEP_TIME := 0.4
 
 static var _indoor_check_left := 0.0
 static var indoors := false
+static var fight_left := 0.0
+static var step_left := 0.0
 
 
 ## The game's sound bus: World -> Master, with a small-room echo that's on only indoors. The buses are set up in
@@ -71,6 +79,7 @@ static func listener(node: Node) -> Camera3D:
 
 ## Called every frame by the player: turns the indoor echo on under a roof, off outside.
 static func listen(node: Node3D, delta: float) -> void:
+	tick(delta)
 	_indoor_check_left -= delta
 	if _indoor_check_left > 0.0:
 		return
@@ -89,6 +98,32 @@ static func set_indoors(inside: bool) -> void:
 	var index := AudioServer.get_bus_index(WORLD_BUS)
 	if index != -1 and AudioServer.get_bus_effect_count(index) > 0:
 		AudioServer.set_bus_effect_enabled(index, 0, inside)
+
+
+## A shot at `pos` you can hear (0.30.3): the ambience ducks for FIGHT_TIME s. No listener (the game server): nothing.
+static func heard_shot(world: Node, pos: Vector3) -> void:
+	var camera := listener(world)
+	if camera != null and camera.global_position.distance_to(pos) <= FIGHT_RANGE:
+		fight_left = FIGHT_TIME
+
+
+## Someone else's footsteps at `pos` (0.30.3): a short dip when they are close, so they stand out over the ambience.
+static func heard_step(world: Node, pos: Vector3) -> void:
+	var camera := listener(world)
+	if camera != null and camera.global_position.distance_to(pos) <= STEP_RANGE:
+		step_left = STEP_TIME
+
+
+## Runs the duck timers (real seconds, so the menu pauses them too).
+static func tick(delta: float) -> void:
+	fight_left = maxf(0.0, fight_left - delta)
+	step_left = maxf(0.0, step_left - delta)
+
+
+## Forgets any duck in progress (leaving a raid).
+static func reset_duck() -> void:
+	fight_left = 0.0
+	step_left = 0.0
 
 
 ## What stands between the listener and `pos` (0.30.1): a wall, a floor/ceiling, a shut door, a whole pane, or an

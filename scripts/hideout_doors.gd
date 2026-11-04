@@ -80,7 +80,7 @@ func _ready() -> void:
 		_leaves.append(parts)
 		var sound := AudioStreamPlayer3D.new()
 		sound.position = middle + Vector3.UP * 1.2
-		sound.bus = &"SFX" if AudioServer.get_bus_index(&"SFX") >= 0 else &"Master"
+		sound.bus = Hearing.world_bus()
 		sound.volume_db = -8.0 if look == 0 else -20.0   # (0.25.37, owner: "lower the noise of the new door")
 		add_child(sound)
 		_sounds.append(sound)

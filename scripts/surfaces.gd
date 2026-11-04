@@ -46,6 +46,7 @@ static func step(body: Node3D, volume_db: float, at_body := false, pitch := 1.0,
 	var stream: AudioStream = (STEPS[surface] as Array).pick_random()
 	var db := volume_db + float(STEP_DB[surface])
 	if at_body:
+		Hearing.heard_step(world, body.global_position)   # (0.30.3: someone close dips the ambience)
 		Effects.sound_at(world, stream, body.global_position, db, 0.1, pitch, unit_size, range)
 	else:
 		Effects.sound(world, stream, db, 0.1, pitch)

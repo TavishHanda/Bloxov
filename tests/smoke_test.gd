@@ -2358,6 +2358,8 @@ func _section_hideout_world() -> void:
 	# Their sliding doors (0.25.34): open as you come up to them, shut again once you've gone.
 	var doors := world.get_node("Level/Doors")
 	_check(doors.data.size() == 27 and doors.is_open(1), "the booth room's sliding doors opened as you walked through")
+	_check(doors._sounds.all(func(s: AudioStreamPlayer3D) -> bool: return s.bus == Hearing.world_bus()),
+		"the hideout doors are on the World bus, not a missing SFX one (0.30.3)")
 	walker.global_position = den + Vector3(-2.5, 0.05, 0.6)
 	for i in 60:
 		await physics_frame
@@ -5737,6 +5739,8 @@ func _section_reacts() -> void:
 		swung_to = maxf(swung_to, absf(movers.parts[0].basis.x.y))
 	_check(movers.parts[0].get_child_count() == 2 and swung_to > 0.01,
 		"a clock's pendulum swings (%.3f) and has its tick" % swung_to)
+	_check(movers._tick[0] != null and movers._tick[0].bus == Hearing.world_bus(),
+		"a clock's tick is on the World bus, not a missing SFX one (0.30.3)")
 	_check(not movers.find_children("*", "CollisionObject3D", true, false), "and nothing that moves collides")
 	movers.queue_free()
 	# Crows and blowing leaves: drawn only on players' screens, nothing on them collides.
@@ -7460,6 +7464,30 @@ func _section_sound() -> void:
 	var ambience := player.get_node_or_null("Ambience") as Ambience
 	_check(ambience != null and ambience._wind.playing and ambience._wind.bus == Ambience.BUS
 		and (ambience._wind.stream as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_FORWARD, "the raid has ambience: wind, looping")
+	# 0.30.3: a fight you can hear ducks the ambience for a few seconds; a far shot or step does not.
+	var ear_duck := Hearing.listener(main).global_position
+	Hearing.reset_duck()
+	Hearing.heard_shot(main, ear_duck + Vector3(0, 0, 20))
+	_check(Hearing.fight_left == Hearing.FIGHT_TIME, "a shot within 50 m starts a fight (the ambience ducks; 0.30.3)")
+	Hearing.reset_duck()
+	Hearing.heard_shot(main, ear_duck + Vector3(0, 0, 60))
+	_check(Hearing.fight_left == 0.0, "...a shot beyond 50 m does not")
+	Hearing.reset_duck()
+	Hearing.heard_shot(main, ear_duck + Vector3(0, 0, 20))
+	for i in 6:
+		Hearing.tick(0.05)
+		ambience._process(0.05)
+	_check(ambience._duck_db <= Ambience.DUCK_DB + 0.01, "...the ambience is 5 dB down a quarter second later")
+	for i in 100:
+		Hearing.tick(0.05)
+		ambience._process(0.05)
+	_check(Hearing.fight_left == 0.0 and absf(ambience._duck_db) < 0.01, "...and back to normal after ~4 s")
+	Hearing.reset_duck()
+	Hearing.heard_step(main, ear_duck + Vector3(1, 0, 0))
+	_check(Hearing.step_left == Hearing.STEP_TIME, "someone walking within 8 m dips it for a moment (0.30.3)")
+	Hearing.reset_duck()
+	Hearing.heard_step(main, ear_duck + Vector3(9, 0, 0))
+	_check(Hearing.step_left == 0.0, "...someone beyond 8 m does not")
 	var woods := BoxMap.new()
 	woods.colors = PackedColorArray([Color.BROWN])
 	woods.colour_names = PackedStringArray(["trunk"])
@@ -7479,6 +7507,7 @@ func _section_sound() -> void:
 		and [Hearing.WORLD_BUS, &"Voices", Ambience.BUS, UISounds.BUS].all(func(b: StringName) -> bool:
 			return AudioServer.get_bus_index(b) > 0 and AudioServer.get_bus_send(AudioServer.get_bus_index(b)) == &"Master"),
 		"sound buses World, Voices, Ambience, UI from the bus layout, all into Master")
+	_check(AudioServer.get_bus_index(&"SFX") == -1, "there is no SFX bus: the clock and the hideout doors use World (0.30.3)")
 	# 0.20.6, UI: every button clicks (on the UI bus), buying, START RAID, the end of the raid have their own.
 	var button := Button.new()
 	main.add_child(button)

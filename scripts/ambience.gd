@@ -32,6 +32,11 @@ const WOODS_RADIUS := 25.0
 const WOODS_FULL := 12
 const CHECK_EVERY := 0.25
 const FADE := 1.5   # (dB-ish per second of linear fade, see _fade)
+## A fight dips the raid's ambience (0.30.3): -5 dB while a shot you can hear is within 50 m, ramping over 0.25 s.
+## Someone else's footsteps close by add a shorter dip on top. Rumbles keep their own level.
+const DUCK_DB := -5.0
+const DUCK_RAMP := 0.25
+const STEP_DUCK_DB := -2.5
 
 var listener: Node3D
 ## True in the hideout: only the steady bunker beds (no wind, birds, water or war down there).
@@ -49,6 +54,8 @@ var _dice := RandomNumberGenerator.new()
 ## The hideout's beds and the loudness (linear) each is faded toward.
 var _beds: Array[AudioStreamPlayer] = []
 var _bed_target: Array[float] = []
+## The raid's current fight duck in dB (0 when quiet, DUCK_DB in a fight).
+var _duck_db := 0.0
 
 
 ## Starts the ambience for `who` (the local player) in their raid.
@@ -152,11 +159,12 @@ func _process(delta: float) -> void:
 		if water != Vector3.INF:
 			_creek.global_position = water
 		_woods_level = clampf(float(map.trees_near(listener.global_position, WOODS_RADIUS)) / WOODS_FULL, 0.0, 1.0) if map else 0.0
-	_fade(_wind, db_to_linear(WIND_DB) * (0.25 if indoors else 1.0), delta)
-	_fade(_woods, db_to_linear(WOODS_DB) * _woods_level * (0.3 if indoors else 1.0), delta)
-	_fade(_room, db_to_linear(ROOM_DB) if indoors else 0.0, delta)
-	_creek.volume_db = CREEK_DB - (8.0 if indoors else 0.0)
-	_waterfall.volume_db = WATERFALL_DB - (8.0 if indoors else 0.0)
+	_duck(delta)
+	_fade(_wind, db_to_linear(WIND_DB) * (0.25 if indoors else 1.0) * db_to_linear(_duck_db), delta)
+	_fade(_woods, db_to_linear(WOODS_DB) * _woods_level * (0.3 if indoors else 1.0) * db_to_linear(_duck_db), delta)
+	_fade(_room, (db_to_linear(ROOM_DB) if indoors else 0.0) * db_to_linear(_duck_db), delta)
+	_creek.volume_db = CREEK_DB - (8.0 if indoors else 0.0) + _duck_db
+	_waterfall.volume_db = WATERFALL_DB - (8.0 if indoors else 0.0) + _duck_db
 	_rumbles(delta, RUMBLE_DB, 0.8)
 
 
@@ -164,6 +172,17 @@ func _process(delta: float) -> void:
 func _bunker(delta: float) -> void:
 	for i in _beds.size():
 		_fade(_beds[i], _bed_target[i], delta * 0.15)
+
+
+## The raid's fight duck (0.30.3): down to DUCK_DB while a shot you can hear is about, plus a shorter dip for someone
+## close by. Ramps at 5 dB per 0.25 s, so it is quick but not a click.
+func _duck(delta: float) -> void:
+	var want := 0.0
+	if Hearing.fight_left > 0.0:
+		want += DUCK_DB
+	if Hearing.step_left > 0.0:
+		want += STEP_DUCK_DB
+	_duck_db = move_toward(_duck_db, want, delta * absf(DUCK_DB) / DUCK_RAMP)
 
 
 ## Now and then, the war rumbling far off (`db` loud, pitched from `low_pitch` to 1.1: lower sounds farther/deeper).

@@ -436,6 +436,7 @@ func shoot_once() -> void:
 	if online:
 		Network.main.send_shot(from, dirs, weapon.id, weapon.attachments.values().has("suppressor"))
 
+	Hearing.heard_shot(world, muzzle.global_position)   # (0.30.3: your own shot ducks the ambience too)
 	Effects.sound(world, GunSounds.shot_for(weapon.id, 0.0,
 		GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false),
 		shot_db, 0.08, shot_pitch)

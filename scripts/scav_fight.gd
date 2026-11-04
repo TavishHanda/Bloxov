@@ -910,6 +910,7 @@ func net_fired(end: Vector3) -> void:
 		shot_volume_db + Hearing.at_you_db(world, muzzle_pos, end, shot_unit_size) + GunSounds.block_db(block),
 		shot_pitch, shot_unit_size, GunSounds.block_delay(block))
 	Hearing.gunshot(world, muzzle_pos, end, shot_volume_db)
+	Hearing.heard_shot(world, muzzle_pos)   # (0.30.3: a fight ducks the ambience)
 	_muzzle_flash_time = 0.05
 
 

@@ -370,3 +370,4 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 		+ Hearing.at_you_db(world, from, end, unit_size) + GunSounds.block_db(block),
 		float(stats.get("shot_pitch", 1.0)), unit_size, GunSounds.block_delay(block))
 	Hearing.gunshot(world, from, end, float(stats.get("shot_db", -4.0)) - (12.0 if suppressed else 0.0))
+	Hearing.heard_shot(world, from)   # (0.30.3: a fight ducks the ambience)

@@ -123,8 +123,9 @@ update (0.29). M1-M3 are done (co-op + PvP is live).
   trophies from raids). What you've placed is saved with the online stash on the server (the Stash update), so it
   shows the same on every device and to visitors. Store rules: anything other players see that players can write
   goes through `NameFilter`; any bought decorations follow the gems rules above.
-- **Sound 2.0 (owner, 2026-10-26; after World Reacts and the character poses, before the security pass):**
-  shooter-grade hearing, built only from today's sounds (they stay as they are; no outside recordings). Each gun
+- **Sound 2.0 (owner, 2026-10-26; after World Reacts and the character poses, before the security pass):** built in
+  0.30.0-0.30.3; only the optional hi-fi pass is left. Shooter-grade hearing, built only from today's sounds (they stay
+  as they are; no outside recordings). Each gun
   gets near/mid/far and indoor versions made from its own shot; "through the floor" versions for above/below you,
   slightly duller from behind; sound comes through open doors and broken windows instead of only muffled through
   walls; footsteps and enemy shots cut through while ambience dips in a fight. Echo and muffle are baked into the

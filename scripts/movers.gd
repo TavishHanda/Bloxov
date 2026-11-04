@@ -57,7 +57,7 @@ func _ready() -> void:
 		var tick: AudioStreamPlayer3D = null
 		if int(d[7]) == PENDULUM:
 			tick = AudioStreamPlayer3D.new()
-			tick.bus = &"SFX" if AudioServer.get_bus_index(&"SFX") >= 0 else &"Master"
+			tick.bus = Hearing.world_bus()
 			tick.volume_db = -16.0
 			tick.unit_size = 2.0
 			tick.max_distance = TICK_RANGE
