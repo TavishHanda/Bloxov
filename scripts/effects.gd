@@ -135,7 +135,7 @@ static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitt
 	audio.play()
 
 
-static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0, bus := &"") -> void:
+static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0, bus := &"", muffle := true, delay := 0.0) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
 	var camera := Hearing.listener(world)
@@ -150,8 +150,9 @@ static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db :
 	audio.panning_strength = PANNING
 	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
 	audio.bus = Hearing.bus(bus) if bus != &"" else Hearing.world_bus()
-	# Behind a wall (Sound update 0.20.1): muffled and a bit quieter, so you can tell it's not in plain sight.
-	if camera and (max_distance <= 0.0 or camera.global_position.distance_to(pos) < max_distance) and Hearing.blocked(camera, pos):
+	# Behind a wall (Sound update 0.20.1): muffled and a bit quieter, so you can tell it's not in plain sight. Gunshots
+	# pass `muffle = false` since 0.30.1: their variant file already carries the muffle (desktop and web match).
+	if muffle and camera and (max_distance <= 0.0 or camera.global_position.distance_to(pos) < max_distance) and Hearing.blocked(camera, pos):
 		audio.attenuation_filter_cutoff_hz = Hearing.MUFFLED_CUTOFF
 		audio.attenuation_filter_db = -40.0
 		audio.volume_db += Hearing.MUFFLED_DB
@@ -160,7 +161,19 @@ static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db :
 	audio.finished.connect(audio.queue_free)
 	_playing += 1
 	audio.tree_exiting.connect(func() -> void: _playing -= 1)
-	audio.play()
+	if delay > 0.0:
+		# A shot through an opening (0.30.1) starts a frame later, as if it came round the doorway.
+		world.get_tree().create_timer(delay).timeout.connect(func() -> void:
+			if is_instance_valid(audio):
+				audio.play())
+	else:
+		audio.play()
+
+
+## A gunshot at `pos` (0.30.1): its distance, room, floor and wall colour are baked into `stream`, so the runtime muffle
+## stays off (the web build cannot run bus filters, and desktop and web should sound the same).
+static func shot_at(world: Node, stream: AudioStream, pos: Vector3, volume_db: float, pitch: float, unit_size: float, delay := 0.0) -> void:
+	sound_at(world, stream, pos, volume_db, 0.06, pitch, unit_size, 0.0, &"", Hearing.RUNTIME_MUFFLE, delay)
 
 
 static func _cube_particles(color: Color, size: float, amount: int) -> CPUParticles3D:

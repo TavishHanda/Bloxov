@@ -1,8 +1,9 @@
 """Makes Sound 2.0's shot variants from the shots already in audio/ (no outside recordings, no new synth).
 
-The near sound stays the file the game already plays; this only adds mid, far, room and room_far versions of it, so a
-shot at 30 m, a shot at 80 m and a shot indoors sound different, and the difference is baked into the WAV (the web
-build skips bus effects, so reverb and muffle cannot be done at runtime there).
+The near sound stays the file the game already plays; this only adds mid, far, room, room_far, floor and behind
+versions of it, so a shot at 30 m, a shot at 80 m, a shot indoors, one through a floor and one from behind you sound
+different, and the difference is baked into the WAV (the web build skips bus effects, so reverb and muffle cannot be
+done at runtime there).
 
 Run from the repo root:  python tools/make_sound_variants.py
 Check the levels:          python tools/make_sound_variants.py --check
@@ -31,8 +32,11 @@ BASES = {
     "mauler": "shot_mauler.wav",
     "lancer": "shot_lancer.wav",
 }
-# 0.30.0: the distance and room variants. floor/behind join these in 0.30.1 with the occlusion work.
-VARIANTS = ("mid", "far", "room", "room_far")
+# 0.30.0: distance and room; 0.30.1: floor (the blocker is a floor/ceiling) and behind (the shooter is behind you).
+VARIANTS = ("mid", "far", "room", "room_far", "floor", "behind")
+# The level each variant is made at, in dB against its base. Everything else is level-matched; these two carry their
+# own quieter level because the effect is meant to be a step back (plan §3.2).
+EXTRA_DB = {"floor": -2.0, "behind": -1.5}
 MAX_SECONDS = 1.2
 
 
@@ -163,6 +167,20 @@ def far_of(base):
     return mix(body, [s * 0.15 for s in lowpass(base, 500)], at=0.12)
 
 
+def floor_of(base):
+    """A shot heard through a floor or ceiling (0.30.1): no crack left, just a low thud under your feet."""
+    body = lowpass(base, 400)
+    thump = [math.sin(2.0 * math.pi * 52.0 * i / RATE) * math.exp(-i / RATE * 7.0) * 0.55
+             for i in range(int(0.28 * RATE))]
+    body = mix(body, thump, at=0.01)
+    return mix(body, [s * 0.12 for s in lowpass(base, 220)], at=0.06)
+
+
+def behind_of(base):
+    """A shot from behind you (0.30.1): the same shot with about 4 dB taken off above 4 kHz (the head blocks the top)."""
+    return shelf_cut(base, 4000.0, 0.37)
+
+
 def build(name):
     base, rate = read(BASES[name])
     if rate != RATE:
@@ -172,11 +190,13 @@ def build(name):
         "far": far_of(base),
         "room": room_of(base, 0.18),
         "room_far": room_of(far_of(base), 0.22),
+        "floor": floor_of(base),
+        "behind": behind_of(base),
     }
     for kind in VARIANTS:
         # Soft-clip first, then match: tanh takes about a decibel off the RMS, and matching before it would leave
         # every variant quieter than its base.
-        samples = match_rms(soft_clip(made[kind]), base)[: int(MAX_SECONDS * RATE)]
+        samples = match_rms(soft_clip(made[kind]), base, EXTRA_DB.get(kind, 0.0))[: int(MAX_SECONDS * RATE)]
         write(f"{name}_{kind}.wav", samples)
 
 

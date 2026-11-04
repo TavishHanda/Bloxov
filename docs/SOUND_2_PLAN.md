@@ -1,10 +1,10 @@
-# Sound 2.0 (0.30.0): plan
+# Sound 2.0 (0.30.x): plan
 
-Status: **step 1 (0.30.0) shipped** - the variant files, the selector and the Stinger's own shot. Still to build:
-0.30.1 (occlusion, through-the-floor and behind variants) and 0.30.2 (ambience ducking, routing); 0.30.3 (hi-fi) is
-optional. This is the last unbuilt M4 (vertical slice) item. Written 2026-11-04 for a dev session that has not seen the
-0.20 Sound update being built; everything it needs is in here and in the files it names. The owner's brief is the
-"Sound 2.0" entry in `docs/ROADMAP.md`; this file turns it into work.
+Status: **steps 1 and 2 shipped** (0.30.0 variants and selector, 0.30.1 occlusion/floor/behind). Still to build:
+0.30.2 (ambience ducking, routing); 0.30.3 (hi-fi) is optional. This is the last unbuilt M4 (vertical slice) item.
+Written 2026-11-04 for a dev session that has not seen the 0.20 Sound update being built; everything it needs is in
+here and in the files it names. The owner's brief is the "Sound 2.0" entry in `docs/ROADMAP.md`; this file turns it
+into work.
 
 Read first: `CLAUDE.md` (rules), `docs/DEV_HANDOFF.md` §3 code map and §6 gotchas, `docs/CLAUDE_HANDOFF.md` (how the
 owner works). Nothing here changes gameplay: it is all sound.
@@ -84,7 +84,7 @@ They should use `World` (the same bus as every other world sound).
 Generate one set per **base sound**. There are five now (the pistol got its own in 0.30.0; before that it shared the
 Hound's `shot.wav`). Seven variants per base, one of which is the base itself, so 6 new + 1 existing = 7 -> **30 new
 files** when all are built, about 0.5-1.1 s each (roughly 0.8 MB raw, a few hundred KB in the web build). Step 1
-(0.30.0) builds the four distance/room ones (20 files); `floor` and `behind` come with 0.30.1.
+(0.30.0) built the four distance/room ones (20 files); step 2 (0.30.1) added `floor` and `behind` (10 more).
 
 | Variant | Made by | Heard when |
 |---|---|---|
@@ -98,8 +98,11 @@ files** when all are built, about 0.5-1.1 s each (roughly 0.8 MB raw, a few hund
 
 **File names** live in `audio/guns/`: `default_near.wav` is *not* made (use `audio/shot.wav`); the new ones are
 `default_mid.wav`, `default_far.wav`, `default_room.wav`, `default_room_far.wav`, `default_floor.wav`,
-`default_behind.wav`, and the same six for `wasp`, `mauler`, `lancer`. `GunSounds` keeps today's table as the `near`
-versions, so the game up close sounds exactly as it does now.
+`default_behind.wav`, and the same six for `pistol`, `wasp`, `mauler`, `lancer`. `GunSounds` keeps today's table as
+the `near` versions, so the game up close sounds exactly as it does now.
+
+A wall, a shut door or a whole pane has no file of its own: it plays `far` (or `room_far` indoors, which keeps the
+room tail) plus today's -5 dB. An opening plays the normal distance variant, 3 dB down and 20 ms late.
 
 ### 3.2 Making them (new tool, existing generator untouched)
 
@@ -158,11 +161,13 @@ door and a whole window pane are acoustically invisible, and a wall and a floor 
 enum Block { NONE, OPENING, WALL, FLOOR, DOOR, GLASS }
 static func block_of(camera: Camera3D, pos: Vector3) -> int
 static func blocked(camera: Camera3D, pos: Vector3) -> bool:   # kept: other callers use it
-	return block_of(camera, pos) != Block.NONE
+	var block := block_of(camera, pos)
+	return block != Block.NONE and block != Block.OPENING   # an opening is not muffled again
 ```
 
-- Cast the direct ray with a mask that adds doors and panes (`1 | 16 | 512`: world layer, `Door.LAYER`,
-  `BoxMap.WINDOW_LAYER`); classify from the hit:
+- Cast the direct ray with a mask that adds doors and panes (`1 | 16 | 256`: world layer, `Door.LAYER = 16`,
+  `BoxMap.WINDOW_LAYER = 256`; the earlier draft's `512` was the furniture layer, which does not stop sound);
+  classify from the hit:
   - no hit -> `NONE`
   - hit normal mostly vertical (`absf(normal.y) >= 0.7`) -> `FLOOR` (a floor or ceiling)
   - hit a `Door` -> `DOOR` (only shut leaves collide, so an open door is already `NONE`)
@@ -215,11 +220,18 @@ touches gameplay, so no proposal is needed per step; the owner has already asked
 4. Smoke test: every gun × every band × both places returns a real stream; the stream changes at 20 m and 50 m;
    indoors picks a `room` stream; up close it is still today's file; the Stinger no longer shares the Hound's shot.
 
-**0.30.1 - occlusion, floor, behind (the hearing part)**
-5. `Hearing.block_of()` with the wider mask, classification and the five-ray fan; `blocked()` stays as a wrapper.
-6. Pass `block`/`behind` from the shot call sites; turn the runtime muffle off for gunshots.
+**0.30.1 - occlusion, floor, behind (the hearing part) (shipped)**
+5. `Hearing.block_of()` with the wider mask (`1 | 16 | 256`), classification, the five-ray fan and `Hearing.behind()`;
+   `blocked()` stays as a wrapper and treats an OPENING as clear.
+6. Passed `block`/`behind` from the three shot call sites; `Effects.shot_at()` keeps the runtime muffle off for gunshots
+   (`Hearing.RUNTIME_MUFFLE = false`) and starts an OPENING shot 20 ms late. Wall/door/whole pane use the `far`
+   variant (or `room_far` indoors) plus today's -5 dB; there is no separate wall file, which is why the plan's
+   "baked wall variant" is the `far` half of `room_far`.
 7. Tests: a wall/floor slab/2 m gap/shut door/whole vs broken pane, each asserted through `block_of()` using the
-   same `BoxMap` + `Door` nodes the existing `_section_sound()` already builds. Assert the fan finds the gap.
+   same `BoxMap` + `Door` nodes the existing `_section_sound()` already builds; the fan finds the gap; `shot_for()`
+   picks floor/far/near/behind and the room precedence; every gun has all six variants. The box checks use a fixed
+   probe camera high above the map (the player drifts, and the fan is sensitive to that); the older lost-close AI
+   check now builds its wall between the actual player and scav positions, so neither flakes.
 
 **0.30.2 - ambience ducking and routing**
 8. `Hearing.fight_left`, `Hearing.heard_shot(world, pos)`; call it from the three shot paths.
@@ -274,8 +286,9 @@ the owner can judge without playing a raid. It is a tool scene like `tools/rende
 desktop and web (baked only); (5) duck at -5 dB. Still open: (2) and (6).
 
 1. ~~**The Stinger's own shot.**~~ **Yes** — done in 0.30.0 (`shot_pistol.wav` + its variants).
-2. **How muffled is "through a wall"?** The baked wall variant can be anything from "clearly quieter and distant" to
-   "almost silent". Start at today's -5 dB / 900 Hz and tune by ear.
+2. **How muffled is "through a wall"?** The wall uses the `far` variant (900 Hz cut; `room_far` indoors) plus
+   `GunSounds.BLOCKED_DB` (-5 dB). It can be anything from "clearly quieter and distant" to "almost silent": listen
+   after 0.30.1 and say if the -5 dB or the 900 Hz cut should move.
 3. ~~**Travel delay.**~~ **No baked delay** — every variant starts with the shot, so the tracer and the impact stay in
    sync.
 4. ~~**Desktop bus reverb.**~~ **Match** — baked room tails only; the web and desktop hear the same thing.

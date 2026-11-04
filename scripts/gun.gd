@@ -437,7 +437,8 @@ func shoot_once() -> void:
 		Network.main.send_shot(from, dirs, weapon.id, weapon.attachments.values().has("suppressor"))
 
 	Effects.sound(world, GunSounds.shot_for(weapon.id, 0.0,
-		GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR), shot_db, 0.08, shot_pitch)
+		GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false),
+		shot_db, 0.08, shot_pitch)
 	_cycle_clicked = cycle == ""
 	_flash_left = 0.045
 	flash.visible = true

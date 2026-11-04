@@ -363,7 +363,10 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 	var camera := Hearing.listener(world)
 	var heard := camera.global_position.distance_to(from) if camera else 0.0
 	var place := GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR
-	Effects.sound_at(world, GunSounds.shot_for(weapon, heard, place), from,
+	var block := Hearing.block_of(camera, from)
+	var stream := GunSounds.shot_for(weapon, heard, place, block, Hearing.behind(camera, from))
+	Effects.shot_at(world, stream, from,
 		float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0)
-		+ Hearing.at_you_db(world, from, end, unit_size), 0.06, float(stats.get("shot_pitch", 1.0)), unit_size)
+		+ Hearing.at_you_db(world, from, end, unit_size) + GunSounds.block_db(block),
+		float(stats.get("shot_pitch", 1.0)), unit_size, GunSounds.block_delay(block))
 	Hearing.gunshot(world, from, end, float(stats.get("shot_db", -4.0)) - (12.0 if suppressed else 0.0))

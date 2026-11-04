@@ -7258,23 +7258,48 @@ func _section_sound() -> void:
 		"a footstep plays")
 	# Sound 2.0 (0.30.0): the same shot at distance and indoors, made from the gun's own file; up close it is still
 	# today's sound, and the pistol is no longer the Hound's shot.
-	_check(GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR) == GunSounds.DEFAULT_SHOT
-		and GunSounds.shot_for("ak", 30.0, GunSounds.Place.OUTDOOR) == GunSounds.VARIANTS["default"]["mid"]
-		and GunSounds.shot_for("ak", 80.0, GunSounds.Place.OUTDOOR) == GunSounds.VARIANTS["default"]["far"]
-		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.ROOM) == GunSounds.VARIANTS["default"]["room"]
-		and GunSounds.shot_for("ak", 30.0, GunSounds.Place.ROOM) == GunSounds.VARIANTS["default"]["room_far"],
+	_check(GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false) == GunSounds.DEFAULT_SHOT
+		and GunSounds.shot_for("ak", 30.0, GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false) == GunSounds.VARIANTS["default"]["mid"]
+		and GunSounds.shot_for("ak", 80.0, GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false) == GunSounds.VARIANTS["default"]["far"]
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.ROOM, Hearing.Block.NONE, false) == GunSounds.VARIANTS["default"]["room"]
+		and GunSounds.shot_for("ak", 30.0, GunSounds.Place.ROOM, Hearing.Block.NONE, false) == GunSounds.VARIANTS["default"]["room_far"],
 		"a shot changes with distance and indoors, and up close it is today's sound (0.30.0)")
 	_check(GunSounds.shot("pistol") == GunSounds.PISTOL_SHOT and GunSounds.PISTOL_SHOT != GunSounds.DEFAULT_SHOT
-		and GunSounds.shot_for("pistol", 30.0, GunSounds.Place.OUTDOOR) == GunSounds.VARIANTS["pistol"]["mid"],
+		and GunSounds.shot_for("pistol", 30.0, GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false) == GunSounds.VARIANTS["pistol"]["mid"],
 		"the Stinger has its own shot now (0.30.0)")
+	# Sound 2.0 step 2 (0.30.1): through a floor, a wall, an opening, from behind, and the room precedence.
+	_check(GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR, Hearing.Block.FLOOR, false)
+			== GunSounds.VARIANTS["default"]["floor"]
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR, Hearing.Block.WALL, false)
+			== GunSounds.VARIANTS["default"]["far"]
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR, Hearing.Block.OPENING, false)
+			== GunSounds.DEFAULT_SHOT
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.OUTDOOR, Hearing.Block.NONE, true)
+			== GunSounds.VARIANTS["default"]["behind"]
+		and GunSounds.shot_for("ak", 80.0, GunSounds.Place.OUTDOOR, Hearing.Block.NONE, true)
+			== GunSounds.VARIANTS["default"]["far"]
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.ROOM, Hearing.Block.NONE, true)
+			== GunSounds.VARIANTS["default"]["room"]
+		and GunSounds.shot_for("ak", 5.0, GunSounds.Place.ROOM, Hearing.Block.WALL, false)
+			== GunSounds.VARIANTS["default"]["room_far"],
+		"floor, wall, opening, behind and the room precedence pick the right shot (0.30.1)")
+	_check(GunSounds.block_db(Hearing.Block.OPENING) == GunSounds.OPENING_DB
+		and GunSounds.block_db(Hearing.Block.WALL) == GunSounds.BLOCKED_DB
+		and GunSounds.block_db(Hearing.Block.FLOOR) == 0.0
+		and GunSounds.block_delay(Hearing.Block.OPENING) == GunSounds.OPENING_DELAY
+		and GunSounds.block_delay(Hearing.Block.WALL) == 0.0,
+		"a shot through an opening is 3 dB down and a frame late; a wall keeps today's -5 dB (0.30.1)")
 	var all_guns := ["ak", "pistol", "smg", "shotgun", "sniper"]
 	var complete := GunSounds.VARIANTS.size() == 5
 	for id in all_guns:
 		for place in [GunSounds.Place.OUTDOOR, GunSounds.Place.ROOM]:
 			for d in [5.0, 30.0, 80.0]:
-				var variant := GunSounds.shot_for(id, d, place) as AudioStreamWAV
-				complete = complete and variant != null and variant.data.size() > 0
-	_check(complete, "every gun has a shot at every distance, indoors and out, with no missing files")
+				for block in [Hearing.Block.NONE, Hearing.Block.OPENING, Hearing.Block.WALL,
+						Hearing.Block.FLOOR, Hearing.Block.DOOR, Hearing.Block.GLASS]:
+					for behind in [false, true]:
+						var variant := GunSounds.shot_for(id, d, place, block, behind) as AudioStreamWAV
+						complete = complete and variant != null and variant.data.size() > 0
+	_check(complete, "every gun has a shot at every distance, indoors and out, through every blocker, with no missing files")
 	# 0.20.1, hearing where things are: a far shot rolls in as a boom too, a sound behind a wall is muffled, a bullet
 	# passing close snaps past, and there's an echo under a roof.
 	var sounds := func() -> Array: return main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D)
@@ -7309,12 +7334,80 @@ func _section_sound() -> void:
 	var two: Array = sounds.call().slice(-2)
 	_check(two[0].attenuation_filter_cutoff_hz == Hearing.MUFFLED_CUTOFF and two[1].attenuation_filter_cutoff_hz > 4000.0,
 		"a sound behind a wall comes through muffled, one in plain sight doesn't")
+	# 0.30.1: what is in the way, and whether the shooter is behind your ear. The box tests use a fixed probe camera
+	# high above the map, so the player drifting (or map geometry beyond the test boxes) cannot make the fan flaky.
+	var probe := Vector3(0, 300, 0)
+	var probe_cam := Camera3D.new()
+	main.add_child(probe_cam)
+	probe_cam.global_position = probe
+	var probe_wall := BoxMap.new()
+	probe_wall.boxes = PackedFloat32Array([probe.x, probe.y + 0.4, probe.z + 3.0, 6, 4, 0.3, 0, 0, 0, 1,
+		probe.x, probe.y + 3.0, probe.z, 4, 0.2, 4, 0, 0, 0, 1])
+	probe_wall.colors = PackedColorArray([Color.GRAY])
+	main.add_child(probe_wall)
+	await physics_frame
+	await physics_frame
+	var wall_block := Hearing.block_of(probe_cam, probe + Vector3(0, 0, 8))
+	var floor_block := Hearing.block_of(probe_cam, probe + Vector3(0, 5.0, 0))
+	var clear_block := Hearing.block_of(probe_cam, probe + Vector3(8, 0, 0))
+	_check(wall_block == Hearing.Block.WALL and floor_block == Hearing.Block.FLOOR and clear_block == Hearing.Block.NONE,
+		"a wall, a floor above and a clear line are told apart (wall %d, floor %d, clear %d; 0.30.1)"
+			% [wall_block, floor_block, clear_block])
+	Effects.sound_at(main, Surfaces.RUSTLES[0], ear + Vector3(0, 0, 8), 0.0, 0.08, 1.0, 6.0, 0.0, &"", false)
+	_check((sounds.call().back() as AudioStreamPlayer3D).attenuation_filter_cutoff_hz > 4000.0,
+		"a gunshot is not muffled twice: its wall colour is baked into the file (0.30.1)")
 	Hearing.listen(player, 1.0)
 	var indoor := Hearing.indoors and AudioServer.is_bus_effect_enabled(AudioServer.get_bus_index(Hearing.WORLD_BUS), 0)
 	wall.free()
 	await physics_frame
 	Hearing.listen(player, 1.0)
 	_check(indoor and not Hearing.indoors, "an echo under a roof, none outdoors")
+	probe_wall.free()
+	await physics_frame
+	var gap := BoxMap.new()
+	gap.boxes = PackedFloat32Array([
+		probe.x - 2.5, probe.y + 0.4, probe.z + 3.0, 3, 4, 0.3, 0, 0, 0, 1,
+		probe.x + 2.5, probe.y + 0.4, probe.z + 3.0, 3, 4, 0.3, 0, 0, 0, 1])
+	gap.colors = PackedColorArray([Color.GRAY])
+	main.add_child(gap)
+	await physics_frame
+	await physics_frame
+	var gap_block := Hearing.block_of(probe_cam, probe + Vector3(2, 0, 4))
+	_check(gap_block == Hearing.Block.OPENING,
+		"a shot through a 2 m gap in a wall comes round the opening, not through the wall (%d, 0.30.1)" % gap_block)
+	gap.free()
+	await physics_frame
+	var test_door: Door = (load("res://scenes/door.tscn") as PackedScene).instantiate()
+	main.add_child(test_door)
+	test_door.global_position = Vector3(probe.x, probe.y - 1.6, probe.z - 4.0)
+	await physics_frame
+	await physics_frame
+	var door_block := Hearing.block_of(probe_cam, probe + Vector3(0.3, 0, -8))
+	_check(door_block == Hearing.Block.DOOR,
+		"a shut door is a wall to sound, and it is told apart from one (%d, 0.30.1)" % door_block)
+	test_door.free()
+	await physics_frame
+	var glass := BoxMap.new()
+	glass.window_panes = PackedFloat32Array([probe.x, probe.y, probe.z - 4.0, 3, 2, 0])
+	main.add_child(glass)
+	await physics_frame
+	await physics_frame
+	var pane_block := Hearing.block_of(probe_cam, probe + Vector3(0, 0, -8))
+	_check(pane_block == Hearing.Block.GLASS,
+		"a whole window pane is not acoustically invisible (%d, 0.30.1)" % pane_block)
+	glass.break_pane(0, true)
+	await physics_frame
+	var broken_block := Hearing.block_of(probe_cam, probe + Vector3(0, 0, -8))
+	_check(broken_block == Hearing.Block.NONE,
+		"...and a broken one lets the sound straight through (%d, 0.30.1)" % broken_block)
+	glass.free()
+	probe_cam.free()
+	await physics_frame
+	var ear_now := player.camera.global_position
+	var forward := -player.camera.global_transform.basis.z
+	_check(not Hearing.behind(player.camera, ear_now + forward * 5.0)
+		and Hearing.behind(player.camera, ear_now - forward * 5.0),
+		"a shot from behind the ear is told apart from one in front (0.30.1)")
 	# 0.20.2, movement and the world: bullet impacts by surface, going prone, doors, searching.
 	_check(map.surface_hit(spot + Vector3(4.95, 0.1, 0.3)) == Surfaces.METAL and map.surface_hit(spot + Vector3(0.5, 0.15, 0.95)) == Surfaces.WOOD
 		and map.surface_hit(spot + Vector3(2, -0.5, 0)) == Surfaces.GROUND, "a bullet hitting a box: metal, wood; the ground")
@@ -7485,7 +7578,10 @@ func _section_lost_close() -> void:
 	(shape.shape as BoxShape3D).size = Vector3(30, 4, 0.5)
 	wall.add_child(shape)
 	main.add_child(wall)
-	wall.global_position = p + Vector3(0, 2, 2)
+	# Put it between where the player and the scav are NOW: the scav closes in during the 1 s above, and a wall
+	# placed at the player's starting spot could end up behind it (a rare flake).
+	var between := (player.global_position + scav.global_position) * 0.5
+	wall.global_position = Vector3(between.x, p.y + 2, between.z)
 	for i in 600:
 		if scav.state != Scav.State.ENGAGE:
 			break
