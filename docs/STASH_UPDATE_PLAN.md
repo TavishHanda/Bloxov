@@ -8,7 +8,18 @@ Read first: `CLAUDE.md` (rules), `docs/DEV_HANDOFF.md` §3 code map and §5 host
 owner works), `docs/STORE_RULES.md` §3-4 (privacy and accounts), `docs/MULTIPLAYER_PLAN.md` (how online got here).
 
 Nothing here is a decision the owner has made unless it says so. Items marked **Owner decision** are already settled;
-items marked **Proposed** are my recommendation; items in §15 are still open and need an answer before building.
+items marked **Proposed** are my recommendation; items in §15 marked still open need an answer before building.
+
+**Decisions recorded 2026-11-04** (the owner answered the first round):
+- **PvE is offline solo now; online co-op PvE is a later option.** Add the `mode` field now so it can come later.
+- **PvP keeps the AI** (PvPvE, as today).
+- **PvP starts with its own separate starter kit**, not the solo one. The contents are proposed in §4.6 and need a
+  final yes on the numbers.
+- **Economy is per-stash; look and tutorial are account-wide.** Money, stash, loadout, stats, traders, quests, levels
+  and presets are separate; the character look and the tutorial are shared.
+- **Explained, waiting on a yes:** credentials can be **linked** (device + Steam later), but only **one active session
+  at a time**. The transfer code moves a device credential; Steam linking is the browser ↔ Steam path. §8.6 explains
+  what this means for a browser player moving to Steam.
 
 ---
 
@@ -21,9 +32,9 @@ items marked **Proposed** are my recommendation; items in §15 are still open an
 That is enough to start. It means:
 
 - **PvE** is the game as it plays today: solo, offline, against the AI, with the stash you already have.
-- **PvP** is online: other players (and, proposed, the AI), with a **different** stash that lives on the server.
+- **PvP** is online: other players and the AI, with a **different** stash that lives on the server.
 - The **current stash is not deleted, moved or reset.** It becomes the PvE stash. Existing playtesters keep everything.
-- The **online stash is new.** It starts fresh (the starter kit is a decision in §15), and it is stored in Heroku
+- The **online stash is new.** It starts fresh with its own PvP starter kit (§4.6), and it is stored in Heroku
   Postgres, not in the browser.
 - The update is big enough that it needs a plan before code: accounts, a database, a companion API, server-owned
   money/items, migration, anti-cheat and store-privacy work all land together.
@@ -76,17 +87,18 @@ with `--server` for online. There is **one profile, one stash, no accounts and n
 
 | | PvE (solo) | PvP (online) |
 | --- | --- | --- |
-| Who | you vs the AI | you, other players, and (proposed) the AI |
+| Who | you vs the AI | you, other players, and the AI |
 | Network | none; works offline | WebSocket to the game server |
 | Stash | the current stash, on the device | a new stash, in Heroku Postgres |
-| Account | none | a silent device account |
+| Account | none | a silent device account (Steam link later) |
 | Money / loadout / stats | on the device | server-owned |
-| Traders / quests / presets | on the device (proposed) | server-owned (proposed) |
-| Look / tutorial | account-wide (proposed) | account-wide (proposed) |
+| Traders / quests / presets | on the device (decided: per-stash) | server-owned (decided: per-stash) |
+| Look / tutorial | account-wide (decided) | account-wide (decided) |
+| Starter kit | today's starter kit | its own PvP kit (§4.6) |
 | Can you cheat the stash? | it is your device, so yes — that is fine | no: the server is the only writer |
 
-**Proposed reading of the brief:** PvE = today's offline solo raid; PvP = today's online PvPvE raid. That is the
-smallest, clearest split and it matches the owner's sentence. Online co-op PvE is a later option (§4.3).
+**Decided reading of the brief:** PvE = today's offline solo raid; PvP = today's online PvPvE raid. Online co-op PvE
+is a later option (§4.3).
 
 ### 3.2 What stays local, what moves
 
@@ -127,16 +139,16 @@ That is the whole update. Everything below is detail.
 - The server already checks shots, movement, health, extracts and loot locks. The Stash update adds the stash, the
   kit and the rewards to that list.
 
-### 4.3 Online co-op PvE (later, optional)
+### 4.3 Online co-op PvE (later; decided)
 
-The brief does not ask for it. If the owner wants it later:
+**Decided 2026-11-04: PvE is offline solo now; online co-op PvE is a later option.** The plan keeps the door open:
 
 - It is a **third queue mode** (`mode = PVE`), not a new stash. It uses the **online** stash, because it is online and
   the server has to own it.
 - The matchmaker gets a `mode` field on parties and raids so PvE and PvP queues never mix.
 - It is a small addition **if** the `mode` field is added now (it is cheap) and **large** if it is bolted on later.
-- **Proposed:** add the `mode` field in Phase 2 even though only PvP uses it, so the door stays open. Do not build the
-  co-op queue until the owner asks.
+- **Decided:** add the `mode` field in Phase 2 even though only PvP uses it. Do not build the co-op queue until the
+  owner asks.
 
 ### 4.4 Switching modes
 
@@ -155,6 +167,33 @@ The brief does not ask for it. If the owner wants it later:
   > "PvP is online and uses a separate stash saved on the server. Your current stash is now your PvE stash. PvP starts
   > fresh with a starter kit."
 - This is the single most important message in the update. Playtesters must not think their stash was wiped.
+
+### 4.6 The PvP starter kit (decided: separate; contents proposed)
+
+**Decided 2026-11-04: PvP starts with its own kit, not the solo one.** The point is that PvP starts poorer and tenser
+than PvE, so the first good extract matters. The solo kit stays exactly as it is (Hound AK, medium backpack, 60 rifle
+rounds, a bandage).
+
+**Proposed PvP kit** — the same "free kit" the hideout already gives a player with nothing (so the items and numbers
+already exist), plus a small wallet:
+
+| Item | Count | Why |
+| --- | --- | --- |
+| Stinger pistol (`pistol`), loaded | 1 (12 rounds in it) | a real gun, but a weak one |
+| Stinger rounds (`pistol_ammo`) | 30 | enough for a fight, not a war |
+| Bandage | 1 | one mistake is survivable |
+| Small backpack (`backpack_small`) | 1 | somewhere to put the first haul |
+| Money | **$20,000** (proposed) | buys a Hound (AK) or armor and meds, not both |
+
+- The pistol, rounds, bandage and small backpack are exactly `hideout.gd`'s free kit (`take_free_kit`), so there is no
+  new item or art work.
+- **$20,000** is the number to argue about. The Hound's base value is $12,500 and traders mark it up, so $20,000 buys
+  a rifle and a little ammo, or a pistol kit with armor and meds. $10,000 makes the first raid a real gamble; $35,000
+  is close to the solo start and defeats the point. **My pick: $20,000, tune after the first PvP playtest.**
+- The PvP free kit (when a player has nothing at all) should follow the same rule as solo: one per raid, only when
+  empty, and it cannot be sold for profit (the `free` flag already exists on `ItemStack`).
+- If the owner wants the PvP kit to be a *scav* fantasy instead, the alternative is a knife or a shotgun; say so and
+  I will price it. The pistol version is the least new work and the easiest to reason about.
 
 ---
 
@@ -225,7 +264,7 @@ and the UI must say so.
 
 ### 5.4 Session and concurrency
 
-- One **active session per account** by default (proposed; §15). A second login is refused with "This account is
+- One **active session per account** (proposed; §8.6). A second login is refused with "This account is
   playing in another tab or on another device." A transfer code is the way to move.
 - The API stores a `revision` on the profile. Every write includes the revision the server based it on; a mismatch is
   rejected. This stops two tabs or a stale cache from duplicating items.
@@ -257,13 +296,12 @@ item model stays in `ItemDB` and does not need a table per item. Money is `bigin
 ### 6.1 Tables
 
 ```sql
--- One row per device account.
+-- One row per account. Credentials (device secret, Steam) live in `credentials` below.
 create table accounts (
   id              uuid primary key default gen_random_uuid(),
-  secret_hash     text not null,                 -- Argon2id/bcrypt of the device secret
   name            text not null default '',      -- filtered by NameFilter before it is stored
-  look            jsonb not null default '{}',   -- account-wide (proposed)
-  tutorial        jsonb not null default '{}',   -- account-wide (proposed)
+  look            jsonb not null default '{}',   -- account-wide (decided)
+  tutorial        jsonb not null default '{}',   -- account-wide (decided)
   transfer_hash   text,                          -- one active transfer code
   transfer_expires timestamptz,
   banned_until    timestamptz,
@@ -273,14 +311,26 @@ create table accounts (
   last_seen_at    timestamptz not null default now(),
   deleted_at      timestamptz
 );
-create index accounts_secret on accounts (secret_hash);
 create index accounts_transfer on accounts (transfer_hash) where transfer_hash is not null;
+
+-- How a player proves it is them: a device secret now, a Steam ID later. One account, several credentials.
+create table credentials (
+  id          bigserial primary key,
+  account_id  uuid not null references accounts(id) on delete cascade,
+  kind        text not null,                     -- 'device' | 'steam'
+  secret_hash text,                              -- device only (Argon2id/bcrypt)
+  external_id text,                              -- Steam ID, later
+  created_at  timestamptz not null default now(),
+  revoked_at  timestamptz
+);
+create index credentials_secret on credentials (secret_hash) where secret_hash is not null;
+create index credentials_external on credentials (external_id) where external_id is not null;
 
 -- The online profile: one row per account. Everything the solo profile keeps, minus settings.
 create table profiles (
   account_id      uuid primary key references accounts(id) on delete cascade,
   revision        bigint not null default 1,
-  money           bigint not null default 65000,
+  money           bigint not null default 20000,  -- PvP starting money (§4.6); the game server sends the real fresh profile
   stash_size      int[] not null default '{8,20}',
   stash           jsonb not null default '[]',
   loadout         jsonb not null default '{}',
@@ -321,9 +371,9 @@ create table meta (key text primary key, value text not null);
 - The API's profile response joins `accounts.name`, `accounts.look` and `accounts.tutorial` into the profile object the
   game server sees, so the client keeps one profile shape.
 - The column defaults (money, stash size, stats) are a safety net only. On account creation the game server sends a
-  fresh profile built from `Profile.START_MONEY` and `Profile.starting_loadout()`, so the starting numbers stay in one
-  place (GDScript) and cannot drift from the schema.
-- `look` and `tutorial` on `accounts` are the proposed account-wide fields. If the owner wants them per-stash, move
+  fresh profile built from the PvP starter kit and money (§4.6), so the starting numbers stay in one place (GDScript)
+  and cannot drift from the schema.
+- `look` and `tutorial` on `accounts` are the decided account-wide fields. If the owner changes their mind, move
   them to `profiles`; the schema is otherwise unchanged.
 - `raid_snapshot` is only the loadout, not the stash. The stash does not change during a raid (loot is carried, then
   written back at the end), so the loadout is enough to restore a crash.
@@ -503,7 +553,7 @@ Start with A; move to B only if cheating shows up in playtests.
   PvE never creates one.
 - **Never** put the secret in a log, a crash report, a screenshot or the save backup. The backup is solo-only.
 
-### 8.2 Transfer code
+### 8.2 Transfer code (moving a device credential)
 
 - In the account panel: **TRANSFER TO ANOTHER DEVICE** → shows a one-time code, e.g. `K7QP-3M9X` (10 chars from
   `Matchmaker.CODE_LETTERS`-style alphabet, ~50 bits). Expires in **15 minutes**.
@@ -511,8 +561,11 @@ Start with A; move to B only if cheating shows up in playtests.
   the new device's secret, clears the code, and returns the profile.
 - The old device's next call fails ("This account was moved to another device"). Its local cache is cleared.
 - One active code per account; making a new one invalidates the old.
-- **Proposed:** a transfer **moves** the account (one active device). Multiple linked devices are a bigger feature
-  (and a bigger cheat surface); do it later if the owner wants it.
+- **Proposed:** a transfer **moves** the device credential (one active device at a time). It does not block linking a
+  Steam credential to the same account later; see §8.6.
+- **Why one active device:** two devices playing on one stash at the same time is the easiest way to duplicate items
+  (both buy the same gun before either save lands). The revision check would catch some of it, but not all. One active
+  session is the simple, safe rule; a second login offers **TAKE OVER HERE**, which signs the other one out.
 
 ### 8.3 Deletion
 
@@ -532,8 +585,10 @@ Start with A; move to B only if cheating shows up in playtests.
   gone.** The UI must say this before the player invests time.
 - The solo stash is still on the device (or in the player's own backup file), so the loss is limited to online
   progress.
-- Later: Steam login linking gives a recovery path. Apple/Google sign-in would trigger Apple 4.8 (Sign in with Apple)
-  and more privacy work; do not add it unless the owner wants it.
+- **Steam linking is the recovery path** (§8.6): once a Steam credential is attached, signing in on any Steam machine
+  recovers the account without a code.
+- Apple/Google sign-in would trigger Apple 4.8 (Sign in with Apple) and more privacy work; do not add it unless the
+  owner wants it.
 
 ### 8.5 Names
 
@@ -541,6 +596,44 @@ Start with A; move to B only if cheating shows up in playtests.
 - **Proposed:** names are not unique. Two players can be "Tavish". The kill feed already shows names; if confusion
   matters, add a short discriminator (e.g. `Tavish#4821`) later.
 - The name is sent to other players in the raid, as today. It is not shown on a public leaderboard (there isn't one).
+
+### 8.6 Steam and cross-platform accounts (the owner's question)
+
+The owner asked: "a Steam player has their account on Steam, but if the browser player wants to migrate account to
+Steam that should be possible." It is, and the plan separates two things that are easy to mix up:
+
+**1. Credentials (how you prove it is you).** An account can have more than one credential:
+
+| Credential | Where it comes from | Good for |
+| --- | --- | --- |
+| Device secret | generated on first launch, stored on the device | the default, no login |
+| Transfer code | one-time code from the account panel | moving a device credential |
+| Steam ID | Steamworks, once the Steam build exists | cross-platform login and recovery |
+
+- **Browser → Steam:** in the account panel, **LINK STEAM** → the Steam overlay/login returns the Steam ID → the API
+  adds it to the same `accounts` row. The online stash does not move; it is the same account, now reachable from
+  Steam. The player can then revoke the browser's device credential if they want.
+- **Steam → browser:** on Steam, **TRANSFER TO A BROWSER** makes a code; enter it in the browser and the browser gets a
+  device credential linked to the same account. (A web Steam OpenID login is the alternative; the code is simpler and
+  works before any web login exists.)
+- **Steam → Steam:** Steam already identifies the player; no code needed.
+- **A pure Steam player** (never opened the browser) has a device secret too, generated on first launch; it is just
+  unused. The Steam ID is the credential they actually use. That matches "a Steam player has their account on Steam".
+- **Linking is one-way to add, revocable:** a credential can be added and later revoked from the account panel, as
+  long as at least one credential remains.
+
+**2. Active session (who is playing right now).** Linking credentials does **not** mean two devices can play at once.
+The proposed rule is **one active session per account.** A second login offers **TAKE OVER HERE**, which signs the
+other one out. This is what stops item duplication.
+
+**What this means for the build:**
+
+- The `accounts` table no longer holds a single `secret_hash`; credentials are their own table, `credentials`
+  (§6.1): one row per credential, `kind` (`device`/`steam`), `secret_hash` for a device secret, `external_id` for a
+  Steam ID. An account can have several, and each can be revoked.
+- Steam linking is **not in 0.31.0.** It needs the Steam build and Steamworks, which do not exist yet. The plan
+  reserves the table and the account-panel button so it can be added without a migration of the stash.
+- The transfer code remains the only cross-device path until Steam exists.
 
 ---
 
@@ -550,7 +643,7 @@ Start with A; move to B only if cheating shows up in playtests.
 
 - **`Profile.VERSION` stays 1 for the solo profile.** The current `user://profile.json` keeps its exact shape. No
   migration branch is needed, and no playtester loses anything.
-- The online profile is a **new** thing with its own storage. It starts at `START_MONEY` and the starter kit (§15).
+- The online profile is a **new** thing with its own storage. It starts with the PvP kit and money in §4.6.
 - The first time a player opens PvP, they get the one-time explainer from §4.5. Their solo stash is untouched.
 
 This is the single most important safety decision in the plan: **do not touch the solo save format in the same update
@@ -688,7 +781,7 @@ release. **Do not bump `project.godot` for docs-only steps.**
 
 - The `server/` API, the Postgres schema, migrations, the sidecar entrypoint, the Dockerfile change, CI.
 - Device account creation/login, transfer code, delete.
-- The online profile starts fresh; the server loads it and sends it to the client.
+- The online profile starts fresh with the PvP kit (§4.6); the server loads it and sends it to the client.
 - The server issues the kit at raid start and persists the raid-begun state; it persists the result at extract,
   death, MIA and leave.
 - The client applies the server's kit and shows the server's result.
@@ -845,53 +938,56 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 
 ---
 
-## 15. Open questions for the owner
+## 15. Decisions and open questions
 
-Answer these before Phase 2 starts. Each has my recommendation; "1. yes 2. no 3. …" is fine.
+### Answered 2026-11-04
 
-1. **PvE scope:** is PvE offline solo only for now, or do you also want online co-op PvE later?
-   *My pick: offline solo now; add the `mode` field so co-op PvE can come later, but do not build it yet.*
-2. **PvP content:** should PvP keep the AI (today's PvPvE), or be players only?
-   *My pick: keep the AI. It is the game's identity, the server already runs it, and an empty server would otherwise
-   be unplayable.*
-3. **Online starter kit and money:** same as a new solo profile (starter AK kit + $65,000), a smaller amount, or a
-   separate PvP kit?
-   *My pick: the same starter kit and the same $65,000, so the first PvP session feels like the first solo session.
-   If PvP feels too rich, tune it after a playtest.*
-4. **What is per-stash vs account-wide?** Money, stash, loadout, stats are clearly per-stash. What about traders,
-   quests, trader levels, loadout presets, look and tutorial?
-   *My pick: traders/quests/levels/presets per-stash (so solo money cannot level online traders); look and tutorial
-   account-wide (you look the same and see the tutorial once).*
-5. **One device or several?** Does a transfer code move the account (the old device is signed out), or link a second
-   device?
-   *My pick: move. It is simpler and matches "a transfer code moves it to another device".*
-6. **Disconnect mid-raid:** lose the gear (today's behavior), or allow a short reconnect window?
-   *My pick: lose it in 0.31.0 with a clear warning; add a ~2-minute reconnect window in a later phase if playtests
-   show it matters.*
-7. **Server crash mid-raid:** restore the pre-raid loadout, or lose it like a death?
+1. **PvE scope:** offline solo now; online co-op PvE is a later option. Add the `mode` field now so it can come later.
+2. **PvP content:** keep the AI (PvPvE, as today).
+3. **PvP starter kit:** a **separate** kit, not the solo one. The contents are proposed in §4.6; the $20,000 needs a
+   final yes.
+4. **Per-stash vs account-wide:** money, stash, loadout, stats, traders, quests, levels and presets are **per-stash**;
+   look and tutorial are **account-wide**.
+5. **Devices and Steam:** the question was what a transfer code means next to a Steam account. The answer is in §8.6:
+   credentials can be **linked** (device secret, transfer code, Steam ID later), but only **one active session at a
+   time**. The transfer code moves a device credential; Steam linking is the browser ↔ Steam path. **This needs a yes
+   before Phase 2.**
+
+### Still open (answer before Phase 2)
+
+1. **PvP kit numbers:** confirm the pistol + 30 rounds + bandage + small backpack + **$20,000**, or give different
+   numbers. *My pick: keep it and tune after the first PvP playtest.*
+2. **Disconnect mid-raid:** lose the gear (today's behavior), or allow a short reconnect window?
+   *My pick: lose it in 0.31.0 with a clear warning; add a ~2-minute reconnect window later if playtests show it
+   matters.*
+3. **Server crash mid-raid:** restore the pre-raid loadout, or lose it like a death?
    *My pick: restore it. A Heroku restart is not the player's fault, and losing gear to it is the kind of thing that
    makes people quit.*
-8. **Account deletion:** immediate hard delete, or a 30-day grace period?
+4. **Account deletion:** immediate hard delete, or a 30-day grace period?
    *My pick: immediate, with a typed confirmation and a note that database backups may keep a copy for a few days.
    A grace period reads like "deactivation" to the stores.*
-9. **Bans:** do you want them now, and what escalation?
+5. **Bans:** do you want them now, and what escalation?
    *My pick: 24 hours, then 7 days, then permanent, stored on the account. Be aware a banned player can make a new
    device account until Steam linking exists.*
-10. **Names:** unique names, or duplicates allowed?
-    *My pick: duplicates for now; add a short discriminator later if the kill feed gets confusing.*
-11. **Existing playtesters:** confirm the current stash becomes the solo stash and PvP starts fresh. Do you want a
-    one-time thank-you grant for playtesters (server-side, not a copy of the solo stash)?
-    *My pick: no copy; a small one-time PvP grant is a nice gesture if you want one.*
-12. **Online export:** should players be able to download their online stash as a file (read-only)?
-    *My pick: yes, for transparency; no import (it is a cheat vector).*
-13. **Hosting cost:** are you OK with Heroku Postgres (roughly $5-9/month on top of the dyno)? The sidecar avoids a
-    second dyno.
-    *My pick: sidecar + the smallest Postgres plan that has room for backups; confirm the student credit covers it.*
-14. **Release shape:** one big 0.31.0, or incremental 0.31.x releases behind a flag?
+6. **Names:** unique names, or duplicates allowed?
+   *My pick: duplicates for now; add a short discriminator later if the kill feed gets confusing.*
+7. **Existing playtesters:** confirm the current stash becomes the solo stash and PvP starts fresh. Do you want a
+   one-time thank-you grant for playtesters (server-side, not a copy of the solo stash)?
+   *My pick: no copy; a small one-time PvP grant is a nice gesture if you want one.*
+8. **Online export:** should players be able to download their online stash as a file (read-only)?
+   *My pick: yes, for transparency; no import (it is a cheat vector).*
+9. **Hosting cost:** are you OK with Heroku Postgres (roughly $5-9/month on top of the dyno)? The sidecar avoids a
+   second dyno.
+   *My pick: sidecar + the smallest Postgres plan that has room for backups; confirm the student credit covers it.*
+10. **Release shape:** one big 0.31.0, or incremental 0.31.x releases behind a flag?
     *My pick: incremental. Phase 1 (the switch) can ship early; Phase 2 (the real online stash) is 0.31.0; the rest
     follows.*
-15. **Two tabs:** refuse the second session, or let it take over?
-    *My pick: take over, with a warning, so a crashed tab does not lock the account.*
+11. **Two tabs:** refuse the second session, or let it take over?
+    *My pick: take over, with a warning, so a crashed tab does not lock the account. This is the one-active-session
+    rule in §8.2.*
+12. **Steam linking timing:** 0.31.0, or after the Steam build exists?
+    *My pick: after the Steam build. The table and the account-panel button are reserved now so it does not need a
+    stash migration later.*
 
 ---
 
