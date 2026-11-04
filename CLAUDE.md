@@ -1,6 +1,7 @@
 # Bloxov: notes for Claude
 
-**New dev session? Read `docs/DEV_HANDOFF.md` first** (owner, state, code map, workflow, gotchas, next work).
+**New dev session? Read `docs/DEV_HANDOFF.md` first** (owner, state, code map, workflow, gotchas, next work), then
+`docs/CLAUDE_HANDOFF.md` (why things were built this way, how the owner works, art taste, performance findings).
 
 - Godot 4.7, GDScript, Compatibility renderer (web is the main target). Design doc: `docs/GAME_DESIGN.md`.
 - **Versioning:** every change bumps `config/version` in `project.godot` and adds a `CHANGELOG.md` entry.
