@@ -17,9 +17,10 @@ items marked **Proposed** are my recommendation; items in §15 marked still open
   final yes on the numbers.
 - **Economy is per-stash; look and tutorial are account-wide.** Money, stash, loadout, stats, traders, quests, levels
   and presets are separate; the character look and the tutorial are shared.
-- **Explained, waiting on a yes:** credentials can be **linked** (device + Steam later), but only **one active session
-  at a time**. The transfer code moves a device credential; Steam linking is the browser ↔ Steam path. §8.6 explains
-  what this means for a browser player moving to Steam.
+- **Online needs a real account; PvE needs none.** PvE stays local and accountless forever. PvP requires signing in.
+- **Credentials can be linked, and only one session is active at a time.** The base credential is a username and
+  password; email is **optional**; Steam links later. §8 explains the model and why the device secret became a
+  remember-me token instead of an identity.
 
 ---
 
@@ -90,7 +91,7 @@ with `--server` for online. There is **one profile, one stash, no accounts and n
 | Who | you vs the AI | you, other players, and the AI |
 | Network | none; works offline | WebSocket to the game server |
 | Stash | the current stash, on the device | a new stash, in Heroku Postgres |
-| Account | none | a silent device account (Steam link later) |
+| Account | none, ever | a real account (username + password; Steam link later) |
 | Money / loadout / stats | on the device | server-owned |
 | Traders / quests / presets | on the device (decided: per-stash) | server-owned (decided: per-stash) |
 | Look / tutorial | account-wide (decided) | account-wide (decided) |
@@ -203,7 +204,7 @@ already exist), plus a small wallet:
 
 ```
 Browser / desktop client (Godot)
-   |  WSS: game traffic; the device secret is sent once in _hello
+   |  WSS: game traffic; the session token is sent once in _hello
    v
 Game server (Godot --server, Heroku dyno, the "web" process)
    |  HTTP over 127.0.0.1 with a service token
@@ -214,8 +215,8 @@ Stash API (small companion service, same dyno)
 Heroku Postgres
 ```
 
-- **Client:** unchanged transport (`WebSocketMultiplayerPeer`, `wss://`). It gains an account secret, a mode, and a
-  read-only view of the online profile.
+- **Client:** unchanged transport (`WebSocketMultiplayerPeer`, `wss://`). It gains a login screen, a remember-me
+  session token, a mode, and a read-only view of the online profile.
 - **Game server:** the existing `scripts/net.gd` process. It gains an in-memory online profile per connected account,
   the economy RPCs, and the raid start/end persistence calls.
 - **Stash API:** a small service in `server/` (Node.js + `pg` is the recommendation; Python/FastAPI is the
@@ -240,32 +241,42 @@ Godot has no Postgres driver. The options were:
 
 ### 5.3 Authentication flow
 
-1. **First launch:** the client generates a random 32-byte **device secret**, stores it in `user://account.json`
-   (mirrored to `localStorage["bloxov_account"]` on web), and shows no UI. This is the "silent device account".
-2. **First online login:** the client sends `account_id = ""` and the secret in `_hello` (over WSS). The game server
-   calls `POST /v1/login` on the API. No account with that secret hash exists, so the API creates one and a fresh
-   online profile, and returns `account_id`, the profile, and a session token.
-3. **Later logins:** the client sends `account_id` + the same secret. The API verifies the hash and returns the
-   profile. The game server holds the profile in memory for the session.
+Two separate things: the **account** (username + password) and the **session** (a remember-me token). Keeping them
+apart is what lets the browser stay convenient without the account being hostage to `localStorage`.
+
+1. **Sign up (first time online):** the login screen asks for a username and a password (email is optional and is not
+   asked for in 0.31.0). The client sends them over WSS; the game server calls `POST /v1/accounts` on the API. The API
+   hashes the password (Argon2id), creates the account and a fresh online profile, and returns `account_id`, a one-time
+   **recovery code** (shown once, never again), the profile, and a session token.
+2. **Sign in:** username + password → `POST /v1/login` → the password is verified against the hash → the API returns
+   the profile and a new session token.
+3. **Remember me:** the client stores the session token in `user://session.json` (mirrored to
+   `localStorage["bloxov_session"]` on web) and sends it instead of the password on later launches. This is the old
+   "device secret", now demoted: it is a session you can revoke, not the account itself.
 4. **Every economy/raid call** goes from the game server to the API with the **service token** and the `account_id`
    from the session. The client never talks to the API and never sees the service token.
-5. **Transfer:** a one-time code (see §8) lets a new device claim the account. The old device's secret is rotated, so
-   it stops working.
+5. **Recovery:** the one-time recovery code, or the optional verified email, lets the player set a new password. A reset
+   revokes every session, including the one on the device that asked.
 6. **Delete:** the client asks the game server, which calls `DELETE /v1/account/:id`; the API deletes the account and
-   profile; the client clears its local account file and returns to PvE.
+   profile; the client clears its session file and returns to PvE.
 
-**Why the secret is sent only once:** after `_hello`, the connection itself is the session. Re-sending the secret on
+**Why the token is sent only once:** after `_hello`, the connection itself is the session. Re-sending the token on
 every RPC would put it in more logs and packets for no gain. The server binds the peer id to the account id for the
 life of the connection.
 
-**What the server stores:** a **hash** of the secret (Argon2id or bcrypt), never the secret itself. The client stores
-the secret; if it is lost, the account is lost unless a transfer code was made. That is the cost of no email/login,
-and the UI must say so.
+**What the server stores:** an **Argon2id hash** of the password and a **SHA-256 hash** of each session token. Never
+the plaintext of either. A session token is 32 random bytes, so a fast hash is enough; a password is low-entropy, so it
+needs a slow one. The plaintext password exists only in the login form's memory and is never logged.
+
+**What this fixes:** clearing the browser no longer destroys the account. The stash is on the server, and the player
+can sign in again with a username and password from any device. The remember-me token only decides whether they have
+to type the password.
 
 ### 5.4 Session and concurrency
 
-- One **active session per account** (proposed; §8.6). A second login is refused with "This account is
-  playing in another tab or on another device." A transfer code is the way to move.
+- One **active session per account** (owner decision 2026-11-04). A second sign-in is refused with "This account is
+  playing in another tab or on another device." The sign-in screen offers **TAKE OVER HERE**, which revokes the other
+  session.
 - The API stores a `revision` on the profile. Every write includes the revision the server based it on; a mismatch is
   rejected. This stops two tabs or a stale cache from duplicating items.
 - The game server keeps the profile in memory and **flushes on every meaningful change**: raid start, raid end,
@@ -296,35 +307,54 @@ item model stays in `ItemDB` and does not need a table per item. Money is `bigin
 ### 6.1 Tables
 
 ```sql
--- One row per account. Credentials (device secret, Steam) live in `credentials` below.
+-- One row per account. The password is the base credential; email is optional.
 create table accounts (
-  id              uuid primary key default gen_random_uuid(),
-  name            text not null default '',      -- filtered by NameFilter before it is stored
-  look            jsonb not null default '{}',   -- account-wide (decided)
-  tutorial        jsonb not null default '{}',   -- account-wide (decided)
-  transfer_hash   text,                          -- one active transfer code
-  transfer_expires timestamptz,
-  banned_until    timestamptz,
-  ban_reason      text,
-  ban_count       int not null default 0,
-  created_at      timestamptz not null default now(),
-  last_seen_at    timestamptz not null default now(),
-  deleted_at      timestamptz
+  id               uuid primary key default gen_random_uuid(),
+  username         text not null,                -- unique, case-insensitive
+  display_name     text not null default '',     -- filtered by NameFilter before it is stored
+  password_hash    text not null,                -- Argon2id
+  email            text,                         -- optional; null until the player adds one
+  email_verified   boolean not null default false,
+  recovery_hash    text,                         -- one-time recovery code (SHA-256)
+  recovery_used_at timestamptz,
+  look             jsonb not null default '{}',  -- account-wide (decided)
+  tutorial         jsonb not null default '{}',  -- account-wide (decided)
+  failed_logins    int not null default 0,
+  locked_until     timestamptz,
+  banned_until     timestamptz,
+  ban_reason       text,
+  ban_count        int not null default 0,
+  created_at       timestamptz not null default now(),
+  last_seen_at     timestamptz not null default now(),
+  deleted_at       timestamptz
 );
-create index accounts_transfer on accounts (transfer_hash) where transfer_hash is not null;
+create unique index accounts_username on accounts (lower(username));
+create unique index accounts_email on accounts (lower(email)) where email is not null;
 
--- How a player proves it is them: a device secret now, a Steam ID later. One account, several credentials.
+-- Linked external identities. Steam now; Discord/Google later use the same shape.
 create table credentials (
   id          bigserial primary key,
   account_id  uuid not null references accounts(id) on delete cascade,
-  kind        text not null,                     -- 'device' | 'steam'
-  secret_hash text,                              -- device only (Argon2id/bcrypt)
-  external_id text,                              -- Steam ID, later
+  kind        text not null,                     -- 'steam' (later 'discord' | 'google')
+  external_id text not null,                     -- the provider's stable id
   created_at  timestamptz not null default now(),
   revoked_at  timestamptz
 );
-create index credentials_secret on credentials (secret_hash) where secret_hash is not null;
-create index credentials_external on credentials (external_id) where external_id is not null;
+create unique index credentials_external on credentials (kind, external_id) where revoked_at is null;
+create index credentials_account on credentials (account_id);
+
+-- Remember-me sessions. Tokens are 32 random bytes, so a fast hash is enough.
+create table sessions (
+  id           uuid primary key default gen_random_uuid(),
+  account_id   uuid not null references accounts(id) on delete cascade,
+  token_hash   text not null,                    -- SHA-256 of the token
+  created_at   timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
+  expires_at   timestamptz not null,
+  revoked_at   timestamptz
+);
+create unique index sessions_token on sessions (token_hash);
+create index sessions_account on sessions (account_id);
 
 -- The online profile: one row per account. Everything the solo profile keeps, minus settings.
 create table profiles (
@@ -368,8 +398,8 @@ create table meta (key text primary key, value text not null);
 
 - `stash` and `loadout` use the exact JSON that `Profile._write_grid` / `capture_inventory` already produce. That
   keeps one item format across solo, online and backups. The API stores it; the game server validates it.
-- The API's profile response joins `accounts.name`, `accounts.look` and `accounts.tutorial` into the profile object the
-  game server sees, so the client keeps one profile shape.
+- The API's profile response joins `accounts.display_name`, `accounts.look` and `accounts.tutorial` into the profile
+  object the game server sees, so the client keeps one profile shape.
 - The column defaults (money, stash size, stats) are a safety net only. On account creation the game server sends a
   fresh profile built from the PvP starter kit and money (§4.6), so the starting numbers stay in one place (GDScript)
   and cannot drift from the schema.
@@ -379,7 +409,11 @@ create table meta (key text primary key, value text not null);
   written back at the end), so the loadout is enough to restore a crash.
 - **No item table.** A stash is at most a few hundred stacks (<50 KB); `jsonb` is simpler and fast enough. If the game
   ever needs cross-player item queries (trading, an auction house), revisit it.
-- **No password column.** There is no password. The device secret is the credential.
+- **Passwords are hashed, never stored.** Argon2id with a per-row salt (the `argon2` library handles the salt). Login
+  is rate-limited per account and per IP hash; `failed_logins` and `locked_until` implement a lockout. A password is
+  never logged, never sent to the game server in plaintext beyond the login call, and never included in an export.
+- **Email is optional.** `email` is null until the player adds one; `email_verified` gates whether it can be used for
+  reset. An account with no email still works and still has a recovery code.
 
 ### 6.2 Migrations
 
@@ -397,9 +431,9 @@ create table meta (key text primary key, value text not null);
   transaction. The solo profile is untouched. Show a confirmation that says what is deleted and what stays.
 - **Backups:** Heroku Postgres keeps its own backups for a few days. Say so in the privacy policy; do not promise
   "instant, everywhere".
-- **Inactive accounts:** proposed cleanup after 12 months with no `last_seen_at`, after a warning email is impossible
-  (there is no email). Alternative: never delete. **Owner decision.** For now, do not auto-delete; revisit before
-  launch.
+- **Inactive accounts:** proposed cleanup after 12 months with no `last_seen_at`. If the account has a verified email,
+  send one warning first; if not, there is no way to warn. Alternative: never delete. **Owner decision.** For now, do
+  not auto-delete; revisit before launch.
 - **Logs:** the server logs names, kicks and account ids. Keep the existing short retention and say so in the privacy
   policy.
 
@@ -441,7 +475,7 @@ Each is a typed RPC with a payload the server validates against its own copy of 
 | `hand_in_quest(quest, item_refs)` | quest exists, not done, the items are real and required | consumes items, marks progress/done, pays |
 | `save_preset(name, kit)` / `delete_preset` / `apply_preset` | preset count, items and money for a "buy all" | stores/applies |
 | `set_look(part, option)` | the part and option are real (`Operators`) | sets the account look |
-| `set_name(name)` | `NameFilter` | sets the account name |
+| `set_name(name)` | `NameFilter` | sets the display name |
 | `take_free_kit()` | the free-kit rule (nothing carried, not taken this raid) | gives the kit, sets `free_kit_raid` |
 | `start_raid(mode, party)` | mode is PvP, the profile is idle, the loadout is valid | marks `in_raid`, snapshots, applies `death_loadout`, returns the kit |
 | `end_raid(result, final_inventory, loot_value)` | the result, the carried set, the inventory | computes and persists the new stash/loadout/money/stats |
@@ -530,8 +564,8 @@ Start with A; move to B only if cheating shows up in playtests.
   - Ban by `account_id` (`accounts.banned_until`, `ban_reason`, `ban_count`), checked at login.
   - Escalate: 3 strikes in a raid = kick (today); repeated kicks = 24 h, then 7 days, then permanent (proposed).
   - Log every catch with the account id, not just the peer id.
-- **The honest limitation:** a device account is free and silent, so a banned player can make a new one. Without an
-  email or Steam login, bans are a speed bump, not a wall. Say this to the owner. Mitigations:
+- **The honest limitation:** sign-up is free and needs no email, so a banned player can make a new account. Bans are a
+  speed bump, not a wall. Say this to the owner. Mitigations:
   - Rate-limit account creation per hashed IP (privacy-sensitive; ask).
   - Link Steam later (the roadmap already says "Steam login can be linked later"); a Steam-linked account is much
     harder to replace.
@@ -541,99 +575,138 @@ Start with A; move to B only if cheating shows up in playtests.
 
 ---
 
-## 8. Device accounts
+## 8. Accounts
 
-### 8.1 Creation
+### 8.1 Two rules
 
-- On first launch, generate a 32-byte random secret with `Crypto.new().generate_random_bytes(32)`.
-- Store it in `user://account.json` as `{"account_id": "", "secret": "<base64>", "created_at": ...}`.
-- On web, also mirror it to `localStorage["bloxov_account"]` (the same reason the profile is mirrored: `user://` on
-  web can lag or lose its storage connection).
-- The account is created on the server the first time the player goes online, not at launch. A player who only plays
-  PvE never creates one.
-- **Never** put the secret in a log, a crash report, a screenshot or the save backup. The backup is solo-only.
+- **PvE never has an account.** The solo profile is a file on the device. Nothing about it touches the API, and no
+  login screen ever appears for a player who only plays PvE. This keeps the store rule (`STORE_RULES.md` §4: do not
+  force an account for offline solo) and the "works on a plane" promise.
+- **PvP always has an account.** It is created on first sign-up, and it is what the online stash hangs from. No silent
+  accounts, no invisible device identity.
 
-### 8.2 Transfer code (moving a device credential)
+The account is created on the server the first time the player signs up, not at launch.
 
-- In the account panel: **TRANSFER TO ANOTHER DEVICE** → shows a one-time code, e.g. `K7QP-3M9X` (10 chars from
-  `Matchmaker.CODE_LETTERS`-style alphabet, ~50 bits). Expires in **15 minutes**.
-- On the new device: **I HAVE A CODE** → enter it. The API verifies the hash, rotates the account's `secret_hash` to
-  the new device's secret, clears the code, and returns the profile.
-- The old device's next call fails ("This account was moved to another device"). Its local cache is cleared.
-- One active code per account; making a new one invalidates the old.
-- **Proposed:** a transfer **moves** the device credential (one active device at a time). It does not block linking a
-  Steam credential to the same account later; see §8.6.
-- **Why one active device:** two devices playing on one stash at the same time is the easiest way to duplicate items
-  (both buy the same gun before either save lands). The revision check would catch some of it, but not all. One active
-  session is the simple, safe rule; a second login offers **TAKE OVER HERE**, which signs the other one out.
+### 8.2 Sign-up
 
-### 8.3 Deletion
+The sign-up screen asks for three things:
+
+| Field | Rule |
+| --- | --- |
+| **Username** | 3–20 characters, `NameFilter`, unique case-insensitively, **immutable**. This is the login handle and is never shown to other players. |
+| **Password** | At least 10 characters, checked against a short common-password list, no forced symbol rules. Stored as an Argon2id hash. |
+| **Recovery code** | Generated by the server, shown **once**, 12 characters like `K7QP-3M9X-2RT`. Hashed with SHA-256. The player ticks "I saved it" before the screen closes. |
+
+- **Email is optional, and 0.31.0 does not ask for it.** The `email` column exists so an "add email" flow can land
+  later without a migration, but collecting an address before there is a mail sender would be PII with no use. When
+  email delivery ships, sign-up and the account panel gain an optional field, and it is only usable for reset once
+  verified. This honours the owner's "optional, not required" answer.
+- After sign-up the API creates the account, a fresh online profile with the PvP kit (§4.6), and the first session.
+- The username is the handle; `display_name` is the name other players see (§8.7). Splitting them means a player can
+  change how they appear without changing how they log in, and it removes the rename problem entirely.
+
+### 8.3 Sign-in and sessions
+
+- Sign-in is username + password. The API verifies the Argon2id hash and returns the profile plus a **session token**.
+- **Remember me** is on by default, with a "this is a shared device" checkbox that turns it off.
+- The token is 32 random bytes. It is stored in `user://session.json` and mirrored to
+  `localStorage["bloxov_session"]` on web. It expires after 30 days of no use (sliding), and it is revoked by a
+  password change, "sign out everywhere", or account deletion.
+- **This is the old device secret, demoted.** It is a session, not an identity. Clearing the browser loses the token,
+  not the account: the player signs in again with the username and password.
+- **One active session per account** (owner decision 2026-11-04). A second sign-in is refused with "This account is
+  playing in another tab or on another device", and the screen offers **TAKE OVER HERE**, which revokes the other
+  session. Take-over is the default because a crashed tab must not lock an account.
+- **Lockout:** 10 failed attempts locks the account for 15 minutes (`failed_logins`, `locked_until`). Login is also
+  rate-limited per hashed IP. The error is always "wrong username or password", never "no such user".
+
+### 8.4 Password reset and recovery
+
+- **With the recovery code:** enter username + code → set a new password. The code is burned, every session is
+  revoked, and a new code is issued and shown once.
+- **With a verified email (later):** the same flow with a one-time link instead of the code.
+- **With neither:** the online account is gone. There is no support override, no security questions and no manual
+  reset. The sign-up screen says this in one sentence, and the account panel repeats it.
+- The solo stash is untouched by any of this. Losing the online account costs online progress only.
+- The recovery code is not a "transfer code": it does not move a device, it resets a password. Moving devices is just
+  signing in.
+
+### 8.5 Why this beats the device secret
+
+| Situation | Silent device secret (old proposal) | Real account (this plan) |
+| --- | --- | --- |
+| Clear browser data | Account gone | Sign in again, stash intact |
+| New laptop or phone | Account gone unless a transfer code was made | Sign in |
+| Private/incognito window | New empty account | Sign in (or use remember-me) |
+| Safari evicts storage after ~7 days idle | Account gone | Sign in again |
+| Forgot the credential | Account gone | Recovery code resets it |
+| Two tabs | Ambiguous | One session, take-over |
+| Cheater banned | Makes a new device account in seconds | Makes a new account, but the barrier is higher and Steam linking raises it further |
+
+The cost is a login screen for PvP, a password to remember, and password hashing on the server. That is the trade the
+owner asked for: PvE stays accountless, PvP gets a real account.
+
+### 8.6 Deletion
 
 - **DELETE ONLINE ACCOUNT** in the account panel, behind a typed confirmation (`DELETE`) and a clear list of what
-  goes: the online stash, money, loadout, stats, traders, quests, presets, the account, the transfer code.
-- The solo profile is not touched. Say so.
-- The API deletes in one transaction. The client clears `account.json` and the online cache and returns to PvE.
+  goes: the online stash, money, loadout, stats, traders, quests, presets, the account, its sessions and any linked
+  credentials.
+- The solo profile is not touched. Say so on the same screen.
+- The API deletes in one transaction. The client clears `session.json` and the online cache and returns to PvE.
 - **Store rule:** deletion must be available **inside the game** (Apple 5.1.1(v), Google's account deletion policy).
   A web deletion link is also required by Google; add a page under `web/` in the launch phase.
 - **Proposed:** immediate hard delete, with a warning that Heroku's database backups may keep a copy for a few days.
   A 30-day grace period is friendlier but conflicts with "delete" in the store rules unless it is clearly a
   deactivation. Ask the owner.
 
-### 8.4 Recovery
+### 8.7 Names
 
-- No email, no password, no security questions. **Lose the device and the transfer code and the online account is
-  gone.** The UI must say this before the player invests time.
-- The solo stash is still on the device (or in the player's own backup file), so the loss is limited to online
-  progress.
-- **Steam linking is the recovery path** (§8.6): once a Steam credential is attached, signing in on any Steam machine
-  recovers the account without a code.
-- Apple/Google sign-in would trigger Apple 4.8 (Sign in with Apple) and more privacy work; do not add it unless the
-  owner wants it.
+- **`username`** is the login handle: unique, immutable, filtered, never shown to other players.
+- **`display_name`** is what the raid shows: filtered, changeable, **not** unique. Two players can be "Tavish".
+- If duplicate display names get confusing in the kill feed, add a short discriminator later (`Tavish#4821`) without
+  touching the login handle.
+- The display name is sent to other players in the raid, as today. It is not shown on a public leaderboard (there
+  isn't one).
 
-### 8.5 Names
+### 8.8 Linked credentials: Steam now-in-schema, Discord/Google later
 
-- The name is stored on the account, filtered by `NameFilter`, changeable in the account panel.
-- **Proposed:** names are not unique. Two players can be "Tavish". The kill feed already shows names; if confusion
-  matters, add a short discriminator (e.g. `Tavish#4821`) later.
-- The name is sent to other players in the raid, as today. It is not shown on a public leaderboard (there isn't one).
+An account can have more than one way in. The password is the base; everything else is a link.
 
-### 8.6 Steam and cross-platform accounts (the owner's question)
-
-The owner asked: "a Steam player has their account on Steam, but if the browser player wants to migrate account to
-Steam that should be possible." It is, and the plan separates two things that are easy to mix up:
-
-**1. Credentials (how you prove it is you).** An account can have more than one credential:
-
-| Credential | Where it comes from | Good for |
+| Credential | Status | Good for |
 | --- | --- | --- |
-| Device secret | generated on first launch, stored on the device | the default, no login |
-| Transfer code | one-time code from the account panel | moving a device credential |
-| Steam ID | Steamworks, once the Steam build exists | cross-platform login and recovery |
+| Username + password | 0.31.0 | every player, every platform |
+| Recovery code | 0.31.0 | password reset without email |
+| Email (optional) | later | self-serve reset, inactive-account warning |
+| Steam ID | schema now, ships with the Steam build | Steam players, cross-platform login |
+| Discord / Google | later, only if asked | convenience; not needed for launch |
 
-- **Browser → Steam:** in the account panel, **LINK STEAM** → the Steam overlay/login returns the Steam ID → the API
-  adds it to the same `accounts` row. The online stash does not move; it is the same account, now reachable from
-  Steam. The player can then revoke the browser's device credential if they want.
-- **Steam → browser:** on Steam, **TRANSFER TO A BROWSER** makes a code; enter it in the browser and the browser gets a
-  device credential linked to the same account. (A web Steam OpenID login is the alternative; the code is simpler and
-  works before any web login exists.)
-- **Steam → Steam:** Steam already identifies the player; no code needed.
-- **A pure Steam player** (never opened the browser) has a device secret too, generated on first launch; it is just
-  unused. The Steam ID is the credential they actually use. That matches "a Steam player has their account on Steam".
-- **Linking is one-way to add, revocable:** a credential can be added and later revoked from the account panel, as
-  long as at least one credential remains.
+**Why own login first:** it is the only door that works for a browser player with no Steam and no social account, and
+it is the only one that does not add a third-party processor to the privacy policy.
 
-**2. Active session (who is playing right now).** Linking credentials does **not** mean two devices can play at once.
-The proposed rule is **one active session per account.** A second login offers **TAKE OVER HERE**, which signs the
-other one out. This is what stops item duplication.
+**Steam specifics:** Steam uses **OpenID 2.0**, not OAuth. The flow validates the asserted SteamID with Steam's server,
+then inserts a `credentials` row (`kind = 'steam'`, `external_id` = the 64-bit SteamID). No password is stored for
+Steam.
+
+- **Browser → Steam:** sign in with username + password, then **LINK STEAM**. Same account, same stash.
+- **Steam → browser:** sign in with the password, or reset it with the recovery code. There is no "transfer" step.
+- **A pure Steam player:** signs in with Steam, then sets a username and password once, so the account is not hostage
+  to Steam.
+- Steam is a **link, not a replacement**. Revoking it leaves the password working.
+
+**Discord / Google:** same table, new `kind`. Not now, because each one needs a provider app, redirect URIs,
+privacy-policy text and a 13+ age floor, and none recovers an account better than the recovery code already does. On
+iOS, adding any third-party social login also triggers Apple 4.8 (Sign in with Apple), which is real cost for a small
+game. The schema is additive, so this is a later decision, not a migration.
+
+**One active session still applies.** Linking a credential does not let two devices play at once; it lets one account
+be reached from more places. A second sign-in takes over.
 
 **What this means for the build:**
 
-- The `accounts` table no longer holds a single `secret_hash`; credentials are their own table, `credentials`
-  (§6.1): one row per credential, `kind` (`device`/`steam`), `secret_hash` for a device secret, `external_id` for a
-  Steam ID. An account can have several, and each can be revoked.
-- Steam linking is **not in 0.31.0.** It needs the Steam build and Steamworks, which do not exist yet. The plan
-  reserves the table and the account-panel button so it can be added without a migration of the stash.
-- The transfer code remains the only cross-device path until Steam exists.
+- `accounts` holds the username, password hash, optional email and recovery hash; `credentials` holds linked
+  providers; `sessions` holds remember-me tokens.
+- 0.31.0 ships password + recovery code only. The Steam button is hidden until the Steam build exists.
+- There is no transfer code anywhere in the design.
 
 ---
 
@@ -696,7 +769,7 @@ stashes:
 - If the update has to be rolled back, the solo profile is untouched, so PvE is safe.
 - The online profile lives in Postgres; a rollback of the game server leaves the rows in place. The previous server
   ignores them. No data is lost.
-- The client's `account.json` is harmless if the feature is off.
+- The client's `session.json` is harmless if the feature is off.
 - The feature flag (`PvP online enabled`) lets the owner turn it off without a deploy if something goes wrong. Keep it
   in a server env var and in `GameSettings` for the client (hidden in release builds).
 
@@ -709,14 +782,14 @@ stashes:
 - **Top bar:** `PvE (SOLO) | PvP (ONLINE)` segmented switch, the active stash's money, and a short line:
   "PvE: on this device, works offline. PvP: online, saved on the server."
 - **PvE:** exactly today's hideout. Stash, loadout, traders, quests, START RAID.
-- **PvP, not connected:** the switch shows the GO ONLINE panel (name, GO ONLINE). The stash area is disabled with a
-  "Connect to see your PvP stash" message.
+- **PvP, not connected:** the switch shows the sign-in panel (username, password, SIGN IN / CREATE ACCOUNT). The stash
+  area is disabled with a "Sign in to see your PvP stash" message.
 - **PvP, connected:** the same hideout layout, reading the online profile. The ONLINE button shows the party/queue
   state as today.
 - **PvP, reconnecting:** the last profile stays visible, read-only, with a banner and a RETRY button. Economy actions
   are disabled. Do not fall back to solo.
-- **Account panel** (from the ONLINE panel): account id (short), name, transfer code, delete account, export online
-  data (later), link Steam (later).
+- **Account panel** (from the ONLINE panel): username, display name, **sign out**, **sign out everywhere**, **new
+  recovery code**, delete account, export online data (later), link Steam (later).
 
 ### 10.2 The raid
 
@@ -732,11 +805,11 @@ stashes:
 
 - **Version mismatch:** today's message ("The server is on vX and you have vY") stays.
 - **Banned:** "You are banned until <date>: <reason>." No retry loop.
-- **Account moved:** "This account was moved to another device." Offer the transfer-code flow.
+- **Signed in elsewhere:** "This account signed in on another device." Offer **TAKE OVER HERE** or cancel.
+- **Wrong password / locked:** "Wrong username or password." After 10 tries, "Too many attempts. Try again in 15
+  minutes." Never reveal whether the username exists.
 - **Server full:** today's message stays.
 - **API/DB down:** "PvP is unavailable right now. PvE still works." A RETRY button.
-- **Two tabs:** "This account is playing in another tab." Offer "Take over here" (kicks the other tab) or cancel.
-  **Proposed:** take-over with a warning, because a crashed tab would otherwise lock the account.
 - **Deleted account:** clear the cache, return to PvE, show "Your PvP account was deleted. Your PvE stash is safe."
 
 ### 10.4 Privacy page
@@ -744,8 +817,9 @@ stashes:
 `scripts/title_screen.gd:20-34` currently says "No accounts" and "Nothing is kept after the raid". Both become false.
 The launch phase must update it to say:
 
-- What the online account is (a device id, a name, a look, progress).
-- What is stored (the online stash, money, stats, traders, quests, last seen).
+- What the online account is (a username, a display name, a password hash, a look, progress; an email only if the
+  player chooses to add one later).
+- What is stored (the online stash, money, stats, traders, quests, last seen, session records).
 - Where (Heroku Postgres, hosted by Heroku).
 - How long (until deletion; backups for a few days).
 - How to delete (in-game, plus a web link).
@@ -771,7 +845,7 @@ release. **Do not bump `project.godot` for docs-only steps.**
 ### Phase 1 — the mode split, no server (0.31.0 or a dev-only step)
 
 - `Profile.mode` and the SOLO/ONLINE switch in the hideout, with ONLINE hidden behind a flag.
-- `DeviceAccount` (generate/store the secret; no server call yet).
+- The sign-in screen shell and the session-token storage (no server call yet).
 - The `Profile` mode guards and the SaveBackup solo-only change.
 - Tests: mode switching, solo save isolation, backup isolation.
 - **Exit:** PvE is unchanged; the switch exists but PvP is not reachable in release builds.
@@ -780,7 +854,8 @@ release. **Do not bump `project.godot` for docs-only steps.**
 ### Phase 2 — accounts, database, online stash at raid boundaries (0.31.0)
 
 - The `server/` API, the Postgres schema, migrations, the sidecar entrypoint, the Dockerfile change, CI.
-- Device account creation/login, transfer code, delete.
+- Sign-up, sign-in, remember-me sessions, recovery code, sign out everywhere, delete.
+- Password hashing, login rate limits and lockout.
 - The online profile starts fresh with the PvP kit (§4.6); the server loads it and sends it to the client.
 - The server issues the kit at raid start and persists the raid-begun state; it persists the result at extract,
   death, MIA and leave.
@@ -835,7 +910,13 @@ release. **Do not bump `project.godot` for docs-only steps.**
 The smoke test (`tests/smoke_test.gd`) already covers profile, hideout, net, PvP, online AI, online loot and
 anti-cheat. Add:
 
-- `accounts`: the secret is generated once, stored, reloaded, never logged; a second launch reuses it.
+- `accounts`: sign-up creates an account and a recovery code; the password is never stored or logged in plaintext; a
+  second launch reuses the session token; sign-out clears it.
+- `account_login`: wrong password is refused without revealing the username; 10 failures lock the account; the lock
+  expires; a valid login returns the profile.
+- `account_session`: a second sign-in is refused; take-over revokes the first; an expired or revoked token is refused.
+- `account_recovery`: the recovery code resets the password, revokes every session and issues a new code; a used or
+  wrong code is refused.
 - `mode_switch`: SOLO and ONLINE show independent stashes; a solo save does not write online data; an online sync does
   not touch `user://profile.json`; a solo raid cannot start in online mode and vice versa.
 - `online_profile`: first login creates a fresh profile; the solo profile is untouched; the server's profile replaces
@@ -845,7 +926,6 @@ anti-cheat. Add:
   death; a disconnect loses gear.
 - `online_economy` (Phase 3): buy/sell/move/equip/upgrade/quest/level/preset round-trips; stale revision rejected;
   insufficient money rejected; full stash rejected.
-- `online_transfer`: a code moves the account; the old secret stops working; an expired code is rejected.
 - `online_delete`: the account and profile are gone; the solo profile is intact.
 - `online_ban`: a banned account is refused at login with the reason.
 - `online_crash`: an orphaned `in_raid` profile is restored to its snapshot.
@@ -865,14 +945,15 @@ how the existing in-process `net`/`pvp` tests keep working without a database.
 ### 12.3 API tests
 
 - A small test suite next to the API (`server/test/`), run in CI with a Postgres service container.
-- Cover: migrations, account create/login, secret hashing, transfer, delete, revision conflicts, raid start/end
-  transactions, ban checks, rate limits.
+- Cover: migrations, sign-up/login, password hashing, session tokens, recovery, lockout, delete, revision conflicts,
+  raid start/end transactions, ban checks, rate limits.
 - Run it on every push that touches `server/`.
 
 ### 12.4 End-to-end
 
-- One CI job: Postgres + API + Godot `--server` + a scripted client. It creates an account, starts a raid, extracts,
-  dies, transfers, deletes, and checks the DB. This is the test that catches the bugs the in-process tests cannot.
+- One CI job: Postgres + API + Godot `--server` + a scripted client. It signs up, signs in, starts a raid, extracts,
+  dies, takes over a session, resets a password and deletes the account, and checks the DB. This is the test that
+  catches the bugs the in-process tests cannot.
 - The existing `net`/`pvp`/`online_ai`/`online_loot` sections run with the fake API.
 - The real-process test from `DEV_HANDOFF.md` §4.6 (a `--server` process + two clients) still applies; add an account
   login step.
@@ -884,7 +965,7 @@ how the existing in-process `net`/`pvp` tests keep working without a database.
 - A dyno restart mid-hideout: reconnect works; the stash is the same.
 - A dyno restart mid-raid: the crash policy restores the pre-raid loadout.
 - Two tabs: the second is refused or takes over, and items are not duplicated.
-- Transfer: the new device has the stash; the old device is signed out.
+- Transfer: sign in on a second browser and the stash is there; taking over signs the first one out.
 - Delete: the online data is gone; PvE is intact.
 - A banned account: refused with the reason.
 
@@ -904,7 +985,7 @@ how the existing in-process `net`/`pvp` tests keep working without a database.
 | --- | --- | --- |
 | **Data loss on migration** | Playtesters lose the stash they earned | Do not change the solo format; the solo profile is the source of truth for PvE; back it up before the first online launch; test with a real old save |
 | **Scope** | L3 touches every hideout screen | Phases; ship L1+L2 first; keep L3 behind the same flag |
-| **Cheating** | A device account is disposable; L4 is not in 0.31.0 | Server authority at every level; rate limits; bans; Steam linking later; be honest with the owner |
+| **Cheating** | Accounts are free to create; L4 is not in 0.31.0 | Server authority at every level; rate limits; bans; Steam linking later; be honest with the owner |
 | **Latency** | Every hideout action round-trips | Optimistic UI, debounce, full-profile sync at this scale |
 | **Heroku limits** | One dyno, ephemeral disk, daily restart, Postgres connections | Sidecar, pool, no local disk, orphan policy, backup drill |
 | **Two sessions** | Duplication across tabs/devices | One active session, revision checks, take-over flow |
@@ -912,7 +993,7 @@ how the existing in-process `net`/`pvp` tests keep working without a database.
 | **Store/privacy** | Accounts change what is collected | Update the privacy page, the Apple label, the Google form, deletion, the web link; do it before launch |
 | **PvE feels worthless** | Players may resent a separate online stash | Say it clearly; maybe a one-time playtester grant (owner decision); keep PvE fully playable |
 | **Name confusion** | Duplicate names in the kill feed | Discriminator later; `NameFilter` now |
-| **Account loss** | No email/password | Warn before investment; transfer code; Steam linking later |
+| **Account loss** | A forgotten password with no recovery code and no email | Say so at sign-up; recovery code; optional email later; Steam linking later |
 | **Server crash** | Gear lost through no fault of the player | Restore the pre-raid snapshot; mark the result `crash` |
 
 ---
@@ -928,7 +1009,8 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 - [ ] No forced account for PvE; offline solo works with no account.
 - [ ] If Steam/Google/Apple login is added later, Sign in with Apple is offered on iOS (Apple 4.8), and the SDK is
       disclosed.
-- [ ] All traffic is `wss://`/`https://`; Postgres uses TLS; the device secret is hashed at rest.
+- [ ] All traffic is `wss://`/`https://`; Postgres uses TLS; passwords are hashed with Argon2id; session and
+      recovery tokens are hashed at rest.
 - [ ] The name and any player-visible text go through `NameFilter`.
 - [ ] No real-money purchases are added by this update (the store/currency work is separate).
 - [ ] The account deletion text says what is deleted and what stays (the solo stash stays).
@@ -948,10 +1030,14 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
    final yes.
 4. **Per-stash vs account-wide:** money, stash, loadout, stats, traders, quests, levels and presets are **per-stash**;
    look and tutorial are **account-wide**.
-5. **Devices and Steam:** the question was what a transfer code means next to a Steam account. The answer is in §8.6:
-   credentials can be **linked** (device secret, transfer code, Steam ID later), but only **one active session at a
-   time**. The transfer code moves a device credential; Steam linking is the browser ↔ Steam path. **This needs a yes
-   before Phase 2.**
+5. **Online accounts:** PvE stays **completely accountless**. PvP requires a **real account** — no silent device
+   account.
+6. **Credentials:** username + password is the base. **Email is optional** and is not collected in 0.31.0 (it arrives
+   with the mail sender). A one-time recovery code handles reset. **Steam links later**; Discord/Google are later
+   additions to the same table, not launch scope.
+7. **Sessions:** **one active session per account.** A second sign-in offers TAKE OVER HERE.
+8. **The device secret is gone.** It became a remember-me session token: revocable, expiring, and never the identity.
+   The transfer code is gone with it; moving devices is just signing in.
 
 ### Still open (answer before Phase 2)
 
@@ -968,9 +1054,10 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
    A grace period reads like "deactivation" to the stores.*
 5. **Bans:** do you want them now, and what escalation?
    *My pick: 24 hours, then 7 days, then permanent, stored on the account. Be aware a banned player can make a new
-   device account until Steam linking exists.*
-6. **Names:** unique names, or duplicates allowed?
-   *My pick: duplicates for now; add a short discriminator later if the kill feed gets confusing.*
+   account until Steam linking exists.*
+6. **Names:** username is the immutable login handle; should the **display name** stay changeable, and are duplicates
+   fine?
+   *My pick: changeable display name, duplicates allowed; add a discriminator later if the kill feed gets confusing.*
 7. **Existing playtesters:** confirm the current stash becomes the solo stash and PvP starts fresh. Do you want a
    one-time thank-you grant for playtesters (server-side, not a copy of the solo stash)?
    *My pick: no copy; a small one-time PvP grant is a nice gesture if you want one.*
@@ -982,12 +1069,6 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 10. **Release shape:** one big 0.31.0, or incremental 0.31.x releases behind a flag?
     *My pick: incremental. Phase 1 (the switch) can ship early; Phase 2 (the real online stash) is 0.31.0; the rest
     follows.*
-11. **Two tabs:** refuse the second session, or let it take over?
-    *My pick: take over, with a warning, so a crashed tab does not lock the account. This is the one-active-session
-    rule in §8.2.*
-12. **Steam linking timing:** 0.31.0, or after the Steam build exists?
-    *My pick: after the Steam build. The table and the account-panel button are reserved now so it does not need a
-    stash migration later.*
 
 ---
 
@@ -1001,7 +1082,8 @@ This is what the update will touch. It is here so a future session can estimate 
 | `scripts/save_backup.gd` | solo-only `pack`/`apply`; a note in the UI; tests |
 | `scripts/hideout.gd` | the SOLO/ONLINE switch, the account panel, the online profile view, the one-time explainer, the economy intents |
 | `scripts/title_screen.gd` | the privacy text |
-| `scripts/net.gd` | `_hello` with the account secret, `profile_sync`, the economy RPCs, the server-issued kit, the raid start/end API calls, ban checks |
+| `scripts/net.gd` | `_hello` with the session token, `profile_sync`, the economy RPCs, the server-issued kit, the raid start/end API calls, ban checks |
+| `scripts/account_ui.gd` (new) | sign-up, sign-in, recovery code, take-over, sign out everywhere, delete |
 | `scripts/matchmaker.gd` | a `mode` field on players/parties/raids (PvP only for now) |
 | `scripts/net_raid.gd` | apply the server kit, report item state (L4), the extract handshake |
 | `scripts/raid.gd` | stop writing the online result locally; show the server's result; the "Saving…" flow |
@@ -1022,9 +1104,10 @@ This is what the update will touch. It is here so a future session can estimate 
 - It does not decide the open questions in §15.
 - It does not add real-money purchases, skins, gems or a battle pass.
 - It does not add a public leaderboard, trading, an auction house or cross-player item transfers.
-- It does not add Steam/Apple/Google login; it leaves the door open.
+- It does not add Steam/Apple/Google login **in 0.31.0**; Steam is reserved in the schema and ships with the Steam
+  build, and Discord/Google are later additions.
 - It does not change PvE gameplay. PvE is today's solo raid with a new name.
-- It does not promise that device accounts stop determined cheaters; they raise the cost and close the easy holes.
+- It does not promise that accounts stop determined cheaters; they raise the cost and close the easy holes.
 
 ---
 

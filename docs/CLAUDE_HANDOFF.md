@@ -105,9 +105,10 @@ loading, shaders and draw calls:
 - **Sound 2.0 is built** (0.30.0-0.30.3); only the optional 0.30.4 hi-fi pass is left, and it waits for the owner to
   pick sounds after listening. The 0.30.2 bunker ambience is approved (owner, 2026-11-04: "ambience sounds good").
 - **Stash update** is the gate before the beta/Steam release: PvE and PvP modes, the current stash becoming the solo
-  stash, and a server-owned online stash with device accounts and a database. It also unblocks bans and finishes the
-  anti-cheat story. **Plan: `docs/STASH_UPDATE_PLAN.md`** (written 2026-11-04, plan only). The owner said they do not
-  want to build it next, but wanted an in-depth plan; the plan's §15 lists the decisions still open.
+  stash, and a server-owned online stash with real PvP accounts (PvE stays accountless) and a database. It also
+  unblocks bans and finishes the anti-cheat story. **Plan: `docs/STASH_UPDATE_PLAN.md`** (written 2026-11-04, plan
+  only). The owner said they do not want to build it next, but wanted an in-depth plan; the plan's §15 lists the
+  decisions still open.
 
 ## Environment facts worth keeping
 

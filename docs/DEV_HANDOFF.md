@@ -112,9 +112,9 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   spike: one dyno, `MAX_ONLINE` 40, `Matchmaker.MAX_RAIDS` 4). Kill switch: Heroku → Resources → turn the dyno off.
   The Docker image (`Dockerfile`, `heroku.yml`) downloads Godot 4.7.2 and imports the project at build time.
 - No database yet: stash/progress live in each player's browser; the server keeps nothing permanent. The **Stash update**
-  plan (`docs/STASH_UPDATE_PLAN.md`) adds Heroku Postgres, a small companion API in the same dyno, device accounts and a
-  server-owned online stash; it is a plan only, not built. Read it before changing anything about accounts, the online
-  stash or the kit handshake.
+  plan (`docs/STASH_UPDATE_PLAN.md`) adds Heroku Postgres, a small companion API in the same dyno, real PvP accounts
+  (PvE stays accountless) and a server-owned online stash; it is a plan only, not built. Read it before changing
+  anything about accounts, the online stash or the kit handshake.
 - Sandbox notes: Docker works after `dockerd &` (apt inside containers has no network: copy the local Godot binary
   in for tests). The sandbox can't reach the Heroku server directly (proxy); the owner's own test is the proof.
 
