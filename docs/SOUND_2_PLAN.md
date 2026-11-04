@@ -6,8 +6,9 @@ it waits for the owner to pick sounds after listening. This was the last unbuilt
 
 Where things stand for the next session:
 - **0.30.0-0.30.3 are shipped.** Do not re-open their decisions without the owner asking.
-- **0.30.2 (hideout bunker ambience) is awaiting the owner's listen-check.** If they ask for changes, tune the three
-  beds in `tools/make_sounds.py` and/or their levels in `scripts/ambience.gd`; keep the "no random one-offs" rule.
+- **0.30.2 (hideout bunker ambience) is approved by the owner (2026-11-04: "ambience sounds good").** Leave the
+  three beds as they are unless the owner asks again; if they do, tune them in `tools/make_sounds.py` and/or adjust
+  their levels in `scripts/ambience.gd`, and keep the "no random one-offs" rule.
 - **0.30.4 (hi-fi) is optional and not started.** Only build it for the sounds the owner picks after comparing old and
   new; do not start it unprompted.
 
