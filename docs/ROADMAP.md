@@ -4,10 +4,14 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are (2026-10-24):** 0.18.12: World art merged (0.18.0) plus the owner's fix list and two draw-call passes; Look is next. (Older note, 2026-10-12: 0.16.14.) Done: Map & Spawn (0.10), Scorched Earth (0.11), Scavs 2.0 (0.12), Movement
-(0.13), Items (0.14), Guns (0.15, mechanics only; gun models wait for the art updates) and Economy (0.16, closed at
-0.16.14; trader names and the owner's playtest of prices and quests still open). M1-M3 are done (co-op + PvP is live).
-Next: the M4 art updates (World art, Look, Sound), below.
+**Where we are (2026-11-04):** 0.29.14 (Engine update, Godot 4.7, closed at 0.29.13 plus a moving-parts fix). M4's
+World art (0.18), Look (0.19) and the 0.20 Sound update are done; **Sound 2.0 is the last unbuilt M4 item**, and its
+plan is `docs/SOUND_2_PLAN.md`. Then the **Stash update** gates the web beta and Steam. Done: Map & Spawn (0.10),
+Scorched Earth (0.11), Scavs 2.0 (0.12), Movement (0.13), Items (0.14), Guns (0.15, mechanics only; gun models wait
+for the art updates) and Economy (0.16, closed at 0.16.14; trader names and the owner's playtest of prices and quests
+still open). Also since then: the walkable hideout (0.21), World Reacts (0.22), jointed characters (0.23), the
+new-player tutorial (0.24), Checkpoint (0.25, the security pass), Keybinds (0.26), Durability (0.27) and the Engine
+update (0.29). M1-M3 are done (co-op + PvP is live).
 
 ### Up next, in order
 1. **Playtest the big map** (0.10 Map & Spawn, done through 0.10.3). Still untested live:
@@ -126,7 +130,8 @@ Next: the M4 art updates (World art, Look, Sound), below.
   walls; footsteps and enemy shots cut through while ambience dips in a fight. Echo and muffle are baked into the
   files, since the web skips bus effects. Footstep range and your own gun's loudness stay as today (owner).
   Optional: a full-quality remake of today's sounds (made at 22 kHz mono now), only for the sounds the owner picks
-  after comparing old and new. Plan: project file `sound/overhaul-plan.md`.
+  after comparing old and new. Plan: `docs/SOUND_2_PLAN.md` (the steps, the file list, the numbers and the
+  decisions that need the owner).
 - **Online security update (before the web beta / Steam; owner 2026-10-12, from a friend's checklist):** a server
   authority audit plus free, home-made anti-cheat (no paid anti-cheat service). Already on the server: what every
   shot and knife hits (map blocks shots, damage from the server's weapon stats, lag compensated for players and,
