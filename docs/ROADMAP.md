@@ -5,8 +5,9 @@ Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
 **Where we are (2026-11-04):** 0.29.14 (Engine update, Godot 4.7, closed at 0.29.13 plus a moving-parts fix). M4's
-World art (0.18), Look (0.19) and the 0.20 Sound update are done; **Sound 2.0 is the last unbuilt M4 item**, and its
-plan is `docs/SOUND_2_PLAN.md`. Then the **Stash update** gates the web beta and Steam. Done: Map & Spawn (0.10),
+World art (0.18), Look (0.19), the 0.20 Sound update and **Sound 2.0 (0.30.0-0.30.3) are done**; Sound 2.0's plan and
+status is `docs/SOUND_2_PLAN.md` (0.30.4, the optional hi-fi pass, is not started and only happens if the owner asks).
+**Next is the Stash update**, which gates the web beta and Steam. Done: Map & Spawn (0.10),
 Scorched Earth (0.11), Scavs 2.0 (0.12), Movement (0.13), Items (0.14), Guns (0.15, mechanics only; gun models wait
 for the art updates) and Economy (0.16, closed at 0.16.14; trader names and the owner's playtest of prices and quests
 still open). Also since then: the walkable hideout (0.21), World Reacts (0.22), jointed characters (0.23), the
