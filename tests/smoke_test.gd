@@ -3513,6 +3513,7 @@ func _section_matchmaking() -> void:
 	var stats := mm.stats_line()
 	_check(stats.contains("7 online (4 in the hideout, 3 in 1 raids)") and stats.contains("peak 7, 7 joins, 1 raids")
 		and not stats.contains("P1"), "the server log's player count adds up (%s)" % stats)
+	_check(mm.stats_data() == {"online": 7, "hideout": 4, "in_raids": 3, "raids": 1}, "the player history gets the same counts, numbers only (%s)" % mm.stats_data())
 	var raid: Dictionary = mm.raids[started[0]]
 	_check(raid["teams"][1] == raid["teams"][2] and raid["teams"][1] != raid["teams"][3], "the duo are teammates, the solo isn't")
 	_check(mm.join_party(4, code1).contains("full") and mm.set_queued(1, true).contains("back from"), "no joining or queueing a party that's in a raid")

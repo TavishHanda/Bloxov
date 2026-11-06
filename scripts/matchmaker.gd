@@ -56,11 +56,17 @@ func add_player(peer: int, player_name: String) -> void:
 
 ## The player-count line for the server log: who's online now, and totals since the server started.
 func stats_line() -> String:
+	var d := stats_data()
+	return "stats: %d online (%d in the hideout, %d in %d raids) | since start: peak %d, %d joins, %d raids" % [
+		d["online"], d["hideout"], d["in_raids"], d["raids"], stats_peak, stats_joins, stats_raids]
+
+
+## The same counts as numbers, for the owner's player history (0.30.7, Network posts them to STATS_URL).
+func stats_data() -> Dictionary:
 	var in_raids := 0
 	for id in raids:
 		in_raids += raids[id]["players"].size()
-	return "stats: %d online (%d in the hideout, %d in %d raids) | since start: peak %d, %d joins, %d raids" % [
-		players.size(), players.size() - in_raids, in_raids, raids.size(), stats_peak, stats_joins, stats_raids]
+	return {"online": players.size(), "hideout": players.size() - in_raids, "in_raids": in_raids, "raids": raids.size()}
 
 
 func remove_player(peer: int) -> void:

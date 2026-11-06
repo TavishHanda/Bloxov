@@ -170,6 +170,11 @@ var _send_left := 0.0
 var _queue_send_left := 0.0
 var _stats_left := STATS_EVERY
 var _last_stats := ""
+## Server: where to send the player count for the owner's history (0.30.7, owner: "history of people who have been
+## online... just a number"). The STATS_URL setting on the host (Heroku config var), e.g. a Google Sheet's Apps Script
+## web app; unset = nothing is sent. Only counts go out: never names or addresses.
+var _stats_url := ""
+var _stats_http: HTTPRequest
 
 
 func _enter_tree() -> void:
@@ -234,7 +239,8 @@ func start_server(port: int) -> Error:
 	mode = Mode.SERVER
 	matchmaker.raid_time = RAID_TIME
 	guard.log_func = _log
-	_log("v%s listening on port %d" % [version(), port])
+	_stats_url = OS.get_environment("STATS_URL").strip_edges()
+	_log("v%s listening on port %d%s" % [version(), port, " (player history on)" if _stats_url != "" else ""])
 	return OK
 
 
@@ -923,6 +929,24 @@ func _send_raid_start(id: int) -> void:
 		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []), raid_looks)
 
 
+## Server: posts the player counts (Matchmaker.stats_data, plus the version) to STATS_URL, every STATS_EVERY even
+## when nobody's on, so the history shows the quiet times too. Skipped while the last one is still on its way.
+func _send_stats() -> void:
+	if _stats_url == "":
+		return
+	if _stats_http == null:
+		_stats_http = HTTPRequest.new()
+		_stats_http.timeout = 20.0
+		add_child(_stats_http)
+	if _stats_http.get_http_client_status() != HTTPClient.STATUS_DISCONNECTED:
+		return
+	var body := matchmaker.stats_data()
+	body["version"] = version()
+	var err := _stats_http.request(_stats_url, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		_log("could not send the player history (error %d)" % err)
+
+
 func _now() -> float:
 	return Time.get_ticks_msec() / 1000.0
 
@@ -950,6 +974,7 @@ func _process(delta: float) -> void:
 		if not matchmaker.players.is_empty() or line != _last_stats:
 			_log(line)
 		_last_stats = line
+		_send_stats()
 	_queue_send_left -= delta
 	if _queue_send_left <= 0.0:
 		_queue_send_left = 1.0 / QUEUE_RATE
