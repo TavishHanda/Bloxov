@@ -31,6 +31,23 @@ first costs ~77 MB on top.
 
 **Rule of thumb:** `RSS ≈ 307 MB + 77 MB × active raids`.
 
+**Where one raid's memory goes** (measured 2026-11-06 on Linux, Godot static memory, 1 vs 3 raid worlds; ~67 MB a
+raid before 0.30.6):
+
+| Part | Per raid | Notes |
+| --- | --- | --- |
+| Map collision triangle list (`BoxMap.collision_faces`) | ~10 MB | **Shared since 0.30.6** |
+| Other map collision (2,200 box shapes for props, bars, bushes, windows) + level nodes | ~16 MB | |
+| AI navigation map (NavigationServer, from the shared baked mesh) | ~17 MB | |
+| AI bodies (spawned scavs/raiders with their models) | ~12 MB | |
+| Doors, loot | ~7 MB | |
+
+**The biggest lever left is the base, not the raids:** the server loads every model's meshes (~140 MB of static memory)
+that it never draws. A dedicated-server build (Godot's "Dedicated Server" export, *Strip Visuals*: meshes become
+`PlaceholderMesh` with their bounds, textures placeholders) would skip that. It needs the Docker image to run an
+exported server pack instead of the project folder (export templates in CI), so it is its own job; swapping meshes
+for placeholders after load only saved ~60 MB of RSS (the load still peaks).
+
 That puts these ceilings on the current build:
 
 | RAM | Raids that fit |

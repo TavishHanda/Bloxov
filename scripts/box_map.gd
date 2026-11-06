@@ -160,6 +160,8 @@ static func _shared_shape(faces: PackedVector3Array) -> ConcavePolygonShape3D:
 		shape = ConcavePolygonShape3D.new()
 		shape.backface_collision = true
 		shape.set_faces(faces)
+		# (the triangles too, so every raid's `collision_faces` points at this one copy, ~10 MB on the real map)
+		shape.set_meta(&"faces", faces)
 		_shapes[key] = weakref(shape)
 	return shape
 
@@ -272,6 +274,7 @@ func _ready() -> void:
 		add_child(_wading_area())
 	var collider := CollisionShape3D.new()
 	var shape := _shared_shape(faces)
+	collision_faces = shape.get_meta(&"faces", faces)   # (shared: one copy for every raid on this map, 0.30.6)
 	collider.name = "Shape"
 	collider.shape = shape
 	add_child(collider)
