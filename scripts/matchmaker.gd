@@ -12,8 +12,10 @@ extends RefCounted
 const MAX_PARTY := 2
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 6
-## Raids at once on one server (each will get its own world on the server once hits move there).
-const MAX_RAIDS := 4
+## Raids at once on one server. Each raid is its own copy of the map (~77 MB on top of ~307 MB for the server,
+## docs/HOSTING_CAPACITY.md), so Heroku's 512 MB Basic dyno fits 2; a 3rd group waits in the queue.
+## Raise it only on a box with more memory.
+const MAX_RAIDS := 2
 ## A raid is closed this long after its clock runs out, even if a player never said they left.
 const RAID_GRACE := 120.0
 const CODE_LETTERS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"

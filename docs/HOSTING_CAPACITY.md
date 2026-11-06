@@ -55,18 +55,17 @@ The caps are constants, not measurements:
 | What | Constant | Value |
 | --- | --- | --- |
 | Players online at once | `MAX_ONLINE` (`scripts/net.gd`) | 40 |
-| Raid lobbies at once | `MAX_RAIDS` (`scripts/matchmaker.gd`) | 4 |
+| Raid lobbies at once | `MAX_RAIDS` (`scripts/matchmaker.gd`) | 2 (was 4 until 0.30.5) |
 | Players per raid | `MAX_PLAYERS` (`scripts/matchmaker.gd`) | 6 |
 | Party size | `MAX_PARTY` (`scripts/matchmaker.gd`) | 2 |
 
-So the *intended* ceiling is 4 lobbies × 6 = 24 raiding, 40 online total.
+So the ceiling is 2 lobbies × 6 = 12 raiding, 40 online total (it was 4 lobbies until 0.30.5).
 
 **The real ceiling on a 512 MB Basic dyno is ~2 raids (~12 raiding, ~20 online).** Four simultaneous raids would
 exceed the dyno's memory and Heroku would log `R14` (memory quota exceeded) then `R15` (dyno killed). If that has
 never happened, it is because four raids have never overlapped in testing, not because it fits.
 
-**Decision to make before the Stash launch:** either set `MAX_RAIDS = 2` while on a Basic dyno, or move to a box
-with more RAM. Do not leave `MAX_RAIDS = 4` on 512 MB and hope.
+**Done in 0.30.5 (owner):** `MAX_RAIDS = 2` while on the Basic dyno. Raise it only after moving to a box with more RAM.
 
 ---
 
