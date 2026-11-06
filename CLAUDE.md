@@ -69,6 +69,8 @@
   import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
   Server raids are SubViewports (`RaidWorld`) in one process: node groups are global, so AI/spawner/nav code looks
   up groups with `RaidScope.nodes(self, group)` (only its own raid), never `get_tree().get_nodes_in_group`.
+  The server runs a stripped pack (0.30.9, export preset "Server", strip visuals): no real meshes/textures/materials
+  on the server, only placeholders with bounds; CI's `tools/server_pack_check.gd` runs raids inside it.
   Local Docker works here after starting `dockerd` (container apt has no network; copy the local Godot binary in to test).
 - Collision layers: 1 world, 2 player, 3 enemies (bit value 4), 4 interactables (bit value 8), 5 doors (bit value 16,
   world-art branch), 6 tree tops (bit value 32: only the AI's sight and shots check it, `BoxMap.LEAVES_LAYER`), 7 bushes (bit

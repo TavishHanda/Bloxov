@@ -55,6 +55,20 @@ jobs:
             exit 1
           fi
 
+      - name: Server pack check (raids inside the stripped server build the Dockerfile ships)
+        timeout-minutes: 3
+        run: |
+          mkdir -p build/server
+          godot --headless --export-pack "Server" build/server/bloxov_server.pck 2>&1 | tail -3
+          # Run from outside the project, so only the pack is the game (as on Heroku).
+          (cd /tmp && godot --headless --main-pack "$GITHUB_WORKSPACE/build/server/bloxov_server.pck" \
+            -s "$GITHUB_WORKSPACE/tools/server_pack_check.gd" -- 4) 2>&1 | tee pack.log
+          grep -q "SERVER PACK: OK" pack.log
+          if grep -E "SCRIPT ERROR|Parse Error|ERROR:" pack.log | grep -v "still in use at exit"; then
+            echo "::error::The server pack reported errors (see above)"
+            exit 1
+          fi
+
       - name: Smoke test (run the main scene, the hideout, for 300 frames)
         timeout-minutes: 2
         run: |

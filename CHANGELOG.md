@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.30.9 (Server without graphics: 4 raids at once)
+- **The online server now runs a stripped build with no graphics in it.** Godot's dedicated-server export (new
+  preset "Server", *Strip Visuals*) swaps every model, texture and material for a placeholder (meshes keep their
+  bounds), and the Dockerfile now builds that 10 MB pack and runs it instead of the whole project folder. The server
+  never drew anything, so nothing about the game changes.
+- Measured with real raids (six players and two minutes of AI each): idle server 202 -> 167 MB, one raid 399 -> 236 MB,
+  three raids 549 -> 376 MB, four raids ~440 MB.
+- **So the server takes 4 raids at once again** (`MAX_RAIDS` back to 4 from 0.30.5's 2) and still fits Heroku's
+  512 MB Basic dyno with room to spare: up to ~24 people raiding at once.
+- New CI check: `tools/server_pack_check.gd` exports the server pack and runs four busy raids inside it, failing on any
+  error, so server code that would need a real model is caught before deploy.
+
 ## 0.30.8 (Smooth loading: everything is built behind a loading bar, not while you play)
 - Owner: "people keep lagging when entering the game, in the hideout, and in raid... I want a way more clean
   experience loading on to the site, getting in to the hideout without any lag". Measured on a web build: the lag

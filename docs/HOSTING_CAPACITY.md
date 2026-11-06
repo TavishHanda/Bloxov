@@ -42,11 +42,22 @@ raid before 0.30.6):
 | AI bodies (spawned scavs/raiders with their models) | ~12 MB | |
 | Doors, loot | ~7 MB | |
 
-**The biggest lever left is the base, not the raids:** the server loads every model's meshes (~140 MB of static memory)
-that it never draws. A dedicated-server build (Godot's "Dedicated Server" export, *Strip Visuals*: meshes become
-`PlaceholderMesh` with their bounds, textures placeholders) would skip that. It needs the Docker image to run an
-exported server pack instead of the project folder (export templates in CI), so it is its own job; swapping meshes
-for placeholders after load only saved ~60 MB of RSS (the load still peaks).
+**Done in 0.30.9: the server runs a stripped pack.** Godot's "Dedicated Server" export (preset "Server",
+*Strip Visuals*: meshes become `PlaceholderMesh` with their bounds, textures and materials placeholders); the
+Dockerfile exports it and runs `godot --headless --main-pack bloxov_server.pck -- --server`. Measured on Linux
+(RSS, six players and two minutes of AI per raid):
+
+| Raids | Project folder (before) | Stripped pack |
+| --- | --- | --- |
+| 0 (idle server) | 202 MB | 167 MB |
+| 1 | 399 MB | 236 MB |
+| 3 | 549 MB | 376 MB |
+| 4 | — | ~440 MB |
+| 6 | 767 MB | 572 MB |
+
+New rule of thumb on the stripped pack: `RSS ≈ 170 MB + 67 MB × active raids`, so 512 MB fits 4 raids. CI runs
+`tools/server_pack_check.gd` (four busy raids inside the pack) before every deploy. Server code must not need a real
+mesh, texture or material: `get_aabb()` works, `surface_get_arrays()` and friends find no surfaces.
 
 That puts these ceilings on the current build:
 
@@ -72,17 +83,18 @@ The caps are constants, not measurements:
 | What | Constant | Value |
 | --- | --- | --- |
 | Players online at once | `MAX_ONLINE` (`scripts/net.gd`) | 40 |
-| Raid lobbies at once | `MAX_RAIDS` (`scripts/matchmaker.gd`) | 2 (was 4 until 0.30.5) |
+| Raid lobbies at once | `MAX_RAIDS` (`scripts/matchmaker.gd`) | 4 (2 in 0.30.5-0.30.8) |
 | Players per raid | `MAX_PLAYERS` (`scripts/matchmaker.gd`) | 6 |
 | Party size | `MAX_PARTY` (`scripts/matchmaker.gd`) | 2 |
 
-So the ceiling is 2 lobbies × 6 = 12 raiding, 40 online total (it was 4 lobbies until 0.30.5).
+So the ceiling is 4 lobbies × 6 = 24 raiding, 40 online total.
 
 **The real ceiling on a 512 MB Basic dyno is ~2 raids (~12 raiding, ~20 online).** Four simultaneous raids would
 exceed the dyno's memory and Heroku would log `R14` (memory quota exceeded) then `R15` (dyno killed). If that has
 never happened, it is because four raids have never overlapped in testing, not because it fits.
 
-**Done in 0.30.5 (owner):** `MAX_RAIDS = 2` while on the Basic dyno. Raise it only after moving to a box with more RAM.
+**Done:** 0.30.5 set `MAX_RAIDS = 2`; 0.30.9 moved the server to the stripped pack (below) and set it back to 4
+(~440 MB measured). Raise it only after moving to a box with more RAM.
 
 ---
 

@@ -4,4 +4,4 @@ build:
   docker:
     web: Dockerfile
 run:
-  web: godot --headless -- --server
+  web: godot --headless --main-pack /game/bloxov_server.pck -- --server
