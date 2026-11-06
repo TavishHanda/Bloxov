@@ -291,6 +291,41 @@ class StashApi {
     });
   }
 
+  // The owner's ban tool (server/src/admin.js): lift a ban (the count stays, so the next one is longer).
+  async unban({ account_id }) {
+    const done = await this.pool.query('update accounts set banned_until = null where id = $1', [account_id]);
+    if (!done.rowCount) throw new ApiError('no_account', 404);
+    return { ok: true };
+  }
+
+  // An account's id by its username (the owner's tools).
+  async find({ username }) {
+    const found = await this.pool.query('select id from accounts where lower(username) = lower($1)', [String(username || '')]);
+    if (!found.rowCount) throw new ApiError('no_account', 404);
+    return { account_id: found.rows[0].id };
+  }
+
+  // "Download my PvP data" (plan section 9, privacy): everything kept about the account, read-only. Never the
+  // password or recovery hashes, session tokens or ban notes beyond the dates.
+  async exportData({ account_id }) {
+    const account = await this.pool.query(`select username, display_name, email, created_at, last_seen_at, deleted_at,
+      banned_until, ban_count from accounts where id = $1`, [account_id]);
+    if (!account.rowCount) throw new ApiError('no_account', 404);
+    const profile = await this.pool.query('select data, revision, raid_state, updated_at from profiles where account_id = $1', [account_id]);
+    const raids = await this.pool.query(`select raid_id, result, loot_value, created_at from raid_results
+      where account_id = $1 order by created_at desc limit 500`, [account_id]);
+    const sessions = await this.pool.query(`select created_at, last_seen_at, expires_at from sessions
+      where account_id = $1 and revoked_at is null`, [account_id]);
+    return {
+      format: 'bloxov-pvp-data',
+      exported_at: this.now().toISOString(),
+      account: account.rows[0],
+      profile: profile.rowCount ? profile.rows[0] : null,
+      raid_results: raids.rows,
+      signed_in_sessions: sessions.rows,
+    };
+  }
+
   // The daily clean-up: accounts past their 30-day grace go for good; accounts unused for 12 months start the grace.
   async sweep() {
     const gone = await this.pool.query(`delete from accounts where deleted_at < now() - interval '${DELETE_GRACE_DAYS} days'`);

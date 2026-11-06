@@ -36,6 +36,7 @@ func _ready() -> void:
 	if enemy_spawner != null:
 		enemy_spawner.queue_free()
 	Network.main.connection_lost.connect(_on_connection_lost)
+	Network.main.rejoined.connect(_on_rejoined)
 	Network.main.got_hit.connect(apply_hit)
 	Network.main.shot_confirmed.connect(_on_shot_confirmed)
 	Network.main.kill_confirmed.connect(_on_kill_confirmed)
@@ -98,6 +99,8 @@ func _process(delta: float) -> void:
 	_message_left -= delta
 	if _message_left > 0.0:
 		pass
+	elif _lost and Network.main.rejoining():
+		_label.text = "Connection lost: reconnecting... (your place in the raid is kept for 2 minutes)"
 	elif _lost:
 		_label.text = "Disconnected from the server: you're on your own now."
 	else:
@@ -349,6 +352,12 @@ func _on_kill_confirmed(target: String) -> void:
 
 func _on_connection_lost() -> void:
 	_lost = true
+
+
+## Back in after a dropped connection (PvP: the server kept our place for 2 minutes).
+func _on_rejoined() -> void:
+	_lost = false
+	_show_message("Reconnected: back in the raid.")
 
 
 ## Another player fired (0.15.28): their gun's sound where they stand (a suppressor: quieter, carries less far)

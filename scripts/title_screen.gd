@@ -33,7 +33,8 @@ anti-cheat catches for a short time, to keep play fair.
 
 PvP account (only if you make one): your username, your password scrambled so it can't be read back, your PvP stash,
 money, loadout, stats, traders and quests, your raid results, and when you last played. No email and no real name.
-It's kept in a database hosted by Heroku until you delete it; accounts not used for 12 months are deleted.
+It's kept in a database hosted by Heroku until you delete it; accounts not used for 12 months are deleted. A ban for
+cheating is kept with the account. ONLINE > PvP ACCOUNT > DOWNLOAD MY PvP DATA gives you all of it as a file.
 
 On bloxov.com only: Cloudflare Web Analytics counts visits to the page (which page, browser, country, how fast it
 loaded). It uses no cookies and keeps nothing that identifies you. The phone and computer versions don't have it.

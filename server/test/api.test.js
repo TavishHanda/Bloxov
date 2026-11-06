@@ -107,6 +107,22 @@ test('stash api', { skip: !URL && 'TEST_DATABASE_URL not set' }, async (t) => {
     const second = await api.ban({ account_id: made.account_id });
     assert.ok(Math.abs(new Date(second.until) - clock - 7 * 24 * 3600000) < 5000);
     assert.equal((await api.ban({ account_id: made.account_id })).permanent, true);
+    await api.unban({ account_id: made.account_id });
+    assert.equal((await api.find({ username: 'CHEATER' })).account_id, made.account_id);
+    await api.login({ username: 'cheater', password: 'cheater pass' });
+    await fails(api.find({ username: 'nobody_here' }), 'no_account');
+  });
+
+  await t.test('the data export has the account and profile, never the secrets', async () => {
+    const made = await api.signup({ username: 'exporter', password: 'export pass 1', profile: { money: 7 } });
+    const out = await api.exportData({ account_id: made.account_id });
+    assert.equal(out.format, 'bloxov-pvp-data');
+    assert.equal(out.account.username, 'exporter');
+    assert.equal(out.profile.data.money, 7);
+    const text = JSON.stringify(out);
+    for (const secret of ['password_hash', 'recovery_hash', 'token_hash', made.token, made.recovery_code]) {
+      assert.equal(text.includes(secret), false, secret);
+    }
   });
 
   await t.test('delete: 30-day grace, cancelled by signing in, then gone', async () => {

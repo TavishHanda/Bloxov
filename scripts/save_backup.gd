@@ -62,13 +62,17 @@ static func apply(package: Dictionary) -> void:
 ## Hands the player the current save as a file: a download in the browser, a save dialog elsewhere.
 ## `on_done` gets a line to show (empty when there's nothing to say).
 static func export_file(owner: Node, on_done: Callable) -> void:
-	var text := pack()
+	save_text(owner, pack(), file_name(), on_done)
+
+
+## Hands the player `text` as a file called `name` (the save backup, or the PvP data download).
+static func save_text(owner: Node, text: String, name: String, on_done: Callable) -> void:
 	if OS.has_feature("web"):
-		JavaScriptBridge.download_buffer(text.to_utf8_buffer(), file_name(), "application/json")
-		on_done.call("Saved %s to your downloads." % file_name())
+		JavaScriptBridge.download_buffer(text.to_utf8_buffer(), name, "application/json")
+		on_done.call("Saved %s to your downloads." % name)
 		return
 	var dialog := _dialog(owner, FileDialog.FILE_MODE_SAVE_FILE)
-	dialog.current_file = file_name()
+	dialog.current_file = name
 	dialog.file_selected.connect(func(path: String) -> void:
 		var file := FileAccess.open(path, FileAccess.WRITE)
 		if file == null:

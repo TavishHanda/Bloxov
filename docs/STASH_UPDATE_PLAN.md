@@ -943,6 +943,12 @@ trusted: item wear at extract (the count is checked), and loading free starter a
 
 ### Phase 4 — in-raid item authority and bans (0.31.x/0.32)
 
+**Built 2026-11-06 as 0.31.5.** The reconnect keeps the player in the matchmaker and the raid (`Net._away`); a
+resume with `rejoin` on a new connection moves everything keyed by the old peer id to the new one (`Net.rejoin`,
+`Matchmaker.rebind`, `NetGuard.rebind`) and the game carries on in its own raid scene. While away the body can be
+shot (server health count); AI hits don't count, as for everyone. Bans: two kicks in one server run (a day) =
+`/v1/ban` (the API steps 24 h, 7 d, for good); `server/src/admin.js` for the owner. Export: `/v1/export`.
+
 - L4 option A (validate the final inventory against `_carried`) or B (report every item-state change).
 - Bans by account with escalation.
 - The orphan/crash policy and the "Saving…" flow.

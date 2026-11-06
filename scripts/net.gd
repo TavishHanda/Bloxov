@@ -22,6 +22,8 @@ signal connected
 signal connect_failed(reason: String)
 ## The connection dropped (the server stopped, or the internet went away).
 signal connection_lost
+## Back in the raid after a dropped connection (PvP, within RECONNECT_TIME).
+signal rejoined
 ## Party, queue, or a message from the server changed (the hideout redraws).
 signal party_changed
 signal queue_changed
@@ -90,6 +92,9 @@ const REVIVE_TIME := 5.0
 const MAX_ONLINE := 40
 ## A player's health (Health.max_health) and what a revive stands them up with (PlayerBase.revive_health); kept here
 ## because this autoload can't load the player scripts (the smoke test checks they match).
+## A signed-in player who drops out of a raid keeps their place this long (owner, 2026-11-04): their body stays (it
+## can still be shot), and if they come back on a new connection they carry on where they were. Then it's lost.
+const RECONNECT_TIME := 120.0
 const MAX_HEALTH := 100
 const REVIVE_HEALTH := 30
 ## How long a player may stay up on the server's count of 0 health before it calls them dead (their game's
@@ -127,6 +132,13 @@ var account_name := ""
 var online_profile := {}
 var issued_kit := {}
 var _pending_account: Array = []
+## Client: where and as whom we went online, and the session token, for coming back after a dropped connection.
+var _address := ""
+var _player_name := ""
+var _token := ""
+## Client: trying to get back into our raid until this time (0 = not trying), next try at _rejoin_next.
+var _rejoin_until := 0.0
+var _rejoin_next := 0.0
 ## Server: accounts and the online stash (NetAccounts), or null without a database (online play as before).
 var accounts: NetAccounts
 var teammates: Array[int] = []
@@ -174,6 +186,8 @@ var _kicked := {}
 ## What each player in a raid carries (NetGuard.count_stacks: item id -> how many), from their kit as the raid
 ## starts plus what they took, minus what they put down, fired and threw (0.25.1).
 var _carried := {}
+## Server: peer -> server time their reconnect window closes (dropped out of a raid, see RECONNECT_TIME).
+var _away := {}
 ## The server's own count of each player's health (0.25.2): [health, when it reached 0 or -1]. Only other players'
 ## hits count, through the best armor and helmet they carry, and every heal they finish adds; so it's never below
 ## their real health. Their game still runs their health; this only catches one that won't go down (god mode).
@@ -493,6 +507,8 @@ func kick(peer: int, reason: String) -> void:
 	_kicked[peer] = true
 	var who: String = matchmaker.players[peer]["name"] if matchmaker.players.has(peer) else "?"
 	_log("KICKED %s (peer %d): %s" % [who, peer, reason])
+	if accounts != null:
+		accounts.kicked(peer, reason)
 	if _peer_open(peer):
 		_rejected.rpc_id(peer, reason)
 	get_tree().create_timer(0.5).timeout.connect(func() -> void:
@@ -872,9 +888,86 @@ func _server_call(action: Callable) -> void:
 
 
 func _on_peer_left(peer: int) -> void:
-	if not matchmaker.players.has(peer):
+	if not matchmaker.players.has(peer) or _away.has(peer):
 		return
 	_log("%s (peer %d) went offline" % [matchmaker.players[peer]["name"], peer])
+	if _can_come_back(peer):
+		_away[peer] = _now() + RECONNECT_TIME
+		_log("%s: keeping their place in the raid for %d s" % [matchmaker.players[peer]["name"], int(RECONNECT_TIME)])
+		return
+	_drop(peer)
+
+
+## A signed-in player up and about in a raid (not down, dead or out) can come back (RECONNECT_TIME).
+func _can_come_back(peer: int) -> bool:
+	if accounts == null or _kicked.has(peer) or not accounts.in_raid(peer) or int(matchmaker.players[peer]["raid"]) == 0:
+		return false
+	var flags := int(_player_states[peer][4]) if _player_states.has(peer) else 0
+	return not flags & (Hitbox.FLAG_DEAD | Hitbox.FLAG_EXTRACTED | Hitbox.FLAG_DOWNED)
+
+
+## Players away from a raid (RECONNECT_TIME): out of time, shot dead meanwhile, or the raid's over: it's lost.
+func _check_away() -> void:
+	for peer: int in _away.keys():
+		var raid := int(matchmaker.players[peer]["raid"]) if matchmaker.players.has(peer) else 0
+		var dead := _health.has(peer) and float(_health[peer][0]) <= 0.0
+		if _now() < float(_away[peer]) and not dead and matchmaker.raids.has(raid):
+			continue
+		_away.erase(peer)
+		if accounts != null:
+			accounts.raid_over(peer, "killed" if dead else "left")
+		if matchmaker.players.has(peer):
+			_log("%s didn't come back: %s" % [matchmaker.players[peer]["name"], "killed" if dead else "gear lost"])
+			if dead and raid != 0:
+				_tell_kill_feed(raid, _last_attacker.get(peer, [0])[0], peer)
+		_drop(peer)
+
+
+## Back on a new connection (`new`, signed in as the account `old` was away from): `new` takes `old`'s place in the
+## raid, with what the server counted them carrying, their health and their strikes. Their game carries on.
+func rejoin(old: int, new: int) -> void:
+	_away.erase(old)
+	var raid := int(matchmaker.players[old]["raid"])
+	matchmaker.rebind(old, new)
+	for table: Dictionary in [_player_states, _hits_out, _reviving, _fix_sent, _carried, _in_extract, _health,
+			_player_kills, _last_shot, _shot_budget, _last_attacker]:
+		if table.has(old):
+			table[new] = table[old]
+			table.erase(old)
+	for victim in _last_attacker:
+		if _last_attacker[victim][0] == old:
+			_last_attacker[victim][0] = new
+	guard.rebind(old, new)
+	if _worlds.has(raid):
+		_worlds[raid].forget(old)
+	_log("%s came back to raid %d (peer %d)" % [matchmaker.players[new]["name"], raid, new])
+	_send_roster(raid, new)
+
+
+## The raid's names, looks and teams again (someone came back on a new connection); `back` gets the raid itself.
+func _send_roster(id: int, back: int) -> void:
+	var raid: Dictionary = matchmaker.raids[id]
+	var raid_names := {}
+	var raid_looks := {}
+	for peer in raid["players"]:
+		raid_names[peer] = matchmaker.players[peer]["name"]
+		raid_looks[peer] = matchmaker.players[peer].get("look", "")
+	for peer in raid["players"]:
+		if not _peer_open(peer):
+			continue
+		var team: Array[int] = []
+		for other in raid["players"]:
+			if other != peer and raid["teams"].get(other) == raid["teams"].get(peer):
+				team.append(other)
+		if peer == back:
+			_raid_rejoined.rpc_id(peer, matchmaker.raid_time_left(id), raid_names, team, raid_looks)
+		else:
+			_raid_roster.rpc_id(peer, raid_names, team, raid_looks)
+
+
+## Gone for good: everything about them goes.
+func _drop(peer: int) -> void:
+	_away.erase(peer)
 	if accounts != null:
 		accounts.sign_out(peer)
 	_player_states.erase(peer)
@@ -1001,10 +1094,18 @@ func _now() -> float:
 
 
 func _process(delta: float) -> void:
+	if mode == Mode.OFFLINE and _rejoin_until > 0.0 and _now() >= _rejoin_next:
+		if _now() > _rejoin_until:
+			_rejoin_until = 0.0
+		else:
+			_rejoin_next = _now() + 4.0
+			go_online(_address, _player_name)
 	if mode != Mode.SERVER:
 		return
 	for id in matchmaker.tick(delta):
 		_send_raid_start(id)
+	if not _away.is_empty():
+		_check_away()
 	_flush()
 	# Raids that ended: drop their worlds; players who left a raid: drop their history.
 	for id in _worlds.keys():
@@ -1054,6 +1155,8 @@ func _process(delta: float) -> void:
 ## Connects to a server. Emits `connected` or `connect_failed`.
 func go_online(address: String, player_name: String) -> void:
 	go_offline()
+	_address = address
+	_player_name = player_name
 	address = address.strip_edges()
 	if not address.contains("://"):
 		# Secure by default (the web page is https, so browsers refuse plain ws:// to other machines).
@@ -1084,7 +1187,8 @@ func go_offline() -> void:
 	mode = Mode.OFFLINE
 	in_raid = false
 	account_name = ""
-	issued_kit = {}
+	if _rejoin_until <= 0.0:
+		issued_kit = {}   # (kept while getting back into the raid: it's still what we went in with)
 	queued = false
 	party_code = ""
 	party_names = []
@@ -1114,6 +1218,7 @@ func start_now() -> void:
 
 ## Back in the hideout after a raid: tell the server (we stay online, in the same party).
 func leave_raid() -> void:
+	_rejoin_until = 0.0
 	if in_online_raid():
 		_leave_raid.rpc_id(1)
 	in_raid = false
@@ -1239,6 +1344,10 @@ func _on_connection_failed() -> void:
 
 func _on_server_disconnected() -> void:
 	var was_online := mode == Mode.CLIENT
+	if in_online_raid() and signed_in() and _token != "":
+		# PvP: the server keeps our place for RECONNECT_TIME; keep trying to get back in (a little less, to be safe).
+		_rejoin_until = _now() + RECONNECT_TIME - 10.0
+		_rejoin_next = _now() + 1.0
 	go_offline.call_deferred()
 	if was_online:
 		connection_lost.emit()
@@ -1252,6 +1361,10 @@ func _welcome(has_accounts := false) -> void:
 	in_raid = false
 	accounts_on = has_accounts
 	connected.emit()
+	if _rejoin_until > 0.0 and accounts_on and _token != "":
+		_account.rpc_id(1, "resume", {"token": _token, "take_over": true, "rejoin": true})
+		_pending_account = []
+		return
 	if not _pending_account.is_empty() and accounts_on:
 		_account.rpc_id(1, _pending_account[0], _pending_account[1])
 	elif not _pending_account.is_empty():
@@ -1268,6 +1381,11 @@ func account(action: String, fields: Dictionary) -> void:
 		_account.rpc_id(1, action, fields)
 	else:
 		_pending_account = [action, fields]
+
+
+## Client: trying to get back into our raid after a dropped connection.
+func rejoining() -> bool:
+	return _rejoin_until > 0.0
 
 
 func signed_in() -> bool:
@@ -1317,9 +1435,17 @@ func _account_result(action: String, ok: bool, data: Dictionary) -> void:
 	if ok and data.get("username") is String and data.get("profile") is Dictionary:
 		account_name = data["username"]
 		online_profile = data["profile"]
+		if data.get("token") is String:
+			_token = data["token"]
+		if action == "resume" and data.get("rejoin") != true:
+			_rejoin_until = 0.0   # (the raid was over: we're back online in the hideout's state)
+	elif _rejoin_until > 0.0 and action == "resume":
+		_rejoin_until = 0.0
+		go_offline()
 	elif action in ["sign_out", "delete", "signed_out"]:
 		account_name = ""
 		online_profile = {}
+		_token = ""
 	account_result.emit(action, ok, data)
 
 
@@ -1405,6 +1531,28 @@ func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team
 	teammates = team
 	states.clear()
 	raid_started.emit()
+
+
+## Client: back in our raid after a dropped connection (the server kept our place): carry on where we are.
+@rpc("authority", "call_remote", "reliable")
+func _raid_rejoined(time_left: float, raid_names: Dictionary, team: Array[int], raid_looks: Dictionary) -> void:
+	_rejoin_until = 0.0
+	in_raid = true
+	raid_time_left = time_left
+	names = raid_names
+	teammates = team
+	looks = raid_looks
+	states.clear()
+	rejoined.emit()
+
+
+## Client: someone in our raid came back on a new connection: their name, look and team under their new id.
+@rpc("authority", "call_remote", "reliable")
+func _raid_roster(raid_names: Dictionary, team: Array[int], raid_looks: Dictionary) -> void:
+	if in_raid:
+		names = raid_names
+		teammates = team
+		looks = raid_looks
 
 
 ## Server: sends a hit to a player and remembers who it was from, for their report of what it did.

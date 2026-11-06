@@ -4084,6 +4084,11 @@ func _section_pvp_accounts() -> void:
 	await _until(func() -> bool: return not b.online_profile.is_empty())
 	_check(int(b.online_profile.get("money", 0)) == 12345 and int(server.accounts.by_peer[b_id]["profile"]["money"]) == 12345
 		and str(last.call(b)[2].get("text", "")).contains("didn't accept"), "money from nowhere is refused and the stash put back")
+	# "Download my PvP data" (privacy): what the database keeps, sent back read-only.
+	b.account("export", {})
+	await _until(func() -> bool: return last.call(b)[0] == "export")
+	_check(last.call(b)[1] and last.call(b)[2].get("format") == "bloxov-pvp-data" and last.call(b)[2]["account"]["username"] == "alpha_1",
+		"DOWNLOAD MY PvP DATA gets the account's data from the server")
 	# Ming's boxes are rolled by the server.
 	var opened := []
 	b.box_opened.connect(func(box: String, id: String) -> void: opened.append(id))
@@ -4106,6 +4111,22 @@ func _section_pvp_accounts() -> void:
 		"the queue starts a raid and the server issues each kit from the saved loadout")
 	_check(fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["raid"]["state"] == "in_raid" and server.accounts.by_peer[b_id]["profile"]["loadout"]["equipment"].is_empty(),
 		"the server saves the raid as started, gear at risk")
+	# A dropped connection mid-raid (owner, 2026-11-04: 2 minutes to come back): the server keeps the place, the game
+	# reconnects by itself and carries on, with what the server counted it carrying.
+	var b_carried: Dictionary = server._carried[b_id].duplicate()
+	server.multiplayer.multiplayer_peer.disconnect_peer(b_id)
+	await _until(func() -> bool: return server._away.has(b_id))
+	_check(server._away.has(b_id) and server.matchmaker.players.has(b_id) and server.accounts.in_raid(b_id) and b.rejoining(),
+		"a PvP player who drops out of a raid keeps their place, and their game tries to get back in")
+	var b_old := b_id
+	await _until(func() -> bool: return b.in_raid and b.signed_in() and not b.rejoining(), 8.0)
+	b_id = b.multiplayer.get_unique_id()
+	_check(b.in_raid and b.signed_in() and b_id != b_old and not server._away.has(b_old) and server.accounts.in_raid(b_id)
+		and server._carried.get(b_id) == b_carried and server.matchmaker.raids[server.matchmaker.players[b_id]["raid"]]["players"].has(b_id)
+		and not server.matchmaker.players.has(b_old),
+		"coming back on a new connection carries on in the same raid, with the same kit counted")
+	await _until(func() -> bool: return a.names.has(b_id))
+	_check(a.names.get(b_id) == "Bravo" and not a.names.has(b_old), "the others see them under their new connection")
 	b.send_kit([GridInventory.stack_data(ItemStack.new("gold_watch", 9))])
 	await _frames(5)
 	_check(not server._carried[b_id].has("gold_watch"), "a PvP player's own kit list doesn't count (the server's does)")
@@ -4125,10 +4146,16 @@ func _section_pvp_accounts() -> void:
 	_check(int(b.online_profile.get("quest_progress", {}).get("zeroing_in", 0)) == 2,
 		"the server moves PvP kill quests from the kills it counted (%s)" % b.online_profile.get("quest_progress"))
 	_check(server.guard.strike_points(b_id, server._now()) > strikes_before + 2.0, "coming out with more than the server counted is a strike")
-	a.send_state([Vector3(0, 0.1, 0), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
-	await _until(func() -> bool: return a.online_profile.get("stats", {}).get("deaths", 0) == 1)
-	_check(int(a.online_profile["stats"]["deaths"]) == 1 and a.online_profile["loadout"]["equipment"].is_empty()
-		and fake.results.any(func(r: Dictionary) -> bool: return r["result"] == "killed"), "dying saves the lost gear on the server")
+	# Alpha drops out and is shot dead while away: lost, and their game finds the raid over when it gets back.
+	server.multiplayer.multiplayer_peer.disconnect_peer(a_id)
+	await _until(func() -> bool: return server._away.has(a_id))
+	server._health[a_id] = [0.0, -1.0]
+	await _until(func() -> bool: return not server._away.has(a_id) and not server.matchmaker.players.has(a_id))
+	_check(fake.results.any(func(r: Dictionary) -> bool: return r["result"] == "killed"), "shot dead while away: the raid is lost")
+	await _until(func() -> bool: return a.signed_in() and not a.rejoining(), 8.0)
+	a_id = a.multiplayer.get_unique_id()
+	_check(a.signed_in() and not a.in_raid and int(a.online_profile["stats"]["deaths"]) == 1
+		and a.online_profile["loadout"]["equipment"].is_empty(), "dying saves the lost gear on the server; coming back finds it so")
 	a.leave_raid()
 	b.leave_raid()
 	await _until(func() -> bool: return int(server.matchmaker.players[a_id]["raid"]) == 0)
@@ -4155,6 +4182,13 @@ func _section_pvp_accounts() -> void:
 	await _until(func() -> bool: return said[a][-1][0] == "resume")
 	_check(a.signed_in() and last.call(a)[1], "remember me signs back in with the session")
 	server.guard.forget(a_id)
+	# Kicked by the anti-cheat twice in a day: banned (24 hours, then 7 days, then for good; the API counts).
+	server.accounts.kicked(a_id, "test")
+	_check(fake.accounts["alpha_2"]["banned"] == "", "one kick isn't a ban")
+	server.accounts.kicked(a_id, "test")
+	await _until(func() -> bool: return fake.accounts["alpha_2"]["banned"] != "")
+	_check(fake.accounts["alpha_2"]["banned"] != "", "kicked twice in a day: the account is banned")
+	fake.accounts["alpha_2"]["banned"] = ""
 	a.account("delete", {})
 	await _until(func() -> bool: return said[a][-1][0] == "delete")
 	a.account("sign_in", {"username": "alpha_2", "password": "long password 2"})
@@ -4325,10 +4359,14 @@ func _send_test_kit(c: Network) -> void:
 
 
 ## Waits until `condition` is true (checked every frame, up to ~5 s).
-func _until(condition: Callable) -> void:
-	for i in 300:
+func _until(condition: Callable, seconds := 0.0) -> void:
+	# (seconds > 0: wait up to that much real time instead of 300 frames, for things on a real clock)
+	var until := Time.get_ticks_msec() + int(seconds * 1000.0)
+	var i := 0
+	while (i < 300 if seconds <= 0.0 else Time.get_ticks_msec() < until):
 		if condition.call():
 			return
+		i += 1
 		await process_frame
 
 

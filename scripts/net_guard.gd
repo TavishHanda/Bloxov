@@ -154,6 +154,14 @@ func reset_moves(peer: int) -> void:
 	_moves.erase(peer)
 
 
+## A player came back on a new connection (the 2-minute reconnect, 0.31.5): their strikes come with them.
+func rebind(old: int, new: int) -> void:
+	if _strikes.has(old):
+		_strikes[new] = _strikes[old]
+	forget(old)
+	_moves.erase(new)
+
+
 func forget(peer: int) -> void:
 	_buckets.erase(peer)
 	_strikes.erase(peer)

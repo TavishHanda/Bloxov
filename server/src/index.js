@@ -21,6 +21,7 @@ const ROUTES = {
   '/v1/save': 'save',
   '/v1/delete': 'remove',
   '/v1/ban': 'ban',
+  '/v1/export': 'exportData',
 };
 const MAX_BODY = 300000;
 

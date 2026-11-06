@@ -1277,6 +1277,10 @@ func _account_action(action: String, fields: Dictionary) -> void:
 func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 	if signin_panel == null:
 		return
+	if ok and action == "export":
+		var name := "bloxov-pvp-data-%s.json" % Network.main.account_name
+		SaveBackup.save_text(self, JSON.stringify(data, "  "), name, func(line: String) -> void: _signin_note.text = line)
+		return
 	if ok and data.get("token") is String:
 		SessionStore.save(data["token"], str(data.get("username", "")))
 	if ok and data.has("profile"):
@@ -1412,6 +1416,7 @@ func _show_signin_page(page: String) -> void:
 			_signin_title.text = "PvP ACCOUNT"
 			hint.call("Signed in as %s. Others see the name in the ONLINE panel, never your username." % Network.main.account_name)
 			button.call("SignOut", "SIGN OUT", false, func() -> void: _account_action("sign_out", {}))
+			button.call("Export", "DOWNLOAD MY PvP DATA", false, func() -> void: _account_action("export", {}))
 			hint.call("Deleting your PvP account removes its stash, money, loadout, stats, traders and quests after 30 days (sign in before then to cancel). Your PvE stash stays. Type DELETE to confirm.")
 			var confirm: LineEdit = edit.call("Confirm", "DELETE", false, 6)
 			var delete: Button = button.call("Delete", "DELETE PvP ACCOUNT", false, func() -> void:

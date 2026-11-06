@@ -77,6 +77,27 @@ func remove_player(peer: int) -> void:
 	players.erase(peer)
 
 
+## A player in a raid came back on a new connection (`new`, just added by add_player): `new` takes `old`'s place in
+## their party and raid, and `old` is gone (the 2-minute reconnect, 0.31.5).
+func rebind(old: int, new: int) -> void:
+	if not players.has(old) or not players.has(new):
+		return
+	_leave_party_of(new)
+	players[new] = players[old]
+	players.erase(old)
+	var party: Dictionary = parties.get(players[new]["party"], {})
+	if not party.is_empty() and party["members"].has(old):
+		party["members"][party["members"].find(old)] = new
+		changed_parties[players[new]["party"]] = true
+	var raid: Dictionary = raids.get(players[new]["raid"], {})
+	if not raid.is_empty() and raid["players"].has(old):
+		raid["players"][raid["players"].find(old)] = new
+		for key in ["teams", "spawns"]:
+			if raid[key].has(old):
+				raid[key][new] = raid[key][old]
+				raid[key].erase(old)
+
+
 func party_of(peer: int) -> Dictionary:
 	return parties.get(players[peer]["party"], {}) if players.has(peer) else {}
 

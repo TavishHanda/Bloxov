@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.5 (Stash update, step 4: reconnect, bans, your data)
+- **2-minute reconnect in PvP** (owner, 2026-11-04): if your connection drops mid-raid, the server keeps your place
+  (your body stays and can still be shot) and the game reconnects by itself and carries on where you are, with the
+  same kit. Not back within 2 minutes, or killed meanwhile: the raid is lost, as before.
+- **Bans** (24 hours, then 7 days, then for good, owner): an account the anti-cheat kicks twice in a day is banned;
+  the owner can ban, unban or look up an account with `server/src/admin.js` (`heroku run`). Banned accounts can't
+  sign in and are told until when.
+- **DOWNLOAD MY PvP DATA** (ONLINE > PvP ACCOUNT): everything the database keeps about your account, as a file.
+  The privacy pages say so; the store privacy form answers are drafted in `docs/STORE_PRIVACY_FORMS.md`.
+- Smoke test: reconnecting carries on in the same raid; shot dead while away is lost; the data download; two kicks
+  make a ban. Stash API tests: unban, find, the export never has a password or token.
+
 ## 0.31.4 (PvP for everyone, server-counted quests)
 - **The PvE/PvP switch is on for everyone** (owner): plain bloxov.com has it, no `?pvp_stash` needed. PLAY / PvE
   stays your stash on this device; ONLINE switches to PvP, asks you to sign in or make an account, and opens your PvP

@@ -27,6 +27,10 @@ var boot := ""
 var by_peer := {}
 ## account id -> peer.
 var by_account := {}
+## account id -> times kicked for cheating since the server started (it restarts daily). KICKS_TO_BAN of them is a
+## ban: 24 hours, then 7 days, then for good (the Stash API counts the bans).
+var kicks := {}
+const KICKS_TO_BAN := 2
 
 
 func _init(owner: Node, stash_api: StashClient) -> void:
@@ -37,6 +41,11 @@ func _init(owner: Node, stash_api: StashClient) -> void:
 
 func signed_in(peer: int) -> bool:
 	return by_peer.has(peer)
+
+
+## Signed in and in a raid the server is counting for them.
+func in_raid(peer: int) -> bool:
+	return by_peer.has(peer) and by_peer[peer]["raid"]["state"] == IN_RAID
 
 
 ## A sign-in screen action from `peer`. Answers with Net._account_result.
@@ -62,6 +71,12 @@ func handle(peer: int, action: String, fields: Dictionary) -> void:
 		"recover":
 			reply = await api.request("recover", {"username": text.call("username", 20),
 				"recovery_code": text.call("code", 20), "new_password": text.call("password", 128)})
+		"export":
+			# "Download my PvP data" (privacy): what the database keeps about them, read-only.
+			var record: Dictionary = by_peer.get(peer, {})
+			if not record.is_empty():
+				_answer(peer, action, await api.request("export", {"account_id": record["account_id"]}))
+			return
 		"sign_out", "delete":
 			var record: Dictionary = by_peer.get(peer, {})
 			if record.is_empty():
@@ -81,6 +96,23 @@ func handle(peer: int, action: String, fields: Dictionary) -> void:
 		_answer(peer, action, reply)
 		return
 	var other: int = by_account.get(reply["account_id"], 0)
+	if other != 0 and other != peer and fields.get("rejoin") == true and in_raid(other) and not by_peer.has(peer):
+		# Back after a dropped connection (Net.RECONNECT_TIME): the server's copy of them and their raid carry on.
+		# Their old connection may not have closed yet as far as the server knows: it goes now, place kept.
+		if not net._away.has(other):
+			net._on_peer_left(other)
+			if net._peer_open(other):
+				net.multiplayer.multiplayer_peer.disconnect_peer(other)
+		if net._away.has(other):
+			var back: Dictionary = by_peer[other]
+			by_peer.erase(other)
+			by_peer[peer] = back
+			by_account[back["account_id"]] = peer
+			back["display_name"] = _name(peer)
+			net.rejoin(other, peer)
+			_answer(peer, action, {"username": back["username"], "token": reply["token"], "profile": back["profile"],
+				"rejoin": true})
+			return
 	if other != 0 and other != peer:
 		if not take_over:
 			_answer(peer, action, {"error": "in_use"})
@@ -133,6 +165,24 @@ func _bind(peer: int, reply: Dictionary) -> void:
 		net._log("%s: raid %s put right as %s" % [record["username"], raid_id, "crash" if crashed else "left"])
 	elif record["display_name"] != str(reply.get("display_name", "")):
 		_persist(record)   # (the name they play under: what others see, never the username)
+
+
+## The anti-cheat kicked them (Net.kick). Kicked again on the same day: banned.
+func kicked(peer: int, reason: String) -> void:
+	var record: Dictionary = by_peer.get(peer, {})
+	if record.is_empty():
+		return
+	var account: String = record["account_id"]
+	kicks[account] = int(kicks.get(account, 0)) + 1
+	net._log("%s kicked (%d today): %s" % [record["username"], kicks[account], reason])
+	if int(kicks[account]) < KICKS_TO_BAN:
+		return
+	kicks.erase(account)
+	var reply: Dictionary = await api.request("ban", {"account_id": account, "reason": "kicked for cheating %d times" % KICKS_TO_BAN})
+	if reply.has("error"):
+		net._log("%s: the ban didn't save (%s)" % [record["username"], reply["error"]])
+	else:
+		net._log("BANNED %s %s" % [record["username"], "for good" if reply.get("permanent") == true else "until " + str(reply.get("until", ""))])
 
 
 ## Signed out, taken over, or gone: a raid they're in counts as left (gear lost).

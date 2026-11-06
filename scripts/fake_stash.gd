@@ -121,6 +121,14 @@ func _delete(body: Dictionary) -> Dictionary:
 	return {"delete_on": "2099-01-01T00:00:00Z"}
 
 
+func _export(body: Dictionary) -> Dictionary:
+	for account: Dictionary in accounts.values():
+		if account["id"] == body.get("account_id"):
+			return {"format": "bloxov-pvp-data", "account": {"username": account["username"]},
+				"profile": {"data": profiles[account["id"]]["data"]}, "raid_results": results}
+	return {"error": "no_account"}
+
+
 func _ban(body: Dictionary) -> Dictionary:
 	for account: Dictionary in accounts.values():
 		if account["id"] == body.get("account_id"):
