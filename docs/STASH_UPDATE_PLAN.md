@@ -226,8 +226,10 @@ ready kits is roughly twice the best kit the sim models, uses 134 of the 160 sta
 makes armor disposable. **One ready kit** keeps the three Hounds and five Stingers as the "lose two, still fight"
 buffer, and the $50k rebuys armor and meds.
 
-- **Every starter item carries the `free` flag** (`ItemStack.FREE`), so it cannot be sold to a trader. Otherwise a
-  fresh account is a ~$75k payday. The $50k cash is the only spendable money.
+- **The starter kit is sellable (decided 2026-11-04).** The items are ordinary stacks, not `free` ones. Selling the
+  whole kit returns about $59k at the 60% gear rate, which is a deliberately bad trade against the $154k buy price:
+  the player can do it, but they end up with cash and no gear. The **repeatable** free kit (the safety net) stays
+  `free`/unsellable, because it can be taken again every raid; selling that would turn "I have nothing" into income.
 - **The one-time starter kit is separate from the repeatable free kit.** The free kit stays as today (Stinger, 30
   rounds, bandage, small backpack), still one per raid, only when empty, and still unsellable.
 - **Trader side effect:** $50k spent at Ponta reaches level 3 (the threshold is $40k), unlocking the Lancer, 4x/8x
@@ -470,9 +472,10 @@ create table meta (key text primary key, value text not null);
   transaction. The solo profile is untouched. Show a confirmation that says what is deleted and what stays.
 - **Backups:** Heroku Postgres keeps its own backups for a few days. Say so in the privacy policy; do not promise
   "instant, everywhere".
-- **Inactive accounts:** proposed cleanup after 12 months with no `last_seen_at`. If the account has a verified email,
-  send one warning first; if not, there is no way to warn. Alternative: never delete. **Owner decision.** For now, do
-  not auto-delete; revisit before launch.
+- **Inactive accounts (decided 2026-11-04): delete after 12 months with no `last_seen_at`.** If the account has a
+  verified email, send one warning at 11 months; with no email there is no way to warn, so the privacy policy says
+  inactivity is a deletion reason. At 12 months the account is marked deleted and the normal 30-day grace runs, then
+  the hard delete. A monthly job does the sweep.
 - **Logs:** the server logs names, kicks and account ids. Keep the existing short retention and say so in the privacy
   policy.
 
