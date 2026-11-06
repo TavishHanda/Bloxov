@@ -1026,6 +1026,8 @@ how the existing in-process `net`/`pvp` tests keep working without a database.
   map for seconds, so this is noise.
 - 40 online players, 4 raids: at most 40 profiles in memory, a few writes per second. Postgres Mini is plenty; the
   risk is connection count, so pool 5-10.
+- **But 4 raids do not fit the current 512 MB Basic dyno** (measured: ~77 MB per raid + ~307 MB baseline ≈ 2 raids).
+  Either set `MAX_RAIDS = 2` or move to a bigger box before the online launch; see `docs/HOSTING_CAPACITY.md`.
 - Measure the hideout's economy round-trip; if it is noticeable, batch and debounce, and keep the UI optimistic.
 
 ---
