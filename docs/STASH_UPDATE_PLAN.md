@@ -1106,6 +1106,11 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
     warning at 11 months; without one, the privacy policy says inactivity is a deletion reason. At 12 months the
     account is marked deleted and the normal 30-day grace runs, then the hard delete. A monthly job does the sweep.
 
+19. **Database host (2026-11-06):** **Heroku Postgres Essential-0** ($5/mo, on the credit) beside the current dyno.
+    The VPS move waits until before Steam (owner, 2026-11-06), which overrides `docs/HOSTING_CAPACITY.md` §4 point 2.
+    Plain Postgres only (no Heroku-only extras) so the later move is a `pg_dump`. Measure the dyno's memory with the
+    API sidecar; `MAX_RAIDS` may need to drop from 4 to 3.
+
 ### Still open
 
 None right now. Anything new goes here before it is built.
