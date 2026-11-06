@@ -116,7 +116,7 @@ func _bind(peer: int, reply: Dictionary) -> void:
 	var record := {"account_id": reply["account_id"], "username": reply["username"], "profile": profile,
 		"revision": int(reply.get("revision", 1)), "raid": {"state": IDLE, "id": null, "snapshot": null},
 		"results": [], "busy": false, "dirty": false, "kit": {}, "final": null, "extracted": false,
-		"display_name": _name(peer), "after_raid": false}
+		"display_name": _name(peer), "kills": []}
 	by_peer[peer] = record
 	by_account[record["account_id"]] = peer
 	net._log("%s signed in (peer %d)" % [record["username"], peer])
@@ -157,7 +157,7 @@ func save(peer: int, data: Variant) -> bool:
 	if clean.is_empty():
 		return false
 	clean["stats"] = record["profile"]["stats"]
-	var why := OnlineProfile.audit(record["profile"], clean, record["after_raid"])
+	var why := OnlineProfile.audit(record["profile"], clean)
 	if why != "":
 		# Refused: their game shows the server's copy again. Not a strike (a lag-crossed save can land here too).
 		net._log("%s: hideout change refused (%s)" % [record["username"], why])
@@ -165,7 +165,6 @@ func save(peer: int, data: Variant) -> bool:
 			net._profile_sync.rpc_id(peer, record["profile"])
 			net._notice.rpc_id(peer, "The server didn't accept that change, so your PvP stash is back as it was.")
 		return true
-	record["after_raid"] = false
 	record["profile"] = clean
 	_persist(record)
 	return true
@@ -196,11 +195,20 @@ func raid_starting(peer: int, raid: int) -> Dictionary:
 	record["kit"] = kit
 	record["final"] = null
 	record["extracted"] = false
+	record["kills"] = []
 	record["raid"] = {"state": IN_RAID, "id": "%s-%d" % [boot, raid], "snapshot": kit}
 	record["profile"]["loadout"] = OnlineProfile.death_loadout(kit)
 	record["profile"]["free_kit_raid"] = -1
 	_persist(record)
 	return kit
+
+
+## They killed an AI in their raid (net.gd's _damage): counted here for their PvP quests, which move when they
+## extract (as Quests.raid_ended does offline). `weapon` is the gun's item id ("" for the knife).
+func raid_kill(peer: int, target: String, weapon: String) -> void:
+	var record: Dictionary = by_peer.get(peer, {})
+	if not record.is_empty() and record["raid"]["state"] == IN_RAID:
+		record["kills"].append([target, weapon])
 
 
 ## The server accepted their extract. Saved once their game has sent what they came out with.
@@ -238,6 +246,7 @@ func raid_over(peer: int, result: String) -> void:
 	if result == "extracted" and record["final"] is Dictionary:
 		record["profile"]["loadout"] = record["final"]
 		value = maxi(OnlineProfile.worth(record["final"]) - OnlineProfile.worth(record["kit"]), 0)
+		OnlineProfile.raid_quests(record["profile"], record["kills"], value)
 	else:
 		result = "killed" if result == "killed" else "left"
 	_finish(record, result, value)
@@ -257,7 +266,7 @@ func _finish(record: Dictionary, result: String, value: int) -> void:
 	record["raid"] = {"state": IDLE, "id": null, "snapshot": null}
 	record["kit"] = {}
 	record["final"] = null
-	record["after_raid"] = true   # (the next hideout save may carry the raid's quest progress)
+	record["kills"] = []
 	_persist(record)
 
 

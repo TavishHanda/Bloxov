@@ -549,7 +549,7 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 		if other != peer and _peer_open(other):
 			_player_fired.rpc_id(other, peer, from, noise_end, weapon, suppressed)
 	for key: Variant in targets:
-		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0])
+		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0], weapon)
 
 
 ## Tells everyone in raid `raid_id` that `victim` died, and who killed them (0 = nobody got the credit).
@@ -834,7 +834,7 @@ func client_view_time_of(_peer: int) -> float:
 
 
 ## Applies a hit the server decided on: to a player (their game applies it, through their armor) or a scav.
-func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3) -> void:
+func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3, weapon := "") -> void:
 	var killed := false
 	# What the attacker's damage number shows: a scav's real damage taken. A player's game applies the hit through
 	# their armor and reports what it did (0.17.1, owner: numbers after armor), so for them the number comes later.
@@ -851,9 +851,13 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3)
 		killed = health.is_dead
 	if _peer_open(attacker):
 		_hit_confirmed.rpc_id(attacker, hit["headshot"], shown, hit.get("end", attacker_pos))
-		if killed:
-			# (what it was, by its scene's name: scav, sniper, raider, boss; for quests, 0.16.13)
-			_kill_confirmed.rpc_id(attacker, String(hit["enemy"].scene_file_path).get_file().get_basename())
+	if killed:
+		# (what it was, by its scene's name: scav, sniper, raider, boss; for quests, 0.16.13)
+		var target := String(hit["enemy"].scene_file_path).get_file().get_basename()
+		if _peer_open(attacker):
+			_kill_confirmed.rpc_id(attacker, target)
+		if accounts != null:
+			accounts.raid_kill(attacker, target, weapon)   # (PvP quests are counted here, 0.31.4)
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.

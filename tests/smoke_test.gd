@@ -65,6 +65,9 @@ var expected_value := 0
 
 func _initialize() -> void:
 	_backup_profile()
+	# PvP is on for everyone since 0.31.4; the sections test the one-stash online flow unless they force it on.
+	_pvp_default_was = GameSettings.pvp_stash_default
+	GameSettings.pvp_stash_default = false
 	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
 	# it runs faster than real time; the whole test is about 300 game seconds.)
 	create_timer(450.0, true).timeout.connect(func() -> void:
@@ -3322,12 +3325,16 @@ func _section_settings() -> void:
 		"the loading covers lift once frames are smooth (%d ms)" % (Time.get_ticks_msec() - settle_from))
 
 
+var _pvp_default_was := false
+
+
 func _section_stash_modes() -> void:
 	# Stash update Phase 1 (0.31): PvE (the save on this device) and PvP (the online stash; a preview until 0.31.0)
 	# are separate stashes. The solo save never takes PvP data, a backup is always the PvE stash, and the switch
 	# is hidden until PvP accounts go live.
 	Profile.load_profile()
-	_check(not GameSettings.pvp_stash_on(), "the PvE/PvP switch is hidden without the preview flag")
+	_check(_pvp_default_was, "the PvE/PvP switch is on for everyone (owner, 0.31.4)")
+	_check(not GameSettings.pvp_stash_on(), "the PvE/PvP switch can still be turned off (tests)")
 	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
 	root.add_child(hideout)
 	await process_frame
@@ -4106,6 +4113,8 @@ func _section_pvp_accounts() -> void:
 	var out: Dictionary = b.issued_kit.duplicate(true)
 	out["pockets"].append({"id": "gold_watch", "count": 1, "x": 3, "y": 0})
 	var strikes_before: float = server.guard.strike_points(b_id, server._now())
+	server.accounts.raid_kill(b_id, "scav", "ak")   # (as net.gd's _damage reports a kill)
+	server.accounts.raid_kill(b_id, "scav", "")
 	b.send_final_kit(out)
 	await _until(func() -> bool: return server.accounts.by_peer[b_id]["final"] != null)
 	server.accounts.extracted(b_id)
@@ -4113,6 +4122,8 @@ func _section_pvp_accounts() -> void:
 	_check(int(b.online_profile["stats"]["extracts"]) == 1 and fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["raid"]["state"] == "idle"
 		and OnlineProfile.count(b.online_profile["loadout"]).get("gold_watch", 0) == 1 and fake.results[-1]["result"] == "extracted",
 		"extracting saves what came out and sends the result back")
+	_check(int(b.online_profile.get("quest_progress", {}).get("zeroing_in", 0)) == 2,
+		"the server moves PvP kill quests from the kills it counted (%s)" % b.online_profile.get("quest_progress"))
 	_check(server.guard.strike_points(b_id, server._now()) > strikes_before + 2.0, "coming out with more than the server counted is a strike")
 	a.send_state([Vector3(0, 0.1, 0), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
 	await _until(func() -> bool: return a.online_profile.get("stats", {}).get("deaths", 0) == 1)
@@ -4176,14 +4187,14 @@ func _section_pvp_hideout() -> void:
 	Profile.use_online(start)
 	hideout._reload_stash()
 	var snap := func() -> Dictionary: return JSON.parse_string(JSON.stringify(Profile.online_data()))
-	var step := func(what: String, act: Callable, after_raid := false) -> void:
+	var step := func(what: String, act: Callable) -> void:
 		hideout.save_now()
 		var before: Dictionary = snap.call()
 		act.call()
 		hideout.save_now()
 		var after := OnlineProfile.clean(snap.call())
 		after["stats"] = before["stats"]
-		var why := OnlineProfile.audit(OnlineProfile.clean(before), after, after_raid)
+		var why := OnlineProfile.audit(OnlineProfile.clean(before), after)
 		_check(why == "", "the PvP hideout check passes: %s%s" % [what, "" if why == "" else " (refused: %s)" % why])
 	step.call("buying", func() -> void: hideout.buy("bandage", 1); hideout.buy("pistol_ammo", 50); hideout.buy("pistol", 1))
 	step.call("selling", func() -> void: hideout.sell(Profile.stash, _find_stack(Profile.stash.stacks, "ak")))
@@ -4199,10 +4210,24 @@ func _section_pvp_hideout() -> void:
 		var worn_gun := ItemStack.new("ak")
 		worn_gun.durability = 300
 		Profile.stash.place(_spot_for(Profile.stash, worn_gun)))
-	step.call("a raid's kill quest finished (the first save after it)", func() -> void:
+	# Kill and extract quests move on the server as a raid ends (0.31.4), from the kills it counted.
+	var quest_test := OnlineProfile.fresh()
+	var quest_money := int(quest_test["money"])
+	OnlineProfile.raid_quests(quest_test, [["scav", "ak"], ["scav", "shotgun"], ["scav", ""], ["sniper", "ak"]], 12000)
+	_check(int(quest_test["quest_progress"].get("zeroing_in", 0)) == 3 and int(quest_test["quest_progress"].get("overwatch", 0)) == 0
+		and int(quest_test["quest_progress"].get("house_call", 0)) == 1 and quest_test["quests_done"].has("packing_up")
+		and int(quest_test["money"]) == quest_money + int(Quests.LIST["packing_up"]["reward"]),
+		"an extract moves the open kill and extract quests the server counted, not the next level's (%s)" % quest_test["quest_progress"])
+	quest_money = int(quest_test["money"])
+	OnlineProfile.raid_quests(quest_test, [["scav", ""], ["scav", ""], ["scav", ""]], 50000)
+	_check(int(quest_test["quest_progress"]["zeroing_in"]) == 5 and quest_test["quests_done"].count("zeroing_in") == 1
+		and quest_test["quests_done"].count("packing_up") == 1
+		and int(quest_test["money"]) == quest_money + int(Quests.LIST["zeroing_in"]["reward"]),
+		"a kill quest finishes at its count and pays once; a finished quest doesn't pay again")
+	raid_gain.call(func() -> void:
 		Profile.quest_progress["zeroing_in"] = 5
 		Profile.quests_done.append("zeroing_in")
-		Profile.money += int(Quests.LIST["zeroing_in"]["reward"]), true)
+		Profile.money += int(Quests.LIST["zeroing_in"]["reward"]))
 	step.call("handing in found attachments", func() -> void: hideout.hand_in("spare_parts"))
 	step.call("handing in found bandages", func() -> void: hideout.hand_in("first_aid"))
 	step.call("spending up to a trader level and levelling up", func() -> void:
@@ -4227,12 +4252,12 @@ func _section_pvp_hideout() -> void:
 	hideout.save_now()
 	# Made-up changes are refused.
 	var base := OnlineProfile.clean(snap.call())
-	var refused := func(what: String, change: Callable, after_raid := false) -> void:
+	var refused := func(what: String, change: Callable) -> void:
 		var faked: Dictionary = JSON.parse_string(JSON.stringify(base))
 		change.call(faked)
 		faked = OnlineProfile.clean(faked)
 		faked["stats"] = base["stats"]
-		var why := OnlineProfile.audit(base, faked, after_raid)
+		var why := OnlineProfile.audit(base, faked)
 		_check(why != "", "the PvP hideout check refuses %s (%s)" % [what, why])
 	refused.call("money from nowhere", func(p: Dictionary) -> void: p["money"] = int(p["money"]) + 1000)
 	refused.call("an item from nowhere (loot)", func(p: Dictionary) -> void: p["stash"].append({"id": "gold_watch", "count": 1, "x": 7, "y": 19}))
@@ -4248,10 +4273,12 @@ func _section_pvp_hideout() -> void:
 	var worn_base: Dictionary = JSON.parse_string(JSON.stringify(base))
 	worn_base["stash"][0]["d"] = 100
 	worn_base = OnlineProfile.clean(worn_base)
-	_check(OnlineProfile.audit(worn_base, base.duplicate(true), false) != "", "the PvP hideout check refuses a free repair")
+	_check(OnlineProfile.audit(worn_base, base.duplicate(true)) != "", "the PvP hideout check refuses a free repair")
 	refused.call("a free stash upgrade", func(p: Dictionary) -> void: p["stash_size"] = [8, 50])
 	refused.call("a trader level not reached", func(p: Dictionary) -> void: p["trader_levels"] = {"guns": 3})
 	refused.call("quest progress outside a raid", func(p: Dictionary) -> void: p["quest_progress"] = {"overwatch": 1})
+	refused.call("kill quest progress from the game (only the server counts kills)", func(p: Dictionary) -> void:
+		p["quest_progress"]["field_test"] = 1)
 	refused.call("a quest done twice / undone", func(p: Dictionary) -> void: p["quests_done"] = [])
 	refused.call("the free kit while carrying gear", func(p: Dictionary) -> void:
 		p["free_kit_raid"] = int(p["stats"]["raids"])

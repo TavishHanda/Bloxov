@@ -128,13 +128,16 @@ static func set_graphics(value: int) -> void:
 	save()
 
 
-## The PvE/PvP stash switch (Stash update, 0.31 Phase 1): hidden until PvP accounts go live. Shown with
-## `--pvp-stash` after `--` on the command line, or `?pvp_stash` on the web game's address, for trying it out. The
-## PvP side is a preview then: the PvP starter kit, never saved, nothing sent to the server.
+## The PvE/PvP stash switch (Stash update, 0.31): ON for everyone since 0.31.4 (owner, 2026-11-06). `?pvp_stash`
+## and `--pvp-stash` still turn it on; the smoke test sets `pvp_stash_default` false so the older sections keep
+## testing the one-stash online flow.
 static var pvp_stash_forced := false   # (tests)
+static var pvp_stash_default := true
 
 static func pvp_stash_on() -> bool:
 	if pvp_stash_forced or OS.get_cmdline_user_args().has("--pvp-stash"):
+		return true
+	if pvp_stash_default:
 		return true
 	if OS.has_feature("web"):
 		var query = JavaScriptBridge.eval("(function () { try { return location.search || '' } catch (e) { return '' } })()", true)

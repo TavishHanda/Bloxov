@@ -199,6 +199,39 @@ static func entries(profile: Dictionary) -> Array:
 	return out.filter(func(e: Variant) -> bool: return e is Dictionary and ItemDB.ITEMS.has(str(e.get("id", ""))))
 
 
+## A PvP raid ended with an extract: the kills the server counted ([[target, weapon], ...]) and the loot brought out
+## move the open kill and extract quests, and a finished one pays its reward (the server's Quests.raid_ended).
+static func raid_quests(profile: Dictionary, kills: Array, loot_value: int) -> void:
+	if not profile.get("quest_progress") is Dictionary:
+		profile["quest_progress"] = {}
+	if not profile.get("quests_done") is Array:
+		profile["quests_done"] = []
+	var levels: Dictionary = profile.get("trader_levels", {}) if profile.get("trader_levels") is Dictionary else {}
+	var progress: Dictionary = profile["quest_progress"]
+	var done: Array = profile["quests_done"]
+	for id: String in Quests.LIST:
+		var quest: Dictionary = Quests.LIST[id]
+		var trader := str(quest["trader"])
+		var level := clampi(int(levels.get(trader, 1)), 1, Traders.max_level(trader))
+		if done.has(id) or int(quest["level"]) != level + 1:
+			continue
+		var gained := 0
+		match quest["kind"]:
+			"kill":
+				gained = kills.filter(func(kill: Array) -> bool:
+					return kill[0] == quest["target"] and (not quest.has("weapon") or kill[1] == quest["weapon"])).size()
+			"extract":
+				gained = 1 if loot_value >= int(quest.get("min_value", 0)) else 0
+		if gained <= 0:
+			continue
+		var count := int(quest["count"])
+		var now := mini(int(progress.get(id, 0)) + gained, count)
+		progress[id] = now
+		if now >= count:
+			done.append(id)
+			profile["money"] = int(profile.get("money", 0)) + int(quest["reward"])
+
+
 ## Counts by id: "all" (with attachments and loaded rounds, like count), "free" and "found" (stacks with that mark),
 ## and "wear": the durability on each id's not-free stacks added up.
 static func tally(profile: Dictionary) -> Dictionary:
@@ -229,9 +262,9 @@ static func tally(profile: Dictionary) -> Dictionary:
 
 
 ## Checks a hideout change. `old` is the server's profile, `new` the cleaned one the game sent. Returns "" if it's
-## fine (and fixes `new`'s trader money to what the server worked out), else why not. `after_raid`: the first save
-## since a raid (kill and extract quests only move then).
-static func audit(old: Dictionary, new: Dictionary, after_raid: bool) -> String:
+## fine (and fixes `new`'s trader money to what the server worked out), else why not. Kill and extract quests never
+## move here: the server moves them itself when a raid ends (raid_quests).
+static func audit(old: Dictionary, new: Dictionary) -> String:
 	var a := tally(old)
 	var b := tally(new)
 	var raids := int(old.get("stats", {}).get("raids", 0))
@@ -247,7 +280,7 @@ static func audit(old: Dictionary, new: Dictionary, after_raid: bool) -> String:
 	for id: String in b["found"]:
 		if int(b["found"][id]) > int(a["found"].get(id, 0)):
 			return "found mark on %s" % id
-	# Quests: each finished once; hand-ins use up found items; kill and extract quests only move after a raid.
+	# Quests: each finished once; hand-ins use up found items; kill and extract quests only move on the server.
 	var done_old: Array = old.get("quests_done", [])
 	var done_new: Array = new.get("quests_done", [])
 	var rewards := 0
@@ -266,7 +299,7 @@ static func audit(old: Dictionary, new: Dictionary, after_raid: bool) -> String:
 		if after > before:
 			if quest["kind"] == "hand_in":
 				handed += after - before
-			elif not after_raid:
+			else:
 				return "quest progress outside a raid %s" % id
 		if done_new.has(id) and not done_old.has(id):
 			if after < int(quest["count"]):

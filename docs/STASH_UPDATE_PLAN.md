@@ -938,8 +938,8 @@ text, the 2-minute reconnect (Phase 4).
 sends the whole profile; the server compares it with the last one it accepted (`OnlineProfile.audit`) and refuses
 anything that can't come from real buys, sells, repairs, stash upgrades, trader levels and quests at the server's
 prices (a refused save puts the client back on the server's copy). Ming boxes are rolled on the server. Still
-trusted: kill/extract quest progress reported in the first save after a raid, item wear/attachments at extract (the
-count is checked), and loading free starter ammo into a gun can make it sellable (small).
+trusted: item wear at extract (the count is checked), and loading free starter ammo into a gun can make it sellable
+(small). Since 0.31.4 kill/extract quests are counted on the server (`NetAccounts.raid_kill`, `OnlineProfile.raid_quests`).
 
 ### Phase 4 — in-raid item authority and bans (0.31.x/0.32)
 
