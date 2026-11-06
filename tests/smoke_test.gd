@@ -582,7 +582,9 @@ func _section_stuck() -> void:
 	player.health.heal(player.health.max_health)
 	player.teleport_to(Vector3(gap.x, gy + 0.05, gap.z))
 	Input.action_press("move_forward")
-	await create_timer(1.6).timeout
+	# (2.6 s: the player looks every 0.5 s and moves you on the second look in a row, and where that 0.5 s clock
+	# stands when this starts depends on the tests before; 1.6 s was sometimes one look short and failed 0.30.8 on CI)
+	await create_timer(2.6).timeout
 	Input.action_release("move_forward")
 	_check(player.health.current == player.health.max_health,
 		"a player wedged in a gap narrower than them isn't hurt (%d hp)" % player.health.current)
