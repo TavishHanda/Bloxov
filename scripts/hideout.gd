@@ -85,7 +85,8 @@ func _ready() -> void:
 	# PvP (0.31): back from a raid, the stash is the server's copy (its result); changes go back to the server.
 	if Profile.mode == Profile.ONLINE and Network.main.signed_in() and not Network.main.online_profile.is_empty():
 		Profile.use_online(Network.main.online_profile)
-	Profile.online_save = func(data: Dictionary) -> void: Network.main.save_online(data)
+	# A method of the Net node, not a lambda: a lambda kept in a static var crashes Godot on quit (0.31.3).
+	Profile.online_save = Network.main.save_online
 
 	var background := ColorRect.new()
 	background.color = Color(0.1, 0.11, 0.1)
@@ -139,6 +140,7 @@ func _ready() -> void:
 	net.notice.connect(func(text: String) -> void: _online_status.text = text)
 	net.account_result.connect(_on_account)
 	net.profile_synced.connect(_show_online_profile)
+	net.box_opened.connect(_on_box_opened)
 	# Came back from an online raid: show the party/queue screen again.
 	if net.is_client():
 		_online_panel.visible = true
@@ -318,6 +320,11 @@ func open_box(box: String) -> String:
 	if Profile.money < price:
 		_message("Not enough money for a %s (%s)" % [info["name"], ItemDB.money(price)])
 		return ""
+	if Profile.mode == Profile.ONLINE and Network.main.signed_in():
+		# PvP (0.31.3): the server rolls it (_on_box_opened shows it; the stash comes back from the server).
+		save_now()
+		Network.main.open_box(box)
+		return ""
 	var id := Traders.open_box(box)
 	if Profile.stash.add(id, 1) > 0:
 		_message("No room in your stash")
@@ -329,6 +336,17 @@ func open_box(box: String) -> String:
 	UISounds.play(self, UISounds.BOX, -8.0)
 	_queue_save()
 	return id
+
+
+## PvP: the server opened a box for us.
+func _on_box_opened(box: String, id: String) -> void:
+	if id == "":
+		_message("No room in your stash" if Profile.money >= int(Traders.BOXES[box]["price"]) else "Not enough money")
+		return
+	_message("Ming: %s! You got %s (worth %s)." % [["Lucky", "Ha", "Ooh", "Not bad"].pick_random(),
+		ItemDB.display_name(id), ItemDB.money(ItemDB.value(id))])
+	Effects.sound(self, SELL_SOUND, -16.0)
+	UISounds.play(self, UISounds.BOX, -8.0)
 
 
 ## A stash upgrade (0.16.0, owner): more rows, bought with money. Returns true if it worked.
@@ -1140,10 +1158,16 @@ func mode_text() -> String:
 func raid_allowed(online: bool) -> bool:
 	if not GameSettings.pvp_stash_on():
 		return true
-	if (Profile.mode == Profile.ONLINE) != online:
-		_message("Switch to PvP to play online." if online else "Solo raids use your PvE stash: switch to PvE first.")
+	if online and Profile.mode != Profile.ONLINE:
+		# ONLINE from the PvE stash (owner, 2026-11-06): go to PvP, sign in, then the PvP stash and the queue.
+		_open_online_after_signin = true
+		switch_mode(Profile.ONLINE)
+		return false
+	if not online and Profile.mode == Profile.ONLINE:
+		_message("Solo raids use your PvE stash: switch to PvE first.")
 		return false
 	if online and not Network.main.signed_in():
+		_open_online_after_signin = true
 		open_signin()
 		return false
 	return true
@@ -1220,6 +1244,8 @@ const ACCOUNT_ERRORS := {
 }
 
 var _signin_page := "sign_in"
+## ONLINE was pressed before signing in: open the ONLINE panel once signed in.
+var _open_online_after_signin := false
 var _signin_fields := {}
 var _signin_title: Label
 var _signin_box: VBoxContainer
@@ -1260,6 +1286,9 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 		else:
 			signin_panel.visible = false
 			_message("Signed in as %s" % data.get("username", ""))
+			if _open_online_after_signin:
+				_online_panel.visible = true
+		_open_online_after_signin = false
 		_refresh_online()
 		return
 	if ok and action == "sign_out":
@@ -1375,6 +1404,7 @@ func _show_signin_page(page: String) -> void:
 			_signin_box.add_child(saved)
 			var done: Button = button.call("Done", "DONE", true, func() -> void:
 				signin_panel.visible = false
+				_online_panel.visible = true   # (a new account: straight on to the queue)
 				_message("Signed in as %s" % Network.main.account_name))
 			done.disabled = true
 			saved.toggled.connect(func(on: bool) -> void: done.disabled = not on)

@@ -10,8 +10,10 @@ extends RefCounted
 ## only the secure pocket; extracting (checked by the server) keeps what they came out with, which may not hold more
 ## than the server counted them carrying. A raid from before a server restart is put back as it was ("crash").
 ##
-## Not yet (plan Phase 3): the hideout's buys, sells and moves are still the client's, sent as a whole profile and
-## checked for shape only.
+## The hideout (plan Phase 3, 0.31.3): the game still runs it and sends the whole profile after each change, and the
+## server only takes a profile the last one could have become there (OnlineProfile.audit: nothing bought without
+## paying a trader's price, no money from nowhere, no free repairs, marks or stash rows). One it can't is refused and
+## the game gets the server's copy back. Ming's boxes are rolled here.
 
 const IN_RAID := "in_raid"
 const IDLE := "idle"
@@ -114,7 +116,7 @@ func _bind(peer: int, reply: Dictionary) -> void:
 	var record := {"account_id": reply["account_id"], "username": reply["username"], "profile": profile,
 		"revision": int(reply.get("revision", 1)), "raid": {"state": IDLE, "id": null, "snapshot": null},
 		"results": [], "busy": false, "dirty": false, "kit": {}, "final": null, "extracted": false,
-		"display_name": _name(peer)}
+		"display_name": _name(peer), "after_raid": false}
 	by_peer[peer] = record
 	by_account[record["account_id"]] = peer
 	net._log("%s signed in (peer %d)" % [record["username"], peer])
@@ -155,9 +157,31 @@ func save(peer: int, data: Variant) -> bool:
 	if clean.is_empty():
 		return false
 	clean["stats"] = record["profile"]["stats"]
+	var why := OnlineProfile.audit(record["profile"], clean, record["after_raid"])
+	if why != "":
+		# Refused: their game shows the server's copy again. Not a strike (a lag-crossed save can land here too).
+		net._log("%s: hideout change refused (%s)" % [record["username"], why])
+		if net._peer_open(peer):
+			net._profile_sync.rpc_id(peer, record["profile"])
+			net._notice.rpc_id(peer, "The server didn't accept that change, so your PvP stash is back as it was.")
+		return true
+	record["after_raid"] = false
 	record["profile"] = clean
 	_persist(record)
 	return true
+
+
+## One of Ming's boxes, rolled here (PvP): their game is told what came out and gets the stash with it in.
+func open_box(peer: int, box: String) -> void:
+	var record: Dictionary = by_peer.get(peer, {})
+	if record.is_empty() or record["raid"]["state"] == IN_RAID:
+		return
+	var id := OnlineProfile.open_box(record["profile"], box)
+	if id != "":
+		_persist(record)
+	if net._peer_open(peer):
+		net._box_result.rpc_id(peer, box, id)
+		net._profile_sync.rpc_id(peer, record["profile"])
 
 
 ## A raid is starting with `peer` in it: issue their kit (the loadout saved on the server) and put it at risk.
@@ -233,6 +257,7 @@ func _finish(record: Dictionary, result: String, value: int) -> void:
 	record["raid"] = {"state": IDLE, "id": null, "snapshot": null}
 	record["kit"] = {}
 	record["final"] = null
+	record["after_raid"] = true   # (the next hideout save may carry the raid's quest progress)
 	_persist(record)
 
 

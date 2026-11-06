@@ -168,3 +168,224 @@ static func more_than(loadout: Dictionary, carried: Dictionary) -> Dictionary:
 static func death_loadout(loadout: Dictionary) -> Dictionary:
 	return {"equipment": {}, "pockets": [], "backpack": [], "secure": loadout.get("secure", []),
 		"hotbar": loadout.get("hotbar", ["", "", ""])}
+
+
+# --- The hideout check (Stash update Phase 3, 0.31.3) ----------------------------------
+## The PvP hideout runs in the player's game (buying, selling, moving, repairs, quests, the free kit) and sends the
+## whole profile after each change. The server only takes a new profile that the old one could have become in the
+## hideout: no item appears unless it was bought from a trader at a level they have (or is the free kit), no money
+## appears unless something was sold or a quest paid it, nothing gets a found-in-raid or free mark it didn't have,
+## nothing is repaired for free, and the stash only grows when paid for. Prices are the traders' own; the check
+## rounds in the player's favour by a dollar or two, never more. Ming's boxes are rolled by the server (open_box).
+
+## The free kit (hideout.take_free_kit): a Stinger with a full magazine, 30 rounds, a bandage, a small backpack.
+const FREE_KIT := {"pistol": 1, "backpack_small": 1, "pistol_ammo": 42, "bandage": 1}
+
+
+## Every stack in a profile (stash and loadout), as saved.
+static func entries(profile: Dictionary) -> Array:
+	var out: Array = []
+	var stash = profile.get("stash", [])
+	if stash is Array:
+		out.append_array(stash)
+	var loadout = profile.get("loadout", {})
+	if loadout is Dictionary:
+		var equipment = loadout.get("equipment", {})
+		if equipment is Dictionary:
+			out.append_array(equipment.values())
+		for grid in ["pockets", "backpack", "secure"]:
+			if loadout.get(grid) is Array:
+				out.append_array(loadout[grid])
+	return out.filter(func(e: Variant) -> bool: return e is Dictionary and ItemDB.ITEMS.has(str(e.get("id", ""))))
+
+
+## Counts by id: "all" (with attachments and loaded rounds, like count), "free" and "found" (stacks with that mark),
+## and "wear": the durability on each id's not-free stacks added up.
+static func tally(profile: Dictionary) -> Dictionary:
+	var all := {}
+	var free := {}
+	var found := {}
+	var wear := {}
+	for entry: Dictionary in entries(profile):
+		var id := str(entry["id"])
+		var n := maxi(int(entry.get("count", 1)), 1)
+		all[id] = int(all.get(id, 0)) + n
+		if entry.get("free") == true:
+			free[id] = int(free.get(id, 0)) + n
+		elif ItemDB.max_durability(id) > 0:
+			var d: Variant = entry.get("d")
+			wear[id] = int(wear.get(id, 0)) + (int(d) if d is int or d is float else ItemDB.max_durability(id))
+		if entry.get("found") == true:
+			found[id] = int(found.get(id, 0)) + n
+		var parts = entry.get("att", {})
+		if parts is Dictionary:
+			for part: Variant in parts.values():
+				if ItemDB.ITEMS.has(str(part)):
+					all[str(part)] = int(all.get(str(part), 0)) + 1
+		var ammo := String(ItemDB.item(id).get("ammo", ""))
+		if int(entry.get("loaded", 0)) > 0 and ammo != "":
+			all[ammo] = int(all.get(ammo, 0)) + int(entry["loaded"])
+	return {"all": all, "free": free, "found": found, "wear": wear}
+
+
+## Checks a hideout change. `old` is the server's profile, `new` the cleaned one the game sent. Returns "" if it's
+## fine (and fixes `new`'s trader money to what the server worked out), else why not. `after_raid`: the first save
+## since a raid (kill and extract quests only move then).
+static func audit(old: Dictionary, new: Dictionary, after_raid: bool) -> String:
+	var a := tally(old)
+	var b := tally(new)
+	var raids := int(old.get("stats", {}).get("raids", 0))
+	# The free kit: once per raid, only with nothing on you.
+	var kit_taken := int(new.get("free_kit_raid", -1)) == raids and int(old.get("free_kit_raid", -1)) != raids
+	if kit_taken and not _bare(old.get("loadout", {})):
+		return "free kit while carrying gear"
+	if int(new.get("free_kit_raid", -1)) != int(old.get("free_kit_raid", -1)) and not kit_taken:
+		return "free kit raid changed"
+	for id: String in b["free"]:
+		if int(b["free"][id]) > int(a["free"].get(id, 0)) + (int(FREE_KIT.get(id, 0)) if kit_taken else 0):
+			return "free mark on %s" % id
+	for id: String in b["found"]:
+		if int(b["found"][id]) > int(a["found"].get(id, 0)):
+			return "found mark on %s" % id
+	# Quests: each finished once; hand-ins use up found items; kill and extract quests only move after a raid.
+	var done_old: Array = old.get("quests_done", [])
+	var done_new: Array = new.get("quests_done", [])
+	var rewards := 0
+	var handed := 0
+	for id: Variant in done_old:
+		if not done_new.has(id):
+			return "quest undone"
+	var progress_old: Dictionary = old.get("quest_progress", {}) if old.get("quest_progress") is Dictionary else {}
+	var progress_new: Dictionary = new.get("quest_progress", {}) if new.get("quest_progress") is Dictionary else {}
+	for id: String in Quests.LIST:
+		var quest: Dictionary = Quests.LIST[id]
+		var before := int(progress_old.get(id, 0))
+		var after := int(progress_new.get(id, 0))
+		if after < before or after > int(quest["count"]):
+			return "quest progress %s" % id
+		if after > before:
+			if quest["kind"] == "hand_in":
+				handed += after - before
+			elif not after_raid:
+				return "quest progress outside a raid %s" % id
+		if done_new.has(id) and not done_old.has(id):
+			if after < int(quest["count"]):
+				return "quest done early %s" % id
+			rewards += int(quest["reward"])
+	for id: Variant in done_new:
+		if not Quests.LIST.has(id):
+			return "unknown quest"
+	var found_used := 0
+	for id: String in a["found"]:
+		found_used += maxi(int(a["found"][id]) - int(b["found"].get(id, 0)), 0)
+	if handed > found_used:
+		return "hand-in without found items"
+	# Trader levels: only up, and only as far as quests and money spent allow.
+	var spent_old: Dictionary = old.get("trader_spent", {}) if old.get("trader_spent") is Dictionary else {}
+	var levels_old: Dictionary = old.get("trader_levels", {}) if old.get("trader_levels") is Dictionary else {}
+	var levels_new: Dictionary = new.get("trader_levels", {}) if new.get("trader_levels") is Dictionary else {}
+	# Buying and selling: what each item cost or paid, at the trader's prices.
+	var cost := 0
+	var paid := 0
+	var spent := spent_old.duplicate()
+	var spent_new: Dictionary = new.get("trader_spent", {}) if new.get("trader_spent") is Dictionary else {}
+	var bought := {}
+	for id: String in _keys(a["all"], b["all"]):
+		var free_gain := (int(FREE_KIT.get(id, 0)) if kit_taken else 0)
+		# (free items count apart, except rounds: loading and unloading moves them between free and not)
+		var change: int
+		if ItemDB.kind(id) == "ammo":
+			change = int(b["all"].get(id, 0)) - int(a["all"].get(id, 0)) - free_gain
+		else:
+			change = (int(b["all"].get(id, 0)) - int(b["free"].get(id, 0))) - (int(a["all"].get(id, 0)) - int(a["free"].get(id, 0)))
+		if change > 0:
+			var trader := Traders.trader_for(id)
+			if trader == "" or not _sells(trader, id, maxi(int(levels_new.get(trader, 1)), int(levels_old.get(trader, 1)))):
+				return "%s isn't for sale" % id
+			var price := ceili(ItemDB.value(id) * change * Traders.BUY_MARKUP)
+			cost += price
+			spent[trader] = int(spent.get(trader, 0)) + price
+			bought[trader] = int(bought.get(trader, 0)) + change
+		elif change < 0:
+			paid += ceili(ItemDB.value(id) * -change * float(Traders.LIST[Traders.buyer_for(id)]["rate"]))
+	# (the game adds each purchase's own rounded price: a dollar or so more per item than the total above)
+	for trader: String in spent:
+		var low := int(spent_old.get(trader, 0))
+		spent[trader] = clampi(int(spent_new.get(trader, low)), low, int(spent[trader]) + int(bought.get(trader, 0)))
+	for trader: String in Traders.LIST:
+		var lv := int(levels_new.get(trader, 1))
+		var lv_old := int(levels_old.get(trader, 1))
+		if lv < lv_old or lv > Traders.level(trader, int(spent.get(trader, 0)), done_new):
+			return "trader level %s" % trader
+	# Repairs: wear that came back on items that were already there was paid for.
+	for id: String in b["wear"]:
+		var gained := int(b["all"].get(id, 0)) - int(b["free"].get(id, 0)) - (int(a["all"].get(id, 0)) - int(a["free"].get(id, 0)))
+		var fixed := int(b["wear"][id]) - int(a["wear"].get(id, 0)) - maxi(gained, 0) * ItemDB.max_durability(id)
+		if fixed > 0:
+			cost += floori(ItemDB.value(id) * 0.7 * float(fixed) / ItemDB.max_durability(id) * Traders.REPAIR_RATE)
+	# The stash: only bigger, paid for.
+	var rows_old := int(old.get("stash_size", [STASH_WIDTH, STASH_ROWS[0]])[1])
+	var rows_new := int(new.get("stash_size", [STASH_WIDTH, STASH_ROWS[0]])[1])
+	if rows_new < rows_old:
+		return "stash shrank"
+	for i in STASH_ROWS.size():
+		if STASH_ROWS[i] > rows_old and STASH_ROWS[i] <= rows_new:
+			cost += Profile.STASH_UPGRADE_COST[i]
+	# Money: no more than what was there, less what was bought, plus what was sold and quest rewards.
+	var allowed := int(old.get("money", 0)) - cost + paid + rewards
+	if int(new.get("money", 0)) > allowed + 2:
+		return "money %d, at most %d" % [int(new.get("money", 0)), allowed]
+	new["trader_spent"] = spent
+	return ""
+
+
+static func _keys(a: Dictionary, b: Dictionary) -> Array:
+	var out: Array = a.keys()
+	for key: Variant in b:
+		if not out.has(key):
+			out.append(key)
+	return out
+
+
+## Nothing on you but the secure pocket (when the free kit can be taken).
+static func _bare(loadout: Variant) -> bool:
+	if not loadout is Dictionary:
+		return true
+	var equipment = loadout.get("equipment", {})
+	return (not equipment is Dictionary or equipment.is_empty()) and (loadout.get("pockets", []) as Array).is_empty() \
+		and (loadout.get("backpack", []) as Array).is_empty()
+
+
+## Whether `trader` at level `lv` has `id` for sale.
+static func _sells(trader: String, id: String, lv: int) -> bool:
+	for entry: Array in Traders.stock(trader):
+		if entry[0] == id and int(entry[2]) <= lv:
+			return true
+	return false
+
+
+## Ming's box rolled on the server (PvP): pays the price and puts the item in the stash. Returns the item id, or ""
+## (not enough money, no room, not a box).
+static func open_box(profile: Dictionary, box: String) -> String:
+	if not Traders.BOXES.has(box):
+		return ""
+	var price := int(Traders.BOXES[box]["price"])
+	if int(profile.get("money", 0)) < price:
+		return ""
+	var size: Array = profile.get("stash_size", [STASH_WIDTH, STASH_ROWS[0]])
+	var grid := GridInventory.new("Stash", int(size[0]), int(size[1]))
+	for entry: Variant in profile.get("stash", []):
+		if not entry is Dictionary or not ItemDB.ITEMS.has(str(entry.get("id", ""))):
+			continue
+		var stack := ItemStack.new(str(entry["id"]), int(entry.get("count", 1)), int(entry.get("x", 0)), int(entry.get("y", 0)), entry.get("r") == true)
+		grid.stacks.append(stack)   # (kept as they are; only the free spots matter)
+	var id := Traders.open_box(box)
+	var spot := grid.find_spot(id)
+	if spot.is_empty():
+		return ""
+	var item := {"id": id, "count": 1, "x": spot[0], "y": spot[1]}
+	if spot[2]:
+		item["r"] = true
+	(profile["stash"] as Array).append(item)
+	profile["money"] = int(profile["money"]) - price
+	return id

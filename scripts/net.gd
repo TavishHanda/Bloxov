@@ -69,6 +69,8 @@ signal forced_dead
 ## the profile, the session token, a recovery code, or an "error"); the server's copy of our PvP profile changed.
 signal account_result(action: String, ok: bool, data: Dictionary)
 signal profile_synced
+## One of Ming's boxes opened on the server (PvP): the item id that came out ("" = it couldn't: money or room).
+signal box_opened(box: String, id: String)
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -1278,6 +1280,24 @@ func save_online(data: Dictionary) -> void:
 func send_final_kit(loadout: Dictionary) -> void:
 	if signed_in():
 		_final_kit.rpc_id(1, loadout)
+
+
+## Client (PvP): open one of Ming's boxes; the server rolls it (box_opened says what came out).
+func open_box(box: String) -> void:
+	if signed_in() and not in_raid:
+		_open_box.rpc_id(1, box)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _open_box(box: String) -> void:
+	var peer := _sender("save")
+	if peer != 0 and accounts != null and box.length() <= 20:
+		accounts.open_box(peer, box)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _box_result(box: String, id: String) -> void:
+	box_opened.emit(box, id)
 
 
 @rpc("any_peer", "call_remote", "reliable")

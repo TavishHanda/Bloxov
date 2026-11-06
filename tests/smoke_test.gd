@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -2292,7 +2292,7 @@ func _section_hideout_world() -> void:
 	_check(title.page_open() == "options" and title._page_body.get_child_count() >= 7, "OPTIONS shows the settings")
 	title._show_page("privacy")
 	await process_frame
-	_check(title.page_open() == "privacy" and (title._page_body.get_child(-1) as Label).text.contains("No accounts, no ads"), "PRIVACY says what's kept")
+	_check(title.page_open() == "privacy" and (title._page_body.get_child(-1) as Label).text.contains("No ads") and (title._page_body.get_child(-1) as Label).text.contains("DELETE PvP ACCOUNT"), "PRIVACY says what's kept, the PvP account and how to delete it")
 	title._show_page("")
 	_check(title.page_open() == "", "and CLOSE closes it")
 	title.queue_free()
@@ -3376,10 +3376,12 @@ func _section_stash_modes() -> void:
 	hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
 	root.add_child(hideout)
 	await process_frame
-	_check(hideout.mode_button != null and hideout.mode_button.text == "PvE · SOLO" and hideout.raid_allowed(false)
-		and not hideout.raid_allowed(true), "PvE: the switch shows SOLO, solo raids yes, online no")
+	_check(hideout.mode_button != null and hideout.mode_button.text == "PvE · SOLO" and hideout.raid_allowed(false),
+		"PvE: the switch shows SOLO, solo raids yes")
 	SessionStore.clear()
-	hideout.switch_mode(Profile.ONLINE)
+	# ONLINE from PvE (owner, 2026-11-06): it goes to the PvP stash and asks to sign in.
+	_check(not hideout.raid_allowed(true) and Profile.mode == Profile.ONLINE and hideout.signin_panel.visible,
+		"ONLINE from PvE switches to PvP and asks to sign in")
 	await process_frame
 	_check(Profile.mode == Profile.ONLINE and hideout.mode_button.text == "PvP · ONLINE" and hideout.screen.stash == Profile.stash
 		and hideout.inventory.equipped("armor") != null and not hideout.raid_allowed(false),
@@ -4067,9 +4069,25 @@ func _section_pvp_accounts() -> void:
 	await _until(func() -> bool: return server.guard.strike_points(b_id, server._now()) > 0.0)
 	_check(server.guard.strike_points(b_id, server._now()) > 0.0 and int(server.accounts.by_peer[b_id]["profile"]["money"]) == 12345,
 		"a PvP stash with made-up items is refused")
+	# A hideout change the hideout couldn't have made (money from nowhere) is refused, and the game gets the server's copy.
+	var rich: Dictionary = b.online_profile.duplicate(true)
+	rich["money"] = 99999999
+	b.online_profile = {}
+	b.save_online(rich)
+	await _until(func() -> bool: return not b.online_profile.is_empty())
+	_check(int(b.online_profile.get("money", 0)) == 12345 and int(server.accounts.by_peer[b_id]["profile"]["money"]) == 12345
+		and str(last.call(b)[2].get("text", "")).contains("didn't accept"), "money from nowhere is refused and the stash put back")
+	# Ming's boxes are rolled by the server.
+	var opened := []
+	b.box_opened.connect(func(box: String, id: String) -> void: opened.append(id))
+	b.open_box("loot_box")
+	await _until(func() -> bool: return not opened.is_empty())
+	_check(opened.size() == 1 and opened[0] != "" and int(server.accounts.by_peer[b_id]["profile"]["money"]) == 12345 - 3500
+		and server.accounts.by_peer[b_id]["profile"]["stash"].any(func(e: Dictionary) -> bool: return e["id"] == opened[0]),
+		"a PvP Ming box is paid and rolled on the server (%s)" % [opened])
 	# No raids alone in PvP (owner): START NOW is refused.
 	b.start_now()
-	await _until(func() -> bool: return last.call(b)[0] == "notice")
+	await _until(func() -> bool: return str(last.call(b)[2].get("text", "")).contains("queue"))
 	_check(last.call(b)[0] == "notice" and str(last.call(b)[2]["text"]).contains("queue") and not b.in_raid,
 		"PvP raids only come from the queue, never alone")
 	# The raid: the server issues the kit from the saved loadout and puts it at risk.
@@ -4142,6 +4160,117 @@ func _section_pvp_accounts() -> void:
 	server.multiplayer.multiplayer_peer.close()
 	for n in [server, a, b]:
 		n.get_parent().queue_free()
+
+
+func _section_pvp_hideout() -> void:
+	# The PvP hideout check (Stash update Phase 3, 0.31.3): the server only takes a profile the last one could have
+	# become in the hideout. First the real hideout's own actions must all pass; then made-up changes must not.
+	Profile.load_profile()
+	var solo_file := FileAccess.get_file_as_string(Profile.PATH)
+	GameSettings.pvp_stash_forced = true
+	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
+	root.add_child(hideout)
+	await process_frame
+	var start := OnlineProfile.fresh()
+	start["money"] = 500000
+	Profile.use_online(start)
+	hideout._reload_stash()
+	var snap := func() -> Dictionary: return JSON.parse_string(JSON.stringify(Profile.online_data()))
+	var step := func(what: String, act: Callable, after_raid := false) -> void:
+		hideout.save_now()
+		var before: Dictionary = snap.call()
+		act.call()
+		hideout.save_now()
+		var after := OnlineProfile.clean(snap.call())
+		after["stats"] = before["stats"]
+		var why := OnlineProfile.audit(OnlineProfile.clean(before), after, after_raid)
+		_check(why == "", "the PvP hideout check passes: %s%s" % [what, "" if why == "" else " (refused: %s)" % why])
+	step.call("buying", func() -> void: hideout.buy("bandage", 1); hideout.buy("pistol_ammo", 50); hideout.buy("pistol", 1))
+	step.call("selling", func() -> void: hideout.sell(Profile.stash, _find_stack(Profile.stash.stacks, "ak")))
+	step.call("moving and sorting", func() -> void: Profile.stash.sort())
+	step.call("a stash upgrade", func() -> void: hideout.upgrade_stash())
+	# (what a raid brings home is the server's own result, not a hideout change: put it straight in)
+	var raid_gain := func(act: Callable) -> void:
+		act.call()
+		hideout.save_now()
+	raid_gain.call(func() -> void:
+		for id in ["red_dot", "foregrip", "bandage", "bandage", "bandage"]:
+			Profile.stash.add(id, 1, ItemStack.FOUND)
+		var worn_gun := ItemStack.new("ak")
+		worn_gun.durability = 300
+		Profile.stash.place(_spot_for(Profile.stash, worn_gun)))
+	step.call("a raid's kill quest finished (the first save after it)", func() -> void:
+		Profile.quest_progress["zeroing_in"] = 5
+		Profile.quests_done.append("zeroing_in")
+		Profile.money += int(Quests.LIST["zeroing_in"]["reward"]), true)
+	step.call("handing in found attachments", func() -> void: hideout.hand_in("spare_parts"))
+	step.call("handing in found bandages", func() -> void: hideout.hand_in("first_aid"))
+	step.call("spending up to a trader level and levelling up", func() -> void:
+		for i in 3:
+			hideout.buy("shotgun", 1)
+		hideout.level_up("guns"))
+	_check(Profile.trader_level("guns") == 2, "(the test reached Ponta level 2)")
+	var worn: ItemStack = Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "ak" and st.durability < 1000)[0]
+	step.call("repairing", func() -> void: hideout.repair(Profile.stash, worn))
+	step.call("buying what the new level unlocked", func() -> void: hideout.buy("ak", 1))
+	step.call("loading a gun and taking it out of the stash", func() -> void:
+		var gun: ItemStack = Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "ak")[0]
+		gun.loaded = 30
+		var ammo: ItemStack = _find_stack(Profile.stash.stacks, "rifle_ammo")
+		ammo.count -= 30
+		Profile.stash.changed.emit())
+	hideout.save_loadout("PvP test")
+	step.call("equipping a saved loadout, buying it new", func() -> void: hideout.equip_loadout(0, true))
+	raid_gain.call(func() -> void:   # (dying in a raid: the server keeps only the secure pocket)
+		Profile.apply_inventory(hideout.inventory, Profile.death_loadout(Profile.capture_inventory(hideout.inventory))))
+	step.call("taking the free kit with nothing on", func() -> void: hideout.take_free_kit())
+	hideout.save_now()
+	# Made-up changes are refused.
+	var base := OnlineProfile.clean(snap.call())
+	var refused := func(what: String, change: Callable, after_raid := false) -> void:
+		var faked: Dictionary = JSON.parse_string(JSON.stringify(base))
+		change.call(faked)
+		faked = OnlineProfile.clean(faked)
+		faked["stats"] = base["stats"]
+		var why := OnlineProfile.audit(base, faked, after_raid)
+		_check(why != "", "the PvP hideout check refuses %s (%s)" % [what, why])
+	refused.call("money from nowhere", func(p: Dictionary) -> void: p["money"] = int(p["money"]) + 1000)
+	refused.call("an item from nowhere (loot)", func(p: Dictionary) -> void: p["stash"].append({"id": "gold_watch", "count": 1, "x": 7, "y": 19}))
+	refused.call("an item that isn't paid for", func(p: Dictionary) -> void: p["stash"].append({"id": "bandage", "count": 1, "x": 7, "y": 19}))
+	refused.call("gear above the trader's level", func(p: Dictionary) -> void:
+		p["stash"].append({"id": "armor_heavy", "count": 1, "x": 0, "y": 18})
+		p["money"] = int(p["money"]) - 100000)
+	refused.call("selling for more than the trader pays", func(p: Dictionary) -> void:
+		var gun: Dictionary = p["stash"].filter(func(e: Dictionary) -> bool: return e["id"] == "pistol")[0]
+		p["stash"].erase(gun)
+		p["money"] = int(p["money"]) + ItemDB.value("pistol"))
+	refused.call("a found-in-raid mark", func(p: Dictionary) -> void: p["stash"][0]["found"] = true)
+	var worn_base: Dictionary = JSON.parse_string(JSON.stringify(base))
+	worn_base["stash"][0]["d"] = 100
+	worn_base = OnlineProfile.clean(worn_base)
+	_check(OnlineProfile.audit(worn_base, base.duplicate(true), false) != "", "the PvP hideout check refuses a free repair")
+	refused.call("a free stash upgrade", func(p: Dictionary) -> void: p["stash_size"] = [8, 50])
+	refused.call("a trader level not reached", func(p: Dictionary) -> void: p["trader_levels"] = {"guns": 3})
+	refused.call("quest progress outside a raid", func(p: Dictionary) -> void: p["quest_progress"] = {"overwatch": 1})
+	refused.call("a quest done twice / undone", func(p: Dictionary) -> void: p["quests_done"] = [])
+	refused.call("the free kit while carrying gear", func(p: Dictionary) -> void:
+		p["free_kit_raid"] = int(p["stats"]["raids"])
+		p["stash"].append({"id": "pistol", "count": 1, "x": 7, "y": 19, "free": true}))
+	hideout.queue_free()
+	await process_frame
+	Profile.use_solo()
+	GameSettings.pvp_stash_forced = false
+	var file := FileAccess.open(Profile.PATH, FileAccess.WRITE)
+	file.store_string(solo_file)
+	file.close()
+	Profile._loaded = false
+	Profile.load_profile()
+
+
+func _spot_for(grid: GridInventory, stack: ItemStack) -> ItemStack:
+	var spot := grid.find_spot(stack.id)
+	stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
+	return stack
 
 
 ## A Net node in its own branch of the tree, with its own multiplayer API (like a separate game).

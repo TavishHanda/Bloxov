@@ -24,19 +24,25 @@ const BUTTON_FACE := Color(0.13, 0.14, 0.15, 0.92)
 ## whenever what the game collects changes.
 const PRIVACY := """WHAT BLOXOV KEEPS ABOUT YOU
 
-On this device: your progress (stash, loadout, traders, record, character) and your settings. They never leave the
-device unless you play online. OPTIONS > SAVE TO FILE gives you a copy of them as a file to keep; it goes only to you.
+PvE (solo): your progress (stash, loadout, traders, record, character) and your settings stay on this device. No
+account. OPTIONS > SAVE TO FILE gives you a copy of them as a file to keep; it goes only to you.
 
 Online play: the server is sent the name you type and your connection's IP address, which it needs to put you in a
-raid. Other players in your raid see your name and character. Nothing is kept after the raid, apart from the
-server's short log.
+raid. Other players in your raid see that name and your character. The server's log keeps names, IP addresses and
+anti-cheat catches for a short time, to keep play fair.
+
+PvP account (only if you make one): your username, your password scrambled so it can't be read back, your PvP stash,
+money, loadout, stats, traders and quests, your raid results, and when you last played. No email and no real name.
+It's kept in a database hosted by Heroku until you delete it; accounts not used for 12 months are deleted.
 
 On bloxov.com only: Cloudflare Web Analytics counts visits to the page (which page, browser, country, how fast it
 loaded). It uses no cookies and keeps nothing that identifies you. The phone and computer versions don't have it.
 
-No accounts, no ads, no tracking across other sites or apps, and nothing is sold. The server is hosted by Heroku.
+No ads, no tracking across other sites or apps, and nothing is sold. The server is hosted by Heroku.
 
-To delete everything: clear this site's data in your browser (or uninstall the game)."""
+To delete your PvP account: ONLINE > PvP ACCOUNT > DELETE PvP ACCOUNT. It's gone after 30 days (signing in before
+then cancels it), and the host's backups may keep a copy a few days more. You can also email contact@bloxov.com, or
+see bloxov.com/privacy. To delete your PvE progress: clear this site's data in your browser (or uninstall the game)."""
 
 const CREDITS := """BLOXOV: NO MAN'S LAND
 

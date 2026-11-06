@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.3 (Stash update, step 3: cheat-proof PvP hideout, sign-in flow, privacy)
+- **The server checks every PvP hideout change** (`OnlineProfile.audit`): money, items, trader levels, repairs,
+  stash rows and quests must add up to real buys and sells at the server's prices, starter kit stays unsellable, and
+  found-in-raid marks can't be made up. A save that doesn't add up is refused and the hideout goes back to the
+  server's copy.
+- **Ming's boxes are opened on the server** in PvP.
+- **ONLINE asks you to sign in**: pressing ONLINE switches to PvP, opens sign in / create account (or resumes a
+  remembered session), then shows your PvP stash and the queue. New **PvP ACCOUNT** button on the online panel.
+- **Privacy**: the in-game PRIVACY page and a new public page (`bloxov.com/privacy`, with a #delete section for the
+  store forms) say what the PvP account keeps, how long, and how to delete it.
+- Fix: the test run no longer crashes Godot as it quits (it failed the Windows CI check on 0.31.2).
+- Smoke test: new `pvp_hideout` section (made-up money, items, levels, free repairs, found marks and quests are refused).
+
 ## 0.31.2 (Stash update, step 2: PvP accounts and the online stash)
 - **PvP accounts** (still behind `?pvp_stash` until they go live): CREATE ACCOUNT (username + password, 10+
   characters; no email), SIGN IN, remember me (`SessionStore`), one session per account with **TAKE OVER HERE**, a

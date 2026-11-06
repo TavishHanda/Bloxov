@@ -934,6 +934,13 @@ text, the 2-minute reconnect (Phase 4).
 - Tests: buy/sell/move/equip/upgrade/quest/level/preset, stale revision, insufficient money, full stash.
 - **Exit:** a modified client cannot print money or duplicate items in the hideout.
 
+**Built 2026-11-06 as 0.31.3, as an audit instead of intents.** The hideout UI still changes the profile locally and
+sends the whole profile; the server compares it with the last one it accepted (`OnlineProfile.audit`) and refuses
+anything that can't come from real buys, sells, repairs, stash upgrades, trader levels and quests at the server's
+prices (a refused save puts the client back on the server's copy). Ming boxes are rolled on the server. Still
+trusted: kill/extract quest progress reported in the first save after a raid, item wear/attachments at extract (the
+count is checked), and loading free starter ammo into a gun can make it sellable (small).
+
 ### Phase 4 — in-raid item authority and bans (0.31.x/0.32)
 
 - L4 option A (validate the final inventory against `_carried`) or B (report every item-state change).
