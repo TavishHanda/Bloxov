@@ -62,18 +62,12 @@ var tutorial: Tutorial
 
 func _ready() -> void:
 	get_tree().paused = false
-	ShaderWarm.start(get_tree())   # (carries on from the title screen; 0.29.5)
+	LoadingScreen.curtain(self)   # (0.30.8: over the first frames, until it's drawing smoothly)
 	add_child(preload("res://scripts/tree_prebuild.gd").new())   # (the raid's trees, a bit each frame; 0.29.8)
 	var level: Node3D = LEVEL.instantiate()
 	level.name = "Level"
 	add_child(level)
-	var env := Environment.new()
-	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color.BLACK
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(1.0, 0.86, 0.68)
-	env.ambient_light_energy = 0.9
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var env := Look.hideout_environment()
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)

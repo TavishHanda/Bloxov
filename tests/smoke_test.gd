@@ -2271,6 +2271,11 @@ func _section_hideout_world() -> void:
 		if node is Button:
 			title_buttons.append(String((node as Button).text))
 	_check(title_buttons.slice(0, 4) == ["PLAY", "OPTIONS", "PRIVACY", "CREDITS"], "main screen: PLAY, OPTIONS, PRIVACY, CREDITS %s" % str(title_buttons))
+	# 0.30.8: a loading bar stands where the buttons go until the shaders are built and the hideout is loaded; with
+	# nothing to build (headless) the buttons are up straight away.
+	_check(title.ready_to_play and title._play_button.visible and not title._loading_box.visible
+		and title._loading_bar.get_parent() == title._loading_box and ShaderWarm.is_done() and ShaderWarm.progress() == 1.0,
+		"main screen: the loading bar gives way to the buttons once everything's built")
 	# 0.21.15: the dusk town behind it fills the screen and drifts (0.21.20: in a shader, so it's smooth).
 	var title_bg := title._background
 	var screen := title.get_viewport().get_visible_rect().size
@@ -3304,6 +3309,15 @@ func _section_settings() -> void:
 		ShaderWarm.start(self)
 	_check(counts[0] >= 20 and counts[1] >= 5 and root.get_node_or_null("ShaderWarm") == null,
 		"the raid's and hideout's shaders are listed for building early (%s), not on headless runs" % str(counts))
+	# 0.30.8: the hideout's light is the same for the warm-up and the real hideout; the loading covers wait for smooth
+	# frames, never longer than SETTLE_MAX.
+	var hideout_env := Look.hideout_environment()
+	_check(hideout_env.background_mode == Environment.BG_COLOR and hideout_env.ambient_light_source == Environment.AMBIENT_SOURCE_COLOR,
+		"the hideout's light comes from one place (Look.hideout_environment)")
+	var settle_from := Time.get_ticks_msec()
+	await LoadingScreen.settle(self)
+	_check(Time.get_ticks_msec() - settle_from < LoadingScreen.SETTLE_MAX * 1000 + 500,
+		"the loading covers lift once frames are smooth (%d ms)" % (Time.get_ticks_msec() - settle_from))
 
 
 func _section_backup() -> void:

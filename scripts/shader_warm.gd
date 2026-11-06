@@ -1,28 +1,42 @@
 class_name ShaderWarm
-extends SubViewport
+extends Node
 ## Builds the raid's and the hideout's shaders ahead of time (0.29.5, owner: "i just want the first time you load
 ## into raid not to take so long, it took like 30 seconds first time").
 ## A browser builds a shader the first time something using it is drawn, and keeps it for next time. With nothing
 ## kept yet (a first visit, or after a Godot update changed every shader) the first raid built ~220 of them while it
-## loaded. This draws one stand-in per shader (listed by tools/gen_shader_warm.gd in assets/warm/) in a tiny hidden
-## view with the raid's light and look, a few each frame, while you're on the title screen and in the hideout, so
-## the raid finds them built. Looks only; never on servers or headless runs.
+## loaded. This draws one stand-in per shader (listed by tools/gen_shader_warm.gd in assets/warm/) in tiny hidden
+## views, so the raid and the hideout find them built. Looks only; never on servers or headless runs.
+## 0.30.8 (owner: "people keep lagging when entering the game, in the hideout, and in raid"): it runs behind the title
+## screen's loading bar now, as fast as the machine builds them, instead of one a frame while you were already
+## clicking round the title screen and walking the hideout. And each list is drawn the way it's really lit: a shader is
+## built again for different light, so the hideout's (no sun) were built for the raid's sunlight and the hideout built
+## them all over again as you walked in, and on LOW graphics (no sun shadows) the raid's were built for shadows.
 
-const LISTS := ["res://assets/warm/raid_warm.tscn", "res://assets/warm/hideout_warm.tscn"]
-## Stand-ins drawn per frame (each new shader can take ~0.1 s to build in a browser on Windows).
-const PER_FRAME := 1
+const RAID_LIST := "res://assets/warm/raid_warm.tscn"
+const HIDEOUT_LIST := "res://assets/warm/hideout_warm.tscn"
+const LISTS := [RAID_LIST, HIDEOUT_LIST]
+## Frames should take about this long while it builds (ms): it draws more stand-ins a frame while frames are quicker,
+## fewer while slower, so the loading bar keeps moving.
+const TARGET_MS := 90.0
+const MAX_PER_FRAME := 16
 
 static var _running: ShaderWarm
 static var _done := false
+static var _total := 0
+static var _drawn := 0
 
 var _queue: Array[GeometryInstance3D] = []
 var _shown: Array[GeometryInstance3D] = []
-var _world: Node3D
+var _per_frame := 1
+var _last_usec := 0
 
 
-## Starts building in the background (once per game session; later calls do nothing).
+## Starts building (once per game session; later calls do nothing).
 static func start(tree: SceneTree) -> void:
-	if _done or _running != null or DisplayServer.get_name() == "headless" or tree == null:
+	if _done or _running != null or tree == null:
+		return
+	if DisplayServer.get_name() == "headless":
+		_done = true
 		return
 	_running = ShaderWarm.new()
 	_running.name = "ShaderWarm"
@@ -36,50 +50,87 @@ static func stop() -> void:
 		_running = null
 
 
+static func is_done() -> bool:
+	return _done
+
+
+## How far along it is, 0-1 (1 once done, or when there's nothing to build).
+static func progress() -> float:
+	if _done:
+		return 1.0
+	return 0.0 if _total == 0 else clampf(float(_drawn) / _total, 0.0, 1.0)
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	size = Vector2i(64, 64)
-	own_world_3d = true
-	render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_world = Node3D.new()
-	_world.name = "World"
-	add_child(_world)
+	# The raid: its look and its sun, with the graphics setting's shadows (main.tscn's Sun).
+	var raid := _view("Raid")
+	var sun := DirectionalLight3D.new()
+	sun.name = "Sun"
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	raid.add_child(sun)
+	Look.apply(raid)   # (its light, and GameSettings.shadows_on for the sun)
+	_add_list(raid, RAID_LIST)
+	# The hideout: underground, no sun, its own light (Look.hideout_environment).
+	var hideout := _view("Hideout")
+	(hideout.get_node("WorldEnvironment") as WorldEnvironment).environment = Look.hideout_environment()
+	_add_list(hideout, HIDEOUT_LIST)
+	_total = _queue.size()
+	_last_usec = Time.get_ticks_usec()
+
+
+## A tiny hidden view of its own world; returns the node to put things in.
+func _view(view_name: String) -> Node3D:
+	var view := SubViewport.new()
+	view.name = view_name
+	view.size = Vector2i(64, 64)
+	view.own_world_3d = true
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(view)
+	var world := Node3D.new()
+	world.name = "World"
+	view.add_child(world)
 	var environment := WorldEnvironment.new()
 	environment.name = "WorldEnvironment"
-	_world.add_child(environment)
-	var sun := DirectionalLight3D.new()   # (as the raid's: main.tscn's Sun)
-	sun.name = "Sun"
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 60.0
-	_world.add_child(sun)
-	Look.apply(_world)
+	world.add_child(environment)
 	var camera := Camera3D.new()
 	camera.current = true
-	_world.add_child(camera)
-	for path in LISTS:
-		var scene := load(path) as PackedScene
-		if scene == null:
-			continue
-		var list := scene.instantiate()
-		_world.add_child(list)
-		for child in list.get_children():
-			if child is GeometryInstance3D:
-				child.visible = false
-				child.position = Vector3(0, 0, -3)
-				_queue.append(child)
+	world.add_child(camera)
+	return world
+
+
+func _add_list(world: Node3D, path: String) -> void:
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return
+	var list := scene.instantiate()
+	world.add_child(list)
+	for child in list.get_children():
+		if child is GeometryInstance3D:
+			child.visible = false
+			child.position = Vector3(0, 0, -3)
+			_queue.append(child)
 
 
 func _process(_delta: float) -> void:
+	# (the last frame's time includes building the shaders drawn in it)
+	var now := Time.get_ticks_usec()
+	var frame_ms := (now - _last_usec) / 1000.0
+	_last_usec = now
+	if frame_ms < TARGET_MS * 0.6:
+		_per_frame = mini(_per_frame * 2, MAX_PER_FRAME)
+	elif frame_ms > TARGET_MS * 1.6:
+		_per_frame = maxi(_per_frame / 2, 1)
 	for node in _shown:
 		node.queue_free()
+	_drawn += _shown.size()
 	_shown.clear()
 	if _queue.is_empty():
 		_done = true
 		_running = null
 		queue_free()
 		return
-	for i in mini(PER_FRAME, _queue.size()):
+	for i in mini(_per_frame, _queue.size()):
 		var node: GeometryInstance3D = _queue.pop_front()
 		node.visible = true
 		_shown.append(node)

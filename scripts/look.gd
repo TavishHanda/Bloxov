@@ -40,3 +40,16 @@ static func apply(raid: Node, path: String = current) -> void:
 	var clouds := raid.get_node_or_null("Clouds")
 	if clouds != null:
 		clouds.set("color", look.cloud_color)
+
+
+## The hideout's light (0.30.8, moved here from HideoutWorld): underground, no sun. ShaderWarm builds the hideout's
+## shaders under the same light, so keep the two the same.
+static func hideout_environment() -> Environment:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color.BLACK
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(1.0, 0.86, 0.68)
+	env.ambient_light_energy = 0.9
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	return env

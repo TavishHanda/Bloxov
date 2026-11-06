@@ -6,6 +6,11 @@ extends Node3D
 ## drifting slowly side to side (a still picture, tools/render_title_bg.gd, so phones don't draw a 3D scene here), with a
 ## military red PLAY. Red is for this screen only: in the game yellow stays the "active" colour and red means danger. Room is left under PLAY for signing in later (guest, email, Steam).
 ## The hideout loads in the background while you're here, so PLAY is quick.
+## 0.30.8 (owner: "people keep lagging when entering the game, in the hideout, and in raid... I want a way more clean
+## experience loading on to the site, getting in to the hideout without any lag"): the screen opens with a loading bar
+## where the buttons go, picking up from the web page's bar. Behind it the game builds the raid's and the hideout's
+## shaders (ShaderWarm, quick once a browser has built them before) and loads the hideout; the picture holds still.
+## Then the buttons fade in and the picture starts drifting, with nothing left to build while you click round.
 
 const HIDEOUT := "res://scenes/hideout_world.tscn"
 const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
@@ -58,6 +63,14 @@ var _page: PanelContainer
 var _page_title: Label
 var _page_body: VBoxContainer
 var _play_button: Button
+## The loading bar and its words (until everything's ready), and the hideout once it's loaded.
+var _loading_box: VBoxContainer
+var _loading_bar: ProgressBar
+var _loading_label: Label
+var _hideout: PackedScene
+## Set once the shaders are built and the hideout is loaded: the buttons are up.
+var ready_to_play := false
+var _hideout_requested := false
 
 
 func _ready() -> void:
@@ -66,13 +79,78 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_ui()
 	_drift()
-	ResourceLoader.load_threaded_request(HIDEOUT)
-	ShaderWarm.start(get_tree())   # builds the raid's shaders while you're here (0.29.5)
+	ShaderWarm.start(get_tree())   # builds the raid's and hideout's shaders behind the loading bar (0.29.5, 0.30.8)
+	if DisplayServer.get_name() == "headless":
+		ResourceLoader.load_threaded_request(HIDEOUT)
+		_hideout_requested = true
+		_show_ready(false)
+	else:
+		_show_loading()
 
 
 func _process(delta: float) -> void:
+	if not ready_to_play:
+		_load_step()
+		return   # (the picture holds still while loading: frames are uneven then)
 	_time += delta
 	_drift()
+
+
+## Shows the loading bar in place of the buttons.
+func _show_loading() -> void:
+	_play_button.visible = false
+	_row.visible = false
+	_loading_box.visible = true
+	if LoadingScreen.first_setup():
+		_loading_label.text = "FIRST-TIME SETUP: GETTING THE GRAPHICS READY"
+
+
+## One frame of loading: the shaders first (most of the bar), then the hideout.
+func _load_step() -> void:
+	if not ShaderWarm.is_done():
+		_loading_bar.value = ShaderWarm.progress() * 90.0
+		return
+	LoadingScreen.setup_done()
+	if not _hideout_requested:
+		_hideout_requested = true
+		_loading_bar.value = 90.0
+		_loading_label.text = "LOADING THE HIDEOUT"
+		if not OS.has_feature("threads"):
+			# (the web build has no threads: a background load would run here anyway, so load it in one go, a frame
+			# after the words above are on screen)
+			_load_hideout_now.call_deferred()
+			return
+		ResourceLoader.load_threaded_request(HIDEOUT)
+		return
+	if _hideout != null:
+		_show_ready(true)
+		return
+	var progress := []
+	var status := ResourceLoader.load_threaded_get_status(HIDEOUT, progress)
+	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		_loading_bar.value = 90.0 + 10.0 * float(progress[0] if not progress.is_empty() else 0.0)
+	elif status == ResourceLoader.THREAD_LOAD_LOADED:
+		_hideout = ResourceLoader.load_threaded_get(HIDEOUT) as PackedScene
+	else:
+		_hideout = load(HIDEOUT) as PackedScene
+
+
+func _load_hideout_now() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_hideout = load(HIDEOUT) as PackedScene
+
+
+## The buttons come up (fading in after a load).
+func _show_ready(fade: bool) -> void:
+	ready_to_play = true
+	_loading_box.visible = false
+	_play_button.visible = true
+	_row.visible = true
+	if fade:
+		for node: CanvasItem in [_play_button, _row]:
+			node.modulate.a = 0.0
+			create_tween().tween_property(node, "modulate:a", 1.0, 0.4)
 
 
 ## The picture fills the screen's height and slides across what's wider than the screen, easing at each end. It slides
@@ -100,7 +178,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func play() -> void:
 	_play_button.disabled = true
 	_play_button.text = "LOADING..."
-	var scene := ResourceLoader.load_threaded_get(HIDEOUT) as PackedScene
+	var scene := _hideout
+	if scene == null and _hideout_requested and OS.has_feature("threads"):
+		scene = ResourceLoader.load_threaded_get(HIDEOUT) as PackedScene
 	get_tree().change_scene_to_packed(scene if scene != null else load(HIDEOUT) as PackedScene)
 
 
@@ -164,6 +244,7 @@ func _build_ui() -> void:
 	_row.add_theme_constant_override("separation", 12)
 	_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_main_box.add_child(_row)
+	_build_loading_bar()
 	_button("OPTIONS", func() -> void: _show_page("options"))
 	_button("PRIVACY", func() -> void: _show_page("privacy"))
 	_button("CREDITS", func() -> void: _show_page("credits"))
@@ -218,6 +299,44 @@ func _build_ui() -> void:
 	_page_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_body.add_theme_constant_override("separation", 14)
 	scroll.add_child(_page_body)
+
+
+## The loading bar (0.30.8), drawn like the web page's (tools/web_seo.py: red on near-black, black edge, grey line).
+func _build_loading_bar() -> void:
+	_loading_box = VBoxContainer.new()
+	_loading_box.name = "Loading"
+	_loading_box.visible = false
+	_loading_box.add_theme_constant_override("separation", 12)
+	_loading_box.custom_minimum_size = Vector2(480, 144)   # (as tall as PLAY and the row under it: nothing moves)
+	_loading_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_loading_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_loading_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_main_box.add_child(_loading_box)
+	_loading_box.get_parent().move_child(_loading_box, _row.get_index())
+	_loading_label = Label.new()
+	_loading_label.text = "GETTING READY"
+	_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	HudStyle.style_label(_loading_label, 24, HudStyle.INK)
+	_loading_box.add_child(_loading_label)
+	_loading_bar = ProgressBar.new()
+	_loading_bar.show_percentage = false
+	_loading_bar.custom_minimum_size = Vector2(480, 14)
+	_loading_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color("121417")
+	back.border_color = Color.BLACK
+	back.set_border_width_all(2)
+	back.expand_margin_left = 2
+	back.expand_margin_right = 2
+	back.expand_margin_top = 2
+	back.expand_margin_bottom = 2
+	back.shadow_color = Color("353a40")
+	back.shadow_size = 2
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color("d33b2c")
+	_loading_bar.add_theme_stylebox_override("background", back)
+	_loading_bar.add_theme_stylebox_override("fill", fill)
+	_loading_box.add_child(_loading_bar)
 
 
 func _button(text: String, on_press: Callable, size := 26, color := BUTTON_FACE) -> Button:

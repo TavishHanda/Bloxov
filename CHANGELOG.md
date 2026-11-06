@@ -7,6 +7,27 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
 
+## 0.30.8 (Smooth loading: everything is built behind a loading bar, not while you play)
+- Owner: "people keep lagging when entering the game, in the hideout, and in raid... I want a way more clean
+  experience loading on to the site, getting in to the hideout without any lag". Measured on a web build: the lag
+  was the game building its graphics (shaders) while you were already playing. The title screen built them one a
+  frame while you clicked round it (choppy for ~10-25 s on a first visit or after an update), the hideout's were
+  built for the raid's sunlight, so the hideout built them all again as you walked in, and on LOW graphics the raid's
+  were built for sun shadows LOW doesn't have.
+- **The title screen opens with a loading bar** where PLAY and the buttons go, picking up from the web page's red
+  bar ("GETTING READY", or "FIRST-TIME SETUP: GETTING THE GRAPHICS READY" the first time). Behind it the game builds
+  the raid's and the hideout's shaders as fast as the machine allows (quick once the browser has built them before),
+  then loads the hideout. Then the buttons fade in and the picture starts drifting: nothing is left to build. On a
+  test web build the title had 14 hitches while its buttons were up before; now none.
+- Each shader list is built under its own light: the raid's with the raid's look and the graphics setting's sun
+  shadows, the hideout's underground with the hideout's own light (`Look.hideout_environment`, used by both).
+- **Walking into the hideout** (from PLAY or back from a raid) fades in from the title picture once it's drawing
+  smoothly, so its first frames' setup is hidden.
+- **The raid's loading picture stays up until the raid draws smoothly** (12 frames in a row with no hitch, at least
+  0.8 s as before, at most 8 s), instead of lifting after a fixed 0.8 s while the raid was still setting up.
+- Tests: the title's buttons are up and the bar is gone once everything's built (headless), the hideout's light comes
+  from one place, the loading covers lift within their limit.
+
 ## 0.30.7 (Player history)
 - Owner asked for a history of how many people have been online, numbers only. With the `STATS_URL` setting on
   Heroku, the server now posts its counts (online, in the hideout, in raids, raids, version) every 5 minutes to a

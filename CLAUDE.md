@@ -21,7 +21,7 @@
   `sways()` -> the `kit_sway` material; also `scripts/flags.gd`, `birds.gd`, `drift.gd`). 0.29 the **Engine update** (Godot 4.5.1 -> 4.7.2; 4.7 builds
   LODs for the big building meshes, so the pck is ~7 MB bigger; the hideout warms the raid map with
   `ResourceLoader.load_threaded_request`, never a Thread it waits on; 0.29.5: `scripts/shader_warm.gd` builds the raid's
-  and hideout's shaders on the title screen and in the hideout from `assets/warm/*_warm.tscn`: re-run
+  and hideout's shaders behind the title screen's loading bar (0.30.8; each list under its own light, the hideout's via `Look.hideout_environment`) from `assets/warm/*_warm.tscn`: re-run
   `xvfb-run -a godot --rendering-driver opengl3 -s tools/gen_shader_warm.gd` after adding materials or new kinds of things to them). A Stash update (separate solo/online
   stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
   built on a branch and released as the next phase.

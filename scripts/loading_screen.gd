@@ -8,9 +8,17 @@ extends Control
 
 const PICTURE := "res://assets/textures/loading_battlegrounds.jpg"
 const MAP_NAME := "Bloxov Frontlines"
-## How long the raid keeps it up (seconds, counted once the raid is drawing) and how long the fade takes.
+## How long the raid keeps it up at least (seconds, counted once the raid is drawing) and how long the fade takes.
 const HOLD := 0.8
 const FADE := 0.5
+## (0.30.8) It then stays up until the game is drawing smoothly (SETTLE_FRAMES frames in a row, none a hitch), but
+## never longer than SETTLE_MAX seconds. A hitch is a frame over SPIKE_MS and well over the usual frame.
+const SETTLE_FRAMES := 12
+const SETTLE_MAX := 8.0
+const SPIKE_MS := 45.0
+## The hideout's curtain (0.30.8): the title picture, darkened, over its first frames.
+const CURTAIN_PICTURE := "res://assets/textures/title_dusk.jpg"
+const CURTAIN_FADE := 0.35
 ## Gameplay tips (true for desktop and phones alike: no keys named).
 const TIPS := [
 	"Crouch-walking is quiet: scavs hear sprinting footsteps from much farther away.",
@@ -133,15 +141,75 @@ func _ready() -> void:
 ## Waits for the raid to settle (HOLD seconds of drawing), then fades out and frees its layer.
 func _fade_out() -> void:
 	var tree := get_tree()
-	for i in 3:   # (the first frames after a load take long; start the clock once frames are coming)
-		await tree.process_frame
-	await tree.create_timer(HOLD, true, false, true).timeout
-	_setup_done()
+	await settle(tree, HOLD)
+	setup_done()
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, FADE)
 	await tween.finished
 	tip = ""
 	get_parent().queue_free()
+
+
+## Waits until the game is drawing smoothly (0.30.8, owner: people lagged just after getting in): at least `at_least`
+## seconds of frames, then SETTLE_FRAMES frames in a row with no hitch (a shader being built, things being set up),
+## at most SETTLE_MAX seconds. A slow machine's frames are all slow, so a hitch is measured against the usual frame.
+static func settle(tree: SceneTree, at_least := 0.0) -> void:
+	for i in 3:   # (the first frames after a load take long; start the clock once frames are coming)
+		await tree.process_frame
+	var start := Time.get_ticks_usec()
+	var last := start
+	var smooth := 0
+	var recent: Array[float] = []
+	while true:
+		await tree.process_frame
+		var now := Time.get_ticks_usec()
+		var ms := (now - last) / 1000.0
+		last = now
+		var usual := ms
+		if not recent.is_empty():
+			var sorted := recent.duplicate()
+			sorted.sort()
+			usual = sorted[sorted.size() / 2]
+		recent.append(ms)
+		if recent.size() > 20:
+			recent.pop_front()
+		smooth = smooth + 1 if ms < maxf(SPIKE_MS, usual * 1.6) else 0
+		var waited := (now - start) / 1e6
+		if (smooth >= SETTLE_FRAMES and waited >= at_least) or waited >= SETTLE_MAX:
+			return
+
+
+## Puts the title picture over `scene` (the hideout, as you walk in) until it draws smoothly, then fades it out.
+## Not on servers or headless runs.
+static func curtain(scene: Node) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "Curtain"
+	layer.layer = 100
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	var picture := TextureRect.new()
+	picture.texture = load(CURTAIN_PICTURE)
+	picture.set_anchors_preset(Control.PRESET_FULL_RECT)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	picture.mouse_filter = Control.MOUSE_FILTER_STOP
+	picture.modulate = Color(0.45, 0.4, 0.38)   # (as dark as the title screen's shade)
+	layer.add_child(picture)
+	scene.add_child(layer)
+	_lift.call_deferred(layer, picture)
+
+
+static func _lift(layer: CanvasLayer, picture: TextureRect) -> void:
+	if not is_instance_valid(layer) or not layer.is_inside_tree():
+		return
+	await settle(layer.get_tree())
+	if not is_instance_valid(layer):
+		return
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tween := layer.create_tween()
+	tween.tween_property(picture, "modulate:a", 0.0, CURTAIN_FADE)
+	tween.tween_callback(layer.queue_free)
 
 
 ## True in a browser that hasn't loaded a raid on this Godot version yet (its shaders aren't built and kept yet).
@@ -152,7 +220,7 @@ static func first_setup() -> bool:
 	return str(seen) != _engine_version()
 
 
-static func _setup_done() -> void:
+static func setup_done() -> void:
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("try { localStorage.setItem('%s', '%s') } catch (e) {}" % [SETUP_KEY, _engine_version()], true)
 
