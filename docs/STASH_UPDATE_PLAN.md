@@ -895,6 +895,9 @@ release. **Do not bump `project.godot` for docs-only steps.**
 
 ### Phase 1 — the mode split, no server (0.31.0 or a dev-only step)
 
+**Built 2026-11-06 as 0.31.0** (hidden; `?pvp_stash` shows it). The versioning rule puts the phase start at 0.31.0,
+so the accounts step (Phase 2) ships as the next 0.31.x.
+
 - `Profile.mode` and the SOLO/ONLINE switch in the hideout, with ONLINE hidden behind a flag.
 - The sign-in screen shell and the session-token storage (no server call yet).
 - The `Profile` mode guards and the SaveBackup solo-only change.

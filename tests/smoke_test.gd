@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "keybinds",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
@@ -3320,6 +3320,90 @@ func _section_settings() -> void:
 	await LoadingScreen.settle(self)
 	_check(Time.get_ticks_msec() - settle_from < LoadingScreen.SETTLE_MAX * 1000 + 500,
 		"the loading covers lift once frames are smooth (%d ms)" % (Time.get_ticks_msec() - settle_from))
+
+
+func _section_stash_modes() -> void:
+	# Stash update Phase 1 (0.31): PvE (the save on this device) and PvP (the online stash; a preview until 0.31.0)
+	# are separate stashes. The solo save never takes PvP data, a backup is always the PvE stash, and the switch
+	# is hidden until PvP accounts go live.
+	Profile.load_profile()
+	_check(not GameSettings.pvp_stash_on(), "the PvE/PvP switch is hidden without the preview flag")
+	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
+	root.add_child(hideout)
+	await process_frame
+	_check(hideout.mode_button == null and hideout.signin_panel == null and hideout.raid_allowed(false) and hideout.raid_allowed(true),
+		"without the flag the hideout has no switch and both raids use today's one stash")
+	hideout.queue_free()
+	await process_frame
+	Profile.stash.add("gold_watch")
+	Profile.save_profile()
+	var solo_money := Profile.money
+	var solo_watches := Profile.stash.count_of("gold_watch")
+	var solo_file := FileAccess.get_file_as_string(Profile.PATH)
+	# The PvP starter stash (plan §4.6): $50k, 3 Hounds, 5 Stingers, attachments per Hound, ammo, meds, one ready kit.
+	var start := Profile.pvp_start_data()
+	var counts := {}
+	for entry: Dictionary in start["stash"] + start["loadout"]["pockets"] + start["loadout"]["equipment"].values():
+		counts[entry["id"]] = int(counts.get(entry["id"], 0)) + int(entry["count"])
+	_check(int(start["money"]) == 50000 and counts.get("ak") == 3 and counts.get("pistol") == 5 and counts.get("red_dot") == 3
+		and counts.get("foregrip") == 3 and counts.get("ext_mag") == 3 and counts.get("suppressor") == 1
+		and counts.get("rifle_ammo") == 360 and counts.get("pistol_ammo") == 250 and counts.get("bandage") == 5
+		and counts.get("medkit") == 2 and counts.get("energy_drink") == 3 and counts.get("backpack_small") == 1
+		and counts.get("armor_light") == 1 and counts.get("helmet_basic") == 1 and counts.get("backpack_medium") == 1,
+		"the PvP starter stash has the decided kit (%s)" % counts)
+	_check(start["stash"].all(func(entry: Dictionary) -> bool: return not entry.has("free")), "the PvP starter kit is ordinary (sellable) stacks")
+	Profile.look = Operators.clean({})
+	var look_text := Operators.to_text(Profile.look)
+	Profile.use_online(start)
+	_check(Profile.mode == Profile.ONLINE and Profile.money == 50000 and Profile.stash.count_of("gold_watch") == 0
+		and Profile.stash.count_of("ak") == 2, "PvP shows its own stash")
+	Profile.money = 999999
+	Profile.stash.add("gold_watch", 5)
+	Profile.save_profile()
+	var saved = JSON.parse_string(FileAccess.get_file_as_string(Profile.PATH))
+	_check(saved is Dictionary and int(saved["money"]) == solo_money and Operators.to_text(Operators.clean(saved.get("look"))) == look_text,
+		"saving while in PvP never writes PvP money or items to the solo save")
+	var backup := SaveBackup.read(SaveBackup.pack())
+	_check(not backup.has("error") and String(backup["summary"]).contains(ItemDB.money(solo_money)),
+		"a backup made in PvP is the PvE stash (%s)" % backup.get("summary", backup.get("error")))
+	SaveBackup.apply(backup)
+	_check(Profile.mode == Profile.ONLINE and Profile.money == 999999, "loading a backup in PvP leaves the PvP stash alone")
+	Profile.use_solo()
+	_check(Profile.mode == Profile.SOLO and Profile.money == solo_money and Profile.stash.count_of("gold_watch") == solo_watches,
+		"back in PvE the solo stash is as it was")
+	# The hideout with the preview flag: the switch, the raid guards, the sign-in shell.
+	GameSettings.pvp_stash_forced = true
+	hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
+	root.add_child(hideout)
+	await process_frame
+	_check(hideout.mode_button != null and hideout.mode_button.text == "PvE · SOLO" and hideout.raid_allowed(false)
+		and not hideout.raid_allowed(true), "PvE: the switch shows SOLO, solo raids yes, online no")
+	hideout.switch_mode(Profile.ONLINE)
+	await process_frame
+	_check(Profile.mode == Profile.ONLINE and hideout.mode_button.text == "PvP · ONLINE" and hideout.screen.stash == Profile.stash
+		and hideout.inventory.equipped("armor") != null and hideout.raid_allowed(true) and not hideout.raid_allowed(false),
+		"switching to PvP shows the PvP stash and loadout; online raids yes, solo no")
+	_check(hideout.signin_panel.visible and hideout.signin_panel.get_node_or_null("Margin/Column/Password") == null
+		and (hideout.signin_panel.find_child("Password", true, false) as LineEdit).secret, "the PvP sign-in shell shows, password hidden")
+	hideout.switch_mode(Profile.SOLO)
+	await process_frame
+	_check(Profile.mode == Profile.SOLO and Profile.money == solo_money and hideout.screen.stash == Profile.stash
+		and Profile.stash.count_of("gold_watch") == solo_watches, "switching back shows the PvE stash")
+	hideout.queue_free()
+	GameSettings.pvp_stash_forced = false
+	await process_frame
+	# The remember-me session (plan §5.3): kept, read back, cleared; never a password.
+	SessionStore.save("abc123", "tester")
+	var session := SessionStore.read()
+	_check(session.get("token") == "abc123" and session.get("username") == "tester"
+		and not FileAccess.get_file_as_string(SessionStore.PATH).contains("password"), "a session is kept and read back")
+	SessionStore.clear()
+	_check(SessionStore.read().is_empty(), "signing out clears the session")
+	var file := FileAccess.open(Profile.PATH, FileAccess.WRITE)
+	file.store_string(solo_file)
+	file.close()
+	Profile._loaded = false
+	Profile.load_profile()
 
 
 func _section_backup() -> void:

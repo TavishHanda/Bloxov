@@ -3,7 +3,7 @@ extends RefCounted
 ## Save backups (0.25.5, owner: nobody loses progress when the game moves to bloxov.com): the whole save (profile and
 ## settings) as one file to keep, and loading one back, from OPTIONS. The move page (web/move/index.html) builds the
 ## same package from the old site's save, so a file it hands out loads here too.
-## A package: {"format": FORMAT, "profile": Profile.save_text(), "settings": GameSettings.save_text()}.
+## A package: {"format": FORMAT, "profile": Profile.solo_save_text() (always the PvE stash), "settings": GameSettings.save_text()}.
 
 const FORMAT := "bloxov-save"
 ## Bigger than any real save by far; stops a wrong file (a video, say) being read into memory.
@@ -17,7 +17,7 @@ static var _web_callback: JavaScriptObject
 static func pack() -> String:
 	Profile.load_profile()
 	GameSettings.load_settings()
-	return JSON.stringify({"format": FORMAT, "profile": Profile.save_text(), "settings": GameSettings.save_text()})
+	return JSON.stringify({"format": FORMAT, "profile": Profile.solo_save_text(), "settings": GameSettings.save_text()})
 
 
 ## A backup file's name, with today's date.

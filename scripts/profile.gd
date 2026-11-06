@@ -50,6 +50,16 @@ const TUTORIAL_DONE := 99
 static var tutorial: Dictionary = fresh_tutorial()
 static var _loaded := false
 
+## Which stash the static fields hold (Stash update, 0.31): SOLO = the PvE stash on this device (the save file, as it
+## always was), ONLINE = the PvP stash (from the server once accounts are live; until then a preview built by pvp_start_data,
+## never saved). Look and tutorial are account-wide (owner, 2026-11-04): they stay the device's while online.
+const SOLO := "solo"
+const ONLINE := "online"
+static var mode := SOLO
+## While ONLINE: the solo profile as saved (JSON text). Saves while online write this (with today's look and
+## tutorial), never the online fields; going back to SOLO loads it.
+static var _solo_text := ""
+
 
 ## Every field is type-checked and falls back to its default, so a malformed save can't throw halfway
 ## and leave a half-loaded profile.
@@ -67,6 +77,11 @@ static func load_profile() -> void:
 		_backup_bad_save(text)
 		reset()
 		return
+	_apply(data)
+
+
+## Fills the static fields from a profile in the saved shape (the solo save, or an online profile).
+static func _apply(data: Dictionary) -> void:
 	money = int(data["money"]) if _is_number(data.get("money")) else START_MONEY
 	var size = data.get("stash_size")
 	if size is Array and size.size() == 2 and _is_number(size[0]) and _is_number(size[1]):
@@ -220,6 +235,8 @@ static func _array(value) -> Array:
 ## A brand new profile: starting money, empty stash, starting kit loadout.
 static func reset() -> void:
 	_loaded = true
+	mode = SOLO
+	_solo_text = ""
 	money = START_MONEY
 	stash = GridInventory.new("Stash", STASH_SIZE.x, STASH_SIZE.y)
 	loadout = starting_loadout()
@@ -238,7 +255,55 @@ static func save_profile() -> void:
 	# A second browser tab never saves (TabLock): its copy of the profile is out of date.
 	if not TabLock.owns():
 		return
+	if mode == ONLINE:
+		# The online stash is never written here (the server owns it); only the solo save's shared parts change.
+		_solo_text = solo_save_text()
+		_write(_solo_text)
+		return
 	_write(save_text())
+
+
+## The solo profile's save (JSON text), whichever stash is showing: a backup file is always the PvE stash (Stash
+## update plan §9.4). While online it is the solo save with today's look and tutorial.
+static func solo_save_text() -> String:
+	if mode == SOLO:
+		return save_text()
+	var data = JSON.parse_string(_solo_text)
+	if not data is Dictionary:
+		return _solo_text
+	data["look"] = look
+	data["tutorial"] = tutorial
+	data["saved_at"] = Time.get_unix_time_from_system()
+	return JSON.stringify(data)
+
+
+## Shows the PvP stash: `data` is an online profile in the saved shape. The solo profile is saved first and kept
+## aside; look and tutorial stay the device's.
+static func use_online(data: Dictionary) -> void:
+	load_profile()
+	if mode == SOLO:
+		_solo_text = save_text()
+		save_profile()
+	var keep_look := look
+	var keep_tutorial := tutorial
+	mode = ONLINE
+	_apply(data)
+	look = keep_look
+	tutorial = keep_tutorial
+
+
+## Back to the PvE stash: the solo profile as it was saved, with today's look and tutorial.
+static func use_solo() -> void:
+	if mode == SOLO:
+		return
+	var text := solo_save_text()
+	mode = SOLO
+	_solo_text = ""
+	var data = JSON.parse_string(text)
+	if data is Dictionary:
+		_apply(data)
+	else:
+		reset()
 
 
 ## The profile as saved (JSON text): what save_profile writes, and what a backup file carries (SaveBackup).
@@ -267,6 +332,15 @@ static func save_text() -> String:
 ## and loaded.
 static func replace_with(text: String) -> void:
 	_write(text)
+	if mode == ONLINE:
+		# A backup is the PvE stash: it replaces the solo save, never what the PvP stash shows. Look and tutorial
+		# are shared, so they come from the backup straight away.
+		_solo_text = text
+		var data = JSON.parse_string(text)
+		if data is Dictionary:
+			look = Operators.clean(data.get("look"))
+			tutorial = clean_tutorial(data.get("tutorial"), false)
+		return
 	_loaded = false
 	load_profile()
 
@@ -304,6 +378,43 @@ static func starting_loadout() -> Dictionary:
 		"backpack": [],
 		"secure": [],
 		"hotbar": ["", "", ""],
+	}
+
+
+## The PvP stash's start (Stash update plan §4.6, owner 2026-11-04): $50k, three Hounds, five Stingers, attachments
+## for each Hound, ammo, meds, and one ready kit (light armor, old helmet, medium backpack) worn with a Hound and a
+## Stinger. Ordinary stacks, so it can be sold (the repeatable free kit stays unsellable). In the saved shape, so the
+## server (once accounts are live) and the preview build it the same way.
+const PVP_START_MONEY := 50000
+
+static func pvp_start_data() -> Dictionary:
+	var grid := GridInventory.new("Stash", STASH_SIZE.x, STASH_SIZE.y)
+	for id in ["ak", "ak", "pistol", "pistol", "pistol", "pistol"]:
+		var spot := grid.find_spot(id)
+		var gun := ItemStack.new(id, 1, spot[0], spot[1], spot[2])
+		gun.loaded = int(ItemDB.ITEMS[id]["mag"])
+		grid.place(gun)
+	for entry in [["red_dot", 3], ["foregrip", 3], ["ext_mag", 3], ["suppressor", 1], ["rifle_ammo", 270],
+			["pistol_ammo", 250], ["bandage", 4], ["medkit", 2], ["energy_drink", 3], ["backpack_small", 1]]:
+		grid.add(entry[0], entry[1])
+	return {
+		"version": VERSION,
+		"money": PVP_START_MONEY,
+		"stash_size": [grid.width, grid.height],
+		"stash": _write_grid(grid),
+		"loadout": {
+			"equipment": {
+				"primary": {"id": "ak", "count": 1, "loaded": int(ItemDB.ITEMS["ak"]["mag"])},
+				"secondary": {"id": "pistol", "count": 1, "loaded": int(ItemDB.ITEMS["pistol"]["mag"])},
+				"armor": {"id": "armor_light", "count": 1},
+				"helmet": {"id": "helmet_basic", "count": 1},
+				"backpack": {"id": "backpack_medium", "count": 1},
+			},
+			"pockets": [{"id": "rifle_ammo", "count": 90, "x": 0, "y": 0}, {"id": "bandage", "count": 1, "x": 1, "y": 0}],
+			"backpack": [],
+			"secure": [],
+			"hotbar": ["", "", ""],
+		},
 	}
 
 

@@ -5,7 +5,26 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
+
+## 0.31.0 (Stash update, step 1: the PvE/PvP switch, hidden)
+- **First step of the Stash update** (`docs/STASH_UPDATE_PLAN.md` Phase 1). Players see no change: the switch is
+  hidden until PvP accounts go live. To try it, add `?pvp_stash` to the game's address (or `-- --pvp-stash` on
+  desktop).
+- **Two stashes.** `Profile.mode` is SOLO (the PvE stash: today's save on this device, unchanged format) or ONLINE
+  (the PvP stash). `Profile.use_online` / `use_solo` swap them; saving while in PvP only writes the solo save's look
+  and tutorial (account-wide), never PvP money or items.
+- **The PvP starter stash** (`Profile.pvp_start_data`, plan §4.6): $50,000, 3 Hounds, 5 Stingers, a red dot, foregrip
+  and extended mag per Hound, a suppressor, 360 Hound and 250 Stinger rounds, 5 bandages, 2 medkits, 3 energy drinks,
+  a small backpack, and one ready kit worn (light armor, old helmet, medium backpack). For now PvP is a preview of it,
+  never saved.
+- **Hideout:** a `PvE · SOLO` / `PvP · ONLINE` button next to OPTIONS. START RAID and the free kit raid only from PvE,
+  ONLINE only from PvP. Switching to PvP shows the sign-in panel (username, password, SIGN IN / CREATE ACCOUNT) with
+  the "your current stash is now your PvE stash" message; it doesn't sign in yet.
+- **Save backups are always the PvE stash**, even made or loaded while in PvP.
+- New `SessionStore` (`scripts/session_store.gd`): the remember-me session for PvP sign-in, kept in
+  `user://session.json` and localStorage. Not used yet.
+- Smoke test: new `stash_modes` section.
 
 ## 0.30.9 (Server without graphics: 4 raids at once)
 - **The online server now runs a stripped build with no graphics in it.** Godot's dedicated-server export (new

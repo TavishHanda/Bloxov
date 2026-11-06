@@ -128,6 +128,20 @@ static func set_graphics(value: int) -> void:
 	save()
 
 
+## The PvE/PvP stash switch (Stash update, 0.31 Phase 1): hidden until PvP accounts go live. Shown with
+## `--pvp-stash` after `--` on the command line, or `?pvp_stash` on the web game's address, for trying it out. The
+## PvP side is a preview then: the PvP starter kit, never saved, nothing sent to the server.
+static var pvp_stash_forced := false   # (tests)
+
+static func pvp_stash_on() -> bool:
+	if pvp_stash_forced or OS.get_cmdline_user_args().has("--pvp-stash"):
+		return true
+	if OS.has_feature("web"):
+		var query = JavaScriptBridge.eval("(function () { try { return location.search || '' } catch (e) { return '' } })()", true)
+		return query is String and (query as String).contains("pvp_stash")
+	return false
+
+
 ## A phone or tablet (the app, or the web game in a phone's browser).
 static func is_phone() -> bool:
 	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")

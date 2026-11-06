@@ -68,6 +68,10 @@ var _loadout_save_button: Button
 var gear_warning: PanelContainer
 var _gear_warning_go := Callable()
 var _buy_new_box: CheckBox
+## The PvE/PvP switch (Stash update, 0.31 Phase 1; only with GameSettings.pvp_stash_on) and the PvP sign-in panel.
+var mode_button: Button
+var signin_panel: PanelContainer
+var _signin_note: Label
 
 
 func _ready() -> void:
@@ -116,6 +120,8 @@ func _ready() -> void:
 	_build_online_panel()
 	_build_loadouts_panel()
 	_build_gear_warning()
+	if GameSettings.pvp_stash_on():
+		_build_signin_panel()
 	_warm_raid.call_deferred()
 	var net := Network.main
 	net.raid_started.connect(start_raid)
@@ -691,6 +697,8 @@ func start_with_free_kit() -> void:
 	if Network.main.is_client():
 		take_free_kit()
 		return
+	if not raid_allowed(false):
+		return
 	if take_free_kit():
 		Network.main.go_offline()
 		start_raid()
@@ -972,6 +980,16 @@ func _build_top_bar() -> void:
 			open_options())
 	row.add_child(options_button)
 	_build_options_window()
+	if GameSettings.pvp_stash_on():
+		mode_button = Button.new()
+		mode_button.name = "ModeButton"
+		mode_button.focus_mode = Control.FOCUS_NONE
+		mode_button.text = mode_text()
+		mode_button.tooltip_text = "PvE: solo against the AI, saved on this device, works offline. PvP: online, its own stash saved on the server."
+		LootUI.style_button(mode_button)
+		mode_button.pressed.connect(func() -> void:
+			switch_mode(Profile.SOLO if Profile.mode == Profile.ONLINE else Profile.ONLINE))
+		row.add_child(mode_button)
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1005,7 +1023,9 @@ func _build_top_bar() -> void:
 	_online_button.tooltip_text = "Queue into raids with other players, or party up with a friend"
 	_online_button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(_online_button)
-	_online_button.pressed.connect(func() -> void: _online_panel.visible = not _online_panel.visible)
+	_online_button.pressed.connect(func() -> void:
+		if _online_panel.visible or raid_allowed(true):
+			_online_panel.visible = not _online_panel.visible)
 	row.add_child(_online_button)
 	var loadouts_button := Button.new()
 	loadouts_button.name = "LoadoutsButton"
@@ -1031,9 +1051,12 @@ func _build_top_bar() -> void:
 	raid_button.custom_minimum_size = Vector2(150, 0)
 	raid_button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(raid_button, 30, HudStyle.HAZARD)
-	raid_button.pressed.connect(confirm_raid.bind(func() -> void:
-		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
-		start_raid()))
+	raid_button.pressed.connect(func() -> void:
+		if not raid_allowed(false):
+			return
+		confirm_raid(func() -> void:
+			Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
+			start_raid()))
 	row.add_child(raid_button)
 
 
@@ -1092,6 +1115,121 @@ func open_options() -> void:
 
 func close_options() -> void:
 	options_window.visible = false
+
+
+# --- PvE / PvP (Stash update, 0.31) --------------------------------------------------
+
+## What the switch shows: the stash you're in.
+func mode_text() -> String:
+	return "PvP · ONLINE" if Profile.mode == Profile.ONLINE else "PvE · SOLO"
+
+
+## A solo raid only from the PvE stash, an online one only from the PvP stash (plan §4.4): gear from one stash
+## must never go into the other's raids. With the switch hidden (until accounts are live) both share today's one stash.
+func raid_allowed(online: bool) -> bool:
+	if not GameSettings.pvp_stash_on() or (Profile.mode == Profile.ONLINE) == online:
+		return true
+	_message("Switch to PvP to play online." if online else "Solo raids use your PvE stash: switch to PvE first.")
+	return false
+
+
+## Changes stash. Never mid-queue: switching leaves online play (plan §4.4). Phase 1: PvP is a preview of the PvP
+## starter stash, never saved; the sign-in panel shows what accounts will ask for.
+func switch_mode(to: String) -> void:
+	if to == Profile.mode:
+		return
+	Profile.loadout = Profile.capture_inventory(inventory)
+	if to == Profile.ONLINE:
+		Profile.use_online(Profile.pvp_start_data())
+	else:
+		Network.main.go_offline()
+		Profile.use_solo()
+	Profile.save_profile()
+	_reload_stash()
+	if to == Profile.ONLINE and signin_panel != null:
+		signin_panel.visible = true
+	_message("PvP stash (preview: nothing here is saved)" if to == Profile.ONLINE else "PvE stash: solo, on this device")
+
+
+## Shows whichever stash Profile now holds: the loadout on you, the stash grid, the money and the switch.
+func _reload_stash() -> void:
+	# (the loadout going on fires `changed`: not a change to save)
+	inventory.changed.disconnect(_queue_save)
+	Profile.apply_inventory(inventory, Profile.loadout)
+	inventory.changed.connect(_queue_save)
+	screen.open_stash(Profile.stash)
+	if not Profile.stash.changed.is_connected(_queue_save):
+		Profile.stash.changed.connect(_queue_save)
+	if mode_button != null:
+		mode_button.text = mode_text()
+	_fill_trader()
+	_refresh()
+
+
+## PvP sign-in (plan §10.1), a shell until accounts are live: username and password, SIGN IN / CREATE ACCOUNT. Nothing is sent
+## yet; the buttons say so. It also carries the one message playtesters must not miss (plan §4.5).
+func _build_signin_panel() -> void:
+	signin_panel = PanelContainer.new()
+	signin_panel.name = "SignIn"
+	signin_panel.visible = false
+	signin_panel.set_anchors_preset(Control.PRESET_CENTER)
+	signin_panel.custom_minimum_size = Vector2(460, 0)
+	signin_panel.position = Vector2(-230, -200)
+	LootUI.skin_panel(signin_panel)
+	add_child(signin_panel)
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 16)
+	signin_panel.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	margin.add_child(column)
+	var title := Label.new()
+	title.text = "PvP · ONLINE"
+	HudStyle.style_label(title, 30)
+	column.add_child(title)
+	var hint := Label.new()
+	hint.text = "PvP is online and uses a separate stash saved on the server. Your current stash is now your PvE stash. PvP starts fresh with a starter kit."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.modulate = Color(1, 1, 1, 0.7)
+	column.add_child(hint)
+	var user := LineEdit.new()
+	user.name = "Username"
+	user.placeholder_text = "Username"
+	user.max_length = 16
+	user.text = str(SessionStore.read().get("username", ""))
+	_style_edit(user)
+	column.add_child(user)
+	var password := LineEdit.new()
+	password.name = "Password"
+	password.placeholder_text = "Password (10+ letters)"
+	password.secret = true
+	password.max_length = 64
+	_style_edit(password)
+	column.add_child(password)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	column.add_child(buttons)
+	for text in ["SIGN IN", "CREATE ACCOUNT"]:
+		var button := Button.new()
+		button.text = text
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.custom_minimum_size = Vector2(0, 44)   # (a finger-sized target on phones)
+		LootUI.style_button(button, 24, HudStyle.HAZARD if text == "SIGN IN" else HudStyle.FACE)
+		button.pressed.connect(func() -> void:
+			password.text = ""
+			_signin_note.text = "PvP accounts aren't open yet. For now this is a preview of the PvP starter stash: nothing in it is saved.")
+		buttons.add_child(button)
+	_signin_note = Label.new()
+	_signin_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	HudStyle.style_label(_signin_note, 20, HudStyle.HAZARD)
+	_signin_note.add_theme_font_override("font", HudStyle.spaced_font(20))
+	column.add_child(_signin_note)
+	var close := Button.new()
+	close.text = "CLOSE"
+	LootUI.style_button(close)
+	close.pressed.connect(func() -> void: signin_panel.visible = false)
+	column.add_child(close)
 
 
 # --- Online --------------------------------------------------------------------------
