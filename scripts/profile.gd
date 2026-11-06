@@ -381,7 +381,7 @@ static func starting_loadout() -> Dictionary:
 	}
 
 
-## The PvP stash's start (Stash update plan §4.6, owner 2026-11-04): $50k, three Hounds, five Stingers, attachments
+## The PvP stash's start (Stash update plan §4.6, owner 2026-11-04; 3 Stingers, not 5: owner 2026-11-06): $50k, three Hounds, three Stingers, attachments
 ## for each Hound, ammo, meds, and one ready kit (light armor, old helmet, medium backpack) worn with a Hound and a
 ## Stinger. Ordinary stacks, so it can be sold (the repeatable free kit stays unsellable). In the saved shape, so the
 ## server (once accounts are live) and the preview build it the same way.
@@ -389,7 +389,7 @@ const PVP_START_MONEY := 50000
 
 static func pvp_start_data() -> Dictionary:
 	var grid := GridInventory.new("Stash", STASH_SIZE.x, STASH_SIZE.y)
-	for id in ["ak", "ak", "pistol", "pistol", "pistol", "pistol"]:
+	for id in ["ak", "ak", "pistol", "pistol"]:
 		var spot := grid.find_spot(id)
 		var gun := ItemStack.new(id, 1, spot[0], spot[1], spot[2])
 		gun.loaded = int(ItemDB.ITEMS[id]["mag"])

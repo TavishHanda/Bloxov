@@ -3345,7 +3345,7 @@ func _section_stash_modes() -> void:
 	var counts := {}
 	for entry: Dictionary in start["stash"] + start["loadout"]["pockets"] + start["loadout"]["equipment"].values():
 		counts[entry["id"]] = int(counts.get(entry["id"], 0)) + int(entry["count"])
-	_check(int(start["money"]) == 50000 and counts.get("ak") == 3 and counts.get("pistol") == 5 and counts.get("red_dot") == 3
+	_check(int(start["money"]) == 50000 and counts.get("ak") == 3 and counts.get("pistol") == 3 and counts.get("red_dot") == 3
 		and counts.get("foregrip") == 3 and counts.get("ext_mag") == 3 and counts.get("suppressor") == 1
 		and counts.get("rifle_ammo") == 360 and counts.get("pistol_ammo") == 250 and counts.get("bandage") == 5
 		and counts.get("medkit") == 2 and counts.get("energy_drink") == 3 and counts.get("backpack_small") == 1

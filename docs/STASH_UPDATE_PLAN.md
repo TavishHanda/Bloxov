@@ -197,7 +197,7 @@ rounds, a bandage).
 | Item | Count | Why |
 | --- | --- | --- |
 | Hound (`ak`), loaded | 3 | one ready, two spare, so losing a gun does not end the session |
-| Stinger (`pistol`), loaded | 5 | sidearm plus spares |
+| Stinger (`pistol`), loaded | 3 | sidearm plus spares (5 until the owner lowered it, 2026-11-06) |
 | Red Dot (`red_dot`) | 3 | one per Hound |
 | Foregrip (`foregrip`) | 3 | one per Hound |
 | Extended Mag (`ext_mag`) | 3 | one per Hound |
