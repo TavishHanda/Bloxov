@@ -7,6 +7,26 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.2 (Stash update, step 2: PvP accounts and the online stash)
+- **PvP accounts** (still behind `?pvp_stash` until they go live): CREATE ACCOUNT (username + password, 10+
+  characters; no email), SIGN IN, remember me (`SessionStore`), one session per account with **TAKE OVER HERE**, a
+  one-time **recovery code** (shown once, "I saved it") and FORGOT PASSWORD?, SIGN OUT, and DELETE PvP ACCOUNT (type
+  DELETE; 30-day grace, signing in cancels it). The PvE stash is never touched by any of it.
+- **The Stash API** (`server/`, Node + Postgres): accounts, scrypt password hashes, hashed session tokens and
+  recovery codes, lockout after 10 wrong passwords (15 min), bans (24 h, 7 days, for good), the 30-day delete and
+  the 12-month inactive sweep, and the online profile with a revision check. Runs beside the game server on
+  127.0.0.1 only when Heroku Postgres is attached (`server/start.sh`); its tests run in CI against a real Postgres
+  (new job `stash_api`, the Heroku deploy waits for it).
+- **The game server keeps the PvP stash** (`scripts/net_accounts.gd`, `OnlineProfile`): the signed-in player's
+  profile lives on the server and is saved through the API after every change. As a raid starts the server **issues
+  the kit** from the saved loadout (the game's own kit list no longer counts for PvP players) and saves the gear as
+  at risk; dying or leaving saves the loss; extracting saves what came out, and coming out with more than the server
+  counted is a strike. A raid lost to a server restart gives the gear back (owner, 2026-11-04).
+- **PvP has no START NOW** (owner): PvP raids only come from the queue, with other players.
+- Still on trust until the server runs the hideout (plan Phase 3): buys, sells and moves in the PvP hideout are sent
+  as a whole profile and only checked for shape (real items, sane sizes). The server keeps its own raid stats.
+- Smoke test: new `pvp_accounts` section (server + two players + an in-memory Stash API).
+
 ## 0.31.1 (PvP starter kit: 3 Stingers)
 - The PvP starter stash has 3 Stingers, not 5 (owner): one worn, two in the stash. Still 3 Hounds and 250 Stinger
   rounds.

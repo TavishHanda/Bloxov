@@ -192,6 +192,8 @@ func _save_to_profile() -> void:
 	if result == "extracted":
 		Profile.loadout = carried
 		Profile.stats["extracts"] += 1
+		# PvP (0.31): the server saves what we came out with (it checks it against what it counted us carrying).
+		Network.main.send_final_kit(carried)
 	else:
 		Profile.loadout = Profile.death_loadout(carried)
 		Profile.stats["deaths"] += 1

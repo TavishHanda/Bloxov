@@ -65,6 +65,10 @@ signal revived
 signal put_back(pos: Vector3)
 ## The server says we're dead (0.25.2: its count of our health hit 0 and we stayed up).
 signal forced_dead
+## PvP accounts (Stash update, 0.31): the server answered a sign-in screen action (`ok`, and what it sent back:
+## the profile, the session token, a recovery code, or an "error"); the server's copy of our PvP profile changed.
+signal account_result(action: String, ok: bool, data: Dictionary)
+signal profile_synced
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -113,6 +117,16 @@ var names := {}
 ## Their looks in our raid (Operators.to_text) by peer id (0.21.6), and ours as we send it.
 var looks := {}
 var my_look := ""
+## PvP accounts (Stash update, 0.31). Client: the server keeps accounts (it has a database), who we're signed in as
+## ("" = not), the PvP profile as the server last sent it, the kit it issued for the raid starting, and a sign-in
+## action waiting for the connection.
+var accounts_on := false
+var account_name := ""
+var online_profile := {}
+var issued_kit := {}
+var _pending_account: Array = []
+## Server: accounts and the online stash (NetAccounts), or null without a database (online play as before).
+var accounts: NetAccounts
 var teammates: Array[int] = []
 ## The other players in our raid: their latest state (RemotePlayer.capture) by peer id, and when it arrived.
 var states := {}
@@ -240,8 +254,18 @@ func start_server(port: int) -> Error:
 	matchmaker.raid_time = RAID_TIME
 	guard.log_func = _log
 	_stats_url = OS.get_environment("STATS_URL").strip_edges()
+	var api := StashClient.from_environment()
+	if api != null:
+		use_stash(api)
 	_log("v%s listening on port %d%s" % [version(), port, " (player history on)" if _stats_url != "" else ""])
 	return OK
+
+
+## Server: keep PvP accounts and the online stash through `api` (the Stash API; the tests pass a FakeStash).
+func use_stash(api: StashClient) -> void:
+	add_child(api)
+	accounts = NetAccounts.new(self, api)
+	_log("PvP accounts on")
 
 
 ## The server only relays states shaped like RemotePlayer.capture()'s: [position, yaw, pitch, lean, flags]
@@ -274,7 +298,7 @@ func _hello(client_version: String, player_name: String, look := "") -> void:
 	matchmaker.add_player(peer, player_name)
 	matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(look))   # (only real parts get through)
 	_log("%s (peer %d) is online (%d players)" % [matchmaker.players[peer]["name"], peer, matchmaker.players.size()])
-	_welcome.rpc_id(peer)
+	_welcome.rpc_id(peer, accounts != null)
 	_flush()
 
 
@@ -298,6 +322,9 @@ func _set_queued(on: bool) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _start_now() -> void:
 	_server_call(func(peer: int) -> String:
+		# PvP is played against other players: no raids alone (owner, 2026-11-06).
+		if accounts != null and accounts.signed_in(peer):
+			return "PvP raids start from the queue, with other players."
 		var why := []
 		var id := matchmaker.start_now(peer, why)
 		if id != 0:
@@ -308,6 +335,8 @@ func _start_now() -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _leave_raid() -> void:
 	_server_call(func(peer: int) -> String:
+		if accounts != null:
+			accounts.raid_over(peer, "left")
 		_player_states.erase(peer)
 		_carried.erase(peer)
 		_in_extract.erase(peer)
@@ -333,6 +362,11 @@ func _state(state: Array) -> void:
 	_player_states[peer] = state
 	if not state[4] & Hitbox.FLAG_DEAD:
 		_player_kills.erase(peer)
+	if accounts != null:
+		if state[4] & Hitbox.FLAG_DEAD and not was_dead:
+			accounts.raid_over(peer, "killed")
+		elif state[4] & Hitbox.FLAG_EXTRACTED and not old_flags & Hitbox.FLAG_EXTRACTED:
+			accounts.extracted(peer)
 	if world != null:
 		world.record(peer, state, _now())
 		world.update_proxy(peer, state)
@@ -706,6 +740,8 @@ func _kit(data: Array) -> void:
 	var peer := _sender("kit")
 	if peer == 0 or matchmaker.players[peer]["raid"] == 0:
 		return
+	if accounts != null and accounts.signed_in(peer):
+		return   # (PvP: the server issued their kit as the raid started, plan §7.3)
 	if _carried.has(peer) or data.size() > 300:
 		_caught(peer, "bad_data", "kit")
 		return
@@ -833,6 +869,8 @@ func _on_peer_left(peer: int) -> void:
 	if not matchmaker.players.has(peer):
 		return
 	_log("%s (peer %d) went offline" % [matchmaker.players[peer]["name"], peer])
+	if accounts != null:
+		accounts.sign_out(peer)
 	_player_states.erase(peer)
 	_hits_out.erase(peer)
 	_reviving.erase(peer)
@@ -926,6 +964,11 @@ func _send_raid_start(id: int) -> void:
 		for other in raid["players"]:
 			if other != peer and raid["teams"][other] == raid["teams"][peer]:
 				team.append(other)
+		# PvP (0.31): the server issues the kit from the stash it keeps, before the raid loads.
+		var kit: Dictionary = accounts.raid_starting(peer, id) if accounts != null else {}
+		if not kit.is_empty():
+			_carried[peer] = OnlineProfile.count(kit)
+			_kit_issued.rpc_id(peer, kit)
 		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []), raid_looks)
 
 
@@ -1034,6 +1077,8 @@ func go_offline() -> void:
 	multiplayer.multiplayer_peer = null
 	mode = Mode.OFFLINE
 	in_raid = false
+	account_name = ""
+	issued_kit = {}
 	queued = false
 	party_code = ""
 	party_names = []
@@ -1196,10 +1241,87 @@ func _on_server_disconnected() -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _welcome() -> void:
+func _welcome(has_accounts := false) -> void:
 	mode = Mode.CLIENT
 	in_raid = false
+	accounts_on = has_accounts
 	connected.emit()
+	if not _pending_account.is_empty() and accounts_on:
+		_account.rpc_id(1, _pending_account[0], _pending_account[1])
+	elif not _pending_account.is_empty():
+		account_result.emit(_pending_account[0], false, {"error": "no_accounts"})
+	_pending_account = []
+
+
+# --- PvP accounts (Stash update, 0.31) ------------------------------------------------
+
+## Client: a sign-in screen action ("sign_up", "sign_in", "resume", "recover", "sign_out", "delete") with its
+## fields. Not connected yet: it goes as soon as the server welcomes us (connect with go_online first).
+func account(action: String, fields: Dictionary) -> void:
+	if is_client():
+		_account.rpc_id(1, action, fields)
+	else:
+		_pending_account = [action, fields]
+
+
+func signed_in() -> bool:
+	return is_client() and account_name != ""
+
+
+## Client: the hideout's PvP profile, after a change (not during a raid: the server owns it then).
+func save_online(data: Dictionary) -> void:
+	if signed_in() and not in_raid:
+		_save_online.rpc_id(1, data)
+
+
+## Client: what we came out of the raid with (extracted). The server checks it against what it counted.
+func send_final_kit(loadout: Dictionary) -> void:
+	if signed_in():
+		_final_kit.rpc_id(1, loadout)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _account(action: String, fields: Dictionary) -> void:
+	var peer := _sender("account")
+	if peer == 0 or accounts == null or fields.size() > 8:
+		return
+	accounts.handle(peer, action, fields)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _account_result(action: String, ok: bool, data: Dictionary) -> void:
+	if ok and data.get("username") is String and data.get("profile") is Dictionary:
+		account_name = data["username"]
+		online_profile = data["profile"]
+	elif action in ["sign_out", "delete", "signed_out"]:
+		account_name = ""
+		online_profile = {}
+	account_result.emit(action, ok, data)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _save_online(data: Dictionary) -> void:
+	var peer := _sender("save")
+	if peer != 0 and accounts != null and not accounts.save(peer, data):
+		_caught(peer, "bad_data", "online profile")
+
+
+@rpc("authority", "call_remote", "reliable")
+func _profile_sync(data: Dictionary) -> void:
+	online_profile = data
+	profile_synced.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _kit_issued(loadout: Dictionary) -> void:
+	issued_kit = loadout
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _final_kit(loadout: Dictionary) -> void:
+	var peer := _sender("kit")
+	if peer != 0 and accounts != null and not accounts.final_kit(peer, loadout, _carried.get(peer, {})):
+		_caught(peer, "bad_data", "final kit")
 
 
 @rpc("authority", "call_remote", "reliable")

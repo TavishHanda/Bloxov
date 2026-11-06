@@ -82,6 +82,10 @@ func _ready() -> void:
 	Network.main.leave_raid()
 	Profile.load_profile()
 	GameSettings.load_settings()
+	# PvP (0.31): back from a raid, the stash is the server's copy (its result); changes go back to the server.
+	if Profile.mode == Profile.ONLINE and Network.main.signed_in() and not Network.main.online_profile.is_empty():
+		Profile.use_online(Network.main.online_profile)
+	Profile.online_save = func(data: Dictionary) -> void: Network.main.save_online(data)
 
 	var background := ColorRect.new()
 	background.color = Color(0.1, 0.11, 0.1)
@@ -133,6 +137,8 @@ func _ready() -> void:
 	net.party_changed.connect(_refresh_online)
 	net.queue_changed.connect(_refresh_online)
 	net.notice.connect(func(text: String) -> void: _online_status.text = text)
+	net.account_result.connect(_on_account)
+	net.profile_synced.connect(_show_online_profile)
 	# Came back from an online raid: show the party/queue screen again.
 	if net.is_client():
 		_online_panel.visible = true
@@ -711,6 +717,10 @@ func start_with_free_kit() -> void:
 ## (`_warm_raid`), so there's much less to wait for.
 func start_raid() -> void:
 	save_now()
+	# PvP (0.31): the raid takes the kit the server issued from the stash it keeps.
+	if Profile.mode == Profile.ONLINE and not Network.main.issued_kit.is_empty():
+		Profile.loadout = Network.main.issued_kit
+		Network.main.issued_kit = {}
 	UISounds.play(self, UISounds.START, -8.0)
 	_show_loading()
 	await get_tree().process_frame
@@ -1126,19 +1136,27 @@ func mode_text() -> String:
 
 ## A solo raid only from the PvE stash, an online one only from the PvP stash (plan §4.4): gear from one stash
 ## must never go into the other's raids. With the switch hidden (until accounts are live) both share today's one stash.
+## PvP raids need a signed-in account.
 func raid_allowed(online: bool) -> bool:
-	if not GameSettings.pvp_stash_on() or (Profile.mode == Profile.ONLINE) == online:
+	if not GameSettings.pvp_stash_on():
 		return true
-	_message("Switch to PvP to play online." if online else "Solo raids use your PvE stash: switch to PvE first.")
-	return false
+	if (Profile.mode == Profile.ONLINE) != online:
+		_message("Switch to PvP to play online." if online else "Solo raids use your PvE stash: switch to PvE first.")
+		return false
+	if online and not Network.main.signed_in():
+		open_signin()
+		return false
+	return true
 
 
-## Changes stash. Never mid-queue: switching leaves online play (plan §4.4). Phase 1: PvP is a preview of the PvP
-## starter stash, never saved; the sign-in panel shows what accounts will ask for.
+## Changes stash. Never mid-queue: switching leaves online play (plan §4.4). PvP shows the stash the server keeps
+## once signed in (a remembered session signs in by itself); until then a preview of the PvP starter stash, never
+## saved, under the sign-in panel.
 func switch_mode(to: String) -> void:
 	if to == Profile.mode:
 		return
 	Profile.loadout = Profile.capture_inventory(inventory)
+	Profile.save_profile()   # (PvP and signed in: the last change goes to the server)
 	if to == Profile.ONLINE:
 		Profile.use_online(Profile.pvp_start_data())
 	else:
@@ -1146,9 +1164,17 @@ func switch_mode(to: String) -> void:
 		Profile.use_solo()
 	Profile.save_profile()
 	_reload_stash()
-	if to == Profile.ONLINE and signin_panel != null:
-		signin_panel.visible = true
-	_message("PvP stash (preview: nothing here is saved)" if to == Profile.ONLINE else "PvE stash: solo, on this device")
+	if to == Profile.ONLINE:
+		_message("PvP stash: online, saved on the server")
+		var session := SessionStore.read()
+		if not session.is_empty():
+			_account_action("resume", {"token": session["token"]})
+		else:
+			open_signin()
+	else:
+		if signin_panel != null:
+			signin_panel.visible = false
+		_message("PvE stash: solo, on this device")
 
 
 ## Shows whichever stash Profile now holds: the loadout on you, the stash grid, the money and the switch.
@@ -1166,15 +1192,226 @@ func _reload_stash() -> void:
 	_refresh()
 
 
-## PvP sign-in (plan §10.1), a shell until accounts are live: username and password, SIGN IN / CREATE ACCOUNT. Nothing is sent
-## yet; the buttons say so. It also carries the one message playtesters must not miss (plan §4.5).
+## The server sent our PvP profile (signed in, or a raid's result): show it.
+func _show_online_profile() -> void:
+	var net := Network.main
+	if Profile.mode != Profile.ONLINE or not net.signed_in() or net.online_profile.is_empty():
+		return
+	Profile.use_online(net.online_profile)
+	_reload_stash()
+
+
+# --- PvP sign-in (plan §8, §10) --------------------------------------------------------
+
+const ACCOUNT_ERRORS := {
+	"bad_login": "Wrong username or password.",
+	"locked": "Too many tries. Try again in 15 minutes.",
+	"in_use": "This account is playing in another tab or on another device.",
+	"bad_username": "Usernames are 3 to 20 letters, numbers, dots, dashes or underscores.",
+	"username_taken": "That username is taken.",
+	"weak_password": "Passwords need at least 10 characters.",
+	"common_password": "That password is too easy to guess.",
+	"bad_recovery": "That username and recovery code don't match.",
+	"no_accounts": "PvP accounts aren't on yet on this server.",
+	"unavailable": "PvP is unavailable right now. PvE still works.",
+	"taken_over": "You signed in somewhere else, so you were signed out here.",
+	"in_raid": "Not during a raid.",
+	"bad_session": "Please sign in again.",
+}
+
+var _signin_page := "sign_in"
+var _signin_fields := {}
+var _signin_title: Label
+var _signin_box: VBoxContainer
+## The last sign-in sent (for TAKE OVER HERE / CANCEL DELETION, which send it again with a flag).
+var _last_account := []
+
+
+## The sign-in panel: signed in, it's the account page (sign out, delete).
+func open_signin() -> void:
+	if signin_panel == null:
+		return
+	_signin_note.text = ""
+	_show_signin_page("account" if Network.main.signed_in() else "sign_in")
+	signin_panel.visible = true
+
+
+## Sends a sign-in action, connecting first if need be (the name in the ONLINE panel is the name others see).
+func _account_action(action: String, fields: Dictionary) -> void:
+	var net := Network.main
+	if action in ["sign_in", "sign_up", "resume", "recover"]:
+		_last_account = [action, fields]
+	if signin_panel != null and action != "resume":
+		_signin_note.text = "Connecting..." if not net.is_client() else "..."
+	if not net.is_client():
+		net.go_online(Network.DEFAULT_ADDRESS, _name_edit.text if _name_edit != null else "")
+	net.account(action, fields)
+
+
+func _on_account(action: String, ok: bool, data: Dictionary) -> void:
+	if signin_panel == null:
+		return
+	if ok and data.get("token") is String:
+		SessionStore.save(data["token"], str(data.get("username", "")))
+	if ok and data.has("profile"):
+		_show_online_profile()
+		if data.get("recovery_code") is String:
+			_show_recovery_code(data["recovery_code"])
+		else:
+			signin_panel.visible = false
+			_message("Signed in as %s" % data.get("username", ""))
+		_refresh_online()
+		return
+	if ok and action == "sign_out":
+		SessionStore.clear()
+		_show_signin_page("sign_in")
+		_signin_note.text = "Signed out."
+		return
+	if ok and action == "delete":
+		SessionStore.clear()
+		_show_signin_page("sign_in")
+		_signin_note.text = "Your PvP account will be deleted on %s. Sign in before then to cancel. Your PvE stash is safe." % str(data.get("delete_on", "")).left(10)
+		return
+	var error := str(data.get("error", ""))
+	if error == "bad_session":
+		SessionStore.clear()
+	if action == "resume" and error == "bad_session":
+		open_signin()
+		return
+	if action == "signed_out":
+		SessionStore.clear()
+		open_signin()
+	if not signin_panel.visible:
+		open_signin()
+	var text: String = ACCOUNT_ERRORS.get(error, "Something went wrong (%s)." % error)
+	if error == "banned":
+		var until := str(data.get("until", ""))
+		text = "This account is banned %s." % ("for good" if until.begins_with("9999") else "until " + until.left(10))
+	elif error == "deleted":
+		text = "This account will be deleted on %s." % str(data.get("delete_on", "")).left(10)
+	_signin_note.text = text
+	_signin_box.get_node("Again").visible = error in ["in_use", "deleted"]
+	(_signin_box.get_node("Again") as Button).text = "CANCEL DELETION" if error == "deleted" else "TAKE OVER HERE"
+
+
+func _show_recovery_code(code: String) -> void:
+	_show_signin_page("code")
+	_signin_fields["code_label"].text = code
+	_signin_note.text = ""
+
+
+## Lays out one page of the sign-in panel: "sign_in", "recover", "code" (the recovery code, once), "account".
+func _show_signin_page(page: String) -> void:
+	_signin_page = page
+	for child in _signin_box.get_children():
+		child.queue_free()
+		_signin_box.remove_child(child)
+	_signin_fields.clear()
+	var hint := func(text: String) -> void:
+		var label := Label.new()
+		label.text = text
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.modulate = Color(1, 1, 1, 0.7)
+		_signin_box.add_child(label)
+	var edit := func(id: String, placeholder: String, secret: bool, longest: int) -> LineEdit:
+		var box := LineEdit.new()
+		box.name = id
+		box.placeholder_text = placeholder
+		box.secret = secret
+		box.max_length = longest
+		_style_edit(box)
+		_signin_box.add_child(box)
+		_signin_fields[id] = box
+		return box
+	var button := func(id: String, text: String, hazard: bool, on_press: Callable) -> Button:
+		var b := Button.new()
+		b.name = id
+		b.text = text
+		b.custom_minimum_size = Vector2(0, 44)   # (a finger-sized target on phones)
+		LootUI.style_button(b, 24 if hazard else 20, HudStyle.HAZARD if hazard else HudStyle.FACE)
+		b.pressed.connect(on_press)
+		_signin_box.add_child(b)
+		return b
+	match page:
+		"sign_in":
+			_signin_title.text = "PvP · SIGN IN"
+			hint.call("PvP is online and uses a separate stash saved on the server. Your current stash is now your PvE stash. PvP starts fresh with a starter kit.")
+			var user: LineEdit = edit.call("Username", "Username", false, 20)
+			user.text = str(SessionStore.read().get("username", ""))
+			var password: LineEdit = edit.call("Password", "Password (10+ characters)", true, 128)
+			password.text_submitted.connect(func(_t: String) -> void: _press_sign_in("sign_in", false))
+			button.call("SignIn", "SIGN IN", true, _press_sign_in.bind("sign_in", false))
+			button.call("Again", "TAKE OVER HERE", false, func() -> void:
+				if _last_account.is_empty():
+					return
+				var fields: Dictionary = _last_account[1].duplicate()
+				fields["take_over"] = true
+				fields["cancel_delete"] = true
+				_account_action(_last_account[0], fields))
+			_signin_box.get_node("Again").visible = false
+			button.call("SignUp", "CREATE ACCOUNT", false, _press_sign_in.bind("sign_up", false))
+			button.call("Forgot", "FORGOT PASSWORD?", false, func() -> void:
+				_signin_note.text = ""
+				_show_signin_page("recover"))
+		"recover":
+			_signin_title.text = "PvP · NEW PASSWORD"
+			hint.call("Your recovery code was shown once when you made your account. With it you can set a new password. Without it (and with no email added), the PvP account can't be got back. Your PvE stash is never affected.")
+			edit.call("Username", "Username", false, 20)
+			edit.call("Code", "Recovery code (XXXX-XXXX-XXXX)", false, 20)
+			edit.call("Password", "New password (10+ characters)", true, 128)
+			button.call("Reset", "SET NEW PASSWORD", true, _press_sign_in.bind("recover", false))
+			button.call("Back", "BACK", false, func() -> void: _show_signin_page("sign_in"))
+		"code":
+			_signin_title.text = "YOUR RECOVERY CODE"
+			hint.call("Write this down somewhere safe. It's the only way back into your PvP account if you forget your password, and it won't be shown again.")
+			var code := Label.new()
+			HudStyle.style_label(code, 30, HudStyle.HAZARD)
+			code.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			_signin_box.add_child(code)
+			_signin_fields["code_label"] = code
+			var saved := CheckBox.new()
+			saved.name = "Saved"
+			saved.text = "I saved it"
+			_signin_box.add_child(saved)
+			var done: Button = button.call("Done", "DONE", true, func() -> void:
+				signin_panel.visible = false
+				_message("Signed in as %s" % Network.main.account_name))
+			done.disabled = true
+			saved.toggled.connect(func(on: bool) -> void: done.disabled = not on)
+		"account":
+			_signin_title.text = "PvP ACCOUNT"
+			hint.call("Signed in as %s. Others see the name in the ONLINE panel, never your username." % Network.main.account_name)
+			button.call("SignOut", "SIGN OUT", false, func() -> void: _account_action("sign_out", {}))
+			hint.call("Deleting your PvP account removes its stash, money, loadout, stats, traders and quests after 30 days (sign in before then to cancel). Your PvE stash stays. Type DELETE to confirm.")
+			var confirm: LineEdit = edit.call("Confirm", "DELETE", false, 6)
+			var delete: Button = button.call("Delete", "DELETE PvP ACCOUNT", false, func() -> void:
+				_account_action("delete", {}))
+			delete.disabled = true
+			confirm.text_changed.connect(func(text: String) -> void: delete.disabled = text != "DELETE")
+
+
+## SIGN IN / CREATE ACCOUNT / SET NEW PASSWORD with what's in the boxes.
+func _press_sign_in(action: String, _again: bool) -> void:
+	var get_text := func(id: String) -> String:
+		return (_signin_fields[id] as LineEdit).text.strip_edges() if _signin_fields.has(id) else ""
+	var fields := {"username": get_text.call("Username"), "password": (_signin_fields["Password"] as LineEdit).text}
+	if action == "recover":
+		fields["code"] = get_text.call("Code")
+	if fields["username"] == "" or fields["password"] == "":
+		_signin_note.text = "Enter a username and a password."
+		return
+	(_signin_fields["Password"] as LineEdit).text = ""   # (never kept around)
+	_account_action(action, fields)
+
+
+## The PvP sign-in panel (plan §10.1): a page at a time (_show_signin_page).
 func _build_signin_panel() -> void:
 	signin_panel = PanelContainer.new()
 	signin_panel.name = "SignIn"
 	signin_panel.visible = false
 	signin_panel.set_anchors_preset(Control.PRESET_CENTER)
 	signin_panel.custom_minimum_size = Vector2(460, 0)
-	signin_panel.position = Vector2(-230, -200)
+	signin_panel.position = Vector2(-230, -250)
 	LootUI.skin_panel(signin_panel)
 	add_child(signin_panel)
 	var margin := MarginContainer.new()
@@ -1184,42 +1421,13 @@ func _build_signin_panel() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 10)
 	margin.add_child(column)
-	var title := Label.new()
-	title.text = "PvP · ONLINE"
-	HudStyle.style_label(title, 30)
-	column.add_child(title)
-	var hint := Label.new()
-	hint.text = "PvP is online and uses a separate stash saved on the server. Your current stash is now your PvE stash. PvP starts fresh with a starter kit."
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.modulate = Color(1, 1, 1, 0.7)
-	column.add_child(hint)
-	var user := LineEdit.new()
-	user.name = "Username"
-	user.placeholder_text = "Username"
-	user.max_length = 16
-	user.text = str(SessionStore.read().get("username", ""))
-	_style_edit(user)
-	column.add_child(user)
-	var password := LineEdit.new()
-	password.name = "Password"
-	password.placeholder_text = "Password (10+ letters)"
-	password.secret = true
-	password.max_length = 64
-	_style_edit(password)
-	column.add_child(password)
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 8)
-	column.add_child(buttons)
-	for text in ["SIGN IN", "CREATE ACCOUNT"]:
-		var button := Button.new()
-		button.text = text
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size = Vector2(0, 44)   # (a finger-sized target on phones)
-		LootUI.style_button(button, 24, HudStyle.HAZARD if text == "SIGN IN" else HudStyle.FACE)
-		button.pressed.connect(func() -> void:
-			password.text = ""
-			_signin_note.text = "PvP accounts aren't open yet. For now this is a preview of the PvP starter stash: nothing in it is saved.")
-		buttons.add_child(button)
+	_signin_title = Label.new()
+	HudStyle.style_label(_signin_title, 30)
+	column.add_child(_signin_title)
+	_signin_box = VBoxContainer.new()
+	_signin_box.name = "Page"
+	_signin_box.add_theme_constant_override("separation", 8)
+	column.add_child(_signin_box)
 	_signin_note = Label.new()
 	_signin_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	HudStyle.style_label(_signin_note, 20, HudStyle.HAZARD)
@@ -1230,6 +1438,7 @@ func _build_signin_panel() -> void:
 	LootUI.style_button(close)
 	close.pressed.connect(func() -> void: signin_panel.visible = false)
 	column.add_child(close)
+	_show_signin_page("sign_in")
 
 
 # --- Online --------------------------------------------------------------------------
@@ -1256,6 +1465,9 @@ func _on_connect_failed(reason: String) -> void:
 func _on_connection_lost() -> void:
 	_online_status.text = "Lost the connection to the server."
 	_refresh_online()
+	if Profile.mode == Profile.ONLINE and signin_panel != null:
+		open_signin()
+		_signin_note.text = "Lost the connection to the server. Sign in again to keep playing PvP."
 
 
 ## The ONLINE button says where you are, so you know even with the panel closed.
@@ -1292,7 +1504,8 @@ func _refresh_online() -> void:
 	_join_row.visible = not in_party
 	_leave_party_button.visible = in_party
 	_queue_button.visible = net.is_leader
-	_start_now_button.visible = net.is_leader
+	# PvP (owner, 2026-11-06): no raids alone, queue into other players.
+	_start_now_button.visible = net.is_leader and not net.signed_in()
 	_queue_button.text = "CANCEL QUEUE" if net.queued else "QUEUE"
 	if not net.is_leader:
 		_queue_info.text = "Your party leader starts the queue." + (" Queued..." if net.queued else "")
@@ -1413,6 +1626,13 @@ func _build_online_panel() -> void:
 	HudStyle.style_label(_online_status, 20, HudStyle.HAZARD)
 	_online_status.add_theme_font_override("font", HudStyle.spaced_font(20))
 	column.add_child(_online_status)
+	if GameSettings.pvp_stash_on():
+		var account_button := Button.new()
+		account_button.name = "AccountButton"
+		account_button.text = "PvP ACCOUNT"
+		LootUI.style_button(account_button)
+		account_button.pressed.connect(open_signin)
+		column.add_child(account_button)
 	var close := Button.new()
 	close.text = "CLOSE"
 	LootUI.style_button(close)

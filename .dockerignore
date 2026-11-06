@@ -8,3 +8,4 @@ tests
 tools
 *.md
 heroku.yml
+server/node_modules

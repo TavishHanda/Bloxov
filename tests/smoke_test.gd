@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -3378,13 +3378,15 @@ func _section_stash_modes() -> void:
 	await process_frame
 	_check(hideout.mode_button != null and hideout.mode_button.text == "PvE · SOLO" and hideout.raid_allowed(false)
 		and not hideout.raid_allowed(true), "PvE: the switch shows SOLO, solo raids yes, online no")
+	SessionStore.clear()
 	hideout.switch_mode(Profile.ONLINE)
 	await process_frame
 	_check(Profile.mode == Profile.ONLINE and hideout.mode_button.text == "PvP · ONLINE" and hideout.screen.stash == Profile.stash
-		and hideout.inventory.equipped("armor") != null and hideout.raid_allowed(true) and not hideout.raid_allowed(false),
-		"switching to PvP shows the PvP stash and loadout; online raids yes, solo no")
-	_check(hideout.signin_panel.visible and hideout.signin_panel.get_node_or_null("Margin/Column/Password") == null
-		and (hideout.signin_panel.find_child("Password", true, false) as LineEdit).secret, "the PvP sign-in shell shows, password hidden")
+		and hideout.inventory.equipped("armor") != null and not hideout.raid_allowed(false),
+		"switching to PvP shows the PvP stash and loadout; no solo raids from it")
+	_check(not hideout.raid_allowed(true) and hideout.signin_panel.visible, "PvP raids need signing in first (the sign-in panel opens)")
+	_check(hideout.signin_panel.visible and (hideout.signin_panel.find_child("Password", true, false) as LineEdit).secret,
+		"the PvP sign-in panel shows, password hidden")
 	hideout.switch_mode(Profile.SOLO)
 	await process_frame
 	_check(Profile.mode == Profile.SOLO and Profile.money == solo_money and hideout.screen.stash == Profile.stash
@@ -4012,6 +4014,134 @@ func _section_net() -> void:
 	for n in [server, c1, c2, c3]:
 		n.get_parent().queue_free()
 	_check(not Network.main.is_online(), "solo raids stay offline")
+
+
+func _section_pvp_accounts() -> void:
+	# PvP accounts and the online stash (Stash update, 0.31): a server with the Stash API in memory (FakeStash), two
+	# players. Sign up, sign in, one session per account, the stash saved on the server, the kit issued by the server,
+	# results saved by the server, a raid from before a restart put back, no raids alone, sign out, delete.
+	var server := _net_peer("AcctServer")
+	var a := _net_peer("AcctA")
+	var b := _net_peer("AcctB")
+	var fake := FakeStash.new()
+	server.start_server(19086)
+	server.use_stash(fake)
+	server.matchmaker.queue_countdown = 0.3
+	var said := {a: [], b: []}
+	for c: Network in [a, b]:
+		c.account_result.connect(func(action: String, ok: bool, data: Dictionary) -> void: said[c].append([action, ok, data]))
+		c.notice.connect(func(text: String) -> void: said[c].append(["notice", false, {"text": text}]))
+	var last := func(c: Network) -> Array: return said[c][-1] if not said[c].is_empty() else ["", false, {}]
+	a.go_online("localhost:19086", "Alpha")
+	a.account("sign_up", {"username": "alpha_1", "password": "long password 1"})
+	await _until(func() -> bool: return a.signed_in())
+	_check(a.accounts_on and a.account_name == "alpha_1" and str(last.call(a)[2].get("recovery_code", "")) != ""
+		and int(a.online_profile["money"]) == 50000 and fake.accounts.has("alpha_1"),
+		"signing up makes a PvP account with the starter stash and a recovery code")
+	b.go_online("localhost:19086", "Bravo")
+	b.account("sign_in", {"username": "alpha_1", "password": "wrong password"})
+	await _until(func() -> bool: return not said[b].is_empty())
+	_check(last.call(b)[2].get("error") == "bad_login" and not b.signed_in(), "a wrong password is refused")
+	b.account("sign_in", {"username": "ALPHA_1", "password": "long password 1"})
+	await _until(func() -> bool: return said[b].size() >= 2)
+	_check(last.call(b)[2].get("error") == "in_use", "signing in while it's playing elsewhere is refused")
+	b.account("sign_in", {"username": "alpha_1", "password": "long password 1", "take_over": true})
+	await _until(func() -> bool: return b.signed_in() and not a.signed_in())
+	_check(b.signed_in() and not a.signed_in() and last.call(a)[2].get("error") == "taken_over",
+		"TAKE OVER HERE moves the account; the other one is signed out")
+	a.account("sign_up", {"username": "alpha_2", "password": "long password 2"})
+	await _until(func() -> bool: return a.signed_in())
+	var a_id: int = a.multiplayer.get_unique_id()
+	var b_id: int = b.multiplayer.get_unique_id()
+	# The hideout's changes go to the server; the server keeps its own stats and refuses made-up items.
+	var changed: Dictionary = b.online_profile.duplicate(true)
+	changed["money"] = 12345
+	changed["stats"] = {"raids": 99, "extracts": 99, "deaths": 0, "earned": 0}
+	b.save_online(changed)
+	await _until(func() -> bool: return int(fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["data"]["money"]) == 12345)
+	_check(int(fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["data"]["money"]) == 12345 and int(fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["data"]["stats"]["raids"]) == 0,
+		"a PvP stash change is saved on the server (its stats stay the server's)")
+	var faked: Dictionary = changed.duplicate(true)
+	faked["stash"] = [{"id": "made_up_item", "count": 1, "x": 0, "y": 0}]
+	b.save_online(faked)
+	await _until(func() -> bool: return server.guard.strike_points(b_id, server._now()) > 0.0)
+	_check(server.guard.strike_points(b_id, server._now()) > 0.0 and int(server.accounts.by_peer[b_id]["profile"]["money"]) == 12345,
+		"a PvP stash with made-up items is refused")
+	# No raids alone in PvP (owner): START NOW is refused.
+	b.start_now()
+	await _until(func() -> bool: return last.call(b)[0] == "notice")
+	_check(last.call(b)[0] == "notice" and str(last.call(b)[2]["text"]).contains("queue") and not b.in_raid,
+		"PvP raids only come from the queue, never alone")
+	# The raid: the server issues the kit from the saved loadout and puts it at risk.
+	var b_kit: Dictionary = server.accounts.by_peer[b_id]["profile"]["loadout"].duplicate(true)
+	a.set_queued(true)
+	b.set_queued(true)
+	await _until(func() -> bool: return a.in_raid and b.in_raid)
+	_check(a.in_raid and b.in_raid and OnlineProfile.count(b.issued_kit) == OnlineProfile.count(b_kit),
+		"the queue starts a raid and the server issues each kit from the saved loadout")
+	_check(fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["raid"]["state"] == "in_raid" and server.accounts.by_peer[b_id]["profile"]["loadout"]["equipment"].is_empty(),
+		"the server saves the raid as started, gear at risk")
+	b.send_kit([GridInventory.stack_data(ItemStack.new("gold_watch", 9))])
+	await _frames(5)
+	_check(not server._carried[b_id].has("gold_watch"), "a PvP player's own kit list doesn't count (the server's does)")
+	# Bravo extracts with one gold watch too many; Alpha dies.
+	var out: Dictionary = b.issued_kit.duplicate(true)
+	out["pockets"].append({"id": "gold_watch", "count": 1, "x": 3, "y": 0})
+	var strikes_before: float = server.guard.strike_points(b_id, server._now())
+	b.send_final_kit(out)
+	await _until(func() -> bool: return server.accounts.by_peer[b_id]["final"] != null)
+	server.accounts.extracted(b_id)
+	await _until(func() -> bool: return b.online_profile.get("stats", {}).get("extracts", 0) == 1)
+	_check(int(b.online_profile["stats"]["extracts"]) == 1 and fake.profiles[server.accounts.by_peer[b_id]["account_id"]]["raid"]["state"] == "idle"
+		and OnlineProfile.count(b.online_profile["loadout"]).get("gold_watch", 0) == 1 and fake.results[-1]["result"] == "extracted",
+		"extracting saves what came out and sends the result back")
+	_check(server.guard.strike_points(b_id, server._now()) > strikes_before + 2.0, "coming out with more than the server counted is a strike")
+	a.send_state([Vector3(0, 0.1, 0), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
+	await _until(func() -> bool: return a.online_profile.get("stats", {}).get("deaths", 0) == 1)
+	_check(int(a.online_profile["stats"]["deaths"]) == 1 and a.online_profile["loadout"]["equipment"].is_empty()
+		and fake.results.any(func(r: Dictionary) -> bool: return r["result"] == "killed"), "dying saves the lost gear on the server")
+	a.leave_raid()
+	b.leave_raid()
+	await _until(func() -> bool: return int(server.matchmaker.players[a_id]["raid"]) == 0)
+	# A raid from before a server restart: the gear comes back (owner, 2026-11-04).
+	var snapshot := {"equipment": {"primary": {"id": "ak", "count": 1}}, "pockets": [], "backpack": [], "secure": [], "hotbar": ["", "", ""]}
+	var a_account: String = server.accounts.by_peer[a_id]["account_id"]
+	fake.profiles[a_account]["raid"] = {"state": "in_raid", "id": "oldboot-4", "snapshot": snapshot}
+	a.account("sign_out", {})
+	await _until(func() -> bool: return not a.signed_in())
+	a.account("sign_in", {"username": "alpha_2", "password": "long password 2"})
+	await _until(func() -> bool: return a.signed_in())
+	_check(a.online_profile["loadout"]["equipment"].has("primary") and fake.results.any(func(r: Dictionary) -> bool: return r["result"] == "crash"),
+		"a raid lost to a server restart gives the gear back")
+	server.guard.forget(a_id)   # (this test signs in and out faster than anyone would: start the rate limit over)
+	var remembered: String = last.call(a)[2]["token"]
+	a.account("sign_out", {})
+	await _until(func() -> bool: return not a.signed_in())
+	a.account("resume", {"token": remembered})
+	await _until(func() -> bool: return said[a][-1][0] == "resume")
+	_check(not a.signed_in() and last.call(a)[2].get("error") == "bad_session", "signing out ends the remembered session")
+	a.account("sign_in", {"username": "alpha_2", "password": "long password 2"})
+	await _until(func() -> bool: return a.signed_in())
+	a.account("resume", {"token": last.call(a)[2]["token"]})
+	await _until(func() -> bool: return said[a][-1][0] == "resume")
+	_check(a.signed_in() and last.call(a)[1], "remember me signs back in with the session")
+	server.guard.forget(a_id)
+	a.account("delete", {})
+	await _until(func() -> bool: return said[a][-1][0] == "delete")
+	a.account("sign_in", {"username": "alpha_2", "password": "long password 2"})
+	await _until(func() -> bool: return said[a][-1][0] == "sign_in")
+	_check(not a.signed_in() and last.call(a)[2].get("error") == "deleted", "a deleted account can't play (until it's cancelled)")
+	fake.down = true
+	a.account("sign_in", {"username": "alpha_1", "password": "long password 1"})
+	await _until(func() -> bool: return said[a].size() >= 2 and said[a][-1][2].get("error") == "unavailable")
+	_check(last.call(a)[2].get("error") == "unavailable", "with the database down, PvP says so")
+	for c: Network in [a, b]:
+		c.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	_check(server.accounts.by_peer.is_empty(), "everyone gone: no one left signed in")
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, a, b]:
+		n.get_parent().queue_free()
 
 
 ## A Net node in its own branch of the tree, with its own multiplayer API (like a separate game).

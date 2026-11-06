@@ -30,6 +30,8 @@ const RATES := {
 	"report": [80.0, 100.0],
 	"kit": [1.0, 3.0],
 	"use": [4.0, 8.0],
+	"account": [0.5, 4.0],
+	"save": [3.0, 10.0],
 }
 
 ## Strike points: each fades at STRIKE_FADE a second; KICK_AT kicks.

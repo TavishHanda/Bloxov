@@ -96,6 +96,30 @@ jobs:
         with:
           path: build/web
 
+  # The Stash API (server/: PvP accounts and the online stash, Stash update 0.31) against a real Postgres.
+  stash_api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: bloxov_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Stash API tests
+        working-directory: server
+        env:
+          TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/bloxov_test
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
   # The desktop (Windows) game, for Steam later (owner, 2026-10-25: don't let the Steam build rot). Every update
   # runs the gameplay test on Windows, exports the .exe and starts it. Runs beside the web build and doesn't hold
   # up its deploy; a red X here means the desktop build broke. The .exe is kept for a week (Actions > Artifacts).
@@ -200,7 +224,7 @@ jobs:
   # AND HEROKU_ON is "true" (owner: switch on only once the student credit shows in Heroku billing).
   heroku:
     if: github.ref == 'refs/heads/main'
-    needs: build
+    needs: [build, stash_api]
     runs-on: ubuntu-latest
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}

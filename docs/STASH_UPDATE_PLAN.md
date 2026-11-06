@@ -907,6 +907,13 @@ so the accounts step (Phase 2) ships as the next 0.31.x.
 
 ### Phase 2 — accounts, database, online stash at raid boundaries (0.31.0)
 
+**Built 2026-11-06 as 0.31.2** (still behind `?pvp_stash`). Differences from the text below: passwords use scrypt
+(Node's built-in) instead of Argon2id, so the server image needs no native packages; the API is HTTP on 127.0.0.1
+beside the game server (`server/start.sh`); the profile is one `jsonb` column (`profiles.data`) in the game's saved
+shape; the game server holds the signed-in profile in memory and writes it through (`scripts/net_accounts.gd`).
+PvP has no START NOW (owner, 2026-11-06). Not built yet from this phase: the account panel's export, the privacy
+text, the 2-minute reconnect (Phase 4).
+
 - The `server/` API, the Postgres schema, migrations, the sidecar entrypoint, the Dockerfile change, CI.
 - Sign-up, sign-in, remember-me sessions, recovery code, sign out everywhere, delete.
 - Password hashing, login rate limits and lockout.

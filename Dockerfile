@@ -22,14 +22,25 @@ RUN godot --headless --import \
 	&& godot --headless --export-pack "Server" /out/bloxov_server.pck \
 	&& test -s /out/bloxov_server.pck
 
-# Stage 2: just Godot and the pack.
+# Stage 2: the Stash API (server/: PvP accounts and the online stash, Stash update 0.31) and its packages.
+FROM node:22-bookworm-slim AS api
+WORKDIR /api
+COPY server/package.json server/package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY server/src ./src
+COPY server/migrations ./migrations
+COPY server/start.sh ./start.sh
+
+# Stage 3: Godot and the pack, plus Node and the Stash API (started only when there's a database: server/start.sh).
 FROM debian:bookworm-slim
 RUN apt-get update \
-	&& apt-get install -y --no-install-recommends libfontconfig1 \
+	&& apt-get install -y --no-install-recommends libfontconfig1 libstdc++6 \
 	&& rm -rf /var/lib/apt/lists/*
 COPY --from=build /usr/local/bin/godot /usr/local/bin/godot
 COPY --from=build /out/bloxov_server.pck /game/bloxov_server.pck
+COPY --from=api /usr/local/bin/node /usr/local/bin/node
+COPY --from=api /api /game/server
 WORKDIR /game
 
 EXPOSE 9080
-CMD ["godot", "--headless", "--main-pack", "/game/bloxov_server.pck", "--", "--server", "--port=9080"]
+CMD ["sh", "/game/server/start.sh", "--port=9080"]

@@ -1,0 +1,14 @@
+{
+  "name": "bloxov-stash-api",
+  "private": true,
+  "description": "Bloxov's Stash API: PvP accounts and the online stash in Postgres. Only the game server talks to it (docs/STASH_UPDATE_PLAN.md).",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "pg": "8.13.1"
+  }
+}

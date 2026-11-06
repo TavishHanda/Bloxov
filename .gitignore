@@ -39,3 +39,6 @@ __pycache__/
 # Gun look options for the owner (make_gun.py all), not used by the game
 assets/models/guns/*_[abc].glb
 assets/models/hands/hands_[abc].glb
+
+# The Stash API's packages (server/, installed by npm ci)
+server/node_modules/

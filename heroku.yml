@@ -1,7 +1,8 @@
-# Heroku settings for the game server (same Dockerfile as Fly.io). Heroku gives the port in $PORT, which the
+# Heroku settings for the game server (same Dockerfile as Fly.io). server/start.sh also starts the Stash API when
+# Heroku Postgres is attached (DATABASE_URL). Heroku gives the port in $PORT, which the
 # server reads when no --port is passed. Deployed by CI (.github/workflows/web.yml, job "heroku").
 build:
   docker:
     web: Dockerfile
 run:
-  web: godot --headless --main-pack /game/bloxov_server.pck -- --server
+  web: sh /game/server/start.sh
