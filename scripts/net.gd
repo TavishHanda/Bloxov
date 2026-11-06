@@ -1010,6 +1010,8 @@ func _peer_open(peer: int) -> bool:
 	var ws := multiplayer.multiplayer_peer as WebSocketMultiplayerPeer
 	if ws == null:
 		return true
+	if _away.has(peer) or not multiplayer.get_peers().has(peer):
+		return false   # (gone, or away from a raid: asking the socket would print an error)
 	var socket := ws.get_peer(peer)
 	return socket != null and socket.get_ready_state() == WebSocketPeer.STATE_OPEN
 
