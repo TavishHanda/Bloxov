@@ -4931,9 +4931,11 @@ def set_import_script(glb):
             f.write(text)
 
 
-def write_glb(path, builder, textures, mat_info, atlas=None):
+def write_glb(path, builder, textures, mat_info, atlas=None, parts=None):
     """The model as a .glb: one mesh, one primitive per material, flat normals (or the builder's vnormals), nearest-filtered textures.
-    atlas ({kit name: cell corner}): those materials become one "kit_atlas" material, the cell corner in TEXCOORD_1."""
+    atlas ({kit name: cell corner}): those materials become one "kit_atlas" material, the cell corner in TEXCOORD_1.
+    parts (optional): extra movable pieces, [{"name": "Lid", "builder": Builder(), "origin": (x, y, z)}]. Each becomes
+    a child node of the model, its mesh built round `origin` (its hinge), so scripts can turn it in place."""
     blob = bytearray()
     views, accessors = [], []
 
@@ -4955,11 +4957,14 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
         return len(accessors) - 1
 
     atlas = atlas or {}
+    parts = parts or []
+    builders = [builder] + [p["builder"] for p in parts]
     targets = []                                   # the glb's materials (the atlas ones merged into one)
-    for mname in builder.mat_names:
-        t = "kit_atlas" if mname in atlas else mname
-        if t not in targets:
-            targets.append(t)
+    for b in builders:
+        for mname in b.mat_names:
+            t = "kit_atlas" if mname in atlas else mname
+            if t not in targets:
+                targets.append(t)
     # Faces that sway in the wind (0.28.0, make_outdoor.py SWAY: wires, tent canvas, camo nets): a second atlas
     # material, "kit_sway" (tools/building_import.gd gives it assets/materials/kit_sway.tres); each corner's vertex
     # colour is how far it sways (r: the slow sway, g: the quick ripple), not light.
@@ -4986,48 +4991,63 @@ def write_glb(path, builder, textures, mat_info, atlas=None):
             m["alphaMode"] = "BLEND"
             m["pbrMetallicRoughness"]["baseColorFactor"] = [1.0, 1.0, 1.0, 0.28]
         materials.append(m)
-    prims = []
-    target_of = [targets.index("kit_atlas" if m in atlas else m) for m in builder.mat_names]
-    for mi in range(len(targets)):
-        pos, nrm, uv, uv2, col, idx = [], [], [], [], [], []
-        colors = list(getattr(builder, "colors", None) or [])
-        colors += [None] * (len(builder.faces) - len(colors))
-        vnormals = list(getattr(builder, "vnormals", None) or [])
-        vnormals += [None] * (len(builder.faces) - len(vnormals))
-        has_col = False
-        for fi, (face, uvs, m, n, cs, vns) in enumerate(zip(builder.faces, builder.uvs, builder.mats, builder.normals, colors,
-                                                             vnormals)):
-            if fi in sway:
-                assert builder.mat_names[m] in atlas, f"swaying {builder.mat_names[m]}: only kit (atlas) materials sway"
-                if targets[mi] != "kit_sway":
+
+    def mesh_prims(bld, origin=(0.0, 0.0, 0.0)):
+        """One primitive per material of `bld`, its corners moved round `origin` (a lid's hinge)."""
+        prims = []
+        target_of = [targets.index("kit_atlas" if m in atlas else m) for m in bld.mat_names]
+        sway_faces = getattr(bld, "sway", None) or {}
+        for mi in range(len(targets)):
+            pos, nrm, uv, uv2, col, idx = [], [], [], [], [], []
+            colors = list(getattr(bld, "colors", None) or [])
+            colors += [None] * (len(bld.faces) - len(colors))
+            vnormals = list(getattr(bld, "vnormals", None) or [])
+            vnormals += [None] * (len(bld.faces) - len(vnormals))
+            has_col = False
+            for fi, (face, uvs, m, n, cs, vns) in enumerate(zip(bld.faces, bld.uvs, bld.mats, bld.normals, colors,
+                                                                 vnormals)):
+                if fi in sway_faces:
+                    assert bld.mat_names[m] in atlas, f"swaying {bld.mat_names[m]}: only kit (atlas) materials sway"
+                    if targets[mi] != "kit_sway":
+                        continue
+                    cs = [(r, g, 0.0) for r, g in sway_faces[fi]]
+                elif target_of[m] != mi:
                     continue
-                cs = [(r, g, 0.0) for r, g in sway[fi]]
-            elif target_of[m] != mi:
+                has_col = has_col or bool(cs)
+                base = len(pos)
+                cell = atlas.get(bld.mat_names[m], (0.0, 0.0))
+                for k, (vi, t) in enumerate(zip(face, uvs)):
+                    p = bld.verts[vi]
+                    pos.append((p[0] - origin[0], p[1] - origin[1], p[2] - origin[2]))
+                    nrm.append(vns[k] if vns else n)
+                    uv.append((t[0], 1.0 - t[1]))          # glTF's v points down the image
+                    uv2.append(cell)
+                    col.append(tuple(cs[k]) if cs else (1.0, 1.0, 1.0))
+                for k in range(1, len(face) - 1):
+                    idx += [base, base + k, base + k + 1]
+            if not idx:
                 continue
-            has_col = has_col or bool(cs)
-            base = len(pos)
-            cell = atlas.get(builder.mat_names[m], (0.0, 0.0))
-            for k, (vi, t) in enumerate(zip(face, uvs)):
-                pos.append(builder.verts[vi])
-                nrm.append(vns[k] if vns else n)
-                uv.append((t[0], 1.0 - t[1]))          # glTF's v points down the image
-                uv2.append(cell)
-                col.append(tuple(cs[k]) if cs else (1.0, 1.0, 1.0))
-            for k in range(1, len(face) - 1):
-                idx += [base, base + k, base + k + 1]
-        if not idx:
-            continue
-        prims.append({"attributes": {"POSITION": add_accessor(pos, 5126, "VEC3", 34962, True),
-                                     "NORMAL": add_accessor(nrm, 5126, "VEC3", 34962),
-                                     "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
-                                     **({"TEXCOORD_1": add_accessor(uv2, 5126, "VEC2", 34962)}
-                                        if targets[mi] in ("kit_atlas", "kit_sway") else {}),
-                                     **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if has_col else {})},
-                      "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
+            prims.append({"attributes": {"POSITION": add_accessor(pos, 5126, "VEC3", 34962, True),
+                                         "NORMAL": add_accessor(nrm, 5126, "VEC3", 34962),
+                                         "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
+                                         **({"TEXCOORD_1": add_accessor(uv2, 5126, "VEC2", 34962)}
+                                            if targets[mi] in ("kit_atlas", "kit_sway") else {}),
+                                         **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if has_col else {})},
+                          "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
+        return prims
+
+    nodes = [{"name": BUILDING_NAME[0], "mesh": 0}]
+    meshes = [{"name": BUILDING_NAME[0], "primitives": mesh_prims(builder)}]
+    for part in parts:
+        origin = tuple(part.get("origin", (0.0, 0.0, 0.0)))
+        meshes.append({"name": part["name"], "primitives": mesh_prims(part["builder"], origin)})
+        nodes.append({"name": part["name"], "mesh": len(meshes) - 1, "translation": list(origin)})
+    if parts:
+        nodes[0]["children"] = list(range(1, len(nodes)))
     # Images use the alpha channel only where the material says so; gltf's alpha comes from the texture.
     gltf = {"asset": {"version": "2.0", "generator": "Bloxov make_building.py"}, "scene": 0,
-            "scenes": [{"nodes": [0]}], "nodes": [{"name": BUILDING_NAME[0], "mesh": 0}],
-            "meshes": [{"name": BUILDING_NAME[0], "primitives": prims}], "materials": materials,
+            "scenes": [{"nodes": [0]}], "nodes": nodes,
+            "meshes": meshes, "materials": materials,
             "textures": [{"source": i, "sampler": 0} for i in range(len(images))], "images": images,
             "samplers": [{"magFilter": 9728, "minFilter": 9984, "wrapS": 10497, "wrapT": 10497}],
             "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": 0}]}

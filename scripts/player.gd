@@ -76,6 +76,8 @@ var _meds_switched := false
 var _ground_check_left := 0.0
 ## How many ground checks in a row found the player inside something solid (0.19.4).
 var _stuck_checks := 0
+## Where they were on the last ground check, to tell "wedged and not moving" from "walking through a doorway" (0.30.4).
+var _stuck_at := Vector3.ZERO
 var _jump_cooldown_left := 0.0
 ## Jump pressed a moment before landing still jumps; walking off an edge you can still jump a moment after (0.18.3).
 var _jump_buffer_left := 0.0
@@ -111,6 +113,7 @@ func _ready() -> void:
 			node.process_mode = Node.PROCESS_MODE_DISABLED
 		return
 	_spawn_position = global_position
+	_last_floor_y = global_position.y
 	Effects.warm_up(camera)
 	hand = HandItem.new()
 	camera.add_child(hand)
@@ -484,12 +487,13 @@ func _physics_process(delta: float) -> void:
 		_play_step(4.0)
 		WorldSounds.own(self, WorldSounds.LAND, clampf(-16.0 + _fall_speed * 1.2, -14.0, 0.0))
 		_make_noise(landing_noise)
-		var dropped := _fall_speed * _fall_speed / (2.0 * get_gravity().length())
+		var dropped := maxf(_last_floor_y - global_position.y, 0.0)
 		if dropped > safe_fall_height and not out_of_fight():
 			_landing_dip = 0.2
 			health.take_damage(ceili((dropped - safe_fall_height) * fall_damage_per_meter), global_position, true)
 	if is_on_floor():
 		_fall_speed = 0.0
+		_last_floor_y = global_position.y
 	_was_on_floor = is_on_floor()
 	_update_footsteps(delta)
 
@@ -497,6 +501,7 @@ func _physics_process(delta: float) -> void:
 		global_position = _spawn_position
 		velocity = Vector3.ZERO
 		_fall_speed = 0.0
+		_last_floor_y = global_position.y
 	# Somehow under the hills (the ground is solid from below too, so you'd be stuck there): back on top.
 	_ground_check_left -= delta
 	if _ground_check_left <= 0.0:
@@ -506,6 +511,7 @@ func _physics_process(delta: float) -> void:
 			global_position = lifted
 			velocity = Vector3.ZERO
 			_fall_speed = 0.0
+			_last_floor_y = global_position.y
 		_free_if_stuck()
 
 
@@ -522,12 +528,24 @@ func _break_glass() -> void:
 			BoxMap.break_window_at(body, hit.get_collider_shape_index(), true)
 
 
-## Inside a rock, a bank or a wall for two checks running (0.19.4): put back out on the nearest free spot.
+## Inside a rock, a bank or a wall for two checks running (0.19.4): put back out on the nearest free spot. Also a body
+## wedged in a gap narrower than it is (0.30.4): held by two faces, it can't fall or walk out, so put it on a free spot
+## once it has been trying to move and getting nowhere for a second (a player just standing in a doorway isn't moved).
 func _free_if_stuck() -> void:
 	var capsule := body_shape.shape as CapsuleShape3D
-	if is_vaulting() or _climbing != null or not BoxMap.stuck_inside(self, global_position, capsule.radius, capsule.height):
+	if is_vaulting() or _climbing != null:
 		_stuck_checks = 0
 		return
+	var inside := BoxMap.stuck_inside(self, global_position, capsule.radius, capsule.height)
+	var caught := inside or (BoxMap.wedged(self, global_position, capsule.radius, capsule.height)
+		and (_move_input != Vector2.ZERO or velocity.length() > 0.5))
+	if not caught:
+		_stuck_checks = 0
+		_stuck_at = global_position
+		return
+	if global_position.distance_to(_stuck_at) > 0.15:
+		_stuck_checks = 0
+		_stuck_at = global_position
 	_stuck_checks += 1
 	if _stuck_checks < 2:
 		return
@@ -537,6 +555,7 @@ func _free_if_stuck() -> void:
 		global_position = spot
 		velocity = Vector3.ZERO
 		_fall_speed = 0.0
+		_last_floor_y = spot.y
 
 
 func _step_up(horizontal: Vector3, delta: float) -> void:

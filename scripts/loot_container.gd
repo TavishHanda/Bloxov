@@ -216,14 +216,59 @@ func interact_time() -> float:
 	return 0.0 if searched else search_time
 
 
-## Swings the lid (a "Lid" node, e.g. a dropped backpack) open or shut (0.17.10, owner). Others online see it too.
+## Looks whose model has moving parts (0.30.4): lids, doors and drawers (art_source/scripts/make_loot.py). A headless
+## server doesn't build the models, so it still knows from the look that there is a lid to tell the others about.
+const LID_LOOKS: Array[String] = [
+	"safe", "locker", "wardrobe", "gun_cabinet", "med_cabinet", "toolbox", "dresser", "kitchen", "chest",
+	"hard_case", "weapon_case", "duffel",
+]
+
+
+## Whether this container's model opens (a dropped backpack has a "Lid" node of its own, 0.17.12).
+func has_lid() -> bool:
+	if not find_children("Lid*", "Node3D", true, false).is_empty():
+		return true
+	return String(get_meta("look", "")) in LID_LOOKS
+
+
+## The moving pieces of the model: "Lid" turns round x, "LidY"/"LidY2" round y (doors), "Drawer" slides out.
+func moving_parts() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for pattern: String in ["Lid*", "Drawer*"]:
+		for node in find_children(pattern, "Node3D", true, false):
+			out.append(node as Node3D)
+	return out
+
+
+## Opens or shuts it: every lid, door and drawer of the model (0.17.10, owner; 0.30.4, every lootable thing). Others
+## online see it too.
 func set_open(open: bool) -> void:
-	var lid := find_child("Lid", true, false) as Node3D
-	if lid == null or not lid.is_inside_tree():
-		return
-	var tween := lid.create_tween()
-	tween.tween_property(lid, "rotation:x", deg_to_rad(lid.get("open_deg") if lid.get("open_deg") != null else 110.0) if open else 0.0, 0.3 if open else 0.25) \
-		.set_trans(Tween.TRANS_BACK if open else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	for lid in moving_parts():
+		if not lid.is_inside_tree():
+			continue
+		var tween := lid.create_tween()
+		if String(lid.name).begins_with("Drawer"):
+			tween.tween_property(lid, "position:z", -0.28 if open else 0.0, 0.35 if open else 0.3) \
+				.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			continue
+		var axis := "x"
+		var deg := 110.0
+		if String(lid.name).begins_with("LidY2"):
+			axis = "y"
+			deg = -100.0
+		elif String(lid.name).begins_with("LidY"):
+			axis = "y"
+			deg = 100.0
+		var custom: Variant = lid.get("open_deg")   # (a dropped backpack's flap sets its own)
+		if custom != null:
+			deg = absf(float(custom)) * (1.0 if deg >= 0.0 else -1.0)
+		var target := lid.rotation
+		if axis == "y":
+			target.y = deg_to_rad(deg) if open else 0.0
+		else:
+			target.x = deg_to_rad(deg) if open else 0.0
+		tween.tween_property(lid, "rotation", target, 0.3 if open else 0.25) \
+			.set_trans(Tween.TRANS_BACK if open else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func mark_searched() -> void:

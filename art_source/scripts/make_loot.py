@@ -222,15 +222,44 @@ def front(atlas, region, mat, tile=1.0, side="-z"):
     return lambda n, m, q: None if side_of(n) == "-y" else (("decals", fit) if side_of(n) == side else (mat, uv_world(tile)))
 
 
+def front_rect(rect, mat, tile=1.0, side="-z"):
+    """The front (-z) shows part of a decal (`rect` in atlas space), the rest `mat`."""
+    fit = mb.uv_fit(rect)
+    return lambda n, m, q: None if side_of(n) == "-y" else (("decals", fit) if side_of(n) == side else (mat, uv_world(tile)))
+
+
+def region_part(d, name, u0=0.0, v0=0.0, u1=1.0, v1=1.0):
+    """Part of a decal's atlas region (fractions of it): one door of a pair shows its half."""
+    r = d.regions[name]
+    return (r[0] + u0 * (r[2] - r[0]), r[1] + v0 * (r[3] - r[1]),
+            r[0] + u1 * (r[2] - r[0]), r[1] + v1 * (r[3] - r[1]))
+
+
+def part(name, origin):
+    """A moving piece of a look (a lid, a door, a drawer): its own mesh round `origin`, a child node of the model.
+    "Lid" turns round x, "LidY" round y, "LidY2" the other way round y; "Drawer" slides out."""
+    return {"name": name, "builder": Builder(), "origin": origin}
+
+
+def dark_front(inner, outer):
+    """A body whose front (-z) is the dark inside (a door or drawer covers it)."""
+    return lambda n, m, q: None if side_of(n) == "-y" else (
+        (inner, uv_world(1.0)) if side_of(n) == "-z" else (outer, uv_world(1.0)))
+
+
 # ------------------------------------------------------------------------------------------------ models
 def look_safe(b, d):
     for x in (-0.33, 0.33):
         for z in (-0.28, 0.28):
             b.box((x, 0.04, z), (0.08, 0.08, 0.08), style=solid("black"))
-    b.box((0, 0.49, 0), (0.8, 0.82, 0.7), style=front(d, "safe", "olive_dark"))
-    b.box((-0.12, 0.52, -0.37), (0.17, 0.17, 0.04), style=solid("gold"))           # dial
-    b.box((-0.12, 0.52, -0.395), (0.03, 0.08, 0.01), style=solid("black"))
-    b.box((0.2, 0.46, -0.38), (0.05, 0.24, 0.05), style=solid("gold"))             # handle
+    b.box((0, 0.49, 0.01), (0.8, 0.82, 0.68), style=dark_front("black", "olive_dark"))
+    door = part("LidY", (-0.4, 0.08, -0.35))                                       # hinged on its left edge
+    db = door["builder"]
+    db.box((0, 0.49, -0.36), (0.8, 0.82, 0.04), style=front(d, "safe", "olive_dark"))
+    db.box((-0.12, 0.52, -0.385), (0.17, 0.17, 0.04), style=solid("gold"))          # dial
+    db.box((-0.12, 0.52, -0.41), (0.03, 0.08, 0.01), style=solid("black"))
+    db.box((0.2, 0.46, -0.395), (0.05, 0.24, 0.05), style=solid("gold"))            # handle
+    return [door]
 
 
 def look_locker(b, d):
@@ -243,28 +272,43 @@ def look_locker(b, d):
     for y in (0.115, 1.885):
         b.box((0, y, -0.19), (0.75, 0.03, 0.04), style=solid("trim_dark"))
     b.box((0, 1.0, -0.19), (0.02, 1.76, 0.04), style=solid("trim_dark"))
+    doors = []
     for k, x in enumerate((-0.18, 0.18)):
-        b.box((x, 1.0, -0.17), (0.33, 1.74, 0.02), yaw=(3 if k else 0), style=front(d, "locker_door", "blue"))
+        door = part("LidY" if k == 0 else "LidY2", (-0.345 if k == 0 else 0.345, 0.13, -0.17))
+        lb = door["builder"]
+        lb.box((x, 1.0, -0.17), (0.33, 1.74, 0.02), yaw=(3 if k else 0), style=front(d, "locker_door", "blue"))
         for j in range(5):                                                            # vent slats
-            b.box((x, 1.72 - j * 0.045, -0.185), (0.2, 0.018, 0.012), style=solid("trim_dark"))
+            lb.box((x, 1.72 - j * 0.045, -0.185), (0.2, 0.018, 0.012), style=solid("trim_dark"))
         hx = x + (0.12 if k == 0 else -0.12)
-        b.box((hx, 1.05, -0.2), (0.03, 0.14, 0.03), style=solid("steel"))           # handle
-        b.box((hx, 1.05, -0.215), (0.05, 0.05, 0.01), style=solid("trim_dark"))     # lock
+        lb.box((hx, 1.05, -0.2), (0.03, 0.14, 0.03), style=solid("steel"))           # handle
+        lb.box((hx, 1.05, -0.215), (0.05, 0.05, 0.01), style=solid("trim_dark"))     # lock
         for y in (0.4, 1.6):                                                          # hinges
-            b.box((x - (0.16 if k == 0 else -0.16), y, -0.19), (0.02, 0.08, 0.03), style=solid("steel"))
+            lb.box((x - (0.16 if k == 0 else -0.16), y, -0.19), (0.02, 0.08, 0.03), style=solid("steel"))
+        doors.append(door)
     b.box((0.1, 1.98, 0.05), (0.42, 0.16, 0.32), yaw=8, style=solid("cardboard"))   # a box left on top
     b.box((-0.2, 1.955, 0.0), (0.24, 0.11, 0.26), style=solid("gold"))               # a hard hat
     b.box((-0.2, 1.905, -0.06), (0.26, 0.01, 0.3), style=solid("gold"))
+    return doors
 
 
 def look_wardrobe(b, d):
-    b.box((0, 1.0, 0.0), (1.0, 1.96, 0.55), style=front(d, "wardrobe", "wood"))
+    b.box((0, 1.0, 0.01), (1.0, 1.96, 0.53), style=dark_front("wood_dark", "wood"))
     b.box((0, 1.99, 0.0), (1.04, 0.05, 0.57), style=solid("wood_dark"))
+    left = part("LidY", (-0.5, 0.02, -0.275))       # (x < 0: its outer edge)
+    left["builder"].box((-0.26, 0.98, -0.27), (0.48, 1.92, 0.03),
+                        style=front_rect(region_part(d, "wardrobe", 0.5, 0.0, 1.0, 1.0), "wood"))
+    right = part("LidY2", (0.5, 0.02, -0.275))
+    right["builder"].box((0.26, 0.98, -0.27), (0.48, 1.92, 0.03),
+                         style=front_rect(region_part(d, "wardrobe", 0.0, 0.0, 0.5, 1.0), "wood"))
+    return [left, right]
 
 
 def look_gun_cabinet(b, d):
-    b.box((0, 0.95, 0.0), (0.9, 1.9, 0.45), style=front(d, "gun_cabinet", "wood"))
+    b.box((0, 0.95, 0.01), (0.9, 1.9, 0.43), style=dark_front("wood_dark", "wood"))
     b.box((0, 1.92, 0.0), (0.94, 0.05, 0.47), style=solid("wood_dark"))
+    door = part("LidY", (-0.45, 0.0, -0.225))
+    door["builder"].box((0, 0.95, -0.225), (0.9, 1.9, 0.04), style=front(d, "gun_cabinet", "wood"))
+    return [door]
 
 
 def look_filing(b, d):
@@ -296,7 +340,10 @@ def look_filing(b, d):
 
 
 def look_med(b, d):
-    b.box((0, 0.8, 0.0), (0.8, 1.6, 0.4), style=front(d, "med", "bone"))
+    b.box((0, 0.8, 0.01), (0.8, 1.6, 0.38), style=dark_front("steel", "bone"))
+    door = part("LidY", (-0.4, 0.0, -0.2))
+    door["builder"].box((0, 0.8, -0.2), (0.8, 1.6, 0.04), style=front(d, "med", "bone"))
+    return [door]
 
 
 def look_toolbox(b, d):
@@ -304,43 +351,67 @@ def look_toolbox(b, d):
         for z in (-0.18, 0.18):
             b.box((x, 0.05, z), (0.08, 0.1, 0.08), style=solid("black"))             # wheels
     b.box((0, 0.5, 0.0), (0.8, 0.8, 0.5), style=front(d, "toolbox", "red"))
-    b.box((0, 1.05, 0.0), (0.76, 0.3, 0.46), style=front(d, "toolbox_top", "red"))
     b.box((0.43, 0.75, 0.0), (0.04, 0.04, 0.4), style=solid("steel"))               # push bar
+    lid = part("Lid", (0, 1.2, 0.23))                                               # top box, hinged at its back
+    lid["builder"].box((0, 1.05, 0.0), (0.76, 0.3, 0.46), style=front(d, "toolbox_top", "red"))
+    return [lid]
 
 
 def look_dresser(b, d):
-    b.box((0, 0.45, 0.0), (1.0, 0.9, 0.5), style=front(d, "dresser", "wood"))
+    b.box((0, 0.3, 0.0), (1.0, 0.6, 0.5),
+          style=front_rect(region_part(d, "dresser", 0.0, 0.0, 1.0, 2.0 / 3.0), "wood"))
+    b.box((0, 0.75, 0.03), (0.96, 0.3, 0.44), style=solid("wood_dark"))              # the drawer's dark slot
     b.box((0, 0.915, 0.0), (1.04, 0.03, 0.52), style=solid("wood_dark"))
     b.box((0.3, 1.02, 0.12), (0.16, 0.2, 0.03), yaw=-12, style=solid("trim_dark"))   # photo frame
     b.box((-0.28, 0.98, 0.05), (0.14, 0.1, 0.14), style=solid("bone"))              # jewellery box
+    drawer = part("Drawer", (0.0, 0.0, 0.0))
+    db = drawer["builder"]
+    db.box((0, 0.75, -0.26), (0.96, 0.28, 0.03),
+           style=front_rect(region_part(d, "dresser", 0.0, 2.0 / 3.0, 1.0, 1.0), "wood"))
+    db.box((0, 0.62, -0.12), (0.92, 0.02, 0.28), style=solid("wood"))                # tray bottom
+    for x in (-0.46, 0.46):
+        db.box((x, 0.75, -0.12), (0.02, 0.26, 0.28), style=solid("wood"))            # tray sides
+    return [drawer]
 
 
 def look_kitchen(b, d):
-    b.box((0, 0.45, 0.0), (1.0, 0.9, 0.6), style=front(d, "kitchen", "steel"))
+    b.box((0, 0.45, 0.01), (1.0, 0.9, 0.58), style=dark_front("steel", "steel"))
     b.box((0, 0.92, 0.0), (1.02, 0.04, 0.6), style=solid("metal"))
     b.box((0.22, 1.02, 0.05), (0.26, 0.16, 0.26), style=solid("trim_dark"))          # pot
+    door = part("LidY", (-0.5, 0.0, -0.29))
+    door["builder"].box((0, 0.45, -0.29), (1.0, 0.9, 0.04), style=front(d, "kitchen", "steel"))
+    return [door]
 
 
 def look_chest(b, d):
     b.box((0, 0.25, 0.0), (0.9, 0.5, 0.55), style=front(d, "chest", "wood"))
-    b.box((0, 0.55, 0.0), (0.92, 0.1, 0.55), style=solid("wood_dark"))
+    lid = part("Lid", (0, 0.6, 0.275))                                              # hinged at its top back edge
+    lb = lid["builder"]
+    lb.box((0, 0.55, 0.0), (0.92, 0.1, 0.55), style=solid("wood_dark"))
     for x in (-0.3, 0.3):
-        b.box((x, 0.55, 0.0), (0.06, 0.12, 0.57), style=solid("black"))
+        lb.box((x, 0.55, 0.0), (0.06, 0.12, 0.57), style=solid("black"))
+    return [lid]
 
 
 def look_hard_case(b, d):
     for x in (-0.4, 0.4):
         b.box((x, 0.025, 0.0), (0.1, 0.05, 0.58), style=solid("black"))
     b.box((0, 0.3, 0.0), (1.0, 0.5, 0.6), style=front(d, "hard_case", "olive"))
-    b.box((0, 0.565, 0.0), (0.9, 0.03, 0.5), style=solid("olive_dark"))
     for x in (-0.51, 0.51):
         b.box((x, 0.38, 0.0), (0.03, 0.05, 0.22), style=solid("black"))              # end handles
+    lid = part("Lid", (0, 0.58, 0.25))
+    lid["builder"].box((0, 0.565, 0.0), (0.9, 0.03, 0.5), style=solid("olive_dark"))
+    return [lid]
 
 
 def look_weapon_case(b, d):
     b.box((0, 0.06, 0.0), (1.2, 0.12, 0.55), style=solid("wood"))                    # pallet
     b.box((0, 0.3, 0.0), (1.15, 0.36, 0.45), style=front(d, "weapon_case", "trim_dark"))
-    b.box((0, 0.5, 0.0), (0.3, 0.04, 0.05), style=solid("black"))
+    lid = part("Lid", (0, 0.52, 0.225))
+    lb = lid["builder"]
+    lb.box((0, 0.5, 0.0), (1.15, 0.04, 0.45), style=solid("trim_dark"))
+    lb.box((0, 0.54, 0.0), (0.3, 0.04, 0.05), style=solid("black"))
+    return [lid]
 
 
 def look_duffel(b, d):
@@ -351,6 +422,9 @@ def look_duffel(b, d):
         b.box((x, 0.18, 0.0), (0.06, 0.38, 0.44), style=solid("black"))              # straps
     b.box((0, 0.38, 0.0), (0.3, 0.04, 0.05), style=solid("black"))
     b.box((0, 0.362, 0.0), (0.7, 0.006, 0.03), style=solid("trim_dark"))             # zip
+    lid = part("Lid", (0, 0.38, 0.21))                                              # the flap over the zip
+    lid["builder"].box((0, 0.372, 0.0), (0.7, 0.02, 0.4), style=solid("olive"))
+    return [lid]
 
 
 def look_stock_boxes(b, d):
@@ -453,10 +527,10 @@ def main():
     mat_info["decals"] = ("loot_decals", False, False)
     for name in names:
         b = Builder()
-        LOOKS[name](b, atlas)
+        parts = LOOKS[name](b, atlas)
         mb.BUILDING_NAME[0] = name
         out = os.path.join(mb.ROOT, "assets", "models", "loot", name + ".glb")
-        mb.write_glb(out, b, textures, mat_info)
+        mb.write_glb(out, b, textures, mat_info, parts=parts)
         print(f"{name}: {sum(len(f) - 2 for f in b.faces)} triangles, {len(b.mat_names)} materials -> {out}")
 
 

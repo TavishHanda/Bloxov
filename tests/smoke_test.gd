@@ -501,6 +501,18 @@ func _section_stealth() -> void:
 	_check(player.is_crouching and absf(crouch_speed - player.crouch_speed) < 0.3, "crouch speed ~%.1f (got %.2f)" % [player.crouch_speed, crouch_speed])
 	_check(player.eye_height() < player.stand_eye_height - 0.4, "crouching lowers the camera (%.2f)" % player.eye_height())
 	_check(noises.max() <= 2.0 if not noises.is_empty() else true, "crouch-walking is nearly silent (heard only right next to you)")
+	# Prone is quieter still, and the order is what the AI's ears should say (0.30.4).
+	noises.clear()
+	player.set_prone(true)
+	await create_timer(1.5).timeout
+	_check(noises.is_empty() or noises.max() == player.prone_noise,
+		"prone crawling is the quietest (%s)" % str(noises))
+	_check(player.prone_noise < player.crouch_noise and player.crouch_noise < player.walk_noise
+		and player.walk_noise < player.sprint_noise,
+		"heard from: prone %.1f < crouch %.1f < walk %.1f < sprint %.1f m" % [
+			player.prone_noise, player.crouch_noise, player.walk_noise, player.sprint_noise])
+	player.set_prone(false)
+	await create_timer(0.3).timeout
 	# Sprinting stands you up, and drains stamina until you can't sprint.
 	Input.action_press("sprint")
 	await create_timer(0.5).timeout
@@ -539,6 +551,46 @@ func _section_stuck() -> void:
 	_check(not BoxMap.inside_solid(player, at + Vector3.UP * 0.3) and at.distance_to(inside) < 4.0 and at.y > inside.y + 1.9,
 		"a player stuck inside it is put on a free spot nearby (on top: %s)" % at)
 	lump.queue_free()
+	# A gap narrower than the player (0.30.4, owner: vaulted onto the trapper's woodpile and landed between it and the
+	# cabin): held up by two faces it can't fall or walk out of. The same check puts it on a free spot, and the speed
+	# Jolt gives a body it has been squeezing isn't counted as a fall (the old fall maths turned it into instant death).
+	var gap := START_SPOT + Vector3(12, 0, 6)
+	var gap_hit := player.get_world_3d().direct_space_state.intersect_ray(
+		PhysicsRayQueryParameters3D.create(gap + Vector3.UP * 20.0, gap + Vector3.DOWN * 20.0, 1, [player.get_rid()]))
+	var gy: float = gap_hit.position.y
+	var walls: Array[StaticBody3D] = []
+	for side: float in [-1.0, 1.0]:   # the two faces, 0.75 m apart
+		var wall := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		shape.shape = BoxShape3D.new()
+		(shape.shape as BoxShape3D).size = Vector3(1.0, 3.0, 4.0)
+		wall.add_child(shape)
+		main.add_child(wall)
+		wall.global_position = Vector3(gap.x + side * (0.375 + 0.5), gy + 1.5, gap.z)
+		walls.append(wall)
+	for side: float in [-1.0, 1.0]:   # and the ends, so it can't just walk out
+		var wall := StaticBody3D.new()
+		var shape := CollisionShape3D.new()
+		shape.shape = BoxShape3D.new()
+		(shape.shape as BoxShape3D).size = Vector3(0.75, 3.0, 1.0)
+		wall.add_child(shape)
+		main.add_child(wall)
+		wall.global_position = Vector3(gap.x, gy + 1.5, gap.z + side * (2.0 + 0.5))
+		walls.append(wall)
+	await physics_frame
+	await physics_frame
+	player.health.heal(player.health.max_health)
+	player.teleport_to(Vector3(gap.x, gy + 0.05, gap.z))
+	Input.action_press("move_forward")
+	await create_timer(1.6).timeout
+	Input.action_release("move_forward")
+	_check(player.health.current == player.health.max_health,
+		"a player wedged in a gap narrower than them isn't hurt (%d hp)" % player.health.current)
+	_check(not BoxMap.wedged(player, player.global_position, 0.4, 1.8),
+		"...and is put on a free spot (%s)" % player.global_position)
+	for wall in walls:
+		wall.queue_free()
+	await physics_frame
 
 
 func _section_jump() -> void:
@@ -900,6 +952,37 @@ func _section_containers() -> void:
 			rolled += 1
 	_check(rolled >= 10, "containers have loot (%d)" % rolled)
 	_check(ItemDB.money(1234567) == "$1,234,567", "money formatting")
+	# Loot opens (0.30.4, owner: an opening animation): every look that should has a lid, door or drawer in its model,
+	# and set_open moves them (a chest's lid up, a right-hand door the other way, a drawer out).
+	var lid_looks := LootContainer.LID_LOOKS
+	var no_part: Array[String] = []
+	for look: String in lid_looks:
+		var model: Node3D = (load("res://assets/models/loot/%s.glb" % look) as PackedScene).instantiate()
+		if model.find_children("Lid*", "Node3D", true, false).is_empty() \
+				and model.find_children("Drawer*", "Node3D", true, false).is_empty():
+			no_part.append(look)
+		model.free()
+	_check(no_part.is_empty(), "every loot look that opens has a lid, door or drawer (missing: %s)" % [no_part])
+	var box := LootContainer.new()
+	box.set_meta("look", "chest")
+	main.add_child(box)
+	await physics_frame
+	_check(box.has_lid(), "a chest knows it opens even where the model isn't built (the server)")
+	var lid := Node3D.new()
+	lid.name = "LidY2"
+	box.add_child(lid)
+	var drawer := Node3D.new()
+	drawer.name = "Drawer"
+	box.add_child(drawer)
+	box.set_open(true)
+	await create_timer(0.4).timeout
+	_check(lid.rotation.y < -1.0 and drawer.position.z < -0.2,
+		"opening swings a right-hand door the other way and slides a drawer out (%.2f rad, %.2f m)" % [
+			lid.rotation.y, -drawer.position.z])
+	box.set_open(false)
+	await create_timer(0.4).timeout
+	_check(is_zero_approx(lid.rotation.y) and is_zero_approx(drawer.position.z), "closing shuts them again")
+	box.queue_free()
 
 
 func _section_items() -> void:

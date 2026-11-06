@@ -526,6 +526,31 @@ static func stuck_inside(body: CollisionObject3D, feet: Vector3, radius: float, 
 	return true
 
 
+## A body on its feet caught between two solid faces closer together than it is wide (0.30.4, owner: landed in the
+## gap between the trapper's woodshed and the cabin and was held up by their corners). Opposite rays at a few heights
+## up the body: if any pair is closer than the body is wide, it can't stand there. (A single wall, a corner, or the
+## edge of a roof only has something on one or two neighbouring sides, so it doesn't count.)
+static func wedged(body: CollisionObject3D, feet: Vector3, radius: float, height: float) -> bool:
+	var space := body.get_world_3d().direct_space_state
+	# Everything that stops this body counts, not just the map's solid boxes: a woodpile or a bar rail is on its own
+	# layer (BARS_LAYER), and the trapper's woodshed is one (0.30.4).
+	var mask := body.collision_mask & ~4   # (other bodies don't count: they get out of the way)
+	var reach := radius + 1.0
+	for h: float in [0.15, 0.45, 0.8, 1.15, 1.5]:
+		if h > height - 0.05:
+			break
+		var from := feet + Vector3.UP * h
+		var sides := PackedFloat32Array()
+		for k in 4:
+			var way := Vector3(cos(TAU * k / 4.0), 0.0, sin(TAU * k / 4.0))
+			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + way * reach, mask, [body.get_rid()]))
+			sides.append(reach if hit.is_empty() else from.distance_to(hit.position))
+		for k in 2:
+			if sides[k] + sides[k + 2] < radius * 2.0 - 0.02:
+				return true
+	return false
+
+
 ## True if a ray going `direction` that made `hit` struck a map surface from behind: it started inside something.
 static func hit_from_behind(hit: Dictionary, direction: Vector3) -> bool:
 	var map := hit.get("collider") as BoxMap

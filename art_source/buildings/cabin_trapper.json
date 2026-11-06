@@ -71,7 +71,7 @@
 {"pos": [2.7, 0.85, -0.15], "size": [0.3, 1.7, 2.1], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": false, "kind": "tc_stretchers"},
 {"pos": [4.675, 0.03, 6.075], "size": [4.55, 0.06, 1.85], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": false, "kind": "cabin_porch"},
 {"pos": [6.3, 0.28, 5.45], "size": [1.1, 0.44, 0.4], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "cabin_bench"},
-{"pos": [-8.3, 0.8, -2.0], "size": [1.8, 1.6, 3.6], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "tc_woodshed"},
+{"pos": [-8.9, 0.8, -2.0], "size": [1.8, 1.6, 3.6], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "tc_woodshed"},
 {"pos": [-8.5, 0.475, 2.9], "size": [1.4, 0.95, 0.8], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "tc_sawhorse"},
 {"pos": [-7.8, 0.275, 4.5], "size": [0.6, 0.55, 0.6], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "cabin_block"},
 {"pos": [-5.1, 1.0, -7.8], "size": [0.2, 2.0, 0.2], "yaw": 0.0, "pitch": 0.0, "colour": "wood", "solid": true, "kind": "cabin_hidden"},

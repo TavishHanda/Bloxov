@@ -18,6 +18,9 @@ var _lean_toggled := 0
 var _landing_left := 0.0
 var _was_on_floor := true
 var _fall_speed := 0.0
+## Where we last stood on the floor (0.30.4): fall damage is measured from here, not from `_fall_speed`. Jolt
+## sometimes flings a body that's wedged between two solids at a huge speed for a frame; that isn't a fall.
+var _last_floor_y := 0.0
 var _bob_time := 0.0
 var _landing_dip := 0.0
 var _move_input := Vector2.ZERO
@@ -132,6 +135,7 @@ func teleport_to(pos: Vector3) -> void:
 	_vault_path.clear()
 	_climbing = null
 	_fall_speed = 0.0
+	_last_floor_y = pos.y
 	global_position = pos
 	_spawn_position = pos
 	velocity = Vector3.ZERO
@@ -390,7 +394,11 @@ func _update_footsteps(delta: float) -> void:
 	_stride_left -= speed * delta
 	if _stride_left > 0.0:
 		return
-	if is_crouching:
+	if is_prone:   # (prone sets is_crouching too: check it first)
+		_stride_left = prone_stride
+		_play_step(-18.0)
+		_make_noise(prone_noise)
+	elif is_crouching:
 		_stride_left = crouch_stride
 		_play_step(-16.0)
 		_make_noise(crouch_noise)

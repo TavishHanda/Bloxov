@@ -2656,7 +2656,7 @@ def trapper_cabin(x, y):
     # ladder and roof picture only); a pelt rack on the creek side.
     o(2.4, 0, 5.15, 6.95, 0.06, 7.0, "wood", "cabin_porch", solid=False)
     o(5.75, 0.06, 5.25, 6.85, 0.5, 5.65, "wood", "cabin_bench")
-    o(-9.2, 0, -3.8, -7.4, 1.6, -0.2, "wood", "tc_woodshed")
+    o(-9.8, 0, -3.8, -8.0, 1.6, -0.2, "wood", "tc_woodshed")
     o(-9.2, 0, 2.5, -7.8, 0.95, 3.3, "wood", "tc_sawhorse")
     o(-8.1, 0, 4.2, -7.5, 0.55, 4.8, "wood", "cabin_block")
     for lx, lz in ((-5.1, -7.8), (-3.7, -7.8), (-5.1, -6.4), (-3.7, -6.4)):
