@@ -8,7 +8,8 @@ Read first: `CLAUDE.md` (rules), `docs/DEV_HANDOFF.md` §3 code map and §5 host
 owner works), `docs/STORE_RULES.md` §3-4 (privacy and accounts), `docs/MULTIPLAYER_PLAN.md` (how online got here).
 
 Nothing here is a decision the owner has made unless it says so. Items marked **Owner decision** are already settled;
-items marked **Proposed** are my recommendation; items in §15 marked still open need an answer before building.
+items marked **Proposed** are my recommendation. §15 lists what is settled; anything new marked still open there needs
+an answer before building.
 
 **Decisions recorded 2026-11-04** (the owner answered the first round):
 - **PvE is offline solo now; online co-op PvE is a later option.** Add the `mode` field now so it can come later.
@@ -1099,12 +1100,13 @@ From `docs/STORE_RULES.md` §3-4, all of this must be true before the online sta
 15. **Online export:** **yes**, read-only JSON; **no import**.
 16. **Hosting cost:** **approved** (Heroku Postgres on top of the dyno).
 17. **Release shape:** **incremental 0.31.x.** Phase 1 can ship early; Phase 2 is 0.31.0.
+18. **Inactive account cleanup:** **delete after 12 months with no `last_seen_at`.** With a verified email, send one
+    warning at 11 months; without one, the privacy policy says inactivity is a deletion reason. At 12 months the
+    account is marked deleted and the normal 30-day grace runs, then the hard delete. A monthly job does the sweep.
 
 ### Still open
 
-1. **Inactive account cleanup:** never delete, or delete after 12 months with no `last_seen_at` (with a warning when
-   there is a verified email)?
-   *My pick: never auto-delete for now; revisit before launch.*
+None right now. Anything new goes here before it is built.
 
 ---
 
@@ -1137,7 +1139,7 @@ This is what the update will touch. It is here so a future session can estimate 
 ## 17. What this plan does not do
 
 - It does not build anything. No code, no schema, no deploy.
-- It does not decide the open questions in §15.
+- It does not leave any open decisions: §15 has the settled answers; anything new goes there before it is built.
 - It does not add real-money purchases, skins, gems or a battle pass.
 - It does not add a public leaderboard, trading, an auction house or cross-player item transfers.
 - It does not add Steam/Apple/Google login **in 0.31.0**; Steam is reserved in the schema and ships with the Steam
