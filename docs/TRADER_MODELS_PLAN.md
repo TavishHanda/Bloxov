@@ -20,15 +20,16 @@ are 0.32.1.
 - `scripts/body_pose.gd`: poses the joints for standing, walking, crouching, prone, downed and dead.
 - `scripts/pixel_model.gd`: crisp textures, outfit slots (`Slot__option`), and merging parts into fewer draw calls.
 
-## Direction (recommended)
+## Direction (decided 2026-11-06)
+
+The owner picked **grounded, worn, slightly stylised**: military surplus and cave-market improvisation, not clean
+uniforms and not fantasy. Each trader should read at 10 m by shape alone. No real brands or logos
+(`docs/STORE_RULES.md`). The alternatives are kept below as history, not as open options.
 
 Five **separate** models, one per trader, built by a shared `trader_body` helper in `make_character.py`. Separate
 models are simpler than outfit slots here: each trader has a fixed look and different proportions, and nothing needs
 to randomise or swap. They still use the same joint names, the same atlas size and the same texel density as the
 raiders, so `BodyPose` and `PixelModel` work unchanged.
-
-The look is **grounded, worn, slightly stylised**: military surplus and cave-market improvisation, not clean uniforms
-and not fantasy. Each trader should read at 10 m by shape alone. No real brands or logos (`docs/STORE_RULES.md`).
 
 | Trader | Silhouette | Look |
 | --- | --- | --- |
@@ -38,9 +39,11 @@ and not fantasy. Each trader should read at 10 m by shape alone. No real brands 
 | **Supreme** (valuables) | Tall, narrow, sharp | 40s. Long dark coat, a flat cap or ushanka, small sunglasses indoors, leather gloves, a gold watch, a cane or a folded umbrella. Stands very still; appraises you before he speaks. |
 | **Ming** (boxes) | Compact, bright, restless | 20s. A colourful puffer jacket (red/teal, the one loud thing in the market), a cap or headphones round the neck, fingerless gloves, a box cutter on a lanyard, a grin. Leans on the counter. |
 
-Optional sixth body: a **cat** asleep on the supplies crates. Ask the owner first; it is a character, not a prop.
+Sixth body: a **cat** asleep on the supplies crates (approved 2026-11-06). It is a character, not a prop: a small
+jointed or two-part model with a breathing idle, built with the same helpers. It lives in the hideout-life step, not
+in the five trader models.
 
-Alternatives if the owner wants a different tone:
+Alternatives that were not picked:
 
 - **Ex-military only:** all five in surplus gear, rank and trade shown by kit rather than costume. More grounded,
   less readable at a distance.
@@ -97,11 +100,12 @@ Alternatives if the owner wants a different tone:
 
 ## Steps
 
-- [ ] **0.32.1a - Art direction sign-off.** Owner picks the tone (recommended table above, ex-military, or market
-      eccentrics) and the Medic's real name. No modelling before this.
+- [ ] **0.32.1a - Art direction sign-off.** Tone picked: grounded, worn, stylised (2026-11-06). Still open: the
+      Medic's real name, which is a placeholder until dialogue is written.
 - [ ] **0.32.1b - Pilot: Ponta and the Medic.** Build the shared `trader_body`, the two models, `trader.tscn`,
       `hideout_trader.gd`, and place them at their stalls. Play it. This is where proportion and scale get fixed.
-- [ ] **0.32.1c - The other three.** Big Don, Supreme, Ming, using the pilot's proportions and the same idle.
+- [ ] **0.32.1c - The other three, and the cat.** Big Don, Supreme, Ming, using the pilot's proportions and the same
+      idle, plus the cat asleep on the supplies crates (approved 2026-11-06).
 - [ ] **0.32.1d - Look-at and greetings.** Head turns, the rare gesture, one line per trader when their screen
       opens. Ask before adding voice.
 - [ ] **0.32.1e - Polish and perf.** Merge parts, check draw calls and shadows, confirm headless and smoke tests are
@@ -112,6 +116,7 @@ Alternatives if the owner wants a different tone:
 - From the spawn point, all five stalls read as staffed, and each trader is distinguishable by silhouette.
 - Each trader breathes, shifts and turns to the player; nothing snaps or loops obviously.
 - The models use the existing joints, `BodyPose` and `PixelModel`; no new animation system.
+- The cat reads as asleep rather than dead, breathes slowly, and never blocks the counter or the player's path.
 - A headless run builds none of the idle work, and the smoke tests still pass.
 - No collision changes in the stalls, no new network traffic, no effect on stock, prices or quests.
 - The owner is happy with the tone before the last three are modelled.

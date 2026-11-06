@@ -51,8 +51,8 @@ While the bodies are being made, add the small things around them:
 - A trader's stool, a coat on a hook, a rifle leaning on the rack, a radio on the gunsmith's shelf.
 - A hanging bulb over each counter with a slow, tiny sway (the swing system already exists; these are just more
   `SWINGS` entries).
-- A cat asleep on the supplies crates, breathing. One small model, one loop, huge payoff. Optional; ask the owner
-  first, because a cat is a character and needs its own art direction.
+- A cat asleep on the supplies crates, breathing. One small model, one loop, huge payoff. **Approved by the owner
+  (2026-11-06).** It is a character, so it gets its own tiny model and idle, not a static prop.
 
 ### 2. The market ledge itself
 
@@ -130,8 +130,9 @@ Each step is a self-contained 0.32.x change, playable on its own. Stop after any
       with ripple quads and a quiet drip one-shot, more litter. Files: `make_hideout.py`, `hideout_life.gd`,
       `tools/make_sounds.py` if a new drip is needed. Test: a smoke check that the life node still builds nothing
       headless, and that the new emitters are inside the market's bounds.
-- [ ] **0.32.1 - Trader bodies, placed and idling.** See `docs/TRADER_MODELS_PLAN.md`. This is the step that changes
-      how the room feels.
+- [ ] **0.32.1 - Trader bodies, placed and idling, plus the cat.** See `docs/TRADER_MODELS_PLAN.md`. This is the step
+      that changes how the room feels. The cat sleeps on the supplies crates and breathes; it is a small extra model
+      in the same step.
 - [ ] **0.32.2 - Small events.** Radio station changes, TV ad break/test card, rare light flicker, range target sway,
       distant door clang. Files: `hideout_life.gd`, `hideout_toys.gd`, shaders. Test: events are timer-driven and
       can be forced in a smoke check.
