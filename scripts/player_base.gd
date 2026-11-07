@@ -154,6 +154,8 @@ var downed := false
 var heal_time_left := 0.0
 var _heal_item := ""
 var _sprinting := false
+## The free camera has the view (FreeCam, 0.31.12): we stand still, take no input, can't shoot or loot.
+var camera_away := false
 ## -1 = fully leaning left, 1 = right (smoothed). _lean_toggled is the held direction in tap-to-toggle mode.
 var lean := 0.0
 ## While vaulting: the path (start, over the top, end), time into it and how long it takes; empty = not vaulting.
@@ -165,6 +167,11 @@ func controls_locked() -> bool:
 	return is_dead or extracted
 
 
+## Keys and touches move and turn us (not dead or out, and the free camera isn't flying about instead).
+func takes_input() -> bool:
+	return not controls_locked() and not camera_away
+
+
 ## Dead, out, or downed: scavs leave you alone (owner, 0.9.2) and you can't extract.
 func out_of_fight() -> bool:
 	return controls_locked() or downed
@@ -172,7 +179,7 @@ func out_of_fight() -> bool:
 
 ## Free to shoot, swing, heal or loot: not dead/out, downed, healing or reviving someone.
 func hands_free() -> bool:
-	return (not out_of_fight() and not is_healing() and not interactor.is_reviving() and not is_vaulting()
+	return (not out_of_fight() and not camera_away and not is_healing() and not interactor.is_reviving() and not is_vaulting()
 		and not is_climbing())
 
 

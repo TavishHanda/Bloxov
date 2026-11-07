@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -8215,6 +8215,91 @@ func _drag_event(index: int, pos: Vector2, relative: Vector2) -> void:
 	event.position = root.get_final_transform() * pos
 	event.relative = root.get_final_transform().basis_xform(relative)
 	Input.parse_input_event(event)
+
+
+func _section_free_cam() -> void:
+	# Recording tools (0.31.12): a free camera in solo raids; your character stays put (shown by a stand-in body),
+	# takes no input and can't shoot. Slow motion and stopped time, and everything put back after.
+	var hud := main.get_node("HUD")
+	var cam: FreeCam = hud.free_cam
+	var touch: TouchControls = hud.touch
+	touch.process_mode = Node.PROCESS_MODE_ALWAYS   # (the test turns the HUD off)
+	_check(Keybinds.key_of("hide_hud") == "F1" and Keybinds.key_of("free_cam") == "F2" and Keybinds.key_of("cam_time") == "T",
+		"recording keys: F1 hide HUD, F2 free camera, T slow-mo (%s %s %s)" % [Keybinds.key_of("hide_hud"), Keybinds.key_of("free_cam"), Keybinds.key_of("cam_time")])
+	_check(FreeCam.allowed(), "the free camera is allowed offline")
+	# Playing, as far as input goes (touch on, not paused: there's no captured mouse headless).
+	TouchInput.set_active(true)
+	TouchInput.paused = false
+	TouchInput.screen_free = true
+	gun.in_mag = gun.mag_size
+	var start_spot := player.global_position
+	_check(cam.start() and cam.active and player.camera_away, "the free camera starts")
+	await _frames(2)
+	_check(player.get_viewport().get_camera_3d() == cam.camera, "the free camera has the view")
+	_check(is_instance_valid(cam.stand_in) and cam.stand_in.collision_layer == 0
+		and not cam.stand_in.is_in_group(RemotePlayer.GROUP) and cam.stand_in.quiet, "a looks-only stand-in body shows you")
+	var gun_model := player.gun.get_node("Model") as Node3D
+	var mesh: GeometryInstance3D = null
+	for node in gun_model.find_children("*", "GeometryInstance3D", true, false):
+		mesh = node
+		break
+	_check(mesh == null or (mesh.layers & ~FreeCam.VIEW_LAYER == 0 and cam.camera.cull_mask & FreeCam.VIEW_LAYER == 0),
+		"the first-person gun isn't seen by the free camera")
+	_check(touch.button_shown("cam_up") and touch.button_shown("cam_exit") and not touch.button_shown("fire"),
+		"touch: the free camera's buttons replace the fight buttons")
+	# Flying forward moves the camera, not you; the trigger does nothing.
+	var cam_from := cam.camera.global_position
+	var player_yaw := player.rotation.y
+	touch.process_mode = Node.PROCESS_MODE_INHERIT   # (its idle stick would let go of the keys pressed here)
+	Input.action_press("move_forward")
+	Input.action_press("shoot")
+	for i in 40:
+		await physics_frame
+	Input.action_release("move_forward")
+	Input.action_release("shoot")
+	await _frames(2)
+	_check(cam.camera.global_position.distance_to(cam_from) > 0.5, "the free camera flies (%.2f m)" % cam.camera.global_position.distance_to(cam_from))
+	var moved := Vector2(player.global_position.x - start_spot.x, player.global_position.z - start_spot.z).length()
+	_check(moved < 0.05, "you stay where you were (%.3f m)" % moved)
+	_check(gun.in_mag == gun.mag_size, "no shooting from the free camera")
+	var yaw := cam.yaw
+	touch._fingers[7] = "look"
+	touch._last_at[7] = Vector2(600, 300)
+	touch._finger_moved(7, Vector2(660, 300))
+	touch._fingers.erase(7)
+	touch._last_at.erase(7)
+	await _frames(20)
+	_check(absf(angle_difference(cam.yaw, yaw)) > 0.02 and absf(angle_difference(player.rotation.y, player_yaw)) < 0.001,
+		"a touch look drag turns the free camera, not you")
+	var up_from := cam.camera.global_position.y
+	Input.action_press("jump")
+	for i in 30:
+		await physics_frame
+	Input.action_release("jump")
+	_check(cam.camera.global_position.y > up_from + 0.3 and player.is_on_floor(), "jump flies up (and you don't jump)")
+	cam.change_speed(1)
+	_check(cam.speed() > FreeCam.SPEEDS[FreeCam.START_SPEED], "the speed goes up")
+	cam.change_speed(-1)
+	cam.cycle_time()
+	_check(is_equal_approx(Engine.time_scale, FreeCam.SLOW_SCALE), "slow motion")
+	cam.cycle_time()
+	_check(cam.frozen() and is_equal_approx(Engine.time_scale, 1.0), "then time stops")
+	cam.cycle_time()
+	_check(not cam.frozen() and cam.time_mode == FreeCam.TimeMode.NORMAL, "then back to normal")
+	cam.cycle_time()   # (left in slow motion: turning the camera off puts time back)
+	cam.stop()
+	await _frames(2)
+	_check(not cam.active and not player.camera_away and is_equal_approx(Engine.time_scale, 1.0), "the free camera stops, time back to normal")
+	_check(player.get_viewport().get_camera_3d() == player.camera, "the view is yours again")
+	_check(mesh == null or mesh.layers & FreeCam.VIEW_LAYER == 0, "the first-person gun is back on its layer")
+	_check(cam.stand_in == null and main.find_child("FreeCamStandIn", true, false) == null, "the stand-in is gone")
+	_check(player.hands_free(), "hands free again")
+	# Hide HUD: the touch controls draw nothing but still work.
+	hud.hud_hidden = true
+	_check(touch.hud_hidden() and touch.button_shown("fire"), "with the HUD hidden the touch buttons still work")
+	hud.hud_hidden = false
+	TouchInput.set_active(false)
+	touch.process_mode = Node.PROCESS_MODE_INHERIT
 
 
 func _section_touch() -> void:

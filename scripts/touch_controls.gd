@@ -12,6 +12,10 @@ extends Control
 ##   never: a setting). The hotbar slots take taps too (guns, meds, quick item, knife: HotbarHUD).
 ## Top edge: pause, BAG (inventory) and MAP (the full map, which shows the extracts).
 ## Every button can be moved, resized and hidden (pause menu: TOUCH LAYOUT), saved with the settings.
+## Free camera (0.31.12, solo raids, started from the pause menu): the stick flies and dragging looks; the fight
+## buttons give way to UP and DOWN (held), SLOW (slow motion, stopped, normal) and CAM (back to playing).
+## With the HUD hidden (pause menu: HIDE HUD) nothing is drawn but a faint pause button: every button still works
+## where it was, for clean recordings.
 ##
 ## Buttons send the same input actions the keys do (InputEventAction), so the game can't tell them apart.
 ## While playing, the browser's "touch = mouse click" copy is off (it would also press whatever is on the left
@@ -32,9 +36,14 @@ const BUTTONS := {
 	"pause": {"label": "", "x": 0.965, "y": 0.1, "r": 24.0, "group": "top"},
 	"bag": {"label": "BAG", "x": 0.91, "y": 0.1, "r": 24.0, "group": "top"},
 	"map": {"label": "MAP", "x": 0.855, "y": 0.1, "r": 24.0, "group": "top"},
+	"cam_up": {"label": "UP", "x": 0.86, "y": 0.6, "r": 44.0, "group": "cam"},
+	"cam_down": {"label": "DOWN", "x": 0.86, "y": 0.82, "r": 44.0, "group": "cam"},
+	"cam_slow": {"label": "SLOW", "x": 0.74, "y": 0.82, "r": 34.0, "group": "cam"},
+	"cam_exit": {"label": "CAM", "x": 0.91, "y": 0.1, "r": 24.0, "group": "cam"},
 }
 ## Held buttons: id -> the input action they hold down.
-const HOLD_ACTIONS := {"fire": "shoot", "use": "interact", "jump": "jump", "reload": "reload"}
+const HOLD_ACTIONS := {"fire": "shoot", "use": "interact", "jump": "jump", "reload": "reload",
+	"cam_up": "jump", "cam_down": "crouch"}
 ## The stick: how far the thumb moves for full speed (px), and past how much of that it sprints (going forward).
 const STICK_RADIUS := 70.0
 const SPRINT_PAST := 1.3
@@ -143,11 +152,16 @@ func is_hidden(id: String) -> bool:
 
 ## Whether button `id` shows right now (hidden ones, and ones that don't apply, don't).
 func button_shown(id: String) -> bool:
+	var group: String = BUTTONS[id]["group"]
 	if editing:
-		return true
+		return group != "cam"
 	if is_hidden(id) or not visible:
 		return false
-	var group: String = BUTTONS[id]["group"]
+	# The free camera: only its own buttons and pause.
+	if free_cam_on():
+		return group == "cam" or id == "pause"
+	if group == "cam":
+		return false
 	if group == "top":
 		return hud != null or id == "pause"
 	if player.downed:
@@ -162,6 +176,19 @@ func button_shown(id: String) -> bool:
 		"aim", "reload":
 			return player.gun.weapon != null or (id == "aim" and player.can_cancel_heal())
 	return true
+
+
+## The free camera has the view (raid only).
+func free_cam_on() -> bool:
+	if hud == null:
+		return false
+	var cam = hud.get("free_cam")
+	return cam != null and (cam as FreeCam).active
+
+
+## The HUD is hidden for recording: nothing drawn (the buttons still work).
+func hud_hidden() -> bool:
+	return hud != null and bool(hud.get("hud_hidden"))
 
 
 func _set_spot(id: String, center: Vector2) -> void:
@@ -275,6 +302,10 @@ func _finger_down(index: int, pos: Vector2) -> void:
 			_tap("inventory")
 		"map":
 			_tap("map")
+		"cam_slow":
+			_tap("cam_time")
+		"cam_exit":
+			_tap("free_cam")
 
 
 func _finger_up(index: int, pos: Vector2) -> void:
@@ -315,7 +346,10 @@ func _finger_moved(index: int, pos: Vector2) -> void:
 		var moved := pos - (_last_at.get(index, pos) as Vector2)
 		_last_at[index] = pos
 		if moved.length() < size.y * LOOK_JUMP:
-			player.touch_look(moved * 720.0 / maxf(size.y, 1.0))
+			if free_cam_on():
+				(hud.get("free_cam") as FreeCam).touch_look(moved * 720.0 / maxf(size.y, 1.0))
+			else:
+				player.touch_look(moved * 720.0 / maxf(size.y, 1.0))
 
 
 func _process(delta: float) -> void:
@@ -592,6 +626,13 @@ func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.35))
 		HudStyle.draw_text(self, "Drag a button to move it. Pick one, then make it bigger, smaller or hide it.",
 			Vector2(0, 150), 18, HudStyle.INK, size.x, 1)
+	if hud_hidden() and not editing:
+		# Hidden for recording: only a faint pause button, so the menu (and SHOW HUD) can still be found.
+		if button_shown("pause"):
+			var spot := button_center("pause")
+			for x in [-6.0, 3.0]:
+				draw_rect(Rect2(spot + Vector2(x, -9), Vector2(5, 18)), Color(HudStyle.INK, 0.25))
+		return
 	# The stick: a faint ring where it rests, the real one under the thumb.
 	if not editing:
 		var holding := _fingers.values().has("stick")
@@ -622,7 +663,9 @@ func _draw_button(id: String) -> void:
 		label = "CANCEL"
 	elif id == "crouch" and player.is_prone:
 		label = "PRONE"
-	if BUTTONS[id]["group"] == "top":
+	if id == "cam_slow" and hud != null:
+		label = ["SLOW", "STOP", "PLAY"][(hud.get("free_cam") as FreeCam).time_mode]
+	if BUTTONS[id]["group"] == "top" or id == "cam_exit":
 		var rect := Rect2(center - Vector2(radius, radius), Vector2(radius, radius) * 2.0)
 		HudStyle.draw_plate(self, rect, ring, Color(HudStyle.FACE, 0.75 * alpha))
 		if id == "pause":

@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
 	swing_door = null
 	if blocked or not Input.is_action_pressed("interact"):
 		_open_needs_release = blocked
-	var able := not blocked and not player.out_of_fight() and TouchInput.playing()
+	var able := not blocked and not player.out_of_fight() and TouchInput.playing() and not player.camera_away
 	revive_target = find_revive_target() if able and not player.is_healing() else null
 	update_revive(delta, able and Input.is_action_pressed("interact"))
 	if not able or revive_target != null:

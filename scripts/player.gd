@@ -276,7 +276,7 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if controls_locked():
+	if not takes_input():
 		return
 	# Capturing the mouse (click to play) is handled by the HUD's pause menu.
 	var hotbar_index := -1 if downed else _hotbar_key(event)
@@ -436,7 +436,7 @@ func _physics_process(delta: float) -> void:
 	_coyote_left = COYOTE_TIME if on_floor else _coyote_left - delta
 
 	var input_dir := Vector2.ZERO
-	if not controls_locked():
+	if takes_input():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 		if Input.is_action_just_pressed("jump"):
 			_jump_buffer_left = JUMP_BUFFER

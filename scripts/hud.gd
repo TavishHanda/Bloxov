@@ -4,6 +4,8 @@ extends CanvasLayer
 ## The game pauses only while the pause menu is open (solo only: an online raid keeps going, like any online game).
 ## This node keeps running while paused.
 ## F3 toggles a debug overlay. F4 toggles raw mouse input (web only; press Esc and click to re-lock).
+## Recording tools (0.31.12, owner): the hide-HUD key (F1) takes everything off the screen for clean clips, and the
+## free camera (F2, solo raids, FreeCam) flies round the raid; both are in the pause menu too, for touch screens.
 
 @export var player: Player
 @export var raid: Raid
@@ -62,6 +64,15 @@ var leave_confirm: VBoxContainer
 var quest_tracker: QuestTracker
 ## One-time tips for new players (0.24.0).
 var tips: RaidTips
+## Recording (0.31.12): the HUD is hidden (hide-HUD key or the pause menu), and the free camera.
+var hud_hidden := false
+var free_cam: FreeCam
+var _hide_button: Button
+var _cam_button: Button
+## A short note that fades (what a recording key just did), and the free camera's status line.
+var _note: Label
+var _note_until := 0
+var _cam_status: Label
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
 
@@ -97,6 +108,7 @@ func _ready() -> void:
 	PauseMenuStyle.apply(menu)
 	_show_graphics()
 	_build_leave()
+	_build_recording()
 	quest_tracker = QuestTracker.new()
 	add_child(quest_tracker)
 	menu.visibility_changed.connect(_show_quests)
@@ -134,6 +146,8 @@ func _ready() -> void:
 	add_child(end_screen)
 	end_screen.spectate_pressed.connect(spectate)
 	spectator.finished.connect(func() -> void: end_screen.show_result(player.kills))
+	free_cam = FreeCam.new(player)
+	add_child(free_cam)
 	touch = TouchControls.new(player, self)
 	add_child(touch)
 	move_child(touch, loot_ui.get_index())   # (under the inventory and end screens)
@@ -186,7 +200,7 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory"):
 		if loot_ui.visible:
 			loot_ui.close()
-		elif TouchInput.playing() and not player.out_of_fight():
+		elif TouchInput.playing() and not player.out_of_fight() and not player.camera_away:
 			loot_ui.open_for(null)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("interact") and loot_ui.visible:
@@ -196,6 +210,16 @@ func _input(event: InputEvent) -> void:
 		map_hud.toggle()
 	elif event.is_action_pressed("extracts"):
 		extract_hud.toggle_list()
+	elif event.is_action_pressed("hide_hud"):
+		toggle_hud()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("free_cam") and not loot_ui.visible and not end_screen.visible:
+		toggle_free_cam()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("cam_time") and free_cam.active:
+		free_cam.cycle_time()
+		show_note(["Normal speed", "Slow motion", "Time stopped"][free_cam.time_mode])
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -240,7 +264,8 @@ func _process(delta: float) -> void:
 		cancel_leave()
 	if not resume_pending:
 		_resume_from_menu = false
-	get_tree().paused = (menu.visible or _resume_from_menu or touch.editing) and not Network.main.in_online_raid()
+	get_tree().paused = ((menu.visible or _resume_from_menu or touch.editing) and not Network.main.in_online_raid()) \
+		or free_cam.frozen()
 	# Aiming down sights uses the gun's own sight instead of the crosshair (the hit marker still shows).
 	crosshair.show_crosshair = captured and not player.out_of_fight() and not player.gun.is_aiming()
 	crosshair.reticle = player.gun.reticle() if captured and not player.out_of_fight() else ""
@@ -249,12 +274,13 @@ func _process(delta: float) -> void:
 	# The inventory screen gets the whole view: only the raid timer stays (owner, 0.8.2).
 	# The end-of-raid screen hides all of it (the raid is over, 0.8.10).
 	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels, downed_hud, tips]:
-		element.visible = not loot_ui.visible and not end_screen.visible and not spectator.visible
+		element.visible = not loot_ui.visible and not end_screen.visible and not spectator.visible and not free_cam.active
 	tips.visible = tips.visible and not touch.editing
 	_scale_for_phone()
 	# Spectating a teammate: their name tag stays.
 	world_labels.visible = world_labels.visible or spectator.visible
 	timer_hud.visible = not end_screen.visible
+	_update_recording()
 	if map_hud.visible and (loot_ui.visible or end_screen.visible or spectator.visible):
 		map_hud.visible = false
 
@@ -351,6 +377,121 @@ func _show_graphics() -> void:
 			GameSettings.set_graphics(quality)
 			_show_graphics())
 		buttons.add_child(button)
+
+
+## Hide HUD / free camera (0.31.12).
+func toggle_hud() -> void:
+	hud_hidden = not hud_hidden
+	if hud_hidden:
+		show_note("HUD hidden: %s brings it back" % ("the pause menu" if TouchInput.active else Keybinds.name_of("hide_hud")))
+	else:
+		_note_until = 0
+
+
+func toggle_free_cam() -> void:
+	if free_cam.active:
+		free_cam.stop()
+	elif not FreeCam.allowed():
+		show_note("The free camera is for solo raids")
+	elif TouchInput.playing() or menu.visible:
+		if free_cam.start():
+			if TouchInput.active:
+				show_note("Free camera: stick to fly, drag to look, UP / DOWN, SLOW, CAM to come back", 5.0)
+			else:
+				show_note("Free camera: %s to fly, %s / %s up and down, %s faster, wheel = speed, %s zoom, %s slow-mo, %s back" % [
+					"/".join([Keybinds.cap("move_forward"), Keybinds.cap("move_left"), Keybinds.cap("move_back"), Keybinds.cap("move_right")]),
+					Keybinds.cap("jump"), Keybinds.cap("crouch"), Keybinds.cap("sprint"), Keybinds.cap("aim"),
+					Keybinds.cap("cam_time"), Keybinds.cap("free_cam")], 6.0)
+
+
+## A line in the middle of the screen that fades after `seconds` (hidden with the rest of the HUD, after a moment).
+func show_note(text: String, seconds := 2.5) -> void:
+	_note.text = text
+	_note_until = Time.get_ticks_msec() + int(seconds * 1000.0)
+
+
+func _update_recording() -> void:
+	var clean := hud_hidden or free_cam.active
+	var hide := hud_hidden
+	# Hidden: nothing of ours on screen but the first-person view (the menus and inventory still open when asked for).
+	for element: CanvasItem in [health_hud, ammo_hud, hotbar, crosshair, prompt_hud, extract_hud, world_labels,
+			downed_hud, tips, timer_hud, kill_feed, corner_version]:
+		if hide:
+			element.visible = false
+	damage_indicator.visible = not clean
+	if clean:
+		timer_hud.visible = timer_hud.visible and not free_cam.active
+	# Spectating with the HUD hidden: the plate goes too (a key brings it back; touch keeps it, it has the button).
+	spectator.modulate.a = 0.0 if hide and not TouchInput.active else 1.0
+	# (real time: slow motion doesn't hold it up)
+	var left := (_note_until - Time.get_ticks_msec()) / 1000.0
+	_note.visible = left > 0.0 and not menu.visible and not loot_ui.visible
+	_note.modulate.a = clampf(left / 0.6, 0.0, 1.0)
+	_cam_status.visible = free_cam.active and not hide and not menu.visible
+	if _cam_status.visible:
+		var parts := ["FREE CAMERA", "%s m/s" % str(free_cam.speed())]
+		if free_cam.time_mode == FreeCam.TimeMode.SLOW:
+			parts.append("SLOW MOTION")
+		elif free_cam.time_mode == FreeCam.TimeMode.FROZEN:
+			parts.append("TIME STOPPED")
+		_cam_status.text = "  ·  ".join(parts)
+	if menu.visible:
+		_hide_button.text = "SHOW HUD" if hud_hidden else "HIDE HUD"
+		_cam_button.text = "CAMERA BACK" if free_cam.active else "FREE CAMERA"
+		_cam_button.visible = FreeCam.allowed() and (free_cam.active or not player.controls_locked())
+
+
+## The pause menu's recording row (touch screens have no F1 / F2), and the note and status lines.
+func _build_recording() -> void:
+	var box := play_button.get_parent()
+	var row := HBoxContainer.new()
+	row.name = "RecordingRow"
+	row.add_theme_constant_override("separation", 12)
+	_hide_button = Button.new()
+	_hide_button.name = "HideHudButton"
+	_cam_button = Button.new()
+	_cam_button.name = "FreeCamButton"
+	for button: Button in [_hide_button, _cam_button]:
+		button.custom_minimum_size = Vector2(0, 44)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.focus_mode = Control.FOCUS_NONE
+		LootUI.style_button(button, 22)
+		row.add_child(button)
+	_hide_button.text = "HIDE HUD"
+	_cam_button.text = "FREE CAMERA"
+	_hide_button.pressed.connect(func() -> void:
+		toggle_hud()
+		_capture_mouse())
+	_cam_button.pressed.connect(func() -> void:
+		toggle_free_cam()
+		_capture_mouse())
+	box.add_child(row)
+	box.move_child(row, leave_confirm.get_index() + 1)
+
+	_note = Label.new()
+	_note.name = "RecordingNote"
+	_cam_status = Label.new()
+	_cam_status.name = "FreeCamStatus"
+	for label: Label in [_note, _cam_status]:
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.visible = false
+		HudStyle.style_label(label, 20)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
+		label.add_theme_constant_override("outline_size", 6)
+		add_child(label)
+	_note.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_note.offset_left = -360
+	_note.offset_right = 360
+	_note.offset_top = 120
+	_note.offset_bottom = 180
+	_cam_status.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	_cam_status.offset_left = -300
+	_cam_status.offset_right = 300
+	_cam_status.offset_top = -44
+	_cam_status.offset_bottom = -16
+	HudStyle.style_label(_cam_status, 18, HudStyle.INK_DIM)
 
 
 func _build_leave() -> void:

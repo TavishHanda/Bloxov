@@ -21,6 +21,8 @@ const ACTIONS: Array = [
 	["heal", "Heal"],
 	["", "Other"],
 	["interact", "Use / search"], ["inventory", "Inventory"], ["map", "Map"], ["extracts", "Extracts"],
+	["", "Recording"],
+	["hide_hud", "Hide HUD"], ["free_cam", "Free camera (solo)"], ["cam_time", "Slow-mo / freeze (free camera)"],
 ]
 
 ## Saved code per action: "key:<physical keycode>" or "mouse:<button index>".
@@ -197,6 +199,7 @@ const TOUCH_NAMES := {
 	"shoot": "FIRE", "aim": "AIM", "reload": "RELOAD", "melee": "KNIFE", "weapon_1": "1", "weapon_2": "2",
 	"hotbar_3": "3", "hotbar_4": "4", "heal": "ITEM", "interact": "USE", "inventory": "BAG", "map": "MAP",
 	"extracts": "MAP",
+	"hide_hud": "HIDE HUD (pause menu)", "free_cam": "CAM", "cam_time": "SLOW",
 }
 
 

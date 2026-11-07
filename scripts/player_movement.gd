@@ -196,7 +196,7 @@ func ladder_exited(ladder: Ladder) -> void:
 func _update_climb(delta: float) -> bool:
 	_ladder_grab_wait -= delta
 	var input_dir := Vector2.ZERO
-	if not controls_locked():
+	if takes_input():
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if _climbing == null:
 		if _ladders.is_empty() or downed or controls_locked() or _ladder_grab_wait > 0.0:
@@ -217,7 +217,7 @@ func _update_climb(delta: float) -> bool:
 		if is_crouching:
 			set_crouching(false)
 	var ladder := _climbing
-	if Input.is_action_just_pressed("jump") and not controls_locked():
+	if Input.is_action_just_pressed("jump") and takes_input():
 		_climbing = null
 		_ladder_grab_wait = 0.6
 		velocity = -ladder.into() * 2.5 + Vector3.UP * 1.5
@@ -347,6 +347,8 @@ func lean_input() -> int:
 		return 0
 	if GameSettings.lean_toggle or TouchInput.active:   # (touch lean buttons tap on / off, 0.29.9)
 		return _lean_toggled
+	if camera_away:
+		return 0
 	return int(Input.is_action_pressed("lean_right")) - int(Input.is_action_pressed("lean_left"))
 
 

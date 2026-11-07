@@ -47,6 +47,8 @@ var peer_id := 0
 var player_name := ""
 ## In our party: gets a name tag (friendly fire is on, so you need to tell them apart). Others get none.
 var teammate := false
+## No footsteps (the free camera's stand-in for you, 0.31.12: your own steps already play).
+var quiet := false
 ## The state being shown right now.
 var shown: Array = []
 ## [arrival seconds, state], oldest first.
@@ -196,7 +198,7 @@ func update_view(time: float, delta: float) -> void:
 
 
 func _footsteps(flags: int, speed: float, delta: float) -> void:
-	if not visible or flags & (FLAG_DEAD | FLAG_DOWNED) or speed < 0.5 or speed > 15.0:   # (a jump in position: no steps)
+	if quiet or not visible or flags & (FLAG_DEAD | FLAG_DOWNED) or speed < 0.5 or speed > 15.0:   # (a jump in position: no steps)
 		_stride_left = minf(_stride_left, 0.3)
 		return
 	_stride_left -= speed * delta
