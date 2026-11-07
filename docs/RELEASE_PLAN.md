@@ -90,6 +90,16 @@ launched during it gets buried.
   what each tier gives and the price; paid random rewards show odds; a per-region switch for paid boxes; the age
   rating gets "In-Game Purchases". Pets and characters raise no store issue.
 
+## Owner's answers so far
+- **Stats + passives (2026-11-07):** every character has the same set of **base stats** (stamina, sprint speed,
+  reload speed, etc.), tuned differently per character, **plus a unique passive** each. No pressed abilities for now.
+- **Names:** placeholders for now: the wardrobe's operators (`scripts/operators.gd`: Rook, Dune, Ghost, Viper,
+  Bishop, Hawk). Owner likes chess-piece style names; real names come later.
+- **Wipe (recommended, waiting on the owner's OK):** PvP and PvE **both have expeditions, kept fully separate**. A
+  PvE expedition wipes only the PvE stash and upgrades only the PvE character; a PvP one only the PvP side. Nothing
+  earned in PvE ever reaches PvP, not even cosmetics, because the PvE save lives on the device and can be edited.
+  Going on an expedition is always the player's choice, in both modes.
+
 ## Open questions for the owner
 Answer any order; the first five are needed before their week starts.
 
