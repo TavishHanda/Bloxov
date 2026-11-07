@@ -73,6 +73,8 @@ tie back to what's written here.
   parts, the route and the way in. A long quest line leads there.
 - It's tied to the **characters**: when you extract with a character in the escape vehicle, that character earns a
   **skill point** to **prestige**, spent on upgrading its traits (see `docs/ROADMAP.md` "Character prestige").
+- **2026-11-07 (owner):** this becomes the **expedition** (Arc Raiders style): leaving wipes your progress in
+  return for the character's upgrade points. Plan and the merged open questions: `docs/RELEASE_PLAN.md`.
 - **TBD (owner):**
   1. What the vehicle is (a truck, a boat, a helicopter, a plane...) and what it's built from.
   2. What the safe haven is: a bunker, a city, an island? Who runs it, and is it one of the "few safe havens left"

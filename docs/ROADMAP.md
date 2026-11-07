@@ -14,6 +14,10 @@ still open). Also since then: the walkable hideout (0.21), World Reacts (0.22), 
 new-player tutorial (0.24), Checkpoint (0.25, the security pass), Keybinds (0.26), Durability (0.27) and the Engine
 update (0.29). M1-M3 are done (co-op + PvP is live).
 
+**Road to Steam (owner, 2026-11-07):** the plan for everything before Steam Early Access (January 2027): more
+maps, characters with traits, skins, expeditions + crafting, battle pass, pets, more loot and quests, and the
+Steam fee dates, is `docs/RELEASE_PLAN.md`. It comes before the older list below.
+
 ### Up next, in order
 1. **Playtest the big map** (0.10 Map & Spawn, done through 0.10.3). Still untested live:
    extracting one at a time, the downed timer running out, squads spawning together, the 0.10.1 places
