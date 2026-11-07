@@ -394,6 +394,29 @@ func is_ready_to_fire() -> bool:
 	return _raise_left <= 0.0 and not player.is_throwing()
 
 
+## The spent case landing near your feet (0.31.14, owner): a tiny tink on a hard floor, softer on the ground, none in
+## water. Yours only, and at most one every CASING_GAP seconds (a Wasp burst would be a rattle). The Mauler's shells
+## are plastic: lower and softer.
+const CASING_DELAY := 0.4
+const CASING_GAP := 0.12
+static var _casing_at := -10.0
+
+func _casing() -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _casing_at < CASING_GAP or player == null or player.proxy:
+		return
+	_casing_at = now
+	var surface := Surfaces.under(player)
+	if surface == BoxMap.SURFACE_WATER:
+		return
+	var db := WorldSounds.CASING_GROUND_DB if surface == BoxMap.SURFACE_GROUND else WorldSounds.CASING_DB
+	var shell := pellets > 1
+	var stream: AudioStream = WorldSounds.CASINGS[WorldSounds.rng.randi() % WorldSounds.CASINGS.size()]
+	get_tree().create_timer(CASING_DELAY).timeout.connect(func() -> void:
+		if is_instance_valid(self) and is_inside_tree():
+			Effects.sound(get_tree().current_scene, stream, db - (4.0 if shell else 0.0), 0.08, 0.6 if shell else 1.0, WorldSounds.rng))
+
+
 func shoot_once() -> void:
 	if weapon == null:
 		return
@@ -440,6 +463,7 @@ func shoot_once() -> void:
 	Effects.sound(world, GunSounds.shot_for(weapon.id, 0.0,
 		GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR, Hearing.Block.NONE, false),
 		shot_db, 0.08, shot_pitch)
+	_casing()
 	_cycle_clicked = cycle == ""
 	_flash_left = 0.045
 	flash.visible = true

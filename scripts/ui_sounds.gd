@@ -12,6 +12,8 @@ const BEEP := preload("res://audio/ui/beep.wav")
 const BEEP_LAST := preload("res://audio/ui/beep_last.wav")
 const EXTRACTED := preload("res://audio/ui/extracted.wav")
 const DIED := preload("res://audio/ui/died.wav")
+## A trader fixing your gear (0.31.14), played with the buy sound.
+const REPAIR := preload("res://audio/ui/repair.wav")
 const BUS := &"UI"
 
 static var _hooked := false

@@ -31,6 +31,18 @@ func _ready() -> void:
 		mi.extra_cull_margin = 0.3   # (the waves reach outside the flat sheet's box)
 		mi.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(d[3])), Vector3(d[0], d[1], d[2]))
 		add_child(mi)
+		# Flapping you hear up close (0.31.14, owner): a soft loop at the middle of the cloth.
+		var flap := AudioStreamPlayer3D.new()
+		flap.name = "Flap%d" % i
+		flap.stream = Ambience.looped(WorldSounds.FLAG)
+		flap.volume_db = WorldSounds.FLAG_DB
+		flap.unit_size = 3.0
+		flap.max_distance = WorldSounds.FLAG_RANGE
+		flap.panning_strength = Effects.PANNING
+		flap.bus = Hearing.world_bus()
+		flap.autoplay = true   # (from the start of the loop: on the web a looping sound repeats from where play() began)
+		mi.add_child(flap)
+		flap.position = Vector3(d[4] / 2.0, -d[5] / 2.0, 0.0)
 	if n > 0:
 		var first := get_child(0) as MeshInstance3D
 		Reacts.warm_up(self, first.mesh, first.material_override)

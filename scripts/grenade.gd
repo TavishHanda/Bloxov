@@ -71,6 +71,11 @@ func _physics_process(delta: float) -> void:
 		return
 	var normal: Vector3 = hit.normal
 	global_position = (hit.position as Vector3) + normal * 0.08
+	# A clunk as it lands and bounces (0.31.14, owner), softer as it slows; not once it's barely moving.
+	var speed := velocity.length()
+	if speed > 1.5:
+		WorldSounds.at_soft(get_parent(), WorldSounds.GRENADE_BOUNCE, global_position,
+			WorldSounds.BOUNCE_DB - clampf((8.0 - speed) * 1.2, 0.0, 8.0), WorldSounds.BOUNCE_RANGE)
 	velocity = velocity.bounce(normal) * BOUNCE
 	if normal.y > 0.7 and velocity.length() < 1.2:
 		velocity = Vector3.ZERO

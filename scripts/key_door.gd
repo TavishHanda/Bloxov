@@ -130,6 +130,8 @@ func unlock(inventory: Inventory) -> bool:
 		return false
 	inventory.use_key(stack)
 	WorldSounds.own(self, WorldSounds.UNLOCK, -6.0)
+	if ItemDB.max_durability(stack.id) > 0 and stack.durability <= 0:
+		WorldSounds.own_soft(self, WorldSounds.KEY_BREAK, WorldSounds.KEY_BREAK_DB)   # (its last use, 0.31.14)
 	open()
 	Network.main.open_door(String(name))
 	return true

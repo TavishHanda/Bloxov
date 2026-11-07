@@ -134,6 +134,8 @@ func _ready() -> void:
 
 ## A teammate started (or stopped) reviving us.
 func set_being_revived(on: bool) -> void:
+	if on and downed and not being_revived and not proxy:
+		WorldSounds.own_soft(self, WorldSounds.REVIVING, WorldSounds.REVIVING_DB)
 	being_revived = on and downed
 	revive_time_left = Network.REVIVE_TIME if being_revived else 0.0
 
@@ -230,9 +232,16 @@ func _on_equipment_changed() -> void:
 
 
 ## Hits wear the armor (or on the head, the helmet) down (0.14.0), and worn gear stops less from the next one.
+## 0.31.14: you hear it, a clink on the plate or the helmet, and a crack when that hit wears it out.
 func _on_armor_hit(amount: int, head: bool) -> void:
+	var piece: ItemStack = inventory.equipment["helmet" if head else "armor"]
 	if inventory.wear_armor(amount, head):
 		_on_equipment_changed()
+		if not proxy:
+			if piece.durability <= 0:
+				WorldSounds.own_soft(self, WorldSounds.GEAR_BREAK, WorldSounds.GEAR_BREAK_DB, 0.03)
+			else:
+				WorldSounds.own_soft(self, WorldSounds.ARMOR_HIT, WorldSounds.ARMOR_DB + (1.0 if head else 0.0), 0.05)
 
 
 ## Use one item from a stack: a heal or a drink takes a few seconds (you can't shoot meanwhile); a grenade is thrown.
@@ -358,6 +367,8 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	Hearing.listen(self, delta)
+	if not proxy:
+		_body_sounds(delta)
 	recoil.rotation = recoil.rotation.lerp(Vector3.ZERO, minf(recoil_recovery * delta, 1.0))
 	_recoil_return_wait -= delta
 	if _recoil_return_wait <= 0.0 and _recoil_debt != Vector2.ZERO:
@@ -771,6 +782,29 @@ func spares_hit(amount: int, head: bool, burst: int, roll := -1.0) -> bool:
 	return maxi(roundi(amount * multiplier), 1) >= health.current
 
 
+## Your own body (0.31.14, owner): out of breath once your stamina runs low, and a soft heartbeat when you're badly
+## hurt. Quiet, so other people's steps and shots still come through.
+const BREATH_BELOW := 0.25        # of max stamina (or worn out)
+const BREATH_EVERY := 1.3         # seconds
+const HEARTBEAT_BELOW := 0.3      # of max health
+const HEARTBEAT_EVERY := 0.95
+var _breath_wait := 0.0
+var _heart_wait := 0.0
+
+func _body_sounds(delta: float) -> void:
+	_breath_wait -= delta
+	_heart_wait -= delta
+	if health == null or health.is_dead or extracted or get_tree().paused:
+		return
+	var low_stamina := is_exhausted or stamina < max_stamina * BREATH_BELOW
+	if low_stamina and not downed and _breath_wait <= 0.0:
+		_breath_wait = BREATH_EVERY * WorldSounds.rng.randf_range(0.9, 1.1)
+		WorldSounds.own_soft(self, WorldSounds.BREATH, WorldSounds.BREATH_DB + (2.0 if is_exhausted else 0.0), 0.08)
+	if health.current < health.max_health * HEARTBEAT_BELOW and _heart_wait <= 0.0:
+		_heart_wait = HEARTBEAT_EVERY
+		WorldSounds.own_soft(self, WorldSounds.HEARTBEAT, WorldSounds.HEARTBEAT_DB, 0.0)
+
+
 ## Under 40% health (0.15.18, owner): the AI get aggressive and push you. A proxy goes by its player's game.
 const LOW_HEALTH := 0.4
 var _net_low := false
@@ -824,6 +858,8 @@ func apply_net_state(state: Array) -> void:
 
 ## 0 HP with a teammate up: down on the ground (crawl only), the gun put away, the downed bar draining.
 func _on_downed() -> void:
+	if not proxy:
+		WorldSounds.own_soft(self, WorldSounds.DOWNED, WorldSounds.DOWNED_DB, 0.03)
 	downed = true
 	heal_time_left = 0.0
 	being_revived = false
@@ -840,6 +876,8 @@ func _on_downed() -> void:
 
 
 func _on_revived() -> void:
+	if not proxy and downed:
+		WorldSounds.own_soft(self, WorldSounds.GET_UP, WorldSounds.GET_UP_DB)
 	downed = false
 	being_revived = false
 	revive_time_left = 0.0

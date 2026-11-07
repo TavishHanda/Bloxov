@@ -28,6 +28,14 @@ var _slot := PackedInt32Array()        # its number in its kind's MultiMesh
 var _grid := {}                        # Vector2i -> Array of indices (where they lie now)
 var _awake := {}
 var _meshes: Array[MultiMesh] = []
+## Clinks (0.31.14, owner): a can or a bottle knocked or bouncing. Each at most every CLINK_GAP ms, and only a few a
+## frame (a blast sends a dozen flying). Own dice: looks and sounds only.
+const CLINK_GAP := 250
+const CLINKS_A_FRAME := 3
+var _clinked := {}                     # index -> when it last clinked (msec)
+var _clink_frame := -1
+var _clinks := 0
+var _clink_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -107,6 +115,7 @@ func near(at: Vector3, reach: float) -> Array[int]:
 ## Sends can `i` off at `velocity`, tumbling.
 func kick(i: int, velocity: Vector3) -> void:
 	vel[i] = velocity
+	_clink(i, 0.0)
 	var across := Vector3(velocity.z, 0.0, -velocity.x)
 	if across.length() > 0.01:
 		_spin[i] = across.normalized() * clampf(velocity.length() * 6.0, 2.0, 25.0)
@@ -173,6 +182,7 @@ func _step(i: int, delta: float, space: PhysicsDirectSpaceState3D) -> void:
 	if not down.is_empty() and to.y - r <= (down.position as Vector3).y + 0.01:
 		to.y = (down.position as Vector3).y + r
 		if vel[i].y < -1.2:
+			_clink(i, -6.0 + clampf(-vel[i].y - 4.0, -4.0, 0.0))
 			vel[i].y = -vel[i].y * 0.3
 		else:
 			vel[i].y = 0.0
@@ -197,6 +207,24 @@ func _step(i: int, delta: float, space: PhysicsDirectSpaceState3D) -> void:
 		_awake.erase(i)
 		_file(i)
 	_place(i)
+
+
+func _clink(i: int, extra_db: float) -> void:
+	if _meshes.is_empty():
+		return   # (not drawn here: the game server, or a headless test)
+	var now := Time.get_ticks_msec()
+	if now - int(_clinked.get(i, -100000)) < CLINK_GAP:
+		return
+	var frame := Engine.get_physics_frames()
+	if frame != _clink_frame:
+		_clink_frame = frame
+		_clinks = 0
+	if _clinks >= CLINKS_A_FRAME:
+		return
+	_clinks += 1
+	_clinked[i] = now
+	WorldSounds.at_soft(self, WorldSounds.CAN if _kind[i] == 0 else WorldSounds.BOTTLE, pos[i],
+		WorldSounds.CAN_DB + extra_db, WorldSounds.CAN_RANGE, _clink_rng.randf_range(0.9, 1.15), 0.0)
 
 
 func _place(i: int) -> void:

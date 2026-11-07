@@ -122,20 +122,22 @@ const PANNING := 2.0
 const CROWDED_SKIP_BEYOND := 25.0
 
 
-static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0) -> void:
+## `rng` (0.31.14): sounds added later roll their pitch on their own dice, so they don't shift the game's (the smoke
+## test seeds it, and outfits and AI rolls come from it).
+static func sound(world: Node, stream: AudioStream, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, rng: RandomNumberGenerator = null) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
 	var audio := AudioStreamPlayer.new()
 	audio.stream = stream
 	audio.volume_db = volume_db
 	audio.bus = Hearing.world_bus()
-	audio.pitch_scale = pitch * (1.0 + randf_range(-pitch_jitter, pitch_jitter))
+	audio.pitch_scale = pitch * (1.0 + (rng.randf_range(-pitch_jitter, pitch_jitter) if rng else randf_range(-pitch_jitter, pitch_jitter)))
 	world.add_child(audio)
 	audio.finished.connect(audio.queue_free)
 	audio.play()
 
 
-static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0, bus := &"", muffle := true, delay := 0.0) -> void:
+static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db := 0.0, pitch_jitter := 0.08, pitch := 1.0, unit_size := 6.0, max_distance := 0.0, bus := &"", muffle := true, delay := 0.0, rng: RandomNumberGenerator = null) -> void:
 	if world == null:
 		return  # the game server has no scene to show it in
 	var camera := Hearing.listener(world)
@@ -148,7 +150,7 @@ static func sound_at(world: Node, stream: AudioStream, pos: Vector3, volume_db :
 	audio.unit_size = unit_size
 	audio.max_distance = max_distance   # (0 = heard from anywhere, fading with distance: gunshots)
 	audio.panning_strength = PANNING
-	audio.pitch_scale = pitch + randf_range(-pitch_jitter, pitch_jitter)
+	audio.pitch_scale = pitch + (rng.randf_range(-pitch_jitter, pitch_jitter) if rng else randf_range(-pitch_jitter, pitch_jitter))
 	audio.bus = Hearing.bus(bus) if bus != &"" else Hearing.world_bus()
 	# Behind a wall (Sound update 0.20.1): muffled and a bit quieter, so you can tell it's not in plain sight. Gunshots
 	# pass `muffle = false` since 0.30.1: their variant file already carries the muffle (desktop and web match).

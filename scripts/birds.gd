@@ -15,6 +15,10 @@ var flocks: Array[Dictionary] = []
 var positions := PackedVector3Array()   # where each crow is now (the MultiMesh can't be read back on every renderer)
 var _multi: MultiMesh
 var _count := 0
+## Now and then a crow in the flock nearest you caws (0.31.14, owner). Its own dice: looks and sounds only.
+const CAW_EVERY := Vector2(7.0, 18.0)   # seconds between caws, from-to
+var _caw_rng := RandomNumberGenerator.new()
+var _caw_wait := 4.0
 
 
 func _ready() -> void:
@@ -54,6 +58,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _multi == null:
 		return
+	_caw(delta)
 	var t := Time.get_ticks_msec() / 1000.0
 	var n := 0
 	for flock: Dictionary in flocks:
@@ -72,6 +77,26 @@ func _process(delta: float) -> void:
 			var flap := 1.0 if fmod(t * 0.2 + bird.phase * 5.0, 3.0) < 1.6 else 0.0   # (flap a while, glide a while)
 			_multi.set_instance_custom_data(n, Color(bird.phase, flap, 0.0, 0.0))
 			n += 1
+
+
+func _caw(delta: float) -> void:
+	_caw_wait -= delta
+	if _caw_wait > 0.0 or positions.is_empty():
+		return
+	_caw_wait = _caw_rng.randf_range(CAW_EVERY.x, CAW_EVERY.y)
+	var camera := get_viewport().get_camera_3d()
+	if camera == null:
+		return
+	var best := -1
+	var best_d := WorldSounds.CROW_RANGE
+	for i in positions.size():
+		var d := positions[i].distance_to(camera.global_position)
+		if d < best_d:
+			best = i
+			best_d = d
+	if best >= 0:
+		WorldSounds.at_soft(self, WorldSounds.CROWS[_caw_rng.randi() % WorldSounds.CROWS.size()], positions[best],
+			WorldSounds.CROW_DB, WorldSounds.CROW_RANGE, 1.0, 0.08)
 
 
 ## A crow (drawn twice this size: about 90 cm across the wings), looking down -z: a body, a tail and two wings (flat, both sides drawn).

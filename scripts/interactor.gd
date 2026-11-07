@@ -116,6 +116,7 @@ func update_revive(delta: float, holding: bool) -> void:
 		_stop_revive()
 		_reviving_peer = revive_target.peer_id
 		Network.main.send_reviving(_reviving_peer, true)
+		WorldSounds.own_soft(player, WorldSounds.REVIVING, WorldSounds.REVIVING_DB)   # (0.31.14)
 	revive_progress += delta / Network.REVIVE_TIME
 	if revive_progress >= 1.0:
 		var peer := _reviving_peer

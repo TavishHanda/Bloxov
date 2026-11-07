@@ -60,6 +60,7 @@ var _down := 0.0
 ## 0..1: how far they're lying prone, and downed.
 var _prone := 0.0
 var _downed := 0.0
+var _was_downed := false
 ## Their name tag (teammates only), turned red while they're downed.
 var _tag: Node3D
 ## Poses the jointed model (0.23): walking, kneeling, prone on the elbows, crawling, downed, dead.
@@ -192,6 +193,14 @@ func update_view(time: float, delta: float) -> void:
 	if flags & Hitbox.FLAG_HIT and not _was_hit:
 		flinch(Vector3.ZERO)
 	_was_hit = flags & Hitbox.FLAG_HIT != 0
+	# Going down and getting back up (0.31.14): heard where they are, so you know a teammate needs you.
+	var is_down := flags & FLAG_DOWNED != 0 and not flags & FLAG_DEAD
+	if is_down != _was_downed and not flags & FLAG_DEAD:
+		if is_down:
+			WorldSounds.at_soft(get_parent(), WorldSounds.DOWNED, global_position, WorldSounds.DOWNED_DB, WorldSounds.TEAMMATE_RANGE)
+		else:
+			WorldSounds.at_soft(get_parent(), WorldSounds.GET_UP, global_position, WorldSounds.GET_UP_DB, WorldSounds.TEAMMATE_RANGE)
+	_was_downed = is_down
 	_pose(pitch, flags, (global_position - old_position).length() / maxf(delta, 0.001), delta)
 	var flat_speed := Vector2(global_position.x - old_position.x, global_position.z - old_position.z).length() / maxf(delta, 0.001)
 	_footsteps(flags, flat_speed, delta)

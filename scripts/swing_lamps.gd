@@ -23,6 +23,7 @@ var _length := PackedFloat32Array()
 var _shaded := PackedInt32Array()     # per lamp: its shade's number, or -1
 var _shade_count := 0
 var _awake := {}                    # lamps swinging now
+var _creaked := {}                  # lamp -> when it last creaked (msec)
 var _nudged := {}                   # lamp -> when someone last walked under it (msec)
 var _cables: MultiMesh
 var _bulbs: MultiMesh
@@ -78,6 +79,12 @@ func _turn(i: int) -> Basis:
 
 ## Knocks lamp `i` with a push of `velocity` (m/s, sideways) at the bulb.
 func knock(i: int, velocity: Vector3) -> void:
+	# A thin creak when one still (or nearly) is set swinging (0.31.14, owner); not again while it's swinging hard.
+	if _cables != null and spin[i].length() < 0.6 and velocity.length() > 0.3:
+		var now := Time.get_ticks_msec()
+		if now - int(_creaked.get(i, -100000)) > 900:
+			_creaked[i] = now
+			WorldSounds.at_soft(self, WorldSounds.LAMP_CREAK, bulb_at(i), WorldSounds.LAMP_DB, WorldSounds.LAMP_RANGE)
 	# (leaning about +x swings the bulb towards -z; about +z, towards +x)
 	spin[i] += Vector2(-velocity.z, velocity.x) / maxf(_length[i], 0.2)
 	_awake[i] = true

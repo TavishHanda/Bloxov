@@ -7,6 +7,30 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.14 (More sounds)
+- **New sounds only** (owner: "do all of it", and none of it too loud, since you mostly want to hear other people
+  and the AI). Nothing that was already in the game changed; 21 new files from `tools/make_sounds.py` (`main_more`),
+  in the same synthesised style as the rest.
+- **Armor and helmets:** a short clink on the plate when a hit is stopped (a touch louder on the helmet), and
+  a crack with bits rattling when that hit wears it out. Only you hear your own.
+- **Grenades** clunk as they land and bounce (heard 30 m, softer as they slow), so you hear one coming.
+- **Downed and revived:** a body drop when you (or a teammate, heard where they are) go down, a cloth-and-bandage
+  sound when a revive starts (on both sides), and a swish and a boot planting when you're back up.
+- **The world's life:** crows caw now and then from the flock nearest you, the officer's flag flaps when you're
+  close, cans and bottles clink when kicked, shot or bouncing (at most three a frame), hanging lamps creak when set
+  swinging, curtains swish as someone pushes past. All looks-and-sound only, never on the server. (Bushes already
+  rustled under your feet since 0.20.0.)
+- **Spent cases** tink on a hard floor after you fire (softer on the ground, none in water; the Mauler's shells lower
+  and softer). Yours only, at most one every 0.12 s.
+- **Your body:** a soft breath when your stamina is low (a little louder when worn out), and a soft heartbeat under
+  30% health. Owner asked these only if they fit the style: they're quiet, short and synthesised like the rest; easy
+  to drop if they don't.
+- **Repairs:** a wrench ratchet with the buy sound when a trader fixes your gear. **Keys:** a small snap on a key's
+  last use.
+- The new sounds roll their pitch on their own dice (`WorldSounds.rng`), so they don't shift the game's seeded rolls.
+- Tests: an armor hit clinks and a wearing-out one cracks, a grenade clunks on landing, your case tinks on a wood
+  floor, the heartbeat plays when badly hurt.
+
 ## 0.31.13 (Free camera: no scouting)
 - **The free camera can't be used to scout** (owner: "make sure it's not exploitable"): it stays within 25 m of
   your character, stops at walls, doors, windows and the ground (sliding along them), and only goes where your

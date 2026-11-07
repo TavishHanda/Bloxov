@@ -54,3 +54,31 @@ func _sheet(st: SurfaceTool, i: int) -> void:
 
 func _process(_delta: float) -> void:
 	_material.set_shader_parameter(&"pushers", Reacts.pushers(self))
+	_swishes()
+
+
+## A soft swish when someone pushes past a sheet (0.31.14, owner): moving, and within its width and reach of it.
+const SWISH_REACH := 0.45
+const SWISH_GAP := 1200     # msec, per sheet
+var _swished := {}
+
+func _swishes() -> void:
+	var now := Time.get_ticks_msec()
+	for m: Dictionary in Reacts.movers(self):
+		var v := m.vel as Vector3
+		if Vector2(v.x, v.z).length() < 0.8:
+			continue
+		var p := m.pos as Vector3
+		for i in range(0, data.size(), STRIDE):
+			var centre := Vector3(data[i], data[i + 1], data[i + 2])
+			var h := data[i + 4]
+			if p.y > centre.y + h / 2.0 or p.y + float(m.height) < centre.y - h / 2.0:
+				continue
+			var local := Basis(Vector3.UP, deg_to_rad(data[i + 5])).inverse() * (p - centre)
+			if absf(local.z) > SWISH_REACH or absf(local.x) > data[i + 3] / 2.0 + 0.1:
+				continue
+			if now - int(_swished.get(i, -100000)) < SWISH_GAP:
+				continue
+			_swished[i] = now
+			WorldSounds.at_soft(self, WorldSounds.CURTAIN, Vector3(p.x, centre.y, p.z), WorldSounds.CURTAIN_DB,
+				WorldSounds.CURTAIN_RANGE)

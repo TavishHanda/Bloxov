@@ -8068,6 +8068,48 @@ func _section_sound() -> void:
 	_check(UISounds._hooked and on_ui.call().size() == ui_before + 1 and (on_ui.call().back() as AudioStreamPlayer).stream == UISounds.CLICK,
 		"buttons click, on the UI bus (0.20.6)")
 	button.queue_free()
+	# More sounds (0.31.14, owner: new sounds only, all soft): an armor clink and a crack when it gives out, a
+	# grenade clunking as it lands, a spent case tinking on the floor, a heartbeat when badly hurt.
+	var heard: Array[AudioStream] = []
+	var listen := func(n: Node) -> void:
+		if n is AudioStreamPlayer:
+			heard.append((n as AudioStreamPlayer).stream)
+		elif n is AudioStreamPlayer3D:
+			heard.append((n as AudioStreamPlayer3D).stream)
+	main.child_entered_tree.connect(listen)
+	var inv := player.inventory
+	var old_armor := inv.unequip("armor") if inv.equipped("armor") != null else null
+	var vest := ItemStack.new("armor_light")
+	inv.equip("armor", vest)
+	player._on_armor_hit(5, false)
+	_check(heard.has(WorldSounds.ARMOR_HIT) and not heard.has(WorldSounds.GEAR_BREAK), "a hit on your armor clinks (0.31.14)")
+	vest.durability = 1
+	player._on_armor_hit(5, false)
+	_check(heard.has(WorldSounds.GEAR_BREAK), "...and cracks when that hit wears it out")
+	inv.unequip("armor")
+	if old_armor != null:
+		inv.equip("armor", old_armor)
+	heard.clear()
+	var nade := Grenade.spawn(main, spot + Vector3(0, 2.5, 0), Vector3(0, -6, 0), false)
+	await create_timer(0.5).timeout
+	_check(heard.has(WorldSounds.GRENADE_BOUNCE), "a grenade clunks as it lands (0.31.14)")
+	nade.queue_free()
+	heard.clear()
+	player.gun._casing()
+	await create_timer(Gun.CASING_DELAY + 0.15).timeout
+	_check(heard.any(func(s: AudioStream) -> bool: return WorldSounds.CASINGS.has(s)), "your spent case tinks on the wood floor (0.31.14)")
+	# (by now this test's player has died and extracted in earlier sections: alive again for a moment)
+	var was := [player.health.current, player.health.is_dead, player.extracted]
+	player.health.current = 1
+	player.health.is_dead = false
+	player.extracted = false
+	player._heart_wait = 0.0
+	player._body_sounds(0.0)
+	_check(heard.has(WorldSounds.HEARTBEAT), "a soft heartbeat when badly hurt (0.31.14)")
+	player.health.current = was[0]
+	player.health.is_dead = was[1]
+	player.extracted = was[2]
+	main.child_entered_tree.disconnect(listen)
 	player.teleport_to(back)
 	map.queue_free()
 	var real := (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()

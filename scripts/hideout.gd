@@ -662,6 +662,7 @@ func repair(grid: GridInventory, stack: ItemStack) -> bool:
 	Profile.trader_spent[trader] = int(Profile.trader_spent.get(trader, 0)) + price
 	stack.durability = ItemDB.max_durability(stack.id)
 	UISounds.play(self, UISounds.BUY, -10.0)
+	UISounds.play(self, UISounds.REPAIR, -10.0)
 	_message("%s repaired %s for %s" % [Traders.title(trader), stack.title(), ItemDB.money(price)])
 	if grid != null:
 		grid.changed.emit()

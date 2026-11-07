@@ -1027,6 +1027,189 @@ def main_pistol():
     write("shot_pistol.wav", shot_pistol())
 
 
+# --- More sounds (0.31.14, owner 2026-11-07: armor clinks, grenade bounces, downed/revive, the world's life, casings,
+# breathing and a heartbeat, gear breaking, repairs). New sounds only, each with its own seed; written on their own
+# (main_more), so re-running does not rewrite any sound that was already in the game. Kept soft and short: the
+# owner wants players and AI to stay the loudest thing you hear.
+
+def _ring(seconds, partials, decay, gain=1.0):
+    """A struck piece of metal: a few inharmonic partials (freq, level) dying away at `decay`."""
+    out = []
+    for i in range(length(seconds)):
+        t = i / RATE
+        out.append(sum(a * math.sin(2 * math.pi * f * t) for f, a in partials) * math.exp(-t * decay) * gain)
+    return out
+
+
+def armor_hit():
+    """A round stopped by a plate or a helmet: a dull thump with a short metal clink on top."""
+    random.seed(3100)
+    body = _thud(0.18, 220, 120, 50, 38, 0.35, 0.4, 70)
+    clink = _ring(0.22, ((1720, 1.0), (2630, 0.6), (3910, 0.35)), 26, 0.55)
+    tick = [x * math.exp(-i / RATE * 220) for i, x in enumerate(_highpass(noise(length(0.03), 0.1), 0.6))]
+    return _mix(_mix(body, clink, 0.0, 0.8), tick, 0.0, 0.6)
+
+
+def gear_break():
+    """Armor or a helmet giving out: a sharp crack, then bits rattling."""
+    random.seed(3101)
+    crack = [x * math.exp(-i / RATE * 55) for i, x in enumerate(_highpass(noise(length(0.12), 0.15), 0.55))]
+    out = _mix(crack, _thud(0.2, 170, 80, 40, 26, 0.5, 0.5, 40), 0.0, 0.7)
+    for k in range(4):
+        out = _mix(out, click(0.03, random.uniform(1100, 1900), 120, 0.3), 0.12 + 0.07 * k + random.uniform(0, 0.03), 0.5 - 0.08 * k)
+    return out
+
+
+def key_break():
+    """A key on its last use: a small metal snap."""
+    random.seed(3102)
+    snap_ = [x * math.exp(-i / RATE * 140) for i, x in enumerate(_highpass(noise(length(0.04), 0.1), 0.5))]
+    return _mix(snap_, _ring(0.16, ((3150, 1.0), (4480, 0.5)), 38, 0.45), 0.005)
+
+
+def repair():
+    """A trader fixing your gear: a wrench ratcheting a few times and a last clank."""
+    random.seed(3103)
+    out = silence(0.05)
+    for k in range(5):
+        out = _mix(out, click(0.025, 1300 + 40 * (k % 2), 160, 0.25), 0.04 + 0.075 * k, 0.8)
+    return _mix(out, _mix(_thud(0.16, 420, 240, 55, 40, 0.5, 0.2, 70), _ring(0.25, ((1180, 1.0), (1830, 0.5)), 20, 0.35)), 0.47, 0.9)
+
+
+def grenade_bounce():
+    """A grenade landing and bouncing: a short heavy clunk with a little ring."""
+    random.seed(3104)
+    return _mix(_thud(0.14, 300, 150, 60, 45, 0.5, 0.3, 80), _ring(0.18, ((1320, 1.0), (2090, 0.5)), 30, 0.4))
+
+
+def downed():
+    """Going down: a body dropping and the gear on it rattling."""
+    random.seed(3105)
+    out = _mix(_cloth(0.25, 0.8, 0.3), _thud(0.35, 120, 45, 25, 14, 0.6, 0.6, 20), 0.12, 0.9)
+    for k in range(3):
+        out = _mix(out, click(0.03, random.uniform(800, 1400), 110, 0.3), 0.18 + 0.06 * k, 0.35)
+    return out
+
+
+def reviving():
+    """Being patched up by a teammate: cloth and a bandage tearing."""
+    random.seed(3106)
+    rip = _highpass(noise(length(0.16), 0.35), 0.75)
+    rip = [x * math.sin(math.pi * i / len(rip)) for i, x in enumerate(rip)]
+    return _mix(_mix(_cloth(0.35, 0.7, 0.4), rip, 0.3, 0.7), _cloth(0.3, 0.75, 0.3), 0.55, 0.7)
+
+
+def get_up():
+    """Back on your feet: a cloth swish, gear shifting and a boot planting."""
+    random.seed(3107)
+    out = _mix(_cloth(0.35, 0.75, 0.35), click(0.03, 1000, 100, 0.3), 0.15, 0.4)
+    return _mix(out, _thud(0.12, 150, 90, 45, 45, 0.4), 0.3, 0.6)
+
+
+def crow(variant):
+    """A crow's caw (one, or two for variant 1): a buzzy falling tone with a rasp."""
+    random.seed(3110 + variant)
+    out = []
+    for c in range(1 + variant):
+        n = length(0.2 + 0.03 * c)
+        rasp = noise(n, 0.3)
+        phase = 0.0
+        caw = []
+        for i in range(n):
+            t = i / n
+            phase += 2 * math.pi * (620 - 170 * t + 25 * c) / RATE
+            x = math.sin(phase)
+            buzz = (1.0 if x > 0 else -1.0) * 0.5 + x * 0.5 + 0.3 * math.sin(phase * 3.0)
+            env = min(1.0, t / 0.08) * (1 - t) ** 0.7
+            caw.append((buzz * 0.8 + rasp[i] * 0.35) * env)
+        out += _lowpass(caw, 0.35) + silence(0.12)
+    return out
+
+
+def flag():
+    """A flag in the wind: soft cloth flaps coming in irregular bursts. A 4 s loop."""
+    random.seed(3112)
+    n = length(4.0)
+    out = [0.0] * n
+    at = 0.0
+    while at < 3.9:
+        flap = _cloth(random.uniform(0.07, 0.13), 0.6, 0.2)
+        for i, x in enumerate(flap):
+            k = length(at) + i
+            if k < n:
+                out[k] += x * random.uniform(0.5, 1.0)
+        at += random.uniform(0.09, 0.3)
+    return _seamless(_lowpass(out, 0.3), 0.4)
+
+
+def can(kind):
+    """A tin can (0) or a bottle (1) knocked about: a couple of light knocks with a ring."""
+    random.seed(3113 + kind)
+    if kind == 0:
+        hit = lambda: _mix(_thud(0.05, 900, 600, 60, 90, 0.4, 0.2, 120), _ring(0.12, ((2380, 1.0), (3470, 0.6)), 40, 0.5))
+    else:
+        hit = lambda: _ring(0.2, ((2620, 1.0), (4150, 0.35), (1310, 0.2)), 24, 0.7)
+    return _mix(_mix(hit(), hit(), 0.09, 0.55), hit(), 0.16, 0.3)
+
+
+def lamp_creak():
+    """A hanging lamp knocked into a swing: a thin creak of the cable and a faint jingle."""
+    random.seed(3115)
+    return _mix(_creak(0.45, 520, 430, 0.3), _ring(0.12, ((2900, 1.0),), 35, 0.25), 0.02, 0.6)
+
+
+def curtain():
+    """Pushing past a curtain: a soft cloth swish."""
+    random.seed(3116)
+    return _lowpass(_cloth(0.4, 0.8, 0.3), 0.3)
+
+
+def casing(variant):
+    """A spent case landing: two or three tiny brass tinks."""
+    random.seed(3120 + variant)
+    base = (4200, 4650, 3900)[variant]
+    out = silence(0.02)
+    for k, (at, gain) in enumerate(((0.0, 1.0), (0.07 + 0.02 * variant, 0.5), (0.14 + 0.02 * variant, 0.25))):
+        tink = _ring(0.07, ((base * (1 + 0.03 * k), 1.0), (base * 1.47, 0.4)), 70, gain)
+        out = _mix(out, tink, at)
+    return out
+
+
+def heartbeat():
+    """A heartbeat (lub-dub), soft and low, with a little knock so phone speakers carry it."""
+    random.seed(3123)
+    def beat(f, gain):
+        return [x * gain for x in _thud(0.18, f * 1.8, f, 40, 26, 0.15, 0.6, 60)]
+    return _mix(beat(80, 1.0), beat(70, 0.7), 0.26)
+
+
+def breath():
+    """Out of breath: a soft breath in and a longer breath out."""
+    random.seed(3124)
+    def air(seconds, peak, gain):
+        nz = _lowpass(_highpass(noise(length(seconds), 0.2), 0.6), 0.55)
+        n = len(nz)
+        return [x * gain * math.sin(math.pi * min(1.0, (i / n) / (2 * peak) if i / n < peak else 0.5 + (i / n - peak) / (2 * (1 - peak)))) for i, x in enumerate(nz)]
+    return _mix(air(0.35, 0.5, 0.6), air(0.55, 0.25, 1.0), 0.4)
+
+
+def main_more():
+    (OUT / "world").mkdir(exist_ok=True)
+    for name, fn in (("armor_hit", armor_hit), ("gear_break", gear_break), ("key_break", key_break),
+                     ("grenade_bounce", grenade_bounce), ("downed", downed), ("reviving", reviving),
+                     ("get_up", get_up), ("flag", flag), ("lamp_creak", lamp_creak), ("curtain", curtain),
+                     ("heartbeat", heartbeat), ("breath", breath)):
+        write(f"world/{name}.wav", fn())
+    for v in range(2):
+        write(f"world/crow{v + 1}.wav", crow(v))
+    write("world/can.wav", can(0))
+    write("world/bottle.wav", can(1))
+    for v in range(3):
+        write(f"world/casing{v + 1}.wav", casing(v))
+    (OUT / "ui").mkdir(exist_ok=True)
+    write("ui/repair.wav", repair())
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
@@ -1034,3 +1217,4 @@ if __name__ == "__main__":
     main_bunker()
     main_life()
     main_pistol()
+    main_more()
