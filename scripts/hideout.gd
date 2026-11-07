@@ -1323,8 +1323,10 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 	elif error == "deleted":
 		text = "This account will be deleted on %s." % str(data.get("delete_on", "")).left(10)
 	_signin_note.text = text
-	_signin_box.get_node("Again").visible = error in ["in_use", "deleted"]
-	(_signin_box.get_node("Again") as Button).text = "CANCEL DELETION" if error == "deleted" else "TAKE OVER HERE"
+	var again := _signin_box.get_node_or_null("Again") as Button   # (only on the sign-in page)
+	if again != null:
+		again.visible = error in ["in_use", "deleted"]
+		again.text = "CANCEL DELETION" if error == "deleted" else "TAKE OVER HERE"
 
 
 func _show_recovery_code(code: String) -> void:
@@ -1382,16 +1384,30 @@ func _show_signin_page(page: String) -> void:
 				fields["cancel_delete"] = true
 				_account_action(_last_account[0], fields))
 			_signin_box.get_node("Again").visible = false
-			button.call("SignUp", "CREATE ACCOUNT", false, _press_sign_in.bind("sign_up", false))
+			button.call("SignUp", "CREATE ACCOUNT", false, func() -> void:
+				_signin_note.text = ""
+				_show_signin_page("sign_up"))
 			button.call("Forgot", "FORGOT PASSWORD?", false, func() -> void:
 				_signin_note.text = ""
 				_show_signin_page("recover"))
+		"sign_up":
+			_signin_title.text = "PvP · CREATE ACCOUNT"
+			hint.call("No email needed. Pick a username and a password of 10 or more characters; you'll get a recovery code to keep.")
+			edit.call("Username", "Username (3-20 letters, numbers, _ . -)", false, 20)
+			edit.call("Password", "Password (10+ characters)", true, 128)
+			var confirm: LineEdit = edit.call("Confirm", "Confirm password", true, 128)
+			confirm.text_submitted.connect(func(_t: String) -> void: _press_sign_in("sign_up", false))
+			button.call("Create", "CREATE ACCOUNT", true, _press_sign_in.bind("sign_up", false))
+			button.call("Back", "BACK", false, func() -> void:
+				_signin_note.text = ""
+				_show_signin_page("sign_in"))
 		"recover":
 			_signin_title.text = "PvP · NEW PASSWORD"
 			hint.call("Your recovery code was shown once when you made your account. With it you can set a new password. Without it (and with no email added), the PvP account can't be got back. Your PvE stash is never affected.")
 			edit.call("Username", "Username", false, 20)
 			edit.call("Code", "Recovery code (XXXX-XXXX-XXXX)", false, 20)
 			edit.call("Password", "New password (10+ characters)", true, 128)
+			edit.call("Confirm", "Confirm new password", true, 128)
 			button.call("Reset", "SET NEW PASSWORD", true, _press_sign_in.bind("recover", false))
 			button.call("Back", "BACK", false, func() -> void: _show_signin_page("sign_in"))
 		"code":
@@ -1435,7 +1451,13 @@ func _press_sign_in(action: String, _again: bool) -> void:
 	if fields["username"] == "" or fields["password"] == "":
 		_signin_note.text = "Enter a username and a password."
 		return
+	if _signin_fields.has("Confirm") and (_signin_fields["Confirm"] as LineEdit).text != fields["password"]:
+		_signin_note.text = "The passwords don't match."
+		(_signin_fields["Confirm"] as LineEdit).text = ""
+		return
 	(_signin_fields["Password"] as LineEdit).text = ""   # (never kept around)
+	if _signin_fields.has("Confirm"):
+		(_signin_fields["Confirm"] as LineEdit).text = ""
 	_account_action(action, fields)
 
 

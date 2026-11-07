@@ -3396,6 +3396,17 @@ func _section_stash_modes() -> void:
 	_check(not hideout.raid_allowed(true) and hideout.signin_panel.visible, "PvP raids need signing in first (the sign-in panel opens)")
 	_check(hideout.signin_panel.visible and (hideout.signin_panel.find_child("Password", true, false) as LineEdit).secret,
 		"the PvP sign-in panel shows, password hidden")
+	# CREATE ACCOUNT has its own page with a confirm box (owner, 2026-11-07); passwords that differ aren't sent.
+	(hideout.signin_panel.find_child("SignUp", true, false) as Button).pressed.emit()
+	await process_frame
+	(hideout._signin_fields["Username"] as LineEdit).text = "tester_1"
+	(hideout._signin_fields["Password"] as LineEdit).text = "long password 1"
+	(hideout._signin_fields["Confirm"] as LineEdit).text = "long password 2"
+	hideout._press_sign_in("sign_up", false)
+	_check(hideout._signin_page == "sign_up" and hideout._signin_note.text.contains("don't match") and Network.main.mode == Network.Mode.OFFLINE,
+		"creating an account asks for the password twice; a mismatch is caught before anything is sent")
+	(hideout.signin_panel.find_child("Back", true, false) as Button).pressed.emit()
+	await process_frame
 	hideout.switch_mode(Profile.SOLO)
 	await process_frame
 	_check(Profile.mode == Profile.SOLO and Profile.money == solo_money and hideout.screen.stash == Profile.stash
