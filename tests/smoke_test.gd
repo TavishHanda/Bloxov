@@ -4132,7 +4132,8 @@ func _section_pvp_accounts() -> void:
 	# reconnects by itself and carries on, with what the server counted it carrying.
 	var b_carried: Dictionary = server._carried[b_id].duplicate()
 	server.multiplayer.multiplayer_peer.disconnect_peer(b_id)
-	await _until(func() -> bool: return server._away.has(b_id))
+	await _until(func() -> bool: return server._away.has(b_id) and b.rejoining())
+	b._rejoin_next = 0.0   # (try straight away: the game waits a second, which is a lot of frames here)
 	_check(server._away.has(b_id) and server.matchmaker.players.has(b_id) and server.accounts.in_raid(b_id) and b.rejoining(),
 		"a PvP player who drops out of a raid keeps their place, and their game tries to get back in")
 	var b_old := b_id
@@ -4168,6 +4169,8 @@ func _section_pvp_accounts() -> void:
 	await _until(func() -> bool: return server._away.has(a_id))
 	server._health[a_id] = [0.0, -1.0]
 	await _until(func() -> bool: return not server._away.has(a_id) and not server.matchmaker.players.has(a_id))
+	await _until(func() -> bool: return a.rejoining())
+	a._rejoin_next = 0.0
 	_check(fake.results.any(func(r: Dictionary) -> bool: return r["result"] == "killed"), "shot dead while away: the raid is lost")
 	await _until(func() -> bool: return a.signed_in() and not a.rejoining(), 8.0)
 	a_id = a.multiplayer.get_unique_id()
