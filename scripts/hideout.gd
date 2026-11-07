@@ -39,6 +39,8 @@ const MESSAGE_MAX_WIDTH := 800.0
 var _online_button: Button
 ## START RAID: solo in PvE; in PvP it opens the queue and party panel (owner, 2026-11-07: no separate ONLINE button).
 var _raid_button: Button
+## Next to the switch in PvP: the account page (sign in, or sign out / download / delete) (owner, 2026-11-07).
+var _account_button: Button
 var _free_kit_button: Button
 ## The trader column: tabs, the open trader's name/level, and its stock.
 var _trader_tab := "guns"
@@ -1025,6 +1027,17 @@ func _build_top_bar() -> void:
 		mode_button.pressed.connect(func() -> void:
 			switch_mode(Profile.SOLO if Profile.mode == Profile.ONLINE else Profile.ONLINE))
 		row.add_child(mode_button)
+		_account_button = Button.new()
+		_account_button.name = "AccountButton"
+		_account_button.focus_mode = Control.FOCUS_NONE
+		_account_button.tooltip_text = "Your PvP account: sign in, sign out, download your data or delete it"
+		LootUI.style_button(_account_button)
+		_account_button.pressed.connect(func() -> void:
+			if signin_panel != null and signin_panel.visible:
+				signin_panel.visible = false
+			else:
+				open_signin())
+		row.add_child(_account_button)
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1090,6 +1103,7 @@ func _build_top_bar() -> void:
 	LootUI.style_button(_raid_button, 30, HudStyle.HAZARD)
 	_raid_button.pressed.connect(press_start_raid)
 	row.add_child(_raid_button)
+	_update_raid_button()
 
 
 ## START RAID: a solo raid from the PvE stash; from the PvP stash, the queue and party panel (signing in first).
@@ -1109,6 +1123,9 @@ func press_start_raid() -> void:
 
 ## What START RAID says: in PvP, where you are in the queue.
 func _update_raid_button() -> void:
+	if _account_button != null:
+		_account_button.visible = Profile.mode == Profile.ONLINE
+		_account_button.text = "ACCOUNT" if Network.main.signed_in() else "SIGN IN"
 	if _raid_button == null:
 		return
 	var queue := GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE and Network.main.is_client() and Network.main.queued
@@ -1307,6 +1324,7 @@ func _account_action(action: String, fields: Dictionary) -> void:
 func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 	if signin_panel == null:
 		return
+	_update_raid_button.call_deferred()   # (ACCOUNT / SIGN IN by the switch)
 	if ok and action == "export":
 		var name := "bloxov-pvp-data-%s.json" % Network.main.account_name
 		SaveBackup.save_text(self, JSON.stringify(data, "  "), name, func(line: String) -> void: _signin_note.text = line)

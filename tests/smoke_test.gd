@@ -3399,6 +3399,11 @@ func _section_stash_modes() -> void:
 	# One switch (owner, 2026-11-07): no ONLINE button; in PvP, START RAID opens the queue (after signing in).
 	_check(not hideout._online_button.visible and hideout._raid_button.text == "START RAID",
 		"with the PvE/PvP switch there's no separate ONLINE button")
+	_check(hideout._account_button.visible and hideout._account_button.text == "SIGN IN",
+		"in PvP a SIGN IN / ACCOUNT button sits by the switch")
+	hideout.signin_panel.visible = false
+	hideout._account_button.pressed.emit()
+	_check(hideout.signin_panel.visible, "...and opens the account panel")
 	hideout.signin_panel.visible = false
 	hideout.press_start_raid()
 	_check(hideout.signin_panel.visible and not hideout._online_panel.visible, "START RAID in PvP asks to sign in first")
@@ -3417,6 +3422,7 @@ func _section_stash_modes() -> void:
 	await process_frame
 	_check(Profile.mode == Profile.SOLO and Profile.money == solo_money and hideout.screen.stash == Profile.stash
 		and Profile.stash.count_of("gold_watch") == solo_watches, "switching back shows the PvE stash")
+	_check(not hideout._account_button.visible, "no account button in PvE")
 	hideout.queue_free()
 	GameSettings.pvp_stash_forced = false
 	await process_frame
