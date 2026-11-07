@@ -37,6 +37,8 @@ var hand_in_window: HandInWindow
 var _message_tween: Tween
 const MESSAGE_MAX_WIDTH := 800.0
 var _online_button: Button
+## START RAID: solo in PvE; in PvP it opens the queue and party panel (owner, 2026-11-07: no separate ONLINE button).
+var _raid_button: Button
 var _free_kit_button: Button
 ## The trader column: tabs, the open trader's name/level, and its stock.
 var _trader_tab := "guns"
@@ -721,6 +723,11 @@ func start_with_free_kit() -> void:
 	if Network.main.is_client():
 		take_free_kit()
 		return
+	if GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE:
+		if raid_allowed(true):   # (PvP: sign in first; the kit goes on, then the queue)
+			take_free_kit()
+			_online_panel.visible = true
+		return
 	if not raid_allowed(false):
 		return
 	if take_free_kit():
@@ -904,7 +911,7 @@ func _refresh() -> void:
 		int(Profile.stats["raids"]), int(Profile.stats["extracts"]), int(Profile.stats["deaths"]),
 		ItemDB.money(Profile.stash.total_value())]
 	_free_kit_button.visible = can_take_free_kit()
-	_free_kit_button.text = "TAKE FREE KIT" if Network.main.is_client() else "FREE KIT RAID" if GameSettings.is_phone() else "RAID WITH FREE KIT"
+	_free_kit_button.text = "TAKE FREE KIT" if Network.main.is_client() or (GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE) else "FREE KIT RAID" if GameSettings.is_phone() else "RAID WITH FREE KIT"
 
 
 ## A message under the top bar (the walkable hideout uses it when you use a station).
@@ -1054,6 +1061,7 @@ func _build_top_bar() -> void:
 	_online_button.pressed.connect(func() -> void:
 		if _online_panel.visible or raid_allowed(true):
 			_online_panel.visible = not _online_panel.visible)
+	_online_button.visible = not GameSettings.pvp_stash_on()   # (the PvE/PvP switch and START RAID do its job)
 	row.add_child(_online_button)
 	var loadouts_button := Button.new()
 	loadouts_button.name = "LoadoutsButton"
@@ -1074,18 +1082,39 @@ func _build_top_bar() -> void:
 	_free_kit_button.pressed.connect(start_with_free_kit)
 	LootUI.style_button(_free_kit_button)
 	row.add_child(_free_kit_button)
-	var raid_button := Button.new()
-	raid_button.text = "START RAID"
-	raid_button.custom_minimum_size = Vector2(150, 0)
-	raid_button.focus_mode = Control.FOCUS_NONE
-	LootUI.style_button(raid_button, 30, HudStyle.HAZARD)
-	raid_button.pressed.connect(func() -> void:
-		if not raid_allowed(false):
-			return
-		confirm_raid(func() -> void:
-			Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
-			start_raid()))
-	row.add_child(raid_button)
+	_raid_button = Button.new()
+	_raid_button.name = "RaidButton"
+	_raid_button.text = "START RAID"
+	_raid_button.custom_minimum_size = Vector2(150, 0)
+	_raid_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(_raid_button, 30, HudStyle.HAZARD)
+	_raid_button.pressed.connect(press_start_raid)
+	row.add_child(_raid_button)
+
+
+## START RAID: a solo raid from the PvE stash; from the PvP stash, the queue and party panel (signing in first).
+func press_start_raid() -> void:
+	if GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE:
+		if _online_panel.visible:
+			_online_panel.visible = false
+		elif raid_allowed(true):
+			_online_panel.visible = true
+		return
+	if not raid_allowed(false):
+		return
+	confirm_raid(func() -> void:
+		Network.main.go_offline()  # START RAID is always solo (against the AI), so leave online play.
+		start_raid())
+
+
+## What START RAID says: in PvP, where you are in the queue.
+func _update_raid_button() -> void:
+	if _raid_button == null:
+		return
+	var queue := GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE and Network.main.is_client() and Network.main.queued
+	_raid_button.text = online_status() if queue else "START RAID"
+	_raid_button.tooltip_text = ("Queue into a raid with other players, or party up with a friend"
+		if GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE else "Head out on a solo raid against the AI")
 
 
 func _build_options_window() -> void:
@@ -1212,6 +1241,7 @@ func _reload_stash() -> void:
 		Profile.stash.changed.connect(_queue_save)
 	if mode_button != null:
 		mode_button.text = mode_text()
+	_update_raid_button()
 	_fill_trader()
 	_refresh()
 
@@ -1546,6 +1576,7 @@ func _refresh_online() -> void:
 	var net := Network.main
 	var online := net.is_client()
 	_online_button.text = online_status()
+	_update_raid_button()
 	_refresh()   # (the free kit button reads TAKE FREE KIT while online)
 	_offline_box.visible = not online
 	_online_box.visible = online

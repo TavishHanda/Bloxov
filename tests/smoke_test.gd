@@ -3396,6 +3396,12 @@ func _section_stash_modes() -> void:
 	_check(not hideout.raid_allowed(true) and hideout.signin_panel.visible, "PvP raids need signing in first (the sign-in panel opens)")
 	_check(hideout.signin_panel.visible and (hideout.signin_panel.find_child("Password", true, false) as LineEdit).secret,
 		"the PvP sign-in panel shows, password hidden")
+	# One switch (owner, 2026-11-07): no ONLINE button; in PvP, START RAID opens the queue (after signing in).
+	_check(not hideout._online_button.visible and hideout._raid_button.text == "START RAID",
+		"with the PvE/PvP switch there's no separate ONLINE button")
+	hideout.signin_panel.visible = false
+	hideout.press_start_raid()
+	_check(hideout.signin_panel.visible and not hideout._online_panel.visible, "START RAID in PvP asks to sign in first")
 	# CREATE ACCOUNT has its own page with a confirm box (owner, 2026-11-07); passwords that differ aren't sent.
 	(hideout.signin_panel.find_child("SignUp", true, false) as Button).pressed.emit()
 	await process_frame
