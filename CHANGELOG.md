@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.11 (Tutorial on phones)
+- **The new-player tutorial runs on phones** (owner): the hideout walk no longer skips touch screens. Its steps
+  name the on-screen controls (left thumb to move, drag to look, USE, MENU, FIRE, the range's pause button,
+  < HIDEOUT) and switch between key and touch wording the moment the controls do (touch-screen laptops).
+  SKIP TUTORIAL no longer starts a look drag when tapped.
+- Raid tips: the search and movement tips have touch wording too (USE, BAG, JUMP, hold CROUCH to go prone).
+
 ## 0.31.10 (Sign in first)
 - **PvP before signing in, the stash is covered** (owner): no moving, selling or buying with a stash that isn't
   yours yet, just "Sign in to use your PvP stash" and a SIGN IN button.

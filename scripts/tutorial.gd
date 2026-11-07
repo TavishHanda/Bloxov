@@ -6,7 +6,8 @@ extends CanvasLayer
 ## OPTIONS on the main screen has REPLAY TUTORIAL and the raid tips switch.
 ## In the first raids, short one-time tips (RaidTips) come up the first time each thing happens.
 ## Someone who has already played (a raid, money, stash, quests: Profile.has_played) never gets it (owner).
-## Phones open on the hideout menu (no walking yet), so they get the raid tips only.
+## On touch screens (phones, and computers after a touch: TouchInput.active) the steps name the on-screen buttons
+## instead of keys (TOUCH_STEPS, 0.31.11), and the card switches wording the moment the controls do.
 ## Nothing here is sent anywhere: it's saved with the profile on your own device.
 
 const DONE := Profile.TUTORIAL_DONE
@@ -22,6 +23,19 @@ const STEPS: Array[Dictionary] = [
 	{"id": "trader_info", "text": "Buy and sell here. Spending money and doing a trader's jobs levels them up for better stock. {tab} to close."},
 	{"id": "raid", "at": "war_table", "text": "You're ready. Press {use} at the war table, then START RAID. Grab loot and get out at an extract before time runs out."},
 ]
+## The same steps worded for the touch controls (0.29.9 raid, 0.29.10 hideout), where they differ.
+const TOUCH_STEPS := {
+	"walk": "Welcome to your hideout. Move with your left thumb, drag on the right side of the screen to look round. Push the stick far forward to sprint.",
+	"range": "Head to the shooting range and tap USE at the bench.",
+	"shoot": "Pick a gun and hit the targets. Hold FIRE to shoot, AIM aims down the sights, RELOAD reloads.",
+	"shoot_auto_ads": "Pick a gun and hit the targets. Hold FIRE to shoot (it aims down the sights too), RELOAD reloads.",
+	"leave_range": "Nice shooting. Tap the pause button (top right), then LEAVE THE RANGE.",
+	"gear": "Open your gear: tap MENU (top right), or USE at the stash.",
+	"gear_info": "Your loadout is what you take into a raid. Die there and you lose it (all but the secure pocket). Your stash stays safe at home. Drag items between them. < HIDEOUT to close.",
+	"trader": "Traders sell guns, armor and meds, and buy your loot. Walk up to a counter and tap USE.",
+	"trader_info": "Buy and sell here. Spending money and doing a trader's jobs levels them up for better stock. < HIDEOUT to close.",
+	"raid": "You're ready. Tap USE at the war table, then START RAID. Grab loot and get out at an extract before time runs out.",
+}
 ## Hits on the range's targets that finish the shooting step.
 const HITS := 3
 
@@ -34,11 +48,13 @@ var _marker: Control
 var _at := 0
 var _start := Vector3.ZERO
 var _hits := 0
+## The wording on the card is for the touch controls.
+var _touch := false
 
 
-## Should the hideout walk run (not finished, and you can walk: not on a phone, not online)?
+## Should the hideout walk run (not finished, and not online, where the hideout opens on its menu)?
 static func wants_hideout() -> bool:
-	return int(Profile.tutorial["step"]) < DONE and not GameSettings.is_phone() and not Network.main.is_client()
+	return int(Profile.tutorial["step"]) < DONE and not Network.main.is_client()
 
 
 ## REPLAY TUTORIAL: the walk and the raid tips again from the start.
@@ -107,6 +123,7 @@ func _ready() -> void:
 	LootUI.style_button(_skip, 20)
 	_skip.pressed.connect(skip)
 	top.add_child(_skip)
+	world.touch.blockers.append(_skip)   # (a tap on it isn't a look drag too)
 	_text = Label.new()
 	_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_text.custom_minimum_size = Vector2(616, 0)
@@ -139,6 +156,8 @@ func _process(_delta: float) -> void:
 		Profile.tutorial["step"] = _at if _at < STEPS.size() - 1 else DONE
 		Profile.save_profile()
 		_show()
+	elif TouchInput.active != _touch:
+		_show()
 	# At the range, under the range's own top line; over the menu, at the bottom (its top bar and headings stay clear).
 	_card.position.y = 52.0 if world.in_range() else 12.0
 	if world.menu_open():
@@ -169,8 +188,22 @@ func _is_done(id: String) -> bool:
 
 func _show() -> void:
 	_count.text = "TRAINING  %d / %d" % [_at + 1, STEPS.size()]
-	_text.text = keys(String(STEPS[_at]["text"]))
+	_text.text = step_text(step_id())
 	_skip.visible = _at < STEPS.size() - 1
+
+
+## A step's words: keys filled in, or the touch buttons when those are in use.
+func step_text(id: String) -> String:
+	_touch = TouchInput.active
+	if _touch:
+		if id == "shoot" and TouchInput.auto_ads:
+			id = "shoot_auto_ads"
+		if TOUCH_STEPS.has(id):
+			return String(TOUCH_STEPS[id])
+	for entry: Dictionary in STEPS:
+		if entry["id"] == id:
+			return keys(String(entry["text"]))
+	return ""
 
 
 ## The station the marker points to (its Marker3D), or null.

@@ -17,6 +17,8 @@ const TIPS := {
 ## The same tips worded for the touch controls (0.29.9), where they differ.
 const TOUCH_TIPS := {
 	"start": "Find loot, then get out at an open extract (green beam). MAP shows them. Still here when time runs out? You lose what you brought.",
+	"search": "Hold USE to search. BAG opens your bag to move loot round.",
+	"moves": "JUMP vaults low walls and climbs ledges. CROUCH crouches, hold it to go prone: harder to see and hit.",
 	"hurt": "You're hit. Tap ITEM and pick a bandage or medkit to heal (it takes a few seconds), or tap the meds slot.",
 }
 const SHOW_TIME := 9.0

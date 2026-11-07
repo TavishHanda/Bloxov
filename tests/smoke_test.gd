@@ -3200,6 +3200,20 @@ func _section_tutorial() -> void:
 		await physics_frame
 	var guide := world.tutorial
 	_check(guide != null and guide.step_id() == "walk" and guide._text.text.contains("WASD"), "a new player's hideout opens on step 1, keys filled in")
+	# Touch screens (0.31.11): the same walk, worded for the on-screen buttons, switching as the controls do.
+	var was_touch := TouchInput.active
+	TouchInput.active = true
+	guide._process(0.0)
+	_check(guide._text.text.contains("left thumb") and not guide._text.text.contains("WASD") and world.touch.blockers.has(guide._skip),
+		"touch controls: the card names the on-screen controls, SKIP isn't a look drag")
+	var touch_wording := true
+	for entry: Dictionary in Tutorial.STEPS:
+		var words := guide.step_text(String(entry["id"]))
+		touch_wording = touch_wording and not words.contains("{") and not words.to_lower().contains("press ")
+	_check(touch_wording, "touch controls: every step has touch wording (no keys to press)")
+	TouchInput.active = was_touch
+	guide._process(0.0)
+	_check(guide._text.text.contains("WASD"), "back on keys: the card names the keys again")
 	var walk := func(steps: Callable) -> void:
 		steps.call()
 		for i in 3:
