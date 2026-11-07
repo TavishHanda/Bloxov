@@ -41,6 +41,9 @@ var _online_button: Button
 var _raid_button: Button
 ## Next to the switch in PvP: the account page (sign in, or sign out / download / delete) (owner, 2026-11-07).
 var _account_button: Button
+## PvP and not signed in: covers the stash, loadout and traders (owner, 2026-11-07: no playing with a stash that
+## isn't yours yet), under the top bar and the sign-in panel.
+var _pvp_cover: Control
 var _free_kit_button: Button
 ## The trader column: tabs, the open trader's name/level, and its stock.
 var _trader_tab := "guns"
@@ -1123,6 +1126,8 @@ func press_start_raid() -> void:
 
 ## What START RAID says: in PvP, where you are in the queue.
 func _update_raid_button() -> void:
+	if _pvp_cover != null:
+		_pvp_cover.visible = Profile.mode == Profile.ONLINE and not Network.main.signed_in()
 	if _account_button != null:
 		_account_button.visible = Profile.mode == Profile.ONLINE
 		_account_button.text = "ACCOUNT" if Network.main.signed_in() else "SIGN IN"
@@ -1511,6 +1516,33 @@ func _press_sign_in(action: String, _again: bool) -> void:
 
 ## The PvP sign-in panel (plan §10.1): a page at a time (_show_signin_page).
 func _build_signin_panel() -> void:
+	_pvp_cover = ColorRect.new()
+	_pvp_cover.name = "PvPCover"
+	(_pvp_cover as ColorRect).color = Color(0.05, 0.055, 0.05, 0.94)
+	_pvp_cover.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pvp_cover.offset_top = 50   # (below the top bar: the switch and SIGN IN stay usable)
+	_pvp_cover.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pvp_cover.visible = false
+	add_child(_pvp_cover)
+	var cover_box := VBoxContainer.new()
+	cover_box.set_anchors_preset(Control.PRESET_CENTER)
+	cover_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	cover_box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	cover_box.add_theme_constant_override("separation", 16)
+	_pvp_cover.add_child(cover_box)
+	var cover_label := Label.new()
+	cover_label.text = "Sign in to use your PvP stash"
+	cover_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	HudStyle.style_label(cover_label, 26, HudStyle.INK)
+	cover_box.add_child(cover_label)
+	var cover_button := Button.new()
+	cover_button.text = "SIGN IN"
+	cover_button.custom_minimum_size = Vector2(220, 48)
+	cover_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(cover_button, 24, HudStyle.HAZARD)
+	cover_button.pressed.connect(open_signin)
+	cover_box.add_child(cover_button)
+	move_child(_message_label, -1)   # (messages on their tape stay readable over the cover)
 	signin_panel = PanelContainer.new()
 	signin_panel.name = "SignIn"
 	signin_panel.visible = false
