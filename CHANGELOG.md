@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.13 (Free camera: no scouting)
+- **The free camera can't be used to scout** (owner: "make sure it's not exploitable"): it stays within 25 m of
+  your character, stops at walls, doors, windows and the ground (sliding along them), and only goes where your
+  character is still in sight, so no flying round a corner or in through a door to look for scavs or loot.
+  (Online it stays off, as in 0.31.12; hide HUD is looks-only and gives nothing away.)
+- Smoke test: the 25 m limit, a wall it can't pass, no moving out of sight.
+
 ## 0.31.12 (Recording tools)
 - **Clips for videos** (owner): two new keys, both rebindable in OPTIONS (a new "Recording" group) and both in the
   raid's pause menu as buttons for touch screens:

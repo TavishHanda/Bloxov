@@ -8,6 +8,9 @@ extends Node
 ## go straight up / down, sprint goes faster, the mouse wheel picks the speed, aim zooms in. The camera eases into
 ## moves and turns so clips come out smooth. Its key (T by default) slows time down, then stops it, then back.
 ## Touch: the stick flies, dragging looks, UP / DOWN / SLOW / CAM buttons (TouchControls, group "cam").
+## Not for scouting (0.31.13, owner: "make sure it's not exploitable"): it stays within LEASH of your character and
+## can't go through walls, doors, windows or the ground, and must keep your character in sight (no round corners or
+## in through doors), so it can't find scavs or loot you couldn't see from where you stand.
 
 ## Flying speeds (m/s); the mouse wheel steps through them.
 const SPEEDS: Array[float] = [1.0, 2.5, 5.0, 10.0, 20.0]
@@ -24,6 +27,12 @@ const SLOW_SCALE := 0.25
 ## A render layer the player's own first-person gun and hands go on while the camera is away, so it doesn't see
 ## them floating where your eyes were.
 const VIEW_LAYER := 1 << 19
+## How far from your character's head it can go (m).
+const LEASH := 25.0
+## What stops it: the world (ground, walls), doors, barred and glazed windows.
+const SOLID_MASK := 1 | 16 | 128 | 256
+## How close to a wall it can get (m).
+const WALL_GAP := 0.25
 
 enum TimeMode { NORMAL, SLOW, FROZEN }
 
@@ -92,7 +101,8 @@ func start() -> bool:
 	_want_yaw = yaw
 	_want_pitch = pitch
 	var back := Basis.from_euler(Vector3(pitch, yaw, 0.0), EULER_ORDER_YXZ).z
-	camera.global_position = from.origin + back * 1.6 + Vector3.UP * 0.4
+	camera.global_position = from.origin
+	camera.global_position = blocked_move(from.origin, from.origin + back * 1.6 + Vector3.UP * 0.4)
 	_apply_turn()
 	camera.make_current()
 	_velocity = Vector3.ZERO
@@ -204,12 +214,43 @@ func fly(dt: float) -> void:
 	var want := (look * Vector3(input.x, 0.0, input.y)) + Vector3.UP * rise
 	want = want.limit_length(1.0) * speed() * (FAST if fast else 1.0)
 	_velocity = _velocity.lerp(want, 1.0 - exp(-MOVE_EASE * dt))
-	camera.global_position += _velocity * dt
+	var old := camera.global_position
+	var moved := blocked_move(old, old + _velocity * dt)
+	if not moved.is_equal_approx(old + _velocity * dt):
+		_velocity = (moved - old) / maxf(dt, 0.0001)   # (sliding along whatever stopped it)
+	camera.global_position = moved
 	var turn := 1.0 - exp(-TURN_EASE * dt)
 	yaw = lerpf(yaw, _want_yaw, turn)
 	pitch = lerpf(pitch, _want_pitch, turn)
 	_apply_turn()
 	camera.fov = lerpf(camera.fov, ZOOM_FOV if zoom else _fov, 1.0 - exp(-8.0 * dt))
+
+
+## Where a move from `from` to `to` really ends: short of walls (sliding along them), within LEASH of your head, and
+## in sight of it (otherwise it stays at `from`).
+func blocked_move(from: Vector3, to: Vector3) -> Vector3:
+	var space := player.get_world_3d().direct_space_state
+	var target := to
+	for i in 2:   # (a second try slides along the first wall)
+		var step := target - from
+		if step.length() < 0.0001:
+			break
+		var reach := target + step.normalized() * WALL_GAP
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, reach, SOLID_MASK))
+		if hit.is_empty():
+			break
+		var normal: Vector3 = hit.normal
+		var stop: Vector3 = hit.position + normal * WALL_GAP
+		target = stop + (target - stop).slide(normal) if i == 0 else stop
+		if i == 1:
+			break
+	var head := player.global_position + Vector3.UP * 1.5
+	if target.distance_to(head) > LEASH:
+		target = head + (target - head).normalized() * LEASH
+	# Only where it still sees your character from: no going round a corner or in through a door to look about.
+	if not space.intersect_ray(PhysicsRayQueryParameters3D.create(target, head, SOLID_MASK)).is_empty():
+		return from
+	return target
 
 
 func _apply_turn() -> void:

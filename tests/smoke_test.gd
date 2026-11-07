@@ -8277,6 +8277,24 @@ func _section_free_cam() -> void:
 		await physics_frame
 	Input.action_release("jump")
 	_check(cam.camera.global_position.y > up_from + 0.3 and player.is_on_floor(), "jump flies up (and you don't jump)")
+	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
+	var head := player.global_position + Vector3.UP * 1.5
+	var far := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 200))
+	_check(far.distance_to(head) <= FreeCam.LEASH + 0.01, "the free camera stays within %d m (%.1f m)" % [FreeCam.LEASH, far.distance_to(head)])
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	(shape.shape as BoxShape3D).size = Vector3(20, 10, 0.5)
+	wall.add_child(shape)
+	main.add_child(wall)
+	wall.global_position = head + Vector3(0, 0, 6)
+	await physics_frame
+	var through := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 10))
+	_check(through.z < wall.global_position.z, "the free camera can't fly through a wall (z %.2f, wall %.2f)" % [through.z, wall.global_position.z])
+	var hidden_spot := head + Vector3(0, 0, 9)   # (behind the wall, out of your sight: can't move there)
+	_check(cam.blocked_move(hidden_spot, hidden_spot + Vector3(1, 0, 0)) == hidden_spot, "the free camera can't move where it can't see you")
+	wall.queue_free()
+	await physics_frame
 	cam.change_speed(1)
 	_check(cam.speed() > FreeCam.SPEEDS[FreeCam.START_SPEED], "the speed goes up")
 	cam.change_speed(-1)
