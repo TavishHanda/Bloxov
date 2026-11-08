@@ -95,7 +95,7 @@ launched during it gets buried.
   reload speed, etc.), tuned differently per character, **plus a unique passive** each. No pressed abilities for now.
 - **Names:** placeholders for now: the wardrobe's operators (`scripts/operators.gd`: Rook, Dune, Ghost, Viper,
   Bishop, Hawk). Owner likes chess-piece style names; real names come later.
-- **Wipe (recommended, waiting on the owner's OK):** PvP and PvE **both have expeditions, kept fully separate**. A
+- **Wipe (owner OK'd 2026-11-08):** PvP and PvE **both have expeditions, kept fully separate**. A
   PvE expedition wipes only the PvE stash and upgrades only the PvE character; a PvP one only the PvP side. Nothing
   earned in PvE ever reaches PvP, not even cosmetics, because the PvE save lives on the device and can be edited.
   Going on an expedition is always the player's choice, in both modes.
