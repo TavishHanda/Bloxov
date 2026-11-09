@@ -4,7 +4,8 @@ owner 2026-10-26: "make it the same as before for now": the old models' sizes, ~
 
 Run: python3 art_source/scripts/make_character.py [scav|pmc|raider ...]   (all three without arguments)
 No Blender needed (the .glb is written directly; the old Blender script and art_source/<character>.blend are retired).
-Texture: one 128 px atlas per character, 16 px per meter, art_source/textures/<character>.png (repainted every run).
+Texture: one 256 px atlas per character, 32 px per meter (clean flat colours since 2026-11-09), art_source/textures/<character>.png
+(repainted every run). The raid characters keep their old part sizes: tools/check_character_bounds.py checks it.
 Writes assets/models/characters/<character>.glb.
 
 Built in Blender axes (front +y, up +z, feet at the origin) and written as glTF (front -z, up +y).
@@ -179,7 +180,7 @@ def rgba(name):
 
 
 class Atlas:
-    """Hands out 16x16 tiles for skins as they get used, then paints them (as make_character.py)."""
+    """Hands out square tiles (TILE px) for skins as they get used, then paints them (as make_character.py)."""
 
     def __init__(self):
         self.tiles = {}
@@ -296,264 +297,6 @@ class Body:
 
 
 # ---------------------------------------------------------------- body parts
-
-def legs(b, pants, boots):
-    """pants / boots: {option: (skin, extras)}. extras: 'pads' (knee pads), 'pockets' (cargo)."""
-    w = LEG_W / 2
-    for option, (skin, extras) in pants.items():
-        p = b.part().box((-TORSO_W / 2 + 0.03, -TORSO_D / 2 + 0.02, HIP_Z - 0.06), (TORSO_W / 2 - 0.03, TORSO_D / 2 - 0.02,
-                         WAIST_Z + 0.02), skin)    # seat of the pants, the pelvis
-        b.finish(p, "Pants__%s__Hips" % option, "Hips")
-    for side, sx in (("L", -1), ("R", 1)):
-        cx = sx * LEG_X
-        for option, (skin, extras) in pants.items():
-            p = b.part().box((cx - w, -w, KNEE_Z - 0.02), (cx + w, w, HIP_Z + 0.02), skin)
-            if "pockets" in extras:
-                ox = cx + sx * w
-                p.box((ox, -0.07, KNEE_Z + 0.12), (ox + sx * 0.03, 0.07, KNEE_Z + 0.26), skin)
-            b.finish(p, "Pants__%s__Leg%s" % (option, side), "Leg" + side)
-            p = b.part().box((cx - w + 0.01, -w + 0.01, 0.12), (cx + w - 0.01, w - 0.01, KNEE_Z + 0.02), skin)
-            if "pads" in extras:
-                p.box((cx - w + 0.03, w - 0.01, KNEE_Z - 0.1), (cx + w - 0.03, w + 0.035, KNEE_Z + 0.04), "black")
-            b.finish(p, "Pants__%s__Knee%s" % (option, side), "Knee" + side)
-        for option, skin in boots.items():
-            p = b.part().box((cx - w - 0.01, -w - 0.01, 0.0), (cx + w + 0.01, w + 0.07, 0.14), skin)
-            b.finish(p, "Boots__%s__Knee%s" % (option, side), "Knee" + side)
-
-
-def tops(b, options):
-    """options: {option: (skin, extras)}. extras: 'hood', 'collar', 'armband' (red band on the left arm)."""
-    a = ARM_W / 2
-    for option, (skin, extras) in options.items():
-        p = b.part().box((-TORSO_W / 2, -TORSO_D / 2, WAIST_Z - 0.04), (TORSO_W / 2, TORSO_D / 2, SHOULDER_Z), skin)
-        p.box((-0.15, -0.13, SHOULDER_Z), (0.15, 0.11, NECK_Z + 0.04), skin)   # neck / collar
-        if "hood" in extras:
-            p.box((-0.2, -0.25, SHOULDER_Z - 0.06), (0.2, -TORSO_D / 2, NECK_Z + 0.14), skin)
-        if "collar" in extras:
-            p.box((-0.2, -0.17, SHOULDER_Z), (0.2, 0.1, NECK_Z + 0.08), skin)
-        b.finish(p, "Top__%s__Spine" % option, "Spine")
-        for side, sx in (("L", -1), ("R", 1)):
-            cx = sx * ARM_X
-            p = b.part().box((cx - a - 0.01, -a - 0.01, ELBOW_Z - 0.02), (cx + a + 0.01, a + 0.01, ARM_Z + a), skin)
-            if "armband" in extras and side == "L":
-                p.box((cx - a - 0.02, -a - 0.02, ELBOW_Z + 0.12), (cx + a + 0.02, a + 0.02, ELBOW_Z + 0.19), "armband")
-            b.finish(p, "Top__%s__Arm%s" % (option, side), "Arm" + side)
-            p = b.part().box((cx - a, -a, WRIST_Z + 0.02), (cx + a, a, ELBOW_Z + 0.02), skin)
-            b.finish(p, "Top__%s__Elbow%s" % (option, side), "Elbow" + side)
-
-
-def gloves(b, options):
-    for option, skin in options.items():
-        for side, sx in (("L", -1), ("R", 1)):
-            cx = sx * ARM_X
-            h = ARM_W / 2 + 0.005
-            p = b.part().box((cx - h, -h, WRIST_Z - 0.11), (cx + h, h, WRIST_Z + 0.04), skin)
-            b.finish(p, "Gloves__%s__Elbow%s" % (option, side), "Elbow" + side)
-
-
-def heads(b, options):
-    """options: {option: (skin, hair, extras)}. extras: 'beard', 'balaclava' (skin = knit, hair = eye band skin),
-    'skull' (painted skull mask, hair = mask skin), 'gasmask' (hair = filter canister skin)."""
-    h = HEAD / 2
-    z0, z1 = HEAD_Z, HEAD_Z + HEAD
-    f = h          # the face's plane (+y)
-
-    def at(t):     # height t (0 chin .. 1 crown) on the head
-        return z0 + t * HEAD
-
-    for option, (skin, hair, extras) in options.items():
-        p = b.part().box((-h, -h, z0), (h, h, z1), skin)
-        if "skull" in extras:
-            p.box((-h + 0.04, f, at(0.08)), (h - 0.04, f + 0.02, at(0.88)), hair)
-            for sx in (-1, 1):
-                p.box((sx * 0.13, f + 0.02, at(0.48)), (sx * 0.04, f + 0.03, at(0.68)), "eye")
-            p.box((-0.02, f + 0.02, at(0.35)), (0.02, f + 0.03, at(0.43)), "eye")
-            p.box((-0.11, f + 0.02, at(0.16)), (0.11, f + 0.03, at(0.2)), "eye")
-            b.finish(p, "Head__" + option, "Neck")
-            continue
-        if "gasmask" in extras:
-            p.box((-0.16, f, at(0.08)), (0.16, f + 0.035, at(0.78)), "rubber")
-            for sx in (-1, 1):
-                p.box((sx * 0.13, f + 0.035, at(0.5)), (sx * 0.04, f + 0.045, at(0.7)), "lens")
-            p.box((-0.055, f + 0.035, at(0.06)), (0.055, f + 0.13, at(0.3)), hair)
-            b.finish(p, "Head__" + option, "Neck")
-            continue
-        if "balaclava" in extras:
-            p.box((-0.15, f, at(0.48)), (0.15, f + 0.012, at(0.66)), hair)
-            front = f + 0.012
-        else:
-            p.box((-0.025, f, at(0.36)), (0.025, f + 0.03, at(0.5)), skin)        # nose
-            for sx in (-1, 1):
-                p.box((sx * 0.13, f, at(0.66)), (sx * 0.05, f + 0.012, at(0.7)), hair)   # brows
-            p.box((-h - 0.01, -h - 0.01, at(0.86)), (h + 0.01, h - 0.03, z1 + 0.04), hair)   # hair
-            p.box((-h - 0.01, -h - 0.02, at(0.4)), (h + 0.01, -h + 0.01, z1 + 0.04), hair)
-            if "beard" in extras:
-                p.box((-0.16, f, z0 + 0.01), (0.16, f + 0.015, at(0.3)), hair)
-            front = f
-        for sx in (-1, 1):
-            p.box((sx * 0.12, front, at(0.53)), (sx * 0.055, front + 0.012, at(0.62)), "eye")
-        b.finish(p, "Head__" + option, "Neck")
-
-
-def headset(p):
-    for sx in (-1, 1):
-        p.box((sx * (HEAD / 2), -0.06, HEAD_Z + 0.16), (sx * (HEAD / 2 + 0.06), 0.06, HEAD_Z + 0.32), "black")
-
-
-def hat_box(p, skin, grow=0.03, bottom=0.78, top=0.28):
-    """A cap-like block over the head: from `bottom` (fraction of head height) to `top` m above the crown... (y up)"""
-    h = HEAD / 2 + grow
-    p.box((-h, -h, HEAD_Z + HEAD * bottom), (h, h, HEAD_Z + HEAD + top), skin)
-    return p
-
-
-def chest_rig(p, skin):
-    """A scav-style chest rig over the top: front panel, three pouches, straps over the shoulders."""
-    d = TORSO_D / 2
-    p.box((-0.26, d, CHEST_Z + 0.08), (0.26, d + 0.05, CHEST_Z + 0.32), skin)
-    for cx in (-0.17, 0.0, 0.17):
-        p.box((cx - 0.07, d + 0.05, CHEST_Z + 0.1), (cx + 0.07, d + 0.1, CHEST_Z + 0.28), skin)
-    for sx in (-1, 1):
-        x0, x1 = sx * 0.1, sx * 0.18
-        p.box((x0, d, CHEST_Z + 0.32), (x1, d + 0.03, SHOULDER_Z + 0.01), skin)
-        p.box((x0, -d - 0.02, SHOULDER_Z - 0.02), (x1, d + 0.03, SHOULDER_Z + 0.02), skin)
-        p.box((x0, -d - 0.02, CHEST_Z + 0.08), (x1, -d, SHOULDER_Z + 0.01), skin)
-    return p
-
-
-# ---------------------------------------------------------------- the three characters
-
-def build_scav(b):
-    legs(b, {
-        "track_black": ("track_black", ()), "track_blue": ("track_blue", ()), "jeans": ("denim", ()),
-        "cargo_olive": ("cargo_olive", ("pockets",)), "woodland": ("woodland", ("pockets",)),
-    }, {"sneaker_white": "sneaker_white", "sneaker_dark": "sneaker_dark", "boot_brown": "boot_brown",
-        "boot_black": "boot_black"})
-    tops(b, {
-        "tracksuit_blue": ("track_blue", ()), "tracksuit_black": ("track_black", ()),
-        "jacket_olive": ("jacket_olive", ("collar",)), "woodland": ("woodland", ("collar",)),
-        "hoodie_grey": ("hoodie_grey", ("hood",)), "leather": ("leather", ("collar",)),
-    })
-    gloves(b, {"black": "black", "brown": "glove_brown", "olive": "glove_olive"})
-    heads(b, {
-        "balaclava_black": ("knit_black", "skin_pale", ("balaclava",)),
-        "balaclava_olive": ("knit_olive", "skin_tan", ("balaclava",)),
-        "pale": ("skin_pale", "hair_dark", ()), "tan_beard": ("skin_tan", "hair_brown", ("beard",)),
-        "dark": ("skin_dark", "hair_dark", ()), "pale_beard": ("skin_pale", "hair_brown", ("beard",)),
-    })
-    for option, skin in (("beanie_black", "knit_black"), ("beanie_olive", "knit_olive")):
-        p = hat_box(b.part(), skin, 0.02, 0.72, 0.07)
-        b.finish(p, "Hat__" + option, "Neck")
-    for option, skin in (("cap_sand", "cap_sand"), ("cap_red", "cap_red")):
-        h = HEAD / 2 + 0.015
-        p = b.part().box((-h, -h, HEAD_Z + HEAD * 0.8), (h, h - 0.02, HEAD_Z + HEAD + 0.06), skin)
-        p.box((-0.15, h - 0.02, HEAD_Z + HEAD * 0.8), (0.15, h + 0.11, HEAD_Z + HEAD * 0.8 + 0.025), skin)
-        b.finish(p, "Hat__" + option, "Neck")
-    p = hat_box(b.part(), "fur", 0.03, 0.8, 0.09)
-    for sx in (-1, 1):
-        p.box((sx * (HEAD / 2), -0.11, HEAD_Z + HEAD * 0.4), (sx * (HEAD / 2 + 0.05), 0.11, HEAD_Z + HEAD * 0.9), "fur")
-    b.finish(p, "Hat__ushanka", "Neck")
-    p = hat_box(b.part(), "helmet_old", 0.03, 0.74, 0.08)
-    p.box((-HEAD / 2 - 0.06, -HEAD / 2 - 0.06, HEAD_Z + HEAD * 0.72), (HEAD / 2 + 0.06, HEAD / 2 + 0.06,
-          HEAD_Z + HEAD * 0.8), "helmet_old")
-    b.finish(p, "Hat__helmet_old", "Neck")
-    b.empty("Hat__none", "Neck")
-    for option, skin in (("rig_sand", "canvas_sand"), ("rig_olive", "canvas_olive")):
-        b.finish(chest_rig(b.part(), skin), "Vest__" + option, "Spine")
-    b.empty("Vest__none", "Spine")
-
-
-def build_pmc(b):
-    pads = ("pads",)
-    legs(b, {
-        "green": ("shirt_green", pads), "black": ("shirt_black", pads), "tan": ("shirt_tan", pads),
-        "multicam": ("multicam", pads + ("pockets",)),
-    }, {"tan": "boot_tan", "coyote": "boot_coyote", "black": "boot_black"})
-    tops(b, {"green": ("shirt_green", ()), "black": ("shirt_black", ()), "tan": ("shirt_tan", ()),
-             "multicam": ("multicam", ())})
-    gloves(b, {"black": "black", "tan": "glove_tan", "green": "glove_olive"})
-    heads(b, {
-        "pale": ("skin_pale", "hair_dark", ()), "tan": ("skin_tan", "hair_brown", ()),
-        "dark": ("skin_dark", "hair_dark", ()), "pale_beard": ("skin_pale", "hair_brown", ("beard",)),
-        "dark_beard": ("skin_dark", "hair_dark", ("beard",)),
-    })
-    h = HEAD / 2
-    for option, skin in (("gaiter_tan", "gaiter_tan"), ("gaiter_black", "gaiter_black"), ("gaiter_green", "gaiter_green")):
-        p = b.part().box((-h - 0.012, -h - 0.012, HEAD_Z - 0.01), (h + 0.012, h + 0.03, HEAD_Z + HEAD * 0.45), skin)
-        b.finish(p, "Mask__" + option, "Neck")
-    b.empty("Mask__none", "Neck")
-    p = b.part().box((-0.16, h + 0.002, HEAD_Z + HEAD * 0.5), (0.16, h + 0.03, HEAD_Z + HEAD * 0.68), "black")
-    b.finish(p, "Eyes__glasses", "Neck")
-    b.empty("Eyes__none", "Neck")
-    for option, skin in (("helmet_tan", "helmet_tan"), ("helmet_green", "helmet_green"), ("helmet_black", "helmet_black")):
-        p = hat_box(b.part(), skin, 0.035, 0.74, 0.09)
-        p.box((-0.04, h + 0.035, HEAD_Z + HEAD * 0.86), (0.04, h + 0.065, HEAD_Z + HEAD * 1.02), "black")   # NVG mount
-        for sx in (-1, 1):
-            p.box((sx * (h + 0.035), -0.1, HEAD_Z + HEAD * 0.8), (sx * (h + 0.05), 0.1, HEAD_Z + HEAD * 0.88), "black")
-        headset(p)
-        b.finish(p, "Hat__" + option, "Neck")
-    p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.8), (h + 0.015, h - 0.02, HEAD_Z + HEAD + 0.06), "black")
-    p.box((-0.15, h - 0.02, HEAD_Z + HEAD * 0.8), (0.15, h + 0.11, HEAD_Z + HEAD * 0.8 + 0.025), "black")
-    p.box((-h - 0.03, -0.035, HEAD_Z + HEAD * 0.7), (h + 0.03, 0.035, HEAD_Z + HEAD + 0.07), "black")   # headband
-    headset(p)
-    b.finish(p, "Hat__cap_headset", "Neck")
-    d = TORSO_D / 2
-    for option, skin in (("tan", "carrier_tan"), ("green", "carrier_green"), ("black", "carrier_black")):
-        p = b.part().box((-TORSO_W / 2 + 0.03, -d - 0.04, CHEST_Z + 0.06), (TORSO_W / 2 - 0.03, d + 0.04, SHOULDER_Z - 0.04), skin)
-        for sx in (-1, 1):
-            p.box((sx * 0.1, -d - 0.04, SHOULDER_Z - 0.05), (sx * 0.2, d + 0.04, SHOULDER_Z + 0.02), skin)   # straps
-        for cx in (-0.16, 0.0, 0.16):
-            p.box((cx - 0.065, d + 0.04, CHEST_Z + 0.08), (cx + 0.065, d + 0.1, CHEST_Z + 0.25), skin)   # mag pouches
-        p.box((-0.1, d + 0.04, CHEST_Z + 0.27), (0.1, d + 0.08, CHEST_Z + 0.41), skin)                 # admin pouch
-        p.box((-0.17, -d - 0.09, CHEST_Z + 0.1), (0.17, -d - 0.04, CHEST_Z + 0.42), skin)              # back pouch
-        b.finish(p, "Vest__" + option, "Spine")
-        p = b.part().box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.06), skin)
-        b.finish(p, "Vest__%s__Hips" % option, "Hips")                                                 # battle belt
-
-
-def build_raider(b):
-    pads = ("pads",)
-    legs(b, {"black": ("raider_black", pads), "urban": ("urban", pads + ("pockets",)), "olive": ("shirt_green", pads)},
-         {"black": "boot_black", "brown": "boot_brown"})
-    band = ("armband",)
-    tops(b, {"black": ("raider_black", band + ("collar",)), "urban": ("urban", band),
-             "rust": ("rust_jacket", band + ("collar",)), "hoodie_black": ("raider_black", band + ("hood",))})
-    gloves(b, {"black": "black", "brown": "glove_brown"})
-    heads(b, {
-        "skull": ("knit_black", "skull_bone", ("skull",)), "gasmask": ("knit_black", "helmet_heavy", ("gasmask",)),
-        "balaclava_black": ("knit_black", "skin_pale", ("balaclava",)),
-        "balaclava_rust": ("knit_rust", "skin_tan", ("balaclava",)),
-    })
-    h = HEAD / 2
-    for option, skin in (("altyn", "helmet_heavy"), ("altyn_black", "helmet_heavy_black")):
-        p = hat_box(b.part(), skin, 0.04, 0.74, 0.1)
-        p.box((-h - 0.05, -h - 0.05, HEAD_Z + HEAD * 0.35), (h + 0.05, h - 0.06, HEAD_Z + HEAD * 0.78), skin)
-        p.box((-h + 0.02, h + 0.02, HEAD_Z + HEAD * 0.35), (h - 0.02, h + 0.06, HEAD_Z + HEAD * 0.78), "visor")
-        p.box((-0.15, h + 0.06, HEAD_Z + HEAD * 0.56), (0.15, h + 0.065, HEAD_Z + HEAD * 0.64), "eye")
-        b.finish(p, "Hat__" + option, "Neck")
-    p = b.part().box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD * 0.15), (h + 0.03, h - 0.03, HEAD_Z + HEAD + 0.07), "raider_black")
-    b.finish(p, "Hat__hood", "Neck")
-    p = b.part().box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.05), "armband")
-    p.box((-0.05, -h - 0.05, HEAD_Z + HEAD * 0.8), (0.05, -h - 0.02, HEAD_Z + HEAD * 0.95), "armband")
-    b.finish(p, "Hat__bandana", "Neck")
-    b.empty("Hat__none", "Neck")
-    d = TORSO_D / 2
-    for option, skin in (("heavy_black", "heavy_black"), ("heavy_olive", "heavy_olive")):
-        p = b.part().box((-TORSO_W / 2 + 0.02, -d - 0.05, CHEST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.05, SHOULDER_Z - 0.02), skin)
-        p.box((-0.24, -d - 0.04, SHOULDER_Z - 0.04), (0.24, d - 0.06, SHOULDER_Z + 0.06), skin)          # neck guard
-        for cx in (-0.17, 0.0, 0.17):
-            p.box((cx - 0.07, d + 0.05, CHEST_Z + 0.08), (cx + 0.07, d + 0.12, CHEST_Z + 0.26), skin)
-        b.finish(p, "Vest__" + option, "Spine")
-        for side, sx in (("L", -1), ("R", 1)):
-            cx = sx * ARM_X
-            a = ARM_W / 2 + 0.04
-            p = b.part().box((cx - a, -a, ARM_Z - 0.1), (cx + a, a, ARM_Z + ARM_W / 2 + 0.04), skin)    # shoulder armor
-            b.finish(p, "Vest__%s__Arm%s" % (option, side), "Arm" + side)
-        p = b.part().box((-0.14, d - 0.02, HIP_Z - 0.16), (0.14, d + 0.04, WAIST_Z), skin)               # groin flap
-        p.box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.06), skin)
-        b.finish(p, "Vest__%s__Hips" % option, "Hips")
-    b.finish(chest_rig(b.part(), "canvas_black"), "Vest__rig_black", "Spine")
-
 
 # Clean skins for the trader model (owner 2026-11-09: "clean up all the models, make them look nice and lively"):
 # twice the pixels (32 px/m), flat colours with only a faint mottle, so the shapes and the details read, not noise.
@@ -908,6 +651,454 @@ def build_trader(b):
     b.empty("Belly__none", "Spine")
 
 
+# ---------------------------------------------------------------- the raid characters, clean (owner 2026-11-09)
+# Owner 2026-11-09: the scavs, raiders (and Bon) and the players' PMC get the traders' clean look: twice the pixels,
+# flat colours with a faint mottle, and small real details (faces with eye whites and mouths, belts and buckles, boot
+# soles and laces, zips, buttons, pocket flaps, knee pads, headset cups). The bodies don't change: every part keeps the
+# same option name and fits inside the box the old part had (the details sit in shallow insets), so the hitboxes
+# measured off the model stay exactly the same (tools/check_character_bounds.py checks it, scripts/hitbox.gd's numbers
+# too through the smoke test).
+RAID_SKINS = {
+    "c_track_blue": ("3d5f86", [("38587c", 0.05)]), "c_track_blue_dk": ("2b4566", []),
+    "c_jacket_olive": ("5f6a3a", [("586235", 0.05)]), "c_jacket_olive_dk": ("454d29", []),
+    "c_hoodie": ("7b8086", [("73787e", 0.05)]), "c_hoodie_dk": ("5e6368", []),
+    "c_cargo": ("7a7f4e", [("727749", 0.05)]), "c_cargo_dk": ("5d6239", []),
+    "c_canvas_sand": ("a8976a", [("9f8f63", 0.06)]), "c_canvas_sand_dk": ("7f7150", []),
+    "c_canvas_olive": ("4c5331", [("464c2d", 0.06)]), "c_canvas_olive_dk": ("363b22", []),
+    "c_canvas_black": ("2b2c2f", [("323336", 0.06)]), "c_canvas_black_dk": ("1d1e20", []),
+    "c_sneaker_dark": ("35373b", [("3c3e42", 0.05)]), "c_cap_sand": ("b5a576", [("ab9c6e", 0.05)]),
+    "c_cap_sand_dk": ("8f8259", []), "c_cap_red": ("a8322b", [("9c2e28", 0.05)]), "c_cap_red_dk": ("7a231e", []),
+    "c_helmet_old": ("5c6339", [("555b34", 0.06), ("6e4a2c", 0.02)]), "c_helmet_old_dk": ("41462a", []),
+    "c_shirt_green": ("4b5534", [("464f30", 0.05)]), "c_shirt_green_dk": ("363d25", []),
+    "c_shirt_black": ("2e3034", [("34363a", 0.05)]), "c_shirt_black_dk": ("1f2124", []),
+    "c_shirt_tan": ("a99a72", [("a0926b", 0.05)]), "c_shirt_tan_dk": ("857858", []),
+    "c_carrier_tan": ("ad9d71", [("a4956b", 0.05)]), "c_carrier_tan_dk": ("857857", []),
+    "c_carrier_green": ("56603a", [("4f5935", 0.05)]), "c_carrier_green_dk": ("3c4428", []),
+    "c_carrier_black": ("2c2e32", [("33353a", 0.05)]), "c_carrier_black_dk": ("1c1d20", []),
+    "c_helmet_tan": ("b09f73", [("a6966c", 0.05)]), "c_helmet_green": ("56603a", [("4f5935", 0.05)]),
+    "c_helmet_black": ("303236", [("383a3e", 0.05)]), "c_boot_tan": ("b29e72", [("a8956b", 0.05)]),
+    "c_boot_coyote": ("8a6a46", [("806240", 0.05)]), "c_glove_tan": ("b09f73", [("a6966c", 0.04)]),
+    "c_glove_olive": ("4c5331", [("464c2d", 0.04)]),
+    "c_raider": ("2b2c30", [("323338", 0.05)]), "c_raider_dk": ("1c1d20", []),
+    "c_rust": ("7d3a22", [("75361f", 0.05)]), "c_rust_dk": ("5a2918", []),
+    "c_armband": ("b03a2e", [("a5362b", 0.04)]), "c_bone": ("e3dccb", [("d8d0bd", 0.05)]),
+    "c_rubber": ("27282c", [("2e2f33", 0.05)]), "c_visor": ("8b9197", [("82888e", 0.06)]),
+    "c_lens_blue": ("4a7090", [("6a90b0", 0.08)]), "c_heavy_olive": ("444a2c", [("3e4428", 0.05)]),
+    "c_heavy_olive_dk": ("2f3320", []), "c_heavy_black": ("2f3134", [("36383c", 0.05)]),
+    "c_altyn": ("4e5434", [("484e30", 0.05), ("6a4a2e", 0.02)]), "c_altyn_black": ("2f3134", [("36383c", 0.05)]),
+}
+for _name, (_base, _noise) in RAID_SKINS.items():
+    PALETTE[_name] = _base
+    for _i, (_c, _ch) in enumerate(_noise):
+        PALETTE["%s_n%d" % (_name, _i)] = _c
+    SKINS[_name] = {"base": _name, "noise": [("%s_n%d" % (_name, _i), _ch) for _i, (_c, _ch) in enumerate(_noise)]}
+PALETTE.update({"c_mc_a": "7f6e4a", "c_mc_b": "5f6a3e", "c_mc_c": "c4b68c", "c_urban_a": "3a3d42", "c_urban_b": "9a9ea2",
+                "c_urban_c": "25272b", "c_wl_a": "3f4a2c", "c_wl_b": "6e5a3a", "c_wl_c": "26261f"})
+SKINS["c_multicam"] = {"base": "c_shirt_tan", "noise": [], "pattern": "camo", "blobs": ["c_mc_a", "c_mc_b", "c_mc_c"]}
+SKINS["c_urban"] = {"base": "c_hoodie_dk", "noise": [], "pattern": "camo", "blobs": ["c_urban_a", "c_urban_b", "c_urban_c"]}
+SKINS["c_woodland"] = {"base": "c_jacket_olive", "noise": [], "pattern": "camo", "blobs": ["c_wl_a", "c_wl_b", "c_wl_c"]}
+# Knits: a faint row texture only (the old knit pattern is too busy at 32 px).
+for _name, _base, _dark in (("c_knit_black", "t_black", "t_black_dk"), ("c_knit_olive", "c_canvas_olive", "c_canvas_olive_dk"),
+                            ("c_knit_rust", "c_rust", "c_rust_dk"), ("c_knit_tan", "c_canvas_sand", "c_canvas_sand_dk"),
+                            ("c_knit_green", "c_shirt_green", "c_shirt_green_dk")):
+    SKINS[_name] = {"base": _base, "noise": [(_dark, 0.07)]}
+
+
+def c_legs(b, pants, boots):
+    """pants: {option: (skin, dark, extras)}: 'belt' (belt and buckle), 'cord' (a drawstring), 'pockets' (cargo),
+    'pads' (knee pads), 'stripe' (down the side), 'cuff' (turned-up hems). boots: {option: (upper, sole, lace)}."""
+    w = LEG_W / 2
+    sx0, sy0, sz0, sz1 = TORSO_W / 2 - 0.03, TORSO_D / 2 - 0.02, HIP_Z - 0.06, WAIST_Z + 0.02
+    for option, (skin, dark, extras) in pants.items():
+        p = b.part()
+        if "belt" in extras:
+            p.box((-sx0 + 0.005, -sy0 + 0.005, sz0), (sx0 - 0.005, sy0 - 0.015, sz1 - 0.05), skin)
+            p.box((-sx0, -sy0, sz1 - 0.05), (sx0, sy0 - 0.01, sz1), "t_leather_dk")
+            p.box((-0.045, sy0 - 0.01, sz1 - 0.045), (0.045, sy0, sz1 - 0.005), "t_brass")
+        else:
+            p.box((-sx0, -sy0, sz0), (sx0, sy0 - 0.01, sz1), skin)
+            if "cord" in extras:
+                for x in (-0.04, 0.03):
+                    p.box((x, sy0 - 0.01, sz1 - 0.075), (x + 0.012, sy0, sz1 - 0.01), "t_white")
+        b.finish(p, "Pants__%s__Hips" % option, "Hips")
+        for side, sx in (("L", -1), ("R", 1)):
+            cx = sx * LEG_X
+            out = cx + sx * w
+            p = b.part()
+            if "stripe" in extras:
+                p.box((cx - sx * w, -w, KNEE_Z - 0.02), (out - sx * 0.006, w, HIP_Z + 0.02), skin)
+                p.box((out - sx * 0.006, -0.025, KNEE_Z - 0.02), (out, 0.025, HIP_Z + 0.02), "t_white")
+            else:
+                p.box((cx - w, -w, KNEE_Z - 0.02), (cx + w, w, HIP_Z + 0.02), skin)
+            if "pockets" in extras:                                    # cargo pocket on the outside, with its flap
+                p.box((out, -0.065, KNEE_Z + 0.12), (out + sx * 0.024, 0.065, KNEE_Z + 0.22), skin)
+                p.box((out, -0.07, KNEE_Z + 0.22), (out + sx * 0.03, 0.07, KNEE_Z + 0.26), dark)
+            b.finish(p, "Pants__%s__Leg%s" % (option, side), "Leg" + side)
+            p = b.part()
+            lo = 0.12
+            if "cuff" in extras:
+                p.box((cx - w + 0.01, -w + 0.01, 0.12), (cx + w - 0.01, w - 0.01, 0.17), dark)
+                lo = 0.17
+            if "stripe" in extras:
+                p.box((cx - sx * (w - 0.01), -w + 0.01, lo), (out - sx * 0.016, w - 0.01, KNEE_Z + 0.02), skin)
+                p.box((out - sx * 0.016, -0.025, lo), (out - sx * 0.01, 0.025, KNEE_Z + 0.02), "t_white")
+            else:
+                p.box((cx - w + 0.01, -w + 0.01, lo), (cx + w - 0.01, w - 0.01, KNEE_Z + 0.02), skin)
+            if "pads" in extras:                                       # knee pad: a padded shell on a strap
+                p.box((cx - w + 0.03, w - 0.01, KNEE_Z - 0.1), (cx + w - 0.03, w + 0.022, KNEE_Z + 0.04), "t_black_dk")
+                p.box((cx - w + 0.045, w + 0.022, KNEE_Z - 0.085), (cx + w - 0.045, w + 0.035, KNEE_Z + 0.025), "t_black")
+            b.finish(p, "Pants__%s__Knee%s" % (option, side), "Knee" + side)
+    for option, (upper, sole, lace) in boots.items():
+        for side, sx in (("L", -1), ("R", 1)):
+            cx = sx * LEG_X
+            p = b.part().box((cx - w - 0.01, -w - 0.01, 0.0), (cx + w + 0.01, w + 0.07, 0.03), sole)      # sole
+            p.box((cx - w - 0.005, -w - 0.005, 0.03), (cx + w + 0.005, w + 0.06, 0.12), upper)
+            p.box((cx - w - 0.01, -w - 0.01, 0.12), (cx + w + 0.01, w + 0.01, 0.14), upper)            # the top
+            p.box((cx - w - 0.005, w + 0.06, 0.03), (cx + w + 0.005, w + 0.07, 0.07), upper)           # toe
+            p.box((cx - 0.045, w + 0.06, 0.075), (cx + 0.045, w + 0.068, 0.135), lace)                 # laces
+            b.finish(p, "Boots__%s__Knee%s" % (option, side), "Knee" + side)
+
+
+def c_tops(b, options):
+    """options: {option: (skin, dark, extras)}: 'hood' (+ drawstrings, a front pocket), 'collar', 'zip', 'buttons',
+    'pockets' (chest), 'stripe' (down the arms), 'armband' (the raiders' red band, left arm), 'patch' (a sleeve
+    patch), 'cuffs'. The chest sits 1 cm in at the front, so zips, buttons and pockets stay inside the old block."""
+    a = ARM_W / 2
+    d = TORSO_D / 2
+    for option, (skin, dark, extras) in options.items():
+        p = b.part().box((-TORSO_W / 2, -d, WAIST_Z), (TORSO_W / 2, d - 0.01, SHOULDER_Z), skin)
+        p.box((-TORSO_W / 2, -d, WAIST_Z - 0.04), (TORSO_W / 2, d, WAIST_Z), dark)                     # hem
+        p.box((-0.15, -0.13, SHOULDER_Z), (0.15, 0.11, NECK_Z + 0.04), skin)                           # neck
+        if "hood" in extras:
+            p.box((-0.2, -0.25, SHOULDER_Z - 0.06), (0.2, -d, NECK_Z + 0.14), skin)
+            p.box((-0.17, -0.25, NECK_Z + 0.06), (0.17, -0.24, NECK_Z + 0.12), dark)                    # its fold
+            for x in (-0.07, 0.055):
+                p.box((x, d - 0.01, SHOULDER_Z - 0.22), (x + 0.015, d, SHOULDER_Z), "t_white")         # drawstrings
+            p.box((-0.2, d - 0.01, WAIST_Z + 0.02), (0.2, d, WAIST_Z + 0.22), dark)                    # front pocket
+        if "collar" in extras:
+            p.box((-0.2, -0.17, SHOULDER_Z), (0.2, 0.05, NECK_Z + 0.08), dark)
+            for sx in (-1, 1):
+                p.box((sx * 0.06, 0.05, SHOULDER_Z), (sx * 0.2, 0.1, NECK_Z + 0.06), dark)
+        if "zip" in extras:
+            p.box((-0.012, d - 0.01, WAIST_Z), (0.012, d, SHOULDER_Z), "t_steel")
+        if "buttons" in extras:
+            p.box((-0.025, d - 0.01, WAIST_Z), (0.025, d - 0.003, SHOULDER_Z), dark)
+            for k in range(4):
+                z = WAIST_Z + 0.1 + k * 0.17
+                p.box((-0.014, d - 0.003, z), (0.014, d, z + 0.028), "t_black_dk")
+        if "pockets" in extras:
+            for sx in (-1, 1):
+                p.box((sx * 0.08, d - 0.01, CHEST_Z + 0.24), (sx * 0.27, d - 0.004, CHEST_Z + 0.42), skin)
+                p.box((sx * 0.08, d - 0.01, CHEST_Z + 0.42), (sx * 0.27, d, CHEST_Z + 0.47), dark)
+        b.finish(p, "Top__%s__Spine" % option, "Spine")
+        for side, sx in (("L", -1), ("R", 1)):
+            cx = sx * ARM_X
+            out = cx + sx * (a + 0.01)
+            p = b.part().box((cx - a - 0.01, -a - 0.01, ELBOW_Z - 0.02), (cx + a + 0.01, a + 0.01, ARM_Z + a), skin)
+            if "armband" in extras and side == "L":
+                p.box((cx - a - 0.02, -a - 0.02, ELBOW_Z + 0.12), (cx + a + 0.02, a + 0.02, ELBOW_Z + 0.19), "c_armband")
+            if "stripe" in extras:
+                p.box((out, -0.03, ELBOW_Z - 0.02), (out + sx * 0.008, 0.03, ARM_Z + a), "t_white")
+            if "patch" in extras:
+                p.box((out, -0.06, ELBOW_Z + 0.1), (out + sx * 0.012, 0.06, ELBOW_Z + 0.22), dark)
+            b.finish(p, "Top__%s__Arm%s" % (option, side), "Arm" + side)
+            p = b.part().box((cx - a, -a, WRIST_Z + 0.02), (cx + a, a, ELBOW_Z + 0.02), skin)
+            if "stripe" in extras:
+                p.box((cx + sx * a, -0.03, WRIST_Z + 0.02), (cx + sx * (a + 0.008), 0.03, ELBOW_Z + 0.02), "t_white")
+            if "cuffs" in extras or "stripe" in extras:
+                p.box((cx - a - 0.008, -a - 0.008, WRIST_Z + 0.02), (cx + a + 0.008, a + 0.008, WRIST_Z + 0.07), dark)
+            b.finish(p, "Top__%s__Elbow%s" % (option, side), "Elbow" + side)
+
+
+def c_gloves(b, options):
+    """options: {option: (skin, dark)}: a hand with a thumb, a cuff and a knuckle pad on the back."""
+    for option, (skin, dark) in options.items():
+        for side, sx in (("L", -1), ("R", 1)):
+            cx = sx * ARM_X
+            h = ARM_W / 2 + 0.005
+            p = b.part().box((cx - h + 0.005, -h + 0.005, WRIST_Z - 0.11), (cx + h - 0.005, h - 0.005, WRIST_Z), skin)
+            p.box((cx - h, -h, WRIST_Z), (cx + h, h, WRIST_Z + 0.04), dark)                              # cuff
+            p.box((cx + sx * (h - 0.005), -0.06, WRIST_Z - 0.1), (cx + sx * (h + 0.005), 0.06, WRIST_Z - 0.04), dark)
+            p.box((cx - 0.04, h - 0.005, WRIST_Z - 0.07), (cx + 0.04, h + 0.02, WRIST_Z - 0.01), skin)  # thumb
+            b.finish(p, "Gloves__%s__Elbow%s" % (option, side), "Elbow" + side)
+
+
+def c_eyes(p, front, lid=None):
+    """Eye whites and pupils on a face whose front is at y = `front` (a brow or eye band above in `lid`)."""
+    for sx in (-1, 1):
+        p.box((sx * 0.05, front, HEAD_Z + HEAD * 0.52), (sx * 0.13, front + 0.005, HEAD_Z + HEAD * 0.62), "t_eye_white")
+        p.box((sx * 0.06, front + 0.005, HEAD_Z + HEAD * 0.52), (sx * 0.1, front + 0.01, HEAD_Z + HEAD * 0.61), "t_pupil")
+        if lid:
+            p.box((sx * 0.045, front, HEAD_Z + HEAD * 0.65), (sx * 0.14, front + 0.012, HEAD_Z + HEAD * 0.69), lid)
+
+
+def c_heads(b, options):
+    """options: {option: (kind, skin, hair)}. kinds: 'face', 'beard', 'balaclava' (skin = knit, hair = the eyes' skin
+    tone), 'skull' (hair = mask), 'gasmask' (hair = filter). Each fits inside the old head block."""
+    h = HEAD / 2
+    z0, z1 = HEAD_Z, HEAD_Z + HEAD
+    f = h
+
+    def at(t):
+        return z0 + t * HEAD
+
+    for option, (kind, skin, hair) in options.items():
+        p = b.part().box((-h, -h, z0), (h, h, z1), skin)
+        if kind == "skull":                                            # a painted skull on a black knit hood
+            p.box((-h + 0.04, f, at(0.08)), (h - 0.04, f + 0.018, at(0.88)), hair)
+            for sx in (-1, 1):
+                p.box((sx * 0.13, f + 0.018, at(0.46)), (sx * 0.035, f + 0.028, at(0.68)), "t_black_dk")
+                p.box((sx * 0.1, f + 0.028, at(0.54)), (sx * 0.07, f + 0.03, at(0.6)), "c_armband")   # red glints
+            p.box((-0.022, f + 0.018, at(0.34)), (0.022, f + 0.028, at(0.43)), "t_black_dk")
+            p.box((-0.12, f + 0.018, at(0.17)), (0.12, f + 0.028, at(0.21)), "t_black_dk")
+            for k in range(-2, 3):                                     # teeth
+                p.box((k * 0.045 - 0.006, f + 0.018, at(0.12)), (k * 0.045 + 0.006, f + 0.028, at(0.26)), "t_black_dk")
+        elif kind == "gasmask":
+            p.box((-0.16, f, at(0.08)), (0.16, f + 0.03, at(0.78)), "c_rubber")
+            p.box((-0.16, f, at(0.08)), (0.16, f + 0.035, at(0.13)), "t_black_dk")
+            for sx in (-1, 1):
+                p.box((sx * 0.14, f + 0.03, at(0.48)), (sx * 0.035, f + 0.035, at(0.72)), "t_black_dk")   # lens rims
+                p.box((sx * 0.125, f + 0.035, at(0.5)), (sx * 0.05, f + 0.045, at(0.7)), "c_lens_blue")
+            p.box((-0.055, f + 0.035, at(0.06)), (0.055, f + 0.11, at(0.3)), hair)                    # the filter
+            p.box((-0.06, f + 0.11, at(0.055)), (0.06, f + 0.13, at(0.305)), "t_black_dk")
+            for sx in (-1, 1):                                         # straps round the head
+                p.box((sx * h, -0.04, at(0.55)), (sx * (h + 0.0), 0.04, at(0.62)), "c_rubber")
+        elif kind == "balaclava":                                      # knit, with the eyes showing
+            p.box((-0.15, f, at(0.48)), (0.15, f + 0.012, at(0.7)), hair)
+            c_eyes(p, f + 0.012)
+            p.box((-0.15, f + 0.012, at(0.68)), (0.15, f + 0.024, at(0.7)), skin)                      # its edge
+        else:
+            p.box((-0.025, f, at(0.36)), (0.025, f + 0.03, at(0.5)), skin)                               # nose
+            c_eyes(p, f, hair)
+            for sx in (-1, 1):
+                p.box((sx * h, -0.05, at(0.38)), (sx * (h + 0.01), 0.05, at(0.6)), skin)               # ears
+            p.box((-h - 0.01, -h - 0.01, at(0.86)), (h + 0.01, h - 0.03, z1 + 0.04), hair)              # hair
+            p.box((-h - 0.01, -h - 0.02, at(0.4)), (h + 0.01, -h + 0.04, z1 + 0.04), hair)
+            for sx in (-1, 1):
+                p.box((sx * h, -h + 0.04, at(0.62)), (sx * (h + 0.01), 0.04, at(0.86)), hair)          # sides
+            p.box((-h - 0.01, h - 0.03, at(0.85)), (0.06, f + 0.015, at(0.95)), hair)                    # fringe
+            lip = "t_lip_dark" if skin == "t_skin_dark" else "t_lip"
+            if kind == "beard":
+                p.box((-0.17, f, z0), (0.17, f + 0.015, at(0.3)), hair)
+                for sx in (-1, 1):
+                    p.box((sx * 0.17, f - 0.02, z0), (sx * h, f + 0.015, at(0.46)), hair)
+                p.box((-0.11, f + 0.015, at(0.26)), (0.11, f + 0.026, at(0.32)), hair)                  # moustache
+                p.box((-0.06, f + 0.015, at(0.18)), (0.06, f + 0.024, at(0.22)), lip)
+            else:
+                p.box((-0.07, f, at(0.21)), (0.07, f + 0.008, at(0.245)), lip)                         # mouth
+        b.finish(p, "Head__" + option, "Neck")
+
+
+def c_headset(p):
+    for sx in (-1, 1):
+        p.box((sx * (HEAD / 2), -0.06, HEAD_Z + 0.16), (sx * (HEAD / 2 + 0.06), 0.06, HEAD_Z + 0.32), "t_black")
+        p.box((sx * (HEAD / 2 + 0.05), -0.035, HEAD_Z + 0.185), (sx * (HEAD / 2 + 0.06), 0.035, HEAD_Z + 0.295), "t_black_dk")
+
+
+def c_cap(b, name, skin, dark, h, headset=False, peak=0.0):
+    """A peaked cap; with a headset under it (the PMC's), a band over the top too. `peak`: the crown's front and the
+    peak this much farther out (the scavs' caps always were)."""
+    p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.8), (h + 0.015, h - 0.02 + peak, HEAD_Z + HEAD + 0.045), skin)
+    p.box((-0.03, -0.03, HEAD_Z + HEAD + 0.045), (0.03, 0.03, HEAD_Z + HEAD + 0.06), dark)                # button
+    p.box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.8), (h + 0.015, h - 0.02 + peak, HEAD_Z + HEAD * 0.85), dark)  # band
+    p.box((-0.15, h - 0.02 + peak, HEAD_Z + HEAD * 0.8), (0.15, h + 0.11 + peak, HEAD_Z + HEAD * 0.8 + 0.025), dark)  # peak
+    if headset:
+        p.box((-h - 0.03, -0.035, HEAD_Z + HEAD * 0.7), (h + 0.03, 0.035, HEAD_Z + HEAD + 0.07), "t_black")
+        c_headset(p)
+    b.finish(p, "Hat__" + name, "Neck")
+
+
+def c_rig(b, name, skin, dark):
+    """The scavs' (and raiders') chest rig: a front panel, three pouches with flaps and buckles, straps."""
+    d = TORSO_D / 2
+    p = b.part().box((-0.26, d, CHEST_Z + 0.08), (0.26, d + 0.045, CHEST_Z + 0.32), skin)
+    p.box((-0.26, d + 0.045, CHEST_Z + 0.08), (0.26, d + 0.05, CHEST_Z + 0.1), dark)                       # webbing
+    for cx in (-0.17, 0.0, 0.17):
+        p.box((cx - 0.065, d + 0.05, CHEST_Z + 0.1), (cx + 0.065, d + 0.095, CHEST_Z + 0.23), skin)
+        p.box((cx - 0.07, d + 0.05, CHEST_Z + 0.23), (cx + 0.07, d + 0.1, CHEST_Z + 0.28), dark)            # flap
+        p.box((cx - 0.015, d + 0.095, CHEST_Z + 0.2), (cx + 0.015, d + 0.1, CHEST_Z + 0.24), "t_black_dk")  # buckle
+    for sx in (-1, 1):
+        x0, x1 = sx * 0.1, sx * 0.18
+        p.box((x0, d, CHEST_Z + 0.32), (x1, d + 0.03, SHOULDER_Z + 0.01), dark)
+        p.box((x0, -d - 0.02, SHOULDER_Z - 0.02), (x1, d + 0.03, SHOULDER_Z + 0.02), dark)
+        p.box((x0, -d - 0.02, CHEST_Z + 0.08), (x1, -d, SHOULDER_Z + 0.01), dark)
+    b.finish(p, "Vest__" + name, "Spine")
+
+
+def build_scav(b):
+    cargo = ("belt", "pockets")
+    c_legs(b, {
+        "track_black": ("t_track", "t_black_dk", ("cord", "stripe")),
+        "track_blue": ("c_track_blue", "c_track_blue_dk", ("cord", "stripe")),
+        "jeans": ("t_denim", "t_denim_dk", ("belt", "cuff")), "cargo_olive": ("c_cargo", "c_cargo_dk", cargo),
+        "woodland": ("c_woodland", "c_jacket_olive_dk", cargo),
+    }, {"sneaker_white": ("t_sneaker", "c_sneaker_dark", "t_white_dk"),
+        "sneaker_dark": ("c_sneaker_dark", "t_sneaker", "t_white"),
+        "boot_brown": ("t_boot_brown", "t_sole", "t_leather_dk"), "boot_black": ("t_boot_black", "t_sole", "t_black_dk")})
+    c_tops(b, {
+        "tracksuit_blue": ("c_track_blue", "c_track_blue_dk", ("zip", "stripe")),
+        "tracksuit_black": ("t_track", "t_black_dk", ("zip", "stripe")),
+        "jacket_olive": ("c_jacket_olive", "c_jacket_olive_dk", ("collar", "buttons", "pockets", "cuffs")),
+        "woodland": ("c_woodland", "c_jacket_olive_dk", ("collar", "buttons", "pockets", "cuffs")),
+        "hoodie_grey": ("c_hoodie", "c_hoodie_dk", ("hood", "cuffs")),
+        "leather": ("t_leather", "t_leather_dk", ("collar", "zip", "cuffs")),
+    })
+    c_gloves(b, {"black": ("t_black", "t_black_dk"), "brown": ("t_leather", "t_leather_dk"),
+                 "olive": ("c_glove_olive", "c_canvas_olive_dk")})
+    c_heads(b, {
+        "balaclava_black": ("balaclava", "c_knit_black", "t_skin_pale"),
+        "balaclava_olive": ("balaclava", "c_knit_olive", "t_skin_tan"),
+        "pale": ("face", "t_skin_pale", "t_hair_dark"), "tan_beard": ("beard", "t_skin_tan", "t_hair_brown"),
+        "dark": ("face", "t_skin_dark", "t_hair_black"), "pale_beard": ("beard", "t_skin_pale", "t_hair_brown"),
+    })
+    h = HEAD / 2
+    for option, skin, dark in (("beanie_black", "c_knit_black", "t_black_dk"), ("beanie_olive", "c_knit_olive", "c_canvas_olive_dk")):
+        p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.8), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.05), skin)
+        p.box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.72), (h + 0.02, h + 0.02, HEAD_Z + HEAD * 0.82), skin)   # turn-up
+        p.box((-0.07, -0.07, HEAD_Z + HEAD + 0.05), (0.07, 0.07, HEAD_Z + HEAD + 0.07), dark)
+        b.finish(p, "Hat__" + option, "Neck")
+    c_cap(b, "cap_sand", "c_cap_sand", "c_cap_sand_dk", h, peak=0.015)
+    c_cap(b, "cap_red", "c_cap_red", "c_cap_red_dk", h, peak=0.015)
+    p = b.part().box((-h - 0.025, -h - 0.025, HEAD_Z + HEAD * 0.84), (h + 0.025, h + 0.025, HEAD_Z + HEAD + 0.07), "t_fur")
+    p.box((-h + 0.01, -h + 0.01, HEAD_Z + HEAD + 0.07), (h - 0.01, h - 0.01, HEAD_Z + HEAD + 0.09), "t_leather_dk")
+    p.box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.8), (h + 0.03, h + 0.025, HEAD_Z + HEAD * 0.94), "t_fur")   # brim
+    p.box((-0.025, h + 0.025, HEAD_Z + HEAD * 0.85), (0.025, h + 0.03, HEAD_Z + HEAD * 0.91), "t_brass")      # badge
+    for sx in (-1, 1):
+        p.box((sx * h, -0.11, HEAD_Z + HEAD * 0.4), (sx * (h + 0.05), 0.11, HEAD_Z + HEAD * 0.9), "t_fur")
+        p.box((sx * (h + 0.05), -0.01, HEAD_Z + HEAD * 0.4), (sx * (h + 0.05), 0.01, HEAD_Z + HEAD * 0.48), "t_leather_dk")
+    b.finish(p, "Hat__ushanka", "Neck")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.78), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.05), "c_helmet_old")
+    p.box((-h + 0.0, -h + 0.0, HEAD_Z + HEAD + 0.05), (h, h, HEAD_Z + HEAD + 0.08), "c_helmet_old")         # the dome
+    p.box((-h - 0.06, -h - 0.06, HEAD_Z + HEAD * 0.72), (h + 0.06, h + 0.06, HEAD_Z + HEAD * 0.78), "c_helmet_old_dk")
+    p.box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.78), (h + 0.03, h + 0.03, HEAD_Z + HEAD * 0.8), "t_leather_dk")
+    b.finish(p, "Hat__helmet_old", "Neck")
+    b.empty("Hat__none", "Neck")
+    c_rig(b, "rig_sand", "c_canvas_sand", "c_canvas_sand_dk")
+    c_rig(b, "rig_olive", "c_canvas_olive", "c_canvas_olive_dk")
+    b.empty("Vest__none", "Spine")
+
+
+def build_pmc(b):
+    pads = ("belt", "pads")
+    c_legs(b, {
+        "green": ("c_shirt_green", "c_shirt_green_dk", pads), "black": ("c_shirt_black", "c_shirt_black_dk", pads),
+        "tan": ("c_shirt_tan", "c_shirt_tan_dk", pads), "multicam": ("c_multicam", "c_shirt_tan_dk", pads + ("pockets",)),
+    }, {"tan": ("c_boot_tan", "t_sole", "t_tan_dk"), "coyote": ("c_boot_coyote", "t_sole", "t_leather_dk"),
+        "black": ("t_boot_black", "t_sole", "t_black_dk")})
+    shirt = ("zip", "patch", "cuffs")
+    c_tops(b, {"green": ("c_shirt_green", "c_shirt_green_dk", shirt), "black": ("c_shirt_black", "c_shirt_black_dk", shirt),
+               "tan": ("c_shirt_tan", "c_shirt_tan_dk", shirt), "multicam": ("c_multicam", "c_shirt_tan_dk", shirt)})
+    c_gloves(b, {"black": ("t_black", "t_black_dk"), "tan": ("c_glove_tan", "t_tan_dk"),
+                 "green": ("c_glove_olive", "c_canvas_olive_dk")})
+    c_heads(b, {
+        "pale": ("face", "t_skin_pale", "t_hair_dark"), "tan": ("face", "t_skin_tan", "t_hair_brown"),
+        "dark": ("face", "t_skin_dark", "t_hair_black"), "pale_beard": ("beard", "t_skin_pale", "t_hair_brown"),
+        "dark_beard": ("beard", "t_skin_dark", "t_hair_black"),
+    })
+    h = HEAD / 2
+    for option, skin, dark in (("gaiter_tan", "c_knit_tan", "c_canvas_sand_dk"), ("gaiter_black", "c_knit_black", "t_black_dk"),
+                               ("gaiter_green", "c_knit_green", "c_shirt_green_dk")):
+        p = b.part().box((-h - 0.012, -h - 0.012, HEAD_Z - 0.01), (h + 0.012, h + 0.025, HEAD_Z + HEAD * 0.4), skin)
+        p.box((-h - 0.012, -h - 0.012, HEAD_Z + HEAD * 0.4), (h + 0.012, h + 0.03, HEAD_Z + HEAD * 0.45), dark)   # fold
+        b.finish(p, "Mask__" + option, "Neck")
+    b.empty("Mask__none", "Neck")
+    p = b.part().box((-0.16, h + 0.002, HEAD_Z + HEAD * 0.64), (0.16, h + 0.03, HEAD_Z + HEAD * 0.68), "t_black")
+    for sx in (-1, 1):
+        p.box((sx * 0.16, h + 0.002, HEAD_Z + HEAD * 0.5), (sx * 0.145, h + 0.03, HEAD_Z + HEAD * 0.64), "t_black")
+        p.box((sx * 0.145, h + 0.012, HEAD_Z + HEAD * 0.5), (sx * 0.02, h + 0.024, HEAD_Z + HEAD * 0.64), "t_shades")
+    p.box((-0.02, h + 0.002, HEAD_Z + HEAD * 0.56), (0.02, h + 0.03, HEAD_Z + HEAD * 0.64), "t_black")
+    b.finish(p, "Eyes__glasses", "Neck")
+    b.empty("Eyes__none", "Neck")
+    for option, skin in (("helmet_tan", "c_helmet_tan"), ("helmet_green", "c_helmet_green"), ("helmet_black", "c_helmet_black")):
+        p = b.part().box((-h - 0.035, -h - 0.035, HEAD_Z + HEAD * 0.8), (h + 0.035, h + 0.035, HEAD_Z + HEAD + 0.06), skin)
+        p.box((-h - 0.005, -h - 0.005, HEAD_Z + HEAD + 0.06), (h + 0.005, h + 0.005, HEAD_Z + HEAD + 0.09), skin)  # dome
+        p.box((-h - 0.035, -h - 0.035, HEAD_Z + HEAD * 0.74), (h + 0.035, h + 0.035, HEAD_Z + HEAD * 0.8), "t_black")  # edge
+        p.box((-0.04, h + 0.035, HEAD_Z + HEAD * 0.86), (0.04, h + 0.065, HEAD_Z + HEAD * 1.02), "t_black")   # NVG mount
+        p.box((-0.025, h + 0.06, HEAD_Z + HEAD * 0.9), (0.025, h + 0.065, HEAD_Z + HEAD * 0.98), "t_steel_dk")
+        for sx in (-1, 1):
+            p.box((sx * (h + 0.035), -0.1, HEAD_Z + HEAD * 0.8), (sx * (h + 0.05), 0.1, HEAD_Z + HEAD * 0.88), "t_black")
+        c_headset(p)
+        b.finish(p, "Hat__" + option, "Neck")
+    c_cap(b, "cap_headset", "t_black", "t_black_dk", h, headset=True)
+    d = TORSO_D / 2
+    for option, skin, dark in (("tan", "c_carrier_tan", "c_carrier_tan_dk"), ("green", "c_carrier_green", "c_carrier_green_dk"),
+                               ("black", "c_carrier_black", "c_carrier_black_dk")):
+        p = b.part().box((-TORSO_W / 2 + 0.03, -d - 0.04, CHEST_Z + 0.06), (TORSO_W / 2 - 0.03, d + 0.035, SHOULDER_Z - 0.04), skin)
+        for z in (CHEST_Z + 0.07, CHEST_Z + 0.27):                                                      # webbing rows
+            p.box((-TORSO_W / 2 + 0.04, d + 0.035, z), (TORSO_W / 2 - 0.04, d + 0.04, z + 0.015), dark)
+        for sx in (-1, 1):
+            p.box((sx * 0.1, -d - 0.04, SHOULDER_Z - 0.05), (sx * 0.2, d + 0.04, SHOULDER_Z + 0.02), dark)   # straps
+        for cx in (-0.16, 0.0, 0.16):                                                                   # mag pouches
+            p.box((cx - 0.06, d + 0.035, CHEST_Z + 0.08), (cx + 0.06, d + 0.095, CHEST_Z + 0.21), skin)
+            p.box((cx - 0.065, d + 0.035, CHEST_Z + 0.21), (cx + 0.065, d + 0.1, CHEST_Z + 0.25), dark)
+        p.box((-0.1, d + 0.035, CHEST_Z + 0.27), (0.1, d + 0.075, CHEST_Z + 0.41), skin)                 # admin pouch
+        p.box((-0.06, d + 0.075, CHEST_Z + 0.31), (0.06, d + 0.08, CHEST_Z + 0.39), dark)                 # its patch
+        p.box((-0.17, -d - 0.085, CHEST_Z + 0.1), (0.17, -d - 0.04, CHEST_Z + 0.37), skin)                # back pouch
+        p.box((-0.17, -d - 0.09, CHEST_Z + 0.37), (0.17, -d - 0.04, CHEST_Z + 0.42), dark)
+        b.finish(p, "Vest__" + option, "Spine")
+        p = b.part().box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.005, WAIST_Z + 0.06), dark)
+        p.box((-0.05, d + 0.005, HIP_Z + 0.03), (0.05, d + 0.01, WAIST_Z + 0.05), "t_black_dk")           # buckle
+        b.finish(p, "Vest__%s__Hips" % option, "Hips")                                                     # battle belt
+
+
+def build_raider(b):
+    pads = ("belt", "pads")
+    c_legs(b, {"black": ("c_raider", "c_raider_dk", pads), "urban": ("c_urban", "c_raider_dk", pads + ("pockets",)),
+               "olive": ("c_shirt_green", "c_shirt_green_dk", pads)},
+           {"black": ("t_boot_black", "t_sole", "t_black_dk"), "brown": ("t_boot_brown", "t_sole", "t_leather_dk")})
+    c_tops(b, {"black": ("c_raider", "c_raider_dk", ("armband", "collar", "zip", "cuffs")),
+               "urban": ("c_urban", "c_raider_dk", ("armband", "zip", "cuffs")),
+               "rust": ("c_rust", "c_rust_dk", ("armband", "collar", "buttons", "pockets", "cuffs")),
+               "hoodie_black": ("c_raider", "c_raider_dk", ("armband", "hood", "cuffs"))})
+    c_gloves(b, {"black": ("t_black", "t_black_dk"), "brown": ("t_leather", "t_leather_dk")})
+    c_heads(b, {
+        "skull": ("skull", "c_knit_black", "c_bone"), "gasmask": ("gasmask", "c_knit_black", "c_heavy_olive"),
+        "balaclava_black": ("balaclava", "c_knit_black", "t_skin_pale"),
+        "balaclava_rust": ("balaclava", "c_knit_rust", "t_skin_tan"),
+    })
+    h = HEAD / 2
+    for option, skin in (("altyn", "c_altyn"), ("altyn_black", "c_altyn_black")):
+        p = b.part().box((-h - 0.04, -h - 0.04, HEAD_Z + HEAD * 0.78), (h + 0.04, h + 0.04, HEAD_Z + HEAD + 0.07), skin)
+        p.box((-h - 0.01, -h - 0.01, HEAD_Z + HEAD + 0.07), (h + 0.01, h + 0.01, HEAD_Z + HEAD + 0.1), skin)
+        p.box((-h - 0.04, -h - 0.04, HEAD_Z + HEAD * 0.74), (h + 0.04, h + 0.04, HEAD_Z + HEAD * 0.78), "t_black")
+        p.box((-h - 0.05, -h - 0.05, HEAD_Z + HEAD * 0.35), (h + 0.05, h - 0.06, HEAD_Z + HEAD * 0.78), skin)
+        for sx in (-1, 1):                                             # bolts
+            p.box((sx * (h + 0.04), 0.0, HEAD_Z + HEAD * 0.58), (sx * (h + 0.05), h - 0.06, HEAD_Z + HEAD * 0.66), "t_steel_dk")
+        p.box((-h + 0.02, h + 0.02, HEAD_Z + HEAD * 0.35), (h - 0.02, h + 0.06, HEAD_Z + HEAD * 0.78), "t_black")  # frame
+        p.box((-h + 0.04, h + 0.06, HEAD_Z + HEAD * 0.38), (h - 0.04, h + 0.062, HEAD_Z + HEAD * 0.75), "c_visor")
+        p.box((-0.15, h + 0.062, HEAD_Z + HEAD * 0.56), (0.15, h + 0.065, HEAD_Z + HEAD * 0.64), "t_black_dk")    # slit
+        b.finish(p, "Hat__" + option, "Neck")
+    p = b.part().box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD * 0.15), (h + 0.03, h - 0.03, HEAD_Z + HEAD + 0.07), "c_raider")
+    p.box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD + 0.05), (h + 0.03, -h + 0.05, HEAD_Z + HEAD + 0.07), "c_raider_dk")
+    b.finish(p, "Hat__hood", "Neck")
+    p = b.part().box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.05), "c_armband")
+    p.box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.86), "t_red")
+    p.box((-0.05, -h - 0.05, HEAD_Z + HEAD * 0.8), (0.05, -h - 0.02, HEAD_Z + HEAD * 0.95), "t_red")          # knot
+    b.finish(p, "Hat__bandana", "Neck")
+    b.empty("Hat__none", "Neck")
+    d = TORSO_D / 2
+    for option, skin, dark in (("heavy_black", "c_heavy_black", "t_black_dk"), ("heavy_olive", "c_heavy_olive", "c_heavy_olive_dk")):
+        p = b.part().box((-TORSO_W / 2 + 0.02, -d - 0.05, CHEST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.045, SHOULDER_Z - 0.02), skin)
+        p.box((-TORSO_W / 2 + 0.02, -d - 0.05, CHEST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.05, CHEST_Z + 0.07), dark)   # trim
+        p.box((-0.24, -d - 0.04, SHOULDER_Z - 0.04), (0.24, d - 0.06, SHOULDER_Z + 0.06), dark)          # neck guard
+        for cx in (-0.17, 0.0, 0.17):
+            p.box((cx - 0.065, d + 0.045, CHEST_Z + 0.08), (cx + 0.065, d + 0.115, CHEST_Z + 0.21), skin)
+            p.box((cx - 0.07, d + 0.045, CHEST_Z + 0.21), (cx + 0.07, d + 0.12, CHEST_Z + 0.26), dark)
+        p.box((-0.18, d + 0.045, CHEST_Z + 0.3), (0.18, d + 0.05, SHOULDER_Z - 0.08), dark)                # the plate
+        b.finish(p, "Vest__" + option, "Spine")
+        for side, sx in (("L", -1), ("R", 1)):
+            cx = sx * ARM_X
+            a = ARM_W / 2 + 0.04
+            p = b.part().box((cx - a, -a, ARM_Z - 0.1), (cx + a, a, ARM_Z + ARM_W / 2 + 0.04), skin)    # shoulder armor
+            p.box((cx - a - 0.005, -a - 0.005, ARM_Z - 0.1), (cx + a + 0.005, a + 0.005, ARM_Z - 0.07), dark)
+            b.finish(p, "Vest__%s__Arm%s" % (option, side), "Arm" + side)
+        p = b.part().box((-0.14, d - 0.02, HIP_Z - 0.16), (0.14, d + 0.035, WAIST_Z), skin)               # groin flap
+        p.box((-0.14, d + 0.035, HIP_Z - 0.16), (0.14, d + 0.04, HIP_Z - 0.13), dark)
+        p.box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.06), dark)
+        b.finish(p, "Vest__%s__Hips" % option, "Hips")
+    c_rig(b, "rig_black", "c_canvas_black", "c_canvas_black_dk")
+
+
 BUILDERS = {"scav": build_scav, "pmc": build_pmc, "raider": build_raider, "trader": build_trader}
 
 
@@ -1013,8 +1204,8 @@ def main(out_dir=None):
             out_dir = a[4:]
     global PX_PER_M, TILE, ATLAS, COLS
     for name in names:
-        # The trader model is drawn at twice the pixels (clean, 2026-11-09); the others stay as they were.
-        PX_PER_M, TILE, ATLAS = (32, 32, 256) if name == "trader" else (16, 16, 128)
+        # Every character is drawn at twice the pixels (clean, 2026-11-09: the traders first, then the raid's).
+        PX_PER_M, TILE, ATLAS = 32, 32, 256
         COLS = ATLAS // TILE
         body = Body(name)
         BUILDERS[name](body)
