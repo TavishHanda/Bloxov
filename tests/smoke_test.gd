@@ -781,6 +781,7 @@ func _section_fall() -> void:
 
 
 ## Ladders (0.13.5): W up onto a 4 m platform, then back off the edge, caught by the ladder, S down: no fall damage.
+## 0.32.1: no grabbing by accident, interact grabs (also at the top), sprint slides, hands on the rungs.
 func _section_ladder() -> void:
 	var spot := Vector3(30, 0, 30)
 	var block := StaticBody3D.new()
@@ -860,6 +861,88 @@ func _section_ladder() -> void:
 		"looking down, W walks off the top onto the ladder and down it (y %.2f, hp %d -> %d)" % [
 		player.global_position.y, hp, player.health.current])
 	player.head.rotation.x = 0.0
+	# 0.32.1 (owner: "ladder mechanics are ass"): walking past at an angle or falling past doesn't grab you.
+	player.teleport_to(spot + Vector3(-1.5, 0.1, 0.5))
+	player.rotation.y = -PI / 2.0   # facing +X, along the wall, through the ladder's reach
+	await create_timer(0.2).timeout
+	Input.action_press("move_forward")
+	var grabbed_by := false
+	for i in 60:
+		await physics_frame
+		grabbed_by = grabbed_by or player.is_climbing()
+	Input.action_release("move_forward")
+	player.teleport_to(spot + Vector3(0, 3.0, 0.45))
+	player.rotation.y = 0.0
+	for i in 60:
+		await physics_frame
+		grabbed_by = grabbed_by or player.is_climbing()
+	_check(not grabbed_by, "walking past a ladder along the wall, or falling past it, doesn't grab you")
+	# Interact grabs it, and the hands come up onto the rungs.
+	player.teleport_to(spot + Vector3(0.2, 0.1, 1.0))
+	player.rotation.y = 0.4
+	await create_timer(0.3).timeout
+	Input.action_press("interact")
+	await physics_frame
+	await physics_frame
+	Input.action_release("interact")
+	var on_it := player.is_climbing()
+	Input.action_press("move_forward")
+	for i in 30:
+		await physics_frame
+	var hands := player.camera.find_children("*", "ClimbHands", false, false)
+	var hands_up := not hands.is_empty() and (hands[0] as Node3D).visible
+	_check(on_it and player.global_position.y > 0.5 and hands_up and not player.hands_free(),
+		"interact grabs a ladder, hands on the rungs, gun away (y %.2f, hands %s)" % [player.global_position.y, hands_up])
+	# Sprint slides down, much quicker than climbing.
+	for i in 60 * 2:
+		await physics_frame
+		if player.global_position.y > 2.5:
+			break
+	Input.action_release("move_forward")
+	var from_y := player.global_position.y
+	Input.action_press("move_back")
+	Input.action_press("sprint")
+	for i in 30:
+		await physics_frame
+	var slid := from_y - player.global_position.y
+	Input.action_release("sprint")
+	Input.action_release("move_back")
+	_check(slid > player.climb_speed * 0.5 * 1.2 and player.health.current == hp,
+		"sprint slides down a ladder (%.2f m in half a second)" % slid)
+	# Space with A/D lets go off to the side.
+	player.teleport_to(spot + Vector3(0, 0.1, 1.0))
+	player.rotation.y = 0.0
+	await create_timer(0.2).timeout
+	Input.action_press("move_forward")
+	for i in 40:
+		await physics_frame
+	Input.action_release("move_forward")
+	Input.action_press("move_right")
+	Input.action_press("jump")
+	await physics_frame
+	await physics_frame
+	Input.action_release("jump")
+	for i in 20:
+		await physics_frame
+	Input.action_release("move_right")
+	_check(not player.is_climbing() and player.global_position.x > spot.x + 0.3,
+		"Space with D lets go off to the side (x %.2f)" % (player.global_position.x - spot.x))
+	await create_timer(1.0).timeout
+	# At the top, interact swings you round onto the ladder, facing it.
+	player.teleport_to(spot + Vector3(0.1, 4.1, -0.5))
+	player.rotation.y = 2.0
+	await create_timer(0.3).timeout
+	Input.action_press("interact")
+	await physics_frame
+	await physics_frame
+	Input.action_release("interact")
+	for i in 45:
+		await physics_frame
+	_check(player.is_climbing() and player.global_position.y < 3.2 and player.global_position.z > spot.z
+		and absf(angle_difference(player.rotation.y, 0.0)) < 0.1,
+		"at the top, interact swings you onto the ladder facing it (y %.2f, z %.2f, yaw %.2f)" % [
+		player.global_position.y, player.global_position.z - spot.z, player.rotation.y])
+	player.teleport_to(spot + Vector3(0, 0.1, 3.0))
 	ladder.queue_free()
 	block.queue_free()
 	await physics_frame

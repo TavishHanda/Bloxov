@@ -7,6 +7,25 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`). -->
 
+## 0.32.1 (Ladders, reworked)
+- **Ladders got an overhaul** (owner: "ladder mechanics are ass and need to be overhauled"; the top was weird, they
+  grabbed you when you didn't want them, a bit slow, felt dead). On Frontlines' ladders (the barn loft, the woods
+  cabin) and every one to come (Riptide).
+- **Getting on:** walk straight into one, or press E (your interact key) next to it (a **CLIMB** prompt shows; on phones the USE
+  button). At the top, press it anywhere within a meter of the edge, or walk off the edge over the ladder, and
+  you're swung round onto it facing it in one smooth move (it used to mean turning round, looking down and walking
+  off). Walking past one at an angle, or falling or jumping past one, no longer snaps you onto it.
+- **Getting off at the top:** one smooth climb up and over onto the floor, like a vault (it used to shove you).
+  At the bottom you step off. Space lets go, pushed back off it, or off to the side holding A or D.
+- **Climbing:** a little quicker, **2.8 m/s** (was 2.2), easing in and out instead of starting and stopping dead,
+  held steady in the middle of the ladder. Hold **sprint** going down to slide (5 m/s). W still climbs the way you
+  look (0.20.13). The view rocks gently with each pull.
+- **Hands on the rungs:** both gloved hands grip the rungs and go hand over hand as you climb (in your character's
+  gloves and sleeves, `scripts/climb_hands.gd`; new `climb_R`/`climb_L` in `make_hands.py`). The gun is slung out
+  of view meanwhile. Other players see you climb too: facing the ladder, hands on the rungs, knees working (worked
+  out from where you are, nothing new sent online).
+- Tools: `tools/ladder_view.gd` (first-person screenshots on a ladder), `remote_view.gd only=climb`.
+
 ## 0.32.0 (Crafting)
 - **The workbench works** (owner, 2026-11-09). Walk up to it in the hideout (or tap the new **CRAFT** tab on
   phones) and turn loot you bring home into gear. **Instant** (owner: no timers), with a selector (-, +, MAX) to make

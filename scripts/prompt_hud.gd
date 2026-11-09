@@ -36,6 +36,8 @@ func current() -> Dictionary:
 	if interactor.target != null:
 		var progress := interactor.progress if interactor.progress > 0.0 else -1.0
 		return {"text": interactor.target.prompt().to_upper(), "key": Keybinds.cap("interact"), "progress": progress, "bar": HudStyle.BRASS}
+	if player.ladder_to_grab() != null:
+		return {"text": "CLIMB", "key": Keybinds.cap("interact"), "progress": -1.0, "bar": HudStyle.BRASS}
 	return {}
 
 

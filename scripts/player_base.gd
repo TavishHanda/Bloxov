@@ -43,8 +43,10 @@ extends CharacterBody3D
 @export var vault_noise := 12.0
 
 @export_group("Ladders")
-## Meters per second up or down a ladder (0.13.5).
-@export var climb_speed := 2.2
+## Meters per second up or down a ladder (0.13.5; 2.2 until 0.32.1, owner: "a little too slow").
+@export var climb_speed := 2.8
+## Sliding down one, holding sprint (0.32.1).
+@export var slide_speed := 5.0
 
 @export_group("Prone")
 ## Z (0.13.6): lie down. Slow crawl, very quiet, hard to hit, steadiest aim. Z or Space gets you up, C to a crouch.

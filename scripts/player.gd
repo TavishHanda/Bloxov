@@ -117,6 +117,9 @@ func _ready() -> void:
 	Effects.warm_up(camera)
 	hand = HandItem.new()
 	camera.add_child(hand)
+	var climb_hands := ClimbHands.new()
+	climb_hands.player = self
+	camera.add_child(climb_hands)
 	inventory.equipment_changed.connect(_on_equipment_changed)
 	# Bring in the loadout from the hideout (or the starter kit on a new profile).
 	if not at_range:

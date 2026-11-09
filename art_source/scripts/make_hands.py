@@ -14,6 +14,8 @@ the .glb sits on the gun model's origin:
   <gun>_R   the right hand on the gun's grip        <gun>_L   the left hand (on the fore-end; on the pistol, round
                                                                the right hand)
   Each hand's origin is its wrist, where the forearm joins.
+  climb_R, climb_L  the hands gripping a ladder rung (0.32.1, scripts/climb_hands.gd): the rung runs along x
+              through (0, 0.06, -0.05) from the wrist, the ladder is toward -z.
   ArmR, ArmL  the forearms, origin at the wrist, running along -z (scripts/gun_view_models.gd puts them on the wrists
               and points them at the elbows, below the camera, every frame).
 """
@@ -162,6 +164,26 @@ def support_hand(m, gun, look):
     h.box((-(w / 2 + 0.026), -0.034, 0.008), (0.03, 0.026, 0.03), g)                   # wrist
 
 
+def climb_hand(m, look, left):
+    """Round a ladder rung (0.32.1): the rung along x through the model's origin, the climber on the +z side. The back
+    of the hand faces you, the fingers curl over the top and down the far side, the thumb comes under from the inside."""
+    name = "climb_L" if left else "climb_R"
+    L = LOOKS[look]
+    g, t = L["glove"], L["tips"]
+    side = -1.0 if left else 1.0
+    m.part(name, (0.0, -0.06, 0.05))                                                   # the wrist
+    m.box((0.0, -0.005, 0.042), (0.085, 0.075, 0.026), g, part=name)                   # back of the hand
+    m.box((0.0, -0.05, 0.05), (0.06, 0.036, 0.042), g, part=name)                      # wrist
+    for k, x in enumerate((-0.03, -0.01, 0.01, 0.03)):
+        size = F if k < 3 else F * 0.85
+        x *= side
+        m.box((x, 0.034, 0.004), (size, size, 0.07), g, part=name)                     # finger over the top
+        m.box((x, 0.006, -0.034), (size, 0.05, size), t, part=name)                    # and down the far side
+    m.box((-side * 0.046, -0.024, 0.004), (0.018, 0.018, 0.06), t, part=name)          # thumb under the rung
+    if L["pads"]:
+        m.box((0.0, 0.018, 0.057), (0.07, 0.02, 0.006), L["pads"], part=name)
+
+
 def arm(m, name, look, left):
     """A forearm along -z from the wrist: the glove's cuff, then the sleeve (or the bare arm and a rolled sleeve)."""
     L = LOOKS[look]
@@ -188,6 +210,8 @@ def build(look):
         right_hand(m, gun, look)
         left_hand(m, gun, look)
     m.marks = {}
+    climb_hand(m, look, False)
+    climb_hand(m, look, True)
     arm(m, "ArmR", look, False)
     arm(m, "ArmL", look, True)
     return m

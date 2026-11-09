@@ -63,6 +63,9 @@ var sprint := 0.0
 ## 0..1: a wall right in front, so the gun is pulled in and raised to the chest instead of poking through it (0.25.19,
 ## owner: other players saw a body's arms and gun stick through a pillar). Looks only: shots come from the eyes.
 var tuck := 0.0
+## 0..1: on a ladder (0.32.1; the body is turned to face it), and how far along the climb (radians: a pull per PI).
+var climb := 0.0
+var climb_phase := 0.0
 ## Holding a gun (shown and in both hands); else the arms hang and swing.
 var armed := true
 ## Ground speed, m/s (drives the walk and crawl).
@@ -186,13 +189,41 @@ func update(delta: float) -> void:
 		_add(pose, "ArmR", Vector3(swing * arm, 0, 6.0 * up))
 		_add(pose, "ElbowL", Vector3(-25.0 * run, 0, 0))
 		_add(pose, "ElbowR", Vector3(-25.0 * run, 0, 0))
+	if climb > 0.0:
+		# Climbing: one knee up on a rung while the other leg pushes, in turn, the body close in to the ladder.
+		var c := sin(climb_phase)
+		var w := climb * alive
+		_add(pose, "LegL", Vector3((45.0 + 25.0 * c) * w, 0, 0))
+		_add(pose, "KneeL", Vector3(-(45.0 + 25.0 * c) * w, 0, 0))
+		_add(pose, "LegR", Vector3((45.0 - 25.0 * c) * w, 0, 0))
+		_add(pose, "KneeR", Vector3(-(45.0 - 25.0 * c) * w, 0, 0))
+		_shift(pose, Vector3(0, -0.12 * w, 0))
 	_apply(pose)
+	if climb > 0.01:
+		_climb_arms()
 	if low > 0.01:
 		_legs(low, stride * walk)
 	_ground_feet()
 	var gun := model.get_node_or_null("Gun") as Node3D
 	if gun != null and with_gun:
 		_hold(gun, lying, crawl * stride, stride * walk)
+
+
+## Both hands up on the rungs ahead, one above the other, swapping with each pull (the model faces the ladder).
+func _climb_arms() -> void:
+	var c := sin(climb_phase)
+	var frame := model.global_basis.orthonormalized()
+	var ahead := frame * Vector3(0, 0, -0.5)
+	var at := model.global_position
+	var side := frame.x
+	var down := -frame.y
+	for s: String in ["L", "R"]:
+		var x := -0.17 if s == "L" else 0.17
+		var y := 1.55 + (0.22 if s == "L" else -0.22) * c
+		var hand := at + ahead + side * x + frame.y * y
+		var shoulder := (_joints["Arm" + s] as Node3D).global_position
+		var reach := shoulder.lerp(hand, climb)
+		_reach(s, reach, down + side * signf(x) * 0.6)
 
 
 ## A shot hit them (looks only): `from_dir` is the way the bullet travelled, in the model's frame (the model faces -Z).
