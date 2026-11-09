@@ -5,7 +5,41 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
+
+## 0.34.0 (Lively hideout)
+The hideout felt dead (owner: "it does feel kinda dead"); he picked all six ideas. Everything here is looks only:
+nothing collides, nothing is sent online, the server and headless runs build none of it.
+- **The war upstairs**: every 2-4 minutes a shell lands far above (owner: "rare and tied to things"). Grit trickles
+  off the roof around you, the hanging lamps swing, the lights dip and stutter and the view jolts a little
+  (`scripts/hideout_war.gd`; where the roof is comes from `assets/hideout/roof.res`, baked by
+  `tools/hideout_roof_bake.gd`: re-run it after `make_hideout.py` changes the cave).
+- **Small things, each heard only near it**: a dripping tap in the washroom, water pipes that knock, the generator's
+  fan turning with exhaust and a chug, a rat running under the washroom trough (`scripts/hideout_life.gd`).
+- **The crew**: other PMCs living there: one asleep in a bunk (snoring), a cook at the stove, two playing cards in the
+  mess, a mechanic at the generator (wrench sounds), one with a coffee by the range. They look round at you as you
+  come close (`scripts/hideout_crew.gd`).
+- **Traders behind their counters** in the owner's picked looks (Ponta: Old soldier, Big Don: Fixer, Supreme:
+  Jeweller, Ming: Showman, Medic: Old doc), each busy with something and nodding when you walk up. Traders and crew
+  use their own cleaner model, `assets/models/characters/trader.glb` (32 px a metre, flat clean colours, faces,
+  hands, belts, boots), built by `make_character.py`'s `build_trader`; designs in `scripts/trader_looks.gd`, picture
+  sheet from `tools/trader_sheet.gd`. Players', scavs' and raiders' models are unchanged.
+- **The hideout cat**: a ginger tabby that lives by the stove. It wanders the quarters, sits and washes, loafs,
+  naps by the fire and sometimes comes over to you; walk up and press USE to pet it and it purrs
+  (`scripts/hideout_cat.gd`). Name to come from the owner.
+- **The trophy shelf** beside the STATS board fills up as you play, only from what the profile already keeps: Bon's
+  mask (Big Game), a token from each trader past level 1, medals for 1/10/25/50/100 extracts, a cash pile, a jar of
+  casings for your raids, a gold wrench for a maxed workbench, folders for finished jobs. Look at one to see what
+  it's for (`scripts/hideout_trophies.gd`).
+- **Your corner** (owner picked "your corner, unlocked decor"): the bottom bunk at the end of the quarters is yours.
+  USE there to pick a poster, flag, rug, lamp, plant and blanket; the first of each is free, the rest unlock with
+  milestones (raids, extracts, money made, jobs, trader levels, killing Bon), nothing to buy. Saved with your
+  profile like your look, so the same corner in PvE and PvP (`scripts/decor.gd`, `scripts/hideout_decor.gd`,
+  `scripts/decor_picker.gd`).
+- New sounds (all added, none changed): shell_far, grit, drip1/2, pipe_knock, generator, rat, snore, wrench, purr, meow
+  (`tools/make_sounds.py` `main_lively`).
+- Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
+  `tools/hideout_decor_view.gd` take screenshots.
 
 ## 0.32.3 (Pixel smoke)
 - **The smoke over Frontlines' burning wrecks looks like smoke now** (owner: "less blocky and more like smoky", then "a

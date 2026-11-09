@@ -1210,6 +1210,158 @@ def main_more():
     write("ui/repair.wav", repair())
 
 
+# --- Lively hideout (owner 2026-11-09): sounds tied to things you can see, and a shell now and then. Own seeds. ---
+
+def shell_far():
+    """A shell landing up top, heard through the rock: a deep, dull thump and a long low rumble, no highs at all."""
+    random.seed(3301)
+    thump = _thud(0.9, 70, 38, 6, 4.5, 0.0)
+    roll = _lowpass(noise(length(3.2), 0.985), 0.97)
+    roll = [x * 6.0 * min(1.0, i / RATE / 0.08) * math.exp(-i / RATE * 1.3) for i, x in enumerate(roll)]
+    return _lowpass(_mix(thump, roll, 0.02, 0.8), 0.6)
+
+
+def grit():
+    """Grit trickling off the roof: dry little ticks that thin out, over a soft hiss."""
+    random.seed(3302)
+    n = length(1.8)
+    out = [0.0] * n
+    hiss = _highpass(noise(n, 0.3), 0.7)
+    for i in range(n):
+        out[i] = hiss[i] * 0.08 * math.exp(-i / RATE * 1.6) * min(1.0, i / RATE / 0.05)
+    k = 0
+    while k < 70:
+        at = int(random.expovariate(1.4) * RATE * 0.5)
+        if at < n - 400:
+            tick = _highpass(noise(60, 0.1), 0.5)
+            g = random.uniform(0.2, 0.6) * math.exp(-at / RATE * 1.2)
+            for j, x in enumerate(tick):
+                out[at + j] += x * g * math.exp(-j / 18)
+        k += 1
+    return out
+
+
+def drip(variant):
+    """A drop off the tap into the steel trough: a short plink with a falling pitch, and a little splash."""
+    random.seed(3303 + variant)
+    f = (1250, 1500)[variant]
+    n = length(0.22)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / RATE
+        phase += 2 * math.pi * f * (1.0 + 0.6 * math.exp(-t * 60)) / RATE
+        out.append(math.sin(phase) * math.exp(-t * 28) * min(1.0, t / 0.002))
+    return _mix(out, [x * 0.15 for x in _highpass(noise(length(0.04), 0.2), 0.5)], 0.0)
+
+
+def pipe_knock():
+    """The water pipe knocking: two dull metal bangs with a short hollow ring."""
+    random.seed(3305)
+    bang = lambda g: [x * g for x in _mix(_thud(0.08, 260, 160, 50, 45, 0.3, 0.3, 90), _ring(0.4, ((410, 1.0), (1130, 0.4), (1870, 0.2)), 9, 0.5))]
+    return _lowpass(_mix(bang(1.0), bang(0.6), 0.17), 0.3)
+
+
+def generator():
+    """The generator chugging, to loop: a small engine's low thumps (about 12 a second) over a rattle."""
+    random.seed(3306)
+    n = length(2.0)                                                   # (24 beats: it loops without a seam)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        beat = (t * 12.0) % 1.0
+        thump = math.sin(2 * math.pi * 55 * t) * math.exp(-beat * 7.0)
+        out.append(thump + 0.25 * math.sin(2 * math.pi * 110 * t) * math.exp(-beat * 9.0))
+    rattle = _highpass(_lowpass(noise(n, 0.5), 0.5), 0.9)
+    out = [o + r * 0.25 * (0.5 + 0.5 * math.exp(-((i / RATE * 12.0) % 1.0) * 5.0)) for i, (o, r) in enumerate(zip(out, rattle))]
+    return _seamless(_lowpass(out, 0.4), 0.25)                       # (3 beats faded over)
+
+
+def rat():
+    """A rat: a few quick scrabbles of claws, and a thin squeak."""
+    random.seed(3307)
+    out = [0.0] * length(0.9)
+    for k in range(9):
+        at = length(0.05 + k * 0.055 + random.uniform(0, 0.02))
+        tick = _highpass(noise(90, 0.1), 0.6)
+        for j, x in enumerate(tick):
+            out[at + j] += x * 0.3 * math.exp(-j / 25)
+    sq, phase = [], 0.0
+    m = length(0.16)
+    for i in range(m):
+        t = i / m
+        phase += 2 * math.pi * (3400 + 900 * math.sin(math.pi * t)) / RATE
+        sq.append(math.sin(phase) * math.sin(math.pi * t) ** 0.8 * 0.35)
+    return _mix(out, sq, 0.6)
+
+
+def snore():
+    """Someone asleep: a slow rasping breath in (a low, buzzing flutter) and a soft breath out."""
+    random.seed(3308)
+    n = length(1.3)
+    out, phase = [], 0.0
+    nz = _lowpass(noise(n, 0.5), 0.6)
+    for i in range(n):
+        t = i / n
+        phase += 2 * math.pi * 38 / RATE
+        flutter = 0.5 + 0.5 * math.sin(phase)
+        swell = math.sin(math.pi * min(1.0, t / 0.55)) if t < 0.55 else 0.0
+        out.append(nz[i] * (0.3 + 0.7 * flutter) * swell)
+    breath_out = _lowpass(_cloth(0.6, 0.6, 0.2), 0.7)
+    return _mix(_lowpass(out, 0.5), [x * 0.35 for x in breath_out], 0.68)
+
+
+def wrench():
+    """A wrench on the generator: a few ratchet clicks, then a knock of steel on steel."""
+    random.seed(3309)
+    out = []
+    for k in range(5):
+        out = _mix(out, [x * 0.35 for x in click(0.02, 3200, 260, 0.0)], 0.06 * k)
+    return _mix(out, _mix(_thud(0.06, 700, 500, 60, 70, 0.4, 0.2, 120), _ring(0.3, ((1650, 1.0), (2480, 0.5), (4100, 0.2)), 18, 0.4)), 0.36, 0.8)
+
+
+def purr():
+    """The cat purring: a soft rumble of ~26 Hz pulses, swelling as it breathes in and out (a seamless loop)."""
+    random.seed(3310)
+    n = length(2.4)
+    nz = _lowpass(noise(n, 0.4), 0.55)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / n
+        phase += 2 * math.pi * 26 / RATE
+        pulse = max(0.0, math.sin(phase)) ** 3
+        breath = 0.65 + 0.35 * math.sin(2 * math.pi * 2 * t)     # (two breaths a loop: in purrs a bit louder)
+        out.append(nz[i] * pulse * breath)
+    return _seamless(_centred(_lowpass(out, 0.35)), 0.2)
+
+
+def meow():
+    """A short, friendly cat's mew: a rising-then-falling voice through an "ee-ow" mouth."""
+    random.seed(3311)
+    n = length(0.55)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / n
+        f0 = 520 + 260 * math.sin(math.pi * min(1.0, t * 1.4)) - 120 * t
+        phase += 2 * math.pi * f0 / RATE
+        voice = sum(math.sin(phase * h) / h for h in range(1, 7))
+        # (the mouth opening: high bright harmonics early, darker at the end)
+        bright = 1.0 - 0.6 * t
+        voice = voice * (0.6 + 0.4 * bright) + 0.25 * math.sin(phase * 3) * bright
+        env = min(1.0, t / 0.08) * (1.0 - t) ** 1.2
+        out.append(voice * env * 0.4)
+    return _lowpass(out, 0.3)
+
+
+def main_lively():
+    (OUT / "world").mkdir(exist_ok=True)
+    for name, fn in (("shell_far", shell_far), ("grit", grit), ("pipe_knock", pipe_knock), ("generator", generator),
+                     ("rat", rat), ("snore", snore), ("wrench", wrench),
+                     ("purr", purr), ("meow", meow)):
+        write(f"world/{name}.wav", fn())
+    for v in range(2):
+        write(f"world/drip{v + 1}.wav", drip(v))
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
@@ -1218,3 +1370,4 @@ if __name__ == "__main__":
     main_life()
     main_pistol()
     main_more()
+    main_lively()

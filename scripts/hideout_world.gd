@@ -57,6 +57,17 @@ var _hit_distance := 0.0
 var _hit_head := false
 ## The new player's walk round (null when it isn't running).
 var tutorial: Tutorial
+var war: HideoutWar
+var crew: HideoutCrew
+var cat: HideoutCat
+## The cat when it's close enough to pet (USE pets it).
+var cat_near := false
+var trophies: HideoutTrophies
+var decor: HideoutDecor
+## Your corner when you're by it (USE decorates it), and the picker while it's open.
+var decor_near := false
+var decor_picker: DecorPicker
+var _decor_layer: CanvasLayer
 
 
 func _ready() -> void:
@@ -80,9 +91,29 @@ func _ready() -> void:
 	toys.name = "Toys"
 	add_child(toys)
 	toys.setup(level, walker, env)
+	war = HideoutWar.new()
+	war.name = "War"
+	add_child(war)
+	war.setup(level, walker, toys)   # (the war upstairs: a shell now and then, dust off the roof)
+	crew = HideoutCrew.new()
+	crew.name = "Crew"
+	add_child(crew)
+	crew.setup(level, walker)        # (the crew living here: asleep, cooking, playing cards, fixing, a coffee)
+	cat = HideoutCat.new()
+	cat.name = "Cat"
+	add_child(cat)
+	cat.setup(level, walker)         # (the hideout's cat: wanders, naps by the stove, you can pet it)
 	_build_hud()
 	_build_range(level)
 	_build_boards(level)
+	trophies = HideoutTrophies.new()
+	trophies.name = "Trophies"
+	add_child(trophies)
+	trophies.setup(level)            # (the trophy shelf by the record board: fills up as you play)
+	decor = HideoutDecor.new()
+	decor.name = "Decor"
+	add_child(decor)
+	decor.setup(level, walker)       # (your corner: your bunk, decorated how you like)
 	_menu_layer = CanvasLayer.new()
 	_menu_layer.layer = 5
 	add_child(_menu_layer)
@@ -174,7 +205,13 @@ func _process(_delta: float) -> void:
 		walker.locked = true
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	touch.walking = not menu_open() and not in_range()
+	touch.walking = not menu_open() and not in_range() and not decorating()
+	if decorating():
+		walker.locked = true
+		_prompt.visible = false
+		_use_button.visible = false
+		_click_hint.visible = false
+		return
 	TouchInput.screen_free = in_range() and not _picker.visible and not menu_open()
 	if in_range():
 		_top_up_ammo()
@@ -182,18 +219,32 @@ func _process(_delta: float) -> void:
 		return
 	var free := not menu_open() and not toys.busy()
 	station = _station_in_reach() if free else null
-	seat = toys.seat_in_reach() if free and station == null else null
-	_use_button.visible = station != null or seat != null or toys.busy()
+	cat_near = free and cat.in_reach()
+	if cat_near and station != null:   # (the cat by a station: whichever's nearer is what USE does)
+		if station.global_position.distance_to(walker.global_position) < cat.global_position.distance_to(walker.global_position):
+			cat_near = false
+		else:
+			station = null
+	decor_near = free and station == null and not cat_near and decor.in_reach()
+	seat = toys.seat_in_reach() if free and station == null and not cat_near and not decor_near else null
+	_use_button.visible = station != null or seat != null or cat_near or decor_near or toys.busy()
 	_use_button.text = ("GET UP  (%s)" if toys.seat != null else "STOP  (%s)" if toys.darts else "USE  (%s)") % use_key()
 	_menu_button.text = "MENU  (%s)" % menu_key()
 	if TouchInput.active:   # (touch: the buttons are the keys)
 		_use_button.text = _use_button.text.get_slice(" ", 0)
 		_menu_button.text = "MENU"
-	_prompt.visible = station != null or seat != null
+	_prompt.visible = station != null or seat != null or cat_near or decor_near
 	if station != null:
 		_prompt.text = use_key() + "   " + station_label(station.name)
+	elif cat_near:
+		_prompt.text = use_key() + "   Pet the cat"
+	elif decor_near:
+		_prompt.text = use_key() + "   Decorate your corner"
 	elif seat != null:
 		_prompt.text = use_key() + "   Sit down"
+	elif free and trophies != null:   # (looking at a trophy: what it's for, no key)
+		_prompt.text = trophies.looked_at(walker.camera.global_position, -walker.camera.global_basis.z)
+		_prompt.visible = _prompt.text != ""
 	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not TouchInput.active
 
 
@@ -214,6 +265,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if decorating():
+		return   # (the picker's keys: DecorPicker)
 	if in_range():
 		if _picker.visible and event.is_action_pressed("inventory"):
 			leave_range()
@@ -231,9 +284,36 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel") and not menu_open():
 		open_menu()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("interact") and (station != null or seat != null):
+	elif event.is_action_pressed("interact") and (station != null or seat != null or cat_near or decor_near):
 		use_station()
 		get_viewport().set_input_as_handled()
+
+
+## True while you're decorating your corner.
+func decorating() -> bool:
+	return decor_picker != null and decor_picker.visible
+
+
+## Opens the picker for your corner (USE by your bunk).
+func open_decor() -> void:
+	if _decor_layer == null:
+		_decor_layer = CanvasLayer.new()
+		_decor_layer.layer = 3
+		add_child(_decor_layer)
+		decor_picker = DecorPicker.new(decor)
+		decor_picker.closed.connect(close_decor)
+		_decor_layer.add_child(decor_picker)
+	decor_picker.visible = true
+	decor_picker.show_spot(decor_picker.spot)
+	walker.locked = true
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func close_decor() -> void:
+	if decor_picker != null:
+		decor_picker.visible = false
+	if not menu_open():
+		walker.locked = false
 
 
 func menu_open() -> bool:
@@ -278,7 +358,11 @@ func use_station() -> void:
 		toys.stand_up()
 		return
 	if station == null:
-		if seat != null:
+		if cat_near:
+			cat.pet()
+		elif decor_near:
+			open_decor()
+		elif seat != null:
 			toys.sit(seat)
 		return
 	if toys.use(station.name):
@@ -623,6 +707,10 @@ func fill_boards() -> void:
 		(boards["quests"] as Label3D).text = quest_board_text()
 	if boards.has("stats"):
 		(boards["stats"] as Label3D).text = stats_board_text()
+	if trophies != null:
+		trophies.refresh()
+	if decor != null:
+		decor.refresh()   # (PvE and PvP unlock things at their own pace)
 
 
 ## Each trader's quests for their next level and their current job, with your progress; at most 8 lines.
