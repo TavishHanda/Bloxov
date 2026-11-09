@@ -42,6 +42,9 @@ PALETTE = {
     "wood_light": "b07a45", "wood_pale": "c99a5e", "rust": "8a3f1f", "red": "b03a2e", "hazard_yellow": "e8b923",
     "yellow_dark": "a8801a", "sand": "a89a6a", "olive_dark": "3d4228", "olive": "5b6236", "olive_light": "7d8450",
     "grass": "556b2f", "green_dark": "2e7d32", "extract_green": "4fd44a", "sky_blue": "3e6d8c",
+    # (traders, lively hideout)
+    "white": "e9e6dc", "white_dark": "c9c4b6", "gold": "d4a73a", "gold_dark": "9c7522", "felt": "2f6b3a",
+    "maroon": "6b2430", "navy": "26324a", "navy_dark": "1a2335", "grey_hair": "9a9a96", "scrub": "4f8a7a",
 }
 
 # The skins of make_character.py (what a 16x16 tile looks like), plus a few for the new body.
@@ -107,6 +110,28 @@ SKINS = {
     "heavy_black": {"base": "iron_dark", "noise": [("black", 0.15)], "pattern": "weave", "weave": "black"},
     "heavy_olive": {"base": "olive_dark", "noise": [("olive", 0.1)], "pattern": "weave", "weave": "black"},
     "canvas_black": {"base": "black", "noise": [("iron_dark", 0.2)], "pattern": "weave", "weave": "iron_dark"},
+    # Traders (lively hideout, 2026-11-09)
+    "shirt_white": {"base": "white", "noise": [("white_dark", 0.12)]},
+    "apron_leather": {"base": "wood_dark", "noise": [("wood_mid", 0.18), ("black", 0.05)]},
+    "gold": {"base": "gold", "noise": [("gold_dark", 0.25)]},
+    "brass": {"base": "yellow_dark", "noise": [("gold_dark", 0.3)]},
+    "felt_green": {"base": "felt", "noise": [("green_dark", 0.15)]},
+    "waistcoat_maroon": {"base": "maroon", "noise": [("rust", 0.08)], "pattern": "weave", "weave": "wood_dark"},
+    "waistcoat_black": {"base": "black", "noise": [("iron_dark", 0.15)], "pattern": "weave", "weave": "iron_dark"},
+    "suit_navy": {"base": "navy", "noise": [("navy_dark", 0.15)]},
+    "coat_dark": {"base": "navy_dark", "noise": [("black", 0.2)]},
+    "coat_white": {"base": "white", "noise": [("white_dark", 0.15), ("concrete", 0.04)]},
+    "loud": {"base": "red", "noise": [("rust", 0.08)], "pattern": "camo", "blobs": ["gold", "black", "gold_dark"]},
+    "scrubs": {"base": "scrub", "noise": [("felt", 0.12)]},
+    "hair_grey": {"base": "grey_hair", "noise": [("steel", 0.25)]},
+    "lens_green": {"base": "felt", "noise": [("extract_green", 0.1)]},
+    "beret_maroon": {"base": "maroon", "noise": [("rust", 0.15)], "pattern": "knit", "knit": "wood_dark"},
+    "flatcap_grey": {"base": "steel", "noise": [("iron", 0.2)], "pattern": "weave", "weave": "iron"},
+    "boonie": {"base": "olive_light", "noise": [("olive", 0.2)], "pattern": "weave", "weave": "olive"},
+    "fedora": {"base": "iron_dark", "noise": [("black", 0.15)]},
+    "lamp": {"base": "bone", "noise": [("white", 0.3)]},
+    "maroon_band": {"base": "maroon", "noise": [("rust", 0.1)]},
+    "steel_metal": {"base": "steel_light", "noise": [("steel", 0.3)]},
 }
 
 # ---------------------------------------------------------------- body layout (meters, Blender axes)
@@ -529,7 +554,138 @@ def build_raider(b):
     b.finish(chest_rig(b.part(), "canvas_black"), "Vest__rig_black", "Spine")
 
 
-BUILDERS = {"scav": build_scav, "pmc": build_pmc, "raider": build_raider}
+def build_trader(b):
+    """The hideout's traders (lively hideout, owner 2026-11-09: proper, unique looks, several to pick from). One model
+    with every part any trader wears; each trader's look picks one option per slot (tools/trader_sheet.gd)."""
+    h, d = HEAD / 2, TORSO_D / 2
+    legs(b, {"olive": ("cargo_olive", ("pockets",)), "black": ("shirt_black", ()), "navy": ("suit_navy", ()),
+             "jeans": ("denim", ()), "tan": ("shirt_tan", ("pockets",)), "scrubs": ("scrubs", ()),
+             "track": ("track_black", ())},
+         {"brown": "boot_brown", "black": "boot_black", "coyote": "boot_coyote", "white": "sneaker_white"})
+    tops(b, {"white": ("shirt_white", ("collar",)), "olive": ("jacket_olive", ("collar",)), "leather": ("leather", ("collar",)),
+             "fur": ("fur", ("collar",)), "navy": ("suit_navy", ("collar",)), "loud": ("loud", ("collar",)),
+             "scrubs": ("scrubs", ()), "coat_white": ("coat_white", ("collar",)), "coat_dark": ("coat_dark", ("collar",)),
+             "track": ("track_black", ("collar",)), "woodland": ("woodland", ("collar",))})
+    for option, skin in (("fur", "fur"), ("coat_white", "coat_white"), ("coat_dark", "coat_dark")):   # long coats
+        p = b.part()
+        p.box((-TORSO_W / 2 - 0.02, -d - 0.02, KNEE_Z - 0.05), (TORSO_W / 2 + 0.02, -d + 0.04, WAIST_Z + 0.02), skin)
+        for sx in (-1, 1):
+            p.box((sx * (TORSO_W / 2 + 0.02), -d - 0.02, KNEE_Z - 0.05), (sx * (TORSO_W / 2 - 0.04), d + 0.04, WAIST_Z + 0.02), skin)
+            p.box((sx * (TORSO_W / 2 + 0.02), d - 0.02, KNEE_Z - 0.05), (sx * 0.12, d + 0.04, WAIST_Z + 0.02), skin)
+        b.finish(p, "Top__%s__Hips" % option, "Hips")
+    gloves(b, {"brown": "glove_brown", "black": "black", "white": "shirt_white", "none_pale": "skin_pale",
+               "none_tan": "skin_tan", "none_dark": "skin_dark"})
+    heads(b, {
+        "pale": ("skin_pale", "hair_dark", ()), "pale_beard": ("skin_pale", "hair_brown", ("beard",)),
+        "tan": ("skin_tan", "hair_brown", ()), "tan_beard": ("skin_tan", "hair_dark", ("beard",)),
+        "dark": ("skin_dark", "hair_dark", ()), "dark_beard": ("skin_dark", "hair_dark", ("beard",)),
+        "old_pale": ("skin_pale", "hair_grey", ("beard",)), "old_tan": ("skin_tan", "hair_grey", ()),
+    })
+    for option, skin in (("moustache_dark", "hair_dark"), ("moustache_grey", "hair_grey")):   # a moustache on any face
+        p = b.part().box((-0.12, h + 0.005, HEAD_Z + HEAD * 0.26), (0.12, h + 0.03, HEAD_Z + HEAD * 0.34), skin)
+        p.box((-0.12, h + 0.005, HEAD_Z + HEAD * 0.18), (-0.08, h + 0.03, HEAD_Z + HEAD * 0.26), skin)
+        p.box((0.08, h + 0.005, HEAD_Z + HEAD * 0.18), (0.12, h + 0.03, HEAD_Z + HEAD * 0.26), skin)
+        b.finish(p, "Tash__" + option, "Neck")
+    b.empty("Tash__none", "Neck")
+    # Headgear
+    p = b.part().box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.84), (h + 0.06, h + 0.02, HEAD_Z + HEAD + 0.05), "beret_maroon")
+    p.box((0.0, -h + 0.02, HEAD_Z + HEAD + 0.03), (h + 0.1, h - 0.02, HEAD_Z + HEAD + 0.09), "beret_maroon")
+    b.finish(p, "Hat__beret", "Neck")
+    p = b.part().box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.02, h + 0.02, HEAD_Z + HEAD + 0.06), "flatcap_grey")
+    p.box((-h - 0.01, h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.01, h + 0.09, HEAD_Z + HEAD * 0.82 + 0.03), "flatcap_grey")
+    b.finish(p, "Hat__flatcap", "Neck")
+    p = hat_box(b.part(), "boonie", 0.025, 0.8, 0.1)
+    p.box((-h - 0.1, -h - 0.1, HEAD_Z + HEAD * 0.8), (h + 0.1, h + 0.1, HEAD_Z + HEAD * 0.8 + 0.03), "boonie")
+    b.finish(p, "Hat__boonie", "Neck")
+    p = hat_box(b.part(), "fedora", 0.02, 0.84, 0.16)
+    p.box((-h - 0.09, -h - 0.09, HEAD_Z + HEAD * 0.84), (h + 0.09, h + 0.09, HEAD_Z + HEAD * 0.84 + 0.025), "fedora")
+    p.box((-h - 0.025, -h - 0.025, HEAD_Z + HEAD * 0.84 + 0.025), (h + 0.025, h + 0.025, HEAD_Z + HEAD * 0.84 + 0.07), "maroon_band")
+    b.finish(p, "Hat__fedora", "Neck")
+    p = b.part().box((-h - 0.02, -0.04, HEAD_Z + HEAD * 0.7), (h + 0.02, 0.04, HEAD_Z + HEAD + 0.05), "black")   # band over
+    for sx in (-1, 1):
+        p.box((sx * h, -0.08, HEAD_Z + HEAD * 0.3), (sx * (h + 0.08), 0.08, HEAD_Z + HEAD * 0.66), "boot_coyote")
+    b.finish(p, "Hat__ear_defenders", "Neck")
+    p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.9), "black")
+    p.box((-0.15, h + 0.015, HEAD_Z + HEAD * 0.84), (0.15, h + 0.13, HEAD_Z + HEAD * 0.88), "lens_green")      # dealer's visor
+    b.finish(p, "Hat__visor", "Neck")
+    p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.76), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.84), "black")
+    p.box((-0.05, h + 0.015, HEAD_Z + HEAD * 0.74), (0.05, h + 0.06, HEAD_Z + HEAD * 0.86), "lamp")             # head torch
+    b.finish(p, "Hat__head_torch", "Neck")
+    p = hat_box(b.part(), "knit_black", 0.02, 0.72, 0.07)
+    b.finish(p, "Hat__beanie", "Neck")
+    p = b.part().box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.04), "felt_green")
+    b.finish(p, "Hat__bandana", "Neck")
+    b.empty("Hat__none", "Neck")
+    # Eyes
+    p = b.part().box((-h - 0.01, -h - 0.01, HEAD_Z + HEAD * 0.8), (h + 0.01, h + 0.01, HEAD_Z + HEAD * 0.86), "black")
+    for sx in (-1, 1):
+        p.box((sx * 0.15, h + 0.01, HEAD_Z + HEAD * 0.78), (sx * 0.03, h + 0.07, HEAD_Z + HEAD * 0.9), "lens_green")   # goggles up
+    b.finish(p, "Eyes__goggles", "Neck")
+    p = b.part().box((-0.16, h + 0.002, HEAD_Z + HEAD * 0.5), (0.16, h + 0.03, HEAD_Z + HEAD * 0.68), "black")
+    b.finish(p, "Eyes__shades", "Neck")
+    p = b.part().box((-0.15, h + 0.002, HEAD_Z + HEAD * 0.66), (0.15, h + 0.015, HEAD_Z + HEAD * 0.68), "brass")
+    for sx in (-1, 1):
+        p.box((sx * 0.14, h + 0.002, HEAD_Z + HEAD * 0.5), (sx * 0.04, h + 0.02, HEAD_Z + HEAD * 0.68), "brass")
+    b.finish(p, "Eyes__specs", "Neck")
+    p = b.part().box((0.04, h + 0.002, HEAD_Z + HEAD * 0.5), (0.15, h + 0.09, HEAD_Z + HEAD * 0.66), "brass")   # jeweller's loupe
+    b.finish(p, "Eyes__loupe", "Neck")
+    p = b.part().box((-0.15, h + 0.002, HEAD_Z + HEAD * 0.5), (-0.04, h + 0.025, HEAD_Z + HEAD * 0.68), "black")  # eyepatch
+    p.box((-h - 0.01, -h - 0.01, HEAD_Z + HEAD * 0.68), (h + 0.01, h + 0.01, HEAD_Z + HEAD * 0.72), "black")
+    b.finish(p, "Eyes__patch", "Neck")
+    b.empty("Eyes__none", "Neck")
+    p = b.part().box((-h - 0.012, -h - 0.012, HEAD_Z - 0.01), (h + 0.012, h + 0.03, HEAD_Z + HEAD * 0.45), "coat_white")
+    b.finish(p, "Mask__surgical", "Neck")
+    b.empty("Mask__none", "Neck")
+    # Over the top
+    p = b.part().box((-0.28, d, CHEST_Z - 0.1), (0.28, d + 0.03, SHOULDER_Z - 0.06), "apron_leather")
+    for sx in (-1, 1):
+        p.box((sx * 0.14, d, SHOULDER_Z - 0.08), (sx * 0.2, d + 0.03, SHOULDER_Z + 0.01), "apron_leather")
+    p.box((-0.12, d + 0.03, CHEST_Z + 0.05), (0.12, d + 0.07, CHEST_Z + 0.2), "apron_leather")                    # pocket
+    b.finish(p, "Vest__apron", "Spine")
+    p = b.part().box((-0.28, d + 0.01, KNEE_Z + 0.02), (0.28, d + 0.04, WAIST_Z + 0.02), "apron_leather")
+    b.finish(p, "Vest__apron__Hips", "Hips")
+    p = b.part()
+    for k in range(8):                                                 # a bandolier from the left shoulder to the right hip
+        t = k / 7.0
+        x = -0.24 + 0.48 * t
+        z = SHOULDER_Z - 0.04 - (SHOULDER_Z - WAIST_Z - 0.04) * t
+        p.box((x - 0.05, d, z - 0.05), (x + 0.05, d + 0.04, z + 0.05), "canvas_olive")
+        p.box((x - 0.02, d + 0.04, z - 0.03), (x + 0.02, d + 0.06, z + 0.06), "brass")
+        p.box((-x - 0.05, -d - 0.04, z - 0.05), (-x + 0.05, -d, z + 0.05), "canvas_olive")
+    b.finish(p, "Vest__bandolier", "Spine")
+    p = b.part()
+    for k in range(6):                                                 # a heavy gold chain
+        for sx in (-1, 1):
+            x = sx * (0.13 - k * 0.02)
+            z = SHOULDER_Z - 0.02 - k * 0.05
+            p.box((x - 0.025, d + 0.005, z - 0.025), (x + 0.025, d + 0.035, z + 0.025), "gold")
+    p.box((-0.04, d + 0.005, SHOULDER_Z - 0.38), (0.04, d + 0.045, SHOULDER_Z - 0.28), "gold")
+    b.finish(p, "Vest__chain", "Spine")
+    for option, skin in (("waistcoat_maroon", "waistcoat_maroon"), ("waistcoat_black", "waistcoat_black")):
+        p = b.part().box((-TORSO_W / 2 + 0.02, -d - 0.02, WAIST_Z - 0.04), (TORSO_W / 2 - 0.02, d + 0.02, SHOULDER_Z - 0.06), skin)
+        for k in range(3):
+            p.box((-0.02, d + 0.02, WAIST_Z + 0.08 + k * 0.14), (0.02, d + 0.04, WAIST_Z + 0.12 + k * 0.14), "gold")
+        p.box((-0.07, d - 0.05, SHOULDER_Z - 0.01), (0.07, d + 0.03, SHOULDER_Z + 0.06), "black")   # bow tie
+        b.finish(p, "Vest__" + option, "Spine")
+    p = b.part().box((-TORSO_W / 2 + 0.03, -d - 0.04, CHEST_Z + 0.06), (TORSO_W / 2 - 0.03, d + 0.04, SHOULDER_Z - 0.04), "carrier_tan")
+    for cx in (-0.17, 0.17):
+        p.box((cx - 0.08, d + 0.04, CHEST_Z + 0.08), (cx + 0.08, d + 0.1, CHEST_Z + 0.3), "carrier_tan")
+    b.finish(p, "Vest__shooting", "Spine")
+    p = b.part().box((-0.2, d + 0.005, SHOULDER_Z - 0.02), (-0.15, d + 0.03, SHOULDER_Z + 0.03), "black")   # stethoscope
+    for sx in (-1, 1):
+        p.box((sx * 0.17 - 0.015, d + 0.005, CHEST_Z + 0.2), (sx * 0.17 + 0.015, d + 0.025, SHOULDER_Z), "black")
+    p.box((0.12, d + 0.005, CHEST_Z + 0.12), (0.22, d + 0.04, CHEST_Z + 0.2), "steel_metal")
+    b.finish(p, "Vest__stethoscope", "Spine")
+    b.empty("Vest__none", "Spine")
+    for option, skin in (("leather", "leather"), ("fur", "fur"), ("olive", "jacket_olive"), ("navy", "suit_navy"),
+                         ("loud", "loud"), ("track", "track_black")):
+        p = b.part().box((-0.32, d - 0.02, WAIST_Z + 0.0), (0.32, d + 0.14, CHEST_Z + 0.36), skin)
+        p.box((-0.26, d + 0.14, WAIST_Z + 0.06), (0.26, d + 0.2, CHEST_Z + 0.26), skin)
+        b.finish(p, "Belly__" + option, "Spine")                      # (a big belly, in the top's colour)
+    b.empty("Belly__none", "Spine")
+
+
+BUILDERS = {"scav": build_scav, "pmc": build_pmc, "raider": build_raider, "trader": build_trader}
 
 
 # ---------------------------------------------------------------- writing
