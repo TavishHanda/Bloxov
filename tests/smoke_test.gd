@@ -2950,10 +2950,27 @@ func _section_hideout_world() -> void:
 	var crew_seat := crew_level.get_node("Seats/Seat0") as Node3D
 	walker.global_position = crew_seat.global_position + crew_seat.global_basis.z * 0.4 - Vector3.UP * 0.4
 	walker.rotation.y = crew_seat.global_rotation.y
-	_check(crew_ids.size() == 11 and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
+	_check(crew_ids.size() == 13 and crew_ids.has("roam_a") and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
 		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
 		and not hcrew.find_children("*", "CollisionObject3D", true, false),
 		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
+	# Two of them walk round (0.34.1): one gets from the war table to the den (the secret room) over the walkable area,
+	# and after a while of the clock running they've moved.
+	await physics_frame
+	await physics_frame
+	var roamer: Dictionary = hcrew.members.filter(func(m: Dictionary) -> bool: return m["id"] == "roam_a")[0]
+	var roam_model: Node3D = roamer["model"]
+	var roam_start := roam_model.position
+	var den_spot: Vector3 = hcrew.hangouts.filter(func(h: Array) -> bool: return h[1] == "den")[0][0]
+	var den_path := hcrew.route(hcrew.hangouts.filter(func(h: Array) -> bool: return h[1] == "war_table")[0][0], den_spot)
+	var unreachable := hcrew.hangouts.filter(func(h: Array) -> bool:
+		var r := hcrew.route(den_spot, h[0])
+		return r.size() < 2 or r[r.size() - 1].distance_to(h[0]) > 1.5).map(func(h: Array) -> String: return h[1])
+	for i in 300:
+		hcrew._process(0.2)
+	var roam_moved := roam_model.position.distance_to(roam_start)
+	_check(den_path.size() > 2 and den_path[den_path.size() - 1].distance_to(den_spot) < 1.5 and roam_moved > 3.0 and unreachable.is_empty(),
+		"two of the crew walk round: the war table to the den is walkable (%d points), one's moved %.1f m in a minute (ends %.2f m off; can't reach %s)" % [den_path.size(), roam_moved, den_path[den_path.size() - 1].distance_to(den_spot) if den_path.size() > 0 else -1.0, unreachable])
 	hcrew.queue_free()
 	# The cat (lively hideout): none on a headless run; shown, it starts by the stove, walks round without leaving the
 	# floor or going through walls, comes to USE when you're by it and facing it, purrs when petted, and never collides.

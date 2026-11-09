@@ -49,7 +49,7 @@ func _run() -> void:
 			await process_frame
 		root.get_viewport().get_texture().get_image().save_png(out + name + ".png")
 	# And from the room, next to the record board.
-	cam.global_transform = shelf.global_transform.translated_local(Vector3(-1.2, 1.7, -4.8))
+	cam.global_transform = shelf.global_transform.translated_local(Vector3(-2.5, 1.7, -3.8))
 	cam.look_at(shelf.global_transform * Vector3(-1.2, 1.1, 0.0))
 	for i in 10:
 		await process_frame

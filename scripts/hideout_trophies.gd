@@ -15,6 +15,7 @@ const JAR_FULL := 100           # raids for a full jar
 const FOLDERS_EVERY := 3        # one folder per this many jobs done
 const LOOK_REACH := 3.2         # metres: you see what a trophy is from this close
 const LOOK_CONE := 0.985        # (the dot of your view and the way to it)
+const SPOT := Vector3(27.3, 0.0, 4.22)   # (hideout coordinates: the armory's end, against its wall)
 const TROPHY_SCALE := 1.5
 const TRADER_TOKENS := ["guns", "supplies", "valuables", "ming", "meds"]
 
@@ -30,14 +31,13 @@ var _on := false
 func setup(level: Node3D) -> void:
 	if not Reacts.wanted(self):
 		return
-	var board := level.get_node_or_null("Boards/stats") as Node3D
-	if board == null:
+	if level == null:
 		return
 	_on = true
-	# (the board's marker: its -z is the way the board faces, x along it; the shelf stands to its left, turned a bit in)
-	transform = board.transform.translated_local(Vector3(2.5, 0.0, 1.05))
-	rotation.y -= deg_to_rad(18.0)
-	position.y = 0.0
+	# (0.34.1, owner: "in the middle of nowhere", wants it "in its own little area up where stash/wardrobe is"): at the
+	# far end of the armory, past the workbench, its back to the south wall, facing across the room.
+	position = SPOT
+	rotation = Vector3.ZERO
 	cabinet = Node3D.new()
 	cabinet.name = "Cabinet"
 	add_child(cabinet)
@@ -322,7 +322,7 @@ static func _money(amount: int) -> String:
 ## True if the shelf stands by the record board, clear of the hideout's walls and props (the tests): rays from its
 ## middle out to each corner, at a few heights, hit nothing.
 func board_near(level: Node3D) -> bool:
-	var board := level.get_node_or_null("Boards/stats") as Node3D
+	var board := level.get_node_or_null("Stations/workbench") as Node3D
 	if board == null or not is_inside_tree():
 		return false
 	var space := get_world_3d().direct_space_state
@@ -333,4 +333,4 @@ func board_near(level: Node3D) -> bool:
 			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1 | 512))
 			if not hit.is_empty():
 				return false
-	return global_position.distance_to(board.global_position) < 4.0
+	return global_position.distance_to(board.global_position) < 8.0
