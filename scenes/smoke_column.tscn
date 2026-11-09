@@ -1,14 +1,20 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/smoke_puff.png" id="puff"]
 
 
 [sub_resource type="StandardMaterial3D" id="mat"]
 transparency = 1
+cull_mode = 2
 vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("puff")
+texture_filter = 2
 roughness = 1.0
+billboard_mode = 3
 
-[sub_resource type="BoxMesh" id="block"]
+[sub_resource type="QuadMesh" id="block"]
 material = SubResource("mat")
-size = Vector3(1, 1, 1)
+size = Vector2(4.2, 4.2)
 
 [sub_resource type="Curve" id="grow"]
 _data = [Vector2(0, 0.35), 0.0, 1.6, 0, 0, Vector2(1, 1), 0.4, 0.0, 0, 0]
@@ -16,7 +22,7 @@ point_count = 2
 
 [sub_resource type="Gradient" id="fade"]
 offsets = PackedFloat32Array(0, 0.08, 0.5, 1)
-colors = PackedColorArray(0.12, 0.11, 0.1, 0, 0.14, 0.13, 0.12, 0.7, 0.3, 0.3, 0.3, 0.45, 0.5, 0.5, 0.5, 0)
+colors = PackedColorArray(0.12, 0.11, 0.1, 0, 0.14, 0.13, 0.12, 0.85, 0.32, 0.31, 0.3, 0.72, 0.5, 0.5, 0.5, 0)
 
 [sub_resource type="StandardMaterial3D" id="ember_mat"]
 shading_mode = 0
@@ -43,6 +49,7 @@ cast_shadow = 0
 amount = 80
 lifetime = 16.0
 preprocess = 16.0
+draw_order = 2
 mesh = SubResource("block")
 emission_shape = 3
 emission_box_extents = Vector3(1.6, 0.6, 1.6)
@@ -51,10 +58,6 @@ spread = 22.0
 gravity = Vector3(0.22, 0.06, 0.1)
 initial_velocity_min = 0.7
 initial_velocity_max = 1.0
-angular_velocity_min = -40.0
-angular_velocity_max = 40.0
-angle_min = -45.0
-angle_max = 45.0
 scale_amount_min = 1.8
 scale_amount_max = 3.2
 scale_amount_curve = SubResource("grow")
