@@ -1362,6 +1362,38 @@ def main_lively():
         write(f"world/drip{v + 1}.wav", drip(v))
 
 
+def alarm():
+    """Riptide's sub bay klaxon (0.33.3): a harsh two-tone blast, 1.6 s."""
+    n = length(1.6)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        f = 520.0 if (t % 0.4) < 0.2 else 390.0
+        x = math.sin(2 * math.pi * f * t)
+        x = max(-0.6, min(0.6, x * 2.5)) + 0.3 * math.sin(2 * math.pi * f * 2 * t)
+        env = min(1.0, t / 0.03) * min(1.0, (1.6 - t) / 0.1)
+        out.append(x * env)
+    return out
+
+
+def power_on():
+    """A heavy switch thrown, then machinery humming up (0.33.3)."""
+    out = [v * math.exp(-i / RATE * 30) for i, v in enumerate(noise(length(0.15), 0.3))]
+    n = length(1.4)
+    for i in range(n):
+        t = i / RATE
+        f = 40.0 + 60.0 * min(1.0, t / 1.0)
+        out.append((math.sin(2 * math.pi * f * t) + 0.4 * math.sin(2 * math.pi * f * 3 * t)) * min(1.0, t / 0.2)
+                   * min(1.0, (1.4 - t) / 0.3) * 0.7)
+    return out
+
+
+def main_riptide():
+    (OUT / "world").mkdir(exist_ok=True)
+    write("world/alarm.wav", alarm())
+    write("world/power_on.wav", power_on())
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
@@ -1371,3 +1403,4 @@ if __name__ == "__main__":
     main_pistol()
     main_more()
     main_lively()
+    main_riptide()

@@ -51,6 +51,11 @@ func _ready() -> void:
 		player.face_towards(Vector3.ZERO)
 
 	var extracts := get_extracts()
+	# (extracts that wait on a switch stay shut until it's thrown, MapSwitch: not in the random pick)
+	for zone in extracts.filter(func(z: ExtractZone) -> bool: return z.needs_power != ""):
+		zone.set_open(false)
+		zone.extracted.connect(_on_extracted)
+		extracts.erase(zone)
 	if Network.main.in_online_raid():
 		# Same seed on every machine: your squad (same spawn) gets the same open extracts (the server hands it out).
 		shuffle_seeded(extracts, Network.main.raid_seed)

@@ -19,6 +19,8 @@ var target: LootContainer = null
 var door: KeyDoor = null
 ## An ordinary door we're looking at (0.17): F opens or shuts it.
 var swing_door: Door = null
+## A map switch we're looking at (Riptide's sub bay power): F throws it.
+var map_switch: MapSwitch = null
 ## The container or door `progress` belongs to (looking at another one starts over).
 var _progress_target: Node = null
 ## 0..1 while holding F on an unsearched container.
@@ -45,6 +47,7 @@ func _physics_process(delta: float) -> void:
 	target = null
 	door = null
 	swing_door = null
+	map_switch = null
 	if blocked or not Input.is_action_pressed("interact"):
 		_open_needs_release = blocked
 	var able := not blocked and not player.out_of_fight() and TouchInput.playing() and not player.camera_away
@@ -60,6 +63,12 @@ func _physics_process(delta: float) -> void:
 		door = null
 	if door != null:
 		_update_door(delta)
+		return
+	map_switch = looked_at as MapSwitch
+	if map_switch != null:
+		progress = 0.0
+		if Input.is_action_just_pressed("interact") and not _open_needs_release:
+			map_switch.use(player.global_position)
 		return
 	swing_door = looked_at as Door
 	if swing_door != null:
@@ -161,4 +170,4 @@ func _find_target() -> Node:
 	if result.is_empty():
 		return null
 	var hit: Object = result.collider
-	return hit if hit is LootContainer or hit is KeyDoor or hit is Door else null
+	return hit if hit is LootContainer or hit is KeyDoor or hit is Door or hit is MapSwitch else null

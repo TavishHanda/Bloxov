@@ -47,6 +47,12 @@ static func load_map(raid: Node, path: String) -> void:
 		var settings: Dictionary = map.get_meta("spawner", {})
 		for key in settings:
 			spawner.set(key, settings[key])
+	# A map's `raid` metadata tunes the raid itself (Riptide: a 15-minute clock, owner 2026-11-09).
+	var raid_node := raid.get_node_or_null("Raid")
+	if raid_node != null:
+		var raid_settings: Dictionary = map.get_meta("raid", {})
+		for key in raid_settings:
+			raid_node.set(key, raid_settings[key])
 	# Anything else the map has (e.g. its key-door markers) goes straight under the raid.
 	for child in map.get_children():
 		if not SLOTS.has(String(child.name)) and child.name != ENEMY_SPAWNS:

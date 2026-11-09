@@ -7,6 +7,8 @@ signal extracted(zone: ExtractZone)
 
 @export var extract_name := "Extract"
 @export var extract_time := 7.0
+## Set: closed until the MapSwitch with this switch_id is thrown (Riptide's sub bay), never one of the random open ones.
+@export var needs_power := ""
 
 ## The dashed square painted round the zone, the mast's lamp (green open, red closed) and the beam from it.
 @onready var pad: Node3D = $Pad

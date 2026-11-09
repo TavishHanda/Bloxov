@@ -75,6 +75,7 @@ player_spawns = []   # (x, y, z)
 enemy_spawns = []    # (x, y, z, zone or "")
 boss_starts = []
 perches = []         # (x, y, z, face x, face z)
+switches = []        # (node, switch_id, prompt, x, y, z): MapSwitch
 labels = []          # (text, x, z, big)
 footprints = []      # (x0, z0, x1, z1)
 
@@ -767,6 +768,8 @@ def ship():
         box(38.0, HULL_B, z - 3, 44.0, HULL_B + 2.4, z + 3, "rust")
         box(52.0, HULL_B, z - 3, 58.0, HULL_B + 2.4, z + 3, "rust")
     box(62.0, HULL_B, 96.0, 65.5, HULL_B + 2.0, 100.0, "metal")   # the sub bay's power switch cabinet
+    switches.append(("SubBayPower", "sub_bay", "Turn on the sub bay power", 61.7, HULL_B + 1.1, 98.0))
+    labels.append(("SUB BAY POWER", 60, 98, 0))
     add_loot("EngineRoom", "crate", 47.0, HULL_B, 95.0, table="crate")
     add_loot("EngineRoom", "locker", 65.2, HULL_B, 90.0, -90)
     add_loot("PumpRoom", "crate", 36.0, HULL_B, -96.0)
@@ -985,7 +988,7 @@ def lab():
     wall("z", 56.0, lz0, lz1, LAB1, h1, "lab", [door(17.0, 2.0)])
     wall("z", 34.6, 10.0, 25.0, LAB1, 1.0, "lab")   # (a rail along the ramp's opening)
     ramp((32.3, LAB1, 10.0), (32.3, LAB2, 25.0), 4.0, "labfloor")
-    extracts.append(("SubBay", "SUB BAY", 61.0, LAB1, 17.0))
+    extracts.append(("SubBay", "SUB BAY", 61.0, LAB1, 17.0, "sub_bay"))   # shut until the power's on (MapSwitch)
     box(58.0, LAB1, 22.0, 65.0, LAB1 + 2.2, 26.0, "core")      # the sub
     add_loot("LabDock", "locker", 54.0, LAB1, 26.0, 180)
     add_loot("LabDock", "locker", 38.0, LAB1, 26.0, 180)
@@ -1149,7 +1152,8 @@ def write_scene():
               "safe": "res://scenes/loot_safe.tscn", "ladder": "res://scenes/ladder.tscn"}
     out = ["[gd_scene format=3]", "",
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
-           '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]']
+           '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]',
+           '[ext_resource type="Script" path="res://scripts/map_switch.gd" id="9_switch"]']
     ids = {}
     for n, (kind, path) in enumerate(scenes.items(), start=3):
         ids[kind] = f"{n}_{kind}"
@@ -1159,6 +1163,7 @@ def write_scene():
             '[node name="Riptide" type="Node3D"]',
             'metadata/map_name = "Riptide"',
             spawner_meta(),
+            'metadata/raid = {"raid_time": 900.0}',
             minimap_meta(),
             "",
             '[node name="Level" type="Node3D" parent="."]', "",
@@ -1173,6 +1178,9 @@ def write_scene():
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for h in hs) + ")",
             f"water_colour = {C['water']}",
             ""] + sea
+    for name, sid, text, x, y, z in switches:
+        out += [f'[node name="{name}" type="StaticBody3D" parent="Level"]', f"transform = {xform(x, y, z)}",
+                'script = ExtResource("9_switch")', f'switch_id = "{sid}"', f'prompt_text = "{text}"', ""]
     out += ['[node name="Ladders" type="Node3D" parent="Level"]', ""]
     for i, (x, y, z, yaw, height, place) in enumerate(ladders):
         out += [f'[node name="Ladder{i + 1}" parent="Level/Ladders" instance=ExtResource("{ids["ladder"]}")]',
@@ -1183,9 +1191,10 @@ def write_scene():
                 f"transform = {xform(x, y, z, yaw)}", f'metadata/place = "{place}"']
         out += ([f'loot_table = "{table}"'] if table != kind else []) + [""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
-    for name, title, x, y, z in extracts:
+    for name, title, x, y, z, *power in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',
-                f"transform = {xform(x, y, z)}", f'extract_name = "{title}"', ""]
+                f"transform = {xform(x, y, z)}", f'extract_name = "{title}"']
+        out += ([f'needs_power = "{power[0]}"'] if power else []) + [""]
     out += ['[node name="PlayerSpawns" type="Node3D" parent="."]', ""]
     for i, (x, y, z) in enumerate(player_spawns):
         out += [f'[node name="Spawn{i + 1}" type="Marker3D" parent="PlayerSpawns"]', f"transform = {xform(x, y + 0.1, z)}", ""]

@@ -41,6 +41,15 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.3 (Riptide: 15-minute raids, the sub bay's power, on the branch)
+- **Riptide raids last 15 minutes** (owner OK'd, 2026-11-09). A map can now tune its raid through `raid` metadata
+  (`RaidMap.load_map`), like `spawner` tunes its AI. Frontlines stays at 10.
+- **The sub bay needs power** (owner: "sub bay + alarm yes"): its extract stays shut (red) every raid until someone
+  throws the power switch in the engine room (Hull B, by the stern, `scripts/map_switch.gd`). That opens it and sets
+  off a klaxon over the switch and the sub bay for ~15 s, and every scav in earshot comes to look. It's never one of
+  the random open extracts (`ExtractZone.needs_power`). New sounds (only added): `alarm.wav`, `power_on.wav`.
+  Solo only for now, like Riptide itself; online it will need the server to throw it for everyone.
+
 ## 0.33.2 (Riptide: extracts and the moon pool, on the branch)
 - **Extracts are harder to camp** (owner, 2026-11-09). The cove is a nook in tall rocks, the road-out gate is a
   walled truck bay with containers across the road in front, the boathouse has screens inside so neither its doors

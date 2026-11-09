@@ -5573,6 +5573,21 @@ func _section_riptide() -> void:
 	var boss_starts := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("boss_start", false))
 	_check(zone_names.has("Lab") and zone_names.has("Landing") and boss_starts.size() >= 1
 		and spawner.boss.get("zone", "") == "Lab", "Riptide's AI zones, and the boss starts in the lab's core")
+	# 0.33.3: 15-minute raids (owner), and the sub bay shut until its power switch is thrown (which opens it)
+	var fake := Node.new()
+	var raid_node := Raid.new()
+	raid_node.name = "Raid"
+	fake.add_child(raid_node)
+	RaidMap.load_map(fake, MAP)
+	_check(is_equal_approx(raid_node.raid_time, 900.0), "Riptide raids last 15 minutes (the map's raid metadata)")
+	fake.free()
+	var sub: ExtractZone = world.raid.find_child("SubBay", true, false)
+	var power: MapSwitch = world.raid.find_child("SubBayPower", true, false)
+	_check(sub != null and power != null and sub.needs_power == power.switch_id, "the sub bay waits on its power switch")
+	if sub != null and power != null:
+		sub.set_open(false)
+		power.use(Vector3.ZERO)
+		_check(sub.is_open and power.used and power.prompt() == "Power on", "throwing the switch opens the sub bay")
 	world.queue_free()
 	await process_frame
 

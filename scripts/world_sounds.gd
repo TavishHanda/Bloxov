@@ -16,6 +16,9 @@ const UNLOCK := preload("res://audio/world/unlock.wav")
 const HEAVY_DOOR := preload("res://audio/world/heavy_door.wav")
 const RUMMAGE := preload("res://audio/world/rummage.wav")
 const SAFE := preload("res://audio/world/safe.wav")
+## Riptide's sub bay power (0.33.3): the switch, and the klaxon it sets off.
+const POWER_ON := preload("res://audio/world/power_on.wav")
+const ALARM := preload("res://audio/world/alarm.wav")
 ## Bullet impacts by what they hit (BoxMap surfaces: ground, wood, metal, concrete, water).
 const IMPACTS: Array[AudioStream] = [preload("res://audio/world/impact_dirt.wav"), preload("res://audio/world/impact_wood.wav"),
 	preload("res://audio/world/impact_metal.wav"), preload("res://audio/world/impact_concrete.wav"),

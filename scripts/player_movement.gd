@@ -212,7 +212,8 @@ func ladder_to_grab() -> Ladder:
 		or is_vaulting() or is_prone:
 		return null
 	var it := interactor
-	if it != null and (it.target != null or it.door != null or it.swing_door != null or it.revive_target != null):
+	if it != null and (it.target != null or it.door != null or it.swing_door != null or it.map_switch != null
+			or it.revive_target != null):
 		return null
 	return _ladders.back() as Ladder
 
