@@ -2951,6 +2951,50 @@ func _section_hideout_world() -> void:
 	Profile.quest_progress = saved_trophy_state[3]
 	Profile.bench_level = saved_trophy_state[4]
 	shelf.queue_free()
+	# Your corner (lively hideout): none on a headless run; a saved corner keeps only real spots and options; a locked
+	# option can't be picked and shows the spot's first one; an unlocked one goes in, is saved with the profile (and
+	# kept across the PvE/PvP switch like your look); by your bunk USE opens the picker; nothing collides.
+	_check(world.decor != null and not world.decor.is_on() and not world.decor_near, "no decorated corner on a headless run")
+	var saved_decor: Dictionary = Profile.decor.duplicate()
+	var saved_raids := int(Profile.stats.get("raids", 0))
+	var cleaned := Decor.clean({"poster": "nova", "flag": "nope", "sofa": "red", "rug": 3})
+	Profile.decor = {}
+	Profile.stats["raids"] = 0
+	var locked_refused := not Decor.pick("poster", "nova") and Decor.showing("poster") == "bloxov"
+	Profile.decor["poster"] = "nova"
+	var locked_shows_first := Decor.showing("poster") == "bloxov"
+	Profile.stats["raids"] = 5
+	var picked_ok := Decor.pick("poster", "nova") and Decor.showing("poster") == "nova"
+	var saved_has: bool = (JSON.parse_string(Profile.save_text()) as Dictionary).get("decor", {}).get("poster", "") == "nova"
+	var corner := HideoutDecor.new()
+	corner.set_meta(&"force_reacts", true)
+	world.add_child(corner)
+	corner.setup(crew_level, walker)
+	_check(cleaned == {"poster": "nova"} and locked_refused and locked_shows_first and picked_ok and saved_has
+		and corner.spots.size() == Decor.SPOTS.size() and corner.spots["poster"].get_child_count() > 2
+		and not corner.find_children("*", "CollisionObject3D", true, false),
+		"your corner: saves clean, locked options stay locked, an unlocked one goes up and is saved, nothing collides")
+	var headless_decor: HideoutDecor = world.decor
+	world.decor = corner
+	walker.global_position = corner.global_transform * Vector3(-1.4, 0.0, 28.9)
+	walker.rotation.y = PI * 0.5   # (facing -x: at the bunk)
+	world._process(0.0)
+	var corner_prompt: String = world._prompt.text
+	world.use_station()
+	var picker_opened: bool = world.decorating() and walker.locked
+	world.decor_picker.show_spot("rug")
+	world.decor_picker.pick("persian")   # (still locked: Supreme's level 2)
+	var rug_locked := Decor.showing("rug") == "none"
+	world.decor_picker.pick("olive")
+	world.decor_picker.close()
+	_check(corner_prompt.ends_with("Decorate your corner") and picker_opened and rug_locked and Decor.showing("rug") == "olive"
+		and corner.spots["rug"].get_child_count() > 0 and not world.decorating(),
+		"by your bunk USE opens the picker (%s); picking a rug puts it down; DONE closes it" % corner_prompt)
+	world.decor = headless_decor
+	corner.queue_free()
+	Profile.decor = saved_decor
+	Profile.stats["raids"] = saved_raids
+	Profile.save_profile()
 	world.queue_free()
 	for i in 5:
 		await process_frame
