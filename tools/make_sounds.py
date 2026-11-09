@@ -1319,10 +1319,44 @@ def wrench():
     return _mix(out, _mix(_thud(0.06, 700, 500, 60, 70, 0.4, 0.2, 120), _ring(0.3, ((1650, 1.0), (2480, 0.5), (4100, 0.2)), 18, 0.4)), 0.36, 0.8)
 
 
+def purr():
+    """The cat purring: a soft rumble of ~26 Hz pulses, swelling as it breathes in and out (a seamless loop)."""
+    random.seed(3310)
+    n = length(2.4)
+    nz = _lowpass(noise(n, 0.4), 0.55)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / n
+        phase += 2 * math.pi * 26 / RATE
+        pulse = max(0.0, math.sin(phase)) ** 3
+        breath = 0.65 + 0.35 * math.sin(2 * math.pi * 2 * t)     # (two breaths a loop: in purrs a bit louder)
+        out.append(nz[i] * pulse * breath)
+    return _seamless(_centred(_lowpass(out, 0.35)), 0.2)
+
+
+def meow():
+    """A short, friendly cat's mew: a rising-then-falling voice through an "ee-ow" mouth."""
+    random.seed(3311)
+    n = length(0.55)
+    out, phase = [], 0.0
+    for i in range(n):
+        t = i / n
+        f0 = 520 + 260 * math.sin(math.pi * min(1.0, t * 1.4)) - 120 * t
+        phase += 2 * math.pi * f0 / RATE
+        voice = sum(math.sin(phase * h) / h for h in range(1, 7))
+        # (the mouth opening: high bright harmonics early, darker at the end)
+        bright = 1.0 - 0.6 * t
+        voice = voice * (0.6 + 0.4 * bright) + 0.25 * math.sin(phase * 3) * bright
+        env = min(1.0, t / 0.08) * (1.0 - t) ** 1.2
+        out.append(voice * env * 0.4)
+    return _lowpass(out, 0.3)
+
+
 def main_lively():
     (OUT / "world").mkdir(exist_ok=True)
     for name, fn in (("shell_far", shell_far), ("grit", grit), ("pipe_knock", pipe_knock), ("generator", generator),
-                     ("rat", rat), ("snore", snore), ("wrench", wrench)):
+                     ("rat", rat), ("snore", snore), ("wrench", wrench),
+                     ("purr", purr), ("meow", meow)):
         write(f"world/{name}.wav", fn())
     for v in range(2):
         write(f"world/drip{v + 1}.wav", drip(v))

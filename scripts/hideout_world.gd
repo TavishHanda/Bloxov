@@ -59,6 +59,9 @@ var _hit_head := false
 var tutorial: Tutorial
 var war: HideoutWar
 var crew: HideoutCrew
+var cat: HideoutCat
+## The cat when it's close enough to pet (USE pets it).
+var cat_near := false
 
 
 func _ready() -> void:
@@ -90,6 +93,10 @@ func _ready() -> void:
 	crew.name = "Crew"
 	add_child(crew)
 	crew.setup(level, walker)        # (the crew living here: asleep, cooking, playing cards, fixing, a coffee)
+	cat = HideoutCat.new()
+	cat.name = "Cat"
+	add_child(cat)
+	cat.setup(level, walker)         # (the hideout's cat: wanders, naps by the stove, you can pet it)
 	_build_hud()
 	_build_range(level)
 	_build_boards(level)
@@ -192,16 +199,24 @@ func _process(_delta: float) -> void:
 		return
 	var free := not menu_open() and not toys.busy()
 	station = _station_in_reach() if free else null
-	seat = toys.seat_in_reach() if free and station == null else null
-	_use_button.visible = station != null or seat != null or toys.busy()
+	cat_near = free and cat.in_reach()
+	if cat_near and station != null:   # (the cat by a station: whichever's nearer is what USE does)
+		if station.global_position.distance_to(walker.global_position) < cat.global_position.distance_to(walker.global_position):
+			cat_near = false
+		else:
+			station = null
+	seat = toys.seat_in_reach() if free and station == null and not cat_near else null
+	_use_button.visible = station != null or seat != null or cat_near or toys.busy()
 	_use_button.text = ("GET UP  (%s)" if toys.seat != null else "STOP  (%s)" if toys.darts else "USE  (%s)") % use_key()
 	_menu_button.text = "MENU  (%s)" % menu_key()
 	if TouchInput.active:   # (touch: the buttons are the keys)
 		_use_button.text = _use_button.text.get_slice(" ", 0)
 		_menu_button.text = "MENU"
-	_prompt.visible = station != null or seat != null
+	_prompt.visible = station != null or seat != null or cat_near
 	if station != null:
 		_prompt.text = use_key() + "   " + station_label(station.name)
+	elif cat_near:
+		_prompt.text = use_key() + "   Pet the cat"
 	elif seat != null:
 		_prompt.text = use_key() + "   Sit down"
 	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not TouchInput.active
@@ -241,7 +256,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel") and not menu_open():
 		open_menu()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("interact") and (station != null or seat != null):
+	elif event.is_action_pressed("interact") and (station != null or seat != null or cat_near):
 		use_station()
 		get_viewport().set_input_as_handled()
 
@@ -288,7 +303,9 @@ func use_station() -> void:
 		toys.stand_up()
 		return
 	if station == null:
-		if seat != null:
+		if cat_near:
+			cat.pet()
+		elif seat != null:
 			toys.sit(seat)
 		return
 	if toys.use(station.name):

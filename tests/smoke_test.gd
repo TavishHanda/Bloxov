@@ -2872,6 +2872,50 @@ func _section_hideout_world() -> void:
 		and not hcrew.find_children("*", "CollisionObject3D", true, false),
 		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
 	hcrew.queue_free()
+	# The cat (lively hideout): none on a headless run; shown, it starts by the stove, walks round without leaving the
+	# floor or going through walls, comes to USE when you're by it and facing it, purrs when petted, and never collides.
+	var hcat: HideoutCat = world.cat
+	_check(hcat != null and hcat.body == null and not hcat.in_reach() and not world.cat_near, "no cat in the hideout on a headless run")
+	hcat = HideoutCat.new()
+	hcat.set_meta(&"force_reacts", true)
+	world.add_child(hcat)
+	hcat.setup(crew_level, walker)
+	var cat_home := hcat.position
+	var cat_ok := true
+	var cat_walks := 0
+	for i in 40:   # (a lot of strolls, quickly: each one checked as it goes)
+		hcat._start("sit", 0.0)
+		hcat._next()
+		if hcat.state != "walk" and not hcat._wander():
+			continue
+		cat_walks += 1
+		for f in 400:
+			hcat._physics_process(0.05)
+			if hcat.state != "walk":
+				break
+		var floor_y := hcat._floor_at(hcat.position)
+		cat_ok = cat_ok and is_finite(floor_y) and absf(floor_y - hcat.position.y) < 0.05 and absf(hcat.position.y) < 2.0
+	_check(cat_ok and cat_walks > 5 and hcat.walked > 5.0 and cat_home.distance_to(crew_level.get_node("Life").get_meta(&"fire")) < 2.5,
+		"the cat starts by the stove and walks round on the floor (%d strolls, %.1f m)" % [cat_walks, hcat.walked])
+	hcat._start("sit", 30.0)
+	walker.global_position = hcat.global_position + Vector3(0.0, 0.0, 1.2)
+	walker.rotation.y = 0.0   # (facing -z: at the cat)
+	var reach_facing := hcat.in_reach()
+	walker.rotation.y = PI
+	var reach_away := hcat.in_reach()
+	walker.rotation.y = 0.0
+	var headless_cat: HideoutCat = world.cat
+	world.cat = hcat
+	world._process(0.0)
+	var cat_prompt: String = world._prompt.text
+	_check(reach_facing and not reach_away and world.cat_near and cat_prompt.ends_with("Pet the cat"),
+		"the cat: in reach facing it, not with your back to it, the prompt says pet it (%s)" % cat_prompt)
+	world.use_station()
+	hcat._physics_process(0.05)
+	_check(hcat.pets == 1 and hcat.state == "petted" and hcat.purr.playing and not hcat.find_children("*", "CollisionObject3D", true, false),
+		"USE pets the cat: it purrs, and it doesn't collide")
+	world.cat = headless_cat
+	hcat.queue_free()
 	world.queue_free()
 	for i in 5:
 		await process_frame
