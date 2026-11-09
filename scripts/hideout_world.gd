@@ -57,6 +57,7 @@ var _hit_distance := 0.0
 var _hit_head := false
 ## The new player's walk round (null when it isn't running).
 var tutorial: Tutorial
+var war: HideoutWar
 
 
 func _ready() -> void:
@@ -80,6 +81,10 @@ func _ready() -> void:
 	toys.name = "Toys"
 	add_child(toys)
 	toys.setup(level, walker, env)
+	war = HideoutWar.new()
+	war.name = "War"
+	add_child(war)
+	war.setup(level, walker, toys)   # (the war upstairs: a shell now and then, dust off the roof)
 	_build_hud()
 	_build_range(level)
 	_build_boards(level)

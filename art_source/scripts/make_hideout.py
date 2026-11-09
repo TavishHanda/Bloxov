@@ -1795,6 +1795,10 @@ def shower_block(ctx):
         b.box((x + 0.25, 0.94, tz - 0.12), (0.08, 0.04, 0.06), style=mb._nb(rng.choice(("bone", "green", "red"))))
     for x in (tx0 + 0.1, tx1 - 0.1):
         pipe(b, (x, 0.0, tz), (x, 0.7, tz), "bk_iron", 0.05)
+    LIFE["drip"] = (tx0 + 1.5 * (tx1 - tx0) / 3, 1.04, z1 - 0.2)     # (lively hideout: the middle tap drips)
+    LIFE["pipes"] = ((tx0 + tx1) / 2, 1.3, z1 - 0.06)                  # (and the water pipe knocks now and then)
+    LIFE["rat"] = (tx0 + 0.3, 0.0, z1 - 0.16)                          # (and a rat runs along under the trough)
+    LIFE["rat_to"] = (tx1 - 0.3, 0.0, z1 - 0.16)
     block((tx0 + tx1) / 2, 0.0, tz, tx1 - tx0, 0.95, 0.5)
     # The showers: two heads off a pipe, a rail and a curtain partly drawn, a drain, a mat, towels on hooks.
     sx = x1 - 1.0
@@ -1856,6 +1860,7 @@ def dress_props(ctx):
     pipe(b, (gx + 0.8, 1.1, gz), (gx + 0.8, 2.6, gz), "bk_iron", 0.12)
     pipe(b, (gx - 0.9, 0.03, gz), (LAY.war_table[0] - 2.5, 0.03, LAY.war_table[1] + 1.0), "bk_cable", 0.04)
     block(gx, 0.0, gz, 1.9, 1.1, 1.0)
+    LIFE["generator"] = (gx, 0.5, gz)                                  # (lively hideout: it shakes and hums, its fan turns)
     if SHAPE == "cave":                                                # rocks fallen along the walls
         C = LAY.C
         for k, (x, z) in enumerate(LAY.outline[::5]):

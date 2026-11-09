@@ -2840,6 +2840,18 @@ func _section_hideout_world() -> void:
 	for i in 60:
 		await process_frame
 	_check(HideoutToys.lights_on and env.ambient_light_energy > 0.85, "lights on again: lit (%.2f)" % env.ambient_light_energy)
+	# The war upstairs (lively hideout): never on its own on a headless run; a shell shakes the lamps, dims the lights
+	# and drops grit off the roof by you, and none of it collides.
+	var war: HideoutWar = world.war
+	_check(war != null and not war.is_processing() and war.shells == 0, "no shells land on their own on a headless run")
+	var lamp_spin: PackedVector2Array = war.lamps.spin.duplicate()
+	war.shell()
+	war._update_flicker(0.05)
+	_check(war.falls.size() >= 1 and war.lamps.spin != lamp_spin and toys.flicker < 0.9
+		and not war.find_children("*", "CollisionObject3D", true, false),
+		"a shell up top: grit falls off the roof (%d), the lamps sway, the lights dip (%.2f), nothing collides" % [war.falls.size(), toys.flicker])
+	war._flicker = 0.0
+	war._update_flicker(0.05)
 	world.queue_free()
 	for i in 5:
 		await process_frame
@@ -6489,13 +6501,30 @@ func _section_reacts() -> void:
 	life.queue_free()
 	life = load("res://scripts/hideout_life.gd").new()
 	life.set_meta(&"force_reacts", true)
-	for key: StringName in [&"steam", &"fire", &"tv", &"dust"]:
+	for key: StringName in [&"steam", &"fire", &"tv", &"dust", &"drip", &"pipes", &"generator"]:
 		life.set_meta(key, ground + Vector3(0, 1, 0))
+	life.set_meta(&"rat", ground)
+	life.set_meta(&"rat_to", ground + Vector3(3, 0, 0))
 	main.add_child(life)
 	await physics_frame
 	_check(life.steam != null and life.dust != null and life.glows.size() == 1
 		and not life.find_children("*", "CollisionObject3D", true, false),
 		"the hideout has steam, the stove's fire, the TV's picture and dust, and none of it collides")
+	# Lively hideout: the tap drips, the generator's fan turns and it chugs (heard only near it), the pipe knocks.
+	var fan_turn: Basis = life.fan.basis
+	life._drip_left = 0.0
+	for i in 20:
+		await process_frame
+	_check(life.drop != null and life.fan.basis != fan_turn and life.engine.playing and life.engine.max_distance > 0.0
+		and life.engine.max_distance <= 15.0 and life.exhaust != null,
+		"lively hideout: a drop falls off the tap, the generator's fan turns, its chug is heard only near it")
+	life.knock_pipe()
+	life.start_rat()
+	var rat_from: Vector3 = life.rat.position
+	for i in 20:
+		await process_frame
+	_check(life.rat.visible and life.rat.position.distance_to(rat_from) > 0.05 and life.rat.position.y < ground.y + 0.1,
+		"lively hideout: the rat comes out and runs along the floor")
 	life.queue_free()
 	# The hideout's hanging signs (0.28.8, owner: "they should like move if u run into them"): knocked, they swing back.
 	var hung: Node3D = load("res://scripts/hanging_signs.gd").new()
