@@ -37,6 +37,7 @@ var _jukebox: AudioStreamPlayer3D
 var _area := Rect2()
 ## 0 = the lights on, 1 = off (fades).
 var _off := 0.0
+var flicker := 1.0   # (HideoutWar: the lights dip when a shell lands up top)
 var _glows: MultiMeshInstance3D
 var _tv_light: OmniLight3D
 var _bunk_light: OmniLight3D
@@ -109,6 +110,8 @@ func seat_in_reach() -> Node3D:
 	var best_d := SEAT_REACH
 	for node: Node in level.get_node("Seats").get_children():
 		var marker := node as Node3D
+		if marker.has_meta(&"taken"):
+			continue                       # (someone of the crew's sat there: HideoutCrew)
 		var to := marker.global_position - walker.global_position
 		if to.y < -0.4 or to.y > 1.4:
 			continue                       # (0.25.37, owner: "i can sit on snack bar chairs from upstairs")
@@ -291,7 +294,7 @@ func switch_lights(on: bool) -> void:
 func _update_dark(delta: float) -> void:
 	_off = move_toward(_off, 0.0 if lights_on else 1.0, LIGHTS_FADE * delta)
 	if environment != null:
-		environment.ambient_light_energy = lerpf(LIGHTS_ON_ENERGY, LIGHTS_OFF_ENERGY, _off)
+		environment.ambient_light_energy = lerpf(LIGHTS_ON_ENERGY, LIGHTS_OFF_ENERGY, _off) * flicker
 	var on := _off > 0.01
 	if _glows != null:
 		_glows.visible = on

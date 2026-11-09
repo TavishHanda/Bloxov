@@ -48,6 +48,8 @@ static var crafted: Dictionary = {}
 static var loadout_presets: Array = []
 ## Your character's look (0.21.6, the wardrobe): {part: option}, see Operators.
 static var look: Dictionary = Operators.clean({})
+## Your corner of the hideout (lively hideout): spot -> picked option, see Decor. Account-wide like the look.
+static var decor: Dictionary = {}
 ## The new-player tutorial (0.24.0, see Tutorial): {"step": hideout walk step (TUTORIAL_DONE = finished or skipped),
 ## "tips": raid tips on, "seen": the raid tips already shown}. (Checked here, not in Tutorial: the Net autoload
 ## reaches this script, and Tutorial's would pull in the player's.)
@@ -143,6 +145,7 @@ static func _apply(data: Dictionary) -> void:
 		if not preset.is_empty() and loadout_presets.size() < Loadouts.MAX:
 			loadout_presets.append(preset)
 	look = Operators.clean(data.get("look"))
+	decor = Decor.clean(data.get("decor"))
 	# (a save from before the tutorial: anyone who has played already skips it, owner)
 	tutorial = clean_tutorial(data.get("tutorial"), not has_played())
 
@@ -265,6 +268,7 @@ static func reset() -> void:
 	crafted = {}
 	loadout_presets = []
 	look = Operators.clean({})
+	decor = {}
 	tutorial = fresh_tutorial()
 
 
@@ -291,6 +295,7 @@ static func solo_save_text() -> String:
 	if not data is Dictionary:
 		return _solo_text
 	data["look"] = look
+	data["decor"] = decor
 	data["tutorial"] = tutorial
 	data["saved_at"] = Time.get_unix_time_from_system()
 	return JSON.stringify(data)
@@ -304,10 +309,12 @@ static func use_online(data: Dictionary) -> void:
 		_solo_text = save_text()
 		save_profile()
 	var keep_look := look
+	var keep_decor := decor
 	var keep_tutorial := tutorial
 	mode = ONLINE
 	_apply(data)
 	look = keep_look
+	decor = keep_decor
 	tutorial = keep_tutorial
 
 
@@ -329,6 +336,7 @@ static func use_solo() -> void:
 static func save_text() -> String:
 	var data := online_data()
 	data["look"] = look
+	data["decor"] = decor
 	data["tutorial"] = tutorial
 	data["saved_at"] = Time.get_unix_time_from_system()
 	return JSON.stringify(data)
@@ -366,6 +374,7 @@ static func replace_with(text: String) -> void:
 		var data = JSON.parse_string(text)
 		if data is Dictionary:
 			look = Operators.clean(data.get("look"))
+			decor = Decor.clean(data.get("decor"))
 			tutorial = clean_tutorial(data.get("tutorial"), false)
 		return
 	_loaded = false

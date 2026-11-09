@@ -616,6 +616,7 @@ def write_door_texture(rows_):
 
 
 HANG_SIGNS = []     # (0.28.8) the bays' hanging signs for scripts/hanging_signs.gd: pivot, axis x, z, length, half w, h
+TRADER_SPOTS = {}   # (lively hideout) each trader behind their counter: x, floor y, z, facing x, z
 LIFE = {}           # (0.28.5) where scripts/hideout_life.gd puts the stove's steam and fire, the dust, the TV
 DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
 
@@ -1467,6 +1468,8 @@ def bay(ctx, rng, i, entry):
     mid = 0.0
     if bid in TRADERS:
         fx = depth - 0.5                                              # the counter: drums at the ends, crates between
+        stand, ahead = F.P(1.75, 0.0, 0.0), F.P(2.75, 0.0, 0.0)        # (lively hideout: where the trader stands)
+        TRADER_SPOTS[bid] = (stand[0], y0, stand[2], ahead[0] - stand[0], ahead[2] - stand[2])
         drum(b, *F.P(fx, 0, -w / 2 + 0.6)[0::2], y0, rng.choice(TINS))
         drum(b, *F.P(fx, 0, w / 2 - 0.6)[0::2], y0, rng.choice(TINS))
         k = -w / 2 + 0.9
@@ -1719,6 +1722,9 @@ def bunks(ctx):
     b, rng = ctx.b, random.Random("bunks")
     for bx, bz, yaw in LAY.bunk_list:
         r = lambda x, z: mb.rot((x, 0, z), yaw, 0)                    # noqa: E731
+        if (bx, bz) == LAY.bunk_list[0][:2]:                           # (lively hideout: someone asleep in this one)
+            LIFE["bed"] = (bx, 0.51, bz)
+            LIFE["bed_head"] = r(0, 1.0)
         for y in (0.45, 1.65):
             b.box((bx, y, bz), (0.9, 0.12, 2.0), yaw=yaw, style=mb._nb("hd_mattress"))
             p = r(0, 0.6)
@@ -1795,6 +1801,10 @@ def shower_block(ctx):
         b.box((x + 0.25, 0.94, tz - 0.12), (0.08, 0.04, 0.06), style=mb._nb(rng.choice(("bone", "green", "red"))))
     for x in (tx0 + 0.1, tx1 - 0.1):
         pipe(b, (x, 0.0, tz), (x, 0.7, tz), "bk_iron", 0.05)
+    LIFE["drip"] = (tx0 + 1.5 * (tx1 - tx0) / 3, 1.04, z1 - 0.2)     # (lively hideout: the middle tap drips)
+    LIFE["pipes"] = ((tx0 + tx1) / 2, 1.3, z1 - 0.06)                  # (and the water pipe knocks now and then)
+    LIFE["rat"] = (tx0 + 0.3, 0.0, z1 - 0.16)                          # (and a rat runs along under the trough)
+    LIFE["rat_to"] = (tx1 - 0.3, 0.0, z1 - 0.16)
     block((tx0 + tx1) / 2, 0.0, tz, tx1 - tx0, 0.95, 0.5)
     # The showers: two heads off a pipe, a rail and a curtain partly drawn, a drain, a mat, towels on hooks.
     sx = x1 - 1.0
@@ -1856,6 +1866,7 @@ def dress_props(ctx):
     pipe(b, (gx + 0.8, 1.1, gz), (gx + 0.8, 2.6, gz), "bk_iron", 0.12)
     pipe(b, (gx - 0.9, 0.03, gz), (LAY.war_table[0] - 2.5, 0.03, LAY.war_table[1] + 1.0), "bk_cable", 0.04)
     block(gx, 0.0, gz, 1.9, 1.1, 1.0)
+    LIFE["generator"] = (gx, 0.5, gz)                                  # (lively hideout: it shakes and hums, its fan turns)
     if SHAPE == "cave":                                                # rocks fallen along the walls
         C = LAY.C
         for k, (x, z) in enumerate(LAY.outline[::5]):
@@ -2557,6 +2568,7 @@ def dress(ctx):
     L = LAY
     LAMPS.clear()
     LIFE.clear()
+    TRADER_SPOTS.clear()
     HANG_SIGNS.clear()
     dome(ctx, L.outline, L.C, L.profile, L.mats, L.amp, [t.hole for t in L.tunnels], seed="hall", tunnels=L.tunnels)
     for t in L.tunnels:
@@ -2869,6 +2881,15 @@ def write_level(rows):
                     'metadata/jukebox = Vector3(%g, %g, %g)\n'
                     % ((round(LAY.hang.Cw[0], 3), -HANG_DEPTH, round(LAY.hang.Cw[1], 3))
                        + tuple(round(v, 3) for v in LAY.hang.w((jx + 0.3, 0.95, jz)))))
+        if TRADER_SPOTS:
+            f.write('\n[node name="Traders" type="Node3D" parent="."]\n')
+            for bid in sorted(TRADER_SPOTS):                           # (a Marker3D looks down its -z: the counter)
+                x, y, z, fx, fz = TRADER_SPOTS[bid]
+                a = math.atan2(-fx, -fz)
+                f.write('\n[node name="%s" type="Marker3D" parent="Traders"]\n'
+                        'transform = Transform3D(%g, 0, %g, 0, 1, 0, %g, 0, %g, %g, %g, %g)\n'
+                        % (bid, round(math.cos(a), 5), round(math.sin(a), 5), round(-math.sin(a), 5), round(math.cos(a), 5),
+                           round(x, 3), round(y, 3), round(z, 3)))
         aimed = aimed_stations()
         for sid, x, z, reach, y in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'

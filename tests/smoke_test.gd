@@ -2923,6 +2923,161 @@ func _section_hideout_world() -> void:
 	for i in 60:
 		await process_frame
 	_check(HideoutToys.lights_on and env.ambient_light_energy > 0.85, "lights on again: lit (%.2f)" % env.ambient_light_energy)
+	# The war upstairs (lively hideout): never on its own on a headless run; a shell shakes the lamps, dims the lights
+	# and drops grit off the roof by you, and none of it collides.
+	var war: HideoutWar = world.war
+	_check(war != null and not war.is_processing() and war.shells == 0, "no shells land on their own on a headless run")
+	var lamp_spin: PackedVector2Array = war.lamps.spin.duplicate()
+	war.shell()
+	war._update_flicker(0.05)
+	_check(war.falls.size() >= 1 and war.lamps.spin != lamp_spin and toys.flicker < 0.9
+		and not war.find_children("*", "CollisionObject3D", true, false),
+		"a shell up top: grit falls off the roof (%d), the lamps sway, the lights dip (%.2f), nothing collides" % [war.falls.size(), toys.flicker])
+	war._flicker = 0.0
+	war._update_flicker(0.05)
+	# The crew (lively hideout): nobody on a headless run; shown, six of them at their spots, none collide, and you
+	# can't sit on a seat one of them is on.
+	var hcrew: HideoutCrew = world.crew
+	_check(hcrew != null and hcrew.members.is_empty(), "no crew in the hideout on a headless run")
+	var crew_level: Node3D = world.get_node("Level")
+	hcrew = HideoutCrew.new()
+	hcrew.set_meta(&"force_reacts", true)
+	world.add_child(hcrew)
+	hcrew.setup(crew_level, walker)
+	for i in 5:
+		await process_frame
+	var crew_ids := hcrew.members.map(func(m: Dictionary) -> String: return m["id"])
+	var crew_seat := crew_level.get_node("Seats/Seat0") as Node3D
+	walker.global_position = crew_seat.global_position + crew_seat.global_basis.z * 0.4 - Vector3.UP * 0.4
+	walker.rotation.y = crew_seat.global_rotation.y
+	_check(crew_ids.size() == 11 and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
+		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
+		and not hcrew.find_children("*", "CollisionObject3D", true, false),
+		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
+	hcrew.queue_free()
+	# The cat (lively hideout): none on a headless run; shown, it starts by the stove, walks round without leaving the
+	# floor or going through walls, comes to USE when you're by it and facing it, purrs when petted, and never collides.
+	var hcat: HideoutCat = world.cat
+	_check(hcat != null and hcat.body == null and not hcat.in_reach() and not world.cat_near, "no cat in the hideout on a headless run")
+	hcat = HideoutCat.new()
+	hcat.set_meta(&"force_reacts", true)
+	world.add_child(hcat)
+	hcat.setup(crew_level, walker)
+	var cat_home := hcat.position
+	var cat_ok := true
+	var cat_walks := 0
+	for i in 40:   # (a lot of strolls, quickly: each one checked as it goes)
+		hcat._start("sit", 0.0)
+		hcat._next()
+		if hcat.state != "walk" and not hcat._wander():
+			continue
+		cat_walks += 1
+		for f in 400:
+			hcat._physics_process(0.05)
+			if hcat.state != "walk":
+				break
+		var floor_y := hcat._floor_at(hcat.position)
+		cat_ok = cat_ok and is_finite(floor_y) and absf(floor_y - hcat.position.y) < 0.05 and absf(hcat.position.y) < 2.0
+	_check(cat_ok and cat_walks > 5 and hcat.walked > 5.0 and cat_home.distance_to(crew_level.get_node("Life").get_meta(&"fire")) < 2.5,
+		"the cat starts by the stove and walks round on the floor (%d strolls, %.1f m)" % [cat_walks, hcat.walked])
+	hcat._start("sit", 30.0)
+	walker.global_position = hcat.global_position + Vector3(0.0, 0.0, 1.2)
+	walker.rotation.y = 0.0   # (facing -z: at the cat)
+	var reach_facing := hcat.in_reach()
+	walker.rotation.y = PI
+	var reach_away := hcat.in_reach()
+	walker.rotation.y = 0.0
+	var headless_cat: HideoutCat = world.cat
+	world.cat = hcat
+	world._process(0.0)
+	var cat_prompt: String = world._prompt.text
+	_check(reach_facing and not reach_away and world.cat_near and cat_prompt.ends_with("Pet the cat"),
+		"the cat: in reach facing it, not with your back to it, the prompt says pet it (%s)" % cat_prompt)
+	world.use_station()
+	hcat._physics_process(0.05)
+	_check(hcat.pets == 1 and hcat.state == "petted" and hcat.purr.playing and not hcat.find_children("*", "CollisionObject3D", true, false),
+		"USE pets the cat: it purrs, and it doesn't collide")
+	world.cat = headless_cat
+	hcat.queue_free()
+	# The trophy shelf (lively hideout): none on a headless run; shown, it's empty for a new profile and fills from
+	# what the profile already keeps, looking at a trophy says what it's for, and nothing on it collides.
+	_check(world.trophies != null and world.trophies.cabinet == null, "no trophy shelf on a headless run")
+	var saved_trophy_state := [Profile.stats.duplicate(), Profile.trader_levels.duplicate(), Profile.quests_done.duplicate(),
+		Profile.quest_progress.duplicate(), Profile.bench_level]
+	Profile.stats = Profile.DEFAULT_STATS.duplicate()
+	Profile.trader_levels = {}
+	Profile.quests_done.clear()
+	Profile.quest_progress = {}
+	Profile.bench_level = 1
+	var shelf := HideoutTrophies.new()
+	shelf.set_meta(&"force_reacts", true)
+	world.add_child(shelf)
+	shelf.setup(crew_level)
+	var empty_count := shelf.trophies.size()
+	Profile.stats["raids"] = 12
+	Profile.stats["extracts"] = 10
+	Profile.stats["earned"] = 30000
+	Profile.trader_levels = {"guns": 3}
+	Profile.quests_done.assign(["big_game", "a", "b"])
+	shelf.refresh()
+	var labels: Array = shelf.trophies.map(func(t: Dictionary) -> String: return t["label"])
+	var mask_node: Node3D = shelf.get_node("Shelf/BonMask")
+	var trophy_eye := mask_node.global_position + mask_node.global_basis.z * -1.5 + Vector3.UP * 0.2
+	var seen := shelf.looked_at(trophy_eye, (mask_node.global_position - trophy_eye).normalized())
+	_check(empty_count == 0 and labels.size() == 7 and seen.begins_with("Bon's mask")
+		and not shelf.find_children("*", "CollisionObject3D", true, false)
+		and shelf.board_near(crew_level),
+		"the trophy shelf: empty at first, then Bon's mask, a token, 2 medals, cash, the jar and folders (%s); looking at one says it (%s)" % [", ".join(labels), seen])
+	Profile.stats = saved_trophy_state[0]
+	Profile.trader_levels = saved_trophy_state[1]
+	Profile.quests_done.assign(saved_trophy_state[2])
+	Profile.quest_progress = saved_trophy_state[3]
+	Profile.bench_level = saved_trophy_state[4]
+	shelf.queue_free()
+	# Your corner (lively hideout): none on a headless run; a saved corner keeps only real spots and options; a locked
+	# option can't be picked and shows the spot's first one; an unlocked one goes in, is saved with the profile (and
+	# kept across the PvE/PvP switch like your look); by your bunk USE opens the picker; nothing collides.
+	_check(world.decor != null and not world.decor.is_on() and not world.decor_near, "no decorated corner on a headless run")
+	var saved_decor: Dictionary = Profile.decor.duplicate()
+	var saved_raids := int(Profile.stats.get("raids", 0))
+	var cleaned := Decor.clean({"poster": "nova", "flag": "nope", "sofa": "red", "rug": 3})
+	Profile.decor = {}
+	Profile.stats["raids"] = 0
+	var locked_refused := not Decor.pick("poster", "nova") and Decor.showing("poster") == "bloxov"
+	Profile.decor["poster"] = "nova"
+	var locked_shows_first := Decor.showing("poster") == "bloxov"
+	Profile.stats["raids"] = 5
+	var picked_ok := Decor.pick("poster", "nova") and Decor.showing("poster") == "nova"
+	var saved_has: bool = (JSON.parse_string(Profile.save_text()) as Dictionary).get("decor", {}).get("poster", "") == "nova"
+	var corner := HideoutDecor.new()
+	corner.set_meta(&"force_reacts", true)
+	world.add_child(corner)
+	corner.setup(crew_level, walker)
+	_check(cleaned == {"poster": "nova"} and locked_refused and locked_shows_first and picked_ok and saved_has
+		and corner.spots.size() == Decor.SPOTS.size() and corner.spots["poster"].get_child_count() > 2
+		and not corner.find_children("*", "CollisionObject3D", true, false),
+		"your corner: saves clean, locked options stay locked, an unlocked one goes up and is saved, nothing collides")
+	var headless_decor: HideoutDecor = world.decor
+	world.decor = corner
+	walker.global_position = corner.global_transform * Vector3(-1.4, 0.0, 28.9)
+	walker.rotation.y = PI * 0.5   # (facing -x: at the bunk)
+	world._process(0.0)
+	var corner_prompt: String = world._prompt.text
+	world.use_station()
+	var picker_opened: bool = world.decorating() and walker.locked
+	world.decor_picker.show_spot("rug")
+	world.decor_picker.pick("persian")   # (still locked: Supreme's level 2)
+	var rug_locked := Decor.showing("rug") == "none"
+	world.decor_picker.pick("olive")
+	world.decor_picker.close()
+	_check(corner_prompt.ends_with("Decorate your corner") and picker_opened and rug_locked and Decor.showing("rug") == "olive"
+		and corner.spots["rug"].get_child_count() > 0 and not world.decorating(),
+		"by your bunk USE opens the picker (%s); picking a rug puts it down; DONE closes it" % corner_prompt)
+	world.decor = headless_decor
+	corner.queue_free()
+	Profile.decor = saved_decor
+	Profile.stats["raids"] = saved_raids
+	Profile.save_profile()
 	world.queue_free()
 	for i in 5:
 		await process_frame
@@ -6610,13 +6765,30 @@ func _section_reacts() -> void:
 	life.queue_free()
 	life = load("res://scripts/hideout_life.gd").new()
 	life.set_meta(&"force_reacts", true)
-	for key: StringName in [&"steam", &"fire", &"tv", &"dust"]:
+	for key: StringName in [&"steam", &"fire", &"tv", &"dust", &"drip", &"pipes", &"generator"]:
 		life.set_meta(key, ground + Vector3(0, 1, 0))
+	life.set_meta(&"rat", ground)
+	life.set_meta(&"rat_to", ground + Vector3(3, 0, 0))
 	main.add_child(life)
 	await physics_frame
 	_check(life.steam != null and life.dust != null and life.glows.size() == 1
 		and not life.find_children("*", "CollisionObject3D", true, false),
 		"the hideout has steam, the stove's fire, the TV's picture and dust, and none of it collides")
+	# Lively hideout: the tap drips, the generator's fan turns and it chugs (heard only near it), the pipe knocks.
+	var fan_turn: Basis = life.fan.basis
+	life._drip_left = 0.0
+	for i in 20:
+		await process_frame
+	_check(life.drop != null and life.fan.basis != fan_turn and life.engine.playing and life.engine.max_distance > 0.0
+		and life.engine.max_distance <= 15.0 and life.exhaust != null,
+		"lively hideout: a drop falls off the tap, the generator's fan turns, its chug is heard only near it")
+	life.knock_pipe()
+	life.start_rat()
+	var rat_from: Vector3 = life.rat.position
+	for i in 20:
+		await process_frame
+	_check(life.rat.visible and life.rat.position.distance_to(rat_from) > 0.05 and life.rat.position.y < ground.y + 0.1,
+		"lively hideout: the rat comes out and runs along the floor")
 	life.queue_free()
 	# The hideout's hanging signs (0.28.8, owner: "they should like move if u run into them"): knocked, they swing back.
 	var hung: Node3D = load("res://scripts/hanging_signs.gd").new()
