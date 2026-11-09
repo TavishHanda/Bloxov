@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -5382,6 +5382,44 @@ func _section_leave_raid() -> void:
 	_check(hud.end_screen.visible and hud.end_screen.summary()["stamp"] == "LEFT THE RAID", "the end screen says you left (%s)" % hud.end_screen.summary()["stamp"])
 	raid_scene.queue_free()
 	await _frames(2)
+
+
+func _section_riptide() -> void:
+	# Map 2 (2026-11-09): Riptide, the Leviathan and Site Zero under it, a gray box built by tools/gen_riptide.py. A
+	# solo raid can pick it in the hideout (RaidMap.MAPS); online raids stay on Frontlines for now.
+	const MAP := "res://scenes/maps/riptide.tscn"
+	_check(RaidMap.MAPS.any(func(m: Array) -> bool: return m[1] == MAP) and RaidMap.MAPS[0][1] == RaidMap.FRONTLINES,
+		"Riptide is in the map list, Frontlines first")
+	var map := (load(MAP) as PackedScene).instantiate()
+	_check(map.get_meta("map_name", "") == "Riptide" and map.get_node("Extracts").get_child_count() == 6
+		and map.get_node("PlayerSpawns").get_child_count() == 8, "Riptide: 6 extracts and 8 player spawns")
+	var short := []
+	for spawn: Node3D in map.get_node("PlayerSpawns").get_children():
+		var far := map.get_node("Extracts").get_children().filter(func(e: Node3D) -> bool:
+			return Vector2(e.position.x - spawn.position.x, e.position.z - spawn.position.z).length() >= Raid.CLOSED_NEAR_SPAWN)
+		if far.size() < 3:
+			short.append(spawn.name)
+	_check(short.is_empty(), "every Riptide spawn has 3+ extracts far enough away to be open for it (%s)" % [short])
+	var unknown := map.get_node("Loot").get_children().filter(func(c: Node) -> bool:
+		var place: String = c.get_meta("place", "")
+		return not ItemDB.PLACE_LOOT.has(place) and place not in ["Shore", "Boathouse", "Barges", "PumpRoom", "Hold",
+			"Deck", "BowStore", "Crew", "Officers", "LabDock"])
+	_check(map.get_node("Loot").get_child_count() > 40 and unknown.is_empty(),
+		"Riptide's loot spots are tagged by place (%s unknown)" % [unknown.map(func(c: Node) -> String: return c.name)])
+	var ladders := map.find_child("Ladders", true, false)
+	_check(ladders != null and ladders.get_child_count() >= 12, "Riptide has its ladders (boats, bow, tower, tube...)")
+	map.free()
+	RaidMap.scene_path = MAP
+	var world := RaidWorld.new()
+	root.add_child(world)
+	RaidMap.scene_path = ""
+	var spawner := world.raid.get_node("EnemySpawner")
+	var zone_names: Array = spawner.zones.map(func(z: Dictionary) -> String: return z.name)
+	var boss_starts := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("boss_start", false))
+	_check(zone_names.has("Lab") and zone_names.has("Landing") and boss_starts.size() >= 1
+		and spawner.boss.get("zone", "") == "Lab", "Riptide's AI zones, and the boss starts in the lab's core")
+	world.queue_free()
+	await process_frame
 
 
 func _section_old_bloxov() -> void:
