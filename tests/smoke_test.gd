@@ -2852,6 +2852,26 @@ func _section_hideout_world() -> void:
 		"a shell up top: grit falls off the roof (%d), the lamps sway, the lights dip (%.2f), nothing collides" % [war.falls.size(), toys.flicker])
 	war._flicker = 0.0
 	war._update_flicker(0.05)
+	# The crew (lively hideout): nobody on a headless run; shown, six of them at their spots, none collide, and you
+	# can't sit on a seat one of them is on.
+	var hcrew: HideoutCrew = world.crew
+	_check(hcrew != null and hcrew.members.is_empty(), "no crew in the hideout on a headless run")
+	var crew_level: Node3D = world.get_node("Level")
+	hcrew = HideoutCrew.new()
+	hcrew.set_meta(&"force_reacts", true)
+	world.add_child(hcrew)
+	hcrew.setup(crew_level, walker)
+	for i in 5:
+		await process_frame
+	var crew_ids := hcrew.members.map(func(m: Dictionary) -> String: return m["id"])
+	var crew_seat := crew_level.get_node("Seats/Seat0") as Node3D
+	walker.global_position = crew_seat.global_position + crew_seat.global_basis.z * 0.4 - Vector3.UP * 0.4
+	walker.rotation.y = crew_seat.global_rotation.y
+	_check(crew_ids.size() == 6 and crew_ids.has("sleeper") and crew_ids.has("cook") and crew_ids.has("mechanic")
+		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
+		and not hcrew.find_children("*", "CollisionObject3D", true, false),
+		"the crew: six of them (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
+	hcrew.queue_free()
 	world.queue_free()
 	for i in 5:
 		await process_frame

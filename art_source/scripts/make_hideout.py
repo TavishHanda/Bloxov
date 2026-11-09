@@ -1719,6 +1719,9 @@ def bunks(ctx):
     b, rng = ctx.b, random.Random("bunks")
     for bx, bz, yaw in LAY.bunk_list:
         r = lambda x, z: mb.rot((x, 0, z), yaw, 0)                    # noqa: E731
+        if (bx, bz) == LAY.bunk_list[0][:2]:                           # (lively hideout: someone asleep in this one)
+            LIFE["bed"] = (bx, 0.51, bz)
+            LIFE["bed_head"] = r(0, 1.0)
         for y in (0.45, 1.65):
             b.box((bx, y, bz), (0.9, 0.12, 2.0), yaw=yaw, style=mb._nb("hd_mattress"))
             p = r(0, 0.6)

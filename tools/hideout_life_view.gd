@@ -45,6 +45,18 @@ func _run() -> void:
 	var rat_at: Vector3 = life.get_meta(&"rat")
 	var rat_to: Vector3 = life.get_meta(&"rat_to")
 	await _shot(world, "rat", rat_at.lerp(rat_to, 0.5) + Vector3(0.3, 1.0, -1.6), rat_at.lerp(rat_to, 0.5), 30)
+	var crew: HideoutCrew = world.crew
+	for m: Dictionary in crew.members:
+		var model: Node3D = m["model"]
+		var front := model.global_basis * Vector3(1.5, 0.5, -1.5)
+		var head := model.global_position + Vector3.UP * 0.9
+		if m["id"] == "mechanic":
+			front = model.global_basis * Vector3(1.4, 0.7, 1.6)
+			head = model.global_position + Vector3.UP * 0.6
+		if m["id"] == "sleeper":
+			front = model.global_basis * Vector3(-1.4, 0.35, 0.3)
+			head = model.global_position + model.global_basis * Vector3(0, 0.1, 0.8)
+		await _shot(world, "crew_" + String(m["id"]), head + front, head, 20)
 	var spawn: Vector3 = (world.get_node("Level/Spawn") as Node3D).global_position
 	world.walker.global_position = spawn
 	await _shot(world, "before_shell", spawn + Vector3(0, 1.6, 0), spawn + Vector3(0, 1.4, -6), 10)

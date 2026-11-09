@@ -172,6 +172,8 @@ models = PackedStringArray("res://assets/models/movers/hideout_0.glb", "res://as
 [node name="Life" type="Node3D" parent="."]
 script = ExtResource("7_life")
 metadata/ash = Vector3(3.573, 0.22, 24.8)
+metadata/bed = Vector3(-3.4, 0.51, 27)
+metadata/bed_head = Vector3(1, 0, 0)
 metadata/drip = Vector3(-0.1, 1.04, 35.75)
 metadata/dust = Vector3(0, 3, -1.5)
 metadata/fire = Vector3(3.543, 0.46, 24.8)

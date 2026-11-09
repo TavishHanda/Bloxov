@@ -1294,10 +1294,35 @@ def rat():
     return _mix(out, sq, 0.6)
 
 
+def snore():
+    """Someone asleep: a slow rasping breath in (a low, buzzing flutter) and a soft breath out."""
+    random.seed(3308)
+    n = length(1.3)
+    out, phase = [], 0.0
+    nz = _lowpass(noise(n, 0.5), 0.6)
+    for i in range(n):
+        t = i / n
+        phase += 2 * math.pi * 38 / RATE
+        flutter = 0.5 + 0.5 * math.sin(phase)
+        swell = math.sin(math.pi * min(1.0, t / 0.55)) if t < 0.55 else 0.0
+        out.append(nz[i] * (0.3 + 0.7 * flutter) * swell)
+    breath_out = _lowpass(_cloth(0.6, 0.6, 0.2), 0.7)
+    return _mix(_lowpass(out, 0.5), [x * 0.35 for x in breath_out], 0.68)
+
+
+def wrench():
+    """A wrench on the generator: a few ratchet clicks, then a knock of steel on steel."""
+    random.seed(3309)
+    out = []
+    for k in range(5):
+        out = _mix(out, [x * 0.35 for x in click(0.02, 3200, 260, 0.0)], 0.06 * k)
+    return _mix(out, _mix(_thud(0.06, 700, 500, 60, 70, 0.4, 0.2, 120), _ring(0.3, ((1650, 1.0), (2480, 0.5), (4100, 0.2)), 18, 0.4)), 0.36, 0.8)
+
+
 def main_lively():
     (OUT / "world").mkdir(exist_ok=True)
     for name, fn in (("shell_far", shell_far), ("grit", grit), ("pipe_knock", pipe_knock), ("generator", generator),
-                     ("rat", rat)):
+                     ("rat", rat), ("snore", snore), ("wrench", wrench)):
         write(f"world/{name}.wav", fn())
     for v in range(2):
         write(f"world/drip{v + 1}.wav", drip(v))
