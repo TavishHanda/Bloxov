@@ -5,18 +5,22 @@ extends SceneTree
 # Writes <out>-<view>.png.
 
 const VIEWS := {
-	"overview": [Vector3(-150, 140, 150), Vector3(30, -10, 0)],
-	"shore": [Vector3(-165, 9, 30), Vector3(-90, 2, -10)],
-	"pier": [Vector3(-90, 5, -6), Vector3(30, 4, 2)],
-	"ship-side": [Vector3(-10, 22, -60), Vector3(48, 4, 10)],
-	"deck": [Vector3(34, 9, -84), Vector3(52, 4, 40)],
-	"tower": [Vector3(20, 26, 130), Vector3(48, 10, 90)],
-	"bow": [Vector3(0, 10, -150), Vector3(48, 4, -100)],
-	"barges": [Vector3(-60, 8, 145), Vector3(40, 2, 112)],
-	"hold": [Vector3(48, 1.5, -88), Vector3(48, -3, 0)],
-	"lab-ring": [Vector3(33, -26.4, 34), Vector3(33, -27, 66)],
+	"overview": [Vector3(-215, 150, 175), Vector3(-30, -10, 0)],
+	"overview-ship": [Vector3(130, 90, -150), Vector3(10, 0, 20)],
+	"road": [Vector3(-160, 4.2, -2), Vector3(-60, 4, 0)],
+	"terminal": [Vector3(-136, 4.2, -99.4), Vector3(-60, 4, -99.4)],
+	"apron": [Vector3(-36, 4.2, -66), Vector3(-36, 4, 60)],
+	"plaza": [Vector3(-66, 4.2, 30), Vector3(-108, 14, -20)],
+	"gallery": [Vector3(-34, 15.6, 43.5), Vector3(20, 15.6, 43.5)],
+	"from-quay": [Vector3(-34, 4.2, 30), Vector3(48, 8, 0)],
+	"mole": [Vector3(-26, 4.1, -121), Vector3(40, 3, -116)],
+	"barges": [Vector3(-26, 2.8, 124.5), Vector3(50, 2, 116)],
+	"fore-deck": [Vector3(39, 5.6, -87), Vector3(50, 6, 0)],
+	"drill-floor": [Vector3(33, 13.6, -12.5), Vector3(62, 13, 12)],
+	"aft-deck": [Vector3(62, 5.6, 70), Vector3(40, 5, 18)],
+	"shipyard": [Vector3(-40, 12, 128), Vector3(-100, 3, 150)],
+	"hold": [Vector3(48, -2.5, -88), Vector3(48, -3, 0)],
 	"core": [Vector3(48, -20.4, 39), Vector3(48, -27, 56)],
-	"cutaway": [Vector3(-40, -10, 30), Vector3(48, -12, 30)],
 }
 
 

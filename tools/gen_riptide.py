@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Riptide (map 2) gray box: writes scenes/maps/riptide.tscn. Edit this script and re-run it, never the scene.
 
-The plan (Tavish, 2026-11-09): the Leviathan, a research ship anchored in a bay, with Site Zero (the lab) on the
-sea floor under it and the boss Zero in its core. Shore (The Landing) on the west, four ways across (pier with a
-covered pipe gallery, the breakwater to the bow, the barge line to the stern, sea-side ladders from the boats),
-several ways between floors (bow stairs, moon pool lift + stairs, tower stairs, outside ladder, hold hatches,
-side-passage ladders, the service tube), three ways into the lab and three into the core.
+The plan (Tavish, 2026-11-09): the Leviathan, a drillship moored off a port, with Site Zero (the lab) on the
+sea floor under it and the boss Zero in its core. The port (The Landing) on the west: v3 (Tavish: "too open, too
+small") made it a dense, tall harbor district with transit sheds along the quay. Five ways across (pier with a
+covered pipe gallery and a shed, the high grain gallery to the ship loader, the pontoon under it, the breakwater to
+the bow, the barge line to the stern) plus sea-side ladders from the boats; the drill floor splits the deck; several
+ways between floors (bow stairs, moon pool lift + stairs, tower stairs, outside ladder, hold hatches, side-passage
+ladders, the service tube), three ways into the lab and three into the core. tools/riptide_sight.gd measures the
+long sightlines.
 
 Coordinates are Godot metres with the origin in the middle of the map: x east (out to sea), z south, y up.
 The sea's surface is y = 0. Everything is plain boxes (BoxMap); the art comes later, piece by piece.
@@ -31,6 +34,7 @@ BOAT = 1.0
 DECK = 4.0           # the main deck
 FORECASTLE = 7.0
 DECK2, DECK3, DECK4, ROOF = 7.5, 11.0, 14.5, 18.0
+DRILL = 12.0         # the drill floor over the middle of the ship
 HULL_A = -4.0        # the cargo hold
 HULL_B = -8.0        # the engine room and pump room (the hull's bottom)
 LAB1 = -22.0         # the dock
@@ -228,137 +232,459 @@ def stairwell(x0, z0, levels, doors, colour="wall", roof=True):
 
 
 # ---------------------------------------------------------------------------------------------- the shore
-def shore():
-    # The sea wall along the whole shore (cover from the ship), with gaps where the ways across start.
-    gaps = [(-128, 6.5), (2.6, 10.0), (63, 6.0), (121, 7.0), (-60, 4.0)]
-    wall("z", -95.0, -HALF, HALF, SHORE, 1.0, "concrete", [(c, w, 0.0, 1.0) for c, w in gaps], t=0.6)
-    labels.append(("THE LANDING", -140, 0, 1))
-    wall("z", -HALF + 0.5, -HALF, HALF, SHORE, 3.0, "concrete", t=0.6)   # the map's inland edge
-    for z in (-HALF + 0.5, HALF - 0.5):
-        wall("x", z, -HALF, -92.0, SHORE, 3.0, "concrete", t=0.6)
+# The Landing (v3, Tavish 2026-11-09: "too open, too small, more cover, tall buildings"): a working port, the quay at
+# x -30 (60 m of water to the ship). From north to south: the north point (cannery, fuel tanks, lighthouse, the
+# cove), the container terminal, the harbor plaza (Harbor Tower, the customs hall), the grain terminal (silos, the
+# headhouse and its gallery out to the ship), the shipyard (an unfinished hull on the slipway, the fab shed). Transit
+# sheds line the quay so the ship can't see into the port; nothing outdoors runs long and straight.
+QUAY = -29.4
 
-    # North point: rocks, the lighthouse (one way up: a perch), the cove extract
-    for x, z, sx, sz, h, yaw in [(-112, -150, 8, 6, 3.0, 20), (-104, -170, 10, 7, 2.2, -15), (-125, -120, 6, 5, 2.0, 40),
-                                 (-140, -165, 7, 9, 3.5, 10), (-118, -138, 5, 4, 1.6, 0), (-165, -120, 9, 6, 2.8, 30),
-                                 (-100, -142, 4, 6, 1.5, 15)]:
+
+def gate(c, w=4.0, h=3.6):
+    return (c, w, 0.0, h)
+
+
+def hall(x0, x1, z0, z1, h, colour="wall", n=(), s=(), w=(), e=(), y=SHORE, roof="roof", floor=None):
+    room(x0, x1, z0, z1, y, h, colour, n, s, w, e, floor=floor)
+    slab(x0, x1, z0, z1, y + h + SLAB_T, roof)
+    footprints.append((x0, z0, x1, z1))
+
+
+def truck(x, z, yaw, colour="container_b"):
+    """A lorry (cab and trailer, 2.5 wide, 13 long) heading along yaw."""
+    s, c = math.sin(math.radians(yaw)), math.cos(math.radians(yaw))
+    obox(x, SHORE + 1.8, z, 2.5, 3.6, 10.0, yaw, colour)
+    obox(x + s * 6.4, SHORE + 1.4, z + c * 6.4, 2.5, 2.8, 2.6, yaw, "rust")
+
+
+def barrier(x, z, yaw, length=4.0, y=SHORE):
+    obox(x, y + 0.45, z, 0.7, 0.9, length, yaw, "concrete")
+
+
+def wagon(x, z, colour="rust"):
+    """A freight wagon on the rail line (along z, 14 long)."""
+    box(x - 1.5, SHORE, z - 7.0, x + 1.5, SHORE + 3.8, z + 7.0, colour)
+
+
+def block(x0, z0, cols, rows, heights, k=0):
+    """Containers end to end along x (cols x 6 m) and side by side along z (rows x 2.4 m), stacked 1-3 high."""
+    cols_c = ("container_a", "container_b", "container_c")
+    for i in range(cols):
+        for j in range(rows):
+            n = k + i * rows + j
+            container(x0 + 3.0 + 6.0 * i, SHORE, z0 + 1.2 + 2.4 * j, "x", cols_c[n % 3], heights[n % len(heights)])
+
+
+def quay():
+    # the quay wall, its low parapet (gaps where the ways across start), the map's edges
+    box(-30.0, -10.0, -HALF, QUAY, SHORE, HALF, "concrete")
+    gaps = [(-124.0, 12.0), (2.6, 10.0), (39.0, 3.0), (121.0, 6.0), (163.0, 14.0)]
+    wall("z", -29.7, -HALF, HALF, SHORE, 0.9, "concrete", [(c, w, 0.0, 0.9) for c, w in gaps], t=0.6)
+    wall("z", -HALF + 0.5, -HALF, HALF, SHORE, 3.0, "concrete", t=0.6)
+    for z in (-HALF + 0.5, HALF - 0.5):
+        wall("x", z, -HALF, QUAY, SHORE, 3.0, "concrete", t=0.6)
+    labels.append(("THE LANDING", -110, -2, 1))
+    # the rail line inland: stopped freight trains (cover along the spawn side), a level crossing at the road
+    for z0, n in [(-176.0, 4), (-104.0, 3), (-46.0, 2), (14.0, 3), (70.0, 4), (142.0, 2)]:
+        for i in range(n):
+            wagon(-156.0, z0 + 7.0 + 17.0 * i, ("rust", "container_c", "container_b")[i % 3])
+    # the spawn strip (between the fence and the rail): fences across it, gates on alternate sides
+    for i, z in enumerate((-112.0, -40.0, 48.0, 128.0)):
+        gx = -175.0 if i % 2 else -165.0
+        wall("x", z, -HALF, -158.0, SHORE, 2.6, "concrete", [(gx, 3.0, 0.0, 2.6)], t=0.4)
+        box(gx + (3.5 if i % 2 else -6.5), SHORE, z + 0.3, gx + (6.5 if i % 2 else -3.5), SHORE + 2.4, z + 3.3, "wood")
+    # quay cranes straddling the apron (legs every 40 m) and things parked across it, so the apron along the quay
+    # never gives a clear line
+    for z in (-96.0, -56.0, -16.0, 84.0, 140.0):
+        for x in (-38.5, -31.5):
+            for dz in (-5.0, 5.0):
+                box(x - 0.8, SHORE, z + dz - 0.8, x + 0.8, SHORE + 22.0, z + dz + 0.8, "rust")
+        box(-40.0, SHORE + 22.0, z - 6.0, -30.0, SHORE + 24.0, z + 6.0, "rust")
+        obox(-14.0, SHORE + 23.0, z, 34.0, 1.2, 1.6, 0, "rust")
+    for i, z in enumerate((-138.0, -86.0, -66.0, -40.0, 22.0, 70.0, 96.0, 108.0, 134.0, 150.0)):
+        x = -37.0 if i % 2 else -33.6
+        container(x, SHORE, z, "x", ("container_a", "container_b", "container_c")[i % 3], 1 + i % 2)
+
+
+def north_point():
+    # rocks along the north shore, the lighthouse (a perch) by the cove
+    for x, z, sx, sz, h, yaw in [(-52, -150, 8, 6, 3.0, 20), (-70, -172, 10, 7, 2.2, -15), (-45, -136, 6, 5, 2.0, 40),
+                                 (-84, -168, 7, 9, 3.5, 10), (-36, -158, 5, 4, 1.6, 0), (-120, -174, 9, 5, 2.8, 30),
+                                 (-150, -170, 6, 5, 2.4, 15)]:
         obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
-    lx, lz = -150.0, -148.0
+    lx, lz = -62.0, -158.0
     room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, 14.0, "wall", s=[door(lx)])
     slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.4, lz + 2.85)])
-    for side in ("N", "S", "W", "E"):   # parapet on the top
-        if side in "NS":
-            wall("x", lz - 3 if side == "N" else lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-        else:
-            wall("z", lx - 3 if side == "W" else lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
+    wall("x", lz - 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
+    wall("x", lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
+    wall("z", lx - 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
+    wall("z", lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
     ladder(lx - 2.1, SHORE, lz + 2.65, 180, 14.0, "Lighthouse")
     perches.append((lx, SHORE + 14.0, lz, 1, 0))
     labels.append(("LIGHTHOUSE", lx, lz - 8, 0))
-    extracts.append(("Cove", "COVE", -108.0, SHORE, -166.0))
-    player_spawns.append((-158.0, SHORE, -128.0))
+    extracts.append(("Cove", "COVE", -40.0, SHORE, -170.0))
+    # the cannery: a tall hall, machine rows, an office deck along the west end (a ramp up)
+    cx0, cx1, cz0, cz1 = -142.0, -96.0, -166.0, -130.0
+    hall(cx0, cx1, cz0, cz1, 10.0, "wall", n=[gate(-120.0)], s=[gate(-134.0), gate(-108.0)],
+         w=[door(-150.0), window(-140.0, 3.0, 5.6, 7.0)], e=[gate(-140.0), door(-156.0), window(-148.0, 3.0, 5.6, 7.0)])
+    slab(cx0, cx0 + 12.0, cz0, cz1, SHORE + 4.5, "concrete", holes=[(cx0 + 12.0 - 3.0, cx0 + 12.0, cz0 + 10.0, cz0 + 26.0)])
+    ramp((cx0 + 10.5, SHORE, cz0 + 28.0), (cx0 + 10.5, SHORE + 4.5, cz0 + 12.0), 2.6, "concrete")
+    wall("z", cx0 + 12.0, cz0, cz0 + 10.0, SHORE + 4.5, 1.1, "wall")
+    wall("z", cx0 + 12.0, cz0 + 26.0, cz1, SHORE + 4.5, 1.1, "wall")
+    for z in (-160.0, -150.0, -140.0):       # the machine rows (cover)
+        box(-124.0, SHORE, z - 1.0, -112.0, SHORE + 1.8, z + 1.0, "metal")
+        box(-108.0, SHORE, z + 2.0, -100.0, SHORE + 2.4, z + 4.0, "metal")
+    for z in (-162.0, -146.0):               # rooms under the office deck
+        wall("x", z, cx0, cx0 + 8.0, SHORE, 4.25, "wall", [door(cx0 + 4.0)])
+    labels.append(("CANNERY", -119, -170, 0))
+    add_loot("Depot", "crate", -139.0, SHORE, -164.0)
+    add_loot("Offices", "locker", -140.5, SHORE + 4.5, -152.0, 90)
+    add_loot("Offices", "crate", -133.0, SHORE + 4.5, -133.0)
+    add_loot("Workshop", "crate", -104.0, SHORE, -133.0, table="crate")
+    # the fuel depot: three big tanks behind a low bund wall
+    for x, z in [(-86.0, -150.0), (-86.0, -136.0), (-74.0, -143.0)]:
+        obox(x, SHORE + 5.0, z, 9.0, 10.0, 9.0, 45, "rust")
+    room(-94.0, -66.0, -158.0, -128.0, SHORE, 1.0, "concrete", s=[(-80.0, 4.0, 0.0, 1.0)], w=[(-143.0, 4.0, 0.0, 1.0)])
+    labels.append(("FUEL DEPOT", -80, -124, 0))
+    player_spawns.append((-172.0, SHORE, -150.0))
 
-    # The harbor: the old supply office (two floors), the container yard, fuel tanks, a shore crane, the road out
-    ox0, ox1, oz0, oz1 = -142.0, -122.0, -32.0, -14.0
-    room(ox0, ox1, oz0, oz1, SHORE, 3.5, "wall", e=[door(-27), window(-19)], w=[door(-23)], n=[window(-136), window(-128)],
-         s=[window(-136), window(-128)], floor="concrete")
-    slab(ox0, ox1, oz0, oz1, SHORE + 3.5, "concrete", holes=[(ox0 + 0.3, ox0 + 2.6, oz0 + 0.3, oz0 + 9.0)])
-    ramp((ox0 + 1.45, SHORE, oz0 + 13.0), (ox0 + 1.45, SHORE + 3.5, oz0 + 2.5), 2.2, "concrete")
-    room(ox0, ox1, oz0, oz1, SHORE + 3.5, 3.2, "wall", e=[window(-27), window(-19)], n=[window(-130)], s=[window(-130)],
+
+def terminal():
+    """The container terminal: staggered rows of stacks (1-3 high) and single boxes across the aisles, so every
+    line through it bends. A gantry crane over it."""
+    hs = [2, 3, 2, 1, 3, 2, 2, 3, 1, 2, 3, 2]
+    rows = [-110.0, -96.0, -82.0, -68.0, -54.0]
+    for r, z0 in enumerate(rows):
+        runs = [(-142.0, 4), (-112.0, 4), (-82.0, 2)] if r % 2 == 0 else [(-128.0, 4), (-98.0, 4), (-146.0, 1)]
+        for k, (x0, cols) in enumerate(runs):
+            block(x0, z0, cols, 3, hs, k=r * 7 + k * 3)
+    for i, (x, z) in enumerate([(-122.0, -99.3), (-88.0, -99.3), (-108.0, -85.3), (-138.0, -71.3), (-76.0, -71.3),
+                                (-118.0, -57.3), (-92.0, -57.3)]):
+        container(x, SHORE, z, "z", ("container_b", "container_c", "container_a")[i % 3], 1 + (i + 1) % 2)
+    for x in (-148.0, -64.0):                      # the gantry crane
+        for z in (-99.0, -75.0):
+            box(x - 0.8, SHORE, z - 0.8, x + 0.8, SHORE + 24.0, z + 0.8, "rust")
+        box(x - 1.0, SHORE + 24.0, -100.0, x + 1.0, SHORE + 26.0, -74.0, "rust")
+    box(-148.8, SHORE + 26.0, -100.0, -63.2, SHORE + 28.0, -97.0, "rust")
+    box(-148.8, SHORE + 26.0, -77.0, -63.2, SHORE + 28.0, -74.0, "rust")
+    box(-112.0, SHORE + 22.0, -97.0, -104.0, SHORE + 26.0, -77.0, "container_b")
+    labels.append(("CONTAINER TERMINAL", -105, -116, 0))
+    for x, z in [(-130.0, -99.0), (-104.0, -71.0), (-80.0, -85.0), (-140.0, -57.0)]:
+        add_loot("Depot", "crate", x, SHORE, z, table="field" if x < -120 else "crate")
+    player_spawns.append((-172.0, SHORE, -70.0))
+
+
+def plaza():
+    """Harbor Tower (six floors, two stairwells, a closed roof), the customs hall the pier starts from, the canteen
+    and the garage; the road in from the gate, broken up by parked lorries and barriers."""
+    tx0, tx1, tz0, tz1 = -124.0, -92.0, -30.0, -10.0
+    fl = [SHORE + 3.5 * f for f in range(6)]          # 2.5 .. 20
+    top = fl[-1] + 3.5
+    for f, y in enumerate(fl):
+        k = 5 - f                                      # the stairwells count from the top
+        a_door = -28.5 if k % 2 == 0 else -17.5
+        b_door = -22.5 if k % 2 == 0 else -11.5
+        h = 3.5 - SLAB_T
+        n = [window(x, 2.4) for x in (-118.0, -110.0, -102.0)] + ([gate(-98.0, 3.0, 2.6)] if f == 0 else [window(-96.0)])
+        s = [window(x, 2.4) for x in (-114.0, -106.0, -98.0)] + ([gate(-119.0, 3.0, 2.6)] if f == 0 else [window(-119.0)])
+        room(tx0, tx1, tz0, tz1, y, h, "wall", n=n, s=s, w=[door(a_door), window(-24.0)],
+             e=[door(b_door), window(-17.0)])
+        if f > 0:
+            slab(tx0, tx1, tz0, tz1, y, "concrete")
+        wall("x", -20.5, tx0, tx1, y, h, "wall", [door(-120.0), door(-112.0), door(-97.0)])
+        wall("x", -15.0, tx0, tx1, y, h, "wall", [door(-114.0), door(-100.0)])
+        wall("z", -108.0, tz0, -20.5, y, h, "wall", [door(-26.0)])
+        wall("z", -104.0, -15.0, tz1, y, h, "wall", [door(-12.5)])
+    slab(tx0, tx1, tz0, tz1, top, "roof")
+    wall("x", tz0, tx0, tx1, top, 1.0, "wall")
+    wall("x", tz1, tx0, tx1, top, 1.0, "wall")
+    wall("z", tx0, tz0, tz1, top, 1.0, "wall")
+    wall("z", tx1, tz0, tz1, top, 1.0, "wall")
+    stairwell(-132.0, -30.0, fl[::-1], {k: "E" for k in range(6)}, colour="wall")
+    stairwell(-92.0, -24.0, fl[::-1], {k: "W" for k in range(6)}, colour="wall")
+    footprints.append((-132.0, -30.0, -84.0, -10.0))
+    labels.append(("HARBOR TOWER", -108, -36, 0))
+    for f, (x, z, kind) in enumerate([(-122.0, -28.0, "crate"), (-94.0, -12.0, "locker"), (-122.0, -12.0, "crate"),
+                                      (-94.0, -28.0, "locker"), (-112.0, -28.5, "safe"), (-100.0, -11.5, "safe")]):
+        add_loot("Offices", kind, x, fl[f], z, 180 if z > -20 else 0)
+    # the customs hall: two floors, the pier's way in on the east side
+    hx0, hx1, hz0, hz1 = -76.0, -48.0, -14.0, 16.0
+    hall(hx0, hx1, hz0, hz1, 9.0, "wall", n=[door(-70.0), door(-54.0), window(-62.0, 2.0, 5.4, 6.8)],
+         s=[door(-66.0), window(-56.0, 2.0, 5.4, 6.8)], w=[gate(10.0), window(-6.0, 2.0, 5.4, 6.8)],
+         e=[gate(2.6, 5.0), window(-8.0, 2.0, 5.4, 6.8), window(12.0, 2.0, 5.4, 6.8)], floor="concrete")
+    slab(hx0, hx1, hz0, hz1, SHORE + 4.5, "concrete", holes=[(-67.5, -58.0, -13.6, -10.5)])
+    ramp((-74.0, SHORE, -12.0), (-58.0, SHORE + 4.5, -12.0), 2.6, "concrete")
+    for x0, x1, z in [(-70.0, -58.0, -4.0), (-66.0, -54.0, 8.0)]:   # the counters
+        box(x0, SHORE, z - 0.5, x1, SHORE + 1.1, z + 0.5, "wood")
+    wall("x", 4.0, hx0, -62.0, SHORE + 4.5, 4.25, "wall", [door(-70.0)])
+    labels.append(("CUSTOMS", -62, -18, 0))
+    add_loot("Offices", "locker", -75.5, SHORE + 4.5, 12.0, 90)
+    add_loot("Offices", "crate", -50.0, SHORE + 4.5, 14.0)
+    add_loot("Offices", "crate", -74.0, SHORE, 14.0)
+    # the canteen and the garage south of the road
+    hall(-124.0, -102.0, 8.0, 24.0, 4.0, "wall", n=[door(-118.0), window(-108.0, 3.0)], s=[door(-106.0)],
+         e=[door(16.0), window(20.0)], w=[window(14.0, 3.0)])
+    box(-120.0, SHORE, 14.0, -108.0, SHORE + 1.0, 15.0, "wood")
+    add_loot("Diner", "crate", -122.0, SHORE, 22.0)
+    hall(-96.0, -80.0, 12.0, 30.0, 5.0, "wall", n=[gate(-88.0, 5.0, 4.0)], e=[door(26.0)], w=[window(20.0)])
+    add_loot("Garage", "crate", -94.0, SHORE, 28.0)
+    labels.append(("CANTEEN", -113, 28, 0))
+    # the road in from the gate (the extract): a gatehouse, lorries parked across it, barriers round the plaza
+    box(-HALF, SHORE - 0.2, -4.0, -76.0, SHORE + 0.02, 4.0, "road", solid=False)
+    room(-172.0, -167.0, -11.0, -6.0, SHORE, 2.8, "wood", s=[door(-169.5)], roof="roof")
+    extracts.append(("RoadOut", "ROAD OUT", -174.0, SHORE, 0.0))
+    truck(-140.0, 1.0, 55.0)
+    truck(-90.0, -1.0, -50.0, "container_a")
+    truck(-140.0, 64.0, 10.0, "container_c")
+    for x, z, yaw in [(-82.0, -6.0, 90.0), (-78.0, 8.0, 90.0), (-84.0, -26.0, 90.0), (-132.0, 6.0, 90.0), (-112.0, 4.5, 90.0),
+                      (-100.0, -5.0, 90.0), (-66.0, 22.0, 90.0), (-56.0, -20.0, 90.0)]:
+        barrier(x, z, yaw)
+    box(-110.0, SHORE, -4.0, -106.0, SHORE + 2.6, -2.0, "wall")        # the bus shelter
+    labels.append(("HARBOR PLAZA", -100, 4, 0))
+    player_spawns.append((-172.0, SHORE, 22.0))
+
+
+def grain():
+    """The grain terminal: the silo bank (30 m tall), the headhouse by the quay with the covered gallery out to the
+    ship at y 14, the grain store, hopper wagons on the siding."""
+    for i in range(5):
+        box(-112.0 + 8.0 * i, SHORE, 38.0, -104.0 + 8.0 * i, SHORE + 30.0, 54.0, "concrete")
+    box(-112.0, SHORE + 30.0, 44.0, -46.0, SHORE + 32.0, 47.0, "rust")    # the conveyor over to the headhouse
+    footprints.append((-112.0, 38.0, -72.0, 54.0))
+    labels.append(("SILOS", -92, 34, 0))
+    # the headhouse: a stairwell tower by the quay, the gallery leaves from its top landing
+    stairwell(-46.0, 42.0, [GALLERY, 11.0, 8.0, 5.0, SHORE], {0: "E", 4: "W"})
+    box(-46.0, GALLERY + 3.45, 42.0, -38.0, 34.0, 56.0, "concrete")
+    footprints.append((-46.0, 42.0, -38.0, 56.0))
+    labels.append(("HEADHOUSE", -42, 60, 0))
+    # the grain store, grain heaps inside (cover)
+    hall(-112.0, -72.0, 64.0, 92.0, 8.0, "wall", n=[gate(-104.0), gate(-80.0)], s=[gate(-92.0)], w=[door(78.0)],
+         e=[gate(70.0), door(86.0)])
+    for x, z, yaw in [(-102.0, 72.0, 0), (-84.0, 82.0, 30), (-96.0, 86.0, 80)]:
+        obox(x, SHORE + 1.0, z, 7.0, 2.0, 6.0, yaw, "sand")
+    add_loot("Depot", "crate", -110.0, SHORE, 90.0)
+    add_loot("Depot", "crate", -74.0, SHORE, 66.0, table="field")
+    for x in (-108.0, -84.0):                       # hopper wagons between the silos and the store
+        box(x - 7.0, SHORE, 57.5, x + 7.0, SHORE + 3.8, 60.5, "container_c")
+    add_loot("Railyard", "crate", -96.0, SHORE, 59.0, table="field")
+    labels.append(("GRAIN STORE", -92, 96, 0))
+    player_spawns.append((-172.0, SHORE, 90.0))
+
+
+def shipyard():
+    """The unfinished hull on the slipway (open frames, a half deck up a scaffold ramp), the fab shed, the workshop,
+    the boathouse on the south quay."""
+    hx0, hx1, hz0, hz1 = -112.0, -58.0, 140.0, 158.0
+    deck = SHORE + 5.5
+    plating = [gate(x, 3.2, 3.0) for x in (-106.0, -94.0, -82.0, -70.0)]
+    wall("x", hz0, hx0, hx1, SHORE, 9.0, "hull", plating, t=0.5)
+    wall("x", hz1, hx0, hx1, SHORE, 9.0, "hull", plating[1:] + [(-86.0, 2.6, deck - SHORE, deck - SHORE + DOOR_H)], t=0.5)
+    wall("z", hx0, hz0, hz1, SHORE, 9.0, "hull", [gate(149.0, 4.0, 3.0)], t=0.5)
+    for x in (-100.0, -88.0, -76.0, -66.0):       # the frames inside (under the half deck, up to it)
+        wall("z", x, hz0, hz1, SHORE, 9.0 if x > -80 else deck - SLAB_T - SHORE, "rust", [gate(149.0, 5.0, 3.4)], t=0.4)
+    slab(hx0, -80.0, hz0, hz1, deck, "metal", holes=[(-108.0, -104.0, 144.0, 150.0)])
+    ramp((-58.0, SHORE, 161.0), (-84.0, deck, 161.0), 2.6, "wood")
+    box(-90.0, deck - SLAB_T, 158.0, -84.0, deck, 162.3, "wood")
+    for x in range(-110, -56, 8):                   # the scaffold posts
+        box(x, SHORE, 162.4, x + 0.3, SHORE + 9.0, 162.7, "rust")
+    footprints.append((hx0, hz0, hx1, hz1))
+    labels.append(("SLIPWAY", -85, 136, 0))
+    add_loot("Workshop", "crate", -110.0, SHORE, 156.0)
+    add_loot("Workshop", "crate", -96.0, deck, 142.0, table="crate")
+    # the fab shed (tall, big doors both ends), the workshop
+    hall(-152.0, -120.0, 104.0, 128.0, 12.0, "wall", n=[gate(-136.0, 6.0, 6.0)], s=[gate(-136.0, 6.0, 6.0)],
+         w=[door(116.0)], e=[gate(112.0), door(124.0)])
+    for x, z in [(-146.0, 110.0), (-128.0, 122.0), (-140.0, 120.0)]:
+        box(x - 2.5, SHORE, z - 1.5, x + 2.5, SHORE + 1.6, z + 1.5, "metal")
+    add_loot("Workshop", "crate", -150.0, SHORE, 126.0, table="crate")
+    labels.append(("FAB SHED", -136, 100, 0))
+    hall(-104.0, -84.0, 106.0, 124.0, 5.0, "wall", n=[door(-94.0)], s=[door(-98.0)], e=[gate(115.0)], w=[window(115.0)])
+    add_loot("Shed", "crate", -102.0, SHORE, 108.0)
+    # the boathouse on the south quay (the extract): open on the water side
+    bx0, bx1, bz0, bz1 = -46.0, -32.0, 156.0, 170.0
+    hall(bx0, bx1, bz0, bz1, 4.5, "wood", w=[door(163.0, 2.4)], n=[door(-39.0)], e=[(163.0, 6.0, 0.0, 3.6)], floor="wood")
+    extracts.append(("Boathouse", "BOATHOUSE", -38.0, SHORE, 163.0))
+    labels.append(("BOATHOUSE", -39, 174, 0))
+    for x, z, yaw in [(-140.0, 150.0, 70), (-150.0, 164.0, 120), (-120.0, 172.0, 95)]:
+        obox(x, SHORE + 0.7, z, 2.6, 1.4, 7.0, yaw, "wood")
+    player_spawns.append((-150.0, SHORE, 172.0))
+
+
+def transit_sheds():
+    """Long sheds along the quay (7 m tall): the ship sees their walls, not the port behind them."""
+    for x0, x1, z0, z1, lbl in [(-60.0, -42.0, -112.0, -72.0, "SHED 1"), (-60.0, -42.0, -64.0, -24.0, "SHED 2"),
+                                (-62.0, -44.0, 64.0, 104.0, "SHED 3")]:
+        zm = (z0 + z1) / 2
+        hall(x0, x1, z0, z1, 7.0, "wall", n=[gate((x0 + x1) / 2)], s=[gate((x0 + x1) / 2)],
+             w=[gate(zm - 10.0), door(zm + 12.0)], e=[gate(zm + 8.0), door(zm - 14.0), window(zm, 3.0, 4.0, 5.6)])
+        for i, z in enumerate((zm - 12.0, zm + 2.0, zm + 14.0)):   # pallets and crates inside
+            box(x0 + 4.0 + 6.0 * (i % 2), SHORE, z - 1.5, x0 + 8.0 + 6.0 * (i % 2), SHORE + 1.6, z + 1.5, "wood")
+        labels.append((lbl, (x0 + x1) / 2, zm, 0))
+        add_loot("Depot", "crate", x0 + 1.5, SHORE, z0 + 1.5)
+        add_loot("Depot", "crate", x1 - 1.5, SHORE, z1 - 1.5, table="field")
+
+
+def breakers():
+    """Sightline breakers (v3), placed where tools/riptide_sight.gd found long open lines: the streets along the
+    north and south edges of the terminal and the shipyard, the corridor beside the rail line, the road, the quay
+    apron (a row of containers along the quay edge: cover from the ship), the barge line's way into the port."""
+    # small buildings across the north street (between the cannery and the terminal) and the mole's root
+    for x0, x1, z0, z1, h in [(-150.0, -136.0, -128.0, -118.0, 4.0), (-116.0, -100.0, -122.0, -112.0, 5.0),
+                              (-70.0, -58.0, -126.0, -114.0, 4.5)]:
+        hall(x0, x1, z0, z1, h, "wall", n=[door((x0 + x1) / 2)], s=[door(x0 + 3.0)], w=[window((z0 + z1) / 2)],
+             e=[window((z0 + z1) / 2)])
+    add_loot("Shed", "crate", -148.0, SHORE, -120.0)
+    add_loot("Shed", "crate", -60.0, SHORE, -124.0, table="field")
+    container(-84.0, SHORE, -127.0, "z", "container_b", 2)
+    # the corridor beside the rail: the weighbridge office, the rail shed, the signal box, a container across
+    hall(-152.0, -138.0, -44.0, -34.0, 4.0, "wall", n=[door(-145.0)], s=[door(-141.0)], e=[window(-39.0)])
+    hall(-152.0, -136.0, 36.0, 56.0, 6.0, "wall", n=[gate(-144.0)], s=[gate(-144.0)], e=[door(46.0)])
+    hall(-150.0, -138.0, 72.0, 84.0, 7.0, "wall", n=[door(-144.0)], e=[window(78.0)], w=[window(78.0)])
+    add_loot("Railyard", "crate", -150.0, SHORE, 54.0)
+    add_loot("Railyard", "locker", -149.5, SHORE, 82.0, 90)
+    box(-153.0, SHORE, -89.2, -147.0, SHORE + 5.2, -86.8, "container_a")
+    # the lane between the rail shed / canteen and the silos / grain store (x -136..-112): broken at three places
+    box(-136.0, SHORE, 58.5, -122.0, SHORE + 3.8, 61.5, "container_c")
+    box(-132.0, SHORE, 29.8, -126.0, SHORE + 5.2, 32.2, "container_b")
+    box(-122.0, SHORE, 32.6, -116.0, SHORE + 2.6, 35.0, "container_a")
+    hall(-128.0, -114.0, 94.0, 102.0, 4.0, "wall", n=[door(-121.0)], s=[door(-118.0)], w=[window(98.0)])
+    add_loot("Shed", "crate", -126.0, SHORE, 100.0, table="field")
+    container(-126.0, SHORE, 136.0, "z", "container_b", 2)
+    box(-170.0, SHORE, -22.0, -164.0, SHORE + 2.6, -19.6, "container_c")   # (the spawn strip by the road)
+    # the road: a checkpoint booth, kiosks and stacks staggered across it
+    for x0, z0, x1, z1, h in [(-151.0, -10.0, -147.0, -2.0, 2.6), (-137.0, 1.0, -133.0, 8.0, 2.6),
+                              (-119.0, -9.0, -115.0, -3.0, 2.4), (-101.0, 2.0, -97.0, 8.0, 2.4)]:
+        box(x0, SHORE, z0, x1, SHORE + h, z1, "wall")
+    # the south street (between the fab shed / workshop and the hull) and the south edge
+    container(-118.0, SHORE, 133.0, "x", "container_c", 2)
+    hall(-80.0, -66.0, 126.0, 136.0, 5.0, "wall", n=[door(-73.0)], s=[door(-70.0)], w=[window(131.0)])
+    add_loot("Garage", "crate", -78.0, SHORE, 128.0)
+    hall(-100.0, -86.0, 164.0, 176.0, 4.0, "wall", n=[door(-93.0)], e=[window(170.0)], w=[door(170.0)])
+    add_loot("Shed", "crate", -98.0, SHORE, 174.0, table="field")
+    container(-70.0, SHORE, 170.0, "z", "container_a", 2)
+    container(-128.0, SHORE, 160.0, "x", "container_b", 1)
+    # the barge line's way into the port: the barge office and a stack, offset
+    hall(-58.0, -44.0, 110.0, 122.0, 5.0, "wall", n=[door(-51.0)], s=[door(-48.0)], e=[window(116.0)])
+    add_loot("Offices", "crate", -56.0, SHORE, 112.0)
+    box(-40.0, SHORE, 124.0, -37.6, SHORE + 5.2, 130.0, "container_c")
+    # the quay edge: a row of containers (cover from the ship), gaps where the ways across, the ladders and the
+    # cranes' legs are
+    keep_clear = [(-131.0, -116.0), (-4.0, 9.0), (36.0, 42.0), (117.0, 125.0), (154.0, 172.0)]
+    legs = [z + dz for z in (-96.0, -56.0, -16.0, 84.0, 140.0) for dz in (-5.0, 5.0)]
+    apron = [-138.0, -86.0, -66.0, -40.0, 22.0, 70.0, 96.0, 108.0, 134.0, 150.0]
+    z = -172.0
+    while z < 176.0:
+        if (not any(a - 3.5 < z < b + 3.5 for a, b in keep_clear) and not any(abs(z - l) < 4.5 for l in legs)
+                and not any(abs(z - a) < 5.0 for a in apron)):
+            box(-32.6, SHORE, z - 3.0, -30.2, SHORE + 2.6, z + 3.0, ("container_a", "container_b", "container_c")[int(z) % 3])
+            z += 11.0
+        else:
+            z += 1.0
+    # the forecastle: the windlasses, the bosun's store, a mast (cover up on the bow)
+    for x in (38.0, 58.0):
+        box(x - 1.5, FORECASTLE, -100.0, x + 1.5, FORECASTLE + 1.6, -96.0, "rust")
+    room(44.0, 52.0, -102.0, -95.0, FORECASTLE, 2.6, "wall", s=[door(48.0)], e=[window(-98.5)], w=[window(-98.5)],
          roof="roof")
-    wall("x", -24.0, ox0 + 3.0, ox1, SHORE, 3.5, "wall", [door(-130)])
-    footprints.append((ox0, oz0, ox1, oz1))
-    labels.append(("SUPPLY OFFICE", (ox0 + ox1) / 2, oz0 - 4, 0))
-    add_loot("Offices", "crate", -128, SHORE, -29)
-    add_loot("Offices", "locker", -138, SHORE + 3.5, -17, 180)
-    add_loot("Offices", "crate", -125, SHORE + 3.5, -29)
-    yard = [(-132, 14, "x", "container_a", 2), (-124, 14, "x", "container_b", 1), (-110, 18, "z", "container_c", 2),
-            (-132, 26, "x", "container_b", 1), (-118, 30, "z", "container_a", 1), (-106, 34, "x", "container_c", 2),
-            (-128, 40, "x", "container_a", 1), (-114, 44, "z", "container_b", 2)]
-    for x, z, along, col, high in yard:
-        container(x, SHORE, z, along, col, high)
-    add_loot("Shore", "crate", -121, SHORE, 21, table="field")
-    add_loot("Shore", "crate", -112, SHORE, 39, table="field")
-    for z in (30.0, 42.0):
-        obox(-165, SHORE + 3.0, z, 7.0, 6.0, 7.0, 45, "rust")
-    box(-101, SHORE, -21, -99, SHORE + 14, -19, "rust")          # the shore crane
-    obox(-96, SHORE + 13.5, -20, 2, 1.2, 14, 90, "rust")
-    box(-HALF, SHORE - 0.2, -4.0, -118, SHORE + 0.02, 2.0, "road", solid=False)
-    extracts.append(("RoadOut", "ROAD OUT", -172.0, SHORE, -1.0))
-    labels.append(("HARBOR", -150, 6, 0))
-    player_spawns.append((-168.0, SHORE, -36.0))
-    player_spawns.append((-150.0, SHORE, 58.0))
-
-    # The south beach: dunes, beached boats, fishing shacks, the boathouse
-    for x, z, sx, sz, h, yaw in [(-150, 80, 14, 5, 1.2, 10), (-130, 95, 12, 4, 1.0, -20), (-160, 130, 16, 5, 1.3, 5),
-                                 (-125, 150, 10, 4, 1.1, 30), (-145, 170, 12, 5, 1.0, -10)]:
-        obox(x, SHORE + h / 2 - 0.2, z, sx, h + 0.4, sz, yaw, "sand")
-    for x, z, yaw in [(-108, 90, 70), (-116, 104, 120), (-102, 160, 95)]:
-        obox(x, SHORE + 0.6, z, 2.4, 1.4, 6.0, yaw, "wood")
-    for i, (x, z) in enumerate([(-140, 112), (-165, 150)]):
-        room(x - 2.5, x + 2.5, z - 2.5, z + 2.5, SHORE, 2.6, "wood", e=[door(z)], n=[window(x)], roof="roof")
-        add_loot("Shore", "crate", x - 1.2, SHORE, z - 1.2, table="field")
-        footprints.append((x - 2.5, z - 2.5, x + 2.5, z + 2.5))
-    bx0, bx1, bz0, bz1 = -112.0, -98.0, 134.0, 146.0
-    room(bx0, bx1, bz0, bz1, SHORE, 4.0, "wood", w=[door(140, 2.4)], e=[(140, 5.0, 0.0, 3.4)], n=[window(-105)],
-         roof="roof", floor="wood")
-    add_loot("Boathouse", "crate", bx0 + 1.5, SHORE, bz0 + 1.5)
-    footprints.append((bx0, bz0, bx1, bz1))
-    labels.append(("BOATHOUSE", -105, 152, 0))
-    extracts.append(("Boathouse", "BOATHOUSE", -103.0, SHORE, 140.0))
-    labels.append(("SOUTH BEACH", -140, 125, 0))
-    player_spawns.append((-162.0, SHORE, 104.0))
-    player_spawns.append((-128.0, SHORE, 168.0))
+    box(47.5, FORECASTLE + 2.85, -99.0, 48.5, FORECASTLE + 12.0, -98.0, "rust")
 
 
 # ---------------------------------------------------------------------------------------------- the ways across
+GALLERY = 14.0      # the grain gallery's floor
+LOADER = (21.5, 42.0)   # the ship loader's stairwell (x0, z0), against the ship's west side
+
+
 def crossings():
-    # The pier (middle): open deck z -2..4, the roofed pipe gallery z 4.4..7.2 beside it
-    px0, px1 = -86.0, SX0
+    # The pier (middle): a shed over the first stretch, then staggered containers; the roofed pipe gallery beside
+    px0, px1 = QUAY + 6.0, SX0
     box(px0, PIER - 0.4, -2.0, px1, PIER, 7.2, "wood")
-    ramp((-92.0, SHORE, 1.0), (px0, PIER, 1.0), 6.0, "wood")
-    for x in range(-84, 30, 12):     # legs down to the sea bed
+    ramp((QUAY, SHORE, 1.0), (px0, PIER, 1.0), 6.0, "wood")
+    box(QUAY, PIER - 0.4, 4.4, px0, PIER, 7.2, "wood")
+    ramp((QUAY, SHORE, 5.8), (px0, PIER, 5.8), 2.6, "wood")
+    for x in range(-20, 30, 12):     # legs down to the sea bed
         box(x - 0.4, SEABED + 2, -2.0, x + 0.4, PIER - 0.4, -1.2, "rust")
         box(x - 0.4, SEABED + 2, 6.4, x + 0.4, PIER - 0.4, 7.2, "rust")
-    wall("x", 4.4, -84.0, px1, PIER, 2.6, "rust", [(c, 1.6, 0.0, 2.2) for c in (-80, -55, -30, -5, 18)], t=0.2)
-    wall("x", 7.2, -84.0, px1, PIER, 2.6, "rust", t=0.2)
-    wall("z", -84.0, 4.4, 7.2, PIER, 2.6, "rust", [(5.8, 1.6, 0.0, 2.2)], t=0.2)
-    box(-84.0, PIER + 2.6, 4.3, px1, PIER + 2.8, 7.3, "roof")
-    for x, z in [(-62, 0.5), (-34, -0.5), (-8, 1.0), (14, 0.0)]:
-        container(x, PIER, z, "x", "container_b" if x % 3 else "container_a")
-    labels.append(("PIER", -40, -6, 0))
-    # the gangway from the pier up to the main deck, through a gap in the rail
+    wall("x", 4.4, QUAY, px1, PIER, 2.6, "rust", [(c, 1.6, 0.0, 2.2) for c in (-20.0, -4.0, 10.0, 22.0)], t=0.2)
+    wall("x", 7.2, QUAY, px1, PIER, 2.6, "rust", t=0.2)
+    box(QUAY, PIER + 2.6, 4.3, px1, PIER + 2.8, 7.3, "roof")
+    # the pier shed
+    wall("x", -2.0, -22.0, -4.0, PIER, 3.0, "wall", [window(-17.0), door(-13.0), window(-8.0)])
+    box(-22.0, PIER + 3.0, -2.2, -4.0, PIER + 3.25, 4.4, "roof")
+    for x in (-22.0, -4.0):
+        box(x - 0.2, PIER, -2.0, x + 0.2, PIER + 3.0, -0.6, "wall")
+    container(2.0, PIER, -0.8, "x", "container_b")
+    container(12.0, PIER, 3.2, "x", "container_a", 2)
+    box(17.0, PIER, -1.6, 19.0, PIER + 1.2, -0.4, "wood")
+    labels.append(("PIER", -10, -6, 0))
     ramp((20.0, PIER, 0.0), (SX0, DECK, 0.0), 3.5, "metal")
     box(14.0, PIER - 0.4, -2.0, 20.0, PIER, 2.0, "wood")
 
-    # The breakwater (north): a rock jetty from the north point to the bow, rocks along it for cover
-    a, b = (-86.0, -128.0), (40.0, -112.0)
-    length = math.hypot(b[0] - a[0], b[1] - a[1])
-    yaw = math.degrees(math.atan2(b[0] - a[0], b[1] - a[1]))
-    obox((a[0] + b[0]) / 2, (PIER + SEABED) / 2, (a[1] + b[1]) / 2, 7.0, PIER - SEABED, length, yaw, "rock")
-    ramp((-92.0, SHORE, -128.0), (-86.0, PIER, -128.0), 6.0, "rock")
-    for f, side, s in [(0.15, 1, 2.0), (0.3, -1, 1.6), (0.45, 1, 1.8), (0.6, -1, 2.2), (0.75, 1, 1.5), (0.88, -1, 1.9)]:
-        x, z = a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f
-        nx, nz = math.cos(math.radians(yaw)), -math.sin(math.radians(yaw))
-        obox(x + nx * side * 2.0, PIER + s / 2 - 0.2, z + nz * side * 2.0, 2.6, s + 0.4, 3.2, yaw + 25 * side, "rock")
-    box(36.0, SEABED, -120.0, 60.0, PIER, SZ0 - 0.3, "rock")        # the pad under the bow
-    labels.append(("BREAKWATER", -30, -126, 0))
-    ladder(48.0, PIER, SZ0 - 0.4, 180, FORECASTLE - PIER, "Bow")
-    extracts.append(("BowBoat", "BOW PILOT BOAT", 41.0, PIER, -116.0))
-    box(36.0, BOAT - 0.8, -126.0, 44.0, BOAT, -121.0, "wood")      # the pilot boat moored at the pad
+    # The grain gallery (high, covered): from the headhouse at the quay to the ship loader beside the ship, small
+    # windows, a door halfway out onto a balcony with a long ladder down to the pontoon
+    gz0, gz1 = 42.0, 45.0
+    gx0, gx1 = -38.0, LOADER[0]
+    box(gx0, GALLERY - SLAB_T, gz0, gx1, GALLERY, gz1, "metal")
+    wall("x", gz0, gx0, gx1, GALLERY, 2.6, "rust", [window(x, 1.2, 1.2, 2.0) for x in (-30.0, -18.0, 6.0, 16.0)]
+         + [door(-4.0)], t=0.2)
+    wall("x", gz1, gx0, gx1, GALLERY, 2.6, "rust", [window(x, 1.2, 1.2, 2.0) for x in (-24.0, -12.0, 0.0, 12.0)], t=0.2)
+    box(gx0, GALLERY + 2.6, gz0 - 0.1, gx1, GALLERY + 2.85, gz1 + 0.1, "roof")
+    for x in (-24.0, -8.0, 8.0):
+        box(x - 0.5, SEABED, gz0 + 0.5, x + 0.5, GALLERY - SLAB_T, gz1 - 0.5, "rust")
+    box(-6.0, GALLERY - SLAB_T, 40.4, -2.0, GALLERY, gz0, "metal")     # the balcony
+    wall("z", -6.0, 40.4, gz0, GALLERY, 1.0, "rust", t=0.15)
+    wall("z", -2.0, 40.4, gz0, GALLERY, 1.0, "rust", t=0.15)
+    ladder(-4.0, 0.8, 40.3, 180, GALLERY - 0.8, "Gallery")
+    labels.append(("GRAIN GALLERY", -8, 49, 0))
+    # the ship loader: a stairwell tower against the ship's side, down to the main deck (a gap in the rail)
+    stairwell(LOADER[0], LOADER[1], [GALLERY, 11.0, 7.5, DECK], {0: "W", 3: "E"})
+    box(LOADER[0] + 8.0 - 0.1, DECK - SLAB_T, 53.2, SX0 + 0.6, DECK, 55.8, "metal")
+    box(LOADER[0] + 3.0, GALLERY + 3.45, 44.0, LOADER[0] + 5.0, GALLERY + 12.0, 46.0, "rust")   # the loader's boom post
+    footprints.append((LOADER[0], LOADER[1], LOADER[0] + 8.0, LOADER[1] + 14.0))
+    labels.append(("LOADER", 18, 58, 0))
+    # the pontoon under it, at the water: a ladder up the quay, a ladder up the ship's side
+    box(QUAY, 0.4, 37.5, SX0 - 0.3, 0.8, 40.4, "wood")
+    ladder(QUAY + 0.2, 0.8, 39.0, 90, SHORE - 0.8, "Pontoon")
+    ladder(SX0 - 0.4, 0.8, 38.5, -90, DECK - 0.8, "Pontoon")
 
-    # The barge line (south): barges tied end to end from the beach to the stern ramp
-    barges = [(-86, -68), (-62, -44), (-38, -20), (-14, 4), (10, 28), (34, 54)]
+    # The breakwater (north): a wide mole (level with the quay) from the north quay to a pad under the bow; a wave wall on the sea side,
+    # the signal hut on its north half, broken concrete blocks across the south half
+    mz0, mz1 = -130.0, -118.0
+    box(QUAY, SEABED, mz0, 36.0, SHORE, mz1, "rock")
+    wall("x", mz0 + 0.4, QUAY, 60.0, SHORE, 2.6, "concrete", t=0.8)
+    room(-2.0, 8.0, mz0 + 0.8, -124.0, SHORE, 3.0, "wall", w=[door(-126.5)], e=[door(-126.5)], s=[window(3.0, 3.0)],
+         roof="roof")
+    container(20.0, SHORE, -127.6, "x", "container_a", 2)
+    for x, z, yaw, h in [(-18.0, -120.5, 30, 2.4), (-8.0, -122.0, -20, 2.0), (12.0, -120.0, 15, 2.6),
+                         (22.0, -122.5, -35, 2.2), (30.0, -119.5, 40, 2.4), (-24.0, -126.0, 10, 2.2)]:
+        obox(x, SHORE + h / 2, z, 3.4, h, 3.0, yaw, "concrete")
+    box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
+    labels.append(("BREAKWATER", 0, -134, 0))
+    ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
+    box(60.5, BOAT - 0.8, -128.0, 68.0, BOAT, -116.0, "wood")      # the pilot boat moored at the pad
+    box(63.0, BOAT, -127.0, 67.0, BOAT + 2.2, -123.5, "wall")
+    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, BOAT, -120.0))
+
+    # The barge line (south): barges tied end to end from the quay to the stern ramp; containers and cabins across
+    # each one, alternating sides, so the way across zigzags and nothing sees down its length
+    barges = [(-26.0, -8.0), (-4.0, 14.0), (18.0, 30.0), (34.0, 54.0)]
+    ramp((QUAY, SHORE, 121.0), (barges[0][0], BARGE, 121.0), 3.4, "wood")
     for i, (x0, x1) in enumerate(barges):
         z0, z1 = (112.0, 126.0) if i == len(barges) - 1 else (116.0, 126.0)
         box(x0, BARGE - 2.0, z0, x1, BARGE, z1, "rust")
-        box(x0 + 2, BARGE, z1 - 4.5, x0 + 6.5, BARGE + 2.4, z1 - 0.8, "wall")   # a deck cabin (cover)
+        north = i % 2 == 0           # this barge's wall of cargo is on its north half
+        ox = (x0 + x1) / 2 + (2.0 if i == len(barges) - 1 else 0.0)
+        if i == len(barges) - 1:
+            box(38.8, BARGE, 118.0, 41.2, BARGE + 5.2, z1, "container_a")
+        elif north:
+            box(ox - 1.2, BARGE, z0, ox + 1.2, BARGE + 5.2, 122.5, ("container_a", "container_b", "container_c")[i % 3])
+        else:
+            box(ox - 1.2, BARGE, 119.5, ox + 1.2, BARGE + 5.2, z1, ("container_a", "container_b", "container_c")[i % 3])
+        box(x1 - 4.0, BARGE, (z0 + 0.5) if north else z1 - 3.5, x1 - 1.0, BARGE + 2.4, (z0 + 3.5) if north else z1 - 0.5, "wall")
         if i < len(barges) - 1:
-            box(x1, BARGE - 0.3, 119.5, barges[i + 1][0], BARGE, 122.5, "wood")   # the plank to the next one
-        if i in (1, 3):
-            container((x0 + x1) / 2 + 2, BARGE, 119.0, "x", "container_c")
-    ramp((-92.0, SHORE, 121.0), (-86.0, BARGE, 121.0), 3.0, "wood")
-    labels.append(("BARGE LINE", -30, 133, 0))
-    player_spawns.append((-28.0, BARGE, 122.0))
-    add_loot("Barges", "crate", -9.0, BARGE, 124.5, table="field")
+            pz = (122.0, 125.0) if north else (116.5, 119.5)
+            box(x1, BARGE - 0.3, pz[0], barges[i + 1][0], BARGE, pz[1], "wood")
+    labels.append(("BARGE LINE", 10, 132, 0))
+    player_spawns.append((-20.0, BARGE, 124.5))
+    add_loot("Barges", "crate", 10.0, BARGE, 117.0, table="field")
 
     # The sea side (east): two boats moored against the hull, ladders up to the deck
     box(SX1 + 0.4, BOAT - 1.5, -96.0, SX1 + 9.0, BOAT, -80.0, "wood")
@@ -400,7 +726,8 @@ def ship():
     h = top - bottom
     gang = (0.0, 4.0, DECK - bottom, top - bottom)              # the gangway's gap in the rail
     hull_door = (5.8, 2.0, PIER - bottom, PIER - bottom + DOOR_H)  # from the pipe gallery into the hold's west passage
-    wall("z", SX0, SZ0, SZ1, bottom, h, "hull", [gang, hull_door], t=0.5)
+    west_gaps = [(38.5, 1.4, DECK - bottom, top - bottom), (54.5, 2.4, DECK - bottom, top - bottom)]   # pontoon, loader
+    wall("z", SX0, SZ0, SZ1, bottom, h, "hull", [gang, hull_door] + west_gaps, t=0.5)
     sea_gaps = [(z, 1.4, DECK - bottom, top - bottom) for z in (-88.0, 50.0)]
     wall("z", SX1, SZ0, SZ1, bottom, h, "hull", sea_gaps, t=0.5)
     stern_ramp = (48.0, 8.0, HULL_A - bottom, DECK - 0.5 - bottom)
@@ -475,22 +802,27 @@ def ship():
     add_loot("BowStore", "crate", 36.0, DECK, -100.0)
     add_loot("BowStore", "crate", 60.0, DECK, -100.0)
     labels.append(("FORECASTLE", 48, -98, 0))
-    # cranes and deck cargo
-    for x, z in [(34.0, -62.0), (62.0, 20.0), (34.0, 52.0)]:
+    # cranes and deck cargo (v3): pipe racks and containers placed so no lane runs the length of the deck; the
+    # drill floor (drill_floor) roofs the middle and splits the deck in two
+    for x, z in [(34.0, -62.0), (34.0, 30.0), (34.0, 52.0)]:
         box(x - 1.2, DECK, z - 1.2, x + 1.2, DECK + 9.0, z + 1.2, "rust")
-        obox(x + (6 if x < 48 else -6), DECK + 9.4, z, 13.0, 0.8, 1.0, 0, "rust")
-    for i, (x, z, along, high) in enumerate([(40, -70, "z", 1), (56, -66, "x", 2), (38, -30, "x", 1), (58, -36, "z", 1),
-                                             (40, 40, "z", 2), (56, 46, "x", 1), (44, 62, "x", 1), (58, 66, "z", 2),
-                                             (36, -20, "z", 1), (60, 34, "z", 1)]):
+        obox(x + 6, DECK + 9.4, z, 13.0, 0.8, 1.0, 0, "rust")
+    for x0, z0, x1, z1 in [(38.0, -66.0, 52.0, -63.0), (44.0, -38.0, 47.0, -26.0)]:   # pipe racks
+        box(x0, DECK, z0, x1, DECK + 2.0, z1, "rust")
+    for i, (x, z, along, high) in enumerate([(36, -80, "z", 2), (59, -82, "x", 1), (60, -62, "z", 2), (64, -56, "z", 1),
+                                             (36, -46, "z", 1), (60, -48, "z", 2), (54, -32, "x", 2), (40, -22, "x", 1),
+                                             (63, -24, "x", 1), (40, 40, "z", 2), (56, 46, "x", 1), (44, 62, "x", 1),
+                                             (58, 66, "z", 2), (37, 60, "z", 2), (50, 36, "x", 2), (64, 56, "z", 1),
+                                             (32.5, 46, "z", 1)]):
         container(x, DECK, z, along, ("container_b", "container_a", "container_c")[i % 3], high)
-    for i, (x, z) in enumerate([(51, -70), (35, 36), (52, 58)]):
+    for i, (x, z) in enumerate([(51, -70), (37, 36), (52, 58)]):
         add_loot("Deck", "crate", x, DECK, z, 90 * (i % 2))
     labels.append(("MAIN DECK", 48, 46, 0))
 
 
 def moon_pool():
     """The deckhouse over the moon pool: the lift shaft (a placeholder ladder until the lift is built) and the
-    stairs beside it, from the main deck down to the dock in the lab. The derrick stands over it (a perch)."""
+    stairs beside it, from the drill floor down to the dock in the lab."""
     x0, x1, z0, z1 = LIFT
     top = DECK + 3.2
     bottom = LAB1 - SLAB_T
@@ -504,20 +836,36 @@ def moon_pool():
     slab(x0, x1, z0, z1, top + SLAB_T, "roof")
     ladder(x0 + 0.5, LAB1, 0.0, 90, DECK - LAB1, "Lift")
     labels.append(("MOON POOL", 46, -12, 0))
-    stairwell(46.0, -7.0, [DECK, 0.0, HULL_A, HULL_B, -11.5, -15.0, -18.5, LAB1], {0: "N", 2: "N", 3: "S", 7: "S"})
-    # up onto the deckhouse roof, then the derrick's platform
-    ladder(x0 - 0.4, DECK, 3.0, -90, top + SLAB_T - DECK, "Derrick")
-    roof_y = top + SLAB_T
-    box(39.0, roof_y, -1.0, 40.0, 14.0, 1.0, "rust")
-    ladder(40.4, roof_y, 0.0, 90, 14.0 - roof_y, "Derrick")
-    slab(41.0, 53.0, -5.0, 5.0, 14.0, "metal")
-    for x, z in [(41.0, -5.0), (53.0, -5.0), (41.0, 5.0), (53.0, 5.0)]:
-        box(x - 0.4, roof_y, z - 0.4, x + 0.4, 24.0, z + 0.4, "rust")
-    wall("x", -5.0, 41.0, 53.0, 14.0, 1.0, "rust", t=0.2)
-    wall("x", 5.0, 41.0, 53.0, 14.0, 1.0, "rust", t=0.2)
-    wall("z", 53.0, -5.0, 5.0, 14.0, 1.0, "rust", t=0.2)
-    wall("z", 41.0, -5.0, 5.0, 14.0, 1.0, "rust", [(0.0, 2.0, 0.0, 1.0)], t=0.2)
-    labels.append(("DERRICK", 47, 8, 0))
+    stairwell(46.0, -7.0, [DRILL, 8.0, DECK, 0.0, HULL_A, HULL_B, -11.5, -15.0, -18.5, LAB1],
+              {0: "N", 2: "N", 4: "N", 5: "S", 9: "S"})
+
+
+def drill_floor():
+    """The drill floor (v3): a deck at y 12 over the middle of the ship (x 30..66, z -14..14), the derrick on it, the
+    driller's shack, pipe racks. Three ways up: a ramp on the west side from the fore deck, one on the east side from
+    the aft deck, and the moon pool stairs. Under it the main deck is roofed (mud pumps, the lift's deckhouse)."""
+    x0, x1, z0, z1 = SX0 + 0.25, SX1 - 0.25, -14.0, 14.0
+    slab(x0, x1, z0, z1, DRILL, "metal", holes=[hole(MOON_STAIRS)])
+    for x, z in [(31.0, -13.0), (63.0, -13.0), (31.0, 11.0), (63.0, 11.0), (55.0, -1.0)]:
+        box(x, DECK, z, x + 2.0, DRILL - SLAB_T, z + 2.0, "rust")
+    wall("x", z0, x0, x1, DRILL, 1.1, "rust", [(33.0, 3.4, 0.0, 1.1)], t=0.2)
+    wall("x", z1, x0, x1, DRILL, 1.1, "rust", [(63.0, 3.4, 0.0, 1.1)], t=0.2)
+    wall("z", x0, z0, z1, DRILL, 1.1, "rust", t=0.2)
+    wall("z", x1, z0, z1, DRILL, 1.1, "rust", t=0.2)
+    ramp((33.0, DECK, -36.0), (33.0, DRILL, z0), 3.2, "metal")
+    ramp((63.0, DECK, 36.0), (63.0, DRILL, z1), 3.2, "metal")
+    for x, z in [(41.5, -6.0), (55.0, -6.0), (41.5, 6.0), (55.0, 6.0)]:   # the derrick
+        box(x - 0.4, DRILL, z - 0.4, x + 0.4, 40.0, z + 0.4, "rust")
+    box(41.1, 40.0, -6.4, 55.4, 41.0, 6.4, "rust")
+    room(56.0, 64.0, -12.0, -4.0, DRILL, 3.0, "wall", w=[door(-8.0)], n=[window(60.0)], s=[window(60.0)], e=[window(-8.0)],
+         roof="roof")
+    box(33.0, DRILL, 8.0, 43.0, DRILL + 1.4, 11.0, "rust")      # pipe rack
+    box(35.0, DRILL, -10.0, 40.0, DRILL + 2.0, -6.0, "metal")  # the drawworks
+    add_loot("Workshop", "crate", 62.5, DRILL, -10.5, table="crate")
+    add_loot("Deck", "crate", 36.0, DRILL, 1.0)
+    for x0_, z0_, x1_, z1_ in [(58.0, -10.0, 64.0, -2.0), (32.0, 4.0, 36.0, 10.0)]:   # mud pumps under it
+        box(x0_, DECK, z0_, x1_, DECK + 2.4, z1_, "metal")
+    labels.append(("DRILL FLOOR", 48, -18, 0))
 
 
 def bow_stairs():
@@ -658,24 +1006,25 @@ def lab():
 
 # ---------------------------------------------------------------------------------------------- AI
 # Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, Zero below.
-AI_ZONES = [("Landing", -135.0, SHORE, 0.0, 70.0, 3, 0, 0.6), ("Deck", 48.0, DECK, -30.0, 70.0, 4, 0, 1.0),
+AI_ZONES = [("Landing", -105.0, SHORE, 0.0, 100.0, 5, 0, 0.8), ("Deck", 48.0, DECK, -30.0, 70.0, 4, 0, 1.0),
             ("Tower", 48.0, DECK2, 90.0, 26.0, 0, 2, 1.0), ("Hold", 48.0, HULL_A, 0.0, 80.0, 4, 0, 1.0),
             ("Lab", 48.0, LAB2, 30.0, 70.0, 0, 2, 1.5)]
 AI_ROAMERS = 2
 AI_SNIPERS = 1
 AI_BOSS = ("Lab", 3, 1.0)   # Zero always spawns (gray box: Bon's setup until Zero's own loadout is in)
 ZONE_SPOTS = {
-    "Landing": [(-130.0, SHORE, -40.0), (-112.0, SHORE, 28.0), (-150.0, SHORE, 20.0), (-118.0, SHORE, -100.0),
-                (-135.0, SHORE, 90.0), (-110.0, SHORE, 150.0)],
-    "Deck": [(40.0, DECK, -60.0), (56.0, DECK, -40.0), (36.0, DECK, -10.0), (60.0, DECK, 12.0), (44.0, DECK, 52.0),
-             (56.0, DECK, 70.0), (48.0, FORECASTLE, -98.0)],
+    "Landing": [(-115.0, SHORE, -127.0), (-100.0, SHORE, -99.0), (-134.0, SHORE, -85.0), (-70.0, SHORE, -40.0),
+                (-110.0, SHORE, 0.0), (-62.0, SHORE, 0.0), (-80.0, SHORE, 104.0), (-112.0, SHORE, 104.0),
+                (-74.0, SHORE, 130.0), (-51.0, SHORE, 84.0)],
+    "Deck": [(40.0, DECK, -58.0), (56.0, DECK, -40.0), (36.0, DECK, -6.0), (60.0, DECK, 6.0), (44.0, DECK, 52.0),
+             (54.0, DECK, 71.0), (48.0, FORECASTLE, -98.0), (48.0, DRILL, -10.0)],
     "Tower": [(38.0, DECK2, 80.0), (50.0, DECK2, 100.0), (38.0, DECK3, 98.0), (48.0, DECK4, 84.0), (40.0, DECK, 100.0)],
     "Hold": [(48.0, HULL_A, -60.0), (33.0, HULL_A, -30.0), (63.0, HULL_A, 10.0), (48.0, HULL_A, 40.0),
              (40.0, HULL_B, 50.0), (56.0, HULL_B, -80.0), (48.0, HULL_B, -20.0), (40.0, HULL_A, 86.0)],
     "Lab": [(48.0, LAB1, 15.0), (48.0, LAB2, -30.0), (48.0, LAB2, 10.0), (33.0, LAB2, 50.0), (63.0, LAB2, 50.0),
             (48.0, LAB2, 86.0), (48.0, LAB2, 65.0)],
 }
-ROAMER_SPOTS = [(-48.0, PIER, 2.0), (0.0, PIER, -117.0), (-50.0, BARGE, 121.0)]
+ROAMER_SPOTS = [(-12.0, PIER, 1.0), (-14.0, SHORE, -121.0), (5.0, BARGE, 117.5)]
 
 
 def ai():
@@ -704,20 +1053,21 @@ def minimap_meta():
         return "PackedFloat32Array(" + ", ".join(fmt(v) for v in values) + ")"
     bld = [v for x0, z0, x1, z1 in footprints for v in (x0 + HALF, z0 + HALF, x1 + HALF, z1 + HALF)]
     text = ", ".join(f'["{t}", {fmt(x + HALF)}, {fmt(z + HALF)}, {big}]' for t, x, z, big in labels)
-    sea = "[PackedVector2Array(225, 0, 225, 360)]"
-    yards = [-94 + HALF, -2 + HALF, SX0 + HALF, 7.2 + HALF]   # the pier
+    sea_w = HALF - QUAY
+    sea = f"[PackedVector2Array({fmt(QUAY + HALF + sea_w / 2)}, 0, {fmt(QUAY + HALF + sea_w / 2)}, {fmt(M)})]"
+    yards = [QUAY + HALF, -2 + HALF, SX0 + HALF, 7.2 + HALF]   # the pier
     return ("metadata/minimap = {" + f'"size": {fmt(M)}, "offset": {fmt(-HALF)}, '
             + f'"buildings": {floats(bld)}, "yards": {floats(yards)}, "woods": PackedFloat32Array(), '
-            + f'"roads": [PackedVector2Array(0, 179, 62, 179)], "road_widths": PackedFloat32Array(6), '
-            + f'"water": {sea}, "water_widths": PackedFloat32Array(266), '
+            + f'"roads": [PackedVector2Array(0, 180, 104, 180)], "road_widths": PackedFloat32Array(8), '
+            + f'"water": {sea}, "water_widths": PackedFloat32Array({fmt(sea_w)}), '
             + f'"labels": [{text}]' + "}")
 
 
 # ---------------------------------------------------------------------------------------------- the scene
 def terrain():
-    """The ground: flat shore, a beach, then down to the sea bed. One row of heights across x, the same all along z."""
-    xs = [-HALF, -92.0, -86.0, -70.0, -40.0, -15.0, HALF]
-    hs = [SHORE, SHORE, 0.0, -6.0, -22.0, SEABED, SEABED]
+    """The ground: the flat port to the quay, then down to the sea bed. One row of heights across x, the same all along z."""
+    xs = [-HALF, -30.0, -29.0, 0.0, HALF]
+    hs = [SHORE, SHORE, -8.0, SEABED, SEABED]
     zs = [-HALF, 0.0, HALF]
     return xs, zs, [h for _ in zs for h in hs]
 
@@ -729,8 +1079,8 @@ def xform(x, y, z, yaw=0.0):
 
 def sea_planes():
     """The sea's surface (y 0) round the ship, so it isn't drawn inside the hull: four flat pieces."""
-    pieces = [(-88.0, -HALF, HALF, SZ0 - 0.3), (-88.0, SZ1 + 0.3, HALF, HALF),
-              (-88.0, SZ0 - 0.3, SX0 - 0.3, SZ1 + 0.3), (SX1 + 0.3, SZ0 - 0.3, HALF, SZ1 + 0.3)]
+    pieces = [(QUAY, -HALF, HALF, SZ0 - 0.3), (QUAY, SZ1 + 0.3, HALF, HALF),
+              (QUAY, SZ0 - 0.3, SX0 - 0.3, SZ1 + 0.3), (SX1 + 0.3, SZ0 - 0.3, HALF, SZ1 + 0.3)]
     out = []
     for i, (x0, z0, x1, z1) in enumerate(pieces):
         out += [f'[node name="Sea{i}" type="MeshInstance3D" parent="Level"]',
@@ -805,10 +1155,18 @@ def write_scene():
 
 
 def main():
-    shore()
+    quay()
+    north_point()
+    terminal()
+    plaza()
+    grain()
+    shipyard()
+    transit_sheds()
+    breakers()
     crossings()
     ship()
     moon_pool()
+    drill_floor()
     bow_stairs()
     tower()
     lab()
