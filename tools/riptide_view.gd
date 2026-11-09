@@ -20,6 +20,8 @@ const VIEWS := {
 	"aft-deck": [Vector3(62, 5.6, 70), Vector3(40, 5, 18)],
 	"shipyard": [Vector3(-40, 12, 128), Vector3(-100, 3, 150)],
 	"hold": [Vector3(48, -2.5, -88), Vector3(48, -3, 0)],
+	"moon-pool": [Vector3(39, -6.3, -7.7), Vector3(56, -17, 4)],
+	"moon-pool-up": [Vector3(44, -20.4, 4), Vector3(50, 6, -4)],
 	"core": [Vector3(48, -20.4, 39), Vector3(48, -27, 56)],
 }
 

@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`). -->
 
+## 0.33.2 (Riptide: extracts and the moon pool, on the branch)
+- **Extracts are harder to camp** (owner, 2026-11-09). The cove is a nook in tall rocks, the road-out gate is a
+  walled truck bay with containers across the road in front, the boathouse has screens inside so neither its doors
+  nor the water side look onto the zone, the bow pilot boat (now a cutter level with the pad) and the stern dinghy
+  are covered. Every extract but the gate now has a spot inside that no outdoor spot can see (`tools/riptide_sight.gd`
+  reports it); spots that can see into the zones from 8-150 m: cove 87 -> 1, gate 130 -> 11, boathouse 64 -> 35.
+- **The way down to the lab is the moon pool now** (owner: "not a huge staircase, endlessly turning corners"): an
+  open well through the whole ship, from the drill floor to the bottom of the hull, railed on every deck, then one lap
+  of long ramps (each a different slope) round the walls of the trunk below, open to the middle so you see who's
+  above and below; a side pod halfway; the riser (the drill pipe) down the middle with a catwalk out to it and a
+  ladder down it, the fast and exposed way (until the lift is built). The trunk opens wide onto the dock. The old
+  moon pool stairwell and the lift's placeholder ladder are gone; the drill floor is a ring round the well.
+
 ## 0.33.1 (Riptide v3: cover and a bigger port, on the branch)
 - **The port is rebuilt** (owner, 2026-11-09: "too open, too small, more cover, tall buildings, no dying from across
   the map"). The quay now sits 60 m from the ship (was 120 m of open water) and the port behind it is 150 m deep: the

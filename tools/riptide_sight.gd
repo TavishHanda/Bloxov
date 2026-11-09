@@ -97,7 +97,32 @@ func _run() -> void:
 		print("  %-18s %4d spots, seen from %5.1f far spots on average, %3d%% exposed (seen from %d+)" % [area, list.size(),
 			float(total) / list.size(), 100 * exposed / list.size(), EXPOSED])
 	print("sight: %d rays" % rays)
-	# 4. Heat map: 2 px per metre
+	# 4. Extract camping: for each extract, the open-air spots 8..150 m away that see into its 4 x 4 m zone, and how
+	# many of them see its best-hidden spot (0 = somewhere inside is out of everyone's sight)
+	print("extracts (camping spots 8-150 m that see into the zone / that see its best-hidden spot):")
+	for ex: Node3D in main.find_child("Extracts", true, false).get_children():
+		var c := ex.global_position
+		var zone: Array[Vector3] = []
+		for dx in [-1.6, 0.0, 1.6]:
+			for dz in [-1.6, 0.0, 1.6]:
+				zone.append(c + Vector3(dx, 0, dz))
+		var per_point := PackedInt32Array()
+		per_point.resize(zone.size())
+		var campers := 0
+		for i in pts.size():
+			var d := pts[i].distance_to(c)
+			if d < 8.0 or d > 150.0: continue
+			var sees := false
+			for k in zone.size():
+				var q := PhysicsRayQueryParameters3D.create(pts[i] + Vector3(0, EYE, 0), zone[k] + Vector3(0, BODY, 0), MASK)
+				if space.intersect_ray(q).is_empty():
+					per_point[k] += 1
+					sees = true
+			if sees: campers += 1
+		var best := per_point[0]
+		for v in per_point: best = mini(best, v)
+		print("  %-14s %4d camping spots, best-hidden spot seen by %d" % [ex.name, campers, best])
+	# 5. Heat map: 2 px per metre
 	var px := 2.0
 	var img := Image.create(int(size * px), int(size * px), false, Image.FORMAT_RGB8)
 	img.fill(Color(0.1, 0.18, 0.24))

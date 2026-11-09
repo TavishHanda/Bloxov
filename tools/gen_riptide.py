@@ -323,6 +323,12 @@ def north_point():
     perches.append((lx, SHORE + 14.0, lz, 1, 0))
     labels.append(("LIGHTHOUSE", lx, lz - 8, 0))
     extracts.append(("Cove", "COVE", -40.0, SHORE, -170.0))
+    # (0.33.2, owner: extracts too easy to camp) the cove is a nook in the rocks: tall outcrops round it, the ways in
+    # bent so nobody sees the zone from far off
+    for x, z, sx, sz, h, yaw in [(-47.0, -170.0, 3.0, 9.0, 3.6, 5), (-41.0, -163.0, 8.0, 3.0, 3.4, -8),
+                                 (-33.5, -166.0, 3.0, 5.0, 3.2, 20), (-52.0, -160.0, 5.0, 4.0, 3.0, 30),
+                                 (-36.0, -152.0, 4.0, 3.0, 2.6, -15)]:
+        obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     # the cannery: a tall hall, machine rows, an office deck along the west end (a ramp up)
     cx0, cx1, cz0, cz1 = -142.0, -96.0, -166.0, -130.0
     hall(cx0, cx1, cz0, cz1, 10.0, "wall", n=[gate(-120.0)], s=[gate(-134.0), gate(-108.0)],
@@ -433,6 +439,13 @@ def plaza():
     box(-HALF, SHORE - 0.2, -4.0, -76.0, SHORE + 0.02, 4.0, "road", solid=False)
     room(-172.0, -167.0, -11.0, -6.0, SHORE, 2.8, "wood", s=[door(-169.5)], roof="roof")
     extracts.append(("RoadOut", "ROAD OUT", -174.0, SHORE, 0.0))
+    # (0.33.2) the gate's truck bay: walls either side, a container across the road in front of it, ways in at the
+    # corners
+    wall("x", -5.0, -HALF, -169.0, SHORE, 3.0, "concrete", t=0.5)
+    wall("x", 5.0, -HALF, -169.0, SHORE, 3.0, "concrete", t=0.5)
+    box(-168.2, SHORE, -2.4, -165.8, SHORE + 5.2, 2.4, "container_a")
+    box(-163.0, SHORE, 4.0, -160.6, SHORE + 2.6, 10.0, "container_c")
+    box(-163.0, SHORE, -10.0, -160.6, SHORE + 2.6, -4.0, "container_b")
     truck(-140.0, 1.0, 55.0)
     truck(-90.0, -1.0, -50.0, "container_a")
     truck(-140.0, 64.0, 10.0, "container_c")
@@ -502,7 +515,10 @@ def shipyard():
     add_loot("Shed", "crate", -102.0, SHORE, 108.0)
     # the boathouse on the south quay (the extract): open on the water side
     bx0, bx1, bz0, bz1 = -46.0, -32.0, 156.0, 170.0
-    hall(bx0, bx1, bz0, bz1, 4.5, "wood", w=[door(163.0, 2.4)], n=[door(-39.0)], e=[(163.0, 6.0, 0.0, 3.6)], floor="wood")
+    hall(bx0, bx1, bz0, bz1, 4.5, "wood", w=[door(167.5, 2.4)], n=[door(-34.0)], e=[(159.5, 5.0, 0.0, 3.6)], floor="wood")
+    # (0.33.2) screens inside, so neither the doors nor the water side look straight onto the zone
+    wall("z", -36.0, bz0, 162.5, SHORE, 3.0, "wood")
+    wall("z", -43.0, 164.0, bz1, SHORE, 3.0, "wood")
     extracts.append(("Boathouse", "BOATHOUSE", -38.0, SHORE, 163.0))
     labels.append(("BOATHOUSE", -39, 174, 0))
     for x, z, yaw in [(-140.0, 150.0, 70), (-150.0, 164.0, 120), (-120.0, 172.0, 95)]:
@@ -659,9 +675,9 @@ def crossings():
     box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
     labels.append(("BREAKWATER", 0, -134, 0))
     ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
-    box(60.5, BOAT - 0.8, -128.0, 68.0, BOAT, -116.0, "wood")      # the pilot boat moored at the pad
-    box(63.0, BOAT, -127.0, 67.0, BOAT + 2.2, -123.5, "wall")
-    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, BOAT, -120.0))
+    box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood")      # the pilot cutter moored at the pad (deck level with it)
+    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0))
+    room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
 
     # The barge line (south): barges tied end to end from the quay to the stern ramp; containers and cabins across
     # each one, alternating sides, so the way across zigzags and nothing sees down its length
@@ -700,12 +716,13 @@ def crossings():
     box(57.0, 0.2, SZ1 + 0.4, 63.0, 0.8, SZ1 + 6.0, "wood")
     ladder(60.0, 0.8, SZ1 + 0.4, 0, DECK - 0.8, "Stern")
     extracts.append(("SternLadder", "STERN LADDER", 60.0, 0.8, SZ1 + 3.5))
+    box(56.8, 0.8, SZ1 + 0.6, 57.2, 2.8, SZ1 + 6.0, "wood")              # the screen on the barge side
+    box(56.8, 2.8, SZ1 + 1.0, 63.2, 3.0, SZ1 + 6.0, "roof")              # the canopy (the ladder comes down beside it)
 
 
 # ---------------------------------------------------------------------------------------------- the ship
 # Openings in the decks
-LIFT = (38.0, 46.0, -7.0, 7.0)        # the moon pool lift shaft (placeholder ladder until the lift is built)
-MOON_STAIRS = (46.0, 54.0, -7.0, 7.0)
+MOON = (38.0, 58.0, -9.0, 7.0)        # the moon pool: an open well from the drill floor down to the lab (0.33.2)
 BOW_STAIRS = (44.0, 52.0, -88.0, -74.0)
 TOWER_STAIRS = (54.0, 62.0, 76.0, 90.0)
 HATCHES = [(42.0, 54.0, -50.0, -44.0), (42.0, 54.0, 24.0, 30.0)]
@@ -740,7 +757,7 @@ def ship():
         wall("z", x, SZ0, -90.0, DECK + BULWARK, FORECASTLE - DECK, "hull", t=0.5)
 
     # Hull B (the bottom): pump room forward, the bilge, the engine room aft
-    slab(SX0, SX1, SZ0, SZ1, HULL_B, "metal", holes=[hole(LIFT), hole(MOON_STAIRS), hole(BOW_STAIRS), hole(TOWER_STAIRS),
+    slab(SX0, SX1, SZ0, SZ1, HULL_B, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS),
                                                       hole(SERVICE_TUBE)])
     for z in (-56.0, 30.0):
         wall("x", z, SX0, SX1, HULL_B, HULL_A - SLAB_T - HULL_B, "metal", [door(36.0, 2.0), door(58.0, 2.0)])
@@ -753,12 +770,12 @@ def ship():
     add_loot("EngineRoom", "crate", 47.0, HULL_B, 95.0, table="crate")
     add_loot("EngineRoom", "locker", 65.2, HULL_B, 90.0, -90)
     add_loot("PumpRoom", "crate", 36.0, HULL_B, -96.0)
-    for z in (-40.0, -20.0, 0.0, 16.0):   # the bilge's tanks
+    for z in (-40.0, -20.0, 8.0, 18.0):   # the bilge's tanks
         box(33.0, HULL_B, z - 2, 36.0, HULL_B + 2.0, z + 2, "rust")
         box(60.0, HULL_B, z - 2, 63.0, HULL_B + 2.0, z + 2, "rust")
 
     # Hull A (the cargo hold): side passages down both sides, the hold in the middle, workshops aft
-    slab(SX0, SX1, SZ0, SZ1, HULL_A, "metal", holes=[hole(LIFT), hole(MOON_STAIRS), hole(BOW_STAIRS), hole(TOWER_STAIRS)]
+    slab(SX0, SX1, SZ0, SZ1, HULL_A, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)]
          + [(x - 0.7 if yaw == 90 else x - 0.95, x + 0.95 if yaw == 90 else x + 0.7, z - 0.6, z + 0.6) for x, z, yaw in SIDE_LADDERS])
     for x, z, yaw in SIDE_LADDERS:
         ladder(x, HULL_B, z, yaw, HULL_A - HULL_B, "SideLadder")
@@ -778,7 +795,7 @@ def ship():
               (40, 44, 2), (56, 50, 1), (46, 58, 2), (53, 66, 1)]
     for i, (x, z, high) in enumerate(stacks):
         container(x, HULL_A, z, "z" if i % 2 else "x", ("container_a", "container_b", "container_c")[i % 3], high)
-    for i, (x, z) in enumerate([(48, -72), (37.5, -24), (57.5, 4), (49, 46), (38, 64), (56, -50)]):
+    for i, (x, z) in enumerate([(48, -72), (37.5, -24), (57.5, 10), (49, 46), (38, 64), (56, -50)]):
         add_loot("Hold", "crate", x, HULL_A, z, 90 * (i % 2))
     # workshops aft, under the tower; the stern ramp up to the last barge
     wall("z", 44.0, 74.0, 96.0, HULL_A, hold_h, "metal", [door(80.0), door(92.0)])
@@ -789,7 +806,7 @@ def ship():
 
     # The main deck: the moon pool deckhouse, the derrick, cranes and containers, the forecastle
     slab(SX0, SX1, -90.0, SZ1, DECK, "metal",
-         holes=[hole(LIFT), hole(MOON_STAIRS), hole(BOW_STAIRS), hole(TOWER_STAIRS)] + HATCHES)
+         holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)] + HATCHES)
     slab(SX0, SX1, SZ0, -90.0, DECK, "metal")
     for x0, x1, z0, z1 in HATCHES:   # a low coaming round each open hatch
         room(x0 - 0.3, x1 + 0.3, z0 - 0.3, z1 + 0.3, DECK, 0.5, "rust", t=0.3)
@@ -821,32 +838,66 @@ def ship():
 
 
 def moon_pool():
-    """The deckhouse over the moon pool: the lift shaft (a placeholder ladder until the lift is built) and the
-    stairs beside it, from the drill floor down to the dock in the lab."""
-    x0, x1, z0, z1 = LIFT
-    top = DECK + 3.2
+    """The moon pool (0.33.2, owner: "not a huge staircase, endlessly turning corners"): an open well through the
+    whole ship, from the drill floor down past the main deck and the hold to the bottom of the hull, then a walled
+    trunk on down to the lab's dock. Railings round it on every deck. From the hull's bottom deck you go down one lap
+    of long ramps round the trunk's walls, open to the middle, so you see who's above and below you; a side pod
+    halfway. The riser (the drill pipe) hangs down the middle, with a catwalk out to it and a ladder down it: the
+    fast, exposed way (until the lift is built). The trunk opens wide onto the dock."""
+    x0, x1, z0, z1 = MOON
+    W = 2.6
     bottom = LAB1 - SLAB_T
-    h = top - bottom
-    lo = lambda y: y - bottom
-    wall("x", z0, x0, x1, bottom, h, "wall", [(42.0, 2.0, lo(DECK), lo(DECK) + DOOR_H)])
-    wall("x", z1, x0, x1, bottom, h, "wall", [(42.0, 2.0, lo(HULL_B), lo(HULL_B) + DOOR_H),
-                                                (42.0, 2.0, lo(LAB1), lo(LAB1) + DOOR_H)])
-    wall("z", x0, z0, z1, bottom, h, "wall")
-    slab(x0, x1, z0, z1, LAB1, "concrete")
-    slab(x0, x1, z0, z1, top + SLAB_T, "roof")
-    ladder(x0 + 0.5, LAB1, 0.0, 90, DECK - LAB1, "Lift")
-    labels.append(("MOON POOL", 46, -12, 0))
-    stairwell(46.0, -7.0, [DRILL, 8.0, DECK, 0.0, HULL_A, HULL_B, -11.5, -15.0, -18.5, LAB1],
-              {0: "N", 2: "N", 4: "N", 5: "S", 9: "S"})
+    # the trunk's walls, below the hull's bottom deck
+    h = HULL_B - SLAB_T - bottom
+    wall("x", z0, x0, x1, bottom, h, "hull", t=0.4)
+    wall("x", z1, x0, x1, bottom, h, "hull", [(48.0, 12.0, 0.0, 3.8)], t=0.4)       # wide open onto the dock
+    wall("z", x0, z0, z1, bottom, h, "hull", t=0.4)
+    wall("z", x1, z0, z1, bottom, h, "hull", [(5.7, DOOR_W, -14.0 - bottom, -14.0 - bottom + DOOR_H)], t=0.4)
+    # one lap of ramps, each a different slope: along the north wall east, the east wall south, the south wall west,
+    # the west wall north to the bottom; landings at the corners
+    runs = [((x0, HULL_B, z0 + W / 2), (x1 - W, -11.0, z0 + W / 2)),
+            ((x1 - W / 2, -11.0, z0 + W), (x1 - W / 2, -14.0, z1 - W)),
+            ((x1 - W, -14.0, z1 - W / 2), (x0 + W, -18.0, z1 - W / 2)),
+            ((x0 + W / 2, -18.0, z1 - W), (x0 + W / 2, LAB1, z0 + W))]
+    for a, b in runs:
+        ramp(a, b, W)
+    for cx0, cz0, y in [(x1 - W, z0, -11.0), (x1 - W, z1 - W, -14.0), (x0, z1 - W, -18.0)]:
+        box(cx0, y - SLAB_T, cz0, cx0 + W, y, cz0 + W, "metal")
+    # posts along the open side of the upper runs (railings, gray box)
+    for (ax, ay, az), (bx, by, bz) in runs[:3]:
+        for i in range(5):
+            f = (i + 0.5) / 5
+            px, py, pz = ax + (bx - ax) * f, ay + (by - ay) * f, az + (bz - az) * f
+            ox = 0.0 if ax != bx else (-W / 2 if ax > 48 else W / 2)
+            oz = 0.0 if az != bz else (W / 2 if az < 0 else -W / 2)
+            box(px + ox - 0.08, py, pz + oz - 0.08, px + ox + 0.08, py + 1.0, pz + oz + 0.08, "rust")
+    # the side pod off the east wall, halfway down (loot, and a look back across the well)
+    room(x1, x1 + 6.0, 0.0, 8.0, -14.0, 3.0, "lab", w=[door(5.7)], floor="labfloor", roof="lab")
+    add_loot("LabWing", "crate", x1 + 5.0, -14.0, 1.0, -90)
+    # the riser: the drill pipe down the middle, a catwalk out to it from the hull's bottom deck, a ladder down it
+    box(47.2, LAB1, -1.8, 48.8, 41.0, -0.2, "rust")
+    slab(44.0, 52.0, -5.0, 3.0, HULL_B, "metal", holes=[(47.2, 48.8, -1.8, 0.8)])
+    box(x0, HULL_B - SLAB_T, -2.2, 44.0, HULL_B, 0.2, "metal")
+    wall("x", -5.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
+    wall("x", 3.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
+    wall("z", 52.0, -5.0, 3.0, HULL_B, 1.0, "rust", t=0.12)
+    ladder(48.0, LAB1, 0.0, 0, HULL_B - LAB1, "Riser")
+    labels.append(("MOON POOL", 48, -12, 0))
+    # railings round the well: on the hull's bottom deck (gaps for the first ramp and the catwalk), and above
+    wall("x", z1, x0, x1, HULL_B, 1.0, "rust", t=0.15)
+    wall("z", x0, z0, z1, HULL_B, 1.0, "rust", [(z0 + W / 2, W + 0.2, 0.0, 1.0), (-1.0, 2.6, 0.0, 1.0)], t=0.15)
+    wall("z", x1, z0, z1, HULL_B, 1.0, "rust", t=0.15)
+    for y in (HULL_A, DECK, DRILL):
+        room(x0, x1, z0, z1, y, 1.1, "rust", t=0.15)
 
 
 def drill_floor():
     """The drill floor (v3): a deck at y 12 over the middle of the ship (x 30..66, z -14..14), the derrick on it, the
-    driller's shack, pipe racks. Three ways up: a ramp on the west side from the fore deck, one on the east side from
-    the aft deck, and the moon pool stairs. Under it the main deck is roofed (mud pumps, the lift's deckhouse)."""
+    driller's shack, pipe racks. It roofs the midship and splits the deck in two. Two ramps up (west side from the
+    fore deck, east side from the aft deck); the moon pool's well goes down through the middle of it (0.33.2)."""
     x0, x1, z0, z1 = SX0 + 0.25, SX1 - 0.25, -14.0, 14.0
-    slab(x0, x1, z0, z1, DRILL, "metal", holes=[hole(MOON_STAIRS)])
-    for x, z in [(31.0, -13.0), (63.0, -13.0), (31.0, 11.0), (63.0, 11.0), (55.0, -1.0)]:
+    slab(x0, x1, z0, z1, DRILL, "metal", holes=[hole(MOON)])
+    for x, z in [(31.0, -13.0), (63.0, -13.0), (31.0, 11.0), (63.0, 11.0)]:
         box(x, DECK, z, x + 2.0, DRILL - SLAB_T, z + 2.0, "rust")
     wall("x", z0, x0, x1, DRILL, 1.1, "rust", [(33.0, 3.4, 0.0, 1.1)], t=0.2)
     wall("x", z1, x0, x1, DRILL, 1.1, "rust", [(63.0, 3.4, 0.0, 1.1)], t=0.2)
@@ -854,17 +905,15 @@ def drill_floor():
     wall("z", x1, z0, z1, DRILL, 1.1, "rust", t=0.2)
     ramp((33.0, DECK, -36.0), (33.0, DRILL, z0), 3.2, "metal")
     ramp((63.0, DECK, 36.0), (63.0, DRILL, z1), 3.2, "metal")
-    for x, z in [(41.5, -6.0), (55.0, -6.0), (41.5, 6.0), (55.0, 6.0)]:   # the derrick
+    for x, z in [(37.0, -10.0), (59.0, -10.0), (37.0, 8.0), (59.0, 8.0)]:   # the derrick, legs either side of the well
         box(x - 0.4, DRILL, z - 0.4, x + 0.4, 40.0, z + 0.4, "rust")
-    box(41.1, 40.0, -6.4, 55.4, 41.0, 6.4, "rust")
-    room(56.0, 64.0, -12.0, -4.0, DRILL, 3.0, "wall", w=[door(-8.0)], n=[window(60.0)], s=[window(60.0)], e=[window(-8.0)],
+    box(36.6, 40.0, -10.4, 59.4, 41.0, 8.4, "rust")
+    room(44.0, 52.0, 8.5, 13.5, DRILL, 3.0, "wall", w=[door(11.0)], e=[door(11.0)], n=[window(48.0)], s=[window(48.0)],
          roof="roof")
-    box(33.0, DRILL, 8.0, 43.0, DRILL + 1.4, 11.0, "rust")      # pipe rack
-    box(35.0, DRILL, -10.0, 40.0, DRILL + 2.0, -6.0, "metal")  # the drawworks
-    add_loot("Workshop", "crate", 62.5, DRILL, -10.5, table="crate")
+    box(31.0, DRILL, 8.0, 41.0, DRILL + 1.4, 11.0, "rust")      # pipe rack
+    box(31.0, DRILL, -6.0, 35.0, DRILL + 2.0, -1.0, "metal")    # the drawworks
+    add_loot("Workshop", "crate", 50.5, DRILL, 12.5, table="crate")
     add_loot("Deck", "crate", 36.0, DRILL, 1.0)
-    for x0_, z0_, x1_, z1_ in [(58.0, -10.0, 64.0, -2.0), (32.0, 4.0, 36.0, 10.0)]:   # mud pumps under it
-        box(x0_, DECK, z0_, x1_, DECK + 2.4, z1_, "metal")
     labels.append(("DRILL FLOOR", 48, -18, 0))
 
 
@@ -931,7 +980,7 @@ def lab():
     # Lab 1: the dock (y -22): the lift and stairs come in from the north, the sub bay on the east side
     l0, l1, lz0, lz1 = 30.0, 66.0, 7.0, 27.0
     h1 = 3.8
-    room(l0, l1, lz0, lz1, LAB1, h1, "lab", n=[door(42.0, 2.0), door(52.0)], s=[door(48.0, 2.0)], roof="lab")
+    room(l0, l1, lz0, lz1, LAB1, h1, "lab", n=[(48.0, 12.0, 0.0, 3.8)], s=[door(48.0, 2.0)], roof="lab")
     slab(l0, l1, lz0, lz1, LAB1, "labfloor", holes=[(l0, 34.6, 10.0, 25.0)])
     wall("z", 56.0, lz0, lz1, LAB1, h1, "lab", [door(17.0, 2.0)])
     wall("z", 34.6, 10.0, 25.0, LAB1, 1.0, "lab")   # (a rail along the ramp's opening)
