@@ -219,6 +219,14 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Railyard | Bolts 15 |
 | Junkyard | Bolts 20, Wires 15, Fuel Can 6 |
 | School | Medical Supplies 5, Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |
+| ShipBridge | Gold Watch 15, Cash Bundle 15, Exion Orders 10, Diamond Ring 3, rare valuable 8 |
+| ShipArmory | Hound 12, Hound Rounds 25, Wasp 8, Mauler 8, Mauler Shells 15, Wasp Rounds 15, Light Armor 10, Heavy Armor 5, Old Helmet 8, Combat Helmet 4, Frag Grenade 10, Foregrip 5, Red Dot 5 |
+| SickBay | Medical Supplies 25, Bandage 45, Medkit 25 |
+| Galley | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
+| EngineRoom | Bolts 15, Wires 10, Fuel Can 12 |
+| Workshop | Bolts 15, Wires 10, Powder Tin 6 |
+| LabWing | Medical Supplies 15, Medkit 10, Exion Orders 12, Military Chip 8, Hard Drive 8, Graphics Card 4, Processor 6, epic valuable 10 |
+| LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5 |
 
 ## Crafting
 

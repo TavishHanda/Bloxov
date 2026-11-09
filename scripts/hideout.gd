@@ -41,6 +41,8 @@ const MESSAGE_MAX_WIDTH := 800.0
 var _online_button: Button
 ## START RAID: solo in PvE; in PvP it opens the queue and party panel (owner, 2026-11-07: no separate ONLINE button).
 var _raid_button: Button
+## Which map a solo raid goes to (map 2, Riptide, 2026-11-09); hidden in PvP, which stays on Frontlines for now.
+var _map_button: Button
 ## Next to the switch in PvP: the account page (sign in, or sign out / download / delete) (owner, 2026-11-07).
 var _account_button: Button
 ## PvP and not signed in: covers the stash, loadout and traders (owner, 2026-11-07: no playing with a stash that
@@ -822,6 +824,8 @@ func start_with_free_kit() -> void:
 func start_raid() -> void:
 	save_now()
 	# PvP (0.31): the raid takes the kit the server issued from the stash it keeps.
+	if Profile.mode == Profile.ONLINE or Network.main.is_client():
+		RaidMap.scene_path = RaidMap.FRONTLINES   # (online raids are on Frontlines: the server only runs that one)
 	if Profile.mode == Profile.ONLINE and not Network.main.issued_kit.is_empty():
 		Profile.loadout = Network.main.issued_kit
 		Network.main.issued_kit = {}
@@ -1172,6 +1176,13 @@ func _build_top_bar() -> void:
 	_free_kit_button.pressed.connect(start_with_free_kit)
 	LootUI.style_button(_free_kit_button)
 	row.add_child(_free_kit_button)
+	_map_button = Button.new()
+	_map_button.name = "MapButton"
+	_map_button.tooltip_text = "Pick the map for a solo raid (online raids are on Frontlines for now)"
+	_map_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(_map_button)
+	_map_button.pressed.connect(next_map)
+	row.add_child(_map_button)
 	_raid_button = Button.new()
 	_raid_button.name = "RaidButton"
 	_raid_button.text = "START RAID"
@@ -1198,8 +1209,28 @@ func press_start_raid() -> void:
 		start_raid())
 
 
+## The MAP button: the next map in RaidMap.MAPS for solo raids.
+func next_map() -> void:
+	var i := 0
+	for k in RaidMap.MAPS.size():
+		if RaidMap.MAPS[k][1] == RaidMap.scene_path:
+			i = k
+	RaidMap.scene_path = RaidMap.MAPS[(i + 1) % RaidMap.MAPS.size()][1]
+	UISounds.play(self, UISounds.CLICK, -12.0)
+	_update_raid_button()
+	_warm_raid()
+
+
 ## What START RAID says: in PvP, where you are in the queue.
 func _update_raid_button() -> void:
+	if _map_button != null:
+		var online := GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE
+		_map_button.visible = not online
+		var map_name := "FRONTLINES"
+		for m in RaidMap.MAPS:
+			if m[1] == RaidMap.scene_path:
+				map_name = m[0]
+		_map_button.text = "MAP: " + map_name
 	if _pvp_cover != null:
 		_pvp_cover.visible = Profile.mode == Profile.ONLINE and not Network.main.signed_in()
 	if _account_button != null:

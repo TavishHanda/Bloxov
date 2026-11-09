@@ -8,7 +8,12 @@ extends Node3D
 ## server's raid copies alike, so both always use the same map.
 
 ## The map every raid uses. "" = the built-in test map (the smoke test uses that, its checks are built around it).
-static var scene_path := "res://scenes/maps/old_bloxov.tscn"
+static var scene_path := FRONTLINES
+
+const FRONTLINES := "res://scenes/maps/old_bloxov.tscn"
+## The maps a solo raid can pick in the hideout (map 2, Riptide: a gray box for now). Online raids are always on
+## Frontlines until the server can run a raid per map.
+const MAPS := [["FRONTLINES", FRONTLINES], ["RIPTIDE", "res://scenes/maps/riptide.tscn"]]
 
 ## Nodes of the raid scene whose contents come from the map.
 const SLOTS := ["Level", "Loot", "Extracts", "PlayerSpawns"]
