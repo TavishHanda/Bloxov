@@ -200,8 +200,10 @@ func set_door(id: String, state: int) -> void:
 
 ## A player threw a grenade: this raid's copy flies and does the damage (to the AI, and to players through their
 ## proxies). Loaded by path: no Grenade type here (see the top).
-func throw_grenade(from: Vector3, vel: Vector3) -> void:
-	(load("res://scripts/grenade.gd") as GDScript).call("spawn", raid, from, vel, true)
+## `on_kill(target)`: an AI it killed (by its scene name), for the thrower's quests.
+func throw_grenade(from: Vector3, vel: Vector3, on_kill := Callable()) -> void:
+	var grenade: Node = (load("res://scripts/grenade.gd") as GDScript).call("spawn", raid, from, vel, true)
+	grenade.set("on_kill", on_kill)
 
 
 ## A bag of items (a dead player's body, things a player dropped) at `pos`. A body gets gear slots.

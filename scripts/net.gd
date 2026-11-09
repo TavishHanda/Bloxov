@@ -382,7 +382,7 @@ func _state(state: Array) -> void:
 		if state[4] & Hitbox.FLAG_DEAD and not was_dead:
 			accounts.raid_over(peer, "killed")
 		elif state[4] & Hitbox.FLAG_EXTRACTED and not old_flags & Hitbox.FLAG_EXTRACTED:
-			accounts.extracted(peer)
+			accounts.extracted(peer, String(_in_extract.get(peer, [""])[0]))
 	if world != null:
 		world.record(peer, state, _now())
 		world.update_proxy(peer, state)
@@ -564,8 +564,10 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 	for other in _raid_peers(matchmaker.players[peer]["raid"]):
 		if other != peer and _peer_open(other):
 			_player_fired.rpc_id(other, peer, from, noise_end, weapon, suppressed)
+	# (a suppressor only counts for quests if the server counts one on them)
+	var quiet := suppressed and int(carried.get("suppressor", 0)) >= 1
 	for key: Variant in targets:
-		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0], weapon)
+		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0], weapon, quiet)
 
 
 ## Tells everyone in raid `raid_id` that `victim` died, and who killed them (0 = nobody got the credit).
@@ -649,6 +651,8 @@ func _open_container(id: String) -> void:
 		_container_busy.rpc_id(peer, id)
 	else:
 		_container_contents.rpc_id(peer, id, data)
+		if accounts != null:
+			accounts.raid_marks(peer, Quests.marks_of(world.container(id)))   # (visit quests, 0.31.15)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -721,7 +725,9 @@ func _grenade(from: Vector3, vel: Vector3) -> void:
 	if not NetGuard.use_item(_carried.get(peer, {}), "grenade"):
 		_caught(peer, "item", "threw a grenade they don't have")
 		return
-	world.throw_grenade(from, vel)
+	world.throw_grenade(from, vel, func(target: String) -> void:
+		if accounts != null:
+			accounts.raid_kill(peer, target, "grenade", ["grenade"]))
 	for other in _raid_peers(matchmaker.players[peer]["raid"]):
 		if other != peer:
 			_grenade_seen.rpc_id(other, from, vel)
@@ -850,7 +856,7 @@ func client_view_time_of(_peer: int) -> float:
 
 
 ## Applies a hit the server decided on: to a player (their game applies it, through their armor) or a scav.
-func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3, weapon := "") -> void:
+func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3, weapon := "", quiet := false) -> void:
 	var killed := false
 	# What the attacker's damage number shows: a scav's real damage taken. A player's game applies the hit through
 	# their armor and reports what it did (0.17.1, owner: numbers after armor), so for them the number comes later.
@@ -873,7 +879,8 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3,
 		if _peer_open(attacker):
 			_kill_confirmed.rpc_id(attacker, target)
 		if accounts != null:
-			accounts.raid_kill(attacker, target, weapon)   # (PvP quests are counted here, 0.31.4)
+			# (PvP quests are counted here, 0.31.4; with what the server saw of the kill, 0.31.15)
+			accounts.raid_kill(attacker, target, weapon, Quests.kill_tags(attacker_pos, hit["enemy"].global_position, quiet))
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.

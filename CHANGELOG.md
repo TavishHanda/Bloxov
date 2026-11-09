@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
 
+## 0.31.15 (Trader jobs)
+- **19 new quests, called jobs** (owner OK'd the list; Ming has none, owner). One-time side quests that pay money or
+  gear but unlock nothing. They're open from the start, next to the level quests; each trader shows one job at a time
+  and the next opens when it's done. Ponta 5 (Quiet Work, Long Shot, Gun Show, Powder Keg, Close Quarters), the
+  Medic 3 (Restock, Pharmacy Run, Clean Record), The Big Don 5 (Fuel Run, Scrap Collector, Battery Life, Heavy
+  Lifting, Long Haul), Supreme 6 (Pocket Change, Paper Trail, Trophy Shelf, Bank Job, Brotherhood Secrets, Below the
+  Town Hall). Same rules as before: kills and extracts count once you're out, hand-ins take found-in-raid items, no
+  quests for killing players. Names are placeholders.
+- **New kinds of quest:** kills with a suppressor on, kills from 75 m or farther, grenade kills, searching something
+  in a place (the Pharmacy, the bank vault, the bunker), extracting at a certain extract, and extracting raids in a
+  row (dying or leaving starts it again). Online the server decides all of them from what it saw (its own count of a
+  suppressor on you, where you and the AI were, which containers it let you open, the extract it accepted).
+- **Reward items** (a 4x Scope, Medkits, a backpack...) go in your stash in the hideout; with no room they wait until
+  there is. Online the server lets them in for free only for quests you've finished.
+- Trader screens show "JOB x OF y" above the level quests; the quest board, records screen and pause-menu tracker
+  list the jobs too.
+
 ## 0.31.14 (More sounds)
 - **New sounds only** (owner: "do all of it", and none of it too loud, since you mostly want to hear other people
   and the AI). Nothing that was already in the game changed; 21 new files from `tools/make_sounds.py` (`main_more`),

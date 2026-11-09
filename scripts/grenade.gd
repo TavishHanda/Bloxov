@@ -40,7 +40,13 @@ func _ready() -> void:
 	add_child(mesh)
 
 
+## Called with an AI's scene name when this grenade kills it (quests).
+var on_kill := Callable()
+
+
 ## Throws a grenade into `world` from `from` at `vel`.
+
+
 static func spawn(world: Node, from: Vector3, vel: Vector3, real := true) -> Grenade:
 	var grenade := Grenade.new()
 	grenade.velocity = vel
@@ -138,3 +144,6 @@ func _hurt_around(at: Vector3) -> void:
 		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, middle, 1)).is_empty():
 			continue
 		health.take_damage(amount, at)
+		# (an AI it killed counts for the thrower's grenade quests, 0.31.15)
+		if health.is_dead and on_kill.is_valid() and target.is_in_group(&"enemies") and target.scene_file_path != "":
+			on_kill.call(target.scene_file_path.get_file().get_basename())

@@ -14,7 +14,7 @@ const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const MAX_STACKS := 500
 const MAX_MONEY := 1_000_000_000
 const KEYS: Array[String] = ["version", "money", "stash_size", "stash", "loadout", "stats", "trader_spent",
-	"free_kit_raid", "quests_done", "quest_progress", "trader_levels", "presets"]
+	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets"]
 const STATS: Array[String] = ["raids", "extracts", "deaths", "earned"]
 
 
@@ -199,9 +199,10 @@ static func entries(profile: Dictionary) -> Array:
 	return out.filter(func(e: Variant) -> bool: return e is Dictionary and ItemDB.ITEMS.has(str(e.get("id", ""))))
 
 
-## A PvP raid ended with an extract: the kills the server counted ([[target, weapon], ...]) and the loot brought out
-## move the open kill and extract quests, and a finished one pays its reward (the server's Quests.raid_ended).
-static func raid_quests(profile: Dictionary, kills: Array, loot_value: int) -> void:
+## A PvP raid ended with an extract: the kills the server counted ([[target, weapon, tags], ...]), the places searched
+## (`marks`), the extract (`at`, its node name) and the loot brought out move the open quests, and a finished one pays
+## its reward (the server's Quests.raid_ended).
+static func raid_quests(profile: Dictionary, kills: Array, loot_value: int, marks: Array = [], at := "") -> void:
 	if not profile.get("quest_progress") is Dictionary:
 		profile["quest_progress"] = {}
 	if not profile.get("quests_done") is Array:
@@ -209,19 +210,14 @@ static func raid_quests(profile: Dictionary, kills: Array, loot_value: int) -> v
 	var levels: Dictionary = profile.get("trader_levels", {}) if profile.get("trader_levels") is Dictionary else {}
 	var progress: Dictionary = profile["quest_progress"]
 	var done: Array = profile["quests_done"]
+	var open: Array[String] = []
 	for id: String in Quests.LIST:
+		var trader := str(Quests.LIST[id]["trader"])
+		if Quests.is_open(id, clampi(int(levels.get(trader, 1)), 1, Traders.max_level(trader)), done):
+			open.append(id)
+	for id in open:
 		var quest: Dictionary = Quests.LIST[id]
-		var trader := str(quest["trader"])
-		var level := clampi(int(levels.get(trader, 1)), 1, Traders.max_level(trader))
-		if done.has(id) or int(quest["level"]) != level + 1:
-			continue
-		var gained := 0
-		match quest["kind"]:
-			"kill":
-				gained = kills.filter(func(kill: Array) -> bool:
-					return kill[0] == quest["target"] and (not quest.has("weapon") or kill[1] == quest["weapon"])).size()
-			"extract":
-				gained = 1 if loot_value >= int(quest.get("min_value", 0)) else 0
+		var gained := Quests.gain(quest, kills, marks, loot_value, at)
 		if gained <= 0:
 			continue
 		var count := int(quest["count"])
@@ -230,6 +226,37 @@ static func raid_quests(profile: Dictionary, kills: Array, loot_value: int) -> v
 		if now >= count:
 			done.append(id)
 			profile["money"] = int(profile.get("money", 0)) + int(quest["reward"])
+
+
+## A PvP raid ended without an extract: the open streak quests start again.
+static func raid_lost(profile: Dictionary) -> void:
+	var progress: Variant = profile.get("quest_progress")
+	var done: Variant = profile.get("quests_done")
+	if not progress is Dictionary:
+		return
+	for id: String in Quests.LIST:
+		if Quests.LIST[id]["kind"] == "streak" and not (done is Array and done.has(id)):
+			progress.erase(id)
+
+
+## The reward items of quests newly marked taken (`old` -> `new`): id -> how many. Null when a mark is made up
+## (a quest not done, or a mark taken back).
+static func reward_items(old: Dictionary, new: Dictionary) -> Variant:
+	var before: Array = old.get("rewards_taken", []) if old.get("rewards_taken") is Array else []
+	var after: Array = new.get("rewards_taken", []) if new.get("rewards_taken") is Array else []
+	var done: Array = new.get("quests_done", []) if new.get("quests_done") is Array else []
+	var out := {}
+	for id: Variant in before:
+		if not after.has(id):
+			return null
+	for id: Variant in after:
+		if before.has(id):
+			continue
+		if not Quests.LIST.has(id) or not done.has(id) or after.count(id) > 1:
+			return null
+		for entry: Array in Quests.LIST[id].get("items", []):
+			out[entry[0]] = int(out.get(entry[0], 0)) + int(entry[1])
+	return out
 
 
 ## Counts by id: "all" (with attachments and loaded rounds, like count), "free" and "found" (stacks with that mark),
@@ -313,6 +340,9 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 		found_used += maxi(int(a["found"][id]) - int(b["found"].get(id, 0)), 0)
 	if handed > found_used:
 		return "hand-in without found items"
+	var given: Variant = reward_items(old, new)
+	if given == null:
+		return "quest reward"
 	# Trader levels: only up, and only as far as quests and money spent allow.
 	var spent_old: Dictionary = old.get("trader_spent", {}) if old.get("trader_spent") is Dictionary else {}
 	var levels_old: Dictionary = old.get("trader_levels", {}) if old.get("trader_levels") is Dictionary else {}
@@ -331,6 +361,10 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 			change = int(b["all"].get(id, 0)) - int(a["all"].get(id, 0)) - free_gain
 		else:
 			change = (int(b["all"].get(id, 0)) - int(b["free"].get(id, 0))) - (int(a["all"].get(id, 0)) - int(a["free"].get(id, 0)))
+		if change > 0:   # (a quest's reward items come free)
+			var reward := mini(int(given.get(id, 0)), change)
+			given[id] = int(given.get(id, 0)) - reward
+			change -= reward
 		if change > 0:
 			var trader := Traders.trader_for(id)
 			if trader == "" or not _sells(trader, id, maxi(int(levels_new.get(trader, 1)), int(levels_old.get(trader, 1)))):

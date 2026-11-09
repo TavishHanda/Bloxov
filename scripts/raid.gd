@@ -20,6 +20,8 @@ var time_left: float
 ## "" while the raid is running.
 var result := ""
 var extract_used := ""
+## Its node name ("Highway"), for quests.
+var extract_used_id := ""
 var loot_value := 0
 ## "Name xN" lines describing what the player had when the raid ended.
 var loot_summary: PackedStringArray = []
@@ -149,6 +151,7 @@ func _on_extracted(zone: ExtractZone) -> void:
 		return
 	result = "extracted"
 	extract_used = zone.extract_name
+	extract_used_id = String(zone.name)
 	player.extract()
 	_finish()
 
@@ -167,7 +170,7 @@ func _set_leave_warning(on: bool) -> void:
 func _finish() -> void:
 	_set_leave_warning(false)
 	_tally_loot()
-	Quests.raid_ended(result == "extracted", loot_value)
+	Quests.raid_ended(result == "extracted", loot_value, extract_used_id)
 	_save_to_profile()
 	ended.emit(result)
 

@@ -246,6 +246,8 @@ func raid_starting(peer: int, raid: int) -> Dictionary:
 	record["final"] = null
 	record["extracted"] = false
 	record["kills"] = []
+	record["marks"] = []
+	record["at"] = ""
 	record["raid"] = {"state": IN_RAID, "id": "%s-%d" % [boot, raid], "snapshot": kit}
 	record["profile"]["loadout"] = OnlineProfile.death_loadout(kit)
 	record["profile"]["free_kit_raid"] = -1
@@ -254,19 +256,32 @@ func raid_starting(peer: int, raid: int) -> Dictionary:
 
 
 ## They killed an AI in their raid (net.gd's _damage): counted here for their PvP quests, which move when they
-## extract (as Quests.raid_ended does offline). `weapon` is the gun's item id ("" for the knife).
-func raid_kill(peer: int, target: String, weapon: String) -> void:
+## extract (as Quests.raid_ended does offline). `weapon` is the gun's item id ("" for the knife), `tags` what the
+## server saw of the kill ("quiet", "far", "grenade"; Quests.kill_tags).
+func raid_kill(peer: int, target: String, weapon: String, tags: Array = []) -> void:
 	var record: Dictionary = by_peer.get(peer, {})
 	if not record.is_empty() and record["raid"]["state"] == IN_RAID:
-		record["kills"].append([target, weapon])
+		record["kills"].append([target, weapon, tags])
 
 
-## The server accepted their extract. Saved once their game has sent what they came out with.
-func extracted(peer: int) -> void:
+## They searched a container the server let them open: its places count for their visit quests (Quests.marks_of).
+func raid_marks(peer: int, marks: Array) -> void:
+	var record: Dictionary = by_peer.get(peer, {})
+	if record.is_empty() or record["raid"]["state"] != IN_RAID:
+		return
+	for mark: Variant in marks:
+		if not record.get_or_add("marks", []).has(mark):
+			record["marks"].append(mark)
+
+
+## The server accepted their extract (at `at`, the extract's node name). Saved once their game has sent what they
+## came out with.
+func extracted(peer: int, at := "") -> void:
 	var record: Dictionary = by_peer.get(peer, {})
 	if record.is_empty() or record["raid"]["state"] != IN_RAID:
 		return
 	record["extracted"] = true
+	record["at"] = at
 	if record["final"] != null:
 		raid_over(peer, "extracted")
 
@@ -296,8 +311,9 @@ func raid_over(peer: int, result: String) -> void:
 	if result == "extracted" and record["final"] is Dictionary:
 		record["profile"]["loadout"] = record["final"]
 		value = maxi(OnlineProfile.worth(record["final"]) - OnlineProfile.worth(record["kit"]), 0)
-		OnlineProfile.raid_quests(record["profile"], record["kills"], value)
+		OnlineProfile.raid_quests(record["profile"], record["kills"], value, record.get("marks", []), str(record.get("at", "")))
 	else:
+		OnlineProfile.raid_lost(record["profile"])
 		result = "killed" if result == "killed" else "left"
 	_finish(record, result, value)
 	if net._peer_open(peer):
@@ -317,6 +333,8 @@ func _finish(record: Dictionary, result: String, value: int) -> void:
 	record["kit"] = {}
 	record["final"] = null
 	record["kills"] = []
+	record["marks"] = []
+	record["at"] = ""
 	_persist(record)
 
 

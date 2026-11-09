@@ -668,6 +668,7 @@ func _on_hit_confirmed(_killed: bool, headshot: bool) -> void:
 
 ## Online, containers are shared: the raid asks the server first (NetRaid opens the screen when it says yes).
 func _on_container_opened(container: LootContainer) -> void:
+	Quests.searched(container)   # (visit quests, 0.31.15; online the server notes it too, and its count is the one)
 	var net_raid := get_node_or_null("../NetRaid") as NetRaid
 	if Network.main.in_online_raid() and net_raid != null:
 		net_raid.request_open(container)

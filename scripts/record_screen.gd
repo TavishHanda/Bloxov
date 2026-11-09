@@ -112,16 +112,15 @@ func refresh() -> void:
 			_jobs.add_child(job)
 	if not any:
 		var none := Label.new()
-		none.text = "No jobs right now. Every trader is at their top level, or ready to level up."
+		none.text = "No jobs right now. Every trader is at their top level or ready to level up, and every job is done."
 		none.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		HudStyle.style_label(none, 20)
 		_jobs.add_child(none)
 
 
-## A trader's quests for their next level that you haven't done.
+## A trader's quests for their next level that you haven't done, and their current job.
 static func open_quests(trader: String) -> Array:
-	var lv := Profile.trader_level(trader)
-	return Quests.for_level(trader, lv + 1).filter(func(id: String) -> bool: return not Profile.quests_done.has(id))
+	return Quests.open_for(trader)
 
 
 ## Your record (the stats board in the 3D hideout shows the same).

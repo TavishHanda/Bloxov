@@ -420,7 +420,7 @@ func _section_knife() -> void:
 		_check(was_idle and maxi(want_hp, 0) == maxi(hp_left, 0) and (want_hp > 0) != (not is_instance_valid(victim) or victim.health.is_dead),
 			"a backstab does %d to an unaware %s (hp %d left, want %d; %s)" % [player.knife.backstab_damage, scene.get_file().get_basename(), hp_left, want_hp, diag])
 		if want_hp <= 0:
-			_check(Quests.raid_kills.has([scene.get_file().get_basename(), "knife"]), "the kill is noted for quests (%s with the knife)" % scene.get_file().get_basename())
+			_check(Quests.raid_kills.any(func(k: Array) -> bool: return k[0] == scene.get_file().get_basename() and k[1] == "knife"), "the kill is noted for quests (%s with the knife)" % scene.get_file().get_basename())
 		if is_instance_valid(victim):
 			victim.queue_free()
 	player.head.rotation.x = 0.0
@@ -3124,8 +3124,8 @@ func _section_hideout() -> void:
 	_check(not crate.grid.stacks.is_empty() and crate.grid.stacks.all(func(st: ItemStack) -> bool: return st.found), "loot in containers is found in raid")
 	crate.free()
 	hideout.open_trader("meds")
-	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size() + Quests.for_level("meds", 2).size() + 2,
-		"the trader tabs switch the stock shown, with the next level's quests on top")
+	_check(hideout._trader_title.text == "MEDIC" and hideout._trader_rows.get_child_count() == Traders.stock("meds").size() + Quests.for_level("meds", 2).size() + 4,
+		"the trader tabs switch the stock shown, with the current job and the next level's quests on top")
 	var trader_panel := hideout._trader_title.get_parent().get_parent().get_parent() as Control
 	var widths := {}
 	for trader: String in Traders.LIST:
@@ -3150,6 +3150,71 @@ func _section_hideout() -> void:
 	Profile._loaded = false
 	Profile.load_profile()
 	_check(Profile.trader_level("guns") == 2 and Profile.stash.height == Profile.STASH_ROWS[-1], "trader levels and stash size are saved")
+	# Jobs (0.31.15, owner OK'd the list): one-time side quests, one open per trader, none for Ming.
+	var keep_done := Profile.quests_done.duplicate()
+	var keep_progress := Profile.quest_progress.duplicate()
+	var keep_money := Profile.money
+	Profile.quests_done = []
+	Profile.quest_progress = {}
+	Profile.rewards_taken = []
+	var open_now := Quests.open_quests()
+	_check(Quests.current_job("guns") == "quiet_work" and open_now.has("quiet_work") and open_now.has("restock")
+		and open_now.has("fuel_run") and open_now.has("pocket_change") and not open_now.has("long_shot")
+		and Quests.for_level("ming", 0).is_empty() and Quests.LIST.keys().all(func(id: String) -> bool:
+			return Quests.LIST[id].get("items", []).all(func(e: Array) -> bool: return ItemDB.ITEMS.has(e[0]))),
+		"every trader but Ming has its first job open (and job rewards are real items)")
+	_check(Quests.kill_tags(Vector3.ZERO, Vector3(80, 0, 0), false) == ["far"] and Quests.kill_tags(Vector3.ZERO, Vector3(10, 0, 0), true) == ["quiet"],
+		"a kill 75 m out is far, one with a suppressor quiet")
+	Profile.money = 0
+	Quests.raid_started()
+	for i in 5:
+		Quests.record_kill("scav", "ak", ["quiet"] if i < 4 else [])
+	Quests.raid_ended(true, 0)
+	_check(Quests.progress("quiet_work") == 4 and Profile.money == 0, "only suppressed kills count for Quiet Work")
+	Quests.record_kill("scav", "ak", ["quiet"])
+	Quests.raid_ended(true, 0)
+	_check(Profile.quests_done.has("quiet_work") and Profile.money == 6000 and Quests.current_job("guns") == "long_shot",
+		"a done job pays and the next one opens")
+	var vault_safe := Node3D.new()
+	vault_safe.set_meta("place", "Bank")
+	vault_safe.set_meta("locked", true)
+	Quests.raid_started()
+	Quests.searched(vault_safe)
+	vault_safe.free()
+	_check(Quests.raid_marks.has("place:BankVault") and Quests.gain(Quests.LIST["bank_job"], [], Quests.raid_marks, 0, "") == 1
+		and Quests.gain(Quests.LIST["pharmacy_run"], [], Quests.raid_marks, 0, "") == 0, "searching a vault safe counts for the Bank Job")
+	_check(Quests.gain(Quests.LIST["long_haul"], [], [], 0, "Highway") == 1 and Quests.gain(Quests.LIST["long_haul"], [], [], 0, "FarmRoad") == 0
+		and Quests.gain(Quests.LIST["close_quarters"], [["raider", "shotgun", []], ["scav", "shotgun"]], [], 0, "") == 1,
+		"Long Haul only counts the Highway, Close Quarters only Raiders")
+	Profile.quests_done.append_array(["restock", "pharmacy_run"])
+	Profile.rewards_taken.append("restock")
+	Quests.raid_started()
+	Quests.raid_ended(true, 0)
+	Quests.raid_ended(true, 0)
+	var streak_two := Quests.progress("clean_record")
+	Quests.raid_ended(false, 0)
+	_check(streak_two == 2 and Quests.progress("clean_record") == 0, "Clean Record starts again when you die")
+	Profile.quests_done.append("long_shot")
+	var scopes := Profile.stash.count_of("scope_4x")
+	var given: Array = Quests.give_rewards(Profile.stash)
+	_check((given[0] as Array).has("long_shot") and Profile.stash.count_of("scope_4x") == scopes + 1 and Profile.rewards_taken.has("long_shot")
+		and Quests.rewards_waiting().is_empty() and Quests.reward_text("long_shot") == "$4,000 + 4x Scope", "a job's reward items go in the stash once")
+	# Online the server moves them, with the kills it saw, and the audit lets reward items in for free.
+	var server := {"quest_progress": {}, "quests_done": ["quiet_work"], "money": 0, "trader_levels": {}}
+	OnlineProfile.raid_quests(server, [["scav", "sniper", ["far"]], ["scav", "sniper", []]], 0, ["place:Bunker"], "Highway")
+	_check(int(server["quest_progress"].get("long_shot", 0)) == 1 and int(server["quest_progress"].get("clean_record", 0)) == 0
+		and int(server["quest_progress"].get("pocket_change", 0)) == 0, "the server moves the open jobs from what it saw")
+	server["quest_progress"]["clean_record"] = 2
+	OnlineProfile.raid_lost(server)
+	_check(not server["quest_progress"].has("clean_record"), "the server starts a streak again when you die")
+	var given_online: Variant = OnlineProfile.reward_items({"quests_done": ["long_shot"], "rewards_taken": []}, {"quests_done": ["long_shot"], "rewards_taken": ["long_shot"]})
+	_check(given_online is Dictionary and int(given_online.get("scope_4x", 0)) == 1
+		and OnlineProfile.reward_items({"rewards_taken": []}, {"quests_done": [], "rewards_taken": ["long_shot"]}) == null,
+		"reward items are allowed only for finished quests")
+	Profile.quests_done = keep_done
+	Profile.quest_progress = keep_progress
+	Profile.rewards_taken = []
+	Profile.money = keep_money
 	# Ming's mystery boxes (0.16.2, owner): earned money in, one random item from the box into the stash, odds shown.
 	var odds_ok := Traders.BOXES.keys().all(func(box: String) -> bool:
 		var sum := 0.0

@@ -624,19 +624,20 @@ func fill_boards() -> void:
 		(boards["stats"] as Label3D).text = stats_board_text()
 
 
-## Each trader's quests for their next level, with your progress; at most 8 lines.
+## Each trader's quests for their next level and their current job, with your progress; at most 8 lines.
 static func quest_board_text() -> String:
 	var lines: Array[String] = []
 	for trader: String in Traders.LIST:
 		var lv := Profile.trader_level(trader)
-		var open := Quests.for_level(trader, lv + 1).filter(func(id: String) -> bool: return not Profile.quests_done.has(id))
+		var open := Quests.open_for(trader)
 		if open.is_empty():
 			continue
-		lines.append("%s  (level %d)" % [Traders.title(trader).to_upper(), lv + 1])
+		var leveling := lv < Traders.max_level(trader) and not Quests.for_level(trader, lv + 1).all(func(id: String) -> bool: return Profile.quests_done.has(id))
+		lines.append("%s  (level %d)" % [Traders.title(trader).to_upper(), lv + 1] if leveling else Traders.title(trader).to_upper())
 		for id: String in open:
 			lines.append("   %s   %d/%d" % [Quests.LIST[id]["name"], Quests.progress(id), int(Quests.LIST[id]["count"])])
 	if lines.is_empty():
-		return "No jobs right now.\nEvery trader is at their top level, or ready to level up."
+		return "No jobs right now.\nEvery job is done, and every trader is at their top level or ready to level up."
 	if lines.size() > 8:
 		lines.resize(7)
 		if not lines[-1].begins_with(" "):   # (no trader name with none of their quests under it)
@@ -652,7 +653,6 @@ static func stats_board_text() -> String:
 ## The trader whose quests you'd want to look at: the first one with jobs still open (Ponta, the guns trader, if none).
 static func quest_trader() -> String:
 	for trader: String in Traders.LIST:
-		var lv := Profile.trader_level(trader)
-		if Quests.for_level(trader, lv + 1).any(func(id: String) -> bool: return not Profile.quests_done.has(id)):
+		if not Quests.open_for(trader).is_empty():
 			return trader
 	return "guns"

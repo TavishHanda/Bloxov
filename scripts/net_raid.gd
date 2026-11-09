@@ -345,7 +345,9 @@ func _on_kill_confirmed(target: String) -> void:
 	player.kills += 1
 	if target != "player":   # (a player kill is in the feed already: the server tells the whole raid)
 		player.killed.emit(target)
-	Quests.record_kill(target, player.gun.weapon.id if player.gun.weapon != null else "")
+	# (for the quest tracker only: the server counts the kills, and their tags, itself)
+	var weapon := player.gun.weapon
+	Quests.record_kill(target, weapon.id if weapon != null else "", ["quiet"] if weapon != null and weapon.attachments.values().has("suppressor") else [])
 	Effects.sound(get_tree().current_scene, Gun.KILL_SOUND, -2.0, 0.0)
 	player.gun.hit_confirmed.emit(true, false)
 

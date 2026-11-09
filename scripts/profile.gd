@@ -36,6 +36,8 @@ static var free_kit_raid := -1
 ## Trader quests (0.16.13, see Quests): finished quest ids, and progress (quest id -> count) on the rest.
 static var quests_done: Array[String] = []
 static var quest_progress: Dictionary = {}
+## Finished quests whose reward items went in the stash (0.31.15, jobs): they wait until there's room.
+static var rewards_taken: Array[String] = []
 ## Each trader's level (Traders.LIST id -> level; missing = 1). It goes up when you press LEVEL UP at the trader once
 ## the level's quests are done and its money spent (0.17.1, owner: a level-up button).
 static var trader_levels: Dictionary = {}
@@ -111,6 +113,10 @@ static func _apply(data: Dictionary) -> void:
 	for id in _array(data.get("quests_done")):
 		if id is String and Quests.LIST.has(id) and not quests_done.has(id):
 			quests_done.append(id)
+	rewards_taken = []
+	for id in _array(data.get("rewards_taken")):
+		if id is String and quests_done.has(id) and not rewards_taken.has(id):
+			rewards_taken.append(id)
 	quest_progress = {}
 	var saved_progress = data.get("quest_progress")
 	if saved_progress is Dictionary:
@@ -248,6 +254,7 @@ static func reset() -> void:
 	free_kit_raid = -1
 	quests_done = []
 	quest_progress = {}
+	rewards_taken = []
 	trader_levels = {}
 	loadout_presets = []
 	look = Operators.clean({})
@@ -333,6 +340,7 @@ static func online_data() -> Dictionary:
 		"free_kit_raid": free_kit_raid,
 		"quests_done": quests_done,
 		"quest_progress": quest_progress,
+		"rewards_taken": rewards_taken,
 		"trader_levels": trader_levels,
 		"presets": loadout_presets,
 	}

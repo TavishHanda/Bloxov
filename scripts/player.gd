@@ -214,7 +214,8 @@ func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount:
 		var victim := target_health.get_parent()
 		if victim != null and victim.scene_file_path != "":
 			var what := victim.scene_file_path.get_file().get_basename()
-			Quests.record_kill(what, weapon)
+			var quiet: bool = weapon != "knife" and gun.weapon != null and gun.weapon.id == weapon and gun.weapon.attachments.values().has("suppressor")
+			Quests.record_kill(what, weapon, Quests.kill_tags(global_position, (victim as Node3D).global_position, quiet))
 			killed.emit(what)
 
 
@@ -686,7 +687,9 @@ func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
 	var from := camera.global_position + forward * 0.5
 	var vel := forward * THROW_SPEED + Vector3.UP * THROW_LIFT + Vector3(velocity.x, 0, velocity.z) * 0.5
 	var online := Network.main.in_online_raid()
-	Grenade.spawn(get_tree().current_scene, from, vel, not online)
+	var grenade := Grenade.spawn(get_tree().current_scene, from, vel, not online)
+	if not online:
+		grenade.on_kill = func(target: String) -> void: Quests.record_kill(target, "grenade", ["grenade"])
 	if online:
 		Network.main.send_grenade(from, vel)
 	Effects.sound(get_tree().current_scene, THROW_SOUND, -4.0)
