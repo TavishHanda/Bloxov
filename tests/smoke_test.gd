@@ -2916,6 +2916,41 @@ func _section_hideout_world() -> void:
 		"USE pets the cat: it purrs, and it doesn't collide")
 	world.cat = headless_cat
 	hcat.queue_free()
+	# The trophy shelf (lively hideout): none on a headless run; shown, it's empty for a new profile and fills from
+	# what the profile already keeps, looking at a trophy says what it's for, and nothing on it collides.
+	_check(world.trophies != null and world.trophies.cabinet == null, "no trophy shelf on a headless run")
+	var saved_trophy_state := [Profile.stats.duplicate(), Profile.trader_levels.duplicate(), Profile.quests_done.duplicate(),
+		Profile.quest_progress.duplicate(), Profile.bench_level]
+	Profile.stats = Profile.DEFAULT_STATS.duplicate()
+	Profile.trader_levels = {}
+	Profile.quests_done.clear()
+	Profile.quest_progress = {}
+	Profile.bench_level = 1
+	var shelf := HideoutTrophies.new()
+	shelf.set_meta(&"force_reacts", true)
+	world.add_child(shelf)
+	shelf.setup(crew_level)
+	var empty_count := shelf.trophies.size()
+	Profile.stats["raids"] = 12
+	Profile.stats["extracts"] = 10
+	Profile.stats["earned"] = 30000
+	Profile.trader_levels = {"guns": 3}
+	Profile.quests_done.assign(["big_game", "a", "b"])
+	shelf.refresh()
+	var labels: Array = shelf.trophies.map(func(t: Dictionary) -> String: return t["label"])
+	var mask_node: Node3D = shelf.get_node("Shelf/BonMask")
+	var trophy_eye := mask_node.global_position + mask_node.global_basis.z * -1.5 + Vector3.UP * 0.2
+	var seen := shelf.looked_at(trophy_eye, (mask_node.global_position - trophy_eye).normalized())
+	_check(empty_count == 0 and labels.size() == 7 and seen.begins_with("Bon's mask")
+		and not shelf.find_children("*", "CollisionObject3D", true, false)
+		and shelf.board_near(crew_level),
+		"the trophy shelf: empty at first, then Bon's mask, a token, 2 medals, cash, the jar and folders (%s); looking at one says it (%s)" % [", ".join(labels), seen])
+	Profile.stats = saved_trophy_state[0]
+	Profile.trader_levels = saved_trophy_state[1]
+	Profile.quests_done.assign(saved_trophy_state[2])
+	Profile.quest_progress = saved_trophy_state[3]
+	Profile.bench_level = saved_trophy_state[4]
+	shelf.queue_free()
 	world.queue_free()
 	for i in 5:
 		await process_frame

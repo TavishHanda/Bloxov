@@ -62,6 +62,7 @@ var crew: HideoutCrew
 var cat: HideoutCat
 ## The cat when it's close enough to pet (USE pets it).
 var cat_near := false
+var trophies: HideoutTrophies
 
 
 func _ready() -> void:
@@ -100,6 +101,10 @@ func _ready() -> void:
 	_build_hud()
 	_build_range(level)
 	_build_boards(level)
+	trophies = HideoutTrophies.new()
+	trophies.name = "Trophies"
+	add_child(trophies)
+	trophies.setup(level)            # (the trophy shelf by the record board: fills up as you play)
 	_menu_layer = CanvasLayer.new()
 	_menu_layer.layer = 5
 	add_child(_menu_layer)
@@ -219,6 +224,9 @@ func _process(_delta: float) -> void:
 		_prompt.text = use_key() + "   Pet the cat"
 	elif seat != null:
 		_prompt.text = use_key() + "   Sit down"
+	elif free and trophies != null:   # (looking at a trophy: what it's for, no key)
+		_prompt.text = trophies.looked_at(walker.camera.global_position, -walker.camera.global_basis.z)
+		_prompt.visible = _prompt.text != ""
 	_click_hint.visible = not menu_open() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not TouchInput.active
 
 
@@ -650,6 +658,8 @@ func fill_boards() -> void:
 		(boards["quests"] as Label3D).text = quest_board_text()
 	if boards.has("stats"):
 		(boards["stats"] as Label3D).text = stats_board_text()
+	if trophies != null:
+		trophies.refresh()
 
 
 ## Each trader's quests for their next level and their current job, with your progress; at most 8 lines.

@@ -151,14 +151,14 @@ func _start(what: String, seconds: float) -> void:
 ## A stroll somewhere it can walk to: a few metres off, back towards the stove when it's wandered far.
 func _wander() -> bool:
 	var back := position.distance_to(home) > HOME_REACH or _dice.randf() < 0.15
-	for attempt in 10:
+	for attempt in 16:
 		var dir := Vector3.FORWARD.rotated(Vector3.UP, _dice.randf() * TAU)
 		if back:
 			var to_home := home - position
 			to_home.y = 0.0
 			if to_home.length() > 0.3:
 				dir = to_home.normalized().rotated(Vector3.UP, _dice.randf_range(-0.6, 0.6))
-		var reach := _dice.randf_range(1.5, 4.5)
+		var reach := _dice.randf_range(0.8, 4.5 - attempt * 0.2)   # (shorter tries once the long ones are blocked)
 		if back and attempt < 5:
 			reach = minf(reach * 1.5, position.distance_to(home))
 		if _go_to(position + dir * reach, false):
