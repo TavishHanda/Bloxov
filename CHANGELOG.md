@@ -5,7 +5,24 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`). -->
+
+## 0.32.0 (Crafting)
+- **The workbench works** (owner, 2026-11-09). Walk up to it in the hideout (or tap the new **CRAFT** tab on
+  phones) and turn loot you bring home into gear. **Instant** (owner: no timers), with a selector (-, +, MAX) to make
+  one or many at once. Parts come from your stash, never free-kit items; plain stacks are used before found-in-raid
+  ones, so items a job wants go last. Crafted items are like bought ones: not found in raid.
+- **No new items** (owner): every recipe uses and makes items already in the game. Level 1: bandages (2), medkit,
+  energy drink, Hound / Wasp rounds (90), Mauler shells (30), Lancer rounds (20). Level 2 ($10,000 + 10 bolts,
+  3 wires, 3 scrap): frag grenade, foregrip, suppressor, 4x scope. Heavy armor, the combat helmet and the large
+  backpack stay loot-only (owner), so there's no level 3 for now. The list is in `docs/ITEMS.md` ("Crafting").
+- **PvE and PvP have their own bench** (it's part of each stash). Online, the server checks every craft and bench
+  upgrade (`Crafting.changes` in the hideout check): a craft without its parts, above the bench's level, or a free
+  bench level is refused.
+- Tests: new `crafting` section (parts taken, refused without parts / above the level / no room, free-kit parts
+  ignored, found parts last, the screen's CRAFT, UPGRADE and selector), and the PvP hideout check crafts, upgrades
+  and refuses faked crafts. The spent-case sound test no longer fails now and then (its 0.12 s gap is real time,
+  so a shot just before it could skip the case).
 
 ## 0.31.15 (Trader jobs)
 - **19 new quests, called jobs** (owner OK'd the list; Ming has none, owner). One-time side quests that pay money or

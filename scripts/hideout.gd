@@ -21,6 +21,8 @@ var wardrobe: WardrobeScreen
 ## Your record and jobs (0.21.10), and the phone's way round the menu's screens: phones open on the menu, so
 ## everything you'd walk to in the 3D hideout has a tab there (GEAR, TRADERS, WARDROBE, RECORD).
 var record: RecordScreen
+## The workbench (0.32.0): crafting.
+var craft_screen: CraftScreen
 var phone_nav: HBoxContainer
 var _nav_buttons := {}
 var _version_label: Label
@@ -125,6 +127,9 @@ func _ready() -> void:
 	record = RecordScreen.new(self)
 	record.visible = false
 	add_child(record)
+	craft_screen = CraftScreen.new(self)
+	craft_screen.visible = false
+	add_child(craft_screen)
 	Network.main.set_look(Operators.to_text(Profile.look))
 
 	_build_top_bar()
@@ -394,6 +399,53 @@ func upgrade_stash() -> bool:
 	_queue_save()
 	_fill_trader()
 	return true
+
+
+# --- Crafting (0.32.0, owner) ------------------------------------------------------
+## At the workbench: instant, any number at once, parts from the stash (see Crafting).
+
+## Crafts `recipe` `times` over into the stash. True if it worked.
+func craft(recipe: String, times: int) -> bool:
+	var why := Crafting.craft(Profile.stash, recipe, times, Profile.bench_level)
+	if why != "":
+		_message(why)
+		return false
+	Profile.crafted[recipe] = int(Profile.crafted.get(recipe, 0)) + times
+	var info: Dictionary = Crafting.RECIPES[recipe]
+	UISounds.play(self, UISounds.BUY, -10.0)
+	_message("Crafted %s" % ItemDB.label(info["makes"], int(info["amount"]) * times))
+	_queue_save()
+	_fill_trader()
+	return true
+
+
+## The workbench's next level: money and parts. True if it worked.
+func upgrade_bench() -> bool:
+	var level := Profile.bench_level + 1
+	var cost := Crafting.bench_cost(level)
+	if cost.is_empty():
+		_message("The workbench is as good as it gets")
+		return false
+	if Profile.money < int(cost["money"]):
+		_message("Not enough money for the workbench upgrade (%s)" % ItemDB.money(int(cost["money"])))
+		return false
+	var why := Crafting.use_bench_parts(Profile.stash, level)
+	if why != "":
+		_message(why)
+		return false
+	Profile.money -= int(cost["money"])
+	Profile.bench_level = level
+	UISounds.play(self, UISounds.BUY, -10.0)
+	_message("Workbench upgraded to level %d" % level)
+	_queue_save()
+	_fill_trader()
+	return true
+
+
+## The workbench's screen.
+func open_craft() -> void:
+	close_trader_screen()
+	craft_screen.open()
 
 
 # --- Saved loadouts (0.21.2, owner) -------------------------------------------------
@@ -1999,6 +2051,7 @@ func close_trader_screen() -> void:
 	trader_screen.visible = false
 	wardrobe.visible = false
 	record.visible = false
+	craft_screen.visible = false
 
 
 ## The wardrobe (0.21.6): pick your operator and change their parts.
@@ -2021,6 +2074,8 @@ func current_screen() -> String:
 		return "wardrobe"
 	if record.visible:
 		return "record"
+	if craft_screen.visible:
+		return "craft"
 	return "gear"
 
 
@@ -2031,7 +2086,7 @@ func _build_phone_nav() -> void:
 	phone_nav.name = "PhoneNav"
 	phone_nav.add_theme_constant_override("separation", 4)
 	phone_nav.visible = GameSettings.is_phone()
-	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["wardrobe", "WARDROBE"], ["record", "RECORD"]]:
+	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["wardrobe", "WARDROBE"], ["craft", "CRAFT"], ["record", "RECORD"]]:
 		var id: String = spec[0]
 		var button := Button.new()
 		button.name = id
@@ -2055,6 +2110,8 @@ func show_screen(id: String) -> void:
 			open_wardrobe()
 		"record":
 			open_record()
+		"craft":
+			open_craft()
 		_:
 			close_trader_screen()
 

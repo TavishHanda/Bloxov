@@ -219,3 +219,27 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Railyard | Bolts 15 |
 | Junkyard | Bolts 20, Wires 15, Fuel Can 6 |
 | School | Medical Supplies 5, Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |
+
+## Crafting
+
+At the hideout's workbench (`scripts/crafting.gd`): instant, as many at once as your parts allow,
+parts from the stash (free-kit items don't count). Crafted items aren't found in raid.
+
+| Makes | Needs | Bench level |
+|---|---|---|
+| Bandage x2 | Medical Supplies, Duct Tape | 1 |
+| Medkit | Medical Supplies x2, Bandage | 1 |
+| Energy Drink | Water Bottle x2, Ration Pack | 1 |
+| Hound Rounds x90 | Powder Tin, Scrap Metal | 1 |
+| Wasp Rounds x90 | Powder Tin, Bolts x2 | 1 |
+| Mauler Shells x30 | Powder Tin, Scrap Metal | 1 |
+| Lancer Rounds x20 | Powder Tin x2, Bolts x5 | 1 |
+| Frag Grenade | Powder Tin x2, Scrap Metal, Duct Tape | 2 |
+| Foregrip | Scrap Metal, Bolts x3, Duct Tape | 2 |
+| Suppressor | Scrap Metal x3, Bolts x5, Duct Tape | 2 |
+| 4x Scope | Old Phone, Bolts x3, Duct Tape | 2 |
+
+| Bench level | Costs |
+|---|---|
+| 1 | free |
+| 2 | $10,000, Bolts x10, Wires x3, Scrap Metal x3 |

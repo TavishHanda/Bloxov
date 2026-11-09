@@ -14,7 +14,7 @@ const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const MAX_STACKS := 500
 const MAX_MONEY := 1_000_000_000
 const KEYS: Array[String] = ["version", "money", "stash_size", "stash", "loadout", "stats", "trader_spent",
-	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets"]
+	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted"]
 const STATS: Array[String] = ["raids", "extracts", "deaths", "earned"]
 
 
@@ -353,7 +353,16 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 	var spent := spent_old.duplicate()
 	var spent_new: Dictionary = new.get("trader_spent", {}) if new.get("trader_spent") is Dictionary else {}
 	var bought := {}
-	for id: String in _keys(a["all"], b["all"]):
+	# Crafting (0.32.0): what the workbench made and used isn't bought or sold; bench levels cost money and parts.
+	var crafts := Crafting.changes(old, new)
+	if crafts["error"] != "":
+		return crafts["error"]
+	cost += int(crafts["money"])
+	var ids := _keys(a["all"], b["all"])
+	for id: Variant in _keys(crafts["used"], crafts["made"]):
+		if not ids.has(id):
+			ids.append(id)  # (parts that were never there: a faked craft shows up as buying them)
+	for id: String in ids:
 		var free_gain := (int(FREE_KIT.get(id, 0)) if kit_taken else 0)
 		# (free items count apart, except rounds: loading and unloading moves them between free and not)
 		var change: int
@@ -361,6 +370,7 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 			change = int(b["all"].get(id, 0)) - int(a["all"].get(id, 0)) - free_gain
 		else:
 			change = (int(b["all"].get(id, 0)) - int(b["free"].get(id, 0))) - (int(a["all"].get(id, 0)) - int(a["free"].get(id, 0)))
+		change += int(crafts["used"].get(id, 0)) - int(crafts["made"].get(id, 0))
 		if change > 0:   # (a quest's reward items come free)
 			var reward := mini(int(given.get(id, 0)), change)
 			given[id] = int(given.get(id, 0)) - reward

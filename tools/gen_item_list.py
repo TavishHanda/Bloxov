@@ -170,6 +170,23 @@ def main():
                                                        for k, w in weights.items())))
     lines.append("")
 
+    # Crafting (0.32.0): the workbench's recipes and levels, from scripts/crafting.gd.
+    craft_text = (ROOT / "scripts" / "crafting.gd").read_text()
+    recipes = read_dict(craft_text, "RECIPES")
+    bench = json.loads(re.sub(r",(\s*[}\]])", r"\1", re.sub(r"#[^\n]*", "", re.search(r"const BENCH := (\[.*?\n\])", craft_text, re.S).group(1))))
+    lines += ["## Crafting", "",
+              "At the hideout's workbench (`scripts/crafting.gd`): instant, as many at once as your parts allow,",
+              "parts from the stash (free-kit items don't count). Crafted items aren't found in raid.", "",
+              "| Makes | Needs | Bench level |", "|---|---|---|"]
+    for recipe in recipes.values():
+        name = items[recipe["makes"]]["name"] + (" x%d" % recipe["amount"] if recipe["amount"] > 1 else "")
+        needs = ", ".join(items[k]["name"] + (" x%d" % n if n > 1 else "") for k, n in recipe["needs"].items())
+        lines.append("| %s | %s | %d |" % (name, needs, recipe["level"]))
+    lines += ["", "| Bench level | Costs |", "|---|---|", "| 1 | free |"]
+    for i, level in enumerate(bench):
+        lines.append("| %d | %s, %s |" % (i + 2, money(level["money"]), ", ".join(items[k]["name"] + (" x%d" % n if n > 1 else "") for k, n in level["needs"].items())))
+    lines.append("")
+
     OUT.write_text("\n".join(lines).rstrip() + "\n")
     print("wrote", OUT.relative_to(ROOT))
 

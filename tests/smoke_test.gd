@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
@@ -2557,7 +2557,7 @@ func _section_hideout_world() -> void:
 	_check(world.menu.screen.find_child("Worth", true, false) != null, "the stash shows what it's worth")
 	# Phones (0.21.10): every screen you'd walk to has a tab on the menu.
 	var menu_node = world.menu
-	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 4, "the menu has phone tabs: gear, traders, wardrobe, record")
+	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 5, "the menu has phone tabs: gear, traders, wardrobe, craft, record")
 	menu_node.show_screen("wardrobe")
 	_check(menu_node.current_screen() == "wardrobe" and menu_node.wardrobe.visible, "the WARDROBE tab opens the wardrobe")
 	menu_node.show_screen("record")
@@ -2625,6 +2625,9 @@ func _section_hideout_world() -> void:
 	_check(Operators.from_text(sent) == Profile.look and Network.main.my_look == sent
 		and Operators.from_text("99x") == Operators.clean({}), "your look goes online as short text; junk turns into a real look")
 	world.menu.change_look(look_before)
+	world.close_menu()
+	world.open_menu("workbench")
+	_check(world.menu.current_screen() == "craft", "using the workbench opens crafting (0.32.0)")
 	world.close_menu()
 	world.open_menu("guns")
 	# The quests and stats boards (0.21.4, owner): out in the hall on their own, written with your quests and record.
@@ -4314,6 +4317,70 @@ func _section_pvp_accounts() -> void:
 		n.get_parent().queue_free()
 
 
+func _section_crafting() -> void:
+	# Crafting (0.32.0, owner): instant, any number at once, parts from the stash, bench levels open recipes.
+	var stash := GridInventory.new("Stash", 8, 20)
+	stash.add("gunpowder", 3)
+	stash.add("scrap", 2)
+	_check(Crafting.times_possible(stash, "rifle_ammo") == 2, "two powder tins and two scrap make Hound Rounds twice")
+	_check(Crafting.craft(stash, "rifle_ammo", 2, 1) == "" and stash.count_of("rifle_ammo") == 180
+		and stash.count_of("gunpowder") == 1 and stash.count_of("scrap") == 0,
+		"crafting twice takes both sets of parts and gives 180 rounds (%d)" % stash.count_of("rifle_ammo"))
+	_check(Crafting.craft(stash, "rifle_ammo", 1, 1) != "" and stash.count_of("gunpowder") == 1,
+		"crafting without the parts is refused and takes nothing")
+	stash.add("scrap", 1)
+	stash.add("duct_tape", 1)
+	stash.add("gunpowder", 1)
+	_check(Crafting.craft(stash, "grenade", 1, 1) != "" and stash.count_of("grenade") == 0,
+		"a recipe above the workbench's level is refused")
+	_check(Crafting.craft(stash, "grenade", 1, 2) == "" and stash.count_of("grenade") == 1
+		and stash.count_of("duct_tape") == 0, "at workbench level 2 the grenade can be made")
+	var free_tape := ItemStack.new("duct_tape", 1, 7, 19)
+	free_tape.free = true
+	stash.place(free_tape)
+	_check(Crafting.have(stash, "duct_tape") == 0, "free-kit stacks don't count as parts")
+	var found_scrap := ItemStack.new("scrap", 1, 6, 19)
+	found_scrap.found = true
+	stash.place(found_scrap)
+	stash.add("scrap", 1)
+	stash.add("gunpowder", 1)
+	Crafting.craft(stash, "shells", 1, 1)
+	_check(stash.stacks.has(found_scrap), "crafting uses plain parts before found-in-raid ones (kept for jobs)")
+	var packed_two := GridInventory.new("Stash", 3, 1)
+	packed_two.place(ItemStack.new("phone", 1, 0, 0))
+	packed_two.add("bolts", 10)  # (7 stay behind in the middle)
+	packed_two.add("duct_tape", 1)
+	_check(Crafting.craft(packed_two, "scope_4x", 1, 2) == "No room in your stash" and packed_two.count_of("phone") == 1,
+		"a craft that doesn't fit in the stash changes nothing")
+	# The hideout's workbench screen: CRAFT and UPGRADE go through the menu.
+	Profile.load_profile()
+	var money := Profile.money
+	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
+	root.add_child(hideout)
+	await process_frame
+	Profile.bench_level = 1
+	Profile.money = 20000
+	for entry in [["med_supplies", 1], ["duct_tape", 1], ["bolts", 10], ["wires", 3], ["scrap", 3]]:
+		Profile.stash.add(entry[0], entry[1])
+	var bandages := Profile.stash.count_of("bandage")
+	hideout.open_craft()
+	_check(hideout.current_screen() == "craft", "the workbench opens the crafting screen")
+	var row: Control = hideout.craft_screen._rows.get_node("bandage")
+	(row.find_child("CraftButton", true, false) as Button).pressed.emit()
+	_check(Profile.stash.count_of("bandage") == bandages + 2 and int(Profile.crafted.get("bandage", 0)) >= 1,
+		"CRAFT makes two bandages and counts the craft")
+	(hideout.craft_screen.find_child("UpgradeButton", true, false) as Button).pressed.emit()
+	_check(Profile.bench_level == 2 and Profile.money == 10000, "UPGRADE takes the money and parts to level 2")
+	_check(not (hideout.craft_screen.find_child("UpgradeButton", true, false) as Button).visible, "level 2 is the top for now")
+	hideout.craft_screen._set_times("bandage", 5)
+	_check(hideout.craft_screen.times["bandage"] == 5, "the selector picks how many to make")
+	Profile.money = money
+	Profile.bench_level = 1
+	Profile.crafted = {}
+	hideout.queue_free()
+	await process_frame
+
+
 func _section_pvp_hideout() -> void:
 	# The PvP hideout check (Stash update Phase 3, 0.31.3): the server only takes a profile the last one could have
 	# become in the hideout. First the real hideout's own actions must all pass; then made-up changes must not.
@@ -4385,6 +4452,14 @@ func _section_pvp_hideout() -> void:
 		var ammo: ItemStack = _find_stack(Profile.stash.stacks, "rifle_ammo")
 		ammo.count -= 30
 		Profile.stash.changed.emit())
+	# Crafting (0.32.0): parts brought home from a raid, then crafted and a bench upgrade.
+	raid_gain.call(func() -> void:
+		for entry in [["gunpowder", 3], ["scrap", 4], ["bolts", 12], ["wires", 3], ["duct_tape", 1]]:
+			Profile.stash.add(entry[0], entry[1], ItemStack.FOUND))
+	step.call("crafting rounds", func() -> void: hideout.craft("rifle_ammo", 1))
+	step.call("upgrading the workbench", func() -> void: hideout.upgrade_bench())
+	_check(Profile.bench_level == 2, "(the test reached workbench level 2)")
+	step.call("crafting at the new level", func() -> void: hideout.craft("grenade", 1))
 	hideout.save_loadout("PvP test")
 	step.call("equipping a saved loadout, buying it new", func() -> void: hideout.equip_loadout(0, true))
 	raid_gain.call(func() -> void:   # (dying in a raid: the server keeps only the secure pocket)
@@ -4410,6 +4485,14 @@ func _section_pvp_hideout() -> void:
 		var gun: Dictionary = p["stash"].filter(func(e: Dictionary) -> bool: return e["id"] == "pistol")[0]
 		p["stash"].erase(gun)
 		p["money"] = int(p["money"]) + ItemDB.value("pistol"))
+	refused.call("a craft without its parts", func(p: Dictionary) -> void:
+		p["crafted"] = {"grenade": int(p.get("crafted", {}).get("grenade", 0)) + 1}
+		p["stash"].append({"id": "grenade", "count": 1, "x": 7, "y": 19}))
+	refused.call("a craft above the workbench's level", func(p: Dictionary) -> void:
+		p["bench_level"] = 1
+		p["crafted"]["suppressor"] = 1)
+	refused.call("a free workbench level", func(p: Dictionary) -> void: p["bench_level"] = 3)
+	refused.call("a craft count going down", func(p: Dictionary) -> void: p["crafted"] = {})
 	refused.call("a found-in-raid mark", func(p: Dictionary) -> void: p["stash"][0]["found"] = true)
 	var worn_base: Dictionary = JSON.parse_string(JSON.stringify(base))
 	worn_base["stash"][0]["d"] = 100
@@ -8160,6 +8243,7 @@ func _section_sound() -> void:
 	_check(heard.has(WorldSounds.GRENADE_BOUNCE), "a grenade clunks as it lands (0.31.14)")
 	nade.queue_free()
 	heard.clear()
+	Gun._casing_at = -1000.0  # (the 0.12 s gap is wall-clock time: a shot just before could skip this one)
 	player.gun._casing()
 	await create_timer(Gun.CASING_DELAY + 0.15).timeout
 	_check(heard.any(func(s: AudioStream) -> bool: return WorldSounds.CASINGS.has(s)), "your spent case tinks on the wood floor (0.31.14)")

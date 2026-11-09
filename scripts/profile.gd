@@ -41,6 +41,9 @@ static var rewards_taken: Array[String] = []
 ## Each trader's level (Traders.LIST id -> level; missing = 1). It goes up when you press LEVEL UP at the trader once
 ## the level's quests are done and its money spent (0.17.1, owner: a level-up button).
 static var trader_levels: Dictionary = {}
+## The workbench (0.32.0, see Crafting): its level, and recipe id -> times crafted (the server checks PvP crafts with it).
+static var bench_level := 1
+static var crafted: Dictionary = {}
 ## Saved loadouts (0.21.2, owner): [{"name", "kit"}, ...], see Loadouts.
 static var loadout_presets: Array = []
 ## Your character's look (0.21.6, the wardrobe): {part: option}, see Operators.
@@ -132,6 +135,8 @@ static func _apply(data: Dictionary) -> void:
 		else:
 			# A save from before the button: keep the levels it had reached.
 			trader_levels[trader] = trader_level_reached(trader)
+	bench_level = Crafting.bench_of(data)
+	crafted = Crafting.crafted_of(data)
 	loadout_presets = []
 	for entry in _array(data.get("presets")):
 		var preset := Loadouts.clean(entry)
@@ -256,6 +261,8 @@ static func reset() -> void:
 	quest_progress = {}
 	rewards_taken = []
 	trader_levels = {}
+	bench_level = 1
+	crafted = {}
 	loadout_presets = []
 	look = Operators.clean({})
 	tutorial = fresh_tutorial()
@@ -343,6 +350,8 @@ static func online_data() -> Dictionary:
 		"rewards_taken": rewards_taken,
 		"trader_levels": trader_levels,
 		"presets": loadout_presets,
+		"bench_level": bench_level,
+		"crafted": crafted,
 	}
 
 

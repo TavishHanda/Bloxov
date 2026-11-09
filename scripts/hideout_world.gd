@@ -23,8 +23,7 @@ const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
 	"lights": "Lights", "jukebox": "Jukebox"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
-const STATION_NOTES := {"workbench": "Crafting comes in a later update.",
-	"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
+const STATION_NOTES := {"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
 var walker: HideoutWalker
 ## Today's hideout screen, kept the whole time (hidden while you walk round).
@@ -255,6 +254,8 @@ func open_menu(at := "") -> void:
 		menu.close_trader_screen()
 	if at == "wardrobe":
 		menu.open_wardrobe()          # (character select, 0.21.6)
+	if at == "workbench":
+		menu.open_craft()             # (crafting, 0.32.0)
 	if STATION_NOTES.has(at):
 		menu.show_message(STATION_NOTES[at])
 
