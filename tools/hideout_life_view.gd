@@ -50,6 +50,9 @@ func _run() -> void:
 		var model: Node3D = m["model"]
 		var front := model.global_basis * Vector3(1.5, 0.5, -1.5)
 		var head := model.global_position + Vector3.UP * 0.9
+		if String(m["id"]).begins_with("trader_"):
+			front = model.global_basis * Vector3(0.7, 0.55, -2.4)
+			head = model.global_position + Vector3.UP * 1.2
 		if m["id"] == "mechanic":
 			front = model.global_basis * Vector3(1.4, 0.7, 1.6)
 			head = model.global_position + Vector3.UP * 0.6

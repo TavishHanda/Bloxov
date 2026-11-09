@@ -2,12 +2,18 @@ extends SceneTree
 ## Renders every trader design in TraderLooks.OPTIONS (lively hideout), one PNG each, for the owner to pick from:
 ##   xvfb-run -a godot --rendering-driver opengl3 -s tools/trader_sheet.gd -- [out=/some/dir]
 var out := "/tmp/trader_sheet/"
+var only := ""   # (only= a trader id, or "crew")
+var close := false
 
 
 func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="):
 			out = a.substr(4).trim_suffix("/") + "/"
+		elif a.begins_with("only="):
+			only = a.substr(5)
+		elif a == "close":
+			close = true
 	DirAccess.make_dir_recursive_absolute(out)
 	_run.call_deferred()
 
@@ -43,7 +49,12 @@ func _run() -> void:
 	camera.position = Vector3(1.5, 1.45, -4.6)
 	camera.look_at(Vector3(0, 1.05, 0))
 	camera.current = true
+	if close:
+		camera.position = Vector3(0.9, 1.6, -2.4)
+		camera.look_at(Vector3(0, 1.25, 0))
 	for trader: String in TraderLooks.OPTIONS:
+		if only != "" and trader != only:
+			continue
 		var designs: Array = TraderLooks.OPTIONS[trader]
 		for k in designs.size():
 			var model := (load("res://assets/models/characters/trader.glb") as PackedScene).instantiate()

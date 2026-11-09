@@ -6,7 +6,7 @@ extends Node3D
 ## sent online, and a headless run (the server, the tests) shows none of them unless `force_reacts` is set.
 ## Where they are comes from the hideout level: its seats, its Life node's metadata (make_hideout.py) and the range.
 
-const CHARACTER_MODEL := preload("res://assets/models/characters/pmc.glb")
+const CHARACTER_MODEL := preload("res://assets/models/characters/trader.glb")   # (its own clean model, 2026-11-09)
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
 const SNORE := preload("res://audio/world/snore.wav")
 const WRENCH := preload("res://audio/world/wrench.wav")
@@ -14,22 +14,6 @@ const LOOK_REACH := 4.5      # metres: the ones awake turn their heads to you ne
 const SNORE_EVERY := 4.2     # seconds a breath, asleep
 const NEAR_SNORE := 6.0
 const NEAR_WRENCH := 11.0
-
-## Who's where, and what they wear (the wardrobe's parts; no helmets at home).
-const LOOKS := {
-	"sleeper": {"Head": "pale_beard", "Hat": "cap_headset", "Eyes": "none", "Mask": "none", "Top": "green", "Vest": "green",
-		"Pants": "green", "Gloves": "black", "Boots": "black"},
-	"cook": {"Head": "dark_beard", "Hat": "cap_headset", "Eyes": "none", "Mask": "none", "Top": "tan", "Vest": "tan",
-		"Pants": "multicam", "Gloves": "tan", "Boots": "coyote"},
-	"cards_a": {"Head": "tan", "Hat": "cap_headset", "Eyes": "glasses", "Mask": "none", "Top": "multicam", "Vest": "green",
-		"Pants": "green", "Gloves": "green", "Boots": "black"},
-	"cards_b": {"Head": "pale", "Hat": "helmet_green", "Eyes": "none", "Mask": "gaiter_green", "Top": "black", "Vest": "black",
-		"Pants": "black", "Gloves": "black", "Boots": "black"},
-	"mechanic": {"Head": "dark", "Hat": "cap_headset", "Eyes": "glasses", "Mask": "none", "Top": "green", "Vest": "tan",
-		"Pants": "tan", "Gloves": "black", "Boots": "coyote"},
-	"coffee": {"Head": "pale", "Hat": "helmet_tan", "Eyes": "none", "Mask": "gaiter_tan", "Top": "tan", "Vest": "green",
-		"Pants": "multicam", "Gloves": "tan", "Boots": "tan"},
-}
 
 var walker: Node3D
 ## Each one: {"id", "model", "pose", "phase", "look" (radians the head's turned), "next" (seconds to their next sound)}.
@@ -51,7 +35,7 @@ func setup(level: Node3D, who: Node3D) -> void:
 	if life != null and life.has_meta(&"steam"):
 		var stove: Vector3 = life.get_meta(&"steam")
 		var out: Vector3 = life.get_meta(&"fire_dir", Vector3.LEFT)
-		_add("cook", Vector3(stove.x, 0.0, stove.z) + out * 0.95, out)
+		_add("cook", Vector3(stove.x, 0.0, stove.z) + out * 0.85, out)
 	if seats != null:
 		for pair: Array in [["cards_a", "Seat0"], ["cards_b", "Seat2"]]:
 			var seat := seats.get_node_or_null(pair[1] as String) as Node3D
@@ -64,17 +48,23 @@ func setup(level: Node3D, who: Node3D) -> void:
 	var spot := level.get_node_or_null("Range/Spot") as Node3D
 	if spot != null:
 		_add("coffee", spot.position + Vector3(3.1, 0.0, 1.6), Vector3(0.5, 0.0, 0.8).normalized())
+	# The traders behind their counters (owner's picks, TraderLooks.PICKED), each busy with their own thing.
+	var spots := level.get_node_or_null("Traders") as Node3D
+	if spots != null:
+		for spot_node: Node in spots.get_children():
+			var stand := spot_node as Node3D
+			_add("trader_" + String(stand.name), stand.position, stand.basis.z, TraderLooks.look(String(stand.name)))
 	_props()
 
 
 ## One of them at `at` (on the floor), facing away from `back` (the model faces its -z).
-func _add(id: String, at: Vector3, back: Vector3) -> void:
+func _add(id: String, at: Vector3, back: Vector3, look := {}) -> void:
 	var model := CHARACTER_MODEL.instantiate()
 	model.set_script(PIXEL_MODEL_SCRIPT)
 	(model as PixelModel).randomize_outfit = false
 	model.name = id.capitalize().replace(" ", "")
 	add_child(model)
-	(model as PixelModel).pick_outfit(LOOKS[id])
+	(model as PixelModel).pick_outfit(look if not look.is_empty() else TraderLooks.CREW[id])
 	model.position = at
 	model.rotation.y = atan2(back.x, back.z)
 	var gun := model.get_node_or_null("Gun") as Node3D
@@ -83,7 +73,7 @@ func _add(id: String, at: Vector3, back: Vector3) -> void:
 	var pose := BodyPose.new(model)
 	pose.armed = false
 	members.append({"id": id, "model": model, "pose": pose, "phase": _dice.randf() * TAU, "look": 0.0,
-		"next": _dice.randf_range(1.0, 6.0)})
+		"next": _dice.randf_range(1.0, 6.0), "nod": 0.0, "near": false})
 
 
 ## What they hold or have in front of them: the cook's spoon, the mechanic's wrench, a mug, cards on the table.
@@ -97,6 +87,20 @@ func _props() -> void:
 				_box(pose.joint("ElbowR"), Vector3(0.03, 0.03, 0.26), Vector3(0, -0.34, -0.1), Color(0.55, 0.56, 0.58))
 			"coffee":
 				_box(pose.joint("ElbowR"), Vector3(0.08, 0.1, 0.08), Vector3(0, -0.36, -0.06), Color(0.85, 0.85, 0.8))
+			"trader_guns":   # a rifle across the hands, being cleaned
+				_box(pose.joint("ElbowR"), Vector3(0.05, 0.08, 0.75), Vector3(0.12, -0.34, -0.1), Color(0.18, 0.18, 0.19), Vector3(0, -70, 0))
+				_box(pose.joint("ElbowL"), Vector3(0.07, 0.03, 0.09), Vector3(0, -0.36, -0.02), Color(0.85, 0.82, 0.72))
+			"trader_supplies":   # a wad of cash
+				_box(pose.joint("ElbowL"), Vector3(0.07, 0.04, 0.14), Vector3(0, -0.35, -0.06), Color(0.42, 0.6, 0.38))
+				_box(pose.joint("ElbowR"), Vector3(0.07, 0.006, 0.14), Vector3(0, -0.35, -0.06), Color(0.42, 0.6, 0.38))
+			"trader_valuables":   # a gold watch held up to the loupe
+				_box(pose.joint("ElbowR"), Vector3(0.05, 0.05, 0.015), Vector3(0, -0.37, -0.05), Color(0.85, 0.68, 0.25))
+			"trader_ming":   # a deck in each hand, shuffled together
+				for side: String in ["ElbowL", "ElbowR"]:
+					_box(pose.joint(side), Vector3(0.07, 0.04, 0.1), Vector3(0, -0.36, -0.05), Color(0.93, 0.91, 0.86))
+			"trader_meds":   # a clipboard and a pen
+				_box(pose.joint("ElbowL"), Vector3(0.2, 0.015, 0.27), Vector3(0.04, -0.37, -0.08), Color(0.55, 0.42, 0.28))
+				_box(pose.joint("ElbowR"), Vector3(0.012, 0.012, 0.11), Vector3(0, -0.36, -0.05), Color(0.15, 0.15, 0.18))
 			"cards_a", "cards_b":
 				for k in 2:   # (a hand of cards in each)
 					var side := "ElbowL" if k == 0 else "ElbowR"
@@ -179,12 +183,31 @@ func _pose(m: Dictionary, delta: float) -> void:
 	var arms := {}
 	match m["id"]:
 		"cook":   # stirring the pot
-			arms = {"ArmR": Vector3(48, 10.0 * sin(t * 3.0), 12.0 + 6.0 * cos(t * 3.0)), "ElbowR": Vector3(-35, 0, 0),
+			arms = {"ArmR": Vector3(68, 10.0 * sin(t * 3.0), 10.0 + 6.0 * cos(t * 3.0)), "ElbowR": Vector3(-18, 0, 0),
 				"ArmL": Vector3(30, 0, -12), "ElbowL": Vector3(-55, 0, 0), "Neck": Vector3(-28, 0, 0)}
 		"mechanic":   # working on the generator with a wrench
 			var turn := sin(t * 4.0)
 			arms = {"ArmR": Vector3(62 + 12.0 * turn, 0, 6), "ElbowR": Vector3(-30 - 10.0 * turn, 0, 0),
 				"ArmL": Vector3(70, 0, -10), "ElbowL": Vector3(-25, 0, 0), "Neck": Vector3(-12, 0, 0)}
+		"trader_guns":   # wiping down a rifle held across the body
+			var wipe := sin(t * 2.2)
+			arms = {"ArmR": Vector3(38, 0, 12), "ElbowR": Vector3(-75, 0, 0), "ArmL": Vector3(40 + 6.0 * wipe, 18.0 * wipe, -6),
+				"ElbowL": Vector3(-70, 0, 0), "Neck": Vector3(-24, 0, 0)}
+		"trader_supplies":   # counting cash, a note at a time
+			var flick := maxf(0.0, sin(t * 3.4)) ** 4.0
+			arms = {"ArmL": Vector3(30, 0, -6), "ElbowL": Vector3(-80, 0, 0), "ArmR": Vector3(30 + 10.0 * flick, 0, 10),
+				"ElbowR": Vector3(-78 - 14.0 * flick, -10.0 * flick, 0), "Neck": Vector3(-20, 0, 0)}
+		"trader_valuables":   # turning a watch over under the loupe
+			arms = {"ArmR": Vector3(55, 0, 22), "ElbowR": Vector3(-115, 25.0 * sin(t * 0.9), 0), "ArmL": Vector3(8, 0, -6),
+				"ElbowL": Vector3(-20, 0, 0), "Neck": Vector3(-6, 0, 0)}
+		"trader_ming":   # shuffling: the decks riffle together, again and again
+			var riffle := sin(t * 5.0)
+			arms = {"ArmL": Vector3(35, 0, -8 + 6.0 * riffle), "ElbowL": Vector3(-65, 0, 0), "ArmR": Vector3(35, 0, 8 + 6.0 * riffle),
+				"ElbowR": Vector3(-65, 0, 0), "Neck": Vector3(-14, 0, 0)}
+		"trader_meds":   # writing notes on a clipboard
+			var write := sin(t * 6.0)
+			arms = {"ArmL": Vector3(35, 0, -4), "ElbowL": Vector3(-80, 0, 0), "ArmR": Vector3(38, 4.0 * write, 6),
+				"ElbowR": Vector3(-82 + 3.0 * write, 0, 0), "Neck": Vector3(-26, 0, 0)}
 		"coffee":   # a mug at the chest, a sip now and then
 			var sip := maxf(0.0, sin(t * 0.45)) ** 10.0
 			arms = {"ArmR": Vector3(22 + 18.0 * sip, 0, 10), "ElbowR": Vector3(-95 - 35.0 * sip, 0, 0),
@@ -211,5 +234,14 @@ func _look(m: Dictionary, p: Dictionary, delta: float, most: float) -> void:
 		if to.length() < LOOK_REACH and to.length() > 0.3:
 			want = clampf(atan2(-to.x, -to.z), -PI / 2.0 * most, PI / 2.0 * most)
 	m["look"] = move_toward(float(m["look"]), want, delta * 2.5)
+	# The traders nod to you when you come up to the counter.
+	var near := want != 0.0 and String(m["id"]).begins_with("trader_")
+	if near and not bool(m["near"]):
+		m["nod"] = 1.0
+	m["near"] = near
+	m["nod"] = maxf(0.0, float(m["nod"]) - delta * 1.6)
+	if float(m["nod"]) > 0.0:
+		var nd: Vector3 = p.get("Neck", Vector3.ZERO)
+		p["Neck"] = nd + Vector3(-16.0 * sin(PI * (1.0 - float(m["nod"]))), 0, 0)
 	var neck: Vector3 = p.get("Neck", Vector3.ZERO)
 	p["Neck"] = Vector3(neck.x * (1.0 - absf(float(m["look"])) / (PI / 2.0)), neck.y + rad_to_deg(float(m["look"])), neck.z)

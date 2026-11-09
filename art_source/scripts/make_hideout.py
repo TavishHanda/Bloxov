@@ -616,6 +616,7 @@ def write_door_texture(rows_):
 
 
 HANG_SIGNS = []     # (0.28.8) the bays' hanging signs for scripts/hanging_signs.gd: pivot, axis x, z, length, half w, h
+TRADER_SPOTS = {}   # (lively hideout) each trader behind their counter: x, floor y, z, facing x, z
 LIFE = {}           # (0.28.5) where scripts/hideout_life.gd puts the stove's steam and fire, the dust, the TV
 DOORS = []          # the hangout's sliding doors: (middle x, floor y, z, width, height, yaw, side) for hideout_doors.gd
 
@@ -1467,6 +1468,8 @@ def bay(ctx, rng, i, entry):
     mid = 0.0
     if bid in TRADERS:
         fx = depth - 0.5                                              # the counter: drums at the ends, crates between
+        stand, ahead = F.P(1.75, 0.0, 0.0), F.P(2.75, 0.0, 0.0)        # (lively hideout: where the trader stands)
+        TRADER_SPOTS[bid] = (stand[0], y0, stand[2], ahead[0] - stand[0], ahead[2] - stand[2])
         drum(b, *F.P(fx, 0, -w / 2 + 0.6)[0::2], y0, rng.choice(TINS))
         drum(b, *F.P(fx, 0, w / 2 - 0.6)[0::2], y0, rng.choice(TINS))
         k = -w / 2 + 0.9
@@ -2565,6 +2568,7 @@ def dress(ctx):
     L = LAY
     LAMPS.clear()
     LIFE.clear()
+    TRADER_SPOTS.clear()
     HANG_SIGNS.clear()
     dome(ctx, L.outline, L.C, L.profile, L.mats, L.amp, [t.hole for t in L.tunnels], seed="hall", tunnels=L.tunnels)
     for t in L.tunnels:
@@ -2877,6 +2881,15 @@ def write_level(rows):
                     'metadata/jukebox = Vector3(%g, %g, %g)\n'
                     % ((round(LAY.hang.Cw[0], 3), -HANG_DEPTH, round(LAY.hang.Cw[1], 3))
                        + tuple(round(v, 3) for v in LAY.hang.w((jx + 0.3, 0.95, jz)))))
+        if TRADER_SPOTS:
+            f.write('\n[node name="Traders" type="Node3D" parent="."]\n')
+            for bid in sorted(TRADER_SPOTS):                           # (a Marker3D looks down its -z: the counter)
+                x, y, z, fx, fz = TRADER_SPOTS[bid]
+                a = math.atan2(-fx, -fz)
+                f.write('\n[node name="%s" type="Marker3D" parent="Traders"]\n'
+                        'transform = Transform3D(%g, 0, %g, 0, 1, 0, %g, 0, %g, %g, %g, %g)\n'
+                        % (bid, round(math.cos(a), 5), round(math.sin(a), 5), round(-math.sin(a), 5), round(math.cos(a), 5),
+                           round(x, 3), round(y, 3), round(z, 3)))
         aimed = aimed_stations()
         for sid, x, z, reach, y in stations():
             f.write('\n[node name="%s" type="Marker3D" parent="Stations"]\n'

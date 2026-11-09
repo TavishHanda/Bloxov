@@ -2867,10 +2867,10 @@ func _section_hideout_world() -> void:
 	var crew_seat := crew_level.get_node("Seats/Seat0") as Node3D
 	walker.global_position = crew_seat.global_position + crew_seat.global_basis.z * 0.4 - Vector3.UP * 0.4
 	walker.rotation.y = crew_seat.global_rotation.y
-	_check(crew_ids.size() == 6 and crew_ids.has("sleeper") and crew_ids.has("cook") and crew_ids.has("mechanic")
+	_check(crew_ids.size() == 11 and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
 		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
 		and not hcrew.find_children("*", "CollisionObject3D", true, false),
-		"the crew: six of them (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
+		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
 	hcrew.queue_free()
 	world.queue_free()
 	for i in 5:

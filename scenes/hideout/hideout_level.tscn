@@ -191,6 +191,23 @@ metadata/tv = Vector3(-3.678, 1.05, 24.2)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51.434, -4.5, 0)
 metadata/jukebox = Vector3(51.434, -3.55, -6.009)
 
+[node name="Traders" type="Node3D" parent="."]
+
+[node name="guns" type="Marker3D" parent="Traders"]
+transform = Transform3D(-1, 0, -0, 0, 1, 0, 0, 0, -1, -17.3, 0, -3.25)
+
+[node name="meds" type="Marker3D" parent="Traders"]
+transform = Transform3D(-1, 0, -0, 0, 1, 0, 0, 0, -1, -22.1, 0, -3.25)
+
+[node name="ming" type="Marker3D" parent="Traders"]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, -24.5, 0, 3.25)
+
+[node name="supplies" type="Marker3D" parent="Traders"]
+transform = Transform3D(-1, 0, -0, 0, 1, 0, 0, 0, -1, -26.9, 0, -3.25)
+
+[node name="valuables" type="Marker3D" parent="Traders"]
+transform = Transform3D(1, 0, -0, 0, 1, 0, 0, 0, 1, -19.7, 0, 3.25)
+
 [node name="guns" type="Marker3D" parent="Stations"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.3, 0, -1.3)
 metadata/reach = 2.7
