@@ -84,7 +84,7 @@ texture_repeat = false
 metadata/_gltf_primary_texture_coord = 0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5luv7"]
-resource_name = "gun_bakelite"
+resource_name = "gun_black"
 albedo_texture = SubResource("ImageTexture_5cihw")
 texture_filter = 2
 metadata/_gltf_primary_texture_coord = 0
@@ -156,31 +156,19 @@ transparency = 1
 albedo_color = Color(0, 0, 0, 0)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sdutl"]
-transparency = 1
-vertex_color_use_as_albedo = true
-
-[sub_resource type="MultiMesh" id="MultiMesh_mwqtn"]
-transform_format = 1
-use_colors = true
-use_custom_data = true
-instance_count = 1
-mesh = SubResource("ArrayMesh_870k5")
-buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s47hs"]
 resource_name = "runner"
 transparency = 1
 vertex_color_use_as_albedo = true
 albedo_texture = SubResource("ImageTexture_5cihw")
 texture_filter = 2
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xopsq"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mwqtn"]
 transparency = 1
 cull_mode = 2
 shading_mode = 0
 albedo_color = Color(0.3, 1, 0.45, 0.12)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kt3ws"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s47hs"]
 resource_name = "glass"
 transparency = 1
 cull_mode = 2
@@ -188,6 +176,24 @@ albedo_color = Color(1, 1, 1, 0.28)
 albedo_texture = SubResource("ImageTexture_5cihw")
 roughness = 0.6
 texture_filter = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xopsq"]
+transparency = 1
+cull_mode = 2
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("ImageTexture_5cihw")
+billboard_mode = 3
+particles_anim_h_frames = 1
+particles_anim_v_frames = 1
+particles_anim_loop = false
+
+[sub_resource type="MultiMesh" id="MultiMesh_kt3ws"]
+transform_format = 1
+use_colors = true
+use_custom_data = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_870k5")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_xkx01"]
 resource_name = "decals_cut"
@@ -365,160 +371,160 @@ shader_parameter/foam = Color(0.88, 0.92, 0.93, 1)
 shader_parameter/land = Vector2(0.5, 0.3)
 shader_parameter/speed = 2.4
 
-[node name="RaidWarm" type="Node3D" unique_id=931878149]
+[node name="RaidWarm" type="Node3D" unique_id=1005798511]
 
-[node name="W000" type="MeshInstance3D" parent="." unique_id=66461204]
+[node name="W000" type="MeshInstance3D" parent="." unique_id=58770333]
 material_override = SubResource("StandardMaterial3D_jctcf")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W001" type="MultiMeshInstance3D" parent="." unique_id=611311328]
+[node name="W001" type="MultiMeshInstance3D" parent="." unique_id=229316584]
 material_override = SubResource("StandardMaterial3D_lgwji")
 multimesh = SubResource("MultiMesh_lm3od")
 
-[node name="W002" type="MeshInstance3D" parent="." unique_id=1538086457]
+[node name="W002" type="MeshInstance3D" parent="." unique_id=744791409]
 material_override = SubResource("StandardMaterial3D_iobks")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W003" type="MultiMeshInstance3D" parent="." unique_id=1149189098]
+[node name="W003" type="MultiMeshInstance3D" parent="." unique_id=1409540851]
 material_override = SubResource("StandardMaterial3D_fuwa7")
 multimesh = SubResource("MultiMesh_mrl6o")
 
-[node name="W004" type="MultiMeshInstance3D" parent="." unique_id=1117559607]
+[node name="W004" type="MultiMeshInstance3D" parent="." unique_id=112685652]
 material_override = SubResource("StandardMaterial3D_qyfjc")
 multimesh = SubResource("MultiMesh_qp432")
 
-[node name="W005" type="MeshInstance3D" parent="." unique_id=926298405]
+[node name="W005" type="MeshInstance3D" parent="." unique_id=1691166378]
 material_override = SubResource("StandardMaterial3D_yn5vn")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W006" type="MeshInstance3D" parent="." unique_id=1179977924]
+[node name="W006" type="MeshInstance3D" parent="." unique_id=269810031]
 material_override = SubResource("StandardMaterial3D_5luv7")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W007" type="MeshInstance3D" parent="." unique_id=1662764053]
+[node name="W007" type="MeshInstance3D" parent="." unique_id=1916105825]
 material_override = SubResource("StandardMaterial3D_76lt7")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W008" type="MultiMeshInstance3D" parent="." unique_id=231694764]
+[node name="W008" type="MultiMeshInstance3D" parent="." unique_id=755163849]
 material_override = SubResource("StandardMaterial3D_sehbp")
 multimesh = SubResource("MultiMesh_cxwqa")
 
-[node name="W009" type="MeshInstance3D" parent="." unique_id=1562239431]
+[node name="W009" type="MeshInstance3D" parent="." unique_id=947221866]
 material_override = SubResource("StandardMaterial3D_hebbd")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W010" type="MeshInstance3D" parent="." unique_id=875721501]
+[node name="W010" type="MeshInstance3D" parent="." unique_id=1555258831]
 material_override = SubResource("StandardMaterial3D_se7y0")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W011" type="MeshInstance3D" parent="." unique_id=2124116401]
+[node name="W011" type="MeshInstance3D" parent="." unique_id=2041674752]
 material_override = SubResource("StandardMaterial3D_chwlt")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W012" type="MeshInstance3D" parent="." unique_id=2094894267]
+[node name="W012" type="MeshInstance3D" parent="." unique_id=1881483096]
 material_override = SubResource("StandardMaterial3D_n57lu")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W013" type="MeshInstance3D" parent="." unique_id=291299261]
+[node name="W013" type="MeshInstance3D" parent="." unique_id=1026123678]
 material_override = SubResource("StandardMaterial3D_t3p6l")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W014" type="MultiMeshInstance3D" parent="." unique_id=921223530]
+[node name="W014" type="MultiMeshInstance3D" parent="." unique_id=651591108]
 material_override = SubResource("StandardMaterial3D_x43qg")
 multimesh = SubResource("MultiMesh_ac7w2")
 
-[node name="W015" type="MeshInstance3D" parent="." unique_id=147846671]
+[node name="W015" type="MeshInstance3D" parent="." unique_id=41365004]
 material_override = SubResource("StandardMaterial3D_m2qbg")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W016" type="MeshInstance3D" parent="." unique_id=1288826931]
+[node name="W016" type="MeshInstance3D" parent="." unique_id=2131645433]
 material_override = SubResource("StandardMaterial3D_oxvhd")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W017" type="MultiMeshInstance3D" parent="." unique_id=765302414]
+[node name="W017" type="MeshInstance3D" parent="." unique_id=1424535229]
 material_override = SubResource("StandardMaterial3D_sdutl")
-multimesh = SubResource("MultiMesh_mwqtn")
+mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W018" type="MeshInstance3D" parent="." unique_id=1673290410]
+[node name="W018" type="MeshInstance3D" parent="." unique_id=1717049249]
+material_override = SubResource("StandardMaterial3D_mwqtn")
+mesh = SubResource("ArrayMesh_870k5")
+
+[node name="W019" type="MeshInstance3D" parent="." unique_id=558667761]
 material_override = SubResource("StandardMaterial3D_s47hs")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W019" type="MeshInstance3D" parent="." unique_id=927708136]
+[node name="W020" type="MultiMeshInstance3D" parent="." unique_id=72664276]
 material_override = SubResource("StandardMaterial3D_xopsq")
-mesh = SubResource("ArrayMesh_870k5")
+multimesh = SubResource("MultiMesh_kt3ws")
 
-[node name="W020" type="MeshInstance3D" parent="." unique_id=2093436701]
-material_override = SubResource("StandardMaterial3D_kt3ws")
-mesh = SubResource("ArrayMesh_870k5")
-
-[node name="W021" type="MeshInstance3D" parent="." unique_id=358718103]
+[node name="W021" type="MeshInstance3D" parent="." unique_id=404615221]
 material_override = SubResource("StandardMaterial3D_xkx01")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W022" type="MeshInstance3D" parent="." unique_id=714509301]
+[node name="W022" type="MeshInstance3D" parent="." unique_id=1186831200]
 material_override = SubResource("StandardMaterial3D_mke0a")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W023" type="MeshInstance3D" parent="." unique_id=1045258690]
+[node name="W023" type="MeshInstance3D" parent="." unique_id=1773621932]
 material_override = SubResource("StandardMaterial3D_6oknt")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W024" type="MeshInstance3D" parent="." unique_id=2137327557]
+[node name="W024" type="MeshInstance3D" parent="." unique_id=430779847]
 material_override = SubResource("StandardMaterial3D_juh6a")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W025" type="MeshInstance3D" parent="." unique_id=1142499138]
+[node name="W025" type="MeshInstance3D" parent="." unique_id=269723753]
 material_override = SubResource("StandardMaterial3D_6se7k")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W026" type="MeshInstance3D" parent="." unique_id=771707987]
+[node name="W026" type="MeshInstance3D" parent="." unique_id=314262335]
 material_override = SubResource("StandardMaterial3D_kgmht")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W027" type="MeshInstance3D" parent="." unique_id=1934443870]
+[node name="W027" type="MeshInstance3D" parent="." unique_id=685478675]
 material_override = SubResource("ShaderMaterial_qjbnq")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W028" type="MultiMeshInstance3D" parent="." unique_id=1242125288]
+[node name="W028" type="MultiMeshInstance3D" parent="." unique_id=567210859]
 material_override = SubResource("ShaderMaterial_fkycj")
 multimesh = SubResource("MultiMesh_7ye7g")
 
-[node name="W029" type="MeshInstance3D" parent="." unique_id=174770460]
+[node name="W029" type="MeshInstance3D" parent="." unique_id=175400626]
 material_override = SubResource("ShaderMaterial_1h4nj")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W030" type="MultiMeshInstance3D" parent="." unique_id=1032479527]
+[node name="W030" type="MultiMeshInstance3D" parent="." unique_id=1317009485]
 material_override = SubResource("ShaderMaterial_fadqm")
 multimesh = SubResource("MultiMesh_ue6gj")
 
-[node name="W031" type="MeshInstance3D" parent="." unique_id=86385943]
+[node name="W031" type="MeshInstance3D" parent="." unique_id=322139027]
 material_override = SubResource("ShaderMaterial_d7frs")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W032" type="MeshInstance3D" parent="." unique_id=917702791]
+[node name="W032" type="MeshInstance3D" parent="." unique_id=1351607329]
 material_override = SubResource("ShaderMaterial_ew81a")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W033" type="MeshInstance3D" parent="." unique_id=839785371]
+[node name="W033" type="MeshInstance3D" parent="." unique_id=637293600]
 material_override = SubResource("ShaderMaterial_lfdin")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W034" type="MeshInstance3D" parent="." unique_id=2123327313]
+[node name="W034" type="MeshInstance3D" parent="." unique_id=1413550123]
 material_override = SubResource("ShaderMaterial_pmqy7")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W035" type="MeshInstance3D" parent="." unique_id=2018861875]
+[node name="W035" type="MeshInstance3D" parent="." unique_id=1715046661]
 material_override = SubResource("ShaderMaterial_q20pl")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W036" type="MeshInstance3D" parent="." unique_id=1347394219]
+[node name="W036" type="MeshInstance3D" parent="." unique_id=557767027]
 material_override = SubResource("ShaderMaterial_ixptx")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W037" type="MeshInstance3D" parent="." unique_id=1897632811]
+[node name="W037" type="MeshInstance3D" parent="." unique_id=1003003864]
 material_override = SubResource("ShaderMaterial_idc75")
 mesh = SubResource("ArrayMesh_870k5")
 
-[node name="W038" type="MeshInstance3D" parent="." unique_id=1920348908]
+[node name="W038" type="MeshInstance3D" parent="." unique_id=1501028668]
 material_override = SubResource("ShaderMaterial_s7tce")
 mesh = SubResource("ArrayMesh_870k5")
