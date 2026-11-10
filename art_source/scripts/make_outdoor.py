@@ -3236,7 +3236,12 @@ def draw_none(b, piece, rng):
     """Trees are drawn by scripts/trees.gd (outdoor step 7), not in the chunk models: only their boxes are kept."""
 
 
-DRAW = {"ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
+def draw_hesco(b, piece, rng):
+    """Extract pens' walls (0.32.3): always the wire-mesh barriers, wherever they stand."""
+    draw_berm(b, dict(piece, look="d"), rng)
+
+
+DRAW = {"hesco": draw_hesco, "ruin": draw_ruin, "wall": draw_wall, "berm": draw_berm, "rocks": draw_rocks, "rubble": draw_rubble, "container": draw_container,
         "truck": draw_truck, "sandbags": draw_sandbags, "barrier": draw_barrier, "tanktrap": draw_tanktrap,
         "drums": draw_drums, "dumpster": draw_dumpster, "crater": draw_crater, "junk": draw_junk, "bush": draw_bush,
         "plaza": draw_plaza, "fountain": draw_fountain, "statue": draw_statue, "planter": draw_planter, "stall": draw_stall,

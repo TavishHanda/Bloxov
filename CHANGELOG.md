@@ -7,6 +7,44 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.5 (Hideout shell and generator can be heard)
+Owner: "when the bomb drops every 2-4 mins it didnt have any noises just effects". The shell's boom (0.34.0) was
+almost all under 80 Hz, which phone and laptop speakers and most earbuds can't play, so it was silent for most people.
+It now has a dull crump and a rumble at 100-400 Hz and a soft rattle of things shaken loose (still muffled through
+the rock, no highs, same loudness setting). The generator's chug had the same problem (all 55 Hz) and now carries its
+overtones. Other hideout sounds (drip, pipes, rat, snore, wrench, cat, grit) were already in the range speakers play.
+
+## 0.34.4 (Extract cover)
+- **Every Frontlines extract got its own cover** (owner: the extracts were "WAY too easy to extract camp"; then
+  "make them a bit unique ... leave some lines where u can shoot from but make sure there are like safe corners"):
+  - **Farm Road**, a container yard: two containers in an L (one stacked) cover the back left, sandbags on the right.
+  - **Highway**, a roadblock: an army truck across the road in front, hesco on one side, concrete barriers on the other.
+  - **Creek Trail**, dug in at the woods: a hesco L toward the hill, a second row out front, sandbags on the open side.
+  - **Town Road**, the fort: walled all round in head-high hesco, in through a gap with a wall across it.
+  - **Mill Lane**, a zig-zag: in at the front left behind a second row, stacked containers toward the church tower.
+  - **South Road**, a container canyon: containers two high on both sides and across the front, in behind a hesco row.
+- Each one still has lines in (over sandbags, past the truck, through the way in), and each has a corner of the square
+  almost nobody further off can see. The ground a camper could watch a crouched player in the square from (20-130 m
+  out, `tools/extract_camps.gd`, `corners=1` for each spot of the square) went from about 28,300 m² over the six
+  extracts to about 6,300 m² (Farm Road, the most open, keeps about 4,500 of it).
+- The tent camps beside the squares moved a few metres along the edge to make room; a power pole at Farm Road and
+  Highway and a street lamp at Town Road went too. The rest of the map is unchanged; AI navigation re-baked.
+## 0.34.3 (Crew get up)
+- **Everyone in the hideout moves now** (owner: "are these two perma in this spot? they should move too", "one guy can
+  be sleeping a lot but he should get up", "everyone can sleep but not at the same time", "do what's best as an expert
+  game designer"): the crew no longer each own one spot. The hideout has 15 things to do, one person each: the bunk,
+  the stove, two card seats, two places at the mess table to eat, the couch in front of the TV (two), the den's booth
+  and two bar stools, the den itself, the war table, the generator and a coffee by the range. Everyone has a favourite
+  they go back to more often and stay longer at (the sleeper still sleeps a lot), and when they're done they pick
+  something free and walk there. Only one can be in the bunk, nobody takes a seat you're sat on, and the seat they're
+  on isn't offered to you. What they hold goes with what they're doing (a spoon cooking or eating, the wrench at the
+  generator, a mug with a coffee, the TV or at the bar, cards at the card table). Looks only, as before.
+- **Faster walking** (owner: "they walk way too slow"): 1.25 m/s to 2.4 m/s.
+- **No more standing about gesturing at nothing** (owner: "the npcs just kinda sit here like this sometimes"): the old
+  walkers' stop by the stash was a spot with nothing to do. Stood about now means arms crossed or hands on hips, and
+  talking with their hands only when someone else is there. Someone held up on the way finds the route again.
+- `tools/hideout_crew_view.gd` takes a picture of someone at each thing to do.
+
 ## 0.34.2 (Hideout fixes)
 - **Arms the right way round** (owner: "that guy's one arm is backwards, same with all the traders"): the crew's and
   traders' poses bent their elbows backwards. On the character models a positive elbow angle brings the forearm
