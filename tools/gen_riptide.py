@@ -1093,7 +1093,7 @@ def spawner_meta():
     scavs = sum(z[5] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[6] for z in AI_ZONES)
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
-            f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}}}, '
+            f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}, "scene": "res://scenes/boss_zero.tscn"}}, '
             f'"max_alive": 28, "scav_budget": {scavs + 4}, "raider_budget": {raiders + 3}, '
             '"scav_interval_min": 60.0, "scav_interval_max": 80.0, '
             '"raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}')

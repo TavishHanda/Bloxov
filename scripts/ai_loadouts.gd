@@ -33,7 +33,7 @@ const STYLES := {
 
 ## Guns as numbers for the network (0.15.12): the server sends each AI's gun to the puppets, so online they hold,
 ## sound and shoot like the gun they really carry.
-const NET_GUNS := ["", "ak", "smg", "shotgun", "pistol", "sniper"]
+const NET_GUNS := ["", "ak", "smg", "shotgun", "pistol", "sniper", "reaper"]
 
 ## Attachments a dropped gun may come with (ScavBase.drop_part_chance: Raiders, sometimes).
 const DROP_PARTS := ["red_dot", "foregrip", "ext_mag", "suppressor", "scope_4x"]

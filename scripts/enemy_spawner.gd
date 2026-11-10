@@ -130,7 +130,9 @@ func _spawn_boss() -> void:
 	if zone.is_empty() or spots.is_empty() or boss_scene == null:
 		return
 	var spot := spots.pick_random().global_position as Vector3
-	boss_spawned = boss_scene.instantiate() as Scav
+	# (0.33.4: a map's boss can be its own scene, "scene": Riptide's Zero)
+	var scene := load(String(boss["scene"])) as PackedScene if boss.has("scene") else boss_scene
+	boss_spawned = scene.instantiate() as Scav
 	get_parent().add_child(boss_spawned)
 	boss_spawned.global_position = on_floor(spot)
 	boss_spawned.home_center = zone.get("center", spot)
@@ -144,7 +146,7 @@ func _spawn_boss() -> void:
 		guard.follow(boss_spawned)
 		guard.home_center = boss_spawned.home_center
 		guard.home_radius = boss_spawned.home_radius
-		guard.body_name = "Bon's Guard"   # (owner, 0.12.39)
+		guard.body_name = boss_spawned.body_name + "'s Guard"   # (owner, 0.12.39)
 		guard.stays_home = true   # (owner: Bon and his guards patrol their area, they don't run to every gunshot)
 		guard.leash = boss_spawned.leash
 

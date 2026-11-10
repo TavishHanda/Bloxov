@@ -12,20 +12,24 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $11,000 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
 | Hound (`ak`) | Weapon | Uncommon | 4×2 | 1 | $12,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
 | Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $22,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
-| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Stinger, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
+| Reaper (`reaper`) | Weapon | Epic | 4×2 | 1 | $30,000 | primary slot; full-auto; 30 dmg, 650 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Site Zero's own rifle. Takes Hound rounds, shoots straighter and faster. Only Zero carries one. |
+| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Reaper, Stinger, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
 | Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler; pellet_spread x0.85 | Shotgun muzzle. Keeps the pellets tighter. |
-| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
-| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits Hound, Wasp, Lancer; mag x1.5, reload x1.1 | Holds more rounds. Slower to reload. |
-| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
-| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Stinger, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
+| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Reaper, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
+| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits Hound, Reaper, Wasp, Lancer; mag x1.5, reload x1.1 | Holds more rounds. Slower to reload. |
+| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Reaper, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
+| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Reaper, Stinger, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
 | 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits Lancer; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $7,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $20,000 | -40% damage taken | Plated vest. Stops a lot. |
+| Assault Armor (`armor_assault`) | Armor | Epic | 3×3 | 1 | $35,000 | -50% damage taken; only from one-off finds:  | Site Zero plate carrier. The best armor there is. Only off Zero. |
 | Old Helmet (`helmet_basic`) | Helmet | Uncommon | 2×2 | 1 | $5,000 | -25% head damage taken | Dented steel pot. Better than nothing on your head. |
 | Combat Helmet (`helmet_good`) | Helmet | Rare | 2×2 | 1 | $15,000 | -45% head damage taken | Army helmet. Takes a hit to the head well. |
+| Assault Helmet (`helmet_assault`) | Helmet | Epic | 2×2 | 1 | $25,000 | -55% head damage taken; only from one-off finds:  | Site Zero helmet with a face plate. Only off Zero. |
 | Small Backpack (`backpack_small`) | Backpack | Common | 3×3 | 1 | $2,000 | 4×3 storage | A school bag. Better than pockets. |
 | Medium Backpack (`backpack_medium`) | Backpack | Uncommon | 3×3 | 1 | $4,500 | 5×4 storage | Hiking pack with room for a good haul. |
 | Large Backpack (`backpack_large`) | Backpack | Rare | 4×4 | 1 | $10,000 | 6×5 storage | Big army rucksack. Carry everything home. |
+| Raid Pack (`backpack_raid`) | Backpack | Epic | 4×4 | 1 | $18,000 | 7×6 storage; only from one-off finds:  | Zero's own pack. Nothing carries more. |
 | Stinger Rounds (`pistol_ammo`) | Ammo | Common | 1×1 | 50 | $10 | full stack $500 | Pistol rounds for the Stinger. Loaded when you reload. |
 | Wasp Rounds (`smg_ammo`) | Ammo | Common | 1×1 | 90 | $10 | full stack $900 | Small rounds for the Wasp. Loaded when you reload. |
 | Hound Rounds (`rifle_ammo`) | Ammo | Common | 1×1 | 120 | $15 | full stack $1,800 | Rifle rounds for the Hound. Loaded when you reload. |
@@ -69,6 +73,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Rare Crystal (`crystal`) | Valuable | Legendary | 1×1 | 1 | $18,000 |  | Nobody knows where these come from. Everyone wants one. |
 | Golden Toilet (`golden_toilet`) | Valuable | Legendary | 2×3 | 1 | $50,000 | only from one-off finds: 3% in Bank_Safe1, 3% in Bank_Safe2 | Yes, really. |
 | Holy Grail (`holy_grail`) | Valuable | Legendary | 2×2 | 1 | $75,000 | only from one-off finds: 3% in Bank_Safe1, 3% in Bank_Safe2, 1% in Bunker_Safe1, 1% in Bunker_Safe2, 1% in Bunker_Safe3, 1% in Bunker_Safe4 | The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault. |
+| The Formula (`formula`) | Valuable | Legendary | 1×2 | 1 | $100,000 | only from one-off finds:  | What Site Zero was built to make. Zero never lets it out of his sight. |
 
 Nothing wears out for now: durability (armor, helmets, keys, guns) is its own update later (owner).
 

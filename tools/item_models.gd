@@ -5,7 +5,7 @@ extends RefCounted
 ## proportions matter. Long side along x, up is y, the camera looks from +z.
 ## No real brands or logos on anything (docs/STORE_RULES.md).
 
-const GUNS := {"ak": "hound", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer",
+const GUNS := {"ak": "hound", "reaper": "hound", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer",
 	"red_dot": "att_red_dot", "scope_4x": "att_scope_4x", "scope_8x": "att_scope_8x", "suppressor": "att_suppressor",
 	"choke": "att_choke", "foregrip": "att_foregrip"}
 ## Items shown with a model from the game itself (0.19.8, owner: the medium backpack is the green one scavs wear),
@@ -57,6 +57,15 @@ static func build(id: String) -> Node3D:
 		"helmet_good": _helmet(m, "olive_dk", "black", true)
 		"backpack_small": _pack(m, Vector3(0.3, 0.36, 0.14), "blue", "navy", false)
 		"backpack_large": _pack(m, Vector3(0.44, 0.5, 0.22), "olive", "olive_dk", true)
+		"armor_assault": _vest(m, "black", "purple", true)
+		"helmet_assault": _helmet(m, "black", "purple", true)
+		"backpack_raid": _pack(m, Vector3(0.48, 0.54, 0.24), "iron", "purple", true)
+		"formula":
+			cyl(m, 0.05, 0.03, Vector3(0, -0.13, 0), "steel_dk")
+			cyl(m, 0.042, 0.2, Vector3(0, -0.015, 0), "cyan")
+			cyl(m, 0.05, 0.035, Vector3(0, 0.1, 0), "steel_dk")
+			cyl(m, 0.02, 0.03, Vector3(0, 0.13, 0), "gold")
+			box(m, Vector3(0.06, 0.06, 0.004), Vector3(0, -0.02, 0.042), "paper")
 		"grenade":
 			sphere(m, 0.032, Vector3(0, -0.01, 0), "olive", Vector3(1, 1.15, 1))
 			cyl(m, 0.014, 0.025, Vector3(0, 0.035, 0), "steel_dk")

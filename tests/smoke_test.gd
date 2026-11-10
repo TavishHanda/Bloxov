@@ -5588,6 +5588,25 @@ func _section_riptide() -> void:
 		sub.set_open(false)
 		power.use(Vector3.ZERO)
 		_check(sub.is_open and power.used and power.prompt() == "Power on", "throwing the switch opens the sub bay")
+	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
+	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
+	root.add_child(zero)
+	_check(zero.body_name == "Zero" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
+		and zero.armor == "armor_assault" and zero.helmet == "helmet_assault"
+		and is_equal_approx(zero.health.damage_multiplier, 0.5) and is_equal_approx(zero.health.head_multiplier, 0.45),
+		"Zero carries the Reaper and wears assault armor and helmet")
+	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Zero drops the Formula and the Raid Pack")
+	zero.free()
+	var zero_map := (load(MAP) as PackedScene).instantiate()
+	var spawner_meta: Dictionary = zero_map.get_meta("spawner", {})
+	zero_map.free()
+	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_zero.tscn", "Riptide's boss is Zero")
+	_check(ItemDB.item("formula")["value"] == 100000 and ItemDB.item("formula")["rarity"] == "legendary"
+		and ItemDB.item("reaper")["ammo"] == "rifle_ammo" and ItemDB.item("reaper")["rarity"] == "epic" and ItemDB.item("reaper")["value"] == 30000
+		and ItemDB.item("armor_assault")["reduction"] == 0.5 and ItemDB.item("helmet_assault")["reduction"] == 0.55
+		and ItemDB.item("backpack_raid")["grid"] == [7, 6], "Zero's loot: Formula $100k, Reaper on Hound rounds, assault gear, 7x6 Raid Pack")
+	_check(ItemDB.attachment_slot_for("reaper", "suppressor") != "" and Traders.trader_for("reaper") == "" and Traders.trader_for("armor_assault") == "",
+		"the Reaper takes the Hound's parts; Zero's gear is never sold")
 	world.queue_free()
 	await process_frame
 

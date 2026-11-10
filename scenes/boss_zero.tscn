@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/boss.tscn" id="1_boss"]
+
+[node name="Boss" instance=ExtResource("1_boss")]
+body_name = "Zero"
+extra_drops = PackedStringArray("formula", "backpack_raid")
+armor = "armor_assault"
+helmet = "helmet_assault"
+weapon_drop = "reaper"
+loadout = "reaper"
+held_model = "reaper"

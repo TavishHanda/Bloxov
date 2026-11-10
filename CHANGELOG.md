@@ -55,6 +55,15 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.4 (Riptide: Zero and his loot, on the branch)
+- **Zero is his own boss** (`scenes/boss_zero.tscn`, on Bon's scene; a map's `boss` can name its `scene`). He fights
+  like Bon (the AI is locked in) but carries the **Reaper** and wears **Assault Armor** and an **Assault Helmet**,
+  and his guards are "Zero's Guard".
+- **Zero's loot** (owner's list): **The Formula** (legendary, $100,000), the **Reaper** (epic rifle on Hound rounds,
+  $30,000: damage 30 vs 28, 650 vs 600 rpm, a little less spread and kick, takes the Hound's parts), **Assault Armor**
+  (0.5, $35,000), **Assault Helmet** (0.55, $25,000), **Raid Pack** (7x6, $18,000). Only off Zero: never in crates,
+  crafts or traders. Icons are gray-box stand-ins (the Reaper uses the Hound's model for now).
+
 ## 0.33.3 (Riptide: 15-minute raids, the sub bay's power, on the branch)
 - **Riptide raids last 15 minutes** (owner OK'd, 2026-11-09). A map can now tune its raid through `raid` metadata
   (`RaidMap.load_map`), like `spawner` tunes its AI. Frontlines stays at 10.
