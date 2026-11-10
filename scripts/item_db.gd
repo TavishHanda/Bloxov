@@ -3,6 +3,10 @@ extends RefCounted
 ## Every item in the game, plus the loot tables containers roll from.
 ## To add an item, add an entry to ITEMS. Valuables are picked up by loot tables automatically by rarity.
 
+## How far a player's shot reaches, offline and on the server (0.34.7: was 150 m, so long sniper shots across the
+## 350 m map hit nothing; now it reaches across the whole map, corner to corner).
+const SHOT_RANGE := 600.0
+
 const RARITY_COLORS := {
 	"common": Color(0.82, 0.82, 0.82),
 	"uncommon": Color(0.4, 0.9, 0.4),

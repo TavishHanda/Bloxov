@@ -498,6 +498,26 @@ def solid_late():
             anchors.append(None)
 
 
+# The log cabins' corners (0.34.7, playtester: "the AI can see me and shoot through the corners"): the crossed log
+# ends stick out ~0.3 m past the walls' boxes (to 6.97 x 5.47 from the middle), so someone tucked against a wall by a
+# corner was seen and shot through logs that looked solid. Each corner gets a post as big as the log ends: solid to
+# everyone, eyes and shots too, not drawn (the model draws the logs). Added late so the scatter doesn't move.
+CABIN_CORNER = (6.35, 6.97, 4.85, 5.47, 3.0)   # the post, model frame: x from..to, z from..to, height
+
+
+def cabin_corners():
+    x0, x1, z0, z1, h = CABIN_CORNER
+    for m in models:
+        if not (m["hide"] and m["name"].startswith("cabin_")):
+            continue
+        ox, oz = gx(m["x"]), gz(m["z"])
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                x, z = turn_point(ox + sx * (x0 + x1) / 2, oz + sz * (z0 + z1) / 2, ox, oz, m["turned"])
+                boxes.append((x, h / 2, z, x1 - x0, h, z1 - z0, m["turned"] % 360.0, 0.0, C["wood"], 2))
+                anchors.append(None)
+
+
 def write_model_boxes(ter):
     """Also checks the whole model stands on one flat pad (the model can't bend over hills like the boxes)."""
     names = {i: n for n, i in C.items()}
@@ -6235,6 +6255,7 @@ def main():
     fit_trucks()
     fit_car_unders()
     solid_late()
+    cabin_corners()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
     print(f"plain windows open to climb through: {sum(OPENED.values())} in {len(OPENED)} buildings; {len(window_boxes)} windows shut")
