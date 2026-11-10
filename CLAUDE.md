@@ -25,7 +25,7 @@
   `xvfb-run -a godot --rendering-driver opengl3 -s tools/gen_shader_warm.gd` after adding materials or new kinds of things to them). 0.32 **Crafting** (the hideout's workbench, `scripts/crafting.gd`, `scripts/craft_screen.gd`: instant, owner, no timers;
   recipes only use and make items already in the game; heavy armor, combat helmet and large backpack stay loot-only, owner;
   PvP crafts are checked by the server's hideout audit). 0.34 the **Lively hideout** (0.33 is held by the Riptide map branch): looks-only life in the hideout,
-  never synced or on the server: `hideout_war.gd` (shells; re-run `tools/hideout_roof_bake.gd` after changing the cave),
+  never synced or on the server: `hideout_war.gd` (shells; re-run `tools/hideout_roof_bake.gd` and `tools/hideout_nav_bake.gd` (where the crew walk) after changing the cave),
   `hideout_crew.gd` + `trader_looks.gd` (crew and traders on their own `trader.glb`), `hideout_cat.gd`,
   `hideout_trophies.gd`, your corner `decor.gd`/`hideout_decor.gd` (decor unlocks by milestones, nothing bought, owner). A Stash update (separate solo/online
   stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
