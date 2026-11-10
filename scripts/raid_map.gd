@@ -53,6 +53,13 @@ static func load_map(raid: Node, path: String) -> void:
 		var raid_settings: Dictionary = map.get_meta("raid", {})
 		for key in raid_settings:
 			raid_node.set(key, raid_settings[key])
+	# A map can have its own look and weather (Riptide: the storm, owner 2026-11-09). Looks only.
+	if map.has_meta("look"):
+		Look.apply(raid, String(map.get_meta("look")))
+	if map.get_meta("rain", false) and DisplayServer.get_name() != "headless":
+		var rain := Rain.new()
+		rain.name = "Rain"
+		raid.add_child(rain)
 	# Anything else the map has (e.g. its key-door markers) goes straight under the raid.
 	for child in map.get_children():
 		if not SLOTS.has(String(child.name)) and child.name != ENEMY_SPAWNS:

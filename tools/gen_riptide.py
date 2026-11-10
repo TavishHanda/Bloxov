@@ -1164,6 +1164,8 @@ def write_scene():
             'metadata/map_name = "Riptide"',
             spawner_meta(),
             'metadata/raid = {"raid_time": 900.0}',
+            'metadata/look = "res://assets/looks/storm.tres"',
+            'metadata/rain = true',
             minimap_meta(),
             "",
             '[node name="Level" type="Node3D" parent="."]', "",

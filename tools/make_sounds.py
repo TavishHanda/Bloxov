@@ -1388,10 +1388,28 @@ def power_on():
     return out
 
 
+def rain():
+    """Steady rain on steel and water (0.33.5, Riptide's storm): a 4 s loop of hiss with a low wash under it."""
+    n = length(4.0)
+    hiss = noise(n, 0.15)
+    wash = noise(n, 0.93)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        swell = 0.85 + 0.15 * math.sin(2 * math.pi * t / 4.0)
+        out.append((hiss[i] * 0.55 + wash[i] * 2.2) * swell)
+    fade = length(0.25)   # the end runs into the start, so the loop has no click
+    for i in range(fade):
+        k = i / fade
+        out[i] = out[i] * k + out[n - fade + i] * (1 - k)
+    return out[:n - fade]
+
+
 def main_riptide():
     (OUT / "world").mkdir(exist_ok=True)
     write("world/alarm.wav", alarm())
     write("world/power_on.wav", power_on())
+    write("ambience/rain.wav", rain())
 
 
 if __name__ == "__main__":

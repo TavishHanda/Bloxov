@@ -5605,6 +5605,18 @@ func _section_riptide() -> void:
 		sub.set_open(false)
 		power.use(Vector3.ZERO)
 		_check(sub.is_open and power.used and power.prompt() == "Power on", "throwing the switch opens the sub bay")
+	# The storm (0.33.5): the map names its look and asks for rain; rain is looks only, so never on a headless run
+	var storm_map := (load(MAP) as PackedScene).instantiate()
+	var storm := load(String(storm_map.get_meta("look", ""))) as Look
+	_check(storm != null and storm.title == "Storm" and storm_map.get_meta("rain", false), "Riptide has its storm look and rain")
+	storm_map.free()
+	_check(world.raid.get_node_or_null("Rain") == null, "no rain on a headless raid (the server)")
+	var rain := Rain.new()
+	root.add_child(rain)
+	await physics_frame
+	_check(rain.get_child_count() == 2 and (rain.get_child(1) as AudioStreamPlayer).playing, "the rain falls and is heard")
+	rain.free()
+	_check((load(Look.current) as Look).title != "Storm", "Frontlines keeps its own look")
 	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
 	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
 	root.add_child(zero)

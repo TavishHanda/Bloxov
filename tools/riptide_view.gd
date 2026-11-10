@@ -49,6 +49,8 @@ func _run() -> void:
 	var hud := main.get_node_or_null("HUD")
 	if hud != null:
 		hud.visible = false
+		hud.process_mode = Node.PROCESS_MODE_DISABLED   # (it pauses the raid with nobody at the keys; the rain needs time to run)
+		paused = false
 		for c in hud.get_children():
 			if c is CanvasItem: c.visible = false
 			if c is CanvasLayer: c.visible = false
@@ -74,6 +76,8 @@ func _run() -> void:
 		cam.global_position = at
 		cam.look_at(target)
 		for i in 8: await process_frame
+		if main.get_node_or_null("Rain") != null: await create_timer(1.2).timeout   # (time for the rain to fall into view)
 		root.get_viewport().get_texture().get_image().save_png("%s-%s.png" % [out, view])
-		print("saved ", view)
+		var rain := main.get_node_or_null("Rain")
+		print("saved ", view, "" if rain == null else "  (rain %s)" % ("falling" if rain.get_child(0).emitting else "stopped: under cover"))
 	quit()

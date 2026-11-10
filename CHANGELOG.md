@@ -67,6 +67,13 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.5 (Riptide: the storm, on the branch)
+- **Riptide is stormy** (owner OK'd): its own look, `assets/looks/storm.tres` (dark overcast sky, a weak cold sun,
+  sea haze), picked by the map's `look` metadata; Frontlines keeps late afternoon. **Rain** (`scripts/rain.gd`, the
+  map's `rain` metadata): streaks round the camera that stop under a roof, and a rain loop that drops low indoors
+  (new sound, only added: `ambience/rain.wav`). Looks and sound only: never on the server, and the AI sees and
+  hears as before.
+
 ## 0.33.4 (Riptide: Zero and his loot, on the branch)
 - **Zero is his own boss** (`scenes/boss_zero.tscn`, on Bon's scene; a map's `boss` can name its `scene`). He fights
   like Bon (the AI is locked in) but carries the **Reaper** and wears **Assault Armor** and an **Assault Helmet**,

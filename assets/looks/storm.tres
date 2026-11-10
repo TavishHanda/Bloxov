@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="Look" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/look.gd" id="1_1nlvu"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_storm"]
+sky_top_color = Color(0.2, 0.23, 0.27, 1)
+sky_horizon_color = Color(0.42, 0.46, 0.5, 1)
+ground_bottom_color = Color(0.12, 0.14, 0.16, 1)
+ground_horizon_color = Color(0.42, 0.46, 0.5, 1)
+
+[sub_resource type="Sky" id="Sky_storm"]
+sky_material = SubResource("ProceduralSkyMaterial_storm")
+
+[sub_resource type="Environment" id="Environment_storm"]
+background_mode = 2
+sky = SubResource("Sky_storm")
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.62, 0.72, 1)
+ambient_light_energy = 0.95
+tonemap_mode = 2
+tonemap_white = 6.0
+fog_enabled = true
+fog_light_color = Color(0.42, 0.47, 0.52, 1)
+fog_sun_scatter = 0.05
+fog_density = 0.0035
+fog_sky_affect = 0.6
+adjustment_enabled = true
+adjustment_contrast = 1.08
+adjustment_saturation = 0.72
+
+[resource]
+script = ExtResource("1_1nlvu")
+title = "Storm"
+environment = SubResource("Environment_storm")
+sun_transform = Transform3D(0.9961947, -0.035449352, 0.079620555, 0, 0.9135454, 0.40673664, -0.08715554, -0.4051889, 0.91006917, 0, 20, 0)
+sun_color = Color(0.72, 0.8, 0.9, 1)
+sun_energy = 0.7
+cloud_color = Color(0.3, 0.33, 0.37, 1)
