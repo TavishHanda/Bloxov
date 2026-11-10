@@ -276,10 +276,18 @@ def block(x0, z0, cols, rows, heights, k=0):
             container(x0 + 3.0 + 6.0 * i, SHORE, z0 + 1.2 + 2.4 * j, "x", cols_c[n % 3], heights[n % len(heights)])
 
 
+WATER_LADDERS_QUAY = (-86.0, -40.0, 22.0, 70.0, 150.0)
+
+
 def quay():
     # the quay wall, its low parapet (gaps where the ways across start), the map's edges
     box(-30.0, -10.0, -HALF, QUAY, SHORE, HALF, "concrete")
     gaps = [(-124.0, 12.0), (2.6, 10.0), (39.0, 3.0), (121.0, 6.0), (163.0, 14.0)]
+    gaps += [(z, 2.0) for z in WATER_LADDERS_QUAY]      # (0.33.6) the ladders up out of the sea
+    # the sea's edge (0.33.6, swimming): a low sea wall round the far water, so nobody swims off the map
+    box(HALF - 0.6, -4.0, -HALF, HALF, 3.0, HALF, "rock")
+    for z0, z1 in ((-HALF, -HALF + 0.6), (HALF - 0.6, HALF)):
+        box(QUAY, -4.0, z0, HALF, 3.0, z1, "rock")
     wall("z", -29.7, -HALF, HALF, SHORE, 0.9, "concrete", [(c, w, 0.0, 0.9) for c, w in gaps], t=0.6)
     wall("z", -HALF + 0.5, -HALF, HALF, SHORE, 3.0, "concrete", t=0.6)
     for z in (-HALF + 0.5, HALF - 0.5):
@@ -610,6 +618,25 @@ GALLERY = 14.0      # the grain gallery's floor
 LOADER = (21.5, 42.0)   # the ship loader's stairwell (x0, z0), against the ship's west side
 
 
+WL = -1.6           # the foot of a ladder that reaches down into the sea (a swimmer's feet float at -1.3)
+
+
+def water_ladders():
+    """The ways out of the sea (0.33.6, swimming): ladders down into the water on the quay, the pier, the pontoon,
+    the mole, the barges and every boat. A swimmer can only get out at one of these."""
+    for z in WATER_LADDERS_QUAY:                                     # the quay face, at the gaps in its container row
+        ladder(QUAY + 0.2, WL, z, 90, SHORE - WL, "Water")
+    ladder(9.0, WL, -2.2, 180, PIER - WL, "Water")                   # the pier's north edge
+    ladder(-12.0, WL, 37.3, 180, 0.8 - WL, "Water")                  # the pontoon
+    ladder(2.0, WL, -117.8, 0, SHORE - WL, "Water")                  # the mole's south face
+    for x in (-17.0, 0.0, 46.0):                                     # the barges' south sides
+        ladder(x, WL, 126.2, 0, BARGE - WL, "Water")
+    ladder(SX1 + 9.2, WL, -88.0, 90, BOAT - WL, "Water")             # the launch and the tug (sea side)
+    ladder(SX1 + 11.2, WL, 45.0, 90, BOAT - WL, "Water")
+    ladder(60.0, WL, SZ1 + 6.2, 0, 0.8 - WL, "Water")                # the stern dinghy
+    ladder(68.2, WL, -125.0, 90, SHORE - WL, "Water")                # the pilot cutter
+
+
 def crossings():
     # The pier (middle): a shed over the first stretch, then staggered containers; the roofed pipe gallery beside
     px0, px1 = QUAY + 6.0, SX0
@@ -712,6 +739,8 @@ def crossings():
     player_spawns.append((SX1 + 5.0, BOAT, -92.0))
     player_spawns.append((SX1 + 7.0, BOAT, 44.0))
     labels.append(("TUG", SX1 + 10, 50, 0))
+
+    water_ladders()
 
     # The stern ladder down to a dinghy (an extract)
     box(57.0, 0.2, SZ1 + 0.4, 63.0, 0.8, SZ1 + 6.0, "wood")
@@ -1135,6 +1164,10 @@ def sea_planes():
               (QUAY, SZ0 - 0.3, SX0 - 0.3, SZ1 + 0.3), (SX1 + 0.3, SZ0 - 0.3, HALF, SZ1 + 0.3)]
     out = []
     for i, (x0, z0, x1, z1) in enumerate(pieces):
+        # the water you swim in under this piece (0.33.6): down to the sea bed
+        out += [f'[node name="Swim{i}" type="Area3D" parent="Level"]',
+                f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt((x0 + x1) / 2)}, 0, {fmt((z0 + z1) / 2)})",
+                'script = ExtResource("10_swim")', f"size = Vector3({fmt(x1 - x0)}, {fmt(-SEABED + 1.0)}, {fmt(z1 - z0)})", ""]
         out += [f'[node name="Sea{i}" type="MeshInstance3D" parent="Level"]',
                 f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt((x0 + x1) / 2)}, 0, {fmt((z0 + z1) / 2)})",
                 f'mesh = SubResource("sea_{i}")', 'material_override = SubResource("sea_mat")', "cast_shadow = 0", ""]
@@ -1153,7 +1186,8 @@ def write_scene():
     out = ["[gd_scene format=3]", "",
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
            '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]',
-           '[ext_resource type="Script" path="res://scripts/map_switch.gd" id="9_switch"]']
+           '[ext_resource type="Script" path="res://scripts/map_switch.gd" id="9_switch"]',
+           '[ext_resource type="Script" path="res://scripts/swim_zone.gd" id="10_swim"]']
     ids = {}
     for n, (kind, path) in enumerate(scenes.items(), start=3):
         ids[kind] = f"{n}_{kind}"

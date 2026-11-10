@@ -41,6 +41,9 @@ var _ladders: Array[Ladder] = []
 var _ladder_grab_wait := 0.0
 ## Looking further down than this (radians, about 25°), W climbs down a ladder and S up (0.20.13).
 const LADDER_LOOK_DOWN := -0.44
+## Swimming: how far under the surface your feet float (eyes just over the water), and how fast you get going.
+const SWIM_FLOAT := 1.3
+const SWIM_ACCEL := 4.0
 const HANG_OUT := 0.16
 var _climbed := 0.0
 ## Climbing speed now (eased toward the keys, m/s up) and how far we've climbed on this ladder (the bob's rhythm).
@@ -193,6 +196,51 @@ func ladder_entered(ladder: Ladder) -> void:
 ## Next to a ladder you could climb (for the new-player tips).
 func near_ladder() -> bool:
 	return not _ladders.is_empty()
+
+
+func swim_entered(zone: SwimZone) -> void:
+	_swim_zones.append(zone)
+
+
+func swim_exited(zone: SwimZone) -> void:
+	_swim_zones.erase(zone)
+
+
+## Swimming (0.33.6, Riptide; owner: "swim slowly to a ladder"). In deep water you float with your head out and
+## paddle at swim_speed: no sprint, jump, crouch or hands, and no fall damage from the drop in. Ladders that reach
+## the water are the way out (they grab as usual). True = it moved us this frame.
+func _update_swim(delta: float) -> bool:
+	var surface := -INF
+	for zone in _swim_zones:
+		if is_instance_valid(zone):
+			surface = maxf(surface, zone.surface_y())
+	# Afloat once the water is over our chest; standing in the shallows or on something in it isn't swimming.
+	var afloat := surface > -INF and global_position.y < surface - (SWIM_FLOAT - 0.25) and not (is_on_floor() and not _swimming)
+	if not afloat:
+		_swimming = false
+		return false
+	if not _swimming:
+		_swimming = true
+		set_prone(false)
+		set_crouching(false)
+		_sprinting = false
+		WorldSounds.own(self, WorldSounds.LAND, clampf(-14.0 + _fall_speed, -14.0, -2.0))
+	_fall_speed = 0.0
+	_last_floor_y = global_position.y
+	# Bob up (or sink, after a plunge) to floating height, eased.
+	var rise := clampf((surface - SWIM_FLOAT - global_position.y) * 5.0, -2.0, 3.0)
+	velocity.y = lerpf(velocity.y, rise, clampf(delta * 6.0, 0.0, 1.0))
+	var input_dir := Vector2.ZERO
+	if takes_input():
+		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	_move_input = input_dir
+	var target := (global_basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized() * swim_speed if input_dir != Vector2.ZERO else Vector3.ZERO
+	var horizontal := Vector3(velocity.x, 0.0, velocity.z).move_toward(target, SWIM_ACCEL * delta)
+	velocity.x = horizontal.x
+	velocity.z = horizontal.z
+	move_and_slide()
+	_was_on_floor = false
+	return true
 
 
 func ladder_exited(ladder: Ladder) -> void:

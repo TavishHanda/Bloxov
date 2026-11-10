@@ -440,6 +440,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if _update_climb(delta):
 		return
+	if _update_swim(delta):
+		return
 	_step_hold_left -= delta
 	var on_floor := is_on_floor() or _step_hold_left > 0.0
 	if not on_floor:

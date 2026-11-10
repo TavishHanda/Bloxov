@@ -67,6 +67,16 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.6 (Riptide: swimming, on the branch)
+- **You can swim** (owner: "swim slowly to a ladder"). Riptide's sea is deep water (`scripts/swim_zone.gd`,
+  `Player._update_swim`): fall or jump in and you float with your head out and paddle at 1.6 m/s (walking is 3.1).
+  No sprint, jump, crouch, gun, meds or looting while you swim, and the drop into the water doesn't hurt. Players
+  only: the AI never goes in, but it sees and shoots swimmers as usual.
+- **15 ladders out of the sea** (place `Water`): five up the quay (gaps cut in its parapet), the pier, the pontoon,
+  the mole, three on the barges, the launch, the tug, the stern dinghy and the pilot cutter. A low sea wall rings
+  the far water so nobody swims off the map. `tools/riptide_swim.gd` swims to every ladder and climbs out.
+- Touch: nothing new to press (the stick swims, walking into a ladder grabs it).
+
 ## 0.33.5 (Riptide: the storm, on the branch)
 - **Riptide is stormy** (owner OK'd): its own look, `assets/looks/storm.tres` (dark overcast sky, a weak cold sun,
   sea haze), picked by the map's `look` metadata; Frontlines keeps late afternoon. **Rain** (`scripts/rain.gd`, the

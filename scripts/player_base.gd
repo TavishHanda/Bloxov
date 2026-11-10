@@ -57,6 +57,8 @@ extends CharacterBody3D
 @export_group("Crouch")
 ## C toggles crouch. Slower, quieter, smaller, steadier aim.
 @export var crouch_speed := 2.2
+## Paddling in deep water (0.33.6, owner: slow).
+@export var swim_speed := 1.6
 ## Wading through water (the creek, 0.11.20; owner): this fraction of the speed, and no sprinting.
 @export var wade_multiplier := 0.6
 ## Pushing through a bush (0.18.3, owner: every bush walk-through, but slower): this fraction of the speed.
@@ -163,6 +165,9 @@ var lean := 0.0
 ## While vaulting: the path (start, over the top, end), time into it and how long it takes; empty = not vaulting.
 var _vault_path := PackedVector3Array()
 var _climbing: Ladder = null
+## The deep water we're in (SwimZone, 0.33.6) and whether we're swimming in it now.
+var _swim_zones: Array[SwimZone] = []
+var _swimming := false
 
 
 func controls_locked() -> bool:
@@ -182,7 +187,7 @@ func out_of_fight() -> bool:
 ## Free to shoot, swing, heal or loot: not dead/out, downed, healing or reviving someone.
 func hands_free() -> bool:
 	return (not out_of_fight() and not camera_away and not is_healing() and not interactor.is_reviving() and not is_vaulting()
-		and not is_climbing())
+		and not is_climbing() and not is_swimming())
 
 
 ## Online: is a teammate up (alive, not downed, still in the raid) who could revive us?
@@ -235,6 +240,11 @@ func horizontal_speed() -> float:
 
 func is_climbing() -> bool:
 	return _climbing != null
+
+
+## Afloat in deep water (SwimZone): no hands for anything until you're up a ladder.
+func is_swimming() -> bool:
+	return _swimming
 
 
 func is_vaulting() -> bool:

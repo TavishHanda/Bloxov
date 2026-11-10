@@ -5617,6 +5617,22 @@ func _section_riptide() -> void:
 	_check(rain.get_child_count() == 2 and (rain.get_child(1) as AudioStreamPlayer).playing, "the rain falls and is heard")
 	rain.free()
 	_check((load(Look.current) as Look).title != "Storm", "Frontlines keeps its own look")
+	# Swimming (0.33.6): the sea is deep water with ladders down into it (tools/riptide_swim.gd swims to each one)
+	var swim_zones := world.raid.find_children("Swim*", "Area3D", true, false).filter(func(n: Node) -> bool: return n is SwimZone)
+	var water_ladders := world.raid.find_children("Ladder*", "Area3D", true, false).filter(func(n: Node) -> bool:
+		return String(n.get_meta("place", "")) == "Water")
+	_check(swim_zones.size() == 4 and water_ladders.size() >= 12 and water_ladders.all(func(l: Ladder) -> bool:
+		return l.global_position.y < -1.3 and l.top_y() > 0.5), "the sea is swimmable and has ladders out of it all round")
+	var swimmer := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
+	world.raid.add_child(swimmer)
+	swimmer.global_position = Vector3(0, 0.5, 80)   # open water between the quay and the ship
+	for i in 200: await physics_frame
+	_check(swimmer.is_swimming() and absf(swimmer.global_position.y + Player.SWIM_FLOAT) < 0.1 and not swimmer.hands_free()
+		and swimmer.health.current == swimmer.health.max_health, "in the sea you float with your head out, hands busy, unhurt by the drop")
+	swimmer.global_position = Vector3(-100, 2.7, 0)
+	for i in 30: await physics_frame
+	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
+	swimmer.free()
 	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
 	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
 	root.add_child(zero)
