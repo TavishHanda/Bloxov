@@ -14,6 +14,8 @@ the .glb sits on the gun model's origin:
   <gun>_R   the right hand on the gun's grip        <gun>_L   the left hand (on the fore-end; on the pistol, round
                                                                the right hand)
   Each hand's origin is its wrist, where the forearm joins.
+  climb_R, climb_L  the hands gripping a ladder rung (0.32.1, scripts/climb_hands.gd): the rung runs along x
+              through (0, 0.06, -0.05) from the wrist, the ladder is toward -z.
   ArmR, ArmL  the forearms, origin at the wrist, running along -z (scripts/gun_view_models.gd puts them on the wrists
               and points them at the elbows, below the camera, every frame).
 """
@@ -76,7 +78,7 @@ GUNS = {
     "mauler": {"grip": (0.056, 0.075, -75, 0.038), "fore": (0.068, 0.058)},
     "lancer": {"grip": (0.06, 0.07, -70, 0.022), "fore": (0.064, 0.04)},
 }
-F = 0.017   # finger thickness
+F = 0.022   # finger thickness (0.017 until 0.32.2, owner: "the hands are too skinny")
 
 
 class Hand:
@@ -110,15 +112,15 @@ def right_hand(m, gun, look):
     wrist = h.to_gun(wrist_local)
     m.part(f"{gun}_R", wrist)
     g, t = h.glove(), h.tips()
-    h.box((w / 2 + 0.011, 0.0, 0.004), (0.022, 0.07, d + 0.02), g)                    # back of the hand
-    h.box((0.004, -0.004, d / 2 + 0.009), (w * 0.9, 0.064, 0.018), g)                  # heel of the hand behind
-    h.box((w / 2 + 0.008, -0.03, d / 2 + 0.012), (0.03, 0.026, 0.03), g)               # wrist
+    h.box((w / 2 + 0.015, 0.0, 0.004), (0.03, 0.078, d + 0.026), g)                   # back of the hand
+    h.box((0.004, -0.004, d / 2 + 0.012), (w * 0.95, 0.072, 0.024), g)                 # heel of the hand behind
+    h.box((w / 2 + 0.01, -0.03, d / 2 + 0.014), (0.038, 0.034, 0.038), g)              # wrist
     for k, y in enumerate((0.019, 0.0, -0.019)):                                       # middle, ring, little finger
         size = F if k < 2 else F * 0.85
         h.box((0.003, y, -(d / 2 + size / 2)), (w + 0.028, size, size), g)
         h.box((-(w / 2 + size / 2), y, -d / 2 + 0.012), (size, size, 0.026), t)
-    h.box((w / 2 + 0.006, 0.042, -d / 2 - 0.01), (0.014, 0.015, 0.04), t)              # trigger finger on the frame
-    h.box((-(w / 2 + 0.008), 0.034, -0.002), (0.016, 0.016, d * 0.75), t)              # thumb over the left side
+    h.box((w / 2 + 0.008, 0.042, -d / 2 - 0.01), (0.019, 0.02, 0.042), t)              # trigger finger on the frame
+    h.box((-(w / 2 + 0.011), 0.034, -0.002), (0.022, 0.022, d * 0.75), t)              # thumb over the left side
     if LOOKS[look]["pads"]:
         h.box((w / 2 + 0.024, 0.0, -d / 2 + 0.004), (0.006, 0.062, 0.016), LOOKS[look]["pads"])
 
@@ -133,17 +135,17 @@ def left_hand(m, gun, look):
     g, t = h.glove(), h.tips()
     wd, ht = fore
     m.part(f"{gun}_L", h.to_gun((-wd / 2 - 0.006, -0.026, 0.03)))
-    h.box((0.0, -0.011, 0.0), (wd * 0.95, 0.022, 0.08), g)                             # palm
-    h.box((-(wd / 2 + 0.009), ht * 0.3, 0.004), (0.018, ht * 0.6 + 0.02, 0.072), g)     # up the left side
-    h.box((-wd / 2 - 0.004, -0.018, 0.03), (0.03, 0.03, 0.04), g)                      # heel and wrist
+    h.box((0.0, -0.015, 0.0), (wd * 0.98, 0.03, 0.088), g)                             # palm
+    h.box((-(wd / 2 + 0.012), ht * 0.3, 0.004), (0.024, ht * 0.6 + 0.024, 0.08), g)    # up the left side
+    h.box((-wd / 2 - 0.005, -0.02, 0.03), (0.038, 0.038, 0.046), g)                    # heel and wrist
     reach = min(ht * 0.75, 0.045)
     for k in range(4):                                                                 # fingers up the right side
         z = -0.028 + k * 0.018
         size = F if k < 3 else F * 0.85
         h.box((wd / 2 + size / 2, reach / 2 - 0.012, z), (size, reach + 0.012, size), t if k == 0 else g)
         h.box((wd / 2 + size / 2, reach - 0.004, z), (size, 0.012, size), t)
-    h.box((-(wd / 2 + 0.006), ht * 0.6 + 0.012, -0.008), (0.016, 0.016, 0.03), g)      # thumb base
-    h.box((-(wd / 2 - 0.004), ht + 0.004, -0.03), (0.016, 0.014, 0.036), t)            # thumb over the top
+    h.box((-(wd / 2 + 0.008), ht * 0.6 + 0.014, -0.008), (0.022, 0.022, 0.032), g)     # thumb base
+    h.box((-(wd / 2 - 0.004), ht + 0.007, -0.03), (0.022, 0.02, 0.038), t)             # thumb over the top
     if LOOKS[look]["pads"]:
         h.box((wd / 2 + F + 0.003, reach * 0.4, -0.001), (0.006, 0.02, 0.07), LOOKS[look]["pads"])
 
@@ -154,28 +156,48 @@ def support_hand(m, gun, look):
     h = Hand(m, f"{gun}_L", m.marks["Grip"], lean, look)
     m.part(f"{gun}_L", h.to_gun((-(w / 2 + 0.03), -0.03, 0.01)))
     g, t = h.glove(), h.tips()
-    h.box((-(w / 2 + 0.028), -0.004, -0.002), (0.02, 0.068, d + 0.01), g)              # palm on the left
+    h.box((-(w / 2 + 0.032), -0.004, -0.002), (0.028, 0.076, d + 0.016), g)            # palm on the left
     for k, y in enumerate((0.012, -0.006, -0.024)):
         h.box((-0.006, y, -(d / 2 + F + F / 2)), (w + 0.064, F, F), g)                 # fingers over the right hand's
         h.box((w / 2 + 0.03, y, -(d / 2 + 0.006)), (F, F, 0.022), t)
-    h.box((-(w / 2 + 0.02), 0.04, -0.02), (0.015, 0.015, 0.05), t)                     # thumb forward
-    h.box((-(w / 2 + 0.026), -0.034, 0.008), (0.03, 0.026, 0.03), g)                   # wrist
+    h.box((-(w / 2 + 0.022), 0.042, -0.02), (0.021, 0.021, 0.052), t)                  # thumb forward
+    h.box((-(w / 2 + 0.028), -0.034, 0.008), (0.038, 0.034, 0.038), g)                 # wrist
+
+
+def climb_hand(m, look, left):
+    """Round a ladder rung (0.32.1): the rung along x through the model's origin, the climber on the +z side. The back
+    of the hand faces you, the fingers curl over the top and down the far side, the thumb comes under from the inside."""
+    name = "climb_L" if left else "climb_R"
+    L = LOOKS[look]
+    g, t = L["glove"], L["tips"]
+    side = -1.0 if left else 1.0
+    m.part(name, (0.0, -0.06, 0.05))                                                   # the wrist
+    m.box((0.0, -0.005, 0.046), (0.095, 0.082, 0.032), g, part=name)                   # back of the hand
+    m.box((0.0, -0.05, 0.052), (0.068, 0.044, 0.048), g, part=name)                    # wrist
+    for k, x in enumerate((-0.034, -0.011, 0.012, 0.034)):
+        size = F if k < 3 else F * 0.85
+        x *= side
+        m.box((x, 0.034, 0.004), (size, size, 0.07), g, part=name)                     # finger over the top
+        m.box((x, 0.006, -0.034), (size, 0.05, size), t, part=name)                    # and down the far side
+    m.box((-side * 0.05, -0.026, 0.004), (0.022, 0.022, 0.062), t, part=name)          # thumb under the rung
+    if L["pads"]:
+        m.box((0.0, 0.018, 0.057), (0.07, 0.02, 0.006), L["pads"], part=name)
 
 
 def arm(m, name, look, left):
     """A forearm along -z from the wrist: the glove's cuff, then the sleeve (or the bare arm and a rolled sleeve)."""
     L = LOOKS[look]
     m.part(name, (0.0, 0.0, 0.0))
-    m.box((0, 0, -0.02), (0.05, 0.048, 0.05), L["glove"], part=name)                  # glove cuff
+    m.box((0, 0, -0.02), (0.062, 0.06, 0.05), L["glove"], part=name)                  # glove cuff
     if L["rolled"]:
-        m.box((0, 0, -0.14), (0.054, 0.052, 0.2), "skin", part=name)                  # bare forearm
-        m.box((0, 0, -0.27), (0.07, 0.068, 0.07), L["sleeve"], part=name)             # rolled-up sleeve
-        m.box((0, 0, -0.42), (0.066, 0.064, 0.24), L["sleeve"], part=name)
+        m.box((0, 0, -0.14), (0.066, 0.064, 0.2), "skin", part=name)                  # bare forearm
+        m.box((0, 0, -0.27), (0.084, 0.082, 0.07), L["sleeve"], part=name)             # rolled-up sleeve
+        m.box((0, 0, -0.42), (0.08, 0.078, 0.24), L["sleeve"], part=name)
         if left and L["watch"]:
             m.box((0, 0, -0.06), (0.058, 0.056, 0.02), "watch", part=name)
     else:
-        m.box((0, 0, -0.065), (0.064, 0.062, 0.05), L["sleeve"], part=name)           # sleeve end, a bit wider
-        m.box((0, 0, -0.3), (0.06, 0.058, 0.42), L["sleeve"], part=name)
+        m.box((0, 0, -0.065), (0.078, 0.076, 0.05), L["sleeve"], part=name)           # sleeve end, a bit wider
+        m.box((0, 0, -0.3), (0.074, 0.072, 0.42), L["sleeve"], part=name)
 
 
 def build(look):
@@ -188,6 +210,8 @@ def build(look):
         right_hand(m, gun, look)
         left_hand(m, gun, look)
     m.marks = {}
+    climb_hand(m, look, False)
+    climb_hand(m, look, True)
     arm(m, "ArmR", look, False)
     arm(m, "ArmL", look, True)
     return m

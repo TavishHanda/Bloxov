@@ -781,6 +781,7 @@ func _section_fall() -> void:
 
 
 ## Ladders (0.13.5): W up onto a 4 m platform, then back off the edge, caught by the ladder, S down: no fall damage.
+## 0.32.1: no grabbing by accident, interact grabs (also at the top), sprint slides, hands on the rungs.
 func _section_ladder() -> void:
 	var spot := Vector3(30, 0, 30)
 	var block := StaticBody3D.new()
@@ -860,6 +861,88 @@ func _section_ladder() -> void:
 		"looking down, W walks off the top onto the ladder and down it (y %.2f, hp %d -> %d)" % [
 		player.global_position.y, hp, player.health.current])
 	player.head.rotation.x = 0.0
+	# 0.32.1 (owner: "ladder mechanics are ass"): walking past at an angle or falling past doesn't grab you.
+	player.teleport_to(spot + Vector3(-1.5, 0.1, 0.5))
+	player.rotation.y = -PI / 2.0   # facing +X, along the wall, through the ladder's reach
+	await create_timer(0.2).timeout
+	Input.action_press("move_forward")
+	var grabbed_by := false
+	for i in 60:
+		await physics_frame
+		grabbed_by = grabbed_by or player.is_climbing()
+	Input.action_release("move_forward")
+	player.teleport_to(spot + Vector3(0, 3.0, 0.45))
+	player.rotation.y = 0.0
+	for i in 60:
+		await physics_frame
+		grabbed_by = grabbed_by or player.is_climbing()
+	_check(not grabbed_by, "walking past a ladder along the wall, or falling past it, doesn't grab you")
+	# Interact grabs it, and the hands come up onto the rungs.
+	player.teleport_to(spot + Vector3(0.2, 0.1, 1.0))
+	player.rotation.y = 0.4
+	await create_timer(0.3).timeout
+	Input.action_press("interact")
+	await physics_frame
+	await physics_frame
+	Input.action_release("interact")
+	var on_it := player.is_climbing()
+	Input.action_press("move_forward")
+	for i in 30:
+		await physics_frame
+	var hands := player.camera.find_children("*", "ClimbHands", false, false)
+	var hands_up := not hands.is_empty() and (hands[0] as Node3D).visible
+	_check(on_it and player.global_position.y > 0.5 and hands_up and not player.hands_free(),
+		"interact grabs a ladder, hands on the rungs, gun away (y %.2f, hands %s)" % [player.global_position.y, hands_up])
+	# Sprint slides down, much quicker than climbing.
+	for i in 60 * 2:
+		await physics_frame
+		if player.global_position.y > 2.5:
+			break
+	Input.action_release("move_forward")
+	var from_y := player.global_position.y
+	Input.action_press("move_back")
+	Input.action_press("sprint")
+	for i in 30:
+		await physics_frame
+	var slid := from_y - player.global_position.y
+	Input.action_release("sprint")
+	Input.action_release("move_back")
+	_check(slid > player.climb_speed * 0.5 * 1.2 and player.health.current == hp,
+		"sprint slides down a ladder (%.2f m in half a second)" % slid)
+	# Space with A/D lets go off to the side.
+	player.teleport_to(spot + Vector3(0, 0.1, 1.0))
+	player.rotation.y = 0.0
+	await create_timer(0.2).timeout
+	Input.action_press("move_forward")
+	for i in 40:
+		await physics_frame
+	Input.action_release("move_forward")
+	Input.action_press("move_right")
+	Input.action_press("jump")
+	await physics_frame
+	await physics_frame
+	Input.action_release("jump")
+	for i in 20:
+		await physics_frame
+	Input.action_release("move_right")
+	_check(not player.is_climbing() and player.global_position.x > spot.x + 0.3,
+		"Space with D lets go off to the side (x %.2f)" % (player.global_position.x - spot.x))
+	await create_timer(1.0).timeout
+	# At the top, interact swings you round onto the ladder, facing it.
+	player.teleport_to(spot + Vector3(0.1, 4.1, -0.5))
+	player.rotation.y = 2.0
+	await create_timer(0.3).timeout
+	Input.action_press("interact")
+	await physics_frame
+	await physics_frame
+	Input.action_release("interact")
+	for i in 45:
+		await physics_frame
+	_check(player.is_climbing() and player.global_position.y < 3.2 and player.global_position.z > spot.z
+		and absf(angle_difference(player.rotation.y, 0.0)) < 0.1,
+		"at the top, interact swings you onto the ladder facing it (y %.2f, z %.2f, yaw %.2f)" % [
+		player.global_position.y, player.global_position.z - spot.z, player.rotation.y])
+	player.teleport_to(spot + Vector3(0, 0.1, 3.0))
 	ladder.queue_free()
 	block.queue_free()
 	await physics_frame
@@ -2867,10 +2950,27 @@ func _section_hideout_world() -> void:
 	var crew_seat := crew_level.get_node("Seats/Seat0") as Node3D
 	walker.global_position = crew_seat.global_position + crew_seat.global_basis.z * 0.4 - Vector3.UP * 0.4
 	walker.rotation.y = crew_seat.global_rotation.y
-	_check(crew_ids.size() == 11 and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
+	_check(crew_ids.size() == 13 and crew_ids.has("roam_a") and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
 		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
 		and not hcrew.find_children("*", "CollisionObject3D", true, false),
 		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
+	# Two of them walk round (0.34.1): one gets from the war table to the den (the secret room) over the walkable area,
+	# and after a while of the clock running they've moved.
+	await physics_frame
+	await physics_frame
+	var roamer: Dictionary = hcrew.members.filter(func(m: Dictionary) -> bool: return m["id"] == "roam_a")[0]
+	var roam_model: Node3D = roamer["model"]
+	var roam_start := roam_model.position
+	var den_spot: Vector3 = hcrew.hangouts.filter(func(h: Array) -> bool: return h[1] == "den")[0][0]
+	var den_path := hcrew.route(hcrew.hangouts.filter(func(h: Array) -> bool: return h[1] == "war_table")[0][0], den_spot)
+	var unreachable := hcrew.hangouts.filter(func(h: Array) -> bool:
+		var r := hcrew.route(den_spot, h[0])
+		return r.size() < 2 or r[r.size() - 1].distance_to(h[0]) > 1.5).map(func(h: Array) -> String: return h[1])
+	for i in 300:
+		hcrew._process(0.2)
+	var roam_moved := roam_model.position.distance_to(roam_start)
+	_check(den_path.size() > 2 and den_path[den_path.size() - 1].distance_to(den_spot) < 1.5 and roam_moved > 3.0 and unreachable.is_empty(),
+		"two of the crew walk round: the war table to the den is walkable (%d points), one's moved %.1f m in a minute (ends %.2f m off; can't reach %s)" % [den_path.size(), roam_moved, den_path[den_path.size() - 1].distance_to(den_spot) if den_path.size() > 0 else -1.0, unreachable])
 	hcrew.queue_free()
 	# The cat (lively hideout): none on a headless run; shown, it starts by the stove, walks round without leaving the
 	# floor or going through walls, comes to USE when you're by it and facing it, purrs when petted, and never collides.

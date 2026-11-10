@@ -17,6 +17,7 @@ const SCENES := {
 	"hit": [Vector3(-4.0, 1.4, 0.0), 6, 0.04, "ak"],
 	"stand_up": [Vector3(-3.0, 1.2, -3.0), 6, 0.12, "ak"],
 	"turn": [Vector3(-2.6, 1.6, -3.4), 6, 0.1, "ak"],
+	"climb": [Vector3(-2.6, 0.4, 1.6), 4, 0.15, "ak"],
 }
 
 
@@ -78,6 +79,12 @@ func _initialize() -> void:
 		if not only.is_empty() and not scene_name in only:
 			continue
 		var spec: Array = SCENES[scene_name]
+		var ladder: Ladder = null
+		if scene_name == "climb":   # (0.32.1: a ladder to climb, its climbing side toward +Z)
+			ladder = (load("res://scenes/ladder.tscn") as PackedScene).instantiate()
+			ladder.height = 6.0
+			world.add_child(ladder)
+			ladder.position = Vector3(0, 0, -0.44)
 		var body: RemotePlayer = (load("res://scenes/remote_player.tscn") as PackedScene).instantiate()
 		body.set_process(false)
 		world.add_child(body)
@@ -112,6 +119,8 @@ func _initialize() -> void:
 				next_shot += every
 				var at: Vector3 = (body.global_position if scene_name in ["walk", "sprint", "crouch_walk", "crawl"] else Vector3.ZERO)
 				var look := Vector3(at.x, 0, at.z) + target
+				if scene_name == "climb":
+					look = body.global_position + target
 				cam.look_at_from_position(look + spec[0], look)
 				if boxes:
 					_boxes(body)
@@ -128,6 +137,8 @@ func _initialize() -> void:
 			sheet.blit_rect(frames[i], Rect2i(0, 0, W, 400), Vector2i(i * W, 0))
 		sheet.save_png("%s-%s.png" % [out, scene_name])
 		body.queue_free()
+		if ladder != null:
+			ladder.queue_free()
 		await process_frame
 	quit()
 
@@ -160,6 +171,9 @@ func _state(scene_name: String, t: float, warm: float, gun: int) -> Array:
 				f |= Hitbox.FLAG_CROUCH
 		"turn":
 			yaw = maxf(t - warm, 0.0) * 3.0
+		"climb":
+			pos = Vector3(0, 0.3 + 2.4 * t, 0)
+			yaw = 0.9   # (looking off to the side: the body still faces the ladder)
 	return [pos, yaw, 0.0, 0.0, f]
 
 

@@ -59,6 +59,11 @@ var _lean := 0.0
 var _down := 0.0
 ## 0..1: how far they're lying prone, and downed.
 var _prone := 0.0
+## On a ladder (0.32.1): how far to turn the body to face it, the last height (for the climbing rhythm), and how far to
+## the next rung sound.
+var _climb_yaw := 0.0
+var _climb_y := 0.0
+var _rung_left := 0.0
 var _downed := 0.0
 var _was_downed := false
 ## Their name tag (teammates only), turned red while they're downed.
@@ -229,6 +234,18 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 	Surfaces.step(self, volume, true, 1.0, unit_size, reach)
 
 
+## The ladder they're on, if any: up off its foot, on its climbing side, in the middle (null = none).
+func _ladder_here(flags: int) -> Ladder:
+	if flags & (FLAG_DEAD | FLAG_DOWNED | FLAG_PRONE | FLAG_EXTRACTED):
+		return null
+	for node: Node in RaidScope.nodes(self, Ladder.GROUP):
+		var ladder := node as Ladder
+		var local := ladder.global_transform.affine_inverse() * global_position
+		if absf(local.x) < 0.45 and local.z > 0.2 and local.z < 0.9 and local.y > 0.2 and local.y < ladder.height - 0.15:
+			return ladder
+	return null
+
+
 func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	# Lean tips the whole body around the feet. (The model faces -Z.) Lying down, the body lies along the slope of the
 	# ground (0.25.31), as its hitboxes do here and on the server (Hitbox.ground_tilt).
@@ -246,11 +263,28 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 		tilt = Hitbox.ground_tilt(get_world_3d().direct_space_state, [global_position, rotation.y, 0.0, 0.0, on])
 	_tilt = Basis(Quaternion.IDENTITY.slerp(tilt.get_rotation_quaternion(), lying))
 	model.basis = _tilt * Basis(Vector3.BACK, -_lean * Hitbox.LEAN_ANGLE)
+	# On a ladder (0.32.1, worked out from where they are, nothing extra sent): the body faces it and climbs hand over
+	# hand, whichever way they look.
+	var ladder := _ladder_here(flags)
+	pose.climb = move_toward(pose.climb, 1.0 if ladder != null else 0.0, delta * 6.0)
+	if ladder != null:
+		var into := ladder.into()
+		_climb_yaw = angle_difference(rotation.y, atan2(-into.x, -into.z))
+		var moved := absf(global_position.y - _climb_y)
+		pose.climb_phase += moved / (Ladder.RUNG_GAP * 2.0) * PI
+		_rung_left -= moved
+		if _rung_left <= 0.0 and moved < 1.0:
+			_rung_left = Ladder.RUNG_GAP * 2.0
+			if not quiet:
+				WorldSounds.at_soft(get_parent(), WorldSounds.RUNG, global_position + Vector3.UP, -10.0, STEP_RANGE_WALK)
+	_climb_y = global_position.y
+	if pose.climb > 0.0:
+		model.basis = Basis(Vector3.UP, _climb_yaw * pose.climb) * model.basis
 	# They hold the model of the gun they have out (0.18.1), and none while unarmed.
 	var gun := flags >> Hitbox.GUN_SHIFT
 	if gun > 0 and gun < AILoadouts.NET_GUNS.size():
 		gun_model = HeldGun.show(model, AILoadouts.NET_GUNS[gun])
-	gun_model.visible = flags & FLAG_ARMED != 0 and _downed < 0.5 and _down < 0.5
+	gun_model.visible = flags & FLAG_ARMED != 0 and _downed < 0.5 and _down < 0.5 and pose.climb < 0.5
 	pose.crouch = _crouch
 	pose.prone = _prone
 	pose.downed = _downed
@@ -259,7 +293,7 @@ func _pose(pitch: float, flags: int, speed: float, delta: float) -> void:
 	pose.pitch = pitch
 	pose.aim = move_toward(pose.aim, 1.0 if flags & FLAG_AIM else 0.0, delta * 8.0)
 	pose.sprint = move_toward(pose.sprint, 1.0 if flags & FLAG_SPRINT else 0.0, delta * 6.0)
-	pose.armed = flags & FLAG_ARMED != 0
+	pose.armed = flags & FLAG_ARMED != 0 and pose.climb < 0.5
 	var tuck := 0.0
 	if pose.armed and _prone < 0.5 and _downed < 0.5 and _down < 0.5:
 		tuck = clampf((GUN_REACH - _room_ahead()) / TUCK_SPAN, 0.0, 1.0)

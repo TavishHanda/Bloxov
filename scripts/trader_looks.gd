@@ -64,6 +64,10 @@ const CREW := {
 		"Vest": "none", "Belly": "none", "Pants": "woodland", "Gloves": "none_pale", "Boots": "black"},
 	"mechanic": {"Head": "tan_beard", "Hat": "beanie", "Tash": "none", "Eyes": "goggles", "Mask": "none", "Top": "olive",
 		"Vest": "none", "Belly": "none", "Pants": "olive", "Gloves": "black", "Boots": "brown"},
+	"roam_a": {"Head": "old_tan", "Hat": "boonie", "Tash": "moustache_dark", "Eyes": "none", "Mask": "none", "Top": "woodland",
+		"Vest": "bandolier", "Belly": "none", "Pants": "olive", "Gloves": "none_tan", "Boots": "brown"},
+	"roam_b": {"Head": "pale", "Hat": "none", "Tash": "none", "Eyes": "shades", "Mask": "none", "Top": "track",
+		"Vest": "none", "Belly": "none", "Pants": "olive", "Gloves": "none_pale", "Boots": "black"},
 	"coffee": {"Head": "dark", "Hat": "cap", "Tash": "none", "Eyes": "none", "Mask": "none", "Top": "tee_olive",
 		"Vest": "shooting", "Belly": "none", "Pants": "tan", "Gloves": "none_dark", "Boots": "tan"},
 }

@@ -169,7 +169,8 @@ func button_shown(id: String) -> bool:
 	match id:
 		"use":
 			var it := player.interactor
-			return it.target != null or it.door != null or it.swing_door != null or it.revive_target != null
+			return (it.target != null or it.door != null or it.swing_door != null or it.revive_target != null
+				or player.ladder_to_grab() != null)
 		"lean_left", "lean_right":
 			return TouchInput.lean == TouchInput.Lean.ALWAYS or (TouchInput.lean == TouchInput.Lean.NEAR_COVER
 				and (_near_cover or player.is_leaning()))

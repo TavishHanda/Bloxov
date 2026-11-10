@@ -10,7 +10,7 @@ const TIPS := {
 	"start": "Find loot, then get out at an open extract (green beam). {extracts} lists them, {map} opens the map. Still here when time runs out? You lose what you brought.",
 	"search": "Hold {use} to search. {tab} opens your bag to move loot round.",
 	"hurt": "You're hit. Press {heal} to heal with a bandage or medkit (it takes a few seconds).",
-	"ladder": "Walk into a ladder to climb it.",
+	"ladder": "Walk into a ladder or press {use} to climb it. Hold {sprint} to slide down, {jump} lets go.",
 	"moves": "{jump} vaults low walls and climbs ledges. {crouch} crouches, {prone} goes prone: harder to see and hit.",
 	"extract": "Stay in the extract until its timer runs out to get out with everything you carry.",
 }
@@ -19,6 +19,7 @@ const TOUCH_TIPS := {
 	"start": "Find loot, then get out at an open extract (green beam). MAP shows them. Still here when time runs out? You lose what you brought.",
 	"search": "Hold USE to search. BAG opens your bag to move loot round.",
 	"moves": "JUMP vaults low walls and climbs ledges. CROUCH crouches, hold it to go prone: harder to see and hit.",
+	"ladder": "Walk into a ladder or tap USE to climb it. JUMP lets go.",
 	"hurt": "You're hit. Tap ITEM and pick a bandage or medkit to heal (it takes a few seconds), or tap the meds slot.",
 }
 const SHOW_TIME := 9.0

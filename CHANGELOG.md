@@ -5,7 +5,100 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
+
+## 0.34.2 (Hideout fixes)
+- **Arms the right way round** (owner: "that guy's one arm is backwards, same with all the traders"): the crew's and
+  traders' poses bent their elbows backwards. On the character models a positive elbow angle brings the forearm
+  forward; `HideoutCrew._elbows` flips the ones written the other way, and what they hold moved with their hands.
+- **Two of the crew walk round** (owner: "everyone seems to be still", "make sure the dudes can path to the secret room
+  and chill there"): they go from spot to spot (war table, workbench, range, mess, the traders' row, the den), the
+  den most often, and hang about at each: arms crossed, hands on hips or talking. They walk over the hideout's
+  walkable area, `assets/hideout/nav.res`, baked by `tools/hideout_nav_bake.gd` (re-run it after `make_hideout.py`
+  changes the cave). Everyone else glances about when you're not near, and the traders' idles are bigger.
+- **The trophy shelf has its own spot** (owner: "in the middle of nowhere", wants it "up where stash/wardrobe is"):
+  at the far end of the armory, past the workbench, against the wall.
+
+## 0.34.1 (Clean raid models)
+The scavs, raiders (Bon too) and your PMC get the clean look the hideout's traders got in 0.34.0 (owner: "looks fire").
+Looks only: the bodies and hitboxes are exactly the same.
+- Twice the pixels (32 px per metre, 256 px textures) and flat colours with only a faint mottle, so the random speckle
+  is gone and the shapes read.
+- Small real details: faces with eye whites, pupils and mouths, ears and proper haircuts; belts and buckles, drawstrings
+  on tracksuit bottoms, boot soles, toes and laces; zips, buttons, collars, cuffs, chest and sleeve patches; pouch flaps
+  and buckles on rigs and plate carriers; two-part knee pads; headset cups and a mic on helmets; a framed Altyn visor;
+  a sharper skull mask and gas mask.
+- Every outfit option keeps its name, so wardrobe looks and saved operators still work. Each part fits inside the box
+  the old one had (details sit in shallow insets): `tools/check_character_bounds.py` checks it against git, and the
+  smoke test's hitbox fit still matches. About 1,150 triangles per character at most (was ~480).
+- `tools/character_sheet.gd` renders a row of outfits for each character (before/after pictures).
+
+## 0.34.0 (Lively hideout)
+The hideout felt dead (owner: "it does feel kinda dead"); he picked all six ideas. Everything here is looks only:
+nothing collides, nothing is sent online, the server and headless runs build none of it.
+- **The war upstairs**: every 2-4 minutes a shell lands far above (owner: "rare and tied to things"). Grit trickles
+  off the roof around you, the hanging lamps swing, the lights dip and stutter and the view jolts a little
+  (`scripts/hideout_war.gd`; where the roof is comes from `assets/hideout/roof.res`, baked by
+  `tools/hideout_roof_bake.gd`: re-run it after `make_hideout.py` changes the cave).
+- **Small things, each heard only near it**: a dripping tap in the washroom, water pipes that knock, the generator's
+  fan turning with exhaust and a chug, a rat running under the washroom trough (`scripts/hideout_life.gd`).
+- **The crew**: other PMCs living there: one asleep in a bunk (snoring), a cook at the stove, two playing cards in the
+  mess, a mechanic at the generator (wrench sounds), one with a coffee by the range. They look round at you as you
+  come close (`scripts/hideout_crew.gd`).
+- **Traders behind their counters** in the owner's picked looks (Ponta: Old soldier, Big Don: Fixer, Supreme:
+  Jeweller, Ming: Showman, Medic: Old doc), each busy with something and nodding when you walk up. Traders and crew
+  use their own cleaner model, `assets/models/characters/trader.glb` (32 px a metre, flat clean colours, faces,
+  hands, belts, boots), built by `make_character.py`'s `build_trader`; designs in `scripts/trader_looks.gd`, picture
+  sheet from `tools/trader_sheet.gd`. Players', scavs' and raiders' models are unchanged.
+- **The hideout cat**: a ginger tabby that lives by the stove. It wanders the quarters, sits and washes, loafs,
+  naps by the fire and sometimes comes over to you; walk up and press USE to pet it and it purrs
+  (`scripts/hideout_cat.gd`). Name to come from the owner.
+- **The trophy shelf** beside the STATS board fills up as you play, only from what the profile already keeps: Bon's
+  mask (Big Game), a token from each trader past level 1, medals for 1/10/25/50/100 extracts, a cash pile, a jar of
+  casings for your raids, a gold wrench for a maxed workbench, folders for finished jobs. Look at one to see what
+  it's for (`scripts/hideout_trophies.gd`).
+- **Your corner** (owner picked "your corner, unlocked decor"): the bottom bunk at the end of the quarters is yours.
+  USE there to pick a poster, flag, rug, lamp, plant and blanket; the first of each is free, the rest unlock with
+  milestones (raids, extracts, money made, jobs, trader levels, killing Bon), nothing to buy. Saved with your
+  profile like your look, so the same corner in PvE and PvP (`scripts/decor.gd`, `scripts/hideout_decor.gd`,
+  `scripts/decor_picker.gd`).
+- New sounds (all added, none changed): shell_far, grit, drip1/2, pipe_knock, generator, rat, snore, wrench, purr, meow
+  (`tools/make_sounds.py` `main_lively`).
+- Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
+  `tools/hideout_decor_view.gd` take screenshots.
+
+## 0.32.3 (Pixel smoke)
+- **The smoke over Frontlines' burning wrecks looks like smoke now** (owner: "less blocky and more like smoky", then "a
+  bit too real, match the vibe of bloxov"; picked option D of four). The column was see-through cubes; each puff is now
+  a flat pixel-art puff that always faces you, lighter on top and greyer below like the blocky clouds, drawn
+  pixel-sharp and never turned so its pixels stay square. Same 80 puffs and one draw per column, but 2 triangles a
+  puff instead of 12, plus one 16 x 16 picture (`assets/textures/smoke_puff.png`, from
+  `art_source/scripts/make_smoke_puff.py`). Its shader is in the title screen's warm-up list. Embers and glow unchanged.
+- `tools/smoke_view.gd` takes screenshots of a column (close, across town, from underneath).
+
+## 0.32.2 (Fuller hands)
+- **First-person hands are a bit fatter** (owner: "the hands in the first person model are too skinny"): thicker
+  fingers (22 mm, were 17), palms, thumbs and wrists, and forearms and sleeves about a fifth wider. On every gun and
+  on ladders (`make_hands.py`, `hands.glb`).
+
+## 0.32.1 (Ladders, reworked)
+- **Ladders got an overhaul** (owner: "ladder mechanics are ass and need to be overhauled"; the top was weird, they
+  grabbed you when you didn't want them, a bit slow, felt dead). On Frontlines' ladders (the barn loft, the woods
+  cabin) and every one to come (Riptide).
+- **Getting on:** walk straight into one, or press E (your interact key) next to it (a **CLIMB** prompt shows; on phones the USE
+  button). At the top, press it anywhere within a meter of the edge, or walk off the edge over the ladder, and
+  you're swung round onto it facing it in one smooth move (it used to mean turning round, looking down and walking
+  off). Walking past one at an angle, or falling or jumping past one, no longer snaps you onto it.
+- **Getting off at the top:** one smooth climb up and over onto the floor, like a vault (it used to shove you).
+  At the bottom you step off. Space lets go, pushed back off it, or off to the side holding A or D.
+- **Climbing:** a little quicker, **2.8 m/s** (was 2.2), easing in and out instead of starting and stopping dead,
+  held steady in the middle of the ladder. Hold **sprint** going down to slide (5 m/s). W still climbs the way you
+  look (0.20.13). The view rocks gently with each pull.
+- **Hands on the rungs:** both gloved hands grip the rungs and go hand over hand as you climb (in your character's
+  gloves and sleeves, `scripts/climb_hands.gd`; new `climb_R`/`climb_L` in `make_hands.py`). The gun is slung out
+  of view meanwhile. Other players see you climb too: facing the ladder, hands on the rungs, knees working (worked
+  out from where you are, nothing new sent online).
+- Tools: `tools/ladder_view.gd` (first-person screenshots on a ladder), `remote_view.gd only=climb`.
 
 ## 0.32.0 (Crafting)
 - **The workbench works** (owner, 2026-11-09). Walk up to it in the hideout (or tap the new **CRAFT** tab on
