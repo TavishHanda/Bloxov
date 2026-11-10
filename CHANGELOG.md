@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.5 (Hideout shell and generator can be heard)
+Owner: "when the bomb drops every 2-4 mins it didnt have any noises just effects". The shell's boom (0.34.0) was
+almost all under 80 Hz, which phone and laptop speakers and most earbuds can't play, so it was silent for most people.
+It now has a dull crump and a rumble at 100-400 Hz and a soft rattle of things shaken loose (still muffled through
+the rock, no highs, same loudness setting). The generator's chug had the same problem (all 55 Hz) and now carries its
+overtones. Other hideout sounds (drip, pipes, rat, snore, wrench, cat, grit) were already in the range speakers play.
+
 ## 0.34.4 (Extract cover)
 - **Every Frontlines extract got its own cover** (owner: the extracts were "WAY too easy to extract camp"; then
   "make them a bit unique ... leave some lines where u can shoot from but make sure there are like safe corners"):

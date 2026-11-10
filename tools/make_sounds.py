@@ -1213,12 +1213,22 @@ def main_more():
 # --- Lively hideout (owner 2026-11-09): sounds tied to things you can see, and a shell now and then. Own seeds. ---
 
 def shell_far():
-    """A shell landing up top, heard through the rock: a deep, dull thump and a long low rumble, no highs at all."""
+    """A shell landing up top, heard through the rock: a dull crump you feel, a long low rumble and loose stuff
+    rattling. 0.34.5: the first one was nearly all under 80 Hz, which phone and laptop speakers (and most earbuds)
+    can't play, so it came out silent; the crump and the rumble now sit at 100-400 Hz, still with no highs."""
     random.seed(3301)
     thump = _thud(0.9, 70, 38, 6, 4.5, 0.0)
+    crump = _thud(0.7, 210, 95, 9, 6.0, 0.9, 0.85, 9)                 # (the body of the blast, through the rock)
+    crump = [x + 0.45 * math.sin(2 * math.pi * 2.03 * 120 * i / RATE) * math.exp(-i / RATE * 8.0) for i, x in enumerate(crump)]
     roll = _lowpass(noise(length(3.2), 0.985), 0.97)
     roll = [x * 6.0 * min(1.0, i / RATE / 0.08) * math.exp(-i / RATE * 1.3) for i, x in enumerate(roll)]
-    return _lowpass(_mix(thump, roll, 0.02, 0.8), 0.6)
+    growl = _highpass(_lowpass(noise(length(3.0), 0.9), 0.8), 0.97)  # (the rumble's audible part, ~100-300 Hz)
+    growl = [x * 2.2 * min(1.0, i / RATE / 0.1) * math.exp(-i / RATE * 1.5) for i, x in enumerate(growl)]
+    rattle = _highpass(noise(length(1.6), 0.6), 0.8)                  # (things shaken loose, soft)
+    rattle = [x * 0.05 * math.exp(-i / RATE * 2.5) * (0.5 + 0.5 * math.sin(i / RATE * 37)) for i, x in enumerate(rattle)]
+    out = _mix(_mix(thump, crump, 0.0, 0.9), roll, 0.02, 0.8)
+    out = _mix(_mix(out, growl, 0.03, 1.0), rattle, 0.12, 1.0)
+    return _lowpass(out, 0.45)
 
 
 def grit():
@@ -1262,7 +1272,8 @@ def pipe_knock():
 
 
 def generator():
-    """The generator chugging, to loop: a small engine's low thumps (about 12 a second) over a rattle."""
+    """The generator chugging, to loop: a small engine's low thumps (about 12 a second) over a rattle. 0.34.5: the
+    thumps were all at 55 Hz, too low for phone and laptop speakers; they now carry their 110-330 Hz overtones."""
     random.seed(3306)
     n = length(2.0)                                                   # (24 beats: it loops without a seam)
     out = []
@@ -1270,10 +1281,13 @@ def generator():
         t = i / RATE
         beat = (t * 12.0) % 1.0
         thump = math.sin(2 * math.pi * 55 * t) * math.exp(-beat * 7.0)
-        out.append(thump + 0.25 * math.sin(2 * math.pi * 110 * t) * math.exp(-beat * 9.0))
+        thump += 0.6 * math.sin(2 * math.pi * 110 * t) * math.exp(-beat * 9.0)
+        thump += 0.45 * math.sin(2 * math.pi * 165 * t) * math.exp(-beat * 11.0)
+        thump += 0.3 * math.sin(2 * math.pi * 330 * t) * math.exp(-beat * 14.0)
+        out.append(thump)
     rattle = _highpass(_lowpass(noise(n, 0.5), 0.5), 0.9)
-    out = [o + r * 0.25 * (0.5 + 0.5 * math.exp(-((i / RATE * 12.0) % 1.0) * 5.0)) for i, (o, r) in enumerate(zip(out, rattle))]
-    return _seamless(_lowpass(out, 0.4), 0.25)                       # (3 beats faded over)
+    out = [o + r * 0.4 * (0.5 + 0.5 * math.exp(-((i / RATE * 12.0) % 1.0) * 5.0)) for i, (o, r) in enumerate(zip(out, rattle))]
+    return _seamless(_lowpass(out, 0.3), 0.25)                       # (3 beats faded over)
 
 
 def rat():
