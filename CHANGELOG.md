@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.4 (Extract cover)
+- **Every Frontlines extract got its own cover** (owner: the extracts were "WAY too easy to extract camp"; then
+  "make them a bit unique ... leave some lines where u can shoot from but make sure there are like safe corners"):
+  - **Farm Road**, a container yard: two containers in an L (one stacked) cover the back left, sandbags on the right.
+  - **Highway**, a roadblock: an army truck across the road in front, hesco on one side, concrete barriers on the other.
+  - **Creek Trail**, dug in at the woods: a hesco L toward the hill, a second row out front, sandbags on the open side.
+  - **Town Road**, the fort: walled all round in head-high hesco, in through a gap with a wall across it.
+  - **Mill Lane**, a zig-zag: in at the front left behind a second row, stacked containers toward the church tower.
+  - **South Road**, a container canyon: containers two high on both sides and across the front, in behind a hesco row.
+- Each one still has lines in (over sandbags, past the truck, through the way in), and each has a corner of the square
+  almost nobody further off can see. The ground a camper could watch a crouched player in the square from (20-130 m
+  out, `tools/extract_camps.gd`, `corners=1` for each spot of the square) went from about 28,300 m² over the six
+  extracts to about 6,300 m² (Farm Road, the most open, keeps about 4,500 of it).
+- The tent camps beside the squares moved a few metres along the edge to make room; a power pole at Farm Road and
+  Highway and a street lamp at Town Road went too. The rest of the map is unchanged; AI navigation re-baked.
 ## 0.34.3 (Crew get up)
 - **Everyone in the hideout moves now** (owner: "are these two perma in this spot? they should move too", "one guy can
   be sleeping a lot but he should get up", "everyone can sleep but not at the same time", "do what's best as an expert

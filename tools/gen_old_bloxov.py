@@ -3315,8 +3315,11 @@ def lamp_pass(every=24.0):
                        abs(pz - (b[2] + M / 2)) < b[5] / 2 + 2.5 for b in boxes if b[8] == C["lot"]):
                     continue   # (in a car park's way in)
                 yaw = math.degrees(math.atan2(ax + (bx - ax) * t - px, az + (bz - az) * t - pz))   # arm toward the middle
+                down = rng.random() < 0.12
+                if in_pen(px, pz):   # (0.32.3)
+                    continue
                 with scatter_piece(px, pz):
-                    lamp(px, pz, yaw, down=rng.random() < 0.12)
+                    lamp(px, pz, yaw, down=down)
             dist += seg
 
 
@@ -3445,7 +3448,7 @@ def _bush_spot(x, z):
         for a, b in zip(points, points[1:]):
             if _seg_rect_gap(a, b, (x - 0.1, z - 0.1, x + 0.1, z + 0.1)) < width / 2 + 3.5:
                 return False
-    for x0, z0, x1, z1 in yards + camp_rects:
+    for x0, z0, x1, z1 in yards + bush_rects:
         if x0 - 2 < x < x1 + 2 and z0 - 2 < z < z1 + 2:
             return False
     for name, x0, z0, x1, z1 in scatter_footprints() + areas:
@@ -3579,6 +3582,8 @@ CAMPS = {"TownRoad": "checkpoint", "Highway": "checkpoint", "FarmRoad": "outpost
          "CreekTrail": "tents", "SouthRoad": "outpost"}
 CAMP_FLIP = {"Highway"}   # (the camps on the side away from the middle: the junkyard's fence is on the other)
 camp_rects = []   # (map x0, z0, x1, z1) round each camp: gravel underfoot (write_splat)
+bush_rects = []   # (where the camps were before the pens moved them, 0.32.3: bush_pass skips these, so the bushes all
+                  # over the map stay where they were; the ones that land in a camp or pen now are cleared after)
 
 
 def extract_camps():
@@ -3617,12 +3622,179 @@ def extract_camps():
         else:
             pieces = [(camo_net, 0.0, v0 + 2.6, yu), (ammo_crates, -1.0, v0 + 2.3, yu), (ammo_crates, 1.2, v0 + 3.2, yu + 30),
                       (sandbags, 0.0, v0 + 5.4, yu + 90, 5.0), (sandbags, -3.0, v0 + 2.8, yu, 3.0)]
+        # (0.32.3: clear of the extract's walled pen, moved along the map's edge)
+        (tx, tz), (nx, nz), _ = pen_frame(ex, ez)
+        ts = [(px - ex) * tx + (pz - ez) * tz for px, pz in (at(p[1], p[2]) for p in pieces)]
+        side = 1.0 if sum(ts) >= 0 else -1.0
+        pt0, _, pt1, _ = pen_extent(name, pen_frame(ex, ez)[2])
+        shift = max(0.0, (pt1 if side > 0 else -pt0) + 4.0 - min(side * t for t in ts))
+        at0 = at
+
+        def at(u, v):
+            px, pz = at0(u, v)
+            return px + side * shift * tx, pz + side * shift * tz
+        xs, zs = zip(*[at0(p[1], p[2]) for p in pieces])
+        bush_rects.append((min(xs) - 4, min(zs) - 4, max(xs) + 4, max(zs) + 4))
+        clear_scatter(bush_rects[-1])   # (where it always cleared: see clear_pens)
         xs, zs = zip(*[at(p[1], p[2]) for p in pieces])
         rect = (min(xs) - 4, min(zs) - 4, max(xs) + 4, max(zs) + 4)
-        clear_scatter(rect)
         camp_rects.append(rect)
         for fn, u, v, yaw, *rest in pieces:
             fn(*at(u, v), yaw, *rest)
+
+
+# Extract pens (owner 2026-11-09: the extracts are "WAY too easy to extract camp"; then "make them a bit unique, its fine
+# to leave some lines where u can shoot from but make sure there are like safe corners"): round each extract's square a
+# different layout of cover, open to the map's edge behind it. Each leaves a line or two in (over sandbags, past a
+# truck) but has a corner of the square nobody further off sees. Check with tools/extract_camps.gd (corners=1).
+HESCO_H = 2.1      # (over a standing player's head: nobody on the same ground sees over it)
+HESCO_D = 1.05     # (one barrier deep)
+pen_rects = []     # (map x0, z0, x1, z1) round each pen (the extract camps keep clear of them)
+# Per extract, in its frame (pen_frame: t along the map's edge, n in from it, the square's middle at 0, 0; its square
+# reaches 2 m each way). Rows (hesco, sandbags, barrier): ("kind", t0, n0, t1, n1), "B" = back at the edge's wall.
+# Containers and trucks: ("kind", t, n, "t" or "n" (the way their length runs), stacked, colour). Crates: (t, n).
+PEN_LAYOUTS = {
+    # a container yard: two containers in an L (one stacked) cover the back left; sandbags on the right
+    "FarmRoad": [("container", -5.3, -1.2, "n", 1, "rust"), ("container", -2.5, 5.4, "t", 2, "car_b"),
+                 ("sandbags", 5.2, "B", 5.2, 2.5), ("sandbags", 1.8, 8.0, 5.8, 8.0), ("crates", 3.6, 4.4)],
+    # a roadblock: an army truck across the road in front, hesco on the left, concrete barriers on the right
+    "Highway": [("truck", 0.3, 6.8, "t"), ("hesco", -5.6, "B", -5.6, 4.0), ("barrier", 5.2, -4.5, 5.2, 4.5),
+                ("sandbags", 2.2, 3.6, 5.0, 3.6)],
+    # dug in at the woods: a hesco L toward the hill, a second row out front on the left, sandbags on the left side
+    "CreekTrail": [("hesco", 6.0, "B", 6.0, 5.5), ("hesco", -1.0, 5.0, 5.5, 5.0), ("hesco", -5.5, 8.6, -0.5, 8.6),
+                   ("sandbags", -5.0, -3.0, -5.0, 2.5)],
+    # the fort: walled all round, in through a gap with a wall across it (nobody sees in from further out)
+    "TownRoad": [("hesco", -5.6, "B", -5.6, 5.5), ("hesco", 5.6, "B", 5.6, 5.5), ("hesco", -6.1, 5.0, -1.6, 5.0),
+                 ("hesco", 1.6, 5.0, 6.1, 5.0), ("hesco", -5.5, 8.1, 5.5, 8.1)],
+    # a zig-zag: in at the front left behind a second row; stacked containers on the right (the church tower looks
+    # down on it), sandbags at the back right
+    "MillLane": [("hesco", -5.6, "B", -5.6, 5.0), ("hesco", -1.0, 5.0, 6.1, 5.0), ("container", 5.4, 1.9, "n", 2, "rust"),
+                 ("sandbags", 5.6, "B", 5.6, -1.2), ("hesco", -6.0, 8.1, -0.5, 8.1), ("crates", -4.2, 3.4)],
+    # a container canyon (high ground on three sides looks down on it): stacks two high on both sides and across the
+    # front, in through a gap at the front corner on the field side behind a hesco row
+    "SouthRoad": [("container", -5.8, 0.6, "n", 2, "army"), ("container", 5.8, 0.6, "n", 2, "rust"),
+                  ("container", 1.9, 5.6, "t", 2, "car_b"), ("sandbags", -5.8, "B", -5.8, -2.8),
+                  ("hesco", 5.8, "B", 5.8, -2.6), ("hesco", -6.6, 9.0, -0.6, 9.0)],
+}
+
+
+@debris_kind("hesco")
+def hesco(x, z, yaw, length):
+    """A row of hesco barriers (earth-filled wire mesh), its length along yaw."""
+    n = max(1, round(length / 2.2))
+    c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    for k in range(n):   # (a box per two barriers: each sits on the ground under it)
+        off = (k + 0.5) * length / n - length / 2
+        obox(x + s_ * off, HESCO_H / 2, z + c * off, HESCO_D, HESCO_H, length / n, yaw, "dirt")
+
+
+@debris_kind("container")
+def pen_container(x, z, yaw, stacked, colour):
+    with group():
+        for k in range(stacked):
+            obox(x, 1.3 + 2.6 * k, z, 2.4, 2.6, 6.1, yaw + 3.0 * k, colour)
+
+
+def pen_frame(ex, ez):
+    """(t, n) axes for an extract: n points in from the nearest edge of the map, t along it; and how far the edge is."""
+    edges = [(ex, (1, 0)), (M - ex, (-1, 0)), (ez, (0, 1)), (M - ez, (0, -1))]
+    e, (nx, nz) = min(edges)
+    return (nz, -nx), (nx, nz), e
+
+
+def pen_extent(name, e):
+    """(t0, n0, t1, n1): what an extract's pen covers, in its frame."""
+    ts, ns = [], []
+    for row in PEN_LAYOUTS[name]:
+        kind = row[0]
+        if kind in ("container", "truck"):
+            half = (3.05, 1.2) if kind == "container" else (3.6, 1.3)
+            along, across = (half[0], half[1]) if row[3] == "t" else (half[1], half[0])
+            ts += [row[1] - along, row[1] + along]
+            ns += [row[2] - across, row[2] + across]
+        elif kind == "crates":
+            ts += [row[1] - 0.7, row[1] + 0.7]
+            ns += [row[2] - 0.7, row[2] + 0.7]
+        else:
+            ts += [row[1] - 0.6, row[3] + 0.6]
+            ns += [-e if row[2] == "B" else row[2] - 0.6, row[4] + 0.6]
+    return min(ts), min(ns), max(ts), max(ns)
+
+
+def in_pen(x, z, grow=2.0):
+    """Whether (x, z) is in (or within `grow` of) an extract's pen: poles and lamps keep out."""
+    for name, _, ex, ez in extracts:
+        (tx, tz), (nx, nz), e = pen_frame(ex, ez)
+        t, n = (x - ex) * tx + (z - ez) * tz, (x - ex) * nx + (z - ez) * nz
+        t0, n0, t1, n1 = pen_extent(name, e)
+        if t0 - grow < t < t1 + grow and n0 - grow < n < n1 + grow:
+            return True
+    return False
+
+
+pen_tags = set()   # (the pens' own pieces: clear_pens keeps them)
+
+
+def extract_pens():
+    first = len(debris)
+    for name, _, ex, ez in extracts:
+        (tx, tz), (nx, nz), e = pen_frame(ex, ez)
+
+        def at(t, n):
+            return ex + tx * t + nx * n, ez + tz * t + nz * n
+        yt = math.degrees(math.atan2(tx, tz))   # a length along t
+        yn = math.degrees(math.atan2(nx, nz))   # and along n
+        back = -e + 0.6                         # (rows from "B" run right up to the edge's wall)
+        for row in PEN_LAYOUTS[name]:
+            kind = row[0]
+            if kind == "container":
+                pen_container(*at(row[1], row[2]), yt if row[3] == "t" else yn, row[4], row[5])
+            elif kind == "truck":
+                truck(*at(row[1], row[2]), yt if row[3] == "t" else yn)
+            elif kind == "crates":
+                ammo_crates(*at(row[1], row[2]), yt + 15)
+            else:
+                t0, n0, t1, n1 = row[1], back if row[2] == "B" else row[2], row[3], row[4]
+                yaw, length = (yt, t1 - t0) if n0 == n1 else (yn, n1 - n0)
+                mid = at((t0 + t1) / 2, (n0 + n1) / 2)
+                if kind == "hesco":
+                    hesco(*mid, yaw, length)
+                elif kind == "sandbags":
+                    sandbags(*mid, yaw, length)
+                else:   # (concrete barriers, 3 m each)
+                    for k in range(max(1, round(length / 3.0))):
+                        f = (k + 0.5) / max(1, round(length / 3.0))
+                        barrier(*at(t0 + (t1 - t0) * f, n0 + (n1 - n0) * f), yaw)
+        t0, n0, t1, n1 = pen_extent(name, e)
+        xs, zs = zip(*[at(t, n) for t in (t0, t1) for n in (n0, n1)])
+        pen_rects.append((min(xs) - 1.0, min(zs) - 1.0, max(xs) + 1.0, max(zs) + 1.0))
+    pen_tags.update(range(first, len(debris)))
+
+
+# What the pens and the camps they moved clear away (0.32.3): the scatter's junk, trees and bushes in them, by where
+# they are. Not clear_scatter: its lists are out of step with the boxes after churchyard() (it finds the right boxes but
+# takes other pieces' trees, craters and pads with them, far off), and these run late, so nothing after moves.
+CLEARED_BY_PENS = {"rocks", "rubble", "ruin", "wall", "berm", "container", "truck", "tanktrap", "drums", "crater",
+                   "junk", "bush", "tree", "deadtree", "litter", "stones", "log"}
+
+
+def clear_pens():
+    rects = pen_rects + camp_rects
+
+    def inside(x, z, grow=0.0):
+        return any(x0 - grow < x < x1 + grow and z0 - grow < z < z1 + grow for x0, z0, x1, z1 in rects)
+    gone = {b[10] for b in boxes if len(b) > 10 and debris[b[10]]["kind"] in CLEARED_BY_PENS and
+            b[10] not in pen_tags and inside(b[0] + M / 2, b[2] + M / 2)}
+    keep = [k for k, b in enumerate(boxes) if not (len(b) > 10 and b[10] in gone)]
+    lost = {anchors[k] for k in range(len(boxes)) if len(boxes[k]) > 10 and boxes[k][10] in gone}
+    boxes[:] = [boxes[k] for k in keep]
+    anchors[:] = [anchors[k] for k in keep]
+    cars[:] = [c for c in cars if c["anchor"] not in lost or c["anchor"] == "ground"]
+    for t in gone:
+        debris[t]["dropped"] = True
+    trunks[:] = [t for t in trunks if not inside(*t)]
+    craters[:] = [c for c in craters if not inside(c[0], c[1], c[2])]
+    clutter_spots[:] = [c for c in clutter_spots if not inside(*c)]
 
 
 # ---------------------------------------------------------------------------------------------- clutter (0.11.4)
@@ -4147,6 +4319,8 @@ def power_line(curve, side, width, every=34.0, skip_from=0.0):
             if any(x0 - 2 < px < x1 + 2 and z0 - 2 < pz < z1 + 2 for _, x0, z0, x1, z1 in scatter_footprints() + areas):
                 continue
             if math.hypot(px - 263.0, pz - 285.0) < 20:   # the checkpoint
+                continue
+            if in_pen(px, pz):   # (0.32.3: an extract's pen)
                 continue
             if any(_seg_rect_gap(a, b, (px, pz, px, pz)) < w / 2 + 1.0 for pts, w in roads for a, b in zip(pts, pts[1:])):
                 continue
@@ -6044,6 +6218,7 @@ def main():
     waterfall()
     creek_mouth()
     creek_banks()
+    extract_pens()
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
@@ -6051,6 +6226,7 @@ def main():
     lamp_pass()
     sign_pass()
     bush_pass()
+    clear_pens()
     street_details()
     field_caches()
     map_labels()
@@ -6533,7 +6709,7 @@ def write_splat(ter):
         if c["glb"].endswith("burnt") or "rust" in c["glb"]:
             x, z = c["at"]
             stamp(2, x - 6, z - 6, x + 6, z + 6, blot(x, z, 3.2, 1.5, f"wreck {x} {z}"))
-    for x0, z0, x1, z1 in camp_rects:                          # trodden gravel round the extract camps
+    for x0, z0, x1, z1 in camp_rects + pen_rects:              # trodden gravel round the extract camps and pens
         cx, cz, rx, rz = (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2 - 1.5, (z1 - z0) / 2 - 1.5
         stamp(3, x0, z0, x1, z1, lambda x, z, cx=cx, cz=cz, rx=rx, rz=rz:
               max(0.0, min(1.0, (1.0 - math.hypot((x - cx) / rx, (z - cz) / rz)) * 3.0 + 0.5)))
