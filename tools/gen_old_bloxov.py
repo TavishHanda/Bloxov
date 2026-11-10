@@ -3799,7 +3799,7 @@ CLEARED_BY_PENS = {"rocks", "rubble", "ruin", "wall", "berm", "container", "truc
 
 
 def clear_pens():
-    rects = pen_rects + camp_rects
+    rects = pen_rects + camp_rects + bon_rects
 
     def inside(x, z, grow=0.0):
         return any(x0 - grow < x < x1 + grow and z0 - grow < z < z1 + grow for x0, z0, x1, z1 in rects)
@@ -4829,6 +4829,56 @@ def town_hall_back():
             truck(x, z, yaw)
         else:
             sandbags(x, z, yaw)
+
+
+# Bon's round (owner 2026-11-10: "when bon roams, hes still very easy to snipe and camp and kill without him
+# noticing, we need more cover around that area"): Bon walks the hall's yard and a ring ~12 m past it, and over to
+# the bank. Snipers 100 m+ out (past his 60 m sight; the east hill worst) saw most of it. His crew have walled the
+# yard's open sides with stacked containers and hesco, gaps baffled so nobody far off sees through, and everyone
+# (Bon, the AI, players) still walks through. Built with the extract pens (late: nothing else on the map moves).
+# Measure: godot --headless -s tools/bon_route.gd. Rows: ("hesco"/"sandbags", x0, z0, x1, z1) along the line between;
+# ("container", x, z, yaw, stacked, colour); ("truck", x, z, yaw).
+BON_COVER = [
+    # east, toward the hill: two stacks with a hesco wall between, the gap in it baffled by a second row
+    ("container", 145.0, 146.0, 0.0, 2, "rust"), ("hesco", 145.0, 149.8, 145.0, 156.6),
+    ("hesco", 149.6, 154.6, 149.6, 162.0), ("container", 145.0, 163.6, 0.0, 2, "army"),
+    ("hesco", 145.0, 167.4, 145.0, 174.6),
+    # south, past the barricade (the fields over the railway, the ground falls away: hesco is too low there):
+    # two rows of containers (mostly stacked), overlapping where you walk between them
+    ("hesco", 95.0, 185.6, 98.4, 185.6), ("container", 101.75, 185.6, 90.0, 2, "army"),
+    ("container", 107.85, 185.6, 90.0, 1, "rust"), ("container", 111.05, 190.0, 90.0, 2, "car_b"),
+    ("container", 117.15, 190.0, 90.0, 2, "army"),
+    # north, the square's road side (the far north of town looks down the square): two rows, the gap baffled,
+    # and a stack at each corner
+    ("hesco", 97.5, 109.6, 104.5, 109.6), ("hesco", 108.5, 109.6, 115.5, 109.6), ("hesco", 103.0, 106.4, 110.0, 106.4),
+    ("container", 91.4, 109.5, 90.0, 2, "rust"), ("container", 121.6, 109.5, 90.0, 2, "army"),
+    # west, between the offices and the road (the map's west edge): a stack and two rows, the gap baffled
+    ("hesco", 72.0, 141.5, 72.0, 146.0), ("hesco", 68.6, 144.0, 68.6, 151.0), ("container", 72.0, 152.0, 0.0, 2, "car_b"),
+    ("hesco", 72.0, 155.6, 72.0, 166.0), ("container", 77.5, 170.5, 53.0, 2, "rust"),
+]
+bon_rects = []   # (map x0, z0, x1, z1) round each piece (the scatter there is cleared, like the pens')
+
+
+def bon_cover():
+    first = len(debris)
+    for row in BON_COVER:
+        kind = row[0]
+        if kind == "container":
+            _, x, z, yaw, stacked, colour = row
+            pen_container(x, z, yaw, stacked, colour)
+            r = 3.4
+        elif kind == "truck":
+            _, x, z, yaw = row
+            truck(x, z, yaw)
+            r = 4.0
+        else:
+            _, x0, z0, x1, z1 = row
+            x, z = (x0 + x1) / 2, (z0 + z1) / 2
+            length = math.hypot(x1 - x0, z1 - z0)
+            (hesco if kind == "hesco" else sandbags)(x, z, math.degrees(math.atan2(x1 - x0, z1 - z0)), length)
+            r = length / 2 + 0.8
+        bon_rects.append((x - r, z - r, x + r, z + r))
+    pen_tags.update(range(first, len(debris)))
 
 
 truck_wrecks = []   # (map x, z) of every wrecked truck and tank trap row the scatter placed, for field_caches()
@@ -6239,6 +6289,7 @@ def main():
     creek_mouth()
     creek_banks()
     extract_pens()
+    bon_cover()
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
