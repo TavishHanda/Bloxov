@@ -6939,6 +6939,11 @@ def write_outdoor(ter):
             if d["kind"] == "tree":   # (0.18.3, owner: shots hit the air between trees: the trunk collides as drawn)
                 w = TRUNK_WIDTHS[kind]
                 boxes[ks[0]] = trunk[:3] + (w, trunk[4], w, tree_data[-1][6]) + trunk[7:]
+                if kind == 1 and len(ks) > 1:   # (0.34.6: a pine's lowest branches hang to h - 2.6, s * 0.55 out (trees.gd
+                    b = boxes[ks[1]]          # _pine): its leaves block for the AI's sight reaches down and out as far)
+                    top = b[1] + b[4] / 2
+                    bottom = trunk[1] - trunk[4] / 2 + trunk[4] - 2.6
+                    boxes[ks[1]] = (b[0], (top + bottom) / 2, b[2], s * 1.1, top - bottom, s * 1.1) + b[6:]
         if d["kind"] == "crops":   # (outdoor step 8: clumps of crop cards over the strip, scripts/trees.gd kinds 5-7)
             b = boxes[ks[0]]
             crng = random.Random(f"crops {x:.2f} {z:.2f}")

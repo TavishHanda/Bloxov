@@ -16,6 +16,9 @@ const VOICE := {
 }
 
 var _target: Player
+var _woods_map: BoxMap
+var _woods_trees := 0
+var _woods_check_at := 0
 ## Where the target was last seen (or where a hit came from), and where a heard sound came from.
 var _last_seen := Vector3.ZERO
 var _goal := Vector3.ZERO
@@ -78,6 +81,12 @@ func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bo
 		_spot = maxf(_spot - delta * 0.5, 0.0)
 		return false
 	var t := lerpf(spot_time_near, spot_time_far, clampf((dist - 5.0) / maxf(sight_range - 5.0, 1.0), 0.0, 1.0))
+	if state != State.ENGAGE:
+		var trees := _trees_in_way()
+		if trees >= woods_hide_trees and dist > woods_hide_range:
+			_spot = maxf(_spot - delta * 0.5, 0.0)
+			return false
+		t *= pow(woods_spot_mult, trees)
 	if _target.is_crouching:
 		t *= spot_crouch_mult
 	if _looting_left > 0.0:
@@ -88,6 +97,21 @@ func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bo
 		t *= spot_still_mult
 	_spot += delta / maxf(t * mult, 0.01)
 	return _spot >= 1.0
+
+
+## How many trees stand between it and its target (woods_near), looked up a few times a second.
+func _trees_in_way() -> int:
+	var now := Time.get_ticks_msec()
+	if now >= _woods_check_at:
+		_woods_check_at = now + 250
+		_woods_trees = 0
+		if _woods_map == null or not is_instance_valid(_woods_map):
+			for node in RaidScope.nodes(self, &"box_maps"):
+				_woods_map = node as BoxMap
+				break
+		if _woods_map != null:
+			_woods_trees = _woods_map.trees_between(global_position, _target.global_position, woods_near)
+	return _woods_trees
 
 
 ## A bullet from `shooter_pos` passed close by: unaware scavs turn toward roughly where it came from.

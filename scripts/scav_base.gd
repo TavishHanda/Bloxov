@@ -46,6 +46,13 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## Already suspicious (investigating/searching) or re-finding someone it was fighting: notices faster.
 @export var spot_suspicious_mult := 0.6
 @export var spot_reacquire_mult := 0.4
+## Trees between it and you (trunks within woods_near m of the line) make you slower to spot (0.34.6, owner: "hard"
+## for them to see through trees): each one multiplies the spot time by woods_spot_mult, and woods_hide_trees or more
+## past woods_hide_range m hide you from spotting altogether. Not in a fight (it already knows where you are).
+@export var woods_near := 1.5
+@export var woods_spot_mult := 1.5
+@export var woods_hide_trees := 3
+@export var woods_hide_range := 25.0
 ## After losing sight this briefly, it still keeps tracking you (it was just looking at you).
 @export var reacquire_grace := 0.3
 ## After losing sight of you in a fight it still knows where you are for this long (seconds; heard you, saw you

@@ -6419,6 +6419,28 @@ func _section_spotting() -> void:
 	await create_timer(2.5).timeout
 	_check(far.state != Scav.State.IDLE, "...but does after a couple of seconds in view")
 	far.queue_free()
+	# 0.34.6: three trees beside the line between you, 32 m apart: it doesn't spot you (the woods hide you).
+	var woods := BoxMap.new()
+	woods.colors = PackedColorArray([Color.BROWN])
+	woods.colour_names = PackedStringArray(["trunk"])
+	var trunks := PackedFloat32Array()
+	for z in [8.0, 16.0, 24.0]:
+		var at := player.global_position + Vector3(1.0, 2.0, z)
+		trunks.append_array([at.x, at.y, at.z, 0.4, 4, 0.4, 0, 0, 0, 0])
+	woods.boxes = trunks
+	main.add_child(woods)
+	_check(woods.trees_between(player.global_position, player.global_position + Vector3(0, 0, 32), 1.5) == 3
+		and woods.trees_between(player.global_position, player.global_position + Vector3(0, 0, 32), 0.5) == 0
+		and woods.trees_between(player.global_position, player.global_position + Vector3(0, 0, 12), 1.5) == 1,
+		"the map counts the trees beside a line, between its ends")
+	var hidden := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 32)) as Scav
+	_face_player(hidden)
+	hidden._wander_time = 99.0
+	hidden._wander_dir = Vector3.ZERO
+	await create_timer(3.0).timeout
+	_check(hidden.state == Scav.State.IDLE and hidden._can_see, "...a scav 32 m away through three trees doesn't spot you (it could see you)")
+	hidden.queue_free()
+	woods.free()
 	var near := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 4)) as Scav
 	_face_player(near)
 	near._wander_time = 99.0

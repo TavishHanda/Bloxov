@@ -143,6 +143,7 @@ var _shots_to := 0
 ## surface_at's lookup: boxes near each SURFACE_CELL square (Vector2i -> PackedInt32Array of box starts), and each
 ## box's inverse transform.
 var _surface_cells := {}
+var _trunk_cells := {}   # (map square -> the trunks' box indices in it: trees_between)
 var _surface_inverse := {}
 
 
@@ -446,6 +447,43 @@ func trees_near(pos: Vector3, radius: float) -> int:
 				if int(boxes[i + 8]) == trunk and Vector2(boxes[i] - local.x, boxes[i + 2] - local.z).length() < radius:
 					seen[i] = true
 	return seen.size()
+
+
+## How many tree trunks stand within `near` m of the flat line from world point `from` to `to`, between the two
+## (0.34.6, owner: the AI saw you through the woods: the leaves block sits up in the crowns, over everyone's eyes).
+## Only the map's squares round the line are looked at.
+func trees_between(from: Vector3, to: Vector3, near: float) -> int:
+	if _trunk_cells.is_empty():
+		_index_trunks()
+	var a := to_local(from)
+	var b := to_local(to)
+	var a2 := Vector2(a.x, a.z)
+	var line := Vector2(b.x, b.z) - a2
+	var length_sq := maxf(line.length_squared(), 0.0001)
+	var c0 := Vector2i(floori((minf(a.x, b.x) - near) / SURFACE_CELL), floori((minf(a.z, b.z) - near) / SURFACE_CELL))
+	var c1 := Vector2i(floori((maxf(a.x, b.x) + near) / SURFACE_CELL), floori((maxf(a.z, b.z) + near) / SURFACE_CELL))
+	var seen := {}
+	for cx in range(c0.x, c1.x + 1):
+		for cz in range(c0.y, c1.y + 1):
+			for i in _trunk_cells.get(Vector2i(cx, cz), PackedInt32Array()):
+				var p := Vector2(boxes[i], boxes[i + 2]) - a2
+				var t := p.dot(line) / length_sq
+				if t > 0.0 and t < 1.0 and (p - line * t).length() < near:
+					seen[i] = true
+	return seen.size()
+
+
+## The trunks by map square, for `trees_between` (built the first time it's asked; {Vector2i(-99999, 0): []} if none).
+func _index_trunks() -> void:
+	var trunk := colour_names.find("trunk")
+	for i in range(0, boxes.size(), STRIDE):
+		if trunk >= 0 and int(boxes[i + 8]) == trunk:
+			var key := Vector2i(floori(boxes[i] / SURFACE_CELL), floori(boxes[i + 2] / SURFACE_CELL))
+			var list: PackedInt32Array = _trunk_cells.get(key, PackedInt32Array())
+			list.append(i)
+			_trunk_cells[key] = list
+	if _trunk_cells.is_empty():
+		_trunk_cells[Vector2i(-99999, 0)] = PackedInt32Array()
 
 
 ## The closest point to world point `pos` on the creek or the little stream (0.20.5: where you hear running water),
