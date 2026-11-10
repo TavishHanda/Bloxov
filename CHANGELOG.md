@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.3 (Crew get up)
+- **Everyone in the hideout moves now** (owner: "are these two perma in this spot? they should move too", "one guy can
+  be sleeping a lot but he should get up", "everyone can sleep but not at the same time", "do what's best as an expert
+  game designer"): the crew no longer each own one spot. The hideout has 15 things to do, one person each: the bunk,
+  the stove, two card seats, two places at the mess table to eat, the couch in front of the TV (two), the den's booth
+  and two bar stools, the den itself, the war table, the generator and a coffee by the range. Everyone has a favourite
+  they go back to more often and stay longer at (the sleeper still sleeps a lot), and when they're done they pick
+  something free and walk there. Only one can be in the bunk, nobody takes a seat you're sat on, and the seat they're
+  on isn't offered to you. What they hold goes with what they're doing (a spoon cooking or eating, the wrench at the
+  generator, a mug with a coffee, the TV or at the bar, cards at the card table). Looks only, as before.
+- **Faster walking** (owner: "they walk way too slow"): 1.25 m/s to 2.4 m/s.
+- **No more standing about gesturing at nothing** (owner: "the npcs just kinda sit here like this sometimes"): the old
+  walkers' stop by the stash was a spot with nothing to do. Stood about now means arms crossed or hands on hips, and
+  talking with their hands only when someone else is there. Someone held up on the way finds the route again.
+- `tools/hideout_crew_view.gd` takes a picture of someone at each thing to do.
+
 ## 0.34.2 (Hideout fixes)
 - **Arms the right way round** (owner: "that guy's one arm is backwards, same with all the traders"): the crew's and
   traders' poses bent their elbows backwards. On the character models a positive elbow angle brings the forearm

@@ -2954,23 +2954,33 @@ func _section_hideout_world() -> void:
 		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
 		and not hcrew.find_children("*", "CollisionObject3D", true, false),
 		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))
-	# Two of them walk round (0.34.1): one gets from the war table to the den (the secret room) over the walkable area,
-	# and after a while of the clock running they've moved.
+	# They get up and do other things (0.34.3): everything there is to do can be walked to from the den, and over five
+	# minutes of the clock most of them have moved, nobody shares a spot, and the bed's never got two in it.
 	await physics_frame
 	await physics_frame
-	var roamer: Dictionary = hcrew.members.filter(func(m: Dictionary) -> bool: return m["id"] == "roam_a")[0]
-	var roam_model: Node3D = roamer["model"]
-	var roam_start := roam_model.position
-	var den_spot: Vector3 = hcrew.hangouts.filter(func(h: Array) -> bool: return h[1] == "den")[0][0]
-	var den_path := hcrew.route(hcrew.hangouts.filter(func(h: Array) -> bool: return h[1] == "war_table")[0][0], den_spot)
-	var unreachable := hcrew.hangouts.filter(func(h: Array) -> bool:
-		var r := hcrew.route(den_spot, h[0])
-		return r.size() < 2 or r[r.size() - 1].distance_to(h[0]) > 1.5).map(func(h: Array) -> String: return h[1])
-	for i in 300:
+	var den_act := hcrew.act_named("den")
+	var unreachable := hcrew.acts.filter(func(a: Dictionary) -> bool:
+		var r := hcrew.route(den_act["at"], a["at"])
+		return r.size() < 2 or r[r.size() - 1].distance_to(a["at"]) > 1.6).map(func(a: Dictionary) -> String: return a["name"])
+	var crew_only := hcrew.members.filter(func(m: Dictionary) -> bool: return m.has("act"))
+	var crew_starts := crew_only.map(func(m: Dictionary) -> Vector3: return (m["model"] as Node3D).position)
+	var crew_moved := {}
+	var shared := 0
+	var walked_fast := 0.0
+	for i in 1500:
 		hcrew._process(0.2)
-	var roam_moved := roam_model.position.distance_to(roam_start)
-	_check(den_path.size() > 2 and den_path[den_path.size() - 1].distance_to(den_spot) < 1.5 and roam_moved > 3.0 and unreachable.is_empty(),
-		"two of the crew walk round: the war table to the den is walkable (%d points), one's moved %.1f m in a minute (ends %.2f m off; can't reach %s)" % [den_path.size(), roam_moved, den_path[den_path.size() - 1].distance_to(den_spot) if den_path.size() > 0 else -1.0, unreachable])
+		var on_spot := {}
+		for k in crew_only.size():
+			var m: Dictionary = crew_only[k]
+			var act: Dictionary = m["act"]
+			if on_spot.has(act["name"]) or act["by"] != m:
+				shared += 1
+			on_spot[act["name"]] = true
+			if (m["model"] as Node3D).position.distance_to(crew_starts[k]) > 3.0:
+				crew_moved[m["id"]] = true
+			walked_fast = maxf(walked_fast, (m["pose"] as BodyPose).speed)
+	_check(den_act.size() > 0 and unreachable.is_empty() and crew_moved.size() >= 6 and shared == 0 and walked_fast >= 2.0,
+		"the crew get up and do other things: all %d spots (%s) reachable from the den (not %s), %d of %d moved (%s), none shared a spot (%d), they walk at %.1f m/s" % [hcrew.acts.size(), ", ".join(hcrew.acts.map(func(a: Dictionary) -> String: return a["name"])), unreachable, crew_moved.size(), crew_only.size(), ", ".join(crew_moved.keys()), shared, walked_fast])
 	hcrew.queue_free()
 	# The cat (lively hideout): none on a headless run; shown, it starts by the stove, walks round without leaving the
 	# floor or going through walls, comes to USE when you're by it and facing it, purrs when petted, and never collides.
