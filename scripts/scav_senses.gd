@@ -127,8 +127,14 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 	_alert(guess, startle_reaction_time)
 
 
+## How long it needs to line a shot up at someone `dist` away: quick up close, slow far off (reaction_time at your
+## feet, reaction_time_far at reaction_range and beyond).
+func _reaction_for(dist: float) -> float:
+	return lerpf(reaction_time, reaction_time_far, clampf(dist / maxf(reaction_range, 0.01), 0.0, 1.0))
+
+
 ## Spotted (or got shot by) someone at `known_pos`: get ready to fight, starting to aim after `reaction` seconds
-## (-1 = reaction_time).
+## (-1 = the distance-scaled reaction time for how far away they are).
 func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 	# (Ones that came because of a call don't call again, so one fight doesn't pull in the whole map.)
 	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
@@ -136,7 +142,7 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 			_bark("help")
 		else:
 			_bark("spotted")   # (0.22.7: every time, now that it's the only "it's seen you" sound; was 70%)
-	_reaction = reaction_time if reaction < 0.0 else reaction
+	_reaction = _reaction_for(global_position.distance_to(known_pos)) if reaction < 0.0 else reaction
 	_cover_phase = Cover.NONE
 	_spot = 0.0
 	_looting_left = 0.0

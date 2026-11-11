@@ -88,9 +88,17 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## (0.12.8, owner: far-off scavs just looked at you, then went for cover: 40 m before. Far shots rarely hit.)
 ## (0.12.12: 75 m in 0.12.8-0.12.11, owner: "lower by 5".)
 @export var shoot_range := 70.0
-## Delay between spotting the player and starting to aim. Gives you a moment to react.
+## Delay between spotting the player and starting to aim. Gives you a moment to react. It scales with distance
+## (reaction_time up close, reaction_time_far at reaction_range and beyond): a quick pass behind a far window
+## shouldn't get you shot the instant you appear.
 ## (0.12.30, owner: "reaction time is still really slow": spotted -> first shot was 0.65 s, now 0.35 s.)
-@export var reaction_time := 0.15
+@export var reaction_time := 0.2
+## The prep at reaction_range and beyond (seconds). Far AI take longer to line a shot up.
+@export var reaction_time_far := 0.8
+## Distance (meters) where the far reaction time is reached; nearer interpolates.
+@export var reaction_range := 45.0
+## The first shot after a fresh sighting is a snap shot: it lands this share as often (1 = no penalty).
+@export var first_shot_accuracy_mult := 0.7
 ## Getting shot (or a bullet whizzing past) while unaware startles it: it turns and starts aiming after only this
 ## long, so whoever sees first gets the first shots, not a free kill (0.11.16: before, it died before it reacted).
 @export var startle_reaction_time := 0.15
@@ -306,6 +314,13 @@ var body_pose: BodyPose
 var state := State.IDLE
 var _state_time := 0.0
 var _lost_sight_time := 0.0
+## Seconds since it last had eyes on the player (drains to 0 while it can see them).
+var _blind_time := 0.0
+## Seconds left before it may fire after a fresh sighting: a quick pass behind a far window shouldn't get you shot
+## the instant you appear (set in scav.gd's sight check, spent in scav_fight.gd's _update_shooting).
+var _prep_left := 0.0
+## True when its next shot is the snap shot after a fresh sighting (first_shot_accuracy_mult applies).
+var _snap_shot := false
 ## Its patrol area (Scavs 2.0, owner: AI stays where players learn to expect it). Set by the spawner from the
 ## map's AI zones: while unaware it only patrols within `home_radius` meters of `home_center`. 0 = roams the
 ## whole map (the few random roamers, and every AI on the test map). Fights can still pull it out.
@@ -376,6 +391,9 @@ func _set_state(new_state: State) -> void:
 	state = new_state
 	_state_time = 0.0
 	_opening = new_state == State.ENGAGE
+	if new_state != State.ENGAGE:
+		_prep_left = 0.0
+		_snap_shot = false
 	if _opening:
 		_opened_on = null   # (a new fight: its next burst is an opening one again, scav_fight.gd)
 	_lost_sight_time = 0.0

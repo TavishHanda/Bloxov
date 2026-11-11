@@ -248,9 +248,11 @@ func _plant(n: Node3D, id: String) -> void:
 	if id == "none":
 		return
 	var tall := id == "sunflower"
+	# (0.34.9, owner: "glitching textures going through each other"): the rim's top and the soil's top used to be the
+	# same plane at y=0.22, so they fought for every pixel. The soil now sits a clear 1 cm proud of the rim.
 	_box(n, Vector3(0.22, 0.2, 0.22), Vector3(0.0, 0.1, 0.0), TERRACOTTA)
-	_box(n, Vector3(0.25, 0.04, 0.25), Vector3(0.0, 0.2, 0.0), TERRACOTTA)
-	_box(n, Vector3(0.19, 0.01, 0.19), Vector3(0.0, 0.215, 0.0), SOIL)
+	_box(n, Vector3(0.25, 0.04, 0.25), Vector3(0.0, 0.21, 0.0), TERRACOTTA)
+	_box(n, Vector3(0.19, 0.04, 0.19), Vector3(0.0, 0.22, 0.0), SOIL)
 	match id:
 		"cactus":
 			_box(n, Vector3(0.08, 0.3, 0.08), Vector3(0.0, 0.36, 0.0), CACTUS)
@@ -262,7 +264,7 @@ func _plant(n: Node3D, id: String) -> void:
 				var a := k * TAU / 7.0
 				_box(n, Vector3(0.05, 0.02, 0.32), Vector3(cos(a) * 0.12, 0.33, sin(a) * 0.12), GRASS, -a + PI * 0.5, 0.5)
 		"sunflower":
-			_box(n, Vector3(0.025, 0.6, 0.025), Vector3(0.0, 0.52, 0.0), CACTUS)
+			_box(n, Vector3(0.025, 0.62, 0.025), Vector3(0.0, 0.53, 0.0), CACTUS)
 			_box(n, Vector3(0.14, 0.03, 0.06), Vector3(0.06, 0.45, 0.0), GRASS, 0.0, 0.0, 0.4)
 			var head := _spot_node("Bloom", Vector3(0.0, 0.84, 0.03), 0.0, n)
 			head.rotation.x = -0.35

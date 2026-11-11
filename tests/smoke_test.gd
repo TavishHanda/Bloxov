@@ -6483,6 +6483,40 @@ func _section_spotting() -> void:
 	_check(shots[0] > 0, "a startled scav shoots back within about half a second")
 	victim.queue_free()
 
+	# 0.34.9: the reaction time scales with distance (quick up close, slow far off).
+	var far_react := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 45)) as Scav
+	far_react.set_physics_process(false)
+	far_react._alert(player.global_position)
+	var far_time := far_react._reaction
+	var far_limit := far_react.reaction_time_far
+	_check(is_equal_approx(far_time, far_limit),
+		"a scav 45 m off needs the full far reaction time (%.2f s)" % far_time)
+	far_react.queue_free()
+	var near_react := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 4)) as Scav
+	near_react.set_physics_process(false)
+	near_react._alert(player.global_position)
+	_check(near_react._reaction < far_limit * 0.5,
+		"a scav 4 m off reacts much faster than one far off (%.2f s)" % near_react._reaction)
+	near_react.queue_free()
+
+	# 0.34.9: re-acquiring you in a fight (a quick pass behind a window) makes it line the shot up again,
+	# instead of firing the instant you reappear, even from an already-primed AI.
+	var peek := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 20)) as Scav
+	_face_player(peek)
+	peek.shot_damage = 0
+	peek._wander_time = 99.0
+	peek._wander_dir = Vector3.ZERO
+	await physics_frame
+	peek._set_state(Scav.State.ENGAGE)
+	peek._can_see = false
+	peek._blind_time = peek.reacquire_grace + 0.2
+	await create_timer(0.25).timeout
+	_check(peek._prep_left > 0.0 and peek._snap_shot,
+		"re-acquiring you in a fight adds a prep delay before it fires")
+	peek._set_state(Scav.State.IDLE)
+	_check(peek._prep_left == 0.0 and not peek._snap_shot, "leaving a fight clears the prep delay")
+	peek.queue_free()
+
 
 func _section_close_range() -> void:
 	# Point blank (even standing right on its gun barrel), a scav's shots still hit.

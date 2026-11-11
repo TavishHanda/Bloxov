@@ -68,6 +68,7 @@ var _move_target_from := Vector3.ZERO
 func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
 	_tactic_time += delta
 	_dodge_left -= delta
+	_prep_left = maxf(_prep_left - delta, 0.0)
 	if (not sees and _lost_sight_time < track_time and _target != null and is_instance_valid(_target)
 			and dist < track_range):
 		_last_seen = _target.global_position   # still knows where you are for a few seconds after losing sight
@@ -695,6 +696,8 @@ func _hold_fire() -> void:
 
 func _update_shooting(delta: float, dist: float, suppressing := false) -> void:
 	_fire_timer -= delta
+	if _prep_left > 0.0:
+		return   # still lining the shot up after a fresh sighting (a quick pass behind a window isn't a free kill)
 	if _fire_timer > 0.0:
 		return
 	if _shots_left <= 0:
@@ -771,6 +774,9 @@ func _fire_at_target(dist: float) -> void:
 		return  # no clear shot (seen over the crest, but every line hits the ground): don't shoot the hill
 
 	var chance := hit_chance(dist)
+	if _snap_shot:
+		chance *= first_shot_accuracy_mult   # the rushed first shot after a fresh sighting
+		_snap_shot = false
 	if dist < point_blank_range:
 		chance = maxf(chance, point_blank_accuracy)
 	if _target.is_sprinting():

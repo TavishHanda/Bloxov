@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.9 (Hideout clean-up, fairer AI first shots)
+Owner: "Lots of slightly glitching textures going through each other... one guy hair going through hat and... the
+sunflower pot".
+- **Hair through hats fixed.** The cap, flatcap and bandana put their back face on exactly the hair's back plane, so
+  the two fought for the same pixels (brown hair flickering through the hat). Every hat now stands a clear 3 cm proud
+  of the hair, so none of them share a plane with it. `make_character.py`'s `build_trader` rebuilt `trader.glb`.
+- **Sunflower pot fixed.** The rim's top and the soil's top were the same plane at y=0.22, and the stem started on it
+  too. The soil now sits 1 cm proud of the rim and the stem starts inside it, so nothing fights or pokes through.
+- **AI reaction scales with distance.** Spotted at your feet it aims in 0.2 s, at 45 m and beyond in 0.8 s
+  (`reaction_time`, `reaction_time_far`, `reaction_range`), so far AI can't snap onto you. Getting shot while unaware
+  still startles it in 0.15 s.
+- **No free shot after a quick pass.** Re-acquiring you in a fight (you crossed a window or a gap) adds the same
+  distance-scaled prep before it fires, even from an already-primed AI, and that rushed first shot lands at 70%
+  (`first_shot_accuracy_mult`).
+
 ## 0.34.8 (Cover round Bon's yard)
 Owner: "when bon roams, hes still very easy to snipe and camp and kill without him noticing, we need more cover around
 that area". Bon's crew have walled the open sides of the town hall's yard, where Bon walks his round (and over to the
