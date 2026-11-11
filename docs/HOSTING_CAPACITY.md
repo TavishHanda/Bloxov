@@ -1,10 +1,10 @@
 # Hosting capacity and cheaper alternatives
 
-**Status:** planning note, measured 2026-11-06. No code changed, nothing migrated.
-**Read with:** `docs/DEV_HANDOFF.md` §5 (current hosting), `docs/STASH_UPDATE_PLAN.md` §5 (the API and database this
-will eventually host).
+**Status:** planning note, measured 2026-11-06, updated 2026-11-11 after 0.30.5–0.34.8. Nothing migrated.
+**Read with:** `docs/DEV_HANDOFF.md` §5 (current hosting), `docs/STASH_UPDATE_PLAN.md` §5 (the API and database, now
+built).
 
-This note exists because the Stash update adds a database and an API to the same dyno, so the hosting bill and the
+This note exists because the Stash update added a database and an API to the same dyno, so the hosting bill and the
 server's real capacity both matter. It records what the server actually uses, what the current caps mean, and what
 the same money buys elsewhere.
 
@@ -15,8 +15,9 @@ the same money buys elsewhere.
 Each online raid loads its own full copy of the map (`RaidWorld`, `scripts/raid_world.gd`) with navigation, the
 spawner and AI. That is the cost driver, not the player count: a player in the hideout is nearly free, a raid is not.
 
-Measured by loading real `RaidWorld` scenes headless and sampling process memory (`Performance.MEMORY_STATIC` and
-the OS working set), empty vs. a 120-second raid with six player proxies and spawned scavs:
+**Before 0.30.9 (the server ran the project folder).** Measured by loading real `RaidWorld` scenes headless and
+sampling process memory (`Performance.MEMORY_STATIC` and the OS working set), empty vs. a 120-second raid with six
+player proxies and spawned scavs:
 
 | Raid worlds | Empty map (RSS) | Live raid (RSS) |
 | --- | --- | --- |
@@ -59,20 +60,19 @@ New rule of thumb on the stripped pack: `RSS ≈ 170 MB + 67 MB × active raids`
 `tools/server_pack_check.gd` (four busy raids inside the pack) before every deploy. Server code must not need a real
 mesh, texture or material: `get_aabb()` works, `surface_get_arrays()` and friends find no surfaces.
 
-That puts these ceilings on the current build:
+That puts these ceilings on the current (stripped) server:
 
 | RAM | Raids that fit |
 | --- | --- |
-| 512 MB | **2** (461 MB; a 3rd is ~538 MB and over) |
-| 1 GB | ~9 |
-| 2.5 GB | ~29 |
-| 4 GB | ~49 |
-| 8 GB | ~100 (RAM-wise; CPU becomes the limit first) |
+| 512 MB | **4** (~440 MB) |
+| 1 GB | ~12 |
+| 2.5 GB | ~35 |
+| 4 GB | ~58 |
+| 8 GB | ~120 (RAM-wise; CPU becomes the limit first) |
 
-**Caveats:** measured on Windows headless with Godot 4.7.2. Linux (Heroku, a VPS) will differ somewhat, so treat
-these as order-of-magnitude, not exact. The engine baseline (~307 MB) is included. Beyond RAM, the Godot server's
-main loop is single-threaded, so one process only uses one core well; big boxes need several processes, not one
-bigger one.
+**Caveats:** the stripped-pack numbers were measured on Linux with Godot 4.7.2; the earlier project-folder numbers on
+Windows. Treat both as order-of-magnitude. Beyond RAM, the Godot server's main loop is single-threaded, so one process
+only uses one core well; big boxes need several processes, not one bigger one.
 
 ---
 
@@ -89,12 +89,10 @@ The caps are constants, not measurements:
 
 So the ceiling is 4 lobbies × 6 = 24 raiding, 40 online total.
 
-**The real ceiling on a 512 MB Basic dyno is ~2 raids (~12 raiding, ~20 online).** Four simultaneous raids would
-exceed the dyno's memory and Heroku would log `R14` (memory quota exceeded) then `R15` (dyno killed). If that has
-never happened, it is because four raids have never overlapped in testing, not because it fits.
-
-**Done:** 0.30.5 set `MAX_RAIDS = 2`; 0.30.9 moved the server to the stripped pack (below) and set it back to 4
-(~440 MB measured). Raise it only after moving to a box with more RAM.
+**History:** before the stripped pack, a 512 MB Basic dyno held ~2 raids, so 0.30.5 set `MAX_RAIDS = 2`. 0.30.6
+shared the map's collision triangles, and 0.30.9 moved the server to a stripped pack (no graphics) and set it back to
+4 (~440 MB measured). Four raids now fit with ~70 MB of headroom; CI's `tools/server_pack_check.gd` runs four busy
+raids inside the pack before every deploy. Raise `MAX_RAIDS` only after moving to a box with more RAM.
 
 ---
 
@@ -135,8 +133,9 @@ single always-on container.
 ## 4. Recommendation
 
 1. **Stay on Heroku for now.** It works, costs $12, and the credit covers it. Do not migrate just to save $6.
-2. **Migrate when the Stash update lands**, because that is when Postgres and the companion API appear anyway. One
-   move instead of two.
+2. **The Stash update has landed** (0.31.0–0.31.15: `server/`, Postgres, the online stash). The API and database now
+   exist, so moving them to a VPS is a deployment change, not a build. Do it when cost or the 512 MB ceiling starts
+   to bite, not before.
 3. **Pick by region and term, not specs.** Any of the options above holds 40 players easily. Put the server near
    the players. Contabo is cheapest; Hetzner is the best balance; DigitalOcean/Vultr have the widest region list.
 4. **Run everything on one box:** Caddy (auto-TLS, `wss://`), the Godot server container (the existing
@@ -162,7 +161,8 @@ Caddy (443, auto-TLS)
 
 ## 5. How to re-measure
 
-The numbers above came from a temporary headless probe. To reproduce, run a script like this with
+The project-folder numbers above came from a temporary headless probe; the stripped-pack numbers come from
+`tools/server_pack_check.gd`, which CI runs before every deploy. To reproduce the probe, run a script like this with
 `godot --headless --script <probe> -- <raids> [empty|live]`, where `live` also adds six proxies per world and ticks
 the spawner for 120 s:
 
@@ -217,8 +217,8 @@ Sample the process working set from the OS while it runs (that is the number a d
 
 ## 6. Sources
 
+- Capacity numbers: measured 2026-11-06 (project folder) and re-measured 2026-11-11 (stripped pack); see §1 and §5.
 - Heroku pricing page (dynos, Postgres Essential): checked 2026-11-06.
 - Hetzner cloud pricing (CX23/CX33, after the 2026 increases): checked 2026-11-06.
 - Contabo pricing (Cloud VPS 4): checked 2026-11-06.
 - Hostinger, RackNerd, DigitalOcean, Linode, Vultr, Oracle Always Free: checked 2026-11-06.
-- Capacity numbers: measured locally, see §1 and §5.
