@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.10 (Your bunk is its own room)
+Owner: "expand the bunk area ... so it's more obvious that you have your own area".
+- **Your corner is a nook now.** The bottom bunk at the west end of the quarters sits behind a concrete partition
+  (just past the next bunk) and an east wall with a curtained doorway, so the poster, flag, lamp, plant and rug are
+  inside your own little room instead of on the open wall. The doorway opens straight onto the bunk; the curtain
+  parts round you like every other one.
+- **The washing line no longer crosses your corner** (it now runs from the nook's wall east), the fairy lights stop
+  on the nook wall instead of dipping through it, and the nook has its own short string inside. The rug moved inside
+  the new wall.
+
 ## 0.34.9 (Hideout clean-up, fairer AI first shots)
 Owner: "Lots of slightly glitching textures going through each other... one guy hair going through hat and... the
 sunflower pot".

@@ -1990,10 +1990,28 @@ def quarters(ctx):
             duffel(b, bx, 1.71, bz + rng.uniform(-0.3, 0.3), yaw + rng.uniform(-10, 10), rng)
         p = r(0.0, -0.4)
         b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(BAG_TEX.get(*[rng.choice(("bk_tarp", "olive", "blue"))] * 2)))
-    # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off).
+    # Your corner (0.34.9, owner: "expand the bunk area ... so it's more obvious that you have your own area"): the
+    # bottom bunk at the west end becomes its own room. A concrete partition separates it from the next bunk, an east
+    # wall with a curtained doorway closes it off from the quarters, and the shelf, lamp, plant and poster stay inside.
+    nz, nx, wh = 27.62, -1.65, 2.8            # the north partition's line, the east wall's, the walls' height
+    door0, door1 = 29.0, 30.2                 # the doorway in the east wall (in front of the bunk)
+    b.box((-3.065, wh / 2, nz), (2.83, wh, 0.12), style=mb._nb("bk_old"))
+    block(-3.065, 0.0, nz, 2.83, wh, 0.12)
+    for z0, z1 in ((nz, door0), (door1, 32.4)):                       # (the doorway left out)
+        b.box((nx, wh / 2, (z0 + z1) / 2), (0.12, wh, z1 - z0), style=mb._nb("bk_old"))
+        block(nx, 0.0, (z0 + z1) / 2, 0.12, wh, z1 - z0)
+    b.box((nx, (2.2 + wh) / 2, (door0 + door1) / 2), (0.12, wh - 2.2, door1 - door0), style=mb._nb("bk_old"))
+    block(nx, 2.2, (door0 + door1) / 2, 0.12, wh - 2.2, door1 - door0)          # the lintel
+    pipe(b, (-4.48, wh + 0.02, nz), (nx, wh + 0.02, nz), "bk_iron", 0.04)          # capped tops
+    pipe(b, (nx, wh + 0.02, nz), (nx, wh + 0.02, 32.4), "bk_iron", 0.04)
+    pipe(b, (nx, 2.18, door0), (nx, 2.18, door1), "bk_iron", 0.03)                # the curtain's rod
+    sheet((nx, 1.15, (door0 + door1) / 2), door1 - door0, 2.0, 90.0, "olive")
+    # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off). The second run stops on
+    # your nook's wall (0.34.10) instead of crossing it, and the nook gets its own short string inside.
     n0 = len(LAMPS)
-    for a, c in (((-4.44, 2.9, 25.6), (4.44, 2.9, 28.4)), ((4.44, 2.9, 28.4), (-4.44, 2.9, 31.6))):   # wall to wall
+    for a, c in (((-4.44, 2.9, 25.6), (4.44, 2.9, 28.4)), ((4.44, 2.9, 28.4), (nx, 2.82, 30.6))):
         string_lights(b, a, c, sag=0.35, every=0.9, strength=0.25, reach=2.2)
+    string_lights(b, (nx - 0.06, 2.62, 30.6), (-4.4, 2.62, 30.6), sag=0.18, every=0.7, strength=0.22, reach=1.9)
     DARK_GLOWS[:] = [lamp[:3] for lamp in LAMPS[n0:]]
     # The dartboard on a plywood backboard, a tape line on the floor to throw from.
     x, y, z = DARTBOARD
@@ -2009,9 +2027,9 @@ def quarters(ctx):
     pipe(b, (x - 0.02, y + 0.1, z), (x - 0.02, 2.9, z), "bk_cable", 0.012)
     # Washing hung up across the tunnel.
     zl = 30.9
-    pipe(b, (-4.3, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)
-    for k in range(7):
-        x = -3.4 + k * 1.1 + rng.uniform(-0.2, 0.2)
+    pipe(b, (-1.59, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)      # (0.34.9: not through your nook)
+    for k in range(6):
+        x = -1.0 + k * 1.05 + rng.uniform(-0.2, 0.2)
         sheet((x, 2.0, zl), 0.5, 0.65, rng.uniform(-6, 6), rng.choice(("olive", "olive_dark", "bone", "bk_tarp", "blue")))
     # Notices on the walls.
     for bid, z, side in (("lights", 23.0, -1), ("chow", 23.6, 1), ("clean", 31.7, 1)):

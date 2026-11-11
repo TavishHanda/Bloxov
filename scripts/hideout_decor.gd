@@ -1,10 +1,11 @@
 class_name HideoutDecor
 extends Node3D
 ## Your corner (lively hideout, owner 2026-11-09: "customizable hideout, stuff that shows personality"): the bottom
-## bunk at the west end of the quarters is yours. A poster over it, beside it a flag on the wall over a shelf with a
-## lamp on it and a plant under it, a rug in front, your blanket on the mattress: each picked from Decor's list
-## at the corner (USE: "Decorate your corner", DecorPicker). Looks only: nothing collides, nothing's sent online,
-## and a headless run (the server, the tests) builds none of it unless `force_reacts` is set.
+## bunk at the west end of the quarters is yours, in its own nook behind a partition and a curtained doorway (0.34.9).
+## A poster over it, beside it a flag on the wall over a shelf with a lamp on it and a plant under it, a rug in front,
+## your blanket on the mattress: each picked from Decor's list at the corner (USE: "Decorate your corner", DecorPicker).
+## Looks only: nothing collides, nothing's sent online, and a headless run (the server, the tests) builds none of it
+## unless `force_reacts` is set.
 
 const BUNK := Vector3(-3.4, 0.0, 29.6)      # your bunk (make_hideout.py LAY.bunk_list[1]; foot at the wall)
 const WALL_X := -4.43                        # the quarters' west wall
@@ -74,7 +75,7 @@ func _build(spot: String, id: String) -> Node3D:
 			_flag(n, id)
 			return n
 		"rug":
-			var n := _spot_node("Rug", Vector3(-1.75, 0.0, BUNK.z - 0.1), PI * 0.5)
+			var n := _spot_node("Rug", Vector3(-2.2, 0.0, BUNK.z - 0.1), PI * 0.5)
 			_rug(n, id)
 			return n
 		"lamp":
