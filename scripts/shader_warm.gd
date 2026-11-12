@@ -11,10 +11,14 @@ extends Node
 ## clicking round the title screen and walking the hideout. And each list is drawn the way it's really lit: a shader is
 ## built again for different light, so the hideout's (no sun) were built for the raid's sunlight and the hideout built
 ## them all over again as you walked in, and on LOW graphics (no sun shadows) the raid's were built for shadows.
+## 0.34.13 (owner: "its the getting ready that takes a long time"): the hideout's come first now, so the title screen
+## only waits for those (a few seconds) and the raid's finish behind the buttons. Leaving the title stops the rest:
+## the hideout and the raid build whatever's left themselves, as before.
 
 const RAID_LIST := "res://assets/warm/raid_warm.tscn"
 const HIDEOUT_LIST := "res://assets/warm/hideout_warm.tscn"
-const LISTS := [RAID_LIST, HIDEOUT_LIST]
+## Built in this order: the title screen waits for the hideout's, then PLAY comes up while the raid's follow.
+const LISTS := [HIDEOUT_LIST, RAID_LIST]
 ## Frames should take about this long while it builds (ms): it draws more stand-ins a frame while frames are quicker,
 ## fewer while slower, so the loading bar keeps moving.
 const TARGET_MS := 90.0
@@ -22,6 +26,10 @@ const MAX_PER_FRAME := 16
 
 static var _running: ShaderWarm
 static var _done := false
+## True once the lists above have been queued (the hideout's are queued first, then the raid's).
+static var _started := false
+## How many stand-ins the hideout's share has: once that many are drawn, the title screen can come up.
+static var _ready_total := 0
 static var _total := 0
 static var _drawn := 0
 
@@ -43,7 +51,7 @@ static func start(tree: SceneTree) -> void:
 	tree.root.add_child.call_deferred(_running)
 
 
-## Stops (the raid is loading: it builds whatever is left itself).
+## Stops (leaving the title: the hideout and the raid build whatever's left themselves).
 static func stop() -> void:
 	if _running != null:
 		_running.queue_free()
@@ -52,6 +60,19 @@ static func stop() -> void:
 
 static func is_done() -> bool:
 	return _done
+
+
+## True once the hideout's shaders are built: what the title screen waits for before showing PLAY (0.34.13). The
+## raid's keep building behind the buttons.
+static func is_ready() -> bool:
+	return _done or (_started and _drawn >= _ready_total)
+
+
+## How far along the hideout's share is, 0-1 (1 once it's built, or when there's nothing to build).
+static func ready_progress() -> float:
+	if _done or (_started and _ready_total == 0):
+		return 1.0
+	return 0.0 if not _started else clampf(float(_drawn) / _ready_total, 0.0, 1.0)
 
 
 ## How far along it is, 0-1 (1 once done, or when there's nothing to build).
@@ -63,6 +84,12 @@ static func progress() -> float:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# The hideout first (0.34.13): the title screen waits only for these, so PLAY comes up in a few seconds. Its
+	# light: underground, no sun (Look.hideout_environment).
+	var hideout := _view("Hideout")
+	(hideout.get_node("WorldEnvironment") as WorldEnvironment).environment = Look.hideout_environment()
+	_add_list(hideout, HIDEOUT_LIST)
+	_ready_total = _queue.size()
 	# The raid: its look and its sun, with the graphics setting's shadows (main.tscn's Sun).
 	var raid := _view("Raid")
 	var sun := DirectionalLight3D.new()
@@ -71,11 +98,8 @@ func _ready() -> void:
 	raid.add_child(sun)
 	Look.apply(raid)   # (its light, and GameSettings.shadows_on for the sun)
 	_add_list(raid, RAID_LIST)
-	# The hideout: underground, no sun, its own light (Look.hideout_environment).
-	var hideout := _view("Hideout")
-	(hideout.get_node("WorldEnvironment") as WorldEnvironment).environment = Look.hideout_environment()
-	_add_list(hideout, HIDEOUT_LIST)
 	_total = _queue.size()
+	_started = true
 	_last_usec = Time.get_ticks_usec()
 
 

@@ -2360,10 +2360,12 @@ func _section_hideout_world() -> void:
 			title_buttons.append(String((node as Button).text))
 	_check(title_buttons.slice(0, 4) == ["PLAY", "OPTIONS", "PRIVACY", "CREDITS"], "main screen: PLAY, OPTIONS, PRIVACY, CREDITS %s" % str(title_buttons))
 	# 0.30.8: a loading bar stands where the buttons go until the shaders are built and the hideout is loaded; with
-	# nothing to build (headless) the buttons are up straight away.
+	# nothing to build (headless) the buttons are up straight away. 0.34.13: the bar waits only for the hideout's
+	# shaders (the raid's finish behind the buttons).
 	_check(title.ready_to_play and title._play_button.visible and not title._loading_box.visible
-		and title._loading_bar.get_parent() == title._loading_box and ShaderWarm.is_done() and ShaderWarm.progress() == 1.0,
-		"main screen: the loading bar gives way to the buttons once everything's built")
+		and title._loading_bar.get_parent() == title._loading_box and ShaderWarm.is_ready() and ShaderWarm.is_done()
+		and ShaderWarm.progress() == 1.0,
+		"main screen: the loading bar gives way to the buttons once the hideout is ready")
 	# 0.21.15: the dusk town behind it fills the screen and drifts (0.21.20: in a shader, so it's smooth).
 	var title_bg := title._background
 	var screen := title.get_viewport().get_visible_rect().size
@@ -3665,7 +3667,8 @@ func _section_settings() -> void:
 		is_equal_approx(root.scaling_3d_scale, 1.0) and is_equal_approx(FarView.distance(), FarView.FROM),
 		"HIGH graphics: shadows to 60 m, full render scale, far meshes from %d m" % FarView.FROM)
 	# Shader warm-up (0.29.5): the stand-in lists tools/gen_shader_warm.gd makes load, each stand-in has a material,
-	# and nothing starts on a headless run (or a server).
+	# and nothing starts on a headless run (or a server). 0.34.13: the hideout's are listed first (the title waits for
+	# those), the raid's after.
 	var counts := []
 	for path in ShaderWarm.LISTS:
 		var list: Node = (load(path) as PackedScene).instantiate() if ResourceLoader.exists(path) else null
@@ -3674,8 +3677,8 @@ func _section_settings() -> void:
 		if list:
 			list.free()
 		ShaderWarm.start(self)
-	_check(counts[0] >= 20 and counts[1] >= 5 and root.get_node_or_null("ShaderWarm") == null,
-		"the raid's and hideout's shaders are listed for building early (%s), not on headless runs" % str(counts))
+	_check(counts[0] >= 5 and counts[1] >= 20 and root.get_node_or_null("ShaderWarm") == null,
+		"the hideout's shaders are listed for building first, then the raid's (%s), not on headless runs" % str(counts))
 	# 0.30.8: the hideout's light is the same for the warm-up and the real hideout; the loading covers wait for smooth
 	# frames, never longer than SETTLE_MAX.
 	var hideout_env := Look.hideout_environment()
