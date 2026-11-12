@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.12 (No more gaps, and the washroom tap runs)
+Owner: "Theres also tiny gaps in the walls like this, can we look into this please" and "can you make the sink in
+the washroom an actual sink and water comes out when u press use button lol".
+- **The gaps in the walls are gone.** The dotted line down the concrete was not a hole in the model: the kit atlas
+  shader sampled exactly on a texture cell's edge where the texture wrapped, and nearest filtering picked the
+  neighbouring atlas cell (the yellow hazard stripes showed as dots). Samples now stay half a texel inside their
+  cell, so every tiled wall, floor and ceiling in the game loses that seam. The nook's partition and the crew rooms'
+  walls also run into the tunnel walls now, closing the 2 cm slits at their ends.
+- **The washroom sink is a real sink.** The trough is open steel with standing water, a drain, three taps (the middle
+  one a gooseneck over the drain) and three mirrors. Walk up to it and press USE: water runs from the tap, splashes
+  in the trough and trickles close by; USE again turns it off (it also stops itself after 25 seconds).
+
 ## 0.34.11 (The crew get rooms too)
 Owner: "physically make this area bigger so we can give others rooms too? we can push the bathroom back a bit".
 - **The quarters are 5 m longer.** The mess tunnel carries on south to z 41 and the washroom now sits at its end,

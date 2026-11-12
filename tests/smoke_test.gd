@@ -2425,7 +2425,7 @@ func _section_hideout_world() -> void:
 	var names: Array[String] = []
 	for marker: Node3D in stations:
 		names.append(String(marker.name))
-	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox"]:
+	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox", "sink"]:
 		_check(names.has(want), "the hideout has a %s station" % want)
 	# Every station stands on open floor: you can stand there without being pushed out or falling through.
 	var bad: Array[String] = []
@@ -2858,6 +2858,21 @@ func _section_hideout_world() -> void:
 	walker.camera.rotation.x = 0.0
 	_check(aimed.values().all(func(r: Array) -> bool: return r == [true, false, false]),
 		"radio, darts and lights: in reach looking at them, not looking away or 4 m off %s" % str(aimed))
+	# The washroom sink (0.34.12, owner: "water comes out when u press use button"): USE runs the tap, USE stops it.
+	var sink: Node3D = world.get_node("Level/Stations/sink")
+	walker.global_position = sink.global_position + Vector3.UP * 0.05
+	walker.velocity = Vector3.ZERO
+	for f in 3:
+		await physics_frame
+	await process_frame
+	_check(world.station == sink and world._prompt.text.ends_with("Run the tap"),
+		"at the washroom sink: F runs the tap (%s)" % world._prompt.text)
+	world.use_station()
+	await process_frame
+	_check(world._life.tap_on and world.station_label("sink") == "Turn the tap off", "the tap runs")
+	world.use_station()
+	await process_frame
+	_check(not world._life.tap_on and world.station_label("sink") == "Run the tap", "and USE again turns it off")
 	var rings: PackedFloat32Array = world.get_node("Level/Dartboard").get_meta("rings")
 	var one := Vector2(sin(deg_to_rad(18.0)), cos(deg_to_rad(18.0)))
 	_check(DartsGame.score_at(Vector2.ZERO, rings) == [50, "BULL"] and DartsGame.score_at(Vector2(0, 0.1), rings) == [60, "T20"]

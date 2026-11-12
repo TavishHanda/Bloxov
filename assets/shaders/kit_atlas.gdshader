@@ -7,13 +7,19 @@
 shader_type spatial;
 
 uniform sampler2D atlas : source_color, filter_nearest_mipmap, repeat_disable;
-const vec2 CELL = vec2(1.0 / 16.0, 1.0 / 16.0);
 const vec2 GRID_TO_ATLAS = vec2(0.5, 0.5);
+const float CELL_PX = 64.0;             // one atlas cell is 64 px square
+const float ATLAS_PX = 1024.0;
+// (0.34.12) Samples stay half a texel inside the cell: on the wrap the UV lands exactly on the cell's edge, and
+// nearest filtering there picked the neighbouring cell's texel (bk_old showed bk_hazard's yellow stripes as a
+// dotted line down the wall). The scale is a hair under 1, so the texture still tiles.
+const vec2 INSIDE_SCALE = vec2((CELL_PX - 1.0) / ATLAS_PX, (CELL_PX - 1.0) / ATLAS_PX);
+const vec2 INSIDE_OFFSET = vec2(0.5 / ATLAS_PX, 0.5 / ATLAS_PX);
 
 void fragment() {
-	vec2 inside = fract(UV) * CELL;
+	vec2 inside = fract(UV) * INSIDE_SCALE + INSIDE_OFFSET;
 	// Mip level from the unwrapped UV, so there's no seam where the texture wraps round inside its cell.
-	vec4 texel = textureGrad(atlas, UV2 * GRID_TO_ATLAS + inside, dFdx(UV) * CELL, dFdy(UV) * CELL);
+	vec4 texel = textureGrad(atlas, UV2 * GRID_TO_ATLAS + inside, dFdx(UV) * INSIDE_SCALE, dFdy(UV) * INSIDE_SCALE);
 	ALBEDO = texel.rgb * COLOR.rgb;
 	ROUGHNESS = 1.0;
 	METALLIC = 0.0;

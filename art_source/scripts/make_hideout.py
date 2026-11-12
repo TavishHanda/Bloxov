@@ -65,8 +65,6 @@ def paint_bk_old(rng):
     for row in range(16):
         c.rect(0, row * 4, 64, row * 4 + 4, rng.choice(["bk_old", "bk_old", "bk_old_dark", "bk_old_light"]))
         c.rect(0, row * 4, 64, row * 4 + 1, "bk_old_dark")
-    for k in range(64):
-        c.put(31, k, "bk_old_stain")
     for _ in range(12):                                                # damp running down
         x = rng.randrange(64)
         for y in range(rng.randrange(0, 40), rng.randrange(44, 64)):
@@ -1792,20 +1790,37 @@ def shower_block(ctx):
         sheet((x0 + 1.72, 1.15, za + (zb - za) * open_part / 2 + 0.02), (zb - za) * open_part, 1.7, 90.0,
               "bk_tarp" if k == 0 else "olive")
     b.box((x0 + 1.77, 1.0, z1 - 2 * cub_w - 0.06), (0.12, 2.0, 0.12), style=mb._nb("bk_old"))
-    # The trough: a steel trough on brackets along the back, three taps, three steel mirrors, soap, a razor.
+    # The sink (0.34.12, owner: "make the sink in the washroom an actual sink and water comes out when u press use
+    # button"): an open steel trough on brackets along the back, water standing in it over a drain, three taps (the
+    # middle one a gooseneck over the drain), three steel mirrors, soap, a razor.
     tx0, tx1 = x0 + 2.1, x1 - 2.3
     tz = z1 - 0.3
-    b.box(((tx0 + tx1) / 2, 0.8, tz), (tx1 - tx0, 0.22, 0.5), style=mb._nb("metal"))
-    b.box(((tx0 + tx1) / 2, 0.915, tz + 0.02), (tx1 - tx0 - 0.1, 0.012, 0.36), style=mb._solid("trim_dark"))
+    w, d = tx1 - tx0, 0.5
+    b.box(((tx0 + tx1) / 2, 0.71, tz), (w, 0.04, d), style=mb._nb("metal"))            # the bottom
+    for zz in (tz - d / 2 + 0.02, tz + d / 2 - 0.02):                                  # its front, back and ends
+        b.box(((tx0 + tx1) / 2, 0.815, zz), (w, 0.25, 0.04), style=mb._nb("metal"))
+    for xx in (tx0 + 0.02, tx1 - 0.02):
+        b.box((xx, 0.815, tz), (0.04, 0.25, d), style=mb._nb("metal"))
+    b.box(((tx0 + tx1) / 2, 0.874, tz), (w - 0.14, 0.012, d - 0.14), style=mb._solid("blue"))  # the water
+    b.box(((tx0 + tx1) / 2, 0.74, tz), (0.1, 0.02, 0.1), style=mb._solid("black"))     # the drain
     pipe(b, (tx0, 1.3, z1 - 0.06), (tx1, 1.3, z1 - 0.06), "bk_iron", 0.04)            # the water pipe
+    tap_x = (tx0 + tx1) / 2
     for k in range(3):
         x = tx0 + (k + 0.5) * (tx1 - tx0) / 3
-        pipe(b, (x, 1.3, z1 - 0.06), (x, 1.05, z1 - 0.2), "bk_iron", 0.025)           # a tap
+        if k == 1:                                                     # the sink's tap: a gooseneck over the drain
+            pipe(b, (x, 1.3, z1 - 0.06), (x, 1.46, z1 - 0.06), "bk_iron", 0.025)
+            pipe(b, (x, 1.46, z1 - 0.06), (x, 1.46, z1 - 0.3), "bk_iron", 0.025)
+            pipe(b, (x, 1.46, z1 - 0.3), (x, 1.26, z1 - 0.3), "bk_iron", 0.025)
+            b.box((x, 1.26, z1 - 0.3), (0.06, 0.04, 0.06), style=mb._nb("steel_light"))   # the spout
+        else:
+            pipe(b, (x, 1.3, z1 - 0.06), (x, 1.05, z1 - 0.2), "bk_iron", 0.025)       # a tap
         b.box((x, 1.6, z1 - 0.02), (0.36, 0.44, 0.02), style=mb._solid("steel_light"))  # a mirror
         b.box((x + 0.25, 0.94, tz - 0.12), (0.08, 0.04, 0.06), style=mb._nb(rng.choice(("bone", "green", "red"))))
     for x in (tx0 + 0.1, tx1 - 0.1):
         pipe(b, (x, 0.0, tz), (x, 0.7, tz), "bk_iron", 0.05)
-    LIFE["drip"] = (tx0 + 1.5 * (tx1 - tx0) / 3, 1.04, z1 - 0.2)     # (lively hideout: the middle tap drips)
+    LIFE["sink"] = (tap_x, 1.24, z1 - 0.3)                             # (0.34.12: scripts/hideout_life.gd runs it)
+    LIFE["sink_to"] = (tap_x, 0.875, z1 - 0.3)                         # (where the water lands)
+    LIFE["drip"] = (tx0 + (tx1 - tx0) / 6, 1.05, z1 - 0.2)             # (lively hideout: another tap drips)
     LIFE["pipes"] = ((tx0 + tx1) / 2, 1.3, z1 - 0.06)                  # (and the water pipe knocks now and then)
     LIFE["rat"] = (tx0 + 0.3, 0.0, z1 - 0.16)                          # (and a rat runs along under the trough)
     LIFE["rat_to"] = (tx1 - 0.3, 0.0, z1 - 0.16)
@@ -1997,14 +2012,14 @@ def quarters(ctx):
     # (0.34.11: its south side gets a real wall now, built with the crew rooms in crew_rooms().)
     nz, nx, wh = 27.62, -1.65, 2.8            # the north partition's line, the east wall's, the walls' height
     door0, door1 = 29.0, 30.2                 # the doorway in the east wall (in front of the bunk)
-    b.box((-3.065, wh / 2, nz), (2.83, wh, 0.12), style=mb._nb("bk_old"))
-    block(-3.065, 0.0, nz, 2.83, wh, 0.12)
+    b.box((-3.175, wh / 2, nz), (3.05, wh, 0.12), style=mb._nb("bk_old"))   # (0.34.12: into the tunnel's wall, no slit)
+    block(-3.175, 0.0, nz, 3.05, wh, 0.12)
     for z0, z1 in ((nz, door0), (door1, 32.4)):                       # (the doorway left out)
         b.box((nx, wh / 2, (z0 + z1) / 2), (0.12, wh, z1 - z0), style=mb._nb("bk_old"))
         block(nx, 0.0, (z0 + z1) / 2, 0.12, wh, z1 - z0)
     b.box((nx, (2.2 + wh) / 2, (door0 + door1) / 2), (0.12, wh - 2.2, door1 - door0), style=mb._nb("bk_old"))
     block(nx, 2.2, (door0 + door1) / 2, 0.12, wh - 2.2, door1 - door0)          # the lintel
-    pipe(b, (-4.48, wh + 0.02, nz), (nx, wh + 0.02, nz), "bk_iron", 0.04)          # capped tops
+    pipe(b, (-4.7, wh + 0.02, nz), (nx, wh + 0.02, nz), "bk_iron", 0.04)           # capped tops
     pipe(b, (nx, wh + 0.02, nz), (nx, wh + 0.02, 32.4), "bk_iron", 0.04)
     pipe(b, (nx, 2.18, door0), (nx, 2.18, door1), "bk_iron", 0.03)                # the curtain's rod
     sheet((nx, 1.15, (door0 + door1) / 2), door1 - door0, 2.0, 90.0, "olive")
@@ -2050,7 +2065,7 @@ def crew_rooms(ctx):
     nook gets the proper south wall the open washroom never gave it."""
     b, rng = ctx.b, random.Random("crew_rooms")
     H = 2.8                                                            # the walls' height (the nook's)
-    X0, X1 = -4.48, 4.48                                               # the tunnel's walls
+    X0, X1 = -4.7, 4.7                                                 # (into the tunnel's walls: a 2 cm gap showed)
     N, S, DIV, CX = 32.4, 37.4, 34.9, 1.26                             # north/south walls, the rooms' divider, the corridor
     T = 0.12
     DOORS = ((33.05, 34.25), (35.55, 36.75))                           # each room's doorway (1.2 m, like the nook's)
@@ -2781,6 +2796,8 @@ def stations():
         out.append(("darts", DART_LINE + 0.3, DARTBOARD[2], 1.4))
         out.append(("radio", RADIO[0], RADIO[1] + 0.95, 1.4))
         out.append(("lights", SWITCH[0] - 0.75, SWITCH[2], 1.4))
+        # (0.34.12: the washroom sink: stand in front of the trough, USE runs the tap)
+        out.append(("sink", (LAY.wc[0] + LAY.wc[2]) / 2 - 0.1, LAY.wc[3] - 1.15, 1.8))
     if LAY.hang:
         jx, jz = LAY.hang.jukebox
         p = LAY.hang.w((jx + 1.0, 0.0, jz))

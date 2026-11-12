@@ -10,6 +10,7 @@ const TV := preload("res://assets/shaders/tv_picture.gdshader")
 const DRIPS: Array[AudioStream] = [preload("res://audio/world/drip1.wav"), preload("res://audio/world/drip2.wav")]
 const PIPE_KNOCK := preload("res://audio/world/pipe_knock.wav")
 const GENERATOR := preload("res://audio/world/generator.wav")
+const SWITCH := preload("res://audio/world/switch.wav")
 const DRIP_EVERY := Vector2(2.5, 6.0)      # seconds between drops off the tap
 const KNOCK_EVERY := Vector2(45.0, 110.0)  # seconds between the water pipe's knocks
 const NEAR_DRIP := 7.0                     # metres you hear a drop from
@@ -25,6 +26,13 @@ var dust: CPUParticles3D
 var glows: Array[MeshInstance3D] = []
 var pictures: Array[MeshInstance3D] = []   # the TV's and the projector screen's
 var drop: MeshInstance3D                   # the drop falling off the tap
+var stream: MeshInstance3D                 # the washroom tap's water, while it runs (0.34.12)
+var splash: CPUParticles3D                 # ... and where it lands
+var tap_on := false
+var _tap_at := Vector3.INF                 # the spout, and the water it falls into
+var _tap_to := Vector3.INF
+var _tap_left := 0.0                       # seconds until the tap turns itself off
+var _splash_left := 0.0
 var fan: Node3D                            # the generator's fan, turning
 var exhaust: CPUParticles3D
 var engine: AudioStreamPlayer3D
@@ -67,6 +75,10 @@ func _ready() -> void:
 	if has_meta(&"drip"):
 		_drip_at = get_meta(&"drip")
 		drop = _drop(_drip_at)
+	if has_meta(&"sink") and has_meta(&"sink_to"):
+		_tap_at = get_meta(&"sink")
+		_tap_to = get_meta(&"sink_to")
+		_build_sink()
 	if has_meta(&"pipes"):
 		_pipe_at = get_meta(&"pipes")
 	if has_meta(&"generator"):
@@ -78,7 +90,8 @@ func _ready() -> void:
 	_rat_left = _dice.randf_range(RAT_EVERY.x * 0.3, RAT_EVERY.y * 0.5)
 	_drip_left = _dice.randf_range(DRIP_EVERY.x, DRIP_EVERY.y)
 	_knock_left = _dice.randf_range(KNOCK_EVERY.x, KNOCK_EVERY.y)
-	set_process(_drip_at != Vector3.INF or _pipe_at != Vector3.INF or fan != null or rat != null)
+	set_process(_drip_at != Vector3.INF or _pipe_at != Vector3.INF or fan != null or rat != null
+		or _tap_at != Vector3.INF)
 	if not glows.is_empty():
 		Reacts.warm_up(self, glows[0].mesh, glows[0].material_override)
 
@@ -88,6 +101,8 @@ func _process(delta: float) -> void:
 		fan.rotate_object_local(Vector3.RIGHT, delta * 14.0)
 	if drop != null:
 		_drip(delta)
+	if _tap_at != Vector3.INF:
+		_run_tap(delta)
 	if rat != null:
 		_run_rat(delta)
 	if _pipe_at != Vector3.INF:
@@ -202,6 +217,75 @@ func _drop(at: Vector3) -> MeshInstance3D:
 	add_child(d)
 	d.position = at
 	return d
+
+
+## The washroom sink (0.34.12): USE at it runs the tap for a while, water falling from the gooseneck into the trough
+## and splashing there, with the trickle heard close by. Looks only, like the rest of this node.
+func set_tap(on: bool) -> void:
+	tap_on = on
+	if _tap_at == Vector3.INF:   # (headless: no models, no sounds)
+		return
+	if stream != null:
+		stream.visible = on
+	if splash != null:
+		splash.emitting = on
+	if on:
+		_tap_left = 25.0
+		if drop != null:
+			drop.visible = false   # (the other tap's drip can wait)
+	WorldSounds.at_soft(self, SWITCH, to_global(_tap_at), -9.0, NEAR_DRIP, _dice.randf_range(0.9, 1.05))
+
+
+func _run_tap(delta: float) -> void:
+	if not tap_on:
+		return
+	_tap_left -= delta
+	if _tap_left <= 0.0:
+		set_tap(false)
+		return
+	var wobble := 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.03)
+	stream.scale.x = wobble
+	stream.scale.z = wobble
+	_splash_left -= delta
+	if _splash_left <= 0.0:   # (a trickle: quick quiet drips at the water's surface)
+		_splash_left = _dice.randf_range(0.09, 0.2)
+		WorldSounds.at_soft(self, DRIPS[_dice.randi() % DRIPS.size()], to_global(_tap_to), -20.0, NEAR_DRIP,
+			_dice.randf_range(1.15, 1.5))
+
+
+func _build_sink() -> void:
+	var water := StandardMaterial3D.new()
+	water.albedo_color = Color(0.62, 0.76, 0.8, 0.55)
+	water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water.metallic_specular = 1.0
+	water.roughness = 0.05
+	var length := _tap_at.distance_to(_tap_to)
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.02, maxf(length, 0.05), 0.02)
+	mesh.material = water
+	stream = MeshInstance3D.new()
+	stream.name = "Tap"
+	stream.mesh = mesh
+	stream.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(stream)
+	stream.position = (_tap_at + _tap_to) * 0.5
+	stream.visible = false
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	ramp.colors = PackedColorArray([Color(0.72, 0.86, 0.9, 0.7), Color(0.75, 0.88, 0.92, 0.5),
+		Color(0.75, 0.88, 0.92, 0.0)])
+	splash = _puffs(12, 0.5, 0.012, ramp)
+	splash.name = "Splash"
+	splash.position = _tap_to + Vector3.UP * 0.012
+	splash.preprocess = 0.0
+	splash.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	splash.emission_sphere_radius = 0.025
+	splash.direction = Vector3.UP
+	splash.spread = 35.0
+	splash.initial_velocity_min = 0.15
+	splash.initial_velocity_max = 0.4
+	splash.gravity = Vector3(0.0, -2.4, 0.0)
+	splash.emitting = false
 
 
 ## The generator (its body is in the model): a fan turning behind a guard on its west end, puffs off the exhaust
