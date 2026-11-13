@@ -498,6 +498,45 @@ def solid_late():
             anchors.append(None)
 
 
+# The log cabins' corners (0.34.7, playtester: "the AI can see me and shoot through the corners"): the crossed log
+# ends stick out ~0.3 m past the walls' boxes (to 6.97 x 5.47 from the middle), so someone tucked against a wall by a
+# corner was seen and shot through logs that looked solid. Each corner gets a post as big as the log ends: solid to
+# everyone, eyes and shots too, not drawn (the model draws the logs). Added late so the scatter doesn't move.
+CABIN_CORNER = (6.35, 6.97, 4.85, 5.47, 3.0)   # the post, model frame: x from..to, z from..to, height
+
+
+def cabin_corners():
+    x0, x1, z0, z1, h = CABIN_CORNER
+    for m in models:
+        if not (m["hide"] and m["name"].startswith("cabin_")):
+            continue
+        ox, oz = gx(m["x"]), gz(m["z"])
+        for sx in (-1, 1):
+            for sz in (-1, 1):
+                x, z = turn_point(ox + sx * (x0 + x1) / 2, oz + sz * (z0 + z1) / 2, ox, oz, m["turned"])
+                boxes.append((x, h / 2, z, x1 - x0, h, z1 - z0, m["turned"] % 360.0, 0.0, C["wood"], 2))
+                anchors.append(None)
+
+
+def hole_glass():
+    """The bus shelters' glass (0.34.14, owner: "make it have bullet holes going through so its more like reinforced
+    glass, but yeah shoot through it"): Godot x, y, z, width, height, yaw of each pane, as `window_panes`. Shots still
+    pass through; BoxMap draws a hole where one does. The panes are where make_outdoor draw_shelter puts them: the back
+    panel's left half and both ends (the frame's origin is the back panel's foot, its front toward local -z)."""
+    out = []
+    for b in boxes:
+        if len(b) < 11 or not isinstance(b[10], int) or debris[b[10]]["kind"] != "shelter":
+            continue
+        if abs(b[3] - 4.0) > 0.01 or abs(b[5] - 0.1) > 0.01:
+            continue
+        yaw = b[6]
+        c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        ox, oy, oz = b[0], b[1] - b[4] / 2, b[2]
+        for lx, lz, w, turn in ((-1.0, 0.0, 1.9, 0.0), (-2.0, -0.6, 1.0, 90.0), (2.0, -0.6, 1.0, 90.0)):
+            out.append((ox + c * lx + s_ * lz, oy + 1.25, oz - s_ * lx + c * lz, w, 2.2, (yaw + turn) % 360.0))
+    return out
+
+
 def write_model_boxes(ter):
     """Also checks the whole model stands on one flat pad (the model can't bend over hills like the boxes)."""
     names = {i: n for n, i in C.items()}
@@ -3779,7 +3818,7 @@ CLEARED_BY_PENS = {"rocks", "rubble", "ruin", "wall", "berm", "container", "truc
 
 
 def clear_pens():
-    rects = pen_rects + camp_rects
+    rects = pen_rects + camp_rects + bon_rects
 
     def inside(x, z, grow=0.0):
         return any(x0 - grow < x < x1 + grow and z0 - grow < z < z1 + grow for x0, z0, x1, z1 in rects)
@@ -4809,6 +4848,56 @@ def town_hall_back():
             truck(x, z, yaw)
         else:
             sandbags(x, z, yaw)
+
+
+# Bon's round (owner 2026-11-10: "when bon roams, hes still very easy to snipe and camp and kill without him
+# noticing, we need more cover around that area"): Bon walks the hall's yard and a ring ~12 m past it, and over to
+# the bank. Snipers 100 m+ out (past his 60 m sight; the east hill worst) saw most of it. His crew have walled the
+# yard's open sides with stacked containers and hesco, gaps baffled so nobody far off sees through, and everyone
+# (Bon, the AI, players) still walks through. Built with the extract pens (late: nothing else on the map moves).
+# Measure: godot --headless -s tools/bon_route.gd. Rows: ("hesco"/"sandbags", x0, z0, x1, z1) along the line between;
+# ("container", x, z, yaw, stacked, colour); ("truck", x, z, yaw).
+BON_COVER = [
+    # east, toward the hill: two stacks with a hesco wall between, the gap in it baffled by a second row
+    ("container", 145.0, 146.0, 0.0, 2, "rust"), ("hesco", 145.0, 149.8, 145.0, 156.6),
+    ("hesco", 149.6, 154.6, 149.6, 162.0), ("container", 145.0, 163.6, 0.0, 2, "army"),
+    ("hesco", 145.0, 167.4, 145.0, 174.6),
+    # south, past the barricade (the fields over the railway, the ground falls away: hesco is too low there):
+    # two rows of containers (mostly stacked), overlapping where you walk between them
+    ("hesco", 95.0, 185.6, 98.4, 185.6), ("container", 101.75, 185.6, 90.0, 2, "army"),
+    ("container", 107.85, 185.6, 90.0, 1, "rust"), ("container", 111.05, 190.0, 90.0, 2, "car_b"),
+    ("container", 117.15, 190.0, 90.0, 2, "army"),
+    # north, the square's road side (the far north of town looks down the square): two rows, the gap baffled,
+    # and a stack at each corner
+    ("hesco", 97.5, 109.6, 104.5, 109.6), ("hesco", 108.5, 109.6, 115.5, 109.6), ("hesco", 103.0, 106.4, 110.0, 106.4),
+    ("container", 91.4, 109.5, 90.0, 2, "rust"), ("container", 121.6, 109.5, 90.0, 2, "army"),
+    # west, between the offices and the road (the map's west edge): a stack and two rows, the gap baffled
+    ("hesco", 72.0, 141.5, 72.0, 146.0), ("hesco", 68.6, 144.0, 68.6, 151.0), ("container", 72.0, 152.0, 0.0, 2, "car_b"),
+    ("hesco", 72.0, 155.6, 72.0, 166.0), ("container", 77.5, 170.5, 53.0, 2, "rust"),
+]
+bon_rects = []   # (map x0, z0, x1, z1) round each piece (the scatter there is cleared, like the pens')
+
+
+def bon_cover():
+    first = len(debris)
+    for row in BON_COVER:
+        kind = row[0]
+        if kind == "container":
+            _, x, z, yaw, stacked, colour = row
+            pen_container(x, z, yaw, stacked, colour)
+            r = 3.4
+        elif kind == "truck":
+            _, x, z, yaw = row
+            truck(x, z, yaw)
+            r = 4.0
+        else:
+            _, x0, z0, x1, z1 = row
+            x, z = (x0 + x1) / 2, (z0 + z1) / 2
+            length = math.hypot(x1 - x0, z1 - z0)
+            (hesco if kind == "hesco" else sandbags)(x, z, math.degrees(math.atan2(x1 - x0, z1 - z0)), length)
+            r = length / 2 + 0.8
+        bon_rects.append((x - r, z - r, x + r, z + r))
+    pen_tags.update(range(first, len(debris)))
 
 
 truck_wrecks = []   # (map x, z) of every wrecked truck and tank trap row the scatter placed, for field_caches()
@@ -6219,6 +6308,7 @@ def main():
     creek_mouth()
     creek_banks()
     extract_pens()
+    bon_cover()
     extract_camps()
     zone_spawns()
     clear_sidings()   # (after the AI's spawn spots are picked: they stay where they were)
@@ -6235,6 +6325,7 @@ def main():
     fit_trucks()
     fit_car_unders()
     solid_late()
+    cabin_corners()
     write_scene(terrain())
     print(f"{len(boxes)} boxes, {len(loot)} loot containers -> {os.path.normpath(OUT)}")
     print(f"plain windows open to climb through: {sum(OPENED.values())} in {len(OPENED)} buildings; {len(window_boxes)} windows shut")
@@ -6939,6 +7030,11 @@ def write_outdoor(ter):
             if d["kind"] == "tree":   # (0.18.3, owner: shots hit the air between trees: the trunk collides as drawn)
                 w = TRUNK_WIDTHS[kind]
                 boxes[ks[0]] = trunk[:3] + (w, trunk[4], w, tree_data[-1][6]) + trunk[7:]
+                if kind == 1 and len(ks) > 1:   # (0.34.6: a pine's lowest branches hang to h - 2.6, s * 0.55 out (trees.gd
+                    b = boxes[ks[1]]          # _pine): its leaves block for the AI's sight reaches down and out as far)
+                    top = b[1] + b[4] / 2
+                    bottom = trunk[1] - trunk[4] / 2 + trunk[4] - 2.6
+                    boxes[ks[1]] = (b[0], (top + bottom) / 2, b[2], s * 1.1, top - bottom, s * 1.1) + b[6:]
         if d["kind"] == "crops":   # (outdoor step 8: clumps of crop cards over the strip, scripts/trees.gd kinds 5-7)
             b = boxes[ks[0]]
             crng = random.Random(f"crops {x:.2f} {z:.2f}")
@@ -7501,6 +7597,7 @@ def write_scene(ter):
             "stream_width = 1.0",
             "water_rocks = PackedVector4Array(" + ", ".join(f"{fmt(x)}, {fmt(z)}, {fmt(r)}, 0" for x, z, r in water_rocks) + ")",
             "window_panes = PackedFloat32Array(" + ", ".join(fmt(v) for p in window_panes for v in p) + ")",
+            "hole_glass = PackedFloat32Array(" + ", ".join(fmt(v) for p in hole_glass() for v in p) + ")",
             "bar_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in bar_boxes for v in b) + ")",
             "prop_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in prop_boxes for v in b) + ")",
             "shaped_points = PackedVector3Array(" + ", ".join(fmt(v) for p in shaped_mesh()[0] for v in p) + ")",

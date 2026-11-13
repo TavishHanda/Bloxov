@@ -110,13 +110,13 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   every push redeploys both.
 - Heroku: app `bloxov-server`, one Basic dyno (flat ~$7/month, covered by the owner's student credit; usage can't
   spike: one dyno, `MAX_ONLINE` 40, `Matchmaker.MAX_RAIDS` 4). Kill switch: Heroku → Resources → turn the dyno off.
-  **Measured:** a 512 MB Basic dyno holds about **2** simultaneous raids, not 4 (each raid loads its own ~77 MB map
-  copy). Cheaper hosts, capacity numbers and the migration sketch: `docs/HOSTING_CAPACITY.md`.
+  The server runs a **stripped "Server" pack** (no graphics, built by CI): 512 MB holds **4** busy raids (~440 MB
+  measured). Capacity numbers, cheaper hosts and the migration sketch: `docs/HOSTING_CAPACITY.md`.
   The Docker image (`Dockerfile`, `heroku.yml`) downloads Godot 4.7.2 and imports the project at build time.
-- No database yet: stash/progress live in each player's browser; the server keeps nothing permanent. The **Stash update**
-  plan (`docs/STASH_UPDATE_PLAN.md`) adds Heroku Postgres, a small companion API in the same dyno, real PvP accounts
-  (PvE stays accountless) and a server-owned online stash; it is a plan only, not built. Read it before changing
-  anything about accounts, the online stash or the kit handshake.
+- **Database (built, 0.31.x):** Heroku Postgres via `DATABASE_URL`; `server/` is the Stash API (Node + `pg`, one
+  migration in `server/migrations/`). `server/start.sh` runs it beside the game server on 127.0.0.1 and restarts it;
+  without `DATABASE_URL` the game server runs alone. PvP accounts and the online stash live there; PvE stays local and
+  accountless. Read `docs/STASH_UPDATE_PLAN.md` before changing accounts, the online stash or the kit handshake.
 - Sandbox notes: Docker works after `dockerd &` (apt inside containers has no network: copy the local Godot binary
   in for tests). The sandbox can't reach the Heroku server directly (proxy); the owner's own test is the proof.
 

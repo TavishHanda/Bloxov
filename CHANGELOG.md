@@ -7,6 +7,108 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.34.14 (Scavs settle in, bullet holes in the bus shelters)
+Owner's picks from the playtester's list:
+- **A scav's first shots at you are less likely to hit** (playtester: "I'm getting hit by a scav's first shot every
+  time"). Each time a scav starts shooting at someone (no shot for 5 s), its first shot's hit chance is x0.4 and its
+  second x0.7, then normal: at 28 m that's about 11%, 19%, then 27%. Scavs only (`opening_shot_accuracy` in
+  scav.tscn); Raiders, Bon, guards and snipers are unchanged.
+- **The bus shelters' glass takes bullet holes** (owner: "like reinforced glass, but yeah shoot through it"). Shots
+  still pass through; where one crosses the glass it leaves a hole with cracks (BoxMap `hole_glass`, from gen
+  `hole_glass()`; looks only, never synced, the newest 80 kept).
+
+## 0.34.13 (PLAY comes up sooner)
+Owner: "its the getting ready that takes a long time".
+- **The title screen no longer waits for the raid's shaders.** The hideout's shaders are built first (a quarter of the
+  list), so PLAY appears in a few seconds instead of after the whole set; the raid's finish building behind the
+  buttons. The hideout's scene also loads in the background while its shaders are built, so the two waits overlap.
+  Leaving the title stops the rest: the raid builds whatever's left itself, as it did before.
+
+## 0.34.12 (No more gaps, and the washroom tap runs)
+Owner: "Theres also tiny gaps in the walls like this, can we look into this please" and "can you make the sink in
+the washroom an actual sink and water comes out when u press use button lol".
+- **The gaps in the walls are gone.** The dotted line down the concrete was not a hole in the model: the kit atlas
+  shader sampled exactly on a texture cell's edge where the texture wrapped, and nearest filtering picked the
+  neighbouring atlas cell (the yellow hazard stripes showed as dots). Samples now stay half a texel inside their
+  cell, so every tiled wall, floor and ceiling in the game loses that seam. The nook's partition and the crew rooms'
+  walls also run into the tunnel walls now, closing the 2 cm slits at their ends.
+- **The washroom sink is a real sink.** The trough is open steel with standing water, a drain, three taps (the middle
+  one a gooseneck over the drain) and three mirrors. Walk up to it and press USE: water runs from the tap, splashes
+  in the trough and trickles close by; USE again turns it off (it also stops itself after 25 seconds).
+
+## 0.34.11 (The crew get rooms too)
+Owner: "physically make this area bigger so we can give others rooms too? we can push the bathroom back a bit".
+- **The quarters are 5 m longer.** The mess tunnel carries on south to z 41 and the washroom now sits at its end,
+  behind a new front wall and its own WASHROOM door, so the space it used to take up is free.
+- **Four crew rooms.** Off a 2.4 m corridor (CREW sign over its entrance) are two rooms a side, each with a bunk, a
+  shaded lamp, kit on the floor and a curtained 1.2 m doorway in its own colour. A concrete divider splits each pair.
+- **Your nook gets a proper south wall.** The open washroom side it used to lean on is closed off, so your corner is
+  a real room on all four sides.
+
+## 0.34.10 (Your bunk is its own room)
+Owner: "expand the bunk area ... so it's more obvious that you have your own area".
+- **Your corner is a nook now.** The bottom bunk at the west end of the quarters sits behind a concrete partition
+  (just past the next bunk) and an east wall with a curtained doorway, so the poster, flag, lamp, plant and rug are
+  inside your own little room instead of on the open wall. The doorway opens straight onto the bunk; the curtain
+  parts round you like every other one.
+- **The washing line no longer crosses your corner** (it now runs from the nook's wall east), the fairy lights stop
+  on the nook wall instead of dipping through it, and the nook has its own short string inside. The rug moved inside
+  the new wall.
+
+## 0.34.9 (Hideout clean-up, fairer AI first shots)
+Owner: "Lots of slightly glitching textures going through each other... one guy hair going through hat and... the
+sunflower pot".
+- **Hair through hats fixed.** The cap, flatcap and bandana put their back face on exactly the hair's back plane, so
+  the two fought for the same pixels (brown hair flickering through the hat). Every hat now stands a clear 3 cm proud
+  of the hair, so none of them share a plane with it. `make_character.py`'s `build_trader` rebuilt `trader.glb`.
+- **Sunflower pot fixed.** The rim's top and the soil's top were the same plane at y=0.22, and the stem started on it
+  too. The soil now sits 1 cm proud of the rim and the stem starts inside it, so nothing fights or pokes through.
+- **AI reaction scales with distance.** Spotted at your feet it aims in 0.2 s, at 45 m and beyond in 0.8 s
+  (`reaction_time`, `reaction_time_far`, `reaction_range`), so far AI can't snap onto you. Getting shot while unaware
+  still startles it in 0.15 s.
+- **No free shot after a quick pass.** Re-acquiring you in a fight (you crossed a window or a gap) adds the same
+  distance-scaled prep before it fires, even from an already-primed AI, and that rushed first shot lands at 70%
+  (`first_shot_accuracy_mult`).
+
+## 0.34.8 (Cover round Bon's yard)
+Owner: "when bon roams, hes still very easy to snipe and camp and kill without him noticing, we need more cover around
+that area". Bon's crew have walled the open sides of the town hall's yard, where Bon walks his round (and over to the
+bank). Every wall leaves a way through, its gap covered by a second row, so Bon, his guards, scavs and players all
+still walk in and out (AI paths are at most ~5 m longer). His AI is unchanged.
+- **East** (toward the hill, the worst spot): two stacked containers with hesco between and past them, the gap
+  baffled by a second hesco row.
+- **South** (the fields past the railway, the ground falls away so hesco was too low): two overlapping rows of
+  containers, mostly stacked, past the old barricade.
+- **West** (the map's west edge): a container stack and hesco rows between the offices and the road, a stack by the
+  road's bend.
+- **North** (the north of town looks down the square): two hesco rows on the square's road side, the gap baffled, and a
+  container stack at each corner.
+- Ground 60-160 m out (past Bon's 60 m sight) that can see someone standing on his round: down 63%. The east hill's
+  best spot saw 54 spots of his round and was the worst; now the worst spot anywhere sees 28. Measured with the new `tools/bon_route.gd`.
+
+## 0.34.7 (Playtester fixes: long shots, cabin corners, glass)
+From a playtester's bug list:
+- **Long sniper shots count now.** Every player shot stopped at 150 m (offline and on the server), so on a 350 m map a
+  shot right on someone's head past that hit nothing. Shots now reach 600 m, across the whole map (`ItemDB.SHOT_RANGE`).
+  Damage falloff is unchanged.
+- **The log cabins' corners stop eyes and shots.** The crossed log ends stick out ~0.3 m past the walls' collision, so
+  someone tucked against a wall by a corner was seen and shot through logs that looked solid. Each corner of the three
+  cabins gets a post the size of the log ends (gen `cabin_corners`); sight lines through the cabins' drawing that the
+  collision let through dropped from ~1150 to ~320 (the rest are windows and porch rails you can see through).
+- **Vaulting through a window breaks its glass.** The glass was only checked along one line 1 m up, which passed under
+  most panes, so you went through 32 of the 58 vaultable glazed windows and the pane stayed whole. Now every leg of
+  the vault is checked from knee to head height.
+
+## 0.34.6 (Trees hide you from the AI)
+Owner: "AI can see perfectly through the leaves of trees". The leaves block the AI's sight already checked only sits
+in the crowns, 4-6.5 m up, so eye-level lines across the woods went under every crown. Now, before an AI has spotted
+you, each tree trunk within 1.5 m of the line between you (and between you) makes you 50% slower to spot (x1.5 each),
+and 3 or more such trees past 25 m hide you from spotting altogether (owner picked "spotting only": fights are as
+before). `BoxMap.trees_between` (a flat check of the trunks by map square), `Scav._trees_in_way` (4 times a second,
+only while spotting); numbers are `woods_*` in scav_base.gd. Pines' leaves blocks now reach down to their lowest
+drawn branches (h - 2.6 m, s * 1.1 wide) as trees.gd draws them. Smoke test: a scav 32 m away through three trees
+doesn't spot you.
+
 ## 0.34.5 (Hideout shell and generator can be heard)
 Owner: "when the bomb drops every 2-4 mins it didnt have any noises just effects". The shell's boom (0.34.0) was
 almost all under 80 Hz, which phone and laptop speakers and most earbuds can't play, so it was silent for most people.

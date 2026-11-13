@@ -24,7 +24,7 @@ const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0,
 @export var damage := 28
 ## Headshot damage multiplier (per gun: AK 2x, pistol 2.5x).
 @export var headshot_multiplier := 2.0
-@export var max_range := 150.0
+@export var max_range := ItemDB.SHOT_RANGE
 
 @export_group("Ammo")
 @export var rounds_per_minute := 600.0

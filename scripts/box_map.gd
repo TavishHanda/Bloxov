@@ -122,6 +122,9 @@ const SURFACE_CELL := 8.0
 @export var prop_boxes := PackedFloat32Array()
 ## The glazed windows (WINDOW_LAYER): x, y, z, width, height, yaw (degrees) each; the pane faces along its yaw.
 @export var window_panes := PackedFloat32Array()
+## Glass that shots pass through but leave holes in (0.34.14, owner: the bus shelters, "like reinforced glass"):
+## x, y, z, width, height, yaw per pane, as window_panes. No collision; looks only, never synced.
+@export var hole_glass := PackedFloat32Array()
 @export var shaped_points := PackedVector3Array()
 @export var shaped_indices := PackedInt32Array()
 ## What shots and eyes hit on the see-through pieces (0.19.8, owner: "i cannot shoot through these cracks in the bus
@@ -143,6 +146,7 @@ var _shots_to := 0
 ## surface_at's lookup: boxes near each SURFACE_CELL square (Vector2i -> PackedInt32Array of box starts), and each
 ## box's inverse transform.
 var _surface_cells := {}
+var _trunk_cells := {}   # (map square -> the trunks' box indices in it: trees_between)
 var _surface_inverse := {}
 
 
@@ -282,6 +286,8 @@ func _ready() -> void:
 	_add_bars()
 	_add_props()
 	_add_windows()
+	if not hole_glass.is_empty() and DisplayServer.get_name() != "headless":
+		add_to_group(Reacts.GROUP)   # (on_shot: bullet holes in the shelters' glass)
 	_index_surfaces()
 
 
@@ -446,6 +452,43 @@ func trees_near(pos: Vector3, radius: float) -> int:
 				if int(boxes[i + 8]) == trunk and Vector2(boxes[i] - local.x, boxes[i + 2] - local.z).length() < radius:
 					seen[i] = true
 	return seen.size()
+
+
+## How many tree trunks stand within `near` m of the flat line from world point `from` to `to`, between the two
+## (0.34.6, owner: the AI saw you through the woods: the leaves block sits up in the crowns, over everyone's eyes).
+## Only the map's squares round the line are looked at.
+func trees_between(from: Vector3, to: Vector3, near: float) -> int:
+	if _trunk_cells.is_empty():
+		_index_trunks()
+	var a := to_local(from)
+	var b := to_local(to)
+	var a2 := Vector2(a.x, a.z)
+	var line := Vector2(b.x, b.z) - a2
+	var length_sq := maxf(line.length_squared(), 0.0001)
+	var c0 := Vector2i(floori((minf(a.x, b.x) - near) / SURFACE_CELL), floori((minf(a.z, b.z) - near) / SURFACE_CELL))
+	var c1 := Vector2i(floori((maxf(a.x, b.x) + near) / SURFACE_CELL), floori((maxf(a.z, b.z) + near) / SURFACE_CELL))
+	var seen := {}
+	for cx in range(c0.x, c1.x + 1):
+		for cz in range(c0.y, c1.y + 1):
+			for i in _trunk_cells.get(Vector2i(cx, cz), PackedInt32Array()):
+				var p := Vector2(boxes[i], boxes[i + 2]) - a2
+				var t := p.dot(line) / length_sq
+				if t > 0.0 and t < 1.0 and (p - line * t).length() < near:
+					seen[i] = true
+	return seen.size()
+
+
+## The trunks by map square, for `trees_between` (built the first time it's asked; {Vector2i(-99999, 0): []} if none).
+func _index_trunks() -> void:
+	var trunk := colour_names.find("trunk")
+	for i in range(0, boxes.size(), STRIDE):
+		if trunk >= 0 and int(boxes[i + 8]) == trunk:
+			var key := Vector2i(floori(boxes[i] / SURFACE_CELL), floori(boxes[i + 2] / SURFACE_CELL))
+			var list: PackedInt32Array = _trunk_cells.get(key, PackedInt32Array())
+			list.append(i)
+			_trunk_cells[key] = list
+	if _trunk_cells.is_empty():
+		_trunk_cells[Vector2i(-99999, 0)] = PackedInt32Array()
 
 
 ## The closest point to world point `pos` on the creek or the little stream (0.20.5: where you hear running water),
@@ -904,3 +947,50 @@ func _add_leaves() -> void:
 	bush_area.body_entered.connect(func(body: Node) -> void: body.set_meta(BUSH_META, int(body.get_meta(BUSH_META, 0)) + 1))
 	bush_area.body_exited.connect(func(body: Node) -> void: body.set_meta(BUSH_META, maxi(int(body.get_meta(BUSH_META, 0)) - 1, 0)))
 	add_child(bush_area)
+
+
+# --- Bullet holes in glass (0.34.14) ---------------------------------------------------------------------------------
+
+## The most holes kept: the oldest goes when another is made.
+const MOST_HOLES := 80
+var _holes: Array[Node3D] = []
+
+
+## Reacts: a shot from `from` to `to` went by. Where it crosses a pane of hole_glass, a hole.
+func on_shot(from: Vector3, to: Vector3) -> void:
+	for i in hole_glass.size() / 6:
+		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(hole_glass[i * 6 + 5])),
+			Vector3(hole_glass[i * 6], hole_glass[i * 6 + 1], hole_glass[i * 6 + 2]))
+		var a := xf.affine_inverse() * from
+		var b := xf.affine_inverse() * to
+		if signf(a.z) == signf(b.z) or a.z == b.z:
+			continue
+		var at := a.lerp(b, a.z / (a.z - b.z))
+		if absf(at.x) <= hole_glass[i * 6 + 3] / 2.0 and absf(at.y) <= hole_glass[i * 6 + 4] / 2.0:
+			_add_hole(xf * Transform3D(Basis(Vector3.BACK, randf() * TAU), Vector3(at.x, at.y, 0.0)))
+
+
+func _add_hole(xf: Transform3D) -> void:
+	if _holes.size() >= MOST_HOLES:
+		_holes.pop_front().queue_free()
+	var hole := Node3D.new()
+	add_child(hole)
+	hole.global_transform = xf
+	# A dark hole with a few pale cracks out of it, on both faces (opaque: no new shader to build mid-fight).
+	var parts := [[Vector3(0.035, 0.035, 0.022), Vector3.ZERO, 0.0, Color(0.08, 0.08, 0.09)]]
+	for k in 5:
+		var angle := k * TAU / 5.0 + randf_range(-0.4, 0.4)
+		var length := randf_range(0.06, 0.13)
+		parts.append([Vector3(length, 0.006, 0.02), Vector3(cos(angle), sin(angle), 0.0) * length / 2.0, angle,
+			Color(0.85, 0.9, 0.92)])
+	for part: Array in parts:
+		var mesh := BoxMesh.new()
+		mesh.size = part[0]
+		mesh.material = Effects.unshaded(part[3])
+		var piece := MeshInstance3D.new()
+		piece.mesh = mesh
+		piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		piece.position = part[1]
+		piece.rotation.z = part[2]
+		hole.add_child(piece)
+	_holes.append(hole)

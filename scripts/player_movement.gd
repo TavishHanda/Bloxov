@@ -486,9 +486,13 @@ func try_vault() -> bool:
 	_play_step(2.0)
 	WorldSounds.own(self, WorldSounds.VAULT, -6.0)
 	_make_noise(vault_noise)
-	# 0.18.8: going through a window takes the glass with you.
+	# 0.18.8: going through a window takes the glass with you. (0.34.7, playtester: one line 1 m up from start to end
+	# passed under most panes (their sills are ~1 m up), so you went through the glass and it stayed whole: now
+	# every leg of the path, from knee to head height.)
 	var path: PackedVector3Array = move["path"]
-	BoxMap.break_window_along(self, path[0] + Vector3.UP * 1.0, path[path.size() - 1] + Vector3.UP * 1.0)
+	for k in path.size() - 1:
+		for h: float in [0.5, 1.0, 1.5]:
+			BoxMap.break_window_along(self, path[k] + Vector3.UP * h, path[k + 1] + Vector3.UP * h)
 	return true
 
 

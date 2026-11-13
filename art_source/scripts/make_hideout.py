@@ -65,8 +65,6 @@ def paint_bk_old(rng):
     for row in range(16):
         c.rect(0, row * 4, 64, row * 4 + 4, rng.choice(["bk_old", "bk_old", "bk_old_dark", "bk_old_light"]))
         c.rect(0, row * 4, 64, row * 4 + 1, "bk_old_dark")
-    for k in range(64):
-        c.put(31, k, "bk_old_stain")
     for _ in range(12):                                                # damp running down
         x = rng.randrange(64)
         for y in range(rng.randrange(0, 40), rng.randrange(44, 64)):
@@ -901,7 +899,7 @@ def wall_rows(put, outline, C, f_at, base_at, tunnels, top):
 # ------------------------------------------------------------------------------------------------ layouts
 SIGNS = {"guns": "GUNSMITH", "meds": "MEDIC", "supplies": "SUPPLIER", "valuables": "SUPREME", "ming": "MING",
          "stash": "STASH", "wardrobe": "WARDROBE", "workbench": "WORKBENCH", "quests": "QUESTS", "stats": "STATS",
-         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "wc": "WASHROOM", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
+         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "wc": "WASHROOM", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "crew": "CREW", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
 TRADERS = ("guns", "meds", "supplies", "valuables", "ming")
 TINS = ("cabin_tin_b", "shed_metal", "cabin_tin_d", "shed_metal")
 
@@ -1096,7 +1094,7 @@ def post_layout(rock=False):
                         ribs=("bk_old", 4.6, 0.3)),
                  Tunnel("armory", L.C, (1.0, 0.0), math.sqrt(R * R - 20.25), 31.0, 4.5, 3.2, 5.8, 0.4, concrete,
                         ribs=("bk_old", 4.6, 0.3)),
-                 Tunnel("mess", L.C, (0.0, 1.0), math.sqrt(R * R - 20.25), 36.0, 4.5, 3.2, 5.8, 0.4, concrete,
+                 Tunnel("mess", L.C, (0.0, 1.0), math.sqrt(R * R - 20.25), 41.06, 4.5, 3.2, 5.8, 0.4, concrete,
                         ribs=("bk_old", 4.6, 0.3))]
     if rock:                           # the concrete mouths stand out of the rock as far as the cave curves in over them
         for t in L.tunnels:
@@ -1137,9 +1135,12 @@ def post_layout(rock=False):
     L.spawn = (0.0, 3.0)
     L.mess = (0.0, 19.0)
     L.bunks = (0.0, 30.0)
-    L.wc = (-4.45, 32.4, 4.45, 35.95)                                  # the washroom: the end of the tunnel
+    L.wc = (-4.45, 37.46, 4.45, 41.01)                                  # the washroom: the end of the tunnel
     L.kitchen = (3.9, 22.5, 0.0)
-    L.bunk_list = [(-3.4, 27.0, 90.0), (-3.4, 29.6, 90.0), (3.4, 27.0, 90.0), (3.4, 29.6, 90.0)]
+    # (0.34.11: the washroom moved 5 m south and the crew got four rooms in the space it freed; the two in the south
+    # rooms are pushed against their south wall so they clear the tunnel rib at z 35.2)
+    L.bunk_list = [(-3.4, 27.0, 90.0), (-3.4, 29.6, 90.0), (3.4, 27.0, 90.0), (3.4, 29.6, 90.0),
+                   (-3.4, 34.39, 270.0), (-3.4, 36.75, 270.0), (3.4, 34.39, 90.0), (3.4, 36.75, 90.0)]
 
     def at(r, deg):                    # r: metres in from the wall
         a = math.radians(deg)
@@ -1766,9 +1767,10 @@ def washroom(ctx):
 
 
 def shower_block(ctx):
-    """The washroom (owner 2026-10-25: not "just some metal box"): the end of the tunnel tiled to head height, open to
-    the bunks. Two toilet cubicles in block walls with tarp curtains on the left, a long steel trough with taps and
-    shaving mirrors along the back, two showers behind a curtain on the right, towels, a drain, its own lamps."""
+    """The washroom (owner 2026-10-25: not "just some metal box"): the end of the tunnel tiled to head height, now
+    behind the crew rooms' front wall and its WASHROOM door (0.34.11). Two toilet cubicles in block walls with tarp
+    curtains on the left, a long steel trough with taps and shaving mirrors along the back, two showers behind a curtain
+    on the right, towels, a drain, its own lamps."""
     b, rng = ctx.b, random.Random("showers")
     x0, z0, x1, z1 = LAY.wc
     tiles = mb.uv_world(mb.TILE_M, (0.0, 0.0))
@@ -1788,20 +1790,37 @@ def shower_block(ctx):
         sheet((x0 + 1.72, 1.15, za + (zb - za) * open_part / 2 + 0.02), (zb - za) * open_part, 1.7, 90.0,
               "bk_tarp" if k == 0 else "olive")
     b.box((x0 + 1.77, 1.0, z1 - 2 * cub_w - 0.06), (0.12, 2.0, 0.12), style=mb._nb("bk_old"))
-    # The trough: a steel trough on brackets along the back, three taps, three steel mirrors, soap, a razor.
+    # The sink (0.34.12, owner: "make the sink in the washroom an actual sink and water comes out when u press use
+    # button"): an open steel trough on brackets along the back, water standing in it over a drain, three taps (the
+    # middle one a gooseneck over the drain), three steel mirrors, soap, a razor.
     tx0, tx1 = x0 + 2.1, x1 - 2.3
     tz = z1 - 0.3
-    b.box(((tx0 + tx1) / 2, 0.8, tz), (tx1 - tx0, 0.22, 0.5), style=mb._nb("metal"))
-    b.box(((tx0 + tx1) / 2, 0.915, tz + 0.02), (tx1 - tx0 - 0.1, 0.012, 0.36), style=mb._solid("trim_dark"))
+    w, d = tx1 - tx0, 0.5
+    b.box(((tx0 + tx1) / 2, 0.71, tz), (w, 0.04, d), style=mb._nb("metal"))            # the bottom
+    for zz in (tz - d / 2 + 0.02, tz + d / 2 - 0.02):                                  # its front, back and ends
+        b.box(((tx0 + tx1) / 2, 0.815, zz), (w, 0.25, 0.04), style=mb._nb("metal"))
+    for xx in (tx0 + 0.02, tx1 - 0.02):
+        b.box((xx, 0.815, tz), (0.04, 0.25, d), style=mb._nb("metal"))
+    b.box(((tx0 + tx1) / 2, 0.874, tz), (w - 0.14, 0.012, d - 0.14), style=mb._solid("blue"))  # the water
+    b.box(((tx0 + tx1) / 2, 0.74, tz), (0.1, 0.02, 0.1), style=mb._solid("black"))     # the drain
     pipe(b, (tx0, 1.3, z1 - 0.06), (tx1, 1.3, z1 - 0.06), "bk_iron", 0.04)            # the water pipe
+    tap_x = (tx0 + tx1) / 2
     for k in range(3):
         x = tx0 + (k + 0.5) * (tx1 - tx0) / 3
-        pipe(b, (x, 1.3, z1 - 0.06), (x, 1.05, z1 - 0.2), "bk_iron", 0.025)           # a tap
+        if k == 1:                                                     # the sink's tap: a gooseneck over the drain
+            pipe(b, (x, 1.3, z1 - 0.06), (x, 1.46, z1 - 0.06), "bk_iron", 0.025)
+            pipe(b, (x, 1.46, z1 - 0.06), (x, 1.46, z1 - 0.3), "bk_iron", 0.025)
+            pipe(b, (x, 1.46, z1 - 0.3), (x, 1.26, z1 - 0.3), "bk_iron", 0.025)
+            b.box((x, 1.26, z1 - 0.3), (0.06, 0.04, 0.06), style=mb._nb("steel_light"))   # the spout
+        else:
+            pipe(b, (x, 1.3, z1 - 0.06), (x, 1.05, z1 - 0.2), "bk_iron", 0.025)       # a tap
         b.box((x, 1.6, z1 - 0.02), (0.36, 0.44, 0.02), style=mb._solid("steel_light"))  # a mirror
         b.box((x + 0.25, 0.94, tz - 0.12), (0.08, 0.04, 0.06), style=mb._nb(rng.choice(("bone", "green", "red"))))
     for x in (tx0 + 0.1, tx1 - 0.1):
         pipe(b, (x, 0.0, tz), (x, 0.7, tz), "bk_iron", 0.05)
-    LIFE["drip"] = (tx0 + 1.5 * (tx1 - tx0) / 3, 1.04, z1 - 0.2)     # (lively hideout: the middle tap drips)
+    LIFE["sink"] = (tap_x, 1.24, z1 - 0.3)                             # (0.34.12: scripts/hideout_life.gd runs it)
+    LIFE["sink_to"] = (tap_x, 0.875, z1 - 0.3)                         # (where the water lands)
+    LIFE["drip"] = (tx0 + (tx1 - tx0) / 6, 1.05, z1 - 0.2)             # (lively hideout: another tap drips)
     LIFE["pipes"] = ((tx0 + tx1) / 2, 1.3, z1 - 0.06)                  # (and the water pipe knocks now and then)
     LIFE["rat"] = (tx0 + 0.3, 0.0, z1 - 0.16)                          # (and a rat runs along under the trough)
     LIFE["rat_to"] = (tx1 - 0.3, 0.0, z1 - 0.16)
@@ -1827,9 +1846,6 @@ def shower_block(ctx):
         pipe(b, (x, 1.78, z0 + 0.12), (x, 1.78, z0 + 0.2), "bk_iron", 0.02)
     for x in (-2.2, 2.2):                                             # its own lamps
         hang((x, 2.6, (z0 + z1) / 2), 2.0, 0.9, 3.4, shaded=True)
-    # A sign over it all.
-    F = Frame((0.0, z1), (1.0, 0.0), (0.0, -1.0), 0.0)
-    sign_board(ctx, F, 0.05, 2.55, "sign_wc", w=2.2, h=0.4, wires=False)
 
 
 def toilet(b, x, z, yaw):
@@ -1990,10 +2006,29 @@ def quarters(ctx):
             duffel(b, bx, 1.71, bz + rng.uniform(-0.3, 0.3), yaw + rng.uniform(-10, 10), rng)
         p = r(0.0, -0.4)
         b.box((bx + p[0], 0.58, bz + p[2]), (0.75, 0.1, 0.6), yaw=yaw, style=mb._nb(BAG_TEX.get(*[rng.choice(("bk_tarp", "olive", "blue"))] * 2)))
-    # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off).
+    # Your corner (0.34.9, owner: "expand the bunk area ... so it's more obvious that you have your own area"): the
+    # bottom bunk at the west end becomes its own room. A concrete partition separates it from the next bunk, an east
+    # wall with a curtained doorway closes it off from the quarters, and the shelf, lamp, plant and poster stay inside.
+    # (0.34.11: its south side gets a real wall now, built with the crew rooms in crew_rooms().)
+    nz, nx, wh = 27.62, -1.65, 2.8            # the north partition's line, the east wall's, the walls' height
+    door0, door1 = 29.0, 30.2                 # the doorway in the east wall (in front of the bunk)
+    b.box((-3.175, wh / 2, nz), (3.05, wh, 0.12), style=mb._nb("bk_old"))   # (0.34.12: into the tunnel's wall, no slit)
+    block(-3.175, 0.0, nz, 3.05, wh, 0.12)
+    for z0, z1 in ((nz, door0), (door1, 32.4)):                       # (the doorway left out)
+        b.box((nx, wh / 2, (z0 + z1) / 2), (0.12, wh, z1 - z0), style=mb._nb("bk_old"))
+        block(nx, 0.0, (z0 + z1) / 2, 0.12, wh, z1 - z0)
+    b.box((nx, (2.2 + wh) / 2, (door0 + door1) / 2), (0.12, wh - 2.2, door1 - door0), style=mb._nb("bk_old"))
+    block(nx, 2.2, (door0 + door1) / 2, 0.12, wh - 2.2, door1 - door0)          # the lintel
+    pipe(b, (-4.7, wh + 0.02, nz), (nx, wh + 0.02, nz), "bk_iron", 0.04)           # capped tops
+    pipe(b, (nx, wh + 0.02, nz), (nx, wh + 0.02, 32.4), "bk_iron", 0.04)
+    pipe(b, (nx, 2.18, door0), (nx, 2.18, door1), "bk_iron", 0.03)                # the curtain's rod
+    sheet((nx, 1.15, (door0 + door1) / 2), door1 - door0, 2.0, 90.0, "olive")
+    # Fairy lights zigzagging over the bunks (they stay on when the bunks' lights go off). The second run stops on
+    # your nook's wall (0.34.10) instead of crossing it, and the nook gets its own short string inside.
     n0 = len(LAMPS)
-    for a, c in (((-4.44, 2.9, 25.6), (4.44, 2.9, 28.4)), ((4.44, 2.9, 28.4), (-4.44, 2.9, 31.6))):   # wall to wall
+    for a, c in (((-4.44, 2.9, 25.6), (4.44, 2.9, 28.4)), ((4.44, 2.9, 28.4), (nx, 2.82, 30.6))):
         string_lights(b, a, c, sag=0.35, every=0.9, strength=0.25, reach=2.2)
+    string_lights(b, (nx - 0.06, 2.62, 30.6), (-4.4, 2.62, 30.6), sag=0.18, every=0.7, strength=0.22, reach=1.9)
     DARK_GLOWS[:] = [lamp[:3] for lamp in LAMPS[n0:]]
     # The dartboard on a plywood backboard, a tape line on the floor to throw from.
     x, y, z = DARTBOARD
@@ -2009,9 +2044,9 @@ def quarters(ctx):
     pipe(b, (x - 0.02, y + 0.1, z), (x - 0.02, 2.9, z), "bk_cable", 0.012)
     # Washing hung up across the tunnel.
     zl = 30.9
-    pipe(b, (-4.3, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)
-    for k in range(7):
-        x = -3.4 + k * 1.1 + rng.uniform(-0.2, 0.2)
+    pipe(b, (-1.59, 2.35, zl), (4.3, 2.35, zl), "bk_cable", 0.012)      # (0.34.9: not through your nook)
+    for k in range(6):
+        x = -1.0 + k * 1.05 + rng.uniform(-0.2, 0.2)
         sheet((x, 2.0, zl), 0.5, 0.65, rng.uniform(-6, 6), rng.choice(("olive", "olive_dark", "bone", "bk_tarp", "blue")))
     # Notices on the walls.
     for bid, z, side in (("lights", 23.0, -1), ("chow", 23.6, 1), ("clean", 31.7, 1)):
@@ -2020,6 +2055,55 @@ def quarters(ctx):
         F = Frame((x, z), (0.0, 1.0), (-side, 0.0), 0.0)
         b.poly([F.P(0.0, 1.55, -0.6), F.P(0.0, 1.55, 0.6), F.P(0.0, 1.8, 0.6), F.P(0.0, 1.8, -0.6)],
                (-side, 0.0, 0.0), "decals", ctx.d("sign_" + bid))
+    crew_rooms(ctx)
+
+
+def crew_rooms(ctx):
+    """The crew's rooms (0.34.11, owner: "physically make this area bigger so we can give others rooms too? we can push
+    the bathroom back a bit"): the mess tunnel runs 5 m further south and the washroom sits at its new end, so the space
+    it freed (z 32.4-37.4) is four little rooms off a corridor, each with a bunk, a curtained doorway and a lamp. Your
+    nook gets the proper south wall the open washroom never gave it."""
+    b, rng = ctx.b, random.Random("crew_rooms")
+    H = 2.8                                                            # the walls' height (the nook's)
+    X0, X1 = -4.7, 4.7                                                 # (into the tunnel's walls: a 2 cm gap showed)
+    N, S, DIV, CX = 32.4, 37.4, 34.9, 1.26                             # north/south walls, the rooms' divider, the corridor
+    T = 0.12
+    DOORS = ((33.05, 34.25), (35.55, 36.75))                           # each room's doorway (1.2 m, like the nook's)
+    COLOURS = (("olive", "bk_tarp"), ("blue", "olive_dark"))           # west rooms, east rooms
+
+    def wall(x0, z0, x1, z1, y0=0.0, y1=H):
+        b.box(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), style=mb._nb("bk_old"))
+        block((x0 + x1) / 2, y0, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0)
+
+    for xa, xb in ((X0, -1.32), (1.32, X1)):                           # the north wall (your nook's south wall)
+        wall(xa, N - T / 2, xb, N + T / 2)
+        wall(xa, DIV - T / 2, xb, DIV + T / 2)                         # and the wall between each pair of rooms
+    wall(X0, S - T / 2, -0.6, S + T / 2)                               # the washroom's new front wall
+    wall(0.6, S - T / 2, X1, S + T / 2)
+    wall(-0.6, S - T / 2, 0.6, S + T / 2, 2.2, H)                      # (its lintel)
+    wall(-1.32, N - T / 2, 1.32, N + T / 2, 2.2, H)                    # the corridor's entrance lintel
+    for x in (-CX, CX):                                                # the corridor's walls, a doorway each room
+        wall(x - T / 2, N, x + T / 2, DOORS[0][0])
+        wall(x - T / 2, DOORS[0][1], x + T / 2, DOORS[1][0])
+        wall(x - T / 2, DOORS[1][1], x + T / 2, S)
+        for z0, z1 in DOORS:
+            wall(x - T / 2, z0, x + T / 2, z1, 2.2, H)
+    for a, c in (((X0, N), (-1.32, N)), ((1.32, N), (X1, N)), ((X0, DIV), (-1.32, DIV)),
+                 ((1.32, DIV), (X1, DIV)), ((X0, S), (X1, S))):         # capped tops
+        pipe(b, (a[0], H + 0.02, a[1]), (c[0], H + 0.02, c[1]), "bk_iron", 0.04)
+    for x in (-CX, CX):
+        pipe(b, (x, H + 0.02, N), (x, H + 0.02, S), "bk_iron", 0.04)
+    for x, side in ((-CX, 0), (CX, 1)):                                # the curtains, one colour each room
+        for k, (z0, z1) in enumerate(DOORS):
+            pipe(b, (x, 2.18, z0), (x, 2.18, z1), "bk_iron", 0.03)
+            sheet((x, 1.15, (z0 + z1) / 2), z1 - z0, 2.0, 90.0, COLOURS[side][k])
+    for x in (-2.0, 2.0):                                              # a shaded lamp in each room, one in the corridor
+        for z in (33.65, 36.15):
+            hang((x, 2.5, z), 2.8, 0.55, 2.6, shaded=True)
+    hang((0.0, 2.55, 34.9), 2.8, 0.6, 3.2, shaded=True)
+    for z, region in ((N - T / 2, "sign_crew"), (S - T / 2, "sign_wc")):   # CREW over the corridor, WASHROOM over its door
+        F = Frame((0.0, z), (1.0, 0.0), (0.0, -1.0), 0.0)
+        sign_board(ctx, F, 0.05, 2.5, region, w=2.2, h=0.4, wires=False)
 
 
 LAMPS = []          # (x, y, z, strength, reach) for the light bake
@@ -2712,6 +2796,8 @@ def stations():
         out.append(("darts", DART_LINE + 0.3, DARTBOARD[2], 1.4))
         out.append(("radio", RADIO[0], RADIO[1] + 0.95, 1.4))
         out.append(("lights", SWITCH[0] - 0.75, SWITCH[2], 1.4))
+        # (0.34.12: the washroom sink: stand in front of the trough, USE runs the tap)
+        out.append(("sink", (LAY.wc[0] + LAY.wc[2]) / 2 - 0.1, LAY.wc[3] - 1.15, 1.8))
     if LAY.hang:
         jx, jz = LAY.hang.jukebox
         p = LAY.hang.w((jx + 1.0, 0.0, jz))
@@ -2859,7 +2945,7 @@ def write_level(rows):
                     'metadata/glows = PackedVector3Array(%s)\n'
                     'metadata/radio = Vector3(%g, 0.55, %g)\n'
                     'metadata/tv = Vector3(-3.684, 1.05, %g)\n'
-                    % (z, -4.5, LAY.mess[1] + 3.5, 9.0, 36.0 - LAY.mess[1] - 3.5, glows, RADIO[0], RADIO[1],
+                    % (z, -4.5, LAY.mess[1] + 3.5, 9.0, LAY.wc[1] - LAY.mess[1] - 3.5, glows, RADIO[0], RADIO[1],
                        LAY.mess[1] + 5.2))
             LIFE["tv"] = (-3.678, 1.05, LAY.mess[1] + 5.2)
         solids = os.path.join(mb.ROOT, "art_source", "buildings", NAME + "_solids.json")

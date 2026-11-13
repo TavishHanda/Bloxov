@@ -108,7 +108,14 @@ func _physics_process(delta: float) -> void:
 	_sight_check_time -= delta
 	if _sight_check_time <= 0.0:
 		_sight_check_time = 0.1
+		var had_eyes := _can_see
 		_can_see = dist < sight_range and _has_line_of_sight() and not _leaves_in_way()
+		# Fresh sighting in a fight (it was already primed, looking your way): give it a moment to line the shot
+		# up instead of firing the instant you cross a window. Quick up close, longer far away.
+		if _can_see and not had_eyes and state == State.ENGAGE and _blind_time > reacquire_grace:
+			_prep_left = _reaction_for(dist)
+			_snap_shot = true
+	_blind_time = 0.0 if _can_see else _blind_time + delta
 	_unseen_time = 0.0 if _can_see else _unseen_time + delta
 
 	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).

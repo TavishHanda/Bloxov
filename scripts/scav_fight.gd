@@ -68,6 +68,7 @@ var _move_target_from := Vector3.ZERO
 func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector3:
 	_tactic_time += delta
 	_dodge_left -= delta
+	_prep_left = maxf(_prep_left - delta, 0.0)
 	if (not sees and _lost_sight_time < track_time and _target != null and is_instance_valid(_target)
 			and dist < track_range):
 		_last_seen = _target.global_position   # still knows where you are for a few seconds after losing sight
@@ -695,6 +696,8 @@ func _hold_fire() -> void:
 
 func _update_shooting(delta: float, dist: float, suppressing := false) -> void:
 	_fire_timer -= delta
+	if _prep_left > 0.0:
+		return   # still lining the shot up after a fresh sighting (a quick pass behind a window isn't a free kill)
 	if _fire_timer > 0.0:
 		return
 	if _shots_left <= 0:
@@ -771,12 +774,16 @@ func _fire_at_target(dist: float) -> void:
 		return  # no clear shot (seen over the crest, but every line hits the ground): don't shoot the hill
 
 	var chance := hit_chance(dist)
+	if _snap_shot:
+		chance *= first_shot_accuracy_mult   # the rushed first shot after a fresh sighting
+		_snap_shot = false
 	if dist < point_blank_range:
 		chance = maxf(chance, point_blank_accuracy)
 	if _target.is_sprinting():
 		chance -= moving_target_penalty
 	if _flinch_left > 0.0:
 		chance -= flinch_accuracy_penalty
+	chance *= _settling_in()
 	var hit := randf() < chance
 
 	var aim_point := chest
@@ -887,6 +894,19 @@ var _was_wounded := false
 var _cover_low := false
 var _found_low := false
 var _peek_blind := 0.0
+## Settling in (opening_shot_accuracy): shots fired since it started shooting, and when the last one was.
+var _opening_shots := 0
+var _last_shot_at := -1000.0
+
+
+## Settling in (opening_shot_accuracy): this shot's hit chance multiplier, counting it as fired.
+func _settling_in() -> float:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_shot_at > opening_reset:
+		_opening_shots = 0
+	_last_shot_at = now
+	_opening_shots += 1
+	return opening_shot_accuracy[_opening_shots - 1] if _opening_shots <= opening_shot_accuracy.size() else 1.0
 
 
 ## Chance a bullet hits at `dist` meters (before point blank, sprinting and flinch adjustments).

@@ -21,7 +21,7 @@ const FLOOR_GAP := 1.5     # (0.25.37) how far over or under you a station can b
 ## What each station is called on the USE prompt (traders take their names from Traders.LIST).
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
-	"lights": "Lights", "jukebox": "Jukebox"}
+	"lights": "Lights", "jukebox": "Jukebox", "sink": "Sink"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
 const STATION_NOTES := {"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
@@ -41,6 +41,8 @@ var _range_touch: TouchControls
 ## The station in reach (its Marker3D) or null; with none, the seat in reach (or null).
 var station: Node3D
 var seat: Node3D
+## The level's little-life node (the washroom sink's tap, 0.34.12).
+var _life: Node3D
 ## The radio, the seats, darts and the bunks' lights (0.21.7).
 var toys: HideoutToys
 ## At the range: you, with a gun (null while walking round), the gun picker, and the range's HUD.
@@ -77,6 +79,7 @@ func _ready() -> void:
 	var level: Node3D = LEVEL.instantiate()
 	level.name = "Level"
 	add_child(level)
+	_life = level.get_node_or_null("Life")
 	var env := Look.hideout_environment()
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
@@ -367,6 +370,10 @@ func use_station() -> void:
 		return
 	if toys.use(station.name):
 		return
+	if station.name == "sink":
+		if _life != null:
+			_life.set_tap(not _life.tap_on)   # (0.34.12: the washroom sink runs while you're at it)
+		return
 	if station.name == "range":
 		enter_range()
 	elif station.name == "quests":
@@ -386,6 +393,8 @@ func station_label(id: String) -> String:
 			return "Turn the jukebox " + ("off" if HideoutToys.jukebox_on else "on")
 		"darts":
 			return "Play darts"
+		"sink":
+			return "Turn the tap off" if _life != null and _life.tap_on else "Run the tap"
 	return station_name(id)
 
 

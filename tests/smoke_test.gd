@@ -2360,10 +2360,12 @@ func _section_hideout_world() -> void:
 			title_buttons.append(String((node as Button).text))
 	_check(title_buttons.slice(0, 4) == ["PLAY", "OPTIONS", "PRIVACY", "CREDITS"], "main screen: PLAY, OPTIONS, PRIVACY, CREDITS %s" % str(title_buttons))
 	# 0.30.8: a loading bar stands where the buttons go until the shaders are built and the hideout is loaded; with
-	# nothing to build (headless) the buttons are up straight away.
+	# nothing to build (headless) the buttons are up straight away. 0.34.13: the bar waits only for the hideout's
+	# shaders (the raid's finish behind the buttons).
 	_check(title.ready_to_play and title._play_button.visible and not title._loading_box.visible
-		and title._loading_bar.get_parent() == title._loading_box and ShaderWarm.is_done() and ShaderWarm.progress() == 1.0,
-		"main screen: the loading bar gives way to the buttons once everything's built")
+		and title._loading_bar.get_parent() == title._loading_box and ShaderWarm.is_ready() and ShaderWarm.is_done()
+		and ShaderWarm.progress() == 1.0,
+		"main screen: the loading bar gives way to the buttons once the hideout is ready")
 	# 0.21.15: the dusk town behind it fills the screen and drifts (0.21.20: in a shader, so it's smooth).
 	var title_bg := title._background
 	var screen := title.get_viewport().get_visible_rect().size
@@ -2425,7 +2427,7 @@ func _section_hideout_world() -> void:
 	var names: Array[String] = []
 	for marker: Node3D in stations:
 		names.append(String(marker.name))
-	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox"]:
+	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox", "sink"]:
 		_check(names.has(want), "the hideout has a %s station" % want)
 	# Every station stands on open floor: you can stand there without being pushed out or falling through.
 	var bad: Array[String] = []
@@ -2858,6 +2860,21 @@ func _section_hideout_world() -> void:
 	walker.camera.rotation.x = 0.0
 	_check(aimed.values().all(func(r: Array) -> bool: return r == [true, false, false]),
 		"radio, darts and lights: in reach looking at them, not looking away or 4 m off %s" % str(aimed))
+	# The washroom sink (0.34.12, owner: "water comes out when u press use button"): USE runs the tap, USE stops it.
+	var sink: Node3D = world.get_node("Level/Stations/sink")
+	walker.global_position = sink.global_position + Vector3.UP * 0.05
+	walker.velocity = Vector3.ZERO
+	for f in 3:
+		await physics_frame
+	await process_frame
+	_check(world.station == sink and world._prompt.text.ends_with("Run the tap"),
+		"at the washroom sink: F runs the tap (%s)" % world._prompt.text)
+	world.use_station()
+	await process_frame
+	_check(world._life.tap_on and world.station_label("sink") == "Turn the tap off", "the tap runs")
+	world.use_station()
+	await process_frame
+	_check(not world._life.tap_on and world.station_label("sink") == "Run the tap", "and USE again turns it off")
 	var rings: PackedFloat32Array = world.get_node("Level/Dartboard").get_meta("rings")
 	var one := Vector2(sin(deg_to_rad(18.0)), cos(deg_to_rad(18.0)))
 	_check(DartsGame.score_at(Vector2.ZERO, rings) == [50, "BULL"] and DartsGame.score_at(Vector2(0, 0.1), rings) == [60, "T20"]
@@ -3650,7 +3667,8 @@ func _section_settings() -> void:
 		is_equal_approx(root.scaling_3d_scale, 1.0) and is_equal_approx(FarView.distance(), FarView.FROM),
 		"HIGH graphics: shadows to 60 m, full render scale, far meshes from %d m" % FarView.FROM)
 	# Shader warm-up (0.29.5): the stand-in lists tools/gen_shader_warm.gd makes load, each stand-in has a material,
-	# and nothing starts on a headless run (or a server).
+	# and nothing starts on a headless run (or a server). 0.34.13: the hideout's are listed first (the title waits for
+	# those), the raid's after.
 	var counts := []
 	for path in ShaderWarm.LISTS:
 		var list: Node = (load(path) as PackedScene).instantiate() if ResourceLoader.exists(path) else null
@@ -3659,8 +3677,8 @@ func _section_settings() -> void:
 		if list:
 			list.free()
 		ShaderWarm.start(self)
-	_check(counts[0] >= 20 and counts[1] >= 5 and root.get_node_or_null("ShaderWarm") == null,
-		"the raid's and hideout's shaders are listed for building early (%s), not on headless runs" % str(counts))
+	_check(counts[0] >= 5 and counts[1] >= 20 and root.get_node_or_null("ShaderWarm") == null,
+		"the hideout's shaders are listed for building first, then the raid's (%s), not on headless runs" % str(counts))
 	# 0.30.8: the hideout's light is the same for the warm-up and the real hideout; the loading covers wait for smooth
 	# frames, never longer than SETTLE_MAX.
 	var hideout_env := Look.hideout_environment()
@@ -5048,6 +5066,7 @@ func _section_online_ai() -> void:
 	shooter.accuracy_far = 1.0
 	shooter.point_blank_accuracy = 1.0
 	shooter.moving_target_penalty = 0.0
+	shooter.opening_shot_accuracy = PackedFloat32Array()   # (sure shots: settling in is checked on its own)
 	shooter._target = proxy
 	await _frames(2)
 	var hits_before: int = got["hits"].size()
@@ -6519,6 +6538,28 @@ func _section_spotting() -> void:
 	await create_timer(2.5).timeout
 	_check(far.state != Scav.State.IDLE, "...but does after a couple of seconds in view")
 	far.queue_free()
+	# 0.34.6: three trees beside the line between you, 32 m apart: it doesn't spot you (the woods hide you).
+	var woods := BoxMap.new()
+	woods.colors = PackedColorArray([Color.BROWN])
+	woods.colour_names = PackedStringArray(["trunk"])
+	var trunks := PackedFloat32Array()
+	for z in [8.0, 16.0, 24.0]:
+		var at := player.global_position + Vector3(1.0, 2.0, z)
+		trunks.append_array([at.x, at.y, at.z, 0.4, 4, 0.4, 0, 0, 0, 0])
+	woods.boxes = trunks
+	main.add_child(woods)
+	_check(woods.trees_between(player.global_position, player.global_position + Vector3(0, 0, 32), 1.5) == 3
+		and woods.trees_between(player.global_position, player.global_position + Vector3(0, 0, 32), 0.5) == 0
+		and woods.trees_between(player.global_position, player.global_position + Vector3(0, 0, 12), 1.5) == 1,
+		"the map counts the trees beside a line, between its ends")
+	var hidden := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 32)) as Scav
+	_face_player(hidden)
+	hidden._wander_time = 99.0
+	hidden._wander_dir = Vector3.ZERO
+	await create_timer(3.0).timeout
+	_check(hidden.state == Scav.State.IDLE and hidden._can_see, "...a scav 32 m away through three trees doesn't spot you (it could see you)")
+	hidden.queue_free()
+	woods.free()
 	var near := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 4)) as Scav
 	_face_player(near)
 	near._wander_time = 99.0
@@ -6560,6 +6601,40 @@ func _section_spotting() -> void:
 		await physics_frame
 	_check(shots[0] > 0, "a startled scav shoots back within about half a second")
 	victim.queue_free()
+
+	# 0.34.9: the reaction time scales with distance (quick up close, slow far off).
+	var far_react := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 45)) as Scav
+	far_react.set_physics_process(false)
+	far_react._alert(player.global_position)
+	var far_time := far_react._reaction
+	var far_limit := far_react.reaction_time_far
+	_check(is_equal_approx(far_time, far_limit),
+		"a scav 45 m off needs the full far reaction time (%.2f s)" % far_time)
+	far_react.queue_free()
+	var near_react := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 4)) as Scav
+	near_react.set_physics_process(false)
+	near_react._alert(player.global_position)
+	_check(near_react._reaction < far_limit * 0.5,
+		"a scav 4 m off reacts much faster than one far off (%.2f s)" % near_react._reaction)
+	near_react.queue_free()
+
+	# 0.34.9: re-acquiring you in a fight (a quick pass behind a window) makes it line the shot up again,
+	# instead of firing the instant you reappear, even from an already-primed AI.
+	var peek := _spawn(SCAV_SCENE, player.global_position + Vector3(0, 0, 20)) as Scav
+	_face_player(peek)
+	peek.shot_damage = 0
+	peek._wander_time = 99.0
+	peek._wander_dir = Vector3.ZERO
+	await physics_frame
+	peek._set_state(Scav.State.ENGAGE)
+	peek._can_see = false
+	peek._blind_time = peek.reacquire_grace + 0.2
+	await create_timer(0.25).timeout
+	_check(peek._prep_left > 0.0 and peek._snap_shot,
+		"re-acquiring you in a fight adds a prep delay before it fires")
+	peek._set_state(Scav.State.IDLE)
+	_check(peek._prep_left == 0.0 and not peek._snap_shot, "leaving a fight clears the prep delay")
+	peek.queue_free()
 
 
 func _section_close_range() -> void:
@@ -6965,6 +7040,17 @@ func _section_crest() -> void:
 	scav._target = player
 	scav.accuracy_near = 1.0
 	scav.accuracy_far = 1.0
+	# Settling in (0.34.14, owner): a scav's first shots at you hit less often (x0.4, then x0.7), then normal.
+	scav._last_shot_at = -1000.0
+	var chances := []
+	for k in 3:
+		chances.append(snappedf(scav._settling_in(), 0.01))
+	var raider_test := (load("res://scenes/raider.tscn") as PackedScene).instantiate()
+	var raider_settles: bool = not (raider_test.get("opening_shot_accuracy") as PackedFloat32Array).is_empty()
+	raider_test.free()
+	_check(is_equal_approx(chances[0], 0.4) and is_equal_approx(chances[1], 0.7) and chances[2] == 1.0 and not raider_settles,
+		"a scav's first shots at you hit less often (%s); Raiders have no settling in" % [chances])
+	scav.opening_shot_accuracy = PackedFloat32Array()
 	var ridge := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	shape.shape = BoxShape3D.new()

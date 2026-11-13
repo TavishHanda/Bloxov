@@ -10,7 +10,9 @@ extends Node3D
 ## experience loading on to the site, getting in to the hideout without any lag"): the screen opens with a loading bar
 ## where the buttons go, picking up from the web page's bar. Behind it the game builds the raid's and the hideout's
 ## shaders (ShaderWarm, quick once a browser has built them before) and loads the hideout; the picture holds still.
-## Then the buttons fade in and the picture starts drifting, with nothing left to build while you click round.
+## Then the buttons fade in and the picture starts drifting.
+## 0.34.13 (owner: "its the getting ready that takes a long time"): the bar waits only for the hideout's shaders (built
+## first) and the hideout, so PLAY comes up in seconds; the raid's finish building behind the buttons.
 
 const HIDEOUT := "res://scenes/hideout_world.tscn"
 const BACKGROUND := preload("res://assets/textures/title_dusk.jpg")
@@ -78,6 +80,8 @@ var _hideout: PackedScene
 ## Set once the shaders are built and the hideout is loaded: the buttons are up.
 var ready_to_play := false
 var _hideout_requested := false
+## Set once the browser has been told this Godot version's graphics are ready (all the shaders, not just the hideout's).
+var _setup_marked := false
 
 
 func _ready() -> void:
@@ -86,10 +90,12 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_ui()
 	_drift()
-	ShaderWarm.start(get_tree())   # builds the raid's and hideout's shaders behind the loading bar (0.29.5, 0.30.8)
-	if DisplayServer.get_name() == "headless":
+	ShaderWarm.start(get_tree())   # builds the hideout's shaders first, then the raid's, behind the loading bar (0.29.5, 0.30.8, 0.34.13)
+	# 0.34.13: the hideout's scene loads in the background while its shaders are built, so PLAY comes up sooner.
+	if OS.has_feature("threads") or DisplayServer.get_name() == "headless":
 		ResourceLoader.load_threaded_request(HIDEOUT)
 		_hideout_requested = true
+	if DisplayServer.get_name() == "headless":
 		_show_ready(false)
 	else:
 		_show_loading()
@@ -99,6 +105,9 @@ func _process(delta: float) -> void:
 	if not ready_to_play:
 		_load_step()
 		return   # (the picture holds still while loading: frames are uneven then)
+	if not _setup_marked and ShaderWarm.is_done():
+		_setup_marked = true
+		LoadingScreen.setup_done()   # (the raid's shaders have finished behind the buttons too)
 	_time += delta
 	_drift()
 
@@ -112,16 +121,16 @@ func _show_loading() -> void:
 		_loading_label.text = "FIRST-TIME SETUP: GETTING THE GRAPHICS READY"
 
 
-## One frame of loading: the shaders first (most of the bar), then the hideout.
+## One frame of loading: the hideout's shaders first (most of the bar), then the hideout. The raid's shaders finish
+## behind the buttons once PLAY is up (0.34.13).
 func _load_step() -> void:
-	if not ShaderWarm.is_done():
-		_loading_bar.value = ShaderWarm.progress() * 90.0
+	if not ShaderWarm.is_ready():
+		_loading_bar.value = ShaderWarm.ready_progress() * 90.0
 		return
-	LoadingScreen.setup_done()
+	_loading_label.text = "LOADING THE HIDEOUT"
+	_loading_bar.value = maxf(_loading_bar.value, 90.0)
 	if not _hideout_requested:
 		_hideout_requested = true
-		_loading_bar.value = 90.0
-		_loading_label.text = "LOADING THE HIDEOUT"
 		if not OS.has_feature("threads"):
 			# (the web build has no threads: a background load would run here anyway, so load it in one go, a frame
 			# after the words above are on screen)
@@ -132,6 +141,8 @@ func _load_step() -> void:
 	if _hideout != null:
 		_show_ready(true)
 		return
+	if not OS.has_feature("threads"):
+		return   # (_load_hideout_now is loading it)
 	var progress := []
 	var status := ResourceLoader.load_threaded_get_status(HIDEOUT, progress)
 	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
@@ -183,6 +194,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Into the hideout.
 func play() -> void:
+	ShaderWarm.stop()   # (0.34.13: the hideout's shaders are built; the raid builds whatever's left itself)
 	_play_button.disabled = true
 	_play_button.text = "LOADING..."
 	var scene := _hideout

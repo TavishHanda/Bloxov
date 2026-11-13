@@ -547,7 +547,7 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 	for dir in dirs:
 		if dir.length_squared() < 0.5:
 			continue
-		var hit := world.trace_shot(peer, from, dir, 150.0, view_time, _now())
+		var hit := world.trace_shot(peer, from, dir, ItemDB.SHOT_RANGE, view_time, _now())
 		noise_end = hit["end"]
 		if not (hit.has("peer") or hit.has("enemy")):
 			continue

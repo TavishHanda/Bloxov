@@ -1,8 +1,9 @@
 # Stash update (0.31): plan
 
-Status: **plan only, not built.** Written 2026-11-04 for the owner, after the Sound 2.0 work closed. This file is the
-reference for the biggest update Bloxov has had: **PvE and PvP game modes, the current stash becoming the solo stash,
-and a new online stash kept in the Heroku database.**
+Status: **built, shipped as 0.31.0–0.31.15.** Written 2026-11-04 for the owner, after the Sound 2.0 work closed. This
+file is the reference for the biggest update Bloxov has had: **PvE and PvP game modes, the current stash becoming the
+solo stash, and a new online stash kept in the Heroku database.** The code is in `server/` (API, migrations, tests)
+and `scripts/stash_client.gd`; this plan stays the design reference.
 
 Read first: `CLAUDE.md` (rules), `docs/DEV_HANDOFF.md` §3 code map and §5 hosting, `docs/CLAUDE_HANDOFF.md` (how the
 owner works), `docs/STORE_RULES.md` §3-4 (privacy and accounts), `docs/MULTIPLAYER_PLAN.md` (how online got here).

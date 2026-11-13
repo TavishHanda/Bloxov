@@ -514,41 +514,43 @@ def build_trader(b):
             p.box((sx * 0.09, h + 0.01, HEAD_Z + HEAD * 0.15), (sx * 0.14, h + 0.04, HEAD_Z + HEAD * 0.26), skin)
         b.finish(p, "Tash__" + option, "Neck")
     b.empty("Tash__none", "Neck")
-    # Headgear
-    p = b.part().box((-h - 0.025, -h - 0.025, HEAD_Z + HEAD * 0.84), (h + 0.05, h + 0.025, HEAD_Z + HEAD + 0.04), "t_maroon")
+    # Headgear. Every hat stands a clear 3 cm proud of the hair (0.34.9, owner: "glitching textures going through each
+    # other"): the cap, bandana and flatcap used to put their back face on exactly the hair's back plane (-h - 0.02), so
+    # the two fought for the same pixels. The hair's outer faces are x +-0.014, y -h-0.02, so hats use h + 0.03.
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.84), (h + 0.05, h + 0.03, HEAD_Z + HEAD + 0.04), "t_maroon")
     p.box((-0.02, -h + 0.0, HEAD_Z + HEAD + 0.02), (h + 0.09, h - 0.02, HEAD_Z + HEAD + 0.08), "t_maroon")
-    p.box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.82), (h + 0.03, h + 0.03, HEAD_Z + HEAD * 0.87), "t_leather_dk")
-    p.box((-0.15, h + 0.03, HEAD_Z + HEAD * 0.86), (-0.07, h + 0.04, HEAD_Z + HEAD * 0.98), "t_gold")      # badge
+    p.box((-h - 0.035, -h - 0.035, HEAD_Z + HEAD * 0.82), (h + 0.035, h + 0.035, HEAD_Z + HEAD * 0.87), "t_leather_dk")
+    p.box((-0.15, h + 0.02, HEAD_Z + HEAD * 0.86), (-0.07, h + 0.04, HEAD_Z + HEAD * 0.98), "t_gold")      # badge
     b.finish(p, "Hat__beret", "Neck")
-    p = b.part().box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.02, h + 0.02, HEAD_Z + HEAD + 0.06), "t_grey")
-    p.box((-h - 0.01, h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.01, h + 0.09, HEAD_Z + HEAD * 0.82 + 0.03), "t_grey")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.82), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.06), "t_grey")
+    p.box((-h - 0.01, h + 0.02, HEAD_Z + HEAD * 0.82), (h + 0.01, h + 0.12, HEAD_Z + HEAD * 0.82 + 0.03), "t_grey")
     b.finish(p, "Hat__flatcap", "Neck")
-    p = b.part().box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.02, h + 0.02, HEAD_Z + HEAD + 0.06), "t_olive")
-    p.box((-0.16, h - 0.02, HEAD_Z + HEAD * 0.82), (0.16, h + 0.12, HEAD_Z + HEAD * 0.82 + 0.03), "t_olive_dk")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.82), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.06), "t_olive")
+    p.box((-0.16, h + 0.02, HEAD_Z + HEAD * 0.82), (0.16, h + 0.13, HEAD_Z + HEAD * 0.82 + 0.03), "t_olive_dk")
     b.finish(p, "Hat__cap", "Neck")
-    p = b.part().box((-h - 0.025, -h - 0.025, HEAD_Z + HEAD * 0.8), (h + 0.025, h + 0.025, HEAD_Z + HEAD + 0.1), "t_tan")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.8), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.1), "t_tan")
     p.box((-h - 0.1, -h - 0.1, HEAD_Z + HEAD * 0.8), (h + 0.1, h + 0.1, HEAD_Z + HEAD * 0.8 + 0.03), "t_tan")
-    p.box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.83), (h + 0.03, h + 0.03, HEAD_Z + HEAD * 0.9), "t_tan_dk")
+    p.box((-h - 0.04, -h - 0.04, HEAD_Z + HEAD * 0.83), (h + 0.04, h + 0.04, HEAD_Z + HEAD * 0.9), "t_tan_dk")
     b.finish(p, "Hat__boonie", "Neck")
-    p = b.part().box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.84), (h + 0.02, h + 0.02, HEAD_Z + HEAD + 0.15), "t_black")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.84), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.15), "t_black")
     p.box((-h - 0.09, -h - 0.09, HEAD_Z + HEAD * 0.84), (h + 0.09, h + 0.09, HEAD_Z + HEAD * 0.84 + 0.025), "t_black")
-    p.box((-h - 0.025, -h - 0.025, HEAD_Z + HEAD * 0.84 + 0.025), (h + 0.025, h + 0.025, HEAD_Z + HEAD * 0.84 + 0.07), "t_maroon")
+    p.box((-h - 0.035, -h - 0.035, HEAD_Z + HEAD * 0.84 + 0.025), (h + 0.035, h + 0.035, HEAD_Z + HEAD * 0.84 + 0.07), "t_maroon")
     b.finish(p, "Hat__fedora", "Neck")
-    p = b.part().box((-h - 0.02, -0.04, HEAD_Z + HEAD * 0.7), (h + 0.02, 0.04, HEAD_Z + HEAD + 0.05), "t_black")
+    p = b.part().box((-h - 0.03, -0.04, HEAD_Z + HEAD * 0.7), (h + 0.03, 0.04, HEAD_Z + HEAD + 0.05), "t_black")
     for sx in (-1, 1):
         p.box((sx * h, -0.08, HEAD_Z + HEAD * 0.3), (sx * (h + 0.08), 0.08, HEAD_Z + HEAD * 0.66), "t_olive_dk")
     b.finish(p, "Hat__ear_defenders", "Neck")
-    p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.9), "t_black")
-    p.box((-0.16, h + 0.015, HEAD_Z + HEAD * 0.84), (0.16, h + 0.13, HEAD_Z + HEAD * 0.88), "t_felt")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.82), (h + 0.03, h + 0.03, HEAD_Z + HEAD * 0.9), "t_black")
+    p.box((-0.16, h + 0.02, HEAD_Z + HEAD * 0.84), (0.16, h + 0.13, HEAD_Z + HEAD * 0.88), "t_felt")
     b.finish(p, "Hat__visor", "Neck")
-    p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.76), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.84), "t_black")
-    p.box((-0.05, h + 0.015, HEAD_Z + HEAD * 0.74), (0.05, h + 0.06, HEAD_Z + HEAD * 0.86), "t_coffee")
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.76), (h + 0.03, h + 0.03, HEAD_Z + HEAD * 0.84), "t_black")
+    p.box((-0.05, h + 0.02, HEAD_Z + HEAD * 0.74), (0.05, h + 0.06, HEAD_Z + HEAD * 0.86), "t_coffee")
     b.finish(p, "Hat__head_torch", "Neck")
-    p = b.part().box((-h - 0.022, -h - 0.022, HEAD_Z + HEAD * 0.72), (h + 0.022, h + 0.022, HEAD_Z + HEAD + 0.08), "t_knit")
-    p.box((-h - 0.028, -h - 0.028, HEAD_Z + HEAD * 0.7), (h + 0.028, h + 0.028, HEAD_Z + HEAD * 0.8), "t_knit")   # turn-up
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.72), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.08), "t_knit")
+    p.box((-h - 0.04, -h - 0.04, HEAD_Z + HEAD * 0.7), (h + 0.04, h + 0.04, HEAD_Z + HEAD * 0.8), "t_knit")   # turn-up
     b.finish(p, "Hat__beanie", "Neck")
-    p = b.part().box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.04), "t_felt")
-    p.box((-0.04, -h - 0.08, HEAD_Z + HEAD * 0.8), (0.04, -h - 0.02, HEAD_Z + HEAD * 0.95), "t_felt")       # the knot
+    p = b.part().box((-h - 0.03, -h - 0.03, HEAD_Z + HEAD * 0.82), (h + 0.03, h + 0.03, HEAD_Z + HEAD + 0.04), "t_felt")
+    p.box((-0.04, -h - 0.09, HEAD_Z + HEAD * 0.8), (0.04, -h - 0.02, HEAD_Z + HEAD * 0.95), "t_felt")       # the knot
     b.finish(p, "Hat__bandana", "Neck")
     b.empty("Hat__none", "Neck")
     # Eyes

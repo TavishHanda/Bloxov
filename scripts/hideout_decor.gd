@@ -1,10 +1,11 @@
 class_name HideoutDecor
 extends Node3D
 ## Your corner (lively hideout, owner 2026-11-09: "customizable hideout, stuff that shows personality"): the bottom
-## bunk at the west end of the quarters is yours. A poster over it, beside it a flag on the wall over a shelf with a
-## lamp on it and a plant under it, a rug in front, your blanket on the mattress: each picked from Decor's list
-## at the corner (USE: "Decorate your corner", DecorPicker). Looks only: nothing collides, nothing's sent online,
-## and a headless run (the server, the tests) builds none of it unless `force_reacts` is set.
+## bunk at the west end of the quarters is yours, in its own nook behind a partition and a curtained doorway (0.34.9).
+## A poster over it, beside it a flag on the wall over a shelf with a lamp on it and a plant under it, a rug in front,
+## your blanket on the mattress: each picked from Decor's list at the corner (USE: "Decorate your corner", DecorPicker).
+## Looks only: nothing collides, nothing's sent online, and a headless run (the server, the tests) builds none of it
+## unless `force_reacts` is set.
 
 const BUNK := Vector3(-3.4, 0.0, 29.6)      # your bunk (make_hideout.py LAY.bunk_list[1]; foot at the wall)
 const WALL_X := -4.43                        # the quarters' west wall
@@ -74,7 +75,7 @@ func _build(spot: String, id: String) -> Node3D:
 			_flag(n, id)
 			return n
 		"rug":
-			var n := _spot_node("Rug", Vector3(-1.75, 0.0, BUNK.z - 0.1), PI * 0.5)
+			var n := _spot_node("Rug", Vector3(-2.2, 0.0, BUNK.z - 0.1), PI * 0.5)
 			_rug(n, id)
 			return n
 		"lamp":
@@ -248,9 +249,11 @@ func _plant(n: Node3D, id: String) -> void:
 	if id == "none":
 		return
 	var tall := id == "sunflower"
+	# (0.34.9, owner: "glitching textures going through each other"): the rim's top and the soil's top used to be the
+	# same plane at y=0.22, so they fought for every pixel. The soil now sits a clear 1 cm proud of the rim.
 	_box(n, Vector3(0.22, 0.2, 0.22), Vector3(0.0, 0.1, 0.0), TERRACOTTA)
-	_box(n, Vector3(0.25, 0.04, 0.25), Vector3(0.0, 0.2, 0.0), TERRACOTTA)
-	_box(n, Vector3(0.19, 0.01, 0.19), Vector3(0.0, 0.215, 0.0), SOIL)
+	_box(n, Vector3(0.25, 0.04, 0.25), Vector3(0.0, 0.21, 0.0), TERRACOTTA)
+	_box(n, Vector3(0.19, 0.04, 0.19), Vector3(0.0, 0.22, 0.0), SOIL)
 	match id:
 		"cactus":
 			_box(n, Vector3(0.08, 0.3, 0.08), Vector3(0.0, 0.36, 0.0), CACTUS)
@@ -262,7 +265,7 @@ func _plant(n: Node3D, id: String) -> void:
 				var a := k * TAU / 7.0
 				_box(n, Vector3(0.05, 0.02, 0.32), Vector3(cos(a) * 0.12, 0.33, sin(a) * 0.12), GRASS, -a + PI * 0.5, 0.5)
 		"sunflower":
-			_box(n, Vector3(0.025, 0.6, 0.025), Vector3(0.0, 0.52, 0.0), CACTUS)
+			_box(n, Vector3(0.025, 0.62, 0.025), Vector3(0.0, 0.53, 0.0), CACTUS)
 			_box(n, Vector3(0.14, 0.03, 0.06), Vector3(0.06, 0.45, 0.0), GRASS, 0.0, 0.0, 0.4)
 			var head := _spot_node("Bloom", Vector3(0.0, 0.84, 0.03), 0.0, n)
 			head.rotation.x = -0.35
