@@ -28,6 +28,9 @@ var _leaves: Array[Array] = []
 var _middles := PackedVector3Array()
 var _looks := PackedInt32Array()
 var _sounds: Array[AudioStreamPlayer3D] = []
+const MOVER_REFRESH := 6      # physics frames between looking up who is near
+var _movers: Array[Node] = []
+var _mover_age := 0
 
 
 func _ready() -> void:
@@ -123,7 +126,12 @@ func _leaf_mesh(w: float, h: float, thick: float, mirror: bool, edge_shade: floa
 
 
 func _physics_process(delta: float) -> void:
-	var movers := get_tree().get_nodes_in_group(Reacts.MOVER)
+	# The mover list is looked up a few times a second, not every frame (doors take a moment to slide anyway).
+	_mover_age -= 1
+	if _mover_age <= 0:
+		_movers = get_tree().get_nodes_in_group(Reacts.MOVER)
+		_mover_age = MOVER_REFRESH
+	var movers := _movers.filter(func(n: Node) -> bool: return is_instance_valid(n))
 	for i in amount.size():
 		var near := false
 		var at := to_global(_middles[i])

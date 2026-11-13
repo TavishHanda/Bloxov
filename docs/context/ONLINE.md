@@ -2,14 +2,14 @@
 
 Moved out of `CLAUDE.md` on 2026-11-13. Read before touching `scripts/net*.gd`, `raid_world.gd`, `matchmaker.gd`,
 `server/`, the Dockerfile, the export presets or `.github/workflows/`. Capacity and costs: `docs/HOSTING_CAPACITY.md`.
-Accounts and the PvP stash: `docs/STASH_UPDATE_PLAN.md`.
+Accounts and the PvP stash: `docs/archive/STASH_UPDATE_PLAN.md`.
 
 - Multiplayer (0.7.x, `docs/MULTIPLAYER_PLAN.md`): `scripts/net.gd` is the `Net` autoload; scripts use it as
   `Network.main` (autoload names don't compile in the `-s` test). Offline by default. Server:
   `godot --headless -- --server [--port=9080]`. The `net` test section runs a server + two clients in one process.
   Hosted on Heroku (owner's student credit; `Dockerfile` + `heroku.yml`, CI job `heroku`, needs the `HEROKU_API_KEY`
-  secret; app `bloxov-server`, one Basic dyno): wss://bloxov-server-0f9c9a343ceb.herokuapp.com. A Fly.io setup also
-  exists (`fly.toml`, CI job `server`, skipped without `FLY_API_TOKEN`) for later (one server per raid).
+  secret; app `bloxov-server`, one Basic dyno): wss://bloxov-server-0f9c9a343ceb.herokuapp.com.
+  CI restarts the server only when server files changed (job `changes`, `.github/workflows/web.yml`); docs-only pushes run nothing.
   `net.gd` is an autoload: it must not reference player/gun scripts (directly or via class names), or a fresh
   import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
   Server raids are SubViewports (`RaidWorld`) in one process: node groups are global, so AI/spawner/nav code looks

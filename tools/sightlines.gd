@@ -214,7 +214,7 @@ func _plan(space: PhysicsDirectSpaceState3D, spots: Array, spawns: Array[Vector3
 	print("plan: %d new spots, %d in tools/cover_spots.json" % [chosen.size(), all.size()])
 
 
-func _ground(space: PhysicsDirectSpaceState3D, x: float, z: float):
+func _ground(space: PhysicsDirectSpaceState3D, x: float, z: float) -> Variant:
 	var q := PhysicsRayQueryParameters3D.create(Vector3(x, 60, z), Vector3(x, -20, z))
 	var hit := space.intersect_ray(q)
 	if hit.is_empty():

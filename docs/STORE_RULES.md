@@ -54,7 +54,7 @@ CHANGELOG entry when a change was made for store reasons.
 - **Collect only what the game needs.** No contacts, location, photos, device IDs or advertising IDs.
 - **A privacy policy is required by both stores**, as a public URL on the store listing **and** reachable inside
   the game (e.g. a "Privacy" button in the hideout/settings). It must say what is collected, why, how long it's
-  kept, who it's shared with (hosting: Heroku/Fly.io), and how to get it deleted. Written (0.31.3-0.31.5): in-game
+  kept, who it's shared with (hosting: Heroku), and how to get it deleted. Written (0.31.3-0.31.5): in-game
   PRIVACY on the title screen and https://bloxov.com/privacy (`web/privacy/index.html`, #delete for Google).
 - Fill in Apple's privacy "nutrition label" and Google's Data safety form to match exactly (answers drafted for
   0.31.5 in `docs/STORE_PRIVACY_FORMS.md`; re-check them against the game at submission). Update both (and the
