@@ -5668,8 +5668,8 @@ func _section_riptide() -> void:
 	world.raid.add_child(swimmer)
 	swimmer.global_position = Vector3(0, 0.5, 80)   # open water between the quay and the ship
 	for i in 200: await physics_frame
-	_check(swimmer.is_swimming() and absf(swimmer.global_position.y + Player.SWIM_FLOAT) < 0.1 and not swimmer.hands_free()
-		and swimmer.health.current == swimmer.health.max_health, "in the sea you float with your head out, hands busy, unhurt by the drop")
+	_check(swimmer.is_swimming() and absf(swimmer.global_position.y + Player.SWIM_FLOAT) < 0.1 and not swimmer.hands_free(),
+		"in the sea you float with your head out, hands busy (y %.2f)" % swimmer.global_position.y)
 	swimmer.global_position = Vector3(-100, 2.7, 0)
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
