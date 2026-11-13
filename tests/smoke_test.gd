@@ -3765,6 +3765,7 @@ func _section_stash_modes() -> void:
 	_check(not hideout._online_button.visible and hideout._raid_button.text == "START RAID",
 		"with the PvE/PvP switch there's no separate ONLINE button")
 	# The war table's map (0.33.9): pick a map on it, and START RAID says which one you're on
+	hideout.warm_picked_map = false
 	hideout.open_map_select()
 	_check(hideout.map_select.visible and hideout.map_select.can_pick and hideout.map_select.get_node("Map1") != null,
 		"the MAP button opens the war table's map, a marker for each map")

@@ -45,6 +45,9 @@ var _raid_button: Button
 var _map_button: Button
 ## The war table's map (0.33.9): pick the raid's map on it.
 var map_select: MapSelect
+## Picking a map starts loading it in the background (off in the smoke test, where the load would run on under
+## the sections that follow and make their waits time out).
+var warm_picked_map := true
 ## Next to the switch in PvP: the account page (sign in, or sign out / download / delete) (owner, 2026-11-07).
 var _account_button: Button
 ## PvP and not signed in: covers the stash, loadout and traders (owner, 2026-11-07: no playing with a stash that
@@ -1251,7 +1254,8 @@ func pick_map(index: int) -> void:
 	RaidMap.scene_path = RaidMap.MAPS[clampi(index, 0, RaidMap.MAPS.size() - 1)][1]
 	_send_map()
 	_update_raid_button()
-	_warm_raid()
+	if warm_picked_map:
+		_warm_raid()
 
 
 ## Online: tells the server our map if we lead the party and it has another (also after connecting or a new party).
