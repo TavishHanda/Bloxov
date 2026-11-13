@@ -825,7 +825,9 @@ func start_raid() -> void:
 	save_now()
 	# PvP (0.31): the raid takes the kit the server issued from the stash it keeps.
 	if Profile.mode == Profile.ONLINE or Network.main.is_client():
-		RaidMap.scene_path = RaidMap.FRONTLINES   # (online raids are on Frontlines: the server only runs that one)
+		# (0.33.8) online raids are on the map the server put this raid on
+		if Network.main.raid_map != 0 or RaidMap.scene_path != "":   # ("" = the smoke test's built-in map)
+			RaidMap.scene_path = RaidMap.MAPS[clampi(Network.main.raid_map, 0, RaidMap.MAPS.size() - 1)][1]
 	if Profile.mode == Profile.ONLINE and not Network.main.issued_kit.is_empty():
 		Profile.loadout = Network.main.issued_kit
 		Network.main.issued_kit = {}
@@ -1211,6 +1213,13 @@ func press_start_raid() -> void:
 
 ## The MAP button: the next map in RaidMap.MAPS for solo raids.
 func next_map() -> void:
+	if Profile.mode == Profile.ONLINE or Network.main.is_client():
+		# PvP (0.33.8): the party's leader picks the map, out of the queue; the server tells the party.
+		var net := Network.main
+		if net.is_client() and net.is_leader and not net.queued:
+			net.set_map((net.party_map + 1) % RaidMap.MAPS.size())
+			UISounds.play(self, UISounds.CLICK, -12.0)
+		return
 	var i := 0
 	for k in RaidMap.MAPS.size():
 		if RaidMap.MAPS[k][1] == RaidMap.scene_path:
@@ -1225,11 +1234,16 @@ func next_map() -> void:
 func _update_raid_button() -> void:
 	if _map_button != null:
 		var online := GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE
-		_map_button.visible = not online
+		_map_button.visible = not online or Network.main.is_client()
 		var map_name := "FRONTLINES"
 		for m in RaidMap.MAPS:
 			if m[1] == RaidMap.scene_path:
 				map_name = m[0]
+		if online or Network.main.is_client():
+			map_name = RaidMap.MAPS[clampi(Network.main.party_map, 0, RaidMap.MAPS.size() - 1)][0]
+			_map_button.disabled = not Network.main.is_leader or Network.main.queued
+		else:
+			_map_button.disabled = false
 		_map_button.text = "MAP: " + map_name
 	if _pvp_cover != null:
 		_pvp_cover.visible = Profile.mode == Profile.ONLINE and not Network.main.signed_in()

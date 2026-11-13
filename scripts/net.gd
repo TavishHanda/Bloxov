@@ -50,6 +50,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## Key doors (0.14.0): someone in the raid unlocked one (its node name).
 signal door_opened(id: String)
+## A map switch came on in our raid (0.33.8): its switch_id.
+signal switch_thrown(id: String)
 ## Someone in our raid broke a window pane (0.18.8): its number in the map's BoxMap `window_panes`.
 signal window_broken(pane: int)
 ## Doors (0.17): one in the raid swung open (1, -1) or shut (0): its node name under Doors.
@@ -105,6 +107,9 @@ var mode := Mode.OFFLINE
 
 # Client: what the server last told us.
 var party_code := ""
+## The map our party plays (0.33.8, an index into RaidMap.MAPS; the leader picks), and the one our raid is on.
+var party_map := 0
+var raid_map := 0
 ## Names of the people in our party, leader first.
 var party_names: PackedStringArray = []
 var is_leader := true
@@ -333,6 +338,11 @@ func _leave_party() -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _set_queued(on: bool) -> void:
 	_server_call(func(peer: int) -> String: return matchmaker.set_queued(peer, on))
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _set_map(map: int) -> void:
+	_server_call(func(peer: int) -> String: return matchmaker.set_map(peer, map))
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -712,6 +722,27 @@ func _use_door(id: String, state: int) -> void:
 		world.set_door(id, state)
 
 
+## A player threw a map switch (0.33.8): the server checks they're standing at it, then it's on for the whole raid.
+@rpc("any_peer", "call_remote", "reliable")
+func _use_switch(id: String) -> void:
+	var peer := _sender("world")
+	var world := _world_of(peer)
+	var at: Variant = guard.position_of(peer)
+	if world != null and at != null and _up(peer):
+		world.throw_switch(id, at)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _switch_on(id: String) -> void:
+	if in_online_raid():
+		switch_thrown.emit(id)
+
+
+func use_switch(id: String) -> void:
+	if in_online_raid():
+		_use_switch.rpc_id(1, id)
+
+
 ## A player threw a grenade: the server's copy flies and does the damage; everyone else in the raid sees it.
 @rpc("any_peer", "call_remote", "reliable")
 func _grenade(from: Vector3, vel: Vector3) -> void:
@@ -968,6 +999,12 @@ func _send_roster(id: int, back: int) -> void:
 				team.append(other)
 		if peer == back:
 			_raid_rejoined.rpc_id(peer, matchmaker.raid_time_left(id), raid_names, team, raid_looks)
+			# (0.33.8) switches thrown while they were away
+			var back_world: RaidWorld = _worlds.get(id)
+			if back_world != null:
+				for node in back_world.switches():
+					if node.get("used"):
+						_switch_on.rpc_id(peer, String(node.get("switch_id")))
 		else:
 			_raid_roster.rpc_id(peer, raid_names, team, raid_looks)
 
@@ -1001,7 +1038,7 @@ func _flush() -> void:
 			member_names.append(matchmaker.players[member]["name"])
 		for member in party["members"]:
 			if _peer_open(member):
-				_party.rpc_id(member, code, member_names, member == party["members"][0], party["queued"])
+				_party.rpc_id(member, code, member_names, member == party["members"][0], party["queued"], int(party.get("map", 0)))
 	matchmaker.changed_parties.clear()
 
 
@@ -1025,6 +1062,13 @@ func _peer_open(peer: int) -> bool:
 
 func _send_raid_start(id: int) -> void:
 	var raid: Dictionary = matchmaker.raids[id]
+	# (0.33.8) the raid's map: a raid scene reads RaidMap.scene_path as it is made, so it's set just before each one.
+	# (Looked up by path: an autoload can't name RaidMap, see the top.)
+	var raid_map_script: Script = load("res://scripts/raid_map.gd")
+	var maps: Array = raid_map_script.get_script_constant_map()["MAPS"]
+	# ("" = the built-in test map, which the smoke test's raids keep for map 0)
+	if int(raid.get("map", 0)) != 0 or String(raid_map_script.get("scene_path")) != "":
+		raid_map_script.set("scene_path", maps[clampi(int(raid.get("map", 0)), 0, maps.size() - 1)][1])
 	var world := RaidWorld.new()
 	world.name = "Raid%d" % id
 	add_child(world)
@@ -1047,6 +1091,9 @@ func _send_raid_start(id: int) -> void:
 	world.door_opened.connect(func(door: String) -> void:
 		for peer in _raid_peers(id):
 			_door_open.rpc_id(peer, door))
+	world.switch_thrown.connect(func(switch: String) -> void:
+		for peer in _raid_peers(id):
+			_switch_on.rpc_id(peer, switch))
 	world.window_broken.connect(func(pane: int) -> void:
 		for peer in _raid_peers(id):
 			_window_broke.rpc_id(peer, pane))
@@ -1077,7 +1124,7 @@ func _send_raid_start(id: int) -> void:
 		if not kit.is_empty():
 			_carried[peer] = OnlineProfile.count(kit)
 			_kit_issued.rpc_id(peer, kit)
-		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []), raid_looks)
+		_raid_start.rpc_id(peer, raid["seed"], matchmaker.raid_time_left(id), raid_names, team, raid["spawns"].get(peer, []), raid_looks, int(raid.get("map", 0)))
 
 
 ## Server: posts the player counts (Matchmaker.stats_data, plus the version) to STATS_URL, every STATS_EVERY even
@@ -1137,10 +1184,11 @@ func _process(delta: float) -> void:
 	_queue_send_left -= delta
 	if _queue_send_left <= 0.0:
 		_queue_send_left = 1.0 / QUEUE_RATE
-		var waiting := matchmaker.queued_count()
 		for peer in matchmaker.players:
 			if matchmaker.players[peer]["raid"] == 0 and _peer_open(peer):
-				_queue_status.rpc_id(peer, waiting, matchmaker.countdown_left)
+				# (0.33.8) each map has its own queue: a player hears about their party's
+				var map := int(matchmaker.party_of(peer).get("map", 0))
+				_queue_status.rpc_id(peer, matchmaker.queued_count(map), matchmaker.countdown_for(map))
 	_send_left -= delta
 	if _send_left > 0.0:
 		return
@@ -1217,6 +1265,12 @@ func leave_party() -> void:
 func set_queued(on: bool) -> void:
 	if is_client():
 		_set_queued.rpc_id(1, on)
+
+
+## The map our party plays (the leader, out of the queue).
+func set_map(map: int) -> void:
+	if is_client():
+		_set_map.rpc_id(1, map)
 
 
 ## Starts a raid with just our party, no queue (testing, or playing online alone).
@@ -1512,7 +1566,8 @@ func _notice(text: String) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _party(code: String, member_names: PackedStringArray, leader: bool, is_queued: bool) -> void:
+func _party(code: String, member_names: PackedStringArray, leader: bool, is_queued: bool, map := 0) -> void:
+	party_map = map
 	party_code = code
 	party_names = member_names
 	is_leader = leader
@@ -1529,8 +1584,9 @@ func _queue_status(waiting: int, countdown: float) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _raid_start(seed_value: int, time_left: float, raid_names: Dictionary, team: Array[int], spawn: Array,
-		raid_looks := {}) -> void:
+		raid_looks := {}, map := 0) -> void:
 	in_raid = true
+	raid_map = map
 	looks = raid_looks
 	raid_spawn = spawn
 	queued = false

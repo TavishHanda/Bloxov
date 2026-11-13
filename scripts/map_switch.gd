@@ -43,6 +43,18 @@ func prompt() -> String:
 func use(_from: Vector3) -> void:
 	if used:
 		return
+	# Online (0.33.8): the server throws it, for everyone in the raid (and its scavs hear the alarm); it comes
+	# back to us as power_on().
+	if Network.main.in_online_raid():
+		Network.main.use_switch(switch_id)
+		return
+	power_on()
+
+
+## The switch goes over: the power comes on, what waited for it opens, the alarm sounds.
+func power_on() -> void:
+	if used:
+		return
 	used = true
 	WorldSounds.at(self, WorldSounds.POWER_ON, global_position, 0.0, 40.0)
 	var powered: Array[Vector3] = [global_position]

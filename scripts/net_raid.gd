@@ -52,6 +52,7 @@ func _ready() -> void:
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
 	Network.main.door_opened.connect(on_door_opened)
+	Network.main.switch_thrown.connect(on_switch_thrown)
 	Network.main.window_broken.connect(on_window_broken)
 	Network.main.door_state.connect(on_door_state)
 	Network.main.lid_moved.connect(on_lid_moved)
@@ -130,6 +131,14 @@ func sync_remotes(states: Dictionary) -> void:
 				pixel.pick_outfit(Operators.from_text(String(Network.main.looks.get(peer, ""))))
 			remotes[peer] = remote
 		remote.push_state(states[peer])
+
+
+## Someone in the raid threw a map switch (0.33.8): it's on here too.
+func on_switch_thrown(id: String) -> void:
+	for node in get_parent().find_children("*", "StaticBody3D", true, false):
+		var switch := node as MapSwitch
+		if switch != null and switch.switch_id == id:
+			switch.power_on()
 
 
 ## Someone in the raid unlocked a key door: it's open here too.

@@ -207,6 +207,18 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.8 (Riptide online, on the branch)
+- **The server can run a raid on either map** (owner: "do 2"). Each raid has a map (`Matchmaker` raid `map`, an index
+  into `RaidMap.MAPS`); the server points `RaidMap.scene_path` at it just before it builds that raid's copy, and
+  tells the players, whose games load the same map. Riptide raids run 15 minutes online too (`map_times`).
+- **Picking the map in PvP**: the MAP button now shows online as well. The party's leader picks, out of the queue;
+  each map has its own queue and countdown (a raid needs two players waiting for the same map).
+- **The sub bay's power switch is the server's** (`RaidWorld.throw_switch`): a player must be standing at it; it then
+  comes on for the whole raid, the server's scavs hear the alarm, and the server only takes a sub bay extract once
+  it's on. Someone reconnecting hears about switches already thrown.
+- Swimming needed nothing: it's slower than walking, well inside the server's movement allowance.
+- Not measured yet: how much memory a Riptide raid takes on the live server (`MAX_RAIDS` was sized on Frontlines).
+
 ## 0.33.7 (Riptide: the quay edge, the stern door, more ways below, on the branch)
 - **The quay edge isn't one line of containers** (owner: "one dimensional"): each piece of cover along it is now one
   of eight kinds in a mixed order (`quay_cover`): containers (some doubled), blast walls with a blown-out notch,

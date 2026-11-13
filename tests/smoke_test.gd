@@ -5683,6 +5683,60 @@ func _section_riptide() -> void:
 		"the Reaper takes the Hound's parts; Zero's gear is never sold")
 	world.queue_free()
 	await process_frame
+	# Riptide online (0.33.8): the leader picks the map, the server runs that raid on it for 15 minutes, and the
+	# sub bay's power switch is thrown on the server for everyone
+	var mm := Matchmaker.new()
+	for p in [1, 2, 3, 4]:
+		mm.add_player(p, "P%d" % p)
+	_check(mm.set_map(1, 1) == "" and mm.set_map(2, 1) == "" and mm.set_map(3, 5) != "" and mm.party_of(1)["map"] == 1, "a party's leader picks its map")
+	for p in [1, 3, 4]:
+		mm.set_queued(p, true)
+	_check(mm.set_map(1, 0) != "", "not while queued")
+	mm.tick(1.0)
+	_check(mm.queued_count(0) == 2 and mm.queued_count(1) == 1 and mm.countdown_for(0) > 0.0 and mm.countdown_for(1) < 0.0,
+		"each map has its own queue: two waiting for Frontlines start its countdown, one for Riptide waits")
+	mm.set_queued(2, true)
+	var started := mm.tick(mm.queue_countdown + 1.0)
+	_check(started.size() == 2 and mm.raids[started[0]]["map"] != mm.raids[started[1]]["map"]
+		and mm.players[1]["raid"] == mm.players[2]["raid"] and mm.players[3]["raid"] == mm.players[4]["raid"]
+		and mm.players[1]["raid"] != mm.players[3]["raid"], "a raid starts on each map with the players who chose it")
+	var rip_raid: int = mm.players[1]["raid"]
+	_check(is_equal_approx(mm.raid_time_left(rip_raid), 900.0) and is_equal_approx(mm.raid_time_left(mm.players[3]["raid"]), mm.raid_time),
+		"Riptide raids run 15 minutes online too, Frontlines' as before")
+	var server := _net_peer("RipServer")
+	var c1 := _net_peer("RipClient")
+	server.start_server(19093)
+	c1.go_online("localhost:19093", "Diver")
+	await _until(func() -> bool: return c1.is_client() and c1.party_code != "")
+	c1.set_map(1)
+	await _until(func() -> bool: return c1.party_map == 1)
+	c1.start_now()
+	await _until(func() -> bool: return c1.in_raid)
+	var rip: RaidWorld = server._worlds.values()[0]
+	var sub_zone := rip.raid.get_node("Extracts/SubBay") as Node3D
+	var rip_switch := rip.switches()[0] as Node3D
+	_check(c1.raid_map == 1 and RaidMap.scene_path == MAP and rip.raid.get_node("Extracts").get_child_count() == 6
+		and is_equal_approx(c1.raid_time_left, 900.0), "the server runs the raid on Riptide, for 15 minutes, and tells the players")
+	RaidMap.scene_path = ""
+	_check(rip.extract_at(sub_zone.global_position).is_empty() and not rip.extract_at(rip.raid.get_node("Extracts/Cove").global_position).is_empty(),
+		"the server's sub bay is shut until the power is on (other extracts count)")
+	var thrown := []
+	c1.switch_thrown.connect(func(id: String) -> void: thrown.append(id))
+	var me: int = c1.multiplayer.get_unique_id()
+	await _until(func() -> bool:
+		c1.send_state([rip_switch.global_position + Vector3(1.0, -1.0, 0), 0.0, 0.0, 0.0, 0])
+		return server._player_states.has(me))
+	c1.use_switch("no_such_switch")
+	c1.use_switch(String(rip_switch.get("switch_id")))
+	await _until(func() -> bool: return not thrown.is_empty())
+	_check(thrown == ["sub_bay"] and rip_switch.get("used") and not rip.extract_at(sub_zone.global_position).is_empty(),
+		"a player at the switch throws it on the server: the sub bay opens for the whole raid")
+	c1.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1]:
+		n.get_parent().queue_free()
+	await process_frame
 
 
 func _section_old_bloxov() -> void:

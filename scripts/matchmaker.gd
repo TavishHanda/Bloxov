@@ -22,6 +22,10 @@ const CODE_LETTERS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 var queue_countdown := 30.0
 var raid_time := 600.0
+## Maps a raid can be on (0.33.8: 0 Frontlines, 1 Riptide; the same order as RaidMap.MAPS, which this script can't
+## name because Network is an autoload) and the ones whose raids run longer (owner: Riptide 15 minutes).
+var map_count := 2
+var map_times := {1: 900.0}
 
 ## peer -> {name, party (code), raid (id, 0 = in the hideout)}
 var players := {}
@@ -32,6 +36,8 @@ var parties := {}
 var raids := {}
 ## Seconds until the queue's raid starts (-1 = no countdown running).
 var countdown_left := -1.0
+## The same per map (0.33.8: each map has its own queue): map -> seconds left. No entry = no countdown.
+var countdowns := {}
 ## Parties whose members need a fresh party update (Network sends them, then clears this).
 var changed_parties := {}
 
@@ -149,6 +155,21 @@ func set_queued(peer: int, on: bool) -> String:
 	return ""
 
 
+## The map your party plays (0.33.8): the leader picks it, out of the queue. Returns "" or why not.
+func set_map(peer: int, map: int) -> String:
+	var problem := _leader_problem(peer)
+	if problem != "":
+		return problem
+	var party := party_of(peer)
+	if party["queued"]:
+		return "Leave the queue to change the map."
+	if map < 0 or map >= map_count:
+		return "No such map."
+	party["map"] = map
+	changed_parties[players[peer]["party"]] = true
+	return ""
+
+
 ## Starts a raid right away with just your party (no queue). Returns the raid id, or 0 with `why` filled in.
 func start_now(peer: int, why: Array = []) -> int:
 	var problem := _leader_problem(peer)
@@ -174,15 +195,20 @@ func leave_raid(peer: int) -> void:
 
 
 func raid_time_left(id: int) -> float:
-	return raid_time - (_clock - raids[id]["started"]) if raids.has(id) else 0.0
+	return float(raids[id].get("time", raid_time)) - (_clock - raids[id]["started"]) if raids.has(id) else 0.0
 
 
 ## Players waiting in the queue right now.
-func queued_count() -> int:
+func queued_count(map := -1) -> int:
 	var count := 0
-	for code in _queued_parties():
+	for code in _queued_parties(map):
 		count += parties[code]["members"].size()
 	return count
+
+
+## Seconds until `map`'s queue starts its raid (-1 = no countdown running).
+func countdown_for(map: int) -> float:
+	return float(countdowns.get(map, -1.0))
 
 
 ## Advances the clock; starts the queue's raid when it's due. Returns the ids of raids that started.
@@ -194,31 +220,38 @@ func tick(delta: float) -> Array[int]:
 			for peer in raids[id]["players"].duplicate():
 				leave_raid(peer)
 			raids.erase(id)
-	var waiting := queued_count()
-	if waiting < MIN_PLAYERS:
-		countdown_left = -1.0
-		return started
-	if countdown_left < 0.0:
-		countdown_left = queue_countdown
-	countdown_left -= delta
-	if (countdown_left <= 0.0 or waiting >= MAX_PLAYERS) and raids.size() < MAX_RAIDS:
-		# Everyone who fits, first come first served, without splitting a party.
-		var picked: Array = []
-		var count := 0
-		for code in _queued_parties():
-			var size: int = parties[code]["members"].size()
-			if count + size <= MAX_PLAYERS:
-				picked.append(code)
-				count += size
-		started.append(_start_raid(picked))
-		countdown_left = -1.0
+	# Each map has its own queue (0.33.8): a raid needs MIN_PLAYERS waiting for the same map.
+	for map in map_count:
+		var waiting := queued_count(map)
+		if waiting < MIN_PLAYERS:
+			countdowns.erase(map)
+			continue
+		if not countdowns.has(map):
+			countdowns[map] = queue_countdown
+		countdowns[map] -= delta
+		if (countdowns[map] <= 0.0 or waiting >= MAX_PLAYERS) and raids.size() < MAX_RAIDS:
+			# Everyone who fits, first come first served, without splitting a party.
+			var picked: Array = []
+			var count := 0
+			for code in _queued_parties(map):
+				var size: int = parties[code]["members"].size()
+				if count + size <= MAX_PLAYERS:
+					picked.append(code)
+					count += size
+			started.append(_start_raid(picked))
+			countdowns.erase(map)
+	countdown_left = -1.0
+	for map in countdowns:
+		countdown_left = countdowns[map] if countdown_left < 0.0 else minf(countdown_left, countdowns[map])
 	return started
 
 
 func _start_raid(codes: Array) -> int:
 	var id := _next_raid_id
 	_next_raid_id += 1
-	var raid := {"players": [], "started": _clock, "seed": randi(), "teams": {}}
+	var map := int(parties[codes[0]].get("map", 0)) if not codes.is_empty() else 0
+	var raid := {"players": [], "started": _clock, "seed": randi(), "teams": {}, "map": map,
+		"time": float(map_times.get(map, raid_time))}
 	var teams := []
 	for code in codes:
 		parties[code]["queued"] = false
@@ -265,12 +298,12 @@ func _leader_problem(peer: int) -> String:
 	return ""
 
 
-## Queued parties whose members are all in the hideout, oldest first.
-func _queued_parties() -> Array:
+## Queued parties whose members are all in the hideout, oldest first (`map`: only those waiting for that map).
+func _queued_parties(map := -1) -> Array:
 	var list := []
 	for code in parties:
 		var party: Dictionary = parties[code]
-		if party["queued"] and party["members"].all(func(p: int) -> bool: return players[p]["raid"] == 0):
+		if party["queued"] and (map < 0 or int(party.get("map", 0)) == map) and party["members"].all(func(p: int) -> bool: return players[p]["raid"] == 0):
 			list.append(code)
 	list.sort_custom(func(a: String, b: String) -> bool: return parties[a]["queued_at"] < parties[b]["queued_at"])
 	return list
@@ -282,7 +315,7 @@ func _new_party(peer: int) -> void:
 		code = ""
 		for i in 4:
 			code += CODE_LETTERS[randi() % CODE_LETTERS.length()]
-	parties[code] = {"members": [peer], "queued": false, "queued_at": 0.0}
+	parties[code] = {"members": [peer], "queued": false, "queued_at": 0.0, "map": 0}
 	players[peer]["party"] = code
 	changed_parties[code] = true
 

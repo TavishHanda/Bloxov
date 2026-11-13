@@ -11,8 +11,9 @@ extends Node3D
 static var scene_path := FRONTLINES
 
 const FRONTLINES := "res://scenes/maps/old_bloxov.tscn"
-## The maps a solo raid can pick in the hideout (map 2, Riptide: a gray box for now). Online raids are always on
-## Frontlines until the server can run a raid per map.
+## The maps a raid can be on (map 2, Riptide: a gray box for now). Solo: the hideout's MAP button. Online (0.33.8):
+## the party leader picks, the server runs each raid on its map. The order is the map's number on the network:
+## only add to the end.
 const MAPS := [["FRONTLINES", FRONTLINES], ["RIPTIDE", "res://scenes/maps/riptide.tscn"]]
 
 ## Nodes of the raid scene whose contents come from the map.

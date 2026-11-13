@@ -39,6 +39,8 @@ signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: 
 signal bag_removed(id: String)
 ## A key door was unlocked (0.14.0): Network tells everyone in the raid.
 signal door_opened(id: String)
+## A map switch was thrown (0.33.8, Riptide's sub bay power): its switch_id.
+signal switch_thrown(id: String)
 ## A player broke a window pane (0.18.8): its number in the map's BoxMap `window_panes`.
 signal window_broken(pane: int)
 ## A door swung open (1, -1) or shut (0) (0.17): a player asked, or the AI walked up to it. Network tells the raid.
@@ -68,6 +70,12 @@ func _ready() -> void:
 			child.free()
 	raid.child_entered_tree.connect(_on_raid_child)
 	add_child(raid)
+	# Extracts that wait for a switch start shut (0.33.8; on a player's game Raid does this, but it isn't kept here).
+	var zones := raid.get_node_or_null("Extracts")
+	if zones != null:
+		for zone in zones.get_children():
+			if String(zone.get("needs_power")) != "":
+				zone.call("set_open", false)
 	var doors := raid.get_node_or_null("Doors")
 	if doors != null:
 		for door in doors.get_children():
@@ -156,6 +164,20 @@ func open_door(id: String) -> void:
 
 ## The extract a player standing at `pos` (feet) is in: [its node name, its extract_time], or [] for none
 ## (0.25.2: the server checks a player who says they extracted really stood in one long enough).
+## The map switches (MapSwitch) of this raid.
+func switches() -> Array:
+	return raid.find_children("*", "StaticBody3D", true, false).filter(func(n: Node) -> bool: return n.has_method(&"power_on"))
+
+
+## A player threw switch `id` from `from` (0.33.8): if they're at it and it's still off, it goes on here (extracts
+## open, the scavs hear the alarm) and for everyone in the raid.
+func throw_switch(id: String, from: Vector3) -> void:
+	for node: Node3D in switches():
+		if String(node.get("switch_id")) == id and not node.get("used") and node.global_position.distance_to(from) < 6.0:
+			node.call("power_on")
+			switch_thrown.emit(id)
+
+
 func extract_at(pos: Vector3) -> Array:
 	var zones := raid.get_node_or_null("Extracts")
 	if zones == null:
@@ -164,6 +186,8 @@ func extract_at(pos: Vector3) -> Array:
 		var shape := zone.get_node_or_null("CollisionShape3D") as CollisionShape3D
 		if shape == null or not shape.shape is BoxShape3D:
 			continue
+		if String(zone.get("needs_power")) != "" and not zone.get("is_open"):
+			continue   # (0.33.8) still waiting for its switch: nobody extracts here yet
 		var size := (shape.shape as BoxShape3D).size + Vector3(1.0, 2.0, 1.0)   # (a little slack for lag)
 		var local := shape.global_transform.affine_inverse() * (pos + Vector3(0, 0.9, 0))
 		if AABB(-size * 0.5, size).has_point(local):
