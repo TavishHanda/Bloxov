@@ -4,15 +4,11 @@ The plan from here, as milestones. Each one has a goal and a clear "done when".
 Every milestone ends with someone other than the owner playing the build.
 (Replaces the phase table in `GAME_DESIGN.md` §11; phases 0–2 there are done.)
 
-**Where we are (2026-11-04):** 0.29.14 (Engine update, Godot 4.7, closed at 0.29.13 plus a moving-parts fix). M4's
-World art (0.18), Look (0.19), the 0.20 Sound update and **Sound 2.0 (0.30.0-0.30.3) are done**; Sound 2.0's plan and
-status is `docs/SOUND_2_PLAN.md` (0.30.4, the optional hi-fi pass, is not started and only happens if the owner asks).
-**Next is the Stash update**, which gates the web beta and Steam. Done: Map & Spawn (0.10),
-Scorched Earth (0.11), Scavs 2.0 (0.12), Movement (0.13), Items (0.14), Guns (0.15, mechanics only; gun models wait
-for the art updates) and Economy (0.16, closed at 0.16.14; trader names and the owner's playtest of prices and quests
-still open). Also since then: the walkable hideout (0.21), World Reacts (0.22), jointed characters (0.23), the
-new-player tutorial (0.24), Checkpoint (0.25, the security pass), Keybinds (0.26), Durability (0.27) and the Engine
-update (0.29). M1-M3 are done (co-op + PvP is live).
+**Where we are (2026-11-13):** 0.34.15. Everything up to M4 is done and the game is live as an open web beta on
+bloxov.com (co-op + PvP, M1-M3 done). Since the Engine update (0.29): Sound 2.0 (0.30.0-0.30.3), the **Stash update**
+(0.31: PvE on the device, PvP on the server with accounts), **Crafting** (0.32), the **Riptide** map gray box (0.33,
+on a branch) and the **Lively hideout** (0.34). **Next is the road to Steam**: the current order and state is
+`docs/RELEASE_PLAN.md` "Where it stands"; the list below is history plus ideas that still wait.
 
 **Road to Steam (owner, 2026-11-07):** the plan for everything before Steam Early Access (January 2027): more
 maps, characters with traits, skins, expeditions + crafting, battle pass, pets, more loot and quests, and the
