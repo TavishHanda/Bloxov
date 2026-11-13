@@ -43,6 +43,8 @@ var _online_button: Button
 var _raid_button: Button
 ## Which map a solo raid goes to (map 2, Riptide, 2026-11-09); hidden in PvP, which stays on Frontlines for now.
 var _map_button: Button
+## The war table's map (0.33.9): pick the raid's map on it.
+var map_select: MapSelect
 ## Next to the switch in PvP: the account page (sign in, or sign out / download / delete) (owner, 2026-11-07).
 var _account_button: Button
 ## PvP and not signed in: covers the stash, loadout and traders (owner, 2026-11-07: no playing with a stash that
@@ -1180,11 +1182,16 @@ func _build_top_bar() -> void:
 	row.add_child(_free_kit_button)
 	_map_button = Button.new()
 	_map_button.name = "MapButton"
-	_map_button.tooltip_text = "Pick the map for a solo raid (online raids are on Frontlines for now)"
+	_map_button.tooltip_text = "Open the war table's map and pick where you raid"
 	_map_button.focus_mode = Control.FOCUS_NONE
 	LootUI.style_button(_map_button)
-	_map_button.pressed.connect(next_map)
+	_map_button.pressed.connect(open_map_select)
 	row.add_child(_map_button)
+	map_select = MapSelect.new()
+	map_select.name = "MapSelect"
+	map_select.visible = false
+	map_select.picked.connect(pick_map)
+	add_child(map_select)
 	_raid_button = Button.new()
 	_raid_button.name = "RaidButton"
 	_raid_button.text = "START RAID"
@@ -1211,40 +1218,55 @@ func press_start_raid() -> void:
 		start_raid())
 
 
-## The MAP button: the next map in RaidMap.MAPS for solo raids.
-func next_map() -> void:
-	if Profile.mode == Profile.ONLINE or Network.main.is_client():
-		# PvP (0.33.8): the party's leader picks the map, out of the queue; the server tells the party.
-		var net := Network.main
-		if net.is_client() and net.is_leader and not net.queued:
-			net.set_map((net.party_map + 1) % RaidMap.MAPS.size())
-			UISounds.play(self, UISounds.CLICK, -12.0)
-		return
-	var i := 0
+## The map we'd raid on now (an index into RaidMap.MAPS): in a party online, the leader's choice; else our own.
+func map_index() -> int:
+	var net := Network.main
+	if net.is_client() and not net.is_leader:
+		return clampi(net.party_map, 0, RaidMap.MAPS.size() - 1)
 	for k in RaidMap.MAPS.size():
 		if RaidMap.MAPS[k][1] == RaidMap.scene_path:
-			i = k
-	RaidMap.scene_path = RaidMap.MAPS[(i + 1) % RaidMap.MAPS.size()][1]
+			return k
+	return 0
+
+
+## The MAP button (0.33.9, owner): the war table's big map, to pick the raid's map on.
+func open_map_select() -> void:
 	UISounds.play(self, UISounds.CLICK, -12.0)
+	var note := _map_note()
+	map_select.open(map_index(), note == "", note)
+
+
+## Why the map can't be changed right now ("" = it can).
+func _map_note() -> String:
+	var net := Network.main
+	if net.is_client() and not net.is_leader:
+		return "Your party's leader picks the map."
+	if net.is_client() and net.queued:
+		return "Leave the queue to change the map."
+	return ""
+
+
+## A map picked on the war table: it's ours for solo raids, and our party's online (we're its leader).
+func pick_map(index: int) -> void:
+	RaidMap.scene_path = RaidMap.MAPS[clampi(index, 0, RaidMap.MAPS.size() - 1)][1]
+	_send_map()
 	_update_raid_button()
 	_warm_raid()
+
+
+## Online: tells the server our map if we lead the party and it has another (also after connecting or a new party).
+func _send_map() -> void:
+	var net := Network.main
+	if net.is_client() and net.is_leader and not net.queued and RaidMap.scene_path != "" and net.party_map != map_index():
+		net.set_map(map_index())
 
 
 ## What START RAID says: in PvP, where you are in the queue.
 func _update_raid_button() -> void:
 	if _map_button != null:
 		var online := GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE
-		_map_button.visible = not online or Network.main.is_client()
-		var map_name := "FRONTLINES"
-		for m in RaidMap.MAPS:
-			if m[1] == RaidMap.scene_path:
-				map_name = m[0]
-		if online or Network.main.is_client():
-			map_name = RaidMap.MAPS[clampi(Network.main.party_map, 0, RaidMap.MAPS.size() - 1)][0]
-			_map_button.disabled = not Network.main.is_leader or Network.main.queued
-		else:
-			_map_button.disabled = false
-		_map_button.text = "MAP: " + map_name
+		_map_button.visible = true
+		_map_button.text = "MAP"
 	if _pvp_cover != null:
 		_pvp_cover.visible = Profile.mode == Profile.ONLINE and not Network.main.signed_in()
 	if _account_button != null:
@@ -1254,6 +1276,9 @@ func _update_raid_button() -> void:
 		return
 	var queue := GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE and Network.main.is_client() and Network.main.queued
 	_raid_button.text = online_status() if queue else "START RAID"
+	# (0.33.9, owner) the button says which map you're on (not on the smoke test's built-in map, which has no name)
+	if RaidMap.scene_path != "":
+		_raid_button.text += ": " + String(RaidMap.MAPS[map_index()][0])
 	_raid_button.tooltip_text = ("Queue into a raid with other players, or party up with a friend"
 		if GameSettings.pvp_stash_on() and Profile.mode == Profile.ONLINE else "Head out on a solo raid against the AI")
 
@@ -1745,7 +1770,10 @@ func _refresh_online() -> void:
 	var net := Network.main
 	var online := net.is_client()
 	_online_button.text = online_status()
+	_send_map()
 	_update_raid_button()
+	if map_select != null and map_select.visible and net.is_client():
+		map_select.open(map_index(), _map_note() == "", _map_note())
 	_refresh()   # (the free kit button reads TAKE FREE KIT while online)
 	_offline_box.visible = not online
 	_online_box.visible = online

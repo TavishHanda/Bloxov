@@ -3764,6 +3764,18 @@ func _section_stash_modes() -> void:
 	# One switch (owner, 2026-11-07): no ONLINE button; in PvP, START RAID opens the queue (after signing in).
 	_check(not hideout._online_button.visible and hideout._raid_button.text == "START RAID",
 		"with the PvE/PvP switch there's no separate ONLINE button")
+	# The war table's map (0.33.9): pick a map on it, and START RAID says which one you're on
+	hideout.open_map_select()
+	_check(hideout.map_select.visible and hideout.map_select.can_pick and hideout.map_select.get_node("Map1") != null,
+		"the MAP button opens the war table's map, a marker for each map")
+	(hideout.map_select.get_node("Map1") as Button).pressed.emit()
+	_check(RaidMap.scene_path == RaidMap.MAPS[1][1] and hideout.map_index() == 1 and hideout._raid_button.text.ends_with(": RIPTIDE"),
+		"picking Riptide on it sets the raid's map, and START RAID shows it (%s)" % hideout._raid_button.text)
+	(hideout.map_select.get_node("Map0") as Button).pressed.emit()
+	_check(hideout._raid_button.text.ends_with(": FRONTLINES"), "and back to Frontlines")
+	hideout.map_select.close()
+	RaidMap.scene_path = ""
+	hideout._update_raid_button()
 	_check(hideout._pvp_cover.visible and hideout._pvp_cover.mouse_filter == Control.MOUSE_FILTER_STOP,
 		"PvP before signing in: the stash, loadout and traders are covered (nothing to move or sell)")
 	_check(hideout._account_button.visible and hideout._account_button.text == "SIGN IN",

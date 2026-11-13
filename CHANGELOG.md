@@ -211,6 +211,13 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.9 (The war table's map, on the branch)
+- **Pick your raid on a big map** (owner: "when they open the war table there will be a huge map where they can
+  select the map"): the MAP button opens a full-screen chart of the region with a marker for each map
+  (`scripts/map_select.gd`); tap one to pick it, with its raid length, player count and boss beside it. Solo and
+  PvP alike; in a party the leader picks, out of the queue, and members see the leader's choice.
+- **START RAID says which map you're on** ("START RAID: RIPTIDE"), and so does the queue text.
+
 ## 0.33.8 (Riptide online, on the branch)
 - **The server can run a raid on either map** (owner: "do 2"). Each raid has a map (`Matchmaker` raid `map`, an index
   into `RaidMap.MAPS`); the server points `RaidMap.scene_path` at it just before it builds that raid's copy, and
