@@ -5066,6 +5066,7 @@ func _section_online_ai() -> void:
 	shooter.accuracy_far = 1.0
 	shooter.point_blank_accuracy = 1.0
 	shooter.moving_target_penalty = 0.0
+	shooter.opening_shot_accuracy = PackedFloat32Array()   # (sure shots: settling in is checked on its own)
 	shooter._target = proxy
 	await _frames(2)
 	var hits_before: int = got["hits"].size()
@@ -6939,6 +6940,17 @@ func _section_crest() -> void:
 	scav._target = player
 	scav.accuracy_near = 1.0
 	scav.accuracy_far = 1.0
+	# Settling in (0.34.14, owner): a scav's first shots at you hit less often (x0.4, then x0.7), then normal.
+	scav._last_shot_at = -1000.0
+	var chances := []
+	for k in 3:
+		chances.append(snappedf(scav._settling_in(), 0.01))
+	var raider_test := (load("res://scenes/raider.tscn") as PackedScene).instantiate()
+	var raider_settles: bool = not (raider_test.get("opening_shot_accuracy") as PackedFloat32Array).is_empty()
+	raider_test.free()
+	_check(is_equal_approx(chances[0], 0.4) and is_equal_approx(chances[1], 0.7) and chances[2] == 1.0 and not raider_settles,
+		"a scav's first shots at you hit less often (%s); Raiders have no settling in" % [chances])
+	scav.opening_shot_accuracy = PackedFloat32Array()
 	var ridge := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	shape.shape = BoxShape3D.new()

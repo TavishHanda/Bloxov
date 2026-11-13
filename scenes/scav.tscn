@@ -27,6 +27,7 @@ script = ExtResource("1_scav")
 weapon_drop_chance = 0.15
 loadout = "scav"
 flank_chance = 0.3
+opening_shot_accuracy = PackedFloat32Array(0.4, 0.7)
 
 [node name="BodyShape" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)

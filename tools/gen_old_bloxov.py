@@ -518,6 +518,25 @@ def cabin_corners():
                 anchors.append(None)
 
 
+def hole_glass():
+    """The bus shelters' glass (0.34.14, owner: "make it have bullet holes going through so its more like reinforced
+    glass, but yeah shoot through it"): Godot x, y, z, width, height, yaw of each pane, as `window_panes`. Shots still
+    pass through; BoxMap draws a hole where one does. The panes are where make_outdoor draw_shelter puts them: the back
+    panel's left half and both ends (the frame's origin is the back panel's foot, its front toward local -z)."""
+    out = []
+    for b in boxes:
+        if len(b) < 11 or not isinstance(b[10], int) or debris[b[10]]["kind"] != "shelter":
+            continue
+        if abs(b[3] - 4.0) > 0.01 or abs(b[5] - 0.1) > 0.01:
+            continue
+        yaw = b[6]
+        c, s_ = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+        ox, oy, oz = b[0], b[1] - b[4] / 2, b[2]
+        for lx, lz, w, turn in ((-1.0, 0.0, 1.9, 0.0), (-2.0, -0.6, 1.0, 90.0), (2.0, -0.6, 1.0, 90.0)):
+            out.append((ox + c * lx + s_ * lz, oy + 1.25, oz - s_ * lx + c * lz, w, 2.2, (yaw + turn) % 360.0))
+    return out
+
+
 def write_model_boxes(ter):
     """Also checks the whole model stands on one flat pad (the model can't bend over hills like the boxes)."""
     names = {i: n for n, i in C.items()}
@@ -7578,6 +7597,7 @@ def write_scene(ter):
             "stream_width = 1.0",
             "water_rocks = PackedVector4Array(" + ", ".join(f"{fmt(x)}, {fmt(z)}, {fmt(r)}, 0" for x, z, r in water_rocks) + ")",
             "window_panes = PackedFloat32Array(" + ", ".join(fmt(v) for p in window_panes for v in p) + ")",
+            "hole_glass = PackedFloat32Array(" + ", ".join(fmt(v) for p in hole_glass() for v in p) + ")",
             "bar_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in bar_boxes for v in b) + ")",
             "prop_boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in prop_boxes for v in b) + ")",
             "shaped_points = PackedVector3Array(" + ", ".join(fmt(v) for p in shaped_mesh()[0] for v in p) + ")",

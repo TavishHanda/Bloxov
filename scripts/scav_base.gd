@@ -124,6 +124,11 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## Point blank (closer than this, meters): shots almost always hit.
 @export var point_blank_range := 4.0
 @export var point_blank_accuracy := 0.9
+## Settling in (0.34.14, owner, scavs only: a playtester was "hit by a scav's first shot every time"): each time it
+## starts shooting at someone (no shot for opening_reset seconds), its first shots' hit chance is multiplied by these,
+## in order (scav.tscn: 0.4, then 0.7; then normal). Empty = no settling in (Raiders, Bon, guards, snipers).
+@export var opening_shot_accuracy := PackedFloat32Array()
+@export var opening_reset := 5.0
 ## Keeps at least this far from its target: closer and it backs off while shooting.
 @export var min_distance := 1.5
 

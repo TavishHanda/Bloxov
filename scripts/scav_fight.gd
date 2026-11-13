@@ -783,6 +783,7 @@ func _fire_at_target(dist: float) -> void:
 		chance -= moving_target_penalty
 	if _flinch_left > 0.0:
 		chance -= flinch_accuracy_penalty
+	chance *= _settling_in()
 	var hit := randf() < chance
 
 	var aim_point := chest
@@ -893,6 +894,19 @@ var _was_wounded := false
 var _cover_low := false
 var _found_low := false
 var _peek_blind := 0.0
+## Settling in (opening_shot_accuracy): shots fired since it started shooting, and when the last one was.
+var _opening_shots := 0
+var _last_shot_at := -1000.0
+
+
+## Settling in (opening_shot_accuracy): this shot's hit chance multiplier, counting it as fired.
+func _settling_in() -> float:
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _last_shot_at > opening_reset:
+		_opening_shots = 0
+	_last_shot_at = now
+	_opening_shots += 1
+	return opening_shot_accuracy[_opening_shots - 1] if _opening_shots <= opening_shot_accuracy.size() else 1.0
 
 
 ## Chance a bullet hits at `dist` meters (before point blank, sprinting and flinch adjustments).
