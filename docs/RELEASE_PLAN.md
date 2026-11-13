@@ -33,44 +33,63 @@ Answers to the open questions at the bottom go into this file as they come in.
   odds shown on every paid box; skins cosmetic only; gems never buy Ming's boxes or earned money.
 - **Release order stays:** web beta, then Steam Early Access, then phones (separate game).
 
-## Order of work
-Most important first, so if time runs out, what's missing is the least important. Each block is its own update
-(own thread, own version). Updates in the same week run side by side **on branches** and are released one after
-another (CLAUDE.md: only one phase is current at a time), so their version numbers never clash.
+## Where it stands (2026-11-13, at 0.34.15)
+A whole-plan review was done on 2026-11-13 (project Claude Doc "Bloxov plan review"). What it found, against the
+wishlist above:
 
-| Week | Track A (systems) | Track B (content / art) | Steam / business |
+| Wishlist item | State | For a January launch |
+|---|---|---|
+| Crafting | **Shipped** 0.32.0 (11 recipes, instant) | done |
+| More quests | **Shipped** 0.31.15 (19 trader jobs) | done |
+| Map 2, **Riptide** | Gray box finished on branch `claude/project-thread-kkimzo` (0.33.0-0.33.6: layout, storm, swimming, boss Zero and his loot). No art, not online, no map picker; renumber at release | doable; the biggest job left |
+| Characters with traits | not started | doable if it starts now |
+| Expeditions | not started; open questions 3-5 below | a lean first version |
+| Steam build (GodotSteam, Steam sign-in linked to the account, cloud save for PvE, overlay) | not started; the Windows build is tested in CI | **must** happen; needs the app from the paid fee |
+| Server move + growth (OVH, several processes, stress test) | planned, not started | **must** happen before launch |
+| Battle pass, paid gems, skins, pets, map 3 | not started | review recommends after launch (owner hasn't decided) |
+
+Also found: **a lone PvP player waits forever** (`Matchmaker.MIN_PLAYERS` 2, no START NOW when signed in). Owner's
+idea (2026-11-13): if no game is found in ~2 minutes, fill the raid with **AI PMCs**; PvP and PvE stay separate.
+To be planned and proposed (gameplay change).
+
+**Version numbers:** the numbers first given here (Characters 0.32, Crafting 0.33, Expeditions 0.34, Seasons 0.35)
+are void. 0.32 = Crafting, 0.33 = held by Riptide's branch, 0.34 = Lively hideout. Each new update takes the next
+free middle number when it starts.
+
+## Order of work (revised 2026-11-13)
+Most important first. Launch blockers (Steam build, server) no longer wait until the end. Dates are a guide, not
+strict (owner, 2026-11-09).
+
+| When | Systems | Content / art | Steam / business |
 |---|---|---|---|
-| **1** Nov 9-15 | **Characters** (0.32): pick a character in the hideout, traits per character, 3 launch characters on today's body | **Map 2 layout** (blockout, extracts, spawns, loot by place) | Make the free Steamworks account |
-| **2** Nov 16-22 | **Crafting + new items** (0.33): workbench in the hideout, recipes, crafting parts as loot | **Map 2 art** (buildings, outdoor pieces, nav bake) | Store page text + screenshots drafted |
-| **3** Nov 23-29 | **Expeditions** (0.34): the stages, the money cost, the wipe, upgrade points, the quest line to it | **Map 2 finished**; **more quests** for both maps | **Pay the $100 fee** (see dates) |
-| **4** Nov 30-Dec 6 | **Seasons + battle pass** (0.35): free track first, earned in raids | **Skins** for the 3 characters; **pets** if the answers make them small | GodotSteam: Steam build, login, achievements |
-| **5-6** Dec 7-20 | Paid gems + paid battle pass track on Steam Wallet (can only be tested once the Steam app exists) | **Map 3** | Store page live as **Coming Soon** (by ~Dec 9) |
-| **7+** Dec 21-Jan | Polish, balance (economy sim re-run), bug fixes from playtesters, **web beta** | | Move the server to the OVH VPS; build review; launch |
+| **Now-Nov 15** | Characters **plan** (numbers to the owner); lone PvP queue plan | | **Owner pays the $100 fee** + Steam's tax/bank forms; store page kit (text, screenshots, capsule images; reuse `itch/`) |
+| **Nov 16-29** | **Characters** built (3 launch characters, shared stats + one passive each) | **Riptide online** (map picker, server-synced switch, swim vs move checks, Zero online, lift), merged and renumbered | Store page sent to Valve, **Coming Soon** by ~end of November; wishlist button on the title screen and bloxov.com |
+| **Nov 30-Dec 16** | **Expeditions**, lean v1 (one vehicle from crafted parts, entry price, wipe, one upgrade point); new-player counts (numbers only) | **Riptide art** | **Steam build**: GodotSteam on 4.7.2, Steam sign-in linked to the account, cloud save, overlay, first achievements |
+| **Dec 17-Jan 4** (Winter Sale) | **Server move** to OVH, several processes, stress test | Riptide live on the web beta; playtest round on everything new (`notes/untested.md`) | Build review sent ~1 week before launch |
+| **Jan 5 on** | Fixes and balance from the playtest | | **Launch** (see dates) |
+| **After launch** (recommended, owner to confirm) | Paid gems + battle pass, more characters | Skins, pets, map 3 | |
 
-Why this order:
-- **Characters first:** skins, the expedition's upgrade points and the battle pass rewards all hang off them.
-- **Crafting before expeditions:** the expedition is built from crafted parts.
-- **Battle pass after the content it rewards** (skins, items), and its paid side needs the Steam app.
-- **Maps run alongside** because they touch different files (map generator, art) from the systems work.
-- **Pets last:** the least tied to anything else, and the easiest to add in an Early Access update.
-
-What clashes if run at the same time: crafting, more loot, quests and battle pass rewards all edit
-`scripts/item_db.gd` and the economy numbers, so those go one after another, not side by side.
+What clashes if run at the same time: crafting, loot, quests and battle pass rewards all edit `scripts/item_db.gd`
+and the economy numbers, so those go one after another. Characters, Riptide, the Steam build and the server touch
+different files and can run two at a time.
 
 ## Steam dates (the $100 fee)
 Steam's rules: after paying the fee there's a **30-day wait** before you can release; the store page must be
 **Coming Soon for at least 2 weeks**; Valve reviews the store page and the build first (a few working days each,
 slower over the holidays). The **Steam Winter Sale** runs from late December into early January; a new game
 launched during it gets buried.
-- **Pay the $100 between Nov 23 and Nov 30** (owner's "end of the month" fits; **Dec 1 at the latest**). The 30 days
-  then end by ~Dec 31, which leaves room for the store page's 2 weeks and the build review before a January launch.
-- **Store page:** submit right after paying, live as Coming Soon by ~Dec 9. Every day it's up collects wishlists,
+- **Pay the $100 as soon as possible** (owner, 2026-11-13: "soon"; **Dec 1 at the very latest**). Same cost, and
+  the 30-day wait and the wishlist count both start sooner; the store page also gets reviewed before Valve slows
+  down for the holidays.
+- **Store page:** submit right after paying, live as Coming Soon by ~end of November. Every day it's up collects wishlists,
   which decide how much Steam shows the game at launch.
-- **Launch: aim for the week of Jan 11, 2027** (owner wants January; this is just after the Winter Sale).
+- **Launch: January 10-11, 2027, or up to two weeks later** (owner, 2026-11-13; just after the Winter Sale,
+  Dec 17-Jan 4).
 - **Build review:** submit ~1 week before launch.
 - Check the exact Winter Sale dates and Steam's current wait/review times when paying (they can change).
-- Option to think about: Steam **Next Fest** (usually February) gives unreleased games with a demo a big wishlist
-  boost. Launching in January skips it; waiting for it means launching in late February.
+- Steam **Next Fest** (Feb 22-Mar 1, 2027; sign-up closes Jan 10; unreleased games only, once per game) gives a
+  wishlist boost. The owner chose January (2026-11-13), which skips it. If the launch slips past January anyway,
+  look at it again before Jan 10.
 
 ## What's at risk (plain)
 - **Maps are the biggest risk.** Bloxov Frontlines' art took several weeks of threads (0.17-0.28). Map 2 by early
@@ -116,12 +135,13 @@ Answer any order; the first five are needed before their week starts.
    upgrade points (a bit more stash space, a badge or skin)? Does it reset **PvP only** (the server stash), or PvE
    too?
 5. **Once per character, or again and again?** And does the squad leave together, or each player on their own?
-6. **What gets crafted?** Only expedition parts, or also gear (meds, ammo, attachments)? Crafting in the hideout
-   only (a workbench), with a wait timer or instant?
+6. ~~What gets crafted?~~ **Answered, built 0.32.0:** gear recipes from existing items, hideout workbench,
+   instant (no timers), heavy armor / combat helmet / large backpack stay loot-only. Expedition parts are new items,
+   proposed with the Expeditions update.
 
 **Maps (weeks 1-6)**
-7. **What are maps 2 and 3?** Ideas so far: the depot, a nearby base, a cargo/military ship, a mall, an underground
-   facility. Harder than Frontlines (the roadmap says harder maps come later)? Smaller is faster to build.
+7. ~~What are maps 2 and 3?~~ **Answered:** map 2 = **Riptide** (ship Leviathan over the lab Site Zero, boss
+   Zero, the hardest map at release); map 3 later = an amusement park with the sniper boss Volt.
 
 **Seasons, battle pass, pets (weeks 4+)**
 8. **Seasons:** do expeditions line up with seasons (Arc Raiders style), and how long is a season (8-12 weeks is
@@ -132,5 +152,9 @@ Answer any order; the first five are needed before their week starts.
    (a dog that barks at nearby enemies)? Do other players see them?
 
 **Launch**
-11. **Launch day:** the week of January 11 OK, or a later January date?
+11. ~~Launch day~~ **Answered 2026-11-13:** January 10-11, or one to two weeks later.
+13. **Riptide's art bar** (review, 2026-11-13): a clean flat-colour pass in a few big pieces and onto the web beta in
+    December, or Frontlines-level detail first?
+14. **After launch?** OK to move paid gems, the battle pass, pets, map 3 and most skins to Early Access updates?
+15. **New-player counts:** OK to count (numbers only) tutorial finished, first raid, second raid, first extract?
 12. Anything else from the "probably forgetting stuff" list.

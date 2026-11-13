@@ -1,0 +1,26 @@
+# Update phases: what each one built and where it lives
+
+Moved out of `CLAUDE.md` on 2026-11-13 so it is only read when needed. Read the entry for a phase before changing
+what that phase built (it names the scripts, the tools to re-run and the owner's rules for it). The versioning
+rules themselves are in `CLAUDE.md`. Add a line here when a new phase starts.
+
+Phases so far: 0.5 guns, 0.6 scavs, 0.7 multiplayer (to 0.7.11), 0.8 HUD & inventory (designer session, closed at
+  0.8.16; 0.8.0-0.8.3 were first released as 0.7.12-0.7.15), 0.9 multiplayer raid flow (downed/revive, per-player extract; paused at 0.9.5), 0.10 the Map & Spawn update (Bloxov Frontlines, first called Old Bloxov, then Bloxov Battlegrounds until 0.25.3;
+  `docs/MAP_PLAN.md`, to 0.10.3), 0.11 **Scorched Earth** (owner's name: code cleanup, then the map turned war zone; closed; map follow-ups kept the 0.11.x numbers), 0.12 **Hot Zone** (Scavs 2.0; closed at 0.12.39), 0.13 **Over the Top** (Movement: vaulting, prone, ladders; to 0.13.9), 0.14 **Spoils of War** (Items: keys, loot by place), then 0.15 the **Guns** update (new guns, attachments, AI loadouts; plan in `docs/GUNS_PLAN.md`), 0.16 Economy, 0.17 World art (released as 0.18.x), 0.19 the **Look** update (lighting looks are files in
+  `assets/looks/`, `Look.current` picks one; `classic.tres` = the look up to 0.18, keep it), 0.20 the **Sound** update (only ADD sounds, today's stay; plan in project files `sound/plan.md`), 0.21 the **Hideout** update (walkable 3D hideout: `scenes/hideout_world.tscn` is the main scene, `scenes/hideout.tscn` is its menu; the cave is built by `art_source/scripts/make_hideout.py`, plan in project files `hideout/plan.md`). 0.22 **World Reacts** (solid-looking props got hitboxes: `tools/walkthrough_audit.gd` finds walk-through spots, buildings'
+  made-solid props go through `<name>_solids.json` from make_building.py; looks-only reactions in `scripts/reacts.gd`:
+  swinging lamps, bushes/curtains parting, kickable cans; never synced, never on the server; closed at 0.22.9). 0.23 **jointed characters** (real kneel/prone/crawl/downed poses, `scripts/body_pose.gd`; models from `art_source/scripts/make_character.py`; crouch/prone/downed hitboxes are measured off the posed model: after changing either, run `tools/fit_hitboxes.gd` and paste into `hitbox.gd`, the smoke test checks they match). 0.24 the **new-player tutorial** (`scripts/tutorial.gd`: a step-by-step walk round the hideout for new profiles only, `Profile.tutorial`; `scripts/raid_tips.gd`: one-time raid tips; anyone with progress skips it, owner). 0.25 **Checkpoint** (the security update: server checks moves, carried items, health and extracts, rate limits, kicks on repeats; `scripts/net_guard.gd`; Windows build tested in CI). 0.26 **Keybinds** (rebinding in OPTIONS, `scripts/keybinds.gd`, saved in the settings; show keys with `Keybinds.name_of`/`cap`, never hard-coded letters; the web build refuses Ctrl, owner). 0.27 **Durability** (guns, armor, helmets wear, keys have uses; worn guns spread more, `ItemDB.wear_spread` (no jams since 0.28.1, owner: not arcade); repairs
+  are trader-only, owner: `Traders.repair_price`, Ponta guns, Big Don armor). 0.28 **The world comes alive** (looks-only motion: moving building parts
+  go through make_building `mover()` -> `assets/models/movers/`, `scripts/movers.gd`; outdoor faces that sway use make_outdoor
+  `sways()` -> the `kit_sway` material; also `scripts/flags.gd`, `birds.gd`, `drift.gd`). 0.29 the **Engine update** (Godot 4.5.1 -> 4.7.2; 4.7 builds
+  LODs for the big building meshes, so the pck is ~7 MB bigger; the hideout warms the raid map with
+  `ResourceLoader.load_threaded_request`, never a Thread it waits on; 0.29.5: `scripts/shader_warm.gd` builds the raid's
+  and hideout's shaders behind the title screen's loading bar (0.30.8; each list under its own light, the hideout's via `Look.hideout_environment`) from `assets/warm/*_warm.tscn`: re-run
+  `xvfb-run -a godot --rendering-driver opengl3 -s tools/gen_shader_warm.gd` after adding materials or new kinds of things to them). 0.32 **Crafting** (the hideout's workbench, `scripts/crafting.gd`, `scripts/craft_screen.gd`: instant, owner, no timers;
+  recipes only use and make items already in the game; heavy armor, combat helmet and large backpack stay loot-only, owner;
+  PvP crafts are checked by the server's hideout audit). 0.34 the **Lively hideout** (0.33 is held by the Riptide map branch): looks-only life in the hideout,
+  never synced or on the server: `hideout_war.gd` (shells; re-run `tools/hideout_roof_bake.gd` and `tools/hideout_nav_bake.gd` (where the crew walk) after changing the cave),
+  `hideout_crew.gd` + `trader_looks.gd` (crew and traders on their own `trader.glb`), `hideout_cat.gd`,
+  `hideout_trophies.gd`, your corner `decor.gd`/`hideout_decor.gd` (decor unlocks by milestones, nothing bought, owner). A Stash update (separate solo/online
+  stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
+  built on a branch and released as the next phase.
