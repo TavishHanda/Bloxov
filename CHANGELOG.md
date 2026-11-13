@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.0 (Riptide: map 2, an early test map)
+The second map is in the game, as a gray box (owner: release it for playtesters with the war table's map). It was
+built on a branch as 0.33.0-0.33.9; those entries are further down, under 0.34.0, and say what each step added.
+- **RIPTIDE**: the port (The Landing), the drillship Leviathan and the lab under the sea (Site Zero). 15-minute raids,
+  6 players, a storm with rain, swimming with ladders out of the sea, the sub bay extract that needs its power
+  switch (and sets off an alarm), and the boss Zero with his own gun and loot (The Formula, the Reaper, assault
+  armor and helmet, the Raid Pack: only off him). No art yet: every building and the ship are plain boxes.
+- **The war table's map**: the MAP button opens a full-screen chart; tap Frontlines or Riptide. START RAID says which
+  map you're on. Riptide is marked there as an early test map.
+- **Online**: the server runs each raid on its own map. The party's leader picks; each map has its own queue.
+- Server: a Riptide raid takes less memory than a Frontlines one in the stripped pack (4 raids: 298 MB against
+  449 MB), so `MAX_RAIDS` stays 4. `tools/server_pack_check.gd` now runs raids on both maps (CI).
+- The shader warm-up lists were rebuilt.
+
 ## 0.34.15 (Crate gear comes new)
 Owner (from a playtester: "items I find in crates and chests shouldn't be low durability"): guns, armor and helmets
 found in crates and other containers are always at 100%. Gear on a body (scavs, Raiders, Bon) is still worn, 40-100%.

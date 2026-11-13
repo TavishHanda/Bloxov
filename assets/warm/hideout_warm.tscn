@@ -5,11 +5,11 @@
 [ext_resource type="Shader" path="res://assets/shaders/kit_atlas.gdshader" id="3_r1xwb"]
 [ext_resource type="Shader" path="res://assets/shaders/tv_picture.gdshader" id="4_hiofj"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mqqfg"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kmb31"]
 shading_mode = 0
 albedo_color = Color(0.45, 0.6, 0.85, 1)
 
-[sub_resource type="ArrayMesh" id="ArrayMesh_4lj1y"]
+[sub_resource type="ArrayMesh" id="ArrayMesh_psil8"]
 _surfaces = [{
 "aabb": AABB(-1, -1, 0, 2, 2, 1e-05),
 "attribute_data": PackedByteArray("/////wAAAAAAAIA/AAAAAAAAgD//////AACAPwAAgD8AAIA/AACAP/////8AAAA/AAAAAAAAAD8AAAAA"),
@@ -20,29 +20,29 @@ _surfaces = [{
 "vertex_data": PackedByteArray("AACAvwAAgL8AAAAAAACAPwAAgL8AAAAAAAAAAAAAgD8AAAAA/3//f////7//f/9/////v/9//3////+/")
 }]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_r1xwb"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_a8kqp"]
 shading_mode = 0
 albedo_color = Color(1, 0.86, 0.6, 1)
 
-[sub_resource type="MultiMesh" id="MultiMesh_hiofj"]
+[sub_resource type="MultiMesh" id="MultiMesh_ukwbo"]
 transform_format = 1
 instance_count = 1
-mesh = SubResource("ArrayMesh_4lj1y")
+mesh = SubResource("ArrayMesh_psil8")
 buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kmb31"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_3ybqt"]
 albedo_color = Color(0.32941177, 0.35686275, 0.3882353, 1)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_psil8"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mc732"]
 albedo_color = Color(0.2, 0.22, 0.16, 1)
 
-[sub_resource type="MultiMesh" id="MultiMesh_a8kqp"]
+[sub_resource type="MultiMesh" id="MultiMesh_bryx2"]
 transform_format = 1
 instance_count = 1
-mesh = SubResource("ArrayMesh_4lj1y")
+mesh = SubResource("ArrayMesh_psil8")
 buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-[sub_resource type="Image" id="Image_ukwbo"]
+[sub_resource type="Image" id="Image_brjg3"]
 data = {
 "data": PackedByteArray("/////w=="),
 "format": "RGBA8",
@@ -51,120 +51,130 @@ data = {
 "width": 1
 }
 
-[sub_resource type="ImageTexture" id="ImageTexture_3ybqt"]
-image = SubResource("Image_ukwbo")
+[sub_resource type="ImageTexture" id="ImageTexture_4oei1"]
+image = SubResource("Image_brjg3")
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mc732"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ta76x"]
 resource_name = "pmc_mat"
-albedo_texture = SubResource("ImageTexture_3ybqt")
+albedo_texture = SubResource("ImageTexture_4oei1")
 texture_filter = 2
 texture_repeat = false
 metadata/_gltf_primary_texture_coord = 0
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_bryx2"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_txq3k"]
 vertex_color_use_as_albedo = true
 roughness = 0.2
-
-[sub_resource type="MultiMesh" id="MultiMesh_brjg3"]
-transform_format = 1
-use_colors = true
-instance_count = 1
-mesh = SubResource("ArrayMesh_4lj1y")
-buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4oei1"]
-vertex_color_use_as_albedo = true
-albedo_texture = SubResource("ImageTexture_3ybqt")
-texture_filter = 0
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ta76x"]
-resource_name = "decals"
-vertex_color_use_as_albedo = true
-albedo_texture = SubResource("ImageTexture_3ybqt")
-texture_filter = 2
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_txq3k"]
-transparency = 1
-shading_mode = 0
-vertex_color_use_as_albedo = true
 
 [sub_resource type="MultiMesh" id="MultiMesh_g3ady"]
 transform_format = 1
 use_colors = true
+instance_count = 1
+mesh = SubResource("ArrayMesh_psil8")
+buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_i02cf"]
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("ImageTexture_4oei1")
+texture_filter = 0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8ybnn"]
+resource_name = "decals"
+vertex_color_use_as_albedo = true
+albedo_texture = SubResource("ImageTexture_4oei1")
+texture_filter = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vp885"]
+transparency = 1
+shading_mode = 0
+vertex_color_use_as_albedo = true
+
+[sub_resource type="MultiMesh" id="MultiMesh_w8a7d"]
+transform_format = 1
+use_colors = true
 use_custom_data = true
 instance_count = 1
-mesh = SubResource("ArrayMesh_4lj1y")
+mesh = SubResource("ArrayMesh_psil8")
 buffer = PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_i02cf"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_raic5"]
+transparency = 1
+albedo_color = Color(0.62, 0.76, 0.8, 0.55)
+metallic_specular = 1.0
+roughness = 0.05
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mv1o4"]
 render_priority = 0
 shader = ExtResource("1_mqqfg")
 shader_parameter/pushers = PackedVector4Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8ybnn"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hnkit"]
 render_priority = 0
 shader = ExtResource("2_4lj1y")
 shader_parameter/colour = Vector3(1, 0.42, 0.1)
 shader_parameter/strength = 1.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_vp885"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_aig1x"]
 render_priority = 0
 shader = ExtResource("3_r1xwb")
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_w8a7d"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ni35s"]
 render_priority = 0
 shader = ExtResource("4_hiofj")
 
-[node name="HideoutWarm" type="Node3D" unique_id=1391655222]
+[node name="HideoutWarm" type="Node3D" unique_id=1926570796]
 
-[node name="W000" type="MeshInstance3D" parent="." unique_id=861646669]
-material_override = SubResource("StandardMaterial3D_mqqfg")
-mesh = SubResource("ArrayMesh_4lj1y")
-
-[node name="W001" type="MultiMeshInstance3D" parent="." unique_id=80361299]
-material_override = SubResource("StandardMaterial3D_r1xwb")
-multimesh = SubResource("MultiMesh_hiofj")
-
-[node name="W002" type="MeshInstance3D" parent="." unique_id=647047730]
+[node name="W000" type="MeshInstance3D" parent="." unique_id=1941939275]
 material_override = SubResource("StandardMaterial3D_kmb31")
-mesh = SubResource("ArrayMesh_4lj1y")
+mesh = SubResource("ArrayMesh_psil8")
 
-[node name="W003" type="MultiMeshInstance3D" parent="." unique_id=309624877]
-material_override = SubResource("StandardMaterial3D_psil8")
-multimesh = SubResource("MultiMesh_a8kqp")
+[node name="W001" type="MultiMeshInstance3D" parent="." unique_id=1834091605]
+material_override = SubResource("StandardMaterial3D_a8kqp")
+multimesh = SubResource("MultiMesh_ukwbo")
 
-[node name="W004" type="MeshInstance3D" parent="." unique_id=1060514165]
+[node name="W002" type="MeshInstance3D" parent="." unique_id=449409729]
+material_override = SubResource("StandardMaterial3D_3ybqt")
+mesh = SubResource("ArrayMesh_psil8")
+
+[node name="W003" type="MultiMeshInstance3D" parent="." unique_id=1279842278]
 material_override = SubResource("StandardMaterial3D_mc732")
-mesh = SubResource("ArrayMesh_4lj1y")
+multimesh = SubResource("MultiMesh_bryx2")
 
-[node name="W005" type="MultiMeshInstance3D" parent="." unique_id=449030740]
-material_override = SubResource("StandardMaterial3D_bryx2")
-multimesh = SubResource("MultiMesh_brjg3")
-
-[node name="W006" type="MeshInstance3D" parent="." unique_id=1863007038]
-material_override = SubResource("StandardMaterial3D_4oei1")
-mesh = SubResource("ArrayMesh_4lj1y")
-
-[node name="W007" type="MeshInstance3D" parent="." unique_id=1188026306]
+[node name="W004" type="MeshInstance3D" parent="." unique_id=1679492342]
 material_override = SubResource("StandardMaterial3D_ta76x")
-mesh = SubResource("ArrayMesh_4lj1y")
+mesh = SubResource("ArrayMesh_psil8")
 
-[node name="W008" type="MultiMeshInstance3D" parent="." unique_id=135681579]
+[node name="W005" type="MultiMeshInstance3D" parent="." unique_id=1552713585]
 material_override = SubResource("StandardMaterial3D_txq3k")
 multimesh = SubResource("MultiMesh_g3ady")
 
-[node name="W009" type="MeshInstance3D" parent="." unique_id=1594731732]
-material_override = SubResource("ShaderMaterial_i02cf")
-mesh = SubResource("ArrayMesh_4lj1y")
+[node name="W006" type="MeshInstance3D" parent="." unique_id=637206919]
+material_override = SubResource("StandardMaterial3D_i02cf")
+mesh = SubResource("ArrayMesh_psil8")
 
-[node name="W010" type="MeshInstance3D" parent="." unique_id=528802653]
-material_override = SubResource("ShaderMaterial_8ybnn")
-mesh = SubResource("ArrayMesh_4lj1y")
+[node name="W007" type="MeshInstance3D" parent="." unique_id=2055221159]
+material_override = SubResource("StandardMaterial3D_8ybnn")
+mesh = SubResource("ArrayMesh_psil8")
 
-[node name="W011" type="MeshInstance3D" parent="." unique_id=1230446209]
-material_override = SubResource("ShaderMaterial_vp885")
-mesh = SubResource("ArrayMesh_4lj1y")
+[node name="W008" type="MultiMeshInstance3D" parent="." unique_id=666932335]
+material_override = SubResource("StandardMaterial3D_vp885")
+multimesh = SubResource("MultiMesh_w8a7d")
 
-[node name="W012" type="MeshInstance3D" parent="." unique_id=1496887762]
-material_override = SubResource("ShaderMaterial_w8a7d")
-mesh = SubResource("ArrayMesh_4lj1y")
+[node name="W009" type="MeshInstance3D" parent="." unique_id=642089965]
+material_override = SubResource("StandardMaterial3D_raic5")
+mesh = SubResource("ArrayMesh_psil8")
+
+[node name="W010" type="MeshInstance3D" parent="." unique_id=282241852]
+material_override = SubResource("ShaderMaterial_mv1o4")
+mesh = SubResource("ArrayMesh_psil8")
+
+[node name="W011" type="MeshInstance3D" parent="." unique_id=2115241949]
+material_override = SubResource("ShaderMaterial_hnkit")
+mesh = SubResource("ArrayMesh_psil8")
+
+[node name="W012" type="MeshInstance3D" parent="." unique_id=247384125]
+material_override = SubResource("ShaderMaterial_aig1x")
+mesh = SubResource("ArrayMesh_psil8")
+
+[node name="W013" type="MeshInstance3D" parent="." unique_id=337315533]
+material_override = SubResource("ShaderMaterial_ni35s")
+mesh = SubResource("ArrayMesh_psil8")

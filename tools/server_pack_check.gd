@@ -1,12 +1,14 @@
 extends SceneTree
 ## Runs real raids inside the stripped server pack (0.30.9): models and textures are placeholders there, so this
 ## catches server code that needs them. Run from OUTSIDE the project folder, with the pack as the game:
-##   godot --headless --main-pack build/server/bloxov_server.pck -s "$PWD/tools/server_pack_check.gd" -- [raids]
+##   godot --headless --main-pack build/server/bloxov_server.pck -s "$PWD/tools/server_pack_check.gd" -- [raids] [map]
+## Raids alternate between the maps (RaidMap.MAPS); `map` (0, 1...) puts them all on that one, to measure it.
 ## Prints each raid's AI count and the process memory, and `SERVER PACK: OK` at the end. CI fails on any ERROR.
 
 var _raids := 2
 var _worlds: Array = []
 var _frame := 0
+var _only_map := -1
 
 
 func _rss_mb() -> float:
@@ -28,15 +30,30 @@ func _initialize() -> void:
 		push_error("no raid_world.gd: run this with --main-pack <server pack>")
 		quit(1)
 		return
+	if args.size() > 1:
+		_only_map = int(args[1])
+
+
+## The raids, made once the tree is running (a raid reads its map as it enters the tree, so each needs its map set
+## just before it, as Network does). Every other raid on the next map (0.35.0), so each map is checked in the pack.
+func _make_raids() -> void:
 	var world_script: Script = load("res://scripts/raid_world.gd")
+	var map_script: Script = load("res://scripts/raid_map.gd")
+	var maps: Array = map_script.get_script_constant_map()["MAPS"]
+	if _only_map >= 0:
+		maps = [maps[_only_map]]
 	for i in _raids:
+		map_script.set("scene_path", maps[i % maps.size()][1])
 		var world: Node = world_script.new()
 		root.add_child(world)
 		_worlds.append(world)
+		print("server pack: raid %d on %s" % [i + 1, maps[i % maps.size()][0]])
 
 
 func _process(_delta: float) -> bool:
 	_frame += 1
+	if _frame == 1:
+		_make_raids()
 	if _frame == 3:
 		# Six player bodies in each raid and two minutes of the spawner, like a busy raid.
 		for world in _worlds:

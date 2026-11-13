@@ -41,7 +41,7 @@ wishlist above:
 |---|---|---|
 | Crafting | **Shipped** 0.32.0 (11 recipes, instant) | done |
 | More quests | **Shipped** 0.31.15 (19 trader jobs) | done |
-| Map 2, **Riptide** | Gray box finished on branch `claude/project-thread-kkimzo` (0.33.0-0.33.6: layout, storm, swimming, boss Zero and his loot). No art, not online, no map picker; renumber at release | doable; the biggest job left |
+| Map 2, **Riptide** | **Released as a gray box** 0.35.0 (2026-11-13): layout, storm, swimming, boss Zero and his loot, online, the war table's map picker. No art yet | the art: the ship first, then the lab, then the port, one piece per thread |
 | Characters with traits | not started | doable if it starts now |
 | Expeditions | not started; open questions 3-5 below | a lean first version |
 | Steam build (GodotSteam, Steam sign-in linked to the account, cloud save for PvE, overlay) | not started; the Windows build is tested in CI | **must** happen; needs the app from the paid fee |

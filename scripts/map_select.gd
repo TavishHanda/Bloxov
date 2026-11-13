@@ -14,7 +14,7 @@ const INFO := [
 	{"at": Vector2(0.34, 0.56), "tag": "The border town and the hills round it.",
 		"facts": ["10 MINUTE RAIDS", "UP TO 6 PLAYERS", "BOSS: BON"]},
 	{"at": Vector2(0.71, 0.33), "tag": "The Landing, the drillship Leviathan, and Site Zero under the sea.",
-		"facts": ["15 MINUTE RAIDS", "UP TO 6 PLAYERS", "BOSS: ZERO", "THE HARDEST RAID"]},
+		"facts": ["15 MINUTE RAIDS", "UP TO 6 PLAYERS", "BOSS: ZERO", "THE HARDEST RAID", "", "EARLY TEST MAP: GRAY BOXES, NO ART YET"]},
 ]
 const SEA := Color("1b2b36")
 const LAND := Color("3a3d33")
