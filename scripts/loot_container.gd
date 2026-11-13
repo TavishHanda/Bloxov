@@ -78,8 +78,9 @@ func _ready() -> void:
 				var count := ItemDB.roll_count(id)
 				if grid.add(id, count) < count:
 					break
+		# (0.34.15, owner: crates and containers hold gear as new, 100%; a body's gear, spawn_bag, is worn 40-100%)
 		for stack in grid.stacks:
-			stack.durability = ItemDB.found_durability(stack.id)
+			stack.durability = ItemDB.max_durability(stack.id)
 			stack.found = true
 
 
