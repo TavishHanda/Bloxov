@@ -5,6 +5,9 @@ extends SceneTree
 # Writes <out>-<view>.png.
 
 const VIEWS := {
+	"mid": [Vector3(-12, 22, 60), Vector3(-34, 2, 100)],
+	"stern": [Vector3(46.5, 3.2, 121), Vector3(48, 0.8, 106)],
+	"aft-top": [Vector3(48, 45, 75), Vector3(48, 4, 40)],
 	"overview": [Vector3(-215, 150, 175), Vector3(-30, -10, 0)],
 	"overview-ship": [Vector3(130, 90, -150), Vector3(10, 0, 20)],
 	"road": [Vector3(-160, 4.2, -2), Vector3(-60, 4, 0)],

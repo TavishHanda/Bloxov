@@ -445,7 +445,7 @@ def plaza():
     add_loot("Garage", "crate", -94.0, SHORE, 28.0)
     labels.append(("CANTEEN", -113, 28, 0))
     # the road in from the gate (the extract): a gatehouse, lorries parked across it, barriers round the plaza
-    box(-HALF, SHORE - 0.2, -4.0, -76.0, SHORE + 0.02, 4.0, "road", solid=False)
+    box(-HALF, SHORE - 0.2, -4.0, -76.0, SHORE + 0.06, 4.0, "road", solid=False)
     room(-172.0, -167.0, -11.0, -6.0, SHORE, 2.8, "wood", s=[door(-169.5)], roof="roof")
     extracts.append(("RoadOut", "ROAD OUT", -174.0, SHORE, 0.0))
     # (0.33.2) the gate's truck bay: walls either side, a container across the road in front of it, ways in at the
@@ -549,6 +549,46 @@ def transit_sheds():
         add_loot("Depot", "crate", x1 - 1.5, SHORE, z1 - 1.5, table="field")
 
 
+def quay_cover(n, z):
+    """One 6 m piece of cover on the quay edge (x -33..-30), a different kind each time (0.33.7, owner: it was one
+    line of the same container). All of it hides you from the ship; some you can get inside or peek over."""
+    x0, x1 = -32.6, -30.2
+    kind = (0, 3, 1, 5, 2, 6, 4, 7, 0, 2, 5, 1, 7, 3, 6, 4)[n % 16]
+    if kind == 0:      # a container (as before), every other one stood on end or doubled
+        box(x0, SHORE, z - 3.0, x1, SHORE + (5.2 if n % 3 == 0 else 2.6), z + 3.0, ("container_a", "container_b", "container_c")[n % 3])
+    elif kind == 1:    # a blast wall: tall, with a blown-out notch you can shoot through, rubble at its foot
+        box(-32.0, SHORE, z - 3.0, -31.3, SHORE + 2.8, z - 0.4, "concrete")
+        box(-32.0, SHORE, z - 0.4, -31.3, SHORE + 1.2, z + 0.8, "concrete")
+        box(-32.0, SHORE, z + 0.8, -31.3, SHORE + 2.8, z + 3.0, "concrete")
+        obox(-33.2, SHORE + 0.35, z + 0.4, 1.6, 0.7, 1.2, 25, "concrete")
+        obox(-30.7, SHORE + 0.25, z - 0.2, 1.0, 0.5, 0.9, -40, "concrete")
+    elif kind == 2:    # crates stacked in steps (climb up and over, or sit behind)
+        box(x0, SHORE, z - 3.0, x1, SHORE + 1.3, z + 3.0, "wood")
+        box(x0, SHORE + 1.3, z - 3.0, x1, SHORE + 2.6, z + 0.6, "wood")
+        box(x0 + 0.4, SHORE + 2.6, z - 2.6, x1 - 0.4, SHORE + 3.6, z - 1.0, "wood")
+    elif kind == 3:    # a watchman's hut: door on the port side, a slit window at the ship
+        room(-33.6, -30.2, z - 2.4, z + 2.4, SHORE, 2.6, "wood", w=[door(z, 1.4)], e=[window(z, 1.6, 1.2, 1.7)], roof="roof")
+    elif kind == 4:    # a pile of pipes between two posts
+        for i, (dx, y) in enumerate([(-0.8, 0.0), (0.0, 0.0), (0.8, 0.0), (-0.4, 0.7), (0.4, 0.7), (0.0, 1.4)]):
+            box(-31.4 + dx - 0.35, SHORE + y, z - 3.0, -31.4 + dx + 0.35, SHORE + y + 0.7, z + 3.0, "rust")
+        for dz in (-2.2, 2.2):
+            box(-32.7, SHORE, z + dz - 0.15, -32.4, SHORE + 2.6, z + dz + 0.15, "rust")
+            box(-30.4, SHORE, z + dz - 0.15, -30.1, SHORE + 2.6, z + dz + 0.15, "rust")
+    elif kind == 5:    # a wrecked lorry cab and its spilled load
+        obox(-31.5, SHORE + 1.4, z - 1.4, 2.5, 2.8, 2.8, 12, "rust")
+        obox(-31.3, SHORE + 0.9, z + 1.6, 2.4, 1.8, 3.0, -8, "container_b")
+        obox(-33.4, SHORE + 0.4, z + 2.2, 1.2, 0.8, 1.2, 35, "wood")
+    elif kind == 6:    # broken concrete: a slab on its side, blocks thrown round it
+        obox(-31.5, SHORE + 1.2, z, 0.7, 2.4, 5.0, 8, "concrete")
+        obox(-32.8, SHORE + 0.5, z - 1.6, 1.4, 1.0, 1.6, 30, "concrete")
+        obox(-30.8, SHORE + 0.4, z + 1.8, 1.2, 0.8, 1.0, -20, "concrete")
+        obox(-33.0, SHORE + 0.3, z + 2.0, 0.9, 0.6, 0.9, 55, "rock")
+    else:              # cable drums and a barrier: one drum on its side, one standing
+        box(x0, SHORE, z - 3.0, x1, SHORE + 2.4, z - 0.8, "wood")
+        box(-32.2, SHORE, z + 0.4, -30.6, SHORE + 1.6, z + 2.0, "wood")
+        barrier(-33.2, z + 1.2, 15, 3.4)
+
+
 def breakers():
     """Sightline breakers (v3), placed where tools/riptide_sight.gd found long open lines: the streets along the
     north and south edges of the terminal and the shipyard, the corridor beside the rail line, the road, the quay
@@ -598,10 +638,12 @@ def breakers():
     legs = [z + dz for z in (-96.0, -56.0, -16.0, 84.0, 140.0) for dz in (-5.0, 5.0)]
     apron = [-138.0, -86.0, -66.0, -40.0, 22.0, 70.0, 96.0, 108.0, 134.0, 150.0]
     z = -172.0
+    n = 0
     while z < 176.0:
         if (not any(a - 3.5 < z < b + 3.5 for a, b in keep_clear) and not any(abs(z - l) < 4.5 for l in legs)
                 and not any(abs(z - a) < 5.0 for a in apron)):
-            box(-32.6, SHORE, z - 3.0, -30.2, SHORE + 2.6, z + 3.0, ("container_a", "container_b", "container_c")[int(z) % 3])
+            quay_cover(n, z)
+            n += 1
             z += 11.0
         else:
             z += 1.0
@@ -758,6 +800,10 @@ TOWER_STAIRS = (54.0, 62.0, 76.0, 90.0)
 HATCHES = [(42.0, 54.0, -50.0, -44.0), (42.0, 54.0, 24.0, 30.0)]
 SIDE_LADDERS = [(SX0 + 0.35, -60.0, 90), (SX0 + 0.35, 50.0, 90), (SX1 - 0.35, -60.0, -90), (SX1 - 0.35, 50.0, -90)]
 SERVICE_TUBE = (46.0, 48.4, -65.4, -63.0)
+# (0.33.7) ramps down through the main deck into the hold's side passages (x0, x1, z at the deck, z at the hold floor):
+# aft on the sea side, forward on the port side
+COMPANIONS = [(62.8, 65.4, 54.0, 72.0), (30.6, 33.2, -58.0, -40.0)]
+BOAT_DOORS = (-84.0, 44.0)     # hull doors at the launch and the tug (the sea side), z
 
 
 def hole(r, pad=0.0):
@@ -776,8 +822,9 @@ def ship():
     west_gaps = [(38.5, 1.4, DECK - bottom, top - bottom), (54.5, 2.4, DECK - bottom, top - bottom)]   # pontoon, loader
     wall("z", SX0, SZ0, SZ1, bottom, h, "hull", [gang, hull_door] + west_gaps, t=0.5)
     sea_gaps = [(z, 1.4, DECK - bottom, top - bottom) for z in (-88.0, 50.0)]
+    sea_gaps += [(z, 2.0, BOAT - bottom, BOAT - bottom + DOOR_H) for z in BOAT_DOORS]   # (0.33.7) hull doors off the boats
     wall("z", SX1, SZ0, SZ1, bottom, h, "hull", sea_gaps, t=0.5)
-    stern_ramp = (48.0, 8.0, HULL_A - bottom, DECK - 0.5 - bottom)
+    stern_ramp = (48.0, 8.0, BARGE - SLAB_T - bottom, DECK - 0.5 - bottom)   # (0.33.7: from the barge deck up, shut below the waterline)
     stern_gap = (60.0, 1.4, DECK - bottom, top - bottom)
     wall("x", SZ1, SX0, SX1, bottom, h, "hull", [stern_ramp, stern_gap], t=0.5)
     # the bow: higher, round the forecastle
@@ -833,12 +880,31 @@ def ship():
     wall("z", 44.0, 74.0, 96.0, HULL_A, hold_h, "metal", [door(80.0), door(92.0)])
     add_loot("Workshop", "crate", 40.0, HULL_A, 80.0, table="crate")
     add_loot("Workshop", "locker", 64.6, HULL_A, 100.0, -90)
-    ramp((48.0, HULL_A, 96.0), (48.0, BARGE, SZ1 + 2.5), 7.6, "metal")
+    # (0.33.7) the ramp stays inside the hull and meets the stern door at barge height; a bridge plate crosses to
+    # the barge. Before, the door was cut down to the hold floor, under the water.
+    ramp((48.0, HULL_A, 96.0), (48.0, BARGE, SZ1 - 0.6), 7.6, "metal")
+    box(44.2, BARGE - SLAB_T, SZ1 - 0.6, 51.8, BARGE, SZ1 + 2.6, "metal")
+    for x in (44.2, 51.8):
+        box(x - 0.1, BARGE, SZ1 + 0.3, x + 0.1, BARGE + 1.0, SZ1 + 2.6, "rust")
     labels.append(("WORKSHOPS", 52, 90, 0))
 
     # The main deck: the moon pool deckhouse, the derrick, cranes and containers, the forecastle
     slab(SX0, SX1, -90.0, SZ1, DECK, "metal",
-         holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)] + HATCHES)
+         holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)] + HATCHES + [(x0, x1, min(za, zb), max(za, zb)) for x0, x1, za, zb in COMPANIONS])
+    # (0.33.7, owner: more ways down a floor) companionways: a ramp down through the deck into each side passage of
+    # the hold, railed on the open sides; and a hull door off each moored boat onto a landing with a ramp down
+    for x0, x1, za, zb in COMPANIONS:
+        ramp(((x0 + x1) / 2, DECK, za), ((x0 + x1) / 2, HULL_A, zb), x1 - x0, "metal")
+        inboard = x1 if x0 < 48 else x0
+        wall("z", inboard, min(za, zb), max(za, zb), DECK, 1.0, "rust", t=0.15)
+        wall("x", zb, x0, x1, DECK, 1.0, "rust", t=0.15)
+    for z in BOAT_DOORS:
+        dz = 1 if z < 0 else -1          # the ramp runs away from the nearest end of the hold
+        box(60.25, BOAT - SLAB_T, z - 2.5, SX1 - 0.25, BOAT, z + 2.5, "metal")
+        ramp((61.7, BOAT, z + 2.5 * dz), (61.7, HULL_A, z + 17.5 * dz), 2.7, "metal")
+        wall("z", 63.1, min(z + 2.5 * dz, z + 8.0 * dz), max(z + 2.5 * dz, z + 8.0 * dz), BOAT, 1.0, "rust", t=0.15)
+        wall("x", z + 2.5 * dz, 63.1, SX1 - 0.25, BOAT, 1.0, "rust", t=0.15)
+        wall("x", z - 2.5 * dz, 60.25, SX1 - 0.25, BOAT, 1.0, "rust", t=0.15)
     slab(SX0, SX1, SZ0, -90.0, DECK, "metal")
     for x0, x1, z0, z1 in HATCHES:   # a low coaming round each open hatch
         room(x0 - 0.3, x1 + 0.3, z0 - 0.3, z1 + 0.3, DECK, 0.5, "rust", t=0.3)
@@ -861,7 +927,7 @@ def ship():
     for i, (x, z, along, high) in enumerate([(36, -80, "z", 2), (59, -82, "x", 1), (60, -62, "z", 2), (64, -56, "z", 1),
                                              (36, -46, "z", 1), (60, -48, "z", 2), (54, -32, "x", 2), (40, -22, "x", 1),
                                              (63, -24, "x", 1), (40, 40, "z", 2), (56, 46, "x", 1), (44, 62, "x", 1),
-                                             (58, 66, "z", 2), (37, 60, "z", 2), (50, 36, "x", 2), (64, 56, "z", 1),
+                                             (58, 66, "z", 2), (37, 60, "z", 2), (50, 36, "x", 2), (59, 54, "x", 1),
                                              (32.5, 46, "z", 1)]):
         container(x, DECK, z, along, ("container_b", "container_a", "container_c")[i % 3], high)
     for i, (x, z) in enumerate([(51, -70), (37, 36), (52, 58)]):
@@ -1147,9 +1213,11 @@ def minimap_meta():
 # ---------------------------------------------------------------------------------------------- the scene
 def terrain():
     """The ground: the flat port to the quay, then down to the sea bed. One row of heights across x, the same all along z."""
+    # (0.33.7: one row of cells across z, with no seam down the middle of the port: the seam at z 0 drew as a
+    # flickering saw-toothed stripe from the gate to the pier)
     xs = [-HALF, -30.0, -29.0, 0.0, HALF]
     hs = [SHORE, SHORE, -8.0, SEABED, SEABED]
-    zs = [-HALF, 0.0, HALF]
+    zs = [-HALF, HALF]
     return xs, zs, [h for _ in zs for h in hs]
 
 

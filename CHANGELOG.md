@@ -105,6 +105,19 @@ nothing collides, nothing is sent online, the server and headless runs build non
 - Tools: `tools/hideout_life_view.gd`, `tools/hideout_cat_view.gd`, `tools/hideout_trophy_view.gd`,
   `tools/hideout_decor_view.gd` take screenshots.
 
+## 0.33.7 (Riptide: the quay edge, the stern door, more ways below, on the branch)
+- **The quay edge isn't one line of containers** (owner: "one dimensional"): each piece of cover along it is now one
+  of eight kinds in a mixed order (`quay_cover`): containers (some doubled), blast walls with a blown-out notch,
+  stepped crate stacks, watchman's huts you can go in, pipe piles, a wrecked lorry cab and its load, broken concrete
+  slabs, cable drums and barriers.
+- **The flickering stripe down the middle of the port is gone**: it was the seam between the ground's two halves at
+  z 0; the ground is one piece across now.
+- **The stern door sits at the barge's height** (owner: a hole in the hull under the water with a ramp in it): the hull
+  is shut below the waterline, the ramp stays inside and a bridge plate crosses to the barge.
+- **Four more ways down a floor** (owner: one side of the ship had no way in): a ramp through the deck into the
+  hold's sea-side passage aft and another into the port-side passage forward (`COMPANIONS`), and a hull door off the
+  launch and off the tug onto a landing with a ramp down (`BOAT_DOORS`). The AI can walk all of them.
+
 ## 0.33.6 (Riptide: swimming, on the branch)
 - **You can swim** (owner: "swim slowly to a ladder"). Riptide's sea is deep water (`scripts/swim_zone.gd`,
   `Player._update_swim`): fall or jump in and you float with your head out and paddle at 1.6 m/s (walking is 3.1).
