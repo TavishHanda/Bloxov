@@ -1,107 +1,79 @@
 # Bloxov: notes for Claude
 
-**New dev session? Read `docs/DEV_HANDOFF.md` first** (owner, state, code map, workflow, gotchas, next work), then
-`docs/CLAUDE_HANDOFF.md` (why things were built this way, how the owner works, art taste, performance findings).
+Godot 4.7, GDScript, Compatibility renderer (web is the main target, then Steam, then phones). The owner, Tavish,
+makes every gameplay call. Design doc: `docs/GAME_DESIGN.md`. Where the project stands and what is next:
+`docs/RELEASE_PLAN.md` "Where it stands".
 
-- Godot 4.7, GDScript, Compatibility renderer (web is the main target). Design doc: `docs/GAME_DESIGN.md`.
+## Read only what the task needs
+This file is loaded into every session, so it holds only the rules that apply to every change. Before touching an
+area, read its notes (and nothing else):
+
+| Touching... | Read first |
+|---|---|
+| Anything a past update built (guns, AI, hideout, looks, sound, durability, crafting, movers...) | that phase's entry in `docs/context/PHASES.md` |
+| Net code, the server, accounts, hosting, CI, export presets, the website | `docs/context/ONLINE.md` |
+| A map, a building or outdoor model, collision, navigation, the far view | `docs/context/MAPS.md` |
+| A control, a button, a key hint | `docs/context/CONTROLS.md` |
+| Anything players pay for, write, or that touches privacy, violence or accounts | `docs/STORE_RULES.md` |
+| Art and models | `docs/ART_SPEC.md` |
+| UI and visual design (the owner's separate designer session) | `docs/DESIGN_HANDOFF.md` |
+| How the owner works, art taste, why things were built this way | `docs/CLAUDE_HANDOFF.md`, `docs/DEV_HANDOFF.md` §1, §4, §6 (their "where things stand" parts are old) |
+
+Plan: `docs/ROADMAP.md`. Parked ideas: `docs/BACKLOG.md`. The code map is each script's own header comment
+(every file in `scripts/` starts with one): `head -5 scripts/<file>.gd`, or `grep -n "^## " scripts/*.gd`.
+
+## Rules for every change
 - **Versioning:** every change bumps `config/version` in `project.godot` and adds a `CHANGELOG.md` entry.
   A new roadmap phase bumps the middle number (0.2.x → 0.3.0); anything else bumps the last (0.2.3 → 0.2.4).
   Docs/CI-only changes don't bump. Start the commit message with the version (`v0.2.4: ...`).
   No git tags (GitHub blocks creating them from the sandbox/CI, and the owner doesn't want to do it by hand).
   Version history = CHANGELOG.md + version-prefixed commit messages. Don't ask the owner to tag.
   When telling the owner about an update, lead with its version and a short name (e.g. "**0.5.1: Recoil & accuracy**").
-  Phases so far: 0.5 guns, 0.6 scavs, 0.7 multiplayer (to 0.7.11), 0.8 HUD & inventory (designer session, closed at
-  0.8.16; 0.8.0-0.8.3 were first released as 0.7.12-0.7.15), 0.9 multiplayer raid flow (downed/revive, per-player extract; paused at 0.9.5), 0.10 the Map & Spawn update (Bloxov Frontlines, first called Old Bloxov, then Bloxov Battlegrounds until 0.25.3;
-  `docs/MAP_PLAN.md`, to 0.10.3), 0.11 **Scorched Earth** (owner's name: code cleanup, then the map turned war zone; closed; map follow-ups kept the 0.11.x numbers), 0.12 **Hot Zone** (Scavs 2.0; closed at 0.12.39), 0.13 **Over the Top** (Movement: vaulting, prone, ladders; to 0.13.9), 0.14 **Spoils of War** (Items: keys, loot by place), then 0.15 the **Guns** update (new guns, attachments, AI loadouts; plan in `docs/GUNS_PLAN.md`), 0.16 Economy, 0.17 World art (released as 0.18.x), 0.19 the **Look** update (lighting looks are files in
-  `assets/looks/`, `Look.current` picks one; `classic.tres` = the look up to 0.18, keep it), 0.20 the **Sound** update (only ADD sounds, today's stay; plan in project files `sound/plan.md`), 0.21 the **Hideout** update (walkable 3D hideout: `scenes/hideout_world.tscn` is the main scene, `scenes/hideout.tscn` is its menu; the cave is built by `art_source/scripts/make_hideout.py`, plan in project files `hideout/plan.md`). 0.22 **World Reacts** (solid-looking props got hitboxes: `tools/walkthrough_audit.gd` finds walk-through spots, buildings'
-  made-solid props go through `<name>_solids.json` from make_building.py; looks-only reactions in `scripts/reacts.gd`:
-  swinging lamps, bushes/curtains parting, kickable cans; never synced, never on the server; closed at 0.22.9). 0.23 **jointed characters** (real kneel/prone/crawl/downed poses, `scripts/body_pose.gd`; models from `art_source/scripts/make_character.py`; crouch/prone/downed hitboxes are measured off the posed model: after changing either, run `tools/fit_hitboxes.gd` and paste into `hitbox.gd`, the smoke test checks they match). 0.24 the **new-player tutorial** (`scripts/tutorial.gd`: a step-by-step walk round the hideout for new profiles only, `Profile.tutorial`; `scripts/raid_tips.gd`: one-time raid tips; anyone with progress skips it, owner). 0.25 **Checkpoint** (the security update: server checks moves, carried items, health and extracts, rate limits, kicks on repeats; `scripts/net_guard.gd`; Windows build tested in CI). 0.26 **Keybinds** (rebinding in OPTIONS, `scripts/keybinds.gd`, saved in the settings; show keys with `Keybinds.name_of`/`cap`, never hard-coded letters; the web build refuses Ctrl, owner). 0.27 **Durability** (guns, armor, helmets wear, keys have uses; worn guns spread more, `ItemDB.wear_spread` (no jams since 0.28.1, owner: not arcade); repairs
-  are trader-only, owner: `Traders.repair_price`, Ponta guns, Big Don armor). 0.28 **The world comes alive** (looks-only motion: moving building parts
-  go through make_building `mover()` -> `assets/models/movers/`, `scripts/movers.gd`; outdoor faces that sway use make_outdoor
-  `sways()` -> the `kit_sway` material; also `scripts/flags.gd`, `birds.gd`, `drift.gd`). 0.29 the **Engine update** (Godot 4.5.1 -> 4.7.2; 4.7 builds
-  LODs for the big building meshes, so the pck is ~7 MB bigger; the hideout warms the raid map with
-  `ResourceLoader.load_threaded_request`, never a Thread it waits on; 0.29.5: `scripts/shader_warm.gd` builds the raid's
-  and hideout's shaders behind the title screen's loading bar (0.30.8; each list under its own light, the hideout's via `Look.hideout_environment`) from `assets/warm/*_warm.tscn`: re-run
-  `xvfb-run -a godot --rendering-driver opengl3 -s tools/gen_shader_warm.gd` after adding materials or new kinds of things to them). 0.32 **Crafting** (the hideout's workbench, `scripts/crafting.gd`, `scripts/craft_screen.gd`: instant, owner, no timers;
-  recipes only use and make items already in the game; heavy armor, combat helmet and large backpack stay loot-only, owner;
-  PvP crafts are checked by the server's hideout audit). 0.34 the **Lively hideout** (0.33 is held by the Riptide map branch): looks-only life in the hideout,
-  never synced or on the server: `hideout_war.gd` (shells; re-run `tools/hideout_roof_bake.gd` and `tools/hideout_nav_bake.gd` (where the crew walk) after changing the cave),
-  `hideout_crew.gd` + `trader_looks.gd` (crew and traders on their own `trader.glb`), `hideout_cat.gd`,
-  `hideout_trophies.gd`, your corner `decor.gd`/`hideout_decor.gd` (decor unlocks by milestones, nothing bought, owner). A Stash update (separate solo/online
-  stashes, online stash on the server, device accounts) is planned for closer to release; until then solo and online share one stash (owner). Only one phase can be current: other work waits for the phase to close or is
-  built on a branch and released as the next phase.
-- **Touch controls** (0.29.9, `scripts/touch_controls.gd`, state/settings in `scripts/touch_input.gd`): on phones always,
-  on computers after the first touch. Buttons send the same input actions as keys (`InputEventAction`); code that
-  asked "is the mouse captured?" to mean "playing" asks `TouchInput.playing()` instead. New raid controls need a touch
-  button or a spot in the ITEM wheel. The hideout walk has its own (`scripts/hideout_touch.gd`, 0.29.10).
-  `tools/touch_view.gd` takes screenshots.
+  **Only one phase can be current:** other work waits for the phase to close or is built on a branch and released
+  as the next phase. Phase history and what each phase built: `docs/context/PHASES.md`.
+- **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
+  (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended
+  behavior are fine; anything that changes how the game plays (AI, numbers, rules) gets proposed, not shipped.
 - **App Store + Google Play rules apply to everything** (owner, 2026-10-10: the game will ship on phones). Read
   `docs/STORE_RULES.md` and check every change against it (violence/age rating, player-made text, privacy/data,
   accounts, real-money purchases and loot odds, ads, no downloaded code). Anything that would break a rule gets
   proposed to the owner in a compliant form, not shipped. Whenever a rule becomes relevant to the work at hand, mention it
   to the owner (they asked to be reminded). Text other players see goes through `NameFilter`.
-- **Any gameplay change goes to the owner first**, even one that comes up while fixing something else
-  (e.g. 0.5.7 gave scavs a view cone during a knife fix without asking). Bug fixes that restore intended
-  behavior are fine; anything that changes how the game plays (AI, numbers, rules) gets proposed, not shipped.
 - **Two sessions:** the owner runs a separate **designer** session for UI/visual design (catch-up: `docs/DESIGN_HANDOFF.md`).
   Both push to `main`: pull/rebase right before working and before pushing; keep commits small.
 - Plan: `docs/ROADMAP.md` (milestones). Parked ideas/notes: `docs/BACKLOG.md`.
   Keep new code co-op-friendly: don't add new single-player assumptions (see ROADMAP rules).
-- Live game: https://tavishhanda.github.io/Bloxov/ (capital B; the lowercase URL 404s).
-  Moving to bloxov.com (owner is buying it): `docs/DOMAIN_MOVE.md`. Saves follow players via `web/move_in.js`
-  (on bloxov.com) and the move page `web/move/index.html` (hosted on the old site from its own repo, `bloxov-move`).
-- CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
-  The web export is split into content-named packs the browser keeps across updates (0.29.6, `tools/split_pck.py` via
-  `cache_bust.py`; `scripts/web_packs.gd` mounts them and must stay the FIRST autoload, referencing no game scripts).
-  Extend the smoke test when adding gameplay.
 - **Run the tests locally before every push** (the sandbox can download Godot):
   `curl -L -o /tmp/godot.zip https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip`,
   unzip, then from the repo root: `godot --headless --import` and `godot --headless --fixed-fps 60 -s tests/smoke_test.gd`
   (~1 s; must print `SMOKE TEST: PASSED` with no `SCRIPT ERROR`). Don't push untested code to find out from CI.
   One part only: add `-- section=knife,heal` (pulls in what it depends on). Only push if the tests passed
   (chain the push after the test with `&&`, never after a command that ignores failures).
+  CI (`.github/workflows/web.yml`) runs the same test, then exports and deploys. Extend the smoke test when adding
+  gameplay.
+- **Commits:** author as `TavishHanda <tavishhanda@hotmail.com>` (the owner's GitHub email).
+  The owner asked not to have Claude listed as a contributor: no `Co-Authored-By: Claude` trailer in commit messages.
+
+## Tripwires (one line each; the detail is in the file named)
+- `scripts/web_packs.gd` must stay the FIRST autoload and reference no game scripts (`ONLINE.md`).
+- `scripts/net.gd` is an autoload: it must not reference player/gun scripts, directly or by class name; check with
+  a fresh clone import (`ONLINE.md`). Scripts reach it as `Network.main`.
+- Server raids share one process: look up groups with `RaidScope.nodes(self, group)`, never
+  `get_tree().get_nodes_in_group`. The server has no real meshes, textures or materials (`ONLINE.md`).
+- Looks-only things (reacts, movers, hideout life) are never synced and never run on the server (`PHASES.md`).
+- The real map is generated: edit `tools/gen_old_bloxov.py` and re-run it, never the scene. After changing map
+  geometry re-bake navigation; after rebuilding a building re-bake its far mesh and re-run the window audit (`MAPS.md`).
+- After changing character models or poses, run `tools/fit_hitboxes.gd`; after adding materials or new kinds of
+  things, re-run `tools/gen_shader_warm.gd` (`PHASES.md`, 0.23 and 0.29).
+- New raid controls need a touch button or a spot in the ITEM wheel; show keys with `Keybinds.name_of`/`cap`,
+  never hard-coded letters (`CONTROLS.md`).
+- After changing `scripts/item_db.gd`, re-run `python3 tools/gen_item_list.py` (`docs/ITEMS.md` is the owner's list).
+- Text other players see goes through `NameFilter`.
+
+## How the game is put together
 - Scenes are hand-written `.tscn` files. Node lookups in scripts use `$Path`, so keep names in sync.
 - Flow: `scenes/title.tscn` (main scene, 0.21.13: PLAY, OPTIONS, PRIVACY, CREDITS) -> `scenes/hideout_world.tscn` (walk round the hideout; Tab / E at a station opens `scenes/hideout.tscn`, the menu: stash, loadout, trader) -> START RAID -> `scenes/main.tscn` -> end screen -> hideout.
   Persistent data lives in `scripts/profile.gd` (static, saved to `user://profile.json`). The inventory screen
   (`loot_ui.gd`) works with or without a player (hideout passes an `Inventory` and the stash).
-- Multiplayer (0.7.x, `docs/MULTIPLAYER_PLAN.md`): `scripts/net.gd` is the `Net` autoload; scripts use it as
-  `Network.main` (autoload names don't compile in the `-s` test). Offline by default. Server:
-  `godot --headless -- --server [--port=9080]`. The `net` test section runs a server + two clients in one process.
-  Hosted on Heroku (owner's student credit; `Dockerfile` + `heroku.yml`, CI job `heroku`, needs the `HEROKU_API_KEY`
-  secret; app `bloxov-server`, one Basic dyno): wss://bloxov-server-0f9c9a343ceb.herokuapp.com. A Fly.io setup also
-  exists (`fly.toml`, CI job `server`, skipped without `FLY_API_TOKEN`) for later (one server per raid).
-  `net.gd` is an autoload: it must not reference player/gun scripts (directly or via class names), or a fresh
-  import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
-  Server raids are SubViewports (`RaidWorld`) in one process: node groups are global, so AI/spawner/nav code looks
-  up groups with `RaidScope.nodes(self, group)` (only its own raid), never `get_tree().get_nodes_in_group`.
-  The server runs a stripped pack (0.30.9, export preset "Server", strip visuals): no real meshes/textures/materials
-  on the server, only placeholders with bounds; CI's `tools/server_pack_check.gd` runs raids inside it.
-  Local Docker works here after starting `dockerd` (container apt has no network; copy the local Godot binary in to test).
-- Collision layers: 1 world, 2 player, 3 enemies (bit value 4), 4 interactables (bit value 8), 5 doors (bit value 16,
-  world-art branch), 6 tree tops (bit value 32: only the AI's sight and shots check it, `BoxMap.LEAVES_LAYER`), 7 bushes (bit
-  value 64: only the AI's sight, `BoxMap.BUSH_LAYER`), 8 barred windows (bit value 128: stops players and vaulting,
-  not bullets, `BoxMap.BARS_LAYER`), 9 glazed windows (bit value 256: stops people until the pane is broken, never
-  shots, `BoxMap.WINDOW_LAYER`; the panes still whole come from each building's `<name>_panes.json`, drawn and broken
-  by the map, and breaks are sent online by pane number), 10 props (bit value 512: furniture and the like, and windows with something across them since 0.23.3 (gen `shut_windows`; the motel's stay open, their blinds swing aside: `scripts/blinds.gd`; plain windows open again since 0.25.35, decided by `tools/window_audit.gd` -> `art_source/buildings/window_audit.json`: re-run it after rebuilding a building model, then the generator), stops players and vaulting only, never the AI,
-  shots or eyes, not in the nav bake, `BoxMap.PROPS_LAYER`, map flag 5 -> `prop_boxes`, 0.22.0).
-- Outdoor pieces that aren't box-shaped (rocks, banks, crater rims, rubble, the train) collide with triangles from
-  their models (0.18.3): after changing them run the generator, `art_source/scripts/make_outdoor.py`, then the
-  generator again. `tools/collision_view.gd` draws what collides over the models.
-- Maps: the real map is `scenes/maps/old_bloxov.tscn`, generated by `tools/gen_old_bloxov.py` (edit the script and
-  re-run it, never the scene); `RaidMap` swaps it into `main.tscn`, whose built-in test map the smoke test uses.
-  The ground has hills (0.11.17): build new pieces at height 0 with `box`/`obox` and `terrain()` lifts them onto it
-  (composite props inside `with group():`); see `docs/MAP_PLAN.md` "Ground".
-  After changing the map's geometry, re-bake the enemy navigation: `godot --headless -s tools/nav_bake.gd` (0.29.3;
-  the smoke test checks the bake matches, otherwise every raid bakes it at the start, ~1.3 s).
-- Far view (0.17 world art, outdoor step 10): buildings switch to a baked far mesh 70 m out (`scripts/far_view.gd`,
-  `assets/models/far/`), trees to cheap far cards 110 m out (`scripts/trees.gd`). After rebuilding a building model,
-  re-bake it: `xvfb-run -a godot --rendering-driver opengl3 -s tools/far_bake.gd -- <model>` (the smoke test checks one exists).
-- Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`
-  group (CSG boxes + world-layer box colliders). New solid map pieces must be under `Level`/`Loot` (or in that group).
 - Seeing it: `xvfb-run -a godot --rendering-driver opengl3 -s <script>` renders real frames (screenshots via
   `get_viewport().get_texture().get_image().save_png()`); use it to check visuals, not just tests.
-- Item list for the owner: `docs/ITEMS.md`, generated by `python3 tools/gen_item_list.py`. Re-run it whenever
-  `scripts/item_db.gd` (items or loot tables) changes.
-- Art pipeline and reference sizes: `docs/ART_SPEC.md`. Models are `.glb` in `assets/models/`; Blender sources in `art_source/` (ignored by Godot).
-- **Commits:** author as `TavishHanda <tavishhanda@hotmail.com>` (the owner's GitHub email).
-  The owner asked not to have Claude listed as a contributor: no `Co-Authored-By: Claude` trailer in commit messages.
