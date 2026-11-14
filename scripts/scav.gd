@@ -205,6 +205,7 @@ func _physics_process(delta: float) -> void:
 	_knockback = _knockback.lerp(Vector3.ZERO, minf(delta * 8.0, 1.0))
 	velocity.x = desired.x + _knockback.x
 	velocity.z = desired.z + _knockback.z
+	velocity = _keep_out_of_water(velocity, _flat(velocity).length() * delta * maxf(_lod_scale, 1.0))
 	if _lod_scale > 1.01:
 		# (A slow tick: moves as far as all the frames it skipped would have.)
 		velocity *= _lod_scale

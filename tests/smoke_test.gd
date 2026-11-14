@@ -5675,6 +5675,20 @@ func _section_riptide() -> void:
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
 	swimmer.free()
+	# The AI stays out of the sea (0.35.3): a move off the pier's edge is stopped, a move along the pier isn't
+	var dry := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	world.raid.add_child(dry)
+	dry.global_position = Vector3(12.0, 1.6, -1.2)
+	for i in 20:
+		await physics_frame
+	dry.global_position = Vector3(12.0, dry.global_position.y, -1.2)
+	dry.velocity = Vector3.ZERO
+	await physics_frame
+	_check(dry.is_on_floor() and dry._keep_out_of_water(Vector3(0, 0, -4), 0.0) == Vector3.ZERO,
+		"a scav's step off the pier over the sea is stopped (on floor %s)" % dry.is_on_floor())
+	_check(dry._keep_out_of_water(Vector3(4, 0, 0), 0.0) == Vector3(4, 0, 0) and dry._keep_out_of_water(Vector3(0, 0, 4), 0.0) == Vector3(0, 0, 4),
+		"and its steps along and across the pier are left alone")
+	dry.free()
 	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
 	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
 	root.add_child(zero)

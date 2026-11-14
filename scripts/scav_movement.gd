@@ -296,6 +296,31 @@ func _arrived(goal: Vector3) -> bool:
 		and _flat(_path[_path.size() - 1] - global_position).length() < 1.2)
 
 
+## The map's deep water (SwimZone; none on most maps), looked up once.
+var _water: Array[Node] = []
+var _water_known := false
+
+
+## Deep water (0.35.3, Riptide; owner: "if scavs fall in the water they walk on the ground in the water... we need
+## them to not fall"): a move that would take it off an edge with the sea under it is stopped. Paths never leave the
+## deck, but a dodge, backing off, a shove from a friend, a blast or a far AI's long step could. Nothing changes on
+## a map without deep water.
+func _keep_out_of_water(move: Vector3, reach: float) -> Vector3:
+	if not _water_known:
+		_water_known = true
+		_water = RaidScope.nodes(self, SwimZone.GROUP)
+	var flat := _flat(move)
+	if _water.is_empty() or flat.length() < 0.1 or not is_on_floor():
+		return move
+	var ahead := global_position + flat.normalized() * (0.9 + reach)
+	if not _water.any(func(zone: SwimZone) -> bool: return zone.covers(ahead)):
+		return move
+	var query := PhysicsRayQueryParameters3D.create(ahead + Vector3(0, 0.6, 0), ahead - Vector3(0, 2.0, 0), 1, [get_rid()])
+	if not get_world_3d().direct_space_state.intersect_ray(query).is_empty():
+		return move   # (a deck, a ramp or a barge under the step)
+	return Vector3(0.0, move.y, 0.0)
+
+
 ## Short fight moves (a dodge, backing off): don't push into a wall; try the other side instead.
 func _clear_of_walls(move: Vector3) -> Vector3:
 	if move.length() < 0.1 or not _blocked(move):

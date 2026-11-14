@@ -802,6 +802,11 @@ TOWER_STAIRS = (54.0, 62.0, 76.0, 90.0)
 HATCHES = [(42.0, 54.0, -50.0, -44.0), (42.0, 54.0, 24.0, 30.0)]
 SIDE_LADDERS = [(SX0 + 0.35, -60.0, 90), (SX0 + 0.35, 50.0, 90), (SX1 - 0.35, -60.0, -90), (SX1 - 0.35, 50.0, -90)]
 SERVICE_TUBE = (46.0, 48.4, -65.4, -63.0)
+# (0.35.3, owner: "stair cases going up and down near the front/backs of the ship") both stairwells carry on down from
+# the engine room deck to the lab's lower deck: four short flights, so the bottom landing is on the south end
+def lab_flights():
+    step = (HULL_B - LAB2) / 4
+    return [HULL_B - step, HULL_B - 2 * step, HULL_B - 3 * step, LAB2]
 # (0.33.7) ramps down through the main deck into the hold's side passages (x0, x1, z at the deck, z at the hold floor):
 # aft on the sea side, forward on the port side
 COMPANIONS = [(62.8, 65.4, 54.0, 72.0), (30.6, 33.2, -58.0, -40.0)]
@@ -843,9 +848,10 @@ def ship():
         wall("x", z, SX0, SX1, HULL_B, HULL_A - SLAB_T - HULL_B, "metal", [door(36.0, 2.0), door(58.0, 2.0)])
     labels.append(("PUMP ROOM", 48, -80, 0))
     labels.append(("ENGINE ROOM", 48, 70, 0))
-    for z in (44.0, 62.0, 80.0):        # the engines (cover)
+    for z in (44.0, 62.0, 80.0):        # the engines (cover; the aft one stands clear of the tower stairs)
         box(38.0, HULL_B, z - 3, 44.0, HULL_B + 2.4, z + 3, "rust")
-        box(52.0, HULL_B, z - 3, 58.0, HULL_B + 2.4, z + 3, "rust")
+        ex = 46.0 if z > 70 else 52.0
+        box(ex, HULL_B, z - 3, ex + 6.0, HULL_B + 2.4, z + 3, "rust")
     box(62.0, HULL_B, 96.0, 65.5, HULL_B + 2.0, 100.0, "metal")   # the sub bay's power switch cabinet
     switches.append(("SubBayPower", "sub_bay", "Turn on the sub bay power", 61.7, HULL_B + 1.1, 98.0))
     labels.append(("SUB BAY POWER", 60, 98, 0))
@@ -1014,7 +1020,15 @@ def drill_floor():
 
 
 def bow_stairs():
-    stairwell(BOW_STAIRS[0], BOW_STAIRS[2], [DECK, 0.0, HULL_A, HULL_B], {0: "W", 2: "W", 3: "W"})
+    stairwell(BOW_STAIRS[0], BOW_STAIRS[2], [DECK, 0.0, HULL_A, HULL_B] + lab_flights(), {0: "W", 2: "W", 3: "W", 7: "S"})
+    # at the bottom, a passage aft beside the service tube and through a door into its tunnel to the north wing
+    z1 = BOW_STAIRS[2] + 14.0
+    # (its north end is the stairwell's own wall and doorway)
+    wall("z", 49.0, z1, -56.0, LAB2, 3.2, "lab", [door(-59.0)])
+    wall("z", 52.0, z1, -56.0, LAB2, 3.2, "lab")
+    wall("x", -56.0, 49.0, 52.0, LAB2, 3.2, "lab")
+    slab(49.0, 52.0, z1, -56.0, LAB2, "labfloor")
+    slab(49.0, 52.0, z1, -56.0, LAB2 + 3.2, "lab")
 
 
 def tower():
@@ -1048,8 +1062,8 @@ def tower():
     wall("z", TX1, TZ0, TZ1, ROOF, 1.0, "rust", [(77.5, 2.0, 0.0, 1.0)], t=0.2)
     labels.append(("HELIDECK", 44, 100, 0))
     perches.append((40.0, ROOF, 77.0, -1, 0))
-    stairwell(TOWER_STAIRS[0], TOWER_STAIRS[2], [ROOF, DECK4, DECK3, DECK2, DECK, 0.0, HULL_A, HULL_B],
-              {0: "W", 1: "W", 2: "W", 3: "W", 4: "W", 6: "W", 7: "W"}, roof=True)
+    stairwell(TOWER_STAIRS[0], TOWER_STAIRS[2], [ROOF, DECK4, DECK3, DECK2, DECK, 0.0, HULL_A, HULL_B] + lab_flights(),
+              {0: "W", 1: "W", 2: "W", 3: "W", 4: "W", 6: "W", 7: "W", 11: "W"}, roof=True)
     # the outside ladder up the back, from the aft deck to the helideck
     ladder(58.0, DECK, TZ1 + 0.4, 0, ROOF - DECK, "Tower")
     # loot by room
@@ -1122,12 +1136,18 @@ def lab():
     ladder(48.8, LAB2, cz0 + 2.6, 0, LAB1 - LAB2, "Catwalk")
     # Lab 2 south wing (labs, the server room)
     sz0, sz1 = 68.0, 100.0
-    room(l0, l1, sz0, sz1, LAB2, 4.0, "lab", n=[door(40.0, 2.0), door(56.0, 2.0)], floor="labfloor", roof="lab")
+    room(l0, l1, sz0, sz1, LAB2, 4.0, "lab", n=[door(40.0, 2.0), door(56.0, 2.0)], floor="labfloor")
+    slab(l0, l1, sz0, sz1, LAB2 + 4.0, "lab", holes=[hole(TOWER_STAIRS)])
     for x in (44.0, 52.0):
-        wall("z", x, sz0, sz1, LAB2, 4.0, "lab", [door(z) for z in (74.0, 86.0, 96.0)])
+        # (0.35.3: the corridor is open to the lobby at the foot of the tower stairs)
+        mid = (83.0, 13.0, 0.0, 4.0) if x > 48 else door(86.0)
+        wall("z", x, sz0, sz1, LAB2, 4.0, "lab", [door(74.0), mid, door(96.0)])
     wall("x", 80.0, l0, 44.0, LAB2, 4.0, "lab")
-    wall("x", 80.0, 52.0, l1, LAB2, 4.0, "lab")
-    wall("x", 90.0, 52.0, l1, LAB2, 4.0, "lab")
+    # (0.35.3) the tower stairs come down into the east side: a lobby west of them (their door, and the corridor's
+    # door at z 86), a lab north and east of them, the server room south
+    wall("x", TOWER_STAIRS[2], 52.0, TOWER_STAIRS[0], LAB2, 4.0, "lab")
+    wall("x", TOWER_STAIRS[3], 52.0, TOWER_STAIRS[0], LAB2, 4.0, "lab")
+    wall("x", TOWER_STAIRS[3], TOWER_STAIRS[1], l1, LAB2, 4.0, "lab")
     for z in (92.0, 96.0):   # the server racks
         box(55.0, LAB2, z - 0.4, 64.0, LAB2 + 2.2, z + 0.4, "core")
     add_loot("LabWing", "crate", 31.5, LAB2, 72.0, 90)
@@ -1140,6 +1160,7 @@ def lab():
     room(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3, LAB2, HULL_B - SLAB_T - LAB2, "lab", s=[(47.2, DOOR_W, 0.0, DOOR_H)])
     ladder(47.2, LAB2, tz0 + 0.1, 0, HULL_B - LAB2, "ServiceTube")
     room(45.4, 49.0, tz1 + 0.3, nz0, LAB2, 3.2, "lab", n=[(47.2, DOOR_W, 0.0, DOOR_H)], s=[(47.2, DOOR_W, 0.0, DOOR_H)],
+         e=[door(-59.0)],
          floor="labfloor", roof="lab")
     slab(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3, LAB2, "labfloor")
     labels.append(("SERVICE TUBE", 47, -66, 0))
