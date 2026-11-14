@@ -9,7 +9,23 @@ extends RefCounted
 const TABLES := {
 	"scav": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15},
 	"raider": {"ak": 50, "smg": 30, "shotgun": 20},
+	# AI PMCs (0.36.4): any of the four AI guns, the scav table's odds.
+	"pmc": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15},
 }
+
+## What an AI PMC wears and carries (0.36.4, piece 5 of the AI PMC plan: "light armor most of the time, sometimes none
+## or heavy, sometimes a helmet, a small backpack"). The plan gave no odds, so these are PROPOSED numbers for the
+## owner to approve before bots are switched on (tunable here, piece 7). Weights: item id ("" = none) -> weight.
+const PMC_ARMOR := {"armor_light": 60, "": 25, "armor_heavy": 15}
+## Share of AI PMCs in a helmet, and which one. Decided from the bot's id (`pmc_helmet`), because the helmet has to
+## match the hat on its outfit and every screen only knows the id.
+const PMC_HELMET_CHANCE := 0.3
+const PMC_HELMETS := {"helmet_basic": 80, "helmet_good": 20}
+## Backpack it carries (it ends up on its body): item id ("" = none) -> weight.
+const PMC_BACKPACK := {"": 55, "backpack_small": 35, "backpack_medium": 10}
+## A bandage stack it carries, the share of AI PMCs with a medkit too, and its ammo: the carried gun's rounds, rolled
+## like any body's (ItemDB.roll_count).
+const PMC_MEDKIT_CHANCE := 0.15
 
 ## How a gun changes the AI's shooting: "mult" multiplies its stats, "set" replaces them.
 ## Rough damage per second up close against the AK (scav): SMG about the same, shotgun a little less but in big
@@ -79,3 +95,48 @@ static func dropped_gun(gun: String, parts: Array, part_chance: float) -> ItemSt
 			var part: String = options.pick_random()
 			stack.attachments[ItemDB.attachment_slot_for(gun, part)] = part
 	return stack
+
+
+## One key of `weights` (item id -> weight), or "" for none.
+static func roll_weighted(weights: Dictionary, rng: RandomNumberGenerator = null) -> String:
+	var total := 0
+	for weight: int in weights.values():
+		total += weight
+	var roll := (rng.randi() if rng != null else randi()) % total
+	for key: String in weights:
+		roll -= weights[key]
+		if roll < 0:
+			return key
+	return weights.keys()[0]
+
+
+## The helmet an AI PMC with this id wears ("" = none). Only the id decides, so the server and every screen agree
+## (the outfit's hat is picked to match, Scav.pick_look).
+static func pmc_helmet(seed_value: int) -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	if rng.randf() >= PMC_HELMET_CHANCE:
+		return ""
+	return roll_weighted(PMC_HELMETS, rng)
+
+
+## An AI PMC's own kit for `ai` (a Scav), set before it puts its gear on: armor, helmet (from `seed_value`) and
+## backpack. The gun comes from the "pmc" table through `loadout`.
+static func roll_pmc_kit(ai: Object, seed_value: int) -> void:
+	ai.set("armor", roll_weighted(PMC_ARMOR))
+	ai.set("helmet", pmc_helmet(seed_value))
+	ai.set("pack", roll_weighted(PMC_BACKPACK))
+
+
+## What its body holds on top of the rolled loot (`kit`): its backpack, the rounds for its gun and some meds.
+static func pmc_extras(gun: String, pack: String) -> Array:
+	var extras: Array = []
+	if pack != "":
+		extras.append(ItemStack.new(pack))
+	var ammo: String = ItemDB.ITEMS.get(gun, {}).get("ammo", "")
+	if ammo != "":
+		extras.append([ammo, ItemDB.roll_count(ammo)])
+	extras.append(["bandage", ItemDB.roll_count("bandage")])
+	if randf() < PMC_MEDKIT_CHANCE:
+		extras.append(["medkit", 1])
+	return extras

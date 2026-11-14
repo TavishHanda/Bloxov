@@ -304,6 +304,11 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 ## way they protect a player, wear down from hits the same way, and end up on its body as they are.
 @export var armor := ""
 @export var helmet := ""
+## An AI PMC's own kit (0.36.4): "pmc" rolls its armor, helmet and backpack each spawn (AILoadouts.roll_pmc_kit) and
+## puts them, its gun's rounds and some meds on its body. "" = the scene's own armor and helmet, as for every other AI.
+@export var kit := ""
+## The backpack that kit gave it (it only ends up on its body).
+var pack := ""
 ## Item id of that gun.
 @export var weapon_drop := ""
 ## What it carries (0.15.5, AILoadouts): a loadout table ("scav", "raider": a random gun each spawn) or a gun id.

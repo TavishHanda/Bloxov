@@ -40,7 +40,9 @@ func _ready() -> void:
 		accuracy_far *= skill
 		accuracy_long *= skill
 	if operator_look and not puppet:
-		pick_look(randi())
+		pick_look(get_instance_id())
+	if kit == "pmc" and not puppet:
+		AILoadouts.roll_pmc_kit(self, get_instance_id())
 	if loadout != "":
 		var gun := AILoadouts.pick(loadout)
 		AILoadouts.apply_style(self, gun)
@@ -321,7 +323,11 @@ func pick_look(seed_value: int) -> void:
 	if pixel == null:
 		return
 	if operator_look:
-		pixel.pick_outfit(Operators.LIST[posmod(seed_value, Operators.LIST.size())]["look"])
+		# Its hat matches its real helmet: a helmeted AI PMC (AILoadouts.pmc_helmet) wears one of the helmet outfits.
+		var helmeted := kit == "pmc" and AILoadouts.pmc_helmet(seed_value) != ""
+		var options: Array = Operators.LIST.filter(func(entry: Dictionary) -> bool:
+			return kit != "pmc" or String(entry["look"]["Hat"]).begins_with("helmet") == helmeted)
+		pixel.pick_outfit(options[posmod(seed_value, options.size())]["look"])
 	else:
 		pixel.pick_outfit_seeded(seed_value)
 
@@ -368,7 +374,10 @@ func _on_died() -> void:
 		return
 	var drops: Array = []
 	if weapon_drop != "" and randf() < weapon_drop_chance:
-		drops.append(AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance))
+		var gun_stack := AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance)
+		if kit == "pmc":
+			gun_stack.durability = ItemDB.found_durability(weapon_drop)   # (worn 40-100%, like any found gun)
+		drops.append(gun_stack)
 	for id in extra_drops:
 		drops.append([id, 1])
 	for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):
@@ -379,6 +388,8 @@ func _on_died() -> void:
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])
+	if kit == "pmc":
+		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
 	var title := body_name
 	if bot_name != "":
 		# (an AI PMC, 0.36.2: a player's body, dog tag and all)

@@ -6407,6 +6407,66 @@ func _section_old_bloxov() -> void:
 	await _frames(2)
 
 
+func _pmc_kit_checks() -> void:
+	# Kits (0.36.4, piece 5): what an AI PMC wears and carries, and what its body holds. The odds are proposals.
+	var wears := {"armor_light": 0, "": 0, "armor_heavy": 0}
+	var helmets := 0
+	var packs := 0
+	var matched := true
+	for i in 300:
+		var bot := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+		bot.puppet = false
+		main.add_child(bot)
+		wears[bot.armor] += 1
+		helmets += 1 if bot.helmet != "" else 0
+		packs += 1 if bot.pack != "" else 0
+		var hat := String((bot.model as PixelModel).outfit["Hat"])
+		matched = matched and (hat.begins_with("helmet") == (bot.helmet != ""))
+		bot.queue_free()
+	_check(wears["armor_light"] > wears[""] and wears[""] > 0 and wears["armor_heavy"] > 0 and wears["armor_light"] > wears["armor_heavy"],
+		"AI PMCs wear light armor most of the time, sometimes none or heavy (%s)" % [wears])
+	_check(helmets > 40 and helmets < 140, "some AI PMCs wear a helmet (%d of 300)" % helmets)
+	_check(packs > 60 and packs < 180, "some AI PMCs carry a backpack (%d of 300)" % packs)
+	_check(matched, "an AI PMC's hat matches its helmet")
+	_check(AILoadouts.pmc_helmet(1234) == AILoadouts.pmc_helmet(1234), "a bot's helmet is decided by its id alone")
+	# Its body: the gun, its worn gear, rounds, meds, 1-3 rolled items, a backpack sometimes, and its dog tag.
+	var rounds_ok := true
+	var gun_ok := true
+	var worn_ok := true
+	for i in 20:
+		var bot := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+		bot.puppet = false
+		bot.bot_name = "Koda_77"
+		main.add_child(bot)
+		bot.global_position = Vector3(0, 0.1, 60)
+		await physics_frame
+		var gun := bot.carried_gun
+		bot.health.take_damage(500)
+		await physics_frame
+		var bag: LootContainer = null
+		for node in main.get_children():
+			if node is LootContainer and node.global_position.distance_to(Vector3(0, 0.1, 60)) < 3.0:
+				bag = node
+		if bag == null:
+			gun_ok = false
+			continue
+		var all: Array = bag.grid.stacks.duplicate()
+		for slot: String in bag.gear:
+			all.append_array(bag.gear[slot].stacks)
+		var ids := all.map(func(st: ItemStack) -> String: return st.id)
+		for st: ItemStack in all:
+			if st.id == gun:
+				worn_ok = worn_ok and st.condition() >= 0.39
+		gun_ok = gun_ok and ids.has(gun) and ids.has("player_tag") and ids.has("bandage")
+		var ammo: String = ItemDB.ITEMS[gun].get("ammo", "")
+		rounds_ok = rounds_ok and (ammo == "" or ids.has(ammo))
+		bag.queue_free()
+	_check(gun_ok, "an AI PMC's body holds its gun, bandages and its dog tag")
+	_check(rounds_ok, "an AI PMC's body holds rounds for its gun")
+	_check(worn_ok, "an AI PMC's gun comes off worn 40-100%")
+	_check(AILoadouts.TABLES["pmc"].has("pistol") and ItemDB.LOOT_TABLES.has("pmc"), "AI PMCs use the pmc gun table and the pmc loot table")
+
+
 func _section_pmc_ai() -> void:
 	# AI PMCs (0.36.1, piece 2 of the owner's AI PMC plan): the player model on the shared AI brain, net kind 4.
 	# Owner's picks: hit chance 70% close, 35% at 28 m, 20% far, 100 HP, always alone, silent, never uses up the
@@ -6434,14 +6494,19 @@ func _section_pmc_ai() -> void:
 	var looks: Array = Operators.LIST.map(func(e: Dictionary) -> Dictionary: return e["look"])
 	_check(looks.has((a.model as PixelModel).outfit), "an AI PMC wears a player outfit")
 	a.pick_look(7)
-	_check((a.model as PixelModel).outfit == Operators.LIST[7 % Operators.LIST.size()]["look"], "the same id gives the same outfit on every screen")
+	var first_look: Dictionary = (a.model as PixelModel).outfit
+	a.pick_look(7)
+	_check(looks.has(first_look) and (a.model as PixelModel).outfit == first_look, "the same id gives the same outfit on every screen")
 	var puppet := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
 	puppet.puppet = true
 	main.add_child(puppet)
 	puppet.pick_look(-3)
-	_check((puppet.model as PixelModel).outfit == Operators.LIST[posmod(-3, Operators.LIST.size())]["look"] and puppet.accuracy_near == 0.7
+	var puppet_look: Dictionary = (puppet.model as PixelModel).outfit
+	puppet.pick_look(-3)
+	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look and puppet.accuracy_near == 0.7
 		and puppet.faction == &"pmc_%d" % puppet.get_instance_id(), "a puppet AI PMC takes its outfit from the id")
 	puppet.queue_free()
+	await _pmc_kit_checks()
 	# Silent: no callouts, no chatter.
 	var said := []
 	a.barked.connect(func(kind: String) -> void: said.append(kind))
