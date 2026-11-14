@@ -379,12 +379,19 @@ func _on_died() -> void:
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])
+	var title := body_name
+	if bot_name != "":
+		# (an AI PMC, 0.36.2: a player's body, dog tag and all)
+		title = "%s's Body" % bot_name
+		var tag := ItemStack.new("player_tag")
+		tag.label = bot_name.left(ItemStack.LABEL_MAX)
+		drops.append(tag)
 	for drop: Variant in drops:
 		if drop is ItemStack:
 			(drop as ItemStack).mark_found()   # (its gun, the gun's attachments and worn gear are found in raid, 0.16.13)
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	# (Scavs and snipers: their body shows as the backpack they wore, LootContainer.BACKPACK_BODIES, 0.17.12.)
-	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
+	LootContainer.spawn_bag(get_parent(), global_position, title, drops, 1.0, true)
 	queue_free()
 
 

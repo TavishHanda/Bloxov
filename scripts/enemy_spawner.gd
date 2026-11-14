@@ -172,7 +172,8 @@ func _physics_process(delta: float) -> void:
 ## Advances the raid clock by `delta` seconds and spawns whatever is due (the smoke test calls this directly).
 func tick(delta: float) -> void:
 	_elapsed += delta
-	if RaidScope.nodes(self, &"enemies").size() >= max_alive:
+	# (AI PMCs, 0.36.2, aren't the spawner's: they never take a scav's or Raider's place)
+	if RaidScope.nodes(self, &"enemies").filter(func(e: Node) -> bool: return not e.get("loner")).size() >= max_alive:
 		return
 	if zones.is_empty():
 		if raiders_spawned < mini(raider_budget, raider_times.size()) and _elapsed >= raider_times[raiders_spawned]:

@@ -694,7 +694,7 @@ func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
 	var online := Network.main.in_online_raid()
 	var grenade := Grenade.spawn(get_tree().current_scene, from, vel, not online)
 	if not online:
-		grenade.on_kill = func(target: String) -> void: Quests.record_kill(target, "grenade", ["grenade"])
+		grenade.on_kill = func(target: String, _ai: Node) -> void: Quests.record_kill(target, "grenade", ["grenade"])
 	if online:
 		Network.main.send_grenade(from, vel)
 	Effects.sound(get_tree().current_scene, THROW_SOUND, -4.0)

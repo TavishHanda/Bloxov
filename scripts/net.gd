@@ -401,17 +401,22 @@ func _state(state: Array) -> void:
 		world.record(peer, state, _now())
 		world.update_proxy(peer, state)
 	# Just died: credit whoever hit them last (within 10 s, or 40 s if they bled out downed: down for up to 30 s).
+	var window := 40.0 if old_flags & Hitbox.FLAG_DOWNED else 10.0
 	if state[4] & Hitbox.FLAG_DEAD and not was_dead and _last_attacker.has(peer):
 		var attacker: Array = _last_attacker[peer]
-		var window := 40.0 if old_flags & Hitbox.FLAG_DOWNED else 10.0
 		var killer := 0
 		if _now() - attacker[1] < window:
 			_player_kills[peer] = true
 			killer = attacker[0]
 			if _peer_open(killer):
 				_kill_confirmed.rpc_id(killer, "player")
+			if accounts != null:
+				accounts.raid_kill(killer, "player", "")   # (0.36.2: counted the same as a bot kill)
 		_last_attacker.erase(peer)
-		_tell_kill_feed(matchmaker.players[peer]["raid"], killer, peer)
+		_tell_kill_feed(matchmaker.players[peer]["raid"], killer, peer, world.bot_killer(peer, window) if killer == 0 and world != null else "")
+	elif state[4] & Hitbox.FLAG_DEAD and not was_dead and world != null and world.bot_killer(peer, window) != "":
+		# (an AI PMC got them, 0.36.2: the feed names it as it names a player)
+		_tell_kill_feed(matchmaker.players[peer]["raid"], 0, peer, world.bot_killer(peer, window))
 
 
 ## Server: a state that passed the anti-cheat checks. Dead and extracted stay that way (until the next raid);
@@ -585,9 +590,10 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 
 
 ## Tells everyone in raid `raid_id` that `victim` died, and who killed them (0 = nobody got the credit).
-func _tell_kill_feed(raid_id: int, killer: int, victim: int) -> void:
-	var killer_name: String = matchmaker.players[killer]["name"] if matchmaker.players.has(killer) else ""
-	var victim_name: String = matchmaker.players[victim]["name"] if matchmaker.players.has(victim) else "PMC"
+## An AI PMC (0.36.2) is named instead: `bot_killer` killed them, or the victim was the bot `bot_victim` (victim 0).
+func _tell_kill_feed(raid_id: int, killer: int, victim: int, bot_killer := "", bot_victim := "") -> void:
+	var killer_name: String = matchmaker.players[killer]["name"] if matchmaker.players.has(killer) else bot_killer
+	var victim_name: String = bot_victim if bot_victim != "" else (matchmaker.players[victim]["name"] if matchmaker.players.has(victim) else "PMC")
 	for peer in _raid_peers(raid_id):
 		_kill_feed_line.rpc_id(peer, killer_name, victim_name, peer == killer, peer == victim)
 
@@ -760,9 +766,10 @@ func _grenade(from: Vector3, vel: Vector3) -> void:
 	if not NetGuard.use_item(_carried.get(peer, {}), "grenade"):
 		_caught(peer, "item", "threw a grenade they don't have")
 		return
-	world.throw_grenade(from, vel, func(target: String) -> void:
+	world.throw_grenade(from, vel, func(target: String, ai: Node) -> void:
+		_ai_killed(peer, world, ai)
 		if accounts != null:
-			accounts.raid_kill(peer, target, "grenade", ["grenade"]))
+			accounts.raid_kill(peer, _kill_target(world, ai, target), "grenade", ["grenade"]))
 	for other in _raid_peers(matchmaker.players[peer]["raid"]):
 		if other != peer:
 			_grenade_seen.rpc_id(other, from, vel)
@@ -909,13 +916,28 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3,
 	if _peer_open(attacker):
 		_hit_confirmed.rpc_id(attacker, hit["headshot"], shown, hit.get("end", attacker_pos))
 	if killed:
-		# (what it was, by its scene's name: scav, sniper, raider, boss; for quests, 0.16.13)
-		var target := String(hit["enemy"].scene_file_path).get_file().get_basename()
+		# (what it was, by its scene's name: scav, sniper, raider, boss; for quests, 0.16.13; an AI PMC is a "player")
+		var world := _world_of(attacker)
+		var target := _kill_target(world, hit["enemy"], String(hit["enemy"].scene_file_path).get_file().get_basename())
+		_ai_killed(attacker, world, hit["enemy"])
 		if _peer_open(attacker):
 			_kill_confirmed.rpc_id(attacker, target)
 		if accounts != null:
 			# (PvP quests are counted here, 0.31.4; with what the server saw of the kill, 0.31.15)
 			accounts.raid_kill(attacker, target, weapon, Quests.kill_tags(attacker_pos, hit["enemy"].global_position, quiet))
+
+
+## What a kill counts as for quests and the player's record: `target` (the AI's scene name), or "player" for an AI PMC
+## (owner, 0.36.2: bot kills count as PMC kills, so nothing marks them).
+func _kill_target(world: RaidWorld, ai: Node, target: String) -> String:
+	return "player" if world != null and world.bot_name_of(ai) != "" else target
+
+
+## `attacker` killed AI `ai` in `world`: an AI PMC's death goes in the raid's kill feed, as a player's does.
+func _ai_killed(attacker: int, world: RaidWorld, ai: Node) -> void:
+	var bot := world.bot_name_of(ai) if world != null else ""
+	if bot != "":
+		_tell_kill_feed(matchmaker.players[attacker]["raid"] if matchmaker.players.has(attacker) else 0, attacker, 0, "", bot)
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
@@ -1118,6 +1140,11 @@ func _send_raid_start(id: int) -> void:
 		_health.erase(peer)
 		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
+	# AI PMCs (0.36.2; Matchmaker.bots is 0 unless --bots): at the spawn points the real squads didn't take.
+	if int(raid.get("bots", 0)) > 0:
+		var slots: Array = raid["spawns"].values().map(func(spawn: Array) -> int: return int(spawn[0]))
+		var made := world.spawn_bots(int(raid["bots"]), int(raid["seed"]), slots, raid_names.values())
+		_log("raid %d: %d AI PMCs (%s)" % [id, made.size(), ", ".join(made.map(func(bot: Node) -> String: return String(bot.get("bot_name"))))])
 	for peer in raid["players"]:
 		var team: Array[int] = []
 		for other in raid["players"]:

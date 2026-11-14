@@ -58,7 +58,8 @@ func handle(peer: int, action: String, fields: Dictionary) -> void:
 	match action:
 		"sign_up":
 			var username: String = text.call("username", 20)
-			if NameFilter.is_blocked(username):
+			# (AI PMC names, 0.36.2: no account ever shares one with a bot)
+			if NameFilter.is_blocked(username) or BotNames.is_bot_name(username):
 				_answer(peer, action, {"error": "bad_username"})
 				return
 			reply = await api.request("signup", {"username": username, "password": text.call("password", 128),

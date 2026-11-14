@@ -20,7 +20,7 @@ const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -5415,6 +5415,150 @@ func _section_anticheat() -> void:
 	_check(got["lost"] and got["why"].contains("cheating") and not c1.is_online(), "a player caught over and over is kicked (%s)" % got["why"])
 	await _until(func() -> bool: return not server.matchmaker.players.has(id))
 	_check(not server.matchmaker.players.has(id), "the server lets go of a kicked player")
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1]:
+		n.get_parent().queue_free()
+	await _frames(2)
+
+
+func _section_online_bots() -> void:
+	# AI PMCs on the server (0.36.2, piece 3 of the owner's AI PMC plan): with the fill rule on, a lone player's raid
+	# gets its bots, each alone at the free spawn point farthest from the real squads, with a made-up player name. A
+	# bot's death and kills go in the kill feed like a player's, its body has its dog tag, and its kill counts as a PMC's.
+	var names := BotNames.LIST
+	var lower := {}
+	for bot_name in names:
+		lower[bot_name.to_lower()] = true
+	_check(names.size() >= 150 and lower.size() == names.size()
+		and Array(names).all(func(n: String) -> bool: return NameFilter.clean(n, "") == n and n.length() <= NameFilter.MAX_LENGTH),
+		"%d different bot names, each one passes the name filter as it is" % names.size())
+	var picked := BotNames.pick(3, 42, ["koda_77"])
+	_check(picked.size() == 3 and picked == BotNames.pick(3, 42, ["koda_77"]) and not picked.has("Koda_77")
+		and BotNames.pick(3, 42, [picked[0]]).find(picked[0]) == -1 and BotNames.is_bot_name("KODA_77") and not BotNames.is_bot_name("Koda"),
+		"bot names come from the raid's seed, never one a real player there uses; sign-up spots them in any case")
+	# The spawner's limit only counts its own AI: a bot never takes a scav's place.
+	var spawner := EnemySpawner.new()
+	spawner.enemy_scene = load(SCAV_SCENE)
+	spawner.raider_scene = load(RAIDER_SCENE)
+	spawner.initial_count = 0
+	spawner.max_alive = 1
+	spawner.scav_interval_min = 0.0
+	spawner.scav_interval_max = 0.0
+	spawner.set_physics_process(false)
+	for i in 4:
+		var marker := Marker3D.new()
+		marker.position = player.global_position + Vector3(70, 0, 0).rotated(Vector3.UP, i * TAU / 4.0)
+		spawner.add_child(marker)
+	main.add_child(spawner)
+	var lone_bot := _spawn(PMC_AI_SCENE, player.global_position + Vector3(0, 0, 60)) as Scav
+	await physics_frame
+	spawner.tick(1.0)
+	_check(spawner.scavs_spawned == 1, "the spawner leaves AI PMCs out of its count (a bot never takes a scav's place)")
+	for node in RaidScope.nodes(spawner, &"enemies"):
+		node.queue_free()
+	spawner.queue_free()
+	await physics_frame
+
+	var server := _net_peer("BotServer")
+	var c1 := _net_peer("BotClient")
+	server.start_server(19087)
+	server.guard.check_moves = false
+	server.matchmaker.bots_on = true
+	server.matchmaker.bot_wait = 0.2
+	var got := {"feed": [], "target": ""}
+	c1.kill_feed.connect(func(killer: String, victim: String, mine: bool, ours: bool) -> void:
+		got["feed"].append(["%s>%s" % [killer, victim], mine, ours]))
+	c1.kill_confirmed.connect(func(target: String) -> void: got["target"] = target)
+	c1.go_online("localhost:19087", "Koda_77")
+	await _until(func() -> bool: return c1.is_client() and c1.party_code != "")
+	c1.set_queued(true)
+	await _until(func() -> bool: return c1.in_raid and not server._worlds.is_empty(), 5.0)
+	_send_test_kit(c1)
+	var id: int = c1.multiplayer.get_unique_id()
+	var raid_id: int = server.matchmaker.players[id]["raid"]
+	var raid: Dictionary = server.matchmaker.raids[raid_id]
+	var world: RaidWorld = server._worlds[raid_id]
+	var bots := RaidScope.nodes(world.raid, &"enemies").filter(func(e: Node) -> bool: return e.get("bot_name") != "")
+	_check(raid["bots"] == Matchmaker.bots_for(1, raid["seed"]) and bots.size() == raid["bots"] and world.bots.size() == bots.size()
+		and bots.all(func(b: Node) -> bool: return b.net_kind == 4 and b.loner),
+		"a lone player's raid gets its %d AI PMCs on the server" % bots.size())
+	var bot_names: Array = bots.map(func(b: Node) -> String: return b.bot_name)
+	var unique := {}
+	for n: String in bot_names:
+		unique[n] = true
+	_check(bot_names.all(func(n: String) -> bool: return BotNames.is_bot_name(n)) and not bot_names.has("Koda_77") and unique.size() == bot_names.size(),
+		"each bot has its own name, never the real player's (%s)" % ", ".join(bot_names))
+	# Where they start: free player spawn points, the farthest ones from the real squad.
+	var points := world.raid.get_node("PlayerSpawns").get_children()
+	var slot: int = raid["spawns"][id][0]
+	var me := Raid.spawn_position(points, slot, 0, raid["seed"])
+	var spots: Array[float] = []
+	for s in points.size():
+		if s != posmod(slot, points.size()):
+			var p := Raid.spawn_position(points, s, 0, raid["seed"])
+			spots.append(Vector2(p.x - me.x, p.z - me.z).length())
+	spots.sort()
+	spots.reverse()
+	var bot_dist: Array[float] = []
+	for b: Node3D in bots:
+		bot_dist.append(Vector2(b.global_position.x - me.x, b.global_position.z - me.z).length())
+	bot_dist.sort()
+	bot_dist.reverse()
+	var farthest := true
+	for i in bot_dist.size():
+		farthest = farthest and absf(bot_dist[i] - spots[i]) < 1.0
+	_check(farthest and bots.all(func(b: Node) -> bool: return b.state == Scav.State.IDLE),
+		"the bots start at the free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist))
+	await _until(func() -> bool: return c1.enemies.filter(func(e: Array) -> bool: return e[1] == 4).size() == bots.size())
+	_check(c1.enemies.filter(func(e: Array) -> bool: return e[1] == 4).size() == bots.size(), "the player's game gets them as AI PMC puppets")
+
+	# A bot hurts the player: its kill if they die; a scav's hit after it takes that back.
+	var bot := bots[0] as Scav
+	bot.process_mode = Node.PROCESS_MODE_DISABLED
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, 0])
+		return world.proxies.has(id))
+	var proxy: Node = world.proxies[id]
+	proxy.health.take_damage(15, bot.global_position)
+	_check(world.bot_killer(id, 10.0) == bot.bot_name, "the server knows which bot hurt the player")
+	proxy.health.take_damage(15, Vector3(999, 0, 999))
+	_check(world.bot_killer(id, 10.0) == "", "another AI's hit after it: not the bot's kill")
+	proxy.take_bash(10, bot.global_position, 0.0, 0.0)
+	_check(world.bot_killer(id, 10.0) == bot.bot_name, "a bot's rifle butt counts too")
+
+	# The player kills a bot: the kill feed names it, it counts as a PMC kill, its body has its dog tag.
+	var bot_name: String = bot.bot_name
+	var at := bot.global_position
+	server._damage(id, {"enemy": bot, "headshot": false, "end": at}, 9999, at + Vector3(0, 0, 5), "ak")
+	await _until(func() -> bool: return got["target"] != "" and not got["feed"].is_empty())
+	_check(got["target"] == "player" and got["feed"].has(["Koda_77>%s" % bot_name, true, false]),
+		"killing a bot: a PMC kill, and the raid's kill feed names it (%s, %s)" % [got["target"], str(got["feed"])])
+	await _frames(2)
+	var body: LootContainer = null
+	for node in world.raid.get_children():
+		if node is LootContainer and (node as LootContainer).display_name == "%s's Body" % bot_name:
+			body = node
+	var tag: ItemStack = body.gear[LootContainer.TAG_SLOT].stacks[0] if body != null and body.gear.has(LootContainer.TAG_SLOT) and not body.gear[LootContainer.TAG_SLOT].is_empty() else null
+	_check(tag != null and tag.id == "player_tag" and tag.title() == "%s's Dog Tag" % bot_name,
+		"a bot leaves \"%s's Body\" with its dog tag in the tag slot" % bot_name)
+
+	# Another bot kills the player: the feed names it as their killer.
+	got["feed"].clear()
+	var killer := bots[1] as Scav
+	proxy.health.take_damage(15, killer.global_position)
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
+		return not got["feed"].is_empty())
+	_check(got["feed"].has(["%s>Koda_77" % killer.bot_name, false, true]), "killed by a bot: the feed names the bot (%s)" % str(got["feed"]))
+
+	# The raid closes when its last player leaves: its bots go with it.
+	var ids: Array = world.bots.keys()
+	c1.leave_raid()
+	await _until(func() -> bool: return server._worlds.is_empty())
+	await _frames(2)
+	_check(server._worlds.is_empty() and ids.all(func(i: int) -> bool: return not is_instance_id_valid(i)), "the raid's bots go when it closes")
+	c1.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
 	server.multiplayer.multiplayer_peer.close()
 	for n in [server, c1]:
 		n.get_parent().queue_free()
