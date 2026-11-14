@@ -2,7 +2,7 @@
 """Riptide (map 2) gray box: writes scenes/maps/riptide.tscn. Edit this script and re-run it, never the scene.
 
 The plan (Tavish, 2026-11-09): the Leviathan, a drillship moored off a port, with Site Zero (the lab) on the
-sea floor under it and the boss Zero in its core. The port (The Landing) on the west: v3 (Tavish: "too open, too
+sea floor under it and the boss Raijin (Zero until 0.35.6) in its core. The port (The Landing) on the west: v3 (Tavish: "too open, too
 small") made it a dense, tall harbor district with transit sheds along the quay. Five ways across (pier with a
 covered pipe gallery and a shed, the high grain gallery to the ship loader, the pontoon under it, the breakwater to
 the bow, the barge line to the stern) plus sea-side ladders from the boats; the drill floor splits the deck; several
@@ -1085,7 +1085,7 @@ def tower():
 # ---------------------------------------------------------------------------------------------- Site Zero
 def lab():
     """The ship's two lowest decks (0.35.2; before, on the sea floor): Lab 1 (the dock, the sub bay) under the moon pool; Lab 2's north wing, the
-    ring round the core, the south wing; the core (Zero's room, a tall chamber); the service tube from the pump room."""
+    ring round the core, the south wing; the core (Raijin's room, a tall chamber); the service tube from the pump room."""
     labels.append(("SITE ZERO (BELOW)", 48, 20, 0))
     # Lab 1: the dock (y -22): the lift and stairs come in from the north, the sub bay on the east side
     l0, l1, lz0, lz1 = 30.0, 66.0, 7.0, 27.0
@@ -1121,7 +1121,7 @@ def lab():
          floor="labfloor")
     slab(l0, l1, rz0, rz1, LAB2 + 4.0, "lab", holes=[(cx0, cx1, cz0, cz1)])
     room(cx0, cx1, cz0, cz1, LAB2, HULL_B - SLAB_T - LAB2, "core", n=[door(40.0, 2.0), (48.0, 3.0, 6.0, 9.0)], s=[door(48.0, 2.4)])
-    labels.append(("ZERO'S CORE", 48, 50, 1))
+    labels.append(("RAIJIN'S CORE", 48, 50, 1))
     for x, z in [(40.0, 44.0), (56.0, 44.0), (40.0, 56.0), (56.0, 56.0)]:   # the program's tanks (cover)
         box(x - 1.3, LAB2, z - 1.3, x + 1.3, LAB2 + 4.5, z + 1.3, "lab")
     add_loot("LabCore", "safe", 37.0, LAB2, 60.5, 180)
@@ -1166,13 +1166,16 @@ def lab():
     labels.append(("SERVICE TUBE", 47, -66, 0))
 
 # ---------------------------------------------------------------------------------------------- AI
-# Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, Zero below.
+# Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, Raijin below.
 AI_ZONES = [("Landing", -105.0, SHORE, 0.0, 100.0, 5, 0, 0.8), ("Deck", 48.0, DECK, -30.0, 70.0, 4, 0, 1.0),
             ("Tower", 48.0, DECK2, 90.0, 26.0, 0, 2, 1.0), ("Hold", 48.0, HULL_A, 0.0, 80.0, 4, 0, 1.0),
             ("Lab", 48.0, LAB2, 30.0, 70.0, 0, 2, 1.5)]
 AI_ROAMERS = 2
 AI_SNIPERS = 1
-AI_BOSS = ("Lab", 3, 1.0)   # Zero always spawns (gray box: Bon's setup until Zero's own loadout is in)
+# Raijin (Zero until 0.35.6) always spawns. ELITE_GUARDS (waiting on the owner's OK of their numbers): two guards,
+# Ace and Orbit (scenes/guard_raijin.tscn), in place of three Raiders.
+ELITE_GUARDS = False
+AI_BOSS = ("Lab", 2 if ELITE_GUARDS else 3, 1.0)
 ZONE_SPOTS = {
     "Landing": [(-115.0, SHORE, -127.0), (-100.0, SHORE, -99.0), (-134.0, SHORE, -85.0), (-70.0, SHORE, -40.0),
                 (-110.0, SHORE, 0.0), (-62.0, SHORE, 0.0), (-80.0, SHORE, 104.0), (-112.0, SHORE, 104.0),
@@ -1202,7 +1205,7 @@ def spawner_meta():
     scavs = sum(z[5] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[6] for z in AI_ZONES)
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
-            f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}, "scene": "res://scenes/boss_zero.tscn"}}, '
+            f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}, "scene": "res://scenes/boss_raijin.tscn"' + (', "guard_scene": "res://scenes/guard_raijin.tscn", "guard_names": ["Ace", "Orbit"]' if ELITE_GUARDS else "") + '}, '
             f'"max_alive": 28, "scav_budget": {scavs + 4}, "raider_budget": {raiders + 3}, '
             '"scav_interval_min": 60.0, "scav_interval_max": 80.0, '
             '"raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}')
