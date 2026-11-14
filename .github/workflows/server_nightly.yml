@@ -1,0 +1,47 @@
+name: Server nightly
+
+# Once a day: if the game server is behind main (game changes that didn't raise the net version, so they weren't
+# deployed right away), start the normal Web build, which tests and then deploys web and server. If the server is
+# up to date, restart the dyno so Heroku's daily restart happens at this hour instead of mid-evening.
+# 11:00 UTC = 4 am Mountain Standard Time (3 am in summer time). Change the hour in the cron line below.
+on:
+  schedule:
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    env:
+      HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+      APP: bloxov-server
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: No Heroku key
+        if: env.HEROKU_API_KEY == ''
+        run: echo "::notice::No HEROKU_API_KEY secret, nothing to do."
+      - uses: actions/checkout@v5
+        if: env.HEROKU_API_KEY != ''
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Catch the server up, or restart it
+        if: env.HEROKU_API_KEY != ''
+        run: |
+          KEY=$(printf '%s' "$HEROKU_API_KEY" | tr -d '[:space:]')
+          deployed=$(git ls-remote "https://heroku:$KEY@git.heroku.com/$APP.git" refs/heads/main 2>/dev/null | cut -f1) || deployed=""
+          echo "Deployed commit: ${deployed:-unknown}"
+          result=$(bash tools/server_deploy_check.sh "$deployed" "$(git rev-parse HEAD)" schedule)
+          echo "Result: $result"
+          if [ "$result" = "none" ]; then
+            curl -fsS -X DELETE -H "Authorization: Bearer $KEY" -H "Accept: application/vnd.heroku+json; version=3" -H "Content-Type: application/json" "https://api.heroku.com/apps/$APP/dynos"
+            echo "Server up to date; dyno restarted."
+          else
+            # The Web build tests, then deploys web and the server (a manual run always deploys the server).
+            gh workflow run web.yml --ref main
+            echo "Server behind main; started the Web build."
+          fi
