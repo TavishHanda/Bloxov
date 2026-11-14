@@ -27,7 +27,7 @@ func _initialize() -> void:
 	var models := GunViewModels.build_all(gun)
 	models["rifle"] = gun.get_node("Model"); models["pistol"] = gun.get_node("PistolModel")
 	var ads := ADS.merged(GunViewModels.ADS)
-	for key: String in ["rifle", "pistol", "smg", "shotgun", "sniper"]:
+	for key: String in ["rifle", "reaper", "pistol", "smg", "shotgun", "sniper"]:
 		var model: Node3D = models[key]
 		var old := model.get_node("Hands"); model.remove_child(old); old.free()
 		GunViewModels.add_hands(model, HeldGun.MODELS[GunViewModels.WEAPONS[key]], hands)

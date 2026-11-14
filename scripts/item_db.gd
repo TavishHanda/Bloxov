@@ -38,7 +38,7 @@ const ITEMS := {
 		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.2, "recoil_yaw": 0.45, "noise": 35.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	"reaper": {"name": "Reaper", "desc": "Site Zero's own rifle. Takes Hound rounds, shoots straighter and faster. Only Raijin carries one.", "short": "Reaper", "kind": "weapon", "slot": "primary", "rarity": "epic", "w": 4, "h": 2, "stack": 1, "value": 30000, "durability": 1500,
-		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 30, "head": 2.0, "rpm": 650, "mag": 30, "reload": 1.6,
+		"model": "reaper", "ammo": "rifle_ammo", "auto": true, "damage": 30, "head": 2.0, "rpm": 650, "mag": 30, "reload": 1.6,
 		"spread": 0.12, "hip_spread": 0.68, "move_spread": 0.75, "ads_time": 0.28, "ads_fov": 55.0,
 		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.0, "recoil_yaw": 0.38, "noise": 35.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
