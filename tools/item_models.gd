@@ -5,7 +5,7 @@ extends RefCounted
 ## proportions matter. Long side along x, up is y, the camera looks from +z.
 ## No real brands or logos on anything (docs/STORE_RULES.md).
 
-const GUNS := {"ak": "hound", "reaper": "hound", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer",
+const GUNS := {"ak": "hound", "reaper": "reaper", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer",
 	"red_dot": "att_red_dot", "scope_4x": "att_scope_4x", "scope_8x": "att_scope_8x", "suppressor": "att_suppressor",
 	"choke": "att_choke", "foregrip": "att_foregrip"}
 ## Items shown with a model from the game itself (0.19.8, owner: the medium backpack is the green one scavs wear),

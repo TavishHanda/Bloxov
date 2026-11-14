@@ -36,7 +36,7 @@ mb.REGENERATE_TEXTURES = True          # painted from fixed seeds, so they come 
 mb.PALETTE.update({"tan": "9a855c", "tan_dark": "7c6a48", "tan_light": "ad9a70", "brass": "b08a3a",
                    "lens": "2b4a5e", "lens_light": "6f9db5", "lens_dark": "1c3140", "glass": "a9c8d6", "gun_red": "8c2f25"})
 
-PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c"}   # owner, 2026-10-23
+PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c", "reaper": "c"}   # owner, 2026-10-23
 TILE = 0.5                              # 32 px textures over 0.5 m = 64 px per meter
 OUT = os.path.join(mb.ROOT, "assets", "models", "guns")
 
@@ -518,7 +518,93 @@ def lancer(m, look):
     m.mark("Sight", (0, 0.074, 0))
 
 
-GUNS = {"hound": hound, "stinger": stinger, "wasp": wasp, "mauler": mauler, "lancer": lancer}
+# Reaper looks (letters a-f; the game uses PICKED): upper receiver, lower receiver, handguard, can, accent, furniture
+# (grip, stock), mag, stock shape, can length, band, extras.
+REAPER = {
+    "a": dict(up="black", low="stipple", hand="park", can="steel", acc="black", furn="stipple", mag="black", stock="wedge"),
+    "b": dict(up="black", low="stipple", hand="tan", can="steel", acc="black", furn="tan", mag="black", stock="wedge"),
+    "c": dict(up="black", low="black", hand="stipple", can="black", acc="park", furn="black", mag="black", stock="tube",
+              long=0.05),
+    "d": dict(up="park", low="black", hand="black", can="black", acc="park", furn="black", mag="black", stock="stub",
+              band="shell"),
+    "e": dict(up="park", low="black", hand="park", can="black", acc="black", furn="black", mag="shell", stock="stub",
+              band="shell", pad="shell"),
+    "g": dict(up="black", low="stipple", hand="olive", can="steel", acc="black", furn="olive_dark", mag="black", stock="wedge"),
+    "h": dict(up="black", low="stipple", hand="tan", can="steel", acc="black", furn="stipple", mag="bakelite", stock="wedge",
+              pad="bakelite"),
+    "i": dict(up="black", low="black", hand="olive", can="black", acc="olive_dark", furn="tan", mag="black", stock="tube",
+              long=0.05),
+    "j": dict(up="black", low="black", hand="stipple", can="black", acc="park", furn="black", mag="bakelite", stock="tube",
+              long=0.05, pad="bakelite", band="bakelite"),
+    "f": dict(up="worn", low="worn", hand="worn", can="worn", acc="black", furn="wood", mag="park", stock="wedge",
+              tape=True),
+}
+REAPER_LOOKS = "abcdefghij"
+
+
+def reaper(m, look):
+    """The Reaper (Raijin's carbine): a short compact rifle with a short barrel and flash hider (no built-in suppressor), a short rail and a stubby
+    stock. Looks a-c: black polymer with a steel can (a), the same with tan furniture (b), all black with a longer can
+    and a tube stock (c); d-f: Raijin's gun, dark steel with a red band (d), with a red mag and pad (e), a worn one
+    with wood and tape (f)."""
+    k = REAPER[look]
+    up, low, hand, can, acc, furn, mag = k["up"], k["low"], k["hand"], k["can"], k["acc"], k["furn"], k["mag"]
+    m.box((0, 0.012, 0.0), (0.058, 0.056, 0.26), up)                              # upper receiver
+    m.box((0, 0.03, 0.125), (0.05, 0.02, 0.05), up)                               # raised rear end
+    m.box((0, -0.03, 0.02), (0.054, 0.04, 0.21), low)                             # lower receiver
+    m.box((0, -0.04, -0.07), (0.05, 0.05, 0.05), low)                             # magwell
+    m.box((0.0295, 0.018, -0.03), (0.002, 0.024, 0.07), "black")                  # ejection port
+    m.box((0, 0.046, -0.01), (0.026, 0.01, 0.32), "rail")                         # short top rail
+    m.mark("Optic", (0, 0.051, 0.0))
+    z0 = -0.12
+    m.tube(0, 0.002, -0.3, z0, 0.031, hand, sides=8)                              # handguard
+    for z in (-0.16, -0.205, -0.25):
+        m.box((0.031, 0.002, z), (0.004, 0.024, 0.026), "black")                  # slots, right
+        m.box((-0.031, 0.002, z), (0.004, 0.024, 0.026), "black")                 # slots, left
+    if k.get("tape"):
+        for z in (-0.19, -0.27):
+            m.box((0, 0.002, z), (0.07, 0.07, 0.02), "tape")                      # taped handguard
+    end = -0.44 - k.get("long", 0.0)
+    m.box((0, 0.002, -0.306), (0.07, 0.07, 0.012), acc)                           # cap at the front of the handguard
+    if k.get("band"):
+        m.box((0, 0.002, -0.285), (0.07, 0.07, 0.016), k["band"])                 # red band
+    m.tube(0, 0.002, -0.312, end + 0.05, 0.0135, "park", sides=8)                 # a plain short barrel
+    m.box((0, 0.02, -0.33), (0.03, 0.03, 0.03), acc)                              # gas block
+    m.tube(0, 0.002, end + 0.05, end, 0.02, acc, sides=8)                         # flash hider
+    for z in (end + 0.012, end + 0.03):
+        m.box((0, 0.002, z), (0.046, 0.008, 0.007), "black")                      # its slots
+        m.box((0, 0.002, z), (0.008, 0.046, 0.007), "black")
+    m.box((0, 0.059, -0.17), (0.03, 0.016, 0.026), acc, part="Irons")             # front sight block
+    m.post(-0.17, 0.067, 0.083, acc)
+    m.notch(0.1, 0.051, 0.083, acc, width=0.026)
+    m.box((0, -0.092, 0.085), (0.03, 0.1, 0.044), furn, pitch=-22)                # pistol grip
+    m.box((0, -0.06, 0.04), (0.012, 0.006, 0.085), low)                           # trigger guard
+    m.box((0, -0.053, 0.0), (0.012, 0.016, 0.006), low)
+    m.box((0, -0.052, 0.036), (0.006, 0.016, 0.006), "steel")                     # trigger
+    m.part("Bolt", (0.032, 0.018, 0.0))
+    m.box((0.032, 0.018, 0.0), (0.022, 0.012, 0.014), "steel", part="Bolt")       # charging handle
+    m.box((0.031, -0.005, 0.07), (0.004, 0.018, 0.09), acc)                       # selector lever
+    pad = k.get("pad", "black")
+    if k["stock"] == "wedge":                                                     # stubby wedge stock
+        m.prism([(0.13, 0.036), (0.13, -0.035), (0.268, -0.062), (0.268, 0.018), (0.2, 0.034)], 0.022, furn)
+        m.box((0, -0.022, 0.275), (0.054, 0.084, 0.014), pad)
+    elif k["stock"] == "tube":                                                    # a short tube stock with a cheek rest
+        m.box((0, -0.006, 0.2), (0.04, 0.05, 0.14), acc)
+        m.box((0, 0.026, 0.215), (0.036, 0.012, 0.1), furn)
+        m.box((0, -0.01, 0.276), (0.054, 0.086, 0.014), pad)
+    else:                                                                         # a folded stub: a fat block, a hinge
+        m.box((0, 0.0, 0.205), (0.052, 0.07, 0.14), furn)
+        m.box((0, 0.0, 0.14), (0.06, 0.05, 0.014), acc)                           # hinge
+        m.box((0, 0.0, 0.282), (0.058, 0.074, 0.016), pad)
+    m.part("Mag", (0, -0.05, -0.065))
+    m.curved((0, -0.05, -0.065), 0.03, 0.055, 0.045, (4, 12, 22), mag, part="Mag")
+    m.mark("Muzzle", (0, 0.002, end - 0.01))
+    m.mark("Grip", (0, -0.075, 0.07))
+    m.mark("Sight", (0, 0.083, 0))
+    m.mark("Fore", (0, -0.034, -0.2))
+
+
+GUNS = {"hound": hound, "stinger": stinger, "wasp": wasp, "mauler": mauler, "lancer": lancer, "reaper": reaper}
 
 
 # ------------------------------------------------------------------------------------------------ attachments
@@ -678,7 +764,7 @@ def main():
     textures = {name: Texture("gun_" + name, os.path.join("art_source", "textures", "guns", name + ".png"),
                               painter, random.Random("gun_" + name)) for name, painter in MATS.items()}
     for gun, build in GUNS.items():
-        for look in ("a", "b", "c") if every else (PICKED[gun],):
+        for look in (REAPER_LOOKS if gun == "reaper" else "abc") if every else (PICKED[gun],):
             m = Model(gun)
             build(m, look)
             name = gun if look == PICKED[gun] else f"{gun}_{look}"
