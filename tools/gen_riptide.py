@@ -37,8 +37,10 @@ DECK2, DECK3, DECK4, ROOF = 7.5, 11.0, 14.5, 18.0
 DRILL = 12.0         # the drill floor over the middle of the ship
 HULL_A = -4.0        # the cargo hold
 HULL_B = -8.0        # the engine room and pump room (the hull's bottom)
-LAB1 = -22.0         # the dock
-LAB2 = -28.0         # the ring, the wings and the core
+# (0.35.2, owner: "the lab is supposed to be a part of the cargo ship") Site Zero is the ship's two lowest decks,
+# straight under the engine room deck, inside the hull. Before, it sat on the sea bed 14 m under the hull.
+LAB1 = -12.25        # the dock (its ceiling is the hull B deck)
+LAB2 = -18.25        # the ring, the wings and the core
 SEABED = -29.0
 
 # The ship: x 30..66 (36 m wide), z -104 (bow, north) .. 110 (stern, south)
@@ -814,7 +816,7 @@ def ship():
     footprints.append((SX0, SZ0, SX1, SZ1))
     labels.append(("LEVIATHAN", 48, 30, 1))
     # The hull's sides and ends, from the bottom to the rail above the main deck
-    bottom = HULL_B - SLAB_T
+    bottom = LAB2 - 2 * SLAB_T      # (0.35.2) the hull goes down round the lab decks
     top = DECK + BULWARK
     h = top - bottom
     gang = (0.0, 4.0, DECK - bottom, top - bottom)              # the gangway's gap in the rail
@@ -833,7 +835,8 @@ def ship():
     for x in (SX0, SX1):
         wall("z", x, SZ0, -90.0, DECK + BULWARK, FORECASTLE - DECK, "hull", t=0.5)
 
-    # Hull B (the bottom): pump room forward, the bilge, the engine room aft
+    slab(SX0, SX1, SZ0, SZ1, LAB2 - SLAB_T, "hull")   # the keel plate, under the lab's floors
+    # Hull B: pump room forward, the bilge, the engine room aft
     slab(SX0, SX1, SZ0, SZ1, HULL_B, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS),
                                                       hole(SERVICE_TUBE)])
     for z in (-56.0, 30.0):
@@ -937,41 +940,36 @@ def ship():
 
 def moon_pool():
     """The moon pool (0.33.2, owner: "not a huge staircase, endlessly turning corners"): an open well through the
-    whole ship, from the drill floor down past the main deck and the hold to the bottom of the hull, then a walled
-    trunk on down to the lab's dock. Railings round it on every deck. From the hull's bottom deck you go down one lap
-    of long ramps round the trunk's walls, open to the middle, so you see who's above and below you; a side pod
-    halfway. The riser (the drill pipe) hangs down the middle, with a catwalk out to it and a ladder down it: the
-    fast, exposed way (until the lift is built). The trunk opens wide onto the dock."""
+    whole ship, from the drill floor down past the main deck, the hold and the engine room deck to the lab's dock
+    (0.35.2: the dock is the next deck down, inside the hull). Railings round it on every deck. From the engine room
+    deck two ramps go down round the trunk's walls, open to the middle, so you see who's above and below you. The
+    riser (the drill pipe) hangs down the middle, with a catwalk out to it and a ladder down it: the fast, exposed
+    way. The trunk opens wide onto the dock."""
     x0, x1, z0, z1 = MOON
     W = 2.6
     bottom = LAB1 - SLAB_T
-    # the trunk's walls, below the hull's bottom deck
+    # the trunk's walls, from the engine room deck down to the dock (0.35.2: one deck, the lab is inside the hull)
     h = HULL_B - SLAB_T - bottom
     wall("x", z0, x0, x1, bottom, h, "hull", t=0.4)
     wall("x", z1, x0, x1, bottom, h, "hull", [(48.0, 12.0, 0.0, 3.8)], t=0.4)       # wide open onto the dock
     wall("z", x0, z0, z1, bottom, h, "hull", t=0.4)
-    wall("z", x1, z0, z1, bottom, h, "hull", [(5.7, DOOR_W, -14.0 - bottom, -14.0 - bottom + DOOR_H)], t=0.4)
-    # one lap of ramps, each a different slope: along the north wall east, the east wall south, the south wall west,
-    # the west wall north to the bottom; landings at the corners
-    runs = [((x0, HULL_B, z0 + W / 2), (x1 - W, -11.0, z0 + W / 2)),
-            ((x1 - W / 2, -11.0, z0 + W), (x1 - W / 2, -14.0, z1 - W)),
-            ((x1 - W, -14.0, z1 - W / 2), (x0 + W, -18.0, z1 - W / 2)),
-            ((x0 + W / 2, -18.0, z1 - W), (x0 + W / 2, LAB1, z0 + W))]
+    wall("z", x1, z0, z1, bottom, h, "hull", t=0.4)
+    # two ramps round the trunk's walls: along the north wall east, a landing, the east wall south to the dock's deck
+    mid = (HULL_B + LAB1) / 2
+    runs = [((x0, HULL_B, z0 + W / 2), (x1 - W, mid, z0 + W / 2)),
+            ((x1 - W / 2, mid, z0 + W), (x1 - W / 2, LAB1, z1 - W))]
     for a, b in runs:
         ramp(a, b, W)
-    for cx0, cz0, y in [(x1 - W, z0, -11.0), (x1 - W, z1 - W, -14.0), (x0, z1 - W, -18.0)]:
-        box(cx0, y - SLAB_T, cz0, cx0 + W, y, cz0 + W, "metal")
-    # posts along the open side of the upper runs (railings, gray box)
-    for (ax, ay, az), (bx, by, bz) in runs[:3]:
+    box(x1 - W, mid - SLAB_T, z0, x1, mid, z0 + W, "metal")
+    # posts along the open side of the runs (railings, gray box)
+    for (ax, ay, az), (bx, by, bz) in runs:
         for i in range(5):
             f = (i + 0.5) / 5
             px, py, pz = ax + (bx - ax) * f, ay + (by - ay) * f, az + (bz - az) * f
             ox = 0.0 if ax != bx else (-W / 2 if ax > 48 else W / 2)
             oz = 0.0 if az != bz else (W / 2 if az < 0 else -W / 2)
             box(px + ox - 0.08, py, pz + oz - 0.08, px + ox + 0.08, py + 1.0, pz + oz + 0.08, "rust")
-    # the side pod off the east wall, halfway down (loot, and a look back across the well)
-    room(x1, x1 + 6.0, 0.0, 8.0, -14.0, 3.0, "lab", w=[door(5.7)], floor="labfloor", roof="lab")
-    add_loot("LabWing", "crate", x1 + 5.0, -14.0, 1.0, -90)
+    add_loot("LabWing", "crate", x0 + 1.5, LAB1, z1 - 1.5, 90)
     # the riser: the drill pipe down the middle, a catwalk out to it from the hull's bottom deck, a ladder down it
     box(47.2, LAB1, -1.8, 48.8, 41.0, -0.2, "rust")
     slab(44.0, 52.0, -5.0, 3.0, HULL_B, "metal", holes=[(47.2, 48.8, -1.8, 0.8)])
@@ -1072,13 +1070,13 @@ def tower():
 
 # ---------------------------------------------------------------------------------------------- Site Zero
 def lab():
-    """Under the ship on the sea floor: Lab 1 (the dock, the sub bay) under the moon pool; Lab 2's north wing, the
+    """The ship's two lowest decks (0.35.2; before, on the sea floor): Lab 1 (the dock, the sub bay) under the moon pool; Lab 2's north wing, the
     ring round the core, the south wing; the core (Zero's room, a tall chamber); the service tube from the pump room."""
     labels.append(("SITE ZERO (BELOW)", 48, 20, 0))
     # Lab 1: the dock (y -22): the lift and stairs come in from the north, the sub bay on the east side
     l0, l1, lz0, lz1 = 30.0, 66.0, 7.0, 27.0
-    h1 = 3.8
-    room(l0, l1, lz0, lz1, LAB1, h1, "lab", n=[(48.0, 12.0, 0.0, 3.8)], s=[door(48.0, 2.0)], roof="lab")
+    h1 = HULL_B - SLAB_T - LAB1     # up to the engine room deck, which is its ceiling
+    room(l0, l1, lz0, lz1, LAB1, h1, "lab", n=[(48.0, 12.0, 0.0, 3.8)], s=[door(48.0, 2.0)])
     slab(l0, l1, lz0, lz1, LAB1, "labfloor", holes=[(l0, 34.6, 10.0, 25.0)])
     wall("z", 56.0, lz0, lz1, LAB1, h1, "lab", [door(17.0, 2.0)])
     wall("z", 34.6, 10.0, 25.0, LAB1, 1.0, "lab")   # (a rail along the ramp's opening)
@@ -1108,8 +1106,7 @@ def lab():
     room(l0, l1, rz0, rz1, LAB2, 4.0, "lab", n=[door(40.0, 2.0), door(56.0, 2.0)], s=[door(40.0, 2.0), door(56.0, 2.0)],
          floor="labfloor")
     slab(l0, l1, rz0, rz1, LAB2 + 4.0, "lab", holes=[(cx0, cx1, cz0, cz1)])
-    room(cx0, cx1, cz0, cz1, LAB2, 12.0, "core", n=[door(40.0, 2.0), (48.0, 3.0, 6.0, 9.0)], s=[door(48.0, 2.4)],
-         roof="core")
+    room(cx0, cx1, cz0, cz1, LAB2, HULL_B - SLAB_T - LAB2, "core", n=[door(40.0, 2.0), (48.0, 3.0, 6.0, 9.0)], s=[door(48.0, 2.4)])
     labels.append(("ZERO'S CORE", 48, 50, 1))
     for x, z in [(40.0, 44.0), (56.0, 44.0), (40.0, 56.0), (56.0, 56.0)]:   # the program's tanks (cover)
         box(x - 1.3, LAB2, z - 1.3, x + 1.3, LAB2 + 4.5, z + 1.3, "lab")
@@ -1146,10 +1143,6 @@ def lab():
          floor="labfloor", roof="lab")
     slab(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3, LAB2, "labfloor")
     labels.append(("SERVICE TUBE", 47, -66, 0))
-    # under it all, a few columns to the sea bed
-    for x, z in [(31.0, -39.0), (65.0, -39.0), (31.0, 99.0), (65.0, 99.0), (31.0, 31.0), (65.0, 31.0)]:
-        box(x - 0.6, SEABED, z - 0.6, x + 0.6, LAB2 - SLAB_T, z + 0.6, "lab")
-
 
 # ---------------------------------------------------------------------------------------------- AI
 # Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, Zero below.
@@ -1201,12 +1194,11 @@ def minimap_meta():
     bld = [v for x0, z0, x1, z1 in footprints for v in (x0 + HALF, z0 + HALF, x1 + HALF, z1 + HALF)]
     text = ", ".join(f'["{t}", {fmt(x + HALF)}, {fmt(z + HALF)}, {big}]' for t, x, z, big in labels)
     sea_w = HALF - QUAY
-    sea = f"[PackedVector2Array({fmt(QUAY + HALF + sea_w / 2)}, 0, {fmt(QUAY + HALF + sea_w / 2)}, {fmt(M)})]"
     yards = [QUAY + HALF, -2 + HALF, SX0 + HALF, 7.2 + HALF]   # the pier
     return ("metadata/minimap = {" + f'"size": {fmt(M)}, "offset": {fmt(-HALF)}, '
             + f'"buildings": {floats(bld)}, "yards": {floats(yards)}, "woods": PackedFloat32Array(), '
             + f'"roads": [PackedVector2Array(0, 180, 104, 180)], "road_widths": PackedFloat32Array(8), '
-            + f'"water": {sea}, "water_widths": PackedFloat32Array({fmt(sea_w)}), '
+            + f'"seas": PackedFloat32Array({fmt(QUAY + HALF)}, 0, {fmt(M)}, {fmt(M)}), '
             + f'"labels": [{text}]' + "}")
 
 
