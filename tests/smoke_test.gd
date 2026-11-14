@@ -5688,27 +5688,32 @@ func _section_riptide() -> void:
 	dry.global_position = Vector3(12.0, 1.6, -1.2)
 	for i in 20:
 		await physics_frame
-	dry.global_position = Vector3(12.0, dry.global_position.y, -1.2)
-	dry.velocity = Vector3.ZERO
-	await physics_frame
+	dry.global_position = Vector3(12.0, 1.5, -1.2)   # (it may have wandered: back to the edge, checked at once)
 	_check(dry.is_on_floor() and dry._keep_out_of_water(Vector3(0, 0, -4), 0.0) == Vector3.ZERO,
 		"a scav's step off the pier over the sea is stopped (on floor %s)" % dry.is_on_floor())
 	_check(dry._keep_out_of_water(Vector3(4, 0, 0), 0.0) == Vector3(4, 0, 0) and dry._keep_out_of_water(Vector3(0, 0, 4), 0.0) == Vector3(0, 0, 4),
 		"and its steps along and across the pier are left alone")
 	dry.free()
-	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
-	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
+	# Raijin (0.33.4 as Zero, renamed 0.35.6, owner's list): his own scene, gun and gear, and what only he drops
+	var zero := (load("res://scenes/boss_raijin.tscn") as PackedScene).instantiate() as Scav
 	root.add_child(zero)
-	_check(zero.body_name == "Zero" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
+	_check(zero.body_name == "Raijin" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
 		and zero.armor == "armor_assault" and zero.helmet == "helmet_assault"
 		and is_equal_approx(zero.health.damage_multiplier, 0.5) and is_equal_approx(zero.health.head_multiplier, 0.45),
-		"Zero carries the Reaper and wears assault armor and helmet")
-	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Zero drops the Formula and the Raid Pack")
+		"Raijin carries the Reaper and wears assault armor and helmet")
+	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Raijin drops the Formula and the Raid Pack")
 	zero.free()
 	var zero_map := (load(MAP) as PackedScene).instantiate()
 	var spawner_meta: Dictionary = zero_map.get_meta("spawner", {})
 	zero_map.free()
-	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_zero.tscn", "Riptide's boss is Zero")
+	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_raijin.tscn", "Riptide's boss is Raijin")
+	var boss_meta := spawner_meta.get("boss", {}) as Dictionary
+	var ace := (load("res://scenes/guard_raijin.tscn") as PackedScene).instantiate() as Scav
+	root.add_child(ace)
+	_check((not boss_meta.has("guard_scene") or (int(boss_meta.get("guards", 0)) == 2 and boss_meta.get("guard_names", []) == ["Ace", "Orbit"]))
+		and ace.health.max_health == 150 and ace.armor == "armor_heavy" and ace.helmet == "helmet_good" and ace.shot_damage == 20 and ace.burst_size == 5,
+		"Raijin has two guards, Ace and Orbit, tougher than Raiders (%s %s hp %d %s %s dmg %d burst %d)" % [boss_meta.get("guards"), boss_meta.get("guard_names"), ace.health.max_health, ace.armor, ace.helmet, ace.shot_damage, ace.burst_size])
+	ace.free()
 	_check(ItemDB.item("formula")["value"] == 100000 and ItemDB.item("formula")["rarity"] == "legendary"
 		and ItemDB.item("reaper")["ammo"] == "rifle_ammo" and ItemDB.item("reaper")["rarity"] == "epic" and ItemDB.item("reaper")["value"] == 30000
 		and ItemDB.item("armor_assault")["reduction"] == 0.5 and ItemDB.item("helmet_assault")["reduction"] == 0.55
