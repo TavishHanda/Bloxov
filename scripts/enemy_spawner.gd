@@ -224,12 +224,16 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	var inside := candidates.filter(func(m: Marker3D) -> bool: return m.get_meta("indoor", false))
 	var outside := candidates.filter(func(m: Marker3D) -> bool: return not m.get_meta("indoor", false))
 	var points: Array[Marker3D] = []
+	var bots := _living_bots()
 	if zone_name != "" and not inside.is_empty() and not outside.is_empty():
 		var first := inside if randf() < indoor_chance else outside
-		points = _usable_points(first, players)
+		points = _usable_points(first, players, bots)
 		if points.is_empty():
-			points = _usable_points(outside if first == inside else inside, players)
+			points = _usable_points(outside if first == inside else inside, players, bots)
 	else:
+		points = _usable_points(candidates, players, bots)
+	if points.is_empty() and not bots.is_empty() and _elapsed <= 0.0:
+		# (the raid's own start: a zone still gets its AI, the bots turn away from them, PmcAI)
 		points = _usable_points(candidates, players)
 	if points.is_empty():
 		return false
@@ -325,12 +329,13 @@ func clear_spot_near(origin: Vector3, offset: Vector3) -> Vector3:
 	return origin
 
 
-## The spawn points far enough from every player, preferring ones no player can see.
-func _usable_points(markers: Array, players: Array[Node]) -> Array[Marker3D]:
+## The spawn points far enough from every player, preferring ones no player can see. With AI PMCs in the raid
+## (`bots`, 0.36.5): only points at least BOT_CLEAR from every living bot and out of its sight.
+func _usable_points(markers: Array, players: Array[Node], bots: Array[Node] = []) -> Array[Marker3D]:
 	var far: Array[Marker3D] = []
 	var hidden: Array[Marker3D] = []
 	for marker: Marker3D in markers:
-		if _far_from_players(marker, players):
+		if _far_from_players(marker, players) and (bots.is_empty() or _clear_of_bots(marker, bots)):
 			far.append(marker)
 			if not _seen_by_players(marker, players):
 				hidden.append(marker)
@@ -354,3 +359,32 @@ func _seen_by_players(marker: Marker3D, players: Array[Node]) -> bool:
 		if space.intersect_ray(query).is_empty():
 			return true
 	return false
+
+
+## Later arrivals keep away from AI PMCs the way they keep away from players (0.36.5, owner approved): not within
+## BOT_CLEAR m of a living bot, not where one can see. (No bots in the raid: nothing changes.)
+const BOT_CLEAR := 40.0
+
+
+## The living AI PMCs in this raid (each one is a loner: always alone).
+func _living_bots() -> Array[Node]:
+	var out: Array[Node] = []
+	for node in RaidScope.nodes(self, &"enemies"):
+		var bot := node as Scav
+		if bot != null and bot.loner and bot.state != Scav.State.DEAD and not bot.health.is_dead:
+			out.append(bot)
+	return out
+
+
+func _clear_of_bots(marker: Marker3D, bots: Array[Node]) -> bool:
+	var space := get_world_3d().direct_space_state
+	for node in bots:
+		var bot := node as Scav
+		var d := marker.global_position.distance_to(bot.global_position)
+		if d < BOT_CLEAR:
+			return false
+		if d < bot.sight_range + 20.0:
+			var eyes := bot.global_position + Vector3(0, 1.65, 0)
+			if space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, marker.global_position + Vector3(0, 1.4, 0), 1)).is_empty():
+				return false
+	return true

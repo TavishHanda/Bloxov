@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -6523,6 +6523,8 @@ func _section_pmc_ai() -> void:
 	var fight := a.global_position + Vector3(0, 0, -15)
 	for i in FightBudget.BUDGET:
 		FightBudget.take(a, fight)
+	a._apart_left = 99.0   # (0.36.5: b is right beside it; its keep-apart check would turn it away, pmc_apart tests that)
+	a.curious = true
 	a.hear_noise(fight, 25.0, true)
 	scav.global_position = fight + Vector3(0, 0, -10)
 	await physics_frame
@@ -6532,6 +6534,245 @@ func _section_pmc_ai() -> void:
 	FightBudget.reset(a)
 	for node: Node in [a, b, scav]:
 		node.queue_free()
+	await physics_frame
+
+
+## A test AI PMC that can't see anyone (the test map is small: it would spot the player and fight).
+func _blind_bot(pos: Vector3) -> PmcAI:
+	var bot := _spawn(PMC_AI_SCENE, pos) as PmcAI
+	bot.sight_range = 0.5
+	return bot
+
+
+## A loot container for the AI PMC checks (`place`: its building, `table`: its loot table).
+func _plan_box(pos: Vector3, place: String, table := "crate", locked := false) -> LootContainer:
+	var box := LootContainer.new()
+	box.loot_table = table
+	box.set_meta("place", place)
+	if locked:
+		box.set_meta("locked", true)
+	main.add_child(box)
+	box.global_position = pos
+	return box
+
+
+func _section_pmc_plan() -> void:
+	# AI PMCs' raid plan (0.36.5, owner approved): places come from the loot containers, scored by what their loot is
+	# worth (best ~3x as likely as poorest), never Bon's; the nearest first, 2-4 places, 2-4 searches of 4-8 s each.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	_check(PmcAI.roll_value("safe") > PmcAI.roll_value("locker") and PmcAI.roll_value("locker") > PmcAI.roll_value("crate")
+		and PmcAI.roll_value("crate") > PmcAI.roll_value("field") and PmcAI.roll_value("crate", "Bank") > PmcAI.roll_value("crate"),
+		"loot value: safes > lockers > crates > field caches, and a bank's crates beat plain ones (%.0f %.0f %.0f %.0f)" % [
+		PmcAI.roll_value("safe"), PmcAI.roll_value("locker"), PmcAI.roll_value("crate"), PmcAI.roll_value("field")])
+	var boxes: Array[Node] = []
+	for i in 3:
+		boxes.append(_plan_box(Vector3(30 + i, 0, 30), "PlanVault", "safe"))
+	boxes.append(_plan_box(Vector3(-30, 0, 30), "PlanShed", "field"))
+	boxes.append(_plan_box(Vector3(-30, 0, -30), "PlanLocked", "safe", true))
+	boxes.append(_plan_box(Vector3(30, 0, -30), "PlanBoss", "safe"))
+	PmcAI.reset_places(main)
+	var list := PmcAI.places(main)
+	var find := func(prefix: String) -> Dictionary:
+		for p: Dictionary in PmcAI.places(main):
+			if String(p["name"]).begins_with(prefix + "@"):
+				return p
+		return {}
+	var vault: Dictionary = find.call("PlanVault")
+	var shed: Dictionary = find.call("PlanShed")
+	var weights: Array = list.map(func(p: Dictionary) -> float: return p["weight"])
+	_check(not vault.is_empty() and (vault["containers"] as Array).size() == 3 and find.call("PlanLocked").is_empty(),
+		"a building's containers make one place; locked ones are left out")
+	_check(is_equal_approx(weights.max(), PmcAI.VALUE_WEIGHT_MAX) and is_equal_approx(weights.min(), PmcAI.VALUE_WEIGHT_MIN)
+		and is_equal_approx(vault["weight"], 3.0) and shed["weight"] < vault["weight"] and vault["value"] > shed["value"],
+		"places weigh 1x (poorest) to 3x (best) by loot value (vault %.1f, shed %.1f)" % [vault["weight"], shed["weight"]])
+	var bot := _blind_bot(Vector3(0, 0.1, 30))
+	await physics_frame
+	var rich := {"id": 900, "name": "rich", "center": Vector3.ZERO, "radius": 0.0, "weight": 3.0}
+	var poor := {"id": 901, "name": "poor", "center": Vector3.ZERO, "radius": 0.0, "weight": 1.0}
+	var rich_picks := 0
+	for i in 4000:
+		if bot._weighted_pick([rich, poor]) == rich:
+			rich_picks += 1
+	_check(absf(rich_picks / float(4000 - rich_picks) - 3.0) < 0.4, "the best place is picked ~3x as often as the poorest (%.2fx)" % (rich_picks / float(4000 - rich_picks)))
+	# Never the boss's place (from the spawner's boss zone; a map without a boss has none to leave out).
+	var spawner := main.find_child("EnemySpawner", true, false) as EnemySpawner
+	var own_spawner := spawner == null
+	if own_spawner:
+		spawner = EnemySpawner.new()
+		spawner.name = "EnemySpawner"
+		spawner.set_physics_process(false)
+		main.add_child(spawner)
+	var old_zones := spawner.zones
+	var old_boss := spawner.boss
+	spawner.zones = [{"name": "PlanBossZone", "center": Vector3(30, 0, -30), "radius": 10.0}]
+	spawner.boss = {"zone": "PlanBossZone"}
+	PmcAI.reset_places(main)
+	list = PmcAI.places(main)
+	_check(find.call("PlanBoss").is_empty() and not find.call("PlanVault").is_empty(), "a place in the boss's zone is never on the list")
+	spawner.zones = old_zones
+	spawner.boss = old_boss
+	PmcAI.reset_places(main)
+	list = PmcAI.places(main)
+	_check(not find.call("PlanBoss").is_empty(), "without a boss zone that place is back")
+	if own_spawner:
+		spawner.free()
+	# The first place: the nearest it may go to. Then 2-4 searches there, each one tells the looting hook.
+	var allowed := bot._allowed_places(bot._others())
+	allowed.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["center"].distance_to(bot.global_position) < b["center"].distance_to(bot.global_position))
+	bot._plan_wait = 0.0
+	bot._wander(0.1)
+	_check(bot.plan == PmcAI.Plan.TRAVEL and not bot.place.is_empty() and bot.place["id"] == allowed[0]["id"] and bot.visited.size() == 1
+		and bot._searches_left >= mini(2, (bot.place["containers"] as Array).size()) and bot._searches_left <= 4,
+		"after its wait it heads for the nearest place (%s), %d searches there" % [bot.place.get("name", "-"), bot._searches_left])
+	_check(bot._patrol_jog and is_equal_approx(bot.jog_speed, 0.85), "it jogs between places")
+	var searches := bot._searches_left
+	bot.plan = PmcAI.Plan.SEARCH
+	bot._looting_left = 0.01
+	bot._wander(0.1)
+	_check(bot._searches_left == searches - 1 and bot._searched.size() == 1 and bot.plan == PmcAI.Plan.HOLD,
+		"a finished search counts (and calls the looting hook, _on_search_done)")
+	_check(PmcAI.SEARCH_TIME_MIN == 4.0 and PmcAI.SEARCH_TIME_MAX == 8.0 and PmcAI.PLACES_MIN == 2 and PmcAI.PLACES_MAX == 4
+		and bot._places_left >= PmcAI.PLACES_MIN - 1 and bot._places_left <= PmcAI.PLACES_MAX - 1 and not bot.wants_to_leave(),
+		"2-4 places, 4-8 s searches; it never wants to leave yet (the extract piece's hook)")
+	bot.queue_free()
+	for box in boxes:
+		box.queue_free()
+	await physics_frame
+	PmcAI.reset_places(main)
+
+
+func _section_pmc_apart() -> void:
+	# AI PMCs keep apart from other AI (0.36.5, owner approved): no place with a non-bot AI within 40 m (another bot:
+	# 60 m, or one already going there), no way past one within 30 m (bot: 60 m), and on the move it turns away from
+	# one within 30 m. Noises near other AI are left alone; cautious bots steer clear of gunshots.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	player.teleport_to(Vector3(38, 0.1, 38))
+	# (no slow far ticks here: their glide would put the AI moved below back where they were)
+	Scav.lod_enabled = false
+	var bot := _blind_bot(Vector3(-10, 0.1, -30))
+	var other := _blind_bot(Vector3(30, 0.1, 30))
+	await physics_frame
+	var spot := {"id": 950, "name": "spot", "center": Vector3(0, 0, 0), "radius": 0.0, "weight": 1.0}
+	var ai := func(at: Vector3) -> Array: return [at, false, null]
+	_check(not bot._place_clear(spot, [ai.call(Vector3(39, 0, 0))]) and bot._place_clear(spot, [ai.call(Vector3(41, 0, 0))]),
+		"a place with a non-bot AI within 40 m is never picked")
+	_check(not bot._place_clear(spot, [[Vector3(59, 0, 0), true, null]]) and bot._place_clear(spot, [[Vector3(61, 0, 0), true, null]]),
+		"nor one with another bot within 60 m")
+	other.place = spot
+	_check(not bot._place_clear(spot, [[Vector3(200, 0, 0), true, other]]), "nor one another bot is already heading to or looting")
+	other.place = {}
+	var way := PackedVector3Array([Vector3(-10, 0, -30), Vector3(-10, 0, 70)])
+	_check(not bot._route_clear(way, [ai.call(Vector3(15, 0, 20))]) and bot._route_clear(way, [ai.call(Vector3(25, 0, 20))]),
+		"a way passing within 30 m of a non-bot AI is turned down (25 m off: no, 35 m off: yes)")
+	_check(not bot._route_clear(way, [[Vector3(45, 0, 20), true, null]]) and bot._route_clear(way, [[Vector3(55, 0, 20), true, null]]),
+		"and within 60 m of another bot")
+	_check(bot._route_clear(PackedVector3Array([Vector3(-10, 0, -30), Vector3(-10, 0, -60)]), [ai.call(Vector3(-10, 0, -10))]),
+		"a way leading away from someone already close passes")
+	# On the move: a scav comes within 30 m and the bot turns away from it.
+	var scav := _spawn(SCAV_SCENE, Vector3(8, 0.1, -10)) as Scav
+	scav.sight_range = 0.5
+	await physics_frame
+	bot._set_plan(PmcAI.Plan.SEARCH)
+	bot._looting_left = 5.0
+	bot._keep_apart()
+	var scav_d := bot.global_position.distance_to(scav.global_position)
+	_check(bot.turned_away == 1 and bot.plan == PmcAI.Plan.TRAVEL and bot._wander_point.distance_to(scav.global_position) > scav_d + 5.0,
+		"looting, a scav comes within %.0f m: the bot drops it and heads away (to %.0f m from it)" % [scav_d, bot._wander_point.distance_to(scav.global_position)])
+	await _frames(10)
+	var turned := bot.turned_away
+	bot._keep_apart()
+	_check(bot.turned_away == turned, "already heading away along a clear way, it carries on")
+	turned = bot.turned_away
+	scav.global_position = bot.global_position + Vector3(35, 0, 0)
+	bot._set_plan(PmcAI.Plan.HOLD, 9.0)
+	bot._keep_apart()
+	_check(bot.turned_away == turned and bot.plan == PmcAI.Plan.HOLD, "a non-bot AI at 35 m doesn't move it")
+	scav.global_position = bot.global_position + Vector3(20, 0, 0)
+	bot.state = Scav.State.ENGAGE
+	bot._keep_apart()
+	_check(bot.turned_away == turned, "in a fight it doesn't turn away (the fight brain is the scav's)")
+	bot.state = Scav.State.IDLE
+	# Other bots: 60 m.
+	scav.global_position = Vector3(38, 0.1, -38)
+	other.global_position = bot.global_position + Vector3(0, 0, 50)
+	await physics_frame
+	bot._keep_apart()
+	_check(bot.turned_away == turned + 1, "another bot within 60 m: it turns away too")
+	other.global_position = Vector3(38, 0.1, 38)
+	# After a fight, with a non-bot AI within 40 m, the next way leads away from it first.
+	bot.global_position = Vector3(-10, 0.1, -30)
+	scav.global_position = Vector3(-10, 0.1, 5)
+	await physics_frame
+	bot._fought = true
+	bot._next_destination()
+	_check(bot._wander_point.distance_to(scav.global_position) > 35.0 or bot.plan == PmcAI.Plan.HOLD,
+		"after a fight with a scav %.0f m off, it moves away first (to %.0f m)" % [bot.global_position.distance_to(scav.global_position), bot._wander_point.distance_to(scav.global_position)])
+	# Noises: never one with a non-bot AI within 40 m of it; curious bots go to shots, cautious ones note them.
+	bot._set_plan(PmcAI.Plan.HOLD, 9.0)
+	bot.curious = true
+	var noise := bot.global_position + Vector3(0, 0, 15)
+	scav.global_position = noise + Vector3(20, 0, 0)
+	await physics_frame
+	bot.hear_noise(noise, 40.0, true)
+	_check(bot.state == Scav.State.IDLE, "a shot with a scav 20 m from it: even a curious bot stays away")
+	scav.global_position = Vector3(38, 0.1, -38)
+	await physics_frame
+	bot.hear_noise(noise, 12.0)
+	_check(bot.state == Scav.State.INVESTIGATE, "a footstep with no AI near: it goes to look, as now")
+	bot._set_state(Scav.State.IDLE)
+	bot.hear_noise(noise, 40.0, true)
+	_check(bot.state == Scav.State.INVESTIGATE, "a curious bot goes to a gunshot")
+	bot._set_state(Scav.State.IDLE)
+	bot.curious = false
+	bot.hear_noise(noise, 40.0, true)
+	_check(bot.state == Scav.State.IDLE and bot._shot_at == noise, "a cautious bot ignores it and remembers where it was")
+	var toward := {"id": 960, "name": "toward", "center": noise + Vector3(0, 0, 10), "radius": 0.0, "weight": 3.0}
+	var away := {"id": 961, "name": "away", "center": bot.global_position + Vector3(0, 0, -90), "radius": 0.0, "weight": 1.0}
+	var toward_picks := 0
+	for i in 1000:
+		if bot._weighted_pick([toward, away]) == toward:
+			toward_picks += 1
+	_check(toward_picks < 400, "and prefers its next place away from the shots (%d in 1000 toward them)" % toward_picks)
+	var rolls := 0
+	for i in 200:
+		var b := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
+		main.add_child(b)
+		rolls += 1 if b.curious else 0
+		b.free()
+	_check(rolls > 70 and rolls < 130, "about half the bots are curious (%d of 200)" % rolls)
+	# Later arrivals keep away from bots (40 m, out of sight) like from players; with no bots nothing changes.
+	var spawner := EnemySpawner.new()
+	spawner.set_physics_process(false)
+	var markers: Array[Marker3D] = []
+	# (up in the air, so nothing earlier sections left on the ground is in the way)
+	for at: Vector3 in [Vector3(-30, 30, -30), Vector3(30, 30, -35), Vector3(30, 30, -25)]:
+		var marker := Marker3D.new()
+		marker.position = at
+		spawner.add_child(marker)
+		markers.append(marker)
+	main.add_child(spawner)
+	var wall := _block(Vector3(24, 2, -24), Vector3(1, 80, 8))
+	other.free()
+	scav.free()
+	bot.global_position = Vector3(-30, 0.1, -10)
+	bot.sight_range = 80.0
+	await physics_frame
+	var players: Array[Node] = []
+	var bots := spawner._living_bots()
+	var with_bots := spawner._usable_points(markers, players, bots)
+	_check(bots.size() == 1 and not with_bots.has(markers[0]) and not with_bots.has(markers[1]) and with_bots.has(markers[2]),
+		"a later arrival never spawns within 40 m of a bot or where it can see (left: %s)" % str(markers.map(func(m: Marker3D) -> bool: return with_bots.has(m))))
+	bot.free()
+	await physics_frame
+	_check(spawner._living_bots().is_empty() and spawner._usable_points(markers, players, spawner._living_bots()) == spawner._usable_points(markers, players),
+		"with no bots in the raid the spawner picks from the same spots as before")
+	spawner.queue_free()
+	wall.queue_free()
+	Scav.lod_enabled = true
+	player.teleport_to(START_SPOT)
 	await physics_frame
 
 

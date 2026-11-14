@@ -7,6 +7,24 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.5 (AI PMCs, piece 6a: a raid plan and keeping apart)
+Built on the AI PMC branch; the server switch is still off, so no player meets a bot yet. Owner approved every number
+(2026-11-14). Scavs, Raiders, snipers and Bon are untouched: the bot's new brain is its own script, `scripts/pmc_ai.gd`.
+- **Raid plan**: a bot waits a few seconds, goes to the nearest place it may loot, then picks places by what their
+  loot is worth (the best about 3 times as likely as the poorest), 2 to 4 places a raid, searching 2 to 4 containers
+  at each for 4 to 8 s. Places are buildings, from their loot containers; never locked ones, never the boss's zone.
+  It jogs between places and walks the last 15 m indoors. Once its places are done it carries on looting (extracting
+  and really taking items are the next pieces).
+- **Keeps away from other AI**: no place with a scav, Raider, sniper or Bon within 40 m (another bot: 60 m, or one
+  already going there); no way there that passes within 30 m of one (bot: 60 m); and on the move or looting, one
+  within 30 m (bot: 60 m) makes it drop what it's doing and head the other way. In a fight it fights as before.
+- **Noises**: it never walks over to a noise with other AI within 40 m of it. Half the bots are curious (they go to
+  gunshots as before), half cautious (they don't, and pick their next place away from them).
+- **Later arrivals**: scavs and Raiders that spawn later never appear within 40 m of a bot or where one can see, like
+  with players. Raids without bots spawn exactly as before.
+- New smoke test sections `pmc_plan` and `pmc_apart`; `tests/bot_apart_check.gd` runs 20 full raids with 3 bots and
+  measures how close they get to other AI.
+
 ## 0.36.4 (AI PMCs, piece 5: gear kits)
 Built on the AI PMC branch; the server switch is still off, so no player meets a bot yet.
 - **What a bot carries**: a gun from its own table (Hound 40, Wasp 25, Mauler 20, Stinger 15, the scav odds), armor
