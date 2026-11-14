@@ -30,7 +30,7 @@ PvE (solo): your progress (stash, loadout, traders, record, character) and your 
 account. OPTIONS > SAVE TO FILE gives you a copy of them as a file to keep; it goes only to you.
 
 Online play: the server is sent the name you type and your connection's IP address, which it needs to put you in a
-raid. Other players in your raid see that name and your character. The server's log keeps names, IP addresses and
+raid. Other players in your raid see that name and your character. Online raids can also include AI-controlled PMCs, which collect nothing. The server's log keeps names, IP addresses and
 anti-cheat catches for a short time, to keep play fair.
 
 PvP account (only if you make one): your username, your password scrambled so it can't be read back, your PvP stash,

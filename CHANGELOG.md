@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.3 (AI PMCs, piece 4: honest wording)
+Built on the AI PMC branch; the server switch stays off until piece 6, so players see only the wording.
+- **Queue screen**: while you wait it says "Finding a raid... 0:42" (elapsed time) instead of "Waiting for more
+  players (N in the queue, needs 2)", and the countdown says "Raid starts in 30 s" without a player count. The idle
+  "N players in the queue right now" stays (real players only; bots are never in a count).
+- **PMC Dog Tag** text: "Taken off a PMC you killed online."
+- **One public line**: "Online raids can include AI-controlled PMCs" in the in-game privacy text, on
+  bloxov.com/privacy, and in the bloxov.com intro list. `docs/STORE_RULES.md` records the store-page wording.
+
 ## 0.36.2 (AI PMCs, piece 3: bots in the raid)
 Built on the AI PMC branch; nothing changes for players yet (the server switch `--bots` stays off until piece 6).
 - **The server spawns the raid's AI PMCs** (the count from piece 1): each bot alone, at the free player spawn point

@@ -72,6 +72,8 @@ var _party_code_edit: LineEdit
 var _leave_party_button: Button
 var _queue_button: Button
 var _queue_info: Label
+## When the current queue wait began (reset every refresh while not queued), for the "Finding a raid... 0:42" line.
+var _queue_since_msec := 0
 var _start_now_button: Button
 var _online_status: Label
 var _save_queued := false
@@ -1796,12 +1798,16 @@ func _refresh_online() -> void:
 	# PvP (owner, 2026-11-06): no raids alone, queue into other players.
 	_start_now_button.visible = net.is_leader and not net.signed_in()
 	_queue_button.text = "CANCEL QUEUE" if net.queued else "QUEUE"
+	if not net.queued:
+		_queue_since_msec = Time.get_ticks_msec()
 	if not net.is_leader:
 		_queue_info.text = "Your party leader starts the queue." + (" Queued..." if net.queued else "")
 	elif net.queued and net.queue_countdown >= 0.0:
-		_queue_info.text = "Raid starts in %d s · %d players" % [ceili(net.queue_countdown), net.queue_waiting]
+		_queue_info.text = "Raid starts in %d s" % ceili(net.queue_countdown)
 	elif net.queued:
-		_queue_info.text = "Waiting for more players (%d in the queue, needs %d)" % [net.queue_waiting, Matchmaker.MIN_PLAYERS]
+		# Honest wording (0.36.3): no promise of other players; the raid may be filled with AI PMCs.
+		var waited := int((Time.get_ticks_msec() - _queue_since_msec) / 1000.0)
+		_queue_info.text = "Finding a raid... %d:%02d" % [waited / 60, waited % 60]
 	else:
 		_queue_info.text = "%d players in the queue right now" % net.queue_waiting
 
@@ -1890,6 +1896,14 @@ func _build_online_panel() -> void:
 		else:
 			check_gear(Network.main.set_queued.bind(true)))
 	_online_box.add_child(_queue_button)
+	# Ticks the "Finding a raid... 0:42" elapsed time while queued.
+	var queue_tick := Timer.new()
+	queue_tick.wait_time = 1.0
+	queue_tick.autostart = true
+	queue_tick.timeout.connect(func() -> void:
+		if Network.main.queued:
+			_refresh_online())
+	add_child(queue_tick)
 	_queue_info = Label.new()
 	_queue_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	HudStyle.style_label(_queue_info, 20, HudStyle.INK_DIM)

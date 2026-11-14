@@ -45,6 +45,13 @@ CHANGELOG entry when a change was made for store reasons.
   owner before building the feature.
 - Name tags or anything showing names to strangers: also needs report/block first.
 
+- **AI PMCs (owner, 2026-11-13/14):** PvP raids can be filled with AI-controlled PMCs. They're unmarked inside the
+  raid (like Fortnite's bots), but the game never calls one a person: the queue says "Finding a raid..." (no
+  promise of other players), the tag reads "PMC Dog Tag / Taken off a PMC you killed", and one honest line is public:
+  "Online raids can include AI-controlled PMCs" (in-game privacy text, bloxov.com/privacy, the bloxov.com intro).
+  Store pages say "fight players and AI PMCs", never "every enemy is a real player"; screenshots and video show real
+  gameplay. Counts of players (queue, online, stats) are real players only. Bots collect nothing.
+
 ### 3. Privacy and data (Apple 5.1, Google User Data + Data safety)
 - Today: no accounts, no ads, no tracking. The only analytics: since 0.25.14 the web page on bloxov.com loads
   Cloudflare Web Analytics (cookieless visit counts, token in `html/head_include` of the Web preset). It's web only:
