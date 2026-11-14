@@ -204,10 +204,13 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v5
 
-  # Does this push touch the game server? The server is restarted (players in a raid are kicked) only if it does.
-  # Server files = what the Dockerfile builds into the server: scripts, scenes, assets, the Stash API, project.godot
-  # (it holds the version, and the server and web build must be the same version). A push that only touches tools/,
-  # tests/, web/ or CI leaves the running server alone.
+  # Does this run deploy the game server? A deploy restarts it and kicks players out of their raids, so it is rare:
+  #   - right away: the push raises config/net_version (compared with the commit the server really runs), changes
+  #     server infra since that commit (server/, Dockerfile, heroku.yml, export_presets.cfg), or this is a manual run
+  #     ("Run workflow"); also when the deployed commit can't be found out (first deploy, no key, Heroku unreachable)
+  #   - otherwise it waits: other game changes with the same net version (scripts/, scenes/, ...) go out with the
+  #     nightly run (server_nightly.yml), and everything else (tools/, tests/, web/, CI) never restarts it.
+  # The deployed commit is read from Heroku (the heroku job force-pushes HEAD there). Logic: tools/server_deploy_check.sh.
   changes:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -215,23 +218,25 @@ jobs:
       server: ${{ steps.diff.outputs.server }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - id: diff
         env:
-          BEFORE: ${{ github.event.before }}
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          APP: bloxov-server
           EVENT: ${{ github.event_name }}
         run: |
-          server=true   # when unsure (manual run, first push, force push), deploy
-          if [ "$EVENT" = "push" ] && git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
-            files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
-            echo "Changed files:"; echo "$files"
-            if echo "$files" | grep -qE '^(scripts/|scenes/|assets/|materials/|audio/|server/|project\.godot$|Dockerfile$|heroku\.yml$|export_presets\.cfg$|default_bus_layout\.tres$)'; then
-              server=true
-            else
-              server=false
-            fi
+          deployed=""
+          if [ -n "$HEROKU_API_KEY" ]; then
+            KEY=$(printf '%s' "$HEROKU_API_KEY" | tr -d '[:space:]')
+            deployed=$(git ls-remote "https://heroku:$KEY@git.heroku.com/$APP.git" refs/heads/main 2>/dev/null | cut -f1) || deployed=""
           fi
+          echo "Deployed commit: ${deployed:-unknown}"
+          result=$(bash tools/server_deploy_check.sh "$deployed" "$GITHUB_SHA" "$EVENT")
+          server=false
+          [ "$result" = "now" ] && server=true
           echo "server=$server" >> "$GITHUB_OUTPUT"
-          echo "Server files changed: $server"
+          echo "Result: $result, deploy now: $server"
 
   # Same game server on Heroku (GitHub Student Pack credit). Skipped until the HEROKU_API_KEY secret exists
   # AND HEROKU_ON is "true" (owner: switch on only once the student credit shows in Heroku billing).
@@ -239,6 +244,9 @@ jobs:
     if: github.ref == 'refs/heads/main' && needs.changes.outputs.server == 'true'
     needs: [build, stash_api, changes]
     runs-on: ubuntu-latest
+    concurrency:
+      group: heroku-deploy
+      cancel-in-progress: false
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
       HEROKU_ON: "true"

@@ -21,7 +21,7 @@ const SECTIONS: Array[String] = [
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
-	"sound",
+	"sound", "netlock",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -4088,8 +4088,14 @@ func _section_net() -> void:
 		c.connect_failed.connect(func(reason: String) -> void: log[c].append(reason))
 		c.raid_started.connect(func() -> void: log[c].append("raid"))
 		c.notice.connect(func(text: String) -> void: log[c].append(text))
-	_check(server.join_problem("0.0.1").contains("Reload"), "an outdated game is told to reload")
-	_check(server.join_problem(server.version()) == "", "the right version can come online")
+	var nv: int = server.net_version()
+	_check(nv >= 1, "the net version is set in project.godot")
+	_check(server.join_problem(str(nv)) == "", "the same net version can come online")
+	_check(server.join_problem("0.35.1") == "update" and server.join_problem("") == "update", "an old game (it sends its game version) is told to update")
+	_check(server.join_problem(str(nv - 1)) == "update", "a lower net version is told to update")
+	_check(server.join_problem(str(nv + 1)) == "server_updating", "a higher net version is told the server is updating")
+	_check(server.join_problem(str(nv)) == "" and server.version() != "0.0.1", "a different game version with the same net version still joins (it sends only the net version)")
+	_check(Network.reason_text("update").contains("update is out") and Network.reason_text("server_updating").contains("The server is updating"), "the reserved reasons turn into text")
 	c1.go_online("localhost:19081", "Alpha")
 	c2.go_online("localhost:19081", "Bravo")
 	c3.go_online("localhost:19081", "Charlie")
@@ -9182,3 +9188,11 @@ func _section_touch() -> void:
 	_check(hud_bar.slot_at(Vector2(-100, -100)) == -1, "no hotbar slot off screen")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	touch.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## The online contract lock (0.35.4): the @rpc list and the shared rule files must match tests/net_lock.txt, so nobody
+## changes what client and server agree on without deciding about config/net_version (docs/context/ONLINE.md).
+func _section_netlock() -> void:
+	var lock := load("res://tools/net_lock_core.gd")
+	var problems: PackedStringArray = lock.problems()
+	_check(problems.is_empty(), ("The online contract changed: %s. Raise config/net_version in project.godot if old games would break, then re-record with `godot --headless -s tools/net_lock.gd`. If old games still work, just re-record." % "; ".join(problems)) if not problems.is_empty() else "the online contract matches tests/net_lock.txt")
