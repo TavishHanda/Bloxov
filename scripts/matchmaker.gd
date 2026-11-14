@@ -8,6 +8,12 @@ extends RefCounted
 ## then everyone waiting goes into one raid (up to MAX_PLAYERS, parties never split; it starts at once when full).
 ## No joining a raid that's running. "Start now" puts a party in a raid of its own (testing, playing alone).
 ## Every player is always in a party: alone, their party is just them (with its own code to share).
+##
+## AI PMCs (0.36.0 piece 1, owner's rules 2026-11-13; only when `bots_on`, off until the server check in piece 6):
+## a lone player waits BOT_WAIT (90 s) and then gets a raid; a raid always has BOTS_PER_RAID PMCs in all, real players
+## counted (4 in about 1 raid in 4, BOTS_FOUR_IN), so a lone player meets 2 bots, not a crowd. Raids with that many real
+## players get none. Bots are always alone (never paired); the raid only records how many (`bots`), the AI itself is
+## spawned by the raid (later pieces).
 
 const MAX_PARTY := 2
 const MIN_PLAYERS := 2
@@ -18,9 +24,17 @@ const MAX_PLAYERS := 6
 const MAX_RAIDS := 4
 ## A raid is closed this long after its clock runs out, even if a player never said they left.
 const RAID_GRACE := 120.0
+## Seconds a lone player waits in the queue before AI PMCs fill the raid (owner: 90).
+const BOT_WAIT := 90.0
+## PMCs in a raid, real players included (owner: 3, and 4 in 1 raid in BOTS_FOUR_IN).
+const BOTS_PER_RAID := 3
+const BOTS_FOUR_IN := 4
 const CODE_LETTERS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 var queue_countdown := 30.0
+## The AI PMC fill rule is off until the server is ready for it (--bots turns it on; piece 6).
+var bots_on := false
+var bot_wait := BOT_WAIT
 var raid_time := 600.0
 ## Maps a raid can be on (0.33.8: 0 Frontlines, 1 Riptide; the same order as RaidMap.MAPS, which this script can't
 ## name because Network is an autoload) and the ones whose raids run longer (owner: Riptide 15 minutes).
@@ -31,9 +45,11 @@ var map_times := {1: 900.0}
 var players := {}
 ## code -> {members: Array[int] (first = leader), queued: bool, queued_at: float}
 var parties := {}
-## id -> {players: Array[int], started: float (seconds), seed: int, teams: {peer: party code},
+## id -> {players: Array[int], bots: int (AI PMCs to spawn), started: float (seconds), seed: int, teams: {peer: party code},
 ##        spawns: {peer: [slot, place]}} (squads spawn together, 0.9.5: see spawn_slots)
 var raids := {}
+## Maps whose running countdown is the lone-player wait for AI PMCs (bot_wait), not the 30 s group countdown.
+var _lone := {}
 ## Seconds until the queue's raid starts (-1 = no countdown running).
 var countdown_left := -1.0
 ## The same per map (0.33.8: each map has its own queue): map -> seconds left. No entry = no countdown.
@@ -220,14 +236,21 @@ func tick(delta: float) -> Array[int]:
 			for peer in raids[id]["players"].duplicate():
 				leave_raid(peer)
 			raids.erase(id)
-	# Each map has its own queue (0.33.8): a raid needs MIN_PLAYERS waiting for the same map.
+	# Each map has its own queue (0.33.8): a raid needs MIN_PLAYERS waiting for the same map, or (AI PMCs on) one
+	# player who has waited bot_wait.
 	for map in map_count:
 		var waiting := queued_count(map)
-		if waiting < MIN_PLAYERS:
+		var lone := waiting < MIN_PLAYERS
+		if waiting < 1 or (lone and not bots_on):
 			countdowns.erase(map)
+			_lone.erase(map)
 			continue
-		if not countdowns.has(map):
-			countdowns[map] = queue_countdown
+		var length := bot_wait if lone else queue_countdown
+		if not countdowns.has(map) or (lone and not _lone.get(map, false)):
+			countdowns[map] = length   # a new countdown, or the group left and one player is waiting again
+		elif not lone:
+			countdowns[map] = minf(countdowns[map], length)   # a second player joined the lone wait: the short one
+		_lone[map] = lone
 		countdowns[map] -= delta
 		if (countdowns[map] <= 0.0 or waiting >= MAX_PLAYERS) and raids.size() < MAX_RAIDS:
 			# Everyone who fits, first come first served, without splitting a party.
@@ -238,15 +261,25 @@ func tick(delta: float) -> Array[int]:
 				if count + size <= MAX_PLAYERS:
 					picked.append(code)
 					count += size
-			started.append(_start_raid(picked))
+			started.append(_start_raid(picked, bots_on))
 			countdowns.erase(map)
+			_lone.erase(map)
 	countdown_left = -1.0
 	for map in countdowns:
 		countdown_left = countdowns[map] if countdown_left < 0.0 else minf(countdown_left, countdowns[map])
 	return started
 
 
-func _start_raid(codes: Array) -> int:
+## How many AI PMCs a raid with `real` players gets (0 with the rule off): BOTS_PER_RAID PMCs in all, or one more in
+## 1 raid in BOTS_FOUR_IN, picked by the raid's seed. Real players count, so a full raid has none.
+static func bots_for(real: int, seed_value: int) -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var total := BOTS_PER_RAID + (1 if rng.randi() % BOTS_FOUR_IN == 0 else 0)
+	return maxi(0, total - real)
+
+
+func _start_raid(codes: Array, with_bots := false) -> int:
 	var id := _next_raid_id
 	_next_raid_id += 1
 	var map := int(parties[codes[0]].get("map", 0)) if not codes.is_empty() else 0
@@ -262,6 +295,8 @@ func _start_raid(codes: Array) -> int:
 			raid["teams"][peer] = code
 			players[peer]["raid"] = id
 	raid["spawns"] = spawn_slots(teams, raid["seed"])
+	# AI PMCs (piece 1 only counts them; each is its own team, never a pair).
+	raid["bots"] = bots_for(raid["players"].size(), raid["seed"]) if with_bots else 0
 	raids[id] = raid
 	stats_raids += 1
 	return id

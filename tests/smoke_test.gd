@@ -4023,6 +4023,37 @@ func _section_matchmaking() -> void:
 	mm.tick(28.5)
 	var started := mm.tick(1.0)
 	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
+	# AI PMC fill rule (0.36.0): off by default; on, a lone player waits 90 s and PMCs make the raid 3 in all.
+	var bm := Matchmaker.new()
+	for peer in [21, 22, 23, 24]:
+		bm.add_player(peer, "B%d" % peer)
+	bm.set_queued(21, true)
+	bm.tick(100.0)
+	_check(bm.raids.is_empty() and bm.countdown_left < 0.0, "bots off: a lone player waits for company, no raid")
+	bm.bots_on = true
+	bm.tick(1.0)
+	_check(bm.countdown_left > 88.0 and bm.countdown_left <= 90.0 and bm.raids.is_empty(), "bots on: a lone player's wait is 90 s (%.1f)" % bm.countdown_left)
+	bm.tick(87.0)
+	_check(bm.raids.is_empty(), "no raid before the 90 s are up")
+	var lone_started := bm.tick(3.0)
+	_check(lone_started.size() == 1 and bm.raids[lone_started[0]]["players"] == [21]
+		and int(bm.raids[lone_started[0]]["bots"]) in [2, 3], "after 90 s the lone player gets a raid with 2 PMCs (3 in about 1 in 4: %s)" % str(bm.raids.get(lone_started[0], {}).get("bots")))
+	bm.leave_raid(21)
+	bm.set_queued(22, true)
+	bm.tick(5.0)
+	bm.set_queued(23, true)
+	bm.tick(1.0)
+	_check(bm.countdown_left > 27.0 and bm.countdown_left <= 30.0, "a second player cuts the wait to the 30 s group countdown (%.1f)" % bm.countdown_left)
+	var duo_started := bm.tick(30.0)
+	_check(duo_started.size() == 1 and int(bm.raids[duo_started[0]]["bots"]) in [1, 2], "2 real players: 1 PMC (2 in about 1 in 4)")
+	var counts := {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+	var four := 0
+	for seed_value in 2000:
+		counts[Matchmaker.bots_for(1, seed_value)] += 1
+		if Matchmaker.bots_for(0, seed_value) == 4:
+			four += 1
+	_check(Matchmaker.bots_for(3, 7) in [0, 1] and Matchmaker.bots_for(6, 7) == 0 and counts[3] > 350 and counts[3] < 650 and four > 400 and four < 600 and counts[2] > 1400,
+		"bot counts: 3 PMCs in all, 4 in about 1 raid in 4, none once real players fill the raid (%s)" % str(counts))
 	# Player-count line for the server log (0.25.13): counts only, no names.
 	var stats := mm.stats_line()
 	_check(stats.contains("7 online (4 in the hideout, 3 in 1 raids)") and stats.contains("peak 7, 7 joins, 1 raids")

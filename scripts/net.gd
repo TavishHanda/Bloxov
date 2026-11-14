@@ -230,6 +230,10 @@ func _ready() -> void:
 				port = arg.trim_prefix("--port=").to_int()
 			elif arg.begins_with("--countdown="):  # shorter queue countdown, for testing
 				matchmaker.queue_countdown = arg.trim_prefix("--countdown=").to_float()
+			elif arg == "--bots":  # AI PMCs fill raids (0.36.0, off until piece 6)
+				matchmaker.bots_on = true
+			elif arg.begins_with("--bot-wait="):
+				matchmaker.bot_wait = arg.trim_prefix("--bot-wait=").to_float()
 		# The server has no screen and no hideout: drop the main scene and just run the matchmaking and raids.
 		get_tree().unload_current_scene.call_deferred()
 		if start_server(port) != OK:
