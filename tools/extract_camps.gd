@@ -156,7 +156,7 @@ func _seen(space: PhysicsDirectSpaceState3D, eye: Vector3, pts: Array[Vector3]) 
 	return n
 
 
-func _ground(space: PhysicsDirectSpaceState3D, x: float, z: float):
+func _ground(space: PhysicsDirectSpaceState3D, x: float, z: float) -> Variant:
 	var q := PhysicsRayQueryParameters3D.create(Vector3(x, 60, z), Vector3(x, -20, z))
 	var hit := space.intersect_ray(q)
 	if hit.is_empty() or hit.normal.y < 0.7:

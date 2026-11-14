@@ -1,6 +1,6 @@
 class_name NetAccounts
 extends RefCounted
-## The server's side of PvP accounts and the online stash (Stash update, 0.31; docs/STASH_UPDATE_PLAN.md §5, §7).
+## The server's side of PvP accounts and the online stash (Stash update, 0.31; docs/archive/STASH_UPDATE_PLAN.md §5, §7).
 ## Net (net.gd) owns the RPCs and passes them here. A signed-in player's online profile lives in memory on the
 ## server (the source of truth while they're connected) and is written through to the Stash API after every change,
 ## one write at a time per account. The connection is the session: one per account (owner), TAKE OVER HERE moves it.

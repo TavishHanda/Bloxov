@@ -3,6 +3,10 @@ name: Web build
 on:
   push:
     branches: [main]
+    # Docs-only pushes (notes, plans, changelog) run nothing: no tests, no deploy, no server restart.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   pull_request:
   workflow_dispatch:
 
@@ -200,34 +204,40 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@v5
 
-  # The online game server (Dockerfile + fly.toml), deployed with the same version as the web build so the
-  # versions match. Skipped until the FLY_API_TOKEN repository secret exists.
-  server:
+  # Does this push touch the game server? The server is restarted (players in a raid are kicked) only if it does.
+  # Server files = what the Dockerfile builds into the server: scripts, scenes, assets, the Stash API, project.godot
+  # (it holds the version, and the server and web build must be the same version). A push that only touches tools/,
+  # tests/, web/ or CI leaves the running server alone.
+  changes:
     if: github.ref == 'refs/heads/main'
-    needs: build
     runs-on: ubuntu-latest
-    env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    outputs:
+      server: ${{ steps.diff.outputs.server }}
     steps:
       - uses: actions/checkout@v5
-      - name: No Fly.io token yet
-        if: env.FLY_API_TOKEN == ''
-        run: echo "::notice::FLY_API_TOKEN isn't set, so the game server wasn't deployed."
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: env.FLY_API_TOKEN != ''
-      - name: Deploy the game server to Fly.io
-        if: env.FLY_API_TOKEN != ''
+      - id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
         run: |
-          # First deploy: create the app (fails harmlessly once it exists).
-          flyctl apps create bloxov-server --org personal || true
-          # One machine only: the raid lives in that one server process.
-          flyctl deploy --remote-only --ha=false
+          server=true   # when unsure (manual run, first push, force push), deploy
+          if [ "$EVENT" = "push" ] && git fetch --no-tags --depth=1 origin "$BEFORE" 2>/dev/null; then
+            files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+            echo "Changed files:"; echo "$files"
+            if echo "$files" | grep -qE '^(scripts/|scenes/|assets/|materials/|audio/|server/|project\.godot$|Dockerfile$|heroku\.yml$|export_presets\.cfg$|default_bus_layout\.tres$)'; then
+              server=true
+            else
+              server=false
+            fi
+          fi
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+          echo "Server files changed: $server"
 
   # Same game server on Heroku (GitHub Student Pack credit). Skipped until the HEROKU_API_KEY secret exists
   # AND HEROKU_ON is "true" (owner: switch on only once the student credit shows in Heroku billing).
   heroku:
-    if: github.ref == 'refs/heads/main'
-    needs: [build, stash_api]
+    if: github.ref == 'refs/heads/main' && needs.changes.outputs.server == 'true'
+    needs: [build, stash_api, changes]
     runs-on: ubuntu-latest
     env:
       HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}

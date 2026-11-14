@@ -196,7 +196,7 @@ func _dot(img: Image, centre: Vector2, px: float, at: Vector2, size: float, col:
 				img.set_pixel(xx, yy, img.get_pixel(xx, yy).blend(col))
 
 
-func _ground(space: PhysicsDirectSpaceState3D, x: float, z: float):
+func _ground(space: PhysicsDirectSpaceState3D, x: float, z: float) -> Variant:
 	var q := PhysicsRayQueryParameters3D.create(Vector3(x, 60, z), Vector3(x, -20, z))
 	q.collision_mask = 1
 	var hit := space.intersect_ray(q)
