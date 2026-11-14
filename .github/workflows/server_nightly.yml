@@ -3,7 +3,7 @@ name: Server nightly
 # Once a day: if the game server is behind main (game changes that didn't raise the net version, so they weren't
 # deployed right away), start the normal Web build, which tests and then deploys web and server. If the server is
 # up to date, restart the dyno so Heroku's daily restart happens at this hour instead of mid-evening.
-# 11:00 UTC = 4 am Mountain Standard Time (3 am in summer time). Change the hour in the cron line below.
+# 11:00 UTC = 4 am Mountain Standard Time (5 am in summer time). Change the hour in the cron line below.
 on:
   schedule:
     - cron: "0 11 * * *"

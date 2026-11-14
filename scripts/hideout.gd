@@ -74,7 +74,7 @@ var _queue_button: Button
 var _queue_info: Label
 var _start_now_button: Button
 var _online_status: Label
-var _reload_button: Button   # web only: shown when the server says an update is out (0.35.2)
+var _reload_button: Button   # web only: shown when the server says an update is out (0.35.3)
 var _save_queued := false
 ## Saved loadouts (0.21.2): the panel, its list, the name box and the BUY NEW box.
 var _loadouts_panel: PanelContainer

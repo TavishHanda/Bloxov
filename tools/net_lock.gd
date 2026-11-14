@@ -1,5 +1,5 @@
 extends SceneTree
-## Re-records tests/net_lock.txt (0.35.2): godot --headless -s tools/net_lock.gd
+## Re-records tests/net_lock.txt (0.35.3): godot --headless -s tools/net_lock.gd
 ## Run it after deciding whether config/net_version must go up (docs/context/ONLINE.md, "The net version").
 
 func _init() -> void:

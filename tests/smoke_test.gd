@@ -9190,7 +9190,7 @@ func _section_touch() -> void:
 	touch.process_mode = Node.PROCESS_MODE_INHERIT
 
 
-## The online contract lock (0.35.2): the @rpc list and the shared rule files must match tests/net_lock.txt, so nobody
+## The online contract lock (0.35.3): the @rpc list and the shared rule files must match tests/net_lock.txt, so nobody
 ## changes what client and server agree on without deciding about config/net_version (docs/context/ONLINE.md).
 func _section_netlock() -> void:
 	var lock := load("res://tools/net_lock_core.gd")

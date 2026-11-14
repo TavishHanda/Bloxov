@@ -28,7 +28,7 @@ Accounts and the PvP stash: `docs/archive/STASH_UPDATE_PLAN.md`.
   `cache_bust.py`; `scripts/web_packs.gd` mounts them and must stay the FIRST autoload, referencing no game scripts).
   Extend the smoke test when adding gameplay.
 
-## The net version (0.35.2)
+## The net version (0.35.3)
 `config/net_version` in `project.godot` is a whole number, separate from `config/version`. A client sends it in `_hello`
 (as text); the server lets in the same number, tells a lower one (or an old game's "0.35.1") "update" and a higher one
 "server_updating" (reserved `_rejected` reasons; the client words them for web or desktop, `Network.reason_text`).
