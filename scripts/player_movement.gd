@@ -284,7 +284,7 @@ func _ladder_yaw(ladder: Ladder) -> float:
 ## Ladders (0.13.5; reworked 0.32.1, owner: "ladder mechanics are ass", the top was weird, it grabbed you when you
 ## didn't want it, a bit slow, felt dead). Getting on: walk straight into it, or press interact near it; at the top,
 ## interact or walk off the edge over it, and you're swung round onto it in one smooth move. W climbs the way you look
-## (0.20.13: looking down goes down, otherwise up; S the other way), so a touch stick works the same as the keys;
+## (0.20.13: looking down goes down, otherwise up; S always goes down, 0.35.4), so a touch stick works the same as the keys;
 ## sprint slides down. At the top you climb up and over onto the floor in one move (like a vault); at the bottom you
 ## step off. Space lets go (pushed back off it, or sideways with A/D). True while on one.
 func _update_climb(delta: float) -> bool:
@@ -307,8 +307,8 @@ func _update_climb(delta: float) -> bool:
 		_let_go(ladder, true, input_dir.x)
 		return false
 	var up := -input_dir.y
-	if head.rotation.x < LADDER_LOOK_DOWN:
-		up = -up
+	if input_dir.y < 0.0 and head.rotation.x < LADDER_LOOK_DOWN:
+		up = -up   # (only W follows the look; S always climbs down, 0.35.4)
 	var feet := global_position.y
 	var target := up * climb_speed
 	var sliding := up < 0.0 and takes_input() and Input.is_action_pressed("sprint")
