@@ -1482,7 +1482,7 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 		var name := "bloxov-pvp-data-%s.json" % Network.main.account_name
 		SaveBackup.save_text(self, JSON.stringify(data, "  "), name, func(line: String) -> void: _signin_note.text = line)
 		return
-	if ok and data.get("token") is String:
+	if ok and data.get("token") is String and SessionStore.wants_remember():
 		SessionStore.save(data["token"], str(data.get("username", "")))
 	if ok and data.has("profile"):
 		_show_online_profile()
@@ -1576,6 +1576,12 @@ func _show_signin_page(page: String) -> void:
 			user.text = str(SessionStore.read().get("username", ""))
 			var password: LineEdit = edit.call("Password", "Password (10+ characters)", true, 128)
 			password.text_submitted.connect(func(_t: String) -> void: _press_sign_in("sign_in", false))
+			var remember := CheckBox.new()
+			remember.name = "Remember"
+			remember.text = "Remember me on this device"
+			remember.button_pressed = SessionStore.wants_remember()
+			remember.toggled.connect(SessionStore.set_remember)
+			_signin_box.add_child(remember)
 			button.call("SignIn", "SIGN IN", true, _press_sign_in.bind("sign_in", false))
 			button.call("Again", "TAKE OVER HERE", false, func() -> void:
 				if _last_account.is_empty():
@@ -1598,6 +1604,12 @@ func _show_signin_page(page: String) -> void:
 			edit.call("Password", "Password (10+ characters)", true, 128)
 			var confirm: LineEdit = edit.call("Confirm", "Confirm password", true, 128)
 			confirm.text_submitted.connect(func(_t: String) -> void: _press_sign_in("sign_up", false))
+			var remember := CheckBox.new()
+			remember.name = "Remember"
+			remember.text = "Remember me on this device"
+			remember.button_pressed = SessionStore.wants_remember()
+			remember.toggled.connect(SessionStore.set_remember)
+			_signin_box.add_child(remember)
 			button.call("Create", "CREATE ACCOUNT", true, _press_sign_in.bind("sign_up", false))
 			button.call("Back", "BACK", false, func() -> void:
 				_signin_note.text = ""
@@ -1751,6 +1763,11 @@ func _on_connection_lost() -> void:
 	_online_status.text = "Lost the connection to the server."
 	_refresh_online()
 	if Profile.mode == Profile.ONLINE and signin_panel != null:
+		var session := SessionStore.read()
+		if not session.is_empty():
+			_message("Lost the connection: signing back in...")
+			_account_action("resume", {"token": session["token"]})   # (remember me: no password needed)
+			return
 		open_signin()
 		_signin_note.text = "Lost the connection to the server. Sign in again to keep playing PvP."
 
