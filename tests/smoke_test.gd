@@ -844,6 +844,28 @@ func _section_ladder() -> void:
 	Input.action_release("move_forward")
 	await physics_frame
 	_check(not player.is_climbing() and player.global_position.y < 0.3, "W looking down climbs off at the bottom")
+	# 0.35.4: S always climbs down, even looking down (it used to climb up then).
+	player.teleport_to(spot + Vector3(0, 0.1, 1.2))
+	player.rotation.y = 0.0
+	player.head.rotation.x = 0.0
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	for i in 60:
+		await physics_frame
+	Input.action_release("move_forward")
+	var s_mid := player.global_position.y
+	player.head.rotation.x = deg_to_rad(-50.0)
+	Input.action_press("move_back")
+	for i in 30:
+		await physics_frame
+	Input.action_release("move_back")
+	_check(s_mid > 1.0 and player.global_position.y < s_mid - 0.5,
+		"on a ladder, S goes down even looking down (y %.2f -> %.2f)" % [s_mid, player.global_position.y])
+	for i in 60 * 2:
+		await physics_frame
+		if not player.is_climbing():
+			break
+	player.head.rotation.x = deg_to_rad(-50.0)   # (the next check starts looking down)
 	# From the platform: turn round, look down and walk over the edge onto the ladder, then down it.
 	player.teleport_to(spot + Vector3(0, 4.1, -0.6))
 	player.rotation.y = PI   # facing +Z, out over the ladder
