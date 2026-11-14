@@ -32,6 +32,15 @@ var _net_hits := 0
 func _ready() -> void:
 	add_to_group("enemies")
 	_side = 1.0 if randf() < 0.5 else -1.0
+	if loner:
+		faction = StringName("%s_%d" % [faction, get_instance_id()])
+	if skill_spread > 0.0 and not puppet:
+		var skill := randf_range(1.0 - skill_spread, 1.0 + skill_spread)
+		accuracy_near = minf(accuracy_near * skill, 1.0)
+		accuracy_far *= skill
+		accuracy_long *= skill
+	if operator_look and not puppet:
+		pick_look(randi())
 	if loadout != "":
 		var gun := AILoadouts.pick(loadout)
 		AILoadouts.apply_style(self, gun)
@@ -305,6 +314,18 @@ var _gear: Array[ItemStack] = []
 
 ## One mesh per moving part instead of one per piece of clothing (0.18.12, fewer draw calls). Deferred: online, a
 ## puppet's outfit is picked just after it joins the tree (and picking again re-merges anyway).
+## Its outfit from `seed_value` (online: the server's id, so every screen shows the same one): a ready-made player
+## outfit for an operator_look AI (AI PMCs), otherwise a mix of its model's parts.
+func pick_look(seed_value: int) -> void:
+	var pixel := model as PixelModel
+	if pixel == null:
+		return
+	if operator_look:
+		pixel.pick_outfit(Operators.LIST[posmod(seed_value, Operators.LIST.size())]["look"])
+	else:
+		pixel.pick_outfit_seeded(seed_value)
+
+
 func _merge_model() -> void:
 	if DisplayServer.get_name() != "headless" or merge_headless:
 		(model as PixelModel).merge_parts()

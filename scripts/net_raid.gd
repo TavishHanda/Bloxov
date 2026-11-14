@@ -6,7 +6,8 @@ extends Node
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
 ## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider).
-const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn")]
+const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn"),
+	preload("res://scenes/pmc_ai.tscn")]   # (net_kind 4: AI PMCs, 0.36.1)
 
 @export var player: Player
 @export var enemy_spawner: Node
@@ -286,7 +287,7 @@ func sync_enemies(list: Array) -> void:
 			puppet.name = "Enemy%d" % id
 			get_parent().add_child(puppet)
 			# Same outfit on every player's screen.
-			puppet.model.pick_outfit_seeded(id)
+			puppet.pick_look(id)
 			enemy_puppets[id] = puppet
 		puppet.net_push(entry[2])
 	for id in enemy_puppets.keys():

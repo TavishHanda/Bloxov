@@ -59,6 +59,12 @@ func _process(_delta: float) -> bool:
 		for world in _worlds:
 			for peer in 6:
 				world.update_proxy(peer + 1, [Vector3(randf() * 20.0, 0.0, randf() * 20.0), 0.0, 0.0, 0.0, 0])
+			# Three AI PMCs (0.36.1: the scene loads and runs without real meshes; spawning them for real is piece 3).
+			var pmc: PackedScene = load("res://scenes/pmc_ai.tscn")
+			for i in 3:
+				var bot: Node3D = pmc.instantiate()
+				world.raid.add_child(bot)
+				bot.global_position = Vector3(40.0 * i - 40.0, 0.5, 40.0)
 			var spawner: Node = world.raid.get_node_or_null("EnemySpawner")
 			if spawner != null:
 				for t in 120:

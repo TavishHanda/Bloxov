@@ -54,10 +54,10 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 		return
 	if stays_home and not _near_home(pos):
 		return
-	if radius >= alarm_noise and not _is_responding() and _responders() >= max_responders:
+	if radius >= alarm_noise and uses_fight_budget and not _is_responding() and _responders() >= max_responders:
 		_hold_alert(pos)
 		return
-	if loud and not _is_responding() and not FightBudget.take(self, pos):
+	if loud and not _is_responding() and not _fight_ticket(pos):
 		_hold_alert(pos)
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -171,7 +171,7 @@ func answer_call(pos: Vector3) -> void:
 		return
 	if stays_home and not _near_home(pos):
 		return
-	if not _is_responding() and (_responders() >= max_responders or not FightBudget.take(self, pos)):
+	if not _is_responding() and (_responders() >= max_responders or not _fight_ticket(pos)):
 		_hold_alert(pos)
 		return
 	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -190,9 +190,14 @@ func _responders() -> int:
 	var count := 0
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
-		if ally != null and ally != self and ally._is_responding():
+		if ally != null and ally != self and ally.uses_fight_budget and ally._is_responding():
 			count += 1
 	return count
+
+
+## A FightBudget ticket to join the fight at `pos` (AI that leave the budget out, AI PMCs, always go).
+func _fight_ticket(pos: Vector3) -> bool:
+	return not uses_fight_budget or FightBudget.take(self, pos)
 
 
 ## Enough others are already going: it stays put, on alert, looking toward the trouble (quicker to spot you).
@@ -339,7 +344,7 @@ func _warn_friends() -> void:
 			var eyes := friend.global_position + Vector3(0, 1.65, 0)
 			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1 | Door.LAYER)).is_empty():
 				continue
-		if not FightBudget.take(self, _last_hit_from):
+		if not _fight_ticket(_last_hit_from):
 			friend._hold_alert(_last_hit_from)   # (the fight has pulled in enough: it watches that way, 0.28.11)
 			continue
 		friend.notice_near_miss(_last_hit_from)
@@ -350,7 +355,7 @@ func _warn_friends() -> void:
 
 ## Says a callout (`chance` of it, at most one per bark_cooldown); online the server passes it on to players.
 func _bark(kind: String, chance := 1.0) -> void:
-	if puppet or _bark_left > 0.0 or randf() > chance:
+	if puppet or silent or _bark_left > 0.0 or randf() > chance:
 		return
 	_bark_left = bark_cooldown
 	play_bark(kind)
@@ -360,7 +365,7 @@ func _bark(kind: String, chance := 1.0) -> void:
 ## Chatter (Sound update 0.20.4): a line that isn't a callout (muttering on patrol, a chuckle after a kill, a
 ## grenade warning). It doesn't use up the callout cooldown, so it never holds back a "spotted" or a "cover".
 func _chatter(kind: String) -> void:
-	if puppet or _bark_left > 0.0:
+	if puppet or silent or _bark_left > 0.0:
 		return
 	play_bark(kind)
 	barked.emit(kind)

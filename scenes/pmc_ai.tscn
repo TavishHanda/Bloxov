@@ -1,0 +1,90 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/scav.gd" id="1_scav"]
+[ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/pmc.glb" id="3_model"]
+[ext_resource type="Script" path="res://scripts/pixel_model.gd" id="4_pixel"]
+
+[sub_resource type="BoxShape3D" id="BodyBox"]
+size = Vector3(0.8, 1.35, 0.6)
+
+[sub_resource type="BoxShape3D" id="HeadBox"]
+size = Vector3(0.53, 0.61, 0.53)
+
+[sub_resource type="StandardMaterial3D" id="FlashMat"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="FlashMesh"]
+material = SubResource("FlashMat")
+size = Vector3(0.16, 0.16, 0.02)
+
+[node name="PmcAI" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 135
+script = ExtResource("1_scav")
+faction = &"pmc"
+loner = true
+uses_fight_budget = false
+move_speed = 3.6
+sight_range = 80.0
+give_up_time = 15.0
+search_time = 10.0
+hearing_mult = 1.5
+flank_chance = 0.5
+sneak_range = 15.0
+lull_time = 1.5
+cover_cooldown = 2.0
+heals = 2
+hurt_fraction = 0.4
+reaction_time = 0.12
+startle_reaction_time = 0.1
+aim_time = 0.15
+shoot_range = 75.0
+burst_size = 4
+burst_cooldown_min = 0.5
+burst_cooldown_max = 0.75
+shot_damage = 18
+melee_damage = 25
+melee_windup = 0.22
+melee_cooldown = 1.1
+accuracy_near = 0.7
+accuracy_far = 0.35
+accuracy_long = 0.2
+skill_spread = 0.1
+min_drops = 2
+max_drops = 4
+loot_table = "raider"
+body_name = "PMC Body"
+weapon_drop_chance = 0.3
+weapon_drop = "ak"
+loadout = "raider"
+drop_part_chance = 0.25
+held_model = "ak"
+armor = "armor_light"
+burst_color = Color(0.66, 0.6, 0.42, 1)
+suppress_chance = 1.0
+net_kind = 4
+silent = true
+operator_look = true
+
+[node name="BodyShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
+shape = SubResource("BodyBox")
+
+[node name="HeadShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, 0)
+shape = SubResource("HeadBox")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 100
+
+[node name="Model" parent="." instance=ExtResource("3_model")]
+script = ExtResource("4_pixel")
+
+[node name="MuzzleFlash" type="Node3D" parent="."]
+
+[node name="FlashMesh" type="MeshInstance3D" parent="MuzzleFlash"]
+cast_shadow = 0
+mesh = SubResource("FlashMesh")

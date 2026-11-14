@@ -131,6 +131,9 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var opening_reset := 5.0
 ## Keeps at least this far from its target: closer and it backs off while shooting.
 @export var min_distance := 1.5
+## Each one's hit chances (near, far, long) times a random 1 +/- this, rolled once when it spawns (AI PMCs, 0.36.1:
+## so they don't all shoot alike). 0 = everyone exactly the scene's numbers (every other AI).
+@export var skill_spread := 0.0
 
 @export_group("Cover")
 ## Fights from cover (0.12.6, owner: a scav ran at him sideways with cover right beside it). In a fight it gets to
@@ -201,6 +204,12 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## Scavs and Raiders are rivals (0.12.17, owner): they ignore each other, but never answer the other side's calls
 ## for help, warn it or team up with it. raider.tscn and boss.tscn are "raider".
 @export var faction := &"scav"
+## Fights alone (AI PMCs, 0.36.1, owner: bots are always alone): its faction becomes its own when it spawns, so it never
+## calls for help, answers a call, warns anyone or teams up to suppress and flank, and nobody does that with it.
+@export var loner := false
+## Leaves FightBudget out (AI PMCs, 0.36.1): it doesn't take the fight tickets scavs and Raiders share, or count
+## toward their max_responders, so a bot never uses up the room another AI would have had to join a fight.
+@export var uses_fight_budget := true
 
 @export_group("Voice")
 ## Callouts: how deep its voice is (Raiders and Bon lower) and at most one callout per this many seconds.
@@ -208,6 +217,8 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var bark_cooldown := 4.0
 ## Its own set of callouts (0.20.4): audio/voice/<voice_set>/ ("bon"); "" = everyone's.
 @export var voice_set := ""
+## Never says anything: no callouts, no chatter (AI PMCs, 0.36.1, players don't shout).
+@export var silent := false
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 ## Chasing (0.12.33, owner: "they never push when in range to actually shoot"; cover is for when it sees you but
@@ -305,6 +316,9 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 @export_group("Look")
 ## Which gun model it holds (HeldGun.MODELS key; "" = the one drawn into its model).
 @export var held_model := ""
+## Wears one of the ready-made player outfits (Operators) instead of a random mix of its model's parts (AI PMCs,
+## 0.36.1: they look like players). Online each screen picks it from the server's id, so everyone sees the same one.
+@export var operator_look := false
 ## The gun it carries (from its loadout; "" = the scene's own numbers). Sent to puppets online.
 var carried_gun := ""
 @export var burst_color := Color(0.33, 0.38, 0.24)

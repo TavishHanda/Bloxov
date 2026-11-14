@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -42,6 +42,7 @@ const SCAV_SCENE := "res://scenes/scav.tscn"
 const SNIPER_SCENE := "res://scenes/sniper.tscn"
 const BOSS_SCENE := "res://scenes/boss.tscn"
 const RAIDER_SCENE := "res://scenes/raider.tscn"
+const PMC_AI_SCENE := "res://scenes/pmc_ai.tscn"
 
 var _failures := 0
 ## Contents of the profile save before the test ran (null = there wasn't one).
@@ -6260,6 +6261,69 @@ func _section_old_bloxov() -> void:
 		enemy_node.queue_free()
 	world.queue_free()
 	await _frames(2)
+
+
+func _section_pmc_ai() -> void:
+	# AI PMCs (0.36.1, piece 2 of the owner's AI PMC plan): the player model on the shared AI brain, net kind 4.
+	# Owner's picks: hit chance 70% close, 35% at 28 m, 20% far, 100 HP, always alone, silent, never uses up the
+	# fight tickets scavs and Raiders share. Only new settings; every other AI keeps its own (behaviour LOCKED).
+	var a := _spawn(PMC_AI_SCENE, Vector3(30, 0.1, 30)) as Scav
+	var b := _spawn(PMC_AI_SCENE, Vector3(-30, 0.1, 30)) as Scav
+	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, -30)) as Scav
+	await physics_frame
+	_check(NetRaid.ENEMY_SCENES[4].resource_path == PMC_AI_SCENE and a.net_kind == 4, "AI PMCs are net kind 4 (the fifth puppet scene)")
+	_check(a.health.max_health == 100, "an AI PMC has 100 HP")
+	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+	_check(is_equal_approx(ref.accuracy_near, 0.7) and is_equal_approx(ref.accuracy_far, 0.35) and is_equal_approx(ref.accuracy_long, 0.2)
+		and is_equal_approx(ref.skill_spread, 0.1), "AI PMC hit chance 70/35/20, each one +/- 10%")
+	ref.free()
+	var spread_ok := true
+	for bot: Scav in [a, b]:
+		var skill := bot.accuracy_near / 0.7
+		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_far, 0.35 * skill) \
+			and is_equal_approx(bot.accuracy_long, 0.2 * skill)
+	_check(spread_ok, "each AI PMC rolls one skill for all its hit chances (%.3f, %.3f)" % [a.accuracy_near, b.accuracy_near])
+	_check(String(a.faction).begins_with("pmc_") and a.faction != b.faction, "every AI PMC is its own side (always alone)")
+	_check(not scav.loner and scav.uses_fight_budget and not scav.silent and not scav.operator_look and scav.skill_spread == 0.0
+		and scav.faction == &"scav", "scavs keep their settings")
+	# Looks like a player: one of the wardrobe's ready-made outfits; online the server's id picks which.
+	var looks: Array = Operators.LIST.map(func(e: Dictionary) -> Dictionary: return e["look"])
+	_check(looks.has((a.model as PixelModel).outfit), "an AI PMC wears a player outfit")
+	a.pick_look(7)
+	_check((a.model as PixelModel).outfit == Operators.LIST[7 % Operators.LIST.size()]["look"], "the same id gives the same outfit on every screen")
+	var puppet := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+	puppet.puppet = true
+	main.add_child(puppet)
+	puppet.pick_look(-3)
+	_check((puppet.model as PixelModel).outfit == Operators.LIST[posmod(-3, Operators.LIST.size())]["look"] and puppet.accuracy_near == 0.7
+		and puppet.faction == &"pmc_%d" % puppet.get_instance_id(), "a puppet AI PMC takes its outfit from the id")
+	puppet.queue_free()
+	# Silent: no callouts, no chatter.
+	var said := []
+	a.barked.connect(func(kind: String) -> void: said.append(kind))
+	a._bark_left = 0.0
+	a._bark("spotted")
+	a._chatter("idle")
+	_check(said.is_empty(), "AI PMCs never say anything")
+	# Alone: a bot's call for help reaches nobody, not even another bot right beside it.
+	b.global_position = a.global_position + Vector3(3, 0, 0)
+	await physics_frame
+	_check(not a._call_for_help(a.global_position + Vector3(0, 0, -20)) and b.state == Scav.State.IDLE, "an AI PMC calls nobody for help")
+	# Leaves the fight budget alone: with a fight's tickets used up, a scav waits on alert but a bot still goes.
+	FightBudget.reset(a)
+	var fight := a.global_position + Vector3(0, 0, -15)
+	for i in FightBudget.BUDGET:
+		FightBudget.take(a, fight)
+	a.hear_noise(fight, 25.0, true)
+	scav.global_position = fight + Vector3(0, 0, -10)
+	await physics_frame
+	scav.hear_noise(fight, 25.0, true)
+	_check(a.state in [Scav.State.ALERT, Scav.State.INVESTIGATE] and scav.state == Scav.State.SEARCH and FightBudget.used(a, fight) == FightBudget.BUDGET,
+		"AI PMCs don't take fight tickets (bot %s, scav %s)" % [Scav.State.keys()[a.state], Scav.State.keys()[scav.state]])
+	FightBudget.reset(a)
+	for node: Node in [a, b, scav]:
+		node.queue_free()
+	await physics_frame
 
 
 func _section_hud() -> void:

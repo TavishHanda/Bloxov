@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.1 (AI PMCs, piece 2: the bot itself)
+Built on the AI PMC branch; nothing changes for players yet (no raid spawns one until piece 3, and the server switch stays off).
+- **`scenes/pmc_ai.tscn`**: the AI PMC. The player model on the shared AI brain, net kind 4 (the fifth puppet scene
+  online). Owner's numbers: hit chance 70% close, 35% at 28 m, 20% far, 100 HP; each bot rolls its skill once, +/- 10%,
+  so they don't all shoot alike. Its other fight numbers are the Raider's for now (piece 7 tunes them). Light armor,
+  a Raider's gun roll and a plain "PMC Body" until pieces 3 and 5 (names, tags, kits).
+- **Always alone** (owner): each bot is its own side, so it never calls for help, answers a call, warns anyone or teams
+  up to suppress and flank. It doesn't take the fight tickets scavs and Raiders share (FightBudget), so a bot never
+  uses up the room another AI had to join a fight. **Silent**: no callouts or chatter. **Looks like a player**: one
+  of the wardrobe's ready-made outfits, the same one on every screen online.
+- These are new AI settings that are off by default (`loner`, `uses_fight_budget`, `silent`, `operator_look`,
+  `skill_spread`); scavs, Raiders, snipers and Bon are unchanged (their scenes aren't touched, the sideways check passes).
+- The smoke test has a new `pmc_ai` section; the server pack check now runs three bots in each raid.
+
 ## 0.36.0 (AI PMCs, piece 1: the queue fill rule)
 Built on a branch while 0.35.0 is the current phase; nothing changes for players yet (the rule is off until the server check, piece 6).
 - With AI PMCs on, a player alone in the PvP queue waits 90 seconds and then gets a raid; AI PMCs make it 3 PMCs in all, real players counted (4 in about 1 raid in 4). So a lone player meets 2 bots, 3 now and then. Two or more real players keep the 30 second group countdown and are topped up the same way; a raid with 3+ real players gets none. Bots are always alone, never in pairs. `Matchmaker` only records the count (`bots`); the bots themselves come in the next pieces.
