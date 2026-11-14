@@ -800,13 +800,23 @@ func _section_ladder() -> void:
 	await create_timer(0.3).timeout
 	Input.action_press("move_forward")
 	var climbed := false
+	var climb_hands := player.camera.find_children("*", "ClimbHands", true, false)[0] as ClimbHands
+	var hand_back := false
+	var hand_top := 0
 	for i in 60 * 4:
 		await physics_frame
 		climbed = climbed or player.is_climbing()
+		if player.is_climbing():
+			# (0.35.13) going up, neither hand ever goes back down a rung
+			for side: String in ["R", "L"]:
+				if climb_hands._rung[side] < hand_top - 2:
+					hand_back = true
+				hand_top = maxi(hand_top, climb_hands._rung[side])
 		if climbed and not player.is_climbing():
 			break
 	Input.action_release("move_forward")
 	await create_timer(0.3).timeout
+	_check(climbed and not hand_back, "climbing up, the hands only ever reach up (top rung %d)" % hand_top)
 	var top := player.global_position
 	_check(climbed and top.y > 3.9 and top.y < 4.2 and top.z < spot.z and not player.is_climbing(),
 		"W climbs the ladder onto the platform (at %s)" % str(top.snapped(Vector3.ONE * 0.1)))
