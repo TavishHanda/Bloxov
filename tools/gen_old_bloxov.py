@@ -6576,7 +6576,7 @@ def spawner_meta(ter):
     scavs = sum(z[4] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[5] for z in AI_ZONES)
     # Scavs 2.0 (owner: about 30 at the start once the boss and snipers are in): the zones' AI and the roamers at
-    # the start, then 13 more scavs (0.35.6, owner: half at the start; one every 30-45 s, into every scav zone by trickle weight) and 3 more Raiders trickle into the hot zones.
+    # the start, then 13 more scavs (0.35.7, owner: half at the start; one every 30-45 s, into every scav zone by trickle weight) and 3 more Raiders trickle into the hot zones.
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
             f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}}}, '
             f'"max_alive": 36, "scav_budget": {scavs + 13}, "raider_budget": {raiders + 3}, '
