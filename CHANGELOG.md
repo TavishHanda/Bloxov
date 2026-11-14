@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.6 (Frontlines: half the scavs at the start, the rest trickle in)
+Owner: "WAY too many scavs at the beginning... like half the amount in the beginning and they slowly spawn in".
+- **Frontlines starts with 12 scavs (was 20), and the other 13 arrive over the raid** (still 25 in all): one every
+  30 to 45 s (was 50 to 70 s, so the last lands around minute 8). Start counts: Town 4, Woods 2, Station 1, Farm 1,
+  Old Houses 1, Road Houses 1, Church 0, and 2 roamers.
+- **Later scavs now arrive in every scav zone**, not mostly Town (weights: Town 2, Woods 1.5, Station 1, Farm 1,
+  Old Houses 1, Road Houses 0.5, Church 0.5).
+- Unchanged: the 9 Raiders, Bon and his guards, the 2 snipers.
 ## 0.35.6 (Riptide: Zero is now Raijin)
 (0.35.4 and 0.35.5 are held by open pull requests.)
 - **Riptide's boss is named Raijin** (owner; was Zero): his body, the map's "RAIJIN'S CORE" label and the item

@@ -6337,16 +6337,16 @@ def main():
 # (name, x, z, radius, scavs at the start, Raiders at the start, trickle weight for later arrivals)
 AI_ZONES = [
     # Scavs and Raiders are rivals (0.12.17, owner): each side has its own areas.
-    ("Town", 85, 95, 65, 6, 0, 2.0),          # scavs: the town, square included
+    ("Town", 85, 95, 65, 4, 0, 2.0),          # scavs: the town, square included
     ("PoliceBank", 150, 124, 30, 0, 2, 2.0),  # Raiders: the police station and the bank (0.12.22, owner: spread out)
     ("GunStore", 80, 74, 20, 0, 2, 2.0),      # Raiders: the gun store and pharmacy, north of town
     ("SouthEast", 305, 300, 45, 0, 2, 2.0),   # Raiders: junkyard, old gas station, diner, garage
-    ("Station", 240, 220, 35, 2, 0, 1.0),     # scavs: train station and depot
-    ("Farm", 285, 42, 40, 2, 0, 0.0),
-    ("RoadHouses", 222, 47, 20, 1, 0, 0.0),   # the motel on the road between the church and the farm (was two houses)
-    ("Church", 180, 42, 25, 1, 0, 0.0),
-    ("Woods", 75, 290, 40, 3, 0, 0.0),        # cabins, campsite, hunting stand
-    ("OldHouses", 200, 300, 30, 2, 0, 1.0),   # old houses south of the railway
+    ("Station", 240, 220, 35, 1, 0, 1.0),     # scavs: train station and depot
+    ("Farm", 285, 42, 40, 1, 0, 1.0),
+    ("RoadHouses", 222, 47, 20, 1, 0, 0.5),   # the motel on the road between the church and the farm (was two houses)
+    ("Church", 180, 42, 25, 0, 0, 0.5),
+    ("Woods", 75, 290, 40, 2, 0, 1.5),        # cabins, campsite, hunting stand
+    ("OldHouses", 200, 300, 30, 1, 0, 1.0),   # old houses south of the railway
     ("TownHall", 107, 155, 20, 0, 0, 0.0),    # the boss's zone: the town hall and its bunker (boss + guards only)
 ]
 # Parts of a zone its AI keep out of (spawns and patrols), and how far out its open-ground patrol stops sit
@@ -6360,7 +6360,7 @@ AI_BOSS = ("TownHall", 3, 1.0)
 # Where the boss and guards start (owner, 0.12.18: inside the town hall, then out on patrol): ground-floor room
 # centres of the hall (rooms 12.5 x 9 m), one picked per raid.
 BOSS_STARTS = [(100.75, 159.5), (113.25, 150.5), (113.25, 159.5), (125.75, 159.5)]
-AI_ROAMERS = 3
+AI_ROAMERS = 2
 # Sniper perches (Scavs 2.0, owner): high spots with a view, a sniper stays on one. 2 of them are used each raid
 # (preferring ones that don't already see a player). (name, x, z, height above the ground, which way it watches)
 SNIPER_PERCHES = [
@@ -6576,11 +6576,11 @@ def spawner_meta(ter):
     scavs = sum(z[4] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[5] for z in AI_ZONES)
     # Scavs 2.0 (owner: about 30 at the start once the boss and snipers are in): the zones' AI and the roamers at
-    # the start, then 5 more scavs (one every 50-70 s) and 3 more Raiders trickle into the hot zones.
+    # the start, then 13 more scavs (0.35.6, owner: half at the start; one every 30-45 s, into every scav zone by trickle weight) and 3 more Raiders trickle into the hot zones.
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
             f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}}}, '
-            f'"max_alive": 36, "scav_budget": {scavs + 5}, "raider_budget": {raiders + 3}, '
-            '"scav_interval_min": 50.0, "scav_interval_max": 70.0, '
+            f'"max_alive": 36, "scav_budget": {scavs + 13}, "raider_budget": {raiders + 3}, '
+            '"scav_interval_min": 30.0, "scav_interval_max": 45.0, '
             '"raider_times": PackedFloat32Array(150, 300, 420), "min_distance_from_player": 40.0}')
 
 
