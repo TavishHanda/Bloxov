@@ -1,0 +1,17 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/raider.tscn" id="1_raider"]
+
+[node name="Raider" instance=ExtResource("1_raider")]
+heals = 3
+burst_size = 5
+shot_damage = 20
+accuracy_near = 0.9
+accuracy_far = 0.6
+accuracy_long = 0.35
+armor = "armor_heavy"
+helmet = "helmet_good"
+loadout = "ak"
+
+[node name="Health" parent="." index="2"]
+max_health = 150

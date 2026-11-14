@@ -800,13 +800,23 @@ func _section_ladder() -> void:
 	await create_timer(0.3).timeout
 	Input.action_press("move_forward")
 	var climbed := false
+	var climb_hands := player.camera.find_children("*", "ClimbHands", true, false)[0] as ClimbHands
+	var hand_back := false
+	var hand_top := 0
 	for i in 60 * 4:
 		await physics_frame
 		climbed = climbed or player.is_climbing()
+		if player.is_climbing():
+			# (0.35.13) going up, neither hand ever goes back down a rung
+			for side: String in ["R", "L"]:
+				if climb_hands._rung[side] < hand_top - 2:
+					hand_back = true
+				hand_top = maxi(hand_top, climb_hands._rung[side])
 		if climbed and not player.is_climbing():
 			break
 	Input.action_release("move_forward")
 	await create_timer(0.3).timeout
+	_check(climbed and not hand_back, "climbing up, the hands only ever reach up (top rung %d)" % hand_top)
 	var top := player.global_position
 	_check(climbed and top.y > 3.9 and top.y < 4.2 and top.z < spot.z and not player.is_climbing(),
 		"W climbs the ladder onto the platform (at %s)" % str(top.snapped(Vector3.ONE * 0.1)))
@@ -844,6 +854,28 @@ func _section_ladder() -> void:
 	Input.action_release("move_forward")
 	await physics_frame
 	_check(not player.is_climbing() and player.global_position.y < 0.3, "W looking down climbs off at the bottom")
+	# 0.35.9: S always climbs down, even looking down (it used to climb up then).
+	player.teleport_to(spot + Vector3(0, 0.1, 1.2))
+	player.rotation.y = 0.0
+	player.head.rotation.x = 0.0
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	for i in 60:
+		await physics_frame
+	Input.action_release("move_forward")
+	var s_mid := player.global_position.y
+	player.head.rotation.x = deg_to_rad(-50.0)
+	Input.action_press("move_back")
+	for i in 30:
+		await physics_frame
+	Input.action_release("move_back")
+	_check(s_mid > 1.0 and player.global_position.y < s_mid - 0.5,
+		"on a ladder, S goes down even looking down (y %.2f -> %.2f)" % [s_mid, player.global_position.y])
+	for i in 60 * 2:
+		await physics_frame
+		if not player.is_climbing():
+			break
+	player.head.rotation.x = deg_to_rad(-50.0)   # (the next check starts looking down)
 	# From the platform: turn round, look down and walk over the edge onto the ladder, then down it.
 	player.teleport_to(spot + Vector3(0, 4.1, -0.6))
 	player.rotation.y = PI   # facing +Z, out over the ladder
@@ -3813,6 +3845,13 @@ func _section_stash_modes() -> void:
 		and not FileAccess.get_file_as_string(SessionStore.PATH).contains("password"), "a session is kept and read back")
 	SessionStore.clear()
 	_check(SessionStore.read().is_empty(), "signing out clears the session")
+	_check(SessionStore.wants_remember(), "remember me is on by default")
+	SessionStore.save("abc123", "tester")
+	SessionStore.set_remember(false)
+	_check(not SessionStore.wants_remember() and SessionStore.read().is_empty(), "remember me off forgets the kept session")
+	SessionStore.set_remember(true)
+	_check(SessionStore.wants_remember(), "remember me back on")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SessionStore.PREF_PATH))
 	var file := FileAccess.open(Profile.PATH, FileAccess.WRITE)
 	file.store_string(solo_file)
 	file.close()
@@ -5681,19 +5720,38 @@ func _section_riptide() -> void:
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
 	swimmer.free()
-	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
-	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
+	# The AI stays out of the sea (0.35.3): a move off the pier's edge is stopped, a move along the pier isn't
+	var dry := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	world.raid.add_child(dry)
+	dry.global_position = Vector3(12.0, 1.6, -1.2)
+	for i in 20:
+		await physics_frame
+	dry.global_position = Vector3(12.0, 1.5, -1.2)   # (it may have wandered: back to the edge, checked at once)
+	_check(dry.is_on_floor() and dry._keep_out_of_water(Vector3(0, 0, -4), 0.0) == Vector3.ZERO,
+		"a scav's step off the pier over the sea is stopped (on floor %s)" % dry.is_on_floor())
+	_check(dry._keep_out_of_water(Vector3(4, 0, 0), 0.0) == Vector3(4, 0, 0) and dry._keep_out_of_water(Vector3(0, 0, 4), 0.0) == Vector3(0, 0, 4),
+		"and its steps along and across the pier are left alone")
+	dry.free()
+	# Raijin (0.33.4 as Zero, renamed 0.35.6, owner's list): his own scene, gun and gear, and what only he drops
+	var zero := (load("res://scenes/boss_raijin.tscn") as PackedScene).instantiate() as Scav
 	root.add_child(zero)
-	_check(zero.body_name == "Zero" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
+	_check(zero.body_name == "Raijin" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
 		and zero.armor == "armor_assault" and zero.helmet == "helmet_assault"
 		and is_equal_approx(zero.health.damage_multiplier, 0.5) and is_equal_approx(zero.health.head_multiplier, 0.45),
-		"Zero carries the Reaper and wears assault armor and helmet")
-	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Zero drops the Formula and the Raid Pack")
+		"Raijin carries the Reaper and wears assault armor and helmet")
+	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Raijin drops the Formula and the Raid Pack")
 	zero.free()
 	var zero_map := (load(MAP) as PackedScene).instantiate()
 	var spawner_meta: Dictionary = zero_map.get_meta("spawner", {})
 	zero_map.free()
-	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_zero.tscn", "Riptide's boss is Zero")
+	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_raijin.tscn", "Riptide's boss is Raijin")
+	var boss_meta := spawner_meta.get("boss", {}) as Dictionary
+	var ace := (load("res://scenes/guard_raijin.tscn") as PackedScene).instantiate() as Scav
+	root.add_child(ace)
+	_check((not boss_meta.has("guard_scene") or (int(boss_meta.get("guards", 0)) == 2 and boss_meta.get("guard_names", []) == ["Ace", "Orbit"]))
+		and ace.health.max_health == 150 and ace.armor == "armor_heavy" and ace.helmet == "helmet_good" and ace.shot_damage == 20 and ace.burst_size == 5,
+		"Raijin has two guards, Ace and Orbit, tougher than Raiders (%s %s hp %d %s %s dmg %d burst %d)" % [boss_meta.get("guards"), boss_meta.get("guard_names"), ace.health.max_health, ace.armor, ace.helmet, ace.shot_damage, ace.burst_size])
+	ace.free()
 	_check(ItemDB.item("formula")["value"] == 100000 and ItemDB.item("formula")["rarity"] == "legendary"
 		and ItemDB.item("reaper")["ammo"] == "rifle_ammo" and ItemDB.item("reaper")["rarity"] == "epic" and ItemDB.item("reaper")["value"] == 30000
 		and ItemDB.item("armor_assault")["reduction"] == 0.5 and ItemDB.item("helmet_assault")["reduction"] == 0.55
@@ -5815,9 +5873,9 @@ func _section_old_bloxov() -> void:
 	var zone_spots := {}
 	for m: Node in spawner.get_children():
 		zone_spots[m.get_meta("zone", "")] = zone_spots.get(m.get_meta("zone", ""), 0) + 1
-	_check(zone_names.has("PoliceBank") and zone_names.has("SouthEast") and start_ai >= 20 and start_ai <= 30
-		and spawner.roamers == 3 and spawner.max_alive >= 30,
-		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 3 roamers" % [zone_names, start_ai])
+	_check(zone_names.has("PoliceBank") and zone_names.has("SouthEast") and start_ai >= 15 and start_ai <= 30
+		and spawner.roamers == 2 and spawner.max_alive >= 30,
+		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 2 roamers" % [zone_names, start_ai])
 	_check(spawner.zones.all(func(z: Dictionary) -> bool: return zone_spots.get(z.name, 0) > int(z.scavs) + int(z.raiders)),
 		"...and every zone has more spawn spots than AI starting there (%s)" % [zone_spots])
 	var loot := world.raid.get_node("Loot").get_children()
@@ -9190,7 +9248,7 @@ func _section_touch() -> void:
 	touch.process_mode = Node.PROCESS_MODE_INHERIT
 
 
-## The online contract lock (0.35.4): the @rpc list and the shared rule files must match tests/net_lock.txt, so nobody
+## The online contract lock (0.35.14): the @rpc list and the shared rule files must match tests/net_lock.txt, so nobody
 ## changes what client and server agree on without deciding about config/net_version (docs/context/ONLINE.md).
 func _section_netlock() -> void:
 	var lock := load("res://tools/net_lock_core.gd")

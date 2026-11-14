@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.35.4 (Net version: updates no longer lock out open games)
+## 0.35.14 (Net version: updates no longer lock out open games)
 No gameplay change. The server used to turn away any game whose version differed from its own, so every update locked
 out everyone with the old page open. Now there is a separate whole number, the **net version** (`config/net_version`,
 1 to start), that goes up only when client and server must agree.
@@ -19,6 +19,73 @@ out everyone with the old page open. Now there is a separate whole number, the *
 - **Lock test** (`netlock` section, `tests/net_lock.txt`, re-record with `godot --headless -s tools/net_lock.gd`): the smoke
   test fails when an @rpc or a shared rule file (items, accounts, traders, quests, recipes, health, matchmaking, anti-cheat)
   changes, so nobody forgets to decide about the net version. Rule: `docs/context/ONLINE.md`.
+
+## 0.35.13 (Smoother ladder hands)
+Owner: the ladders felt glitchy, "like your character starts jerking it on the ladder".
+- **Your hands no longer thrash on a ladder.** Going up, the upper hand sits well above your eyes, and the hand code
+  took that as "reach back down", so the hands pumped up and down and a forearm swung across the screen every
+  fraction of a second. Now the hands only reach the way you're going: up when climbing up, down when climbing down
+  (about 4 reaches a second instead of 10, never backwards, and never so high the sleeve fills the screen). Looks
+  only, no change to how climbing works.
+
+## 0.35.12 (the Reaper's own look)
+- **The Reaper has its own model.** It was the Hound's model with a different name. Now it is a short, compact carbine
+  in black and grey: a flat top rail with flip-up sights, a slotted handguard, a short barrel with a slotted flash hider,
+  a tube stock with a cheek rest and a curved mag. It has no built-in suppressor, so a suppressor attachment still adds one.
+  Owner picked the look from option sheets (project files `guns/models/reaper-options*.png`). Held by Raijin and other
+  players, in the hands, in first person and in the inventory icon. Looks only: no stat or gun feel changes.
+  The model is `reaper` in `art_source/scripts/make_gun.py` (looks a-j kept as the option sheets; `PICKED` is c), its
+  hands are in `make_hands.py`, and it has its own first-person view model (`GunViewModels`, reload style "rock").
+
+## 0.35.11 (Long Shot counts online in the quest tracker)
+Owner: a friend killed an AI from very far online and the Long Shot job didn't count. The server did count far
+kills (75 m or more) for the job, but the player's own quest tracker online only knew "quiet", so it never showed
+one. Now the client works the distance out from where the killing hit landed, so the tracker matches what the
+server credits. (Long Shot is also only open once Quiet Work is done: jobs go one at a time, as before.)
+
+
+## 0.35.10 (PvP: REMEMBER ME)
+- **A REMEMBER ME tick on the PvP sign-in and create-account pages** (owner: "add a remember me button so they don't
+  have to keep logging in"). On by default: the server's revocable session token (never the password) is kept on
+  the device and signs you straight back in; the server keeps it 30 days from your last visit. Untick it on a
+  shared computer and nothing is kept (any kept session is wiped). If the connection drops while you're in the PvP
+  stash, a remembered session signs you back in by itself instead of asking for the password again.
+  Store rules: no new data (the token was already in `docs/STORE_PRIVACY_FORMS.md`); SIGN OUT and DELETE still wipe it.
+
+
+## 0.35.9 (S climbs down ladders)
+- **S always takes you down a ladder.** Before, S climbed UP if you were looking steeply down (W followed the look,
+  and S was the opposite). Now only W follows where you look; S (and the back stick on a phone) always goes down.
+
+## 0.35.7 (Frontlines: half the scavs at the start, the rest trickle in)
+Owner: "WAY too many scavs at the beginning... like half the amount in the beginning and they slowly spawn in".
+- **Frontlines starts with 12 scavs (was 20), and the other 13 arrive over the raid** (still 25 in all): one every
+  30 to 45 s (was 50 to 70 s, so the last lands around minute 8). Start counts: Town 4, Woods 2, Station 1, Farm 1,
+  Old Houses 1, Road Houses 1, Church 0, and 2 roamers.
+- **Later scavs now arrive in every scav zone**, not mostly Town (weights: Town 2, Woods 1.5, Station 1, Farm 1,
+  Old Houses 1, Road Houses 0.5, Church 0.5).
+- Unchanged: the 9 Raiders, Bon and his guards, the 2 snipers.
+## 0.35.6 (Riptide: Zero is now Raijin)
+(0.35.4 and 0.35.5 are held by open pull requests.)
+- **Riptide's boss is named Raijin** (owner; was Zero): his body, the map's "RAIJIN'S CORE" label and the item
+  descriptions that named him. The lab is still Site Zero. `scenes/boss_zero.tscn` is now `scenes/boss_raijin.tscn`.
+- Not live yet, waiting on the owner's OK of the numbers: his two guards, Ace and Orbit (`scenes/guard_raijin.tscn`;
+  a map's boss can now bring its own guard scene and guard names, `guard_scene` / `guard_names`). Until then he keeps
+  three Raider guards. Switch: `ELITE_GUARDS` in `tools/gen_riptide.py`.
+- Test fix: the new "scavs stay out of the sea" check could fail when the test scav wandered off the pier's edge first.
+
+## 0.35.3 (Riptide: stairs down to the lab, scavs stay out of the sea)
+- **Both of the ship's stairwells now go all the way down to the lab** (owner: "stair cases going up and down near
+  the front/backs of the ship"). They stopped at the engine room deck, so the only ways into the lab were the moon
+  pool and two ladders. The bow stairs carry on down four short flights to a passage into the service tunnel and the
+  north wing; the tower stairs (stern) come down into a lobby that opens onto the south wing's corridor. The south
+  wing's east rooms were re-cut round the stairs, and the aft engine moved clear of them. Navigation re-baked.
+- **Scavs no longer fall in the sea** (owner: "they walk on the ground in the water and behave normally lol we need
+  them to not fall"). Their paths never left the decks, but a dodge, backing off, a shove from a friend or a blast
+  could carry one over an edge. A move that would step off an edge with deep water under it is now stopped
+  (`Scav._keep_out_of_water`, using the map's `SwimZone`s). Nothing changes on a map without deep water, so
+  Frontlines' AI is untouched.
+
 
 ## 0.35.2 (Riptide: the lab is part of the ship)
 Owner: "the lab is supposed to be a part of the cargo ship... there was just a huge gap between the bottom floor of the

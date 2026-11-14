@@ -8,6 +8,8 @@ extends RefCounted
 
 const PATH := "user://session.json"
 const WEB_KEY := "bloxov_session"
+## The REMEMBER ME tick on the sign-in page (0.35.4): on by default; off means no token is kept on this device.
+const PREF_PATH := "user://remember_me.txt"
 
 
 ## Keeps a session: `token` from the server, `username` to show on the sign-in panel.
@@ -44,3 +46,20 @@ static func clear() -> void:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	if OS.has_feature("web"):
 		JavaScriptBridge.eval("try { localStorage.removeItem('%s') } catch (e) {}" % WEB_KEY, true)
+
+
+## Whether sign-ins are kept (the REMEMBER ME tick). On unless the player turned it off.
+static func wants_remember() -> bool:
+	if not FileAccess.file_exists(PREF_PATH):
+		return true
+	return FileAccess.get_file_as_string(PREF_PATH).strip_edges() != "off"
+
+
+## Sets the tick. Turning it off also forgets any session kept so far.
+static func set_remember(on: bool) -> void:
+	var file := FileAccess.open(PREF_PATH, FileAccess.WRITE)
+	if file != null:
+		file.store_string("on" if on else "off")
+		file.close()
+	if not on:
+		clear()

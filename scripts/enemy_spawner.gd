@@ -130,7 +130,7 @@ func _spawn_boss() -> void:
 	if zone.is_empty() or spots.is_empty() or boss_scene == null:
 		return
 	var spot := spots.pick_random().global_position as Vector3
-	# (0.33.4: a map's boss can be its own scene, "scene": Riptide's Zero)
+	# (0.33.4: a map's boss can be its own scene, "scene": Riptide's Raijin)
 	var scene := load(String(boss["scene"])) as PackedScene if boss.has("scene") else boss_scene
 	boss_spawned = scene.instantiate() as Scav
 	get_parent().add_child(boss_spawned)
@@ -138,7 +138,10 @@ func _spawn_boss() -> void:
 	boss_spawned.home_center = zone.get("center", spot)
 	boss_spawned.home_radius = float(zone.get("radius", 0.0))
 	for i in int(boss.get("guards", 0)):
-		var guard := raider_scene.instantiate() as Scav
+		# (0.35.6, owner: Raijin's two guards, Ace and Orbit, "more op"): a map's boss can bring its own guards
+		# ("guard_scene") and name them ("guard_names")
+		var guard_scene := load(String(boss["guard_scene"])) as PackedScene if boss.has("guard_scene") else raider_scene
+		var guard := guard_scene.instantiate() as Scav
 		get_parent().add_child(guard)
 		var offset := GUARD_OFFSETS[i] if i < GUARD_OFFSETS.size() else Vector3(randf_range(-4, 4), 0, randf_range(2, 5))
 		guard.follow_offset = offset
@@ -146,7 +149,8 @@ func _spawn_boss() -> void:
 		guard.follow(boss_spawned)
 		guard.home_center = boss_spawned.home_center
 		guard.home_radius = boss_spawned.home_radius
-		guard.body_name = boss_spawned.body_name + "'s Guard"   # (owner, 0.12.39)
+		var names: Array = boss.get("guard_names", [])
+		guard.body_name = String(names[i]) if i < names.size() else boss_spawned.body_name + "'s Guard"   # (owner, 0.12.39)
 		guard.stays_home = true   # (owner: Bon and his guards patrol their area, they don't run to every gunshot)
 		guard.leash = boss_spawned.leash
 

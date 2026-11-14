@@ -1,6 +1,6 @@
 1
 rpc 1c37ede2aed1
-scripts/item_db.gd f5541d2e4592
+scripts/item_db.gd ece708dcaf80
 scripts/online_profile.gd faf655ae33f4
 scripts/net_guard.gd 346b32036407
 scripts/net_accounts.gd f3b182111700
