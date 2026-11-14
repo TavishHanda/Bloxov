@@ -256,7 +256,7 @@ func version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", "?"))
 
 
-## The net version (0.35.3): a whole number that goes up only when client and server must agree (docs/context/ONLINE.md,
+## The net version (0.35.4): a whole number that goes up only when client and server must agree (docs/context/ONLINE.md,
 ## "The net version"). Different game versions with the same net version play together.
 func net_version() -> int:
 	return int(ProjectSettings.get_setting("application/config/net_version", 0))

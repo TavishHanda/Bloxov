@@ -1,5 +1,5 @@
 extends RefCounted
-## The online contract's fingerprint (0.35.3), shared by tests/smoke_test.gd (section "netlock") and tools/net_lock.gd.
+## The online contract's fingerprint (0.35.4), shared by tests/smoke_test.gd (section "netlock") and tools/net_lock.gd.
 ## It covers every @rpc line with its func signature, and the shared rule files with comments and blank lines removed.
 ## tests/ and tools/ are left out of the exports, so nothing in the game loads this. Rule: docs/context/ONLINE.md.
 
