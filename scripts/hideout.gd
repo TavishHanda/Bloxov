@@ -74,6 +74,7 @@ var _queue_button: Button
 var _queue_info: Label
 var _start_now_button: Button
 var _online_status: Label
+var _reload_button: Button   # web only: shown when the server says an update is out (0.35.2)
 var _save_queued := false
 ## Saved loadouts (0.21.2): the panel, its list, the name box and the BUY NEW box.
 var _loadouts_panel: PanelContainer
@@ -180,6 +181,8 @@ func _process(_delta: float) -> void:
 	# The online panel's status line takes no room while it has nothing to say.
 	if _online_status != null:
 		_online_status.visible = _online_status.text != ""
+		if _reload_button != null:
+			_reload_button.visible = _online_status.visible and Network.main.update_needed
 
 
 ## Only one tab plays (TabLock, 0.17.5): any other shows this notice over everything until the first tab closes.
@@ -1915,6 +1918,13 @@ func _build_online_panel() -> void:
 	HudStyle.style_label(_online_status, 20, HudStyle.HAZARD)
 	_online_status.add_theme_font_override("font", HudStyle.spaced_font(20))
 	column.add_child(_online_status)
+	if OS.has_feature("web"):
+		_reload_button = Button.new()
+		_reload_button.text = "RELOAD"
+		LootUI.style_button(_reload_button)
+		_reload_button.visible = false
+		_reload_button.pressed.connect(func() -> void: JavaScriptBridge.eval("location.reload()"))
+		column.add_child(_reload_button)
 	if GameSettings.pvp_stash_on():
 		var account_button := Button.new()
 		account_button.name = "AccountButton"

@@ -20,6 +20,8 @@ extends Node
 signal connected
 ## Couldn't connect, or the server turned us away (the reason says why).
 signal connect_failed(reason: String)
+## True when the last connect_failed was "an update is out" (the hideout offers RELOAD on the web).
+var update_needed := false
 ## The connection dropped (the server stopped, or the internet went away).
 signal connection_lost
 ## Back in the raid after a dropped connection (PvP, within RECONNECT_TIME).
@@ -254,6 +256,12 @@ func version() -> String:
 	return str(ProjectSettings.get_setting("application/config/version", "?"))
 
 
+## The net version (0.35.2): a whole number that goes up only when client and server must agree (docs/context/ONLINE.md,
+## "The net version"). Different game versions with the same net version play together.
+func net_version() -> int:
+	return int(ProjectSettings.get_setting("application/config/net_version", 0))
+
+
 ## Players in our raid, us included.
 func player_count() -> int:
 	return names.size() if in_raid else 1
@@ -278,7 +286,7 @@ func start_server(port: int) -> Error:
 	var api := StashClient.from_environment()
 	if api != null:
 		use_stash(api)
-	_log("v%s listening on port %d%s" % [version(), port, " (player history on)" if _stats_url != "" else ""])
+	_log("v%s (net %d) listening on port %d%s" % [version(), net_version(), port, " (player history on)" if _stats_url != "" else ""])
 	return OK
 
 
@@ -297,21 +305,41 @@ static func is_valid_state(state: Array) -> bool:
 		and state[3] is float and state[4] is int)
 
 
-## Why a player can't come online ("" = they can).
-func join_problem(client_version: String) -> String:
-	if client_version != version():
-		return "The server is on v%s and you have v%s. Reload the page to update." % [version(), client_version]
+## Reserved `_rejected` reasons the client turns into text (it knows if it's the web page or a desktop game).
+const REASON_UPDATE := "update"   # the client is older than the server
+const REASON_SERVER_UPDATING := "server_updating"   # the client is newer: the server is still being updated
+
+
+## Why a player can't come online ("" = they can). `client_net` is what _hello sent: the client's net version as text
+## (an old game sends its game version, like "0.35.1", which isn't a whole number: it counts as older).
+func join_problem(client_net: String) -> String:
+	if not client_net.is_valid_int() or int(client_net) < net_version():
+		return REASON_UPDATE
+	if int(client_net) > net_version():
+		return REASON_SERVER_UPDATING
 	if matchmaker.players.size() >= MAX_ONLINE:
 		return "The server is full right now (%d players). Try again in a few minutes." % MAX_ONLINE
 	return ""
 
 
+## The text for a `_rejected` reason (reserved reasons become the wording that suits this platform).
+static func reason_text(reason: String) -> String:
+	match reason:
+		REASON_UPDATE:
+			if OS.has_feature("web"):
+				return "An update is out. Reload the page to get it."
+			return "An update is out. Close the game and let it update."
+		REASON_SERVER_UPDATING:
+			return "The server is updating. Try again in a few minutes."
+	return reason
+
+
 @rpc("any_peer", "call_remote", "reliable")
-func _hello(client_version: String, player_name: String, look := "") -> void:
+func _hello(client_net: String, player_name: String, look := "") -> void:
 	var peer := multiplayer.get_remote_sender_id()
 	if mode != Mode.SERVER or _kicked.has(peer) or matchmaker.players.has(peer) or not guard.allow(peer, "lobby", _now()):
 		return
-	var reason := join_problem(client_version)
+	var reason := join_problem(client_net)
 	if reason != "":
 		_log("peer %d turned away: %s" % [peer, reason])
 		_rejected.rpc_id(peer, reason)
@@ -1140,6 +1168,7 @@ func _send_stats() -> void:
 		return
 	var body := matchmaker.stats_data()
 	body["version"] = version()
+	body["net_version"] = net_version()
 	var err := _stats_http.request(_stats_url, ["Content-Type: application/json"], HTTPClient.METHOD_POST, JSON.stringify(body))
 	if err != OK:
 		_log("could not send the player history (error %d)" % err)
@@ -1211,6 +1240,7 @@ func _process(delta: float) -> void:
 
 ## Connects to a server. Emits `connected` or `connect_failed`.
 func go_online(address: String, player_name: String) -> void:
+	update_needed = false
 	go_offline()
 	_address = address
 	_player_name = player_name
@@ -1382,7 +1412,7 @@ func client_view_time() -> float:
 
 
 func _on_connected(player_name: String) -> void:
-	_hello.rpc_id(1, version(), player_name, my_look)
+	_hello.rpc_id(1, str(net_version()), player_name, my_look)
 
 
 ## Our look changed in the wardrobe (Operators.to_text): the server passes it on at the next raid.
@@ -1541,7 +1571,8 @@ func _final_kit(loadout: Dictionary) -> void:
 func _rejected(reason: String) -> void:
 	var was_in_raid := in_online_raid()
 	go_offline.call_deferred()
-	connect_failed.emit(reason)
+	update_needed = reason == REASON_UPDATE
+	connect_failed.emit(reason_text(reason))
 	if was_in_raid:
 		connection_lost.emit()
 

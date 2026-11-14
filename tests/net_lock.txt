@@ -1,0 +1,11 @@
+1
+rpc 1c37ede2aed1
+scripts/item_db.gd f5541d2e4592
+scripts/online_profile.gd faf655ae33f4
+scripts/net_guard.gd 346b32036407
+scripts/net_accounts.gd f3b182111700
+scripts/matchmaker.gd fc34d3f1d4c9
+scripts/traders.gd 04cb31d76848
+scripts/quests.gd 0d6270c9abda
+scripts/crafting.gd de89b4a45e52
+scripts/health.gd a1585a197e2a
