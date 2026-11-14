@@ -16,6 +16,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   The model is `reaper` in `art_source/scripts/make_gun.py` (looks a-j kept as the option sheets; `PICKED` is c), its
   hands are in `make_hands.py`, and it has its own first-person view model (`GunViewModels`, reload style "rock").
 
+## 0.35.11 (Long Shot counts online in the quest tracker)
+Owner: a friend killed an AI from very far online and the Long Shot job didn't count. The server did count far
+kills (75 m or more) for the job, but the player's own quest tracker online only knew "quiet", so it never showed
+one. Now the client works the distance out from where the killing hit landed, so the tracker matches what the
+server credits. (Long Shot is also only open once Quiet Work is done: jobs go one at a time, as before.)
+
+
 ## 0.35.10 (PvP: REMEMBER ME)
 - **A REMEMBER ME tick on the PvP sign-in and create-account pages** (owner: "add a remember me button so they don't
   have to keep logging in"). On by default: the server's revocable session token (never the password) is kept on
