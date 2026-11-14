@@ -7,6 +7,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.7 (PvP: REMEMBER ME)
+- **A REMEMBER ME tick on the PvP sign-in and create-account pages** (owner: "add a remember me button so they don't
+  have to keep logging in"). On by default: the server's revocable session token (never the password) is kept on
+  the device and signs you straight back in; the server keeps it 30 days from your last visit. Untick it on a
+  shared computer and nothing is kept (any kept session is wiped). If the connection drops while you're in the PvP
+  stash, a remembered session signs you back in by itself instead of asking for the password again.
+  Store rules: no new data (the token was already in `docs/STORE_PRIVACY_FORMS.md`); SIGN OUT and DELETE still wipe it.
+
 ## 0.35.6 (Riptide: Zero is now Raijin)
 (0.35.4 and 0.35.5 are held by open pull requests.)
 - **Riptide's boss is named Raijin** (owner; was Zero): his body, the map's "RAIJIN'S CORE" label and the item
