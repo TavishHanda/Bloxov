@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.6 (AI PMCs: keeping apart, tuned on the real maps)
+Built on the AI PMC branch (switch still off). Tuning from the proof runs (`tests/bot_apart_check.gd`), none of the
+owner's numbers changed:
+- A bot that has turned away from someone keeps going only while the gap is actually growing (it used to walk
+  alongside a scav for a while), and the way it picks has to gain distance from them as it goes.
+- Cornered (every way out passes near someone), it slips out along the way that keeps at least 20 m from them, or
+  failing that the way that leaves it the most room, instead of standing still while a scav walks up to it.
+- It reacts to AI walking towards it a moment earlier (it looks 1.5 s ahead), and checks the way ahead every second.
+- Fix: the check of the rest of the way started from the waypoint behind the bot, so it kept turning down good ways.
+- Bots start at the calmest free player spawn points (fewest AI spawn spots within 60 m); a Riptide bot that started
+  by the ship's stern spent the raid boxed in by the hold's scavs.
+
 ## 0.36.5 (AI PMCs, piece 6a: a raid plan and keeping apart)
 Built on the AI PMC branch; the server switch is still off, so no player meets a bot yet. Owner approved every number
 (2026-11-14). Scavs, Raiders, snipers and Bon are untouched: the bot's new brain is its own script, `scripts/pmc_ai.gd`.

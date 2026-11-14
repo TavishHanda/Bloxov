@@ -5492,11 +5492,32 @@ func _section_online_bots() -> void:
 	var points := world.raid.get_node("PlayerSpawns").get_children()
 	var slot: int = raid["spawns"][id][0]
 	var me := Raid.spawn_position(points, slot, 0, raid["seed"])
-	var spots: Array[float] = []
+	# (0.36.5: only the calmest points, fewest AI spawn spots within RaidWorld.BOT_CALM_RANGE, are used)
+	var busy := {}
+	for s in points.size():
+		var p := Raid.spawn_position(points, s, 0, raid["seed"])
+		busy[s] = world.raid.get_node("EnemySpawner").get_children().filter(func(m: Node) -> bool:
+			return m is Marker3D and (m as Marker3D).global_position.distance_to(p) < RaidWorld.BOT_CALM_RANGE).size()
+	# (the same picks the server makes, one bot at a time)
+	var left: Array[int] = []
 	for s in points.size():
 		if s != posmod(slot, points.size()):
+			left.append(s)
+	var spots: Array[float] = []
+	for n in bots.size():
+		var calmest := 1 << 30
+		for s in left:
+			calmest = mini(calmest, busy[s])
+		var pick := -1
+		var far := -1.0
+		for s in left:
 			var p := Raid.spawn_position(points, s, 0, raid["seed"])
-			spots.append(Vector2(p.x - me.x, p.z - me.z).length())
+			var d := Vector2(p.x - me.x, p.z - me.z).length()
+			if busy[s] <= calmest + RaidWorld.BOT_CALM_SLACK and d > far:
+				far = d
+				pick = s
+		left.erase(pick)
+		spots.append(far)
 	spots.sort()
 	spots.reverse()
 	var bot_dist: Array[float] = []
@@ -5508,7 +5529,7 @@ func _section_online_bots() -> void:
 	for i in bot_dist.size():
 		farthest = farthest and absf(bot_dist[i] - spots[i]) < 1.0
 	_check(farthest and bots.all(func(b: Node) -> bool: return b.state == Scav.State.IDLE),
-		"the bots start at the free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist))
+		"the bots start at the calmest free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist))
 	await _until(func() -> bool: return c1.enemies.filter(func(e: Array) -> bool: return e[1] == 4).size() == bots.size())
 	_check(c1.enemies.filter(func(e: Array) -> bool: return e[1] == 4).size() == bots.size(), "the player's game gets them as AI PMC puppets")
 
@@ -6674,6 +6695,7 @@ func _section_pmc_apart() -> void:
 	# On the move: a scav comes within 30 m and the bot turns away from it.
 	var scav := _spawn(SCAV_SCENE, Vector3(8, 0.1, -10)) as Scav
 	scav.sight_range = 0.5
+	scav.set_physics_process(false)   # (stands still: these checks place it by hand)
 	await physics_frame
 	bot._set_plan(PmcAI.Plan.SEARCH)
 	bot._looting_left = 5.0
@@ -6681,10 +6703,11 @@ func _section_pmc_apart() -> void:
 	var scav_d := bot.global_position.distance_to(scav.global_position)
 	_check(bot.turned_away == 1 and bot.plan == PmcAI.Plan.TRAVEL and bot._wander_point.distance_to(scav.global_position) > scav_d + 5.0,
 		"looting, a scav comes within %.0f m: the bot drops it and heads away (to %.0f m from it)" % [scav_d, bot._wander_point.distance_to(scav.global_position)])
-	await _frames(10)
+	bot._apart_left = 99.0   # (its own once-a-second check waits: this one measures the gap growing over 40 frames)
+	await _frames(40)
 	var turned := bot.turned_away
 	bot._keep_apart()
-	_check(bot.turned_away == turned, "already heading away along a clear way, it carries on")
+	_check(bot.turned_away == turned, "already heading away along a clear way, it carries on (%s, %.1f m)" % [PmcAI.Plan.keys()[bot.plan], bot._last_gap])
 	turned = bot.turned_away
 	scav.global_position = bot.global_position + Vector3(35, 0, 0)
 	bot._set_plan(PmcAI.Plan.HOLD, 9.0)

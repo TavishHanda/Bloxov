@@ -14,6 +14,7 @@ const NEVER := 15.0
 var _per_map := 10
 var _maps: Array[int] = [0, 1]
 var _out := ""
+var _diag := OS.get_environment("DIAG") != ""
 
 
 func _initialize() -> void:
@@ -95,6 +96,7 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, stats: D
 				var me := (bot as Node3D).global_position
 				var near_ai := INF
 				var near_bot := INF
+				var who: Scav = null
 				for node in RaidScope.nodes(worlds[i].raid, &"enemies"):
 					var other := node as Scav
 					if other == null or other == bot or other.state == Scav.State.DEAD:
@@ -102,8 +104,14 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, stats: D
 					var d := other.global_position.distance_to(me)
 					if other is PmcAI:
 						near_bot = minf(near_bot, d)
-					else:
-						near_ai = minf(near_ai, d)
+					elif d < near_ai:
+						near_ai = d
+						who = other
+				if _diag and near_ai < NEAR:
+					var pmc := bot as PmcAI
+					print("DIAG r%d t=%d bot%d %s/%s at %s | %s %s at %s d=%.1f" % [first + i, t, bot.get_instance_id() % 1000,
+						Scav.State.keys()[pmc.state], PmcAI.Plan.keys()[pmc.plan], me.snapped(Vector3.ONE), who.scene_file_path.get_file(),
+						Scav.State.keys()[who.state], who.global_position.snapped(Vector3.ONE), near_ai])
 				stats["samples"] += 1
 				if near_ai < NEAR:
 					stats["near"] += 1

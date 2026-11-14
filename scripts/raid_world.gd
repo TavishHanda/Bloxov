@@ -256,6 +256,12 @@ func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
 		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body)
 
 
+## A bot's start point counts the AI spawn spots this close to it (0.36.5), and only points at most BOT_CALM_SLACK
+## busier than the calmest free one are used.
+const BOT_CALM_RANGE := 60.0
+const BOT_CALM_SLACK := 2
+
+
 ## AI PMCs for this raid (0.36.2, owner: always alone, far from players, never told where one is): `count` bots,
 ## each at the free player spawn point farthest from every real squad's (`real_slots`, Matchmaker.spawn_slots), the
 ## same points the players' games turn those slots into (Raid.spawn_position, the raid's `seed_value`). Each gets a
@@ -278,6 +284,17 @@ func spawn_bots(count: int, seed_value: int, real_slots: Array, taken: Array) ->
 	rng.seed = seed_value
 	var spawner := raid.get_node_or_null("EnemySpawner")
 	var scene: PackedScene = load(BOT_SCENE)
+	# How busy each point is: the AI's own spawn spots within BOT_CALM_RANGE m (0.36.5: a bot starting among a zone's
+	# AI can't keep away from them). Only the calmest points (within BOT_CALM_SLACK of the calmest free one) are used.
+	var busy := {}
+	for slot in points.size():
+		var spot: Vector3 = at.call(slot)
+		var n := 0
+		if spawner != null:
+			for marker in spawner.get_children():
+				if marker is Marker3D and (marker as Marker3D).global_position.distance_to(spot) < BOT_CALM_RANGE:
+					n += 1
+		busy[slot] = n
 	for i in count:
 		# The free point farthest from the nearest real squad (with nobody real: any free one, by the seed).
 		var best := -1
@@ -286,6 +303,10 @@ func spawn_bots(count: int, seed_value: int, real_slots: Array, taken: Array) ->
 		for slot in points.size():
 			if not used.has(slot):
 				free.append(slot)
+		var calmest := 1 << 30
+		for slot in free:
+			calmest = mini(calmest, busy[slot])
+		free = free.filter(func(slot: int) -> bool: return busy[slot] <= calmest + BOT_CALM_SLACK)
 		if real.is_empty() and not free.is_empty():
 			best = free[rng.randi_range(0, free.size() - 1)]
 		for slot in free:
