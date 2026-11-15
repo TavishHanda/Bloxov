@@ -1174,7 +1174,7 @@ AI_ROAMERS = 2
 AI_SNIPERS = 1
 # Raijin (Zero until 0.35.6) always spawns. ELITE_GUARDS (waiting on the owner's OK of their numbers): two guards,
 # Ace and Orbit (scenes/guard_raijin.tscn), in place of three Raiders.
-ELITE_GUARDS = False
+ELITE_GUARDS = True
 AI_BOSS = ("Lab", 2 if ELITE_GUARDS else 3, 1.0)
 ZONE_SPOTS = {
     "Landing": [(-115.0, SHORE, -127.0), (-100.0, SHORE, -99.0), (-134.0, SHORE, -85.0), (-70.0, SHORE, -40.0),
