@@ -363,7 +363,8 @@ func _try_grab(input_dir: Vector2) -> bool:
 	if is_on_floor() and feet > ladder.top_y() - 0.3:
 		# At the top. Walking off the edge over the ladder (any way you face) catches you too, so you never fall.
 		var wish := global_basis * Vector3(input_dir.x, 0.0, input_dir.y)
-		var off_edge := Vector3(wish.x, 0.0, wish.z).dot(-into) > 0.5 and past < 0.25
+		var wish_flat := Vector3(wish.x, 0.0, wish.z)
+		var off_edge := wish_flat.dot(-into) > 0.5 and (past < 0.25 or (past < 0.95 and not _floor_ahead(wish_flat.normalized())))
 		if not pressed and not off_edge:
 			return false
 		_climbing = ladder
@@ -385,6 +386,14 @@ func _try_grab(input_dir: Vector2) -> bool:
 	if not is_on_floor():
 		velocity = Vector3.ZERO
 	return true
+
+
+## True if there's floor just ahead of us along `dir` (flat), so we're not about to step off an edge (0.35.17: a ladder
+## set a little out from the edge of the deck used to miss you, since you were on the floor right up to the drop).
+func _floor_ahead(dir: Vector3) -> bool:
+	var from := global_position + dir * 0.45 + Vector3.UP * 0.1
+	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 0.7, 1, [get_rid()])
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 ## Climbing past the top: up and over onto the floor there, if there's room for us (else false: keep climbing).
