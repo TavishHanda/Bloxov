@@ -28,6 +28,7 @@ Plan: `docs/ROADMAP.md`. Parked ideas: `docs/BACKLOG.md`. The code map is each s
   Docs/CI-only changes don't bump. Start the commit message with the version (`v0.2.4: ...`).
   No git tags (GitHub blocks creating them from the sandbox/CI, and the owner doesn't want to do it by hand).
   Version history = CHANGELOG.md + version-prefixed commit messages. Don't ask the owner to tag.
+  `config/net_version` is separate: it goes up only when client and server must agree (`docs/context/ONLINE.md`, "The net version").
   When telling the owner about an update, lead with its version and a short name (e.g. "**0.5.1: Recoil & accuracy**").
   **Only one phase can be current:** other work waits for the phase to close or is built on a branch and released
   as the next phase. Phase history and what each phase built: `docs/context/PHASES.md`.
@@ -58,6 +59,7 @@ Plan: `docs/ROADMAP.md`. Parked ideas: `docs/BACKLOG.md`. The code map is each s
 - `scripts/web_packs.gd` must stay the FIRST autoload and reference no game scripts (`ONLINE.md`).
 - `scripts/net.gd` is an autoload: it must not reference player/gun scripts, directly or by class name; check with
   a fresh clone import (`ONLINE.md`). Scripts reach it as `Network.main`.
+- The `netlock` test fails when the @rpc list or a shared rule file changes: decide about `config/net_version`, then re-record with `godot --headless -s tools/net_lock.gd` (`ONLINE.md`).
 - Server raids share one process: look up groups with `RaidScope.nodes(self, group)`, never
   `get_tree().get_nodes_in_group`. The server has no real meshes, textures or materials (`ONLINE.md`).
 - Looks-only things (reacts, movers, hideout life) are never synced and never run on the server (`PHASES.md`).
