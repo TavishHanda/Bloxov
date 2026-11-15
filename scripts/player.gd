@@ -514,7 +514,15 @@ func _physics_process(delta: float) -> void:
 	_was_on_floor = is_on_floor()
 	_update_footsteps(delta)
 
-	if global_position.y < kill_height:
+	if is_nan(_map_kill_height):
+		_map_kill_height = kill_height
+		var above := get_parent()
+		while above != null:
+			if above.has_meta(&"kill_height"):
+				_map_kill_height = float(above.get_meta(&"kill_height"))
+				break
+			above = above.get_parent()
+	if global_position.y < _map_kill_height:
 		global_position = _spawn_position
 		velocity = Vector3.ZERO
 		_fall_speed = 0.0

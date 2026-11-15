@@ -325,12 +325,13 @@ def north_point():
         obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     lx, lz = -62.0, -158.0
     room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, 14.0, "wall", s=[door(lx)])
-    slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.4, lz + 2.85)])
+    slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
     wall("x", lz - 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
     wall("x", lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
     wall("z", lx - 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
     wall("z", lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
-    ladder(lx - 2.1, SHORE, lz + 2.65, 180, 14.0, "Lighthouse")
+    # (0.35.16: at the hatch's north edge facing north, so its top steps off onto the gallery, not into the wall)
+    ladder(lx - 2.1, SHORE, lz + 1.2, 0, 14.0, "Lighthouse")
     perches.append((lx, SHORE + 14.0, lz, 1, 0))
     labels.append(("LIGHTHOUSE", lx, lz - 8, 0))
     extracts.append(("Cove", "COVE", -40.0, SHORE, -170.0))
@@ -354,7 +355,7 @@ def north_point():
     for z in (-162.0, -146.0):               # rooms under the office deck
         wall("x", z, cx0, cx0 + 8.0, SHORE, 4.25, "wall", [door(cx0 + 4.0)])
     labels.append(("CANNERY", -119, -170, 0))
-    add_loot("Depot", "crate", -139.0, SHORE, -164.0)
+    add_loot("Depot", "crate", -140.8, SHORE, -164.9)   # (0.35.16: out of the doorway, the AI couldn't get in)
     add_loot("Offices", "locker", -140.5, SHORE + 4.5, -152.0, 90)
     add_loot("Offices", "crate", -133.0, SHORE + 4.5, -133.0)
     add_loot("Workshop", "crate", -104.0, SHORE, -133.0, table="crate")
@@ -791,7 +792,7 @@ def crossings():
     ladder(60.0, 0.8, SZ1 + 0.4, 0, DECK - 0.8, "Stern")
     extracts.append(("SternLadder", "STERN LADDER", 60.0, 0.8, SZ1 + 3.5))
     box(56.8, 0.8, SZ1 + 0.6, 57.2, 2.8, SZ1 + 6.0, "wood")              # the screen on the barge side
-    box(56.8, 2.8, SZ1 + 1.0, 63.2, 3.0, SZ1 + 6.0, "roof")              # the canopy (the ladder comes down beside it)
+    box(56.8, 2.8, SZ1 + 1.8, 63.2, 3.0, SZ1 + 6.0, "roof")              # the canopy (0.35.16: clear of a climber's head)
 
 
 # ---------------------------------------------------------------------------------------------- the ship
@@ -800,7 +801,9 @@ MOON = (38.0, 58.0, -9.0, 7.0)        # the moon pool: an open well from the dri
 BOW_STAIRS = (44.0, 52.0, -88.0, -74.0)
 TOWER_STAIRS = (54.0, 62.0, 76.0, 90.0)
 HATCHES = [(42.0, 54.0, -50.0, -44.0), (42.0, 54.0, 24.0, 30.0)]
-SIDE_LADDERS = [(SX0 + 0.35, -60.0, 90), (SX0 + 0.35, 50.0, 90), (SX1 - 0.35, -60.0, -90), (SX1 - 0.35, 50.0, -90)]
+# (0.35.16: each stands at the inboard edge of its hatch and faces inboard, so you step off its top onto the hold's
+# floor. Before, they were on the hull wall facing it, and at the top there was only the wall ahead.)
+SIDE_LADDERS = [(SX0 + 1.9, -60.0, -90), (SX0 + 1.9, 50.0, -90), (SX1 - 1.9, -60.0, 90), (SX1 - 1.9, 50.0, 90)]
 SERVICE_TUBE = (46.0, 48.4, -65.4, -63.0)
 # (0.35.3, owner: "stair cases going up and down near the front/backs of the ship") both stairwells carry on down from
 # the engine room deck to the lab's lower deck: four short flights, so the bottom landing is on the south end
@@ -864,7 +867,7 @@ def ship():
 
     # Hull A (the cargo hold): side passages down both sides, the hold in the middle, workshops aft
     slab(SX0, SX1, SZ0, SZ1, HULL_A, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)]
-         + [(x - 0.7 if yaw == 90 else x - 0.95, x + 0.95 if yaw == 90 else x + 0.7, z - 0.6, z + 0.6) for x, z, yaw in SIDE_LADDERS])
+         + [(SX0 + 0.25 if x < 48 else x, x if x < 48 else SX1 - 0.25, z - 0.8, z + 0.8) for x, z, yaw in SIDE_LADDERS])
     for x, z, yaw in SIDE_LADDERS:
         ladder(x, HULL_B, z, yaw, HULL_A - HULL_B, "SideLadder")
     hold_h = DECK - SLAB_T - HULL_A
@@ -978,12 +981,13 @@ def moon_pool():
     add_loot("LabWing", "crate", x0 + 1.5, LAB1, z1 - 1.5, 90)
     # the riser: the drill pipe down the middle, a catwalk out to it from the hull's bottom deck, a ladder down it
     box(47.2, LAB1, -1.8, 48.8, 41.0, -0.2, "rust")
-    slab(44.0, 52.0, -5.0, 3.0, HULL_B, "metal", holes=[(47.2, 48.8, -1.8, 0.8)])
+    slab(44.0, 52.0, -5.0, 3.0, HULL_B, "metal", holes=[(47.2, 48.8, -1.8, 1.2)])
     box(x0, HULL_B - SLAB_T, -2.2, 44.0, HULL_B, 0.2, "metal")
     wall("x", -5.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
     wall("x", 3.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
     wall("z", 52.0, -5.0, 3.0, HULL_B, 1.0, "rust", t=0.12)
-    ladder(48.0, LAB1, 0.0, 0, HULL_B - LAB1, "Riser")
+    # (0.35.16: the ladder faces away from the pipe, at the hatch's south edge, so its top steps off onto the catwalk)
+    ladder(48.0, LAB1, 1.2, 180, HULL_B - LAB1, "Riser")
     labels.append(("MOON POOL", 48, -12, 0))
     # railings round the well: on the hull's bottom deck (gaps for the first ramp and the catwalk), and above
     wall("x", z1, x0, x1, HULL_B, 1.0, "rust", t=0.15)
@@ -1282,6 +1286,7 @@ def write_scene():
             'metadata/map_name = "Riptide"',
             spawner_meta(),
             'metadata/raid = {"raid_time": 900.0}',
+            f"metadata/kill_height = {fmt(SEABED - 16.0)}",   # (0.35.16: well under the lab and the sea bed)
             'metadata/look = "res://assets/looks/storm.tres"',
             'metadata/rain = true',
             minimap_meta(),
