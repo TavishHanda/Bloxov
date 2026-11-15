@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.14 (Riptide: Ace and Orbit)
+Owner: "make him have two guards that are more op than right now called Ace and Orbit"; numbers OK'd on a card.
+- **Raijin's guards are Ace and Orbit**: two of them (he had three Raiders, each named "Raijin's Guard"). 150 health
+  (a Raider has 100; Raijin 250), Heavy Armor and a Combat Helmet (Light Armor, Old Helmet), always a Hound (a
+  Raider's gun is random), 20 damage a shot in 5-round bursts (18, 4), Raijin's aim (90% near, 60% far; a Raider
+  85%, 50%), 3 heals (2). They drop what they wear. Frontlines' Bon and his guards are unchanged.
+- `ELITE_GUARDS` in `tools/gen_riptide.py` is now on (the scene and the spawner's `guard_scene` / `guard_names`
+  shipped switched off in 0.35.6).
+
 ## 0.35.13 (Smoother ladder hands)
 Owner: the ladders felt glitchy, "like your character starts jerking it on the ladder".
 - **Your hands no longer thrash on a ladder.** Going up, the upper hand sits well above your eyes, and the hand code
