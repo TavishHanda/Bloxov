@@ -135,8 +135,11 @@ extends CharacterBody3D
 ## A lone mouse move bigger than this (in pixels, in one event) and far bigger than the one before is treated
 ## as a glitch and ignored (a Chrome bug sometimes reports a huge bogus jump). See is_mouse_spike().
 @export var max_mouse_delta := 200.0
-## Falling below this height respawns the player.
+## Falling below this height respawns the player. A map that goes deeper sets its own (`kill_height` metadata on the
+## map scene, 0.35.16: Riptide's lab was at -22 and -28, so walking down into it put you back at your spawn; owner:
+## "everytime my friend would get low enough to get to the lab he would teleport up").
 @export var kill_height := -20.0
+var _map_kill_height := NAN
 
 @onready var head: Node3D = $Head
 @onready var body_shape: CollisionShape3D = $CollisionShape3D

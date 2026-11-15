@@ -5720,6 +5720,19 @@ func _section_riptide() -> void:
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
 	swimmer.free()
+	# Going down into the lab never puts you back at your spawn (0.35.16: the default kill height is -20)
+	var diver := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
+	world.raid.add_child(diver)
+	diver.global_position = Vector3(48.0, -18.0, 86.0)   # the south wing's corridor, the lab's lower deck
+	for i in 30:
+		await physics_frame
+	_check(float(world.raid.get_meta("kill_height", 0.0)) < -40.0 and diver.global_position.y < -17.0 and diver.global_position.y > -19.0 and diver.is_on_floor(),
+		"you can stand on the lab's lower deck (y %.2f, kill height %.0f)" % [diver.global_position.y, float(world.raid.get_meta("kill_height", 0.0))])
+	diver.global_position = Vector3(48.0, -30.0, 150.0)   # under the old kill height, in open water: still not put back
+	await physics_frame
+	await physics_frame
+	_check(diver.global_position.distance_to(Vector3(48.0, -18.0, 86.0)) > 30.0, "and -30 is still inside the map")
+	diver.free()
 	# The AI stays out of the sea (0.35.3): a move off the pier's edge is stopped, a move along the pier isn't
 	var dry := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	world.raid.add_child(dry)

@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.16 (Riptide: no more teleporting near the lab, ladders you can climb out of)
+Owner: "everytime my friend would get low enough to get to the lab he would teleport up. So I wanna make sure all
+these kinks are worked out."
+- **Going down to the lab no longer puts you back at your spawn.** Every map shared one "fell out of the world"
+  height, -20 m, and the lab was at -22 and -28 m, so walking into it counted as falling out. 0.35.2 moved the lab up
+  into the hull (to -18 m at its lowest), which hid the problem with under 2 m to spare. A map now sets its own
+  height (`kill_height` on the map scene, read by `RaidMap.load_map` and the player); Riptide's is -45 m, under the
+  sea bed. Frontlines keeps -20.
+- **Seven ladders you couldn't get off at the top** now face the floor you step onto: the four side ladders from the
+  engine room deck up into the hold (they faced the hull wall), the riser ladder in the moon pool (it faced the
+  pipe), the lighthouse ladder (it faced the wall), and the stern ladder up from the dinghy extract (the canopy
+  caught your head a few rungs up).
+- A crate in the cannery stood in its room's doorway, so the AI couldn't get in: moved into the corner.
+- New check, `tools/riptide_audit.gd`: every loot container, extract, switch and AI spawn has a walking route from
+  the shore, every spawn stands on a floor in free space, nothing is under the kill height, and a player climbs
+  every dry ladder to the top. Navigation re-baked.
+
 ## 0.35.15 (Riptide: Ace and Orbit)
 Owner: "make him have two guards that are more op than right now called Ace and Orbit"; numbers OK'd on a card.
 - **Raijin's guards are Ace and Orbit**: two of them (he had three Raiders, each named "Raijin's Guard"). 150 health
