@@ -978,6 +978,50 @@ func _section_ladder() -> void:
 	ladder.queue_free()
 	block.queue_free()
 	await physics_frame
+	# 0.35.17: a ladder set 0.7 m out from the deck's edge still catches you walking off (it used to miss: you were on
+	# the floor right up to the drop, never close enough to the ladder's line). Both ways: facing it, and turned round.
+	var far := Vector3(30, 0, 40)
+	var deck := StaticBody3D.new()
+	var deck_shape := CollisionShape3D.new()
+	deck_shape.shape = BoxShape3D.new()
+	(deck_shape.shape as BoxShape3D).size = Vector3(6, 4, 6)
+	deck.add_child(deck_shape)
+	main.add_child(deck)
+	deck.global_position = far + Vector3(0, 2, -3.7)   # its +Z face is 0.7 m behind the ladder's line
+	var gap_ladder := (load("res://scenes/ladder.tscn") as PackedScene).instantiate() as Ladder
+	gap_ladder.height = 4.0
+	main.add_child(gap_ladder)
+	gap_ladder.global_position = far
+	for facing_out: bool in [false, true]:
+		player.teleport_to(far + Vector3(0, 4.1, -1.7))
+		player.rotation.y = PI if facing_out else 0.0   # (facing out over the edge, or facing in and backing off)
+		player.head.rotation.x = 0.0
+		await create_timer(0.3).timeout
+		var edge_action := "move_forward" if facing_out else "move_back"
+		Input.action_press(edge_action)
+		var caught := false
+		var fell := false
+		for i in 60 * 3:
+			await physics_frame
+			if player.is_climbing() and not caught:
+				caught = true
+				Input.action_release(edge_action)   # (W would climb back up; S takes us down)
+				edge_action = "move_back"
+				Input.action_press(edge_action)
+			if player.global_position.y < 3.0 and not player.is_climbing() and not caught:
+				fell = true
+				break
+			if caught and not player.is_climbing():
+				break
+		Input.action_release(edge_action)
+		await create_timer(0.3).timeout
+		_check(caught and not fell and player.global_position.y < 0.3 and player.health.current == hp,
+			"a ladder 0.7 m out from the deck's edge catches you walking off it, %s (y %.2f, hp %d -> %d)" % [
+			"facing out" if facing_out else "backing off", player.global_position.y, hp, player.health.current])
+	gap_ladder.queue_free()
+	deck.queue_free()
+	player.teleport_to(spot + Vector3(0, 0.1, 3.0))
+	await physics_frame
 
 
 ## Prone (0.13.6): Z lies you down (low, slow, quiet), Z gets you up, not under a low roof; others' hits use the
