@@ -41,7 +41,7 @@ func _run() -> void:
 		var raid_time := float((probe.get_meta("raid", {}) as Dictionary).get("raid_time", 600.0))
 		probe.free()
 		var stats := {"samples": 0, "near": 0, "min_ai": INF, "min_bot": INF, "visits": 0, "top": 0, "bots": 0,
-			"places": [], "turned": 0, "ai": 0, "searches": 0, "exit_samples": 0, "exit_near": 0}
+			"places": [], "turned": 0, "ai": 0, "searches": 0, "exit_samples": 0, "exit_near": 0, "left": 0}
 		var done := 0
 		while done < _per_map:
 			var batch := mini(AT_ONCE, _per_map - done)
@@ -57,9 +57,9 @@ func _run() -> void:
 		for n: int in per_bot:
 			avg += n
 		avg /= maxf(per_bot.size(), 1.0)
-		lines.append("%s (%d s raids): time within %d m of non-bot AI %.2f%% (%d of %d bot-seconds, not counting the walk to an extract); closest ever to non-bot AI %.1f m, to another bot %.1f m; %s" % [
+		lines.append("%s (%d s raids): time within %d m of non-bot AI %.2f%% (%d of %d bot-seconds); closest ever to non-bot AI %.1f m, to another bot %.1f m; %s" % [
 			entry[0], raid_time, NEAR, share * 100.0, stats["near"], stats["samples"], stats["min_ai"], stats["min_bot"], "PASS" if ok else "FAIL"])
-		lines.append("  on the walk to an extract (0.36.7): %d of %d bot-seconds within %d m of non-bot AI" % [stats["exit_near"], stats["exit_samples"], NEAR])
+		lines.append("  of that, on the way out and in the extract: %d of %d bot-seconds within %d m; %d of %d bots extracted" % [stats["exit_near"], stats["exit_samples"], NEAR, stats["left"], BOTS * _per_map])
 		lines.append("  places visited per bot: average %.1f, min %d, max %d (%d bots); visits to top-third-value places %.0f%% (%d of %d); %.1f containers searched per bot; turned away %d times; %.0f AI per raid at the end" % [
 			avg, per_bot[0] if not per_bot.is_empty() else 0, per_bot[-1] if not per_bot.is_empty() else 0, stats["bots"],
 			100.0 * stats["top"] / maxf(stats["visits"], 1.0), stats["top"], stats["visits"], float(stats["searches"]) / maxf(stats["bots"], 1.0), stats["turned"], float(stats["ai"]) / _per_map])
@@ -126,13 +126,15 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, stats: D
 					stats["exit_samples"] += 1
 					if near_ai < NEAR:
 						stats["exit_near"] += 1
-					continue
 				stats["samples"] += 1
 				if near_ai < NEAR:
 					stats["near"] += 1
 				stats["min_ai"] = minf(stats["min_ai"], near_ai)
 				stats["min_bot"] = minf(stats["min_bot"], near_bot)
 	for i in count:
+		for entry in bots[i]:
+			if not is_instance_valid(entry):
+				stats["left"] += 1   # (gone with no body: it extracted; a dead bot stays as a body)
 		var list := PmcAI.places(worlds[i].raid)
 		var values: Array = list.map(func(p: Dictionary) -> float: return p["value"])
 		values.sort()

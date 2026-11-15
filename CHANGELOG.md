@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.8 (AI PMCs: no walking out through other AI)
+Built on the AI PMC branch (switch still off). A fix to the keep-apart rule the owner approved; no new numbers.
+- **The way out keeps apart too**: in 0.36.7 a bot that found no clear extract took the nearest one anyway and stopped
+  turning away from other AI on its last 25 m, so on Frontlines it spent 12% of its way out within 30 m of scavs. Now
+  it only heads for an extract whose way is clear and that has no other AI within 40 m (30 m if none is clearer, a
+  bot 60 m); otherwise it carries on and tries again a few seconds later. Other AI coming within 30 m on the way or
+  in the extract turns it away like anywhere else.
+- **Proof** (`tests/bot_apart_check.gd`, 10 raids per map): the way out now counts in the totals, and the check says
+  how many bots extracted. Frontlines 0.50% of bot time within 30 m, closest 17.8 m, 25 of 30 extracted (way out: 0
+  s near). Riptide 1.31%, closest 17.1 m, 30 of 30 extracted (way out: 4 s near): still just over the 1% mark there
+  while looting, being looked at next.
+- Smoke test `pmc_leave`: a busy extract is refused, a 30-40 m one is taken when none is clearer, a scav coming near
+  turns the bot away from its extract.
+
 ## 0.36.7 (AI PMCs, piece 6b: taking loot, extracting, gear odds)
 Built on the AI PMC branch (switch still off). Owner approved every number (2026-11-14). Scavs, Raiders, snipers and
 Bon are untouched (the only change outside the bot's own script is an empty list on the AI base class).

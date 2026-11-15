@@ -58,8 +58,6 @@ const DEFAULT_RAID_LENGTH := 600.0
 ## up on a walk to one after this long.
 const EXIT_RETRY := 5.0
 const EXIT_GIVE_UP := 120.0
-## Within this many m of its extract it stops turning away from AI near it (the extract itself may be busy).
-const EXIT_LAST_STRETCH := 25.0
 
 enum Plan { START, TRAVEL, SEARCH, HOLD, EXIT, EXTRACT }
 var plan := Plan.START
@@ -99,7 +97,7 @@ var _exit_retry := 0.0
 ## of other AI, so it took the one with the most room.
 var extract: Node3D = null
 var _extract_left := 0.0
-var _exit_forced := false
+var _exit_forced := false   # (took an extract with other AI 30-40 m off, as none was clearer)
 ## It walked out of the raid through an extract (tests, the proof tool).
 var left_raid := false
 
@@ -436,33 +434,36 @@ func _in_extract(zone: Node3D, pos: Vector3) -> bool:
 	return AABB(-size * 0.5, size).has_point(local)
 
 
-## Heads for an extract: the nearest usable one whose surroundings (no other AI within 40 m, a bot 60 m) and way
-## pass the keep-apart checks. If none does, the one whose way leaves the most room from other AI (the nearest wins a
-## tie). False if there is none it can reach.
+## Heads for an extract: the nearest usable one whose way passes the keep-apart checks and whose surroundings are
+## clear (no other AI within 40 m, a bot 60 m). If none is, the nearest whose way passes and that has no other AI
+## within 30 m (a bot 60 m) will do. False if there is none (0.36.8: it no longer takes a busy one; it carries on and
+## tries again).
 func _go_extract(others: Array) -> bool:
 	var zones := _usable_extracts()
 	zones.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		return a.global_position.distance_squared_to(global_position) < b.global_position.distance_squared_to(global_position))
 	var fallback: Array = []
-	var fallback_room := -INF
 	for zone in zones:
+		var clear := _place_clear({"id": -1, "center": zone.global_position, "radius": 0.0}, others)
+		var roomy := clear or _room_at(zone.global_position, others) >= 0.0
 		if _in_extract(zone, global_position):
-			_begin_extract(zone)
-			return true
+			if roomy:
+				_begin_extract(zone)
+				return true
+			continue
+		if not roomy:
+			continue
 		var spot := AINav.closest(self, zone.global_position)
 		if spot == Vector3.ZERO:
 			continue
 		var route := AINav.path(self, global_position, spot)
-		if route.size() < 2:
+		if route.size() < 2 or _route_score(route, others) < 0.0:
 			continue
-		var room := _route_score(route, others)
-		var here := {"id": -1, "center": zone.global_position, "radius": 0.0}
-		if room >= 0.0 and _place_clear(here, others):
+		if clear:
 			_go_exit(zone, spot, false)
 			return true
-		if fallback.is_empty() or room > fallback_room + 0.5:
+		if fallback.is_empty():
 			fallback = [zone, spot]
-			fallback_room = room
 	if not fallback.is_empty():
 		_go_exit(fallback[0], fallback[1], true)
 		return true
@@ -641,10 +642,6 @@ func _route_score(route: PackedVector3Array, others: Array, from := 0) -> float:
 func _keep_apart() -> void:
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 		return
-	# (0.36.7: standing in an extract it may be near someone, and so may the last stretch of the way to it)
-	if plan == Plan.EXTRACT or (plan == Plan.EXIT and is_instance_valid(extract)
-			and _flat(extract.global_position - global_position).length() < EXIT_LAST_STRETCH):
-		return
 	var up := global_position + Vector3(0, 1.0, 0)
 	_indoors = not get_world_3d().direct_space_state.intersect_ray(
 		PhysicsRayQueryParameters3D.create(up, up + Vector3(0, 8, 0), 1)).is_empty()
@@ -662,6 +659,10 @@ func _keep_apart() -> void:
 		if state == State.IDLE and plan == Plan.HOLD and _flee_wait_left > 0.0:
 			return   # (nowhere better a moment ago: it waits before looking again)
 		turned_away += 1
+		if plan in [Plan.EXIT, Plan.EXTRACT]:
+			# (0.36.8: someone came near on its way out or in the extract: it moves off first and tries again)
+			extract = null
+			_exit_retry = EXIT_RETRY
 		if state != State.IDLE:
 			_set_state(State.IDLE)
 			_seen_state = State.IDLE

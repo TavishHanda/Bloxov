@@ -7033,7 +7033,18 @@ func _section_pmc_leave() -> void:
 	hurt.extract = null
 	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
 	hurt._next_destination()
-	_check(hurt.extract == shut and hurt._exit_forced, "with no clear extract it takes the nearest one")
+	_check(hurt.extract == null and hurt.plan != PmcAI.Plan.EXIT, "with no clear extract it takes none and tries again later (0.36.8)")
+	guard.global_position = Vector3(57, 0.1, 30)
+	hurt.extract = null
+	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
+	hurt._exit_retry = 0.0
+	hurt._next_destination()
+	_check(hurt.extract == shut and hurt._exit_forced, "an extract with another AI 30-40 m off will do when none is clearer (0.36.8)")
+	guard.global_position = Vector3(25, 0.1, 30)
+	hurt._apart_left = 99.0
+	hurt._keep_apart()
+	_check(hurt.extract == null and hurt.plan != PmcAI.Plan.EXIT and hurt._exit_retry > 0.0,
+		"another AI coming within 30 m on its way out turns it away from the extract (0.36.8)")
 	for node: Node in [hurt, guard, shut]:
 		node.free()
 	for z: ExtractZone in zones:
