@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -5488,6 +5488,8 @@ func _section_online_bots() -> void:
 		unique[n] = true
 	_check(bot_names.all(func(n: String) -> bool: return BotNames.is_bot_name(n)) and not bot_names.has("Koda_77") and unique.size() == bot_names.size(),
 		"each bot has its own name, never the real player's (%s)" % ", ".join(bot_names))
+	_check(bots.all(func(b: Node) -> bool: return is_equal_approx(b.raid_length, float(raid["time"])) and b.leave_at >= raid["time"] * 0.5 and b.leave_at <= raid["time"] * 0.85),
+		"each server bot knows the raid's length (%.0f s) and has rolled when it leaves (%s s)" % [raid["time"], str(bots.map(func(b: Node) -> int: return roundi(b.leave_at)))])
 	# Where they start: free player spawn points, the farthest ones from the real squad.
 	var points := world.raid.get_node("PlayerSpawns").get_children()
 	var slot: int = raid["spawns"][id][0]
@@ -5571,6 +5573,50 @@ func _section_online_bots() -> void:
 		c1.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
 		return not got["feed"].is_empty())
 	_check(got["feed"].has(["%s>Koda_77" % killer.bot_name, false, true]), "killed by a bot: the feed names the bot (%s)" % str(got["feed"]))
+
+	# Loot and leaving (0.36.7): a bot's search opens the lid for everyone and takes an item for real, unless a player
+	# has the container open; a bot that leaves through an extract goes quietly (no "died", no body, no feed line).
+	var lids: Array = []
+	var events: Array = []
+	c1.lid_moved.connect(func(box_id: String, open: bool) -> void: lids.append([box_id, open]))
+	c1.enemy_event.connect(func(enemy: int, kind: String, _pos: Vector3) -> void: events.append([enemy, kind]))
+	var loot_bot := bots[1] as PmcAI
+	var lootbox: LootContainer = null
+	for node in RaidScope.nodes(world.raid, &"loot_containers"):
+		var candidate := node as LootContainer
+		if lootbox == null and candidate != null and not candidate.grid.is_empty() and not candidate.has_meta("locked") \
+				and candidate.grid.stacks.any(func(st: ItemStack) -> bool: return PmcAI._takeable(st.id)):
+			lootbox = candidate
+	if lootbox != null:
+		lootbox.set_meta("look", "safe")   # (the test map's crates have no lids: this one is a safe for the check)
+	var box_id := String(lootbox.name) if lootbox != null else ""
+	var stacks_before := lootbox.grid.stacks.size() if lootbox != null else 0
+	world.locks[box_id] = id   # (the player has it open)
+	loot_bot._on_search_done(lootbox)
+	await _frames(3)
+	_check(lootbox != null and lootbox.grid.stacks.size() == stacks_before and loot_bot.carried_loot.is_empty() and lids.has([box_id, true]),
+		"a player has the container open: the bot opens the lid (everyone sees it) but takes nothing")
+	world.locks.erase(box_id)
+	loot_bot._on_search_done(lootbox)
+	_check(lootbox.grid.stacks.size() == stacks_before - 1 and loot_bot.carried_loot.size() == 1
+		and not lootbox.grid.stacks.any(func(st: ItemStack) -> bool: return st == loot_bot.carried_loot[0]),
+		"otherwise it takes one item for real: gone from the server's container (%s)" % loot_bot.carried_loot.map(func(st: ItemStack) -> String: return st.id))
+	await _frames(3)
+	lids.clear()
+	world.locks[box_id] = id   # (a player opens it and shuts it again: the lid the bot left open isn't shut)
+	world.close_containers(id)
+	await _frames(3)
+	_check(lids.is_empty(), "the lid a bot opened stays open")
+	var gone_id: int = loot_bot.get_instance_id()
+	var bodies_now := RaidScope.nodes(world.raid, &"loot_containers").size()
+	got["feed"].clear()
+	loot_bot._leave_raid()
+	await _until(func() -> bool: return events.any(func(e: Array) -> bool: return e[0] == gone_id))
+	await _frames(3)
+	_check(events.has([gone_id, "left"]) and not events.has([gone_id, "died"]) and not world.bots.has(gone_id)
+		and c1.enemies.filter(func(e: Array) -> bool: return e[0] == gone_id).is_empty()
+		and RaidScope.nodes(world.raid, &"loot_containers").size() == bodies_now and got["feed"].is_empty(),
+		"a bot that leaves is told to the raid as \"left\" (no pop), forgotten by the server, and leaves no body or kill feed line")
 
 	# The raid closes when its last player leaves: its bots go with it.
 	var ids: Array = world.bots.keys()
@@ -6796,6 +6842,202 @@ func _section_pmc_apart() -> void:
 	wall.queue_free()
 	Scav.lod_enabled = true
 	player.teleport_to(START_SPOT)
+	await physics_frame
+
+
+func _section_pmc_leave() -> void:
+	# AI PMCs take loot and extract (0.36.7, owner approved): a finished search opens the lid for good and takes the
+	# most valuable whole stack (4 a raid at most, never keys or special items, never from a locked box); at its
+	# leave time (50-85% of the raid's length) or hurt with no heals left it jogs to an open extract, stands in it
+	# for its extract_time and is gone with no body, no loot bag and no death.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	player.teleport_to(Vector3(38, 0.1, 38))
+	Scav.lod_enabled = false
+	# Gear odds (owner): heavy stuff rarer, good loot on bodies.
+	var sum_of := func(t: Dictionary) -> int:
+		var n := 0
+		for w: int in t.values():
+			n += w
+		return n
+	_check(sum_of.call(AILoadouts.PMC_ARMOR) == 100 and AILoadouts.PMC_ARMOR == {"armor_light": 65, "": 30, "armor_heavy": 5}
+		and sum_of.call(AILoadouts.PMC_BACKPACK) == 100 and AILoadouts.PMC_BACKPACK == {"": 55, "backpack_small": 40, "backpack_medium": 5}
+		and sum_of.call(AILoadouts.PMC_HELMETS) == 100 and AILoadouts.PMC_HELMETS["helmet_good"] == 10 and is_equal_approx(AILoadouts.PMC_HELMET_CHANCE, 0.3),
+		"kit odds: armor 65/30/5, backpack 55/40/5, helmets 30% of bots with the Combat Helmet 1 in 10, each table sums to 100")
+	var good := 0
+	var helmeted := 0
+	for i in 4000:
+		var h := AILoadouts.pmc_helmet(i)
+		helmeted += 1 if h != "" else 0
+		good += 1 if h == "helmet_good" else 0
+	_check(absf(helmeted / 4000.0 - 0.3) < 0.03 and absf(good / float(helmeted) - 0.1) < 0.03,
+		"%d%% of bots wear a helmet, %d%% of those the Combat Helmet" % [roundi(helmeted / 40.0), roundi(100.0 * good / helmeted)])
+	var pmc: Dictionary = ItemDB.LOOT_TABLES["pmc"]
+	var raider: Dictionary = (ItemDB.LOOT_TABLES["raider"] as Dictionary).duplicate()
+	raider.erase("backpack_medium")
+	_check(not pmc.has("backpack_medium") and pmc == raider and pmc.has("epic") and pmc.has("rare") and pmc.has("grenade")
+		and not ItemDB.TABLE_CHANCES.has("pmc"), "the pmc loot table is the Raider's without the medium backpack (rare, epic, grenades, attachments)")
+
+	# Leave time: 50-85% of the raid's length, seeded; no known length counts as 600 s.
+	var bot := _blind_bot(Vector3(0, 0.1, 30))
+	await physics_frame
+	var lows := {600.0: INF, 900.0: INF, 0.0: INF}
+	var highs := {600.0: 0.0, 900.0: 0.0, 0.0: 0.0}
+	for length: float in lows:
+		for i in 300:
+			bot.leave_at = -1.0
+			bot.raid_length = length
+			bot.leave_seed = 1000 + i
+			bot._roll_leave_time()
+			lows[length] = minf(lows[length], bot.leave_at)
+			highs[length] = maxf(highs[length], bot.leave_at)
+	_check(lows[600.0] >= 300.0 and highs[600.0] <= 510.0 and lows[600.0] < 320.0 and highs[600.0] > 490.0
+		and lows[900.0] >= 450.0 and highs[900.0] <= 765.0 and lows[900.0] < 480.0 and highs[900.0] > 735.0
+		and lows[0.0] >= 300.0 and highs[0.0] <= 510.0,
+		"leave time: 5:00-8:30 in a 600 s raid (%.0f-%.0f), 7:30-12:45 in a 900 s one (%.0f-%.0f), 600 s without a known length" % [lows[600.0], highs[600.0], lows[900.0], highs[900.0]])
+	bot.leave_at = -1.0
+	bot.raid_length = 900.0
+	bot.leave_seed = 77
+	bot._roll_leave_time()
+	var again := bot.leave_at
+	bot.leave_at = -1.0
+	bot._roll_leave_time()
+	_check(bot.leave_at == again, "a bot's leave time comes from its seed")
+	bot.leave_at = 400.0
+	_check(not bot.wants_to_leave(), "before its time it stays")
+	bot._age = 400.0
+	_check(bot.wants_to_leave(), "at its time it wants to go")
+
+	# Early leave: under 40% health with no heals left.
+	bot._age = 0.0
+	bot._heals_left = 1
+	bot.health.current = int(bot.health.max_health * 0.3)
+	var with_heals := bot.wants_to_leave()
+	bot._heals_left = 0
+	var hurt_dry := bot.wants_to_leave()
+	bot.health.current = int(bot.health.max_health * 0.5)
+	var half := bot.wants_to_leave()
+	bot.health.current = bot.health.max_health
+	_check(not with_heals and hurt_dry and not half, "hurt (under 40%) with no heals left it wants to go; with a heal, or at half health, it doesn't")
+
+	# Taking loot.
+	var box := _plan_box(Vector3(30, 0, 30), "LeaveVault", "crate")
+	box.grid.stacks.clear()
+	box.grid.add("bandage", 3)
+	box.grid.add("gold_watch", 1)
+	box.grid.add("bank_vault_key", 1)
+	box.grid.add("player_tag", 1)
+	bot._on_search_done(box)
+	_check(bot.carried_loot.size() == 1 and bot.carried_loot[0].id == "gold_watch" and box.grid.count_of("gold_watch") == 0
+		and box.has_meta(RaidWorld.BOT_LID), "a finished search opens the lid and takes the most valuable item, for real (%s)" % [bot.carried_loot.map(func(s: ItemStack) -> String: return s.id)])
+	bot._on_search_done(box)
+	bot._on_search_done(box)
+	_check(bot.carried_loot.size() == 2 and bot.carried_loot[1].id == "bandage" and box.grid.count_of("bandage") == 0
+		and box.grid.count_of("bank_vault_key") == 1 and box.grid.count_of("player_tag") == 1,
+		"a whole stack at a time; never a key, never a special item (the tag), nothing when only those are left")
+	var locked := _plan_box(Vector3(34, 0, 30), "LeaveLocked", "crate", true)
+	locked.grid.stacks.clear()
+	locked.grid.add("gold_watch", 1)
+	bot._on_search_done(locked)
+	_check(bot.carried_loot.size() == 2 and locked.grid.count_of("gold_watch") == 1, "nothing from a locked container")
+	var stash := _plan_box(Vector3(38, 0, 30), "LeaveStash", "crate")
+	for n in 6:
+		stash.grid.stacks.clear()
+		stash.grid.add(["beans", "water", "duct_tape", "phone", "ration", "scrap"][n], 1)
+		bot._on_search_done(stash)
+	_check(bot._taken == PmcAI.MAX_TAKEN and bot.carried_loot.size() == 4 and stash.grid.count_of("scrap") == 1,
+		"at most 4 items a raid (%d taken)" % bot.carried_loot.size())
+	# It ends up on the body when the bot dies.
+	bot.carried_loot.clear()
+	bot.carried_loot.append(ItemStack.new("holy_grail"))   # (a rolled item can never be one)
+	var body_at := bot.global_position
+	bot.health.take_damage(900)
+	await physics_frame
+	await physics_frame
+	var body: LootContainer = null
+	for node in RaidScope.nodes(main, &"loot_containers"):
+		if node is LootContainer and (node as LootContainer).remove_when_empty and node.global_position.distance_to(body_at) < 3.0:
+			body = node
+	var on_body := body != null and body.all_grids().any(func(g: GridInventory) -> bool: return g.count_of("holy_grail") == 1)
+	_check(on_body, "what it took is on its body when it dies")
+	if body != null:
+		body.free()
+	for c in [box, locked, stash]:
+		c.free()
+
+	# Walking to an extract and vanishing. (The test map's own extracts are shut for this; they come back after.)
+	var zones := main.find_children("*", "ExtractZone", true, false)
+	var was_open := {}
+	for z: ExtractZone in zones:
+		was_open[z] = z.is_open
+		z.set_open(false)
+	var make_zone := func(pos: Vector3, secs: float) -> ExtractZone:
+		var z := (load("res://scenes/extract_zone.tscn") as PackedScene).instantiate() as ExtractZone
+		z.extract_time = secs
+		main.add_child(z)
+		z.global_position = pos
+		return z
+	var near: ExtractZone = make_zone.call(Vector3(22, 0, 30), 1.0)
+	var enemies_before := RaidScope.nodes(main, &"enemies").size()
+	var walker := _blind_bot(Vector3(0, 0.1, 30))
+	walker.leave_at = 0.0
+	walker._plan_wait = 0.0
+	var died := [false]
+	walker.health.died.connect(func() -> void: died[0] = true)
+	var bags_before := RaidScope.nodes(main, &"loot_containers").size()
+	var seen_exit := false
+	var stood := 0
+	for i in 2400:
+		await physics_frame
+		if not is_instance_valid(walker) or walker.left_raid:
+			break
+		seen_exit = seen_exit or walker.plan == PmcAI.Plan.EXIT
+		stood += 1 if walker.plan == PmcAI.Plan.EXTRACT else 0
+	var gone := not is_instance_valid(walker) or walker.left_raid
+	await physics_frame
+	await physics_frame
+	_check(seen_exit and gone and not died[0], "at its leave time it walks to the extract and leaves (it was %s)" % ("gone" if gone else "still there"))
+	_check(stood >= 55 and stood <= 90, "it stands in the extract for its extract_time first (%d frames of 60)" % stood)
+	_check(RaidScope.nodes(main, &"loot_containers").size() == bags_before and RaidScope.nodes(main, &"enemies").size() == enemies_before,
+		"leaving quietly: no body, no loot bag, not an enemy any more")
+	near.free()
+
+	# Hurt, no heals: it goes without waiting for its time. A shut extract is passed over for an open one.
+	var shut: ExtractZone = make_zone.call(Vector3(22, 0, 30), 1.0)
+	shut.needs_power = "test_switch"
+	shut.set_open(false)
+	var open_far: ExtractZone = make_zone.call(Vector3(-30, 0, 30), 1.0)
+	var hurt := _blind_bot(Vector3(0, 0.1, 30))
+	hurt.leave_at = 99999.0
+	hurt._heals_left = 0
+	hurt.health.current = int(hurt.health.max_health * 0.3)
+	hurt._plan_wait = 0.0
+	var usable := hurt._usable_extracts()
+	for i in 6:
+		await physics_frame
+	_check(usable == [open_far] and hurt.plan == PmcAI.Plan.EXIT and hurt.extract == open_far,
+		"hurt with no heals it leaves early, by the open extract, not the shut one nearer (%s)" % [hurt.extract])
+	# With another AI close to the near extract, the farther clear one is preferred; with none clear, the nearest.
+	shut.needs_power = ""
+	shut.set_open(true)
+	var guard := _spawn(SCAV_SCENE, Vector3(28, 0.1, 30)) as Scav
+	guard.sight_range = 0.5
+	guard.set_physics_process(false)
+	await physics_frame
+	hurt.extract = null
+	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
+	hurt._exit_retry = 0.0
+	hurt._next_destination()
+	_check(hurt.extract == open_far and not hurt._exit_forced, "an extract with another AI within 40 m is passed over for a clear one")
+	open_far.free()
+	hurt.extract = null
+	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
+	hurt._next_destination()
+	_check(hurt.extract == shut and hurt._exit_forced, "with no clear extract it takes the nearest one")
+	for node: Node in [hurt, guard, shut]:
+		node.free()
+	for z: ExtractZone in zones:
+		z.set_open(was_open[z])
 	await physics_frame
 
 

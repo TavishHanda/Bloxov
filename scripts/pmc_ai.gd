@@ -6,7 +6,8 @@ extends Scav
 ## then picked by what their loot is worth (best ~3x as likely as poorest), searching 2-4 containers at each.
 ## Keep-apart rule (owner): it stays away from every other AI (non-bot 30-40 m, other bots 60 m) when picking where to
 ## go, the way there, while moving and looting, and which noises it walks over to. Its fight brain is the Scav's.
-## Hooks for the next pieces: `_on_search_done` (take items, open lids) and `wants_to_leave` (extracting).
+## 0.36.7: a finished search opens the container's lid and takes one item (`_on_search_done`); at its leave time, or
+## hurt with no heals left, it jogs to an extract, stands in it and is gone (`wants_to_leave`, `_leave_raid`).
 
 ## (0.36.5, owner approved) The raid plan.
 const START_WAIT_MIN := 3.0
@@ -44,8 +45,23 @@ const RETRY_WAIT := 3.0
 const PLACE_SPREAD := 25.0
 const SHOT_MEMORY := 60.0
 const _PLACES_META := &"pmc_places"
+## (0.36.7, owner approved) Looting: one whole stack per container, the most valuable one, at most this many a raid.
+const MAX_TAKEN := 4
+## (0.36.7, owner approved) Extracting: it leaves between these shares of the raid's full length (a raid without a
+## known length counts as DEFAULT_RAID_LENGTH s from its spawn), or early when under LEAVE_HURT of its health with no
+## heals left and not in a fight. It prefers an extract with no other AI within AI_PLACE_CLEAR m (bots: BOT_CLEAR).
+const LEAVE_MIN := 0.50
+const LEAVE_MAX := 0.85
+const LEAVE_HURT := 0.4
+const DEFAULT_RAID_LENGTH := 600.0
+## Tuning (not the owner's numbers): wait this long before looking for an extract again after finding none, and give
+## up on a walk to one after this long.
+const EXIT_RETRY := 5.0
+const EXIT_GIVE_UP := 120.0
+## Within this many m of its extract it stops turning away from AI near it (the extract itself may be busy).
+const EXIT_LAST_STRETCH := 25.0
 
-enum Plan { START, TRAVEL, SEARCH, HOLD }
+enum Plan { START, TRAVEL, SEARCH, HOLD, EXIT, EXTRACT }
 var plan := Plan.START
 var _plan_wait := 0.0
 ## The place it's at or heading to ({} = none: a spot away from someone, or holding).
@@ -71,6 +87,21 @@ var turned_away := 0
 var _last_gap := INF
 var _flee_wait_left := 0.0
 var _held_for := 0.0
+## 0.36.7: the raid's full length in seconds (the server sets it; 0 = DEFAULT_RAID_LENGTH), the seed of its leave
+## roll (0 = unseeded), and when it leaves: seconds after it spawned.
+var raid_length := 0.0
+var leave_seed := 0
+var leave_at := -1.0
+var _age := 0.0
+var _taken := 0
+var _exit_retry := 0.0
+## The extract it's heading to or standing in, and how much of its time is left; `_exit_forced`: no extract was clear
+## of other AI, so it took the one with the most room.
+var extract: Node3D = null
+var _extract_left := 0.0
+var _exit_forced := false
+## It walked out of the raid through an extract (tests, the proof tool).
+var left_raid := false
 
 
 func _ready() -> void:
@@ -81,10 +112,13 @@ func _ready() -> void:
 	_places_left = randi_range(PLACES_MIN, PLACES_MAX)
 	_plan_wait = randf_range(START_WAIT_MIN, START_WAIT_MAX)
 	_apart_left = randf() * CHECK_EVERY
+	_roll_leave_time()
 
 
 func _physics_process(delta: float) -> void:
 	if state != State.DEAD and not puppet:
+		_age += delta
+		_exit_retry -= delta
 		_shot_age += delta
 		if state in [State.ALERT, State.ENGAGE]:
 			_fought = true
@@ -108,7 +142,7 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 		if loud:
 			FightBudget.stir(self, pos)
 		return
-	if loud and not curious:
+	if loud and (not curious or plan in [Plan.EXIT, Plan.EXTRACT]):   # (0.36.7: on its way out it doesn't go and look)
 		FightBudget.stir(self, pos)
 		if global_position.distance_to(pos) <= SHOT_CARE_RANGE:
 			_shot_at = pos
@@ -117,14 +151,62 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	super(pos, radius, gunshot)
 
 
-## Hook for the next piece (looting): a search of `container` just finished. Today's search is pretend.
-func _on_search_done(_container: Node3D) -> void:
-	pass
+## A search of `container` just finished (0.36.7): its lid opens and stays open (every player's screen sees it), and
+## the bot takes its most valuable whole stack, if it has room in its quota and no player has it open.
+func _on_search_done(container: Node3D) -> void:
+	var box := container as LootContainer
+	if box == null or not is_instance_valid(box) or box.has_meta("locked"):
+		return
+	var world := get_viewport() as RaidWorld
+	box.set_open(true)
+	if world != null:
+		world.bot_opened_lid(box)
+	else:
+		box.set_meta(RaidWorld.BOT_LID, true)
+	if _taken >= MAX_TAKEN or (world != null and world.is_open_by_player(String(box.name))):
+		return
+	var best: ItemStack = null
+	var best_worth := -1
+	for stack in box.grid.stacks:
+		if not _takeable(stack.id):
+			continue
+		var worth := ItemDB.value(stack.id) * stack.count
+		if worth > best_worth:
+			best_worth = worth
+			best = stack
+	if best == null:
+		return
+	box.grid.remove(best)
+	best.mark_found()
+	carried_loot.append(best)
+	_taken += 1
 
 
-## Hook for the next piece (extracting): asked before every new destination. Never yet.
+## Never keys, nor anything marked special (quest and boss items, dog tags): those aren't for bots.
+static func _takeable(id: String) -> bool:
+	return ItemDB.ITEMS.has(id) and ItemDB.kind(id) != "key" and not ItemDB.ITEMS[id].get("special", false)
+
+
+## Time to leave: its rolled leave time has come, or it is hurt (under LEAVE_HURT of its health) with no heals left.
+## (Whether it is free to go, not in a fight, is the plan's business: it only asks when it is unaware.)
 func wants_to_leave() -> bool:
-	return false
+	if puppet or state == State.DEAD:
+		return false
+	if _age >= leave_at:
+		return true
+	return health.current < health.max_health * LEAVE_HURT and _heals_left <= 0
+
+
+## Rolls the leave time: LEAVE_MIN to LEAVE_MAX of the raid's length, from the seed the server gave it.
+func _roll_leave_time() -> void:
+	if leave_at >= 0.0:
+		return
+	var rng := RandomNumberGenerator.new()
+	if leave_seed != 0:
+		rng.seed = leave_seed
+	else:
+		rng.randomize()
+	leave_at = rng.randf_range(LEAVE_MIN, LEAVE_MAX) * (raid_length if raid_length > 0.0 else DEFAULT_RAID_LENGTH)
 
 
 # ---- The raid plan ------------------------------------------------------------------------------------------------
@@ -139,7 +221,13 @@ func _set_plan(new_plan: Plan, wait := 0.0) -> void:
 
 ## Unaware (IDLE): the plan instead of the scav patrol.
 func _wander(delta: float) -> Vector3:
+	if plan in [Plan.SEARCH, Plan.TRAVEL] and _exit_retry <= 0.0 and wants_to_leave():
+		_set_plan(Plan.HOLD)   # (time to go: it plans its way out instead)
 	match plan:
+		Plan.EXIT:
+			return _walk_to_extract(delta)
+		Plan.EXTRACT:
+			return _stand_in_extract(delta)
 		Plan.START, Plan.HOLD:
 			_plan_wait -= delta
 			_held_for += delta
@@ -197,12 +285,14 @@ func _go_to(spot: Vector3, container: Node3D) -> void:
 ## Where next: another container at this place, a new place, a spot away from someone, or a short wait.
 ## `away_from` (INF = nothing): someone it's turning away from, so the next place has to lie the other way.
 func _next_destination(away_from := Vector3.INF) -> void:
-	if wants_to_leave():
-		pass   # (the extracting piece goes here)
 	if not AINav.ready(self):
 		_set_plan(Plan.HOLD, RETRY_WAIT)
 		return
 	var others := _others()
+	if _exit_retry <= 0.0 and wants_to_leave():
+		if _go_extract(others):
+			return
+		_exit_retry = EXIT_RETRY   # (no extract it can reach: it carries on looting and tries again)
 	if away_from == Vector3.INF and _fought:
 		var close := _nearest_non_bot(others, global_position)
 		if close[1] < AFTER_FIGHT_CLEAR:
@@ -324,6 +414,144 @@ func _weighted_pick(options: Array) -> Dictionary:
 	return options[options.size() - 1]
 
 
+# ---- Extracting (0.36.7) ------------------------------------------------------------------------------------------
+
+## The extracts it may use: open ones (a zone that waits for its switch is shut until it's thrown).
+func _usable_extracts() -> Array[Node3D]:
+	var zones: Array[Node3D] = []
+	for node in RaidScope.nodes(self, &"extracts"):
+		var zone := node as Node3D
+		if zone != null and zone.is_inside_tree() and bool(zone.get("is_open")):
+			zones.append(zone)
+	return zones
+
+
+## Whether `pos` is inside the extract's box (the same test the server uses for players, RaidWorld.extract_at).
+func _in_extract(zone: Node3D, pos: Vector3) -> bool:
+	var shape := zone.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	if shape == null or not shape.shape is BoxShape3D:
+		return _flat(zone.global_position - pos).length() < 2.0
+	var size := (shape.shape as BoxShape3D).size
+	var local := shape.global_transform.affine_inverse() * (pos + Vector3(0, 0.9, 0))
+	return AABB(-size * 0.5, size).has_point(local)
+
+
+## Heads for an extract: the nearest usable one whose surroundings (no other AI within 40 m, a bot 60 m) and way
+## pass the keep-apart checks. If none does, the one whose way leaves the most room from other AI (the nearest wins a
+## tie). False if there is none it can reach.
+func _go_extract(others: Array) -> bool:
+	var zones := _usable_extracts()
+	zones.sort_custom(func(a: Node3D, b: Node3D) -> bool:
+		return a.global_position.distance_squared_to(global_position) < b.global_position.distance_squared_to(global_position))
+	var fallback: Array = []
+	var fallback_room := -INF
+	for zone in zones:
+		if _in_extract(zone, global_position):
+			_begin_extract(zone)
+			return true
+		var spot := AINav.closest(self, zone.global_position)
+		if spot == Vector3.ZERO:
+			continue
+		var route := AINav.path(self, global_position, spot)
+		if route.size() < 2:
+			continue
+		var room := _route_score(route, others)
+		var here := {"id": -1, "center": zone.global_position, "radius": 0.0}
+		if room >= 0.0 and _place_clear(here, others):
+			_go_exit(zone, spot, false)
+			return true
+		if fallback.is_empty() or room > fallback_room + 0.5:
+			fallback = [zone, spot]
+			fallback_room = room
+	if not fallback.is_empty():
+		_go_exit(fallback[0], fallback[1], true)
+		return true
+	return false
+
+
+func _go_exit(zone: Node3D, spot: Vector3, forced: bool) -> void:
+	place = {}
+	_place_container = null
+	_patrol_container = null
+	extract = zone
+	_exit_forced = forced
+	plan = Plan.EXIT
+	_held_for = 0.0
+	_looting_left = 0.0
+	_wander_point = spot
+	_wander_dir = _flat(spot - global_position).normalized()
+	if _wander_dir == Vector3.ZERO:
+		_wander_dir = Vector3.FORWARD
+	_patrol_time = 0.0
+	_patrol_jog = true
+	_path.clear()
+
+
+func _begin_extract(zone: Node3D) -> void:
+	place = {}
+	extract = zone
+	_exit_forced = true
+	plan = Plan.EXTRACT
+	_looting_left = 0.0
+	_wander_dir = Vector3.ZERO
+	_extract_left = float(zone.get("extract_time"))
+
+
+## Jogging to the extract; once inside, it stands.
+func _walk_to_extract(delta: float) -> Vector3:
+	if not is_instance_valid(extract) or not bool(extract.get("is_open")) or _wander_dir == Vector3.ZERO:
+		extract = null
+		_exit_retry = 0.0
+		_set_plan(Plan.HOLD, 0.5)
+		return Vector3.ZERO
+	if _in_extract(extract, global_position):
+		_begin_extract(extract)
+		return Vector3.ZERO
+	_patrol_time += delta
+	if _patrol_time > EXIT_GIVE_UP:
+		extract = null
+		_exit_retry = EXIT_RETRY
+		_set_plan(Plan.HOLD, 0.5)
+		return Vector3.ZERO
+	if _arrived(_wander_point):
+		# (at the nearest walkable spot but not inside the box: a step towards its middle)
+		var toward := _flat(extract.global_position - global_position)
+		if toward.length() < 0.2:
+			_begin_extract(extract)
+			return Vector3.ZERO
+		_face(toward, delta, 4.0)
+		return toward.normalized() * move_speed * patrol_speed
+	var move := _path_velocity(_wander_point, move_speed * jog_speed)
+	_face(move, delta, 4.0)
+	return move
+
+
+## Standing in the extract for its extract_time, then gone. Pushed out of it, it walks back in.
+func _stand_in_extract(delta: float) -> Vector3:
+	if not is_instance_valid(extract) or not bool(extract.get("is_open")):
+		extract = null
+		_set_plan(Plan.HOLD, 0.5)
+		return Vector3.ZERO
+	if not _in_extract(extract, global_position):
+		_go_exit(extract, AINav.closest(self, extract.global_position), true)
+		return Vector3.ZERO
+	_extract_left -= delta
+	if _extract_left <= 0.0:
+		_leave_raid()
+	return Vector3.ZERO
+
+
+## Out of the raid, quietly (0.36.7): no body, no loot bag, no kill feed line, no kill credit, no death sound. On the
+## server RaidWorld tells the raid's screens it left ("left", not "died") and forgets its name.
+func _leave_raid() -> void:
+	state = State.DEAD
+	remove_from_group("enemies")
+	set_meta(RaidWorld.BOT_LEFT, true)
+	left_raid = true
+	set_physics_process(false)
+	queue_free()
+
+
 # ---- Keep apart ---------------------------------------------------------------------------------------------------
 
 ## The other AI in this raid: [position, is a bot, node], living ones only.
@@ -413,6 +641,10 @@ func _route_score(route: PackedVector3Array, others: Array, from := 0) -> float:
 func _keep_apart() -> void:
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 		return
+	# (0.36.7: standing in an extract it may be near someone, and so may the last stretch of the way to it)
+	if plan == Plan.EXTRACT or (plan == Plan.EXIT and is_instance_valid(extract)
+			and _flat(extract.global_position - global_position).length() < EXIT_LAST_STRETCH):
+		return
 	var up := global_position + Vector3(0, 1.0, 0)
 	_indoors = not get_world_3d().direct_space_state.intersect_ray(
 		PhysicsRayQueryParameters3D.create(up, up + Vector3(0, 8, 0), 1)).is_empty()
@@ -424,7 +656,7 @@ func _keep_apart() -> void:
 		var last := _last_gap
 		_last_gap = gap
 		# Already on its way out from them along a clear way, and the gap is growing: carry on.
-		if state == State.IDLE and plan == Plan.TRAVEL and _path.size() > 1 and _route_clear(_path, others, _path_index) \
+		if state == State.IDLE and plan in [Plan.TRAVEL, Plan.EXIT] and _path.size() > 1 and _route_clear(_path, others, _path_index) \
 				and (gap > last + 0.3 or (last == INF and _wander_point.distance_to(threat[0]) > gap)):
 			return
 		if state == State.IDLE and plan == Plan.HOLD and _flee_wait_left > 0.0:
@@ -445,7 +677,7 @@ func _keep_apart() -> void:
 		_bad_place_now()
 		return
 	_route_check_left -= CHECK_EVERY
-	if plan == Plan.TRAVEL and _route_check_left <= 0.0 and _path.size() > 1:
+	if plan in [Plan.TRAVEL, Plan.EXIT] and _route_check_left <= 0.0 and _path.size() > 1:
 		_route_check_left = 1.0
 		if not _route_clear(_path, others, _path_index):
 			_next_destination()

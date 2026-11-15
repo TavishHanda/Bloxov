@@ -314,6 +314,10 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 			enemy_puppets.erase(id)
 			puppet.global_position = pos
 			puppet.net_died()
+		"left":
+			# An AI PMC walked out through an extract (0.36.7): it just isn't there any more.
+			enemy_puppets.erase(id)
+			puppet.queue_free()
 
 
 ## A hit the server sent (another player's shot, or online an AI's): our armor, or on the head our helmet, applies

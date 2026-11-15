@@ -58,6 +58,10 @@ var locks := {}
 var _next_bag := 1
 ## AI PMCs in this raid (0.36.2): instance id -> its name (BotNames). Kept after one dies, for the kill feed.
 var bots := {}
+## Set on an AI PMC (0.36.7) that left the raid through an extract: no body, no kill feed line, no death sound.
+const BOT_LEFT := &"left_raid"
+## Set on a container an AI PMC opened (0.36.7): its lid stays open until a player opens and shuts it.
+const BOT_LID := &"bot_lid"
 ## peer -> [the name of the AI PMC that last hurt them, server seconds]: who gets the kill if they die. Any other
 ## AI's hit clears it (a scav finishing them off isn't the bot's kill).
 var _bot_hits := {}
@@ -104,7 +108,13 @@ func _on_raid_child(node: Node) -> void:
 	node.fired.connect(func(end: Vector3) -> void: enemy_event.emit(id, "fired", end))
 	node.barked.connect(func(kind: String) -> void: enemy_event.emit(id, "bark:" + kind, Vector3.ZERO))
 	node.bash_started.connect(func() -> void: enemy_event.emit(id, "bash", Vector3.ZERO))
-	node.tree_exiting.connect(func() -> void: enemy_event.emit(id, "died", node.global_position))
+	node.tree_exiting.connect(func() -> void:
+		# An AI PMC that left through an extract (0.36.7) goes quietly: "left" (no pop, no sound), not "died".
+		if node.has_meta(BOT_LEFT):
+			bots.erase(id)
+			enemy_event.emit(id, "left", node.global_position)
+		else:
+			enemy_event.emit(id, "died", node.global_position))
 
 
 func _announce_bag(bag: LootContainer) -> void:
@@ -137,6 +147,18 @@ func open_container(peer: int, id: String) -> Variant:
 	return box.net_data()
 
 
+## True if a player has container `id` open right now (an AI PMC doesn't take from it then, 0.36.7).
+func is_open_by_player(id: String) -> bool:
+	return locks.has(id)
+
+
+## An AI PMC (0.36.7) opened `box`'s lid and left it open: everyone in the raid sees it.
+func bot_opened_lid(box: LootContainer) -> void:
+	box.set_meta(BOT_LID, true)
+	if box.has_method("has_lid") and box.has_lid():
+		lid_moved.emit(String(box.name), true)
+
+
 ## The player who has it open moved things around: store the new contents (an emptied bag goes away).
 func update_container(peer: int, id: String, data: Array) -> void:
 	var box := container(id)
@@ -155,7 +177,7 @@ func close_containers(peer: int) -> void:
 		if locks[id] == peer:
 			locks.erase(id)
 			var box := container(id)
-			if box != null and box.has_method("has_lid") and box.has_lid():
+			if box != null and box.has_method("has_lid") and box.has_lid() and not box.has_meta(BOT_LID):
 				lid_moved.emit(id, false)
 
 
@@ -266,7 +288,8 @@ const BOT_CALM_SLACK := 2
 ## each at the free player spawn point farthest from every real squad's (`real_slots`, Matchmaker.spawn_slots), the
 ## same points the players' games turn those slots into (Raid.spawn_position, the raid's `seed_value`). Each gets a
 ## name from BotNames that none of `taken` (the real players' names) has. Returns the bots.
-func spawn_bots(count: int, seed_value: int, real_slots: Array, taken: Array) -> Array[Node]:
+## `raid_length` (0.36.7): the raid's full length in seconds, for each bot's leave time (0 = the 600 s default).
+func spawn_bots(count: int, seed_value: int, real_slots: Array, taken: Array, raid_length := 0.0) -> Array[Node]:
 	var made: Array[Node] = []
 	var spawns := raid.get_node_or_null("PlayerSpawns")
 	if count <= 0 or spawns == null or spawns.get_child_count() == 0:
@@ -326,6 +349,8 @@ func spawn_bots(count: int, seed_value: int, real_slots: Array, taken: Array) ->
 			pos = at.call(best)
 		var bot := scene.instantiate()
 		bot.set("bot_name", names[i] if i < names.size() else "PMC")
+		bot.set("raid_length", raid_length)
+		bot.set("leave_seed", seed_value * 31 + i + 1)   # (its own roll of when it leaves, seeded by the raid)
 		raid.add_child(bot)
 		(bot as Node3D).global_position = spawner.call("on_floor", pos) if spawner != null else pos
 		(bot as Node3D).rotation.y = rng.randf() * TAU

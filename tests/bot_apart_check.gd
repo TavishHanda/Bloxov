@@ -41,7 +41,7 @@ func _run() -> void:
 		var raid_time := float((probe.get_meta("raid", {}) as Dictionary).get("raid_time", 600.0))
 		probe.free()
 		var stats := {"samples": 0, "near": 0, "min_ai": INF, "min_bot": INF, "visits": 0, "top": 0, "bots": 0,
-			"places": [], "turned": 0, "ai": 0, "searches": 0}
+			"places": [], "turned": 0, "ai": 0, "searches": 0, "exit_samples": 0, "exit_near": 0}
 		var done := 0
 		while done < _per_map:
 			var batch := mini(AT_ONCE, _per_map - done)
@@ -57,8 +57,9 @@ func _run() -> void:
 		for n: int in per_bot:
 			avg += n
 		avg /= maxf(per_bot.size(), 1.0)
-		lines.append("%s (%d s raids): time within %d m of non-bot AI %.2f%% (%d of %d bot-seconds); closest ever to non-bot AI %.1f m, to another bot %.1f m; %s" % [
+		lines.append("%s (%d s raids): time within %d m of non-bot AI %.2f%% (%d of %d bot-seconds, not counting the walk to an extract); closest ever to non-bot AI %.1f m, to another bot %.1f m; %s" % [
 			entry[0], raid_time, NEAR, share * 100.0, stats["near"], stats["samples"], stats["min_ai"], stats["min_bot"], "PASS" if ok else "FAIL"])
+		lines.append("  on the walk to an extract (0.36.7): %d of %d bot-seconds within %d m of non-bot AI" % [stats["exit_near"], stats["exit_samples"], NEAR])
 		lines.append("  places visited per bot: average %.1f, min %d, max %d (%d bots); visits to top-third-value places %.0f%% (%d of %d); %.1f containers searched per bot; turned away %d times; %.0f AI per raid at the end" % [
 			avg, per_bot[0] if not per_bot.is_empty() else 0, per_bot[-1] if not per_bot.is_empty() else 0, stats["bots"],
 			100.0 * stats["top"] / maxf(stats["visits"], 1.0), stats["top"], stats["visits"], float(stats["searches"]) / maxf(stats["bots"], 1.0), stats["turned"], float(stats["ai"]) / _per_map])
@@ -84,15 +85,24 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, stats: D
 		worlds.append(world)
 		# (as the server does: in the frame the raid starts, before the spawner's own deferred start)
 		bots.append(world.spawn_bots(BOTS, 7000 + first + i, [], []))
+	# (0.36.7: bots leave through extracts, so what each one did is noted every second, while it is still there; the
+	# extract walk is counted apart, as the extract itself may be near others when no clear one is left)
+	var snap := {}
 	var t := 0.0
 	while t < raid_time:
 		for f in 60:
 			await physics_frame
 		t += 1.0
 		for i in count:
-			for bot: Node in bots[i]:
-				if not is_instance_valid(bot) or (bot as Scav).state == Scav.State.DEAD:
+			for entry in bots[i]:
+				if not is_instance_valid(entry):
 					continue
+				var bot := entry as Node
+				if (bot as Scav).state == Scav.State.DEAD:
+					continue
+				var pmc_now := bot as PmcAI
+				snap[bot.get_instance_id()] = [pmc_now.visited.size(), pmc_now.visited.duplicate(), pmc_now.turned_away, pmc_now._searched.size(), i]
+				var leaving := pmc_now.plan in [PmcAI.Plan.EXIT, PmcAI.Plan.EXTRACT]
 				var me := (bot as Node3D).global_position
 				var near_ai := INF
 				var near_bot := INF
@@ -112,6 +122,11 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, stats: D
 					print("DIAG r%d t=%d bot%d %s/%s at %s | %s %s at %s d=%.1f" % [first + i, t, bot.get_instance_id() % 1000,
 						Scav.State.keys()[pmc.state], PmcAI.Plan.keys()[pmc.plan], me.snapped(Vector3.ONE), who.scene_file_path.get_file(),
 						Scav.State.keys()[who.state], who.global_position.snapped(Vector3.ONE), near_ai])
+				if leaving:
+					stats["exit_samples"] += 1
+					if near_ai < NEAR:
+						stats["exit_near"] += 1
+					continue
 				stats["samples"] += 1
 				if near_ai < NEAR:
 					stats["near"] += 1
@@ -126,15 +141,15 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, stats: D
 		for p: Dictionary in list:
 			by_name[p["name"]] = p
 		stats["ai"] += RaidScope.nodes(worlds[i].raid, &"enemies").size()
-		for bot: Node in bots[i]:
-			if not is_instance_valid(bot):
+		for id in snap:
+			var note: Array = snap[id]
+			if note[4] != i:
 				continue
-			var pmc := bot as PmcAI
 			stats["bots"] += 1
-			stats["places"].append(pmc.visited.size())
-			stats["turned"] += pmc.turned_away
-			stats["searches"] += pmc._searched.size()
-			for n in pmc.visited:
+			stats["places"].append(note[0])
+			stats["turned"] += note[2]
+			stats["searches"] += note[3]
+			for n in note[1]:
 				stats["visits"] += 1
 				if by_name.has(n) and float(by_name[n]["value"]) >= cut:
 					stats["top"] += 1

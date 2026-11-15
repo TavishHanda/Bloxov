@@ -169,6 +169,30 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Stinger | 3% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 3% |
 
+### Pmc ()
+
+| Entry | Chance per roll |
+|---|---|
+| Hound Rounds | 20% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
+| Bandage | 8% |
+| Medkit | 8% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
+| Wasp Rounds | 7% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 7% |
+| Mauler Shells | 5% |
+| Frag Grenade | 4% |
+| Stinger Rounds | 4% |
+| Stinger | 3% |
+| Energy Drink | 3% |
+| Lancer Rounds | 2% |
+| Red Dot | 2% |
+| Foregrip | 2% |
+| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
+| 4x Scope | 1% |
+| Suppressor | 1% |
+| Extended Mag | 1% |
+
 ### Raider (body bag, 2–4 rolls)
 
 | Entry | Chance per roll |

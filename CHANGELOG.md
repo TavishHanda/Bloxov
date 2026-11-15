@@ -7,6 +7,30 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.7 (AI PMCs, piece 6b: taking loot, extracting, gear odds)
+Built on the AI PMC branch (switch still off). Owner approved every number (2026-11-14). Scavs, Raiders, snipers and
+Bon are untouched (the only change outside the bot's own script is an empty list on the AI base class).
+- **Taking loot**: when a bot finishes searching a container its lid opens and stays open (everyone sees it) and it
+  takes one whole stack, the most valuable one, for real: gone from the server's container, on its body when it dies.
+  At most 4 a raid; never keys or special items, never from a locked container, and nothing if a player has that
+  container open at that moment (the lid still opens).
+- **Extracting**: each bot rolls a leave time, 50-85% of the raid's length (Frontlines 5:00-8:30, Riptide 7:30-12:45;
+  seeded by the raid), or leaves early when under 40% health with no heals left and not in a fight. When it is time
+  it jogs to the nearest open extract whose surroundings (no other AI within 40 m, a bot 60 m) and way pass the
+  keep-apart checks (none clear: the one whose way leaves the most room from other AI), turns away from AI near it on
+  the way like anywhere else (not on the last 25 m, or in the extract), stands in it for the extract's time, and is gone: no body, no loot bag, no
+  kill feed line, no kill credit, no death sound (the raid's screens are told "left", not "died"). A fight on the way
+  or in the extract is fought as before, the stand time starts again after, then it carries on out. On its way out it
+  doesn't go and look at noises.
+- **Gear odds**: armor light 65 / none 30 / heavy 5 (was 60/25/15), the Combat Helmet 1 in 10 helmets (was 1 in 5),
+  backpack none 55 / small 40 / medium 5 (was 55/35/10). The `pmc` loot table is now the Raider table's weights
+  without the medium backpack, so bodies can hold good loot (rare and epic finds, grenades, attachments). Map and
+  container loot are unchanged. Economy sim: an AI PMC body averages $16.6k (was $17.0k; the lighter gear and the
+  richer table roughly cancel); `sim-0.36.7.txt`.
+- New smoke test sections `pmc_leave` and more in `online_bots`. `tests/bot_apart_check.gd` copes with bots that leave
+  and counts the walk to an extract apart (it passed: 0.2-0.6% within 30 m while looting, closest 24 m; on the walk
+  out the closest was 16 m, 20% of those seconds within 30 m).
+
 ## 0.36.6 (AI PMCs: keeping apart, tuned on the real maps)
 Built on the AI PMC branch (switch still off). Tuning from the proof runs (`tests/bot_apart_check.gd`), none of the
 owner's numbers changed:

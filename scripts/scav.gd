@@ -390,6 +390,7 @@ func _on_died() -> void:
 		drops.append([id, ItemDB.roll_count(id)])
 	if kit == "pmc":
 		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
+		drops.append_array(carried_loot)   # (0.36.7: what it took from containers)
 	var title := body_name
 	if bot_name != "":
 		# (an AI PMC, 0.36.2: a player's body, dog tag and all)

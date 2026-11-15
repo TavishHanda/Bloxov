@@ -1143,7 +1143,7 @@ func _send_raid_start(id: int) -> void:
 	# AI PMCs (0.36.2; Matchmaker.bots is 0 unless --bots): at the spawn points the real squads didn't take.
 	if int(raid.get("bots", 0)) > 0:
 		var slots: Array = raid["spawns"].values().map(func(spawn: Array) -> int: return int(spawn[0]))
-		var made := world.spawn_bots(int(raid["bots"]), int(raid["seed"]), slots, raid_names.values())
+		var made := world.spawn_bots(int(raid["bots"]), int(raid["seed"]), slots, raid_names.values(), float(raid.get("time", matchmaker.raid_time)))
 		_log("raid %d: %d AI PMCs (%s)" % [id, made.size(), ", ".join(made.map(func(bot: Node) -> String: return String(bot.get("bot_name"))))])
 	for peer in raid["players"]:
 		var team: Array[int] = []

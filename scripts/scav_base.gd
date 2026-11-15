@@ -327,6 +327,8 @@ var pack := ""
 ## An AI PMC's player-style name (0.36.2, set by the server when the raid spawns it, BotNames; "" for every other AI):
 ## its body is "Name's Body" with "Name's Dog Tag" in the tag slot, like a player killed by another player.
 var bot_name := ""
+## Items an AI PMC took from containers (0.36.7, PmcAI): they end up on its body. Empty for every other AI.
+var carried_loot: Array[ItemStack] = []
 ## The gun it carries (from its loadout; "" = the scene's own numbers). Sent to puppets online.
 var carried_gun := ""
 @export var burst_color := Color(0.33, 0.38, 0.24)

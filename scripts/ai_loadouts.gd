@@ -16,13 +16,16 @@ const TABLES := {
 ## What an AI PMC wears and carries (0.36.4, piece 5 of the AI PMC plan: "light armor most of the time, sometimes none
 ## or heavy, sometimes a helmet, a small backpack"). The plan gave no odds, so these are PROPOSED numbers for the
 ## owner to approve before bots are switched on (tunable here, piece 7). Weights: item id ("" = none) -> weight.
-const PMC_ARMOR := {"armor_light": 60, "": 25, "armor_heavy": 15}
+## (0.36.7, owner approved: "make heavy stuff rarer for now": light 65, none 30, heavy 5, was 60/25/15.)
+const PMC_ARMOR := {"armor_light": 65, "": 30, "armor_heavy": 5}
 ## Share of AI PMCs in a helmet, and which one. Decided from the bot's id (`pmc_helmet`), because the helmet has to
 ## match the hat on its outfit and every screen only knows the id.
 const PMC_HELMET_CHANCE := 0.3
-const PMC_HELMETS := {"helmet_basic": 80, "helmet_good": 20}
+## (0.36.7, owner approved: the Combat Helmet is 1 in 10 of helmets, was 1 in 5.)
+const PMC_HELMETS := {"helmet_basic": 90, "helmet_good": 10}
 ## Backpack it carries (it ends up on its body): item id ("" = none) -> weight.
-const PMC_BACKPACK := {"": 55, "backpack_small": 35, "backpack_medium": 10}
+## (0.36.7, owner approved: none 55, small 40, medium 5, was 55/35/10.)
+const PMC_BACKPACK := {"": 55, "backpack_small": 40, "backpack_medium": 5}
 ## A bandage stack it carries, the share of AI PMCs with a medkit too, and its ammo: the carried gun's rounds, rolled
 ## like any body's (ItemDB.roll_count).
 const PMC_MEDKIT_CHANCE := 0.15
