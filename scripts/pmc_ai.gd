@@ -40,7 +40,8 @@ const ESCAPE_GAIN := 0.5
 const PASS_FLOOR := 20.0
 const PASS_FLOOR_BOT := 40.0
 const HELD_UP := 10.0
-const LOOK_AHEAD := 1.5
+const LOOK_AHEAD := 3.0
+const HURRY_TIME := 6.0   # after turning away from someone it runs (full move_speed) this long
 const RETRY_WAIT := 3.0
 const PLACE_SPREAD := 25.0
 const SHOT_MEMORY := 60.0
@@ -85,6 +86,7 @@ var turned_away := 0
 var _last_gap := INF
 var _flee_wait_left := 0.0
 var _held_for := 0.0
+var _hurry_left := 0.0
 ## 0.36.7: the raid's full length in seconds (the server sets it; 0 = DEFAULT_RAID_LENGTH), the seed of its leave
 ## roll (0 = unseeded), and when it leaves: seconds after it spawned.
 var raid_length := 0.0
@@ -117,6 +119,7 @@ func _physics_process(delta: float) -> void:
 	if state != State.DEAD and not puppet:
 		_age += delta
 		_exit_retry -= delta
+		_hurry_left -= delta
 		_shot_age += delta
 		if state in [State.ALERT, State.ENGAGE]:
 			_fought = true
@@ -261,7 +264,8 @@ func _wander(delta: float) -> Vector3:
 			_set_plan(Plan.HOLD, 0.5)
 		return Vector3.ZERO
 	var near := _flat(_wander_point - global_position).length() < WALK_NEAR and _indoors
-	var move := _path_velocity(_wander_point, move_speed * (patrol_speed if near else jog_speed))
+	# (0.36.9: turning away from someone it runs, as a player would, so one walking the same way doesn't keep up)
+	var move := _path_velocity(_wander_point, move_speed * (1.0 if _hurry_left > 0.0 else (patrol_speed if near else jog_speed)))
 	_face(move, delta, 4.0)
 	return move
 
@@ -616,6 +620,9 @@ func _route_score(route: PackedVector3Array, others: Array, from := 0) -> float:
 		var limit := BOT_CLEAR if o[1] else AI_ROUTE_CLEAR
 		if now < limit + 200.0:
 			watch.append([o[0], limit, now - 1.0])
+			# (0.36.9: where a walking one will be in a moment counts along the way too)
+			if o.size() > 3 and (o[3] as Vector3).distance_to(o[0]) > 1.0:
+				watch.append([o[3], limit, (o[3] as Vector3).distance_to(global_position) - 1.0])
 	var worst := INF
 	var walked := 0.0
 	var left := 0.0
@@ -659,6 +666,7 @@ func _keep_apart() -> void:
 		if state == State.IDLE and plan == Plan.HOLD and _flee_wait_left > 0.0:
 			return   # (nowhere better a moment ago: it waits before looking again)
 		turned_away += 1
+		_hurry_left = HURRY_TIME
 		if plan in [Plan.EXIT, Plan.EXTRACT]:
 			# (0.36.8: someone came near on its way out or in the extract: it moves off first and tries again)
 			extract = null
