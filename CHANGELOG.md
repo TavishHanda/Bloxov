@@ -15,6 +15,11 @@ Owner: "the ladder in the barn makes u climb it backwards, so you cant actually 
 - New `tools/ladder_audit.gd` checks every ladder on both maps has the floor it leads to on the side it leans on. All
   of Riptide's ladders and the cabin's hatch ladder were already right. The smoke test checks the barn's ladder.
 
+## 0.35.24 (TEMP: the one-hour raids are on Riptide only)
+Owner: "only hour long on riptide. please leave frontlines as 10 minutes".
+- **Frontlines raids are back to 10 minutes.** Riptide raids still last 60 minutes for the playtest (0.35.18), online
+  and solo. Setting `PLAYTEST_RAID_TIME` in `scripts/net.gd` to `0.0` returns Riptide to 15.
+
 ## 0.35.23 (Field Test counts every AI)
 Owner: "For the mauler quest can you please change it to not just scavs but all raiders/scavs/bonsguards/raijin/guards/etc".
 - **Field Test (Gunsmith level 3) now counts any AI killed with a Mauler**: scavs, snipers, Raiders, Bon and his guards,
