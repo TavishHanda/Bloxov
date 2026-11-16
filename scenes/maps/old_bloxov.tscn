@@ -3745,7 +3745,7 @@ metadata/place = "Bank"
 [node name="Ladders" type="Node3D" parent="."]
 
 [node name="Ladder1" parent="Ladders" instance=ExtResource("8_ladder")]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 87.12, 0.624, -140)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 87.12, 0.624, -140)
 height = 3
 metadata/place = "Barn"
 
