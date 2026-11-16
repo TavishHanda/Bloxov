@@ -24,3 +24,4 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
   re-bake it: `xvfb-run -a godot --rendering-driver opengl3 -s tools/far_bake.gd -- <model>` (the smoke test checks one exists).
 - Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`
   group (CSG boxes + world-layer box colliders). New solid map pieces must be under `Level`/`Loot` (or in that group).
+- Ladders (0.35.27): the origin is the foot, it leans on what's at -Z (`into()`), the climber is at +Z. After adding or moving one, run `godot --headless -s tools/ladder_audit.gd` (the floor it leads to must be on the side it leans on; the barn's was backwards until 0.35.27).
