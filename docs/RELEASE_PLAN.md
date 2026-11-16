@@ -41,7 +41,7 @@ wishlist above:
 |---|---|---|
 | Crafting | **Shipped** 0.32.0 (11 recipes, instant) | done |
 | More quests | **Shipped** 0.31.15 (19 trader jobs) | done |
-| Map 2, **Riptide** | **Released as a gray box** 0.35.0 (2026-11-13): layout, storm, swimming, boss Zero and his loot, online, the war table's map picker. No art yet | the art: the ship first, then the lab, then the port, one piece per thread |
+| Map 2, **Riptide** | **Released as a gray box** 0.35.0 (2026-11-13): layout, storm, swimming, boss Raijin and his loot, online, the war table's map picker. No art yet | the art: the ship first, then the lab, then the port, one piece per thread |
 | Characters with traits | not started | doable if it starts now |
 | Expeditions | not started; open questions 3-5 below | a lean first version |
 | Steam build (GodotSteam, Steam sign-in linked to the account, cloud save for PvE, overlay) | not started; the Windows build is tested in CI | **must** happen; needs the app from the paid fee |
@@ -63,7 +63,7 @@ strict (owner, 2026-11-09).
 | When | Systems | Content / art | Steam / business |
 |---|---|---|---|
 | **Now-Nov 15** | Characters **plan** (numbers to the owner); lone PvP queue plan | | **Owner pays the $100 fee** + Steam's tax/bank forms; store page kit (text, screenshots, capsule images; reuse `itch/`) |
-| **Nov 16-29** | **Characters** built (3 launch characters, shared stats + one passive each) | **Riptide online** (map picker, server-synced switch, swim vs move checks, Zero online, lift), merged and renumbered | Store page sent to Valve, **Coming Soon** by ~end of November; wishlist button on the title screen and bloxov.com |
+| **Nov 16-29** | **Characters** built (3 launch characters, shared stats + one passive each) | **Riptide online** (map picker, server-synced switch, swim vs move checks, Raijin online, lift), merged and renumbered | Store page sent to Valve, **Coming Soon** by ~end of November; wishlist button on the title screen and bloxov.com |
 | **Nov 30-Dec 16** | **Expeditions**, lean v1 (one vehicle from crafted parts, entry price, wipe, one upgrade point); new-player counts (numbers only) | **Riptide art** | **Steam build**: GodotSteam on 4.7.2, Steam sign-in linked to the account, cloud save, overlay, first achievements |
 | **Dec 17-Jan 4** (Winter Sale) | **Server move** to OVH, several processes, stress test | Riptide live on the web beta; playtest round on everything new (`notes/untested.md`) | Build review sent ~1 week before launch |
 | **Jan 5 on** | Fixes and balance from the playtest | | **Launch** (see dates) |
@@ -141,7 +141,7 @@ Answer any order; the first five are needed before their week starts.
 
 **Maps (weeks 1-6)**
 7. ~~What are maps 2 and 3?~~ **Answered:** map 2 = **Riptide** (ship Leviathan over the lab Site Zero, boss
-   Zero, the hardest map at release); map 3 later = an amusement park with the sniper boss Volt.
+   Raijin, the hardest map at release); map 3 later = an amusement park with the sniper boss Volt.
 
 **Seasons, battle pass, pets (weeks 4+)**
 8. **Seasons:** do expeditions line up with seasons (Arc Raiders style), and how long is a season (8-12 weeks is
