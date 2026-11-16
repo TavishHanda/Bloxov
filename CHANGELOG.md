@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.22 (two of the same key: only one wears)
+Owner: "when you have two of the same key in the inventory only one of the keys durability is being used".
+- Unlocking a door already took a use off one key only, but which one was just the first found. Now it always uses the
+  key with the fewest uses left, so the most-used copy runs out first and the others stay full
+  (`Inventory.key_for`). Smoke test checks two vault keys: only one loses a use.
+
 ## 0.35.20 (the Reaper, restyled from the owner's photo)
 Owner sent a photo of a compact suppressed carbine: "Make the reaper look like this".
 - **The Reaper has a new look** (look k in `art_source/scripts/make_gun.py`, still blocky and all black and dark grey):
