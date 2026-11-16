@@ -7,6 +7,28 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.10 (AI PMCs: the AI fight AI PMCs, and bots fight everyone)
+Built on the AI PMC branch (switch still off). The owner's rules (2026-11-16); no new numbers.
+- **Who fights whom**: an AI PMC fights real players, other bots, scavs, Raiders, snipers and Bon; every other AI
+  treats a bot like a player (snipers and Bon too) and still never fights another non-bot AI. Each picks the closest
+  one it may fight; a real player it can see always wins over an AI it can't (no staring at a wall with a bot behind
+  it while a player walks past). A player it was after stays its player, as before; a closer AI can take over (looked
+  at again with every sight check, only while bots are in the raid).
+- **Same fight**: same hit chances, aiming and bursts as against players. The opening-burst mercy is for real players
+  only. A hit or bash lands on an AI the way a player's bullet does (its health through its armor and helmet, so hit
+  reactions, death, body and loot all follow) and turns it on its shooter; a miss passing close turns it that way, as
+  a player's does. An AI answers the questions the brain asks of a player (where its eyes and chest are, crouched at
+  low cover, running, patching up, under 40% health). Dead bots and bots that left are dropped as targets.
+- **Kill feed**: a bot counts as a PMC. A bot killing a bot is named like a player killing a player; a scav, Raider,
+  sniper or Bon killing a bot shows as it does for a player ("Bloxov"); a real player who hurt the bot in the last
+  10 s gets the kill and the feed line, as with a player. A bot killing a scav shows nothing (a player's scav kill is
+  only on their own screen). Nothing marks a bot as a bot.
+- **Proof that scav, Raider, sniper and Bon behaviour against players is unchanged**: the new same-seed check
+  (`tests/ai_same_check.gd`: 2 maps x 2 seeds, 120 s raids as the server runs them, no bots, one player standing and
+  one walking, every AI's state, plan, position, facing, health, target and shots logged each second) gives a log
+  identical line for line before and after (14141 lines; two runs of the old code matched each other too).
+- Smoke test: new `pmc_fights_ai` section, and kill feed cases in `online_bots`.
+
 ## 0.36.9 (AI PMCs: a scav walking the same way no longer keeps up)
 Built on the AI PMC branch (switch still off). Keep-apart tuning in the bot's own script; the owner's numbers (30 m,
 40 m, 60 m) are unchanged.

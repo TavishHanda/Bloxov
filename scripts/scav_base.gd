@@ -409,6 +409,16 @@ func _flat(v: Vector3) -> Vector3:
 var _opening := false
 ## Who it has fired its opening burst at in this fight (scav_fight.gd _start_burst).
 var _opened_on: Node = null
+## AI against AI (0.36.10, owner): AI PMCs fight everyone, every other AI fights AI PMCs (never each other).
+## The AI whose shot or bash is landing on it right now (null otherwise: a player's hit, a fall), and the one whose
+## hit killed it (its instance id, 0 = not an AI: the server's kill feed reads it, RaidWorld).
+var _hit_by: Node3D = null
+var killer_ai_id := 0
+
+
+## Counts as a PMC (AI PMCs, PmcAI): every other AI may fight it, and it may fight every other AI.
+func counts_as_pmc() -> bool:
+	return false
 
 
 func _set_state(new_state: State) -> void:

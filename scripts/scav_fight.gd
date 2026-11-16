@@ -42,7 +42,11 @@ func _update_melee(delta: float, dist: float) -> void:
 	_melee_cooldown_left = melee_cooldown
 	_lunge_left = 0.15
 	if dist <= melee_range + 0.5 and not _door_in_way(_target.global_position + Vector3(0, 1.2, 0)):
-		_target.take_bash(melee_damage, global_position, melee_shove, melee_aim_block)
+		var rival := _target as Scav
+		if rival != null:
+			rival.take_bash_from(self, melee_damage, melee_shove)   # (another AI, 0.36.10)
+		else:
+			_target.take_bash(melee_damage, global_position, melee_shove, melee_aim_block)
 var _tactic_time := 0.0
 ## STAND: how long it trades shots in the open before looking for cover (or a flank) again.
 var _stand_time := 0.0
@@ -419,7 +423,7 @@ func _try_take_cover(radius := -1.0) -> void:
 func _try_flank(to_target: Vector3, dist: float) -> void:
 	_cover_cooldown_left = cover_cooldown
 	var center := global_position + _flat(to_target)
-	var eyes := _target.eye_position()
+	var eyes: Vector3 = _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var back := -_flat(to_target).normalized()   # from you toward it
 	var radius := clampf(dist, 10.0, 20.0)
@@ -487,7 +491,7 @@ func _find_cover(radius := -1.0, farther := 0.0) -> Vector3:
 	if radius < 0.0:
 		radius = cover_search_radius
 	var my_dist := _flat(global_position - _target.global_position).length()
-	var eyes := _target.eye_position()
+	var eyes: Vector3 = _target.eye_position()
 	var space := get_world_3d().direct_space_state
 	var best := Vector3.INF
 	var best_walk := INF
@@ -724,7 +728,9 @@ var _opening_burst := 0
 
 func _start_burst() -> void:
 	_opening_burst = 0
-	if _opened_on != _target and not opening_can_kill and not (leader != null and is_instance_valid(leader) and leader.opening_can_kill):
+	# (An AI it fights gets no such mercy, 0.36.10, owner: that's for real players.)
+	if _opened_on != _target and not opening_can_kill and not (leader != null and is_instance_valid(leader) and leader.opening_can_kill) \
+			and not (_target is Scav):
 		_burst_numbers += 1
 		_opening_burst = _burst_numbers
 	_opened_on = _target
@@ -733,7 +739,10 @@ func _start_burst() -> void:
 ## A shot that hit its target.
 func _hit_target() -> void:
 	var head := randf() < HEAD_HIT_CHANCE
-	if _target.has_method("take_ai_hit"):
+	var rival := _target as Scav
+	if rival != null:
+		rival.take_hit_from(self, shot_damage, head)   # (another AI, 0.36.10: as a player's bullet does, no mercy)
+	elif _target.has_method("take_ai_hit"):
 		_target.take_ai_hit(shot_damage, global_position, head, _opening_burst)
 	else:
 		_target.health.take_damage(shot_damage, global_position, false, head)
@@ -759,8 +768,8 @@ func _fire_at_target(dist: float) -> void:
 	var space := get_world_3d().direct_space_state
 	var chest_from := global_position + Vector3(0, 1.3, 0)
 	var eyes := global_position + Vector3(0, 1.65, 0)
-	var chest := _target.global_position + Vector3(0, _target.chest_height(), 0)
-	var head := _target.eye_position() - Vector3(0, 0.1, 0)
+	var chest: Vector3 = _target.global_position + Vector3(0, _target.chest_height(), 0)
+	var head: Vector3 = _target.eye_position() - Vector3(0, 0.1, 0)
 	# Peeking around cover (leaning) or over a crest: aim at whatever part of them has a clear line.
 	var from := chest_from
 	var picked := false
@@ -796,7 +805,7 @@ func _fire_at_target(dist: float) -> void:
 	var to := from + dir * (shoot_range + 20.0)
 	# Missed shots ignore the player's hitbox so a "miss" can't land by accident.
 	# (Tree tops stop the AI's shots too, 0.17.13; and shut doors, 0.21.19.)
-	var mask := (1 | 2 | Door.LAYER | BoxMap.LEAVES_LAYER) if hit else (1 | Door.LAYER | BoxMap.LEAVES_LAYER)
+	var mask := (1 | _target_layer() | Door.LAYER | BoxMap.LEAVES_LAYER) if hit else (1 | Door.LAYER | BoxMap.LEAVES_LAYER)
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask, [get_rid()])
 	query.hit_from_inside = true
 	var result := space.intersect_ray(query)
@@ -808,10 +817,29 @@ func _fire_at_target(dist: float) -> void:
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 			WorldSounds.impact(get_tree().current_scene, end, result.normal, true)
+	if not hit:
+		_near_miss_rival(from, end)
 
 	BoxMap.break_window_along(self, from, end, false)   # (0.18.8: its shots break glass too, and pass through)
 	fired.emit(end)
 	net_fired(end)  # the tracer and sound still come from the gun
+
+
+## The physics layer its target's body is on: players' (2), or the AI's (4) when it fights an AI (0.36.10).
+func _target_layer() -> int:
+	var rival := _target as Scav
+	return rival.collision_layer if rival != null else 2
+
+
+## A shot at an AI it fights that missed (0.36.10): passing close by, it turns that AI toward it, as a player's shot
+## passing close does (RaidWorld.shot_noise; a player hears AI shots go by themselves).
+func _near_miss_rival(from: Vector3, end: Vector3) -> void:
+	var rival := _target as Scav
+	if rival == null or not is_instance_valid(rival):
+		return
+	var chest := rival.global_position + Vector3(0, 1.2, 0)
+	if Geometry3D.get_closest_point_to_segment(chest, from, end).distance_to(chest) <= rival.near_miss_radius:
+		rival.notice_near_miss(global_position)
 
 
 ## Suppressing: a shot at roughly `point` (where you were); it hits you only if you're in the way.
@@ -824,7 +852,7 @@ func _fire_at_point(point: Vector3) -> void:
 		return
 	var aim := point + Vector3(randf_range(-0.8, 0.8), randf_range(-0.4, 0.6), randf_range(-0.8, 0.8))
 	var to := from + (aim - from).normalized() * (shoot_range + 20.0)
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 2 | Door.LAYER | BoxMap.LEAVES_LAYER, [get_rid()])
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | _target_layer() | Door.LAYER | BoxMap.LEAVES_LAYER, [get_rid()])
 	query.hit_from_inside = true
 	var result := space.intersect_ray(query)
 	var end := to
@@ -835,6 +863,7 @@ func _fire_at_point(point: Vector3) -> void:
 		else:
 			Effects.impact(get_tree().current_scene, end, result.normal, Color(0.85, 0.8, 0.6))
 			WorldSounds.impact(get_tree().current_scene, end, result.normal, true)
+			_near_miss_rival(from, end)
 	fired.emit(end)
 	net_fired(end)
 

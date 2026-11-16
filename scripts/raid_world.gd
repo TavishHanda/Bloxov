@@ -38,6 +38,10 @@ signal player_bashed(peer: int, amount: int, from: Vector3, shove: float, aim_bl
 ## Something a scav did that everyone in the raid should see/hear: kind is "fired" (pos = where the shot ended),
 ## "bark:<callout>", "bash" or "died" (pos = where).
 signal enemy_event(id: int, kind: String, pos: Vector3)
+## An AI PMC was killed by another AI's hit (0.36.10, AI against AI): `bot` its name, `killer` the AI PMC that killed
+## it ("" for a scav, Raider, sniper or Bon), `player` the real player who hurt it in the last BOT_CREDIT_WINDOW s
+## (0 = none). Network gives the kill feed line and credit a player killed that way would give.
+signal bot_killed_by_ai(bot: String, killer: String, player: int)
 ## Loot (0.7.9): a bag appeared (a body, dropped items) or went (emptied). Network tells everyone in the raid.
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
 signal bag_removed(id: String)
@@ -65,6 +69,10 @@ const BOT_LID := &"bot_lid"
 ## peer -> [the name of the AI PMC that last hurt them, server seconds]: who gets the kill if they die. Any other
 ## AI's hit clears it (a scav finishing them off isn't the bot's kill).
 var _bot_hits := {}
+## AI PMC instance id -> [the real player who last hurt it, server seconds] (0.36.10): finished off by an AI within
+## BOT_CREDIT_WINDOW s, that player gets the kill, as for a player another player hurt (Network's 10 s).
+var _bot_player_hits := {}
+const BOT_CREDIT_WINDOW := 10.0
 
 
 func _init() -> void:
@@ -114,7 +122,11 @@ func _on_raid_child(node: Node) -> void:
 			bots.erase(id)
 			enemy_event.emit(id, "left", node.global_position)
 		else:
-			enemy_event.emit(id, "died", node.global_position))
+			enemy_event.emit(id, "died", node.global_position)
+			var killer := int(node.get("killer_ai_id"))
+			if killer != 0 and bots.has(id):
+				bot_killed_by_ai.emit(String(bots[id]), String(bots.get(killer, "")), _bot_credit(id))
+		_bot_player_hits.erase(id))
 
 
 func _announce_bag(bag: LootContainer) -> void:
@@ -371,6 +383,20 @@ func bot_killer(peer: int, window: float) -> String:
 	if hit.is_empty() or Time.get_ticks_msec() / 1000.0 - float(hit[1]) > window:
 		return ""
 	return String(hit[0])
+
+
+## A real player hurt `node` (Network, 0.36.10): remembered if it's an AI PMC, for the kill if an AI finishes it off.
+func note_player_hit(node: Object, peer: int) -> void:
+	if node != null and bots.has(node.get_instance_id()):
+		_bot_player_hits[node.get_instance_id()] = [peer, Time.get_ticks_msec() / 1000.0]
+
+
+## The real player who hurt AI PMC `id` within BOT_CREDIT_WINDOW s (0 = none).
+func _bot_credit(id: int) -> int:
+	var hit: Array = _bot_player_hits.get(id, [])
+	if hit.is_empty() or Time.get_ticks_msec() / 1000.0 - float(hit[1]) > BOT_CREDIT_WINDOW:
+		return 0
+	return int(hit[0])
 
 
 ## An AI hurt or bashed `peer` from `from` (where it stood): remembers it if it was an AI PMC, forgets it if not.

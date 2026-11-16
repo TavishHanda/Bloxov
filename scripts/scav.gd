@@ -108,6 +108,8 @@ func _physics_process(delta: float) -> void:
 
 	if _target == null or not is_instance_valid(_target) or _target.out_of_fight():
 		_target = _pick_target()
+	elif _sight_check_time - delta <= 0.0 and _recheck_target():
+		_can_see = false   # (0.36.10: an AI it may fight took over, or gave way: this frame's sight check is for them)
 
 	var to_target := Vector3.ZERO
 	var dist := INF
@@ -310,6 +312,65 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 		_alert(source_position, startle_reaction_time)
 
 
+## Hit by another AI's shot (0.36.10, AI PMCs fight AI): the same hit a player's bullet is (its health, through its
+## armor or helmet), so its reaction (_on_damaged), death, body and loot all follow as they do then. It remembers who
+## for that moment: it turns on them, and the server's kill feed names them.
+func take_hit_from(attacker: Node3D, amount: int, head: bool) -> void:
+	_hit_by = attacker
+	health.take_damage(amount, attacker.global_position, false, head)
+	_hit_by = null
+
+
+## Bashed by another AI (0.36.10): the hit, and the shove a bashed player gets.
+func take_bash_from(attacker: Node3D, amount: int, shove: float) -> void:
+	take_hit_from(attacker, amount, false)
+	var push := _flat(global_position - attacker.global_position)
+	if push.length() > 0.01:
+		_knockback = push.normalized() * shove
+
+
+# What an AI that fights it asks of its target (0.36.10): the answers a player gives, from its own state.
+
+## Dead, gone (an AI PMC that left) or only a copy of the server's: nobody fights it.
+func out_of_fight() -> bool:
+	return state == State.DEAD or puppet or health.is_dead or not is_inside_tree()
+
+
+## Its eyes: the middle of its head box (it moves down when it kneels).
+func eye_position() -> Vector3:
+	return ($HeadShape as Node3D).global_position
+
+
+## Where its chest is above its feet (where the AI aim; lower when it kneels).
+func chest_height() -> float:
+	return (($HeadShape as Node3D).global_position.y - global_position.y) * 0.72
+
+
+func horizontal_speed() -> float:
+	return Vector2(velocity.x, velocity.z).length()
+
+
+## Running flat out (to cover, round a flank, after someone), not walking or jogging.
+func is_sprinting() -> bool:
+	return horizontal_speed() > move_speed * 0.9
+
+
+## Kneeling behind low cover.
+var is_crouching: bool:
+	get:
+		return _crouched
+
+
+## Patching itself up.
+func is_healing() -> bool:
+	return _cover_phase == Cover.HEALING
+
+
+## Under 40% health (as Player.is_low: a moment to push).
+func is_low() -> bool:
+	return health.current < health.max_health * Player.LOW_HEALTH
+
+
 ## Its armor and helmet, worn (see `armor`).
 var _gear: Array[ItemStack] = []
 
@@ -363,6 +424,8 @@ func _update_gear() -> void:
 
 func _on_died() -> void:
 	state = State.DEAD
+	if _hit_by != null and is_instance_valid(_hit_by):
+		killer_ai_id = _hit_by.get_instance_id()   # (killed by an AI's hit, 0.36.10: the kill feed's business)
 	remove_from_group("enemies")
 	var world := get_tree().current_scene
 	Effects.burst(world, global_position + Vector3(0, 0.9, 0), burst_color)

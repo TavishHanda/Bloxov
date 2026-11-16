@@ -15,7 +15,9 @@ const VOICE := {
 	"heal": preload("res://audio/voice/heal.wav"),
 }
 
-var _target: Player
+## Who it's after: a player, or (0.36.10) an AI it may fight (_may_fight). An AI answers the same questions a player
+## does (Scav: eye_position, chest_height, out_of_fight, is_crouching, is_sprinting, is_healing, is_low...).
+var _target: Node3D
 var _woods_map: BoxMap
 var _woods_trees := 0
 var _woods_check_at := 0
@@ -212,12 +214,19 @@ func _hold_alert(pos: Vector3) -> void:
 
 ## The target is reloading, healing or under 40% health (a moment to push).
 func _target_busy() -> bool:
-	return _target != null and is_instance_valid(_target) and (_target.is_healing() or (_target.gun != null and _target.gun.is_reloading)
+	return _target != null and is_instance_valid(_target) and (_target.is_healing() or _target_reloading()
 		or _target.is_low())   # (0.15.18, owner: you're under 40% health, so they come at you)
 
 
-## The closest player who can still be fought (co-op ready: never assumes a single player).
-func _pick_target() -> Player:
+## The target is a player reloading (the AI have no reloading to catch them at).
+func _target_reloading() -> bool:
+	var player := _target as Player
+	return player != null and player.gun != null and player.gun.is_reloading
+
+
+## The closest player who can still be fought (co-op ready: never assumes a single player); with AI it may fight
+## in the raid (0.36.10), the closest of those can take their place (_with_rivals).
+func _pick_target() -> Node3D:
 	var best: Player = null
 	var best_dist := INF
 	for node in RaidScope.nodes(self, &"player"):
@@ -228,12 +237,98 @@ func _pick_target() -> Player:
 		if d < best_dist:
 			best = player
 			best_dist = d
+	return _with_rivals(best)
+
+
+## Who it may fight besides players (0.36.10, owner): an AI PMC fights every other AI, bots included; every other AI
+## fights AI PMCs only (scavs, Raiders, snipers and Bon never fight each other).
+func _may_fight(other: Scav) -> bool:
+	return other != self and not other.puppet and (counts_as_pmc() or other.counts_as_pmc())
+
+
+## (Its target counts as this much closer than it is, so two at about the same distance don't swap back and forth.)
+const RIVAL_STICK := 2.0
+
+
+func _rival_dist(node: Node3D) -> float:
+	return global_position.distance_to(node.global_position) - (RIVAL_STICK if node == _target else 0.0)
+
+
+## The closest AI it may fight that's still in the fight (null if none: always, in a raid with no AI PMCs).
+func _closest_rival() -> Scav:
+	var best: Scav = null
+	var best_dist := INF
+	for node in RaidScope.nodes(self, &"enemies" if counts_as_pmc() else &"pmc_bots"):
+		var other := node as Scav
+		if other == null or not _may_fight(other) or other.out_of_fight():
+			continue
+		var d := _rival_dist(other)
+		if d < best_dist:
+			best = other
+			best_dist = d
 	return best
 
 
+## `player` (the player it would go after, or null), or a closer AI it may fight. A player it can see always wins over
+## an AI it can't (owner: so a scav never stares at a wall with a bot behind it while a player walks past in view).
+func _with_rivals(player: Node3D) -> Node3D:
+	var rival := _closest_rival()
+	if rival == null:
+		return player
+	if player == null:
+		return rival
+	if _rival_dist(rival) >= _rival_dist(player):
+		return player
+	if _sees_body(player) and not _sees_body(rival):
+		return player
+	return rival
+
+
+## Whether it could see `body` from here (in sight range, no wall, door, tree top or bush between: the sight check's
+## test, for someone who isn't its target).
+func _sees_body(body: Node3D) -> bool:
+	if _flat(body.global_position - global_position).length() >= sight_range:
+		return false
+	var eyes := global_position + Vector3(0, 1.65, 0)
+	var to: Vector3 = body.eye_position()
+	var space := get_world_3d().direct_space_state
+	if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, to, 1 | Door.LAYER, [get_rid()])).is_empty():
+		return false
+	return space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, to, BoxMap.LEAVES_LAYER | BoxMap.BUSH_LAYER, [get_rid()])).is_empty()
+
+
+## With AI it may fight about (0.36.10), it looks again at who to go after with every sight check: a player it's
+## after stays its player (as before: it doesn't swap to a closer player), but a closer AI can take over, and from an
+## AI it goes back to a player or a closer AI. True if the target changed. (With none about, nothing changes.)
+func _recheck_target() -> bool:
+	var player: Node3D = _target if _target is Player else null
+	if player == null:
+		var best_dist := INF
+		for node in RaidScope.nodes(self, &"player"):
+			var other := node as Player
+			if other == null or other.out_of_fight():
+				continue
+			var d := global_position.distance_to(other.global_position)
+			if d < best_dist:
+				player = other
+				best_dist = d
+	var pick := _with_rivals(player)
+	if pick == null or pick == _target:
+		return false
+	_target = pick
+	_lost_sight_time = 0.0
+	return true
+
+
 ## Shot by someone other than who it's fighting (co-op): it turns on the one shooting it (0.12.31; it used to keep
-## its eyes on the closest player while someone else shot it).
+## its eyes on the closest player while someone else shot it). Hit by an AI it may fight (0.36.10): on that one.
 func _target_shooter(source_position: Vector3) -> void:
+	if _hit_by != null:
+		var shooter := _hit_by as Scav
+		if shooter != null and is_instance_valid(shooter) and shooter != _target and _may_fight(shooter) and not shooter.out_of_fight():
+			_target = shooter
+			_lost_sight_time = 0.0
+		return
 	for node in RaidScope.nodes(self, &"player"):
 		var player := node as Player
 		if player != null and player != _target and not player.out_of_fight() \

@@ -108,6 +108,7 @@ func _ready() -> void:
 	super()
 	if puppet:
 		return
+	add_to_group(&"pmc_bots")   # (0.36.10: how every other AI finds the bots it may fight, Scav._closest_rival)
 	curious = randf() < CURIOUS_CHANCE
 	_places_left = randi_range(PLACES_MIN, PLACES_MAX)
 	_plan_wait = randf_range(START_WAIT_MIN, START_WAIT_MAX)
@@ -132,6 +133,15 @@ func _physics_process(delta: float) -> void:
 		if state == State.IDLE and _seen_state != State.IDLE:
 			_set_plan(Plan.HOLD, 0.3)   # (back from a fight or a noise: plans again)
 		_seen_state = state
+
+
+## A PMC (0.36.10, owner): it fights every other AI, bots too, and every other AI fights it.
+func counts_as_pmc() -> bool:
+	return true
+
+
+func out_of_fight() -> bool:
+	return left_raid or super()
 
 
 ## Bots never take part in a fight's noise budget the scav way, and keep away from other AI's noises (0.36.5).

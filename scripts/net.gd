@@ -910,6 +910,9 @@ func _damage(attacker: int, hit: Dictionary, amount: int, attacker_pos: Vector3,
 		if _peer_open(victim):
 			_send_hit(victim, amount, attacker_pos, hit["headshot"], attacker, hit.get("end", attacker_pos))
 	else:
+		var hurt_world := _world_of(attacker)
+		if hurt_world != null:
+			hurt_world.note_player_hit(hit["enemy"], attacker)   # (an AI PMC an AI then finishes off is their kill, 0.36.10)
 		var health: Node = hit["enemy"].health
 		shown = health.take_damage(amount, attacker_pos, false, hit["headshot"])
 		killed = health.is_dead
@@ -938,6 +941,20 @@ func _ai_killed(attacker: int, world: RaidWorld, ai: Node) -> void:
 	var bot := world.bot_name_of(ai) if world != null else ""
 	if bot != "":
 		_tell_kill_feed(matchmaker.players[attacker]["raid"] if matchmaker.players.has(attacker) else 0, attacker, 0, "", bot)
+
+
+## An AI PMC died to another AI's hit (0.36.10): the feed and credit a player killed that way would give. A real
+## player who hurt it in the last 10 s gets the kill (as _last_attacker does for a player); else the AI PMC that
+## killed it is named; else nobody ("Bloxov", as for a player a scav killed).
+func _bot_killed_by_ai(raid_id: int, bot: String, killer: String, by_player: int) -> void:
+	if by_player != 0 and matchmaker.players.has(by_player) and int(matchmaker.players[by_player]["raid"]) == raid_id:
+		if _peer_open(by_player):
+			_kill_confirmed.rpc_id(by_player, "player")
+		if accounts != null:
+			accounts.raid_kill(by_player, "player", "")
+		_tell_kill_feed(raid_id, by_player, 0, "", bot)
+		return
+	_tell_kill_feed(raid_id, 0, 0, killer, bot)
 
 
 ## Runs a request from a player who is online; a non-empty result is sent back to them as a message.
@@ -1108,6 +1125,8 @@ func _send_raid_start(id: int) -> void:
 	world.enemy_event.connect(func(enemy: int, kind: String, pos: Vector3) -> void:
 		for peer in _raid_peers(id):
 			_enemy_event.rpc_id(peer, enemy, kind, pos))
+	world.bot_killed_by_ai.connect(func(bot: String, killer: String, by_player: int) -> void:
+		_bot_killed_by_ai(id, bot, killer, by_player))
 	world.bag_spawned.connect(func(bag: String, pos: Vector3, yaw: float, title: String, search: float) -> void:
 		for peer in _raid_peers(id):
 			_bag.rpc_id(peer, bag, pos, yaw, title, search))
