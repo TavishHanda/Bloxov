@@ -7,6 +7,33 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.12 (AI PMCs: smarter bots against AI)
+Built on the AI PMC branch (switch still off). The owner picked "smarter bots" (2026-11-16); every new number is a
+named constant in `scripts/pmc_ai.gd` and waits for the owner's OK. Only the bot's own brain changed: scavs, Raiders,
+snipers and Bon, bot health and aim, the fight budget and hearing are untouched.
+- **Why bots died** (`DIAG=1 tests/bot_raid_report.gd`, 0.36.11, 10 raids): nearly all in their first 2 minutes, on the
+  way to a place, almost never having healed (2 heals left in most deaths). The fight closes to 2-15 m: the bot pushes
+  in, or 2-7 AI it never saw (pulled in by its gunfire) walk up on it and shoot first.
+- **Threat**: other AI weigh scav 1, Raider 2, sniper 1, Bon 2, bot 1. A bot doesn't pick a place with threat 2 or
+  more within 40 m (was 3 or more AI); all over: the least threatening. Bon's area: never, as before.
+- **Groups**: unaware, once a second, a group (threat 2+ within 15 m of one of them) it sees, or that is within 40 m,
+  ahead on its way or within 40 m of its place, makes it drop that place (not picked again for 90 s) and pick
+  another. It doesn't start a fight with a group it spots that isn't after it yet (farther than 12 m). A lone scav
+  it fights as before.
+- **Breaking off** (fights with AI only): outnumbered (those fighting it, or within 30 m in view, weigh 2+) or hurt
+  (under 50%, someone fighting it), it runs flat out to a spot 40-70 m from them, 30 m clear of other AI and out of
+  their sight if it can; still chased within 40 m when it gets there, it runs on (3 runs at most). Then it heals if it
+  has heals and nobody is after it close by, and plans again (or leaves, hurt with no heals, as before). Running, it
+  turns to fight only for an enemy within 12 m (that fight it fights out: no breaking off again); it never breaks off
+  with an enemy within 12 m that sees it, nor within 10 s of a run.
+- **Players**: with a real player in the fight (its target, a player within its sight range, or a player's hit in the
+  last 10 s) none of this applies and it fights exactly as in 0.36.11; a player turning up stops a run.
+- **Result** (10 raids per map, `raid-report-0.36.12.txt`): Frontlines 0 of 30 bots alive at 5:00, 0 extracted, 0.8 containers searched per bot (0.36.11: 1 alive, 0 extracted, 0.9 searched); Riptide 10 of 30 (33%) alive at 5:00, 5 extracted, 1.5 searched (0.36.11: 4, 1). Bots break off 1.7-2.4 fights each. The working targets (half the bots alive at
+  5:00, a third extracting) are NOT reached by these rules alone; see the report.
+- **Proof**: `tests/ai_same_check.gd` log identical before and after (14141 lines). New smoke section `pmc_breakoff`;
+  `pmc_apart` checks the threat rule. The report counts break-offs and dropped places; `DIAG=1` prints a note on every
+  bot death. The smoke test's watchdog is 600 game seconds (the test is ~445 now).
+
 ## 0.36.11 (AI PMCs: no more keeping apart, and gunfire is heard)
 Built on the AI PMC branch (switch still off). The owner's rules (2026-11-16); no new gameplay numbers except those below.
 - **Keep-apart rule removed**: with AI fighting AI, bots no longer stay 30-40 m from other AI or 60 m from bots, turn away,

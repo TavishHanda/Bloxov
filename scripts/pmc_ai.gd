@@ -5,9 +5,13 @@ extends Scav
 ## Raid plan: it waits a moment, then loots 2-4 places (buildings, by their containers' `place`), the nearest first,
 ## then picked by what their loot is worth (best ~3x as likely as poorest), searching 2-4 containers at each.
 ## 0.36.11 (owner): no keep-apart rule any more, since AI fight AI now. It walks straight to its places and out by the
-## nearest open extract, and a fight on the way is the Scav brain's. Only these cautions are left: it doesn't PICK a
-## place with 3 or more other AI within 40 m of it (none left: the one with the fewest), never the boss's area, and
-## not one another bot is going to. Its shots are heard like a player's (`_shot_noise`), and it hears the others'.
+## nearest open extract, and a fight on the way is the Scav brain's. Only these cautions are left: never the boss's
+## area, not a place another bot is going to. Its shots are heard like a player's (`_shot_noise`), and it hears the others'.
+## 0.36.12 ("smarter bots", owner's pick; numbers pending the owner's OK), against AI only: other AI weigh as threat
+## (THREAT_*); it doesn't pick a place with PLACE_THREAT near it (`threat_near`); unaware, a group ahead or near its place
+## makes it drop the place (`_look_ahead`) and it doesn't start a fight with a group it spots (`_group_to_avoid`);
+## in a fight with AI, outnumbered or hurt, it breaks off (`_check_break_off`, Plan.FLEE, `_run_off`), heals and plans
+## again. With a real player in the fight (`_player_in_fight`) none of this applies: the 0.36.11 brain fights.
 ## 0.36.7: a finished search opens the container's lid and takes one item (`_on_search_done`); at its leave time, or
 ## hurt with no heals left, it jogs to an extract, stands in it and is gone (`wants_to_leave`, `_leave_raid`).
 
@@ -25,9 +29,48 @@ const WALK_NEAR := 15.0
 ## A place's pick weight runs from this (poorest loot) to VALUE_WEIGHT_MAX (best).
 const VALUE_WEIGHT_MIN := 1.0
 const VALUE_WEIGHT_MAX := 3.0
-## (0.36.11, owner approved) It doesn't pick a place with this many other AI (bots or not) within CROWD_RANGE m of it.
-const CROWD_AI := 3
+## (0.36.11, owner approved) The reach around a place in which other AI count against it (0.36.12: by threat, below).
 const CROWD_RANGE := 40.0
+## (0.36.12, numbers pending the owner's OK) How much threat each other living AI is: what it weighs when it picks a
+## place, notices a group on its way, or counts the enemies in a fight.
+const THREAT_SCAV := 1.0
+const THREAT_RAIDER := 2.0
+const THREAT_SNIPER := 1.0
+const THREAT_BOSS := 2.0
+const THREAT_BOT := 1.0
+## (0.36.12, pending) It doesn't pick a place with this much threat within CROWD_RANGE m of it (every place over: the
+## least threatening one).
+const PLACE_THREAT := 2.0
+## (0.36.12, pending) On its way or at a place, unaware: a group (other AI with this much threat within GROUP_SPREAD m
+## of one of them) that it can see, or that is within GROUP_NOTICE m of it, ahead of it on its way or within
+## CROWD_RANGE m of its place, makes it drop that place (not picked again for AVOID_TIME s) and pick another.
+const GROUP_THREAT := 2.0
+const GROUP_SPREAD := 15.0
+const GROUP_NOTICE := 40.0
+const AVOID_TIME := 90.0
+## (0.36.12, pending) Breaking off a fight with AI (never with a player in it: then it fights as before). Outnumbered
+## (the enemies fighting it, or within BREAK_NEAR m in its view, weigh BREAK_THREAT or more) or hurt (under BREAK_HURT
+## of its health, with someone fighting it), it runs at full speed to a spot FLEE_MIN-FLEE_MAX m from them that keeps
+## FLEE_CLEAR m from every other AI (out of their sight if it can), heals there, and plans again.
+const BREAK_THREAT := 2.0
+const BREAK_NEAR := 30.0
+const BREAK_HURT := 0.5
+const FLEE_MIN := 40.0
+const FLEE_MAX := 70.0
+const FLEE_CLEAR := 30.0
+## (0.36.12, pending) Running off, it only turns to fight an enemy it sees within FLEE_FIGHT m, or a shot from that
+## close; then it fights that fight out (no breaking off again until it is over). A run lasts at most FLEE_GIVE_UP s,
+## and after one it doesn't break off again for BREAK_COOLDOWN s.
+const FLEE_FIGHT := 12.0
+const FLEE_GIVE_UP := 30.0
+const BREAK_COOLDOWN := 10.0
+## (0.36.12, pending) Got there with someone still after it within FLEE_MIN m: it runs on to another spot, at most
+## FLEE_LEGS runs in all; it only patches up once nobody after it is that close.
+const FLEE_LEGS := 3
+## (0.36.12, tuning) A real player within its sight range, or one that hit it in the last PLAYER_MEMORY s, means a
+## player is in the fight: none of the new fight rules apply. It looks at the fight every BREAK_CHECK s.
+const PLAYER_MEMORY := 10.0
+const BREAK_CHECK := 0.25
 const CHECK_EVERY := 1.0         # seconds between its looks at whether it is indoors
 const SHOT_CARE_RANGE := 80.0    # gunshots this close: curious bots go, cautious ones steer away
 const CURIOUS_CHANCE := 0.5
@@ -51,7 +94,7 @@ const DEFAULT_RAID_LENGTH := 600.0
 const EXIT_RETRY := 5.0
 const EXIT_GIVE_UP := 120.0
 
-enum Plan { START, TRAVEL, SEARCH, HOLD, EXIT, EXTRACT }
+enum Plan { START, TRAVEL, SEARCH, HOLD, EXIT, EXTRACT, FLEE }
 var plan := Plan.START
 var _plan_wait := 0.0
 ## The place it's at or heading to ({} = none: a spot away from someone, or holding).
@@ -83,6 +126,19 @@ var extract: Node3D = null
 var _extract_left := 0.0
 ## It walked out of the raid through an extract (tests, the proof tool).
 var left_raid := false
+## 0.36.12: places it dropped (id -> its age when it may pick them again), the fight it broke off (the enemies it ran
+## from), and counts for tests and the report: places dropped, fights broken off.
+var _avoid := {}
+var _flee_from: Array[Scav] = []
+var _flee_repicked := false
+var _flee_legs := 0
+var _holding_ground := false
+var _break_cooldown := 0.0
+var _break_check := 0.0
+var _since_player_hit := INF
+var _hit_now := false
+var drops := 0
+var breaks := 0
 
 
 func _ready() -> void:
@@ -106,9 +162,17 @@ func _physics_process(delta: float) -> void:
 		if _indoor_left <= 0.0:
 			_indoor_left = CHECK_EVERY
 			_look_indoors()
+			_look_ahead()
+		_break_cooldown -= delta
+		_since_player_hit += delta
+		_break_check -= delta
+		if _break_check <= 0.0:
+			_break_check = BREAK_CHECK
+			_check_break_off()
 	super(delta)
 	if state != _seen_state and not puppet:
 		if state == State.IDLE and _seen_state != State.IDLE:
+			_holding_ground = false
 			_set_plan(Plan.HOLD, 0.3)   # (back from a fight or a noise: plans again)
 		_seen_state = state
 
@@ -128,6 +192,10 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	if puppet:
 		return
 	var loud := gunshot or radius >= alarm_noise
+	if plan == Plan.FLEE and state == State.IDLE:   # (0.36.12: running off, it doesn't go and look at anything)
+		if loud:
+			FightBudget.stir(self, pos)
+		return
 	if loud and (not curious or plan in [Plan.EXIT, Plan.EXTRACT]):   # (0.36.7: on its way out it doesn't go and look)
 		FightBudget.stir(self, pos)
 		if global_position.distance_to(pos) <= SHOT_CARE_RANGE:
@@ -221,7 +289,11 @@ func _wander(delta: float) -> Vector3:
 			return _walk_to_extract(delta)
 		Plan.EXTRACT:
 			return _stand_in_extract(delta)
+		Plan.FLEE:
+			return _run_off(delta)
 		Plan.START, Plan.HOLD:
+			if _cover_phase == Cover.HEALING:
+				return Vector3.ZERO   # (0.36.12: patching up after breaking off a fight; it plans once that's done)
 			_plan_wait -= delta
 			if _plan_wait <= 0.0:
 				_next_destination()
@@ -346,13 +418,16 @@ func _allowed_places() -> Array:
 			fresh.append(p)
 	if fresh.is_empty() and _places_left > 0:
 		fresh = pool   # (every place it hasn't been to is taken or shut: any other will do)
-	var open := fresh.filter(func(p: Dictionary) -> bool: return _ai_near(p) < CROWD_AI)
+	var not_dropped := fresh.filter(func(p: Dictionary) -> bool: return float(_avoid.get(p["id"], -INF)) <= _age)
+	if not not_dropped.is_empty():
+		fresh = not_dropped   # (0.36.12: a place it dropped for a group near it waits AVOID_TIME s, unless it's all there is)
+	var open := fresh.filter(func(p: Dictionary) -> bool: return threat_near(p) < PLACE_THREAT)
 	if not open.is_empty():
 		return open
 	var fewest := []
 	var least := INF
 	for p: Dictionary in fresh:
-		var n := _ai_near(p)
+		var n := threat_near(p)
 		if n < least:
 			least = n
 			fewest = []
@@ -361,13 +436,27 @@ func _allowed_places() -> Array:
 	return fewest
 
 
-## How many other living AI (bots or not) are within CROWD_RANGE m of the place (past its own reach).
-func _ai_near(p: Dictionary) -> int:
-	var n := 0
+## (0.36.12) The threat of the other living AI (bots or not) within CROWD_RANGE m of the place (past its own reach).
+func threat_near(p: Dictionary) -> float:
+	var n := 0.0
 	for other in _others():
 		if other.global_position.distance_to(p["center"]) < CROWD_RANGE + float(p["radius"]):
-			n += 1
+			n += threat_of(other)
 	return n
+
+
+## (0.36.12) How much threat another AI is (THREAT_*): by its kind (net_kind: 0 scav, 1 Raider, 2 sniper, 3 Bon).
+static func threat_of(other: Scav) -> float:
+	if other is PmcAI:
+		return THREAT_BOT
+	match other.net_kind:
+		1:
+			return THREAT_RAIDER
+		2:
+			return THREAT_SNIPER
+		3:
+			return THREAT_BOSS
+	return THREAT_SCAV
 
 
 ## Another bot is going to, or looting, this place now.
@@ -399,6 +488,308 @@ func _weighted_pick(options: Array) -> Dictionary:
 		if roll <= 0.0:
 			return options[i]
 	return options[options.size() - 1]
+
+
+# ---- Danger it can know about (0.36.12) ---------------------------------------------------------------------------
+
+## Once a second while unaware on its way to a place or searching there: a group of other AI (GROUP_THREAT or more
+## within GROUP_SPREAD m of one of them) that it can see, or that is within GROUP_NOTICE m of it, and that is ahead of
+## it on its way or within CROWD_RANGE m of its place, makes it drop the place and pick another (`_drop_place`).
+## One look, no steering: it never turns away from anyone, it only changes where it is going.
+func _look_ahead() -> void:
+	if state != State.IDLE or plan not in [Plan.TRAVEL, Plan.SEARCH] or place.is_empty():
+		return
+	var goal: Vector3 = place["center"]
+	var reach := CROWD_RANGE + float(place["radius"])
+	var to_goal := _flat(goal - global_position)
+	var others := _others()
+	for other in others:
+		var to_other := _flat(other.global_position - global_position)
+		var d := to_other.length()
+		var near_place := other.global_position.distance_to(goal) < reach
+		var ahead := to_goal.length() > 0.1 and d < to_goal.length() + GROUP_SPREAD \
+			and to_other.normalized().dot(to_goal.normalized()) > 0.5
+		if not near_place and not ahead:
+			continue
+		if d > GROUP_NOTICE and (d > sight_range or not _in_view(to_other) or not _sees_body(other)):
+			continue
+		var threat := 0.0
+		for near in others:
+			if near.global_position.distance_to(other.global_position) < GROUP_SPREAD:
+				threat += threat_of(near)
+		if threat >= GROUP_THREAT:
+			_drop_place()
+			return
+
+
+## Leaves its place for another (it isn't picked again for AVOID_TIME s unless nothing else is left).
+func _drop_place() -> void:
+	if not place.is_empty():
+		_avoid[place["id"]] = _age + AVOID_TIME
+	place = {}
+	drops += 1
+	_set_plan(Plan.HOLD, 0.3)
+
+
+## A real player is in this fight (the new fight rules are for AI only, owner): its target is a player, a player hit
+## it in the last PLAYER_MEMORY s, or a player is within its sight range.
+func _player_in_fight() -> bool:
+	if (is_instance_valid(_target) and _target is Player) or _since_player_hit < PLAYER_MEMORY:
+		return true
+	for node in RaidScope.nodes(self, &"player"):
+		var someone := node as Player
+		if someone != null and not someone.out_of_fight() and someone.global_position.distance_to(global_position) < sight_range:
+			return true
+	return false
+
+
+## The AI in this fight with it: those fighting it, and the ones it may fight within BREAK_NEAR m that it can see.
+func _foes() -> Array[Scav]:
+	var foes: Array[Scav] = []
+	for other in _others():
+		if not _may_fight(other) or other.out_of_fight():
+			continue
+		var on_me := other._target == self and other.state in [State.ALERT, State.ENGAGE]
+		if on_me or (_flat(other.global_position - global_position).length() < BREAK_NEAR and _sees_body(other)):
+			foes.append(other)
+	return foes
+
+
+## The AI after it (fighting it) within FLEE_MIN m.
+func _chasers() -> Array[Scav]:
+	var out: Array[Scav] = []
+	for other in _others():
+		if other._target == self and other.state in [State.ALERT, State.ENGAGE] \
+				and _flat(other.global_position - global_position).length() < FLEE_MIN:
+			out.append(other)
+	return out
+
+
+## Every BREAK_CHECK s in a fight with AI: outnumbered (its foes weigh BREAK_THREAT or more) or hurt (under BREAK_HURT,
+## with someone fighting it), it breaks off. Never with a player in the fight, never while patching up, never again in
+## a fight it turned back to (`_holding_ground`), nor for BREAK_COOLDOWN s after a run. Running off with a player
+## turning up: it stops running (and the usual brain takes it from there).
+func _check_break_off() -> void:
+	if plan == Plan.FLEE:
+		if state == State.IDLE and _player_in_fight():
+			_end_flee(false)
+		return
+	if state not in [State.ALERT, State.ENGAGE] or _holding_ground or _break_cooldown > 0.0 or _cover_phase == Cover.HEALING:
+		return
+	if not is_instance_valid(_target) or not _target is Scav or _player_in_fight():
+		return
+	var foes := _foes()
+	if foes.is_empty():
+		return
+	var threat := 0.0
+	for foe in foes:
+		threat += threat_of(foe)
+		if foe._target == self and foe._can_see and _flat(foe.global_position - global_position).length() < FLEE_FIGHT:
+			return   # (cornered: one this close has it in sight, so it fights; it looks again in a moment)
+	if threat >= BREAK_THREAT or health.current < health.max_health * BREAK_HURT:
+		_break_off(foes)
+
+
+## Breaks off: off to a spot away from `foes` at full speed (no spot to run to: it fights this one out).
+func _break_off(foes: Array[Scav]) -> void:
+	var spot := _flee_spot(foes)
+	if spot == Vector3.INF:
+		_holding_ground = true
+		return
+	_flee_from = foes
+	if _cover_phase != Cover.NONE:
+		_cover_phase = Cover.NONE
+	_hold_fire()
+	_set_state(State.IDLE)
+	_seen_state = State.IDLE
+	if not place.is_empty():
+		_avoid[place["id"]] = _age + AVOID_TIME
+	place = {}
+	_place_container = null
+	_patrol_container = null
+	plan = Plan.FLEE
+	_looting_left = 0.0
+	_flee_repicked = false
+	_flee_legs = 1
+	_run_to(spot)
+	breaks += 1
+
+
+func _run_to(spot: Vector3) -> void:
+	_wander_point = spot
+	_wander_dir = _flat(spot - global_position).normalized()
+	if _wander_dir == Vector3.ZERO:
+		_wander_dir = Vector3.FORWARD
+	_patrol_time = 0.0
+	_path.clear()
+
+
+## Where to run: a walkable spot FLEE_MIN-FLEE_MAX m from every foe, FLEE_CLEAR m from every other AI (if there's no
+## such spot, only from the foes), the more out of the foes' sight and the more straight away from them the better,
+## whose way there doesn't pass close by a foe it isn't already close to. INF if there is none.
+func _flee_spot(foes: Array[Scav]) -> Vector3:
+	var live: Array[Scav] = []
+	for foe in foes:
+		if is_instance_valid(foe) and not foe.out_of_fight():
+			live.append(foe)
+	foes = live
+	if foes.is_empty() or not AINav.ready(self):
+		return Vector3.INF
+	var center := Vector3.ZERO
+	for foe in foes:
+		center += foe.global_position
+	center /= foes.size()
+	var away := _flat(global_position - center)
+	away = away.normalized() if away.length() > 0.1 else Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
+	var others := _others()
+	var space := get_world_3d().direct_space_state
+	for strict in [true, false]:
+		var scored := []
+		for i in 16:
+			var dir := away.rotated(Vector3.UP, i * TAU / 16.0)
+			for r: float in [FLEE_MIN * 0.75, FLEE_MIN, (FLEE_MIN + FLEE_MAX) * 0.5]:
+				var spot := AINav.closest(self, global_position + dir * r)
+				if spot == Vector3.ZERO:
+					continue
+				var near_foe := INF
+				for foe in foes:
+					near_foe = minf(near_foe, _flat(spot - foe.global_position).length())
+				if near_foe < FLEE_MIN or near_foe > FLEE_MAX:
+					continue
+				var crowded := false
+				if strict:
+					for other in others:
+						if not foes.has(other) and _flat(spot - other.global_position).length() < FLEE_CLEAR:
+							crowded = true
+							break
+				if crowded:
+					continue
+				var hidden := 0
+				for foe in foes:
+					var query := PhysicsRayQueryParameters3D.create(foe.eye_position(), spot + Vector3(0, 1.3, 0), 1)
+					if not space.intersect_ray(query).is_empty():
+						hidden += 1
+				scored.append([2.0 * hidden / foes.size() + dir.dot(away) - 0.5 * r / FLEE_MAX, spot])
+		scored.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
+		for entry: Array in scored.slice(0, 4):
+			if _flee_way_ok(entry[1], foes):
+				return entry[1]
+	return Vector3.INF
+
+
+## The walk to `spot` exists and never comes within FLEE_FIGHT m of a foe it isn't already that close to.
+func _flee_way_ok(spot: Vector3, foes: Array[Scav]) -> bool:
+	var way := AINav.path(self, global_position, spot)
+	if way.size() < 2 or AINav.path_length(way) > FLEE_MAX * 2.0:
+		return false
+	for foe in foes:
+		var limit := minf(FLEE_FIGHT, _flat(global_position - foe.global_position).length() - 1.0)
+		for k in way.size() - 1:
+			var a := way[k]
+			var b := way[k + 1]
+			var steps := maxi(int(a.distance_to(b) / 3.0), 1)
+			for j in steps + 1:
+				if _flat(a.lerp(b, float(j) / steps) - foe.global_position).length() < limit:
+					return false
+	return true
+
+
+## Running off (Plan.FLEE, unaware as far as the brain goes): full speed to the spot, then patch up there and plan
+## again. Stuck on the way it looks for another spot once; after FLEE_GIVE_UP s it stops wherever it is.
+func _run_off(delta: float) -> Vector3:
+	if _wander_dir == Vector3.ZERO:
+		if not _flee_repicked:
+			_flee_repicked = true
+			var again := _flee_spot(_flee_from)
+			if again != Vector3.INF:
+				_run_to(again)
+				return Vector3.ZERO
+		_end_flee()
+		return Vector3.ZERO
+	_patrol_time += delta
+	if _arrived(_wander_point) or _patrol_time > FLEE_GIVE_UP:
+		var chasers := _chasers()
+		if not chasers.is_empty() and _flee_legs < FLEE_LEGS:
+			var on := _flee_spot(chasers)
+			if on != Vector3.INF:
+				_flee_legs += 1
+				_run_to(on)
+				return Vector3.ZERO
+		_end_flee()
+		return Vector3.ZERO
+	var move := _path_velocity(_wander_point, move_speed)
+	_face(move, delta, 8.0)
+	return move
+
+
+## The run is over: it patches up if it has heals and lost enough to need one, then plans again (another place, or
+## out of the raid if it is hurt with no heals left: `wants_to_leave`).
+func _end_flee(heal := true) -> void:
+	_flee_from.clear()
+	_break_cooldown = BREAK_COOLDOWN
+	if heal and _chasers().is_empty() and _heals_left > 0 and health.current <= health.max_health - heal_amount / 2 and _cover_phase == Cover.NONE:
+		_start_heal()
+	_set_plan(Plan.HOLD, 0.5)
+
+
+## Running off, it doesn't turn back for an enemy it glimpses, or a shot, from farther than FLEE_FIGHT m: only one that
+## close (cornered) or a player makes it fight, and that fight it fights out.
+## Unaware, it doesn't start a fight with AI it spots in a group it shouldn't take on (GROUP_THREAT or more, none of
+## them after it yet, farther than FLEE_FIGHT m): it lets them be (`_look_ahead` takes it somewhere else if they are
+## in its way; looking into a noise, it gives that up). A lone scav it fights as before.
+func _alert(known_pos: Vector3, reaction := -1.0) -> void:
+	if not puppet and not _hit_now and state in [State.IDLE, State.INVESTIGATE, State.SEARCH] and plan != Plan.FLEE \
+			and _group_to_avoid(known_pos):
+		if state != State.IDLE:
+			_set_state(State.IDLE)   # (plans again: the hook in _physics_process)
+		return
+	if plan == Plan.FLEE and state == State.IDLE and not puppet:
+		if _flat(known_pos - global_position).length() > FLEE_FIGHT and not _player_in_fight():
+			return
+		_holding_ground = true
+		_flee_from.clear()
+		_break_cooldown = BREAK_COOLDOWN
+		_set_plan(Plan.HOLD, 0.3)
+	super(known_pos, reaction)
+
+
+## Running off it doesn't stop to patch up on the way (it does once it gets there, `_end_flee`).
+func _quiet_enough_to_heal() -> bool:
+	return plan != Plan.FLEE and super()
+
+
+## Hit: a hit that isn't another AI's is a player's (the new fight rules step aside for PLAYER_MEMORY s).
+func _on_damaged(amount: int, source_position: Vector3) -> void:
+	if _hit_by == null:
+		_since_player_hit = 0.0
+	_hit_now = true
+	super(amount, source_position)
+	_hit_now = false
+
+
+## A shot that just missed: as a hit, never a group it can let be.
+func notice_near_miss(shooter_pos: Vector3) -> void:
+	_hit_now = true
+	super(shooter_pos)
+	_hit_now = false
+
+
+## The one it just spotted (its target, at `known_pos`) is an AI in a group it shouldn't take on that isn't after it yet.
+func _group_to_avoid(known_pos: Vector3) -> bool:
+	if not is_instance_valid(_target):
+		return false
+	var spotted := _target as Scav
+	if spotted == null or _player_in_fight() \
+			or _flat(known_pos - global_position).length() <= FLEE_FIGHT:
+		return false
+	var threat := 0.0
+	for other in _others():
+		if other.global_position.distance_to(spotted.global_position) >= GROUP_SPREAD:
+			continue
+		if other._target == self and other.state in [State.ALERT, State.ENGAGE]:
+			return false   # (they're onto it already: it's a fight)
+		threat += threat_of(other)
+	return threat >= GROUP_THREAT
 
 
 # ---- Extracting (0.36.7) ------------------------------------------------------------------------------------------

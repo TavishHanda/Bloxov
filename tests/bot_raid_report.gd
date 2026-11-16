@@ -17,6 +17,10 @@ const EARLY := 30.0
 const KINDS := ["bot", "scav", "raider", "sniper", "boss", "other"]
 
 var _per_map := 10
+## DIAG=1 in the environment: a note on every bot death (what it was doing, who was near it and after it, its health
+## over its last seconds, whether it healed) printed as it happens, and a summary per map.
+var _diag := OS.get_environment("DIAG") != ""
+var _diag_lines: PackedStringArray = []
 var _maps: Array[int] = [0, 1]
 var _out := ""
 
@@ -44,7 +48,7 @@ func _run() -> void:
 		var raid_time := float((probe.get_meta("raid", {}) as Dictionary).get("raid_time", 600.0))
 		probe.free()
 		var st := {"bots": 0, "mid": 0, "end": 0, "left": 0, "dead": 0, "killed_by": _zero_kinds(), "ai_killed": _zero_kinds(),
-			"ai_end": 0, "places": 0, "searched": 0, "taken": 0, "fight": 0.0, "bodies": 0, "body_value": 0,
+			"ai_end": 0, "places": 0, "searched": 0, "taken": 0, "fight": 0.0, "breaks": 0, "drops": 0, "bodies": 0, "body_value": 0,
 			"us_all": 0, "frames_all": 0, "us_early": 0, "frames_early": 0}
 		var done := 0
 		while done < _per_map:
@@ -62,9 +66,13 @@ func _run() -> void:
 			_kinds_total(st["ai_killed"]) / n, _kinds_text(st["ai_killed"], n), st["ai_end"] / n])
 		lines.append("  per bot: %.1f containers searched, %.1f items taken, %.1f places visited; %.0f s fighting (ALERT/ENGAGE) per raid" % [
 			st["searched"] / b, st["taken"] / b, st["places"] / b, st["fight"] / b])
+		lines.append("  per bot: %.1f fights with AI broken off, %.1f places dropped for a group near them (0.36.12)" % [
+			st["breaks"] / b, st["drops"] / b])
 		lines.append("  bot bodies carrying taken loot: %d, average worth $%.0f" % [st["bodies"], float(st["body_value"]) / maxf(st["bodies"], 1.0)])
 		lines.append("  server load: %.2f ms per physics frame of one raid over the whole raid, %.2f ms over its first %d s" % [
 			st["us_all"] / 1000.0 / maxf(st["frames_all"], 1.0), st["us_early"] / 1000.0 / maxf(st["frames_early"], 1.0), int(EARLY)])
+	if _diag:
+		lines.append_array(_diag_lines)
 	for line in lines:
 		print(line)
 	if _out != "":
@@ -134,6 +142,8 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, st: Dict
 			seen[i][id] = true
 			kinds[i][id] = _kind_of(ai)
 			ai.health.died.connect(func() -> void: killed_by[i].append([id, kinds[i][id], ai.killer_ai_id]))
+			if _diag and ai is PmcAI:
+				ai.health.died.connect(func() -> void: _diag_death(ai, worlds[i], kinds[i], notes[i].get(id, {})))
 	var t := 0.0
 	var mid_done := false
 	var us_all := 0
@@ -162,9 +172,13 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, st: Dict
 				note["places"] = bot.visited.size()
 				note["searched"] = bot._searched.size()
 				note["taken"] = bot._taken
+				note["breaks"] = bot.breaks
+				note["drops"] = bot.drops
 				note["worth"] = worth
 				if bot.state in [Scav.State.ALERT, Scav.State.ENGAGE]:
 					note["fight"] += 1.0
+				if _diag:
+					_diag_sample(bot, note, t)
 				notes[i][bot.get_instance_id()] = note
 		if not mid_done and t >= MID:
 			mid_done = true
@@ -199,6 +213,8 @@ func _run_batch(path: String, raid_time: float, count: int, first: int, st: Dict
 			st["searched"] += note["searched"]
 			st["taken"] += note["taken"]
 			st["fight"] += note["fight"]
+			st["breaks"] += note["breaks"]
+			st["drops"] += note["drops"]
 			if dead_bot_ids.has(id) and note["worth"] > 0:
 				st["bodies"] += 1
 				st["body_value"] += note["worth"]
@@ -217,3 +233,55 @@ func _alive_count(list: Array) -> int:
 		if is_instance_valid(entry) and (entry as Scav).state != Scav.State.DEAD:
 			n += 1
 	return n
+
+
+# ---- DIAG ----------------------------------------------------------------------------------------------------------
+
+func _diag_sample(bot: PmcAI, note: Dictionary, t: float) -> void:
+	var hist: Array = note.get("hist", [])
+	var near := 0
+	var after := 0
+	var closest := INF
+	for node in RaidScope.nodes(bot, &"enemies"):
+		var o := node as Scav
+		if o == null or o == bot or o.state == Scav.State.DEAD:
+			continue
+		closest = minf(closest, o.global_position.distance_to(bot.global_position))
+		if o.global_position.distance_to(bot.global_position) < 40.0:
+			near += 1
+		if o._target == bot and o.state in [Scav.State.ALERT, Scav.State.ENGAGE]:
+			after += 1
+	hist.append("%d:%s/%s hp%d n%d a%d c%.0f%s" % [int(t), Scav.State.keys()[bot.state].left(3), PmcAI.Plan.keys()[bot.plan].left(3),
+		bot.health.current, near, after, closest, "" if bot._target == null or bot._target is Player else " t%.0f" % bot.global_position.distance_to(bot._target.global_position)])
+	if hist.size() > 20:
+		hist.pop_front()
+	note["hist"] = hist
+	note["t"] = t
+	if not note.has("hp_max"):
+		note["hp_max"] = bot.health.max_health
+	note["heals"] = bot._heals_left
+	note["max_after"] = maxi(int(note.get("max_after", 0)), after)
+
+
+func _diag_death(bot: PmcAI, world: Node, kinds: Dictionary, note: Dictionary) -> void:
+	var killer := instance_from_id(bot.killer_ai_id) as Node3D if bot.killer_ai_id != 0 else null
+	var kd := bot.global_position.distance_to(killer.global_position) if killer != null and is_instance_valid(killer) else -1.0
+	var near := 0
+	var after := 0
+	var near_kinds := {}
+	for node in RaidScope.nodes(world.raid, &"enemies"):
+		var o := node as Scav
+		if o == null or o == bot or o.state == Scav.State.DEAD:
+			continue
+		if o.global_position.distance_to(bot.global_position) < 40.0:
+			near += 1
+			var k := _kind_of(o)
+			near_kinds[k] = near_kinds.get(k, 0) + 1
+		if o._target == bot and o.state in [Scav.State.ALERT, Scav.State.ENGAGE]:
+			after += 1
+	var line := "DIAG death t=%s plan=%s tactic=%s cover=%d killer=%s at %.0f m; near40=%d %s after_it=%d (max %d); heals left %d; places %d searched %d; last: %s" % [
+		note.get("t", 0), PmcAI.Plan.keys()[bot.plan], Scav.Tactic.keys()[bot.tactic], bot._cover_phase,
+		kinds.get(bot.killer_ai_id, "?"), kd, near, near_kinds, after, int(note.get("max_after", 0)), bot._heals_left,
+		bot.visited.size(), bot._searched.size(), " | ".join(PackedStringArray(note.get("hist", [])))]
+	print(line)
+	_diag_lines.append(line)
