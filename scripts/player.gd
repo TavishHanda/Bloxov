@@ -806,7 +806,7 @@ const HEARTBEAT_BELOW := 0.3      # of max health
 const HEARTBEAT_EVERY := 0.95
 var _breath_wait := 0.0
 var _heart_wait := 0.0
-## 0.35.24 (owner: "woosh woosh" when running long on Riptide): a map with `no_breath` metadata has no breath sound.
+## 0.35.25 (owner: "woosh woosh" when running long on Riptide): a map with `no_breath` metadata has no breath sound.
 ## -1 = not looked up yet, 0 = breath on, 1 = off.
 var _no_breath := -1
 

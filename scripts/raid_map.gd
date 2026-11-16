@@ -40,7 +40,7 @@ static func load_map(raid: Node, path: String) -> void:
 		_move_contents(map.get_node_or_null(slot), raid.get_node_or_null(slot))
 	# What the in-raid map (M, MapHUD) draws.
 	# (0.35.16: and how far down the map goes, `kill_height`: Riptide's lab is under the default)
-	# (0.35.24: `no_breath`, no out-of-breath sound on this map; owner, Riptide)
+	# (0.35.25: `no_breath`, no out-of-breath sound on this map; owner, Riptide)
 	for key in ["minimap", "map_name", "kill_height", "no_breath"]:
 		if map.has_meta(key):
 			raid.set_meta(key, map.get_meta(key))
@@ -58,6 +58,8 @@ static func load_map(raid: Node, path: String) -> void:
 		var raid_settings: Dictionary = map.get_meta("raid", {})
 		for key in raid_settings:
 			raid_node.set(key, raid_settings[key])
+		if Network.PLAYTEST_RAID_TIME > 0.0 and path == MAPS[1][1]:   # TEMP playtest clock, Riptide only (net.gd)
+			raid_node.set("raid_time", Network.PLAYTEST_RAID_TIME)
 	# A map can have its own look and weather (Riptide: the storm, owner 2026-11-09). Looks only.
 	if map.has_meta("look"):
 		Look.apply(raid, String(map.get_meta("look")))
