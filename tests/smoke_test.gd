@@ -5746,17 +5746,17 @@ func _section_riptide() -> void:
 		"and its steps along and across the pier are left alone")
 	dry.free()
 	# Raijin (0.33.4 as Zero, renamed 0.35.6, owner's list): his own scene, gun and gear, and what only he drops
-	var zero := (load("res://scenes/boss_raijin.tscn") as PackedScene).instantiate() as Scav
-	root.add_child(zero)
-	_check(zero.body_name == "Raijin" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
-		and zero.armor == "armor_assault" and zero.helmet == "helmet_assault"
-		and is_equal_approx(zero.health.damage_multiplier, 0.5) and is_equal_approx(zero.health.head_multiplier, 0.45),
+	var raijin := (load("res://scenes/boss_raijin.tscn") as PackedScene).instantiate() as Scav
+	root.add_child(raijin)
+	_check(raijin.body_name == "Raijin" and raijin.carried_gun == "reaper" and raijin.weapon_drop == "reaper" and raijin.weapon_drop_chance == 1.0
+		and raijin.armor == "armor_assault" and raijin.helmet == "helmet_assault"
+		and is_equal_approx(raijin.health.damage_multiplier, 0.5) and is_equal_approx(raijin.health.head_multiplier, 0.45),
 		"Raijin carries the Reaper and wears assault armor and helmet")
-	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Raijin drops the Formula and the Raid Pack")
-	zero.free()
-	var zero_map := (load(MAP) as PackedScene).instantiate()
-	var spawner_meta: Dictionary = zero_map.get_meta("spawner", {})
-	zero_map.free()
+	_check(Array(raijin.extra_drops) == ["formula", "backpack_raid"], "Raijin drops the Formula and the Raid Pack")
+	raijin.free()
+	var riptide_map := (load(MAP) as PackedScene).instantiate()
+	var spawner_meta: Dictionary = riptide_map.get_meta("spawner", {})
+	riptide_map.free()
 	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_raijin.tscn", "Riptide's boss is Raijin")
 	var boss_meta := spawner_meta.get("boss", {}) as Dictionary
 	var ace := (load("res://scenes/guard_raijin.tscn") as PackedScene).instantiate() as Scav
@@ -5768,9 +5768,9 @@ func _section_riptide() -> void:
 	_check(ItemDB.item("formula")["value"] == 100000 and ItemDB.item("formula")["rarity"] == "legendary"
 		and ItemDB.item("reaper")["ammo"] == "rifle_ammo" and ItemDB.item("reaper")["rarity"] == "epic" and ItemDB.item("reaper")["value"] == 30000
 		and ItemDB.item("armor_assault")["reduction"] == 0.5 and ItemDB.item("helmet_assault")["reduction"] == 0.55
-		and ItemDB.item("backpack_raid")["grid"] == [7, 6], "Zero's loot: Formula $100k, Reaper on Hound rounds, assault gear, 7x6 Raid Pack")
+		and ItemDB.item("backpack_raid")["grid"] == [7, 6], "Raijin's loot: Formula $100k, Reaper on Hound rounds, assault gear, 7x6 Raid Pack")
 	_check(ItemDB.attachment_slot_for("reaper", "suppressor") != "" and Traders.trader_for("reaper") == "" and Traders.trader_for("armor_assault") == "",
-		"the Reaper takes the Hound's parts; Zero's gear is never sold")
+		"the Reaper takes the Hound's parts; Raijin's gear is never sold")
 	world.queue_free()
 	await process_frame
 	# Riptide online (0.33.8): the leader picks the map, the server runs that raid on it for 15 minutes, and the
