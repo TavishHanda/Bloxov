@@ -1310,6 +1310,7 @@ def write_scene():
             f"metadata/kill_height = {fmt(SEABED - 16.0)}",   # (0.35.16: well under the lab and the sea bed)
             'metadata/look = "res://assets/looks/storm.tres"',
             'metadata/rain = true',
+            'metadata/no_breath = true',   # (0.35.24, owner: no out-of-breath "woosh" on Riptide)
             minimap_meta(),
             "",
             '[node name="Level" type="Node3D" parent="."]', "",

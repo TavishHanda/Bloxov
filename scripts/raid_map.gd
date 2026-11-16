@@ -40,7 +40,8 @@ static func load_map(raid: Node, path: String) -> void:
 		_move_contents(map.get_node_or_null(slot), raid.get_node_or_null(slot))
 	# What the in-raid map (M, MapHUD) draws.
 	# (0.35.16: and how far down the map goes, `kill_height`: Riptide's lab is under the default)
-	for key in ["minimap", "map_name", "kill_height"]:
+	# (0.35.24: `no_breath`, no out-of-breath sound on this map; owner, Riptide)
+	for key in ["minimap", "map_name", "kill_height", "no_breath"]:
 		if map.has_meta(key):
 			raid.set_meta(key, map.get_meta(key))
 	var spawner := raid.get_node_or_null("EnemySpawner")

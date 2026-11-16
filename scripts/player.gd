@@ -806,6 +806,9 @@ const HEARTBEAT_BELOW := 0.3      # of max health
 const HEARTBEAT_EVERY := 0.95
 var _breath_wait := 0.0
 var _heart_wait := 0.0
+## 0.35.24 (owner: "woosh woosh" when running long on Riptide): a map with `no_breath` metadata has no breath sound.
+## -1 = not looked up yet, 0 = breath on, 1 = off.
+var _no_breath := -1
 
 func _body_sounds(delta: float) -> void:
 	_breath_wait -= delta
@@ -813,7 +816,15 @@ func _body_sounds(delta: float) -> void:
 	if health == null or health.is_dead or extracted or get_tree().paused:
 		return
 	var low_stamina := is_exhausted or stamina < max_stamina * BREATH_BELOW
-	if low_stamina and not downed and _breath_wait <= 0.0:
+	if _no_breath < 0:
+		_no_breath = 0
+		var above := get_parent()
+		while above != null:
+			if above.has_meta(&"no_breath"):
+				_no_breath = 1 if above.get_meta(&"no_breath") else 0
+				break
+			above = above.get_parent()
+	if low_stamina and not downed and _no_breath == 0 and _breath_wait <= 0.0:
 		_breath_wait = BREATH_EVERY * WorldSounds.rng.randf_range(0.9, 1.1)
 		WorldSounds.own_soft(self, WorldSounds.BREATH, WorldSounds.BREATH_DB + (2.0 if is_exhausted else 0.0), 0.08)
 	if health.current < health.max_health * HEARTBEAT_BELOW and _heart_wait <= 0.0:
