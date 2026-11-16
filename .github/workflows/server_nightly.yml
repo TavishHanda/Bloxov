@@ -1,14 +1,22 @@
 name: Server nightly
 
-# Once a day: if the game server is behind main (game changes that didn't raise the net version, so they weren't
-# deployed right away), start the normal Web build, which tests and then deploys web and server. If the server is
-# up to date, restart the dyno so Heroku's daily restart happens at this hour instead of mid-evening.
-# 11:07 UTC = 4:07 am Mountain Standard Time (5:07 am in summer time). Change the hour in the cron line below.
-# Seven minutes past, not on the hour: GitHub delays or drops scheduled runs at the top of the hour (the first
-# 11:00 run, 2026-11-15, never started).
+# Once a night: if the game server is behind main (game changes that didn't raise the net version, so they weren't
+# deployed right away), start the normal Web build, which tests and then deploys web and the server. If the server is
+# up to date, restart the dyno so Heroku's daily restart happens in the quiet hours instead of mid-evening.
+# Quiet window: 08:00-12:59 UTC = 1 am to 6 am Mountain Standard Time (2-7 am in summer time).
+# GitHub starts scheduled runs hours late (the 11:00 UTC run of 2026-11-15 started at 17:33), so there are five cron
+# lines, at 7 past each hour 08-12 UTC (not on the hour, when GitHub is busiest), hoping one starts in the window.
+# tools/nightly_guard.sh decides for scheduled runs: a run that starts outside the window is skipped (never restart
+# in the daytime, it ends raids), and so is one that finds the web dyno already started in the last 6 hours (the
+# five lines would otherwise restart it five times). A manual run (Run workflow) always acts.
+# To change the window: edit the cron hours below and the 8 / 12 in tools/nightly_guard.sh together.
 on:
   schedule:
+    - cron: "7 8 * * *"
+    - cron: "7 9 * * *"
+    - cron: "7 10 * * *"
     - cron: "7 11 * * *"
+    - cron: "7 12 * * *"
   workflow_dispatch:
 
 permissions:
@@ -31,8 +39,12 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Catch the server up, or restart it
+      - name: Quiet window and once-a-night check
+        id: guard
         if: env.HEROKU_API_KEY != ''
+        run: echo "act=$(bash tools/nightly_guard.sh '${{ github.event_name }}')" >> "$GITHUB_OUTPUT"
+      - name: Catch the server up, or restart it
+        if: env.HEROKU_API_KEY != '' && steps.guard.outputs.act == 'run'
         run: |
           KEY=$(printf '%s' "$HEROKU_API_KEY" | tr -d '[:space:]')
           deployed=$(git ls-remote "https://heroku:$KEY@git.heroku.com/$APP.git" refs/heads/main 2>/dev/null | cut -f1) || deployed=""

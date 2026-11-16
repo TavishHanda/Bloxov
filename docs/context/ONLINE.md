@@ -11,8 +11,9 @@ Accounts and the PvP stash: `docs/archive/STASH_UPDATE_PLAN.md`.
   secret; app `bloxov-server`, one Basic dyno): wss://bloxov-server-0f9c9a343ceb.herokuapp.com.
   CI restarts the server (kicking raiders) right away only for a `config/net_version` raise, server infra (`server/`,
   `Dockerfile`, `heroku.yml`, `export_presets.cfg`) or a manual "Run workflow" on the Web build (job `changes`,
-  `tools/server_deploy_check.sh`); other game changes wait for the nightly run (`server_nightly.yml`, 11:07 UTC), which
-  also restarts an up-to-date dyno. Docs-only pushes run nothing.
+  `tools/server_deploy_check.sh`); other game changes wait for the nightly run (`server_nightly.yml`: cron at :07 past 08-12 UTC; GitHub starts runs hours late, so
+  `tools/nightly_guard.sh` skips a scheduled run outside 08:00-12:59 UTC or one that finds the dyno restarted in the last 6 h), which
+  also restarts an up-to-date dyno. A manual run of "Server nightly" or "Web build" always acts. Docs-only pushes run nothing.
   `net.gd` is an autoload: it must not reference player/gun scripts (directly or via class names), or a fresh
   import (CI) fails on their sound preloads. Check with a fresh clone: `git clone . /tmp/x && cd /tmp/x && godot --headless --import`.
   Server raids are SubViewports (`RaidWorld`) in one process: node groups are global, so AI/spawner/nav code looks
