@@ -1215,12 +1215,33 @@ def spawner_meta():
             '"raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}')
 
 
+# (0.35.17, owner: "when you open the map and look at all the names on the map its super cluttered") The map screen
+# shows only these, the places you'd call out; the other 30-odd names (rooms, decks stacked on top of each other on
+# the ship) stay in the generator as notes. name -> None (where the generator put it) or (text, x, z) to move or rename.
+MAP_LABELS = {
+    "THE LANDING": None, "LEVIATHAN": ("LEVIATHAN", 48, 34), "LIGHTHOUSE": None, "CANNERY": None,
+    "CONTAINER TERMINAL": None, "HARBOR TOWER": None, "CUSTOMS": None, "SILOS": None,
+    "SLIPWAY": ("SHIPYARD", -108, 124), "PIER": None, "BREAKWATER": None, "BARGE LINE": None,
+    "FORECASTLE": ("BOW", 48, -96), "DRILL FLOOR": ("DRILL FLOOR", 48, -2), "BRIDGE TOWER": ("BRIDGE TOWER", 48, 78),
+    "SITE ZERO (BELOW)": ("SITE ZERO", 48, -50),
+}
+
+
+def map_labels():
+    out = []
+    for text, x, z, big in labels:
+        if text in MAP_LABELS:
+            out.append((text, x, z, big) if MAP_LABELS[text] is None else (*MAP_LABELS[text], big))
+    assert len(out) == len(MAP_LABELS), "a name in MAP_LABELS isn't in the map any more"
+    return out
+
+
 def minimap_meta():
     """The in-raid map (M): map metres from the top-left corner (x + 180, z + 180)."""
     def floats(values):
         return "PackedFloat32Array(" + ", ".join(fmt(v) for v in values) + ")"
     bld = [v for x0, z0, x1, z1 in footprints for v in (x0 + HALF, z0 + HALF, x1 + HALF, z1 + HALF)]
-    text = ", ".join(f'["{t}", {fmt(x + HALF)}, {fmt(z + HALF)}, {big}]' for t, x, z, big in labels)
+    text = ", ".join(f'["{t}", {fmt(x + HALF)}, {fmt(z + HALF)}, {big}]' for t, x, z, big in map_labels())
     sea_w = HALF - QUAY
     yards = [QUAY + HALF, -2 + HALF, SX0 + HALF, 7.2 + HALF]   # the pier
     return ("metadata/minimap = {" + f'"size": {fmt(M)}, "offset": {fmt(-HALF)}, '
