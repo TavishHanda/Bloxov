@@ -87,6 +87,9 @@ const RAID_TIME := 600.0
 ## TEMP (owner 2026-11-16, friends' playtest): every raid on every map lasts this long, online and solo.
 ## Set back to 0.0 after the playtest to return to the normal clocks (10 min, Riptide 15).
 const PLAYTEST_RAID_TIME := 3600.0
+## TEMP (owner 2026-11-16, same playtest): AI counts on Riptide are multiplied by this (RaidMap.load_map). The smoke test sets it to 1.0 so its map checks see the real numbers.
+## Set back to 1.0 after the playtest.
+static var playtest_ai_scale := 0.5
 ## Player state updates per second, both ways.
 const SEND_RATE := 20.0
 ## Queue status updates per second (to players in the hideout).

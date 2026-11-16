@@ -49,6 +49,8 @@ static func load_map(raid: Node, path: String) -> void:
 		var settings: Dictionary = map.get_meta("spawner", {})
 		for key in settings:
 			spawner.set(key, settings[key])
+		if Network.playtest_ai_scale < 1.0 and path == MAPS[1][1]:   # Riptide only
+			_scale_ai(spawner, Network.playtest_ai_scale)
 	# A map's `raid` metadata tunes the raid itself (Riptide: a 15-minute clock, owner 2026-11-09).
 	var raid_node := raid.get_node_or_null("Raid")
 	if raid_node != null:
@@ -99,3 +101,18 @@ static func _set_owner(node: Node, new_owner: Node) -> void:
 		return
 	for child in node.get_children():
 		_set_owner(child, new_owner)
+
+
+## TEMP playtest (0.35.21, net.gd playtest_ai_scale): fewer AI on Riptide. Each count is scaled and rounded
+## (a zone with 5 scavs gets 3); the boss and its guards are left alone.
+static func _scale_ai(spawner: Node, scale: float) -> void:
+	for key in ["max_alive", "scav_budget", "raider_budget", "roamers", "snipers"]:
+		spawner.set(key, roundi(int(spawner.get(key)) * scale))
+	var zones: Array = []
+	for zone in spawner.get("zones"):
+		var z: Dictionary = zone.duplicate()
+		for key in ["scavs", "raiders"]:
+			if z.has(key):
+				z[key] = roundi(int(z[key]) * scale)
+		zones.append(z)
+	spawner.set("zones", zones)
