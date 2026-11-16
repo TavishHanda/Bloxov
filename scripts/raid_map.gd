@@ -57,6 +57,8 @@ static func load_map(raid: Node, path: String) -> void:
 		var raid_settings: Dictionary = map.get_meta("raid", {})
 		for key in raid_settings:
 			raid_node.set(key, raid_settings[key])
+		if Network.PLAYTEST_RAID_TIME > 0.0 and path == MAPS[1][1]:   # TEMP playtest clock, Riptide only (net.gd)
+			raid_node.set("raid_time", Network.PLAYTEST_RAID_TIME)
 	# A map can have its own look and weather (Riptide: the storm, owner 2026-11-09). Looks only.
 	if map.has_meta("look"):
 		Look.apply(raid, String(map.get_meta("look")))
