@@ -4,8 +4,10 @@ extends Scav
 ## Raiders, snipers and Bon never do (their behaviour is locked, owner), so all of this lives here as overrides.
 ## Raid plan: it waits a moment, then loots 2-4 places (buildings, by their containers' `place`), the nearest first,
 ## then picked by what their loot is worth (best ~3x as likely as poorest), searching 2-4 containers at each.
-## Keep-apart rule (owner): it stays away from every other AI (non-bot 30-40 m, other bots 60 m) when picking where to
-## go, the way there, while moving and looting, and which noises it walks over to. Its fight brain is the Scav's.
+## 0.36.11 (owner): no keep-apart rule any more, since AI fight AI now. It walks straight to its places and out by the
+## nearest open extract, and a fight on the way is the Scav brain's. Only these cautions are left: it doesn't PICK a
+## place with 3 or more other AI within 40 m of it (none left: the one with the fewest), never the boss's area, and
+## not one another bot is going to. Its shots are heard like a player's (`_shot_noise`), and it hears the others'.
 ## 0.36.7: a finished search opens the container's lid and takes one item (`_on_search_done`); at its leave time, or
 ## hurt with no heals left, it jogs to an extract, stands in it and is gone (`wants_to_leave`, `_leave_raid`).
 
@@ -23,25 +25,14 @@ const WALK_NEAR := 15.0
 ## A place's pick weight runs from this (poorest loot) to VALUE_WEIGHT_MAX (best).
 const VALUE_WEIGHT_MIN := 1.0
 const VALUE_WEIGHT_MAX := 3.0
-## (0.36.5, owner approved) The keep-apart rule, in meters.
-const AI_PLACE_CLEAR := 40.0     # no non-bot AI this close to a place it picks
-const BOT_CLEAR := 60.0          # other bots: places, routes and on the move
-const AI_ROUTE_CLEAR := 30.0     # no non-bot AI this close to the way there
-const AI_NEAR := 30.0            # on the move / looting: a non-bot AI this close and it turns away
-const CHECK_EVERY := 1.0         # seconds between those checks
-const NOISE_AI_CLEAR := 40.0     # never walks over to a noise with a non-bot AI this close to it
+## (0.36.11, owner approved) It doesn't pick a place with this many other AI (bots or not) within CROWD_RANGE m of it.
+const CROWD_AI := 3
+const CROWD_RANGE := 40.0
+const CHECK_EVERY := 1.0         # seconds between its looks at whether it is indoors
 const SHOT_CARE_RANGE := 80.0    # gunshots this close: curious bots go, cautious ones steer away
 const CURIOUS_CHANCE := 0.5
-const AFTER_FIGHT_CLEAR := 40.0  # after a fight: a non-bot AI this close and it moves away first
-## How the checks are done (tuning, not the owner's numbers): route samples every ROUTE_STEP m, a wait of
-## RETRY_WAIT s when nowhere passes, containers of one place within PLACE_SPREAD m of each other form one place.
-const ROUTE_STEP := 5.0
-const ESCAPE_GAIN := 0.5
-const PASS_FLOOR := 20.0
-const PASS_FLOOR_BOT := 40.0
-const HELD_UP := 10.0
-const LOOK_AHEAD := 3.0
-const HURRY_TIME := 6.0   # after turning away from someone it runs (full move_speed) this long
+## Tuning (not the owner's numbers): a wait of RETRY_WAIT s when nowhere is open, containers of one place within
+## PLACE_SPREAD m of each other form one place.
 const RETRY_WAIT := 3.0
 const PLACE_SPREAD := 25.0
 const SHOT_MEMORY := 60.0
@@ -50,7 +41,7 @@ const _PLACES_META := &"pmc_places"
 const MAX_TAKEN := 4
 ## (0.36.7, owner approved) Extracting: it leaves between these shares of the raid's full length (a raid without a
 ## known length counts as DEFAULT_RAID_LENGTH s from its spawn), or early when under LEAVE_HURT of its health with no
-## heals left and not in a fight. It prefers an extract with no other AI within AI_PLACE_CLEAR m (bots: BOT_CLEAR).
+## heals left and not in a fight. It heads for the nearest open extract.
 const LEAVE_MIN := 0.50
 const LEAVE_MAX := 0.85
 const LEAVE_HURT := 0.4
@@ -74,19 +65,11 @@ var _searched := {}
 var _bad := {}
 ## Rolled once: walks over to gunshots (true) or steers clear of them.
 var curious := true
-var _apart_left := 0.0
-var _route_check_left := 0.0
 var _indoors := false
+var _indoor_left := 0.0
 var _seen_state := State.IDLE
-var _fought := false
 var _shot_at := Vector3.INF
 var _shot_age := 0.0
-## How many times it turned away from someone (tests, the proof tool).
-var turned_away := 0
-var _last_gap := INF
-var _flee_wait_left := 0.0
-var _held_for := 0.0
-var _hurry_left := 0.0
 ## 0.36.7: the raid's full length in seconds (the server sets it; 0 = DEFAULT_RAID_LENGTH), the seed of its leave
 ## roll (0 = unseeded), and when it leaves: seconds after it spawned.
 var raid_length := 0.0
@@ -95,11 +78,9 @@ var leave_at := -1.0
 var _age := 0.0
 var _taken := 0
 var _exit_retry := 0.0
-## The extract it's heading to or standing in, and how much of its time is left; `_exit_forced`: no extract was clear
-## of other AI, so it took the one with the most room.
+## The extract it's heading to or standing in, and how much of its time is left.
 var extract: Node3D = null
 var _extract_left := 0.0
-var _exit_forced := false   # (took an extract with other AI 30-40 m off, as none was clearer)
 ## It walked out of the raid through an extract (tests, the proof tool).
 var left_raid := false
 
@@ -112,7 +93,7 @@ func _ready() -> void:
 	curious = randf() < CURIOUS_CHANCE
 	_places_left = randi_range(PLACES_MIN, PLACES_MAX)
 	_plan_wait = randf_range(START_WAIT_MIN, START_WAIT_MAX)
-	_apart_left = randf() * CHECK_EVERY
+	_indoor_left = randf() * CHECK_EVERY
 	_roll_leave_time()
 
 
@@ -120,14 +101,11 @@ func _physics_process(delta: float) -> void:
 	if state != State.DEAD and not puppet:
 		_age += delta
 		_exit_retry -= delta
-		_hurry_left -= delta
 		_shot_age += delta
-		if state in [State.ALERT, State.ENGAGE]:
-			_fought = true
-		_apart_left -= delta
-		if _apart_left <= 0.0:
-			_apart_left = CHECK_EVERY
-			_keep_apart()
+		_indoor_left -= delta
+		if _indoor_left <= 0.0:
+			_indoor_left = CHECK_EVERY
+			_look_indoors()
 	super(delta)
 	if state != _seen_state and not puppet:
 		if state == State.IDLE and _seen_state != State.IDLE:
@@ -144,15 +122,12 @@ func out_of_fight() -> bool:
 	return left_raid or super()
 
 
-## Bots never take part in a fight's noise budget the scav way, and keep away from other AI's noises (0.36.5).
+## A noise it hears (0.36.11: shots from every other AI too). Curious bots go and look like any scav; cautious ones, and
+## any on their way out, note where it was and steer away from there when they pick a place.
 func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	if puppet:
 		return
 	var loud := gunshot or radius >= alarm_noise
-	if _non_bot_near(pos, NOISE_AI_CLEAR):
-		if loud:
-			FightBudget.stir(self, pos)
-		return
 	if loud and (not curious or plan in [Plan.EXIT, Plan.EXTRACT]):   # (0.36.7: on its way out it doesn't go and look)
 		FightBudget.stir(self, pos)
 		if global_position.distance_to(pos) <= SHOT_CARE_RANGE:
@@ -160,6 +135,13 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 			_shot_age = 0.0
 		return
 	super(pos, radius, gunshot)
+
+
+## Its shots are a gunshot noise to every other AI in the raid, the way a player's are (0.36.11, owner): the same
+## `hear_noise(pos, radius, true)`, with the radius of the gun it carries (ItemDB's "noise", 25 if unknown, as the
+## server takes for a player's shot). Hearing, the fight budget and the limit of 4 per fight work as for a player.
+func _shot_noise() -> void:
+	_noise_to(&"enemies")
 
 
 ## A search of `container` just finished (0.36.7): its lid opens and stays open (every player's screen sees it), and
@@ -241,7 +223,6 @@ func _wander(delta: float) -> Vector3:
 			return _stand_in_extract(delta)
 		Plan.START, Plan.HOLD:
 			_plan_wait -= delta
-			_held_for += delta
 			if _plan_wait <= 0.0:
 				_next_destination()
 			return Vector3.ZERO
@@ -274,15 +255,13 @@ func _wander(delta: float) -> Vector3:
 			_set_plan(Plan.HOLD, 0.5)
 		return Vector3.ZERO
 	var near := _flat(_wander_point - global_position).length() < WALK_NEAR and _indoors
-	# (0.36.9: turning away from someone it runs, as a player would, so one walking the same way doesn't keep up)
-	var move := _path_velocity(_wander_point, move_speed * (1.0 if _hurry_left > 0.0 else (patrol_speed if near else jog_speed)))
+	var move := _path_velocity(_wander_point, move_speed * (patrol_speed if near else jog_speed))
 	_face(move, delta, 4.0)
 	return move
 
 
 func _go_to(spot: Vector3, container: Node3D) -> void:
 	plan = Plan.TRAVEL
-	_held_for = 0.0
 	_place_container = container
 	_patrol_container = container
 	_wander_point = spot
@@ -294,59 +273,41 @@ func _go_to(spot: Vector3, container: Node3D) -> void:
 	_path.clear()
 
 
-## Where next: another container at this place, a new place, a spot away from someone, or a short wait.
-## `away_from` (INF = nothing): someone it's turning away from, so the next place has to lie the other way.
-func _next_destination(away_from := Vector3.INF) -> void:
+## Where next: another container at this place, a new place, or a short wait.
+func _next_destination() -> void:
 	if not AINav.ready(self):
 		_set_plan(Plan.HOLD, RETRY_WAIT)
 		return
-	var others := _others()
 	if _exit_retry <= 0.0 and wants_to_leave():
-		if _go_extract(others):
+		if _go_extract():
 			return
 		_exit_retry = EXIT_RETRY   # (no extract it can reach: it carries on looting and tries again)
-	if away_from == Vector3.INF and _fought:
-		var close := _nearest_non_bot(others, global_position)
-		if close[1] < AFTER_FIGHT_CLEAR:
-			away_from = close[0]
-	_fought = false
-	# The same place again while it has searches left and it's still clear.
-	if away_from == Vector3.INF and not place.is_empty() and _searches_left > 0 and _place_clear(place, others):
-		if _try_place(place, others):
+	# The same place again while it has searches left.
+	if not place.is_empty() and _searches_left > 0:
+		if _try_place(place):
 			return
-	if away_from == Vector3.INF and not place.is_empty() and _searches_left <= 0:
+	if not place.is_empty() and _searches_left <= 0:
 		place = {}
-	var options := _allowed_places(others)
-	if away_from != Vector3.INF:
-		var flee_dir := _flat(global_position - away_from).normalized()
-		options = options.filter(func(p: Dictionary) -> bool:
-			return _flat(p["center"] - global_position).normalized().dot(flee_dir) > 0.3)
+	var options := _allowed_places()
 	# The first place is the nearest one it may go to; then weighted by loot.
-	if visited.is_empty() and away_from == Vector3.INF:
+	if visited.is_empty():
 		options.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 			return a["center"].distance_squared_to(global_position) < b["center"].distance_squared_to(global_position))
 		for p: Dictionary in options.slice(0, 3):
-			if _try_place(p, others, true):
+			if _try_place(p, true):
 				return
 	for attempt in 5:
 		var p := _weighted_pick(options)
 		if p.is_empty():
 			break
 		options.erase(p)
-		if _try_place(p, others, true):
-			return
-	if away_from != Vector3.INF or _nearest_threat(others)[1] < INF:
-		var threat: Vector3 = away_from if away_from != Vector3.INF else _nearest_threat(others)[0]
-		var spot := _flee_spot(threat, others)
-		if spot != Vector3.ZERO:
-			place = {}
-			_go_to(spot, null)
+		if _try_place(p, true):
 			return
 	_set_plan(Plan.HOLD, RETRY_WAIT)
 
 
-## Starts on `p` (a container there it hasn't searched, whose way passes the checks). False if none does.
-func _try_place(p: Dictionary, others: Array, fresh := false) -> bool:
+## Starts on `p` (a container there it hasn't searched that it can walk to). False if none.
+func _try_place(p: Dictionary, fresh := false) -> bool:
 	var boxes: Array = (p["containers"] as Array).filter(func(c: Node) -> bool:
 		return is_instance_valid(c) and not _bad.has(c.get_instance_id()))
 	var unsearched := boxes.filter(func(c: Node) -> bool: return not _searched.has(c.get_instance_id()))
@@ -359,9 +320,7 @@ func _try_place(p: Dictionary, others: Array, fresh := false) -> bool:
 		var spot := AINav.closest(self, c.global_position)
 		if spot == Vector3.ZERO:
 			continue
-		var route := AINav.path(self, global_position, spot)
-		# (held up a while, every way out blocked: a way that keeps PASS_FLOOR m off them will do)
-		if not _route_clear(route, others) and not (_held_for > HELD_UP and _route_floor_ok(route, others)):
+		if AINav.path(self, global_position, spot).size() < 2:
 			continue
 		if fresh:
 			place = p
@@ -373,35 +332,51 @@ func _try_place(p: Dictionary, others: Array, fresh := false) -> bool:
 	return false
 
 
-## Places it may pick now: clear of other AI and bots, not where another bot is going, not its own last ones while
-## it has places left.
-func _allowed_places(others: Array) -> Array:
-	var out := []
+## Places it may pick now: not its own last ones while it has places left, not where another bot is going, and not
+## crowded (CROWD_AI or more other AI near it). If every one is crowded, those with the fewest AI near. (The boss's
+## area is never a place: `_build_places` leaves it out.)
+func _allowed_places() -> Array:
+	var pool := []
+	var fresh := []
 	for p: Dictionary in places(self):
-		if not place.is_empty() and p["id"] == place["id"]:
+		if (not place.is_empty() and p["id"] == place["id"]) or _bot_going_to(p):
 			continue
-		if _places_left > 0 and visited.has(String(p["name"])):
-			continue
-		if _place_clear(p, others):
-			out.append(p)
-	if out.is_empty() and _places_left > 0:
-		# (every place it hasn't been to is busy: any clear one will do)
-		for p: Dictionary in places(self):
-			if (place.is_empty() or p["id"] != place["id"]) and _place_clear(p, others):
-				out.append(p)
-	return out
+		pool.append(p)
+		if _places_left <= 0 or not visited.has(String(p["name"])):
+			fresh.append(p)
+	if fresh.is_empty() and _places_left > 0:
+		fresh = pool   # (every place it hasn't been to is taken or shut: any other will do)
+	var open := fresh.filter(func(p: Dictionary) -> bool: return _ai_near(p) < CROWD_AI)
+	if not open.is_empty():
+		return open
+	var fewest := []
+	var least := INF
+	for p: Dictionary in fresh:
+		var n := _ai_near(p)
+		if n < least:
+			least = n
+			fewest = []
+		if n == least:
+			fewest.append(p)
+	return fewest
 
 
-func _place_clear(p: Dictionary, others: Array) -> bool:
-	var center: Vector3 = p["center"]
-	var reach: float = p["radius"]
-	for o: Array in others:
-		var limit := BOT_CLEAR if o[1] else AI_PLACE_CLEAR
-		if (o[0] as Vector3).distance_to(center) < limit + reach:
-			return false
-		if o[1] and o[2] is PmcAI and not (o[2] as PmcAI).place.is_empty() and (o[2] as PmcAI).place["id"] == p["id"]:
-			return false
-	return true
+## How many other living AI (bots or not) are within CROWD_RANGE m of the place (past its own reach).
+func _ai_near(p: Dictionary) -> int:
+	var n := 0
+	for other in _others():
+		if other.global_position.distance_to(p["center"]) < CROWD_RANGE + float(p["radius"]):
+			n += 1
+	return n
+
+
+## Another bot is going to, or looting, this place now.
+func _bot_going_to(p: Dictionary) -> bool:
+	for other in _others():
+		var bot := other as PmcAI
+		if bot != null and not bot.place.is_empty() and bot.place["id"] == p["id"]:
+			return true
+	return false
 
 
 ## A weighted pick by loot value; a cautious bot that heard shots lately mostly picks places the other way.
@@ -448,50 +423,29 @@ func _in_extract(zone: Node3D, pos: Vector3) -> bool:
 	return AABB(-size * 0.5, size).has_point(local)
 
 
-## Heads for an extract: the nearest usable one whose way passes the keep-apart checks and whose surroundings are
-## clear (no other AI within 40 m, a bot 60 m). If none is, the nearest whose way passes and that has no other AI
-## within 30 m (a bot 60 m) will do. False if there is none (0.36.8: it no longer takes a busy one; it carries on and
-## tries again).
-func _go_extract(others: Array) -> bool:
+## Heads for the nearest usable extract it can walk to (or is already standing in). False if there is none.
+func _go_extract() -> bool:
 	var zones := _usable_extracts()
 	zones.sort_custom(func(a: Node3D, b: Node3D) -> bool:
 		return a.global_position.distance_squared_to(global_position) < b.global_position.distance_squared_to(global_position))
-	var fallback: Array = []
 	for zone in zones:
-		var clear := _place_clear({"id": -1, "center": zone.global_position, "radius": 0.0}, others)
-		var roomy := clear or _room_at(zone.global_position, others) >= 0.0
 		if _in_extract(zone, global_position):
-			if roomy:
-				_begin_extract(zone)
-				return true
-			continue
-		if not roomy:
-			continue
-		var spot := AINav.closest(self, zone.global_position)
-		if spot == Vector3.ZERO:
-			continue
-		var route := AINav.path(self, global_position, spot)
-		if route.size() < 2 or _route_score(route, others) < 0.0:
-			continue
-		if clear:
-			_go_exit(zone, spot, false)
+			_begin_extract(zone)
 			return true
-		if fallback.is_empty():
-			fallback = [zone, spot]
-	if not fallback.is_empty():
-		_go_exit(fallback[0], fallback[1], true)
+		var spot := AINav.closest(self, zone.global_position)
+		if spot == Vector3.ZERO or AINav.path(self, global_position, spot).size() < 2:
+			continue
+		_go_exit(zone, spot)
 		return true
 	return false
 
 
-func _go_exit(zone: Node3D, spot: Vector3, forced: bool) -> void:
+func _go_exit(zone: Node3D, spot: Vector3) -> void:
 	place = {}
 	_place_container = null
 	_patrol_container = null
 	extract = zone
-	_exit_forced = forced
 	plan = Plan.EXIT
-	_held_for = 0.0
 	_looting_left = 0.0
 	_wander_point = spot
 	_wander_dir = _flat(spot - global_position).normalized()
@@ -505,7 +459,6 @@ func _go_exit(zone: Node3D, spot: Vector3, forced: bool) -> void:
 func _begin_extract(zone: Node3D) -> void:
 	place = {}
 	extract = zone
-	_exit_forced = true
 	plan = Plan.EXTRACT
 	_looting_left = 0.0
 	_wander_dir = Vector3.ZERO
@@ -548,7 +501,7 @@ func _stand_in_extract(delta: float) -> Vector3:
 		_set_plan(Plan.HOLD, 0.5)
 		return Vector3.ZERO
 	if not _in_extract(extract, global_position):
-		_go_exit(extract, AINav.closest(self, extract.global_position), true)
+		_go_exit(extract, AINav.closest(self, extract.global_position))
 		return Vector3.ZERO
 	_extract_left -= delta
 	if _extract_left <= 0.0:
@@ -567,217 +520,26 @@ func _leave_raid() -> void:
 	queue_free()
 
 
-# ---- Keep apart ---------------------------------------------------------------------------------------------------
+# ---- Other AI -----------------------------------------------------------------------------------------------------
 
-## The other AI in this raid: [position, is a bot, node], living ones only.
-func _others() -> Array:
-	var out := []
+## The other living AI in this raid (bots or not), never itself.
+func _others() -> Array[Scav]:
+	var out: Array[Scav] = []
 	for node in RaidScope.nodes(self, &"enemies"):
 		var other := node as Scav
 		if other == null or other == self or other.state == State.DEAD or other.health.is_dead:
 			continue
-		out.append([other.global_position, other is PmcAI, other, other.global_position + _flat(other.velocity) * LOOK_AHEAD])
+		out.append(other)
 	return out
 
 
-func _non_bot_near(pos: Vector3, dist: float) -> bool:
-	for o: Array in _others():
-		if not o[1] and (o[0] as Vector3).distance_to(pos) < dist:
-			return true
-	return false
-
-
-## [position, distance] of the nearest non-bot AI to `pos` (INF if none).
-func _nearest_non_bot(others: Array, pos: Vector3) -> Array:
-	var best := [Vector3.INF, INF]
-	for o: Array in others:
-		var d := (o[0] as Vector3).distance_to(pos)
-		if not o[1] and d < best[1]:
-			best = [o[0], d]
-	return best
-
-
-## [position, distance] of the closest AI too close right now (non-bot within AI_NEAR, bot within BOT_CLEAR), else INF.
-func _nearest_threat(others: Array) -> Array:
-	var best := [Vector3.INF, INF]
-	for o: Array in others:
-		# (where it'll be in a moment counts too: one walking this way is turned from before it's inside the line)
-		var d := minf((o[0] as Vector3).distance_to(global_position), (o[3] as Vector3).distance_to(global_position) if o.size() > 3 else INF)
-		if d < (BOT_CLEAR if o[1] else AI_NEAR) and d < best[1]:
-			best = [o[0], d]
-	return best
-
-
-## The way along `route` keeps clear of other AI: no sample within AI_ROUTE_CLEAR of a non-bot (BOT_CLEAR of a bot).
-## Someone it's already closer to than that only fails it where the way doesn't gain distance from them fast enough
-## (ESCAPE_GAIN m per m walked), so it can still walk away, but not alongside them.
-func _route_clear(route: PackedVector3Array, others: Array, from := 0) -> bool:
-	return _route_score(route, others, from) >= 0.0
-
-
-## How clear the way is: the least room (m) any sample leaves past what it needs; negative fails (-INF: no way).
-func _route_score(route: PackedVector3Array, others: Array, from := 0) -> float:
-	if from > 0:
-		# (the rest of the way, from where it stands now)
-		var rest := PackedVector3Array([global_position])
-		rest.append_array(route.slice(mini(from, route.size() - 1)))
-		route = rest
-	if route.size() < 2:
-		return -INF
-	var watch := []
-	for o: Array in others:
-		var now := (o[0] as Vector3).distance_to(global_position)
-		var limit := BOT_CLEAR if o[1] else AI_ROUTE_CLEAR
-		if now < limit + 200.0:
-			watch.append([o[0], limit, now - 1.0])
-			# (0.36.9: where a walking one will be in a moment counts along the way too)
-			if o.size() > 3 and (o[3] as Vector3).distance_to(o[0]) > 1.0:
-				watch.append([o[3], limit, (o[3] as Vector3).distance_to(global_position) - 1.0])
-	var worst := INF
-	var walked := 0.0
-	var left := 0.0
-	for i in range(1, route.size()):
-		var a := route[i - 1]
-		var b := route[i]
-		var seg := a.distance_to(b)
-		var t := left
-		while t <= seg:
-			var at := a.lerp(b, t / seg) if seg > 0.0 else b
-			for w: Array in watch:
-				var need := minf(w[1], w[2] + (walked + t) * ESCAPE_GAIN)
-				worst = minf(worst, (w[0] as Vector3).distance_to(at) - need)
-			t += ROUTE_STEP
-		left = t - seg
-		walked += seg
-	for w: Array in watch:
-		var need_end := minf(w[1], w[2] + walked * ESCAPE_GAIN)
-		worst = minf(worst, (w[0] as Vector3).distance_to(route[route.size() - 1]) - need_end)
-	return worst
-
-
-## Once a second: someone too close, or the place or way ahead gone busy, and it isn't fighting: it turns away.
-func _keep_apart() -> void:
+## Once a second while unaware: whether it is under a roof (it walks, not jogs, the last 15 m to a spot indoors).
+func _look_indoors() -> void:
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
 		return
 	var up := global_position + Vector3(0, 1.0, 0)
 	_indoors = not get_world_3d().direct_space_state.intersect_ray(
 		PhysicsRayQueryParameters3D.create(up, up + Vector3(0, 8, 0), 1)).is_empty()
-	var others := _others()
-	var threat := _nearest_threat(others)
-	_flee_wait_left -= CHECK_EVERY
-	if threat[1] < INF:
-		var gap: float = threat[1]
-		var last := _last_gap
-		_last_gap = gap
-		# Already on its way out from them along a clear way, and the gap is growing: carry on.
-		if state == State.IDLE and plan in [Plan.TRAVEL, Plan.EXIT] and _path.size() > 1 and _route_clear(_path, others, _path_index) \
-				and (gap > last + 0.3 or (last == INF and _wander_point.distance_to(threat[0]) > gap)):
-			return
-		if state == State.IDLE and plan == Plan.HOLD and _flee_wait_left > 0.0:
-			return   # (nowhere better a moment ago: it waits before looking again)
-		turned_away += 1
-		_hurry_left = HURRY_TIME
-		if plan in [Plan.EXIT, Plan.EXTRACT]:
-			# (0.36.8: someone came near on its way out or in the extract: it moves off first and tries again)
-			extract = null
-			_exit_retry = EXIT_RETRY
-		if state != State.IDLE:
-			_set_state(State.IDLE)
-			_seen_state = State.IDLE
-		_next_destination(threat[0])
-		if plan == Plan.HOLD:
-			_flee_wait_left = 2.0
-		return
-	_last_gap = INF
-	if state != State.IDLE or plan == Plan.HOLD or plan == Plan.START:
-		return
-	# The place it's going to or looting got busy, or (every few seconds) someone came near the way ahead.
-	if not place.is_empty() and not _place_clear(place, others):
-		_bad_place_now()
-		return
-	_route_check_left -= CHECK_EVERY
-	if plan in [Plan.TRAVEL, Plan.EXIT] and _route_check_left <= 0.0 and _path.size() > 1:
-		_route_check_left = 1.0
-		if not _route_clear(_path, others, _path_index):
-			_next_destination()
-
-
-func _bad_place_now() -> void:
-	place = {}
-	_next_destination()
-
-
-## Where to go to get away from `threat`: a walkable spot 30-100 m off (away first, then round the compass) whose
-## way passes the checks. Cornered (none does): the roomiest spot whose way never comes within PASS_FLOOR m of a
-## non-bot AI (PASS_FLOOR_BOT of a bot); failing that, the way that leaves the most room along it, if it beats
-## standing still. ZERO if none.
-func _flee_spot(threat: Vector3, others: Array) -> Vector3:
-	var away := _flat(global_position - threat).normalized()
-	if away == Vector3.ZERO:
-		away = Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
-	var room_now := _room_at(global_position, others)
-	var best := Vector3.ZERO
-	var best_room := 0.0
-	var last := Vector3.ZERO
-	var last_room := room_now + 8.0
-	for turn: float in [0.0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9, PI]:
-		for reach: float in [randf_range(45.0, 70.0), 30.0, 100.0]:
-			var spot := AINav.closest(self, global_position + away.rotated(Vector3.UP, turn) * reach)
-			if spot == Vector3.ZERO or _flat(spot - global_position).length() < 8.0:
-				continue
-			var route := AINav.path(self, global_position, spot)
-			if _route_score(route, others) >= 0.0:
-				return spot
-			if route.size() < 2:
-				continue
-			var room := _room_at(route[route.size() - 1], others)
-			if room >= best_room and _route_floor_ok(route, others):
-				best_room = room
-				best = spot
-			elif best == Vector3.ZERO and room > last_room and _route_room(route, others) > room_now - 3.0:
-				last_room = room
-				last = spot
-	return best if best != Vector3.ZERO else last
-
-
-## The least room (past the keep-apart distances) anywhere along the way.
-func _route_room(route: PackedVector3Array, others: Array) -> float:
-	var worst := INF
-	for i in range(1, route.size()):
-		var a := route[i - 1]
-		var b := route[i]
-		var seg := a.distance_to(b)
-		var t := 0.0
-		while t <= seg:
-			worst = minf(worst, _room_at(a.lerp(b, t / seg) if seg > 0.0 else b, others))
-			t += ROUTE_STEP
-	return worst
-
-
-## Room at `pos` past the keep-apart distances (negative: someone is too close there).
-func _room_at(pos: Vector3, others: Array) -> float:
-	var worst := INF
-	for o: Array in others:
-		worst = minf(worst, (o[0] as Vector3).distance_to(pos) - (BOT_CLEAR if o[1] else AI_NEAR))
-	return worst
-
-
-## No sample of the way comes within PASS_FLOOR of a non-bot AI (PASS_FLOOR_BOT of a bot).
-func _route_floor_ok(route: PackedVector3Array, others: Array) -> bool:
-	if route.size() < 2:
-		return false
-	for i in range(1, route.size()):
-		var a := route[i - 1]
-		var b := route[i]
-		var seg := a.distance_to(b)
-		var t := 0.0
-		while t <= seg:
-			var at := a.lerp(b, t / seg) if seg > 0.0 else b
-			for o: Array in others:
-				if (o[0] as Vector3).distance_to(at) < (PASS_FLOOR_BOT if o[1] else PASS_FLOOR):
-					return false
-			t += ROUTE_STEP
-	return true
 
 
 # ---- Places and what they're worth (once per raid) ----------------------------------------------------------------

@@ -822,7 +822,26 @@ func _fire_at_target(dist: float) -> void:
 
 	BoxMap.break_window_along(self, from, end, false)   # (0.18.8: its shots break glass too, and pass through)
 	fired.emit(end)
+	_shot_noise()
 	net_fired(end)  # the tracer and sound still come from the gun
+
+
+## Its shot is a noise other AI may hear (0.36.11, owner): a scav, Raider, sniper or Bon's shot is heard by the AI PMCs
+## in the raid only (what AI do among themselves stays as it was); an AI PMC's is heard by everyone (PmcAI).
+func _shot_noise() -> void:
+	_noise_to(&"pmc_bots")
+
+
+## Tells the AI in `group` (never itself) about its shot: `hear_noise(pos, radius, true)`, the call a player's shot
+## makes, with the radius of the gun it carries (ItemDB "noise"; 25 if unknown, the server's default for a player).
+func _noise_to(group: StringName) -> void:
+	var listeners := RaidScope.nodes(self, group)
+	if listeners.is_empty():
+		return
+	var radius := float(ItemDB.ITEMS.get(carried_gun, {}).get("noise", 25.0))
+	for other in listeners:
+		if other != self:
+			other.hear_noise(global_position, radius, true)
 
 
 ## The physics layer its target's body is on: players' (2), or the AI's (4) when it fights an AI (0.36.10).
@@ -865,6 +884,7 @@ func _fire_at_point(point: Vector3) -> void:
 			WorldSounds.impact(get_tree().current_scene, end, result.normal, true)
 			_near_miss_rival(from, end)
 	fired.emit(end)
+	_shot_noise()
 	net_fired(end)
 
 

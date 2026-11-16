@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.11 (AI PMCs: no more keeping apart, and gunfire is heard)
+Built on the AI PMC branch (switch still off). The owner's rules (2026-11-16); no new gameplay numbers except those below.
+- **Keep-apart rule removed**: with AI fighting AI, bots no longer stay 30-40 m from other AI or 60 m from bots, turn away,
+  check their way against others, refuse a busy extract or avoid noises near AI. A bot walks straight to its places and
+  out by the nearest open extract, and fights what it meets (the inherited brain). Raid plan, searching and taking loot,
+  leave times, quiet extract, curious/cautious reactions to shots (80 m) and planning again after a fight are as before.
+- **Kept cautions** (owner): a bot doesn't pick a place with 3 or more other living AI (bots or not) within 40 m of it
+  (every place crowded: the one with the fewest AI near); never Bon's area; never a place another bot is going to.
+  Later scav spawns still keep 40 m and out of sight of bots.
+- **Gunfire is heard like a player's**: a bot's shots are a gunshot noise (`hear_noise(pos, radius, true)`, the radius
+  of the gun it carries, 25 if unknown) to every other AI in its raid, so scavs nearby come over (the limit of 4 a fight
+  holds) and curious bots go and look. Non-bot AI shooting is heard by bots only; scavs, Raiders, snipers and Bon still
+  don't hear each other, and nothing changes in raids without bots.
+- **Proof**: `tests/ai_same_check.gd` log identical before and after (14141 lines). Smoke `pmc_apart` rewritten for the
+  new rules; `pmc_leave` checks the nearest extract is taken with AI near it. `tests/bot_apart_check.gd` is now
+  `tests/bot_raid_report.gd`, a fight report (survival, kills by kind, loot taken, time fighting, ms per frame).
+
 ## 0.36.10 (AI PMCs: the AI fight AI PMCs, and bots fight everyone)
 Built on the AI PMC branch (switch still off). The owner's rules (2026-11-16); no new numbers.
 - **Who fights whom**: an AI PMC fights real players, other bots, scavs, Raiders, snipers and Bon; every other AI

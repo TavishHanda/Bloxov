@@ -6633,7 +6633,6 @@ func _section_pmc_ai() -> void:
 	var fight := a.global_position + Vector3(0, 0, -15)
 	for i in FightBudget.BUDGET:
 		FightBudget.take(a, fight)
-	a._apart_left = 99.0   # (0.36.5: b is right beside it; its keep-apart check would turn it away, pmc_apart tests that)
 	a.curious = true
 	a.hear_noise(fight, 25.0, true)
 	scav.global_position = fight + Vector3(0, 0, -10)
@@ -6728,7 +6727,7 @@ func _section_pmc_plan() -> void:
 	if own_spawner:
 		spawner.free()
 	# The first place: the nearest it may go to. Then 2-4 searches there, each one tells the looting hook.
-	var allowed := bot._allowed_places(bot._others())
+	var allowed := bot._allowed_places()
 	allowed.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a["center"].distance_to(bot.global_position) < b["center"].distance_to(bot.global_position))
 	bot._plan_wait = 0.0
@@ -6754,100 +6753,192 @@ func _section_pmc_plan() -> void:
 
 
 func _section_pmc_apart() -> void:
-	# AI PMCs keep apart from other AI (0.36.5, owner approved): no place with a non-bot AI within 40 m (another bot:
-	# 60 m, or one already going there), no way past one within 30 m (bot: 60 m), and on the move it turns away from
-	# one within 30 m. Noises near other AI are left alone; cautious bots steer clear of gunshots.
+	# AI PMCs and other AI (0.36.11, owner approved; the keep-apart rule of 0.36.5 is gone, AI fight AI now): no place
+	# with 3 or more other AI (bots or not) within 40 m of it (none left: the one with the fewest), never the boss's
+	# area, not one another bot is going to; gunfire is heard like a player's; later spawns still keep off bots.
 	for node in RaidScope.nodes(main, &"enemies"):
 		node.free()
 	player.teleport_to(Vector3(38, 0.1, 38))
 	# (no slow far ticks here: their glide would put the AI moved below back where they were)
 	Scav.lod_enabled = false
-	var bot := _blind_bot(Vector3(-10, 0.1, -30))
-	var other := _blind_bot(Vector3(30, 0.1, 30))
+	var spots := {"One": Vector3(30, 0, 30), "Two": Vector3(-30, 0, 30), "Three": Vector3(-30, 0, -30), "Boss": Vector3(30, 0, -30)}
+	var boxes: Array[Node] = []
+	for key: String in spots:
+		boxes.append(_plan_box(spots[key], "Apart" + key, "safe"))
+	# (the test map's own containers are left out of the places for now: marked locked, restored at the end)
+	var shelved: Array[Node] = []
+	for c in RaidScope.nodes(main, &"loot_containers"):
+		if not boxes.has(c) and not c.has_meta("locked"):
+			c.set_meta("locked", true)
+			shelved.append(c)
+	var spawner := main.find_child("EnemySpawner", true, false) as EnemySpawner
+	var own_spawner := spawner == null
+	if own_spawner:
+		spawner = EnemySpawner.new()
+		spawner.name = "EnemySpawner"
+		spawner.set_physics_process(false)
+		main.add_child(spawner)
+	var old_zones := spawner.zones
+	var old_boss := spawner.boss
+	spawner.zones = [{"name": "ApartBossZone", "center": spots["Boss"], "radius": 10.0}]
+	spawner.boss = {"zone": "ApartBossZone"}
+	PmcAI.reset_places(main)
+	var bot := _blind_bot(Vector3(0, 0.1, 0))
+	var other := _blind_bot(Vector3(200, 0.1, 200))
 	await physics_frame
-	var spot := {"id": 950, "name": "spot", "center": Vector3(0, 0, 0), "radius": 0.0, "weight": 1.0}
-	var ai := func(at: Vector3) -> Array: return [at, false, null]
-	_check(not bot._place_clear(spot, [ai.call(Vector3(39, 0, 0))]) and bot._place_clear(spot, [ai.call(Vector3(41, 0, 0))]),
-		"a place with a non-bot AI within 40 m is never picked")
-	_check(not bot._place_clear(spot, [[Vector3(59, 0, 0), true, null]]) and bot._place_clear(spot, [[Vector3(61, 0, 0), true, null]]),
-		"nor one with another bot within 60 m")
-	other.place = spot
-	_check(not bot._place_clear(spot, [[Vector3(200, 0, 0), true, other]]), "nor one another bot is already heading to or looting")
+	var names := func() -> Array:
+		return bot._allowed_places().map(func(p: Dictionary) -> String: return String(p["name"]).split("@")[0])
+	var crowd: Array[Scav] = []
+	var add_ai := func(key: String, count: int) -> void:
+		for i in count:
+			var ai := _spawn(SCAV_SCENE, spots[key] + Vector3(2 + i, 0.1, 3)) as Scav
+			ai.sight_range = 0.5
+			ai.set_physics_process(false)   # (stands still: these checks place it by hand)
+			crowd.append(ai)
+	var clear_crowd := func() -> void:
+		for ai in crowd:
+			ai.free()
+		crowd.clear()
+	add_ai.call("One", 2)
+	await physics_frame
+	var open: Array = names.call()
+	_check(open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"),
+		"a place with 1-2 other AI within 40 m is still picked (%s)" % [open])
+	_check(not open.has("ApartBoss"), "the boss's area is never picked")
+	add_ai.call("One", 1)
+	await physics_frame
+	open = names.call()
+	_check(not open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"), "a place with 3 other AI within 40 m is skipped (%s)" % [open])
+	clear_crowd.call()
+	# (another bot counts as one of the three; a dead one doesn't)
+	add_ai.call("One", 2)
+	var third := _blind_bot(spots["One"] + Vector3(-3, 0.1, -3))
+	await physics_frame
+	_check(not (names.call() as Array).has("ApartOne"), "another bot counts as one of the 3")
+	third.health.take_damage(900)
+	await physics_frame
+	await physics_frame
+	_check((names.call() as Array).has("ApartOne"), "a dead AI doesn't count")
+	clear_crowd.call()
+	other.place = (PmcAI.places(main).filter(func(p: Dictionary) -> bool: return String(p["name"]).begins_with("ApartTwo@")))[0]
+	open = names.call()
+	_check(not open.has("ApartTwo") and open.has("ApartOne"), "nor one another bot is already heading to or looting (%s)" % [open])
 	other.place = {}
-	var way := PackedVector3Array([Vector3(-10, 0, -30), Vector3(-10, 0, 70)])
-	_check(not bot._route_clear(way, [ai.call(Vector3(15, 0, 20))]) and bot._route_clear(way, [ai.call(Vector3(25, 0, 20))]),
-		"a way passing within 30 m of a non-bot AI is turned down (25 m off: no, 35 m off: yes)")
-	_check(not bot._route_clear(way, [[Vector3(45, 0, 20), true, null]]) and bot._route_clear(way, [[Vector3(55, 0, 20), true, null]]),
-		"and within 60 m of another bot")
-	_check(bot._route_clear(PackedVector3Array([Vector3(-10, 0, -30), Vector3(-10, 0, -60)]), [ai.call(Vector3(-10, 0, -10))]),
-		"a way leading away from someone already close passes")
-	# On the move: a scav comes within 30 m and the bot turns away from it.
-	var scav := _spawn(SCAV_SCENE, Vector3(8, 0.1, -10)) as Scav
-	scav.sight_range = 0.5
-	scav.set_physics_process(false)   # (stands still: these checks place it by hand)
+	# Every place crowded: the one with the fewest AI near.
+	add_ai.call("One", 3)
+	add_ai.call("Two", 5)
+	add_ai.call("Three", 4)
 	await physics_frame
-	bot._set_plan(PmcAI.Plan.SEARCH)
-	bot._looting_left = 5.0
-	bot._keep_apart()
-	var scav_d := bot.global_position.distance_to(scav.global_position)
-	_check(bot.turned_away == 1 and bot.plan == PmcAI.Plan.TRAVEL and bot._wander_point.distance_to(scav.global_position) > scav_d + 5.0,
-		"looting, a scav comes within %.0f m: the bot drops it and heads away (to %.0f m from it)" % [scav_d, bot._wander_point.distance_to(scav.global_position)])
-	bot._apart_left = 99.0   # (its own once-a-second check waits: this one measures the gap growing over 40 frames)
-	await _frames(40)
-	var turned := bot.turned_away
-	bot._keep_apart()
-	_check(bot.turned_away == turned, "already heading away along a clear way, it carries on (%s, %.1f m)" % [PmcAI.Plan.keys()[bot.plan], bot._last_gap])
-	turned = bot.turned_away
-	scav.global_position = bot.global_position + Vector3(35, 0, 0)
-	bot._set_plan(PmcAI.Plan.HOLD, 9.0)
-	bot._keep_apart()
-	_check(bot.turned_away == turned and bot.plan == PmcAI.Plan.HOLD, "a non-bot AI at 35 m doesn't move it")
-	scav.global_position = bot.global_position + Vector3(20, 0, 0)
-	bot.state = Scav.State.ENGAGE
-	bot._keep_apart()
-	_check(bot.turned_away == turned, "in a fight it doesn't turn away (the fight brain is the scav's)")
-	bot.state = Scav.State.IDLE
-	# Other bots: 60 m.
-	scav.global_position = Vector3(38, 0.1, -38)
-	other.global_position = bot.global_position + Vector3(0, 0, 50)
+	open = names.call()
+	_check(open == ["ApartOne"], "with every place crowded it takes the one with the fewest AI near (%s)" % [open])
+	clear_crowd.call()
+	# Walking: with 2 AI near the only open place it walks straight there (the boss's area is no option, so it is the only one).
+	for box in boxes:
+		var kind := String(box.get_meta("place"))
+		if kind.ends_with("Two") or kind.ends_with("Three"):
+			box.free()
+	PmcAI.reset_places(main)
+	add_ai.call("One", 2)
 	await physics_frame
-	bot._keep_apart()
-	_check(bot.turned_away == turned + 1, "another bot within 60 m: it turns away too")
-	other.global_position = Vector3(38, 0.1, 38)
-	# After a fight, with a non-bot AI within 40 m, the next way leads away from it first.
-	bot.global_position = Vector3(-10, 0.1, -30)
-	scav.global_position = Vector3(-10, 0.1, 5)
+	bot._plan_wait = 0.0
+	bot._wander(0.1)
+	_check(bot.plan == PmcAI.Plan.TRAVEL and String(bot.place.get("name", "")).begins_with("ApartOne@"),
+		"with 2 AI near its place it walks straight there (%s)" % bot.place.get("name", "-"))
+	clear_crowd.call()
+	other.free()
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	bot.place = {}
+	bot.visited.clear()
+	bot._places_left = 4
+	_check(not (names.call() as Array).has("ApartBoss"), "never the boss's area, even with nobody near it and nowhere else to go")
+	spawner.zones = old_zones
+	spawner.boss = old_boss
+	if own_spawner:
+		spawner.free()
+	for box in boxes:
+		if is_instance_valid(box):
+			box.free()
+	for c in shelved:
+		if is_instance_valid(c):
+			c.remove_meta("locked")
+	PmcAI.reset_places(main)
+
+	# Gunfire is heard like a player's (0.36.11): a bot's shot reaches every other AI, within the fight's limit of 4.
+	other = _blind_bot(Vector3(0, 0.1, 25))
+	other.curious = true
+	bot.global_position = Vector3(0, 0.1, 0)
+	bot.carried_gun = "ak"
+	_check(float(ItemDB.ITEMS["ak"]["noise"]) == 35.0, "(the ak's shot noise is 35 m)")
+	FightBudget.reset(bot)
+	for i in 6:
+		var ai := _spawn(SCAV_SCENE, Vector3(-6 + i * 2, 0.1, 6)) as Scav
+		ai.sight_range = 0.5
+		ai.set_physics_process(false)
+		crowd.append(ai)
 	await physics_frame
-	bot._fought = true
-	bot._next_destination()
-	_check(bot._wander_point.distance_to(scav.global_position) > 35.0 or bot.plan == PmcAI.Plan.HOLD,
-		"after a fight with a scav %.0f m off, it moves away first (to %.0f m)" % [bot.global_position.distance_to(scav.global_position), bot._wander_point.distance_to(scav.global_position)])
-	# Noises: never one with a non-bot AI within 40 m of it; curious bots go to shots, cautious ones note them.
-	bot._set_plan(PmcAI.Plan.HOLD, 9.0)
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	bot._shot_noise()
+	var coming := 0
+	var waiting := 0
+	for ai in crowd:
+		coming += 1 if ai.state == Scav.State.INVESTIGATE else 0
+		waiting += 1 if ai.state == Scav.State.SEARCH else 0
+	_check(coming == FightBudget.BUDGET and waiting == 2 and FightBudget.used(bot, bot.global_position) == FightBudget.BUDGET,
+		"scavs hear a bot's shot: %d come over (the limit of 4 a fight), the other %d wait on alert" % [coming, waiting])
+	_check(bot.state == Scav.State.IDLE and other.state == Scav.State.INVESTIGATE,
+		"another curious bot hears it too and goes to look; the shooter never hears itself")
+	clear_crowd.call()
+	# A scav's shots: bots hear them, other scavs do not (their ways with each other are locked).
+	other.free()
+	var shooter := _spawn(SCAV_SCENE, Vector3(0, 0.1, 5)) as Scav
+	shooter.sight_range = 0.5
+	shooter.set_physics_process(false)
+	shooter.carried_gun = "ak"
+	var listener := _spawn(SCAV_SCENE, Vector3(5, 0.1, 5)) as Scav
+	listener.sight_range = 0.5
+	listener.set_physics_process(false)
+	bot.global_position = Vector3(-10, 0.1, 5)
 	bot.curious = true
-	var noise := bot.global_position + Vector3(0, 0, 15)
-	scav.global_position = noise + Vector3(20, 0, 0)
+	FightBudget.reset(bot)
 	await physics_frame
-	bot.hear_noise(noise, 40.0, true)
-	_check(bot.state == Scav.State.IDLE, "a shot with a scav 20 m from it: even a curious bot stays away")
-	scav.global_position = Vector3(38, 0.1, -38)
-	await physics_frame
-	bot.hear_noise(noise, 12.0)
-	_check(bot.state == Scav.State.INVESTIGATE, "a footstep with no AI near: it goes to look, as now")
-	bot._set_state(Scav.State.IDLE)
-	bot.hear_noise(noise, 40.0, true)
-	_check(bot.state == Scav.State.INVESTIGATE, "a curious bot goes to a gunshot")
+	shooter._shot_noise()
+	_check(bot.state == Scav.State.INVESTIGATE and listener.state == Scav.State.IDLE,
+		"a curious bot hears a scav's shots and goes to look; a scav beside the shooter hears nothing")
 	bot._set_state(Scav.State.IDLE)
 	bot.curious = false
-	bot.hear_noise(noise, 40.0, true)
-	_check(bot.state == Scav.State.IDLE and bot._shot_at == noise, "a cautious bot ignores it and remembers where it was")
+	shooter._shot_noise()
+	_check(bot.state == Scav.State.IDLE and bot._shot_at == shooter.global_position, "a cautious bot notes where the shots came from")
+	for node: Node in [shooter, listener, bot]:
+		node.free()
+	await physics_frame
+	_check(RaidScope.nodes(main, &"pmc_bots").is_empty(), "(no bots left)")
+	var lone := _spawn(SCAV_SCENE, Vector3(0, 0.1, 5)) as Scav
+	lone.carried_gun = "ak"
+	var neighbour := _spawn(SCAV_SCENE, Vector3(4, 0.1, 5)) as Scav
+	var raider := _spawn(RAIDER_SCENE, Vector3(-4, 0.1, 5)) as Scav
+	for ai: Scav in [lone, neighbour, raider]:
+		ai.sight_range = 0.5
+		ai.set_physics_process(false)
+	await physics_frame
+	lone._shot_noise()
+	_check(neighbour.state == Scav.State.IDLE and raider.state == Scav.State.IDLE, "with no bots in the raid, scav gunfire is heard by nobody, as before")
+	for node: Node in [lone, neighbour, raider]:
+		node.free()
+
+	# Cautious bots steer their next place away from gunshots; about half the bots are curious.
+	var careful := _blind_bot(Vector3(0, 0.1, 0))
+	await physics_frame
+	careful.curious = false
+	var noise := careful.global_position + Vector3(0, 0, 15)
+	careful.hear_noise(noise, 40.0, true)
 	var toward := {"id": 960, "name": "toward", "center": noise + Vector3(0, 0, 10), "radius": 0.0, "weight": 3.0}
-	var away := {"id": 961, "name": "away", "center": bot.global_position + Vector3(0, 0, -90), "radius": 0.0, "weight": 1.0}
+	var away := {"id": 961, "name": "away", "center": careful.global_position + Vector3(0, 0, -90), "radius": 0.0, "weight": 1.0}
 	var toward_picks := 0
 	for i in 1000:
-		if bot._weighted_pick([toward, away]) == toward:
+		if careful._weighted_pick([toward, away]) == toward:
 			toward_picks += 1
-	_check(toward_picks < 400, "and prefers its next place away from the shots (%d in 1000 toward them)" % toward_picks)
+	_check(toward_picks < 400, "a cautious bot prefers its next place away from the shots (%d in 1000 toward them)" % toward_picks)
+	careful.free()
 	var rolls := 0
 	for i in 200:
 		var b := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
@@ -6855,33 +6946,32 @@ func _section_pmc_apart() -> void:
 		rolls += 1 if b.curious else 0
 		b.free()
 	_check(rolls > 70 and rolls < 130, "about half the bots are curious (%d of 200)" % rolls)
+
 	# Later arrivals keep away from bots (40 m, out of sight) like from players; with no bots nothing changes.
-	var spawner := EnemySpawner.new()
-	spawner.set_physics_process(false)
+	var late := EnemySpawner.new()
+	late.set_physics_process(false)
 	var markers: Array[Marker3D] = []
 	# (up in the air, so nothing earlier sections left on the ground is in the way)
 	for at: Vector3 in [Vector3(-30, 30, -30), Vector3(30, 30, -35), Vector3(30, 30, -25)]:
 		var marker := Marker3D.new()
 		marker.position = at
-		spawner.add_child(marker)
+		late.add_child(marker)
 		markers.append(marker)
-	main.add_child(spawner)
+	main.add_child(late)
 	var wall := _block(Vector3(24, 2, -24), Vector3(1, 80, 8))
-	other.free()
-	scav.free()
-	bot.global_position = Vector3(-30, 0.1, -10)
-	bot.sight_range = 80.0
+	var watcher := _blind_bot(Vector3(-30, 0.1, -10))
+	watcher.sight_range = 80.0
 	await physics_frame
 	var players: Array[Node] = []
-	var bots := spawner._living_bots()
-	var with_bots := spawner._usable_points(markers, players, bots)
+	var bots := late._living_bots()
+	var with_bots := late._usable_points(markers, players, bots)
 	_check(bots.size() == 1 and not with_bots.has(markers[0]) and not with_bots.has(markers[1]) and with_bots.has(markers[2]),
 		"a later arrival never spawns within 40 m of a bot or where it can see (left: %s)" % str(markers.map(func(m: Marker3D) -> bool: return with_bots.has(m))))
-	bot.free()
+	watcher.free()
 	await physics_frame
-	_check(spawner._living_bots().is_empty() and spawner._usable_points(markers, players, spawner._living_bots()) == spawner._usable_points(markers, players),
+	_check(late._living_bots().is_empty() and late._usable_points(markers, players, late._living_bots()) == late._usable_points(markers, players),
 		"with no bots in the raid the spawner picks from the same spots as before")
-	spawner.queue_free()
+	late.queue_free()
 	wall.queue_free()
 	Scav.lod_enabled = true
 	player.teleport_to(START_SPOT)
@@ -6904,11 +6994,9 @@ func _face_off(a: Scav, b: Scav, center: Vector3, gap: float) -> void:
 	b.look_at(Vector3(a.global_position.x, b.global_position.y, a.global_position.z))
 
 
-## An AI PMC for the AI-against-AI checks: keeps its keep-apart check out of the way (pmc_apart tests that).
+## An AI PMC for the AI-against-AI checks.
 func _fighting_bot(pos: Vector3) -> PmcAI:
-	var bot := _spawn(PMC_AI_SCENE, pos) as PmcAI
-	bot._apart_left = 9999.0
-	return bot
+	return _spawn(PMC_AI_SCENE, pos) as PmcAI
 
 
 func _section_pmc_fights_ai() -> void:
@@ -7224,7 +7312,7 @@ func _section_pmc_leave() -> void:
 		await physics_frame
 	_check(usable == [open_far] and hurt.plan == PmcAI.Plan.EXIT and hurt.extract == open_far,
 		"hurt with no heals it leaves early, by the open extract, not the shut one nearer (%s)" % [hurt.extract])
-	# With another AI close to the near extract, the farther clear one is preferred; with none clear, the nearest.
+	# Other AI near an extract make no difference (0.36.11): it takes the nearest open one, and AI coming near on the way don't turn it.
 	shut.needs_power = ""
 	shut.set_open(true)
 	var guard := _spawn(SCAV_SCENE, Vector3(28, 0.1, 30)) as Scav
@@ -7235,23 +7323,13 @@ func _section_pmc_leave() -> void:
 	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
 	hurt._exit_retry = 0.0
 	hurt._next_destination()
-	_check(hurt.extract == open_far and not hurt._exit_forced, "an extract with another AI within 40 m is passed over for a clear one")
+	_check(hurt.extract == shut and hurt.plan == PmcAI.Plan.EXIT, "the nearest open extract, with an AI right beside it (the farther one is clear)")
 	open_far.free()
-	hurt.extract = null
-	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
-	hurt._next_destination()
-	_check(hurt.extract == null and hurt.plan != PmcAI.Plan.EXIT, "with no clear extract it takes none and tries again later (0.36.8)")
-	guard.global_position = Vector3(57, 0.1, 30)
-	hurt.extract = null
-	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
-	hurt._exit_retry = 0.0
-	hurt._next_destination()
-	_check(hurt.extract == shut and hurt._exit_forced, "an extract with another AI 30-40 m off will do when none is clearer (0.36.8)")
-	guard.global_position = Vector3(25, 0.1, 30)
-	hurt._apart_left = 99.0
-	hurt._keep_apart()
-	_check(hurt.extract == null and hurt.plan != PmcAI.Plan.EXIT and hurt._exit_retry > 0.0,
-		"another AI coming within 30 m on its way out turns it away from the extract (0.36.8)")
+	guard.global_position = Vector3(8, 0.1, 30)
+	for i in 30:
+		await physics_frame
+	_check(hurt.extract == shut and hurt.plan == PmcAI.Plan.EXIT and hurt._exit_retry <= 0.0,
+		"another AI coming near on its way out doesn't turn it away")
 	for node: Node in [hurt, guard, shut]:
 		node.free()
 	for z: ExtractZone in zones:
