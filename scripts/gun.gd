@@ -174,6 +174,34 @@ func _ready() -> void:
 		(node.get_node("Muzzle/Flash") as Node3D).visible = false
 	# The player's own @onready vars aren't set yet (children are ready first), so look the inventory up directly.
 	(player.get_node("Inventory") as Inventory).equipment_changed.connect(_on_equipment_changed)
+	if DisplayServer.get_name() != "headless":
+		_warm_models.call_deferred()
+
+
+## Draws every first-person gun (and its hands) once at raid start, too small to see, behind the loading screen
+## (0.35.28, owner: "whenever you switch from primary to secondary ... huge lag spike for a couple seconds"). A shader
+## is built the first time something using it is drawn, and the gun you weren't holding was first drawn when you
+## switched to it: on the web that froze the game. Like Effects.warm_up for the shots. Looks only.
+func _warm_models() -> void:
+	# The other gun's attachments go on now too, so they're drawn here (and stay on: GunViewModels.dress).
+	for slot in ["primary", "secondary"]:
+		var stack := player.inventory.equipped(slot)
+		if stack != null and stack != weapon:
+			var key: String = ItemDB.weapon_stats(stack)["model"]
+			if key != _model_key and _models.has(key):
+				GunViewModels.dress(_models[key], key, stack.attachments, _muzzle_rests[key])
+	var shown: Array[Node3D] = []
+	for key in _models:
+		var node: Node3D = _models[key]
+		if not node.visible:
+			node.scale = Vector3.ONE * 0.001
+			node.visible = true
+			shown.append(node)
+	await get_tree().create_timer(0.5, true).timeout   # (the raid opens paused, behind the menu)
+	for node in shown:
+		if is_instance_valid(node):
+			node.scale = Vector3.ONE
+			node.visible = node == model
 
 
 ## Switch to the weapon in a slot ("primary"/"secondary"), if there is one.
