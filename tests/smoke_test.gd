@@ -1371,6 +1371,13 @@ func _section_items() -> void:
 		for grid in inv.grids():
 			if grid.stacks.has(spare):
 				grid.remove(spare)
+	# The secure pocket's key goes first (0.35.25, owner), even when the pocket one is more used.
+	var safe := ItemStack.new("bank_vault_key", 1)
+	safe.durability = ItemDB.max_durability("bank_vault_key")
+	inv.secure.place(safe)
+	_check(inv.key_for("BankVaultDoor") == safe and key.durability < safe.durability,
+		"a key in the secure pocket is used before one in the pockets, even a more-used one")
+	inv.secure.remove(safe)
 	key.durability = 1
 	inv.use_key(key)
 	_check(inv.count_of("bank_vault_key") == 0 and inv.key_for("BankVaultDoor") == null, "the key's last use: it's gone")
@@ -5901,7 +5908,7 @@ func _section_old_bloxov() -> void:
 		and (tree_list.get_meta(&"data", PackedFloat32Array()) as PackedFloat32Array).size() > 7 * 1000
 		and tree_list.get_meta(&"look", -1) == map_trees.get(&"look"),
 		"the map's trees come from their own list file, which the hideout builds them from")
-	# 0.35.25 (owner: "the ladder in the barn makes u climb it backwards"): it was turned the wrong way, leaning out
+	# 0.35.26 (owner: "the ladder in the barn makes u climb it backwards"): it was turned the wrong way, leaning out
 	# into the barn, so you faced away from the loft. It leans west onto the loft (tools/ladder_audit.gd checks them all).
 	var barn_ladder := map.get_node_or_null("Ladders/Ladder1") as Node3D
 	_check(barn_ladder != null and barn_ladder.get_meta(&"place", "") == "Barn" and barn_ladder.transform.basis.z.x > 0.9,
