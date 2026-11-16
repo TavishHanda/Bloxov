@@ -14,7 +14,7 @@ say() { echo "$1"; echo "nightly_guard: $1 ($2)" >&2; exit 0; }
 [ "$event" = "schedule" ] || say run "not a scheduled run ($event), always acts"
 
 hour="${NIGHTLY_NOW_HOUR:-$(date -u +%H)}"
-hour=$((10#$hour)) 2>/dev/null || say run "could not read the hour '$hour'"
+hour=$((10#$hour)) 2>/dev/null || say skip "could not read the hour '$hour'"
 if [ "$hour" -lt 8 ] || [ "$hour" -gt 12 ]; then
   echo "::notice::Nightly run started late (UTC hour $hour, window is 08:00-12:59 UTC); skipped so players' raids are not interrupted." >&2
   say skip "UTC hour $hour is outside 08-12"
