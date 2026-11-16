@@ -1371,6 +1371,13 @@ func _section_items() -> void:
 		for grid in inv.grids():
 			if grid.stacks.has(spare):
 				grid.remove(spare)
+	# The secure pocket's key goes first (0.35.24, owner), even when the pocket one is more used.
+	var safe := ItemStack.new("bank_vault_key", 1)
+	safe.durability = ItemDB.max_durability("bank_vault_key")
+	inv.secure.place(safe)
+	_check(inv.key_for("BankVaultDoor") == safe and key.durability < safe.durability,
+		"a key in the secure pocket is used before one in the pockets, even a more-used one")
+	inv.secure.remove(safe)
 	key.durability = 1
 	inv.use_key(key)
 	_check(inv.count_of("bank_vault_key") == 0 and inv.key_for("BankVaultDoor") == null, "the key's last use: it's gone")
