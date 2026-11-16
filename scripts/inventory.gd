@@ -151,13 +151,16 @@ func wear_armor(damage: int, head := false) -> bool:
 	return true
 
 
-## A key for door `door` that's on us (pockets, backpack, secure pocket), or null.
+## A key for door `door` that's on us (pockets, backpack, secure pocket), or null. With two or more of the same key
+## it picks the one with the fewest uses left, so only that one wears and the others stay full (0.35.22, owner).
 func key_for(door: String) -> ItemStack:
+	var best: ItemStack = null
 	for grid in grids():
 		for stack in grid.stacks:
 			if ItemDB.kind(stack.id) == "key" and ItemDB.item(stack.id)["door"] == door and (stack.durability > 0 or ItemDB.max_durability(stack.id) == 0):
-				return stack
-	return null
+				if best == null or stack.durability < best.durability:
+					best = stack
+	return best
 
 
 ## Uses up one use of a key; a key with none left is gone.
