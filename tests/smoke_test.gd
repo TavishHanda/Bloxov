@@ -4153,7 +4153,7 @@ func _section_net() -> void:
 	c3.set_queued(true)
 	await _until(func() -> bool: return [c1, c2, c3].all(func(c: Network) -> bool: return c.in_raid))
 	_check([c1, c2, c3].all(func(c: Network) -> bool: return c.in_online_raid() and log[c].has("raid")), "the queue puts all three in one raid")
-	_check(c1.raid_seed == c3.raid_seed and absf(c1.raid_time_left - c1.RAID_TIME) < 5.0 and c1.player_count() == 3,
+	_check(c1.raid_seed == c3.raid_seed and absf(c1.raid_time_left - (c1.PLAYTEST_RAID_TIME if c1.PLAYTEST_RAID_TIME > 0.0 else c1.RAID_TIME)) < 5.0 and c1.player_count() == 3,
 		"same raid: same extract seed, a fresh clock, 3 players")
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()
@@ -5806,7 +5806,7 @@ func _section_riptide() -> void:
 	var sub_zone := rip.raid.get_node("Extracts/SubBay") as Node3D
 	var rip_switch := rip.switches()[0] as Node3D
 	_check(c1.raid_map == 1 and RaidMap.scene_path == MAP and rip.raid.get_node("Extracts").get_child_count() == 6
-		and is_equal_approx(c1.raid_time_left, 900.0), "the server runs the raid on Riptide, for 15 minutes, and tells the players")
+		and is_equal_approx(c1.raid_time_left, Network.PLAYTEST_RAID_TIME if Network.PLAYTEST_RAID_TIME > 0.0 else 900.0), "the server runs the raid on Riptide, for 15 minutes, and tells the players")
 	RaidMap.scene_path = ""
 	_check(rip.extract_at(sub_zone.global_position).is_empty() and not rip.extract_at(rip.raid.get_node("Extracts/Cove").global_position).is_empty(),
 		"the server's sub bay is shut until the power is on (other extracts count)")
