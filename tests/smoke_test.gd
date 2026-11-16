@@ -1356,6 +1356,21 @@ func _section_items() -> void:
 	_check(key != null and door.prompt(inv) == "Unlock with Bank Vault Key", "with the key on you: [F] Unlock")
 	_check(door.unlock(inv) and door.is_open and inv.key_for("BankVaultDoor") == key and key.durability == 4,
 		"unlocking opens it and uses one of the key's 5 uses (%d left)" % key.durability)
+	# Two of the same key (0.35.22, owner): only one wears, the most-used one first; the other stays full.
+	inv.add("bank_vault_key")
+	var spare: ItemStack = null
+	for grid in inv.grids():
+		for stack in grid.stacks:
+			if stack.id == "bank_vault_key" and stack != key:
+				spare = stack
+	var spare_uses := spare.durability if spare != null else -1
+	inv.use_key(inv.key_for("BankVaultDoor"))
+	_check(spare != null and key.durability == 3 and spare.durability == spare_uses and inv.key_for("BankVaultDoor") == key,
+		"two of the same key: only the most-used one loses a use (%d left), the other stays at %d" % [key.durability, spare_uses])
+	if spare != null:
+		for grid in inv.grids():
+			if grid.stacks.has(spare):
+				grid.remove(spare)
 	key.durability = 1
 	inv.use_key(key)
 	_check(inv.count_of("bank_vault_key") == 0 and inv.key_for("BankVaultDoor") == null, "the key's last use: it's gone")

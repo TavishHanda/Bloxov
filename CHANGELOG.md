@@ -13,6 +13,11 @@ Owner: "For the mauler quest can you please change it to not just scavs but all 
   Raijin and his guards Ace and Orbit. Its text reads "Kill 3 AI enemies with a Mauler, then extract." Player kills
   still never count (no quests for killing players). A new kill-quest target, "ai", means any AI (`scripts/quests.gd`).
   The server counts quest kills, so it was restarted. Close Quarters (2 Raiders with a Mauler) is unchanged.
+## 0.35.22 (two of the same key: only one wears)
+Owner: "when you have two of the same key in the inventory only one of the keys durability is being used".
+- Unlocking a door already took a use off one key only, but which one was just the first found. Now it always uses the
+  key with the fewest uses left, so the most-used copy runs out first and the others stay full
+  (`Inventory.key_for`). Smoke test checks two vault keys: only one loses a use.
 
 ## 0.35.21 (TEMP: half the AI on Riptide for a playtest)
 Owner: "Can we also reduce the amount of AI in the map temporarily?" (picked: half, on Riptide).
