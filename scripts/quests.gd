@@ -6,7 +6,8 @@ extends RefCounted
 ## take items found in raid (ItemStack.found) from your stash and loadout. Every quest pays a small reward.
 ## No quests for killing other players (owner). Names and text are placeholders until the owner renames them.
 
-## kind "kill": `target` is the AI's scene name (scav, sniper, raider, boss; none = any), optional `weapon` = the gun's item id.
+## kind "kill": `target` is the AI's scene name (scav, sniper, raider, boss; none = any), or "ai" for any AI but never a
+## player (0.35.23, owner: the Mauler quest counts scavs, Raiders, guards and bosses), optional `weapon` = the gun's item id.
 ## kind "hand_in": `item` is an item id, or "kind:a,b" for any item of those kinds.
 ## kind "extract": get out alive, optionally carrying at least `min_value` of loot, or at the extract `at` (its node name).
 ## kind "visit": search a container in `place` (a container's place metadata; "BankVault" = a locked one in the bank).
@@ -22,8 +23,8 @@ const LIST := {
 		"kind": "kill", "target": "scav", "count": 5, "reward": 2000},
 	"spare_parts": {"trader": "guns", "level": 2, "name": "Spare Parts", "text": "Hand in 2 attachments found in raid.",
 		"kind": "hand_in", "item": "kind:attachment", "count": 2, "reward": 3000},
-	"field_test": {"trader": "guns", "level": 3, "name": "Field Test", "text": "Kill 3 scavs with a Mauler, then extract.",
-		"kind": "kill", "target": "scav", "weapon": "shotgun", "count": 3, "reward": 3000},
+	"field_test": {"trader": "guns", "level": 3, "name": "Field Test", "text": "Kill 3 AI enemies with a Mauler, then extract.",
+		"kind": "kill", "target": "ai", "weapon": "shotgun", "count": 3, "reward": 3000},
 	"overwatch": {"trader": "guns", "level": 3, "name": "Overwatch", "text": "Kill 2 snipers, then extract.",
 		"kind": "kill", "target": "sniper", "count": 2, "reward": 5000},
 	"hard_targets": {"trader": "guns", "level": 3, "name": "Hard Targets", "text": "Kill 3 Raiders, then extract.",
@@ -196,7 +197,9 @@ static func searched(box: Node) -> void:
 ## Whether a kill [target, weapon, tags] counts for a kill quest.
 static func kill_counts(quest: Dictionary, kill: Array) -> bool:
 	var tags: Array = kill[2] if kill.size() > 2 and kill[2] is Array else []
-	return (not quest.has("target") or kill[0] == quest["target"]) and (not quest.has("weapon") or kill[1] == quest["weapon"]) \
+	var target_ok: bool = not quest.has("target") or kill[0] == quest["target"] \
+		or (quest["target"] == "ai" and str(kill[0]) != "player" and str(kill[0]) != "")
+	return target_ok and (not quest.has("weapon") or kill[1] == quest["weapon"]) \
 		and (not quest.has("tag") or tags.has(quest["tag"]))
 
 

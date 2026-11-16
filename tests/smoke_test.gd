@@ -3528,6 +3528,10 @@ func _section_hideout() -> void:
 	_check(Quests.gain(Quests.LIST["long_haul"], [], [], 0, "Highway") == 1 and Quests.gain(Quests.LIST["long_haul"], [], [], 0, "FarmRoad") == 0
 		and Quests.gain(Quests.LIST["close_quarters"], [["raider", "shotgun", []], ["scav", "shotgun"]], [], 0, "") == 1,
 		"Long Haul only counts the Highway, Close Quarters only Raiders")
+	# 0.35.23 (owner): Field Test counts any AI killed with a Mauler (scavs, Raiders, guards, bosses), never a player.
+	_check(Quests.gain(Quests.LIST["field_test"], [["scav", "shotgun"], ["raider", "shotgun", []], ["boss", "shotgun"],
+		["boss_raijin", "shotgun"], ["guard_raijin", "shotgun"], ["sniper", "shotgun"], ["player", "shotgun"], ["raider", "ak"]], [], 0, "") == 6,
+		"Field Test counts every AI killed with a Mauler, but not players or other guns")
 	Profile.quests_done.append_array(["restock", "pharmacy_run"])
 	Profile.rewards_taken.append("restock")
 	Quests.raid_started()

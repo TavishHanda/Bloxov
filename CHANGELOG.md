@@ -13,6 +13,13 @@ Owner: "Can we make it prioritize the key in your safe pocket?"
   even if the other is more used. Among keys in the same place, the one with the fewest uses left still goes first
   (0.35.22). `Inventory.key_for`; the smoke test checks it.
 
+## 0.35.23 (Field Test counts every AI)
+Owner: "For the mauler quest can you please change it to not just scavs but all raiders/scavs/bonsguards/raijin/guards/etc".
+- **Field Test (Gunsmith level 3) now counts any AI killed with a Mauler**: scavs, snipers, Raiders, Bon and his guards,
+  Raijin and his guards Ace and Orbit. Its text reads "Kill 3 AI enemies with a Mauler, then extract." Player kills
+  still never count (no quests for killing players). A new kill-quest target, "ai", means any AI (`scripts/quests.gd`).
+  The server counts quest kills, so it was restarted. Close Quarters (2 Raiders with a Mauler) is unchanged.
+
 ## 0.35.22 (two of the same key: only one wears)
 Owner: "when you have two of the same key in the inventory only one of the keys durability is being used".
 - Unlocking a door already took a use off one key only, but which one was just the first found. Now it always uses the
