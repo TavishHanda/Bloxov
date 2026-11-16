@@ -130,7 +130,12 @@ static func aim_place(model: Node3D, ads: Vector3) -> Vector3:
 ## Shows `attachments` (slot -> id) on first-person `model`: their models (assets/models/guns/att_<id>.glb) under an
 ## "Attachments" node, the mag stretched for an extended mag, the muzzle moved out past a barrel part. `muzzle_rest` is
 ## where the muzzle sits bare. Returns how far the optic raises the sight line (aiming lowers the gun by that much).
+## 0.35.28: the same attachments as last time are left on (switching guns used to take them off and build them again,
+## and on the web building a part's look again froze the game: owner, a lag spike on every switch to the secondary).
 static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_rest: Vector3) -> float:
+	var dressed := var_to_str(attachments)
+	if model.get_meta(&"dressed", "") == dressed and model.has_node("Attachments"):
+		return float(model.get_meta(&"raise", 0.0))
 	var old := model.get_node_or_null("Attachments")
 	if old != null:
 		model.remove_child(old)
@@ -156,7 +161,9 @@ static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_re
 		var mount := art.get_node_or_null({"scope": "Optic", "sight": "Optic", "grip": "Fore"}.get(slot, "Muzzle")) as Node3D
 		if mount == null or not ResourceLoader.exists(path):
 			continue
-		var part: Node3D = (load(path) as PackedScene).instantiate()
+		if not _parts.has(path):
+			_parts[path] = load(path)
+		var part: Node3D = (_parts[path] as PackedScene).instantiate()
 		PixelModel.make_crisp(part)
 		for mesh: GeometryInstance3D in part.find_children("*", "GeometryInstance3D", true, false):
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -170,7 +177,13 @@ static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_re
 				var end := part.get_node_or_null("End") as Node3D
 				if end != null:
 					muzzle.position = muzzle_rest + end.position
+	model.set_meta(&"dressed", dressed)
+	model.set_meta(&"raise", raise)
 	return raise
+
+
+## Attachment models loaded so far, kept (0.35.28): loading one again on every switch made new copies of its looks.
+static var _parts := {}
 
 
 # --- Animations (0.20.24, owner: reload animations and a visual kick per shot) ------------------------
