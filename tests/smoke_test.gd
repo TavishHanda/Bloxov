@@ -5901,7 +5901,7 @@ func _section_old_bloxov() -> void:
 		and (tree_list.get_meta(&"data", PackedFloat32Array()) as PackedFloat32Array).size() > 7 * 1000
 		and tree_list.get_meta(&"look", -1) == map_trees.get(&"look"),
 		"the map's trees come from their own list file, which the hideout builds them from")
-	# 0.35.24 (owner: "the ladder in the barn makes u climb it backwards"): it was turned the wrong way, leaning out
+	# 0.35.25 (owner: "the ladder in the barn makes u climb it backwards"): it was turned the wrong way, leaning out
 	# into the barn, so you faced away from the loft. It leans west onto the loft (tools/ladder_audit.gd checks them all).
 	var barn_ladder := map.get_node_or_null("Ladders/Ladder1") as Node3D
 	_check(barn_ladder != null and barn_ladder.get_meta(&"place", "") == "Barn" and barn_ladder.transform.basis.z.x > 0.9,

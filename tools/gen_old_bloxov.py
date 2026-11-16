@@ -1342,7 +1342,7 @@ def farm_barn():
                 box(261.82, 0, z - 0.1, 262.02, 2.8, z + 0.1, "wood", kind="loft_post")
             box(256.4, 3.0, 26.5, 258.4, 4.2, 29.0, "hay", kind="hay_bales")
             box(256.4, 3.0, 41.0, 258.0, 3.6, 43.5, "hay", kind="hay_bales")
-            ladder(262.12, 0.0, 35.0, 90.0, 3.0, "Barn")    # (leans west, on the loft; was -90 until 0.35.24: backwards)
+            ladder(262.12, 0.0, 35.0, 90.0, 3.0, "Barn")    # (leans west, on the loft; was -90 until 0.35.25: backwards)
 
 
 def rich_house(n, x, y, w, d, who, model=None, place=None, loot=None, colour="wall_rich"):
