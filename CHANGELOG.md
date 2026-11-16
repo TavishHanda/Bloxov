@@ -15,6 +15,12 @@ Owner: "the ladder in the barn makes u climb it backwards, so you cant actually 
 - New `tools/ladder_audit.gd` checks every ladder on both maps has the floor it leads to on the side it leans on. All
   of Riptide's ladders and the cabin's hatch ladder were already right. The smoke test checks the barn's ladder.
 
+## 0.35.26 (No out-of-breath woosh on Riptide)
+Owner: "on riptide, theres like this woosh woosh noise that happens when you run for a long time, its so annoying please get rid of it".
+- **The out-of-breath sound no longer plays on Riptide.** It was the low-stamina breathing (0.31.14), a soft "woosh" every
+  1.3 s once stamina drops under a quarter. A map now turns it off with `no_breath` metadata (`tools/gen_riptide.py`);
+  Frontlines keeps it. Stamina itself is unchanged.
+
 ## 0.35.25 (the safe-pocket key goes first)
 Owner: "Can we make it prioritize the key in your safe pocket?"
 - With two or more of the same key, a key in the secure pocket is now used before one in the pockets or backpack,
