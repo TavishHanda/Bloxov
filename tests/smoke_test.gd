@@ -68,6 +68,9 @@ func _initialize() -> void:
 	# PvP is on for everyone since 0.31.4; the sections test the one-stash online flow unless they force it on.
 	_pvp_default_was = GameSettings.pvp_stash_default
 	GameSettings.pvp_stash_default = false
+	# TEMP playtest AI cut (0.35.21): the map checks below expect the real numbers; one check turns it back on.
+	_ai_scale_was = Network.playtest_ai_scale
+	Network.playtest_ai_scale = 1.0
 	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
 	# it runs faster than real time; the whole test is about 300 game seconds.)
 	create_timer(450.0, true).timeout.connect(func() -> void:
@@ -3723,6 +3726,7 @@ func _section_settings() -> void:
 
 
 var _pvp_default_was := false
+var _ai_scale_was := 1.0
 
 
 func _section_stash_modes() -> void:
@@ -5677,6 +5681,15 @@ func _section_riptide() -> void:
 	var boss_starts := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("boss_start", false))
 	_check(zone_names.has("Lab") and zone_names.has("Landing") and boss_starts.size() >= 1
 		and spawner.boss.get("zone", "") == "Lab", "Riptide's AI zones, and the boss starts in the lab's core")
+	if _ai_scale_was < 1.0:   # TEMP playtest AI cut (0.35.21)
+		var cut := EnemySpawner.new()
+		cut.set("zones", spawner.zones)
+		cut.set("max_alive", spawner.max_alive)
+		RaidMap._scale_ai(cut, _ai_scale_was)
+		var cut_zones: Array = cut.get("zones")
+		_check(int(cut.get("max_alive")) == roundi(spawner.max_alive * _ai_scale_was) and int(cut_zones[0].scavs) < int(spawner.zones[0].scavs)
+			and spawner.zones[0].scavs == 5, "playtest: Riptide's AI cut to %d%% (max alive %d)" % [roundi(_ai_scale_was * 100), cut.get("max_alive")])
+		cut.free()
 	# 0.33.3: 15-minute raids (owner), and the sub bay shut until its power switch is thrown (which opens it)
 	var fake := Node.new()
 	var raid_node := Raid.new()
