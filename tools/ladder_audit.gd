@@ -1,5 +1,5 @@
 extends SceneTree
-## Checks every ladder on the maps faces the right way (0.35.26): the floor it leads up to must be on its
+## Checks every ladder on the maps faces the right way (0.35.27): the floor it leads up to must be on its
 ## into() side (the side it leans on), not behind the climber. Run: godot --headless -s tools/ladder_audit.gd
 
 const MAPS := ["res://scenes/maps/old_bloxov.tscn", "res://scenes/maps/riptide.tscn"]
