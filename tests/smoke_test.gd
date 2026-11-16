@@ -4176,7 +4176,7 @@ func _section_net() -> void:
 	c3.set_queued(true)
 	await _until(func() -> bool: return [c1, c2, c3].all(func(c: Network) -> bool: return c.in_raid))
 	_check([c1, c2, c3].all(func(c: Network) -> bool: return c.in_online_raid() and log[c].has("raid")), "the queue puts all three in one raid")
-	_check(c1.raid_seed == c3.raid_seed and absf(c1.raid_time_left - (c1.PLAYTEST_RAID_TIME if c1.PLAYTEST_RAID_TIME > 0.0 else c1.RAID_TIME)) < 5.0 and c1.player_count() == 3,
+	_check(c1.raid_seed == c3.raid_seed and absf(c1.raid_time_left - c1.RAID_TIME) < 5.0 and c1.player_count() == 3,
 		"same raid: same extract seed, a fresh clock, 3 players")
 	var c1_id: int = c1.multiplayer.get_unique_id()
 	var c2_id: int = c2.multiplayer.get_unique_id()
@@ -5715,7 +5715,7 @@ func _section_riptide() -> void:
 	raid_node.name = "Raid"
 	fake.add_child(raid_node)
 	RaidMap.load_map(fake, MAP)
-	_check(is_equal_approx(raid_node.raid_time, 900.0), "Riptide raids last 15 minutes (the map's raid metadata)")
+	_check(is_equal_approx(raid_node.raid_time, Network.PLAYTEST_RAID_TIME if Network.PLAYTEST_RAID_TIME > 0.0 else 900.0), "Riptide raids last 15 minutes (the map's raid metadata)")
 	fake.free()
 	var sub: ExtractZone = world.raid.find_child("SubBay", true, false)
 	var power: MapSwitch = world.raid.find_child("SubBayPower", true, false)
