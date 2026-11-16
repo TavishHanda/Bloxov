@@ -152,7 +152,7 @@ func wear_armor(damage: int, head := false) -> bool:
 
 
 ## A key for door `door` that's on us (pockets, backpack, secure pocket), or null. With two or more of the same key
-## only one wears: a key in the secure pocket first (0.35.24, owner), then the one with the fewest uses left, so the
+## only one wears: a key in the secure pocket first (0.35.25, owner), then the one with the fewest uses left, so the
 ## others stay full (0.35.22, owner).
 func key_for(door: String) -> ItemStack:
 	var best: ItemStack = null

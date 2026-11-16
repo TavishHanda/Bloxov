@@ -30,8 +30,6 @@ var loot_summary: PackedStringArray = []
 func _ready() -> void:
 	# Online, the server runs the clock (you may join a raid that's already going).
 	time_left = Network.main.raid_time_left if Network.main.in_online_raid() else raid_time
-	if Network.PLAYTEST_RAID_TIME > 0.0 and not Network.main.in_online_raid():
-		time_left = Network.PLAYTEST_RAID_TIME   # TEMP playtest clock (net.gd)
 	player.health.died.connect(_on_player_died)
 	_set_leave_warning(true)
 	Quests.raid_started()
