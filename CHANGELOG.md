@@ -13,6 +13,13 @@ Owner: "when you have two of the same key in the inventory only one of the keys 
   key with the fewest uses left, so the most-used copy runs out first and the others stay full
   (`Inventory.key_for`). Smoke test checks two vault keys: only one loses a use.
 
+## 0.35.21 (TEMP: half the AI on Riptide for a playtest)
+Owner: "Can we also reduce the amount of AI in the map temporarily?" (picked: half, on Riptide).
+- **Riptide has about half its AI** for now: each zone's scavs and Raiders, the roamers, the
+  total budgets and the most alive at once (14 instead of 28) are halved and rounded. The one sniper, the lab boss and its two guards
+  are unchanged. Frontlines is unchanged. **Temporary:** set `playtest_ai_scale` in `scripts/net.gd` back to `1.0`
+  after the playtest (with `PLAYTEST_RAID_TIME` from 0.35.18).
+
 ## 0.35.20 (the Reaper, restyled from the owner's photo)
 Owner sent a photo of a compact suppressed carbine: "Make the reaper look like this".
 - **The Reaper has a new look** (look k in `art_source/scripts/make_gun.py`, still blocky and all black and dark grey):
