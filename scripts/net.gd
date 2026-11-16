@@ -84,6 +84,9 @@ const DEFAULT_PORT := 9080
 ## The hosted server (see heroku.yml). A local test server is ws://localhost:9080.
 const DEFAULT_ADDRESS := "wss://bloxov-server-0f9c9a343ceb.herokuapp.com"
 const RAID_TIME := 600.0
+## TEMP (owner 2026-11-16, friends' playtest): every raid on every map lasts this long, online and solo.
+## Set back to 0.0 after the playtest to return to the normal clocks (10 min, Riptide 15).
+const PLAYTEST_RAID_TIME := 3600.0
 ## Player state updates per second, both ways.
 const SEND_RATE := 20.0
 ## Queue status updates per second (to players in the hideout).
@@ -281,6 +284,9 @@ func start_server(port: int) -> Error:
 	multiplayer.peer_disconnected.connect(_on_peer_left)
 	mode = Mode.SERVER
 	matchmaker.raid_time = RAID_TIME
+	if PLAYTEST_RAID_TIME > 0.0:
+		matchmaker.raid_time = PLAYTEST_RAID_TIME
+		matchmaker.map_times = {}
 	guard.log_func = _log
 	_stats_url = OS.get_environment("STATS_URL").strip_edges()
 	var api := StashClient.from_environment()
