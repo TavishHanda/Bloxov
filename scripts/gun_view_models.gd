@@ -130,7 +130,7 @@ static func aim_place(model: Node3D, ads: Vector3) -> Vector3:
 ## Shows `attachments` (slot -> id) on first-person `model`: their models (assets/models/guns/att_<id>.glb) under an
 ## "Attachments" node, the mag stretched for an extended mag, the muzzle moved out past a barrel part. `muzzle_rest` is
 ## where the muzzle sits bare. Returns how far the optic raises the sight line (aiming lowers the gun by that much).
-static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_rest: Vector3) -> float:
+static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_rest: Vector3) -> float:
 	var old := model.get_node_or_null("Attachments")
 	if old != null:
 		model.remove_child(old)
@@ -150,6 +150,9 @@ static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_r
 	var raise := 0.0
 	for slot: String in attachments:
 		var path := "res://assets/models/guns/att_%s.glb" % attachments[slot]
+		var own := "res://assets/models/guns/att_%s_%s.glb" % [attachments[slot], key]   # a gun's own look of it (0.35.18)
+		if ResourceLoader.exists(own):
+			path = own
 		var mount := art.get_node_or_null({"scope": "Optic", "sight": "Optic", "grip": "Fore"}.get(slot, "Muzzle")) as Node3D
 		if mount == null or not ResourceLoader.exists(path):
 			continue

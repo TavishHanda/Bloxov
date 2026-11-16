@@ -36,7 +36,7 @@ mb.REGENERATE_TEXTURES = True          # painted from fixed seeds, so they come 
 mb.PALETTE.update({"tan": "9a855c", "tan_dark": "7c6a48", "tan_light": "ad9a70", "brass": "b08a3a",
                    "lens": "2b4a5e", "lens_light": "6f9db5", "lens_dark": "1c3140", "glass": "a9c8d6", "gun_red": "8c2f25"})
 
-PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c", "reaper": "c"}   # owner, 2026-10-23
+PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c", "reaper": "k"}   # owner, 2026-10-23 (Reaper k: 2026-11-16)
 TILE = 0.5                              # 32 px textures over 0.5 m = 64 px per meter
 OUT = os.path.join(mb.ROOT, "assets", "models", "guns")
 
@@ -539,7 +539,7 @@ REAPER = {
     "f": dict(up="worn", low="worn", hand="worn", can="worn", acc="black", furn="wood", mag="park", stock="wedge",
               tape=True),
 }
-REAPER_LOOKS = "abcdefghij"
+REAPER_LOOKS = "abcdefghijk"
 
 
 def reaper(m, look):
@@ -547,6 +547,8 @@ def reaper(m, look):
     stock. Looks a-c: black polymer with a steel can (a), the same with tan furniture (b), all black with a longer can
     and a tube stock (c); d-f: Raijin's gun, dark steel with a red band (d), with a red mag and pad (e), a worn one
     with wood and tape (f)."""
+    if look == "k":
+        return _reaper_k(m)
     k = REAPER[look]
     up, low, hand, can, acc, furn, mag = k["up"], k["low"], k["hand"], k["can"], k["acc"], k["furn"], k["mag"]
     m.box((0, 0.012, 0.0), (0.058, 0.056, 0.26), up)                              # upper receiver
@@ -599,6 +601,91 @@ def reaper(m, look):
     m.part("Mag", (0, -0.05, -0.065))
     m.curved((0, -0.05, -0.065), 0.03, 0.055, 0.045, (4, 12, 22), mag, part="Mag")
     m.mark("Muzzle", (0, 0.002, end - 0.01))
+    m.mark("Grip", (0, -0.075, 0.07))
+    m.mark("Sight", (0, 0.083, 0))
+    m.mark("Fore", (0, -0.034, -0.2))
+
+
+def _strut(m, a, b, t, hw, mat, part="Body"):
+    """A thin flat bar in the side view from a = (z, y) to b, t thick, 2*hw wide."""
+    (z0, y0), (z1, y1) = a, b
+    dz, dy = z1 - z0, y1 - y0
+    n = math.hypot(dz, dy)
+    oz, oy = -dy / n * t / 2, dz / n * t / 2
+    m.prism([(z0 + oz, y0 + oy), (z1 + oz, y1 + oy), (z1 - oz, y1 - oy), (z0 - oz, y0 - oy)], hw, mat, part=part)
+
+
+def _reaper_k(m):
+    """Reaper look k (owner's photo, 2026-11-16): a compact pistol-calibre-style carbine. A flat top rail the whole
+    length with flip-up sights, a short squared handguard with long side and bottom slots and a side charging handle,
+    a stubby barrel with a small muzzle cap (the suppressor attachment screws on there), a flared magwell, a long
+    curved mag, a grooved pistol grip and a skeleton brace: a buffer tube, a thin rod and a triangle pad. All black
+    and dark grey. Grip, fore-end, sight line, optic and mag marks match look c, so the hands and aiming still fit."""
+    up, low, hand, acc, furn = "black", "black", "blued", "park", "stipple"
+    # receivers
+    m.box((0, 0.012, 0.0), (0.058, 0.056, 0.26), up)                              # upper receiver
+    m.box((0, 0.012, -0.11), (0.064, 0.06, 0.03), up)                             # barrel nut collar
+    m.box((0.0295, 0.016, -0.025), (0.002, 0.022, 0.075), "blued")                # ejection port cover
+    m.box((0.031, 0.004, 0.09), (0.008, 0.016, 0.026), up)                        # forward assist bump
+    m.box((0, -0.03, 0.03), (0.054, 0.04, 0.2), low)                              # lower receiver
+    m.prism([(-0.105, -0.012), (-0.035, -0.012), (-0.035, -0.07), (-0.11, -0.078)], 0.029, low)   # magwell, swept
+    m.box((0, -0.079, -0.072), (0.066, 0.012, 0.08), low)                         # flared mouth
+    m.box((0.0285, -0.02, -0.02), (0.004, 0.014, 0.022), acc)                     # mag release
+    m.box((-0.0285, -0.016, -0.015), (0.004, 0.026, 0.012), acc)                  # bolt catch (left)
+    m.box((0.031, -0.005, 0.07), (0.004, 0.018, 0.09), acc)                       # selector lever
+    for z in (-0.045, 0.06, 0.11):
+        m.box((0.0285, -0.035, z), (0.003, 0.008, 0.008), "steel")                # pins
+        m.box((-0.0285, -0.035, z), (0.003, 0.008, 0.008), "steel")
+    # one flat top rail over the receiver and handguard
+    m.box((0, 0.046, -0.085), (0.026, 0.01, 0.43), "rail")
+    m.mark("Optic", (0, 0.051, 0.0))
+    # squared handguard (an eight-sided tube, flats wide) with long slots on the sides and underneath
+    m.box((0, 0.004, -0.215), (0.062, 0.062, 0.19), hand)
+    for sx in (-1, 1):
+        m.box((sx * 0.03, 0.035, -0.215), (0.012, 0.012, 0.19), hand)             # chamfers top
+        m.box((sx * 0.03, -0.027, -0.215), (0.012, 0.012, 0.19), hand)            # chamfers bottom
+        for z in (-0.17, -0.25):
+            m.box((sx * 0.0315, 0.004, z), (0.002, 0.016, 0.055), "black")        # long side slots
+        m.box((sx * 0.0315, 0.026, -0.21), (0.002, 0.006, 0.12), "black")         # upper groove
+    for z in (-0.17, -0.25):
+        m.box((0, -0.0275, z), (0.018, 0.002, 0.05), "black")                     # bottom slots
+    m.box((0, 0.004, -0.309), (0.068, 0.066, 0.008), acc)                         # front lip
+    m.box((0.033, 0.006, -0.135), (0.01, 0.024, 0.03), "black")                   # charging slot
+    # stubby barrel and muzzle cap (the Muzzle mark is where a suppressor goes on)
+    m.tube(0, 0.002, -0.313, -0.345, 0.0135, acc, sides=8)
+    m.tube(0, 0.002, -0.345, -0.375, 0.019, "black", sides=8)
+    for z in (-0.355, -0.366):
+        m.box((0, 0.002, z), (0.042, 0.006, 0.004), "blued")                      # cap grooves
+    # flip-up sights on the rail
+    m.box((0, 0.058, -0.275), (0.03, 0.014, 0.026), up, part="Irons")             # front sight base
+    m.post(-0.275, 0.065, 0.083, up)
+    m.box((0, 0.057, 0.105), (0.032, 0.012, 0.03), up, part="Irons")              # rear sight base
+    m.notch(0.1, 0.063, 0.083, up, width=0.03)
+    # grip and trigger
+    m.box((0, -0.094, 0.087), (0.03, 0.104, 0.046), furn, pitch=-22)              # pistol grip
+    for k in range(3):
+        m.box((0, -0.075 - k * 0.022, 0.058 + k * 0.009), (0.031, 0.01, 0.006), "black", pitch=-22)  # finger grooves
+    m.box((0, -0.05, 0.118), (0.034, 0.012, 0.03), low)                           # beavertail
+    m.box((0, -0.06, 0.04), (0.012, 0.006, 0.085), low)                           # trigger guard
+    m.box((0, -0.053, 0.0), (0.012, 0.016, 0.006), low)
+    m.box((0, -0.052, 0.036), (0.006, 0.016, 0.006), "steel")                     # trigger
+    m.part("Bolt", (0.034, 0.012, -0.135))
+    m.box((0.04, 0.012, -0.135), (0.016, 0.012, 0.014), "steel", part="Bolt")     # side charging handle
+    # skeleton brace: tube, top bar to a triangle pad, a thin rod below
+    m.box((0, 0.006, 0.137), (0.05, 0.05, 0.014), up)                             # end plate
+    m.tube(0, 0.008, 0.144, 0.26, 0.017, up, sides=8)                             # buffer tube
+    m.box((0, -0.012, 0.2), (0.03, 0.024, 0.05), up)                              # brace collar
+    m.tube(0, -0.03, 0.15, 0.3, 0.005, acc, sides=6)                              # thin rod
+    _strut(m, (0.255, 0.012), (0.3, 0.022), 0.014, 0.012, up)                     # top bar
+    _strut(m, (0.3, 0.03), (0.3, -0.07), 0.016, 0.026, furn)                      # pad
+    _strut(m, (0.3, 0.022), (0.255, -0.06), 0.009, 0.007, up)                     # diagonal
+    _strut(m, (0.24, -0.035), (0.3, -0.068), 0.009, 0.007, up)                    # bottom bar
+    # long curved mag, ribbed near the top
+    m.part("Mag", (0, -0.05, -0.065))
+    p = m.curved((0, -0.05, -0.065), 0.03, 0.056, 0.05, (5, 11), "black", part="Mag")
+    p = m.curved(p, 0.031, 0.057, 0.05, (17, 23), furn, part="Mag")
+    m.box(mb.v_add(p, mb.rot((0, -0.005, 0.0), 0.0, 23)), (0.036, 0.012, 0.064), "black", pitch=23, part="Mag")  # base pad
+    m.mark("Muzzle", (0, 0.002, -0.376))
     m.mark("Grip", (0, -0.075, 0.07))
     m.mark("Sight", (0, 0.083, 0))
     m.mark("Fore", (0, -0.034, -0.2))
@@ -663,6 +750,16 @@ def att_suppressor(m):
     m.mark("End", (0, 0, -0.163))
 
 
+def att_suppressor_reaper(m):
+    """The suppressor as it looks on the Reaper (owner's photo, 2026-11-16): a long, fat plain can. Looks only: the same
+    item and numbers as the other guns' suppressor."""
+    m.tube(0, 0, 0.0, -0.025, 0.02, "blued", sides=8)                              # mount collar
+    m.tube(0, 0, -0.025, -0.3, 0.027, "black", sides=8)                            # the can
+    m.tube(0, 0, -0.3, -0.306, 0.024, "blued", sides=8)                            # front cap
+    m.tube(0, 0, -0.3, -0.307, 0.008, "black", sides=6)                            # bore
+    m.mark("End", (0, 0, -0.307))
+
+
 def att_choke(m):
     m.tube(0, 0, 0.0, -0.05, 0.03, "park")
     for z in (-0.015, -0.03):
@@ -677,7 +774,7 @@ def att_foregrip(m):
 
 
 ATTACHMENTS = {"red_dot": att_red_dot, "scope_4x": att_scope_4x, "scope_8x": att_scope_8x,
-               "suppressor": att_suppressor, "choke": att_choke, "foregrip": att_foregrip}
+               "suppressor": att_suppressor, "suppressor_reaper": att_suppressor_reaper, "choke": att_choke, "foregrip": att_foregrip}
 
 
 # ------------------------------------------------------------------------------------------------ .glb
