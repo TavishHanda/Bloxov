@@ -7,6 +7,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.25 (the safe-pocket key goes first)
+Owner: "Can we make it prioritize the key in your safe pocket?"
+- With two or more of the same key, a key in the secure pocket is now used before one in the pockets or backpack,
+  even if the other is more used. Among keys in the same place, the one with the fewest uses left still goes first
+  (0.35.22). `Inventory.key_for`; the smoke test checks it.
+
 ## 0.35.24 (TEMP: the one-hour raids are on Riptide only)
 Owner: "only hour long on riptide. please leave frontlines as 10 minutes".
 - **Frontlines raids are back to 10 minutes.** Riptide raids still last 60 minutes for the playtest (0.35.18), online
