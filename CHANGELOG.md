@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.23 (Field Test counts every AI)
+Owner: "For the mauler quest can you please change it to not just scavs but all raiders/scavs/bonsguards/raijin/guards/etc".
+- **Field Test (Gunsmith level 3) now counts any AI killed with a Mauler**: scavs, snipers, Raiders, Bon and his guards,
+  Raijin and his guards Ace and Orbit. Its text reads "Kill 3 AI enemies with a Mauler, then extract." Player kills
+  still never count (no quests for killing players). A new kill-quest target, "ai", means any AI (`scripts/quests.gd`).
+  The server counts quest kills, so it was restarted. Close Quarters (2 Raiders with a Mauler) is unchanged.
+
 ## 0.35.21 (TEMP: half the AI on Riptide for a playtest)
 Owner: "Can we also reduce the amount of AI in the map temporarily?" (picked: half, on Riptide).
 - **Riptide has about half its AI** for now: each zone's scavs and Raiders, the roamers, the
