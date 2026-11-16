@@ -15,6 +15,13 @@ Owner: "the ladder in the barn makes u climb it backwards, so you cant actually 
 - New `tools/ladder_audit.gd` checks every ladder on both maps has the floor it leads to on the side it leans on. All
   of Riptide's ladders and the cabin's hatch ladder were already right. The smoke test checks the barn's ladder.
 
+## 0.35.23 (Field Test counts every AI)
+Owner: "For the mauler quest can you please change it to not just scavs but all raiders/scavs/bonsguards/raijin/guards/etc".
+- **Field Test (Gunsmith level 3) now counts any AI killed with a Mauler**: scavs, snipers, Raiders, Bon and his guards,
+  Raijin and his guards Ace and Orbit. Its text reads "Kill 3 AI enemies with a Mauler, then extract." Player kills
+  still never count (no quests for killing players). A new kill-quest target, "ai", means any AI (`scripts/quests.gd`).
+  The server counts quest kills, so it was restarted. Close Quarters (2 Raiders with a Mauler) is unchanged.
+
 ## 0.35.22 (two of the same key: only one wears)
 Owner: "when you have two of the same key in the inventory only one of the keys durability is being used".
 - Unlocking a door already took a use off one key only, but which one was just the first found. Now it always uses the
