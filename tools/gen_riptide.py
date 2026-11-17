@@ -1096,14 +1096,7 @@ def drill_floor():
 
 def bow_stairs():
     stairwell(BOW_STAIRS[0], BOW_STAIRS[2], [DECK, 0.0, HULL_A, HULL_B] + lab_flights(), {0: "W", 2: "W", 3: "W", 7: "S"})
-    # at the bottom, a passage aft beside the service tube and through a door into its tunnel to the north wing
-    z1 = BOW_STAIRS[2] + 14.0
-    # (its north end is the stairwell's own wall and doorway)
-    wall("z", 49.0, z1, -56.0, LAB2, 3.2, "lab", [door(-59.0)])
-    wall("z", 52.0, z1, -56.0, LAB2, 3.2, "lab")
-    wall("x", -56.0, 49.0, 52.0, LAB2, 3.2, "lab")
-    slab(49.0, 52.0, z1, -56.0, LAB2, "labfloor")
-    slab(49.0, 52.0, z1, -56.0, LAB2 + 3.2, "lab")
+    # (0.35.33) at the bottom, the stairs open into Site Zero's intake hall (lab())
 
 
 def tower():
@@ -1159,86 +1152,269 @@ def tower():
 
 # ---------------------------------------------------------------------------------------------- Site Zero
 def lab():
-    """The ship's two lowest decks (0.35.2; before, on the sea floor): Lab 1 (the dock, the sub bay) under the moon pool; Lab 2's north wing, the
-    ring round the core, the south wing; the core (Raijin's room, a tall chamber); the service tube from the pump room."""
+    """Site Zero (0.35.33 layout, owner: "if you were an architect who was an expert at designing labs and also an expert
+    game designer"): the ship's two lowest decks, laid out like a real containment lab. Clean to dirty from the bow:
+    INTAKE (the bow stairs and the service tube land at the security checkpoint; lockers west, security east), two
+    DECON airlocks (each with a side room round it), the MAIN LAB (one open two-storey floor: the cleanroom pod, the
+    cold store racks, an office mezzanine with the director's office), the HUB under the moon pool, HOLDING (the cells,
+    a third lane down the middle), then the RING round the INCUBATION HALL (Raijin's room: the growth tanks), and
+    OPERATIONS aft (control room, the tower stairs' lobby, the server room, quarters). Upstairs (LAB1) the dock with the
+    sub bay and the OBSERVATION room that looks down into the hall, with a balcony and a ladder down.
+    Three ways in stay where they were (bow stairs + service tube, moon pool to the dock, tower stairs); the corridors
+    jog round the hall, so no lane runs the length of the lab."""
     labels.append(("SITE ZERO (BELOW)", 48, 20, 0))
-    # Lab 1: the dock (y -22): the lift and stairs come in from the north, the sub bay on the east side
-    l0, l1, lz0, lz1 = 30.0, 66.0, 7.0, 27.0
-    h1 = HULL_B - SLAB_T - LAB1     # up to the engine room deck, which is its ceiling
-    room(l0, l1, lz0, lz1, LAB1, h1, "lab", n=[(48.0, 12.0, 0.0, 3.8)], s=[door(48.0, 2.0)])
-    slab(l0, l1, lz0, lz1, LAB1, "labfloor", holes=[(l0, 34.6, 10.0, 25.0)])
-    wall("z", 56.0, lz0, lz1, LAB1, h1, "lab", [door(17.0, 2.0)])
-    wall("z", 34.6, 10.0, 25.0, LAB1, 1.0, "lab")   # (a rail along the ramp's opening)
-    ramp((32.3, LAB1, 10.0), (32.3, LAB2, 25.0), 4.0, "labfloor")
-    extracts.append(("SubBay", "SUB BAY", 61.0, LAB1, 17.0, "sub_bay"))   # shut until the power's on (MapSwitch)
-    box(58.0, LAB1, 22.0, 65.0, LAB1 + 2.2, 26.0, "core")      # the sub
-    add_loot("LabDock", "locker", 54.0, LAB1, 26.0, 180)
-    add_loot("LabDock", "locker", 38.0, LAB1, 26.0, 180)
-    # Lab 2 north wing (cells, test rooms): y -28, roof at the dock's floor
-    nz0, nz1 = -40.0, 32.0
-    hn = LAB1 - SLAB_T - LAB2
-    room(l0, l1, nz0, nz1, LAB2, hn, "lab", n=[door(47.2)], s=[door(40.0, 2.0), door(56.0, 2.0)], floor="labfloor")
-    slab(l0, l1, nz0, lz0, LAB1, "lab")
-    slab(l0, l1, lz1, nz1, LAB1, "lab")
-    for x in (44.0, 52.0):
-        wall("z", x, nz0, nz1, LAB2, hn, "lab", [door(z) for z in (-34.0, -22.0, -10.0, 2.0, 14.0, 26.0)])
-    for z in (-28.0, -16.0, -4.0, 8.0, 20.0):
-        if z < 9.0:   # (the ramp down from the dock comes in along the west side past z 10)
-            wall("x", z, l0, 44.0, LAB2, hn, "lab")
-        wall("x", z, 52.0, l1, LAB2, hn, "lab")
-    for i, (x, z) in enumerate([(31.5, -36.0), (64.5, -24.0), (31.5, -0.0), (64.5, 12.0)]):
-        add_loot("LabWing", "crate", x, LAB2, z, 90 if x < 48 else -90)
-    labels.append(("NORTH WING", 48, -36, 0))
-    # the ring (6 m wide corridor) round the core, and the core itself (tall: up to y -16)
-    rz0, rz1 = 32.0, 68.0
-    cx0, cx1, cz0, cz1 = 36.0, 60.0, 38.0, 62.0
-    room(l0, l1, rz0, rz1, LAB2, 4.0, "lab", n=[door(40.0, 2.0), door(56.0, 2.0)], s=[door(40.0, 2.0), door(56.0, 2.0)],
-         floor="labfloor")
-    slab(l0, l1, rz0, rz1, LAB2 + 4.0, "lab", holes=[(cx0, cx1, cz0, cz1)])
-    room(cx0, cx1, cz0, cz1, LAB2, HULL_B - SLAB_T - LAB2, "core", n=[door(40.0, 2.0), (48.0, 3.0, 6.0, 9.0)], s=[door(48.0, 2.4)])
-    labels.append(("RAIJIN'S CORE", 48, 50, 1))
-    for x, z in [(40.0, 44.0), (56.0, 44.0), (40.0, 56.0), (56.0, 56.0)]:   # the program's tanks (cover)
-        box(x - 1.3, LAB2, z - 1.3, x + 1.3, LAB2 + 4.5, z + 1.3, "lab")
+    H = LAB1 - SLAB_T - LAB2            # the lower deck's rooms go up to the dock deck's floor
+    l0, l1 = 30.0, 66.0                 # (the hull's sides are the outer walls)
+    WR, WC, EC, ER = 37.0, 40.5, 55.5, 59.0   # columns: rooms by the west hull | corridor | middle | corridor | rooms
+    wcx, ecx = (WR + WC) / 2, (EC + ER) / 2   # the corridors' middles
+    cw = WC - WR                        # corridor width (3.5)
+    hx0, hx1, hz0, hz1 = 36.0, 60.0, 38.0, 62.0   # the incubation hall (as before: the owner likes this room)
+    tx0, tx1, tz0, tz1 = SERVICE_TUBE
+
+    def low(x0, z0, x1, z1, h=1.1, colour="lab"):     # a bench, counter or console: cover to crouch behind
+        box(x0, LAB2, z0, x1, LAB2 + h, z1, colour)
+
+    # ---- the floors: the lower deck's floor, its ceiling (the dock deck), the dock
+    slab(l0, l1, -74.0, 100.0, LAB2, "labfloor")
+    slab(l0, l1, -74.0, -46.0, LAB1, "lab", holes=[(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3)])
+    slab(l0, l1, -10.0, 7.0, LAB1, "lab")
+    slab(l0, l1, 7.0, 27.0, LAB1, "labfloor", holes=[(l0, 34.6, 10.0, 25.0)])
+    slab(l0, l1, 27.0, 100.0, LAB1, "lab", holes=[(hx0, hx1, hz0, hz1), hole(TOWER_STAIRS)])
+    # the ends
+    wall("x", -74.0, l0, BOW_STAIRS[0], LAB2, H, "lab")
+    wall("x", -74.0, BOW_STAIRS[1], l1, LAB2, H, "lab")
+    wall("x", 100.0, l0, l1, LAB2, H, "lab")
+
+    # ---- INTAKE (z -74..-46): the bow stairs' door (x 50) and the service tube come into the checkpoint hall
+    labels.append(("INTAKE", 41, -67, 0))
+    wall("z", WR, -74.0, -46.0, LAB2, H, "lab", [door(-62.0), door(-51.0)])   # the locker room (decon showers at its south end)
+    wall("z", ER, -74.0, -46.0, LAB2, H, "lab", [door(-62.0), window(-68.0, 2.4), door(-51.0)])   # the security office
+    room(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3, LAB2, HULL_B - SLAB_T - LAB2, "lab", s=[(47.2, DOOR_W, 0.0, DOOR_H)])
+    ladder(47.2, LAB2, tz0 + 0.1, 0, HULL_B - LAB2, "ServiceTube")
+    labels.append(("SERVICE TUBE", 47, -66, 0))
+    low(51.5, -66.0, 56.0, -65.0)            # the security desk, an L facing the stairs
+    low(55.0, -65.0, 56.0, -61.0)
+    low(41.0, -60.0, 45.0, -59.4, 1.0)       # the queue rails before the airlocks
+    low(51.0, -60.0, 55.0, -59.4, 1.0)
+    for z in (-72.5, -68.0, -64.0):          # lockers along the hull, benches down the middle
+        box(30.3, LAB2, z - 1.2, 31.0, LAB2 + 2.0, z + 1.2, "rust")
+    low(32.8, -70.0, 33.6, -60.0, 0.5, "wood")
+    for z in (-54.0, -48.5):                 # the showers
+        box(30.3, LAB2, z - 0.1, 33.5, LAB2 + 2.2, z + 0.1, "lab")
+    low(60.5, -73.5, 65.5, -72.5, 1.0, "core")   # the security office's monitor desk, a weapons cage
+    box(63.0, LAB2, -58.0, 65.7, LAB2 + 2.4, -54.0, "rust")
+    # the decon airlocks (z -56..-46) with a shower nib each side; the air plant between them
+    wall("x", -56.0, WR, WC, LAB2, H, "lab", [door(wcx, cw - 0.6)])
+    wall("x", -56.0, EC, ER, LAB2, H, "lab", [door(ecx, cw - 0.6)])
+    wall("x", -56.0, WC, EC, LAB2, H, "lab")
+    wall("z", WC, -56.0, -46.0, LAB2, H, "lab")
+    wall("z", EC, -56.0, -46.0, LAB2, H, "lab")
+    labels.append(("DECON", 38, -51, 0))
+    labels.append(("DECON", 57, -51, 0))
+    labels.append(("AIR PLANT", 48, -51, 0))
+    for x in (43.5, 52.5):                   # the air handlers
+        box(x - 1.5, LAB2, -54.5, x + 1.5, LAB2 + 3.0, -51.0, "metal")
+    add_loot("LabWing", "crate", 48.0, LAB2, -54.5)
+
+    # ---- the MAIN LAB (z -46..-10; owner: not "just a bunch of rooms together"): one open, two-storey lab floor up to
+    # the engine room deck. The cleanroom (a glass pod) in the middle, freezer racks and specimen benches along the west
+    # hull, an instrument bay; the office mezzanine along the east hull (a ramp up, a ladder at its north end), the
+    # director's office at its south end overlooking the floor
+    HH = HULL_B - SLAB_T - LAB2
+    wall("x", -46.0, l0, l1, LAB2, HH, "lab", [door(wcx, cw - 0.6), door(48.0), door(ecx, cw - 0.6)])
+    wall("x", -10.0, l0, WR, LAB2, H, "lab")
+    wall("x", -10.0, WR, ER, LAB2, H, "lab", [(40.0, 5.0, 0.0, 3.6), (48.0, 4.0, 0.0, 3.6), (56.0, 5.0, 0.0, 3.6)])
+    wall("x", -10.0, ER, l1, LAB2, H, "lab")
+    wall("x", -10.0, l0, l1, LAB1 - SLAB_T, HULL_B - LAB1, "lab")    # (closes the space over the hub)
+    labels.append(("MAIN LAB", 44, -20, 1))
+    # the cleanroom: waist-high walls, glass above (gray box: open), a roof; doors north and south
+    px0, px1, pz0, pz1 = 39.0, 47.0, -39.0, -29.0
+    for z in (pz0, pz1):
+        wall("x", z, px0, px1, LAB2, 1.1, "lab", [door(43.0)], t=0.2)
+        box(px0, LAB2 + 2.6, z - 0.1, px1, LAB2 + 3.2, z + 0.1, "lab")
+    for x in (px0, px1):
+        wall("z", x, pz0, pz1, LAB2, 1.1, "lab", t=0.2)
+        box(x - 0.1, LAB2 + 2.6, pz0, x + 0.1, LAB2 + 3.2, pz1, "lab")
+    for x, z in ((px0, pz0), (px1, pz0), (px0, pz1), (px1, pz1)):
+        box(x - 0.2, LAB2, z - 0.2, x + 0.2, LAB2 + 3.2, z + 0.2, "lab")
+    slab(px0, px1, pz0, pz1, LAB2 + 3.45, "lab")
+    labels.append(("CLEANROOM", 43, -34, 0))
+    low(40.5, -35.0, 45.5, -33.8)
+    # bench islands round it, an instrument bay (the sequencers: tall) south of it
+    for x0, z0, x1, z1 in ((49.5, -43.5, 50.7, -36.0), (49.5, -32.0, 50.7, -25.0), (39.0, -24.5, 45.0, -23.3),
+                           (34.5, -44.0, 36.0, -38.0)):
+        low(x0, z0, x1, z1)
+    for x0, z0, x1, z1 in ((44.0, -19.0, 47.0, -16.5), (49.5, -19.0, 51.5, -14.0)):
+        box(x0, LAB2, z0, x1, LAB2 + 2.4, z1, "metal")
+    # the west hull: freezer racks (cold store), the specimen benches
+    labels.append(("COLD STORE", 32, -40, 0))
+    for z in (-44.5, -41.0, -37.5, -34.0):
+        box(30.3, LAB2, z - 0.6, 32.6, LAB2 + 2.4, z + 0.6, "metal")
+    add_loot("LabWing", "crate", 31.5, LAB2, -31.0, 90)
+    labels.append(("SPECIMEN PREP", 33, -19, 0))
+    low(30.3, -26.0, 31.5, -13.0, 1.0)
+    low(34.0, -21.0, 35.6, -16.0)
+    add_loot("LabWing", "crate", 31.5, LAB2, -11.8, 90)
+    # under the mezzanine: the wet benches and shelving along the east hull
+    low(64.0, -40.0, 65.7, -31.0)
+    box(64.9, LAB2, -27.0, 65.7, LAB2 + 2.2, -14.0, "metal")
+    low(60.0, -22.0, 61.6, -17.0)
+    # the east mezzanine (at the dock deck's height): a ramp up from the floor, a ladder at its north end
+    mx = 58.0
+    slab(mx, l1, -42.0, -10.0, LAB1, "metal")
+    ramp((53.5, LAB2, -42.0), (53.5, LAB1, -27.0), 3.0, "metal")
+    slab(52.0, mx, -27.0, -24.0, LAB1, "metal")                      # the ramp's top landing
+    wall("x", -24.0, 52.0, mx, LAB1, 1.0, "rust", t=0.15)
+    wall("z", 52.0, -27.0, -24.0, LAB1, 1.0, "rust", t=0.15)
+    wall("z", mx, -42.0, -10.0, LAB1, 1.0, "rust", [(-25.5, 3.0, 0.0, 1.0)], t=0.15)
+    wall("x", -42.0, mx, 61.0, LAB1, 1.0, "rust", t=0.15)
+    wall("x", -42.0, 63.0, l1, LAB1, 1.0, "rust", t=0.15)
+    ladder(62.0, LAB2, -42.1, 180, LAB1 - LAB2, "Mezzanine")
+    labels.append(("OFFICES (UPPER)", 62, -32, 0))
+    for z in (-38.0, -31.0):                 # open-plan desks
+        box(61.0, LAB1, z - 0.6, 64.5, LAB1 + 0.8, z + 0.6, "wood")
+    add_loot("LabWing", "crate", 64.6, LAB1, -35.0, -90)
+    # the director's office: glass onto the lab floor, the safe
+    h1m = HULL_B - SLAB_T - LAB1
+    wall("x", -22.0, mx, l1, LAB1, h1m, "lab", [door(61.0)])
+    wall("z", mx, -22.0, -10.0, LAB1, h1m, "lab", [window(-19.0, 2.4, 1.0, 2.4), window(-14.0, 2.4, 1.0, 2.4)])
+    labels.append(("DIRECTOR", 62, -16, 0))
+    box(60.5, LAB1, -17.5, 63.0, LAB1 + 0.8, -15.5, "wood")
+    add_loot("LabWing", "safe", 64.6, LAB1, -12.0, -90)
+    wall("x", 10.0, l0, WR, LAB2, H, "lab")     # (the hub's side rooms' south walls)
+    wall("x", 10.0, ER, l1, LAB2, H, "lab")
+
+    # ---- the HUB (z -10..10), under the moon pool: washrooms west, the break room east, the sample lift in the middle
+    labels.append(("HUB", 48, -6, 0))
+    wall("z", WR, -10.0, 10.0, LAB2, H, "lab", [door(0.0)])
+    wall("z", ER, -10.0, 10.0, LAB2, H, "lab", [door(-5.0), door(5.0)])
+    box(45.5, LAB2, -2.5, 50.5, LAB2 + H, 2.5, "core")               # the sample lift's shaft (cover)
+    box(WR + 0.4, LAB2, -4.2, WC - 0.4, LAB2 + 2.4, -2.6, "metal")    # notice boards where the corridors cross the
+    box(EC + 0.4, LAB2, -0.8, ER - 0.4, LAB2 + 2.4, 0.8, "metal")     # hub: the corridors' lines stop here
+    low(41.5, 4.0, 43.5, 7.0, 1.0)                                   # benches
+    low(52.5, -7.0, 54.5, -4.0, 1.0)
+    labels.append(("WASHROOMS", 33, 0, 0))
+    for z in (-8.0, -5.0, -2.0):             # stalls
+        box(30.3, LAB2, z - 0.05, 32.5, LAB2 + 2.0, z + 0.05, "lab")
+    wall("x", 1.5, l0, WR, LAB2, H, "lab", [door(34.0, 2.2)])     # (the men's and women's sides)
+    labels.append(("BREAK ROOM", 62, 0, 0))
+    low(61.0, -3.0, 64.0, 3.0, 0.8, "wood")
+    box(65.0, LAB2, -8.5, 65.7, LAB2 + 2.0, -6.0, "metal")           # the vending machine
+
+    # ---- HOLDING (z 10..32): cells either side of a middle aisle; receiving (the dock's freight ramp) west, the
+    # med bay east
+    wall("x", 10.0, WC, EC, LAB2, H, "lab", [door(48.0)])
+    wall("x", 32.0, WC, EC, LAB2, H, "lab", [door(48.0)])
+    wall("z", WC, 10.0, 32.0, LAB2, H, "lab")
+    wall("z", EC, 10.0, 32.0, LAB2, H, "lab")
+    labels.append(("HOLDING", 48, 21, 0))
+    for side, (cx0, cx1) in (("w", (WC, 46.0)), ("e", (50.0, EC))):
+        front = cx1 if side == "w" else cx0
+        for z0, z1 in ((10.0, 17.3), (17.3, 24.6), (24.6, 32.0)):
+            # a cell: glass front (a waist-high wall, open above: shoot over it), a door in it
+            wall("z", front, z0, z1, LAB2, 1.0, "lab", [door((z0 + z1) / 2, 2.2)], t=0.2)
+            box(front - 0.1, LAB2 + 2.6, z0, front + 0.1, LAB2 + H, z1, "lab")
+            if z1 < 32.0:
+                wall("x", z1, cx0, cx1, LAB2, H, "lab")
+            low(cx0 + 0.3 if side == "w" else cx1 - 1.2, z0 + 1.5, cx0 + 1.2 if side == "w" else cx1 - 0.3, z0 + 3.5, 0.6)
+    wall("z", WR, 10.0, 32.0, LAB2, H, "lab", [door(29.0)])
+    labels.append(("RECEIVING", 33, 30, 0))
+    ramp((32.3, LAB1, 10.0), (32.3, LAB2, 25.0), 4.0, "labfloor")   # the dock's freight ramp (as before)
+    wall("z", 34.6, 10.0, 25.0, LAB1, 1.0, "lab")
+    box(34.8, LAB2, 13.0, 36.7, LAB2 + 1.6, 17.0, "wood")            # pallets
+    add_loot("LabWing", "crate", 35.5, LAB2, 30.5, 180)
+    wall("z", ER, 10.0, 32.0, LAB2, H, "lab", [door(14.0), door(28.0)])
+    labels.append(("MED BAY", 62, 21, 0))
+    for z in (13.0, 18.0, 23.0):             # beds
+        low(63.5, z - 1.0, 65.7, z + 1.0, 0.7)
+    add_loot("LabWing", "crate", 64.5, LAB2, 29.5, -90)
+
+    # ---- the RING (z 32..68) round the INCUBATION HALL; it joins the corridors north and south
+    wall("x", 32.0, l0, WR, LAB2, H, "lab")
+    wall("x", 32.0, ER, l1, LAB2, H, "lab")
+    wall("x", 68.0, l0, WR, LAB2, H, "lab")
+    wall("x", 68.0, WC, 54.0, LAB2, H, "lab", [door(47.0)])
+    wall("x", 68.0, ER, l1, LAB2, H, "lab")
+    labels.append(("RING", 33, 50, 0))
+    hh = HULL_B - SLAB_T - LAB2
+    room(hx0, hx1, hz0, hz1, LAB2, hh, "core",
+         n=[door(48.0, 4.0), (48.0, 3.0, 6.0, 9.0)] + [window(x, 2.0, 7.0, 8.4) for x in (40.0, 44.0, 52.0, 56.0)],
+         s=[door(48.0, 2.4)], w=[door(50.0), window(43.0), window(57.0)], e=[door(50.0), window(43.0), window(57.0)])
+    labels.append(("INCUBATION HALL", 48, 50, 1))
+    # the growth tanks (owner: "those things where they keep living science experiments"): four in the corners on
+    # plinths, a console in front of each; Raijin's own tank in the middle, broken open (a ring of low shards)
+    for x, z in [(40.0, 44.0), (56.0, 44.0), (40.0, 56.0), (56.0, 56.0)]:
+        box(x - 1.6, LAB2, z - 1.6, x + 1.6, LAB2 + 0.5, z + 1.6, "core")
+        box(x - 1.3, LAB2 + 0.5, z - 1.3, x + 1.3, LAB2 + 4.5, z + 1.3, "lab")
+        box(x - 1.5, LAB2 + 4.5, z - 1.5, x + 1.5, LAB2 + 5.0, z + 1.5, "core")
+        cx, cz = x + (2.6 if x < 48 else -2.6), z + (2.6 if z < 50 else -2.6)
+        low(cx - 0.6, cz - 0.6, cx + 0.6, cz + 0.6, 1.1, "core")
+    box(46.2, LAB2, 50.2, 49.8, LAB2 + 0.5, 53.8, "core")
+    for x0, z0, x1, z1, h in ((46.2, 50.2, 49.8, 50.6, 1.3), (46.2, 53.4, 47.6, 53.8, 0.9), (48.6, 53.4, 49.8, 53.8, 1.6),
+                              (46.2, 50.6, 46.6, 52.0, 1.0), (49.4, 51.6, 49.8, 53.4, 1.2)):
+        box(x0, LAB2 + 0.5, z0, x1, LAB2 + 0.5 + h, z1, "lab")
     add_loot("LabCore", "safe", 37.0, LAB2, 60.5, 180)
     add_loot("LabCore", "safe", 59.0, LAB2, 60.5, 180)
     add_loot("LabCore", "crate", 48.0, LAB2, 60.0)
     add_loot("LabCore", "crate", 48.0, LAB2, 40.5)
-    boss_starts.extend([(48.0, LAB2, 50.0), (44.0, LAB2, 54.0)])
-    # the catwalk: from the dock's south door over the ring into the core, a balcony and a ladder down
-    room(46.0, 50.0, lz1, cz0, LAB1, 3.0, "lab", n=[door(48.0, 2.0)], s=[door(48.0, 2.0)], floor="labfloor", roof="lab")
-    slab(46.0, 50.0, cz0, cz0 + 2.5, LAB1, "labfloor")
-    wall("x", cz0 + 2.5, 46.0, 50.0, LAB1, 1.0, "lab", [(48.8, 1.2, 0.0, 1.0)], t=0.15)
-    ladder(48.8, LAB2, cz0 + 2.6, 0, LAB1 - LAB2, "Catwalk")
-    # Lab 2 south wing (labs, the server room)
-    sz0, sz1 = 68.0, 100.0
-    room(l0, l1, sz0, sz1, LAB2, 4.0, "lab", n=[door(40.0, 2.0), door(56.0, 2.0)], floor="labfloor")
-    slab(l0, l1, sz0, sz1, LAB2 + 4.0, "lab", holes=[hole(TOWER_STAIRS)])
-    for x in (44.0, 52.0):
-        # (0.35.3: the corridor is open to the lobby at the foot of the tower stairs)
-        mid = (83.0, 13.0, 0.0, 4.0) if x > 48 else door(86.0)
-        wall("z", x, sz0, sz1, LAB2, 4.0, "lab", [door(74.0), mid, door(96.0)])
-    wall("x", 80.0, l0, 44.0, LAB2, 4.0, "lab")
-    # (0.35.3) the tower stairs come down into the east side: a lobby west of them (their door, and the corridor's
-    # door at z 86), a lab north and east of them, the server room south
-    wall("x", TOWER_STAIRS[2], 52.0, TOWER_STAIRS[0], LAB2, 4.0, "lab")
-    wall("x", TOWER_STAIRS[3], 52.0, TOWER_STAIRS[0], LAB2, 4.0, "lab")
-    wall("x", TOWER_STAIRS[3], TOWER_STAIRS[1], l1, LAB2, 4.0, "lab")
-    for z in (92.0, 96.0):   # the server racks
-        box(55.0, LAB2, z - 0.4, 64.0, LAB2 + 2.2, z + 0.4, "core")
-    add_loot("LabWing", "crate", 31.5, LAB2, 72.0, 90)
-    add_loot("LabWing", "safe", 64.5, LAB2, 98.5, 180)
-    add_loot("LabWing", "crate", 31.5, LAB2, 96.0, 90)
-    add_loot("LabWing", "crate", 64.5, LAB2, 84.0, -90)
-    labels.append(("SOUTH WING", 48, 92, 0))
-    # the service tube: a ladder from the pump room down to a tunnel into the north wing
-    tx0, tx1, tz0, tz1 = SERVICE_TUBE
-    room(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3, LAB2, HULL_B - SLAB_T - LAB2, "lab", s=[(47.2, DOOR_W, 0.0, DOOR_H)])
-    ladder(47.2, LAB2, tz0 + 0.1, 0, HULL_B - LAB2, "ServiceTube")
-    room(45.4, 49.0, tz1 + 0.3, nz0, LAB2, 3.2, "lab", n=[(47.2, DOOR_W, 0.0, DOOR_H)], s=[(47.2, DOOR_W, 0.0, DOOR_H)],
-         e=[door(-59.0)],
-         floor="labfloor", roof="lab")
-    slab(tx0 - 0.3, tx1 + 0.3, tz0 - 0.3, tz1 + 0.3, LAB2, "labfloor")
-    labels.append(("SERVICE TUBE", 47, -66, 0))
+    boss_starts.extend([(48.0, LAB2, 47.5), (44.0, LAB2, 54.0)])
+
+    # ---- OPERATIONS (z 68..100): the control room, the tower stairs' lobby, the server room, quarters, the power room
+    wall("z", WC, 68.0, 100.0, LAB2, H, "lab", [door(72.0), door(88.0), door(96.0)])
+    wall("z", WR, 68.0, 100.0, LAB2, H, "lab", [door(76.0), door(92.0)])
+    wall("x", 84.0, l0, WR, LAB2, H, "lab")
+    labels.append(("QUARTERS", 33, 76, 0))
+    labels.append(("QUARTERS", 33, 92, 0))
+    for z in (70.5, 80.5, 86.5, 97.5):       # bunks
+        box(30.3, LAB2, z - 1.0, 32.6, LAB2 + 1.8, z + 1.0, "wood")
+    labels.append(("CONTROL ROOM", 47, 76, 0))
+    wall("z", 54.0, 68.0, 76.0, LAB2, H, "lab", [door(72.0)])
+    wall("x", 84.0, WC, 54.0, LAB2, H, "lab", [door(47.0)])
+    for z in (73.0, 78.5):                   # desk rows facing the wall screens
+        low(42.5, z - 0.5, 46.0, z + 0.5, 1.0, "core")
+        low(48.5, z - 0.5, 52.0, z + 0.5, 1.0, "core")
+    for x0, x1 in ((41.0, 45.5), (48.5, 53.5)):   # the wall of screens either side of the door
+        box(x0, LAB2 + 1.5, 83.6, x1, LAB2 + 3.5, 83.8, "core", solid=False)
+    # the short east corridor from the ring past the power room; the stairs stand where it would carry on
+    wall("z", ER, 68.0, 76.0, LAB2, H, "lab", [door(72.0)])
+    wall("x", 76.0, TOWER_STAIRS[1], l1, LAB2, H, "lab")
+    labels.append(("POWER", 62, 72, 0))
+    box(63.0, LAB2, 69.0, 65.7, LAB2 + 2.4, 75.0, "metal")
+    labels.append(("LOBBY", 47, 88, 0))
+    wall("x", 92.0, WC, l1, LAB2, H, "lab", [door(47.0)])
+    wall("x", 90.0, TOWER_STAIRS[1], l1, LAB2, H, "lab")
+    wall("z", TOWER_STAIRS[1], 76.0, 90.0, LAB2, H, "lab")
+    labels.append(("SERVER ROOM", 53, 96, 0))
+    for z in (94.5, 97.5):                   # the server racks, a gap in each row
+        box(43.0, LAB2, z - 0.4, 50.0, LAB2 + 2.2, z + 0.4, "core")
+        box(52.5, LAB2, z - 0.4, 63.0, LAB2 + 2.2, z + 0.4, "core")
+    add_loot("LabWing", "crate", 64.5, LAB2, 98.8, 180)
+
+    # ---- upstairs (LAB1): the dock (the moon pool comes in from the north, the sub bay east, the freight ramp
+    # west), and the observation room over the hall's north end
+    h1 = HULL_B - SLAB_T - LAB1
+    wall("x", 7.0, l0, MOON[0], LAB1, h1, "lab")      # (the moon pool trunk's own wall opens onto the dock)
+    wall("x", 7.0, MOON[1], l1, LAB1, h1, "lab")
+    wall("x", 27.0, l0, hx0, LAB1, h1, "lab")
+    wall("x", 27.0, hx1, l1, LAB1, h1, "lab")
+    wall("z", 56.0, 7.0, 27.0, LAB1, h1, "lab", [door(17.0, 2.0)])
+    wall("z", 34.6, 10.0, 25.0, LAB1, 1.0, "lab")   # (a rail along the ramp's opening)
+    extracts.append(("SubBay", "SUB BAY", 61.0, LAB1, 17.0, "sub_bay"))   # shut until the power's on (MapSwitch)
+    box(58.0, LAB1, 22.0, 65.0, LAB1 + 2.2, 26.0, "core")      # the sub
+    add_loot("LabDock", "locker", 54.0, LAB1, 26.0, 180)
+    add_loot("LabDock", "locker", 38.0, LAB1, 26.0, 180)
+    labels.append(("OBSERVATION", 48, 31, 0))
+    wall("x", 27.0, hx0, hx1, LAB1, h1, "lab", [door(48.0, 2.4)])
+    wall("z", hx0, 27.0, hz0, LAB1, h1, "lab")
+    wall("z", hx1, 27.0, hz0, LAB1, h1, "lab")
+    for x in (40.0, 44.0, 52.0, 56.0):       # consoles at the hall's windows
+        box(x - 1.2, LAB1, hz0 - 1.3, x + 1.2, LAB1 + 1.0, hz0 - 0.5, "core")
+    slab(46.0, 50.0, hz0, hz0 + 2.5, LAB1, "labfloor")           # the balcony, a ladder down into the hall
+    wall("x", hz0 + 2.5, 46.0, 50.0, LAB1, 1.0, "lab", [(48.8, 1.2, 0.0, 1.0)], t=0.15)
+    wall("z", 46.0, hz0, hz0 + 2.5, LAB1, 1.0, "lab", t=0.15)
+    wall("z", 50.0, hz0, hz0 + 2.5, LAB1, 1.0, "lab", t=0.15)
+    ladder(48.8, LAB2, hz0 + 2.6, 0, LAB1 - LAB2, "Catwalk")
+
 
 # ---------------------------------------------------------------------------------------------- AI
 # Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, Raijin below.
@@ -1260,8 +1436,8 @@ ZONE_SPOTS = {
     "Tower": [(38.0, DECK2, 80.0), (50.0, DECK2, 100.0), (38.0, DECK3, 98.0), (48.0, DECK4, 84.0), (40.0, DECK, 100.0)],
     "Hold": [(48.0, HULL_A, -60.0), (33.0, HULL_A, -30.0), (63.0, HULL_A, 10.0), (48.0, HULL_A, 40.0),
              (40.0, HULL_B, 50.0), (56.0, HULL_B, -80.0), (48.0, HULL_B, -20.0), (40.0, HULL_A, 86.0)],
-    "Lab": [(48.0, LAB1, 15.0), (48.0, LAB2, -30.0), (48.0, LAB2, 10.0), (33.0, LAB2, 50.0), (63.0, LAB2, 50.0),
-            (48.0, LAB2, 86.0), (48.0, LAB2, 65.0)],
+    "Lab": [(48.0, LAB1, 15.0), (47.0, LAB2, -26.5), (54.0, LAB2, 5.0), (33.0, LAB2, 50.0), (63.0, LAB2, 50.0),
+            (47.0, LAB2, 81.0), (48.0, LAB2, 65.0)],
 }
 ROAMER_SPOTS = [(-12.0, PIER, 1.0), (-14.0, SHORE, -121.0), (5.0, BARGE, 117.5)]
 
