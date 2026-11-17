@@ -11,6 +11,10 @@ extends Node
 ## Not for scouting (0.31.13, owner: "make sure it's not exploitable"): it stays within LEASH of your character and
 ## can't go through walls, doors, windows or the ground, and must keep your character in sight (no round corners or
 ## in through doors), so it can't find scavs or loot you couldn't see from where you stand.
+## TEMP playtest switch (0.35.29, owner 2026-11-17: "make it so you can free cam anywhere ... to help explore and find
+## bugs"): while `playtest_anywhere` is on, it works in online raids and the walkable hideout too, and flies anywhere
+## (no leash, through walls). Online, time can't be slowed or stopped (the server keeps time). Set it back to false
+## before release: online it lets you see through walls.
 
 ## Flying speeds (m/s); the mouse wheel steps through them.
 const SPEEDS: Array[float] = [1.0, 2.5, 5.0, 10.0, 20.0]
@@ -36,9 +40,14 @@ const WALL_GAP := 0.25
 
 enum TimeMode { NORMAL, SLOW, FROZEN }
 
+## TEMP (see the header): free camera anywhere, flying anywhere. false = solo raids only, leashed, stopped by walls.
+static var playtest_anywhere := true
+
 const STAND_IN_SCENE := preload("res://scenes/remote_player.tscn")
 
 var player: Player
+## In the walkable hideout (playtest only) the camera flies off the walker instead (no stand-in body there).
+var walker: HideoutWalker
 var camera: Camera3D
 var active := false
 var time_mode := TimeMode.NORMAL
@@ -56,8 +65,9 @@ var stand_in: RemotePlayer
 var _moved_layers := {}
 
 
-func _init(owner_player: Player) -> void:
-	player = owner_player
+func _init(owner_body: Node3D) -> void:
+	player = owner_body as Player
+	walker = owner_body as HideoutWalker
 	name = "FreeCam"
 	# Runs while time is stopped (and while the HUD pauses the game).
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -65,11 +75,33 @@ func _init(owner_player: Player) -> void:
 
 ## The free camera can be used here: solo raids only (owner's security rules: no seeing round walls online).
 static func allowed() -> bool:
+	return playtest_anywhere or not Network.main.in_online_raid()
+
+
+## Slow motion and stopped time: offline only (online the server keeps time).
+static func time_allowed() -> bool:
 	return not Network.main.in_online_raid()
 
 
+## Whoever the camera flies off: the raid's player or the hideout's walker.
+func body() -> Node3D:
+	return player if player != null else walker
+
+
+func _eye() -> Camera3D:
+	return player.camera if player != null else walker.camera
+
+
+func _base_fov() -> float:
+	return player.base_fov if player != null else HideoutWalker.FOV
+
+
+func _locked() -> bool:
+	return player.controls_locked() if player != null else false
+
+
 func can_start() -> bool:
-	return allowed() and player != null and player.is_inside_tree() and not player.controls_locked()
+	return allowed() and is_instance_valid(body()) and body().is_inside_tree() and not _locked()
 
 
 func toggle() -> void:
@@ -84,16 +116,19 @@ func start() -> bool:
 	if active or not can_start():
 		return false
 	active = true
-	player.camera_away = true
+	if player != null:
+		player.camera_away = true
+	else:
+		walker.locked = true
 	camera = Camera3D.new()
 	camera.name = "FreeCamera"
-	_fov = player.base_fov
+	_fov = _base_fov()
 	camera.fov = _fov
 	camera.near = 0.05
-	camera.far = player.camera.far
-	camera.cull_mask = player.camera.cull_mask & ~VIEW_LAYER
-	player.get_parent().add_child(camera)
-	var from := player.camera.global_transform
+	camera.far = _eye().far
+	camera.cull_mask = _eye().cull_mask & ~VIEW_LAYER
+	body().get_parent().add_child(camera)
+	var from := _eye().global_transform
 	# A little behind and above your eyes, so the first thing you see is yourself.
 	var euler := from.basis.get_euler(EULER_ORDER_YXZ)
 	yaw = euler.y
@@ -106,8 +141,9 @@ func start() -> bool:
 	_apply_turn()
 	camera.make_current()
 	_velocity = Vector3.ZERO
-	_hide_first_person()
-	_add_stand_in()
+	if player != null:
+		_hide_first_person()
+		_add_stand_in()
 	return true
 
 
@@ -119,6 +155,9 @@ func stop() -> void:
 	if is_instance_valid(player):
 		player.camera_away = false
 		player.camera.make_current()
+	elif is_instance_valid(walker):
+		walker.locked = false
+		walker.camera.make_current()
 	for node in _moved_layers:
 		if is_instance_valid(node):
 			(node as GeometryInstance3D).layers = _moved_layers[node]
@@ -138,8 +177,12 @@ func set_time(mode: TimeMode) -> void:
 
 
 func cycle_time() -> void:
-	if active:
-		set_time(((time_mode + 1) % 3) as TimeMode)
+	if not active or not time_allowed():
+		return
+	var next := ((time_mode + 1) % 3) as TimeMode
+	if next == TimeMode.FROZEN and player == null:
+		next = TimeMode.NORMAL   # (the hideout has nothing to pause the game with: slow motion only)
+	set_time(next)
 
 
 ## Time is stopped (the HUD pauses the game for it).
@@ -164,7 +207,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not active:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var sens := player.mouse_sensitivity * GameSettings.sensitivity * camera.fov / player.base_fov
+		var sens := (player.mouse_sensitivity if player != null else HideoutWalker.BASE_SENSITIVITY) \
+			* GameSettings.sensitivity * camera.fov / _base_fov()
 		look_by(-event.screen_relative.y * sens, -event.screen_relative.x * sens)
 	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var button := (event as InputEventMouseButton).button_index
@@ -181,7 +225,7 @@ func look_by(pitch_by: float, yaw_by: float) -> void:
 
 ## A finger dragged on the look side (touch), like Player.touch_look.
 func touch_look(delta: Vector2) -> void:
-	var sens := Player.TOUCH_LOOK * GameSettings.sensitivity * camera.fov / player.base_fov
+	var sens := Player.TOUCH_LOOK * GameSettings.sensitivity * camera.fov / _base_fov()
 	look_by(-delta.y * sens, -delta.x * sens)
 
 
@@ -191,7 +235,7 @@ func _process(delta: float) -> void:
 	var dt := minf(delta / maxf(Engine.time_scale, 0.01), 0.1)
 	if not active:
 		return
-	if not is_instance_valid(player) or player.controls_locked() or not allowed():
+	if not is_instance_valid(body()) or _locked() or not allowed():
 		stop()   # (died, extracted, the raid ended)
 		return
 	fly(dt)
@@ -229,7 +273,9 @@ func fly(dt: float) -> void:
 ## Where a move from `from` to `to` really ends: short of walls (sliding along them), within LEASH of your head, and
 ## in sight of it (otherwise it stays at `from`).
 func blocked_move(from: Vector3, to: Vector3) -> Vector3:
-	var space := player.get_world_3d().direct_space_state
+	if playtest_anywhere:
+		return to   # (TEMP playtest: anywhere, through anything)
+	var space := body().get_world_3d().direct_space_state
 	var target := to
 	for i in 2:   # (a second try slides along the first wall)
 		var step := target - from
@@ -244,7 +290,7 @@ func blocked_move(from: Vector3, to: Vector3) -> Vector3:
 		target = stop + (target - stop).slide(normal) if i == 0 else stop
 		if i == 1:
 			break
-	var head := player.global_position + Vector3.UP * 1.5
+	var head := body().global_position + Vector3.UP * 1.5
 	if target.distance_to(head) > LEASH:
 		target = head + (target - head).normalized() * LEASH
 	# Only where it still sees your character from: no going round a corner or in through a door to look about.

@@ -2790,6 +2790,23 @@ func _section_hideout_world() -> void:
 	_check(world.menu_open(), "Tab opens the menu")
 	world._unhandled_input(tab)
 	_check(not world.menu_open(), "Tab again closes it")
+	# TEMP playtest (0.35.29): the free camera works in the hideout too (F2), and the menu ends it.
+	if FreeCam.playtest_anywhere:
+		var f2 := InputEventAction.new()
+		f2.action = "free_cam"
+		f2.pressed = true
+		world._unhandled_input(f2)
+		await _frames(2)
+		_check(world.free_cam.active and walker.locked and walker.get_viewport().get_camera_3d() == world.free_cam.camera,
+			"hideout: F2 starts the free camera (you stand still)")
+		world._unhandled_input(tab)
+		await _frames(2)
+		_check(not world.free_cam.active and world.menu_open() and walker.get_viewport().get_camera_3d() == walker.camera,
+			"hideout: opening the menu ends the free camera")
+		world.close_menu()
+		world._unhandled_input(f2)
+		world._unhandled_input(f2)
+		_check(not world.free_cam.active and not walker.locked, "hideout: F2 again comes back")
 	# Walking: forward from the spawn for a second, and the war table stops you.
 	walker.global_position = spawn + Vector3.UP * 0.05
 	walker.rotation = Vector3.ZERO
@@ -9128,8 +9145,20 @@ func _section_free_cam() -> void:
 		await physics_frame
 	Input.action_release("jump")
 	_check(cam.camera.global_position.y > up_from + 0.3 and player.is_on_floor(), "jump flies up (and you don't jump)")
-	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
+	# TEMP playtest (0.35.29): anywhere, online too (no slow-mo there), no leash, through walls.
 	var head := player.global_position + Vector3.UP * 1.5
+	var anywhere := FreeCam.playtest_anywhere
+	if anywhere:
+		_check(head.distance_to(cam.blocked_move(head, head + Vector3(0, 0, 300))) > 299.0, "playtest: the free camera flies anywhere")
+		var net_mode: int = Network.main.mode
+		var net_in_raid: bool = Network.main.in_raid
+		Network.main.mode = Network.Mode.CLIENT
+		Network.main.in_raid = true
+		_check(FreeCam.allowed() and not FreeCam.time_allowed(), "playtest: allowed in online raids, without slow-mo")
+		Network.main.mode = net_mode
+		Network.main.in_raid = net_in_raid
+	FreeCam.playtest_anywhere = false
+	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
 	var far := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 200))
 	_check(far.distance_to(head) <= FreeCam.LEASH + 0.01, "the free camera stays within %d m (%.1f m)" % [FreeCam.LEASH, far.distance_to(head)])
 	var wall := StaticBody3D.new()
@@ -9145,6 +9174,7 @@ func _section_free_cam() -> void:
 	var hidden_spot := head + Vector3(0, 0, 9)   # (behind the wall, out of your sight: can't move there)
 	_check(cam.blocked_move(hidden_spot, hidden_spot + Vector3(1, 0, 0)) == hidden_spot, "the free camera can't move where it can't see you")
 	wall.queue_free()
+	FreeCam.playtest_anywhere = anywhere
 	await physics_frame
 	cam.change_speed(1)
 	_check(cam.speed() > FreeCam.SPEEDS[FreeCam.START_SPEED], "the speed goes up")
