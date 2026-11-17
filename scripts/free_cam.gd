@@ -12,9 +12,9 @@ extends Node
 ## can't go through walls, doors, windows or the ground, and must keep your character in sight (no round corners or
 ## in through doors), so it can't find scavs or loot you couldn't see from where you stand.
 ## TEMP playtest switch (0.35.29, owner 2026-11-17: "make it so you can free cam anywhere ... to help explore and find
-## bugs"): while `playtest_anywhere` is on, it works in online raids and the walkable hideout too, and flies anywhere
-## (no leash, through walls). Online, time can't be slowed or stopped (the server keeps time). Set it back to false
-## before release: online it lets you see through walls.
+## bugs"): while `playtest_anywhere` is on, it works in the walkable hideout too, and flies anywhere (no leash, through
+## walls). Still PvE (solo raids) only (owner, 0.35.30: "make sure its only in PvE for now"): never in online / PvP raids.
+## Set it back to false before release.
 
 ## Flying speeds (m/s); the mouse wheel steps through them.
 const SPEEDS: Array[float] = [1.0, 2.5, 5.0, 10.0, 20.0]
@@ -40,7 +40,7 @@ const WALL_GAP := 0.25
 
 enum TimeMode { NORMAL, SLOW, FROZEN }
 
-## TEMP (see the header): free camera anywhere, flying anywhere. false = solo raids only, leashed, stopped by walls.
+## TEMP (see the header): free camera in the hideout too, flying anywhere. false = solo raids only, leashed, stopped by walls.
 static var playtest_anywhere := true
 
 const STAND_IN_SCENE := preload("res://scenes/remote_player.tscn")
@@ -75,7 +75,7 @@ func _init(owner_body: Node3D) -> void:
 
 ## The free camera can be used here: solo raids only (owner's security rules: no seeing round walls online).
 static func allowed() -> bool:
-	return playtest_anywhere or not Network.main.in_online_raid()
+	return not Network.main.in_online_raid()
 
 
 ## Slow motion and stopped time: offline only (online the server keeps time).
