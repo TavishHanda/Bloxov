@@ -9145,7 +9145,7 @@ func _section_free_cam() -> void:
 		await physics_frame
 	Input.action_release("jump")
 	_check(cam.camera.global_position.y > up_from + 0.3 and player.is_on_floor(), "jump flies up (and you don't jump)")
-	# TEMP playtest (0.35.29): anywhere, online too (no slow-mo there), no leash, through walls.
+	# TEMP playtest (0.35.29): no leash, through walls; still never in online (PvP) raids (0.35.30).
 	var head := player.global_position + Vector3.UP * 1.5
 	var anywhere := FreeCam.playtest_anywhere
 	if anywhere:
@@ -9154,7 +9154,7 @@ func _section_free_cam() -> void:
 		var net_in_raid: bool = Network.main.in_raid
 		Network.main.mode = Network.Mode.CLIENT
 		Network.main.in_raid = true
-		_check(FreeCam.allowed() and not FreeCam.time_allowed(), "playtest: allowed in online raids, without slow-mo")
+		_check(not FreeCam.allowed() and not FreeCam.time_allowed(), "playtest: still not in online (PvP) raids")
 		Network.main.mode = net_mode
 		Network.main.in_raid = net_in_raid
 	FreeCam.playtest_anywhere = false
