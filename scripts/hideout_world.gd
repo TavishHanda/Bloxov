@@ -9,6 +9,7 @@ extends Node3D
 ## Touch screens walk round with a stick and look by dragging (HideoutTouch, 0.29.10; phones opened straight on the
 ## menu before that).
 ## A new player's first visit walks them round it (Tutorial, 0.24.0).
+## TEMP playtest (0.35.29): the raid's free camera works here too (F2 by default; FreeCam.playtest_anywhere).
 
 ## A shot hit one of the range's targets.
 signal target_hit
@@ -26,6 +27,9 @@ const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "
 const STATION_NOTES := {"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
 var walker: HideoutWalker
+## TEMP playtest (0.35.29): the free camera, flying off the walker (only while FreeCam.playtest_anywhere is on).
+var free_cam: FreeCam
+var _cam_label: Label
 ## Today's hideout screen, kept the whole time (hidden while you walk round).
 var menu: Control
 var _menu_layer: CanvasLayer
@@ -89,6 +93,8 @@ func _ready() -> void:
 	add_child(walker)
 	walker.global_position = (level.get_node("Spawn") as Node3D).global_position + Vector3.UP * 0.05
 	walker.locked = true   # (until close_menu says you're walking)
+	free_cam = FreeCam.new(walker)
+	add_child(free_cam)
 	Ambience.start_bunker(self)   # (0.30.2: the bunker's steady room tone)
 	toys = HideoutToys.new()
 	toys.name = "Toys"
@@ -194,6 +200,16 @@ func _build_hud() -> void:
 	_use_button.pressed.connect(use_station)
 	_hud.add_child(_use_button)
 	touch.blockers = [_menu_button, _use_button]
+	_cam_label = Label.new()
+	_cam_label.name = "FreeCamStatus"
+	_cam_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_cam_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cam_label.position = Vector2(-400, 16)
+	_cam_label.size = Vector2(800, 30)
+	_cam_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cam_label.visible = false
+	HudStyle.style_label(_cam_label, 20)
+	_hud.add_child(_cam_label)
 
 
 func _process(_delta: float) -> void:
@@ -220,6 +236,21 @@ func _process(_delta: float) -> void:
 		_top_up_ammo()
 		_hud.visible = false
 		return
+	_cam_label.visible = free_cam.active
+	if free_cam.active:   # (flying about: nothing to use, nothing in reach)
+		station = null
+		seat = null
+		cat_near = false
+		decor_near = false
+		_prompt.visible = false
+		_use_button.visible = false
+		_crosshair.visible = false
+		_cam_label.text = "FREE CAMERA   %s m/s%s   %s / %s fly, %s / %s up / down, wheel = speed, %s slow-mo, %s back" % [
+			str(free_cam.speed()), "   SLOW MOTION" if free_cam.time_mode == FreeCam.TimeMode.SLOW else "",
+			Keybinds.cap("move_forward"), Keybinds.cap("move_back"), Keybinds.cap("jump"), Keybinds.cap("crouch"),
+			Keybinds.cap("cam_time"), Keybinds.cap("free_cam")]
+		return
+	_crosshair.visible = true
 	var free := not menu_open() and not toys.busy()
 	station = _station_in_reach() if free else null
 	cat_near = free and cat.in_reach()
@@ -275,6 +306,21 @@ func _unhandled_input(event: InputEvent) -> void:
 			leave_range()
 			get_viewport().set_input_as_handled()
 		return
+	if event.is_action_pressed("free_cam") and not menu_open() and (free_cam.active or not toys.busy()):
+		if free_cam.active:
+			free_cam.stop()
+		elif FreeCam.allowed():
+			free_cam.start()
+		get_viewport().set_input_as_handled()
+		return
+	if free_cam.active and not event.is_action_pressed("inventory") and not event.is_action_pressed("ui_cancel"):
+		if event.is_action_pressed("cam_time"):
+			free_cam.cycle_time()
+			get_viewport().set_input_as_handled()
+		elif event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
+				and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not TouchInput.active and not GameSettings.is_phone():
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		return   # (flying: no using things; the menu keys still open the menu, which ends it)
 	if not menu_open() and toys.handle_input(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -325,6 +371,8 @@ func menu_open() -> bool:
 
 ## Opens the hideout menu, on `at`'s tab if it's a trader.
 func open_menu(at := "") -> void:
+	if free_cam != null:
+		free_cam.stop()
 	toys.stand_up()
 	_menu_layer.visible = true
 	menu.visible = true

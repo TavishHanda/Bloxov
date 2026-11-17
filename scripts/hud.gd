@@ -216,7 +216,7 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("free_cam") and not loot_ui.visible and not end_screen.visible:
 		toggle_free_cam()
 		get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("cam_time") and free_cam.active:
+	elif event.is_action_pressed("cam_time") and free_cam.active and FreeCam.time_allowed():
 		free_cam.cycle_time()
 		show_note(["Normal speed", "Slow motion", "Time stopped"][free_cam.time_mode])
 		get_viewport().set_input_as_handled()

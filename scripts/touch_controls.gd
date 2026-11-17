@@ -159,7 +159,7 @@ func button_shown(id: String) -> bool:
 		return false
 	# The free camera: only its own buttons and pause.
 	if free_cam_on():
-		return group == "cam" or id == "pause"
+		return (group == "cam" and (id != "cam_slow" or FreeCam.time_allowed())) or id == "pause"
 	if group == "cam":
 		return false
 	if group == "top":

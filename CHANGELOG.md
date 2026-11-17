@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.29 (playtest: free camera anywhere)
+Owner: "since the free cam is temporary for play testers right now anyways, can you make it so you can free cam
+anywhere? just to help explore and find bugs/issues faster".
+- TEMP, for the playtest: the free camera (F2, or FREE CAMERA in the pause menu) now works in online raids and in the
+  walkable hideout too, and flies anywhere: no 25 m leash, and through walls, doors and the ground. Online it has no
+  slow motion or stopped time (the server keeps time). In the hideout it's keys only (no touch button there) and has
+  slow motion but not stopped time; opening the menu ends it.
+- One switch: `FreeCam.playtest_anywhere` in `scripts/free_cam.gd`. Set it to `false` before release (online it lets
+  you see through walls); that puts back solo-raids-only with the leash and walls, and the smoke test checks both.
+
 ## 0.35.28 (no lag spike switching guns)
 Owner: "whenever you switch from primary to secondary it always lags as well, like huge lag spike for a couple seconds".
 - The gun you weren't holding was first drawn when you switched to it, so its look (and its attachments' look: a red
