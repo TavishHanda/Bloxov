@@ -247,7 +247,7 @@ func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
 		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body)
 
 
-## Every living scav/Raider/sniper: [id, kind (0 scav, 1 Raider, 2 sniper, 3 boss), net_capture(), gun (AILoadouts.NET_GUNS)].
+## Every living scav/Raider/sniper: [id, kind (0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand, 5 Exion Trooper), net_capture(), gun (AILoadouts.NET_GUNS)].
 func enemy_states() -> Array:
 	var list := []
 	for enemy in RaidScope.nodes(raid, &"enemies"):

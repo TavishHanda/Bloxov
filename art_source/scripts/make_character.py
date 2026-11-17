@@ -688,6 +688,17 @@ RAID_SKINS = {
     "c_lens_blue": ("4a7090", [("6a90b0", 0.08)]), "c_heavy_olive": ("444a2c", [("3e4428", 0.05)]),
     "c_heavy_olive_dk": ("2f3320", []), "c_heavy_black": ("2f3134", [("36383c", 0.05)]),
     "c_altyn": ("4e5434", [("484e30", 0.05), ("6a4a2e", 0.02)]), "c_altyn_black": ("2f3134", [("36383c", 0.05)]),
+    # (Riptide's own AI, owner 2026-11-17: the Deckhands, the ship's crew left behind, in work overalls and hi-vis;
+    # the Exion Troopers, the Brotherhood's soldiers, in near-black fatigues with the X1 mark)
+    "c_overall_orange": ("c0602a", [("b55a27", 0.05)]), "c_overall_orange_dk": ("8e4520", []),
+    "c_overall_grey": ("6c7176", [("64696e", 0.05)]), "c_overall_grey_dk": ("4c5054", []),
+    "c_overall_navy": ("2f3a52", [("2a3449", 0.05)]), "c_overall_navy_dk": ("1f273a", []),
+    "c_hivis": ("d8c22a", [("cdb726", 0.05)]), "c_hivis_dk": ("9c8b1d", []),
+    "c_hardhat_yellow": ("e0b52a", [("d4ab27", 0.05)]), "c_hardhat_yellow_dk": ("a8851d", []),
+    "c_hardhat_white": ("dedbd2", [("d2cfc5", 0.05)]), "c_hardhat_white_dk": ("a9a69c", []),
+    "c_rubber_boot": ("b8a22a", [("ad9827", 0.05)]),
+    "c_exion": ("1f2228", [("252830", 0.05)]), "c_exion_dk": ("14161a", []),
+    "c_exion_grey": ("3d4249", [("373b42", 0.05)]), "c_xmark": ("d9d6cc", []),
 }
 for _name, (_base, _noise) in RAID_SKINS.items():
     PALETTE[_name] = _base
@@ -792,6 +803,11 @@ def c_tops(b, options):
             for sx in (-1, 1):
                 p.box((sx * 0.08, d - 0.01, CHEST_Z + 0.24), (sx * 0.27, d - 0.004, CHEST_Z + 0.42), skin)
                 p.box((sx * 0.08, d - 0.01, CHEST_Z + 0.42), (sx * 0.27, d, CHEST_Z + 0.47), dark)
+        if "xmark" in extras:                                          # the Exion X1 mark, left chest (Riptide)
+            for k in range(5):                                         # (clear of the rig's straps, x 0.1-0.18)
+                for x in (0.225 + k * 0.024, 0.321 - k * 0.024):
+                    p.box((x, d - 0.01, CHEST_Z + 0.36 + k * 0.024), (x + 0.024, d - 0.002, CHEST_Z + 0.384 + k * 0.024), "c_xmark")
+            p.box((0.19, d - 0.01, CHEST_Z + 0.36), (0.21, d - 0.002, CHEST_Z + 0.48), "c_xmark")              # the 1 (reads X1 from the front)
         b.finish(p, "Top__%s__Spine" % option, "Spine")
         for side, sx in (("L", -1), ("R", 1)):
             cx = sx * ARM_X
@@ -1058,8 +1074,24 @@ def build_raider(b):
         "balaclava_black": ("balaclava", "c_knit_black", "t_skin_pale"),
         "balaclava_rust": ("balaclava", "c_knit_rust", "t_skin_tan"),
     })
+    raider_helmets(b, (("altyn", "c_altyn"), ("altyn_black", "c_altyn_black")))
     h = HEAD / 2
-    for option, skin in (("altyn", "c_altyn"), ("altyn_black", "c_altyn_black")):
+    p = b.part().box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD * 0.15), (h + 0.03, h - 0.03, HEAD_Z + HEAD + 0.07), "c_raider")
+    p.box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD + 0.05), (h + 0.03, -h + 0.05, HEAD_Z + HEAD + 0.07), "c_raider_dk")
+    b.finish(p, "Hat__hood", "Neck")
+    p = b.part().box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.05), "c_armband")
+    p.box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.86), "t_red")
+    p.box((-0.05, -h - 0.05, HEAD_Z + HEAD * 0.8), (0.05, -h - 0.02, HEAD_Z + HEAD * 0.95), "t_red")          # knot
+    b.finish(p, "Hat__bandana", "Neck")
+    b.empty("Hat__none", "Neck")
+    raider_vests(b, (("heavy_black", "c_heavy_black", "t_black_dk"), ("heavy_olive", "c_heavy_olive", "c_heavy_olive_dk")))
+    c_rig(b, "rig_black", "c_canvas_black", "c_canvas_black_dk")
+
+
+def raider_helmets(b, options):
+    """The raiders' Altyn helmets: [(option, skin)]."""
+    h = HEAD / 2
+    for option, skin in options:
         p = b.part().box((-h - 0.04, -h - 0.04, HEAD_Z + HEAD * 0.78), (h + 0.04, h + 0.04, HEAD_Z + HEAD + 0.07), skin)
         p.box((-h - 0.01, -h - 0.01, HEAD_Z + HEAD + 0.07), (h + 0.01, h + 0.01, HEAD_Z + HEAD + 0.1), skin)
         p.box((-h - 0.04, -h - 0.04, HEAD_Z + HEAD * 0.74), (h + 0.04, h + 0.04, HEAD_Z + HEAD * 0.78), "t_black")
@@ -1070,16 +1102,12 @@ def build_raider(b):
         p.box((-h + 0.04, h + 0.06, HEAD_Z + HEAD * 0.38), (h - 0.04, h + 0.062, HEAD_Z + HEAD * 0.75), "c_visor")
         p.box((-0.15, h + 0.062, HEAD_Z + HEAD * 0.56), (0.15, h + 0.065, HEAD_Z + HEAD * 0.64), "t_black_dk")    # slit
         b.finish(p, "Hat__" + option, "Neck")
-    p = b.part().box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD * 0.15), (h + 0.03, h - 0.03, HEAD_Z + HEAD + 0.07), "c_raider")
-    p.box((-h - 0.03, -h - 0.05, HEAD_Z + HEAD + 0.05), (h + 0.03, -h + 0.05, HEAD_Z + HEAD + 0.07), "c_raider_dk")
-    b.finish(p, "Hat__hood", "Neck")
-    p = b.part().box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.05), "c_armband")
-    p.box((-h - 0.015, -h - 0.02, HEAD_Z + HEAD * 0.82), (h + 0.015, h + 0.015, HEAD_Z + HEAD * 0.86), "t_red")
-    p.box((-0.05, -h - 0.05, HEAD_Z + HEAD * 0.8), (0.05, -h - 0.02, HEAD_Z + HEAD * 0.95), "t_red")          # knot
-    b.finish(p, "Hat__bandana", "Neck")
-    b.empty("Hat__none", "Neck")
+
+
+def raider_vests(b, options):
+    """The raiders' heavy vests with shoulder armor: [(option, skin, dark)]."""
     d = TORSO_D / 2
-    for option, skin, dark in (("heavy_black", "c_heavy_black", "t_black_dk"), ("heavy_olive", "c_heavy_olive", "c_heavy_olive_dk")):
+    for option, skin, dark in options:
         p = b.part().box((-TORSO_W / 2 + 0.02, -d - 0.05, CHEST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.045, SHOULDER_Z - 0.02), skin)
         p.box((-TORSO_W / 2 + 0.02, -d - 0.05, CHEST_Z + 0.04), (TORSO_W / 2 - 0.02, d + 0.05, CHEST_Z + 0.07), dark)   # trim
         p.box((-0.24, -d - 0.04, SHOULDER_Z - 0.04), (0.24, d - 0.06, SHOULDER_Z + 0.06), dark)          # neck guard
@@ -1098,10 +1126,58 @@ def build_raider(b):
         p.box((-0.14, d + 0.035, HIP_Z - 0.16), (0.14, d + 0.04, HIP_Z - 0.13), dark)
         p.box((-TORSO_W / 2 - 0.01, -d - 0.01, HIP_Z + 0.02), (TORSO_W / 2 + 0.01, d + 0.01, WAIST_Z + 0.06), dark)
         b.finish(p, "Vest__%s__Hips" % option, "Hips")
+
+
+def build_deckhand(b):
+    """Riptide's scavs (owner 2026-11-17): the Leviathan's crew left behind. The scav's body and slots, work clothes."""
+    c_legs(b, {"orange": ("c_overall_orange", "c_overall_orange_dk", ("belt", "pockets")),
+               "grey": ("c_overall_grey", "c_overall_grey_dk", ("belt", "pockets")),
+               "navy": ("c_overall_navy", "c_overall_navy_dk", ("belt", "cuff"))},
+           {"rubber": ("c_rubber_boot", "t_sole", "t_black_dk"), "black": ("t_boot_black", "t_sole", "t_black_dk")})
+    c_tops(b, {"orange": ("c_overall_orange", "c_overall_orange_dk", ("collar", "zip", "stripe")),
+               "grey": ("c_overall_grey", "c_overall_grey_dk", ("collar", "zip", "pockets", "cuffs")),
+               "navy": ("c_overall_navy", "c_overall_navy_dk", ("collar", "buttons", "stripe"))})
+    c_gloves(b, {"black": ("t_black", "t_black_dk"), "work": ("c_hivis", "c_hivis_dk")})
+    c_heads(b, {
+        "pale": ("face", "t_skin_pale", "t_hair_dark"), "tan_beard": ("beard", "t_skin_tan", "t_hair_brown"),
+        "dark": ("face", "t_skin_dark", "t_hair_black"), "pale_beard": ("beard", "t_skin_pale", "t_hair_brown"),
+        "balaclava_black": ("balaclava", "c_knit_black", "t_skin_pale"),
+    })
+    h = HEAD / 2
+    c_cap(b, "hardhat_yellow", "c_hardhat_yellow", "c_hardhat_yellow_dk", h, peak=0.015)
+    c_cap(b, "hardhat_white", "c_hardhat_white", "c_hardhat_white_dk", h, peak=0.015)
+    for option, skin, dark in (("beanie_black", "c_knit_black", "t_black_dk"), ("beanie_orange", "c_overall_orange", "c_overall_orange_dk")):
+        p = b.part().box((-h - 0.015, -h - 0.015, HEAD_Z + HEAD * 0.8), (h + 0.015, h + 0.015, HEAD_Z + HEAD + 0.05), skin)
+        p.box((-h - 0.02, -h - 0.02, HEAD_Z + HEAD * 0.72), (h + 0.02, h + 0.02, HEAD_Z + HEAD * 0.82), skin)   # turn-up
+        p.box((-0.07, -0.07, HEAD_Z + HEAD + 0.05), (0.07, 0.07, HEAD_Z + HEAD + 0.07), dark)
+        b.finish(p, "Hat__" + option, "Neck")
+    b.empty("Hat__none", "Neck")
+    c_rig(b, "hivis", "c_hivis", "c_hivis_dk")
     c_rig(b, "rig_black", "c_canvas_black", "c_canvas_black_dk")
+    b.empty("Vest__none", "Spine")
 
 
-BUILDERS = {"scav": build_scav, "pmc": build_pmc, "raider": build_raider, "trader": build_trader}
+def build_trooper(b):
+    """Riptide's raiders (owner 2026-11-17): Exion Troopers, the Brotherhood's soldiers who stayed after Site Zero
+    went quiet. The raider's body and slots, near-black fatigues with the X1 mark on the chest."""
+    pads = ("belt", "pads")
+    c_legs(b, {"black": ("c_exion", "c_exion_dk", pads), "grey": ("c_exion_grey", "c_exion_dk", pads + ("pockets",))},
+           {"black": ("t_boot_black", "t_sole", "t_black_dk")})
+    c_tops(b, {"black": ("c_exion", "c_exion_dk", ("xmark", "collar", "zip", "cuffs")),
+               "grey": ("c_exion_grey", "c_exion_dk", ("xmark", "zip", "patch", "cuffs"))})
+    c_gloves(b, {"black": ("t_black", "t_black_dk")})
+    c_heads(b, {"gasmask": ("gasmask", "c_knit_black", "c_heavy_black"),
+                "balaclava_black": ("balaclava", "c_knit_black", "t_skin_pale"),
+                "balaclava_dark": ("balaclava", "c_knit_black", "t_skin_dark")})
+    raider_helmets(b, (("altyn_black", "c_altyn_black"),))
+    c_cap(b, "cap_black", "c_exion", "c_exion_dk", HEAD / 2, peak=0.015)
+    raider_vests(b, (("heavy_black", "c_heavy_black", "t_black_dk"),))
+    c_rig(b, "rig_black", "c_canvas_black", "c_canvas_black_dk")
+    b.empty("Vest__none", "Spine")   # (some show the X1 mark)
+
+
+BUILDERS = {"scav": build_scav, "pmc": build_pmc, "raider": build_raider, "trader": build_trader,
+            "deckhand": build_deckhand, "trooper": build_trooper}
 
 
 # ---------------------------------------------------------------- writing

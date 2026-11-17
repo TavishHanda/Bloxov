@@ -7,6 +7,29 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.34 (Riptide's three bosses)
+Owner, 2026-11-17: "raijin, orbit and ace should be like 3 bosses", each with "2 kinda somewhat non threatening
+guards", all tougher than Bon, Raijin the toughest; and Riptide's own scavs and Raiders "to show we are in a different
+place". Plan OK'd the same day.
+- **Three boss groups, every raid.** Raijin holds Site Zero (the lab's two decks) with his two guards following him.
+  **Ace** patrols the north end of the lower hull (the pump room and the front of the cargo hold), **Orbit** the south
+  end (the engine room, the back of the hold, the workshops), each with two guards. Before, Ace and Orbit were
+  Raijin's guards.
+- **Health:** Raijin 400 (was 250; he keeps his assault armor), Ace and Orbit 300, Bon stays 250. Ace and Orbit
+  fight like Bon (Hound, heavy armor, never take cover) and drop a guaranteed valuable: Ace the Exion Orders, Orbit a
+  Military Chip.
+- **Guards** (scenes/guard_riptide.tscn): weak on purpose: 100 hp, light armor, a scav's aim, a Raider's guns.
+- **Deckhands and Exion Troopers:** Riptide's scavs are Deckhands (the ship's crew left behind: work overalls, hi-vis,
+  hard hats) and its Raiders Exion Troopers (near-black fatigues with the X1 mark). Same AI and numbers, new looks
+  (art_source/scripts/make_character.py `deckhand`, `trooper`) and names in the kill feed and on bodies. Quests count
+  a Deckhand as a scav and a Trooper as a Raider. Picture: project files riptide/ai/.
+- The hold starts with 2 scavs (was 4) now the bosses' crews are below; max alive 28 -> 34 to make room for the 6 new
+  boss AI (the playtest AI cut leaves the bosses and their room alone).
+- Map screen: "BOSSES: RAIJIN, ACE, ORBIT".
+- Code: EnemySpawner `bosses` (several bosses, each in its own zone; `boss_zone` on a boss start marker) and `looks`
+  (a map's own scav/Raider scenes); zones can have a `height` (the AI's area stops at the decks above and below:
+  Riptide's lab, Fore and Aft). Online: AI kinds 4 (Deckhand) and 5 (Trooper) have their own puppets; **net version 2**.
+
 ## 0.35.33 (Site Zero's new layout)
 Riptide's lab redesigned (owner: "the layout is completely random"; plan v2 OK'd 2026-11-17, pictures in the project
 files riptide/lab/). Laid out like a real containment lab, clean to dirty from the bow:

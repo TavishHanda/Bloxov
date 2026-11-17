@@ -33,7 +33,7 @@ size = Vector2(113.7, 214.6)
 
 [node name="Riptide" type="Node3D"]
 metadata/map_name = "Riptide"
-metadata/spawner = {"zones": [{"name": "Landing", "center": Vector3(-105, 2.5, 0), "radius": 100, "scavs": 5, "raiders": 0, "trickle": 0.8}, {"name": "Deck", "center": Vector3(48, 4, -30), "radius": 70, "scavs": 4, "raiders": 0, "trickle": 1}, {"name": "Tower", "center": Vector3(48, 7.5, 90), "radius": 26, "scavs": 0, "raiders": 2, "trickle": 1}, {"name": "Hold", "center": Vector3(48, -4, 0), "radius": 80, "scavs": 4, "raiders": 0, "trickle": 1}, {"name": "Lab", "center": Vector3(48, -18.25, 30), "radius": 70, "scavs": 0, "raiders": 2, "trickle": 1.5}], "roamers": 2, "snipers": 1, "initial_count": 0, "boss": {"zone": "Lab", "guards": 2, "chance": 1, "scene": "res://scenes/boss_raijin.tscn", "guard_scene": "res://scenes/guard_raijin.tscn", "guard_names": ["Ace", "Orbit"]}, "max_alive": 28, "scav_budget": 19, "raider_budget": 7, "scav_interval_min": 60.0, "scav_interval_max": 80.0, "raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}
+metadata/spawner = {"zones": [{"name": "Landing", "center": Vector3(-105, 2.5, 0), "radius": 100, "scavs": 5, "raiders": 0, "trickle": 0.8}, {"name": "Deck", "center": Vector3(48, 4, -30), "radius": 70, "scavs": 4, "raiders": 0, "trickle": 1}, {"name": "Tower", "center": Vector3(48, 7.5, 90), "radius": 26, "scavs": 0, "raiders": 2, "trickle": 1}, {"name": "Hold", "center": Vector3(48, -4, 0), "radius": 80, "scavs": 2, "raiders": 0, "trickle": 1}, {"name": "Lab", "center": Vector3(48, -18.25, 30), "radius": 70, "height": 7, "scavs": 0, "raiders": 2, "trickle": 1.5}, {"name": "Fore", "center": Vector3(48, -6, -60), "radius": 40, "height": 4, "scavs": 0, "raiders": 0, "trickle": 0}, {"name": "Aft", "center": Vector3(48, -6, 62), "radius": 40, "height": 4, "scavs": 0, "raiders": 0, "trickle": 0}], "roamers": 2, "snipers": 1, "initial_count": 0, "bosses": [{"zone": "Lab", "guards": 2, "chance": 1.0, "scene": "res://scenes/boss_raijin.tscn", "guard_scene": "res://scenes/guard_riptide.tscn"}, {"zone": "Fore", "guards": 2, "chance": 1.0, "scene": "res://scenes/boss_ace.tscn", "guard_scene": "res://scenes/guard_riptide.tscn"}, {"zone": "Aft", "guards": 2, "chance": 1.0, "scene": "res://scenes/boss_orbit.tscn", "guard_scene": "res://scenes/guard_riptide.tscn"}], "looks": {"scav": "res://scenes/deckhand.tscn", "raider": "res://scenes/trooper.tscn"}, "max_alive": 34, "scav_budget": 17, "raider_budget": 7, "scav_interval_min": 60.0, "scav_interval_max": 80.0, "raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}
 metadata/raid = {"raid_time": 900.0}
 metadata/kill_height = -45
 metadata/look = "res://assets/looks/storm.tres"
@@ -841,21 +841,47 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, -18.15, 65)
 metadata/zone = "Lab"
 
 [node name="EnemySpawn39" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 1.6, 1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, -7.9, -70)
+metadata/zone = "Fore"
 
 [node name="EnemySpawn40" type="Marker3D" parent="EnemySpawns"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.6, -121)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, -3.9, -72)
+metadata/zone = "Fore"
 
 [node name="EnemySpawn41" type="Marker3D" parent="EnemySpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, -7.9, -64)
+metadata/zone = "Fore"
+
+[node name="EnemySpawn42" type="Marker3D" parent="EnemySpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, -7.9, 70)
+metadata/zone = "Aft"
+
+[node name="EnemySpawn43" type="Marker3D" parent="EnemySpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, -3.9, 90)
+metadata/zone = "Aft"
+
+[node name="EnemySpawn44" type="Marker3D" parent="EnemySpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, -7.9, 72)
+metadata/zone = "Aft"
+
+[node name="EnemySpawn45" type="Marker3D" parent="EnemySpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 1.6, 1)
+
+[node name="EnemySpawn46" type="Marker3D" parent="EnemySpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.6, -121)
+
+[node name="EnemySpawn47" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 1.3, 117.5)
 
 [node name="BossStart1" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48, -18.15, 47.5)
 metadata/boss_start = true
+metadata/boss_zone = "Lab"
 
 [node name="BossStart2" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, -18.15, 54)
 metadata/boss_start = true
+metadata/boss_zone = "Lab"
 
 [node name="Perch1" type="Marker3D" parent="EnemySpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62, 16.8, -158)

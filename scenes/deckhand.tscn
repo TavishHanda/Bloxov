@@ -1,0 +1,56 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/scav.gd" id="1_scav"]
+[ext_resource type="Script" path="res://scripts/health.gd" id="2_health"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/deckhand.glb" id="3_model"]
+[ext_resource type="Script" path="res://scripts/pixel_model.gd" id="4_pixel"]
+[ext_resource type="PackedScene" path="res://assets/models/characters/scav_backpack.glb" id="5_backpack"]
+
+[sub_resource type="BoxShape3D" id="BodyBox"]
+size = Vector3(0.8, 1.35, 0.6)
+
+[sub_resource type="BoxShape3D" id="HeadBox"]
+size = Vector3(0.53, 0.61, 0.53)
+
+[sub_resource type="StandardMaterial3D" id="FlashMat"]
+shading_mode = 0
+albedo_color = Color(1, 0.85, 0.35, 1)
+
+[sub_resource type="BoxMesh" id="FlashMesh"]
+material = SubResource("FlashMat")
+size = Vector3(0.16, 0.16, 0.02)
+
+[node name="Deckhand" type="CharacterBody3D"]
+collision_layer = 4
+collision_mask = 151
+script = ExtResource("1_scav")
+weapon_drop_chance = 0.15
+loadout = "scav"
+body_name = "Deckhand Body"
+net_kind = 4
+flank_chance = 0.3
+opening_shot_accuracy = PackedFloat32Array(0.4, 0.7)
+
+[node name="BodyShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.675, 0)
+shape = SubResource("BodyBox")
+
+[node name="HeadShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, 0)
+shape = SubResource("HeadBox")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 100
+
+[node name="Model" parent="." instance=ExtResource("3_model")]
+script = ExtResource("4_pixel")
+
+[node name="Backpack" parent="Model" instance=ExtResource("5_backpack")]
+transform = Transform3D(-1.5, 0, 0, 0, 1.5, 0, 0, 0, -1.5, 0, 0.72, 0.35)
+
+[node name="MuzzleFlash" type="Node3D" parent="."]
+
+[node name="FlashMesh" type="MeshInstance3D" parent="MuzzleFlash"]
+cast_shadow = 0
+mesh = SubResource("FlashMesh")

@@ -5727,14 +5727,33 @@ func _section_riptide() -> void:
 	var zone_names: Array = spawner.zones.map(func(z: Dictionary) -> String: return z.name)
 	var boss_starts := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("boss_start", false))
 	_check(zone_names.has("Lab") and zone_names.has("Landing") and boss_starts.size() >= 1
-		and spawner.boss.get("zone", "") == "Lab", "Riptide's AI zones, and the boss starts in the lab's core")
+		and boss_starts.all(func(m: Node) -> bool: return m.get_meta("boss_zone", "") == "Lab")
+		and spawner.bosses.map(func(b: Dictionary) -> String: return b.zone) == ["Lab", "Fore", "Aft"],
+		"Riptide's AI zones, and its three bosses: Raijin in the lab's core, Ace fore and Orbit aft in the lower hull")
+	# 0.35.34 (owner): three boss groups, each boss with two weak guards; Riptide's own Deckhands and Exion Troopers
+	await process_frame
+	await process_frame
+	var crews: Array = spawner.bosses_spawned.map(func(b: Scav) -> String: return "%s:%d" % [b.body_name,
+		RaidScope.nodes(spawner, &"enemies").filter(func(e: Node) -> bool: return e is Scav and (e as Scav).leader == b).size()])
+	_check(crews == ["Raijin:2", "Ace:2", "Orbit:2"], "Riptide raids start with Raijin, Ace and Orbit, two guards each (%s)" % [crews])
+	var ace_spawned: Scav = spawner.bosses_spawned[1] if spawner.bosses_spawned.size() > 1 else null
+	_check(ace_spawned != null and is_equal_approx(ace_spawned.home_height, 4.0) and ace_spawned.global_position.z < -15.0
+		and ace_spawned.global_position.y > -10.0 and ace_spawned.global_position.y < 0.0
+		and not ace_spawned._in_home(Vector3(48, 4.0, -60)) and ace_spawned._in_home(Vector3(48, -8.0, -60)),
+		"Ace starts and patrols in the lower hull's fore end, not the deck above")
+	var kinds := {}
+	for e in RaidScope.nodes(spawner, &"enemies"):
+		kinds[String(e.scene_file_path).get_file().get_basename()] = true
+	_check(kinds.has("deckhand") and not kinds.has("scav") and not kinds.has("raider"),
+		"Riptide's scavs are Deckhands and its Raiders Exion Troopers (%s)" % [kinds.keys()])
 	if _ai_scale_was < 1.0:   # TEMP playtest AI cut (0.35.21)
 		var cut := EnemySpawner.new()
 		cut.set("zones", spawner.zones)
+		cut.set("bosses", spawner.bosses)
 		cut.set("max_alive", spawner.max_alive)
 		RaidMap._scale_ai(cut, _ai_scale_was)
 		var cut_zones: Array = cut.get("zones")
-		_check(int(cut.get("max_alive")) == roundi(spawner.max_alive * _ai_scale_was) and int(cut_zones[0].scavs) < int(spawner.zones[0].scavs)
+		_check(int(cut.get("max_alive")) == roundi((spawner.max_alive - 9) * _ai_scale_was) + 9 and int(cut_zones[0].scavs) < int(spawner.zones[0].scavs)
 			and spawner.zones[0].scavs == 5, "playtest: Riptide's AI cut to %d%% (max alive %d)" % [roundi(_ai_scale_was * 100), cut.get("max_alive")])
 		cut.free()
 	# 0.33.3: 15-minute raids (owner), and the sub bay shut until its power switch is thrown (which opens it)
@@ -5817,14 +5836,28 @@ func _section_riptide() -> void:
 	var riptide_map := (load(MAP) as PackedScene).instantiate()
 	var spawner_meta: Dictionary = riptide_map.get_meta("spawner", {})
 	riptide_map.free()
-	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_raijin.tscn", "Riptide's boss is Raijin")
-	var boss_meta := spawner_meta.get("boss", {}) as Dictionary
-	var ace := (load("res://scenes/guard_raijin.tscn") as PackedScene).instantiate() as Scav
-	root.add_child(ace)
-	_check((not boss_meta.has("guard_scene") or (int(boss_meta.get("guards", 0)) == 2 and boss_meta.get("guard_names", []) == ["Ace", "Orbit"]))
-		and ace.health.max_health == 150 and ace.armor == "armor_heavy" and ace.helmet == "helmet_good" and ace.shot_damage == 20 and ace.burst_size == 5,
-		"Raijin has two guards, Ace and Orbit, tougher than Raiders (%s %s hp %d %s %s dmg %d burst %d)" % [boss_meta.get("guards"), boss_meta.get("guard_names"), ace.health.max_health, ace.armor, ace.helmet, ace.shot_damage, ace.burst_size])
-	ace.free()
+	var bosses_meta: Array = spawner_meta.get("bosses", [])
+	_check(bosses_meta.map(func(b: Dictionary) -> String: return String(b.scene).get_file()) == ["boss_raijin.tscn", "boss_ace.tscn", "boss_orbit.tscn"]
+		and bosses_meta.all(func(b: Dictionary) -> bool: return int(b.guards) == 2 and b.guard_scene == "res://scenes/guard_riptide.tscn"),
+		"Riptide's bosses are Raijin, Ace and Orbit, two guards each")
+	# (owner, 0.35.34: every boss tougher than Bon, Raijin the toughest; the guards "somewhat non threatening")
+	var hp := {}
+	for who in ["boss", "boss_raijin", "boss_ace", "boss_orbit", "guard_riptide", "deckhand", "trooper"]:
+		var one := (load("res://scenes/%s.tscn" % who) as PackedScene).instantiate() as Scav
+		root.add_child(one)
+		hp[who] = [one.health.max_health, one.armor, one.shot_damage, one.accuracy_near, one.body_name, one.faction, one.net_kind]
+		one.free()
+	_check(hp.boss[0] == 250 and hp.boss_ace[0] == 300 and hp.boss_orbit[0] == 300 and hp.boss_raijin[0] == 400
+		and hp.boss_ace[4] == "Ace" and hp.boss_orbit[4] == "Orbit", "Ace and Orbit have 300 hp, Raijin 400, Bon 250 (%s)" % [hp])
+	_check(hp.guard_riptide[0] == 100 and hp.guard_riptide[1] == "armor_light"
+		and is_equal_approx(hp.guard_riptide[3], 0.6) and hp.guard_riptide[5] == &"raider", "the bosses' guards are weak: 100 hp, light armor, scav aim (%s)" % [hp.guard_riptide])
+	_check(hp.deckhand[5] == &"scav" and hp.deckhand[6] == 4 and hp.trooper[5] == &"raider" and hp.trooper[6] == 5
+		and NetRaid.ENEMY_SCENES[4].resource_path == "res://scenes/deckhand.tscn" and NetRaid.ENEMY_SCENES[5].resource_path == "res://scenes/trooper.tscn",
+		"Deckhands and Exion Troopers have their own online puppets")
+	_check(Quests.kill_counts(Quests.LIST["hard_targets"], ["trooper", "", []]) and Quests.kill_counts({"kind": "kill", "target": "scav"}, ["deckhand", "", []])
+		and not Quests.kill_counts(Quests.LIST["big_game"], ["boss_ace", "", []]), "a Deckhand counts as a scav and a Trooper as a Raider for quests")
+	_check(KillFeedHUD.display_name("trooper") == "Exion Trooper" and KillFeedHUD.display_name("boss_orbit") == "Orbit"
+		and KillFeedHUD.display_name("deckhand") == "Deckhand", "the kill feed names Riptide's AI")
 	_check(ItemDB.item("formula")["value"] == 100000 and ItemDB.item("formula")["rarity"] == "legendary"
 		and ItemDB.item("reaper")["ammo"] == "rifle_ammo" and ItemDB.item("reaper")["rarity"] == "epic" and ItemDB.item("reaper")["value"] == 30000
 		and ItemDB.item("armor_assault")["reduction"] == 0.5 and ItemDB.item("helmet_assault")["reduction"] == 0.55

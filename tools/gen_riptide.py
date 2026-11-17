@@ -1417,16 +1417,26 @@ def lab():
 
 
 # ---------------------------------------------------------------------------------------------- AI
-# Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, Raijin below.
+# Zones (name, x, y, z, radius, scavs, raiders, trickle): few on the shore, more on the ship, the bosses below.
+# (0.35.34, owner: three bosses. Fore and Aft are Ace's and Orbit's patrols in the lower hull, the pump room end and the
+# engine room end; nothing else starts there. The hold keeps 2 scavs, was 4, as the bosses' crews moved in.)
 AI_ZONES = [("Landing", -105.0, SHORE, 0.0, 100.0, 5, 0, 0.8), ("Deck", 48.0, DECK, -30.0, 70.0, 4, 0, 1.0),
-            ("Tower", 48.0, DECK2, 90.0, 26.0, 0, 2, 1.0), ("Hold", 48.0, HULL_A, 0.0, 80.0, 4, 0, 1.0),
-            ("Lab", 48.0, LAB2, 30.0, 70.0, 0, 2, 1.5)]
+            ("Tower", 48.0, DECK2, 90.0, 26.0, 0, 2, 1.0), ("Hold", 48.0, HULL_A, 0.0, 80.0, 2, 0, 1.0),
+            ("Lab", 48.0, LAB2, 30.0, 70.0, 0, 2, 1.5),
+            ("Fore", 48.0, (HULL_A + HULL_B) / 2, -60.0, 40.0, 0, 0, 0.0),
+            ("Aft", 48.0, (HULL_A + HULL_B) / 2, 62.0, 40.0, 0, 0, 0.0)]
+# How far up and down a zone's area reaches (the ship's decks are stacked): the lab's two decks; the hold and the
+# engine/pump deck. Zones not listed reach any height.
+ZONE_HEIGHT = {"Lab": 7.0, "Fore": 4.0, "Aft": 4.0}
 AI_ROAMERS = 2
 AI_SNIPERS = 1
-# Raijin (Zero until 0.35.6) always spawns. ELITE_GUARDS (waiting on the owner's OK of their numbers): two guards,
-# Ace and Orbit (scenes/guard_raijin.tscn), in place of three Raiders.
-ELITE_GUARDS = True
-AI_BOSS = ("Lab", 2 if ELITE_GUARDS else 3, 1.0)
+# (0.35.34, owner: "3 bosses ... each have 2 kinda somewhat non threatening guards"; all tougher than Bon, Raijin the
+# toughest): (zone, boss scene). Every raid. Their guards: scenes/guard_riptide.tscn.
+AI_BOSSES = [("Lab", "res://scenes/boss_raijin.tscn"), ("Fore", "res://scenes/boss_ace.tscn"),
+             ("Aft", "res://scenes/boss_orbit.tscn")]
+AI_GUARDS = 2
+# (0.35.34, owner: Riptide's own scavs and Raiders, "different skins/names") Deckhands and Exion Troopers.
+AI_LOOKS = {"scav": "res://scenes/deckhand.tscn", "raider": "res://scenes/trooper.tscn"}
 ZONE_SPOTS = {
     "Landing": [(-115.0, SHORE, -127.0), (-100.0, SHORE, -99.0), (-134.0, SHORE, -85.0), (-70.0, SHORE, -40.0),
                 (-110.0, SHORE, 0.0), (-62.0, SHORE, 0.0), (-80.0, SHORE, 104.0), (-112.0, SHORE, 104.0),
@@ -1436,6 +1446,8 @@ ZONE_SPOTS = {
     "Tower": [(38.0, DECK2, 80.0), (50.0, DECK2, 100.0), (38.0, DECK3, 98.0), (48.0, DECK4, 84.0), (40.0, DECK, 100.0)],
     "Hold": [(48.0, HULL_A, -60.0), (33.0, HULL_A, -30.0), (63.0, HULL_A, 10.0), (48.0, HULL_A, 40.0),
              (40.0, HULL_B, 50.0), (56.0, HULL_B, -80.0), (48.0, HULL_B, -20.0), (40.0, HULL_A, 86.0)],
+    "Fore": [(44.0, HULL_B, -70.0), (40.0, HULL_A, -72.0), (56.0, HULL_B, -64.0)],
+    "Aft": [(48.0, HULL_B, 70.0), (40.0, HULL_A, 90.0), (60.0, HULL_B, 72.0)],
     "Lab": [(48.0, LAB1, 15.0), (47.0, LAB2, -26.5), (54.0, LAB2, 5.0), (33.0, LAB2, 50.0), (63.0, LAB2, 50.0),
             (47.0, LAB2, 81.0), (48.0, LAB2, 65.0)],
 }
@@ -1452,12 +1464,17 @@ def ai():
 
 def spawner_meta():
     zones = ", ".join(f'{{"name": "{n}", "center": Vector3({fmt(x)}, {fmt(y)}, {fmt(z)}), "radius": {fmt(r)}, '
-                      f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}}}' for n, x, y, z, r, s, rd, t in AI_ZONES)
+                      + (f'"height": {fmt(ZONE_HEIGHT[n])}, ' if n in ZONE_HEIGHT else "")
+                      + f'"scavs": {s}, "raiders": {rd}, "trickle": {fmt(t)}}}' for n, x, y, z, r, s, rd, t in AI_ZONES)
     scavs = sum(z[5] for z in AI_ZONES) + AI_ROAMERS
     raiders = sum(z[6] for z in AI_ZONES)
+    bosses = ", ".join(f'{{"zone": "{zone}", "guards": {AI_GUARDS}, "chance": 1.0, "scene": "{scene}", '
+                       f'"guard_scene": "res://scenes/guard_riptide.tscn"}}' for zone, scene in AI_BOSSES)
+    looks = ", ".join(f'"{k}": "{v}"' for k, v in AI_LOOKS.items())
+    crews = len(AI_BOSSES) * (1 + AI_GUARDS)
     return (f'metadata/spawner = {{"zones": [{zones}], "roamers": {AI_ROAMERS}, "snipers": {AI_SNIPERS}, "initial_count": 0, '
-            f'"boss": {{"zone": "{AI_BOSS[0]}", "guards": {AI_BOSS[1]}, "chance": {fmt(AI_BOSS[2])}, "scene": "res://scenes/boss_raijin.tscn"' + (', "guard_scene": "res://scenes/guard_raijin.tscn", "guard_names": ["Ace", "Orbit"]' if ELITE_GUARDS else "") + '}, '
-            f'"max_alive": 28, "scav_budget": {scavs + 4}, "raider_budget": {raiders + 3}, '
+            f'"bosses": [{bosses}], "looks": {{{looks}}}, '
+            f'"max_alive": {25 + crews}, "scav_budget": {scavs + 4}, "raider_budget": {raiders + 3}, '
             '"scav_interval_min": 60.0, "scav_interval_max": 80.0, '
             '"raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}')
 
@@ -1608,7 +1625,7 @@ def write_scene():
         out += ([f'metadata/zone = "{zone}"'] if zone else []) + [""]
     for i, (x, y, z) in enumerate(boss_starts):
         out += [f'[node name="BossStart{i + 1}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, y + 0.1, z)}",
-                "metadata/boss_start = true", ""]
+                "metadata/boss_start = true", 'metadata/boss_zone = "Lab"', ""]
     for i, (x, y, z, fx, fz) in enumerate(perches):
         out += [f'[node name="Perch{i + 1}" type="Marker3D" parent="EnemySpawns"]', f"transform = {xform(x, y + 0.3, z)}",
                 "metadata/perch = true", f"metadata/face = Vector3({fx}, 0, {fz})", ""]

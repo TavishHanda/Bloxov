@@ -107,10 +107,18 @@ static func _set_owner(node: Node, new_owner: Node) -> void:
 
 
 ## TEMP playtest (0.35.21, net.gd playtest_ai_scale): fewer AI on Riptide. Each count is scaled and rounded
-## (a zone with 5 scavs gets 3); the boss and its guards are left alone.
+## (a zone with 5 scavs gets 3); the bosses and their guards are left alone.
 static func _scale_ai(spawner: Node, scale: float) -> void:
-	for key in ["max_alive", "scav_budget", "raider_budget", "roamers", "snipers"]:
+	for key in ["scav_budget", "raider_budget", "roamers", "snipers"]:
 		spawner.set(key, roundi(int(spawner.get(key)) * scale))
+	# (0.35.34: the bosses and their guards aren't cut, so their room under max_alive isn't either)
+	var crews := 0
+	var all_bosses: Array = spawner.get("bosses").duplicate()
+	if not (spawner.get("boss") as Dictionary).is_empty():
+		all_bosses.append(spawner.get("boss"))
+	for b: Dictionary in all_bosses:
+		crews += 1 + int(b.get("guards", 0))
+	spawner.set("max_alive", roundi((int(spawner.get("max_alive")) - crews) * scale) + crews)
 	var zones: Array = []
 	for zone in spawner.get("zones"):
 		var z: Dictionary = zone.duplicate()
