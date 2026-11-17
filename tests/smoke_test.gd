@@ -6800,59 +6800,57 @@ func _section_pmc_apart() -> void:
 		for ai in crowd:
 			ai.free()
 		crowd.clear()
-	_check(PmcAI.THREAT_SCAV == 1.0 and PmcAI.THREAT_RAIDER == 2.0 and PmcAI.THREAT_SNIPER == 1.0 and PmcAI.THREAT_BOT == 1.0
-		and PmcAI.PLACE_THREAT == 2.0 and PmcAI.CROWD_RANGE == 40.0, "(0.36.12 threat: scav 1, Raider 2, sniper 1, bot 1; a place with 2 within 40 m is skipped)")
-	add_ai.call("One", 1)
+	# 0.36.14 (owner: "steer around AI, fight if they meet"): the 0.36.9 keep-apart numbers are back for where it goes.
+	_check(PmcAI.AI_PLACE_CLEAR == 40.0 and PmcAI.BOT_CLEAR == 60.0 and PmcAI.AI_ROUTE_CLEAR == 30.0 and PmcAI.AI_NEAR == 30.0,
+		"(steering: no other AI within 40 m of a place it picks, 30 m of its way or of itself; other bots 60 m)")
+	other.global_position = bot.global_position + Vector3(0, 0, 400)
 	await physics_frame
 	var open: Array = names.call()
-	_check(open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"),
-		"a place with one scav within 40 m is still picked (%s)" % [open])
+	_check(open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"), "clear places may all be picked (%s)" % [open])
 	_check(not open.has("ApartBoss"), "the boss's area is never picked")
 	add_ai.call("One", 1)
 	await physics_frame
 	open = names.call()
-	_check(not open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"), "a place with two scavs within 40 m is skipped (%s)" % [open])
+	_check(not open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"), "a place with a scav within 40 m is skipped (%s)" % [open])
 	clear_crowd.call()
-	add_ai.call("One", 1, RAIDER_SCENE)
-	await physics_frame
-	open = names.call()
-	_check(not open.has("ApartOne") and PmcAI.threat_of(crowd[0]) == 2.0, "one Raider is threat enough to skip a place (%s)" % [open])
-	clear_crowd.call()
-	# (another bot counts as one; a dead one doesn't)
-	add_ai.call("One", 1)
+	# (another bot within 60 m of it too; a dead one doesn't count)
 	var third := _blind_bot(spots["One"] + Vector3(-3, 0.1, -3))
 	await physics_frame
-	_check(not (names.call() as Array).has("ApartOne"), "another bot counts as one threat")
+	_check(not (names.call() as Array).has("ApartOne"), "a place with another bot within 60 m is skipped")
 	third.health.take_damage(900)
 	await physics_frame
 	await physics_frame
 	_check((names.call() as Array).has("ApartOne"), "a dead AI doesn't count")
-	clear_crowd.call()
 	other.place = (PmcAI.places(main).filter(func(p: Dictionary) -> bool: return String(p["name"]).begins_with("ApartTwo@")))[0]
 	open = names.call()
 	_check(not open.has("ApartTwo") and open.has("ApartOne"), "nor one another bot is already heading to or looting (%s)" % [open])
 	other.place = {}
-	# Every place crowded: the one with the fewest AI near.
-	add_ai.call("One", 3)
-	add_ai.call("Two", 5)
-	add_ai.call("Three", 4)
+	# Every place busy: none is picked (it waits or moves off, and tries again).
+	add_ai.call("One", 1)
+	add_ai.call("Two", 1)
+	add_ai.call("Three", 1)
 	await physics_frame
 	open = names.call()
-	_check(open == ["ApartOne"], "with every place over it takes the least threatening one (%s)" % [open])
-	clear_crowd.call()
-	# Walking: with 2 AI near the only place it walks straight there (the boss's area is no option: it is the least
-	# threatening one; the AI here stand far from the way and it is still unaware of them).
-	for box in boxes:
-		var kind := String(box.get_meta("place"))
-		if kind.ends_with("Two") or kind.ends_with("Three"):
-			box.free()
-	PmcAI.reset_places(main)
-	add_ai.call("One", 2)
-	await physics_frame
+	_check(open.is_empty(), "with other AI at every place it picks none (%s)" % [open])
 	bot._plan_wait = 0.0
 	bot._wander(0.1)
-	_check(bot.plan == PmcAI.Plan.TRAVEL and String(bot.place.get("name", "")).begins_with("ApartOne@"),
-		"with 2 AI near its only place it still walks there (%s)" % bot.place.get("name", "-"))
+	_check(bot.place.is_empty(), "and doesn't walk to one (%s)" % bot.place.get("name", "-"))
+	# On the move: a scav coming within 30 m turns it away (it runs for a moment), unless it is in a fight.
+	clear_crowd.call()
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	var walker := _spawn(SCAV_SCENE, bot.global_position + Vector3(20, 0, 0)) as Scav
+	walker.sight_range = 0.5
+	walker.set_physics_process(false)
+	await physics_frame
+	var turned := bot.turned_away
+	bot._keep_apart()
+	_check(bot.turned_away == turned + 1 and bot._hurry_left > 0.0, "a scav within 30 m: it turns away and hurries")
+	bot.state = Scav.State.ENGAGE
+	turned = bot.turned_away
+	bot._keep_apart()
+	_check(bot.turned_away == turned, "in a fight it doesn't turn away: it fights (0.36.10)")
+	bot.state = Scav.State.IDLE
+	walker.free()
 	clear_crowd.call()
 	other.free()
 	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
@@ -7179,8 +7177,6 @@ func _section_pmc_breakoff() -> void:
 	var target_place: Dictionary = PmcAI.places(main).filter(func(p: Dictionary) -> bool:
 		return String(p["name"]).begins_with("BreakPlace@"))[0]
 
-	# A group ahead on its way: it drops the place (and doesn't pick it again for a while). One scav ahead, or a group
-	# behind it, doesn't.
 	var bot := _blind_bot(Vector3(20, 0.1, 30))
 	await physics_frame
 	var go_to_place := func() -> void:
@@ -7188,30 +7184,6 @@ func _section_pmc_breakoff() -> void:
 		bot.place = target_place
 		bot._go_to(AINav.closest(bot, place_box.global_position), place_box)
 	go_to_place.call()
-	var lone := _still_ai(SCAV_SCENE, Vector3(0, 0.1, 31))
-	bot._look_ahead()
-	_check(bot.plan == PmcAI.Plan.TRAVEL and bot.drops == 0, "one scav on its way: it carries on")
-	var behind := [_still_ai(SCAV_SCENE, Vector3(36, 0.1, 30)), _still_ai(SCAV_SCENE, Vector3(36, 0.1, 34))]
-	bot._look_ahead()
-	_check(bot.plan == PmcAI.Plan.TRAVEL and bot.drops == 0, "a group behind it: it carries on")
-	var mate := _still_ai(SCAV_SCENE, Vector3(2, 0.1, 34))
-	bot._look_ahead()
-	_check(bot.plan == PmcAI.Plan.HOLD and bot.place.is_empty() and bot.drops == 1 and bot._avoid.has(target_place["id"]),
-		"two scavs together ahead on its way: it drops that place")
-	_check(not bot._allowed_places().any(func(p: Dictionary) -> bool: return p["id"] == target_place["id"]) or bot._allowed_places().size() == 1,
-		"and doesn't pick it again for a while (unless it's all there is)")
-	_check(PmcAI.GROUP_THREAT == 2.0 and PmcAI.GROUP_SPREAD == 15.0 and PmcAI.GROUP_NOTICE == 40.0 and PmcAI.AVOID_TIME == 90.0,
-		"(0.36.12: a group is threat 2 within 15 m; noticed within 40 m or in view; a dropped place waits 90 s)")
-	for node: Node in [lone, mate] + behind:
-		node.free()
-	# Searching at the place, a Raider within 40 m of it: it leaves too (a Raider alone weighs 2).
-	go_to_place.call()
-	bot.plan = PmcAI.Plan.SEARCH
-	bot.global_position = place_box.global_position + Vector3(1.5, 0.1, 0)
-	var raider := _still_ai(RAIDER_SCENE, place_box.global_position + Vector3(0, 0.1, -25))
-	bot._look_ahead()
-	_check(bot.plan == PmcAI.Plan.HOLD and bot.drops == 2, "searching, a Raider within 40 m of its place: it leaves for another")
-	raider.free()
 	bot.free()
 	await physics_frame
 
@@ -7608,7 +7580,7 @@ func _section_pmc_leave() -> void:
 		await physics_frame
 	_check(usable == [open_far] and hurt.plan == PmcAI.Plan.EXIT and hurt.extract == open_far,
 		"hurt with no heals it leaves early, by the open extract, not the shut one nearer (%s)" % [hurt.extract])
-	# Other AI near an extract make no difference (0.36.11): it takes the nearest open one, and AI coming near on the way don't turn it.
+	# Other AI near an extract (0.36.14, the 0.36.8 rule again): a clear one is preferred; none clear, it takes none.
 	shut.needs_power = ""
 	shut.set_open(true)
 	var guard := _spawn(SCAV_SCENE, Vector3(28, 0.1, 30)) as Scav
@@ -7619,13 +7591,12 @@ func _section_pmc_leave() -> void:
 	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
 	hurt._exit_retry = 0.0
 	hurt._next_destination()
-	_check(hurt.extract == shut and hurt.plan == PmcAI.Plan.EXIT, "the nearest open extract, with an AI right beside it (the farther one is clear)")
+	_check(hurt.extract == open_far and hurt.plan == PmcAI.Plan.EXIT, "an extract with another AI within 40 m is passed over for a clear one")
 	open_far.free()
-	guard.global_position = Vector3(8, 0.1, 30)
-	for i in 30:
-		await physics_frame
-	_check(hurt.extract == shut and hurt.plan == PmcAI.Plan.EXIT and hurt._exit_retry <= 0.0,
-		"another AI coming near on its way out doesn't turn it away")
+	hurt.extract = null
+	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
+	hurt._next_destination()
+	_check(hurt.extract == null and hurt.plan != PmcAI.Plan.EXIT, "with no clear extract it takes none and tries again later")
 	for node: Node in [hurt, guard, shut]:
 		node.free()
 	for z: ExtractZone in zones:

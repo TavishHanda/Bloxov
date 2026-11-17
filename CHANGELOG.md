@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.14 (AI PMCs: steer around AI, fight if they meet)
+Built on the AI PMC branch (switch still off). The owner's pick after 0.36.13 (2026-11-17). Only `scripts/pmc_ai.gd`
+changed: scavs, Raiders, snipers and Bon are untouched.
+- **Keep-apart steering is back** (the 0.36.9 rule, git 9bfa8e1): unaware, a bot picks places with no non-bot AI within
+  40 m (other bots 60 m), takes ways that stay 30 m off them, turns away and runs when one comes within 30 m, doesn't
+  walk over to a noise with AI near it, moves off after a fight, and won't stand in a busy extract.
+- **Fighting stays**: when AI do meet it, the 0.36.10-13 fight rules apply (break off when outnumbered or hurt, heal,
+  no fight started with a group or a far scav). The 0.36.12 "drop the place for a group ahead" look is gone (the
+  steering does that job); its threat weights still count enemies in a fight.
+- 20 raid report (10 per map, 3 bots each, `/mnt/project-files/ai-pmcs/raid-report-0.36.14-wip.txt`): Riptide 26 of
+  30 bots alive at 5:00, 24 extracted, 4.7 containers each (0.36.13: 8 of 15, 5). Frontlines 17 of 30 alive at 5:00
+  (0.36.13: 2 of 15) but only 2 extracted and 1.4 containers each: on the busy map bots still die before their leave time.
+- Smoke test: the bot sections cover the steering again.
+
 ## 0.36.13 (AI PMCs: scavs hunt bots less, bots sneak)
 Built on the AI PMC branch (switch still off). The owner's pick after 0.36.12 (2026-11-17). Scavs, Raiders, snipers
 and Bon are unchanged against real players: `tests/ai_same_check.gd` logs are identical before and after.
