@@ -11,7 +11,11 @@ extends Node
 ## Not for scouting (0.31.13, owner: "make sure it's not exploitable"): it stays within LEASH of your character and
 ## can't go through walls, doors, windows or the ground, and must keep your character in sight (no round corners or
 ## in through doors), so it can't find scavs or loot you couldn't see from where you stand.
+## TEMP (0.35.29, owner: playtest bug hunting): EXPLORE lifts all three limits, so it flies anywhere (through walls,
+## under the ground, across the whole map). Still solo only. Set EXPLORE false when the playtest is over.
 
+## TEMP playtest switch (see the header): no leash, no walls, no keep-in-sight rule.
+const EXPLORE := true
 ## Flying speeds (m/s); the mouse wheel steps through them.
 const SPEEDS: Array[float] = [1.0, 2.5, 5.0, 10.0, 20.0]
 const START_SPEED := 2
@@ -229,6 +233,11 @@ func fly(dt: float) -> void:
 ## Where a move from `from` to `to` really ends: short of walls (sliding along them), within LEASH of your head, and
 ## in sight of it (otherwise it stays at `from`).
 func blocked_move(from: Vector3, to: Vector3) -> Vector3:
+	return to if EXPLORE else limited_move(from, to)
+
+
+## The normal limits (walls, LEASH, keep your character in sight), used whenever EXPLORE is off.
+func limited_move(from: Vector3, to: Vector3) -> Vector3:
 	var space := player.get_world_3d().direct_space_state
 	var target := to
 	for i in 2:   # (a second try slides along the first wall)

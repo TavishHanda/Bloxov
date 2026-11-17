@@ -9128,9 +9128,10 @@ func _section_free_cam() -> void:
 		await physics_frame
 	Input.action_release("jump")
 	_check(cam.camera.global_position.y > up_from + 0.3 and player.is_on_floor(), "jump flies up (and you don't jump)")
-	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
+	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight (limited_move; the TEMP
+	# playtest switch EXPLORE turns these limits off, 0.35.29).
 	var head := player.global_position + Vector3.UP * 1.5
-	var far := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 200))
+	var far := cam.limited_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 200))
 	_check(far.distance_to(head) <= FreeCam.LEASH + 0.01, "the free camera stays within %d m (%.1f m)" % [FreeCam.LEASH, far.distance_to(head)])
 	var wall := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
@@ -9140,10 +9141,13 @@ func _section_free_cam() -> void:
 	main.add_child(wall)
 	wall.global_position = head + Vector3(0, 0, 6)
 	await physics_frame
-	var through := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 10))
+	var through := cam.limited_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 10))
 	_check(through.z < wall.global_position.z, "the free camera can't fly through a wall (z %.2f, wall %.2f)" % [through.z, wall.global_position.z])
 	var hidden_spot := head + Vector3(0, 0, 9)   # (behind the wall, out of your sight: can't move there)
-	_check(cam.blocked_move(hidden_spot, hidden_spot + Vector3(1, 0, 0)) == hidden_spot, "the free camera can't move where it can't see you")
+	_check(cam.limited_move(hidden_spot, hidden_spot + Vector3(1, 0, 0)) == hidden_spot, "the free camera can't move where it can't see you")
+	var explore_to := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 10))
+	_check(explore_to.is_equal_approx(head + Vector3(0, 0, 10)) if FreeCam.EXPLORE else explore_to.z < wall.global_position.z,
+		"the free camera's playtest switch (EXPLORE %s) decides if it flies through walls" % FreeCam.EXPLORE)
 	wall.queue_free()
 	await physics_frame
 	cam.change_speed(1)
