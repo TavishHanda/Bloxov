@@ -6879,6 +6879,7 @@ func _section_pmc_apart() -> void:
 	bot.carried_gun = "ak"
 	_check(float(ItemDB.ITEMS["ak"]["noise"]) == 35.0, "(the ak's shot noise is 35 m)")
 	FightBudget.reset(bot)
+	BotFight.reset(bot)
 	for i in 6:
 		var ai := _spawn(SCAV_SCENE, Vector3(-6 + i * 2, 0.1, 6)) as Scav
 		ai.sight_range = 0.5
@@ -6892,8 +6893,11 @@ func _section_pmc_apart() -> void:
 	for ai in crowd:
 		coming += 1 if ai.state == Scav.State.INVESTIGATE else 0
 		waiting += 1 if ai.state == Scav.State.SEARCH else 0
-	_check(coming == FightBudget.BUDGET and waiting == 2 and FightBudget.used(bot, bot.global_position) == FightBudget.BUDGET,
-		"scavs hear a bot's shot: %d come over (the limit of 4 a fight), the other %d wait on alert" % [coming, waiting])
+	_check(BotFight.BUDGET == 1 and coming == 1 and waiting == 0,
+		"scavs hear a bot's shot: %d comes over (0.36.13: 1 a fight, not 4), %d wait on alert (the rest heard nothing)" % [coming, waiting])
+	bot._shot_noise()
+	coming = crowd.filter(func(ai: Scav) -> bool: return ai.state == Scav.State.INVESTIGATE).size()
+	_check(coming == 1, "more shots in the same fight pull nobody else (%d coming)" % coming)
 	_check(bot.state == Scav.State.IDLE and other.state == Scav.State.INVESTIGATE,
 		"another curious bot hears it too and goes to look; the shooter never hears itself")
 	clear_crowd.call()
@@ -7327,6 +7331,100 @@ func _section_pmc_breakoff() -> void:
 	_check(bot.plan == PmcAI.Plan.HOLD, "running off, a player turns up: it stops running and the usual brain takes over")
 	for node: Node in [bot, s1, s2]:
 		node.free()
+	player.teleport_to(START_SPOT)
+	await physics_frame
+
+	# 0.36.13 (owner: "scavs hunt bots less, bots sneak"). A bot doesn't open fire on a far scav that isn't after it.
+	player.remove_from_group("player")
+	bot = _blind_bot(Vector3(0, 0.1, 30))
+	await physics_frame
+	var far := _still_ai(SCAV_SCENE, Vector3(0, 0.1, 60))
+	bot._target = far
+	bot._spot = 1.0
+	bot._alert(far.global_position)
+	_check(PmcAI.BOT_OPEN_FIRE == 25.0 and bot.state == Scav.State.IDLE and bot._spot == 0.0,
+		"a scav 30 m off that isn't after it: the bot lets it be (it opens fire within 25 m)")
+	far._target = bot
+	far.state = Scav.State.ENGAGE
+	bot._alert(far.global_position)
+	_check(bot.state == Scav.State.ALERT, "the same scav fighting it: the bot fights")
+	bot._set_state(Scav.State.IDLE)
+	far.state = Scav.State.IDLE
+	far.global_position = Vector3(0, 0.1, 50)
+	bot._alert(far.global_position)
+	_check(bot.state == Scav.State.ALERT, "a scav 20 m off: the bot fights it as before")
+	bot._set_state(Scav.State.IDLE)
+	var far_bot := _blind_bot(Vector3(0, 0.1, 90))
+	far_bot.set_physics_process(false)
+	bot._target = far_bot
+	bot._alert(far_bot.global_position)
+	_check(bot.state == Scav.State.ALERT, "another bot far off: it fights (bots against bots are unchanged)")
+	far_bot.free()
+	bot._set_state(Scav.State.IDLE)
+	# A scav that hasn't seen the bot it is fighting for 4 s lets it go; a player it keeps hunting as ever.
+	far.set_physics_process(true)
+	far.global_position = Vector3(0, 0.1, 44)
+	far._target = bot
+	far.state = Scav.State.ENGAGE
+	far._unseen_time = Scav.BOT_GIVE_UP + 0.1
+	far._sight_check_time = 99.0
+	far._can_see = false
+	await physics_frame
+	_check(Scav.BOT_GIVE_UP == 4.0 and far.state == Scav.State.IDLE, "a scav that lost sight of a bot for 4 s goes back to what it was doing")
+	player.add_to_group("player")
+	far._target = player
+	far.state = Scav.State.ENGAGE
+	far._unseen_time = Scav.BOT_GIVE_UP + 0.1
+	far._sight_check_time = 99.0
+	far._can_see = false
+	await physics_frame
+	_check(far.state == Scav.State.ENGAGE, "the same against a player: it keeps at it (unchanged)")
+	player.remove_from_group("player")
+	far.set_physics_process(false)
+	far.state = Scav.State.IDLE
+	# The reserve dial (pending the owner): AI hits on a bot do AI_DAMAGE_TO_BOT of their damage; 1.0 = no change.
+	var hp_before := bot.health.current
+	bot.take_hit_from(far, 20, false)
+	var full_loss := hp_before - bot.health.current
+	PmcAI.ai_damage_to_bot = 0.5
+	hp_before = bot.health.current
+	bot.take_hit_from(far, 20, false)
+	var half_loss := hp_before - bot.health.current
+	PmcAI.ai_damage_to_bot = PmcAI.AI_DAMAGE_TO_BOT
+	_check(PmcAI.AI_DAMAGE_TO_BOT == 1.0 and full_loss > 0 and half_loss < full_loss,
+		"AI damage to bots: off by default (x1.0); at x0.5 a scav's hit takes %d instead of %d" % [half_loss, full_loss])
+	bot.health.heal(bot.health.max_health)
+	bot._set_state(Scav.State.IDLE)
+	# Its call for help when it spots a bot, and a buddy dropped by a bot, pull in one at most between them.
+	BotFight.reset(bot)
+	FightBudget.reset(bot)
+	var mates: Array[Scav] = []
+	for i in 4:
+		mates.append(_still_ai(SCAV_SCENE, Vector3(-4 + i * 2, 0.1, 40)))
+	far._target = bot
+	far._call_for_help(bot.global_position)
+	var answering := mates.filter(func(m: Scav) -> bool: return m.state == Scav.State.INVESTIGATE).size()
+	_check(answering == 1, "a scav that spots a bot calls one friend over, not all of them (%d)" % answering)
+	far._hit_by = bot
+	far._last_hit_from = bot.global_position
+	far._warn_friends()
+	far._hit_by = null
+	var stirred := mates.filter(func(m: Scav) -> bool: return m.state != Scav.State.IDLE).size()
+	_check(stirred == 1, "dropped by the bot in that same fight: no more friends notice (%d stirred)" % stirred)
+	BotFight.reset(bot)
+	FightBudget.reset(bot)
+	for m in mates:
+		m.state = Scav.State.IDLE
+		m._answering_call = false
+	player.add_to_group("player")
+	far._target = player
+	far._call_for_help(player.global_position)
+	answering = mates.filter(func(m: Scav) -> bool: return m.state == Scav.State.INVESTIGATE).size()
+	_check(answering == 4, "the same call about a player brings them all, as before (%d)" % answering)
+	for node: Node in [bot, far] + mates:
+		node.free()
+	FightBudget.reset(main)
+	BotFight.reset(main)
 	place_box.free()
 	PmcAI.reset_places(main)
 	player.teleport_to(START_SPOT)

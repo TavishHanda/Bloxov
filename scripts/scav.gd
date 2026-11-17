@@ -131,6 +131,14 @@ func _physics_process(delta: float) -> void:
 	_blind_time = 0.0 if _can_see else _blind_time + delta
 	_unseen_time = 0.0 if _can_see else _unseen_time + delta
 
+	# Fighting an AI PMC it hasn't seen for a while (0.36.13): it lets it go. (Never a real player: those it hunts as ever.)
+	if _unseen_time > BOT_GIVE_UP and state == State.ENGAGE and _target is Scav and not counts_as_pmc():
+		_cover_phase = Cover.NONE
+		_hold_fire()
+		_set_state(State.IDLE)
+		_wander_dir = Vector3.ZERO
+		_wander_time = 0.0
+
 	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).
 	_home_return_left -= delta
 	_wary_left -= delta

@@ -69,6 +69,12 @@ const BREAK_COOLDOWN := 10.0
 const FLEE_LEGS := 3
 ## (0.36.12, tuning) A real player within its sight range, or one that hit it in the last PLAYER_MEMORY s, means a
 ## player is in the fight: none of the new fight rules apply. It looks at the fight every BREAK_CHECK s.
+## Unaware, it doesn't open fire on a scav, Raider, sniper or Bon farther than this that isn't after it (0.36.13).
+const BOT_OPEN_FIRE := 25.0
+## Hits from scavs, Raiders, snipers and Bon do this share of their damage to an AI PMC (0.36.13; players' and other
+## bots' hits are untouched). A hidden handicap so a lone bot lasts among ~36 AI. PENDING THE OWNER'S OK.
+const AI_DAMAGE_TO_BOT := 1.0
+static var ai_damage_to_bot := AI_DAMAGE_TO_BOT   # (the raid report tries other values through this)
 const PLAYER_MEMORY := 10.0
 const BREAK_CHECK := 0.25
 const CHECK_EVERY := 1.0         # seconds between its looks at whether it is indoors
@@ -209,7 +215,15 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 ## `hear_noise(pos, radius, true)`, with the radius of the gun it carries (ItemDB's "noise", 25 if unknown, as the
 ## server takes for a player's shot). Hearing, the fight budget and the limit of 4 per fight work as for a player.
 func _shot_noise() -> void:
-	_noise_to(&"enemies")
+	var radius := float(ItemDB.ITEMS.get(carried_gun, {}).get("noise", 25.0))
+	for node in RaidScope.nodes(self, &"enemies"):
+		var other := node as Scav
+		if other == null or other == self:
+			continue
+		if other.counts_as_pmc():
+			other.hear_noise(global_position, radius, true)
+		else:
+			other.hear_bot_shot(global_position, radius)   # (0.36.13: one of them comes, the rest heard nothing)
 
 
 ## A search of `container` just finished (0.36.7): its lid opens and stays open (every player's screen sees it), and
@@ -739,7 +753,8 @@ func _end_flee(heal := true) -> void:
 ## in its way; looking into a noise, it gives that up). A lone scav it fights as before.
 func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 	if not puppet and not _hit_now and state in [State.IDLE, State.INVESTIGATE, State.SEARCH] and plan != Plan.FLEE \
-			and _group_to_avoid(known_pos):
+			and (_group_to_avoid(known_pos) or _far_to_leave(known_pos)):
+		_spot = 0.0
 		if state != State.IDLE:
 			_set_state(State.IDLE)   # (plans again: the hook in _physics_process)
 		return
@@ -751,6 +766,14 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 		_break_cooldown = BREAK_COOLDOWN
 		_set_plan(Plan.HOLD, 0.3)
 	super(known_pos, reaction)
+
+
+## A hit from a scav, Raider, sniper or Bon does AI_DAMAGE_TO_BOT of its damage (0.36.13).
+func take_hit_from(attacker: Node3D, amount: int, head: bool) -> void:
+	var ai := attacker as Scav
+	if ai != null and not ai.counts_as_pmc() and ai_damage_to_bot != 1.0:
+		amount = maxi(1, roundi(amount * ai_damage_to_bot))
+	super(attacker, amount, head)
 
 
 ## Running off it doesn't stop to patch up on the way (it does once it gets there, `_end_flee`).
@@ -772,6 +795,19 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 	_hit_now = true
 	super(shooter_pos)
 	_hit_now = false
+
+
+## The one it just spotted is a scav, Raider, sniper or Bon farther than BOT_OPEN_FIRE that isn't after it (0.36.13,
+## owner: "bots don't shoot first at far scavs"): it lets it be and carries on. Players and other bots: never.
+func _far_to_leave(known_pos: Vector3) -> bool:
+	if not is_instance_valid(_target):
+		return false
+	var spotted := _target as Scav
+	if spotted == null or spotted.counts_as_pmc() or _player_in_fight():
+		return false
+	if _flat(known_pos - global_position).length() <= BOT_OPEN_FIRE:
+		return false
+	return not (spotted._target == self and spotted.state in [State.ALERT, State.ENGAGE])
 
 
 ## The one it just spotted (its target, at `known_pos`) is an AI in a group it shouldn't take on that isn't after it yet.

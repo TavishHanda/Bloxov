@@ -7,6 +7,24 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.13 (AI PMCs: scavs hunt bots less, bots sneak)
+Built on the AI PMC branch (switch still off). The owner's pick after 0.36.12 (2026-11-17). Scavs, Raiders, snipers
+and Bon are unchanged against real players: `tests/ai_same_check.gd` logs are identical before and after.
+- **Scavs only fight a bot they see**: an AI that hasn't seen the AI PMC it is fighting for 4 s (`Scav.BOT_GIVE_UP`)
+  lets it go and returns to what it was doing. Against a player it hunts as ever.
+- **A bot's fight pulls in 1, not 4** (`scripts/bot_fight.gd`, `BotFight.BUDGET`): a bot's gunfire, the help call of
+  an AI that spots a bot, and a buddy dropped by a bot hand out one ticket per fight between them; the rest carry on
+  as if nothing happened. A real player's fights keep FightBudget (4), untouched.
+- **Bots don't shoot first at far scavs**: unaware, a bot lets a scav, Raider, sniper or Bon farther than 25 m
+  (`PmcAI.BOT_OPEN_FIRE`) be unless it is after the bot. Players and other bots: unchanged.
+- **Reserve dial, off**: `PmcAI.AI_DAMAGE_TO_BOT` (1.0 = no change): the share of damage AI hits do to a bot. The
+  raid report can try values with `BOT_DMG=0.5`. Pending the owner.
+- Trial runs (5 raids per map, 15 bots): Riptide 8 alive at 5:00, 5 extracted (was 10 of 30 and 5 of 30). Frontlines
+  2 alive at 5:00, 1 extracted; with damage x0.75: 5 alive, 2 extracted; x0.5: 8 alive, 1 extracted, but bots there
+  still loot little (1.3 containers) because they keep dropping places. Loosening the avoid rules to 3+ AI made both
+  maps worse (0 and 2 alive at 5:00), so those stay at 2.
+- Smoke test: `pmc_apart` and `pmc_breakoff` cover the new rules.
+
 ## 0.36.12 (AI PMCs: smarter bots against AI)
 Built on the AI PMC branch (switch still off). The owner picked "smarter bots" (2026-11-16); every new number is a
 named constant in `scripts/pmc_ai.gd` and waits for the owner's OK. Only the bot's own brain changed: scavs, Raiders,

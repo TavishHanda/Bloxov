@@ -129,6 +129,19 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 	_alert(guess, startle_reaction_time)
 
 
+## An AI PMC fired at `pos` (0.36.13, owner: a bot's shots pull 1 scav, not 4). Unaware and in earshot, it goes and
+## looks only if that fight still has room (BotFight); otherwise it carries on as if it heard nothing.
+func hear_bot_shot(pos: Vector3, radius: float) -> void:
+	if puppet or state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or _is_responding():
+		return
+	if global_position.distance_to(pos) > radius * hearing_mult * GUNSHOT_HEARING:
+		return
+	if stays_home and not _near_home(pos):
+		return
+	if BotFight.take(self, pos):
+		hear_noise(pos, radius, true)
+
+
 ## How long it needs to line a shot up at someone `dist` away: quick up close, slow far off (reaction_time at your
 ## feet, reaction_time_far at reaction_range and beyond).
 func _reaction_for(dist: float) -> float:
@@ -159,9 +172,13 @@ func _call_for_help(known_pos: Vector3) -> bool:
 	if help_radius <= 0.0 or puppet:
 		return false
 	var called := false
+	var bot_fight := _target is Scav   # (0.36.13: it's fighting an AI PMC, a fight that pulls in BotFight.BUDGET at most)
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
 		if ally != null and ally != self and ally.faction == faction and global_position.distance_to(ally.global_position) <= help_radius:
+			if bot_fight and (ally.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or ally._is_responding()
+					or not BotFight.take(self, known_pos)):
+				continue
 			ally.answer_call(known_pos)
 			called = true
 	return called
@@ -428,6 +445,7 @@ func _warn_friends() -> void:
 	var space := get_world_3d().direct_space_state
 	var chest := global_position + Vector3(0, 1.2, 0)
 	var said := false   # (one "man down" is enough)
+	var by_bot := _hit_by is Scav
 	for node in RaidScope.nodes(self, &"enemies"):
 		var friend := node as Scav
 		if friend == null or friend == self or friend.puppet or friend.faction != faction or friend.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
@@ -439,6 +457,8 @@ func _warn_friends() -> void:
 			var eyes := friend.global_position + Vector3(0, 1.65, 0)
 			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1 | Door.LAYER)).is_empty():
 				continue
+		if by_bot and not BotFight.take(self, _last_hit_from):
+			continue   # (0.36.13: dropped by an AI PMC, and that fight has pulled in its one: this friend didn't notice)
 		if not _fight_ticket(_last_hit_from):
 			friend._hold_alert(_last_hit_from)   # (the fight has pulled in enough: it watches that way, 0.28.11)
 			continue

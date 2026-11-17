@@ -413,6 +413,9 @@ var _opened_on: Node = null
 ## The AI whose shot or bash is landing on it right now (null otherwise: a player's hit, a fall), and the one whose
 ## hit killed it (its instance id, 0 = not an AI: the server's kill feed reads it, RaidWorld).
 var _hit_by: Node3D = null
+## A scav, Raider, sniper or Bon that has not seen the AI PMC it is fighting for this long lets it go and goes back
+## to what it was doing (0.36.13, owner: "scavs only fight a bot they see"; they used to hunt it down unseen).
+const BOT_GIVE_UP := 4.0
 var killer_ai_id := 0
 
 

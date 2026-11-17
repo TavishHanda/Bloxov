@@ -26,6 +26,9 @@ var _out := ""
 
 
 func _initialize() -> void:
+	if OS.get_environment("BOT_DMG") != "":
+		PmcAI.ai_damage_to_bot = float(OS.get_environment("BOT_DMG"))
+		print("AI damage to bots x%.2f" % PmcAI.ai_damage_to_bot)
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_per_map = int(args[0])
