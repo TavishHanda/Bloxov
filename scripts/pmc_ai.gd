@@ -65,7 +65,7 @@ const BOT_OPEN_FIRE := 25.0
 ## Hits from scavs, Raiders, snipers and Bon do this share of their damage to an AI PMC (0.36.13; players' and other
 ## bots' hits are untouched). A hidden handicap so a lone bot lasts among ~36 AI. PENDING THE OWNER'S OK.
 const AI_DAMAGE_TO_BOT := 1.0
-static var ai_damage_to_bot := AI_DAMAGE_TO_BOT   # (the raid report tries other values through this)
+static var ai_damage_to_bot := -1.0   # (the raid report's override for every map; -1 = the map's own, MAP_TUNING)
 const PLAYER_MEMORY := 10.0
 const BREAK_CHECK := 0.25
 ## Steering around other AI (0.36.14, owner: "steer around AI, fight if they meet"; the 0.36.9 keep-apart numbers).
@@ -97,7 +97,20 @@ const MAX_TAKEN := 4
 ## heals left and not in a fight. It heads for the nearest open extract.
 const LEAVE_MIN := 0.50
 const LEAVE_MAX := 0.85
+static var leave_window := Vector2(LEAVE_MIN, LEAVE_MAX)   # (the raid report tries others: BOT_LEAVE=min,max)
 const LEAVE_HURT := 0.4
+## (0.36.15, pending the owner's OK) A raid this hot sends it home: after breaking off this many fights with AI it heads
+## for an extract, as a player would (0 = off). The raid report tries values with BOT_BREAKS=n.
+const BREAKS_TO_LEAVE := 0
+static var breaks_to_leave := -1   # (the raid report's override for every map; -1 = the map's own, MAP_TUNING)
+## (0.36.15, pending the owner's OK) Per-map tuning, by the map's `map_name`: a busy map (Frontlines, 36 AI) gets the
+## hidden damage handicap and the leave-after-breaks rule; other maps use AI_DAMAGE_TO_BOT and BREAKS_TO_LEAVE.
+const MAP_TUNING := {"Bloxov Frontlines": {"ai_damage": 0.6, "breaks_to_leave": 2}}
+## This bot's own values (set in `_ready` from MAP_TUNING and the report's overrides).
+var ai_damage := AI_DAMAGE_TO_BOT
+var leave_after_breaks := BREAKS_TO_LEAVE
+## (0.36.15 trials) The keep-apart steering on (true) or off (the 0.36.13 walk-straight-in). Report: BOT_APART=0.
+static var keep_apart := true
 const DEFAULT_RAID_LENGTH := 600.0
 ## Tuning (not the owner's numbers): wait this long before looking for an extract again after finding none, and give
 ## up on a walk to one after this long.
@@ -168,6 +181,21 @@ func _ready() -> void:
 	_plan_wait = randf_range(START_WAIT_MIN, START_WAIT_MAX)
 	_indoor_left = randf() * CHECK_EVERY
 	_roll_leave_time()
+	_apply_map_tuning()
+
+
+## Its map's MAP_TUNING (the raid's root carries the map's `map_name` meta, RaidMap.load_map), then the report's overrides.
+func _apply_map_tuning() -> void:
+	var node: Node = self
+	while node != null and not node.has_meta("map_name"):
+		node = node.get_parent()
+	var tuning: Dictionary = MAP_TUNING.get(String(node.get_meta("map_name")) if node != null else "", {})
+	ai_damage = float(tuning.get("ai_damage", AI_DAMAGE_TO_BOT))
+	leave_after_breaks = int(tuning.get("breaks_to_leave", BREAKS_TO_LEAVE))
+	if ai_damage_to_bot >= 0.0:
+		ai_damage = ai_damage_to_bot
+	if breaks_to_leave >= 0:
+		leave_after_breaks = breaks_to_leave
 
 
 func _physics_process(delta: float) -> void:
@@ -284,7 +312,7 @@ static func _takeable(id: String) -> bool:
 func wants_to_leave() -> bool:
 	if puppet or state == State.DEAD:
 		return false
-	if _age >= leave_at:
+	if _age >= leave_at or (leave_after_breaks > 0 and breaks >= leave_after_breaks):
 		return true
 	return health.current < health.max_health * LEAVE_HURT and _heals_left <= 0
 
@@ -298,7 +326,7 @@ func _roll_leave_time() -> void:
 		rng.seed = leave_seed
 	else:
 		rng.randomize()
-	leave_at = rng.randf_range(LEAVE_MIN, LEAVE_MAX) * (raid_length if raid_length > 0.0 else DEFAULT_RAID_LENGTH)
+	leave_at = rng.randf_range(leave_window.x, leave_window.y) * (raid_length if raid_length > 0.0 else DEFAULT_RAID_LENGTH)
 
 
 # ---- The raid plan ------------------------------------------------------------------------------------------------
@@ -744,11 +772,11 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 	super(known_pos, reaction)
 
 
-## A hit from a scav, Raider, sniper or Bon does AI_DAMAGE_TO_BOT of its damage (0.36.13).
+## A hit from a scav, Raider, sniper or Bon does `ai_damage` of its damage (0.36.13; 0.36.15: per map).
 func take_hit_from(attacker: Node3D, amount: int, head: bool) -> void:
 	var ai := attacker as Scav
-	if ai != null and not ai.counts_as_pmc() and ai_damage_to_bot != 1.0:
-		amount = maxi(1, roundi(amount * ai_damage_to_bot))
+	if ai != null and not ai.counts_as_pmc() and ai_damage != 1.0:
+		amount = maxi(1, roundi(amount * ai_damage))
 	super(attacker, amount, head)
 
 
@@ -823,6 +851,8 @@ func _place_clear(p: Dictionary, others: Array) -> bool:
 ## The other AI in this raid: [position, is a bot, node], living ones only.
 func _others_at() -> Array:
 	var out := []
+	if not keep_apart:
+		return out
 	for node in RaidScope.nodes(self, &"enemies"):
 		var other := node as Scav
 		if other == null or other == self or other.state == State.DEAD or other.health.is_dead:

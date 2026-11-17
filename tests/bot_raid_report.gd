@@ -29,6 +29,16 @@ func _initialize() -> void:
 	if OS.get_environment("BOT_DMG") != "":
 		PmcAI.ai_damage_to_bot = float(OS.get_environment("BOT_DMG"))
 		print("AI damage to bots x%.2f" % PmcAI.ai_damage_to_bot)
+	if OS.get_environment("BOT_LEAVE") != "":
+		var w := OS.get_environment("BOT_LEAVE").split(",")
+		PmcAI.leave_window = Vector2(float(w[0]), float(w[1]))
+		print("bots leave at %.2f-%.2f of the raid" % [PmcAI.leave_window.x, PmcAI.leave_window.y])
+	if OS.get_environment("BOT_APART") == "0":
+		PmcAI.keep_apart = false
+		print("keep-apart steering off")
+	if OS.get_environment("BOT_BREAKS") != "":
+		PmcAI.breaks_to_leave = int(OS.get_environment("BOT_BREAKS"))
+		print("bots leave after %d broken-off fights" % PmcAI.breaks_to_leave)
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_per_map = int(args[0])

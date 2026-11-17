@@ -7,6 +7,18 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.15 (AI PMCs: Frontlines tuning for extracting)
+Built on the AI PMC branch (switch still off). Owner's target (2026-11-17): about 1/3 to 1/2 of AI PMCs extract.
+Numbers pending the owner's OK; only `scripts/pmc_ai.gd` and the tests changed.
+- **Per-map tuning** (`PmcAI.MAP_TUNING`, by the map's `map_name`): on Frontlines (36 AI) a bot heads for an extract
+  after it has broken off 2 fights with AI ("this raid is too hot"), and AI hits do 0.6 of their damage to it (hidden
+  handicap, players' and other bots' hits untouched). Riptide and other maps are unchanged.
+- Frontlines extracted: 0.36.14 2 of 30 (7%); now 34 of 90 over three 10-raid runs (38%). Riptide stays at 24 of 30
+  with no players in the test (keep-apart steering off there gave 6 of 30 and little loot). Reports:
+  `/mnt/project-files/ai-pmcs/raid-report-0.36.15-*`.
+- Report tool: `BOT_DMG`, `BOT_BREAKS`, `BOT_LEAVE=min,max` and `BOT_APART=0` override every map for trials.
+- Smoke test `pmc_fights_ai`: Frontlines bots get their own tuning, Riptide's are untouched.
+
 ## 0.36.14 (AI PMCs: steer around AI, fight if they meet)
 Built on the AI PMC branch (switch still off). The owner's pick after 0.36.13 (2026-11-17). Only `scripts/pmc_ai.gd`
 changed: scavs, Raiders, snipers and Bon are untouched.

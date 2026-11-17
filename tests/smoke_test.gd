@@ -7358,13 +7358,30 @@ func _section_pmc_breakoff() -> void:
 	var hp_before := bot.health.current
 	bot.take_hit_from(far, 20, false)
 	var full_loss := hp_before - bot.health.current
-	PmcAI.ai_damage_to_bot = 0.5
+	var was_damage := bot.ai_damage
+	bot.ai_damage = 0.5
 	hp_before = bot.health.current
 	bot.take_hit_from(far, 20, false)
 	var half_loss := hp_before - bot.health.current
-	PmcAI.ai_damage_to_bot = PmcAI.AI_DAMAGE_TO_BOT
-	_check(PmcAI.AI_DAMAGE_TO_BOT == 1.0 and full_loss > 0 and half_loss < full_loss,
+	bot.ai_damage = was_damage
+	_check(PmcAI.AI_DAMAGE_TO_BOT == 1.0 and was_damage == 1.0 and full_loss > 0 and half_loss < full_loss,
 		"AI damage to bots: off by default (x1.0); at x0.5 a scav's hit takes %d instead of %d" % [half_loss, full_loss])
+	# Per map (0.36.15): Frontlines gets its MAP_TUNING (hidden handicap, leave after 2 broken-off fights).
+	var tuned_root := Node3D.new()
+	tuned_root.set_meta("map_name", "Bloxov Frontlines")
+	tuned_root.add_child(Node3D.new())
+	var probe := PmcAI.new()
+	tuned_root.get_child(0).add_child(probe)
+	probe._apply_map_tuning()
+	var fl_damage := probe.ai_damage
+	var fl_breaks := probe.leave_after_breaks
+	tuned_root.set_meta("map_name", "Riptide")
+	probe._apply_map_tuning()
+	_check(fl_damage == float(PmcAI.MAP_TUNING["Bloxov Frontlines"]["ai_damage"]) and fl_breaks == 2 \
+		and probe.ai_damage == 1.0 and probe.leave_after_breaks == 0,
+		"Frontlines bots get their own tuning (x%.2f damage, leave after %d breaks); Riptide's are untouched" % [fl_damage, fl_breaks])
+	probe.free()
+	tuned_root.free()
 	bot.health.heal(bot.health.max_health)
 	bot._set_state(Scav.State.IDLE)
 	# Its call for help when it spots a bot, and a buddy dropped by a bot, pull in one at most between them.
