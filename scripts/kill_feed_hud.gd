@@ -18,7 +18,7 @@ const FADE := 1.0
 ## Never more than this many at once (the oldest goes).
 const MOST := 5
 ## What the AI is called in the feed, by its scene's name.
-const AI_NAMES := {"scav": "Scav", "sniper": "Sniper", "raider": "Raider", "boss": "Bon", "player": "PMC",
+const AI_NAMES := {"scav": "Scav", "sniper": "Sniper", "raider": "Raider", "boss": "Bon", "player": "PMC", "pmc_ai": "PMC",
 	# (Riptide, 0.35.34)
 	"deckhand": "Deckhand", "trooper": "Exion Trooper", "guard_riptide": "Guard", "boss_raijin": "Raijin", "boss_ace": "Ace",
 	"boss_orbit": "Orbit"}

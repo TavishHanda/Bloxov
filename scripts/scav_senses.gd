@@ -15,7 +15,9 @@ const VOICE := {
 	"heal": preload("res://audio/voice/heal.wav"),
 }
 
-var _target: Player
+## Who it's after: a player, or (0.36.10) an AI it may fight (_may_fight). An AI answers the same questions a player
+## does (Scav: eye_position, chest_height, out_of_fight, is_crouching, is_sprinting, is_healing, is_low...).
+var _target: Node3D
 var _woods_map: BoxMap
 var _woods_trees := 0
 var _woods_check_at := 0
@@ -54,10 +56,10 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 		return
 	if stays_home and not _near_home(pos):
 		return
-	if radius >= alarm_noise and not _is_responding() and _responders() >= max_responders:
+	if radius >= alarm_noise and uses_fight_budget and not _is_responding() and _responders() >= max_responders:
 		_hold_alert(pos)
 		return
-	if loud and not _is_responding() and not FightBudget.take(self, pos):
+	if loud and not _is_responding() and not _fight_ticket(pos):
 		_hold_alert(pos)
 		return
 	var offset := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -127,6 +129,19 @@ func notice_near_miss(shooter_pos: Vector3) -> void:
 	_alert(guess, startle_reaction_time)
 
 
+## An AI PMC fired at `pos` (0.36.13, owner: a bot's shots pull 1 scav, not 4). Unaware and in earshot, it goes and
+## looks only if that fight still has room (BotFight); otherwise it carries on as if it heard nothing.
+func hear_bot_shot(pos: Vector3, radius: float) -> void:
+	if puppet or state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or _is_responding():
+		return
+	if global_position.distance_to(pos) > radius * hearing_mult * GUNSHOT_HEARING:
+		return
+	if stays_home and not _near_home(pos):
+		return
+	if BotFight.take(self, pos):
+		hear_noise(pos, radius, true)
+
+
 ## How long it needs to line a shot up at someone `dist` away: quick up close, slow far off (reaction_time at your
 ## feet, reaction_time_far at reaction_range and beyond).
 func _reaction_for(dist: float) -> float:
@@ -157,9 +172,13 @@ func _call_for_help(known_pos: Vector3) -> bool:
 	if help_radius <= 0.0 or puppet:
 		return false
 	var called := false
+	var bot_fight := _target is Scav   # (0.36.13: it's fighting an AI PMC, a fight that pulls in BotFight.BUDGET at most)
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
 		if ally != null and ally != self and ally.faction == faction and global_position.distance_to(ally.global_position) <= help_radius:
+			if bot_fight and (ally.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or ally._is_responding()
+					or not BotFight.take(self, known_pos)):
+				continue
 			ally.answer_call(known_pos)
 			called = true
 	return called
@@ -171,7 +190,7 @@ func answer_call(pos: Vector3) -> void:
 		return
 	if stays_home and not _near_home(pos):
 		return
-	if not _is_responding() and (_responders() >= max_responders or not FightBudget.take(self, pos)):
+	if not _is_responding() and (_responders() >= max_responders or not _fight_ticket(pos)):
 		_hold_alert(pos)
 		return
 	_goal = pos + Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)).normalized() * randf() * noise_uncertainty
@@ -190,9 +209,14 @@ func _responders() -> int:
 	var count := 0
 	for node in RaidScope.nodes(self, &"enemies"):
 		var ally := node as Scav
-		if ally != null and ally != self and ally._is_responding():
+		if ally != null and ally != self and ally.uses_fight_budget and ally._is_responding():
 			count += 1
 	return count
+
+
+## A FightBudget ticket to join the fight at `pos` (AI that leave the budget out, AI PMCs, always go).
+func _fight_ticket(pos: Vector3) -> bool:
+	return not uses_fight_budget or FightBudget.take(self, pos)
 
 
 ## Enough others are already going: it stays put, on alert, looking toward the trouble (quicker to spot you).
@@ -207,12 +231,19 @@ func _hold_alert(pos: Vector3) -> void:
 
 ## The target is reloading, healing or under 40% health (a moment to push).
 func _target_busy() -> bool:
-	return _target != null and is_instance_valid(_target) and (_target.is_healing() or (_target.gun != null and _target.gun.is_reloading)
+	return _target != null and is_instance_valid(_target) and (_target.is_healing() or _target_reloading()
 		or _target.is_low())   # (0.15.18, owner: you're under 40% health, so they come at you)
 
 
-## The closest player who can still be fought (co-op ready: never assumes a single player).
-func _pick_target() -> Player:
+## The target is a player reloading (the AI have no reloading to catch them at).
+func _target_reloading() -> bool:
+	var player := _target as Player
+	return player != null and player.gun != null and player.gun.is_reloading
+
+
+## The closest player who can still be fought (co-op ready: never assumes a single player); with AI it may fight
+## in the raid (0.36.10), the closest of those can take their place (_with_rivals).
+func _pick_target() -> Node3D:
 	var best: Player = null
 	var best_dist := INF
 	for node in RaidScope.nodes(self, &"player"):
@@ -223,12 +254,98 @@ func _pick_target() -> Player:
 		if d < best_dist:
 			best = player
 			best_dist = d
+	return _with_rivals(best)
+
+
+## Who it may fight besides players (0.36.10, owner): an AI PMC fights every other AI, bots included; every other AI
+## fights AI PMCs only (scavs, Raiders, snipers and Bon never fight each other).
+func _may_fight(other: Scav) -> bool:
+	return other != self and not other.puppet and (counts_as_pmc() or other.counts_as_pmc())
+
+
+## (Its target counts as this much closer than it is, so two at about the same distance don't swap back and forth.)
+const RIVAL_STICK := 2.0
+
+
+func _rival_dist(node: Node3D) -> float:
+	return global_position.distance_to(node.global_position) - (RIVAL_STICK if node == _target else 0.0)
+
+
+## The closest AI it may fight that's still in the fight (null if none: always, in a raid with no AI PMCs).
+func _closest_rival() -> Scav:
+	var best: Scav = null
+	var best_dist := INF
+	for node in RaidScope.nodes(self, &"enemies" if counts_as_pmc() else &"pmc_bots"):
+		var other := node as Scav
+		if other == null or not _may_fight(other) or other.out_of_fight():
+			continue
+		var d := _rival_dist(other)
+		if d < best_dist:
+			best = other
+			best_dist = d
 	return best
 
 
+## `player` (the player it would go after, or null), or a closer AI it may fight. A player it can see always wins over
+## an AI it can't (owner: so a scav never stares at a wall with a bot behind it while a player walks past in view).
+func _with_rivals(player: Node3D) -> Node3D:
+	var rival := _closest_rival()
+	if rival == null:
+		return player
+	if player == null:
+		return rival
+	if _rival_dist(rival) >= _rival_dist(player):
+		return player
+	if _sees_body(player) and not _sees_body(rival):
+		return player
+	return rival
+
+
+## Whether it could see `body` from here (in sight range, no wall, door, tree top or bush between: the sight check's
+## test, for someone who isn't its target).
+func _sees_body(body: Node3D) -> bool:
+	if _flat(body.global_position - global_position).length() >= sight_range:
+		return false
+	var eyes := global_position + Vector3(0, 1.65, 0)
+	var to: Vector3 = body.eye_position()
+	var space := get_world_3d().direct_space_state
+	if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, to, 1 | Door.LAYER, [get_rid()])).is_empty():
+		return false
+	return space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, to, BoxMap.LEAVES_LAYER | BoxMap.BUSH_LAYER, [get_rid()])).is_empty()
+
+
+## With AI it may fight about (0.36.10), it looks again at who to go after with every sight check: a player it's
+## after stays its player (as before: it doesn't swap to a closer player), but a closer AI can take over, and from an
+## AI it goes back to a player or a closer AI. True if the target changed. (With none about, nothing changes.)
+func _recheck_target() -> bool:
+	var player: Node3D = _target if _target is Player else null
+	if player == null:
+		var best_dist := INF
+		for node in RaidScope.nodes(self, &"player"):
+			var other := node as Player
+			if other == null or other.out_of_fight():
+				continue
+			var d := global_position.distance_to(other.global_position)
+			if d < best_dist:
+				player = other
+				best_dist = d
+	var pick := _with_rivals(player)
+	if pick == null or pick == _target:
+		return false
+	_target = pick
+	_lost_sight_time = 0.0
+	return true
+
+
 ## Shot by someone other than who it's fighting (co-op): it turns on the one shooting it (0.12.31; it used to keep
-## its eyes on the closest player while someone else shot it).
+## its eyes on the closest player while someone else shot it). Hit by an AI it may fight (0.36.10): on that one.
 func _target_shooter(source_position: Vector3) -> void:
+	if _hit_by != null:
+		var shooter := _hit_by as Scav
+		if shooter != null and is_instance_valid(shooter) and shooter != _target and _may_fight(shooter) and not shooter.out_of_fight():
+			_target = shooter
+			_lost_sight_time = 0.0
+		return
 	for node in RaidScope.nodes(self, &"player"):
 		var player := node as Player
 		if player != null and player != _target and not player.out_of_fight() \
@@ -328,6 +445,7 @@ func _warn_friends() -> void:
 	var space := get_world_3d().direct_space_state
 	var chest := global_position + Vector3(0, 1.2, 0)
 	var said := false   # (one "man down" is enough)
+	var by_bot := _hit_by is Scav
 	for node in RaidScope.nodes(self, &"enemies"):
 		var friend := node as Scav
 		if friend == null or friend == self or friend.puppet or friend.faction != faction or friend.state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
@@ -339,7 +457,9 @@ func _warn_friends() -> void:
 			var eyes := friend.global_position + Vector3(0, 1.65, 0)
 			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, chest, 1 | Door.LAYER)).is_empty():
 				continue
-		if not FightBudget.take(self, _last_hit_from):
+		if by_bot and not BotFight.take(self, _last_hit_from):
+			continue   # (0.36.13: dropped by an AI PMC, and that fight has pulled in its one: this friend didn't notice)
+		if not _fight_ticket(_last_hit_from):
 			friend._hold_alert(_last_hit_from)   # (the fight has pulled in enough: it watches that way, 0.28.11)
 			continue
 		friend.notice_near_miss(_last_hit_from)
@@ -350,7 +470,7 @@ func _warn_friends() -> void:
 
 ## Says a callout (`chance` of it, at most one per bark_cooldown); online the server passes it on to players.
 func _bark(kind: String, chance := 1.0) -> void:
-	if puppet or _bark_left > 0.0 or randf() > chance:
+	if puppet or silent or _bark_left > 0.0 or randf() > chance:
 		return
 	_bark_left = bark_cooldown
 	play_bark(kind)
@@ -360,7 +480,7 @@ func _bark(kind: String, chance := 1.0) -> void:
 ## Chatter (Sound update 0.20.4): a line that isn't a callout (muttering on patrol, a chuckle after a kill, a
 ## grenade warning). It doesn't use up the callout cooldown, so it never holds back a "spotted" or a "cover".
 func _chatter(kind: String) -> void:
-	if puppet or _bark_left > 0.0:
+	if puppet or silent or _bark_left > 0.0:
 		return
 	play_bark(kind)
 	barked.emit(kind)

@@ -7,6 +7,261 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.16 (AI PMCs join main)
+The AI PMC phase (0.36.0-0.36.15) is merged into main with Riptide's 0.35.32-0.35.34 (owner, 2026-11-17: "push this to
+main"; he picked "Frontlines fix, Riptide as is"). The bot switch (`Matchmaker.bots_on`, server `--bots`) stays OFF, so
+players see no bots yet.
+- AI PMCs are now net kind 6 (Riptide's Deckhand and Exion Trooper took 4 and 5 on main); `NetRaid.ENEMY_SCENES[6]`.
+- Net version 2 -> 3 (item, account and matchmaking rules changed on the branch): old games are asked to update.
+
+## 0.36.15 (AI PMCs: Frontlines tuning for extracting)
+Built on the AI PMC branch (switch still off). Owner's target (2026-11-17): about 1/3 to 1/2 of AI PMCs extract.
+Numbers pending the owner's OK; only `scripts/pmc_ai.gd` and the tests changed.
+- **Per-map tuning** (`PmcAI.MAP_TUNING`, by the map's `map_name`): on Frontlines (36 AI) a bot heads for an extract
+  after it has broken off 2 fights with AI ("this raid is too hot"), and AI hits do 0.6 of their damage to it (hidden
+  handicap, players' and other bots' hits untouched). Riptide and other maps are unchanged.
+- Frontlines extracted: 0.36.14 2 of 30 (7%); now 34 of 90 over three 10-raid runs (38%). Riptide stays at 24 of 30
+  with no players in the test (keep-apart steering off there gave 6 of 30 and little loot). Reports:
+  `/mnt/project-files/ai-pmcs/raid-report-0.36.15-*`.
+- Report tool: `BOT_DMG`, `BOT_BREAKS`, `BOT_LEAVE=min,max` and `BOT_APART=0` override every map for trials.
+- Smoke test `pmc_fights_ai`: Frontlines bots get their own tuning, Riptide's are untouched.
+
+## 0.36.14 (AI PMCs: steer around AI, fight if they meet)
+Built on the AI PMC branch (switch still off). The owner's pick after 0.36.13 (2026-11-17). Only `scripts/pmc_ai.gd`
+changed: scavs, Raiders, snipers and Bon are untouched.
+- **Keep-apart steering is back** (the 0.36.9 rule, git 9bfa8e1): unaware, a bot picks places with no non-bot AI within
+  40 m (other bots 60 m), takes ways that stay 30 m off them, turns away and runs when one comes within 30 m, doesn't
+  walk over to a noise with AI near it, moves off after a fight, and won't stand in a busy extract.
+- **Fighting stays**: when AI do meet it, the 0.36.10-13 fight rules apply (break off when outnumbered or hurt, heal,
+  no fight started with a group or a far scav). The 0.36.12 "drop the place for a group ahead" look is gone (the
+  steering does that job); its threat weights still count enemies in a fight.
+- 20 raid report (10 per map, 3 bots each, `/mnt/project-files/ai-pmcs/raid-report-0.36.14-wip.txt`): Riptide 26 of
+  30 bots alive at 5:00, 24 extracted, 4.7 containers each (0.36.13: 8 of 15, 5). Frontlines 17 of 30 alive at 5:00
+  (0.36.13: 2 of 15) but only 2 extracted and 1.4 containers each: on the busy map bots still die before their leave time.
+- Smoke test: the bot sections cover the steering again.
+
+## 0.36.13 (AI PMCs: scavs hunt bots less, bots sneak)
+Built on the AI PMC branch (switch still off). The owner's pick after 0.36.12 (2026-11-17). Scavs, Raiders, snipers
+and Bon are unchanged against real players: `tests/ai_same_check.gd` logs are identical before and after.
+- **Scavs only fight a bot they see**: an AI that hasn't seen the AI PMC it is fighting for 4 s (`Scav.BOT_GIVE_UP`)
+  lets it go and returns to what it was doing. Against a player it hunts as ever.
+- **A bot's fight pulls in 1, not 4** (`scripts/bot_fight.gd`, `BotFight.BUDGET`): a bot's gunfire, the help call of
+  an AI that spots a bot, and a buddy dropped by a bot hand out one ticket per fight between them; the rest carry on
+  as if nothing happened. A real player's fights keep FightBudget (4), untouched.
+- **Bots don't shoot first at far scavs**: unaware, a bot lets a scav, Raider, sniper or Bon farther than 25 m
+  (`PmcAI.BOT_OPEN_FIRE`) be unless it is after the bot. Players and other bots: unchanged.
+- **Reserve dial, off**: `PmcAI.AI_DAMAGE_TO_BOT` (1.0 = no change): the share of damage AI hits do to a bot. The
+  raid report can try values with `BOT_DMG=0.5`. Pending the owner.
+- Trial runs (5 raids per map, 15 bots): Riptide 8 alive at 5:00, 5 extracted (was 10 of 30 and 5 of 30). Frontlines
+  2 alive at 5:00, 1 extracted; with damage x0.75: 5 alive, 2 extracted; x0.5: 8 alive, 1 extracted, but bots there
+  still loot little (1.3 containers) because they keep dropping places. Loosening the avoid rules to 3+ AI made both
+  maps worse (0 and 2 alive at 5:00), so those stay at 2.
+- Smoke test: `pmc_apart` and `pmc_breakoff` cover the new rules.
+
+## 0.36.12 (AI PMCs: smarter bots against AI)
+Built on the AI PMC branch (switch still off). The owner picked "smarter bots" (2026-11-16); every new number is a
+named constant in `scripts/pmc_ai.gd` and waits for the owner's OK. Only the bot's own brain changed: scavs, Raiders,
+snipers and Bon, bot health and aim, the fight budget and hearing are untouched.
+- **Why bots died** (`DIAG=1 tests/bot_raid_report.gd`, 0.36.11, 10 raids): nearly all in their first 2 minutes, on the
+  way to a place, almost never having healed (2 heals left in most deaths). The fight closes to 2-15 m: the bot pushes
+  in, or 2-7 AI it never saw (pulled in by its gunfire) walk up on it and shoot first.
+- **Threat**: other AI weigh scav 1, Raider 2, sniper 1, Bon 2, bot 1. A bot doesn't pick a place with threat 2 or
+  more within 40 m (was 3 or more AI); all over: the least threatening. Bon's area: never, as before.
+- **Groups**: unaware, once a second, a group (threat 2+ within 15 m of one of them) it sees, or that is within 40 m,
+  ahead on its way or within 40 m of its place, makes it drop that place (not picked again for 90 s) and pick
+  another. It doesn't start a fight with a group it spots that isn't after it yet (farther than 12 m). A lone scav
+  it fights as before.
+- **Breaking off** (fights with AI only): outnumbered (those fighting it, or within 30 m in view, weigh 2+) or hurt
+  (under 50%, someone fighting it), it runs flat out to a spot 40-70 m from them, 30 m clear of other AI and out of
+  their sight if it can; still chased within 40 m when it gets there, it runs on (3 runs at most). Then it heals if it
+  has heals and nobody is after it close by, and plans again (or leaves, hurt with no heals, as before). Running, it
+  turns to fight only for an enemy within 12 m (that fight it fights out: no breaking off again); it never breaks off
+  with an enemy within 12 m that sees it, nor within 10 s of a run.
+- **Players**: with a real player in the fight (its target, a player within its sight range, or a player's hit in the
+  last 10 s) none of this applies and it fights exactly as in 0.36.11; a player turning up stops a run.
+- **Result** (10 raids per map, `raid-report-0.36.12.txt`): Frontlines 0 of 30 bots alive at 5:00, 0 extracted, 0.8 containers searched per bot (0.36.11: 1 alive, 0 extracted, 0.9 searched); Riptide 10 of 30 (33%) alive at 5:00, 5 extracted, 1.5 searched (0.36.11: 4, 1). Bots break off 1.7-2.4 fights each. The working targets (half the bots alive at
+  5:00, a third extracting) are NOT reached by these rules alone; see the report.
+- **Proof**: `tests/ai_same_check.gd` log identical before and after (14141 lines). New smoke section `pmc_breakoff`;
+  `pmc_apart` checks the threat rule. The report counts break-offs and dropped places; `DIAG=1` prints a note on every
+  bot death. The smoke test's watchdog is 600 game seconds (the test is ~445 now).
+
+## 0.36.11 (AI PMCs: no more keeping apart, and gunfire is heard)
+Built on the AI PMC branch (switch still off). The owner's rules (2026-11-16); no new gameplay numbers except those below.
+- **Keep-apart rule removed**: with AI fighting AI, bots no longer stay 30-40 m from other AI or 60 m from bots, turn away,
+  check their way against others, refuse a busy extract or avoid noises near AI. A bot walks straight to its places and
+  out by the nearest open extract, and fights what it meets (the inherited brain). Raid plan, searching and taking loot,
+  leave times, quiet extract, curious/cautious reactions to shots (80 m) and planning again after a fight are as before.
+- **Kept cautions** (owner): a bot doesn't pick a place with 3 or more other living AI (bots or not) within 40 m of it
+  (every place crowded: the one with the fewest AI near); never Bon's area; never a place another bot is going to.
+  Later scav spawns still keep 40 m and out of sight of bots.
+- **Gunfire is heard like a player's**: a bot's shots are a gunshot noise (`hear_noise(pos, radius, true)`, the radius
+  of the gun it carries, 25 if unknown) to every other AI in its raid, so scavs nearby come over (the limit of 4 a fight
+  holds) and curious bots go and look. Non-bot AI shooting is heard by bots only; scavs, Raiders, snipers and Bon still
+  don't hear each other, and nothing changes in raids without bots.
+- **Proof**: `tests/ai_same_check.gd` log identical before and after (14141 lines). Smoke `pmc_apart` rewritten for the
+  new rules; `pmc_leave` checks the nearest extract is taken with AI near it. `tests/bot_apart_check.gd` is now
+  `tests/bot_raid_report.gd`, a fight report (survival, kills by kind, loot taken, time fighting, ms per frame).
+
+## 0.36.10 (AI PMCs: the AI fight AI PMCs, and bots fight everyone)
+Built on the AI PMC branch (switch still off). The owner's rules (2026-11-16); no new numbers.
+- **Who fights whom**: an AI PMC fights real players, other bots, scavs, Raiders, snipers and Bon; every other AI
+  treats a bot like a player (snipers and Bon too) and still never fights another non-bot AI. Each picks the closest
+  one it may fight; a real player it can see always wins over an AI it can't (no staring at a wall with a bot behind
+  it while a player walks past). A player it was after stays its player, as before; a closer AI can take over (looked
+  at again with every sight check, only while bots are in the raid).
+- **Same fight**: same hit chances, aiming and bursts as against players. The opening-burst mercy is for real players
+  only. A hit or bash lands on an AI the way a player's bullet does (its health through its armor and helmet, so hit
+  reactions, death, body and loot all follow) and turns it on its shooter; a miss passing close turns it that way, as
+  a player's does. An AI answers the questions the brain asks of a player (where its eyes and chest are, crouched at
+  low cover, running, patching up, under 40% health). Dead bots and bots that left are dropped as targets.
+- **Kill feed**: a bot counts as a PMC. A bot killing a bot is named like a player killing a player; a scav, Raider,
+  sniper or Bon killing a bot shows as it does for a player ("Bloxov"); a real player who hurt the bot in the last
+  10 s gets the kill and the feed line, as with a player. A bot killing a scav shows nothing (a player's scav kill is
+  only on their own screen). Nothing marks a bot as a bot.
+- **Proof that scav, Raider, sniper and Bon behaviour against players is unchanged**: the new same-seed check
+  (`tests/ai_same_check.gd`: 2 maps x 2 seeds, 120 s raids as the server runs them, no bots, one player standing and
+  one walking, every AI's state, plan, position, facing, health, target and shots logged each second) gives a log
+  identical line for line before and after (14141 lines; two runs of the old code matched each other too).
+- Smoke test: new `pmc_fights_ai` section, and kill feed cases in `online_bots`.
+
+## 0.36.9 (AI PMCs: a scav walking the same way no longer keeps up)
+Built on the AI PMC branch (switch still off). Keep-apart tuning in the bot's own script; the owner's numbers (30 m,
+40 m, 60 m) are unchanged.
+- On Riptide a patrolling scav walking the same way as a bot could stay inside 30 m for 10-20 s (the bot jogged
+  away no faster than the scav walked after it). Now a bot that turns away from someone runs (its full speed, as in
+  a fight) for 6 s, looks 3 s ahead of walkers instead of 1.5 s, and checks its way against where they are heading
+  as well as where they are.
+- **Proof** (`tests/bot_apart_check.gd`, 10 raids per map, way out included): Frontlines 0.49% of bot time within
+  30 m of other AI, closest 16.1 m, 15 of 30 bots extracted. Riptide 0.39%, closest 17.0 m, 30 of 30 extracted. No
+  time near other AI on the way out on either map. Both pass (under 1%, never within 15 m).
+
+## 0.36.8 (AI PMCs: no walking out through other AI)
+Built on the AI PMC branch (switch still off). A fix to the keep-apart rule the owner approved; no new numbers.
+- **The way out keeps apart too**: in 0.36.7 a bot that found no clear extract took the nearest one anyway and stopped
+  turning away from other AI on its last 25 m, so on Frontlines it spent 12% of its way out within 30 m of scavs. Now
+  it only heads for an extract whose way is clear and that has no other AI within 40 m (30 m if none is clearer, a
+  bot 60 m); otherwise it carries on and tries again a few seconds later. Other AI coming within 30 m on the way or
+  in the extract turns it away like anywhere else.
+- **Proof** (`tests/bot_apart_check.gd`, 10 raids per map): the way out now counts in the totals, and the check says
+  how many bots extracted. Frontlines 0.50% of bot time within 30 m, closest 17.8 m, 25 of 30 extracted (way out: 0
+  s near). Riptide 1.31%, closest 17.1 m, 30 of 30 extracted (way out: 4 s near): still just over the 1% mark there
+  while looting, being looked at next.
+- Smoke test `pmc_leave`: a busy extract is refused, a 30-40 m one is taken when none is clearer, a scav coming near
+  turns the bot away from its extract.
+
+## 0.36.7 (AI PMCs, piece 6b: taking loot, extracting, gear odds)
+Built on the AI PMC branch (switch still off). Owner approved every number (2026-11-14). Scavs, Raiders, snipers and
+Bon are untouched (the only change outside the bot's own script is an empty list on the AI base class).
+- **Taking loot**: when a bot finishes searching a container its lid opens and stays open (everyone sees it) and it
+  takes one whole stack, the most valuable one, for real: gone from the server's container, on its body when it dies.
+  At most 4 a raid; never keys or special items, never from a locked container, and nothing if a player has that
+  container open at that moment (the lid still opens).
+- **Extracting**: each bot rolls a leave time, 50-85% of the raid's length (Frontlines 5:00-8:30, Riptide 7:30-12:45;
+  seeded by the raid), or leaves early when under 40% health with no heals left and not in a fight. When it is time
+  it jogs to the nearest open extract whose surroundings (no other AI within 40 m, a bot 60 m) and way pass the
+  keep-apart checks (none clear: the one whose way leaves the most room from other AI), turns away from AI near it on
+  the way like anywhere else (not on the last 25 m, or in the extract), stands in it for the extract's time, and is gone: no body, no loot bag, no
+  kill feed line, no kill credit, no death sound (the raid's screens are told "left", not "died"). A fight on the way
+  or in the extract is fought as before, the stand time starts again after, then it carries on out. On its way out it
+  doesn't go and look at noises.
+- **Gear odds**: armor light 65 / none 30 / heavy 5 (was 60/25/15), the Combat Helmet 1 in 10 helmets (was 1 in 5),
+  backpack none 55 / small 40 / medium 5 (was 55/35/10). The `pmc` loot table is now the Raider table's weights
+  without the medium backpack, so bodies can hold good loot (rare and epic finds, grenades, attachments). Map and
+  container loot are unchanged. Economy sim: an AI PMC body averages $16.6k (was $17.0k; the lighter gear and the
+  richer table roughly cancel); `sim-0.36.7.txt`.
+- New smoke test sections `pmc_leave` and more in `online_bots`. `tests/bot_apart_check.gd` copes with bots that leave
+  and counts the walk to an extract apart (it passed: 0.2-0.6% within 30 m while looting, closest 24 m; on the walk
+  out the closest was 16 m, 20% of those seconds within 30 m).
+
+## 0.36.6 (AI PMCs: keeping apart, tuned on the real maps)
+Built on the AI PMC branch (switch still off). Tuning from the proof runs (`tests/bot_apart_check.gd`), none of the
+owner's numbers changed:
+- A bot that has turned away from someone keeps going only while the gap is actually growing (it used to walk
+  alongside a scav for a while), and the way it picks has to gain distance from them as it goes.
+- Cornered (every way out passes near someone), it slips out along the way that keeps at least 20 m from them, or
+  failing that the way that leaves it the most room, instead of standing still while a scav walks up to it.
+- It reacts to AI walking towards it a moment earlier (it looks 1.5 s ahead), and checks the way ahead every second.
+- Fix: the check of the rest of the way started from the waypoint behind the bot, so it kept turning down good ways.
+- Bots start at the calmest free player spawn points (fewest AI spawn spots within 60 m); a Riptide bot that started
+  by the ship's stern spent the raid boxed in by the hold's scavs.
+
+## 0.36.5 (AI PMCs, piece 6a: a raid plan and keeping apart)
+Built on the AI PMC branch; the server switch is still off, so no player meets a bot yet. Owner approved every number
+(2026-11-14). Scavs, Raiders, snipers and Bon are untouched: the bot's new brain is its own script, `scripts/pmc_ai.gd`.
+- **Raid plan**: a bot waits a few seconds, goes to the nearest place it may loot, then picks places by what their
+  loot is worth (the best about 3 times as likely as the poorest), 2 to 4 places a raid, searching 2 to 4 containers
+  at each for 4 to 8 s. Places are buildings, from their loot containers; never locked ones, never the boss's zone.
+  It jogs between places and walks the last 15 m indoors. Once its places are done it carries on looting (extracting
+  and really taking items are the next pieces).
+- **Keeps away from other AI**: no place with a scav, Raider, sniper or Bon within 40 m (another bot: 60 m, or one
+  already going there); no way there that passes within 30 m of one (bot: 60 m); and on the move or looting, one
+  within 30 m (bot: 60 m) makes it drop what it's doing and head the other way. In a fight it fights as before.
+- **Noises**: it never walks over to a noise with other AI within 40 m of it. Half the bots are curious (they go to
+  gunshots as before), half cautious (they don't, and pick their next place away from them).
+- **Later arrivals**: scavs and Raiders that spawn later never appear within 40 m of a bot or where one can see, like
+  with players. Raids without bots spawn exactly as before.
+- New smoke test sections `pmc_plan` and `pmc_apart`; `tests/bot_apart_check.gd` runs 20 full raids with 3 bots and
+  measures how close they get to other AI.
+
+## 0.36.4 (AI PMCs, piece 5: gear kits)
+Built on the AI PMC branch; the server switch is still off, so no player meets a bot yet.
+- **What a bot carries**: a gun from its own table (Hound 40, Wasp 25, Mauler 20, Stinger 15, the scav odds), armor
+  (light 60, none 25, heavy 15), a helmet 3 bots in 10 (Old Helmet 4 in 5, Combat Helmet 1 in 5) and a backpack
+  (none 55, small 35, medium 10). **These odds are my proposal**: the plan only said "light armor most of the time,
+  sometimes none or heavy, sometimes a helmet, a small backpack". They are plain tables at the top of
+  `scripts/ai_loadouts.gd` (`PMC_ARMOR`, `PMC_HELMET_CHANCE`, `PMC_BACKPACK`), waiting for the owner's OK.
+- **Its hat matches its helmet**: a bot in a helmet wears one of the helmet outfits, a bot without wears a cap. The
+  helmet is decided from the bot's id alone, so the server and every screen agree.
+- **Its body** holds its gun (always, worn 40-100%), its armor and helmet as they ended up, its backpack, rounds for
+  its gun, a bandage stack (a medkit too 15% of the time), 1 to 3 rolled items (the scav table's odds, new `pmc`
+  loot table) and "Name's Dog Tag".
+- Economy sim (`tools/economy_sim.gd`) now prices an AI PMC body. Scavs, Raiders, snipers and Bon are untouched.
+
+## 0.36.3 (AI PMCs, piece 4: honest wording)
+Built on the AI PMC branch; the server switch stays off until piece 6, so players see only the wording.
+- **Queue screen**: while you wait it says "Finding a raid... 0:42" (elapsed time) instead of "Waiting for more
+  players (N in the queue, needs 2)", and the countdown says "Raid starts in 30 s" without a player count. The idle
+  "N players in the queue right now" stays (real players only; bots are never in a count).
+- **PMC Dog Tag** text: "Taken off a PMC you killed online."
+- **One public line**: "Online raids can include AI-controlled PMCs" in the in-game privacy text, on
+  bloxov.com/privacy, and in the bloxov.com intro list. `docs/STORE_RULES.md` records the store-page wording.
+
+## 0.36.2 (AI PMCs, piece 3: bots in the raid)
+Built on the AI PMC branch; nothing changes for players yet (the server switch `--bots` stays off until piece 6).
+- **The server spawns the raid's AI PMCs** (the count from piece 1): each bot alone, at the free player spawn point
+  farthest from the real squads, never told where a player is. They don't count toward the scav spawner's limit, so
+  scavs and Raiders arrive exactly as before.
+- **Names**: 152 made-up player-style names (`scripts/bot_names.gd`), every one through NameFilter. A bot never gets a
+  name a real player in its raid uses, and sign-up refuses them as usernames.
+- **Kill feed**: a bot's death shows as "You > Brisket", and a player a bot killed shows as "Brisket > Name", the
+  same lines a player kill makes.
+- **Body**: "Name's Body" with "Name's Dog Tag" in the tag slot, like a player killed by another player. (Its kit and
+  drops are still the placeholders from piece 2; piece 5 does them.)
+- **Kill credit**: a bot kill counts as a PMC kill ("player") for quests, on the player's game and the server. A real
+  player kill is now passed to the server's quest count the same way (it wasn't before; no quest asks for one yet).
+- Fix: a grenade kill on an AI never counted for grenade quests (the AI had left the "enemies" group by the time
+  the grenade checked). No quest asks for grenade kills yet.
+- The smoke test has a new `online_bots` section.
+
+## 0.36.1 (AI PMCs, piece 2: the bot itself)
+Built on the AI PMC branch; nothing changes for players yet (no raid spawns one until piece 3, and the server switch stays off).
+- **`scenes/pmc_ai.tscn`**: the AI PMC. The player model on the shared AI brain, net kind 4 (the fifth puppet scene
+  online). Owner's numbers: hit chance 70% close, 35% at 28 m, 20% far, 100 HP; each bot rolls its skill once, +/- 10%,
+  so they don't all shoot alike. Its other fight numbers are the Raider's for now (piece 7 tunes them). Light armor,
+  a Raider's gun roll and a plain "PMC Body" until pieces 3 and 5 (names, tags, kits).
+- **Always alone** (owner): each bot is its own side, so it never calls for help, answers a call, warns anyone or teams
+  up to suppress and flank. It doesn't take the fight tickets scavs and Raiders share (FightBudget), so a bot never
+  uses up the room another AI had to join a fight. **Silent**: no callouts or chatter. **Looks like a player**: one
+  of the wardrobe's ready-made outfits, the same one on every screen online.
+- These are new AI settings that are off by default (`loner`, `uses_fight_budget`, `silent`, `operator_look`,
+  `skill_spread`); scavs, Raiders, snipers and Bon are unchanged (their scenes aren't touched, the sideways check passes).
+- The smoke test has a new `pmc_ai` section; the server pack check now runs three bots in each raid.
+
+## 0.36.0 (AI PMCs, piece 1: the queue fill rule)
+Built on a branch while 0.35.0 is the current phase; nothing changes for players yet (the rule is off until the server check, piece 6).
+- With AI PMCs on, a player alone in the PvP queue waits 90 seconds and then gets a raid; AI PMCs make it 3 PMCs in all, real players counted (4 in about 1 raid in 4). So a lone player meets 2 bots, 3 now and then. Two or more real players keep the 30 second group countdown and are topped up the same way; a raid with 3+ real players gets none. Bots are always alone, never in pairs. `Matchmaker` only records the count (`bots`); the bots themselves come in the next pieces.
+- Server switches `--bots` and `--bot-wait=`; the smoke test covers the rule.
+
 ## 0.35.34 (Riptide's three bosses)
 Owner, 2026-11-17: "raijin, orbit and ace should be like 3 bosses", each with "2 kinda somewhat non threatening
 guards", all tougher than Bon, Raijin the toughest; and Riptide's own scavs and Raiders "to show we are in a different

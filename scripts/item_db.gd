@@ -119,7 +119,7 @@ const ITEMS := {
 	"cash": {"name": "Cash Bundle", "short": "Cash", "desc": "Old Novarran notes. Still good with the traders.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"gold_bar": {"name": "Gold Bar", "short": "Gold", "desc": "Straight from the vault.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8000},
 	"dog_tag": {"name": "Raider Dog Tag", "short": "Tag", "desc": "Taken off a Raider. Proof of a kill, and traders pay for it.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 900, "special": true},
-	"player_tag": {"name": "PMC Dog Tag", "short": "PMC Tag", "desc": "Taken off a player you killed online. Traders pay well for these.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2500, "special": true},
+	"player_tag": {"name": "PMC Dog Tag", "short": "PMC Tag", "desc": "Taken off a PMC you killed online. Traders pay well for these.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 2500, "special": true},
 	"bon_tag": {"name": "Bon's Dog Tag", "short": "Bon Tag", "desc": "Bon's own tag. Everyone in Bloxov will want to see this.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 9000, "special": true},
 	"intel_novarra": {"name": "Novarra Field Report", "short": "Report", "desc": "Novarran army papers: patrols, supply runs, names. Someone will pay to read them.", "kind": "valuable", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3000},
 	"intel_exion": {"name": "Exion Orders", "short": "Orders", "desc": "Sealed orders with the Brotherhood's X1 mark. Dangerous to carry, worth a fortune.", "kind": "valuable", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 8500},
@@ -151,6 +151,10 @@ const LOOT_TABLES := {
 	"field": {"rifle_ammo": 30, "pistol_ammo": 12, "smg_ammo": 6, "shells": 6, "bandage": 20, "energy_drink": 6, "beans": 8, "water": 8, "scrap": 6, "bolts": 5},
 	"safe": {"armor_heavy": 3, "helmet_good": 3, "uncommon": 12, "rare": 40, "epic": 32, "legendary": 16},
 	"scav": {"smg_ammo": 10, "shells": 8, "energy_drink": 4, "pistol": 4, "pistol_ammo": 10, "rifle_ammo": 40, "bandage": 20, "medkit": 6, "common": 20, "uncommon": 10, "rare": 4},
+	# AI PMC bodies (0.36.4): their 1-3 rolled items (the gun, backpack, rounds and meds come from their kit). 0.36.7
+	# (owner approved: bodies can hold good loot): the Raider table's weights without the medium backpack (that
+	# comes from the kit's own roll), so it has the rare and epic entries, grenades and attachments.
+	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 

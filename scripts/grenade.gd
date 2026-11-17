@@ -40,7 +40,7 @@ func _ready() -> void:
 	add_child(mesh)
 
 
-## Called with an AI's scene name when this grenade kills it (quests).
+## Called with an AI's scene name and the AI itself when this grenade kills it (quests, the kill feed for AI PMCs).
 var on_kill := Callable()
 
 
@@ -143,7 +143,9 @@ func _hurt_around(at: Vector3) -> void:
 		var from := at + Vector3(0, 0.3, 0)
 		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, middle, 1)).is_empty():
 			continue
+		# (asked before the hit: a dying AI leaves the group at once, 0.36.2, so the check after it never passed)
+		var is_enemy := target.is_in_group(&"enemies")
 		health.take_damage(amount, at)
 		# (an AI it killed counts for the thrower's grenade quests, 0.31.15)
-		if health.is_dead and on_kill.is_valid() and target.is_in_group(&"enemies") and target.scene_file_path != "":
-			on_kill.call(target.scene_file_path.get_file().get_basename())
+		if health.is_dead and on_kill.is_valid() and is_enemy and target.scene_file_path != "":
+			on_kill.call(target.scene_file_path.get_file().get_basename(), target)

@@ -12,8 +12,12 @@ extends SubViewport
 
 const RAID_SCENE := "res://scenes/main.tscn"
 ## The map pieces the server needs (solid things). Everything else in the raid scene is for players' screens.
-const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors", "Doors", "Extracts"]
+## (PlayerSpawns since 0.36.2: AI PMCs start at the player spawn points nobody took.)
+const KEEP := ["Level", "Loot", "Navigation", "EnemySpawner", "KeyDoors", "Doors", "Extracts", "PlayerSpawns"]
 const PLAYER_SCENE := "res://scenes/player.tscn"
+## The AI PMC (0.36.2) and the raid script whose spawn_position the players' games use (loaded by path, see the top).
+const BOT_SCENE := "res://scenes/pmc_ai.tscn"
+const RAID_SCRIPT := "res://scripts/raid.gd"
 ## Seconds of position history kept per player, and the furthest back a shot is checked.
 const HISTORY := 1.0
 const MAX_REWIND := 0.5
@@ -34,6 +38,10 @@ signal player_bashed(peer: int, amount: int, from: Vector3, shove: float, aim_bl
 ## Something a scav did that everyone in the raid should see/hear: kind is "fired" (pos = where the shot ended),
 ## "bark:<callout>", "bash" or "died" (pos = where).
 signal enemy_event(id: int, kind: String, pos: Vector3)
+## An AI PMC was killed by another AI's hit (0.36.10, AI against AI): `bot` its name, `killer` the AI PMC that killed
+## it ("" for a scav, Raider, sniper or Bon), `player` the real player who hurt it in the last BOT_CREDIT_WINDOW s
+## (0 = none). Network gives the kill feed line and credit a player killed that way would give.
+signal bot_killed_by_ai(bot: String, killer: String, player: int)
 ## Loot (0.7.9): a bag appeared (a body, dropped items) or went (emptied). Network tells everyone in the raid.
 signal bag_spawned(id: String, pos: Vector3, yaw: float, title: String, search: float)
 signal bag_removed(id: String)
@@ -52,6 +60,19 @@ signal lid_moved(id: String, open: bool)
 ## (container id -> peer). Ids are the container's node name: "Crate3" under Loot, or "Bag12" for bags.
 var locks := {}
 var _next_bag := 1
+## AI PMCs in this raid (0.36.2): instance id -> its name (BotNames). Kept after one dies, for the kill feed.
+var bots := {}
+## Set on an AI PMC (0.36.7) that left the raid through an extract: no body, no kill feed line, no death sound.
+const BOT_LEFT := &"left_raid"
+## Set on a container an AI PMC opened (0.36.7): its lid stays open until a player opens and shuts it.
+const BOT_LID := &"bot_lid"
+## peer -> [the name of the AI PMC that last hurt them, server seconds]: who gets the kill if they die. Any other
+## AI's hit clears it (a scav finishing them off isn't the bot's kill).
+var _bot_hits := {}
+## AI PMC instance id -> [the real player who last hurt it, server seconds] (0.36.10): finished off by an AI within
+## BOT_CREDIT_WINDOW s, that player gets the kill, as for a player another player hurt (Network's 10 s).
+var _bot_player_hits := {}
+const BOT_CREDIT_WINDOW := 10.0
 
 
 func _init() -> void:
@@ -95,7 +116,17 @@ func _on_raid_child(node: Node) -> void:
 	node.fired.connect(func(end: Vector3) -> void: enemy_event.emit(id, "fired", end))
 	node.barked.connect(func(kind: String) -> void: enemy_event.emit(id, "bark:" + kind, Vector3.ZERO))
 	node.bash_started.connect(func() -> void: enemy_event.emit(id, "bash", Vector3.ZERO))
-	node.tree_exiting.connect(func() -> void: enemy_event.emit(id, "died", node.global_position))
+	node.tree_exiting.connect(func() -> void:
+		# An AI PMC that left through an extract (0.36.7) goes quietly: "left" (no pop, no sound), not "died".
+		if node.has_meta(BOT_LEFT):
+			bots.erase(id)
+			enemy_event.emit(id, "left", node.global_position)
+		else:
+			enemy_event.emit(id, "died", node.global_position)
+			var killer := int(node.get("killer_ai_id"))
+			if killer != 0 and bots.has(id):
+				bot_killed_by_ai.emit(String(bots[id]), String(bots.get(killer, "")), _bot_credit(id))
+		_bot_player_hits.erase(id))
 
 
 func _announce_bag(bag: LootContainer) -> void:
@@ -128,6 +159,18 @@ func open_container(peer: int, id: String) -> Variant:
 	return box.net_data()
 
 
+## True if a player has container `id` open right now (an AI PMC doesn't take from it then, 0.36.7).
+func is_open_by_player(id: String) -> bool:
+	return locks.has(id)
+
+
+## An AI PMC (0.36.7) opened `box`'s lid and left it open: everyone in the raid sees it.
+func bot_opened_lid(box: LootContainer) -> void:
+	box.set_meta(BOT_LID, true)
+	if box.has_method("has_lid") and box.has_lid():
+		lid_moved.emit(String(box.name), true)
+
+
 ## The player who has it open moved things around: store the new contents (an emptied bag goes away).
 func update_container(peer: int, id: String, data: Array) -> void:
 	var box := container(id)
@@ -146,7 +189,7 @@ func close_containers(peer: int) -> void:
 		if locks[id] == peer:
 			locks.erase(id)
 			var box := container(id)
-			if box != null and box.has_method("has_lid") and box.has_lid():
+			if box != null and box.has_method("has_lid") and box.has_lid() and not box.has_meta(BOT_LID):
 				lid_moved.emit(id, false)
 
 
@@ -224,7 +267,7 @@ func set_door(id: String, state: int) -> void:
 
 ## A player threw a grenade: this raid's copy flies and does the damage (to the AI, and to players through their
 ## proxies). Loaded by path: no Grenade type here (see the top).
-## `on_kill(target)`: an AI it killed (by its scene name), for the thrower's quests.
+## `on_kill(target, ai)`: an AI it killed (by its scene name, and the AI), for the thrower's quests and the kill feed.
 func throw_grenade(from: Vector3, vel: Vector3, on_kill := Callable()) -> void:
 	var grenade: Node = (load("res://scripts/grenade.gd") as GDScript).call("spawn", raid, from, vel, true)
 	grenade.set("on_kill", on_kill)
@@ -247,7 +290,126 @@ func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
 		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body)
 
 
-## Every living scav/Raider/sniper: [id, kind (0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand, 5 Exion Trooper), net_capture(), gun (AILoadouts.NET_GUNS)].
+## A bot's start point counts the AI spawn spots this close to it (0.36.5), and only points at most BOT_CALM_SLACK
+## busier than the calmest free one are used.
+const BOT_CALM_RANGE := 60.0
+const BOT_CALM_SLACK := 2
+
+
+## AI PMCs for this raid (0.36.2, owner: always alone, far from players, never told where one is): `count` bots,
+## each at the free player spawn point farthest from every real squad's (`real_slots`, Matchmaker.spawn_slots), the
+## same points the players' games turn those slots into (Raid.spawn_position, the raid's `seed_value`). Each gets a
+## name from BotNames that none of `taken` (the real players' names) has. Returns the bots.
+## `raid_length` (0.36.7): the raid's full length in seconds, for each bot's leave time (0 = the 600 s default).
+func spawn_bots(count: int, seed_value: int, real_slots: Array, taken: Array, raid_length := 0.0) -> Array[Node]:
+	var made: Array[Node] = []
+	var spawns := raid.get_node_or_null("PlayerSpawns")
+	if count <= 0 or spawns == null or spawns.get_child_count() == 0:
+		return made
+	var points := spawns.get_children()
+	var raid_script: Script = load(RAID_SCRIPT)
+	var at := func(slot: int) -> Vector3: return raid_script.call("spawn_position", points, slot, 0, seed_value)
+	var real: Array[Vector3] = []
+	var used := {}
+	for slot: Variant in real_slots:
+		real.append(at.call(int(slot)))
+		used[posmod(int(slot), points.size())] = true
+	var names := BotNames.pick(count, seed_value, taken)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var spawner := raid.get_node_or_null("EnemySpawner")
+	var scene: PackedScene = load(BOT_SCENE)
+	# How busy each point is: the AI's own spawn spots within BOT_CALM_RANGE m (0.36.5: a bot starting among a zone's
+	# AI can't keep away from them). Only the calmest points (within BOT_CALM_SLACK of the calmest free one) are used.
+	var busy := {}
+	for slot in points.size():
+		var spot: Vector3 = at.call(slot)
+		var n := 0
+		if spawner != null:
+			for marker in spawner.get_children():
+				if marker is Marker3D and (marker as Marker3D).global_position.distance_to(spot) < BOT_CALM_RANGE:
+					n += 1
+		busy[slot] = n
+	for i in count:
+		# The free point farthest from the nearest real squad (with nobody real: any free one, by the seed).
+		var best := -1
+		var best_distance := -1.0
+		var free: Array[int] = []
+		for slot in points.size():
+			if not used.has(slot):
+				free.append(slot)
+		var calmest := 1 << 30
+		for slot in free:
+			calmest = mini(calmest, busy[slot])
+		free = free.filter(func(slot: int) -> bool: return busy[slot] <= calmest + BOT_CALM_SLACK)
+		if real.is_empty() and not free.is_empty():
+			best = free[rng.randi_range(0, free.size() - 1)]
+		for slot in free:
+			var spot: Vector3 = at.call(slot)
+			var nearest := INF
+			for pos in real:
+				nearest = minf(nearest, Vector2(spot.x - pos.x, spot.z - pos.z).length())
+			if nearest > best_distance:
+				best_distance = nearest
+				best = slot
+		var pos: Vector3
+		if best < 0:
+			# (more squads than points: a used point, further along its row, as squads share one)
+			pos = raid_script.call("spawn_position", points, points.size() + i, 0, seed_value)
+		else:
+			used[best] = true
+			pos = at.call(best)
+		var bot := scene.instantiate()
+		bot.set("bot_name", names[i] if i < names.size() else "PMC")
+		bot.set("raid_length", raid_length)
+		bot.set("leave_seed", seed_value * 31 + i + 1)   # (its own roll of when it leaves, seeded by the raid)
+		raid.add_child(bot)
+		(bot as Node3D).global_position = spawner.call("on_floor", pos) if spawner != null else pos
+		(bot as Node3D).rotation.y = rng.randf() * TAU
+		bot.set("_wander_time", rng.randf_range(0.0, 8.0))
+		bots[bot.get_instance_id()] = String(bot.get("bot_name"))
+		made.append(bot)
+	return made
+
+
+## The AI PMC's name, or "" if `node` isn't one of this raid's.
+func bot_name_of(node: Object) -> String:
+	return String(bots.get(node.get_instance_id(), "")) if node != null else ""
+
+
+## The AI PMC that last hurt `peer`, if that was within `window` seconds (and no other AI hurt them since): its name.
+func bot_killer(peer: int, window: float) -> String:
+	var hit: Array = _bot_hits.get(peer, [])
+	if hit.is_empty() or Time.get_ticks_msec() / 1000.0 - float(hit[1]) > window:
+		return ""
+	return String(hit[0])
+
+
+## A real player hurt `node` (Network, 0.36.10): remembered if it's an AI PMC, for the kill if an AI finishes it off.
+func note_player_hit(node: Object, peer: int) -> void:
+	if node != null and bots.has(node.get_instance_id()):
+		_bot_player_hits[node.get_instance_id()] = [peer, Time.get_ticks_msec() / 1000.0]
+
+
+## The real player who hurt AI PMC `id` within BOT_CREDIT_WINDOW s (0 = none).
+func _bot_credit(id: int) -> int:
+	var hit: Array = _bot_player_hits.get(id, [])
+	if hit.is_empty() or Time.get_ticks_msec() / 1000.0 - float(hit[1]) > BOT_CREDIT_WINDOW:
+		return 0
+	return int(hit[0])
+
+
+## An AI hurt or bashed `peer` from `from` (where it stood): remembers it if it was an AI PMC, forgets it if not.
+func _note_ai_hit(peer: int, from: Vector3) -> void:
+	for id: int in bots:
+		var bot := instance_from_id(id) as Node3D
+		if is_instance_valid(bot) and bot.is_inside_tree() and bot.global_position.distance_to(from) < 0.5:
+			_bot_hits[peer] = [bots[id], Time.get_ticks_msec() / 1000.0]
+			return
+	_bot_hits.erase(peer)
+
+
+## Every living scav/Raider/sniper/bot: [id, kind (0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand, 5 Exion Trooper, 6 AI PMC), net_capture(), gun (AILoadouts.NET_GUNS)].
 func enemy_states() -> Array:
 	var list := []
 	for enemy in RaidScope.nodes(raid, &"enemies"):
@@ -305,6 +467,7 @@ func enemy_at(id: int, time: float) -> Array:
 
 func forget(peer: int) -> void:
 	history.erase(peer)
+	_bot_hits.erase(peer)
 	close_containers(peer)
 	if proxies.has(peer):
 		proxies[peer].queue_free()
@@ -323,8 +486,10 @@ func update_proxy(peer: int, state: Array) -> void:
 		body.health.damaged.connect(func(amount: int, from: Vector3) -> void:
 			# The player's own game owns their health (and armor): pass the hit on, keep the proxy alive.
 			body.health.current = body.health.max_health
+			_note_ai_hit(peer, from)
 			player_hit.emit(peer, amount, from, body.health.last_hit_head, body.last_hit_burst))
 		body.bashed.connect(func(amount: int, from: Vector3, shove: float, block: float) -> void:
+			_note_ai_hit(peer, from)
 			player_bashed.emit(peer, amount, from, shove, block))
 		proxies[peer] = body
 	body.apply_net_state(state)

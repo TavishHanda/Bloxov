@@ -131,6 +131,9 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var opening_reset := 5.0
 ## Keeps at least this far from its target: closer and it backs off while shooting.
 @export var min_distance := 1.5
+## Each one's hit chances (near, far, long) times a random 1 +/- this, rolled once when it spawns (AI PMCs, 0.36.1:
+## so they don't all shoot alike). 0 = everyone exactly the scene's numbers (every other AI).
+@export var skill_spread := 0.0
 
 @export_group("Cover")
 ## Fights from cover (0.12.6, owner: a scav ran at him sideways with cover right beside it). In a fight it gets to
@@ -201,6 +204,12 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 ## Scavs and Raiders are rivals (0.12.17, owner): they ignore each other, but never answer the other side's calls
 ## for help, warn it or team up with it. raider.tscn and boss.tscn are "raider".
 @export var faction := &"scav"
+## Fights alone (AI PMCs, 0.36.1, owner: bots are always alone): its faction becomes its own when it spawns, so it never
+## calls for help, answers a call, warns anyone or teams up to suppress and flank, and nobody does that with it.
+@export var loner := false
+## Leaves FightBudget out (AI PMCs, 0.36.1): it doesn't take the fight tickets scavs and Raiders share, or count
+## toward their max_responders, so a bot never uses up the room another AI would have had to join a fight.
+@export var uses_fight_budget := true
 
 @export_group("Voice")
 ## Callouts: how deep its voice is (Raiders and Bon lower) and at most one callout per this many seconds.
@@ -208,6 +217,8 @@ enum State { IDLE, ALERT, ENGAGE, DEAD, INVESTIGATE, SEARCH }
 @export var bark_cooldown := 4.0
 ## Its own set of callouts (0.20.4): audio/voice/<voice_set>/ ("bon"); "" = everyone's.
 @export var voice_set := ""
+## Never says anything: no callouts, no chatter (AI PMCs, 0.36.1, players don't shout).
+@export var silent := false
 ## While you reload or heal it pushes toward you (this fraction of move_speed) instead of strafing in place.
 @export var push_speed := 0.8
 ## Chasing (0.12.33, owner: "they never push when in range to actually shoot"; cover is for when it sees you but
@@ -293,6 +304,11 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 ## way they protect a player, wear down from hits the same way, and end up on its body as they are.
 @export var armor := ""
 @export var helmet := ""
+## An AI PMC's own kit (0.36.4): "pmc" rolls its armor, helmet and backpack each spawn (AILoadouts.roll_pmc_kit) and
+## puts them, its gun's rounds and some meds on its body. "" = the scene's own armor and helmet, as for every other AI.
+@export var kit := ""
+## The backpack that kit gave it (it only ends up on its body).
+var pack := ""
 ## Item id of that gun.
 @export var weapon_drop := ""
 ## What it carries (0.15.5, AILoadouts): a loadout table ("scav", "raider": a random gun each spawn) or a gun id.
@@ -305,6 +321,14 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 @export_group("Look")
 ## Which gun model it holds (HeldGun.MODELS key; "" = the one drawn into its model).
 @export var held_model := ""
+## Wears one of the ready-made player outfits (Operators) instead of a random mix of its model's parts (AI PMCs,
+## 0.36.1: they look like players). Online each screen picks it from the server's id, so everyone sees the same one.
+@export var operator_look := false
+## An AI PMC's player-style name (0.36.2, set by the server when the raid spawns it, BotNames; "" for every other AI):
+## its body is "Name's Body" with "Name's Dog Tag" in the tag slot, like a player killed by another player.
+var bot_name := ""
+## Items an AI PMC took from containers (0.36.7, PmcAI): they end up on its body. Empty for every other AI.
+var carried_loot: Array[ItemStack] = []
 ## The gun it carries (from its loadout; "" = the scene's own numbers). Sent to puppets online.
 var carried_gun := ""
 @export var burst_color := Color(0.33, 0.38, 0.24)
@@ -388,6 +412,19 @@ func _flat(v: Vector3) -> Vector3:
 var _opening := false
 ## Who it has fired its opening burst at in this fight (scav_fight.gd _start_burst).
 var _opened_on: Node = null
+## AI against AI (0.36.10, owner): AI PMCs fight everyone, every other AI fights AI PMCs (never each other).
+## The AI whose shot or bash is landing on it right now (null otherwise: a player's hit, a fall), and the one whose
+## hit killed it (its instance id, 0 = not an AI: the server's kill feed reads it, RaidWorld).
+var _hit_by: Node3D = null
+## A scav, Raider, sniper or Bon that has not seen the AI PMC it is fighting for this long lets it go and goes back
+## to what it was doing (0.36.13, owner: "scavs only fight a bot they see"; they used to hunt it down unseen).
+const BOT_GIVE_UP := 4.0
+var killer_ai_id := 0
+
+
+## Counts as a PMC (AI PMCs, PmcAI): every other AI may fight it, and it may fight every other AI.
+func counts_as_pmc() -> bool:
+	return false
 
 
 func _set_state(new_state: State) -> void:

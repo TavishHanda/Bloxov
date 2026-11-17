@@ -56,7 +56,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Car Battery (`battery`) | Valuable | Uncommon | 2×2 | 1 | $1,200 |  | Heavy and worth it. |
 | Novarra Badge (`novarra_badge`) | Valuable | Rare | 1×1 | 1 | $2,000 |  | A Novarran soldier's unit badge. Collectors and traders want them. |
 | Gold Watch (`gold_watch`) | Valuable | Rare | 1×1 | 1 | $2,500 |  | Somebody's pride. Now yours. |
-| PMC Dog Tag (`player_tag`) | Valuable | Rare | 1×1 | 1 | $2,500 | only from one-off finds:  | Taken off a player you killed online. Traders pay well for these. |
+| PMC Dog Tag (`player_tag`) | Valuable | Rare | 1×1 | 1 | $2,500 | only from one-off finds:  | Taken off a PMC you killed online. Traders pay well for these. |
 | Cash Bundle (`cash`) | Valuable | Rare | 1×1 | 1 | $3,000 |  | Old Novarran notes. Still good with the traders. |
 | Novarra Field Report (`intel_novarra`) | Valuable | Rare | 1×1 | 1 | $3,000 |  | Novarran army papers: patrols, supply runs, names. Someone will pay to read them. |
 | Hard Drive (`hard_drive`) | Valuable | Rare | 1×1 | 1 | $3,500 |  | Pulled from an office computer. Nobody wiped it. |
@@ -168,6 +168,30 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Energy Drink | 3% |
 | Stinger | 3% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 3% |
+
+### Pmc ()
+
+| Entry | Chance per roll |
+|---|---|
+| Hound Rounds | 20% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
+| Bandage | 8% |
+| Medkit | 8% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
+| Wasp Rounds | 7% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 7% |
+| Mauler Shells | 5% |
+| Frag Grenade | 4% |
+| Stinger Rounds | 4% |
+| Stinger | 3% |
+| Energy Drink | 3% |
+| Lancer Rounds | 2% |
+| Red Dot | 2% |
+| Foregrip | 2% |
+| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
+| 4x Scope | 1% |
+| Suppressor | 1% |
+| Extended Mag | 1% |
 
 ### Raider (body bag, 2–4 rolls)
 

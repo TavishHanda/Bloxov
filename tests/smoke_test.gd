@@ -17,10 +17,10 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
-	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
+	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound", "netlock",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
@@ -42,6 +42,7 @@ const SCAV_SCENE := "res://scenes/scav.tscn"
 const SNIPER_SCENE := "res://scenes/sniper.tscn"
 const BOSS_SCENE := "res://scenes/boss.tscn"
 const RAIDER_SCENE := "res://scenes/raider.tscn"
+const PMC_AI_SCENE := "res://scenes/pmc_ai.tscn"
 
 var _failures := 0
 ## Contents of the profile save before the test ran (null = there wasn't one).
@@ -72,8 +73,8 @@ func _initialize() -> void:
 	_ai_scale_was = Network.playtest_ai_scale
 	Network.playtest_ai_scale = 1.0
 	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
-	# it runs faster than real time; the whole test is about 300 game seconds.)
-	create_timer(450.0, true).timeout.connect(func() -> void:
+	# it runs faster than real time; the whole test is about 445 game seconds.)
+	create_timer(600.0, true).timeout.connect(func() -> void:
 		print("SMOKE TEST: TIMED OUT (a script error probably stopped the test; see errors above)")
 		_quit(1))
 	_run.call_deferred()
@@ -4113,6 +4114,37 @@ func _section_matchmaking() -> void:
 	mm.tick(28.5)
 	var started := mm.tick(1.0)
 	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
+	# AI PMC fill rule (0.36.0): off by default; on, a lone player waits 90 s and PMCs make the raid 3 in all.
+	var bm := Matchmaker.new()
+	for peer in [21, 22, 23, 24]:
+		bm.add_player(peer, "B%d" % peer)
+	bm.set_queued(21, true)
+	bm.tick(100.0)
+	_check(bm.raids.is_empty() and bm.countdown_left < 0.0, "bots off: a lone player waits for company, no raid")
+	bm.bots_on = true
+	bm.tick(1.0)
+	_check(bm.countdown_left > 88.0 and bm.countdown_left <= 90.0 and bm.raids.is_empty(), "bots on: a lone player's wait is 90 s (%.1f)" % bm.countdown_left)
+	bm.tick(87.0)
+	_check(bm.raids.is_empty(), "no raid before the 90 s are up")
+	var lone_started := bm.tick(3.0)
+	_check(lone_started.size() == 1 and bm.raids[lone_started[0]]["players"] == [21]
+		and int(bm.raids[lone_started[0]]["bots"]) in [2, 3], "after 90 s the lone player gets a raid with 2 PMCs (3 in about 1 in 4: %s)" % str(bm.raids.get(lone_started[0], {}).get("bots")))
+	bm.leave_raid(21)
+	bm.set_queued(22, true)
+	bm.tick(5.0)
+	bm.set_queued(23, true)
+	bm.tick(1.0)
+	_check(bm.countdown_left > 27.0 and bm.countdown_left <= 30.0, "a second player cuts the wait to the 30 s group countdown (%.1f)" % bm.countdown_left)
+	var duo_started := bm.tick(30.0)
+	_check(duo_started.size() == 1 and int(bm.raids[duo_started[0]]["bots"]) in [1, 2], "2 real players: 1 PMC (2 in about 1 in 4)")
+	var counts := {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
+	var four := 0
+	for seed_value in 2000:
+		counts[Matchmaker.bots_for(1, seed_value)] += 1
+		if Matchmaker.bots_for(0, seed_value) == 4:
+			four += 1
+	_check(Matchmaker.bots_for(3, 7) in [0, 1] and Matchmaker.bots_for(6, 7) == 0 and counts[3] > 350 and counts[3] < 650 and four > 400 and four < 600 and counts[2] > 1400,
+		"bot counts: 3 PMCs in all, 4 in about 1 raid in 4, none once real players fill the raid (%s)" % str(counts))
 	# Player-count line for the server log (0.25.13): counts only, no names.
 	var stats := mm.stats_line()
 	_check(stats.contains("7 online (4 in the hideout, 3 in 1 raids)") and stats.contains("peak 7, 7 joins, 1 raids")
@@ -5485,6 +5517,260 @@ func _section_anticheat() -> void:
 	await _frames(2)
 
 
+func _section_online_bots() -> void:
+	# AI PMCs on the server (0.36.2, piece 3 of the owner's AI PMC plan): with the fill rule on, a lone player's raid
+	# gets its bots, each alone at the free spawn point farthest from the real squads, with a made-up player name. A
+	# bot's death and kills go in the kill feed like a player's, its body has its dog tag, and its kill counts as a PMC's.
+	var names := BotNames.LIST
+	var lower := {}
+	for bot_name in names:
+		lower[bot_name.to_lower()] = true
+	_check(names.size() >= 150 and lower.size() == names.size()
+		and Array(names).all(func(n: String) -> bool: return NameFilter.clean(n, "") == n and n.length() <= NameFilter.MAX_LENGTH),
+		"%d different bot names, each one passes the name filter as it is" % names.size())
+	var picked := BotNames.pick(3, 42, ["koda_77"])
+	_check(picked.size() == 3 and picked == BotNames.pick(3, 42, ["koda_77"]) and not picked.has("Koda_77")
+		and BotNames.pick(3, 42, [picked[0]]).find(picked[0]) == -1 and BotNames.is_bot_name("KODA_77") and not BotNames.is_bot_name("Koda"),
+		"bot names come from the raid's seed, never one a real player there uses; sign-up spots them in any case")
+	# The spawner's limit only counts its own AI: a bot never takes a scav's place.
+	var spawner := EnemySpawner.new()
+	spawner.enemy_scene = load(SCAV_SCENE)
+	spawner.raider_scene = load(RAIDER_SCENE)
+	spawner.initial_count = 0
+	spawner.max_alive = 1
+	spawner.scav_interval_min = 0.0
+	spawner.scav_interval_max = 0.0
+	spawner.set_physics_process(false)
+	for i in 4:
+		var marker := Marker3D.new()
+		marker.position = player.global_position + Vector3(70, 0, 0).rotated(Vector3.UP, i * TAU / 4.0)
+		spawner.add_child(marker)
+	main.add_child(spawner)
+	var lone_bot := _spawn(PMC_AI_SCENE, player.global_position + Vector3(0, 0, 60)) as Scav
+	await physics_frame
+	spawner.tick(1.0)
+	_check(spawner.scavs_spawned == 1, "the spawner leaves AI PMCs out of its count (a bot never takes a scav's place)")
+	for node in RaidScope.nodes(spawner, &"enemies"):
+		node.queue_free()
+	spawner.queue_free()
+	await physics_frame
+
+	var server := _net_peer("BotServer")
+	var c1 := _net_peer("BotClient")
+	server.start_server(19087)
+	server.guard.check_moves = false
+	server.matchmaker.bots_on = true
+	server.matchmaker.bot_wait = 0.2
+	var got := {"feed": [], "target": ""}
+	c1.kill_feed.connect(func(killer: String, victim: String, mine: bool, ours: bool) -> void:
+		got["feed"].append(["%s>%s" % [killer, victim], mine, ours]))
+	c1.kill_confirmed.connect(func(target: String) -> void: got["target"] = target)
+	c1.go_online("localhost:19087", "Koda_77")
+	await _until(func() -> bool: return c1.is_client() and c1.party_code != "")
+	c1.set_queued(true)
+	await _until(func() -> bool: return c1.in_raid and not server._worlds.is_empty(), 5.0)
+	_send_test_kit(c1)
+	var id: int = c1.multiplayer.get_unique_id()
+	var raid_id: int = server.matchmaker.players[id]["raid"]
+	var raid: Dictionary = server.matchmaker.raids[raid_id]
+	var world: RaidWorld = server._worlds[raid_id]
+	var bots := RaidScope.nodes(world.raid, &"enemies").filter(func(e: Node) -> bool: return e.get("bot_name") != "")
+	_check(raid["bots"] == Matchmaker.bots_for(1, raid["seed"]) and bots.size() == raid["bots"] and world.bots.size() == bots.size()
+		and bots.all(func(b: Node) -> bool: return b.net_kind == 6 and b.loner),
+		"a lone player's raid gets its %d AI PMCs on the server" % bots.size())
+	var bot_names: Array = bots.map(func(b: Node) -> String: return b.bot_name)
+	var unique := {}
+	for n: String in bot_names:
+		unique[n] = true
+	_check(bot_names.all(func(n: String) -> bool: return BotNames.is_bot_name(n)) and not bot_names.has("Koda_77") and unique.size() == bot_names.size(),
+		"each bot has its own name, never the real player's (%s)" % ", ".join(bot_names))
+	_check(bots.all(func(b: Node) -> bool: return is_equal_approx(b.raid_length, float(raid["time"])) and b.leave_at >= raid["time"] * 0.5 and b.leave_at <= raid["time"] * 0.85),
+		"each server bot knows the raid's length (%.0f s) and has rolled when it leaves (%s s)" % [raid["time"], str(bots.map(func(b: Node) -> int: return roundi(b.leave_at)))])
+	# Where they start: free player spawn points, the farthest ones from the real squad.
+	var points := world.raid.get_node("PlayerSpawns").get_children()
+	var slot: int = raid["spawns"][id][0]
+	var me := Raid.spawn_position(points, slot, 0, raid["seed"])
+	# (0.36.5: only the calmest points, fewest AI spawn spots within RaidWorld.BOT_CALM_RANGE, are used)
+	var busy := {}
+	for s in points.size():
+		var p := Raid.spawn_position(points, s, 0, raid["seed"])
+		busy[s] = world.raid.get_node("EnemySpawner").get_children().filter(func(m: Node) -> bool:
+			return m is Marker3D and (m as Marker3D).global_position.distance_to(p) < RaidWorld.BOT_CALM_RANGE).size()
+	# (the same picks the server makes, one bot at a time)
+	var left: Array[int] = []
+	for s in points.size():
+		if s != posmod(slot, points.size()):
+			left.append(s)
+	var spots: Array[float] = []
+	for n in bots.size():
+		var calmest := 1 << 30
+		for s in left:
+			calmest = mini(calmest, busy[s])
+		var pick := -1
+		var far := -1.0
+		for s in left:
+			var p := Raid.spawn_position(points, s, 0, raid["seed"])
+			var d := Vector2(p.x - me.x, p.z - me.z).length()
+			if busy[s] <= calmest + RaidWorld.BOT_CALM_SLACK and d > far:
+				far = d
+				pick = s
+		left.erase(pick)
+		spots.append(far)
+	spots.sort()
+	spots.reverse()
+	var bot_dist: Array[float] = []
+	for b: Node3D in bots:
+		bot_dist.append(Vector2(b.global_position.x - me.x, b.global_position.z - me.z).length())
+	bot_dist.sort()
+	bot_dist.reverse()
+	var farthest := true
+	for i in bot_dist.size():
+		farthest = farthest and absf(bot_dist[i] - spots[i]) < 1.0
+	_check(farthest and bots.all(func(b: Node) -> bool: return b.state == Scav.State.IDLE),
+		"the bots start at the calmest free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist))
+	await _until(func() -> bool: return c1.enemies.filter(func(e: Array) -> bool: return e[1] == 6).size() == bots.size())
+	_check(c1.enemies.filter(func(e: Array) -> bool: return e[1] == 6).size() == bots.size(), "the player's game gets them as AI PMC puppets")
+
+	# A bot hurts the player: its kill if they die; a scav's hit after it takes that back.
+	var bot := bots[0] as Scav
+	bot.process_mode = Node.PROCESS_MODE_DISABLED
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, 0])
+		return world.proxies.has(id))
+	var proxy: Node = world.proxies[id]
+	proxy.health.take_damage(15, bot.global_position)
+	_check(world.bot_killer(id, 10.0) == bot.bot_name, "the server knows which bot hurt the player")
+	proxy.health.take_damage(15, Vector3(999, 0, 999))
+	_check(world.bot_killer(id, 10.0) == "", "another AI's hit after it: not the bot's kill")
+	proxy.take_bash(10, bot.global_position, 0.0, 0.0)
+	_check(world.bot_killer(id, 10.0) == bot.bot_name, "a bot's rifle butt counts too")
+
+	# The player kills a bot: the kill feed names it, it counts as a PMC kill, its body has its dog tag.
+	var bot_name: String = bot.bot_name
+	var at := bot.global_position
+	server._damage(id, {"enemy": bot, "headshot": false, "end": at}, 9999, at + Vector3(0, 0, 5), "ak")
+	await _until(func() -> bool: return got["target"] != "" and not got["feed"].is_empty())
+	_check(got["target"] == "player" and got["feed"].has(["Koda_77>%s" % bot_name, true, false]),
+		"killing a bot: a PMC kill, and the raid's kill feed names it (%s, %s)" % [got["target"], str(got["feed"])])
+	await _frames(2)
+	var body: LootContainer = null
+	for node in world.raid.get_children():
+		if node is LootContainer and (node as LootContainer).display_name == "%s's Body" % bot_name:
+			body = node
+	var tag: ItemStack = body.gear[LootContainer.TAG_SLOT].stacks[0] if body != null and body.gear.has(LootContainer.TAG_SLOT) and not body.gear[LootContainer.TAG_SLOT].is_empty() else null
+	_check(tag != null and tag.id == "player_tag" and tag.title() == "%s's Dog Tag" % bot_name,
+		"a bot leaves \"%s's Body\" with its dog tag in the tag slot" % bot_name)
+
+	# Another bot kills the player: the feed names it as their killer.
+	got["feed"].clear()
+	var killer := bots[1] as Scav
+	proxy.health.take_damage(15, killer.global_position)
+	await _until(func() -> bool:
+		c1.send_state([Vector3(0, 0.1, -30), 0.0, 0.0, 0.0, Hitbox.FLAG_DEAD])
+		return not got["feed"].is_empty())
+	_check(got["feed"].has(["%s>Koda_77" % killer.bot_name, false, true]), "killed by a bot: the feed names the bot (%s)" % str(got["feed"]))
+
+	# Loot and leaving (0.36.7): a bot's search opens the lid for everyone and takes an item for real, unless a player
+	# has the container open; a bot that leaves through an extract goes quietly (no "died", no body, no feed line).
+	var lids: Array = []
+	var events: Array = []
+	c1.lid_moved.connect(func(box_id: String, open: bool) -> void: lids.append([box_id, open]))
+	c1.enemy_event.connect(func(enemy: int, kind: String, _pos: Vector3) -> void: events.append([enemy, kind]))
+	var loot_bot := bots[1] as PmcAI
+	var lootbox: LootContainer = null
+	for node in RaidScope.nodes(world.raid, &"loot_containers"):
+		var candidate := node as LootContainer
+		if lootbox == null and candidate != null and not candidate.grid.is_empty() and not candidate.has_meta("locked") \
+				and candidate.grid.stacks.any(func(st: ItemStack) -> bool: return PmcAI._takeable(st.id)):
+			lootbox = candidate
+	if lootbox != null:
+		lootbox.set_meta("look", "safe")   # (the test map's crates have no lids: this one is a safe for the check)
+	var box_id := String(lootbox.name) if lootbox != null else ""
+	var stacks_before := lootbox.grid.stacks.size() if lootbox != null else 0
+	world.locks[box_id] = id   # (the player has it open)
+	loot_bot._on_search_done(lootbox)
+	await _frames(3)
+	_check(lootbox != null and lootbox.grid.stacks.size() == stacks_before and loot_bot.carried_loot.is_empty() and lids.has([box_id, true]),
+		"a player has the container open: the bot opens the lid (everyone sees it) but takes nothing")
+	world.locks.erase(box_id)
+	loot_bot._on_search_done(lootbox)
+	_check(lootbox.grid.stacks.size() == stacks_before - 1 and loot_bot.carried_loot.size() == 1
+		and not lootbox.grid.stacks.any(func(st: ItemStack) -> bool: return st == loot_bot.carried_loot[0]),
+		"otherwise it takes one item for real: gone from the server's container (%s)" % loot_bot.carried_loot.map(func(st: ItemStack) -> String: return st.id))
+	await _frames(3)
+	lids.clear()
+	world.locks[box_id] = id   # (a player opens it and shuts it again: the lid the bot left open isn't shut)
+	world.close_containers(id)
+	await _frames(3)
+	_check(lids.is_empty(), "the lid a bot opened stays open")
+	var gone_id: int = loot_bot.get_instance_id()
+	var bodies_now := RaidScope.nodes(world.raid, &"loot_containers").size()
+	got["feed"].clear()
+	loot_bot._leave_raid()
+	await _until(func() -> bool: return events.any(func(e: Array) -> bool: return e[0] == gone_id))
+	await _frames(3)
+	_check(events.has([gone_id, "left"]) and not events.has([gone_id, "died"]) and not world.bots.has(gone_id)
+		and c1.enemies.filter(func(e: Array) -> bool: return e[0] == gone_id).is_empty()
+		and RaidScope.nodes(world.raid, &"loot_containers").size() == bodies_now and got["feed"].is_empty(),
+		"a bot that leaves is told to the raid as \"left\" (no pop), forgotten by the server, and leaves no body or kill feed line")
+
+	# AI against AI (0.36.10): the feed says what it would for a player killed that way. A bot kills a bot: named as a
+	# player killing a player; a scav kills a bot: "Bloxov" (as for a player); a bot kills a scav: nothing (as a
+	# player's scav kill is only on their own screen); a player who hurt the bot in the last 10 s gets the kill.
+	var fighters: Array[Node] = world.spawn_bots(3, 4242, [], ["Koda_77"])
+	for f: Node in fighters:
+		f.process_mode = Node.PROCESS_MODE_DISABLED
+	var scav := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	scav.process_mode = Node.PROCESS_MODE_DISABLED
+	world.raid.add_child(scav)
+	scav.global_position = Vector3(0, 0.1, 40)
+	var a := fighters[0] as Scav
+	var b := fighters[1] as Scav
+	var c := fighters[2] as Scav
+	var names_abc: Array = [a.bot_name, b.bot_name, c.bot_name]
+	got["feed"].clear()
+	got["target"] = ""
+	b.health.current = 1
+	b.take_hit_from(a, 30, false)
+	await _until(func() -> bool: return not got["feed"].is_empty())
+	_check(got["feed"] == [["%s>%s" % [names_abc[0], names_abc[1]], false, false]], "a bot kills a bot: the feed names both, as players (%s)" % str(got["feed"]))
+	got["feed"].clear()
+	a.health.current = 1
+	a.take_hit_from(scav, 30, false)
+	await _until(func() -> bool: return not got["feed"].is_empty())
+	_check(got["feed"] == [[">%s" % names_abc[0], false, false]], "a scav kills a bot: nobody named, as when a scav kills a player (%s)" % str(got["feed"]))
+	got["feed"].clear()
+	server._damage(id, {"enemy": c, "headshot": false, "end": c.global_position}, 10, c.global_position + Vector3(0, 0, 5), "ak")
+	await _frames(3)
+	got["target"] = ""
+	c.health.current = 1
+	c.take_hit_from(scav, 30, false)
+	await _until(func() -> bool: return not got["feed"].is_empty() and got["target"] != "")
+	_check(got["feed"].has(["Koda_77>%s" % names_abc[2], true, false]) and got["target"] == "player",
+		"a scav finishes off a bot the player hurt: the player's kill, as for a player (%s)" % str(got["feed"]))
+	got["feed"].clear()
+	var bot4: Node = world.spawn_bots(1, 4343, [], ["Koda_77"])[0]
+	bot4.process_mode = Node.PROCESS_MODE_DISABLED
+	scav.health.current = 1
+	scav.take_hit_from(bot4, 30, false)
+	await _frames(10)
+	_check(got["feed"].is_empty(), "a bot kills a scav: no feed line, as for a player's scav kill")
+	bot4.queue_free()
+
+	# The raid closes when its last player leaves: its bots go with it.
+	var ids: Array = world.bots.keys()
+	c1.leave_raid()
+	await _until(func() -> bool: return server._worlds.is_empty())
+	await _frames(2)
+	_check(server._worlds.is_empty() and ids.all(func(i: int) -> bool: return not is_instance_id_valid(i)), "the raid's bots go when it closes")
+	c1.go_offline()
+	await _until(func() -> bool: return server.matchmaker.players.is_empty())
+	server.multiplayer.multiplayer_peer.close()
+	for n in [server, c1]:
+		n.get_parent().queue_free()
+	await _frames(2)
+
+
 func _section_online_loot() -> void:
 	# Shared loot (0.7.9): containers live on the server; one player at a time has one open; bodies (scavs and
 	# players) and dropped items are bags everyone sees.
@@ -6404,6 +6690,1110 @@ func _section_old_bloxov() -> void:
 		enemy_node.queue_free()
 	world.queue_free()
 	await _frames(2)
+
+
+func _pmc_kit_checks() -> void:
+	# Kits (0.36.4, piece 5): what an AI PMC wears and carries, and what its body holds. The odds are proposals.
+	var wears := {"armor_light": 0, "": 0, "armor_heavy": 0}
+	var helmets := 0
+	var packs := 0
+	var matched := true
+	for i in 300:
+		var bot := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+		bot.puppet = false
+		main.add_child(bot)
+		wears[bot.armor] += 1
+		helmets += 1 if bot.helmet != "" else 0
+		packs += 1 if bot.pack != "" else 0
+		var hat := String((bot.model as PixelModel).outfit["Hat"])
+		matched = matched and (hat.begins_with("helmet") == (bot.helmet != ""))
+		bot.queue_free()
+	_check(wears["armor_light"] > wears[""] and wears[""] > 0 and wears["armor_heavy"] > 0 and wears["armor_light"] > wears["armor_heavy"],
+		"AI PMCs wear light armor most of the time, sometimes none or heavy (%s)" % [wears])
+	_check(helmets > 40 and helmets < 140, "some AI PMCs wear a helmet (%d of 300)" % helmets)
+	_check(packs > 60 and packs < 180, "some AI PMCs carry a backpack (%d of 300)" % packs)
+	_check(matched, "an AI PMC's hat matches its helmet")
+	_check(AILoadouts.pmc_helmet(1234) == AILoadouts.pmc_helmet(1234), "a bot's helmet is decided by its id alone")
+	# Its body: the gun, its worn gear, rounds, meds, 1-3 rolled items, a backpack sometimes, and its dog tag.
+	var rounds_ok := true
+	var gun_ok := true
+	var worn_ok := true
+	for i in 20:
+		var bot := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+		bot.puppet = false
+		bot.bot_name = "Koda_77"
+		main.add_child(bot)
+		bot.global_position = Vector3(0, 0.1, 60)
+		await physics_frame
+		var gun := bot.carried_gun
+		bot.health.take_damage(500)
+		await physics_frame
+		var bag: LootContainer = null
+		for node in main.get_children():
+			if node is LootContainer and node.global_position.distance_to(Vector3(0, 0.1, 60)) < 3.0:
+				bag = node
+		if bag == null:
+			gun_ok = false
+			continue
+		var all: Array = bag.grid.stacks.duplicate()
+		for slot: String in bag.gear:
+			all.append_array(bag.gear[slot].stacks)
+		var ids := all.map(func(st: ItemStack) -> String: return st.id)
+		for st: ItemStack in all:
+			if st.id == gun:
+				worn_ok = worn_ok and st.condition() >= 0.39
+		gun_ok = gun_ok and ids.has(gun) and ids.has("player_tag") and ids.has("bandage")
+		var ammo: String = ItemDB.ITEMS[gun].get("ammo", "")
+		rounds_ok = rounds_ok and (ammo == "" or ids.has(ammo))
+		bag.queue_free()
+	_check(gun_ok, "an AI PMC's body holds its gun, bandages and its dog tag")
+	_check(rounds_ok, "an AI PMC's body holds rounds for its gun")
+	_check(worn_ok, "an AI PMC's gun comes off worn 40-100%")
+	_check(AILoadouts.TABLES["pmc"].has("pistol") and ItemDB.LOOT_TABLES.has("pmc"), "AI PMCs use the pmc gun table and the pmc loot table")
+
+
+func _section_pmc_ai() -> void:
+	# AI PMCs (0.36.1, piece 2 of the owner's AI PMC plan): the player model on the shared AI brain, net kind 4.
+	# Owner's picks: hit chance 70% close, 35% at 28 m, 20% far, 100 HP, always alone, silent, never uses up the
+	# fight tickets scavs and Raiders share. Only new settings; every other AI keeps its own (behaviour LOCKED).
+	var a := _spawn(PMC_AI_SCENE, Vector3(30, 0.1, 30)) as Scav
+	var b := _spawn(PMC_AI_SCENE, Vector3(-30, 0.1, 30)) as Scav
+	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, -30)) as Scav
+	await physics_frame
+	_check(NetRaid.ENEMY_SCENES[6].resource_path == PMC_AI_SCENE and a.net_kind == 6, "AI PMCs are net kind 6 (the seventh puppet scene)")
+	_check(a.health.max_health == 100, "an AI PMC has 100 HP")
+	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+	_check(is_equal_approx(ref.accuracy_near, 0.7) and is_equal_approx(ref.accuracy_far, 0.35) and is_equal_approx(ref.accuracy_long, 0.2)
+		and is_equal_approx(ref.skill_spread, 0.1), "AI PMC hit chance 70/35/20, each one +/- 10%")
+	ref.free()
+	var spread_ok := true
+	for bot: Scav in [a, b]:
+		var skill := bot.accuracy_near / 0.7
+		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_far, 0.35 * skill) \
+			and is_equal_approx(bot.accuracy_long, 0.2 * skill)
+	_check(spread_ok, "each AI PMC rolls one skill for all its hit chances (%.3f, %.3f)" % [a.accuracy_near, b.accuracy_near])
+	_check(String(a.faction).begins_with("pmc_") and a.faction != b.faction, "every AI PMC is its own side (always alone)")
+	_check(not scav.loner and scav.uses_fight_budget and not scav.silent and not scav.operator_look and scav.skill_spread == 0.0
+		and scav.faction == &"scav", "scavs keep their settings")
+	# Looks like a player: one of the wardrobe's ready-made outfits; online the server's id picks which.
+	var looks: Array = Operators.LIST.map(func(e: Dictionary) -> Dictionary: return e["look"])
+	_check(looks.has((a.model as PixelModel).outfit), "an AI PMC wears a player outfit")
+	a.pick_look(7)
+	var first_look: Dictionary = (a.model as PixelModel).outfit
+	a.pick_look(7)
+	_check(looks.has(first_look) and (a.model as PixelModel).outfit == first_look, "the same id gives the same outfit on every screen")
+	var puppet := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
+	puppet.puppet = true
+	main.add_child(puppet)
+	puppet.pick_look(-3)
+	var puppet_look: Dictionary = (puppet.model as PixelModel).outfit
+	puppet.pick_look(-3)
+	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look and puppet.accuracy_near == 0.7
+		and puppet.faction == &"pmc_%d" % puppet.get_instance_id(), "a puppet AI PMC takes its outfit from the id")
+	puppet.queue_free()
+	await _pmc_kit_checks()
+	# Silent: no callouts, no chatter.
+	var said := []
+	a.barked.connect(func(kind: String) -> void: said.append(kind))
+	a._bark_left = 0.0
+	a._bark("spotted")
+	a._chatter("idle")
+	_check(said.is_empty(), "AI PMCs never say anything")
+	# Alone: a bot's call for help reaches nobody, not even another bot right beside it.
+	b.global_position = a.global_position + Vector3(3, 0, 0)
+	await physics_frame
+	_check(not a._call_for_help(a.global_position + Vector3(0, 0, -20)) and b.state == Scav.State.IDLE, "an AI PMC calls nobody for help")
+	# Leaves the fight budget alone: with a fight's tickets used up, a scav waits on alert but a bot still goes.
+	FightBudget.reset(a)
+	var fight := a.global_position + Vector3(0, 0, -15)
+	for i in FightBudget.BUDGET:
+		FightBudget.take(a, fight)
+	a.curious = true
+	a.hear_noise(fight, 25.0, true)
+	scav.global_position = fight + Vector3(0, 0, -10)
+	await physics_frame
+	scav.hear_noise(fight, 25.0, true)
+	_check(a.state in [Scav.State.ALERT, Scav.State.INVESTIGATE] and scav.state == Scav.State.SEARCH and FightBudget.used(a, fight) == FightBudget.BUDGET,
+		"AI PMCs don't take fight tickets (bot %s, scav %s)" % [Scav.State.keys()[a.state], Scav.State.keys()[scav.state]])
+	FightBudget.reset(a)
+	for node: Node in [a, b, scav]:
+		node.queue_free()
+	await physics_frame
+
+
+## A test AI PMC that can't see anyone (the test map is small: it would spot the player and fight).
+func _blind_bot(pos: Vector3) -> PmcAI:
+	var bot := _spawn(PMC_AI_SCENE, pos) as PmcAI
+	bot.sight_range = 0.5
+	return bot
+
+
+## A loot container for the AI PMC checks (`place`: its building, `table`: its loot table).
+func _plan_box(pos: Vector3, place: String, table := "crate", locked := false) -> LootContainer:
+	var box := LootContainer.new()
+	box.loot_table = table
+	box.set_meta("place", place)
+	if locked:
+		box.set_meta("locked", true)
+	main.add_child(box)
+	box.global_position = pos
+	return box
+
+
+func _section_pmc_plan() -> void:
+	# AI PMCs' raid plan (0.36.5, owner approved): places come from the loot containers, scored by what their loot is
+	# worth (best ~3x as likely as poorest), never Bon's; the nearest first, 2-4 places, 2-4 searches of 4-8 s each.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	_check(PmcAI.roll_value("safe") > PmcAI.roll_value("locker") and PmcAI.roll_value("locker") > PmcAI.roll_value("crate")
+		and PmcAI.roll_value("crate") > PmcAI.roll_value("field") and PmcAI.roll_value("crate", "Bank") > PmcAI.roll_value("crate"),
+		"loot value: safes > lockers > crates > field caches, and a bank's crates beat plain ones (%.0f %.0f %.0f %.0f)" % [
+		PmcAI.roll_value("safe"), PmcAI.roll_value("locker"), PmcAI.roll_value("crate"), PmcAI.roll_value("field")])
+	var boxes: Array[Node] = []
+	for i in 3:
+		boxes.append(_plan_box(Vector3(30 + i, 0, 30), "PlanVault", "safe"))
+	boxes.append(_plan_box(Vector3(-30, 0, 30), "PlanShed", "field"))
+	boxes.append(_plan_box(Vector3(-30, 0, -30), "PlanLocked", "safe", true))
+	boxes.append(_plan_box(Vector3(30, 0, -30), "PlanBoss", "safe"))
+	PmcAI.reset_places(main)
+	var list := PmcAI.places(main)
+	var find := func(prefix: String) -> Dictionary:
+		for p: Dictionary in PmcAI.places(main):
+			if String(p["name"]).begins_with(prefix + "@"):
+				return p
+		return {}
+	var vault: Dictionary = find.call("PlanVault")
+	var shed: Dictionary = find.call("PlanShed")
+	var weights: Array = list.map(func(p: Dictionary) -> float: return p["weight"])
+	_check(not vault.is_empty() and (vault["containers"] as Array).size() == 3 and find.call("PlanLocked").is_empty(),
+		"a building's containers make one place; locked ones are left out")
+	_check(is_equal_approx(weights.max(), PmcAI.VALUE_WEIGHT_MAX) and is_equal_approx(weights.min(), PmcAI.VALUE_WEIGHT_MIN)
+		and is_equal_approx(vault["weight"], 3.0) and shed["weight"] < vault["weight"] and vault["value"] > shed["value"],
+		"places weigh 1x (poorest) to 3x (best) by loot value (vault %.1f, shed %.1f)" % [vault["weight"], shed["weight"]])
+	var bot := _blind_bot(Vector3(0, 0.1, 30))
+	await physics_frame
+	var rich := {"id": 900, "name": "rich", "center": Vector3.ZERO, "radius": 0.0, "weight": 3.0}
+	var poor := {"id": 901, "name": "poor", "center": Vector3.ZERO, "radius": 0.0, "weight": 1.0}
+	var rich_picks := 0
+	for i in 4000:
+		if bot._weighted_pick([rich, poor]) == rich:
+			rich_picks += 1
+	_check(absf(rich_picks / float(4000 - rich_picks) - 3.0) < 0.4, "the best place is picked ~3x as often as the poorest (%.2fx)" % (rich_picks / float(4000 - rich_picks)))
+	# Never the boss's place (from the spawner's boss zone; a map without a boss has none to leave out).
+	var spawner := main.find_child("EnemySpawner", true, false) as EnemySpawner
+	var own_spawner := spawner == null
+	if own_spawner:
+		spawner = EnemySpawner.new()
+		spawner.name = "EnemySpawner"
+		spawner.set_physics_process(false)
+		main.add_child(spawner)
+	var old_zones := spawner.zones
+	var old_boss := spawner.boss
+	spawner.zones = [{"name": "PlanBossZone", "center": Vector3(30, 0, -30), "radius": 10.0}]
+	spawner.boss = {"zone": "PlanBossZone"}
+	PmcAI.reset_places(main)
+	list = PmcAI.places(main)
+	_check(find.call("PlanBoss").is_empty() and not find.call("PlanVault").is_empty(), "a place in the boss's zone is never on the list")
+	spawner.zones = old_zones
+	spawner.boss = old_boss
+	PmcAI.reset_places(main)
+	list = PmcAI.places(main)
+	_check(not find.call("PlanBoss").is_empty(), "without a boss zone that place is back")
+	if own_spawner:
+		spawner.free()
+	# The first place: the nearest it may go to. Then 2-4 searches there, each one tells the looting hook.
+	var allowed := bot._allowed_places()
+	allowed.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["center"].distance_to(bot.global_position) < b["center"].distance_to(bot.global_position))
+	bot._plan_wait = 0.0
+	bot._wander(0.1)
+	_check(bot.plan == PmcAI.Plan.TRAVEL and not bot.place.is_empty() and bot.place["id"] == allowed[0]["id"] and bot.visited.size() == 1
+		and bot._searches_left >= mini(2, (bot.place["containers"] as Array).size()) and bot._searches_left <= 4,
+		"after its wait it heads for the nearest place (%s), %d searches there" % [bot.place.get("name", "-"), bot._searches_left])
+	_check(bot._patrol_jog and is_equal_approx(bot.jog_speed, 0.85), "it jogs between places")
+	var searches := bot._searches_left
+	bot.plan = PmcAI.Plan.SEARCH
+	bot._looting_left = 0.01
+	bot._wander(0.1)
+	_check(bot._searches_left == searches - 1 and bot._searched.size() == 1 and bot.plan == PmcAI.Plan.HOLD,
+		"a finished search counts (and calls the looting hook, _on_search_done)")
+	_check(PmcAI.SEARCH_TIME_MIN == 4.0 and PmcAI.SEARCH_TIME_MAX == 8.0 and PmcAI.PLACES_MIN == 2 and PmcAI.PLACES_MAX == 4
+		and bot._places_left >= PmcAI.PLACES_MIN - 1 and bot._places_left <= PmcAI.PLACES_MAX - 1 and not bot.wants_to_leave(),
+		"2-4 places, 4-8 s searches; it never wants to leave yet (the extract piece's hook)")
+	bot.queue_free()
+	for box in boxes:
+		box.queue_free()
+	await physics_frame
+	PmcAI.reset_places(main)
+
+
+func _section_pmc_apart() -> void:
+	# AI PMCs and other AI (0.36.11, owner approved; the keep-apart rule of 0.36.5 is gone, AI fight AI now): no place
+	# with too much threat within 40 m of it (0.36.12: other AI weighed by kind, PLACE_THREAT or more is too much; none
+	# left: the least threatening), never the boss's area, not one another bot is going to; gunfire is heard like a
+	# player's; later spawns still keep off bots.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	player.teleport_to(Vector3(38, 0.1, 38))
+	# (no slow far ticks here: their glide would put the AI moved below back where they were)
+	Scav.lod_enabled = false
+	var spots := {"One": Vector3(30, 0, 30), "Two": Vector3(-30, 0, 30), "Three": Vector3(-30, 0, -30), "Boss": Vector3(30, 0, -30)}
+	var boxes: Array[Node] = []
+	for key: String in spots:
+		boxes.append(_plan_box(spots[key], "Apart" + key, "safe"))
+	# (the test map's own containers are left out of the places for now: marked locked, restored at the end)
+	var shelved: Array[Node] = []
+	for c in RaidScope.nodes(main, &"loot_containers"):
+		if not boxes.has(c) and not c.has_meta("locked"):
+			c.set_meta("locked", true)
+			shelved.append(c)
+	var spawner := main.find_child("EnemySpawner", true, false) as EnemySpawner
+	var own_spawner := spawner == null
+	if own_spawner:
+		spawner = EnemySpawner.new()
+		spawner.name = "EnemySpawner"
+		spawner.set_physics_process(false)
+		main.add_child(spawner)
+	var old_zones := spawner.zones
+	var old_boss := spawner.boss
+	spawner.zones = [{"name": "ApartBossZone", "center": spots["Boss"], "radius": 10.0}]
+	spawner.boss = {"zone": "ApartBossZone"}
+	PmcAI.reset_places(main)
+	var bot := _blind_bot(Vector3(0, 0.1, 0))
+	var other := _blind_bot(Vector3(200, 0.1, 200))
+	await physics_frame
+	var names := func() -> Array:
+		return bot._allowed_places().map(func(p: Dictionary) -> String: return String(p["name"]).split("@")[0])
+	var crowd: Array[Scav] = []
+	var add_ai := func(key: String, count: int, scene := SCAV_SCENE) -> void:
+		for i in count:
+			var ai := _spawn(scene, spots[key] + Vector3(2 + i, 0.1, 3)) as Scav
+			ai.sight_range = 0.5
+			ai.set_physics_process(false)   # (stands still: these checks place it by hand)
+			crowd.append(ai)
+	var clear_crowd := func() -> void:
+		for ai in crowd:
+			ai.free()
+		crowd.clear()
+	# 0.36.14 (owner: "steer around AI, fight if they meet"): the 0.36.9 keep-apart numbers are back for where it goes.
+	_check(PmcAI.AI_PLACE_CLEAR == 40.0 and PmcAI.BOT_CLEAR == 60.0 and PmcAI.AI_ROUTE_CLEAR == 30.0 and PmcAI.AI_NEAR == 30.0,
+		"(steering: no other AI within 40 m of a place it picks, 30 m of its way or of itself; other bots 60 m)")
+	other.global_position = bot.global_position + Vector3(0, 0, 400)
+	await physics_frame
+	var open: Array = names.call()
+	_check(open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"), "clear places may all be picked (%s)" % [open])
+	_check(not open.has("ApartBoss"), "the boss's area is never picked")
+	add_ai.call("One", 1)
+	await physics_frame
+	open = names.call()
+	_check(not open.has("ApartOne") and open.has("ApartTwo") and open.has("ApartThree"), "a place with a scav within 40 m is skipped (%s)" % [open])
+	clear_crowd.call()
+	# (another bot within 60 m of it too; a dead one doesn't count)
+	var third := _blind_bot(spots["One"] + Vector3(-3, 0.1, -3))
+	await physics_frame
+	_check(not (names.call() as Array).has("ApartOne"), "a place with another bot within 60 m is skipped")
+	third.health.take_damage(900)
+	await physics_frame
+	await physics_frame
+	_check((names.call() as Array).has("ApartOne"), "a dead AI doesn't count")
+	other.place = (PmcAI.places(main).filter(func(p: Dictionary) -> bool: return String(p["name"]).begins_with("ApartTwo@")))[0]
+	open = names.call()
+	_check(not open.has("ApartTwo") and open.has("ApartOne"), "nor one another bot is already heading to or looting (%s)" % [open])
+	other.place = {}
+	# Every place busy: none is picked (it waits or moves off, and tries again).
+	add_ai.call("One", 1)
+	add_ai.call("Two", 1)
+	add_ai.call("Three", 1)
+	await physics_frame
+	open = names.call()
+	_check(open.is_empty(), "with other AI at every place it picks none (%s)" % [open])
+	bot._plan_wait = 0.0
+	bot._wander(0.1)
+	_check(bot.place.is_empty(), "and doesn't walk to one (%s)" % bot.place.get("name", "-"))
+	# On the move: a scav coming within 30 m turns it away (it runs for a moment), unless it is in a fight.
+	clear_crowd.call()
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	var walker := _spawn(SCAV_SCENE, bot.global_position + Vector3(20, 0, 0)) as Scav
+	walker.sight_range = 0.5
+	walker.set_physics_process(false)
+	await physics_frame
+	var turned := bot.turned_away
+	bot._keep_apart()
+	_check(bot.turned_away == turned + 1 and bot._hurry_left > 0.0, "a scav within 30 m: it turns away and hurries")
+	bot.state = Scav.State.ENGAGE
+	turned = bot.turned_away
+	bot._keep_apart()
+	_check(bot.turned_away == turned, "in a fight it doesn't turn away: it fights (0.36.10)")
+	bot.state = Scav.State.IDLE
+	walker.free()
+	clear_crowd.call()
+	other.free()
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	bot.place = {}
+	bot.visited.clear()
+	bot._places_left = 4
+	_check(not (names.call() as Array).has("ApartBoss"), "never the boss's area, even with nobody near it and nowhere else to go")
+	spawner.zones = old_zones
+	spawner.boss = old_boss
+	if own_spawner:
+		spawner.free()
+	for box in boxes:
+		if is_instance_valid(box):
+			box.free()
+	for c in shelved:
+		if is_instance_valid(c):
+			c.remove_meta("locked")
+	PmcAI.reset_places(main)
+
+	# Gunfire is heard like a player's (0.36.11): a bot's shot reaches every other AI, within the fight's limit of 4.
+	other = _blind_bot(Vector3(0, 0.1, 25))
+	other.curious = true
+	bot.global_position = Vector3(0, 0.1, 0)
+	bot.carried_gun = "ak"
+	_check(float(ItemDB.ITEMS["ak"]["noise"]) == 35.0, "(the ak's shot noise is 35 m)")
+	FightBudget.reset(bot)
+	BotFight.reset(bot)
+	for i in 6:
+		var ai := _spawn(SCAV_SCENE, Vector3(-6 + i * 2, 0.1, 6)) as Scav
+		ai.sight_range = 0.5
+		ai.set_physics_process(false)
+		crowd.append(ai)
+	await physics_frame
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	bot._shot_noise()
+	var coming := 0
+	var waiting := 0
+	for ai in crowd:
+		coming += 1 if ai.state == Scav.State.INVESTIGATE else 0
+		waiting += 1 if ai.state == Scav.State.SEARCH else 0
+	_check(BotFight.BUDGET == 1 and coming == 1 and waiting == 0,
+		"scavs hear a bot's shot: %d comes over (0.36.13: 1 a fight, not 4), %d wait on alert (the rest heard nothing)" % [coming, waiting])
+	bot._shot_noise()
+	coming = crowd.filter(func(ai: Scav) -> bool: return ai.state == Scav.State.INVESTIGATE).size()
+	_check(coming == 1, "more shots in the same fight pull nobody else (%d coming)" % coming)
+	_check(bot.state == Scav.State.IDLE and other.state == Scav.State.INVESTIGATE,
+		"another curious bot hears it too and goes to look; the shooter never hears itself")
+	clear_crowd.call()
+	# A scav's shots: bots hear them, other scavs do not (their ways with each other are locked).
+	other.free()
+	var shooter := _spawn(SCAV_SCENE, Vector3(0, 0.1, 5)) as Scav
+	shooter.sight_range = 0.5
+	shooter.set_physics_process(false)
+	shooter.carried_gun = "ak"
+	var listener := _spawn(SCAV_SCENE, Vector3(5, 0.1, 5)) as Scav
+	listener.sight_range = 0.5
+	listener.set_physics_process(false)
+	bot.global_position = Vector3(-10, 0.1, 5)
+	bot.curious = true
+	FightBudget.reset(bot)
+	await physics_frame
+	shooter._shot_noise()
+	_check(bot.state == Scav.State.INVESTIGATE and listener.state == Scav.State.IDLE,
+		"a curious bot hears a scav's shots and goes to look; a scav beside the shooter hears nothing")
+	bot._set_state(Scav.State.IDLE)
+	bot.curious = false
+	shooter._shot_noise()
+	_check(bot.state == Scav.State.IDLE and bot._shot_at == shooter.global_position, "a cautious bot notes where the shots came from")
+	for node: Node in [shooter, listener, bot]:
+		node.free()
+	await physics_frame
+	_check(RaidScope.nodes(main, &"pmc_bots").is_empty(), "(no bots left)")
+	var lone := _spawn(SCAV_SCENE, Vector3(0, 0.1, 5)) as Scav
+	lone.carried_gun = "ak"
+	var neighbour := _spawn(SCAV_SCENE, Vector3(4, 0.1, 5)) as Scav
+	var raider := _spawn(RAIDER_SCENE, Vector3(-4, 0.1, 5)) as Scav
+	for ai: Scav in [lone, neighbour, raider]:
+		ai.sight_range = 0.5
+		ai.set_physics_process(false)
+	await physics_frame
+	lone._shot_noise()
+	_check(neighbour.state == Scav.State.IDLE and raider.state == Scav.State.IDLE, "with no bots in the raid, scav gunfire is heard by nobody, as before")
+	for node: Node in [lone, neighbour, raider]:
+		node.free()
+
+	# Cautious bots steer their next place away from gunshots; about half the bots are curious.
+	var careful := _blind_bot(Vector3(0, 0.1, 0))
+	await physics_frame
+	careful.curious = false
+	var noise := careful.global_position + Vector3(0, 0, 15)
+	careful.hear_noise(noise, 40.0, true)
+	var toward := {"id": 960, "name": "toward", "center": noise + Vector3(0, 0, 10), "radius": 0.0, "weight": 3.0}
+	var away := {"id": 961, "name": "away", "center": careful.global_position + Vector3(0, 0, -90), "radius": 0.0, "weight": 1.0}
+	var toward_picks := 0
+	for i in 1000:
+		if careful._weighted_pick([toward, away]) == toward:
+			toward_picks += 1
+	_check(toward_picks < 400, "a cautious bot prefers its next place away from the shots (%d in 1000 toward them)" % toward_picks)
+	careful.free()
+	var rolls := 0
+	for i in 200:
+		var b := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
+		main.add_child(b)
+		rolls += 1 if b.curious else 0
+		b.free()
+	_check(rolls > 70 and rolls < 130, "about half the bots are curious (%d of 200)" % rolls)
+
+	# Later arrivals keep away from bots (40 m, out of sight) like from players; with no bots nothing changes.
+	var late := EnemySpawner.new()
+	late.set_physics_process(false)
+	var markers: Array[Marker3D] = []
+	# (up in the air, so nothing earlier sections left on the ground is in the way)
+	for at: Vector3 in [Vector3(-30, 30, -30), Vector3(30, 30, -35), Vector3(30, 30, -25)]:
+		var marker := Marker3D.new()
+		marker.position = at
+		late.add_child(marker)
+		markers.append(marker)
+	main.add_child(late)
+	var wall := _block(Vector3(24, 2, -24), Vector3(1, 80, 8))
+	var watcher := _blind_bot(Vector3(-30, 0.1, -10))
+	watcher.sight_range = 80.0
+	await physics_frame
+	var players: Array[Node] = []
+	var bots := late._living_bots()
+	var with_bots := late._usable_points(markers, players, bots)
+	_check(bots.size() == 1 and not with_bots.has(markers[0]) and not with_bots.has(markers[1]) and with_bots.has(markers[2]),
+		"a later arrival never spawns within 40 m of a bot or where it can see (left: %s)" % str(markers.map(func(m: Marker3D) -> bool: return with_bots.has(m))))
+	watcher.free()
+	await physics_frame
+	_check(late._living_bots().is_empty() and late._usable_points(markers, players, late._living_bots()) == late._usable_points(markers, players),
+		"with no bots in the raid the spawner picks from the same spots as before")
+	late.queue_free()
+	wall.queue_free()
+	Scav.lod_enabled = true
+	player.teleport_to(START_SPOT)
+	await physics_frame
+
+
+## Physics frames until `condition` holds (at most `frames`).
+func _ticks_until(condition: Callable, frames: int) -> void:
+	for i in frames:
+		if condition.call():
+			return
+		await physics_frame
+
+
+## Two AI facing each other `gap` m apart around `center` (a looks along -Z at b).
+func _face_off(a: Scav, b: Scav, center: Vector3, gap: float) -> void:
+	a.global_position = center + Vector3(0, 0, gap * 0.5)
+	b.global_position = center - Vector3(0, 0, gap * 0.5)
+	a.look_at(Vector3(b.global_position.x, a.global_position.y, b.global_position.z))
+	b.look_at(Vector3(a.global_position.x, b.global_position.y, a.global_position.z))
+
+
+## An AI PMC for the AI-against-AI checks.
+func _fighting_bot(pos: Vector3) -> PmcAI:
+	return _spawn(PMC_AI_SCENE, pos) as PmcAI
+
+
+func _section_pmc_fights_ai() -> void:
+	# AI against AI (0.36.10, owner approved): AI PMCs fight everyone (players, scavs, Raiders, snipers, Bon, other
+	# bots); every other AI fights AI PMCs as it fights players, and never each other. Same hit chances, no opening-burst
+	# mercy for AI, a hit turns the victim on its shooter, a real player in view beats a hidden closer bot.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	var lod_was := Scav.lod_enabled
+	Scav.lod_enabled = true
+	# (no player in the fight for most checks: the AI here only have each other)
+	player.remove_from_group("player")
+	var center := Vector3(30, 0.1, 30)
+
+	# A scav spots a bot and fights it; the bot, hit, turns on the scav.
+	var scav := _spawn(SCAV_SCENE, center) as Scav
+	var bot := _fighting_bot(center)
+	bot.sight_range = 0.5   # (it can't see the scav: the scav has to see it first)
+	_face_off(scav, bot, center, 20.0)
+	scav._wander_time = 99.0   # (stands looking that way instead of setting off on patrol)
+	scav._lod_check_left = 0.0   # (no player anywhere: it thinks on slow ticks, and must still spot the bot)
+	var bot_hp := bot.health.current
+	await _ticks_until(func() -> bool: return scav.state in [Scav.State.ALERT, Scav.State.ENGAGE], 240)
+	_check(scav._target == bot and scav.state in [Scav.State.ALERT, Scav.State.ENGAGE],
+		"a scav spots an AI PMC and goes for it (%s, far from any player: slow ticks %s)" % [Scav.State.keys()[scav.state], scav._lod_far])
+	await _ticks_until(func() -> bool: return bot.health.current < bot_hp, 600)
+	_check(bot.health.current < bot_hp and bot._target == scav and bot.state in [Scav.State.ALERT, Scav.State.ENGAGE],
+		"its shots hurt the bot (%d -> %d HP) and the bot turns on it (%s)" % [bot_hp, bot.health.current, Scav.State.keys()[bot.state]])
+	scav.free()
+	bot.free()
+	await physics_frame
+
+	# A bot spots a scav and fights it; the scav, hit, turns on the bot.
+	bot = _fighting_bot(center)
+	scav = _spawn(SCAV_SCENE, center) as Scav
+	scav.sight_range = 0.5
+	_face_off(bot, scav, center, 20.0)
+	var scav_hp := scav.health.current
+	await _ticks_until(func() -> bool: return bot.state in [Scav.State.ALERT, Scav.State.ENGAGE], 240)
+	_check(bot._target == scav and bot.state in [Scav.State.ALERT, Scav.State.ENGAGE], "an AI PMC spots a scav and goes for it")
+	await _ticks_until(func() -> bool: return scav.health.current < scav_hp, 600)
+	_check(scav.health.current < scav_hp and scav._target == bot and scav.state in [Scav.State.ALERT, Scav.State.ENGAGE],
+		"the bot's shots hurt the scav (%d -> %d HP) and the scav turns on it" % [scav_hp, scav.health.current])
+	scav.free()
+	bot.free()
+	await physics_frame
+
+	# Two bots fight each other.
+	var b1 := _fighting_bot(center)
+	var b2 := _fighting_bot(center)
+	_face_off(b1, b2, center, 16.0)
+	await _ticks_until(func() -> bool: return b1.health.current < b1.health.max_health or b2.health.current < b2.health.max_health, 900)
+	_check(b1._target == b2 and b2._target == b1 and (b1.health.current < 100 or b2.health.current < 100),
+		"two AI PMCs fight each other (%d / %d HP)" % [b1.health.current, b2.health.current])
+	b1.free()
+	b2.free()
+	await physics_frame
+
+	# Scavs, Raiders, snipers and Bon never fight each other, face to face or hit.
+	var s1 := _spawn(SCAV_SCENE, center) as Scav
+	var s2 := _spawn(SCAV_SCENE, center) as Scav
+	_face_off(s1, s2, center + Vector3(-8, 0, 0), 8.0)
+	var raider := _spawn(RAIDER_SCENE, center) as Scav
+	var s3 := _spawn(SCAV_SCENE, center) as Scav
+	_face_off(raider, s3, center + Vector3(8, 0, 0), 8.0)
+	await _frames(120)
+	var calm := [s1, s2, raider, s3].all(func(s: Scav) -> bool: return s._target == null and s.state == Scav.State.IDLE)
+	_check(calm and not s1._may_fight(s2) and not raider._may_fight(s3) and s1._closest_rival() == null,
+		"two scavs, or a scav and a Raider, face to face: neither ever targets the other")
+	var sniper := _spawn(SNIPER_SCENE, center + Vector3(0, 0, -20)) as Scav
+	var boss := _spawn(BOSS_SCENE, center + Vector3(0, 0, -25)) as Scav
+	await physics_frame
+	_check(not sniper._may_fight(s1) and not boss._may_fight(raider) and not boss._may_fight(sniper),
+		"nor do snipers or Bon fight any of them")
+	# (if one were hit by another, it wouldn't turn on it either)
+	var hp_before := s2.health.current
+	s2.take_hit_from(s1, 10, false)
+	_check(s2.health.current < hp_before and s2._target != s1, "a scav hit by a scav doesn't turn on it")
+
+	# A bot's hit: damage through the scav's own armor, and it turns on the bot (from a player too, co-op style).
+	player.add_to_group("player")
+	bot = _fighting_bot(center + Vector3(0, 0, -40))
+	await physics_frame
+	s1._target = player
+	var armored := s1.health.damage_multiplier
+	hp_before = s1.health.current
+	s1.take_hit_from(bot, 20, false)
+	_check(s1.health.current == hp_before - maxi(roundi(20 * armored), 1) and s1._target == bot and s1._last_hit_from == bot.global_position,
+		"an AI PMC's hit lands like a player's bullet (through armor: %d HP off) and the scav turns on it, even from a player" % (hp_before - s1.health.current))
+	# Bashed: the hit and a shove.
+	hp_before = s3.health.current
+	s3.take_bash_from(bot, 20, 6.0)
+	_check(s3.health.current < hp_before and s3._target == bot and s3._knockback.length() > 5.0, "an AI PMC's bash hurts and shoves a scav")
+	# Shot by a scav, a bot turns on that scav (and fights rather than runs: it's alerted).
+	bot._target = null
+	bot.take_hit_from(raider, 10, false)
+	_check(bot._target == raider and bot.state == Scav.State.ALERT, "an AI PMC shot by a Raider turns to fight it")
+
+	# No opening-burst mercy against AI; players still get it.
+	s1._target = bot
+	s1._opened_on = null
+	s1._start_burst()
+	var burst_vs_bot := s1._opening_burst
+	s1._target = player
+	s1._opened_on = null
+	s1._start_burst()
+	_check(burst_vs_bot == 0 and s1._opening_burst > 0, "an opening burst at an AI can kill; at a player it's still an opening burst (%d)" % s1._opening_burst)
+	s1._target = bot
+	bot.health.current = 5
+	for i in 4:
+		if not bot.health.is_dead:
+			s1._hit_target()
+	_check(bot.health.is_dead and bot.killer_ai_id == s1.get_instance_id(), "a bot near death goes down to a scav's hit (no mercy), and knows who killed it")
+	await physics_frame
+	_check(s1._target != bot, "a dead bot is dropped as a target")
+	for node: Node in [s1, s2, s3, raider, sniper, boss]:
+		node.free()
+	await physics_frame
+
+	# A real player it can see beats a closer AI it can't; a closer AI in view beats the player.
+	var spot := player.global_position + Vector3(0, 0, -20)
+	scav = _spawn(SCAV_SCENE, spot) as Scav
+	_face_player(scav)
+	bot = _fighting_bot(spot + Vector3(8, 0, 0))
+	var wall := _block(spot + Vector3(4, 1.5, 0), Vector3(0.4, 3.0, 4.0))
+	await physics_frame
+	_check(scav._sees_body(player) and not scav._sees_body(bot) and scav._pick_target() == player,
+		"a player in view beats a closer bot behind a wall")
+	wall.free()
+	await physics_frame
+	scav._target = player
+	_check(scav._sees_body(bot) and scav._pick_target() == bot and scav._recheck_target() and scav._target == bot,
+		"with the wall gone the closer bot is picked, even over the player it had")
+	# A bot that leaves the raid is dropped too.
+	bot._leave_raid()
+	await physics_frame
+	await physics_frame
+	_check(scav._target == player, "an AI PMC that left is dropped: back to the player")
+	scav.free()
+	await physics_frame
+	Scav.lod_enabled = lod_was
+
+
+## An AI for the break-off checks that stands still (placed by hand) and, if `on` is given, is fighting it.
+func _still_ai(scene: String, pos: Vector3, on: Scav = null) -> Scav:
+	var ai := _spawn(scene, pos) as Scav
+	ai.sight_range = 0.5
+	ai.set_physics_process(false)
+	if on != null:
+		ai._target = on
+		ai.state = Scav.State.ENGAGE
+	return ai
+
+
+func _section_pmc_breakoff() -> void:
+	# AI PMCs against AI (0.36.12, the owner's "smarter bots"; numbers pending the owner's OK): it drops a place with a
+	# group of AI ahead of it; in a fight with AI it breaks off when outnumbered or hurt, runs out of sight 40-70 m away,
+	# patches up there and plans again; it never flees a lone scav at full health, never flips between running and
+	# fighting, and with a real player in the fight it fights exactly as before.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	var lod_was := Scav.lod_enabled
+	Scav.lod_enabled = false
+	player.remove_from_group("player")   # (no player in these fights, except where one is put back)
+	var place_box := _plan_box(Vector3(-30, 0, 30), "BreakPlace", "safe")
+	PmcAI.reset_places(main)
+	var target_place: Dictionary = PmcAI.places(main).filter(func(p: Dictionary) -> bool:
+		return String(p["name"]).begins_with("BreakPlace@"))[0]
+
+	var bot := _blind_bot(Vector3(20, 0.1, 30))
+	await physics_frame
+	var go_to_place := func() -> void:
+		bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+		bot.place = target_place
+		bot._go_to(AINav.closest(bot, place_box.global_position), place_box)
+	go_to_place.call()
+	bot.free()
+	await physics_frame
+
+	# In a fight with AI. Constants first.
+	_check(PmcAI.BREAK_THREAT == 2.0 and PmcAI.BREAK_NEAR == 30.0 and PmcAI.BREAK_HURT == 0.5 and PmcAI.FLEE_MIN == 40.0
+		and PmcAI.FLEE_MAX == 70.0 and PmcAI.FLEE_CLEAR == 30.0 and PmcAI.FLEE_FIGHT == 12.0 and PmcAI.BREAK_COOLDOWN == 10.0,
+		"(0.36.12: breaks off at threat 2 fighting it or within 30 m in view, or under 50%; runs to 40-70 m, 30 m clear of others)")
+	var center := Vector3(20, 0.1, 20)
+	var fighter := func(hp: int) -> PmcAI:
+		var b := _fighting_bot(center)
+		b.global_position = center
+		b.health.current = hp
+		return b
+	var start_fight := func(b: PmcAI, foe: Scav) -> void:
+		b._target = foe
+		b._set_state(Scav.State.ENGAGE)
+		b._seen_state = Scav.State.ENGAGE
+		b._break_cooldown = 0.0
+	# A lone scav at full health: it fights as before.
+	bot = fighter.call(100)
+	var s1 := _still_ai(SCAV_SCENE, center + Vector3(10, 0, 10), bot)
+	await physics_frame
+	start_fight.call(bot, s1)
+	bot._check_break_off()
+	_check(bot.state == Scav.State.ENGAGE and bot.plan != PmcAI.Plan.FLEE and bot.breaks == 0, "a lone scav, at full health: it fights it (no running off)")
+	# Outnumbered: a second scav on it.
+	var s2 := _still_ai(SCAV_SCENE, center + Vector3(14, 0, 8), bot)
+	bot._check_break_off()
+	var spot := bot._wander_point
+	var min_d := minf(_flat_dist(spot, s1.global_position), _flat_dist(spot, s2.global_position))
+	_check(bot.plan == PmcAI.Plan.FLEE and bot.state == Scav.State.IDLE and bot.breaks == 1 and min_d >= 39.0 and min_d <= 71.0,
+		"two scavs on it: it breaks off and runs to a spot %.0f m from them" % min_d)
+	# It runs at full speed and doesn't turn back for a glimpse of them from afar.
+	var fastest := 0.0
+	for i in 60:
+		await physics_frame
+		fastest = maxf(fastest, bot.horizontal_speed())
+	_check(fastest >= bot.move_speed * 0.95 and bot.plan == PmcAI.Plan.FLEE, "it runs flat out (%.1f m/s of %.1f)" % [fastest, bot.move_speed])
+	bot._alert(s1.global_position)
+	_check(bot.plan == PmcAI.Plan.FLEE and bot.state == Scav.State.IDLE, "seeing (or shot by) the same scavs from afar it keeps running")
+	# Cornered: one within 12 m makes it fight, and that fight it fights out (no flip back to running).
+	s1.global_position = bot.global_position + Vector3(6, 0, 0)
+	bot._alert(s1.global_position)
+	_check(bot.state == Scav.State.ALERT and bot.plan != PmcAI.Plan.FLEE and bot._holding_ground, "one within 12 m: it turns and fights")
+	bot._set_state(Scav.State.ENGAGE)
+	bot._seen_state = Scav.State.ENGAGE
+	bot._break_cooldown = 0.0
+	bot._check_break_off()
+	_check(bot.plan != PmcAI.Plan.FLEE and bot.breaks == 1, "still outnumbered, it doesn't run off again in that fight (no flee/fight loop)")
+	# Once the fight is over the next one may be broken off again, but not within BREAK_COOLDOWN s of a run.
+	bot._set_state(Scav.State.IDLE)
+	await physics_frame
+	_check(not bot._holding_ground, "a fight over: the next one starts fresh")
+	start_fight.call(bot, s1)
+	bot._break_cooldown = PmcAI.BREAK_COOLDOWN
+	bot._check_break_off()
+	_check(bot.plan != PmcAI.Plan.FLEE, "within 10 s of a run it doesn't break off again")
+	for node: Node in [bot, s1, s2]:
+		node.free()
+	await physics_frame
+
+	# Hurt (under half health) against a lone scav: it breaks off, arrives, patches up and plans again.
+	bot = fighter.call(40)
+	s1 = _still_ai(SCAV_SCENE, center + Vector3(8, 0, 12), bot)
+	await physics_frame
+	start_fight.call(bot, s1)
+	var heals := bot._heals_left
+	bot._check_break_off()
+	_check(bot.plan == PmcAI.Plan.FLEE, "hurt (40 of 100 HP), a lone scav on it: it breaks off")
+	var healed := false
+	var ran := false
+	for i in 60:
+		await physics_frame
+		ran = ran or bot.horizontal_speed() > 3.0
+	bot.global_position = bot._wander_point + Vector3(0, 0.1, 0)   # (the rest of the way: game time is short here)
+	for i in 60 * 12:
+		await physics_frame
+		if bot._heals_left < heals:
+			healed = true
+			break
+	_check(ran and healed and bot.health.current > 40 and bot.plan != PmcAI.Plan.FLEE,
+		"it gets away, then patches itself up (%d HP, %d heals left)" % [bot.health.current, bot._heals_left])
+	var replanned := false
+	for i in 60 * 6:
+		await physics_frame
+		if bot.plan in [PmcAI.Plan.TRAVEL, PmcAI.Plan.SEARCH, PmcAI.Plan.EXIT]:
+			replanned = true
+			break
+	_check(replanned, "and then plans again (%s)" % PmcAI.Plan.keys()[bot.plan])
+	for node: Node in [bot, s1]:
+		node.free()
+	await physics_frame
+
+	# A real player in the fight: exactly as before. Its target a player, a player within sight, or a player's hit.
+	player.add_to_group("player")
+	bot = fighter.call(30)
+	s1 = _still_ai(SCAV_SCENE, center + Vector3(10, 0, 10), bot)
+	s2 = _still_ai(SCAV_SCENE, center + Vector3(14, 0, 8), bot)
+	await physics_frame
+	start_fight.call(bot, s1)
+	player.teleport_to(center + Vector3(-20, 0, 0))
+	bot._check_break_off()
+	_check(bot.plan != PmcAI.Plan.FLEE and bot.state == Scav.State.ENGAGE, "a player within its sight range: no breaking off, outnumbered and hurt")
+	player.teleport_to(center + Vector3(-200, 0, -200))
+	bot._target = player
+	bot._check_break_off()
+	_check(bot.plan != PmcAI.Plan.FLEE, "fighting a player: no breaking off")
+	bot._target = s1
+	bot._since_player_hit = 0.0
+	bot._check_break_off()
+	_check(bot.plan != PmcAI.Plan.FLEE, "a player hit it a moment ago: no breaking off")
+	bot._since_player_hit = INF
+	bot._check_break_off()
+	_check(bot.plan == PmcAI.Plan.FLEE, "(the same fight with the player gone: it breaks off)")
+	player.teleport_to(bot.global_position + Vector3(0, 0, -25))
+	bot._check_break_off()
+	_check(bot.plan == PmcAI.Plan.HOLD, "running off, a player turns up: it stops running and the usual brain takes over")
+	for node: Node in [bot, s1, s2]:
+		node.free()
+	player.teleport_to(START_SPOT)
+	await physics_frame
+
+	# 0.36.13 (owner: "scavs hunt bots less, bots sneak"). A bot doesn't open fire on a far scav that isn't after it.
+	player.remove_from_group("player")
+	bot = _blind_bot(Vector3(0, 0.1, 30))
+	await physics_frame
+	var far := _still_ai(SCAV_SCENE, Vector3(0, 0.1, 60))
+	bot._target = far
+	bot._spot = 1.0
+	bot._alert(far.global_position)
+	_check(PmcAI.BOT_OPEN_FIRE == 25.0 and bot.state == Scav.State.IDLE and bot._spot == 0.0,
+		"a scav 30 m off that isn't after it: the bot lets it be (it opens fire within 25 m)")
+	far._target = bot
+	far.state = Scav.State.ENGAGE
+	bot._alert(far.global_position)
+	_check(bot.state == Scav.State.ALERT, "the same scav fighting it: the bot fights")
+	bot._set_state(Scav.State.IDLE)
+	far.state = Scav.State.IDLE
+	far.global_position = Vector3(0, 0.1, 50)
+	bot._alert(far.global_position)
+	_check(bot.state == Scav.State.ALERT, "a scav 20 m off: the bot fights it as before")
+	bot._set_state(Scav.State.IDLE)
+	var far_bot := _blind_bot(Vector3(0, 0.1, 90))
+	far_bot.set_physics_process(false)
+	bot._target = far_bot
+	bot._alert(far_bot.global_position)
+	_check(bot.state == Scav.State.ALERT, "another bot far off: it fights (bots against bots are unchanged)")
+	far_bot.free()
+	bot._set_state(Scav.State.IDLE)
+	# A scav that hasn't seen the bot it is fighting for 4 s lets it go; a player it keeps hunting as ever.
+	far.set_physics_process(true)
+	far.global_position = Vector3(0, 0.1, 44)
+	far._target = bot
+	far.state = Scav.State.ENGAGE
+	far._unseen_time = Scav.BOT_GIVE_UP + 0.1
+	far._sight_check_time = 99.0
+	far._can_see = false
+	await physics_frame
+	_check(Scav.BOT_GIVE_UP == 4.0 and far.state == Scav.State.IDLE, "a scav that lost sight of a bot for 4 s goes back to what it was doing")
+	player.add_to_group("player")
+	far._target = player
+	far.state = Scav.State.ENGAGE
+	far._unseen_time = Scav.BOT_GIVE_UP + 0.1
+	far._sight_check_time = 99.0
+	far._can_see = false
+	await physics_frame
+	_check(far.state == Scav.State.ENGAGE, "the same against a player: it keeps at it (unchanged)")
+	player.remove_from_group("player")
+	far.set_physics_process(false)
+	far.state = Scav.State.IDLE
+	# The reserve dial (pending the owner): AI hits on a bot do AI_DAMAGE_TO_BOT of their damage; 1.0 = no change.
+	var hp_before := bot.health.current
+	bot.take_hit_from(far, 20, false)
+	var full_loss := hp_before - bot.health.current
+	var was_damage := bot.ai_damage
+	bot.ai_damage = 0.5
+	hp_before = bot.health.current
+	bot.take_hit_from(far, 20, false)
+	var half_loss := hp_before - bot.health.current
+	bot.ai_damage = was_damage
+	_check(PmcAI.AI_DAMAGE_TO_BOT == 1.0 and was_damage == 1.0 and full_loss > 0 and half_loss < full_loss,
+		"AI damage to bots: off by default (x1.0); at x0.5 a scav's hit takes %d instead of %d" % [half_loss, full_loss])
+	# Per map (0.36.15): Frontlines gets its MAP_TUNING (hidden handicap, leave after 2 broken-off fights).
+	var tuned_root := Node3D.new()
+	tuned_root.set_meta("map_name", "Bloxov Frontlines")
+	tuned_root.add_child(Node3D.new())
+	var probe := PmcAI.new()
+	tuned_root.get_child(0).add_child(probe)
+	probe._apply_map_tuning()
+	var fl_damage := probe.ai_damage
+	var fl_breaks := probe.leave_after_breaks
+	tuned_root.set_meta("map_name", "Riptide")
+	probe._apply_map_tuning()
+	_check(fl_damage == float(PmcAI.MAP_TUNING["Bloxov Frontlines"]["ai_damage"]) and fl_breaks == 2 \
+		and probe.ai_damage == 1.0 and probe.leave_after_breaks == 0,
+		"Frontlines bots get their own tuning (x%.2f damage, leave after %d breaks); Riptide's are untouched" % [fl_damage, fl_breaks])
+	probe.free()
+	tuned_root.free()
+	bot.health.heal(bot.health.max_health)
+	bot._set_state(Scav.State.IDLE)
+	# Its call for help when it spots a bot, and a buddy dropped by a bot, pull in one at most between them.
+	BotFight.reset(bot)
+	FightBudget.reset(bot)
+	var mates: Array[Scav] = []
+	for i in 4:
+		mates.append(_still_ai(SCAV_SCENE, Vector3(-4 + i * 2, 0.1, 40)))
+	far._target = bot
+	far._call_for_help(bot.global_position)
+	var answering := mates.filter(func(m: Scav) -> bool: return m.state == Scav.State.INVESTIGATE).size()
+	_check(answering == 1, "a scav that spots a bot calls one friend over, not all of them (%d)" % answering)
+	far._hit_by = bot
+	far._last_hit_from = bot.global_position
+	far._warn_friends()
+	far._hit_by = null
+	var stirred := mates.filter(func(m: Scav) -> bool: return m.state != Scav.State.IDLE).size()
+	_check(stirred == 1, "dropped by the bot in that same fight: no more friends notice (%d stirred)" % stirred)
+	BotFight.reset(bot)
+	FightBudget.reset(bot)
+	for m in mates:
+		m.state = Scav.State.IDLE
+		m._answering_call = false
+	player.add_to_group("player")
+	far._target = player
+	far._call_for_help(player.global_position)
+	answering = mates.filter(func(m: Scav) -> bool: return m.state == Scav.State.INVESTIGATE).size()
+	_check(answering == 4, "the same call about a player brings them all, as before (%d)" % answering)
+	for node: Node in [bot, far] + mates:
+		node.free()
+	FightBudget.reset(main)
+	BotFight.reset(main)
+	place_box.free()
+	PmcAI.reset_places(main)
+	player.teleport_to(START_SPOT)
+	Scav.lod_enabled = lod_was
+	await physics_frame
+
+
+func _flat_dist(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+func _section_pmc_leave() -> void:
+	# AI PMCs take loot and extract (0.36.7, owner approved): a finished search opens the lid for good and takes the
+	# most valuable whole stack (4 a raid at most, never keys or special items, never from a locked box); at its
+	# leave time (50-85% of the raid's length) or hurt with no heals left it jogs to an open extract, stands in it
+	# for its extract_time and is gone with no body, no loot bag and no death.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	player.teleport_to(Vector3(38, 0.1, 38))
+	Scav.lod_enabled = false
+	# Gear odds (owner): heavy stuff rarer, good loot on bodies.
+	var sum_of := func(t: Dictionary) -> int:
+		var n := 0
+		for w: int in t.values():
+			n += w
+		return n
+	_check(sum_of.call(AILoadouts.PMC_ARMOR) == 100 and AILoadouts.PMC_ARMOR == {"armor_light": 65, "": 30, "armor_heavy": 5}
+		and sum_of.call(AILoadouts.PMC_BACKPACK) == 100 and AILoadouts.PMC_BACKPACK == {"": 55, "backpack_small": 40, "backpack_medium": 5}
+		and sum_of.call(AILoadouts.PMC_HELMETS) == 100 and AILoadouts.PMC_HELMETS["helmet_good"] == 10 and is_equal_approx(AILoadouts.PMC_HELMET_CHANCE, 0.3),
+		"kit odds: armor 65/30/5, backpack 55/40/5, helmets 30% of bots with the Combat Helmet 1 in 10, each table sums to 100")
+	var good := 0
+	var helmeted := 0
+	for i in 4000:
+		var h := AILoadouts.pmc_helmet(i)
+		helmeted += 1 if h != "" else 0
+		good += 1 if h == "helmet_good" else 0
+	_check(absf(helmeted / 4000.0 - 0.3) < 0.03 and absf(good / float(helmeted) - 0.1) < 0.03,
+		"%d%% of bots wear a helmet, %d%% of those the Combat Helmet" % [roundi(helmeted / 40.0), roundi(100.0 * good / helmeted)])
+	var pmc: Dictionary = ItemDB.LOOT_TABLES["pmc"]
+	var raider: Dictionary = (ItemDB.LOOT_TABLES["raider"] as Dictionary).duplicate()
+	raider.erase("backpack_medium")
+	_check(not pmc.has("backpack_medium") and pmc == raider and pmc.has("epic") and pmc.has("rare") and pmc.has("grenade")
+		and not ItemDB.TABLE_CHANCES.has("pmc"), "the pmc loot table is the Raider's without the medium backpack (rare, epic, grenades, attachments)")
+
+	# Leave time: 50-85% of the raid's length, seeded; no known length counts as 600 s.
+	var bot := _blind_bot(Vector3(0, 0.1, 30))
+	await physics_frame
+	var lows := {600.0: INF, 900.0: INF, 0.0: INF}
+	var highs := {600.0: 0.0, 900.0: 0.0, 0.0: 0.0}
+	for length: float in lows:
+		for i in 300:
+			bot.leave_at = -1.0
+			bot.raid_length = length
+			bot.leave_seed = 1000 + i
+			bot._roll_leave_time()
+			lows[length] = minf(lows[length], bot.leave_at)
+			highs[length] = maxf(highs[length], bot.leave_at)
+	_check(lows[600.0] >= 300.0 and highs[600.0] <= 510.0 and lows[600.0] < 320.0 and highs[600.0] > 490.0
+		and lows[900.0] >= 450.0 and highs[900.0] <= 765.0 and lows[900.0] < 480.0 and highs[900.0] > 735.0
+		and lows[0.0] >= 300.0 and highs[0.0] <= 510.0,
+		"leave time: 5:00-8:30 in a 600 s raid (%.0f-%.0f), 7:30-12:45 in a 900 s one (%.0f-%.0f), 600 s without a known length" % [lows[600.0], highs[600.0], lows[900.0], highs[900.0]])
+	bot.leave_at = -1.0
+	bot.raid_length = 900.0
+	bot.leave_seed = 77
+	bot._roll_leave_time()
+	var again := bot.leave_at
+	bot.leave_at = -1.0
+	bot._roll_leave_time()
+	_check(bot.leave_at == again, "a bot's leave time comes from its seed")
+	bot.leave_at = 400.0
+	_check(not bot.wants_to_leave(), "before its time it stays")
+	bot._age = 400.0
+	_check(bot.wants_to_leave(), "at its time it wants to go")
+
+	# Early leave: under 40% health with no heals left.
+	bot._age = 0.0
+	bot._heals_left = 1
+	bot.health.current = int(bot.health.max_health * 0.3)
+	var with_heals := bot.wants_to_leave()
+	bot._heals_left = 0
+	var hurt_dry := bot.wants_to_leave()
+	bot.health.current = int(bot.health.max_health * 0.5)
+	var half := bot.wants_to_leave()
+	bot.health.current = bot.health.max_health
+	_check(not with_heals and hurt_dry and not half, "hurt (under 40%) with no heals left it wants to go; with a heal, or at half health, it doesn't")
+
+	# Taking loot.
+	var box := _plan_box(Vector3(30, 0, 30), "LeaveVault", "crate")
+	box.grid.stacks.clear()
+	box.grid.add("bandage", 3)
+	box.grid.add("gold_watch", 1)
+	box.grid.add("bank_vault_key", 1)
+	box.grid.add("player_tag", 1)
+	bot._on_search_done(box)
+	_check(bot.carried_loot.size() == 1 and bot.carried_loot[0].id == "gold_watch" and box.grid.count_of("gold_watch") == 0
+		and box.has_meta(RaidWorld.BOT_LID), "a finished search opens the lid and takes the most valuable item, for real (%s)" % [bot.carried_loot.map(func(s: ItemStack) -> String: return s.id)])
+	bot._on_search_done(box)
+	bot._on_search_done(box)
+	_check(bot.carried_loot.size() == 2 and bot.carried_loot[1].id == "bandage" and box.grid.count_of("bandage") == 0
+		and box.grid.count_of("bank_vault_key") == 1 and box.grid.count_of("player_tag") == 1,
+		"a whole stack at a time; never a key, never a special item (the tag), nothing when only those are left")
+	var locked := _plan_box(Vector3(34, 0, 30), "LeaveLocked", "crate", true)
+	locked.grid.stacks.clear()
+	locked.grid.add("gold_watch", 1)
+	bot._on_search_done(locked)
+	_check(bot.carried_loot.size() == 2 and locked.grid.count_of("gold_watch") == 1, "nothing from a locked container")
+	var stash := _plan_box(Vector3(38, 0, 30), "LeaveStash", "crate")
+	for n in 6:
+		stash.grid.stacks.clear()
+		stash.grid.add(["beans", "water", "duct_tape", "phone", "ration", "scrap"][n], 1)
+		bot._on_search_done(stash)
+	_check(bot._taken == PmcAI.MAX_TAKEN and bot.carried_loot.size() == 4 and stash.grid.count_of("scrap") == 1,
+		"at most 4 items a raid (%d taken)" % bot.carried_loot.size())
+	# It ends up on the body when the bot dies.
+	bot.carried_loot.clear()
+	bot.carried_loot.append(ItemStack.new("holy_grail"))   # (a rolled item can never be one)
+	var body_at := bot.global_position
+	bot.health.take_damage(900)
+	await physics_frame
+	await physics_frame
+	var body: LootContainer = null
+	for node in RaidScope.nodes(main, &"loot_containers"):
+		if node is LootContainer and (node as LootContainer).remove_when_empty and node.global_position.distance_to(body_at) < 3.0:
+			body = node
+	var on_body := body != null and body.all_grids().any(func(g: GridInventory) -> bool: return g.count_of("holy_grail") == 1)
+	_check(on_body, "what it took is on its body when it dies")
+	if body != null:
+		body.free()
+	for c in [box, locked, stash]:
+		c.free()
+
+	# Walking to an extract and vanishing. (The test map's own extracts are shut for this; they come back after.)
+	var zones := main.find_children("*", "ExtractZone", true, false)
+	var was_open := {}
+	for z: ExtractZone in zones:
+		was_open[z] = z.is_open
+		z.set_open(false)
+	var make_zone := func(pos: Vector3, secs: float) -> ExtractZone:
+		var z := (load("res://scenes/extract_zone.tscn") as PackedScene).instantiate() as ExtractZone
+		z.extract_time = secs
+		main.add_child(z)
+		z.global_position = pos
+		return z
+	var near: ExtractZone = make_zone.call(Vector3(22, 0, 30), 1.0)
+	var enemies_before := RaidScope.nodes(main, &"enemies").size()
+	var walker := _blind_bot(Vector3(0, 0.1, 30))
+	walker.leave_at = 0.0
+	walker._plan_wait = 0.0
+	var died := [false]
+	walker.health.died.connect(func() -> void: died[0] = true)
+	var bags_before := RaidScope.nodes(main, &"loot_containers").size()
+	var seen_exit := false
+	var stood := 0
+	for i in 2400:
+		await physics_frame
+		if not is_instance_valid(walker) or walker.left_raid:
+			break
+		seen_exit = seen_exit or walker.plan == PmcAI.Plan.EXIT
+		stood += 1 if walker.plan == PmcAI.Plan.EXTRACT else 0
+	var gone := not is_instance_valid(walker) or walker.left_raid
+	await physics_frame
+	await physics_frame
+	_check(seen_exit and gone and not died[0], "at its leave time it walks to the extract and leaves (it was %s)" % ("gone" if gone else "still there"))
+	_check(stood >= 55 and stood <= 90, "it stands in the extract for its extract_time first (%d frames of 60)" % stood)
+	_check(RaidScope.nodes(main, &"loot_containers").size() == bags_before and RaidScope.nodes(main, &"enemies").size() == enemies_before,
+		"leaving quietly: no body, no loot bag, not an enemy any more")
+	near.free()
+
+	# Hurt, no heals: it goes without waiting for its time. A shut extract is passed over for an open one.
+	var shut: ExtractZone = make_zone.call(Vector3(22, 0, 30), 1.0)
+	shut.needs_power = "test_switch"
+	shut.set_open(false)
+	var open_far: ExtractZone = make_zone.call(Vector3(-30, 0, 30), 1.0)
+	var hurt := _blind_bot(Vector3(0, 0.1, 30))
+	hurt.leave_at = 99999.0
+	hurt._heals_left = 0
+	hurt.health.current = int(hurt.health.max_health * 0.3)
+	hurt._plan_wait = 0.0
+	var usable := hurt._usable_extracts()
+	for i in 6:
+		await physics_frame
+	_check(usable == [open_far] and hurt.plan == PmcAI.Plan.EXIT and hurt.extract == open_far,
+		"hurt with no heals it leaves early, by the open extract, not the shut one nearer (%s)" % [hurt.extract])
+	# Other AI near an extract (0.36.14, the 0.36.8 rule again): a clear one is preferred; none clear, it takes none.
+	shut.needs_power = ""
+	shut.set_open(true)
+	var guard := _spawn(SCAV_SCENE, Vector3(28, 0.1, 30)) as Scav
+	guard.sight_range = 0.5
+	guard.set_physics_process(false)
+	await physics_frame
+	hurt.extract = null
+	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
+	hurt._exit_retry = 0.0
+	hurt._next_destination()
+	_check(hurt.extract == open_far and hurt.plan == PmcAI.Plan.EXIT, "an extract with another AI within 40 m is passed over for a clear one")
+	open_far.free()
+	hurt.extract = null
+	hurt._set_plan(PmcAI.Plan.HOLD, 99.0)
+	hurt._next_destination()
+	_check(hurt.extract == null and hurt.plan != PmcAI.Plan.EXIT, "with no clear extract it takes none and tries again later")
+	for node: Node in [hurt, guard, shut]:
+		node.free()
+	for z: ExtractZone in zones:
+		z.set_open(was_open[z])
+	await physics_frame
 
 
 func _section_hud() -> void:

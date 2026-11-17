@@ -6,9 +6,9 @@ extends Node
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
 ## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand and
-## 5 Exion Trooper, Riptide's own, 0.35.34).
+## 5 Exion Trooper, Riptide's own, 0.35.34; 6 AI PMC, 0.36.1, was 4 on its branch).
 const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn"),
-	preload("res://scenes/deckhand.tscn"), preload("res://scenes/trooper.tscn")]
+	preload("res://scenes/deckhand.tscn"), preload("res://scenes/trooper.tscn"), preload("res://scenes/pmc_ai.tscn")]
 
 @export var player: Player
 @export var enemy_spawner: Node
@@ -289,7 +289,7 @@ func sync_enemies(list: Array) -> void:
 			puppet.name = "Enemy%d" % id
 			get_parent().add_child(puppet)
 			# Same outfit on every player's screen.
-			puppet.model.pick_outfit_seeded(id)
+			puppet.pick_look(id)
 			enemy_puppets[id] = puppet
 		puppet.net_push(entry[2])
 	for id in enemy_puppets.keys():
@@ -316,6 +316,10 @@ func on_enemy_event(id: int, kind: String, pos: Vector3) -> void:
 			enemy_puppets.erase(id)
 			puppet.global_position = pos
 			puppet.net_died()
+		"left":
+			# An AI PMC walked out through an extract (0.36.7): it just isn't there any more.
+			enemy_puppets.erase(id)
+			puppet.queue_free()
 
 
 ## A hit the server sent (another player's shot, or online an AI's): our armor, or on the head our helmet, applies

@@ -59,6 +59,10 @@ func _process(_delta: float) -> bool:
 		for world in _worlds:
 			for peer in 6:
 				world.update_proxy(peer + 1, [Vector3(randf() * 20.0, 0.0, randf() * 20.0), 0.0, 0.0, 0.0, 0])
+			# Three AI PMCs, spawned as the server does (0.36.2: at the free player spawn points, with names).
+			var bots: Array = world.spawn_bots(3, randi(), [0], ["Tester"])
+			if bots.size() != 3:
+				push_error("raid made %d AI PMCs, not 3" % bots.size())
 			var spawner: Node = world.raid.get_node_or_null("EnemySpawner")
 			if spawner != null:
 				for t in 120:

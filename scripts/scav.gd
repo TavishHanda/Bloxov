@@ -32,6 +32,17 @@ var _net_hits := 0
 func _ready() -> void:
 	add_to_group("enemies")
 	_side = 1.0 if randf() < 0.5 else -1.0
+	if loner:
+		faction = StringName("%s_%d" % [faction, get_instance_id()])
+	if skill_spread > 0.0 and not puppet:
+		var skill := randf_range(1.0 - skill_spread, 1.0 + skill_spread)
+		accuracy_near = minf(accuracy_near * skill, 1.0)
+		accuracy_far *= skill
+		accuracy_long *= skill
+	if operator_look and not puppet:
+		pick_look(get_instance_id())
+	if kit == "pmc" and not puppet:
+		AILoadouts.roll_pmc_kit(self, get_instance_id())
 	if loadout != "":
 		var gun := AILoadouts.pick(loadout)
 		AILoadouts.apply_style(self, gun)
@@ -97,6 +108,8 @@ func _physics_process(delta: float) -> void:
 
 	if _target == null or not is_instance_valid(_target) or _target.out_of_fight():
 		_target = _pick_target()
+	elif _sight_check_time - delta <= 0.0 and _recheck_target():
+		_can_see = false   # (0.36.10: an AI it may fight took over, or gave way: this frame's sight check is for them)
 
 	var to_target := Vector3.ZERO
 	var dist := INF
@@ -117,6 +130,14 @@ func _physics_process(delta: float) -> void:
 			_snap_shot = true
 	_blind_time = 0.0 if _can_see else _blind_time + delta
 	_unseen_time = 0.0 if _can_see else _unseen_time + delta
+
+	# Fighting an AI PMC it hasn't seen for a while (0.36.13): it lets it go. (Never a real player: those it hunts as ever.)
+	if _unseen_time > BOT_GIVE_UP and state == State.ENGAGE and _target is Scav and not counts_as_pmc():
+		_cover_phase = Cover.NONE
+		_hold_fire()
+		_set_state(State.IDLE)
+		_wander_dir = Vector3.ZERO
+		_wander_time = 0.0
 
 	# Chased you too far from its area: give up and head back (it won't re-spot you for a few seconds unless shot).
 	_home_return_left -= delta
@@ -300,12 +321,87 @@ func _on_damaged(_amount: int, source_position: Vector3) -> void:
 		_alert(source_position, startle_reaction_time)
 
 
+## Hit by another AI's shot (0.36.10, AI PMCs fight AI): the same hit a player's bullet is (its health, through its
+## armor or helmet), so its reaction (_on_damaged), death, body and loot all follow as they do then. It remembers who
+## for that moment: it turns on them, and the server's kill feed names them.
+func take_hit_from(attacker: Node3D, amount: int, head: bool) -> void:
+	_hit_by = attacker
+	health.take_damage(amount, attacker.global_position, false, head)
+	_hit_by = null
+
+
+## Bashed by another AI (0.36.10): the hit, and the shove a bashed player gets.
+func take_bash_from(attacker: Node3D, amount: int, shove: float) -> void:
+	take_hit_from(attacker, amount, false)
+	var push := _flat(global_position - attacker.global_position)
+	if push.length() > 0.01:
+		_knockback = push.normalized() * shove
+
+
+# What an AI that fights it asks of its target (0.36.10): the answers a player gives, from its own state.
+
+## Dead, gone (an AI PMC that left) or only a copy of the server's: nobody fights it.
+func out_of_fight() -> bool:
+	return state == State.DEAD or puppet or health.is_dead or not is_inside_tree()
+
+
+## Its eyes: the middle of its head box (it moves down when it kneels).
+func eye_position() -> Vector3:
+	return ($HeadShape as Node3D).global_position
+
+
+## Where its chest is above its feet (where the AI aim; lower when it kneels).
+func chest_height() -> float:
+	return (($HeadShape as Node3D).global_position.y - global_position.y) * 0.72
+
+
+func horizontal_speed() -> float:
+	return Vector2(velocity.x, velocity.z).length()
+
+
+## Running flat out (to cover, round a flank, after someone), not walking or jogging.
+func is_sprinting() -> bool:
+	return horizontal_speed() > move_speed * 0.9
+
+
+## Kneeling behind low cover.
+var is_crouching: bool:
+	get:
+		return _crouched
+
+
+## Patching itself up.
+func is_healing() -> bool:
+	return _cover_phase == Cover.HEALING
+
+
+## Under 40% health (as Player.is_low: a moment to push).
+func is_low() -> bool:
+	return health.current < health.max_health * Player.LOW_HEALTH
+
+
 ## Its armor and helmet, worn (see `armor`).
 var _gear: Array[ItemStack] = []
 
 
 ## One mesh per moving part instead of one per piece of clothing (0.18.12, fewer draw calls). Deferred: online, a
 ## puppet's outfit is picked just after it joins the tree (and picking again re-merges anyway).
+## Its outfit from `seed_value` (online: the server's id, so every screen shows the same one): a ready-made player
+## outfit for an operator_look AI (AI PMCs), otherwise a mix of its model's parts.
+func pick_look(seed_value: int) -> void:
+	var pixel := model as PixelModel
+	if pixel == null:
+		return
+	if operator_look:
+		# Its hat matches its real helmet: a helmeted AI PMC (AILoadouts.pmc_helmet) wears one of the helmet outfits.
+		var helmeted := kit == "pmc" and AILoadouts.pmc_helmet(seed_value) != ""
+		var options: Array = Operators.LIST.filter(func(entry: Dictionary) -> bool:
+			return kit != "pmc" or String(entry["look"]["Hat"]).begins_with("helmet") == helmeted)
+		pixel.pick_outfit(options[posmod(seed_value, options.size())]["look"])
+	else:
+		pixel.pick_outfit_seeded(seed_value)
+
+
 func _merge_model() -> void:
 	if DisplayServer.get_name() != "headless" or merge_headless:
 		(model as PixelModel).merge_parts()
@@ -337,6 +433,8 @@ func _update_gear() -> void:
 
 func _on_died() -> void:
 	state = State.DEAD
+	if _hit_by != null and is_instance_valid(_hit_by):
+		killer_ai_id = _hit_by.get_instance_id()   # (killed by an AI's hit, 0.36.10: the kill feed's business)
 	remove_from_group("enemies")
 	var world := get_tree().current_scene
 	Effects.burst(world, global_position + Vector3(0, 0.9, 0), burst_color)
@@ -348,7 +446,10 @@ func _on_died() -> void:
 		return
 	var drops: Array = []
 	if weapon_drop != "" and randf() < weapon_drop_chance:
-		drops.append(AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance))
+		var gun_stack := AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance)
+		if kit == "pmc":
+			gun_stack.durability = ItemDB.found_durability(weapon_drop)   # (worn 40-100%, like any found gun)
+		drops.append(gun_stack)
 	for id in extra_drops:
 		drops.append([id, 1])
 	for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):
@@ -359,12 +460,22 @@ func _on_died() -> void:
 	for i in randi_range(min_drops, max_drops):
 		var id := ItemDB.roll(loot_table)
 		drops.append([id, ItemDB.roll_count(id)])
+	if kit == "pmc":
+		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
+		drops.append_array(carried_loot)   # (0.36.7: what it took from containers)
+	var title := body_name
+	if bot_name != "":
+		# (an AI PMC, 0.36.2: a player's body, dog tag and all)
+		title = "%s's Body" % bot_name
+		var tag := ItemStack.new("player_tag")
+		tag.label = bot_name.left(ItemStack.LABEL_MAX)
+		drops.append(tag)
 	for drop: Variant in drops:
 		if drop is ItemStack:
 			(drop as ItemStack).mark_found()   # (its gun, the gun's attachments and worn gear are found in raid, 0.16.13)
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	# (Scavs and snipers: their body shows as the backpack they wore, LootContainer.BACKPACK_BODIES, 0.17.12.)
-	LootContainer.spawn_bag(get_parent(), global_position, body_name, drops, 1.0, true)
+	LootContainer.spawn_bag(get_parent(), global_position, title, drops, 1.0, true)
 	queue_free()
 
 
