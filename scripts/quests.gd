@@ -194,10 +194,14 @@ static func searched(box: Node) -> void:
 			raid_marks.append(mark)
 
 
+## Riptide's own AI (0.35.34) counts as what it stands in for: a Deckhand is a scav, an Exion Trooper a Raider.
+const KILL_AS := {"deckhand": "scav", "trooper": "raider"}
+
+
 ## Whether a kill [target, weapon, tags] counts for a kill quest.
 static func kill_counts(quest: Dictionary, kill: Array) -> bool:
 	var tags: Array = kill[2] if kill.size() > 2 and kill[2] is Array else []
-	var target_ok: bool = not quest.has("target") or kill[0] == quest["target"] \
+	var target_ok: bool = not quest.has("target") or kill[0] == quest["target"] or KILL_AS.get(kill[0], "") == quest["target"] \
 		or (quest["target"] == "ai" and str(kill[0]) != "player" and str(kill[0]) != "")
 	return target_ok and (not quest.has("weapon") or kill[1] == quest["weapon"]) \
 		and (not quest.has("tag") or tags.has(quest["tag"]))

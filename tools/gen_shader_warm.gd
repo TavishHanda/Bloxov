@@ -10,7 +10,7 @@ extends SceneTree
 
 const OUT_DIR := "res://assets/warm/"
 ## Scenes that join a raid after it starts (AI, other players), dropped into it so their materials are listed too.
-const RAID_EXTRAS := ["res://scenes/scav.tscn", "res://scenes/raider.tscn", "res://scenes/boss.tscn",
+const RAID_EXTRAS := ["res://scenes/scav.tscn", "res://scenes/raider.tscn", "res://scenes/boss.tscn", "res://scenes/deckhand.tscn", "res://scenes/trooper.tscn",
 	"res://scenes/sniper.tscn", "res://scenes/remote_player.tscn", "res://scenes/loot_bag.tscn",
 	"res://scenes/backpack_bag.tscn", "res://scenes/smoke_column.tscn"]
 

@@ -47,6 +47,12 @@ extends Node3D
 ## guarding the best loot. "zone" = the zone's name in `zones`, "guards" = how many, "chance" = how often a raid
 ## has it (owner: every raid while testing, a chance later). Empty = no boss. Not part of the budgets.
 @export var boss := {}
+## More bosses (0.35.34, owner: Riptide has three, Raijin in the lab and Ace and Orbit in the lower hull), each a
+## Dictionary like `boss`, in its own zone. A boss start marker with metadata `boss_zone` is only for that zone's boss.
+@export var bosses: Array = []
+## The map's own look for its AI (0.35.34, owner: Riptide's scavs are Deckhands and its Raiders Exion Troopers):
+## {"scav": scene path, "raider": scene path}. Same AI, other clothes and names.
+@export var looks := {}
 
 ## Spawned so far this raid.
 var scavs_spawned := 0
@@ -58,6 +64,8 @@ var _raider_wave := 0
 var snipers_spawned := 0
 ## The boss of this raid (null if none).
 var boss_spawned: Scav = null
+## Every boss of this raid (boss_spawned is the first).
+var bosses_spawned: Array[Scav] = []
 ## Where the guards walk around the boss (right/back in its facing), the first three; more get random spots.
 const GUARD_OFFSETS: Array[Vector3] = [Vector3(2.5, 0, 1.5), Vector3(-2.5, 0, 1.5), Vector3(0, 0, 3.5)]
 
@@ -66,8 +74,14 @@ func _ready() -> void:
 	_next_scav = randf_range(scav_interval_min, scav_interval_max)
 	if snipers > 0:
 		_spawn_snipers.call_deferred()
-	if not boss.is_empty() and randf() < float(boss.get("chance", 1.0)):
-		_spawn_boss.call_deferred()
+	if looks.has("scav"):
+		enemy_scene = load(String(looks["scav"])) as PackedScene
+	if looks.has("raider"):
+		raider_scene = load(String(looks["raider"])) as PackedScene
+	var all_bosses := ([boss] if not boss.is_empty() else []) + bosses
+	for b: Dictionary in all_bosses:
+		if randf() < float(b.get("chance", 1.0)):
+			_spawn_boss.call_deferred(b)
 	if not zones.is_empty():
 		_spawn_zones.call_deferred()
 		return
@@ -114,14 +128,17 @@ func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
 ## The boss and its guards, at a spot in its zone: inside its building if the map has start spots for it (markers
 ## with metadata `boss_start`; owner, 0.12.18). They patrol the zone together; guards follow the boss and carry on
 ## patrolling the zone on their own if it dies.
-func _spawn_boss() -> void:
+func _spawn_boss(b: Dictionary = {}) -> void:
+	if b.is_empty():
+		b = boss
 	var zone := {}
 	for z in zones:
-		if z.get("name", "") == boss.get("zone", ""):
+		if z.get("name", "") == b.get("zone", ""):
 			zone = z
 	var spots: Array[Marker3D] = []
 	for child in get_children():
-		if child is Marker3D and child.get_meta("boss_start", false):
+		if child is Marker3D and child.get_meta("boss_start", false) \
+				and String(child.get_meta("boss_zone", zone.get("name", ""))) == String(zone.get("name", "")):
 			spots.append(child as Marker3D)
 	if spots.is_empty():
 		for child in get_children():
@@ -131,28 +148,32 @@ func _spawn_boss() -> void:
 		return
 	var spot := spots.pick_random().global_position as Vector3
 	# (0.33.4: a map's boss can be its own scene, "scene": Riptide's Raijin)
-	var scene := load(String(boss["scene"])) as PackedScene if boss.has("scene") else boss_scene
-	boss_spawned = scene.instantiate() as Scav
-	get_parent().add_child(boss_spawned)
-	boss_spawned.global_position = on_floor(spot)
-	boss_spawned.home_center = zone.get("center", spot)
-	boss_spawned.home_radius = float(zone.get("radius", 0.0))
-	for i in int(boss.get("guards", 0)):
-		# (0.35.6, owner: Raijin's two guards, Ace and Orbit, "more op"): a map's boss can bring its own guards
-		# ("guard_scene") and name them ("guard_names")
-		var guard_scene := load(String(boss["guard_scene"])) as PackedScene if boss.has("guard_scene") else raider_scene
+	var scene := load(String(b["scene"])) as PackedScene if b.has("scene") else boss_scene
+	var the_boss := scene.instantiate() as Scav
+	if boss_spawned == null:
+		boss_spawned = the_boss
+	bosses_spawned.append(the_boss)
+	get_parent().add_child(the_boss)
+	the_boss.global_position = on_floor(spot)
+	the_boss.home_center = zone.get("center", spot)
+	the_boss.home_radius = float(zone.get("radius", 0.0))
+	the_boss.home_height = float(zone.get("height", 0.0))
+	for i in int(b.get("guards", 0)):
+		# (0.35.6: a map's boss can bring its own guards, "guard_scene", and name them, "guard_names")
+		var guard_scene := load(String(b["guard_scene"])) as PackedScene if b.has("guard_scene") else raider_scene
 		var guard := guard_scene.instantiate() as Scav
 		get_parent().add_child(guard)
 		var offset := GUARD_OFFSETS[i] if i < GUARD_OFFSETS.size() else Vector3(randf_range(-4, 4), 0, randf_range(2, 5))
 		guard.follow_offset = offset
 		guard.global_position = clear_spot_near(spot, offset)
-		guard.follow(boss_spawned)
-		guard.home_center = boss_spawned.home_center
-		guard.home_radius = boss_spawned.home_radius
-		var names: Array = boss.get("guard_names", [])
-		guard.body_name = String(names[i]) if i < names.size() else boss_spawned.body_name + "'s Guard"   # (owner, 0.12.39)
+		guard.follow(the_boss)
+		guard.home_center = the_boss.home_center
+		guard.home_radius = the_boss.home_radius
+		guard.home_height = the_boss.home_height
+		var names: Array = b.get("guard_names", [])
+		guard.body_name = String(names[i]) if i < names.size() else the_boss.body_name + "'s Guard"   # (owner, 0.12.39)
 		guard.stays_home = true   # (owner: Bon and his guards patrol their area, they don't run to every gunshot)
-		guard.leash = boss_spawned.leash
+		guard.leash = the_boss.leash
 
 
 ## Raid start with zones: each zone's own scavs and Raiders, then the roamers.
@@ -254,6 +275,7 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 	if zone_name != "":
 		enemy.home_center = zone.get("center", spot)
 		enemy.home_radius = float(zone.get("radius", 0.0))
+		enemy.home_height = float(zone.get("height", 0.0))
 		enemy.home_avoid = zone.get("avoid", [])
 		enemy.home_edge = float(zone.get("edge", 0.0))
 	if picked.has_meta("building"):
@@ -268,6 +290,7 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 			partner.follow(enemy)
 			partner.home_center = enemy.home_center
 			partner.home_radius = enemy.home_radius
+			partner.home_height = enemy.home_height
 			partner.home_avoid = enemy.home_avoid
 			partner.home_edge = enemy.home_edge
 			raiders_spawned += 1

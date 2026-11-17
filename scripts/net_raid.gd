@@ -5,8 +5,10 @@ extends Node
 ## Scavs and Raiders run on the server (RaidWorld); here they're puppets that show what the server's do.
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
-## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider).
-const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn")]
+## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand and
+## 5 Exion Trooper, Riptide's own, 0.35.34).
+const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn"),
+	preload("res://scenes/deckhand.tscn"), preload("res://scenes/trooper.tscn")]
 
 @export var player: Player
 @export var enemy_spawner: Node

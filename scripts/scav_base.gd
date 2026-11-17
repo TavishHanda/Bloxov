@@ -331,6 +331,9 @@ var _snap_shot := false
 ## whole map (the few random roamers, and every AI on the test map). Fights can still pull it out.
 var home_center := Vector3.ZERO
 var home_radius := 0.0
+## How far up or down from home_center its area reaches (0 = any height). A zone's "height" (0.35.34, Riptide:
+## the ship's decks are stacked, so Ace patrols the lower hull, not the deck above him).
+var home_height := 0.0
 ## Parts of its area it keeps out of: Vector3(x, radius, z) circles (0.12.31, owner: the town's scavs stay away
 ## from the town hall and the bank, where Bon's guards and the Raiders are), and how far out (fraction of
 ## home_radius) its open-ground patrol stops sit (the town's scavs patrol round the edges of town).
@@ -350,7 +353,7 @@ func _near_home(point: Vector3) -> bool:
 	var boss := leader if leader != null and is_instance_valid(leader) else self
 	if boss._trip_point != Vector3.INF and _flat(point - boss._trip_point).length() <= leash:
 		return true   # out on a trip (a fight there doesn't send it straight home)
-	return home_radius <= 0.0 or _flat(point - home_center).length() <= home_radius + leash
+	return home_radius <= 0.0 or (_flat(point - home_center).length() <= home_radius + leash and _in_height(point))
 
 
 ## Below hurt_fraction (or wounded): plays safer, no pushing, flanking or chasing (0.12.32).
@@ -411,7 +414,12 @@ func _in_home(point: Vector3) -> bool:
 	for circle: Vector3 in home_avoid:
 		if Vector2(point.x - circle.x, point.z - circle.z).length() <= circle.y:
 			return false
-	return _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0)
+	return _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0) and _in_height(point)
+
+
+## Within its area's height band (always true without one).
+func _in_height(point: Vector3) -> bool:
+	return home_height <= 0.0 or absf(point.y - home_center.y) <= home_height
 var _hunting := false
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false

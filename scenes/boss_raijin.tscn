@@ -10,3 +10,6 @@ helmet = "helmet_assault"
 weapon_drop = "reaper"
 loadout = "reaper"
 held_model = "reaper"
+
+[node name="Health" parent="." index="2"]
+max_health = 400
