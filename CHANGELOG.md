@@ -7,6 +7,25 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.33 (Site Zero's new layout)
+Riptide's lab redesigned (owner: "the layout is completely random"; plan v2 OK'd 2026-11-17, pictures in the project
+files riptide/lab/). Laid out like a real containment lab, clean to dirty from the bow:
+- **Intake**: the bow stairs and the service tube come out at a security checkpoint; a locker room (with showers) and a
+  security office either side.
+- **Decon**: two airlocks into the lab (the side rooms flank them), the air plant between them.
+- **Main Lab**: one open, two-storey lab floor (owner: not "a bunch of rooms together"): a glass cleanroom pod in the
+  middle, freezer racks (cold store) and specimen benches on the west wall, sequencers, bench islands, and an office
+  mezzanine on the east wall (a ramp up, a ladder at its north end) with the director's office (the safe) looking down.
+- **Hub** under the moon pool (washrooms, break room, the sample lift), then **Holding**: cells either side of a third
+  lane down the middle; Receiving (the dock's freight ramp) and the med bay either side.
+- **Incubation Hall** (the boss room, same size; owner's favourite): the four corner tanks are growth tanks on plinths
+  with consoles, Raijin's own tank broken open in the middle; 4 doors plus the balcony ladder, windows from the ring
+  and from the new **Observation** room upstairs.
+- **Operations** aft: control room, the tower stairs' lobby, server room, quarters, power room.
+Same three ways in, the same sub bay extract, the same loot counts per place, guards and Raijin; some loot and guard
+spots moved into the new rooms. The corridors bend round the hall and stop at the hub, so no lane runs the whole lab
+(before: one 72 m straight corridor).
+
 ## 0.35.32 (Riptide: no floating container)
 - The container terminal's gantry crane carried a container-blue box hanging in the air under its girders (owner:
   "a floating shipping container"). It is now the crane's trolley, rust like the crane, riding between the girders.
