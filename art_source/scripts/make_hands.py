@@ -77,6 +77,7 @@ GUNS = {
     "wasp": {"grip": (0.034, 0.046, -12, 0.0), "fore": (0.054, 0.05)},
     "mauler": {"grip": (0.056, 0.075, -75, 0.038), "fore": (0.068, 0.058)},
     "lancer": {"grip": (0.06, 0.07, -70, 0.022), "fore": (0.064, 0.04)},
+    "reaper": {"grip": (0.03, 0.044, -22, 0.0), "fore": (0.062, 0.062)},
 }
 F = 0.022   # finger thickness (0.017 until 0.32.2, owner: "the hands are too skinny")
 

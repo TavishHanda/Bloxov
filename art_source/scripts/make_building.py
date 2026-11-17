@@ -4931,9 +4931,10 @@ def set_import_script(glb):
             f.write(text)
 
 
-def write_glb(path, builder, textures, mat_info, atlas=None, parts=None):
+def write_glb(path, builder, textures, mat_info, atlas=None, parts=None, atlas_name="kit_atlas"):
     """The model as a .glb: one mesh, one primitive per material, flat normals (or the builder's vnormals), nearest-filtered textures.
     atlas ({kit name: cell corner}): those materials become one "kit_atlas" material, the cell corner in TEXCOORD_1.
+    atlas_name: that material's name (Riptide's models use their own sheet, "riptide_atlas": make_riptide.py).
     parts (optional): extra movable pieces, [{"name": "Lid", "builder": Builder(), "origin": (x, y, z)}]. Each becomes
     a child node of the model, its mesh built round `origin` (its hinge), so scripts can turn it in place."""
     blob = bytearray()
@@ -4962,7 +4963,7 @@ def write_glb(path, builder, textures, mat_info, atlas=None, parts=None):
     targets = []                                   # the glb's materials (the atlas ones merged into one)
     for b in builders:
         for mname in b.mat_names:
-            t = "kit_atlas" if mname in atlas else mname
+            t = atlas_name if mname in atlas else mname
             if t not in targets:
                 targets.append(t)
     # Faces that sway in the wind (0.28.0, make_outdoor.py SWAY: wires, tent canvas, camo nets): a second atlas
@@ -4973,7 +4974,7 @@ def write_glb(path, builder, textures, mat_info, atlas=None, parts=None):
         targets.append("kit_sway")
     images, tex_index, materials = [], {}, []
     for mname in targets:
-        if mname in ("kit_atlas", "kit_sway"):     # its texture comes from the shader material (import script)
+        if mname in (atlas_name, "kit_sway"):     # its texture comes from the shader material (import script)
             materials.append({"name": mname, "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1],
                               "metallicFactor": 0.0, "roughnessFactor": 1.0}})
             continue
@@ -4995,7 +4996,7 @@ def write_glb(path, builder, textures, mat_info, atlas=None, parts=None):
     def mesh_prims(bld, origin=(0.0, 0.0, 0.0)):
         """One primitive per material of `bld`, its corners moved round `origin` (a lid's hinge)."""
         prims = []
-        target_of = [targets.index("kit_atlas" if m in atlas else m) for m in bld.mat_names]
+        target_of = [targets.index(atlas_name if m in atlas else m) for m in bld.mat_names]
         sway_faces = getattr(bld, "sway", None) or {}
         for mi in range(len(targets)):
             pos, nrm, uv, uv2, col, idx = [], [], [], [], [], []
@@ -5031,7 +5032,7 @@ def write_glb(path, builder, textures, mat_info, atlas=None, parts=None):
                                          "NORMAL": add_accessor(nrm, 5126, "VEC3", 34962),
                                          "TEXCOORD_0": add_accessor(uv, 5126, "VEC2", 34962),
                                          **({"TEXCOORD_1": add_accessor(uv2, 5126, "VEC2", 34962)}
-                                            if targets[mi] in ("kit_atlas", "kit_sway") else {}),
+                                            if targets[mi] in (atlas_name, "kit_sway") else {}),
                                          **({"COLOR_0": add_accessor(col, 5126, "VEC3", 34962)} if has_col else {})},
                           "indices": add_accessor(idx, 5125, "SCALAR", 34963), "material": mi})
         return prims

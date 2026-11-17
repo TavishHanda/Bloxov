@@ -10,10 +10,10 @@ extends RefCounted
 const REST_TURN := {"shotgun": Vector3(0.0, 0.1, 0.1)}
 ## Where each model sits at rest, and when aimed (centred; the height comes from the model's iron sights, see
 ## aim_height()). The rifle's and pistol's rest places are their nodes' in player.tscn.
-const REST := {"smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2, -0.42), "sniper": Vector3(0.22, -0.2, -0.44)}
-const ADS := {"smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.072, -0.38), "sniper": Vector3(0, -0.084, -0.4)}
+const REST := {"reaper": Vector3(0.22, -0.2, -0.42), "smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2, -0.42), "sniper": Vector3(0.22, -0.2, -0.44)}
+const ADS := {"reaper": Vector3(0, -0.092, -0.26), "smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.072, -0.38), "sniper": Vector3(0, -0.084, -0.4)}
 ## View model key -> the weapon whose model it shows (HeldGun.MODELS).
-const WEAPONS := {"rifle": "ak", "pistol": "pistol", "smg": "smg", "shotgun": "shotgun", "sniper": "sniper"}
+const WEAPONS := {"rifle": "ak", "reaper": "reaper", "pistol": "pistol", "smg": "smg", "shotgun": "shotgun", "sniper": "sniper"}
 ## Aimed, the sight line runs through the middle of the screen, where the shots go (0.21.16: it sat 3 mm under it,
 ## so the sights pointed a little low of the crosshair, owner).
 
@@ -130,7 +130,12 @@ static func aim_place(model: Node3D, ads: Vector3) -> Vector3:
 ## Shows `attachments` (slot -> id) on first-person `model`: their models (assets/models/guns/att_<id>.glb) under an
 ## "Attachments" node, the mag stretched for an extended mag, the muzzle moved out past a barrel part. `muzzle_rest` is
 ## where the muzzle sits bare. Returns how far the optic raises the sight line (aiming lowers the gun by that much).
-static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_rest: Vector3) -> float:
+## 0.35.28: the same attachments as last time are left on (switching guns used to take them off and build them again,
+## and on the web building a part's look again froze the game: owner, a lag spike on every switch to the secondary).
+static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_rest: Vector3) -> float:
+	var dressed := var_to_str(attachments)
+	if model.get_meta(&"dressed", "") == dressed and model.has_node("Attachments"):
+		return float(model.get_meta(&"raise", 0.0))
 	var old := model.get_node_or_null("Attachments")
 	if old != null:
 		model.remove_child(old)
@@ -150,10 +155,15 @@ static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_r
 	var raise := 0.0
 	for slot: String in attachments:
 		var path := "res://assets/models/guns/att_%s.glb" % attachments[slot]
+		var own := "res://assets/models/guns/att_%s_%s.glb" % [attachments[slot], key]   # a gun's own look of it (0.35.18)
+		if ResourceLoader.exists(own):
+			path = own
 		var mount := art.get_node_or_null({"scope": "Optic", "sight": "Optic", "grip": "Fore"}.get(slot, "Muzzle")) as Node3D
 		if mount == null or not ResourceLoader.exists(path):
 			continue
-		var part: Node3D = (load(path) as PackedScene).instantiate()
+		if not _parts.has(path):
+			_parts[path] = load(path)
+		var part: Node3D = (_parts[path] as PackedScene).instantiate()
 		PixelModel.make_crisp(part)
 		for mesh: GeometryInstance3D in part.find_children("*", "GeometryInstance3D", true, false):
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -167,20 +177,26 @@ static func dress(model: Node3D, _key: String, attachments: Dictionary, muzzle_r
 				var end := part.get_node_or_null("End") as Node3D
 				if end != null:
 					muzzle.position = muzzle_rest + end.position
+	model.set_meta(&"dressed", dressed)
+	model.set_meta(&"raise", raise)
 	return raise
+
+
+## Attachment models loaded so far, kept (0.35.28): loading one again on every switch made new copies of its looks.
+static var _parts := {}
 
 
 # --- Animations (0.20.24, owner: reload animations and a visual kick per shot) ------------------------
 
 ## How hard each model jolts back and up when it fires. Only the model moves: aim, recoil and spread don't change.
-const KICK := {"rifle": 1.0, "pistol": 0.8, "smg": 0.65, "shotgun": 1.7, "sniper": 1.9}
+const KICK := {"rifle": 1.0, "reaper": 0.9, "pistol": 0.8, "smg": 0.65, "shotgun": 1.7, "sniper": 1.9}
 
 ## Each view model's own reload (0.25.29, owner: the Lancer had the same reload as the pistol): "rock" (the Hound: the
 ## mag rocks out and back in, the handle on its right is racked), "slap" (the Wasp: the cocking handle is locked back,
 ## the mag swapped, the handle slapped home), "drop" (the Stinger: the mag drops out of the grip, a new one goes in from
 ## below, the slide is racked), "bolt" (the Lancer: the bolt turns up and back, rounds are pushed in from the top, the
 ## bolt goes home), "shells" (the Mauler: a shell at a time into the port underneath).
-const RELOAD_STYLE := {"rifle": "rock", "smg": "slap", "pistol": "drop", "sniper": "bolt", "shotgun": "shells"}
+const RELOAD_STYLE := {"rifle": "rock", "reaper": "rock", "smg": "slap", "pistol": "drop", "sniper": "bolt", "shotgun": "shells"}
 
 
 ## The kick's offset to the model's place and turn, for kick amount `kick` (a spring, about 1 at its peak) and

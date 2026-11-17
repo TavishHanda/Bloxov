@@ -27,6 +27,8 @@ var _t := {"R": 1.0, "L": 1.0}
 var _ladder: Ladder
 ## How fast the eyes are going up or down (m/s, smoothed), and where they were.
 var _speed := 0.0
+## The same, signed: up is positive (which way the hands should be reaching).
+var _vel := 0.0
 var _last_eye := 0.0
 ## How far up (0) and out of view (1) the hands are: they come up as you grab on and drop away when you let go.
 var _away := 1.0
@@ -70,6 +72,7 @@ func _process(delta: float) -> void:
 	var eye := (get_parent() as Node3D).global_position.y
 	if delta > 0.0:
 		_speed = lerpf(_speed, absf(eye - _last_eye) / delta, minf(delta * 10.0, 1.0))
+		_vel = lerpf(_vel, (eye - _last_eye) / delta, minf(delta * 10.0, 1.0))
 	_last_eye = eye
 	if ladder != null:
 		_step(eye, delta)
@@ -100,9 +103,13 @@ func _step(eye: float, delta: float) -> void:
 	var low := "R" if int(_rung["R"]) <= int(_rung["L"]) else "L"
 	var high := "L" if low == "R" else "R"
 	var top := _ladder.rung_count() - 1
-	if _ladder.rung_y(_rung[low]) < eye - LOW and int(_rung[high]) < top:
-		_reach(low, mini(int(_rung[high]) + 2, top))
-	elif _ladder.rung_y(_rung[high]) > eye + HIGH and int(_rung[low]) > 0:
+	# Only reach the way we're going (0.35.13: going up, the top hand sits well above the eyes, which used to send it
+	# back DOWN the ladder, so the hands pumped up and down and swung across the view).
+	if _vel > 0.1 and _ladder.rung_y(_rung[low]) < eye - LOW and int(_rung[high]) < top:
+		# (not past about a forearm above the eyes: higher and the hand is out of view and its sleeve fills the screen)
+		var target := clampi(_nearest(eye + 0.4), int(_rung[high]) + 1, int(_rung[high]) + 2)
+		_reach(low, mini(target, top))
+	elif _vel < -0.1 and _ladder.rung_y(_rung[high]) > eye + HIGH and int(_rung[low]) > 0:
 		_reach(high, maxi(int(_rung[low]) - 2, 0))
 	# Far off (a teleport, a fall): grab again round the eyes.
 	if absf(_ladder.rung_y(_rung["R"]) - eye) > 1.5:

@@ -1,0 +1,10 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/boss.tscn" id="1_boss"]
+
+[node name="Boss" instance=ExtResource("1_boss")]
+body_name = "Ace"
+extra_drops = PackedStringArray("intel_exion")
+
+[node name="Health" parent="." index="2"]
+max_health = 300

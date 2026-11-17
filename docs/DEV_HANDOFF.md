@@ -65,7 +65,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
   `default_bus_layout.tres` and are never added at runtime (web loses Master); `game_settings.gd` owns the bus volumes.
   One-shot files come from `tools/make_sounds.py` (22 kHz mono); shot variants from
   `tools/make_sound_variants.py` (baked so web and desktop match). Sound 2.0's plan and file list:
-  `docs/SOUND_2_PLAN.md`.
+  `docs/archive/SOUND_2_PLAN.md`.
 - **Online:** `net.gd` (`Net` autoload, used as `Network.main`; client + server RPCs), `matchmaker.gd` (parties,
   queue, raids; pure logic), `raid_world.gd` (one SubViewport world per server raid: map, AI, proxies, shot checks,
   shared containers), `hitbox.gd` (shared player hitbox math + state flags), `net_raid.gd` (client side of a raid:
@@ -104,9 +104,9 @@ standing rules) and you're caught up. Where this file and the code disagree, the
    check (`send_later`, ~6 min) works well. Tell the owner when it's live.
 
 ## 5. Deploy / infrastructure
-- CI `.github/workflows/web.yml`: import → smoke test → hideout run → web export → GitHub Pages; jobs `heroku`
-  (deploys the server with `HEROKU_API_KEY`; `HEROKU_ON: "true"`) and `server` (Fly.io, dormant without
-  `FLY_API_TOKEN`). The server must run the **same version** as the web build (it rejects mismatched clients), so
+- CI `.github/workflows/web.yml`: import → smoke test → hideout run → web export → GitHub Pages; job `heroku`
+  (deploys the server with `HEROKU_API_KEY`; `HEROKU_ON: "true"`; only when server files changed, see job `changes`;
+  the Fly.io setup was deleted in 0.35.1). The server must run the **same version** as the web build (it rejects mismatched clients), so
   every push redeploys both.
 - Heroku: app `bloxov-server`, one Basic dyno (flat ~$7/month, covered by the owner's student credit; usage can't
   spike: one dyno, `MAX_ONLINE` 40, `Matchmaker.MAX_RAIDS` 4). Kill switch: Heroku → Resources → turn the dyno off.
@@ -116,7 +116,7 @@ standing rules) and you're caught up. Where this file and the code disagree, the
 - **Database (built, 0.31.x):** Heroku Postgres via `DATABASE_URL`; `server/` is the Stash API (Node + `pg`, one
   migration in `server/migrations/`). `server/start.sh` runs it beside the game server on 127.0.0.1 and restarts it;
   without `DATABASE_URL` the game server runs alone. PvP accounts and the online stash live there; PvE stays local and
-  accountless. Read `docs/STASH_UPDATE_PLAN.md` before changing accounts, the online stash or the kit handshake.
+  accountless. Read `docs/archive/STASH_UPDATE_PLAN.md` before changing accounts, the online stash or the kit handshake.
 - Sandbox notes: Docker works after `dockerd &` (apt inside containers has no network: copy the local Godot binary
   in for tests). The sandbox can't reach the Heroku server directly (proxy); the owner's own test is the proof.
 

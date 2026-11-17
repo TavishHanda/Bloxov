@@ -76,6 +76,7 @@ var _queue_info: Label
 var _queue_since_msec := 0
 var _start_now_button: Button
 var _online_status: Label
+var _reload_button: Button   # web only: shown when the server says an update is out (0.35.14)
 var _save_queued := false
 ## Saved loadouts (0.21.2): the panel, its list, the name box and the BUY NEW box.
 var _loadouts_panel: PanelContainer
@@ -182,6 +183,8 @@ func _process(_delta: float) -> void:
 	# The online panel's status line takes no room while it has nothing to say.
 	if _online_status != null:
 		_online_status.visible = _online_status.text != ""
+		if _reload_button != null:
+			_reload_button.visible = _online_status.visible and Network.main.update_needed
 
 
 ## Only one tab plays (TabLock, 0.17.5): any other shows this notice over everything until the first tab closes.
@@ -1484,7 +1487,7 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 		var name := "bloxov-pvp-data-%s.json" % Network.main.account_name
 		SaveBackup.save_text(self, JSON.stringify(data, "  "), name, func(line: String) -> void: _signin_note.text = line)
 		return
-	if ok and data.get("token") is String:
+	if ok and data.get("token") is String and SessionStore.wants_remember():
 		SessionStore.save(data["token"], str(data.get("username", "")))
 	if ok and data.has("profile"):
 		_show_online_profile()
@@ -1578,6 +1581,12 @@ func _show_signin_page(page: String) -> void:
 			user.text = str(SessionStore.read().get("username", ""))
 			var password: LineEdit = edit.call("Password", "Password (10+ characters)", true, 128)
 			password.text_submitted.connect(func(_t: String) -> void: _press_sign_in("sign_in", false))
+			var remember := CheckBox.new()
+			remember.name = "Remember"
+			remember.text = "Remember me on this device"
+			remember.button_pressed = SessionStore.wants_remember()
+			remember.toggled.connect(SessionStore.set_remember)
+			_signin_box.add_child(remember)
 			button.call("SignIn", "SIGN IN", true, _press_sign_in.bind("sign_in", false))
 			button.call("Again", "TAKE OVER HERE", false, func() -> void:
 				if _last_account.is_empty():
@@ -1600,6 +1609,12 @@ func _show_signin_page(page: String) -> void:
 			edit.call("Password", "Password (10+ characters)", true, 128)
 			var confirm: LineEdit = edit.call("Confirm", "Confirm password", true, 128)
 			confirm.text_submitted.connect(func(_t: String) -> void: _press_sign_in("sign_up", false))
+			var remember := CheckBox.new()
+			remember.name = "Remember"
+			remember.text = "Remember me on this device"
+			remember.button_pressed = SessionStore.wants_remember()
+			remember.toggled.connect(SessionStore.set_remember)
+			_signin_box.add_child(remember)
 			button.call("Create", "CREATE ACCOUNT", true, _press_sign_in.bind("sign_up", false))
 			button.call("Back", "BACK", false, func() -> void:
 				_signin_note.text = ""
@@ -1753,6 +1768,11 @@ func _on_connection_lost() -> void:
 	_online_status.text = "Lost the connection to the server."
 	_refresh_online()
 	if Profile.mode == Profile.ONLINE and signin_panel != null:
+		var session := SessionStore.read()
+		if not session.is_empty():
+			_message("Lost the connection: signing back in...")
+			_account_action("resume", {"token": session["token"]})   # (remember me: no password needed)
+			return
 		open_signin()
 		_signin_note.text = "Lost the connection to the server. Sign in again to keep playing PvP."
 
@@ -1929,6 +1949,13 @@ func _build_online_panel() -> void:
 	HudStyle.style_label(_online_status, 20, HudStyle.HAZARD)
 	_online_status.add_theme_font_override("font", HudStyle.spaced_font(20))
 	column.add_child(_online_status)
+	if OS.has_feature("web"):
+		_reload_button = Button.new()
+		_reload_button.text = "RELOAD"
+		LootUI.style_button(_reload_button)
+		_reload_button.visible = false
+		_reload_button.pressed.connect(func() -> void: JavaScriptBridge.eval("location.reload()"))
+		column.add_child(_reload_button)
 	if GameSettings.pvp_stash_on():
 		var account_button := Button.new()
 		account_button.name = "AccountButton"

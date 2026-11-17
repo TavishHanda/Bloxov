@@ -5,9 +5,10 @@ extends Node
 ## Scavs and Raiders run on the server (RaidWorld); here they're puppets that show what the server's do.
 
 const REMOTE_SCENE := preload("res://scenes/remote_player.tscn")
-## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider).
+## Puppet copies of the server's scavs and Raiders (by kind: 0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand and
+## 5 Exion Trooper, Riptide's own, 0.35.34; 6 AI PMC, 0.36.1, was 4 on its branch).
 const ENEMY_SCENES := [preload("res://scenes/scav.tscn"), preload("res://scenes/raider.tscn"), preload("res://scenes/sniper.tscn"), preload("res://scenes/boss.tscn"),
-	preload("res://scenes/pmc_ai.tscn")]   # (net_kind 4: AI PMCs, 0.36.1)
+	preload("res://scenes/deckhand.tscn"), preload("res://scenes/trooper.tscn"), preload("res://scenes/pmc_ai.tscn")]
 
 @export var player: Player
 @export var enemy_spawner: Node
@@ -17,6 +18,7 @@ var remotes := {}
 ## Server enemy id -> puppet Scav.
 var enemy_puppets := {}
 var _last_enemies_msec := -1
+var _last_hit_at := Vector3.ZERO   # where our last confirmed hit landed (for a kill's distance)
 ## Shared loot: the container we asked to open, the one we have open (and its grids, kept in case the bag is
 ## freed when emptied), and whether its contents changed since we last told the server.
 var _asked: LootContainer = null
@@ -335,6 +337,7 @@ func apply_hit(amount: int, from: Vector3, headshot: bool, burst := -1) -> void:
 
 
 func _on_shot_confirmed(headshot: bool, amount: int, pos: Vector3) -> void:
+	_last_hit_at = pos
 	var world := get_tree().current_scene
 	# The player we hit flinches right away (0.25.22), before their own state says so.
 	var hit_body: RemotePlayer = null
@@ -360,8 +363,11 @@ func _on_kill_confirmed(target: String) -> void:
 	if target != "player":   # (a player kill is in the feed already: the server tells the whole raid)
 		player.killed.emit(target)
 	# (for the quest tracker only: the server counts the kills, and their tags, itself)
+	# (the hit that killed it came just before: its point on the victim gives the distance, 0.35.5, so the tracker
+	# shows far kills too)
 	var weapon := player.gun.weapon
-	Quests.record_kill(target, weapon.id if weapon != null else "", ["quiet"] if weapon != null and weapon.attachments.values().has("suppressor") else [])
+	var quiet := weapon != null and weapon.attachments.values().has("suppressor")
+	Quests.record_kill(target, weapon.id if weapon != null else "", Quests.kill_tags(player.global_position, _last_hit_at, quiet))
 	Effects.sound(get_tree().current_scene, Gun.KILL_SOUND, -2.0, 0.0)
 	player.gun.hit_confirmed.emit(true, false)
 

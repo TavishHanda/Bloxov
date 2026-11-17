@@ -21,7 +21,7 @@ const SECTIONS: Array[String] = [
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
-	"sound",
+	"sound", "netlock",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -69,6 +69,9 @@ func _initialize() -> void:
 	# PvP is on for everyone since 0.31.4; the sections test the one-stash online flow unless they force it on.
 	_pvp_default_was = GameSettings.pvp_stash_default
 	GameSettings.pvp_stash_default = false
+	# TEMP playtest AI cut (0.35.21): the map checks below expect the real numbers; one check turns it back on.
+	_ai_scale_was = Network.playtest_ai_scale
+	Network.playtest_ai_scale = 1.0
 	# Watchdog: if a script error stops the test mid-way, fail instead of hanging CI. (Game time: with --fixed-fps
 	# it runs faster than real time; the whole test is about 445 game seconds.)
 	create_timer(600.0, true).timeout.connect(func() -> void:
@@ -801,13 +804,23 @@ func _section_ladder() -> void:
 	await create_timer(0.3).timeout
 	Input.action_press("move_forward")
 	var climbed := false
+	var climb_hands := player.camera.find_children("*", "ClimbHands", true, false)[0] as ClimbHands
+	var hand_back := false
+	var hand_top := 0
 	for i in 60 * 4:
 		await physics_frame
 		climbed = climbed or player.is_climbing()
+		if player.is_climbing():
+			# (0.35.13) going up, neither hand ever goes back down a rung
+			for side: String in ["R", "L"]:
+				if climb_hands._rung[side] < hand_top - 2:
+					hand_back = true
+				hand_top = maxi(hand_top, climb_hands._rung[side])
 		if climbed and not player.is_climbing():
 			break
 	Input.action_release("move_forward")
 	await create_timer(0.3).timeout
+	_check(climbed and not hand_back, "climbing up, the hands only ever reach up (top rung %d)" % hand_top)
 	var top := player.global_position
 	_check(climbed and top.y > 3.9 and top.y < 4.2 and top.z < spot.z and not player.is_climbing(),
 		"W climbs the ladder onto the platform (at %s)" % str(top.snapped(Vector3.ONE * 0.1)))
@@ -845,6 +858,28 @@ func _section_ladder() -> void:
 	Input.action_release("move_forward")
 	await physics_frame
 	_check(not player.is_climbing() and player.global_position.y < 0.3, "W looking down climbs off at the bottom")
+	# 0.35.9: S always climbs down, even looking down (it used to climb up then).
+	player.teleport_to(spot + Vector3(0, 0.1, 1.2))
+	player.rotation.y = 0.0
+	player.head.rotation.x = 0.0
+	await create_timer(0.3).timeout
+	Input.action_press("move_forward")
+	for i in 60:
+		await physics_frame
+	Input.action_release("move_forward")
+	var s_mid := player.global_position.y
+	player.head.rotation.x = deg_to_rad(-50.0)
+	Input.action_press("move_back")
+	for i in 30:
+		await physics_frame
+	Input.action_release("move_back")
+	_check(s_mid > 1.0 and player.global_position.y < s_mid - 0.5,
+		"on a ladder, S goes down even looking down (y %.2f -> %.2f)" % [s_mid, player.global_position.y])
+	for i in 60 * 2:
+		await physics_frame
+		if not player.is_climbing():
+			break
+	player.head.rotation.x = deg_to_rad(-50.0)   # (the next check starts looking down)
 	# From the platform: turn round, look down and walk over the edge onto the ladder, then down it.
 	player.teleport_to(spot + Vector3(0, 4.1, -0.6))
 	player.rotation.y = PI   # facing +Z, out over the ladder
@@ -1322,6 +1357,28 @@ func _section_items() -> void:
 	_check(key != null and door.prompt(inv) == "Unlock with Bank Vault Key", "with the key on you: [F] Unlock")
 	_check(door.unlock(inv) and door.is_open and inv.key_for("BankVaultDoor") == key and key.durability == 4,
 		"unlocking opens it and uses one of the key's 5 uses (%d left)" % key.durability)
+	# Two of the same key (0.35.22, owner): only one wears, the most-used one first; the other stays full.
+	inv.add("bank_vault_key")
+	var spare: ItemStack = null
+	for grid in inv.grids():
+		for stack in grid.stacks:
+			if stack.id == "bank_vault_key" and stack != key:
+				spare = stack
+	var spare_uses := spare.durability if spare != null else -1
+	inv.use_key(inv.key_for("BankVaultDoor"))
+	_check(spare != null and key.durability == 3 and spare.durability == spare_uses and inv.key_for("BankVaultDoor") == key,
+		"two of the same key: only the most-used one loses a use (%d left), the other stays at %d" % [key.durability, spare_uses])
+	if spare != null:
+		for grid in inv.grids():
+			if grid.stacks.has(spare):
+				grid.remove(spare)
+	# The secure pocket's key goes first (0.35.25, owner), even when the pocket one is more used.
+	var safe := ItemStack.new("bank_vault_key", 1)
+	safe.durability = ItemDB.max_durability("bank_vault_key")
+	inv.secure.place(safe)
+	_check(inv.key_for("BankVaultDoor") == safe and key.durability < safe.durability,
+		"a key in the secure pocket is used before one in the pockets, even a more-used one")
+	inv.secure.remove(safe)
 	key.durability = 1
 	inv.use_key(key)
 	_check(inv.count_of("bank_vault_key") == 0 and inv.key_for("BankVaultDoor") == null, "the key's last use: it's gone")
@@ -1553,6 +1610,10 @@ func _section_equipment() -> void:
 	_check(not inv.equip("armor", ItemStack.new("pistol")), "a pistol doesn't go in the armor slot")
 	await _press("weapon_2")
 	_check(gun.weapon == pistol and not gun.auto and gun.mag_size == 12 and gun.ammo_id == "pistol_ammo", "key 2 switches to the semi-auto pistol")
+	var pistol_parts: Node = gun.model.get_node("Attachments")
+	await _press("weapon_1")
+	await _press("weapon_2")
+	_check(gun.model.get_node("Attachments") == pistol_parts, "switching back keeps the pistol's attachments (not built again: 0.35.28 lag fix)")
 	await _press("weapon_1")
 	_check(gun.weapon == inv.equipped("primary") and gun.auto and gun.mag_size == 30, "key 1 switches back to the AK")
 	inv.equip("armor", ItemStack.new("armor_heavy"))
@@ -2730,6 +2791,23 @@ func _section_hideout_world() -> void:
 	_check(world.menu_open(), "Tab opens the menu")
 	world._unhandled_input(tab)
 	_check(not world.menu_open(), "Tab again closes it")
+	# TEMP playtest (0.35.29): the free camera works in the hideout too (F2), and the menu ends it.
+	if FreeCam.playtest_anywhere:
+		var f2 := InputEventAction.new()
+		f2.action = "free_cam"
+		f2.pressed = true
+		world._unhandled_input(f2)
+		await _frames(2)
+		_check(world.free_cam.active and walker.locked and walker.get_viewport().get_camera_3d() == world.free_cam.camera,
+			"hideout: F2 starts the free camera (you stand still)")
+		world._unhandled_input(tab)
+		await _frames(2)
+		_check(not world.free_cam.active and world.menu_open() and walker.get_viewport().get_camera_3d() == walker.camera,
+			"hideout: opening the menu ends the free camera")
+		world.close_menu()
+		world._unhandled_input(f2)
+		world._unhandled_input(f2)
+		_check(not world.free_cam.active and not walker.locked, "hideout: F2 again comes back")
 	# Walking: forward from the spawn for a second, and the war table stops you.
 	walker.global_position = spawn + Vector3.UP * 0.05
 	walker.rotation = Vector3.ZERO
@@ -3472,6 +3550,10 @@ func _section_hideout() -> void:
 	_check(Quests.gain(Quests.LIST["long_haul"], [], [], 0, "Highway") == 1 and Quests.gain(Quests.LIST["long_haul"], [], [], 0, "FarmRoad") == 0
 		and Quests.gain(Quests.LIST["close_quarters"], [["raider", "shotgun", []], ["scav", "shotgun"]], [], 0, "") == 1,
 		"Long Haul only counts the Highway, Close Quarters only Raiders")
+	# 0.35.23 (owner): Field Test counts any AI killed with a Mauler (scavs, Raiders, guards, bosses), never a player.
+	_check(Quests.gain(Quests.LIST["field_test"], [["scav", "shotgun"], ["raider", "shotgun", []], ["boss", "shotgun"],
+		["boss_raijin", "shotgun"], ["guard_raijin", "shotgun"], ["sniper", "shotgun"], ["player", "shotgun"], ["raider", "ak"]], [], 0, "") == 6,
+		"Field Test counts every AI killed with a Mauler, but not players or other guns")
 	Profile.quests_done.append_array(["restock", "pharmacy_run"])
 	Profile.rewards_taken.append("restock")
 	Quests.raid_started()
@@ -3692,6 +3774,7 @@ func _section_settings() -> void:
 
 
 var _pvp_default_was := false
+var _ai_scale_was := 1.0
 
 
 func _section_stash_modes() -> void:
@@ -3814,6 +3897,13 @@ func _section_stash_modes() -> void:
 		and not FileAccess.get_file_as_string(SessionStore.PATH).contains("password"), "a session is kept and read back")
 	SessionStore.clear()
 	_check(SessionStore.read().is_empty(), "signing out clears the session")
+	_check(SessionStore.wants_remember(), "remember me is on by default")
+	SessionStore.save("abc123", "tester")
+	SessionStore.set_remember(false)
+	_check(not SessionStore.wants_remember() and SessionStore.read().is_empty(), "remember me off forgets the kept session")
+	SessionStore.set_remember(true)
+	_check(SessionStore.wants_remember(), "remember me back on")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SessionStore.PREF_PATH))
 	var file := FileAccess.open(Profile.PATH, FileAccess.WRITE)
 	file.store_string(solo_file)
 	file.close()
@@ -4120,8 +4210,14 @@ func _section_net() -> void:
 		c.connect_failed.connect(func(reason: String) -> void: log[c].append(reason))
 		c.raid_started.connect(func() -> void: log[c].append("raid"))
 		c.notice.connect(func(text: String) -> void: log[c].append(text))
-	_check(server.join_problem("0.0.1").contains("Reload"), "an outdated game is told to reload")
-	_check(server.join_problem(server.version()) == "", "the right version can come online")
+	var nv: int = server.net_version()
+	_check(nv >= 1, "the net version is set in project.godot")
+	_check(server.join_problem(str(nv)) == "", "the same net version can come online")
+	_check(server.join_problem("0.35.1") == "update" and server.join_problem("") == "update", "an old game (it sends its game version) is told to update")
+	_check(server.join_problem(str(nv - 1)) == "update", "a lower net version is told to update")
+	_check(server.join_problem(str(nv + 1)) == "server_updating", "a higher net version is told the server is updating")
+	_check(server.join_problem(str(nv)) == "" and server.version() != "0.0.1", "a different game version with the same net version still joins (it sends only the net version)")
+	_check(Network.reason_text("update").contains("update is out") and Network.reason_text("server_updating").contains("The server is updating"), "the reserved reasons turn into text")
 	c1.go_online("localhost:19081", "Alpha")
 	c2.go_online("localhost:19081", "Bravo")
 	c3.go_online("localhost:19081", "Charlie")
@@ -5480,7 +5576,7 @@ func _section_online_bots() -> void:
 	var world: RaidWorld = server._worlds[raid_id]
 	var bots := RaidScope.nodes(world.raid, &"enemies").filter(func(e: Node) -> bool: return e.get("bot_name") != "")
 	_check(raid["bots"] == Matchmaker.bots_for(1, raid["seed"]) and bots.size() == raid["bots"] and world.bots.size() == bots.size()
-		and bots.all(func(b: Node) -> bool: return b.net_kind == 4 and b.loner),
+		and bots.all(func(b: Node) -> bool: return b.net_kind == 6 and b.loner),
 		"a lone player's raid gets its %d AI PMCs on the server" % bots.size())
 	var bot_names: Array = bots.map(func(b: Node) -> String: return b.bot_name)
 	var unique := {}
@@ -5532,8 +5628,8 @@ func _section_online_bots() -> void:
 		farthest = farthest and absf(bot_dist[i] - spots[i]) < 1.0
 	_check(farthest and bots.all(func(b: Node) -> bool: return b.state == Scav.State.IDLE),
 		"the bots start at the calmest free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist))
-	await _until(func() -> bool: return c1.enemies.filter(func(e: Array) -> bool: return e[1] == 4).size() == bots.size())
-	_check(c1.enemies.filter(func(e: Array) -> bool: return e[1] == 4).size() == bots.size(), "the player's game gets them as AI PMC puppets")
+	await _until(func() -> bool: return c1.enemies.filter(func(e: Array) -> bool: return e[1] == 6).size() == bots.size())
+	_check(c1.enemies.filter(func(e: Array) -> bool: return e[1] == 6).size() == bots.size(), "the player's game gets them as AI PMC puppets")
 
 	# A bot hurts the player: its kill if they die; a scav's hit after it takes that back.
 	var bot := bots[0] as Scav
@@ -5917,14 +6013,42 @@ func _section_riptide() -> void:
 	var zone_names: Array = spawner.zones.map(func(z: Dictionary) -> String: return z.name)
 	var boss_starts := spawner.get_children().filter(func(m: Node) -> bool: return m.get_meta("boss_start", false))
 	_check(zone_names.has("Lab") and zone_names.has("Landing") and boss_starts.size() >= 1
-		and spawner.boss.get("zone", "") == "Lab", "Riptide's AI zones, and the boss starts in the lab's core")
+		and boss_starts.all(func(m: Node) -> bool: return m.get_meta("boss_zone", "") == "Lab")
+		and spawner.bosses.map(func(b: Dictionary) -> String: return b.zone) == ["Lab", "Fore", "Aft"],
+		"Riptide's AI zones, and its three bosses: Raijin in the lab's core, Ace fore and Orbit aft in the lower hull")
+	# 0.35.34 (owner): three boss groups, each boss with two weak guards; Riptide's own Deckhands and Exion Troopers
+	await process_frame
+	await process_frame
+	var crews: Array = spawner.bosses_spawned.map(func(b: Scav) -> String: return "%s:%d" % [b.body_name,
+		RaidScope.nodes(spawner, &"enemies").filter(func(e: Node) -> bool: return e is Scav and (e as Scav).leader == b).size()])
+	_check(crews == ["Raijin:2", "Ace:2", "Orbit:2"], "Riptide raids start with Raijin, Ace and Orbit, two guards each (%s)" % [crews])
+	var ace_spawned: Scav = spawner.bosses_spawned[1] if spawner.bosses_spawned.size() > 1 else null
+	_check(ace_spawned != null and is_equal_approx(ace_spawned.home_height, 4.0) and ace_spawned.global_position.z < -15.0
+		and ace_spawned.global_position.y > -10.0 and ace_spawned.global_position.y < 0.0
+		and not ace_spawned._in_home(Vector3(48, 4.0, -60)) and ace_spawned._in_home(Vector3(48, -8.0, -60)),
+		"Ace starts and patrols in the lower hull's fore end, not the deck above")
+	var kinds := {}
+	for e in RaidScope.nodes(spawner, &"enemies"):
+		kinds[String(e.scene_file_path).get_file().get_basename()] = true
+	_check(kinds.has("deckhand") and not kinds.has("scav") and not kinds.has("raider"),
+		"Riptide's scavs are Deckhands and its Raiders Exion Troopers (%s)" % [kinds.keys()])
+	if _ai_scale_was < 1.0:   # TEMP playtest AI cut (0.35.21)
+		var cut := EnemySpawner.new()
+		cut.set("zones", spawner.zones)
+		cut.set("bosses", spawner.bosses)
+		cut.set("max_alive", spawner.max_alive)
+		RaidMap._scale_ai(cut, _ai_scale_was)
+		var cut_zones: Array = cut.get("zones")
+		_check(int(cut.get("max_alive")) == roundi((spawner.max_alive - 9) * _ai_scale_was) + 9 and int(cut_zones[0].scavs) < int(spawner.zones[0].scavs)
+			and spawner.zones[0].scavs == 5, "playtest: Riptide's AI cut to %d%% (max alive %d)" % [roundi(_ai_scale_was * 100), cut.get("max_alive")])
+		cut.free()
 	# 0.33.3: 15-minute raids (owner), and the sub bay shut until its power switch is thrown (which opens it)
 	var fake := Node.new()
 	var raid_node := Raid.new()
 	raid_node.name = "Raid"
 	fake.add_child(raid_node)
 	RaidMap.load_map(fake, MAP)
-	_check(is_equal_approx(raid_node.raid_time, 900.0), "Riptide raids last 15 minutes (the map's raid metadata)")
+	_check(is_equal_approx(raid_node.raid_time, Network.PLAYTEST_RAID_TIME if Network.PLAYTEST_RAID_TIME > 0.0 else 900.0), "Riptide raids last 15 minutes (the map's raid metadata)")
 	fake.free()
 	var sub: ExtractZone = world.raid.find_child("SubBay", true, false)
 	var power: MapSwitch = world.raid.find_child("SubBayPower", true, false)
@@ -5961,25 +6085,71 @@ func _section_riptide() -> void:
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
 	swimmer.free()
-	# Zero (0.33.4, owner's list): his own scene, gun and gear, and what only he drops
-	var zero := (load("res://scenes/boss_zero.tscn") as PackedScene).instantiate() as Scav
-	root.add_child(zero)
-	_check(zero.body_name == "Zero" and zero.carried_gun == "reaper" and zero.weapon_drop == "reaper" and zero.weapon_drop_chance == 1.0
-		and zero.armor == "armor_assault" and zero.helmet == "helmet_assault"
-		and is_equal_approx(zero.health.damage_multiplier, 0.5) and is_equal_approx(zero.health.head_multiplier, 0.45),
-		"Zero carries the Reaper and wears assault armor and helmet")
-	_check(Array(zero.extra_drops) == ["formula", "backpack_raid"], "Zero drops the Formula and the Raid Pack")
-	zero.free()
-	var zero_map := (load(MAP) as PackedScene).instantiate()
-	var spawner_meta: Dictionary = zero_map.get_meta("spawner", {})
-	zero_map.free()
-	_check(String((spawner_meta.get("boss", {}) as Dictionary).get("scene", "")) == "res://scenes/boss_zero.tscn", "Riptide's boss is Zero")
+	# Going down into the lab never puts you back at your spawn (0.35.16: the default kill height is -20)
+	var diver := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
+	world.raid.add_child(diver)
+	diver.global_position = Vector3(48.0, -18.0, 86.0)   # the south wing's corridor, the lab's lower deck
+	for i in 30:
+		await physics_frame
+	_check(float(world.raid.get_meta("kill_height", 0.0)) < -40.0 and diver.global_position.y < -17.0 and diver.global_position.y > -19.0 and diver.is_on_floor(),
+		"you can stand on the lab's lower deck (y %.2f, kill height %.0f)" % [diver.global_position.y, float(world.raid.get_meta("kill_height", 0.0))])
+	diver.global_position = Vector3(48.0, -30.0, 150.0)   # under the old kill height, in open water: still not put back
+	await physics_frame
+	await physics_frame
+	_check(diver.global_position.distance_to(Vector3(48.0, -18.0, 86.0)) > 30.0, "and -30 is still inside the map")
+	diver.free()
+	# The AI stays out of the sea (0.35.3): a move off the pier's edge is stopped, a move along the pier isn't
+	var dry := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	world.raid.add_child(dry)
+	dry.global_position = Vector3(12.0, 1.6, -1.2)
+	for i in 20:
+		await physics_frame
+	dry.global_position = Vector3(12.0, 1.5, -1.2)   # (it may have wandered: back to the edge, checked at once)
+	_check(dry.is_on_floor() and dry._keep_out_of_water(Vector3(0, 0, -4), 0.0) == Vector3.ZERO,
+		"a scav's step off the pier over the sea is stopped (on floor %s)" % dry.is_on_floor())
+	_check(dry._keep_out_of_water(Vector3(4, 0, 0), 0.0) == Vector3(4, 0, 0) and dry._keep_out_of_water(Vector3(0, 0, 4), 0.0) == Vector3(0, 0, 4),
+		"and its steps along and across the pier are left alone")
+	dry.free()
+	# Raijin (0.33.4 as Zero, renamed 0.35.6, owner's list): his own scene, gun and gear, and what only he drops
+	var raijin := (load("res://scenes/boss_raijin.tscn") as PackedScene).instantiate() as Scav
+	root.add_child(raijin)
+	_check(raijin.body_name == "Raijin" and raijin.carried_gun == "reaper" and raijin.weapon_drop == "reaper" and raijin.weapon_drop_chance == 1.0
+		and raijin.armor == "armor_assault" and raijin.helmet == "helmet_assault"
+		and is_equal_approx(raijin.health.damage_multiplier, 0.5) and is_equal_approx(raijin.health.head_multiplier, 0.45),
+		"Raijin carries the Reaper and wears assault armor and helmet")
+	_check(Array(raijin.extra_drops) == ["formula", "backpack_raid"], "Raijin drops the Formula and the Raid Pack")
+	raijin.free()
+	var riptide_map := (load(MAP) as PackedScene).instantiate()
+	var spawner_meta: Dictionary = riptide_map.get_meta("spawner", {})
+	riptide_map.free()
+	var bosses_meta: Array = spawner_meta.get("bosses", [])
+	_check(bosses_meta.map(func(b: Dictionary) -> String: return String(b.scene).get_file()) == ["boss_raijin.tscn", "boss_ace.tscn", "boss_orbit.tscn"]
+		and bosses_meta.all(func(b: Dictionary) -> bool: return int(b.guards) == 2 and b.guard_scene == "res://scenes/guard_riptide.tscn"),
+		"Riptide's bosses are Raijin, Ace and Orbit, two guards each")
+	# (owner, 0.35.34: every boss tougher than Bon, Raijin the toughest; the guards "somewhat non threatening")
+	var hp := {}
+	for who in ["boss", "boss_raijin", "boss_ace", "boss_orbit", "guard_riptide", "deckhand", "trooper"]:
+		var one := (load("res://scenes/%s.tscn" % who) as PackedScene).instantiate() as Scav
+		root.add_child(one)
+		hp[who] = [one.health.max_health, one.armor, one.shot_damage, one.accuracy_near, one.body_name, one.faction, one.net_kind]
+		one.free()
+	_check(hp.boss[0] == 250 and hp.boss_ace[0] == 300 and hp.boss_orbit[0] == 300 and hp.boss_raijin[0] == 400
+		and hp.boss_ace[4] == "Ace" and hp.boss_orbit[4] == "Orbit", "Ace and Orbit have 300 hp, Raijin 400, Bon 250 (%s)" % [hp])
+	_check(hp.guard_riptide[0] == 100 and hp.guard_riptide[1] == "armor_light"
+		and is_equal_approx(hp.guard_riptide[3], 0.6) and hp.guard_riptide[5] == &"raider", "the bosses' guards are weak: 100 hp, light armor, scav aim (%s)" % [hp.guard_riptide])
+	_check(hp.deckhand[5] == &"scav" and hp.deckhand[6] == 4 and hp.trooper[5] == &"raider" and hp.trooper[6] == 5
+		and NetRaid.ENEMY_SCENES[4].resource_path == "res://scenes/deckhand.tscn" and NetRaid.ENEMY_SCENES[5].resource_path == "res://scenes/trooper.tscn",
+		"Deckhands and Exion Troopers have their own online puppets")
+	_check(Quests.kill_counts(Quests.LIST["hard_targets"], ["trooper", "", []]) and Quests.kill_counts({"kind": "kill", "target": "scav"}, ["deckhand", "", []])
+		and not Quests.kill_counts(Quests.LIST["big_game"], ["boss_ace", "", []]), "a Deckhand counts as a scav and a Trooper as a Raider for quests")
+	_check(KillFeedHUD.display_name("trooper") == "Exion Trooper" and KillFeedHUD.display_name("boss_orbit") == "Orbit"
+		and KillFeedHUD.display_name("deckhand") == "Deckhand", "the kill feed names Riptide's AI")
 	_check(ItemDB.item("formula")["value"] == 100000 and ItemDB.item("formula")["rarity"] == "legendary"
 		and ItemDB.item("reaper")["ammo"] == "rifle_ammo" and ItemDB.item("reaper")["rarity"] == "epic" and ItemDB.item("reaper")["value"] == 30000
 		and ItemDB.item("armor_assault")["reduction"] == 0.5 and ItemDB.item("helmet_assault")["reduction"] == 0.55
-		and ItemDB.item("backpack_raid")["grid"] == [7, 6], "Zero's loot: Formula $100k, Reaper on Hound rounds, assault gear, 7x6 Raid Pack")
+		and ItemDB.item("backpack_raid")["grid"] == [7, 6], "Raijin's loot: Formula $100k, Reaper on Hound rounds, assault gear, 7x6 Raid Pack")
 	_check(ItemDB.attachment_slot_for("reaper", "suppressor") != "" and Traders.trader_for("reaper") == "" and Traders.trader_for("armor_assault") == "",
-		"the Reaper takes the Hound's parts; Zero's gear is never sold")
+		"the Reaper takes the Hound's parts; Raijin's gear is never sold")
 	world.queue_free()
 	await process_frame
 	# Riptide online (0.33.8): the leader picks the map, the server runs that raid on it for 15 minutes, and the
@@ -6015,7 +6185,7 @@ func _section_riptide() -> void:
 	var sub_zone := rip.raid.get_node("Extracts/SubBay") as Node3D
 	var rip_switch := rip.switches()[0] as Node3D
 	_check(c1.raid_map == 1 and RaidMap.scene_path == MAP and rip.raid.get_node("Extracts").get_child_count() == 6
-		and is_equal_approx(c1.raid_time_left, 900.0), "the server runs the raid on Riptide, for 15 minutes, and tells the players")
+		and is_equal_approx(c1.raid_time_left, Network.PLAYTEST_RAID_TIME if Network.PLAYTEST_RAID_TIME > 0.0 else 900.0), "the server runs the raid on Riptide, for 15 minutes, and tells the players")
 	RaidMap.scene_path = ""
 	_check(rip.extract_at(sub_zone.global_position).is_empty() and not rip.extract_at(rip.raid.get_node("Extracts/Cove").global_position).is_empty(),
 		"the server's sub bay is shut until the power is on (other extracts count)")
@@ -6078,6 +6248,11 @@ func _section_old_bloxov() -> void:
 		and (tree_list.get_meta(&"data", PackedFloat32Array()) as PackedFloat32Array).size() > 7 * 1000
 		and tree_list.get_meta(&"look", -1) == map_trees.get(&"look"),
 		"the map's trees come from their own list file, which the hideout builds them from")
+	# 0.35.27 (owner: "the ladder in the barn makes u climb it backwards"): it was turned the wrong way, leaning out
+	# into the barn, so you faced away from the loft. It leans west onto the loft (tools/ladder_audit.gd checks them all).
+	var barn_ladder := map.get_node_or_null("Ladders/Ladder1") as Node3D
+	_check(barn_ladder != null and barn_ladder.get_meta(&"place", "") == "Barn" and barn_ladder.transform.basis.z.x > 0.9,
+		"the barn's ladder leans west onto the loft, so you climb it facing the loft")
 	var spots: Array[Vector3] = []
 	for node in map.get_node("PlayerSpawns").get_children() + map.get_node("Extracts").get_children():
 		spots.append((node as Node3D).position)
@@ -6095,9 +6270,9 @@ func _section_old_bloxov() -> void:
 	var zone_spots := {}
 	for m: Node in spawner.get_children():
 		zone_spots[m.get_meta("zone", "")] = zone_spots.get(m.get_meta("zone", ""), 0) + 1
-	_check(zone_names.has("PoliceBank") and zone_names.has("SouthEast") and start_ai >= 20 and start_ai <= 30
-		and spawner.roamers == 3 and spawner.max_alive >= 30,
-		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 3 roamers" % [zone_names, start_ai])
+	_check(zone_names.has("PoliceBank") and zone_names.has("SouthEast") and start_ai >= 15 and start_ai <= 30
+		and spawner.roamers == 2 and spawner.max_alive >= 30,
+		"Scavs 2.0: the map has AI zones (%s), %d AI at the start, 2 roamers" % [zone_names, start_ai])
 	_check(spawner.zones.all(func(z: Dictionary) -> bool: return zone_spots.get(z.name, 0) > int(z.scavs) + int(z.raiders)),
 		"...and every zone has more spawn spots than AI starting there (%s)" % [zone_spots])
 	var loot := world.raid.get_node("Loot").get_children()
@@ -6146,7 +6321,7 @@ func _section_old_bloxov() -> void:
 	# Far view (outdoor step 10): every building model has a far version (tools/far_bake.gd; re-bake after rebuilding one).
 	var no_far := []
 	for file in DirAccess.get_files_at(FarView.MODELS):
-		if file.ends_with(".glb") and file != "hideout.glb":   # (the hideout isn't on the map: no far view)
+		if file.ends_with(".glb") and file != "hideout.glb" and not file.get_basename() in FarView.NO_FAR:   # (the hideout isn't on the map: no far view)
 			var far := FarView.FAR + file.get_basename() + ".res"
 			if not FileAccess.file_exists(far):
 				no_far.append(file.get_basename())
@@ -6585,7 +6760,7 @@ func _section_pmc_ai() -> void:
 	var b := _spawn(PMC_AI_SCENE, Vector3(-30, 0.1, 30)) as Scav
 	var scav := _spawn(SCAV_SCENE, Vector3(30, 0.1, -30)) as Scav
 	await physics_frame
-	_check(NetRaid.ENEMY_SCENES[4].resource_path == PMC_AI_SCENE and a.net_kind == 4, "AI PMCs are net kind 4 (the fifth puppet scene)")
+	_check(NetRaid.ENEMY_SCENES[6].resource_path == PMC_AI_SCENE and a.net_kind == 6, "AI PMCs are net kind 6 (the seventh puppet scene)")
 	_check(a.health.max_health == 100, "an AI PMC has 100 HP")
 	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
 	_check(is_equal_approx(ref.accuracy_near, 0.7) and is_equal_approx(ref.accuracy_far, 0.35) and is_equal_approx(ref.accuracy_long, 0.2)
@@ -10393,8 +10568,20 @@ func _section_free_cam() -> void:
 		await physics_frame
 	Input.action_release("jump")
 	_check(cam.camera.global_position.y > up_from + 0.3 and player.is_on_floor(), "jump flies up (and you don't jump)")
-	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
+	# TEMP playtest (0.35.29): no leash, through walls; still never in online (PvP) raids (0.35.30).
 	var head := player.global_position + Vector3.UP * 1.5
+	var anywhere := FreeCam.playtest_anywhere
+	if anywhere:
+		_check(head.distance_to(cam.blocked_move(head, head + Vector3(0, 0, 300))) > 299.0, "playtest: the free camera flies anywhere")
+		var net_mode: int = Network.main.mode
+		var net_in_raid: bool = Network.main.in_raid
+		Network.main.mode = Network.Mode.CLIENT
+		Network.main.in_raid = true
+		_check(not FreeCam.allowed() and not FreeCam.time_allowed(), "playtest: still not in online (PvP) raids")
+		Network.main.mode = net_mode
+		Network.main.in_raid = net_in_raid
+	FreeCam.playtest_anywhere = false
+	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
 	var far := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 200))
 	_check(far.distance_to(head) <= FreeCam.LEASH + 0.01, "the free camera stays within %d m (%.1f m)" % [FreeCam.LEASH, far.distance_to(head)])
 	var wall := StaticBody3D.new()
@@ -10410,6 +10597,7 @@ func _section_free_cam() -> void:
 	var hidden_spot := head + Vector3(0, 0, 9)   # (behind the wall, out of your sight: can't move there)
 	_check(cam.blocked_move(hidden_spot, hidden_spot + Vector3(1, 0, 0)) == hidden_spot, "the free camera can't move where it can't see you")
 	wall.queue_free()
+	FreeCam.playtest_anywhere = anywhere
 	await physics_frame
 	cam.change_speed(1)
 	_check(cam.speed() > FreeCam.SPEEDS[FreeCam.START_SPEED], "the speed goes up")
@@ -10572,3 +10760,11 @@ func _section_touch() -> void:
 	_check(hud_bar.slot_at(Vector2(-100, -100)) == -1, "no hotbar slot off screen")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	touch.process_mode = Node.PROCESS_MODE_INHERIT
+
+
+## The online contract lock (0.35.14): the @rpc list and the shared rule files must match tests/net_lock.txt, so nobody
+## changes what client and server agree on without deciding about config/net_version (docs/context/ONLINE.md).
+func _section_netlock() -> void:
+	var lock := load("res://tools/net_lock_core.gd")
+	var problems: PackedStringArray = lock.problems()
+	_check(problems.is_empty(), ("The online contract changed: %s. Raise config/net_version in project.godot if old games would break, then re-record with `godot --headless -s tools/net_lock.gd`. If old games still work, just re-record." % "; ".join(problems)) if not problems.is_empty() else "the online contract matches tests/net_lock.txt")

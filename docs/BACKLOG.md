@@ -18,7 +18,7 @@ Notes from playtesting. Nothing here is scheduled yet; we tackle one area at a t
   placeholders from `tools/make_sounds.py`. **The hideout bunker ambience (0.30.2) is approved by the owner
   (2026-11-04: "ambience sounds good")**; leave it alone unless they ask again. Optional next: the hi-fi pass
   (0.30.4), only for the sounds the owner picks after comparing old and new. Plan and status:
-  `docs/SOUND_2_PLAN.md`.
+  `docs/archive/SOUND_2_PLAN.md`.
 - **Scav/PMC pathing bug (owner, 0.5.0):** walk right up into an enemy and it can't shoot you; it just walks into you.
   Fix with the scav/AI pass (close-range behavior: back off or shoot point-blank, don't push into the player).
 - **Body bags should despawn when fully looted (owner, 0.5.7).** Moving the last item out already removes the bag

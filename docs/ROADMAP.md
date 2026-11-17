@@ -117,7 +117,7 @@ Steam fee dates, is `docs/RELEASE_PLAN.md`. It comes before the older list below
   optional, a one-time recovery code resets it, Steam links later; one active session), a database (Heroku's disk is
   wiped on restart), and the store rules on accounts
   (`STORE_RULES.md` §4: delete account in-game, Sign in with Apple if other logins are offered, no forced
-  account for solo). The current save becomes the solo stash. **Plan: `docs/STASH_UPDATE_PLAN.md`** (the PvE/PvP split,
+  account for solo). The current save becomes the solo stash. **Plan: `docs/archive/STASH_UPDATE_PLAN.md`** (the PvE/PvP split,
   the account model, the companion API and Postgres schema, the four levels of server authority, migration, phases,
   tests, risks and the open questions the owner still needs to answer).
 - **Shared hideouts (owner, 2026-11-01; later, "when it's the right time"):** when you're in someone's lobby you can
@@ -135,7 +135,7 @@ Steam fee dates, is `docs/RELEASE_PLAN.md`. It comes before the older list below
   walls; footsteps and enemy shots cut through while ambience dips in a fight. Echo and muffle are baked into the
   files, since the web skips bus effects. Footstep range and your own gun's loudness stay as today (owner).
   Optional: a full-quality remake of today's sounds (made at 22 kHz mono now), only for the sounds the owner picks
-  after comparing old and new. Plan: `docs/SOUND_2_PLAN.md` (the steps, the file list, the numbers and the
+  after comparing old and new. Plan: `docs/archive/SOUND_2_PLAN.md` (the steps, the file list, the numbers and the
   decisions that need the owner).
 - **Online security update (before the web beta / Steam; owner 2026-10-12, from a friend's checklist):** a server
   authority audit plus free, home-made anti-cheat (no paid anti-cheat service). Already on the server: what every

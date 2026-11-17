@@ -409,7 +409,7 @@ func _note_ai_hit(peer: int, from: Vector3) -> void:
 	_bot_hits.erase(peer)
 
 
-## Every living scav/Raider/sniper: [id, kind (0 scav, 1 Raider, 2 sniper, 3 boss), net_capture(), gun (AILoadouts.NET_GUNS)].
+## Every living scav/Raider/sniper/bot: [id, kind (0 scav, 1 Raider, 2 sniper, 3 boss, 4 Deckhand, 5 Exion Trooper, 6 AI PMC), net_capture(), gun (AILoadouts.NET_GUNS)].
 func enemy_states() -> Array:
 	var list := []
 	for enemy in RaidScope.nodes(raid, &"enemies"):

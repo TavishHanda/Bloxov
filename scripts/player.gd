@@ -514,7 +514,15 @@ func _physics_process(delta: float) -> void:
 	_was_on_floor = is_on_floor()
 	_update_footsteps(delta)
 
-	if global_position.y < kill_height:
+	if is_nan(_map_kill_height):
+		_map_kill_height = kill_height
+		var above := get_parent()
+		while above != null:
+			if above.has_meta(&"kill_height"):
+				_map_kill_height = float(above.get_meta(&"kill_height"))
+				break
+			above = above.get_parent()
+	if global_position.y < _map_kill_height:
 		global_position = _spawn_position
 		velocity = Vector3.ZERO
 		_fall_speed = 0.0
@@ -798,6 +806,9 @@ const HEARTBEAT_BELOW := 0.3      # of max health
 const HEARTBEAT_EVERY := 0.95
 var _breath_wait := 0.0
 var _heart_wait := 0.0
+## 0.35.26 (owner: "woosh woosh" when running long on Riptide): a map with `no_breath` metadata has no breath sound.
+## -1 = not looked up yet, 0 = breath on, 1 = off.
+var _no_breath := -1
 
 func _body_sounds(delta: float) -> void:
 	_breath_wait -= delta
@@ -805,7 +816,15 @@ func _body_sounds(delta: float) -> void:
 	if health == null or health.is_dead or extracted or get_tree().paused:
 		return
 	var low_stamina := is_exhausted or stamina < max_stamina * BREATH_BELOW
-	if low_stamina and not downed and _breath_wait <= 0.0:
+	if _no_breath < 0:
+		_no_breath = 0
+		var above := get_parent()
+		while above != null:
+			if above.has_meta(&"no_breath"):
+				_no_breath = 1 if above.get_meta(&"no_breath") else 0
+				break
+			above = above.get_parent()
+	if low_stamina and not downed and _no_breath == 0 and _breath_wait <= 0.0:
 		_breath_wait = BREATH_EVERY * WorldSounds.rng.randf_range(0.9, 1.1)
 		WorldSounds.own_soft(self, WorldSounds.BREATH, WorldSounds.BREATH_DB + (2.0 if is_exhausted else 0.0), 0.08)
 	if health.current < health.max_health * HEARTBEAT_BELOW and _heart_wait <= 0.0:

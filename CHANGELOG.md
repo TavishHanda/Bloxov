@@ -7,6 +7,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.16 (AI PMCs join main)
+The AI PMC phase (0.36.0-0.36.15) is merged into main with Riptide's 0.35.32-0.35.34 (owner, 2026-11-17: "push this to
+main"; he picked "Frontlines fix, Riptide as is"). The bot switch (`Matchmaker.bots_on`, server `--bots`) stays OFF, so
+players see no bots yet.
+- AI PMCs are now net kind 6 (Riptide's Deckhand and Exion Trooper took 4 and 5 on main); `NetRaid.ENEMY_SCENES[6]`.
+- Net version 2 -> 3 (item, account and matchmaking rules changed on the branch): old games are asked to update.
+
 ## 0.36.15 (AI PMCs: Frontlines tuning for extracting)
 Built on the AI PMC branch (switch still off). Owner's target (2026-11-17): about 1/3 to 1/2 of AI PMCs extract.
 Numbers pending the owner's OK; only `scripts/pmc_ai.gd` and the tests changed.
@@ -255,6 +262,303 @@ Built on a branch while 0.35.0 is the current phase; nothing changes for players
 - With AI PMCs on, a player alone in the PvP queue waits 90 seconds and then gets a raid; AI PMCs make it 3 PMCs in all, real players counted (4 in about 1 raid in 4). So a lone player meets 2 bots, 3 now and then. Two or more real players keep the 30 second group countdown and are topped up the same way; a raid with 3+ real players gets none. Bots are always alone, never in pairs. `Matchmaker` only records the count (`bots`); the bots themselves come in the next pieces.
 - Server switches `--bots` and `--bot-wait=`; the smoke test covers the rule.
 
+## 0.35.34 (Riptide's three bosses)
+Owner, 2026-11-17: "raijin, orbit and ace should be like 3 bosses", each with "2 kinda somewhat non threatening
+guards", all tougher than Bon, Raijin the toughest; and Riptide's own scavs and Raiders "to show we are in a different
+place". Plan OK'd the same day.
+- **Three boss groups, every raid.** Raijin holds Site Zero (the lab's two decks) with his two guards following him.
+  **Ace** patrols the north end of the lower hull (the pump room and the front of the cargo hold), **Orbit** the south
+  end (the engine room, the back of the hold, the workshops), each with two guards. Before, Ace and Orbit were
+  Raijin's guards.
+- **Health:** Raijin 400 (was 250; he keeps his assault armor), Ace and Orbit 300, Bon stays 250. Ace and Orbit
+  fight like Bon (Hound, heavy armor, never take cover) and drop a guaranteed valuable: Ace the Exion Orders, Orbit a
+  Military Chip.
+- **Guards** (scenes/guard_riptide.tscn): weak on purpose: 100 hp, light armor, a scav's aim, a Raider's guns.
+- **Deckhands and Exion Troopers:** Riptide's scavs are Deckhands (the ship's crew left behind: work overalls, hi-vis,
+  hard hats) and its Raiders Exion Troopers (near-black fatigues with the X1 mark). Same AI and numbers, new looks
+  (art_source/scripts/make_character.py `deckhand`, `trooper`) and names in the kill feed and on bodies. Quests count
+  a Deckhand as a scav and a Trooper as a Raider. Picture: project files riptide/ai/.
+- The hold starts with 2 scavs (was 4) now the bosses' crews are below; max alive 28 -> 34 to make room for the 6 new
+  boss AI (the playtest AI cut leaves the bosses and their room alone).
+- Map screen: "BOSSES: RAIJIN, ACE, ORBIT".
+- Code: EnemySpawner `bosses` (several bosses, each in its own zone; `boss_zone` on a boss start marker) and `looks`
+  (a map's own scav/Raider scenes); zones can have a `height` (the AI's area stops at the decks above and below:
+  Riptide's lab, Fore and Aft). Online: AI kinds 4 (Deckhand) and 5 (Trooper) have their own puppets; **net version 2**.
+
+## 0.35.33 (Site Zero's new layout)
+Riptide's lab redesigned (owner: "the layout is completely random"; plan v2 OK'd 2026-11-17, pictures in the project
+files riptide/lab/). Laid out like a real containment lab, clean to dirty from the bow:
+- **Intake**: the bow stairs and the service tube come out at a security checkpoint; a locker room (with showers) and a
+  security office either side.
+- **Decon**: two airlocks into the lab (the side rooms flank them), the air plant between them.
+- **Main Lab**: one open, two-storey lab floor (owner: not "a bunch of rooms together"): a glass cleanroom pod in the
+  middle, freezer racks (cold store) and specimen benches on the west wall, sequencers, bench islands, and an office
+  mezzanine on the east wall (a ramp up, a ladder at its north end) with the director's office (the safe) looking down.
+- **Hub** under the moon pool (washrooms, break room, the sample lift), then **Holding**: cells either side of a third
+  lane down the middle; Receiving (the dock's freight ramp) and the med bay either side.
+- **Incubation Hall** (the boss room, same size; owner's favourite): the four corner tanks are growth tanks on plinths
+  with consoles, Raijin's own tank broken open in the middle; 4 doors plus the balcony ladder, windows from the ring
+  and from the new **Observation** room upstairs.
+- **Operations** aft: control room, the tower stairs' lobby, server room, quarters, power room.
+Same three ways in, the same sub bay extract, the same loot counts per place, guards and Raijin; some loot and guard
+spots moved into the new rooms. The corridors bend round the hall and stop at the hub, so no lane runs the whole lab
+(before: one 72 m straight corridor).
+
+## 0.35.32 (Riptide: no floating container)
+- The container terminal's gantry crane carried a container-blue box hanging in the air under its girders (owner:
+  "a floating shipping container"). It is now the crane's trolley, rust like the crane, riding between the girders.
+- A container stack in the cargo hold (by the bow stairs) stood half inside the bow stairwell; it moved 5 m east,
+  clear of the stairs. A check over every container on the map found no others off the ground.
+
+## 0.35.31 (Riptide art: the Leviathan's outside)
+Riptide art step 1 (plan: the "Riptide art plan" doc; owner picked hull scheme C and a clean pass first, 2026-11-17).
+Looks only: every box still collides exactly as before (same layout, cover, ladders, loot, AI).
+- The Leviathan gets its model (`leviathan_hull`, 26k triangles of a 60k budget): a red drillship hull with weld
+  seams and rust runs, dark anti-fouling under the water and a black band at the waterline, white inside the rails,
+  yellow rail caps; LEVIATHAN on both bows (under the strake, owner: the strake hid the letters' tops) and the stern, draft marks fore and aft, anchors in their pockets, a
+  rubbing strake (broken at every hull door and ladder).
+- Grey non-slip deck with painted walkways, hazard bands round the hatches and on the coamings, ramps with anti-slip
+  bars; real 20-foot containers (corrugated, doors, corner posts, three made-up lines: ORMA LINE, KESTREL, TIDELINE);
+  pipe racks; the three deck cranes (round pedestal, cab, box jib with its load mark and a hook out of reach).
+- The drill floor: white legs with hazard stripes, girders underneath, a yellow derrick with bracing (from 4 m over
+  the floor, out of reach: shots go through its gaps as they look), the crown, travelling block and top drive, flood
+  lights (baked, no real lights), the drawworks, the riser, the driller's shack with its sign, DRILL FLOOR and NO
+  SMOKING signs. The moon pool's rails on the main deck and drill floor and the riser joined the model.
+- Riptide has its own texture sheet (`assets/textures/riptide_atlas.png`, the same shader as Frontlines' atlas), so
+  nothing on Frontlines changed. New `art_source/scripts/make_riptide.py`.
+- Speed: busiest Riptide view 1,107 -> 1,132 draw calls (web, under Frontlines' 1,450). The hull has no far mesh
+  (`FarView.NO_FAR`: you can stand in it 100 m from its middle).
+- Tools: `riptide_view.gd` ship and sign views, `perf_view.gd -- map=riptide`.
+
+## 0.35.30 (playtest free camera: PvE only)
+Owner: "can we make sure its only in PvE for now".
+- The free camera is off in online (PvP) raids again, as before 0.35.29. Solo (PvE) raids keep the playtest's free
+  flying (no leash, through walls), and the walkable hideout keeps it too.
+
+## 0.35.29 (playtest: free camera anywhere)
+Owner: "since the free cam is temporary for play testers right now anyways, can you make it so you can free cam
+anywhere? just to help explore and find bugs/issues faster".
+- TEMP, for the playtest: the free camera (F2, or FREE CAMERA in the pause menu) now works in online raids and in the
+  walkable hideout too, and flies anywhere: no 25 m leash, and through walls, doors and the ground. Online it has no
+  slow motion or stopped time (the server keeps time). In the hideout it's keys only (no touch button there) and has
+  slow motion but not stopped time; opening the menu ends it.
+- One switch: `FreeCam.playtest_anywhere` in `scripts/free_cam.gd`. Set it to `false` before release (online it lets
+  you see through walls); that puts back solo-raids-only with the leash and walls, and the smoke test checks both.
+
+## 0.35.28 (no lag spike switching guns)
+Owner: "whenever you switch from primary to secondary it always lags as well, like huge lag spike for a couple seconds".
+- The gun you weren't holding was first drawn when you switched to it, so its look (and its attachments' look: a red
+  dot's is drawn nowhere else) was built right then; on the web that froze the game. Every first-person gun is now drawn
+  once, too small to see, behind the loading screen at raid start, with your other gun's attachments already on
+  (`Gun._warm_models`, like `Effects.warm_up` for the shots).
+- Switching also took the gun's attachments off and loaded and built them again every time. Now they stay on when
+  they haven't changed, and attachment models are loaded once (`GunViewModels.dress`). Looks only: nothing about how
+  guns play changed. New probe: `tools/swap_probe.gd`.
+
+## 0.35.27 (the barn ladder faces the loft)
+Owner: "the ladder in the barn makes u climb it backwards, so you cant actually get to the top".
+- The barn's ladder (Bloxov Frontlines) was put in turned the wrong way round: it leaned out into the barn instead of
+  onto the hayloft, so you climbed with your back to the loft and couldn't step off at the top. It now leans on the
+  loft (one number in `tools/gen_old_bloxov.py`; the map line patched to match).
+- New `tools/ladder_audit.gd` checks every ladder on both maps has the floor it leads to on the side it leans on. All
+  of Riptide's ladders and the cabin's hatch ladder were already right. The smoke test checks the barn's ladder.
+
+## 0.35.26 (No out-of-breath woosh on Riptide)
+Owner: "on riptide, theres like this woosh woosh noise that happens when you run for a long time, its so annoying please get rid of it".
+- **The out-of-breath sound no longer plays on Riptide.** It was the low-stamina breathing (0.31.14), a soft "woosh" every
+  1.3 s once stamina drops under a quarter. A map now turns it off with `no_breath` metadata (`tools/gen_riptide.py`);
+  Frontlines keeps it. Stamina itself is unchanged.
+
+## 0.35.25 (the safe-pocket key goes first)
+Owner: "Can we make it prioritize the key in your safe pocket?"
+- With two or more of the same key, a key in the secure pocket is now used before one in the pockets or backpack,
+  even if the other is more used. Among keys in the same place, the one with the fewest uses left still goes first
+  (0.35.22). `Inventory.key_for`; the smoke test checks it.
+
+## 0.35.24 (TEMP: the one-hour raids are on Riptide only)
+Owner: "only hour long on riptide. please leave frontlines as 10 minutes".
+- **Frontlines raids are back to 10 minutes.** Riptide raids still last 60 minutes for the playtest (0.35.18), online
+  and solo. Setting `PLAYTEST_RAID_TIME` in `scripts/net.gd` to `0.0` returns Riptide to 15.
+
+## 0.35.23 (Field Test counts every AI)
+Owner: "For the mauler quest can you please change it to not just scavs but all raiders/scavs/bonsguards/raijin/guards/etc".
+- **Field Test (Gunsmith level 3) now counts any AI killed with a Mauler**: scavs, snipers, Raiders, Bon and his guards,
+  Raijin and his guards Ace and Orbit. Its text reads "Kill 3 AI enemies with a Mauler, then extract." Player kills
+  still never count (no quests for killing players). A new kill-quest target, "ai", means any AI (`scripts/quests.gd`).
+  The server counts quest kills, so it was restarted. Close Quarters (2 Raiders with a Mauler) is unchanged.
+
+## 0.35.22 (two of the same key: only one wears)
+Owner: "when you have two of the same key in the inventory only one of the keys durability is being used".
+- Unlocking a door already took a use off one key only, but which one was just the first found. Now it always uses the
+  key with the fewest uses left, so the most-used copy runs out first and the others stay full
+  (`Inventory.key_for`). Smoke test checks two vault keys: only one loses a use.
+
+## 0.35.21 (TEMP: half the AI on Riptide for a playtest)
+Owner: "Can we also reduce the amount of AI in the map temporarily?" (picked: half, on Riptide).
+- **Riptide has about half its AI** for now: each zone's scavs and Raiders, the roamers, the
+  total budgets and the most alive at once (14 instead of 28) are halved and rounded. The one sniper, the lab boss and its two guards
+  are unchanged. Frontlines is unchanged. **Temporary:** set `playtest_ai_scale` in `scripts/net.gd` back to `1.0`
+  after the playtest (with `PLAYTEST_RAID_TIME` from 0.35.18).
+
+## 0.35.20 (the Reaper, restyled from the owner's photo)
+Owner sent a photo of a compact suppressed carbine: "Make the reaper look like this".
+- **The Reaper has a new look** (look k in `art_source/scripts/make_gun.py`, still blocky and all black and dark grey):
+  one flat top rail the whole length with flip-up sights, a short squared handguard with long slots and a side charging
+  handle, a stubby barrel with a small muzzle cap, a flared magwell, a longer curved mag, a grooved pistol grip and a
+  skeleton brace stock (a tube, a thin rod and a triangle pad). No brand names or markings.
+- **The suppressor looks long and fat on the Reaper**, like the photo's (`att_suppressor_reaper.glb`). It is the same
+  suppressor item with the same numbers; `GunViewModels.dress` uses a gun's own look of an attachment
+  (`att_<id>_<gun>.glb`) when there is one.
+- Looks only: no stat, sound or gun feel changes. Grip, fore-end, sight line, optic and mag spots are where they were,
+  so the hands and aiming fit as before. Inventory icon re-rendered.
+
+## 0.35.19 (Riptide: Raijin everywhere)
+Owner: "Can you replace Zero with Raijin everywhere".
+- **The map screen names Riptide's boss Raijin** (it still said "BOSS: ZERO"). The test's checks and the release plan
+  call him Raijin too. The lab is still Site Zero. Older changelog entries keep the name he had then.
+
+## 0.35.18 (TEMP: one-hour raids for a playtest)
+Owner: "Can we temporarily set the map time to one hour so my friends can play test everything for the greybox version".
+- **Every raid lasts 60 minutes for now**, on every map (Frontlines and Riptide), online and solo, so friends can
+  look round the whole gray-box map. **Temporary:** set `PLAYTEST_RAID_TIME` in `scripts/net.gd` back to `0.0`
+  after the playtest and the normal clocks return (10 minutes, Riptide 15).
+
+## 0.35.17 (Riptide: a tidier map screen)
+Owner: "when you open the map and look at all the names on the map its super cluttered".
+- **Riptide's map (M) shows 16 names instead of 43**: the places you'd call out. Gone from the map: room and deck
+  names stacked on top of each other on the ship (pump room, engine room, cargo hold, hatches, main deck, moon pool,
+  helideck, the lab's wings and core...), and the smaller port buildings. The slipway and fab shed are one
+  "SHIPYARD"; the forecastle is "BOW"; the lab is one "SITE ZERO" on the ship. Extract names are unchanged.
+  (`MAP_LABELS` in `tools/gen_riptide.py` picks them.)
+
+## 0.35.16 (Riptide: no more teleporting near the lab, ladders you can climb out of)
+Owner: "everytime my friend would get low enough to get to the lab he would teleport up. So I wanna make sure all
+these kinks are worked out."
+- **Going down to the lab no longer puts you back at your spawn.** Every map shared one "fell out of the world"
+  height, -20 m, and the lab was at -22 and -28 m, so walking into it counted as falling out. 0.35.2 moved the lab up
+  into the hull (to -18 m at its lowest), which hid the problem with under 2 m to spare. A map now sets its own
+  height (`kill_height` on the map scene, read by `RaidMap.load_map` and the player); Riptide's is -45 m, under the
+  sea bed. Frontlines keeps -20.
+- **Seven ladders you couldn't get off at the top** now face the floor you step onto: the four side ladders from the
+  engine room deck up into the hold (they faced the hull wall), the riser ladder in the moon pool (it faced the
+  pipe), the lighthouse ladder (it faced the wall), and the stern ladder up from the dinghy extract (the canopy
+  caught your head a few rungs up).
+- A crate in the cannery stood in its room's doorway, so the AI couldn't get in: moved into the corner.
+- New check, `tools/riptide_audit.gd`: every loot container, extract, switch and AI spawn has a walking route from
+  the shore, every spawn stands on a floor in free space, nothing is under the kill height, and a player climbs
+  every dry ladder to the top. Navigation re-baked.
+
+## 0.35.15 (Riptide: Ace and Orbit)
+Owner: "make him have two guards that are more op than right now called Ace and Orbit"; numbers OK'd on a card.
+- **Raijin's guards are Ace and Orbit**: two of them (he had three Raiders, each named "Raijin's Guard"). 150 health
+  (a Raider has 100; Raijin 250), Heavy Armor and a Combat Helmet (Light Armor, Old Helmet), always a Hound (a
+  Raider's gun is random), 20 damage a shot in 5-round bursts (18, 4), Raijin's aim (90% near, 60% far; a Raider
+  85%, 50%), 3 heals (2). They drop what they wear. Frontlines' Bon and his guards are unchanged.
+- `ELITE_GUARDS` in `tools/gen_riptide.py` is now on (the scene and the spawner's `guard_scene` / `guard_names`
+  shipped switched off in 0.35.6).
+## 0.35.14 (Net version: updates no longer lock out open games)
+No gameplay change. The server used to turn away any game whose version differed from its own, so every update locked
+out everyone with the old page open. Now there is a separate whole number, the **net version** (`config/net_version`,
+1 to start), that goes up only when client and server must agree.
+- A game on the same net version joins, whatever its game version.
+- An older game (or one from before this update) is told: web "An update is out. Reload the page to get it." with a
+  RELOAD button in the online panel; desktop "An update is out. Close the game and let it update."
+- A newer game (the server is still being updated) is told: "The server is updating. Try again in a few minutes."
+- The server log and the player history post carry the net version too (`net_version` field; the sheet script ignores it).
+- **Lock test** (`netlock` section, `tests/net_lock.txt`, re-record with `godot --headless -s tools/net_lock.gd`): the smoke
+  test fails when an @rpc or a shared rule file (items, accounts, traders, quests, recipes, health, matchmaking, anti-cheat)
+  changes, so nobody forgets to decide about the net version. Rule: `docs/context/ONLINE.md`.
+
+## 0.35.13 (Smoother ladder hands)
+Owner: the ladders felt glitchy, "like your character starts jerking it on the ladder".
+- **Your hands no longer thrash on a ladder.** Going up, the upper hand sits well above your eyes, and the hand code
+  took that as "reach back down", so the hands pumped up and down and a forearm swung across the screen every
+  fraction of a second. Now the hands only reach the way you're going: up when climbing up, down when climbing down
+  (about 4 reaches a second instead of 10, never backwards, and never so high the sleeve fills the screen). Looks
+  only, no change to how climbing works.
+
+## 0.35.12 (the Reaper's own look)
+- **The Reaper has its own model.** It was the Hound's model with a different name. Now it is a short, compact carbine
+  in black and grey: a flat top rail with flip-up sights, a slotted handguard, a short barrel with a slotted flash hider,
+  a tube stock with a cheek rest and a curved mag. It has no built-in suppressor, so a suppressor attachment still adds one.
+  Owner picked the look from option sheets (project files `guns/models/reaper-options*.png`). Held by Raijin and other
+  players, in the hands, in first person and in the inventory icon. Looks only: no stat or gun feel changes.
+  The model is `reaper` in `art_source/scripts/make_gun.py` (looks a-j kept as the option sheets; `PICKED` is c), its
+  hands are in `make_hands.py`, and it has its own first-person view model (`GunViewModels`, reload style "rock").
+
+## 0.35.11 (Long Shot counts online in the quest tracker)
+Owner: a friend killed an AI from very far online and the Long Shot job didn't count. The server did count far
+kills (75 m or more) for the job, but the player's own quest tracker online only knew "quiet", so it never showed
+one. Now the client works the distance out from where the killing hit landed, so the tracker matches what the
+server credits. (Long Shot is also only open once Quiet Work is done: jobs go one at a time, as before.)
+
+
+## 0.35.10 (PvP: REMEMBER ME)
+- **A REMEMBER ME tick on the PvP sign-in and create-account pages** (owner: "add a remember me button so they don't
+  have to keep logging in"). On by default: the server's revocable session token (never the password) is kept on
+  the device and signs you straight back in; the server keeps it 30 days from your last visit. Untick it on a
+  shared computer and nothing is kept (any kept session is wiped). If the connection drops while you're in the PvP
+  stash, a remembered session signs you back in by itself instead of asking for the password again.
+  Store rules: no new data (the token was already in `docs/STORE_PRIVACY_FORMS.md`); SIGN OUT and DELETE still wipe it.
+
+
+## 0.35.9 (S climbs down ladders)
+- **S always takes you down a ladder.** Before, S climbed UP if you were looking steeply down (W followed the look,
+  and S was the opposite). Now only W follows where you look; S (and the back stick on a phone) always goes down.
+
+## 0.35.7 (Frontlines: half the scavs at the start, the rest trickle in)
+Owner: "WAY too many scavs at the beginning... like half the amount in the beginning and they slowly spawn in".
+- **Frontlines starts with 12 scavs (was 20), and the other 13 arrive over the raid** (still 25 in all): one every
+  30 to 45 s (was 50 to 70 s, so the last lands around minute 8). Start counts: Town 4, Woods 2, Station 1, Farm 1,
+  Old Houses 1, Road Houses 1, Church 0, and 2 roamers.
+- **Later scavs now arrive in every scav zone**, not mostly Town (weights: Town 2, Woods 1.5, Station 1, Farm 1,
+  Old Houses 1, Road Houses 0.5, Church 0.5).
+- Unchanged: the 9 Raiders, Bon and his guards, the 2 snipers.
+## 0.35.6 (Riptide: Zero is now Raijin)
+(0.35.4 and 0.35.5 are held by open pull requests.)
+- **Riptide's boss is named Raijin** (owner; was Zero): his body, the map's "RAIJIN'S CORE" label and the item
+  descriptions that named him. The lab is still Site Zero. `scenes/boss_zero.tscn` is now `scenes/boss_raijin.tscn`.
+- Not live yet, waiting on the owner's OK of the numbers: his two guards, Ace and Orbit (`scenes/guard_raijin.tscn`;
+  a map's boss can now bring its own guard scene and guard names, `guard_scene` / `guard_names`). Until then he keeps
+  three Raider guards. Switch: `ELITE_GUARDS` in `tools/gen_riptide.py`.
+- Test fix: the new "scavs stay out of the sea" check could fail when the test scav wandered off the pier's edge first.
+
+## 0.35.3 (Riptide: stairs down to the lab, scavs stay out of the sea)
+- **Both of the ship's stairwells now go all the way down to the lab** (owner: "stair cases going up and down near
+  the front/backs of the ship"). They stopped at the engine room deck, so the only ways into the lab were the moon
+  pool and two ladders. The bow stairs carry on down four short flights to a passage into the service tunnel and the
+  north wing; the tower stairs (stern) come down into a lobby that opens onto the south wing's corridor. The south
+  wing's east rooms were re-cut round the stairs, and the aft engine moved clear of them. Navigation re-baked.
+- **Scavs no longer fall in the sea** (owner: "they walk on the ground in the water and behave normally lol we need
+  them to not fall"). Their paths never left the decks, but a dodge, backing off, a shove from a friend or a blast
+  could carry one over an edge. A move that would step off an edge with deep water under it is now stopped
+  (`Scav._keep_out_of_water`, using the map's `SwimZone`s). Nothing changes on a map without deep water, so
+  Frontlines' AI is untouched.
+
+
+## 0.35.2 (Riptide: the lab is part of the ship)
+Owner: "the lab is supposed to be a part of the cargo ship... there was just a huge gap between the bottom floor of the
+ship, then the lab deep down".
+- **Site Zero is now the ship's two lowest decks.** The dock is the deck straight under the engine room and the ring,
+  the wings and Zero's core are one deck below that, all inside the hull, which now goes down round them with a keel
+  plate underneath. Before, the lab sat on the sea bed 14 m under the hull, joined only by the moon pool's trunk.
+- The moon pool is one deck deep from the engine room: two ramps round the walls, or the riser ladder. Falling in
+  lands you on the dock's deck. The side pod halfway down the old trunk is gone (its crate is at the foot of the well).
+- Zero's core is 10 m tall (was 12) so it fits under the engine room deck. Rooms, loot, spawns and the three ways into
+  the lab are otherwise the same. Navigation re-baked.
+- **The map screen (M) on Riptide:** the sea is drawn as a flat rectangle, so it ends at the map's border. It was a
+  very wide line with round ends, which bulged out past the frame at the top and bottom.
+
+## 0.35.1 (Tidy-up and a calmer server)
+No gameplay change. Clean-ups from the codebase check (owner OK'd them).
+- **CI no longer restarts the game server for nothing.** Pushes that only change notes (`*.md`, `docs/`) run nothing at all.
+  The Heroku server is redeployed (players in a raid are kicked) only when server files changed: scripts, scenes, assets,
+  `server/`, `project.godot` (it holds the version, and server and web must match) or the Docker files. Pushes touching only
+  tools, tests, web or CI leave it alone. The web page still deploys as before.
+- The unused Fly.io setup is gone (`fly.toml` and its CI job). The server runs on Heroku only.
+- Removed the committed `tools/__pycache__` file and `tools/_probe2.gd`; three tool helpers got return types.
+- The hideout doors look up who is near a few times a second instead of every frame.
+- The finished Stash update and Sound 2 plans moved to `docs/archive/`.
 ## 0.35.0 (Riptide: map 2, an early test map)
 The second map is in the game, as a gray box (owner: release it for playtesters with the war table's map). It was
 built on a branch as 0.33.0-0.33.9; those entries are further down, under 0.34.0, and say what each step added.

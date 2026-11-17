@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/trooper.tscn" id="1_trooper"]
+
+[node name="Trooper" instance=ExtResource("1_trooper")]
+heals = 1
+burst_size = 3
+accuracy_near = 0.6
+accuracy_far = 0.27
+accuracy_long = 0.16
+body_name = "Guard"
+armor = "armor_light"
+helmet = "helmet_basic"

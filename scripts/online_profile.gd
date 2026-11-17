@@ -1,6 +1,6 @@
 class_name OnlineProfile
 extends RefCounted
-## The PvP stash's profile (Stash update, 0.31; docs/STASH_UPDATE_PLAN.md): a Dictionary in the solo save's shape
+## The PvP stash's profile (Stash update, 0.31; docs/archive/STASH_UPDATE_PLAN.md): a Dictionary in the solo save's shape
 ## (Profile.save_text), minus look and tutorial, which are account-wide. The game server keeps one per signed-in
 ## player and the Stash API stores it. Kept apart from Profile so the server can use it: like net.gd, this must only
 ## lean on item data (ItemDB, GridInventory, ItemStack), never on player, gun or hideout scripts.

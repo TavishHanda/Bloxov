@@ -116,6 +116,11 @@ func _draw() -> void:
 	var woods: PackedFloat32Array = data.get("woods", PackedFloat32Array())
 	for i in range(0, woods.size() - 2, 3):
 		draw_circle(to_screen.call(Vector2(woods[i], woods[i + 1])), (woods[i + 2] + 3.0) * scale, TREES)
+	# Open water (0.35.2, Riptide's sea): flat rectangles, so it ends square at the map's edge. A wide water line's
+	# round ends bulged out past the frame.
+	var seas: PackedFloat32Array = data.get("seas", PackedFloat32Array())
+	for i in range(0, seas.size() - 3, 4):
+		draw_rect(Rect2(to_screen.call(Vector2(seas[i], seas[i + 1])), Vector2(seas[i + 2] - seas[i], seas[i + 3] - seas[i + 1]) * scale), WATER)
 	_draw_lines(data.get("water", []), data.get("water_widths", PackedFloat32Array()), WATER, to_screen, scale)
 	var rail: PackedVector2Array = data.get("rail", PackedVector2Array())
 	if rail.size() >= 2:

@@ -1,7 +1,7 @@
 # Hosting capacity and cheaper alternatives
 
 **Status:** planning note, measured 2026-11-06, updated 2026-11-11 after 0.30.5–0.34.8. Nothing migrated.
-**Read with:** `docs/DEV_HANDOFF.md` §5 (current hosting), `docs/STASH_UPDATE_PLAN.md` §5 (the API and database, now
+**Read with:** `docs/DEV_HANDOFF.md` §5 (current hosting), `docs/archive/STASH_UPDATE_PLAN.md` §5 (the API and database, now
 built).
 
 This note exists because the Stash update added a database and an API to the same dyno, so the hosting bill and the

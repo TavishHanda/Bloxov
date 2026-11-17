@@ -1,5 +1,5 @@
 # The online game server (multiplayer, docs/MULTIPLAYER_PLAN.md), built and deployed by .github/workflows/web.yml
-# (Heroku via heroku.yml; Fly.io via fly.toml) after the tests pass.
+# (Heroku via heroku.yml) after the tests pass.
 # Since 0.30.9 it runs a stripped "dedicated server" pack (export preset "Server"): every model, texture and material is
 # a placeholder (meshes keep their bounds), so the server starts at ~170 MB instead of ~200 and each raid costs far less
 # (docs/HOSTING_CAPACITY.md). Nothing about the game changes: the server never drew anything.
