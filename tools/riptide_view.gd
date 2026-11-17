@@ -28,6 +28,28 @@ const VIEWS := {
 	"core": [Vector3(48, -15.6, 41), Vector3(48, -17, 56)],
 	"moon": [Vector3(39.5, -6.3, -7.5), Vector3(52, -12, 6)],
 	"dock": [Vector3(48, -10.5, 4), Vector3(48, -11.5, 26)],
+	# the Leviathan's outside (art step 1)
+	"ship-bow": [Vector3(100, 12, -135), Vector3(56, 3, -96)],
+	"ship-bow-west": [Vector3(12, 7, -120), Vector3(34, 3, -94)],
+	"ship-east": [Vector3(120, 12, -40), Vector3(60, 2, -10)],
+	"ship-stern": [Vector3(80, 10, 150), Vector3(48, 2, 105)],
+	"ship-west": [Vector3(4, 8, -70), Vector3(30, 3, -40)],
+	"ship-deck-fore": [Vector3(48, 22, -100), Vector3(48, 2, -40)],
+	"ship-deck-aft": [Vector3(30, 20, 72), Vector3(52, 3, 30)],
+	"ship-derrick": [Vector3(80, 30, -30), Vector3(48, 22, 0)],
+	"ship-crane": [Vector3(42, 6, -55), Vector3(36, 10, -62)],
+	"ship-under-drill": [Vector3(60, 5.6, -20), Vector3(40, 7, 6)],
+	"ship-containers": [Vector3(56, 6, -40), Vector3(44, 6, -70)],
+	"ship-drill-top": [Vector3(52, 14, -12), Vector3(44, 14, 11)],
+	# its signs close up (every sign gets a close-up before it ships)
+	"sign-drill-w": [Vector3(36.6, 13.4, -18.5), Vector3(36.6, 12.7, -14)],
+	"sign-drill-e": [Vector3(59.4, 13.4, 18.5), Vector3(59.4, 12.7, 14)],
+	"sign-driller": [Vector3(40.5, 14.4, 11), Vector3(43.8, 14.6, 11)],
+	"sign-shack": [Vector3(49.9, 13.4, 5.5), Vector3(49.9, 13.2, 8.3)],
+	"sign-focsle": [Vector3(36.6, 5.5, -85.5), Vector3(36.6, 5.4, -90)],
+	"sign-draft": [Vector3(71, 1.6, -99.5), Vector3(66, 1.2, -102.4)],
+	"sign-stern": [Vector3(48, 3.8, 121), Vector3(48, 3.2, 110)],
+	"sign-name-e": [Vector3(80, 3, -73), Vector3(66, 2.5, -73)],
 }
 
 
@@ -61,7 +83,7 @@ func _run() -> void:
 			if c is CanvasLayer: c.visible = false
 	var player := main.get_node("Player") as Node3D
 	# Every player spawn: drop the player there and see where they end up.
-	var spawns := main.get_node("PlayerSpawns").get_children()
+	var spawns := [] if "nospawn" in OS.get_cmdline_user_args() else main.get_node("PlayerSpawns").get_children()
 	for s: Node3D in spawns:
 		player.global_position = s.global_position + Vector3(0, 0.2, 0)
 		player.set("velocity", Vector3.ZERO)
@@ -74,7 +96,7 @@ func _run() -> void:
 	main.add_child(cam)
 	cam.current = true
 	for view: String in VIEWS:
-		if only != "" and view != only:
+		if only != "" and not view in only.split(","):
 			continue
 		var at: Vector3 = VIEWS[view][0]
 		var target: Vector3 = VIEWS[view][1]
