@@ -153,8 +153,8 @@ Answer any order; the first five are needed before their week starts.
 
 **Launch**
 11. ~~Launch day~~ **Answered 2026-11-13:** January 10-11, or one to two weeks later.
-13. **Riptide's art bar** (review, 2026-11-13): a clean flat-colour pass in a few big pieces and onto the web beta in
-    December, or Frontlines-level detail first?
+13. ~~Riptide's art bar~~ **Answered 2026-11-17:** a clean pass first (real walls, materials, signs and key props,
+    less clutter), the detail pass after launch. Plan: the "Riptide art plan" doc (memory `bloxov-riptide-art`).
 14. **After launch?** OK to move paid gems, the battle pass, pets, map 3 and most skins to Early Access updates?
 15. **New-player counts:** OK to count (numbers only) tutorial finished, first raid, second raid, first extract?
 12. Anything else from the "probably forgetting stuff" list.
