@@ -439,7 +439,8 @@ def terminal():
         box(x - 1.0, SHORE + 24.0, -100.0, x + 1.0, SHORE + 26.0, -74.0, "rust")
     box(-148.8, SHORE + 26.0, -100.0, -63.2, SHORE + 28.0, -97.0, "rust")
     box(-148.8, SHORE + 26.0, -77.0, -63.2, SHORE + 28.0, -74.0, "rust")
-    box(-112.0, SHORE + 22.0, -97.0, -104.0, SHORE + 26.0, -77.0, "container_b")
+    # the trolley rides between the girders (0.35.32: it was a container-blue box hanging in the air under them)
+    box(-112.0, SHORE + 25.0, -97.0, -104.0, SHORE + 28.0, -77.0, "rust")
     labels.append(("CONTAINER TERMINAL", -105, -116, 0))
     for x, z in [(-130.0, -99.0), (-104.0, -71.0), (-80.0, -85.0), (-140.0, -57.0)]:
         add_loot("Depot", "crate", x, SHORE, z, table="field" if x < -120 else "crate")
@@ -946,7 +947,7 @@ def hull_inside():
     box(SX0 + 0.25, PIER - SLAB_T, 3.0, 35.75, PIER, 8.0, "metal")
     ramp((34.4, PIER, 8.0), (34.4, HULL_A, 23.0), 2.7, "metal")
     # the hold's containers: a maze of stacks, two stacks under each hatch to land on
-    stacks = [(41, -82, 1), (51, -78, 2), (45, -66, 1), (55, -62, 2), (40, -56, 2), (45, -47, 2), (51, -40, 1),
+    stacks = [(41, -82, 1), (56, -78, 2), (45, -66, 1), (55, -62, 2), (40, -56, 2), (45, -47, 2), (51, -40, 1),
               (39, -32, 1), (55, -28, 2), (44, -20, 2), (52, -14, 1), (40, 14, 1), (52, 16, 2), (45, 27, 2), (51, 36, 1),
               (40, 44, 2), (56, 50, 1), (46, 58, 2), (53, 66, 1)]
     for i, (x, z, high) in enumerate(stacks):
