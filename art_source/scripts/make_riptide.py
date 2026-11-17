@@ -324,7 +324,7 @@ CONTAINER_LINES = {"container_a": "ORMA LINE", "container_b": "KESTREL", "contai
 
 def leviathan_decals(rng):
     a = Atlas(512)
-    w, h, p = _stencil(NAME, 12, "rw_white", random.Random("name"))
+    w, h, p = _stencil(NAME, 12, "rw_white", random.Random("name"), chip=0.015)
     a.add("name", w, h, p)
     for d in DRAFTS:
         w, h, p = _stencil("%dM" % d, 2, "rw_white", random.Random("draft%d" % d), chip=0.03)
@@ -516,7 +516,7 @@ def hull_details(m):
     reg = m.decals.regions["name"]
     # bows: the name reads bow to stern on both sides, as painted on a real ship (from outside, left to right)
     L, H = 13.5, 1.9
-    y0 = 1.6
+    y0 = 1.25     # (under the rubbing strake, 3.28 up: it stands out in front and hid the letters' tops)
     z0 = -80.0      # (aft of the anchors, the launch's hull door and its ladder)
     flat(b, (-1, 0, 0), -18.27, z0, z0 + L, y0, y0 + H, "graffiti", uv_fit(reg))
     flat(b, (1, 0, 0), 18.27, z0, z0 + L, y0, y0 + H, "graffiti", uv_fit(reg))

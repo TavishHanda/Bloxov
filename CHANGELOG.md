@@ -12,7 +12,7 @@ Riptide art step 1 (plan: the "Riptide art plan" doc; owner picked hull scheme C
 Looks only: every box still collides exactly as before (same layout, cover, ladders, loot, AI).
 - The Leviathan gets its model (`leviathan_hull`, 26k triangles of a 60k budget): a red drillship hull with weld
   seams and rust runs, dark anti-fouling under the water and a black band at the waterline, white inside the rails,
-  yellow rail caps; LEVIATHAN on both bows and the stern, draft marks fore and aft, anchors in their pockets, a
+  yellow rail caps; LEVIATHAN on both bows (under the strake, owner: the strake hid the letters' tops) and the stern, draft marks fore and aft, anchors in their pockets, a
   rubbing strake (broken at every hull door and ladder).
 - Grey non-slip deck with painted walkways, hazard bands round the hatches and on the coamings, ramps with anti-slip
   bars; real 20-foot containers (corrugated, doors, corner posts, three made-up lines: ORMA LINE, KESTREL, TIDELINE);
