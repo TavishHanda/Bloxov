@@ -1047,7 +1047,8 @@ def moon_pool():
             box(px + ox - 0.08, py, pz + oz - 0.08, px + ox + 0.08, py + 1.0, pz + oz + 0.08, "rust")
     add_loot("LabWing", "crate", x0 + 1.5, LAB1, z1 - 1.5, 90)
     # the riser: the drill pipe down the middle, a catwalk out to it from the hull's bottom deck, a ladder down it
-    box(47.2, LAB1, -1.8, 48.8, 41.0, -0.2, "rust")
+    with modeled("leviathan_hull", 48.0, 0.0):
+        box(47.2, LAB1, -1.8, 48.8, 41.0, -0.2, "rust")
     slab(44.0, 52.0, -5.0, 3.0, HULL_B, "metal", holes=[(47.2, 48.8, -1.8, 1.2)])
     box(x0, HULL_B - SLAB_T, -2.2, 44.0, HULL_B, 0.2, "metal")
     wall("x", -5.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
@@ -1060,8 +1061,10 @@ def moon_pool():
     wall("x", z1, x0, x1, HULL_B, 1.0, "rust", t=0.15)
     wall("z", x0, z0, z1, HULL_B, 1.0, "rust", [(z0 + W / 2, W + 0.2, 0.0, 1.0), (-1.0, 2.6, 0.0, 1.0)], t=0.15)
     wall("z", x1, z0, z1, HULL_B, 1.0, "rust", t=0.15)
-    for y in (HULL_A, DECK, DRILL):
-        room(x0, x1, z0, z1, y, 1.1, "rust", t=0.15)
+    room(x0, x1, z0, z1, HULL_A, 1.1, "rust", t=0.15)
+    with modeled("leviathan_hull", 48.0, 0.0):    # (art step 1: the rails on the open decks and the riser)
+        for y in (DECK, DRILL):
+            room(x0, x1, z0, z1, y, 1.1, "rust", t=0.15)
 
 
 def drill_floor():

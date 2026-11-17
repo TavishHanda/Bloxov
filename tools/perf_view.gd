@@ -4,11 +4,15 @@ extends SceneTree
 ## triangles and frame time for each view; then, at the busiest view, how much each kind of thing costs (hidden one
 ## at a time). Frame times under xvfb are the CPU drawing (llvmpipe): compare them with each other, not with a GPU.
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --resolution 1280x720 -s tools/perf_view.gd
+## map=riptide measures Riptide instead (its spots below, Godot metres).
 ## look=res://assets/looks/<name>.tres measures with that look, graphics=0/1/2 with that graphics setting, web as in a browser (render scale 1). Not part of the smoke test.
 
 ## Map metres (Godot + 175): the town square, the busy main street, the train station, a field looking at town.
 const SPOTS := {"square": Vector2(83, 172), "street": Vector2(60, 93), "station": Vector2(290, 290),
 	"field": Vector2(175, 60)}
+## Riptide (art pass, 0.35.30): the quay facing the ship, the fore deck, the drill floor, the plaza.
+const RIPTIDE_SPOTS := {"quay": Vector3(-34, 2.5, 30), "foredeck": Vector3(39, 4, -80), "drill": Vector3(36, 12, -4),
+	"plaza": Vector3(-66, 2.5, 30)}
 const YAWS := 8
 
 var main: Node
@@ -21,6 +25,10 @@ func _initialize() -> void:
 
 func _run() -> void:
 	RaidMap.scene_path = "res://scenes/maps/old_bloxov.tscn"
+	var spots: Dictionary = SPOTS
+	if "map=riptide" in OS.get_cmdline_user_args():
+		RaidMap.scene_path = "res://scenes/maps/riptide.tscn"
+		spots = RIPTIDE_SPOTS
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("look="): Look.current = a.substr(5)
 	root.size = Vector2i(1280, 720)
@@ -46,17 +54,17 @@ func _run() -> void:
 	player.set_physics_process(false)
 	player.get("health").max_health = 1000000
 	player.get("health").heal(1000000)
-	var worst := [0, Vector2.ZERO, 0.0]
-	for spot: String in SPOTS:
+	var worst: Array = [0, Vector2.ZERO, 0.0]
+	for spot: String in spots:
 		var line := "%-8s" % spot
 		for i in YAWS:
 			var yaw := TAU * i / YAWS
-			var info := await _view(SPOTS[spot], yaw)
+			var info := await _view(spots[spot], yaw)
 			line += "  %4d/%5.1fms" % [info[0], info[3]]
 			if info[0] > worst[0]:
-				worst = [info[0], SPOTS[spot], yaw]
+				worst = [info[0], spots[spot], yaw]
 		print(line)
-	var at: Vector2 = worst[1]
+	var at: Variant = worst[1]
 	var base := await _view(at, worst[2])
 	print("busiest view %s yaw %d: %d draw calls, %d objects, %dk triangles, %.1f ms" % [at, roundi(rad_to_deg(worst[2])),
 		base[0], base[1], base[2] / 1000, base[3]])
@@ -84,13 +92,16 @@ func _run() -> void:
 	quit(0)
 
 
-## [draw calls, objects, triangles, ms a frame] standing at `at` (map metres) facing `yaw`.
-func _view(at: Vector2, yaw: float) -> Array:
-	var ground: Variant = main.find_child("Blocks", true, false)
-	var y := 0.0
-	if ground != null and ground.has_method("ground_height"):
-		y = ground.ground_height(Vector3(at.x - 175, 0, at.y - 175))
-	player.global_position = Vector3(at.x - 175, y + 0.1, at.y - 175)
+## [draw calls, objects, triangles, ms a frame] standing at `at` (map metres, or a Vector3 in Godot metres) facing `yaw`.
+func _view(at: Variant, yaw: float) -> Array:
+	if at is Vector3:
+		player.global_position = at + Vector3(0, 0.1, 0)
+	else:
+		var ground: Variant = main.find_child("Blocks", true, false)
+		var y := 0.0
+		if ground != null and ground.has_method("ground_height"):
+			y = ground.ground_height(Vector3(at.x - 175, 0, at.y - 175))
+		player.global_position = Vector3(at.x - 175, y + 0.1, at.y - 175)
 	player.rotation.y = yaw
 	for i in 6:
 		await process_frame

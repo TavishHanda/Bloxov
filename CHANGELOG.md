@@ -7,6 +7,26 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.35.31 (Riptide art: the Leviathan's outside)
+Riptide art step 1 (plan: the "Riptide art plan" doc; owner picked hull scheme C and a clean pass first, 2026-11-17).
+Looks only: every box still collides exactly as before (same layout, cover, ladders, loot, AI).
+- The Leviathan gets its model (`leviathan_hull`, 26k triangles of a 60k budget): a red drillship hull with weld
+  seams and rust runs, dark anti-fouling under the water and a black band at the waterline, white inside the rails,
+  yellow rail caps; LEVIATHAN on both bows and the stern, draft marks fore and aft, anchors in their pockets, a
+  rubbing strake (broken at every hull door and ladder).
+- Grey non-slip deck with painted walkways, hazard bands round the hatches and on the coamings, ramps with anti-slip
+  bars; real 20-foot containers (corrugated, doors, corner posts, three made-up lines: ORMA LINE, KESTREL, TIDELINE);
+  pipe racks; the three deck cranes (round pedestal, cab, box jib with its load mark and a hook out of reach).
+- The drill floor: white legs with hazard stripes, girders underneath, a yellow derrick with bracing (from 4 m over
+  the floor, out of reach: shots go through its gaps as they look), the crown, travelling block and top drive, flood
+  lights (baked, no real lights), the drawworks, the riser, the driller's shack with its sign, DRILL FLOOR and NO
+  SMOKING signs. The moon pool's rails on the main deck and drill floor and the riser joined the model.
+- Riptide has its own texture sheet (`assets/textures/riptide_atlas.png`, the same shader as Frontlines' atlas), so
+  nothing on Frontlines changed. New `art_source/scripts/make_riptide.py`.
+- Speed: busiest Riptide view 1,107 -> 1,132 draw calls (web, under Frontlines' 1,450). The hull has no far mesh
+  (`FarView.NO_FAR`: you can stand in it 100 m from its middle).
+- Tools: `riptide_view.gd` ship and sign views, `perf_view.gd -- map=riptide`.
+
 ## 0.35.30 (playtest free camera: PvE only)
 Owner: "can we make sure its only in PvE for now".
 - The free camera is off in online (PvP) raids again, as before 0.35.29. Solo (PvE) raids keep the playtest's free

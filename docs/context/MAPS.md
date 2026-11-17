@@ -25,3 +25,11 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
 - Enemy navigation: `scripts/nav_baker.gd` bakes the walkable area at raid start from nodes in the `nav_source`
   group (CSG boxes + world-layer box colliders). New solid map pieces must be under `Level`/`Loot` (or in that group).
 - Ladders (0.35.27): the origin is the foot, it leans on what's at -Z (`into()`), the climber is at +Z. After adding or moving one, run `godot --headless -s tools/ladder_audit.gd` (the floor it leads to must be on the side it leans on; the barn's was backwards until 0.35.27).
+- Riptide's models (art pass from 0.35.31; plan: the "Riptide art plan" doc): `tools/gen_riptide.py` wraps boxes in
+  `with modeled(name, x, z)` as gen_old_bloxov does; `python3 art_source/scripts/make_riptide.py <name>` draws them on
+  Riptide's own texture sheet (`assets/textures/riptide_atlas.png`, material `riptide_atlas.tres`, same shader as the kit
+  atlas), so Frontlines never changes; then re-run the generator and import. Kit textures are painted once into
+  `art_source/textures/riptide/` (delete one to repaint it). The gray box stays the collision: draw nothing a person
+  can walk into without a box behind it. `tools/riptide_view.gd` has `ship-*` and `sign-*` views (`view=a,b nospawn`),
+  `tools/perf_view.gd -- map=riptide web` measures draw calls. Models a person can stand in far from their middle
+  (the 214 m hull) are in `FarView.NO_FAR` instead of getting a far mesh.

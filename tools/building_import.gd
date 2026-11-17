@@ -9,12 +9,16 @@ const ATLAS_MATERIAL := "res://assets/materials/kit_atlas.tres"
 const GROUND_MATERIAL := "res://assets/materials/ground.tres"
 ## What sways in the wind (0.28.0: wires, tent canvas, camo nets; make_outdoor.py): the atlas with a wind shader.
 const SWAY_MATERIAL := "res://assets/materials/kit_sway.tres"
+## Riptide's models (art_source/scripts/make_riptide.py): the same shader on Riptide's own sheet, so Frontlines' atlas
+## never changes for them.
+const RIPTIDE_MATERIAL := "res://assets/materials/riptide_atlas.tres"
 
 
 func _post_import(scene: Node) -> Object:
 	var material: Material = load(ATLAS_MATERIAL)
 	var ground: Material = load(GROUND_MATERIAL) if ResourceLoader.exists(GROUND_MATERIAL) else null
 	var sway: Material = load(SWAY_MATERIAL) if ResourceLoader.exists(SWAY_MATERIAL) else null
+	var riptide: Material = load(RIPTIDE_MATERIAL) if ResourceLoader.exists(RIPTIDE_MATERIAL) else null
 	for node in [scene] + scene.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := node as MeshInstance3D
 		if mesh_instance == null or mesh_instance.mesh == null:
@@ -27,4 +31,6 @@ func _post_import(scene: Node) -> Object:
 				mesh_instance.mesh.surface_set_material(i, ground)
 			elif surface != null and surface.resource_name == "kit_sway" and sway != null:
 				mesh_instance.mesh.surface_set_material(i, sway)
+			elif surface != null and surface.resource_name == "riptide_atlas" and riptide != null:
+				mesh_instance.mesh.surface_set_material(i, riptide)
 	return scene

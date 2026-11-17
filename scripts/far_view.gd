@@ -7,6 +7,11 @@ class_name FarView
 const FROM := 70.0      # (on HIGH graphics; lower settings switch closer, GameSettings.FAR_SCALE)
 const MARGIN := 5.0     # (so standing right at the switch doesn't flicker between the two)
 const MODELS := "res://assets/models/buildings/"
+## Models with no far version (Riptide art step 1, 0.35.31): the switch is by distance to a model's middle, and the
+## Leviathan's hull is 214 m long with its hold and Site Zero inside it, so you can stand in it 100 m from its
+## middle; its far mesh (only what's seen from outside) would drop the hull's insides around you. It has no rooms
+## to trim anyway, so a far mesh would save little.
+const NO_FAR := ["leviathan_hull"]
 const FAR := "res://assets/models/far/"
 
 

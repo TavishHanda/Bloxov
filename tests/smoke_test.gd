@@ -6002,7 +6002,7 @@ func _section_old_bloxov() -> void:
 	# Far view (outdoor step 10): every building model has a far version (tools/far_bake.gd; re-bake after rebuilding one).
 	var no_far := []
 	for file in DirAccess.get_files_at(FarView.MODELS):
-		if file.ends_with(".glb") and file != "hideout.glb":   # (the hideout isn't on the map: no far view)
+		if file.ends_with(".glb") and file != "hideout.glb" and not file.get_basename() in FarView.NO_FAR:   # (the hideout isn't on the map: no far view)
 			var far := FarView.FAR + file.get_basename() + ".res"
 			if not FileAccess.file_exists(far):
 				no_far.append(file.get_basename())
