@@ -33,6 +33,10 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
   can walk into without a box behind it. `tools/riptide_view.gd` has `ship-*` and `sign-*` views (`view=a,b nospawn`),
   `tools/perf_view.gd -- map=riptide web` measures draw calls. Models a person can stand in far from their middle
   (the 214 m hull) are in `FarView.NO_FAR` instead of getting a far mesh.
+- The bridge tower (0.36.18): `bridge_tower` (origin 48, 0, 90) is drawn by `make_riptide.py bridge_tower`
+  (`build_tower`). Its furniture is `TOWER_PROPS` in the generator (boxes with a `kind`, drawn as the real thing);
+  the generator's `wall()` writes each modeled wall's doors and windows to the model's json (`openings`), which the
+  model frames. Rooms get their paint from `t_room` / `ROOM_NAMES` (the tower's quarters and corridor).
 - The Leviathan's outline (0.36.17): `BOW_LINE` / `STERN_LINE` in `gen_riptide.py` (the bow narrows from z -93.5 to a
   2.8 m stem, the stern's corners round off at r 5). The plate there is yawed boxes (kind `hull_curve`), the decks
   `hull_slab` strips (kind `deck_curve`); `make_riptide.py` draws both smooth along the line. The sea's surface in the

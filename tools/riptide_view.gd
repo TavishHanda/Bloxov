@@ -59,6 +59,25 @@ const VIEWS := {
 	"fore-peak": [Vector3(48, -1.5, -93), Vector3(36, -3, -101)],
 	"bow-store": [Vector3(48, 5.8, -91), Vector3(42, 4.5, -103)],
 	"aft-corner": [Vector3(56, 7.5, 107.5), Vector3(66, 4.5, 107)],
+	# the bridge tower (art step 2)
+	"tower-front": [Vector3(48, 14, 48), Vector3(48, 10, 80)],
+	"tower-sea": [Vector3(92, 16, 78), Vector3(58, 10, 92)],
+	"tower-stern": [Vector3(76, 16, 134), Vector3(48, 10, 102)],
+	"tower-port": [Vector3(6, 14, 104), Vector3(34, 10, 88)],
+	"tower-helideck": [Vector3(36, 21, 104), Vector3(58, 17.5, 78)],
+	"in-armory": [Vector3(43, 5.7, 86), Vector3(35, 4.8, 75)],
+	"in-store": [Vector3(45, 5.7, 86), Vector3(56, 4.8, 74.5)],
+	"in-workshop": [Vector3(35, 5.7, 94), Vector3(58, 4.8, 105)],
+	"in-mess": [Vector3(35, 9.2, 86), Vector3(43.5, 8, 75)],
+	"in-galley": [Vector3(45, 9.2, 86), Vector3(56, 8, 75)],
+	"in-cabins": [Vector3(35, 9.2, 94), Vector3(58, 8, 105.5)],
+	"in-corridor": [Vector3(34.6, 9.2, 90), Vector3(60, 8.6, 90)],
+	"in-sickbay": [Vector3(43, 12.7, 86), Vector3(35, 11.5, 75)],
+	"in-office": [Vector3(45, 12.7, 86), Vector3(56, 11.5, 75)],
+	"in-officers": [Vector3(35, 12.7, 94), Vector3(58, 11.5, 105.5)],
+	"in-bridge": [Vector3(43, 16.2, 86), Vector3(36, 15.2, 74)],
+	"in-bridge-e": [Vector3(45, 16.2, 86), Vector3(56, 15.2, 74)],
+	"in-chart": [Vector3(35, 16.2, 94), Vector3(58, 15.2, 105.5)],
 }
 
 
@@ -104,6 +123,9 @@ func _run() -> void:
 	cam.far = 900.0
 	main.add_child(cam)
 	cam.current = true
+	if "norain" in OS.get_cmdline_user_args() and main.get_node_or_null("Rain") != null:
+		main.get_node("Rain").free()   # (clearer pictures of the art)
+	await create_timer(2.0).timeout   # (the raid's opening fade)
 	for view: String in VIEWS:
 		if only != "" and not view in only.split(","):
 			continue

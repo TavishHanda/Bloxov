@@ -1245,6 +1245,937 @@ KIT["rip_lamp"] = paint_lamp
 mb.PALETTE["rw_glow"] = "f2edd0"
 
 
+# ================================================================================================ the bridge tower
+# Art step 2 (0.36.18): `bridge_tower`, origin (48, 0, 90). Outside: white deckhouse plate like the drill shack, a
+# white fill at the corners and the floor lines (the gray box leaves notches there), dark steel frames round every
+# window and door, signs over the doors, LEVIATHAN on the bridge front, lifebuoys, the helideck's H. Inside, deck by
+# deck: steel on the main deck (armory, stores, workshop), panelled walls, lino and tiled ceilings with lamps on the
+# decks above (mess and galley, cabins; sick bay, captain, officers; the bridge, chart room, radio room). Furniture
+# stands inside its own gray box (gen_riptide.py TOWER_PROPS).
+mb.PALETTE.update({
+    "tp_panel": "c6bfaa", "tp_panel_dark": "b6af9b", "tp_panel_light": "cec7b3",
+    "tp_green": "a3b19f", "tp_green_dark": "95a391", "tp_green_light": "adbba9",
+    "tp_lino": "7a868d", "tp_lino_dark": "6f7b82", "tp_lino_light": "838f96",
+    "tp_tile": "9c5e49", "tp_tile_dark": "8b5341", "tp_tile_grout": "6f4a3c",
+    "tp_ceil": "c9c8c0", "tp_ceil_dark": "b5b4ac",
+    "tp_heli": "3f4a40", "tp_heli_dark": "364038", "tp_heli_light": "485449",
+    "tp_wood": "8a6440", "tp_wood_dark": "765435", "tp_wood_light": "967049",
+    "tp_navy": "34405a", "tp_navy_dark": "2b354b", "tp_navy_light": "3e4b68",
+    "tp_sheet": "c6c5bc", "tp_sheet_dark": "b2b1a8",
+    "tp_card": "9b7a50", "tp_card_dark": "86683f",
+    "tp_red": "8e3326", "tp_red_dark": "772a1f",
+    "tp_bright": "a9adad", "tp_bright_dark": "959999", "tp_bright_light": "b9bdbd",
+    "tp_orange": "d0622a", "tp_screen": "1f3a2c", "tp_screen_on": "4fb36b", "tp_amber": "c99a3a",
+    "tp_paper": "d8d2bd", "tp_sea": "6f93a6", "tp_land": "b9ae86",
+})
+
+
+def _plain(base, light, dark, chance=0.1):
+    def paint(rng):
+        c = Canvas(64, 64, base)
+        c.noise(0, 0, 64, 64, [light, dark], chance, rng)
+        return c
+    return paint
+
+
+def paint_panel(base):
+    def paint(rng):
+        """Ship's interior panels: 1 m sheets with a dark seam, scuffed low down."""
+        c = Canvas(64, 64, base)
+        c.noise(0, 0, 64, 64, [base + "_light", base + "_dark"], 0.06, rng)
+        for x in (0, 16, 32, 48):
+            for y in range(64):
+                c.put(x, y, base + "_dark")
+        c.blotch([base + "_dark"], 4, rng, size=(2, 4))
+        return c
+    return paint
+
+
+def paint_lino(rng):
+    """Lino in 50 cm tiles, a lighter fleck, worn paths."""
+    c = Canvas(64, 64, "tp_lino")
+    c.noise(0, 0, 64, 64, ["tp_lino_light", "tp_lino_dark"], 0.12, rng)
+    for k in range(0, 64, 8):
+        for t in range(64):
+            c.put(k, t, "tp_lino_dark")
+            c.put(t, k, "tp_lino_dark")
+    c.blotch(["tp_lino_dark"], 5, rng, size=(3, 6))
+    return c
+
+
+def paint_tile(rng):
+    """Red quarry tiles (the galley and the mess), 25 cm, dark grout."""
+    c = Canvas(64, 64, "tp_tile")
+    c.noise(0, 0, 64, 64, ["tp_tile_dark"], 0.1, rng)
+    for k in range(0, 64, 4):
+        for t in range(64):
+            c.put(k, t, "tp_tile_grout")
+            c.put(t, k, "tp_tile_grout")
+    c.blotch(["tp_tile_dark", "rx_iron"], 4, rng, size=(2, 3))
+    return c
+
+
+def paint_ceiling(rng):
+    """Ceiling tiles, 50 cm, a few stained."""
+    c = Canvas(64, 64, "tp_ceil")
+    for k in range(0, 64, 8):
+        for t in range(64):
+            c.put(k, t, "tp_ceil_dark")
+            c.put(t, k, "tp_ceil_dark")
+    c.noise(0, 0, 64, 64, ["tp_ceil_dark"], 0.04, rng)
+    c.blotch(["rw_grime"], 3, rng, size=(2, 4))
+    return c
+
+
+def paint_heli(rng):
+    """The helideck: dark green non-slip, 2 m plates, tyre marks."""
+    c = Canvas(64, 64, "tp_heli")
+    c.noise(0, 0, 64, 64, ["tp_heli_light", "tp_heli_dark"], 0.15, rng)
+    _seams(c, "tp_heli_dark", rows=(0, 32), cols=((0, 0, 64), (32, 0, 64)))
+    c.blotch(["rx_iron", "tp_heli_dark"], 5, rng, size=(2, 5))
+    return c
+
+
+def paint_wood(rng):
+    c = Canvas(64, 64, "tp_wood")
+    for y in range(64):
+        if y % 4 == 0:
+            for x in range(64):
+                if rng.random() < 0.7:
+                    c.put(x, y, "tp_wood_dark")
+    c.noise(0, 0, 64, 64, ["tp_wood_light", "tp_wood_dark"], 0.06, rng)
+    return c
+
+
+KIT.update({
+    "rip_panel": paint_panel("tp_panel"), "rip_panel_g": paint_panel("tp_green"), "rip_lino": paint_lino,
+    "rip_tile": paint_tile, "rip_ceiling": paint_ceiling, "rip_heli": paint_heli, "rip_wood": paint_wood,
+    "rip_navy": _plain("tp_navy", "tp_navy_light", "tp_navy_dark"), "rip_sheet": _plain("tp_sheet", "tp_sheet_dark", "tp_sheet_dark", 0.05),
+    "rip_card": _plain("tp_card", "tp_card_dark", "tp_card_dark"), "rip_red": _plain("tp_red", "tp_red_dark", "tp_red_dark", 0.08),
+    "rip_bright": _plain("tp_bright", "tp_bright_light", "tp_bright_dark", 0.06),
+    "rip_orange": _plain("tp_orange", "rw_white", "tp_orange", 0.02),
+})
+
+T_FLOORS = (4.0, 7.5, 11.0, 14.5)
+T_ROOF = 18.0
+TX, TZ = 14.0, 16.0                     # the tower's walls: x -14..14, z -16..16 (their middles)
+T_STAIR = (6.0, 14.0, -14.0, 0.0)
+ROOM_NAMES = [
+    {"nw": "ARMORY", "ne": "STORES", "sw": "WORKSHOP", "se": "WORKSHOP"},
+    {"nw": "MESS", "ne": "GALLEY", "sw": "CABINS", "se": "CABINS"},
+    {"nw": "SICK BAY", "ne": "CAPTAIN", "sw": "OFFICERS", "se": "OFFICERS"},
+    {"nw": "BRIDGE", "ne": "BRIDGE", "sw": "CHART ROOM", "se": "RADIO ROOM"},
+]
+DECK_NAMES = {4.0: "MAIN DECK", 7.5: "A DECK", 11.0: "B DECK", 14.5: "BRIDGE", 18.0: "HELIDECK"}
+
+
+def t_floor(y):
+    """The floor a height belongs to: 0..3, 4 on the roof, -1 under the main deck (the stairs down)."""
+    if y < T_FLOORS[0] - 0.01:
+        return -1
+    if y >= T_ROOF - 0.01:
+        return 4
+    return max(i for i, f in enumerate(T_FLOORS) if f <= y + 0.01)
+
+
+def t_room(x, z):
+    if x < -TX or x > TX or z < -TZ or z > TZ:
+        return "out"
+    if T_STAIR[0] < x < T_STAIR[1] and T_STAIR[2] < z < T_STAIR[3]:
+        return "stair"
+    if z < -3.0:
+        return "nw" if x < -4.0 else "ne"
+    if z < 3.0 and x < 6.0:
+        return "corr"
+    return "sw" if x < -4.0 else "se"
+
+
+def t_wall_mat(f, room):
+    if room == "out":
+        return "rip_white" if f >= 0 else "rip_steel_in"
+    if room == "stair" or f <= 0 or f == 4:
+        return "rip_steel_in"
+    if f == 2 and room == "nw":
+        return "rip_panel_g"
+    return "rip_panel"
+
+
+def t_floor_mat(f, room):
+    if f == 4:
+        return "rip_heli"
+    if room == "stair" or f <= 0:
+        return "rip_deck"
+    if f == 1 and room in ("nw", "ne"):
+        return "rip_tile"
+    return "rip_lino"
+
+
+def _sign_plate(text, scale=2, bg="rw_white", fg="rx_black"):
+    return _sign(text, bg, fg, scale)
+
+
+def tower_decals(rng):
+    a = Atlas(512)
+    for name in sorted({n for f in ROOM_NAMES for n in f.values()} | {"STAIRS", "MUSTER STATION", "LIFEJACKETS"}):
+        w, h, p = _sign_plate(name)
+        a.add("sign_" + name, w, h, p)
+    for y, name in DECK_NAMES.items():
+        w, h, p = _stencil(name, 3, "rx_black", random.Random(name), chip=0.04)
+        a.add("deck_" + name, w, h, p)
+    w, h, p = _sign_plate(NAME, 4)
+    a.add("nameboard", w, h, p)
+    w, h, p = _sign("NO SMOKING", "rw_white", "rh_red")
+    a.add("no_smoking", w, h, p)
+
+    def helipad(c):            # 128 px over 16 m: the yellow touchdown ring, a white H
+        c.rect(0, 0, 128, 128, "clear")
+        for y in range(128):
+            for x in range(128):
+                r = math.hypot(x - 63.5, y - 63.5)
+                if 50 <= r <= 56:
+                    c.put(x, y, "ry_yel")
+        c.rect(46, 40, 54, 88, "rw_light")
+        c.rect(74, 40, 82, 88, "rw_light")
+        c.rect(54, 60, 74, 68, "rw_light")
+        r2 = random.Random("pad")
+        for _ in range(300):
+            x, y = r2.randrange(128), r2.randrange(128)
+            if c.px[y][x] != "clear":
+                c.put(x, y, "clear")
+    a.add("helipad", 128, 128, helipad)
+
+    def fridge(c):             # 0.8 x 1.9 m
+        c.rect(0, 0, c.w, c.h, "tp_bright")
+        c.rect(0, 40, c.w, 41, "tp_bright_dark")
+        c.frame(0, 0, c.w, c.h, "tp_bright_dark")
+        c.rect(c.w - 5, 46, c.w - 3, 56, "rx_iron")
+        c.rect(c.w - 5, 28, c.w - 3, 36, "rx_iron")
+    a.add("fridge", 24, 60, fridge)
+
+    def stove(c):              # 0.9 x 0.9 m, the front
+        c.rect(0, 0, c.w, c.h, "tp_bright")
+        c.rect(3, 3, c.w - 3, 18, "rx_iron")
+        c.rect(5, 5, c.w - 5, 16, "rg_glass")
+        c.rect(4, 19, c.w - 4, 20, "rx_iron_light")
+        for k in range(4):
+            c.rect(5 + k * 6, 23, 8 + k * 6, 26, "rx_black")
+    a.add("stove", 30, 28, stove)
+
+    def hob(c):                # the top: four rings
+        c.rect(0, 0, c.w, c.h, "rx_iron")
+        for cx, cy in ((7, 7), (21, 7), (7, 19), (21, 19)):
+            for y in range(c.h):
+                for x in range(c.w):
+                    if 3.5 <= math.hypot(x - cx, y - cy) <= 5:
+                        c.put(x, y, "rx_black")
+    a.add("hob", 28, 26, hob)
+
+    def cupboards(c):          # 1 m x 0.9 m of cupboard doors
+        c.rect(0, 0, c.w, c.h, "rw_light")
+        for x in (0, 15):
+            c.frame(x + 1, 1, x + 15, c.h - 3, "rw_white_dark")
+            c.rect(x + 12, 16, x + 13, 22, "rx_iron")
+        c.rect(0, 0, c.w, 2, "rx_iron")
+    a.add("cupboards", 32, 29, cupboards)
+
+    def drawers(c):            # a filing cabinet / tool chest front, 4 drawers
+        c.rect(0, 0, c.w, c.h, "clear")
+        for k in range(4):
+            y = 2 + k * c.h // 4
+            c.frame(1, y, c.w - 1, y + c.h // 4 - 2, "rx_iron")
+            c.rect(c.w // 2 - 3, y + c.h // 8 - 1, c.w // 2 + 3, y + c.h // 8, "rx_iron_light")
+    a.add("drawers", 20, 40, drawers)
+
+    def screens(c):            # a console's sloping top: radar, chart, engine panel, buttons
+        c.rect(0, 0, c.w, c.h, "rx_iron_light")
+        for k, x in enumerate((4, 36, 68)):
+            c.rect(x, 4, x + 26, 20, "tp_screen")
+            if k == 0:
+                for y in range(4, 20):
+                    for xx in range(x, x + 26):
+                        r = math.hypot(xx - x - 13, y - 12)
+                        if 6.5 <= r <= 7.2 or r < 1:
+                            c.put(xx, y, "tp_screen_on")
+                c.rect(x + 13, 12, x + 19, 13, "tp_screen_on")
+            elif k == 1:
+                c.rect(x + 2, 6, x + 14, 18, "tp_sea")
+                c.rect(x + 14, 6, x + 24, 18, "tp_land")
+                c.rect(x + 10, 10, x + 13, 12, "tp_screen_on")
+            else:
+                for j in range(5):
+                    c.rect(x + 3 + j * 5, 6, x + 6 + j * 5, 8 + j * 2, "tp_amber")
+        for x in range(4, c.w - 4, 4):
+            c.put(x, 1, "tp_screen_on" if x % 12 else "rh_red")
+    a.add("screens", 100, 24, screens)
+
+    def chart(c):              # a paper chart: the coast, soundings, a course line
+        c.rect(0, 0, c.w, c.h, "tp_paper")
+        r2 = random.Random("chart")
+        edge = 20
+        for y in range(c.h):
+            edge = max(8, min(30, edge + r2.choice((-1, 0, 1))))
+            c.rect(0, y, edge, y + 1, "tp_land")
+        for _ in range(40):
+            c.put(r2.randrange(34, c.w - 2), r2.randrange(2, c.h - 2), "rx_iron_light")
+        for k in range(30):
+            c.put(36 + k, 6 + k // 2, "rh_red")
+        c.frame(0, 0, c.w, c.h, "rx_iron_light")
+    a.add("chart", 72, 36, chart)
+
+    def pegboard(c):           # tools hung on a board over a bench
+        c.rect(0, 0, c.w, c.h, "tp_card")
+        for y in range(1, c.h, 3):
+            for x in range(1, c.w, 3):
+                c.put(x, y, "tp_card_dark")
+        for k, x in enumerate(range(4, c.w - 6, 8)):
+            if k % 3 == 0:
+                c.rect(x, 6, x + 2, 18, "rx_iron")
+                c.rect(x - 1, 15, x + 3, 19, "tp_red")
+            elif k % 3 == 1:
+                c.rect(x, 4, x + 1, 16, "ri_dark")
+                c.rect(x - 2, 14, x + 3, 16, "ri_dark")
+            else:
+                c.rect(x, 8, x + 4, 10, "rx_iron_light")
+                c.rect(x + 1, 10, x + 2, 18, "ry_yel")
+    a.add("pegboard", 60, 22, pegboard)
+
+    def med(c):                # a glass-fronted cabinet: shelves of boxes and bottles
+        c.rect(0, 0, c.w, c.h, "rw_light")
+        r2 = random.Random("med")
+        for k in range(4):
+            y = 4 + k * 14
+            c.rect(2, y, c.w - 2, y + 1, "rw_white_dark")
+            x = 3
+            while x < c.w - 5:
+                w = r2.randrange(2, 5)
+                c.rect(x, y + 1, x + w, y + 1 + r2.randrange(4, 9), r2.choice(["rw_white", "tp_sea", "tp_amber", "rw_grime"]))
+                x += w + 1
+        c.frame(0, 0, c.w, c.h, "rw_white_dark")
+        c.rect(c.w // 2, 0, c.w // 2 + 1, c.h, "rw_white_dark")
+    a.add("med", 40, 60, med)
+
+    def radio(c):              # radio sets on a rack
+        c.rect(0, 0, c.w, c.h, "rx_iron")
+        for k in range(3):
+            y = 2 + k * 9
+            c.rect(2, y, c.w - 2, y + 7, "rx_iron_light")
+            c.rect(4, y + 2, 16, y + 5, "tp_screen")
+            c.rect(5, y + 3, 12, y + 4, "tp_amber")
+            for x in range(20, c.w - 4, 5):
+                c.rect(x, y + 2, x + 2, y + 4, "rx_black")
+    a.add("radio", 60, 29, radio)
+
+    def clock(c):
+        c.rect(0, 0, 16, 16, "clear")
+        for y in range(16):
+            for x in range(16):
+                r = math.hypot(x - 7.5, y - 7.5)
+                if r <= 7.5:
+                    c.put(x, y, "rx_black" if r > 6.4 else "rw_light")
+        c.rect(7, 8, 8, 13, "rx_black")
+        c.rect(8, 7, 12, 8, "rx_black")
+    a.add("clock", 16, 16, clock)
+    return a
+
+
+def t_lamp(m, x, y, z, w=1.2, d=0.3):
+    """A ceiling lamp: a flat panel 1 cm under the ceiling at y, lights itself."""
+    b = m.b
+    b.group = bake_light.GLOW
+    b.poly([(x - w / 2, y - 0.01, z - d / 2), (x + w / 2, y - 0.01, z - d / 2), (x + w / 2, y - 0.01, z + d / 2),
+            (x - w / 2, y - 0.01, z + d / 2)], (0, -1, 0), "rip_lamp", uv_world(1.0))
+    b.group = None
+
+
+def t_item(m):
+    m.b.group = ("item", len(m.b.faces))
+
+
+def t_part(m, x0, y0, z0, x1, y1, z1, style):
+    m.box(((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2), (x1 - x0, y1 - y0, z1 - z0), style if callable(style) else mat(style))
+
+
+def _against(row):
+    """Which way a prop faces (into the room): the axis and sign of its front, from the nearer wall behind it."""
+    c, s = row["pos"], row["size"]
+    if s[0] < s[2]:                       # long along z: against a wall at x
+        return ("x", -1 if c[0] > 0 else 1)
+    return ("z", -1 if c[2] > 0 else 1)
+
+
+def t_prop(m, row):
+    kind = row["kind"]
+    c, s = row["pos"], row["size"]
+    x0, x1 = c[0] - s[0] / 2, c[0] + s[0] / 2
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    z0, z1 = c[2] - s[2] / 2, c[2] + s[2] / 2
+    axis, sg = _against(row)
+    if kind == "console":                 # under the front windows: the bridge's consoles face aft
+        axis, sg = "z", 1
+    b = m.b
+    t_item(m)
+
+    def front(name, a0=None, a1=None, lo=None, hi=None, mat_name="decals"):
+        """A decal on the prop's front face."""
+        if axis == "x":
+            at = x1 + 0.006 if sg > 0 else x0 - 0.006
+            flat(b, (sg, 0, 0), at, z0 if a0 is None else a0, z1 if a1 is None else a1, y0 if lo is None else lo,
+                 y1 if hi is None else hi, mat_name, m.d(name))
+        else:
+            at = z1 + 0.006 if sg > 0 else z0 - 0.006
+            flat(b, (0, 0, sg), at, x0 if a0 is None else a0, x1 if a1 is None else a1, y0 if lo is None else lo,
+                 y1 if hi is None else hi, mat_name, m.d(name))
+
+    def legs(top, inset=0.05, w=0.06, mat_name="rip_iron"):
+        for lx in (x0 + inset, x1 - inset - w):
+            for lz in (z0 + inset, z1 - inset - w):
+                t_part(m, lx, y0, lz, lx + w, top, lz + w, mat_name)
+
+    if kind in ("bench", "mess_table", "desk", "chart_table"):
+        top_m = "rip_wood" if kind != "bench" else "rip_bright"
+        t_part(m, x0, y1 - 0.05, z0, x1, y1, z1, top_m)
+        if kind == "bench":
+            legs(y1 - 0.05)
+            t_part(m, x0 + 0.05, y0 + 0.15, z0 + 0.05, x1 - 0.05, y0 + 0.19, z1 - 0.05, "rip_iron")    # the shelf
+            t_part(m, x0 + 0.04, y0 + 0.19, z0 + 0.04, x1 - 0.04, y0 + 0.45, z1 - 0.04, "rip_card")   # boxes on it
+            # a vice at one end
+            vx, vz = (x0 + 0.25, z0 + 0.5) if axis == "x" else (x0 + 0.5, z0 + 0.25)
+            t_part(m, vx - 0.08, y1, vz - 0.12, vx + 0.08, y1 + 0.02, vz + 0.12, "rip_iron")
+        elif kind == "desk" or kind == "chart_table":
+            legs(y1 - 0.05)
+            # a drawer unit at one end
+            if s[0] >= s[2]:
+                t_part(m, x1 - 0.5, y0, z0 + 0.03, x1 - 0.04, y1 - 0.05, z1 - 0.03, "rip_steel_in")
+            else:
+                t_part(m, x0 + 0.03, y0, z1 - 0.5, x1 - 0.03, y1 - 0.05, z1 - 0.04, "rip_steel_in")
+            if kind == "chart_table":
+                b.poly([(x0 + 0.1, y1 + 0.004, z0 + 0.1), (x1 - 0.1, y1 + 0.004, z0 + 0.1), (x1 - 0.1, y1 + 0.004, z1 - 0.1),
+                        (x0 + 0.1, y1 + 0.004, z1 - 0.1)], (0, 1, 0), "decals", m.d("chart"))
+            else:                            # papers and a closed laptop, flat on the top
+                cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+                t_part(m, cx - 0.17, y1, cz - 0.12, cx + 0.17, y1 + 0.025, cz + 0.12, "rip_iron")
+                b.poly([(cx + 0.3, y1 + 0.003, cz - 0.15), (cx + 0.52, y1 + 0.003, cz - 0.15), (cx + 0.52, y1 + 0.003, cz + 0.15),
+                        (cx + 0.3, y1 + 0.003, cz + 0.15)], (0, 1, 0), "rip_sheet", uv_world(1.0))
+        else:                                # the mess tables: bolted down on a post near each end
+            L = max(s[0], s[2])
+            for k in range(2 if L < 5 else 3):
+                a = 0.5 + k * (L - 1.0) / (1 if L < 5 else 2)
+                if s[0] >= s[2]:
+                    t_part(m, x0 + a - 0.06, y0, (z0 + z1) / 2 - 0.06, x0 + a + 0.06, y1 - 0.05, (z0 + z1) / 2 + 0.06, "rip_iron")
+                    t_part(m, x0 + a - 0.25, y0, (z0 + z1) / 2 - 0.25, x0 + a + 0.25, y0 + 0.03, (z0 + z1) / 2 + 0.25, "rip_iron")
+                else:
+                    t_part(m, (x0 + x1) / 2 - 0.06, y0, z0 + a - 0.06, (x0 + x1) / 2 + 0.06, y1 - 0.05, z0 + a + 0.06, "rip_iron")
+                    t_part(m, (x0 + x1) / 2 - 0.25, y0, z0 + a - 0.25, (x0 + x1) / 2 + 0.25, y0 + 0.03, z0 + a + 0.25, "rip_iron")
+    elif kind == "shelves" or kind == "gun_rack":
+        post = 0.05
+        for px in (x0, x1 - post):
+            for pz in (z0, z1 - post):
+                t_part(m, px, y0, pz, px + post, y1, pz + post, "rip_iron" if kind == "gun_rack" else "rip_yellow")
+        if kind == "shelves":
+            r2 = random.Random("%.1f%.1f%.1f" % (c[0], c[1], c[2]))
+            levels = [y0 + 0.1, y0 + 0.6, y0 + 1.1, y0 + 1.6, y1 - 0.04]
+            for ly in levels:
+                t_part(m, x0, ly, z0, x1, ly + 0.04, z1, "rip_steel_in")
+            L = s[2] if axis == "x" else s[0]
+            for ly in levels[:-1]:
+                a = 0.08
+                while a < L - 0.35:
+                    w = r2.uniform(0.25, 0.55)
+                    if a + w > L - 0.08:
+                        break
+                    hgt = r2.uniform(0.2, 0.42)
+                    dep = (s[0] if axis == "x" else s[2]) - 0.12
+                    if r2.random() < 0.8:
+                        if axis == "x":
+                            t_part(m, x0 + 0.06, ly + 0.04, z0 + a, x0 + 0.06 + dep, ly + 0.04 + hgt, z0 + a + w,
+                                   r2.choice(["rip_card", "rip_card", "rip_cont_b", "rip_iron"]))
+                        else:
+                            t_part(m, x0 + a, ly + 0.04, z0 + 0.06, x0 + a + w, ly + 0.04 + hgt, z0 + 0.06 + dep,
+                                   r2.choice(["rip_card", "rip_card", "rip_cont_b", "rip_iron"]))
+                    a += w + r2.uniform(0.04, 0.2)
+        else:                                # the gun rack: a back board, a foot rail, rifles standing in a row
+            bx = x0 if sg > 0 else x1 - 0.04
+            t_part(m, bx, y0 + 0.1, z0 + 0.05, bx + 0.04, y1 - 0.1, z1 - 0.05, "rip_wood")
+            t_part(m, x0, y0, z0, x1, y0 + 0.12, z1, "rip_wood")
+            t_part(m, x0 + 0.05, y0 + 1.2, z0, x1 - 0.05, y0 + 1.26, z1, "rip_iron")
+            z = z0 + 0.3
+            while z < z1 - 0.25:
+                t_part(m, (x0 + x1) / 2 - 0.03, y0 + 0.12, z - 0.05, (x0 + x1) / 2 + 0.03, y0 + 1.15, z + 0.05, "rip_iron")
+                t_part(m, (x0 + x1) / 2 - 0.035, y0 + 0.3, z - 0.07, (x0 + x1) / 2 + 0.035, y0 + 0.55, z + 0.07, "rip_wood")
+                z += 0.38
+    elif kind == "drums":
+        r = min(s[0], s[2]) / 2 - 0.03
+        n = max(1, int(max(s[0], s[2]) // (2 * r + 0.05)))
+        for k in range(n):
+            if s[0] >= s[2]:
+                cx, cz = x0 + r + 0.03 + k * (2 * r + 0.05), (z0 + z1) / 2
+            else:
+                cx, cz = (x0 + x1) / 2, z0 + r + 0.03 + k * (2 * r + 0.05)
+            cyl(b, (cx, y0 + 0.45, cz), r, 0.9, "rip_cont_b" if k % 2 == 0 else "rip_red", "rip_iron", sides=10)
+            cyl(b, (cx, y0 + 0.3, cz), r + 0.012, 0.04, "rip_iron", sides=10)
+            cyl(b, (cx, y0 + 0.62, cz), r + 0.012, 0.04, "rip_iron", sides=10)
+    elif kind == "tool_cab" or kind == "files":
+        t_part(m, x0, y0, z0, x1, y1, z1, "rip_red" if kind == "tool_cab" else "rip_steel_in")
+        front("drawers", mat_name="graffiti")
+    elif kind == "machine":                   # a pump on its bed: base, motor, the pump, a yellow guard
+        t_part(m, x0, y0, z0, x1, y0 + 0.25, z1, "rip_iron")
+        cyl(b, ((x0 + x1) / 2, y0 + 0.75, z0 + 0.6), 0.42, 1.0, "rip_cont_c", "rip_iron", axis="z", sides=10)
+        cyl(b, ((x0 + x1) / 2, y0 + 0.7, z1 - 0.55), 0.38, 0.6, "rip_pipe", "rip_iron", axis="y", sides=10)
+        t_part(m, x0 + 0.2, y0 + 0.25, z0 + 1.2, x1 - 0.2, y0 + 0.6, z1 - 0.95, "rip_yellow")
+    elif kind == "fridge":
+        t_part(m, x0, y0, z0, x1, y1, z1, "rip_bright")
+        front("fridge", mat_name="decals")
+    elif kind == "counter" or kind == "stove":
+        t_part(m, x0, y0 + 0.08, z0, x1, y1 - 0.04, z1, "rip_white")
+        t_part(m, x0, y1 - 0.04, z0, x1, y1, z1, "rip_bright")
+        t_part(m, x0 + (0.05 if axis == "z" else 0), y0, z0 + (0.05 if axis == "x" else 0),
+               x1 - (0.05 if axis == "z" else 0), y0 + 0.08, z1 - (0.05 if axis == "x" else 0), "rip_iron")
+        if kind == "stove":
+            front("stove")
+            b.poly([(x0 + 0.05, y1 + 0.003, z0 + 0.05), (x1 - 0.05, y1 + 0.003, z0 + 0.05), (x1 - 0.05, y1 + 0.003, z1 - 0.05),
+                    (x0 + 0.05, y1 + 0.003, z1 - 0.05)], (0, 1, 0), "decals", m.d("hob"))
+        else:
+            L = s[2] if axis == "x" else s[0]
+            a = 0.0
+            while a + 1.0 <= L + 0.01:
+                lo_a = (z0 if axis == "x" else x0) + a
+                front("cupboards", lo_a, lo_a + 1.0, y0 + 0.08, y1 - 0.06)
+                a += 1.0
+            # a sink in the top: a dark steel basin, flush
+            sa = (z0 + z1) / 2 if axis == "x" else (x0 + x1) / 2
+            if axis == "x":
+                b.poly([(x0 + 0.12, y1 + 0.003, sa - 0.3), (x1 - 0.12, y1 + 0.003, sa - 0.3), (x1 - 0.12, y1 + 0.003, sa + 0.3),
+                        (x0 + 0.12, y1 + 0.003, sa + 0.3)], (0, 1, 0), "rip_iron", uv_world(1.0))
+            else:
+                b.poly([(sa - 0.3, y1 + 0.003, z0 + 0.12), (sa + 0.3, y1 + 0.003, z0 + 0.12), (sa + 0.3, y1 + 0.003, z1 - 0.12),
+                        (sa - 0.3, y1 + 0.003, z1 - 0.12)], (0, 1, 0), "rip_iron", uv_world(1.0))
+    elif kind in ("bunk", "bed", "sick_bed"):
+        post = 0.06
+        for px in (x0, x1 - post):
+            for pz in (z0, z1 - post):
+                t_part(m, px, y0, pz, px + post, y1, pz + post, "rip_white" if kind == "sick_bed" else "rip_iron")
+        tiers = [y0 + 0.3] if kind != "bunk" else [y0 + 0.3, y0 + 1.2]
+        for ty in tiers:
+            t_part(m, x0, ty, z0, x1, ty + 0.06, z1, "rip_iron")
+            cover = "rip_sheet" if kind == "sick_bed" else "rip_navy"
+            t_part(m, x0 + 0.06, ty + 0.06, z0 + 0.06, x1 - 0.06, ty + 0.22, z1 - 0.06, cover)
+            # the pillow at the end away from the door side (the -x or -z end)
+            if s[0] >= s[2]:
+                t_part(m, x0 + 0.1, ty + 0.22, z0 + 0.15, x0 + 0.5, ty + 0.3, z1 - 0.15, "rip_sheet")
+            else:
+                t_part(m, x0 + 0.15, ty + 0.22, z0 + 0.1, x1 - 0.15, ty + 0.3, z0 + 0.5, "rip_sheet")
+        if kind == "bunk":                    # the top bunk's guard rail
+            if axis == "x":
+                fx = x1 - 0.04 if sg > 0 else x0
+                t_part(m, fx, y0 + 1.5, z0 + 0.06, fx + 0.04, y0 + 1.56, z1 - 0.6, "rip_iron")
+            else:
+                fz = z1 - 0.04 if sg > 0 else z0
+                t_part(m, x0 + 0.06, y0 + 1.5, fz, x1 - 0.6, y0 + 1.56, fz + 0.04, "rip_iron")
+    elif kind == "med_cab":
+        t_part(m, x0, y0, z0, x1, y1, z1, "rip_white")
+        front("med", lo=y0 + 0.1, hi=y1 - 0.05)
+    elif kind == "console":                   # a body with a sloped top facing the room, screens on the slope
+        dz = z1 - z0
+        t_part(m, x0, y0, z0, x1, y1 - 0.25, z1, "rip_iron")
+        t_part(m, x0, y1 - 0.25, z0, x1, y1, z0 + 0.35, "rip_iron")
+        slope = [(x0, y1 - 0.25, z1), (x1, y1 - 0.25, z1), (x1, y1, z0 + 0.35), (x0, y1, z0 + 0.35)]
+        ln = math.hypot(0.25, dz - 0.35)
+        b.poly(slope, (0, (dz - 0.35) / ln, 0.25 / ln), "decals", m.d("screens"))
+        for xs in (x0, x1):
+            b.poly([(xs, y1 - 0.25, z0 + 0.35), (xs, y1 - 0.25, z1), (xs, y1, z0 + 0.35)], (1 if xs == x1 else -1, 0, 0),
+                   "rip_iron", uv_world(1.0))
+    elif kind == "helm":
+        t_part(m, x0 + 0.1, y0, z0 + 0.1, x1 - 0.1, y1 - 0.3, z1 - 0.1, "rip_iron")
+        t_part(m, x0 + 0.05, y1 - 0.3, z0 + 0.05, x1 - 0.05, y1 - 0.2, z1 - 0.05, "rip_steel_in")
+        cyl(b, ((x0 + x1) / 2, y1 - 0.12, (z0 + z1) / 2), 0.04, 0.16, "rip_iron", sides=6)
+        cyl(b, ((x0 + x1) / 2, y1 - 0.03, (z0 + z1) / 2), 0.26, 0.04, "rip_wood", "rip_wood", sides=12)
+    elif kind == "radio":
+        t_part(m, x0, y1 - 0.05, z0, x1, y1, z1, "rip_wood")
+        legs(y1 - 0.05)
+        front("radio", lo=y0 + 0.2, hi=y1 - 0.08)
+    elif kind == "crates":                    # wooden crates stacked two high, the top one smaller
+        r2 = random.Random("%.1f%.1f" % (c[0], c[2]))
+        h1 = min(0.75, s[1] / 2)
+        n = max(1, int(max(s[0], s[2]) // 1.0))
+        for k in range(n):
+            if s[0] >= s[2]:
+                a0, a1, b0, b1 = x0 + k * s[0] / n + 0.03, x0 + (k + 1) * s[0] / n - 0.03, z0 + 0.03, z1 - 0.03
+            else:
+                a0, a1, b0, b1 = x0 + 0.03, x1 - 0.03, z0 + k * s[2] / n + 0.03, z0 + (k + 1) * s[2] / n - 0.03
+            t_part(m, a0, y0, b0, a1, y0 + h1, b1, "rip_wood")
+            t_part(m, a0 - 0.01, y0 + h1 / 2 - 0.04, b0 - 0.01, a1 + 0.01, y0 + h1 / 2 + 0.04, b1 + 0.01, "rip_iron")
+            if r2.random() < 0.7:
+                t_part(m, a0 + 0.08, y0 + h1, b0 + 0.08, a1 - 0.08, min(y1, y0 + h1 + 0.6), b1 - 0.08,
+                       r2.choice(["rip_wood", "rip_cont_c"]))
+    else:
+        t_part(m, x0, y0, z0, x1, y1, z1, "rip_iron")
+    b.group = None
+
+
+def tower_mast(m):
+    """The radar mast on the stairs' head house (out of reach: nothing but the head house's roof under it, 3.4 m over
+    the helideck): a yellow lattice post, a yardarm with lamps, the radar scanner, whip aerials."""
+    b = m.b
+    roof = None
+    for row in m.data["boxes"]:
+        if row["colour"] == "roof":
+            roof = row
+    if roof is None:
+        return
+    c, s = roof["pos"], roof["size"]
+    base = c[1] + s[1] / 2
+    mx, mz = c[0], c[2] + 2.0
+    t_item(m)
+    for dx in (-0.3, 0.3):
+        for dz in (-0.3, 0.3):
+            m.box((mx + dx, base + 3.0, mz + dz), (0.1, 6.0, 0.1), mat("rip_yellow"), cull=False)
+    for k in range(6):                        # rungs / bracing
+        y = base + 0.5 + k
+        for (ax, az, bx, bz) in ((-0.3, -0.3, 0.3, -0.3), (-0.3, 0.3, 0.3, 0.3), (-0.3, -0.3, -0.3, 0.3), (0.3, -0.3, 0.3, 0.3)):
+            m.box((mx + (ax + bx) / 2, y, mz + (az + bz) / 2), (abs(bx - ax) + 0.06, 0.05, abs(bz - az) + 0.06), mat("rip_yellow"),
+                  cull=False)
+    top = base + 6.0
+    m.box((mx, top + 0.05, mz), (0.9, 0.1, 0.9), mat("rip_iron"), cull=False)
+    m.box((mx, top - 1.4, mz), (0.08, 0.08, 3.2), mat("rip_yellow"), cull=False)     # the yardarm (along z)
+    for dz in (-1.5, 1.5):
+        cyl(b, (mx, top - 1.5, mz + dz), 0.07, 0.14, "rip_lamp", sides=6)
+    # the radar: a pedestal and the long scanner bar
+    m.box((mx, top + 0.3, mz), (0.3, 0.4, 0.3), mat("rip_white"), cull=False)
+    m.box((mx, top + 0.6, mz), (0.25, 0.2, 3.4), mat("rip_white"), cull=False)
+    for dz in (-0.35, 0.35):                  # whip aerials
+        cyl(b, (mx + 0.4, top + 1.2, mz + dz), 0.025, 2.4, "rip_iron", sides=4)
+    b.group = None
+
+
+def tower_band(m):
+    """A dark band round the bridge's windows (the bridge deck's outside, from the window sills to their heads), so its
+    front reads as one strip of glass."""
+    f = 3
+    lo, hi = T_FLOORS[f] + 0.75, T_FLOORS[f] + 2.55
+    ops = [o for o in m.data["openings"] if abs(o["y0"] - (T_FLOORS[f] + 0.9)) < 0.05]
+    for axis, at, n, a0, a1 in (("x", -TZ - 0.15, -1, -TX - 0.15, TX + 0.15), ("z", -TX - 0.15, -1, -TZ - 0.15, TZ + 0.15),
+                                ("z", TX + 0.15, 1, -TZ - 0.15, TZ + 0.15)):
+        holes = sorted((o["a0"] - 0.08, o["a1"] + 0.08) for o in ops if o["axis"] == axis and abs(abs(o["at"]) - abs(at + -n * 0.15)) < 0.01
+                       and (o["at"] > 0) == (n > 0))
+        edges = [a0]
+        for h0, h1 in holes:
+            edges += [h0, h1]
+        edges.append(a1)
+        for pa, pb in zip(edges[::2], edges[1::2]):
+            if pb - pa > 0.02:
+                if axis == "x":
+                    flat(m.b, (0, 0, n), at + n * 0.008, pa, pb, lo, hi, "rip_iron", uv_world(1.0))
+                else:
+                    flat(m.b, (n, 0, 0), at + n * 0.008, pa, pb, lo, hi, "rip_iron", uv_world(1.0))
+
+
+def t_frame(m, o):
+    """Dark steel frames round an opening, on both faces of its wall; a sill under an outside window."""
+    a0, a1, y0, y1, t = o["a0"], o["a1"], o["y0"], o["y1"], o["t"]
+    if y0 >= T_ROOF - 0.01 and t < 0.25:
+        return                                # (gaps in the helideck's rail: no frame)
+    fw, fd = 0.08, 0.04
+    window = y0 - t_floor(y0 + 0.01 if y0 >= T_FLOORS[0] else y0) > 0.5 if y0 >= T_FLOORS[0] - 0.01 else False
+    outer = (o["axis"] == "x" and abs(abs(o["at"]) - TZ) < 0.01) or (o["axis"] == "z" and abs(abs(o["at"]) - TX) < 0.01)
+    for sg in (-1, 1):
+        face = o["at"] + sg * t / 2
+        pieces = [(a0 - fw, a0, y0 - (fw if window else 0), y1 + fw), (a1, a1 + fw, y0 - (fw if window else 0), y1 + fw),
+                  (a0 - fw, a1 + fw, y1, y1 + fw)]
+        if window:
+            pieces.append((a0 - fw, a1 + fw, y0 - fw, y0))
+        for pa, pb, ya, yb in pieces:
+            if o["axis"] == "x":
+                m.box(((pa + pb) / 2, (ya + yb) / 2, face + sg * fd / 2), (pb - pa, yb - ya, fd), mat("rip_iron"), cull=False)
+            else:
+                m.box((face + sg * fd / 2, (ya + yb) / 2, (pa + pb) / 2), (fd, yb - ya, pb - pa), mat("rip_iron"), cull=False)
+        if window and outer and sg == (1 if o["at"] > 0 else -1):
+            # a drip sill under the outside of the window
+            if o["axis"] == "x":
+                m.box(((a0 + a1) / 2, y0 - fw - 0.03, face + sg * 0.05), (a1 - a0 + 0.3, 0.06, 0.1), mat("rip_white"), cull=False)
+            else:
+                m.box((face + sg * 0.05, y0 - fw - 0.03, (a0 + a1) / 2), (0.1, 0.06, a1 - a0 + 0.3), mat("rip_white"), cull=False)
+
+
+def t_sign(m, axis, at, n_sign, a_mid, y, name, width, height=None):
+    """A sign plate flat on a wall (1 cm out), centred at a_mid along it, its bottom at y."""
+    rect = m.decals.regions[name]
+    if height is None:
+        u0, v0, u1, v1 = rect
+        aspect = (v1 - v0) / (u1 - u0)
+        height = width * aspect
+    n = (n_sign, 0, 0) if axis == "z" else (0, 0, n_sign)
+    flat(m.b, n, at + n_sign * 0.012, a_mid - width / 2, a_mid + width / 2, y, y + height, "decals", m.d(name))
+
+
+def tower_details(m):
+    b = m.b
+    data = m.data
+    # the white fill at the corners and the floor lines (the gray box's walls stop at the slabs and at each other)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            xa, xb = sorted((sx * TX, sx * (TX + 0.15)))
+            za, zb = sorted((sz * TZ, sz * (TZ + 0.15)))
+            m.box(((xa + xb) / 2, (T_FLOORS[0] + T_ROOF) / 2, (za + zb) / 2), (xb - xa, T_ROOF - T_FLOORS[0], zb - za),
+                  mat("rip_white"), cull=False)
+            xa, xb = sorted((sx * TX, sx * (TX + 0.1)))
+            za, zb = sorted((sz * TZ, sz * (TZ + 0.1)))
+            m.box(((xa + xb) / 2, T_ROOF + 0.5, (za + zb) / 2), (xb - xa, 1.0, zb - za), mat("rip_white"), cull=False)
+    for y in list(T_FLOORS[1:]) + [T_ROOF]:
+        lo = y - SLAB
+        for sz in (-1, 1):
+            za, zb = sorted((sz * TZ, sz * (TZ + 0.15)))
+            m.box((0.0, lo + SLAB / 2, (za + zb) / 2), (2 * TX, SLAB, zb - za), mat("rip_white"), cull=False)
+        for sx in (-1, 1):
+            xa, xb = sorted((sx * TX, sx * (TX + 0.15)))
+            spans = [(-TZ, TZ)] if sx < 0 else [(-TZ, T_STAIR[2]), (T_STAIR[3], TZ)]   # (the stairs' wall fills it there)
+            for za, zb in spans:
+                m.box(((xa + xb) / 2, lo + SLAB / 2, (za + zb) / 2), (xb - xa, SLAB, zb - za), mat("rip_white"), cull=False)
+    # frames
+    for o in data["openings"]:
+        t_frame(m, o)
+    # signs over the corridor doors (facing the corridor), over the stair doors, outside doors
+    for o in data["openings"]:
+        f = t_floor(o["y0"] + 0.01)
+        if not 0 <= f <= 3 or o["y0"] - T_FLOORS[f] > 0.3:
+            continue
+        mid = (o["a0"] + o["a1"]) / 2
+        top = o["y1"] + 0.14
+        if o["axis"] == "x" and abs(abs(o["at"]) - 3.0) < 0.01:           # corridor doors
+            room = t_room(mid, o["at"] * 2)
+            n = -1 if o["at"] > 0 else 1
+            t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, "sign_" + ROOM_NAMES[f][room], 1.0)
+        elif o["axis"] == "z" and abs(o["at"] - T_STAIR[0]) < 0.01:         # the stairs' doors
+            t_sign(m, "z", o["at"] - o["t"] / 2, -1, mid, top, "sign_STAIRS", 0.9)
+            t_sign(m, "z", o["at"] + o["t"] / 2, 1, mid, top, "deck_" + DECK_NAMES[T_FLOORS[f]], 1.3)
+        elif o["axis"] == "x" and abs(abs(o["at"]) - TZ) < 0.01 and f == 0:  # outside doors on the main deck
+            n = 1 if o["at"] > 0 else -1
+            room = t_room(mid, o["at"] - n * 1.0)
+            t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, "sign_" + ROOM_NAMES[0][room], 1.0)
+    # the stairs onto the helideck: its door is in the head house's west wall (the top landing)
+    for o in data["openings"]:
+        if o["axis"] == "z" and abs(o["at"] - T_STAIR[0]) < 0.01 and abs(o["y0"] - T_ROOF) < 0.05:
+            mid = (o["a0"] + o["a1"]) / 2
+            t_sign(m, "z", o["at"] + o["t"] / 2, 1, mid, o["y1"] + 0.14, "deck_HELIDECK", 1.3)
+    # LEVIATHAN across the bridge front (on the helideck's rail), NO SMOKING and a muster sign by the north doors
+    t_sign(m, "x", -TZ - 0.1, -1, 0.0, T_ROOF + 0.12, "nameboard", 7.5)
+    t_sign(m, "x", -TZ - 0.15, -1, -4.0, T_FLOORS[0] + 1.3, "no_smoking", 0.9)
+    t_sign(m, "x", -TZ - 0.15, -1, 6.0, T_FLOORS[0] + 1.3, "sign_MUSTER STATION", 1.4)
+    t_sign(m, "x", TZ + 0.15, 1, 3.0, T_FLOORS[0] + 1.3, "sign_LIFEJACKETS", 1.2)
+    # the helideck's H, the touchdown ring (16 m across, in the open part west of the stairs' head house)
+    b.poly([(-12.0, T_ROOF + 0.006, -8.0), (4.0, T_ROOF + 0.006, -8.0), (4.0, T_ROOF + 0.006, 8.0), (-12.0, T_ROOF + 0.006, 8.0)],
+           (0, 1, 0), "graffiti", m.d("helipad"))
+    # lifebuoys on the outside walls (a ring of 8 short pieces, 6 cm deep)
+    for axis, at, n, a, y in (("x", -TZ - 0.15, -1, -11.0, 5.4), ("x", TZ + 0.15, 1, 6.0, 5.4), ("z", -TX - 0.15, -1, -2.0, 5.4),
+                              ("z", TX + 0.15, 1, 4.0, 5.4), ("x", -TZ - 0.15, -1, 11.0, 12.6), ("z", -TX - 0.15, -1, 12.0, 12.6)):
+        t_item(m)
+        for k in range(8):
+            ang = 2 * math.pi * (k + 0.5) / 8
+            ca, cy_ = a + 0.3 * math.cos(ang), y + 0.3 * math.sin(ang)
+            seg = 2 * 0.3 * math.tan(math.pi / 8) + 0.02
+            col = "rip_orange" if k % 2 else "rip_white"
+            if axis == "x":
+                c3 = (ca, cy_, at + n * 0.03)
+                sz = (seg, 0.1, 0.06) if abs(math.sin(ang)) > 0.7 else ((0.1, seg, 0.06) if abs(math.cos(ang)) > 0.7 else (0.12, 0.12, 0.06))
+            else:
+                c3 = (at + n * 0.03, cy_, ca)
+                sz = (0.06, 0.1, seg) if abs(math.sin(ang)) > 0.7 else ((0.06, seg, 0.1) if abs(math.cos(ang)) > 0.7 else (0.06, 0.12, 0.12))
+            m.box(c3, sz, mat(col), cull=False)
+        b.group = None
+    # ceiling lamps, a clock in the mess and on the bridge
+    for f, y in enumerate(T_FLOORS):
+        ceil = (T_FLOORS[f + 1] if f + 1 < len(T_FLOORS) else T_ROOF) - SLAB
+        for x, z in ((-9.0, -11.5), (-9.0, -6.5), (1.0, -11.5), (1.0, -6.5), (-10.0, 0.0), (0.0, 0.0), (-9.0, 7.0),
+                     (-9.0, 12.0), (1.0, 7.0), (1.0, 12.0), (10.0, 7.0), (10.0, 12.0)):
+            t_lamp(m, x, ceil, z)
+    for row in data["boxes"]:
+        if row["colour"] == "concrete" and not row["pitch"]:
+            c, s = row["pos"], row["size"]
+            if s[2] < 3.5 and s[0] > 7:
+                t_lamp(m, c[0], c[1] - s[1] / 2, c[2], 0.8, 0.25)
+    for axis, at, n, a, y in (("z", -TX + 0.15, 1, -11.0, T_FLOORS[1] + 2.3), ("z", -TX + 0.15, 1, 4.5, T_FLOORS[3] + 2.6)):
+        flat(b, (n, 0, 0), at + 0.012, a - 0.2, a + 0.2, y, y + 0.4, "graffiti", m.d("clock"))
+    # pegboards over the benches, the radio rack's wall
+    for row in data["boxes"]:
+        if row.get("kind") == "bench":
+            c, s = row["pos"], row["size"]
+            axis, sg = _against(row)
+            y = c[1] + s[1] / 2 + 0.25
+            back = (c[0] - sg * (s[0] / 2 + 0.05), y + 0.35, c[2]) if axis == "x" else (c[0], y + 0.35, c[2] - sg * (s[2] / 2 + 0.05))
+            if not m.inside(back):
+                continue                      # (a bench out in the room: no wall to hang the board on)
+            if axis == "x":
+                at = c[0] - sg * s[0] / 2
+                flat(b, (sg, 0, 0), at + sg * 0.012, c[2] - s[2] / 2 + 0.2, c[2] + s[2] / 2 - 0.2, y, y + 0.7, "decals", m.d("pegboard"))
+            else:
+                at = c[2] - sg * s[2] / 2
+                flat(b, (0, 0, sg), at + sg * 0.012, c[0] - s[0] / 2 + 0.2, c[0] + s[0] / 2 - 0.2, y, y + 0.7, "decals", m.d("pegboard"))
+
+
+SLAB = 0.25
+
+
+def tower_wall(m, row, skirts):
+    """A wall piece: white outside, the room's paint inside (steel on the main deck and in the stairwell)."""
+    c, s = row["pos"], row["size"]
+    stair_east = abs(c[0] - T_STAIR[1]) < 0.01 and s[1] > 20
+    tall = s[1] > 4.0 and not stair_east     # (the stairs' walls run through every deck: painted deck by deck)
+
+    def style(n, mid, corners):
+        y = mid[1]
+        if abs(n[1]) > 0.7:
+            if n[1] < 0 and y < T_FLOORS[0] - 0.05:
+                return None
+            f = t_floor(y + (0.02 if n[1] > 0 else -0.3))
+            if y >= T_ROOF + 0.5 and n[1] > 0:
+                return "rip_roof"
+            outer = abs(abs(c[0]) - TX) < 0.01 and s[0] < 0.5 or abs(abs(c[2]) - TZ) < 0.01 and s[2] < 0.5
+            if outer and f >= 0:
+                return "rip_white"
+            return t_wall_mat(f, t_room(mid[0], mid[2]))
+        if stair_east and n[0]:
+            return None                      # (drawn in bands below: the tower's own east wall covers it)
+        if tall:
+            tall_faces.append((n, mid, corners))
+            return None
+        p = (mid[0] + n[0] * 0.3, mid[1], mid[2] + n[2] * 0.3)
+        f = t_floor(y)
+        room = t_room(p[0], p[2])
+        if f == 4 or (f >= 0 and room == "out"):
+            return "rip_white"
+        mt = t_wall_mat(f, room)
+        lo = min(q[1] for q in corners)
+        if 1 <= f <= 3 and room != "stair" and abs(lo - T_FLOORS[f]) < 0.02:
+            skirts.append((n, mid, corners))
+        return mt
+    tall_faces = []
+    m.box(c, s, style)
+    for n, mid, corners in tall_faces:
+        y0, y1 = min(q[1] for q in corners), max(q[1] for q in corners)
+        axis_i = 0 if n[0] else 2
+        other = 2 if n[0] else 0
+        a0, a1 = min(q[other] for q in corners), max(q[other] for q in corners)
+        at = mid[axis_i]
+        cuts = sorted({y0, y1} | {v for f in T_FLOORS + (T_ROOF,) for v in (f - SLAB, f) if y0 < v < y1})
+        for lo, hi in zip(cuts, cuts[1:]):
+            ym = (lo + hi) / 2
+            pts = [(at, lo, a0), (at, lo, a1), (at, hi, a1), (at, hi, a0)] if n[0] else \
+                  [(a0, lo, at), (a1, lo, at), (a1, hi, at), (a0, hi, at)]
+            bm = tuple((lo + hi) / 2 if k == 1 else (mid[k] if k == axis_i else (a0 + a1) / 2) for k in range(3))
+            if m.hidden(n, bm, pts):
+                continue
+            f = t_floor(ym)
+            p = (bm[0] + n[0] * 0.3, bm[2] + n[2] * 0.3)
+            room = t_room(*p)
+            mt = "rip_white" if f == 4 or (f >= 0 and room == "out") else t_wall_mat(f, room)
+            flat(m.b, n, at, a0, a1, lo, hi, mt, uv_world())
+            if 1 <= f <= 3 and room != "stair" and abs(lo - T_FLOORS[f]) < 0.02:
+                skirts.append((n, bm, pts))
+    if stair_east:
+        y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+        bands = [(y0, T_FLOORS[0])] + [(f - SLAB, f) for f in T_FLOORS[1:]] + [(T_ROOF - SLAB, y1)]
+        for sg in (-1, 1):
+            at = c[0] + sg * s[0] / 2
+            for lo, hi in bands:
+                if sg > 0 and lo >= T_FLOORS[0] - 0.01 and hi <= T_ROOF:
+                    mt = "rip_white"
+                elif sg > 0:
+                    mt = "rip_white" if lo >= T_ROOF - SLAB - 0.01 else "rip_steel_in"
+                else:
+                    mt = "rip_steel_in"
+                flat(m.b, (sg, 0, 0), at, c[2] - s[2] / 2, c[2] + s[2] / 2, lo, hi, mt, uv_world())
+
+
+def tower_slab(m, row):
+    c, s = row["pos"], row["size"]
+    top = c[1] + s[1] / 2
+    split = row["colour"] == "metal" and 1 <= t_floor(top + 0.01) <= 3
+    if split:                                 # (a slab runs under several rooms: each gets its own floor)
+        x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
+        xs = sorted({x0, x1} | {v for v in (-4.0, 6.0) if x0 < v < x1})
+        zs = sorted({z0, z1} | {v for v in (-3.0, 3.0) if z0 < v < z1})
+        for xa, xb in zip(xs, xs[1:]):
+            for za, zb in zip(zs, zs[1:]):
+                mt = t_floor_mat(t_floor(top + 0.01), t_room((xa + xb) / 2, (za + zb) / 2))
+                m.b.poly([(xa, top, za), (xb, top, za), (xb, top, zb), (xa, top, zb)], (0, 1, 0), mt, uv_world())
+
+    def style(n, mid, corners):
+        if n[1] > 0.7:
+            if split:
+                return None
+            f = t_floor(mid[1] + 0.01)
+            if row["colour"] == "roof":
+                return "rip_roof"
+            if row["colour"] == "concrete":
+                return "rip_deck"
+            return t_floor_mat(f, t_room(mid[0], mid[2]))
+        if n[1] < -0.7:
+            f = t_floor(mid[1] - 0.3)
+            room = t_room(mid[0], mid[2])
+            if f <= 0 or room == "stair" or row["colour"] in ("concrete", "roof"):
+                return "rip_steel_in"
+            return "rip_ceiling"
+        if row["colour"] == "concrete":
+            return ("rip_yellow", uv_world(1.0))
+        return ("rip_iron", uv_world(1.0))
+    m.box(c, s, style)
+
+
+def build_tower(name="bridge_tower"):
+    mb.BUILDING_NAME[0] = name
+    with open(os.path.join(ROOT, "art_source", "buildings", name + ".json")) as f:
+        data = json.load(f)
+    textures, mat_info = {}, {}
+    for kit, painter in KIT.items():
+        textures["kit_" + kit] = Texture("kit_" + kit, os.path.join(KIT_DIR, kit + ".png"), painter, random.Random(kit))
+    atlas = tower_decals(random.Random(name))
+    textures[name + "_decals"] = Texture(name + "_decals", os.path.join("art_source", "textures", name + "_decals.png"),
+                                         lambda r: atlas.c, random.Random(name))
+    mat_info["decals"] = (name + "_decals", False, False)
+    mat_info["graffiti"] = (name + "_decals", True, False)
+    m = Model(data, atlas)
+    m.rng = random.Random(name)
+    skirts = []
+    for row in data["boxes"]:
+        col = row["colour"]
+        if row.get("kind"):
+            t_prop(m, row)
+        elif row["pitch"]:
+            m.box(row["pos"], row["size"], ramp_style, yaw=row["yaw"], pitch=row["pitch"])
+        elif col == "wall":
+            tower_wall(m, row, skirts)
+        elif col in ("metal", "concrete", "roof"):
+            tower_slab(m, row)
+        elif col == "rust":                       # the helideck's rail: white, a yellow cap
+            m.box(row["pos"], row["size"], lambda n, mid, q: ("rip_yellow", uv_world(1.0)) if n[1] > 0.7 else
+                  (None if n[1] < -0.7 else "rip_white"))
+        else:
+            m.box(row["pos"], row["size"], mat("rip_iron"))
+    for n, mid, corners in skirts:              # a dark skirting board along the bottom of the panelled walls
+        lo = min(q[1] for q in corners)
+        if n[0]:
+            zs = [q[2] for q in corners]
+            flat(m.b, n, mid[0] + n[0] * 0.01, min(zs), max(zs), lo, lo + 0.12, "rip_iron", uv_world(1.0))
+        else:
+            xs = [q[0] for q in corners]
+            flat(m.b, n, mid[2] + n[2] * 0.01, min(xs), max(xs), lo, lo + 0.12, "rip_iron", uv_world(1.0))
+    tower_details(m)
+    tower_band(m)
+    tower_mast(m)
+    b = m.b
+    bake_light.CELL = 1.5
+    bake_light.DARK = 0.62                    # (rooms lit by their lamps: not as dark as the hold)
+    bake_light.bake(b, [r for r in data["boxes"] if not r["pitch"]])
+    cells = riptide_atlas()
+    tris = sum(len(f) - 2 for f in b.faces)
+    print(f"{name}: {tris} triangles, {len(set('riptide_atlas' if mn in cells else mn for mn in b.mat_names))} materials")
+    out = os.path.join(ROOT, "assets", "models", "buildings", name + ".glb")
+    mb.write_glb(out, b, textures, mat_info, atlas=cells, atlas_name="riptide_atlas")
+    mb.set_import_script(out)
+    print("exported", out)
+    return tris
+
+
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
-    build(args[0] if args else "leviathan_hull")
+    name = args[0] if args else "leviathan_hull"
+    build_tower(name) if name == "bridge_tower" else build(name)
