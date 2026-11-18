@@ -49,6 +49,37 @@ SEABED = -29.0
 SX0, SX1, SZ0, SZ1 = 30.0, 66.0, -104.0, 110.0
 # The bridge tower (superstructure) on the stern end
 TX0, TX1, TZ0, TZ1 = 34.0, 62.0, 74.0, 106.0
+# (0.36.17, owner: "the boat shape is like too square") The hull's outline: the bow narrows over its last 10.5 m to a
+# 2.8 m stem (the bow ladder climbs it) and the stern's corners are rounded (5 m). Each line is (half the hull's width,
+# to the middle of its plate, z), the same on both sides; between them the sides are straight. The hull plate follows
+# these points in straight pieces, and the floors inside are cut to them in strips (hull_slab).
+BOW_Z, STEM = -93.5, 1.4
+STERN_Z, STERN_R = 105.0, 5.0
+BOW_LINE = [(STEM + (18.0 - STEM) * math.cos(math.pi / 2 * k / 12), BOW_Z - (BOW_Z - SZ0) * k / 12) for k in range(13)]
+STERN_LINE = [(18.0 - STERN_R + STERN_R * math.cos(math.radians(15 * k)), STERN_Z + STERN_R * math.sin(math.radians(15 * k)))
+              for k in range(7)]
+
+
+def hull_half(z):
+    """Half the hull's width (to the middle of its plate) at z."""
+    for line in (BOW_LINE, STERN_LINE):
+        for (ha, za), (hb, zb) in zip(line, line[1:]):
+            if min(za, zb) <= z <= max(za, zb) and za != zb:
+                return ha + (hb - ha) * (z - za) / (zb - za)
+    return 18.0
+
+
+def hull_strips(z0, z1, step=0.45):
+    """The bow's and stern's shaped part between z0 and z1 cut into strips across the ship, each no more than `step`
+    narrower at one end than the other: (za, zb, half the width at its narrow end)."""
+    cuts = set()
+    for line in (BOW_LINE, STERN_LINE):
+        for (ha, za), (hb, zb) in zip(line, line[1:]):
+            n = max(1, math.ceil(abs(hb - ha) / step))
+            cuts |= {za + (zb - za) * k / n for k in range(n + 1)}
+    cuts = sorted({z0, z1} | {c for c in cuts if z0 < c < z1})
+    return [(za, zb, min(hull_half(za), hull_half(zb))) for za, zb in zip(cuts, cuts[1:])
+            if zb - za > 0.005 and (zb <= BOW_Z or za >= STERN_Z)]
 
 COLOURS = [
     ("sand", (0.74, 0.68, 0.52)),
@@ -223,6 +254,14 @@ def slab(x0, x1, z0, z1, top, colour="metal", holes=(), t=SLAB_T):
                 run = None
         if run:
             box(run[0], top - t, zs[j], run[1], top, zs[j + 1], colour)
+
+
+def hull_slab(top, colour="metal", holes=(), z0=SZ0, z1=SZ1, t=SLAB_T):
+    """A deck right across the ship (from z0 to z1), cut to the hull's outline: straight where the sides are, strips
+    (kind "deck_curve": the model draws the deck's real outline over them) at the bow and the stern."""
+    slab(SX0, SX1, max(z0, BOW_Z), min(z1, STERN_Z), top, colour, holes, t)
+    for za, zb, half in hull_strips(z0, z1):
+        box(48.0 - half, top - t, za, 48.0 + half, top, zb, colour, kind="deck_curve")
 
 
 def room(x0, x1, z0, z1, y, h, colour="wall", n=(), s=(), w=(), e=(), floor=None, roof=None, t=WALL_T):
@@ -706,7 +745,7 @@ def breakers():
         else:
             z += 1.0
     # the forecastle: the windlasses, the bosun's store, a mast (cover up on the bow)
-    for x in (38.0, 58.0):
+    for x in (40.0, 56.0):      # (0.36.17: 2 m in from the shaped bow's sides; were x 38 / 58)
         box(x - 1.5, FORECASTLE, -100.0, x + 1.5, FORECASTLE + 1.6, -96.0, "rust")
     room(44.0, 52.0, -102.0, -95.0, FORECASTLE, 2.6, "wall", s=[door(48.0)], e=[window(-98.5)], w=[window(-98.5)],
          roof="roof")
@@ -876,7 +915,8 @@ def hole(r, pad=0.0):
 
 
 def ship():
-    footprints.append((SX0, SZ0, SX1, SZ1))
+    footprints.append((SX0, BOW_Z, SX1, STERN_Z))      # (0.36.17: the map screen shows the shaped bow and stern too)
+    footprints.extend((48.0 - half, za, 48.0 + half, zb) for za, zb, half in hull_strips(SZ0, SZ1, 1.5))
     labels.append(("LEVIATHAN", 48, 30, 1))
     # (art step 1, model leviathan_hull: the hull's outside, the main deck, the drill floor)
     with modeled("leviathan_hull", 48.0, 0.0):
@@ -894,25 +934,32 @@ def hull_sides():
     gang = (0.0, 4.0, DECK - bottom, top - bottom)              # the gangway's gap in the rail
     hull_door = (5.8, 2.0, PIER - bottom, PIER - bottom + DOOR_H)  # from the pipe gallery into the hold's west passage
     west_gaps = [(38.5, 1.4, DECK - bottom, top - bottom), (54.5, 2.4, DECK - bottom, top - bottom)]   # pontoon, loader
-    wall("z", SX0, SZ0, SZ1, bottom, h, "hull", [gang, hull_door] + west_gaps, t=0.5)
+    wall("z", SX0, BOW_Z, STERN_Z, bottom, h, "hull", [gang, hull_door] + west_gaps, t=0.5)
     sea_gaps = [(z, 1.4, DECK - bottom, top - bottom) for z in (-88.0, 50.0)]
     sea_gaps += [(z, 2.0, BOAT - bottom, BOAT - bottom + DOOR_H) for z in BOAT_DOORS]   # (0.33.7) hull doors off the boats
-    wall("z", SX1, SZ0, SZ1, bottom, h, "hull", sea_gaps, t=0.5)
+    wall("z", SX1, BOW_Z, STERN_Z, bottom, h, "hull", sea_gaps, t=0.5)
     stern_ramp = (48.0, 8.0, BARGE - SLAB_T - bottom, DECK - 0.5 - bottom)   # (0.33.7: from the barge deck up, shut below the waterline)
     stern_gap = (60.0, 1.4, DECK - bottom, top - bottom)
-    wall("x", SZ1, SX0, SX1, bottom, h, "hull", [stern_ramp, stern_gap], t=0.5)
-    # the bow: higher, round the forecastle
-    wall("x", SZ0, SX0, SX1, bottom, FORECASTLE + BULWARK - bottom, "hull",
+    wall("x", SZ1, SX0 + STERN_R, SX1 - STERN_R, bottom, h, "hull", [stern_ramp, stern_gap], t=0.5)   # the transom
+    # the bow: higher, round the forecastle; the stem's flat front, the bow ladder's gap in its rail
+    wall("x", SZ0, 48.0 - STEM, 48.0 + STEM, bottom, FORECASTLE + BULWARK - bottom, "hull",
          [(48.0, 1.4, FORECASTLE - bottom, FORECASTLE + BULWARK - bottom)], t=0.5)
     for x in (SX0, SX1):
-        wall("z", x, SZ0, -90.0, DECK + BULWARK, FORECASTLE - DECK, "hull", t=0.5)
+        wall("z", x, BOW_Z, -90.0, DECK + BULWARK, FORECASTLE - DECK, "hull", t=0.5)
+    # (0.36.17) the shaped bow and the stern's rounded corners: the plate in straight pieces along the outline
+    for line, high in ((BOW_LINE, FORECASTLE + BULWARK), (STERN_LINE, top)):
+        for side in (-1, 1):
+            for (ha, za), (hb, zb) in zip(line, line[1:]):
+                xa, xb = 48.0 + side * ha, 48.0 + side * hb
+                length = math.hypot(xb - xa, zb - za)
+                obox((xa + xb) / 2, (bottom + high) / 2, (za + zb) / 2, 0.5, high - bottom, length + 0.1,
+                     math.degrees(math.atan2(xb - xa, zb - za)), "hull", kind="hull_curve")
 
 
 def hull_inside():
-    slab(SX0, SX1, SZ0, SZ1, LAB2 - SLAB_T, "hull")   # the keel plate, under the lab's floors
+    hull_slab(LAB2 - SLAB_T, "hull")   # the keel plate, under the lab's floors
     # Hull B: pump room forward, the bilge, the engine room aft
-    slab(SX0, SX1, SZ0, SZ1, HULL_B, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS),
-                                                      hole(SERVICE_TUBE)])
+    hull_slab(HULL_B, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS), hole(SERVICE_TUBE)])
     for z in (-56.0, 30.0):
         wall("x", z, SX0, SX1, HULL_B, HULL_A - SLAB_T - HULL_B, "metal", [door(36.0, 2.0), door(58.0, 2.0)])
     labels.append(("PUMP ROOM", 48, -80, 0))
@@ -932,7 +979,7 @@ def hull_inside():
         box(60.0, HULL_B, z - 2, 63.0, HULL_B + 2.0, z + 2, "rust")
 
     # Hull A (the cargo hold): side passages down both sides, the hold in the middle, workshops aft
-    slab(SX0, SX1, SZ0, SZ1, HULL_A, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)]
+    hull_slab(HULL_A, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)]
          + [(SX0 + 0.25 if x < 48 else x, x if x < 48 else SX1 - 0.25, z - 0.8, z + 0.8) for x, z, yaw in SIDE_LADDERS])
     for x, z, yaw in SIDE_LADDERS:
         ladder(x, HULL_B, z, yaw, HULL_A - HULL_B, "SideLadder")
@@ -969,7 +1016,7 @@ def hull_inside():
 
 def main_deck():
     # The main deck: the moon pool deckhouse, the derrick, cranes and containers, the forecastle
-    slab(SX0, SX1, -90.0, SZ1, DECK, "metal",
+    hull_slab(DECK, "metal", z0=-90.0,
          holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS)] + HATCHES + [(x0, x1, min(za, zb), max(za, zb)) for x0, x1, za, zb in COMPANIONS])
     # (0.33.7, owner: more ways down a floor) companionways: a ramp down through the deck into each side passage of
     # the hold, railed on the open sides; and a hull door off each moored boat onto a landing with a ramp down
@@ -985,17 +1032,17 @@ def main_deck():
         wall("z", 63.1, min(z + 2.5 * dz, z + 8.0 * dz), max(z + 2.5 * dz, z + 8.0 * dz), BOAT, 1.0, "rust", t=0.15)
         wall("x", z + 2.5 * dz, 63.1, SX1 - 0.25, BOAT, 1.0, "rust", t=0.15)
         wall("x", z - 2.5 * dz, 60.25, SX1 - 0.25, BOAT, 1.0, "rust", t=0.15)
-    slab(SX0, SX1, SZ0, -90.0, DECK, "metal")
+    hull_slab(DECK, "metal", z1=-90.0)
     for x0, x1, z0, z1 in HATCHES:   # a low coaming round each open hatch
         room(x0 - 0.3, x1 + 0.3, z0 - 0.3, z1 + 0.3, DECK, 0.5, "rust", t=0.3)
     labels.append(("HATCHES", 48, -54, 0))
     # the forecastle: a raised deck over the bow store, a ramp up
-    slab(SX0, SX1, SZ0, -90.0, FORECASTLE, "metal", holes=[(SX0, 34.5, -93.5, -90.0)])
+    hull_slab(FORECASTLE, "metal", holes=[(SX0, 34.5, -93.5, -90.0)], z1=-90.0)
     wall("x", -90.0, 34.5, SX1, DECK, FORECASTLE - DECK - SLAB_T, "hull", [door(40.0, 2.0), door(58.0, 2.0)])
     wall("x", -90.0, SX0, 34.5, FORECASTLE, BULWARK, "hull", [(32.2, 4.0, 0.0, BULWARK)])
     ramp((32.2, DECK, -80.0), (32.2, FORECASTLE, -93.5), 4.0, "metal")
-    add_loot("BowStore", "crate", 36.0, DECK, -100.0)
-    add_loot("BowStore", "crate", 60.0, DECK, -100.0)
+    add_loot("BowStore", "crate", 39.0, DECK, -99.0)    # (0.36.17: in from the shaped bow's sides; were x 36 / 60, z -100)
+    add_loot("BowStore", "crate", 57.0, DECK, -99.0)
     labels.append(("FORECASTLE", 48, -98, 0))
     # cranes and deck cargo (v3): pipe racks and containers placed so no lane runs the length of the deck; the
     # drill floor (drill_floor) roofs the middle and splits the deck in two
@@ -1544,6 +1591,31 @@ def sea_planes():
         out += [f'[node name="Sea{i}" type="MeshInstance3D" parent="Level"]',
                 f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt((x0 + x1) / 2)}, 0, {fmt((z0 + z1) / 2)})",
                 f'mesh = SubResource("sea_{i}")', 'material_override = SubResource("sea_mat")', "cast_shadow = 0", ""]
+    # (0.36.17) the corners round the shaped bow and stern: water you swim in (strips, the sides of a swim box can't
+    # slant) and the sea's surface (SeaFill: flat polygons up to the hull's plate)
+    polys = []
+    for line, zend in ((BOW_LINE, SZ0 - 0.3), (STERN_LINE, SZ1 + 0.3)):
+        for side in (-1, 1):
+            edge = 48.0 + side * 18.3          # (the side pieces' inner edge)
+            pts = [(edge, line[0][1])] + [(48.0 + side * (h + 0.15), z) for h, z in line]
+            pts += [(48.0 + side * (line[-1][0] + 0.15), zend), (edge, zend)]
+            polys.append(pts)
+            strips = [(za, zb, max(hull_half(za), hull_half(zb)))
+                      for za, zb, _ in hull_strips(min(line[0][1], line[-1][1]), max(line[0][1], line[-1][1]), 0.6)]
+            strips.append((min(zend, line[-1][1]), max(zend, line[-1][1]), line[-1][0]))   # (out to the end pieces)
+            for za, zb, wide in strips:
+                wide += 0.3
+                x0, x1 = sorted((edge, 48.0 + side * wide))
+                if x1 - x0 > 0.05:
+                    i = len(out)
+                    out += [f'[node name="SwimC{i}" type="Area3D" parent="Level"]',
+                            f"transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {fmt((x0 + x1) / 2)}, 0, {fmt((za + zb) / 2)})",
+                            'script = ExtResource("10_swim")',
+                            f"size = Vector3({fmt(x1 - x0)}, {fmt(-SEABED + 1.0)}, {fmt(zb - za)})", ""]
+    out += ['[node name="SeaFill" type="MeshInstance3D" parent="Level"]', 'script = ExtResource("11_seafill")',
+            "polygons = Array[PackedVector2Array]([" + ", ".join(
+                "PackedVector2Array(" + ", ".join(f"{fmt(x)}, {fmt(z)}" for x, z in pts) + ")" for pts in polys) + "])",
+            'material_override = SubResource("sea_mat")', "cast_shadow = 0", ""]
     subs = ['[sub_resource type="StandardMaterial3D" id="sea_mat"]', "transparency = 1",
             "albedo_color = Color(0.13, 0.27, 0.35, 0.86)", "roughness = 0.15", "metallic_specular = 0.6", ""]
     for i, (x0, z0, x1, z1) in enumerate(pieces):
@@ -1560,7 +1632,8 @@ def write_scene():
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
            '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]',
            '[ext_resource type="Script" path="res://scripts/map_switch.gd" id="9_switch"]',
-           '[ext_resource type="Script" path="res://scripts/swim_zone.gd" id="10_swim"]']
+           '[ext_resource type="Script" path="res://scripts/swim_zone.gd" id="10_swim"]',
+           '[ext_resource type="Script" path="res://scripts/sea_fill.gd" id="11_seafill"]']
     ids = {}
     for n, (kind, path) in enumerate(scenes.items(), start=3):
         ids[kind] = f"{n}_{kind}"

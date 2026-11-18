@@ -6073,8 +6073,16 @@ func _section_riptide() -> void:
 	var swim_zones := world.raid.find_children("Swim*", "Area3D", true, false).filter(func(n: Node) -> bool: return n is SwimZone)
 	var water_ladders := world.raid.find_children("Ladder*", "Area3D", true, false).filter(func(n: Node) -> bool:
 		return String(n.get_meta("place", "")) == "Water")
-	_check(swim_zones.size() == 4 and water_ladders.size() >= 12 and water_ladders.all(func(l: Ladder) -> bool:
+	# (0.36.17: four pieces round the hull's box, plus strips in the corners round its shaped bow and stern)
+	_check(swim_zones.size() > 4 and water_ladders.size() >= 12 and water_ladders.all(func(l: Ladder) -> bool:
 		return l.global_position.y < -1.3 and l.top_y() > 0.5), "the sea is swimmable and has ladders out of it all round")
+	# (0.36.17) the Leviathan's shaped bow and stern: the sea's surface fills the corners round them, and you swim there
+	var fill := world.raid.find_child("SeaFill", true, false) as SeaFill
+	_check(fill != null and fill.polygons.size() == 4 and fill.mesh != null and fill.mesh.get_surface_count() == 1,
+		"the sea's surface reaches round the ship's shaped bow and stern")
+	_check(swim_zones.any(func(z: SwimZone) -> bool: return z.covers(Vector3(33.0, 0.0, -102.0))) and
+		not swim_zones.any(func(z: SwimZone) -> bool: return z.covers(Vector3(48.0, 0.0, -100.0))),
+		"the water beside the bow is swimmable, the bow itself isn't")
 	var swimmer := (load("res://scenes/player.tscn") as PackedScene).instantiate() as Player
 	world.raid.add_child(swimmer)
 	swimmer.global_position = Vector3(0, 0.5, 80)   # open water between the quay and the ship

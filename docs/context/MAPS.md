@@ -33,3 +33,7 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
   can walk into without a box behind it. `tools/riptide_view.gd` has `ship-*` and `sign-*` views (`view=a,b nospawn`),
   `tools/perf_view.gd -- map=riptide web` measures draw calls. Models a person can stand in far from their middle
   (the 214 m hull) are in `FarView.NO_FAR` instead of getting a far mesh.
+- The Leviathan's outline (0.36.17): `BOW_LINE` / `STERN_LINE` in `gen_riptide.py` (the bow narrows from z -93.5 to a
+  2.8 m stem, the stern's corners round off at r 5). The plate there is yawed boxes (kind `hull_curve`), the decks
+  `hull_slab` strips (kind `deck_curve`); `make_riptide.py` draws both smooth along the line. The sea's surface in the
+  corners is `SeaFill` (`scripts/sea_fill.gd`, polygons), the water you swim in there is extra `SwimC*` strips.

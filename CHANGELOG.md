@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.17 (Riptide: the Leviathan gets a ship's shape)
+Owner: "the boat shape is like too square". Riptide art, the Leviathan's outside.
+- The bow narrows over its last 10.5 m to a 2.8 m stem (the bow ladder still climbs it from the breakwater's pad), and
+  the stern's corners are rounded (5 m). Inside and out it is the same ship: the sides, decks, rails, hold, pump room
+  and lab are where they were; only the empty corners at the very bow and stern went (the bow store's two crates moved
+  in 3 m, the forecastle's windlasses 2 m). Water, swimming and the map screen follow the new outline.
+- The plate is drawn round the curve in the hull's colours (red outside, the black waterline band, white inside the
+  rail, a yellow cap); the anchors, draft marks and rubbing strake follow it.
+- Net version 4 (the map's shape changed: client and server must match).
+
 ## 0.36.16 (AI PMCs join main)
 The AI PMC phase (0.36.0-0.36.15) is merged into main with Riptide's 0.35.32-0.35.34 (owner, 2026-11-17: "push this to
 main"; he picked "Frontlines fix, Riptide as is"). The bot switch (`Matchmaker.bots_on`, server `--bots`) stays OFF, so

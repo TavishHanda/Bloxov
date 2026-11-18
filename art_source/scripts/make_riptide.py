@@ -489,6 +489,109 @@ def hull_box(m, row):
     return True
 
 
+# (0.36.17, owner: the hull was "too square") the shaped bow and the stern's rounded corners. The gray box has the
+# plate as straight yawed pieces (kind "hull_curve") and the decks there as strips (kind "deck_curve"); here the plate
+# is drawn as one smooth run along its middle line, and the decks to that line.
+def hull_chains(m):
+    """{(end, side): [points along the plate's middle line, (x, z), from the straight side to the stem / transom]}."""
+    chains = {}
+    for row in m.data["boxes"]:
+        if row.get("kind") != "hull_curve":
+            continue
+        c, s, yaw = row["pos"], row["size"], math.radians(row["yaw"])
+        d = (math.sin(yaw), math.cos(yaw))
+        half = (s[2] - 0.1) / 2
+        key = ("bow" if c[2] < 0 else "stern", 1 if c[0] > 0 else -1)
+        chains.setdefault(key, []).append(((c[0] - d[0] * half, c[2] - d[1] * half), (c[0] + d[0] * half, c[2] + d[1] * half),
+                                           c[1] - s[1] / 2, c[1] + s[1] / 2))
+    out = {}
+    for key, segs in chains.items():
+        pts = [segs[0][0], segs[0][1]] + [sg[1] for sg in segs[1:]]
+        out[key] = (pts, segs[0][2], segs[0][3])
+    return out
+
+
+def _seg_normal(a, b, side):
+    """The outward normal (x, z) of the plate from a to b on this side of the ship."""
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    ln = math.hypot(dx, dz)
+    n = (dz / ln, -dx / ln)
+    return n if n[0] * side > 0 or (abs(n[0]) < 1e-6 and n[1] > 0) else (-n[0], -n[1])
+
+
+def _offset(pts, side, d, stem_z=None):
+    """The line `d` out from the plate's middle (inward if negative), mitred at the joints; with stem_z, its last
+    point slides along the last piece to that z (where the stem's flat front is)."""
+    ns = [_seg_normal(a, b, side) for a, b in zip(pts, pts[1:])]
+    out = []
+    for i, p in enumerate(pts):
+        if i == 0:
+            n = ns[0]
+        elif i == len(pts) - 1:
+            n = ns[-1]
+        else:
+            a, b = ns[i - 1], ns[i]
+            n = (a[0] + b[0], a[1] + b[1])
+            ln = math.hypot(*n)
+            n = (n[0] / ln, n[1] / ln)
+            k = a[0] * n[0] + a[1] * n[1]
+            n = (n[0] / k, n[1] / k)
+        out.append((p[0] + n[0] * d, p[1] + n[1] * d))
+    if stem_z is not None:
+        (ax, az), (bx, bz) = out[-2], out[-1]
+        t = (stem_z - az) / (bz - az)
+        out[-1] = (ax + (bx - ax) * t, stem_z)
+    return out, ns
+
+
+def hull_curves(m):
+    """The plate round the shaped bow and the stern's corners: red outside in the same bands as the sides, steel
+    inside below the deck and white above, a yellow cap on the rail. Also the decks inside them."""
+    b = m.b
+    chains = hull_chains(m)
+    for (end, side), (pts, lo, hi) in chains.items():
+        bow = end == "bow"
+        outer, ns = _offset(pts, side, 0.25, -104.25 if bow else None)
+        inner, _ = _offset(pts, side, -0.25, -103.75 if bow else None)
+        deck_y = FORECASTLE if bow else DECK
+        inner_bands = ((-99.0, deck_y, "rip_steel_in"), (deck_y, 99.0, "rip_white"))
+        for i, n2 in enumerate(ns):
+            n = (n2[0], 0.0, n2[1])
+            for line, bands, sg in ((outer, OUTER_BANDS, 1), (inner, inner_bands, -1)):
+                (xa, za), (xb, zb) = line[i], line[i + 1]
+                for y0, y1, mt in bands:
+                    y0, y1 = max(y0, lo), min(y1, hi)
+                    if y1 - y0 > 0.01:
+                        b.poly([(xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za)], tuple(sg * v for v in n), mt,
+                               uv_world())
+            (oa, ob), (ia, ib) = (outer[i], outer[i + 1]), (inner[i], inner[i + 1])
+            b.poly([(ia[0], hi, ia[1]), (oa[0], hi, oa[1]), (ob[0], hi, ob[1]), (ib[0], hi, ib[1])], (0, 1, 0), "rip_yellow",
+                   uv_world(1.0))
+    # the decks: from one side's middle line to the other's, a piece between each pair of points
+    levels = {}
+    for row in m.data["boxes"]:
+        if row.get("kind") == "deck_curve":
+            levels[(round(row["pos"][1] + row["size"][1] / 2, 3), "bow" if row["pos"][2] < 0 else "stern")] = row["size"][1]
+    for (top, end), t in levels.items():
+        west, east = chains[(end, -1)][0], chains[(end, 1)][0]
+        for (wa, wb, ea, eb) in zip(west, west[1:], east, east[1:]):
+            q = [(wa[0], wa[1]), (ea[0], ea[1]), (eb[0], eb[1]), (wb[0], wb[1])]
+            b.poly([(x, top, z) for x, z in q], (0, 1, 0), "rip_deck", uv_world())
+            b.poly([(x, top - t, z) for x, z in q], (0, -1, 0), "rip_steel_in", uv_world())
+
+
+def on_hull(m, side, z, end="bow"):
+    """A spot on the shaped bow's (or stern's) outside face at z: (x, normal (x, z), along (x, z))."""
+    pts = hull_chains(m)[(end, side)][0]
+    outer, ns = _offset(pts, side, 0.25)
+    for i, ((xa, za), (xb, zb)) in enumerate(zip(outer, outer[1:])):
+        if min(za, zb) <= z <= max(za, zb):
+            t = (z - za) / (zb - za)
+            ln = math.hypot(xb - xa, zb - za)
+            return xa + (xb - xa) * t, ns[i], ((xb - xa) / ln, (zb - za) / ln)
+    raise ValueError(z)
+
+
 def deck_strips(m):
     """Where a gap in the rail comes down to the deck, the hull's top under it is deck plate (the slab stops at the
     hull's middle): a strip from there to the outside."""
@@ -522,31 +625,56 @@ def hull_details(m):
     flat(b, (1, 0, 0), 18.27, z0, z0 + L, y0, y0 + H, "graffiti", uv_fit(reg))
     # the stern: across the transom, under the rail
     flat(b, (0, 0, 1), 110.27, -4.9, 4.9, 3.76, 3.76 + 1.39, "graffiti", uv_fit(reg))   # (over the stern door)
-    # draft marks: fore and aft, both sides
-    for z in (-102.6, 107.0):
-        for side in (-1, 1):
-            for dm in DRAFTS:
-                y = dm - 18.75
-                flat(b, (side, 0, 0), side * 18.27, z - 0.45, z + 0.45, y, y + 0.36, "graffiti", m.d("draft%d" % dm))
-    # anchors: a dark pocket in the hull at each bow, the anchor's crown and flukes in it, a hawse pipe above
+    # draft marks: on the shaped bow near the stem (0.36.17), and aft on the straight side before the rounded corner
     for side in (-1, 1):
-        x = side * 18.25
-        zc = -97.5
-        pocket = [(x + side * 0.01, 1.2, zc - 1.6), (x + side * 0.01, 1.2, zc + 1.6), (x + side * 0.01, 4.6, zc + 1.6),
-                  (x + side * 0.01, 4.6, zc - 1.6)]
-        b.poly(pocket, (side, 0, 0), "rip_iron", uv_world())
-        m.box((x + side * 0.12, 3.6, zc), (0.2, 1.6, 0.3), mat("rip_pipe"), cull=False)   # the shank
-        m.box((x + side * 0.15, 2.4, zc), (0.26, 0.5, 2.2), mat("rip_pipe"), cull=False)                  # the flukes
-        for dz in (-0.9, 0.9):
-            m.box((x + side * 0.15, 2.85, zc + dz), (0.26, 0.5, 0.4), mat("rip_pipe"), cull=False)
+        x, n, d = on_hull(m, side, -101.6)
+        yaw = math.degrees(math.atan2(n[0], n[1]))
+        for dm in DRAFTS:
+            y = dm - 18.75
+            zc = -101.6
+            m.box((x + n[0] * 0.02, y + 0.18, zc + n[1] * 0.02), (0.9, 0.36, 0.01),
+                  lambda nn, mid, q, dm=dm: ("graffiti", m.d("draft%d" % dm)) if nn[0] * n[0] + nn[2] * n[1] > 0.9 else None,
+                  yaw=yaw, cull=False)
+        for dm in DRAFTS:
+            y = dm - 18.75
+            flat(b, (side, 0, 0), side * 18.27, 103.6, 104.5, y, y + 0.36, "graffiti", m.d("draft%d" % dm))
+    # anchors: a dark pocket in the bow's flare on each side, the anchor's crown and flukes in it (0.36.17: on the
+    # shaped bow, faced with it)
+    for side in (-1, 1):
+        zc = -97.0
+        x, n, d = on_hull(m, side, zc)
+        yaw = math.degrees(math.atan2(n[0], n[1]))
+
+        def at(out):
+            return (x + n[0] * out, zc + n[1] * out)
+        px, pz = at(0.01)
+        pocket = [(px - d[0] * 1.6, 1.2, pz - d[1] * 1.6), (px + d[0] * 1.6, 1.2, pz + d[1] * 1.6),
+                  (px + d[0] * 1.6, 4.6, pz + d[1] * 1.6), (px - d[0] * 1.6, 4.6, pz - d[1] * 1.6)]
+        b.poly(pocket, (n[0], 0, n[1]), "rip_iron", uv_world())
+        sx, sz = at(0.12)
+        m.box((sx, 3.6, sz), (0.3, 1.6, 0.2), mat("rip_pipe"), yaw=yaw, cull=False)   # the shank
+        sx, sz = at(0.15)
+        m.box((sx, 2.4, sz), (2.2, 0.5, 0.26), mat("rip_pipe"), yaw=yaw, cull=False)  # the flukes
+        for dd in (-0.9, 0.9):
+            m.box((sx + d[0] * dd, 2.85, sz + d[1] * dd), (0.4, 0.5, 0.26), mat("rip_pipe"), yaw=yaw, cull=False)
     # a rubbing strake along each side at the deck line: a dark steel band you see the length of the ship
-    # (broken round the anchor pockets, the hull doors and the ladders up the side: nothing sticks out across them)
-    gaps = {-1: [(-99.4, -95.6), (4.6, 7.0), (37.4, 39.6)], 1: [(-99.4, -95.6), (-89.1, -82.8), (42.8, 45.2), (48.9, 51.1)]}
+    # (broken round the anchor pockets, the hull doors and the ladders up the side: nothing sticks out across them);
+    # round the shaped bow and the stern's corners it follows the plate
+    gaps = {-1: [(4.6, 7.0), (37.4, 39.6)], 1: [(-89.1, -82.8), (42.8, 45.2), (48.9, 51.1)]}
     for side in (-1, 1):
         x = side * 18.25
-        cuts = [-104.0] + [v for g in gaps[side] for v in g] + [110.0]
+        cuts = [-93.5] + [v for g in gaps[side] for v in g] + [105.0]
         for z0_, z1_ in zip(cuts[0::2], cuts[1::2]):
             m.box((x + side * 0.08, 3.4, (z0_ + z1_) / 2), (0.16, 0.25, z1_ - z0_), mat("rip_iron"), cull=False)
+        for end in ("bow", "stern"):
+            pts = hull_chains(m)[(end, side)][0]
+            outer, ns = _offset(pts, side, 0.33)
+            for (xa, za), (xb, zb), n in zip(outer, outer[1:], ns):
+                if end == "bow" and min(za, zb) < -95.2 and max(za, zb) > -98.8:      # (the anchor pocket)
+                    continue
+                ln = math.hypot(xb - xa, zb - za)
+                m.box(((xa + xb) / 2, 3.4, (za + zb) / 2), (0.16, 0.25, ln + 0.04), mat("rip_iron"),
+                      yaw=math.degrees(math.atan2(xb - xa, zb - za)), cull=False)
 
 
 # ------------------------------------------------------------------------------------------------ decks
@@ -999,6 +1127,8 @@ def shade_rows(rows):
     derrick) cast no shade."""
     out = []
     for row in rows:
+        if row.get("kind") == "hull_curve":     # (slanted: a box's bounds would shade the deck beside it)
+            continue
         k = classify(row)
         if k in ("rail", "coaming", "pipe_rack", "drawworks", "derrick_leg", "crown", "jib", "riser", "ramp"):
             continue
@@ -1038,6 +1168,8 @@ def build(name="leviathan_hull"):
     crown = None
     conts = 0
     for row in data["boxes"]:
+        if row.get("kind") in ("hull_curve", "deck_curve"):     # (drawn by hull_curves)
+            continue
         k = classify(row)
         if k == "hull":
             if not hull_box(m, row):
@@ -1082,6 +1214,7 @@ def build(name="leviathan_hull"):
     if legs and crown:
         derrick(m, legs, crown)
     deck_strips(m)
+    hull_curves(m)
     drill_beams(m)
     hull_details(m)
     hull_openings(m)
