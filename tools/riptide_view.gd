@@ -50,6 +50,15 @@ const VIEWS := {
 	"sign-draft": [Vector3(71, 1.6, -99.5), Vector3(66, 1.2, -102.4)],
 	"sign-stern": [Vector3(48, 3.8, 121), Vector3(48, 3.2, 110)],
 	"sign-name-e": [Vector3(80, 3, -73), Vector3(66, 2.5, -73)],
+	"ship-top-bow": [Vector3(48, 55, -62), Vector3(48, 0, -100)],
+	"ship-top-stern": [Vector3(48, 45, 72), Vector3(48, 0, 106)],
+	"ship-high": [Vector3(150, 100, -190), Vector3(48, 0, -30)],
+	"ship-bow-high": [Vector3(100, 38, -142), Vector3(46, 0, -92)],
+	"ship-stern-high": [Vector3(98, 30, 150), Vector3(48, 0, 100)],
+	"focsle": [Vector3(36, 10.5, -90.5), Vector3(52, 7.5, -104)],
+	"fore-peak": [Vector3(48, -1.5, -93), Vector3(36, -3, -101)],
+	"bow-store": [Vector3(48, 5.8, -91), Vector3(42, 4.5, -103)],
+	"aft-corner": [Vector3(56, 7.5, 107.5), Vector3(66, 4.5, 107)],
 }
 
 
