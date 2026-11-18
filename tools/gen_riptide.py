@@ -104,6 +104,7 @@ C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
 boxes = []           # (cx, cy, cz, sx, sy, sz, yaw, pitch, colour, solid)
 loot = []            # (name, kind, x, y, z, yaw, table, place)
+window_panes = []    # (0.36.23) glazed windows: x, y, z, width, height, yaw (BoxMap window_panes)
 ladders = []         # (x, y, z, yaw, height, place)
 extracts = []        # (node, title, x, y, z)
 player_spawns = []   # (x, y, z)
@@ -245,6 +246,12 @@ def door(c, w=DOOR_W):
 
 def window(c, w=1.6, lo=1.0, hi=2.2):
     return (c, w, lo, hi)
+
+
+def split(c):
+    """Not an opening: a cut in the wall at c (it is built in two pieces that meet there), e.g. where an inside wall
+    meets it, so the model can paint each side's stretch for its own room."""
+    return (c, 0.0, 0.0, 0.0)
 
 
 def slab(x0, x1, z0, z1, top, colour="metal", holes=(), t=SLAB_T):
@@ -1255,13 +1262,24 @@ def tower():
             s = [window(38.5), window(46.0), window(51.0)]
             w = [window(79.0), window(85.0)] + side + [window(97.0), window(102.0)]
             e = side + [window(100.0)]
+        # (0.36.22) each outside wall is cut where an inside wall meets it, so each room paints its own stretch (a
+        # stretch running past a corner took the paint of the room it mostly faced: the stairs' steel in the corridor)
+        n, s = n + [split(44.0), split(51.0), split(54.0)], s + [split(43.0), split(54.0)]
+        w, e = w + [split(90.0), split(93.0)], e + [split(TOWER_STAIRS[2]), split(90.0), split(93.0)]
         room(TX0, TX1, TZ0, TZ1, y, h, "wall", n, s, w, e)
+        # (0.36.23, owner: "i want glass, breakable, like stops u and breaks if u shoot or vault through it") every
+        # outside window is glazed: BoxMap's window panes (stop people, break when shot, pushed or vaulted through)
+        for axis, at, ops in (("x", TZ0, n), ("x", TZ1, s), ("z", TX0, w), ("z", TX1, e)):
+            for c, wd, lo, hi in ops:
+                if wd > 0.01 and lo > 0.5:
+                    px, pz = (c, at) if axis == "x" else (at, c)
+                    window_panes.append((px, y + (lo + hi) / 2, pz, wd, hi - lo, 0.0 if axis == "x" else 90.0))
         if i > 0:
             slab(TX0, TX1, TZ0, TZ1, y, "metal", holes=[hole(TOWER_STAIRS)])
         hall = i in (0, 2)                          # (the stairs land at the north end: the hall down to the corridor)
         wall("z", 54.0, TZ0, TOWER_STAIRS[2], y, h, "wall")                   # the trunk north of the stairs
-        wall("x", 90.0, TX0, 51.0 if hall else 54.0, y, h, "wall", [door(39.0), door(48.0)])
-        wall("x", 93.0, TX0, TX1, y, h, "wall", [door(39.0), door(48.0), door(58.0)])
+        wall("x", 90.0, TX0, 51.0 if hall else 54.0, y, h, "wall", [door(39.0), door(48.0), split(44.0)])
+        wall("x", 93.0, TX0, TX1, y, h, "wall", [door(39.0), door(48.0), door(58.0), split(43.0), split(54.0)])
         if i != 3:
             wall("z", 44.0, TZ0, 90.0, y, h, "wall", [(82.0, 2.0, 1.0, 1.9)] if i == 1 else ())   # (A deck: the hatch)
         if hall:
@@ -1349,8 +1367,14 @@ TOWER_PROPS = [
     ("bed", 52.85, 53.85, 101.0, 103.2, DECK3, 0.6), ("desk", 47.0, 49.6, 105.15, 105.85, DECK3, 0.76),
     ("sofa", 43.15, 44.05, 98.0, 101.0, DECK3, 0.8), ("mess_table", 45.8, 47.2, 98.8, 100.2, DECK3, 0.5),
     ("shelves", 53.25, 53.85, 95.0, 98.0, DECK3, 2.1),
-    # the meeting room (x 54..62): one long table down the middle, a filing cabinet
-    ("mess_table", 57.3, 58.7, 96.5, 103.5, DECK3, 0.78), ("files", 54.15, 54.75, 100.5, 104.5, DECK3, 1.3),
+    # the meeting room (x 54..62; 0.36.22, owner: "make no sense"): the table with its chairs down the middle, the
+    # screen at the far end, the filing cabinet and a bookcase either side of the door
+    ("mess_table", 57.3, 58.7, 96.5, 103.5, DECK3, 0.78), ("files", 54.15, 54.75, 93.8, 96.0, DECK3, 1.3),
+    ("shelves", 61.25, 61.85, 93.8, 96.4, DECK3, 2.1), ("tv", 56.8, 59.2, 105.25, 105.85, DECK3, 1.5),
+    ("chair_e", 56.4, 56.95, 97.3, 97.85, DECK3, 0.9), ("chair_e", 56.4, 56.95, 99.7, 100.25, DECK3, 0.9),
+    ("chair_e", 56.4, 56.95, 102.1, 102.65, DECK3, 0.9), ("chair_w", 59.05, 59.6, 97.3, 97.85, DECK3, 0.9),
+    ("chair_w", 59.05, 59.6, 99.7, 100.25, DECK3, 0.9), ("chair_w", 59.05, 59.6, 102.1, 102.65, DECK3, 0.9),
+    ("chair_n", 57.72, 58.28, 103.75, 104.3, DECK3, 0.9),
     # THE BRIDGE. The wheelhouse (x 34..54, z 74..90): consoles under the front windows, the helm, the radar and
     # engine consoles, the chart table at the back
     ("console", 34.3, 43.6, 74.15, 75.05, DECK4, 0.85), ("console", 44.4, 53.6, 74.15, 75.05, DECK4, 0.85),
@@ -1362,7 +1386,7 @@ TOWER_PROPS = [
     ("desk", 35.0, 37.5, 105.15, 105.85, DECK4, 0.76),
     # the radio room (x 43..54): radio sets on the east wall, a console under the windows, a desk in the middle
     ("radio", 53.15, 53.85, 95.5, 99.5, DECK4, 0.8), ("radio", 53.15, 53.85, 100.5, 104.5, DECK4, 0.8),
-    ("console", 43.5, 49.0, 104.95, 105.85, DECK4, 0.85), ("desk", 47.5, 49.5, 99.0, 100.0, DECK4, 0.76),
+    ("radio", 43.5, 49.0, 105.15, 105.85, DECK4, 0.8), ("desk", 47.5, 49.5, 99.0, 100.0, DECK4, 0.76),
     # the switchboard room (x 54..62): the switchboard down the east wall, a work desk
     ("files", 61.25, 61.85, 95.0, 98.6, DECK4, 1.9), ("files", 61.25, 61.85, 101.4, 105.0, DECK4, 1.9),
     ("desk", 56.5, 58.0, 98.5, 101.0, DECK4, 0.76),
@@ -1838,6 +1862,7 @@ def write_scene():
             'script = ExtResource("1_boxmap")',
             "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
             "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b) + ")",
+            "window_panes = PackedFloat32Array(" + ", ".join(fmt(v) for p in window_panes for v in p) + ")",
             "colour_names = PackedStringArray(" + ", ".join(f'"{name}"' for name, _ in COLOURS) + ")",
             f"terrain_colour = {C['sand']}",
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(x) for x in xs) + ")",
