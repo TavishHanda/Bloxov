@@ -930,7 +930,11 @@ def ship():
     # (art step 1, model leviathan_hull: the hull's outside, the main deck, the drill floor)
     with modeled("leviathan_hull", 48.0, 0.0):
         hull_sides()
-    hull_inside()
+    hull_slab(LAB2 - SLAB_T, "hull")   # the keel plate, under the lab's floors (Site Zero's art step draws it)
+    # (art step 3, model below_decks: the hold deck and the engine room deck, their furniture)
+    with modeled("below_decks", 48.0, 0.0):
+        hull_inside()
+        below_props()
     with modeled("leviathan_hull", 48.0, 0.0):
         main_deck()
 
@@ -966,7 +970,6 @@ def hull_sides():
 
 
 def hull_inside():
-    hull_slab(LAB2 - SLAB_T, "hull")   # the keel plate, under the lab's floors
     # Hull B: pump room forward, the bilge, the engine room aft
     hull_slab(HULL_B, "metal", holes=[hole(MOON), hole(BOW_STAIRS), hole(TOWER_STAIRS), hole(SERVICE_TUBE)])
     for z in (-56.0, 30.0):
@@ -1021,6 +1024,58 @@ def hull_inside():
     for x in (44.2, 51.8):
         box(x - 0.1, BARGE, SZ1 + 0.3, x + 0.1, BARGE + 1.0, SZ1 + 2.6, "rust")
     labels.append(("WORKSHOPS", 52, 90, 0))
+
+
+# (art step 3) Below decks' furniture: (kind, x0, x1, z0, z1, floor, height), drawn as the real thing by
+# make_riptide_below.py inside each solid box. Along the hull in the side passages (clear of the ladders, the
+# companionways, the pier platform and the AI's spots, leaving at least 4 m to walk), and (owner: "dont be afraid")
+# out in the hold, the workshops, the pump room, the tank deck and the engine room, each at least 2 m from the walls,
+# the containers, the loot and each other, so people and the AI walk round them (the navigation is baked round them).
+BELOW_PROPS = [
+    # the port (west) side passage
+    ("shelves", 30.3, 30.9, -88.0, -84.0, HULL_A, 2.1), ("drums", 30.3, 31.1, -78.0, -75.0, HULL_A, 1.0),
+    ("tool_cab", 30.3, 30.9, -70.0, -67.6, HULL_A, 1.6), ("crates", 30.3, 31.5, -24.0, -21.0, HULL_A, 1.4),
+    ("shelves", 30.3, 30.9, -14.0, -9.0, HULL_A, 2.1), ("drums", 30.3, 31.1, 28.0, 31.0, HULL_A, 1.0),
+    ("shelves", 30.3, 30.9, 34.0, 38.0, HULL_A, 2.1), ("crates", 30.3, 31.5, 60.0, 63.0, HULL_A, 1.4),
+    ("tool_cab", 30.3, 30.9, 68.0, 70.4, HULL_A, 1.6),
+    # the starboard (east) side passage
+    ("shelves", 65.1, 65.7, -88.0, -84.0, HULL_A, 2.1), ("crates", 64.5, 65.7, -76.0, -73.0, HULL_A, 1.4),
+    ("drums", 64.9, 65.7, -44.0, -41.0, HULL_A, 1.0), ("tool_cab", 65.1, 65.7, -30.0, -27.6, HULL_A, 1.6),
+    ("shelves", 65.1, 65.7, -16.0, -11.0, HULL_A, 2.1), ("drums", 64.9, 65.7, 20.0, 23.0, HULL_A, 1.0),
+    ("crates", 64.5, 65.7, 30.0, 33.0, HULL_A, 1.4), ("shelves", 65.1, 65.7, 36.0, 40.0, HULL_A, 2.1),
+    # out in the cargo hold, between the container stacks
+    ("crates", 38.2, 39.6, -70.0, -68.6, HULL_A, 1.4), ("drums", 49.5, 50.3, -55.6, -53.2, HULL_A, 1.0),
+    ("reel", 47.6, 49.0, -31.5, -29.5, HULL_A, 1.4), ("forklift", 41.8, 43.1, 33.0, 35.6, HULL_A, 2.1),
+    ("crates", 55.0, 57.0, 57.0, 58.4, HULL_A, 1.4), ("drums", 38.2, 39.0, 69.8, 71.8, HULL_A, 1.0),
+    # the workshops under the tower: the machine shop (west), the workshop and the stern ramp (east)
+    ("bench", 30.3, 31.1, 84.0, 89.0, HULL_A, 0.9), ("tool_cab", 30.3, 30.9, 91.0, 93.4, HULL_A, 1.6),
+    ("shelves", 37.0, 41.0, 74.3, 74.9, HULL_A, 2.1), ("lathe", 35.5, 36.7, 84.0, 88.0, HULL_A, 1.3),
+    ("machine", 38.0, 39.8, 96.0, 98.2, HULL_A, 1.4),
+    ("bench", 44.3, 45.1, 84.0, 88.0, HULL_A, 0.9), ("shelves", 50.4, 53.4, 74.3, 74.9, HULL_A, 2.1),
+    ("bench", 48.5, 51.5, 83.0, 84.2, HULL_A, 0.9), ("crates", 56.5, 59.0, 94.0, 95.4, HULL_A, 1.4),
+    ("generator", 59.0, 61.5, 98.0, 101.0, HULL_A, 1.6),
+    # the pump room: two rows of pumps, a manifold, the switchboard, tanks along the hull
+    ("machine", 37.5, 39.3, -84.0, -81.8, HULL_B, 1.4), ("machine", 37.5, 39.3, -72.0, -69.8, HULL_B, 1.4),
+    ("machine", 58.0, 59.8, -86.0, -83.8, HULL_B, 1.4), ("machine", 58.5, 60.3, -72.0, -69.8, HULL_B, 1.4),
+    ("manifold", 50.0, 54.0, -60.5, -59.7, HULL_B, 1.3), ("panel", 39.0, 43.0, -56.75, -56.15, HULL_B, 2.0),
+    ("tank", 30.3, 31.9, -80.0, -78.4, HULL_B, 2.6), ("tank", 64.1, 65.7, -80.0, -78.4, HULL_B, 2.6),
+    # the tank deck (the ballast tanks, the moon pool's well)
+    ("machine", 47.1, 48.9, -40.0, -37.8, HULL_B, 1.4), ("manifold", 44.0, 52.0, -30.6, -29.8, HULL_B, 1.3),
+    ("panel", 39.0, 43.0, -55.85, -55.25, HULL_B, 2.0), ("drums", 52.0, 52.8, 18.0, 20.4, HULL_B, 1.0),
+    ("shelves", 30.3, 30.9, -30.0, -26.0, HULL_B, 2.1), ("generator", 40.0, 42.5, -48.0, -45.0, HULL_B, 1.6),
+    ("crates", 54.0, 56.0, -48.0, -46.6, HULL_B, 1.4), ("reel", 40.0, 41.4, 18.0, 20.0, HULL_B, 1.4),
+    ("crates", 40.0, 42.0, -20.0, -18.6, HULL_B, 1.4), ("machine", 54.5, 56.3, -21.0, -18.8, HULL_B, 1.4),
+    # the engine room: the control desk, switchboards, a bench and stores along the hull, the generator aft
+    ("console", 44.0, 50.0, 30.15, 31.05, HULL_B, 0.85), ("panel", 65.15, 65.75, 62.0, 68.0, HULL_B, 2.0),
+    ("panel", 30.25, 30.85, 60.0, 66.0, HULL_B, 2.0), ("bench", 30.3, 31.1, 72.0, 77.0, HULL_B, 0.9),
+    ("shelves", 30.3, 30.9, 84.0, 88.0, HULL_B, 2.1), ("generator", 38.0, 40.5, 92.0, 95.0, HULL_B, 1.6),
+    ("drums", 34.0, 34.8, 98.0, 100.4, HULL_B, 1.0), ("manifold", 47.6, 48.4, 50.0, 55.0, HULL_B, 1.3),
+]
+
+
+def below_props():
+    for kind, x0, x1, z0, z1, y, h in BELOW_PROPS:
+        box(x0, y, z0, x1, y + h, z1, "metal" if kind != "crates" else "wood", kind=kind)
 
 
 def main_deck():
@@ -1106,22 +1161,27 @@ def moon_pool():
     # the riser: the drill pipe down the middle, a catwalk out to it from the hull's bottom deck, a ladder down it
     with modeled("leviathan_hull", 48.0, 0.0):
         box(47.2, LAB1, -1.8, 48.8, 41.0, -0.2, "rust")
+    with modeled("below_decks", 48.0, 0.0):    # (art step 3: the catwalk and the rails on the hull's decks)
+        moon_rails(x0, x1, z0, z1, W)
+    # (0.35.16: the ladder faces away from the pipe, at the hatch's south edge, so its top steps off onto the catwalk)
+    ladder(48.0, LAB1, 1.2, 180, HULL_B - LAB1, "Riser")
+    labels.append(("MOON POOL", 48, -12, 0))
+    with modeled("leviathan_hull", 48.0, 0.0):    # (art step 1: the rails on the open decks and the riser)
+        for y in (DECK, DRILL):
+            room(x0, x1, z0, z1, y, 1.1, "rust", t=0.15)
+
+
+def moon_rails(x0, x1, z0, z1, W):
     slab(44.0, 52.0, -5.0, 3.0, HULL_B, "metal", holes=[(47.2, 48.8, -1.8, 1.2)])
     box(x0, HULL_B - SLAB_T, -2.2, 44.0, HULL_B, 0.2, "metal")
     wall("x", -5.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
     wall("x", 3.0, 44.0, 52.0, HULL_B, 1.0, "rust", t=0.12)
     wall("z", 52.0, -5.0, 3.0, HULL_B, 1.0, "rust", t=0.12)
-    # (0.35.16: the ladder faces away from the pipe, at the hatch's south edge, so its top steps off onto the catwalk)
-    ladder(48.0, LAB1, 1.2, 180, HULL_B - LAB1, "Riser")
-    labels.append(("MOON POOL", 48, -12, 0))
     # railings round the well: on the hull's bottom deck (gaps for the first ramp and the catwalk), and above
     wall("x", z1, x0, x1, HULL_B, 1.0, "rust", t=0.15)
     wall("z", x0, z0, z1, HULL_B, 1.0, "rust", [(z0 + W / 2, W + 0.2, 0.0, 1.0), (-1.0, 2.6, 0.0, 1.0)], t=0.15)
     wall("z", x1, z0, z1, HULL_B, 1.0, "rust", t=0.15)
     room(x0, x1, z0, z1, HULL_A, 1.1, "rust", t=0.15)
-    with modeled("leviathan_hull", 48.0, 0.0):    # (art step 1: the rails on the open decks and the riser)
-        for y in (DECK, DRILL):
-            room(x0, x1, z0, z1, y, 1.1, "rust", t=0.15)
 
 
 def drill_floor():
@@ -1151,6 +1211,11 @@ def drill_floor():
 
 
 def bow_stairs():
+    with modeled("below_decks", 48.0, 0.0):    # (art step 3)
+        _bow_stairs()
+
+
+def _bow_stairs():
     stairwell(BOW_STAIRS[0], BOW_STAIRS[2], [DECK, 0.0, HULL_A, HULL_B] + lab_flights(), {0: "W", 2: "W", 3: "W", 7: "S"})
     # (0.35.33) at the bottom, the stairs open into Site Zero's intake hall (lab())
 

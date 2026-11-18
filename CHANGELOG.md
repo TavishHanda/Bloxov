@@ -7,6 +7,28 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.19 (Riptide art: below decks)
+Riptide art step 3 (plan: the "Riptide art plan" doc; clean pass first). The Leviathan's two decks under the main deck
+get their model (`below_decks`, 55k triangles), drawn by `art_source/scripts/make_riptide_below.py`.
+- The hold deck: painted steel bulkheads with stiffeners and a hazard band along their foot, grey deck plate, deep
+  beams and caged lamps under the main deck, pipe runs along the hull up out of reach, HOLD 1 / HOLD 2 stencils and
+  MAX STACK 2 HIGH signs, the containers drawn as on the deck, dark frames round every door and a sign over each one
+  naming where it goes (CARGO HOLD, PORT / STBD PASSAGE, FORE PEAK, MACHINE SHOP, WORKSHOP, STAIRS).
+- The engine room deck: green engine-room floor paint, pipe runs under the ceiling, the six main engines (crankcase,
+  cylinder heads with red rocker covers, exhaust manifold, flywheel, turbo), the ballast tanks (FO / FW / BW
+  stencils), the sub bay's power cabinet with its sign, yellow keep-clear lines round the machinery, PUMP ROOM /
+  TANK DECK / ENGINE ROOM stencils, WEAR EAR DEFENDERS, HIGH VOLTAGE and NO SMOKING signs, extinguishers by the
+  doors. The bow stairwell gets the same look as the tower's, with the deck's name inside each door.
+- Furniture (`BELOW_PROPS` in the generator), each piece in its own solid box: shelving, drums, crates, tool chests
+  and benches along the hull in the side passages, and (owner: "dont be afraid") pieces out in the middle of the
+  rooms with 2 m round them: pallets, drums, a cable reel and a forklift in the hold, a lathe, a press, a work table
+  and a compressor in the workshops, rows of pumps, pipe manifolds and switchboards in the pump room, a generator,
+  pumps, crates and a cable reel on the tank deck, a control desk, switchboards, a manifold and a generator in the
+  engine room. None stands on a loot spot, a ladder, an AI spot or a doorway; the rooms, doors, ladders, loot and
+  routes are where they were. The AI's navigation is re-baked round every piece; every loot spot is still reachable
+  (riptide_audit OK).
+- Net version 6 (the furniture is new map geometry: client and server must match). Navigation re-baked.
+
 ## 0.36.18 (Riptide art: the bridge tower)
 Riptide art step 2 (plan: the "Riptide art plan" doc; clean pass first). The bridge tower gets its model
 (`bridge_tower`, 38k triangles), outside and in.

@@ -78,6 +78,24 @@ const VIEWS := {
 	"in-bridge": [Vector3(43, 16.2, 86), Vector3(36, 15.2, 74)],
 	"in-bridge-e": [Vector3(45, 16.2, 86), Vector3(56, 15.2, 74)],
 	"in-chart": [Vector3(35, 16.2, 94), Vector3(58, 15.2, 105.5)],
+	# below decks (art step 3)
+	"in-hold-fore": [Vector3(38, -1.4, -90), Vector3(50, -3.5, -50)],
+	"in-hold-mid": [Vector3(40, -1.6, 22), Vector3(50, -3.5, 50)],
+	"in-hold-aft": [Vector3(48, -1.6, 72), Vector3(48, -3, 20)],
+	"in-passage-w": [Vector3(33, -2.3, -90), Vector3(33, -3, -20)],
+	"in-passage-e": [Vector3(63, -2.3, 72), Vector3(63, -3, 0)],
+	"in-workshop-w": [Vector3(40, -2.3, 75), Vector3(40, -3, 96)],
+	"in-workshop-e": [Vector3(46, -2.3, 76), Vector3(56, -3.5, 98)],
+	"in-pump": [Vector3(53, -6.3, -58), Vector3(40, -7.5, -90)],
+	"in-pump-e": [Vector3(40, -6.3, -90), Vector3(58, -7.5, -62)],
+	"in-bilge": [Vector3(35, -6.3, -54), Vector3(48, -7, 10)],
+	"in-engine": [Vector3(48, -6.3, 32), Vector3(48, -7, 90)],
+	"in-engine-close": [Vector3(48, -6.3, 52), Vector3(40, -7.2, 62)],
+	"in-tank": [Vector3(36, -6.3, -30), Vector3(50, -7.5, -5)],
+	"in-bow-stairs": [Vector3(45.5, -2.3, -76.5), Vector3(50, -5, -86)],
+	"bow-head": [Vector3(36, 6.5, -62), Vector3(48, 5, -82)],
+	"in-lathe": [Vector3(33, -2.3, 92.5), Vector3(36.5, -3.6, 85)],
+	"in-engine-back": [Vector3(60, -6.3, 100), Vector3(44, -7, 40)],
 }
 
 
