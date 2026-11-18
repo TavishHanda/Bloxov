@@ -38,6 +38,11 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
   the generator's `wall()` writes each modeled wall's doors and windows to the model's json (`openings`), which the
   model frames. Rooms get their paint from `t_room` / `ROOM_NAMES` (0.36.19 layout: stair core NE, corridor z 90..93
   across the back, a hall x 51..54 on the main deck and B deck, doors at x 39/48/58; see `tower()`'s docstring).
+- Below decks (0.36.20): `below_decks` (origin 48, 0, 0, like the hull) is the hold deck, the engine room deck, the bow
+  stairwell and the moon pool's rails on those decks, drawn by `make_riptide.py below_decks`
+  (`art_source/scripts/make_riptide_below.py`; its signs are repainted on every build). Furniture is `BELOW_PROPS` in
+  the generator; the engines, ballast tanks and the power cabinet are the gray box's own boxes, drawn by their size.
+  The keel plate and the moon pool's trunk under the engine room deck are left for Site Zero's step.
 - The Leviathan's outline (0.36.17): `BOW_LINE` / `STERN_LINE` in `gen_riptide.py` (the bow narrows from z -93.5 to a
   2.8 m stem, the stern's corners round off at r 5). The plate there is yawed boxes (kind `hull_curve`), the decks
   `hull_slab` strips (kind `deck_curve`); `make_riptide.py` draws both smooth along the line. The sea's surface in the

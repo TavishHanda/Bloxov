@@ -2246,4 +2246,8 @@ def build_tower(name="bridge_tower"):
 if __name__ == "__main__":
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     name = args[0] if args else "leviathan_hull"
-    build_tower(name) if name == "bridge_tower" else build(name)
+    if name == "below_decks":
+        import make_riptide_below
+        make_riptide_below.build_below(name)
+    else:
+        build_tower(name) if name == "bridge_tower" else build(name)
