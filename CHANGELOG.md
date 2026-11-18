@@ -27,6 +27,10 @@ get their model (`below_decks`, 55k triangles), drawn by `art_source/scripts/mak
   engine room. None stands on a loot spot, a ladder, an AI spot or a doorway; the rooms, doors, ladders, loot and
   routes are where they were. The AI's navigation is re-baked round every piece; every loot spot is still reachable
   (riptide_audit OK).
+- The hold's cargo (owner, on the pictures: containers in a drillship's hold "doesnt make sense"): the same stacks,
+  same sizes and places, are now the ship's own cargo: yellow riser pipe on steel frames, pallets of drilling mud
+  sacks, and Exion's big equipment crates. The forward stack is 60 cm shorter and 30 cm further west (it stuck 15 cm
+  into the bow stairwell's wall).
 - Net version 7 (the furniture is new map geometry: client and server must match). Navigation re-baked.
 
 ## 0.36.19 (Riptide: the bridge tower's rooms laid out properly)

@@ -143,6 +143,10 @@ def below_decals(rng):
     for name in ("FO 1", "FO 2", "FW 1", "FW 2", "BW 3", "BW 4", "BW 5", "BW 6"):
         w, h, p = R._stencil(name, 3, "rw_white", random.Random(name), chip=0.04)
         a.add("tank_" + name, w, h, p)
+    w, h, p = R._stencil("EXION", 6, "rx_black", random.Random("exion"), chip=0.05)
+    a.add("stencil_EXION", w, h, p)
+    w, h, p = R._stencil("MUD", 4, "rx_black", random.Random("mud"), chip=0.05)
+    a.add("stencil_MUD", w, h, p)
     w, h, p = R._sign("HIGH VOLTAGE", "ry_yel", "rx_black")
     a.add("high_voltage", w, h, p)
     w, h, p = R._sign("WEAR EAR DEFENDERS", "rb_blue", "rw_light")
@@ -371,6 +375,92 @@ def power_cabinet(m, row):
     flat(m.b, (-1, 0, 0), x0 - 0.006, z0 + 0.2, z1 - 0.2, y0 + 0.2, y1 - 0.1, "decals", m.d("cabinet"))
     R.t_sign(m, "z", x0 - 0.006, -1, c[2], y1 + 0.15, "place_SUB BAY POWER", 1.6)
     m.b.group = None
+
+
+# ------------------------------------------------------------------------------------------------ the hold's cargo
+# (0.36.20, owner: containers don't make sense in a drillship's hold) the gray box's container-sized stacks, drawn as
+# a drillship's own cargo. Each fills its box (it is solid): 2.6 m a layer.
+def cargo(m, row, k):
+    c, s = row["pos"], row["size"]
+    kind = row["kind"]
+    along = 0 if s[0] >= s[2] else 2
+    L, W = s[along], s[2 - along]
+    y0 = c[1] - s[1] / 2
+    layers = max(1, round(s[1] / 2.6))
+    lh = s[1] / layers
+    b = m.b
+    ax = "x" if along == 0 else "z"
+
+    def P(a, y, w):
+        """A point a along the stack, w across it, from its middle."""
+        return (c[0] + a, y, c[2] + w) if along == 0 else (c[0] + w, y, c[2] + a)
+
+    def part(a0, a1, ya, yb, w0, w1, mt):
+        p0, p1 = P(a0, ya, w0), P(a1, yb, w1)
+        t_part(m, min(p0[0], p1[0]), ya, min(p0[2], p1[2]), max(p0[0], p1[0]), yb, max(p0[2], p1[2]), mt)
+    t_item(m)
+    if kind == "risers":                      # riser joints on yellow frames: 2 across, 2 high a layer
+        r = min(W / 4, lh / 4) - 0.02
+        for layer in range(layers):
+            ly = y0 + layer * lh
+            for fa in (-L / 2 + 0.3, -0.12, L / 2 - 0.54):            # the frames: posts and cross bars
+                for w0 in (-W / 2, W / 2 - 0.12):
+                    part(fa, fa + 0.24, ly, ly + lh, w0, w0 + 0.12, "rip_iron")
+                for yy in (ly, ly + lh / 2 - 0.05, ly + lh - 0.1):
+                    part(fa, fa + 0.24, yy, yy + 0.1, -W / 2, W / 2, "rip_iron")
+            for row_ in range(2):
+                for col in range(2):
+                    w = -W / 2 + W / 4 + col * W / 2
+                    cy = ly + lh / 4 + row_ * lh / 2
+                    p = P(0.0, cy, w)
+                    cyl(b, p, r, L - 0.05, "rip_yellow", "rip_iron", axis=ax, sides=10)
+                    for band in (-L / 2 + 0.6, L / 2 - 0.6):            # the joints' collars
+                        cyl(b, P(band, cy, w), r + 0.03, 0.2, "rip_iron", axis=ax, sides=10, caps=(False, False))
+    elif kind == "mud":                        # pallets of drilling mud: sacks shrink-wrapped, two pallets high a layer
+        n = max(1, int(L // 1.45))
+        step = L / n
+        for layer in range(2 * layers):
+            ly = y0 + layer * lh / 2
+            for i in range(n):
+                a0 = -L / 2 + i * step + 0.03
+                a1 = a0 + step - 0.06
+                part(a0, a1, ly, ly + 0.14, -W / 2 + 0.03, W / 2 - 0.03, "rip_wood")      # the pallet
+                part(a0 + 0.04, a1 - 0.04, ly + 0.14, ly + lh / 2 - 0.02, -W / 2 + 0.06, W / 2 - 0.06, "rip_card")
+                # sack seams: dark lines across the wrapped block, both long sides
+                for sg in (-1, 1):
+                    wf = sg * (W / 2 - 0.06 + 0.006)
+                    for hy in (ly + 0.14 + (lh / 2 - 0.16) / 3, ly + 0.14 + 2 * (lh / 2 - 0.16) / 3):
+                        p0, p1 = P(a0 + 0.04, hy, wf), P(a1 - 0.04, hy + 0.03, wf)
+                        n3 = (0, 0, sg) if along == 0 else (sg, 0, 0)
+                        if along == 0:
+                            flat(b, n3, p0[2], p0[0], p1[0], hy, hy + 0.03, "rip_iron", uv_world(1.0))
+                        else:
+                            flat(b, n3, p0[0], p0[2], p1[2], hy, hy + 0.03, "rip_iron", uv_world(1.0))
+            # the stencil on one long side of each pallet layer's middle pallet
+        for layer in range(2 * layers):
+            ly = y0 + layer * lh / 2
+            sg = 1 if k % 2 else -1
+            wf = sg * (W / 2 - 0.06 + 0.008)
+            if along == 0:
+                flat(b, (0, 0, sg), c[2] + wf, c[0] - 0.55, c[0] + 0.55, ly + 0.45, ly + 0.8, "graffiti", m.d("stencil_MUD"))
+            else:
+                flat(b, (sg, 0, 0), c[0] + wf, c[2] - 0.55, c[2] + 0.55, ly + 0.45, ly + 0.8, "graffiti", m.d("stencil_MUD"))
+    else:                                      # Exion's equipment crates: one big crate a layer, battens, the stencil
+        for layer in range(layers):
+            ly = y0 + layer * lh
+            part(-L / 2, L / 2, ly + 0.02, ly + lh - 0.02, -W / 2, W / 2, "rip_wood")
+            for a in (-L / 2, -L / 6, L / 6, L / 2):                    # battens round it
+                aa = min(max(a - 0.06, -L / 2 - 0.02), L / 2 - 0.1)
+                part(aa, aa + 0.12, ly + 0.02, ly + lh - 0.02, -W / 2 - 0.02, W / 2 + 0.02, "rip_wood")
+            for yy in (ly + 0.08, ly + lh - 0.16):
+                part(-L / 2 - 0.01, L / 2 + 0.01, yy, yy + 0.08, -W / 2 - 0.015, W / 2 + 0.015, "rip_iron")
+            for sg in (-1, 1):
+                wf = sg * (W / 2 + 0.03)
+                if along == 0:
+                    flat(b, (0, 0, sg), c[2] + wf, c[0] - 1.2, c[0] + 1.2, ly + 0.8, ly + 1.5, "graffiti", m.d("stencil_EXION"))
+                else:
+                    flat(b, (sg, 0, 0), c[0] + wf, c[2] - 1.2, c[2] + 1.2, ly + 0.8, ly + 1.5, "graffiti", m.d("stencil_EXION"))
+    b.group = None
 
 
 # ------------------------------------------------------------------------------------------------ furniture
@@ -706,6 +796,8 @@ def classify(row):
     c, s, col = row["pos"], row["size"], row["colour"]
     if row.get("kind") == "deck_curve":
         return "deck_curve"
+    if row.get("kind") in ("risers", "mud", "equip"):
+        return "cargo"
     if row.get("kind") in BELOW_KINDS:
         return "below_prop"
     if row.get("kind"):
@@ -768,6 +860,9 @@ def build_below(name="below_decks"):
             R.t_prop(m, row)
         elif k == "ramp":
             m.box(row["pos"], row["size"], R.ramp_style, yaw=row["yaw"], pitch=row["pitch"])
+        elif k == "cargo":
+            cargo(m, row, conts)
+            conts += 1
         elif k == "container":
             R.container(m, row, conts)
             conts += 1

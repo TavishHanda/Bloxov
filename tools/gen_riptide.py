@@ -285,10 +285,10 @@ def room(x0, x1, z0, z1, y, h, colour="wall", n=(), s=(), w=(), e=(), floor=None
         slab(x0, x1, z0, z1, y + h, roof)
 
 
-def container(x, y, z, along="x", colour="container_a", high=1):
-    """A 6 x 2.4 shipping container (2.6 high), `high` stacked."""
-    lx, lz = (6.0, 2.4) if along == "x" else (2.4, 6.0)
-    box(x - lx / 2, y, z - lz / 2, x + lx / 2, y + 2.6 * high, z + lz / 2, colour)
+def container(x, y, z, along="x", colour="container_a", high=1, kind=None, length=6.0):
+    """A 6 x 2.4 shipping container (2.6 high), `high` stacked. With a kind, a stack of cargo that size instead."""
+    lx, lz = (length, 2.4) if along == "x" else (2.4, length)
+    box(x - lx / 2, y, z - lz / 2, x + lx / 2, y + 2.6 * high, z + lz / 2, colour, kind=kind)
 
 
 def ladder(x, y, z, yaw, height, place):
@@ -1006,11 +1006,15 @@ def hull_inside():
     box(SX0 + 0.25, PIER - SLAB_T, 3.0, 35.75, PIER, 8.0, "metal")
     ramp((34.4, PIER, 8.0), (34.4, HULL_A, 23.0), 2.7, "metal")
     # the hold's containers: a maze of stacks, two stacks under each hatch to land on
-    stacks = [(41, -82, 1), (56, -78, 2), (45, -66, 1), (55, -62, 2), (40, -56, 2), (45, -47, 2), (51, -40, 1),
+    # (0.36.20, owner: containers don't make sense in a drillship's hold) the same stacks, now the ship's own cargo:
+    # riser pipe on frames, pallets of drilling mud, Exion's equipment crates. The first stack is 5.4 m long and a
+    # little west: it was 15 cm into the bow stairwell's wall.
+    stacks = [(40.7, -82, 1), (56, -78, 2), (45, -66, 1), (55, -62, 2), (40, -56, 2), (45, -47, 2), (51, -40, 1),
               (39, -32, 1), (55, -28, 2), (44, -20, 2), (52, -14, 1), (40, 14, 1), (52, 16, 2), (45, 27, 2), (51, 36, 1),
               (40, 44, 2), (56, 50, 1), (46, 58, 2), (53, 66, 1)]
     for i, (x, z, high) in enumerate(stacks):
-        container(x, HULL_A, z, "z" if i % 2 else "x", ("container_a", "container_b", "container_c")[i % 3], high)
+        container(x, HULL_A, z, "z" if i % 2 else "x", ("container_a", "container_b", "container_c")[i % 3], high,
+                  kind=("risers", "mud", "equip")[i % 3], length=5.4 if i == 0 else 6.0)
     for i, (x, z) in enumerate([(48, -72), (37.5, -24), (57.5, 10), (49, 46), (38, 64), (56, -50)]):
         add_loot("Hold", "crate", x, HULL_A, z, 90 * (i % 2))
     # workshops aft, under the tower; the stern ramp up to the last barge

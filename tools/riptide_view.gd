@@ -89,6 +89,7 @@ const VIEWS := {
 	# below decks (art step 3)
 	"in-hold-fore": [Vector3(38, -1.4, -90), Vector3(50, -3.5, -50)],
 	"in-hold-mid": [Vector3(40, -1.6, 22), Vector3(50, -3.5, 50)],
+	"in-hold-cargo": [Vector3(48.5, -2.2, -36), Vector3(42, -3.5, -52)],
 	"in-hold-aft": [Vector3(48, -1.6, 72), Vector3(48, -3, 20)],
 	"in-passage-w": [Vector3(33, -2.3, -90), Vector3(33, -3, -20)],
 	"in-passage-e": [Vector3(63, -2.3, 72), Vector3(63, -3, 0)],
