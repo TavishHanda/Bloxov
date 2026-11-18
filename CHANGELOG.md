@@ -7,6 +7,25 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.18 (Riptide art: the bridge tower)
+Riptide art step 2 (plan: the "Riptide art plan" doc; clean pass first). The bridge tower gets its model
+(`bridge_tower`, 38k triangles), outside and in.
+- Outside: white deckhouse plate like the drill shack, a dark band round the bridge's windows, dark steel frames and
+  sills on every window and door, LEVIATHAN across the bridge front, room signs over the main deck's doors, NO
+  SMOKING, MUSTER STATION and LIFEJACKETS signs, lifebuoys, a radar mast on the stairs' head house (out of reach), and
+  the helideck painted dark green with a yellow touchdown ring and a white H.
+- Inside, deck by deck: steel on the main deck (armory, stores, workshop), panelled walls with a dark skirting board,
+  lino, ceiling tiles and lamps above it (red tiles in the mess and galley, pale green in the sick bay). Signs over
+  every corridor door (ARMORY, STORES, WORKSHOP, MESS, GALLEY, CABINS, SICK BAY, CAPTAIN, OFFICERS, BRIDGE, CHART
+  ROOM, RADIO ROOM), STAIRS on the stairwell doors and the deck's name inside (MAIN DECK, A DECK, B DECK, BRIDGE,
+  HELIDECK).
+- Furniture, each piece in its own solid box against a wall, clear of the doors, windows and loot: a gun rack and
+  ammo crates in the armory, shelving and drums in the stores, benches, a tool chest and a pump in the workshop, mess
+  tables, a galley (counter, sink, stove, fridge), bunks, sick-bay beds and a medicine cabinet, desks and filing
+  cabinets, the bridge's consoles and helm, a chart table, a radio desk. The rooms, doors, ladders, loot and AI
+  routes are where they were; the furniture adds a little cover.
+- Net version 5 (the furniture is new map geometry: client and server must match). Navigation re-baked.
+
 ## 0.36.17 (Riptide: the Leviathan gets a ship's shape)
 Owner: "the boat shape is like too square". Riptide art, the Leviathan's outside.
 - The bow narrows over its last 10.5 m to a 2.8 m stem (the bow ladder still climbs it from the breakwater's pad), and
