@@ -1360,12 +1360,15 @@ T_FLOORS = (4.0, 7.5, 11.0, 14.5)
 T_ROOF = 18.0
 TX, TZ = 14.0, 16.0                     # the tower's walls: x -14..14, z -16..16 (their middles)
 T_STAIR = (6.0, 14.0, -14.0, 0.0)
+# (0.36.19 layout) The rooms of each floor: north-west, north-east, the hall down from the stairs (main deck and
+# B deck), and south of the corridor: south-west, the middle, south-east. Signs over the doors read these.
 ROOM_NAMES = [
-    {"nw": "ARMORY", "ne": "STORES", "sw": "WORKSHOP", "se": "WORKSHOP"},
-    {"nw": "MESS", "ne": "GALLEY", "sw": "CABINS", "se": "CABINS"},
-    {"nw": "SICK BAY", "ne": "CAPTAIN", "sw": "OFFICERS", "se": "OFFICERS"},
-    {"nw": "BRIDGE", "ne": "BRIDGE", "sw": "CHART ROOM", "se": "RADIO ROOM"},
+    {"nw": "STORES", "ne": "ARMORY", "hall": "STAIRS", "sw": "WORKSHOP", "sm": "WORKSHOP", "se": "BOSUN"},
+    {"nw": "MESS", "ne": "GALLEY", "sw": "BUNK ROOM", "sm": "LOUNGE", "se": "WASHROOM"},
+    {"nw": "SICK BAY", "ne": "OFFICE", "hall": "STAIRS", "sw": "CHIEF", "sm": "CAPTAIN", "se": "MEETING ROOM"},
+    {"nw": "BRIDGE", "ne": "BRIDGE", "sw": "CHART ROOM", "sm": "RADIO ROOM", "se": "SWITCHBOARD"},
 ]
+T_HALL_FLOORS = (0, 2)                  # (the floors whose stairs land at their north end: a hall x 3..6 down to the corridor)
 DECK_NAMES = {4.0: "MAIN DECK", 7.5: "A DECK", 11.0: "B DECK", 14.5: "BRIDGE", 18.0: "HELIDECK"}
 
 
@@ -1378,16 +1381,23 @@ def t_floor(y):
     return max(i for i, f in enumerate(T_FLOORS) if f <= y + 0.01)
 
 
-def t_room(x, z):
+def t_room(x, z, f=None):
+    """The room at (x, z) on floor f (0.36.19 layout: the corridor z 0..3 right across, the rooms north and south)."""
     if x < -TX or x > TX or z < -TZ or z > TZ:
         return "out"
     if T_STAIR[0] < x < T_STAIR[1] and T_STAIR[2] < z < T_STAIR[3]:
         return "stair"
-    if z < -3.0:
-        return "nw" if x < -4.0 else "ne"
-    if z < 3.0 and x < 6.0:
+    if z < T_STAIR[3]:
+        if x > T_STAIR[0]:
+            return "stair"                  # (the closed trunk north of the stairs: steel like them)
+        if x < -4.0:
+            return "nw"
+        if x > 3.0 and (f in T_HALL_FLOORS or f is None):
+            return "hall"
+        return "ne"
+    if z < 3.0:
         return "corr"
-    return "sw" if x < -4.0 else "se"
+    return "sw" if x < -5.0 else ("sm" if x < 6.0 else "se")
 
 
 def t_wall_mat(f, room):
@@ -1405,7 +1415,7 @@ def t_floor_mat(f, room):
         return "rip_heli"
     if room == "stair" or f <= 0:
         return "rip_deck"
-    if f == 1 and room in ("nw", "ne"):
+    if f == 1 and room in ("nw", "ne", "se"):      # (the mess, the galley, the washroom)
         return "rip_tile"
     return "rip_lino"
 
@@ -1807,6 +1817,54 @@ def t_prop(m, row):
             if r2.random() < 0.7:
                 t_part(m, a0 + 0.08, y0 + h1, b0 + 0.08, a1 - 0.08, min(y1, y0 + h1 + 0.6), b1 - 0.08,
                        r2.choice(["rip_wood", "rip_cont_c"]))
+    elif kind == "sofa":                      # (0.36.19) a seat, a back on the wall side, arms at the ends
+        seat = y0 + 0.45
+        if axis == "x":
+            bx0, bx1 = (x0, x0 + 0.22) if sg > 0 else (x1 - 0.22, x1)
+            t_part(m, x0, y0, z0, x1, seat, z1, "rip_red")
+            t_part(m, bx0, seat, z0, bx1, y1, z1, "rip_red")
+            for az in (z0, z1 - 0.18):
+                t_part(m, x0, seat, az, x1, seat + 0.2, az + 0.18, "rip_red")
+        else:
+            bz0, bz1 = (z0, z0 + 0.22) if sg > 0 else (z1 - 0.22, z1)
+            t_part(m, x0, y0, z0, x1, seat, z1, "rip_red")
+            t_part(m, x0, seat, bz0, x1, y1, bz1, "rip_red")
+            for ax in (x0, x1 - 0.18):
+                t_part(m, ax, seat, z0, ax + 0.18, seat + 0.2, z1, "rip_red")
+    elif kind == "tv":                        # a low cabinet, the screen standing on it
+        t_part(m, x0, y0, z0, x1, y0 + 0.5, z1, "rip_wood")
+        if axis == "x":
+            sx0 = x0 + 0.15 if sg > 0 else x1 - 0.23
+            t_part(m, sx0, y0 + 0.55, z0 + 0.1, sx0 + 0.08, y1, z1 - 0.1, "rip_iron")
+            fx = sx0 + 0.08 + 0.004 if sg > 0 else sx0 - 0.004
+            flat(b, (sg, 0, 0), fx, z0 + 0.16, z1 - 0.16, y0 + 0.61, y1 - 0.06, "rip_navy", uv_world(1.0))
+        else:
+            sz0 = z0 + 0.15 if sg > 0 else z1 - 0.23
+            t_part(m, x0 + 0.1, y0 + 0.55, sz0, x1 - 0.1, y1, sz0 + 0.08, "rip_iron")
+            fz = sz0 + 0.08 + 0.004 if sg > 0 else sz0 - 0.004
+            flat(b, (0, 0, sg), fz, x0 + 0.16, x1 - 0.16, y0 + 0.61, y1 - 0.06, "rip_navy", uv_world(1.0))
+    elif kind == "stalls":                    # toilet cubicles in a row: white partitions, a door in each front
+        L = s[0] if axis == "z" else s[2]
+        n = max(1, int(L // 2.0))
+        w = L / n
+        lo = y0 + 0.15
+        for k in range(n + 1):
+            a = (x0 if axis == "z" else z0) + k * w
+            a0, a1 = (a, a + 0.05) if k < n else (a - 0.05, a)
+            if axis == "z":
+                t_part(m, a0, lo, z0, a1, y1, z1, "rip_white")
+            else:
+                t_part(m, x0, lo, a0, x1, y1, a1, "rip_white")
+        for k in range(n):
+            a = (x0 if axis == "z" else z0) + k * w
+            if axis == "z":
+                fz = z0 if sg < 0 else z1 - 0.05
+                t_part(m, a + 0.05, lo, fz, a + w - 0.05, y1 - 0.1, fz + 0.05, "rip_bright")
+                t_part(m, a + w - 0.25, lo + 0.9, fz - 0.03 if sg < 0 else fz + 0.05, a + w - 0.17, lo + 1.0,
+                       fz if sg < 0 else fz + 0.08, "rip_iron")
+            else:
+                fx = x0 if sg < 0 else x1 - 0.05
+                t_part(m, fx, lo, a + 0.05, fx + 0.05, y1 - 0.1, a + w - 0.05, "rip_bright")
     else:
         t_part(m, x0, y0, z0, x1, y1, z1, "rip_iron")
     b.group = None
@@ -1940,16 +1998,20 @@ def tower_details(m):
             continue
         mid = (o["a0"] + o["a1"]) / 2
         top = o["y1"] + 0.14
-        if o["axis"] == "x" and abs(abs(o["at"]) - 3.0) < 0.01:           # corridor doors
-            room = t_room(mid, o["at"] * 2)
-            n = -1 if o["at"] > 0 else 1
+        if o["axis"] == "x" and abs(o["at"] - T_STAIR[3]) < 0.01 and mid > T_STAIR[0]:   # the stairs' south doors
+            t_sign(m, "x", o["at"] + o["t"] / 2, 1, mid, top, "sign_STAIRS", 0.9)
+            t_sign(m, "x", o["at"] - o["t"] / 2, -1, mid, top, "deck_" + DECK_NAMES[T_FLOORS[f]], 1.3)
+        elif o["axis"] == "x" and (abs(o["at"]) < 0.01 or abs(o["at"] - 3.0) < 0.01):   # the corridor's doors
+            north = abs(o["at"]) < 0.01
+            room = t_room(mid, -1.0 if north else 4.0, f)
+            n = 1 if north else -1
             t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, "sign_" + ROOM_NAMES[f][room], 1.0)
         elif o["axis"] == "z" and abs(o["at"] - T_STAIR[0]) < 0.01:         # the stairs' doors
             t_sign(m, "z", o["at"] - o["t"] / 2, -1, mid, top, "sign_STAIRS", 0.9)
             t_sign(m, "z", o["at"] + o["t"] / 2, 1, mid, top, "deck_" + DECK_NAMES[T_FLOORS[f]], 1.3)
         elif o["axis"] == "x" and abs(abs(o["at"]) - TZ) < 0.01 and f == 0:  # outside doors on the main deck
             n = 1 if o["at"] > 0 else -1
-            room = t_room(mid, o["at"] - n * 1.0)
+            room = t_room(mid, o["at"] - n * 1.0, 0)
             t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, "sign_" + ROOM_NAMES[0][room], 1.0)
     # the stairs onto the helideck: its door is in the head house's west wall (the top landing)
     for o in data["openings"]:
@@ -1959,14 +2021,14 @@ def tower_details(m):
     # LEVIATHAN across the bridge front (on the helideck's rail), NO SMOKING and a muster sign by the north doors
     t_sign(m, "x", -TZ - 0.1, -1, 0.0, T_ROOF + 0.12, "nameboard", 7.5)
     t_sign(m, "x", -TZ - 0.15, -1, -4.0, T_FLOORS[0] + 1.3, "no_smoking", 0.9)
-    t_sign(m, "x", -TZ - 0.15, -1, 6.0, T_FLOORS[0] + 1.3, "sign_MUSTER STATION", 1.4)
-    t_sign(m, "x", TZ + 0.15, 1, 3.0, T_FLOORS[0] + 1.3, "sign_LIFEJACKETS", 1.2)
+    t_sign(m, "x", -TZ - 0.15, -1, 8.5, T_FLOORS[0] + 1.3, "sign_MUSTER STATION", 1.4)
+    t_sign(m, "x", TZ + 0.15, 1, 7.6, T_FLOORS[0] + 1.3, "sign_LIFEJACKETS", 1.2)
     # the helideck's H, the touchdown ring (16 m across, in the open part west of the stairs' head house)
     b.poly([(-12.0, T_ROOF + 0.006, -8.0), (4.0, T_ROOF + 0.006, -8.0), (4.0, T_ROOF + 0.006, 8.0), (-12.0, T_ROOF + 0.006, 8.0)],
            (0, 1, 0), "graffiti", m.d("helipad"))
     # lifebuoys on the outside walls (a ring of 8 short pieces, 6 cm deep)
     for axis, at, n, a, y in (("x", -TZ - 0.15, -1, -11.0, 5.4), ("x", TZ + 0.15, 1, 6.0, 5.4), ("z", -TX - 0.15, -1, -2.0, 5.4),
-                              ("z", TX + 0.15, 1, 4.0, 5.4), ("x", -TZ - 0.15, -1, 11.0, 12.6), ("z", -TX - 0.15, -1, 12.0, 12.6)):
+                              ("z", TX + 0.15, 1, 4.0, 5.4), ("x", -TZ - 0.15, -1, 11.0, 12.6), ("z", -TX - 0.15, -1, 4.3, 12.6)):
         t_item(m)
         for k in range(8):
             ang = 2 * math.pi * (k + 0.5) / 8
@@ -1982,17 +2044,22 @@ def tower_details(m):
             m.box(c3, sz, mat(col), cull=False)
         b.group = None
     # ceiling lamps, a clock in the mess and on the bridge
-    for f, y in enumerate(T_FLOORS):
+    for f, y in enumerate(T_FLOORS):         # (0.36.19: over the middle of each room and along the corridor)
         ceil = (T_FLOORS[f + 1] if f + 1 < len(T_FLOORS) else T_ROOF) - SLAB
-        for x, z in ((-9.0, -11.5), (-9.0, -6.5), (1.0, -11.5), (1.0, -6.5), (-10.0, 0.0), (0.0, 0.0), (-9.0, 7.0),
-                     (-9.0, 12.0), (1.0, 7.0), (1.0, 12.0), (10.0, 7.0), (10.0, 12.0)):
+        hall = f in T_HALL_FLOORS
+        ne = -0.5 if hall else 1.0
+        spots = [(-9.0, -12.0), (-9.0, -5.0), (ne, -12.0), (ne, -5.0), (-10.0, 1.5), (-1.0, 1.5), (9.0, 1.5),
+                 (-9.5, 7.0), (-9.5, 12.5), (0.5, 7.0), (0.5, 12.5), (10.0, 7.0), (10.0, 12.5)]
+        if hall:
+            spots += [(4.5, -12.0), (4.5, -5.0)]
+        for x, z in spots:
             t_lamp(m, x, ceil, z)
     for row in data["boxes"]:
         if row["colour"] == "concrete" and not row["pitch"]:
             c, s = row["pos"], row["size"]
             if s[2] < 3.5 and s[0] > 7:
                 t_lamp(m, c[0], c[1] - s[1] / 2, c[2], 0.8, 0.25)
-    for axis, at, n, a, y in (("z", -TX + 0.15, 1, -11.0, T_FLOORS[1] + 2.3), ("z", -TX + 0.15, 1, 4.5, T_FLOORS[3] + 2.6)):
+    for axis, at, n, a, y in (("z", -TX + 0.15, 1, -8.0, T_FLOORS[1] + 2.3), ("z", -TX + 0.15, 1, 4.5, T_FLOORS[3] + 2.6)):
         flat(b, (n, 0, 0), at + 0.012, a - 0.2, a + 0.2, y, y + 0.4, "graffiti", m.d("clock"))
     # pegboards over the benches, the radio rack's wall
     for row in data["boxes"]:
@@ -2031,7 +2098,7 @@ def tower_wall(m, row, skirts):
             outer = abs(abs(c[0]) - TX) < 0.01 and s[0] < 0.5 or abs(abs(c[2]) - TZ) < 0.01 and s[2] < 0.5
             if outer and f >= 0:
                 return "rip_white"
-            return t_wall_mat(f, t_room(mid[0], mid[2]))
+            return t_wall_mat(f, t_room(mid[0], mid[2], f))
         if stair_east and n[0]:
             return None                      # (drawn in bands below: the tower's own east wall covers it)
         if tall:
@@ -2039,7 +2106,7 @@ def tower_wall(m, row, skirts):
             return None
         p = (mid[0] + n[0] * 0.3, mid[1], mid[2] + n[2] * 0.3)
         f = t_floor(y)
-        room = t_room(p[0], p[2])
+        room = t_room(p[0], p[2], f)
         if f == 4 or (f >= 0 and room == "out"):
             return "rip_white"
         mt = t_wall_mat(f, room)
@@ -2065,7 +2132,7 @@ def tower_wall(m, row, skirts):
                 continue
             f = t_floor(ym)
             p = (bm[0] + n[0] * 0.3, bm[2] + n[2] * 0.3)
-            room = t_room(*p)
+            room = t_room(*p, f)
             mt = "rip_white" if f == 4 or (f >= 0 and room == "out") else t_wall_mat(f, room)
             flat(m.b, n, at, a0, a1, lo, hi, mt, uv_world())
             if 1 <= f <= 3 and room != "stair" and abs(lo - T_FLOORS[f]) < 0.02:
@@ -2091,11 +2158,12 @@ def tower_slab(m, row):
     split = row["colour"] == "metal" and 1 <= t_floor(top + 0.01) <= 3
     if split:                                 # (a slab runs under several rooms: each gets its own floor)
         x0, x1, z0, z1 = c[0] - s[0] / 2, c[0] + s[0] / 2, c[2] - s[2] / 2, c[2] + s[2] / 2
-        xs = sorted({x0, x1} | {v for v in (-4.0, 6.0) if x0 < v < x1})
-        zs = sorted({z0, z1} | {v for v in (-3.0, 3.0) if z0 < v < z1})
+        xs = sorted({x0, x1} | {v for v in (-5.0, -4.0, 3.0, 6.0) if x0 < v < x1})
+        zs = sorted({z0, z1} | {v for v in (0.0, 3.0) if z0 < v < z1})
         for xa, xb in zip(xs, xs[1:]):
             for za, zb in zip(zs, zs[1:]):
-                mt = t_floor_mat(t_floor(top + 0.01), t_room((xa + xb) / 2, (za + zb) / 2))
+                ft = t_floor(top + 0.01)
+                mt = t_floor_mat(ft, t_room((xa + xb) / 2, (za + zb) / 2, ft))
                 m.b.poly([(xa, top, za), (xb, top, za), (xb, top, zb), (xa, top, zb)], (0, 1, 0), mt, uv_world())
 
     def style(n, mid, corners):
@@ -2107,10 +2175,10 @@ def tower_slab(m, row):
                 return "rip_roof"
             if row["colour"] == "concrete":
                 return "rip_deck"
-            return t_floor_mat(f, t_room(mid[0], mid[2]))
+            return t_floor_mat(f, t_room(mid[0], mid[2], f))
         if n[1] < -0.7:
             f = t_floor(mid[1] - 0.3)
-            room = t_room(mid[0], mid[2])
+            room = t_room(mid[0], mid[2], f)
             if f <= 0 or room == "stair" or row["colour"] in ("concrete", "roof"):
                 return "rip_steel_in"
             return "rip_ceiling"
