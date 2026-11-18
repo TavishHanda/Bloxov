@@ -23,7 +23,11 @@ Riptide art step 2 (plan: the "Riptide art plan" doc; clean pass first). The bri
   ammo crates in the armory, shelving and drums in the stores, benches, a tool chest and a pump in the workshop, mess
   tables, a galley (counter, sink, stove, fridge), bunks, sick-bay beds and a medicine cabinet, desks and filing
   cabinets, the bridge's consoles and helm, a chart table, a radio desk. The rooms, doors, ladders, loot and AI
-  routes are where they were; the furniture adds a little cover.
+  routes are where they were. Owner, after the first pictures: "add more furniture to middle... dont be afraid", so
+  rooms also get pieces out in the middle (a work table in the armory, a shelving row in the stores, a pump and drums
+  in the workshop, a galley island, lounge tables in the cabins, a treatment bed in the sick bay, a meeting table in
+  the captain's office, desks, and a second row of consoles on the bridge), each with 2 m round it. The AI's
+  navigation is re-baked round every piece; every loot spot is still reachable (riptide_audit OK).
 - Net version 5 (the furniture is new map geometry: client and server must match). Navigation re-baked.
 
 ## 0.36.17 (Riptide: the Leviathan gets a ship's shape)

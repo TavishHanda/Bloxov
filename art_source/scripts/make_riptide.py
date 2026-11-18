@@ -2000,6 +2000,9 @@ def tower_details(m):
             c, s = row["pos"], row["size"]
             axis, sg = _against(row)
             y = c[1] + s[1] / 2 + 0.25
+            back = (c[0] - sg * (s[0] / 2 + 0.05), y + 0.35, c[2]) if axis == "x" else (c[0], y + 0.35, c[2] - sg * (s[2] / 2 + 0.05))
+            if not m.inside(back):
+                continue                      # (a bench out in the room: no wall to hang the board on)
             if axis == "x":
                 at = c[0] - sg * s[0] / 2
                 flat(b, (sg, 0, 0), at + sg * 0.012, c[2] - s[2] / 2 + 0.2, c[2] + s[2] / 2 - 0.2, y, y + 0.7, "decals", m.d("pegboard"))

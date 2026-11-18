@@ -1237,6 +1237,17 @@ TOWER_PROPS = [
     ("console", 34.3, 43.6, 74.15, 75.05, DECK4, 0.85), ("console", 44.4, 53.6, 74.15, 75.05, DECK4, 0.85),
     ("helm", 38.7, 39.3, 77.2, 77.8, DECK4, 1.1),
     ("chart_table", 37.0, 40.0, 98.0, 99.4, DECK4, 0.95), ("radio", 61.15, 61.85, 100.2, 104.2, DECK4, 0.8),
+    # (0.36.19, owner: "add more furniture to middle") pieces out in the rooms, at least 2 m from the walls, the doors'
+    # ways in and each other, so people and the AI walk round them (the navigation is baked round every box)
+    ("bench", 38.5, 41.5, 79.5, 81.5, DECK, 0.9), ("shelves", 47.2, 47.9, 78.0, 84.0, DECK, 2.1),
+    ("machine", 38.0, 39.4, 98.0, 100.4, DECK, 1.4), ("drums", 55.0, 56.4, 96.0, 96.8, DECK, 1.0),
+    ("crates", 52.0, 54.0, 96.0, 97.2, DECK, 1.4),
+    ("counter", 48.0, 50.8, 81.5, 82.5, DECK2, 0.92),
+    ("mess_table", 38.5, 40.5, 98.8, 99.8, DECK2, 0.78), ("mess_table", 55.0, 57.0, 96.6, 97.6, DECK2, 0.78),
+    ("sick_bed", 38.5, 40.7, 79.5, 80.5, DECK3, 0.7), ("mess_table", 47.0, 50.0, 83.5, 84.5, DECK3, 0.78),
+    ("desk", 38.5, 40.0, 98.0, 99.4, DECK3, 0.76), ("desk", 55.0, 57.0, 96.0, 97.0, DECK3, 0.76),
+    ("console", 36.5, 41.5, 81.0, 81.9, DECK4, 0.85), ("console", 46.0, 50.0, 81.0, 81.9, DECK4, 0.85),
+    ("desk", 54.0, 56.0, 99.0, 100.0, DECK4, 0.76),
 ]
 
 
