@@ -36,7 +36,8 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
 - The bridge tower (0.36.18): `bridge_tower` (origin 48, 0, 90) is drawn by `make_riptide.py bridge_tower`
   (`build_tower`). Its furniture is `TOWER_PROPS` in the generator (boxes with a `kind`, drawn as the real thing);
   the generator's `wall()` writes each modeled wall's doors and windows to the model's json (`openings`), which the
-  model frames. Rooms get their paint from `t_room` / `ROOM_NAMES` (the tower's quarters and corridor).
+  model frames. Rooms get their paint from `t_room` / `ROOM_NAMES` (0.36.19 layout: stair core NE, corridor z 90..93
+  across the back, a hall x 51..54 on the main deck and B deck, doors at x 39/48/58; see `tower()`'s docstring).
 - The Leviathan's outline (0.36.17): `BOW_LINE` / `STERN_LINE` in `gen_riptide.py` (the bow narrows from z -93.5 to a
   2.8 m stem, the stern's corners round off at r 5). The plate there is yawed boxes (kind `hull_curve`), the decks
   `hull_slab` strips (kind `deck_curve`); `make_riptide.py` draws both smooth along the line. The sea's surface in the

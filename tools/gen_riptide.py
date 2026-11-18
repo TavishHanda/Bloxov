@@ -1156,29 +1156,50 @@ def bow_stairs():
 
 
 def tower():
-    """The bridge tower: armory on the main deck, crew deck, officers' deck, the bridge, the helideck roof."""
+    """The bridge tower (0.36.19 layout, owner: "the interior architecture ... is pretty bad"): laid out like a real
+    deckhouse. Every floor has the same bones, stacked: the stair core in the north-east corner (x 54..62, z 76..90),
+    a cross corridor right across the tower along its south side (z 90..93), the rooms north and south of it, their
+    doors facing each other across the corridor (x 39, x 48, x 58). On the main deck and B deck the stairs land at
+    their north end, so a short hall (x 51..54) runs from there down to the corridor; on A deck and the bridge they
+    land at the south end and open straight onto the corridor. The 2 m strip north of the stairs is a closed trunk.
+    MAIN DECK: stores (centre shelving, the north door), armory, the workshop (the aft door), the bosun's store.
+    A DECK: the mess and the galley (a serving hatch between), the bunk room, the crew lounge, the washroom.
+    B DECK: the sick bay, the ship's office, the chief's cabin, the captain's cabin, the meeting room.
+    BRIDGE: one open wheelhouse across the front, the chart room, the radio room, the switchboard room.
+    Windows line up floor to floor, centred on the rooms behind them; none lands on an inside wall."""
     footprints.append((TX0, TZ0, TX1, TZ1))
     labels.append(("BRIDGE TOWER", 48, 70, 0))
-    floors = [(DECK, "ARMORY"), (DECK2, "CREW"), (DECK3, "OFFICERS"), (DECK4, "BRIDGE")]
-    for i, (y, _) in enumerate(floors):
-        h = (floors[i + 1][0] if i + 1 < len(floors) else ROOF) - y - SLAB_T
+    floors = [DECK, DECK2, DECK3, DECK4]
+    for i, y in enumerate(floors):
+        h = (floors[i + 1] if i + 1 < len(floors) else ROOF) - y - SLAB_T
+        side = [window(91.5)]                        # the corridor's two ends
         if i == 0:
-            n, s = [door(40.0, 2.0), door(50.0, 2.0)], [door(44.0, 2.0)]
-            w, e = [window(84.0), window(98.0)], [window(98.0)]
-        elif i == 3:   # the bridge: windows all round
-            n = [window(x, 3.0, 0.9, 2.4) for x in (38.0, 44.0, 50.0)]
-            s, w, e = [window(44.0)], [window(z, 3.0, 0.9, 2.4) for z in (80.0, 92.0, 100.0)], [window(98.0)]
+            n, s = [door(40.0), door(52.5)], [door(44.0), window(38.5), window(51.0)]
+            w, e = side + [window(97.0), window(102.0)], side + [window(100.0)]
+        elif i == 3:   # the bridge: a band of tall windows round the wheelhouse
+            n = [window(x, 3.0, 0.9, 2.4) for x in (36.0, 40.0, 44.0, 48.0, 52.0)]
+            s = [window(38.5), window(46.0), window(51.0)]
+            w = [window(z, 2.6, 0.9, 2.4) for z in (77.0, 81.5, 86.0)] + side + [window(97.0), window(102.0)]
+            e = side + [window(100.0)]
         else:
-            n = [window(x) for x in (38.0, 44.0, 50.0)]
-            s, w, e = [window(40.0), window(50.0)], [window(z) for z in (80.0, 92.0, 100.0)], [window(98.0)]
+            n = [window(37.0), window(41.0), window(47.5)] + ([window(52.5)] if i == 2 else [])
+            s = [window(38.5), window(46.0), window(51.0)]
+            w = [window(79.0), window(85.0)] + side + [window(97.0), window(102.0)]
+            e = side + [window(100.0)]
         room(TX0, TX1, TZ0, TZ1, y, h, "wall", n, s, w, e)
         if i > 0:
             slab(TX0, TX1, TZ0, TZ1, y, "metal", holes=[hole(TOWER_STAIRS)])
-        # a corridor across the middle, rooms either side
-        wall("x", 87.0, TX0, 54.0, y, h, "wall", [door(38.0), door(48.0)])
-        wall("x", 93.0, TX0, 54.0, y, h, "wall", [door(38.0), door(48.0)])
-        wall("z", 44.0, TZ0, 87.0, y, h, "wall", [door(81.0)])
-        wall("z", 44.0, 93.0, TZ1, y, h, "wall", [door(99.0)])
+        hall = i in (0, 2)                          # (the stairs land at the north end: the hall down to the corridor)
+        wall("z", 54.0, TZ0, TOWER_STAIRS[2], y, h, "wall")                   # the trunk north of the stairs
+        wall("x", 90.0, TX0, 51.0 if hall else 54.0, y, h, "wall", [door(39.0), door(48.0)])
+        wall("x", 93.0, TX0, TX1, y, h, "wall", [door(39.0), door(48.0), door(58.0)])
+        if i != 3:
+            wall("z", 44.0, TZ0, 90.0, y, h, "wall", [(82.0, 2.0, 1.0, 1.9)] if i == 1 else ())   # (A deck: the hatch)
+        if hall:
+            wall("z", 51.0, TZ0, 90.0, y, h, "wall")
+        if i != 0:
+            wall("z", 43.0, 93.0, TZ1, y, h, "wall")
+        wall("z", 54.0, 93.0, TZ1, y, h, "wall")
     slab(TX0, TX1, TZ0, TZ1, ROOF, "metal", holes=[hole(TOWER_STAIRS)])
     wall("x", TZ0, TX0, TX1, ROOF, 1.0, "rust", t=0.2)
     wall("x", TZ1, TX0, TX1, ROOF, 1.0, "rust", [(58.0, 1.6, 0.0, 1.0)], t=0.2)
@@ -1186,75 +1207,103 @@ def tower():
     wall("z", TX1, TZ0, TZ1, ROOF, 1.0, "rust", [(77.5, 2.0, 0.0, 1.0)], t=0.2)
     labels.append(("HELIDECK", 44, 100, 0))
     perches.append((40.0, ROOF, 77.0, -1, 0))
+    # (A deck and the bridge land at the stairs' south end: their doors open south, onto the corridor)
     stairwell(TOWER_STAIRS[0], TOWER_STAIRS[2], [ROOF, DECK4, DECK3, DECK2, DECK, 0.0, HULL_A, HULL_B] + lab_flights(),
-              {0: "W", 1: "W", 2: "W", 3: "W", 4: "W", 6: "W", 7: "W", 11: "W"}, roof=True)
+              {0: "W", 1: "S", 2: "W", 3: "S", 4: "W", 6: "W", 7: "W", 11: "W"}, roof=True)
     # the outside ladder up the back, from the aft deck to the helideck
     ladder(58.0, DECK, TZ1 + 0.4, 0, ROOF - DECK, "Tower")
     tower_props()
     # loot by room
-    add_loot("ShipArmory", "locker", 36.0, DECK, 76.0, 0)
-    add_loot("ShipArmory", "locker", 41.0, DECK, 76.0, 0)
-    add_loot("ShipArmory", "crate", 38.0, DECK, 85.0)
-    add_loot("Crew", "locker", 36.0, DECK2, 100.0, 180)
-    add_loot("Crew", "locker", 50.0, DECK2, 104.0, 180)
-    add_loot("Galley", "crate", 50.0, DECK2, 78.0, table="crate")
-    add_loot("Galley", "crate", 36.0, DECK2, 84.0, table="crate")
-    add_loot("SickBay", "crate", 36.0, DECK3, 78.0)
-    add_loot("SickBay", "locker", 42.5, DECK3, 85.0, 90)
-    add_loot("Officers", "locker", 36.0, DECK3, 104.0, 180)
-    add_loot("Officers", "crate", 52.0, DECK3, 100.0)
-    add_loot("ShipBridge", "safe", 36.0, DECK4, 104.0, 180)
-    add_loot("ShipBridge", "safe", 52.0, DECK4, 78.0)
+    add_loot("ShipArmory", "locker", 45.6, DECK, 74.7, 0)
+    add_loot("ShipArmory", "locker", 49.4, DECK, 74.7, 0)
+    add_loot("ShipArmory", "crate", 50.0, DECK, 81.0)
+    add_loot("Crew", "locker", 34.7, DECK2, 99.5, 90)
+    add_loot("Crew", "locker", 42.3, DECK2, 104.0, -90)
+    add_loot("Galley", "crate", 45.3, DECK2, 88.6, table="crate")
+    add_loot("Galley", "crate", 52.8, DECK2, 88.6, table="crate")
+    add_loot("SickBay", "crate", 35.2, DECK3, 88.6)
+    add_loot("SickBay", "locker", 43.3, DECK3, 86.0, -90)
+    add_loot("Officers", "locker", 41.0, DECK3, 105.3, 180)
+    add_loot("Officers", "crate", 44.2, DECK3, 95.0)
+    add_loot("ShipBridge", "safe", 35.2, DECK4, 88.6, 180)
+    add_loot("ShipBridge", "safe", 41.8, DECK4, 105.2, 180)
 
 
-# (art step 2, 0.36.18) The tower's furniture: (kind, x0, x1, z0, z1, floor, height). Each stands against a wall, clear
-# of the doors, the windows (below the sills or beside them) and the loot, so the rooms play as before: the model
-# (make_riptide.py) draws the real thing inside each box.
+# (0.36.19) The tower's furniture: (kind, x0, x1, z0, z1, floor, height), room by room. Wall pieces stay below the
+# window sills (1.0 m) or between the windows; pieces out in the rooms leave 2.2 m walkways (the AI need 2 m), and
+# the doors' ways in stay clear. The model (make_riptide.py) draws the real thing inside each box.
 TOWER_PROPS = [
-    # the main deck: the armory (NW), the stores (NE), the workshop (aft)
-    ("gun_rack", 34.15, 34.75, 77.6, 82.4, DECK, 1.9), ("bench", 43.1, 43.85, 83.2, 86.6, DECK, 0.9),
-    ("shelves", 44.15, 44.75, 83.0, 86.6, DECK, 2.1), ("shelves", 45.2, 48.6, 74.15, 74.75, DECK, 2.1),
-    ("drums", 52.2, 53.6, 84.6, 86.6, DECK, 1.0), ("shelves", 53.15, 53.85, 79.4, 83.6, DECK, 2.1),
-    ("crates", 42.4, 43.85, 74.15, 75.6, DECK, 1.6), ("crates", 47.0, 50.0, 100.0, 101.4, DECK, 1.2),
-    ("bench", 34.15, 35.0, 93.6, 96.6, DECK, 0.9), ("tool_cab", 34.15, 34.75, 101.0, 103.4, DECK, 1.6),
-    ("bench", 51.5, 56.5, 105.0, 105.85, DECK, 0.9), ("machine", 59.8, 61.6, 100.4, 102.6, DECK, 1.4),
-    # deck 2: the mess (NW), the galley (NE), the crew's cabins (aft)
-    ("mess_table", 35.6, 42.4, 74.15, 75.25, DECK2, 0.78), ("mess_table", 34.15, 35.25, 76.6, 82.2, DECK2, 0.78),
-    ("mess_table", 37.4, 41.6, 78.2, 79.2, DECK2, 0.78), ("mess_table", 37.4, 41.6, 81.8, 82.8, DECK2, 0.78),
-    ("fridge", 45.0, 46.3, 74.15, 74.95, DECK2, 2.0), ("counter", 53.15, 53.85, 79.0, 85.6, DECK2, 0.92),
-    ("stove", 51.6, 53.85, 74.15, 74.95, DECK2, 0.92),
-    ("bunk", 34.15, 35.05, 101.8, 103.8, DECK2, 1.7), ("bunk", 41.4, 43.4, 104.95, 105.85, DECK2, 1.7),
-    ("bunk", 60.95, 61.85, 100.0, 102.0, DECK2, 1.7), ("bunk", 60.95, 61.85, 102.6, 104.6, DECK2, 1.7),
-    ("bunk", 52.2, 54.2, 104.95, 105.85, DECK2, 1.7), ("desk", 34.15, 34.85, 95.0, 96.6, DECK2, 0.76),
-    # deck 3: the sick bay (NW), the master's office (NE), the officers' cabins (aft)
-    ("sick_bed", 34.15, 35.15, 81.4, 83.6, DECK3, 0.7), ("sick_bed", 34.15, 35.15, 84.4, 86.6, DECK3, 0.7),
-    ("med_cab", 39.6, 41.6, 74.15, 74.65, DECK3, 1.9),
-    ("desk", 47.0, 49.6, 80.0, 81.0, DECK3, 0.76), ("files", 44.15, 44.75, 83.2, 86.4, DECK3, 1.3),
-    ("shelves", 51.4, 53.6, 74.15, 74.65, DECK3, 2.1),
-    ("bed", 34.15, 35.15, 94.6, 96.8, DECK3, 0.6), ("desk", 41.0, 43.4, 105.15, 105.85, DECK3, 0.76),
-    ("bed", 60.85, 61.85, 100.6, 102.8, DECK3, 0.6), ("desk", 61.15, 61.85, 103.4, 105.4, DECK3, 0.76),
-    # the bridge: consoles under the front windows, the helm, the chart table, the radio desk
+    # MAIN DECK. The stores (x 34..44, z 74..90): wall shelving both sides, two shelving rows down the middle
+    ("shelves", 34.15, 34.75, 76.0, 88.0, DECK, 2.1), ("shelves", 43.25, 43.85, 76.0, 88.0, DECK, 2.1),
+    ("shelves", 37.0, 37.7, 78.0, 87.0, DECK, 2.1), ("shelves", 40.3, 41.0, 78.0, 87.0, DECK, 2.1),
+    ("drums", 34.3, 36.0, 74.25, 75.05, DECK, 1.0),
+    # the armory (x 44..51): gun racks on the west wall, a cleaning bench down the middle
+    ("gun_rack", 44.15, 44.75, 76.5, 81.5, DECK, 1.9), ("gun_rack", 44.15, 44.75, 82.5, 87.5, DECK, 1.9),
+    ("bench", 47.0, 48.0, 78.0, 84.0, DECK, 0.9), ("crates", 49.6, 50.85, 85.0, 87.4, DECK, 1.4),
+    # the workshop (x 34..54, z 93..106): benches on the walls, a workbench and a lathe out in the room
+    ("bench", 34.15, 35.0, 94.5, 99.5, DECK, 0.9), ("tool_cab", 34.15, 34.75, 103.0, 105.4, DECK, 1.6),
+    ("bench", 47.0, 53.5, 105.15, 105.85, DECK, 0.9), ("drums", 52.95, 53.75, 99.0, 102.5, DECK, 1.0),
+    ("bench", 38.5, 41.5, 98.0, 100.0, DECK, 0.9), ("machine", 46.5, 48.3, 97.5, 99.9, DECK, 1.4),
+    ("crates", 50.5, 52.5, 95.5, 96.7, DECK, 1.4),
+    # the bosun's store (x 54..62): shelving on the east wall, drums, rope and crates in the middle
+    ("shelves", 61.25, 61.85, 95.0, 104.0, DECK, 2.1), ("drums", 54.3, 55.1, 100.5, 105.5, DECK, 1.0),
+    ("crates", 57.5, 59.0, 98.5, 101.5, DECK, 1.4),
+    # A DECK. The mess (x 34..44, z 74..90): two long tables, the serving counter under the hatch
+    ("mess_table", 36.5, 37.4, 77.5, 86.0, DECK2, 0.78), ("mess_table", 40.0, 40.9, 77.5, 86.0, DECK2, 0.78),
+    ("counter", 43.15, 43.85, 80.5, 83.5, DECK2, 0.92),
+    # the galley (x 44..54): counters and the stove under the window, a prep island, the fridge and pantry shelves
+    ("counter", 44.15, 44.85, 80.5, 83.5, DECK2, 0.92), ("counter", 44.15, 47.0, 74.15, 74.85, DECK2, 0.92),
+    ("stove", 48.0, 50.4, 74.15, 74.95, DECK2, 0.92), ("counter", 51.0, 53.85, 74.15, 74.85, DECK2, 0.92),
+    ("counter", 48.0, 50.8, 80.0, 81.0, DECK2, 0.92), ("fridge", 53.05, 53.85, 77.0, 78.3, DECK2, 2.0),
+    ("shelves", 53.15, 53.85, 82.5, 86.5, DECK2, 2.1),
+    # the bunk room (x 34..43, z 93..106): four bunks, a table in the middle, a desk
+    ("bunk", 34.4, 36.4, 104.95, 105.85, DECK2, 1.7), ("bunk", 40.0, 42.0, 104.95, 105.85, DECK2, 1.7),
+    ("bunk", 41.95, 42.85, 95.0, 97.0, DECK2, 1.7), ("bunk", 41.95, 42.85, 98.6, 100.6, DECK2, 1.7),
+    ("mess_table", 37.0, 39.0, 98.5, 99.8, DECK2, 0.78), ("desk", 34.15, 34.85, 103.0, 104.6, DECK2, 0.76),
+    # the crew lounge (x 43..54): sofas round a low table, the television on the east wall, a card table
+    ("sofa", 45.0, 49.0, 104.95, 105.85, DECK2, 0.8), ("sofa", 43.15, 44.05, 97.5, 101.5, DECK2, 0.8),
+    ("mess_table", 46.0, 48.0, 99.0, 100.4, DECK2, 0.5), ("tv", 53.25, 53.85, 98.0, 100.4, DECK2, 1.4),
+    ("mess_table", 49.6, 51.0, 95.5, 96.9, DECK2, 0.78),
+    # the washroom (x 54..62): three cubicles on the south wall, the basins under the window
+    ("stalls", 54.6, 61.85, 103.6, 105.85, DECK2, 2.0), ("counter", 61.15, 61.85, 96.0, 99.0, DECK2, 0.92),
+    # B DECK. The sick bay (x 34..44, z 74..90): beds on the west wall, an exam bed in the middle, the cabinets
+    ("sick_bed", 34.15, 35.15, 75.8, 78.0, DECK3, 0.7), ("sick_bed", 34.15, 35.15, 80.4, 82.6, DECK3, 0.7),
+    ("sick_bed", 38.4, 40.6, 81.0, 82.0, DECK3, 0.7), ("med_cab", 42.0, 43.85, 74.15, 74.65, DECK3, 1.9),
+    ("med_cab", 43.35, 43.85, 78.5, 80.5, DECK3, 1.9), ("desk", 41.0, 43.0, 84.5, 85.5, DECK3, 0.76),
+    # the ship's office (x 44..51): a filing wall, a desk under the window, a desk out in the room, a cabinet
+    ("files", 44.15, 44.75, 79.0, 84.0, DECK3, 1.3), ("desk", 45.2, 47.8, 74.15, 74.95, DECK3, 0.76),
+    ("desk", 47.2, 48.6, 80.5, 83.0, DECK3, 0.76), ("files", 50.25, 50.85, 85.5, 88.0, DECK3, 1.3),
+    # the chief's cabin (x 34..43, z 93..106): bed, desk, a seat and a small table
+    ("bed", 41.85, 42.85, 98.8, 101.0, DECK3, 0.6), ("desk", 35.0, 37.4, 105.15, 105.85, DECK3, 0.76),
+    ("sofa", 34.15, 35.05, 98.6, 100.6, DECK3, 0.8), ("mess_table", 37.6, 39.0, 99.0, 100.2, DECK3, 0.5),
+    # the captain's cabin (x 43..54): the bed, a desk, a sofa and a low table, a bookcase
+    ("bed", 52.85, 53.85, 101.0, 103.2, DECK3, 0.6), ("desk", 47.0, 49.6, 105.15, 105.85, DECK3, 0.76),
+    ("sofa", 43.15, 44.05, 98.0, 101.0, DECK3, 0.8), ("mess_table", 45.8, 47.2, 98.8, 100.2, DECK3, 0.5),
+    ("shelves", 53.25, 53.85, 95.0, 98.0, DECK3, 2.1),
+    # the meeting room (x 54..62): one long table down the middle, a filing cabinet
+    ("mess_table", 57.3, 58.7, 96.5, 103.5, DECK3, 0.78), ("files", 54.15, 54.75, 100.5, 104.5, DECK3, 1.3),
+    # THE BRIDGE. The wheelhouse (x 34..54, z 74..90): consoles under the front windows, the helm, the radar and
+    # engine consoles, the chart table at the back
     ("console", 34.3, 43.6, 74.15, 75.05, DECK4, 0.85), ("console", 44.4, 53.6, 74.15, 75.05, DECK4, 0.85),
-    ("helm", 38.7, 39.3, 77.2, 77.8, DECK4, 1.1),
-    ("chart_table", 37.0, 40.0, 98.0, 99.4, DECK4, 0.95), ("radio", 61.15, 61.85, 100.2, 104.2, DECK4, 0.8),
-    # (0.36.19, owner: "add more furniture to middle") pieces out in the rooms, at least 2 m from the walls, the doors'
-    # ways in and each other, so people and the AI walk round them (the navigation is baked round every box)
-    ("bench", 38.5, 41.5, 79.5, 81.5, DECK, 0.9), ("shelves", 47.2, 47.9, 78.0, 84.0, DECK, 2.1),
-    ("machine", 38.0, 39.4, 98.0, 100.4, DECK, 1.4), ("drums", 55.0, 56.4, 96.0, 96.8, DECK, 1.0),
-    ("crates", 52.0, 54.0, 96.0, 97.2, DECK, 1.4),
-    ("counter", 48.0, 50.8, 81.5, 82.5, DECK2, 0.92),
-    ("mess_table", 38.5, 40.5, 98.8, 99.8, DECK2, 0.78), ("mess_table", 55.0, 57.0, 96.6, 97.6, DECK2, 0.78),
-    ("sick_bed", 38.5, 40.7, 79.5, 80.5, DECK3, 0.7), ("mess_table", 47.0, 50.0, 83.5, 84.5, DECK3, 0.78),
-    ("desk", 38.5, 40.0, 98.0, 99.4, DECK3, 0.76), ("desk", 55.0, 57.0, 96.0, 97.0, DECK3, 0.76),
-    ("console", 36.5, 41.5, 81.0, 81.9, DECK4, 0.85), ("console", 46.0, 50.0, 81.0, 81.9, DECK4, 0.85),
-    ("desk", 54.0, 56.0, 99.0, 100.0, DECK4, 0.76),
+    ("helm", 43.7, 44.3, 77.7, 78.3, DECK4, 1.1),
+    ("console", 37.0, 41.0, 80.5, 81.4, DECK4, 0.85), ("console", 47.0, 51.0, 80.5, 81.4, DECK4, 0.85),
+    ("chart_table", 42.5, 45.5, 84.5, 85.9, DECK4, 0.95),
+    # the chart room (x 34..43, z 93..106): the big chart table, chart shelves, a desk
+    ("chart_table", 37.5, 40.5, 98.5, 100.0, DECK4, 0.95), ("shelves", 42.25, 42.85, 96.0, 103.0, DECK4, 2.1),
+    ("desk", 35.0, 37.5, 105.15, 105.85, DECK4, 0.76),
+    # the radio room (x 43..54): radio sets on the east wall, a console under the windows, a desk in the middle
+    ("radio", 53.15, 53.85, 95.5, 99.5, DECK4, 0.8), ("radio", 53.15, 53.85, 100.5, 104.5, DECK4, 0.8),
+    ("console", 43.5, 49.0, 104.95, 105.85, DECK4, 0.85), ("desk", 47.5, 49.5, 99.0, 100.0, DECK4, 0.76),
+    # the switchboard room (x 54..62): the switchboard down the east wall, a work desk
+    ("files", 61.25, 61.85, 95.0, 98.6, DECK4, 1.9), ("files", 61.25, 61.85, 101.4, 105.0, DECK4, 1.9),
+    ("desk", 56.5, 58.0, 98.5, 101.0, DECK4, 0.76),
 ]
 
 
 def tower_props():
     for kind, x0, x1, z0, z1, y, h in TOWER_PROPS:
-        box(x0, y, z0, x1, y + h, z1, "metal" if kind in ("console", "radio", "machine", "drums", "stove", "fridge") else "wood",
-            kind=kind)
+        box(x0, y, z0, x1, y + h, z1, "metal" if kind in ("console", "radio", "machine", "drums", "stove", "fridge", "tv")
+            else "wood", kind=kind)
 
 
 # ---------------------------------------------------------------------------------------------- Site Zero
@@ -1550,7 +1599,7 @@ ZONE_SPOTS = {
                 (-74.0, SHORE, 130.0), (-51.0, SHORE, 84.0)],
     "Deck": [(40.0, DECK, -58.0), (56.0, DECK, -40.0), (36.0, DECK, -6.0), (60.0, DECK, 6.0), (44.0, DECK, 52.0),
              (54.0, DECK, 71.0), (48.0, FORECASTLE, -98.0), (48.0, DRILL, -10.0)],
-    "Tower": [(38.0, DECK2, 80.0), (50.0, DECK2, 100.0), (38.0, DECK3, 98.0), (48.0, DECK4, 84.0), (40.0, DECK, 100.0)],
+    "Tower": [(38.5, DECK2, 88.0), (48.0, DECK2, 102.0), (39.0, DECK3, 102.5), (48.0, DECK4, 78.0), (44.0, DECK, 102.0)],
     "Hold": [(48.0, HULL_A, -60.0), (33.0, HULL_A, -30.0), (63.0, HULL_A, 10.0), (48.0, HULL_A, 40.0),
              (40.0, HULL_B, 50.0), (56.0, HULL_B, -80.0), (48.0, HULL_B, -20.0), (40.0, HULL_A, 86.0)],
     "Fore": [(44.0, HULL_B, -70.0), (40.0, HULL_A, -72.0), (56.0, HULL_B, -64.0)],
