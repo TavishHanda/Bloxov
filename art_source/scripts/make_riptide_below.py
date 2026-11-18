@@ -661,16 +661,20 @@ def hold_beams(m, hull_rows):
         if -9.5 < z < 7.5:
             continue
         xs = [x / 2 for x in range(-24, 25)]
-        run = None
-        for x in xs + [99]:
-            ok = x < 99 and ceiling_at(hull_rows, x, z, DECK) and ceiling_at(hull_rows, x, z + 0.25, DECK) \
+        run = last = None
+        for x in xs + [None]:
+            ok = x is not None and ceiling_at(hull_rows, x, z, DECK) and ceiling_at(hull_rows, x, z + 0.25, DECK) \
                 and ceiling_at(hull_rows, x, z - 0.25, DECK) and not in_rect(STAIRS, x, z, 0.3)
-            if ok and run is None:
-                run = x
-            elif not ok and run is not None:
-                if x - 0.5 - run > 0.6:
+            if ok:
+                if run is None:
+                    run = x
+                last = x
+            elif run is not None:
+                # (ends at the last spot with deck over it: 0.36.22, a run reaching the hold's east side used to end
+                # at the loop's end marker, x 99, and stuck 85 m out of the ship over the sea)
+                if last - run > 0.6:
                     t_item(m)
-                    m.box(((run + x - 0.5) / 2, DECK - SLAB - 0.25, z), (x - 0.5 - run, 0.5, 0.3), mat("rip_iron"), cull=False)
+                    m.box(((run + last) / 2, DECK - SLAB - 0.25, z), (last - run, 0.5, 0.3), mat("rip_iron"), cull=False)
                 run = None
                 m.b.group = None
 

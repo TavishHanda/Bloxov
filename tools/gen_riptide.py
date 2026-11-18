@@ -104,6 +104,7 @@ C = {name: i for i, (name, _) in enumerate(COLOURS)}
 
 boxes = []           # (cx, cy, cz, sx, sy, sz, yaw, pitch, colour, solid)
 loot = []            # (name, kind, x, y, z, yaw, table, place)
+window_panes = []    # (0.36.23) glazed windows: x, y, z, width, height, yaw (BoxMap window_panes)
 ladders = []         # (x, y, z, yaw, height, place)
 extracts = []        # (node, title, x, y, z)
 player_spawns = []   # (x, y, z)
@@ -1266,6 +1267,13 @@ def tower():
         n, s = n + [split(44.0), split(51.0), split(54.0)], s + [split(43.0), split(54.0)]
         w, e = w + [split(90.0), split(93.0)], e + [split(TOWER_STAIRS[2]), split(90.0), split(93.0)]
         room(TX0, TX1, TZ0, TZ1, y, h, "wall", n, s, w, e)
+        # (0.36.23, owner: "i want glass, breakable, like stops u and breaks if u shoot or vault through it") every
+        # outside window is glazed: BoxMap's window panes (stop people, break when shot, pushed or vaulted through)
+        for axis, at, ops in (("x", TZ0, n), ("x", TZ1, s), ("z", TX0, w), ("z", TX1, e)):
+            for c, wd, lo, hi in ops:
+                if wd > 0.01 and lo > 0.5:
+                    px, pz = (c, at) if axis == "x" else (at, c)
+                    window_panes.append((px, y + (lo + hi) / 2, pz, wd, hi - lo, 0.0 if axis == "x" else 90.0))
         if i > 0:
             slab(TX0, TX1, TZ0, TZ1, y, "metal", holes=[hole(TOWER_STAIRS)])
         hall = i in (0, 2)                          # (the stairs land at the north end: the hall down to the corridor)
@@ -1854,6 +1862,7 @@ def write_scene():
             'script = ExtResource("1_boxmap")',
             "colors = PackedColorArray(" + ", ".join(f"{fmt(r)}, {fmt(g)}, {fmt(b)}, 1" for _, (r, g, b) in COLOURS) + ")",
             "boxes = PackedFloat32Array(" + ", ".join(fmt(v) for b in boxes for v in b) + ")",
+            "window_panes = PackedFloat32Array(" + ", ".join(fmt(v) for p in window_panes for v in p) + ")",
             "colour_names = PackedStringArray(" + ", ".join(f'"{name}"' for name, _ in COLOURS) + ")",
             f"terrain_colour = {C['sand']}",
             "terrain_xs = PackedFloat32Array(" + ", ".join(fmt(x) for x in xs) + ")",
