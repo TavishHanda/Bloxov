@@ -1265,7 +1265,7 @@ mb.PALETTE.update({
     "tp_card": "9b7a50", "tp_card_dark": "86683f",
     "tp_red": "8e3326", "tp_red_dark": "772a1f",
     "tp_bright": "a9adad", "tp_bright_dark": "959999", "tp_bright_light": "b9bdbd",
-    "tp_orange": "d0622a", "tp_screen": "1f3a2c", "tp_screen_on": "4fb36b", "tp_amber": "c99a3a",
+    "tp_orange": "d0622a", "tp_screen": "245446", "tp_screen_on": "7fe39a", "tp_bezel": "1b1f24", "tp_glass": "3d7a8c", "tp_amber": "c99a3a",
     "tp_paper": "d8d2bd", "tp_sea": "6f93a6", "tp_land": "b9ae86",
 })
 
@@ -1517,6 +1517,22 @@ def tower_decals(rng):
         for x in range(4, c.w - 4, 4):
             c.put(x, 1, "tp_screen_on" if x % 12 else "rh_red")
     a.add("screens", 100, 24, screens)
+
+    def monitor(c):            # (0.36.22) an upright monitor's face: a black bezel, a lit screen with readouts
+        c.rect(0, 0, c.w, c.h, "tp_bezel")
+        c.rect(2, 2, c.w - 2, c.h - 3, "tp_screen")
+        for k, y in enumerate(range(4, c.h - 5, 3)):
+            c.rect(4, y, 4 + (7 + 5 * k) % (c.w - 10), y + 1, "tp_screen_on")
+        c.rect(c.w - 9, 4, c.w - 4, 9, "tp_amber")
+        c.put(c.w // 2, c.h - 2, "tp_screen_on")
+    a.add("monitor", 32, 20, monitor)
+
+    def keys(c):               # a keyboard and a row of switches along a console's front lip
+        c.rect(0, 0, c.w, c.h, "tp_bezel")
+        for x in range(1, c.w - 1, 2):
+            c.put(x, 1, "rx_iron_light")
+            c.put(x, 3, "rx_iron_light" if x % 6 else "rh_red")
+    a.add("keys", 48, 5, keys)
 
     def chart(c):              # a paper chart: the coast, soundings, a course line
         c.rect(0, 0, c.w, c.h, "tp_paper")
@@ -1784,16 +1800,56 @@ def t_prop(m, row):
     elif kind == "med_cab":
         t_part(m, x0, y0, z0, x1, y1, z1, "rip_white")
         front("med", lo=y0 + 0.1, hi=y1 - 0.05)
-    elif kind == "console":                   # a body with a sloped top facing the room, screens on the slope
-        dz = z1 - z0
-        t_part(m, x0, y0, z0, x1, y1 - 0.25, z1, "rip_iron")
-        t_part(m, x0, y1 - 0.25, z0, x1, y1, z0 + 0.35, "rip_iron")
+    elif kind == "console":                   # (0.36.22, owner: "make them look better") a grey cabinet, a lit
+        dz = z1 - z0                          # sloping screen panel, a keyboard lip; out in the room, monitors on top
+        t_part(m, x0 + 0.02, y0, z0, x1 - 0.02, y0 + 0.1, z1 - 0.06, "rip_iron")                  # kick plate
+        t_part(m, x0, y0 + 0.1, z0, x1, y1 - 0.25, z1, "rip_bright")                             # the cabinet
+        t_part(m, x0, y1 - 0.25, z0, x1, y1, z0 + 0.35, "rip_bright")                            # the back hood
+        for xa in [x0 + 0.05 + k * 1.1 for k in range(int((x1 - x0 - 0.1) // 1.1) + 1)]:       # door seams
+            flat(b, (0, 0, 1), z1 + 0.004, xa, xa + 0.02, y0 + 0.14, y1 - 0.3, "rip_iron", uv_world(1.0))
+        flat(b, (0, 0, 1), z1 + 0.004, x0, x1, y1 - 0.29, y1 - 0.25, "rip_iron", uv_world(1.0))   # the lip
         slope = [(x0, y1 - 0.25, z1), (x1, y1 - 0.25, z1), (x1, y1, z0 + 0.35), (x0, y1, z0 + 0.35)]
         ln = math.hypot(0.25, dz - 0.35)
-        b.poly(slope, (0, (dz - 0.35) / ln, 0.25 / ln), "decals", m.d("screens"))
+        sn = (0, (dz - 0.35) / ln, 0.25 / ln)
+        b.poly(slope, sn, "rip_iron", uv_world(1.0))
+        # the panels on the slope, a little proud of it and lit (one per 1.6 m), and the keyboard strip in front
+        n_p = max(1, int((x1 - x0) // 1.6))
+        w_p = (x1 - x0) / n_p
+        lift = (sn[0] * 0.006, sn[1] * 0.006, sn[2] * 0.006)
+        b.group = bake_light.GLOW
+        for k in range(n_p):
+            pa, pb = x0 + k * w_p + 0.08, x0 + (k + 1) * w_p - 0.08
+            ya, za = y1 - 0.25 + 0.04 * 0.25 / 0.25, z1 - 0.06
+            yb, zb = y1 - 0.02, z0 + 0.35 + 0.02 * (dz - 0.35) / 0.25
+            q = [(pa, ya, za), (pb, ya, za), (pb, yb, zb), (pa, yb, zb)]
+            b.poly([(p[0] + lift[0], p[1] + lift[1], p[2] + lift[2]) for p in q], sn, "decals", m.d("screens"))
+        t_item(m)
+        b.poly([(x0 + 0.1, y1 - 0.249, z1 - 0.005), (x1 - 0.1, y1 - 0.249, z1 - 0.005), (x1 - 0.1, y1 - 0.249, z1 - 0.12),
+                (x0 + 0.1, y1 - 0.249, z1 - 0.12)], (0, 1, 0), "decals", m.d("keys"))
         for xs in (x0, x1):
             b.poly([(xs, y1 - 0.25, z0 + 0.35), (xs, y1 - 0.25, z1), (xs, y1, z0 + 0.35)], (1 if xs == x1 else -1, 0, 0),
-                   "rip_iron", uv_world(1.0))
+                   "rip_bright", uv_world(1.0))
+        if z0 > -TZ + 1.0:                    # out in the room (nothing behind it): monitors on stands along the back
+            for k in range(max(1, int((x1 - x0) // 1.3))):
+                cx = x0 + (k + 0.5) * (x1 - x0) / max(1, int((x1 - x0) // 1.3))
+                t_part(m, cx - 0.04, y1, z0 + 0.12, cx + 0.04, y1 + 0.12, z0 + 0.2, "rip_iron")
+                t_part(m, cx - 0.32, y1 + 0.12, z0 + 0.1, cx + 0.32, y1 + 0.52, z0 + 0.16, "rip_iron")
+                b.group = bake_light.GLOW
+                flat(b, (0, 0, 1), z0 + 0.164, cx - 0.3, cx + 0.3, y1 + 0.14, y1 + 0.5, "decals", m.d("monitor"))
+                t_item(m)
+    elif kind.startswith("chair_"):           # (0.36.22) a steel-framed chair; the name says which way it faces
+        face = {"e": ("x", 1), "w": ("x", -1), "s": ("z", 1), "n": ("z", -1)}[kind[-1]]
+        seat = y0 + 0.45
+        for px in (x0 + 0.04, x1 - 0.08):
+            for pz in (z0 + 0.04, z1 - 0.08):
+                t_part(m, px, y0, pz, px + 0.04, seat, pz + 0.04, "rip_iron")
+        t_part(m, x0, seat, z0, x1, seat + 0.06, z1, "rip_navy")
+        if face[0] == "x":
+            bx = x0 if face[1] > 0 else x1 - 0.06
+            t_part(m, bx, seat + 0.06, z0 + 0.03, bx + 0.06, y1, z1 - 0.03, "rip_navy")
+        else:
+            bz = z0 if face[1] > 0 else z1 - 0.06
+            t_part(m, x0 + 0.03, seat + 0.06, bz, x1 - 0.03, y1, bz + 0.06, "rip_navy")
     elif kind == "helm":
         t_part(m, x0 + 0.1, y0, z0 + 0.1, x1 - 0.1, y1 - 0.3, z1 - 0.1, "rip_iron")
         t_part(m, x0 + 0.05, y1 - 0.3, z0 + 0.05, x1 - 0.05, y1 - 0.2, z1 - 0.05, "rip_steel_in")
@@ -1946,12 +2002,26 @@ def t_frame(m, o):
                 m.box(((pa + pb) / 2, (ya + yb) / 2, face + sg * fd / 2), (pb - pa, yb - ya, fd), mat("rip_iron"), cull=False)
             else:
                 m.box((face + sg * fd / 2, (ya + yb) / 2, (pa + pb) / 2), (fd, yb - ya, pb - pa), mat("rip_iron"), cull=False)
+        if not window and outer and sg == 1 and abs(y0 - T_FLOORS[0]) < 0.02:
+            # (0.36.22) a steel sill across the outside doorway, the depth of the wall and a little more each side
+            if o["axis"] == "x":
+                m.box(((a0 + a1) / 2, y0 + 0.01, o["at"]), (a1 - a0, 0.02, t + 0.16), mat("rip_iron"), cull=False)
+            else:
+                m.box((o["at"], y0 + 0.01, (a0 + a1) / 2), (t + 0.16, 0.02, a1 - a0), mat("rip_iron"), cull=False)
         if window and outer and sg == (1 if o["at"] > 0 else -1):
             # a drip sill under the outside of the window
             if o["axis"] == "x":
                 m.box(((a0 + a1) / 2, y0 - fw - 0.03, face + sg * 0.05), (a1 - a0 + 0.3, 0.06, 0.1), mat("rip_white"), cull=False)
             else:
                 m.box((face + sg * 0.05, y0 - fw - 0.03, (a0 + a1) / 2), (0.1, 0.06, a1 - a0 + 0.3), mat("rip_white"), cull=False)
+
+
+def sign_w(m, name, lo=1.2, hi=2.1, tallest=0.5):
+    """(0.36.22, owner: "the signs are too small") A room sign's width: about 0.2 m a letter, no taller than `tallest`."""
+    u0, v0, u1, v1 = m.decals.regions[name]
+    aspect = (v1 - v0) / (u1 - u0)
+    w = min(hi, max(lo, 0.2 * len(name.split("_", 1)[1])))
+    return min(w, tallest / aspect)
 
 
 def t_sign(m, axis, at, n_sign, a_mid, y, name, width, height=None):
@@ -1999,20 +2069,22 @@ def tower_details(m):
         mid = (o["a0"] + o["a1"]) / 2
         top = o["y1"] + 0.14
         if o["axis"] == "x" and abs(o["at"] - T_STAIR[3]) < 0.01 and mid > T_STAIR[0]:   # the stairs' south doors
-            t_sign(m, "x", o["at"] + o["t"] / 2, 1, mid, top, "sign_STAIRS", 0.9)
+            t_sign(m, "x", o["at"] + o["t"] / 2, 1, mid, top, "sign_STAIRS", sign_w(m, "sign_STAIRS"))
             t_sign(m, "x", o["at"] - o["t"] / 2, -1, mid, top, "deck_" + DECK_NAMES[T_FLOORS[f]], 1.3)
         elif o["axis"] == "x" and (abs(o["at"]) < 0.01 or abs(o["at"] - 3.0) < 0.01):   # the corridor's doors
             north = abs(o["at"]) < 0.01
             room = t_room(mid, -1.0 if north else 4.0, f)
             n = 1 if north else -1
-            t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, "sign_" + ROOM_NAMES[f][room], 1.0)
+            nm = "sign_" + ROOM_NAMES[f][room]
+            t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, nm, sign_w(m, nm))
         elif o["axis"] == "z" and abs(o["at"] - T_STAIR[0]) < 0.01:         # the stairs' doors
-            t_sign(m, "z", o["at"] - o["t"] / 2, -1, mid, top, "sign_STAIRS", 0.9)
+            t_sign(m, "z", o["at"] - o["t"] / 2, -1, mid, top, "sign_STAIRS", sign_w(m, "sign_STAIRS"))
             t_sign(m, "z", o["at"] + o["t"] / 2, 1, mid, top, "deck_" + DECK_NAMES[T_FLOORS[f]], 1.3)
         elif o["axis"] == "x" and abs(abs(o["at"]) - TZ) < 0.01 and f == 0:  # outside doors on the main deck
             n = 1 if o["at"] > 0 else -1
             room = t_room(mid, o["at"] - n * 1.0, 0)
-            t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, "sign_" + ROOM_NAMES[0][room], 1.0)
+            nm = "sign_" + ROOM_NAMES[0][room]
+            t_sign(m, "x", o["at"] + n * o["t"] / 2, n, mid, top, nm, sign_w(m, nm))
     # the stairs onto the helideck: its door is in the head house's west wall (the top landing)
     for o in data["openings"]:
         if o["axis"] == "z" and abs(o["at"] - T_STAIR[0]) < 0.01 and abs(o["y0"] - T_ROOF) < 0.05:
