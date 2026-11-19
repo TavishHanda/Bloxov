@@ -137,6 +137,44 @@ func open_stash(stash_grid: GridInventory) -> void:
 	open_for(null)
 
 
+## Fits the screen in the window (0.36.25, owner: in browser fullscreen the trader column ran off the right edge).
+## The columns' smallest size can be wider than the window (a Raid Pack, a fifth trader tab), so while this is
+## open the whole window's UI is drawn smaller just enough for it to fit, through the window's content scale:
+## clicks, drags and drops all stay lined up because the engine does the scaling. Back to normal when it closes.
+var _fit_factor := 1.0
+
+
+func _fit_to_window() -> void:
+	var window := get_window()
+	# (Not on a window-less run, the server or the tests: their window is tiny and nobody looks at it.)
+	if window == null or DisplayServer.get_name() == "headless":
+		return
+	var want := 1.0
+	if visible and is_instance_valid(_center):
+		# The window's size at a content scale of 1: the visible rect grows as the scale shrinks.
+		want = fit_factor(get_viewport().get_visible_rect().size * window.content_scale_factor, fit_need())
+	if absf(want - _fit_factor) < 0.005:
+		return
+	_fit_factor = want
+	window.content_scale_factor = want
+
+
+## The room the screen needs: its columns and details line, the top margin, and a little edge.
+func fit_need() -> Vector2:
+	return (_center.get_child(0) as Control).get_combined_minimum_size() + Vector2(8, 8 + _center.offset_top)
+
+
+## How much to shrink the UI so `need` fits in `base` (the window at full size): 1 if it already fits, never under 0.5.
+static func fit_factor(base: Vector2, need: Vector2) -> float:
+	return clampf(minf(base.x / need.x, base.y / need.y), 0.5, 1.0)
+
+
+func _exit_tree() -> void:
+	if _fit_factor != 1.0 and get_window() != null:
+		get_window().content_scale_factor = 1.0
+		_fit_factor = 1.0
+
+
 ## Leaves room at the top of the screen (the hideout's top bar).
 func set_top_margin(pixels: float) -> void:
 	_center.offset_top = pixels
@@ -162,6 +200,7 @@ func close(recapture := true) -> void:
 
 
 func _process(_delta: float) -> void:
+	_fit_to_window()
 	if not visible or player == null:
 		return
 	if player.out_of_fight():
