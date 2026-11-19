@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.35 (START RAID without the frozen picture)
+Owner said yes (2026-11-19): pressing START RAID on Frontlines sat on a still picture for a few seconds in the browser.
+- Measured: loading the map and raid scenes (~1 s in a browser), building the map's collision (the physics engine's
+  side, ~0.4 s on a fast PC, plus ~0.3 s more the first time it's put on a collider), then setting the raid up.
+- The web build now does the big pieces a step at a time (`scripts/raid_prep.gd`), so the loading screen counts up
+  (LOADING THE RAID... 40%) instead of sitting still, and only then makes the raid. Making the raid itself went from
+  ~2.1 s to ~0.3 s on a fast PC.
+- When a raid ends, what it loaded is kept for the next raid on the same map, so a second raid in a row skips the
+  loading: on a test export, getting into the second raid took a third of the time of the first.
+- `BoxMap` builds its collision triangles in one place (`_solid_faces`, same triangles in the same order, checked)
+  and can build its shape ahead (`prebuild`). Desktops, the server and how the game plays are unchanged.
+- New smoke test section `raid_prep`.
+
 ## 0.36.34 (Slimmer web engine)
 Owner asked (2026-11-19, the second half of "load as fast as Krunker"): the browser's engine download is now 30% smaller.
 - The web build uses Godot's web engine rebuilt without the parts Bloxov never uses while playing (VR, video, 2D

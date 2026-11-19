@@ -21,7 +21,7 @@ const SECTIONS: Array[String] = [
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
-	"sound", "netlock", "web_packs", "web_engine",
+	"sound", "netlock", "web_packs", "web_engine", "raid_prep",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -10979,3 +10979,36 @@ func _section_web_engine() -> void:
 						found["%s in %s" % [class_name_used, path.trim_prefix("res://")]] = true
 	_check(found.is_empty(), "nothing uses what the slim web engine leaves out%s" % (
 			(": " + ", ".join(found.keys()) + " (turn it back on in tools/web_engine)") if not found.is_empty() else ""))
+
+
+## Getting raids ready ahead (0.36.35, RaidPrep, web builds): the map's collision shape built ahead is the very one
+## the raid's box map then uses, with the same triangles; and RaidPrep holds things only until it's told to let go.
+func _section_raid_prep() -> void:
+	const MAP := "res://scenes/maps/old_bloxov.tscn"
+	var scene := load(MAP) as PackedScene
+	var held := BoxMap.prebuild(scene)
+	_check(held.size() == 1 and held[0][0] is ConcavePolygonShape3D, "Frontlines: its box map's shape built ahead (%d)" % held.size())
+	# The raid's box map, in a world of its own (its own physics space).
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	root.add_child(view)
+	var map := scene.instantiate()
+	var box_map: BoxMap = map.find_children("*", "StaticBody3D", true, false).filter(func(n: Node) -> bool: return n is BoxMap)[0]
+	box_map.get_parent().remove_child(box_map)
+	box_map.owner = null
+	view.add_child(box_map)
+	var shape: Shape3D = (box_map.get_node("Shape") as CollisionShape3D).shape
+	_check(not held.is_empty() and shape == held[0][0], "the raid's box map uses the shape built ahead")
+	_check(box_map.collision_faces.size() > 100000 and box_map.collision_faces.size() == (shape.get_meta(&"faces") as PackedVector3Array).size(),
+		"with the same triangles (%d)" % box_map.collision_faces.size())
+	BoxMap.let_go(held)
+	view.queue_free()
+	map.free()
+	await process_frame
+	RaidPrep.always = true
+	await RaidPrep.prepare(self, MAP)
+	_check(RaidPrep.ready_for(MAP) and RaidPrep.raid_scene() != null, "RaidPrep gets Frontlines ready")
+	RaidPrep.prepare_now(MAP)   # (already ready: nothing to do)
+	RaidPrep.release()
+	_check(not RaidPrep.ready_for(MAP), "and lets go when told")
+	RaidPrep.always = false

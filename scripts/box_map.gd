@@ -188,21 +188,15 @@ func _ready() -> void:
 	lot_tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var lot_count := 0
 	var ribbons := road_material != null and not road_sections.is_empty()
-	var faces := PackedVector3Array()
 	var box_faces := BoxMesh.new().get_faces()  # a 1 m cube, 36 vertices
 	for i in range(0, boxes.size(), STRIDE):
+		if int(boxes[i + 9]) >= 2:
+			continue   # (not drawn: a building model draws it; its collision is in _solid_faces)
 		var xf := Transform3D(
 			Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))
 				* Basis.from_scale(Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])),
 			Vector3(boxes[i], boxes[i + 1], boxes[i + 2]))
 		var colour := colors[int(boxes[i + 8])] if int(boxes[i + 8]) < colors.size() else Color.MAGENTA
-		var flag := int(boxes[i + 9])
-		var solid := flag == 1 or flag == 2
-		if flag >= 2:
-			if solid:
-				for v in box_faces:
-					faces.append(xf * v)
-			continue
 		var normal_basis := xf.basis.inverse().transposed()
 		if ribbons and int(boxes[i + 8]) == road_colour:
 			continue   # (drawn by the ribbons; roads have no collision)
@@ -233,20 +227,9 @@ func _ready() -> void:
 					tool.set_color(shade)
 					tool.set_normal(normal)
 					tool.add_vertex(p)
-			if solid:
-				faces.append_array([a, b, c])
-	_shaped_from = faces.size()
-	for index in shaped_indices:
-		faces.append(shaped_points[index])
-	_shaped_to = faces.size()
-	for index in shot_indices:
-		faces.append(shot_points[index])
-	_shots_to = faces.size()
 	var ground := _terrain_arrays()
+	var faces := _solid_faces(ground)
 	if not ground.is_empty():
-		var points: PackedVector3Array = ground[Mesh.ARRAY_VERTEX]
-		for index in ground[Mesh.ARRAY_INDEX] as PackedInt32Array:
-			faces.append(points[index])
 		ground[Mesh.ARRAY_INDEX] = _terrain_indices(terrain_hidden)
 	collision_faces = faces
 	if DisplayServer.get_name() != "headless":
@@ -289,6 +272,75 @@ func _ready() -> void:
 	if not hole_glass.is_empty() and DisplayServer.get_name() != "headless":
 		add_to_group(Reacts.GROUP)   # (on_shot: bullet holes in the shelters' glass)
 	_index_surfaces()
+
+
+## The map's collision triangles: every solid box (12 triangles each, in box order; roads drawn as ribbons have
+## none), then the shaped pieces, the shot-only pieces and the ground (`ground` = _terrain_arrays(), its full grid).
+## Also notes where each part starts and ends. RaidPrep builds the shape from these ahead of the raid (0.36.35), so
+## the order must stay exactly as the shared shape's fingerprint saw it.
+func _solid_faces(ground: Array) -> PackedVector3Array:
+	var faces := PackedVector3Array()
+	var ribbons := road_material != null and not road_sections.is_empty()
+	var box_faces := BoxMesh.new().get_faces()
+	for i in range(0, boxes.size(), STRIDE):
+		var flag := int(boxes[i + 9])
+		if flag != 1 and flag != 2:
+			continue
+		if flag == 1 and ribbons and int(boxes[i + 8]) == road_colour:
+			continue
+		var xf := Transform3D(
+			Basis(Vector3.UP, deg_to_rad(boxes[i + 6])) * Basis(Vector3.RIGHT, deg_to_rad(boxes[i + 7]))
+				* Basis.from_scale(Vector3(boxes[i + 3], boxes[i + 4], boxes[i + 5])),
+			Vector3(boxes[i], boxes[i + 1], boxes[i + 2]))
+		for v in box_faces:
+			faces.append(xf * v)
+	_shaped_from = faces.size()
+	for index in shaped_indices:
+		faces.append(shaped_points[index])
+	_shaped_to = faces.size()
+	for index in shot_indices:
+		faces.append(shot_points[index])
+	_shots_to = faces.size()
+	if not ground.is_empty():
+		var points: PackedVector3Array = ground[Mesh.ARRAY_VERTEX]
+		for index in ground[Mesh.ARRAY_INDEX] as PackedInt32Array:
+			faces.append(points[index])
+	return faces
+
+
+## (0.36.35, START RAID was a few frozen seconds) Builds the collision shape of every box map in `map_scene` and has
+## the physics engine set it up (~0.4 s on a fast PC for Frontlines, longer in a browser), so the raid finds it ready
+## (`_shapes`). The engine keeps its side only while a body uses the shape, so each gets a body in a physics space of
+## its own, out of everyone's way. Returns what to hold until the raid has started; give it to `let_go` then.
+## Players' games only.
+static func prebuild(map_scene: PackedScene) -> Array:
+	var held := []
+	var map := map_scene.instantiate()
+	var found: Array[Node] = [map]
+	found.append_array(map.find_children("*", "StaticBody3D", true, false))
+	for node in found:
+		if node is BoxMap:
+			var shape := _shared_shape((node as BoxMap)._solid_faces((node as BoxMap)._terrain_arrays()))
+			# The physics engine builds its side of a triangle shape when a body first uses it: do it now, out of sight.
+			var space := PhysicsServer3D.space_create()
+			var body := PhysicsServer3D.body_create()
+			PhysicsServer3D.body_set_mode(body, PhysicsServer3D.BODY_MODE_STATIC)
+			PhysicsServer3D.body_set_space(body, space)
+			PhysicsServer3D.body_add_shape(body, shape.get_rid())
+			# (and what putting it on a CollisionShape3D works out the first time, ~0.3 s; the shape keeps it)
+			var collider := CollisionShape3D.new()
+			collider.shape = shape
+			collider.free()
+			held.append([shape, body, space])
+	map.free()
+	return held
+
+
+## Frees what `prebuild` returned (the raid's own body uses the shape by now).
+static func let_go(held: Array) -> void:
+	for entry: Array in held:
+		PhysicsServer3D.free_rid(entry[1])
+		PhysicsServer3D.free_rid(entry[2])
 
 
 func _road_tool() -> SurfaceTool:

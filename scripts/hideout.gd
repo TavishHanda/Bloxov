@@ -848,6 +848,11 @@ func start_raid() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await (_loading as LoadingScreen).wait_for_map()   # (0.36.30: the web build may still be downloading the map models)
+	if RaidPrep.wanted():   # (0.36.35: the big pieces a step at a time, with the loading screen counting up)
+		await RaidPrep.prepare(get_tree(), RaidMap.scene_path, (_loading as LoadingScreen).show_progress)
+		await (_loading as LoadingScreen).entering_now()
+		get_tree().change_scene_to_packed(RaidPrep.raid_scene())
+		return
 	get_tree().change_scene_to_file(RAID_SCENE)
 
 
