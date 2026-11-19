@@ -50,7 +50,7 @@ func _init(slot_name: String, owner_inventory: Inventory, owner_ui: LootUI, cell
 
 func _ready() -> void:
 	inventory.equipment_changed.connect(rebuild)
-	# Wear changes (a repair, a hit on the armor) only fire `changed`: redo the "40/60" too (0.36.28).
+	# Wear changes (a repair, a hit on the armor) only fire `changed`: redo the "40/60" too (0.36.29).
 	inventory.changed.connect(rebuild)
 	rebuild()
 
