@@ -50,12 +50,16 @@ func _init(slot_name: String, owner_inventory: Inventory, owner_ui: LootUI, cell
 
 func _ready() -> void:
 	inventory.equipment_changed.connect(rebuild)
+	# Wear changes (a repair, a hit on the armor) only fire `changed`: redo the "40/60" too (0.36.25).
+	inventory.changed.connect(rebuild)
 	rebuild()
 
 
 func _exit_tree() -> void:
 	if inventory.equipment_changed.is_connected(rebuild):
 		inventory.equipment_changed.disconnect(rebuild)
+	if inventory.changed.is_connected(rebuild):
+		inventory.changed.disconnect(rebuild)
 
 
 ## What to show: nothing while it's being dragged out.

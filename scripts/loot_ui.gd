@@ -943,6 +943,7 @@ func _on_menu(action: int) -> void:
 			sell_handler.call(grid, stack)
 		MenuAction.REPAIR:
 			repair_handler.call(grid, stack)
+			show_info(stack)   # (the condition line shows the repair right away, 0.36.25)
 		MenuAction.USE:
 			if player != null:
 				player.use_item(grid, stack)
@@ -974,7 +975,9 @@ func _on_slot_menu(action: int) -> void:
 		MenuAction.UNLOAD:
 			unload_gun(inventory.equipped(slot), null)
 		MenuAction.REPAIR:
-			repair_handler.call(null, inventory.equipped(slot))
+			var worn := inventory.equipped(slot)
+			repair_handler.call(null, worn)
+			show_info(worn)
 		MenuAction.UNEQUIP:
 			unequip_to_inventory(slot)
 		MenuAction.GROUND:
