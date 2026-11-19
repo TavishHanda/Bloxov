@@ -383,7 +383,7 @@ class Model:
             return any(b[0] <= q[0] <= b[3] and b[1] <= q[1] <= b[4] and b[2] <= q[2] <= b[5] for b in others)
         if not all(covered(p) for p in pts):
             return False
-        # (0.36.26, owner: a see-through door frame by the bow stairs) the five points can all be covered while the
+        # (0.36.27, owner: a see-through door frame by the bow stairs) the five points can all be covered while the
         # face isn't: a tall wall end beside two doors one above the other had its bottom, middle and top inside
         # other boxes and the doorways between them open. Check a grid every 0.4 m across the face too.
         c0, c1, c3 = corners[0], corners[1], corners[3]
@@ -724,7 +724,7 @@ def rail(m, row):
     """A solid rail (the gray box is solid, so it's drawn as plate, not as see-through bars): yellow plate with a
     round handrail along the top and posts every 1.5 m."""
     c, s = row["pos"], row["size"]
-    if row["pitch"]:     # (0.36.26) a rail down a ramp: the plate and a square handrail along its top, both sloped
+    if row["pitch"]:     # (0.36.27) a rail down a ramp: the plate and a square handrail along its top, both sloped
         m.box(c, s, rail_style(), yaw=row["yaw"], pitch=row["pitch"])
         p, y = math.radians(row["pitch"]), math.radians(row["yaw"])
         up = (math.sin(y) * math.sin(p), math.cos(p), math.cos(y) * math.sin(p))   # the plate's own up, in the world

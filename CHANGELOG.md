@@ -7,8 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-<<<<<<< HEAD
-## 0.36.26 (Riptide: no more see-through door frame; the companionway rail follows the ramp)
+## 0.36.27 (Riptide: no more see-through door frame; the companionway rail follows the ramp)
 - (Owner: you could see through a door frame in the hold by the riser pipes) The bow stairwell's door on the hold deck
   had no sides: the Riptide model maker left out any face whose middle and four corners were all inside other boxes,
   and that wall end ran past two doors one above the other, so its bottom, middle and top were covered while the
@@ -21,6 +20,13 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   main deck stays. You can't hop off the ramp's side into the passage any more. Navigation re-baked; net version 9
   (the map's collision changed, so client and server must match).
 
+## 0.36.26 (AI PMC bots on for Frontlines)
+- (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player
+  waits 90 s and then gets a raid with 2 bots (3 in about 1 raid in 4); 2 real players get 1 (or 2). Riptide stays off.
+- The switch is per map now: `Matchmaker.bot_maps` (map numbers, `[0]` = Frontlines). The server's `--bots` still turns
+  them on for every map (testing). Server-only, so no net version change.
+- Also removed leftover merge-conflict marks at the top of this changelog (0.36.24/0.36.25 entries kept).
+
 ## 0.36.25 (Riptide: the boathouse floor stops flickering)
 - (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
   with the sand under it, so the two fought over every pixel and drew as flickering stripes (worst on the web). The
@@ -28,7 +34,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   `gen_riptide.py` now keeps each of these floors' collision where it was (solid, not drawn) and draws a looks-only
   copy 2 cm higher. Walking, shooting and navigation don't change (same collision), so no net version change.
   The other five extracts were checked and had no such floor.
-=======
+
 ## 0.36.24 (Footsteps muffled behind walls)
 Owner: "Footstep audio needs to be more muffled when enemies are behind walls, but still hearable."
 - Behind a wall, a shut door or a whole pane, someone else's footsteps (players, scavs, bots) now play a muffled copy
@@ -40,7 +46,6 @@ Owner: "Footstep audio needs to be more muffled when enemies are behind walls, b
 - Loudness: the same -5 dB as before on top; the muffled sound itself is about 0-6 dB quieter to the ear (wall) and
   2-7 dB (floor), depending on the surface (all in: 5-11 dB quieter through a wall, 7-12 through a floor). Range, doorways (sound comes round an opening, not muffled) and your own
   steps are unchanged. Bush rustles behind a wall are dulled too.
->>>>>>> origin/main
 
 ## 0.36.23 (Riptide: bridge tower fixes, round 2; glass in the windows)
 Owner's notes on the tower after 0.36.19/0.36.20:
