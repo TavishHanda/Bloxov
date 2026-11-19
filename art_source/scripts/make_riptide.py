@@ -377,10 +377,24 @@ class Model:
         back = tuple(mid[k] - n[k] * 0.02 for k in range(3))
         others = [b for b in self.solid if not (b[0] <= back[0] <= b[3] and b[1] <= back[1] <= b[4] and b[2] <= back[2] <= b[5])]
         pts = [mid] + [tuple(m + (c - m) * 0.9 for m, c in zip(mid, q)) for q in corners]
-        for p in pts:
+
+        def covered(p):
             q = tuple(p[k] + n[k] * 0.02 for k in range(3))
-            if not any(b[0] <= q[0] <= b[3] and b[1] <= q[1] <= b[4] and b[2] <= q[2] <= b[5] for b in others):
-                return False
+            return any(b[0] <= q[0] <= b[3] and b[1] <= q[1] <= b[4] and b[2] <= q[2] <= b[5] for b in others)
+        if not all(covered(p) for p in pts):
+            return False
+        # (0.36.26, owner: a see-through door frame by the bow stairs) the five points can all be covered while the
+        # face isn't: a tall wall end beside two doors one above the other had its bottom, middle and top inside
+        # other boxes and the doorways between them open. Check a grid every 0.4 m across the face too.
+        c0, c1, c3 = corners[0], corners[1], corners[3]
+        du = math.dist(c0, c1)
+        dv = math.dist(c0, c3)
+        nu, nv = max(2, min(60, int(du / 0.4) + 1)), max(2, min(60, int(dv / 0.4) + 1))
+        for i in range(nu):
+            for j in range(nv):
+                u, v = 0.05 + 0.9 * i / (nu - 1), 0.05 + 0.9 * j / (nv - 1)
+                if not covered(tuple(c0[k] + (c1[k] - c0[k]) * u + (c3[k] - c0[k]) * v for k in range(3))):
+                    return False
         return True
 
     def box(self, c, s, style, yaw=0.0, pitch=0.0, cull=True):
@@ -710,6 +724,13 @@ def rail(m, row):
     """A solid rail (the gray box is solid, so it's drawn as plate, not as see-through bars): yellow plate with a
     round handrail along the top and posts every 1.5 m."""
     c, s = row["pos"], row["size"]
+    if row["pitch"]:     # (0.36.26) a rail down a ramp: the plate and a square handrail along its top, both sloped
+        m.box(c, s, rail_style(), yaw=row["yaw"], pitch=row["pitch"])
+        p, y = math.radians(row["pitch"]), math.radians(row["yaw"])
+        up = (math.sin(y) * math.sin(p), math.cos(p), math.cos(y) * math.sin(p))   # the plate's own up, in the world
+        hc = tuple(c[k] + up[k] * (s[1] / 2 + 0.05) for k in range(3))
+        m.box(hc, (0.1, 0.1, s[2]), mat("rip_yellow"), yaw=row["yaw"], pitch=row["pitch"], cull=False)
+        return
     m.box(c, s, rail_style())
     along = 0 if s[0] >= s[2] else 2
     L = s[along]
