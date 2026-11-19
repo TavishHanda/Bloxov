@@ -1525,7 +1525,7 @@ func _welcome(has_accounts := false) -> void:
 
 # --- PvP accounts (Stash update, 0.31) ------------------------------------------------
 
-## Client: a sign-in screen action ("sign_up", "sign_in", "resume", "recover", "sign_out", "delete") with its
+## Client: a sign-in screen action ("sign_up", "sign_in", "resume", "recover", "rename", "sign_out", "delete") with its
 ## fields. Not connected yet: it goes as soon as the server welcomes us (connect with go_online first).
 func account(action: String, fields: Dictionary) -> void:
 	if is_client():
@@ -1593,6 +1593,8 @@ func _account_result(action: String, ok: bool, data: Dictionary) -> void:
 	elif _rejoin_until > 0.0 and action == "resume":
 		_rejoin_until = 0.0
 		go_offline()
+	elif ok and action == "rename" and data.get("renamed") is String:
+		account_name = data["renamed"]
 	elif action in ["sign_out", "delete", "signed_out"]:
 		account_name = ""
 		online_profile = {}

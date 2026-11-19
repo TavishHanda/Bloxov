@@ -1446,6 +1446,8 @@ const ACCOUNT_ERRORS := {
 	"taken_over": "You signed in somewhere else, so you were signed out here.",
 	"in_raid": "Not during a raid.",
 	"bad_session": "Please sign in again.",
+	"bad_password": "Wrong password.",
+	"same_username": "That's already your username.",
 }
 
 var _signin_page := "sign_in"
@@ -1501,6 +1503,9 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 		_open_online_after_signin = false
 		_refresh_online()
 		return
+	if action == "rename":
+		_on_renamed(ok, data)
+		return
 	if ok and action == "sign_out":
 		SessionStore.clear()
 		_show_signin_page("sign_in")
@@ -1535,13 +1540,29 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 		again.text = "CANCEL DELETION" if error == "deleted" else "TAKE OVER HERE"
 
 
+## CHANGE USERNAME's answer (0.36.25): stays on the account page either way.
+func _on_renamed(ok: bool, data: Dictionary) -> void:
+	if ok:
+		var kept := SessionStore.read()
+		if not kept.is_empty():
+			SessionStore.save(str(kept["token"]), Network.main.account_name)
+		_show_signin_page("account")
+		_signin_note.text = "Your username is now %s. Sign in with it from now on." % Network.main.account_name
+		return
+	var error := str(data.get("error", ""))
+	_signin_note.text = ACCOUNT_ERRORS.get(error, "Something went wrong (%s)." % error)
+	if error == "rename_wait":
+		_signin_note.text = "You can change your username again on %s." % str(data.get("next_change", "")).left(10)
+
+
 func _show_recovery_code(code: String) -> void:
 	_show_signin_page("code")
 	_signin_fields["code_label"].text = code
 	_signin_note.text = ""
 
 
-## Lays out one page of the sign-in panel: "sign_in", "recover", "code" (the recovery code, once), "account".
+## Lays out one page of the sign-in panel: "sign_in", "recover", "code" (the recovery code, once), "account",
+## "rename" (CHANGE USERNAME).
 func _show_signin_page(page: String) -> void:
 	_signin_page = page
 	for child in _signin_box.get_children():
@@ -1646,11 +1667,24 @@ func _show_signin_page(page: String) -> void:
 				_message("Signed in as %s" % Network.main.account_name))
 			done.disabled = true
 			saved.toggled.connect(func(on: bool) -> void: done.disabled = not on)
+		"rename":
+			_signin_title.text = "PvP · CHANGE USERNAME"
+			hint.call("Change the username you sign in with. You can do this once every 30 days. Your stash and everything else stay, and others never see your username.")
+			edit.call("NewName", "New username (3-20 letters, numbers, _ . -)", false, 20)
+			var rename_password: LineEdit = edit.call("RenamePassword", "Your password", true, 128)
+			rename_password.text_submitted.connect(func(_t: String) -> void: _press_rename())
+			button.call("Rename", "CHANGE USERNAME", true, _press_rename)
+			button.call("Back", "BACK", false, func() -> void:
+				_signin_note.text = ""
+				_show_signin_page("account"))
 		"account":
 			_signin_title.text = "PvP ACCOUNT"
 			hint.call("Signed in as %s. Others see the name in the ONLINE panel, never your username." % Network.main.account_name)
 			button.call("SignOut", "SIGN OUT", false, func() -> void: _account_action("sign_out", {}))
 			button.call("Export", "DOWNLOAD MY PvP DATA", false, func() -> void: _account_action("export", {}))
+			button.call("ChangeName", "CHANGE USERNAME", false, func() -> void:
+				_signin_note.text = ""
+				_show_signin_page("rename"))
 			hint.call("Deleting your PvP account removes its stash, money, loadout, stats, traders and quests after 30 days (sign in before then to cancel). Your PvE stash stays. Type DELETE to confirm.")
 			var confirm: LineEdit = edit.call("Confirm", "DELETE", false, 6)
 			var delete: Button = button.call("Delete", "DELETE PvP ACCOUNT", false, func() -> void:
@@ -1677,6 +1711,17 @@ func _press_sign_in(action: String, _again: bool) -> void:
 	if _signin_fields.has("Confirm"):
 		(_signin_fields["Confirm"] as LineEdit).text = ""
 	_account_action(action, fields)
+
+
+## CHANGE USERNAME with what's in the boxes (the server checks the rules, the password and the 30 days).
+func _press_rename() -> void:
+	var new_name := (_signin_fields["NewName"] as LineEdit).text.strip_edges()
+	var password := (_signin_fields["RenamePassword"] as LineEdit).text
+	if new_name == "" or password == "":
+		_signin_note.text = "Enter a new username and your password."
+		return
+	(_signin_fields["RenamePassword"] as LineEdit).text = ""   # (never kept around)
+	_account_action("rename", {"username": new_name, "password": password})
 
 
 ## The PvP sign-in panel (plan §10.1): a page at a time (_show_signin_page).

@@ -3882,6 +3882,16 @@ func _section_stash_modes() -> void:
 		"creating an account asks for the password twice; a mismatch is caught before anything is sent")
 	(hideout.signin_panel.find_child("Back", true, false) as Button).pressed.emit()
 	await process_frame
+	# The signed-in page has CHANGE USERNAME (0.36.25); empty boxes are caught before anything is sent.
+	hideout._show_signin_page("account")
+	(hideout.signin_panel.find_child("ChangeName", true, false) as Button).pressed.emit()
+	_check(hideout._signin_page == "rename" and hideout.signin_panel.find_child("Rename", true, false) is Button
+		and hideout._signin_fields.has("NewName"), "the PvP ACCOUNT page's CHANGE USERNAME opens its own page")
+	hideout._press_rename()
+	_check(hideout._signin_note.text.contains("new username") and Network.main.mode == Network.Mode.OFFLINE,
+		"CHANGE USERNAME with empty boxes is caught before anything is sent")
+	hideout._show_signin_page("sign_in")
+	await process_frame
 	hideout.switch_mode(Profile.SOLO)
 	await process_frame
 	_check(Profile.mode == Profile.SOLO and Profile.money == solo_money and hideout.screen.stash == Profile.stash
@@ -4620,6 +4630,25 @@ func _section_pvp_accounts() -> void:
 	await _until(func() -> bool: return last.call(b)[0] == "export")
 	_check(last.call(b)[1] and last.call(b)[2].get("format") == "bloxov-pvp-data" and last.call(b)[2]["account"]["username"] == "alpha_1",
 		"DOWNLOAD MY PvP DATA gets the account's data from the server")
+	# CHANGE USERNAME (0.36.25): their password, the sign-up rules, not taken, no bot names, once every 30 days.
+	var renames := func(fields: Dictionary) -> Dictionary:
+		var answers := func() -> int: return said[b].filter(func(e: Array) -> bool: return e[0] == "rename").size()
+		var before: int = answers.call()
+		server.guard.forget(b_id)   # (faster than anyone would: start the rate limit over)
+		b.account("rename", fields)
+		await _until(func() -> bool: return answers.call() > before)
+		return said[b].filter(func(e: Array) -> bool: return e[0] == "rename")[-1][2]
+	_check((await renames.call({"username": "bravo_new", "password": "wrong password"})).get("error") == "bad_password"
+		and (await renames.call({"username": "ALPHA_2", "password": "long password 1"})).get("error") == "username_taken"
+		and (await renames.call({"username": BotNames.LIST[0], "password": "long password 1"})).get("error") == "bad_username"
+		and (await renames.call({"username": "no way!", "password": "long password 1"})).get("error") == "bad_username"
+		and b.account_name == "alpha_1", "CHANGE USERNAME refuses a wrong password, a taken name, a bot's name and bad letters")
+	var renamed: Dictionary = await renames.call({"username": "bravo_new", "password": "long password 1"})
+	_check(renamed.get("renamed") == "bravo_new" and b.account_name == "bravo_new" and b.signed_in()
+		and server.accounts.by_peer[b_id]["username"] == "bravo_new" and fake.accounts.has("bravo_new") and not fake.accounts.has("alpha_1"),
+		"CHANGE USERNAME renames the account and stays signed in")
+	_check((await renames.call({"username": "bravo_again", "password": "long password 1"})).get("error") == "rename_wait",
+		"the username can't change again straight away")
 	# Ming's boxes are rolled by the server.
 	var opened := []
 	b.box_opened.connect(func(box: String, id: String) -> void: opened.append(id))
