@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.27 (Riptide: no more see-through door frame; the companionway rail follows the ramp)
+## 0.36.28 (Riptide: no more see-through door frame; the companionway rail follows the ramp)
 - (Owner: you could see through a door frame in the hold by the riser pipes) The bow stairwell's door on the hold deck
   had no sides: the Riptide model maker left out any face whose middle and four corners were all inside other boxes,
   and that wall end ran past two doors one above the other, so its bottom, middle and top were covered while the
@@ -19,6 +19,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
   open side now, 1 m over the ramp all the way down, with a handrail along its top. The guard round the hole on the
   main deck stays. You can't hop off the ramp's side into the passage any more. Navigation re-baked; net version 9
   (the map's collision changed, so client and server must match).
+
+## 0.36.27 (Change your PvP username)
+Owner asked (2026-11-19): players can change the username they sign in to PvP with.
+- The PvP ACCOUNT page has CHANGE USERNAME: a new username and your password. Same rules as making an account
+  (3-20 letters, numbers, `_ . -`, the name filter, no AI player names), not taken by anyone (any case), not during a
+  raid, and once every 30 days (owner's pick). The stash, remember-me and the recovery code carry on; the old name is
+  free for others at once. Nobody else sees usernames (they see the ONLINE panel name).
+- Stash API: `/v1/rename` and migration `0002` (one column, `username_changed_at`, also in DOWNLOAD MY PvP DATA). No
+  new hosting or cost. The net version stays: old games never send it.
 
 ## 0.36.26 (AI PMC bots on for Frontlines)
 - (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player

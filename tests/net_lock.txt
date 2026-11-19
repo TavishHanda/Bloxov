@@ -3,7 +3,7 @@ rpc 1c37ede2aed1
 scripts/item_db.gd 65225f54b159
 scripts/online_profile.gd faf655ae33f4
 scripts/net_guard.gd 346b32036407
-scripts/net_accounts.gd c72d8e1f4446
+scripts/net_accounts.gd bf08ed542275
 scripts/matchmaker.gd 1b3046d1f794
 scripts/traders.gd 04cb31d76848
 scripts/quests.gd bcf15ec04d88
