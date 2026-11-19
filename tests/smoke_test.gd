@@ -10142,6 +10142,34 @@ func _section_sound() -> void:
 	var two: Array = sounds.call().slice(-2)
 	_check(two[0].attenuation_filter_cutoff_hz == Hearing.MUFFLED_CUTOFF and two[1].attenuation_filter_cutoff_hz > 4000.0,
 		"a sound behind a wall comes through muffled, one in plain sight doesn't")
+	# 0.36.24: someone's footsteps behind a wall play the muffled file (baked: the web skips the runtime low-pass),
+	# quieter by Hearing.MUFFLED_DB; in plain sight they play today's step.
+	var walker_behind := Node3D.new()
+	var walker_clear := Node3D.new()
+	main.add_child(walker_behind)
+	main.add_child(walker_clear)
+	walker_behind.global_position = ear + Vector3(0, 0, 8)
+	walker_clear.global_position = ear + Vector3(8, 0, 0)
+	Surfaces.step(walker_behind, -2.0, true, 1.0, 3.0, 30.0)
+	var step_behind := sounds.call().back() as AudioStreamPlayer3D
+	Surfaces.step(walker_clear, -2.0, true, 1.0, 3.0, 30.0)
+	var step_clear := sounds.call().back() as AudioStreamPlayer3D
+	var floor_behind := Surfaces.under(walker_behind)
+	var floor_clear := Surfaces.under(walker_clear)
+	_check(step_behind.stream in (Surfaces.STEPS_WALL[floor_behind] as Array)
+		and is_equal_approx(step_behind.volume_db, -2.0 + float(Surfaces.STEP_DB[floor_behind]) + Hearing.MUFFLED_DB)
+		and step_behind.attenuation_filter_cutoff_hz > 4000.0
+		and step_clear.stream in (Surfaces.STEPS[floor_clear] as Array)
+		and is_equal_approx(step_clear.volume_db, -2.0 + float(Surfaces.STEP_DB[floor_clear])),
+		"footsteps behind a wall play the muffled step, a bit quieter; in plain sight today's step (0.36.24)")
+	var shapes_match := Surfaces.STEPS_WALL.size() == Surfaces.STEPS.size() and Surfaces.STEPS_FLOOR.size() == Surfaces.STEPS.size()
+	for k in Surfaces.STEPS.size():
+		shapes_match = shapes_match and (Surfaces.STEPS_WALL[k] as Array).size() == (Surfaces.STEPS[k] as Array).size() \
+			and (Surfaces.STEPS_FLOOR[k] as Array).size() == (Surfaces.STEPS[k] as Array).size()
+	_check(shapes_match and Surfaces.RUSTLES_WALL.size() == Surfaces.RUSTLES.size(),
+		"every surface's step has a wall and a floor version (0.36.24)")
+	walker_behind.free()
+	walker_clear.free()
 	# 0.30.1: what is in the way, and whether the shooter is behind your ear. The box tests use a fixed probe camera
 	# high above the map, so the player drifting (or map geometry beyond the test boxes) cannot make the fan flaky.
 	var probe := Vector3(0, 300, 0)
