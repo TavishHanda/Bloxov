@@ -648,9 +648,17 @@ func _can_drop_out(from: GridInventory, slot: String) -> bool:
 	return from != null and inventory.grids().has(from)
 
 
-## True when `pos` (screen) is on or between the inventory's panels, where letting go does nothing.
+## True when `pos` (screen) is on (or just next to) one of the inventory's panels or the footer's buttons, where
+## letting go does nothing. Only the panels themselves count (0.36.28): the row they sit in stretches to the footer's
+## width, so the empty space beside them (all of the right side with no bag open) used to swallow the drop.
 func _over_panels(pos: Vector2) -> bool:
-	return _columns.get_global_rect().grow(12.0).has_point(pos)
+	for panel in _columns.get_children():
+		if panel is Control and (panel as Control).visible and (panel as Control).get_global_rect().grow(12.0).has_point(pos):
+			return true
+	for button: Button in [_close_button, _inventory_tab, _quests_tab]:
+		if button.is_visible_in_tree() and button.get_global_rect().grow(6.0).has_point(pos):
+			return true
+	return false
 
 
 # --- Attachments (0.15.1) ---------------------------------------------------------
