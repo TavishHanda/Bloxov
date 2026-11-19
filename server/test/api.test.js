@@ -98,6 +98,27 @@ test('stash api', { skip: !URL && 'TEST_DATABASE_URL not set' }, async (t) => {
     await fails(api.recover({ username: 'forgetful', recovery_code: made.recovery_code, new_password: 'third password' }), 'bad_recovery');
   });
 
+  await t.test('change username: password, rules, taken names, once every 30 days', async () => {
+    const made = await api.signup({ username: 'renamer', password: 'rename password', profile: PROFILE });
+    const id = made.account_id;
+    await fails(api.rename({ account_id: id, password: 'wrong password', username: 'renamed' }), 'bad_password');
+    await fails(api.rename({ account_id: id, password: 'rename password', username: 'x!' }), 'bad_username');
+    await fails(api.rename({ account_id: id, password: 'rename password', username: 'TAVISH' }), 'username_taken');
+    await fails(api.rename({ account_id: id, password: 'rename password', username: 'renamer' }), 'same_username');
+    const done = await api.rename({ account_id: id, password: 'rename password', username: 'Renamed' });
+    assert.equal(done.username, 'Renamed');
+    assert.equal((await api.resume({ token: made.token })).username, 'Renamed', 'remember me carries on');
+    await fails(api.login({ username: 'renamer', password: 'rename password' }), 'bad_login');
+    assert.equal((await api.login({ username: 'renamed', password: 'rename password' })).account_id, id);
+    await assert.rejects(api.rename({ account_id: id, password: 'rename password', username: 'again' }),
+      (err) => err.code === 'rename_wait' && new Date(err.extra.next_change) > clock);
+    const other = await api.signup({ username: 'renamer', password: 'other password', profile: PROFILE });
+    assert.notEqual(other.account_id, id, 'the old name is free at once');
+    clock = new Date(clock.getTime() + 31 * 86400000);
+    assert.equal((await api.rename({ account_id: id, password: 'rename password', username: 'again' })).username, 'again');
+    clock = new Date();
+  });
+
   await t.test('bans step up 24 hours, 7 days, for good', async () => {
     const made = await api.signup({ username: 'cheater', password: 'cheater pass', profile: PROFILE });
     const first = await api.ban({ account_id: made.account_id, reason: 'speed' });
