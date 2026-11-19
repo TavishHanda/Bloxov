@@ -10189,11 +10189,14 @@ func _section_sound() -> void:
 	var sounds := func() -> Array: return main.get_children().filter(func(n: Node) -> bool: return n is AudioStreamPlayer3D)
 	var ear := player.camera.global_position
 	var before: int = sounds.call().size()
+	var crowd := Effects._playing   # (said if it fails: past MAX_SOUNDS playing, the far boom is skipped)
 	Hearing.gunshot(main, ear + Vector3(0, 0, 120), ear + Vector3(1, 0, -50), -4.0)
 	var added: Array = sounds.call().slice(before)
 	_check(added.size() == 2 and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream == Hearing.DISTANT_SHOT)
 		and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream in Hearing.SNAPS),
-		"a far shot rolls in as a boom, and it snaps past when it flies by your head (0.20.1)")
+		"a far shot rolls in as a boom, and it snaps past when it flies by your head (0.20.1)%s" % (""
+		if added.size() == 2 else " [%d added, %d playing before, listener %s]" % [added.size(), crowd,
+		Hearing.listener(main) == player.camera]))
 	before = sounds.call().size()
 	Hearing.gunshot(main, ear + Vector3(0, 0, 20), ear + Vector3(30, 0, 20), -4.0)
 	_check(sounds.call().size() == before, "...a near shot that goes elsewhere adds nothing (today's shot only)")
