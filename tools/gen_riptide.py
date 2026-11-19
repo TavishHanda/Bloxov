@@ -1765,11 +1765,11 @@ def minimap_meta():
 
 
 # ---------------------------------------------------------------------------------------------- the scene
-GROUND_LIFT = 0.02   # (0.36.25) how far a floor on the flat ground is drawn above it
+GROUND_LIFT = 0.02   # (0.36.28) how far a floor on the flat ground is drawn above it
 
 
 def lift_ground_floors():
-    """(0.36.25, owner: the boathouse extract's floor was "super glitchy") A floor whose top is level with the flat
+    """(0.36.28, owner: the boathouse extract's floor was "super glitchy") A floor whose top is level with the flat
     ground (the boathouse, the gatehouse plaza, the stairwells' bottom landings) was drawn in the same plane as the
     ground, so the two fought over every pixel (striped shimmer, worst on the web). Each one now keeps its collision
     where it was (solid but not drawn, flag 2) and is drawn by a looks-only copy GROUND_LIFT higher, so nothing about
