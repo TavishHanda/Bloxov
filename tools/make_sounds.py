@@ -1366,11 +1366,19 @@ def meow():
     return _lowpass(out, 0.3)
 
 
+def bag_hit():
+    """A punch on the gym's bag (0.36.39): a deep leather thump, a slap on top, the chain's short rattle."""
+    random.seed(3601)
+    thump = _thud(0.3, 140, 70, 30, 16, 0.5, 0.6, 60)
+    rattle = [x * 0.12 * math.exp(-i / RATE * 22) for i, x in enumerate(noise(length(0.25), 0.1))]
+    return _lowpass(_mix(thump, rattle, 0.03), 0.45)
+
+
 def main_lively():
     (OUT / "world").mkdir(exist_ok=True)
     for name, fn in (("shell_far", shell_far), ("grit", grit), ("pipe_knock", pipe_knock), ("generator", generator),
                      ("rat", rat), ("snore", snore), ("wrench", wrench),
-                     ("purr", purr), ("meow", meow)):
+                     ("purr", purr), ("meow", meow), ("bag_hit", bag_hit)):
         write(f"world/{name}.wav", fn())
     for v in range(2):
         write(f"world/drip{v + 1}.wav", drip(v))

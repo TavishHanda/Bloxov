@@ -303,6 +303,30 @@ def paint_hd_ceiling(rng):
     return c
 
 
+mb.PALETTE.update({"hd_rubber": "2b2c2e", "hd_rubber_lo": "222325", "hd_rubber_hi": "36383a", "hd_bag": "7a2a22",
+                   "hd_bag_lo": "5e1f19", "hd_bag_hi": "8f362c"})
+
+
+def paint_hd_rubber(rng):
+    """Gym floor (0.36.39): 1 m rubber tiles, flecked, a seam round each, scuffed pale where the weights land."""
+    c = mb.Canvas(64, 64, "hd_rubber")
+    c.noise(0, 0, 64, 64, ["hd_rubber_lo", "hd_rubber_hi"], 0.3, rng)
+    c.rect(0, 0, 64, 1, "hd_rubber_lo")
+    c.rect(0, 0, 1, 64, "hd_rubber_lo")
+    c.blotch(["steel"], 3, rng, size=(1, 2))
+    return c
+
+
+def paint_hd_bag(rng):
+    """A punching bag's cracked red leather (0.36.39): a seam down it, worn dark where it's hit."""
+    c = mb.Canvas(32, 32, "hd_bag")
+    c.noise(0, 0, 32, 32, ["hd_bag_lo", "hd_bag_hi"], 0.2, rng)
+    c.rect(15, 0, 16, 32, "hd_bag_lo")
+    c.blotch(["hd_bag_lo"], 3, rng, size=(2, 4))
+    return c
+
+
+mb.KIT.update({"hd_rubber": paint_hd_rubber, "hd_bag": paint_hd_bag})
 mb.KIT.update({"hd_tin_red": paint_hd_tin("hd_red"), "hd_tin_teal": paint_hd_tin("hd_teal"),
                "hd_tin_yellow": paint_hd_tin("hd_yel"), "hd_tiles": paint_hd_tiles, "hd_felt": paint_hd_felt,
                "hd_vinyl": paint_hd_vinyl, "hd_ceiling": paint_hd_ceiling})
@@ -899,13 +923,14 @@ def wall_rows(put, outline, C, f_at, base_at, tunnels, top):
 # ------------------------------------------------------------------------------------------------ layouts
 SIGNS = {"guns": "GUNSMITH", "meds": "MEDIC", "supplies": "SUPPLIER", "valuables": "SUPREME", "ming": "MING",
          "stash": "STASH", "wardrobe": "WARDROBE", "workbench": "WORKBENCH", "quests": "QUESTS", "stats": "STATS",
-         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "wc": "WASHROOM", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "crew": "CREW", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
+         "mess": "MESS", "range": "RANGE", "lights": "QUIET 0200", "wc": "WASHROOM", "chow": "CHOW 1900", "clean": "KEEP CLEAN", "crew": "CREW", "gym": "GYM", "d10": "10 M", "d25": "25 M", "d50": "50 M", "d100": "100 M"}
 TRADERS = ("guns", "meds", "supplies", "valuables", "ming")
 TINS = ("cabin_tin_b", "shed_metal", "cabin_tin_d", "shed_metal")
 
 
 class Layout:
     hang = None
+    gym = None
 
 
 def cave_layout():
@@ -1149,8 +1174,9 @@ def post_layout(rock=False):
     # (0.28.3: none behind the pillar at 225 degrees any more, so you can get round it)
     L.sandbags = [(at(2.0, a - 8), at(2.0, a + 8)) for a in ((135,) if rock else (45, 135, 225))]
     L.duffels = [at(1.4, a) + (n,) for a, n in ((30, 4), (62, 5), (150, 3), (205, 5), (240, 4), (330, 3))]
-    L.duffels += [(-38.6, -3.4, 5), (29.6, 3.0, 4)]
-    L.crates = [at(2.6, 115), at(2.6, 290), (-38.0, 2.6), (29.4, -2.4)]
+    L.duffels += [(29.6, 3.0, 4)]                                       # (0.36.39: the market's far end is the gym now)
+    L.crates = [at(2.6, 115), at(2.6, 290), (29.4, -2.4)]
+    L.gym = (-40.0, 5.0)                                                # the market's end wall (x) and its half width
     L.generator = at(2.4, 315)
     L.keep_clear = []
     # The quests and stats boards stand out in the hall on their own, lit, both facing where you spawn (owner
@@ -1161,7 +1187,7 @@ def post_layout(rock=False):
         ln = math.hypot(dx, dz)
         L.boards.append((bid, (x, z), (dx / ln, dz / ln)))
     L.strings = [(20, 200, 7.0), (70, 250, 7.6), (110, 290, 7.2), (160, 340, 7.4)]
-    L.work_lamps = [(2.8, -4.6, 1.1, 3.2), (-38.5, 3.2, 1.0, 3.0), (29.0, 3.0, 1.0, 3.0), (5.0, 8.5, 0.9, 3.0)]
+    L.work_lamps = [(2.8, -4.6, 1.1, 3.2), (-33.9, 4.3, 0.9, 3.0), (29.0, 3.0, 1.0, 3.0), (5.0, 8.5, 0.9, 3.0)]
     if rock:
         L.work_lamps += [at(2.0, 70) + (1.0, 3.2), at(2.0, 150) + (1.0, 3.2), at(2.5, 250) + (1.0, 3.2),
                          at(2.0, 330) + (1.0, 3.2), (3.0, 15.5, 0.9, 3.2)]
@@ -1653,6 +1679,94 @@ def mess(ctx):
     drum(b, kx - k[0] * 2.3, kz - k[2] * 2.3, mat="shed_metal")       # water
     block(kx - k[0] * 2.3, 0.0, kz - k[2] * 2.3, 0.6, 0.95, 0.6)
     block(sx, 0.0, sz, 0.7, 1.0, 0.7)
+
+
+GYM_BAG = (-35.6, -2.2)                            # the punching bag (x, z): hangs from the arch, scripts/punching_bag.gd
+GYM_BAG_Y = (0.55, 1.7)                            # its bottom and top
+
+
+def plate(b, x, y, z, size, yaw=0.0):
+    """A weight plate stood on its edge, blocky like everything here: a square slab, a darker hub."""
+    b.box((x, y, z), (0.05, size, size), yaw=yaw, style=mb._solid("black"))
+    b.box((x, y, z), (0.07, size * 0.3, size * 0.3), yaw=yaw, style=mb._solid("steel_light"))
+
+
+def gym(ctx):
+    """The gym (0.36.39, owner picked it: "i like"): the market tunnel's empty far end with a rubber floor, a punching
+    bag you can hit (and the crew's boxer works on), a pull-up bar on the end wall, a bench with a loaded bar, a rack
+    of dumbbells and plates against the wall. Nothing wooden (owner: no wood down here)."""
+    if not LAY.gym:
+        return
+    b, rng = ctx.b, random.Random("gym")
+    ex, hw = LAY.gym
+    x0, x1 = ex + 0.06, ex + 6.6                                        # the floor's ends (the end wall, the last stall)
+    b.box(((x0 + x1) / 2, 0.012, 0.0), (x1 - x0, 0.024, 2 * hw - 0.6), style=_kit("hd_rubber", 1.0))
+    # The bag: a chain from the arch to a steel ring, the bag itself is scripts/punching_bag.gd (it swings).
+    bx, bz = GYM_BAG
+    beam = 3.05                                                          # a steel beam across the tunnel to hang it on
+    b.box((bx, beam + 0.12, 0.0), (0.16, 0.24, 2 * hw - 0.1), style=mb._solid("bk_iron"))
+    b.box((bx, beam + 0.01, 0.0), (0.3, 0.03, 2 * hw - 0.1), style=mb._solid("bk_iron"))     # its bottom flange
+    LIFE["bag"] = (bx, beam, bz)
+    LIFE["bag_bottom"] = (bx, GYM_BAG_Y[0], bz)
+    block(bx, GYM_BAG_Y[0], bz, 0.5, GYM_BAG_Y[1] - GYM_BAG_Y[0], 0.5)             # (you can't walk into it)
+    # The pull-up bar: two brackets out of the end wall, the bar across them, chalk in a tin under it.
+    pz0, pz1, py = 2.2, 3.5, 2.35
+    for z in (pz0, pz1):
+        pipe(b, (ex, py, z), (ex + 0.55, py, z), "bk_iron", 0.08)
+        pipe(b, (ex, py - 0.45, z), (ex + 0.5, py - 0.02, z), "bk_iron", 0.05)       # (a brace under each)
+    pipe(b, (ex + 0.55, py, pz0 - 0.15), (ex + 0.55, py, pz1 + 0.15), "steel_light", 0.045)
+    b.box((ex + 0.5, 0.12, (pz0 + pz1) / 2), (0.24, 0.24, 0.24), style=mb._nb("shed_metal"))
+    b.box((ex + 0.5, 0.245, (pz0 + pz1) / 2), (0.2, 0.012, 0.2), style=mb._solid("bone"))   # chalk
+    # The bench, a bar on its rack over it, plates on the bar.
+    cx, cz = ex + 3.8, 2.6
+    b.box((cx, 0.42, cz), (1.25, 0.12, 0.34), style=_kit("hd_vinyl"))          # the pad
+    for dx in (-0.5, 0.5):
+        pipe(b, (cx + dx, 0.0, cz), (cx + dx, 0.36, cz), "bk_iron", 0.07)
+    pipe(b, (cx - 0.5, 0.03, cz - 0.25), (cx - 0.5, 0.03, cz + 0.25), "bk_iron", 0.06)  # feet
+    pipe(b, (cx + 0.5, 0.03, cz - 0.25), (cx + 0.5, 0.03, cz + 0.25), "bk_iron", 0.06)
+    rx = cx - 0.55                                                       # the rack at the bench's head
+    for dz in (-0.55, 0.55):
+        pipe(b, (rx, 0.0, cz + dz), (rx, 1.12, cz + dz), "bk_iron", 0.07)
+        pipe(b, (rx, 1.02, cz + dz), (rx + 0.12, 1.1, cz + dz), "bk_iron", 0.04)   # the hooks
+        pipe(b, (rx - 0.2, 0.03, cz + dz), (rx + 0.2, 0.03, cz + dz), "bk_iron", 0.06)
+    pipe(b, (rx + 0.06, 1.1, cz - 1.0), (rx + 0.06, 1.1, cz + 1.0), "steel_light", 0.04)  # the bar
+    for dz in (-0.78, -0.72, 0.72, 0.78):
+        plate(b, rx + 0.06, 1.1, cz + dz, 0.42, yaw=90.0)
+    block(cx, 0.0, cz, 1.3, 0.5, 0.4)
+    block(rx, 0.0, cz, 0.3, 1.15, 1.3)
+    # The dumbbell rack against the end wall: two shelves, pairs of dumbbells, heavier ones low.
+    kz0, kz1 = -3.6, -1.0
+    kx = ex + 0.35
+    for y in (0.3, 0.7):
+        b.box((kx, y, (kz0 + kz1) / 2), (0.42, 0.04, kz1 - kz0), style=mb._solid("bk_iron"))
+    for z in (kz0 + 0.05, kz1 - 0.05):
+        for dx in (-0.18, 0.18):
+            pipe(b, (kx + dx, 0.0, z), (kx + dx, 0.74, z), "bk_iron", 0.04)
+    for y, size in ((0.33, 0.17), (0.73, 0.12)):
+        z = kz0 + 0.3
+        while z < kz1 - 0.2:
+            pipe(b, (kx - 0.13, y + size / 2, z), (kx + 0.13, y + size / 2, z), "steel_light", 0.03)
+            for dx in (-0.12, 0.12):
+                b.box((kx + dx, y + size / 2, z), (0.05, size, size), style=mb._solid("black"))
+            z += 0.32
+    block(kx, 0.0, (kz0 + kz1) / 2, 0.45, 0.78, kz1 - kz0)
+    # Plates stacked against the side wall, a kettlebell or two, a water drum with a towel over it.
+    for k in range(4):
+        plate(b, ex + 1.6 + k * 0.07, 0.25 + 0.03 * (3 - k), hw - 0.45, 0.5 - 0.06 * k, yaw=90.0 + rng.uniform(-4, 4))
+    block(ex + 1.7, 0.0, hw - 0.45, 0.4, 0.5, 0.55)
+    for kx_, kz_ in ((ex + 2.6, -hw + 0.6), (ex + 2.9, -hw + 0.55)):
+        b.box((kx_, 0.13, kz_), (0.24, 0.26, 0.24), yaw=rng.uniform(0, 90), style=mb._solid("black"))
+        pipe(b, (kx_ - 0.07, 0.3, kz_), (kx_ + 0.07, 0.3, kz_), "black", 0.04)
+    drum(b, ex + 5.9, -hw + 0.6, mat="shed_metal")
+    block(ex + 5.9, 0.0, -hw + 0.6, 0.6, 0.95, 0.6)
+    b.box((ex + 5.9, 0.96, -hw + 0.6), (0.4, 0.03, 0.3), yaw=12.0, style=mb._solid("bone"))   # a towel
+    b.box((ex + 5.75, 0.8, -hw + 0.6), (0.03, 0.3, 0.28), yaw=12.0, style=mb._solid("bone"))
+    # A lamp over the middle, the sign on the end wall.
+    hang((ex + 3.4, 2.6, 1.6), 1.0, 1.5, 5.0, shaded=True)
+    hang((ex + 1.4, 2.5, -2.3), 1.0, 1.1, 3.6, shaded=True)                        # (over the dumbbells and the bag)
+    F = Frame((ex + 0.02, 0.0), (0.0, 1.0), (1.0, 0.0), 0.0)
+    b.poly([F.P(0.0, 2.75, 1.1), F.P(0.0, 2.75, -1.1), F.P(0.0, 3.25, -1.1), F.P(0.0, 3.25, 1.1)], (1.0, 0.0, 0.0),
+           "decals", ctx.d("sign_gym"))
 
 
 def prism(b, x, z, rings, mat, sides=10, turn=0.0):
@@ -2684,6 +2798,7 @@ def dress(ctx):
     pillars(ctx)
     if SHAPE != "cave":
         quarters(ctx)
+    gym(ctx)
     if L.hang:
         hangout(ctx)
     lamps(ctx)
@@ -2807,6 +2922,8 @@ def stations():
         out.append(("lights", SWITCH[0] - 0.75, SWITCH[2], 1.4))
         # (0.34.12: the washroom sink: stand in front of the trough, USE runs the tap)
         out.append(("sink", (LAY.wc[0] + LAY.wc[2]) / 2 - 0.1, LAY.wc[3] - 1.15, 1.8))
+    if LAY.gym:
+        out.append(("bag", GYM_BAG[0] + 0.85, GYM_BAG[1], 1.4))        # (0.36.39: the gym's bag, punched by looking at it)
     if LAY.hang:
         jx, jz = LAY.hang.jukebox
         p = LAY.hang.w((jx + 1.0, 0.0, jz))
@@ -2822,6 +2939,7 @@ def aimed_stations():
     return {"darts": ((DARTBOARD[0] + 0.01, DARTBOARD[1], DARTBOARD[2]), 0.36, 3.6),
             "radio": ((RADIO[0] - 0.05, 0.6, RADIO[1]), 0.28, 2.4),
             "lights": ((SWITCH[0] - 0.04, SWITCH[1] + 0.02, SWITCH[2]), 0.2, 2.2),
+            **({"bag": ((GYM_BAG[0], (GYM_BAG_Y[0] + GYM_BAG_Y[1]) / 2, GYM_BAG[1]), 0.4, 2.2)} if LAY.gym else {}),
             **({"jukebox": (LAY.hang.w((LAY.hang.jukebox[0] + 0.28, 0.95, LAY.hang.jukebox[1])), 0.45, 2.6)}
                if LAY.hang else {})}
 

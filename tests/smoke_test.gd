@@ -2961,6 +2961,22 @@ func _section_hideout_world() -> void:
 	walker.camera.rotation.x = 0.0
 	_check(aimed.values().all(func(r: Array) -> bool: return r == [true, false, false]),
 		"radio, darts and lights: in reach looking at them, not looking away or 4 m off %s" % str(aimed))
+	# The gym's punching bag (0.36.39): stand at it, look at it, USE hits it (the boxer's checked with the crew).
+	var bag_marker: Node3D = world.get_node("Level/Stations/bag")
+	var bag_mid: Vector3 = world.get_node("Level").to_global(bag_marker.get_meta("aim"))
+	walker.global_position = Vector3(bag_marker.global_position.x, world.global_position.y + 0.05, bag_marker.global_position.z)
+	walker.velocity = Vector3.ZERO
+	var to_bag := bag_mid - walker.camera.global_position
+	walker.rotation = Vector3(0, atan2(-to_bag.x, -to_bag.z), 0)
+	walker.camera.rotation.x = atan2(to_bag.y, Vector2(to_bag.x, to_bag.z).length())
+	for f in 3:
+		await physics_frame
+	await process_frame
+	var bag_hits: int = toys.bag.hits
+	_check(world.station == bag_marker and world.station_label("bag") == "Hit the bag", "looking at the gym's bag: F hits it")
+	world.use_station()
+	_check(toys.bag.hits == bag_hits + 1, "USE lands a punch on the bag")
+	walker.camera.rotation.x = 0.0
 	# The washroom sink (0.34.12, owner: "water comes out when u press use button"): USE runs the tap, USE stops it.
 	var sink: Node3D = world.get_node("Level/Stations/sink")
 	walker.global_position = sink.global_position + Vector3.UP * 0.05
@@ -3068,7 +3084,7 @@ func _section_hideout_world() -> void:
 	var crew_seat := crew_level.get_node("Seats/Seat0") as Node3D
 	walker.global_position = crew_seat.global_position + crew_seat.global_basis.z * 0.4 - Vector3.UP * 0.4
 	walker.rotation.y = crew_seat.global_rotation.y
-	_check(crew_ids.size() == 13 and crew_ids.has("roam_a") and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
+	_check(crew_ids.size() == 14 and crew_ids.has("boxer") and hcrew.act_named("gym")["kind"] == "punch" and crew_ids.has("roam_a") and crew_ids.has("sleeper") and crew_ids.has("trader_guns") and crew_ids.has("trader_ming") and crew_ids.has("cook") and crew_ids.has("mechanic")
 		and crew_seat.has_meta(&"taken") and toys.seat_in_reach() != crew_seat
 		and not hcrew.find_children("*", "CollisionObject3D", true, false),
 		"the crew and the five traders (%s), none collide, and their seats aren't yours to take" % ", ".join(crew_ids))

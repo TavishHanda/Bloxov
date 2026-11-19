@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.39 (The gym)
+Owner picked it from the hideout ideas (2026-11-19: "3 i like"): the trader market's empty far end is a gym now.
+- A rubber floor, a steel beam across the tunnel with a punching bag on a chain, a pull-up bar on the end wall with a
+  chalk tin, a bench under a loaded bar on its rack, a dumbbell rack, plates against the wall, kettlebells, a water drum
+  with a towel, two lamps and a GYM sign. Nothing wooden. (`gym()` in `make_hideout.py`; the old crates and duffels
+  there are gone, the work lamp moved to the corner.)
+- The bag swings when it's hit: look at it and USE ("Hit the bag"), and shots and blasts knock it too
+  (`scripts/punching_bag.gd`, a thump from `make_sounds.py` `bag_hit`). Looks only, nothing saved or sent online.
+- A new crew member, the boxer, works the bag in bursts of jabs and goes off to do other things like the rest
+  (`HideoutCrew` "gym"/"punch", `TraderLooks.CREW` "boxer"). Crew walk mesh and roof grit re-baked.
+
 ## 0.36.38 (Riptide art: the quay front)
 Owner asked (2026-11-19, "keep going with riptide art"; OK'd the pictures: "looks fire"). Shore art pass 1: what the
 ship looks at across the water. One new model, `quay_front` (origin -30, 0, 0; in `FarView.NO_FAR`), drawn by
