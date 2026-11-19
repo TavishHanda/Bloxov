@@ -8,6 +8,14 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
 <<<<<<< HEAD
+## 0.36.26 (Drag items out to drop them, everywhere beside the panels)
+Owner: "You should be able to drag and drop items out of your inventory like drop it in empty space."
+- Dragging one of your items (or something you're wearing) out of the inventory and letting go on empty space drops it
+  on the ground, as since 0.16.10, but it only worked left of the panels and above or below them: the row the panels
+  sit in stretches to the footer's width, so the empty space to the right of them (all of the right side when only
+  your own inventory is open) did nothing. Now only the panels themselves and the footer's buttons swallow the drop.
+  Online it's the same server-checked drop as right-click > Drop. In the hideout the item still just goes back.
+
 ## 0.36.25 (Riptide: the boathouse floor stops flickering)
 - (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
   with the sand under it, so the two fought over every pixel and drew as flickering stripes (worst on the web). The
