@@ -4147,7 +4147,7 @@ func _section_matchmaking() -> void:
 	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
 	# AI PMC fill rule (0.36.0): off by default; on, a lone player waits 90 s and PMCs make the raid 3 in all.
 	var bm := Matchmaker.new()
-	_check(bm.bots_for_map(0) and not bm.bots_for_map(1), "AI PMCs are on for Frontlines only (owner, 0.36.26)")
+	_check(bm.bots_for_map(0) and bm.bots_for_map(1), "AI PMCs are on for Frontlines and Riptide (owner, 0.36.26 and 0.36.35)")
 	var rm := Matchmaker.new()
 	rm.add_player(31, "R31")
 	rm.add_player(32, "R32")
@@ -4156,8 +4156,19 @@ func _section_matchmaking() -> void:
 	rm.set_queued(32, true)
 	var rm_started := rm.tick(91.0)
 	rm_started.append_array(rm.tick(1.0))
-	_check(rm_started.size() == 1 and rm.raids[rm_started[0]]["players"] == [32] and int(rm.raids[rm_started[0]]["map"]) == 0
-		and int(rm.raids[rm_started[0]]["bots"]) > 0, "a lone Frontlines player gets bots after 90 s; a lone Riptide player keeps waiting")
+	var rm_maps := {}
+	for id in rm_started:
+		if int(rm.raids[id]["bots"]) > 0: rm_maps[int(rm.raids[id]["map"])] = rm.raids[id]["players"]
+	_check(rm_started.size() == 2 and rm_maps.get(0, []) == [32] and rm_maps.get(1, []) == [31],
+		"a lone player on either map gets bots after 90 s (%s)" % rm_maps)
+	rm.bot_maps = [0]
+	rm.raids.clear()
+	rm.add_player(33, "R33")
+	rm.set_map(33, 1)
+	rm.set_queued(33, true)
+	var rm_wait := rm.tick(91.0)
+	rm_wait.append_array(rm.tick(1.0))
+	_check(rm_wait.is_empty(), "a map left out of bot_maps keeps a lone player waiting")
 	bm.bot_maps = []
 	for peer in [21, 22, 23, 24]:
 		bm.add_player(peer, "B%d" % peer)
@@ -6227,6 +6238,7 @@ func _section_riptide() -> void:
 	# Riptide online (0.33.8): the leader picks the map, the server runs that raid on it for 15 minutes, and the
 	# sub bay's power switch is thrown on the server for everyone
 	var mm := Matchmaker.new()
+	mm.bot_maps = []   # (the queue rules without the AI PMC fill)
 	for p in [1, 2, 3, 4]:
 		mm.add_player(p, "P%d" % p)
 	_check(mm.set_map(1, 1) == "" and mm.set_map(2, 1) == "" and mm.set_map(3, 5) != "" and mm.party_of(1)["map"] == 1, "a party's leader picks its map")
