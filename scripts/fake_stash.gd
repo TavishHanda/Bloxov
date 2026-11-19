@@ -96,6 +96,30 @@ func _recover(body: Dictionary) -> Dictionary:
 	return out
 
 
+func _rename(body: Dictionary) -> Dictionary:
+	var username := str(body.get("username", ""))
+	if not RegEx.create_from_string("^[A-Za-z0-9_.-]{3,20}$").search(username):
+		return {"error": "bad_username"}
+	for key: String in accounts.keys():
+		var account: Dictionary = accounts[key]
+		if account["id"] != body.get("account_id"):
+			continue
+		if account["password"] != body.get("password"):
+			return {"error": "bad_password"}
+		if account["username"] == username:
+			return {"error": "same_username"}
+		if account.get("renamed", false):
+			return {"error": "rename_wait", "next_change": "2099-01-01T00:00:00Z"}
+		if accounts.has(username.to_lower()) and username.to_lower() != key:
+			return {"error": "username_taken"}
+		accounts.erase(key)
+		account["username"] = username
+		account["renamed"] = true
+		accounts[username.to_lower()] = account
+		return {"username": username, "next_change": "2099-01-01T00:00:00Z"}
+	return {"error": "no_account"}
+
+
 func _save(body: Dictionary) -> Dictionary:
 	var profile: Dictionary = profiles.get(body.get("account_id"), {})
 	if profile.is_empty():

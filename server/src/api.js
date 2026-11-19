@@ -19,6 +19,7 @@ const DELETE_GRACE_DAYS = 30;
 const INACTIVE_MONTHS = 12;
 const BAN_STEPS_HOURS = [24, 24 * 7]; // then permanent (owner, 2026-11-04)
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,20}$/;
+const RENAME_DAYS = 30; // a username can change once in this many days (0.36.27)
 const COMMON_PASSWORDS = new Set([
   'password', 'password1', 'password12', 'password123', '1234567890', '0123456789', '12345678910', 'qwertyuiop',
   'iloveyou12', 'qwerty1234', '1q2w3e4r5t', 'abcdefghij', 'aaaaaaaaaa', '1111111111', 'letmein123', 'welcome123',
@@ -235,6 +236,35 @@ class StashApi {
     });
   }
 
+  // CHANGE USERNAME (0.36.27): a signed-in player picks a new sign-in name, with their password, once every
+  // RENAME_DAYS. Sessions, the stash and the recovery code carry on; the old name is free for others at once.
+  async rename({ account_id, password, username }) {
+    if (typeof username !== 'string' || !USERNAME_RE.test(username)) throw new ApiError('bad_username');
+    if (typeof password !== 'string') throw new ApiError('bad_password', 401);
+    try {
+      return await this._tx(async (db) => {
+        const found = await db.query('select * from accounts where id = $1 and deleted_at is null for update', [account_id]);
+        const account = found.rows[0];
+        if (!account) throw new ApiError('no_account', 404);
+        this._gate(account);
+        if (!checkPassword(password, account.password_hash)) throw new ApiError('bad_password', 401);
+        if (account.username === username) throw new ApiError('same_username');
+        if (account.username_changed_at) {
+          const next = new Date(new Date(account.username_changed_at).getTime() + RENAME_DAYS * 86400000);
+          if (next > this.now()) throw new ApiError('rename_wait', 429, { next_change: next.toISOString() });
+        }
+        const taken = await db.query('select 1 from accounts where lower(username) = lower($1) and id <> $2', [username, account.id]);
+        if (taken.rowCount) throw new ApiError('username_taken', 409);
+        await db.query('update accounts set username = $2, username_changed_at = $3 where id = $1',
+          [account.id, username, this.now().toISOString()]);
+        return { username, next_change: new Date(this.now().getTime() + RENAME_DAYS * 86400000).toISOString() };
+      });
+    } catch (err) {
+      if (err.code === '23505') throw new ApiError('username_taken', 409); // (two at once: the index decides)
+      throw err;
+    }
+  }
+
   // Saves the online profile. `revision` must be the one it was based on (a stale write is refused with the stored
   // one). `raid` sets the raid state ({state, id, snapshot}); `result` adds a raid result line.
   async save({ account_id, revision, profile, raid = null, result = null, look = null, tutorial = null, display_name = null }) {
@@ -308,7 +338,7 @@ class StashApi {
   // "Download my PvP data" (plan section 9, privacy): everything kept about the account, read-only. Never the
   // password or recovery hashes, session tokens or ban notes beyond the dates.
   async exportData({ account_id }) {
-    const account = await this.pool.query(`select username, display_name, email, created_at, last_seen_at, deleted_at,
+    const account = await this.pool.query(`select username, username_changed_at, display_name, email, created_at, last_seen_at, deleted_at,
       banned_until, ban_count from accounts where id = $1`, [account_id]);
     if (!account.rowCount) throw new ApiError('no_account', 404);
     const profile = await this.pool.query('select data, revision, raid_state, updated_at from profiles where account_id = $1', [account_id]);
@@ -336,4 +366,4 @@ class StashApi {
   }
 }
 
-module.exports = { StashApi, ApiError, hashPassword, checkPassword, newRecoveryCode, USERNAME_RE };
+module.exports = { StashApi, ApiError, hashPassword, checkPassword, newRecoveryCode, USERNAME_RE, RENAME_DAYS };
