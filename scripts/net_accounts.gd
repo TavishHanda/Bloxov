@@ -73,7 +73,7 @@ func handle(peer: int, action: String, fields: Dictionary) -> void:
 			reply = await api.request("recover", {"username": text.call("username", 20),
 				"recovery_code": text.call("code", 20), "new_password": text.call("password", 128)})
 		"rename":
-			# CHANGE USERNAME (0.36.25): signed in, not in a raid, with their password; the API checks the rest
+			# CHANGE USERNAME (0.36.27): signed in, not in a raid, with their password; the API checks the rest
 			# (same rules as signing up, not taken, once every 30 days). The connection stays signed in.
 			var record: Dictionary = by_peer.get(peer, {})
 			if record.is_empty():

@@ -3882,7 +3882,7 @@ func _section_stash_modes() -> void:
 		"creating an account asks for the password twice; a mismatch is caught before anything is sent")
 	(hideout.signin_panel.find_child("Back", true, false) as Button).pressed.emit()
 	await process_frame
-	# The signed-in page has CHANGE USERNAME (0.36.25); empty boxes are caught before anything is sent.
+	# The signed-in page has CHANGE USERNAME (0.36.27); empty boxes are caught before anything is sent.
 	hideout._show_signin_page("account")
 	(hideout.signin_panel.find_child("ChangeName", true, false) as Button).pressed.emit()
 	_check(hideout._signin_page == "rename" and hideout.signin_panel.find_child("Rename", true, false) is Button
@@ -4630,7 +4630,7 @@ func _section_pvp_accounts() -> void:
 	await _until(func() -> bool: return last.call(b)[0] == "export")
 	_check(last.call(b)[1] and last.call(b)[2].get("format") == "bloxov-pvp-data" and last.call(b)[2]["account"]["username"] == "alpha_1",
 		"DOWNLOAD MY PvP DATA gets the account's data from the server")
-	# CHANGE USERNAME (0.36.25): their password, the sign-up rules, not taken, no bot names, once every 30 days.
+	# CHANGE USERNAME (0.36.27): their password, the sign-up rules, not taken, no bot names, once every 30 days.
 	var renames := func(fields: Dictionary) -> Dictionary:
 		var answers := func() -> int: return said[b].filter(func(e: Array) -> bool: return e[0] == "rename").size()
 		var before: int = answers.call()

@@ -1540,7 +1540,7 @@ func _on_account(action: String, ok: bool, data: Dictionary) -> void:
 		again.text = "CANCEL DELETION" if error == "deleted" else "TAKE OVER HERE"
 
 
-## CHANGE USERNAME's answer (0.36.25): stays on the account page either way.
+## CHANGE USERNAME's answer (0.36.27): stays on the account page either way.
 func _on_renamed(ok: bool, data: Dictionary) -> void:
 	if ok:
 		var kept := SessionStore.read()

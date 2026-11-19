@@ -19,7 +19,7 @@ const DELETE_GRACE_DAYS = 30;
 const INACTIVE_MONTHS = 12;
 const BAN_STEPS_HOURS = [24, 24 * 7]; // then permanent (owner, 2026-11-04)
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,20}$/;
-const RENAME_DAYS = 30; // a username can change once in this many days (0.36.25)
+const RENAME_DAYS = 30; // a username can change once in this many days (0.36.27)
 const COMMON_PASSWORDS = new Set([
   'password', 'password1', 'password12', 'password123', '1234567890', '0123456789', '12345678910', 'qwertyuiop',
   'iloveyou12', 'qwerty1234', '1q2w3e4r5t', 'abcdefghij', 'aaaaaaaaaa', '1111111111', 'letmein123', 'welcome123',
@@ -236,7 +236,7 @@ class StashApi {
     });
   }
 
-  // CHANGE USERNAME (0.36.25): a signed-in player picks a new sign-in name, with their password, once every
+  // CHANGE USERNAME (0.36.27): a signed-in player picks a new sign-in name, with their password, once every
   // RENAME_DAYS. Sessions, the stash and the recovery code carry on; the old name is free for others at once.
   async rename({ account_id, password, username }) {
     if (typeof username !== 'string' || !USERNAME_RE.test(username)) throw new ApiError('bad_username');

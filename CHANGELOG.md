@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.25 (Change your PvP username)
+## 0.36.27 (Change your PvP username)
 Owner asked (2026-11-19): players can change the username they sign in to PvP with.
 - The PvP ACCOUNT page has CHANGE USERNAME: a new username and your password. Same rules as making an account
   (3-20 letters, numbers, `_ . -`, the name filter, no AI player names), not taken by anyone (any case), not during a
@@ -15,6 +15,14 @@ Owner asked (2026-11-19): players can change the username they sign in to PvP wi
   free for others at once. Nobody else sees usernames (they see the ONLINE panel name).
 - Stash API: `/v1/rename` and migration `0002` (one column, `username_changed_at`, also in DOWNLOAD MY PvP DATA). No
   new hosting or cost. The net version stays: old games never send it.
+
+## 0.36.25 (Riptide: the boathouse floor stops flickering)
+- (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
+  with the sand under it, so the two fought over every pixel and drew as flickering stripes (worst on the web). The
+  same was true of the gatehouse plaza and the bottom landings of the three stairwells. `lift_ground_floors()` in
+  `gen_riptide.py` now keeps each of these floors' collision where it was (solid, not drawn) and draws a looks-only
+  copy 2 cm higher. Walking, shooting and navigation don't change (same collision), so no net version change.
+  The other five extracts were checked and had no such floor.
 
 ## 0.36.24 (Footsteps muffled behind walls)
 Owner: "Footstep audio needs to be more muffled when enemies are behind walls, but still hearable."

@@ -105,6 +105,15 @@ const VIEWS := {
 	"bow-head": [Vector3(36, 6.5, -62), Vector3(48, 5, -82)],
 	"in-lathe": [Vector3(33, -2.3, 92.5), Vector3(36.5, -3.6, 85)],
 	"in-engine-back": [Vector3(60, -6.3, 100), Vector3(44, -7, 40)],
+	# the extracts at eye height (0.36.25: floor shimmer check)
+	"ex-boathouse": [Vector3(-42, 4.4, 158), Vector3(-38, 2.8, 164)],
+	"ex-boathouse-in": [Vector3(-44.5, 4.1, 166), Vector3(-34, 2.6, 160)],
+	"plaza-floor": [Vector3(-75, 4.1, 14), Vector3(-50, 2.5, -12)],
+	"ex-cove": [Vector3(-46, 4.4, -164), Vector3(-40, 2.8, -170)],
+	"ex-road": [Vector3(-166, 4.4, 4), Vector3(-174, 2.8, 0)],
+	"ex-bowboat": [Vector3(58, 4.4, -114), Vector3(64, 2.8, -120)],
+	"ex-stern": [Vector3(54, 2.4, 108), Vector3(60, 0.8, 112)],
+	"ex-subbay": [Vector3(55, -10.6, 12), Vector3(61, -12.25, 17)],
 }
 
 
