@@ -28,6 +28,10 @@ func _notification(what: int) -> void:
 		Look.apply(self)
 		load_map(self, scene_path)
 		LoadingScreen.cover(self)
+	elif what == NOTIFICATION_READY:
+		RaidPrep.release()   # (0.36.35: the raid has what was got ready for it now)
+	elif what == NOTIFICATION_EXIT_TREE:
+		RaidPrep.prepare_now(scene_path)   # (0.36.35: keep what this raid loaded for the next one)
 
 
 ## Swaps the test map in `raid` for the map scene at `path`. A map's `spawner` metadata (a Dictionary of

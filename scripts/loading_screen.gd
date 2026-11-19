@@ -157,6 +157,20 @@ func wait_for_map() -> void:
 	await get_tree().process_frame
 
 
+## (0.36.35) How far RaidPrep has got the raid ready, 0 to 1.
+func show_progress(done: float) -> void:
+	if entering != null:
+		entering.text = "LOADING THE RAID... %d%%" % int(done * 100.0)
+
+
+## Back to ENTERING THE RAID for the last step, drawn before the game stops drawing to make the raid.
+func entering_now() -> void:
+	if entering != null:
+		entering.text = "ENTERING THE RAID..."
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 ## Waits for the raid to settle (HOLD seconds of drawing), then fades out and frees its layer.
 func _fade_out() -> void:
 	var tree := get_tree()
