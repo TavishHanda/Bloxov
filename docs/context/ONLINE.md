@@ -29,6 +29,9 @@ Accounts and the PvP stash: `docs/archive/STASH_UPDATE_PLAN.md`.
   `cache_bust.py`; `scripts/web_packs.gd` mounts them and must stay the FIRST autoload, referencing no game scripts).
   Since 0.36.30 the map model packs (`split_pck.LATE`) download in the background after the game starts; START RAID
   waits for them (`LoadingScreen.wait_for_map`). The title and hideout must not use map models (smoke `web_packs`).
+  Since 0.36.34 the web export uses a slim engine CI builds from `tools/web_engine/` (cached; falls back to the normal
+  one if the build fails). Turning on something it leaves out (2D physics, .ogg/.mp3, video, VR...): edit those files
+  (smoke `web_engine` names what's missing).
   Extend the smoke test when adding gameplay.
 
 ## The net version (0.35.14)

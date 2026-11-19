@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.34 (Slimmer web engine)
+Owner asked (2026-11-19, the second half of "load as fast as Krunker"): the browser's engine download is now 30% smaller.
+- The web build uses Godot's web engine rebuilt without the parts Bloxov never uses while playing (VR, video, 2D
+  physics and 2D nodes, the right-to-left text engine, editor-style controls, GI and other unused 3D features):
+  39.5 MB -> 28.3 MB, the download 10.1 -> 7.1 MB, and less for the browser to compile at start. Settings in
+  `tools/web_engine/` (custom.py: modules, bloxov.gdbuild: classes). Same Godot version, nothing about how it plays.
+- CI builds it once per Godot version and change to those files, then keeps it in the Actions cache (free). If that
+  build ever fails, the deploy goes ahead with Godot's normal engine and a warning.
+- New smoke test section `web_engine`: fails if a scene, resource or script uses something the slim engine leaves
+  out. Desktop, phones and the server are unchanged.
+- Tested on a local export at 25 Mbps: the game starts after 10.7 s (21.5 MB) instead of 12.6 s (24.5 MB); title,
+  hideout, menus and a Frontlines raid all load with no errors.
+
 ## 0.36.33 (Menus fit any window)
 Owner: in browser fullscreen (F11) the trader / job column on the right of the stash screen ran off the edge.
 - The stash screen's columns have a smallest width they can't squeeze below (a Raid Pack is 7 cells wide, the trader

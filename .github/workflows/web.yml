@@ -40,6 +40,48 @@ jobs:
           mv tpl/templates/* "$tpl_dir/"
           godot --version
 
+      # The slim web engine (0.36.34, tools/web_engine/custom.py): Godot's web template without the parts Bloxov
+      # doesn't use, 30% smaller. Built here once per Godot version and change to tools/web_engine, then cached.
+      # If the build fails, the deploy goes ahead with Godot's normal engine (a warning, not a failure).
+      - name: Slim web engine (cached)
+        id: engine-cache
+        uses: actions/cache@v4
+        with:
+          path: slim-engine
+          key: web-engine-${{ env.GODOT_VERSION }}-${{ hashFiles('tools/web_engine/**') }}
+
+      - name: Build the slim web engine (only when it isn't cached)
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        timeout-minutes: 45
+        run: |
+          set -e
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors -o godot-src.tar.xz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/godot-${GODOT_VERSION}-stable.tar.xz"
+          mkdir -p /tmp/engine && tar xJf godot-src.tar.xz -C /tmp/engine
+          src="/tmp/engine/godot-${GODOT_VERSION}-stable"
+          # Emscripten: the version Godot's own web builds use (its .github/workflows/web_builds.yml, EM_VERSION).
+          em_version=$(grep -oP 'EM_VERSION: \K[0-9.]+' "$src/.github/workflows/web_builds.yml")
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git /tmp/emsdk
+          /tmp/emsdk/emsdk install "$em_version" && /tmp/emsdk/emsdk activate "$em_version"
+          source /tmp/emsdk/emsdk_env.sh
+          pip install scons
+          cp tools/web_engine/custom.py tools/web_engine/bloxov.gdbuild "$src/"
+          (cd "$src" && scons platform=web target=template_release threads=no profile=custom.py \
+            build_profile=bloxov.gdbuild -j"$(nproc)")
+          mkdir -p slim-engine
+          cp "$src/bin/godot.web.template_release.wasm32.nothreads.zip" slim-engine/web_nothreads_release.zip
+
+      - name: Use the slim web engine
+        run: |
+          tpl_dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          if [ -f slim-engine/web_nothreads_release.zip ]; then
+            cp slim-engine/web_nothreads_release.zip "$tpl_dir/web_nothreads_release.zip"
+            echo "Slim web engine: $(unzip -l slim-engine/web_nothreads_release.zip | grep wasm)"
+          else
+            echo "::warning::The slim web engine didn't build; this deploy uses Godot's normal web engine."
+          fi
+
       - name: Import project (fails on any script parse error)
         run: |
           godot --headless --import 2>&1 | tee import.log
