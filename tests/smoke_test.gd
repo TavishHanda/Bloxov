@@ -8036,6 +8036,18 @@ func _section_owner_rules() -> void:
 	loot_ui._update_drag()
 	loot_ui._finish_drag()
 	_check(inv.count_of("gold_watch") == 0, "dragging an item onto empty space drops it on the ground")
+	# 0.36.28 (owner): the empty space beside the panels counts too (the panel row stretches to the footer's width,
+	# so with only your own inventory open the whole right side used to do nothing).
+	loot_ui.close()
+	loot_ui.open_for(null)
+	await _frames(2)
+	var right_edge := 0.0
+	for panel: Control in loot_ui._columns.get_children():
+		if panel.visible:
+			right_edge = maxf(right_edge, panel.get_global_rect().end.x)
+	var beside := Vector2(right_edge + 40.0, loot_ui._columns.get_global_rect().get_center().y)
+	_check(not loot_ui._over_panels(beside) and loot_ui._over_panels(loot_ui._close_button.get_global_rect().get_center()),
+		"the empty space beside your own inventory is empty space, the CLOSE button isn't")
 	loot_ui.close()
 	full.queue_free()  # (the medkit bag despawned by itself once emptied)
 
@@ -10849,7 +10861,7 @@ func _section_netlock() -> void:
 	_check(problems.is_empty(), ("The online contract changed: %s. Raise config/net_version in project.godot if old games would break, then re-record with `godot --headless -s tools/net_lock.gd`. If old games still work, just re-record." % "; ".join(problems)) if not problems.is_empty() else "the online contract matches tests/net_lock.txt")
 
 
-## Web packs (0.36.28, faster first load): the web build starts without the map models (tools/split_pck.py LATE) and
+## Web packs (0.36.29, faster first load): the web build starts without the map models (tools/split_pck.py LATE) and
 ## downloads them in the background, so nothing the title or the hideout loads may come from them. Walks everything
 ## those scenes (and the autoloads and shader warm-up lists) use, scenes' own dependencies plus every res:// path and
 ## class a script names (more than it really loads, so it errs on the safe side), and fails on any building, outdoor or far-view model other than the hideout's own.

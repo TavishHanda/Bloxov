@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.28 (Faster first load)
+## 0.36.29 (Faster first load)
 Owner asked (2026-11-19): load as fast as Krunker. A first visit downloaded 77 MB before the game could start (about
 30 s on a 25 Mbps connection); the map models were 53 MB of that, and the title and hideout never use them.
 - The web build now starts with just the engine, the game and the hideout's art (about 24 MB) and downloads the map
@@ -20,6 +20,13 @@ Owner asked (2026-11-19): load as fast as Krunker. A first visit downloaded 77 M
   rest. The background downloads are kept in the browser by hand, since the usual way stalled while the game was busy.
 - The hideout's model has its own pack. A new smoke test section (`web_packs`) fails if the title or hideout starts
   using a map model. Desktop, phones and the server are unchanged.
+## 0.36.28 (Drag items out to drop them, everywhere beside the panels)
+Owner: "You should be able to drag and drop items out of your inventory like drop it in empty space."
+- Dragging one of your items (or something you're wearing) out of the inventory and letting go on empty space drops it
+  on the ground, as since 0.16.10, but it only worked left of the panels and above or below them: the row the panels
+  sit in stretches to the footer's width, so the empty space to the right of them (all of the right side when only
+  your own inventory is open) did nothing. Now only the panels themselves and the footer's buttons swallow the drop.
+  Online it's the same server-checked drop as right-click > Drop. In the hideout the item still just goes back.
 
 ## 0.36.27 (Change your PvP username)
 Owner asked (2026-11-19): players can change the username they sign in to PvP with.
