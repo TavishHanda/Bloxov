@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.27 (Menus fit any window)
+## 0.36.28 (Menus fit any window)
 Owner: in browser fullscreen (F11) the trader / job column on the right of the stash screen ran off the edge.
 - The stash screen's columns have a smallest width they can't squeeze below (a Raid Pack is 7 cells wide, the trader
   column is as wide as its widest trader), and that could be more than a 16:9 window has room for, so the right-hand
@@ -15,6 +15,15 @@ Owner: in browser fullscreen (F11) the trader / job column on the right of the s
   for it to fit (never under half size), and back to normal when it closes. Clicks, drags and drops stay lined up.
   The same goes for the in-raid inventory. Checked at 1920x1080, 1366x768, 2560x1440, ultrawide 3440x1440 and phone
   landscape 2400x1080 (`tools/ui_fit_view.gd` takes the screenshots).
+
+## 0.36.27 (Change your PvP username)
+Owner asked (2026-11-19): players can change the username they sign in to PvP with.
+- The PvP ACCOUNT page has CHANGE USERNAME: a new username and your password. Same rules as making an account
+  (3-20 letters, numbers, `_ . -`, the name filter, no AI player names), not taken by anyone (any case), not during a
+  raid, and once every 30 days (owner's pick). The stash, remember-me and the recovery code carry on; the old name is
+  free for others at once. Nobody else sees usernames (they see the ONLINE panel name).
+- Stash API: `/v1/rename` and migration `0002` (one column, `username_changed_at`, also in DOWNLOAD MY PvP DATA). No
+  new hosting or cost. The net version stays: old games never send it.
 
 ## 0.36.26 (AI PMC bots on for Frontlines)
 - (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player
