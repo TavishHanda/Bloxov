@@ -42,6 +42,10 @@ static var tip := ""
 
 ## Set on the raid's copy: fade out (and free its layer) once the raid has settled.
 var fades := false
+## The background map download (the WebPacks autoload's script: its state is static).
+const WEB_PACKS := preload("res://scripts/web_packs.gd")
+## The ENTERING THE RAID line (it shows the map download while START RAID waits for it, wait_for_map).
+var entering: Label
 
 
 ## A new loading screen (picks a new tip).
@@ -129,13 +133,28 @@ func _ready() -> void:
 		setup.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		HudStyle.style_label(setup, 18, HudStyle.INK, false)
 		column.add_child(setup)
-	var entering := Label.new()
+	entering = Label.new()
 	entering.text = "ENTERING THE RAID..."
 	entering.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	HudStyle.style_label(entering, 30, HudStyle.BRASS)
 	column.add_child(entering)
 	if fades:
 		_fade_out()
+
+
+## (0.36.30) The web build downloads the map models in the background (WebPacks): if START RAID comes before
+## they're all in, this waits for the rest, showing how far along it is. Returns at once when they're in.
+func wait_for_map() -> void:
+	while not WEB_PACKS.raid_ready():
+		if entering != null:
+			entering.text = ("CONNECTION LOST, TRYING AGAIN..." if WEB_PACKS.retrying()
+					else "DOWNLOADING THE MAP... %d%%" % int(WEB_PACKS.progress() * 100.0))
+		await get_tree().create_timer(0.1).timeout
+	if entering != null:
+		entering.text = "ENTERING THE RAID..."
+	# (two frames so the plate is drawn as it was before the game stops drawing to load the raid)
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 
 ## Waits for the raid to settle (HOLD seconds of drawing), then fades out and frees its layer.
