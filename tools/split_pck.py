@@ -19,13 +19,19 @@ import zlib
 from pathlib import Path
 
 ALIGN = 16
-# (source folder, pack group, number of packs it's split into: one changed model re-downloads only its share)
+# (source folder, pack group, number of packs it's split into: one changed model re-downloads only its share).
+# The first match wins: the hideout's own model is a building, but the hideout needs it, so it has its own pack.
 GROUPS = [
+    ("assets/models/buildings/hideout", "hideout", 1),
     ("assets/models/buildings/", "buildings", 4),
     ("assets/models/outdoor/", "outdoor", 2),
     ("assets/models/far/", "far", 2),
 ]
 OTHER = ("art", 1)   # every other imported file
+# (0.36.30, faster first load) Packs only raids need: the page starts the game without them and downloads them in the
+# background while you're on the title and in the hideout (cache_bust.py, scripts/web_packs.gd). Nothing the title or
+# the hideout loads may come from these; tests check that (smoke test "web_packs" section).
+LATE = ("buildings", "outdoor", "far")
 
 
 def read_pck(path: Path) -> dict:
@@ -94,7 +100,8 @@ def _group(source: str) -> tuple:
 
 
 def split(pck: Path, project: Path) -> list:
-    """Moves the content files out of `pck` into content packs beside it. Returns [(pack file name, size)]."""
+    """Moves the content files out of `pck` into content packs beside it. Returns [(pack file name, size, late)]:
+    late packs are only needed in raids (LATE)."""
     pack = read_pck(pck)
     sources = _sources(pack["files"])
     main, content = [], {}
@@ -119,6 +126,6 @@ def split(pck: Path, project: Path) -> list:
         digest = hashlib.sha256("\n".join(f"{n} {k}" for n, k, _ in entries).encode()).hexdigest()[:12]
         name = f"pack-{group}{part if part else ''}-{digest}.pck"
         write_pck(pck.parent / name, pack["header"], [f for _, _, f in entries])
-        out.append((name, (pck.parent / name).stat().st_size))
+        out.append((name, (pck.parent / name).stat().st_size, group in LATE))
     write_pck(pck, pack["header"], main)
     return out

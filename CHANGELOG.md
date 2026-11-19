@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.30 (Menus fit any window)
+## 0.36.31 (Menus fit any window)
 Owner: in browser fullscreen (F11) the trader / job column on the right of the stash screen ran off the edge.
 - The stash screen's columns have a smallest width they can't squeeze below (a Raid Pack is 7 cells wide, the trader
   column is as wide as its widest trader), and that could be more than a 16:9 window has room for, so the right-hand
@@ -16,6 +16,19 @@ Owner: in browser fullscreen (F11) the trader / job column on the right of the s
   The same goes for the in-raid inventory. Checked at 1920x1080, 1366x768, 2560x1440, ultrawide 3440x1440 and phone
   landscape 2400x1080 (`tools/ui_fit_view.gd` takes the screenshots).
 
+## 0.36.30 (Faster first load)
+Owner asked (2026-11-19): load as fast as Krunker. A first visit downloaded 77 MB before the game could start (about
+30 s on a 25 Mbps connection); the map models were 53 MB of that, and the title and hideout never use them.
+- The web build now starts with just the engine, the game and the hideout's art (about 24 MB) and downloads the map
+  models in the background while you're on the title and in the hideout (`tools/split_pck.py` LATE,
+  `tools/cache_bust.py`, `scripts/web_packs.gd` mounts each as it arrives). Measured at 25 Mbps on a test export: the
+  game starts after 12.6 s instead of 30 s.
+- START RAID before they're all in: the loading screen shows DOWNLOADING THE MAP... with a percentage (or CONNECTION
+  LOST, TRYING AGAIN... while it retries), then goes in as usual.
+- Repeat visits are as before (about 3.5 s, nothing downloaded): map packs already kept in the browser load with the
+  rest. The background downloads are kept in the browser by hand, since the usual way stalled while the game was busy.
+- The hideout's model has its own pack. A new smoke test section (`web_packs`) fails if the title or hideout starts
+  using a map model. Desktop, phones and the server are unchanged.
 ## 0.36.29 (Riptide: no more see-through door frame; the companionway rail follows the ramp)
 - (Owner: you could see through a door frame in the hold by the riser pipes) The bow stairwell's door on the hold deck
   had no sides: the Riptide model maker left out any face whose middle and four corners were all inside other boxes,
