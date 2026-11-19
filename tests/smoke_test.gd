@@ -4116,12 +4116,24 @@ func _section_matchmaking() -> void:
 	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
 	# AI PMC fill rule (0.36.0): off by default; on, a lone player waits 90 s and PMCs make the raid 3 in all.
 	var bm := Matchmaker.new()
+	_check(bm.bots_for_map(0) and not bm.bots_for_map(1), "AI PMCs are on for Frontlines only (owner, 0.36.26)")
+	var rm := Matchmaker.new()
+	rm.add_player(31, "R31")
+	rm.add_player(32, "R32")
+	rm.set_map(31, 1)
+	rm.set_queued(31, true)
+	rm.set_queued(32, true)
+	var rm_started := rm.tick(91.0)
+	rm_started.append_array(rm.tick(1.0))
+	_check(rm_started.size() == 1 and rm.raids[rm_started[0]]["players"] == [32] and int(rm.raids[rm_started[0]]["map"]) == 0
+		and int(rm.raids[rm_started[0]]["bots"]) > 0, "a lone Frontlines player gets bots after 90 s; a lone Riptide player keeps waiting")
+	bm.bot_maps = []
 	for peer in [21, 22, 23, 24]:
 		bm.add_player(peer, "B%d" % peer)
 	bm.set_queued(21, true)
 	bm.tick(100.0)
 	_check(bm.raids.is_empty() and bm.countdown_left < 0.0, "bots off: a lone player waits for company, no raid")
-	bm.bots_on = true
+	bm.bot_maps = [0]
 	bm.tick(1.0)
 	_check(bm.countdown_left > 88.0 and bm.countdown_left <= 90.0 and bm.raids.is_empty(), "bots on: a lone player's wait is 90 s (%.1f)" % bm.countdown_left)
 	bm.tick(87.0)
@@ -5890,6 +5902,8 @@ func _section_online_loot() -> void:
 	var raider: Node = null
 	var scav: Node = null
 	for enemy: Node in RaidScope.nodes(world.raid, &"enemies"):
+		if enemy.is_in_group(&"pmc_bots"):
+			continue   # Frontlines raids have AI PMCs since 0.36.26; their bodies are checked in online_bots
 		if enemy.has_node("Model/Hips/Spine/Backpack"):
 			scav = enemy
 		elif raider == null:
@@ -7993,7 +8007,7 @@ func _section_owner_rules() -> void:
 	loot_ui._update_drag()
 	loot_ui._finish_drag()
 	_check(inv.count_of("gold_watch") == 0, "dragging an item onto empty space drops it on the ground")
-	# 0.36.26 (owner): the empty space beside the panels counts too (the panel row stretches to the footer's width,
+	# 0.36.28 (owner): the empty space beside the panels counts too (the panel row stretches to the footer's width,
 	# so with only your own inventory open the whole right side used to do nothing).
 	loot_ui.close()
 	loot_ui.open_for(null)

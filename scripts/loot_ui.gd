@@ -649,7 +649,7 @@ func _can_drop_out(from: GridInventory, slot: String) -> bool:
 
 
 ## True when `pos` (screen) is on (or just next to) one of the inventory's panels or the footer's buttons, where
-## letting go does nothing. Only the panels themselves count (0.36.26): the row they sit in stretches to the footer's
+## letting go does nothing. Only the panels themselves count (0.36.28): the row they sit in stretches to the footer's
 ## width, so the empty space beside them (all of the right side with no bag open) used to swallow the drop.
 func _over_panels(pos: Vector2) -> bool:
 	for panel in _columns.get_children():
