@@ -31,6 +31,13 @@ Art step 4 of the Riptide pass: the lab under the Leviathan gets its real look, 
 - Model `site_zero` (`art_source/scripts/make_riptide_lab.py`), 47k triangles; it also draws the keel plate and the
   moon pool's trunk below the engine room deck.
 Net version 9 (the lab's geometry changed: new furniture, glass); navigation re-baked.
+## 0.36.26 (AI PMC bots on for Frontlines)
+- (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player
+  waits 90 s and then gets a raid with 2 bots (3 in about 1 raid in 4); 2 real players get 1 (or 2). Riptide stays off.
+- The switch is per map now: `Matchmaker.bot_maps` (map numbers, `[0]` = Frontlines). The server's `--bots` still turns
+  them on for every map (testing). Server-only, so no net version change.
+- Also removed leftover merge-conflict marks at the top of this changelog (0.36.24/0.36.25 entries kept).
+
 ## 0.36.25 (Riptide: the boathouse floor stops flickering)
 - (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
   with the sand under it, so the two fought over every pixel and drew as flickering stripes (worst on the web). The
@@ -38,6 +45,7 @@ Net version 9 (the lab's geometry changed: new furniture, glass); navigation re-
   `gen_riptide.py` now keeps each of these floors' collision where it was (solid, not drawn) and draws a looks-only
   copy 2 cm higher. Walking, shooting and navigation don't change (same collision), so no net version change.
   The other five extracts were checked and had no such floor.
+
 ## 0.36.24 (Footsteps muffled behind walls)
 Owner: "Footstep audio needs to be more muffled when enemies are behind walls, but still hearable."
 - Behind a wall, a shut door or a whole pane, someone else's footsteps (players, scavs, bots) now play a muffled copy
