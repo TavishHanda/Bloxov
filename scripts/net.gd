@@ -238,7 +238,7 @@ func _ready() -> void:
 				port = arg.trim_prefix("--port=").to_int()
 			elif arg.begins_with("--countdown="):  # shorter queue countdown, for testing
 				matchmaker.queue_countdown = arg.trim_prefix("--countdown=").to_float()
-			elif arg == "--bots":  # AI PMCs fill raids (0.36.0, off until piece 6)
+			elif arg == "--bots":  # AI PMCs fill raids on every map (0.36.0; Frontlines only without it, 0.36.26)
 				matchmaker.bots_on = true
 			elif arg.begins_with("--bot-wait="):
 				matchmaker.bot_wait = arg.trim_prefix("--bot-wait=").to_float()
@@ -1195,7 +1195,7 @@ func _send_raid_start(id: int) -> void:
 		_health.erase(peer)
 		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
-	# AI PMCs (0.36.2; Matchmaker.bots is 0 unless --bots): at the spawn points the real squads didn't take.
+	# AI PMCs (0.36.2; Matchmaker.bots is 0 unless the map has bots on): at the spawn points the real squads didn't take.
 	if int(raid.get("bots", 0)) > 0:
 		var slots: Array = raid["spawns"].values().map(func(spawn: Array) -> int: return int(spawn[0]))
 		var made := world.spawn_bots(int(raid["bots"]), int(raid["seed"]), slots, raid_names.values(), float(raid.get("time", matchmaker.raid_time)))

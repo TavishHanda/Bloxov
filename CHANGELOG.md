@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.26 (Menus fit any window)
+## 0.36.27 (Menus fit any window)
 Owner: in browser fullscreen (F11) the trader / job column on the right of the stash screen ran off the edge.
 - The stash screen's columns have a smallest width they can't squeeze below (a Raid Pack is 7 cells wide, the trader
   column is as wide as its widest trader), and that could be more than a 16:9 window has room for, so the right-hand
@@ -15,7 +15,13 @@ Owner: in browser fullscreen (F11) the trader / job column on the right of the s
   for it to fit (never under half size), and back to normal when it closes. Clicks, drags and drops stay lined up.
   The same goes for the in-raid inventory. Checked at 1920x1080, 1366x768, 2560x1440, ultrawide 3440x1440 and phone
   landscape 2400x1080 (`tools/ui_fit_view.gd` takes the screenshots).
-- (Also tidied leftover merge marks out of this changelog.)
+
+## 0.36.26 (AI PMC bots on for Frontlines)
+- (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player
+  waits 90 s and then gets a raid with 2 bots (3 in about 1 raid in 4); 2 real players get 1 (or 2). Riptide stays off.
+- The switch is per map now: `Matchmaker.bot_maps` (map numbers, `[0]` = Frontlines). The server's `--bots` still turns
+  them on for every map (testing). Server-only, so no net version change.
+- Also removed leftover merge-conflict marks at the top of this changelog (0.36.24/0.36.25 entries kept).
 
 ## 0.36.25 (Riptide: the boathouse floor stops flickering)
 - (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
