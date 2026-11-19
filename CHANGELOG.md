@@ -15,6 +15,15 @@ Owner: "You should be able to drag and drop items out of your inventory like dro
   your own inventory is open) did nothing. Now only the panels themselves and the footer's buttons swallow the drop.
   Online it's the same server-checked drop as right-click > Drop. In the hideout the item still just goes back.
 
+## 0.36.27 (Change your PvP username)
+Owner asked (2026-11-19): players can change the username they sign in to PvP with.
+- The PvP ACCOUNT page has CHANGE USERNAME: a new username and your password. Same rules as making an account
+  (3-20 letters, numbers, `_ . -`, the name filter, no AI player names), not taken by anyone (any case), not during a
+  raid, and once every 30 days (owner's pick). The stash, remember-me and the recovery code carry on; the old name is
+  free for others at once. Nobody else sees usernames (they see the ONLINE panel name).
+- Stash API: `/v1/rename` and migration `0002` (one column, `username_changed_at`, also in DOWNLOAD MY PvP DATA). No
+  new hosting or cost. The net version stays: old games never send it.
+
 ## 0.36.26 (AI PMC bots on for Frontlines)
 - (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player
   waits 90 s and then gets a raid with 2 bots (3 in about 1 raid in 4); 2 real players get 1 (or 2). Riptide stays off.

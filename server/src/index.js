@@ -18,6 +18,7 @@ const ROUTES = {
   '/v1/resume': 'resume',
   '/v1/logout': 'logout',
   '/v1/recover': 'recover',
+  '/v1/rename': 'rename',
   '/v1/save': 'save',
   '/v1/delete': 'remove',
   '/v1/ban': 'ban',
