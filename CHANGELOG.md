@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.29 (Riptide art: Site Zero)
+## 0.36.30 (Riptide art: Site Zero)
 Art step 4 of the Riptide pass: the lab under the Leviathan gets its real look, on the 0.35.33 layout (unchanged).
 - A clean corporate lab built into a ship: white wall panels with a teal stripe and a dark skirting, pale vinyl floors,
   tiled ceilings with lamp panels; tiled washrooms and locker room; the ship's steel in the air plant, the dock, the sub
@@ -30,7 +30,20 @@ Art step 4 of the Riptide pass: the lab under the Leviathan gets its real look, 
   These openings were open before: you now break the glass (shoot, push or vault through) to shoot or climb across.
 - Model `site_zero` (`art_source/scripts/make_riptide_lab.py`), 47k triangles; it also draws the keel plate and the
   moon pool's trunk below the engine room deck.
-Net version 9 (the lab's geometry changed: new furniture, glass); navigation re-baked.
+Net version 10 (the lab's geometry changed: new furniture, glass); navigation re-baked.
+## 0.36.29 (Riptide: no more see-through door frame; the companionway rail follows the ramp)
+- (Owner: you could see through a door frame in the hold by the riser pipes) The bow stairwell's door on the hold deck
+  had no sides: the Riptide model maker left out any face whose middle and four corners were all inside other boxes,
+  and that wall end ran past two doors one above the other, so its bottom, middle and top were covered while the
+  doorways between weren't. `Model.hidden()` in `make_riptide.py` now also checks a grid every 0.4 m across the face
+  before leaving it out. All three Riptide models were rebuilt with it (it also put back two slab edges by the tower
+  stairs on the hold and engine room decks).
+- (Owner: the yellow railing beside the below-deck ramp "runs flat instead of following the slope"; owner picked a
+  solid rail, 2026-11-19) Each companionway ramp from the main deck down to the hold has a solid yellow rail down its
+  open side now, 1 m over the ramp all the way down, with a handrail along its top. The guard round the hole on the
+  main deck stays. You can't hop off the ramp's side into the passage any more. Navigation re-baked; net version 9
+  (the map's collision changed, so client and server must match).
+
 ## 0.36.28 (Drag items out to drop them, everywhere beside the panels)
 Owner: "You should be able to drag and drop items out of your inventory like drop it in empty space."
 - Dragging one of your items (or something you're wearing) out of the inventory and letting go on empty space drops it

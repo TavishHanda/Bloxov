@@ -1101,6 +1101,10 @@ def main_deck():
         inboard = x1 if x0 < 48 else x0
         wall("z", inboard, min(za, zb), max(za, zb), DECK, 1.0, "rust", t=0.15)
         wall("x", zb, x0, x1, DECK, 1.0, "rust", t=0.15)
+        # (0.36.29, owner: the rail "runs flat instead of following the slope") a rail down the ramp's open side
+        # too, 1 m over the ramp all the way down, just inside the deck's guard (which stays: it guards the hole)
+        rx = inboard - 0.17 if x0 < 48 else inboard + 0.17
+        ramp((rx, DECK + 1.0, za), (rx, HULL_A + 1.0, zb), 0.15, "rust", t=1.0)
     for z in BOAT_DOORS:
         dz = 1 if z < 0 else -1          # the ramp runs away from the nearest end of the hold
         box(60.25, BOAT - SLAB_T, z - 2.5, SX1 - 0.25, BOAT, z + 2.5, "metal")

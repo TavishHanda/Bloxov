@@ -44,7 +44,7 @@ collides, or the AI's navigation. Art sizes and pipeline: `docs/ART_SPEC.md`. La
   (`art_source/scripts/make_riptide_below.py`; its signs are repainted on every build). Furniture is `BELOW_PROPS` in
   the generator; the engines, ballast tanks and the power cabinet are the gray box's own boxes, drawn by their size.
   The keel plate and the moon pool's trunk under the engine room deck are Site Zero's.
-- Site Zero (0.36.29): `site_zero` (origin 48, 0, 0) is the lab's two decks, the moon pool's trunk below the engine
+- Site Zero (0.36.30): `site_zero` (origin 48, 0, 0) is the lab's two decks, the moon pool's trunk below the engine
   room deck and the keel plate, drawn by `make_riptide.py site_zero` (`art_source/scripts/make_riptide_lab.py`; signs
   repainted on every build). Rooms come from `place()` in that script (keep it in step with `lab()`): it picks every
   wall stretch's, floor's and ceiling's paint and the sign over each door. Furniture is the gray box's own boxes with a
