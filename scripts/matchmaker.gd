@@ -9,7 +9,7 @@ extends RefCounted
 ## No joining a raid that's running. "Start now" puts a party in a raid of its own (testing, playing alone).
 ## Every player is always in a party: alone, their party is just them (with its own code to share).
 ##
-## AI PMCs (0.36.0 piece 1, owner's rules 2026-11-13; only when `bots_on`, off until the server check in piece 6):
+## AI PMCs (0.36.0 piece 1, owner's rules 2026-11-13; only on the maps in `bot_maps`, or every map with `bots_on`):
 ## a lone player waits BOT_WAIT (90 s) and then gets a raid; a raid always has BOTS_PER_RAID PMCs in all, real players
 ## counted (4 in about 1 raid in 4, BOTS_FOUR_IN), so a lone player meets 2 bots, not a crowd. Raids with that many real
 ## players get none. Bots are always alone (never paired); the raid only records how many (`bots`), the AI itself is
@@ -32,8 +32,10 @@ const BOTS_FOUR_IN := 4
 const CODE_LETTERS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 var queue_countdown := 30.0
-## The AI PMC fill rule is off until the server is ready for it (--bots turns it on; piece 6).
+## The AI PMC fill rule on every map (the server's --bots, for testing).
 var bots_on := false
+## Maps whose raids get AI PMCs (0.36.26, owner 2026-11-19: Frontlines only; Riptide stays off).
+var bot_maps: Array[int] = [0]
 var bot_wait := BOT_WAIT
 var raid_time := 600.0
 ## Maps a raid can be on (0.33.8: 0 Frontlines, 1 Riptide; the same order as RaidMap.MAPS, which this script can't
@@ -241,7 +243,8 @@ func tick(delta: float) -> Array[int]:
 	for map in map_count:
 		var waiting := queued_count(map)
 		var lone := waiting < MIN_PLAYERS
-		if waiting < 1 or (lone and not bots_on):
+		var bots := bots_for_map(map)
+		if waiting < 1 or (lone and not bots):
 			countdowns.erase(map)
 			_lone.erase(map)
 			continue
@@ -261,13 +264,18 @@ func tick(delta: float) -> Array[int]:
 				if count + size <= MAX_PLAYERS:
 					picked.append(code)
 					count += size
-			started.append(_start_raid(picked, bots_on))
+			started.append(_start_raid(picked, bots))
 			countdowns.erase(map)
 			_lone.erase(map)
 	countdown_left = -1.0
 	for map in countdowns:
 		countdown_left = countdowns[map] if countdown_left < 0.0 else minf(countdown_left, countdowns[map])
 	return started
+
+
+## Whether `map`'s raids get AI PMCs.
+func bots_for_map(map: int) -> bool:
+	return bots_on or bot_maps.has(map)
 
 
 ## How many AI PMCs a raid with `real` players gets (0 with the rule off): BOTS_PER_RAID PMCs in all, or one more in

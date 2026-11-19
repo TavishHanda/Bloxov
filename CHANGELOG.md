@@ -16,6 +16,13 @@ Owner asked (2026-11-19): players can change the username they sign in to PvP wi
 - Stash API: `/v1/rename` and migration `0002` (one column, `username_changed_at`, also in DOWNLOAD MY PvP DATA). No
   new hosting or cost. The net version stays: old games never send it.
 
+## 0.36.26 (AI PMC bots on for Frontlines)
+- (Owner: "Turn it on for frontlines please") AI PMC bots now fill Frontlines PvP raids on the server: a lone player
+  waits 90 s and then gets a raid with 2 bots (3 in about 1 raid in 4); 2 real players get 1 (or 2). Riptide stays off.
+- The switch is per map now: `Matchmaker.bot_maps` (map numbers, `[0]` = Frontlines). The server's `--bots` still turns
+  them on for every map (testing). Server-only, so no net version change.
+- Also removed leftover merge-conflict marks at the top of this changelog (0.36.24/0.36.25 entries kept).
+
 ## 0.36.25 (Riptide: the boathouse floor stops flickering)
 - (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
   with the sand under it, so the two fought over every pixel and drew as flickering stripes (worst on the web). The
