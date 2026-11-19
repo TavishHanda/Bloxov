@@ -43,5 +43,14 @@
 "rip_leaf",
 "rip_sub",
 "rip_locker",
-"rip_labwhite"
+"rip_labwhite",
+"rq_conc",
+"rq_quay",
+"rq_wet",
+"rq_rubber",
+"rq_plank",
+"rq_crate",
+"rq_crane",
+"rq_corr",
+"rq_barge"
 ]
