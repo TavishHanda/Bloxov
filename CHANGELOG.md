@@ -31,6 +31,13 @@ Art step 4 of the Riptide pass: the lab under the Leviathan gets its real look, 
 - Model `site_zero` (`art_source/scripts/make_riptide_lab.py`), 47k triangles; it also draws the keel plate and the
   moon pool's trunk below the engine room deck.
 Net version 9 (the lab's geometry changed: new furniture, glass); navigation re-baked.
+## 0.36.25 (Riptide: the boathouse floor stops flickering)
+- (Owner: the extract's floor was "super glitchy with textures") The Boathouse extract's wood floor sat exactly level
+  with the sand under it, so the two fought over every pixel and drew as flickering stripes (worst on the web). The
+  same was true of the gatehouse plaza and the bottom landings of the three stairwells. `lift_ground_floors()` in
+  `gen_riptide.py` now keeps each of these floors' collision where it was (solid, not drawn) and draws a looks-only
+  copy 2 cm higher. Walking, shooting and navigation don't change (same collision), so no net version change.
+  The other five extracts were checked and had no such floor.
 ## 0.36.24 (Footsteps muffled behind walls)
 Owner: "Footstep audio needs to be more muffled when enemies are behind walls, but still hearable."
 - Behind a wall, a shut door or a whole pane, someone else's footsteps (players, scavs, bots) now play a muffled copy

@@ -1821,6 +1821,25 @@ def minimap_meta():
 
 
 # ---------------------------------------------------------------------------------------------- the scene
+GROUND_LIFT = 0.02   # (0.36.25) how far a floor on the flat ground is drawn above it
+
+
+def lift_ground_floors():
+    """(0.36.25, owner: the boathouse extract's floor was "super glitchy") A floor whose top is level with the flat
+    ground (the boathouse, the gatehouse plaza, the stairwells' bottom landings) was drawn in the same plane as the
+    ground, so the two fought over every pixel (striped shimmer, worst on the web). Each one now keeps its collision
+    where it was (solid but not drawn, flag 2) and is drawn by a looks-only copy GROUND_LIFT higher, so nothing about
+    walking, shooting or the navigation changes."""
+    for i, b in enumerate(list(boxes)):
+        cx, cy, cz, sx, sy, sz, yaw, pitch, colour, flag = b
+        if flag != 1 or yaw or pitch or abs(cy + sy / 2 - SHORE) > 0.005:
+            continue
+        if cx + sx / 2 > -30.0 or sy > 1.0:   # (only floors on the flat port ground, not the quay wall or the mole)
+            continue
+        boxes[i] = (cx, cy, cz, sx, sy, sz, yaw, pitch, colour, 2)
+        boxes.append((cx, cy + GROUND_LIFT, cz, sx, sy, sz, yaw, pitch, colour, 0))
+
+
 def terrain():
     """The ground: the flat port to the quay, then down to the sea bed. One row of heights across x, the same all along z."""
     # (0.33.7: one row of cells across z, with no seam down the middle of the port: the seam at z 0 drew as a
@@ -1985,6 +2004,7 @@ def main():
     with modeled("site_zero", 48.0, 0.0):    # (art step 4)
         lab()
     ai()
+    lift_ground_floors()
     write_model_boxes()
     write_scene()
     print(f"riptide: {len(boxes)} boxes, {len(loot)} loot, {len(ladders)} ladders, {len(extracts)} extracts, "
