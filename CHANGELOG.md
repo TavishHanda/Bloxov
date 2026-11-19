@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
-## 0.36.31 (Menus fit any window)
+## 0.36.32 (Menus fit any window)
 Owner: in browser fullscreen (F11) the trader / job column on the right of the stash screen ran off the edge.
 - The stash screen's columns have a smallest width they can't squeeze below (a Raid Pack is 7 cells wide, the trader
   column is as wide as its widest trader), and that could be more than a 16:9 window has room for, so the right-hand
@@ -16,6 +16,30 @@ Owner: in browser fullscreen (F11) the trader / job column on the right of the s
   The same goes for the in-raid inventory. Checked at 1920x1080, 1366x768, 2560x1440, ultrawide 3440x1440 and phone
   landscape 2400x1080 (`tools/ui_fit_view.gd` takes the screenshots).
 
+## 0.36.31 (Riptide art: Site Zero)
+Art step 4 of the Riptide pass: the lab under the Leviathan gets its real look, on the 0.35.33 layout (unchanged).
+- A clean corporate lab built into a ship: white wall panels with a teal stripe and a dark skirting, pale vinyl floors,
+  tiled ceilings with lamp panels; tiled washrooms and locker room; the ship's steel in the air plant, the dock, the sub
+  bay and the moon pool's trunk; a raised floor in the server room. Panels line the hull's plate inside the lab.
+- The incubation hall: dark slate walls, glow strips, four growth tanks of glowing green fluid (empty: store rules), the
+  smashed tank in the middle with its fluid spilt and its lid hanging from the ceiling, BIOHAZARD signs at its doors.
+- A teal sign over every doorway naming the room it leads into (sized to its words), frames round every door (hazard
+  stripes at the airlocks and the hall), sills; big names on the walls (SITE ZERO at intake, MAIN LAB, HOLDING,
+  INCUBATION, CONTROL, DOCK, SUB BAY, OBSERVATION); teal guide lines down the corridors.
+- Furniture drawn as the real thing: lab benches with microscopes and glassware, freezers, sequencers, shelving, the
+  security counter and weapons cage, lockers, showers, the sample lift, notice boards with the lab's plan, planters,
+  washroom stalls and basins, the break room's kitchenette and vending machine, cell bunks, med bay beds, bunks,
+  control room consoles and its wall of screens, server racks, battery cabinets, the mini sub on its cradle.
+- New furniture (solid, along the walls, clear of doors, loot, the AI's spots and the ways through): a filing cabinet
+  and desk in security, basins and stalls in the washrooms, the kitchenette, crates in receiving, a medicine cabinet,
+  gas bottle racks in the ring, a desk and lockers in quarters, a planter in the lobby, crates and shelving on the dock,
+  chairs at the observation consoles, a bookcase in the director's office, a filing cabinet in the offices.
+- Breakable glass (as the tower's windows and Frontlines'): the cleanroom's walls above waist height, the cell fronts,
+  the director's office windows, the security window, the hall's side windows and the observation windows (29 panes).
+  These openings were open before: you now break the glass (shoot, push or vault through) to shoot or climb across.
+- Model `site_zero` (`art_source/scripts/make_riptide_lab.py`), 47k triangles; it also draws the keel plate and the
+  moon pool's trunk below the engine room deck.
+Net version 10 (the lab's geometry changed: new furniture, glass); navigation re-baked.
 ## 0.36.30 (Faster first load)
 Owner asked (2026-11-19): load as fast as Krunker. A first visit downloaded 77 MB before the game could start (about
 30 s on a 25 Mbps connection); the map models were 53 MB of that, and the title and hideout never use them.
