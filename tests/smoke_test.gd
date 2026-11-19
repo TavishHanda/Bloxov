@@ -21,7 +21,7 @@ const SECTIONS: Array[String] = [
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
-	"sound", "netlock", "web_packs",
+	"sound", "netlock", "web_packs", "web_engine",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -10938,3 +10938,44 @@ func _web_late(path: String) -> bool:
 		if path.begins_with(folder):
 			return true
 	return false
+
+
+## The slim web engine (0.36.34, tools/web_engine): the web build's engine leaves out classes and modules Bloxov
+## doesn't use. A scene, resource or script that uses one would break only in the browser, so this fails first:
+## the classes bloxov.gdbuild leaves out (and their subclasses), plus the main classes of the modules custom.py drops.
+func _section_web_engine() -> void:
+	var profile = JSON.parse_string(FileAccess.get_file_as_string("res://tools/web_engine/bloxov.gdbuild"))
+	_check(profile is Dictionary and profile.has("disabled_classes"), "tools/web_engine/bloxov.gdbuild reads")
+	if not (profile is Dictionary):
+		return
+	var gone: Array = (profile["disabled_classes"] as Array).duplicate()
+	# (modules custom.py drops: their main classes)
+	gone.append_array(["GLTFDocument", "FastNoiseLite", "NoiseTexture2D", "GridMap", "MeshLibrary", "AudioStreamOggVorbis",
+			"AudioStreamMP3", "VideoStreamTheora", "ENetMultiplayerPeer", "WebRTCPeerConnection", "WebRTCMultiplayerPeer",
+			"UPNP", "JSONRPC", "ZIPPacker", "ZIPReader", "AudioStreamInteractive", "AudioStreamPlaylist",
+			"AudioStreamSynchronized", "VisualShader", "NavigationRegion2D", "NavigationAgent2D", "Area2D",
+			"CollisionObject2D", "OpenXRInterface", "CameraFeed"])
+	var types := RegEx.create_from_string("type=\"([A-Za-z0-9_]+)\"")
+	var words := RegEx.create_from_string("\\b[A-Z][A-Za-z0-9_]*\\b")
+	var found := {}
+	var stack: Array[String] = ["res://scenes", "res://scripts", "res://assets"]
+	while not stack.is_empty():
+		var dir: String = stack.pop_back()
+		for sub in DirAccess.get_directories_at(dir):
+			stack.append(dir.path_join(sub))
+		for file in DirAccess.get_files_at(dir):
+			var ext := file.get_extension()
+			if not ext in ["tscn", "tres", "gd"]:
+				continue
+			var path := dir.path_join(file)
+			var text := FileAccess.get_file_as_string(path)
+			var names: Array[String] = []
+			for m in (types.search_all(text) if ext != "gd" else words.search_all(text)):
+				names.append(m.get_string(1) if ext != "gd" else m.get_string())
+			for class_name_used in names:
+				for gone_class in gone:
+					if class_name_used == gone_class or (ClassDB.class_exists(class_name_used) and ClassDB.class_exists(gone_class)
+							and ClassDB.is_parent_class(class_name_used, gone_class)):
+						found["%s in %s" % [class_name_used, path.trim_prefix("res://")]] = true
+	_check(found.is_empty(), "nothing uses what the slim web engine leaves out%s" % (
+			(": " + ", ".join(found.keys()) + " (turn it back on in tools/web_engine)") if not found.is_empty() else ""))
