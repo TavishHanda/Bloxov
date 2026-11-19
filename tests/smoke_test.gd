@@ -3235,6 +3235,11 @@ func _section_hideout() -> void:
 	# and a long name on a 1-cell tile ("Bandage") fits its tile instead of being cut off.
 	var columns_width: float = hideout.screen._columns.get_combined_minimum_size().x
 	_check(columns_width <= 1280.0, "the hideout's inventory columns fit the screen (%d px)" % columns_width)
+	# 0.36.26 (owner: F11 cut the trader column off): wider than the window (a Raid Pack), the UI shrinks to fit.
+	var fit_need: Vector2 = hideout.screen.fit_need()
+	var shrink := LootUI.fit_factor(Vector2(1280, 720), fit_need + Vector2(96, 0))
+	_check(LootUI.fit_factor(Vector2(1280, 720), Vector2(1000, 600)) == 1.0 and shrink < 1.0 and (fit_need.x + 96) * shrink <= 1280.0 + 0.01
+		and fit_need.y * shrink <= 720.0, "a screen wider than the window shrinks just enough to fit (x%.2f)" % shrink)
 	var bandage_tile := ItemTile.new(ItemStack.new("bandage"), Profile.stash, hideout.screen)
 	var name_label: Label = bandage_tile._name_label
 	var name_width := name_label.get_theme_font("font").get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
