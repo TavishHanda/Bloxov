@@ -1836,6 +1836,22 @@ func _section_attachments() -> void:
 	_check(rifle.attachments.is_empty() and inv.count_of("red_dot") + grid.count_of("red_dot") >= 1, "clicking the red dot's slot takes it off")
 	inv.take("red_dot", inv.count_of("red_dot"))
 	slot_view.free()
+	# A wear change (a hit on the armor, a repair) shows on the armor's slot right away, not after moving it (0.36.32).
+	var vest_view := EquipSlotView.new("armor", inv, loot_ui, Vector2i(2, 2))
+	main.add_child(vest_view)
+	var old_vest := inv.equipped("armor")
+	var test_vest := ItemStack.new("armor_light")
+	inv.equipment["armor"] = test_vest
+	inv.equipment_changed.emit()
+	inv.wear_armor(20)
+	_check(vest_view._detail.text == "%d/%d" % [test_vest.durability, ItemDB.max_durability("armor_light")]
+		and test_vest.durability < ItemDB.max_durability("armor_light"), "the armor slot shows the wear from a hit at once")
+	test_vest.durability = ItemDB.max_durability("armor_light")
+	inv.changed.emit()
+	_check(vest_view._detail.text == "%d/%d" % [test_vest.durability, test_vest.durability], "and shows a repair at once")
+	inv.equipment["armor"] = old_vest
+	inv.equipment_changed.emit()
+	vest_view.free()
 	# Attachments on an AI's gun are found in raid, and stay found when taken off (0.17.13, owner); a bought part put
 	# on a found gun doesn't.
 	var looted := AILoadouts.dropped_gun("ak", ["scope_4x", "foregrip"], 0.0)
