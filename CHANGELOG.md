@@ -31,6 +31,18 @@ Art step 4 of the Riptide pass: the lab under the Leviathan gets its real look, 
 - Model `site_zero` (`art_source/scripts/make_riptide_lab.py`), 47k triangles; it also draws the keel plate and the
   moon pool's trunk below the engine room deck.
 Net version 9 (the lab's geometry changed: new furniture, glass); navigation re-baked.
+## 0.36.24 (Footsteps muffled behind walls)
+Owner: "Footstep audio needs to be more muffled when enemies are behind walls, but still hearable."
+- Behind a wall, a shut door or a whole pane, someone else's footsteps (players, scavs, bots) now play a muffled copy
+  of the step: the click and scuff gone, the thump kept, a short smear. Through a floor or ceiling they are darker still.
+  Before this the muffle was a runtime low-pass that the web build skips (it plays sounds as samples), so on the web a
+  step behind a wall was only 5 dB quieter, and the 900 Hz cutoff barely touched the steps anyway (most of a step's
+  sound is 100-400 Hz). The muffled files are baked by `tools/make_step_variants.py` into `audio/steps/muffled/`
+  (34 new files, nothing replaced) and kept above 100 Hz so phone and laptop speakers still carry them.
+- Loudness: the same -5 dB as before on top; the muffled sound itself is about 0-6 dB quieter to the ear (wall) and
+  2-7 dB (floor), depending on the surface (all in: 5-11 dB quieter through a wall, 7-12 through a floor). Range, doorways (sound comes round an opening, not muffled) and your own
+  steps are unchanged. Bush rustles behind a wall are dulled too.
+
 ## 0.36.23 (Riptide: bridge tower fixes, round 2; glass in the windows)
 Owner's notes on the tower after 0.36.19/0.36.20:
 - The dark strip by the stairs at the corridor's east end (and green sick-bay paint leaking into the corridor and the
