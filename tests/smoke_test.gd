@@ -8036,6 +8036,18 @@ func _section_owner_rules() -> void:
 	loot_ui._update_drag()
 	loot_ui._finish_drag()
 	_check(inv.count_of("gold_watch") == 0, "dragging an item onto empty space drops it on the ground")
+	# 0.36.28 (owner): the empty space beside the panels counts too (the panel row stretches to the footer's width,
+	# so with only your own inventory open the whole right side used to do nothing).
+	loot_ui.close()
+	loot_ui.open_for(null)
+	await _frames(2)
+	var right_edge := 0.0
+	for panel: Control in loot_ui._columns.get_children():
+		if panel.visible:
+			right_edge = maxf(right_edge, panel.get_global_rect().end.x)
+	var beside := Vector2(right_edge + 40.0, loot_ui._columns.get_global_rect().get_center().y)
+	_check(not loot_ui._over_panels(beside) and loot_ui._over_panels(loot_ui._close_button.get_global_rect().get_center()),
+		"the empty space beside your own inventory is empty space, the CLOSE button isn't")
 	loot_ui.close()
 	full.queue_free()  # (the medkit bag despawned by itself once emptied)
 
