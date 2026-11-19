@@ -14,6 +14,16 @@ Owner (2026-11-19): the hideout mess's tables were too close together, so the cr
   (`MESS_GAP` and `mess_tables()` in `make_hideout.py`; the seats, lamps and dinner follow; crew walk mesh re-baked.)
 - New `tools/hideout_mess_view.gd`: pictures of the mess with the crew sat down.
 
+## 0.36.36 (AI PMC bots on for Riptide)
+Owner asked (2026-11-19): after a check of Riptide, turn the AI PMC bots on there too.
+- `Matchmaker.bot_maps` is now Frontlines and Riptide: a lone Riptide player gets bots after the same 90 s wait, and
+  raids that aren't full get topped up the same way as on Frontlines. Riptide keeps the bots' standard tuning (no
+  Frontlines handicap). Smoke test: both maps get bots, a map left out of `bot_maps` still keeps a lone player waiting.
+- The check before it (no gameplay change): the map audit (every container, extract, switch and spawn reachable, every
+  ladder climbable), the walk-through-props audit and a see-through scan from 1,229 spots below deck found nothing a
+  player can reach; 10 full bot raids on the finished art: 27 of 30 bots alive at 5:00, 24 extracted, 5.8 containers each
+  (`/mnt/project-files/ai-pmcs/raid-report-0.36.34-riptide.txt`).
+
 ## 0.36.35 (START RAID without the frozen picture)
 Owner said yes (2026-11-19): pressing START RAID on Frontlines sat on a still picture for a few seconds in the browser.
 - Measured: loading the map and raid scenes (~1 s in a browser), building the map's collision (the physics engine's

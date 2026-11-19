@@ -238,7 +238,7 @@ func _ready() -> void:
 				port = arg.trim_prefix("--port=").to_int()
 			elif arg.begins_with("--countdown="):  # shorter queue countdown, for testing
 				matchmaker.queue_countdown = arg.trim_prefix("--countdown=").to_float()
-			elif arg == "--bots":  # AI PMCs fill raids on every map (0.36.0; Frontlines only without it, 0.36.26)
+			elif arg == "--bots":  # AI PMCs fill raids on every map (0.36.0; without it, the maps in Matchmaker.bot_maps)
 				matchmaker.bots_on = true
 			elif arg.begins_with("--bot-wait="):
 				matchmaker.bot_wait = arg.trim_prefix("--bot-wait=").to_float()
