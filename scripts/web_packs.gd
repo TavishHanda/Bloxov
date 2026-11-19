@@ -5,7 +5,7 @@ extends Node
 ## the small main one. tools/cache_bust.py splits the export and lists the extra packs in `window.BLOXOV_PACKS`;
 ## the page downloads them with the main pack. They're mounted here, when this script loads: the first autoload,
 ## before anything else loads a resource. Off the web, or a web export that wasn't split, there's nothing to do.
-## (0.36.29, faster first load) The packs only raids use (the map models, `window.BLOXOV_LATE_PACKS`) aren't waited
+## (0.36.30, faster first load) The packs only raids use (the map models, `window.BLOXOV_LATE_PACKS`) aren't waited
 ## for: the game starts without them and the page downloads them in the background while you're on the title and in
 ## the hideout. Each one is mounted here as it arrives; START RAID waits for the rest if they're not in yet
 ## (`raid_ready`, LoadingScreen.wait_for_map).

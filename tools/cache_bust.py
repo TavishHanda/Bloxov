@@ -12,7 +12,7 @@ file names, so players could keep getting an old game after an update. This scri
      downloads with the main pack and scripts/web_packs.gd mounts, and keeps every big file (engine, packs) in the
      browser's Cache Storage under its content hash, so an update only downloads what changed. GitHub Pages can't do
      that by itself: every deploy gives every file a new ETag, so the browser's own cache always downloads again.
-  6. (0.36.29) the packs only raids need (the map models, split_pck.LATE) aren't waited for: the game starts
+  6. (0.36.30) the packs only raids need (the map models, split_pck.LATE) aren't waited for: the game starts
      without them and the page downloads them in the background, one at a time, copying each into the game's files
      as it arrives (window.BLOXOV_LATE_DONE); scripts/web_packs.gd mounts them and START RAID waits for any left.
 

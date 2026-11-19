@@ -142,7 +142,7 @@ func _ready() -> void:
 		_fade_out()
 
 
-## (0.36.29) The web build downloads the map models in the background (WebPacks): if START RAID comes before
+## (0.36.30) The web build downloads the map models in the background (WebPacks): if START RAID comes before
 ## they're all in, this waits for the rest, showing how far along it is. Returns at once when they're in.
 func wait_for_map() -> void:
 	while not WEB_PACKS.raid_ready():

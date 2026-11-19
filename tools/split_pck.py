@@ -28,7 +28,7 @@ GROUPS = [
     ("assets/models/far/", "far", 2),
 ]
 OTHER = ("art", 1)   # every other imported file
-# (0.36.29, faster first load) Packs only raids need: the page starts the game without them and downloads them in the
+# (0.36.30, faster first load) Packs only raids need: the page starts the game without them and downloads them in the
 # background while you're on the title and in the hideout (cache_bust.py, scripts/web_packs.gd). Nothing the title or
 # the hideout loads may come from these; tests check that (smoke test "web_packs" section).
 LATE = ("buildings", "outdoor", "far")

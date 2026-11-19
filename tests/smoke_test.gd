@@ -10861,7 +10861,7 @@ func _section_netlock() -> void:
 	_check(problems.is_empty(), ("The online contract changed: %s. Raise config/net_version in project.godot if old games would break, then re-record with `godot --headless -s tools/net_lock.gd`. If old games still work, just re-record." % "; ".join(problems)) if not problems.is_empty() else "the online contract matches tests/net_lock.txt")
 
 
-## Web packs (0.36.29, faster first load): the web build starts without the map models (tools/split_pck.py LATE) and
+## Web packs (0.36.30, faster first load): the web build starts without the map models (tools/split_pck.py LATE) and
 ## downloads them in the background, so nothing the title or the hideout loads may come from them. Walks everything
 ## those scenes (and the autoloads and shader warm-up lists) use, scenes' own dependencies plus every res:// path and
 ## class a script names (more than it really loads, so it errs on the safe side), and fails on any building, outdoor or far-view model other than the hideout's own.

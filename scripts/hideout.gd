@@ -832,7 +832,7 @@ func start_with_free_kit() -> void:
 ## has threads (not the web build, which is exported without them) the map is already warmed in the background
 ## (`_warm_raid`), so there's much less to wait for.
 func start_raid() -> void:
-	if _loading != null:   # (already on its way in: the web build can wait here for the map download, 0.36.29)
+	if _loading != null:   # (already on its way in: the web build can wait here for the map download, 0.36.30)
 		return
 	save_now()
 	# PvP (0.31): the raid takes the kit the server issued from the stash it keeps.
@@ -847,7 +847,7 @@ func start_raid() -> void:
 	_show_loading()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	await (_loading as LoadingScreen).wait_for_map()   # (0.36.29: the web build may still be downloading the map models)
+	await (_loading as LoadingScreen).wait_for_map()   # (0.36.30: the web build may still be downloading the map models)
 	get_tree().change_scene_to_file(RAID_SCENE)
 
 
