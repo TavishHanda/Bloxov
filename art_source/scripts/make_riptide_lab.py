@@ -1,4 +1,4 @@
-"""Riptide art step 4 (0.36.24): `site_zero`, the lab in the Leviathan's two lowest decks. Origin (48, 0, 0), the same
+"""Riptide art step 4 (0.36.26): `site_zero`, the lab in the Leviathan's two lowest decks. Origin (48, 0, 0), the same
 as leviathan_hull and below_decks (x across the ship, -18..18; z along it). This script works in world x (OX + x).
 
 A clean corporate containment lab built into a ship: white wall panels with a teal stripe and a dark skirting, pale
