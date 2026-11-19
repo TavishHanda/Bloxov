@@ -27,6 +27,8 @@ Accounts and the PvP stash: `docs/archive/STASH_UPDATE_PLAN.md`.
 - CI (`.github/workflows/web.yml`) runs `tests/smoke_test.gd` headless, then exports and deploys to GitHub Pages.
   The web export is split into content-named packs the browser keeps across updates (0.29.6, `tools/split_pck.py` via
   `cache_bust.py`; `scripts/web_packs.gd` mounts them and must stay the FIRST autoload, referencing no game scripts).
+  Since 0.36.30 the map model packs (`split_pck.LATE`) download in the background after the game starts; START RAID
+  waits for them (`LoadingScreen.wait_for_map`). The title and hideout must not use map models (smoke `web_packs`).
   Extend the smoke test when adding gameplay.
 
 ## The net version (0.35.14)

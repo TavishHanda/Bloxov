@@ -21,7 +21,7 @@ const SECTIONS: Array[String] = [
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
-	"sound", "netlock",
+	"sound", "netlock", "web_packs",
 ]
 ## Sections that build on what an earlier one left behind. Running one also runs these (recursively).
 const NEEDS := {
@@ -10859,3 +10859,61 @@ func _section_netlock() -> void:
 	var lock := load("res://tools/net_lock_core.gd")
 	var problems: PackedStringArray = lock.problems()
 	_check(problems.is_empty(), ("The online contract changed: %s. Raise config/net_version in project.godot if old games would break, then re-record with `godot --headless -s tools/net_lock.gd`. If old games still work, just re-record." % "; ".join(problems)) if not problems.is_empty() else "the online contract matches tests/net_lock.txt")
+
+
+## Web packs (0.36.30, faster first load): the web build starts without the map models (tools/split_pck.py LATE) and
+## downloads them in the background, so nothing the title or the hideout loads may come from them. Walks everything
+## those scenes (and the autoloads and shader warm-up lists) use, scenes' own dependencies plus every res:// path and
+## class a script names (more than it really loads, so it errs on the safe side), and fails on any building, outdoor or far-view model other than the hideout's own.
+func _section_web_packs() -> void:
+	var packs: GDScript = load("res://scripts/web_packs.gd")
+	_check(packs.raid_ready() and packs.progress() == 1.0, "off the web, raids never wait for packs")
+	var seen := {}
+	var queue: Array[String] = ["res://scenes/title.tscn", "res://scenes/hideout_world.tscn", "res://scenes/hideout.tscn",
+			"res://scripts/web_packs.gd", "res://scripts/net.gd", "res://assets/warm/raid_warm.tscn",
+			"res://assets/warm/hideout_warm.tscn"]
+	var paths := RegEx.create_from_string("res://[A-Za-z0-9_/.\\-]+")
+	var words := RegEx.create_from_string("\\b[A-Z][A-Za-z0-9_]*\\b")
+	var classes := {}
+	for entry in ProjectSettings.get_global_class_list():
+		classes[entry["class"]] = entry["path"]
+	var late: PackedStringArray = []
+	while not queue.is_empty():
+		var path: String = queue.pop_back()
+		# (the raid scene and the maps are what the late packs are for)
+		if seen.has(path) or path.begins_with("res://scenes/maps/") or path == "res://scenes/main.tscn":
+			continue
+		seen[path] = true
+		if _web_late(path):
+			late.append(path)
+		var next: Array[String] = []
+		for dep in ResourceLoader.get_dependencies(path):
+			var dep_path := ""
+			for part in dep.split("::"):   # ("uid://...::Type::res://path" or "res://path::Type")
+				if part.begins_with("res://"):
+					dep_path = part
+			if dep_path == "" and dep.begins_with("uid://"):
+				dep_path = ResourceUID.get_id_path(ResourceUID.text_to_id(dep.get_slice("::", 0)))
+			next.append(dep_path)
+		if path.ends_with(".gd"):
+			var source := FileAccess.get_file_as_string(path)
+			for found in paths.search_all(source):
+				next.append(found.get_string())
+			for found in words.search_all(source):   # (classes it uses by name)
+				next.append(classes.get(found.get_string(), ""))
+		for dep_path in next:
+			if dep_path != "" and not seen.has(dep_path) and ResourceLoader.exists(dep_path):
+				queue.append(dep_path)
+	_check(seen.size() > 100, "walked what the title and hideout use (%d files)" % seen.size())
+	_check(late.is_empty(), "the title and hideout use no map models (late web packs): %s" % ", ".join(late)
+			if not late.is_empty() else "the title and hideout use no map models (late web packs)")
+
+
+## Whether the web build downloads this file in the background (mirrors tools/split_pck.py GROUPS and LATE).
+func _web_late(path: String) -> bool:
+	if path.begins_with("res://assets/models/buildings/hideout"):
+		return false
+	for folder in ["res://assets/models/buildings/", "res://assets/models/outdoor/", "res://assets/models/far/"]:
+		if path.begins_with(folder):
+			return true
+	return false
