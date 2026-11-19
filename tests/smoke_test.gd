@@ -1836,7 +1836,7 @@ func _section_attachments() -> void:
 	_check(rifle.attachments.is_empty() and inv.count_of("red_dot") + grid.count_of("red_dot") >= 1, "clicking the red dot's slot takes it off")
 	inv.take("red_dot", inv.count_of("red_dot"))
 	slot_view.free()
-	# A wear change (a hit on the armor, a repair) shows on the armor's slot right away, not after moving it (0.36.29).
+	# A wear change (a hit on the armor, a repair) shows on the armor's slot right away, not after moving it (0.36.30).
 	var vest_view := EquipSlotView.new("armor", inv, loot_ui, Vector2i(2, 2))
 	main.add_child(vest_view)
 	var old_vest := inv.equipped("armor")
