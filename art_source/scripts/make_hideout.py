@@ -1604,16 +1604,26 @@ def shooting_range(ctx):
         block(p[0], 0.0, p[2], 1.0, 1.0, 1.4)
 
 
+MESS_GAP = 3.0                 # metres between the mess tables (0.36.37, owner: "too close": was 2.2, the benches 0.3 m apart)
+
+
+def mess_tables():
+    """The mess tables' middles (x, z), north to south: across the tunnel, each a little further east, MESS_GAP apart
+    and centred 0.3 m north of LAY.mess so the south one's bench clears the couch."""
+    mx, mz = LAY.mess
+    return [(mx + k * 0.3, mz - 0.3 + k * MESS_GAP) for k in (-1, 0, 1)]
+
+
 def mess(ctx):
     """Canteen tables (steel, benches both sides), a drum stove, water."""
     b, rng = ctx.b, random.Random("mess")
     mx, mz = LAY.mess
     along_z = SHAPE == "post"
-    for k in (-1, 0, 1):
+    for k, (tx, tz) in zip((-1, 0, 1), mess_tables()):
         if along_z:
             x, z, yaw = mx + k * 2.6, mz, 0.0
         else:
-            x, z, yaw = mx + k * 0.3, mz + k * 2.2, 90.0
+            x, z, yaw = tx, tz, 90.0
         b.box((x, 0.76, z), (0.8, 0.04, 2.6), yaw=yaw, style=mb._solid("hd_steel"))
         for s in (-0.95, 0.95):
             off = mb.rot((s, 0, 0), yaw, 0)
@@ -1954,8 +1964,7 @@ def quarters(ctx):
     TV, reading lamps and kit on the bunks, washing hung up, a sink by the washroom, notices on the walls."""
     b, rng = ctx.b, random.Random("quarters")
     mx, mz = LAY.mess
-    for k in (-1, 0, 1):                                               # a lamp over each table, the dinner left out
-        x, z = mx + k * 0.3, mz + k * 2.2
+    for k, (x, z) in zip((-1, 0, 1), mess_tables()):                   # a lamp over each table, the dinner left out
         hang((x, 2.42, z), 5.6 - 2.42, 0.9, 3.4, shaded=True)          # (0.22.0: it swings, a tin shade over it)
         for _ in range(4):
             px, pz = x + rng.uniform(-1.1, 1.1), z + rng.choice((-0.22, 0.22))
@@ -2822,9 +2831,7 @@ def seats():
     if SHAPE == "cave":
         return []
     out = []
-    mx, mz = LAY.mess
-    for k in (-1, 0, 1):                                               # the mess benches, two places each, facing the table
-        x, z = mx + k * 0.3, mz + k * 2.2
+    for x, z in mess_tables():                                         # the mess benches, two places each, facing the table
         for s in (-0.95, 0.95):
             for e in (-0.6, 0.6):
                 out.append((x + e, 0.46, z - s, 180.0 if s > 0 else 0.0))

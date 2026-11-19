@@ -2947,11 +2947,17 @@ func _section_hideout_world() -> void:
 			await process_frame
 		var aside: bool = world.station == marker
 		walker.rotation.y -= 0.6
-		walker.global_position = thing + (stand - thing).normalized() * 4.0
-		walker.global_position.y = stand.y
-		for f in 2:
-			await process_frame
-		aimed[id] = [looking, aside, world.station == marker]
+		var far := true   # (no clear spot counts as a fail)
+		for turn in [0.0, 0.5, -0.5]:   # 4 m back; a little to the side if furniture's there (the mess tables, 0.36.37)
+			var off := thing + (stand - thing).normalized().rotated(Vector3.UP, turn) * 4.0
+			off.y = stand.y
+			walker.global_position = off
+			for f in 2:
+				await process_frame
+			if Vector2(walker.global_position.x - off.x, walker.global_position.z - off.z).length() < 0.1:
+				far = world.station == marker
+				break
+		aimed[id] = [looking, aside, far]
 	walker.camera.rotation.x = 0.0
 	_check(aimed.values().all(func(r: Array) -> bool: return r == [true, false, false]),
 		"radio, darts and lights: in reach looking at them, not looking away or 4 m off %s" % str(aimed))
