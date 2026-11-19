@@ -951,7 +951,7 @@ func _on_menu(action: int) -> void:
 			sell_handler.call(grid, stack)
 		MenuAction.REPAIR:
 			repair_handler.call(grid, stack)
-			show_info(stack)   # (the condition line shows the repair right away, 0.36.31)
+			show_info(stack)   # (the condition line shows the repair right away, 0.36.32)
 		MenuAction.USE:
 			if player != null:
 				player.use_item(grid, stack)
