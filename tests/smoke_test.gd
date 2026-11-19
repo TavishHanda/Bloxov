@@ -2948,7 +2948,7 @@ func _section_hideout_world() -> void:
 		var aside: bool = world.station == marker
 		walker.rotation.y -= 0.6
 		var far := true   # (no clear spot counts as a fail)
-		for turn in [0.0, 0.5, -0.5]:   # 4 m back; a little to the side if furniture's there (the mess tables, 0.36.36)
+		for turn in [0.0, 0.5, -0.5]:   # 4 m back; a little to the side if furniture's there (the mess tables, 0.36.37)
 			var off := thing + (stand - thing).normalized().rotated(Vector3.UP, turn) * 4.0
 			off.y = stand.y
 			walker.global_position = off

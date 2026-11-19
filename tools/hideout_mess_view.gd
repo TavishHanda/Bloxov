@@ -1,5 +1,5 @@
 extends SceneTree
-## Pictures of the mess (0.36.36): the tables with the crew sat at them, from the tunnel's mouth and from above.
+## Pictures of the mess (0.36.37): the tables with the crew sat at them, from the tunnel's mouth and from above.
 ## Writes PNGs to the folder given (default /tmp/hideout_mess/).
 ##   xvfb-run -a godot --rendering-driver opengl3 -s tools/hideout_mess_view.gd -- [out=/some/dir]
 var out := "/tmp/hideout_mess/"

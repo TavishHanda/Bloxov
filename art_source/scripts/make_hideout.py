@@ -1604,7 +1604,7 @@ def shooting_range(ctx):
         block(p[0], 0.0, p[2], 1.0, 1.0, 1.4)
 
 
-MESS_GAP = 3.0                 # metres between the mess tables (0.36.36, owner: "too close": was 2.2, the benches 0.3 m apart)
+MESS_GAP = 3.0                 # metres between the mess tables (0.36.37, owner: "too close": was 2.2, the benches 0.3 m apart)
 
 
 def mess_tables():
