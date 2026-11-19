@@ -34,8 +34,8 @@ const CODE_LETTERS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 var queue_countdown := 30.0
 ## The AI PMC fill rule on every map (the server's --bots, for testing).
 var bots_on := false
-## Maps whose raids get AI PMCs (0.36.26, owner 2026-11-19: Frontlines only; Riptide stays off).
-var bot_maps: Array[int] = [0]
+## Maps whose raids get AI PMCs (0.36.26, owner 2026-11-19: Frontlines; Riptide too since 0.36.35, owner 2026-11-19).
+var bot_maps: Array[int] = [0, 1]
 var bot_wait := BOT_WAIT
 var raid_time := 600.0
 ## Maps a raid can be on (0.33.8: 0 Frontlines, 1 Riptide; the same order as RaidMap.MAPS, which this script can't
