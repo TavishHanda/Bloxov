@@ -145,10 +145,24 @@ def modeled(name, x, z):
         _model.pop()
 
 
+_kind = [None]
+
+
+@contextlib.contextmanager
+def kinded(kind):
+    """Boxes made inside get this kind in their model's json (unless they name their own), so the art script knows
+    what they are (shore art pass 1: a crane's leg, a barge's hull, one kind of cover on the quay edge...)."""
+    _kind.append(kind)
+    try:
+        yield
+    finally:
+        _kind.pop()
+
+
 def _add_box(b, kind=None):
     m = _model[-1]
     if m is not None:
-        m["boxes"].append((b, kind))
+        m["boxes"].append((b, kind or _kind[-1]))
         if m["hide"]:
             b = b[:9] + (2 if b[9] else 3,)
     boxes.append(b)
@@ -392,14 +406,16 @@ WATER_LADDERS_QUAY = (-86.0, -40.0, 22.0, 70.0, 150.0)
 
 def quay():
     # the quay wall, its low parapet (gaps where the ways across start), the map's edges
-    box(-30.0, -10.0, -HALF, QUAY, SHORE, HALF, "concrete")
+    with modeled("quay_front", -30.0, 0.0), kinded("quay_wall"):     # (shore art pass 1)
+        box(-30.0, -10.0, -HALF, QUAY, SHORE, HALF, "concrete")
     gaps = [(-124.0, 12.0), (2.6, 10.0), (39.0, 3.0), (121.0, 6.0), (163.0, 14.0)]
     gaps += [(z, 2.0) for z in WATER_LADDERS_QUAY]      # (0.33.6) the ladders up out of the sea
     # the sea's edge (0.33.6, swimming): a low sea wall round the far water, so nobody swims off the map
     box(HALF - 0.6, -4.0, -HALF, HALF, 3.0, HALF, "rock")
     for z0, z1 in ((-HALF, -HALF + 0.6), (HALF - 0.6, HALF)):
         box(QUAY, -4.0, z0, HALF, 3.0, z1, "rock")
-    wall("z", -29.7, -HALF, HALF, SHORE, 0.9, "concrete", [(c, w, 0.0, 0.9) for c, w in gaps], t=0.6)
+    with modeled("quay_front", -30.0, 0.0), kinded("parapet"):
+        wall("z", -29.7, -HALF, HALF, SHORE, 0.9, "concrete", [(c, w, 0.0, 0.9) for c, w in gaps], t=0.6)
     wall("z", -HALF + 0.5, -HALF, HALF, SHORE, 3.0, "concrete", t=0.6)
     for z in (-HALF + 0.5, HALF - 0.5):
         wall("x", z, -HALF, QUAY, SHORE, 3.0, "concrete", t=0.6)
@@ -415,15 +431,19 @@ def quay():
         box(gx + (3.5 if i % 2 else -6.5), SHORE, z + 0.3, gx + (6.5 if i % 2 else -3.5), SHORE + 2.4, z + 3.3, "wood")
     # quay cranes straddling the apron (legs every 40 m) and things parked across it, so the apron along the quay
     # never gives a clear line
-    for z in (-96.0, -56.0, -16.0, 84.0, 140.0):
-        for x in (-38.5, -31.5):
-            for dz in (-5.0, 5.0):
-                box(x - 0.8, SHORE, z + dz - 0.8, x + 0.8, SHORE + 22.0, z + dz + 0.8, "rust")
-        box(-40.0, SHORE + 22.0, z - 6.0, -30.0, SHORE + 24.0, z + 6.0, "rust")
-        obox(-14.0, SHORE + 23.0, z, 34.0, 1.2, 1.6, 0, "rust")
-    for i, z in enumerate((-138.0, -86.0, -66.0, -40.0, 22.0, 70.0, 96.0, 108.0, 134.0, 150.0)):
-        x = -37.0 if i % 2 else -33.6
-        container(x, SHORE, z, "x", ("container_a", "container_b", "container_c")[i % 3], 1 + i % 2)
+    with modeled("quay_front", -30.0, 0.0):
+        for z in (-96.0, -56.0, -16.0, 84.0, 140.0):
+            with kinded("crane_leg"):
+                for x in (-38.5, -31.5):
+                    for dz in (-5.0, 5.0):
+                        box(x - 0.8, SHORE, z + dz - 0.8, x + 0.8, SHORE + 22.0, z + dz + 0.8, "rust")
+            with kinded("crane_head"):
+                box(-40.0, SHORE + 22.0, z - 6.0, -30.0, SHORE + 24.0, z + 6.0, "rust")
+            with kinded("crane_boom"):
+                obox(-14.0, SHORE + 23.0, z, 34.0, 1.2, 1.6, 0, "rust")
+        for i, z in enumerate((-138.0, -86.0, -66.0, -40.0, 22.0, 70.0, 96.0, 108.0, 134.0, 150.0)):
+            x = -37.0 if i % 2 else -33.6
+            container(x, SHORE, z, "x", ("container_a", "container_b", "container_c")[i % 3], 1 + i % 2)
 
 
 def north_point():
@@ -667,6 +687,11 @@ def quay_cover(n, z):
     line of the same container). All of it hides you from the ship; some you can get inside or peek over."""
     x0, x1 = -32.6, -30.2
     kind = (0, 3, 1, 5, 2, 6, 4, 7, 0, 2, 5, 1, 7, 3, 6, 4)[n % 16]
+    with modeled("quay_front", -30.0, 0.0), kinded("cover%d" % kind):
+        _quay_cover(kind, n, z, x0, x1)
+
+
+def _quay_cover(kind, n, z, x0, x1):
     if kind == 0:      # a container (as before), every other one stood on end or doubled
         box(x0, SHORE, z - 3.0, x1, SHORE + (5.2 if n % 3 == 0 else 2.6), z + 3.0, ("container_a", "container_b", "container_c")[n % 3])
     elif kind == 1:    # a blast wall: tall, with a blown-out notch you can shoot through, rubble at its foot
@@ -794,6 +819,16 @@ def water_ladders():
 
 def crossings():
     # The pier (middle): a shed over the first stretch, then staggered containers; the roofed pipe gallery beside
+    with modeled("quay_front", -30.0, 0.0), kinded("pier"):     # (shore art pass 1)
+        _pier()
+    with modeled("quay_front", -30.0, 0.0), kinded("pontoon"):
+        box(QUAY, 0.4, 37.5, SX0 - 0.3, 0.8, 40.4, "wood")
+    with modeled("quay_front", -30.0, 0.0), kinded("barge"):
+        _barges()
+    _gallery_mole_boats()
+
+
+def _pier():
     px0, px1 = QUAY + 6.0, SX0
     box(px0, PIER - 0.4, -2.0, px1, PIER, 7.2, "wood")
     ramp((QUAY, SHORE, 1.0), (px0, PIER, 1.0), 6.0, "wood")
@@ -817,51 +852,8 @@ def crossings():
     ramp((20.0, PIER, 0.0), (SX0, DECK, 0.0), 3.5, "metal")
     box(14.0, PIER - 0.4, -2.0, 20.0, PIER, 2.0, "wood")
 
-    # The grain gallery (high, covered): from the headhouse at the quay to the ship loader beside the ship, small
-    # windows, a door halfway out onto a balcony with a long ladder down to the pontoon
-    gz0, gz1 = 42.0, 45.0
-    gx0, gx1 = -38.0, LOADER[0]
-    box(gx0, GALLERY - SLAB_T, gz0, gx1, GALLERY, gz1, "metal")
-    wall("x", gz0, gx0, gx1, GALLERY, 2.6, "rust", [window(x, 1.2, 1.2, 2.0) for x in (-30.0, -18.0, 6.0, 16.0)]
-         + [door(-4.0)], t=0.2)
-    wall("x", gz1, gx0, gx1, GALLERY, 2.6, "rust", [window(x, 1.2, 1.2, 2.0) for x in (-24.0, -12.0, 0.0, 12.0)], t=0.2)
-    box(gx0, GALLERY + 2.6, gz0 - 0.1, gx1, GALLERY + 2.85, gz1 + 0.1, "roof")
-    for x in (-24.0, -8.0, 8.0):
-        box(x - 0.5, SEABED, gz0 + 0.5, x + 0.5, GALLERY - SLAB_T, gz1 - 0.5, "rust")
-    box(-6.0, GALLERY - SLAB_T, 40.4, -2.0, GALLERY, gz0, "metal")     # the balcony
-    wall("z", -6.0, 40.4, gz0, GALLERY, 1.0, "rust", t=0.15)
-    wall("z", -2.0, 40.4, gz0, GALLERY, 1.0, "rust", t=0.15)
-    ladder(-4.0, 0.8, 40.3, 180, GALLERY - 0.8, "Gallery")
-    labels.append(("GRAIN GALLERY", -8, 49, 0))
-    # the ship loader: a stairwell tower against the ship's side, down to the main deck (a gap in the rail)
-    stairwell(LOADER[0], LOADER[1], [GALLERY, 11.0, 7.5, DECK], {0: "W", 3: "E"})
-    box(LOADER[0] + 8.0 - 0.1, DECK - SLAB_T, 53.2, SX0 + 0.6, DECK, 55.8, "metal")
-    box(LOADER[0] + 3.0, GALLERY + 3.45, 44.0, LOADER[0] + 5.0, GALLERY + 12.0, 46.0, "rust")   # the loader's boom post
-    footprints.append((LOADER[0], LOADER[1], LOADER[0] + 8.0, LOADER[1] + 14.0))
-    labels.append(("LOADER", 18, 58, 0))
-    # the pontoon under it, at the water: a ladder up the quay, a ladder up the ship's side
-    box(QUAY, 0.4, 37.5, SX0 - 0.3, 0.8, 40.4, "wood")
-    ladder(QUAY + 0.2, 0.8, 39.0, 90, SHORE - 0.8, "Pontoon")
-    ladder(SX0 - 0.4, 0.8, 38.5, -90, DECK - 0.8, "Pontoon")
 
-    # The breakwater (north): a wide mole (level with the quay) from the north quay to a pad under the bow; a wave wall on the sea side,
-    # the signal hut on its north half, broken concrete blocks across the south half
-    mz0, mz1 = -130.0, -118.0
-    box(QUAY, SEABED, mz0, 36.0, SHORE, mz1, "rock")
-    wall("x", mz0 + 0.4, QUAY, 60.0, SHORE, 2.6, "concrete", t=0.8)
-    room(-2.0, 8.0, mz0 + 0.8, -124.0, SHORE, 3.0, "wall", w=[door(-126.5)], e=[door(-126.5)], s=[window(3.0, 3.0)],
-         roof="roof")
-    container(20.0, SHORE, -127.6, "x", "container_a", 2)
-    for x, z, yaw, h in [(-18.0, -120.5, 30, 2.4), (-8.0, -122.0, -20, 2.0), (12.0, -120.0, 15, 2.6),
-                         (22.0, -122.5, -35, 2.2), (30.0, -119.5, 40, 2.4), (-24.0, -126.0, 10, 2.2)]:
-        obox(x, SHORE + h / 2, z, 3.4, h, 3.0, yaw, "concrete")
-    box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
-    labels.append(("BREAKWATER", 0, -134, 0))
-    ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
-    box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood")      # the pilot cutter moored at the pad (deck level with it)
-    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0))
-    room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
-
+def _barges():
     # The barge line (south): barges tied end to end from the quay to the stern ramp; containers and cabins across
     # each one, alternating sides, so the way across zigzags and nothing sees down its length
     barges = [(-26.0, -8.0), (-4.0, 14.0), (18.0, 30.0), (34.0, 54.0)]
@@ -884,6 +876,53 @@ def crossings():
     labels.append(("BARGE LINE", 10, 132, 0))
     player_spawns.append((-20.0, BARGE, 124.5))
     add_loot("Barges", "crate", 10.0, BARGE, 117.0, table="field")
+
+
+def _gallery_mole_boats():
+    # The grain gallery (high, covered): from the headhouse at the quay to the ship loader beside the ship, small
+    # windows, a door halfway out onto a balcony with a long ladder down to the pontoon
+    with modeled("quay_front", -30.0, 0.0), kinded("gallery"):     # (shore art pass 1)
+        gz0, gz1 = 42.0, 45.0
+        gx0, gx1 = -38.0, LOADER[0]
+        box(gx0, GALLERY - SLAB_T, gz0, gx1, GALLERY, gz1, "metal")
+        wall("x", gz0, gx0, gx1, GALLERY, 2.6, "rust", [window(x, 1.2, 1.2, 2.0) for x in (-30.0, -18.0, 6.0, 16.0)]
+             + [door(-4.0)], t=0.2)
+        wall("x", gz1, gx0, gx1, GALLERY, 2.6, "rust", [window(x, 1.2, 1.2, 2.0) for x in (-24.0, -12.0, 0.0, 12.0)], t=0.2)
+        box(gx0, GALLERY + 2.6, gz0 - 0.1, gx1, GALLERY + 2.85, gz1 + 0.1, "roof")
+        for x in (-24.0, -8.0, 8.0):
+            box(x - 0.5, SEABED, gz0 + 0.5, x + 0.5, GALLERY - SLAB_T, gz1 - 0.5, "rust")
+        box(-6.0, GALLERY - SLAB_T, 40.4, -2.0, GALLERY, gz0, "metal")     # the balcony
+        wall("z", -6.0, 40.4, gz0, GALLERY, 1.0, "rust", t=0.15)
+        wall("z", -2.0, 40.4, gz0, GALLERY, 1.0, "rust", t=0.15)
+        ladder(-4.0, 0.8, 40.3, 180, GALLERY - 0.8, "Gallery")
+    labels.append(("GRAIN GALLERY", -8, 49, 0))
+    # the ship loader: a stairwell tower against the ship's side, down to the main deck (a gap in the rail)
+    stairwell(LOADER[0], LOADER[1], [GALLERY, 11.0, 7.5, DECK], {0: "W", 3: "E"})
+    box(LOADER[0] + 8.0 - 0.1, DECK - SLAB_T, 53.2, SX0 + 0.6, DECK, 55.8, "metal")
+    box(LOADER[0] + 3.0, GALLERY + 3.45, 44.0, LOADER[0] + 5.0, GALLERY + 12.0, 46.0, "rust")   # the loader's boom post
+    footprints.append((LOADER[0], LOADER[1], LOADER[0] + 8.0, LOADER[1] + 14.0))
+    labels.append(("LOADER", 18, 58, 0))
+    # the pontoon under it, at the water (its float: crossings()): a ladder up the quay, a ladder up the ship's side
+    ladder(QUAY + 0.2, 0.8, 39.0, 90, SHORE - 0.8, "Pontoon")
+    ladder(SX0 - 0.4, 0.8, 38.5, -90, DECK - 0.8, "Pontoon")
+
+    # The breakwater (north): a wide mole (level with the quay) from the north quay to a pad under the bow; a wave wall on the sea side,
+    # the signal hut on its north half, broken concrete blocks across the south half
+    mz0, mz1 = -130.0, -118.0
+    box(QUAY, SEABED, mz0, 36.0, SHORE, mz1, "rock")
+    wall("x", mz0 + 0.4, QUAY, 60.0, SHORE, 2.6, "concrete", t=0.8)
+    room(-2.0, 8.0, mz0 + 0.8, -124.0, SHORE, 3.0, "wall", w=[door(-126.5)], e=[door(-126.5)], s=[window(3.0, 3.0)],
+         roof="roof")
+    container(20.0, SHORE, -127.6, "x", "container_a", 2)
+    for x, z, yaw, h in [(-18.0, -120.5, 30, 2.4), (-8.0, -122.0, -20, 2.0), (12.0, -120.0, 15, 2.6),
+                         (22.0, -122.5, -35, 2.2), (30.0, -119.5, 40, 2.4), (-24.0, -126.0, 10, 2.2)]:
+        obox(x, SHORE + h / 2, z, 3.4, h, 3.0, yaw, "concrete")
+    box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
+    labels.append(("BREAKWATER", 0, -134, 0))
+    ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
+    box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood")      # the pilot cutter moored at the pad (deck level with it)
+    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0))
+    room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
 
     # The sea side (east): two boats moored against the hull, ladders up to the deck
     box(SX1 + 0.4, BOAT - 1.5, -96.0, SX1 + 9.0, BOAT, -80.0, "wood")

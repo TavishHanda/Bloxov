@@ -2342,6 +2342,9 @@ if __name__ == "__main__":
     if name == "below_decks":
         import make_riptide_below
         make_riptide_below.build_below(name)
+    elif name == "quay_front":
+        import make_riptide_quay
+        make_riptide_quay.build_quay(name)
     elif name == "site_zero":
         import make_riptide_lab
         make_riptide_lab.build_lab(name)
