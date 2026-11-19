@@ -72,6 +72,27 @@ func handle(peer: int, action: String, fields: Dictionary) -> void:
 		"recover":
 			reply = await api.request("recover", {"username": text.call("username", 20),
 				"recovery_code": text.call("code", 20), "new_password": text.call("password", 128)})
+		"rename":
+			# CHANGE USERNAME (0.36.27): signed in, not in a raid, with their password; the API checks the rest
+			# (same rules as signing up, not taken, once every 30 days). The connection stays signed in.
+			var record: Dictionary = by_peer.get(peer, {})
+			if record.is_empty():
+				return
+			var new_name: String = text.call("username", 20)
+			if record["raid"]["state"] == IN_RAID:
+				_answer(peer, action, {"error": "in_raid"})
+				return
+			if NameFilter.is_blocked(new_name) or BotNames.is_bot_name(new_name):
+				_answer(peer, action, {"error": "bad_username"})
+				return
+			reply = await api.request("rename", {"account_id": record["account_id"], "username": new_name,
+				"password": text.call("password", 128)})
+			if not reply.has("error") and by_peer.get(peer) == record:
+				net._log("%s is now %s" % [record["username"], reply["username"]])
+				record["username"] = reply["username"]
+			_answer(peer, action, reply if reply.has("error") else {"renamed": reply["username"],
+				"next_change": reply.get("next_change", "")})
+			return
 		"export":
 			# "Download my PvP data" (privacy): what the database keeps about them, read-only.
 			var record: Dictionary = by_peer.get(peer, {})
