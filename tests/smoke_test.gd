@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting", "playables",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound", "netlock", "web_packs", "web_engine", "raid_prep",
 ]
@@ -2749,7 +2749,7 @@ func _section_hideout_world() -> void:
 	_check(world.menu.screen.find_child("Worth", true, false) != null, "the stash shows what it's worth")
 	# Phones (0.21.10): every screen you'd walk to has a tab on the menu.
 	var menu_node = world.menu
-	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 5, "the menu has phone tabs: gear, traders, wardrobe, craft, record")
+	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 6, "the menu has phone tabs: gear, traders, characters, wardrobe, craft, record")
 	menu_node.show_screen("wardrobe")
 	_check(menu_node.current_screen() == "wardrobe" and menu_node.wardrobe.visible, "the WARDROBE tab opens the wardrobe")
 	menu_node.show_screen("record")
@@ -2758,8 +2758,19 @@ func _section_hideout_world() -> void:
 		"the RECORD tab shows your record")
 	menu_node.show_screen("traders")
 	_check(menu_node.current_screen() == "traders" and not menu_node.record.visible, "the TRADERS tab opens a trader's screen")
+	# The characters (0.37.0): pick VOSS, and back to VEGA.
+	menu_node.show_screen("characters")
+	var chars: CharacterScreen = menu_node.character_screen
+	chars.look_at_character("voss")
+	chars._on_action()
+	_check(menu_node.current_screen() == "characters" and Profile.characters["selected"] == "voss"
+		and Network.main.my_look.ends_with(Characters.net_tag(Profile.characters)), "the CHARS tab picks who you play (VOSS)")
+	chars.look_at_character("sable")
+	_check(chars._action.disabled and chars._status.text != "", "a locked character says what it needs (%s)" % chars._status.text)
+	chars.look_at_character("vega")
+	chars._on_action()
 	menu_node.show_screen("gear")
-	_check(menu_node.current_screen() == "gear", "and GEAR goes back to the stash")
+	_check(menu_node.current_screen() == "gear" and Profile.characters["selected"] == "vega", "and GEAR goes back to the stash")
 	# The mouse is never grabbed with the menu up (0.21.10).
 	world.open_menu()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -2814,7 +2825,7 @@ func _section_hideout_world() -> void:
 	_check(still and turned and wardrobe.model.rotation.y == after_drag,
 		"the wardrobe character doesn't spin by itself; dragging turns them, moving without a press doesn't")
 	var sent := Operators.to_text(Profile.look)
-	_check(Operators.from_text(sent) == Profile.look and Network.main.my_look == sent
+	_check(Operators.from_text(sent) == Profile.look and Network.main.my_look == sent + Characters.net_tag(Profile.characters)
 		and Operators.from_text("99x") == Operators.clean({}), "your look goes online as short text; junk turns into a real look")
 	world.menu.change_look(look_before)
 	world.close_menu()
@@ -4879,6 +4890,82 @@ func _section_pvp_accounts() -> void:
 	server.multiplayer.multiplayer_peer.close()
 	for n in [server, a, b]:
 		n.get_parent().queue_free()
+
+
+func _section_playables() -> void:
+	# The playable characters (0.37.0, owner 2026-11-20): traits grow with level, points are the player's choice,
+	# unlocks cost money and a trader level, the server checks it all.
+	var state := Characters.fresh()
+	_check(state["selected"] == "vega" and (state["unlocked"] as Array) == ["vega", "voss"],
+		"a new profile plays VEGA, with VOSS also free")
+	var c := Characters.char_of(state, "vega")
+	_check(is_equal_approx(Characters.trait_value("vega", c, 0), 0.02) and is_equal_approx(Characters.trait_value("vega", c, 2), 0.0625),
+		"at level 1 a trait is a quarter of its size, good and bad (+2% speed, +6.25% stamina use)")
+	var total := 0
+	for lv in range(1, Characters.MAX_LEVEL):
+		total += Characters.xp_to_next(lv)
+	Characters.add_xp(state, "vega", total)
+	_check(Characters.level(state, "vega") == 20 and is_equal_approx(Characters.trait_value("vega", c, 0), 0.08)
+		and int(c["lvl_points"]) == 5, "at level 20 traits are full size and 5 level points are earned")
+	Characters.add_expedition_points(state, "vega")
+	_check(Characters.points_left(c) == 7, "an expedition adds 2 points (7 to spend)")
+	for i in 5:
+		Characters.spend(state, "vega", "u0")
+	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.18),
+		"5 points at most on an upside: +18% speed")
+	Characters.spend(state, "vega", "d0")
+	Characters.spend(state, "vega", "d0")
+	_check(not Characters.spend(state, "vega", "d0") and is_equal_approx(Characters.trait_value("vega", c, 2), 0.125),
+		"a downside can be halved, never removed")
+	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(c) == 0, "no points left for a passive rank")
+	Characters.reset_level(state, "vega")
+	Characters.add_xp(state, "vega", total)
+	_check(int(c["lvl_points"]) == 5, "an expedition resets the level; level points only come once")
+	for i in 4:
+		Characters.add_expedition_points(state, "vega")
+	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10")
+	# Unlocks: money and a trader level.
+	_check(Characters.unlock_problem(state, "sable", 1000000, {}) != "" and Characters.unlock_problem(state, "sable", 1000, {"guns": 3}) != ""
+		and Characters.unlock_problem(state, "sable", 400000, {"guns": 3}) == "", "SABLE needs Ponta level 3 and $400,000")
+	_check(Characters.unlock_problem(state, "nine", 9999999, {"guns": 3, "meds": 2, "supplies": 2}) != "",
+		"NINE can't be bought: the Subject 09 files unlock him")
+	# Raids: XP, and Bounty by kind (an AI PMC is a PMC, like a player).
+	var hunter := Characters.fresh()
+	(hunter["unlocked"] as Array).append("sable")
+	hunter["selected"] = "sable"
+	var kills := [["scav", "ak", []], ["raider", "ak", []], ["pmc_ai", "ak", []], ["player", "ak", []], ["boss", "ak", []]]
+	var out := Characters.raid_ended(hunter, true, kills)
+	_check(int(out["bounty"]) == 1000 + 2500 + 5000 + 5000 + 10000, "SABLE's Bounty pays per kill on extract (%d)" % int(out["bounty"]))
+	_check(int(out["xp"]) == Characters.XP_EXTRACT + 10 + 25 + 50 + 50 + 100, "kills and the extract give XP (%d)" % int(out["xp"]))
+	_check(int(Characters.raid_ended(hunter, false, kills)["bounty"]) == 0, "die and the bounty is lost")
+	# The server's check of a hideout change.
+	var old_profile := {"characters": Characters.fresh(), "trader_levels": {"guns": 3}}
+	var new_profile := {"characters": Characters.fresh(), "trader_levels": {"guns": 3}}
+	(new_profile["characters"]["unlocked"] as Array).append("sable")
+	var check := Characters.changes(old_profile, new_profile)
+	_check(check["error"] == "" and int(check["money"]) == 400000, "online, unlocking SABLE costs $400,000")
+	new_profile["trader_levels"] = {"guns": 2}
+	_check(Characters.changes(old_profile, new_profile)["error"] != "", "and is refused below Ponta level 3")
+	var cheat := {"characters": Characters.fresh()}
+	Characters.char_of(cheat["characters"], "vega")["xp"] = 5000
+	_check(Characters.changes(old_profile, cheat)["error"] != "", "XP can't be changed from the hideout")
+	var greedy := {"characters": Characters.fresh()}
+	Characters.char_of(greedy["characters"], "vega")["spent"]["u0"] = 3
+	_check(Characters.changes(old_profile, greedy)["error"] != "", "nor points spent that weren't earned")
+	# Online tags: steps can't be made quieter than VEGA's quietest.
+	_check(Characters.clean_tag("000") == "005" and Characters.clean_tag("x") == "" and Characters.clean_tag("975") == "",
+		"a made-up character tag is cleaned or dropped")
+	var tagged := Operators.to_text(Profile.look) + Characters.net_tag(Characters.fresh())
+	_check(Characters.steps_of_look(tagged, Operators.SLOTS.size()) < 1.0, "VEGA's footsteps carry less far online")
+	# KORR's Pack Rat: wider pockets.
+	var rat := Characters.fresh()
+	(rat["unlocked"] as Array).append("korr")
+	rat["selected"] = "korr"
+	_check(Characters.pocket_width(rat) == 5 and Characters.pocket_width(Characters.fresh()) == 4, "KORR has a 5th pocket slot")
+	# In the raid: the player wears the picked character (VEGA, level 1: +2%% speed).
+	_check(is_equal_approx(player.walk_speed, 3.1 * 1.02) and is_equal_approx(player.gun.recoil_pitch_deg / maxf(ItemDB.weapon_stats(player.gun.weapon)["recoil"], 0.001), 1.025)
+		if player.gun.weapon != null else is_equal_approx(player.walk_speed, 3.1 * 1.02),
+		"the raid's player moves 2%% faster as a level 1 VEGA (%.3f m/s)" % player.walk_speed)
 
 
 func _section_crafting() -> void:
@@ -8624,7 +8711,8 @@ func _section_reacts() -> void:
 	Input.action_press("move_forward")
 	for i in 60:
 		await physics_frame
-		if absf(blinds.swing[0]) > absf(swung):
+		# (the first big swing: walking on past, they can swing back the other way; 0.37.0, characters walk faster)
+		if absf(swung) < 0.6 and absf(blinds.swing[0]) > absf(swung):
 			swung = blinds.swing[0]
 	Input.action_release("move_forward")
 	_check(swung < -0.6, "walking through blinds swings them up and away from you (%.2f rad)" % swung)

@@ -64,6 +64,14 @@ func show_result(kills: int) -> void:
 	_loot.text = ", ".join(raid.loot_summary) if not raid.loot_summary.is_empty() else "nothing"
 	_tag_text = ("KEPT  %s" if _extracted else "LOST  %s") % ItemDB.money(raid.loot_value)
 	_kept.text = "Your gear is waiting in the hideout." if _extracted else "Only your secure pocket made it back."
+	var outcome: Dictionary = Characters.last_raid
+	if not outcome.is_empty():
+		var line := "%s +%d XP, level %d" % [Characters.LIST[outcome["id"]]["name"], int(outcome["xp"]), int(outcome["level"])]
+		if int(outcome["levels_gained"]) > 0:
+			line += " (level up!)"
+		if int(outcome["bounty"]) > 0:
+			line += " · Bounty +%s" % ItemDB.money(int(outcome["bounty"]))
+		_kept.text += "\n" + line
 	for chip in _chips.get_children():
 		chip.queue_free()
 	for entry in [["KILLS", str(kills)], ["MONEY", ItemDB.money(Profile.money)], ["RAIDS", str(int(Profile.stats["raids"]))],

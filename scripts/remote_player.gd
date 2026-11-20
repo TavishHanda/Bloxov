@@ -49,6 +49,8 @@ var player_name := ""
 var teammate := false
 ## No footsteps (the free camera's stand-in for you, 0.31.12: your own steps already play).
 var quiet := false
+## How far their footsteps carry (their character's, from their look's tag: Characters.steps_of_look; 0.37.0).
+var step_mult := 1.0
 ## The state being shown right now.
 var shown: Array = []
 ## [arrival seconds, state], oldest first.
@@ -231,7 +233,7 @@ func _footsteps(flags: int, speed: float, delta: float) -> void:
 		volume = STEP_DB_SPRINT
 		reach = STEP_RANGE_SPRINT
 		_stride_left = 1.9
-	Surfaces.step(self, volume, true, 1.0, unit_size, reach)
+	Surfaces.step(self, volume, true, 1.0, unit_size, reach * step_mult)
 
 
 ## The ladder they're on, if any: up off its foot, on its climbing side, in the middle (null = none).

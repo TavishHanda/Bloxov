@@ -132,6 +132,7 @@ func sync_remotes(states: Dictionary) -> void:
 			var pixel := remote.model as PixelModel
 			if pixel != null:
 				pixel.pick_outfit(Operators.from_text(String(Network.main.looks.get(peer, ""))))
+			remote.step_mult = Characters.steps_of_look(String(Network.main.looks.get(peer, "")), Operators.SLOTS.size())
 			remotes[peer] = remote
 		remote.push_state(states[peer])
 

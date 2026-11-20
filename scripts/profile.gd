@@ -46,6 +46,9 @@ static var bench_level := 1
 static var crafted: Dictionary = {}
 ## Saved loadouts (0.21.2, owner): [{"name", "kit"}, ...], see Loadouts.
 static var loadout_presets: Array = []
+## The playable characters (0.37.0, see Characters): which is picked, which are unlocked, each one's XP and points.
+## Per stash (PvE and PvP keep their own).
+static var characters: Dictionary = Characters.fresh()
 ## Your character's look (0.21.6, the wardrobe): {part: option}, see Operators.
 static var look: Dictionary = Operators.clean({})
 ## Your corner of the hideout (lively hideout): spot -> picked option, see Decor. Account-wide like the look.
@@ -144,6 +147,7 @@ static func _apply(data: Dictionary) -> void:
 		var preset := Loadouts.clean(entry)
 		if not preset.is_empty() and loadout_presets.size() < Loadouts.MAX:
 			loadout_presets.append(preset)
+	characters = Characters.clean(data.get("characters"))
 	look = Operators.clean(data.get("look"))
 	decor = Decor.clean(data.get("decor"))
 	# (a save from before the tutorial: anyone who has played already skips it, owner)
@@ -267,6 +271,7 @@ static func reset() -> void:
 	bench_level = 1
 	crafted = {}
 	loadout_presets = []
+	characters = Characters.fresh()
 	look = Operators.clean({})
 	decor = {}
 	tutorial = fresh_tutorial()
@@ -360,6 +365,7 @@ static func online_data() -> Dictionary:
 		"presets": loadout_presets,
 		"bench_level": bench_level,
 		"crafted": crafted,
+		"characters": characters,
 	}
 
 
@@ -469,6 +475,7 @@ static func apply_inventory(inventory: Inventory, data: Dictionary) -> void:
 		var entry = equipment.get(slot)
 		if entry is Dictionary and ItemDB.ITEMS.has(str(entry.get("id", ""))):
 			inventory.equip(slot, _read_stack(entry))
+	inventory.set_pocket_width(Characters.pocket_width(characters))   # (KORR's Pack Rat, 0.37.0)
 	_read_grid(_array(data.get("pockets")), inventory.pockets)
 	if inventory.backpack != null:
 		_read_grid(_array(data.get("backpack")), inventory.backpack)
