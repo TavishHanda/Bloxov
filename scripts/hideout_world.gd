@@ -22,7 +22,7 @@ const FLOOR_GAP := 1.5     # (0.25.37) how far over or under you a station can b
 ## What each station is called on the USE prompt (traders take their names from Traders.LIST).
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
-	"lights": "Lights", "jukebox": "Jukebox", "sink": "Sink"}
+	"lights": "Lights", "jukebox": "Jukebox", "sink": "Sink", "bag": "Punching bag"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
 const STATION_NOTES := {"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
@@ -441,6 +441,8 @@ func station_label(id: String) -> String:
 			return "Turn the jukebox " + ("off" if HideoutToys.jukebox_on else "on")
 		"darts":
 			return "Play darts"
+		"bag":
+			return "Hit the bag"
 		"sink":
 			return "Turn the tap off" if _life != null and _life.tap_on else "Run the tap"
 	return station_name(id)

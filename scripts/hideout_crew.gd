@@ -26,7 +26,7 @@ const STUCK_AFTER := 3.0     # seconds walking without getting closer: give up a
 const SETTLE := 0.6          # seconds to step into place once there
 ## Who lives here: their look (TraderLooks.CREW) and their favourite thing to do.
 const CREW := [["sleeper", "sleep"], ["cook", "cook"], ["cards_a", "cards_a"], ["cards_b", "cards_b"],
-	["mechanic", "fix"], ["coffee", "coffee"], ["roam_a", "war"], ["roam_b", "den"]]
+	["mechanic", "fix"], ["coffee", "coffee"], ["roam_a", "war"], ["roam_b", "den"], ["boxer", "gym"]]
 
 var walker: Node3D
 ## Each one: {"id", "model", "pose", "phase", "look" (radians the head's turned), "next" (seconds to their next sound)};
@@ -97,6 +97,9 @@ func _crew(level: Node3D) -> void:
 	if life != null and life.has_meta(&"generator"):
 		var gen: Vector3 = life.get_meta(&"generator")
 		_act("fix", "fix", Vector3(gen.x, 0.0, gen.z + 0.95), Vector3.BACK, Vector2(30, 70))
+	if life != null and life.has_meta(&"bag_bottom"):   # (0.36.39: working the gym's bag)
+		var bag: Vector3 = life.get_meta(&"bag_bottom")
+		_act("gym", "punch", Vector3(bag.x + 0.85, 0.0, bag.z), Vector3.RIGHT, Vector2(30, 80))
 	var spot := level.get_node_or_null("Range/Spot") as Node3D
 	if spot != null:
 		_act("coffee", "coffee", spot.position + Vector3(3.1, 0.0, 1.6), Vector3(0.5, 0.0, 0.8).normalized(), Vector2(25, 60))
@@ -471,6 +474,14 @@ func _pose(m: Dictionary, delta: float) -> void:
 			else:
 				arms = {"ArmL": Vector3(-10, 0, -38), "ElbowL": Vector3(-80, 0, 0), "ArmR": Vector3(-10, 0, 38),
 					"ElbowR": Vector3(-80, 0, 0), "Neck": Vector3(-6, 35.0 * sin(t * 0.25), 0)}
+		"punch":   # (0.36.39) guard up, jabs left and right in bursts, a breather between; the bag takes each one
+			var burst := 1.0 if sin(t * 0.5) > -0.4 else 0.0
+			var jl := burst * maxf(0.0, sin(t * 7.0)) ** 6.0
+			var jr := burst * maxf(0.0, -sin(t * 7.0)) ** 6.0
+			arms = {"ArmL": Vector3(50 + 38.0 * jl, 0, -14 + 10.0 * jl), "ElbowL": Vector3(-120 + 112.0 * jl, 0, 0),
+				"ArmR": Vector3(50 + 38.0 * jr, 0, 14 - 10.0 * jr), "ElbowR": Vector3(-120 + 112.0 * jr, 0, 0),
+				"Spine": Vector3(6, 8.0 * (jl - jr), 0), "Neck": Vector3(-6, 0, 0)}
+			_jab(m, maxf(jl, jr))
 		"coffee":   # a mug at the chest, a sip now and then
 			var sip := maxf(0.0, sin(t * 0.45)) ** 10.0
 			arms = {"ArmR": Vector3(22 + 18.0 * sip, 0, 10), "ElbowR": Vector3(-95 - 35.0 * sip, 0, 0),
@@ -486,6 +497,16 @@ func _pose(m: Dictionary, delta: float) -> void:
 		_look(m, neck, delta, 1.0)
 		var n: Vector3 = neck["Neck"]
 		pose.joint("Neck").rotation = Vector3(deg_to_rad(n.x), deg_to_rad(n.y), deg_to_rad(n.z))
+
+
+## The boxer's fist reaching the bag (0.36.39): one hit per jab, as it lands.
+func _jab(m: Dictionary, reach: float) -> void:
+	if reach > 0.95 and not m.get("jabbed", false):
+		m["jabbed"] = true
+		for node: Node in RaidScope.nodes(self, &"punching_bag"):
+			(node as PunchingBag).punch((m["model"] as Node3D).global_position + Vector3.UP * 1.3, 0.35)
+	elif reach < 0.3:
+		m["jabbed"] = false
 
 
 ## True if one of the others is doing something close by (someone to talk to).
