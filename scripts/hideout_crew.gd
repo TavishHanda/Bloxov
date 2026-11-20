@@ -72,6 +72,8 @@ func _add(id: String, at: Vector3, back: Vector3, look := {}) -> void:
 	pose.armed = false
 	members.append({"id": id, "model": model, "pose": pose, "phase": _dice.randf() * TAU, "look": 0.0,
 		"next": _dice.randf_range(1.0, 6.0), "nod": 0.0, "near": false})
+	if id.begins_with("trader_"):   # (0.36.40: their own idles, hands placed where they really are)
+		members[-1]["idle"] = TraderIdle.new(id.trim_prefix("trader_"), model, pose, _dice)
 
 
 ## The things to do (from the hideout level: its Life metadata, its seats, the stations, the range and the den), then
@@ -301,21 +303,6 @@ func _show_props(m: Dictionary, kind: String) -> void:
 func _props() -> void:
 	for m: Dictionary in members:
 		var pose: BodyPose = m["pose"]
-		match m["id"]:
-			"trader_guns":   # a rifle across the hands, being cleaned
-				_box(pose.joint("ElbowR"), Vector3(0.05, 0.08, 0.75), Vector3(0.12, -0.34, -0.1), Color(0.18, 0.18, 0.19), Vector3(0, -70, 0))
-				_box(pose.joint("ElbowL"), Vector3(0.07, 0.03, 0.09), Vector3(0, -0.36, -0.02), Color(0.85, 0.82, 0.72))
-			"trader_supplies":   # a wad of cash
-				_box(pose.joint("ElbowL"), Vector3(0.07, 0.04, 0.14), Vector3(0, -0.35, -0.06), Color(0.42, 0.6, 0.38))
-				_box(pose.joint("ElbowR"), Vector3(0.07, 0.006, 0.14), Vector3(0, -0.35, -0.06), Color(0.42, 0.6, 0.38))
-			"trader_valuables":   # a gold watch held up to the loupe
-				_box(pose.joint("ElbowR"), Vector3(0.05, 0.05, 0.015), Vector3(0, -0.37, -0.05), Color(0.85, 0.68, 0.25))
-			"trader_ming":   # a deck in each hand, shuffled together
-				for side: String in ["ElbowL", "ElbowR"]:
-					_box(pose.joint(side), Vector3(0.07, 0.04, 0.1), Vector3(0, -0.36, -0.05), Color(0.93, 0.91, 0.86))
-			"trader_meds":   # a clipboard and a pen
-				_box(pose.joint("ElbowL"), Vector3(0.2, 0.015, 0.27), Vector3(0.04, -0.37, -0.08), Color(0.55, 0.42, 0.28))
-				_box(pose.joint("ElbowR"), Vector3(0.012, 0.012, 0.11), Vector3(0, -0.36, -0.05), Color(0.15, 0.15, 0.18))
 		if m.has("props"):   # (the crew: everything they might hold, shown by what they're doing)
 			var props: Dictionary = m["props"]
 			props["spoon"] = [_box(pose.joint("ElbowR"), Vector3(0.025, 0.4, 0.025), Vector3(0, -0.36, -0.08), Color(0.5, 0.5, 0.52), Vector3(-50, 0, 0))]
@@ -431,6 +418,12 @@ func _pose(m: Dictionary, delta: float) -> void:
 	# The rest stand or kneel: BodyPose does the legs, the breathing and the feet, then the arms are theirs.
 	pose.crouch = 1.0 if kind == "fix" else 0.0
 	pose.update(delta)
+	if m.has("idle"):   # the traders (TraderIdle): hands put where they are, the head on top
+		var head := {"Neck": (m["idle"] as TraderIdle).update(delta, bool(m["near"]))}
+		_look(m, head, delta, 0.8)
+		var nk: Vector3 = head["Neck"]
+		pose.joint("Neck").rotation = Vector3(deg_to_rad(nk.x), deg_to_rad(nk.y), deg_to_rad(nk.z))
+		return
 	var arms := {}
 	match kind:
 		"cook":   # stirring the pot
@@ -440,25 +433,6 @@ func _pose(m: Dictionary, delta: float) -> void:
 			var turn := sin(t * 4.0)
 			arms = {"ArmR": Vector3(62 + 12.0 * turn, 0, 6), "ElbowR": Vector3(-30 - 10.0 * turn, 0, 0),
 				"ArmL": Vector3(70, 0, -10), "ElbowL": Vector3(-25, 0, 0), "Neck": Vector3(-12, 0, 0)}
-		"trader_guns":   # wiping down a rifle held across the body
-			var wipe := sin(t * 2.2)
-			arms = {"ArmR": Vector3(38, 0, 12), "ElbowR": Vector3(-75, 0, 0), "ArmL": Vector3(40 + 12.0 * wipe, 30.0 * wipe, -6),
-				"ElbowL": Vector3(-70, 0, 0), "Neck": Vector3(-24, 0, 0)}
-		"trader_supplies":   # counting cash, a note at a time
-			var flick := maxf(0.0, sin(t * 3.4)) ** 4.0
-			arms = {"ArmL": Vector3(30, 0, -6), "ElbowL": Vector3(-80, 0, 0), "ArmR": Vector3(30 + 18.0 * flick, 0, 10),
-				"ElbowR": Vector3(-78 - 14.0 * flick, -10.0 * flick, 0), "Neck": Vector3(-20, 0, 0)}
-		"trader_valuables":   # turning a watch over under the loupe
-			arms = {"ArmR": Vector3(55, 0, 22), "ElbowR": Vector3(-115 + 10.0 * sin(t * 0.6), 45.0 * sin(t * 0.9), 0), "ArmL": Vector3(8, 0, -6),
-				"ElbowL": Vector3(-20, 0, 0), "Neck": Vector3(-6, 0, 0)}
-		"trader_ming":   # shuffling: the decks riffle together, again and again
-			var riffle := sin(t * 5.0)
-			arms = {"ArmL": Vector3(35, 0, -8 + 6.0 * riffle), "ElbowL": Vector3(-65, 0, 0), "ArmR": Vector3(35, 0, 8 + 6.0 * riffle),
-				"ElbowR": Vector3(-65, 0, 0), "Neck": Vector3(-14, 0, 0)}
-		"trader_meds":   # writing notes on a clipboard
-			var write := sin(t * 6.0) * 2.5
-			arms = {"ArmL": Vector3(35, 0, -4), "ElbowL": Vector3(-80, 0, 0), "ArmR": Vector3(38, 4.0 * write, 6),
-				"ElbowR": Vector3(-82 + 3.0 * write, 0, 0), "Neck": Vector3(-26, 0, 0)}
 		"war":   # leant on the war table over the map, now and then pointing at something
 			var point := maxf(0.0, sin(t * 0.3)) ** 6.0
 			arms = {"ArmL": Vector3(58, 0, -14), "ElbowL": Vector3(-25, 0, 0), "ArmR": Vector3(58 + 25.0 * point, 0, 14 - 6.0 * point),

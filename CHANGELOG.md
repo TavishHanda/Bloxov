@@ -26,6 +26,16 @@ be built up", and "roof access ... on buildings where it makes sense"). One new 
   wall (the stairs now open where it stood).
 - Roof access: stairwell A goes on up to a stair hut and a door onto the tower roof (inside its parapet); a ladder up
   the customs hall's south wall to its roof. Navigation re-baked. **Net version 11** (map geometry).
+## 0.36.40 (Trader idles)
+Owner asked (2026-11-20): the traders behind their counters were "dilly dallying around doing some weird stuff with
+their arms". Their arms were swung by fixed angles, so hands waved about in mid-air. Now each hand is put somewhere
+real and the arm bends to reach it (`scripts/trader_idle.gd`, `TraderIdle`, using `BodyPose._reach`):
+- Each trader goes from one thing to the next every few seconds, easing between them: mostly their own job, between
+  it leaning on the counter, drumming their fingers, arms folded, chin in a hand, a look back at the shelves.
+- Their jobs: Ponta wipes down a rifle lying on the counter, Big Don counts a wad of cash, Supreme looks a gold watch
+  over by his eyeglass, Ming shuffles a deck over the counter, the Medic writes on a clipboard on the counter.
+- Walk up to the counter and they stop, lean on it and look at you (the nod is kept).
+- Looks only, nothing saved or sent online. `tools/trader_idle_view.gd` renders them (stills, each thing, clips).
 
 ## 0.36.39 (The gym)
 Owner picked it from the hideout ideas (2026-11-19: "3 i like"): the trader market's empty far end is a gym now.
