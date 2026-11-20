@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.42 (Four new guns: Viper, Hornet, Brawler, Talon)
+Owner asked (2026-11-20: "2 of each weapon type at least"; names OK'd, no Mk II versions, the Jackal left for now).
+Numbers are a start, to tune after playing. Made-up names, no real gun brands (`docs/STORE_RULES.md`).
+- **Viper** (pistol, secondary): 30 damage, 7 rounds, slower and kicks more than the Stinger. Stinger rounds. Ponta L2, $6,500.
+- **Hornet** (SMG): 24 damage at 700 rpm, 30 rounds (40 with the extended mag), less falloff than the Wasp. Wasp
+  rounds. Ponta L2, $14,000.
+- **Brawler** (semi-auto shotgun): no pump, 8 shells, pellets 12 each with a wider spread. Mauler shells. Ponta L2, $15,000.
+- **Talon** (semi-auto marksman rifle): 55 damage, 10 rounds, 4x scope at most. Lancer rounds. Ponta L3, $26,000.
+- Each has its own model (`make_gun.py`), first-person hands (`make_hands.py`) and icon; it uses its type's shot and
+  reload sounds at its own pitch (`GunSounds.SOUND_OF`).
+- The AI sometimes carries a Hornet, Brawler or Viper (5 each on top of the old odds; Raiders Hornet 8, Brawler 5).
+  They fight like the gun of their type (`AILoadouts.STYLE_OF`), so the AI's fighting is unchanged.
+- Net version 12 (new item ids, trader stock and AI guns).
+
 ## 0.36.41 (Riptide art: Harbor Tower and the plaza)
 Owner asked (2026-11-19, shore pass 2: "yes"; on the pictures, 2026-11-20: "looks good", the tower's rooms "all have to
 be built up", and "roof access ... on buildings where it makes sense"). One new model, `harbor_plaza` (origin -100, 0,

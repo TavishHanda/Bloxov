@@ -10,10 +10,13 @@ extends RefCounted
 const REST_TURN := {"shotgun": Vector3(0.0, 0.1, 0.1)}
 ## Where each model sits at rest, and when aimed (centred; the height comes from the model's iron sights, see
 ## aim_height()). The rifle's and pistol's rest places are their nodes' in player.tscn.
-const REST := {"reaper": Vector3(0.22, -0.2, -0.42), "smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2, -0.42), "sniper": Vector3(0.22, -0.2, -0.44)}
-const ADS := {"reaper": Vector3(0, -0.092, -0.26), "smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.072, -0.38), "sniper": Vector3(0, -0.084, -0.4)}
+const REST := {"reaper": Vector3(0.22, -0.2, -0.42), "smg": Vector3(0.2, -0.19, -0.38), "shotgun": Vector3(0.22, -0.2, -0.42), "sniper": Vector3(0.22, -0.2, -0.44),
+	"viper": Vector3(0.17, -0.16, -0.36), "hornet": Vector3(0.2, -0.19, -0.38), "brawler": Vector3(0.22, -0.2, -0.42), "talon": Vector3(0.22, -0.2, -0.44)}
+const ADS := {"reaper": Vector3(0, -0.092, -0.26), "smg": Vector3(0, -0.086, -0.32), "shotgun": Vector3(0, -0.072, -0.38), "sniper": Vector3(0, -0.084, -0.4),
+	"viper": Vector3(0, -0.036, -0.28), "hornet": Vector3(0, -0.086, -0.32), "brawler": Vector3(0, -0.072, -0.38), "talon": Vector3(0, -0.084, -0.38)}
 ## View model key -> the weapon whose model it shows (HeldGun.MODELS).
-const WEAPONS := {"rifle": "ak", "reaper": "reaper", "pistol": "pistol", "smg": "smg", "shotgun": "shotgun", "sniper": "sniper"}
+const WEAPONS := {"rifle": "ak", "reaper": "reaper", "pistol": "pistol", "smg": "smg", "shotgun": "shotgun", "sniper": "sniper",
+	"viper": "viper", "hornet": "hornet", "brawler": "brawler", "talon": "talon"}
 ## Aimed, the sight line runs through the middle of the screen, where the shots go (0.21.16: it sat 3 mm under it,
 ## so the sights pointed a little low of the crosshair, owner).
 
@@ -189,14 +192,16 @@ static var _parts := {}
 # --- Animations (0.20.24, owner: reload animations and a visual kick per shot) ------------------------
 
 ## How hard each model jolts back and up when it fires. Only the model moves: aim, recoil and spread don't change.
-const KICK := {"rifle": 1.0, "reaper": 0.9, "pistol": 0.8, "smg": 0.65, "shotgun": 1.7, "sniper": 1.9}
+const KICK := {"rifle": 1.0, "reaper": 0.9, "pistol": 0.8, "smg": 0.65, "shotgun": 1.7, "sniper": 1.9, "viper": 1.1, "hornet": 0.75, "brawler": 1.5,
+	"talon": 1.4}
 
 ## Each view model's own reload (0.25.29, owner: the Lancer had the same reload as the pistol): "rock" (the Hound: the
 ## mag rocks out and back in, the handle on its right is racked), "slap" (the Wasp: the cocking handle is locked back,
 ## the mag swapped, the handle slapped home), "drop" (the Stinger: the mag drops out of the grip, a new one goes in from
 ## below, the slide is racked), "bolt" (the Lancer: the bolt turns up and back, rounds are pushed in from the top, the
 ## bolt goes home), "shells" (the Mauler: a shell at a time into the port underneath).
-const RELOAD_STYLE := {"rifle": "rock", "reaper": "rock", "smg": "slap", "pistol": "drop", "sniper": "bolt", "shotgun": "shells"}
+const RELOAD_STYLE := {"rifle": "rock", "reaper": "rock", "smg": "slap", "pistol": "drop", "sniper": "bolt", "shotgun": "shells",
+	"viper": "drop", "hornet": "slap", "brawler": "shells", "talon": "rock"}
 
 
 ## The kick's offset to the model's place and turn, for kick amount `kick` (a spring, about 1 at its peak) and

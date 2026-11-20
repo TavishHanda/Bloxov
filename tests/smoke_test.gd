@@ -1882,6 +1882,21 @@ func _section_new_guns() -> void:
 		and is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 60.0), 0.7), "SMG damage drops off past 25 m")
 	_check(ItemDB.attachment_slot_for("sniper", "scope_8x") == "scope" and ItemDB.attachment_slot_for("shotgun", "choke") == "barrel"
 		and ItemDB.attachment_slot_for("shotgun", "scope_4x") == "", "the 8x scope and choke go on their guns")
+	# The second gun of each type (0.36.42, owner): Viper, Hornet, Brawler, Talon. Each takes its type's ammo, is sold by
+	# Ponta, has its own model (held and first person, with hands) and its type's sounds.
+	for pair: Array in [["viper", "pistol"], ["hornet", "smg"], ["brawler", "shotgun"], ["talon", "sniper"]]:
+		var id: String = pair[0]
+		var data := ItemDB.item(id)
+		var base := ItemDB.item(pair[1])
+		_check(ItemDB.kind(id) == "weapon" and data["ammo"] == base["ammo"] and data["slot"] == base["slot"] and Traders.trader_for(id) == "guns"
+			and GunViewModels.WEAPONS.get(data["model"], "") == id and HeldGun.MODELS.has(id) and AILoadouts.NET_GUNS.has(id)
+			and GunSounds.base_key(id) == GunSounds.base_key(pair[1]) and GunSounds.shot(id) == GunSounds.shot(pair[1]),
+			"%s: a %s with its ammo, sold by Ponta, its own model and its type's sounds" % [data["name"], base["name"]])
+	_check(not ItemDB.item("brawler").has("cycle") and ItemDB.item("brawler")["rpm"] > ItemDB.item("shotgun")["rpm"] * 2
+		and not ItemDB.item("talon").has("cycle") and ItemDB.item("talon")["mag"] == 10, "the Brawler and Talon are semi-auto: no pump or bolt")
+	_check(ItemDB.attachment_slot_for("brawler", "choke") == "barrel" and ItemDB.attachment_slot_for("talon", "scope_8x") == ""
+		and ItemDB.attachment_slot_for("talon", "suppressor") == "barrel" and ItemDB.attachment_slot_for("viper", "red_dot") == "sight",
+		"the new guns take their type's attachments (no 8x on the Talon)")
 	# Hold the shotgun (the AK goes back after).
 	var rifle := inv.unequip("primary")
 	var shotgun := ItemStack.new("shotgun")
@@ -1931,13 +1946,15 @@ func _section_new_guns() -> void:
 	dummy_health.current = 100000
 	player.teleport_to(dummy.global_position + Vector3(0, 0, 8))
 	await _frames(3)
-	for id: String in ["pistol", "ak", "smg", "shotgun", "sniper"]:
+	for id: String in ["pistol", "ak", "smg", "shotgun", "sniper", "viper", "hornet", "brawler", "talon"]:
 		var test_gun := ItemStack.new(id)
 		test_gun.loaded = 5
 		var slot := ItemDB.equip_slot(id)
 		var held := inv.unequip(slot)
 		if id == "sniper":
 			test_gun.attachments = {"scope": "scope_8x"}
+		elif id == "talon":
+			test_gun.attachments = {"scope": "scope_4x"}
 		inv.equip(slot, test_gun)
 		gun.select_slot(slot)
 		await create_timer(0.5).timeout
@@ -1973,7 +1990,19 @@ func _section_ai_loadouts() -> void:
 	var seen := {}
 	for i in 200:
 		seen[AILoadouts.pick("scav")] = true
-	_check(seen.size() == 4 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol"), "scavs carry AKs, SMGs, shotguns and pistols")
+	for i in 400:
+		seen[AILoadouts.pick("scav")] = true
+	_check(seen.size() == 7 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol") and seen.has("hornet")
+		and seen.has("brawler") and seen.has("viper"), "scavs carry AKs, SMGs, shotguns and pistols, and sometimes a Hornet, Brawler or Viper")
+	# The second gun of a type (0.36.42) fights like its type, only its shot sounds different.
+	var smg_ai := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	var hornet_ai := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
+	AILoadouts.apply_style(smg_ai, "smg")
+	AILoadouts.apply_style(hornet_ai, "hornet")
+	_check(hornet_ai.shot_damage == smg_ai.shot_damage and hornet_ai.burst_size == smg_ai.burst_size and hornet_ai.chase_range == smg_ai.chase_range
+		and hornet_ai.shot_pitch < smg_ai.shot_pitch, "a Hornet AI fights like a Wasp AI, its shots a little deeper")
+	smg_ai.free()
+	hornet_ai.free()
 	_check(AILoadouts.pick("sniper") == "sniper" and not AILoadouts.TABLES["raider"].has("pistol"), "sniper scavs carry the Lancer; Raiders no pistols")
 	var probe := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	var base_damage := probe.shot_damage
