@@ -3101,8 +3101,22 @@ func _section_hideout_world() -> void:
 	var crew_moved := {}
 	var shared := 0
 	var walked_fast := 0.0
+	# The traders (0.36.40, TraderIdle): their hands get where they're put (no arm waving in mid-air), they do more
+	# than one thing, and their job comes up most.
+	var traders := hcrew.members.filter(func(m: Dictionary) -> bool: return m.has("idle"))
+	var trader_beats := {}
+	var trader_work := 0
+	var trader_miss := 0.0
 	for i in 1500:
 		hcrew._process(0.2)
+		for m: Dictionary in traders:
+			var idle: TraderIdle = m["idle"]
+			trader_beats[idle.trader + "/" + idle.beat] = true
+			trader_work += 1 if idle.beat == "work" else 0
+			for side: String in ["L", "R"]:
+				var hand := idle.model.to_local(idle.pose.joint("Elbow" + side).global_transform * Vector3(0, -BodyPose.REACH, 0))
+				var miss := hand.distance_to(idle._hand_l if side == "L" else idle._hand_r)
+				trader_miss = maxf(trader_miss, miss)
 		var on_spot := {}
 		for k in crew_only.size():
 			var m: Dictionary = crew_only[k]
@@ -3115,6 +3129,8 @@ func _section_hideout_world() -> void:
 			walked_fast = maxf(walked_fast, (m["pose"] as BodyPose).speed)
 	_check(den_act.size() > 0 and unreachable.is_empty() and crew_moved.size() >= 6 and shared == 0 and walked_fast >= 2.0,
 		"the crew get up and do other things: all %d spots (%s) reachable from the den (not %s), %d of %d moved (%s), none shared a spot (%d), they walk at %.1f m/s" % [hcrew.acts.size(), ", ".join(hcrew.acts.map(func(a: Dictionary) -> String: return a["name"])), unreachable, crew_moved.size(), crew_only.size(), ", ".join(crew_moved.keys()), shared, walked_fast])
+	_check(traders.size() == 5 and trader_beats.size() >= 20 and trader_work > 1500 * 5 / 3 and trader_miss < 0.04,
+		"the traders idle at their counters: hands within %.3f m of where they're put, %d things done between them, on their job %d%% of the time" % [trader_miss, trader_beats.size(), trader_work * 100 / (1500 * 5)])
 	hcrew.queue_free()
 	# The cat (lively hideout): none on a headless run; shown, it starts by the stove, walks round without leaving the
 	# floor or going through walls, comes to USE when you're by it and facing it, purrs when petted, and never collides.

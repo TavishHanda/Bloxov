@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.40 (Trader idles)
+Owner asked (2026-11-20): the traders behind their counters were "dilly dallying around doing some weird stuff with
+their arms". Their arms were swung by fixed angles, so hands waved about in mid-air. Now each hand is put somewhere
+real and the arm bends to reach it (`scripts/trader_idle.gd`, `TraderIdle`, using `BodyPose._reach`):
+- Each trader goes from one thing to the next every few seconds, easing between them: mostly their own job, between
+  it leaning on the counter, drumming their fingers, arms folded, chin in a hand, a look back at the shelves.
+- Their jobs: Ponta wipes down a rifle lying on the counter, Big Don counts a wad of cash, Supreme looks a gold watch
+  over by his eyeglass, Ming shuffles a deck over the counter, the Medic writes on a clipboard on the counter.
+- Walk up to the counter and they stop, lean on it and look at you (the nod is kept).
+- Looks only, nothing saved or sent online. `tools/trader_idle_view.gd` renders them (stills, each thing, clips).
+
 ## 0.36.39 (The gym)
 Owner picked it from the hideout ideas (2026-11-19: "3 i like"): the trader market's empty far end is a gym now.
 - A rubber floor, a steel beam across the tunnel with a punching bag on a chain, a pull-up bar on the end wall with a
