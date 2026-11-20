@@ -58,6 +58,7 @@ static func step(body: Node3D, volume_db: float, at_body := false, pitch := 1.0,
 	if world == null:
 		return   # (the game server: nothing to hear)
 	if range > 0.0:
+		range *= Characters.hearing   # (SABLE hears footsteps further, 0.37.0)
 		var camera := body.get_viewport().get_camera_3d()
 		if camera and camera.global_position.distance_to(body.global_position) > range:
 			return   # (too far off to hear: no need to look up the floor)
