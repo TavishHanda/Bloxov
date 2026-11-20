@@ -10685,13 +10685,22 @@ func _section_sound() -> void:
 		return all.back().stream if not all.is_empty() else null
 	WorldSounds.impact(main, spot + Vector3(4.95, 0.1, 0.3), Vector3.RIGHT)
 	_check(newest.call() == WorldSounds.IMPACTS[Surfaces.METAL], "...and it pings off the metal one")
+	# (0.38.5: on open ground away from the test boxes, still and standing, so there's always room to lie down; it used
+	# to lie down wherever the player had drifted to and failed about every other run.)
+	var stood_at := player.global_position
+	player.set_prone(false)
+	player.teleport_to(spot + Vector3(-12, 0.3, -12))
+	for i in 3:
+		await physics_frame
 	for turn in 4:   # (face where there's room to lie down: 0.25.26)
 		if player.lying_room():
 			break
 		player.rotation.y += PI * 0.5
+	var room: bool = player.lying_room()
 	player.set_prone(true)
 	var prone_sound: AudioStream = newest.call()
 	player.set_prone(false)
+	player.teleport_to(stood_at)
 	var door: Door = (load("res://scenes/door.tscn") as PackedScene).instantiate()
 	main.add_child(door)
 	door.global_position = spot + Vector3(0, 0, 6)
@@ -10700,7 +10709,7 @@ func _section_sound() -> void:
 	var opened: AudioStream = newest.call()
 	door.set_state(0)
 	_check(prone_sound == WorldSounds.PRONE and opened == WorldSounds.DOOR_OPEN and newest.call() == WorldSounds.DOOR_CLOSE,
-		"going prone rustles; a door creaks open and thuds shut (%s, %s, %s)" % [prone_sound == WorldSounds.PRONE, opened == WorldSounds.DOOR_OPEN, newest.call() == WorldSounds.DOOR_CLOSE])
+		"going prone rustles; a door creaks open and thuds shut (room %s: %s, %s, %s)" % [room, prone_sound == WorldSounds.PRONE, opened == WorldSounds.DOOR_OPEN, newest.call() == WorldSounds.DOOR_CLOSE])
 	door.queue_free()
 	# 0.20.3, items and guns: each gun's reload pitched its own way (today's sounds), sounds for each med and drink.
 	_check(GunSounds.reload_pitch("pistol") > GunSounds.reload_pitch("ak") and GunSounds.reload_pitch("sniper") < 1.0
