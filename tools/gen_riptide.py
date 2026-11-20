@@ -694,19 +694,32 @@ def _terminal():
         runs = [(-142.0, 4), (-112.0, 4), (-82.0, 2)] if r % 2 == 0 else [(-128.0, 4), (-98.0, 4), (-146.0, 1)]
         for k, (x0, cols) in enumerate(runs):
             block(x0, z0, cols, 3, hs, k=r * 7 + k * 3)
-    # single containers in the aisles (0.38.2, owner: "some containers block your movement by just cutting off a whole
-    # lane ... place them sideways"): along the aisle now, off its middle by turns, so there's a way round on both sides
-    # (1.3 m and 3.1 m); some open to walk through, both ends or one, some shut
-    for i, (x, z) in enumerate([(-122.0, -99.4), (-88.0, -99.4), (-108.0, -85.4), (-138.0, -71.4), (-76.0, -71.4),
-                                (-118.0, -57.4), (-92.0, -57.4)]):
-        zz = z + (0.9 if i % 2 else -0.9)
-        colour = ("container_b", "container_c", "container_a")[i % 3]
-        if i % 3 == 0:
-            open_container(x, SHORE, zz, "x", colour, 2)
-        elif i % 3 == 1:
-            open_container(x, SHORE, zz, "x", colour, 1 if i % 2 else -1)
+    # loose containers in the aisles (0.38.5, owner: "some containers block your movement by just cutting off a whole
+    # lane ... place them sideways"; then "one shipping container in the middle with two open sides ... make it more
+    # natural"): each one pulled out against a row's side, along the aisle, as if set down there to be loaded or
+    # emptied, leaving 2-4 m to go by. Some open at one end with crates set out by the doors, one open both ends, some
+    # shut and stacked two high; one a pair side by side.
+    cols = ("container_b", "container_c", "container_a")
+    for i, (x, zc, side, what) in enumerate([(-122.0, -99.4, -1, "open"), (-88.0, -99.4, 1, "stack"),
+                                             (-108.0, -85.4, -1, "pair"), (-138.0, -71.4, 1, "open"),
+                                             (-76.0, -71.4, -1, "stack"), (-118.0, -57.4, 1, "through"),
+                                             (-92.0, -57.4, -1, "stack")]):
+        z = zc + side * (3.4 - 1.2 - 0.15)
+        colour = cols[i % 3]
+        if what == "stack":
+            container(x, SHORE, z, "x", colour, 2)
+        elif what == "pair":
+            container(x, SHORE, z, "x", colour, 1)
+            open_container(x + 0.8, SHORE, z - side * 2.8, "x", cols[(i + 1) % 3], 1)    # (its doors clear the other)
+            box(x + 6.0, SHORE, z - side * 3.6 - 0.6, x + 7.2, SHORE + 1.0, z - side * 3.6 + 0.6, "wood", kind="crates")
         else:
-            container(x, SHORE, zz, "x", colour, 2)
+            e = 1 if i % 2 else -1
+            open_container(x, SHORE, z, "x", colour, 2 if what == "through" else e)
+            if what == "open":     # crates set out by the open doors
+                cx = x + e * 5.2
+                box(cx - 0.6, SHORE, z - side * 1.2 - 0.6, cx + 0.6, SHORE + 1.4, z - side * 1.2 + 0.6, "wood", kind="crates")
+                box(cx + e * 1.6 - 0.6, SHORE, z - side * 0.4 - 0.5, cx + e * 1.6 + 0.6, SHORE + 0.8, z - side * 0.4 + 0.5,
+                    "wood", kind="crates")
     with kinded("gantry"):
         for x in (-148.0, -64.0):                      # the gantry crane
             for z in (-99.0, -75.0):

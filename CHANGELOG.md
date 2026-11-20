@@ -10,11 +10,12 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 ## 0.38.5 (Riptide: the container yard opens up, a taller lighthouse)
 Owner's playtest feedback (2026-11-20: containers "cutting off a whole lane ... place them sideways"; "some have one
 side open some have both some have none"; the lighthouse "should for sure be taller ... a really cool sniper spot").
-- The container yard's single containers across the aisles now lie along them, off the middle by turns, so there's a
-  way round both sides (1.3 m and 3.1 m) and they still give cover. Some are open to walk through: both ends, one
-  end, or shut. A few stacks have a container open at the end of the run, a nook off the cross gaps. Open containers
-  are drawn inside and out (plank floor, doors swung back) by `open_cont` in `make_riptide_plaza.py`
-  (`open_container()` in `tools/gen_riptide.py`).
+- The container yard's loose containers no longer cross the aisles (owner: "cutting off a whole lane ... place them
+  sideways", then "one shipping container in the middle with two open sides ... make it more natural"): each is
+  pulled out against a row's side along the aisle, as if set down to be loaded, leaving 2-4 m to go by. Some are open
+  at one end with crates set out by the doors, one is open both ends, some are shut and two high, one is a pair side
+  by side. A few stacks have a container open at the end of the run, a nook off the cross gaps. Open containers are
+  drawn inside and out by `open_cont` in `make_riptide_plaza.py` (`open_container()` in `tools/gen_riptide.py`).
 - The lighthouse is a real lighthouse (owner: "its toooo square ... a bit taller"): an eight-sided tower in two
   stages (4 m across the flats at the foot, 3.4 m from 14 m up), white with red bands, 28 m to its watch room (was
   14): one long ladder up the inside, the watch room glazed all round with a door onto the gallery round it, the
