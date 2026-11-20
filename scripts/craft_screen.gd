@@ -101,6 +101,14 @@ func _build_bench() -> Control:
 		refresh())
 	_upgrade.name = "UpgradeButton"
 	box.add_child(_upgrade)
+	# (0.38.0, Expeditions) the truck's parts are built here too.
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(spacer)
+	box.add_child(_small("Your way out: build the truck and leave on an expedition."))
+	var truck := _button("THE TRUCK", 0, func() -> void: hideout.open_expedition())
+	truck.name = "TruckButton"
+	box.add_child(truck)
 	return parts[0]
 
 
