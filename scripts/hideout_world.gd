@@ -136,6 +136,21 @@ func _ready() -> void:
 		close_menu()
 	menu.replay_tutorial.connect(start_tutorial)
 	start_tutorial()
+	_first_pick()
+
+
+## A new player picks VEGA or VOSS (owner, 2026-11-20): the CHARACTERS screen opens once the walk round is done.
+func _first_pick() -> void:
+	if Profile.characters.get("picked", true):
+		return
+	if tutorial != null and not tutorial.is_queued_for_deletion():
+		if not tutorial.tree_exited.is_connected(_first_pick):
+			tutorial.tree_exited.connect(_first_pick, CONNECT_ONE_SHOT)
+		return
+	if not is_inside_tree():
+		return
+	open_menu()
+	menu.open_characters()
 
 
 ## The new player's walk round, if it's due (REPLAY TUTORIAL in OPTIONS starts it again here, back to walking).

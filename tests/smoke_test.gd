@@ -2758,16 +2758,23 @@ func _section_hideout_world() -> void:
 		"the RECORD tab shows your record")
 	menu_node.show_screen("traders")
 	_check(menu_node.current_screen() == "traders" and not menu_node.record.visible, "the TRADERS tab opens a trader's screen")
-	# The characters (0.37.0): pick VOSS, and back to VEGA.
+	# The characters (0.37.0): the first pick (VOSS, 0.38.3), then VEGA bought and played.
 	menu_node.show_screen("characters")
 	var chars: CharacterScreen = menu_node.character_screen
+	Profile.characters = Characters.fresh()
 	chars.look_at_character("voss")
+	_check(chars._action.text.begins_with("CHOOSE"), "a new player chooses a starter on the CHARS tab")
 	chars._on_action()
-	_check(menu_node.current_screen() == "characters" and Profile.characters["selected"] == "voss"
+	_check(menu_node.current_screen() == "characters" and Profile.characters["selected"] == "voss" and Profile.characters["picked"]
 		and Network.main.my_look.ends_with(Characters.net_tag(Profile.characters)), "the CHARS tab picks who you play (VOSS)")
 	chars.look_at_character("sable")
 	_check(chars._action.disabled and chars._status.text != "", "a locked character says what it needs (%s)" % chars._status.text)
+	var money_chars := Profile.money
+	Profile.money = Characters.STARTER_PRICE
 	chars.look_at_character("vega")
+	chars._on_action()
+	_check(Profile.money == 0 and (Profile.characters["unlocked"] as Array).has("vega"), "the other starter is bought for $50,000")
+	Profile.money = money_chars
 	chars._on_action()
 	menu_node.show_screen("gear")
 	_check(menu_node.current_screen() == "gear" and Profile.characters["selected"] == "vega", "and GEAR goes back to the stash")
@@ -4896,8 +4903,26 @@ func _section_playables() -> void:
 	# The playable characters (0.37.0, owner 2026-11-20): traits grow with level, points are the player's choice,
 	# unlocks cost money and a trader level, the server checks it all.
 	var state := Characters.fresh()
-	_check(state["selected"] == "vega" and (state["unlocked"] as Array) == ["vega", "voss"],
-		"a new profile plays VEGA, with VOSS also free")
+	_check(not state["picked"] and Characters.unlock_problem(state, "voss", 9999999, {}) != "",
+		"a new profile hasn't picked yet: nothing can be bought before the first pick")
+	_check(Characters.pick_starter(state, "voss") and state["selected"] == "voss" and (state["unlocked"] as Array) == ["voss"]
+		and not Characters.pick_starter(state, "vega"), "the first pick (VOSS) is free and only happens once")
+	_check(Characters.unlock_problem(state, "vega", Characters.STARTER_PRICE - 1, {}) != ""
+		and Characters.unlock_problem(state, "vega", Characters.STARTER_PRICE, {}) == "", "the other starter unlocks for $50,000, no trader level")
+	var legacy := Characters.clean({"selected": "voss", "unlocked": ["vega", "voss"]})
+	_check(legacy["picked"] and (legacy["unlocked"] as Array).has("vega") and (legacy["unlocked"] as Array).has("voss"),
+		"a save from before the first pick keeps both starters")
+	var first_old := {"characters": Characters.fresh()}
+	var first_new := {"characters": Characters.fresh()}
+	Characters.pick_starter(first_new["characters"], "voss")
+	var first_check := Characters.changes(first_old, first_new)
+	_check(first_check["error"] == "" and int(first_check["money"]) == 0, "online, the first pick is free (%s)" % first_check["error"])
+	var both := {"characters": first_new["characters"].duplicate(true)}
+	(both["characters"]["unlocked"] as Array).append("vega")
+	_check(Characters.changes(first_old, both)["error"] == "" and int(Characters.changes(first_new, both)["money"]) == Characters.STARTER_PRICE,
+		"and the second starter costs $50,000")
+	_check(int(Characters.changes(first_old, both)["money"]) == Characters.STARTER_PRICE, "even when both come in one change")
+	state = Characters.clean({"unlocked": ["vega", "voss"]})
 	var c := Characters.char_of(state, "vega")
 	_check(is_equal_approx(Characters.trait_value("vega", c, 0), 0.02) and is_equal_approx(Characters.trait_value("vega", c, 2), 0.0625),
 		"at level 1 a trait is a quarter of its size, good and bad (+2% speed, +6.25% stamina use)")
@@ -4947,20 +4972,20 @@ func _section_playables() -> void:
 	_check(int(out["xp"]) == Characters.XP_EXTRACT + 10 + 25 + 50 + 50 + 100, "kills and the extract give XP (%d)" % int(out["xp"]))
 	_check(int(Characters.raid_ended(hunter, false, kills)["bounty"]) == 0, "die and the bounty is lost")
 	# The server's check of a hideout change.
-	var old_profile := {"characters": Characters.fresh(), "trader_levels": {"guns": 3}}
-	var new_profile := {"characters": Characters.fresh(), "trader_levels": {"guns": 3}}
+	var old_profile := {"characters": Characters.clean({}), "trader_levels": {"guns": 3}}
+	var new_profile := {"characters": Characters.clean({}), "trader_levels": {"guns": 3}}
 	(new_profile["characters"]["unlocked"] as Array).append("sable")
 	var check := Characters.changes(old_profile, new_profile)
 	_check(check["error"] == "" and int(check["money"]) == 400000, "online, unlocking SABLE costs $400,000")
 	new_profile["trader_levels"] = {"guns": 2}
 	_check(Characters.changes(old_profile, new_profile)["error"] != "", "and is refused below Ponta level 3")
-	var cheat := {"characters": Characters.fresh()}
+	var cheat := {"characters": Characters.clean({})}
 	Characters.char_of(cheat["characters"], "vega")["xp"] = 5000
 	_check(Characters.changes(old_profile, cheat)["error"] != "", "XP can't be changed from the hideout")
-	var greedy := {"characters": Characters.fresh()}
+	var greedy := {"characters": Characters.clean({})}
 	Characters.char_of(greedy["characters"], "vega")["spent"]["u0"] = 3
 	_check(Characters.changes(old_profile, greedy)["error"] != "", "nor points spent that weren't earned")
-	var shared := {"characters": Characters.fresh()}
+	var shared := {"characters": Characters.clean({})}
 	Characters.char_of(shared["characters"], "vega")["exp_points"] = 4
 	var shared_after := {"characters": shared["characters"].duplicate(true)}
 	Characters.char_of(shared_after["characters"], "voss")["spent"]["u0"] = 3
