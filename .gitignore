@@ -29,6 +29,7 @@ __pycache__/
 !assets/models/outdoor/*.glb.import
 !assets/models/movers/*.glb.import
 !assets/models/props/cars/*.glb.import
+!assets/models/props/truck/*.glb.import
 !assets/textures/kit_atlas.png.import
 !assets/textures/riptide_atlas.png.import
 !assets/textures/glass.png.import
