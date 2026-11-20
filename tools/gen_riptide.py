@@ -392,13 +392,57 @@ def wagon(x, z, colour="rust"):
     box(x - 1.5, SHORE, z - 7.0, x + 1.5, SHORE + 3.8, z + 7.0, colour)
 
 
+def open_container(x, y, z, along, colour, ends, high=1):
+    """(0.38.2, owner: "some have one side open some have both some have none") a 6 x 2.4 container you can walk
+    into: thin walls and roof (kind ocont_part, drawn by the marker), the doors swung open at one end (ends 1: the
+    end towards +x / +z, ends -1: towards -x / -z) or both (ends 2). More containers stacked on its roof if high > 1.
+    The marker (not solid, kind ocont2 / ocont1p / ocont1n) tells the art what to draw."""
+    L, W, H, t = 6.0, 2.4, 2.6, 0.1
+    hx, hz = (L / 2, W / 2) if along == "x" else (W / 2, L / 2)
+    box(x - hx, y, z - hz, x + hx, y + H, z + hz, colour, solid=False,
+        kind="ocont2" if ends == 2 else ("ocont1p" if ends == 1 else "ocont1n"))
+    with kinded("ocont_part"):
+        if along == "x":
+            box(x - hx, y, z - hz, x + hx, y + H, z - hz + t, colour)
+            box(x - hx, y, z + hz - t, x + hx, y + H, z + hz, colour)
+            box(x - hx, y + H - t, z - hz + t, x + hx, y + H, z + hz - t, colour)
+            if ends != 2:
+                ex = x - hx if ends == 1 else x + hx - t
+                box(ex, y, z - hz + t, ex + t, y + H - t, z + hz - t, colour)
+        else:
+            box(x - hx, y, z - hz, x - hx + t, y + H, z + hz, colour)
+            box(x + hx - t, y, z - hz, x + hx, y + H, z + hz, colour)
+            box(x - hx + t, y + H - t, z - hz, x + hx - t, y + H, z + hz, colour)
+            if ends != 2:
+                ez = z - hz if ends == 1 else z + hz - t
+                box(x - hx + t, y, ez, x + hx - t, y + H - t, ez + t, colour)
+        # (0.38.5, owner: "give the open containers doors still that kinda open like real shipping containers") the two
+        # leaves at each open end stand swung open 100 degrees, a little out past the sides
+        assert along == "x"
+        for e in ((-1, 1) if ends == 2 else ((1,) if ends == 1 else (-1,))):
+            for sg in (-1, 1):
+                th = math.radians(100.0)
+                dx, dz = e * math.sin(th), -sg * math.cos(th)
+                hx0, hz0 = x + e * hx, z + sg * (hz - 0.05)
+                obox(hx0 + dx * 0.6, y + 1.28, hz0 + dz * 0.6, 0.08, 2.5, 1.18, math.degrees(math.atan2(dx, dz)), colour,
+                     kind="ocont_door")
+    if high > 1:
+        container(x, y + H, z, along, colour, high - 1)
+
+
 def block(x0, z0, cols, rows, heights, k=0):
-    """Containers end to end along x (cols x 6 m) and side by side along z (rows x 2.4 m), stacked 1-3 high."""
+    """Containers end to end along x (cols x 6 m) and side by side along z (rows x 2.4 m), stacked 1-3 high.
+    (0.38.2) A single-high container in the middle row at either end of a run is open at its outer end, half the time:
+    a nook to duck into off the gap between runs."""
     cols_c = ("container_a", "container_b", "container_c")
     for i in range(cols):
         for j in range(rows):
             n = k + i * rows + j
-            container(x0 + 3.0 + 6.0 * i, SHORE, z0 + 1.2 + 2.4 * j, "x", cols_c[n % 3], heights[n % len(heights)])
+            x, z, h = x0 + 3.0 + 6.0 * i, z0 + 1.2 + 2.4 * j, heights[n % len(heights)]
+            if j == 1 and h == 1 and cols > 1 and i in (0, cols - 1) and n % 2 == 0:
+                open_container(x, SHORE, z, "x", cols_c[n % 3], 1 if i == cols - 1 else -1)
+            else:
+                container(x, SHORE, z, "x", cols_c[n % 3], h)
 
 
 WATER_LADDERS_QUAY = (-86.0, -40.0, 22.0, 70.0, 150.0)
@@ -485,6 +529,72 @@ CANNERY_CHAIRS = [("chair_n", -140.0, -164.8, 4.5), ("chair_n", -138.5, -147.4, 
                   ("chair_s", -138.0, -131.6, 4.5)]
 
 
+LH_TOP = SHORE + 28.0     # (0.38.5) the lighthouse's watch room floor
+
+
+def octagon_walls(cx, cz, r, y0, h, t, colour, kind, skip=()):
+    """Eight wall panels round (cx, cz), r to the outside of the flats, panel k facing k * 45 degrees (k 2: south, +z),
+    the panels in `skip` left out. Each panel is a little wider than its flat, so the corners close."""
+    w = 2.0 * r * math.tan(math.radians(22.5)) + 0.04
+    for k in range(8):
+        if k in skip:
+            continue
+        a = math.radians(k * 45.0)
+        obox(cx + math.cos(a) * (r - t / 2), y0 + h / 2, cz + math.sin(a) * (r - t / 2), w, h, t, 90.0 - k * 45.0,
+             colour, kind=kind)
+
+
+def octagon_disc(cx, cz, r, top, t, colour, kind):
+    """A solid octagon r across the flats (four crossed boxes, like the fuel tanks)."""
+    for yaw in (0, 45, 90, 135):
+        obox(cx, top - t / 2, cz, 2 * r, t, 2 * r * math.tan(math.radians(22.5)), yaw, colour, kind=kind)
+
+
+def lighthouse(lx, lz):
+    LM, LH = SHORE + 14.0, LH_TOP
+    R1, R2, RW, RG, T = 4.0, 3.4, 3.0, 4.4, 0.3
+    door_w = 1.6
+    with kinded("lh"):
+        # the foot: a stage 4 m across the flats, the door on its south flat (an axis-aligned panel, so it's cut by
+        # plain boxes), then a ledge and the upper stage
+        octagon_walls(lx, lz, R1, SHORE, LM - SHORE, T, "wall", "lh", skip=(2,))
+        fw = 2.0 * R1 * math.tan(math.radians(22.5)) + 0.04
+        zs = lz + R1 - T
+        box(lx - fw / 2, SHORE, zs, lx - door_w / 2, LM, zs + T, "wall")
+        box(lx + door_w / 2, SHORE, zs, lx + fw / 2, LM, zs + T, "wall")
+        box(lx - door_w / 2, SHORE + DOOR_H, zs, lx + door_w / 2, LM, zs + T, "wall")
+        octagon_walls(lx, lz, R1 + 0.25, LM - 0.3, 0.3, R1 + 0.25 - R2 + T, "wall", "lh_ledge")
+        octagon_walls(lx, lz, R2, LM, LH - LM, T, "wall", "lh")
+        # the watch room's floor: a square with the ladder's hatch, filled out to the octagon on its four flats; the
+        # gallery round it
+        q = 2.1
+        slab(lx - q, lx + q, lz - q, lz + q, LH, "concrete", holes=[(lx - 1.8, lx - 0.6, lz + 0.6, lz + 2.0)])
+        ap = R2 - T
+        for sx, sz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            wdt = 2 * ap * math.tan(math.radians(22.5))
+            if sx:
+                box(min(lx + sx * q, lx + sx * ap), LH - SLAB_T, lz - wdt / 2, max(lx + sx * q, lx + sx * ap), LH, lz + wdt / 2, "concrete")
+            else:
+                box(lx - wdt / 2, LH - SLAB_T, min(lz + sz * q, lz + sz * ap), lx + wdt / 2, LH, max(lz + sz * q, lz + sz * ap), "concrete")
+        octagon_walls(lx, lz, RG, LH - SLAB_T, SLAB_T, RG - RW + 0.3, "concrete", "lh_gallery")
+        octagon_walls(lx, lz, RG, LH, 1.1, 0.12, "metal", "lh_rail")
+        # the watch room: a low wall, glass from 1.0 to 2.3 (open: you shoot through it), a band over it, posts at
+        # the corners; the door onto the gallery on the south flat
+        ww = 2.0 * RW * math.tan(math.radians(22.5))
+        for k in range(8):
+            a = math.radians(k * 45.0)
+            px, pz = lx + math.cos(a) * (RW - 0.1), lz + math.sin(a) * (RW - 0.1)
+            if k != 2:
+                obox(px, LH + 0.5, pz, ww + 0.04, 1.0, 0.2, 90.0 - k * 45.0, "wall", kind="lh_watch")
+            obox(px, LH + 2.65, pz, ww + 0.04, 0.7, 0.2, 90.0 - k * 45.0, "wall", kind="lh_watch")
+            c = math.radians(k * 45.0 + 22.5)
+            rc = RW / math.cos(math.radians(22.5)) - 0.15
+            obox(lx + math.cos(c) * rc, LH + 1.65, lz + math.sin(c) * rc, 0.25, 1.3, 0.25, 90.0 - k * 45.0 - 22.5, "wall",
+                 kind="lh_watch")
+        octagon_disc(lx, lz, RW, LH + 3.0 + SLAB_T, SLAB_T, "concrete", "lh_roof")
+        box(lx - 1.1, LH + 3.0 + SLAB_T, lz - 1.1, lx + 1.1, LH + 6.0, lz + 1.1, "metal", kind="lantern")
+
+
 def north_point():
     """The north point (shore art pass 3a: model `north_point`): rocks, the lighthouse, the cove, the cannery, the
     fuel depot, the sheds on the north street."""
@@ -505,16 +615,13 @@ def _north_point():
                                      (-150, -170, 6, 5, 2.4, 15)]:
             obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     lx, lz = -62.0, -158.0
-    with kinded("lighthouse"):
-        room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, 14.0, "wall", s=[door(lx)])
-        slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
-        wall("x", lz - 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-        wall("x", lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-        wall("z", lx - 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
-        wall("z", lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
-    # (0.35.16: at the hatch's north edge facing north, so its top steps off onto the gallery, not into the wall)
-    ladder(lx - 2.1, SHORE, lz + 1.2, 0, 14.0, "Lighthouse")
-    perches.append((lx, SHORE + 14.0, lz, 1, 0))
+    # (0.38.5, owner: "lighthouse should for sure be taller ... a really cool sniper spot ... but also could cuck you by
+    # being easily camped"; then "make the lighthouse lighthouse shaped, its toooo square, also ... a bit taller") an
+    # eight-sided tower in two stages, 4 m across the flats at the foot stepping in to 3.4 m at 14 m up, 28 m to the
+    # watch room: one long ladder up the inside, the watch room glazed all round, a gallery round it, the lantern on top.
+    lighthouse(lx, lz)
+    ladder(lx - 1.2, SHORE, lz + 0.6, 0, LH_TOP - SHORE, "Lighthouse")
+    perches.append((lx, LH_TOP, lz, 1, 0))
     # (0.33.2, owner: extracts too easy to camp) the cove is a nook in the rocks: tall outcrops round it, the ways in
     # bent so nobody sees the zone from far off
     with kinded("rock"):
@@ -587,9 +694,45 @@ def _terminal():
         runs = [(-142.0, 4), (-112.0, 4), (-82.0, 2)] if r % 2 == 0 else [(-128.0, 4), (-98.0, 4), (-146.0, 1)]
         for k, (x0, cols) in enumerate(runs):
             block(x0, z0, cols, 3, hs, k=r * 7 + k * 3)
-    for i, (x, z) in enumerate([(-122.0, -99.3), (-88.0, -99.3), (-108.0, -85.3), (-138.0, -71.3), (-76.0, -71.3),
-                                (-118.0, -57.3), (-92.0, -57.3)]):
-        container(x, SHORE, z, "z", ("container_b", "container_c", "container_a")[i % 3], 1 + (i + 1) % 2)
+    # loose containers in the aisles (owner, 0.38.6: "some containers block your movement by just cutting off a whole
+    # lane ... place them sideways"; "one shipping container in the middle with two open sides ... make it more
+    # natural"; "its just one container sitting there. dont be afraid to add cover"): each spot is a little work area
+    # set against one row's side, along the aisle: the container being worked (open at one end with crates set out by
+    # its doors, open both ends, a pair, or shut and two high), a second container end to end with it 1.5 m off, drums
+    # in the gap between them, crates and drums along their aisle side. The aisle keeps 3 m to go by (the pair, 1.4 m).
+    cols = ("container_b", "container_c", "container_a")
+    for i, (x, zc, side, what, nb, nh) in enumerate([
+            (-122.0, -99.4, -1, "open", -1, 1), (-88.0, -99.4, 1, "stack", 1, 1), (-108.0, -85.4, -1, "pair", -1, 2),
+            (-125.0, -71.4, 1, "open", 1, 2), (-76.0, -71.4, -1, "stack", 0, 0), (-124.0, -57.4, 1, "through", -1, 1),
+            (-92.0, -57.4, -1, "stack", 1, 2)]):
+        z = zc + side * (3.4 - 1.2 - 0.15)
+        colour = cols[i % 3]
+        e = -nb if nb else (1 if i % 2 else -1)        # an open end faces away from the second container
+        if what == "stack":
+            container(x, SHORE, z, "x", colour, 2)
+        elif what == "pair":
+            container(x, SHORE, z, "x", colour, 1)
+            open_container(x + 0.8, SHORE, z - side * 2.8, "x", cols[(i + 1) % 3], e)    # (its doors clear the other)
+        else:
+            open_container(x, SHORE, z, "x", colour, 2 if what == "through" else e)
+        if what in ("open", "pair"):        # crates set out by the open doors
+            ox = (x + 0.8 if what == "pair" else x) + e * 5.0
+            oz = z - side * (2.8 if what == "pair" else 0.0) - side * 1.0
+            box(ox - 0.6, SHORE, oz - 0.6, ox + 0.6, SHORE + 1.4, oz + 0.6, "wood", kind="crates")
+            box(ox + e * 1.5 - 0.6, SHORE, oz + side * 0.6 - 0.5, ox + e * 1.5 + 0.6, SHORE + 0.8, oz + side * 0.6 + 0.5,
+                "wood", kind="crates")
+        if nb:                              # the second container, end to end, drums in the gap
+            container(x + nb * 7.5, SHORE, z, "x", cols[(i + 2) % 3], nh)
+            gx = x + nb * 3.75
+            box(gx - 0.7, SHORE, z - 0.7, gx + 0.7, SHORE + 1.0, z + 0.7, "metal", kind="drums")
+        # along the aisle side (from the containers' face out 1.2 m; the pair already fills that): a crate stack by the
+        # main container, a row of drums by the second one (or past the main one's far end)
+        if what != "pair":
+            f0, f1 = sorted((zc + side * 0.85, zc - side * 0.35))
+            box(x - 1.0, SHORE, f0, x + 1.0, SHORE + 1.4, f1, "wood", kind="crates")
+            dx = x + nb * 7.5 if nb else x + 4.6 * (1 if e < 0 else -1)
+            g0, g1 = sorted((zc + side * 0.85, zc + side * 0.05))
+            box(dx - 1.4, SHORE, g0, dx + 1.4, SHORE + 1.0, g1, "metal", kind="drums")
     with kinded("gantry"):
         for x in (-148.0, -64.0):                      # the gantry crane
             for z in (-99.0, -75.0):

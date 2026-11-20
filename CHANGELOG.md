@@ -7,6 +7,26 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.6 (Riptide: the container yard opens up, a taller lighthouse)
+Owner's playtest feedback (2026-11-20: containers "cutting off a whole lane ... place them sideways"; "some have one
+side open some have both some have none"; the lighthouse "should for sure be taller ... a really cool sniper spot").
+- The container yard's loose containers no longer cross the aisles (owner: "cutting off a whole lane ... place them
+  sideways", "make it more natural", "dont be afraid to add cover"): each spot is now a small work area set against
+  one row's side, along the aisle: the container being worked (open at one end with crates set out by its doors, open
+  both ends, a pair side by side, or shut and two high), a second container end to end with it 1.5 m off, drums in
+  the gap, crates and drums along the aisle side. The aisle keeps 3 m to go by (1.4 m past the pair). A few stacks
+  have a container open at the end of the run, a nook off the cross gaps. Open containers are drawn inside and out by
+  `open_cont` in `make_riptide_plaza.py` (`open_container()` in `tools/gen_riptide.py`); drums are drawn in the plaza
+  model now.
+- The lighthouse is a real lighthouse (owner: "its toooo square ... a bit taller"): an eight-sided tower in two
+  stages (4 m across the flats at the foot, 3.4 m from 14 m up), white with red bands, 28 m to its watch room (was
+  14): one long ladder up the inside, the watch room glazed all round with a door onto the gallery round it, the
+  lantern on top. One way up, so it can be camped. Its AI perch moved up with it.
+- The open containers' doors stand swung open like real ones (solid, a little out past the sides).
+- Stairs vs ladders checked: every building's main way up is stairs; ladders are only for water, boats, roof hatches
+  and the lighthouse (no change).
+- Net version 16 (map geometry).
+
 ## 0.38.5 (The truck's model)
 Owner (2026-11-20): "make the vehicle look nicer with proper model". The expedition truck was a handful of plain
 boxes; now it's a proper model in the game's kit (`art_source/scripts/make_truck.py`, one model per part, ~6k

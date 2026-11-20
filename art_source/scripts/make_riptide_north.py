@@ -10,6 +10,7 @@ rocks along the shore.
     python3 art_source/scripts/make_riptide.py north_point
 """
 import json
+import math
 import os
 import random
 import sys
@@ -30,12 +31,11 @@ DECK = SHORE + 4.5
 
 BUILDINGS = {
     "cannery": ([(-142.0, -96.0, -166.0, -130.0)], "rs_clad", "rip_panel", "rq_conc", "rip_steel_in", "rq_conc"),
-    "lighthouse": ([(-65.0, -59.0, -161.0, -155.0)], "rip_white", "rip_white", "rq_conc", "rq_conc", "rq_conc"),
     "nshed1": ([(-150.0, -136.0, -128.0, -118.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
     "nshed2": ([(-116.0, -100.0, -122.0, -112.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
     "nshed3": ([(-70.0, -58.0, -126.0, -114.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
 }
-TOPS = {"cannery": SHORE + 10.0, "lighthouse": SHORE + 14.0, "nshed1": SHORE + 4.0, "nshed2": SHORE + 5.0,
+TOPS = {"cannery": SHORE + 10.0, "lighthouse": SHORE + 25.0, "nshed1": SHORE + 4.0, "nshed2": SHORE + 5.0,
         "nshed3": SHORE + 4.5}
 TANKS = [(-86.0, -150.0), (-86.0, -136.0), (-74.0, -143.0)]
 
@@ -100,7 +100,7 @@ def top_of(kind):
 
 def band_list(kind, outside):
     if kind == "lighthouse":
-        return [(-99.0, SHORE + 0.5, "rs_plinth"), (SHORE + 0.5, SHORE + 12.6, "rip_white"), (SHORE + 12.6, 99.0, "rip_red")]
+        return [(-99.0, SHORE + 0.5, "rs_plinth"), (SHORE + 0.5, SHORE + 21.0, "rip_white"), (SHORE + 21.0, 99.0, "rip_red")]
     return [(-99.0, SHORE + 0.6, "rs_plinth"), (SHORE + 0.6, 99.0, outside)]
 
 
@@ -160,6 +160,57 @@ def tanks(m):
         for k in range(3, 10):
             m.box((lx, SHORE + 0.3 + k, lz), (0.6, 0.08, 0.6), mat("rip_yellow"), yaw=45, cull=False)
         cyl(b, (c[0], SHORE + 0.3, c[2]), 4.8, 0.6, "rip_iron", None, sides=16, caps=(False, False))
+
+
+LH_C = (-62.0, -158.0)      # the lighthouse's middle (world)
+
+
+def lh_piece(m, row, kind):
+    """(0.38.5) The lighthouse (gen_riptide.py lighthouse()): white outside with a red band, bare concrete inside,
+    the watch room, its gallery rail and roof red, the gallery and the ledge grey."""
+    c = row["pos"]
+    cx, cz = LH_C[0] - OX, LH_C[1] - OZ
+
+    def style(n, mid, q):
+        if n[1] < -0.7:
+            return "rq_conc" if kind in ("lh_gallery", "lh_ledge", "lh_roof") or mid[1] > SHORE + 1.0 else None
+        if n[1] > 0.7:
+            return "rip_red" if kind == "lh_roof" else "rq_conc"
+        out = n[0] * (mid[0] - cx) + n[2] * (mid[2] - cz) > 0
+        if kind in ("lh_gallery", "lh_ledge"):
+            return "rq_conc"
+        if kind in ("lh_rail", "lh_watch", "lh_roof"):
+            return "rip_red" if out or kind == "lh_rail" else "rip_white"
+        if not out:
+            return "rq_conc"
+        if mid[1] < SHORE + 0.6:
+            return "rs_plinth"
+        return "rip_red" if SHORE + 9.0 < mid[1] < SHORE + 12.0 or SHORE + 21.0 < mid[1] < SHORE + 24.0 else "rip_white"
+    if kind == "lh" and row["size"][1] > 3.0:
+        # (the stages' panels run their full height: cut them at the bands' edges)
+        y0, y1 = c[1] - row["size"][1] / 2, c[1] + row["size"][1] / 2
+        cuts = sorted({y0, y1} | {v for v in (SHORE + 0.6, SHORE + 9.0, SHORE + 12.0, SHORE + 21.0, SHORE + 24.0) if y0 < v < y1})
+        for ya, yb in zip(cuts, cuts[1:]):
+            m.box((c[0], (ya + yb) / 2, c[2]), (row["size"][0], yb - ya, row["size"][2]), style, yaw=row["yaw"])
+        return
+    m.box(c, row["size"], style, yaw=row["yaw"])
+
+
+def lantern(m, row):
+    """(0.38.2) The lighthouse's lantern over the watch room (out of reach): a glazed drum on iron posts round the
+    lamp, a red cap and a vent on top."""
+    c, s = row["pos"], row["size"]
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    b = m.b
+    cyl(b, (c[0], y0 + 0.2, c[2]), 1.6, 0.4, "rip_red", "rip_red", sides=12)      # (its box is 2.2 m square)
+    cyl(b, (c[0], y0 + 1.4, c[2]), 1.4, 2.0, "rip_glass", None, sides=12, caps=(False, False))
+    for k in range(6):
+        a = 2 * math.pi * k / 6
+        m.box((c[0] + math.cos(a) * 1.4, y0 + 1.4, c[2] + math.sin(a) * 1.4), (0.1, 2.0, 0.1), mat("rip_iron"), cull=False)
+    m.box((c[0], y0 + 1.3, c[2]), (0.8, 1.0, 0.8), mat("rip_bright"), cull=False)       # the lamp
+    cyl(b, (c[0], y0 + 2.6, c[2]), 1.55, 0.3, "rip_red", "rip_red", sides=12)
+    cyl(b, (c[0], y0 + 2.9, c[2]), 0.9, 0.3, "rip_red", "rip_red", sides=12)
+    cyl(b, (c[0], y1 - 0.075, c[2]), 0.25, 0.15, "rip_iron", "rip_iron", sides=8)
 
 
 def canline(m, row):
@@ -264,6 +315,10 @@ def build_north(name="north_point"):
             canline(m, row)
         elif kind == "cooker":
             cooker(m, row)
+        elif kind == "lantern":
+            lantern(m, row)
+        elif kind.startswith("lh"):
+            lh_piece(m, row, kind)
         elif kind in ("cannery", "lighthouse", "nshed"):
             P.building_piece(m, row, kind, outside)
         else:
