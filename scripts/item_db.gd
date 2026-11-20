@@ -236,13 +236,15 @@ const PLACE_LOOT := {
 	"School": {"med_supplies": 5, "backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5, "helmet_basic": 5},
 	# Riptide (map 2): the Leviathan and Site Zero
 	"ShipBridge": {"gold_watch": 15, "cash": 15, "intel_exion": 10, "diamond_ring": 3, "rare": 8},
-	"ShipArmory": {"ak": 12, "rifle_ammo": 25, "smg": 8, "shotgun": 8, "shells": 15, "smg_ammo": 15, "armor_light": 10, "armor_heavy": 5, "helmet_basic": 8, "helmet_good": 4, "grenade": 10, "foregrip": 5, "red_dot": 5},
+	"ShipArmory": {"ak": 12, "rifle_ammo": 25, "smg": 8, "shotgun": 8, "shells": 15, "smg_ammo": 15, "armor_light": 10, "armor_heavy": 5, "helmet_basic": 8, "helmet_good": 4, "grenade": 10, "foregrip": 5, "red_dot": 5,
+		"viper": 1, "hornet": 1, "brawler": 1},   # (0.38.1, owner: new guns found only on Riptide, about 1 raid in 10 here)
 	"SickBay": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Galley": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"EngineRoom": {"bolts": 15, "wires": 10, "fuel_can": 12},
 	"Workshop": {"bolts": 15, "wires": 10, "gunpowder": 6},
 	"LabWing": {"med_supplies": 15, "medkit": 10, "intel_exion": 12, "mil_chip": 8, "hard_drive": 8, "gpu": 4, "cpu": 6, "epic": 10},
-	"LabCore": {"intel_exion": 12, "mil_chip": 10, "exion_medal": 6, "gpu": 4, "legendary": 25, "epic": 35, "armor_heavy": 8, "helmet_good": 8, "backpack_large": 6, "sniper": 4, "scope_8x": 3, "suppressor": 5},
+	"LabCore": {"intel_exion": 12, "mil_chip": 10, "exion_medal": 6, "gpu": 4, "legendary": 25, "epic": 35, "armor_heavy": 8, "helmet_good": 8, "backpack_large": 6, "sniper": 4, "scope_8x": 3, "suppressor": 5,
+		"talon": 1},   # (0.38.1, owner: the only place a Talon turns up in a raid, about 1 raid in 20)
 }
 
 
