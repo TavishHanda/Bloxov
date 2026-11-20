@@ -29,6 +29,8 @@ var environment: Environment
 ## The seat you're on (its Marker3D) or null; where you stood before sitting down.
 var seat: Node3D
 var _stood_at := Vector3.ZERO
+## The gym's punching bag (0.36.39), or null.
+var bag: PunchingBag
 ## Playing darts (standing at the line).
 var darts := false
 var darts_game: DartsGame
@@ -57,6 +59,12 @@ func setup(level: Node3D, who: HideoutWalker, env: Environment) -> void:
 		_area = quarters.get_meta("area")
 		_build_radio(quarters.get_meta("radio"))
 		_build_dark(quarters)
+	var life := level.get_node_or_null("Life") as Node3D
+	if life != null and life.has_meta(&"bag"):   # (0.36.39: the gym's punching bag)
+		bag = PunchingBag.new()
+		bag.name = "PunchingBag"
+		add_child(bag)
+		bag.setup(life)
 	var den := level.get_node_or_null("Hangout") as Node3D
 	if den != null:
 		_jukebox = _music(den.get_meta("jukebox"), JUKEBOX_SONG, -6.0, 3.0, 24.0, jukebox_on)
@@ -78,6 +86,9 @@ func use(id: String) -> bool:
 			switch_jukebox(not jukebox_on)
 		"darts":
 			start_darts()
+		"bag":
+			if bag != null:
+				bag.punch(walker.camera.global_position - Vector3.UP * 0.3)
 		_:
 			return false
 	return true
