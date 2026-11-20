@@ -5,6 +5,15 @@ extends SceneTree
 # Writes <out>-<view>.png.
 
 const VIEWS := {
+	"cannery-out": [Vector3(-126, 4.5, -115), Vector3(-116, 9, -130)],
+	"cannery-in": [Vector3(-97.5, 5.5, -163), Vector3(-130, 4, -140)],
+	"cannery-deck": [Vector3(-131, 8.6, -133), Vector3(-140, 7, -160)],
+	"cannery-under": [Vector3(-136, 4.2, -154), Vector3(-141, 3.5, -160)],
+	"fuel-depot": [Vector3(-56, 8, -128), Vector3(-82, 5, -145)],
+	"lighthouse": [Vector3(-44, 5, -140), Vector3(-62, 9, -158)],
+	"north-street": [Vector3(-128, 4.3, -110), Vector3(-60, 4, -122)],
+	"north-shed": [Vector3(-112.5, 4.2, -114), Vector3(-104, 3.5, -121)],
+	"north-high": [Vector3(-30, 40, -100), Vector3(-110, 2, -150)],
 	"t0-nw": [Vector3(-122.5, 4.2, -21.4), Vector3(-110, 3.1, -29)],
 	"t0-ne": [Vector3(-106.6, 4.2, -21.4), Vector3(-94, 3.1, -29)],
 	"t0-sw": [Vector3(-123.2, 4.2, -12.5), Vector3(-105, 3.1, -12.5)],
