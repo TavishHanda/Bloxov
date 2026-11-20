@@ -14,7 +14,7 @@ const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const MAX_STACKS := 500
 const MAX_MONEY := 1_000_000_000
 const KEYS: Array[String] = ["version", "money", "stash_size", "stash", "loadout", "stats", "trader_spent",
-	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted", "truck", "expeditions"]
+	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted", "characters", "truck", "expeditions"]
 const STATS: Array[String] = ["raids", "extracts", "deaths", "earned"]
 
 
@@ -90,6 +90,7 @@ static func clean(data: Variant) -> Dictionary:
 	for key in STATS:
 		stats[key] = maxi(int(given.get(key, 0)), 0) if given is Dictionary and (given.get(key) is int or given.get(key) is float) else 0
 	out["stats"] = stats
+	out["characters"] = Characters.clean(data.get("characters"))
 	return out
 
 
@@ -226,10 +227,21 @@ static func raid_quests(profile: Dictionary, kills: Array, loot_value: int, mark
 		if now >= count:
 			done.append(id)
 			profile["money"] = int(profile.get("money", 0)) + int(quest["reward"])
+	raid_character(profile, true, kills)
 
 
-## A PvP raid ended without an extract: the open streak quests start again.
+## A PvP raid ended: the picked character's XP, and (extracted) SABLE's Bounty money (Characters.raid_ended, 0.37.0).
+static func raid_character(profile: Dictionary, extracted: bool, kills: Array) -> void:
+	var state := Characters.clean(profile.get("characters"))
+	var result := Characters.raid_ended(state, extracted, kills)
+	profile["characters"] = state
+	if int(result["bounty"]) > 0:
+		profile["money"] = mini(int(profile.get("money", 0)) + int(result["bounty"]), MAX_MONEY)
+
+
+## A PvP raid ended without an extract: the open streak quests start again (and the character's XP, above).
 static func raid_lost(profile: Dictionary) -> void:
+	raid_character(profile, false, [])
 	var progress: Variant = profile.get("quest_progress")
 	var done: Variant = profile.get("quests_done")
 	if not progress is Dictionary:
@@ -365,6 +377,11 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 	cost += int(truck["money"])
 	for id: String in truck["used"]:
 		crafts["used"][id] = int(crafts["used"].get(id, 0)) + int(truck["used"][id])
+	# Characters (0.37.0): unlocks paid for and allowed, XP and earned points untouched, a points reset paid.
+	var chars := Characters.changes(old, new)
+	if chars["error"] != "":
+		return chars["error"]
+	cost += int(chars["money"])
 	var ids := _keys(a["all"], b["all"])
 	for id: Variant in _keys(crafts["used"], crafts["made"]):
 		if not ids.has(id):

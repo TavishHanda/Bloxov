@@ -83,7 +83,7 @@ func _physics_process(delta: float) -> void:
 	if target != _progress_target:
 		_progress_target = target
 		progress = 0.0
-	var hold_time := target.interact_time()
+	var hold_time := target.interact_time() * Characters.mult("search")   # (KORR, 0.37.0)
 	if hold_time > 0.0 and progress == 0.0:   # (0.20.2: starting a search)
 		WorldSounds.own(player, WorldSounds.SAFE if target.display_name == "Safe" else WorldSounds.RUMMAGE, -10.0)
 	if hold_time <= 0.0:

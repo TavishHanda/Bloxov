@@ -359,7 +359,7 @@ func _hello(client_net: String, player_name: String, look := "") -> void:
 		_rejected.rpc_id(peer, reason)
 		return
 	matchmaker.add_player(peer, player_name)
-	matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(look))   # (only real parts get through)
+	matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(look)) + Characters.clean_tag(look.substr(Operators.SLOTS.size()))   # (only real parts get through; the character's tag, 0.37.0)
 	_log("%s (peer %d) is online (%d players)" % [matchmaker.players[peer]["name"], peer, matchmaker.players.size()])
 	_welcome.rpc_id(peer, accounts != null)
 	_flush()
@@ -1486,7 +1486,7 @@ func set_look(text: String) -> void:
 func _look(text: String) -> void:
 	var peer := _sender("lobby")
 	if peer != 0 and text.length() <= 16:
-		matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(text))
+		matchmaker.players[peer]["look"] = Operators.to_text(Operators.from_text(text)) + Characters.clean_tag(text.substr(Operators.SLOTS.size()))
 
 
 func _on_connection_failed() -> void:

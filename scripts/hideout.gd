@@ -27,6 +27,11 @@ var craft_screen: CraftScreen
 var expedition_screen: ExpeditionScreen
 ## Set while leaving on an expedition: the old stash must not be saved over the new one.
 var _leaving := false
+## The shared pool's expedition points and who went, as we left (the cutscene says what was earned).
+var _points_before := 0
+var _who := ""
+## The characters (0.37.0): pick, unlock, upgrade.
+var character_screen: CharacterScreen
 var phone_nav: HBoxContainer
 var _nav_buttons := {}
 var _version_label: Label
@@ -147,7 +152,11 @@ func _ready() -> void:
 	expedition_screen = ExpeditionScreen.new(self)
 	expedition_screen.visible = false
 	add_child(expedition_screen)
-	Network.main.set_look(Operators.to_text(Profile.look))
+	character_screen = CharacterScreen.new(self)
+	character_screen.visible = false
+	add_child(character_screen)
+	wardrobe.on_characters = open_characters
+	Network.main.set_look(Operators.to_text(Profile.look) + Characters.net_tag(Profile.characters))
 
 	_build_top_bar()
 	_build_phone_nav()
@@ -496,6 +505,9 @@ func leave_expedition() -> void:
 	if _leaving or not Expedition.can_leave(Profile.truck, Profile.money):
 		return
 	save_now()
+	var state := Characters.clean(Profile.characters)
+	_points_before = int(state["exp_points"])
+	_who = str(state["selected"])
 	if Profile.mode == Profile.ONLINE:
 		if not Network.main.signed_in():
 			_message("Sign in to leave with your PvP stash")
@@ -525,7 +537,13 @@ func _on_expedition_left(ok: bool) -> void:
 ## The leaving cutscene, then back to the (new) hideout.
 func _drive_off() -> void:
 	ExpeditionCutscene.trips = Profile.expeditions
+	ExpeditionCutscene.points = int(Characters.clean(Profile.characters)["exp_points"]) - _points_before
+	ExpeditionCutscene.who = str(Characters.LIST[_who]["name"]) if Characters.LIST.has(_who) else ""
 	get_tree().change_scene_to_file(ExpeditionCutscene.SCENE)
+## The characters (0.37.0): pick who you play, unlock more, spend points.
+func open_characters() -> void:
+	close_trader_screen()
+	character_screen.open()
 
 
 # --- Saved loadouts (0.21.2, owner) -------------------------------------------------
@@ -2294,6 +2312,7 @@ func close_trader_screen() -> void:
 	record.visible = false
 	craft_screen.visible = false
 	expedition_screen.visible = false
+	character_screen.visible = false
 
 
 ## The wardrobe (0.21.6): pick your operator and change their parts.
@@ -2320,6 +2339,8 @@ func current_screen() -> String:
 		return "craft"
 	if expedition_screen.visible:
 		return "truck"
+	if character_screen.visible:
+		return "characters"
 	return "gear"
 
 
@@ -2330,7 +2351,7 @@ func _build_phone_nav() -> void:
 	phone_nav.name = "PhoneNav"
 	phone_nav.add_theme_constant_override("separation", 4)
 	phone_nav.visible = GameSettings.is_phone()
-	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["wardrobe", "WARDROBE"], ["craft", "CRAFT"], ["record", "RECORD"]]:
+	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["characters", "CHARS"], ["wardrobe", "WARDROBE"], ["craft", "CRAFT"], ["record", "RECORD"]]:
 		var id: String = spec[0]
 		var button := Button.new()
 		button.name = id
@@ -2358,6 +2379,8 @@ func show_screen(id: String) -> void:
 			open_craft()
 		"truck":
 			open_expedition()
+		"characters":
+			open_characters()
 		_:
 			close_trader_screen()
 
@@ -2373,7 +2396,7 @@ func _light_nav() -> void:
 func change_look(new_look: Dictionary) -> void:
 	Profile.look = new_look
 	screen.show_look(new_look)
-	Network.main.set_look(Operators.to_text(new_look))
+	Network.main.set_look(Operators.to_text(new_look) + Characters.net_tag(Profile.characters))
 	_queue_save()
 
 

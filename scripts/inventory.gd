@@ -42,6 +42,32 @@ func _ready() -> void:
 	secure.changed.connect(changed.emit)
 
 
+## The pockets' width (0.37.0: KORR's Pack Rat adds slots). Items that no longer fit come back (the caller finds them a
+## home); the pockets are empty when a loadout is read in, so usually there are none.
+func set_pocket_width(width: int) -> Array[ItemStack]:
+	var spill: Array[ItemStack] = []
+	if pockets == null or pockets.width == width:
+		return spill
+	var old := pockets
+	old.changed.disconnect(changed.emit)
+	pockets = GridInventory.new("Pockets", width, pockets_size.y)
+	pockets.changed.connect(changed.emit)
+	for stack: ItemStack in old.stacks:
+		if pockets.fits(stack.id, stack.x, stack.y, stack.rotated):
+			pockets.place(stack)
+		else:
+			var spot := pockets.find_spot(stack.id)
+			if spot.is_empty():
+				spill.append(stack)
+			else:
+				stack.x = spot[0]
+				stack.y = spot[1]
+				stack.rotated = spot[2]
+				pockets.place(stack)
+	changed.emit()
+	return spill
+
+
 ## Grids in the order items are added: pockets, backpack, then secure pocket.
 func grids() -> Array[GridInventory]:
 	var list: Array[GridInventory] = [pockets]

@@ -12,6 +12,9 @@ const LENGTH := 11.0
 const SPLASH := 4.2
 ## The trip number the line shows (set by the hideout before changing scene).
 static var trips := 1
+## Upgrade points the trip added to the shared pool (0 once the pool is full), and who went (a name, or "").
+static var points := Expedition.POINTS
+static var who := ""
 
 var _time := 0.0
 var _truck: Node3D
@@ -153,7 +156,9 @@ func _build_overlay() -> void:
 	HudStyle.style_label(_title, 44)
 	box.add_child(_title)
 	_sub = Label.new()
-	_sub.text = "Expedition %d: you reached the haven. +%d upgrade points." % [trips, Expedition.POINTS]
+	var line := "%s reached the haven" % who if who != "" else "You reached the haven"
+	var earned := "+%d upgrade points to spend on any character." % points if points > 0 else "Your upgrade points are full."
+	_sub.text = "Expedition %d: %s. %s" % [trips, line, earned]
 	_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	HudStyle.style_label(_sub, 24, HudStyle.BRASS)
 	box.add_child(_sub)

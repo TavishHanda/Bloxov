@@ -3,7 +3,7 @@ extends RefCounted
 ## Expeditions (0.38.0, owner 2026-11-20; plan: project file expeditions/build-plan.md): the way out of the war.
 ## You build an amphibious armoured truck from five parts at the hideout (loot from your stash plus money), pay the
 ## safe haven's entry price, and leave. Leaving wipes that stash (money, gear, traders, quests, workbench, character
-## level) and the character earns upgrade points; settings, looks, hideout decor and the stats record stay.
+## level) and the account's shared pool earns upgrade points; settings, looks, hideout decor and the stats record stay.
 ## Solo and PvP are separate: each side builds its own truck and wipes only itself (owner 2026-11-08).
 ## Repeatable, solo only, earned money only: gems never buy a part, the entry or a skip (STORE_RULES.md section 5).
 ## Parts are not items: they live on the truck (profile key "truck"), so they can't be sold, dropped or lost.
@@ -26,7 +26,7 @@ const PARTS := {
 }
 ## The safe haven's entry price, paid as you leave.
 const HAVEN_PRICE := 500000
-## Upgrade points a character earns per trip (owner 2026-11-20; Characters caps the total).
+## Upgrade points a trip adds to the account's shared pool (owner 2026-11-20; Characters caps the total at 10).
 const POINTS := 2
 
 
@@ -103,7 +103,8 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 
 
 ## The profile after leaving: `fresh` (a new profile in the saved shape: the starting money and kit) with the stats
-## record kept and one more trip. "" error when `profile` can't leave yet. Look, decor, tutorial and settings aren't
+## record, the characters (the one who went back to level 1, +POINTS to the shared pool) and one more trip.
+## {} when `profile` can't leave yet. Look, decor, tutorial and settings aren't
 ## in a saved stash, so the caller keeps them.
 static func wiped(profile: Dictionary, fresh: Dictionary) -> Dictionary:
 	if not can_leave(truck_of(profile), int(profile.get("money", 0))):
@@ -113,4 +114,10 @@ static func wiped(profile: Dictionary, fresh: Dictionary) -> Dictionary:
 		out["stats"] = (profile["stats"] as Dictionary).duplicate()
 	out["expeditions"] = trips_of(profile) + 1
 	out["truck"] = []
+	# The characters stay (unlocks, points); the one who went goes back to level 1 and the pool earns its points.
+	var state := Characters.clean(profile.get("characters"))
+	var who := str(state["selected"])
+	Characters.add_expedition_points(state, who, POINTS)
+	Characters.reset_level(state, who)
+	out["characters"] = state
 	return out

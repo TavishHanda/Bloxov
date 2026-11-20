@@ -520,7 +520,7 @@ func _target_velocity(input_dir: Vector2) -> Vector3:
 	if is_crouching:
 		speed = prone_speed if is_prone else crouch_speed
 	if is_healing():
-		speed = walk_speed * 0.5
+		speed = (sprint_speed if _sprinting else walk_speed) if _heal_walk() else walk_speed * 0.5
 	if downed:
 		speed = walk_speed * crawl_multiplier
 	if _landing_left > 0.0:
@@ -637,6 +637,15 @@ func _update_footsteps(delta: float) -> void:
 
 func _play_step(volume_db: float) -> void:
 	Surfaces.step(self, volume_db)
+
+
+## PATCH's Steady Hands: rank 1 walks at full speed while using meds, rank 2 sprints too.
+func _heal_walk() -> bool:
+	return Characters.active_passive == "steady_hands" and Characters.active_rank >= 1
+
+
+func _heal_sprint() -> bool:
+	return Characters.active_passive == "steady_hands" and Characters.active_rank >= 2
 
 
 func _make_noise(radius: float) -> void:

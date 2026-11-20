@@ -5,7 +5,7 @@ Versions are `0.PHASE.CHANGE`: a new roadmap phase bumps the middle number, ever
 <!-- Phases: 0.7 = multiplayer (0.7.0-0.7.11), 0.8 = HUD and inventory (0.8.0 onward). The first four 0.8
 updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 = the Scorched Earth update
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
-(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
+(Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
 ## 0.38.0 (Expeditions: the way out)
 Owner's design and numbers (2026-11-20). Earned money and loot only: gems never buy a part, the entry or a skip
@@ -16,10 +16,39 @@ Owner's design and numbers (2026-11-20). Earned money and loot only: gems never 
   1 Exion orders, $40k), Fuel and supplies (10 fuel cans, 8 rations, 12 water, 4 medkits, $30k). Parts go on the
   truck, so they can't be sold, dropped or lost. About 35-40 raids all in (`economy_sim` material counts).
 - **Leaving:** with all five parts and the safe haven's $500,000, LEAVE ON EXPEDITION (type LEAVE to confirm) starts
-  that stash over: stash, money, loadouts, traders, jobs and the workbench. Settings, looks, the hideout's decor and
-  your record stay. Repeatable; PvE and PvP each have their own truck and only wipe themselves.
-- **PvP:** the server checks each part build against the stash and money, and does the wipe itself. Net version 13.
+  that stash over: stash, money, loadouts, traders, jobs and the workbench, and the character who went goes back to
+  level 1. The account's shared pool earns 2 upgrade points (up to 10 from expeditions, `Characters`). Settings,
+  looks, unlocked characters, upgrade points, the hideout's decor and your record stay. Repeatable; PvE and PvP each have their own truck and only wipe themselves.
+- **PvP:** the server checks each part build against the stash and money, and does the wipe itself. Net version 14.
 - A short cutscene: the truck rolls down to the shore, into the water and off to the haven.
+
+## 0.37.0 (Characters)
+Owner designed them with Claude (2026-11-20, "start this and merge"): six playable REVENANT contractors. Numbers are a
+start; the owner tunes them after playing. Design page: project file `characters/roster-proposal-2026-11-20.html`.
+- **VEGA** (Nova, free): faster walk/crouch/sprint and reloads; more stamina used sprinting, more recoil. Passive
+  *Light Feet* (footsteps carry less far). **VOSS** (Exion, free): more stamina, less recoil; slower sprint and aim.
+  Passive *Hold Steady* (aimed and still: less recoil and spread; rank 1 standing, 2 also lying down, 3 also crouched).
+- **SABLE** ($400,000 + Ponta level 3): faster aim, hears footsteps further; slower full-auto, slower moving while
+  aiming. Passive *Bounty* (every kill pays when you extract: Scav $1k, Raider $2.5k, PMC $5k (players and AI PMCs
+  alike), Boss $10k; x1.5 and x2 at ranks 2 and 3). **PATCH** ($250,000 + Medic level 2): faster meds and gun swaps;
+  less stamina, slower reloads. Passive *Steady Hands* (walk at full speed while using meds; rank 2 sprint; rank 3
+  meds 10% faster). **KORR** ($500,000 + Big Don level 2): searches faster, less hip-fire spread; more aimed spread,
+  less stamina. Passive *Pack Rat* (+1/+2/+3 pocket slots). **NINE**: stamina comes back faster, jumps higher;
+  louder footsteps, slower meds. Passive *Overdrive* (once per raid, below 30% health: a sprint that uses no stamina).
+  NINE unlocks with the Subject 09 files from Site Zero, which come in the next update (locked until then).
+- Traits grow with the character's level (1-20, by playing raids as them; +100 XP for an extract, +30 otherwise, kills
+  you get out with +10 scav, +25 Raider, +50 PMC, +100 boss): a quarter of full size at level 1, full at 20, the good
+  and the bad together.
+- Upgrade points, spent by the player, in one pool for the whole account (owner): any character earns them (2 at
+  level 10 and 3 at level 20, the first time only; 2 per expedition escape up to 10, through
+  `Characters.add_expedition_points`) and they can be spent on any unlocked character. A point adds 2% to an upside (5 at most),
+  takes a quarter off a downside (2 at most: halved, never removed) or buys a passive rank (2 points). Moving them
+  around costs $25,000.
+- The hideout's **CHARACTERS** screen (the CHARS tab on phones, a button in the wardrobe): pick, unlock, spend points.
+  The end screen shows the XP and any Bounty. Health and damage are the same for everyone. Characters are never sold
+  for real money (`docs/STORE_RULES.md`). Their own models come in a later update (everyone still wears the wardrobe look).
+- Online: the server checks unlocks and points (`Characters.changes`) and adds the XP and Bounty itself; others hear
+  your footsteps as your character's. **Net version 13.**
 
 ## 0.36.42 (Four new guns: Viper, Hornet, Brawler, Talon)
 Owner asked (2026-11-20: "2 of each weapon type at least"; names OK'd, no Mk II versions, the Jackal left for now).

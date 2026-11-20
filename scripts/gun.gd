@@ -290,6 +290,14 @@ func _apply_stats(stack: ItemStack) -> Dictionary:
 	cycle = str(data.get("cycle", ""))
 	shot_pitch = float(data.get("shot_pitch", 1.0))
 	shot_db = float(data.get("shot_db", -4.0))
+	# The picked character's traits (0.37.0, see Characters; all 1.0 on the server and for anyone else).
+	reload_time *= Characters.mult("reload")
+	ads_time *= Characters.mult("ads")
+	recoil_pitch_deg *= Characters.mult("recoil")
+	recoil_yaw_deg *= Characters.mult("recoil")
+	hip_spread_deg *= Characters.mult("hip_spread")
+	if auto:
+		rounds_per_minute *= Characters.mult("auto_rate")
 	return data
 
 
@@ -363,7 +371,15 @@ func current_spread() -> float:
 	if player.is_prone:
 		spread *= prone_spread_multiplier
 	spread += _bloom * lerpf(1.0, ads_bloom_multiplier, aim) + _flinch_spread
+	spread *= lerpf(1.0, Characters.mult("aim_spread"), aim) * (1.0 - _hold_steady())
 	return spread * (ItemDB.wear_spread(weapon) if weapon != null else 1.0)
+
+
+## VOSS's Hold Steady (0.37.0): aimed in and standing still, a cut to recoil and spread (0 = none).
+func _hold_steady() -> float:
+	if aim < 0.9 or player.horizontal_speed() > 0.3 or not player.is_on_floor():
+		return 0.0
+	return Characters.hold_steady_cut(player.is_prone, player.is_crouching)
 
 
 ## Called when the player gets shot.
@@ -380,7 +396,7 @@ func recoil_for_shot(n: int) -> Vector2:
 	var stance := crouch_recoil_multiplier if player.is_crouching else 1.0
 	if player.is_prone:
 		stance *= prone_recoil_multiplier
-	return Vector2(recoil_pitch_deg * up, recoil_yaw_deg * side) * stance
+	return Vector2(recoil_pitch_deg * up, recoil_yaw_deg * side) * stance * (1.0 - _hold_steady())
 
 
 ## Holding the aim button with a gun out (and able to use it). Aiming stops the player from sprinting.

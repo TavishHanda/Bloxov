@@ -11,6 +11,8 @@ const DRAG_TURN := 0.01   # radians per pixel dragged (0.22.5: the character sta
 
 ## Called with the new look whenever it changes (the hideout saves it and tells the inventory and the server).
 var on_change: Callable
+## Opens the characters screen (0.37.0: the CHARACTERS button under the operators).
+var on_characters: Callable
 var look := {}
 var model: PixelModel
 var _operator_buttons := {}
@@ -51,12 +53,20 @@ func _init() -> void:
 		button.pressed.connect(func() -> void: wear(entry["look"]))
 		left.add_child(button)
 		_operator_buttons[entry["id"]] = button
+	var characters := Button.new()
+	characters.name = "CharactersButton"
+	characters.text = "CHARACTERS"
+	characters.focus_mode = Control.FOCUS_NONE
+	characters.custom_minimum_size = Vector2(0, 44)
+	characters.size_flags_vertical = Control.SIZE_SHRINK_END | Control.SIZE_EXPAND
+	LootUI.style_button(characters, 20)
+	characters.pressed.connect(_open_characters)
+	left.add_child(characters)
 	var stash := Button.new()
 	stash.name = "StashButton"
 	stash.text = "STASH & GEAR"
 	stash.focus_mode = Control.FOCUS_NONE
 	stash.custom_minimum_size = Vector2(0, 44)
-	stash.size_flags_vertical = Control.SIZE_SHRINK_END | Control.SIZE_EXPAND
 	LootUI.style_button(stash, 20)
 	stash.pressed.connect(func() -> void: visible = false)
 	left.add_child(stash)
@@ -101,6 +111,11 @@ func _init() -> void:
 		row.add_child(option)
 		row.add_child(_arrow(">", slot, 1))
 		_rows[slot] = option
+
+
+func _open_characters() -> void:
+	if on_characters.is_valid():
+		on_characters.call()
 
 
 func _panel(parent: Control, width: float) -> VBoxContainer:
