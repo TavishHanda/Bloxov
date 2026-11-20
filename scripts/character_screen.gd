@@ -82,7 +82,7 @@ func _init(menu: Node) -> void:
 	_status = _text(16, HudStyle.INK_DIM)
 	middle.add_child(_status)
 	var note := _text(13, Color(1, 1, 1, 0.5))
-	note.text = "Traits grow from level 1 to 20, the good and the bad. Level by playing raids as them. Upgrade points are shared: any character earns them (2 at level 10, 3 at level 20, 2 for each expedition escape up to 10) and you spend them on whoever you like."
+	note.text = "Traits grow from level 1 to 20, the good and the bad. Level by playing raids as them. Upgrade points are shared: any character earns them (2 at level 10, 3 at level 20, 2 for each expedition escape, up to 10 per character) and you spend them on whoever you like."
 	middle.add_child(note)
 
 	var right := _panel(columns, SIDE_WIDTH)
@@ -144,14 +144,16 @@ func look_at_character(id: String) -> void:
 
 
 func _unlocked(id: String) -> bool:
-	return (Profile.characters["unlocked"] as Array).has(id)
+	return Profile.characters.get("picked", true) and (Profile.characters["unlocked"] as Array).has(id)
 
 
 func refresh() -> void:
 	var state := Profile.characters
 	for id: String in _list:
 		var button: Button = _list[id]
-		var tag := " (PLAYING)" if state["selected"] == id else ("" if _unlocked(id) else " (LOCKED)")
+		var tag := " (PLAYING)" if state["selected"] == id and state.get("picked", true) else ("" if _unlocked(id) and state.get("picked", true) else " (LOCKED)")
+		if not state.get("picked", true) and Characters.STARTERS.has(id):
+			tag = " (CHOOSE)"
 		button.text = str(Characters.LIST[id]["name"]) + tag
 		button.button_pressed = id == showing
 	var info: Dictionary = Characters.LIST[showing]
@@ -174,7 +176,7 @@ func refresh() -> void:
 	var passive: Dictionary = Characters.PASSIVES[info["passive"]]
 	var rank := Characters.passive_rank(c)
 	_passive.text = "%s (rank %d): %s %s" % [passive["name"], rank, passive["about"], passive["rank_text"][rank - 1]]
-	if state["selected"] == showing:
+	if state["selected"] == showing and state.get("picked", true):
 		_action.text = "PLAYING"
 		_action.disabled = true
 		_status.text = ""
@@ -182,6 +184,10 @@ func refresh() -> void:
 		_action.text = "PLAY AS %s" % info["name"]
 		_action.disabled = false
 		_status.text = ""
+	elif not state.get("picked", true) and Characters.STARTERS.has(showing):
+		_action.text = "CHOOSE %s (FREE)" % info["name"]
+		_action.disabled = false
+		_status.text = "Pick your first character: VEGA (Nova) or VOSS (Exion). The other unlocks later for %s." % ItemDB.money(Characters.STARTER_PRICE)
 	else:
 		var problem := Characters.unlock_problem(state, showing, Profile.money, Profile.trader_levels)
 		_action.text = "UNLOCK  %s" % ItemDB.money(int(info["price"])) if int(info["price"]) > 0 else "LOCKED"
@@ -224,7 +230,17 @@ func _fill_points(c: Dictionary, unlocked: bool) -> void:
 
 func _on_action() -> void:
 	var state := Profile.characters
-	if _unlocked(showing):
+	if not state.get("picked", true):
+		var keep: Dictionary = state.duplicate(true)
+		if not Characters.pick_starter(state, showing):
+			return
+		if not _fit_pockets():
+			Profile.characters = keep
+			hideout.show_message("Make room in your stash first: your pockets get smaller.")
+			refresh()
+			return
+		hideout.show_message("You play as %s. The other starter unlocks for %s." % [Characters.LIST[showing]["name"], ItemDB.money(Characters.STARTER_PRICE)])
+	elif _unlocked(showing):
 		var before := str(state["selected"])
 		state["selected"] = showing
 		if not _fit_pockets():
