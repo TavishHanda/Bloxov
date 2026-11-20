@@ -10647,7 +10647,7 @@ func _section_sound() -> void:
 	var opened: AudioStream = newest.call()
 	door.set_state(0)
 	_check(prone_sound == WorldSounds.PRONE and opened == WorldSounds.DOOR_OPEN and newest.call() == WorldSounds.DOOR_CLOSE,
-		"going prone rustles; a door creaks open and thuds shut")
+		"going prone rustles; a door creaks open and thuds shut (%s, %s, %s)" % [prone_sound == WorldSounds.PRONE, opened == WorldSounds.DOOR_OPEN, newest.call() == WorldSounds.DOOR_CLOSE])
 	door.queue_free()
 	# 0.20.3, items and guns: each gun's reload pitched its own way (today's sounds), sounds for each med and drink.
 	_check(GunSounds.reload_pitch("pistol") > GunSounds.reload_pitch("ak") and GunSounds.reload_pitch("sniper") < 1.0
