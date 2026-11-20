@@ -17,8 +17,8 @@ const LIST := {
 		"levels": [
 			{"spent": 0, "stock": [["pistol", 1], ["smg", 1], ["shotgun", 1], ["pistol_ammo", 50], ["smg_ammo", 60],
 				["shells", 12], ["red_dot", 1], ["choke", 1]]},
-			{"spent": 15000, "stock": [["ak", 1], ["rifle_ammo", 60], ["foregrip", 1], ["ext_mag", 1], ["grenade", 1]]},
-			{"spent": 40000, "stock": [["sniper", 1], ["sniper_ammo", 10], ["scope_4x", 1], ["scope_8x", 1], ["suppressor", 1]]},
+			{"spent": 15000, "stock": [["ak", 1], ["viper", 1], ["hornet", 1], ["brawler", 1], ["rifle_ammo", 60], ["foregrip", 1], ["ext_mag", 1], ["grenade", 1]]},
+			{"spent": 40000, "stock": [["sniper", 1], ["talon", 1], ["sniper_ammo", 10], ["scope_4x", 1], ["scope_8x", 1], ["suppressor", 1]]},
 		]},
 	"meds": {"name": "Medic", "tab": "MEDS", "about": "Bandages and medkits.", "kinds": ["heal"], "rate": GEAR_SELL_RATE,
 		"levels": [

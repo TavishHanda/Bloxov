@@ -36,7 +36,8 @@ mb.REGENERATE_TEXTURES = True          # painted from fixed seeds, so they come 
 mb.PALETTE.update({"tan": "9a855c", "tan_dark": "7c6a48", "tan_light": "ad9a70", "brass": "b08a3a",
                    "lens": "2b4a5e", "lens_light": "6f9db5", "lens_dark": "1c3140", "glass": "a9c8d6", "gun_red": "8c2f25"})
 
-PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c", "reaper": "k"}   # owner, 2026-10-23 (Reaper k: 2026-11-16)
+PICKED = {"hound": "a", "stinger": "c", "wasp": "a", "mauler": "a", "lancer": "c", "reaper": "k",   # owner, 2026-10-23 (Reaper k: 2026-11-16)
+          "viper": "a", "hornet": "a", "brawler": "a", "talon": "a"}   # (0.36.42: one look each)
 TILE = 0.5                              # 32 px textures over 0.5 m = 64 px per meter
 OUT = os.path.join(mb.ROOT, "assets", "models", "guns")
 
@@ -691,7 +692,146 @@ def _reaper_k(m):
     m.mark("Fore", (0, -0.034, -0.2))
 
 
-GUNS = {"hound": hound, "stinger": stinger, "wasp": wasp, "mauler": mauler, "lancer": lancer, "reaper": reaper}
+# ------------------------------------------------------------------------------------------------ second gun of each type
+# (0.36.42, owner 2026-11-20: "2 of each weapon type"): one look each, made to read apart from the first gun of its type
+# at a glance (colour first, then shape).
+def viper(m, look):
+    """The Viper (heavy pistol): bigger than the Stinger, a steel slide on a black frame, red-brown grips and a
+    compensator out front."""
+    m.part("Bolt", (0, 0.014, 0.0))                                               # the slide (racked in first person)
+    m.box((0, 0.014, 0.0), (0.036, 0.04, 0.215), "steel", part="Bolt")            # slide
+    for k in range(6):                                                            # rear serrations
+        m.box((0, 0.014, 0.068 + k * 0.007), (0.0375, 0.034, 0.003), "park", part="Bolt")
+    m.box((0, 0.025, -0.035), (0.0375, 0.012, 0.032), "black", part="Bolt")       # ejection port
+    m.notch(0.095, 0.034, 0.0415, "black", width=0.03, gap=0.009, dots=True)      # three-dot sights
+    m.post(-0.095, 0.034, 0.0415, "black", guard=None, width=0.006, base_w=0.009)
+    m.box((0, 0.012, -0.123), (0.04, 0.036, 0.03), "black")                       # compensator
+    for z in (-0.116, -0.128):
+        m.box((0, 0.031, z), (0.012, 0.003, 0.005), "park")   # its ports on top
+    m.box((0, -0.018, -0.01), (0.034, 0.028, 0.19), "black")                      # frame
+    m.box((0, -0.034, -0.07), (0.024, 0.006, 0.05), "rail")                       # accessory rail
+    m.box((0, -0.082, 0.065), (0.034, 0.115, 0.05), "wood_red", pitch=-14)        # grip panels
+    m.box((0, -0.082, 0.065), (0.027, 0.117, 0.052), "black", pitch=-14)          # the grip frame round them
+    m.box((0, -0.044, -0.012), (0.011, 0.006, 0.066), "black")                    # trigger guard
+    m.box((0, -0.037, -0.044), (0.011, 0.018, 0.006), "black")
+    m.box((0, -0.034, -0.004), (0.006, 0.018, 0.006), "steel")                    # trigger
+    m.box((0, 0.024, 0.112), (0.012, 0.02, 0.012), "steel", pitch=-30)            # hammer
+    m.part("Mag", (0, -0.135, 0.08))
+    m.box((0, -0.139, 0.082), (0.036, 0.009, 0.055), "steel", pitch=-14, part="Mag")  # base plate
+    m.mark("Muzzle", (0, 0.012, -0.14))
+    m.mark("Grip", (0, -0.065, 0.06))
+    m.mark("Sight", (0, 0.0415, 0))
+    m.mark("Optic", (0, 0.034, 0.035))
+
+
+def hornet(m, look):
+    """The Hornet (heavier SMG): tan, boxy and square where the Wasp is black and slim, a straight mag, a long
+    shrouded barrel and a folding wire stock."""
+    m.box((0, 0.0, 0.0), (0.058, 0.074, 0.27), "tan")                             # receiver
+    m.box((0, 0.044, 0.0), (0.03, 0.012, 0.3), "rail")                            # top rail
+    m.box((0, 0.062, 0.125), (0.028, 0.026, 0.02), "black", part="Irons")         # rear aperture block
+    m.ring(0, 0.08, 0.125, 0.0065, 0.003, 0.01, "black", part="Irons")
+    m.box((0, 0.06, -0.2), (0.014, 0.024, 0.016), "black", part="Irons")          # front post block
+    m.post(-0.2, 0.06, 0.08, "black", guard="ears")
+    m.box((0, 0.004, -0.2), (0.062, 0.064, 0.14), "black")                        # square barrel shroud
+    for z in (-0.16, -0.19, -0.22, -0.25):
+        for x in (-0.032, 0.032):
+            m.box((x, 0.004, z), (0.004, 0.018, 0.016), "park")                   # its cooling slots
+    m.box((0, 0.004, -0.275), (0.026, 0.026, 0.02), "black")                      # barrel nut
+    m.box((0, 0.004, -0.3), (0.022, 0.022, 0.03), "black")                        # barrel end
+    m.box((0, -0.08, 0.075), (0.036, 0.092, 0.046), "black", pitch=-14)           # grip
+    m.box((0, -0.05, 0.03), (0.01, 0.006, 0.06), "tan")                           # guard
+    m.box((0, -0.044, 0.0), (0.006, 0.016, 0.006), "black")                       # trigger
+    m.part("Bolt", (-0.034, 0.028, -0.09))
+    m.box((-0.034, 0.028, -0.09), (0.012, 0.014, 0.03), "black", part="Bolt")     # side cocking handle (left)
+    for x in (-0.024, 0.024):
+        m.box((x, -0.006, 0.225), (0.006, 0.01, 0.18), "steel")                   # folding wire stock
+    m.box((0, -0.018, 0.318), (0.054, 0.07, 0.012), "black")                      # its butt
+    m.box((0, -0.016, 0.26), (0.05, 0.006, 0.006), "steel")                       # cross bar
+    m.part("Mag", (0, -0.037, -0.07))
+    m.box((0, -0.11, -0.07), (0.03, 0.15, 0.038), "black", part="Mag")            # straight stick mag
+    m.box((0, -0.187, -0.07), (0.034, 0.008, 0.042), "tan", part="Mag")           # its base plate
+    m.mark("Optic", (0, 0.05, 0.02))
+    m.mark("Fore", (0, -0.028, -0.2))
+    m.mark("Muzzle", (0, 0.004, -0.315))
+    m.mark("Grip", (0, -0.062, 0.072))
+    m.mark("Sight", (0, 0.08, 0))
+
+
+def brawler(m, look):
+    """The Brawler (semi-auto shotgun): black receiver with olive furniture, a pistol grip and a fixed fore-end (no
+    pump), a vented barrel shroud and a charging handle on the right."""
+    m.box((0, 0.0, 0.02), (0.064, 0.094, 0.22), "black")                          # receiver
+    m.box((0.033, 0.012, -0.005), (0.004, 0.03, 0.075), "steel")                  # ejection port (right)
+    m.box((0, 0.052, 0.0), (0.03, 0.01, 0.16), "rail")                            # top rail
+    m.box((0, 0.028, -0.33), (0.044, 0.044, 0.5), "blued")                        # barrel
+    m.box((0, 0.034, -0.2), (0.052, 0.04, 0.2), "rail")                           # perforated shroud over it
+    m.ytube(0, -0.565, 0.05, 0.062, 0.004, "brass", part="Irons")                 # front bead
+    m.box((0, 0.058, 0.08), (0.03, 0.008, 0.02), "black", part="Irons")           # ghost ring
+    m.ring(0, 0.069, 0.08, 0.005, 0.004, 0.012, "black", part="Irons")
+    m.box((0, -0.028, -0.3), (0.038, 0.038, 0.42), "black")                       # magazine tube
+    m.box((0, -0.028, -0.515), (0.042, 0.042, 0.02), "steel")                     # tube cap
+    m.box((0, -0.03, -0.23), (0.07, 0.062, 0.2), "olive")                         # fixed fore-end
+    for x in (-0.036, 0.036):
+        m.box((x, -0.03, -0.23), (0.003, 0.02, 0.15), "olive_dark")               # its grooves
+    m.part("Bolt", (0.04, 0.012, -0.03))
+    m.box((0.04, 0.012, -0.03), (0.02, 0.012, 0.014), "steel", part="Bolt")       # charging handle
+    m.box((0, -0.06, 0.045), (0.012, 0.006, 0.08), "black")                       # trigger guard
+    m.box((0, -0.052, 0.008), (0.006, 0.016, 0.006), "steel")                     # trigger
+    m.box((0, -0.088, 0.11), (0.036, 0.1, 0.048), "olive", pitch=-16)             # pistol grip
+    stock = [(0.13, 0.04), (0.13, -0.045), (0.39, -0.075), (0.39, 0.03)]
+    m.prism(stock, 0.028, "olive")
+    m.box((0, -0.022, 0.395), (0.06, 0.106, 0.014), "black")                      # recoil pad
+    m.box((0, 0.048, 0.3), (0.04, 0.014, 0.1), "olive_dark")                      # cheek rest
+    for k in range(3):                                                            # side saddle (left), red shells
+        m.box((-0.04, 0.004, -0.0 + k * 0.026), (0.012, 0.046, 0.02), "shell", ends="brass")
+    m.part("Mag", (0, -0.05, -0.08))
+    m.mark("Optic", (0, 0.057, 0.0))
+    m.mark("Grip", (0, -0.072, 0.105))
+    m.mark("Muzzle", (0, 0.028, -0.585))
+    m.mark("Sight", (0, 0.069, 0))
+    m.mark("Fore", (0, -0.061, -0.23))
+
+
+def talon(m, look):
+    """The Talon (semi-auto marksman rifle): a black upper on a tan lower and handguard, a box mag, a long rail and a
+    muzzle brake. Shorter than the Lancer, with a pistol grip and an adjustable stock."""
+    m.box((0, 0.0, 0.0), (0.058, 0.07, 0.3), "black")                             # upper receiver
+    m.box((0, -0.035, 0.02), (0.056, 0.04, 0.22), "tan")                          # lower receiver
+    m.box((0, 0.042, -0.1), (0.03, 0.012, 0.5), "rail")                           # long top rail
+    m.box((0, 0.002, -0.32), (0.062, 0.062, 0.3), "tan")                          # handguard
+    for z in (-0.22, -0.27, -0.32, -0.37, -0.42):
+        for x in (-0.032, 0.032):
+            m.box((x, 0.002, z), (0.004, 0.022, 0.026), "black")                  # its slots
+    m.box((0, 0.008, -0.58), (0.022, 0.022, 0.22), "blued")                       # barrel
+    m.box((0, 0.008, -0.705), (0.034, 0.034, 0.05), "black")                      # muzzle brake
+    for z in (-0.695, -0.715):
+        m.box((0, 0.008, z), (0.036, 0.012, 0.006), "park")                       # its ports
+    m.box((0, 0.062, 0.12), (0.026, 0.024, 0.02), "black", part="Irons")         # flip-up rear
+    m.ring(0, 0.078, 0.12, 0.006, 0.003, 0.01, "black", part="Irons")
+    m.box((0, 0.06, -0.44), (0.012, 0.024, 0.016), "black", part="Irons")        # flip-up front
+    m.post(-0.44, 0.06, 0.078, "black", guard="ears")
+    m.part("Bolt", (0.034, 0.02, 0.05))
+    m.box((0.034, 0.02, 0.05), (0.012, 0.014, 0.034), "steel", part="Bolt")       # charging handle (right)
+    m.box((0, -0.068, 0.055), (0.012, 0.006, 0.07), "black")                      # trigger guard
+    m.box((0, -0.062, 0.025), (0.006, 0.016, 0.006), "steel")                     # trigger
+    m.box((0, -0.11, 0.1), (0.036, 0.1, 0.046), "stipple", pitch=-16)             # pistol grip
+    m.box((0, -0.008, 0.21), (0.03, 0.036, 0.12), "black")                        # buffer tube
+    stock = [(0.24, 0.035), (0.24, -0.075), (0.42, -0.095), (0.42, 0.035)]
+    m.prism(stock, 0.026, "tan")
+    m.box((0, 0.045, 0.33), (0.046, 0.016, 0.09), "black")                        # cheek riser
+    m.box((0, -0.03, 0.425), (0.054, 0.13, 0.012), "black")                       # butt pad
+    m.part("Mag", (0, -0.055, -0.06))
+    m.box((0, -0.1, -0.065), (0.032, 0.09, 0.06), "black", pitch=6, part="Mag")   # box mag
+    m.mark("Optic", (0, 0.048, -0.02))
+    m.mark("Grip", (0, -0.095, 0.095))
+    m.mark("Fore", (0, -0.029, -0.33))
+    m.mark("Muzzle", (0, 0.008, -0.735))
+    m.mark("Sight", (0, 0.078, 0))
+
+
+GUNS = {"hound": hound, "stinger": stinger, "wasp": wasp, "mauler": mauler, "lancer": lancer, "reaper": reaper,
+        "viper": viper, "hornet": hornet, "brawler": brawler, "talon": talon}
 
 
 # ------------------------------------------------------------------------------------------------ attachments

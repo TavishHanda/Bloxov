@@ -7,10 +7,11 @@ extends RefCounted
 
 ## AI loadout tables (ScavBase.loadout names one of these, or a gun id for a fixed gun): gun id -> weight.
 const TABLES := {
-	"scav": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15},
-	"raider": {"ak": 50, "smg": 30, "shotgun": 20},
-	# AI PMCs (0.36.4): any of the four AI guns, the scav table's odds.
-	"pmc": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15},
+	# (0.36.42, owner OK'd: the AI sometimes carries the new Hornet, Brawler and Viper, 5 each on top of the old odds.)
+	"scav": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15, "hornet": 5, "brawler": 5, "viper": 5},
+	"raider": {"ak": 50, "smg": 30, "shotgun": 20, "hornet": 8, "brawler": 5},
+	# AI PMCs (0.36.4): any of the AI guns, the scav table's odds.
+	"pmc": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15, "hornet": 5, "brawler": 5, "viper": 5},
 }
 
 ## What an AI PMC wears and carries (0.36.4, piece 5 of the AI PMC plan: "light armor most of the time, sometimes none
@@ -52,7 +53,10 @@ const STYLES := {
 
 ## Guns as numbers for the network (0.15.12): the server sends each AI's gun to the puppets, so online they hold,
 ## sound and shoot like the gun they really carry.
-const NET_GUNS := ["", "ak", "smg", "shotgun", "pistol", "sniper", "reaper"]
+const NET_GUNS := ["", "ak", "smg", "shotgun", "pistol", "sniper", "reaper", "viper", "hornet", "brawler", "talon"]
+## A gun that fights like another (0.36.42): the second gun of a type uses its type's style (the AI's fighting is locked,
+## so only the numbers it already had), and its own shot pitch on top (ItemDB "shot_pitch").
+const STYLE_OF := {"viper": "pistol", "hornet": "smg", "brawler": "shotgun", "talon": "sniper"}
 
 ## Attachments a dropped gun may come with (ScavBase.drop_part_chance: Raiders, sometimes).
 const DROP_PARTS := ["red_dot", "foregrip", "ext_mag", "suppressor", "scope_4x"]
@@ -76,12 +80,14 @@ static func pick(name: String) -> String:
 
 ## Changes `ai`'s shooting stats for carrying `gun`.
 static func apply_style(ai: Object, gun: String) -> void:
-	var style: Dictionary = STYLES.get(gun, {})
+	var style: Dictionary = STYLES.get(STYLE_OF.get(gun, gun), {})
 	for stat: String in style.get("mult", {}):
 		var value: float = float(ai.get(stat)) * float(style["mult"][stat])
 		ai.set(stat, maxi(roundi(value), 1) if typeof(ai.get(stat)) == TYPE_INT else value)
 	for stat: String in style.get("set", {}):
 		ai.set(stat, style["set"][stat])
+	if STYLE_OF.has(gun):
+		ai.set("shot_pitch", float(ai.get("shot_pitch")) * float(ItemDB.item(gun).get("shot_pitch", 1.0)))
 
 
 ## The gun as it ends up on the body (empty, like before): with attachments `parts`, plus a random one

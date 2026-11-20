@@ -88,17 +88,21 @@ const VARIANTS := {
 
 ## The reload sounds' pitch for gun `id` (1 = today's).
 static func reload_pitch(id: String) -> float:
-	return RELOAD_PITCH.get(id, 1.0)
+	return RELOAD_PITCH.get(SOUND_OF.get(id, id), 1.0)
+
+
+## The second gun of each type (0.36.42) uses its type's sounds, at its own pitch (ItemDB "shot_pitch").
+const SOUND_OF := {"viper": "pistol", "hornet": "smg", "brawler": "shotgun", "talon": "sniper"}
 
 
 ## The shot sound of gun `id` ("" or a gun without its own: the original). The near sound: today's file.
 static func shot(id: String) -> AudioStream:
-	return SHOTS.get(id, DEFAULT_SHOT)
+	return SHOTS.get(SOUND_OF.get(id, id), DEFAULT_SHOT)
 
 
 ## The set of variants a gun uses (its base sound's name).
 static func base_key(id: String) -> String:
-	match id:
+	match SOUND_OF.get(id, id):
 		"pistol":
 			return "pistol"
 		"smg":

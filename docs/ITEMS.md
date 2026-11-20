@@ -8,17 +8,21 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Item | Type | Rarity | Size | Stack | Value (each) | Notes | Description |
 |---|---|---|---|---|---|---|---|
 | Stinger (`pistol`) | Weapon | Common | 2×1 | 1 | $3,000 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo; attachment slots: barrel, sight | Small sidearm. Quick to aim, one shot per click. |
+| Viper (`viper`) | Weapon | Uncommon | 2×1 | 1 | $6,500 | secondary slot; semi-auto; 30 dmg, 200 rpm, 7-round mag, pistol ammo; attachment slots: barrel, sight | Heavy sidearm. Hits almost twice as hard as the Stinger, holds 7 and kicks. |
 | Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $10,000 | primary slot; full-auto; 20 dmg, 900 rpm, 25-round mag, smg ammo; damage drops to 70% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
 | Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $11,000 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
 | Hound (`ak`) | Weapon | Uncommon | 4×2 | 1 | $12,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
+| Hornet (`hornet`) | Weapon | Uncommon | 3×2 | 1 | $14,000 | primary slot; full-auto; 24 dmg, 700 rpm, 30-round mag, smg ammo; damage drops to 75% from 30 to 60 m; attachment slots: scope, barrel, grip, mag | Heavier SMG. Fires slower than the Wasp but hits harder and holds up farther out. |
+| Brawler (`brawler`) | Weapon | Uncommon | 4×1 | 1 | $15,000 | primary slot; semi-auto; 8 pellets x 12 dmg, 150 rpm, 8-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Semi-auto shotgun. No pump: it fires as fast as you click. Wider spread than the Mauler. |
 | Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $22,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
+| Talon (`talon`) | Weapon | Rare | 5×1 | 1 | $26,000 | primary slot; semi-auto; 55 dmg, 150 rpm, 10-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Semi-auto marksman rifle. Weaker shots than the Lancer, but ten of them, fast. |
 | Reaper (`reaper`) | Weapon | Epic | 4×2 | 1 | $30,000 | primary slot; full-auto; 30 dmg, 650 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Site Zero's own rifle. Takes Hound rounds, shoots straighter and faster. Only Raijin carries one. |
-| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Reaper, Stinger, Wasp, Mauler, Lancer; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
-| Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler; pellet_spread x0.85 | Shotgun muzzle. Keeps the pellets tighter. |
-| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Reaper, Wasp, Mauler, Lancer; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
-| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits Hound, Reaper, Wasp, Lancer; mag x1.5, reload x1.1 | Holds more rounds. Slower to reload. |
-| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Reaper, Wasp, Lancer; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
-| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Reaper, Stinger, Wasp, Lancer; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
+| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Reaper, Stinger, Wasp, Mauler, Lancer, Viper, Hornet, Brawler, Talon; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
+| Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler, Brawler; pellet_spread x0.85 | Shotgun muzzle. Keeps the pellets tighter. |
+| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Reaper, Wasp, Mauler, Lancer, Hornet, Brawler, Talon; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
+| Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits Hound, Reaper, Wasp, Lancer, Hornet, Talon; mag x1.5, reload x1.1 | Holds more rounds. Slower to reload. |
+| 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Reaper, Wasp, Lancer, Hornet, Talon; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
+| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Reaper, Stinger, Wasp, Lancer, Viper, Hornet, Talon; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
 | 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits Lancer; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $7,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $20,000 | -40% damage taken | Plated vest. Stops a lot. |

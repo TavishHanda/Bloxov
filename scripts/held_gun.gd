@@ -6,7 +6,8 @@ extends RefCounted
 ## art_source/scripts/make_gun.py; first person uses the same ones (GunViewModels).
 
 ## Weapon item id -> its model, assets/models/guns/<name>.glb.
-const MODELS := {"ak": "hound", "reaper": "reaper", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer"}
+const MODELS := {"ak": "hound", "reaper": "reaper", "pistol": "stinger", "smg": "wasp", "shotgun": "mauler", "sniper": "lancer",
+	"viper": "viper", "hornet": "hornet", "brawler": "brawler", "talon": "talon"}
 
 
 ## A new instance of weapon `id`'s model (nodes Body, Mag, Muzzle, Grip, Sight, Optic, Fore: see make_gun.py).
