@@ -255,6 +255,22 @@ func open_box(peer: int, box: String) -> void:
 		net._profile_sync.rpc_id(peer, record["profile"])
 
 
+## Expeditions (0.38.0, PvP): leave. The server checks the truck and the entry money on its own copy and starts the
+## PvP stash over (OnlineProfile.leave_expedition); their game gets the result and the new stash.
+func leave_expedition(peer: int) -> void:
+	var record: Dictionary = by_peer.get(peer, {})
+	if record.is_empty() or record["raid"]["state"] == IN_RAID:
+		return
+	var fresh := OnlineProfile.leave_expedition(record["profile"])
+	if not fresh.is_empty():
+		record["profile"] = fresh
+		_persist(record)
+		net._log("%s: left on an expedition (%d trips)" % [record["username"], int(fresh["expeditions"])])
+	if net._peer_open(peer):
+		net._expedition_result.rpc_id(peer, not fresh.is_empty())
+		net._profile_sync.rpc_id(peer, record["profile"])
+
+
 ## A raid is starting with `peer` in it: issue their kit (the loadout saved on the server) and put it at risk.
 ## Returns the kit, or {} when they aren't signed in (then their game's own kit list counts, as before accounts).
 func raid_starting(peer: int, raid: int) -> Dictionary:

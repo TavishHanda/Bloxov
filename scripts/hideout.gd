@@ -23,6 +23,10 @@ var wardrobe: WardrobeScreen
 var record: RecordScreen
 ## The workbench (0.32.0): crafting.
 var craft_screen: CraftScreen
+## Expeditions (0.38.0): the truck and leaving.
+var expedition_screen: ExpeditionScreen
+## Set while leaving on an expedition: the old stash must not be saved over the new one.
+var _leaving := false
 var phone_nav: HBoxContainer
 var _nav_buttons := {}
 var _version_label: Label
@@ -140,6 +144,9 @@ func _ready() -> void:
 	craft_screen = CraftScreen.new(self)
 	craft_screen.visible = false
 	add_child(craft_screen)
+	expedition_screen = ExpeditionScreen.new(self)
+	expedition_screen.visible = false
+	add_child(expedition_screen)
 	Network.main.set_look(Operators.to_text(Profile.look))
 
 	_build_top_bar()
@@ -163,6 +170,7 @@ func _ready() -> void:
 	net.account_result.connect(_on_account)
 	net.profile_synced.connect(_show_online_profile)
 	net.box_opened.connect(_on_box_opened)
+	net.expedition_left.connect(_on_expedition_left)
 	# Came back from an online raid: show the party/queue screen again.
 	if net.is_client():
 		_online_panel.visible = true
@@ -458,6 +466,66 @@ func upgrade_bench() -> bool:
 func open_craft() -> void:
 	close_trader_screen()
 	craft_screen.open()
+
+
+# --- Expeditions (0.38.0, owner 2026-11-20) ------------------------------------------
+## The truck: five parts from loot and money, then the haven's entry and LEAVE (see Expedition). Solo wipes here;
+## PvP asks the server, which checks its own copy and wipes the PvP stash.
+
+## The truck's screen.
+func open_expedition() -> void:
+	close_trader_screen()
+	expedition_screen.open()
+
+
+## Builds a truck part. True if it worked.
+func build_truck_part(part: String) -> bool:
+	var why := Profile.build_truck_part(part)
+	if why != "":
+		_message(why)
+		return false
+	UISounds.play(self, UISounds.BUY, -10.0)
+	_message("%s built and on the truck" % Expedition.PARTS[part]["name"])
+	_queue_save()
+	_fill_trader()
+	return true
+
+
+## Leaves on an expedition (the screen asked for LEAVE first).
+func leave_expedition() -> void:
+	if _leaving or not Expedition.can_leave(Profile.truck, Profile.money):
+		return
+	save_now()
+	if Profile.mode == Profile.ONLINE:
+		if not Network.main.signed_in():
+			_message("Sign in to leave with your PvP stash")
+			return
+		_leaving = true
+		_message("Talking to the haven...")
+		Network.main.leave_expedition()
+		return
+	_leaving = true
+	if not Profile.leave_solo():
+		_leaving = false
+		_message("The truck isn't ready")
+		return
+	_drive_off()
+
+
+## PvP: the server answered. The new stash arrives with profile_synced, then we drive off.
+func _on_expedition_left(ok: bool) -> void:
+	if not ok:
+		_leaving = false
+		_message("The haven turned you away: the server's stash isn't ready to leave")
+		return
+	var net := Network.main
+	net.profile_synced.connect(func() -> void: _drive_off(), CONNECT_ONE_SHOT)
+
+
+## The leaving cutscene, then back to the (new) hideout.
+func _drive_off() -> void:
+	ExpeditionCutscene.trips = Profile.expeditions
+	get_tree().change_scene_to_file(ExpeditionCutscene.SCENE)
 
 
 # --- Saved loadouts (0.21.2, owner) -------------------------------------------------
@@ -1001,6 +1069,8 @@ func _queue_save() -> void:
 
 func save_now() -> void:
 	_save_queued = false
+	if _leaving:
+		return
 	Profile.loadout = Profile.capture_inventory(inventory)
 	Profile.save_profile()
 	_refresh()
@@ -2223,6 +2293,7 @@ func close_trader_screen() -> void:
 	wardrobe.visible = false
 	record.visible = false
 	craft_screen.visible = false
+	expedition_screen.visible = false
 
 
 ## The wardrobe (0.21.6): pick your operator and change their parts.
@@ -2247,6 +2318,8 @@ func current_screen() -> String:
 		return "record"
 	if craft_screen.visible:
 		return "craft"
+	if expedition_screen.visible:
+		return "truck"
 	return "gear"
 
 
@@ -2283,6 +2356,8 @@ func show_screen(id: String) -> void:
 			open_record()
 		"craft":
 			open_craft()
+		"truck":
+			open_expedition()
 		_:
 			close_trader_screen()
 

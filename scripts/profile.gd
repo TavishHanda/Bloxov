@@ -44,6 +44,9 @@ static var trader_levels: Dictionary = {}
 ## The workbench (0.32.0, see Crafting): its level, and recipe id -> times crafted (the server checks PvP crafts with it).
 static var bench_level := 1
 static var crafted: Dictionary = {}
+## Expeditions (0.38.0, see Expedition): the truck's parts built so far, and how many trips this stash has made.
+static var truck: Array[String] = []
+static var expeditions := 0
 ## Saved loadouts (0.21.2, owner): [{"name", "kit"}, ...], see Loadouts.
 static var loadout_presets: Array = []
 ## Your character's look (0.21.6, the wardrobe): {part: option}, see Operators.
@@ -139,6 +142,8 @@ static func _apply(data: Dictionary) -> void:
 			trader_levels[trader] = trader_level_reached(trader)
 	bench_level = Crafting.bench_of(data)
 	crafted = Crafting.crafted_of(data)
+	truck = Expedition.truck_of(data)
+	expeditions = Expedition.trips_of(data)
 	loadout_presets = []
 	for entry in _array(data.get("presets")):
 		var preset := Loadouts.clean(entry)
@@ -266,6 +271,8 @@ static func reset() -> void:
 	trader_levels = {}
 	bench_level = 1
 	crafted = {}
+	truck = []
+	expeditions = 0
 	loadout_presets = []
 	look = Operators.clean({})
 	decor = {}
@@ -360,7 +367,45 @@ static func online_data() -> Dictionary:
 		"presets": loadout_presets,
 		"bench_level": bench_level,
 		"crafted": crafted,
+		"truck": truck,
+		"expeditions": expeditions,
 	}
+
+
+## Builds a truck part from the stash and money (Expedition). Returns the error ("" = built, and saved).
+static func build_truck_part(part: String) -> String:
+	var why := Expedition.build(stash, money, truck, part)
+	if why != "":
+		return why
+	money -= int(Expedition.PARTS[part]["money"])
+	save_profile()
+	return ""
+
+
+## Solo: leave on an expedition. The PvE stash starts over (Expedition.wiped) with the stats record, look, decor and
+## tutorial kept. False if the truck isn't ready. (PvP goes through the server: Network.main.leave_expedition.)
+static func leave_solo() -> bool:
+	if mode != SOLO:
+		return false
+	var fresh := JSON.parse_string(JSON.stringify(_fresh_data())) as Dictionary
+	var data := Expedition.wiped(online_data(), fresh)
+	if data.is_empty():
+		return false
+	var keep_look := look
+	var keep_decor := decor
+	var keep_tutorial := tutorial
+	_apply(data)
+	look = keep_look
+	decor = keep_decor
+	tutorial = keep_tutorial
+	save_profile()
+	return true
+
+
+## A brand new solo stash in the saved shape (what reset() makes).
+static func _fresh_data() -> Dictionary:
+	return {"version": VERSION, "money": START_MONEY, "stash_size": [STASH_SIZE.x, STASH_SIZE.y], "stash": [],
+		"loadout": starting_loadout(), "stats": DEFAULT_STATS.duplicate(), "trader_levels": {}}
 
 
 ## Swaps the whole profile for a saved one (JSON text, checked by SaveBackup.read first): written to both copies
