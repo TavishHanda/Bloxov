@@ -114,6 +114,9 @@ func _ready() -> void:
 		return
 	_spawn_position = global_position
 	_last_floor_y = global_position.y
+	Profile.load_profile()
+	Characters.begin(Profile.characters)
+	_apply_character()
 	Effects.warm_up(camera)
 	hand = HandItem.new()
 	camera.add_child(hand)
@@ -281,7 +284,7 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 	_heal_grid = grid
 	if hand != null:
 		hand.show_item(stack.id)
-	heal_duration = ItemDB.item(stack.id)["use_time"]
+	heal_duration = ItemDB.item(stack.id)["use_time"] * Characters.mult("heal_time")
 	heal_time_left = heal_duration
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
 	if WorldSounds.ITEMS.has(stack.id):
@@ -473,7 +476,7 @@ func _physics_process(delta: float) -> void:
 	_move_input = input_dir
 
 	# Sprint: only forward-ish, on the ground, not while healing, needs stamina. Sprinting stands you up.
-	var wants_sprint := (not out_of_fight() and on_floor and not is_healing() and not is_exhausted
+	var wants_sprint := (not out_of_fight() and on_floor and (not is_healing() or _heal_sprint()) and not is_exhausted
 		and Input.is_action_pressed("sprint") and input_dir.y < -0.5 and not gun.wants_aim() and not is_leaning()
 		and not BoxMap.is_wading(self))
 	if wants_sprint and is_crouching:
@@ -710,6 +713,7 @@ func throw_grenade(grid: GridInventory, stack: ItemStack) -> void:
 
 func _on_damaged(amount: int, source_position: Vector3) -> void:
 	_hurt_at = Time.get_ticks_msec() / 1000.0
+	_check_overdrive()
 	add_shake(0.55)
 	# Flinch: getting shot throws your aim off and loosens your next shots.
 	var flinch := flinch_deg * clampf(amount / 25.0, 0.4, 2.0)
@@ -920,3 +924,38 @@ func _on_died() -> void:
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(head, "position:y", 0.35, 0.6).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	tween.tween_property(head, "rotation:z", 1.2, 0.6)
+
+
+## The picked character's traits (0.37.0, see Characters): movement, stamina, jumping and noise here; the gun reads
+## its own (Gun._apply_stats). Set once as we spawn; nothing changes mid-raid.
+func _apply_character() -> void:
+	var move := Characters.mult("move")
+	walk_speed *= move
+	crouch_speed *= move
+	sprint_speed *= move * Characters.mult("sprint")
+	max_stamina *= Characters.mult("stamina_max")
+	stamina = max_stamina
+	sprint_drain *= Characters.mult("sprint_stamina")
+	stamina_regen *= Characters.mult("stamina_regen")
+	jump_velocity *= sqrt(Characters.mult("jump"))   # (jump height grows with the square of the speed)
+	ads_move_multiplier *= Characters.mult("aim_move")
+	var steps := Characters.mult("steps")
+	walk_noise *= steps
+	sprint_noise *= steps
+	crouch_noise *= steps
+	prone_noise *= steps
+	landing_noise *= steps
+	vault_noise *= steps
+	gun.switch_time *= Characters.mult("swap")
+
+
+## NINE's Overdrive: once per raid, dropping below 30% health gives seconds of sprint that use no stamina (the
+## energy drink's boost).
+var _overdrive_used := false
+
+func _check_overdrive() -> void:
+	if _overdrive_used or Characters.active_passive != "overdrive" or health.is_dead:
+		return
+	if float(health.current) < float(health.max_health) * Characters.OVERDRIVE_BELOW:
+		_overdrive_used = true
+		drink_boost_left = maxf(drink_boost_left, float(Characters.PASSIVES["overdrive"]["ranks"][Characters.active_rank - 1]))

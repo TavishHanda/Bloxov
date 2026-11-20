@@ -23,6 +23,8 @@ var wardrobe: WardrobeScreen
 var record: RecordScreen
 ## The workbench (0.32.0): crafting.
 var craft_screen: CraftScreen
+## The characters (0.37.0): pick, unlock, upgrade.
+var character_screen: CharacterScreen
 var phone_nav: HBoxContainer
 var _nav_buttons := {}
 var _version_label: Label
@@ -140,7 +142,11 @@ func _ready() -> void:
 	craft_screen = CraftScreen.new(self)
 	craft_screen.visible = false
 	add_child(craft_screen)
-	Network.main.set_look(Operators.to_text(Profile.look))
+	character_screen = CharacterScreen.new(self)
+	character_screen.visible = false
+	add_child(character_screen)
+	wardrobe.on_characters = open_characters
+	Network.main.set_look(Operators.to_text(Profile.look) + Characters.net_tag(Profile.characters))
 
 	_build_top_bar()
 	_build_phone_nav()
@@ -458,6 +464,12 @@ func upgrade_bench() -> bool:
 func open_craft() -> void:
 	close_trader_screen()
 	craft_screen.open()
+
+
+## The characters (0.37.0): pick who you play, unlock more, spend points.
+func open_characters() -> void:
+	close_trader_screen()
+	character_screen.open()
 
 
 # --- Saved loadouts (0.21.2, owner) -------------------------------------------------
@@ -2223,6 +2235,7 @@ func close_trader_screen() -> void:
 	wardrobe.visible = false
 	record.visible = false
 	craft_screen.visible = false
+	character_screen.visible = false
 
 
 ## The wardrobe (0.21.6): pick your operator and change their parts.
@@ -2247,6 +2260,8 @@ func current_screen() -> String:
 		return "record"
 	if craft_screen.visible:
 		return "craft"
+	if character_screen.visible:
+		return "characters"
 	return "gear"
 
 
@@ -2257,7 +2272,7 @@ func _build_phone_nav() -> void:
 	phone_nav.name = "PhoneNav"
 	phone_nav.add_theme_constant_override("separation", 4)
 	phone_nav.visible = GameSettings.is_phone()
-	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["wardrobe", "WARDROBE"], ["craft", "CRAFT"], ["record", "RECORD"]]:
+	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["characters", "CHARS"], ["wardrobe", "WARDROBE"], ["craft", "CRAFT"], ["record", "RECORD"]]:
 		var id: String = spec[0]
 		var button := Button.new()
 		button.name = id
@@ -2283,6 +2298,8 @@ func show_screen(id: String) -> void:
 			open_record()
 		"craft":
 			open_craft()
+		"characters":
+			open_characters()
 		_:
 			close_trader_screen()
 
@@ -2298,7 +2315,7 @@ func _light_nav() -> void:
 func change_look(new_look: Dictionary) -> void:
 	Profile.look = new_look
 	screen.show_look(new_look)
-	Network.main.set_look(Operators.to_text(new_look))
+	Network.main.set_look(Operators.to_text(new_look) + Characters.net_tag(Profile.characters))
 	_queue_save()
 
 

@@ -175,9 +175,21 @@ func _set_leave_warning(on: bool) -> void:
 func _finish() -> void:
 	_set_leave_warning(false)
 	_tally_loot()
+	_character_ended()
 	Quests.raid_ended(result == "extracted", loot_value, extract_used_id)
 	_save_to_profile()
 	ended.emit(result)
+
+
+## The picked character's XP and SABLE's Bounty (0.37.0, Characters.raid_ended). Online the server works it out the
+## same way and sends the profile back, so here it's only worked out on a copy for the end screen.
+func _character_ended() -> void:
+	var online := Profile.mode == Profile.ONLINE
+	var state: Dictionary = Profile.characters.duplicate(true) if online else Profile.characters
+	Characters.last_raid = Characters.raid_ended(state, result == "extracted", Quests.raid_kills)
+	if not online and int(Characters.last_raid["bounty"]) > 0:
+		Profile.money += int(Characters.last_raid["bounty"])
+		Profile.stats["earned"] += int(Characters.last_raid["bounty"])
 
 
 ## The end screen's loot list and value. Killed or MIA: the secure pocket comes home, so it isn't part of what you
