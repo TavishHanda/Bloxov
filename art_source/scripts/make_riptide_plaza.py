@@ -114,7 +114,7 @@ ROOMS = [("POST ROOM", "GOODS IN", "RECEPTION", "SECURITY"), ("OFFICES", "HARBOR
 ROOM_DOORS = [(-120.0, -20.5 + 0.15, 1), (-97.0, -20.5 + 0.15, 1), (-114.0, -15.0 - 0.15, -1), (-100.0, -15.0 - 0.15, -1)]
 FLOOR_NAMES = ["GROUND FLOOR"] + ["FLOOR %d" % f for f in range(1, 6)]
 PROP_KINDS = {"shelves", "crates", "console", "desk", "files", "counter", "sofa", "mess_table", "fridge", "stove", "tv",
-              "bench", "radio", "stalls", "chart_table"}
+              "bench", "radio", "stalls", "chart_table", "drums"}
 
 
 def plaza_decals(rng):

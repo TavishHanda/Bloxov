@@ -694,32 +694,45 @@ def _terminal():
         runs = [(-142.0, 4), (-112.0, 4), (-82.0, 2)] if r % 2 == 0 else [(-128.0, 4), (-98.0, 4), (-146.0, 1)]
         for k, (x0, cols) in enumerate(runs):
             block(x0, z0, cols, 3, hs, k=r * 7 + k * 3)
-    # loose containers in the aisles (0.38.5, owner: "some containers block your movement by just cutting off a whole
-    # lane ... place them sideways"; then "one shipping container in the middle with two open sides ... make it more
-    # natural"): each one pulled out against a row's side, along the aisle, as if set down there to be loaded or
-    # emptied, leaving 2-4 m to go by. Some open at one end with crates set out by the doors, one open both ends, some
-    # shut and stacked two high; one a pair side by side.
+    # loose containers in the aisles (owner, 0.38.6: "some containers block your movement by just cutting off a whole
+    # lane ... place them sideways"; "one shipping container in the middle with two open sides ... make it more
+    # natural"; "its just one container sitting there. dont be afraid to add cover"): each spot is a little work area
+    # set against one row's side, along the aisle: the container being worked (open at one end with crates set out by
+    # its doors, open both ends, a pair, or shut and two high), a second container end to end with it 1.5 m off, drums
+    # in the gap between them, crates and drums along their aisle side. The aisle keeps 3 m to go by (the pair, 1.4 m).
     cols = ("container_b", "container_c", "container_a")
-    for i, (x, zc, side, what) in enumerate([(-122.0, -99.4, -1, "open"), (-88.0, -99.4, 1, "stack"),
-                                             (-108.0, -85.4, -1, "pair"), (-138.0, -71.4, 1, "open"),
-                                             (-76.0, -71.4, -1, "stack"), (-118.0, -57.4, 1, "through"),
-                                             (-92.0, -57.4, -1, "stack")]):
+    for i, (x, zc, side, what, nb, nh) in enumerate([
+            (-122.0, -99.4, -1, "open", -1, 1), (-88.0, -99.4, 1, "stack", 1, 1), (-108.0, -85.4, -1, "pair", -1, 2),
+            (-125.0, -71.4, 1, "open", 1, 2), (-76.0, -71.4, -1, "stack", 0, 0), (-124.0, -57.4, 1, "through", -1, 1),
+            (-92.0, -57.4, -1, "stack", 1, 2)]):
         z = zc + side * (3.4 - 1.2 - 0.15)
         colour = cols[i % 3]
+        e = -nb if nb else (1 if i % 2 else -1)        # an open end faces away from the second container
         if what == "stack":
             container(x, SHORE, z, "x", colour, 2)
         elif what == "pair":
             container(x, SHORE, z, "x", colour, 1)
-            open_container(x + 0.8, SHORE, z - side * 2.8, "x", cols[(i + 1) % 3], 1)    # (its doors clear the other)
-            box(x + 6.0, SHORE, z - side * 3.6 - 0.6, x + 7.2, SHORE + 1.0, z - side * 3.6 + 0.6, "wood", kind="crates")
+            open_container(x + 0.8, SHORE, z - side * 2.8, "x", cols[(i + 1) % 3], e)    # (its doors clear the other)
         else:
-            e = 1 if i % 2 else -1
             open_container(x, SHORE, z, "x", colour, 2 if what == "through" else e)
-            if what == "open":     # crates set out by the open doors
-                cx = x + e * 5.2
-                box(cx - 0.6, SHORE, z - side * 1.2 - 0.6, cx + 0.6, SHORE + 1.4, z - side * 1.2 + 0.6, "wood", kind="crates")
-                box(cx + e * 1.6 - 0.6, SHORE, z - side * 0.4 - 0.5, cx + e * 1.6 + 0.6, SHORE + 0.8, z - side * 0.4 + 0.5,
-                    "wood", kind="crates")
+        if what in ("open", "pair"):        # crates set out by the open doors
+            ox = (x + 0.8 if what == "pair" else x) + e * 5.0
+            oz = z - side * (2.8 if what == "pair" else 0.0) - side * 1.0
+            box(ox - 0.6, SHORE, oz - 0.6, ox + 0.6, SHORE + 1.4, oz + 0.6, "wood", kind="crates")
+            box(ox + e * 1.5 - 0.6, SHORE, oz + side * 0.6 - 0.5, ox + e * 1.5 + 0.6, SHORE + 0.8, oz + side * 0.6 + 0.5,
+                "wood", kind="crates")
+        if nb:                              # the second container, end to end, drums in the gap
+            container(x + nb * 7.5, SHORE, z, "x", cols[(i + 2) % 3], nh)
+            gx = x + nb * 3.75
+            box(gx - 0.7, SHORE, z - 0.7, gx + 0.7, SHORE + 1.0, z + 0.7, "metal", kind="drums")
+        # along the aisle side (from the containers' face out 1.2 m; the pair already fills that): a crate stack by the
+        # main container, a row of drums by the second one (or past the main one's far end)
+        if what != "pair":
+            f0, f1 = sorted((zc + side * 0.85, zc - side * 0.35))
+            box(x - 1.0, SHORE, f0, x + 1.0, SHORE + 1.4, f1, "wood", kind="crates")
+            dx = x + nb * 7.5 if nb else x + 4.6 * (1 if e < 0 else -1)
+            g0, g1 = sorted((zc + side * 0.85, zc + side * 0.05))
+            box(dx - 1.4, SHORE, g0, dx + 1.4, SHORE + 1.0, g1, "metal", kind="drums")
     with kinded("gantry"):
         for x in (-148.0, -64.0):                      # the gantry crane
             for z in (-99.0, -75.0):
