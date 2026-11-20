@@ -77,6 +77,8 @@ signal account_result(action: String, ok: bool, data: Dictionary)
 signal profile_synced
 ## One of Ming's boxes opened on the server (PvP): the item id that came out ("" = it couldn't: money or room).
 signal box_opened(box: String, id: String)
+## Expeditions (0.38.0, PvP): the server answered a leave (true = the PvP stash started over; profile_synced follows).
+signal expedition_left(ok: bool)
 
 enum Mode { OFFLINE, SERVER, CLIENT }
 
@@ -1571,6 +1573,25 @@ func _open_box(box: String) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _box_result(box: String, id: String) -> void:
 	box_opened.emit(box, id)
+
+
+## Client (PvP): leave on an expedition; the server checks the truck and money and wipes the PvP stash
+## (expedition_left says how it went).
+func leave_expedition() -> void:
+	if signed_in() and not in_raid:
+		_leave_expedition.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _leave_expedition() -> void:
+	var peer := _sender("save")
+	if peer != 0 and accounts != null:
+		accounts.leave_expedition(peer)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _expedition_result(ok: bool) -> void:
+	expedition_left.emit(ok)
 
 
 @rpc("any_peer", "call_remote", "reliable")

@@ -14,7 +14,7 @@ const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const MAX_STACKS := 500
 const MAX_MONEY := 1_000_000_000
 const KEYS: Array[String] = ["version", "money", "stash_size", "stash", "loadout", "stats", "trader_spent",
-	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted", "characters"]
+	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted", "characters", "truck", "expeditions"]
 const STATS: Array[String] = ["raids", "extracts", "deaths", "earned"]
 
 
@@ -370,6 +370,13 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 	if crafts["error"] != "":
 		return crafts["error"]
 	cost += int(crafts["money"])
+	# Expeditions (0.38.0): truck parts use loot and money; trips only go up through leave_expedition.
+	var truck := Expedition.changes(old, new)
+	if truck["error"] != "":
+		return truck["error"]
+	cost += int(truck["money"])
+	for id: String in truck["used"]:
+		crafts["used"][id] = int(crafts["used"].get(id, 0)) + int(truck["used"][id])
 	# Characters (0.37.0): unlocks paid for and allowed, XP and earned points untouched, a points reset paid.
 	var chars := Characters.changes(old, new)
 	if chars["error"] != "":
@@ -431,6 +438,12 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 		return "money %d, at most %d" % [int(new.get("money", 0)), allowed]
 	new["trader_spent"] = spent
 	return ""
+
+
+## PvP: leave on an expedition (0.38.0). The server's profile starts over as a new PvP stash with its stats record
+## and one more trip. Returns the new profile, or {} if its truck isn't ready.
+static func leave_expedition(profile: Dictionary) -> Dictionary:
+	return Expedition.wiped(profile, fresh())
 
 
 static func _keys(a: Dictionary, b: Dictionary) -> Array:

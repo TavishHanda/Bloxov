@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.37.1 (Riptide art: the north point, and models matched to their hitboxes)
+## 0.38.1 (Riptide art: the north point, and models matched to their hitboxes)
 Owner asked (2026-11-20: "keep going with the art pass"; "check the riptide map ... for any rough spots" and "make sure
 all the models match hitboxes"). Shore pass 3a: one new model, `north_point` (origin -110, 0, -145; in `FarView.NO_FAR`),
 drawn by `art_source/scripts/make_riptide_north.py` (`python3 art_source/scripts/make_riptide.py north_point`).
@@ -27,7 +27,22 @@ drawn by `art_source/scripts/make_riptide_north.py` (`python3 art_source/scripts
   Left as they are: thin steelwork out of reach (derrick lattice, crane booms, masts, rails on tank tops) and a few cm
   of slack on sofas and chairs.
 - Rough-spot sweep: stuck-spot walk, see-through probe, ladder audit and map audit all clean.
-- Net version 14 (map geometry).
+- Net version 15 (map geometry).
+
+## 0.38.0 (Expeditions: the way out)
+Owner's design and numbers (2026-11-20). Earned money and loot only: gems never buy a part, the entry or a skip
+(`docs/STORE_RULES.md` section 5).
+- **The truck:** an amphibious armoured truck built from five parts at the workbench (THE TRUCK): Frame (20 scrap,
+  25 bolts, 15 duct tape, $60k), Engine (4 car batteries, 20 wires, 10 bolts, 2 processors, $90k), Armor plates (1 heavy
+  armor, 10 scrap, 5 duct tape, $60k), Radio and route (4 old phones, 2 laptops, 3 hard drives, 3 field reports,
+  1 Exion orders, $40k), Fuel and supplies (10 fuel cans, 8 rations, 12 water, 4 medkits, $30k). Parts go on the
+  truck, so they can't be sold, dropped or lost. About 35-40 raids all in (`economy_sim` material counts).
+- **Leaving:** with all five parts and the safe haven's $500,000, LEAVE ON EXPEDITION (type LEAVE to confirm) starts
+  that stash over: stash, money, loadouts, traders, jobs and the workbench, and the character who went goes back to
+  level 1. The account's shared pool earns 2 upgrade points (up to 10 from expeditions, `Characters`). Settings,
+  looks, unlocked characters, upgrade points, the hideout's decor and your record stay. Repeatable; PvE and PvP each have their own truck and only wipe themselves.
+- **PvP:** the server checks each part build against the stash and money, and does the wipe itself. Net version 14.
+- A short cutscene: the truck rolls down to the shore, into the water and off to the haven.
 
 ## 0.37.0 (Characters)
 Owner designed them with Claude (2026-11-20, "start this and merge"): six playable REVENANT contractors. Numbers are a

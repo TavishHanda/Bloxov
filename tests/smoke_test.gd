@@ -19,7 +19,7 @@ extends SceneTree
 const SECTIONS: Array[String] = [
 	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
-	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting", "playables",
+	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting", "playables", "expedition",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
 	"sound", "netlock", "web_packs", "web_engine", "raid_prep",
 ]
@@ -5040,6 +5040,124 @@ func _section_crafting() -> void:
 	Profile.bench_level = 1
 	Profile.crafted = {}
 	hideout.queue_free()
+	await process_frame
+
+
+func _section_expedition() -> void:
+	# Expeditions (0.38.0, owner 2026-11-20): five truck parts from loot and money, the haven's $500k, then leaving
+	# wipes the stash but keeps the record, looks and settings. PvP: the server checks part builds and does the wipe.
+	var stash := GridInventory.new("Stash", 8, 30)
+	var truck: Array[String] = []
+	_check(Expedition.build(stash, 1000000, truck, "frame") != "" and truck.is_empty(), "a part without its loot is refused")
+	for id in Expedition.PARTS["frame"]["needs"]:
+		stash.add(id, int(Expedition.PARTS["frame"]["needs"][id]))
+	_check(Expedition.build(stash, 1000, truck, "frame") != "" and stash.count_of("scrap") == 20, "a part without its money is refused and takes nothing")
+	_check(Expedition.build(stash, 1000000, truck, "frame") == "" and truck == ["frame"] and stash.count_of("scrap") == 0
+		and stash.count_of("bolts") == 0, "the frame takes its loot and goes on the truck")
+	_check(Expedition.build(stash, 1000000, truck, "frame") != "", "a part is built once")
+	_check(not Expedition.can_leave(truck, 10000000), "you can't leave before the truck is finished")
+	var full: Array[String] = []
+	full.assign(Expedition.PARTS.keys())
+	_check(not Expedition.can_leave(full, Expedition.HAVEN_PRICE - 1) and Expedition.can_leave(full, Expedition.HAVEN_PRICE),
+		"a finished truck leaves once the haven's entry is there")
+	# Solo: leaving starts the PvE stash over.
+	Profile.load_profile()
+	var saved := Profile.save_text()
+	Profile.truck.assign(full)
+	Profile.money = 700000
+	Profile.stats["raids"] = 7
+	Profile.bench_level = 2
+	Profile.trader_levels["guns"] = 2
+	Profile.stash.add("gold_bar", 1)
+	var look := Profile.look.duplicate(true)
+	var who := str(Profile.characters["selected"])
+	Characters.add_xp(Profile.characters, who, 999999)
+	var pool := int(Profile.characters.get("exp_points", 0))
+	_check(Profile.leave_solo(), "a ready truck leaves (solo)")
+	var went := Characters.char_of(Profile.characters, who)
+	_check(int(went["xp"]) == 0 and int(went["lvl_points"]) > 0
+		and int(Profile.characters["exp_points"]) == mini(pool + Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS),
+		"the character who went is back to level 1, keeps its level points, and the shared pool earns %d" % Expedition.POINTS)
+	_check(Profile.money == Profile.START_MONEY and Profile.truck.is_empty() and Profile.expeditions == 1
+		and Profile.bench_level == 1 and Profile.trader_level("guns") == 1 and Profile.stash.count_of("gold_bar") == 0,
+		"leaving wipes the stash, money, truck, workbench and traders and counts the trip")
+	_check(int(Profile.stats["raids"]) == 7 and Profile.look == look, "leaving keeps the record and your looks")
+	_check(not Profile.leave_solo(), "and the new stash can't leave again straight away")
+	var reloaded = JSON.parse_string(Profile.save_text())
+	_check(Expedition.trips_of(reloaded) == 1, "the trip count is saved")
+	# PvP: a part built from loot and money passes the server's check; made-up ones don't.
+	var before := OnlineProfile.fresh()
+	before["money"] = 200000
+	var grid := GridInventory.new("Stash", OnlineProfile.STASH_WIDTH, OnlineProfile.STASH_ROWS[0])
+	Profile._read_grid(before["stash"], grid)
+	for id in Expedition.PARTS["supplies"]["needs"]:
+		grid.add(id, int(Expedition.PARTS["supplies"]["needs"][id]))
+	before["stash"] = Profile._write_grid(grid)
+	before = OnlineProfile.clean(JSON.parse_string(JSON.stringify(before)))
+	var after: Dictionary = JSON.parse_string(JSON.stringify(before))
+	var built: Array[String] = []
+	Expedition.build(grid, int(after["money"]), built, "supplies")
+	after["stash"] = Profile._write_grid(grid)
+	after["truck"] = built
+	after["money"] = int(after["money"]) - int(Expedition.PARTS["supplies"]["money"])
+	after = OnlineProfile.clean(JSON.parse_string(JSON.stringify(after)))
+	var why := OnlineProfile.audit(before, after)
+	_check(why == "", "the PvP check passes a truck part built from the stash (%s)" % why)
+	var fake: Dictionary = JSON.parse_string(JSON.stringify(before))
+	fake["truck"] = ["engine"]
+	_check(OnlineProfile.audit(before, OnlineProfile.clean(fake)) != "", "the PvP check refuses a part without its loot and money")
+	fake = JSON.parse_string(JSON.stringify(after))
+	fake["truck"] = []
+	_check(OnlineProfile.audit(after, OnlineProfile.clean(fake)) != "", "the PvP check refuses taking a part off")
+	fake = JSON.parse_string(JSON.stringify(before))
+	fake["expeditions"] = 3
+	_check(OnlineProfile.audit(before, OnlineProfile.clean(fake)) != "", "the PvP check refuses a trip that didn't go through the server")
+	_check(OnlineProfile.leave_expedition(after).is_empty(), "the server won't wipe a stash whose truck isn't ready")
+	var ready: Dictionary = JSON.parse_string(JSON.stringify(after))
+	ready["truck"] = Expedition.PARTS.keys()
+	ready["money"] = 600000
+	ready["stats"] = {"raids": 9, "extracts": 4, "deaths": 5, "earned": 1}
+	var pvp_chars := Characters.fresh()
+	pvp_chars["exp_points"] = 9
+	ready["characters"] = pvp_chars
+	var gone := OnlineProfile.leave_expedition(ready)
+	_check(int(gone["characters"]["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "the PvP pool earns points too, up to its cap")
+	_check(int(gone.get("money", 0)) == OnlineProfile.START_MONEY and Expedition.trips_of(gone) == 1
+		and int(gone["stats"]["raids"]) == 9 and Expedition.truck_of(gone).is_empty() and not OnlineProfile.clean(gone).is_empty(),
+		"the server's PvP wipe gives a new PvP stash, the record and one trip")
+	# The hideout's screen: THE TRUCK from the workbench, BUILD goes through the menu.
+	Profile._apply(JSON.parse_string(saved))
+	var money := Profile.money
+	var hideout = (load("res://scenes/hideout.tscn") as PackedScene).instantiate()
+	root.add_child(hideout)
+	await process_frame
+	Profile.money = 100000
+	for id in Expedition.PARTS["radio"]["needs"]:
+		Profile.stash.add(id, int(Expedition.PARTS["radio"]["needs"][id]))
+	hideout.open_craft()
+	(hideout.craft_screen.find_child("TruckButton", true, false) as Button).pressed.emit()
+	_check(hideout.current_screen() == "truck", "THE TRUCK on the workbench opens the truck's screen")
+	var row: Control = hideout.expedition_screen.find_child("radio", true, false)
+	(row.find_child("BuildButton", true, false) as Button).pressed.emit()
+	_check(Profile.truck == ["radio"] and Profile.money == 60000, "BUILD puts the radio on the truck for its money")
+	_check((hideout.expedition_screen.find_child("LeaveButton", true, false) as Button).disabled, "LEAVE waits for a finished truck")
+	hideout.queue_free()
+	await process_frame
+	# The leaving cutscene builds (looks only) and the truck shows only what's built.
+	var scene = (load(ExpeditionCutscene.SCENE) as PackedScene).instantiate()
+	root.add_child(scene)
+	await process_frame
+	_check(scene.find_child("Truck", true, false) != null, "the leaving cutscene shows the truck")
+	scene.set_process(false)
+	scene.queue_free()
+	var bare := ExpeditionCutscene.build_truck(["frame"])
+	var whole := ExpeditionCutscene.build_truck()
+	_check(bare.get_child_count() < whole.get_child_count(), "a truck with only its frame has fewer pieces")
+	bare.free()
+	whole.free()
+	Profile._apply(JSON.parse_string(saved))
+	Profile.money = money
+	Profile.save_profile()
 	await process_frame
 
 
