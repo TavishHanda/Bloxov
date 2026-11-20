@@ -716,6 +716,9 @@ class Tunnel:
         self.open_end = False      # no wall at a1 (0.25.17: the range's end opens into the crack to the hangout)
         self.into = None           # a narrower tunnel carrying on from a1: the end wall is a ring round it
         self.drop = 0.0            # how far below the hall its a0 end is (0.25.23: the way down to the hangout)
+        # (0.38.1: the garage starts off to one side of the hall's middle) the hall only makes way for it, and its
+        # mouth only cuts the hall's wall, past `cut` along it; None = 0 (from the middle) and a0 - 6 as before
+        self.cut = None
 
     def off(self, a):
         """How far the floor sits below the hall's at a: the floor slopes evenly from -drop at a0 up to 0 at a1."""
@@ -738,7 +741,8 @@ class Tunnel:
     def hole(self, p):
         """Is p inside the tunnel's mouth (where the hall's wall is left out)?"""
         u, a = self.local(p)
-        return abs(u) < self.hw - 0.01 and p[1] - self.off(a) < self.arch(u) - 0.01 and self.a0 - 6.0 < a < self.a0 + 2.0
+        lo = self.a0 - 6.0 if self.cut is None else self.cut
+        return abs(u) < self.hw - 0.01 and p[1] - self.off(a) < self.arch(u) - 0.01 and lo < a < self.a0 + 2.0
 
     def profile(self, out=0.0):
         """The tunnel's outline across (u, y), pushed `out` outwards."""
@@ -865,7 +869,7 @@ def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", tunnels
             push = amp * min(1.0, y / 1.2) * (n - inward) * max(f, 0.3)
             for t in tunnels:                                          # the rock sits flush round a tunnel's frame
                 u, a = t.local((x, 0.0, z))
-                if a > 0 and abs(u) < t.hw + 5.0:
+                if a > (t.cut or 0.0) and abs(u) < t.hw + 5.0:
                     push *= min(1.0, max(0.0, (abs(u) - t.hw - 2.0) / 3.0))
             ring.append((C[0] + dx * f + dx / ln * push, y, C[1] + dz * f + dz / ln * push))
         grid.append(ring)
@@ -996,6 +1000,10 @@ def cave_layout():
 # with steel stairs runs down into the rock to the den, HANG_DEPTH below the hall.
 # The den is drawn as it was built, round its own middle with the passage coming in from +z (H's "plan" frame), then
 # turned and lowered into place (H.w): its passage runs on from the armory's end.
+GARAGE_X = 11.5                                    # (0.38.1) the garage tunnel's middle line (x), running north
+GARAGE_HW = 3.3                                    # its half width (the truck is 2.7 m wide)
+GARAGE_A0, GARAGE_A1, GARAGE_LIP = 14.5, 38.0, 5.0  # where its floor starts and ends (-z), how far its mouth stands out
+GARAGE_TRUCK = (GARAGE_X, -26.0)                   # the truck's middle (x, z), nose to the shutter (-z)
 HANG_R = 8.0                                       # the den's radius, on average (0.25.26: was 6.6, and squarish)
 HANG_CROWN = 8.5                                   # (the rock over it all; 0.25.35: room for the loft)
 CEIL = 3.4                                         # the ground floor's ceiling (0.25.35, owner: "make the roof match
@@ -1124,13 +1132,20 @@ def post_layout(rock=False):
     if rock:                           # the concrete mouths stand out of the rock as far as the cave curves in over them
         for t in L.tunnels:
             t.lip = t.a0 * (1.0 - L.f_at(t.crown + 1.3)) + 0.6
+    # The garage (0.38.1, Expeditions; owner 2026-11-20 picked "a new tunnel off the hall"): the truck's own tunnel,
+    # north-east beside the range, a shutter at its far end (the leaving cutscene drives out of it). Off the hall's
+    # middle, so it sets its own start (GARAGE_A0: past the rock everywhere across its mouth) and lip.
+    g = Tunnel("garage", (GARAGE_X, 0.0), (0.0, -1.0), GARAGE_A0, GARAGE_A1, GARAGE_HW, 3.2, 5.4, GARAGE_LIP, concrete,
+               ribs=("bk_old", 4.6, 0.3))
+    g.cut = GARAGE_A0 - GARAGE_LIP - 0.6
+    L.tunnels.append(g)
     L.hang = hangout_layout(L.tunnels[2]) if rock else None
     # the circle, with a straight chord across each tunnel's mouth (corners every half metre)
     pts = []
     for k in range(96 if not rock else 120):
         a = 2 * math.pi * k / (96 if not rock else 120)
         p = (radius(a) * math.cos(a), radius(a) * math.sin(a))
-        if not any(abs(t.local((p[0], 0, p[1]))[0]) < t.hw + 0.3 and t.local((p[0], 0, p[1]))[1] > 0 for t in L.tunnels):
+        if not any(abs(t.local((p[0], 0, p[1]))[0]) < t.hw + 0.3 and t.local((p[0], 0, p[1]))[1] > (t.cut or 0.0) for t in L.tunnels):
             pts.append(p)
     for t in L.tunnels:
         n = int(round(t.hw * 2 / 0.5))
@@ -1173,21 +1188,24 @@ def post_layout(rock=False):
         return (rr * math.cos(a), rr * math.sin(a))
     # (0.28.3: none behind the pillar at 225 degrees any more, so you can get round it)
     L.sandbags = [(at(2.0, a - 8), at(2.0, a + 8)) for a in ((135,) if rock else (45, 135, 225))]
-    L.duffels = [at(1.4, a) + (n,) for a, n in ((30, 4), (62, 5), (150, 3), (205, 5), (240, 4), (330, 3))]
+    # (0.38.1: none at 330 degrees any more, where the garage's mouth is)
+    L.duffels = [at(1.4, a) + (n,) for a, n in ((30, 4), (62, 5), (150, 3), (205, 5), (240, 4))]
     L.duffels += [(29.6, 3.0, 4)]                                       # (0.36.39: the market's far end is the gym now)
     L.crates = [at(2.6, 115), at(2.6, 290), (29.4, -2.4)]
     L.gym = (-40.0, 5.0)                                                # the market's end wall (x) and its half width
-    L.generator = at(2.4, 315)
+    L.generator = (GARAGE_X + GARAGE_HW - 1.0, -18.0)                  # (0.38.1: in the garage, was out in the hall)
     L.keep_clear = []
     # The quests and stats boards stand out in the hall on their own, lit, both facing where you spawn (owner
     # 2026-10-25: the quests board was "shoved in the corner", the stats board hard to see).
     L.boards = []
-    for bid, (x, z) in (("quests", (7.4, -6.4)), ("stats", (-7.5, -7.0))):
+    # (0.38.1: the quests board 2.8 m further west, out of the way of the garage's mouth)
+    for bid, (x, z) in (("quests", (4.6, -6.6)), ("stats", (-7.5, -7.0))):
         dx, dz = L.spawn[0] - x, L.spawn[1] + 1.0 - z
         ln = math.hypot(dx, dz)
         L.boards.append((bid, (x, z), (dx / ln, dz / ln)))
     L.strings = [(20, 200, 7.0), (70, 250, 7.6), (110, 290, 7.2), (160, 340, 7.4)]
-    L.work_lamps = [(2.8, -4.6, 1.1, 3.2), (-33.9, 4.3, 0.9, 3.0), (29.0, 3.0, 1.0, 3.0), (5.0, 8.5, 0.9, 3.0)]
+    L.work_lamps = [(2.8, -4.6, 1.1, 3.2), (-33.9, 4.3, 0.9, 3.0), (29.0, 3.0, 1.0, 3.0), (5.0, 8.5, 0.9, 3.0),
+                    (GARAGE_X + GARAGE_HW - 0.6, -22.5, 1.1, 3.4), (GARAGE_X - GARAGE_HW + 0.6, -34.0, 1.1, 3.4)]
     if rock:
         L.work_lamps += [at(2.0, 70) + (1.0, 3.2), at(2.0, 150) + (1.0, 3.2), at(2.5, 250) + (1.0, 3.2),
                          at(2.0, 330) + (1.0, 3.2), (3.0, 15.5, 0.9, 3.2)]
@@ -1689,6 +1707,47 @@ def plate(b, x, y, z, size, yaw=0.0):
     """A weight plate stood on its edge, blocky like everything here: a square slab, a darker hub."""
     b.box((x, y, z), (0.05, size, size), yaw=yaw, style=mb._solid("black"))
     b.box((x, y, z), (0.07, size * 0.3, size * 0.3), yaw=yaw, style=mb._solid("steel_light"))
+
+
+def garage(ctx):
+    """The garage (0.38.1, Expeditions): the truck's bay, painted lines round where it parks, a roller shutter across the
+    far end (the way out: the leaving cutscene drives through it), tools, drums and tyres along the walls. The truck
+    itself is drawn by the hideout (scripts/hideout_garage.gd: only the parts you've built), on the Truck marker."""
+    b, rng = ctx.b, random.Random("garage")
+    gx, gz = GARAGE_TRUCK
+    x0, x1 = GARAGE_X - GARAGE_HW, GARAGE_X + GARAGE_HW
+    end = -GARAGE_A1
+    # The parking bay: hazard lines round the truck's spot, 0.4 m off its sides.
+    for sx in (-1.0, 1.0):
+        b.box((gx + sx * 1.85, 0.012, gz), (0.12, 0.024, 7.8), style=mb._solid("bk_hazard"))
+    b.box((gx, 0.012, gz + 3.9), (3.82, 0.024, 0.12), style=mb._solid("bk_hazard"))
+    block(gx, 0.0, gz, 2.8, 2.4, 6.8)                                   # (the truck: its frame is always there)
+    # The roller shutter: corrugated sheet in rails, its drum housing over it, a hazard band along its foot.
+    w, h = 2 * GARAGE_HW - 1.2, 4.0
+    b.box((GARAGE_X, h / 2, end + 0.12), (w, h, 0.08), style=mb._solid("shed_metal"))
+    b.box((GARAGE_X, 0.15, end + 0.18), (w, 0.3, 0.06), style=mb._solid("bk_hazard"))
+    b.box((GARAGE_X, h + 0.3, end + 0.35), (w + 0.4, 0.6, 0.6), style=mb._solid("bk_iron"))
+    for sx in (-1.0, 1.0):
+        b.box((GARAGE_X + sx * (w / 2 + 0.1), h / 2, end + 0.16), (0.16, h, 0.2), style=mb._solid("bk_iron"))
+    # (a drum and crates by the shutter, tyres stacked against the left wall, the toolbench on the right)
+    drum(b, x0 + 0.55, end + 1.0, mat="cabin_tin_d")
+    drum(b, x0 + 1.15, end + 0.9, mat="shed_metal")
+    block(x0 + 0.85, 0.0, end + 0.95, 1.3, 0.95, 0.7)
+    for k in range(4):
+        b.box((x0 + 0.5, 0.12 + k * 0.25, -30.5), (0.85, 0.24, 0.85), yaw=k * 11.0, style=mb._solid("black"))
+        b.box((x0 + 0.5, 0.12 + k * 0.25, -30.5), (0.4, 0.25, 0.4), yaw=k * 11.0, style=mb._solid("steel_light"))
+    block(x0 + 0.5, 0.0, -30.5, 0.9, 1.0, 0.9)
+    tx, tz = x1 - 0.5, -29.0                                           # the toolbench: a steel top on legs, a vice
+    b.box((tx, 0.9, tz), (0.8, 0.08, 2.2), style=mb._solid("bk_iron"))
+    for dz in (-1.0, 1.0):
+        b.box((tx, 0.43, tz + dz), (0.7, 0.86, 0.08), style=mb._solid("bk_iron"))
+    b.box((tx - 0.1, 1.02, tz - 0.6), (0.25, 0.16, 0.18), style=mb._solid("steel_light"))
+    crate(b, tx, 0.94, tz + 0.5, 0.5, 0.3, 0.7, mat="olive_dark")
+    block(tx, 0.0, tz, 0.8, 1.0, 2.2)
+    for k in range(3):                                                 # crates stacked by the mouth, out of the way
+        crate(b, x0 + 0.6, k * 0.62, -17.0 + (k % 2) * 0.1, 0.9, 0.6, 0.9, yaw=rng.uniform(-8, 8),
+              mat=("olive", "olive_dark", "olive")[k])
+    block(x0 + 0.6, 0.0, -17.0, 1.0, 1.86, 1.0)
 
 
 def gym(ctx):
@@ -2788,6 +2847,7 @@ def dress(ctx):
     war_table(ctx)
     shooting_range(ctx)
     mess(ctx)
+    garage(ctx)
     bunks(ctx)
     if SHAPE == "cave":
         washroom(ctx)
@@ -2922,6 +2982,8 @@ def stations():
         out.append(("lights", SWITCH[0] - 0.75, SWITCH[2], 1.4))
         # (0.34.12: the washroom sink: stand in front of the trough, USE runs the tap)
         out.append(("sink", (LAY.wc[0] + LAY.wc[2]) / 2 - 0.1, LAY.wc[3] - 1.15, 1.8))
+    # (0.38.1) the truck: USE opens its screen, from beside the driver's door
+    out.append(("garage", GARAGE_TRUCK[0] - 2.4, GARAGE_TRUCK[1] + 0.8, 2.6))
     if LAY.gym:
         out.append(("bag", GYM_BAG[0] + 0.85, GYM_BAG[1], 1.4))        # (0.36.39: the gym's bag, punched by looking at it)
     if LAY.hang:
@@ -3092,6 +3154,9 @@ def write_level(rows):
                     'metadata/jukebox = Vector3(%g, %g, %g)\n'
                     % ((round(LAY.hang.Cw[0], 3), -HANG_DEPTH, round(LAY.hang.Cw[1], 3))
                        + tuple(round(v, 3) for v in LAY.hang.w((jx + 0.3, 0.95, jz)))))
+        # (0.38.1) the truck's spot in the garage: a Marker3D looking down its -z, the shutter's way
+        f.write('\n[node name="Truck" type="Marker3D" parent="."]\n'
+                'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, %g, 0, %g)\n' % GARAGE_TRUCK)
         if TRADER_SPOTS:
             f.write('\n[node name="Traders" type="Node3D" parent="."]\n')
             for bid in sorted(TRADER_SPOTS):                           # (a Marker3D looks down its -z: the counter)
