@@ -52,5 +52,10 @@
 "rq_crate",
 "rq_crane",
 "rq_corr",
-"rq_barge"
+"rq_barge",
+"rs_block_grey",
+"rs_sandstone",
+"rs_block_buff",
+"rs_tar",
+"rs_plinth"
 ]

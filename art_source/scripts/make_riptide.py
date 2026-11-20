@@ -2345,6 +2345,9 @@ if __name__ == "__main__":
     elif name == "quay_front":
         import make_riptide_quay
         make_riptide_quay.build_quay(name)
+    elif name == "harbor_plaza":
+        import make_riptide_plaza
+        make_riptide_plaza.build_plaza(name)
     elif name == "site_zero":
         import make_riptide_lab
         make_riptide_lab.build_lab(name)

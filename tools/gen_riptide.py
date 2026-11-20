@@ -499,6 +499,15 @@ def north_point():
 def terminal():
     """The container terminal: staggered rows of stacks (1-3 high) and single boxes across the aisles, so every
     line through it bends. A gantry crane over it."""
+    with modeled("harbor_plaza", -100.0, -40.0):     # (shore art pass 2)
+        _terminal()
+    labels.append(("CONTAINER TERMINAL", -105, -116, 0))
+    for x, z in [(-130.0, -99.0), (-104.0, -71.0), (-80.0, -85.0), (-140.0, -57.0)]:
+        add_loot("Depot", "crate", x, SHORE, z, table="field" if x < -120 else "crate")
+    player_spawns.append((-172.0, SHORE, -70.0))
+
+
+def _terminal():
     hs = [2, 3, 2, 1, 3, 2, 2, 3, 1, 2, 3, 2]
     rows = [-110.0, -96.0, -82.0, -68.0, -54.0]
     for r, z0 in enumerate(rows):
@@ -508,93 +517,101 @@ def terminal():
     for i, (x, z) in enumerate([(-122.0, -99.3), (-88.0, -99.3), (-108.0, -85.3), (-138.0, -71.3), (-76.0, -71.3),
                                 (-118.0, -57.3), (-92.0, -57.3)]):
         container(x, SHORE, z, "z", ("container_b", "container_c", "container_a")[i % 3], 1 + (i + 1) % 2)
-    for x in (-148.0, -64.0):                      # the gantry crane
-        for z in (-99.0, -75.0):
-            box(x - 0.8, SHORE, z - 0.8, x + 0.8, SHORE + 24.0, z + 0.8, "rust")
-        box(x - 1.0, SHORE + 24.0, -100.0, x + 1.0, SHORE + 26.0, -74.0, "rust")
-    box(-148.8, SHORE + 26.0, -100.0, -63.2, SHORE + 28.0, -97.0, "rust")
-    box(-148.8, SHORE + 26.0, -77.0, -63.2, SHORE + 28.0, -74.0, "rust")
-    # the trolley rides between the girders (0.35.32: it was a container-blue box hanging in the air under them)
-    box(-112.0, SHORE + 25.0, -97.0, -104.0, SHORE + 28.0, -77.0, "rust")
-    labels.append(("CONTAINER TERMINAL", -105, -116, 0))
-    for x, z in [(-130.0, -99.0), (-104.0, -71.0), (-80.0, -85.0), (-140.0, -57.0)]:
-        add_loot("Depot", "crate", x, SHORE, z, table="field" if x < -120 else "crate")
-    player_spawns.append((-172.0, SHORE, -70.0))
+    with kinded("gantry"):
+        for x in (-148.0, -64.0):                      # the gantry crane
+            for z in (-99.0, -75.0):
+                box(x - 0.8, SHORE, z - 0.8, x + 0.8, SHORE + 24.0, z + 0.8, "rust")
+            box(x - 1.0, SHORE + 24.0, -100.0, x + 1.0, SHORE + 26.0, -74.0, "rust")
+        box(-148.8, SHORE + 26.0, -100.0, -63.2, SHORE + 28.0, -97.0, "rust")
+        box(-148.8, SHORE + 26.0, -77.0, -63.2, SHORE + 28.0, -74.0, "rust")
+        # the trolley rides between the girders (0.35.32: it was a container-blue box hanging in the air under them)
+        box(-112.0, SHORE + 25.0, -97.0, -104.0, SHORE + 28.0, -77.0, "rust")
 
 
 def plaza():
     """Harbor Tower (six floors, two stairwells, a closed roof), the customs hall the pier starts from, the canteen
     and the garage; the road in from the gate, broken up by parked lorries and barriers."""
-    tx0, tx1, tz0, tz1 = -124.0, -92.0, -30.0, -10.0
-    fl = [SHORE + 3.5 * f for f in range(6)]          # 2.5 .. 20
-    top = fl[-1] + 3.5
-    for f, y in enumerate(fl):
-        k = 5 - f                                      # the stairwells count from the top
-        a_door = -28.5 if k % 2 == 0 else -17.5
-        b_door = -22.5 if k % 2 == 0 else -11.5
-        h = 3.5 - SLAB_T
-        n = [window(x, 2.4) for x in (-118.0, -110.0, -102.0)] + ([gate(-98.0, 3.0, 2.6)] if f == 0 else [window(-96.0)])
-        s = [window(x, 2.4) for x in (-114.0, -106.0, -98.0)] + ([gate(-119.0, 3.0, 2.6)] if f == 0 else [window(-119.0)])
-        room(tx0, tx1, tz0, tz1, y, h, "wall", n=n, s=s, w=[door(a_door), window(-24.0)],
-             e=[door(b_door), window(-17.0)])
-        if f > 0:
-            slab(tx0, tx1, tz0, tz1, y, "concrete")
-        wall("x", -20.5, tx0, tx1, y, h, "wall", [door(-120.0), door(-112.0), door(-97.0)])
-        wall("x", -15.0, tx0, tx1, y, h, "wall", [door(-114.0), door(-100.0)])
-        wall("z", -108.0, tz0, -20.5, y, h, "wall", [door(-26.0)])
-        wall("z", -104.0, -15.0, tz1, y, h, "wall", [door(-12.5)])
-    slab(tx0, tx1, tz0, tz1, top, "roof")
-    wall("x", tz0, tx0, tx1, top, 1.0, "wall")
-    wall("x", tz1, tx0, tx1, top, 1.0, "wall")
-    wall("z", tx0, tz0, tz1, top, 1.0, "wall")
-    wall("z", tx1, tz0, tz1, top, 1.0, "wall")
-    stairwell(-132.0, -30.0, fl[::-1], {k: "E" for k in range(6)}, colour="wall")
-    stairwell(-92.0, -24.0, fl[::-1], {k: "W" for k in range(6)}, colour="wall")
-    footprints.append((-132.0, -30.0, -84.0, -10.0))
-    labels.append(("HARBOR TOWER", -108, -36, 0))
-    for f, (x, z, kind) in enumerate([(-122.0, -28.0, "crate"), (-94.0, -12.0, "locker"), (-122.0, -12.0, "crate"),
-                                      (-94.0, -28.0, "locker"), (-112.0, -28.5, "safe"), (-100.0, -11.5, "safe")]):
-        add_loot("Offices", kind, x, fl[f], z, 180 if z > -20 else 0)
-    # the customs hall: two floors, the pier's way in on the east side
-    hx0, hx1, hz0, hz1 = -76.0, -48.0, -14.0, 16.0
-    hall(hx0, hx1, hz0, hz1, 9.0, "wall", n=[door(-70.0), door(-54.0), window(-62.0, 2.0, 5.4, 6.8)],
-         s=[door(-66.0), window(-56.0, 2.0, 5.4, 6.8)], w=[gate(10.0), window(-6.0, 2.0, 5.4, 6.8)],
-         e=[gate(2.6, 5.0), window(-8.0, 2.0, 5.4, 6.8), window(12.0, 2.0, 5.4, 6.8)], floor="concrete")
-    slab(hx0, hx1, hz0, hz1, SHORE + 4.5, "concrete", holes=[(-67.5, -58.0, -13.6, -10.5)])
-    ramp((-74.0, SHORE, -12.0), (-58.0, SHORE + 4.5, -12.0), 2.6, "concrete")
-    for x0, x1, z in [(-70.0, -58.0, -4.0), (-66.0, -54.0, 8.0)]:   # the counters
-        box(x0, SHORE, z - 0.5, x1, SHORE + 1.1, z + 0.5, "wood")
-    wall("x", 4.0, hx0, -62.0, SHORE + 4.5, 4.25, "wall", [door(-70.0)])
-    labels.append(("CUSTOMS", -62, -18, 0))
-    add_loot("Offices", "locker", -75.5, SHORE + 4.5, 12.0, 90)
-    add_loot("Offices", "crate", -50.0, SHORE + 4.5, 14.0)
-    add_loot("Offices", "crate", -74.0, SHORE, 14.0)
-    # the canteen and the garage south of the road
-    hall(-124.0, -102.0, 8.0, 24.0, 4.0, "wall", n=[door(-118.0), window(-108.0, 3.0)], s=[door(-106.0)],
-         e=[door(16.0), window(20.0)], w=[window(14.0, 3.0)])
-    box(-120.0, SHORE, 14.0, -108.0, SHORE + 1.0, 15.0, "wood")
-    add_loot("Diner", "crate", -122.0, SHORE, 22.0)
-    hall(-96.0, -80.0, 12.0, 30.0, 5.0, "wall", n=[gate(-88.0, 5.0, 4.0)], e=[door(26.0)], w=[window(20.0)])
-    add_loot("Garage", "crate", -94.0, SHORE, 28.0)
-    labels.append(("CANTEEN", -113, 28, 0))
-    # the road in from the gate (the extract): a gatehouse, lorries parked across it, barriers round the plaza
-    box(-HALF, SHORE - 0.2, -4.0, -76.0, SHORE + 0.06, 4.0, "road", solid=False)
-    room(-172.0, -167.0, -11.0, -6.0, SHORE, 2.8, "wood", s=[door(-169.5)], roof="roof")
-    extracts.append(("RoadOut", "ROAD OUT", -174.0, SHORE, 0.0))
-    # (0.33.2) the gate's truck bay: walls either side, a container across the road in front of it, ways in at the
-    # corners
-    wall("x", -5.0, -HALF, -169.0, SHORE, 3.0, "concrete", t=0.5)
-    wall("x", 5.0, -HALF, -169.0, SHORE, 3.0, "concrete", t=0.5)
-    box(-168.2, SHORE, -2.4, -165.8, SHORE + 5.2, 2.4, "container_a")
-    box(-163.0, SHORE, 4.0, -160.6, SHORE + 2.6, 10.0, "container_c")
-    box(-163.0, SHORE, -10.0, -160.6, SHORE + 2.6, -4.0, "container_b")
-    truck(-140.0, 1.0, 55.0)
-    truck(-90.0, -1.0, -50.0, "container_a")
-    truck(-140.0, 64.0, 10.0, "container_c")
-    for x, z, yaw in [(-82.0, -6.0, 90.0), (-78.0, 8.0, 90.0), (-84.0, -26.0, 90.0), (-132.0, 6.0, 90.0), (-112.0, 4.5, 90.0),
-                      (-100.0, -5.0, 90.0), (-66.0, 22.0, 90.0), (-56.0, -20.0, 90.0)]:
-        barrier(x, z, yaw)
-    box(-110.0, SHORE, -4.0, -106.0, SHORE + 2.6, -2.0, "wall")        # the bus shelter
+    with modeled("harbor_plaza", -100.0, -40.0):     # (shore art pass 2)
+        with kinded("tower"):
+            tx0, tx1, tz0, tz1 = -124.0, -92.0, -30.0, -10.0
+            fl = [SHORE + 3.5 * f for f in range(6)]          # 2.5 .. 20
+            top = fl[-1] + 3.5
+            for f, y in enumerate(fl):
+                k = 5 - f                                      # the stairwells count from the top
+                a_door = -28.5 if k % 2 == 0 else -17.5
+                b_door = -22.5 if k % 2 == 0 else -11.5
+                h = 3.5 - SLAB_T
+                n = [window(x, 2.4) for x in (-118.0, -110.0, -102.0)] + ([gate(-98.0, 3.0, 2.6)] if f == 0 else [window(-96.0)])
+                s = [window(x, 2.4) for x in (-114.0, -106.0, -98.0)] + ([gate(-119.0, 3.0, 2.6)] if f == 0 else [window(-119.0)])
+                room(tx0, tx1, tz0, tz1, y, h, "wall", n=n, s=s, w=[door(a_door), window(-24.0)],
+                     e=[door(b_door), window(-17.0)])
+                if f > 0:
+                    slab(tx0, tx1, tz0, tz1, y, "concrete")
+                wall("x", -20.5, tx0, tx1, y, h, "wall", [door(-120.0), door(-112.0), door(-97.0)])
+                wall("x", -15.0, tx0, tx1, y, h, "wall", [door(-114.0), door(-100.0)])
+                wall("z", -108.0, tz0, -20.5, y, h, "wall", [door(-26.0)])
+                wall("z", -104.0, -15.0, tz1, y, h, "wall", [door(-12.5)])
+            slab(tx0, tx1, tz0, tz1, top, "roof")
+            wall("x", tz0, tx0, tx1, top, 1.0, "wall")
+            wall("x", tz1, tx0, tx1, top, 1.0, "wall")
+            wall("z", tx0, tz0, tz1, top, 1.0, "wall")
+            wall("z", tx1, tz0, tz1, top, 1.0, "wall")
+            stairwell(-132.0, -30.0, fl[::-1], {k: "E" for k in range(6)}, colour="wall")
+            stairwell(-92.0, -24.0, fl[::-1], {k: "W" for k in range(6)}, colour="wall")
+            footprints.append((-132.0, -30.0, -84.0, -10.0))
+            labels.append(("HARBOR TOWER", -108, -36, 0))
+            for f, (x, z, kind) in enumerate([(-122.0, -28.0, "crate"), (-94.0, -12.0, "locker"), (-122.0, -12.0, "crate"),
+                                              (-94.0, -28.0, "locker"), (-112.0, -28.5, "safe"), (-100.0, -11.5, "safe")]):
+                add_loot("Offices", kind, x, fl[f], z, 180 if z > -20 else 0)
+        with kinded("customs"):
+            # the customs hall: two floors, the pier's way in on the east side
+            hx0, hx1, hz0, hz1 = -76.0, -48.0, -14.0, 16.0
+            hall(hx0, hx1, hz0, hz1, 9.0, "wall", n=[door(-70.0), door(-54.0), window(-62.0, 2.0, 5.4, 6.8)],
+                 s=[door(-66.0), window(-56.0, 2.0, 5.4, 6.8)], w=[gate(10.0), window(-6.0, 2.0, 5.4, 6.8)],
+                 e=[gate(2.6, 5.0), window(-8.0, 2.0, 5.4, 6.8), window(12.0, 2.0, 5.4, 6.8)], floor="concrete")
+            slab(hx0, hx1, hz0, hz1, SHORE + 4.5, "concrete", holes=[(-67.5, -58.0, -13.6, -10.5)])
+            ramp((-74.0, SHORE, -12.0), (-58.0, SHORE + 4.5, -12.0), 2.6, "concrete")
+            for x0, x1, z in [(-70.0, -58.0, -4.0), (-66.0, -54.0, 8.0)]:   # the counters
+                box(x0, SHORE, z - 0.5, x1, SHORE + 1.1, z + 0.5, "wood")
+            wall("x", 4.0, hx0, -62.0, SHORE + 4.5, 4.25, "wall", [door(-70.0)])
+            labels.append(("CUSTOMS", -62, -18, 0))
+            add_loot("Offices", "locker", -75.5, SHORE + 4.5, 12.0, 90)
+            add_loot("Offices", "crate", -50.0, SHORE + 4.5, 14.0)
+            add_loot("Offices", "crate", -74.0, SHORE, 14.0)
+        with kinded("canteen"):
+            # the canteen and the garage south of the road
+            hall(-124.0, -102.0, 8.0, 24.0, 4.0, "wall", n=[door(-118.0), window(-108.0, 3.0)], s=[door(-106.0)],
+                 e=[door(16.0), window(20.0)], w=[window(14.0, 3.0)])
+            box(-120.0, SHORE, 14.0, -108.0, SHORE + 1.0, 15.0, "wood")
+            add_loot("Diner", "crate", -122.0, SHORE, 22.0)
+        with kinded("garage"):
+            hall(-96.0, -80.0, 12.0, 30.0, 5.0, "wall", n=[gate(-88.0, 5.0, 4.0)], e=[door(26.0)], w=[window(20.0)])
+            add_loot("Garage", "crate", -94.0, SHORE, 28.0)
+            labels.append(("CANTEEN", -113, 28, 0))
+        with kinded("road"):
+            # the road in from the gate (the extract): a gatehouse, lorries parked across it, barriers round the plaza
+            box(-HALF, SHORE - 0.2, -4.0, -76.0, SHORE + 0.06, 4.0, "road", solid=False)
+        with kinded("gatehouse"):
+            room(-172.0, -167.0, -11.0, -6.0, SHORE, 2.8, "wood", s=[door(-169.5)], roof="roof")
+            extracts.append(("RoadOut", "ROAD OUT", -174.0, SHORE, 0.0))
+        with kinded("baywall"):
+            # (0.33.2) the gate's truck bay: walls either side, a container across the road in front of it, ways in at the
+            # corners
+            wall("x", -5.0, -HALF, -169.0, SHORE, 3.0, "concrete", t=0.5)
+            wall("x", 5.0, -HALF, -169.0, SHORE, 3.0, "concrete", t=0.5)
+            box(-168.2, SHORE, -2.4, -165.8, SHORE + 5.2, 2.4, "container_a")
+            box(-163.0, SHORE, 4.0, -160.6, SHORE + 2.6, 10.0, "container_c")
+            box(-163.0, SHORE, -10.0, -160.6, SHORE + 2.6, -4.0, "container_b")
+        with kinded("truck"):
+            truck(-140.0, 1.0, 55.0)
+            truck(-90.0, -1.0, -50.0, "container_a")
+            truck(-140.0, 64.0, 10.0, "container_c")
+        with kinded("barrier"):
+            for x, z, yaw in [(-82.0, -6.0, 90.0), (-78.0, 8.0, 90.0), (-84.0, -26.0, 90.0), (-132.0, 6.0, 90.0), (-112.0, 4.5, 90.0),
+                              (-100.0, -5.0, 90.0), (-66.0, 22.0, 90.0), (-56.0, -20.0, 90.0)]:
+                barrier(x, z, yaw)
+        with kinded("shelter"):
+            box(-110.0, SHORE, -4.0, -106.0, SHORE + 2.6, -2.0, "wall")        # the bus shelter
     labels.append(("HARBOR PLAZA", -100, 4, 0))
     player_spawns.append((-172.0, SHORE, 22.0))
 
@@ -755,9 +772,10 @@ def breakers():
     container(-126.0, SHORE, 136.0, "z", "container_b", 2)
     box(-170.0, SHORE, -22.0, -164.0, SHORE + 2.6, -19.6, "container_c")   # (the spawn strip by the road)
     # the road: a checkpoint booth, kiosks and stacks staggered across it
-    for x0, z0, x1, z1, h in [(-151.0, -10.0, -147.0, -2.0, 2.6), (-137.0, 1.0, -133.0, 8.0, 2.6),
-                              (-119.0, -9.0, -115.0, -3.0, 2.4), (-101.0, 2.0, -97.0, 8.0, 2.4)]:
-        box(x0, SHORE, z0, x1, SHORE + h, z1, "wall")
+    with modeled("harbor_plaza", -100.0, -40.0), kinded("kiosk"):
+        for x0, z0, x1, z1, h in [(-151.0, -10.0, -147.0, -2.0, 2.6), (-137.0, 1.0, -133.0, 8.0, 2.6),
+                                  (-119.0, -9.0, -115.0, -3.0, 2.4), (-101.0, 2.0, -97.0, 8.0, 2.4)]:
+            box(x0, SHORE, z0, x1, SHORE + h, z1, "wall")
     # the south street (between the fab shed / workshop and the hull) and the south edge
     container(-118.0, SHORE, 133.0, "x", "container_c", 2)
     hall(-80.0, -66.0, 126.0, 136.0, 5.0, "wall", n=[door(-73.0)], s=[door(-70.0)], w=[window(131.0)])

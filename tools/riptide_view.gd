@@ -5,6 +5,17 @@ extends SceneTree
 # Writes <out>-<view>.png.
 
 const VIEWS := {
+	"customs-out": [Vector3(-36, 5, 6), Vector3(-62, 6, 0)],
+	"bay-wall": [Vector3(-150, 4.2, 4), Vector3(-138, 3.5, -10)],
+	"truck-1": [Vector3(-148, 6, 12), Vector3(-138, 4, 2)],
+	"plaza-high": [Vector3(-30, 45, 45), Vector3(-100, 5, -15)],
+	"plaza-tower": [Vector3(-108, 4.2, 6), Vector3(-108, 14, -20)],
+	"tower-office": [Vector3(-121, 7.7, -27), Vector3(-96, 7, -13)],
+	"tower-ground": [Vector3(-121, 4.2, -12), Vector3(-96, 3.5, -27)],
+	"customs-hall": [Vector3(-73, 4.2, -11), Vector3(-52, 4.5, 12)],
+	"canteen-in": [Vector3(-122, 4.2, 10), Vector3(-104, 3.5, 22)],
+	"garage-in": [Vector3(-94, 4.2, 14), Vector3(-82, 3, 28)],
+	"gatehouse": [Vector3(-160, 4.2, -2), Vector3(-170, 3.5, -9)],
 	"mid": [Vector3(-12, 22, 60), Vector3(-34, 2, 100)],
 	"stern": [Vector3(46.5, 3.2, 121), Vector3(48, 0.8, 106)],
 	"aft-top": [Vector3(48, 45, 75), Vector3(48, 4, 40)],
