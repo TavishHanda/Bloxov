@@ -1988,12 +1988,27 @@ func _section_new_guns() -> void:
 func _section_ai_loadouts() -> void:
 	# AI loadouts (0.15.5, owner's plan): scavs and Raiders roll a gun; it changes how they shoot and is what they drop.
 	var seen := {}
-	for i in 200:
+	for i in 600:
 		seen[AILoadouts.pick("scav")] = true
-	for i in 400:
-		seen[AILoadouts.pick("scav")] = true
-	_check(seen.size() == 7 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol") and seen.has("hornet")
-		and seen.has("brawler") and seen.has("viper"), "scavs carry AKs, SMGs, shotguns and pistols, and sometimes a Hornet, Brawler or Viper")
+	_check(seen.size() == 4 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol"),
+		"scavs carry AKs, SMGs, shotguns and pistols")
+	# The new guns by map (0.38.1, owner): never on Frontlines scavs or Raiders, rare on AI PMCs, Riptide's AI and its
+	# armory and lab loot; the Talon is found only in the lab core.
+	var riptide := {}
+	for i in 3000:
+		riptide[AILoadouts.pick("deckhand")] = true
+		riptide[AILoadouts.pick("trooper")] = true
+	var new_guns := ["viper", "hornet", "brawler", "talon"]
+	var deckhand := (load("res://scenes/deckhand.tscn") as PackedScene).instantiate()
+	var trooper := (load("res://scenes/trooper.tscn") as PackedScene).instantiate()
+	_check(riptide.has("viper") and riptide.has("hornet") and riptide.has("brawler")
+		and new_guns.all(func(g: String) -> bool: return not AILoadouts.TABLES["scav"].has(g) and not AILoadouts.TABLES["raider"].has(g))
+		and deckhand.get("loadout") == "deckhand" and trooper.get("loadout") == "trooper"
+		and ItemDB.PLACE_LOOT["LabCore"].has("talon") and ItemDB.PLACE_LOOT["ShipArmory"].has("hornet")
+		and new_guns.all(func(g: String) -> bool: return ItemDB.LOOT_TABLES.values().all(func(t: Dictionary) -> bool: return not t.has(g))),
+		"the new guns: Riptide's AI and loot only, never Frontlines scavs, Raiders or plain containers")
+	deckhand.free()
+	trooper.free()
 	# The second gun of a type (0.36.42) fights like its type, only its shot sounds different.
 	var smg_ai := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	var hornet_ai := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav

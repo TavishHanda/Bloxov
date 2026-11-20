@@ -7,11 +7,16 @@ extends RefCounted
 
 ## AI loadout tables (ScavBase.loadout names one of these, or a gun id for a fixed gun): gun id -> weight.
 const TABLES := {
-	# (0.36.42, owner OK'd: the AI sometimes carries the new Hornet, Brawler and Viper, 5 each on top of the old odds.)
-	"scav": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15, "hornet": 5, "brawler": 5, "viper": 5},
-	"raider": {"ak": 50, "smg": 30, "shotgun": 20, "hornet": 8, "brawler": 5},
-	# AI PMCs (0.36.4): any of the AI guns, the scav table's odds.
-	"pmc": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15, "hornet": 5, "brawler": 5, "viper": 5},
+	# (0.36.42, owner OK'd: the AI sometimes carries the new Hornet, Brawler and Viper.) 0.38.1 (owner approved,
+	# 2026-11-20: the new guns are better variants, extremely rare on Frontlines, rarer-than-common on Riptide):
+	# Frontlines scavs and Raiders never carry them, AI PMCs about 1 in 35; Riptide's Deckhands about 1 in 17, Troopers 1 in 9.
+	"scav": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15},
+	"raider": {"ak": 50, "smg": 30, "shotgun": 20},
+	# AI PMCs (0.36.4): any of the AI guns, the scav table's odds (plus a rare new gun, they count as players).
+	"pmc": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15, "hornet": 1, "brawler": 1, "viper": 1},
+	# Riptide's scavs and Raiders (deckhand.tscn, trooper.tscn).
+	"deckhand": {"ak": 40, "smg": 25, "shotgun": 20, "pistol": 15, "hornet": 2, "brawler": 2, "viper": 2},
+	"trooper": {"ak": 50, "smg": 30, "shotgun": 20, "hornet": 6, "brawler": 6},
 }
 
 ## What an AI PMC wears and carries (0.36.4, piece 5 of the AI PMC plan: "light armor most of the time, sometimes none

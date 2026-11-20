@@ -7,6 +7,15 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.2 (New guns rare by map)
+Owner's numbers (2026-11-20): the Viper, Hornet, Brawler and Talon are better variants, so they're hard to find.
+- **Frontlines:** scavs and Raiders never carry them and containers never hold them; about 1 AI PMC in 35 carries a
+  Viper, Hornet or Brawler (and drops it, like any PMC gun).
+- **Riptide:** about 1 Deckhand in 17 carries a Viper, Hornet or Brawler (they drop their gun 15% of the time), about
+  1 Exion Trooper in 9 a Hornet or Brawler (30%). The Ship Armory lockers hold one about 1 raid in 10, and the Lab
+  Core is the only place a Talon turns up in a raid (about 1 raid in 20). New AI loadout tables `deckhand` and `trooper`.
+- Ming still sells all four as before.
+
 ## 0.38.1 (Riptide art: the north point, and models matched to their hitboxes)
 Owner asked (2026-11-20: "keep going with the art pass"; "check the riptide map ... for any rough spots" and "make sure
 all the models match hitboxes"). Shore pass 3a: one new model, `north_point` (origin -110, 0, -145; in `FarView.NO_FAR`),
