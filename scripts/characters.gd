@@ -38,7 +38,10 @@ const KIND_OF := {"scav": "scav", "sniper": "scav", "deckhand": "scav", "raider"
 	"guard_riptide": "raider", "boss_ace": "raider", "boss_orbit": "raider", "boss": "boss", "boss_raijin": "boss",
 	"player": "pmc", "pmc_ai": "pmc"}
 
-## The order they're listed in. The first two are free.
+## The two starters: a new player picks one for free; the other unlocks for STARTER_PRICE (owner, 2026-11-20).
+const STARTERS: Array[String] = ["vega", "voss"]
+const STARTER_PRICE := 50000
+## The order they're listed in.
 const ORDER: Array[String] = ["vega", "voss", "sable", "patch", "nine", "korr"]
 ## Each trait: [stat, value at level 20, upside?]. Stats are multipliers (1 + value): see mult().
 ##   move: walk, crouch and sprint speed · sprint: sprint speed · sprint_stamina: stamina used sprinting · stamina_max ·
@@ -47,11 +50,11 @@ const ORDER: Array[String] = ["vega", "voss", "sable", "patch", "nine", "korr"]
 ##   swap: time to swap guns · search: time to search containers · steps: how far your footsteps carry ·
 ##   hearing: how far you hear others' footsteps · jump: jump height
 const LIST := {
-	"vega": {"name": "VEGA", "role": "Nova pathfinder", "side": "nova", "price": 0,
+	"vega": {"name": "VEGA", "role": "Nova pathfinder", "side": "nova", "price": STARTER_PRICE,
 		"bio": "A Nova scout who ran messages across the border during the strike and never stopped running.",
 		"traits": [["move", 0.08, true], ["reload", -0.10, true], ["sprint_stamina", 0.25, false], ["recoil", 0.10, false]],
 		"passive": "light_feet"},
-	"voss": {"name": "VOSS", "role": "Exion officer cadet", "side": "exion", "price": 0,
+	"voss": {"name": "VOSS", "role": "Exion officer cadet", "side": "exion", "price": STARTER_PRICE,
 		"bio": "A Brotherhood cadet groomed for command, until he read what the program did to its own people.",
 		"traits": [["stamina_max", 0.25, true], ["recoil", -0.15, true], ["sprint", -0.06, false], ["ads", 0.10, false]],
 		"passive": "hold_steady"},
@@ -108,22 +111,30 @@ static var hearing := 1.0
 static var last_raid := {}
 
 
-## A new state: the two starters unlocked, VEGA picked.
+## A new state: no starter picked yet (VEGA stands in until the player picks, `pick_starter`).
 static func fresh() -> Dictionary:
-	return {"selected": "vega", "unlocked": ["vega", "voss"], "exp_points": 0, "chars": {}}
+	return {"selected": "vega", "unlocked": ["vega"], "picked": false, "chars": {}}
 
 
 static func _num(value: Variant) -> bool:
 	return value is int or value is float
 
 
-## A state from anything (a save, the network): every field type-checked, starters always unlocked.
+## A state from anything (a save, the network): every field type-checked. Saves from before the first pick (0.37.0
+## to 0.38.2, no "picked") had both starters and keep them.
 static func clean(data: Variant) -> Dictionary:
 	var out := fresh()
 	if not data is Dictionary:
 		return out
+	var picked: bool = data.get("picked", true) == true
+	out["picked"] = picked
 	var unlocked: Array = out["unlocked"]
-	if data.get("unlocked") is Array:
+	unlocked.clear()
+	if not picked:
+		unlocked.append("vega")
+	elif not data.has("picked"):
+		unlocked.append_array(STARTERS)
+	if picked and data.get("unlocked") is Array:
 		for id: Variant in data["unlocked"]:
 			if id is String and LIST.has(id) and not unlocked.has(id):
 				unlocked.append(id)
@@ -132,15 +143,21 @@ static func clean(data: Variant) -> Dictionary:
 		for id: Variant in data["chars"]:
 			if id is String and LIST.has(id) and data["chars"][id] is Dictionary:
 				chars[id] = _clean_char(data["chars"][id])
-	out["exp_points"] = clampi(int(data["exp_points"]), 0, MAX_EXPEDITION_POINTS) if _num(data.get("exp_points")) else 0
+	if unlocked.is_empty():
+		unlocked.append("vega")
 	var pick: Variant = data.get("selected")
-	out["selected"] = pick if pick is String and unlocked.has(pick) else "vega"
+	out["selected"] = pick if pick is String and unlocked.has(pick) else str(unlocked[0])
+	# 0.37.0-0.38.1 kept expedition points for the whole account; since 0.38.2 each character has its own (owner).
+	if _num(data.get("exp_points")) and int(data["exp_points"]) > 0:
+		var c := char_of(out, out["selected"])
+		c["exp_points"] = clampi(maxi(int(c["exp_points"]), int(data["exp_points"])), 0, MAX_EXPEDITION_POINTS)
 	return out
 
 
 static func _clean_char(c: Dictionary) -> Dictionary:
 	var out := {"xp": maxi(int(c["xp"]), 0) if _num(c.get("xp")) else 0,
 		"lvl_points": clampi(int(c["lvl_points"]), 0, 5) if _num(c.get("lvl_points")) else 0,
+		"exp_points": clampi(int(c["exp_points"]), 0, MAX_EXPEDITION_POINTS) if _num(c.get("exp_points")) else 0,
 		"spent": {}}
 	var spent: Dictionary = c.get("spent", {}) if c.get("spent") is Dictionary else {}
 	for key in SPEND_KEYS:
@@ -183,12 +200,12 @@ static func level(state: Dictionary, id: String) -> int:
 	return level_of_xp(int(char_of(state, id)["xp"]))
 
 
-## Upgrade points are one pool for the whole account (owner, 2026-11-20): earned by any character (its levels 10 and
-## 20, the first time) and by expedition escapes, spent on any unlocked character.
+## Upgrade points are one pool for the whole account (owner, 2026-11-20): each character earns them (its levels 10
+## and 20 the first time, and 2 per expedition escape up to 10 per character, owner 0.38.2), spent on any unlocked one.
 static func points_earned(state: Dictionary) -> int:
-	var total := int(state.get("exp_points", 0))
+	var total := 0
 	for id: String in state.get("chars", {}):
-		total += int(state["chars"][id]["lvl_points"])
+		total += int(state["chars"][id]["lvl_points"]) + int(state["chars"][id]["exp_points"])
 	return total
 
 
@@ -252,11 +269,23 @@ static func reset_points(state: Dictionary, id: String) -> void:
 		c["spent"][key] = 0
 
 
+## The first pick: `id` (a starter) is the player's, free; the other starter stays locked. False if already picked.
+static func pick_starter(state: Dictionary, id: String) -> bool:
+	if state.get("picked", true) or not STARTERS.has(id):
+		return false
+	state["picked"] = true
+	state["unlocked"] = [id]
+	state["selected"] = id
+	return true
+
+
 ## Why `id` can't be unlocked now ("" = it can): money on hand and each trader's level.
 static func unlock_problem(state: Dictionary, id: String, money: int, trader_levels: Dictionary) -> String:
 	var info: Dictionary = LIST[id]
 	if (state.get("unlocked", []) as Array).has(id):
 		return "Unlocked"
+	if not state.get("picked", true):
+		return "Pick your first character" if STARTERS.has(id) else "Pick your first character first"
 	if info.get("files", false):
 		return "Find the 3 Subject 09 files in Site Zero (coming in the next update)"
 	var trader := str(info.get("trader", ""))
@@ -267,10 +296,11 @@ static func unlock_problem(state: Dictionary, id: String, money: int, trader_lev
 	return ""
 
 
-## The expedition (0.38, its own thread): `id` escaped. Points go to the shared pool (up to the cap for the account);
-## the expedition also calls `reset_level` for the character that went.
-static func add_expedition_points(state: Dictionary, _id: String, amount := EXPEDITION_POINTS) -> void:
-	state["exp_points"] = mini(int(state.get("exp_points", 0)) + amount, MAX_EXPEDITION_POINTS)
+## The expedition: `id` escaped. It earns points for the shared pool, up to the cap for that character;
+## the expedition also calls `reset_level` for it.
+static func add_expedition_points(state: Dictionary, id: String, amount := EXPEDITION_POINTS) -> void:
+	var c := char_of(state, id)
+	c["exp_points"] = mini(int(c["exp_points"]) + amount, MAX_EXPEDITION_POINTS)
 
 
 static func reset_level(state: Dictionary, id: String) -> void:
@@ -412,12 +442,23 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 	var b := clean(new.get("characters"))
 	var cost := 0
 	var levels: Dictionary = new.get("trader_levels", {}) if new.get("trader_levels") is Dictionary else {}
-	for id: String in a["unlocked"]:
+	if a["picked"] and not b["picked"]:
+		return {"error": "first pick undone", "money": 0}
+	var first := ""
+	if not a["picked"] and b["picked"]:
+		# The first pick: one starter, free (VEGA stood in until now, so it may go).
+		first = str(b["selected"])
+		if not STARTERS.has(first) or not (b["unlocked"] as Array).has(first):
+			return {"error": "first pick isn't a starter", "money": 0}
+	var owned: Array = a["unlocked"] if first == "" else []   # (before the pick, VEGA only stands in)
+	for id: String in owned:
 		if not (b["unlocked"] as Array).has(id):
 			return {"error": "character locked again", "money": 0}
 	for id: String in b["unlocked"]:
-		if (a["unlocked"] as Array).has(id):
+		if owned.has(id) or id == first:
 			continue
+		if not b["picked"]:
+			return {"error": "unlock before the first pick", "money": 0}
 		var info: Dictionary = LIST[id]
 		if info.get("files", false):
 			return {"error": "character %s without its files" % id, "money": 0}
@@ -425,12 +466,10 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 		if trader != "" and int(levels.get(trader, 1)) < int(info["trader_level"]):
 			return {"error": "character %s before its trader level" % id, "money": 0}
 		cost += int(info["price"])
-	if int(b["exp_points"]) != int(a["exp_points"]):
-		return {"error": "expedition points changed", "money": 0}
 	for id: String in LIST:
 		var ca := char_of(a, id)
 		var cb := char_of(b, id)
-		for key in ["xp", "lvl_points"]:
+		for key in ["xp", "lvl_points", "exp_points"]:
 			if int(cb[key]) != int(ca[key]):
 				return {"error": "character %s %s changed" % [id, key], "money": 0}
 		if char_spent(cb) > 0 and not (b["unlocked"] as Array).has(id):
