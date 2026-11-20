@@ -82,7 +82,7 @@ func _init(menu: Node) -> void:
 	_status = _text(16, HudStyle.INK_DIM)
 	middle.add_child(_status)
 	var note := _text(13, Color(1, 1, 1, 0.5))
-	note.text = "Traits grow from level 1 to 20, the good and the bad. Level by playing raids as them. Points: 2 at level 10, 3 at level 20, 2 for each expedition escape (up to 10)."
+	note.text = "Traits grow from level 1 to 20, the good and the bad. Level by playing raids as them. Upgrade points are shared: any character earns them (2 at level 10, 3 at level 20, 2 for each expedition escape up to 10) and you spend them on whoever you like."
 	middle.add_child(note)
 
 	var right := _panel(columns, SIDE_WIDTH)
@@ -193,7 +193,8 @@ func refresh() -> void:
 func _fill_points(c: Dictionary, unlocked: bool) -> void:
 	for child in _spend.get_children():
 		child.queue_free()
-	_points.text = "%d points to spend (%d earned)" % [Characters.points_left(c), Characters.points_earned(c)]
+	var state := Profile.characters
+	_points.text = "%d points to spend (shared by all characters, %d earned)" % [Characters.points_left(state), Characters.points_earned(state)]
 	var info: Dictionary = Characters.LIST[showing]
 	var keys := ["u0", "u1", "d0", "d1", "p"]
 	for key: String in keys:
@@ -214,11 +215,11 @@ func _fill_points(c: Dictionary, unlocked: bool) -> void:
 		button.custom_minimum_size = Vector2(0, 40)
 		button.clip_text = true
 		LootUI.style_button(button, 15)
-		button.disabled = not unlocked or not Characters.can_spend(c, key)
+		button.disabled = not unlocked or not Characters.can_spend(state, c, key)
 		button.pressed.connect(func() -> void: spend(key))
 		_spend.add_child(button)
 	_reset.text = "RESET POINTS  %s" % ItemDB.money(Characters.RESET_COST)
-	_reset.disabled = not unlocked or Characters.points_spent(c) == 0 or Profile.money < Characters.RESET_COST
+	_reset.disabled = not unlocked or Characters.char_spent(c) == 0 or Profile.money < Characters.RESET_COST
 
 
 func _on_action() -> void:

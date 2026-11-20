@@ -24,8 +24,9 @@ start; the owner tunes them after playing. Design page: project file `characters
 - Traits grow with the character's level (1-20, by playing raids as them; +100 XP for an extract, +30 otherwise, kills
   you get out with +10 scav, +25 Raider, +50 PMC, +100 boss): a quarter of full size at level 1, full at 20, the good
   and the bad together.
-- Upgrade points, spent by the player: 2 at level 10 and 3 at level 20 (the first time only), 2 per expedition escape
-  up to 10 (the expedition update calls `Characters.add_expedition_points`). A point adds 2% to an upside (5 at most),
+- Upgrade points, spent by the player, in one pool for the whole account (owner): any character earns them (2 at
+  level 10 and 3 at level 20, the first time only; 2 per expedition escape up to 10, through
+  `Characters.add_expedition_points`) and they can be spent on any unlocked character. A point adds 2% to an upside (5 at most),
   takes a quarter off a downside (2 at most: halved, never removed) or buys a passive rank (2 points). Moving them
   around costs $25,000.
 - The hideout's **CHARACTERS** screen (the CHARS tab on phones, a button in the wardrobe): pick, unlock, spend points.

@@ -4908,7 +4908,7 @@ func _section_playables() -> void:
 	_check(Characters.level(state, "vega") == 20 and is_equal_approx(Characters.trait_value("vega", c, 0), 0.08)
 		and int(c["lvl_points"]) == 5, "at level 20 traits are full size and 5 level points are earned")
 	Characters.add_expedition_points(state, "vega")
-	_check(Characters.points_left(c) == 7, "an expedition adds 2 points (7 to spend)")
+	_check(Characters.points_left(state) == 7, "an expedition adds 2 points (7 to spend)")
 	for i in 5:
 		Characters.spend(state, "vega", "u0")
 	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.18),
@@ -4917,13 +4917,17 @@ func _section_playables() -> void:
 	Characters.spend(state, "vega", "d0")
 	_check(not Characters.spend(state, "vega", "d0") and is_equal_approx(Characters.trait_value("vega", c, 2), 0.125),
 		"a downside can be halved, never removed")
-	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(c) == 0, "no points left for a passive rank")
+	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(state) == 0, "no points left for a passive rank")
+	Characters.reset_points(state, "vega")
+	_check(Characters.points_left(state) == 7 and Characters.spend(state, "voss", "p") and Characters.passive_rank(Characters.char_of(state, "voss")) == 2
+		and Characters.points_left(state) == 5, "points are one shared pool: VEGA's points can buy VOSS a passive rank")
+	Characters.reset_points(state, "voss")
 	Characters.reset_level(state, "vega")
 	Characters.add_xp(state, "vega", total)
 	_check(int(c["lvl_points"]) == 5, "an expedition resets the level; level points only come once")
 	for i in 4:
 		Characters.add_expedition_points(state, "vega")
-	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10")
+	_check(int(state["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10")
 	# Unlocks: money and a trader level.
 	_check(Characters.unlock_problem(state, "sable", 1000000, {}) != "" and Characters.unlock_problem(state, "sable", 1000, {"guns": 3}) != ""
 		and Characters.unlock_problem(state, "sable", 400000, {"guns": 3}) == "", "SABLE needs Ponta level 3 and $400,000")
@@ -4952,6 +4956,13 @@ func _section_playables() -> void:
 	var greedy := {"characters": Characters.fresh()}
 	Characters.char_of(greedy["characters"], "vega")["spent"]["u0"] = 3
 	_check(Characters.changes(old_profile, greedy)["error"] != "", "nor points spent that weren't earned")
+	var shared := {"characters": Characters.fresh()}
+	shared["characters"]["exp_points"] = 4
+	var shared_after := {"characters": shared["characters"].duplicate(true)}
+	Characters.char_of(shared_after["characters"], "voss")["spent"]["u0"] = 3
+	_check(Characters.changes(shared, shared_after)["error"] == "", "online, shared points can go on any unlocked character")
+	Characters.char_of(shared_after["characters"], "sable")["spent"]["u0"] = 1
+	_check(Characters.changes(shared, shared_after)["error"] != "", "but not on a locked one")
 	# Online tags: steps can't be made quieter than VEGA's quietest.
 	_check(Characters.clean_tag("000") == "005" and Characters.clean_tag("x") == "" and Characters.clean_tag("975") == "",
 		"a made-up character tag is cleaned or dropped")
