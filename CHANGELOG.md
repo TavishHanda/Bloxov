@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.2 (Riptide: the container yard opens up, a taller lighthouse)
+Owner's playtest feedback (2026-11-20: containers "cutting off a whole lane ... place them sideways"; "some have one
+side open some have both some have none"; the lighthouse "should for sure be taller ... a really cool sniper spot").
+- The container yard's single containers across the aisles now lie along them, off the middle by turns, so there's a
+  way round both sides (1.3 m and 3.1 m) and they still give cover. Some are open to walk through: both ends, one
+  end, or shut. A few stacks have a container open at the end of the run, a nook off the cross gaps. Open containers
+  are drawn inside and out (plank floor, doors swung back) by `open_cont` in `make_riptide_plaza.py`
+  (`open_container()` in `tools/gen_riptide.py`).
+- The lighthouse is 22 m to its watch room (was 14): two ladders with a landing half way, slit windows up the tower,
+  the watch room on top with big windows all round, a balcony round it, the lantern over it. One way up, so it can be
+  camped. Its AI perch moved up with it.
+- Stairs vs ladders checked: every building's main way up is stairs; ladders are only for water, boats, roof hatches
+  and the lighthouse (no change).
+- Net version 16 (map geometry).
+
 ## 0.38.1 (Riptide art: the north point, and models matched to their hitboxes)
 Owner asked (2026-11-20: "keep going with the art pass"; "check the riptide map ... for any rough spots" and "make sure
 all the models match hitboxes"). Shore pass 3a: one new model, `north_point` (origin -110, 0, -145; in `FarView.NO_FAR`),

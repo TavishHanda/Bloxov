@@ -298,6 +298,62 @@ def gantry(m, row):
         m.box(c, s, lambda n, mid, q: "rip_roof" if n[1] > 0.7 else "rq_crane")
 
 
+def open_cont(m, row, k):
+    """(0.38.2) A container you can walk into (gen_riptide.py open_container): corrugated walls and roof inside and
+    out, a plank floor, the corner posts, the doors swung right back against the sides at each open end, the shut
+    end's doors drawn on it."""
+    c, s, kind = row["pos"], row["size"], row["colour"]
+    body = R.CONT_MAT[kind]
+    ends = row["kind"][5:]                       # "2", "1p" or "1n"
+    ax = 0 if s[0] > s[2] else 2                 # along
+    cx = 2 - ax                                  # across
+    L, W, H, t = s[ax], s[cx], s[1], 0.1
+    y0 = c[1] - H / 2
+
+    def P(a, b, y):                              # a along, b across (from the centre), y up
+        q = [0.0, y, 0.0]
+        q[ax], q[cx] = c[ax] + a, c[cx] + b
+        return tuple(q)
+
+    def S(a, b):
+        q = [0.0, 0.0, 0.0]
+        q[ax], q[cx] = a, b
+        return q
+
+    def bx(a, b, y, sa, sb, sy, style):
+        size = S(sa, sb)
+        size[1] = sy
+        m.box(P(a, b, y), tuple(size), style, cull=False)
+    shell = lambda n, mid, q: (body, uv_world())
+    for sg in (-1, 1):                           # the long walls, the roof
+        bx(0.0, sg * (W / 2 - t / 2), y0 + H / 2, L - 0.04, t, H - 0.04, shell)
+    bx(0.0, 0.0, y0 + H - t / 2, L - 0.04, W - 2 * t, t, lambda n, mid, q: (body, uv_world()) if n[1] > 0.7 else "rip_steel_in")
+    bx(0.0, 0.0, y0 + 0.03, L - 0.3, W - 2 * t, 0.06, mat("rip_wood"))       # the floor
+    open_ends = (-1, 1) if ends == "2" else ((1,) if ends == "1p" else (-1,))
+    for e in (-1, 1):
+        if e in open_ends:                       # the two door leaves, swung back flat on the sides
+            for sg in (-1, 1):
+                bx(e * (L / 2 - 0.6), sg * (W / 2 + 0.05), y0 + H / 2, 1.15, 0.06, H - 0.3, shell)
+        else:                                    # the shut end: steel inside, its doors outside
+            bx(e * (L / 2 - t / 2), 0.0, y0 + (H - t) / 2, t, W - 2 * t, H - t,
+               lambda n, mid, q: "rip_iron")
+            nrm = [0, 0, 0]
+            nrm[ax] = e
+            flat(m.b, tuple(nrm), c[ax] + e * (L / 2 + 0.005), c[cx] - W / 2 + 0.16, c[cx] + W / 2 - 0.16, y0 + 0.16,
+                 y0 + H - 0.16, "decals", m.d("doors_" + kind))
+    for ea in (-1, 1):                           # corner posts, the top and bottom rails
+        for eb in (-1, 1):
+            bx(ea * (L / 2 - 0.08), eb * (W / 2 - 0.08), y0 + H / 2, 0.16, 0.16, H, mat("rip_iron"))
+    for yy in (y0 + 0.08, y0 + H - 0.08):
+        for sg in (-1, 1):
+            bx(0.0, sg * (W / 2 - 0.06), yy, L - 0.32, 0.12, 0.16, mat("rip_iron"))
+    for sg in (-1, 1):                           # the line's name on the long sides
+        nrm = [0, 0, 0]
+        nrm[cx] = sg
+        flat(m.b, tuple(nrm), c[cx] + sg * (W / 2 + 0.005), c[ax] - 1.55, c[ax] + 1.55, y0 + 0.35 + H / 2,
+             y0 + 0.85 + H / 2, "graffiti", m.d("line_" + kind))
+
+
 def truck(m, row, conts):
     c, s, yaw = row["pos"], row["size"], row["yaw"]
     if row["colour"] in R.CONT_MAT:                # the trailer's box
@@ -385,7 +441,12 @@ def build_plaza(name="harbor_plaza"):
     for row in data["boxes"]:
         kind, col = row.get("kind"), row["colour"]
         f0 = len(m.b.faces)
-        if kind in PROP_KINDS or (kind or "").startswith("chair_"):
+        if kind == "ocont_part":
+            pass                                   # (drawn by its marker, below)
+        elif (kind or "").startswith("ocont"):
+            open_cont(m, row, conts)
+            conts += 1
+        elif kind in PROP_KINDS or (kind or "").startswith("chair_"):
             R.t_prop(m, row)
         elif kind == "truck":
             truck(m, row, conts)

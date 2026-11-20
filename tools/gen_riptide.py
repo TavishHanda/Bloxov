@@ -392,13 +392,47 @@ def wagon(x, z, colour="rust"):
     box(x - 1.5, SHORE, z - 7.0, x + 1.5, SHORE + 3.8, z + 7.0, colour)
 
 
+def open_container(x, y, z, along, colour, ends, high=1):
+    """(0.38.2, owner: "some have one side open some have both some have none") a 6 x 2.4 container you can walk
+    into: thin walls and roof (kind ocont_part, drawn by the marker), the doors swung open at one end (ends 1: the
+    end towards +x / +z, ends -1: towards -x / -z) or both (ends 2). More containers stacked on its roof if high > 1.
+    The marker (not solid, kind ocont2 / ocont1p / ocont1n) tells the art what to draw."""
+    L, W, H, t = 6.0, 2.4, 2.6, 0.1
+    hx, hz = (L / 2, W / 2) if along == "x" else (W / 2, L / 2)
+    box(x - hx, y, z - hz, x + hx, y + H, z + hz, colour, solid=False,
+        kind="ocont2" if ends == 2 else ("ocont1p" if ends == 1 else "ocont1n"))
+    with kinded("ocont_part"):
+        if along == "x":
+            box(x - hx, y, z - hz, x + hx, y + H, z - hz + t, colour)
+            box(x - hx, y, z + hz - t, x + hx, y + H, z + hz, colour)
+            box(x - hx, y + H - t, z - hz + t, x + hx, y + H, z + hz - t, colour)
+            if ends != 2:
+                ex = x - hx if ends == 1 else x + hx - t
+                box(ex, y, z - hz + t, ex + t, y + H - t, z + hz - t, colour)
+        else:
+            box(x - hx, y, z - hz, x - hx + t, y + H, z + hz, colour)
+            box(x + hx - t, y, z - hz, x + hx, y + H, z + hz, colour)
+            box(x - hx + t, y + H - t, z - hz, x + hx - t, y + H, z + hz, colour)
+            if ends != 2:
+                ez = z - hz if ends == 1 else z + hz - t
+                box(x - hx + t, y, ez, x + hx - t, y + H - t, ez + t, colour)
+    if high > 1:
+        container(x, y + H, z, along, colour, high - 1)
+
+
 def block(x0, z0, cols, rows, heights, k=0):
-    """Containers end to end along x (cols x 6 m) and side by side along z (rows x 2.4 m), stacked 1-3 high."""
+    """Containers end to end along x (cols x 6 m) and side by side along z (rows x 2.4 m), stacked 1-3 high.
+    (0.38.2) A single-high container in the middle row at either end of a run is open at its outer end, half the time:
+    a nook to duck into off the gap between runs."""
     cols_c = ("container_a", "container_b", "container_c")
     for i in range(cols):
         for j in range(rows):
             n = k + i * rows + j
-            container(x0 + 3.0 + 6.0 * i, SHORE, z0 + 1.2 + 2.4 * j, "x", cols_c[n % 3], heights[n % len(heights)])
+            x, z, h = x0 + 3.0 + 6.0 * i, z0 + 1.2 + 2.4 * j, heights[n % len(heights)]
+            if j == 1 and h == 1 and cols > 1 and i in (0, cols - 1) and n % 2 == 0:
+                open_container(x, SHORE, z, "x", cols_c[n % 3], 1 if i == cols - 1 else -1)
+            else:
+                container(x, SHORE, z, "x", cols_c[n % 3], h)
 
 
 WATER_LADDERS_QUAY = (-86.0, -40.0, 22.0, 70.0, 150.0)
@@ -505,16 +539,25 @@ def _north_point():
                                      (-150, -170, 6, 5, 2.4, 15)]:
             obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     lx, lz = -62.0, -158.0
+    # (0.38.2, owner: "lighthouse should for sure be taller ... a really cool sniper spot ... but also could cuck you by
+    # being easily camped") 22 m of tower (was 14), two ladders with a landing half way, the watch room on top with
+    # windows all round, a balcony round it, the lantern over it. One way up.
+    LH, LM = SHORE + 22.0, SHORE + 11.0
     with kinded("lighthouse"):
-        room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, 14.0, "wall", s=[door(lx)])
-        slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
-        wall("x", lz - 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-        wall("x", lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-        wall("z", lx - 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
-        wall("z", lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
-    # (0.35.16: at the hatch's north edge facing north, so its top steps off onto the gallery, not into the wall)
-    ladder(lx - 2.1, SHORE, lz + 1.2, 0, 14.0, "Lighthouse")
-    perches.append((lx, SHORE + 14.0, lz, 1, 0))
+        room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, LH - SHORE, "wall", s=[door(lx)],
+             n=[window(lx, 0.5, 8.0, 9.2)], e=[window(lz, 0.5, 15.0, 16.2)], w=[window(lz - 1.0, 0.5, 5.0, 6.2)])
+        slab(lx - 3, lx + 3, lz - 3, lz + 3, LM, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
+        slab(lx - 4.2, lx + 4.2, lz - 4.2, lz + 4.2, LH, "concrete", holes=[(lx + 1.5, lx + 2.7, lz + 1.2, lz + 2.85)])
+        room(lx - 3, lx + 3, lz - 3, lz + 3, LH, 3.0, "wall", s=[door(lx + 1.2, 1.2), window(lx - 1.4, 1.6, 1.0, 2.3)],
+             n=[window(lx, 3.6, 1.0, 2.3)], e=[window(lz, 3.6, 1.0, 2.3)], w=[window(lz, 3.6, 1.0, 2.3)], roof="concrete")
+        for axis, at, a0, a1 in (("x", lz - 4.2, lx - 4.2, lx + 4.2), ("x", lz + 4.2, lx - 4.2, lx + 4.2),
+                                 ("z", lx - 4.2, lz - 4.05, lz + 4.05), ("z", lx + 4.2, lz - 4.05, lz + 4.05)):
+            wall(axis, at, a0, a1, LH, 1.1, "wall", t=0.15)
+        box(lx - 1.1, LH + 3.0, lz - 1.1, lx + 1.1, LH + 6.0, lz + 1.1, "metal", kind="lantern")
+    # (0.35.16: at the hatch's north edge facing north, so its top steps off onto the floor above, not into the wall)
+    ladder(lx - 2.1, SHORE, lz + 1.2, 0, LM - SHORE, "Lighthouse")
+    ladder(lx + 2.1, LM, lz + 1.2, 0, LH - LM, "Lighthouse")
+    perches.append((lx, LH, lz, 1, 0))
     # (0.33.2, owner: extracts too easy to camp) the cove is a nook in the rocks: tall outcrops round it, the ways in
     # bent so nobody sees the zone from far off
     with kinded("rock"):
@@ -587,9 +630,19 @@ def _terminal():
         runs = [(-142.0, 4), (-112.0, 4), (-82.0, 2)] if r % 2 == 0 else [(-128.0, 4), (-98.0, 4), (-146.0, 1)]
         for k, (x0, cols) in enumerate(runs):
             block(x0, z0, cols, 3, hs, k=r * 7 + k * 3)
-    for i, (x, z) in enumerate([(-122.0, -99.3), (-88.0, -99.3), (-108.0, -85.3), (-138.0, -71.3), (-76.0, -71.3),
-                                (-118.0, -57.3), (-92.0, -57.3)]):
-        container(x, SHORE, z, "z", ("container_b", "container_c", "container_a")[i % 3], 1 + (i + 1) % 2)
+    # single containers in the aisles (0.38.2, owner: "some containers block your movement by just cutting off a whole
+    # lane ... place them sideways"): along the aisle now, off its middle by turns, so there's a way round on both sides
+    # (1.3 m and 3.1 m); some open to walk through, both ends or one, some shut
+    for i, (x, z) in enumerate([(-122.0, -99.4), (-88.0, -99.4), (-108.0, -85.4), (-138.0, -71.4), (-76.0, -71.4),
+                                (-118.0, -57.4), (-92.0, -57.4)]):
+        zz = z + (0.9 if i % 2 else -0.9)
+        colour = ("container_b", "container_c", "container_a")[i % 3]
+        if i % 3 == 0:
+            open_container(x, SHORE, zz, "x", colour, 2)
+        elif i % 3 == 1:
+            open_container(x, SHORE, zz, "x", colour, 1 if i % 2 else -1)
+        else:
+            container(x, SHORE, zz, "x", colour, 2)
     with kinded("gantry"):
         for x in (-148.0, -64.0):                      # the gantry crane
             for z in (-99.0, -75.0):
