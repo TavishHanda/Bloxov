@@ -15,9 +15,11 @@ side open some have both some have none"; the lighthouse "should for sure be tal
   end, or shut. A few stacks have a container open at the end of the run, a nook off the cross gaps. Open containers
   are drawn inside and out (plank floor, doors swung back) by `open_cont` in `make_riptide_plaza.py`
   (`open_container()` in `tools/gen_riptide.py`).
-- The lighthouse is 22 m to its watch room (was 14): two ladders with a landing half way, slit windows up the tower,
-  the watch room on top with big windows all round, a balcony round it, the lantern over it. One way up, so it can be
-  camped. Its AI perch moved up with it.
+- The lighthouse is a real lighthouse (owner: "its toooo square ... a bit taller"): an eight-sided tower in two
+  stages (4 m across the flats at the foot, 3.4 m from 14 m up), white with red bands, 28 m to its watch room (was
+  14): one long ladder up the inside, the watch room glazed all round with a door onto the gallery round it, the
+  lantern on top. One way up, so it can be camped. Its AI perch moved up with it.
+- The open containers' doors stand swung open like real ones (solid, a little out past the sides).
 - Stairs vs ladders checked: every building's main way up is stairs; ladders are only for water, boats, roof hatches
   and the lighthouse (no change).
 - Net version 16 (map geometry).

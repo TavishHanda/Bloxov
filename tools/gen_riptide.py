@@ -416,6 +416,16 @@ def open_container(x, y, z, along, colour, ends, high=1):
             if ends != 2:
                 ez = z - hz if ends == 1 else z + hz - t
                 box(x - hx + t, y, ez, x + hx - t, y + H - t, ez + t, colour)
+        # (0.38.5, owner: "give the open containers doors still that kinda open like real shipping containers") the two
+        # leaves at each open end stand swung open 100 degrees, a little out past the sides
+        assert along == "x"
+        for e in ((-1, 1) if ends == 2 else ((1,) if ends == 1 else (-1,))):
+            for sg in (-1, 1):
+                th = math.radians(100.0)
+                dx, dz = e * math.sin(th), -sg * math.cos(th)
+                hx0, hz0 = x + e * hx, z + sg * (hz - 0.05)
+                obox(hx0 + dx * 0.6, y + 1.28, hz0 + dz * 0.6, 0.08, 2.5, 1.18, math.degrees(math.atan2(dx, dz)), colour,
+                     kind="ocont_door")
     if high > 1:
         container(x, y + H, z, along, colour, high - 1)
 
@@ -519,6 +529,72 @@ CANNERY_CHAIRS = [("chair_n", -140.0, -164.8, 4.5), ("chair_n", -138.5, -147.4, 
                   ("chair_s", -138.0, -131.6, 4.5)]
 
 
+LH_TOP = SHORE + 28.0     # (0.38.5) the lighthouse's watch room floor
+
+
+def octagon_walls(cx, cz, r, y0, h, t, colour, kind, skip=()):
+    """Eight wall panels round (cx, cz), r to the outside of the flats, panel k facing k * 45 degrees (k 2: south, +z),
+    the panels in `skip` left out. Each panel is a little wider than its flat, so the corners close."""
+    w = 2.0 * r * math.tan(math.radians(22.5)) + 0.04
+    for k in range(8):
+        if k in skip:
+            continue
+        a = math.radians(k * 45.0)
+        obox(cx + math.cos(a) * (r - t / 2), y0 + h / 2, cz + math.sin(a) * (r - t / 2), w, h, t, 90.0 - k * 45.0,
+             colour, kind=kind)
+
+
+def octagon_disc(cx, cz, r, top, t, colour, kind):
+    """A solid octagon r across the flats (four crossed boxes, like the fuel tanks)."""
+    for yaw in (0, 45, 90, 135):
+        obox(cx, top - t / 2, cz, 2 * r, t, 2 * r * math.tan(math.radians(22.5)), yaw, colour, kind=kind)
+
+
+def lighthouse(lx, lz):
+    LM, LH = SHORE + 14.0, LH_TOP
+    R1, R2, RW, RG, T = 4.0, 3.4, 3.0, 4.4, 0.3
+    door_w = 1.6
+    with kinded("lh"):
+        # the foot: a stage 4 m across the flats, the door on its south flat (an axis-aligned panel, so it's cut by
+        # plain boxes), then a ledge and the upper stage
+        octagon_walls(lx, lz, R1, SHORE, LM - SHORE, T, "wall", "lh", skip=(2,))
+        fw = 2.0 * R1 * math.tan(math.radians(22.5)) + 0.04
+        zs = lz + R1 - T
+        box(lx - fw / 2, SHORE, zs, lx - door_w / 2, LM, zs + T, "wall")
+        box(lx + door_w / 2, SHORE, zs, lx + fw / 2, LM, zs + T, "wall")
+        box(lx - door_w / 2, SHORE + DOOR_H, zs, lx + door_w / 2, LM, zs + T, "wall")
+        octagon_walls(lx, lz, R1 + 0.25, LM - 0.3, 0.3, R1 + 0.25 - R2 + T, "wall", "lh_ledge")
+        octagon_walls(lx, lz, R2, LM, LH - LM, T, "wall", "lh")
+        # the watch room's floor: a square with the ladder's hatch, filled out to the octagon on its four flats; the
+        # gallery round it
+        q = 2.1
+        slab(lx - q, lx + q, lz - q, lz + q, LH, "concrete", holes=[(lx - 1.8, lx - 0.6, lz + 0.6, lz + 2.0)])
+        ap = R2 - T
+        for sx, sz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            wdt = 2 * ap * math.tan(math.radians(22.5))
+            if sx:
+                box(min(lx + sx * q, lx + sx * ap), LH - SLAB_T, lz - wdt / 2, max(lx + sx * q, lx + sx * ap), LH, lz + wdt / 2, "concrete")
+            else:
+                box(lx - wdt / 2, LH - SLAB_T, min(lz + sz * q, lz + sz * ap), lx + wdt / 2, LH, max(lz + sz * q, lz + sz * ap), "concrete")
+        octagon_walls(lx, lz, RG, LH - SLAB_T, SLAB_T, RG - RW + 0.3, "concrete", "lh_gallery")
+        octagon_walls(lx, lz, RG, LH, 1.1, 0.12, "metal", "lh_rail")
+        # the watch room: a low wall, glass from 1.0 to 2.3 (open: you shoot through it), a band over it, posts at
+        # the corners; the door onto the gallery on the south flat
+        ww = 2.0 * RW * math.tan(math.radians(22.5))
+        for k in range(8):
+            a = math.radians(k * 45.0)
+            px, pz = lx + math.cos(a) * (RW - 0.1), lz + math.sin(a) * (RW - 0.1)
+            if k != 2:
+                obox(px, LH + 0.5, pz, ww + 0.04, 1.0, 0.2, 90.0 - k * 45.0, "wall", kind="lh_watch")
+            obox(px, LH + 2.65, pz, ww + 0.04, 0.7, 0.2, 90.0 - k * 45.0, "wall", kind="lh_watch")
+            c = math.radians(k * 45.0 + 22.5)
+            rc = RW / math.cos(math.radians(22.5)) - 0.15
+            obox(lx + math.cos(c) * rc, LH + 1.65, lz + math.sin(c) * rc, 0.25, 1.3, 0.25, 90.0 - k * 45.0 - 22.5, "wall",
+                 kind="lh_watch")
+        octagon_disc(lx, lz, RW, LH + 3.0 + SLAB_T, SLAB_T, "concrete", "lh_roof")
+        box(lx - 1.1, LH + 3.0 + SLAB_T, lz - 1.1, lx + 1.1, LH + 6.0, lz + 1.1, "metal", kind="lantern")
+
+
 def north_point():
     """The north point (shore art pass 3a: model `north_point`): rocks, the lighthouse, the cove, the cannery, the
     fuel depot, the sheds on the north street."""
@@ -539,25 +615,13 @@ def _north_point():
                                      (-150, -170, 6, 5, 2.4, 15)]:
             obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     lx, lz = -62.0, -158.0
-    # (0.38.2, owner: "lighthouse should for sure be taller ... a really cool sniper spot ... but also could cuck you by
-    # being easily camped") 22 m of tower (was 14), two ladders with a landing half way, the watch room on top with
-    # windows all round, a balcony round it, the lantern over it. One way up.
-    LH, LM = SHORE + 22.0, SHORE + 11.0
-    with kinded("lighthouse"):
-        room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, LH - SHORE, "wall", s=[door(lx)],
-             n=[window(lx, 0.5, 8.0, 9.2)], e=[window(lz, 0.5, 15.0, 16.2)], w=[window(lz - 1.0, 0.5, 5.0, 6.2)])
-        slab(lx - 3, lx + 3, lz - 3, lz + 3, LM, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
-        slab(lx - 4.2, lx + 4.2, lz - 4.2, lz + 4.2, LH, "concrete", holes=[(lx + 1.5, lx + 2.7, lz + 1.2, lz + 2.85)])
-        room(lx - 3, lx + 3, lz - 3, lz + 3, LH, 3.0, "wall", s=[door(lx + 1.2, 1.2), window(lx - 1.4, 1.6, 1.0, 2.3)],
-             n=[window(lx, 3.6, 1.0, 2.3)], e=[window(lz, 3.6, 1.0, 2.3)], w=[window(lz, 3.6, 1.0, 2.3)], roof="concrete")
-        for axis, at, a0, a1 in (("x", lz - 4.2, lx - 4.2, lx + 4.2), ("x", lz + 4.2, lx - 4.2, lx + 4.2),
-                                 ("z", lx - 4.2, lz - 4.05, lz + 4.05), ("z", lx + 4.2, lz - 4.05, lz + 4.05)):
-            wall(axis, at, a0, a1, LH, 1.1, "wall", t=0.15)
-        box(lx - 1.1, LH + 3.0, lz - 1.1, lx + 1.1, LH + 6.0, lz + 1.1, "metal", kind="lantern")
-    # (0.35.16: at the hatch's north edge facing north, so its top steps off onto the floor above, not into the wall)
-    ladder(lx - 2.1, SHORE, lz + 1.2, 0, LM - SHORE, "Lighthouse")
-    ladder(lx + 2.1, LM, lz + 1.2, 0, LH - LM, "Lighthouse")
-    perches.append((lx, LH, lz, 1, 0))
+    # (0.38.5, owner: "lighthouse should for sure be taller ... a really cool sniper spot ... but also could cuck you by
+    # being easily camped"; then "make the lighthouse lighthouse shaped, its toooo square, also ... a bit taller") an
+    # eight-sided tower in two stages, 4 m across the flats at the foot stepping in to 3.4 m at 14 m up, 28 m to the
+    # watch room: one long ladder up the inside, the watch room glazed all round, a gallery round it, the lantern on top.
+    lighthouse(lx, lz)
+    ladder(lx - 1.2, SHORE, lz + 0.6, 0, LH_TOP - SHORE, "Lighthouse")
+    perches.append((lx, LH_TOP, lz, 1, 0))
     # (0.33.2, owner: extracts too easy to camp) the cove is a nook in the rocks: tall outcrops round it, the ways in
     # bent so nobody sees the zone from far off
     with kinded("rock"):

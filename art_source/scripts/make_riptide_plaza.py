@@ -331,9 +331,8 @@ def open_cont(m, row, k):
     bx(0.0, 0.0, y0 + 0.03, L - 0.3, W - 2 * t, 0.06, mat("rip_wood"))       # the floor
     open_ends = (-1, 1) if ends == "2" else ((1,) if ends == "1p" else (-1,))
     for e in (-1, 1):
-        if e in open_ends:                       # the two door leaves, swung back flat on the sides
-            for sg in (-1, 1):
-                bx(e * (L / 2 - 0.6), sg * (W / 2 + 0.05), y0 + H / 2, 1.15, 0.06, H - 0.3, shell)
+        if e in open_ends:                       # (the door leaves are their own boxes: ocont_door)
+            pass
         else:                                    # the shut end: steel inside, its doors outside
             bx(e * (L / 2 - t / 2), 0.0, y0 + (H - t) / 2, t, W - 2 * t, H - t,
                lambda n, mid, q: "rip_iron")
@@ -443,6 +442,16 @@ def build_plaza(name="harbor_plaza"):
         f0 = len(m.b.faces)
         if kind == "ocont_part":
             pass                                   # (drawn by its marker, below)
+        elif kind == "ocont_door":                 # a door leaf standing open: corrugated outside, its bars inside
+            body = R.CONT_MAT[col]
+            m.box(row["pos"], row["size"], lambda n, mid, q, body=body: None if n[1] < -0.7 else (body, uv_world()),
+                  yaw=row["yaw"], cull=False)
+            ya = math.radians(row["yaw"])
+            for dz in (-0.3, 0.3):                 # the locking bars, upright
+                p = list(row["pos"])
+                p[0] += math.sin(ya) * dz
+                p[2] += math.cos(ya) * dz
+                m.box(tuple(p), (0.14, 2.3, 0.06), mat("rip_iron"), yaw=row["yaw"], cull=False)
         elif (kind or "").startswith("ocont"):
             open_cont(m, row, conts)
             conts += 1

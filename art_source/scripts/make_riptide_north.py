@@ -31,7 +31,6 @@ DECK = SHORE + 4.5
 
 BUILDINGS = {
     "cannery": ([(-142.0, -96.0, -166.0, -130.0)], "rs_clad", "rip_panel", "rq_conc", "rip_steel_in", "rq_conc"),
-    "lighthouse": ([(-65.0, -59.0, -161.0, -155.0)], "rip_white", "rip_white", "rq_conc", "rq_conc", "rq_conc"),
     "nshed1": ([(-150.0, -136.0, -128.0, -118.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
     "nshed2": ([(-116.0, -100.0, -122.0, -112.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
     "nshed3": ([(-70.0, -58.0, -126.0, -114.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
@@ -163,6 +162,40 @@ def tanks(m):
         cyl(b, (c[0], SHORE + 0.3, c[2]), 4.8, 0.6, "rip_iron", None, sides=16, caps=(False, False))
 
 
+LH_C = (-62.0, -158.0)      # the lighthouse's middle (world)
+
+
+def lh_piece(m, row, kind):
+    """(0.38.5) The lighthouse (gen_riptide.py lighthouse()): white outside with a red band, bare concrete inside,
+    the watch room, its gallery rail and roof red, the gallery and the ledge grey."""
+    c = row["pos"]
+    cx, cz = LH_C[0] - OX, LH_C[1] - OZ
+
+    def style(n, mid, q):
+        if n[1] < -0.7:
+            return "rq_conc" if kind in ("lh_gallery", "lh_ledge", "lh_roof") or mid[1] > SHORE + 1.0 else None
+        if n[1] > 0.7:
+            return "rip_red" if kind == "lh_roof" else "rq_conc"
+        out = n[0] * (mid[0] - cx) + n[2] * (mid[2] - cz) > 0
+        if kind in ("lh_gallery", "lh_ledge"):
+            return "rq_conc"
+        if kind in ("lh_rail", "lh_watch", "lh_roof"):
+            return "rip_red" if out or kind == "lh_rail" else "rip_white"
+        if not out:
+            return "rq_conc"
+        if mid[1] < SHORE + 0.6:
+            return "rs_plinth"
+        return "rip_red" if SHORE + 9.0 < mid[1] < SHORE + 12.0 or SHORE + 21.0 < mid[1] < SHORE + 24.0 else "rip_white"
+    if kind == "lh" and row["size"][1] > 3.0:
+        # (the stages' panels run their full height: cut them at the bands' edges)
+        y0, y1 = c[1] - row["size"][1] / 2, c[1] + row["size"][1] / 2
+        cuts = sorted({y0, y1} | {v for v in (SHORE + 0.6, SHORE + 9.0, SHORE + 12.0, SHORE + 21.0, SHORE + 24.0) if y0 < v < y1})
+        for ya, yb in zip(cuts, cuts[1:]):
+            m.box((c[0], (ya + yb) / 2, c[2]), (row["size"][0], yb - ya, row["size"][2]), style, yaw=row["yaw"])
+        return
+    m.box(c, row["size"], style, yaw=row["yaw"])
+
+
 def lantern(m, row):
     """(0.38.2) The lighthouse's lantern over the watch room (out of reach): a glazed drum on iron posts round the
     lamp, a red cap and a vent on top."""
@@ -284,6 +317,8 @@ def build_north(name="north_point"):
             cooker(m, row)
         elif kind == "lantern":
             lantern(m, row)
+        elif kind.startswith("lh"):
+            lh_piece(m, row, kind)
         elif kind in ("cannery", "lighthouse", "nshed"):
             P.building_piece(m, row, kind, outside)
         else:
