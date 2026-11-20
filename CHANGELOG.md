@@ -7,6 +7,26 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch). -->
 
+## 0.36.41 (Riptide art: Harbor Tower and the plaza)
+Owner asked (2026-11-19, shore pass 2: "yes"; on the pictures, 2026-11-20: "looks good", the tower's rooms "all have to
+be built up", and "roof access ... on buildings where it makes sense"). One new model, `harbor_plaza` (origin -100, 0,
+-40; in `FarView.NO_FAR`), drawn by `art_source/scripts/make_riptide_plaza.py` (`python3 art_source/scripts/make_riptide.py harbor_plaza`).
+- Harbor Tower in pale grey block with a concrete band at every floor and HARBOR TOWER on top; the customs hall in
+  sandstone block, the canteen in buff brick, the garage, gatehouse and the road's kiosks in corrugated sheeting; real
+  asphalt on the road; the lorries' cabs white with dark windows; the terminal's gantry crane in the quay cranes' blue.
+  Window and door frames, sills, a dark plinth, signs (CUSTOMS, CANTEEN, GARAGE, GATE 1, PORT AUTHORITY).
+- Inside: panel walls, lino and tile floors, ceiling tiles and lamps (tower, customs, canteen, gatehouse); the garage in
+  bare concrete.
+- The tower's 24 rooms are furnished, floor by floor (`PLAZA_PROPS`/`PLAZA_CHAIRS` in `tools/gen_riptide.py`, drawn by
+  the ship tower's furniture code): post room, goods in, reception, security; the open office, harbor master, break
+  room, washroom; archive, records, print room, washroom; meeting room, offices, kitchen, radio room; the director,
+  boardroom, secretary, washroom; harbor and traffic control (consoles under the quay-side windows, the chart table,
+  radar), radio room, stores. A sign over every room's door, the floor's name by the stairs, a clock in each corridor.
+  The furniture is solid (cover, like the ship tower's). The ground floor's loot crate moved to the post room's north
+  wall (the stairs now open where it stood).
+- Roof access: stairwell A goes on up to a stair hut and a door onto the tower roof (inside its parapet); a ladder up
+  the customs hall's south wall to its roof. Navigation re-baked. **Net version 11** (map geometry).
+
 ## 0.36.39 (The gym)
 Owner picked it from the hideout ideas (2026-11-19: "3 i like"): the trader market's empty far end is a gym now.
 - A rubber floor, a steel beam across the tunnel with a punching bag on a chain, a pull-up bar on the end wall with a
