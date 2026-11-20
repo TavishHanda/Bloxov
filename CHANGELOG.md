@@ -7,12 +7,26 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.38.2 (Expedition points: up to 10 per character)
-Owner (2026-11-20): the 10-point cap on expedition points is per character, not for the whole account. Each
-character keeps its own `exp_points` (2 per escape it makes, up to 10); the upgrade pool is still shared and spent
-on any unlocked character. Saves from 0.37.0-0.38.1 give their account-wide expedition points to the picked
-character. The server's check (`Characters.changes`) refuses changed expedition points per character.
+## 0.38.3 (Characters: the first pick, and expedition points per character)
+Owner (2026-11-20), two changes to the characters:
+- **The first pick:** a new player chooses VEGA (Nova) or VOSS (Exion) for free; the CHARACTERS screen opens for it
+  once the hideout walk round is done. The other starter unlocks for $50,000, no trader level
+  (`Characters.STARTERS`, `STARTER_PRICE`, `pick_starter`). Saves from before (no `picked`) keep both starters.
+  Online, `Characters.changes` lets the first pick through free and charges $50,000 for the other.
+- **Expedition points up to 10 per character:** the 10-point cap on expedition points is per character, not for the
+  whole account. Each character keeps its own `exp_points` (2 per escape it makes, up to 10); the upgrade pool is still
+  shared and spent on any unlocked character. Saves from 0.37.0-0.38.2 give their account-wide expedition points to
+  the picked character. The server's check refuses changed expedition points per character.
+- The smoke test's prone/door sound check now says which of its three parts failed.
 
+## 0.38.2 (The garage)
+Owner picked a new tunnel off the hall for the expedition truck (2026-11-20). Looks and a station only, nothing synced.
+- A **garage tunnel** runs north from the hall's north-east side, beside the range: a painted parking bay, a roller
+  shutter across the far end (the way out), tyres, a toolbench and crates. The hall's generator moved in there (the
+  crew's mechanic still tends it); the quests board moved 2.8 m west so it doesn't hide the garage's mouth, and one pile
+  of duffel bags went.
+- The **truck** is parked in the bay and shows only the parts you've built (the bare frame at first). USE beside it
+  opens THE TRUCK.
 ## 0.38.1 (Riptide art: the north point, and models matched to their hitboxes)
 Owner asked (2026-11-20: "keep going with the art pass"; "check the riptide map ... for any rough spots" and "make sure
 all the models match hitboxes"). Shore pass 3a: one new model, `north_point` (origin -110, 0, -145; in `FarView.NO_FAR`),
