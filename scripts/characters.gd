@@ -110,7 +110,7 @@ static var last_raid := {}
 
 ## A new state: the two starters unlocked, VEGA picked.
 static func fresh() -> Dictionary:
-	return {"selected": "vega", "unlocked": ["vega", "voss"], "exp_points": 0, "chars": {}}
+	return {"selected": "vega", "unlocked": ["vega", "voss"], "chars": {}}
 
 
 static func _num(value: Variant) -> bool:
@@ -132,15 +132,19 @@ static func clean(data: Variant) -> Dictionary:
 		for id: Variant in data["chars"]:
 			if id is String and LIST.has(id) and data["chars"][id] is Dictionary:
 				chars[id] = _clean_char(data["chars"][id])
-	out["exp_points"] = clampi(int(data["exp_points"]), 0, MAX_EXPEDITION_POINTS) if _num(data.get("exp_points")) else 0
 	var pick: Variant = data.get("selected")
 	out["selected"] = pick if pick is String and unlocked.has(pick) else "vega"
+	# 0.37.0-0.38.1 kept expedition points for the whole account; since 0.38.2 each character has its own (owner).
+	if _num(data.get("exp_points")) and int(data["exp_points"]) > 0:
+		var c := char_of(out, out["selected"])
+		c["exp_points"] = clampi(maxi(int(c["exp_points"]), int(data["exp_points"])), 0, MAX_EXPEDITION_POINTS)
 	return out
 
 
 static func _clean_char(c: Dictionary) -> Dictionary:
 	var out := {"xp": maxi(int(c["xp"]), 0) if _num(c.get("xp")) else 0,
 		"lvl_points": clampi(int(c["lvl_points"]), 0, 5) if _num(c.get("lvl_points")) else 0,
+		"exp_points": clampi(int(c["exp_points"]), 0, MAX_EXPEDITION_POINTS) if _num(c.get("exp_points")) else 0,
 		"spent": {}}
 	var spent: Dictionary = c.get("spent", {}) if c.get("spent") is Dictionary else {}
 	for key in SPEND_KEYS:
@@ -183,12 +187,12 @@ static func level(state: Dictionary, id: String) -> int:
 	return level_of_xp(int(char_of(state, id)["xp"]))
 
 
-## Upgrade points are one pool for the whole account (owner, 2026-11-20): earned by any character (its levels 10 and
-## 20, the first time) and by expedition escapes, spent on any unlocked character.
+## Upgrade points are one pool for the whole account (owner, 2026-11-20): each character earns them (its levels 10
+## and 20 the first time, and 2 per expedition escape up to 10 per character, owner 0.38.2), spent on any unlocked one.
 static func points_earned(state: Dictionary) -> int:
-	var total := int(state.get("exp_points", 0))
+	var total := 0
 	for id: String in state.get("chars", {}):
-		total += int(state["chars"][id]["lvl_points"])
+		total += int(state["chars"][id]["lvl_points"]) + int(state["chars"][id]["exp_points"])
 	return total
 
 
@@ -267,10 +271,11 @@ static func unlock_problem(state: Dictionary, id: String, money: int, trader_lev
 	return ""
 
 
-## The expedition (0.38, its own thread): `id` escaped. Points go to the shared pool (up to the cap for the account);
-## the expedition also calls `reset_level` for the character that went.
-static func add_expedition_points(state: Dictionary, _id: String, amount := EXPEDITION_POINTS) -> void:
-	state["exp_points"] = mini(int(state.get("exp_points", 0)) + amount, MAX_EXPEDITION_POINTS)
+## The expedition: `id` escaped. It earns points for the shared pool, up to the cap for that character;
+## the expedition also calls `reset_level` for it.
+static func add_expedition_points(state: Dictionary, id: String, amount := EXPEDITION_POINTS) -> void:
+	var c := char_of(state, id)
+	c["exp_points"] = mini(int(c["exp_points"]) + amount, MAX_EXPEDITION_POINTS)
 
 
 static func reset_level(state: Dictionary, id: String) -> void:
@@ -425,12 +430,10 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 		if trader != "" and int(levels.get(trader, 1)) < int(info["trader_level"]):
 			return {"error": "character %s before its trader level" % id, "money": 0}
 		cost += int(info["price"])
-	if int(b["exp_points"]) != int(a["exp_points"]):
-		return {"error": "expedition points changed", "money": 0}
 	for id: String in LIST:
 		var ca := char_of(a, id)
 		var cb := char_of(b, id)
-		for key in ["xp", "lvl_points"]:
+		for key in ["xp", "lvl_points", "exp_points"]:
 			if int(cb[key]) != int(ca[key]):
 				return {"error": "character %s %s changed" % [id, key], "money": 0}
 		if char_spent(cb) > 0 and not (b["unlocked"] as Array).has(id):

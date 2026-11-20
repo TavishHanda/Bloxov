@@ -4927,7 +4927,11 @@ func _section_playables() -> void:
 	_check(int(c["lvl_points"]) == 5, "an expedition resets the level; level points only come once")
 	for i in 4:
 		Characters.add_expedition_points(state, "vega")
-	_check(int(state["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10")
+	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10 per character")
+	Characters.add_expedition_points(state, "voss")
+	_check(int(Characters.char_of(state, "voss")["exp_points"]) == 2, "another character still earns its own 10")
+	var old_save := Characters.clean({"selected": "voss", "unlocked": ["vega", "voss"], "exp_points": 6})
+	_check(int(Characters.char_of(old_save, "voss")["exp_points"]) == 6, "an older save's account-wide points go to the picked character")
 	# Unlocks: money and a trader level.
 	_check(Characters.unlock_problem(state, "sable", 1000000, {}) != "" and Characters.unlock_problem(state, "sable", 1000, {"guns": 3}) != ""
 		and Characters.unlock_problem(state, "sable", 400000, {"guns": 3}) == "", "SABLE needs Ponta level 3 and $400,000")
@@ -4957,7 +4961,7 @@ func _section_playables() -> void:
 	Characters.char_of(greedy["characters"], "vega")["spent"]["u0"] = 3
 	_check(Characters.changes(old_profile, greedy)["error"] != "", "nor points spent that weren't earned")
 	var shared := {"characters": Characters.fresh()}
-	shared["characters"]["exp_points"] = 4
+	Characters.char_of(shared["characters"], "vega")["exp_points"] = 4
 	var shared_after := {"characters": shared["characters"].duplicate(true)}
 	Characters.char_of(shared_after["characters"], "voss")["spent"]["u0"] = 3
 	_check(Characters.changes(shared, shared_after)["error"] == "", "online, shared points can go on any unlocked character")
@@ -5072,12 +5076,12 @@ func _section_expedition() -> void:
 	var look := Profile.look.duplicate(true)
 	var who := str(Profile.characters["selected"])
 	Characters.add_xp(Profile.characters, who, 999999)
-	var pool := int(Profile.characters.get("exp_points", 0))
+	var pool := int(Characters.char_of(Profile.characters, who)["exp_points"])
 	_check(Profile.leave_solo(), "a ready truck leaves (solo)")
 	var went := Characters.char_of(Profile.characters, who)
 	_check(int(went["xp"]) == 0 and int(went["lvl_points"]) > 0
-		and int(Profile.characters["exp_points"]) == mini(pool + Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS),
-		"the character who went is back to level 1, keeps its level points, and the shared pool earns %d" % Expedition.POINTS)
+		and int(went["exp_points"]) == mini(pool + Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS),
+		"the character who went is back to level 1, keeps its level points, and earns %d points" % Expedition.POINTS)
 	_check(Profile.money == Profile.START_MONEY and Profile.truck.is_empty() and Profile.expeditions == 1
 		and Profile.bench_level == 1 and Profile.trader_level("guns") == 1 and Profile.stash.count_of("gold_bar") == 0,
 		"leaving wipes the stash, money, truck, workbench and traders and counts the trip")
@@ -5118,10 +5122,11 @@ func _section_expedition() -> void:
 	ready["money"] = 600000
 	ready["stats"] = {"raids": 9, "extracts": 4, "deaths": 5, "earned": 1}
 	var pvp_chars := Characters.fresh()
-	pvp_chars["exp_points"] = 9
+	Characters.char_of(pvp_chars, "vega")["exp_points"] = 9
 	ready["characters"] = pvp_chars
 	var gone := OnlineProfile.leave_expedition(ready)
-	_check(int(gone["characters"]["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "the PvP pool earns points too, up to its cap")
+	_check(int(Characters.char_of(Characters.clean(gone["characters"]), "vega")["exp_points"]) == Characters.MAX_EXPEDITION_POINTS,
+		"PvP escapes earn points too, up to the character's cap")
 	_check(int(gone.get("money", 0)) == OnlineProfile.START_MONEY and Expedition.trips_of(gone) == 1
 		and int(gone["stats"]["raids"]) == 9 and Expedition.truck_of(gone).is_empty() and not OnlineProfile.clean(gone).is_empty(),
 		"the server's PvP wipe gives a new PvP stash, the record and one trip")

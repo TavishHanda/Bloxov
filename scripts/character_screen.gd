@@ -82,7 +82,7 @@ func _init(menu: Node) -> void:
 	_status = _text(16, HudStyle.INK_DIM)
 	middle.add_child(_status)
 	var note := _text(13, Color(1, 1, 1, 0.5))
-	note.text = "Traits grow from level 1 to 20, the good and the bad. Level by playing raids as them. Upgrade points are shared: any character earns them (2 at level 10, 3 at level 20, 2 for each expedition escape up to 10) and you spend them on whoever you like."
+	note.text = "Traits grow from level 1 to 20, the good and the bad. Level by playing raids as them. Upgrade points are shared: any character earns them (2 at level 10, 3 at level 20, 2 for each expedition escape, up to 10 per character) and you spend them on whoever you like."
 	middle.add_child(note)
 
 	var right := _panel(columns, SIDE_WIDTH)
