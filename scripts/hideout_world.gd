@@ -22,11 +22,13 @@ const FLOOR_GAP := 1.5     # (0.25.37) how far over or under you a station can b
 ## What each station is called on the USE prompt (traders take their names from Traders.LIST).
 const STATION_NAMES := {"stash": "Stash", "wardrobe": "Wardrobe", "workbench": "Workbench", "war_table": "War table",
 	"quests": "Quests", "stats": "Stats", "range": "Shooting range", "darts": "Darts", "radio": "Radio",
-	"lights": "Lights", "jukebox": "Jukebox", "sink": "Sink", "bag": "Punching bag"}
+	"lights": "Lights", "jukebox": "Jukebox", "sink": "Sink", "bag": "Punching bag", "garage": "The truck"}
 ## Stations with nothing of their own yet: what the menu says when you use them.
 const STATION_NOTES := {"war_table": "Pick your loadout, then START RAID (or go online and queue with your party)."}
 
 var walker: HideoutWalker
+## The expedition truck in the garage (0.38.1).
+var garage: HideoutGarage
 ## TEMP playtest (0.35.29): the free camera, flying off the walker (only while FreeCam.playtest_anywhere is on).
 var free_cam: FreeCam
 var _cam_label: Label
@@ -123,6 +125,10 @@ func _ready() -> void:
 	decor.name = "Decor"
 	add_child(decor)
 	decor.setup(level, walker)       # (your corner: your bunk, decorated how you like)
+	garage = HideoutGarage.new()
+	garage.name = "Garage"
+	add_child(garage)
+	garage.setup(level)              # (0.38.1: the expedition truck, showing the parts you've built)
 	_menu_layer = CanvasLayer.new()
 	_menu_layer.layer = 5
 	add_child(_menu_layer)
@@ -387,6 +393,8 @@ func open_menu(at := "") -> void:
 		menu.open_wardrobe()          # (character select, 0.21.6)
 	if at == "workbench":
 		menu.open_craft()             # (crafting, 0.32.0)
+	if at == "garage":
+		menu.open_expedition()        # (the truck, 0.38.1)
 	if STATION_NOTES.has(at):
 		menu.show_message(STATION_NOTES[at])
 
@@ -402,6 +410,7 @@ func close_menu() -> void:
 	menu.close_options()
 	menu.save_now()
 	fill_boards()
+	garage.refresh()
 
 
 func use_station() -> void:

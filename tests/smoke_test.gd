@@ -2549,8 +2549,21 @@ func _section_hideout_world() -> void:
 	var names: Array[String] = []
 	for marker: Node3D in stations:
 		names.append(String(marker.name))
-	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox", "sink"]:
+	for want: String in ["guns", "meds", "supplies", "valuables", "ming", "stash", "wardrobe", "workbench", "war_table", "range", "darts", "radio", "lights", "jukebox", "sink", "garage"]:
 		_check(names.has(want), "the hideout has a %s station" % want)
+	# The garage (0.38.2): the truck is parked there showing only what's built; using it opens THE TRUCK.
+	var garage: HideoutGarage = world.garage
+	var pieces := garage.get_child(0).get_child_count() if garage.get_child_count() > 0 else 0
+	Profile.truck.assign(["engine", "radio"])
+	garage.refresh()
+	await process_frame
+	_check(pieces > 0 and garage.get_child(garage.get_child_count() - 1).get_child_count() > pieces,
+		"the garage's truck shows the parts you've built")
+	Profile.truck.clear()
+	garage.refresh()
+	world.open_menu("garage")
+	_check(world.menu.current_screen() == "truck", "using the truck in the garage opens THE TRUCK")
+	world.close_menu()
 	# Every station stands on open floor: you can stand there without being pushed out or falling through.
 	var bad: Array[String] = []
 	for marker: Node3D in stations:
