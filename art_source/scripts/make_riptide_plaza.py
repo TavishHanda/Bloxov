@@ -107,8 +107,31 @@ SIGNS = {"tower": "HARBOR TOWER", "customs": "CUSTOMS", "canteen": "CANTEEN", "g
          "authority": "PORT AUTHORITY", "terminal": "TERMINAL 2"}
 
 
+# (0.36.40) the tower's rooms, floor by floor: (NW, NE, SW, SE); the signs go over each room's corridor door
+ROOMS = [("POST ROOM", "GOODS IN", "RECEPTION", "SECURITY"), ("OFFICES", "HARBOR MASTER", "BREAK ROOM", "WASHROOM"),
+         ("ARCHIVE", "RECORDS", "PRINT ROOM", "WASHROOM"), ("MEETING ROOM", "OFFICES", "KITCHEN", "RADIO ROOM"),
+         ("DIRECTOR", "BOARDROOM", "SECRETARY", "WASHROOM"), ("HARBOR CONTROL", "TRAFFIC CONTROL", "RADIO ROOM", "STORES")]
+ROOM_DOORS = [(-120.0, -20.5 + 0.15, 1), (-97.0, -20.5 + 0.15, 1), (-114.0, -15.0 - 0.15, -1), (-100.0, -15.0 - 0.15, -1)]
+FLOOR_NAMES = ["GROUND FLOOR"] + ["FLOOR %d" % f for f in range(1, 6)]
+PROP_KINDS = {"shelves", "crates", "console", "desk", "files", "counter", "sofa", "mess_table", "fridge", "stove", "tv",
+              "bench", "radio", "stalls", "chart_table"}
+
+
 def plaza_decals(rng):
-    a = R.leviathan_decals(rng)              # (container doors and names)
+    real = R.Atlas
+    R.Atlas = lambda size=256: real(1024)
+    try:
+        a = R.tower_decals(rng)            # (the furniture's drawers, screens, monitors: the ship tower's pictures)
+    finally:
+        R.Atlas = real
+    for kind, line in R.CONTAINER_LINES.items():
+        w, h, p = R._stencil(line, 3, "rw_light", random.Random(line), chip=0.1)
+        a.add("line_" + kind, w, h, p)
+    for kind, base in (("container_a", "rc_a"), ("container_b", "rc_b"), ("container_c", "rc_c")):
+        a.add("doors_" + kind, 77, 83, R._door_decal(base))
+    for name in sorted({n for f in ROOMS for n in f} | {"ROOF", "STAIRS"} | {FLOOR_NAMES[f] for f in range(6)}):
+        w, h, p = R._sign(name, "rw_white", "rx_black", 2)
+        a.add("room_" + name, w, h, p)
     for k, text in SIGNS.items():
         bg, fg = ("rs_navy", "rw_white") if k in ("tower", "authority", "terminal") else ("rw_white", "rx_black")
         w, h, p = R._sign(text, bg, fg, 3 if k == "tower" else 2)
@@ -136,7 +159,7 @@ def where(p):
 
 
 def top_of(kind):
-    return {"tower": TOWER_TOP, "stairs": TOWER_TOP, "customs": SHORE + 9.0, "canteen": SHORE + 4.0,
+    return {"tower": TOWER_TOP, "stairs": TOWER_TOP + 3.45, "customs": SHORE + 9.0, "canteen": SHORE + 4.0,
             "garage": SHORE + 5.0, "gatehouse": SHORE + 2.8}.get(kind, 99.0)
 
 
@@ -197,7 +220,9 @@ def frame(m, o):
     """A dark frame round an opening on both faces; a concrete sill under a window's outside."""
     a0, a1, y0, y1, t = o["a0"], o["a1"], o["y0"], o["y1"], o["t"]
     fw, fd = 0.1, 0.04
-    window = y0 - SHORE > 0.5 and abs((y0 - SHORE) % 3.5) > 0.3
+    if y1 - y0 < 1.5:
+        return                                   # (the gap in the roof's parapet: no frame)
+    window = not any(0.0 <= y0 - lv < 0.3 for lv in TOWER_FLOORS + [SHORE + 4.5, TOWER_TOP])
     for sg in (-1, 1):
         face = o["at"] + sg * t / 2
         pieces = [(a0 - fw, a0, y0 - (fw if window else 0), y1 + fw), (a1, a1 + fw, y0 - (fw if window else 0), y1 + fw),
@@ -295,6 +320,45 @@ def kiosk(m, row):
     m.box((c[0], c[1] + s[1] / 2 + 0.06, c[2]), (s[0] + 0.3, 0.12, s[2] + 0.3), lambda n, mid, q: "rip_iron", cull=False)
 
 
+_M = [None]
+
+
+def against(row):
+    """Which way a piece of furniture faces (into the room): away from the wall behind it."""
+    c, s = row["pos"], row["size"]
+    m = _M[0]
+
+    def blocked(p):
+        return m.inside(p) or where(world(p)) is None
+    if s[0] < s[2]:
+        return ("x", 1 if blocked((c[0] - s[0] / 2 - 0.25, c[1], c[2])) else -1)
+    return ("z", 1 if blocked((c[0], c[1], c[2] - s[2] / 2 - 0.25)) else -1)
+
+
+def room_signs(m):
+    for f, y in enumerate(TOWER_FLOORS):
+        for (x, z, sg), name in zip(ROOM_DOORS, ROOMS[f]):
+            u0, v0, u1, v1 = m.decals.regions["room_" + name]
+            width = min(1.9, (u1 - u0) * 1024 / 72.0)
+            h = width * (v1 - v0) / (u1 - u0)
+            lo = y + 2.55
+            flat(m.b, (0, 0, sg), z - OZ + sg * 0.01, x - OX - width / 2, x - OX + width / 2, lo, lo + h, "decals",
+                 m.d("room_" + name))
+    # the corridor: the floor's name by the stairs (west end, north wall), a clock (south wall)
+    for f, y in enumerate(TOWER_FLOORS):
+        nm = "room_" + FLOOR_NAMES[f]
+        u0, v0, u1, v1 = m.decals.regions[nm]
+        width = (u1 - u0) * 1024 / 72.0
+        flat(m.b, (0, 0, 1), -20.5 + 0.15 + 0.01 - OZ, -121.5 - OX, -121.5 + width - OX, y + 1.5,
+             y + 1.5 + width * (v1 - v0) / (u1 - u0), "decals", m.d(nm))
+        flat(m.b, (0, 0, -1), -15.0 - 0.15 - 0.01 - OZ, -108.2 - OX, -107.8 - OX, y + 2.2, y + 2.6, "decals", m.d("clock"))
+    # the roof door (stairwell A's top landing, facing east onto the roof) and the stair doors' signs
+    u0, v0, u1, v1 = m.decals.regions["room_ROOF"]
+    width = 0.7
+    flat(m.b, (1, 0, 0), -124.0 + 0.15 + 0.01 - OX, -28.5 - width / 2 - OZ, -28.5 + width / 2 - OZ, TOWER_TOP + 2.55,
+         TOWER_TOP + 2.55 + width * (v1 - v0) / (u1 - u0), "decals", m.d("room_ROOF"))
+
+
 def build_plaza(name="harbor_plaza"):
     mb.BUILDING_NAME[0] = name
     with open(os.path.join(ROOT, "art_source", "buildings", name + ".json")) as f:
@@ -313,13 +377,17 @@ def build_plaza(name="harbor_plaza"):
     mat_info["graffiti"] = (name + "_decals", True, False)
     m = Model(data, atlas)
     m.rng = random.Random(name)
+    _M[0] = m
+    R._against = against
     outside = []
     conts = 0
     cost = {}
     for row in data["boxes"]:
         kind, col = row.get("kind"), row["colour"]
         f0 = len(m.b.faces)
-        if kind == "truck":
+        if kind in PROP_KINDS or (kind or "").startswith("chair_"):
+            R.t_prop(m, row)
+        elif kind == "truck":
             truck(m, row, conts)
         elif col in R.CONT_MAT:
             R.container(m, row, conts)
@@ -342,7 +410,7 @@ def build_plaza(name="harbor_plaza"):
         key = "container" if col in R.CONT_MAT and kind != "truck" else str(kind)
         cost[key] = cost.get(key, 0) + len(m.b.faces) - f0
     for step, fn in (("bands", lambda: outside_bands(m, outside)), ("frames", lambda: [frame(m, o) for o in data["openings"]]),
-                     ("details", lambda: details(m))):
+                     ("details", lambda: (details(m), room_signs(m)))):
         f0 = len(m.b.faces)
         fn()
         cost[step] = len(m.b.faces) - f0

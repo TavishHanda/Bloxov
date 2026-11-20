@@ -528,6 +528,96 @@ def _terminal():
         box(-112.0, SHORE + 25.0, -97.0, -104.0, SHORE + 28.0, -77.0, "rust")
 
 
+# Harbor Tower's rooms (0.36.40, owner: "super intricate in the interior ... they all have to be built up"). Same plan
+# every floor: NW and NE rooms on the quay side, the corridor, SW and SE rooms on the plaza side. Stairwell A's door
+# opens into the NW room on floors 0, 2, 4 and the corridor on 1, 3, 5; stairwell B's into the SE room on 0, 2, 4 and
+# the NE room on 1, 3, 5. (kind, x0, x1, z0, z1, floor, height); chairs are (kind, x, z, floor), 0.55 m square.
+PLAZA_PROPS = [
+    # GROUND: the post room / stores (NW), goods-in and security (NE), the lobby (SW, the front door), the guard room (SE)
+    ("shelves", -118.9, -118.2, -28.6, -23.4, 0, 2.1), ("shelves", -115.4, -114.7, -28.6, -23.4, 0, 2.1),
+    ("shelves", -108.85, -108.15, -24.4, -21.0, 0, 2.1), ("crates", -123.6, -122.2, -23.0, -21.6, 0, 1.4),
+    ("console", -106.5, -104.0, -29.85, -29.05, 0, 0.85), ("desk", -103.1, -100.9, -29.85, -29.05, 0, 0.76),
+    ("crates", -94.5, -92.4, -28.0, -26.0, 0, 1.4), ("crates", -94.0, -92.4, -23.5, -21.6, 0, 1.4),
+    ("files", -107.85, -107.25, -24.4, -21.2, 0, 1.9),
+    ("counter", -112.0, -107.5, -13.0, -12.3, 0, 1.05), ("sofa", -123.85, -122.95, -14.4, -11.0, 0, 0.8),
+    ("mess_table", -122.4, -121.3, -13.3, -12.1, 0, 0.5),
+    ("console", -98.4, -94.5, -14.85, -14.05, 0, 0.85), ("sofa", -103.4, -101.4, -11.05, -10.15, 0, 0.8),
+    # FLOOR 1, the port authority: the open office (NW), the harbourmaster (NE), the break room (SW), washroom (SE)
+    ("desk", -122.0, -120.0, -27.4, -26.6, 1, 0.76), ("desk", -117.5, -115.5, -27.4, -26.6, 1, 0.76),
+    ("desk", -113.0, -111.0, -27.4, -26.6, 1, 0.76), ("desk", -122.0, -120.0, -23.6, -22.8, 1, 0.76),
+    ("desk", -117.5, -115.5, -23.6, -22.8, 1, 0.76), ("desk", -113.0, -111.0, -23.6, -22.8, 1, 0.76),
+    ("files", -108.75, -108.15, -24.4, -21.2, 1, 1.3),
+    ("desk", -101.5, -99.0, -27.0, -26.2, 1, 0.76), ("shelves", -100.5, -97.2, -29.85, -29.25, 1, 2.1),
+    ("sofa", -107.85, -106.95, -24.3, -21.3, 1, 0.8), ("mess_table", -105.6, -104.4, -23.4, -22.2, 1, 0.5),
+    ("counter", -123.6, -118.0, -14.85, -14.15, 1, 0.92), ("fridge", -117.6, -116.3, -14.85, -14.05, 1, 2.0),
+    ("mess_table", -122.0, -119.6, -12.6, -11.6, 1, 0.78), ("mess_table", -110.4, -108.0, -12.6, -11.6, 1, 0.78),
+    # FLOOR 2, records: the archive (NW), the records office (NE), the print room (SW), washroom (SE)
+    ("shelves", -120.0, -119.3, -28.8, -23.6, 2, 2.1), ("shelves", -116.5, -115.8, -28.8, -23.6, 2, 2.1),
+    ("shelves", -113.0, -112.3, -28.8, -23.6, 2, 2.1), ("desk", -111.2, -108.9, -29.85, -29.05, 2, 0.76),
+    ("files", -108.75, -108.15, -24.4, -21.2, 2, 1.3),
+    ("desk", -106.0, -103.6, -27.4, -26.6, 2, 0.76), ("desk", -101.0, -98.6, -27.4, -26.6, 2, 0.76),
+    ("files", -92.75, -92.15, -28.6, -23.0, 2, 1.3), ("crates", -106.5, -105.0, -22.6, -21.2, 2, 1.4),
+    ("bench", -112.4, -109.0, -10.95, -10.15, 2, 0.9), ("shelves", -111.5, -105.5, -14.85, -14.25, 2, 2.1),
+    ("files", -118.5, -116.0, -14.85, -14.25, 2, 1.3),
+    # FLOOR 3, operations: the meeting room (NW), offices (NE), the kitchen (SW), the radio room (SE)
+    ("mess_table", -120.5, -113.5, -26.0, -24.6, 3, 0.78), ("tv", -108.75, -108.15, -24.4, -22.0, 3, 1.5),
+    ("files", -123.85, -123.25, -28.6, -26.0, 3, 1.3), ("shelves", -123.85, -123.25, -22.6, -21.0, 3, 2.1),
+    ("desk", -106.0, -103.6, -27.4, -26.6, 3, 0.76), ("desk", -101.0, -98.6, -27.4, -26.6, 3, 0.76),
+    ("shelves", -107.85, -107.25, -24.4, -21.2, 3, 2.1),
+    ("counter", -123.6, -118.0, -14.85, -14.15, 3, 0.92), ("stove", -117.6, -115.8, -14.85, -14.05, 3, 0.92),
+    ("fridge", -110.8, -109.5, -14.85, -14.05, 3, 2.0), ("mess_table", -121.5, -118.5, -12.6, -11.6, 3, 0.78),
+    ("sofa", -108.0, -105.0, -11.05, -10.15, 3, 0.8),
+    ("radio", -92.85, -92.15, -14.4, -10.6, 3, 0.8), ("desk", -98.5, -96.0, -14.85, -14.05, 3, 0.76),
+    ("files", -103.6, -101.6, -10.75, -10.15, 3, 1.3),
+    # FLOOR 4, the director: the director's office (NW), the boardroom (NE), the secretaries (SW), washroom (SE)
+    ("desk", -119.0, -116.0, -26.6, -25.6, 4, 0.76), ("shelves", -116.4, -113.8, -29.85, -29.25, 4, 2.1),
+    ("sofa", -109.05, -108.15, -24.4, -21.4, 4, 0.8), ("mess_table", -111.0, -109.8, -23.5, -22.3, 4, 0.5),
+    ("mess_table", -104.0, -96.0, -26.0, -24.6, 4, 0.78), ("tv", -92.75, -92.15, -26.5, -24.1, 4, 1.5),
+    ("files", -107.85, -107.25, -24.4, -21.2, 4, 1.3),
+    ("desk", -122.8, -120.4, -14.85, -14.05, 4, 0.76), ("desk", -111.6, -109.2, -14.85, -14.05, 4, 0.76),
+    ("files", -107.6, -105.0, -14.85, -14.25, 4, 1.3), ("sofa", -117.8, -115.6, -11.05, -10.15, 4, 0.8),
+    # FLOOR 5, harbour control: consoles under the windows over the quay (NW, NE), the radio room (SW), stores (SE)
+    ("console", -121.0, -115.0, -29.85, -29.05, 5, 0.85), ("console", -112.4, -108.8, -29.85, -29.05, 5, 0.85),
+    ("chart_table", -119.0, -116.0, -24.6, -23.2, 5, 0.95), ("radio", -123.85, -123.15, -27.5, -21.5, 5, 0.8),
+    ("console", -105.5, -99.5, -29.85, -29.05, 5, 0.85), ("console", -98.5, -93.0, -29.85, -29.05, 5, 0.85),
+    ("console", -104.0, -100.0, -24.6, -23.7, 5, 0.85), ("files", -107.85, -107.25, -23.6, -21.2, 5, 1.3),
+    ("radio", -123.85, -123.15, -14.6, -10.4, 5, 0.8), ("desk", -121.0, -118.6, -10.95, -10.15, 5, 0.76),
+    ("files", -111.6, -109.0, -14.85, -14.25, 5, 1.3),
+    ("shelves", -92.85, -92.15, -14.6, -10.4, 5, 2.1), ("shelves", -96.6, -93.6, -10.75, -10.15, 5, 2.1),
+]
+# the washrooms (SE, floors 1, 2, 4): two cubicles on the north wall, the basins under the south windows
+for _f in (1, 2, 4):
+    PLAZA_PROPS += [("stalls", -98.6, -95.0, -14.85, -13.15, _f, 2.0), ("counter", -103.0, -100.0, -10.85, -10.15, _f, 0.92)]
+PLAZA_CHAIRS = [
+    ("chair_n", -105.5, -28.6, 0), ("chair_n", -102.3, -28.6, 0), ("chair_s", -110.0, -14.1, 0), ("chair_n", -96.7, -13.6, 0),
+    ("chair_s", -121.3, -28.3, 1), ("chair_s", -116.8, -28.3, 1), ("chair_s", -112.3, -28.3, 1),
+    ("chair_s", -121.3, -24.5, 1), ("chair_s", -116.8, -24.5, 1), ("chair_s", -112.3, -24.5, 1),
+    ("chair_s", -100.5, -27.9, 1), ("chair_n", -101.2, -25.85, 1), ("chair_n", -99.8, -25.85, 1),
+    ("chair_s", -121.4, -13.4, 1), ("chair_s", -120.2, -13.4, 1), ("chair_n", -121.4, -11.35, 1), ("chair_n", -120.2, -11.35, 1),
+    ("chair_s", -109.8, -13.4, 1), ("chair_s", -108.6, -13.4, 1), ("chair_n", -109.8, -11.35, 1), ("chair_n", -108.6, -11.35, 1),
+    ("chair_n", -110.3, -28.75, 2), ("chair_s", -105.1, -28.3, 2), ("chair_s", -100.1, -28.3, 2),
+    ("chair_s", -119.8, -26.85, 3), ("chair_s", -117.6, -26.85, 3), ("chair_s", -115.4, -26.85, 3),
+    ("chair_n", -119.8, -24.3, 3), ("chair_n", -117.6, -24.3, 3), ("chair_n", -115.4, -24.3, 3),
+    ("chair_s", -105.1, -28.3, 3), ("chair_s", -100.1, -28.3, 3),
+    ("chair_s", -120.5, -13.4, 3), ("chair_s", -119.3, -13.4, 3), ("chair_n", -120.5, -11.35, 3), ("chair_n", -119.3, -11.35, 3),
+    ("chair_n", -97.5, -13.6, 3),
+    ("chair_s", -117.8, -27.5, 4), ("chair_n", -118.6, -25.3, 4), ("chair_n", -116.9, -25.3, 4),
+    ("chair_s", -103.2, -26.85, 4), ("chair_s", -100.8, -26.85, 4), ("chair_s", -98.4, -26.85, 4),
+    ("chair_n", -103.2, -24.3, 4), ("chair_n", -100.8, -24.3, 4), ("chair_n", -98.4, -24.3, 4),
+    ("chair_n", -121.9, -13.6, 4), ("chair_n", -110.7, -13.6, 4),
+    ("chair_n", -119.5, -28.6, 5), ("chair_n", -116.5, -28.6, 5), ("chair_n", -110.9, -28.6, 5),
+    ("chair_n", -104.0, -28.6, 5), ("chair_n", -101.5, -28.6, 5), ("chair_n", -96.5, -28.6, 5), ("chair_s", -120.1, -11.8, 5),
+]
+
+
+def plaza_tower_props(fl):
+    for kind, x0, x1, z0, z1, f, h in PLAZA_PROPS:
+        box(x0, fl[f], z0, x1, fl[f] + h, z1, "metal" if kind in ("console", "radio", "stove", "fridge", "tv") else "wood",
+            kind=kind)
+    for kind, x, z, f in PLAZA_CHAIRS:
+        box(x, fl[f], z, x + 0.55, fl[f] + 0.9, z + 0.55, "wood", kind=kind)
+
+
 def plaza():
     """Harbor Tower (six floors, two stairwells, a closed roof), the customs hall the pier starts from, the canteen
     and the garage; the road in from the gate, broken up by parked lorries and barriers."""
@@ -537,9 +627,9 @@ def plaza():
             fl = [SHORE + 3.5 * f for f in range(6)]          # 2.5 .. 20
             top = fl[-1] + 3.5
             for f, y in enumerate(fl):
-                k = 5 - f                                      # the stairwells count from the top
-                a_door = -28.5 if k % 2 == 0 else -17.5
-                b_door = -22.5 if k % 2 == 0 else -11.5
+                ka, kb = 6 - f, 5 - f                          # the stairwells count from the top (A goes on to the roof)
+                a_door = -28.5 if ka % 2 == 0 else -17.5
+                b_door = -22.5 if kb % 2 == 0 else -11.5
                 h = 3.5 - SLAB_T
                 n = [window(x, 2.4) for x in (-118.0, -110.0, -102.0)] + ([gate(-98.0, 3.0, 2.6)] if f == 0 else [window(-96.0)])
                 s = [window(x, 2.4) for x in (-114.0, -106.0, -98.0)] + ([gate(-119.0, 3.0, 2.6)] if f == 0 else [window(-119.0)])
@@ -554,13 +644,15 @@ def plaza():
             slab(tx0, tx1, tz0, tz1, top, "roof")
             wall("x", tz0, tx0, tx1, top, 1.0, "wall")
             wall("x", tz1, tx0, tx1, top, 1.0, "wall")
-            wall("z", tx0, tz0, tz1, top, 1.0, "wall")
+            wall("z", tx0, tz0, tz1, top, 1.0, "wall", [door(-28.5)])    # (the roof door from stairwell A)
             wall("z", tx1, tz0, tz1, top, 1.0, "wall")
-            stairwell(-132.0, -30.0, fl[::-1], {k: "E" for k in range(6)}, colour="wall")
+            # (owner 2026-11-20: roof access where it makes sense) stairwell A goes on up to a door onto the roof
+            stairwell(-132.0, -30.0, [top] + fl[::-1], {k: "E" for k in range(7)}, colour="wall")
             stairwell(-92.0, -24.0, fl[::-1], {k: "W" for k in range(6)}, colour="wall")
             footprints.append((-132.0, -30.0, -84.0, -10.0))
             labels.append(("HARBOR TOWER", -108, -36, 0))
-            for f, (x, z, kind) in enumerate([(-122.0, -28.0, "crate"), (-94.0, -12.0, "locker"), (-122.0, -12.0, "crate"),
+            plaza_tower_props(fl)
+            for f, (x, z, kind) in enumerate([(-113.0, -28.9, "crate"), (-94.0, -12.0, "locker"), (-122.0, -12.0, "crate"),
                                               (-94.0, -28.0, "locker"), (-112.0, -28.5, "safe"), (-100.0, -11.5, "safe")]):
                 add_loot("Offices", kind, x, fl[f], z, 180 if z > -20 else 0)
         with kinded("customs"):
@@ -569,6 +661,7 @@ def plaza():
             hall(hx0, hx1, hz0, hz1, 9.0, "wall", n=[door(-70.0), door(-54.0), window(-62.0, 2.0, 5.4, 6.8)],
                  s=[door(-66.0), window(-56.0, 2.0, 5.4, 6.8)], w=[gate(10.0), window(-6.0, 2.0, 5.4, 6.8)],
                  e=[gate(2.6, 5.0), window(-8.0, 2.0, 5.4, 6.8), window(12.0, 2.0, 5.4, 6.8)], floor="concrete")
+            ladder(-51.0, SHORE, hz1 + 0.4, 0, 9.0 + SLAB_T, "CustomsRoof")   # (owner 2026-11-20: roof access) up the south wall
             slab(hx0, hx1, hz0, hz1, SHORE + 4.5, "concrete", holes=[(-67.5, -58.0, -13.6, -10.5)])
             ramp((-74.0, SHORE, -12.0), (-58.0, SHORE + 4.5, -12.0), 2.6, "concrete")
             for x0, x1, z in [(-70.0, -58.0, -4.0), (-66.0, -54.0, 8.0)]:   # the counters
