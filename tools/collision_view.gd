@@ -11,6 +11,7 @@ var cam: Camera3D
 var overlay: MeshInstance3D
 var phase := 0
 
+var riptide := false
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	out = args[0]
@@ -18,7 +19,11 @@ func _init() -> void:
 	for c in main.get_children():
 		if not (String(c.name) in ["WorldEnvironment", "Sun", "Clouds"]):
 			main.remove_child(c); c.free()
-	var map: Node = (load("res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()
+	# (0.36.42) "riptide" as the second argument: Riptide instead, its own metres (no 175 offset)
+	if args.size() > 1 and args[1] == "riptide":
+		riptide = true
+		args.remove_at(1)
+	var map: Node = (load("res://scenes/maps/riptide.tscn" if riptide else "res://scenes/maps/old_bloxov.tscn") as PackedScene).instantiate()
 	for c in map.get_children():
 		if String(c.name) in ["Level", "Loot", "Extracts", "KeyDoors", "Doors"]:
 			map.remove_child(c); main.add_child(c)
@@ -81,7 +86,8 @@ func _process(_d: float) -> bool:
 		if idx >= shots.size():
 			return true
 		var s: Array = shots[idx]
-		cam.global_position = Vector3(float(s[0]) - 175.0, float(s[4]), float(s[1]) - 175.0)
+		var off := 0.0 if riptide else 175.0
+		cam.global_position = Vector3(float(s[0]) - off, float(s[4]), float(s[1]) - off)
 		cam.rotation_degrees = Vector3(float(s[3]), float(s[2]), 0)
 		if s.size() > 5:
 			cam.fov = float(s[5])

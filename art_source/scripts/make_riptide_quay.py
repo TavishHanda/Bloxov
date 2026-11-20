@@ -397,7 +397,7 @@ def shade_rows(rows):
     """The boxes the light bake shades with: the crane's legs and boom are thin (no shade), the house shades."""
     out = []
     for row in rows:
-        if row.get("kind") in ("crane_leg", "crane_boom"):
+        if row.get("kind") in ("crane_leg", "crane_boom", "crane_frame"):
             continue
         if row["pitch"] or row["yaw"]:
             continue
@@ -433,6 +433,8 @@ def build_quay(name="quay_front"):
                 cranes[z]["legs"].append(row)
             else:
                 cranes[z][kind] = row
+        elif kind == "crane_frame":
+            pass                                  # (0.36.42: collision for steelwork crane() draws)
         elif kind == "quay_wall":
             quay_wall(m, row)
         elif kind == "parapet":

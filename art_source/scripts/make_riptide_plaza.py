@@ -213,7 +213,7 @@ def outside_bands(m, faces):
         other = 2 if n[0] else 0
         a0, a1 = min(q[other] for q in corners), max(q[other] for q in corners)
         y0, y1 = min(q[1] for q in corners), max(q[1] for q in corners)
-        R.band_face(m, n, mid[axis_i], a0, a1, y0, y1, band_list(kind, BUILDINGS.get(kind, BUILDINGS["tower"])[1]))
+        R.band_face(m, n, mid[axis_i], a0, a1, y0, y1, band_list(kind, (BUILDINGS.get(kind) or next(iter(BUILDINGS.values())))[1]))
 
 
 def frame(m, o):

@@ -15,6 +15,27 @@ Owner picked a new tunnel off the hall for the expedition truck (2026-11-20). Lo
   of duffel bags went.
 - The **truck** is parked in the bay and shows only the parts you've built (the bare frame at first). USE beside it
   opens THE TRUCK.
+## 0.38.1 (Riptide art: the north point, and models matched to their hitboxes)
+Owner asked (2026-11-20: "keep going with the art pass"; "check the riptide map ... for any rough spots" and "make sure
+all the models match hitboxes"). Shore pass 3a: one new model, `north_point` (origin -110, 0, -145; in `FarView.NO_FAR`),
+drawn by `art_source/scripts/make_riptide_north.py` (`python3 art_source/scripts/make_riptide.py north_point`).
+- The cannery in corrugated cladding with its canning lines, retorts on saddles, a raised office deck; its ground floor
+  gets an east wall with two doors, and the deck two furnished offices (clerks' and manager's) with ceilings. A ladder
+  up the west side to the cannery roof. The lighthouse in white with a red band, the fuel depot's three round tanks
+  (rail round the top, a ladder cage over head height), the bund wall, the north street's three sheds in grey block,
+  rocks on the point. Furniture and stock in every room.
+- The fuel tanks' collision is now an octagon (four crossed boxes) that fits the round tank; it was one square turned
+  45 degrees, with solid corners poking out of the drawn tank.
+- The offices' loot crate moved into the clerks' office (it was on the open deck with no way to it).
+- New `tools/riptide_model_audit.py`: checks every Riptide model against its collision both ways (drawn but not solid,
+  solid but not drawn). Fixed from it: the ship's pipe racks (pipes spread over their whole rack), the deck cranes'
+  posts (a chamfered square post filling its box, was a round one), the drill pipe (as wide as its box), the
+  drawworks (guards down its sides), the derrick's crown (a box for the sheaves), the quay cranes (their side and top
+  beams and machinery house are now solid), crates (every stack as tall as its box) and drums (a grid filling the box).
+  Left as they are: thin steelwork out of reach (derrick lattice, crane booms, masts, rails on tank tops) and a few cm
+  of slack on sofas and chairs.
+- Rough-spot sweep: stuck-spot walk, see-through probe, ladder audit and map audit all clean.
+- Net version 15 (map geometry).
 
 ## 0.38.0 (Expeditions: the way out)
 Owner's design and numbers (2026-11-20). Earned money and loot only: gems never buy a part, the entry or a skip

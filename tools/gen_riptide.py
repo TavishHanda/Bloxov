@@ -441,59 +441,132 @@ def quay():
                 box(-40.0, SHORE + 22.0, z - 6.0, -30.0, SHORE + 24.0, z + 6.0, "rust")
             with kinded("crane_boom"):
                 obox(-14.0, SHORE + 23.0, z, 34.0, 1.2, 1.6, 0, "rust")
+            # (0.36.42, model audit) the steelwork drawn round the legs is solid too: the side frames' beams at 8 and
+            # 15 m, the top beams across the apron, the machinery house on the head (drawn by the crane, not as boxes)
+            with kinded("crane_frame"):
+                for x in (-38.5, -31.5):
+                    for y in (8.0, 15.0):
+                        box(x - 0.25, y - 0.25, z - 4.2, x + 0.25, y + 0.25, z + 4.2, "rust")
+                for dz in (-5.0, 5.0):
+                    box(-37.7, SHORE + 21.2, z + dz - 0.3, -32.3, SHORE + 22.0, z + dz + 0.3, "rust")
+                box(-39.5, SHORE + 24.0, z - 4.5, -32.5, SHORE + 26.6, z + 4.5, "rust")
+                box(-32.5, SHORE + 19.5, z + 1.3, -30.3, SHORE + 22.0, z + 3.7, "rust")    # the operator's cab
         for i, z in enumerate((-138.0, -86.0, -66.0, -40.0, 22.0, 70.0, 96.0, 108.0, 134.0, 150.0)):
             x = -37.0 if i % 2 else -33.6
             container(x, SHORE, z, "x", ("container_a", "container_b", "container_c")[i % 3], 1 + i % 2)
 
 
+CANNERY_PROPS = [
+    # (kind, x0, x1, z0, z1, y above the shore, h) (0.36.42, owner: rooms "all have to be built up")
+    # the floor: pallets of cans by the gates, a forklift's charging corner, drums
+    ("pallets", -127.0, -125.0, -133.4, -131.6, 0.0, 1.5), ("pallets", -103.0, -101.0, -165.4, -163.6, 0.0, 1.5),
+    ("pallets", -116.0, -114.0, -165.4, -163.6, 0.0, 1.5), ("drums", -99.2, -96.4, -134.0, -131.0, 0.0, 1.0),
+    # the cold store (under the deck, north): racks of boxes
+    ("shelves", -139.8, -136.5, -165.85, -165.25, 0.0, 2.1),
+    # the locker room (under the deck): lockers on the west wall, benches, a sink counter
+    ("files", -141.85, -141.25, -160.0, -156.0, 0.0, 1.9), ("files", -141.85, -141.25, -148.4, -146.6, 0.0, 1.9),
+    ("bench", -139.0, -136.0, -158.0, -157.4, 0.0, 0.5), ("bench", -139.0, -136.0, -151.0, -150.4, 0.0, 0.5),
+    ("counter", -136.5, -134.45, -146.85, -146.15, 0.0, 0.92),
+    # the office deck: the manager's office (north), the clerks' room (south), desks out on the deck
+    ("desk", -141.0, -138.5, -165.85, -165.05, 4.5, 0.76), ("files", -141.85, -141.25, -161.0, -157.0, 4.5, 1.3),
+    ("sofa", -135.05, -134.15, -163.0, -160.0, 4.5, 0.8),
+    ("desk", -141.85, -141.05, -138.5, -136.0, 4.5, 0.76), ("desk", -139.0, -136.5, -130.95, -130.15, 4.5, 0.76),
+    ("shelves", -136.0, -134.45, -139.85, -139.25, 4.5, 2.1),
+    ("desk", -139.5, -137.0, -148.6, -147.8, 4.5, 0.76), ("files", -141.85, -141.25, -146.0, -142.0, 4.5, 1.3),
+    # the north street's sheds: a workbench and racks (west), a store (middle), a tool shed (east)
+    ("bench", -149.85, -149.15, -126.0, -122.5, 0.0, 0.9), ("shelves", -137.0, -136.15, -127.5, -124.0, 0.0, 2.1),
+    ("drums", -140.0, -138.0, -127.85, -127.05, 0.0, 1.0),
+    ("shelves", -115.85, -115.25, -121.5, -118.0, 0.0, 2.1), ("crates", -103.0, -101.0, -121.6, -119.8, 0.0, 1.4),
+    ("shelves", -111.0, -107.0, -112.75, -112.15, 0.0, 2.1),
+    ("bench", -69.85, -69.15, -125.0, -121.0, 0.0, 0.9), ("tool_cab", -58.75, -58.15, -118.5, -116.0, 0.0, 1.6),
+    ("drums", -64.5, -61.5, -114.95, -114.15, 0.0, 1.0),
+]
+CANNERY_CHAIRS = [("chair_n", -140.0, -164.8, 4.5), ("chair_n", -138.5, -147.4, 4.5), ("chair_w", -140.9, -137.5, 4.5),
+                  ("chair_s", -138.0, -131.6, 4.5)]
+
+
 def north_point():
+    """The north point (shore art pass 3a: model `north_point`): rocks, the lighthouse, the cove, the cannery, the
+    fuel depot, the sheds on the north street."""
+    with modeled("north_point", -110.0, -145.0):
+        _north_point()
+    labels.append(("LIGHTHOUSE", -62.0, -166.0, 0))
+    labels.append(("CANNERY", -119, -170, 0))
+    labels.append(("FUEL DEPOT", -80, -124, 0))
+    extracts.append(("Cove", "COVE", -40.0, SHORE, -170.0))
+    player_spawns.append((-172.0, SHORE, -150.0))
+
+
+def _north_point():
     # rocks along the north shore, the lighthouse (a perch) by the cove
-    for x, z, sx, sz, h, yaw in [(-52, -150, 8, 6, 3.0, 20), (-70, -172, 10, 7, 2.2, -15), (-45, -136, 6, 5, 2.0, 40),
-                                 (-84, -168, 7, 9, 3.5, 10), (-36, -158, 5, 4, 1.6, 0), (-120, -174, 9, 5, 2.8, 30),
-                                 (-150, -170, 6, 5, 2.4, 15)]:
-        obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
+    with kinded("rock"):
+        for x, z, sx, sz, h, yaw in [(-52, -150, 8, 6, 3.0, 20), (-70, -172, 10, 7, 2.2, -15), (-45, -136, 6, 5, 2.0, 40),
+                                     (-84, -168, 7, 9, 3.5, 10), (-36, -158, 5, 4, 1.6, 0), (-120, -174, 9, 5, 2.8, 30),
+                                     (-150, -170, 6, 5, 2.4, 15)]:
+            obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     lx, lz = -62.0, -158.0
-    room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, 14.0, "wall", s=[door(lx)])
-    slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
-    wall("x", lz - 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-    wall("x", lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
-    wall("z", lx - 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
-    wall("z", lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
+    with kinded("lighthouse"):
+        room(lx - 3, lx + 3, lz - 3, lz + 3, SHORE, 14.0, "wall", s=[door(lx)])
+        slab(lx - 3, lx + 3, lz - 3, lz + 3, SHORE + 14.0, "concrete", holes=[(lx - 2.7, lx - 1.5, lz + 1.2, lz + 2.85)])
+        wall("x", lz - 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
+        wall("x", lz + 3, lx - 3, lx + 3, SHORE + 14.0, 1.1, "wall")
+        wall("z", lx - 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
+        wall("z", lx + 3, lz - 3, lz + 3, SHORE + 14.0, 1.1, "wall")
     # (0.35.16: at the hatch's north edge facing north, so its top steps off onto the gallery, not into the wall)
     ladder(lx - 2.1, SHORE, lz + 1.2, 0, 14.0, "Lighthouse")
     perches.append((lx, SHORE + 14.0, lz, 1, 0))
-    labels.append(("LIGHTHOUSE", lx, lz - 8, 0))
-    extracts.append(("Cove", "COVE", -40.0, SHORE, -170.0))
     # (0.33.2, owner: extracts too easy to camp) the cove is a nook in the rocks: tall outcrops round it, the ways in
     # bent so nobody sees the zone from far off
-    for x, z, sx, sz, h, yaw in [(-47.0, -170.0, 3.0, 9.0, 3.6, 5), (-41.0, -163.0, 8.0, 3.0, 3.4, -8),
-                                 (-33.5, -166.0, 3.0, 5.0, 3.2, 20), (-52.0, -160.0, 5.0, 4.0, 3.0, 30),
-                                 (-36.0, -152.0, 4.0, 3.0, 2.6, -15)]:
-        obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
+    with kinded("rock"):
+        for x, z, sx, sz, h, yaw in [(-47.0, -170.0, 3.0, 9.0, 3.6, 5), (-41.0, -163.0, 8.0, 3.0, 3.4, -8),
+                                     (-33.5, -166.0, 3.0, 5.0, 3.2, 20), (-52.0, -160.0, 5.0, 4.0, 3.0, 30),
+                                     (-36.0, -152.0, 4.0, 3.0, 2.6, -15)]:
+            obox(x, SHORE + h / 2 - 0.3, z, sx, h + 0.6, sz, yaw, "rock")
     # the cannery: a tall hall, machine rows, an office deck along the west end (a ramp up)
     cx0, cx1, cz0, cz1 = -142.0, -96.0, -166.0, -130.0
-    hall(cx0, cx1, cz0, cz1, 10.0, "wall", n=[gate(-120.0)], s=[gate(-134.0), gate(-108.0)],
-         w=[door(-150.0), window(-140.0, 3.0, 5.6, 7.0)], e=[gate(-140.0), door(-156.0), window(-148.0, 3.0, 5.6, 7.0)])
-    slab(cx0, cx0 + 12.0, cz0, cz1, SHORE + 4.5, "concrete", holes=[(cx0 + 12.0 - 3.0, cx0 + 12.0, cz0 + 10.0, cz0 + 26.0)])
-    ramp((cx0 + 10.5, SHORE, cz0 + 28.0), (cx0 + 10.5, SHORE + 4.5, cz0 + 12.0), 2.6, "concrete")
-    wall("z", cx0 + 12.0, cz0, cz0 + 10.0, SHORE + 4.5, 1.1, "wall")
-    wall("z", cx0 + 12.0, cz0 + 26.0, cz1, SHORE + 4.5, 1.1, "wall")
-    for z in (-160.0, -150.0, -140.0):       # the machine rows (cover)
-        box(-124.0, SHORE, z - 1.0, -112.0, SHORE + 1.8, z + 1.0, "metal")
-        box(-108.0, SHORE, z + 2.0, -100.0, SHORE + 2.4, z + 4.0, "metal")
-    for z in (-162.0, -146.0):               # rooms under the office deck
-        wall("x", z, cx0, cx0 + 8.0, SHORE, 4.25, "wall", [door(cx0 + 4.0)])
-    labels.append(("CANNERY", -119, -170, 0))
+    deck = SHORE + 4.5
+    with kinded("cannery"):
+        hall(cx0, cx1, cz0, cz1, 10.0, "wall", n=[gate(-120.0)], s=[gate(-134.0), gate(-108.0)],
+             w=[door(-150.0), window(-140.0, 3.0, 5.6, 7.0)], e=[gate(-140.0), door(-156.0), window(-148.0, 3.0, 5.6, 7.0)])
+        slab(cx0, cx0 + 12.0, cz0, cz1, deck, "concrete", holes=[(cx0 + 12.0 - 3.0, cx0 + 12.0, cz0 + 10.0, cz0 + 26.0)])
+        ramp((cx0 + 10.5, SHORE, cz0 + 28.0), (cx0 + 10.5, deck, cz0 + 12.0), 2.6, "concrete")
+        wall("z", cx0 + 12.0, cz0, cz0 + 10.0, deck, 1.1, "wall")
+        wall("z", cx0 + 12.0, cz0 + 26.0, cz1, deck, 1.1, "wall")
+        for z in (-162.0, -146.0):               # rooms under the office deck
+            wall("x", z, cx0, cx0 + 8.0, SHORE, 4.25, "wall", [door(cx0 + 4.0)])
+        # (0.36.42) the rooms under the deck closed on the east: the cold store (north), the locker room
+        wall("z", cx0 + 8.0, cz0, -146.0, SHORE, 4.25, "wall", [door(-164.0), door(-154.0)])
+        # (0.36.42) offices on the deck: the manager's (north end), the clerks' (south end), glazed onto the hall
+        wall("x", -156.0, cx0, cx0 + 8.0, deck, 3.0, "wall", [door(-136.0)])
+        wall("z", cx0 + 8.0, cz0, -156.0, deck, 3.0, "wall", [window(-161.0, 3.0, 1.0, 2.2)])
+        wall("x", -140.0, cx0, cx0 + 8.0, deck, 3.0, "wall", [door(-138.0)])
+        wall("z", cx0 + 8.0, -140.0, cz1, deck, 3.0, "wall", [window(-135.0, 3.0, 1.0, 2.2)])
+        slab(cx0, cx0 + 8.0, cz0, -156.0, deck + 3.0, "concrete")
+        slab(cx0, cx0 + 8.0, -140.0, cz1, deck + 3.0, "concrete")
+    with kinded("canline"):
+        for z in (-160.0, -150.0, -140.0):       # the machine rows (cover)
+            box(-124.0, SHORE, z - 1.0, -112.0, SHORE + 1.8, z + 1.0, "metal")
+    with kinded("cooker"):
+        for z in (-160.0, -150.0, -140.0):
+            box(-108.0, SHORE, z + 2.0, -100.0, SHORE + 2.4, z + 4.0, "metal")
+    # (0.36.42, owner: roof access where it makes sense) a ladder up the cannery's east end, beside the gate
+    ladder(cx1 + 0.4, SHORE, -134.0, 90, 10.0 + SLAB_T, "CanneryRoof")
     add_loot("Depot", "crate", -140.8, SHORE, -164.9)   # (0.35.16: out of the doorway, the AI couldn't get in)
-    add_loot("Offices", "locker", -140.5, SHORE + 4.5, -152.0, 90)
-    add_loot("Offices", "crate", -133.0, SHORE + 4.5, -133.0)
+    add_loot("Offices", "locker", -140.5, deck, -152.0, 90)
+    add_loot("Offices", "crate", -135.2, deck, -132.5)     # (0.36.42: in the clerks' office, was out on the deck)
     add_loot("Workshop", "crate", -104.0, SHORE, -133.0, table="crate")
-    # the fuel depot: three big tanks behind a low bund wall
-    for x, z in [(-86.0, -150.0), (-86.0, -136.0), (-74.0, -143.0)]:
-        obox(x, SHORE + 5.0, z, 9.0, 10.0, 9.0, 45, "rust")
-    room(-94.0, -66.0, -158.0, -128.0, SHORE, 1.0, "concrete", s=[(-80.0, 4.0, 0.0, 1.0)], w=[(-143.0, 4.0, 0.0, 1.0)])
-    labels.append(("FUEL DEPOT", -80, -124, 0))
-    player_spawns.append((-172.0, SHORE, -150.0))
+    # the fuel depot: three big tanks behind a low bund wall (0.36.42: each a regular octagon 9 m across the flats,
+    # four crossed 9 x 3.73 boxes, so the round tank drawn over it fits; it was one 9 m square turned 45 degrees)
+    with kinded("tank"):
+        for x, z in [(-86.0, -150.0), (-86.0, -136.0), (-74.0, -143.0)]:
+            for yaw in (0, 45, 90, 135):
+                obox(x, SHORE + 5.0, z, 9.0, 10.0, 9.0 * math.tan(math.radians(22.5)), yaw, "rust")
+    with kinded("bund"):
+        room(-94.0, -66.0, -158.0, -128.0, SHORE, 1.0, "concrete", s=[(-80.0, 4.0, 0.0, 1.0)], w=[(-143.0, 4.0, 0.0, 1.0)])
+    for kind, x0, x1, z0, z1, y, h in CANNERY_PROPS:
+        box(x0, SHORE + y, z0, x1, SHORE + y + h, z1, "metal" if kind in ("drums", "tool_cab") else "wood", kind=kind)
+    for kind, x, z, y in CANNERY_CHAIRS:
+        box(x, SHORE + y, z, x + 0.55, SHORE + y + 0.9, z + 0.55, "wood", kind=kind)
 
 
 def terminal():
@@ -842,10 +915,11 @@ def breakers():
     north and south edges of the terminal and the shipyard, the corridor beside the rail line, the road, the quay
     apron (a row of containers along the quay edge: cover from the ship), the barge line's way into the port."""
     # small buildings across the north street (between the cannery and the terminal) and the mole's root
-    for x0, x1, z0, z1, h in [(-150.0, -136.0, -128.0, -118.0, 4.0), (-116.0, -100.0, -122.0, -112.0, 5.0),
-                              (-70.0, -58.0, -126.0, -114.0, 4.5)]:
-        hall(x0, x1, z0, z1, h, "wall", n=[door((x0 + x1) / 2)], s=[door(x0 + 3.0)], w=[window((z0 + z1) / 2)],
-             e=[window((z0 + z1) / 2)])
+    with modeled("north_point", -110.0, -145.0), kinded("nshed"):     # (shore art pass 3a)
+        for x0, x1, z0, z1, h in [(-150.0, -136.0, -128.0, -118.0, 4.0), (-116.0, -100.0, -122.0, -112.0, 5.0),
+                                  (-70.0, -58.0, -126.0, -114.0, 4.5)]:
+            hall(x0, x1, z0, z1, h, "wall", n=[door((x0 + x1) / 2)], s=[door(x0 + 3.0)], w=[window((z0 + z1) / 2)],
+                 e=[window((z0 + z1) / 2)])
     add_loot("Shed", "crate", -148.0, SHORE, -120.0)
     add_loot("Shed", "crate", -60.0, SHORE, -124.0, table="field")
     container(-84.0, SHORE, -127.0, "z", "container_b", 2)
@@ -1368,6 +1442,7 @@ def drill_floor():
     for x, z in [(37.0, -10.0), (59.0, -10.0), (37.0, 8.0), (59.0, 8.0)]:   # the derrick, legs either side of the well
         box(x - 0.4, DRILL, z - 0.4, x + 0.4, 40.0, z + 0.4, "rust")
     box(36.6, 40.0, -10.4, 59.4, 41.0, 8.4, "rust")
+    box(46.8, 41.0, -2.8, 49.2, 41.5, 0.8, "rust", kind="sheaves")   # (0.36.42) the sheaves' housing (drawn by derrick())
     room(44.0, 52.0, 8.5, 13.5, DRILL, 3.0, "wall", w=[door(11.0)], e=[door(11.0)], n=[window(48.0)], s=[window(48.0)],
          roof="roof")
     box(31.0, DRILL, 8.0, 41.0, DRILL + 1.4, 11.0, "rust")      # pipe rack

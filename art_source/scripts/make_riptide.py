@@ -862,14 +862,15 @@ def pipe_rack(m, row, r=0.28, rows=None):
         p[1] = y0 + 0.08
         m.box(p, size, mat("rip_yellow"), cull=False)
     n_across = max(1, int((W - 0.3) / (2 * r + 0.06)))
-    n_up = max(1, int((H - 0.2) / (2 * r + 0.04)))
+    # (0.36.42, model audit: the top layer stopped up to 0.7 m under the rack's solid top) layers spread to fill the
+    # height: the bottom one on the lower bar, the top one just under the frames' top bar
+    n_up = max(1, round((H - 0.32) / (2 * r + 0.04)))
+    lo, hi = y0 + 0.16 + r, y0 + H - 0.16 - r
     for j in range(n_up):
         for i in range(n_across):
             p = list(c)
             p[across] += -W / 2 + 0.15 + (i + 0.5) * (W - 0.3) / n_across + (0.1 if j % 2 else 0.0)
-            p[1] = y0 + 0.16 + r + j * (2 * r + 0.04)
-            if p[1] + r > y0 + H - 0.16:
-                continue
+            p[1] = lo + (hi - lo) * (j / (n_up - 1) if n_up > 1 else 0.0)
             cyl(m.b, tuple(p), r, L - 0.1, "rip_pipe", "rip_iron", axis="x" if along == 0 else "z", sides=8)
 
 
@@ -881,8 +882,19 @@ def crane_pedestal(m, row):
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
     b = m.b
     m.box((c[0], y0 + 0.2, c[2]), (2.4, 0.4, 2.4), mat("rip_yellow"))                     # the foot plate
-    cyl(b, (c[0], y0 + 0.4 + 2.9, c[2]), 0.85, 5.8, "rip_yellow", sides=12, caps=(False, False))
-    cyl(b, (c[0], y0 + 6.3, c[2]), 1.15, 0.2, "rip_iron", sides=12)                         # the slewing ring
+    # (0.36.42, model audit: the round 0.85 m column left the box's corners solid and empty) a chamfered square
+    # column filling the gray box, 2.4 m across, its corners cut 0.35 m
+    hw, cut = 1.19, 0.35
+    ring = [(hw, -hw + cut), (hw, hw - cut), (hw - cut, hw), (-hw + cut, hw), (-hw, hw - cut), (-hw, -hw + cut),
+            (-hw + cut, -hw), (hw - cut, -hw)]
+    ya, yb = y0 + 0.4, y0 + 6.2
+    for k in range(8):
+        (u0, v0), (u1, v1) = ring[k], ring[(k + 1) % 8]
+        nx, nz = v1 - v0, -(u1 - u0)
+        ln = math.hypot(nx, nz)
+        b.poly([(c[0] + u0, ya, c[2] + v0), (c[0] + u1, ya, c[2] + v1), (c[0] + u1, yb, c[2] + v1), (c[0] + u0, yb, c[2] + v0)],
+               (nx / ln, 0, nz / ln), "rip_yellow", uv_world())
+    cyl(b, (c[0], y0 + 6.3, c[2]), 1.25, 0.2, "rip_iron", sides=12)                         # the slewing ring
     house_y0 = y0 + 6.4
     m.box((c[0], (house_y0 + y1) / 2, c[2]), (2.4, y1 - house_y0, 2.4),
           lambda n, mid, q: "rip_roof" if n[1] > 0.7 else (None if n[1] < -0.7 else "rip_yellow"))
@@ -1014,6 +1026,11 @@ def drawworks(m, row):
     cyl(m.b, (c[0], y0 + 1.1, c[2]), 0.8, s[2] - 2.0, "rip_iron", "rip_yellow", axis="z", sides=12)
     for sg in (-1, 1):
         m.box((c[0], y0 + 1.15, c[2] + sg * (s[2] / 2 - 0.5)), (s[0], s[1] - 0.3, 1.0), mat("rip_yellow"), cull=False)
+    # (0.36.42, model audit: the box is 4 m wide, the drum 1.6) guard plates down both sides and a mesh cover over
+    # the drum, so the whole solid box is drawn
+    for sg in (-1, 1):
+        m.box((c[0] + sg * (s[0] / 2 - 0.05), y0 + 1.15, c[2]), (0.1, s[1] - 0.3, s[2] - 2.0), mat("rip_yellow"), cull=False)
+    m.box((c[0], y0 + s[1] - 0.04, c[2]), (s[0], 0.08, s[2] - 2.0), mat("rip_iron"), cull=False)
 
 
 def shack_wall(m, row):
@@ -1164,10 +1181,11 @@ def riser(m, row):
     joint (every 9 m)."""
     c, s = row["pos"], row["size"]
     y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
-    cyl(m.b, tuple(c), 0.62, s[1], "rip_pipe", "rip_iron", sides=10)
+    # (0.36.42, model audit: r 0.62 left its 1.6 m box's sides solid and empty; now the pipe fills the box)
+    cyl(m.b, tuple(c), s[0] / 2 - 0.02, s[1], "rip_pipe", "rip_iron", sides=10)
     y = y0 + 4.5
     while y < y1 - 1.0:
-        cyl(m.b, (c[0], y, c[2]), 0.8, 0.5, "rip_iron", sides=10)
+        cyl(m.b, (c[0], y, c[2]), s[0] / 2 + 0.15, 0.5, "rip_iron", sides=10)
         y += 9.0
 
 
@@ -1189,7 +1207,7 @@ def build(name="leviathan_hull"):
     crown = None
     conts = 0
     for row in data["boxes"]:
-        if row.get("kind") in ("hull_curve", "deck_curve"):     # (drawn by hull_curves)
+        if row.get("kind") in ("hull_curve", "deck_curve", "sheaves"):     # (drawn by hull_curves, derrick)
             continue
         k = classify(row)
         if k == "hull":
@@ -1751,16 +1769,16 @@ def t_prop(m, row):
                 t_part(m, (x0 + x1) / 2 - 0.035, y0 + 0.3, z - 0.07, (x0 + x1) / 2 + 0.035, y0 + 0.55, z + 0.07, "rip_wood")
                 z += 0.38
     elif kind == "drums":
-        r = min(s[0], s[2]) / 2 - 0.03
-        n = max(1, int(max(s[0], s[2]) // (2 * r + 0.05)))
-        for k in range(n):
-            if s[0] >= s[2]:
-                cx, cz = x0 + r + 0.03 + k * (2 * r + 0.05), (z0 + z1) / 2
-            else:
-                cx, cz = (x0 + x1) / 2, z0 + r + 0.03 + k * (2 * r + 0.05)
-            cyl(b, (cx, y0 + 0.45, cz), r, 0.9, "rip_cont_b" if k % 2 == 0 else "rip_red", "rip_iron", sides=10)
-            cyl(b, (cx, y0 + 0.3, cz), r + 0.012, 0.04, "rip_iron", sides=10)
-            cyl(b, (cx, y0 + 0.62, cz), r + 0.012, 0.04, "rip_iron", sides=10)
+        # (0.36.42, model audit: one row of drums left long or square boxes half empty) a grid of drums spread over the
+        # whole box, each about 0.6 m across
+        nx, nz = max(1, round(s[0] / 0.7)), max(1, round(s[2] / 0.7))
+        r = min(0.32, s[0] / nx / 2 - 0.02, s[2] / nz / 2 - 0.02)
+        for i in range(nx):
+            for j in range(nz):
+                cx, cz = x0 + (i + 0.5) * s[0] / nx, z0 + (j + 0.5) * s[2] / nz
+                cyl(b, (cx, y0 + 0.45, cz), r, 0.9, "rip_cont_b" if (i + j) % 2 == 0 else "rip_red", "rip_iron", sides=10)
+                cyl(b, (cx, y0 + 0.3, cz), r + 0.012, 0.04, "rip_iron", sides=10)
+                cyl(b, (cx, y0 + 0.62, cz), r + 0.012, 0.04, "rip_iron", sides=10)
     elif kind == "tool_cab" or kind == "files":
         t_part(m, x0, y0, z0, x1, y1, z1, "rip_red" if kind == "tool_cab" else "rip_steel_in")
         front("drawers", mat_name="graffiti")
@@ -1891,9 +1909,10 @@ def t_prop(m, row):
                 a0, a1, b0, b1 = x0 + 0.03, x1 - 0.03, z0 + k * s[2] / n + 0.03, z0 + (k + 1) * s[2] / n - 0.03
             t_part(m, a0, y0, b0, a1, y0 + h1, b1, "rip_wood")
             t_part(m, a0 - 0.01, y0 + h1 / 2 - 0.04, b0 - 0.01, a1 + 0.01, y0 + h1 / 2 + 0.04, b1 + 0.01, "rip_iron")
-            if r2.random() < 0.7:
-                t_part(m, a0 + 0.08, y0 + h1, b0 + 0.08, a1 - 0.08, min(y1, y0 + h1 + 0.6), b1 - 0.08,
-                       r2.choice(["rip_wood", "rip_cont_c"]))
+            # (0.36.42, model audit: a missing top crate left the box's top half solid and empty) every stack is
+            # as tall as its box
+            if y1 - (y0 + h1) > 0.2:
+                t_part(m, a0 + 0.08, y0 + h1, b0 + 0.08, a1 - 0.08, y1, b1 - 0.08, r2.choice(["rip_wood", "rip_cont_c"]))
     elif kind == "sofa":                      # (0.36.19) a seat, a back on the wall side, arms at the ends
         seat = y0 + 0.45
         if axis == "x":
@@ -2345,6 +2364,9 @@ if __name__ == "__main__":
     elif name == "quay_front":
         import make_riptide_quay
         make_riptide_quay.build_quay(name)
+    elif name == "north_point":
+        import make_riptide_north
+        make_riptide_north.build_north(name)
     elif name == "harbor_plaza":
         import make_riptide_plaza
         make_riptide_plaza.build_plaza(name)
