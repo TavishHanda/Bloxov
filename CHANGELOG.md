@@ -24,6 +24,26 @@ side open some have both some have none"; the lighthouse "should for sure be tal
   and the lighthouse (no change).
 - Net version 16 (map geometry).
 
+## 0.38.4 (New guns rare by map)
+Owner's numbers (2026-11-20): the Viper, Hornet, Brawler and Talon are better variants, so they're hard to find.
+- **Frontlines:** scavs and Raiders never carry them and containers never hold them; about 1 AI PMC in 35 carries a
+  Viper, Hornet or Brawler (and drops it, like any PMC gun).
+- **Riptide:** about 1 Deckhand in 17 carries a Viper, Hornet or Brawler (they drop their gun 15% of the time), about
+  1 Exion Trooper in 9 a Hornet or Brawler (30%). The Ship Armory lockers hold one about 1 raid in 10, and the Lab
+  Core is the only place a Talon turns up in a raid (about 1 raid in 20). New AI loadout tables `deckhand` and `trooper`.
+- Ming still sells all four as before.
+## 0.38.3 (Characters: the first pick, and expedition points per character)
+Owner (2026-11-20), two changes to the characters:
+- **The first pick:** a new player chooses VEGA (Nova) or VOSS (Exion) for free; the CHARACTERS screen opens for it
+  once the hideout walk round is done. The other starter unlocks for $50,000, no trader level
+  (`Characters.STARTERS`, `STARTER_PRICE`, `pick_starter`). Saves from before (no `picked`) keep both starters.
+  Online, `Characters.changes` lets the first pick through free and charges $50,000 for the other.
+- **Expedition points up to 10 per character:** the 10-point cap on expedition points is per character, not for the
+  whole account. Each character keeps its own `exp_points` (2 per escape it makes, up to 10); the upgrade pool is still
+  shared and spent on any unlocked character. Saves from 0.37.0-0.38.2 give their account-wide expedition points to
+  the picked character. The server's check refuses changed expedition points per character.
+- The smoke test's prone/door sound check now says which of its three parts failed.
+
 ## 0.38.2 (The garage)
 Owner picked a new tunnel off the hall for the expedition truck (2026-11-20). Looks and a station only, nothing synced.
 - A **garage tunnel** runs north from the hall's north-east side, beside the range: a painted parking bay, a roller

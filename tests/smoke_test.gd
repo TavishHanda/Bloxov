@@ -1988,12 +1988,27 @@ func _section_new_guns() -> void:
 func _section_ai_loadouts() -> void:
 	# AI loadouts (0.15.5, owner's plan): scavs and Raiders roll a gun; it changes how they shoot and is what they drop.
 	var seen := {}
-	for i in 200:
+	for i in 600:
 		seen[AILoadouts.pick("scav")] = true
-	for i in 400:
-		seen[AILoadouts.pick("scav")] = true
-	_check(seen.size() == 7 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol") and seen.has("hornet")
-		and seen.has("brawler") and seen.has("viper"), "scavs carry AKs, SMGs, shotguns and pistols, and sometimes a Hornet, Brawler or Viper")
+	_check(seen.size() == 4 and seen.has("ak") and seen.has("smg") and seen.has("shotgun") and seen.has("pistol"),
+		"scavs carry AKs, SMGs, shotguns and pistols")
+	# The new guns by map (0.38.1, owner): never on Frontlines scavs or Raiders, rare on AI PMCs, Riptide's AI and its
+	# armory and lab loot; the Talon is found only in the lab core.
+	var riptide := {}
+	for i in 3000:
+		riptide[AILoadouts.pick("deckhand")] = true
+		riptide[AILoadouts.pick("trooper")] = true
+	var new_guns := ["viper", "hornet", "brawler", "talon"]
+	var deckhand := (load("res://scenes/deckhand.tscn") as PackedScene).instantiate()
+	var trooper := (load("res://scenes/trooper.tscn") as PackedScene).instantiate()
+	_check(riptide.has("viper") and riptide.has("hornet") and riptide.has("brawler")
+		and new_guns.all(func(g: String) -> bool: return not AILoadouts.TABLES["scav"].has(g) and not AILoadouts.TABLES["raider"].has(g))
+		and deckhand.get("loadout") == "deckhand" and trooper.get("loadout") == "trooper"
+		and ItemDB.PLACE_LOOT["LabCore"].has("talon") and ItemDB.PLACE_LOOT["ShipArmory"].has("hornet")
+		and new_guns.all(func(g: String) -> bool: return ItemDB.LOOT_TABLES.values().all(func(t: Dictionary) -> bool: return not t.has(g))),
+		"the new guns: Riptide's AI and loot only, never Frontlines scavs, Raiders or plain containers")
+	deckhand.free()
+	trooper.free()
 	# The second gun of a type (0.36.42) fights like its type, only its shot sounds different.
 	var smg_ai := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	var hornet_ai := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
@@ -2771,16 +2786,23 @@ func _section_hideout_world() -> void:
 		"the RECORD tab shows your record")
 	menu_node.show_screen("traders")
 	_check(menu_node.current_screen() == "traders" and not menu_node.record.visible, "the TRADERS tab opens a trader's screen")
-	# The characters (0.37.0): pick VOSS, and back to VEGA.
+	# The characters (0.37.0): the first pick (VOSS, 0.38.3), then VEGA bought and played.
 	menu_node.show_screen("characters")
 	var chars: CharacterScreen = menu_node.character_screen
+	Profile.characters = Characters.fresh()
 	chars.look_at_character("voss")
+	_check(chars._action.text.begins_with("CHOOSE"), "a new player chooses a starter on the CHARS tab")
 	chars._on_action()
-	_check(menu_node.current_screen() == "characters" and Profile.characters["selected"] == "voss"
+	_check(menu_node.current_screen() == "characters" and Profile.characters["selected"] == "voss" and Profile.characters["picked"]
 		and Network.main.my_look.ends_with(Characters.net_tag(Profile.characters)), "the CHARS tab picks who you play (VOSS)")
 	chars.look_at_character("sable")
 	_check(chars._action.disabled and chars._status.text != "", "a locked character says what it needs (%s)" % chars._status.text)
+	var money_chars := Profile.money
+	Profile.money = Characters.STARTER_PRICE
 	chars.look_at_character("vega")
+	chars._on_action()
+	_check(Profile.money == 0 and (Profile.characters["unlocked"] as Array).has("vega"), "the other starter is bought for $50,000")
+	Profile.money = money_chars
 	chars._on_action()
 	menu_node.show_screen("gear")
 	_check(menu_node.current_screen() == "gear" and Profile.characters["selected"] == "vega", "and GEAR goes back to the stash")
@@ -4909,8 +4931,26 @@ func _section_playables() -> void:
 	# The playable characters (0.37.0, owner 2026-11-20): traits grow with level, points are the player's choice,
 	# unlocks cost money and a trader level, the server checks it all.
 	var state := Characters.fresh()
-	_check(state["selected"] == "vega" and (state["unlocked"] as Array) == ["vega", "voss"],
-		"a new profile plays VEGA, with VOSS also free")
+	_check(not state["picked"] and Characters.unlock_problem(state, "voss", 9999999, {}) != "",
+		"a new profile hasn't picked yet: nothing can be bought before the first pick")
+	_check(Characters.pick_starter(state, "voss") and state["selected"] == "voss" and (state["unlocked"] as Array) == ["voss"]
+		and not Characters.pick_starter(state, "vega"), "the first pick (VOSS) is free and only happens once")
+	_check(Characters.unlock_problem(state, "vega", Characters.STARTER_PRICE - 1, {}) != ""
+		and Characters.unlock_problem(state, "vega", Characters.STARTER_PRICE, {}) == "", "the other starter unlocks for $50,000, no trader level")
+	var legacy := Characters.clean({"selected": "voss", "unlocked": ["vega", "voss"]})
+	_check(legacy["picked"] and (legacy["unlocked"] as Array).has("vega") and (legacy["unlocked"] as Array).has("voss"),
+		"a save from before the first pick keeps both starters")
+	var first_old := {"characters": Characters.fresh()}
+	var first_new := {"characters": Characters.fresh()}
+	Characters.pick_starter(first_new["characters"], "voss")
+	var first_check := Characters.changes(first_old, first_new)
+	_check(first_check["error"] == "" and int(first_check["money"]) == 0, "online, the first pick is free (%s)" % first_check["error"])
+	var both := {"characters": first_new["characters"].duplicate(true)}
+	(both["characters"]["unlocked"] as Array).append("vega")
+	_check(Characters.changes(first_old, both)["error"] == "" and int(Characters.changes(first_new, both)["money"]) == Characters.STARTER_PRICE,
+		"and the second starter costs $50,000")
+	_check(int(Characters.changes(first_old, both)["money"]) == Characters.STARTER_PRICE, "even when both come in one change")
+	state = Characters.clean({"unlocked": ["vega", "voss"]})
 	var c := Characters.char_of(state, "vega")
 	_check(is_equal_approx(Characters.trait_value("vega", c, 0), 0.02) and is_equal_approx(Characters.trait_value("vega", c, 2), 0.0625),
 		"at level 1 a trait is a quarter of its size, good and bad (+2% speed, +6.25% stamina use)")
@@ -4940,7 +4980,11 @@ func _section_playables() -> void:
 	_check(int(c["lvl_points"]) == 5, "an expedition resets the level; level points only come once")
 	for i in 4:
 		Characters.add_expedition_points(state, "vega")
-	_check(int(state["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10")
+	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10 per character")
+	Characters.add_expedition_points(state, "voss")
+	_check(int(Characters.char_of(state, "voss")["exp_points"]) == 2, "another character still earns its own 10")
+	var old_save := Characters.clean({"selected": "voss", "unlocked": ["vega", "voss"], "exp_points": 6})
+	_check(int(Characters.char_of(old_save, "voss")["exp_points"]) == 6, "an older save's account-wide points go to the picked character")
 	# Unlocks: money and a trader level.
 	_check(Characters.unlock_problem(state, "sable", 1000000, {}) != "" and Characters.unlock_problem(state, "sable", 1000, {"guns": 3}) != ""
 		and Characters.unlock_problem(state, "sable", 400000, {"guns": 3}) == "", "SABLE needs Ponta level 3 and $400,000")
@@ -4956,21 +5000,21 @@ func _section_playables() -> void:
 	_check(int(out["xp"]) == Characters.XP_EXTRACT + 10 + 25 + 50 + 50 + 100, "kills and the extract give XP (%d)" % int(out["xp"]))
 	_check(int(Characters.raid_ended(hunter, false, kills)["bounty"]) == 0, "die and the bounty is lost")
 	# The server's check of a hideout change.
-	var old_profile := {"characters": Characters.fresh(), "trader_levels": {"guns": 3}}
-	var new_profile := {"characters": Characters.fresh(), "trader_levels": {"guns": 3}}
+	var old_profile := {"characters": Characters.clean({}), "trader_levels": {"guns": 3}}
+	var new_profile := {"characters": Characters.clean({}), "trader_levels": {"guns": 3}}
 	(new_profile["characters"]["unlocked"] as Array).append("sable")
 	var check := Characters.changes(old_profile, new_profile)
 	_check(check["error"] == "" and int(check["money"]) == 400000, "online, unlocking SABLE costs $400,000")
 	new_profile["trader_levels"] = {"guns": 2}
 	_check(Characters.changes(old_profile, new_profile)["error"] != "", "and is refused below Ponta level 3")
-	var cheat := {"characters": Characters.fresh()}
+	var cheat := {"characters": Characters.clean({})}
 	Characters.char_of(cheat["characters"], "vega")["xp"] = 5000
 	_check(Characters.changes(old_profile, cheat)["error"] != "", "XP can't be changed from the hideout")
-	var greedy := {"characters": Characters.fresh()}
+	var greedy := {"characters": Characters.clean({})}
 	Characters.char_of(greedy["characters"], "vega")["spent"]["u0"] = 3
 	_check(Characters.changes(old_profile, greedy)["error"] != "", "nor points spent that weren't earned")
-	var shared := {"characters": Characters.fresh()}
-	shared["characters"]["exp_points"] = 4
+	var shared := {"characters": Characters.clean({})}
+	Characters.char_of(shared["characters"], "vega")["exp_points"] = 4
 	var shared_after := {"characters": shared["characters"].duplicate(true)}
 	Characters.char_of(shared_after["characters"], "voss")["spent"]["u0"] = 3
 	_check(Characters.changes(shared, shared_after)["error"] == "", "online, shared points can go on any unlocked character")
@@ -5085,12 +5129,12 @@ func _section_expedition() -> void:
 	var look := Profile.look.duplicate(true)
 	var who := str(Profile.characters["selected"])
 	Characters.add_xp(Profile.characters, who, 999999)
-	var pool := int(Profile.characters.get("exp_points", 0))
+	var pool := int(Characters.char_of(Profile.characters, who)["exp_points"])
 	_check(Profile.leave_solo(), "a ready truck leaves (solo)")
 	var went := Characters.char_of(Profile.characters, who)
 	_check(int(went["xp"]) == 0 and int(went["lvl_points"]) > 0
-		and int(Profile.characters["exp_points"]) == mini(pool + Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS),
-		"the character who went is back to level 1, keeps its level points, and the shared pool earns %d" % Expedition.POINTS)
+		and int(went["exp_points"]) == mini(pool + Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS),
+		"the character who went is back to level 1, keeps its level points, and earns %d points" % Expedition.POINTS)
 	_check(Profile.money == Profile.START_MONEY and Profile.truck.is_empty() and Profile.expeditions == 1
 		and Profile.bench_level == 1 and Profile.trader_level("guns") == 1 and Profile.stash.count_of("gold_bar") == 0,
 		"leaving wipes the stash, money, truck, workbench and traders and counts the trip")
@@ -5131,10 +5175,11 @@ func _section_expedition() -> void:
 	ready["money"] = 600000
 	ready["stats"] = {"raids": 9, "extracts": 4, "deaths": 5, "earned": 1}
 	var pvp_chars := Characters.fresh()
-	pvp_chars["exp_points"] = 9
+	Characters.char_of(pvp_chars, "vega")["exp_points"] = 9
 	ready["characters"] = pvp_chars
 	var gone := OnlineProfile.leave_expedition(ready)
-	_check(int(gone["characters"]["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "the PvP pool earns points too, up to its cap")
+	_check(int(Characters.char_of(Characters.clean(gone["characters"]), "vega")["exp_points"]) == Characters.MAX_EXPEDITION_POINTS,
+		"PvP escapes earn points too, up to the character's cap")
 	_check(int(gone.get("money", 0)) == OnlineProfile.START_MONEY and Expedition.trips_of(gone) == 1
 		and int(gone["stats"]["raids"]) == 9 and Expedition.truck_of(gone).is_empty() and not OnlineProfile.clean(gone).is_empty(),
 		"the server's PvP wipe gives a new PvP stash, the record and one trip")
@@ -10655,7 +10700,7 @@ func _section_sound() -> void:
 	var opened: AudioStream = newest.call()
 	door.set_state(0)
 	_check(prone_sound == WorldSounds.PRONE and opened == WorldSounds.DOOR_OPEN and newest.call() == WorldSounds.DOOR_CLOSE,
-		"going prone rustles; a door creaks open and thuds shut")
+		"going prone rustles; a door creaks open and thuds shut (%s, %s, %s)" % [prone_sound == WorldSounds.PRONE, opened == WorldSounds.DOOR_OPEN, newest.call() == WorldSounds.DOOR_CLOSE])
 	door.queue_free()
 	# 0.20.3, items and guns: each gun's reload pitched its own way (today's sounds), sounds for each med and drink.
 	_check(GunSounds.reload_pitch("pistol") > GunSounds.reload_pitch("ak") and GunSounds.reload_pitch("sniper") < 1.0

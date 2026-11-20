@@ -506,7 +506,7 @@ func leave_expedition() -> void:
 		return
 	save_now()
 	var state := Characters.clean(Profile.characters)
-	_points_before = int(state["exp_points"])
+	_points_before = Characters.points_earned(state)
 	_who = str(state["selected"])
 	if Profile.mode == Profile.ONLINE:
 		if not Network.main.signed_in():
@@ -537,7 +537,7 @@ func _on_expedition_left(ok: bool) -> void:
 ## The leaving cutscene, then back to the (new) hideout.
 func _drive_off() -> void:
 	ExpeditionCutscene.trips = Profile.expeditions
-	ExpeditionCutscene.points = int(Characters.clean(Profile.characters)["exp_points"]) - _points_before
+	ExpeditionCutscene.points = Characters.points_earned(Characters.clean(Profile.characters)) - _points_before
 	ExpeditionCutscene.who = str(Characters.LIST[_who]["name"]) if Characters.LIST.has(_who) else ""
 	get_tree().change_scene_to_file(ExpeditionCutscene.SCENE)
 ## The characters (0.37.0): pick who you play, unlock more, spend points.
