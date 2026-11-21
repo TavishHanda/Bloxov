@@ -290,6 +290,8 @@ func sync_enemies(list: Array) -> void:
 			var gun: int = entry[3] if entry.size() > 3 else -1
 			puppet.loadout = AILoadouts.NET_GUNS[gun] if gun >= 0 and gun < AILoadouts.NET_GUNS.size() else ""
 			puppet.name = "Enemy%d" % id
+			if puppet is PmcAI:
+				(puppet as PmcAI).dress_as_character(id)   # (one of the six characters, the same on every screen)
 			get_parent().add_child(puppet)
 			# Same outfit on every player's screen.
 			puppet.pick_look(id)
@@ -400,7 +402,7 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 	var block := Hearing.block_of(camera, from)
 	var stream := GunSounds.shot_for(weapon, heard, place, block, Hearing.behind(camera, from))
 	if not Hearing.shot_heard(world, from, end, stream.get_length()):
-		return   # (0.38.10: too far, or enough far shots sounding already)
+		return   # (0.38.12: too far, or enough far shots sounding already)
 	Effects.shot_at(world, stream, from,
 		float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0)
 		+ Hearing.at_you_db(world, from, end, unit_size) + GunSounds.block_db(block),

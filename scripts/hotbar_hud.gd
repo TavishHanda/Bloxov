@@ -3,7 +3,7 @@ extends Control
 ## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.6 "Ammo Can"): 1 = primary, 2 = secondary, 3 = meds (all
 ## your heals: tap uses the one shown, hold switches it; Auto = best fit, marked with a small "A"),
 ## 4 and 5 = one bound item each (grenades go on 4, energy drinks on 5), V = the knife (owner, 0.9.0: 1, 2, 3, 4, V;
-## key 5 added 0.38.10).
+## key 5 added 0.38.12).
 ## The meds slot also takes touches (tap / hold), for touch screens.
 ## Each slot is a gunmetal lid with its key in the corner (hand-drawn pixel digits), a pixel icon, a count and a rarity stripe.
 ## The gun in your hands pops up: lighter lid, hazard-yellow rim and caution stripes, yellow key. Switching guns

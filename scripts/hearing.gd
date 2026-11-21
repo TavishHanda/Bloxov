@@ -13,7 +13,7 @@ const SNAPS: Array[AudioStream] = [preload("res://audio/snap1.wav"), preload("re
 ## Beyond this a shot also rolls in as a far boom (full from DISTANT_FULL m).
 const DISTANT_FROM := 45.0
 const DISTANT_FULL := 90.0
-## Less war (0.38.10, owner: PvP "sounds like a straight up war"): the far boom is 4 dB softer than before, shots
+## Less war (0.38.12, owner: PvP "sounds like a straight up war"): the far boom is 4 dB softer than before, shots
 ## past SHOT_MAX_RANGE m aren't heard at all, and at most FAR_AT_ONCE far shots (past DISTANT_FROM) sound at a time,
 ## the rest are skipped. Shots that come at you (within SNAP_RADIUS of your head) are always heard; close ones and
 ## your own gun are untouched.
@@ -109,7 +109,7 @@ static func set_indoors(inside: bool) -> void:
 		AudioServer.set_bus_effect_enabled(index, 0, inside)
 
 
-## Whether someone else's shot from `from` to `end` plays for you at all (0.38.10, see SHOT_MAX_RANGE). A far one
+## Whether someone else's shot from `from` to `end` plays for you at all (0.38.12, see SHOT_MAX_RANGE). A far one
 ## that plays holds one of the FAR_AT_ONCE places for `length` s. No listener (the game server): true.
 static func shot_heard(world: Node, from: Vector3, end: Vector3, length: float) -> bool:
 	var camera := listener(world)

@@ -321,7 +321,7 @@ func _section_accuracy() -> void:
 	_check(rates["hip crouched"] > 0.85 and rates["hip crouched"] < 0.95, "hip fire crouched hits ~90%% (%.0f%%)" % (rates["hip crouched"] * 100))
 	_check(rates["hip walking"] < 0.3, "hip fire while walking is hard (%.0f%%)" % (rates["hip walking"] * 100))
 	_check(rates["aimed standing"] > 0.99 and rates["aimed crouched"] > 0.99, "aimed shots standing/crouched hit 100%")
-	# 0.38.10 (owner: "way more bullet spread" moving and jumping): moving spread doubled, so aimed walking is loose too.
+	# 0.38.12 (owner: "way more bullet spread" moving and jumping): moving spread doubled, so aimed walking is loose too.
 	_check(rates["aimed walking"] > 0.2 and rates["aimed walking"] < 0.4, "aimed while walking hits ~30%% (%.0f%%)" % (rates["aimed walking"] * 100))
 	_check(gun.spread_for(1.0, false, false, true) > 7.0, "shooting in the air spreads by over 7 degrees")
 
@@ -1184,7 +1184,7 @@ func _section_items() -> void:
 	_check(inv.hotbar[1] == "grenade", "a grenade goes on key 4 by itself")
 	inv.unbind(inv.hotbar[Inventory.FLEX_KEY]) if inv.hotbar[Inventory.FLEX_KEY] != "" else null
 	inv.add("energy_drink", 1)
-	_check(inv.hotbar[Inventory.FLEX_KEY] == "energy_drink" and inv.hotbar[1] == "grenade", "an energy drink goes on key 5 by itself (0.38.10)")
+	_check(inv.hotbar[Inventory.FLEX_KEY] == "energy_drink" and inv.hotbar[1] == "grenade", "an energy drink goes on key 5 by itself (0.38.12)")
 	inv.take("energy_drink", 1)
 	inv.unbind("energy_drink")
 	var probe := Grenade.new()
@@ -4126,7 +4126,7 @@ func _section_keybinds() -> void:
 	_check(Keybinds.name_of("jump") == "Space" and Keybinds.name_of("map") == "M" and Keybinds.name_of("extracts") == "O"
 		and Keybinds.name_of("sprint") == "Shift", "bad or doubled saved keys fall back to the defaults")
 	# Key caps fit any key; the hotbar shows the keys its slots are on.
-	_check(Hearing.SHOT_MAX_RANGE == 150.0 and Hearing.FAR_AT_ONCE == 4, "far shots: none past 150 m, 4 at once (0.38.10)")
+	_check(Hearing.SHOT_MAX_RANGE == 150.0 and Hearing.FAR_AT_ONCE == 4, "far shots: none past 150 m, 4 at once (0.38.12)")
 	_check(HudStyle.keycap_width("F", 22) == 22.0 and HudStyle.keycap_width("TAB", 22) > 22.0, "key caps widen for longer names")
 	_check(HotbarHUD.slot_action(0) == "weapon_1" and HotbarHUD.slot_action(2) == "hotbar_3"
 		and HotbarHUD.slot_action(3) == "hotbar_4" and HotbarHUD.slot_action(4) == "hotbar_5" and HotbarHUD.slot_action(5) == "melee",
@@ -5602,6 +5602,11 @@ func _section_online_ai() -> void:
 		await _frames(3)
 	var scavs1 := RaidScope.nodes(w1.raid, &"enemies")
 	_check(scavs1.size() == 3 and RaidScope.nodes(w2.raid, &"enemies").size() == 3, "each online raid spawns its own 3 scavs on the server")
+	var w1_spawner := w1.raid.get_node("EnemySpawner") as EnemySpawner
+	_check(w1_spawner.player_starts.size() == 1 and w1_spawner.player_starts[0].distance_to(Raid.spawn_position(
+		w1.raid.get_node("PlayerSpawns").get_children(), int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["spawns"][c1_id][0]), 0,
+		int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["seed"]))) < 0.1,
+		"the server's AI is told where the raid's players will start (0.38.10)")
 	_check(scavs1.all(func(e: Node) -> bool: return RaidScope.nodes(e, &"player") == [w1.proxies.get(c1_id)]),
 		"a raid's scavs only see that raid's players (one proxy each)")
 	await _until(func() -> bool: return c1.enemies.size() == 3)
@@ -7222,9 +7227,13 @@ func _section_pmc_ai() -> void:
 	ref.free()
 	var spread_ok := true
 	for bot: Scav in [a, b]:
-		var skill := bot.accuracy_near / 0.7
-		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_far, 0.35 * skill) \
-			and is_equal_approx(bot.accuracy_long, 0.2 * skill)
+		# (its character's recoil and spread change its hit chances too, 0.38.8: taken out here, checked below)
+		var m := Characters.multipliers((bot as PmcAI).character["state"], (bot as PmcAI).character["id"])
+		var near := 0.7 / (float(m.get("recoil", 1.0)) * float(m.get("hip_spread", 1.0)))
+		var aimed := 1.0 / (float(m.get("recoil", 1.0)) * float(m.get("aim_spread", 1.0)))
+		var skill := bot.accuracy_far / (0.35 * aimed)
+		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_near, minf(minf(near, 1.0) * skill, 1.0)) \
+			and is_equal_approx(bot.accuracy_long, 0.2 * aimed * skill)
 	_check(spread_ok, "each AI PMC rolls one skill for all its hit chances (%.3f, %.3f)" % [a.accuracy_near, b.accuracy_near])
 	_check(String(a.faction).begins_with("pmc_") and a.faction != b.faction, "every AI PMC is its own side (always alone)")
 	_check(not scav.loner and scav.uses_fight_budget and not scav.silent and not scav.operator_look and scav.skill_spread == 0.0
@@ -7242,9 +7251,10 @@ func _section_pmc_ai() -> void:
 	puppet.pick_look(-3)
 	var puppet_look: Dictionary = (puppet.model as PixelModel).outfit
 	puppet.pick_look(-3)
-	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look and puppet.accuracy_near == 0.7
+	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look
 		and puppet.faction == &"pmc_%d" % puppet.get_instance_id(), "a puppet AI PMC takes its outfit from the id")
 	puppet.queue_free()
+	await _pmc_character_checks()
 	await _pmc_kit_checks()
 	# Silent: no callouts, no chatter.
 	var said := []
@@ -7272,6 +7282,55 @@ func _section_pmc_ai() -> void:
 	FightBudget.reset(a)
 	for node: Node in [a, b, scav]:
 		node.queue_free()
+	await physics_frame
+
+
+## AI PMCs are the six characters (0.38.8, owner 2026-11-20; levels 5-15, owner's pick 2026-11-21).
+func _pmc_character_checks() -> void:
+	var seen := {}
+	var levels_ok := true
+	var points_ok := true
+	for seed_value in 300:
+		var pick := Characters.ai_pick(seed_value * 7919 + 13)
+		seen[pick["id"]] = true
+		var lv: int = pick["level"]
+		levels_ok = levels_ok and lv >= 5 and lv <= 15 and Characters.level(pick["state"], pick["id"]) == lv \
+			and (Characters.SKINS[pick["id"]] as Array).has(pick["skin"])
+		points_ok = points_ok and Characters.points_earned(pick["state"]) == (2 if lv >= 10 else 0) \
+			and Characters.points_left(pick["state"]) == 0
+	_check(seen.size() == 6, "AI PMCs come as all six characters (%s)" % str(seen.keys()))
+	_check(levels_ok, "an AI PMC is level 5-15, in one of its character's skins")
+	_check(points_ok, "an AI PMC at level 10+ has spent its 2 level points, below 10 it has none")
+	_check(Characters.ai_pick(4242) == Characters.ai_pick(4242), "the same id gives the same character, skin and level on every screen")
+	# Its traits on the AI's numbers.
+	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
+	var bot := _spawn(PMC_AI_SCENE, Vector3(40, 0.1, -40)) as PmcAI
+	await physics_frame
+	var m := Characters.multipliers(bot.character["state"], bot.character["id"])
+	var f := func(stat: String) -> float: return float(m.get(stat, 1.0))
+	_check(bot.character_seed == bot.get_instance_id() and is_equal_approx(bot.move_speed, ref.move_speed * f.call("move") * f.call("sprint"))
+		and is_equal_approx(bot.hearing_mult, ref.hearing_mult * f.call("hearing")) and is_equal_approx(bot.heal_time, ref.heal_time * f.call("heal_time"))
+		and is_equal_approx(bot.aim_time, ref.aim_time * f.call("ads")) and is_equal_approx(bot.search_mult, f.call("search"))
+		and is_equal_approx(bot.footstep_range, Scav.STEP_HEAR_RANGE * f.call("steps")),
+		"an AI PMC moves, hears, heals, aims, searches and makes noise as its character (%s level %d)" % [bot.character["id"], bot.character["level"]])
+	# A KORR searches faster, a VEGA's steps carry less far, a SABLE hears further (a character's real numbers).
+	var korr := ref.duplicate() as PmcAI
+	korr.apply_character(Characters.multipliers({"chars": {"korr": {"xp": 0, "lvl_points": 0, "exp_points": 0, "spent": {}}}}, "korr"))
+	_check(korr.search_mult < 1.0 and korr.accuracy_far < ref.accuracy_far and korr.accuracy_near > ref.accuracy_near, "KORR: faster searches and hip-fire, worse aimed shots")
+	korr.free()
+	bot.queue_free()
+	# A puppet wears the server AI's character: its model, all in that skin, and no operator outfit on top.
+	var who := Characters.ai_pick(-3)
+	var puppet := ref
+	puppet.puppet = true
+	puppet.dress_as_character(-3)
+	main.add_child(puppet)
+	puppet.pick_look(-3)
+	var outfit: Dictionary = (puppet.model as PixelModel).outfit
+	_check(puppet.character["id"] == who["id"] and not outfit.is_empty() and outfit.values().all(func(v: Variant) -> bool: return v == who["skin"])
+		and puppet.model.get_node_or_null("Gun/Muzzle") != null and puppet.muzzle != null,
+		"a puppet AI PMC is the server AI's character (%s, %s)" % [who["id"], who["skin"]])
+	puppet.queue_free()
 	await physics_frame
 
 
@@ -9265,6 +9324,32 @@ func _section_spawn_budget() -> void:
 		enemy.queue_free()
 	crowded.queue_free()
 	await _frames(2)
+	# 0.38.10 (owner: online, AI shot players before they could move): the server makes its AI before any player is in
+	# the raid world, so it's told where the squads start; no AI starts near one, and none after the start guard ends
+	# is kept off that spot any more (the real players count then).
+	var start := player.global_position + Vector3(-90, 0, -90)
+	var guarded := EnemySpawner.new()
+	guarded.enemy_scene = load(SCAV_SCENE)
+	guarded.set_physics_process(false)
+	guarded.initial_count = 2
+	guarded.player_starts = [start]
+	for spot: Vector3 in [start + Vector3(8, 0, 0), start + Vector3(-70, 0, -70)]:
+		var m := Marker3D.new()
+		m.position = spot
+		guarded.add_child(m)
+	main.add_child(guarded)
+	await _frames(2)
+	var near_start := get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+		return Vector2((e as Node3D).global_position.x - start.x, (e as Node3D).global_position.z - start.z).length() < guarded.min_distance_from_player)
+	_check(guarded.scavs_spawned >= 1 and near_start.is_empty(),
+		"no AI starts beside where a player will spawn (%d spawned, %d near the start)" % [guarded.scavs_spawned, near_start.size()])
+	guarded._elapsed = EnemySpawner.START_GUARD + 1.0
+	_check(guarded._starts().is_empty(), "the start spots stop counting once the start is over")
+	for enemy in get_nodes_in_group("enemies"):
+		enemy.remove_from_group("enemies")
+		enemy.queue_free()
+	guarded.queue_free()
+	await _frames(2)
 	# 0.12.31 (owner: a Raider's partner spawned stuck in a roof): a partner/guard spot that would be inside
 	# something moves to a clear spot next to the leader instead.
 	var origin := Vector3(-30, 0.1, 30)
@@ -10494,7 +10579,7 @@ func _face_player(node: Node3D) -> void:
 
 
 func _section_sound() -> void:
-	# Less war (0.38.10, owner): far shots past 150 m are silent, at most 4 far ones at once; ones at you always play.
+	# Less war (0.38.12, owner): far shots past 150 m are silent, at most 4 far ones at once; ones at you always play.
 	var ear_cam := Hearing.listener(main)
 	if ear_cam != null:
 		var ear := ear_cam.global_position
