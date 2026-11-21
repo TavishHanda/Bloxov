@@ -261,11 +261,14 @@ func _drop_body() -> void:
 		var stack := player.inventory.equipped(slot)
 		if stack != null:
 			data.append(GridInventory.stack_data(stack))
-	for grid in [player.inventory.pockets, player.inventory.backpack]:
-		if grid != null:
-			for stack in grid.stacks:
-				data.append(GridInventory.stack_data(stack))
-	Network.main.drop_items(data, true)
+	for stack in player.inventory.pockets.stacks:
+		data.append(GridInventory.stack_data(stack))
+	# (what's in our backpack stays in it on the body, 0.38.7: whoever loots us can take it, contents and all)
+	var pack := []
+	if player.inventory.backpack != null:
+		for stack in player.inventory.backpack.stacks:
+			pack.append(GridInventory.stack_data(stack))
+	Network.main.drop_items(data, true, pack)
 
 
 func _show_message(text: String) -> void:
