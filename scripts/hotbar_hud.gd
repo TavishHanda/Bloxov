@@ -2,7 +2,8 @@ class_name HotbarHUD
 extends Control
 ## Bottom-center hotbar (owner's layout, 0.8.1; look 0.8.6 "Ammo Can"): 1 = primary, 2 = secondary, 3 = meds (all
 ## your heals: tap uses the one shown, hold switches it; Auto = best fit, marked with a small "A"),
-## 4 = one bound item (for later: grenades...), V = the knife (owner, 0.9.0: 1, 2, 3, 4, V).
+## 4 and 5 = one bound item each (grenades go on 4, energy drinks on 5), V = the knife (owner, 0.9.0: 1, 2, 3, 4, V;
+## key 5 added 0.38.13).
 ## The meds slot also takes touches (tap / hold), for touch screens.
 ## Each slot is a gunmetal lid with its key in the corner (hand-drawn pixel digits), a pixel icon, a count and a rarity stripe.
 ## The gun in your hands pops up: lighter lid, hazard-yellow rim and caution stripes, yellow key. Switching guns
@@ -16,6 +17,8 @@ const RISE := 7.0
 const TAPE_ROOM := 34.0
 const SLOTS := 2 + Inventory.HOTBAR_SIZE
 const SWITCH_TIME := 1.3
+## The hotbar index (Inventory.hotbar) each slot after the guns shows, left to right: 3, 4, 5, then the knife.
+const SLOT_INDEX: Array[int] = [Inventory.MEDS_KEY, 1, Inventory.FLEX_KEY, Inventory.KNIFE_KEY]
 
 var player: Player
 ## How far each slot has risen (0..1, the held gun rises).
@@ -138,7 +141,7 @@ func slot_info(i: int) -> Dictionary:
 			info["count"] = "%d/%d" % [loaded, inventory.count_of(ammo_id)]
 			info["stripe"] = ItemDB.color(weapon.id)
 			info["state"] = "filled"
-	elif i - 2 == Inventory.MEDS_KEY:
+	elif index_of(i) == Inventory.MEDS_KEY:
 		# Shows the heal that pressing 3 would use right now and how many of it you have (owner, 0.9.1): the one
 		# picked by holding 3, or on Auto the best fit for how hurt you are. A bandage roll or the medkit cross.
 		info["auto"] = inventory.meds_choice == "" or inventory.find(inventory.meds_choice).is_empty()
@@ -155,11 +158,11 @@ func slot_info(i: int) -> Dictionary:
 			info["stripe"] = ItemDB.color(id)
 			info["state"] = "filled"
 			info["item"] = id
-	elif i - 2 == Inventory.KNIFE_KEY:
+	elif index_of(i) == Inventory.KNIFE_KEY:
 		info["icon"] = HudStyle.KNIFE
 		info["state"] = "filled"
 	else:
-		var id := inventory.hotbar[i - 2]
+		var id := inventory.hotbar[index_of(i)]
 		if id != "":
 			var have := inventory.count_of(id)
 			if ItemDB.kind(id) == "throwable":
@@ -240,17 +243,24 @@ func _draw() -> void:
 		HudStyle.draw_tape(self, Rect2(Vector2(x, over.position.y - 26 + drop), Vector2(width, 20)), _switch_text, -2.0, alpha, 14)
 
 
-## The action that picks slot `i` (its key is drawn in the corner): 1-2 guns, then hotbar_3/4, the knife on melee.
+## The hotbar index slot `i` shows (-1 = a gun slot).
+static func index_of(i: int) -> int:
+	return -1 if i < 2 else SLOT_INDEX[i - 2]
+
+
+## The action that picks slot `i` (its key is drawn in the corner): 1-2 guns, then hotbar_3/4/5, the knife on melee.
 static func slot_action(i: int) -> String:
 	if i < 2:
 		return "weapon_%d" % (i + 1)
-	return "melee" if i - 2 == Inventory.KNIFE_KEY else "hotbar_%d" % (i + 1)
+	return Inventory.KEY_ACTIONS[index_of(i)]
 
 
-## A faint picture of what goes in an empty slot (1 rifle, 2 pistol, 4-5 a grenade).
+## A faint picture of what goes in an empty slot (1 rifle, 2 pistol, 4 a grenade, 5 a drink can).
 func _ghost_icon(i: int) -> Array:
 	if i == 0:
 		return HudStyle.RIFLE
 	if i == 1:
 		return HudStyle.PISTOL
-	return HudStyle.GRENADE if i - 2 in Inventory.BINDABLE_KEYS else []
+	if index_of(i) == Inventory.FLEX_KEY:
+		return HudStyle.CAN
+	return HudStyle.GRENADE if index_of(i) in Inventory.BINDABLE_KEYS else []

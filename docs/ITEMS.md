@@ -56,7 +56,7 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Duct Tape (`duct_tape`) | Valuable | Common | 1×1 | 1 | $300 |  | Fixes everything. Sells well. |
 | Ration Pack (`ration`) | Valuable | Uncommon | 1×1 | 1 | $700 |  | Novarran army meal. Tastes like cardboard, sells like gold. |
 | Old Phone (`phone`) | Valuable | Uncommon | 1×1 | 1 | $800 |  | Cracked screen, still works. Someone wants the parts. |
-| Medical Supplies (`med_supplies`) | Valuable | Uncommon | 1×1 | 1 | $800 |  | Gauze, syringes, pills. Clinics pay well for them. |
+| Med Parts (`med_supplies`) | Valuable | Uncommon | 1×1 | 1 | $800 |  | Crafting part: gauze, syringes, pills. Make bandages and medkits at the workbench, or sell them to clinics. |
 | Raider Dog Tag (`dog_tag`) | Valuable | Uncommon | 1×1 | 1 | $900 | only from one-off finds:  | Taken off a Raider. Proof of a kill, and traders pay for it. |
 | Fuel Can (`fuel_can`) | Valuable | Uncommon | 2×2 | 1 | $900 |  | Half full. Every generator in Bloxov wants it. |
 | Powder Tin (`gunpowder`) | Valuable | Uncommon | 1×1 | 1 | $1,000 |  | A tin of gunpowder. Keep it away from fire. |
@@ -97,7 +97,7 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Hound Rounds | 25% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 25% |
 | Bandage | 15% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 10% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 10% |
 | Stinger Rounds | 7% |
 | Energy Drink | 4% |
 | Medkit | 3% |
@@ -111,7 +111,7 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 
 | Entry | Chance per roll |
 |---|---|
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 17% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 17% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 12% |
 | Hound Rounds | 10% |
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 10% |
@@ -156,7 +156,7 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 38% |
 | Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 30% |
 | Legendary valuable (Diamond Ring, Rare Crystal) | 15% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 11% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 11% |
 | Heavy Armor | 3% |
 | Combat Helmet | 3% |
 
@@ -169,7 +169,7 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 15% |
 | Wasp Rounds | 7% |
 | Stinger Rounds | 7% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 7% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 7% |
 | Mauler Shells | 6% |
 | Medkit | 4% |
 | Energy Drink | 3% |
@@ -181,7 +181,7 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Entry | Chance per roll |
 |---|---|
 | Hound Rounds | 20% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 13% |
 | Bandage | 8% |
 | Medkit | 8% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
@@ -205,7 +205,7 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Entry | Chance per roll |
 |---|---|
 | Hound Rounds | 20% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Medical Supplies) | 13% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 13% |
 | Bandage | 8% |
 | Medkit | 8% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
@@ -233,7 +233,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Place | Extra weights |
 |---|---|
 | Waterfall | Gold Bar 8, Diamond Ring 5, Rare Crystal 3, epic valuable 10, legendary valuable 10 |
-| Bunker | Lancer 6, Lancer Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Medical Supplies 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Hound Rounds 15 |
+| Bunker | Lancer 6, Lancer Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Med Parts 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Hound Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
@@ -242,7 +242,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | BigHouse3 | Antique Vase 15, epic valuable 8 |
 | Police | Mauler 10, Mauler Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Stinger Rounds 20 |
 | GunStore | Wasp 10, Mauler 10, Lancer 4, Wasp Rounds 20, Mauler Shells 20, Lancer Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Stinger 15, Hound Rounds 30, Stinger Rounds 25 |
-| Pharmacy | Medical Supplies 25, Bandage 45, Medkit 25 |
+| Pharmacy | Med Parts 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Checkpoint | Novarra Badge 8, Frag Grenade 10, Novarra Field Report 6, Exion Orders 2 |
@@ -254,16 +254,16 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Shed | Bolts 15, Wires 10 |
 | Railyard | Bolts 15 |
 | Junkyard | Bolts 20, Wires 15, Fuel Can 6 |
-| School | Medical Supplies 5, Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |
+| School | Med Parts 5, Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |
 | ShipBridge | Gold Watch 15, Cash Bundle 15, Exion Orders 10, Diamond Ring 3, rare valuable 8, Impound Key 2 |
 | ShipArmory | Hound 12, Hound Rounds 25, Wasp 8, Mauler 8, Mauler Shells 15, Wasp Rounds 15, Light Armor 10, Heavy Armor 5, Old Helmet 8, Combat Helmet 4, Frag Grenade 10, Foregrip 5, Red Dot 5, Viper 1, Hornet 1, Brawler 1 |
-| SickBay | Medical Supplies 25, Bandage 45, Medkit 25, Painkillers 25, Trauma Kit 6 |
-| Clinic | Medical Supplies 20, Bandage 40, Medkit 25, Painkillers 30, Trauma Kit 6 |
+| SickBay | Med Parts 25, Bandage 45, Medkit 25, Painkillers 25, Trauma Kit 6 |
+| Clinic | Med Parts 20, Bandage 40, Medkit 25, Painkillers 30, Trauma Kit 6 |
 | Impound | Hound 10, Wasp 8, Mauler 8, Lancer 3, Hound Rounds 20, Wasp Rounds 10, Mauler Shells 10, Suppressor 3, Extended Mag 4, Cash Bundle 15, Gold Watch 8, rare valuable 10, epic valuable 6, Viper 1, Hornet 1, Brawler 1 |
 | Galley | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | EngineRoom | Bolts 15, Wires 10, Fuel Can 12 |
 | Workshop | Bolts 15, Wires 10, Powder Tin 6, Impound Key 1 |
-| LabWing | Medical Supplies 15, Medkit 10, Exion Orders 12, Military Chip 8, Hard Drive 8, Graphics Card 4, Processor 6, epic valuable 10 |
+| LabWing | Med Parts 15, Medkit 10, Exion Orders 12, Military Chip 8, Hard Drive 8, Graphics Card 4, Processor 6, epic valuable 10 |
 | LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5, Talon 1 |
 
 ## Crafting
@@ -273,8 +273,8 @@ parts from the stash (free-kit items don't count). Crafted items aren't found in
 
 | Makes | Needs | Bench level |
 |---|---|---|
-| Bandage x2 | Medical Supplies, Duct Tape | 1 |
-| Medkit | Medical Supplies x2, Bandage | 1 |
+| Bandage x2 | Med Parts, Duct Tape | 1 |
+| Medkit | Med Parts x2, Bandage | 1 |
 | Energy Drink | Water Bottle x2, Ration Pack | 1 |
 | Hound Rounds x90 | Powder Tin, Scrap Metal | 1 |
 | Wasp Rounds x90 | Powder Tin, Bolts x2 | 1 |

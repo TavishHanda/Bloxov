@@ -1,11 +1,11 @@
 20
 rpc f64d3136d676
-scripts/item_db.gd 4b13cfa2af17
-scripts/online_profile.gd 0f1cba7f4c3e
+scripts/item_db.gd ea581b2a81cd
+scripts/online_profile.gd ac59400d7ddb
 scripts/net_guard.gd 346b32036407
 scripts/net_accounts.gd 258aaabe6e07
 scripts/matchmaker.gd e35a6013c288
 scripts/traders.gd 097bf3da1ca0
-scripts/quests.gd bcf15ec04d88
+scripts/quests.gd 388b92931b84
 scripts/crafting.gd f85c74305b6b
 scripts/health.gd a1585a197e2a

@@ -13,6 +13,13 @@ const SNAPS: Array[AudioStream] = [preload("res://audio/snap1.wav"), preload("re
 ## Beyond this a shot also rolls in as a far boom (full from DISTANT_FULL m).
 const DISTANT_FROM := 45.0
 const DISTANT_FULL := 90.0
+## Less war (0.38.13, owner: PvP "sounds like a straight up war"): the far boom is 4 dB softer than before, shots
+## past SHOT_MAX_RANGE m aren't heard at all, and at most FAR_AT_ONCE far shots (past DISTANT_FROM) sound at a time,
+## the rest are skipped. Shots that come at you (within SNAP_RADIUS of your head) are always heard; close ones and
+## your own gun are untouched.
+const DISTANT_DB := -8.0
+const SHOT_MAX_RANGE := 150.0
+const FAR_AT_ONCE := 4
 ## A shot passing this close to your head snaps past (not from someone right next to you: you hear their gun).
 const SNAP_RADIUS := 3.0
 const SNAP_MIN_RANGE := 10.0
@@ -56,6 +63,8 @@ static var _indoor_check_left := 0.0
 static var indoors := false
 static var fight_left := 0.0
 static var step_left := 0.0
+## When each far shot sounding now ends (Time msec), for FAR_AT_ONCE.
+static var _far_ends: Array[int] = []
 
 
 ## The game's sound bus: World -> Master, with a small-room echo that's on only indoors. The buses are set up in
@@ -98,6 +107,28 @@ static func set_indoors(inside: bool) -> void:
 	var index := AudioServer.get_bus_index(WORLD_BUS)
 	if index != -1 and AudioServer.get_bus_effect_count(index) > 0:
 		AudioServer.set_bus_effect_enabled(index, 0, inside)
+
+
+## Whether someone else's shot from `from` to `end` plays for you at all (0.38.13, see SHOT_MAX_RANGE). A far one
+## that plays holds one of the FAR_AT_ONCE places for `length` s. No listener (the game server): true.
+static func shot_heard(world: Node, from: Vector3, end: Vector3, length: float) -> bool:
+	var camera := listener(world)
+	if camera == null:
+		return true
+	var ear := camera.global_position
+	if Geometry3D.get_closest_point_to_segment(ear, from, end).distance_to(ear) < SNAP_RADIUS:
+		return true
+	var far := ear.distance_to(from)
+	if far > SHOT_MAX_RANGE:
+		return false
+	if far <= DISTANT_FROM:
+		return true
+	var now := Time.get_ticks_msec()
+	_far_ends = _far_ends.filter(func(t: int) -> bool: return t > now)
+	if _far_ends.size() >= FAR_AT_ONCE:
+		return false
+	_far_ends.append(now + int(maxf(length, 0.3) * 1000.0))
+	return true
 
 
 ## A shot at `pos` you can hear (0.30.3): the ambience ducks for FIGHT_TIME s. No listener (the game server): nothing.
@@ -200,7 +231,7 @@ static func gunshot(world: Node, from: Vector3, end: Vector3, volume_db: float) 
 	var far := ear.distance_to(from)
 	if far > DISTANT_FROM:
 		var fade := clampf((far - DISTANT_FROM) / (DISTANT_FULL - DISTANT_FROM), 0.0, 1.0)
-		Effects.sound_at(world, DISTANT_SHOT, from, volume_db - 4.0 + linear_to_db(maxf(fade, 0.01)),
+		Effects.sound_at(world, DISTANT_SHOT, from, volume_db + DISTANT_DB + linear_to_db(maxf(fade, 0.01)),
 			0.08, 1.0, 45.0, 0.0, &"", RUNTIME_MUFFLE)
 	if far < SNAP_MIN_RANGE:
 		return

@@ -401,6 +401,8 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 	var place := GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR
 	var block := Hearing.block_of(camera, from)
 	var stream := GunSounds.shot_for(weapon, heard, place, block, Hearing.behind(camera, from))
+	if not Hearing.shot_heard(world, from, end, stream.get_length()):
+		return   # (0.38.13: too far, or enough far shots sounding already)
 	Effects.shot_at(world, stream, from,
 		float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0)
 		+ Hearing.at_you_db(world, from, end, unit_size) + GunSounds.block_db(block),
