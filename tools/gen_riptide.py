@@ -642,8 +642,13 @@ def _north_point():
     cx0, cx1, cz0, cz1 = -142.0, -96.0, -166.0, -130.0
     deck = SHORE + 4.5
     with kinded("cannery"):
-        hall(cx0, cx1, cz0, cz1, 10.0, "wall", n=[gate(-120.0)], s=[gate(-134.0), gate(-108.0)],
-             w=[door(-150.0), window(-140.0, 3.0, 5.6, 7.0)], e=[gate(-140.0), door(-156.0), window(-148.0, 3.0, 5.6, 7.0)])
+        # (0.39.8, tester: windows "badly placed"; owner: "you're an architect") a row of high factory windows down
+        # each long side, between the gates (the two by the office deck light its offices); the hall had only one
+        # window at each end
+        hi_win = [window(x, 3.0, 5.6, 7.0) for x in (-136.0, -128.0, -112.0, -103.0)]
+        lo_win = [window(x, 3.0, 5.6, 7.0) for x in (-139.0, -126.0, -117.0, -100.0)]
+        hall(cx0, cx1, cz0, cz1, 10.0, "wall", n=[gate(-120.0)] + hi_win, s=[gate(-134.0), gate(-108.0)] + lo_win,
+             w=[door(-150.0), window(-135.0, 3.0, 5.6, 7.0)], e=[gate(-140.0), door(-156.0), window(-148.0, 3.0, 5.6, 7.0)])
         slab(cx0, cx0 + 12.0, cz0, cz1, deck, "concrete", holes=[(cx0 + 12.0 - 3.0, cx0 + 12.0, cz0 + 10.0, cz0 + 26.0)])
         ramp((cx0 + 10.5, SHORE, cz0 + 28.0), (cx0 + 10.5, deck, cz0 + 12.0), 2.6, "concrete")
         wall("z", cx0 + 12.0, cz0, cz0 + 10.0, deck, 1.1, "wall")
@@ -1756,7 +1761,9 @@ TOWER_PROPS = [
     ("bench", 38.5, 41.5, 98.0, 100.0, DECK, 0.9), ("machine", 46.5, 48.3, 97.5, 99.9, DECK, 1.4),
     ("crates", 50.5, 52.5, 95.5, 96.7, DECK, 1.4),
     # the bosun's store (x 54..62): shelving on the east wall, drums, rope and crates in the middle
-    ("shelves", 61.25, 61.85, 95.0, 104.0, DECK, 2.1), ("drums", 54.3, 55.1, 100.5, 105.5, DECK, 1.0),
+    # (0.39.8) two runs of shelving with the window between them (one long run stood across it)
+    ("shelves", 61.25, 61.85, 93.8, 98.8, DECK, 2.1), ("shelves", 61.25, 61.85, 101.2, 105.4, DECK, 2.1),
+    ("drums", 54.3, 55.1, 100.5, 105.5, DECK, 1.0),
     ("crates", 57.5, 59.0, 98.5, 101.5, DECK, 1.4),
     # A DECK. The mess (x 34..44, z 74..90): two long tables, the serving counter under the hatch
     ("mess_table", 36.5, 37.4, 77.5, 86.0, DECK2, 0.78), ("mess_table", 40.0, 40.9, 77.5, 86.0, DECK2, 0.78),
@@ -2246,6 +2253,39 @@ def minimap_meta():
 GROUND_LIFT = 0.02   # (0.36.25) how far a floor on the flat ground is drawn above it
 
 
+# (0.39.8, owner 2026-11-20: "roof access on most buildings", roof props only: vents, AC units, tanks; no roof cover) the
+# halls that had no way up: (x0, x1, z0, z1, ladder x, z, yaw, height). Each ladder is on a blank stretch of an
+# outside wall, clear of doors, windows and anything at its foot (placed by a clearance check, then the ladder audit).
+ROOF_LADDERS = [
+    (-124.0, -102.0, 8.0, 24.0, -122.8, 24.4, 0, 4.25), (-96.0, -80.0, 12.0, 30.0, -94.8, 30.4, 0, 5.25),
+    (-112.0, -72.0, 64.0, 92.0, -110.8, 92.4, 0, 8.25), (-152.0, -120.0, 104.0, 128.0, -150.8, 128.4, 0, 12.25),
+    (-104.0, -84.0, 106.0, 124.0, -102.8, 124.4, 0, 5.25), (-46.0, -32.0, 156.0, 170.0, -44.8, 170.4, 0, 4.75),
+    (-60.0, -42.0, -112.0, -72.0, -58.8, -71.6, 0, 7.25), (-60.0, -42.0, -64.0, -24.0, -58.8, -23.6, 0, 7.25),
+    (-62.0, -44.0, 64.0, 104.0, -60.8, 104.4, 0, 7.25), (-150.0, -136.0, -128.0, -118.0, -137.2, -117.6, 0, 4.25),
+    (-116.0, -100.0, -122.0, -112.0, -99.6, -117.0, 90, 5.25), (-70.0, -58.0, -126.0, -114.0, -64.0, -113.6, 0, 4.75),
+    (-152.0, -138.0, -44.0, -34.0, -150.8, -33.6, 0, 4.25), (-152.0, -136.0, 36.0, 56.0, -150.8, 56.4, 0, 6.25),
+    (-150.0, -138.0, 72.0, 84.0, -148.8, 84.4, 0, 7.25), (-128.0, -114.0, 94.0, 102.0, -115.2, 102.4, 0, 4.25),
+    (-80.0, -66.0, 126.0, 136.0, -78.8, 136.4, 0, 5.25), (-100.0, -86.0, 164.0, 176.0, -98.8, 176.4, 0, 4.25),
+    (-58.0, -44.0, 110.0, 122.0, -56.8, 122.4, 0, 5.25),
+]
+
+
+def roof_access():
+    """A ladder up to each roof in ROOF_LADDERS, and what sits on a working roof: an AC unit, a vent stack, and on the
+    big roofs a water tank. Small and low (under a metre): something to see, not a wall to hide behind."""
+    for x0, x1, z0, z1, lx, lz, yaw, height in ROOF_LADDERS:
+        top = SHORE + height
+        ladder(lx, SHORE, lz, yaw, height, "Roof")
+        w, d = x1 - x0, z1 - z0
+        ax, az = x0 + w * 0.38, z0 + d * 0.4
+        box(ax - 0.6, top, az - 0.45, ax + 0.6, top + 0.9, az + 0.45, "metal")             # the AC unit
+        vx, vz = x0 + w * 0.7, z0 + d * 0.66
+        box(vx - 0.25, top, vz - 0.25, vx + 0.25, top + 0.8, vz + 0.25, "rust")            # the vent stack
+        if w * d > 400.0:
+            tx, tz = x0 + w * 0.62, z0 + d * 0.25
+            box(tx - 0.9, top, tz - 0.9, tx + 0.9, top + 0.9, tz + 0.9, "concrete")       # the water tank
+
+
 def settle_tops():
     """(0.38.14, owner: "still lots of glitchy textures") A wall, a post or the hull's side whose top was level with a
     floor or a roof it runs into (the hull's sides under the deck's edge, walls up into a roof, the wall under a
@@ -2458,6 +2498,7 @@ def main():
         tower()
     with modeled("site_zero", 48.0, 0.0):    # (art step 4)
         lab()
+    roof_access()
     ai()
     settle_tops()
     lift_ground_floors()
