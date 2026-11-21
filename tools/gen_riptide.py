@@ -334,10 +334,13 @@ def stairwell(x0, z0, levels, doors, colour="wall", roof=True):
         slab(x0, x1, z0 if north else z1 - 3.0, z0 + 3.0 if north else z1, y, "concrete")
         if k + 1 < len(levels):
             y2 = levels[k + 1]
+            # (0.38.14, owner: "that gap between ramp and wall is cooked, imagine camping that hole") each flight is
+            # its lane's full width, 3.8 m, wall to divider: it left a 10 cm slot down each side, a spy hole onto the
+            # flight below
             if north:   # lane A: from the north landing down to the south one
-                ramp(((x0 + 1.9), y, z0 + 3.0), ((x0 + 1.9), y2, z1 - 3.0), 3.6, "concrete")
+                ramp(((x0 + 1.9), y, z0 + 3.0), ((x0 + 1.9), y2, z1 - 3.0), 3.8, "concrete")
             else:       # lane B: from the south landing down to the north one
-                ramp(((x0 + 6.1), y, z1 - 3.0), ((x0 + 6.1), y2, z0 + 3.0), 3.6, "concrete")
+                ramp(((x0 + 6.1), y, z1 - 3.0), ((x0 + 6.1), y2, z0 + 3.0), 3.8, "concrete")
     bottom, top = levels[-1] - SLAB_T, levels[0] + 3.2
     box(x0 + 3.8, bottom, z0 + 3.0, x0 + 4.2, top, z1 - 3.0, colour)   # the divider between the lanes
     sides = {"N": [], "S": [], "W": [], "E": []}
@@ -846,10 +849,12 @@ def impound_room(y, h):
     Impound Key opens. A weapon crate, the safe, and the seized cargo stacked by the wall."""
     x0, x1, z0, z1 = -97.0, -92.0, -30.0, -25.0
     wall("z", x0, z0, z1, y, h, "wall")
-    wall("x", z1, x0, x1, y, h, "wall", [door(-94.5)])
-    key_doors.append(("ImpoundDoor", -94.5, y, z1, 180.0, "impound_key", "Impound"))
-    box(-96.8, y, -27.8, -95.6, y + 1.4, -26.2, "wood", kind="crates")      # the seized cargo
-    box(-96.8, y, -26.0, -95.8, y + 0.9, -25.3, "wood", kind="crates")
+    # (the door at the west end: open, the round door stands out into the office east of it, clear of stairwell B's
+    # door in the corner)
+    wall("x", z1, x0, x1, y, h, "wall", [door(-95.8)])
+    key_doors.append(("ImpoundDoor", -95.8, y, z1, 180.0, "impound_key", "Impound"))
+    box(-93.0, y, -27.6, -92.2, y + 1.4, -26.0, "wood", kind="crates")      # the seized cargo
+    box(-93.4, y, -25.8, -92.2, y + 0.9, -25.2, "wood", kind="crates")
     add_loot("Impound", "crate", -95.9, y, -29.2, 0.0)                     # the weapon crate
     add_loot("Impound", "safe", -93.2, y, -29.3, 0.0)
 
@@ -2242,6 +2247,28 @@ def minimap_meta():
 GROUND_LIFT = 0.02   # (0.36.25) how far a floor on the flat ground is drawn above it
 
 
+def settle_tops():
+    """(0.38.14, owner: "still lots of glitchy textures") A wall, a post or the hull's side whose top was level with a
+    floor or a roof it runs into (the hull's sides under the deck's edge, walls up into a roof, the wall under a
+    stairwell's doorway) drew its top face in the floor's plane: the two fought over every pixel, a flickering strip.
+    Each such box now stops 2 cm short; the floor covers it. (Thin floors are left as they are.)"""
+    floor = lambda b: not b[6] and not b[7] and b[4] < 0.3 and min(b[3], b[5]) >= 0.5     # noqa: E731
+    slabs = {}
+    for b in boxes:
+        if floor(b):
+            slabs.setdefault(round(b[1] + b[4] / 2, 2), []).append(b)
+    for i, b in enumerate(boxes):
+        cx, cy, cz, sx, sy, sz, yaw, pitch, colour, flag = b
+        if yaw or pitch or sy < 0.05 or floor(b):
+            continue
+        for f in slabs.get(round(cy + sy / 2, 2), ()):
+            ox = min(cx + sx / 2, f[0] + f[3] / 2) - max(cx - sx / 2, f[0] - f[3] / 2)
+            oz = min(cz + sz / 2, f[2] + f[5] / 2) - max(cz - sz / 2, f[2] - f[5] / 2)
+            if ox > 0.01 and oz > 0.01:
+                boxes[i] = (cx, cy - 0.01, cz, sx, sy - 0.02, sz, yaw, pitch, colour, flag)
+                break
+
+
 def lift_ground_floors():
     """(0.36.25, owner: the boathouse extract's floor was "super glitchy") A floor whose top is level with the flat
     ground (the boathouse, the gatehouse plaza, the stairwells' bottom landings) was drawn in the same plane as the
@@ -2433,6 +2460,7 @@ def main():
     with modeled("site_zero", 48.0, 0.0):    # (art step 4)
         lab()
     ai()
+    settle_tops()
     lift_ground_floors()
     write_model_boxes()
     write_scene()

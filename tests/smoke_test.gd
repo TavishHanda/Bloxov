@@ -1386,6 +1386,13 @@ func _section_items() -> void:
 	await physics_frame
 	await physics_frame
 	_check(space.intersect_ray(through).is_empty(), "the open door lets you through")
+	# (0.38.14, owner) swung open, the round door is solid where it stands; the doorway stays clear
+	await create_timer(1.8).timeout
+	await physics_frame
+	var leaf_at := door.global_transform * door._open_leaf.transform.origin if door._open_leaf != null else Vector3.INF
+	var into_leaf := PhysicsRayQueryParameters3D.create(leaf_at + door.global_basis.x * 1.5, leaf_at - door.global_basis.x * 1.5, 1)
+	_check(door._open_leaf != null and space.intersect_ray(into_leaf).get("collider") == door and space.intersect_ray(through).is_empty()
+		and door.collision_layer == 1, "the open vault door has its own hitbox, out of the doorway")
 	inv.take("bank_vault_key", 1)
 	door.queue_free()
 	var boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate()
